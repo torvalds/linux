@@ -344,14 +344,16 @@ static inline void bch2_disk_reservation_put(struct bch_fs *c,
 	}
 }
 
-#define BCH_DISK_RESERVATION_NOFAIL		(1 << 0)
+enum bch_reservation_flags {
+	BCH_DISK_RESERVATION_NOFAIL	= 1 << 0,
+	BCH_DISK_RESERVATION_PARTIAL	= 1 << 1,
+};
 
-int __bch2_disk_reservation_add(struct bch_fs *,
-				struct disk_reservation *,
-				u64, int);
+int __bch2_disk_reservation_add(struct bch_fs *, struct disk_reservation *,
+				u64, enum bch_reservation_flags);
 
 static inline int bch2_disk_reservation_add(struct bch_fs *c, struct disk_reservation *res,
-					    u64 sectors, int flags)
+					    u64 sectors, enum bch_reservation_flags flags)
 {
 #ifdef __KERNEL__
 	u64 old, new;

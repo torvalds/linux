@@ -912,6 +912,8 @@ struct bkey_s_c bch2_btree_iter_peek_and_restart_outlined(struct btree_iter *);
 	_ret;								\
 })
 
+#define bch2_trans_do(_c, _do)	bch2_trans_run(_c, lockrestart_do(trans, _do))
+
 struct btree_trans *__bch2_trans_get(struct bch_fs *, unsigned);
 void bch2_trans_put(struct btree_trans *);
 
