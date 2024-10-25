@@ -33,42 +33,44 @@
 
 /*
  * Scales are computed as 5000/32768 and 10000/32768 respectively,
- * so that when applied to the raw values they provide mV values
+ * so that when applied to the raw values they provide mV values.
+ * The scale arrays are kept as IIO_VAL_INT_PLUS_MICRO, so index
+ * X is the integer part and X + 1 is the fractional part.
  */
-static const unsigned int ad7606_16bit_hw_scale_avail[2] = {
-	152588, 305176
+static const unsigned int ad7606_16bit_hw_scale_avail[2][2] = {
+	{ 0, 152588 }, { 0, 305176 }
 };
 
-static const unsigned int ad7606_18bit_hw_scale_avail[2] = {
-	38147, 76294
+static const unsigned int ad7606_18bit_hw_scale_avail[2][2] = {
+	{ 0, 38147 }, { 0, 76294 }
 };
 
-static const unsigned int ad7606c_16bit_single_ended_unipolar_scale_avail[3] = {
-	76294, 152588, 190735,
+static const unsigned int ad7606c_16bit_single_ended_unipolar_scale_avail[3][2] = {
+	{ 0, 76294 }, { 0, 152588 }, { 0, 190735 }
 };
 
-static const unsigned int ad7606c_16bit_single_ended_bipolar_scale_avail[5] = {
-	76294, 152588, 190735, 305176, 381470
+static const unsigned int ad7606c_16bit_single_ended_bipolar_scale_avail[5][2] = {
+	{ 0, 76294 }, { 0, 152588 }, { 0, 190735 }, { 0, 305176 }, { 0, 381470 }
 };
 
-static const unsigned int ad7606c_16bit_differential_bipolar_scale_avail[4] = {
-	152588, 305176, 381470, 610352
+static const unsigned int ad7606c_16bit_differential_bipolar_scale_avail[4][2] = {
+	{ 0, 152588 }, { 0, 305176 }, { 0, 381470 }, { 0, 610352 }
 };
 
-static const unsigned int ad7606c_18bit_single_ended_unipolar_scale_avail[3] = {
-	19073, 38147, 47684
+static const unsigned int ad7606c_18bit_single_ended_unipolar_scale_avail[3][2] = {
+	{ 0, 19073 }, { 0, 38147 }, { 0, 47684 }
 };
 
-static const unsigned int ad7606c_18bit_single_ended_bipolar_scale_avail[5] = {
-	19073, 38147, 47684, 76294, 95367
+static const unsigned int ad7606c_18bit_single_ended_bipolar_scale_avail[5][2] = {
+	{ 0, 19073 }, { 0, 38147 }, { 0, 47684 }, { 0, 76294 }, { 0, 95367 }
 };
 
-static const unsigned int ad7606c_18bit_differential_bipolar_scale_avail[4] = {
-	38147, 76294, 95367, 152588
+static const unsigned int ad7606c_18bit_differential_bipolar_scale_avail[4][2] = {
+	{ 0, 38147 }, { 0, 76294 }, { 0, 95367 }, { 0, 152588 }
 };
 
-static const unsigned int ad7606_16bit_sw_scale_avail[3] = {
-	76293, 152588, 305176
+static const unsigned int ad7606_16bit_sw_scale_avail[3][2] = {
+	{ 0, 76293 }, { 0, 152588 }, { 0, 305176 }
 };
 
 static const unsigned int ad7606_oversampling_avail[7] = {
@@ -649,8 +651,8 @@ static int ad7606_read_raw(struct iio_dev *indio_dev,
 		if (st->sw_mode_en)
 			ch = chan->address;
 		cs = &st->chan_scales[ch];
-		*val = 0;
-		*val2 = cs->scale_avail[cs->range];
+		*val = cs->scale_avail[cs->range][0];
+		*val2 = cs->scale_avail[cs->range][1];
 		return IIO_VAL_INT_PLUS_MICRO;
 	case IIO_CHAN_INFO_OVERSAMPLING_RATIO:
 		*val = st->oversampling;
@@ -667,21 +669,6 @@ static int ad7606_read_raw(struct iio_dev *indio_dev,
 	return -EINVAL;
 }
 
-static ssize_t ad7606_show_avail(char *buf, const unsigned int *vals,
-				 unsigned int n, bool micros)
-{
-	size_t len = 0;
-	int i;
-
-	for (i = 0; i < n; i++) {
-		len += scnprintf(buf + len, PAGE_SIZE - len,
-			micros ? "0.%06u " : "%u ", vals[i]);
-	}
-	buf[len - 1] = '\n';
-
-	return len;
-}
-
 static ssize_t in_voltage_scale_available_show(struct device *dev,
 					       struct device_attribute *attr,
 					       char *buf)
@@ -689,8 +676,16 @@ static ssize_t in_voltage_scale_available_show(struct device *dev,
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ad7606_state *st = iio_priv(indio_dev);
 	struct ad7606_chan_scale *cs = &st->chan_scales[0];
+	const unsigned int (*vals)[2] = cs->scale_avail;
+	unsigned int i;
+	size_t len = 0;
 
-	return ad7606_show_avail(buf, cs->scale_avail, cs->num_scales, true);
+	for (i = 0; i < cs->num_scales; i++)
+		len += scnprintf(buf + len, PAGE_SIZE - len, "%u.%06u ",
+				 vals[i][0], vals[i][1]);
+	buf[len - 1] = '\n';
+
+	return len;
 }
 
 static IIO_DEVICE_ATTR_RO(in_voltage_scale_available, 0);
@@ -728,6 +723,7 @@ static int ad7606_write_raw(struct iio_dev *indio_dev,
 			    long mask)
 {
 	struct ad7606_state *st = iio_priv(indio_dev);
+	unsigned int scale_avail_uv[AD760X_MAX_SCALES];
 	struct ad7606_chan_scale *cs;
 	int i, ret, ch = 0;
 
@@ -738,7 +734,12 @@ static int ad7606_write_raw(struct iio_dev *indio_dev,
 		if (st->sw_mode_en)
 			ch = chan->address;
 		cs = &st->chan_scales[ch];
-		i = find_closest(val2, cs->scale_avail, cs->num_scales);
+		for (i = 0; i < cs->num_scales; i++) {
+			scale_avail_uv[i] = cs->scale_avail[i][0] * MICRO +
+					    cs->scale_avail[i][1];
+		}
+		val = (val * MICRO) + val2;
+		i = find_closest(val, scale_avail_uv, cs->num_scales);
 		ret = st->write_scale(indio_dev, ch, i + cs->reg_offset);
 		if (ret < 0)
 			return ret;
@@ -771,9 +772,15 @@ static ssize_t ad7606_oversampling_ratio_avail(struct device *dev,
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ad7606_state *st = iio_priv(indio_dev);
+	const unsigned int *vals = st->oversampling_avail;
+	unsigned int i;
+	size_t len = 0;
 
-	return ad7606_show_avail(buf, st->oversampling_avail,
-				 st->num_os_ratios, false);
+	for (i = 0; i < st->num_os_ratios; i++)
+		len += scnprintf(buf + len, PAGE_SIZE - len, "%u ", vals[i]);
+	buf[len - 1] = '\n';
+
+	return len;
 }
 
 static IIO_DEVICE_ATTR(oversampling_ratio_available, 0444,
@@ -927,8 +934,8 @@ static int ad7606_read_avail(struct iio_dev *indio_dev,
 			ch = chan->address;
 
 		cs = &st->chan_scales[ch];
-		*vals = cs->scale_avail_show;
-		*length = cs->num_scales * 2;
+		*vals = (int *)cs->scale_avail;
+		*length = cs->num_scales;
 		*type = IIO_VAL_INT_PLUS_MICRO;
 
 		return IIO_AVAIL_LIST;
@@ -1051,24 +1058,9 @@ static int ad7606_chan_scales_setup(struct iio_dev *indio_dev)
 	indio_dev->channels = chans;
 
 	for (ch = 0; ch < num_channels; ch++) {
-		struct ad7606_chan_scale *cs;
-		int i;
-
 		ret = st->chip_info->scale_setup_cb(st, &chans[ch + 1], ch);
 		if (ret)
 			return ret;
-
-		cs = &st->chan_scales[ch];
-
-		if (cs->num_scales * 2 > AD760X_MAX_SCALE_SHOW)
-			return dev_err_probe(st->dev, -ERANGE,
-					"Driver error: scale range too big");
-
-		/* Generate a scale_avail list for showing to userspace */
-		for (i = 0; i < cs->num_scales; i++) {
-			cs->scale_avail_show[i * 2] = 0;
-			cs->scale_avail_show[i * 2 + 1] = cs->scale_avail[i];
-		}
 	}
 
 	return 0;
