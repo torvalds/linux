@@ -752,19 +752,32 @@ struct pfn_reader_user {
 	 * neither
 	 */
 	int locked;
+
+	/* The following are only valid if file != NULL. */
+	struct file *file;
+	struct folio **ufolios;
+	size_t ufolios_len;
+	unsigned long ufolios_offset;
+	struct folio **ufolios_next;
 };
 
 static void pfn_reader_user_init(struct pfn_reader_user *user,
 				 struct iopt_pages *pages)
 {
 	user->upages = NULL;
+	user->upages_len = 0;
 	user->upages_start = 0;
 	user->upages_end = 0;
 	user->locked = -1;
-
 	user->gup_flags = FOLL_LONGTERM;
 	if (pages->writable)
 		user->gup_flags |= FOLL_WRITE;
+
+	user->file = (pages->type == IOPT_ADDRESS_FILE) ? pages->file : NULL;
+	user->ufolios = NULL;
+	user->ufolios_len = 0;
+	user->ufolios_next = NULL;
+	user->ufolios_offset = 0;
 }
 
 static void pfn_reader_user_destroy(struct pfn_reader_user *user,
@@ -773,13 +786,67 @@ static void pfn_reader_user_destroy(struct pfn_reader_user *user,
 	if (user->locked != -1) {
 		if (user->locked)
 			mmap_read_unlock(pages->source_mm);
-		if (pages->source_mm != current->mm)
+		if (!user->file && pages->source_mm != current->mm)
 			mmput(pages->source_mm);
 		user->locked = -1;
 	}
 
 	kfree(user->upages);
 	user->upages = NULL;
+	kfree(user->ufolios);
+	user->ufolios = NULL;
+}
+
+static long pin_memfd_pages(struct pfn_reader_user *user, unsigned long start,
+			    unsigned long npages)
+{
+	unsigned long i;
+	unsigned long offset;
+	unsigned long npages_out = 0;
+	struct page **upages = user->upages;
+	unsigned long end = start + (npages << PAGE_SHIFT) - 1;
+	long nfolios = user->ufolios_len / sizeof(*user->ufolios);
+
+	/*
+	 * todo: memfd_pin_folios should return the last pinned offset so
+	 * we can compute npages pinned, and avoid looping over folios here
+	 * if upages == NULL.
+	 */
+	nfolios = memfd_pin_folios(user->file, start, end, user->ufolios,
+				   nfolios, &offset);
+	if (nfolios <= 0)
+		return nfolios;
+
+	offset >>= PAGE_SHIFT;
+	user->ufolios_next = user->ufolios;
+	user->ufolios_offset = offset;
+
+	for (i = 0; i < nfolios; i++) {
+		struct folio *folio = user->ufolios[i];
+		unsigned long nr = folio_nr_pages(folio);
+		unsigned long npin = min(nr - offset, npages);
+
+		npages -= npin;
+		npages_out += npin;
+
+		if (upages) {
+			if (npin == 1) {
+				*upages++ = folio_page(folio, offset);
+			} else {
+				int rc = folio_add_pins(folio, npin - 1);
+
+				if (rc)
+					return rc;
+
+				while (npin--)
+					*upages++ = folio_page(folio, offset++);
+			}
+		}
+
+		offset = 0;
+	}
+
+	return npages_out;
 }
 
 static int pfn_reader_user_pin(struct pfn_reader_user *user,
@@ -788,7 +855,9 @@ static int pfn_reader_user_pin(struct pfn_reader_user *user,
 			       unsigned long last_index)
 {
 	bool remote_mm = pages->source_mm != current->mm;
-	unsigned long npages;
+	unsigned long npages = last_index - start_index + 1;
+	unsigned long start;
+	unsigned long unum;
 	uintptr_t uptr;
 	long rc;
 
@@ -796,12 +865,18 @@ static int pfn_reader_user_pin(struct pfn_reader_user *user,
 	    WARN_ON(last_index < start_index))
 		return -EINVAL;
 
-	if (!user->upages) {
+	if (!user->file && !user->upages) {
 		/* All undone in pfn_reader_destroy() */
-		user->upages_len =
-			(last_index - start_index + 1) * sizeof(*user->upages);
+		user->upages_len = npages * sizeof(*user->upages);
 		user->upages = temp_kmalloc(&user->upages_len, NULL, 0);
 		if (!user->upages)
+			return -ENOMEM;
+	}
+
+	if (user->file && !user->ufolios) {
+		user->ufolios_len = npages * sizeof(*user->ufolios);
+		user->ufolios = temp_kmalloc(&user->ufolios_len, NULL, 0);
+		if (!user->ufolios)
 			return -ENOMEM;
 	}
 
@@ -811,25 +886,29 @@ static int pfn_reader_user_pin(struct pfn_reader_user *user,
 		 * providing the pages, so we can optimize into
 		 * get_user_pages_fast()
 		 */
-		if (remote_mm) {
+		if (!user->file && remote_mm) {
 			if (!mmget_not_zero(pages->source_mm))
 				return -EFAULT;
 		}
 		user->locked = 0;
 	}
 
-	npages = min_t(unsigned long, last_index - start_index + 1,
-		       user->upages_len / sizeof(*user->upages));
-
+	unum = user->file ? user->ufolios_len / sizeof(*user->ufolios) :
+			    user->upages_len / sizeof(*user->upages);
+	npages = min_t(unsigned long, npages, unum);
 
 	if (iommufd_should_fail())
 		return -EFAULT;
 
-	uptr = (uintptr_t)(pages->uptr + start_index * PAGE_SIZE);
-	if (!remote_mm)
+	if (user->file) {
+		start = pages->start + (start_index * PAGE_SIZE);
+		rc = pin_memfd_pages(user, start, npages);
+	} else if (!remote_mm) {
+		uptr = (uintptr_t)(pages->uptr + start_index * PAGE_SIZE);
 		rc = pin_user_pages_fast(uptr, npages, user->gup_flags,
 					 user->upages);
-	else {
+	} else {
+		uptr = (uintptr_t)(pages->uptr + start_index * PAGE_SIZE);
 		if (!user->locked) {
 			mmap_read_lock(pages->source_mm);
 			user->locked = 1;
@@ -887,7 +966,8 @@ static int update_mm_locked_vm(struct iopt_pages *pages, unsigned long npages,
 		mmap_read_unlock(pages->source_mm);
 		user->locked = 0;
 		/* If we had the lock then we also have a get */
-	} else if ((!user || !user->upages) &&
+
+	} else if ((!user || (!user->upages && !user->ufolios)) &&
 		   pages->source_mm != current->mm) {
 		if (!mmget_not_zero(pages->source_mm))
 			return -EINVAL;
@@ -1068,8 +1148,15 @@ static int pfn_reader_fill_span(struct pfn_reader *pfns)
 
 	npages = user->upages_end - start_index;
 	start_index -= user->upages_start;
-	batch_from_pages(&pfns->batch, user->upages + start_index, npages);
-	return 0;
+	rc = 0;
+
+	if (!user->file)
+		batch_from_pages(&pfns->batch, user->upages + start_index,
+				 npages);
+	else
+		rc = batch_from_folios(&pfns->batch, &user->ufolios_next,
+				       &user->ufolios_offset, npages);
+	return rc;
 }
 
 static bool pfn_reader_done(struct pfn_reader *pfns)
@@ -1151,7 +1238,14 @@ static void pfn_reader_release_pins(struct pfn_reader *pfns)
 		unsigned long start_index = pfns->batch_end_index -
 					    user->upages_start;
 
-		unpin_user_pages(user->upages + start_index, npages);
+		if (!user->file) {
+			unpin_user_pages(user->upages + start_index, npages);
+		} else {
+			long n = user->ufolios_len / sizeof(*user->ufolios);
+
+			unpin_folios(user->ufolios_next,
+				     user->ufolios + n - user->ufolios_next);
+		}
 		iopt_pages_sub_npinned(pages, npages);
 		user->upages_end = pfns->batch_end_index;
 	}
