@@ -19667,6 +19667,17 @@ S:	Maintained
 F:	Documentation/devicetree/bindings/sound/renesas,idt821034.yaml
 F:	sound/soc/codecs/idt821034.c
 
+RENESAS R-CAR & FSI AUDIO (ASoC) DRIVERS
+M:	Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
+L:	linux-sound@vger.kernel.org
+L:	linux-renesas-soc@vger.kernel.org
+S:	Supported
+F:	Documentation/devicetree/bindings/sound/renesas,rsnd.*
+F:	Documentation/devicetree/bindings/sound/renesas,fsi.yaml
+F:	sound/soc/renesas/rcar/
+F:	sound/soc/renesas/fsi.c
+F:	include/sound/sh_fsi.h
+
 RENESAS R-CAR GEN3 & RZ/N1 NAND CONTROLLER DRIVER
 M:	Miquel Raynal <miquel.raynal@bootlin.com>
 L:	linux-mtd@lists.infradead.org
