@@ -40,11 +40,27 @@ static inline bool test_bit(unsigned int nr, unsigned long *addr)
 static void *buffer;
 static unsigned long BUFFER_SIZE;
 
+static void *mfd_buffer;
+static int mfd;
+
 static unsigned long PAGE_SIZE;
 
 #define sizeof_field(TYPE, MEMBER) sizeof((((TYPE *)0)->MEMBER))
 #define offsetofend(TYPE, MEMBER) \
 	(offsetof(TYPE, MEMBER) + sizeof_field(TYPE, MEMBER))
+
+static inline void *memfd_mmap(size_t length, int prot, int flags, int *mfd_p)
+{
+	int mfd_flags = (flags & MAP_HUGETLB) ? MFD_HUGETLB : 0;
+	int mfd = memfd_create("buffer", mfd_flags);
+
+	if (mfd <= 0)
+		return MAP_FAILED;
+	if (ftruncate(mfd, length))
+		return MAP_FAILED;
+	*mfd_p = mfd;
+	return mmap(0, length, prot, flags, mfd, 0);
+}
 
 /*
  * Have the kernel check the refcount on pages. I don't know why a freshly
@@ -588,6 +604,47 @@ static int _test_ioctl_ioas_unmap(int fd, unsigned int ioas_id, uint64_t iova,
 #define test_err_ioctl_ioas_unmap(_errno, iova, length)                      \
 	EXPECT_ERRNO(_errno, _test_ioctl_ioas_unmap(self->fd, self->ioas_id, \
 						    iova, length, NULL))
+
+static int _test_ioctl_ioas_map_file(int fd, unsigned int ioas_id, int mfd,
+				     size_t start, size_t length, __u64 *iova,
+				     unsigned int flags)
+{
+	struct iommu_ioas_map_file cmd = {
+		.size = sizeof(cmd),
+		.flags = flags,
+		.ioas_id = ioas_id,
+		.fd = mfd,
+		.start = start,
+		.length = length,
+	};
+	int ret;
+
+	if (flags & IOMMU_IOAS_MAP_FIXED_IOVA)
+		cmd.iova = *iova;
+
+	ret = ioctl(fd, IOMMU_IOAS_MAP_FILE, &cmd);
+	*iova = cmd.iova;
+	return ret;
+}
+
+#define test_ioctl_ioas_map_file(mfd, start, length, iova_p)                   \
+	ASSERT_EQ(0,                                                           \
+		  _test_ioctl_ioas_map_file(                                   \
+			  self->fd, self->ioas_id, mfd, start, length, iova_p, \
+			  IOMMU_IOAS_MAP_WRITEABLE | IOMMU_IOAS_MAP_READABLE))
+
+#define test_err_ioctl_ioas_map_file(_errno, mfd, start, length, iova_p)     \
+	EXPECT_ERRNO(                                                        \
+		_errno,                                                      \
+		_test_ioctl_ioas_map_file(                                   \
+			self->fd, self->ioas_id, mfd, start, length, iova_p, \
+			IOMMU_IOAS_MAP_WRITEABLE | IOMMU_IOAS_MAP_READABLE))
+
+#define test_ioctl_ioas_map_id_file(ioas_id, mfd, start, length, iova_p)     \
+	ASSERT_EQ(0,                                                         \
+		  _test_ioctl_ioas_map_file(                                 \
+			  self->fd, ioas_id, mfd, start, length, iova_p,     \
+			  IOMMU_IOAS_MAP_WRITEABLE | IOMMU_IOAS_MAP_READABLE))
 
 static int _test_ioctl_set_temp_memory_limit(int fd, unsigned int limit)
 {
