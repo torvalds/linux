@@ -328,10 +328,10 @@ out:
  * Convert an eCryptfs page index into a lower byte offset
  */
 static loff_t lower_offset_for_page(struct ecryptfs_crypt_stat *crypt_stat,
-				    struct page *page)
+				    struct folio *folio)
 {
 	return ecryptfs_lower_header_size(crypt_stat) +
-	       ((loff_t)page->index << PAGE_SHIFT);
+	       (loff_t)folio->index * PAGE_SIZE;
 }
 
 /**
@@ -440,7 +440,7 @@ int ecryptfs_encrypt_page(struct folio *folio)
 		}
 	}
 
-	lower_offset = lower_offset_for_page(crypt_stat, &folio->page);
+	lower_offset = lower_offset_for_page(crypt_stat, folio);
 	enc_extent_virt = kmap_local_page(enc_extent_page);
 	rc = ecryptfs_write_lower(ecryptfs_inode, enc_extent_virt, lower_offset,
 				  PAGE_SIZE);
@@ -489,7 +489,7 @@ int ecryptfs_decrypt_page(struct folio *folio)
 		&(ecryptfs_inode_to_private(ecryptfs_inode)->crypt_stat);
 	BUG_ON(!(crypt_stat->flags & ECRYPTFS_ENCRYPTED));
 
-	lower_offset = lower_offset_for_page(crypt_stat, &folio->page);
+	lower_offset = lower_offset_for_page(crypt_stat, folio);
 	page_virt = kmap_local_folio(folio, 0);
 	rc = ecryptfs_read_lower(page_virt, lower_offset, PAGE_SIZE,
 				 ecryptfs_inode);
