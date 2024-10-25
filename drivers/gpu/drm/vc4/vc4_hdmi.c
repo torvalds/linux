@@ -845,6 +845,7 @@ static void vc4_hdmi_encoder_post_crtc_disable(struct drm_encoder *encoder,
 {
 	struct vc4_hdmi *vc4_hdmi = encoder_to_vc4_hdmi(encoder);
 	struct drm_device *drm = vc4_hdmi->connector.dev;
+	struct vc4_dev *vc4 = to_vc4_dev(drm);
 	unsigned long flags;
 	int idx;
 
@@ -861,14 +862,25 @@ static void vc4_hdmi_encoder_post_crtc_disable(struct drm_encoder *encoder,
 
 	HDMI_WRITE(HDMI_VID_CTL, HDMI_READ(HDMI_VID_CTL) | VC4_HD_VID_CTL_CLRRGB);
 
+	if (vc4->gen >= VC4_GEN_6_C)
+		HDMI_WRITE(HDMI_VID_CTL, HDMI_READ(HDMI_VID_CTL) |
+			   VC4_HD_VID_CTL_BLANKPIX);
+
 	spin_unlock_irqrestore(&vc4_hdmi->hw_lock, flags);
 
 	mdelay(1);
 
-	spin_lock_irqsave(&vc4_hdmi->hw_lock, flags);
-	HDMI_WRITE(HDMI_VID_CTL,
-		   HDMI_READ(HDMI_VID_CTL) & ~VC4_HD_VID_CTL_ENABLE);
-	spin_unlock_irqrestore(&vc4_hdmi->hw_lock, flags);
+	/*
+	 * TODO: This should work on BCM2712, but doesn't for some
+	 * reason and result in a system lockup.
+	 */
+	if (vc4->gen < VC4_GEN_6_C) {
+		spin_lock_irqsave(&vc4_hdmi->hw_lock, flags);
+		HDMI_WRITE(HDMI_VID_CTL,
+			   HDMI_READ(HDMI_VID_CTL) &
+			   ~VC4_HD_VID_CTL_ENABLE);
+		spin_unlock_irqrestore(&vc4_hdmi->hw_lock, flags);
+	}
 
 	vc4_hdmi_disable_scrambling(encoder);
 
@@ -1488,7 +1500,6 @@ static void vc4_hdmi_encoder_pre_crtc_configure(struct drm_encoder *encoder,
 		goto err_put_runtime_pm;
 	}
 
-
 	vc4_hdmi_cec_update_clk_div(vc4_hdmi);
 
 	if (tmds_char_rate > 297000000)
@@ -1594,6 +1605,8 @@ static void vc4_hdmi_encoder_post_crtc_enable(struct drm_encoder *encoder,
 	spin_lock_irqsave(&vc4_hdmi->hw_lock, flags);
 
 	HDMI_WRITE(HDMI_VID_CTL,
+		   (HDMI_READ(HDMI_VID_CTL) &
+			~(VC4_HD_VID_CTL_VSYNC_LOW | VC4_HD_VID_CTL_HSYNC_LOW)) |
 		   VC4_HD_VID_CTL_ENABLE |
 		   VC4_HD_VID_CTL_CLRRGB |
 		   VC4_HD_VID_CTL_UNDERFLOW_ENABLE |
@@ -3121,6 +3134,7 @@ static int vc4_hdmi_runtime_suspend(struct device *dev)
 {
 	struct vc4_hdmi *vc4_hdmi = dev_get_drvdata(dev);
 
+	clk_disable_unprepare(vc4_hdmi->audio_clock);
 	clk_disable_unprepare(vc4_hdmi->hsm_clock);
 
 	return 0;
@@ -3152,6 +3166,10 @@ static int vc4_hdmi_runtime_resume(struct device *dev)
 		ret = -EINVAL;
 		goto err_disable_clk;
 	}
+
+	ret = clk_prepare_enable(vc4_hdmi->audio_clock);
+	if (ret)
+		goto err_disable_clk;
 
 	if (vc4_hdmi->variant->reset)
 		vc4_hdmi->variant->reset(vc4_hdmi);
@@ -3273,7 +3291,9 @@ static int vc4_hdmi_bind(struct device *dev, struct device *master, void *data)
 		return ret;
 
 	if ((of_device_is_compatible(dev->of_node, "brcm,bcm2711-hdmi0") ||
-	     of_device_is_compatible(dev->of_node, "brcm,bcm2711-hdmi1")) &&
+	     of_device_is_compatible(dev->of_node, "brcm,bcm2711-hdmi1") ||
+	     of_device_is_compatible(dev->of_node, "brcm,bcm2712-hdmi0") ||
+	     of_device_is_compatible(dev->of_node, "brcm,bcm2712-hdmi1")) &&
 	    HDMI_READ(HDMI_VID_CTL) & VC4_HD_VID_CTL_ENABLE) {
 		clk_prepare_enable(vc4_hdmi->pixel_clock);
 		clk_prepare_enable(vc4_hdmi->hsm_clock);
@@ -3407,10 +3427,66 @@ static const struct vc4_hdmi_variant bcm2711_hdmi1_variant = {
 	.hp_detect		= vc5_hdmi_hp_detect,
 };
 
+static const struct vc4_hdmi_variant bcm2712_hdmi0_variant = {
+	.encoder_type		= VC4_ENCODER_TYPE_HDMI0,
+	.debugfs_name		= "hdmi0_regs",
+	.card_name		= "vc4-hdmi-0",
+	.max_pixel_clock	= 600000000,
+	.registers		= vc6_hdmi_hdmi0_fields,
+	.num_registers		= ARRAY_SIZE(vc6_hdmi_hdmi0_fields),
+	.phy_lane_mapping	= {
+		PHY_LANE_0,
+		PHY_LANE_1,
+		PHY_LANE_2,
+		PHY_LANE_CK,
+	},
+	.unsupported_odd_h_timings	= false,
+	.external_irq_controller	= true,
+
+	.init_resources		= vc5_hdmi_init_resources,
+	.csc_setup		= vc5_hdmi_csc_setup,
+	.reset			= vc5_hdmi_reset,
+	.set_timings		= vc5_hdmi_set_timings,
+	.phy_init		= vc6_hdmi_phy_init,
+	.phy_disable		= vc6_hdmi_phy_disable,
+	.channel_map		= vc5_hdmi_channel_map,
+	.supports_hdr		= true,
+	.hp_detect		= vc5_hdmi_hp_detect,
+};
+
+static const struct vc4_hdmi_variant bcm2712_hdmi1_variant = {
+	.encoder_type		= VC4_ENCODER_TYPE_HDMI1,
+	.debugfs_name		= "hdmi1_regs",
+	.card_name		= "vc4-hdmi-1",
+	.max_pixel_clock	= 600000000,
+	.registers		= vc6_hdmi_hdmi1_fields,
+	.num_registers		= ARRAY_SIZE(vc6_hdmi_hdmi1_fields),
+	.phy_lane_mapping	= {
+		PHY_LANE_0,
+		PHY_LANE_1,
+		PHY_LANE_2,
+		PHY_LANE_CK,
+	},
+	.unsupported_odd_h_timings	= false,
+	.external_irq_controller	= true,
+
+	.init_resources		= vc5_hdmi_init_resources,
+	.csc_setup		= vc5_hdmi_csc_setup,
+	.reset			= vc5_hdmi_reset,
+	.set_timings		= vc5_hdmi_set_timings,
+	.phy_init		= vc6_hdmi_phy_init,
+	.phy_disable		= vc6_hdmi_phy_disable,
+	.channel_map		= vc5_hdmi_channel_map,
+	.supports_hdr		= true,
+	.hp_detect		= vc5_hdmi_hp_detect,
+};
+
 static const struct of_device_id vc4_hdmi_dt_match[] = {
 	{ .compatible = "brcm,bcm2835-hdmi", .data = &bcm2835_variant },
 	{ .compatible = "brcm,bcm2711-hdmi0", .data = &bcm2711_hdmi0_variant },
 	{ .compatible = "brcm,bcm2711-hdmi1", .data = &bcm2711_hdmi1_variant },
+	{ .compatible = "brcm,bcm2712-hdmi0", .data = &bcm2712_hdmi0_variant },
+	{ .compatible = "brcm,bcm2712-hdmi1", .data = &bcm2712_hdmi1_variant },
 	{}
 };
 

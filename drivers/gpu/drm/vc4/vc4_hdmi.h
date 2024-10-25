@@ -237,4 +237,8 @@ void vc5_hdmi_phy_disable(struct vc4_hdmi *vc4_hdmi);
 void vc5_hdmi_phy_rng_enable(struct vc4_hdmi *vc4_hdmi);
 void vc5_hdmi_phy_rng_disable(struct vc4_hdmi *vc4_hdmi);
 
+void vc6_hdmi_phy_init(struct vc4_hdmi *vc4_hdmi,
+		       struct drm_connector_state *conn_state);
+void vc6_hdmi_phy_disable(struct vc4_hdmi *vc4_hdmi);
+
 #endif /* _VC4_HDMI_H_ */
