@@ -12,6 +12,8 @@
 
 struct ksmbd_login_response *
 ksmbd_ipc_login_request(const char *account);
+struct ksmbd_login_response_ext *
+ksmbd_ipc_login_request_ext(const char *account);
 
 struct ksmbd_session;
 struct ksmbd_share_config;

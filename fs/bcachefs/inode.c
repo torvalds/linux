@@ -12,6 +12,7 @@
 #include "error.h"
 #include "extents.h"
 #include "extent_update.h"
+#include "fs.h"
 #include "inode.h"
 #include "str_hash.h"
 #include "snapshot.h"
@@ -33,6 +34,8 @@ static const char * const bch2_inode_flag_strs[] = {
 	NULL
 };
 #undef  x
+
+static int delete_ancestor_snapshot_inodes(struct btree_trans *, struct bpos);
 
 static const u8 byte_table[8] = { 1, 2, 3, 4, 6, 8, 10, 13 };
 
@@ -575,9 +578,137 @@ static inline u64 bkey_inode_flags(struct bkey_s_c k)
 	}
 }
 
-static inline bool bkey_is_deleted_inode(struct bkey_s_c k)
+static inline void bkey_inode_flags_set(struct bkey_s k, u64 f)
 {
-	return bkey_inode_flags(k) & BCH_INODE_unlinked;
+	switch (k.k->type) {
+	case KEY_TYPE_inode:
+		bkey_s_to_inode(k).v->bi_flags = cpu_to_le32(f);
+		return;
+	case KEY_TYPE_inode_v2:
+		bkey_s_to_inode_v2(k).v->bi_flags = cpu_to_le64(f);
+		return;
+	case KEY_TYPE_inode_v3:
+		bkey_s_to_inode_v3(k).v->bi_flags = cpu_to_le64(f);
+		return;
+	default:
+		BUG();
+	}
+}
+
+static inline bool bkey_is_unlinked_inode(struct bkey_s_c k)
+{
+	unsigned f = bkey_inode_flags(k) & BCH_INODE_unlinked;
+
+	return (f & BCH_INODE_unlinked) && !(f & BCH_INODE_has_child_snapshot);
+}
+
+static struct bkey_s_c
+bch2_bkey_get_iter_snapshot_parent(struct btree_trans *trans, struct btree_iter *iter,
+				   enum btree_id btree, struct bpos pos,
+				   unsigned flags)
+{
+	struct bch_fs *c = trans->c;
+	struct bkey_s_c k;
+	int ret = 0;
+
+	for_each_btree_key_upto_norestart(trans, *iter, btree,
+					  bpos_successor(pos),
+					  SPOS(pos.inode, pos.offset, U32_MAX),
+					  flags|BTREE_ITER_all_snapshots, k, ret)
+		if (bch2_snapshot_is_ancestor(c, pos.snapshot, k.k->p.snapshot))
+			return k;
+
+	bch2_trans_iter_exit(trans, iter);
+	return ret ? bkey_s_c_err(ret) : bkey_s_c_null;
+}
+
+static struct bkey_s_c
+bch2_inode_get_iter_snapshot_parent(struct btree_trans *trans, struct btree_iter *iter,
+				    struct bpos pos, unsigned flags)
+{
+	struct bkey_s_c k;
+again:
+	k = bch2_bkey_get_iter_snapshot_parent(trans, iter, BTREE_ID_inodes, pos, flags);
+	if (!k.k ||
+	    bkey_err(k) ||
+	    bkey_is_inode(k.k))
+		return k;
+
+	bch2_trans_iter_exit(trans, iter);
+	pos = k.k->p;
+	goto again;
+}
+
+int __bch2_inode_has_child_snapshots(struct btree_trans *trans, struct bpos pos)
+{
+	struct bch_fs *c = trans->c;
+	struct btree_iter iter;
+	struct bkey_s_c k;
+	int ret = 0;
+
+	for_each_btree_key_upto_norestart(trans, iter,
+			BTREE_ID_inodes, POS(0, pos.offset), bpos_predecessor(pos),
+			BTREE_ITER_all_snapshots|
+			BTREE_ITER_with_updates, k, ret)
+		if (bch2_snapshot_is_ancestor(c, k.k->p.snapshot, pos.snapshot) &&
+		    bkey_is_inode(k.k)) {
+			ret = 1;
+			break;
+		}
+	bch2_trans_iter_exit(trans, &iter);
+	return ret;
+}
+
+static int update_inode_has_children(struct btree_trans *trans,
+				     struct bkey_s k,
+				     bool have_child)
+{
+	if (!have_child) {
+		int ret = bch2_inode_has_child_snapshots(trans, k.k->p);
+		if (ret)
+			return ret < 0 ? ret : 0;
+	}
+
+	u64 f = bkey_inode_flags(k.s_c);
+	if (have_child != !!(f & BCH_INODE_has_child_snapshot))
+		bkey_inode_flags_set(k, f ^ BCH_INODE_has_child_snapshot);
+
+	return 0;
+}
+
+static int update_parent_inode_has_children(struct btree_trans *trans, struct bpos pos,
+					    bool have_child)
+{
+	struct btree_iter iter;
+	struct bkey_s_c k = bch2_inode_get_iter_snapshot_parent(trans,
+						&iter, pos, BTREE_ITER_with_updates);
+	int ret = bkey_err(k);
+	if (ret)
+		return ret;
+	if (!k.k)
+		return 0;
+
+	if (!have_child) {
+		ret = bch2_inode_has_child_snapshots(trans, k.k->p);
+		if (ret) {
+			ret = ret < 0 ? ret : 0;
+			goto err;
+		}
+	}
+
+	u64 f = bkey_inode_flags(k);
+	if (have_child != !!(f & BCH_INODE_has_child_snapshot)) {
+		struct bkey_i *update = bch2_bkey_make_mut(trans, &iter, &k,
+					     BTREE_UPDATE_internal_snapshot_node);
+		ret = PTR_ERR_OR_ZERO(update);
+		if (ret)
+			goto err;
+
+		bkey_inode_flags_set(bkey_i_to_s(update), f ^ BCH_INODE_has_child_snapshot);
+	}
+err:
+	bch2_trans_iter_exit(trans, &iter);
+	return ret;
 }
 
 int bch2_trigger_inode(struct btree_trans *trans,
@@ -586,6 +717,8 @@ int bch2_trigger_inode(struct btree_trans *trans,
 		       struct bkey_s new,
 		       enum btree_iter_update_trigger_flags flags)
 {
+	struct bch_fs *c = trans->c;
+
 	if ((flags & BTREE_TRIGGER_atomic) && (flags & BTREE_TRIGGER_insert)) {
 		BUG_ON(!trans->journal_res.seq);
 		bkey_s_to_inode_v3(new).v->bi_journal_seq = cpu_to_le64(trans->journal_res.seq);
@@ -599,13 +732,41 @@ int bch2_trigger_inode(struct btree_trans *trans,
 			return ret;
 	}
 
-	int deleted_delta =	(int) bkey_is_deleted_inode(new.s_c) -
-				(int) bkey_is_deleted_inode(old);
-	if ((flags & BTREE_TRIGGER_transactional) && deleted_delta) {
-		int ret = bch2_btree_bit_mod_buffered(trans, BTREE_ID_deleted_inodes,
-						      new.k->p, deleted_delta > 0);
-		if (ret)
-			return ret;
+	if (flags & BTREE_TRIGGER_transactional) {
+		int unlinked_delta =	(int) bkey_is_unlinked_inode(new.s_c) -
+					(int) bkey_is_unlinked_inode(old);
+		if (unlinked_delta) {
+			int ret = bch2_btree_bit_mod_buffered(trans, BTREE_ID_deleted_inodes,
+							      new.k->p, unlinked_delta > 0);
+			if (ret)
+				return ret;
+		}
+
+		/*
+		 * If we're creating or deleting an inode at this snapshot ID,
+		 * and there might be an inode in a parent snapshot ID, we might
+		 * need to set or clear the has_child_snapshot flag on the
+		 * parent.
+		 */
+		int deleted_delta = (int) bkey_is_inode(new.k) -
+				    (int) bkey_is_inode(old.k);
+		if (deleted_delta &&
+		    bch2_snapshot_parent(c, new.k->p.snapshot)) {
+			int ret = update_parent_inode_has_children(trans, new.k->p,
+								   deleted_delta > 0);
+			if (ret)
+				return ret;
+		}
+
+		/*
+		 * When an inode is first updated in a new snapshot, we may need
+		 * to clear has_child_snapshot
+		 */
+		if (deleted_delta > 0) {
+			int ret = update_inode_has_children(trans, new, false);
+			if (ret)
+				return ret;
+		}
 	}
 
 	return 0;
@@ -888,6 +1049,11 @@ err:
 	if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
 		goto retry;
 
+	if (ret)
+		goto err2;
+
+	ret = delete_ancestor_snapshot_inodes(trans, SPOS(0, inum.inum, snapshot));
+err2:
 	bch2_trans_put(trans);
 	return ret;
 }
@@ -992,7 +1158,7 @@ int bch2_inum_opts_get(struct btree_trans *trans, subvol_inum inum, struct bch_i
 	return 0;
 }
 
-int bch2_inode_rm_snapshot(struct btree_trans *trans, u64 inum, u32 snapshot)
+static noinline int __bch2_inode_rm_snapshot(struct btree_trans *trans, u64 inum, u32 snapshot)
 {
 	struct bch_fs *c = trans->c;
 	struct btree_iter iter = { NULL };
@@ -1055,6 +1221,45 @@ err:
 	return ret ?: -BCH_ERR_transaction_restart_nested;
 }
 
+/*
+ * After deleting an inode, there may be versions in older snapshots that should
+ * also be deleted - if they're not referenced by sibling snapshots and not open
+ * in other subvolumes:
+ */
+static int delete_ancestor_snapshot_inodes(struct btree_trans *trans, struct bpos pos)
+{
+	struct btree_iter iter;
+	struct bkey_s_c k;
+	int ret;
+next_parent:
+	ret = lockrestart_do(trans,
+		bkey_err(k = bch2_inode_get_iter_snapshot_parent(trans, &iter, pos, 0)));
+	if (ret || !k.k)
+		return ret;
+
+	bool unlinked = bkey_is_unlinked_inode(k);
+	pos = k.k->p;
+	bch2_trans_iter_exit(trans, &iter);
+
+	if (!unlinked)
+		return 0;
+
+	ret = lockrestart_do(trans, bch2_inode_or_descendents_is_open(trans, pos));
+	if (ret)
+		return ret < 0 ? ret : 0;
+
+	ret = __bch2_inode_rm_snapshot(trans, pos.offset, pos.snapshot);
+	if (ret)
+		return ret;
+	goto next_parent;
+}
+
+int bch2_inode_rm_snapshot(struct btree_trans *trans, u64 inum, u32 snapshot)
+{
+	return __bch2_inode_rm_snapshot(trans, inum, snapshot) ?:
+		delete_ancestor_snapshot_inodes(trans, SPOS(0, inum, snapshot));
+}
+
 static int may_delete_deleted_inode(struct btree_trans *trans,
 				    struct btree_iter *iter,
 				    struct bpos pos,
@@ -1064,6 +1269,7 @@ static int may_delete_deleted_inode(struct btree_trans *trans,
 	struct btree_iter inode_iter;
 	struct bkey_s_c k;
 	struct bch_inode_unpacked inode;
+	struct printbuf buf = PRINTBUF;
 	int ret;
 
 	k = bch2_bkey_get_iter(trans, &inode_iter, BTREE_ID_inodes, pos, BTREE_ITER_cached);
@@ -1099,6 +1305,31 @@ static int may_delete_deleted_inode(struct btree_trans *trans,
 			pos.offset, pos.snapshot))
 		goto delete;
 
+	if (fsck_err_on(inode.bi_flags & BCH_INODE_has_child_snapshot,
+			trans, deleted_inode_has_child_snapshots,
+			"inode with child snapshots %llu:%u in deleted_inodes btree",
+			pos.offset, pos.snapshot))
+		goto delete;
+
+	ret = bch2_inode_has_child_snapshots(trans, k.k->p);
+	if (ret < 0)
+		goto out;
+
+	if (ret) {
+		if (fsck_err(trans, inode_has_child_snapshots_wrong,
+			     "inode has_child_snapshots flag wrong (should be set)\n%s",
+			     (printbuf_reset(&buf),
+			      bch2_inode_unpacked_to_text(&buf, &inode),
+			      buf.buf))) {
+			inode.bi_flags |= BCH_INODE_has_child_snapshot;
+			ret = __bch2_fsck_write_inode(trans, &inode);
+			if (ret)
+				goto out;
+		}
+		goto delete;
+
+	}
+
 	if (test_bit(BCH_FS_clean_recovery, &c->flags) &&
 	    !fsck_err(trans, deleted_inode_but_clean,
 		      "filesystem marked as clean but have deleted inode %llu:%u",
@@ -1107,33 +1338,11 @@ static int may_delete_deleted_inode(struct btree_trans *trans,
 		goto out;
 	}
 
-	if (bch2_snapshot_is_internal_node(c, pos.snapshot)) {
-		struct bpos new_min_pos;
-
-		ret = bch2_propagate_key_to_snapshot_leaves(trans, inode_iter.btree_id, k, &new_min_pos);
-		if (ret)
-			goto out;
-
-		inode.bi_flags &= ~BCH_INODE_unlinked;
-
-		ret = bch2_inode_write_flags(trans, &inode_iter, &inode,
-					     BTREE_UPDATE_internal_snapshot_node);
-		bch_err_msg(c, ret, "clearing inode unlinked flag");
-		if (ret)
-			goto out;
-
-		/*
-		 * We'll need another write buffer flush to pick up the new
-		 * unlinked inodes in the snapshot leaves:
-		 */
-		*need_another_pass = true;
-		goto out;
-	}
-
 	ret = 1;
 out:
 fsck_err:
 	bch2_trans_iter_exit(trans, &inode_iter);
+	printbuf_exit(&buf);
 	return ret;
 delete:
 	ret = bch2_btree_bit_mod_buffered(trans, BTREE_ID_deleted_inodes, pos, false);

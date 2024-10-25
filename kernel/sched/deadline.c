@@ -2385,7 +2385,7 @@ static void set_next_task_dl(struct rq *rq, struct task_struct *p, bool first)
 
 	deadline_queue_push_tasks(rq);
 
-	if (hrtick_enabled(rq))
+	if (hrtick_enabled_dl(rq))
 		start_hrtick_dl(rq, &p->dl);
 }
 

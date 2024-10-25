@@ -405,8 +405,8 @@ static int npcm_rc_probe(struct platform_device *pdev)
 	if (!of_property_read_u32(pdev->dev.of_node, "nuvoton,sw-reset-number",
 				  &rc->sw_reset_number)) {
 		if (rc->sw_reset_number && rc->sw_reset_number < 5) {
-			rc->restart_nb.priority = 192,
-			rc->restart_nb.notifier_call = npcm_rc_restart,
+			rc->restart_nb.priority = 192;
+			rc->restart_nb.notifier_call = npcm_rc_restart;
 			ret = register_restart_handler(&rc->restart_nb);
 			if (ret)
 				dev_warn(&pdev->dev, "failed to register restart handler\n");
