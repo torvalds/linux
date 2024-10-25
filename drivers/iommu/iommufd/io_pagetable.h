@@ -175,6 +175,10 @@ enum {
 	IOPT_PAGES_ACCOUNT_MM = 2,
 };
 
+enum iopt_address_type {
+	IOPT_ADDRESS_USER = 0,
+};
+
 /*
  * This holds a pinned page list for multiple areas of IO address space. The
  * pages always originate from a linear chunk of userspace VA. Multiple
@@ -195,7 +199,10 @@ struct iopt_pages {
 	struct task_struct *source_task;
 	struct mm_struct *source_mm;
 	struct user_struct *source_user;
-	void __user *uptr;
+	enum iopt_address_type type;
+	union {
+		void __user *uptr;		/* IOPT_ADDRESS_USER */
+	};
 	bool writable:1;
 	u8 account_mode;
 
@@ -206,8 +213,8 @@ struct iopt_pages {
 	struct rb_root_cached domains_itree;
 };
 
-struct iopt_pages *iopt_alloc_pages(void __user *uptr, unsigned long length,
-				    bool writable);
+struct iopt_pages *iopt_alloc_user_pages(void __user *uptr,
+					 unsigned long length, bool writable);
 void iopt_release_pages(struct kref *kref);
 static inline void iopt_put_pages(struct iopt_pages *pages)
 {

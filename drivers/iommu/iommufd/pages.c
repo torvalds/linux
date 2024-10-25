@@ -1139,11 +1139,11 @@ static int pfn_reader_first(struct pfn_reader *pfns, struct iopt_pages *pages,
 	return 0;
 }
 
-struct iopt_pages *iopt_alloc_pages(void __user *uptr, unsigned long length,
-				    bool writable)
+static struct iopt_pages *iopt_alloc_pages(unsigned long start_byte,
+					   unsigned long length,
+					   bool writable)
 {
 	struct iopt_pages *pages;
-	unsigned long end;
 
 	/*
 	 * The iommu API uses size_t as the length, and protect the DIV_ROUND_UP
@@ -1151,9 +1151,6 @@ struct iopt_pages *iopt_alloc_pages(void __user *uptr, unsigned long length,
 	 */
 	if (length > SIZE_MAX - PAGE_SIZE || length == 0)
 		return ERR_PTR(-EINVAL);
-
-	if (check_add_overflow((unsigned long)uptr, length, &end))
-		return ERR_PTR(-EOVERFLOW);
 
 	pages = kzalloc(sizeof(*pages), GFP_KERNEL_ACCOUNT);
 	if (!pages)
@@ -1164,8 +1161,7 @@ struct iopt_pages *iopt_alloc_pages(void __user *uptr, unsigned long length,
 	mutex_init(&pages->mutex);
 	pages->source_mm = current->mm;
 	mmgrab(pages->source_mm);
-	pages->uptr = (void __user *)ALIGN_DOWN((uintptr_t)uptr, PAGE_SIZE);
-	pages->npages = DIV_ROUND_UP(length + (uptr - pages->uptr), PAGE_SIZE);
+	pages->npages = DIV_ROUND_UP(length + start_byte, PAGE_SIZE);
 	pages->access_itree = RB_ROOT_CACHED;
 	pages->domains_itree = RB_ROOT_CACHED;
 	pages->writable = writable;
@@ -1176,6 +1172,25 @@ struct iopt_pages *iopt_alloc_pages(void __user *uptr, unsigned long length,
 	pages->source_task = current->group_leader;
 	get_task_struct(current->group_leader);
 	pages->source_user = get_uid(current_user());
+	return pages;
+}
+
+struct iopt_pages *iopt_alloc_user_pages(void __user *uptr,
+					 unsigned long length, bool writable)
+{
+	struct iopt_pages *pages;
+	unsigned long end;
+	void __user *uptr_down =
+		(void __user *) ALIGN_DOWN((uintptr_t)uptr, PAGE_SIZE);
+
+	if (check_add_overflow((unsigned long)uptr, length, &end))
+		return ERR_PTR(-EOVERFLOW);
+
+	pages = iopt_alloc_pages(uptr - uptr_down, length, writable);
+	if (IS_ERR(pages))
+		return pages;
+	pages->uptr = uptr_down;
+	pages->type = IOPT_ADDRESS_USER;
 	return pages;
 }
 
