@@ -299,11 +299,6 @@ struct mem_cgroup {
 	/* For oom notifier event fd */
 	struct list_head oom_notify;
 
-	/*
-	 * Should we move charges of a task when a task is moved into this
-	 * mem_cgroup ? And what type of charges should we move ?
-	 */
-	unsigned long move_charge_at_immigrate;
 	/* taken only while moving_account > 0 */
 	spinlock_t move_lock;
 	unsigned long move_lock_flags;
