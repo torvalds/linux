@@ -981,7 +981,7 @@ static bool spl_get_optimal_number_of_taps(
 	else
 		lb_config = LB_MEMORY_CONFIG_0;
 	// Determine max vtap support by calculating how much line buffer can fit
-	spl_in->funcs->spl_calc_lb_num_partitions(spl_in->basic_out.alpha_en, &spl_scratch->scl_data,
+	spl_in->callbacks.spl_calc_lb_num_partitions(spl_in->basic_out.alpha_en, &spl_scratch->scl_data,
 			lb_config, &num_part_y, &num_part_c);
 	/* MAX_V_TAPS = MIN (NUM_LINES - MAX(CEILING(V_RATIO,1)-2, 0), 8) */
 	if (spl_fixpt_ceil(spl_scratch->scl_data.ratios.vert) > 2)

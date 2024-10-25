@@ -497,7 +497,7 @@ enum scale_to_sharpness_policy {
 	SCALE_TO_SHARPNESS_ADJ_YUV = 1,
 	SCALE_TO_SHARPNESS_ADJ_ALL = 2
 };
-struct spl_funcs	{
+struct spl_callbacks {
 	void (*spl_calc_lb_num_partitions)
 		(bool alpha_en,
 		const struct spl_scaler_data *scl_data,
@@ -518,7 +518,7 @@ struct spl_in	{
 	// Basic slice information
 	int odm_slice_index;	// ODM Slice Index using get_odm_split_index
 	struct spl_taps scaling_quality; // Explicit Scaling Quality
-	struct spl_funcs *funcs;
+	struct spl_callbacks callbacks;
 	// Inputs for isharp and EASF
 	struct adaptive_sharpness adaptive_sharpness;	//	Adaptive Sharpness
 	enum linear_light_scaling lls_pref;	//	Linear Light Scaling
