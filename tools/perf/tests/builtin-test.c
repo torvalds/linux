@@ -137,12 +137,6 @@ static struct test_suite *generic_tests[] = {
 	NULL,
 };
 
-static struct test_suite **tests[] = {
-	generic_tests,
-	arch_tests,
-	NULL, /* shell tests created at runtime. */
-};
-
 static struct test_workload *workloads[] = {
 	&workload__noploop,
 	&workload__thloop,
@@ -468,10 +462,6 @@ static int start_test(struct test_suite *test, int i, int subi, struct child_tes
 	return start_command(&(*child)->process);
 }
 
-#define for_each_test(j, k, t)					\
-	for (j = 0, k = 0; j < ARRAY_SIZE(tests); j++, k = 0)	\
-		while ((t = tests[j][k++]) != NULL)
-
 /* State outside of __cmd_test for the sake of the signal handler. */
 
 static size_t num_tests;
@@ -483,22 +473,21 @@ static void cmd_test_sig_handler(int sig)
 	siglongjmp(cmd_test_jmp_buf, sig);
 }
 
-static int __cmd_test(int argc, const char *argv[], struct intlist *skiplist)
+static int __cmd_test(struct test_suite **suites, int argc, const char *argv[],
+		      struct intlist *skiplist)
 {
-	struct test_suite *t;
 	static int width = 0;
-	unsigned int j, k;
 	int err = 0;
 
-	for_each_test(j, k, t) {
-		int len = strlen(test_description(t, -1));
+	for (struct test_suite **t = suites; *t; t++) {
+		int len = strlen(test_description(*t, -1));
 
 		if (width < len)
 			width = len;
 
-		if (has_subtests(t)) {
-			for (int subi = 0, subn = num_subtests(t); subi < subn; subi++) {
-				len = strlen(test_description(t, subi));
+		if (has_subtests(*t)) {
+			for (int subi = 0, subn = num_subtests(*t); subi < subn; subi++) {
+				len = strlen(test_description(*t, subi));
 				if (width < len)
 					width = len;
 				num_tests++;
@@ -540,18 +529,18 @@ static int __cmd_test(int argc, const char *argv[], struct intlist *skiplist)
 		int child_test_num = 0;
 		int i = 0;
 
-		for_each_test(j, k, t) {
+		for (struct test_suite **t = suites; *t; t++) {
 			int curr = i++;
 
-			if (!perf_test__matches(test_description(t, -1), curr, argc, argv)) {
+			if (!perf_test__matches(test_description(*t, -1), curr, argc, argv)) {
 				/*
 				 * Test suite shouldn't be run based on
 				 * description. See if subtest should.
 				 */
 				bool skip = true;
 
-				for (int subi = 0, subn = num_subtests(t); subi < subn; subi++) {
-					if (perf_test__matches(test_description(t, subi),
+				for (int subi = 0, subn = num_subtests(*t); subi < subn; subi++) {
+					if (perf_test__matches(test_description(*t, subi),
 								curr, argc, argv))
 						skip = false;
 				}
@@ -561,24 +550,24 @@ static int __cmd_test(int argc, const char *argv[], struct intlist *skiplist)
 			}
 
 			if (intlist__find(skiplist, i)) {
-				pr_info("%3d: %-*s:", curr + 1, width, test_description(t, -1));
+				pr_info("%3d: %-*s:", curr + 1, width, test_description(*t, -1));
 				color_fprintf(stderr, PERF_COLOR_YELLOW, " Skip (user override)\n");
 				continue;
 			}
 
-			if (!has_subtests(t)) {
-				err = start_test(t, curr, -1, &child_tests[child_test_num++],
+			if (!has_subtests(*t)) {
+				err = start_test(*t, curr, -1, &child_tests[child_test_num++],
 						 width, pass);
 				if (err)
 					goto err_out;
 				continue;
 			}
-			for (int subi = 0, subn = num_subtests(t); subi < subn; subi++) {
-				if (!perf_test__matches(test_description(t, subi),
+			for (int subi = 0, subn = num_subtests(*t); subi < subn; subi++) {
+				if (!perf_test__matches(test_description(*t, subi),
 							curr, argc, argv))
 					continue;
 
-				err = start_test(t, curr, subi, &child_tests[child_test_num++],
+				err = start_test(*t, curr, subi, &child_tests[child_test_num++],
 						 width, pass);
 				if (err)
 					goto err_out;
@@ -602,27 +591,25 @@ err_out:
 	return err;
 }
 
-static int perf_test__list(int argc, const char **argv)
+static int perf_test__list(struct test_suite **suites, int argc, const char **argv)
 {
-	unsigned int j, k;
-	struct test_suite *t;
 	int i = 0;
 
-	for_each_test(j, k, t) {
+	for (struct test_suite **t = suites; *t; t++) {
 		int curr = i++;
 
-		if (!perf_test__matches(test_description(t, -1), curr, argc, argv))
+		if (!perf_test__matches(test_description(*t, -1), curr, argc, argv))
 			continue;
 
-		pr_info("%3d: %s\n", i, test_description(t, -1));
+		pr_info("%3d: %s\n", i, test_description(*t, -1));
 
-		if (has_subtests(t)) {
-			int subn = num_subtests(t);
+		if (has_subtests(*t)) {
+			int subn = num_subtests(*t);
 			int subi;
 
 			for (subi = 0; subi < subn; subi++)
 				pr_info("%3d:%1d: %s\n", i, subi + 1,
-					test_description(t, subi));
+					test_description(*t, subi));
 		}
 	}
 	return 0;
@@ -661,6 +648,55 @@ static int perf_test__config(const char *var, const char *value,
 	return 0;
 }
 
+static struct test_suite **build_suites(void)
+{
+	/*
+	 * TODO: suites is static to avoid needing to clean up the scripts tests
+	 * for leak sanitizer.
+	 */
+	static struct test_suite **suites[] = {
+		generic_tests,
+		arch_tests,
+		NULL,
+	};
+	struct test_suite **result;
+	struct test_suite *t;
+	size_t n = 0, num_suites = 0;
+
+	if (suites[2] == NULL)
+		suites[2] = create_script_test_suites();
+
+#define for_each_test(t)						\
+	for (size_t i = 0, j = 0; i < ARRAY_SIZE(suites); i++, j = 0)	\
+		while ((t = suites[i][j++]) != NULL)
+
+	for_each_test(t)
+		num_suites++;
+
+	result = calloc(num_suites + 1, sizeof(struct test_suite *));
+
+	for (int pass = 1; pass <= 2; pass++) {
+		for_each_test(t) {
+			bool exclusive = false;
+
+			if (!has_subtests(t)) {
+				exclusive = test_exclusive(t, -1);
+			} else {
+				for (int subi = 0, subn = num_subtests(t); subi < subn; subi++) {
+					if (test_exclusive(t, subi)) {
+						exclusive = true;
+						break;
+					}
+				}
+			}
+			if ((!exclusive && pass == 1) || (exclusive && pass == 2))
+				result[n++] = t;
+		}
+	}
+	return result;
+#undef for_each_test
+}
+
 int cmd_test(int argc, const char **argv)
 {
 	const char *test_usage[] = {
@@ -688,6 +724,7 @@ int cmd_test(int argc, const char **argv)
 	const char * const test_subcommands[] = { "list", NULL };
 	struct intlist *skiplist = NULL;
         int ret = hists__init();
+	struct test_suite **suites;
 
         if (ret < 0)
                 return ret;
@@ -697,10 +734,13 @@ int cmd_test(int argc, const char **argv)
 	/* Unbuffered output */
 	setvbuf(stdout, NULL, _IONBF, 0);
 
-	tests[2] = create_script_test_suites();
 	argc = parse_options_subcommand(argc, argv, test_options, test_subcommands, test_usage, 0);
-	if (argc >= 1 && !strcmp(argv[0], "list"))
-		return perf_test__list(argc - 1, argv + 1);
+	if (argc >= 1 && !strcmp(argv[0], "list")) {
+		suites = build_suites();
+		ret = perf_test__list(suites, argc - 1, argv + 1);
+		free(suites);
+		return ret;
+	}
 
 	if (workload)
 		return run_workload(workload, argc, argv);
@@ -728,5 +768,8 @@ int cmd_test(int argc, const char **argv)
 	 */
 	rlimit__bump_memlock();
 
-	return __cmd_test(argc, argv, skiplist);
+	suites = build_suites();
+	ret = __cmd_test(suites, argc, argv, skiplist);
+	free(suites);
+	return ret;
 }
