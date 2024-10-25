@@ -132,6 +132,19 @@ static int ad7606_spi_read_block(struct device *dev,
 	return 0;
 }
 
+static int ad7606_spi_read_block14to16(struct device *dev,
+				       int count, void *buf)
+{
+	struct spi_device *spi = to_spi_device(dev);
+	struct spi_transfer xfer = {
+		.bits_per_word = 14,
+		.len = count * sizeof(u16),
+		.rx_buf = buf,
+	};
+
+	return spi_sync_transfer(spi, &xfer, 1);
+}
+
 static int ad7606_spi_read_block18to32(struct device *dev,
 				       int count, void *buf)
 {
@@ -325,6 +338,14 @@ static const struct ad7606_bus_ops ad7606_spi_bops = {
 	.read_block = ad7606_spi_read_block,
 };
 
+static const struct ad7606_bus_ops ad7607_spi_bops = {
+	.read_block = ad7606_spi_read_block14to16,
+};
+
+static const struct ad7606_bus_ops ad7608_spi_bops = {
+	.read_block = ad7606_spi_read_block18to32,
+};
+
 static const struct ad7606_bus_ops ad7616_spi_bops = {
 	.read_block = ad7606_spi_read_block,
 	.reg_read = ad7606_spi_reg_read,
@@ -387,6 +408,21 @@ static const struct ad7606_bus_info ad7606c_18_bus_info = {
 	.bops = &ad7606c_18_spi_bops,
 };
 
+static const struct ad7606_bus_info ad7607_bus_info = {
+	.chip_info = &ad7607_info,
+	.bops = &ad7607_spi_bops,
+};
+
+static const struct ad7606_bus_info ad7608_bus_info = {
+	.chip_info = &ad7608_info,
+	.bops = &ad7608_spi_bops,
+};
+
+static const struct ad7606_bus_info ad7609_bus_info = {
+	.chip_info = &ad7609_info,
+	.bops = &ad7608_spi_bops,
+};
+
 static const struct ad7606_bus_info ad7616_bus_info = {
 	.chip_info = &ad7616_info,
 	.bops = &ad7616_spi_bops,
@@ -408,6 +444,9 @@ static const struct spi_device_id ad7606_id_table[] = {
 	{ "ad7606b",  (kernel_ulong_t)&ad7606b_bus_info },
 	{ "ad7606c-16", (kernel_ulong_t)&ad7606c_16_bus_info },
 	{ "ad7606c-18", (kernel_ulong_t)&ad7606c_18_bus_info },
+	{ "ad7607",   (kernel_ulong_t)&ad7607_bus_info },
+	{ "ad7608",   (kernel_ulong_t)&ad7608_bus_info },
+	{ "ad7609",   (kernel_ulong_t)&ad7609_bus_info },
 	{ "ad7616",   (kernel_ulong_t)&ad7616_bus_info },
 	{ }
 };
@@ -421,6 +460,9 @@ static const struct of_device_id ad7606_of_match[] = {
 	{ .compatible = "adi,ad7606b", .data = &ad7606b_bus_info },
 	{ .compatible = "adi,ad7606c-16", .data = &ad7606c_16_bus_info },
 	{ .compatible = "adi,ad7606c-18", .data = &ad7606c_18_bus_info },
+	{ .compatible = "adi,ad7607", .data = &ad7607_bus_info },
+	{ .compatible = "adi,ad7608", .data = &ad7608_bus_info },
+	{ .compatible = "adi,ad7609", .data = &ad7609_bus_info },
 	{ .compatible = "adi,ad7616", .data = &ad7616_bus_info },
 	{ }
 };

@@ -211,6 +211,9 @@ static const struct platform_device_id ad7606_driver_ids[] = {
 	{ .name	= "ad7606-6", .driver_data = (kernel_ulong_t)&ad7606_6_info, },
 	{ .name	= "ad7606-8", .driver_data = (kernel_ulong_t)&ad7606_8_info, },
 	{ .name	= "ad7606b", .driver_data = (kernel_ulong_t)&ad7606b_info, },
+	{ .name	= "ad7607", .driver_data = (kernel_ulong_t)&ad7607_info, },
+	{ .name	= "ad7608", .driver_data = (kernel_ulong_t)&ad7608_info, },
+	{ .name	= "ad7609", .driver_data = (kernel_ulong_t)&ad7609_info, },
 	{ }
 };
 MODULE_DEVICE_TABLE(platform, ad7606_driver_ids);
@@ -221,6 +224,9 @@ static const struct of_device_id ad7606_of_match[] = {
 	{ .compatible = "adi,ad7606-6", .data = &ad7606_6_info },
 	{ .compatible = "adi,ad7606-8", .data = &ad7606_8_info },
 	{ .compatible = "adi,ad7606b", .data = &ad7606b_info },
+	{ .compatible = "adi,ad7607", .data = &ad7607_info },
+	{ .compatible = "adi,ad7608", .data = &ad7608_info },
+	{ .compatible = "adi,ad7609", .data = &ad7609_info },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, ad7606_of_match);

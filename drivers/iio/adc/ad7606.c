@@ -73,6 +73,14 @@ static const unsigned int ad7606_16bit_sw_scale_avail[3][2] = {
 	{ 0, 76293 }, { 0, 152588 }, { 0, 305176 }
 };
 
+static const unsigned int ad7607_hw_scale_avail[2][2] = {
+	{ 0, 610352 }, { 1, 220703 }
+};
+
+static const unsigned int ad7609_hw_scale_avail[2][2] = {
+	{ 0, 152588 }, { 0, 305176 }
+};
+
 static const unsigned int ad7606_oversampling_avail[7] = {
 	1, 2, 4, 8, 16, 32, 64,
 };
@@ -102,6 +110,30 @@ static const struct iio_chan_spec ad7606_channels_16bit[] = {
 };
 
 static const struct iio_chan_spec ad7606_channels_18bit[] = {
+	IIO_CHAN_SOFT_TIMESTAMP(8),
+	AD7606_CHANNEL(0, 18),
+	AD7606_CHANNEL(1, 18),
+	AD7606_CHANNEL(2, 18),
+	AD7606_CHANNEL(3, 18),
+	AD7606_CHANNEL(4, 18),
+	AD7606_CHANNEL(5, 18),
+	AD7606_CHANNEL(6, 18),
+	AD7606_CHANNEL(7, 18),
+};
+
+static const struct iio_chan_spec ad7607_channels[] = {
+	IIO_CHAN_SOFT_TIMESTAMP(8),
+	AD7606_CHANNEL(0, 14),
+	AD7606_CHANNEL(1, 14),
+	AD7606_CHANNEL(2, 14),
+	AD7606_CHANNEL(3, 14),
+	AD7606_CHANNEL(4, 14),
+	AD7606_CHANNEL(5, 14),
+	AD7606_CHANNEL(6, 14),
+	AD7606_CHANNEL(7, 14),
+};
+
+static const struct iio_chan_spec ad7608_channels[] = {
 	IIO_CHAN_SOFT_TIMESTAMP(8),
 	AD7606_CHANNEL(0, 18),
 	AD7606_CHANNEL(1, 18),
@@ -149,6 +181,12 @@ static int ad7606c_16bit_chan_scale_setup(struct ad7606_state *st,
 					  struct iio_chan_spec *chan, int ch);
 static int ad7606_16bit_chan_scale_setup(struct ad7606_state *st,
 					 struct iio_chan_spec *chan, int ch);
+static int ad7607_chan_scale_setup(struct ad7606_state *st,
+				   struct iio_chan_spec *chan, int ch);
+static int ad7608_chan_scale_setup(struct ad7606_state *st,
+				   struct iio_chan_spec *chan, int ch);
+static int ad7609_chan_scale_setup(struct ad7606_state *st,
+				   struct iio_chan_spec *chan, int ch);
 
 const struct ad7606_chip_info ad7605_4_info = {
 	.channels = ad7605_channels,
@@ -214,6 +252,39 @@ const struct ad7606_chip_info ad7606c_16_info = {
 	.scale_setup_cb = ad7606c_16bit_chan_scale_setup,
 };
 EXPORT_SYMBOL_NS_GPL(ad7606c_16_info, IIO_AD7606);
+
+const struct ad7606_chip_info ad7607_info = {
+	.channels = ad7607_channels,
+	.name = "ad7607",
+	.num_adc_channels = 8,
+	.num_channels = 9,
+	.oversampling_avail = ad7606_oversampling_avail,
+	.oversampling_num = ARRAY_SIZE(ad7606_oversampling_avail),
+	.scale_setup_cb = ad7607_chan_scale_setup,
+};
+EXPORT_SYMBOL_NS_GPL(ad7607_info, IIO_AD7606);
+
+const struct ad7606_chip_info ad7608_info = {
+	.channels = ad7608_channels,
+	.name = "ad7608",
+	.num_adc_channels = 8,
+	.num_channels = 9,
+	.oversampling_avail = ad7606_oversampling_avail,
+	.oversampling_num = ARRAY_SIZE(ad7606_oversampling_avail),
+	.scale_setup_cb = ad7608_chan_scale_setup,
+};
+EXPORT_SYMBOL_NS_GPL(ad7608_info, IIO_AD7606);
+
+const struct ad7606_chip_info ad7609_info = {
+	.channels = ad7608_channels,
+	.name = "ad7609",
+	.num_adc_channels = 8,
+	.num_channels = 9,
+	.oversampling_avail = ad7606_oversampling_avail,
+	.oversampling_num = ARRAY_SIZE(ad7606_oversampling_avail),
+	.scale_setup_cb = ad7609_chan_scale_setup,
+};
+EXPORT_SYMBOL_NS_GPL(ad7609_info, IIO_AD7606);
 
 const struct ad7606_chip_info ad7606c_18_info = {
 	.channels = ad7606_channels_18bit,
@@ -438,6 +509,39 @@ static int ad7606c_16bit_chan_scale_setup(struct ad7606_state *st,
 	cs->range = 1;
 	chan->scan_type.sign = 'u';
 
+	return 0;
+}
+
+static int ad7607_chan_scale_setup(struct ad7606_state *st,
+				   struct iio_chan_spec *chan, int ch)
+{
+	struct ad7606_chan_scale *cs = &st->chan_scales[ch];
+
+	cs->range = 0;
+	cs->scale_avail = ad7607_hw_scale_avail;
+	cs->num_scales = ARRAY_SIZE(ad7607_hw_scale_avail);
+	return 0;
+}
+
+static int ad7608_chan_scale_setup(struct ad7606_state *st,
+				   struct iio_chan_spec *chan, int ch)
+{
+	struct ad7606_chan_scale *cs = &st->chan_scales[ch];
+
+	cs->range = 0;
+	cs->scale_avail = ad7606_18bit_hw_scale_avail;
+	cs->num_scales = ARRAY_SIZE(ad7606_18bit_hw_scale_avail);
+	return 0;
+}
+
+static int ad7609_chan_scale_setup(struct ad7606_state *st,
+				   struct iio_chan_spec *chan, int ch)
+{
+	struct ad7606_chan_scale *cs = &st->chan_scales[ch];
+
+	cs->range = 0;
+	cs->scale_avail = ad7609_hw_scale_avail;
+	cs->num_scales = ARRAY_SIZE(ad7609_hw_scale_avail);
 	return 0;
 }
 

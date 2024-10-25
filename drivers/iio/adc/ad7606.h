@@ -237,6 +237,9 @@ extern const struct ad7606_chip_info ad7606_4_info;
 extern const struct ad7606_chip_info ad7606b_info;
 extern const struct ad7606_chip_info ad7606c_16_info;
 extern const struct ad7606_chip_info ad7606c_18_info;
+extern const struct ad7606_chip_info ad7607_info;
+extern const struct ad7606_chip_info ad7608_info;
+extern const struct ad7606_chip_info ad7609_info;
 extern const struct ad7606_chip_info ad7616_info;
 
 #ifdef CONFIG_PM_SLEEP
