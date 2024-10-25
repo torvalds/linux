@@ -544,9 +544,9 @@ static void setup_abort_handlers(struct kvm_vm *vm, struct kvm_vcpu *vcpu,
 	vcpu_init_descriptor_tables(vcpu);
 
 	vm_install_sync_handler(vm, VECTOR_SYNC_CURRENT,
-				ESR_EC_DABT, no_dabt_handler);
+				ESR_ELx_EC_DABT_CUR, no_dabt_handler);
 	vm_install_sync_handler(vm, VECTOR_SYNC_CURRENT,
-				ESR_EC_IABT, no_iabt_handler);
+				ESR_ELx_EC_IABT_CUR, no_iabt_handler);
 }
 
 static void setup_gva_maps(struct kvm_vm *vm)

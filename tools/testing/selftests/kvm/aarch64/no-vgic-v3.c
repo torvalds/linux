@@ -150,7 +150,7 @@ static void test_guest_no_gicv3(void)
 	vcpu_init_descriptor_tables(vcpu);
 
 	vm_install_sync_handler(vm, VECTOR_SYNC_CURRENT,
-				ESR_EC_UNKNOWN, guest_undef_handler);
+				ESR_ELx_EC_UNKNOWN, guest_undef_handler);
 
 	test_run_vcpu(vcpu);
 
