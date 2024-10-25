@@ -746,6 +746,7 @@ void pci_set_bus_of_node(struct pci_bus *bus);
 void pci_release_bus_of_node(struct pci_bus *bus);
 
 int devm_of_pci_bridge_init(struct device *dev, struct pci_host_bridge *bridge);
+bool of_pci_supply_present(struct device_node *np);
 
 #else
 static inline int
@@ -793,6 +794,10 @@ static inline int devm_of_pci_bridge_init(struct device *dev, struct pci_host_br
 	return 0;
 }
 
+static inline bool of_pci_supply_present(struct device_node *np)
+{
+	return false;
+}
 #endif /* CONFIG_OF */
 
 struct of_changeset;
