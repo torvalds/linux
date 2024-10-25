@@ -129,8 +129,8 @@ struct s390_pxts_ctx {
 	unsigned long fc;
 };
 
-static inline int __paes_keyblob2pkey(struct key_blob *kb,
-				     struct paes_protkey *pk)
+static inline int __paes_keyblob2pkey(const u8 *key, unsigned int keylen,
+				      struct paes_protkey *pk)
 {
 	int i, rc = -EIO;
 
@@ -140,8 +140,8 @@ static inline int __paes_keyblob2pkey(struct key_blob *kb,
 			if (msleep_interruptible(1000))
 				return -EINTR;
 		}
-		rc = pkey_key2protkey(kb->key, kb->keylen,
-				      pk->protkey, &pk->len, &pk->type);
+		rc = pkey_key2protkey(key, keylen, pk->protkey, &pk->len,
+				      &pk->type);
 	}
 
 	return rc;
@@ -153,7 +153,7 @@ static inline int __paes_convert_key(struct s390_paes_ctx *ctx)
 	int rc;
 
 	pk.len = sizeof(pk.protkey);
-	rc = __paes_keyblob2pkey(&ctx->kb, &pk);
+	rc = __paes_keyblob2pkey(ctx->kb.key, ctx->kb.keylen, &pk);
 	if (rc)
 		return rc;
 
@@ -425,8 +425,8 @@ static inline int __xts_paes_convert_key(struct s390_pxts_ctx *ctx)
 	pk0.len = sizeof(pk0.protkey);
 	pk1.len = sizeof(pk1.protkey);
 
-	if (__paes_keyblob2pkey(&ctx->kb[0], &pk0) ||
-	    __paes_keyblob2pkey(&ctx->kb[1], &pk1))
+	if (__paes_keyblob2pkey(ctx->kb[0].key, ctx->kb[0].keylen, &pk0) ||
+	    __paes_keyblob2pkey(ctx->kb[1].key, ctx->kb[1].keylen, &pk1))
 		return -EINVAL;
 
 	spin_lock_bh(&ctx->pk_lock);
