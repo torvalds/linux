@@ -321,6 +321,46 @@ void __weak pcibios_resource_survey_bus(struct pci_bus *bus) { }
 
 void __weak pcibios_bus_add_device(struct pci_dev *pdev) { }
 
+/*
+ * Create pwrctl devices (if required) for the PCI devices to handle the power
+ * state.
+ */
+static void pci_pwrctl_create_devices(struct pci_dev *dev)
+{
+	struct device_node *np = dev_of_node(&dev->dev);
+	struct device *parent = &dev->dev;
+	struct platform_device *pdev;
+
+	/*
+	 * First ensure that we are starting from a PCI bridge and it has a
+	 * corresponding devicetree node.
+	 */
+	if (np && pci_is_bridge(dev)) {
+		/*
+		 * Now look for the child PCI device nodes and create pwrctl
+		 * devices for them. The pwrctl device drivers will manage the
+		 * power state of the devices.
+		 */
+		for_each_available_child_of_node_scoped(np, child) {
+			/*
+			 * First check whether the pwrctl device really needs to
+			 * be created or not. This is decided based on at least
+			 * one of the power supplies being defined in the
+			 * devicetree node of the device.
+			 */
+			if (!of_pci_supply_present(child)) {
+				pci_dbg(dev, "skipping OF node: %s\n", child->name);
+				return;
+			}
+
+			/* Now create the pwrctl device */
+			pdev = of_platform_device_create(child, NULL, parent);
+			if (!pdev)
+				pci_err(dev, "failed to create OF node: %s\n", child->name);
+		}
+	}
+}
+
 /**
  * pci_bus_add_device - start driver for a single device
  * @dev: device to add
@@ -345,31 +385,28 @@ void pci_bus_add_device(struct pci_dev *dev)
 	pci_proc_attach_device(dev);
 	pci_bridge_d3_update(dev);
 
+	pci_pwrctl_create_devices(dev);
+
+	/*
+	 * If the PCI device is associated with a pwrctl device with a
+	 * power supply, create a device link between the PCI device and
+	 * pwrctl device.  This ensures that pwrctl drivers are probed
+	 * before PCI client drivers.
+	 */
+	pdev = of_find_device_by_node(dn);
+	if (pdev && of_pci_supply_present(dn)) {
+		if (!device_link_add(&dev->dev, &pdev->dev,
+				     DL_FLAG_AUTOREMOVE_CONSUMER))
+			pci_err(dev, "failed to add device link to power control device %s\n",
+				pdev->name);
+	}
+
 	dev->match_driver = !dn || of_device_is_available(dn);
 	retval = device_attach(&dev->dev);
 	if (retval < 0 && retval != -EPROBE_DEFER)
 		pci_warn(dev, "device attach failed (%d)\n", retval);
 
 	pci_dev_assign_added(dev, true);
-
-	if (dev_of_node(&dev->dev) && pci_is_bridge(dev)) {
-		for_each_available_child_of_node_scoped(dn, child) {
-			/*
-			 * First check whether the pwrctl device needs to be
-			 * created or not. This is decided based on at least
-			 * one of the power supplies being defined in the
-			 * devicetree node of the device.
-			 */
-			if (!of_pci_supply_present(child)) {
-				pci_dbg(dev, "skipping OF node: %s\n", child->name);
-				continue;
-			}
-
-			pdev = of_platform_device_create(child, NULL, &dev->dev);
-			if (!pdev)
-				pci_err(dev, "failed to create OF node: %s\n", child->name);
-		}
-	}
 }
 EXPORT_SYMBOL_GPL(pci_bus_add_device);
 

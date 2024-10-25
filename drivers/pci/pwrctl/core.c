@@ -33,16 +33,6 @@ static int pci_pwrctl_notify(struct notifier_block *nb, unsigned long action,
 		 */
 		dev->of_node_reused = true;
 		break;
-	case BUS_NOTIFY_BOUND_DRIVER:
-		pwrctl->link = device_link_add(dev, pwrctl->dev,
-					       DL_FLAG_AUTOREMOVE_CONSUMER);
-		if (!pwrctl->link)
-			dev_err(pwrctl->dev, "Failed to add device link\n");
-		break;
-	case BUS_NOTIFY_UNBOUND_DRIVER:
-		if (pwrctl->link)
-			device_link_remove(dev, pwrctl->dev);
-		break;
 	}
 
 	return NOTIFY_DONE;
