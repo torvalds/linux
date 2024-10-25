@@ -2778,7 +2778,8 @@ void dcn20_unblank_stream(struct pipe_ctx *pipe_ctx,
 	} else if (dc_is_dp_signal(pipe_ctx->stream->signal)) {
 		if (is_two_pixels_per_container || params.opp_cnt > 1)
 			params.timing.pix_clk_100hz /= 2;
-		pipe_ctx->stream_res.stream_enc->funcs->dp_set_odm_combine(
+		if (pipe_ctx->stream_res.stream_enc->funcs->dp_set_odm_combine)
+			pipe_ctx->stream_res.stream_enc->funcs->dp_set_odm_combine(
 				pipe_ctx->stream_res.stream_enc, params.opp_cnt > 1);
 		pipe_ctx->stream_res.stream_enc->funcs->dp_unblank(link, pipe_ctx->stream_res.stream_enc, &params);
 	}
