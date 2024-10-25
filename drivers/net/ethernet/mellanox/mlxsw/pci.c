@@ -389,14 +389,26 @@ static void mlxsw_pci_wqe_frag_unmap(struct mlxsw_pci *mlxsw_pci, char *wqe,
 	dma_unmap_single(&pdev->dev, mapaddr, frag_len, direction);
 }
 
-static struct sk_buff *mlxsw_pci_rdq_build_skb(struct page *pages[],
+static struct sk_buff *mlxsw_pci_rdq_build_skb(struct mlxsw_pci_queue *q,
+					       struct page *pages[],
 					       u16 byte_count)
 {
+	struct mlxsw_pci_queue *cq = q->u.rdq.cq;
 	unsigned int linear_data_size;
+	struct page_pool *page_pool;
 	struct sk_buff *skb;
 	int page_index = 0;
 	bool linear_only;
 	void *data;
+
+	linear_only = byte_count + MLXSW_PCI_RX_BUF_SW_OVERHEAD <= PAGE_SIZE;
+	linear_data_size = linear_only ? byte_count :
+					 PAGE_SIZE -
+					 MLXSW_PCI_RX_BUF_SW_OVERHEAD;
+
+	page_pool = cq->u.cq.page_pool;
+	page_pool_dma_sync_for_cpu(page_pool, pages[page_index],
+				   MLXSW_PCI_SKB_HEADROOM, linear_data_size);
 
 	data = page_address(pages[page_index]);
 	net_prefetch(data);
@@ -404,11 +416,6 @@ static struct sk_buff *mlxsw_pci_rdq_build_skb(struct page *pages[],
 	skb = napi_build_skb(data, PAGE_SIZE);
 	if (unlikely(!skb))
 		return ERR_PTR(-ENOMEM);
-
-	linear_only = byte_count + MLXSW_PCI_RX_BUF_SW_OVERHEAD <= PAGE_SIZE;
-	linear_data_size = linear_only ? byte_count :
-					 PAGE_SIZE -
-					 MLXSW_PCI_RX_BUF_SW_OVERHEAD;
 
 	skb_reserve(skb, MLXSW_PCI_SKB_HEADROOM);
 	skb_put(skb, linear_data_size);
@@ -425,6 +432,7 @@ static struct sk_buff *mlxsw_pci_rdq_build_skb(struct page *pages[],
 
 		page = pages[page_index];
 		frag_size = min(byte_count, PAGE_SIZE);
+		page_pool_dma_sync_for_cpu(page_pool, page, 0, frag_size);
 		skb_add_rx_frag(skb, skb_shinfo(skb)->nr_frags,
 				page, 0, frag_size, PAGE_SIZE);
 		byte_count -= frag_size;
@@ -760,7 +768,7 @@ static void mlxsw_pci_cqe_rdq_handle(struct mlxsw_pci *mlxsw_pci,
 	if (err)
 		goto out;
 
-	skb = mlxsw_pci_rdq_build_skb(pages, byte_count);
+	skb = mlxsw_pci_rdq_build_skb(q, pages, byte_count);
 	if (IS_ERR(skb)) {
 		dev_err_ratelimited(&pdev->dev, "Failed to build skb for RDQ\n");
 		mlxsw_pci_rdq_pages_recycle(q, pages, num_sg_entries);
