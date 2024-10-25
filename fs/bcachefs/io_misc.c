@@ -426,7 +426,7 @@ case LOGGED_OP_FINSERT_shift_extents:
 		bch2_btree_iter_set_pos(&iter, SPOS(inum.inum, pos, snapshot));
 
 		k = insert
-			? bch2_btree_iter_peek_prev(&iter)
+			? bch2_btree_iter_peek_prev_min(&iter, POS(inum.inum, 0))
 			: bch2_btree_iter_peek_max(&iter, POS(inum.inum, U64_MAX));
 		if ((ret = bkey_err(k)))
 			goto btree_err;

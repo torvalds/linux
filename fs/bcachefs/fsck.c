@@ -620,7 +620,7 @@ static int reconstruct_inode(struct btree_trans *trans, enum btree_id btree, u32
 		struct btree_iter iter = {};
 
 		bch2_trans_iter_init(trans, &iter, BTREE_ID_extents, SPOS(inum, U64_MAX, snapshot), 0);
-		struct bkey_s_c k = bch2_btree_iter_peek_prev(&iter);
+		struct bkey_s_c k = bch2_btree_iter_peek_prev_min(&iter, POS(inum, 0));
 		bch2_trans_iter_exit(trans, &iter);
 		int ret = bkey_err(k);
 		if (ret)
@@ -1649,7 +1649,7 @@ static int check_i_sectors_notnested(struct btree_trans *trans, struct inode_wal
 		if (i->count != count2) {
 			bch_err_ratelimited(c, "fsck counted i_sectors wrong for inode %llu:%u: got %llu should be %llu",
 					    w->last_pos.inode, i->snapshot, i->count, count2);
-			return -BCH_ERR_internal_fsck_err;
+			i->count = count2;
 		}
 
 		if (fsck_err_on(!(i->inode.bi_flags & BCH_INODE_i_sectors_dirty),

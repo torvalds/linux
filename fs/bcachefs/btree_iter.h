@@ -389,7 +389,13 @@ static inline struct bkey_s_c bch2_btree_iter_peek(struct btree_iter *iter)
 	return bch2_btree_iter_peek_max(iter, SPOS_MAX);
 }
 
-struct bkey_s_c bch2_btree_iter_peek_prev(struct btree_iter *);
+struct bkey_s_c bch2_btree_iter_peek_prev_min(struct btree_iter *, struct bpos);
+
+static inline struct bkey_s_c bch2_btree_iter_peek_prev(struct btree_iter *iter)
+{
+	return bch2_btree_iter_peek_prev_min(iter, POS_MIN);
+}
+
 struct bkey_s_c bch2_btree_iter_prev(struct btree_iter *);
 
 struct bkey_s_c bch2_btree_iter_peek_slot(struct btree_iter *);

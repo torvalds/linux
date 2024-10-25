@@ -270,8 +270,10 @@ static void bch2_btree_iter_verify_entry_exit(struct btree_iter *iter)
 	BUG_ON(!(iter->flags & BTREE_ITER_all_snapshots) &&
 	       iter->pos.snapshot != iter->snapshot);
 
-	BUG_ON(bkey_lt(iter->pos, bkey_start_pos(&iter->k)) ||
-	       bkey_gt(iter->pos, iter->k.p));
+	BUG_ON(iter->flags & BTREE_ITER_all_snapshots	? !bpos_eq(iter->pos, iter->k.p) :
+	       !(iter->flags & BTREE_ITER_is_extents)	? !bkey_eq(iter->pos, iter->k.p) :
+	       (bkey_lt(iter->pos, bkey_start_pos(&iter->k)) ||
+		bkey_gt(iter->pos, iter->k.p)));
 }
 
 static int bch2_btree_iter_verify_ret(struct btree_iter *iter, struct bkey_s_c k)
@@ -2152,6 +2154,37 @@ struct bkey_s_c btree_trans_peek_journal(struct btree_trans *trans,
 	return k;
 }
 
+static struct bkey_i *bch2_btree_journal_peek_prev(struct btree_trans *trans,
+					      struct btree_iter *iter,
+					      struct bpos end_pos)
+{
+	struct btree_path *path = btree_iter_path(trans, iter);
+
+	return bch2_journal_keys_peek_prev_min(trans->c, iter->btree_id,
+					   path->level,
+					   path->pos,
+					   end_pos,
+					   &iter->journal_idx);
+}
+
+static noinline
+struct bkey_s_c btree_trans_peek_prev_journal(struct btree_trans *trans,
+					 struct btree_iter *iter,
+					 struct bkey_s_c k)
+{
+	struct btree_path *path = btree_iter_path(trans, iter);
+	struct bkey_i *next_journal =
+		bch2_btree_journal_peek_prev(trans, iter,
+				k.k ? k.k->p : path_l(path)->b->key.k.p);
+
+	if (next_journal) {
+		iter->k = next_journal->k;
+		k = bkey_i_to_s_c(next_journal);
+	}
+
+	return k;
+}
+
 /*
  * Checks btree key cache for key at iter->pos and returns it if present, or
  * bkey_s_c_null:
@@ -2457,111 +2490,66 @@ struct bkey_s_c bch2_btree_iter_next(struct btree_iter *iter)
 	return bch2_btree_iter_peek(iter);
 }
 
-/**
- * bch2_btree_iter_peek_prev() - returns first key less than or equal to
- * iterator's current position
- * @iter:	iterator to peek from
- *
- * Returns:	key if found, or an error extractable with bkey_err().
- */
-struct bkey_s_c bch2_btree_iter_peek_prev(struct btree_iter *iter)
+static struct bkey_s_c __bch2_btree_iter_peek_prev(struct btree_iter *iter, struct bpos search_key)
 {
 	struct btree_trans *trans = iter->trans;
-	struct bpos search_key = iter->pos;
-	struct bkey_s_c k;
-	struct bkey saved_k;
-	const struct bch_val *saved_v;
-	btree_path_idx_t saved_path = 0;
-	int ret;
-
-	bch2_trans_verify_not_unlocked_or_in_restart(trans);
-	EBUG_ON(btree_iter_path(trans, iter)->cached ||
-		btree_iter_path(trans, iter)->level);
-
-	if (iter->flags & BTREE_ITER_with_journal)
-		return bkey_s_c_err(-BCH_ERR_btree_iter_with_journal_not_supported);
+	struct bkey_s_c k, k2;
 
 	bch2_btree_iter_verify(iter);
-	bch2_btree_iter_verify_entry_exit(iter);
-
-	if (iter->flags & BTREE_ITER_filter_snapshots)
-		search_key.snapshot = U32_MAX;
 
 	while (1) {
 		iter->path = bch2_btree_path_set_pos(trans, iter->path, search_key,
-						iter->flags & BTREE_ITER_intent,
-						btree_iter_ip_allocated(iter));
+					iter->flags & BTREE_ITER_intent,
+					btree_iter_ip_allocated(iter));
 
-		ret = bch2_btree_path_traverse(trans, iter->path, iter->flags);
+		int ret = bch2_btree_path_traverse(trans, iter->path, iter->flags);
 		if (unlikely(ret)) {
 			/* ensure that iter->k is consistent with iter->pos: */
 			bch2_btree_iter_set_pos(iter, iter->pos);
 			k = bkey_s_c_err(ret);
-			goto out_no_locked;
+			break;
 		}
 
 		struct btree_path *path = btree_iter_path(trans, iter);
+		struct btree_path_level *l = path_l(path);
 
-		k = btree_path_level_peek(trans, path, &path->l[0], &iter->k);
-		if (!k.k ||
-		    ((iter->flags & BTREE_ITER_is_extents)
-		     ? bpos_ge(bkey_start_pos(k.k), search_key)
-		     : bpos_gt(k.k->p, search_key)))
-			k = btree_path_level_prev(trans, path, &path->l[0], &iter->k);
+		if (unlikely(!l->b)) {
+			/* No btree nodes at requested level: */
+			bch2_btree_iter_set_pos(iter, SPOS_MAX);
+			k = bkey_s_c_null;
+			break;
+		}
+
+		btree_path_set_should_be_locked(trans, path);
+
+		k = btree_path_level_peek_all(trans->c, l, &iter->k);
+		if (!k.k || bpos_gt(k.k->p, search_key)) {
+			k = btree_path_level_prev(trans, path, l, &iter->k);
+
+			BUG_ON(k.k && bpos_gt(k.k->p, search_key));
+		}
+
+		if (unlikely(iter->flags & BTREE_ITER_with_key_cache) &&
+		    k.k &&
+		    (k2 = btree_trans_peek_key_cache(iter, k.k->p)).k) {
+			k = k2;
+			if (bkey_err(k2)) {
+				bch2_btree_iter_set_pos(iter, iter->pos);
+				break;
+			}
+		}
+
+		if (unlikely(iter->flags & BTREE_ITER_with_journal))
+			k = btree_trans_peek_prev_journal(trans, iter, k);
 
 		if (unlikely((iter->flags & BTREE_ITER_with_updates) &&
 			     trans->nr_updates))
 			bch2_btree_trans_peek_prev_updates(trans, iter, &k);
 
-		if (likely(k.k)) {
-			if (iter->flags & BTREE_ITER_filter_snapshots) {
-				if (k.k->p.snapshot == iter->snapshot)
-					goto got_key;
-
-				/*
-				 * If we have a saved candidate, and we're no
-				 * longer at the same _key_ (not pos), return
-				 * that candidate
-				 */
-				if (saved_path && !bkey_eq(k.k->p, saved_k.p)) {
-					bch2_path_put_nokeep(trans, iter->path,
-						      iter->flags & BTREE_ITER_intent);
-					iter->path = saved_path;
-					saved_path = 0;
-					iter->k	= saved_k;
-					k.v	= saved_v;
-					goto got_key;
-				}
-
-				if (bch2_snapshot_is_ancestor(trans->c,
-							      iter->snapshot,
-							      k.k->p.snapshot)) {
-					if (saved_path)
-						bch2_path_put_nokeep(trans, saved_path,
-						      iter->flags & BTREE_ITER_intent);
-					saved_path = btree_path_clone(trans, iter->path,
-								iter->flags & BTREE_ITER_intent,
-								_THIS_IP_);
-					path = btree_iter_path(trans, iter);
-					trace_btree_path_save_pos(trans, path, trans->paths + saved_path);
-					saved_k = *k.k;
-					saved_v = k.v;
-				}
-
-				search_key = bpos_predecessor(k.k->p);
-				continue;
-			}
-got_key:
-			if (bkey_whiteout(k.k) &&
-			    !(iter->flags & BTREE_ITER_all_snapshots)) {
-				search_key = bkey_predecessor(iter, k.k->p);
-				if (iter->flags & BTREE_ITER_filter_snapshots)
-					search_key.snapshot = U32_MAX;
-				continue;
-			}
-
-			btree_path_set_should_be_locked(trans, path);
+		if (likely(k.k && !bkey_deleted(k.k))) {
 			break;
+		} else if (k.k) {
+			search_key = bpos_predecessor(k.k->p);
 		} else if (likely(!bpos_eq(path->l[0].b->data->min_key, POS_MIN))) {
 			/* Advance to previous leaf node: */
 			search_key = bpos_predecessor(path->l[0].b->data->min_key);
@@ -2569,15 +2557,120 @@ got_key:
 			/* Start of btree: */
 			bch2_btree_iter_set_pos(iter, POS_MIN);
 			k = bkey_s_c_null;
-			goto out_no_locked;
+			break;
 		}
 	}
 
-	EBUG_ON(bkey_gt(bkey_start_pos(k.k), iter->pos));
+	bch2_btree_iter_verify(iter);
+	return k;
+}
+
+/**
+ * bch2_btree_iter_peek_prev_min() - returns first key less than or equal to
+ * iterator's current position
+ * @iter:	iterator to peek from
+ * @end:	search limit: returns keys greater than or equal to @end
+ *
+ * Returns:	key if found, or an error extractable with bkey_err().
+ */
+struct bkey_s_c bch2_btree_iter_peek_prev_min(struct btree_iter *iter, struct bpos end)
+{
+	struct btree_trans *trans = iter->trans;
+	struct bpos search_key = iter->pos;
+	struct bkey_s_c k;
+	btree_path_idx_t saved_path = 0;
+
+	bch2_trans_verify_not_unlocked_or_in_restart(trans);
+	bch2_btree_iter_verify_entry_exit(iter);
+	EBUG_ON((iter->flags & BTREE_ITER_filter_snapshots) && bpos_eq(end, POS_MIN));
+
+	if (iter->flags & BTREE_ITER_filter_snapshots)
+		search_key.snapshot = U32_MAX;
+
+	while (1) {
+		k = __bch2_btree_iter_peek_prev(iter, search_key);
+		if (unlikely(!k.k))
+			goto end;
+		if (unlikely(bkey_err(k)))
+			goto out_no_locked;
+
+		if (iter->flags & BTREE_ITER_filter_snapshots) {
+			struct btree_path *s = saved_path ? trans->paths + saved_path : NULL;
+			if (s && bpos_lt(k.k->p, SPOS(s->pos.inode, s->pos.offset, iter->snapshot))) {
+				/*
+				 * If we have a saved candidate, and we're past
+				 * the last possible snapshot overwrite, return
+				 * it:
+				 */
+				bch2_path_put_nokeep(trans, iter->path,
+					      iter->flags & BTREE_ITER_intent);
+				iter->path = saved_path;
+				saved_path = 0;
+				k = bch2_btree_path_peek_slot(btree_iter_path(trans, iter), &iter->k);
+				break;
+			}
+
+			/*
+			 * We need to check against @end before FILTER_SNAPSHOTS because
+			 * if we get to a different inode that requested we might be
+			 * seeing keys for a different snapshot tree that will all be
+			 * filtered out.
+			 */
+			if (unlikely(bkey_lt(k.k->p, end)))
+				goto end;
+
+			if (!bch2_snapshot_is_ancestor(trans->c, iter->snapshot, k.k->p.snapshot)) {
+				search_key = bpos_predecessor(k.k->p);
+				continue;
+			}
+
+			if (k.k->p.snapshot != iter->snapshot) {
+				/*
+				 * Have a key visible in iter->snapshot, but
+				 * might have overwrites: - save it and keep
+				 * searching. Unless it's a whiteout - then drop
+				 * our previous saved candidate:
+				 */
+				if (saved_path) {
+					bch2_path_put_nokeep(trans, saved_path,
+					      iter->flags & BTREE_ITER_intent);
+					saved_path = 0;
+				}
+
+				if (!bkey_whiteout(k.k)) {
+					saved_path = btree_path_clone(trans, iter->path,
+								iter->flags & BTREE_ITER_intent,
+								_THIS_IP_);
+					trace_btree_path_save_pos(trans,
+								  trans->paths + iter->path,
+								  trans->paths + saved_path);
+				}
+
+				search_key = bpos_predecessor(k.k->p);
+				continue;
+			}
+
+			if (bkey_whiteout(k.k)) {
+				search_key = bkey_predecessor(iter, k.k->p);
+				search_key.snapshot = U32_MAX;
+				continue;
+			}
+		}
+
+		EBUG_ON(iter->flags & BTREE_ITER_all_snapshots		? bpos_gt(k.k->p, iter->pos) :
+			iter->flags & BTREE_ITER_is_extents		? bkey_ge(bkey_start_pos(k.k), iter->pos) :
+									  bkey_gt(k.k->p, iter->pos));
+
+		if (unlikely(iter->flags & BTREE_ITER_all_snapshots	? bpos_lt(k.k->p, end) :
+			     iter->flags & BTREE_ITER_is_extents	? bkey_le(k.k->p, end) :
+									  bkey_lt(k.k->p, end)))
+			goto end;
+
+		break;
+	}
 
 	/* Extents can straddle iter->pos: */
-	if (bkey_lt(k.k->p, iter->pos))
-		iter->pos = k.k->p;
+	iter->pos = bpos_min(iter->pos, k.k->p);;
 
 	if (iter->flags & BTREE_ITER_filter_snapshots)
 		iter->pos.snapshot = iter->snapshot;
@@ -2587,8 +2680,11 @@ out_no_locked:
 
 	bch2_btree_iter_verify_entry_exit(iter);
 	bch2_btree_iter_verify(iter);
-
 	return k;
+end:
+	bch2_btree_iter_set_pos(iter, end);
+	k = bkey_s_c_null;
+	goto out_no_locked;
 }
 
 /**
