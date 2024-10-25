@@ -1287,6 +1287,32 @@ Field	15:8	BRPs
 Field	7:0	SYSPMUID
 EndSysreg
 
+Sysreg	ID_AA64DFR2_EL1	3	0	0	5	2
+Res0	63:28
+UnsignedEnum	27:24	TRBE_EXC
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+UnsignedEnum	23:20	SPE_nVM
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+UnsignedEnum	19:16	SPE_EXC
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Res0	15:8
+UnsignedEnum	7:4	BWE
+	0b0000	NI
+	0b0001	FEAT_BWE
+	0b0002	FEAT_BWE2
+EndEnum
+UnsignedEnum	3:0	STEP
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+EndSysreg
+
 Sysreg	ID_AA64AFR0_EL1	3	0	0	5	4
 Res0	63:32
 Field	31:28	IMPDEF7
