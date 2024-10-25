@@ -12,6 +12,7 @@
 
 #include <asm/zcrypt.h>
 #include <asm/pkey.h>
+#include "zcrypt_api.h"
 
 /* Key token types */
 #define TOKTYPE_NON_CCA		 0x00 /* Non-CCA key token */

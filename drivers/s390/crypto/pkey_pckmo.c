@@ -15,7 +15,6 @@
 #include <crypto/aes.h>
 #include <linux/random.h>
 
-#include "zcrypt_api.h"
 #include "zcrypt_ccamisc.h"
 #include "pkey_base.h"
 
