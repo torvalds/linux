@@ -3840,12 +3840,6 @@ S: C/ Federico Garcia Lorca 1 10-A
 S: Sevilla 41005
 S: Spain
 
-N: Linus Torvalds
-E: torvalds@linux-foundation.org
-D: Original kernel hacker
-S: Portland, Oregon 97005
-S: USA
-
 N: Marcelo Tosatti
 E: marcelo@kvack.org
 D: v2.4 kernel maintainer
