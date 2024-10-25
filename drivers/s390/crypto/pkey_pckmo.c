@@ -244,7 +244,7 @@ static int pckmo_key2protkey(const u8 *key, u32 keylen,
 		case PKEY_KEYTYPE_AES_192:
 		case PKEY_KEYTYPE_AES_256:
 			if (t->len != keysize + AES_WK_VP_SIZE ||
-			    keylen != sizeof(struct protaeskeytoken))
+			    keylen < sizeof(struct protaeskeytoken))
 				goto out;
 			rc = pckmo_verify_protkey(t->protkey, t->len,
 						  t->keytype);
@@ -253,7 +253,7 @@ static int pckmo_key2protkey(const u8 *key, u32 keylen,
 			break;
 		default:
 			if (t->len != keysize + AES_WK_VP_SIZE ||
-			    keylen != sizeof(*t) + keysize + AES_WK_VP_SIZE)
+			    keylen < sizeof(*t) + keysize + AES_WK_VP_SIZE)
 				goto out;
 			break;
 		}
@@ -266,8 +266,8 @@ static int pckmo_key2protkey(const u8 *key, u32 keylen,
 		struct clearkeytoken *t = (struct clearkeytoken *)key;
 		u32 keysize;
 
-		if (keylen < sizeof(struct clearkeytoken) ||
-		    keylen != sizeof(*t) + t->len)
+		if (keylen < sizeof(*t) ||
+		    keylen < sizeof(*t) + t->len)
 			goto out;
 		keysize = pkey_keytype_to_size(t->keytype);
 		if (!keysize) {
@@ -376,11 +376,11 @@ static int pckmo_verify_key(const u8 *key, u32 keylen)
 		case PKEY_KEYTYPE_AES_128:
 		case PKEY_KEYTYPE_AES_192:
 		case PKEY_KEYTYPE_AES_256:
-			if (keylen != sizeof(struct protaeskeytoken))
+			if (keylen < sizeof(struct protaeskeytoken))
 				goto out;
 			break;
 		default:
-			if (keylen != sizeof(*t) + keysize + AES_WK_VP_SIZE)
+			if (keylen < sizeof(*t) + keysize + AES_WK_VP_SIZE)
 				goto out;
 			break;
 		}
