@@ -37,6 +37,7 @@
 #define PAES_MIN_KEYSIZE	16
 #define PAES_MAX_KEYSIZE	MAXEP11AESKEYBLOBSIZE
 #define PAES_256_PROTKEY_SIZE	(32 + 32)	/* key + verification pattern */
+#define PXTS_256_PROTKEY_SIZE	(32 + 32 + 32)	/* k1 + k2 + verification pattern */
 
 static u8 *ctrblk;
 static DEFINE_MUTEX(ctrblk_lock);
@@ -46,7 +47,7 @@ static cpacf_mask_t km_functions, kmc_functions, kmctr_functions;
 struct paes_protkey {
 	u32 type;
 	u32 len;
-	u8 protkey[PAES_256_PROTKEY_SIZE];
+	u8 protkey[PXTS_256_PROTKEY_SIZE];
 };
 
 struct key_blob {
@@ -159,6 +160,7 @@ static inline void _free_kb_keybuf(struct key_blob *kb)
 		kfree_sensitive(kb->key);
 		kb->key = NULL;
 	}
+	memzero_explicit(kb->keybuf, sizeof(kb->keybuf));
 }
 
 struct s390_paes_ctx {
@@ -491,6 +493,11 @@ static inline int __xts_paes_convert_key(struct s390_pxts_ctx *ctx)
 		if (pk0.type != pk1.type)
 			return -EINVAL;
 		break;
+	case PKEY_KEYTYPE_AES_XTS_128:
+	case PKEY_KEYTYPE_AES_XTS_256:
+		/* single key */
+		pk1.type = 0;
+		break;
 	default:
 		/* unsupported protected keytype */
 		return -EINVAL;
@@ -514,9 +521,23 @@ static inline int __xts_paes_set_key(struct s390_pxts_ctx *ctx)
 		return rc;
 
 	/* Pick the correct function code based on the protected key type */
-	fc = (ctx->pk[0].type == PKEY_KEYTYPE_AES_128) ? CPACF_KM_PXTS_128 :
-		(ctx->pk[0].type == PKEY_KEYTYPE_AES_256) ?
-		CPACF_KM_PXTS_256 : 0;
+	switch (ctx->pk[0].type) {
+	case PKEY_KEYTYPE_AES_128:
+		fc = CPACF_KM_PXTS_128;
+		break;
+	case PKEY_KEYTYPE_AES_256:
+		fc = CPACF_KM_PXTS_256;
+		break;
+	case PKEY_KEYTYPE_AES_XTS_128:
+		fc = CPACF_KM_PXTS_128_FULL;
+		break;
+	case PKEY_KEYTYPE_AES_XTS_256:
+		fc = CPACF_KM_PXTS_256_FULL;
+		break;
+	default:
+		fc = 0;
+		break;
+	}
 
 	/* Check if the function code is available */
 	ctx->fc = (fc && cpacf_test_func(&km_functions, fc)) ? fc : 0;
@@ -546,6 +567,13 @@ static int xts_paes_set_key(struct crypto_skcipher *tfm, const u8 *in_key,
 		return rc;
 
 	/*
+	 * It is not possible on a single protected key (e.g. full AES-XTS) to
+	 * check, if k1 and k2 are the same.
+	 */
+	if (ctx->pk[0].type == PKEY_KEYTYPE_AES_XTS_128 ||
+	    ctx->pk[0].type == PKEY_KEYTYPE_AES_XTS_256)
+		return 0;
+	/*
 	 * xts_verify_key verifies the key length is not odd and makes
 	 * sure that the two keys are not the same. This can be done
 	 * on the two protected keys as well
@@ -557,7 +585,61 @@ static int xts_paes_set_key(struct crypto_skcipher *tfm, const u8 *in_key,
 	return xts_verify_key(tfm, ckey, 2*ckey_len);
 }
 
-static int xts_paes_crypt(struct skcipher_request *req, unsigned long modifier)
+static int paes_xts_crypt_full(struct skcipher_request *req,
+			       unsigned long modifier)
+{
+	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
+	struct s390_pxts_ctx *ctx = crypto_skcipher_ctx(tfm);
+	unsigned int keylen, offset, nbytes, n, k;
+	struct {
+		u8 key[64];
+		u8 tweak[16];
+		u8 nap[16];
+		u8 wkvp[32];
+	} fxts_param = {
+		.nap = {0},
+	};
+	struct skcipher_walk walk;
+	int rc;
+
+	rc = skcipher_walk_virt(&walk, req, false);
+	if (rc)
+		return rc;
+
+	keylen = (ctx->pk[0].type == PKEY_KEYTYPE_AES_XTS_128) ? 32 : 64;
+	offset = (ctx->pk[0].type == PKEY_KEYTYPE_AES_XTS_128) ? 32 : 0;
+
+	spin_lock_bh(&ctx->pk_lock);
+	memcpy(fxts_param.key + offset, ctx->pk[0].protkey, keylen);
+	memcpy(fxts_param.wkvp, ctx->pk[0].protkey + keylen,
+	       sizeof(fxts_param.wkvp));
+	spin_unlock_bh(&ctx->pk_lock);
+	memcpy(fxts_param.tweak, walk.iv, sizeof(fxts_param.tweak));
+	fxts_param.nap[0] = 0x01; /* initial alpha power (1, little-endian) */
+
+	while ((nbytes = walk.nbytes) != 0) {
+		/* only use complete blocks */
+		n = nbytes & ~(AES_BLOCK_SIZE - 1);
+		k = cpacf_km(ctx->fc | modifier, fxts_param.key + offset,
+			     walk.dst.virt.addr, walk.src.virt.addr, n);
+		if (k)
+			rc = skcipher_walk_done(&walk, nbytes - k);
+		if (k < n) {
+			if (__xts_paes_convert_key(ctx))
+				return skcipher_walk_done(&walk, -EIO);
+			spin_lock_bh(&ctx->pk_lock);
+			memcpy(fxts_param.key + offset, ctx->pk[0].protkey,
+			       keylen);
+			memcpy(fxts_param.wkvp, ctx->pk[0].protkey + keylen,
+			       sizeof(fxts_param.wkvp));
+			spin_unlock_bh(&ctx->pk_lock);
+		}
+	}
+
+	return rc;
+}
+
+static int paes_xts_crypt(struct skcipher_request *req, unsigned long modifier)
 {
 	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
 	struct s390_pxts_ctx *ctx = crypto_skcipher_ctx(tfm);
@@ -610,6 +692,23 @@ static int xts_paes_crypt(struct skcipher_request *req, unsigned long modifier)
 	}
 
 	return rc;
+}
+
+static inline int xts_paes_crypt(struct skcipher_request *req, unsigned long modifier)
+{
+	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
+	struct s390_pxts_ctx *ctx = crypto_skcipher_ctx(tfm);
+
+	switch (ctx->fc) {
+	case CPACF_KM_PXTS_128:
+	case CPACF_KM_PXTS_256:
+		return paes_xts_crypt(req, modifier);
+	case CPACF_KM_PXTS_128_FULL:
+	case CPACF_KM_PXTS_256_FULL:
+		return paes_xts_crypt_full(req, modifier);
+	default:
+		return -EINVAL;
+	}
 }
 
 static int xts_paes_encrypt(struct skcipher_request *req)
