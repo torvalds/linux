@@ -1332,7 +1332,6 @@ static noinline int cow_file_range(struct btrfs_inode *inode,
 	u64 alloc_hint = 0;
 	u64 orig_start = start;
 	u64 num_bytes;
-	unsigned long ram_size;
 	u64 cur_alloc_size = 0;
 	u64 min_alloc_size;
 	u64 blocksize = fs_info->sectorsize;
@@ -1340,7 +1339,6 @@ static noinline int cow_file_range(struct btrfs_inode *inode,
 	struct extent_map *em;
 	unsigned clear_bits;
 	unsigned long page_ops;
-	bool extent_reserved = false;
 	int ret = 0;
 
 	if (btrfs_is_free_space_inode(inode)) {
@@ -1394,8 +1392,7 @@ static noinline int cow_file_range(struct btrfs_inode *inode,
 		struct btrfs_ordered_extent *ordered;
 		struct btrfs_file_extent file_extent;
 
-		cur_alloc_size = num_bytes;
-		ret = btrfs_reserve_extent(root, cur_alloc_size, cur_alloc_size,
+		ret = btrfs_reserve_extent(root, num_bytes, num_bytes,
 					   min_alloc_size, 0, alloc_hint,
 					   &ins, 1, 1);
 		if (ret == -EAGAIN) {
@@ -1426,9 +1423,7 @@ static noinline int cow_file_range(struct btrfs_inode *inode,
 		if (ret < 0)
 			goto out_unlock;
 		cur_alloc_size = ins.offset;
-		extent_reserved = true;
 
-		ram_size = ins.offset;
 		file_extent.disk_bytenr = ins.objectid;
 		file_extent.disk_num_bytes = ins.offset;
 		file_extent.num_bytes = ins.offset;
@@ -1436,14 +1431,14 @@ static noinline int cow_file_range(struct btrfs_inode *inode,
 		file_extent.offset = 0;
 		file_extent.compression = BTRFS_COMPRESS_NONE;
 
-		lock_extent(&inode->io_tree, start, start + ram_size - 1,
+		lock_extent(&inode->io_tree, start, start + cur_alloc_size - 1,
 			    &cached);
 
 		em = btrfs_create_io_em(inode, start, &file_extent,
 					BTRFS_ORDERED_REGULAR);
 		if (IS_ERR(em)) {
 			unlock_extent(&inode->io_tree, start,
-				      start + ram_size - 1, &cached);
+				      start + cur_alloc_size - 1, &cached);
 			ret = PTR_ERR(em);
 			goto out_reserve;
 		}
@@ -1453,7 +1448,7 @@ static noinline int cow_file_range(struct btrfs_inode *inode,
 						     1 << BTRFS_ORDERED_REGULAR);
 		if (IS_ERR(ordered)) {
 			unlock_extent(&inode->io_tree, start,
-				      start + ram_size - 1, &cached);
+				      start + cur_alloc_size - 1, &cached);
 			ret = PTR_ERR(ordered);
 			goto out_drop_extent_cache;
 		}
@@ -1474,7 +1469,7 @@ static noinline int cow_file_range(struct btrfs_inode *inode,
 			 */
 			if (ret)
 				btrfs_drop_extent_map_range(inode, start,
-							    start + ram_size - 1,
+							    start + cur_alloc_size - 1,
 							    false);
 		}
 		btrfs_put_ordered_extent(ordered);
@@ -1492,7 +1487,7 @@ static noinline int cow_file_range(struct btrfs_inode *inode,
 		page_ops = (keep_locked ? 0 : PAGE_UNLOCK);
 		page_ops |= PAGE_SET_ORDERED;
 
-		extent_clear_unlock_delalloc(inode, start, start + ram_size - 1,
+		extent_clear_unlock_delalloc(inode, start, start + cur_alloc_size - 1,
 					     locked_folio, &cached,
 					     EXTENT_LOCKED | EXTENT_DELALLOC,
 					     page_ops);
@@ -1502,7 +1497,7 @@ static noinline int cow_file_range(struct btrfs_inode *inode,
 			num_bytes -= cur_alloc_size;
 		alloc_hint = ins.objectid + ins.offset;
 		start += cur_alloc_size;
-		extent_reserved = false;
+		cur_alloc_size = 0;
 
 		/*
 		 * btrfs_reloc_clone_csums() error, since start is increased
@@ -1518,7 +1513,7 @@ done:
 	return ret;
 
 out_drop_extent_cache:
-	btrfs_drop_extent_map_range(inode, start, start + ram_size - 1, false);
+	btrfs_drop_extent_map_range(inode, start, start + cur_alloc_size - 1, false);
 out_reserve:
 	btrfs_dec_block_group_reservations(fs_info, ins.objectid);
 	btrfs_free_reserved_extent(fs_info, ins.objectid, ins.offset, 1);
@@ -1572,13 +1567,12 @@ out_unlock:
 	 * to decrement again the data space_info's bytes_may_use counter,
 	 * therefore we do not pass it the flag EXTENT_CLEAR_DATA_RESV.
 	 */
-	if (extent_reserved) {
+	if (cur_alloc_size) {
 		extent_clear_unlock_delalloc(inode, start,
 					     start + cur_alloc_size - 1,
 					     locked_folio, &cached, clear_bits,
 					     page_ops);
 		btrfs_qgroup_free_data(inode, NULL, start, cur_alloc_size, NULL);
-		start += cur_alloc_size;
 	}
 
 	/*
@@ -1587,11 +1581,13 @@ out_unlock:
 	 * space_info's bytes_may_use counter, reserved in
 	 * btrfs_check_data_free_space().
 	 */
-	if (start < end) {
+	if (start + cur_alloc_size < end) {
 		clear_bits |= EXTENT_CLEAR_DATA_RESV;
-		extent_clear_unlock_delalloc(inode, start, end, locked_folio,
+		extent_clear_unlock_delalloc(inode, start + cur_alloc_size,
+					     end, locked_folio,
 					     &cached, clear_bits, page_ops);
-		btrfs_qgroup_free_data(inode, NULL, start, end - start + 1, NULL);
+		btrfs_qgroup_free_data(inode, NULL, start + cur_alloc_size,
+				       end - start - cur_alloc_size + 1, NULL);
 	}
 	return ret;
 }
