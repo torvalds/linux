@@ -723,6 +723,10 @@ static const struct config_entry acpi_config_table[] = {
 /* BayTrail */
 	{
 		.flags = FLAG_SST_OR_SOF_BYT,
+		.acpi_hid = "LPE0F28",
+	},
+	{
+		.flags = FLAG_SST_OR_SOF_BYT,
 		.acpi_hid = "80860F28",
 	},
 /* CherryTrail */
