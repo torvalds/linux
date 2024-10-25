@@ -1200,7 +1200,7 @@ UnsignedEnum	55:52	BRBE
 	0b0001	IMP
 	0b0010	BRBE_V1P1
 EndEnum
-Enum	51:48	MTPMU
+SignedEnum	51:48	MTPMU
 	0b0000	NI_IMPDEF
 	0b0001	IMP
 	0b1111	NI
@@ -1208,6 +1208,7 @@ EndEnum
 UnsignedEnum	47:44	TraceBuffer
 	0b0000	NI
 	0b0001	IMP
+	0b0010	TRBE_V1P1
 EndEnum
 UnsignedEnum	43:40	TraceFilt
 	0b0000	NI
@@ -1224,11 +1225,18 @@ UnsignedEnum	35:32	PMSVer
 	0b0011	V1P2
 	0b0100	V1P3
 	0b0101	V1P4
+	0b0110	V1P5
 EndEnum
 Field	31:28	CTX_CMPs
-Res0	27:24
+UnsignedEnum	27:24	SEBEP
+	0b0000	NI
+	0b0001	IMP
+EndEnum
 Field	23:20	WRPs
-Res0	19:16
+UnsignedEnum	19:16	PMSS
+	0b0000	NI
+	0b0001	IMP
+EndEnum
 Field	15:12	BRPs
 UnsignedEnum	11:8	PMUVer
 	0b0000	NI
@@ -1238,6 +1246,7 @@ UnsignedEnum	11:8	PMUVer
 	0b0110	V3P5
 	0b0111	V3P7
 	0b1000	V3P8
+	0b1001	V3P9
 	0b1111	IMP_DEF
 EndEnum
 UnsignedEnum	7:4	TraceVer
