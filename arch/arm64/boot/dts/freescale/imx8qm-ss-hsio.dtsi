@@ -24,9 +24,9 @@
 		interrupt-names = "msi";
 		#address-cells = <3>;
 		#size-cells = <2>;
-		clocks = <&pciea_lpcg 2>,
-			 <&pciea_lpcg 0>,
-			 <&pciea_lpcg 1>;
+		clocks = <&pciea_lpcg IMX_LPCG_CLK_6>,
+			 <&pciea_lpcg IMX_LPCG_CLK_4>,
+			 <&pciea_lpcg IMX_LPCG_CLK_5>;
 		clock-names = "dbi", "mstr", "slv";
 		bus-range = <0x00 0xff>;
 		device_type = "pci";
@@ -54,9 +54,9 @@
 		interrupt-names = "msi";
 		#address-cells = <3>;
 		#size-cells = <2>;
-		clocks = <&pcieb_lpcg 2>,
-			 <&pcieb_lpcg 0>,
-			 <&pcieb_lpcg 1>;
+		clocks = <&pcieb_lpcg IMX_LPCG_CLK_6>,
+			 <&pcieb_lpcg IMX_LPCG_CLK_4>,
+			 <&pcieb_lpcg IMX_LPCG_CLK_5>;
 		clock-names = "dbi", "mstr", "slv";
 		bus-range = <0x00 0xff>;
 		device_type = "pci";
@@ -76,8 +76,8 @@
 		compatible = "fsl,imx8qm-ahci";
 		reg = <0x5f020000 0x10000>;
 		interrupts = <GIC_SPI 88 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&sata_lpcg 0>,
-			 <&sata_crr4_lpcg 0>;
+		clocks = <&sata_lpcg IMX_LPCG_CLK_4>,
+			 <&sata_crr4_lpcg IMX_LPCG_CLK_4>;
 		clock-names = "sata", "sata_ref";
 		phy-names = "sata-phy", "cali-phy0", "cali-phy1";
 		power-domains = <&pd IMX_SC_R_SATA_0>;
