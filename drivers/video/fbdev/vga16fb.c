@@ -1417,7 +1417,7 @@ MODULE_DEVICE_TABLE(platform, vga16fb_driver_id_table);
 
 static struct platform_driver vga16fb_driver = {
 	.probe = vga16fb_probe,
-	.remove_new = vga16fb_remove,
+	.remove = vga16fb_remove,
 	.driver = {
 		.name = "vga16fb",
 	},

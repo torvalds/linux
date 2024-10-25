@@ -1307,7 +1307,11 @@ static int bnxt_re_init_sq_attr(struct bnxt_re_qp *qp,
 			0 : BNXT_QPLIB_RESERVED_QP_WRS;
 		entries = bnxt_re_init_depth(entries + diff + 1, uctx);
 		sq->max_wqe = min_t(u32, entries, dev_attr->max_qp_wqes + diff + 1);
-		sq->max_sw_wqe = bnxt_qplib_get_depth(sq, qplqp->wqe_mode, true);
+		if (qplqp->wqe_mode == BNXT_QPLIB_WQE_MODE_VARIABLE)
+			sq->max_sw_wqe = bnxt_qplib_get_depth(sq, qplqp->wqe_mode, true);
+		else
+			sq->max_sw_wqe = sq->max_wqe;
+
 	}
 	sq->q_full_delta = diff + 1;
 	/*

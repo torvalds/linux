@@ -905,11 +905,29 @@ static int check_snapshot_exists(struct btree_trans *trans, u32 id)
 	if (bch2_snapshot_equiv(c, id))
 		return 0;
 
-	/* 0 is an invalid tree ID */
+	/* Do we need to reconstruct the snapshot_tree entry as well? */
+	struct btree_iter iter;
+	struct bkey_s_c k;
+	int ret = 0;
 	u32 tree_id = 0;
-	int ret = bch2_snapshot_tree_create(trans, id, 0, &tree_id);
+
+	for_each_btree_key_norestart(trans, iter, BTREE_ID_snapshot_trees, POS_MIN,
+				     0, k, ret) {
+		if (le32_to_cpu(bkey_s_c_to_snapshot_tree(k).v->root_snapshot) == id) {
+			tree_id = k.k->p.offset;
+			break;
+		}
+	}
+	bch2_trans_iter_exit(trans, &iter);
+
 	if (ret)
 		return ret;
+
+	if (!tree_id) {
+		ret = bch2_snapshot_tree_create(trans, id, 0, &tree_id);
+		if (ret)
+			return ret;
+	}
 
 	struct bkey_i_snapshot *snapshot = bch2_trans_kmalloc(trans, sizeof(*snapshot));
 	ret = PTR_ERR_OR_ZERO(snapshot);
@@ -920,6 +938,16 @@ static int check_snapshot_exists(struct btree_trans *trans, u32 id)
 	snapshot->k.p		= POS(0, id);
 	snapshot->v.tree	= cpu_to_le32(tree_id);
 	snapshot->v.btime.lo	= cpu_to_le64(bch2_current_time(c));
+
+	for_each_btree_key_norestart(trans, iter, BTREE_ID_subvolumes, POS_MIN,
+				     0, k, ret) {
+		if (le32_to_cpu(bkey_s_c_to_subvolume(k).v->snapshot) == id) {
+			snapshot->v.subvol = cpu_to_le32(k.k->p.offset);
+			SET_BCH_SNAPSHOT_SUBVOL(&snapshot->v, true);
+			break;
+		}
+	}
+	bch2_trans_iter_exit(trans, &iter);
 
 	return  bch2_btree_insert_trans(trans, BTREE_ID_snapshots, &snapshot->k_i, 0) ?:
 		bch2_mark_snapshot(trans, BTREE_ID_snapshots, 0,
@@ -1730,103 +1758,6 @@ int __bch2_key_has_snapshot_overwrites(struct btree_trans *trans,
 	bch2_trans_iter_exit(trans, &iter);
 
 	return ret;
-}
-
-static u32 bch2_snapshot_smallest_child(struct bch_fs *c, u32 id)
-{
-	const struct snapshot_t *s = snapshot_t(c, id);
-
-	return s->children[1] ?: s->children[0];
-}
-
-static u32 bch2_snapshot_smallest_descendent(struct bch_fs *c, u32 id)
-{
-	u32 child;
-
-	while ((child = bch2_snapshot_smallest_child(c, id)))
-		id = child;
-	return id;
-}
-
-static int bch2_propagate_key_to_snapshot_leaf(struct btree_trans *trans,
-					       enum btree_id btree,
-					       struct bkey_s_c interior_k,
-					       u32 leaf_id, struct bpos *new_min_pos)
-{
-	struct btree_iter iter;
-	struct bpos pos = interior_k.k->p;
-	struct bkey_s_c k;
-	struct bkey_i *new;
-	int ret;
-
-	pos.snapshot = leaf_id;
-
-	bch2_trans_iter_init(trans, &iter, btree, pos, BTREE_ITER_intent);
-	k = bch2_btree_iter_peek_slot(&iter);
-	ret = bkey_err(k);
-	if (ret)
-		goto out;
-
-	/* key already overwritten in this snapshot? */
-	if (k.k->p.snapshot != interior_k.k->p.snapshot)
-		goto out;
-
-	if (bpos_eq(*new_min_pos, POS_MIN)) {
-		*new_min_pos = k.k->p;
-		new_min_pos->snapshot = leaf_id;
-	}
-
-	new = bch2_bkey_make_mut_noupdate(trans, interior_k);
-	ret = PTR_ERR_OR_ZERO(new);
-	if (ret)
-		goto out;
-
-	new->k.p.snapshot = leaf_id;
-	ret = bch2_trans_update(trans, &iter, new, 0);
-out:
-	bch2_set_btree_iter_dontneed(&iter);
-	bch2_trans_iter_exit(trans, &iter);
-	return ret;
-}
-
-int bch2_propagate_key_to_snapshot_leaves(struct btree_trans *trans,
-					  enum btree_id btree,
-					  struct bkey_s_c k,
-					  struct bpos *new_min_pos)
-{
-	struct bch_fs *c = trans->c;
-	struct bkey_buf sk;
-	u32 restart_count = trans->restart_count;
-	int ret = 0;
-
-	bch2_bkey_buf_init(&sk);
-	bch2_bkey_buf_reassemble(&sk, c, k);
-	k = bkey_i_to_s_c(sk.k);
-
-	*new_min_pos = POS_MIN;
-
-	for (u32 id = bch2_snapshot_smallest_descendent(c, k.k->p.snapshot);
-	     id < k.k->p.snapshot;
-	     id++) {
-		if (!bch2_snapshot_is_ancestor(c, id, k.k->p.snapshot) ||
-		    !bch2_snapshot_is_leaf(c, id))
-			continue;
-again:
-		ret =   btree_trans_too_many_iters(trans) ?:
-			bch2_propagate_key_to_snapshot_leaf(trans, btree, k, id, new_min_pos) ?:
-			bch2_trans_commit(trans, NULL, NULL, 0);
-		if (ret && bch2_err_matches(ret, BCH_ERR_transaction_restart)) {
-			bch2_trans_begin(trans);
-			goto again;
-		}
-
-		if (ret)
-			break;
-	}
-
-	bch2_bkey_buf_exit(&sk, c);
-
-	return ret ?: trans_was_restarted(trans, restart_count);
 }
 
 static int bch2_check_snapshot_needs_deletion(struct btree_trans *trans, struct bkey_s_c k)

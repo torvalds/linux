@@ -188,8 +188,11 @@ static int bnxt_re_setup_chip_ctx(struct bnxt_re_dev *rdev)
 
 	bnxt_re_set_db_offset(rdev);
 	rc = bnxt_qplib_map_db_bar(&rdev->qplib_res);
-	if (rc)
+	if (rc) {
+		kfree(rdev->chip_ctx);
+		rdev->chip_ctx = NULL;
 		return rc;
+	}
 
 	if (bnxt_qplib_determine_atomics(en_dev->pdev))
 		ibdev_info(&rdev->ibdev,
@@ -531,6 +534,7 @@ static bool is_dbr_fifo_full(struct bnxt_re_dev *rdev)
 static void __wait_for_fifo_occupancy_below_th(struct bnxt_re_dev *rdev)
 {
 	struct bnxt_qplib_db_pacing_data *pacing_data = rdev->qplib_res.pacing_data;
+	u32 retry_fifo_check = 1000;
 	u32 fifo_occup;
 
 	/* loop shouldn't run infintely as the occupancy usually goes
@@ -544,6 +548,14 @@ static void __wait_for_fifo_occupancy_below_th(struct bnxt_re_dev *rdev)
 
 		if (fifo_occup < pacing_data->pacing_th)
 			break;
+		if (!retry_fifo_check--) {
+			dev_info_once(rdev_to_dev(rdev),
+				      "%s: fifo_occup = 0x%xfifo_max_depth = 0x%x pacing_th = 0x%x\n",
+				      __func__, fifo_occup, pacing_data->fifo_max_depth,
+					pacing_data->pacing_th);
+			break;
+		}
+
 	}
 }
 
@@ -957,7 +969,7 @@ static int bnxt_re_register_ib(struct bnxt_re_dev *rdev)
 	return ib_register_device(ibdev, "bnxt_re%d", &rdev->en_dev->pdev->dev);
 }
 
-static struct bnxt_re_dev *bnxt_re_dev_add(struct bnxt_aux_priv *aux_priv,
+static struct bnxt_re_dev *bnxt_re_dev_add(struct auxiliary_device *adev,
 					   struct bnxt_en_dev *en_dev)
 {
 	struct bnxt_re_dev *rdev;
@@ -973,6 +985,7 @@ static struct bnxt_re_dev *bnxt_re_dev_add(struct bnxt_aux_priv *aux_priv,
 	rdev->nb.notifier_call = NULL;
 	rdev->netdev = en_dev->net;
 	rdev->en_dev = en_dev;
+	rdev->adev = adev;
 	rdev->id = rdev->en_dev->pdev->devfn;
 	INIT_LIST_HEAD(&rdev->qp_list);
 	mutex_init(&rdev->qp_lock);
@@ -1025,11 +1038,14 @@ static int bnxt_re_handle_unaffi_async_event(struct creq_func_event
 static int bnxt_re_handle_qp_async_event(struct creq_qp_event *qp_event,
 					 struct bnxt_re_qp *qp)
 {
-	struct bnxt_re_srq *srq = container_of(qp->qplib_qp.srq, struct bnxt_re_srq,
-					       qplib_srq);
 	struct creq_qp_error_notification *err_event;
+	struct bnxt_re_srq *srq = NULL;
 	struct ib_event event = {};
 	unsigned int flags;
+
+	if (qp->qplib_qp.srq)
+		srq =  container_of(qp->qplib_qp.srq, struct bnxt_re_srq,
+				    qplib_srq);
 
 	if (qp->qplib_qp.state == CMDQ_MODIFY_QP_NEW_STATE_ERR &&
 	    rdma_is_kernel_res(&qp->ib_qp.res)) {
@@ -1258,15 +1274,9 @@ static int bnxt_re_cqn_handler(struct bnxt_qplib_nq *nq,
 {
 	struct bnxt_re_cq *cq = container_of(handle, struct bnxt_re_cq,
 					     qplib_cq);
-	u32 *cq_ptr;
 
-	if (cq->ib_cq.comp_handler) {
-		if (cq->uctx_cq_page) {
-			cq_ptr = (u32 *)cq->uctx_cq_page;
-			*cq_ptr = cq->qplib_cq.toggle;
-		}
+	if (cq->ib_cq.comp_handler)
 		(*cq->ib_cq.comp_handler)(&cq->ib_cq, cq->ib_cq.cq_context);
-	}
 
 	return 0;
 }
@@ -1823,7 +1833,6 @@ static void bnxt_re_update_en_info_rdev(struct bnxt_re_dev *rdev,
 	 */
 	rtnl_lock();
 	en_info->rdev = rdev;
-	rdev->adev = adev;
 	rtnl_unlock();
 }
 
@@ -1840,7 +1849,7 @@ static int bnxt_re_add_device(struct auxiliary_device *adev, u8 op_type)
 	en_dev = en_info->en_dev;
 
 
-	rdev = bnxt_re_dev_add(aux_priv, en_dev);
+	rdev = bnxt_re_dev_add(adev, en_dev);
 	if (!rdev || !rdev_to_dev(rdev)) {
 		rc = -ENOMEM;
 		goto exit;
@@ -1865,12 +1874,14 @@ static int bnxt_re_add_device(struct auxiliary_device *adev, u8 op_type)
 		rdev->nb.notifier_call = NULL;
 		pr_err("%s: Cannot register to netdevice_notifier",
 		       ROCE_DRV_MODULE_NAME);
-		return rc;
+		goto re_dev_unreg;
 	}
 	bnxt_re_setup_cc(rdev, true);
 
 	return 0;
 
+re_dev_unreg:
+	ib_unregister_device(&rdev->ibdev);
 re_dev_uninit:
 	bnxt_re_update_en_info_rdev(NULL, en_info, adev);
 	bnxt_re_dev_uninit(rdev, BNXT_RE_COMPLETE_REMOVE);
@@ -2014,15 +2025,7 @@ static int bnxt_re_probe(struct auxiliary_device *adev,
 	auxiliary_set_drvdata(adev, en_info);
 
 	rc = bnxt_re_add_device(adev, BNXT_RE_COMPLETE_INIT);
-	if (rc)
-		goto err;
 	mutex_unlock(&bnxt_re_mutex);
-	return 0;
-
-err:
-	mutex_unlock(&bnxt_re_mutex);
-	bnxt_re_remove(adev);
-
 	return rc;
 }
 

@@ -695,6 +695,16 @@ void bch2_bkey_ptrs_to_text(struct printbuf *, struct bch_fs *,
 int bch2_bkey_ptrs_validate(struct bch_fs *, struct bkey_s_c,
 			    enum bch_validate_flags);
 
+static inline bool bch2_extent_ptr_eq(struct bch_extent_ptr ptr1,
+				      struct bch_extent_ptr ptr2)
+{
+	return (ptr1.cached	== ptr2.cached &&
+		ptr1.unwritten	== ptr2.unwritten &&
+		ptr1.offset	== ptr2.offset &&
+		ptr1.dev	== ptr2.dev &&
+		ptr1.dev	== ptr2.dev);
+}
+
 void bch2_ptr_swab(struct bkey_s);
 
 const struct bch_extent_rebalance *bch2_bkey_rebalance_opts(struct bkey_s_c);
