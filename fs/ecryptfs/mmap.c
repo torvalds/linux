@@ -23,22 +23,6 @@
 #include "ecryptfs_kernel.h"
 
 /*
- * ecryptfs_get_locked_page
- *
- * Get one page from cache or lower f/s, return error otherwise.
- *
- * Returns locked and up-to-date page (if ok), with increased
- * refcnt.
- */
-struct page *ecryptfs_get_locked_page(struct inode *inode, loff_t index)
-{
-	struct page *page = read_mapping_page(inode->i_mapping, index, NULL);
-	if (!IS_ERR(page))
-		lock_page(page);
-	return page;
-}
-
-/*
  * This is where we encrypt the data and pass the encrypted data to
  * the lower filesystem.  In OpenPGP-compatible mode, we operate on
  * entire underlying packets.
