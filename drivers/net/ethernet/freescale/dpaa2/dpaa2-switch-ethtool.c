@@ -170,17 +170,16 @@ dpaa2_switch_ethtool_get_sset_count(struct net_device *netdev, int sset)
 static void dpaa2_switch_ethtool_get_strings(struct net_device *netdev,
 					     u32 stringset, u8 *data)
 {
-	u8 *p = data;
+	const char *str;
 	int i;
 
 	switch (stringset) {
 	case ETH_SS_STATS:
 		for (i = 0; i < DPAA2_SWITCH_NUM_COUNTERS; i++) {
-			memcpy(p, dpaa2_switch_ethtool_counters[i].name,
-			       ETH_GSTRING_LEN);
-			p += ETH_GSTRING_LEN;
+			str = dpaa2_switch_ethtool_counters[i].name;
+			ethtool_puts(&data, str);
 		}
-		dpaa2_mac_get_strings(p);
+		dpaa2_mac_get_strings(&data);
 		break;
 	}
 }

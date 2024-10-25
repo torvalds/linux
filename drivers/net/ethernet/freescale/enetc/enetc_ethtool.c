@@ -247,38 +247,25 @@ static int enetc_get_sset_count(struct net_device *ndev, int sset)
 static void enetc_get_strings(struct net_device *ndev, u32 stringset, u8 *data)
 {
 	struct enetc_ndev_priv *priv = netdev_priv(ndev);
-	u8 *p = data;
 	int i, j;
 
 	switch (stringset) {
 	case ETH_SS_STATS:
-		for (i = 0; i < ARRAY_SIZE(enetc_si_counters); i++) {
-			strscpy(p, enetc_si_counters[i].name, ETH_GSTRING_LEN);
-			p += ETH_GSTRING_LEN;
-		}
-		for (i = 0; i < priv->num_tx_rings; i++) {
-			for (j = 0; j < ARRAY_SIZE(tx_ring_stats); j++) {
-				snprintf(p, ETH_GSTRING_LEN, tx_ring_stats[j],
-					 i);
-				p += ETH_GSTRING_LEN;
-			}
-		}
-		for (i = 0; i < priv->num_rx_rings; i++) {
-			for (j = 0; j < ARRAY_SIZE(rx_ring_stats); j++) {
-				snprintf(p, ETH_GSTRING_LEN, rx_ring_stats[j],
-					 i);
-				p += ETH_GSTRING_LEN;
-			}
-		}
+		for (i = 0; i < ARRAY_SIZE(enetc_si_counters); i++)
+			ethtool_puts(&data, enetc_si_counters[i].name);
+		for (i = 0; i < priv->num_tx_rings; i++)
+			for (j = 0; j < ARRAY_SIZE(tx_ring_stats); j++)
+				ethtool_sprintf(&data, tx_ring_stats[j], i);
+		for (i = 0; i < priv->num_rx_rings; i++)
+			for (j = 0; j < ARRAY_SIZE(rx_ring_stats); j++)
+				ethtool_sprintf(&data, rx_ring_stats[j], i);
 
 		if (!enetc_si_is_pf(priv->si))
 			break;
 
-		for (i = 0; i < ARRAY_SIZE(enetc_port_counters); i++) {
-			strscpy(p, enetc_port_counters[i].name,
-				ETH_GSTRING_LEN);
-			p += ETH_GSTRING_LEN;
-		}
+		for (i = 0; i < ARRAY_SIZE(enetc_port_counters); i++)
+			ethtool_puts(&data, enetc_port_counters[i].name);
+
 		break;
 	}
 }
