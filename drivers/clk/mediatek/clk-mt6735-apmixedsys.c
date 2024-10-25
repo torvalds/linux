@@ -88,7 +88,7 @@ static int clk_mt6735_apmixed_probe(struct platform_device *pdev)
 	if (IS_ERR(base))
 		return PTR_ERR(base);
 
-	clk_data = mtk_alloc_clk_data(ARRAY_SIZE(apmixedsys_plls));
+	clk_data = mtk_devm_alloc_clk_data(&pdev->dev, ARRAY_SIZE(apmixedsys_plls));
 	if (!clk_data)
 		return -ENOMEM;
 	platform_set_drvdata(pdev, clk_data);
@@ -114,7 +114,6 @@ static void clk_mt6735_apmixed_remove(struct platform_device *pdev)
 	struct clk_hw_onecell_data *clk_data = platform_get_drvdata(pdev);
 
 	mtk_clk_unregister_plls(apmixedsys_plls, ARRAY_SIZE(apmixedsys_plls), clk_data);
-	mtk_free_clk_data(clk_data);
 }
 
 static const struct of_device_id of_match_mt6735_apmixedsys[] = {
