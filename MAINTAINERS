@@ -9723,6 +9723,7 @@ F:	include/dt-bindings/gpio/
 F:	include/linux/gpio.h
 F:	include/linux/gpio/
 F:	include/linux/of_gpio.h
+K:	(devm_)?gpio_(request|free|direction|get|set)
 
 GPIO UAPI
 M:	Bartosz Golaszewski <brgl@bgdev.pl>
