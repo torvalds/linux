@@ -392,7 +392,7 @@ out:
 
 /**
  * ecryptfs_encrypt_page
- * @page: Page mapped from the eCryptfs inode for the file; contains
+ * @folio: Folio mapped from the eCryptfs inode for the file; contains
  *        decrypted content that needs to be encrypted (to a temporary
  *        page; not in place) and written out to the lower file
  *
@@ -406,7 +406,7 @@ out:
  *
  * Returns zero on success; negative on error
  */
-int ecryptfs_encrypt_page(struct page *page)
+int ecryptfs_encrypt_page(struct folio *folio)
 {
 	struct inode *ecryptfs_inode;
 	struct ecryptfs_crypt_stat *crypt_stat;
@@ -416,7 +416,7 @@ int ecryptfs_encrypt_page(struct page *page)
 	loff_t lower_offset;
 	int rc = 0;
 
-	ecryptfs_inode = page->mapping->host;
+	ecryptfs_inode = folio->mapping->host;
 	crypt_stat =
 		&(ecryptfs_inode_to_private(ecryptfs_inode)->crypt_stat);
 	BUG_ON(!(crypt_stat->flags & ECRYPTFS_ENCRYPTED));
@@ -431,8 +431,8 @@ int ecryptfs_encrypt_page(struct page *page)
 	for (extent_offset = 0;
 	     extent_offset < (PAGE_SIZE / crypt_stat->extent_size);
 	     extent_offset++) {
-		rc = crypt_extent(crypt_stat, enc_extent_page, page,
-				  extent_offset, ENCRYPT);
+		rc = crypt_extent(crypt_stat, enc_extent_page,
+				folio_page(folio, 0), extent_offset, ENCRYPT);
 		if (rc) {
 			printk(KERN_ERR "%s: Error encrypting extent; "
 			       "rc = [%d]\n", __func__, rc);
@@ -440,7 +440,7 @@ int ecryptfs_encrypt_page(struct page *page)
 		}
 	}
 
-	lower_offset = lower_offset_for_page(crypt_stat, page);
+	lower_offset = lower_offset_for_page(crypt_stat, &folio->page);
 	enc_extent_virt = kmap_local_page(enc_extent_page);
 	rc = ecryptfs_write_lower(ecryptfs_inode, enc_extent_virt, lower_offset,
 				  PAGE_SIZE);

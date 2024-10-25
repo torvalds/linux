@@ -168,7 +168,7 @@ int ecryptfs_write(struct inode *ecryptfs_inode, char *data, loff_t offset,
 		folio_mark_uptodate(ecryptfs_folio);
 		folio_unlock(ecryptfs_folio);
 		if (crypt_stat->flags & ECRYPTFS_ENCRYPTED)
-			rc = ecryptfs_encrypt_page(&ecryptfs_folio->page);
+			rc = ecryptfs_encrypt_page(ecryptfs_folio);
 		else
 			rc = ecryptfs_write_lower_page_segment(ecryptfs_inode,
 						ecryptfs_folio,
