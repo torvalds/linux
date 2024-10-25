@@ -3042,52 +3042,6 @@ EXPORT_SYMBOL(msm_ep_set_mode);
 
 static void dwc3_resume_work(struct work_struct *w);
 
-static void dwc3_restart_usb_work(struct work_struct *w)
-{
-	struct dwc3_msm *mdwc = container_of(w, struct dwc3_msm,
-						restart_usb_work);
-	unsigned int timeout = 50;
-
-	if (atomic_read(&mdwc->in_lpm) || mdwc->dr_mode != USB_DR_MODE_OTG) {
-		dev_dbg(mdwc->dev, "%s failed!!!\n", __func__);
-		return;
-	}
-
-	/* guard against concurrent VBUS handling */
-	mdwc->in_restart = true;
-
-	if (!mdwc->vbus_active) {
-		dev_dbg(mdwc->dev, "%s bailing out in disconnect\n", __func__);
-		mdwc->err_evt_seen = false;
-		mdwc->in_restart = false;
-		return;
-	}
-
-	dbg_event(0xFF, "RestartUSB", 0);
-	/* Reset active USB connection */
-	dwc3_resume_work(&mdwc->resume_work);
-
-	/* Make sure disconnect is processed before sending connect */
-	while (--timeout && !pm_runtime_suspended(mdwc->dev))
-		msleep(20);
-
-	if (!timeout) {
-		dev_dbg(mdwc->dev,
-			"Not in LPM after disconnect, forcing suspend...\n");
-		dbg_event(0xFF, "ReStart:RT SUSP",
-			atomic_read(&mdwc->dev->power.usage_count));
-		pm_runtime_suspend(mdwc->dev);
-	}
-
-	mdwc->in_restart = false;
-	/* Force reconnect only if cable is still connected */
-	if (mdwc->vbus_active)
-		dwc3_resume_work(&mdwc->resume_work);
-
-	mdwc->err_evt_seen = false;
-	flush_work(&mdwc->sm_work);
-}
-
 /*
  * Config Global Distributed Switch Controller (GDSC)
  * to support controller power collapse
@@ -5773,6 +5727,102 @@ exit:
 }
 EXPORT_SYMBOL(dwc3_msm_set_dp_mode);
 
+static int dwc3_msm_restart_usb_host(struct dwc3_msm *mdwc)
+{
+	struct dwc3 *dwc = platform_get_drvdata(mdwc->dwc3);
+	struct usb_hcd *hcd = platform_get_drvdata(dwc->xhci);
+	int ret = 0;
+
+	if (!test_bit(HCD_FLAG_DEAD, &hcd->flags))
+		return 0;
+
+	mutex_lock(&mdwc->role_switch_mutex);
+
+	/* Check if USB cable disconnected */
+	if (mdwc->id_state == DWC3_ID_FLOAT)
+		goto exit;
+
+	/* stop USB host mode */
+	ret = dwc3_start_stop_host(mdwc, false);
+	if (ret)
+		goto exit;
+
+	dwc3_start_stop_host(mdwc, true);
+
+exit:
+	mutex_unlock(&mdwc->role_switch_mutex);
+
+	return ret;
+}
+
+static int dwc3_msm_restart_usb_gadget(struct dwc3_msm *mdwc)
+{
+	unsigned int timeout = 50;
+
+	/* guard against concurrent VBUS handling */
+	mdwc->in_restart = true;
+
+	if (!mdwc->vbus_active) {
+		dev_dbg(mdwc->dev, "%s bailing out in disconnect\n", __func__);
+		mdwc->err_evt_seen = false;
+		mdwc->in_restart = false;
+		return 0;
+	}
+
+	dbg_event(0xFF, "RestartUSB", 0);
+	/* Reset active USB connection */
+	dwc3_resume_work(&mdwc->resume_work);
+
+	/* Make sure disconnect is processed before sending connect */
+	while (--timeout && !pm_runtime_suspended(mdwc->dev))
+		msleep(20);
+
+	if (!timeout) {
+		dev_dbg(mdwc->dev,
+			"Not in LPM after disconnect, forcing suspend...\n");
+		dbg_event(0xFF, "ReStart:RT SUSP",
+			atomic_read(&mdwc->dev->power.usage_count));
+		pm_runtime_suspend(mdwc->dev);
+	}
+
+	mdwc->in_restart = false;
+	/* Force reconnect only if cable is still connected */
+	if (mdwc->vbus_active)
+		dwc3_resume_work(&mdwc->resume_work);
+
+	mdwc->err_evt_seen = false;
+	flush_work(&mdwc->sm_work);
+
+	return 0;
+}
+
+static void dwc3_restart_usb_work(struct work_struct *w)
+{
+	struct dwc3_msm *mdwc = container_of(w, struct dwc3_msm,
+						restart_usb_work);
+	enum usb_role role;
+
+	if (atomic_read(&mdwc->in_lpm)) {
+		dev_dbg(mdwc->dev, "%s failed!!!\n", __func__);
+		return;
+	}
+
+	mutex_lock(&mdwc->role_switch_mutex);
+	role = dwc3_msm_get_role(mdwc);
+	mutex_unlock(&mdwc->role_switch_mutex);
+
+	switch (role) {
+	case USB_ROLE_HOST:
+		dwc3_msm_restart_usb_host(mdwc);
+		break;
+	case USB_ROLE_DEVICE:
+		dwc3_msm_restart_usb_gadget(mdwc);
+		break;
+	default:
+		dev_err(mdwc->dev, "incorrect role during restart\n");
+	}
+}
+
 static int qos_rec_irq_read(struct seq_file *s, void *p)
 {
 	struct dwc3_msm *mdwc = s->private;
@@ -6709,11 +6759,11 @@ static int dwc3_msm_host_notifier(struct notifier_block *nb,
 {
 	struct dwc3_msm *mdwc = container_of(nb, struct dwc3_msm, host_nb);
 	struct dwc3 *dwc = platform_get_drvdata(mdwc->dwc3);
+	struct usb_hcd *hcd = platform_get_drvdata(dwc->xhci);
 	struct usb_device *udev = ptr;
 
 	if (event == USB_BUS_ADD && mdwc->enable_host_slow_suspend) {
 		struct usb_bus *ubus = ptr;
-		struct usb_hcd *hcd = bus_to_hcd(ubus);
 		struct xhci_hcd *xhci = hcd_to_xhci(hcd);
 
 		if (usb_hcd_is_primary_hcd(hcd)) {
@@ -6779,6 +6829,9 @@ static int dwc3_msm_host_notifier(struct notifier_block *nb,
 
 			if (mdwc->wcd_usbss)
 				wcd_usbss_dpdm_switch_update(true, true);
+
+			if (hcd && test_bit(HCD_FLAG_DEAD, &hcd->flags))
+				schedule_work(&mdwc->restart_usb_work);
 		}
 	} else if (!udev->parent) {
 		/* USB root hub device */
