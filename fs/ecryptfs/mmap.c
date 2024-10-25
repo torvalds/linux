@@ -95,7 +95,7 @@ static void strip_xattr_flag(char *page_virt,
 
 /**
  * ecryptfs_copy_up_encrypted_with_header
- * @page: Sort of a ``virtual'' representation of the encrypted lower
+ * @folio: Sort of a ``virtual'' representation of the encrypted lower
  *        file. The actual lower file does not have the metadata in
  *        the header. This is locked.
  * @crypt_stat: The eCryptfs inode's cryptographic context
@@ -104,7 +104,7 @@ static void strip_xattr_flag(char *page_virt,
  * seeing, with the header information inserted.
  */
 static int
-ecryptfs_copy_up_encrypted_with_header(struct page *page,
+ecryptfs_copy_up_encrypted_with_header(struct folio *folio,
 				       struct ecryptfs_crypt_stat *crypt_stat)
 {
 	loff_t extent_num_in_page = 0;
@@ -113,9 +113,9 @@ ecryptfs_copy_up_encrypted_with_header(struct page *page,
 	int rc = 0;
 
 	while (extent_num_in_page < num_extents_per_page) {
-		loff_t view_extent_num = ((((loff_t)page->index)
+		loff_t view_extent_num = ((loff_t)folio->index
 					   * num_extents_per_page)
-					  + extent_num_in_page);
+					  + extent_num_in_page;
 		size_t num_header_extents_at_front =
 			(crypt_stat->metadata_size / crypt_stat->extent_size);
 
@@ -123,21 +123,21 @@ ecryptfs_copy_up_encrypted_with_header(struct page *page,
 			/* This is a header extent */
 			char *page_virt;
 
-			page_virt = kmap_local_page(page);
+			page_virt = kmap_local_folio(folio, 0);
 			memset(page_virt, 0, PAGE_SIZE);
 			/* TODO: Support more than one header extent */
 			if (view_extent_num == 0) {
 				size_t written;
 
 				rc = ecryptfs_read_xattr_region(
-					page_virt, page->mapping->host);
+					page_virt, folio->mapping->host);
 				strip_xattr_flag(page_virt + 16, crypt_stat);
 				ecryptfs_write_header_metadata(page_virt + 20,
 							       crypt_stat,
 							       &written);
 			}
 			kunmap_local(page_virt);
-			flush_dcache_page(page);
+			flush_dcache_folio(folio);
 			if (rc) {
 				printk(KERN_ERR "%s: Error reading xattr "
 				       "region; rc = [%d]\n", __func__, rc);
@@ -150,9 +150,9 @@ ecryptfs_copy_up_encrypted_with_header(struct page *page,
 				 - crypt_stat->metadata_size);
 
 			rc = ecryptfs_read_lower_page_segment(
-				page, (lower_offset >> PAGE_SHIFT),
+				&folio->page, (lower_offset >> PAGE_SHIFT),
 				(lower_offset & ~PAGE_MASK),
-				crypt_stat->extent_size, page->mapping->host);
+				crypt_stat->extent_size, folio->mapping->host);
 			if (rc) {
 				printk(KERN_ERR "%s: Error attempting to read "
 				       "extent at offset [%lld] in the lower "
@@ -189,8 +189,8 @@ static int ecryptfs_read_folio(struct file *file, struct folio *folio)
 						      inode);
 	} else if (crypt_stat->flags & ECRYPTFS_VIEW_AS_ENCRYPTED) {
 		if (crypt_stat->flags & ECRYPTFS_METADATA_IN_XATTR) {
-			err = ecryptfs_copy_up_encrypted_with_header(&folio->page,
-								    crypt_stat);
+			err = ecryptfs_copy_up_encrypted_with_header(folio,
+					crypt_stat);
 			if (err) {
 				printk(KERN_ERR "%s: Error attempting to copy "
 				       "the encrypted content from the lower "
@@ -291,7 +291,7 @@ static int ecryptfs_write_begin(struct file *file,
 		} else if (crypt_stat->flags & ECRYPTFS_VIEW_AS_ENCRYPTED) {
 			if (crypt_stat->flags & ECRYPTFS_METADATA_IN_XATTR) {
 				rc = ecryptfs_copy_up_encrypted_with_header(
-					&folio->page, crypt_stat);
+					folio, crypt_stat);
 				if (rc) {
 					printk(KERN_ERR "%s: Error attempting "
 					       "to copy the encrypted content "
