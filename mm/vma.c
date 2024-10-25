@@ -19,6 +19,7 @@ struct mmap_state {
 	struct file *file;
 
 	unsigned long charged;
+	bool retry_merge;
 
 	struct vm_area_struct *prev;
 	struct vm_area_struct *next;
@@ -2278,11 +2279,11 @@ static int __mmap_prepare(struct mmap_state *map, struct list_head *uf)
 	return 0;
 }
 
+
 static int __mmap_new_file_vma(struct mmap_state *map,
-			       struct vm_area_struct **vmap, bool *mergedp)
+			       struct vm_area_struct *vma)
 {
 	struct vma_iterator *vmi = map->vmi;
-	struct vm_area_struct *vma = *vmap;
 	int error;
 
 	vma->vm_file = get_file(map->file);
@@ -2308,47 +2309,16 @@ static int __mmap_new_file_vma(struct mmap_state *map,
 			!(map->flags & VM_MAYWRITE) &&
 			(vma->vm_flags & VM_MAYWRITE));
 
-	/* mmap_file() might have changed VMA flags. */
+	/* If the flags change (and are mergeable), let's retry later. */
+	map->retry_merge = vma->vm_flags != map->flags && !(vma->vm_flags & VM_SPECIAL);
 	map->flags = vma->vm_flags;
 
-	vma_iter_config(vmi, map->addr, map->end);
-	/*
-	 * If flags changed after mmap_file(), we should try merge
-	 * vma again as we may succeed this time.
-	 */
-	if (unlikely(map->flags != vma->vm_flags && map->prev)) {
-		struct vm_area_struct *merge;
-		VMG_MMAP_STATE(vmg, map, /* vma = */ NULL);
-
-		merge = vma_merge_new_range(&vmg);
-		if (merge) {
-			/*
-			 * ->mmap() can change vma->vm_file and fput
-			 * the original file. So fput the vma->vm_file
-			 * here or we would add an extra fput for file
-			 * and cause general protection fault
-			 * ultimately.
-			 */
-			fput(vma->vm_file);
-			vm_area_free(vma);
-			vma = merge;
-			*mergedp = true;
-		} else {
-			vma_iter_config(vmi, map->addr, map->end);
-		}
-	}
-
-	*vmap = vma;
 	return 0;
 }
 
 /*
  * __mmap_new_vma() - Allocate a new VMA for the region, as merging was not
  * possible.
- *
- * An exception to this is if the mapping is file-backed, and the underlying
- * driver changes the VMA flags, permitting a subsequent merge of the VMA, in
- * which case the returned VMA is one that was merged on a second attempt.
  *
  * @map:  Mapping state.
  * @vmap: Output pointer for the new VMA.
@@ -2359,7 +2329,6 @@ static int __mmap_new_vma(struct mmap_state *map, struct vm_area_struct **vmap)
 {
 	struct vma_iterator *vmi = map->vmi;
 	int error = 0;
-	bool merged = false;
 	struct vm_area_struct *vma;
 
 	/*
@@ -2382,7 +2351,7 @@ static int __mmap_new_vma(struct mmap_state *map, struct vm_area_struct **vmap)
 	}
 
 	if (map->file)
-		error = __mmap_new_file_vma(map, &vma, &merged);
+		error = __mmap_new_file_vma(map, vma);
 	else if (map->flags & VM_SHARED)
 		error = shmem_zero_setup(vma);
 	else
@@ -2390,9 +2359,6 @@ static int __mmap_new_vma(struct mmap_state *map, struct vm_area_struct **vmap)
 
 	if (error)
 		goto free_iter_vma;
-
-	if (merged)
-		goto file_expanded;
 
 #ifdef CONFIG_SPARC64
 	/* TODO: Fix SPARC ADI! */
@@ -2410,8 +2376,6 @@ static int __mmap_new_vma(struct mmap_state *map, struct vm_area_struct **vmap)
 	 * call covers the non-merge case.
 	 */
 	khugepaged_enter_vma(vma, map->flags);
-
-file_expanded:
 	ksm_add_vma(vma);
 	*vmap = vma;
 	return 0;
@@ -2491,6 +2455,14 @@ unsigned long __mmap_region(struct file *file, unsigned long addr,
 		error = __mmap_new_vma(&map, &vma);
 		if (error)
 			goto unacct_error;
+	}
+
+	/* If flags changed, we might be able to merge, so try again. */
+	if (map.retry_merge) {
+		VMG_MMAP_STATE(vmg, &map, vma);
+
+		vma_iter_config(map.vmi, map.addr, map.end);
+		vma_merge_existing_range(&vmg);
 	}
 
 	__mmap_complete(&map, vma);
