@@ -1066,6 +1066,12 @@ properties:
 
       - items:
           - enum:
+              - qcom,x1e001de-devkit
+          - const: qcom,x1e001de
+          - const: qcom,x1e80100
+
+      - items:
+          - enum:
               - lenovo,thinkpad-t14s
           - const: qcom,x1e78100
           - const: qcom,x1e80100
