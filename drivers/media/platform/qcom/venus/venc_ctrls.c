@@ -733,8 +733,3 @@ err:
 	v4l2_ctrl_handler_free(&inst->ctrl_handler);
 	return ret;
 }
-
-void venc_ctrl_deinit(struct venus_inst *inst)
-{
-	v4l2_ctrl_handler_free(&inst->ctrl_handler);
-}
