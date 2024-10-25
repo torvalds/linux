@@ -34,6 +34,8 @@
 #define AE4_Q_BASE_H_OFF		0x1c
 #define AE4_Q_SZ			0x20
 
+#define AE4_DMA_VERSION			4
+
 struct ae4_msix {
 	int msix_count;
 	struct msix_entry msix_entry[MAX_AE4_HW_QUEUES];
