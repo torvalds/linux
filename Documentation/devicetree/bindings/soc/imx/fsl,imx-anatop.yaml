@@ -36,6 +36,7 @@ properties:
       - description: Temperature sensor event
       - description: Brown-out event on either of the support regulators
       - description: Brown-out event on either the core, gpu or soc regulators
+    minItems: 2
 
   tempmon:
     type: object
@@ -51,6 +52,23 @@ patternProperties:
 required:
   - compatible
   - reg
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - fsl,imx7d-anatop
+    then:
+      properties:
+        interrupts:
+          maxItems: 2
+    else:
+      properties:
+        interrupts:
+          minItems: 3
+          maxItems: 3
 
 additionalProperties: false
 
