@@ -1,5 +1,5 @@
 #!/bin/sh
-# Check open filename arg using perf trace + vfs_getname
+# Check open filename arg using perf trace + vfs_getname (exclusive)
 
 # Uses the 'perf test shell' library to add probe:vfs_getname to the system
 # then use it with 'perf trace' using 'touch' to write to a temp file, then

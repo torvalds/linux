@@ -1,5 +1,5 @@
 #!/bin/sh
-# perf stat --bpf-counters test
+# perf stat --bpf-counters test (exclusive)
 # SPDX-License-Identifier: GPL-2.0
 
 set -e
