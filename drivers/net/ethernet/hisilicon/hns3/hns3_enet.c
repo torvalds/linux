@@ -381,6 +381,24 @@ static const struct hns3_rx_ptype hns3_rx_ptype_tbl[] = {
 #define HNS3_INVALID_PTYPE \
 		ARRAY_SIZE(hns3_rx_ptype_tbl)
 
+static void hns3_dma_map_sync(struct device *dev, unsigned long iova)
+{
+	struct iommu_domain *domain = iommu_get_domain_for_dev(dev);
+	struct iommu_iotlb_gather iotlb_gather;
+	size_t granule;
+
+	if (!domain || !iommu_is_dma_domain(domain))
+		return;
+
+	granule = 1 << __ffs(domain->pgsize_bitmap);
+	iova = ALIGN_DOWN(iova, granule);
+	iotlb_gather.start = iova;
+	iotlb_gather.end = iova + granule - 1;
+	iotlb_gather.pgsize = granule;
+
+	iommu_iotlb_sync(domain, &iotlb_gather);
+}
+
 static irqreturn_t hns3_irq_handle(int irq, void *vector)
 {
 	struct hns3_enet_tqp_vector *tqp_vector = vector;
@@ -1728,7 +1746,9 @@ static int hns3_map_and_fill_desc(struct hns3_enet_ring *ring, void *priv,
 				  unsigned int type)
 {
 	struct hns3_desc_cb *desc_cb = &ring->desc_cb[ring->next_to_use];
+	struct hnae3_handle *handle = ring->tqp->handle;
 	struct device *dev = ring_to_dev(ring);
+	struct hnae3_ae_dev *ae_dev;
 	unsigned int size;
 	dma_addr_t dma;
 
@@ -1759,6 +1779,13 @@ static int hns3_map_and_fill_desc(struct hns3_enet_ring *ring, void *priv,
 		hns3_ring_stats_update(ring, sw_err_cnt);
 		return -ENOMEM;
 	}
+
+	/* Add a SYNC command to sync io-pgtale to avoid errors in pgtable
+	 * prefetch
+	 */
+	ae_dev = hns3_get_ae_dev(handle);
+	if (ae_dev->dev_version >= HNAE3_DEVICE_VERSION_V3)
+		hns3_dma_map_sync(dev, dma);
 
 	desc_cb->priv = priv;
 	desc_cb->length = size;
