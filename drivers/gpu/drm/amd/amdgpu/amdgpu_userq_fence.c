@@ -171,6 +171,7 @@ int amdgpu_userq_fence_create(struct amdgpu_usermode_queue *userq,
 	struct amdgpu_userq_fence_driver *fence_drv;
 	struct amdgpu_userq_fence *userq_fence;
 	struct dma_fence *fence;
+	unsigned long flags;
 
 	fence_drv = userq->fence_drv;
 	if (!fence_drv)
@@ -191,14 +192,14 @@ int amdgpu_userq_fence_create(struct amdgpu_usermode_queue *userq,
 	amdgpu_userq_fence_driver_get(fence_drv);
 	dma_fence_get(fence);
 
-	spin_lock(&fence_drv->fence_list_lock);
 	/* Check if hardware has already processed the job */
-	if (!dma_fence_is_signaled(fence))
+	spin_lock_irqsave(&fence_drv->fence_list_lock, flags);
+	if (!dma_fence_is_signaled_locked(fence))
 		list_add_tail(&userq_fence->link, &fence_drv->fences);
 	else
 		dma_fence_put(fence);
 
-	spin_unlock(&fence_drv->fence_list_lock);
+	spin_unlock_irqrestore(&fence_drv->fence_list_lock, flags);
 
 	*f = fence;
 
