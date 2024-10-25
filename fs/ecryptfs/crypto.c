@@ -340,6 +340,7 @@ static loff_t lower_offset_for_page(struct ecryptfs_crypt_stat *crypt_stat,
  *              encryption operation
  * @dst_page: The page to write the result into
  * @src_page: The page to read from
+ * @page_index: The offset in the file (in units of PAGE_SIZE)
  * @extent_offset: Page extent offset for use in generating IV
  * @op: ENCRYPT or DECRYPT to indicate the desired operation
  *
@@ -350,9 +351,9 @@ static loff_t lower_offset_for_page(struct ecryptfs_crypt_stat *crypt_stat,
 static int crypt_extent(struct ecryptfs_crypt_stat *crypt_stat,
 			struct page *dst_page,
 			struct page *src_page,
+			pgoff_t page_index,
 			unsigned long extent_offset, int op)
 {
-	pgoff_t page_index = op == ENCRYPT ? src_page->index : dst_page->index;
 	loff_t extent_base;
 	char extent_iv[ECRYPTFS_MAX_IV_BYTES];
 	struct scatterlist src_sg, dst_sg;
@@ -432,7 +433,8 @@ int ecryptfs_encrypt_page(struct folio *folio)
 	     extent_offset < (PAGE_SIZE / crypt_stat->extent_size);
 	     extent_offset++) {
 		rc = crypt_extent(crypt_stat, enc_extent_page,
-				folio_page(folio, 0), extent_offset, ENCRYPT);
+				folio_page(folio, 0), folio->index,
+				extent_offset, ENCRYPT);
 		if (rc) {
 			printk(KERN_ERR "%s: Error encrypting extent; "
 			       "rc = [%d]\n", __func__, rc);
@@ -505,8 +507,8 @@ int ecryptfs_decrypt_page(struct folio *folio)
 	     extent_offset < (PAGE_SIZE / crypt_stat->extent_size);
 	     extent_offset++) {
 		struct page *page = folio_page(folio, 0);
-		rc = crypt_extent(crypt_stat, page, page,
-				  extent_offset, DECRYPT);
+		rc = crypt_extent(crypt_stat, page, page, folio->index,
+				extent_offset, DECRYPT);
 		if (rc) {
 			printk(KERN_ERR "%s: Error decrypting extent; "
 			       "rc = [%d]\n", __func__, rc);
