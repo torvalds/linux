@@ -963,7 +963,6 @@ struct vm_area_struct *vma_merge_new_range(struct vma_merge_struct *vmg)
 	struct vm_area_struct *next = vmg->next;
 	unsigned long start = vmg->start;
 	unsigned long end = vmg->end;
-	pgoff_t pgoff = vmg->pgoff;
 	pgoff_t pglen = PHYS_PFN(end - start);
 	bool can_merge_left, can_merge_right;
 	bool just_expand = vmg->merge_flags & VMG_FLAG_JUST_EXPAND;
@@ -1018,16 +1017,6 @@ struct vm_area_struct *vma_merge_new_range(struct vma_merge_struct *vmg)
 		khugepaged_enter_vma(vmg->vma, vmg->flags);
 		vmg->state = VMA_MERGE_SUCCESS;
 		return vmg->vma;
-	}
-
-	/* If expansion failed, reset state. Allows us to retry merge later. */
-	if (!just_expand) {
-		vmg->vma = NULL;
-		vmg->start = start;
-		vmg->end = end;
-		vmg->pgoff = pgoff;
-		if (vmg->vma == prev)
-			vma_iter_set(vmg->vmi, start);
 	}
 
 	return NULL;
