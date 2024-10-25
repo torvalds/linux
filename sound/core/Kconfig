@@ -59,6 +59,9 @@ config SND_CORE_TEST
 config SND_COMPRESS_OFFLOAD
 	tristate
 
+config SND_COMPRESS_ACCEL
+	bool
+
 config SND_JACK
 	bool
 

@@ -625,12 +625,6 @@ static int host1x_probe(struct platform_device *pdev)
 		goto free_contexts;
 	}
 
-	err = host1x_intr_init(host);
-	if (err) {
-		dev_err(&pdev->dev, "failed to initialize interrupts\n");
-		goto deinit_syncpt;
-	}
-
 	pm_runtime_enable(&pdev->dev);
 
 	err = devm_tegra_core_dev_init_opp_table_common(&pdev->dev);
@@ -641,6 +635,12 @@ static int host1x_probe(struct platform_device *pdev)
 	err = pm_runtime_resume_and_get(&pdev->dev);
 	if (err)
 		goto pm_disable;
+
+	err = host1x_intr_init(host);
+	if (err) {
+		dev_err(&pdev->dev, "failed to initialize interrupts\n");
+		goto pm_put;
+	}
 
 	host1x_debug_init(host);
 
@@ -658,13 +658,11 @@ unregister:
 	host1x_unregister(host);
 deinit_debugfs:
 	host1x_debug_deinit(host);
-
+	host1x_intr_deinit(host);
+pm_put:
 	pm_runtime_put_sync_suspend(&pdev->dev);
 pm_disable:
 	pm_runtime_disable(&pdev->dev);
-
-	host1x_intr_deinit(host);
-deinit_syncpt:
 	host1x_syncpt_deinit(host);
 free_contexts:
 	host1x_memory_context_list_free(&host->context_list);
