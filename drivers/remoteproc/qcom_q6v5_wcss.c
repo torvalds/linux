@@ -1111,7 +1111,7 @@ MODULE_DEVICE_TABLE(of, q6v5_wcss_of_match);
 
 static struct platform_driver q6v5_wcss_driver = {
 	.probe = q6v5_wcss_probe,
-	.remove_new = q6v5_wcss_remove,
+	.remove = q6v5_wcss_remove,
 	.driver = {
 		.name = "qcom-q6v5-wcss-pil",
 		.of_match_table = q6v5_wcss_of_match,

@@ -1521,7 +1521,7 @@ MODULE_DEVICE_TABLE(of, mtk_scp_of_match);
 
 static struct platform_driver mtk_scp_driver = {
 	.probe = scp_probe,
-	.remove_new = scp_remove,
+	.remove = scp_remove,
 	.driver = {
 		.name = "mtk-scp",
 		.of_match_table = mtk_scp_of_match,
