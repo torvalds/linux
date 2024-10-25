@@ -4200,6 +4200,12 @@ intel_edp_init_dpcd(struct intel_dp *intel_dp, struct intel_connector *connector
 	}
 
 	/*
+	 * If needed, program our source OUI so we can make various Intel-specific AUX services
+	 * available (such as HDR backlight controls)
+	 */
+	intel_dp_init_source_oui(intel_dp);
+
+	/*
 	 * This has to be called after intel_dp->edp_dpcd is filled, PSR checks
 	 * for SET_POWER_CAPABLE bit in intel_dp->edp_dpcd[1]
 	 */
@@ -4210,12 +4216,6 @@ intel_edp_init_dpcd(struct intel_dp *intel_dp, struct intel_connector *connector
 
 	/* Read the eDP DSC DPCD registers */
 	intel_dp_detect_dsc_caps(intel_dp, connector);
-
-	/*
-	 * If needed, program our source OUI so we can make various Intel-specific AUX services
-	 * available (such as HDR backlight controls)
-	 */
-	intel_dp_init_source_oui(intel_dp);
 
 	return true;
 }
