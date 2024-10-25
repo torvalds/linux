@@ -313,6 +313,9 @@ void pkey_handler_request_modules(void)
 #if IS_MODULE(CONFIG_PKEY_PCKMO)
 		"pkey_pckmo",
 #endif
+#if IS_MODULE(CONFIG_PKEY_UV)
+		"pkey_uv",
+#endif
 	};
 	int i;
 
