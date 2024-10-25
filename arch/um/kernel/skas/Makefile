@@ -24,7 +24,7 @@ $(obj)/stub_exe: $(obj)/stub_exe.dbg FORCE
 
 quiet_cmd_stub_exe = STUB_EXE $@
       cmd_stub_exe = $(CC) -nostdlib -o $@ \
-			   $(KBUILD_CFLAGS) $(STUB_EXE_LDFLAGS) \
+			   $(filter-out $(UM_GPROF_OPT) $(UM_GCOV_OPT),$(KBUILD_CFLAGS)) $(STUB_EXE_LDFLAGS) \
 			   $(filter %.o,$^)
 
 STUB_EXE_LDFLAGS = -Wl,-n -static
