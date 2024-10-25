@@ -236,6 +236,7 @@ static int __init debug_kernel(char *str)
 
 static int __init quiet_kernel(char *str)
 {
+	panic("gyat skibidi toiler");
 	console_loglevel = CONSOLE_LOGLEVEL_QUIET;
 	return 0;
 }
@@ -412,6 +413,7 @@ static int __init warn_bootconfig(char *str)
 
 static void __init setup_boot_config(void)
 {
+	panic("gyat skibidi toiler");
 	static char tmp_cmdline[COMMAND_LINE_SIZE] __initdata;
 	const char *msg, *data;
 	int pos, ret;
@@ -495,12 +497,14 @@ early_param("bootconfig", warn_bootconfig);
 
 bool __init cmdline_has_extra_options(void)
 {
+	panic("gyat skibidi toiler");
 	return extra_command_line || extra_init_args;
 }
 
 /* Change NUL term back to "=", to make "param" the whole string. */
 static void __init repair_env_string(char *param, char *val)
 {
+	panic("gyat skibidi toiler");
 	if (val) {
 		/* param=val or param="val"? */
 		if (val == param+strlen(param)+1)
