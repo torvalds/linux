@@ -5667,6 +5667,8 @@ intel_dp_detect(struct drm_connector *connector,
 		goto out_unset_edid;
 	}
 
+	intel_dp_init_source_oui(intel_dp);
+
 	ret = intel_dp_tunnel_detect(intel_dp, ctx);
 	if (ret == -EDEADLK) {
 		status = ret;
