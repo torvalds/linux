@@ -3,6 +3,7 @@
 
 #include <xen/xen.h>
 
+#include <asm/intel-family.h>
 #include <asm/apic.h>
 #include <asm/processor.h>
 #include <asm/smp.h>
@@ -24,6 +25,36 @@ void topology_set_dom(struct topo_scan *tscan, enum x86_topology_domains dom,
 	for (dom++; dom < TOPO_MAX_DOMAIN; dom++) {
 		tscan->dom_shifts[dom] = tscan->dom_shifts[dom - 1];
 		tscan->dom_ncpus[dom] = tscan->dom_ncpus[dom - 1];
+	}
+}
+
+enum x86_topology_cpu_type get_topology_cpu_type(struct cpuinfo_x86 *c)
+{
+	if (c->x86_vendor == X86_VENDOR_INTEL) {
+		switch (c->topo.intel_type) {
+		case INTEL_CPU_TYPE_ATOM: return TOPO_CPU_TYPE_EFFICIENCY;
+		case INTEL_CPU_TYPE_CORE: return TOPO_CPU_TYPE_PERFORMANCE;
+		}
+	}
+	if (c->x86_vendor == X86_VENDOR_AMD) {
+		switch (c->topo.amd_type) {
+		case 0:	return TOPO_CPU_TYPE_PERFORMANCE;
+		case 1:	return TOPO_CPU_TYPE_EFFICIENCY;
+		}
+	}
+
+	return TOPO_CPU_TYPE_UNKNOWN;
+}
+
+const char *get_topology_cpu_type_name(struct cpuinfo_x86 *c)
+{
+	switch (get_topology_cpu_type(c)) {
+	case TOPO_CPU_TYPE_PERFORMANCE:
+		return "performance";
+	case TOPO_CPU_TYPE_EFFICIENCY:
+		return "efficiency";
+	default:
+		return "unknown";
 	}
 }
 
@@ -87,6 +118,7 @@ static void parse_topology(struct topo_scan *tscan, bool early)
 		.cu_id			= 0xff,
 		.llc_id			= BAD_APICID,
 		.l2c_id			= BAD_APICID,
+		.cpu_type		= TOPO_CPU_TYPE_UNKNOWN,
 	};
 	struct cpuinfo_x86 *c = tscan->c;
 	struct {
@@ -132,6 +164,8 @@ static void parse_topology(struct topo_scan *tscan, bool early)
 	case X86_VENDOR_INTEL:
 		if (!IS_ENABLED(CONFIG_CPU_SUP_INTEL) || !cpu_parse_topology_ext(tscan))
 			parse_legacy(tscan);
+		if (c->cpuid_level >= 0x1a)
+			c->topo.cpu_type = cpuid_eax(0x1a);
 		break;
 	case X86_VENDOR_HYGON:
 		if (IS_ENABLED(CONFIG_CPU_SUP_HYGON))
