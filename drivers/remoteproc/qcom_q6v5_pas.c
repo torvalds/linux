@@ -168,6 +168,8 @@ struct qcom_adsp {
 	void *tcsr_addr;
 	void *spare_reg_addr;
 	bool check_status;
+	bool rproc_ddr_set_icc_low_svs;
+	unsigned int rproc_ddr_lowsvs_icc_bw;
 };
 
 static ssize_t txn_id_show(struct device *dev, struct device_attribute *attr, char *buf)
@@ -468,15 +470,23 @@ err_enable:
 static int do_bus_scaling(struct qcom_adsp *adsp, bool enable)
 {
 	int rc = 0;
-	u32 avg_bw = enable ? PIL_TZ_AVG_BW : 0;
-	u32 peak_bw = enable ? PIL_TZ_PEAK_BW : 0;
+	u32 avg_bw = enable
+			? adsp->rproc_ddr_set_icc_low_svs
+				? adsp->rproc_ddr_lowsvs_icc_bw
+				: PIL_TZ_AVG_BW
+			: 0;
+	u32 peak_bw = enable
+			? adsp->rproc_ddr_set_icc_low_svs
+				? adsp->rproc_ddr_lowsvs_icc_bw
+				: PIL_TZ_PEAK_BW
+			: 0;
 
-	if (IS_ERR(adsp->bus_client))
+	if (IS_ERR(adsp->bus_client)) {
 		dev_err(adsp->dev, "Bus scaling not setup for %s\n",
 			adsp->rproc->name);
-	else
+	} else {
 		rc = icc_set_bw(adsp->bus_client, avg_bw, peak_bw);
-
+	}
 	if (rc)
 		dev_err(adsp->dev, "bandwidth request failed(rc:%d)\n", rc);
 
@@ -1392,6 +1402,10 @@ static int adsp_init_regulator(struct qcom_adsp *adsp)
 
 static void adsp_init_bus_scaling(struct qcom_adsp *adsp)
 {
+	int ret;
+	bool rproc_ddr_set_icc_low_svs;
+	unsigned int rproc_ddr_lowsvs_icc_bw;
+
 	if (scm_perf_client)
 		goto get_rproc_client;
 
@@ -1403,6 +1417,25 @@ get_rproc_client:
 	adsp->bus_client = of_icc_get(adsp->dev, "rproc_ddr");
 	if (IS_ERR(adsp->bus_client))
 		dev_warn(adsp->dev, "%s: No bus client\n", __func__);
+
+	rproc_ddr_set_icc_low_svs = of_property_read_bool(adsp->dev->of_node,
+				     "rproc-ddr-set-icc-low-svs");
+
+	if (rproc_ddr_set_icc_low_svs) {
+		adsp->rproc_ddr_set_icc_low_svs = rproc_ddr_set_icc_low_svs;
+		ret = of_property_read_u32(adsp->dev->of_node,
+				"rproc-ddr-lowsvs-icc-bw", &rproc_ddr_lowsvs_icc_bw);
+		if (!rproc_ddr_lowsvs_icc_bw) {
+			dev_err(adsp->dev, "Low SVS ICC Bw is not available. Falling back to Turbo..\n");
+			adsp->rproc_ddr_lowsvs_icc_bw = UINT_MAX;
+		} else {
+			adsp->rproc_ddr_lowsvs_icc_bw = rproc_ddr_lowsvs_icc_bw;
+			dev_info(adsp->dev, "LowSVS Bus BW: %d\n", rproc_ddr_lowsvs_icc_bw);
+		}
+	} else {
+		adsp->rproc_ddr_set_icc_low_svs = false;
+		dev_info(adsp->dev, "Low SVS vote for ICC is not set\n");
+	}
 }
 
 static int adsp_pds_attach(struct device *dev, struct device **devs,
