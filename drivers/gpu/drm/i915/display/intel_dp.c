@@ -4017,6 +4017,23 @@ static void intel_edp_get_dsc_sink_cap(u8 edp_dpcd_rev, struct intel_connector *
 	intel_dp_read_dsc_dpcd(connector->dp.dsc_decompression_aux, connector->dp.dsc_dpcd);
 }
 
+static void
+intel_dp_detect_dsc_caps(struct intel_dp *intel_dp, struct intel_connector *connector)
+{
+	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
+
+	/* Read DP Sink DSC Cap DPCD regs for DP v1.4 */
+	if (!HAS_DSC(i915))
+		return;
+
+	if (intel_dp_is_edp(intel_dp))
+		intel_edp_get_dsc_sink_cap(intel_dp->edp_dpcd[0],
+					   connector);
+	else
+		intel_dp_get_dsc_sink_cap(intel_dp->dpcd[DP_DPCD_REV],
+					  connector);
+}
+
 static void intel_edp_mso_mode_fixup(struct intel_connector *connector,
 				     struct drm_display_mode *mode)
 {
@@ -4192,9 +4209,7 @@ intel_edp_init_dpcd(struct intel_dp *intel_dp, struct intel_connector *connector
 	intel_dp_set_max_sink_lane_count(intel_dp);
 
 	/* Read the eDP DSC DPCD registers */
-	if (HAS_DSC(dev_priv))
-		intel_edp_get_dsc_sink_cap(intel_dp->edp_dpcd[0],
-					   connector);
+	intel_dp_detect_dsc_caps(intel_dp, connector);
 
 	/*
 	 * If needed, program our source OUI so we can make various Intel-specific AUX services
@@ -5579,23 +5594,6 @@ intel_dp_unset_edid(struct intel_dp *intel_dp)
 
 	drm_connector_set_vrr_capable_property(&connector->base,
 					       false);
-}
-
-static void
-intel_dp_detect_dsc_caps(struct intel_dp *intel_dp, struct intel_connector *connector)
-{
-	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
-
-	/* Read DP Sink DSC Cap DPCD regs for DP v1.4 */
-	if (!HAS_DSC(i915))
-		return;
-
-	if (intel_dp_is_edp(intel_dp))
-		intel_edp_get_dsc_sink_cap(intel_dp->edp_dpcd[0],
-					   connector);
-	else
-		intel_dp_get_dsc_sink_cap(intel_dp->dpcd[DP_DPCD_REV],
-					  connector);
 }
 
 static void
