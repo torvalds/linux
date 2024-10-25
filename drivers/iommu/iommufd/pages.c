@@ -346,25 +346,39 @@ static void batch_destroy(struct pfn_batch *batch, void *backup)
 		kfree(batch->pfns);
 }
 
+static bool batch_add_pfn_num(struct pfn_batch *batch, unsigned long pfn,
+			      u32 nr)
+{
+	const unsigned int MAX_NPFNS = type_max(typeof(*batch->npfns));
+	unsigned int end = batch->end;
+
+	if (end && pfn == batch->pfns[end - 1] + batch->npfns[end - 1] &&
+	    nr <= MAX_NPFNS - batch->npfns[end - 1]) {
+		batch->npfns[end - 1] += nr;
+	} else if (end < batch->array_size) {
+		batch->pfns[end] = pfn;
+		batch->npfns[end] = nr;
+		batch->end++;
+	} else {
+		return false;
+	}
+
+	batch->total_pfns += nr;
+	return true;
+}
+
+static void batch_remove_pfn_num(struct pfn_batch *batch, unsigned long nr)
+{
+	batch->npfns[batch->end - 1] -= nr;
+	if (batch->npfns[batch->end - 1] == 0)
+		batch->end--;
+	batch->total_pfns -= nr;
+}
+
 /* true if the pfn was added, false otherwise */
 static bool batch_add_pfn(struct pfn_batch *batch, unsigned long pfn)
 {
-	const unsigned int MAX_NPFNS = type_max(typeof(*batch->npfns));
-
-	if (batch->end &&
-	    pfn == batch->pfns[batch->end - 1] + batch->npfns[batch->end - 1] &&
-	    batch->npfns[batch->end - 1] != MAX_NPFNS) {
-		batch->npfns[batch->end - 1]++;
-		batch->total_pfns++;
-		return true;
-	}
-	if (batch->end == batch->array_size)
-		return false;
-	batch->total_pfns++;
-	batch->pfns[batch->end] = pfn;
-	batch->npfns[batch->end] = 1;
-	batch->end++;
-	return true;
+	return batch_add_pfn_num(batch, pfn, 1);
 }
 
 /*
@@ -620,6 +634,41 @@ static void batch_from_pages(struct pfn_batch *batch, struct page **pages,
 	for (; pages != end; pages++)
 		if (!batch_add_pfn(batch, page_to_pfn(*pages)))
 			break;
+}
+
+static int batch_from_folios(struct pfn_batch *batch, struct folio ***folios_p,
+			     unsigned long *offset_p, unsigned long npages)
+{
+	int rc = 0;
+	struct folio **folios = *folios_p;
+	unsigned long offset = *offset_p;
+
+	while (npages) {
+		struct folio *folio = *folios;
+		unsigned long nr = folio_nr_pages(folio) - offset;
+		unsigned long pfn = page_to_pfn(folio_page(folio, offset));
+
+		nr = min(nr, npages);
+		npages -= nr;
+
+		if (!batch_add_pfn_num(batch, pfn, nr))
+			break;
+		if (nr > 1) {
+			rc = folio_add_pins(folio, nr - 1);
+			if (rc) {
+				batch_remove_pfn_num(batch, nr);
+				goto out;
+			}
+		}
+
+		folios++;
+		offset = 0;
+	}
+
+out:
+	*folios_p = folios;
+	*offset_p = offset;
+	return rc;
 }
 
 static void batch_unpin(struct pfn_batch *batch, struct iopt_pages *pages,
