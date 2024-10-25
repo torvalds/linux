@@ -332,7 +332,6 @@ void bch2_alloc_v4_swab(struct bkey_s k)
 	a->io_time[1]		= swab64(a->io_time[1]);
 	a->stripe		= swab32(a->stripe);
 	a->nr_external_backpointers = swab32(a->nr_external_backpointers);
-	a->fragmentation_lru	= swab64(a->fragmentation_lru);
 	a->stripe_sectors	= swab32(a->stripe_sectors);
 
 	bps = alloc_v4_backpointers(a);
@@ -347,6 +346,7 @@ void bch2_alloc_to_text(struct printbuf *out, struct bch_fs *c, struct bkey_s_c 
 {
 	struct bch_alloc_v4 _a;
 	const struct bch_alloc_v4 *a = bch2_alloc_to_v4(k, &_a);
+	struct bch_dev *ca = c ? bch2_dev_bucket_tryget_noerror(c, k.k->p) : NULL;
 
 	prt_newline(out);
 	printbuf_indent_add(out, 2);
@@ -364,9 +364,13 @@ void bch2_alloc_to_text(struct printbuf *out, struct bch_fs *c, struct bkey_s_c 
 	prt_printf(out, "stripe_redundancy %u\n",	a->stripe_redundancy);
 	prt_printf(out, "io_time[READ]     %llu\n",	a->io_time[READ]);
 	prt_printf(out, "io_time[WRITE]    %llu\n",	a->io_time[WRITE]);
-	prt_printf(out, "fragmentation     %llu\n",	a->fragmentation_lru);
+
+	if (ca)
+		prt_printf(out, "fragmentation     %llu\n",	alloc_lru_idx_fragmentation(*a, ca));
 	prt_printf(out, "bp_start          %llu\n", BCH_ALLOC_V4_BACKPOINTERS_START(a));
 	printbuf_indent_sub(out, 2);
+
+	bch2_dev_put(ca);
 }
 
 void __bch2_alloc_to_v4(struct bkey_s_c k, struct bch_alloc_v4 *out)
@@ -635,6 +639,16 @@ int bch2_alloc_read(struct bch_fs *c)
 				continue;
 			}
 
+			if (k.k->p.offset < ca->mi.first_bucket) {
+				bch2_btree_iter_set_pos(&iter, POS(k.k->p.inode, ca->mi.first_bucket));
+				continue;
+			}
+
+			if (k.k->p.offset >= ca->mi.nbuckets) {
+				bch2_btree_iter_set_pos(&iter, POS(k.k->p.inode + 1, 0));
+				continue;
+			}
+
 			struct bch_alloc_v4 a;
 			*bucket_gen(ca, k.k->p.offset) = bch2_alloc_to_v4(k, &a)->gen;
 			0;
@@ -882,12 +896,13 @@ int bch2_trigger_alloc(struct btree_trans *trans,
 				goto err;
 		}
 
-		new_a->fragmentation_lru = alloc_lru_idx_fragmentation(*new_a, ca);
-		if (old_a->fragmentation_lru != new_a->fragmentation_lru) {
+		old_lru = alloc_lru_idx_fragmentation(*old_a, ca);
+		new_lru = alloc_lru_idx_fragmentation(*new_a, ca);
+		if (old_lru != new_lru) {
 			ret = bch2_lru_change(trans,
 					BCH_LRU_FRAGMENTATION_START,
 					bucket_to_u64(new.k->p),
-					old_a->fragmentation_lru, new_a->fragmentation_lru);
+					old_lru, new_lru);
 			if (ret)
 				goto err;
 		}
@@ -1629,18 +1644,22 @@ static int bch2_check_alloc_to_lru_ref(struct btree_trans *trans,
 	if (ret)
 		return ret;
 
+	struct bch_dev *ca = bch2_dev_tryget_noerror(c, alloc_k.k->p.inode);
+	if (!ca)
+		return 0;
+
 	a = bch2_alloc_to_v4(alloc_k, &a_convert);
 
-	if (a->fragmentation_lru) {
+	u64 lru_idx = alloc_lru_idx_fragmentation(*a, ca);
+	if (lru_idx) {
 		ret = bch2_lru_check_set(trans, BCH_LRU_FRAGMENTATION_START,
-					 a->fragmentation_lru,
-					 alloc_k, last_flushed);
+					 lru_idx, alloc_k, last_flushed);
 		if (ret)
-			return ret;
+			goto err;
 	}
 
 	if (a->data_type != BCH_DATA_cached)
-		return 0;
+		goto err;
 
 	if (fsck_err_on(!a->io_time[READ],
 			trans, alloc_key_cached_but_read_time_zero,
@@ -1669,6 +1688,7 @@ static int bch2_check_alloc_to_lru_ref(struct btree_trans *trans,
 		goto err;
 err:
 fsck_err:
+	bch2_dev_put(ca);
 	printbuf_exit(&buf);
 	return ret;
 }
@@ -1957,7 +1977,7 @@ static void bch2_do_discards_fast_work(struct work_struct *work)
 					     ca->mi.bucket_size,
 					     GFP_KERNEL);
 
-		int ret = bch2_trans_do(c, NULL, NULL,
+		int ret = bch2_trans_commit_do(c, NULL, NULL,
 			BCH_WATERMARK_btree|
 			BCH_TRANS_COMMIT_no_enospc,
 			bch2_clear_bucket_needs_discard(trans, POS(ca->dev_idx, bucket)));
@@ -2117,14 +2137,15 @@ static void bch2_do_invalidates_work(struct work_struct *work)
 
 		struct bkey_s_c k = next_lru_key(trans, &iter, ca, &wrapped);
 		ret = bkey_err(k);
-		if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
-			continue;
 		if (ret)
-			break;
+			goto restart_err;
 		if (!k.k)
 			break;
 
 		ret = invalidate_one_bucket(trans, &iter, k, &nr_to_invalidate);
+restart_err:
+		if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
+			continue;
 		if (ret)
 			break;
 
@@ -2330,24 +2351,19 @@ int bch2_dev_remove_alloc(struct bch_fs *c, struct bch_dev *ca)
 
 /* Bucket IO clocks: */
 
-int bch2_bucket_io_time_reset(struct btree_trans *trans, unsigned dev,
-			      size_t bucket_nr, int rw)
+static int __bch2_bucket_io_time_reset(struct btree_trans *trans, unsigned dev,
+				size_t bucket_nr, int rw)
 {
 	struct bch_fs *c = trans->c;
+
 	struct btree_iter iter;
-	struct bkey_i_alloc_v4 *a;
-	u64 now;
-	int ret = 0;
-
-	if (bch2_trans_relock(trans))
-		bch2_trans_begin(trans);
-
-	a = bch2_trans_start_alloc_update_noupdate(trans, &iter, POS(dev, bucket_nr));
-	ret = PTR_ERR_OR_ZERO(a);
+	struct bkey_i_alloc_v4 *a =
+		bch2_trans_start_alloc_update_noupdate(trans, &iter, POS(dev, bucket_nr));
+	int ret = PTR_ERR_OR_ZERO(a);
 	if (ret)
 		return ret;
 
-	now = bch2_current_io_time(c, rw);
+	u64 now = bch2_current_io_time(c, rw);
 	if (a->v.io_time[rw] == now)
 		goto out;
 
@@ -2358,6 +2374,15 @@ int bch2_bucket_io_time_reset(struct btree_trans *trans, unsigned dev,
 out:
 	bch2_trans_iter_exit(trans, &iter);
 	return ret;
+}
+
+int bch2_bucket_io_time_reset(struct btree_trans *trans, unsigned dev,
+			      size_t bucket_nr, int rw)
+{
+	if (bch2_trans_relock(trans))
+		bch2_trans_begin(trans);
+
+	return nested_lockrestart_do(trans, __bch2_bucket_io_time_reset(trans, dev, bucket_nr, rw));
 }
 
 /* Startup/shutdown (ro/rw): */

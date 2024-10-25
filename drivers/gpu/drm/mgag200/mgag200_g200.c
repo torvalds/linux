@@ -8,7 +8,6 @@
 #include <drm/drm_drv.h>
 #include <drm/drm_gem_atomic_helper.h>
 #include <drm/drm_probe_helper.h>
-#include <drm/drm_vblank.h>
 
 #include "mgag200_drv.h"
 
@@ -403,10 +402,6 @@ struct mga_device *mgag200_g200_device_create(struct pci_dev *pdev, const struct
 
 	drm_mode_config_reset(dev);
 	drm_kms_helper_poll_init(dev);
-
-	ret = drm_vblank_init(dev, 1);
-	if (ret)
-		return ERR_PTR(ret);
 
 	return mdev;
 }

@@ -2211,7 +2211,7 @@ static int sm501fb_resume(struct platform_device *pdev)
 
 static struct platform_driver sm501fb_driver = {
 	.probe		= sm501fb_probe,
-	.remove_new	= sm501fb_remove,
+	.remove		= sm501fb_remove,
 	.suspend	= sm501fb_suspend,
 	.resume		= sm501fb_resume,
 	.driver		= {

@@ -1838,10 +1838,11 @@ static void btree_node_write_done(struct bch_fs *c, struct btree *b)
 	struct btree_trans *trans = bch2_trans_get(c);
 
 	btree_node_lock_nopath_nofail(trans, &b->c, SIX_LOCK_read);
+
+	/* we don't need transaction context anymore after we got the lock. */
+	bch2_trans_put(trans);
 	__btree_node_write_done(c, b);
 	six_unlock_read(&b->c.lock);
-
-	bch2_trans_put(trans);
 }
 
 static void btree_node_write_work(struct work_struct *work)
@@ -1870,7 +1871,7 @@ static void btree_node_write_work(struct work_struct *work)
 
 		}
 	} else {
-		ret = bch2_trans_do(c, NULL, NULL, 0,
+		ret = bch2_trans_do(c,
 			bch2_btree_node_update_key_get_iter(trans, b, &wbio->key,
 					BCH_WATERMARK_interior_updates|
 					BCH_TRANS_COMMIT_journal_reclaim|

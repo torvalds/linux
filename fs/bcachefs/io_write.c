@@ -1437,7 +1437,7 @@ again:
 		 * freeing up space on specific disks, which means that
 		 * allocations for specific disks may hang arbitrarily long:
 		 */
-		ret = bch2_trans_do(c, NULL, NULL, 0,
+		ret = bch2_trans_run(c, lockrestart_do(trans,
 			bch2_alloc_sectors_start_trans(trans,
 				op->target,
 				op->opts.erasure_code && !(op->flags & BCH_WRITE_CACHED),
@@ -1447,7 +1447,7 @@ again:
 				op->nr_replicas_required,
 				op->watermark,
 				op->flags,
-				&op->cl, &wp));
+				&op->cl, &wp)));
 		if (unlikely(ret)) {
 			if (bch2_err_matches(ret, BCH_ERR_operation_blocked))
 				break;

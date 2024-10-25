@@ -1160,11 +1160,11 @@ int bch2_trans_mark_dev_sbs(struct bch_fs *c)
 #define SECTORS_CACHE	1024
 
 int __bch2_disk_reservation_add(struct bch_fs *c, struct disk_reservation *res,
-			      u64 sectors, int flags)
+				u64 sectors, enum bch_reservation_flags flags)
 {
 	struct bch_fs_pcpu *pcpu;
 	u64 old, get;
-	s64 sectors_available;
+	u64 sectors_available;
 	int ret;
 
 	percpu_down_read(&c->mark_lock);
@@ -1201,6 +1201,9 @@ recalculate:
 
 	percpu_u64_set(&c->pcpu->sectors_available, 0);
 	sectors_available = avail_factor(__bch2_fs_usage_read_short(c).free);
+
+	if (sectors_available && (flags & BCH_DISK_RESERVATION_PARTIAL))
+		sectors = min(sectors, sectors_available);
 
 	if (sectors <= sectors_available ||
 	    (flags & BCH_DISK_RESERVATION_NOFAIL)) {

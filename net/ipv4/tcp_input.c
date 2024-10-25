@@ -2473,8 +2473,22 @@ static bool tcp_skb_spurious_retrans(const struct tcp_sock *tp,
  */
 static inline bool tcp_packet_delayed(const struct tcp_sock *tp)
 {
-	return tp->retrans_stamp &&
-	       tcp_tsopt_ecr_before(tp, tp->retrans_stamp);
+	const struct sock *sk = (const struct sock *)tp;
+
+	if (tp->retrans_stamp &&
+	    tcp_tsopt_ecr_before(tp, tp->retrans_stamp))
+		return true;  /* got echoed TS before first retransmission */
+
+	/* Check if nothing was retransmitted (retrans_stamp==0), which may
+	 * happen in fast recovery due to TSQ. But we ignore zero retrans_stamp
+	 * in TCP_SYN_SENT, since when we set FLAG_SYN_ACKED we also clear
+	 * retrans_stamp even if we had retransmitted the SYN.
+	 */
+	if (!tp->retrans_stamp &&	   /* no record of a retransmit/SYN? */
+	    sk->sk_state != TCP_SYN_SENT)  /* not the FLAG_SYN_ACKED case? */
+		return true;  /* nothing was retransmitted */
+
+	return false;
 }
 
 /* Undo procedures. */
@@ -2506,6 +2520,16 @@ static bool tcp_any_retrans_done(const struct sock *sk)
 		return true;
 
 	return false;
+}
+
+/* If loss recovery is finished and there are no retransmits out in the
+ * network, then we clear retrans_stamp so that upon the next loss recovery
+ * retransmits_timed_out() and timestamp-undo are using the correct value.
+ */
+static void tcp_retrans_stamp_cleanup(struct sock *sk)
+{
+	if (!tcp_any_retrans_done(sk))
+		tcp_sk(sk)->retrans_stamp = 0;
 }
 
 static void DBGUNDO(struct sock *sk, const char *msg)
@@ -2874,6 +2898,9 @@ void tcp_enter_recovery(struct sock *sk, bool ece_ack)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 	int mib_idx;
+
+	/* Start the clock with our fast retransmit, for undo and ETIMEDOUT. */
+	tcp_retrans_stamp_cleanup(sk);
 
 	if (tcp_is_reno(tp))
 		mib_idx = LINUX_MIB_TCPRENORECOVERY;
@@ -6657,10 +6684,17 @@ static void tcp_rcv_synrecv_state_fastopen(struct sock *sk)
 	if (inet_csk(sk)->icsk_ca_state == TCP_CA_Loss && !tp->packets_out)
 		tcp_try_undo_recovery(sk);
 
-	/* Reset rtx states to prevent spurious retransmits_timed_out() */
 	tcp_update_rto_time(tp);
-	tp->retrans_stamp = 0;
 	inet_csk(sk)->icsk_retransmits = 0;
+	/* In tcp_fastopen_synack_timer() on the first SYNACK RTO we set
+	 * retrans_stamp but don't enter CA_Loss, so in case that happened we
+	 * need to zero retrans_stamp here to prevent spurious
+	 * retransmits_timed_out(). However, if the ACK of our SYNACK caused us
+	 * to enter CA_Recovery then we need to leave retrans_stamp as it was
+	 * set entering CA_Recovery, for correct retransmits_timed_out() and
+	 * undo behavior.
+	 */
+	tcp_retrans_stamp_cleanup(sk);
 
 	/* Once we leave TCP_SYN_RECV or TCP_FIN_WAIT_1,
 	 * we no longer need req so release it.

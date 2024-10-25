@@ -3944,7 +3944,9 @@ struct mnt_namespace *copy_mnt_ns(unsigned long flags, struct mnt_namespace *ns,
 	new = copy_tree(old, old->mnt.mnt_root, copy_flags);
 	if (IS_ERR(new)) {
 		namespace_unlock();
-		free_mnt_ns(new_ns);
+		ns_free_inum(&new_ns->ns);
+		dec_mnt_namespaces(new_ns->ucounts);
+		mnt_ns_release(new_ns);
 		return ERR_CAST(new);
 	}
 	if (user_ns != ns->user_ns) {

@@ -296,6 +296,8 @@ struct prueth {
 	bool is_switchmode_supported;
 	unsigned char switch_id[MAX_PHYS_ITEM_ID_LEN];
 	int default_vlan;
+	/** @vtbl_lock: Lock for vtbl in shared memory */
+	spinlock_t vtbl_lock;
 };
 
 struct emac_tx_ts_response {

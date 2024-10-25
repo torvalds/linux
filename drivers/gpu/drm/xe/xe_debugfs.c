@@ -187,7 +187,7 @@ void xe_debugfs_register(struct xe_device *xe)
 	debugfs_create_file("forcewake_all", 0400, root, xe,
 			    &forcewake_all_fops);
 
-	debugfs_create_file("wedged_mode", 0400, root, xe,
+	debugfs_create_file("wedged_mode", 0600, root, xe,
 			    &wedged_mode_fops);
 
 	for (mem_type = XE_PL_VRAM0; mem_type <= XE_PL_VRAM1; ++mem_type) {

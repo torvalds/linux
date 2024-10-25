@@ -115,18 +115,6 @@ cifs_chan_clear_in_reconnect(struct cifs_ses *ses,
 	ses->chans[chan_index].in_reconnect = false;
 }
 
-bool
-cifs_chan_in_reconnect(struct cifs_ses *ses,
-			  struct TCP_Server_Info *server)
-{
-	unsigned int chan_index = cifs_ses_get_chan_index(ses, server);
-
-	if (chan_index == CIFS_INVAL_CHAN_INDEX)
-		return true;	/* err on the safer side */
-
-	return CIFS_CHAN_IN_RECONNECT(ses, chan_index);
-}
-
 void
 cifs_chan_set_need_reconnect(struct cifs_ses *ses,
 			     struct TCP_Server_Info *server)
@@ -487,26 +475,6 @@ cifs_chan_update_iface(struct cifs_ses *ses, struct TCP_Server_Info *server)
 	spin_unlock(&ses->chan_lock);
 }
 
-/*
- * If server is a channel of ses, return the corresponding enclosing
- * cifs_chan otherwise return NULL.
- */
-struct cifs_chan *
-cifs_ses_find_chan(struct cifs_ses *ses, struct TCP_Server_Info *server)
-{
-	int i;
-
-	spin_lock(&ses->chan_lock);
-	for (i = 0; i < ses->chan_count; i++) {
-		if (ses->chans[i].server == server) {
-			spin_unlock(&ses->chan_lock);
-			return &ses->chans[i];
-		}
-	}
-	spin_unlock(&ses->chan_lock);
-	return NULL;
-}
-
 static int
 cifs_ses_add_channel(struct cifs_ses *ses,
 		     struct cifs_server_iface *iface)
@@ -624,7 +592,7 @@ cifs_ses_add_channel(struct cifs_ses *ses,
 	 * to sign packets before we generate the channel signing key
 	 * (we sign with the session key)
 	 */
-	rc = smb3_crypto_shash_allocate(chan->server);
+	rc = smb311_crypto_shash_allocate(chan->server);
 	if (rc) {
 		cifs_dbg(VFS, "%s: crypto alloc failed\n", __func__);
 		mutex_unlock(&ses->session_mutex);

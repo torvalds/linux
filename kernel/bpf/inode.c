@@ -880,7 +880,7 @@ static int bpf_parse_param(struct fs_context *fc, struct fs_parameter *param)
 		const struct btf_type *enum_t;
 		const char *enum_pfx;
 		u64 *delegate_msk, msk = 0;
-		char *p;
+		char *p, *str;
 		int val;
 
 		/* ignore errors, fallback to hex */
@@ -911,7 +911,8 @@ static int bpf_parse_param(struct fs_context *fc, struct fs_parameter *param)
 			return -EINVAL;
 		}
 
-		while ((p = strsep(&param->string, ":"))) {
+		str = param->string;
+		while ((p = strsep(&str, ":"))) {
 			if (strcmp(p, "any") == 0) {
 				msk |= ~0ULL;
 			} else if (find_btf_enum_const(info.btf, enum_t, enum_pfx, p, &val)) {

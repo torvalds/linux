@@ -44,6 +44,7 @@
 #include "verifier_ld_ind.skel.h"
 #include "verifier_ldsx.skel.h"
 #include "verifier_leak_ptr.skel.h"
+#include "verifier_linked_scalars.skel.h"
 #include "verifier_loops1.skel.h"
 #include "verifier_lwt.skel.h"
 #include "verifier_map_in_map.skel.h"
@@ -53,6 +54,7 @@
 #include "verifier_masking.skel.h"
 #include "verifier_meta_access.skel.h"
 #include "verifier_movsx.skel.h"
+#include "verifier_mtu.skel.h"
 #include "verifier_netfilter_ctx.skel.h"
 #include "verifier_netfilter_retcode.skel.h"
 #include "verifier_bpf_fastcall.skel.h"
@@ -170,6 +172,7 @@ void test_verifier_jit_convergence(void)      { RUN(verifier_jit_convergence); }
 void test_verifier_ld_ind(void)               { RUN(verifier_ld_ind); }
 void test_verifier_ldsx(void)                  { RUN(verifier_ldsx); }
 void test_verifier_leak_ptr(void)             { RUN(verifier_leak_ptr); }
+void test_verifier_linked_scalars(void)       { RUN(verifier_linked_scalars); }
 void test_verifier_loops1(void)               { RUN(verifier_loops1); }
 void test_verifier_lwt(void)                  { RUN(verifier_lwt); }
 void test_verifier_map_in_map(void)           { RUN(verifier_map_in_map); }
@@ -220,6 +223,24 @@ void test_verifier_xdp(void)                  { RUN(verifier_xdp); }
 void test_verifier_xdp_direct_packet_access(void) { RUN(verifier_xdp_direct_packet_access); }
 void test_verifier_bits_iter(void) { RUN(verifier_bits_iter); }
 void test_verifier_lsm(void)                  { RUN(verifier_lsm); }
+
+void test_verifier_mtu(void)
+{
+	__u64 caps = 0;
+	int ret;
+
+	/* In case CAP_BPF and CAP_PERFMON is not set */
+	ret = cap_enable_effective(1ULL << CAP_BPF | 1ULL << CAP_NET_ADMIN, &caps);
+	if (!ASSERT_OK(ret, "set_cap_bpf_cap_net_admin"))
+		return;
+	ret = cap_disable_effective(1ULL << CAP_SYS_ADMIN | 1ULL << CAP_PERFMON, NULL);
+	if (!ASSERT_OK(ret, "disable_cap_sys_admin"))
+		goto restore_cap;
+	RUN(verifier_mtu);
+restore_cap:
+	if (caps)
+		cap_enable_effective(caps, NULL);
+}
 
 static int init_test_val_map(struct bpf_object *obj, char *map_name)
 {
