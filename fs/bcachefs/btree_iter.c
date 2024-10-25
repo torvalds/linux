@@ -1855,7 +1855,6 @@ hole:
 	return (struct bkey_s_c) { u, NULL };
 }
 
-
 void bch2_set_btree_iter_dontneed(struct btree_iter *iter)
 {
 	struct btree_trans *trans = iter->trans;
@@ -2212,8 +2211,6 @@ static struct bkey_s_c __bch2_btree_iter_peek(struct btree_iter *iter, struct bp
 	bch2_btree_iter_verify(iter);
 
 	while (1) {
-		struct btree_path_level *l;
-
 		iter->path = bch2_btree_path_set_pos(trans, iter->path, search_key,
 					iter->flags & BTREE_ITER_intent,
 					btree_iter_ip_allocated(iter));
@@ -2227,7 +2224,7 @@ static struct bkey_s_c __bch2_btree_iter_peek(struct btree_iter *iter, struct bp
 		}
 
 		struct btree_path *path = btree_iter_path(trans, iter);
-		l = path_l(path);
+		struct btree_path_level *l = path_l(path);
 
 		if (unlikely(!l->b)) {
 			/* No btree nodes at requested level: */
@@ -2303,10 +2300,11 @@ struct bkey_s_c bch2_btree_iter_peek_max(struct btree_iter *iter, struct bpos en
 	struct btree_trans *trans = iter->trans;
 	struct bpos search_key = btree_iter_search_key(iter);
 	struct bkey_s_c k;
-	struct bpos iter_pos;
+	struct bpos iter_pos = iter->pos;
 	int ret;
 
 	bch2_trans_verify_not_unlocked_or_in_restart(trans);
+	bch2_btree_iter_verify_entry_exit(iter);
 	EBUG_ON((iter->flags & BTREE_ITER_filter_snapshots) && bkey_eq(end, POS_MAX));
 
 	if (iter->update_path) {
@@ -2315,8 +2313,6 @@ struct bkey_s_c bch2_btree_iter_peek_max(struct btree_iter *iter, struct bpos en
 		iter->update_path = 0;
 	}
 
-	bch2_btree_iter_verify_entry_exit(iter);
-
 	while (1) {
 		k = __bch2_btree_iter_peek(iter, search_key);
 		if (unlikely(!k.k))
@@ -2324,75 +2320,74 @@ struct bkey_s_c bch2_btree_iter_peek_max(struct btree_iter *iter, struct bpos en
 		if (unlikely(bkey_err(k)))
 			goto out_no_locked;
 
-		/*
-		 * We need to check against @end before FILTER_SNAPSHOTS because
-		 * if we get to a different inode that requested we might be
-		 * seeing keys for a different snapshot tree that will all be
-		 * filtered out.
-		 *
-		 * But we can't do the full check here, because bkey_start_pos()
-		 * isn't monotonically increasing before FILTER_SNAPSHOTS, and
-		 * that's what we check against in extents mode:
-		 */
-		if (unlikely(!(iter->flags & BTREE_ITER_is_extents)
-			     ? bkey_gt(k.k->p, end)
-			     : k.k->p.inode > end.inode))
-			goto end;
+		if (iter->flags & BTREE_ITER_filter_snapshots) {
+			/*
+			 * We need to check against @end before FILTER_SNAPSHOTS because
+			 * if we get to a different inode that requested we might be
+			 * seeing keys for a different snapshot tree that will all be
+			 * filtered out.
+			 *
+			 * But we can't do the full check here, because bkey_start_pos()
+			 * isn't monotonically increasing before FILTER_SNAPSHOTS, and
+			 * that's what we check against in extents mode:
+			 */
+			if (unlikely(!(iter->flags & BTREE_ITER_is_extents)
+				     ? bkey_gt(k.k->p, end)
+				     : k.k->p.inode > end.inode))
+				goto end;
 
-		if (iter->update_path &&
-		    !bkey_eq(trans->paths[iter->update_path].pos, k.k->p)) {
-			bch2_path_put_nokeep(trans, iter->update_path,
-					     iter->flags & BTREE_ITER_intent);
-			iter->update_path = 0;
-		}
+			if (iter->update_path &&
+			    !bkey_eq(trans->paths[iter->update_path].pos, k.k->p)) {
+				bch2_path_put_nokeep(trans, iter->update_path,
+						     iter->flags & BTREE_ITER_intent);
+				iter->update_path = 0;
+			}
 
-		if ((iter->flags & BTREE_ITER_filter_snapshots) &&
-		    (iter->flags & BTREE_ITER_intent) &&
-		    !(iter->flags & BTREE_ITER_is_extents) &&
-		    !iter->update_path) {
-			struct bpos pos = k.k->p;
+			if ((iter->flags & BTREE_ITER_intent) &&
+			    !(iter->flags & BTREE_ITER_is_extents) &&
+			    !iter->update_path) {
+				struct bpos pos = k.k->p;
 
-			if (pos.snapshot < iter->snapshot) {
+				if (pos.snapshot < iter->snapshot) {
+					search_key = bpos_successor(k.k->p);
+					continue;
+				}
+
+				pos.snapshot = iter->snapshot;
+
+				/*
+				 * advance, same as on exit for iter->path, but only up
+				 * to snapshot
+				 */
+				__btree_path_get(trans, trans->paths + iter->path, iter->flags & BTREE_ITER_intent);
+				iter->update_path = iter->path;
+
+				iter->update_path = bch2_btree_path_set_pos(trans,
+							iter->update_path, pos,
+							iter->flags & BTREE_ITER_intent,
+							_THIS_IP_);
+				ret = bch2_btree_path_traverse(trans, iter->update_path, iter->flags);
+				if (unlikely(ret)) {
+					k = bkey_s_c_err(ret);
+					goto out_no_locked;
+				}
+			}
+
+			/*
+			 * We can never have a key in a leaf node at POS_MAX, so
+			 * we don't have to check these successor() calls:
+			 */
+			if (!bch2_snapshot_is_ancestor(trans->c,
+						       iter->snapshot,
+						       k.k->p.snapshot)) {
 				search_key = bpos_successor(k.k->p);
 				continue;
 			}
 
-			pos.snapshot = iter->snapshot;
-
-			/*
-			 * advance, same as on exit for iter->path, but only up
-			 * to snapshot
-			 */
-			__btree_path_get(trans, trans->paths + iter->path, iter->flags & BTREE_ITER_intent);
-			iter->update_path = iter->path;
-
-			iter->update_path = bch2_btree_path_set_pos(trans,
-						iter->update_path, pos,
-						iter->flags & BTREE_ITER_intent,
-						_THIS_IP_);
-			ret = bch2_btree_path_traverse(trans, iter->update_path, iter->flags);
-			if (unlikely(ret)) {
-				k = bkey_s_c_err(ret);
-				goto out_no_locked;
+			if (bkey_whiteout(k.k)) {
+				search_key = bkey_successor(iter, k.k->p);
+				continue;
 			}
-		}
-
-		/*
-		 * We can never have a key in a leaf node at POS_MAX, so
-		 * we don't have to check these successor() calls:
-		 */
-		if ((iter->flags & BTREE_ITER_filter_snapshots) &&
-		    !bch2_snapshot_is_ancestor(trans->c,
-					       iter->snapshot,
-					       k.k->p.snapshot)) {
-			search_key = bpos_successor(k.k->p);
-			continue;
-		}
-
-		if (bkey_whiteout(k.k) &&
-		    !(iter->flags & BTREE_ITER_all_snapshots)) {
-			search_key = bkey_successor(iter, k.k->p);
-			continue;
 		}
 
 		/*
