@@ -568,7 +568,7 @@ static int ad7606_scan_direct(struct iio_dev *indio_dev, unsigned int ch,
 			      int *val)
 {
 	struct ad7606_state *st = iio_priv(indio_dev);
-	unsigned int storagebits = st->chip_info->channels[1].scan_type.storagebits;
+	unsigned int realbits = st->chip_info->channels[1].scan_type.realbits;
 	const struct iio_chan_spec *chan;
 	int ret;
 
@@ -603,15 +603,15 @@ static int ad7606_scan_direct(struct iio_dev *indio_dev, unsigned int ch,
 
 	chan = &indio_dev->channels[ch + 1];
 	if (chan->scan_type.sign == 'u') {
-		if (storagebits > 16)
+		if (realbits > 16)
 			*val = st->data.buf32[ch];
 		else
 			*val = st->data.buf16[ch];
 	} else {
-		if (storagebits > 16)
-			*val = sign_extend32(st->data.buf32[ch], 17);
+		if (realbits > 16)
+			*val = sign_extend32(st->data.buf32[ch], realbits - 1);
 		else
-			*val = sign_extend32(st->data.buf16[ch], 15);
+			*val = sign_extend32(st->data.buf16[ch], realbits - 1);
 	}
 
 error_ret:
