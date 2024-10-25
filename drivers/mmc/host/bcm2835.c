@@ -150,7 +150,7 @@ struct bcm2835_host {
 
 	struct platform_device	*pdev;
 
-	int			clock;		/* Current clock speed */
+	unsigned int		clock;		/* Current clock speed */
 	unsigned int		max_clk;	/* Max possible freq */
 	struct work_struct	dma_work;
 	struct delayed_work	timeout_work;	/* Timer for timeouts */
