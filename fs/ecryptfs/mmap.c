@@ -178,55 +178,51 @@ out:
  */
 static int ecryptfs_read_folio(struct file *file, struct folio *folio)
 {
-	struct page *page = &folio->page;
+	struct inode *inode = folio->mapping->host;
 	struct ecryptfs_crypt_stat *crypt_stat =
-		&ecryptfs_inode_to_private(page->mapping->host)->crypt_stat;
-	int rc = 0;
+		&ecryptfs_inode_to_private(inode)->crypt_stat;
+	int err = 0;
 
 	if (!crypt_stat || !(crypt_stat->flags & ECRYPTFS_ENCRYPTED)) {
-		rc = ecryptfs_read_lower_page_segment(page, page->index, 0,
-						      PAGE_SIZE,
-						      page->mapping->host);
+		err = ecryptfs_read_lower_page_segment(&folio->page, folio->index, 0,
+						      folio_size(folio),
+						      inode);
 	} else if (crypt_stat->flags & ECRYPTFS_VIEW_AS_ENCRYPTED) {
 		if (crypt_stat->flags & ECRYPTFS_METADATA_IN_XATTR) {
-			rc = ecryptfs_copy_up_encrypted_with_header(page,
+			err = ecryptfs_copy_up_encrypted_with_header(&folio->page,
 								    crypt_stat);
-			if (rc) {
+			if (err) {
 				printk(KERN_ERR "%s: Error attempting to copy "
 				       "the encrypted content from the lower "
 				       "file whilst inserting the metadata "
-				       "from the xattr into the header; rc = "
-				       "[%d]\n", __func__, rc);
+				       "from the xattr into the header; err = "
+				       "[%d]\n", __func__, err);
 				goto out;
 			}
 
 		} else {
-			rc = ecryptfs_read_lower_page_segment(
-				page, page->index, 0, PAGE_SIZE,
-				page->mapping->host);
-			if (rc) {
-				printk(KERN_ERR "Error reading page; rc = "
-				       "[%d]\n", rc);
+			err = ecryptfs_read_lower_page_segment(&folio->page,
+					folio->index, 0, folio_size(folio),
+					inode);
+			if (err) {
+				printk(KERN_ERR "Error reading page; err = "
+				       "[%d]\n", err);
 				goto out;
 			}
 		}
 	} else {
-		rc = ecryptfs_decrypt_page(page);
-		if (rc) {
+		err = ecryptfs_decrypt_page(&folio->page);
+		if (err) {
 			ecryptfs_printk(KERN_ERR, "Error decrypting page; "
-					"rc = [%d]\n", rc);
+					"err = [%d]\n", err);
 			goto out;
 		}
 	}
 out:
-	if (rc)
-		ClearPageUptodate(page);
-	else
-		SetPageUptodate(page);
-	ecryptfs_printk(KERN_DEBUG, "Unlocking page with index = [0x%.16lx]\n",
-			page->index);
-	unlock_page(page);
-	return rc;
+	ecryptfs_printk(KERN_DEBUG, "Unlocking folio with index = [0x%.16lx]\n",
+			folio->index);
+	folio_end_read(folio, err == 0);
+	return err;
 }
 
 /*
