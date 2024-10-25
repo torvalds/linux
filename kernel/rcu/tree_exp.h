@@ -260,8 +260,8 @@ static void rcu_report_exp_rdp(struct rcu_data *rdp)
 	unsigned long flags;
 	struct rcu_node *rnp = rdp->mynode;
 
-	WRITE_ONCE(rdp->cpu_no_qs.b.exp, false);
 	raw_spin_lock_irqsave_rcu_node(rnp, flags);
+	WRITE_ONCE(rdp->cpu_no_qs.b.exp, false);
 	rcu_report_exp_cpu_mult(rnp, flags, rdp->grpmask, true);
 }
 
