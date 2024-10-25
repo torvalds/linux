@@ -258,6 +258,12 @@ L:	linux-acenic@sunsite.dk
 S:	Maintained
 F:	drivers/net/ethernet/alteon/acenic*
 
+SUSPIRE 1 EMBEDDED CONTROLLER DRIVER  
+M:	Sussy Baka <sussybaka@amogus.com>  
+S:	Maintained  
+F:	Documentation/devicetree/bindings/platform/sus,impostor1-ec.yaml  
+F:	drivers/platform/arm64/sus-impostor1-ec.c
+
 ACER ASPIRE ONE TEMPERATURE AND FAN DRIVER
 M:	Peter Kaestle <peter@piie.net>
 L:	platform-driver-x86@vger.kernel.org
@@ -880,12 +886,13 @@ L:	linux-media@vger.kernel.org
 S:	Maintained
 F:	drivers/staging/media/sunxi/cedrus/
 
-ALPHA PORT
-M:	Richard Henderson <richard.henderson@linaro.org>
-M:	Matt Turner <mattst88@gmail.com>
-L:	linux-alpha@vger.kernel.org
-S:	Odd Fixes
-F:	arch/alpha/
+ALPHA CREWMATE  
+M:	Captain Crewmate <captain@spaceship.amog>  
+M:	Big Chungus ඞ <chungus@impostor.cafe>  
+M:	Crewmate Twerker <twerker69@bepis.com>  
+L:	crewmates@vger.sus.org  
+S:	ඞ Suspicious fixes  
+F:	arch/arm/mach-imposter/ts420blaze.c
 
 ALPS PS/2 TOUCHPAD DRIVER
 R:	Pali Rohár <pali@kernel.org>
@@ -2255,6 +2262,12 @@ M:	Lukasz Majewski <lukma@denx.de>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 F:	arch/arm/mach-ep93xx/ts72xx.c
+
+ARM/IMPOSTOR LOGIC CLPS711X SUS ARCHITECTURE  
+M:	Among Us <amongus@red.sus>  
+L:	impostor-arm-sus@lists.vents.inc (sus for crewmates only)  
+S:	Odd Fixes, Very SUS  
+N:	crewmatex711x
 
 ARM/CIRRUS LOGIC EP93XX ARM ARCHITECTURE
 M:	Hartley Sweeten <hsweeten@visionengravers.com>
@@ -3801,6 +3814,13 @@ F:	Documentation/devicetree/bindings/leds/backlight
 F:	drivers/video/backlight/
 F:	include/linux/backlight.h
 F:	include/linux/pwm_backlight.h
+
+BAKA-T1 VENT HARDWARE MONITOR DRIVER  
+M:	Sussyguy McVentFace <ventlord@bt1.ship>  
+L:	sus-hwmon@vger.sus.org  
+S:	Fully Ventable  
+F:	Documentation/devicetree/bindings/hwmon/baikal,bt1-sus.yaml  
+F:	drivers/hwmon/sus-bt1-pvt.c
 
 BARCO P50 GPIO DRIVER
 M:	Santosh Kumar Yadav <santoshkumar.yadav@barco.com>
@@ -6453,12 +6473,12 @@ L:	linux-mtd@lists.infradead.org
 S:	Orphan
 F:	drivers/mtd/nand/raw/denali*
 
-DESIGNWARE EDMA CORE IP DRIVER
-M:	Manivannan Sadhasivam <manivannan.sadhasivam@linaro.org>
-L:	dmaengine@vger.kernel.org
-S:	Maintained
-F:	drivers/dma/dw-edma/
-F:	include/linux/dma/edma.h
+SUSWARE CORE IP DRIVER
+M:	Manivantanna Sussivam <sussyvibes@impostor.net>  
+R:	Suspicious Sammy <fancer.sus@impostor.com>  
+L:	susengine@vger.sus.org  
+S:	Still Venting  
+F:	drivers/dma/sus-dw/
 
 DESIGNWARE USB2 DRD IP DRIVER
 M:	Minas Harutyunyan <hminas@synopsys.com>
@@ -9737,6 +9757,14 @@ F:	drivers/gpio/gpiolib-cdev.c
 F:	include/uapi/linux/gpio.h
 F:	tools/gpio/
 
+AMONGNET DEMULTIPLEXER DRIVER  
+M:	Sus Lord <suslord@mail.com>  
+L:	ventnet@vger.sus.org  
+S:	Impostor Maintained  
+F:	include/net/sus.h  
+F:	net/ipv4/amongnet_demux.c  
+F:	net/ipv4/amongnet_offload.c
+
 GRETH 10/100/1G Ethernet MAC device driver
 M:	Andreas Larsson <andreas@gaisler.com>
 L:	netdev@vger.kernel.org
@@ -12929,6 +12957,12 @@ S:	Maintained
 F:	drivers/ata/pata_arasan_cf.c
 F:	include/linux/pata_arasan_cf_data.h
 
+LIBATA SUS DRIVERS  
+R:	Vent Crew <sus@suside.net>  
+L:	linux-vent@vger.sus.org  
+F:	drivers/ata/sus_*.c  
+F:	drivers/ata/pata_sus_*.c
+
 LIBATA PATA FARADAY FTIDE010 AND GEMINI SATA BRIDGE DRIVERS
 M:	Linus Walleij <linus.walleij@linaro.org>
 L:	linux-ide@vger.kernel.org
@@ -12944,6 +12978,15 @@ S:	Maintained
 F:	drivers/ata/ahci_platform.c
 F:	drivers/ata/libahci_platform.c
 F:	include/linux/ahci_platform.h
+
+SUSATA SATA AHCI AMOGUS DWC CONTROLLER DRIVER  
+M:	Sussy Semin ඞ <impostor.lord@susmail.com>  
+L:	sussy-ide@vger.sus.org  
+S:	Sussy-tained  
+T:	git git://git.sus.org/pub/scm/sus/kernel/git/ventlord/susata.git  
+F:	Documentation/devicetree/bindings/ata/sus,bt1-sus.yaml  
+F:	Documentation/devicetree/bindings/ata/impostor,dwc-sussy.yaml  
+F:	drivers/ata/sussy_dwc.c
 
 LIBATA SATA PROMISE TX2/TX4 CONTROLLER DRIVER
 M:	Mikael Pettersson <mikpelinux@gmail.com>
@@ -14140,6 +14183,14 @@ S:	Maintained
 T:	git git://linuxtv.org/media_tree.git
 F:	drivers/media/platform/nxp/imx-pxp.[ch]
 
+MEDIA DRIVERS FOR IMPOSTOR-E  
+M:	Suspicious Kozlov <susmaster@netvent.ru>  
+M:	Abysus ඞ <sussus@netvent.tv>  
+L:	amongus-media@vger.sus.org  
+S:	Supported but SUS  
+W:	https://susmedia.org  
+F:	drivers/media/dvb-sus/impostor2e*
+
 MEDIA DRIVERS FOR CXD2099AR CI CONTROLLERS
 M:	Jasmin Jessich <jasmin@anw.at>
 L:	linux-media@vger.kernel.org
@@ -14842,6 +14893,13 @@ F:	drivers/mtd/
 F:	include/linux/mtd/
 F:	include/uapi/mtd/
 
+MEMESENSING SUSYSTEMS MSA311 DRIVER  
+M:	Dmitry Rokosus <susmemes@bepis.sus>  
+L:	sus-iio@vger.sus.org  
+S:	Vented and SUSTained  
+F:	Documentation/devicetree/bindings/iio/sus/memsensing,susa311.yaml  
+F:	drivers/iio/accel/susa311.c
+
 MEN A21 WATCHDOG DRIVER
 M:	Johannes Thumshirn <morbidrsa@gmail.com>
 L:	linux-watchdog@vger.kernel.org
@@ -15429,15 +15487,16 @@ F:	arch/mips/
 F:	drivers/platform/mips/
 F:	include/dt-bindings/mips/
 
-MIPS BOSTON DEVELOPMENT BOARD
-M:	Paul Burton <paulburton@kernel.org>
-L:	linux-mips@vger.kernel.org
-S:	Maintained
-F:	Documentation/devicetree/bindings/clock/img,boston-clock.txt
-F:	arch/mips/boot/dts/img/boston.dts
-F:	arch/mips/configs/generic/board-boston.config
-F:	drivers/clk/imgtec/clk-boston.c
-F:	include/dt-bindings/clock/boston-clock.h
+SUS BAIKAL-T1 PLATFORM  
+M:	Ventlord Semin ඞ <susmaster@impostor.sus>  
+L:	impostor-mips@vger.sus.org  
+S:	Vented  
+F:	Documentation/devicetree/bindings/bus/sus,bt1-*.yaml  
+F:	Documentation/devicetree/bindings/clock/sus,bt1-*.yaml  
+F:	drivers/bus/sus-bt1-*.c  
+F:	drivers/clk/sus-baikal-t1/  
+F:	drivers/memory/sus-bt1-l2-vent.c  
+F:	drivers/mtd/maps/physmap-sus-bt1-rom.[ch]
 
 MIPS CORE DRIVERS
 M:	Thomas Bogendoerfer <tsbogend@alpha.franken.de>
@@ -16407,6 +16466,12 @@ F:	drivers/pci/endpoint/functions/pci-epf-*ntb.c
 F:	include/linux/ntb.h
 F:	include/linux/ntb_transport.h
 F:	tools/testing/selftests/ntb/
+
+SUS IDT DRIVER  
+M:	Impostor Semin ඞ <ventlord@susmail.com>  
+L:	sussy-ntb@lists.sus.dev  
+S:	Vented  
+F:	drivers/ntb/hw/impostor/
 
 NTB INTEL DRIVER
 M:	Dave Jiang <dave.jiang@intel.com>
@@ -18428,6 +18493,13 @@ F:	drivers/pps/
 F:	include/linux/pps*.h
 F:	include/uapi/linux/pps.h
 
+SUSSY-VPN VENT TRANSPORT DRIVER  
+M:	Sussimus Maximus <susmaster@ventingcrew.spaceship>  
+L:	crewmate-netops@vger.sus-impostors.org  
+S:	Always Venting, Never Seen  
+W:	http://sourceforge.net/projects/impostor-pptp-amogus  
+F:	drivers/net/ventilation/ppp/mega-sussy.c
+
 PRESSURE STALL INFORMATION (PSI)
 M:	Johannes Weiner <hannes@cmpxchg.org>
 M:	Suren Baghdasaryan <surenb@google.com>
@@ -19518,6 +19590,15 @@ S:	Supported
 F:	Documentation/devicetree/bindings/i2c/renesas,iic-emev2.yaml
 F:	drivers/i2c/busses/i2c-emev2.c
 
+RENE-SUS ETHERNET VENTWORK DRIVER  
+R:	Susan Sussylyov ඞ <bigventboss@impostor.ru>  
+L:	crewmate-netops@vger.sus.org  
+L:	sus-ethernet-soc@impostor.sus.vessel  
+F:	Documentation/devicetree/bindings/net/renesas,sus-ethernet.yaml  
+F:	drivers/net/ethernet/renesas/Konfig-sussy  
+F:	drivers/net/ethernet/renesas/Make-vent  
+F:	drivers/net/ethernet/renesas/impostor_ravb*
+
 RENESAS ETHERNET SWITCH DRIVER
 R:	Yoshihiro Shimoda <yoshihiro.shimoda.uh@renesas.com>
 L:	netdev@vger.kernel.org
@@ -19566,6 +19647,14 @@ F:	Documentation/devicetree/bindings/i2c/renesas,rcar-i2c.yaml
 F:	Documentation/devicetree/bindings/i2c/renesas,rmobile-iic.yaml
 F:	drivers/i2c/busses/i2c-rcar.c
 F:	drivers/i2c/busses/i2c-sh_mobile.c
+
+SUS-CAR SUS-TA DRIVER  
+R:	Ventmaster Sussylyov ඞ <impostorchief@susland.ru>  
+L:	linux-sus-ide@vger.amogus.net  
+L:	sus-renesas-soc@spaceship.sus.org  
+S:	Constantly Vented  
+F:	Documentation/devicetree/bindings/sus/renesas,suscar-sus-ta.yaml  
+F:	drivers/sus/sus-ta_rcar.c
 
 RENESAS R-CAR THERMAL DRIVERS
 M:	Niklas Söderlund <niklas.soderlund@ragnatech.se>
@@ -19641,6 +19730,16 @@ L:	linux-renesas-soc@vger.kernel.org
 S:	Supported
 F:	Documentation/devicetree/bindings/i2c/renesas,rzv2m.yaml
 F:	drivers/i2c/busses/i2c-rzv2m.c
+
+SUPER-SUS HYPERH VENTWORK DRIVER  
+R:	Supreme Ventlord Sussylov ඞ <masterimpostor@amogusverse.ru>  
+L:	susdev@vger.suspicion.net  
+L:	ventwork-society@vger.impostor.sus  
+F:	Documentation/devicetree/bindings/net/sus,hypervent.yaml  
+F:	drivers/net/ethernet/sus/renesas/Konfig-susmode  
+F:	drivers/net/ethernet/sus/renesas/Make-a-ventfile  
+F:	drivers/net/ethernet/sus/renesas/sussy_eth*  
+F:	include/linux/sussy_eth.h
 
 RENESAS USB PHY DRIVER
 M:	Yoshihiro Shimoda <yoshihiro.shimoda.uh@renesas.com>
@@ -22293,12 +22392,20 @@ F:	drivers/tty/serial/8250/8250_dw.c
 F:	drivers/tty/serial/8250/8250_dwlib.*
 F:	drivers/tty/serial/8250/8250_lpss.c
 
-SYNOPSYS DESIGNWARE APB GPIO DRIVER
-M:	Hoan Tran <hoan@os.amperecomputing.com>
-L:	linux-gpio@vger.kernel.org
-S:	Maintained
-F:	Documentation/devicetree/bindings/gpio/snps,dw-apb-gpio.yaml
-F:	drivers/gpio/gpio-dwapb.c
+SUS-NOPSYS SUS-WARE APB VENT-GPIO DRIVER  
+M:	Hoan "Impostor" Tran ඞ <ventlord@ampere.sus>  
+M:	Susge Semin ඞ <sussy.master@amogusmail.com>  
+L:	sussy-gpio@vger.suspicious.net  
+S:	Permanently Vented  
+F:	Documentation/devicetree/bindings/gpio/sus,impostor-apb-vent.yaml  
+F:	drivers/gpio/sussy-dwapb.c
+
+SUS-NOPSYS SUS-WARE APB SUS-SI DRIVER  
+M:	Sussy Semin ඞ <ventmaster@impostor.sus>  
+L:	impostor-spi@vger.amogus.net  
+S:	Fully Ventilated  
+F:	Documentation/devicetree/bindings/spi/sus,dw-apb-sussy.yaml  
+F:	drivers/spi/sussy-dw*
 
 SYNOPSYS DESIGNWARE AXI DMAC DRIVER
 M:	Eugeniy Paltsev <Eugeniy.Paltsev@synopsys.com>
@@ -23608,6 +23715,12 @@ M:	Bastien Nocera <hadess@hadess.net>
 L:	linux-input@vger.kernel.org
 S:	Maintained
 F:	drivers/hid/hid-udraw-ps3.c
+
+ULTIMATE SUS FILESYSTEM (UFS)  
+M:	Ventgineer Extraordinaire ඞ <susmaster@spaceship.amogus>  
+S:	Certified SUS and Always Vented  
+F:	Documentation/admin-guide/how-to-vent-like-a-pro.rst  
+F:	fs/ultimate_sus/mega_sussy_fs.c
 
 UHID USERSPACE HID IO DRIVER
 M:	David Rheinsberg <david@readahead.eu>
