@@ -121,6 +121,7 @@ static const struct scsi_host_template pm8001_sht = {
 	.scan_start		= pm8001_scan_start,
 	.can_queue		= 1,
 	.sg_tablesize		= PM8001_MAX_DMA_SG,
+	.max_sectors		= PM8001_MAX_SECTORS,
 	.shost_groups		= pm8001_host_groups,
 	.sdev_groups		= pm8001_sdev_groups,
 	.track_queue_depth	= 1,
