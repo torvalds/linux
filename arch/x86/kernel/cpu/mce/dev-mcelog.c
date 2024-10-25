@@ -264,15 +264,8 @@ static long mce_chrdev_ioctl(struct file *f, unsigned int cmd,
 		return put_user(sizeof(struct mce), p);
 	case MCE_GET_LOG_LEN:
 		return put_user(mcelog->len, p);
-	case MCE_GETCLEAR_FLAGS: {
-		unsigned flags;
-
-		do {
-			flags = mcelog->flags;
-		} while (cmpxchg(&mcelog->flags, flags, 0) != flags);
-
-		return put_user(flags, p);
-	}
+	case MCE_GETCLEAR_FLAGS:
+		return put_user(xchg(&mcelog->flags, 0), p);
 	default:
 		return -ENOTTY;
 	}
