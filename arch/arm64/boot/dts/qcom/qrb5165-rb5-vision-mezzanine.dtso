@@ -57,7 +57,6 @@
 
 		port {
 			imx577_ep: endpoint {
-				clock-lanes = <1>;
 				link-frequencies = /bits/ 64 <600000000>;
 				data-lanes = <1 2 3 4>;
 				remote-endpoint = <&csiphy2_ep>;
