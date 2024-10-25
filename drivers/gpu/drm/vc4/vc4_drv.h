@@ -681,6 +681,12 @@ struct vc4_crtc_state {
 		writel(val, hvs->regs + (offset));					\
 	} while (0)
 
+#define HVS_READ6(offset) \
+	HVS_READ(hvs->vc4->gen == VC4_GEN_6_C ? SCALER6_ ## offset : SCALER6D_ ## offset)
+
+#define HVS_WRITE6(offset, val) \
+	HVS_WRITE(hvs->vc4->gen == VC4_GEN_6_C ? SCALER6_ ## offset : SCALER6D_ ## offset, val)
+
 #define VC4_REG32(reg) { .name = #reg, .offset = reg }
 
 struct vc4_exec_info {

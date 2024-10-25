@@ -328,7 +328,7 @@ static void vc6_hvs_pv_muxing_commit(struct vc4_dev *vc4,
 	struct drm_crtc *crtc;
 	unsigned int i;
 
-	WARN_ON_ONCE(vc4->gen != VC4_GEN_6_C);
+	WARN_ON_ONCE(vc4->gen != VC4_GEN_6_C && vc4->gen != VC4_GEN_6_D);
 
 	for_each_new_crtc_in_state(state, crtc, crtc_state, i) {
 		struct vc4_crtc_state *vc4_state = to_vc4_crtc_state(crtc_state);
@@ -451,6 +451,7 @@ static void vc4_atomic_commit_tail(struct drm_atomic_state *state)
 		break;
 
 	case VC4_GEN_6_C:
+	case VC4_GEN_6_D:
 		vc6_hvs_pv_muxing_commit(vc4, state);
 		break;
 

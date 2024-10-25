@@ -141,6 +141,66 @@ static const struct debugfs_reg32 vc6_hvs_regs[] = {
 	VC4_REG32(SCALER6_BAD_AXI),
 };
 
+static const struct debugfs_reg32 vc6_d_hvs_regs[] = {
+	VC4_REG32(SCALER6D_VERSION),
+	VC4_REG32(SCALER6D_CXM_SIZE),
+	VC4_REG32(SCALER6D_LBM_SIZE),
+	VC4_REG32(SCALER6D_UBM_SIZE),
+	VC4_REG32(SCALER6D_COBA_SIZE),
+	VC4_REG32(SCALER6D_COB_SIZE),
+	VC4_REG32(SCALER6D_CONTROL),
+	VC4_REG32(SCALER6D_FETCHER_STATUS),
+	VC4_REG32(SCALER6D_FETCH_STATUS),
+	VC4_REG32(SCALER6D_HANDLE_ERROR),
+	VC4_REG32(SCALER6D_DISP0_CTRL0),
+	VC4_REG32(SCALER6D_DISP0_CTRL1),
+	VC4_REG32(SCALER6D_DISP0_BGND0),
+	VC4_REG32(SCALER6D_DISP0_BGND1),
+	VC4_REG32(SCALER6D_DISP0_LPTRS),
+	VC4_REG32(SCALER6D_DISP0_COB),
+	VC4_REG32(SCALER6D_DISP0_STATUS),
+	VC4_REG32(SCALER6D_DISP0_DL),
+	VC4_REG32(SCALER6D_DISP0_RUN),
+	VC4_REG32(SCALER6D_DISP1_CTRL0),
+	VC4_REG32(SCALER6D_DISP1_CTRL1),
+	VC4_REG32(SCALER6D_DISP1_BGND0),
+	VC4_REG32(SCALER6D_DISP1_BGND1),
+	VC4_REG32(SCALER6D_DISP1_LPTRS),
+	VC4_REG32(SCALER6D_DISP1_COB),
+	VC4_REG32(SCALER6D_DISP1_STATUS),
+	VC4_REG32(SCALER6D_DISP1_DL),
+	VC4_REG32(SCALER6D_DISP1_RUN),
+	VC4_REG32(SCALER6D_DISP2_CTRL0),
+	VC4_REG32(SCALER6D_DISP2_CTRL1),
+	VC4_REG32(SCALER6D_DISP2_BGND0),
+	VC4_REG32(SCALER6D_DISP2_BGND1),
+	VC4_REG32(SCALER6D_DISP2_LPTRS),
+	VC4_REG32(SCALER6D_DISP2_COB),
+	VC4_REG32(SCALER6D_DISP2_STATUS),
+	VC4_REG32(SCALER6D_DISP2_DL),
+	VC4_REG32(SCALER6D_DISP2_RUN),
+	VC4_REG32(SCALER6D_EOLN),
+	VC4_REG32(SCALER6D_DL_STATUS),
+	VC4_REG32(SCALER6D_QOS0),
+	VC4_REG32(SCALER6D_PROF0),
+	VC4_REG32(SCALER6D_QOS1),
+	VC4_REG32(SCALER6D_PROF1),
+	VC4_REG32(SCALER6D_QOS2),
+	VC4_REG32(SCALER6D_PROF2),
+	VC4_REG32(SCALER6D_PRI_MAP0),
+	VC4_REG32(SCALER6D_PRI_MAP1),
+	VC4_REG32(SCALER6D_HISTCTRL),
+	VC4_REG32(SCALER6D_HISTBIN0),
+	VC4_REG32(SCALER6D_HISTBIN1),
+	VC4_REG32(SCALER6D_HISTBIN2),
+	VC4_REG32(SCALER6D_HISTBIN3),
+	VC4_REG32(SCALER6D_HISTBIN4),
+	VC4_REG32(SCALER6D_HISTBIN5),
+	VC4_REG32(SCALER6D_HISTBIN6),
+	VC4_REG32(SCALER6D_HISTBIN7),
+	VC4_REG32(SCALER6D_HVS_ID),
+};
+
 void vc4_hvs_dump_state(struct vc4_hvs *hvs)
 {
 	struct drm_device *drm = &hvs->vc4->base;
@@ -419,6 +479,7 @@ u8 vc4_hvs_get_fifo_frame_count(struct vc4_hvs *hvs, unsigned int fifo)
 
 	switch (vc4->gen) {
 	case VC4_GEN_6_C:
+	case VC4_GEN_6_D:
 		field = VC4_GET_FIELD(HVS_READ(SCALER6_DISPX_STATUS(fifo)),
 				      SCALER6_DISPX_STATUS_FRCNT);
 		break;
@@ -525,6 +586,7 @@ int vc4_hvs_get_fifo_from_output(struct vc4_hvs *hvs, unsigned int output)
 		}
 
 	case VC4_GEN_6_C:
+	case VC4_GEN_6_D:
 		switch (output) {
 		case 0:
 			return 0;
@@ -1132,6 +1194,7 @@ struct vc4_hvs *__vc4_hvs_alloc(struct vc4_dev *vc4,
 		break;
 
 	case VC4_GEN_6_C:
+	case VC4_GEN_6_D:
 		dlist_start = HVS_BOOTLOADER_DLIST_END;
 
 		/*
@@ -1177,6 +1240,7 @@ struct vc4_hvs *__vc4_hvs_alloc(struct vc4_dev *vc4,
 		break;
 
 	case VC4_GEN_6_C:
+	case VC4_GEN_6_D:
 		/*
 		 * If we are running a test, it means that we can't
 		 * access a register. Use a plausible size then.
@@ -1317,6 +1381,17 @@ static int vc4_hvs_hw_init(struct vc4_hvs *hvs)
 #define CFC1_N_MA_CSC_COEFF_C23(x)	(0xa03c + ((x) * 0x3000))
 #define CFC1_N_MA_CSC_COEFF_C24(x)	(0xa040 + ((x) * 0x3000))
 
+#define SCALER_PI_CMP_CSC_RED0(x)		(0x200 + ((x) * 0x40))
+#define SCALER_PI_CMP_CSC_RED1(x)		(0x204 + ((x) * 0x40))
+#define SCALER_PI_CMP_CSC_RED_CLAMP(x)		(0x208 + ((x) * 0x40))
+#define SCALER_PI_CMP_CSC_CFG(x)		(0x20c + ((x) * 0x40))
+#define SCALER_PI_CMP_CSC_GREEN0(x)		(0x210 + ((x) * 0x40))
+#define SCALER_PI_CMP_CSC_GREEN1(x)		(0x214 + ((x) * 0x40))
+#define SCALER_PI_CMP_CSC_GREEN_CLAMP(x)	(0x218 + ((x) * 0x40))
+#define SCALER_PI_CMP_CSC_BLUE0(x)		(0x220 + ((x) * 0x40))
+#define SCALER_PI_CMP_CSC_BLUE1(x)		(0x224 + ((x) * 0x40))
+#define SCALER_PI_CMP_CSC_BLUE_CLAMP(x)		(0x228 + ((x) * 0x40))
+
 /* 4 S2.22 multiplication factors, and 1 S9.15 addititive element for each of 3
  * output components
  */
@@ -1384,31 +1459,46 @@ static int vc6_hvs_hw_init(struct vc4_hvs *hvs)
 		  VC4_SET_FIELD(15, SCALER6_CONTROL_MAX_REQS));
 
 	/* Set HVS arbiter priority to max */
-	HVS_WRITE(SCALER6_PRI_MAP0, 0xffffffff);
-	HVS_WRITE(SCALER6_PRI_MAP1, 0xffffffff);
+	HVS_WRITE(SCALER6(PRI_MAP0), 0xffffffff);
+	HVS_WRITE(SCALER6(PRI_MAP1), 0xffffffff);
 
-	for (i = 0; i < 6; i++) {
-		coeffs = &csc_coeffs[i / 3][i % 3];
+	if (hvs->vc4->gen == VC4_GEN_6_C) {
+		for (i = 0; i < 6; i++) {
+			coeffs = &csc_coeffs[i / 3][i % 3];
 
-		HVS_WRITE(CFC1_N_MA_CSC_COEFF_C00(i), coeffs->csc[0][0]);
-		HVS_WRITE(CFC1_N_MA_CSC_COEFF_C01(i), coeffs->csc[0][1]);
-		HVS_WRITE(CFC1_N_MA_CSC_COEFF_C02(i), coeffs->csc[0][2]);
-		HVS_WRITE(CFC1_N_MA_CSC_COEFF_C03(i), coeffs->csc[0][3]);
-		HVS_WRITE(CFC1_N_MA_CSC_COEFF_C04(i), coeffs->csc[0][4]);
+			HVS_WRITE(CFC1_N_MA_CSC_COEFF_C00(i), coeffs->csc[0][0]);
+			HVS_WRITE(CFC1_N_MA_CSC_COEFF_C01(i), coeffs->csc[0][1]);
+			HVS_WRITE(CFC1_N_MA_CSC_COEFF_C02(i), coeffs->csc[0][2]);
+			HVS_WRITE(CFC1_N_MA_CSC_COEFF_C03(i), coeffs->csc[0][3]);
+			HVS_WRITE(CFC1_N_MA_CSC_COEFF_C04(i), coeffs->csc[0][4]);
 
-		HVS_WRITE(CFC1_N_MA_CSC_COEFF_C10(i), coeffs->csc[1][0]);
-		HVS_WRITE(CFC1_N_MA_CSC_COEFF_C11(i), coeffs->csc[1][1]);
-		HVS_WRITE(CFC1_N_MA_CSC_COEFF_C12(i), coeffs->csc[1][2]);
-		HVS_WRITE(CFC1_N_MA_CSC_COEFF_C13(i), coeffs->csc[1][3]);
-		HVS_WRITE(CFC1_N_MA_CSC_COEFF_C14(i), coeffs->csc[1][4]);
+			HVS_WRITE(CFC1_N_MA_CSC_COEFF_C10(i), coeffs->csc[1][0]);
+			HVS_WRITE(CFC1_N_MA_CSC_COEFF_C11(i), coeffs->csc[1][1]);
+			HVS_WRITE(CFC1_N_MA_CSC_COEFF_C12(i), coeffs->csc[1][2]);
+			HVS_WRITE(CFC1_N_MA_CSC_COEFF_C13(i), coeffs->csc[1][3]);
+			HVS_WRITE(CFC1_N_MA_CSC_COEFF_C14(i), coeffs->csc[1][4]);
 
-		HVS_WRITE(CFC1_N_MA_CSC_COEFF_C20(i), coeffs->csc[2][0]);
-		HVS_WRITE(CFC1_N_MA_CSC_COEFF_C21(i), coeffs->csc[2][1]);
-		HVS_WRITE(CFC1_N_MA_CSC_COEFF_C22(i), coeffs->csc[2][2]);
-		HVS_WRITE(CFC1_N_MA_CSC_COEFF_C23(i), coeffs->csc[2][3]);
-		HVS_WRITE(CFC1_N_MA_CSC_COEFF_C24(i), coeffs->csc[2][4]);
+			HVS_WRITE(CFC1_N_MA_CSC_COEFF_C20(i), coeffs->csc[2][0]);
+			HVS_WRITE(CFC1_N_MA_CSC_COEFF_C21(i), coeffs->csc[2][1]);
+			HVS_WRITE(CFC1_N_MA_CSC_COEFF_C22(i), coeffs->csc[2][2]);
+			HVS_WRITE(CFC1_N_MA_CSC_COEFF_C23(i), coeffs->csc[2][3]);
+			HVS_WRITE(CFC1_N_MA_CSC_COEFF_C24(i), coeffs->csc[2][4]);
 
-		HVS_WRITE(CFC1_N_NL_CSC_CTRL(i), BIT(15));
+			HVS_WRITE(CFC1_N_NL_CSC_CTRL(i), BIT(15));
+		}
+	} else {
+		for (i = 0; i < 8; i++) {
+			HVS_WRITE(SCALER_PI_CMP_CSC_RED0(i), 0x1f002566);
+			HVS_WRITE(SCALER_PI_CMP_CSC_RED1(i), 0x3994);
+			HVS_WRITE(SCALER_PI_CMP_CSC_RED_CLAMP(i), 0xfff00000);
+			HVS_WRITE(SCALER_PI_CMP_CSC_CFG(i), 0x1);
+			HVS_WRITE(SCALER_PI_CMP_CSC_GREEN0(i), 0x18002566);
+			HVS_WRITE(SCALER_PI_CMP_CSC_GREEN1(i), 0xf927eee2);
+			HVS_WRITE(SCALER_PI_CMP_CSC_GREEN_CLAMP(i), 0xfff00000);
+			HVS_WRITE(SCALER_PI_CMP_CSC_BLUE0(i), 0x18002566);
+			HVS_WRITE(SCALER_PI_CMP_CSC_BLUE1(i), 0x43d80000);
+			HVS_WRITE(SCALER_PI_CMP_CSC_BLUE_CLAMP(i), 0xfff00000);
+		}
 	}
 
 	return 0;
@@ -1479,26 +1569,27 @@ static int vc4_hvs_cob_init(struct vc4_hvs *hvs)
 		break;
 
 	case VC4_GEN_6_C:
+	case VC4_GEN_6_D:
 		#define VC6_COB_LINE_WIDTH	3840
 		#define VC6_COB_NUM_LINES	4
 		base = 0;
 		top = 3840;
 
-		HVS_WRITE(SCALER6_DISP2_COB,
+		HVS_WRITE(SCALER6_DISPX_COB(2),
 			  VC4_SET_FIELD(top, SCALER6_DISPX_COB_TOP) |
 			  VC4_SET_FIELD(base, SCALER6_DISPX_COB_BASE));
 
 		base = top + 16;
 		top += VC6_COB_LINE_WIDTH * VC6_COB_NUM_LINES;
 
-		HVS_WRITE(SCALER6_DISP1_COB,
+		HVS_WRITE(SCALER6_DISPX_COB(1),
 			  VC4_SET_FIELD(top, SCALER6_DISPX_COB_TOP) |
 			  VC4_SET_FIELD(base, SCALER6_DISPX_COB_BASE));
 
 		base = top + 16;
 		top += VC6_COB_LINE_WIDTH * VC6_COB_NUM_LINES;
 
-		HVS_WRITE(SCALER6_DISP0_COB,
+		HVS_WRITE(SCALER6_DISPX_COB(0),
 			  VC4_SET_FIELD(top, SCALER6_DISPX_COB_TOP) |
 			  VC4_SET_FIELD(base, SCALER6_DISPX_COB_BASE));
 		break;
@@ -1529,13 +1620,16 @@ static int vc4_hvs_bind(struct device *dev, struct device *master, void *data)
 
 	hvs->regset.base = hvs->regs;
 
-	if (vc4->gen >= VC4_GEN_6_C) {
+	if (vc4->gen == VC4_GEN_6_C) {
 		hvs->regset.regs = vc6_hvs_regs;
 		hvs->regset.nregs = ARRAY_SIZE(vc6_hvs_regs);
 
 		if (VC4_GET_FIELD(HVS_READ(SCALER6_VERSION), SCALER6_VERSION) ==
-						SCALER6_VERSION_D0)
+						SCALER6_VERSION_D0) {
 			vc4->gen = VC4_GEN_6_D;
+			hvs->regset.regs = vc6_d_hvs_regs;
+			hvs->regset.nregs = ARRAY_SIZE(vc6_d_hvs_regs);
+		}
 	} else {
 		hvs->regset.regs = vc4_hvs_regs;
 		hvs->regset.nregs = ARRAY_SIZE(vc4_hvs_regs);
