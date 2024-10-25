@@ -227,16 +227,16 @@ static void __maybe_unused rcu_report_exp_rnp(struct rcu_node *rnp, bool wake)
 
 /*
  * Report expedited quiescent state for multiple CPUs, all covered by the
- * specified leaf rcu_node structure.
+ * specified leaf rcu_node structure, which is acquired by the caller.
  */
-static void rcu_report_exp_cpu_mult(struct rcu_node *rnp,
+static void rcu_report_exp_cpu_mult(struct rcu_node *rnp, unsigned long flags,
 				    unsigned long mask, bool wake)
+				    __releases(rnp->lock)
 {
 	int cpu;
-	unsigned long flags;
 	struct rcu_data *rdp;
 
-	raw_spin_lock_irqsave_rcu_node(rnp, flags);
+	raw_lockdep_assert_held_rcu_node(rnp);
 	if (!(rnp->expmask & mask)) {
 		raw_spin_unlock_irqrestore_rcu_node(rnp, flags);
 		return;
@@ -257,8 +257,12 @@ static void rcu_report_exp_cpu_mult(struct rcu_node *rnp,
  */
 static void rcu_report_exp_rdp(struct rcu_data *rdp)
 {
+	unsigned long flags;
+	struct rcu_node *rnp = rdp->mynode;
+
 	WRITE_ONCE(rdp->cpu_no_qs.b.exp, false);
-	rcu_report_exp_cpu_mult(rdp->mynode, rdp->grpmask, true);
+	raw_spin_lock_irqsave_rcu_node(rnp, flags);
+	rcu_report_exp_cpu_mult(rnp, flags, rdp->grpmask, true);
 }
 
 /* Common code for work-done checking. */
@@ -432,8 +436,10 @@ retry_ipi:
 		raw_spin_unlock_irqrestore_rcu_node(rnp, flags);
 	}
 	/* Report quiescent states for those that went offline. */
-	if (mask_ofl_test)
-		rcu_report_exp_cpu_mult(rnp, mask_ofl_test, false);
+	if (mask_ofl_test) {
+		raw_spin_lock_irqsave_rcu_node(rnp, flags);
+		rcu_report_exp_cpu_mult(rnp, flags, mask_ofl_test, false);
+	}
 }
 
 static void rcu_exp_sel_wait_wake(unsigned long s);
