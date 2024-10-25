@@ -317,6 +317,21 @@ struct vc4_v3d {
 	struct debugfs_regset32 regset;
 };
 
+#define VC4_NUM_UPM_HANDLES 32
+struct vc4_upm_refcounts {
+	refcount_t refcount;
+
+	/* Allocation size */
+	size_t size;
+	/* Our allocation in UPM for prefetching. */
+	struct drm_mm_node upm;
+
+	/* Pointer back to the HVS structure */
+	struct vc4_hvs *hvs;
+};
+
+#define HVS_NUM_CHANNELS 3
+
 struct vc4_hvs {
 	struct vc4_dev *vc4;
 	struct platform_device *pdev;
@@ -325,6 +340,7 @@ struct vc4_hvs {
 	unsigned int dlist_mem_size;
 
 	struct clk *core_clk;
+	struct clk *disp_clk;
 
 	unsigned long max_core_rate;
 
@@ -332,8 +348,15 @@ struct vc4_hvs {
 	 * list.  Units are dwords.
 	 */
 	struct drm_mm dlist_mm;
+
 	/* Memory manager for the LBM memory used by HVS scaling. */
 	struct drm_mm lbm_mm;
+
+	/* Memory manager for the UPM memory used for prefetching. */
+	struct drm_mm upm_mm;
+	struct ida upm_handles;
+	struct vc4_upm_refcounts upm_refcounts[VC4_NUM_UPM_HANDLES + 1];
+
 	spinlock_t mm_lock;
 
 	struct drm_mm_node mitchell_netravali_filter;
@@ -356,6 +379,7 @@ struct vc4_hvs {
 };
 
 #define HVS_NUM_CHANNELS 3
+#define HVS_UBM_WORD_SIZE 256
 
 struct vc4_hvs_state {
 	struct drm_private_state base;
@@ -424,6 +448,12 @@ struct vc4_plane_state {
 
 	/* Our allocation in LBM for temporary storage during scaling. */
 	struct drm_mm_node lbm;
+
+	/* The Unified Pre-Fetcher Handle */
+	unsigned int upm_handle[DRM_FORMAT_MAX_PLANES];
+
+	/* Number of lines to pre-fetch */
+	unsigned int upm_buffer_lines;
 
 	/* Set when the plane has per-pixel alpha content or does not cover
 	 * the entire screen. This is a hint to the CRTC that it might need

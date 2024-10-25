@@ -279,6 +279,7 @@ static void vc4_component_unbind_all(void *ptr)
 
 static const struct of_device_id vc4_dma_range_matches[] = {
 	{ .compatible = "brcm,bcm2711-hvs" },
+	{ .compatible = "brcm,bcm2712-hvs" },
 	{ .compatible = "brcm,bcm2835-hvs" },
 	{ .compatible = "brcm,bcm2835-v3d" },
 	{ .compatible = "brcm,cygnus-v3d" },
@@ -306,6 +307,11 @@ static int vc4_drm_bind(struct device *dev)
 		driver = &vc5_drm_driver;
 	else
 		driver = &vc4_drm_driver;
+
+	if (gen >= VC4_GEN_6_C)
+		dma_set_mask_and_coherent(dev, DMA_BIT_MASK(36));
+	else
+		dma_set_mask_and_coherent(dev, DMA_BIT_MASK(32));
 
 	node = of_find_matching_node_and_match(NULL, vc4_dma_range_matches,
 					       NULL);

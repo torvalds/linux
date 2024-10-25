@@ -83,13 +83,22 @@ static unsigned int
 vc4_crtc_get_cob_allocation(struct vc4_dev *vc4, unsigned int channel)
 {
 	struct vc4_hvs *hvs = vc4->hvs;
-	u32 dispbase = HVS_READ(SCALER_DISPBASEX(channel));
+	u32 dispbase, top, base;
+
 	/* Top/base are supposed to be 4-pixel aligned, but the
 	 * Raspberry Pi firmware fills the low bits (which are
 	 * presumably ignored).
 	 */
-	u32 top = VC4_GET_FIELD(dispbase, SCALER_DISPBASEX_TOP) & ~3;
-	u32 base = VC4_GET_FIELD(dispbase, SCALER_DISPBASEX_BASE) & ~3;
+
+	if (vc4->gen >= VC4_GEN_6_C) {
+		dispbase = HVS_READ(SCALER6_DISPX_COB(channel));
+		top = VC4_GET_FIELD(dispbase, SCALER6_DISPX_COB_TOP) & ~3;
+		base = VC4_GET_FIELD(dispbase, SCALER6_DISPX_COB_BASE) & ~3;
+	} else {
+		dispbase = HVS_READ(SCALER_DISPBASEX(channel));
+		top = VC4_GET_FIELD(dispbase, SCALER_DISPBASEX_TOP) & ~3;
+		base = VC4_GET_FIELD(dispbase, SCALER_DISPBASEX_BASE) & ~3;
+	}
 
 	return top - base + 4;
 }
@@ -122,7 +131,10 @@ static bool vc4_crtc_get_scanout_position(struct drm_crtc *crtc,
 	 * Read vertical scanline which is currently composed for our
 	 * pixelvalve by the HVS, and also the scaler status.
 	 */
-	val = HVS_READ(SCALER_DISPSTATX(channel));
+	if (vc4->gen >= VC4_GEN_6_C)
+		val = HVS_READ(SCALER6_DISPX_STATUS(channel));
+	else
+		val = HVS_READ(SCALER_DISPSTATX(channel));
 
 	/* Get optional system timestamp after query. */
 	if (etime)
@@ -131,7 +143,12 @@ static bool vc4_crtc_get_scanout_position(struct drm_crtc *crtc,
 	/* preempt_enable_rt() should go right here in PREEMPT_RT patchset. */
 
 	/* Vertical position of hvs composed scanline. */
-	*vpos = VC4_GET_FIELD(val, SCALER_DISPSTATX_LINE);
+
+	if (vc4->gen >= VC4_GEN_6_C)
+		*vpos = VC4_GET_FIELD(val, SCALER6_DISPX_STATUS_YLINE);
+	else
+		*vpos = VC4_GET_FIELD(val, SCALER_DISPSTATX_LINE);
+
 	*hpos = 0;
 
 	if (mode->flags & DRM_MODE_FLAG_INTERLACE) {
@@ -459,8 +476,10 @@ static void require_hvs_enabled(struct drm_device *dev)
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
 	struct vc4_hvs *hvs = vc4->hvs;
 
-	WARN_ON_ONCE((HVS_READ(SCALER_DISPCTRL) & SCALER_DISPCTRL_ENABLE) !=
-		     SCALER_DISPCTRL_ENABLE);
+	if (vc4->gen >= VC4_GEN_6_C)
+		WARN_ON_ONCE(!(HVS_READ(SCALER6_CONTROL) & SCALER6_CONTROL_HVS_EN));
+	else
+		WARN_ON_ONCE(!(HVS_READ(SCALER_DISPCTRL) & SCALER_DISPCTRL_ENABLE));
 }
 
 static int vc4_crtc_disable(struct drm_crtc *crtc,
@@ -789,14 +808,21 @@ static void vc4_crtc_handle_page_flip(struct vc4_crtc *vc4_crtc)
 	struct drm_device *dev = crtc->dev;
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
 	struct vc4_hvs *hvs = vc4->hvs;
+	unsigned int current_dlist;
 	u32 chan = vc4_crtc->current_hvs_channel;
 	unsigned long flags;
 
 	spin_lock_irqsave(&dev->event_lock, flags);
 	spin_lock(&vc4_crtc->irq_lock);
+
+	if (vc4->gen >= VC4_GEN_6_C)
+		current_dlist = VC4_GET_FIELD(HVS_READ(SCALER6_DISPX_DL(chan)),
+					      SCALER6_DISPX_DL_LACT);
+	else
+		current_dlist = HVS_READ(SCALER_DISPLACTX(chan));
+
 	if (vc4_crtc->event &&
-	    (vc4_crtc->current_dlist == HVS_READ(SCALER_DISPLACTX(chan)) ||
-	     vc4_crtc->feeds_txp)) {
+	    (vc4_crtc->current_dlist == current_dlist || vc4_crtc->feeds_txp)) {
 		drm_crtc_send_vblank_event(crtc, vc4_crtc->event);
 		vc4_crtc->event = NULL;
 		drm_crtc_vblank_put(crtc);
@@ -807,7 +833,8 @@ static void vc4_crtc_handle_page_flip(struct vc4_crtc *vc4_crtc)
 		 * the CRTC and encoder already reconfigured, leading to
 		 * underruns. This can be seen when reconfiguring the CRTC.
 		 */
-		vc4_hvs_unmask_underrun(hvs, chan);
+		if (vc4->gen < VC4_GEN_6_C)
+			vc4_hvs_unmask_underrun(hvs, chan);
 	}
 	spin_unlock(&vc4_crtc->irq_lock);
 	spin_unlock_irqrestore(&dev->event_lock, flags);
