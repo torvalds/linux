@@ -23,6 +23,7 @@ static unsigned int nf_hook_run_bpf(void *bpf_prog, struct sk_buff *skb,
 struct bpf_nf_link {
 	struct bpf_link link;
 	struct nf_hook_ops hook_ops;
+	netns_tracker ns_tracker;
 	struct net *net;
 	u32 dead;
 	const struct nf_defrag_hook *defrag_hook;
@@ -120,6 +121,7 @@ static void bpf_nf_link_release(struct bpf_link *link)
 	if (!cmpxchg(&nf_link->dead, 0, 1)) {
 		nf_unregister_net_hook(nf_link->net, &nf_link->hook_ops);
 		bpf_nf_disable_defrag(nf_link);
+		put_net_track(nf_link->net, &nf_link->ns_tracker);
 	}
 }
 
@@ -150,11 +152,12 @@ static int bpf_nf_link_fill_link_info(const struct bpf_link *link,
 				      struct bpf_link_info *info)
 {
 	struct bpf_nf_link *nf_link = container_of(link, struct bpf_nf_link, link);
+	const struct nf_defrag_hook *hook = nf_link->defrag_hook;
 
 	info->netfilter.pf = nf_link->hook_ops.pf;
 	info->netfilter.hooknum = nf_link->hook_ops.hooknum;
 	info->netfilter.priority = nf_link->hook_ops.priority;
-	info->netfilter.flags = 0;
+	info->netfilter.flags = hook ? BPF_F_NETFILTER_IP_DEFRAG : 0;
 
 	return 0;
 }
@@ -256,6 +259,8 @@ int bpf_nf_link_attach(const union bpf_attr *attr, struct bpf_prog *prog)
 		bpf_link_cleanup(&link_primer);
 		return err;
 	}
+
+	get_net_track(net, &link->ns_tracker, GFP_KERNEL);
 
 	return bpf_link_settle(&link_primer);
 }

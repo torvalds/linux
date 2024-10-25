@@ -258,8 +258,8 @@ struct geni_se {
 #define RX_DMA_PARITY_ERR		BIT(5)
 #define RX_DMA_BREAK			GENMASK(8, 7)
 #define RX_GENI_GP_IRQ			GENMASK(10, 5)
-#define RX_GENI_CANCEL_IRQ		BIT(11)
 #define RX_GENI_GP_IRQ_EXT		GENMASK(13, 12)
+#define RX_GENI_CANCEL_IRQ		BIT(14)
 
 /* SE_HW_PARAM_0 fields */
 #define TX_FIFO_WIDTH_MSK		GENMASK(29, 24)

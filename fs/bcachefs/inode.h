@@ -92,6 +92,7 @@ struct bch_inode_unpacked {
 	BCH_INODE_FIELDS_v3()
 #undef  x
 };
+BITMASK(INODE_STR_HASH,	struct bch_inode_unpacked, bi_flags, 20, 24);
 
 struct bkey_inode_buf {
 	struct bkey_i_inode_v3	inode;

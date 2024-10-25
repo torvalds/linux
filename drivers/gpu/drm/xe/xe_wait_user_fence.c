@@ -169,9 +169,6 @@ int xe_wait_user_fence_ioctl(struct drm_device *dev, void *data,
 			args->timeout = 0;
 	}
 
-	if (!timeout && !(err < 0))
-		err = -ETIME;
-
 	if (q)
 		xe_exec_queue_put(q);
 

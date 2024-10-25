@@ -113,7 +113,7 @@ static void pse_release_pis(struct pse_controller_dev *pcdev)
 {
 	int i;
 
-	for (i = 0; i <= pcdev->nr_lines; i++) {
+	for (i = 0; i < pcdev->nr_lines; i++) {
 		of_node_put(pcdev->pi[i].pairset[0].np);
 		of_node_put(pcdev->pi[i].pairset[1].np);
 		of_node_put(pcdev->pi[i].np);
@@ -647,7 +647,7 @@ static int of_pse_match_pi(struct pse_controller_dev *pcdev,
 {
 	int i;
 
-	for (i = 0; i <= pcdev->nr_lines; i++) {
+	for (i = 0; i < pcdev->nr_lines; i++) {
 		if (pcdev->pi[i].np == np)
 			return i;
 	}

@@ -51,6 +51,7 @@
 #define KVM_REQ_RELOAD_PMU	KVM_ARCH_REQ(5)
 #define KVM_REQ_SUSPEND		KVM_ARCH_REQ(6)
 #define KVM_REQ_RESYNC_PMU_EL0	KVM_ARCH_REQ(7)
+#define KVM_REQ_NESTED_S2_UNMAP	KVM_ARCH_REQ(8)
 
 #define KVM_DIRTY_LOG_MANUAL_CAPS   (KVM_DIRTY_LOG_MANUAL_PROTECT_ENABLE | \
 				     KVM_DIRTY_LOG_INITIALLY_SET)
@@ -210,6 +211,12 @@ struct kvm_s2_mmu {
 	 * HCR_EL2.VM == 1
 	 */
 	bool	nested_stage2_enabled;
+
+	/*
+	 * true when this MMU needs to be unmapped before being used for a new
+	 * purpose.
+	 */
+	bool	pending_unmap;
 
 	/*
 	 *  0: Nobody is currently using this, check vttbr for validity

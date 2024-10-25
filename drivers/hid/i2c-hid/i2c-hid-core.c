@@ -50,6 +50,7 @@
 #define I2C_HID_QUIRK_BAD_INPUT_SIZE		BIT(3)
 #define I2C_HID_QUIRK_NO_WAKEUP_AFTER_RESET	BIT(4)
 #define I2C_HID_QUIRK_NO_SLEEP_ON_SUSPEND	BIT(5)
+#define I2C_HID_QUIRK_DELAY_WAKEUP_AFTER_RESUME BIT(6)
 
 /* Command opcodes */
 #define I2C_HID_OPCODE_RESET			0x01
@@ -140,6 +141,8 @@ static const struct i2c_hid_quirks {
 	{ USB_VENDOR_ID_ELAN, HID_ANY_ID,
 		 I2C_HID_QUIRK_NO_WAKEUP_AFTER_RESET |
 		 I2C_HID_QUIRK_BOGUS_IRQ },
+	{ I2C_VENDOR_ID_GOODIX, I2C_DEVICE_ID_GOODIX_0D42,
+		 I2C_HID_QUIRK_DELAY_WAKEUP_AFTER_RESUME },
 	{ 0, 0 }
 };
 
@@ -980,6 +983,13 @@ static int i2c_hid_core_resume(struct i2c_hid *ihid)
 			ret);
 		return -ENXIO;
 	}
+
+	/* On Goodix 27c6:0d42 wait extra time before device wakeup.
+	 * It's not clear why but if we send wakeup too early, the device will
+	 * never trigger input interrupts.
+	 */
+	if (ihid->quirks & I2C_HID_QUIRK_DELAY_WAKEUP_AFTER_RESUME)
+		msleep(1500);
 
 	/* Instead of resetting device, simply powers the device on. This
 	 * solves "incomplete reports" on Raydium devices 2386:3118 and

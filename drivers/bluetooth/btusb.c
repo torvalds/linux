@@ -1345,10 +1345,15 @@ static int btusb_submit_intr_urb(struct hci_dev *hdev, gfp_t mem_flags)
 	if (!urb)
 		return -ENOMEM;
 
-	/* Use maximum HCI Event size so the USB stack handles
-	 * ZPL/short-transfer automatically.
-	 */
-	size = HCI_MAX_EVENT_SIZE;
+	if (le16_to_cpu(data->udev->descriptor.idVendor)  == 0x0a12 &&
+	    le16_to_cpu(data->udev->descriptor.idProduct) == 0x0001)
+		/* Fake CSR devices don't seem to support sort-transter */
+		size = le16_to_cpu(data->intr_ep->wMaxPacketSize);
+	else
+		/* Use maximum HCI Event size so the USB stack handles
+		 * ZPL/short-transfer automatically.
+		 */
+		size = HCI_MAX_EVENT_SIZE;
 
 	buf = kmalloc(size, mem_flags);
 	if (!buf) {
@@ -4038,7 +4043,6 @@ static void btusb_disconnect(struct usb_interface *intf)
 static int btusb_suspend(struct usb_interface *intf, pm_message_t message)
 {
 	struct btusb_data *data = usb_get_intfdata(intf);
-	int err;
 
 	BT_DBG("intf %p", intf);
 
@@ -4051,16 +4055,6 @@ static int btusb_suspend(struct usb_interface *intf, pm_message_t message)
 	if (data->suspend_count++)
 		return 0;
 
-	/* Notify Host stack to suspend; this has to be done before stopping
-	 * the traffic since the hci_suspend_dev itself may generate some
-	 * traffic.
-	 */
-	err = hci_suspend_dev(data->hdev);
-	if (err) {
-		data->suspend_count--;
-		return err;
-	}
-
 	spin_lock_irq(&data->txlock);
 	if (!(PMSG_IS_AUTO(message) && data->tx_in_flight)) {
 		set_bit(BTUSB_SUSPENDING, &data->flags);
@@ -4068,7 +4062,6 @@ static int btusb_suspend(struct usb_interface *intf, pm_message_t message)
 	} else {
 		spin_unlock_irq(&data->txlock);
 		data->suspend_count--;
-		hci_resume_dev(data->hdev);
 		return -EBUSY;
 	}
 
@@ -4188,8 +4181,6 @@ static int btusb_resume(struct usb_interface *intf)
 	clear_bit(BTUSB_SUSPENDING, &data->flags);
 	spin_unlock_irq(&data->txlock);
 	schedule_work(&data->work);
-
-	hci_resume_dev(data->hdev);
 
 	return 0;
 

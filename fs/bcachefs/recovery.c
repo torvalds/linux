@@ -1091,7 +1091,7 @@ int bch2_fs_initialize(struct bch_fs *c)
 
 	bch2_inode_init_early(c, &lostfound_inode);
 
-	ret = bch2_trans_do(c, NULL, NULL, 0,
+	ret = bch2_trans_commit_do(c, NULL, NULL, 0,
 		bch2_create_trans(trans,
 				  BCACHEFS_ROOT_SUBVOL_INUM,
 				  &root_inode, &lostfound_inode,

@@ -266,12 +266,12 @@ static int __mark_stripe_bucket(struct btree_trans *trans,
 	if (!deleting) {
 		a->stripe		= s.k->p.offset;
 		a->stripe_redundancy	= s.v->nr_redundant;
+		alloc_data_type_set(a, data_type);
 	} else {
 		a->stripe		= 0;
 		a->stripe_redundancy	= 0;
+		alloc_data_type_set(a, BCH_DATA_user);
 	}
-
-	alloc_data_type_set(a, data_type);
 err:
 	printbuf_exit(&buf);
 	return ret;
@@ -1186,7 +1186,7 @@ static void ec_stripe_delete_work(struct work_struct *work)
 		if (!idx)
 			break;
 
-		int ret = bch2_trans_do(c, NULL, NULL, BCH_TRANS_COMMIT_no_enospc,
+		int ret = bch2_trans_commit_do(c, NULL, NULL, BCH_TRANS_COMMIT_no_enospc,
 					ec_stripe_delete(trans, idx));
 		bch_err_fn(c, ret);
 		if (ret)
@@ -1519,14 +1519,14 @@ static void ec_stripe_create(struct ec_stripe_new *s)
 		goto err;
 	}
 
-	ret = bch2_trans_do(c, &s->res, NULL,
-			    BCH_TRANS_COMMIT_no_check_rw|
-			    BCH_TRANS_COMMIT_no_enospc,
-			    ec_stripe_key_update(trans,
-					s->have_existing_stripe
-					? bkey_i_to_stripe(&s->existing_stripe.key)
-					: NULL,
-					bkey_i_to_stripe(&s->new_stripe.key)));
+	ret = bch2_trans_commit_do(c, &s->res, NULL,
+		BCH_TRANS_COMMIT_no_check_rw|
+		BCH_TRANS_COMMIT_no_enospc,
+		ec_stripe_key_update(trans,
+				     s->have_existing_stripe
+				     ? bkey_i_to_stripe(&s->existing_stripe.key)
+				     : NULL,
+				     bkey_i_to_stripe(&s->new_stripe.key)));
 	bch_err_msg(c, ret, "creating stripe key");
 	if (ret) {
 		goto err;

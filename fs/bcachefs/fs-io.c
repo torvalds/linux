@@ -182,7 +182,7 @@ static int bch2_flush_inode(struct bch_fs *c,
 
 	struct bch_inode_unpacked u;
 	int ret = bch2_inode_find_by_inum(c, inode_inum(inode), &u) ?:
-		  bch2_journal_flush_seq(&c->journal, u.bi_journal_seq) ?:
+		  bch2_journal_flush_seq(&c->journal, u.bi_journal_seq, TASK_INTERRUPTIBLE) ?:
 		  bch2_inode_flush_nocow_writes(c, inode);
 	bch2_write_ref_put(c, BCH_WRITE_REF_fsync);
 	return ret;

@@ -77,6 +77,8 @@ static void netfs_unlock_read_folio(struct netfs_io_subrequest *subreq,
 			folio_unlock(folio);
 		}
 	}
+
+	folioq_clear(folioq, slot);
 }
 
 /*

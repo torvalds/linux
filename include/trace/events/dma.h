@@ -121,7 +121,7 @@ TRACE_EVENT(dma_alloc,
 
 	TP_STRUCT__entry(
 		__string(device, dev_name(dev))
-		__field(u64, phys_addr)
+		__field(void *, virt_addr)
 		__field(u64, dma_addr)
 		__field(size_t, size)
 		__field(gfp_t, flags)
@@ -130,18 +130,18 @@ TRACE_EVENT(dma_alloc,
 
 	TP_fast_assign(
 		__assign_str(device);
-		__entry->phys_addr = virt_to_phys(virt_addr);
+		__entry->virt_addr = virt_addr;
 		__entry->dma_addr = dma_addr;
 		__entry->size = size;
 		__entry->flags = flags;
 		__entry->attrs = attrs;
 	),
 
-	TP_printk("%s dma_addr=%llx size=%zu phys_addr=%llx flags=%s attrs=%s",
+	TP_printk("%s dma_addr=%llx size=%zu virt_addr=%p flags=%s attrs=%s",
 		__get_str(device),
 		__entry->dma_addr,
 		__entry->size,
-		__entry->phys_addr,
+		__entry->virt_addr,
 		show_gfp_flags(__entry->flags),
 		decode_dma_attrs(__entry->attrs))
 );
@@ -153,7 +153,7 @@ TRACE_EVENT(dma_free,
 
 	TP_STRUCT__entry(
 		__string(device, dev_name(dev))
-		__field(u64, phys_addr)
+		__field(void *, virt_addr)
 		__field(u64, dma_addr)
 		__field(size_t, size)
 		__field(unsigned long, attrs)
@@ -161,17 +161,17 @@ TRACE_EVENT(dma_free,
 
 	TP_fast_assign(
 		__assign_str(device);
-		__entry->phys_addr = virt_to_phys(virt_addr);
+		__entry->virt_addr = virt_addr;
 		__entry->dma_addr = dma_addr;
 		__entry->size = size;
 		__entry->attrs = attrs;
 	),
 
-	TP_printk("%s dma_addr=%llx size=%zu phys_addr=%llx attrs=%s",
+	TP_printk("%s dma_addr=%llx size=%zu virt_addr=%p attrs=%s",
 		__get_str(device),
 		__entry->dma_addr,
 		__entry->size,
-		__entry->phys_addr,
+		__entry->virt_addr,
 		decode_dma_attrs(__entry->attrs))
 );
 

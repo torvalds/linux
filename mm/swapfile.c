@@ -194,9 +194,6 @@ static int __try_to_reclaim_swap(struct swap_info_struct *si,
 	if (IS_ERR(folio))
 		return 0;
 
-	/* offset could point to the middle of a large folio */
-	entry = folio->swap;
-	offset = swp_offset(entry);
 	nr_pages = folio_nr_pages(folio);
 	ret = -nr_pages;
 
@@ -209,6 +206,10 @@ static int __try_to_reclaim_swap(struct swap_info_struct *si,
 	 */
 	if (!folio_trylock(folio))
 		goto out;
+
+	/* offset could point to the middle of a large folio */
+	entry = folio->swap;
+	offset = swp_offset(entry);
 
 	need_reclaim = ((flags & TTRS_ANYWAY) ||
 			((flags & TTRS_UNMAPPED) && !folio_mapped(folio)) ||
@@ -2312,7 +2313,7 @@ static int unuse_mm(struct mm_struct *mm, unsigned int type)
 
 	mmap_read_lock(mm);
 	for_each_vma(vmi, vma) {
-		if (vma->anon_vma) {
+		if (vma->anon_vma && !is_vm_hugetlb_page(vma)) {
 			ret = unuse_vma(vma, type);
 			if (ret)
 				break;
