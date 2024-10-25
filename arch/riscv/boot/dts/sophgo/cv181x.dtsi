@@ -1,0 +1,21 @@
+// SPDX-License-Identifier: (GPL-2.0 OR MIT)
+/*
+ * Copyright (C) 2024 Inochi Amaoto <inochiama@outlook.com>
+ */
+
+#include <dt-bindings/clock/sophgo,cv1800.h>
+#include <dt-bindings/interrupt-controller/irq.h>
+
+/ {
+	soc {
+		emmc: mmc@4300000 {
+			compatible = "sophgo,cv1800b-dwcmshc";
+			reg = <0x4300000 0x1000>;
+			interrupts = <34 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&clk CLK_AXI4_EMMC>,
+				 <&clk CLK_EMMC>;
+			clock-names = "core", "bus";
+			status = "disabled";
+		};
+	};
+};
