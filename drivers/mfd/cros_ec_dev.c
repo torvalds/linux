@@ -365,7 +365,7 @@ static struct platform_driver cros_ec_dev_driver = {
 	},
 	.id_table = cros_ec_id,
 	.probe = ec_device_probe,
-	.remove_new = ec_device_remove,
+	.remove = ec_device_remove,
 };
 
 static int __init cros_ec_dev_init(void)

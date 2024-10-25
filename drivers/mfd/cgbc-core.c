@@ -364,7 +364,7 @@ static struct platform_driver cgbc_driver = {
 		.dev_groups	= cgbc_groups,
 	},
 	.probe		= cgbc_probe,
-	.remove_new	= cgbc_remove,
+	.remove		= cgbc_remove,
 };
 
 static const struct dmi_system_id cgbc_dmi_table[] __initconst = {

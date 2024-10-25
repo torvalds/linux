@@ -286,7 +286,7 @@ static const struct dev_pm_ops mcp_sa11x0_pm_ops = {
 
 static struct platform_driver mcp_sa11x0_driver = {
 	.probe		= mcp_sa11x0_probe,
-	.remove_new	= mcp_sa11x0_remove,
+	.remove		= mcp_sa11x0_remove,
 	.driver		= {
 		.name	= DRIVER_NAME,
 		.pm	= pm_sleep_ptr(&mcp_sa11x0_pm_ops),
