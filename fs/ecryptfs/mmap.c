@@ -150,7 +150,7 @@ ecryptfs_copy_up_encrypted_with_header(struct folio *folio,
 				 - crypt_stat->metadata_size);
 
 			rc = ecryptfs_read_lower_page_segment(
-				&folio->page, (lower_offset >> PAGE_SHIFT),
+				folio, (lower_offset >> PAGE_SHIFT),
 				(lower_offset & ~PAGE_MASK),
 				crypt_stat->extent_size, folio->mapping->host);
 			if (rc) {
@@ -184,9 +184,8 @@ static int ecryptfs_read_folio(struct file *file, struct folio *folio)
 	int err = 0;
 
 	if (!crypt_stat || !(crypt_stat->flags & ECRYPTFS_ENCRYPTED)) {
-		err = ecryptfs_read_lower_page_segment(&folio->page, folio->index, 0,
-						      folio_size(folio),
-						      inode);
+		err = ecryptfs_read_lower_page_segment(folio, folio->index, 0,
+				folio_size(folio), inode);
 	} else if (crypt_stat->flags & ECRYPTFS_VIEW_AS_ENCRYPTED) {
 		if (crypt_stat->flags & ECRYPTFS_METADATA_IN_XATTR) {
 			err = ecryptfs_copy_up_encrypted_with_header(folio,
@@ -201,7 +200,7 @@ static int ecryptfs_read_folio(struct file *file, struct folio *folio)
 			}
 
 		} else {
-			err = ecryptfs_read_lower_page_segment(&folio->page,
+			err = ecryptfs_read_lower_page_segment(folio,
 					folio->index, 0, folio_size(folio),
 					inode);
 			if (err) {
@@ -279,7 +278,7 @@ static int ecryptfs_write_begin(struct file *file,
 
 		if (!(crypt_stat->flags & ECRYPTFS_ENCRYPTED)) {
 			rc = ecryptfs_read_lower_page_segment(
-				&folio->page, index, 0, PAGE_SIZE, mapping->host);
+				folio, index, 0, PAGE_SIZE, mapping->host);
 			if (rc) {
 				printk(KERN_ERR "%s: Error attempting to read "
 				       "lower page segment; rc = [%d]\n",
@@ -305,7 +304,7 @@ static int ecryptfs_write_begin(struct file *file,
 				folio_mark_uptodate(folio);
 			} else {
 				rc = ecryptfs_read_lower_page_segment(
-					&folio->page, index, 0, PAGE_SIZE,
+					folio, index, 0, PAGE_SIZE,
 					mapping->host);
 				if (rc) {
 					printk(KERN_ERR "%s: Error reading "

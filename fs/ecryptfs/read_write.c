@@ -228,7 +228,7 @@ int ecryptfs_read_lower(char *data, loff_t offset, size_t size,
 
 /**
  * ecryptfs_read_lower_page_segment
- * @page_for_ecryptfs: The page into which data for eCryptfs will be
+ * @folio_for_ecryptfs: The folio into which data for eCryptfs will be
  *                     written
  * @page_index: Page index in @page_for_ecryptfs from which to start
  *		writing
@@ -243,7 +243,7 @@ int ecryptfs_read_lower(char *data, loff_t offset, size_t size,
  *
  * Returns zero on success; non-zero otherwise
  */
-int ecryptfs_read_lower_page_segment(struct page *page_for_ecryptfs,
+int ecryptfs_read_lower_page_segment(struct folio *folio_for_ecryptfs,
 				     pgoff_t page_index,
 				     size_t offset_in_page, size_t size,
 				     struct inode *ecryptfs_inode)
@@ -252,12 +252,12 @@ int ecryptfs_read_lower_page_segment(struct page *page_for_ecryptfs,
 	loff_t offset;
 	int rc;
 
-	offset = ((((loff_t)page_index) << PAGE_SHIFT) + offset_in_page);
-	virt = kmap_local_page(page_for_ecryptfs);
+	offset = (loff_t)page_index * PAGE_SIZE + offset_in_page;
+	virt = kmap_local_folio(folio_for_ecryptfs, 0);
 	rc = ecryptfs_read_lower(virt, offset, size, ecryptfs_inode);
 	if (rc > 0)
 		rc = 0;
 	kunmap_local(virt);
-	flush_dcache_page(page_for_ecryptfs);
+	flush_dcache_folio(folio_for_ecryptfs);
 	return rc;
 }
