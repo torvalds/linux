@@ -26,6 +26,7 @@
 #include "v11_structs.h"
 #include "mes_v11_0.h"
 #include "mes_v11_0_userqueue.h"
+#include "amdgpu_userq_fence.h"
 
 #define AMDGPU_USERQ_PROC_CTX_SZ PAGE_SIZE
 #define AMDGPU_USERQ_GANG_CTX_SZ PAGE_SIZE
@@ -229,6 +230,14 @@ static int mes_v11_0_userq_create_ctx_space(struct amdgpu_userq_mgr *uq_mgr,
 	return 0;
 }
 
+static void mes_v11_0_userq_set_fence_space(struct amdgpu_usermode_queue *queue)
+{
+	struct v11_gfx_mqd *mqd = queue->mqd.cpu_ptr;
+
+	mqd->fenceaddress_lo = lower_32_bits(queue->fence_drv->gpu_addr);
+	mqd->fenceaddress_hi = upper_32_bits(queue->fence_drv->gpu_addr);
+}
+
 static int mes_v11_0_userq_mqd_create(struct amdgpu_userq_mgr *uq_mgr,
 				      struct drm_amdgpu_userq_in *args_in,
 				      struct amdgpu_usermode_queue *queue)
@@ -305,6 +314,8 @@ static int mes_v11_0_userq_mqd_create(struct amdgpu_userq_mgr *uq_mgr,
 		DRM_ERROR("Failed to allocate BO for userqueue (%d)", r);
 		goto free_mqd;
 	}
+
+	mes_v11_0_userq_set_fence_space(queue);
 
 	/* FW expects WPTR BOs to be mapped into GART */
 	r = mes_v11_0_create_wptr_mapping(uq_mgr, queue, userq_props->wptr_gpu_addr);
