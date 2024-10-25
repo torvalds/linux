@@ -40,6 +40,11 @@ struct io_rsrc_node {
 	struct io_rsrc_put		item;
 };
 
+struct io_fixed_file {
+	/* file * with additional FFS_* flags */
+	unsigned long file_ptr;
+};
+
 struct io_mapped_ubuf {
 	u64		ubuf;
 	unsigned int	len;
