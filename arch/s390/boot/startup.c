@@ -182,12 +182,15 @@ static void kaslr_adjust_got(unsigned long offset)
  * Merge information from several sources into a single ident_map_size value.
  * "ident_map_size" represents the upper limit of physical memory we may ever
  * reach. It might not be all online memory, but also include standby (offline)
- * memory. "ident_map_size" could be lower then actual standby or even online
+ * memory or memory areas reserved for other means (e.g., memory devices such as
+ * virtio-mem).
+ *
+ * "ident_map_size" could be lower then actual standby/reserved or even online
  * memory present, due to limiting factors. We should never go above this limit.
  * It is the size of our identity mapping.
  *
  * Consider the following factors:
- * 1. max_physmem_end - end of physical memory online or standby.
+ * 1. max_physmem_end - end of physical memory online, standby or reserved.
  *    Always >= end of the last online memory range (get_physmem_online_end()).
  * 2. CONFIG_MAX_PHYSMEM_BITS - the maximum size of physical memory the
  *    kernel is able to support.

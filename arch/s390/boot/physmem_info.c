@@ -109,6 +109,42 @@ static int diag260(void)
 	return 0;
 }
 
+#define DIAG500_SC_STOR_LIMIT 4
+
+static int diag500_storage_limit(unsigned long *max_physmem_end)
+{
+	unsigned long storage_limit;
+	unsigned long reg1, reg2;
+	psw_t old;
+
+	asm volatile(
+		"	mvc	0(16,%[psw_old]),0(%[psw_pgm])\n"
+		"	epsw	%[reg1],%[reg2]\n"
+		"	st	%[reg1],0(%[psw_pgm])\n"
+		"	st	%[reg2],4(%[psw_pgm])\n"
+		"	larl	%[reg1],1f\n"
+		"	stg	%[reg1],8(%[psw_pgm])\n"
+		"	lghi	1,%[subcode]\n"
+		"	lghi	2,0\n"
+		"	diag	2,4,0x500\n"
+		"1:	mvc	0(16,%[psw_pgm]),0(%[psw_old])\n"
+		"	lgr	%[slimit],2\n"
+		: [reg1] "=&d" (reg1),
+		  [reg2] "=&a" (reg2),
+		  [slimit] "=d" (storage_limit),
+		  "=Q" (get_lowcore()->program_new_psw),
+		  "=Q" (old)
+		: [psw_old] "a" (&old),
+		  [psw_pgm] "a" (&get_lowcore()->program_new_psw),
+		  [subcode] "i" (DIAG500_SC_STOR_LIMIT)
+		: "memory", "1", "2");
+	if (!storage_limit)
+		return -EINVAL;
+	/* Convert inclusive end to exclusive end */
+	*max_physmem_end = storage_limit + 1;
+	return 0;
+}
+
 static int tprot(unsigned long addr)
 {
 	unsigned long reg1, reg2;
@@ -157,7 +193,9 @@ unsigned long detect_max_physmem_end(void)
 {
 	unsigned long max_physmem_end = 0;
 
-	if (!sclp_early_get_memsize(&max_physmem_end)) {
+	if (!diag500_storage_limit(&max_physmem_end)) {
+		physmem_info.info_source = MEM_DETECT_DIAG500_STOR_LIMIT;
+	} else if (!sclp_early_get_memsize(&max_physmem_end)) {
 		physmem_info.info_source = MEM_DETECT_SCLP_READ_INFO;
 	} else {
 		max_physmem_end = search_mem_end();
@@ -170,6 +208,13 @@ void detect_physmem_online_ranges(unsigned long max_physmem_end)
 {
 	if (!sclp_early_read_storage_info()) {
 		physmem_info.info_source = MEM_DETECT_SCLP_STOR_INFO;
+	} else if (physmem_info.info_source == MEM_DETECT_DIAG500_STOR_LIMIT) {
+		unsigned long online_end;
+
+		if (!sclp_early_get_memsize(&online_end)) {
+			physmem_info.info_source = MEM_DETECT_SCLP_READ_INFO;
+			add_physmem_online_range(0, online_end);
+		}
 	} else if (!diag260()) {
 		physmem_info.info_source = MEM_DETECT_DIAG260;
 	} else if (max_physmem_end) {
