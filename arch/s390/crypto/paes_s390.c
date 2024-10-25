@@ -62,31 +62,43 @@ struct key_blob {
 	unsigned int keylen;
 };
 
-static inline int _key_to_kb(struct key_blob *kb,
-			     const u8 *key,
-			     unsigned int keylen)
+/*
+ * make_clrkey_token() - wrap the raw key ck with pkey clearkey token
+ * information.
+ * @returns the size of the clearkey token
+ */
+static inline u32 make_clrkey_token(const u8 *ck, size_t cklen, u8 *dest)
 {
-	struct clearkey_header {
+	struct clrkey_token {
 		u8  type;
 		u8  res0[3];
 		u8  version;
 		u8  res1[3];
 		u32 keytype;
 		u32 len;
-	} __packed * h;
+		u8 key[];
+	} __packed *token = (struct clrkey_token *)dest;
 
+	token->type = 0x00;
+	token->version = 0x02;
+	token->keytype = (cklen - 8) >> 3;
+	token->len = cklen;
+	memcpy(token->key, ck, cklen);
+
+	return sizeof(*token) + cklen;
+}
+
+static inline int _key_to_kb(struct key_blob *kb,
+			     const u8 *key,
+			     unsigned int keylen)
+{
 	switch (keylen) {
 	case 16:
 	case 24:
 	case 32:
 		/* clear key value, prepare pkey clear key token in keybuf */
 		memset(kb->keybuf, 0, sizeof(kb->keybuf));
-		h = (struct clearkey_header *) kb->keybuf;
-		h->version = 0x02; /* TOKVER_CLEAR_KEY */
-		h->keytype = (keylen - 8) >> 3;
-		h->len = keylen;
-		memcpy(kb->keybuf + sizeof(*h), key, keylen);
-		kb->keylen = sizeof(*h) + keylen;
+		kb->keylen = make_clrkey_token(key, keylen, kb->keybuf);
 		kb->key = kb->keybuf;
 		break;
 	default:
