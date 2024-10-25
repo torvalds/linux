@@ -249,8 +249,8 @@
 			<&clk IMX_SC_R_AUDIO_PLL_0 IMX_SC_PM_CLK_PLL>,
 			<&clk IMX_SC_R_AUDIO_PLL_0 IMX_SC_PM_CLK_SLV_BUS>,
 			<&clk IMX_SC_R_AUDIO_PLL_0 IMX_SC_PM_CLK_MST_BUS>,
-			<&esai0_lpcg 0>;
-	assigned-clock-parents = <&aud_pll_div0_lpcg 0>;
+			<&esai0_lpcg IMX_LPCG_CLK_0>;
+	assigned-clock-parents = <&aud_pll_div0_lpcg IMX_LPCG_CLK_0>;
 	assigned-clock-rates = <0>, <786432000>, <49152000>, <12288000>, <49152000>;
 	pinctrl-0 = <&pinctrl_esai0>;
 	pinctrl-names = "default";
@@ -430,12 +430,12 @@
 	cs42888: audio-codec@48 {
 		compatible = "cirrus,cs42888";
 		reg = <0x48>;
-		clocks = <&mclkout0_lpcg 0>;
+		clocks = <&mclkout0_lpcg IMX_LPCG_CLK_0>;
 		clock-names = "mclk";
 		assigned-clocks = <&clk IMX_SC_R_AUDIO_PLL_0 IMX_SC_PM_CLK_PLL>,
 				<&clk IMX_SC_R_AUDIO_PLL_0 IMX_SC_PM_CLK_SLV_BUS>,
 				<&clk IMX_SC_R_AUDIO_PLL_0 IMX_SC_PM_CLK_MST_BUS>,
-				<&mclkout0_lpcg 0>;
+				<&mclkout0_lpcg IMX_LPCG_CLK_0>;
 		assigned-clock-rates = <786432000>, <49152000>, <12288000>, <12288000>;
 		reset-gpios = <&pca9557_b 1 GPIO_ACTIVE_LOW>;
 		VA-supply = <&reg_audio>;
