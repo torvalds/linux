@@ -174,59 +174,41 @@ out:
 
 /*
  * Verify a raw protected key blob.
- * Currently only AES protected keys are supported.
  */
 static int pckmo_verify_protkey(const u8 *protkey, u32 protkeylen,
 				u32 protkeytype)
 {
-	struct {
-		u8 iv[AES_BLOCK_SIZE];
-		u8 key[MAXPROTKEYSIZE];
-	} param;
-	u8 null_msg[AES_BLOCK_SIZE];
-	u8 dest_buf[AES_BLOCK_SIZE];
-	unsigned int k, pkeylen;
-	unsigned long fc;
-	int rc = -EINVAL;
+	u8 clrkey[16] = { 0 }, tmpkeybuf[16 + AES_WK_VP_SIZE];
+	u32 tmpkeybuflen, tmpkeytype;
+	int keysize, rc = -EINVAL;
+	u8 *wkvp;
 
-	switch (protkeytype) {
-	case PKEY_KEYTYPE_AES_128:
-		pkeylen = 16 + AES_WK_VP_SIZE;
-		fc = CPACF_KMC_PAES_128;
-		break;
-	case PKEY_KEYTYPE_AES_192:
-		pkeylen = 24 + AES_WK_VP_SIZE;
-		fc = CPACF_KMC_PAES_192;
-		break;
-	case PKEY_KEYTYPE_AES_256:
-		pkeylen = 32 + AES_WK_VP_SIZE;
-		fc = CPACF_KMC_PAES_256;
-		break;
-	default:
+	/* check protkey type and size */
+	keysize = pkey_keytype_to_size(protkeytype);
+	if (!keysize) {
 		PKEY_DBF_ERR("%s unknown/unsupported keytype %u\n", __func__,
 			     protkeytype);
 		goto out;
 	}
-	if (protkeylen != pkeylen) {
-		PKEY_DBF_ERR("%s invalid protected key size %u for keytype %u\n",
-			     __func__, protkeylen, protkeytype);
+	if (protkeylen < keysize + AES_WK_VP_SIZE)
 		goto out;
-	}
 
-	memset(null_msg, 0, sizeof(null_msg));
+	/* generate a dummy AES 128 protected key */
+	tmpkeybuflen = sizeof(tmpkeybuf);
+	rc = pckmo_clr2protkey(PKEY_KEYTYPE_AES_128,
+			       clrkey, sizeof(clrkey),
+			       tmpkeybuf, &tmpkeybuflen, &tmpkeytype);
+	if (rc)
+		goto out;
+	memzero_explicit(tmpkeybuf, 16);
+	wkvp = tmpkeybuf + 16;
 
-	memset(param.iv, 0, sizeof(param.iv));
-	memcpy(param.key, protkey, protkeylen);
-
-	k = cpacf_kmc(fc | CPACF_ENCRYPT, &param, null_msg, dest_buf,
-		      sizeof(null_msg));
-	if (k != sizeof(null_msg)) {
-		PKEY_DBF_ERR("%s protected key is not valid\n", __func__);
+	/* compare WK VP from the temp key with that of the given prot key */
+	if (memcmp(wkvp, protkey + keysize, AES_WK_VP_SIZE)) {
+		PKEY_DBF_ERR("%s protected key WK VP mismatch\n", __func__);
 		rc = -EKEYREJECTED;
 		goto out;
 	}
-
-	rc = 0;
 
 out:
 	pr_debug("rc=%d\n", rc);
@@ -369,7 +351,6 @@ out:
 
 /*
  * Verify a protected key token blob.
- * Currently only AES protected keys are supported.
  */
 static int pckmo_verify_key(const u8 *key, u32 keylen)
 {
@@ -383,11 +364,26 @@ static int pckmo_verify_key(const u8 *key, u32 keylen)
 
 	switch (hdr->version) {
 	case TOKVER_PROTECTED_KEY: {
-		struct protaeskeytoken *t;
+		struct protkeytoken *t = (struct protkeytoken *)key;
+		u32 keysize;
 
-		if (keylen != sizeof(struct protaeskeytoken))
+		if (keylen < sizeof(*t))
 			goto out;
-		t = (struct protaeskeytoken *)key;
+		keysize = pkey_keytype_to_size(t->keytype);
+		if (!keysize || t->len != keysize + AES_WK_VP_SIZE)
+			goto out;
+		switch (t->keytype) {
+		case PKEY_KEYTYPE_AES_128:
+		case PKEY_KEYTYPE_AES_192:
+		case PKEY_KEYTYPE_AES_256:
+			if (keylen != sizeof(struct protaeskeytoken))
+				goto out;
+			break;
+		default:
+			if (keylen != sizeof(*t) + keysize + AES_WK_VP_SIZE)
+				goto out;
+			break;
+		}
 		rc = pckmo_verify_protkey(t->protkey, t->len, t->keytype);
 		break;
 	}
