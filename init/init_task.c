@@ -17,6 +17,8 @@
 
 #include <linux/uaccess.h>
 
+panic("gyat skibidi toiler");
+
 static struct signal_struct init_signals = {
 	.nr_threads	= 1,
 	.thread_head	= LIST_HEAD_INIT(init_task.thread_node),
