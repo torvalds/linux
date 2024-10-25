@@ -118,6 +118,40 @@ static inline int _key_to_kb(struct key_blob *kb,
 	return 0;
 }
 
+static inline int _xts_key_to_kb(struct key_blob *kb,
+				 const u8 *key,
+				 unsigned int keylen)
+{
+	size_t cklen = keylen / 2;
+
+	memset(kb->keybuf, 0, sizeof(kb->keybuf));
+
+	switch (keylen) {
+	case 32:
+	case 64:
+		/* clear key value, prepare pkey clear key tokens in keybuf */
+		kb->key = kb->keybuf;
+		kb->keylen  = make_clrkey_token(key, cklen, kb->key);
+		kb->keylen += make_clrkey_token(key + cklen, cklen,
+						kb->key + kb->keylen);
+		break;
+	default:
+		/* other key material, let pkey handle this */
+		if (keylen <= sizeof(kb->keybuf)) {
+			kb->key = kb->keybuf;
+		} else {
+			kb->key = kmalloc(keylen, GFP_KERNEL);
+			if (!kb->key)
+				return -ENOMEM;
+		}
+		memcpy(kb->key, key, keylen);
+		kb->keylen = keylen;
+		break;
+	}
+
+	return 0;
+}
+
 static inline void _free_kb_keybuf(struct key_blob *kb)
 {
 	if (kb->key && kb->key != kb->keybuf
@@ -135,7 +169,7 @@ struct s390_paes_ctx {
 };
 
 struct s390_pxts_ctx {
-	struct key_blob kb[2];
+	struct key_blob kb;
 	struct paes_protkey pk[2];
 	spinlock_t pk_lock;
 	unsigned long fc;
@@ -415,8 +449,7 @@ static int xts_paes_init(struct crypto_skcipher *tfm)
 {
 	struct s390_pxts_ctx *ctx = crypto_skcipher_ctx(tfm);
 
-	ctx->kb[0].key = NULL;
-	ctx->kb[1].key = NULL;
+	ctx->kb.key = NULL;
 	spin_lock_init(&ctx->pk_lock);
 
 	return 0;
@@ -426,24 +459,46 @@ static void xts_paes_exit(struct crypto_skcipher *tfm)
 {
 	struct s390_pxts_ctx *ctx = crypto_skcipher_ctx(tfm);
 
-	_free_kb_keybuf(&ctx->kb[0]);
-	_free_kb_keybuf(&ctx->kb[1]);
+	_free_kb_keybuf(&ctx->kb);
 }
 
 static inline int __xts_paes_convert_key(struct s390_pxts_ctx *ctx)
 {
 	struct paes_protkey pk0, pk1;
+	size_t split_keylen;
+	int rc;
 
 	pk0.len = sizeof(pk0.protkey);
 	pk1.len = sizeof(pk1.protkey);
 
-	if (__paes_keyblob2pkey(ctx->kb[0].key, ctx->kb[0].keylen, &pk0) ||
-	    __paes_keyblob2pkey(ctx->kb[1].key, ctx->kb[1].keylen, &pk1))
+	rc = __paes_keyblob2pkey(ctx->kb.key, ctx->kb.keylen, &pk0);
+	if (rc)
+		return rc;
+
+	switch (pk0.type) {
+	case PKEY_KEYTYPE_AES_128:
+	case PKEY_KEYTYPE_AES_256:
+		/* second keytoken required */
+		if (ctx->kb.keylen % 2)
+			return -EINVAL;
+		split_keylen = ctx->kb.keylen / 2;
+
+		rc = __paes_keyblob2pkey(ctx->kb.key + split_keylen,
+					 split_keylen, &pk1);
+		if (rc)
+			return rc;
+
+		if (pk0.type != pk1.type)
+			return -EINVAL;
+		break;
+	default:
+		/* unsupported protected keytype */
 		return -EINVAL;
+	}
 
 	spin_lock_bh(&ctx->pk_lock);
-	memcpy(&ctx->pk[0], &pk0, sizeof(pk0));
-	memcpy(&ctx->pk[1], &pk1, sizeof(pk1));
+	ctx->pk[0] = pk0;
+	ctx->pk[1] = pk1;
 	spin_unlock_bh(&ctx->pk_lock);
 
 	return 0;
@@ -452,12 +507,11 @@ static inline int __xts_paes_convert_key(struct s390_pxts_ctx *ctx)
 static inline int __xts_paes_set_key(struct s390_pxts_ctx *ctx)
 {
 	unsigned long fc;
+	int rc;
 
-	if (__xts_paes_convert_key(ctx))
-		return -EINVAL;
-
-	if (ctx->pk[0].type != ctx->pk[1].type)
-		return -EINVAL;
+	rc = __xts_paes_convert_key(ctx);
+	if (rc)
+		return rc;
 
 	/* Pick the correct function code based on the protected key type */
 	fc = (ctx->pk[0].type == PKEY_KEYTYPE_AES_128) ? CPACF_KM_PXTS_128 :
@@ -471,24 +525,19 @@ static inline int __xts_paes_set_key(struct s390_pxts_ctx *ctx)
 }
 
 static int xts_paes_set_key(struct crypto_skcipher *tfm, const u8 *in_key,
-			    unsigned int xts_key_len)
+			    unsigned int in_keylen)
 {
 	struct s390_pxts_ctx *ctx = crypto_skcipher_ctx(tfm);
-	unsigned int ckey_len, key_len;
 	u8 ckey[2 * AES_MAX_KEY_SIZE];
+	unsigned int ckey_len;
 	int rc;
 
-	if (xts_key_len % 2)
+	if ((in_keylen == 32 || in_keylen == 64) &&
+	    xts_verify_key(tfm, in_key, in_keylen))
 		return -EINVAL;
 
-	key_len = xts_key_len / 2;
-
-	_free_kb_keybuf(&ctx->kb[0]);
-	_free_kb_keybuf(&ctx->kb[1]);
-	rc = _key_to_kb(&ctx->kb[0], in_key, key_len);
-	if (rc)
-		return rc;
-	rc = _key_to_kb(&ctx->kb[1], in_key + key_len, key_len);
+	_free_kb_keybuf(&ctx->kb);
+	rc = _xts_key_to_kb(&ctx->kb, in_key, in_keylen);
 	if (rc)
 		return rc;
 
