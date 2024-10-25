@@ -209,7 +209,7 @@ static int cg3_blank(int blank, struct fb_info *info)
 	return 0;
 }
 
-static struct sbus_mmap_map cg3_mmap_map[] = {
+static const struct sbus_mmap_map cg3_mmap_map[] = {
 	{
 		.voff	= CG3_MMAP_OFFSET,
 		.poff	= CG3_RAM_OFFSET,
