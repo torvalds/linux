@@ -797,7 +797,8 @@ bool intel_pps_vdd_on_unlocked(struct intel_dp *intel_dp)
 }
 
 /*
- * Must be paired with intel_pps_off().
+ * Must be paired with intel_pps_vdd_off() or - to disable
+ * both VDD and panel power - intel_pps_off().
  * Nested calls to these functions are not allowed since
  * we drop the lock. Caller must use some higher level
  * locking to prevent nested calls from other threads.
@@ -942,6 +943,17 @@ void intel_pps_vdd_off_unlocked(struct intel_dp *intel_dp, bool sync)
 		intel_pps_vdd_off_sync_unlocked(intel_dp);
 	else
 		edp_panel_vdd_schedule_off(intel_dp);
+}
+
+void intel_pps_vdd_off(struct intel_dp *intel_dp)
+{
+	intel_wakeref_t wakeref;
+
+	if (!intel_dp_is_edp(intel_dp))
+		return;
+
+	with_intel_pps_lock(intel_dp, wakeref)
+		intel_pps_vdd_off_unlocked(intel_dp, false);
 }
 
 void intel_pps_on_unlocked(struct intel_dp *intel_dp)

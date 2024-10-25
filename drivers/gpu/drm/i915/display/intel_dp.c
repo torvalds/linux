@@ -5619,6 +5619,8 @@ intel_dp_detect(struct drm_connector *connector,
 
 	intel_dp_flush_connector_commits(intel_connector);
 
+	intel_pps_vdd_on(intel_dp);
+
 	/* Can't disconnect eDP */
 	if (intel_dp_is_edp(intel_dp))
 		status = edp_detect(intel_dp);
@@ -5649,12 +5651,15 @@ intel_dp_detect(struct drm_connector *connector,
 
 		intel_dp_tunnel_disconnect(intel_dp);
 
-		goto out;
+		goto out_unset_edid;
 	}
 
 	ret = intel_dp_tunnel_detect(intel_dp, ctx);
-	if (ret == -EDEADLK)
-		return ret;
+	if (ret == -EDEADLK) {
+		status = ret;
+
+		goto out_vdd_off;
+	}
 
 	if (ret == 1)
 		intel_connector->base.epoch_counter++;
@@ -5682,7 +5687,7 @@ intel_dp_detect(struct drm_connector *connector,
 		 * with EDID on it
 		 */
 		status = connector_status_disconnected;
-		goto out;
+		goto out_unset_edid;
 	}
 
 	/*
@@ -5711,7 +5716,7 @@ intel_dp_detect(struct drm_connector *connector,
 
 	intel_dp_check_device_service_irq(intel_dp);
 
-out:
+out_unset_edid:
 	if (status != connector_status_connected && !intel_dp->is_mst)
 		intel_dp_unset_edid(intel_dp);
 
@@ -5720,6 +5725,9 @@ out:
 						 status,
 						 intel_dp->dpcd,
 						 intel_dp->downstream_ports);
+out_vdd_off:
+	intel_pps_vdd_off(intel_dp);
+
 	return status;
 }
 
