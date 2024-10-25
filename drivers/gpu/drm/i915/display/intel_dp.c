@@ -5039,6 +5039,21 @@ bool intel_dp_has_connector(struct intel_dp *intel_dp,
 	return false;
 }
 
+static void wait_for_connector_hw_done(const struct drm_connector_state *conn_state)
+{
+	struct intel_connector *connector = to_intel_connector(conn_state->connector);
+	struct intel_display *display = to_intel_display(connector);
+
+	drm_modeset_lock_assert_held(&display->drm->mode_config.connection_mutex);
+
+	if (!conn_state->commit)
+		return;
+
+	drm_WARN_ON(display->drm,
+		    !wait_for_completion_timeout(&conn_state->commit->hw_done,
+						 msecs_to_jiffies(5000)));
+}
+
 int intel_dp_get_active_pipes(struct intel_dp *intel_dp,
 			      struct drm_modeset_acquire_ctx *ctx,
 			      u8 *pipe_mask)
@@ -5075,16 +5090,18 @@ int intel_dp_get_active_pipes(struct intel_dp *intel_dp,
 		if (!crtc_state->hw.active)
 			continue;
 
-		if (conn_state->commit)
-			drm_WARN_ON(&i915->drm,
-				    !wait_for_completion_timeout(&conn_state->commit->hw_done,
-								 msecs_to_jiffies(5000)));
+		wait_for_connector_hw_done(conn_state);
 
 		*pipe_mask |= BIT(crtc->pipe);
 	}
 	drm_connector_list_iter_end(&conn_iter);
 
 	return ret;
+}
+
+void intel_dp_flush_connector_commits(struct intel_connector *connector)
+{
+	wait_for_connector_hw_done(connector->base.state);
 }
 
 static bool intel_dp_is_connected(struct intel_dp *intel_dp)
@@ -5599,6 +5616,8 @@ intel_dp_detect(struct drm_connector *connector,
 
 	if (!intel_display_driver_check_access(dev_priv))
 		return connector->status;
+
+	intel_dp_flush_connector_commits(intel_connector);
 
 	/* Can't disconnect eDP */
 	if (intel_dp_is_edp(intel_dp))

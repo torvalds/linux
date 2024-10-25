@@ -1573,6 +1573,8 @@ intel_dp_mst_detect(struct drm_connector *connector,
 	if (!intel_display_driver_check_access(i915))
 		return connector->status;
 
+	intel_dp_flush_connector_commits(intel_connector);
+
 	return drm_dp_mst_detect_port(connector, ctx, &intel_dp->mst_mgr,
 				      intel_connector->port);
 }
