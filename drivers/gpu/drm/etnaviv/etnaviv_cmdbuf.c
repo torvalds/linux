@@ -5,8 +5,6 @@
 
 #include <linux/dma-mapping.h>
 
-#include <drm/drm_mm.h>
-
 #include "etnaviv_cmdbuf.h"
 #include "etnaviv_gem.h"
 #include "etnaviv_gpu.h"
