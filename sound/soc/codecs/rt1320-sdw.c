@@ -21,6 +21,7 @@
 #include <sound/tlv.h>
 #include <sound/sdw.h>
 #include "rt1320-sdw.h"
+#include "rt-sdw-common.h"
 
 /*
  * The 'blind writes' is an SDCA term to deal with platform-specific initialization.
@@ -106,6 +107,8 @@ static const struct reg_sequence rt1320_blind_write[] = {
 	{ 0x1000db09, 0x00 },
 	{ 0x1000db0a, 0x40 },
 	{ 0x0000d540, 0x01 },
+	{ 0xd172, 0x2a },
+	{ 0xc5d6, 0x01 },
 };
 
 static const struct reg_sequence rt1320_vc_blind_write[] = {
@@ -225,22 +228,41 @@ static const struct reg_sequence rt1320_vc_blind_write[] = {
 	{ 0x0000d540, 0x01 },
 	{ 0x0000c081, 0xfc },
 	{ 0x0000f01e, 0x80 },
+	{ 0xc01b, 0xfc },
+	{ 0xc5d1, 0x89 },
+	{ 0xc5d8, 0x0a },
+	{ 0xc5f7, 0x22 },
+	{ 0xc5f6, 0x22 },
+	{ 0xc065, 0xa5 },
+	{ 0xc06b, 0x0a },
+	{ 0xd172, 0x2a },
+	{ 0xc5d6, 0x01 },
 	{ SDW_SDCA_CTL(FUNC_NUM_AMP, RT1320_SDCA_ENT_PDE23, RT1320_SDCA_CTL_REQ_POWER_STATE, 0), 0x03 },
 };
 
 static const struct reg_default rt1320_reg_defaults[] = {
+	{ SDW_SDCA_CTL(FUNC_NUM_MIC, RT1320_SDCA_ENT_PDE11, RT1320_SDCA_CTL_REQ_POWER_STATE, 0), 0x03 },
+	{ SDW_SDCA_CTL(FUNC_NUM_MIC, RT1320_SDCA_ENT_FU113, RT1320_SDCA_CTL_FU_MUTE, CH_01), 0x01 },
+	{ SDW_SDCA_CTL(FUNC_NUM_MIC, RT1320_SDCA_ENT_FU113, RT1320_SDCA_CTL_FU_MUTE, CH_02), 0x01 },
+	{ SDW_SDCA_CTL(FUNC_NUM_MIC, RT1320_SDCA_ENT_FU14, RT1320_SDCA_CTL_FU_MUTE, CH_01), 0x01 },
+	{ SDW_SDCA_CTL(FUNC_NUM_MIC, RT1320_SDCA_ENT_FU14, RT1320_SDCA_CTL_FU_MUTE, CH_02), 0x01 },
+	{ SDW_SDCA_CTL(FUNC_NUM_MIC, RT1320_SDCA_ENT_CS113, RT1320_SDCA_CTL_SAMPLE_FREQ_INDEX, 0), 0x09 },
+	{ SDW_SDCA_CTL(FUNC_NUM_MIC, RT1320_SDCA_ENT_CS14, RT1320_SDCA_CTL_SAMPLE_FREQ_INDEX, 0), 0x0b },
+	{ SDW_SDCA_CTL(FUNC_NUM_MIC, RT1320_SDCA_ENT_PDE11, RT1320_SDCA_CTL_ACTUAL_POWER_STATE, 0), 0x03 },
 	{ SDW_SDCA_CTL(FUNC_NUM_AMP, RT1320_SDCA_ENT_FU21, RT1320_SDCA_CTL_FU_MUTE, CH_01), 0x01 },
 	{ SDW_SDCA_CTL(FUNC_NUM_AMP, RT1320_SDCA_ENT_FU21, RT1320_SDCA_CTL_FU_MUTE, CH_02), 0x01 },
 	{ SDW_SDCA_CTL(FUNC_NUM_AMP, RT1320_SDCA_ENT_PDE27, RT1320_SDCA_CTL_REQ_POWER_STATE, 0), 0x03 },
 	{ SDW_SDCA_CTL(FUNC_NUM_AMP, RT1320_SDCA_ENT_PDE23, RT1320_SDCA_CTL_REQ_POWER_STATE, 0), 0x03 },
 	{ SDW_SDCA_CTL(FUNC_NUM_AMP, RT1320_SDCA_ENT_PPU21, RT1320_SDCA_CTL_POSTURE_NUMBER, 0), 0x00 },
-	{ SDW_SDCA_CTL(FUNC_NUM_AMP, RT1320_SDCA_ENT_CS113, RT1320_SDCA_CTL_SAMPLE_FREQ_INDEX, 0), 0x09 },
-	{ SDW_SDCA_CTL(FUNC_NUM_AMP, RT1320_SDCA_ENT_CS14, RT1320_SDCA_CTL_SAMPLE_FREQ_INDEX, 0), 0x0b },
 	{ SDW_SDCA_CTL(FUNC_NUM_AMP, RT1320_SDCA_ENT_CS21, RT1320_SDCA_CTL_SAMPLE_FREQ_INDEX, 0), 0x09 },
 	{ SDW_SDCA_CTL(FUNC_NUM_AMP, RT1320_SDCA_ENT_PDE23, RT1320_SDCA_CTL_ACTUAL_POWER_STATE, 0), 0x03 },
 };
 
 static const struct reg_default rt1320_mbq_defaults[] = {
+	{ SDW_SDCA_CTL(FUNC_NUM_MIC, RT1320_SDCA_ENT_FU113, RT1320_SDCA_CTL_FU_VOLUME, CH_01), 0x0000 },
+	{ SDW_SDCA_CTL(FUNC_NUM_MIC, RT1320_SDCA_ENT_FU113, RT1320_SDCA_CTL_FU_VOLUME, CH_02), 0x0000 },
+	{ SDW_SDCA_CTL(FUNC_NUM_MIC, RT1320_SDCA_ENT_FU14, RT1320_SDCA_CTL_FU_VOLUME, CH_01), 0x0000 },
+	{ SDW_SDCA_CTL(FUNC_NUM_MIC, RT1320_SDCA_ENT_FU14, RT1320_SDCA_CTL_FU_VOLUME, CH_02), 0x0000 },
 	{ SDW_SDCA_CTL(FUNC_NUM_AMP, RT1320_SDCA_ENT_FU21, RT1320_SDCA_CTL_FU_VOLUME, CH_01), 0x0000 },
 	{ SDW_SDCA_CTL(FUNC_NUM_AMP, RT1320_SDCA_ENT_FU21, RT1320_SDCA_CTL_FU_VOLUME, CH_02), 0x0000 },
 };
@@ -306,6 +328,17 @@ static bool rt1320_readable_register(struct device *dev, unsigned int reg)
 	case 0x1000f021:
 	case 0x3fe2e000 ... 0x3fe2e003:
 	case 0x3fc2ab80 ... 0x3fc2abd4:
+	/* 0x40801508/0x40801809/0x4080180a/0x40801909/0x4080190a */
+	case SDW_SDCA_CTL(FUNC_NUM_MIC, RT1320_SDCA_ENT_PDE11, RT1320_SDCA_CTL_REQ_POWER_STATE, 0):
+	case SDW_SDCA_CTL(FUNC_NUM_MIC, RT1320_SDCA_ENT_FU113, RT1320_SDCA_CTL_FU_MUTE, CH_01):
+	case SDW_SDCA_CTL(FUNC_NUM_MIC, RT1320_SDCA_ENT_FU113, RT1320_SDCA_CTL_FU_MUTE, CH_02):
+	case SDW_SDCA_CTL(FUNC_NUM_MIC, RT1320_SDCA_ENT_FU14, RT1320_SDCA_CTL_FU_MUTE, CH_01):
+	case SDW_SDCA_CTL(FUNC_NUM_MIC, RT1320_SDCA_ENT_FU14, RT1320_SDCA_CTL_FU_MUTE, CH_02):
+	/* 0x40880900/0x40880980 */
+	case SDW_SDCA_CTL(FUNC_NUM_MIC, RT1320_SDCA_ENT_CS113, RT1320_SDCA_CTL_SAMPLE_FREQ_INDEX, 0):
+	case SDW_SDCA_CTL(FUNC_NUM_MIC, RT1320_SDCA_ENT_CS14, RT1320_SDCA_CTL_SAMPLE_FREQ_INDEX, 0):
+	/* 0x40881500 */
+	case SDW_SDCA_CTL(FUNC_NUM_MIC, RT1320_SDCA_ENT_PDE11, RT1320_SDCA_CTL_ACTUAL_POWER_STATE, 0):
 	/* 0x41000189/0x4100018a */
 	case SDW_SDCA_CTL(FUNC_NUM_AMP, RT1320_SDCA_ENT_FU21, RT1320_SDCA_CTL_FU_MUTE, CH_01):
 	case SDW_SDCA_CTL(FUNC_NUM_AMP, RT1320_SDCA_ENT_FU21, RT1320_SDCA_CTL_FU_MUTE, CH_02):
@@ -388,6 +421,7 @@ static bool rt1320_volatile_register(struct device *dev, unsigned int reg)
 	case 0x3fc2bf80 ... 0x3fc2bf83:
 	case 0x3fc2bfc0 ... 0x3fc2bfc7:
 	case 0x3fe2e000 ... 0x3fe2e003:
+	case SDW_SDCA_CTL(FUNC_NUM_MIC, RT1320_SDCA_ENT_PDE11, RT1320_SDCA_CTL_ACTUAL_POWER_STATE, 0):
 	case SDW_SDCA_CTL(FUNC_NUM_AMP, RT1320_SDCA_ENT0, RT1320_SDCA_CTL_FUNC_STATUS, 0):
 	case SDW_SDCA_CTL(FUNC_NUM_AMP, RT1320_SDCA_ENT_SAPU, RT1320_SDCA_CTL_SAPU_PROTECTION_MODE, 0):
 	case SDW_SDCA_CTL(FUNC_NUM_AMP, RT1320_SDCA_ENT_SAPU, RT1320_SDCA_CTL_SAPU_PROTECTION_STATUS, 0):
@@ -401,6 +435,10 @@ static bool rt1320_volatile_register(struct device *dev, unsigned int reg)
 static bool rt1320_mbq_readable_register(struct device *dev, unsigned int reg)
 {
 	switch (reg) {
+	case SDW_SDCA_CTL(FUNC_NUM_MIC, RT1320_SDCA_ENT_FU113, RT1320_SDCA_CTL_FU_VOLUME, CH_01):
+	case SDW_SDCA_CTL(FUNC_NUM_MIC, RT1320_SDCA_ENT_FU113, RT1320_SDCA_CTL_FU_VOLUME, CH_02):
+	case SDW_SDCA_CTL(FUNC_NUM_MIC, RT1320_SDCA_ENT_FU14, RT1320_SDCA_CTL_FU_VOLUME, CH_01):
+	case SDW_SDCA_CTL(FUNC_NUM_MIC, RT1320_SDCA_ENT_FU14, RT1320_SDCA_CTL_FU_VOLUME, CH_02):
 	case SDW_SDCA_CTL(FUNC_NUM_AMP, RT1320_SDCA_ENT_FU21, RT1320_SDCA_CTL_FU_VOLUME, CH_01):
 	case SDW_SDCA_CTL(FUNC_NUM_AMP, RT1320_SDCA_ENT_FU21, RT1320_SDCA_CTL_FU_VOLUME, CH_02):
 		return true;
@@ -456,7 +494,7 @@ static int rt1320_read_prop(struct sdw_slave *slave)
 	prop->lane_control_support = true;
 
 	/* first we need to allocate memory for set bits in port lists */
-	prop->source_ports = BIT(4);
+	prop->source_ports = BIT(4) | BIT(8) | BIT(10);
 	prop->sink_ports = BIT(1);
 
 	nval = hweight32(prop->source_ports);
@@ -500,7 +538,8 @@ static int rt1320_read_prop(struct sdw_slave *slave)
 	return 0;
 }
 
-static int rt1320_pde_transition_delay(struct rt1320_sdw_priv *rt1320, unsigned char ps)
+static int rt1320_pde_transition_delay(struct rt1320_sdw_priv *rt1320, unsigned char func,
+	unsigned char entity, unsigned char ps)
 {
 	unsigned int delay = 1000, val;
 
@@ -509,8 +548,7 @@ static int rt1320_pde_transition_delay(struct rt1320_sdw_priv *rt1320, unsigned 
 	/* waiting for Actual PDE becomes to PS0/PS3 */
 	while (delay) {
 		regmap_read(rt1320->regmap,
-			SDW_SDCA_CTL(FUNC_NUM_AMP, RT1320_SDCA_ENT_PDE23,
-			RT1320_SDCA_CTL_ACTUAL_POWER_STATE, 0), &val);
+			SDW_SDCA_CTL(func, entity, RT1320_SDCA_CTL_ACTUAL_POWER_STATE, 0), &val);
 		if (val == ps)
 			break;
 
@@ -627,7 +665,7 @@ static void rt1320_vc_preset(struct rt1320_sdw_priv *rt1320)
 			usleep_range(delay, delay + 1000);
 
 		if (reg == SDW_SDCA_CTL(FUNC_NUM_AMP, RT1320_SDCA_ENT_PDE23, RT1320_SDCA_CTL_REQ_POWER_STATE, 0))
-			rt1320_pde_transition_delay(rt1320, val);
+			rt1320_pde_transition_delay(rt1320, FUNC_NUM_AMP, RT1320_SDCA_ENT_PDE23, val);
 	}
 }
 
@@ -733,6 +771,34 @@ static int rt1320_update_status(struct sdw_slave *slave,
 	return rt1320_io_init(&slave->dev, slave);
 }
 
+static int rt1320_pde11_event(struct snd_soc_dapm_widget *w,
+	struct snd_kcontrol *kcontrol, int event)
+{
+	struct snd_soc_component *component =
+		snd_soc_dapm_to_component(w->dapm);
+	struct rt1320_sdw_priv *rt1320 = snd_soc_component_get_drvdata(component);
+	unsigned char ps0 = 0x0, ps3 = 0x3;
+
+	switch (event) {
+	case SND_SOC_DAPM_POST_PMU:
+		regmap_write(rt1320->regmap,
+			SDW_SDCA_CTL(FUNC_NUM_MIC, RT1320_SDCA_ENT_PDE11,
+				RT1320_SDCA_CTL_REQ_POWER_STATE, 0), ps0);
+		rt1320_pde_transition_delay(rt1320, FUNC_NUM_MIC, RT1320_SDCA_ENT_PDE11, ps0);
+		break;
+	case SND_SOC_DAPM_PRE_PMD:
+		regmap_write(rt1320->regmap,
+			SDW_SDCA_CTL(FUNC_NUM_MIC, RT1320_SDCA_ENT_PDE11,
+				RT1320_SDCA_CTL_REQ_POWER_STATE, 0), ps3);
+		rt1320_pde_transition_delay(rt1320, FUNC_NUM_MIC, RT1320_SDCA_ENT_PDE11, ps3);
+		break;
+	default:
+		break;
+	}
+
+	return 0;
+}
+
 static int rt1320_pde23_event(struct snd_soc_dapm_widget *w,
 	struct snd_kcontrol *kcontrol, int event)
 {
@@ -746,13 +812,13 @@ static int rt1320_pde23_event(struct snd_soc_dapm_widget *w,
 		regmap_write(rt1320->regmap,
 			SDW_SDCA_CTL(FUNC_NUM_AMP, RT1320_SDCA_ENT_PDE23,
 				RT1320_SDCA_CTL_REQ_POWER_STATE, 0), ps0);
-		rt1320_pde_transition_delay(rt1320, ps0);
+		rt1320_pde_transition_delay(rt1320, FUNC_NUM_AMP, RT1320_SDCA_ENT_PDE23, ps0);
 		break;
 	case SND_SOC_DAPM_PRE_PMD:
 		regmap_write(rt1320->regmap,
 			SDW_SDCA_CTL(FUNC_NUM_AMP, RT1320_SDCA_ENT_PDE23,
 				RT1320_SDCA_CTL_REQ_POWER_STATE, 0), ps3);
-		rt1320_pde_transition_delay(rt1320, ps3);
+		rt1320_pde_transition_delay(rt1320, FUNC_NUM_AMP, RT1320_SDCA_ENT_PDE23, ps3);
 		break;
 	default:
 		break;
@@ -771,6 +837,13 @@ static int rt1320_set_gain_put(struct snd_kcontrol *kcontrol,
 	unsigned int gain_l_val, gain_r_val;
 	unsigned int lvalue, rvalue;
 	const unsigned int interval_offset = 0xc0;
+	unsigned int changed = 0, reg_base;
+	struct rt_sdca_dmic_kctrl_priv *p;
+	unsigned int regvalue[4], gain_val[4], i;
+	int err;
+
+	if (strstr(ucontrol->id.name, "FU Capture Volume"))
+		goto _dmic_vol_;
 
 	regmap_read(rt1320->mbq_regmap, mc->reg, &lvalue);
 	regmap_read(rt1320->mbq_regmap, mc->rreg, &rvalue);
@@ -796,7 +869,48 @@ static int rt1320_set_gain_put(struct snd_kcontrol *kcontrol,
 	regmap_write(rt1320->mbq_regmap, mc->reg, gain_l_val);
 	/* Rch */
 	regmap_write(rt1320->mbq_regmap, mc->rreg, gain_r_val);
+	goto _done_;
 
+_dmic_vol_:
+	p = (struct rt_sdca_dmic_kctrl_priv *)kcontrol->private_value;
+
+	/* check all channels */
+	for (i = 0; i < p->count; i++) {
+		if (i < 2) {
+			reg_base = SDW_SDCA_CTL(FUNC_NUM_MIC, RT1320_SDCA_ENT_FU113, RT1320_SDCA_CTL_FU_VOLUME, CH_01);
+			regmap_read(rt1320->mbq_regmap, reg_base + i, &regvalue[i]);
+		} else {
+			reg_base = SDW_SDCA_CTL(FUNC_NUM_MIC, RT1320_SDCA_ENT_FU14, RT1320_SDCA_CTL_FU_VOLUME, CH_01);
+			regmap_read(rt1320->mbq_regmap, reg_base + i - 2, &regvalue[i]);
+		}
+
+		gain_val[i] = ucontrol->value.integer.value[i];
+		if (gain_val[i] > p->max)
+			gain_val[i] = p->max;
+
+		gain_val[i] = 0x1e00 - ((p->max - gain_val[i]) * interval_offset);
+		gain_val[i] &= 0xffff;
+		if (regvalue[i] != gain_val[i])
+			changed = 1;
+	}
+
+	if (!changed)
+		return 0;
+
+	for (i = 0; i < p->count; i++) {
+		if (i < 2) {
+			reg_base = SDW_SDCA_CTL(FUNC_NUM_MIC, RT1320_SDCA_ENT_FU113, RT1320_SDCA_CTL_FU_VOLUME, CH_01);
+			err = regmap_write(rt1320->mbq_regmap, reg_base + i, gain_val[i]);
+		} else {
+			reg_base = SDW_SDCA_CTL(FUNC_NUM_MIC, RT1320_SDCA_ENT_FU14, RT1320_SDCA_CTL_FU_VOLUME, CH_01);
+			err = regmap_write(rt1320->mbq_regmap, reg_base + i - 2, gain_val[i]);
+		}
+
+		if (err < 0)
+			dev_err(&rt1320->sdw_slave->dev, "0x%08x can't be set\n", reg_base + i);
+	}
+
+_done_:
 	return 1;
 }
 
@@ -809,6 +923,11 @@ static int rt1320_set_gain_get(struct snd_kcontrol *kcontrol,
 		(struct soc_mixer_control *)kcontrol->private_value;
 	unsigned int read_l, read_r, ctl_l = 0, ctl_r = 0;
 	const unsigned int interval_offset = 0xc0;
+	unsigned int reg_base, regvalue, ctl, i;
+	struct rt_sdca_dmic_kctrl_priv *p;
+
+	if (strstr(ucontrol->id.name, "FU Capture Volume"))
+		goto _dmic_vol_;
 
 	regmap_read(rt1320->mbq_regmap, mc->reg, &read_l);
 	regmap_read(rt1320->mbq_regmap, mc->rreg, &read_r);
@@ -822,6 +941,121 @@ static int rt1320_set_gain_get(struct snd_kcontrol *kcontrol,
 
 	ucontrol->value.integer.value[0] = ctl_l;
 	ucontrol->value.integer.value[1] = ctl_r;
+	goto _done_;
+
+_dmic_vol_:
+	p = (struct rt_sdca_dmic_kctrl_priv *)kcontrol->private_value;
+
+	/* check all channels */
+	for (i = 0; i < p->count; i++) {
+		if (i < 2) {
+			reg_base = SDW_SDCA_CTL(FUNC_NUM_MIC, RT1320_SDCA_ENT_FU113, RT1320_SDCA_CTL_FU_VOLUME, CH_01);
+			regmap_read(rt1320->mbq_regmap, reg_base + i, &regvalue);
+		} else {
+			reg_base = SDW_SDCA_CTL(FUNC_NUM_MIC, RT1320_SDCA_ENT_FU14, RT1320_SDCA_CTL_FU_VOLUME, CH_01);
+			regmap_read(rt1320->mbq_regmap, reg_base + i - 2, &regvalue);
+		}
+
+		ctl = p->max - (((0x1e00 - regvalue) & 0xffff) / interval_offset);
+		ucontrol->value.integer.value[i] = ctl;
+	}
+_done_:
+	return 0;
+}
+
+static int rt1320_set_fu_capture_ctl(struct rt1320_sdw_priv *rt1320)
+{
+	int err, i;
+	unsigned int ch_mute;
+
+	for (i = 0; i < ARRAY_SIZE(rt1320->fu_mixer_mute); i++) {
+		ch_mute = (rt1320->fu_dapm_mute || rt1320->fu_mixer_mute[i]) ? 0x01 : 0x00;
+
+		if (i < 2)
+			err = regmap_write(rt1320->regmap,
+				SDW_SDCA_CTL(FUNC_NUM_MIC, RT1320_SDCA_ENT_FU113,
+					RT1320_SDCA_CTL_FU_MUTE, CH_01) + i, ch_mute);
+		else
+			err = regmap_write(rt1320->regmap,
+				SDW_SDCA_CTL(FUNC_NUM_MIC, RT1320_SDCA_ENT_FU14,
+					RT1320_SDCA_CTL_FU_MUTE, CH_01) + i - 2, ch_mute);
+		if (err < 0)
+			return err;
+	}
+
+	return 0;
+}
+
+static int rt1320_dmic_fu_capture_get(struct snd_kcontrol *kcontrol,
+			struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
+	struct rt1320_sdw_priv *rt1320 = snd_soc_component_get_drvdata(component);
+	struct rt_sdca_dmic_kctrl_priv *p =
+		(struct rt_sdca_dmic_kctrl_priv *)kcontrol->private_value;
+	unsigned int i;
+
+	for (i = 0; i < p->count; i++)
+		ucontrol->value.integer.value[i] = !rt1320->fu_mixer_mute[i];
+
+	return 0;
+}
+
+static int rt1320_dmic_fu_capture_put(struct snd_kcontrol *kcontrol,
+			struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
+	struct rt1320_sdw_priv *rt1320 = snd_soc_component_get_drvdata(component);
+	struct rt_sdca_dmic_kctrl_priv *p =
+		(struct rt_sdca_dmic_kctrl_priv *)kcontrol->private_value;
+	int err, changed = 0, i;
+
+	for (i = 0; i < p->count; i++) {
+		if (rt1320->fu_mixer_mute[i] != !ucontrol->value.integer.value[i])
+			changed = 1;
+		rt1320->fu_mixer_mute[i] = !ucontrol->value.integer.value[i];
+	}
+
+	err = rt1320_set_fu_capture_ctl(rt1320);
+	if (err < 0)
+		return err;
+
+	return changed;
+}
+
+static int rt1320_dmic_fu_info(struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_info *uinfo)
+{
+	struct rt_sdca_dmic_kctrl_priv *p =
+		(struct rt_sdca_dmic_kctrl_priv *)kcontrol->private_value;
+
+	if (p->max == 1)
+		uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
+	else
+		uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
+	uinfo->count = p->count;
+	uinfo->value.integer.min = 0;
+	uinfo->value.integer.max = p->max;
+	return 0;
+}
+
+static int rt1320_dmic_fu_event(struct snd_soc_dapm_widget *w,
+	struct snd_kcontrol *kcontrol, int event)
+{
+	struct snd_soc_component *component =
+		snd_soc_dapm_to_component(w->dapm);
+	struct rt1320_sdw_priv *rt1320 = snd_soc_component_get_drvdata(component);
+
+	switch (event) {
+	case SND_SOC_DAPM_POST_PMU:
+		rt1320->fu_dapm_mute = false;
+		rt1320_set_fu_capture_ctl(rt1320);
+		break;
+	case SND_SOC_DAPM_PRE_PMD:
+		rt1320->fu_dapm_mute = true;
+		rt1320_set_fu_capture_ctl(rt1320);
+		break;
+	}
 	return 0;
 }
 
@@ -842,6 +1076,7 @@ static SOC_ENUM_SINGLE_DECL(rt1320_rx_data_ch_enum,
 	rt1320_rx_data_ch_select);
 
 static const DECLARE_TLV_DB_SCALE(out_vol_tlv, -6525, 75, 0);
+static const DECLARE_TLV_DB_SCALE(in_vol_tlv, -1725, 75, 0);
 
 static const struct snd_kcontrol_new rt1320_snd_controls[] = {
 	SOC_DOUBLE_R_EXT_TLV("FU21 Playback Volume",
@@ -849,6 +1084,13 @@ static const struct snd_kcontrol_new rt1320_snd_controls[] = {
 		SDW_SDCA_CTL(FUNC_NUM_AMP, RT1320_SDCA_ENT_FU21, RT1320_SDCA_CTL_FU_VOLUME, CH_02),
 		0, 0x57, 0, rt1320_set_gain_get, rt1320_set_gain_put, out_vol_tlv),
 	SOC_ENUM("RX Channel Select", rt1320_rx_data_ch_enum),
+
+	RT_SDCA_FU_CTRL("FU Capture Switch",
+		SDW_SDCA_CTL(FUNC_NUM_MIC, RT1320_SDCA_ENT_FU113, RT1320_SDCA_CTL_FU_MUTE, CH_01),
+		1, 1, 4, rt1320_dmic_fu_info, rt1320_dmic_fu_capture_get, rt1320_dmic_fu_capture_put),
+	RT_SDCA_EXT_TLV("FU Capture Volume",
+		SDW_SDCA_CTL(FUNC_NUM_MIC, RT1320_SDCA_ENT_FU113, RT1320_SDCA_CTL_FU_VOLUME, CH_01),
+		rt1320_set_gain_get, rt1320_set_gain_put, 4, 0x3f, in_vol_tlv, rt1320_dmic_fu_info),
 };
 
 static const struct snd_kcontrol_new rt1320_spk_l_dac =
@@ -864,12 +1106,19 @@ static const struct snd_soc_dapm_widget rt1320_dapm_widgets[] = {
 	/* Audio Interface */
 	SND_SOC_DAPM_AIF_IN("DP1RX", "DP1 Playback", 0, SND_SOC_NOPM, 0, 0),
 	SND_SOC_DAPM_AIF_OUT("DP4TX", "DP4 Capture", 0, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_AIF_OUT("DP8-10TX", "DP8-10 Capture", 0, SND_SOC_NOPM, 0, 0),
 
 	/* Digital Interface */
 	SND_SOC_DAPM_PGA("FU21", SND_SOC_NOPM, 0, 0, NULL, 0),
 	SND_SOC_DAPM_SUPPLY("PDE 23", SND_SOC_NOPM, 0, 0,
 		rt1320_pde23_event,
 		SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
+	SND_SOC_DAPM_SUPPLY("PDE 11", SND_SOC_NOPM, 0, 0,
+		rt1320_pde11_event, SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
+	SND_SOC_DAPM_ADC("FU 113", NULL, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_ADC("FU 14", NULL, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_PGA_E("FU", SND_SOC_NOPM, 0, 0, NULL, 0,
+		rt1320_dmic_fu_event, SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
 
 	/* Output */
 	SND_SOC_DAPM_SWITCH("OT23 L", SND_SOC_NOPM, 0, 0, &rt1320_spk_l_dac),
@@ -880,6 +1129,8 @@ static const struct snd_soc_dapm_widget rt1320_dapm_widgets[] = {
 	/* Input */
 	SND_SOC_DAPM_PGA("AEC Data", SND_SOC_NOPM, 0, 0, NULL, 0),
 	SND_SOC_DAPM_SIGGEN("AEC Gen"),
+	SND_SOC_DAPM_INPUT("DMIC1"),
+	SND_SOC_DAPM_INPUT("DMIC2"),
 };
 
 static const struct snd_soc_dapm_route rt1320_dapm_routes[] = {
@@ -892,6 +1143,13 @@ static const struct snd_soc_dapm_route rt1320_dapm_routes[] = {
 
 	{ "AEC Data", NULL, "AEC Gen" },
 	{ "DP4TX", NULL, "AEC Data" },
+
+	{"DP8-10TX", NULL, "FU"},
+	{"FU", NULL, "PDE 11"},
+	{"FU", NULL, "FU 113"},
+	{"FU", NULL, "FU 14"},
+	{"FU 113", NULL, "DMIC1"},
+	{"FU 14", NULL, "DMIC2"},
 };
 
 static int rt1320_set_sdw_stream(struct snd_soc_dai *dai, void *sdw_stream,
@@ -915,6 +1173,7 @@ static int rt1320_sdw_hw_params(struct snd_pcm_substream *substream,
 		snd_soc_component_get_drvdata(component);
 	struct sdw_stream_config stream_config;
 	struct sdw_port_config port_config;
+	struct sdw_port_config dmic_port_config[2];
 	struct sdw_stream_runtime *sdw_stream;
 	int retval;
 	unsigned int sampling_rate;
@@ -939,12 +1198,23 @@ static int rt1320_sdw_hw_params(struct snd_pcm_substream *substream,
 	} else {
 		if (dai->id == RT1320_AIF1)
 			port_config.num = 4;
-		else
+		else if (dai->id == RT1320_AIF2) {
+			dmic_port_config[0].ch_mask = BIT(0) | BIT(1);
+			dmic_port_config[0].num = 8;
+			dmic_port_config[1].ch_mask = BIT(0) | BIT(1);
+			dmic_port_config[1].num = 10;
+		} else
 			return -EINVAL;
 	}
 
-	retval = sdw_stream_add_slave(rt1320->sdw_slave, &stream_config,
+	if (dai->id == RT1320_AIF1)
+		retval = sdw_stream_add_slave(rt1320->sdw_slave, &stream_config,
 				&port_config, 1, sdw_stream);
+	else if (dai->id == RT1320_AIF2)
+		retval = sdw_stream_add_slave(rt1320->sdw_slave, &stream_config,
+				dmic_port_config, 2, sdw_stream);
+	else
+		return -EINVAL;
 	if (retval) {
 		dev_err(dai->dev, "%s: Unable to configure port\n", __func__);
 		return retval;
@@ -977,9 +1247,18 @@ static int rt1320_sdw_hw_params(struct snd_pcm_substream *substream,
 	}
 
 	/* set sampling frequency */
-	regmap_write(rt1320->regmap,
-		SDW_SDCA_CTL(FUNC_NUM_AMP, RT1320_SDCA_ENT_CS21, RT1320_SDCA_CTL_SAMPLE_FREQ_INDEX, 0),
-		sampling_rate);
+	if (dai->id == RT1320_AIF1)
+		regmap_write(rt1320->regmap,
+			SDW_SDCA_CTL(FUNC_NUM_AMP, RT1320_SDCA_ENT_CS21, RT1320_SDCA_CTL_SAMPLE_FREQ_INDEX, 0),
+			sampling_rate);
+	else {
+		regmap_write(rt1320->regmap,
+			SDW_SDCA_CTL(FUNC_NUM_MIC, RT1320_SDCA_ENT_CS113, RT1320_SDCA_CTL_SAMPLE_FREQ_INDEX, 0),
+			sampling_rate);
+		regmap_write(rt1320->regmap,
+			SDW_SDCA_CTL(FUNC_NUM_MIC, RT1320_SDCA_ENT_CS14, RT1320_SDCA_CTL_SAMPLE_FREQ_INDEX, 0),
+			sampling_rate);
+	}
 
 	return 0;
 }
@@ -1070,6 +1349,19 @@ static struct snd_soc_dai_driver rt1320_sdw_dai[] = {
 		},
 		.ops = &rt1320_aif_dai_ops,
 	},
+	/* DMIC: DP8 2ch + DP10 2ch */
+	{
+		.name = "rt1320-aif2",
+		.id = RT1320_AIF2,
+		.capture = {
+			.stream_name = "DP8-10 Capture",
+			.channels_min = 1,
+			.channels_max = 4,
+			.rates = RT1320_STEREO_RATES,
+			.formats = RT1320_FORMATS,
+		},
+		.ops = &rt1320_aif_dai_ops,
+	},
 };
 
 static int rt1320_sdw_init(struct device *dev, struct regmap *regmap,
@@ -1097,6 +1389,9 @@ static int rt1320_sdw_init(struct device *dev, struct regmap *regmap,
 	rt1320->hw_init = false;
 	rt1320->first_hw_init = false;
 	rt1320->version_id = -1;
+	rt1320->fu_dapm_mute = true;
+	rt1320->fu_mixer_mute[0] = rt1320->fu_mixer_mute[1] =
+		rt1320->fu_mixer_mute[2] = rt1320->fu_mixer_mute[3] = true;
 
 	ret =  devm_snd_soc_register_component(dev,
 				&soc_component_sdw_rt1320,

@@ -26,6 +26,7 @@
 
 /* RT1320 SDCA Control - function number */
 #define FUNC_NUM_AMP 0x04
+#define FUNC_NUM_MIC 0x02
 
 /* RT1320 SDCA entity */
 #define RT1320_SDCA_ENT0 0x00
@@ -69,6 +70,7 @@
 
 enum {
 	RT1320_AIF1,
+	RT1320_AIF2,
 };
 
 /*
@@ -94,6 +96,8 @@ struct rt1320_sdw_priv {
 	bool hw_init;
 	bool first_hw_init;
 	int version_id;
+	bool fu_dapm_mute;
+	bool fu_mixer_mute[4];
 };
 
 #endif /* __RT1320_SDW_H__ */
