@@ -857,8 +857,10 @@ static void intel_pps_vdd_off_sync_unlocked(struct intel_dp *intel_dp)
 		    intel_de_read(display, pp_stat_reg),
 		    intel_de_read(display, pp_ctrl_reg));
 
-	if ((pp & PANEL_POWER_ON) == 0)
+	if ((pp & PANEL_POWER_ON) == 0) {
 		intel_dp->pps.panel_power_off_time = ktime_get_boottime();
+		intel_dp_invalidate_source_oui(intel_dp);
+	}
 
 	intel_display_power_put(dev_priv,
 				intel_aux_power_domain(dig_port),
@@ -1067,6 +1069,8 @@ void intel_pps_off_unlocked(struct intel_dp *intel_dp)
 
 	wait_panel_off(intel_dp);
 	intel_dp->pps.panel_power_off_time = ktime_get_boottime();
+
+	intel_dp_invalidate_source_oui(intel_dp);
 
 	/* We got a reference when we enabled the VDD. */
 	intel_display_power_put(dev_priv,
