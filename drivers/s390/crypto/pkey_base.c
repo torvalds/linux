@@ -304,7 +304,16 @@ void pkey_handler_request_modules(void)
 {
 #ifdef CONFIG_MODULES
 	static const char * const pkey_handler_modules[] = {
-		"pkey_cca", "pkey_ep11", "pkey_pckmo" };
+#if IS_MODULE(CONFIG_PKEY_CCA)
+		"pkey_cca",
+#endif
+#if IS_MODULE(CONFIG_PKEY_EP11)
+		"pkey_ep11",
+#endif
+#if IS_MODULE(CONFIG_PKEY_PCKMO)
+		"pkey_pckmo",
+#endif
+	};
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(pkey_handler_modules); i++) {
