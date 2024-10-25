@@ -38,32 +38,30 @@ struct page *ecryptfs_get_locked_page(struct inode *inode, loff_t index)
 	return page;
 }
 
-/**
- * ecryptfs_writepage
- * @page: Page that is locked before this call is made
- * @wbc: Write-back control structure
- *
- * Returns zero on success; non-zero otherwise
- *
+/*
  * This is where we encrypt the data and pass the encrypted data to
  * the lower filesystem.  In OpenPGP-compatible mode, we operate on
  * entire underlying packets.
  */
-static int ecryptfs_writepage(struct page *page, struct writeback_control *wbc)
+static int ecryptfs_writepages(struct address_space *mapping,
+		struct writeback_control *wbc)
 {
-	int rc;
+	struct folio *folio = NULL;
+	int error;
 
-	rc = ecryptfs_encrypt_page(page);
-	if (rc) {
-		ecryptfs_printk(KERN_WARNING, "Error encrypting "
-				"page (upper index [0x%.16lx])\n", page->index);
-		ClearPageUptodate(page);
-		goto out;
+	while ((folio = writeback_iter(mapping, wbc, folio, &error))) {
+		error = ecryptfs_encrypt_page(&folio->page);
+		if (error) {
+			ecryptfs_printk(KERN_WARNING,
+				"Error encrypting folio (index [0x%.16lx])\n",
+				folio->index);
+			folio_clear_uptodate(folio);
+			mapping_set_error(mapping, error);
+		}
+		folio_unlock(folio);
 	}
-	SetPageUptodate(page);
-out:
-	unlock_page(page);
-	return rc;
+
+	return error;
 }
 
 static void strip_xattr_flag(char *page_virt,
@@ -548,9 +546,10 @@ const struct address_space_operations ecryptfs_aops = {
 	.dirty_folio	= block_dirty_folio,
 	.invalidate_folio = block_invalidate_folio,
 #endif
-	.writepage = ecryptfs_writepage,
+	.writepages = ecryptfs_writepages,
 	.read_folio = ecryptfs_read_folio,
 	.write_begin = ecryptfs_write_begin,
 	.write_end = ecryptfs_write_end,
+	.migrate_folio = filemap_migrate_folio,
 	.bmap = ecryptfs_bmap,
 };
