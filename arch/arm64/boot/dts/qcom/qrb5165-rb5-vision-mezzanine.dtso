@@ -4,8 +4,10 @@
  */
 
 /dts-v1/;
+/plugin/;
 
-#include "qrb5165-rb5.dts"
+#include <dt-bindings/clock/qcom,camcc-sm8250.h>
+#include <dt-bindings/gpio/gpio.h>
 
 &camcc {
 	status = "okay";
@@ -33,6 +35,9 @@
 };
 
 &cci1_i2c0 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+
 	camera@1a {
 		compatible = "sony,imx577";
 		reg = <0x1a>;
