@@ -1,0 +1,239 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/clock/samsung,exynos8895-clock.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Samsung Exynos8895 SoC clock controller
+
+maintainers:
+  - Ivaylo Ivanov <ivo.ivanov.ivanov1@gmail.com>
+  - Chanwoo Choi <cw00.choi@samsung.com>
+  - Krzysztof Kozlowski <krzk@kernel.org>
+
+description: |
+  Exynos8895 clock controller is comprised of several CMU units, generating
+  clocks for different domains. Those CMU units are modeled as separate device
+  tree nodes, and might depend on each other. The root clock in that root tree
+  is an external clock: OSCCLK (26 MHz). This external clock must be defined
+  as a fixed-rate clock in dts.
+
+  CMU_TOP is a top-level CMU, where all base clocks are prepared using PLLs and
+  dividers; all other clocks of function blocks (other CMUs) are usually
+  derived from CMU_TOP.
+
+  Each clock is assigned an identifier and client nodes can use this identifier
+  to specify the clock which they consume. All clocks available for usage
+  in clock consumer nodes are defined as preprocessor macros in
+  'include/dt-bindings/clock/samsung,exynos8895.h' header.
+
+properties:
+  compatible:
+    enum:
+      - samsung,exynos8895-cmu-fsys0
+      - samsung,exynos8895-cmu-fsys1
+      - samsung,exynos8895-cmu-peric0
+      - samsung,exynos8895-cmu-peric1
+      - samsung,exynos8895-cmu-peris
+      - samsung,exynos8895-cmu-top
+
+  clocks:
+    minItems: 1
+    maxItems: 16
+
+  clock-names:
+    minItems: 1
+    maxItems: 16
+
+  "#clock-cells":
+    const: 1
+
+  reg:
+    maxItems: 1
+
+required:
+  - compatible
+  - clocks
+  - clock-names
+  - reg
+  - "#clock-cells"
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: samsung,exynos8895-cmu-fsys0
+
+    then:
+      properties:
+        clocks:
+          items:
+            - description: External reference clock (26 MHz)
+            - description: CMU_FSYS0 BUS clock (from CMU_TOP)
+            - description: CMU_FSYS0 DPGTC clock (from CMU_TOP)
+            - description: CMU_FSYS0 MMC_EMBD clock (from CMU_TOP)
+            - description: CMU_FSYS0 UFS_EMBD clock (from CMU_TOP)
+            - description: CMU_FSYS0 USBDRD30 clock (from CMU_TOP)
+
+        clock-names:
+          items:
+            - const: oscclk
+            - const: bus
+            - const: dpgtc
+            - const: mmc
+            - const: ufs
+            - const: usbdrd30
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: samsung,exynos8895-cmu-fsys1
+
+    then:
+      properties:
+        clocks:
+          items:
+            - description: External reference clock (26 MHz)
+            - description: CMU_FSYS1 BUS clock (from CMU_TOP)
+            - description: CMU_FSYS1 PCIE clock (from CMU_TOP)
+            - description: CMU_FSYS1 UFS_CARD clock (from CMU_TOP)
+            - description: CMU_FSYS1 MMC_CARD clock (from CMU_TOP)
+
+        clock-names:
+          items:
+            - const: oscclk
+            - const: bus
+            - const: pcie
+            - const: ufs
+            - const: mmc
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: samsung,exynos8895-cmu-peric0
+
+    then:
+      properties:
+        clocks:
+          items:
+            - description: External reference clock (26 MHz)
+            - description: CMU_PERIC0 BUS clock (from CMU_TOP)
+            - description: CMU_PERIC0 UART_DBG clock (from CMU_TOP)
+            - description: CMU_PERIC0 USI00 clock (from CMU_TOP)
+            - description: CMU_PERIC0 USI01 clock (from CMU_TOP)
+            - description: CMU_PERIC0 USI02 clock (from CMU_TOP)
+            - description: CMU_PERIC0 USI03 clock (from CMU_TOP)
+
+        clock-names:
+          items:
+            - const: oscclk
+            - const: bus
+            - const: uart
+            - const: usi0
+            - const: usi1
+            - const: usi2
+            - const: usi3
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: samsung,exynos8895-cmu-peric1
+
+    then:
+      properties:
+        clocks:
+          items:
+            - description: External reference clock (26 MHz)
+            - description: CMU_PERIC1 BUS clock (from CMU_TOP)
+            - description: CMU_PERIC1 SPEEDY2 clock (from CMU_TOP)
+            - description: CMU_PERIC1 SPI_CAM0 clock (from CMU_TOP)
+            - description: CMU_PERIC1 SPI_CAM1 clock (from CMU_TOP)
+            - description: CMU_PERIC1 UART_BT clock (from CMU_TOP)
+            - description: CMU_PERIC1 USI04 clock (from CMU_TOP)
+            - description: CMU_PERIC1 USI05 clock (from CMU_TOP)
+            - description: CMU_PERIC1 USI06 clock (from CMU_TOP)
+            - description: CMU_PERIC1 USI07 clock (from CMU_TOP)
+            - description: CMU_PERIC1 USI08 clock (from CMU_TOP)
+            - description: CMU_PERIC1 USI09 clock (from CMU_TOP)
+            - description: CMU_PERIC1 USI10 clock (from CMU_TOP)
+            - description: CMU_PERIC1 USI11 clock (from CMU_TOP)
+            - description: CMU_PERIC1 USI12 clock (from CMU_TOP)
+            - description: CMU_PERIC1 USI13 clock (from CMU_TOP)
+
+        clock-names:
+          items:
+            - const: oscclk
+            - const: bus
+            - const: speedy
+            - const: cam0
+            - const: cam1
+            - const: uart
+            - const: usi4
+            - const: usi5
+            - const: usi6
+            - const: usi7
+            - const: usi8
+            - const: usi9
+            - const: usi10
+            - const: usi11
+            - const: usi12
+            - const: usi13
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: samsung,exynos8895-cmu-peris
+
+    then:
+      properties:
+        clocks:
+          items:
+            - description: External reference clock (26 MHz)
+            - description: CMU_PERIS BUS clock (from CMU_TOP)
+
+        clock-names:
+          items:
+            - const: oscclk
+            - const: bus
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: samsung,exynos8895-cmu-top
+
+    then:
+      properties:
+        clocks:
+          items:
+            - description: External reference clock (26 MHz)
+
+        clock-names:
+          items:
+            - const: oscclk
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/samsung,exynos8895.h>
+
+    cmu_fsys1: clock-controller@11400000 {
+        compatible = "samsung,exynos8895-cmu-fsys1";
+        reg = <0x11400000 0x8000>;
+        #clock-cells = <1>;
+
+        clocks = <&oscclk>,
+                 <&cmu_top CLK_DOUT_CMU_FSYS1_BUS>,
+                 <&cmu_top CLK_DOUT_CMU_FSYS1_PCIE>,
+                 <&cmu_top CLK_DOUT_CMU_FSYS1_UFS_CARD>,
+                 <&cmu_top CLK_DOUT_CMU_FSYS1_MMC_CARD>;
+        clock-names = "oscclk", "bus", "pcie", "ufs", "mmc";
+    };
+
+...
