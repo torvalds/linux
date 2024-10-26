@@ -136,6 +136,8 @@ struct qcom_llcc_config {
 	const struct llcc_slice_config *sct_data;
 	const u32 *reg_offset;
 	const struct llcc_edac_reg_offset *edac_reg_offset;
+	u32 max_cap_shift; /* instead of ATTR1_MAX_CAP_SHIFT */
+	u32 num_banks;
 	int size;
 	bool need_llcc_cfg;
 	bool no_edac;
@@ -294,6 +296,408 @@ static const struct llcc_slice_config sa8775p_data[] =  {
 		.bonus_ways = 0xff,
 		.cache_mode = 0,
 		.activate_on_init = true,
+	},
+};
+
+static const struct llcc_slice_config sar1130p_data[] = {
+	{
+		.usecase_id = LLCC_CPUSS,
+		.slice_id = 1,
+		.max_cap = 4096,
+		.priority = 1,
+		.bonus_ways = 0x1fff,
+		.res_ways = 0x0,
+		.cache_mode = 0,
+		.retain_on_pc = true,
+		.activate_on_init = true,
+	}, {
+		.usecase_id = LLCC_VIDSC0,
+		.slice_id = 2,
+		.max_cap = 512,
+		.priority = 3,
+		.fixed_size = true,
+		.bonus_ways = 0x1fff,
+		.res_ways = 0x0,
+		.cache_mode = 0,
+		.retain_on_pc = true,
+	}, {
+		.usecase_id = LLCC_AUDIO,
+		.slice_id = 6,
+		.max_cap = 1024,
+		.priority = 3,
+		.fixed_size = true,
+		.bonus_ways = 0x1fff,
+		.res_ways = 0x0,
+		.cache_mode = 0,
+		.retain_on_pc = true,
+	}, {
+		.usecase_id = LLCC_CMPT,
+		.slice_id = 10,
+		.max_cap = 1024,
+		.priority = 1,
+		.fixed_size = true,
+		.bonus_ways = 0x1fff,
+		.res_ways = 0x0,
+		.cache_mode = 0,
+		.retain_on_pc = true,
+	}, {
+		.usecase_id = LLCC_GPUHTW,
+		.slice_id = 11,
+		.max_cap = 0,
+		.priority = 1,
+		.fixed_size = true,
+		.bonus_ways = 0x1fff,
+		.res_ways = 0x0,
+		.cache_mode = 0,
+		.retain_on_pc = true,
+	}, {
+		.usecase_id = LLCC_GPU,
+		.slice_id = 12,
+		.max_cap = 3072,
+		.priority = 3,
+		.fixed_size = true,
+		.bonus_ways = 0x1fff,
+		.res_ways = 0x0,
+		.cache_mode = 0,
+		.retain_on_pc = true,
+		.write_scid_en = true,
+	}, {
+		.usecase_id = LLCC_MMUHWT,
+		.slice_id = 13,
+		.max_cap = 512,
+		.priority = 1,
+		.fixed_size = true,
+		.bonus_ways = 0x1fff,
+		.res_ways = 0x0,
+		.cache_mode = 0,
+	}, {
+		.usecase_id = LLCC_DISP,
+		.slice_id = 16,
+		.max_cap = 12800,
+		.priority = 1,
+		.fixed_size = true,
+		.bonus_ways = 0x1fff,
+		.res_ways = 0x0,
+		.cache_mode = 0,
+		.retain_on_pc = true,
+	}, {
+		.usecase_id = LLCC_CVP,
+		.slice_id = 28,
+		.max_cap = 256,
+		.priority = 3,
+		.fixed_size = true,
+		.bonus_ways = 0x1fff,
+		.res_ways = 0x0,
+		.cache_mode = 0,
+		.retain_on_pc = true,
+	}, {
+		.usecase_id = LLCC_APTCM,
+		.slice_id = 26,
+		.max_cap = 2048,
+		.priority = 3,
+		.fixed_size = true,
+		.bonus_ways = 0x0,
+		.res_ways = 0x3,
+		.cache_mode = true,
+		.dis_cap_alloc = true,
+		.retain_on_pc = true,
+	}, {
+		.usecase_id = LLCC_WRCACHE,
+		.slice_id = 31,
+		.max_cap = 256,
+		.priority = 1,
+		.fixed_size = true,
+		.bonus_ways = 0x1fff,
+		.res_ways = 0x0,
+		.cache_mode = 0,
+		.activate_on_init = true,
+	}, {
+		.usecase_id = LLCC_AENPU,
+		.slice_id = 30,
+		.max_cap = 3072,
+		.priority = 3,
+		.fixed_size = true,
+		.bonus_ways = 0x1fff,
+		.res_ways = 0x0,
+		.cache_mode = 0,
+		.retain_on_pc = true,
+	}, {
+		.usecase_id = LLCC_DISP_LEFT,
+		.slice_id = 17,
+		.max_cap = 0,
+		.priority = 1,
+		.fixed_size = true,
+		.bonus_ways = 0x0,
+		.res_ways = 0x0,
+		.cache_mode = 0,
+		.retain_on_pc = true,
+	}, {
+		.usecase_id = LLCC_DISP_RIGHT,
+		.slice_id = 18,
+		.max_cap = 0,
+		.priority = 1,
+		.fixed_size = true,
+		.bonus_ways = 0x0,
+		.res_ways = 0x0,
+		.cache_mode = 0,
+		.retain_on_pc = true,
+	}, {
+		.usecase_id = LLCC_EVCS_LEFT,
+		.slice_id = 22,
+		.max_cap = 0,
+		.priority = 1,
+		.fixed_size = true,
+		.bonus_ways = 0x0,
+		.res_ways = 0x0,
+		.cache_mode = 0,
+		.retain_on_pc = true,
+	}, {
+		.usecase_id = LLCC_EVCS_RIGHT,
+		.slice_id = 23,
+		.max_cap = 0,
+		.priority = 1,
+		.fixed_size = true,
+		.bonus_ways = 0x0,
+		.res_ways = 0x0,
+		.cache_mode = 0,
+		.retain_on_pc = true,
+	},
+};
+
+static const struct llcc_slice_config sar2130p_data[] = {
+	{
+		.usecase_id = LLCC_CPUSS,
+		.slice_id = 1,
+		.max_cap = 6144,
+		.priority = 1,
+		.fixed_size = 0,
+		.bonus_ways = 0x3fffffff,
+		.res_ways = 0x0,
+		.cache_mode = 0,
+		.retain_on_pc = true,
+		.activate_on_init = true,
+	}, {
+		.usecase_id = LLCC_VIDSC0,
+		.slice_id = 2,
+		.max_cap = 128,
+		.priority = 2,
+		.fixed_size = true,
+		.bonus_ways = 0x3fffffff,
+		.res_ways = 0x0,
+		.cache_mode = 0,
+		.retain_on_pc = true,
+	}, {
+		.usecase_id = LLCC_AUDIO,
+		.slice_id = 6,
+		.max_cap = 1024,
+		.priority = 3,
+		.fixed_size = true,
+		.bonus_ways = 0x3fffffff,
+		.res_ways = 0x0,
+		.cache_mode = 0,
+		.retain_on_pc = true,
+	}, {
+		.usecase_id = LLCC_CMPT,
+		.slice_id = 10,
+		.max_cap = 1024,
+		.priority = 1,
+		.fixed_size = true,
+		.bonus_ways = 0x3fffffff,
+		.res_ways = 0x0,
+		.cache_mode = 0,
+		.retain_on_pc = true,
+	}, {
+		.usecase_id = LLCC_GPUHTW,
+		.slice_id = 11,
+		.max_cap = 0,
+		.priority = 1,
+		.fixed_size = true,
+		.bonus_ways = 0x3fffffff,
+		.res_ways = 0x0,
+		.cache_mode = 0,
+		.retain_on_pc = true,
+	}, {
+		.usecase_id = LLCC_GPU,
+		.slice_id = 12,
+		.max_cap = 1536,
+		.priority = 2,
+		.fixed_size = true,
+		.bonus_ways = 0x3fffffff,
+		.res_ways = 0x0,
+		.cache_mode = 0,
+		.retain_on_pc = true,
+		.write_scid_en = true,
+	}, {
+		.usecase_id = LLCC_MMUHWT,
+		.slice_id = 13,
+		.max_cap = 1024,
+		.priority = 1,
+		.fixed_size = true,
+		.bonus_ways = 0x3fffffff,
+		.res_ways = 0x0,
+		.cache_mode = 0,
+		.activate_on_init = true,
+	}, {
+		.usecase_id = LLCC_DISP,
+		.slice_id = 16,
+		.max_cap = 0,
+		.priority = 1,
+		.fixed_size = true,
+		.bonus_ways = 0x3fffffff,
+		.res_ways = 0x0,
+		.cache_mode = 0,
+		.retain_on_pc = true,
+	}, {
+		.usecase_id = LLCC_APTCM,
+		.slice_id = 26,
+		.max_cap = 2048,
+		.priority = 3,
+		.fixed_size = true,
+		.bonus_ways = 0x0,
+		.res_ways = 0x3,
+		.cache_mode = true,
+		.dis_cap_alloc = true,
+		.retain_on_pc = true,
+	}, {
+		.usecase_id = LLCC_WRCACHE,
+		.slice_id = 31,
+		.max_cap = 256,
+		.priority = 1,
+		.fixed_size = true,
+		.bonus_ways = 0x3fffffff,
+		.res_ways = 0x0,
+		.cache_mode = 0,
+		.activate_on_init = true,
+	}, {
+		.usecase_id = LLCC_VIEYE,
+		.slice_id = 7,
+		.max_cap = 7168,
+		.priority = 4,
+		.fixed_size = true,
+		.bonus_ways = 0x3fffffff,
+		.res_ways = 0x0,
+		.cache_mode = 0,
+		.retain_on_pc = true,
+	}, {
+		.usecase_id = LLCC_VIDPTH,
+		.slice_id = 8,
+		.max_cap = 7168,
+		.priority = 4,
+		.fixed_size = true,
+		.bonus_ways = 0x3fffffff,
+		.res_ways = 0x0,
+		.cache_mode = 0,
+		.retain_on_pc = true,
+	}, {
+		.usecase_id = LLCC_GPUMV,
+		.slice_id = 9,
+		.max_cap = 2048,
+		.priority = 2,
+		.fixed_size = true,
+		.bonus_ways = 0x3fffffff,
+		.res_ways = 0x0,
+		.cache_mode = 0,
+		.retain_on_pc = true,
+	}, {
+		.usecase_id = LLCC_EVA_LEFT,
+		.slice_id = 20,
+		.max_cap = 7168,
+		.priority = 5,
+		.fixed_size = true,
+		.bonus_ways = 0x3ffffffc,
+		.res_ways = 0x0,
+		.cache_mode = 0,
+		.retain_on_pc = true,
+	}, {
+		.usecase_id = LLCC_EVA_RIGHT,
+		.slice_id = 21,
+		.max_cap = 7168,
+		.priority = 5,
+		.fixed_size = true,
+		.bonus_ways = 0x3ffffffc,
+		.res_ways = 0x0,
+		.cache_mode = 0,
+		.retain_on_pc = true,
+	}, {
+		.usecase_id = LLCC_EVAGAIN,
+		.slice_id = 25,
+		.max_cap = 1024,
+		.priority = 2,
+		.fixed_size = true,
+		.bonus_ways = 0x3fffffff,
+		.res_ways = 0x0,
+		.cache_mode = 0,
+		.retain_on_pc = true,
+	}, {
+		.usecase_id = LLCC_AENPU,
+		.slice_id = 30,
+		.max_cap = 3072,
+		.priority = 3,
+		.fixed_size = true,
+		.bonus_ways = 0x3fffffff,
+		.res_ways = 0x0,
+		.cache_mode = 0,
+		.retain_on_pc = true,
+	}, {
+		.usecase_id = LLCC_VIPTH,
+		.slice_id = 29,
+		.max_cap = 1024,
+		.priority = 4,
+		.fixed_size = true,
+		.bonus_ways = 0x3fffffff,
+		.res_ways = 0x0,
+		.cache_mode = 0,
+		.retain_on_pc = true,
+	}, {
+		.usecase_id = LLCC_DISP_LEFT,
+		.slice_id = 17,
+		.max_cap = 0,
+		.priority = 1,
+		.fixed_size = true,
+		.bonus_ways = 0x0,
+		.res_ways = 0x0,
+		.cache_mode = 0,
+		.retain_on_pc = true,
+	}, {
+		.usecase_id = LLCC_DISP_RIGHT,
+		.slice_id = 18,
+		.max_cap = 0,
+		.priority = 1,
+		.fixed_size = true,
+		.bonus_ways = 0x0,
+		.res_ways = 0x0,
+		.cache_mode = 0,
+		.retain_on_pc = true,
+	}, {
+		.usecase_id = LLCC_EVCS_LEFT,
+		.slice_id = 22,
+		.max_cap = 0,
+		.priority = 1,
+		.fixed_size = true,
+		.bonus_ways = 0x0,
+		.res_ways = 0x0,
+		.cache_mode = 0,
+		.retain_on_pc = true,
+	}, {
+		.usecase_id = LLCC_EVCS_RIGHT,
+		.slice_id = 23,
+		.max_cap = 0,
+		.priority = 1,
+		.fixed_size = true,
+		.bonus_ways = 0x0,
+		.res_ways = 0x0,
+		.cache_mode = 0,
+		.retain_on_pc = true,
+	}, {
+		.usecase_id = LLCC_SPAD,
+		.slice_id = 24,
+		.max_cap = 7168,
+		.priority = 1,
+		.fixed_size = true,
+		.bonus_ways = 0x0,
+		.res_ways = 0x0,
+		.cache_mode = 0,
+		.retain_on_pc = true,
 	},
 };
 
@@ -2686,6 +3090,30 @@ static const struct qcom_llcc_config sa8775p_cfg[] = {
 	},
 };
 
+static const struct qcom_llcc_config sar1130p_cfg[] = {
+	{
+		.sct_data	= sar1130p_data,
+		.size		= ARRAY_SIZE(sar1130p_data),
+		.need_llcc_cfg	= true,
+		.reg_offset	= llcc_v2_1_reg_offset,
+		.edac_reg_offset = &llcc_v2_1_edac_reg_offset,
+		.max_cap_shift	= 14,
+		.num_banks	= 2,
+	},
+};
+
+static const struct qcom_llcc_config sar2130p_cfg[] = {
+	{
+		.sct_data	= sar2130p_data,
+		.size		= ARRAY_SIZE(sar2130p_data),
+		.need_llcc_cfg	= true,
+		.reg_offset	= llcc_v2_1_reg_offset,
+		.edac_reg_offset = &llcc_v2_1_edac_reg_offset,
+		.max_cap_shift	= 14,
+		.num_banks	= 2,
+	},
+};
+
 static const struct qcom_llcc_config sc7180_cfg[] = {
 	{
 		.sct_data	= sc7180_data,
@@ -2835,6 +3263,16 @@ static const struct qcom_sct_config qdu1000_cfgs = {
 static const struct qcom_sct_config sa8775p_cfgs = {
 	.llcc_config	= sa8775p_cfg,
 	.num_config	= ARRAY_SIZE(sa8775p_cfg),
+};
+
+static const struct qcom_sct_config sar1130p_cfgs = {
+	.llcc_config	= sar1130p_cfg,
+	.num_config	= ARRAY_SIZE(sar1130p_cfg),
+};
+
+static const struct qcom_sct_config sar2130p_cfgs = {
+	.llcc_config	= sar2130p_cfg,
+	.num_config	= ARRAY_SIZE(sar2130p_cfg),
 };
 
 static const struct qcom_sct_config sc7180_cfgs = {
@@ -3144,7 +3582,10 @@ static int _qcom_llcc_cfg_program(const struct llcc_slice_config *config,
 	 */
 	max_cap_cacheline = max_cap_cacheline / drv_data->num_banks;
 	max_cap_cacheline >>= CACHE_LINE_SIZE_SHIFT;
-	attr1_val |= max_cap_cacheline << ATTR1_MAX_CAP_SHIFT;
+	if (cfg->max_cap_shift)
+		attr1_val |= max_cap_cacheline << cfg->max_cap_shift;
+	else
+		attr1_val |= max_cap_cacheline << ATTR1_MAX_CAP_SHIFT;
 
 	attr1_cfg = LLCC_TRP_ATTR1_CFGn(config->slice_id);
 
@@ -3381,12 +3822,17 @@ static int qcom_llcc_probe(struct platform_device *pdev)
 		goto err;
 	cfg = &cfgs->llcc_config[cfg_index];
 
-	ret = regmap_read(regmap, cfg->reg_offset[LLCC_COMMON_STATUS0], &num_banks);
-	if (ret)
-		goto err;
+	if (cfg->num_banks) {
+		num_banks = cfg->num_banks;
+	} else {
+		ret = regmap_read(regmap, cfg->reg_offset[LLCC_COMMON_STATUS0], &num_banks);
+		if (ret)
+			goto err;
 
-	num_banks &= LLCC_LB_CNT_MASK;
-	num_banks >>= LLCC_LB_CNT_SHIFT;
+		num_banks &= LLCC_LB_CNT_MASK;
+		num_banks >>= LLCC_LB_CNT_SHIFT;
+	}
+
 	drv_data->num_banks = num_banks;
 
 	drv_data->regmaps = devm_kcalloc(dev, num_banks, sizeof(*drv_data->regmaps), GFP_KERNEL);
@@ -3483,6 +3929,8 @@ err:
 static const struct of_device_id qcom_llcc_of_match[] = {
 	{ .compatible = "qcom,qdu1000-llcc", .data = &qdu1000_cfgs},
 	{ .compatible = "qcom,sa8775p-llcc", .data = &sa8775p_cfgs },
+	{ .compatible = "qcom,sar1130p-llcc", .data = &sar1130p_cfgs },
+	{ .compatible = "qcom,sar2130p-llcc", .data = &sar2130p_cfgs },
 	{ .compatible = "qcom,sc7180-llcc", .data = &sc7180_cfgs },
 	{ .compatible = "qcom,sc7280-llcc", .data = &sc7280_cfgs },
 	{ .compatible = "qcom,sc8180x-llcc", .data = &sc8180x_cfgs },
