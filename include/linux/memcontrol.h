@@ -443,35 +443,6 @@ static inline bool folio_memcg_charged(struct folio *folio)
 	return __folio_memcg(folio) != NULL;
 }
 
-/**
- * folio_memcg_rcu - Locklessly get the memory cgroup associated with a folio.
- * @folio: Pointer to the folio.
- *
- * This function assumes that the folio is known to have a
- * proper memory cgroup pointer. It's not safe to call this function
- * against some type of folios, e.g. slab folios or ex-slab folios.
- *
- * Return: A pointer to the memory cgroup associated with the folio,
- * or NULL.
- */
-static inline struct mem_cgroup *folio_memcg_rcu(struct folio *folio)
-{
-	unsigned long memcg_data = READ_ONCE(folio->memcg_data);
-
-	VM_BUG_ON_FOLIO(folio_test_slab(folio), folio);
-
-	if (memcg_data & MEMCG_DATA_KMEM) {
-		struct obj_cgroup *objcg;
-
-		objcg = (void *)(memcg_data & ~OBJEXTS_FLAGS_MASK);
-		return obj_cgroup_memcg(objcg);
-	}
-
-	WARN_ON_ONCE(!rcu_read_lock_held());
-
-	return (struct mem_cgroup *)(memcg_data & ~OBJEXTS_FLAGS_MASK);
-}
-
 /*
  * folio_memcg_check - Get the memory cgroup associated with a folio.
  * @folio: Pointer to the folio.
@@ -1084,10 +1055,9 @@ static inline struct mem_cgroup *folio_memcg(struct folio *folio)
 	return NULL;
 }
 
-static inline struct mem_cgroup *folio_memcg_rcu(struct folio *folio)
+static inline bool folio_memcg_charged(struct folio *folio)
 {
-	WARN_ON_ONCE(!rcu_read_lock_held());
-	return NULL;
+	return false;
 }
 
 static inline struct mem_cgroup *folio_memcg_check(struct folio *folio)
