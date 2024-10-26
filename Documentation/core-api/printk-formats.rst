@@ -209,12 +209,17 @@ Struct Resources
 ::
 
 	%pr	[mem 0x60000000-0x6fffffff flags 0x2200] or
+		[mem 0x60000000 flags 0x2200] or
 		[mem 0x0000000060000000-0x000000006fffffff flags 0x2200]
+		[mem 0x0000000060000000 flags 0x2200]
 	%pR	[mem 0x60000000-0x6fffffff pref] or
+		[mem 0x60000000 pref] or
 		[mem 0x0000000060000000-0x000000006fffffff pref]
+		[mem 0x0000000060000000 pref]
 
 For printing struct resources. The ``R`` and ``r`` specifiers result in a
-printed resource with (R) or without (r) a decoded flags member.
+printed resource with (R) or without (r) a decoded flags member.  If start is
+equal to end only print the start value.
 
 Passed by reference.
 
