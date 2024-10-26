@@ -70,9 +70,12 @@ int io_register_rsrc_update(struct io_ring_ctx *ctx, void __user *arg,
 int io_register_rsrc(struct io_ring_ctx *ctx, void __user *arg,
 			unsigned int size, unsigned int type);
 
+extern const struct io_rsrc_node empty_node;
+#define rsrc_empty_node	(struct io_rsrc_node *) &empty_node
+
 static inline void io_put_rsrc_node(struct io_rsrc_node *node)
 {
-	if (node && !--node->refs)
+	if (node != rsrc_empty_node && !--node->refs)
 		io_free_rsrc_node(node);
 }
 
@@ -85,8 +88,10 @@ static inline void io_req_put_rsrc_nodes(struct io_kiocb *req)
 static inline void io_req_assign_rsrc_node(struct io_kiocb *req,
 					   struct io_rsrc_node *node)
 {
-	node->refs++;
-	req->rsrc_nodes[node->type] = node;
+	if (node != rsrc_empty_node) {
+		node->refs++;
+		req->rsrc_nodes[node->type] = node;
+	}
 }
 
 int io_files_update(struct io_kiocb *req, unsigned int issue_flags);

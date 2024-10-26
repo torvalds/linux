@@ -38,6 +38,11 @@ static const struct io_mapped_ubuf dummy_ubuf = {
 	.len = UINT_MAX,
 };
 
+const struct io_rsrc_node empty_node = {
+	.type = IORING_RSRC_BUFFER,
+	.buf = (struct io_mapped_ubuf *) &dummy_ubuf,
+};
+
 int __io_account_mem(struct user_struct *user, unsigned long nr_pages)
 {
 	unsigned long page_limit, cur_pages, new_pages;
@@ -144,7 +149,8 @@ static void io_rsrc_data_free(struct io_rsrc_data *data)
 	for (i = 0; i < data->nr; i++) {
 		struct io_rsrc_node *node = data->nodes[i];
 
-		io_put_rsrc_node(node);
+		if (node)
+			io_put_rsrc_node(node);
 	}
 	kvfree(data->nodes);
 	kfree(data);
@@ -229,7 +235,8 @@ static int __io_sqe_files_update(struct io_ring_ctx *ctx,
 				break;
 			}
 			ctx->file_table.nodes[i] = node;
-			node->tag = tag;
+			if (tag)
+				node->tag = tag;
 			io_fixed_file_set(node, file);
 			io_file_bitmap_set(&ctx->file_table, i);
 		}
@@ -281,10 +288,12 @@ static int __io_sqe_buffers_update(struct io_ring_ctx *ctx,
 			err = PTR_ERR(node);
 			break;
 		}
-		io_put_rsrc_node(ctx->user_bufs[i]);
+		if (ctx->user_bufs[i])
+			io_put_rsrc_node(ctx->user_bufs[i]);
 
 		ctx->user_bufs[i] = node;
-		node->tag = tag;
+		if (tag)
+			node->tag = tag;
 		if (ctx->compat)
 			user_data += sizeof(struct compat_iovec);
 		else
@@ -600,8 +609,10 @@ static void __io_sqe_buffers_unregister(struct io_ring_ctx *ctx)
 	lockdep_assert_held(&ctx->uring_lock);
 
 	for (i = 0; i < ctx->nr_user_bufs; i++) {
-		io_put_rsrc_node(ctx->user_bufs[i]);
-		ctx->user_bufs[i] = NULL;
+		if (ctx->user_bufs[i]) {
+			io_put_rsrc_node(ctx->user_bufs[i]);
+			ctx->user_bufs[i] = NULL;
+		}
 	}
 	kvfree(ctx->user_bufs);
 	ctx->user_bufs = NULL;
@@ -799,11 +810,6 @@ static struct io_rsrc_node *io_sqe_buffer_register(struct io_ring_ctx *ctx,
 		return ERR_PTR(-ENOMEM);
 	node->buf = NULL;
 
-	if (!iov->iov_base) {
-		node->buf = (struct io_mapped_ubuf *) &dummy_ubuf;
-		return node;
-	}
-
 	ret = -ENOMEM;
 	pages = io_pin_pages((unsigned long) iov->iov_base, iov->iov_len,
 				&nr_pages);
@@ -927,7 +933,8 @@ int io_sqe_buffers_register(struct io_ring_ctx *ctx, void __user *arg,
 			ret = PTR_ERR(node);
 			break;
 		}
-		node->tag = tag;
+		if (tag)
+			node->tag = tag;
 		ctx->user_bufs[i] = node;
 	}
 
@@ -1028,18 +1035,18 @@ static int io_clone_buffers(struct io_ring_ctx *ctx, struct io_ring_ctx *src_ctx
 		goto out_free_data;
 
 	for (i = 0; i < nbufs; i++) {
-		struct io_mapped_ubuf *imu = src_ctx->user_bufs[i]->buf;
+		struct io_rsrc_node *src_node = src_ctx->user_bufs[i];
 		struct io_rsrc_node *dst_node;
 
-		dst_node = io_rsrc_node_alloc(ctx, IORING_RSRC_BUFFER);
-		if (!dst_node)
-			goto out_put_free;
-
-		if (imu == &dummy_ubuf) {
-			dst_node->buf = (struct io_mapped_ubuf *) &dummy_ubuf;
+		if (src_node == rsrc_empty_node) {
+			dst_node = rsrc_empty_node;
 		} else {
-			refcount_inc(&imu->refs);
-			dst_node->buf = imu;
+			dst_node = io_rsrc_node_alloc(ctx, IORING_RSRC_BUFFER);
+			if (!dst_node)
+				goto out_put_free;
+
+			refcount_inc(&src_node->buf->refs);
+			dst_node->buf = src_node->buf;
 		}
 		user_bufs[i] = dst_node;
 	}
