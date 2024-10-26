@@ -151,6 +151,12 @@ static inline void csum_replace(__wsum *csum, __wsum old, __wsum new)
 	*csum = csum_add(csum_sub(*csum, old), new);
 }
 
+static inline unsigned short csum_from32to16(unsigned int sum)
+{
+	sum += (sum >> 16) | (sum << 16);
+	return (unsigned short)(sum >> 16);
+}
+
 struct sk_buff;
 void inet_proto_csum_replace4(__sum16 *sum, struct sk_buff *skb,
 			      __be32 from, __be32 to, bool pseudohdr);
