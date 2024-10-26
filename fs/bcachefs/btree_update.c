@@ -588,12 +588,9 @@ struct jset_entry *__bch2_trans_jset_entry_alloc(struct btree_trans *trans, unsi
 int bch2_bkey_get_empty_slot(struct btree_trans *trans, struct btree_iter *iter,
 			     enum btree_id btree, struct bpos end)
 {
-	struct bkey_s_c k;
-	int ret = 0;
-
 	bch2_trans_iter_init(trans, iter, btree, POS_MAX, BTREE_ITER_intent);
-	k = bch2_btree_iter_prev(iter);
-	ret = bkey_err(k);
+	struct bkey_s_c k = bch2_btree_iter_peek_prev(iter);
+	int ret = bkey_err(k);
 	if (ret)
 		goto err;
 
