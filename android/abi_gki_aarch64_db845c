@@ -1144,6 +1144,8 @@
   geni_se_rx_dma_unprep
   geni_se_tx_dma_prep
   geni_se_tx_dma_unprep
+  geni_se_rx_init_dma
+  geni_se_tx_init_dma
   i2c_get_dma_safe_msg_buf
   i2c_put_dma_safe_msg_buf
 
