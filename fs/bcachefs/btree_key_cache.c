@@ -424,8 +424,15 @@ static int btree_key_cache_flush_pos(struct btree_trans *trans,
 	    !test_bit(JOURNAL_space_low, &c->journal.flags))
 		commit_flags |= BCH_TRANS_COMMIT_no_journal_res;
 
-	ret   = bch2_btree_iter_traverse(&b_iter) ?:
-		bch2_trans_update(trans, &b_iter, ck->k,
+	struct bkey_s_c btree_k = bch2_btree_iter_peek_slot(&b_iter);
+	ret = bkey_err(btree_k);
+	if (ret)
+		goto err;
+
+	/* * Check that we're not violating cache coherency rules: */
+	BUG_ON(bkey_deleted(btree_k.k));
+
+	ret   = bch2_trans_update(trans, &b_iter, ck->k,
 				  BTREE_UPDATE_key_cache_reclaim|
 				  BTREE_UPDATE_internal_snapshot_node|
 				  BTREE_TRIGGER_norun) ?:
@@ -433,7 +440,7 @@ static int btree_key_cache_flush_pos(struct btree_trans *trans,
 				  BCH_TRANS_COMMIT_no_check_rw|
 				  BCH_TRANS_COMMIT_no_enospc|
 				  commit_flags);
-
+err:
 	bch2_fs_fatal_err_on(ret &&
 			     !bch2_err_matches(ret, BCH_ERR_transaction_restart) &&
 			     !bch2_err_matches(ret, BCH_ERR_journal_reclaim_would_deadlock) &&
