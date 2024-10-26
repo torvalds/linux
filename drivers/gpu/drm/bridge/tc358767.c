@@ -1707,7 +1707,7 @@ static void tc_bridge_mode_set(struct drm_bridge *bridge,
 {
 	struct tc_data *tc = bridge_to_tc(bridge);
 
-	drm_mode_copy(&tc->mode, mode);
+	drm_mode_copy(&tc->mode, adj);
 }
 
 static const struct drm_edid *tc_edid_read(struct drm_bridge *bridge,
