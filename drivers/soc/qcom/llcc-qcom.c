@@ -27,14 +27,14 @@
 #define ACT_CTRL_OPCODE_ACTIVATE      BIT(0)
 #define ACT_CTRL_OPCODE_DEACTIVATE    BIT(1)
 #define ACT_CTRL_ACT_TRIG             BIT(0)
-#define ACT_CTRL_OPCODE_SHIFT         0x01
-#define ATTR1_PROBE_TARGET_WAYS_SHIFT 0x02
-#define ATTR1_FIXED_SIZE_SHIFT        0x03
-#define ATTR1_PRIORITY_SHIFT          0x04
-#define ATTR1_MAX_CAP_SHIFT           0x10
+#define ACT_CTRL_OPCODE_SHIFT         1
+#define ATTR1_PROBE_TARGET_WAYS_SHIFT 2
+#define ATTR1_FIXED_SIZE_SHIFT        3
+#define ATTR1_PRIORITY_SHIFT          4
+#define ATTR1_MAX_CAP_SHIFT           16
 #define ATTR0_RES_WAYS_MASK           GENMASK(15, 0)
 #define ATTR0_BONUS_WAYS_MASK         GENMASK(31, 16)
-#define ATTR0_BONUS_WAYS_SHIFT        0x10
+#define ATTR0_BONUS_WAYS_SHIFT        16
 #define LLCC_STATUS_READ_DELAY        100
 
 #define CACHE_LINE_SIZE_SHIFT         6
