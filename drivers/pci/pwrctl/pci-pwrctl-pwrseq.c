@@ -6,9 +6,9 @@
 #include <linux/device.h>
 #include <linux/mod_devicetable.h>
 #include <linux/module.h>
-#include <linux/of.h>
 #include <linux/pci-pwrctl.h>
 #include <linux/platform_device.h>
+#include <linux/property.h>
 #include <linux/pwrseq/consumer.h>
 #include <linux/slab.h>
 #include <linux/types.h>
@@ -16,6 +16,40 @@
 struct pci_pwrctl_pwrseq_data {
 	struct pci_pwrctl ctx;
 	struct pwrseq_desc *pwrseq;
+};
+
+struct pci_pwrctl_pwrseq_pdata {
+	const char *target;
+	/*
+	 * Called before doing anything else to perform device-specific
+	 * verification between requesting the power sequencing handle.
+	 */
+	int (*validate_device)(struct device *dev);
+};
+
+static int pci_pwrctl_pwrseq_qcm_wcn_validate_device(struct device *dev)
+{
+	/*
+	 * Old device trees for some platforms already define wifi nodes for
+	 * the WCN family of chips since before power sequencing was added
+	 * upstream.
+	 *
+	 * These nodes don't consume the regulator outputs from the PMU, and
+	 * if we allow this driver to bind to one of such "incomplete" nodes,
+	 * we'll see a kernel log error about the indefinite probe deferral.
+	 *
+	 * Check the existence of the regulator supply that exists on all
+	 * WCN models before moving forward.
+	 */
+	if (!device_property_present(dev, "vddaon-supply"))
+		return -ENODEV;
+
+	return 0;
+}
+
+static const struct pci_pwrctl_pwrseq_pdata pci_pwrctl_pwrseq_qcom_wcn_pdata = {
+	.target = "wlan",
+	.validate_device = pci_pwrctl_pwrseq_qcm_wcn_validate_device,
 };
 
 static void devm_pci_pwrctl_pwrseq_power_off(void *data)
@@ -27,15 +61,26 @@ static void devm_pci_pwrctl_pwrseq_power_off(void *data)
 
 static int pci_pwrctl_pwrseq_probe(struct platform_device *pdev)
 {
+	const struct pci_pwrctl_pwrseq_pdata *pdata;
 	struct pci_pwrctl_pwrseq_data *data;
 	struct device *dev = &pdev->dev;
 	int ret;
+
+	pdata = device_get_match_data(dev);
+	if (!pdata || !pdata->target)
+		return -EINVAL;
+
+	if (pdata->validate_device) {
+		ret = pdata->validate_device(dev);
+		if (ret)
+			return ret;
+	}
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
 
-	data->pwrseq = devm_pwrseq_get(dev, of_device_get_match_data(dev));
+	data->pwrseq = devm_pwrseq_get(dev, pdata->target);
 	if (IS_ERR(data->pwrseq))
 		return dev_err_probe(dev, PTR_ERR(data->pwrseq),
 				     "Failed to get the power sequencer\n");
@@ -64,17 +109,17 @@ static const struct of_device_id pci_pwrctl_pwrseq_of_match[] = {
 	{
 		/* ATH11K in QCA6390 package. */
 		.compatible = "pci17cb,1101",
-		.data = "wlan",
+		.data = &pci_pwrctl_pwrseq_qcom_wcn_pdata,
 	},
 	{
 		/* ATH11K in WCN6855 package. */
 		.compatible = "pci17cb,1103",
-		.data = "wlan",
+		.data = &pci_pwrctl_pwrseq_qcom_wcn_pdata,
 	},
 	{
 		/* ATH12K in WCN7850 package. */
 		.compatible = "pci17cb,1107",
-		.data = "wlan",
+		.data = &pci_pwrctl_pwrseq_qcom_wcn_pdata,
 	},
 	{ }
 };

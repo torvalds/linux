@@ -338,7 +338,7 @@ static int leo_blank(int blank, struct fb_info *info)
 	return 0;
 }
 
-static struct sbus_mmap_map leo_mmap_map[] = {
+static const struct sbus_mmap_map leo_mmap_map[] = {
 	{
 		.voff	= LEO_SS0_MAP,
 		.poff	= LEO_OFF_SS0,
