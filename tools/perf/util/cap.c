@@ -7,13 +7,9 @@
 #include "debug.h"
 #include <errno.h>
 #include <string.h>
-#include <unistd.h>
 #include <linux/capability.h>
 #include <sys/syscall.h>
-
-#ifndef SYS_capget
-#define SYS_capget 90
-#endif
+#include <unistd.h>
 
 #define MAX_LINUX_CAPABILITY_U32S _LINUX_CAPABILITY_U32S_3
 
@@ -21,9 +17,9 @@ bool perf_cap__capable(int cap, bool *used_root)
 {
 	struct __user_cap_header_struct header = {
 		.version = _LINUX_CAPABILITY_VERSION_3,
-		.pid = getpid(),
+		.pid = 0,
 	};
-	struct __user_cap_data_struct data[MAX_LINUX_CAPABILITY_U32S];
+	struct __user_cap_data_struct data[MAX_LINUX_CAPABILITY_U32S] = {};
 	__u32 cap_val;
 
 	*used_root = false;
