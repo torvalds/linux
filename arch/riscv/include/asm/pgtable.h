@@ -12,7 +12,11 @@
 #include <asm/pgtable-bits.h>
 
 #ifndef CONFIG_MMU
+#ifdef CONFIG_RELOCATABLE
+#define KERNEL_LINK_ADDR	UL(0)
+#else
 #define KERNEL_LINK_ADDR	_AC(CONFIG_PAGE_OFFSET, UL)
+#endif
 #define KERN_VIRT_SIZE		(UL(-1))
 #else
 
