@@ -406,16 +406,15 @@ static unsigned long fsl_samsung_hdmi_phy_find_pms(unsigned long fout, u8 *p, u1
 				continue;
 
 			/*
-			 * TODO: Ref Manual doesn't state the range of _m
-			 * so this should be further refined if possible.
-			 * This range was set based on the original values
-			 * in the lookup table
+			 * The Ref manual doesn't explicitly state the range of M,
+			 * but it does show it as an 8-bit value, so reject
+			 * any value above 255.
 			 */
 			tmp = (u64)fout * (_p * _s);
 			do_div(tmp, 24 * MHZ);
-			_m = tmp;
-			if (_m < 0x30 || _m > 0x7b)
+			if (tmp > 255)
 				continue;
+			_m = tmp;
 
 			/*
 			 * Rev 2 of the Ref Manual states the
