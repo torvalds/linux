@@ -180,8 +180,8 @@ static struct file *io_msg_grab_file(struct io_kiocb *req, unsigned int issue_fl
 	int idx = msg->src_fd;
 
 	io_ring_submit_lock(ctx, issue_flags);
-	if (likely(idx < ctx->nr_user_files)) {
-		idx = array_index_nospec(idx, ctx->nr_user_files);
+	if (likely(idx < ctx->file_table.data.nr)) {
+		idx = array_index_nospec(idx, ctx->file_table.data.nr);
 		file = io_file_from_index(&ctx->file_table, idx);
 		if (file)
 			get_file(file);

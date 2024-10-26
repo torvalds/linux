@@ -1347,9 +1347,9 @@ static int io_send_zc_import(struct io_kiocb *req, unsigned int issue_flags)
 
 		ret = -EFAULT;
 		io_ring_submit_lock(ctx, issue_flags);
-		if (sr->buf_index < ctx->nr_user_bufs) {
-			idx = array_index_nospec(sr->buf_index, ctx->nr_user_bufs);
-			node = ctx->user_bufs[idx];
+		if (sr->buf_index < ctx->buf_table.nr) {
+			idx = array_index_nospec(sr->buf_index, ctx->buf_table.nr);
+			node = ctx->buf_table.nodes[idx];
 			io_req_assign_rsrc_node(sr->notif, node);
 			ret = 0;
 		}

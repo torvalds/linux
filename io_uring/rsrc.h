@@ -13,11 +13,6 @@ enum {
 	IORING_RSRC_BUFFER		= 1,
 };
 
-struct io_rsrc_data {
-	unsigned int			nr;
-	struct io_rsrc_node		**nodes;
-};
-
 struct io_rsrc_node {
 	struct io_ring_ctx		*ctx;
 	int				refs;
@@ -50,6 +45,8 @@ struct io_imu_folio_data {
 
 struct io_rsrc_node *io_rsrc_node_alloc(struct io_ring_ctx *ctx, int type);
 void io_free_rsrc_node(struct io_rsrc_node *node);
+void io_rsrc_data_free(struct io_rsrc_data *data);
+int io_rsrc_data_alloc(struct io_rsrc_data *data, unsigned nr);
 
 int io_import_fixed(int ddir, struct iov_iter *iter,
 			   struct io_mapped_ubuf *imu,

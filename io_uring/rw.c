@@ -339,10 +339,10 @@ static int io_prep_rw_fixed(struct io_kiocb *req, const struct io_uring_sqe *sqe
 	if (unlikely(ret))
 		return ret;
 
-	if (unlikely(req->buf_index >= ctx->nr_user_bufs))
+	if (unlikely(req->buf_index >= ctx->buf_table.nr))
 		return -EFAULT;
-	index = array_index_nospec(req->buf_index, ctx->nr_user_bufs);
-	node = ctx->user_bufs[index];
+	index = array_index_nospec(req->buf_index, ctx->buf_table.nr);
+	node = ctx->buf_table.nodes[index];
 	io_req_assign_rsrc_node(req, node);
 
 	io = req->async_data;

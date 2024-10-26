@@ -66,10 +66,10 @@ static struct file *io_splice_get_file(struct io_kiocb *req,
 		return io_file_get_normal(req, sp->splice_fd_in);
 
 	io_ring_submit_lock(ctx, issue_flags);
-	if (unlikely(sp->splice_fd_in >= ctx->nr_user_files))
+	if (unlikely(sp->splice_fd_in >= ctx->file_table.data.nr))
 		goto out;
-	sp->splice_fd_in = array_index_nospec(sp->splice_fd_in, ctx->nr_user_files);
-	node = ctx->file_table.nodes[sp->splice_fd_in];
+	sp->splice_fd_in = array_index_nospec(sp->splice_fd_in, ctx->file_table.data.nr);
+	node = ctx->file_table.data.nodes[sp->splice_fd_in];
 	if (node) {
 		node->refs++;
 		sp->rsrc_node = node;

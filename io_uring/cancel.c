@@ -240,9 +240,9 @@ static int __io_sync_cancel(struct io_uring_task *tctx,
 	/* fixed must be grabbed every time since we drop the uring_lock */
 	if ((cd->flags & IORING_ASYNC_CANCEL_FD) &&
 	    (cd->flags & IORING_ASYNC_CANCEL_FD_FIXED)) {
-		if (unlikely(fd >= ctx->nr_user_files))
+		if (unlikely(fd >= ctx->file_table.data.nr))
 			return -EBADF;
-		fd = array_index_nospec(fd, ctx->nr_user_files);
+		fd = array_index_nospec(fd, ctx->file_table.data.nr);
 		cd->file = io_file_from_index(&ctx->file_table, fd);
 		if (!cd->file)
 			return -EBADF;

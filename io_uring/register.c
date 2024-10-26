@@ -937,7 +937,8 @@ SYSCALL_DEFINE4(io_uring_register, unsigned int, fd, unsigned int, opcode,
 	mutex_lock(&ctx->uring_lock);
 	ret = __io_uring_register(ctx, opcode, arg, nr_args);
 	mutex_unlock(&ctx->uring_lock);
-	trace_io_uring_register(ctx, opcode, ctx->nr_user_files, ctx->nr_user_bufs, ret);
+	trace_io_uring_register(ctx, opcode, ctx->file_table.data.nr,
+				ctx->buf_table.nr, ret);
 	if (!use_registered_ring)
 		fput(file);
 	return ret;

@@ -52,7 +52,7 @@ static inline struct file *io_slot_file(struct io_rsrc_node *node)
 static inline struct file *io_file_from_index(struct io_file_table *table,
 					      int index)
 {
-	struct io_rsrc_node *node = table->nodes[index];
+	struct io_rsrc_node *node = table->data.nodes[index];
 
 	if (node)
 		return io_slot_file(node);

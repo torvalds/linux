@@ -66,9 +66,9 @@ int io_nop(struct io_kiocb *req, unsigned int issue_flags)
 
 		ret = -EFAULT;
 		io_ring_submit_lock(ctx, issue_flags);
-		if (nop->buffer < ctx->nr_user_bufs) {
-			idx = array_index_nospec(nop->buffer, ctx->nr_user_bufs);
-			node = READ_ONCE(ctx->user_bufs[idx]);
+		if (nop->buffer < ctx->buf_table.nr) {
+			idx = array_index_nospec(nop->buffer, ctx->buf_table.nr);
+			node = READ_ONCE(ctx->buf_table.nodes[idx]);
 			io_req_assign_rsrc_node(req, node);
 			ret = 0;
 		}

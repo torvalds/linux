@@ -165,8 +165,8 @@ __cold void io_uring_show_fdinfo(struct seq_file *m, struct file *file)
 	seq_printf(m, "SqThreadCpu:\t%d\n", sq_cpu);
 	seq_printf(m, "SqTotalTime:\t%llu\n", sq_total_time);
 	seq_printf(m, "SqWorkTime:\t%llu\n", sq_work_time);
-	seq_printf(m, "UserFiles:\t%u\n", ctx->nr_user_files);
-	for (i = 0; has_lock && i < ctx->nr_user_files; i++) {
+	seq_printf(m, "UserFiles:\t%u\n", ctx->file_table.data.nr);
+	for (i = 0; has_lock && i < ctx->file_table.data.nr; i++) {
 		struct file *f = io_file_from_index(&ctx->file_table, i);
 
 		if (f)
@@ -174,9 +174,9 @@ __cold void io_uring_show_fdinfo(struct seq_file *m, struct file *file)
 		else
 			seq_printf(m, "%5u: <none>\n", i);
 	}
-	seq_printf(m, "UserBufs:\t%u\n", ctx->nr_user_bufs);
-	for (i = 0; has_lock && i < ctx->nr_user_bufs; i++) {
-		struct io_mapped_ubuf *buf = ctx->user_bufs[i]->buf;
+	seq_printf(m, "UserBufs:\t%u\n", ctx->buf_table.nr);
+	for (i = 0; has_lock && i < ctx->buf_table.nr; i++) {
+		struct io_mapped_ubuf *buf = ctx->buf_table.nodes[i]->buf;
 
 		seq_printf(m, "%5u: 0x%llx/%u\n", i, buf->ubuf, buf->len);
 	}

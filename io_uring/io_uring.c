@@ -1879,11 +1879,10 @@ inline struct file *io_file_get_fixed(struct io_kiocb *req, int fd,
 	struct file *file = NULL;
 
 	io_ring_submit_lock(ctx, issue_flags);
-
-	if (unlikely((unsigned int)fd >= ctx->nr_user_files))
+	if (unlikely((unsigned int)fd >= ctx->file_table.data.nr))
 		goto out;
-	fd = array_index_nospec(fd, ctx->nr_user_files);
-	node = ctx->file_table.nodes[fd];
+	fd = array_index_nospec(fd, ctx->file_table.data.nr);
+	node = ctx->file_table.data.nodes[fd];
 	if (node) {
 		io_req_assign_rsrc_node(req, node);
 		req->flags |= io_slot_flags(node);
