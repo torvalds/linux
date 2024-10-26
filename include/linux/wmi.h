@@ -34,7 +34,7 @@ struct wmi_device {
  *
  * Cast a struct device to a struct wmi_device.
  */
-#define to_wmi_device(device)	container_of(device, struct wmi_device, dev)
+#define to_wmi_device(device)	container_of_const(device, struct wmi_device, dev)
 
 extern acpi_status wmidev_evaluate_method(struct wmi_device *wdev,
 					  u8 instance, u32 method_id,

@@ -91,7 +91,6 @@ static const struct acpi_device_id wmi_device_ids[] = {
 MODULE_DEVICE_TABLE(acpi, wmi_device_ids);
 
 #define dev_to_wblock(__dev)	container_of_const(__dev, struct wmi_block, dev.dev)
-#define dev_to_wdev(__dev)	container_of_const(__dev, struct wmi_device, dev)
 
 /*
  * GUID parsing functions
@@ -199,7 +198,7 @@ static struct wmi_device *wmi_find_device_by_guid(const char *guid_string)
 	if (!dev)
 		return ERR_PTR(-ENODEV);
 
-	return dev_to_wdev(dev);
+	return to_wmi_device(dev);
 }
 
 static void wmi_device_put(struct wmi_device *wdev)
@@ -761,7 +760,7 @@ static DEVICE_ATTR_RO(object_id);
 static ssize_t setable_show(struct device *dev, struct device_attribute *attr,
 			    char *buf)
 {
-	struct wmi_device *wdev = dev_to_wdev(dev);
+	struct wmi_device *wdev = to_wmi_device(dev);
 
 	return sysfs_emit(buf, "%d\n", (int)wdev->setable);
 }
@@ -851,7 +850,7 @@ static int wmi_dev_probe(struct device *dev)
 		dev_warn(dev, "failed to enable device -- probing anyway\n");
 
 	if (wdriver->probe) {
-		ret = wdriver->probe(dev_to_wdev(dev),
+		ret = wdriver->probe(to_wmi_device(dev),
 				find_guid_context(wblock, wdriver));
 		if (ret) {
 			if (ACPI_FAILURE(wmi_method_enable(wblock, false)))
@@ -878,7 +877,7 @@ static void wmi_dev_remove(struct device *dev)
 	up_write(&wblock->notify_lock);
 
 	if (wdriver->remove)
-		wdriver->remove(dev_to_wdev(dev));
+		wdriver->remove(to_wmi_device(dev));
 
 	if (ACPI_FAILURE(wmi_method_enable(wblock, false)))
 		dev_warn(dev, "failed to disable device\n");
