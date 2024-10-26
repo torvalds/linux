@@ -61,15 +61,15 @@ int io_nop(struct io_kiocb *req, unsigned int issue_flags)
 	}
 	if (nop->flags & IORING_NOP_FIXED_BUFFER) {
 		struct io_ring_ctx *ctx = req->ctx;
-		struct io_mapped_ubuf *imu;
+		struct io_rsrc_node *node;
 		int idx;
 
 		ret = -EFAULT;
 		io_ring_submit_lock(ctx, issue_flags);
 		if (nop->buffer < ctx->nr_user_bufs) {
 			idx = array_index_nospec(nop->buffer, ctx->nr_user_bufs);
-			imu = READ_ONCE(ctx->user_bufs[idx]);
-			io_req_set_rsrc_node(req, ctx);
+			node = READ_ONCE(ctx->user_bufs[idx]);
+			io_req_assign_rsrc_node(req, node);
 			ret = 0;
 		}
 		io_ring_submit_unlock(ctx, issue_flags);

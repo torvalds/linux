@@ -1342,15 +1342,15 @@ static int io_send_zc_import(struct io_kiocb *req, unsigned int issue_flags)
 
 	if (sr->flags & IORING_RECVSEND_FIXED_BUF) {
 		struct io_ring_ctx *ctx = req->ctx;
-		struct io_mapped_ubuf *imu;
+		struct io_rsrc_node *node;
 		int idx;
 
 		ret = -EFAULT;
 		io_ring_submit_lock(ctx, issue_flags);
 		if (sr->buf_index < ctx->nr_user_bufs) {
 			idx = array_index_nospec(sr->buf_index, ctx->nr_user_bufs);
-			imu = READ_ONCE(ctx->user_bufs[idx]);
-			io_req_set_rsrc_node(sr->notif, ctx);
+			node = ctx->user_bufs[idx];
+			io_req_assign_rsrc_node(sr->notif, node);
 			ret = 0;
 		}
 		io_ring_submit_unlock(ctx, issue_flags);
@@ -1358,8 +1358,9 @@ static int io_send_zc_import(struct io_kiocb *req, unsigned int issue_flags)
 		if (unlikely(ret))
 			return ret;
 
-		ret = io_import_fixed(ITER_SOURCE, &kmsg->msg.msg_iter, imu,
-					(u64)(uintptr_t)sr->buf, sr->len);
+		ret = io_import_fixed(ITER_SOURCE, &kmsg->msg.msg_iter,
+					node->buf, (u64)(uintptr_t)sr->buf,
+					sr->len);
 		if (unlikely(ret))
 			return ret;
 		kmsg->msg.sg_from_iter = io_sg_from_iter;

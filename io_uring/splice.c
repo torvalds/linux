@@ -51,7 +51,7 @@ void io_splice_cleanup(struct io_kiocb *req)
 {
 	struct io_splice *sp = io_kiocb_to_cmd(req, struct io_splice);
 
-	io_put_rsrc_node(req->ctx, sp->rsrc_node);
+	io_put_rsrc_node(sp->rsrc_node);
 }
 
 static struct file *io_splice_get_file(struct io_kiocb *req,
@@ -59,7 +59,7 @@ static struct file *io_splice_get_file(struct io_kiocb *req,
 {
 	struct io_splice *sp = io_kiocb_to_cmd(req, struct io_splice);
 	struct io_ring_ctx *ctx = req->ctx;
-	struct io_fixed_file *slot;
+	struct io_rsrc_node *node;
 	struct file *file = NULL;
 
 	if (!(sp->flags & SPLICE_F_FD_IN_FIXED))
@@ -69,11 +69,13 @@ static struct file *io_splice_get_file(struct io_kiocb *req,
 	if (unlikely(sp->splice_fd_in >= ctx->nr_user_files))
 		goto out;
 	sp->splice_fd_in = array_index_nospec(sp->splice_fd_in, ctx->nr_user_files);
-	slot = &ctx->file_table.files[sp->splice_fd_in];
-	if (!req->rsrc_node)
-		__io_req_set_rsrc_node(req, ctx);
-	file = io_slot_file(slot);
-	req->flags |= REQ_F_NEED_CLEANUP;
+	node = ctx->file_table.nodes[sp->splice_fd_in];
+	if (node) {
+		node->refs++;
+		sp->rsrc_node = node;
+		file = io_slot_file(node);
+		req->flags |= REQ_F_NEED_CLEANUP;
+	}
 out:
 	io_ring_submit_unlock(ctx, issue_flags);
 	return file;

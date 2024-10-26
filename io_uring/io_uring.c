@@ -333,7 +333,6 @@ static __cold struct io_ring_ctx *io_ring_ctx_alloc(struct io_uring_params *p)
 	mutex_init(&ctx->uring_lock);
 	init_waitqueue_head(&ctx->cq_wait);
 	init_waitqueue_head(&ctx->poll_wq);
-	init_waitqueue_head(&ctx->rsrc_quiesce_wq);
 	spin_lock_init(&ctx->completion_lock);
 	spin_lock_init(&ctx->timeout_lock);
 	INIT_WQ_LIST(&ctx->iopoll_list);
@@ -341,7 +340,6 @@ static __cold struct io_ring_ctx *io_ring_ctx_alloc(struct io_uring_params *p)
 	INIT_LIST_HEAD(&ctx->defer_list);
 	INIT_LIST_HEAD(&ctx->timeout_list);
 	INIT_LIST_HEAD(&ctx->ltimeout_list);
-	INIT_LIST_HEAD(&ctx->rsrc_ref_list);
 	init_llist_head(&ctx->work_llist);
 	INIT_LIST_HEAD(&ctx->tctx_list);
 	ctx->submit_state.free_list.next = NULL;
@@ -1415,7 +1413,7 @@ static void io_free_batch_list(struct io_ring_ctx *ctx,
 				io_clean_op(req);
 		}
 		io_put_file(req);
-		io_put_rsrc_node(ctx, req->rsrc_node);
+		io_req_put_rsrc_nodes(req);
 		io_put_task(req->task);
 
 		node = req->comp_list.next;
@@ -1878,7 +1876,7 @@ inline struct file *io_file_get_fixed(struct io_kiocb *req, int fd,
 				      unsigned int issue_flags)
 {
 	struct io_ring_ctx *ctx = req->ctx;
-	struct io_fixed_file *slot;
+	struct io_rsrc_node *node;
 	struct file *file = NULL;
 
 	io_ring_submit_lock(ctx, issue_flags);
@@ -1886,11 +1884,12 @@ inline struct file *io_file_get_fixed(struct io_kiocb *req, int fd,
 	if (unlikely((unsigned int)fd >= ctx->nr_user_files))
 		goto out;
 	fd = array_index_nospec(fd, ctx->nr_user_files);
-	slot = io_fixed_file_slot(&ctx->file_table, fd);
-	if (!req->rsrc_node)
-		__io_req_set_rsrc_node(req, ctx);
-	req->flags |= io_slot_flags(slot);
-	file = io_slot_file(slot);
+	node = ctx->file_table.nodes[fd];
+	if (node) {
+		io_req_assign_rsrc_node(req, node);
+		req->flags |= io_slot_flags(node);
+		file = io_slot_file(node);
+	}
 out:
 	io_ring_submit_unlock(ctx, issue_flags);
 	return file;
@@ -2036,7 +2035,8 @@ static int io_init_req(struct io_ring_ctx *ctx, struct io_kiocb *req,
 	req->flags = (__force io_req_flags_t) sqe_flags;
 	req->cqe.user_data = READ_ONCE(sqe->user_data);
 	req->file = NULL;
-	req->rsrc_node = NULL;
+	req->rsrc_nodes[IORING_RSRC_FILE] = NULL;
+	req->rsrc_nodes[IORING_RSRC_BUFFER] = NULL;
 	req->task = current;
 	req->cancel_seq_set = false;
 
@@ -2718,15 +2718,10 @@ static void io_req_caches_free(struct io_ring_ctx *ctx)
 static __cold void io_ring_ctx_free(struct io_ring_ctx *ctx)
 {
 	io_sq_thread_finish(ctx);
-	/* __io_rsrc_put_work() may need uring_lock to progress, wait w/o it */
-	if (WARN_ON_ONCE(!list_empty(&ctx->rsrc_ref_list)))
-		return;
 
 	mutex_lock(&ctx->uring_lock);
-	if (ctx->buf_data)
-		__io_sqe_buffers_unregister(ctx);
-	if (ctx->file_data)
-		__io_sqe_files_unregister(ctx);
+	io_sqe_buffers_unregister(ctx);
+	io_sqe_files_unregister(ctx);
 	io_cqring_overflow_kill(ctx);
 	io_eventfd_unregister(ctx);
 	io_alloc_cache_free(&ctx->apoll_cache, kfree);
@@ -2743,11 +2738,6 @@ static __cold void io_ring_ctx_free(struct io_ring_ctx *ctx)
 	if (ctx->submitter_task)
 		put_task_struct(ctx->submitter_task);
 
-	/* there are no registered resources left, nobody uses it */
-	if (ctx->rsrc_node)
-		io_rsrc_node_destroy(ctx, ctx->rsrc_node);
-
-	WARN_ON_ONCE(!list_empty(&ctx->rsrc_ref_list));
 	WARN_ON_ONCE(!list_empty(&ctx->ltimeout_list));
 
 	io_alloc_cache_free(&ctx->rsrc_node_cache, kfree);
@@ -3726,10 +3716,6 @@ static __cold int io_uring_create(unsigned entries, struct io_uring_params *p,
 		p->sq_off.array = (char *)ctx->sq_array - (char *)ctx->rings;
 
 	ret = io_sq_offload_create(ctx, p);
-	if (ret)
-		goto err;
-
-	ret = io_rsrc_init(ctx);
 	if (ret)
 		goto err;
 

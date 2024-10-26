@@ -34,36 +34,35 @@ static inline void io_file_bitmap_set(struct io_file_table *table, int bit)
 	table->alloc_hint = bit + 1;
 }
 
-static inline struct io_fixed_file *
-io_fixed_file_slot(struct io_file_table *table, unsigned i)
-{
-	return &table->files[i];
-}
-
 #define FFS_NOWAIT		0x1UL
 #define FFS_ISREG		0x2UL
 #define FFS_MASK		~(FFS_NOWAIT|FFS_ISREG)
 
-static inline unsigned int io_slot_flags(struct io_fixed_file *slot)
+static inline unsigned int io_slot_flags(struct io_rsrc_node *node)
 {
-	return (slot->file_ptr & ~FFS_MASK) << REQ_F_SUPPORT_NOWAIT_BIT;
+
+	return (node->file_ptr & ~FFS_MASK) << REQ_F_SUPPORT_NOWAIT_BIT;
 }
 
-static inline struct file *io_slot_file(struct io_fixed_file *slot)
+static inline struct file *io_slot_file(struct io_rsrc_node *node)
 {
-	return (struct file *)(slot->file_ptr & FFS_MASK);
+	return (struct file *)(node->file_ptr & FFS_MASK);
 }
 
 static inline struct file *io_file_from_index(struct io_file_table *table,
 					      int index)
 {
-	return io_slot_file(io_fixed_file_slot(table, index));
+	struct io_rsrc_node *node = table->nodes[index];
+
+	if (node)
+		return io_slot_file(node);
+	return NULL;
 }
 
-static inline void io_fixed_file_set(struct io_fixed_file *file_slot,
+static inline void io_fixed_file_set(struct io_rsrc_node *node,
 				     struct file *file)
 {
-	file_slot->file_ptr = (unsigned long)file |
+	node->file_ptr = (unsigned long)file |
 		(io_file_get_flags(file) >> REQ_F_SUPPORT_NOWAIT_BIT);
 }
 

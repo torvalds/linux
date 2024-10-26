@@ -56,7 +56,7 @@ struct io_wq_work {
 };
 
 struct io_file_table {
-	struct io_fixed_file *files;
+	struct io_rsrc_node **nodes;
 	unsigned long *bitmap;
 	unsigned int alloc_hint;
 };
@@ -264,7 +264,6 @@ struct io_ring_ctx {
 		 * Fixed resources fast path, should be accessed only under
 		 * uring_lock, and updated through io_uring_register(2)
 		 */
-		struct io_rsrc_node	*rsrc_node;
 		atomic_t		cancel_seq;
 
 		/*
@@ -277,7 +276,7 @@ struct io_ring_ctx {
 		struct io_wq_work_list	iopoll_list;
 
 		struct io_file_table	file_table;
-		struct io_mapped_ubuf	**user_bufs;
+		struct io_rsrc_node	**user_bufs;
 		unsigned		nr_user_files;
 		unsigned		nr_user_bufs;
 
@@ -372,10 +371,7 @@ struct io_ring_ctx {
 	struct io_rsrc_data		*buf_data;
 
 	/* protected by ->uring_lock */
-	struct list_head		rsrc_ref_list;
 	struct io_alloc_cache		rsrc_node_cache;
-	struct wait_queue_head		rsrc_quiesce_wq;
-	unsigned			rsrc_quiesce;
 
 	u32			pers_next;
 	struct xarray		personalities;
@@ -642,7 +638,7 @@ struct io_kiocb {
 		__poll_t apoll_events;
 	};
 
-	struct io_rsrc_node		*rsrc_node;
+	struct io_rsrc_node		*rsrc_nodes[2];
 
 	atomic_t			refs;
 	bool				cancel_seq_set;

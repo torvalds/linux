@@ -38,14 +38,14 @@ static int io_file_bitmap_get(struct io_ring_ctx *ctx)
 
 bool io_alloc_file_tables(struct io_file_table *table, unsigned nr_files)
 {
-	table->files = kvcalloc(nr_files, sizeof(table->files[0]),
-				GFP_KERNEL_ACCOUNT);
-	if (unlikely(!table->files))
+	table->nodes = kvmalloc_array(nr_files, sizeof(struct io_src_node *),
+					GFP_KERNEL_ACCOUNT | __GFP_ZERO);
+	if (unlikely(!table->nodes))
 		return false;
 
 	table->bitmap = bitmap_zalloc(nr_files, GFP_KERNEL_ACCOUNT);
 	if (unlikely(!table->bitmap)) {
-		kvfree(table->files);
+		kvfree(table->nodes);
 		return false;
 	}
 
@@ -54,9 +54,9 @@ bool io_alloc_file_tables(struct io_file_table *table, unsigned nr_files)
 
 void io_free_file_tables(struct io_file_table *table)
 {
-	kvfree(table->files);
+	kvfree(table->nodes);
 	bitmap_free(table->bitmap);
-	table->files = NULL;
+	table->nodes = NULL;
 	table->bitmap = NULL;
 }
 
@@ -64,8 +64,7 @@ static int io_install_fixed_file(struct io_ring_ctx *ctx, struct file *file,
 				 u32 slot_index)
 	__must_hold(&req->ctx->uring_lock)
 {
-	struct io_fixed_file *file_slot;
-	int ret;
+	struct io_rsrc_node *node;
 
 	if (io_is_uring_fops(file))
 		return -EBADF;
@@ -74,22 +73,18 @@ static int io_install_fixed_file(struct io_ring_ctx *ctx, struct file *file,
 	if (slot_index >= ctx->nr_user_files)
 		return -EINVAL;
 
+	node = io_rsrc_node_alloc(ctx, IORING_RSRC_FILE);
+	if (!node)
+		return -ENOMEM;
+
 	slot_index = array_index_nospec(slot_index, ctx->nr_user_files);
-	file_slot = io_fixed_file_slot(&ctx->file_table, slot_index);
-
-	if (file_slot->file_ptr) {
-		ret = io_queue_rsrc_removal(ctx->file_data, slot_index,
-					    io_slot_file(file_slot));
-		if (ret)
-			return ret;
-
-		file_slot->file_ptr = 0;
-	} else {
+	if (ctx->file_table.nodes[slot_index])
+		io_put_rsrc_node(ctx->file_table.nodes[slot_index]);
+	else
 		io_file_bitmap_set(&ctx->file_table, slot_index);
-	}
 
-	*io_get_tag_slot(ctx->file_data, slot_index) = 0;
-	io_fixed_file_set(file_slot, file);
+	ctx->file_table.nodes[slot_index] = node;
+	io_fixed_file_set(node, file);
 	return 0;
 }
 
@@ -134,25 +129,16 @@ int io_fixed_fd_install(struct io_kiocb *req, unsigned int issue_flags,
 
 int io_fixed_fd_remove(struct io_ring_ctx *ctx, unsigned int offset)
 {
-	struct io_fixed_file *file_slot;
-	int ret;
-
 	if (unlikely(!ctx->file_data))
 		return -ENXIO;
 	if (offset >= ctx->nr_user_files)
 		return -EINVAL;
 
 	offset = array_index_nospec(offset, ctx->nr_user_files);
-	file_slot = io_fixed_file_slot(&ctx->file_table, offset);
-	if (!file_slot->file_ptr)
+	if (!ctx->file_table.nodes[offset])
 		return -EBADF;
-
-	ret = io_queue_rsrc_removal(ctx->file_data, offset,
-				    io_slot_file(file_slot));
-	if (ret)
-		return ret;
-
-	file_slot->file_ptr = 0;
+	io_put_rsrc_node(ctx->file_table.nodes[offset]);
+	ctx->file_table.nodes[offset] = NULL;
 	io_file_bitmap_clear(&ctx->file_table, offset);
 	return 0;
 }
