@@ -691,11 +691,6 @@ u32 dispc_mgr_get_sync_lost_irq(struct dispc_device *dispc,
 	return mgr_desc[channel].sync_lost_irq;
 }
 
-u32 dispc_wb_get_framedone_irq(struct dispc_device *dispc)
-{
-	return DISPC_IRQ_FRAMEDONEWB;
-}
-
 void dispc_mgr_enable(struct dispc_device *dispc,
 			     enum omap_channel channel, bool enable)
 {
@@ -724,30 +719,6 @@ void dispc_mgr_go(struct dispc_device *dispc, enum omap_channel channel)
 	DSSDBG("GO %s\n", mgr_desc[channel].name);
 
 	mgr_fld_write(dispc, channel, DISPC_MGR_FLD_GO, 1);
-}
-
-bool dispc_wb_go_busy(struct dispc_device *dispc)
-{
-	return REG_GET(dispc, DISPC_CONTROL2, 6, 6) == 1;
-}
-
-void dispc_wb_go(struct dispc_device *dispc)
-{
-	enum omap_plane_id plane = OMAP_DSS_WB;
-	bool enable, go;
-
-	enable = REG_GET(dispc, DISPC_OVL_ATTRIBUTES(plane), 0, 0) == 1;
-
-	if (!enable)
-		return;
-
-	go = REG_GET(dispc, DISPC_CONTROL2, 6, 6) == 1;
-	if (go) {
-		DSSERR("GO bit not down for WB\n");
-		return;
-	}
-
-	REG_FLD_MOD(dispc, DISPC_CONTROL2, 1, 6, 6);
 }
 
 static void dispc_ovl_write_firh_reg(struct dispc_device *dispc,
@@ -1496,17 +1467,6 @@ void dispc_ovl_set_fifo_threshold(struct dispc_device *dispc,
 	    dispc->feat->set_max_preload && plane != OMAP_DSS_WB)
 		dispc_write_reg(dispc, DISPC_OVL_PRELOAD(plane),
 				min(high, 0xfffu));
-}
-
-void dispc_enable_fifomerge(struct dispc_device *dispc, bool enable)
-{
-	if (!dispc_has_feature(dispc, FEAT_FIFO_MERGE)) {
-		WARN_ON(enable);
-		return;
-	}
-
-	DSSDBG("FIFO merge %s\n", enable ? "enabled" : "disabled");
-	REG_FLD_MOD(dispc, DISPC_CONFIG, enable ? 1 : 0, 14, 14);
 }
 
 void dispc_ovl_compute_fifo_thresholds(struct dispc_device *dispc,
@@ -2814,95 +2774,6 @@ int dispc_ovl_setup(struct dispc_device *dispc,
 	return r;
 }
 
-int dispc_wb_setup(struct dispc_device *dispc,
-		   const struct omap_dss_writeback_info *wi,
-		   bool mem_to_mem, const struct videomode *vm,
-		   enum dss_writeback_channel channel_in)
-{
-	int r;
-	u32 l;
-	enum omap_plane_id plane = OMAP_DSS_WB;
-	const int pos_x = 0, pos_y = 0;
-	const u8 zorder = 0, global_alpha = 0;
-	const bool replication = true;
-	bool truncation;
-	int in_width = vm->hactive;
-	int in_height = vm->vactive;
-	enum omap_overlay_caps caps =
-		OMAP_DSS_OVL_CAP_SCALE | OMAP_DSS_OVL_CAP_PRE_MULT_ALPHA;
-
-	if (vm->flags & DISPLAY_FLAGS_INTERLACED)
-		in_height /= 2;
-
-	DSSDBG("dispc_wb_setup, pa %x, pa_uv %x, %d,%d -> %dx%d, cmode %x, "
-		"rot %d\n", wi->paddr, wi->p_uv_addr, in_width,
-		in_height, wi->width, wi->height, wi->fourcc, wi->rotation);
-
-	r = dispc_ovl_setup_common(dispc, plane, caps, wi->paddr, wi->p_uv_addr,
-		wi->buf_width, pos_x, pos_y, in_width, in_height, wi->width,
-		wi->height, wi->fourcc, wi->rotation, zorder,
-		wi->pre_mult_alpha, global_alpha, wi->rotation_type,
-		replication, vm, mem_to_mem, DRM_COLOR_YCBCR_BT601,
-		DRM_COLOR_YCBCR_LIMITED_RANGE);
-	if (r)
-		return r;
-
-	switch (wi->fourcc) {
-	case DRM_FORMAT_RGB565:
-	case DRM_FORMAT_RGB888:
-	case DRM_FORMAT_ARGB4444:
-	case DRM_FORMAT_RGBA4444:
-	case DRM_FORMAT_RGBX4444:
-	case DRM_FORMAT_ARGB1555:
-	case DRM_FORMAT_XRGB1555:
-	case DRM_FORMAT_XRGB4444:
-		truncation = true;
-		break;
-	default:
-		truncation = false;
-		break;
-	}
-
-	/* setup extra DISPC_WB_ATTRIBUTES */
-	l = dispc_read_reg(dispc, DISPC_OVL_ATTRIBUTES(plane));
-	l = FLD_MOD(l, truncation, 10, 10);	/* TRUNCATIONENABLE */
-	l = FLD_MOD(l, channel_in, 18, 16);	/* CHANNELIN */
-	l = FLD_MOD(l, mem_to_mem, 19, 19);	/* WRITEBACKMODE */
-	if (mem_to_mem)
-		l = FLD_MOD(l, 1, 26, 24);	/* CAPTUREMODE */
-	else
-		l = FLD_MOD(l, 0, 26, 24);	/* CAPTUREMODE */
-	dispc_write_reg(dispc, DISPC_OVL_ATTRIBUTES(plane), l);
-
-	if (mem_to_mem) {
-		/* WBDELAYCOUNT */
-		REG_FLD_MOD(dispc, DISPC_OVL_ATTRIBUTES2(plane), 0, 7, 0);
-	} else {
-		u32 wbdelay;
-
-		if (channel_in == DSS_WB_TV_MGR)
-			wbdelay = vm->vsync_len + vm->vback_porch;
-		else
-			wbdelay = vm->vfront_porch + vm->vsync_len +
-				vm->vback_porch;
-
-		if (vm->flags & DISPLAY_FLAGS_INTERLACED)
-			wbdelay /= 2;
-
-		wbdelay = min(wbdelay, 255u);
-
-		/* WBDELAYCOUNT */
-		REG_FLD_MOD(dispc, DISPC_OVL_ATTRIBUTES2(plane), wbdelay, 7, 0);
-	}
-
-	return 0;
-}
-
-bool dispc_has_writeback(struct dispc_device *dispc)
-{
-	return dispc->feat->has_writeback;
-}
-
 int dispc_ovl_enable(struct dispc_device *dispc,
 			    enum omap_plane_id plane, bool enable)
 {
@@ -3740,23 +3611,6 @@ void dispc_mgr_set_clock_div(struct dispc_device *dispc,
 
 	dispc_mgr_set_lcd_divisor(dispc, channel, cinfo->lck_div,
 				  cinfo->pck_div);
-}
-
-int dispc_mgr_get_clock_div(struct dispc_device *dispc,
-			    enum omap_channel channel,
-			    struct dispc_clock_info *cinfo)
-{
-	unsigned long fck;
-
-	fck = dispc_fclk_rate(dispc);
-
-	cinfo->lck_div = REG_GET(dispc, DISPC_DIVISORo(channel), 23, 16);
-	cinfo->pck_div = REG_GET(dispc, DISPC_DIVISORo(channel), 7, 0);
-
-	cinfo->lck = fck / cinfo->lck_div;
-	cinfo->pck = cinfo->lck / cinfo->pck_div;
-
-	return 0;
 }
 
 u32 dispc_read_irqstatus(struct dispc_device *dispc)
