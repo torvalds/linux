@@ -6123,6 +6123,10 @@ static int nl80211_start_ap(struct sk_buff *skb, struct genl_info *info)
 	    !info->attrs[NL80211_ATTR_BEACON_HEAD])
 		return -EINVAL;
 
+	if (info->attrs[NL80211_ATTR_SMPS_MODE] &&
+	    nla_get_u8(info->attrs[NL80211_ATTR_SMPS_MODE]) != NL80211_SMPS_OFF)
+		return -EOPNOTSUPP;
+
 	params = kzalloc(sizeof(*params), GFP_KERNEL);
 	if (!params)
 		return -ENOMEM;
@@ -6271,10 +6275,6 @@ static int nl80211_start_ap(struct sk_buff *skb, struct genl_info *info)
 		if (err)
 			goto out;
 	}
-
-	if (info->attrs[NL80211_ATTR_SMPS_MODE] &&
-	    nla_get_u8(info->attrs[NL80211_ATTR_SMPS_MODE]) != NL80211_SMPS_OFF)
-		return -EOPNOTSUPP;
 
 	params->pbss = nla_get_flag(info->attrs[NL80211_ATTR_PBSS]);
 	if (params->pbss && !rdev->wiphy.bands[NL80211_BAND_60GHZ]) {
