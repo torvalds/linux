@@ -534,6 +534,10 @@ zswpout
 	is incremented every time a huge page is swapped out to zswap in one
 	piece without splitting.
 
+swpin
+	is incremented every time a huge page is swapped in from a non-zswap
+	swap device in one piece.
+
 swpout
 	is incremented every time a huge page is swapped out to a non-zswap
 	swap device in one piece without splitting.
