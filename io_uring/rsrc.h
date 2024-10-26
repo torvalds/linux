@@ -81,8 +81,14 @@ static inline void io_put_rsrc_node(struct io_rsrc_node *node)
 
 static inline void io_req_put_rsrc_nodes(struct io_kiocb *req)
 {
-	io_put_rsrc_node(req->rsrc_nodes[IORING_RSRC_FILE]);
-	io_put_rsrc_node(req->rsrc_nodes[IORING_RSRC_BUFFER]);
+	if (req->rsrc_nodes[IORING_RSRC_FILE] != rsrc_empty_node) {
+		io_put_rsrc_node(req->rsrc_nodes[IORING_RSRC_FILE]);
+		req->rsrc_nodes[IORING_RSRC_FILE] = rsrc_empty_node;
+	}
+	if (req->rsrc_nodes[IORING_RSRC_BUFFER] != rsrc_empty_node) {
+		io_put_rsrc_node(req->rsrc_nodes[IORING_RSRC_BUFFER]);
+		req->rsrc_nodes[IORING_RSRC_BUFFER] = rsrc_empty_node;
+	}
 }
 
 static inline void io_req_assign_rsrc_node(struct io_kiocb *req,
