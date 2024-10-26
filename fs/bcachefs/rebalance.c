@@ -177,12 +177,28 @@ static struct bkey_s_c next_rebalance_extent(struct btree_trans *trans,
 	if (trace_rebalance_extent_enabled()) {
 		struct printbuf buf = PRINTBUF;
 
-		prt_str(&buf, "target=");
-		bch2_target_to_text(&buf, c, io_opts->background_target);
-		prt_str(&buf, " compression=");
-		bch2_compression_opt_to_text(&buf, io_opts->background_compression);
-		prt_str(&buf, " ");
 		bch2_bkey_val_to_text(&buf, c, k);
+		prt_newline(&buf);
+
+		struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
+
+		unsigned p = bch2_bkey_ptrs_need_compress(c, io_opts, k, ptrs);
+		if (p) {
+			prt_str(&buf, "compression=");
+			bch2_compression_opt_to_text(&buf, io_opts->background_compression);
+			prt_str(&buf, " ");
+			bch2_prt_u64_base2(&buf, p);
+			prt_newline(&buf);
+		}
+
+		p = bch2_bkey_ptrs_need_move(c, io_opts, ptrs);
+		if (p) {
+			prt_str(&buf, "move=");
+			bch2_target_to_text(&buf, c, io_opts->background_target);
+			prt_str(&buf, " ");
+			bch2_prt_u64_base2(&buf, p);
+			prt_newline(&buf);
+		}
 
 		trace_rebalance_extent(c, buf.buf);
 		printbuf_exit(&buf);

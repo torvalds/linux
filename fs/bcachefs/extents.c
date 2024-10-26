@@ -21,6 +21,7 @@
 #include "extents.h"
 #include "inode.h"
 #include "journal.h"
+#include "rebalance.h"
 #include "replicas.h"
 #include "super.h"
 #include "super-io.h"
@@ -1452,39 +1453,9 @@ unsigned bch2_bkey_ptrs_need_rebalance(struct bch_fs *c,
 				       struct bkey_s_c k)
 {
 	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
-	unsigned rewrite_ptrs = 0;
 
-	if (opts->background_compression) {
-		unsigned compression_type = bch2_compression_opt_to_type(opts->background_compression);
-		const union bch_extent_entry *entry;
-		struct extent_ptr_decoded p;
-		unsigned ptr_bit = 1;
-
-		bkey_for_each_ptr_decode(k.k, ptrs, p, entry) {
-			if (p.crc.compression_type == BCH_COMPRESSION_TYPE_incompressible ||
-			    p.ptr.unwritten) {
-				rewrite_ptrs = 0;
-				goto incompressible;
-			}
-
-			if (!p.ptr.cached && p.crc.compression_type != compression_type)
-				rewrite_ptrs |= ptr_bit;
-			ptr_bit <<= 1;
-		}
-	}
-incompressible:
-	if (opts->background_target &&
-	    bch2_target_accepts_data(c, BCH_DATA_user, opts->background_target)) {
-		unsigned ptr_bit = 1;
-
-		bkey_for_each_ptr(ptrs, ptr) {
-			if (!ptr->cached && !bch2_dev_in_target(c, ptr->dev, opts->background_target))
-				rewrite_ptrs |= ptr_bit;
-			ptr_bit <<= 1;
-		}
-	}
-
-	return rewrite_ptrs;
+	return bch2_bkey_ptrs_need_compress(c, opts, k, ptrs) |
+		bch2_bkey_ptrs_need_move(c, opts, ptrs);
 }
 
 u64 bch2_bkey_sectors_need_rebalance(struct bch_fs *c, struct bkey_s_c k)
