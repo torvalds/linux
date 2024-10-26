@@ -653,8 +653,6 @@ char *wmi_get_acpi_device_uid(const char *guid_string)
 }
 EXPORT_SYMBOL_GPL(wmi_get_acpi_device_uid);
 
-#define drv_to_wdrv(__drv)	container_of_const(__drv, struct wmi_driver, driver)
-
 /*
  * sysfs interface
  */
@@ -802,7 +800,7 @@ static void wmi_dev_release(struct device *dev)
 
 static int wmi_dev_match(struct device *dev, const struct device_driver *driver)
 {
-	const struct wmi_driver *wmi_driver = drv_to_wdrv(driver);
+	const struct wmi_driver *wmi_driver = to_wmi_driver(driver);
 	struct wmi_block *wblock = dev_to_wblock(dev);
 	const struct wmi_device_id *id = wmi_driver->id_table;
 
@@ -826,7 +824,7 @@ static int wmi_dev_match(struct device *dev, const struct device_driver *driver)
 static int wmi_dev_probe(struct device *dev)
 {
 	struct wmi_block *wblock = dev_to_wblock(dev);
-	struct wmi_driver *wdriver = drv_to_wdrv(dev->driver);
+	struct wmi_driver *wdriver = to_wmi_driver(dev->driver);
 	int ret = 0;
 
 	/* Some older WMI drivers will break if instantiated multiple times,
@@ -870,7 +868,7 @@ static int wmi_dev_probe(struct device *dev)
 static void wmi_dev_remove(struct device *dev)
 {
 	struct wmi_block *wblock = dev_to_wblock(dev);
-	struct wmi_driver *wdriver = drv_to_wdrv(dev->driver);
+	struct wmi_driver *wdriver = to_wmi_driver(dev->driver);
 
 	down_write(&wblock->notify_lock);
 	wblock->driver_ready = false;
@@ -889,7 +887,7 @@ static void wmi_dev_shutdown(struct device *dev)
 	struct wmi_block *wblock;
 
 	if (dev->driver) {
-		wdriver = drv_to_wdrv(dev->driver);
+		wdriver = to_wmi_driver(dev->driver);
 		wblock = dev_to_wblock(dev);
 
 		/*
@@ -1173,7 +1171,7 @@ static int wmi_get_notify_data(struct wmi_block *wblock, union acpi_object **obj
 
 static void wmi_notify_driver(struct wmi_block *wblock, union acpi_object *obj)
 {
-	struct wmi_driver *driver = drv_to_wdrv(wblock->dev.dev.driver);
+	struct wmi_driver *driver = to_wmi_driver(wblock->dev.dev.driver);
 
 	if (!obj && !driver->no_notify_data) {
 		dev_warn(&wblock->dev.dev, "Event contains no event data\n");

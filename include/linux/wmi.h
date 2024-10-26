@@ -73,6 +73,14 @@ struct wmi_driver {
 	void (*notify)(struct wmi_device *device, union acpi_object *data);
 };
 
+/**
+ * to_wmi_driver() - Helper macro to cast a driver to a wmi_driver
+ * @drv: driver struct
+ *
+ * Cast a struct device_driver to a struct wmi_driver.
+ */
+#define to_wmi_driver(drv)	container_of_const(drv, struct wmi_driver, driver)
+
 extern int __must_check __wmi_driver_register(struct wmi_driver *driver,
 					      struct module *owner);
 extern void wmi_driver_unregister(struct wmi_driver *driver);
