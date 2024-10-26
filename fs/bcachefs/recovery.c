@@ -1001,6 +1001,7 @@ int bch2_fs_initialize(struct bch_fs *c)
 	struct bch_inode_unpacked root_inode, lostfound_inode;
 	struct bkey_inode_buf packed_inode;
 	struct qstr lostfound = QSTR("lost+found");
+	struct bch_member *m;
 	int ret;
 
 	bch_notice(c, "initializing new filesystem");
@@ -1017,6 +1018,14 @@ int bch2_fs_initialize(struct bch_fs *c)
 		SET_BCH_SB_VERSION_UPGRADE_COMPLETE(c->disk_sb.sb, bcachefs_metadata_version_current);
 		bch2_write_super(c);
 	}
+
+	for_each_member_device(c, ca) {
+		m = bch2_members_v2_get_mut(c->disk_sb.sb, ca->dev_idx);
+		SET_BCH_MEMBER_FREESPACE_INITIALIZED(m, false);
+		ca->mi = bch2_mi_to_cpu(m);
+	}
+
+	bch2_write_super(c);
 	mutex_unlock(&c->sb_lock);
 
 	c->curr_recovery_pass = BCH_RECOVERY_PASS_NR;
