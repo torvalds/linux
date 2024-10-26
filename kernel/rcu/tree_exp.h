@@ -722,6 +722,7 @@ static void rcu_exp_sel_wait_wake(unsigned long s)
 /* Request an expedited quiescent state. */
 static void rcu_exp_need_qs(void)
 {
+	lockdep_assert_irqs_disabled();
 	ASSERT_EXCLUSIVE_WRITER_SCOPED(*this_cpu_ptr(&rcu_data.cpu_no_qs.b.exp));
 	__this_cpu_write(rcu_data.cpu_no_qs.b.exp, true);
 	/* Store .exp before .rcu_urgent_qs. */
