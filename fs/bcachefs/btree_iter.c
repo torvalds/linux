@@ -2575,6 +2575,26 @@ static struct bkey_s_c __bch2_btree_iter_peek_prev(struct btree_iter *iter, stru
  */
 struct bkey_s_c bch2_btree_iter_peek_prev_min(struct btree_iter *iter, struct bpos end)
 {
+	if ((iter->flags & (BTREE_ITER_is_extents|BTREE_ITER_filter_snapshots)) &&
+	   !bkey_eq(iter->pos, POS_MAX)) {
+		/*
+		 * bkey_start_pos(), for extents, is not monotonically
+		 * increasing until after filtering for snapshots:
+		 *
+		 * Thus, for extents we need to search forward until we find a
+		 * real visible extents - easiest to just use peek_slot() (which
+		 * internally uses peek() for extents)
+		 */
+		struct bkey_s_c k = bch2_btree_iter_peek_slot(iter);
+		if (bkey_err(k))
+			return k;
+
+		if (!bkey_deleted(k.k) &&
+		    (!(iter->flags & BTREE_ITER_is_extents) ||
+		     bkey_lt(bkey_start_pos(k.k), iter->pos)))
+			return k;
+	}
+
 	struct btree_trans *trans = iter->trans;
 	struct bpos search_key = iter->pos;
 	struct bkey_s_c k;
@@ -2583,9 +2603,6 @@ struct bkey_s_c bch2_btree_iter_peek_prev_min(struct btree_iter *iter, struct bp
 	bch2_trans_verify_not_unlocked_or_in_restart(trans);
 	bch2_btree_iter_verify_entry_exit(iter);
 	EBUG_ON((iter->flags & BTREE_ITER_filter_snapshots) && bpos_eq(end, POS_MIN));
-
-	if (iter->flags & BTREE_ITER_filter_snapshots)
-		search_key.snapshot = U32_MAX;
 
 	while (1) {
 		k = __bch2_btree_iter_peek_prev(iter, search_key);
