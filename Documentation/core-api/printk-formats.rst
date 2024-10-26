@@ -236,6 +236,19 @@ width of the CPU data path.
 
 Passed by reference.
 
+Struct Range
+------------
+
+::
+
+	%pra    [range 0x0000000060000000-0x000000006fffffff] or
+		[range 0x0000000060000000]
+
+For printing struct range.  struct range holds an arbitrary range of u64
+values.  If start is equal to end only print the start value.
+
+Passed by reference.
+
 DMA address types dma_addr_t
 ----------------------------
 

@@ -433,6 +433,22 @@ struct_resource(void)
 }
 
 static void __init
+struct_range(void)
+{
+	struct range test_range = DEFINE_RANGE(0xc0ffee00ba5eba11,
+					       0xc0ffee00ba5eba11);
+	test("[range 0xc0ffee00ba5eba11]", "%pra", &test_range);
+
+	test_range = DEFINE_RANGE(0xc0ffee, 0xba5eba11);
+	test("[range 0x0000000000c0ffee-0x00000000ba5eba11]",
+	     "%pra", &test_range);
+
+	test_range = DEFINE_RANGE(0xba5eba11, 0xc0ffee);
+	test("[range 0x00000000ba5eba11-0x0000000000c0ffee]",
+	     "%pra", &test_range);
+}
+
+static void __init
 addr(void)
 {
 }
@@ -807,6 +823,7 @@ test_pointer(void)
 	symbol_ptr();
 	kernel_ptr();
 	struct_resource();
+	struct_range();
 	addr();
 	escaped_str();
 	hex_string();
