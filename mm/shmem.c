@@ -3288,11 +3288,16 @@ static ssize_t shmem_file_splice_read(struct file *in, loff_t *ppos,
 	len = min_t(size_t, len, npages * PAGE_SIZE);
 
 	do {
+		bool fallback_page_splice = false;
+		struct page *page = NULL;
+		pgoff_t index;
+		size_t size;
+
 		if (*ppos >= i_size_read(inode))
 			break;
 
-		error = shmem_get_folio(inode, *ppos / PAGE_SIZE, 0, &folio,
-					SGP_READ);
+		index = *ppos >> PAGE_SHIFT;
+		error = shmem_get_folio(inode, index, 0, &folio, SGP_READ);
 		if (error) {
 			if (error == -EINVAL)
 				error = 0;
@@ -3301,12 +3306,15 @@ static ssize_t shmem_file_splice_read(struct file *in, loff_t *ppos,
 		if (folio) {
 			folio_unlock(folio);
 
-			if (folio_test_hwpoison(folio) ||
-			    (folio_test_large(folio) &&
-			     folio_test_has_hwpoisoned(folio))) {
+			page = folio_file_page(folio, index);
+			if (PageHWPoison(page)) {
 				error = -EIO;
 				break;
 			}
+
+			if (folio_test_large(folio) &&
+			    folio_test_has_hwpoisoned(folio))
+				fallback_page_splice = true;
 		}
 
 		/*
@@ -3320,7 +3328,17 @@ static ssize_t shmem_file_splice_read(struct file *in, loff_t *ppos,
 		isize = i_size_read(inode);
 		if (unlikely(*ppos >= isize))
 			break;
-		part = min_t(loff_t, isize - *ppos, len);
+		/*
+		 * Fallback to PAGE_SIZE splice if the large folio has hwpoisoned
+		 * pages.
+		 */
+		size = len;
+		if (unlikely(fallback_page_splice)) {
+			size_t offset = *ppos & ~PAGE_MASK;
+
+			size = umin(size, PAGE_SIZE - offset);
+		}
+		part = min_t(loff_t, isize - *ppos, size);
 
 		if (folio) {
 			/*
@@ -3328,8 +3346,12 @@ static ssize_t shmem_file_splice_read(struct file *in, loff_t *ppos,
 			 * virtual addresses, take care about potential aliasing
 			 * before reading the page on the kernel side.
 			 */
-			if (mapping_writably_mapped(mapping))
-				flush_dcache_folio(folio);
+			if (mapping_writably_mapped(mapping)) {
+				if (likely(!fallback_page_splice))
+					flush_dcache_folio(folio);
+				else
+					flush_dcache_page(page);
+			}
 			folio_mark_accessed(folio);
 			/*
 			 * Ok, we have the page, and it's up-to-date, so we can
