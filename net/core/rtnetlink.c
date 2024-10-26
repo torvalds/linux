@@ -3840,8 +3840,10 @@ static int rtnl_newlink(struct sk_buff *skb, struct nlmsghdr *nlh,
 	}
 
 	if (ops) {
-		if (ops->maxtype > RTNL_MAX_TYPE)
-			return -EINVAL;
+		if (ops->maxtype > RTNL_MAX_TYPE) {
+			ret = -EINVAL;
+			goto put_ops;
+		}
 
 		if (ops->maxtype && linkinfo[IFLA_INFO_DATA]) {
 			ret = nla_parse_nested_deprecated(tbs->attr, ops->maxtype,
