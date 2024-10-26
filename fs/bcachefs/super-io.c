@@ -23,6 +23,7 @@
 
 #include <linux/backing-dev.h>
 #include <linux/sort.h>
+#include <linux/string_choices.h>
 
 static const struct blk_holder_ops bch2_sb_handle_bdev_ops = {
 };
@@ -878,7 +879,7 @@ static void write_super_endio(struct bio *bio)
 			       ? BCH_MEMBER_ERROR_write
 			       : BCH_MEMBER_ERROR_read,
 			       "superblock %s error: %s",
-			       bio_data_dir(bio) ? "write" : "read",
+			       str_write_read(bio_data_dir(bio)),
 			       bch2_blk_status_to_str(bio->bi_status)))
 		ca->sb_write_error = 1;
 
