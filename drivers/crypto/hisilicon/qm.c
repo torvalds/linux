@@ -307,11 +307,29 @@ enum qm_basic_type {
 	QM_VF_IRQ_NUM_CAP,
 };
 
-enum qm_pre_store_cap_idx {
-	QM_EQ_IRQ_TYPE_CAP_IDX = 0x0,
-	QM_AEQ_IRQ_TYPE_CAP_IDX,
-	QM_ABN_IRQ_TYPE_CAP_IDX,
-	QM_PF2VF_IRQ_TYPE_CAP_IDX,
+enum qm_cap_table_type {
+	QM_CAP_VF  = 0x0,
+	QM_AEQE_NUM,
+	QM_SCQE_NUM,
+	QM_EQ_IRQ,
+	QM_AEQ_IRQ,
+	QM_ABNORMAL_IRQ,
+	QM_MB_IRQ,
+	MAX_IRQ_NUM,
+	EXT_BAR_INDEX,
+};
+
+static const struct hisi_qm_cap_query_info qm_cap_query_info[] = {
+	{QM_CAP_VF, "QM_CAP_VF                   ", 0x3100, 0x0, 0x0, 0x6F01},
+	{QM_AEQE_NUM, "QM_AEQE_NUM                 ", 0x3104, 0x800, 0x4000800, 0x4000800},
+	{QM_SCQE_NUM, "QM_SCQE_NUM                 ",
+						0x3108, 0x4000400, 0x4000400, 0x4000400},
+	{QM_EQ_IRQ, "QM_EQ_IRQ                   ", 0x310c, 0x10000, 0x10000, 0x10000},
+	{QM_AEQ_IRQ, "QM_AEQ_IRQ                  ", 0x3110, 0x0, 0x10001, 0x10001},
+	{QM_ABNORMAL_IRQ, "QM_ABNORMAL_IRQ             ", 0x3114, 0x0, 0x10003, 0x10003},
+	{QM_MB_IRQ, "QM_MB_IRQ                   ", 0x3118, 0x0, 0x0, 0x10002},
+	{MAX_IRQ_NUM, "MAX_IRQ_NUM                 ", 0x311c, 0x10001, 0x40002, 0x40003},
+	{EXT_BAR_INDEX, "EXT_BAR_INDEX               ", 0x3120, 0x0, 0x0, 0x14},
 };
 
 static const struct hisi_qm_cap_info qm_cap_info_comm[] = {
@@ -342,13 +360,6 @@ static const struct hisi_qm_cap_info qm_basic_info[] = {
 	{QM_PF2VF_IRQ_TYPE_CAP, 0x3118,   0,  GENMASK(31, 0), 0x0,       0x0,       0x10002},
 	{QM_PF_IRQ_NUM_CAP,     0x311c,   16, GENMASK(15, 0), 0x1,       0x4,       0x4},
 	{QM_VF_IRQ_NUM_CAP,     0x311c,   0,  GENMASK(15, 0), 0x1,       0x2,       0x3},
-};
-
-static const u32 qm_pre_store_caps[] = {
-	QM_EQ_IRQ_TYPE_CAP,
-	QM_AEQ_IRQ_TYPE_CAP,
-	QM_ABN_IRQ_TYPE_CAP,
-	QM_PF2VF_IRQ_TYPE_CAP,
 };
 
 struct qm_mailbox {
@@ -793,6 +804,27 @@ u32 hisi_qm_get_hw_info(struct hisi_qm *qm,
 	}
 }
 EXPORT_SYMBOL_GPL(hisi_qm_get_hw_info);
+
+u32 hisi_qm_get_cap_value(struct hisi_qm *qm,
+			const struct hisi_qm_cap_query_info *info_table,
+			u32 index, bool is_read)
+{
+	u32 val;
+
+	switch (qm->ver) {
+	case QM_HW_V1:
+		return info_table[index].v1_val;
+	case QM_HW_V2:
+		return info_table[index].v2_val;
+	default:
+		if (!is_read)
+			return info_table[index].v3_val;
+
+		val = readl(qm->io_base + info_table[index].offset);
+		return val;
+	}
+}
+EXPORT_SYMBOL_GPL(hisi_qm_get_cap_value);
 
 static void qm_get_xqc_depth(struct hisi_qm *qm, u16 *low_bits,
 			     u16 *high_bits, enum qm_basic_type type)
@@ -4897,7 +4929,7 @@ static void qm_unregister_abnormal_irq(struct hisi_qm *qm)
 	if (qm->fun_type == QM_HW_VF)
 		return;
 
-	val = qm->cap_tables.qm_cap_table[QM_ABN_IRQ_TYPE_CAP_IDX].cap_val;
+	val = qm->cap_tables.qm_cap_table[QM_ABNORMAL_IRQ].cap_val;
 	if (!((val >> QM_IRQ_TYPE_SHIFT) & QM_ABN_IRQ_TYPE_MASK))
 		return;
 
@@ -4914,7 +4946,7 @@ static int qm_register_abnormal_irq(struct hisi_qm *qm)
 	if (qm->fun_type == QM_HW_VF)
 		return 0;
 
-	val = qm->cap_tables.qm_cap_table[QM_ABN_IRQ_TYPE_CAP_IDX].cap_val;
+	val = qm->cap_tables.qm_cap_table[QM_ABNORMAL_IRQ].cap_val;
 	if (!((val >> QM_IRQ_TYPE_SHIFT) & QM_ABN_IRQ_TYPE_MASK))
 		return 0;
 
@@ -4931,7 +4963,7 @@ static void qm_unregister_mb_cmd_irq(struct hisi_qm *qm)
 	struct pci_dev *pdev = qm->pdev;
 	u32 irq_vector, val;
 
-	val = qm->cap_tables.qm_cap_table[QM_PF2VF_IRQ_TYPE_CAP_IDX].cap_val;
+	val = qm->cap_tables.qm_cap_table[QM_MB_IRQ].cap_val;
 	if (!((val >> QM_IRQ_TYPE_SHIFT) & QM_IRQ_TYPE_MASK))
 		return;
 
@@ -4945,7 +4977,7 @@ static int qm_register_mb_cmd_irq(struct hisi_qm *qm)
 	u32 irq_vector, val;
 	int ret;
 
-	val = qm->cap_tables.qm_cap_table[QM_PF2VF_IRQ_TYPE_CAP_IDX].cap_val;
+	val = qm->cap_tables.qm_cap_table[QM_MB_IRQ].cap_val;
 	if (!((val >> QM_IRQ_TYPE_SHIFT) & QM_IRQ_TYPE_MASK))
 		return 0;
 
@@ -4962,7 +4994,7 @@ static void qm_unregister_aeq_irq(struct hisi_qm *qm)
 	struct pci_dev *pdev = qm->pdev;
 	u32 irq_vector, val;
 
-	val = qm->cap_tables.qm_cap_table[QM_AEQ_IRQ_TYPE_CAP_IDX].cap_val;
+	val = qm->cap_tables.qm_cap_table[QM_AEQ_IRQ].cap_val;
 	if (!((val >> QM_IRQ_TYPE_SHIFT) & QM_IRQ_TYPE_MASK))
 		return;
 
@@ -4976,7 +5008,7 @@ static int qm_register_aeq_irq(struct hisi_qm *qm)
 	u32 irq_vector, val;
 	int ret;
 
-	val = qm->cap_tables.qm_cap_table[QM_AEQ_IRQ_TYPE_CAP_IDX].cap_val;
+	val = qm->cap_tables.qm_cap_table[QM_AEQ_IRQ].cap_val;
 	if (!((val >> QM_IRQ_TYPE_SHIFT) & QM_IRQ_TYPE_MASK))
 		return 0;
 
@@ -4994,7 +5026,7 @@ static void qm_unregister_eq_irq(struct hisi_qm *qm)
 	struct pci_dev *pdev = qm->pdev;
 	u32 irq_vector, val;
 
-	val = qm->cap_tables.qm_cap_table[QM_EQ_IRQ_TYPE_CAP_IDX].cap_val;
+	val = qm->cap_tables.qm_cap_table[QM_EQ_IRQ].cap_val;
 	if (!((val >> QM_IRQ_TYPE_SHIFT) & QM_IRQ_TYPE_MASK))
 		return;
 
@@ -5008,7 +5040,7 @@ static int qm_register_eq_irq(struct hisi_qm *qm)
 	u32 irq_vector, val;
 	int ret;
 
-	val = qm->cap_tables.qm_cap_table[QM_EQ_IRQ_TYPE_CAP_IDX].cap_val;
+	val = qm->cap_tables.qm_cap_table[QM_EQ_IRQ].cap_val;
 	if (!((val >> QM_IRQ_TYPE_SHIFT) & QM_IRQ_TYPE_MASK))
 		return 0;
 
@@ -5096,24 +5128,26 @@ static int qm_get_qp_num(struct hisi_qm *qm)
 	return 0;
 }
 
-static int qm_pre_store_irq_type_caps(struct hisi_qm *qm)
+static int qm_pre_store_caps(struct hisi_qm *qm)
 {
 	struct hisi_qm_cap_record *qm_cap;
 	struct pci_dev *pdev = qm->pdev;
 	size_t i, size;
 
-	size = ARRAY_SIZE(qm_pre_store_caps);
+	size = ARRAY_SIZE(qm_cap_query_info);
 	qm_cap = devm_kzalloc(&pdev->dev, sizeof(*qm_cap) * size, GFP_KERNEL);
 	if (!qm_cap)
 		return -ENOMEM;
 
 	for (i = 0; i < size; i++) {
-		qm_cap[i].type = qm_pre_store_caps[i];
-		qm_cap[i].cap_val = hisi_qm_get_hw_info(qm, qm_basic_info,
-							qm_pre_store_caps[i], qm->cap_ver);
+		qm_cap[i].type = qm_cap_query_info[i].type;
+		qm_cap[i].name = qm_cap_query_info[i].name;
+		qm_cap[i].cap_val = hisi_qm_get_cap_value(qm, qm_cap_query_info,
+							i, qm->cap_ver);
 	}
 
 	qm->cap_tables.qm_cap_table = qm_cap;
+	qm->cap_tables.qm_cap_size = size;
 
 	return 0;
 }
@@ -5150,8 +5184,8 @@ static int qm_get_hw_caps(struct hisi_qm *qm)
 			set_bit(cap_info[i].type, &qm->caps);
 	}
 
-	/* Fetch and save the value of irq type related capability registers */
-	return qm_pre_store_irq_type_caps(qm);
+	/* Fetch and save the value of qm capability registers */
+	return qm_pre_store_caps(qm);
 }
 
 static int qm_get_pci_res(struct hisi_qm *qm)

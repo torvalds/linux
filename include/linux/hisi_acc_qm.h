@@ -274,13 +274,25 @@ struct hisi_qm_cap_info {
 	u32 v3_val;
 };
 
+struct hisi_qm_cap_query_info {
+	u32 type;
+	const char *name;
+	u32 offset;
+	u32 v1_val;
+	u32 v2_val;
+	u32 v3_val;
+};
+
 struct hisi_qm_cap_record {
 	u32 type;
+	const char *name;
 	u32 cap_val;
 };
 
 struct hisi_qm_cap_tables {
+	u32 qm_cap_size;
 	struct hisi_qm_cap_record *qm_cap_table;
+	u32 dev_cap_size;
 	struct hisi_qm_cap_record *dev_cap_table;
 };
 
@@ -553,6 +565,9 @@ void hisi_qm_put_dfx_access(struct hisi_qm *qm);
 void hisi_qm_regs_dump(struct seq_file *s, struct debugfs_regset32 *regset);
 u32 hisi_qm_get_hw_info(struct hisi_qm *qm,
 			const struct hisi_qm_cap_info *info_table,
+			u32 index, bool is_read);
+u32 hisi_qm_get_cap_value(struct hisi_qm *qm,
+			const struct hisi_qm_cap_query_info *info_table,
 			u32 index, bool is_read);
 int hisi_qm_set_algs(struct hisi_qm *qm, u64 alg_msk, const struct qm_dev_alg *dev_algs,
 		     u32 dev_algs_size);
