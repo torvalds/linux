@@ -370,9 +370,6 @@ struct io_ring_ctx {
 	struct io_rsrc_data		*file_data;
 	struct io_rsrc_data		*buf_data;
 
-	/* protected by ->uring_lock */
-	struct io_alloc_cache		rsrc_node_cache;
-
 	u32			pers_next;
 	struct xarray		personalities;
 
