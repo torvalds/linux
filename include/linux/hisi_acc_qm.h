@@ -229,6 +229,12 @@ struct hisi_qm_status {
 
 struct hisi_qm;
 
+enum acc_err_result {
+	ACC_ERR_NONE,
+	ACC_ERR_NEED_RESET,
+	ACC_ERR_RECOVERED,
+};
+
 struct hisi_qm_err_info {
 	char *acpi_rst;
 	u32 msi_wr_port;
@@ -257,9 +263,9 @@ struct hisi_qm_err_ini {
 	void (*close_axi_master_ooo)(struct hisi_qm *qm);
 	void (*open_sva_prefetch)(struct hisi_qm *qm);
 	void (*close_sva_prefetch)(struct hisi_qm *qm);
-	void (*log_dev_hw_err)(struct hisi_qm *qm, u32 err_sts);
 	void (*show_last_dfx_regs)(struct hisi_qm *qm);
 	void (*err_info_init)(struct hisi_qm *qm);
+	enum acc_err_result (*get_err_result)(struct hisi_qm *qm);
 };
 
 struct hisi_qm_cap_info {
