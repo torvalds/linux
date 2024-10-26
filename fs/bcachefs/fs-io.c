@@ -587,7 +587,7 @@ static noinline int __bchfs_fallocate(struct bch_inode_info *inode, int mode,
 			POS(inode->v.i_ino, start_sector),
 			BTREE_ITER_slots|BTREE_ITER_intent);
 
-	while (!ret && bkey_lt(iter.pos, end_pos)) {
+	while (!ret) {
 		s64 i_sectors_delta = 0;
 		struct quota_res quota_res = { 0 };
 		struct bkey_s_c k;
@@ -597,6 +597,9 @@ static noinline int __bchfs_fallocate(struct bch_inode_info *inode, int mode,
 		u32 snapshot;
 
 		bch2_trans_begin(trans);
+
+		if (bkey_ge(iter.pos, end_pos))
+			break;
 
 		ret = bch2_subvolume_get_snapshot(trans,
 					inode->ei_inum.subvol, &snapshot);
@@ -634,12 +637,15 @@ static noinline int __bchfs_fallocate(struct bch_inode_info *inode, int mode,
 			if (bch2_clamp_data_hole(&inode->v,
 						 &hole_start,
 						 &hole_end,
-						 opts.data_replicas, true))
+						 opts.data_replicas, true)) {
 				ret = drop_locks_do(trans,
 					(bch2_clamp_data_hole(&inode->v,
 							      &hole_start,
 							      &hole_end,
 							      opts.data_replicas, false), 0));
+				if (ret)
+					goto bkey_err;
+			}
 			bch2_btree_iter_set_pos(&iter, POS(iter.pos.inode, hole_start));
 
 			if (ret)
@@ -667,10 +673,13 @@ static noinline int __bchfs_fallocate(struct bch_inode_info *inode, int mode,
 		bch2_i_sectors_acct(c, inode, &quota_res, i_sectors_delta);
 
 		if (bch2_mark_pagecache_reserved(inode, &hole_start,
-						 iter.pos.offset, true))
-			drop_locks_do(trans,
+						 iter.pos.offset, true)) {
+			ret = drop_locks_do(trans,
 				bch2_mark_pagecache_reserved(inode, &hole_start,
 							     iter.pos.offset, false));
+			if (ret)
+				goto bkey_err;
+		}
 bkey_err:
 		bch2_quota_reservation_put(c, inode, &quota_res);
 		if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
