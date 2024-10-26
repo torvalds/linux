@@ -440,9 +440,13 @@ static unsigned long fsl_samsung_hdmi_phy_find_pms(unsigned long fout, u8 *p, u1
 				min_delta = delta;
 				best_freq = tmp;
 			}
+
+			/* If we have an exact match, stop looking for a better value */
+			if (!delta)
+				goto done;
 		}
 	}
-
+done:
 	if (best_freq) {
 		*p = best_p;
 		*m = best_m;
