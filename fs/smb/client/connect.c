@@ -1701,6 +1701,7 @@ cifs_get_tcp_session(struct smb3_fs_context *ctx,
 		ctx->source_rfc1001_name, RFC1001_NAME_LEN_WITH_NULL);
 	memcpy(tcp_ses->server_RFC1001_name,
 		ctx->target_rfc1001_name, RFC1001_NAME_LEN_WITH_NULL);
+	tcp_ses->rfc1001_sessinit = ctx->rfc1001_sessinit;
 	tcp_ses->session_estab = false;
 	tcp_ses->sequence_number = 0;
 	tcp_ses->channel_sequence_num = 0; /* only tracked for primary channel */
@@ -3328,7 +3329,15 @@ generic_ip_connect(struct TCP_Server_Info *server)
 		return rc;
 	}
 	trace_smb3_connect_done(server->hostname, server->conn_id, &server->dstaddr);
-	if (sport == htons(RFC1001_PORT))
+
+	/*
+	 * Establish RFC1001 NetBIOS session when it was explicitly requested
+	 * by mount option -o nbsessinit, or when connecting to default RFC1001
+	 * server port (139) and it was not explicitly disabled by mount option
+	 * -o nonbsessinit.
+	 */
+	if (server->rfc1001_sessinit == 1 ||
+	    (server->rfc1001_sessinit == -1 && sport == htons(RFC1001_PORT)))
 		rc = ip_rfc1001_connect(server);
 
 	return rc;
