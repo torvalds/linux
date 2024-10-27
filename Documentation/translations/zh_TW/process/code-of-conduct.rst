@@ -5,6 +5,8 @@
 :Original: :ref:`Documentation/process/code-of-conduct.rst <code_of_conduct>`
 :Translator: Alex Shi <alex.shi@linux.alibaba.com>
              Hu Haowen <2023002089@link.tyut.edu.cn>
+            Orange Black
+<orangeblack0765@outlook.com>
 
 .. _tw_code_of_conduct:
 
