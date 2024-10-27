@@ -20179,6 +20179,15 @@ F:	drivers/perf/riscv_pmu.c
 F:	drivers/perf/riscv_pmu_legacy.c
 F:	drivers/perf/riscv_pmu_sbi.c
 
+RISC-V SPACEMIT SoC Support
+M:	Yixun Lan <dlan@gentoo.org>
+L:	linux-riscv@lists.infradead.org
+S:	Maintained
+T:	git https://github.com/spacemit-com/linux
+F:	arch/riscv/boot/dts/spacemit/
+N:	spacemit
+K:	spacemit
+
 RISC-V THEAD SoC SUPPORT
 M:	Drew Fustini <drew@pdp7.com>
 M:	Guo Ren <guoren@kernel.org>
