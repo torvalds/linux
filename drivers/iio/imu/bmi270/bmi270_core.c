@@ -14,6 +14,11 @@
 #include "bmi270.h"
 
 #define BMI270_CHIP_ID_REG				0x00
+
+/* Checked to prevent sending incompatible firmware to BMI160 devices */
+#define BMI160_CHIP_ID_VAL				0xD1
+
+#define BMI260_CHIP_ID_VAL				0x27
 #define BMI270_CHIP_ID_VAL				0x24
 #define BMI270_CHIP_ID_MSK				GENMASK(7, 0)
 
@@ -64,6 +69,7 @@
 #define BMI270_PWR_CTRL_ACCEL_EN_MSK			BIT(2)
 #define BMI270_PWR_CTRL_TEMP_EN_MSK			BIT(3)
 
+#define BMI260_INIT_DATA_FILE "bmi260-init-data.fw"
 #define BMI270_INIT_DATA_FILE "bmi270-init-data.fw"
 
 enum bmi270_scan {
@@ -85,6 +91,13 @@ static const unsigned long bmi270_avail_scan_masks[] = {
 	 BIT(BMI270_SCAN_GYRO_Z)),
 	0
 };
+
+const struct bmi270_chip_info bmi260_chip_info = {
+	.name = "bmi260",
+	.chip_id = BMI260_CHIP_ID_VAL,
+	.fw_name = BMI260_INIT_DATA_FILE,
+};
+EXPORT_SYMBOL_NS_GPL(bmi260_chip_info, IIO_BMI270);
 
 const struct bmi270_chip_info bmi270_chip_info = {
 	.name = "bmi270",
@@ -545,8 +558,21 @@ static int bmi270_validate_chip_id(struct bmi270_data *bmi270_device)
 	if (ret)
 		return dev_err_probe(dev, ret, "Failed to read chip id");
 
+	/*
+	 * Some manufacturers use "BMI0160" for both the BMI160 and
+	 * BMI260. If the device is actually a BMI160, the bmi160
+	 * driver should handle it and this driver should not.
+	 */
+	if (chip_id == BMI160_CHIP_ID_VAL)
+		return -ENODEV;
+
 	if (chip_id != bmi270_device->chip_info->chip_id)
-		dev_info(dev, "Unknown chip id 0x%x", chip_id);
+		dev_info(dev, "Unexpected chip id 0x%x", chip_id);
+
+	if (chip_id == bmi260_chip_info.chip_id)
+		bmi270_device->chip_info = &bmi260_chip_info;
+	else if (chip_id == bmi270_chip_info.chip_id)
+		bmi270_device->chip_info = &bmi270_chip_info;
 
 	return 0;
 }
