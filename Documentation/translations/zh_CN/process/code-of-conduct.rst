@@ -1,9 +1,7 @@
 .. include:: ../disclaimer-zh_CN.rst
 
 :Original: :ref:`Documentation/process/code-of-conduct.rst <code_of_conduct>`
-:Translator: Alex Shi <alex.shi@linux.alibaba.com>,
-Orange Black
-<orangeblack0765@outlook.com>
+:Translator: Alex Shi <alex.shi@linux.alibaba.com>,Orange Black<orangeblack0765@outlook.com>
 
 .. _cn_code_of_conduct:
 
