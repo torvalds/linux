@@ -584,7 +584,7 @@ static struct platform_driver hisi_l3c_pmu_driver = {
 		.suppress_bind_attrs = true,
 	},
 	.probe = hisi_l3c_pmu_probe,
-	.remove_new = hisi_l3c_pmu_remove,
+	.remove = hisi_l3c_pmu_remove,
 };
 
 static int __init hisi_l3c_pmu_module_init(void)

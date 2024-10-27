@@ -732,7 +732,7 @@ static struct platform_driver cn10k_ddr_pmu_driver = {
 		.suppress_bind_attrs = true,
 	},
 	.probe		= cn10k_ddr_perf_probe,
-	.remove_new	= cn10k_ddr_perf_remove,
+	.remove		= cn10k_ddr_perf_remove,
 };
 
 static int __init cn10k_ddr_pmu_init(void)
