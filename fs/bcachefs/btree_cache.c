@@ -1312,9 +1312,12 @@ int bch2_btree_node_prefetch(struct btree_trans *trans,
 
 	b = bch2_btree_node_fill(trans, path, k, btree_id,
 				 level, SIX_LOCK_read, false);
-	if (!IS_ERR_OR_NULL(b))
+	int ret = PTR_ERR_OR_ZERO(b);
+	if (ret)
+		return ret;
+	if (b)
 		six_unlock_read(&b->c.lock);
-	return bch2_trans_relock(trans) ?: PTR_ERR_OR_ZERO(b);
+	return 0;
 }
 
 void bch2_btree_node_evict(struct btree_trans *trans, const struct bkey_i *k)
