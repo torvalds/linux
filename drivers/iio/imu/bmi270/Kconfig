@@ -6,6 +6,7 @@
 config BMI270
 	tristate
 	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
 
 config BMI270_I2C
 	tristate "Bosch BMI270 I2C driver"
