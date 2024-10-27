@@ -3718,8 +3718,8 @@ static unsigned long deferred_split_scan(struct shrinker *shrink,
 	struct deferred_split *ds_queue = &pgdata->deferred_split_queue;
 	unsigned long flags;
 	LIST_HEAD(list);
-	struct folio *folio, *next;
-	int split = 0;
+	struct folio *folio, *next, *prev = NULL;
+	int split = 0, removed = 0;
 
 #ifdef CONFIG_MEMCG
 	if (sc->memcg)
@@ -3775,14 +3775,27 @@ next:
 		 */
 		if (!did_split && !folio_test_partially_mapped(folio)) {
 			list_del_init(&folio->_deferred_list);
-			ds_queue->split_queue_len--;
+			removed++;
+		} else {
+			/*
+			 * That unlocked list_del_init() above would be unsafe,
+			 * unless its folio is separated from any earlier folios
+			 * left on the list (which may be concurrently unqueued)
+			 * by one safe folio with refcount still raised.
+			 */
+			swap(folio, prev);
 		}
-		folio_put(folio);
+		if (folio)
+			folio_put(folio);
 	}
 
 	spin_lock_irqsave(&ds_queue->split_queue_lock, flags);
 	list_splice_tail(&list, &ds_queue->split_queue);
+	ds_queue->split_queue_len -= removed;
 	spin_unlock_irqrestore(&ds_queue->split_queue_lock, flags);
+
+	if (prev)
+		folio_put(prev);
 
 	/*
 	 * Stop shrinker if we didn't split any page, but the queue is empty.
