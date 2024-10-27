@@ -565,6 +565,15 @@ config SA_GPUCC_8775P
 	  Say Y if you want to support graphics controller devices and
 	  functionality such as 3D graphics.
 
+config SAR_GCC_2130P
+	tristate "SAR2130P Global Clock Controller"
+	select QCOM_GDSC
+	depends on COMMON_CLK_QCOM
+	help
+	  Support for the global clock controller on SAR2130P devices.
+	  Say Y if you want to use peripheral devices such as UART, SPI,
+	  I2C, USB, SDCC, etc.
+
 config SC_GCC_7180
 	tristate "SC7180 Global Clock Controller"
 	select QCOM_GDSC
