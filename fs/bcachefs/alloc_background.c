@@ -1770,11 +1770,13 @@ static int bch2_discard_one_bucket(struct btree_trans *trans,
 		goto out;
 
 	if (a->v.data_type != BCH_DATA_need_discard) {
-		if (bch2_trans_inconsistent_on(c->curr_recovery_pass > BCH_RECOVERY_PASS_check_alloc_info,
-					       trans, "bucket incorrectly set in need_discard btree\n"
-					       "%s",
-					       (bch2_bkey_val_to_text(&buf, c, k), buf.buf)))
-			ret = -EIO;
+		if (need_discard_or_freespace_err(trans, k, true, true, true)) {
+			ret = bch2_btree_bit_mod_iter(trans, need_discard_iter, false);
+			if (ret)
+				goto out;
+			goto commit;
+		}
+
 		goto out;
 	}
 
@@ -1814,16 +1816,20 @@ static int bch2_discard_one_bucket(struct btree_trans *trans,
 	SET_BCH_ALLOC_V4_NEED_DISCARD(&a->v, false);
 	alloc_data_type_set(&a->v, a->v.data_type);
 
-	ret =   bch2_trans_update(trans, &iter, &a->k_i, 0) ?:
-		bch2_trans_commit(trans, NULL, NULL,
-				  BCH_WATERMARK_btree|
-				  BCH_TRANS_COMMIT_no_enospc);
+	ret = bch2_trans_update(trans, &iter, &a->k_i, 0);
+	if (ret)
+		goto out;
+commit:
+	ret = bch2_trans_commit(trans, NULL, NULL,
+				BCH_WATERMARK_btree|
+				BCH_TRANS_COMMIT_no_enospc);
 	if (ret)
 		goto out;
 
 	count_event(c, bucket_discard);
 	s->discarded++;
 out:
+fsck_err:
 	if (discard_locked)
 		discard_in_flight_remove(ca, iter.pos.offset);
 	s->seen++;
