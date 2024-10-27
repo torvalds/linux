@@ -13,7 +13,7 @@ get_canonical_version()
 	echo $((10000 * $1 + 100 * $2 + $3))
 }
 
-if output=$("$@" --version --verbose 2>/dev/null | grep LLVM); then
+if output=$("$@" --version --verbose 2>/dev/null | grep -E 'LLVM.*[0-9]+\.[0-9]+\.[0-9]+'); then
 	set -- $output
 	get_canonical_version $3
 else
