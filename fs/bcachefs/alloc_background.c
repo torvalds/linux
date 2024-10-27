@@ -1756,22 +1756,7 @@ static int bch2_discard_one_bucket(struct btree_trans *trans,
 	if (ret)
 		goto out;
 
-	if (bch2_bucket_sectors_total(a->v)) {
-		if (bch2_trans_inconsistent_on(c->curr_recovery_pass > BCH_RECOVERY_PASS_check_alloc_info,
-					       trans, "attempting to discard bucket with dirty data\n%s",
-					       (bch2_bkey_val_to_text(&buf, c, k), buf.buf)))
-			ret = -EIO;
-		goto out;
-	}
-
 	if (a->v.data_type != BCH_DATA_need_discard) {
-		if (data_type_is_empty(a->v.data_type) &&
-		    BCH_ALLOC_V4_NEED_INC_GEN(&a->v)) {
-			a->v.gen++;
-			SET_BCH_ALLOC_V4_NEED_INC_GEN(&a->v, false);
-			goto write;
-		}
-
 		if (bch2_trans_inconsistent_on(c->curr_recovery_pass > BCH_RECOVERY_PASS_check_alloc_info,
 					       trans, "bucket incorrectly set in need_discard btree\n"
 					       "%s",
@@ -1814,7 +1799,6 @@ static int bch2_discard_one_bucket(struct btree_trans *trans,
 	}
 
 	SET_BCH_ALLOC_V4_NEED_DISCARD(&a->v, false);
-write:
 	alloc_data_type_set(&a->v, a->v.data_type);
 
 	ret =   bch2_trans_update(trans, &iter, &a->k_i, 0) ?:
