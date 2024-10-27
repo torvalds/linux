@@ -1680,7 +1680,6 @@ F:	Documentation/devicetree/bindings/perf/apm-xgene-pmu.txt
 F:	drivers/perf/xgene_pmu.c
 
 APPLIED MICRO QT2025 PHY DRIVER
-M:	FUJITA Tomonori <fujita.tomonori@gmail.com>
 R:	Trevor Gross <tmgross@umich.edu>
 L:	netdev@vger.kernel.org
 L:	rust-for-linux@vger.kernel.org
@@ -2675,7 +2674,6 @@ F:	arch/arm/boot/dts/moxa/
 F:	drivers/clk/clk-moxart.c
 
 ARM/MStar/Sigmastar Armv7 SoC support
-M:	Daniel Palmer <daniel@thingy.jp>
 M:	Romain Perier <romain.perier@gmail.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
@@ -3194,7 +3192,6 @@ F:	Documentation/devicetree/bindings/arm/ti/nspire.yaml
 F:	arch/arm/boot/dts/nspire/
 
 ARM/TOSHIBA VISCONTI ARCHITECTURE
-M:	Nobuhiro Iwamatsu <nobuhiro1.iwamatsu@toshiba.co.jp>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Supported
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/iwamatsu/linux-visconti.git
@@ -3379,7 +3376,6 @@ F:	Documentation/devicetree/bindings/net/asix,ax88796c.yaml
 F:	drivers/net/ethernet/asix/ax88796c_*
 
 ASIX PHY DRIVER [RUST]
-M:	FUJITA Tomonori <fujita.tomonori@gmail.com>
 R:	Trevor Gross <tmgross@umich.edu>
 L:	netdev@vger.kernel.org
 L:	rust-for-linux@vger.kernel.org
@@ -4821,7 +4817,6 @@ S:	Supported
 F:	drivers/net/ethernet/brocade/bna/
 
 BSG (block layer generic sg v4 driver)
-M:	FUJITA Tomonori <fujita.tomonori@lab.ntt.co.jp>
 L:	linux-scsi@vger.kernel.org
 S:	Supported
 F:	block/bsg.c
@@ -8457,7 +8452,6 @@ F:	include/uapi/linux/mii.h
 F:	net/core/of_net.c
 
 ETHERNET PHY LIBRARY [RUST]
-M:	FUJITA Tomonori <fujita.tomonori@gmail.com>
 R:	Trevor Gross <tmgross@umich.edu>
 L:	netdev@vger.kernel.org
 L:	rust-for-linux@vger.kernel.org
@@ -8793,8 +8787,8 @@ F:	drivers/net/can/usb/f81604.c
 
 FIREWIRE AUDIO DRIVERS and IEC 61883-1/6 PACKET STREAMING ENGINE
 M:	Clemens Ladisch <clemens@ladisch.de>
-M:	Takashi Sakamoto <o-takashi@sakamocchi.jp>
 L:	linux-sound@vger.kernel.org
+L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
 S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tiwai/sound.git
 F:	include/uapi/sound/firewire.h
@@ -8818,8 +8812,6 @@ T:	git git://git.kernel.org/pub/scm/linux/kernel/git/nab/lio-core-2.6.git master
 F:	drivers/target/sbp/
 
 FIREWIRE SUBSYSTEM
-M:	Takashi Sakamoto <o-takashi@sakamocchi.jp>
-M:	Takashi Sakamoto <takaswie@kernel.org>
 L:	linux1394-devel@lists.sourceforge.net
 S:	Maintained
 W:	http://ieee1394.docs.kernel.org/
@@ -15705,7 +15697,6 @@ F:	drivers/media/usb/msi2500/
 
 MSTAR INTERRUPT CONTROLLER DRIVER
 M:	Mark-PK Tsai <mark-pk.tsai@mediatek.com>
-M:	Daniel Palmer <daniel@thingy.jp>
 S:	Maintained
 F:	Documentation/devicetree/bindings/interrupt-controller/mstar,mst-intc.yaml
 F:	drivers/irqchip/irq-mst-intc.c
@@ -16295,15 +16286,12 @@ F:	include/uapi/linux/nilfs2_api.h
 F:	include/uapi/linux/nilfs2_ondisk.h
 
 NINJA SCSI-3 / NINJA SCSI-32Bi (16bit/CardBus) PCMCIA SCSI HOST ADAPTER DRIVER
-M:	YOKOTA Hiroshi <yokota@netlab.is.tsukuba.ac.jp>
 S:	Maintained
 W:	http://www.netlab.is.tsukuba.ac.jp/~yokota/izumi/ninja/
 F:	Documentation/scsi/NinjaSCSI.rst
 F:	drivers/scsi/pcmcia/nsp_*
 
 NINJA SCSI-32Bi/UDE PCI/CARDBUS SCSI HOST ADAPTER DRIVER
-M:	GOTO Masanori <gotom@debian.or.jp>
-M:	YOKOTA Hiroshi <yokota@netlab.is.tsukuba.ac.jp>
 S:	Maintained
 W:	http://www.netlab.is.tsukuba.ac.jp/~yokota/izumi/ninja/
 F:	Documentation/scsi/NinjaSCSI.rst
@@ -21679,7 +21667,6 @@ F:	include/uapi/linux/spi/
 F:	tools/spi/
 
 SPIDERNET NETWORK DRIVER for CELL
-M:	Ishizaki Kou <kou.ishizaki@toshiba.co.jp>
 M:	Geoff Levand <geoff@infradead.org>
 L:	netdev@vger.kernel.org
 L:	linuxppc-dev@lists.ozlabs.org
@@ -22187,7 +22174,6 @@ F:	Documentation/devicetree/bindings/watchdog/sunplus,sp7021-wdt.yaml
 F:	drivers/watchdog/sunplus_wdt.c
 
 SUPERH
-M:	Yoshinori Sato <ysato@users.sourceforge.jp>
 M:	Rich Felker <dalias@libc.org>
 M:	John Paul Adrian Glaubitz <glaubitz@physik.fu-berlin.de>
 L:	linux-sh@vger.kernel.org
@@ -22731,7 +22717,6 @@ S:	Supported
 F:	drivers/net/ethernet/tehuti/tehuti.*
 
 TEHUTI TN40XX ETHERNET DRIVER
-M:	FUJITA Tomonori <fujita.tomonori@gmail.com>
 L:	netdev@vger.kernel.org
 S:	Maintained
 F:	drivers/net/ethernet/tehuti/tn40*
@@ -23274,8 +23259,6 @@ F:	include/linux/shmem_fs.h
 F:	mm/shmem.c
 
 TOMOYO SECURITY MODULE
-M:	Kentaro Takeda <takedakn@nttdata.co.jp>
-M:	Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
 L:	tomoyo-dev-en@lists.osdn.me (subscribers-only, for developers in English)
 L:	tomoyo-users-en@lists.osdn.me (subscribers-only, for users in English)
 L:	tomoyo-dev@lists.osdn.me (subscribers-only, for developers in Japanese)
@@ -24157,7 +24140,6 @@ S:	Supported
 F:	drivers/mtd/nand/raw/vf610_nfc.c
 
 VFAT/FAT/MSDOS FILESYSTEM
-M:	OGAWA Hirofumi <hirofumi@mail.parknet.co.jp>
 S:	Maintained
 F:	Documentation/filesystems/vfat.rst
 F:	fs/fat/
@@ -25615,3 +25597,4 @@ S:	Buried alive in reporters
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git
 F:	*
 F:	*/
+
