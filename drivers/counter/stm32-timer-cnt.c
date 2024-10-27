@@ -700,6 +700,7 @@ static int stm32_timer_cnt_probe_encoder(struct device *dev,
 	}
 
 	ret = of_property_read_u32(tnode, "reg", &idx);
+	of_node_put(tnode);
 	if (ret) {
 		dev_err(dev, "Can't get index (%d)\n", ret);
 		return ret;
