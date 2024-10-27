@@ -1050,7 +1050,7 @@ retry:
 		 * the last one however, since we should hold another.
 		 */
 		if (nfsd_file_lru_remove(nf))
-			WARN_ON_ONCE(refcount_dec_and_test(&nf->nf_ref));
+			refcount_dec(&nf->nf_ref);
 		goto wait_for_construction;
 	}
 
