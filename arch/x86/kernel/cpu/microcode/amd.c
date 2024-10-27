@@ -584,7 +584,7 @@ void __init load_ucode_amd_bsp(struct early_load_data *ed, unsigned int cpuid_1_
 		native_rdmsr(MSR_AMD64_PATCH_LEVEL, ed->new_rev, dummy);
 }
 
-static enum ucode_state load_microcode_amd(u8 family, const u8 *data, size_t size);
+static enum ucode_state _load_microcode_amd(u8 family, const u8 *data, size_t size);
 
 static int __init save_microcode_in_initrd(void)
 {
@@ -605,7 +605,7 @@ static int __init save_microcode_in_initrd(void)
 	if (!desc.mc)
 		return -EINVAL;
 
-	ret = load_microcode_amd(x86_family(cpuid_1_eax), desc.data, desc.size);
+	ret = _load_microcode_amd(x86_family(cpuid_1_eax), desc.data, desc.size);
 	if (ret > UCODE_UPDATED)
 		return -EINVAL;
 
@@ -613,16 +613,19 @@ static int __init save_microcode_in_initrd(void)
 }
 early_initcall(save_microcode_in_initrd);
 
-static inline bool patch_cpus_equivalent(struct ucode_patch *p, struct ucode_patch *n)
+static inline bool patch_cpus_equivalent(struct ucode_patch *p,
+					 struct ucode_patch *n,
+					 bool ignore_stepping)
 {
 	/* Zen and newer hardcode the f/m/s in the patch ID */
         if (x86_family(bsp_cpuid_1_eax) >= 0x17) {
 		union cpuid_1_eax p_cid = ucode_rev_to_cpuid(p->patch_id);
 		union cpuid_1_eax n_cid = ucode_rev_to_cpuid(n->patch_id);
 
-		/* Zap stepping */
-		p_cid.stepping = 0;
-		n_cid.stepping = 0;
+		if (ignore_stepping) {
+			p_cid.stepping = 0;
+			n_cid.stepping = 0;
+		}
 
 		return p_cid.full == n_cid.full;
 	} else {
@@ -644,13 +647,13 @@ static struct ucode_patch *cache_find_patch(struct ucode_cpu_info *uci, u16 equi
 	WARN_ON_ONCE(!n.patch_id);
 
 	list_for_each_entry(p, &microcode_cache, plist)
-		if (patch_cpus_equivalent(p, &n))
+		if (patch_cpus_equivalent(p, &n, false))
 			return p;
 
 	return NULL;
 }
 
-static inline bool patch_newer(struct ucode_patch *p, struct ucode_patch *n)
+static inline int patch_newer(struct ucode_patch *p, struct ucode_patch *n)
 {
 	/* Zen and newer hardcode the f/m/s in the patch ID */
         if (x86_family(bsp_cpuid_1_eax) >= 0x17) {
@@ -658,6 +661,9 @@ static inline bool patch_newer(struct ucode_patch *p, struct ucode_patch *n)
 
 		zp.ucode_rev = p->patch_id;
 		zn.ucode_rev = n->patch_id;
+
+		if (zn.stepping != zp.stepping)
+			return -1;
 
 		return zn.rev > zp.rev;
 	} else {
@@ -668,10 +674,14 @@ static inline bool patch_newer(struct ucode_patch *p, struct ucode_patch *n)
 static void update_cache(struct ucode_patch *new_patch)
 {
 	struct ucode_patch *p;
+	int ret;
 
 	list_for_each_entry(p, &microcode_cache, plist) {
-		if (patch_cpus_equivalent(p, new_patch)) {
-			if (!patch_newer(p, new_patch)) {
+		if (patch_cpus_equivalent(p, new_patch, true)) {
+			ret = patch_newer(p, new_patch);
+			if (ret < 0)
+				continue;
+			else if (!ret) {
 				/* we already have the latest patch */
 				kfree(new_patch->data);
 				kfree(new_patch);
@@ -944,6 +954,20 @@ static enum ucode_state __load_microcode_amd(u8 family, const u8 *data,
 	return UCODE_OK;
 }
 
+static enum ucode_state _load_microcode_amd(u8 family, const u8 *data, size_t size)
+{
+	enum ucode_state ret;
+
+	/* free old equiv table */
+	free_equiv_cpu_table();
+
+	ret = __load_microcode_amd(family, data, size);
+	if (ret != UCODE_OK)
+		cleanup();
+
+	return ret;
+}
+
 static enum ucode_state load_microcode_amd(u8 family, const u8 *data, size_t size)
 {
 	struct cpuinfo_x86 *c;
@@ -951,14 +975,9 @@ static enum ucode_state load_microcode_amd(u8 family, const u8 *data, size_t siz
 	struct ucode_patch *p;
 	enum ucode_state ret;
 
-	/* free old equiv table */
-	free_equiv_cpu_table();
-
-	ret = __load_microcode_amd(family, data, size);
-	if (ret != UCODE_OK) {
-		cleanup();
+	ret = _load_microcode_amd(family, data, size);
+	if (ret != UCODE_OK)
 		return ret;
-	}
 
 	for_each_node(nid) {
 		cpu = cpumask_first(cpumask_of_node(nid));
