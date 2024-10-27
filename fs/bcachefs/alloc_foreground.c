@@ -207,9 +207,8 @@ static inline unsigned open_buckets_reserved(enum bch_watermark watermark)
 }
 
 static struct open_bucket *__try_alloc_bucket(struct bch_fs *c, struct bch_dev *ca,
-					      u64 bucket,
+					      u64 bucket, u8 gen,
 					      enum bch_watermark watermark,
-					      const struct bch_alloc_v4 *a,
 					      struct bucket_alloc_state *s,
 					      struct closure *cl)
 {
@@ -261,7 +260,7 @@ static struct open_bucket *__try_alloc_bucket(struct bch_fs *c, struct bch_dev *
 	ob->valid	= true;
 	ob->sectors_free = ca->mi.bucket_size;
 	ob->dev		= ca->dev_idx;
-	ob->gen		= a->gen;
+	ob->gen		= gen;
 	ob->bucket	= bucket;
 	spin_unlock(&ob->lock);
 
@@ -282,98 +281,36 @@ static struct open_bucket *try_alloc_bucket(struct btree_trans *trans, struct bc
 					    struct closure *cl)
 {
 	struct bch_fs *c = trans->c;
-	struct btree_iter iter = { NULL };
-	struct bkey_s_c k;
-	struct open_bucket *ob;
-	struct bch_alloc_v4 a_convert;
-	const struct bch_alloc_v4 *a;
 	u64 b = freespace_iter->pos.offset & ~(~0ULL << 56);
-	unsigned genbits = freespace_iter->pos.offset >> 56;
-	struct printbuf buf = PRINTBUF;
-	int ret;
+	u8 gen;
 
-	if (b < ca->mi.first_bucket || b >= ca->mi.nbuckets) {
-		prt_printf(&buf, "freespace btree has bucket outside allowed range %u-%llu\n"
-		       "  freespace key ",
-			ca->mi.first_bucket, ca->mi.nbuckets);
-		bch2_bkey_to_text(&buf, &freespace_iter->k);
-		bch2_trans_inconsistent(trans, "%s", buf.buf);
-		ob = ERR_PTR(-EIO);
-		goto err;
-	}
+	int ret = bch2_check_discard_freespace_key(trans, freespace_iter, &gen);
+	if (ret < 0)
+		return ERR_PTR(ret);
+	if (ret)
+		return NULL;
 
-	k = bch2_bkey_get_iter(trans, &iter,
-			       BTREE_ID_alloc, POS(ca->dev_idx, b),
-			       BTREE_ITER_cached);
-	ret = bkey_err(k);
-	if (ret) {
-		ob = ERR_PTR(ret);
-		goto err;
-	}
-
-	a = bch2_alloc_to_v4(k, &a_convert);
-
-	if (a->data_type != BCH_DATA_free) {
-		if (c->curr_recovery_pass <= BCH_RECOVERY_PASS_check_alloc_info) {
-			ob = NULL;
-			goto err;
-		}
-
-		prt_printf(&buf, "non free bucket in freespace btree\n"
-		       "  freespace key ");
-		bch2_bkey_to_text(&buf, &freespace_iter->k);
-		prt_printf(&buf, "\n  ");
-		bch2_bkey_val_to_text(&buf, c, k);
-		bch2_trans_inconsistent(trans, "%s", buf.buf);
-		ob = ERR_PTR(-EIO);
-		goto err;
-	}
-
-	if (genbits != (alloc_freespace_genbits(*a) >> 56) &&
-	    c->curr_recovery_pass > BCH_RECOVERY_PASS_check_alloc_info) {
-		prt_printf(&buf, "bucket in freespace btree with wrong genbits (got %u should be %llu)\n"
-		       "  freespace key ",
-		       genbits, alloc_freespace_genbits(*a) >> 56);
-		bch2_bkey_to_text(&buf, &freespace_iter->k);
-		prt_printf(&buf, "\n  ");
-		bch2_bkey_val_to_text(&buf, c, k);
-		bch2_trans_inconsistent(trans, "%s", buf.buf);
-		ob = ERR_PTR(-EIO);
-		goto err;
-	}
-
-	if (c->curr_recovery_pass <= BCH_RECOVERY_PASS_check_extents_to_backpointers) {
+	if (unlikely(c->curr_recovery_pass <= BCH_RECOVERY_PASS_check_extents_to_backpointers)) {
 		struct bch_backpointer bp;
 		struct bpos bp_pos = POS_MIN;
 
 		ret = bch2_get_next_backpointer(trans, ca, POS(ca->dev_idx, b), -1,
 						&bp_pos, &bp,
 						BTREE_ITER_nopreserve);
-		if (ret) {
-			ob = ERR_PTR(ret);
-			goto err;
-		}
+		if (ret)
+			return ERR_PTR(ret);
 
 		if (!bkey_eq(bp_pos, POS_MAX)) {
 			/*
 			 * Bucket may have data in it - we don't call
-			 * bc2h_trans_inconnsistent() because fsck hasn't
+			 * bch2_trans_inconsistent() because fsck hasn't
 			 * finished yet
 			 */
-			ob = NULL;
-			goto err;
+			return NULL;
 		}
 	}
 
-	ob = __try_alloc_bucket(c, ca, b, watermark, a, s, cl);
-	if (!ob)
-		bch2_set_btree_iter_dontneed(&iter);
-err:
-	if (iter.path)
-		bch2_set_btree_iter_dontneed(&iter);
-	bch2_trans_iter_exit(trans, &iter);
-	printbuf_exit(&buf);
-	return ob;
+	return __try_alloc_bucket(c, ca, b, gen, watermark, s, cl);
 }
 
 /*
@@ -452,7 +389,7 @@ again:
 
 		s->buckets_seen++;
 
-		ob = __try_alloc_bucket(trans->c, ca, k.k->p.offset, watermark, a, s, cl);
+		ob = __try_alloc_bucket(trans->c, ca, k.k->p.offset, a->gen, watermark, s, cl);
 next:
 		bch2_set_btree_iter_dontneed(&citer);
 		bch2_trans_iter_exit(trans, &citer);

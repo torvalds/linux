@@ -1332,51 +1332,53 @@ fsck_err:
 	return ret;
 }
 
-static noinline_for_stack int bch2_check_discard_freespace_key(struct btree_trans *trans,
-					      struct btree_iter *iter)
+int bch2_check_discard_freespace_key(struct btree_trans *trans, struct btree_iter *iter, u8 *gen)
 {
 	struct bch_fs *c = trans->c;
-	struct btree_iter alloc_iter;
-	struct bkey_s_c alloc_k;
-	struct bch_alloc_v4 a_convert;
-	const struct bch_alloc_v4 *a;
-	u64 genbits;
-	struct bpos pos;
 	enum bch_data_type state = iter->btree_id == BTREE_ID_need_discard
 		? BCH_DATA_need_discard
 		: BCH_DATA_free;
 	struct printbuf buf = PRINTBUF;
-	int ret;
 
-	pos = iter->pos;
-	pos.offset &= ~(~0ULL << 56);
-	genbits = iter->pos.offset & (~0ULL << 56);
+	struct bpos bucket = iter->pos;
+	bucket.offset &= ~(~0ULL << 56);
+	u64 genbits = iter->pos.offset & (~0ULL << 56);
 
-	alloc_k = bch2_bkey_get_iter(trans, &alloc_iter, BTREE_ID_alloc, pos, 0);
-	ret = bkey_err(alloc_k);
+	struct btree_iter alloc_iter;
+	struct bkey_s_c alloc_k = bch2_bkey_get_iter(trans, &alloc_iter, BTREE_ID_alloc, bucket, BTREE_ITER_cached);
+	int ret = bkey_err(alloc_k);
 	if (ret)
 		return ret;
 
-	if (fsck_err_on(!bch2_dev_bucket_exists(c, pos),
-			trans, need_discard_freespace_key_to_invalid_dev_bucket,
-			"entry in %s btree for nonexistant dev:bucket %llu:%llu",
-			bch2_btree_id_str(iter->btree_id), pos.inode, pos.offset))
-		goto delete;
+	if (!bch2_dev_bucket_exists(c, bucket)) {
+		if (fsck_err(trans, need_discard_freespace_key_to_invalid_dev_bucket,
+			     "entry in %s btree for nonexistant dev:bucket %llu:%llu",
+			     bch2_btree_id_str(iter->btree_id), bucket.inode, bucket.offset))
+			goto delete;
+		ret = 1;
+		goto out;
+	}
 
-	a = bch2_alloc_to_v4(alloc_k, &a_convert);
+	struct bch_alloc_v4 a_convert;
+	const struct bch_alloc_v4 *a = bch2_alloc_to_v4(alloc_k, &a_convert);
 
-	if (fsck_err_on(a->data_type != state ||
-			(state == BCH_DATA_free &&
-			 genbits != alloc_freespace_genbits(*a)),
-			trans, need_discard_freespace_key_bad,
-			"%s\n  incorrectly set at %s:%llu:%llu:0 (free %u, genbits %llu should be %llu)",
-			(bch2_bkey_val_to_text(&buf, c, alloc_k), buf.buf),
-			bch2_btree_id_str(iter->btree_id),
-			iter->pos.inode,
-			iter->pos.offset,
-			a->data_type == state,
-			genbits >> 56, alloc_freespace_genbits(*a) >> 56))
-		goto delete;
+	if (a->data_type != state ||
+	    (state == BCH_DATA_free &&
+	     genbits != alloc_freespace_genbits(*a))) {
+		if (fsck_err(trans, need_discard_freespace_key_bad,
+			     "%s\n  incorrectly set at %s:%llu:%llu:0 (free %u, genbits %llu should be %llu)",
+			     (bch2_bkey_val_to_text(&buf, c, alloc_k), buf.buf),
+			     bch2_btree_id_str(iter->btree_id),
+			     iter->pos.inode,
+			     iter->pos.offset,
+			     a->data_type == state,
+			     genbits >> 56, alloc_freespace_genbits(*a) >> 56))
+			goto delete;
+		ret = 1;
+		goto out;
+	}
+
+	*gen = a->gen;
 out:
 fsck_err:
 	bch2_set_btree_iter_dontneed(&alloc_iter);
@@ -1386,8 +1388,16 @@ fsck_err:
 delete:
 	ret =   bch2_btree_bit_mod_iter(trans, iter, false) ?:
 		bch2_trans_commit(trans, NULL, NULL,
-			BCH_TRANS_COMMIT_no_enospc);
+			BCH_TRANS_COMMIT_no_enospc) ?:
+		1;
 	goto out;
+}
+
+static int bch2_check_discard_freespace_key_fsck(struct btree_trans *trans, struct btree_iter *iter)
+{
+	u8 gen;
+	int ret = bch2_check_discard_freespace_key(trans, iter, &gen);
+	return ret < 0 ? ret : 0;
 }
 
 /*
@@ -1544,7 +1554,7 @@ bkey_err:
 	ret = for_each_btree_key(trans, iter,
 			BTREE_ID_need_discard, POS_MIN,
 			BTREE_ITER_prefetch, k,
-		bch2_check_discard_freespace_key(trans, &iter));
+		bch2_check_discard_freespace_key_fsck(trans, &iter));
 	if (ret)
 		goto err;
 
@@ -1557,7 +1567,7 @@ bkey_err:
 			break;
 
 		ret = bkey_err(k) ?:
-			bch2_check_discard_freespace_key(trans, &iter);
+			bch2_check_discard_freespace_key_fsck(trans, &iter);
 		if (bch2_err_matches(ret, BCH_ERR_transaction_restart)) {
 			ret = 0;
 			continue;

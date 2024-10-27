@@ -307,6 +307,8 @@ int bch2_alloc_key_to_dev_counters(struct btree_trans *, struct bch_dev *,
 int bch2_trigger_alloc(struct btree_trans *, enum btree_id, unsigned,
 		       struct bkey_s_c, struct bkey_s,
 		       enum btree_iter_update_trigger_flags);
+
+int bch2_check_discard_freespace_key(struct btree_trans *, struct btree_iter *, u8 *);
 int bch2_check_alloc_info(struct bch_fs *);
 int bch2_check_alloc_to_lru_refs(struct bch_fs *);
 void bch2_dev_do_discards(struct bch_dev *);
