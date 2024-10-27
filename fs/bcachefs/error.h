@@ -103,9 +103,9 @@ int __bch2_fsck_err(struct bch_fs *, struct btree_trans *,
 
 void bch2_flush_fsck_errs(struct bch_fs *);
 
-#define __fsck_err(c, _flags, _err_type, ...)				\
+#define fsck_err_wrap(_do)						\
 ({									\
-	int _ret = bch2_fsck_err(c, _flags, _err_type, __VA_ARGS__);	\
+	int _ret = _do;							\
 	if (_ret != -BCH_ERR_fsck_fix &&				\
 	    _ret != -BCH_ERR_fsck_ignore) {				\
 		ret = _ret;						\
@@ -114,6 +114,8 @@ void bch2_flush_fsck_errs(struct bch_fs *);
 									\
 	_ret == -BCH_ERR_fsck_fix;					\
 })
+
+#define __fsck_err(...)		fsck_err_wrap(bch2_fsck_err(__VA_ARGS__))
 
 /* These macros return true if error should be fixed: */
 

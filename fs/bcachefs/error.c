@@ -256,9 +256,10 @@ int __bch2_fsck_err(struct bch_fs *c,
 		!trans &&
 		bch2_current_has_btree_trans(c));
 
-	if ((flags & FSCK_CAN_FIX) &&
-	    test_bit(err, c->sb.errors_silent))
-		return -BCH_ERR_fsck_fix;
+	if (test_bit(err, c->sb.errors_silent))
+		return flags & FSCK_CAN_FIX
+			? -BCH_ERR_fsck_fix
+			: -BCH_ERR_fsck_ignore;
 
 	bch2_sb_error_count(c, err);
 

@@ -664,17 +664,44 @@ int bch2_alloc_read(struct bch_fs *c)
 
 /* Free space/discard btree: */
 
+static int __need_discard_or_freespace_err(struct btree_trans *trans,
+					   struct bkey_s_c alloc_k,
+					   bool set, bool discard, bool repair)
+{
+	struct bch_fs *c = trans->c;
+	enum bch_fsck_flags flags = FSCK_CAN_IGNORE|(repair ? FSCK_CAN_FIX : 0);
+	enum bch_sb_error_id err_id = discard
+		? BCH_FSCK_ERR_need_discard_key_wrong
+		: BCH_FSCK_ERR_freespace_key_wrong;
+	enum btree_id btree = discard ? BTREE_ID_need_discard : BTREE_ID_freespace;
+	struct printbuf buf = PRINTBUF;
+
+	bch2_bkey_val_to_text(&buf, c, alloc_k);
+
+	int ret = __bch2_fsck_err(NULL, trans, flags, err_id,
+				  "bucket incorrectly %sset in %s btree\n"
+				  "  %s",
+				  set ? "" : "un",
+				  bch2_btree_id_str(btree),
+				  buf.buf);
+	printbuf_exit(&buf);
+	return ret;
+}
+
+#define need_discard_or_freespace_err(...)		\
+	fsck_err_wrap(__need_discard_or_freespace_err(__VA_ARGS__))
+
+#define need_discard_or_freespace_err_on(cond, ...)		\
+	(unlikely(cond) ?  need_discard_or_freespace_err(__VA_ARGS__) : false)
+
 static int bch2_bucket_do_index(struct btree_trans *trans,
 				struct bch_dev *ca,
 				struct bkey_s_c alloc_k,
 				const struct bch_alloc_v4 *a,
 				bool set)
 {
-	struct bch_fs *c = trans->c;
 	enum btree_id btree;
 	struct bpos pos;
-	enum bch_bkey_type old_type = !set ? KEY_TYPE_set : KEY_TYPE_deleted;
-	struct printbuf buf = PRINTBUF;
 
 	if (a->data_type != BCH_DATA_free &&
 	    a->data_type != BCH_DATA_need_discard)
@@ -699,26 +726,14 @@ static int bch2_bucket_do_index(struct btree_trans *trans,
 	if (ret)
 		return ret;
 
-	if (ca->mi.freespace_initialized &&
-	    c->curr_recovery_pass > BCH_RECOVERY_PASS_check_alloc_info &&
-	    bch2_trans_inconsistent_on(old.k->type != old_type, trans,
-			"incorrect key when %s %s:%llu:%llu:0 (got %s should be %s)\n"
-			"  for %s",
-			set ? "setting" : "clearing",
-			bch2_btree_id_str(btree),
-			iter.pos.inode,
-			iter.pos.offset,
-			bch2_bkey_types[old.k->type],
-			bch2_bkey_types[old_type],
-			(bch2_bkey_val_to_text(&buf, c, alloc_k), buf.buf))) {
-		ret = -EIO;
-		goto err;
-	}
+	need_discard_or_freespace_err_on(ca->mi.freespace_initialized &&
+					 !old.k->type != set,
+					 trans, alloc_k, set,
+					 btree == BTREE_ID_need_discard, false);
 
 	ret = bch2_btree_bit_mod_iter(trans, &iter, set);
-err:
+fsck_err:
 	bch2_trans_iter_exit(trans, &iter);
-	printbuf_exit(&buf);
 	return ret;
 }
 
@@ -1116,7 +1131,6 @@ int bch2_check_alloc_key(struct btree_trans *trans,
 	struct bch_fs *c = trans->c;
 	struct bch_alloc_v4 a_convert;
 	const struct bch_alloc_v4 *a;
-	unsigned discard_key_type, freespace_key_type;
 	unsigned gens_offset;
 	struct bkey_s_c k;
 	struct printbuf buf = PRINTBUF;
@@ -1136,41 +1150,30 @@ int bch2_check_alloc_key(struct btree_trans *trans,
 
 	a = bch2_alloc_to_v4(alloc_k, &a_convert);
 
-	discard_key_type = a->data_type == BCH_DATA_need_discard ? KEY_TYPE_set : 0;
 	bch2_btree_iter_set_pos(discard_iter, alloc_k.k->p);
 	k = bch2_btree_iter_peek_slot(discard_iter);
 	ret = bkey_err(k);
 	if (ret)
 		goto err;
 
-	if (fsck_err_on(k.k->type != discard_key_type,
-			trans, need_discard_key_wrong,
-			"incorrect key in need_discard btree (got %s should be %s)\n"
-			"  %s",
-			bch2_bkey_types[k.k->type],
-			bch2_bkey_types[discard_key_type],
-			(bch2_bkey_val_to_text(&buf, c, alloc_k), buf.buf))) {
-		ret = bch2_btree_bit_mod_iter(trans, discard_iter, !!discard_key_type);
+	bool is_discarded = a->data_type == BCH_DATA_need_discard;
+	if (need_discard_or_freespace_err_on(!!k.k->type != is_discarded,
+					     trans, alloc_k, !is_discarded, true, true)) {
+		ret = bch2_btree_bit_mod_iter(trans, discard_iter, is_discarded);
 		if (ret)
 			goto err;
 	}
 
-	freespace_key_type = a->data_type == BCH_DATA_free ? KEY_TYPE_set : 0;
 	bch2_btree_iter_set_pos(freespace_iter, alloc_freespace_pos(alloc_k.k->p, *a));
 	k = bch2_btree_iter_peek_slot(freespace_iter);
 	ret = bkey_err(k);
 	if (ret)
 		goto err;
 
-	if (fsck_err_on(k.k->type != freespace_key_type,
-			trans, freespace_key_wrong,
-			"incorrect key in freespace btree (got %s should be %s)\n"
-			"  %s",
-			bch2_bkey_types[k.k->type],
-			bch2_bkey_types[freespace_key_type],
-			(printbuf_reset(&buf),
-			 bch2_bkey_val_to_text(&buf, c, alloc_k), buf.buf))) {
-		ret = bch2_btree_bit_mod_iter(trans, freespace_iter, !!freespace_key_type);
+	bool is_free = a->data_type == BCH_DATA_free;
+	if (need_discard_or_freespace_err_on(!!k.k->type != is_free,
+					     trans, alloc_k, !is_free, false, true)) {
+		ret = bch2_btree_bit_mod_iter(trans, freespace_iter, is_free);
 		if (ret)
 			goto err;
 	}
