@@ -1343,13 +1343,11 @@ static int io_send_zc_import(struct io_kiocb *req, unsigned int issue_flags)
 	if (sr->flags & IORING_RECVSEND_FIXED_BUF) {
 		struct io_ring_ctx *ctx = req->ctx;
 		struct io_rsrc_node *node;
-		int idx;
 
 		ret = -EFAULT;
 		io_ring_submit_lock(ctx, issue_flags);
-		if (sr->buf_index < ctx->buf_table.nr) {
-			idx = array_index_nospec(sr->buf_index, ctx->buf_table.nr);
-			node = ctx->buf_table.nodes[idx];
+		node = io_rsrc_node_lookup(&ctx->buf_table, sr->buf_index);
+		if (node) {
 			io_req_assign_rsrc_node(sr->notif, node);
 			ret = 0;
 		}

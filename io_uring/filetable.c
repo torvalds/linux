@@ -58,7 +58,7 @@ static int io_install_fixed_file(struct io_ring_ctx *ctx, struct file *file,
 				 u32 slot_index)
 	__must_hold(&req->ctx->uring_lock)
 {
-	struct io_rsrc_node *node;
+	struct io_rsrc_node *node, *old_node;
 
 	if (io_is_uring_fops(file))
 		return -EBADF;
@@ -71,9 +71,9 @@ static int io_install_fixed_file(struct io_ring_ctx *ctx, struct file *file,
 	if (!node)
 		return -ENOMEM;
 
-	slot_index = array_index_nospec(slot_index, ctx->file_table.data.nr);
-	if (ctx->file_table.data.nodes[slot_index])
-		io_put_rsrc_node(ctx->file_table.data.nodes[slot_index]);
+	old_node = io_rsrc_node_lookup(&ctx->file_table.data, slot_index);
+	if (old_node)
+		io_put_rsrc_node(old_node);
 	else
 		io_file_bitmap_set(&ctx->file_table, slot_index);
 
@@ -123,15 +123,17 @@ int io_fixed_fd_install(struct io_kiocb *req, unsigned int issue_flags,
 
 int io_fixed_fd_remove(struct io_ring_ctx *ctx, unsigned int offset)
 {
+	struct io_rsrc_node *node;
+
 	if (unlikely(!ctx->file_table.data.nr))
 		return -ENXIO;
 	if (offset >= ctx->file_table.data.nr)
 		return -EINVAL;
 
-	offset = array_index_nospec(offset, ctx->file_table.data.nr);
-	if (!ctx->file_table.data.nodes[offset])
+	node = io_rsrc_node_lookup(&ctx->file_table.data, offset);
+	if (!node)
 		return -EBADF;
-	io_put_rsrc_node(ctx->file_table.data.nodes[offset]);
+	io_put_rsrc_node(node);
 	ctx->file_table.data.nodes[offset] = NULL;
 	io_file_bitmap_clear(&ctx->file_table, offset);
 	return 0;

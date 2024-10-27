@@ -181,6 +181,7 @@ static int __io_sqe_files_update(struct io_ring_ctx *ctx,
 		return -EINVAL;
 
 	for (done = 0; done < nr_args; done++) {
+		struct io_rsrc_node *node;
 		u64 tag = 0;
 
 		if ((tags && copy_from_user(&tag, &tags[done], sizeof(tag))) ||
@@ -195,9 +196,10 @@ static int __io_sqe_files_update(struct io_ring_ctx *ctx,
 		if (fd == IORING_REGISTER_FILES_SKIP)
 			continue;
 
-		i = array_index_nospec(up->offset + done, ctx->file_table.data.nr);
-		if (ctx->file_table.data.nodes[i]) {
-			io_put_rsrc_node(ctx->file_table.data.nodes[i]);
+		i = up->offset + done;
+		node = io_rsrc_node_lookup(&ctx->file_table.data, i);
+		if (node) {
+			io_put_rsrc_node(node);
 			ctx->file_table.data.nodes[i] = NULL;
 			io_file_bitmap_clear(&ctx->file_table, i);
 		}
@@ -958,9 +960,9 @@ static int io_clone_buffers(struct io_ring_ctx *ctx, struct io_ring_ctx *src_ctx
 		goto out_unlock;
 
 	for (i = 0; i < nbufs; i++) {
-		struct io_rsrc_node *src_node = src_ctx->buf_table.nodes[i];
-		struct io_rsrc_node *dst_node;
+		struct io_rsrc_node *dst_node, *src_node;
 
+		src_node = io_rsrc_node_lookup(&src_ctx->buf_table, i);
 		if (src_node == rsrc_empty_node) {
 			dst_node = rsrc_empty_node;
 		} else {

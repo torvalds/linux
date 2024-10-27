@@ -70,6 +70,14 @@ int io_register_rsrc(struct io_ring_ctx *ctx, void __user *arg,
 extern const struct io_rsrc_node empty_node;
 #define rsrc_empty_node	(struct io_rsrc_node *) &empty_node
 
+static inline struct io_rsrc_node *io_rsrc_node_lookup(struct io_rsrc_data *data,
+						       int index)
+{
+	if (index < data->nr)
+		return data->nodes[array_index_nospec(index, data->nr)];
+	return NULL;
+}
+
 static inline void io_put_rsrc_node(struct io_rsrc_node *node)
 {
 	if (node != rsrc_empty_node && !--node->refs)

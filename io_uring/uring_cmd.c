@@ -209,18 +209,17 @@ int io_uring_cmd_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 
 	if (ioucmd->flags & IORING_URING_CMD_FIXED) {
 		struct io_ring_ctx *ctx = req->ctx;
-		u16 index;
+		struct io_rsrc_node *node;
 
-		index = READ_ONCE(sqe->buf_index);
-		if (unlikely(index >= ctx->buf_table.nr))
+		node = io_rsrc_node_lookup(&ctx->buf_table, req->buf_index);
+		if (unlikely(!node))
 			return -EFAULT;
-		req->buf_index = array_index_nospec(index, ctx->buf_table.nr);
 		/*
 		 * Pi node upfront, prior to io_uring_cmd_import_fixed()
 		 * being called. This prevents destruction of the mapped buffer
 		 * we'll need at actual import time.
 		 */
-		io_req_assign_rsrc_node(req, ctx->buf_table.nodes[req->buf_index]);
+		io_req_assign_rsrc_node(req, node);
 	}
 	ioucmd->cmd_op = READ_ONCE(sqe->cmd_op);
 

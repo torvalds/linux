@@ -172,22 +172,24 @@ static int io_msg_ring_data(struct io_kiocb *req, unsigned int issue_flags)
 	return __io_msg_ring_data(target_ctx, msg, issue_flags);
 }
 
-static struct file *io_msg_grab_file(struct io_kiocb *req, unsigned int issue_flags)
+static int io_msg_grab_file(struct io_kiocb *req, unsigned int issue_flags)
 {
 	struct io_msg *msg = io_kiocb_to_cmd(req, struct io_msg);
 	struct io_ring_ctx *ctx = req->ctx;
-	struct file *file = NULL;
-	int idx = msg->src_fd;
+	struct io_rsrc_node *node;
+	int ret = -EBADF;
 
 	io_ring_submit_lock(ctx, issue_flags);
-	if (likely(idx < ctx->file_table.data.nr)) {
-		idx = array_index_nospec(idx, ctx->file_table.data.nr);
-		file = io_file_from_index(&ctx->file_table, idx);
-		if (file)
-			get_file(file);
+	node = io_rsrc_node_lookup(&ctx->file_table.data, msg->src_fd);
+	if (node) {
+		msg->src_file = io_slot_file(node);
+		if (msg->src_file)
+			get_file(msg->src_file);
+		req->flags |= REQ_F_NEED_CLEANUP;
+		ret = 0;
 	}
 	io_ring_submit_unlock(ctx, issue_flags);
-	return file;
+	return ret;
 }
 
 static int io_msg_install_complete(struct io_kiocb *req, unsigned int issue_flags)
@@ -256,7 +258,6 @@ static int io_msg_send_fd(struct io_kiocb *req, unsigned int issue_flags)
 	struct io_ring_ctx *target_ctx = req->file->private_data;
 	struct io_msg *msg = io_kiocb_to_cmd(req, struct io_msg);
 	struct io_ring_ctx *ctx = req->ctx;
-	struct file *src_file = msg->src_file;
 
 	if (msg->len)
 		return -EINVAL;
@@ -264,12 +265,10 @@ static int io_msg_send_fd(struct io_kiocb *req, unsigned int issue_flags)
 		return -EINVAL;
 	if (target_ctx->flags & IORING_SETUP_R_DISABLED)
 		return -EBADFD;
-	if (!src_file) {
-		src_file = io_msg_grab_file(req, issue_flags);
-		if (!src_file)
-			return -EBADF;
-		msg->src_file = src_file;
-		req->flags |= REQ_F_NEED_CLEANUP;
+	if (!msg->src_file) {
+		int ret = io_msg_grab_file(req, issue_flags);
+		if (unlikely(ret))
+			return ret;
 	}
 
 	if (io_msg_need_remote(target_ctx))
