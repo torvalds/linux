@@ -46,8 +46,6 @@ enum bch_trans_commit_flags {
 
 void bch2_trans_commit_flags_to_text(struct printbuf *, enum bch_trans_commit_flags);
 
-int bch2_btree_delete_extent_at(struct btree_trans *, struct btree_iter *,
-				unsigned, unsigned);
 int bch2_btree_delete_at(struct btree_trans *, struct btree_iter *, unsigned);
 int bch2_btree_delete(struct btree_trans *, enum btree_id, struct bpos, unsigned);
 
@@ -65,6 +63,7 @@ int bch2_btree_delete_range_trans(struct btree_trans *, enum btree_id,
 int bch2_btree_delete_range(struct bch_fs *, enum btree_id,
 			    struct bpos, struct bpos, unsigned, u64 *);
 
+int bch2_btree_bit_mod_iter(struct btree_trans *, struct btree_iter *, bool);
 int bch2_btree_bit_mod(struct btree_trans *, enum btree_id, struct bpos, bool);
 int bch2_btree_bit_mod_buffered(struct btree_trans *, enum btree_id, struct bpos, bool);
 

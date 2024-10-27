@@ -671,44 +671,31 @@ static int bch2_bucket_do_index(struct btree_trans *trans,
 				bool set)
 {
 	struct bch_fs *c = trans->c;
-	struct btree_iter iter;
-	struct bkey_s_c old;
-	struct bkey_i *k;
 	enum btree_id btree;
+	struct bpos pos;
 	enum bch_bkey_type old_type = !set ? KEY_TYPE_set : KEY_TYPE_deleted;
-	enum bch_bkey_type new_type =  set ? KEY_TYPE_set : KEY_TYPE_deleted;
 	struct printbuf buf = PRINTBUF;
-	int ret;
 
 	if (a->data_type != BCH_DATA_free &&
 	    a->data_type != BCH_DATA_need_discard)
 		return 0;
 
-	k = bch2_trans_kmalloc_nomemzero(trans, sizeof(*k));
-	if (IS_ERR(k))
-		return PTR_ERR(k);
-
-	bkey_init(&k->k);
-	k->k.type = new_type;
-
 	switch (a->data_type) {
 	case BCH_DATA_free:
 		btree = BTREE_ID_freespace;
-		k->k.p = alloc_freespace_pos(alloc_k.k->p, *a);
-		bch2_key_resize(&k->k, 1);
+		pos = alloc_freespace_pos(alloc_k.k->p, *a);
 		break;
 	case BCH_DATA_need_discard:
 		btree = BTREE_ID_need_discard;
-		k->k.p = alloc_k.k->p;
+		pos = alloc_k.k->p;
 		break;
 	default:
 		return 0;
 	}
 
-	old = bch2_bkey_get_iter(trans, &iter, btree,
-			     bkey_start_pos(&k->k),
-			     BTREE_ITER_intent);
-	ret = bkey_err(old);
+	struct btree_iter iter;
+	struct bkey_s_c old = bch2_bkey_get_iter(trans, &iter, btree, pos, BTREE_ITER_intent);
+	int ret = bkey_err(old);
 	if (ret)
 		return ret;
 
@@ -728,7 +715,7 @@ static int bch2_bucket_do_index(struct btree_trans *trans,
 		goto err;
 	}
 
-	ret = bch2_trans_update(trans, &iter, k, 0);
+	ret = bch2_btree_bit_mod_iter(trans, &iter, set);
 err:
 	bch2_trans_iter_exit(trans, &iter);
 	printbuf_exit(&buf);
@@ -1163,18 +1150,7 @@ int bch2_check_alloc_key(struct btree_trans *trans,
 			bch2_bkey_types[k.k->type],
 			bch2_bkey_types[discard_key_type],
 			(bch2_bkey_val_to_text(&buf, c, alloc_k), buf.buf))) {
-		struct bkey_i *update =
-			bch2_trans_kmalloc(trans, sizeof(*update));
-
-		ret = PTR_ERR_OR_ZERO(update);
-		if (ret)
-			goto err;
-
-		bkey_init(&update->k);
-		update->k.type	= discard_key_type;
-		update->k.p	= discard_iter->pos;
-
-		ret = bch2_trans_update(trans, discard_iter, update, 0);
+		ret = bch2_btree_bit_mod_iter(trans, discard_iter, !!discard_key_type);
 		if (ret)
 			goto err;
 	}
@@ -1194,19 +1170,7 @@ int bch2_check_alloc_key(struct btree_trans *trans,
 			bch2_bkey_types[freespace_key_type],
 			(printbuf_reset(&buf),
 			 bch2_bkey_val_to_text(&buf, c, alloc_k), buf.buf))) {
-		struct bkey_i *update =
-			bch2_trans_kmalloc(trans, sizeof(*update));
-
-		ret = PTR_ERR_OR_ZERO(update);
-		if (ret)
-			goto err;
-
-		bkey_init(&update->k);
-		update->k.type	= freespace_key_type;
-		update->k.p	= freespace_iter->pos;
-		bch2_key_resize(&update->k, 1);
-
-		ret = bch2_trans_update(trans, freespace_iter, update, 0);
+		ret = bch2_btree_bit_mod_iter(trans, freespace_iter, !!freespace_key_type);
 		if (ret)
 			goto err;
 	}
@@ -1420,8 +1384,7 @@ fsck_err:
 	printbuf_exit(&buf);
 	return ret;
 delete:
-	ret =   bch2_btree_delete_extent_at(trans, iter,
-			iter->btree_id == BTREE_ID_freespace ? 1 : 0, 0) ?:
+	ret =   bch2_btree_bit_mod_iter(trans, iter, false) ?:
 		bch2_trans_commit(trans, NULL, NULL,
 			BCH_TRANS_COMMIT_no_enospc);
 	goto out;

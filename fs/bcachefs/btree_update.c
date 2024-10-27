@@ -669,25 +669,17 @@ int bch2_btree_insert(struct bch_fs *c, enum btree_id id, struct bkey_i *k,
 			     bch2_btree_insert_trans(trans, id, k, iter_flags));
 }
 
-int bch2_btree_delete_extent_at(struct btree_trans *trans, struct btree_iter *iter,
-				unsigned len, unsigned update_flags)
-{
-	struct bkey_i *k;
-
-	k = bch2_trans_kmalloc(trans, sizeof(*k));
-	if (IS_ERR(k))
-		return PTR_ERR(k);
-
-	bkey_init(&k->k);
-	k->k.p = iter->pos;
-	bch2_key_resize(&k->k, len);
-	return bch2_trans_update(trans, iter, k, update_flags);
-}
-
 int bch2_btree_delete_at(struct btree_trans *trans,
 			 struct btree_iter *iter, unsigned update_flags)
 {
-	return bch2_btree_delete_extent_at(trans, iter, 0, update_flags);
+	struct bkey_i *k = bch2_trans_kmalloc(trans, sizeof(*k));
+	int ret = PTR_ERR_OR_ZERO(k);
+	if (ret)
+		return ret;
+
+	bkey_init(&k->k);
+	k->k.p = iter->pos;
+	return bch2_trans_update(trans, iter, k, update_flags);
 }
 
 int bch2_btree_delete(struct btree_trans *trans,
@@ -791,8 +783,7 @@ int bch2_btree_delete_range(struct bch_fs *c, enum btree_id id,
 	return ret;
 }
 
-int bch2_btree_bit_mod(struct btree_trans *trans, enum btree_id btree,
-		       struct bpos pos, bool set)
+int bch2_btree_bit_mod_iter(struct btree_trans *trans, struct btree_iter *iter, bool set)
 {
 	struct bkey_i *k = bch2_trans_kmalloc(trans, sizeof(*k));
 	int ret = PTR_ERR_OR_ZERO(k);
@@ -801,13 +792,21 @@ int bch2_btree_bit_mod(struct btree_trans *trans, enum btree_id btree,
 
 	bkey_init(&k->k);
 	k->k.type = set ? KEY_TYPE_set : KEY_TYPE_deleted;
-	k->k.p = pos;
+	k->k.p = iter->pos;
+	if (iter->flags & BTREE_ITER_is_extents)
+		bch2_key_resize(&k->k, 1);
 
+	return bch2_trans_update(trans, iter, k, 0);
+}
+
+int bch2_btree_bit_mod(struct btree_trans *trans, enum btree_id btree,
+		       struct bpos pos, bool set)
+{
 	struct btree_iter iter;
 	bch2_trans_iter_init(trans, &iter, btree, pos, BTREE_ITER_intent);
 
-	ret   = bch2_btree_iter_traverse(&iter) ?:
-		bch2_trans_update(trans, &iter, k, 0);
+	int ret = bch2_btree_iter_traverse(&iter) ?:
+		  bch2_btree_bit_mod_iter(trans, &iter, set);
 	bch2_trans_iter_exit(trans, &iter);
 	return ret;
 }
