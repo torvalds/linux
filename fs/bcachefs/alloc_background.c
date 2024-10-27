@@ -1977,8 +1977,11 @@ static int invalidate_one_bucket(struct btree_trans *trans,
 		return 1;
 
 	if (!bch2_dev_bucket_exists(c, bucket)) {
-		prt_str(&buf, "lru entry points to invalid bucket");
-		goto err;
+		if (fsck_err(trans, lru_entry_to_invalid_bucket,
+			     "lru key points to nonexistent device:bucket %llu:%llu",
+			     bucket.inode, bucket.offset))
+			return bch2_btree_bit_mod_buffered(trans, BTREE_ID_lru, lru_iter->pos, false);
+		goto out;
 	}
 
 	if (bch2_bucket_is_open_safe(c, bucket.inode, bucket.offset))
@@ -2019,28 +2022,9 @@ static int invalidate_one_bucket(struct btree_trans *trans,
 	trace_and_count(c, bucket_invalidate, c, bucket.inode, bucket.offset, cached_sectors);
 	--*nr_to_invalidate;
 out:
+fsck_err:
 	printbuf_exit(&buf);
 	return ret;
-err:
-	prt_str(&buf, "\n  lru key: ");
-	bch2_bkey_val_to_text(&buf, c, lru_k);
-
-	prt_str(&buf, "\n  lru entry: ");
-	bch2_lru_pos_to_text(&buf, lru_iter->pos);
-
-	prt_str(&buf, "\n  alloc key: ");
-	if (!a)
-		bch2_bpos_to_text(&buf, bucket);
-	else
-		bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(&a->k_i));
-
-	bch_err(c, "%s", buf.buf);
-	if (c->curr_recovery_pass > BCH_RECOVERY_PASS_check_lrus) {
-		bch2_inconsistent_error(c);
-		ret = -EINVAL;
-	}
-
-	goto out;
 }
 
 static struct bkey_s_c next_lru_key(struct btree_trans *trans, struct btree_iter *iter,
