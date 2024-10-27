@@ -1,2 +1,0 @@
-testusb-y += testusb.o
-ffs-test-y += ffs-test.o

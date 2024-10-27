@@ -1,8 +1,0 @@
-# SPDX-License-Identifier: GPL-2.0+
-config USB_ASPEED_VHUB
-	tristate "Aspeed vHub UDC driver"
-	depends on ARCH_ASPEED || COMPILE_TEST
-	depends on USB_LIBCOMPOSITE
-	help
-	  USB peripheral controller for the Aspeed AST2400, AST2500 and
-	  AST2600 family SoCs supporting the "vHub" functionality and USB2.0

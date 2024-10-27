@@ -1,5 +1,0 @@
-# brace is not closing
-tree {
-  node {
-    value = 1
-}

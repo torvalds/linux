@@ -1,5 +1,0 @@
-# SPDX-License-Identifier: GPL-2.0-only
-
-source "drivers/gpu/drm/renesas/rcar-du/Kconfig"
-source "drivers/gpu/drm/renesas/rz-du/Kconfig"
-source "drivers/gpu/drm/renesas/shmobile/Kconfig"

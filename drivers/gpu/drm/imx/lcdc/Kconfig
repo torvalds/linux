@@ -1,9 +1,0 @@
-config DRM_IMX_LCDC
-      tristate "Freescale i.MX LCDC displays"
-      depends on DRM && (ARCH_MXC || COMPILE_TEST)
-      select DRM_GEM_DMA_HELPER
-      select DRM_KMS_HELPER
-      select DRM_DISPLAY_HELPER
-      select DRM_BRIDGE_CONNECTOR
-      help
-        Found on i.MX1, i.MX21, i.MX25 and i.MX27.

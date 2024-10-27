@@ -1,8 +1,0 @@
-# SPDX-License-Identifier: GPL-2.0-only
-#
-# DCA server configuration
-#
-
-config DCA
-	tristate
-

@@ -1,1 +1,0 @@
-source "arch/riscv/kernel/tests/Kconfig.debug"

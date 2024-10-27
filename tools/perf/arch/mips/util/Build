@@ -1,3 +1,0 @@
-perf-util-y += perf_regs.o
-perf-util-$(CONFIG_DWARF) += dwarf-regs.o
-perf-util-$(CONFIG_LOCAL_LIBUNWIND) += unwind-libunwind.o
