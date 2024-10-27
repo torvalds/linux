@@ -636,6 +636,7 @@ config DRM_PANEL_SAMSUNG_S6E88A0_AMS427AP24
 	tristate "Samsung AMS427AP24 panel with S6E88A0 controller"
 	depends on GPIOLIB && OF && REGULATOR
 	depends on DRM_MIPI_DSI
+	depends on BACKLIGHT_CLASS_DEVICE
 	help
 	  Say Y here if you want to enable support for Samsung AMS427AP24 panel
 	  with S6E88A0 controller (found in Samsung Galaxy S4 Mini Value Edition
