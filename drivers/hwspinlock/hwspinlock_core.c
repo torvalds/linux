@@ -727,49 +727,6 @@ int hwspin_lock_get_id(struct hwspinlock *hwlock)
 EXPORT_SYMBOL_GPL(hwspin_lock_get_id);
 
 /**
- * hwspin_lock_request() - request an hwspinlock
- *
- * This function should be called by users of the hwspinlock device,
- * in order to dynamically assign them an unused hwspinlock.
- * Usually the user of this lock will then have to communicate the lock's id
- * to the remote core before it can be used for synchronization (to get the
- * id of a given hwlock, use hwspin_lock_get_id()).
- *
- * Should be called from a process context (might sleep)
- *
- * Returns: the address of the assigned hwspinlock, or %NULL on error
- */
-struct hwspinlock *hwspin_lock_request(void)
-{
-	struct hwspinlock *hwlock;
-	int ret;
-
-	mutex_lock(&hwspinlock_tree_lock);
-
-	/* look for an unused lock */
-	ret = radix_tree_gang_lookup_tag(&hwspinlock_tree, (void **)&hwlock,
-						0, 1, HWSPINLOCK_UNUSED);
-	if (ret == 0) {
-		pr_warn("a free hwspinlock is not available\n");
-		hwlock = NULL;
-		goto out;
-	}
-
-	/* sanity check that should never fail */
-	WARN_ON(ret > 1);
-
-	/* mark as used and power up */
-	ret = __hwspin_lock_request(hwlock);
-	if (ret < 0)
-		hwlock = NULL;
-
-out:
-	mutex_unlock(&hwspinlock_tree_lock);
-	return hwlock;
-}
-EXPORT_SYMBOL_GPL(hwspin_lock_request);
-
-/**
  * hwspin_lock_request_specific() - request for a specific hwspinlock
  * @id: index of the specific hwspinlock that is requested
  *
@@ -911,40 +868,6 @@ int devm_hwspin_lock_free(struct device *dev, struct hwspinlock *hwlock)
 	return ret;
 }
 EXPORT_SYMBOL_GPL(devm_hwspin_lock_free);
-
-/**
- * devm_hwspin_lock_request() - request an hwspinlock for a managed device
- * @dev: the device to request an hwspinlock
- *
- * This function should be called by users of the hwspinlock device,
- * in order to dynamically assign them an unused hwspinlock.
- * Usually the user of this lock will then have to communicate the lock's id
- * to the remote core before it can be used for synchronization (to get the
- * id of a given hwlock, use hwspin_lock_get_id()).
- *
- * Should be called from a process context (might sleep)
- *
- * Returns: the address of the assigned hwspinlock, or %NULL on error
- */
-struct hwspinlock *devm_hwspin_lock_request(struct device *dev)
-{
-	struct hwspinlock **ptr, *hwlock;
-
-	ptr = devres_alloc(devm_hwspin_lock_release, sizeof(*ptr), GFP_KERNEL);
-	if (!ptr)
-		return NULL;
-
-	hwlock = hwspin_lock_request();
-	if (hwlock) {
-		*ptr = hwlock;
-		devres_add(dev, ptr);
-	} else {
-		devres_free(ptr);
-	}
-
-	return hwlock;
-}
-EXPORT_SYMBOL_GPL(devm_hwspin_lock_request);
 
 /**
  * devm_hwspin_lock_request_specific() - request for a specific hwspinlock for

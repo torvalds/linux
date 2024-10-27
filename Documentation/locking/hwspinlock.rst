@@ -40,17 +40,6 @@ User API
 
 ::
 
-  struct hwspinlock *hwspin_lock_request(void);
-
-Dynamically assign an hwspinlock and return its address, or NULL
-in case an unused hwspinlock isn't available. Users of this
-API will usually want to communicate the lock's id to the remote core
-before it can be used to achieve synchronization.
-
-Should be called from a process context (might sleep).
-
-::
-
   struct hwspinlock *hwspin_lock_request_specific(unsigned int id);
 
 Assign a specific hwspinlock id and return its address, or NULL
@@ -331,40 +320,7 @@ Typical usage
 	#include <linux/hwspinlock.h>
 	#include <linux/err.h>
 
-	int hwspinlock_example1(void)
-	{
-		struct hwspinlock *hwlock;
-		int ret;
-
-		/* dynamically assign a hwspinlock */
-		hwlock = hwspin_lock_request();
-		if (!hwlock)
-			...
-
-		id = hwspin_lock_get_id(hwlock);
-		/* probably need to communicate id to a remote processor now */
-
-		/* take the lock, spin for 1 sec if it's already taken */
-		ret = hwspin_lock_timeout(hwlock, 1000);
-		if (ret)
-			...
-
-		/*
-		* we took the lock, do our thing now, but do NOT sleep
-		*/
-
-		/* release the lock */
-		hwspin_unlock(hwlock);
-
-		/* free the lock */
-		ret = hwspin_lock_free(hwlock);
-		if (ret)
-			...
-
-		return ret;
-	}
-
-	int hwspinlock_example2(void)
+	int hwspinlock_example(void)
 	{
 		struct hwspinlock *hwlock;
 		int ret;
