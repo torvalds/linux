@@ -161,6 +161,9 @@ static int __maybe_unused imx_clk_lpcg_scu_suspend(struct device *dev)
 {
 	struct clk_lpcg_scu *clk = dev_get_drvdata(dev);
 
+	if (!strncmp("hdmi_lpcg", clk_hw_get_name(&clk->hw), strlen("hdmi_lpcg")))
+		return 0;
+
 	clk->state = readl_relaxed(clk->reg);
 	dev_dbg(dev, "save lpcg state 0x%x\n", clk->state);
 
@@ -170,6 +173,9 @@ static int __maybe_unused imx_clk_lpcg_scu_suspend(struct device *dev)
 static int __maybe_unused imx_clk_lpcg_scu_resume(struct device *dev)
 {
 	struct clk_lpcg_scu *clk = dev_get_drvdata(dev);
+
+	if (!strncmp("hdmi_lpcg", clk_hw_get_name(&clk->hw), strlen("hdmi_lpcg")))
+		return 0;
 
 	writel(clk->state, clk->reg);
 	lpcg_e10858_writel(0, clk->reg, clk->state);
