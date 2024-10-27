@@ -619,8 +619,7 @@ bch2_trans_commit_write_locked(struct btree_trans *trans, unsigned flags,
 	unsigned u64s = 0;
 	int ret = 0;
 
-	bch2_trans_verify_not_unlocked(trans);
-	bch2_trans_verify_not_in_restart(trans);
+	bch2_trans_verify_not_unlocked_or_in_restart(trans);
 
 	if (race_fault()) {
 		trace_and_count(c, trans_restart_fault_inject, trans, trace_ip);
@@ -1008,8 +1007,7 @@ int __bch2_trans_commit(struct btree_trans *trans, unsigned flags)
 	struct bch_fs *c = trans->c;
 	int ret = 0;
 
-	bch2_trans_verify_not_unlocked(trans);
-	bch2_trans_verify_not_in_restart(trans);
+	bch2_trans_verify_not_unlocked_or_in_restart(trans);
 
 	if (!trans->nr_updates &&
 	    !trans->journal_entries_u64s)
@@ -1070,8 +1068,7 @@ int __bch2_trans_commit(struct btree_trans *trans, unsigned flags)
 	}
 retry:
 	errored_at = NULL;
-	bch2_trans_verify_not_unlocked(trans);
-	bch2_trans_verify_not_in_restart(trans);
+	bch2_trans_verify_not_unlocked_or_in_restart(trans);
 	if (likely(!(flags & BCH_TRANS_COMMIT_no_journal_res)))
 		memset(&trans->journal_res, 0, sizeof(trans->journal_res));
 	memset(&trans->fs_usage_delta, 0, sizeof(trans->fs_usage_delta));

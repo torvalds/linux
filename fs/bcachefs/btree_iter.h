@@ -236,12 +236,12 @@ int __must_check bch2_btree_path_traverse_one(struct btree_trans *,
 					      btree_path_idx_t,
 					      unsigned, unsigned long);
 
-static inline void bch2_trans_verify_not_unlocked(struct btree_trans *);
+static inline void bch2_trans_verify_not_unlocked_or_in_restart(struct btree_trans *);
 
 static inline int __must_check bch2_btree_path_traverse(struct btree_trans *trans,
 					  btree_path_idx_t path, unsigned flags)
 {
-	bch2_trans_verify_not_unlocked(trans);
+	bch2_trans_verify_not_unlocked_or_in_restart(trans);
 
 	if (trans->paths[path].uptodate < BTREE_ITER_NEED_RELOCK)
 		return 0;
@@ -326,20 +326,12 @@ static inline void bch2_trans_verify_not_restarted(struct btree_trans *trans,
 		bch2_trans_restart_error(trans, restart_count);
 }
 
-void __noreturn bch2_trans_in_restart_error(struct btree_trans *);
+void __noreturn bch2_trans_unlocked_or_in_restart_error(struct btree_trans *);
 
-static inline void bch2_trans_verify_not_in_restart(struct btree_trans *trans)
+static inline void bch2_trans_verify_not_unlocked_or_in_restart(struct btree_trans *trans)
 {
-	if (trans->restarted)
-		bch2_trans_in_restart_error(trans);
-}
-
-void __noreturn bch2_trans_unlocked_error(struct btree_trans *);
-
-static inline void bch2_trans_verify_not_unlocked(struct btree_trans *trans)
-{
-	if (!trans->locked)
-		bch2_trans_unlocked_error(trans);
+	if (trans->restarted || !trans->locked)
+		bch2_trans_unlocked_or_in_restart_error(trans);
 }
 
 __always_inline
