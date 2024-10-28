@@ -12,7 +12,7 @@ then
 	exit 1
 fi
 
-if echo foo > "$DBGFS/mk_contexts"
+if echo foo > "$DBGFS/mk_contexts" 2> /dev/null
 then
 	echo "duplicate context creation success"
 	exit 1
