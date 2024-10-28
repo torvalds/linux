@@ -42,6 +42,13 @@ struct subplatform_desc {
 	.platforms._platform##_##_subplatform = 1,			\
 	.name = #_subplatform
 
+/*
+ * Group subplatform alias that matches multiple subplatforms. For making ult
+ * cover both ult and ulx on HSW/BDW.
+ */
+#define SUBPLATFORM_GROUP(_platform, _subplatform)			\
+	.platforms._platform##_##_subplatform = 1
+
 struct platform_desc {
 	struct intel_display_platforms platforms;
 	const char *name;
@@ -511,12 +518,15 @@ static const u16 hsw_ulx_ids[] = {
 static const struct platform_desc hsw_desc = {
 	PLATFORM(haswell),
 	.subplatforms = (const struct subplatform_desc[]) {
+		/* Special case: Use ult both as group and subplatform. */
 		{
 			SUBPLATFORM(haswell, ult),
+			SUBPLATFORM_GROUP(haswell, ult),
 			.pciidlist = hsw_ult_ids,
 		},
 		{
 			SUBPLATFORM(haswell, ulx),
+			SUBPLATFORM_GROUP(haswell, ult),
 			.pciidlist = hsw_ulx_ids,
 		},
 		{},
@@ -561,12 +571,15 @@ static const u16 bdw_ulx_ids[] = {
 static const struct platform_desc bdw_desc = {
 	PLATFORM(broadwell),
 	.subplatforms = (const struct subplatform_desc[]) {
+		/* Special case: Use ult both as group and subplatform. */
 		{
 			SUBPLATFORM(broadwell, ult),
+			SUBPLATFORM_GROUP(broadwell, ult),
 			.pciidlist = bdw_ult_ids,
 		},
 		{
 			SUBPLATFORM(broadwell, ulx),
+			SUBPLATFORM_GROUP(broadwell, ult),
 			.pciidlist = bdw_ulx_ids,
 		},
 		{},
