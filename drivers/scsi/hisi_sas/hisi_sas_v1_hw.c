@@ -1802,7 +1802,7 @@ MODULE_DEVICE_TABLE(acpi, sas_v1_acpi_match);
 
 static struct platform_driver hisi_sas_v1_driver = {
 	.probe = hisi_sas_v1_probe,
-	.remove_new = hisi_sas_remove,
+	.remove = hisi_sas_remove,
 	.driver = {
 		.name = DRV_NAME,
 		.of_match_table = sas_v1_of_match,

@@ -603,7 +603,7 @@ static struct platform_driver esp_sbus_driver = {
 		.of_match_table = esp_match,
 	},
 	.probe		= esp_sbus_probe,
-	.remove_new	= esp_sbus_remove,
+	.remove		= esp_sbus_remove,
 };
 module_platform_driver(esp_sbus_driver);
 

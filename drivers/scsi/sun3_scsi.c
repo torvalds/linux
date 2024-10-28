@@ -657,7 +657,7 @@ static void __exit sun3_scsi_remove(struct platform_device *pdev)
 }
 
 static struct platform_driver sun3_scsi_driver = {
-	.remove_new = __exit_p(sun3_scsi_remove),
+	.remove = __exit_p(sun3_scsi_remove),
 	.driver = {
 		.name	= DRV_MODULE_NAME,
 	},

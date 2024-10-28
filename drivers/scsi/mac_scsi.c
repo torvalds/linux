@@ -547,7 +547,7 @@ static void __exit mac_scsi_remove(struct platform_device *pdev)
  * triggering a section mismatch warning.
  */
 static struct platform_driver mac_scsi_driver __refdata = {
-	.remove_new = __exit_p(mac_scsi_remove),
+	.remove = __exit_p(mac_scsi_remove),
 	.driver = {
 		.name	= DRV_MODULE_NAME,
 	},

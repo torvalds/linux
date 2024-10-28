@@ -127,7 +127,7 @@ static struct platform_driver mvme16x_scsi_driver = {
 		.name           = "mvme16x-scsi",
 	},
 	.probe          = mvme16x_probe,
-	.remove_new     = mvme16x_device_remove,
+	.remove         = mvme16x_device_remove,
 };
 
 static int __init mvme16x_scsi_init(void)
