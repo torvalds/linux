@@ -2066,7 +2066,9 @@ static void ath12k_host_cap_parse_mlo(struct ath12k_base *ab,
 	req->mlo_chip_info_valid = 1;
 }
 
-static int ath12k_qmi_host_cap_send(struct ath12k_base *ab)
+/* clang stack usage explodes if this is inlined */
+static noinline_for_stack
+int ath12k_qmi_host_cap_send(struct ath12k_base *ab)
 {
 	struct qmi_wlanfw_host_cap_req_msg_v01 req = {};
 	struct qmi_wlanfw_host_cap_resp_msg_v01 resp = {};
@@ -2275,7 +2277,9 @@ resp_out:
 	return ret;
 }
 
-static int ath12k_qmi_respond_fw_mem_request(struct ath12k_base *ab)
+/* clang stack usage explodes if this is inlined */
+static noinline_for_stack
+int ath12k_qmi_respond_fw_mem_request(struct ath12k_base *ab)
 {
 	struct qmi_wlanfw_respond_mem_req_msg_v01 *req;
 	struct qmi_wlanfw_respond_mem_resp_msg_v01 resp = {};
@@ -2433,7 +2437,9 @@ this_chunk_done:
 	return 0;
 }
 
-static int ath12k_qmi_request_target_cap(struct ath12k_base *ab)
+/* clang stack usage explodes if this is inlined */
+static noinline_for_stack
+int ath12k_qmi_request_target_cap(struct ath12k_base *ab)
 {
 	struct qmi_wlanfw_cap_req_msg_v01 req = {};
 	struct qmi_wlanfw_cap_resp_msg_v01 resp = {};
@@ -2619,8 +2625,10 @@ out:
 	return ret;
 }
 
-static int ath12k_qmi_load_bdf_qmi(struct ath12k_base *ab,
-				   enum ath12k_qmi_bdf_type type)
+/* clang stack usage explodes if this is inlined */
+static noinline_for_stack
+int ath12k_qmi_load_bdf_qmi(struct ath12k_base *ab,
+			    enum ath12k_qmi_bdf_type type)
 {
 	struct device *dev = ab->dev;
 	char filename[ATH12K_QMI_MAX_BDF_FILE_NAME_SIZE];
@@ -2791,7 +2799,9 @@ out:
 	return ret;
 }
 
-static int ath12k_qmi_wlanfw_m3_info_send(struct ath12k_base *ab)
+/* clang stack usage explodes if this is inlined */
+static noinline_for_stack
+int ath12k_qmi_wlanfw_m3_info_send(struct ath12k_base *ab)
 {
 	struct m3_mem_region *m3_mem = &ab->qmi.m3_mem;
 	struct qmi_wlanfw_m3_info_req_msg_v01 req = {};
@@ -3079,7 +3089,9 @@ ath12k_qmi_driver_event_post(struct ath12k_qmi *qmi,
 	return 0;
 }
 
-static int ath12k_qmi_event_server_arrive(struct ath12k_qmi *qmi)
+/* clang stack usage explodes if this is inlined */
+static noinline_for_stack
+int ath12k_qmi_event_server_arrive(struct ath12k_qmi *qmi)
 {
 	struct ath12k_base *ab = qmi->ab;
 	int ret;
@@ -3101,7 +3113,9 @@ static int ath12k_qmi_event_server_arrive(struct ath12k_qmi *qmi)
 	return ret;
 }
 
-static int ath12k_qmi_event_mem_request(struct ath12k_qmi *qmi)
+/* clang stack usage explodes if this is inlined */
+static noinline_for_stack
+int ath12k_qmi_event_mem_request(struct ath12k_qmi *qmi)
 {
 	struct ath12k_base *ab = qmi->ab;
 	int ret;
@@ -3115,7 +3129,9 @@ static int ath12k_qmi_event_mem_request(struct ath12k_qmi *qmi)
 	return ret;
 }
 
-static int ath12k_qmi_event_load_bdf(struct ath12k_qmi *qmi)
+/* clang stack usage explodes if this is inlined */
+static noinline_for_stack
+int ath12k_qmi_event_load_bdf(struct ath12k_qmi *qmi)
 {
 	struct ath12k_base *ab = qmi->ab;
 	int ret;
