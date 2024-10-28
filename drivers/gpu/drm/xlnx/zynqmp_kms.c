@@ -509,11 +509,11 @@ int zynqmp_dpsub_drm_init(struct zynqmp_dpsub *dpsub)
 	if (ret)
 		return ret;
 
-	drm_kms_helper_poll_init(drm);
-
 	ret = zynqmp_dpsub_kms_init(dpsub);
 	if (ret < 0)
 		goto err_poll_fini;
+
+	drm_kms_helper_poll_init(drm);
 
 	/* Reset all components and register the DRM device. */
 	drm_mode_config_reset(drm);
