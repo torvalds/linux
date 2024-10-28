@@ -49,16 +49,6 @@ static inline struct file *io_slot_file(struct io_rsrc_node *node)
 	return (struct file *)(node->file_ptr & FFS_MASK);
 }
 
-static inline struct file *io_file_from_index(struct io_file_table *table,
-					      int index)
-{
-	struct io_rsrc_node *node = io_rsrc_node_lookup(&table->data, index);
-
-	if (node)
-		return io_slot_file(node);
-	return NULL;
-}
-
 static inline void io_fixed_file_set(struct io_rsrc_node *node,
 				     struct file *file)
 {

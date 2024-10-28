@@ -167,8 +167,10 @@ __cold void io_uring_show_fdinfo(struct seq_file *m, struct file *file)
 	seq_printf(m, "SqWorkTime:\t%llu\n", sq_work_time);
 	seq_printf(m, "UserFiles:\t%u\n", ctx->file_table.data.nr);
 	for (i = 0; has_lock && i < ctx->file_table.data.nr; i++) {
-		struct file *f = io_file_from_index(&ctx->file_table, i);
+		struct file *f = NULL;
 
+		if (ctx->file_table.data.nodes[i])
+			f = io_slot_file(ctx->file_table.data.nodes[i]);
 		if (f)
 			seq_printf(m, "%5u: %s\n", i, file_dentry(f)->d_iname);
 		else
