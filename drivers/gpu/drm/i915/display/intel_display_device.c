@@ -32,6 +32,7 @@ struct stepping_desc {
 	.step_info.size = ARRAY_SIZE(_map)
 
 struct subplatform_desc {
+	struct intel_display_platforms platforms;
 	enum intel_display_platform subplatform;
 	const char *name;
 	const u16 *pciidlist;
@@ -39,10 +40,12 @@ struct subplatform_desc {
 };
 
 #define SUBPLATFORM(_platform, _subplatform)				\
+	.platforms._platform##_##_subplatform = 1,			\
 	.subplatform = (INTEL_DISPLAY_##_platform##_##_subplatform),	\
 	.name = #_subplatform
 
 struct platform_desc {
+	struct intel_display_platforms platforms;
 	enum intel_display_platform platform;
 	const char *name;
 	const struct subplatform_desc *subplatforms;
@@ -51,6 +54,7 @@ struct platform_desc {
 };
 
 #define PLATFORM(_platform)			 \
+	.platforms._platform = 1,		 \
 	.platform = (INTEL_DISPLAY_##_platform), \
 	.name = #_platform
 

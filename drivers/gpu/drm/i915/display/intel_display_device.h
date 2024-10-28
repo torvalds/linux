@@ -6,6 +6,7 @@
 #ifndef __INTEL_DISPLAY_DEVICE_H__
 #define __INTEL_DISPLAY_DEVICE_H__
 
+#include <linux/bitops.h>
 #include <linux/types.h>
 
 #include "intel_display_conversion.h"
@@ -105,6 +106,24 @@ enum intel_display_platform {
 };
 
 #undef __ENUM
+
+#define __MEMBER(name) unsigned long name:1;
+#define __COUNT(x) 1 +
+
+#define __NUM_PLATFORMS (INTEL_DISPLAY_PLATFORMS(__COUNT) 0)
+
+struct intel_display_platforms {
+	union {
+		struct {
+			INTEL_DISPLAY_PLATFORMS(__MEMBER);
+		};
+		DECLARE_BITMAP(bitmap, __NUM_PLATFORMS);
+	};
+};
+
+#undef __MEMBER
+#undef __COUNT
+#undef __NUM_PLATFORMS
 
 #define DEV_INFO_DISPLAY_FOR_EACH_FLAG(func) \
 	/* Keep in alphabetical order */ \
