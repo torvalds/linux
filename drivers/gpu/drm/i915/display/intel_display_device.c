@@ -33,7 +33,6 @@ struct stepping_desc {
 
 struct subplatform_desc {
 	struct intel_display_platforms platforms;
-	enum intel_display_platform subplatform;
 	const char *name;
 	const u16 *pciidlist;
 	struct stepping_desc step_info;
@@ -41,12 +40,10 @@ struct subplatform_desc {
 
 #define SUBPLATFORM(_platform, _subplatform)				\
 	.platforms._platform##_##_subplatform = 1,			\
-	.subplatform = (INTEL_DISPLAY_##_platform##_##_subplatform),	\
 	.name = #_subplatform
 
 struct platform_desc {
 	struct intel_display_platforms platforms;
-	enum intel_display_platform platform;
 	const char *name;
 	const struct subplatform_desc *subplatforms;
 	const struct intel_display_device_info *info; /* NULL for GMD ID */
@@ -55,7 +52,6 @@ struct platform_desc {
 
 #define PLATFORM(_platform)			 \
 	.platforms._platform = 1,		 \
-	.platform = (INTEL_DISPLAY_##_platform), \
 	.name = #_platform
 
 #define ID(id) (id)
@@ -1467,7 +1463,7 @@ find_subplatform_desc(struct pci_dev *pdev, const struct platform_desc *desc)
 	const struct subplatform_desc *sp;
 	const u16 *id;
 
-	for (sp = desc->subplatforms; sp && sp->subplatform; sp++)
+	for (sp = desc->subplatforms; sp && sp->pciidlist; sp++)
 		for (id = sp->pciidlist; *id; id++)
 			if (*id == pdev->device)
 				return sp;
@@ -1584,17 +1580,15 @@ void intel_display_device_probe(struct drm_i915_private *i915)
 	       &DISPLAY_INFO(i915)->__runtime_defaults,
 	       sizeof(*DISPLAY_RUNTIME_INFO(i915)));
 
-	drm_WARN_ON(&i915->drm, !desc->platform || !desc->name ||
+	drm_WARN_ON(&i915->drm, !desc->name ||
 		    !display_platforms_weight(&desc->platforms));
-	DISPLAY_RUNTIME_INFO(i915)->platform = desc->platform;
 
 	display->platform = desc->platforms;
 
 	subdesc = find_subplatform_desc(pdev, desc);
 	if (subdesc) {
-		drm_WARN_ON(&i915->drm, !subdesc->subplatform || !subdesc->name ||
+		drm_WARN_ON(&i915->drm, !subdesc->name ||
 			    !display_platforms_weight(&subdesc->platforms));
-		DISPLAY_RUNTIME_INFO(i915)->subplatform = subdesc->subplatform;
 
 		display_platforms_or(&display->platform, &subdesc->platforms);
 
