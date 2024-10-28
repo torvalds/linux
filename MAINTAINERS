@@ -1521,6 +1521,7 @@ L:	linux-sound@vger.kernel.org
 S:	Supported
 W:	http://wiki.analog.com/
 W:	https://ez.analog.com/linux-software-drivers
+F:	Documentation/devicetree/bindings/sound/adi,*
 F:	sound/soc/codecs/ad1*
 F:	sound/soc/codecs/ad7*
 F:	sound/soc/codecs/adau*
