@@ -2787,7 +2787,6 @@ static bool child_device_size_valid(struct intel_display *display, int size)
 static void
 parse_general_definitions(struct intel_display *display)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
 	const struct bdb_general_definitions *defs;
 	struct intel_bios_encoder_data *devdata;
 	const struct child_device_config *child;
@@ -2812,7 +2811,7 @@ parse_general_definitions(struct intel_display *display)
 
 	bus_pin = defs->crt_ddc_gmbus_pin;
 	drm_dbg_kms(display->drm, "crt_ddc_bus_pin: %d\n", bus_pin);
-	if (intel_gmbus_is_valid_pin(i915, bus_pin))
+	if (intel_gmbus_is_valid_pin(display, bus_pin))
 		display->vbt.crt_ddc_pin = bus_pin;
 
 	if (!child_device_size_valid(display, defs->child_dev_size))
@@ -3329,7 +3328,6 @@ bool intel_bios_is_tv_present(struct intel_display *display)
  */
 bool intel_bios_is_lvds_present(struct intel_display *display, u8 *i2c_pin)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
 	const struct intel_bios_encoder_data *devdata;
 
 	if (list_empty(&display->vbt.display_devices))
@@ -3346,7 +3344,7 @@ bool intel_bios_is_lvds_present(struct intel_display *display, u8 *i2c_pin)
 		    child->device_type != DEVICE_TYPE_LFP)
 			continue;
 
-		if (intel_gmbus_is_valid_pin(i915, child->i2c_pin))
+		if (intel_gmbus_is_valid_pin(display, child->i2c_pin))
 			*i2c_pin = child->i2c_pin;
 
 		/* However, we cannot trust the BIOS writers to populate
