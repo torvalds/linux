@@ -361,8 +361,8 @@ static void sveaes_sigill(void)
 
 static void sveb16b16_sigill(void)
 {
-	/* BFADD ZA.H[W0, 0], {Z0.H-Z1.H} */
-	asm volatile(".inst 0xC1E41C00" : : : );
+	/* BFADD Z0.H, Z0.H, Z0.H */
+	asm volatile(".inst 0x65000000" : : : );
 }
 
 static void svepmull_sigill(void)
