@@ -1381,17 +1381,17 @@ void unregister_ftrace_graph(struct fgraph_ops *gops)
 {
 	int command = 0;
 
-	mutex_lock(&ftrace_lock);
+	guard(mutex)(&ftrace_lock);
 
 	if (unlikely(!ftrace_graph_active))
-		goto out;
+		return;
 
 	if (unlikely(gops->idx < 0 || gops->idx >= FGRAPH_ARRAY_SIZE ||
 		     fgraph_array[gops->idx] != gops))
-		goto out;
+		return;
 
 	if (fgraph_lru_release_index(gops->idx) < 0)
-		goto out;
+		return;
 
 	fgraph_array[gops->idx] = &fgraph_stub;
 
@@ -1413,7 +1413,5 @@ void unregister_ftrace_graph(struct fgraph_ops *gops)
 		unregister_pm_notifier(&ftrace_suspend_notifier);
 		unregister_trace_sched_switch(ftrace_graph_probe_sched_switch, NULL);
 	}
- out:
 	gops->saved_func = NULL;
-	mutex_unlock(&ftrace_lock);
 }
