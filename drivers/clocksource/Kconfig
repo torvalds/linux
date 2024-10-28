@@ -754,4 +754,13 @@ config EP93XX_TIMER
 	  Enables support for the Cirrus Logic timer block
 	  EP93XX.
 
+config RALINK_TIMER
+	bool "Ralink System Tick Counter"
+	depends on SOC_RT305X || SOC_MT7620 || COMPILE_TEST
+	select CLKSRC_MMIO
+	select TIMER_OF
+	help
+	  Enables support for system tick counter present on
+	  Ralink SoCs RT3352 and MT7620.
+
 endmenu
