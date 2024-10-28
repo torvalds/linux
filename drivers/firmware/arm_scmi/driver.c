@@ -3048,10 +3048,10 @@ static const struct scmi_desc *scmi_transport_setup(struct device *dev)
 
 	dev_info(dev, "Using %s\n", dev_driver_string(trans->supplier));
 
-	ret = of_property_read_u32(dev->of_node, "max-rx-timeout-ms",
+	ret = of_property_read_u32(dev->of_node, "arm,max-rx-timeout-ms",
 				   &trans->desc->max_rx_timeout_ms);
 	if (ret && ret != -EINVAL)
-		dev_err(dev, "Malformed max-rx-timeout-ms DT property.\n");
+		dev_err(dev, "Malformed arm,max-rx-timeout-ms DT property.\n");
 
 	dev_info(dev, "SCMI max-rx-timeout: %dms\n",
 		 trans->desc->max_rx_timeout_ms);
