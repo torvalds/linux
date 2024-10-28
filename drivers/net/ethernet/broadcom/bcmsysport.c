@@ -27,30 +27,6 @@
 
 #include "bcmsysport.h"
 
-/* I/O accessors register helpers */
-#define BCM_SYSPORT_IO_MACRO(name, offset) \
-static inline u32 name##_readl(struct bcm_sysport_priv *priv, u32 off)	\
-{									\
-	u32 reg = readl_relaxed(priv->base + offset + off);		\
-	return reg;							\
-}									\
-static inline void name##_writel(struct bcm_sysport_priv *priv,		\
-				  u32 val, u32 off)			\
-{									\
-	writel_relaxed(val, priv->base + offset + off);			\
-}									\
-
-BCM_SYSPORT_IO_MACRO(intrl2_0, SYS_PORT_INTRL2_0_OFFSET);
-BCM_SYSPORT_IO_MACRO(intrl2_1, SYS_PORT_INTRL2_1_OFFSET);
-BCM_SYSPORT_IO_MACRO(umac, SYS_PORT_UMAC_OFFSET);
-BCM_SYSPORT_IO_MACRO(gib, SYS_PORT_GIB_OFFSET);
-BCM_SYSPORT_IO_MACRO(tdma, SYS_PORT_TDMA_OFFSET);
-BCM_SYSPORT_IO_MACRO(rxchk, SYS_PORT_RXCHK_OFFSET);
-BCM_SYSPORT_IO_MACRO(txchk, SYS_PORT_TXCHK_OFFSET);
-BCM_SYSPORT_IO_MACRO(rbuf, SYS_PORT_RBUF_OFFSET);
-BCM_SYSPORT_IO_MACRO(tbuf, SYS_PORT_TBUF_OFFSET);
-BCM_SYSPORT_IO_MACRO(topctrl, SYS_PORT_TOPCTRL_OFFSET);
-
 /* On SYSTEMPORT Lite, any register after RDMA_STATUS has the exact
  * same layout, except it has been moved by 4 bytes up, *sigh*
  */
