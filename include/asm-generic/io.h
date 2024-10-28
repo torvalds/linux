@@ -1211,7 +1211,6 @@ static inline void unxlate_dev_mem_ptr(phys_addr_t phys, void *addr)
 #endif
 
 #ifndef memset_io
-#define memset_io memset_io
 /**
  * memset_io	Set a range of I/O memory to a constant value
  * @addr:	The beginning of the I/O-memory range to set
@@ -1220,15 +1219,10 @@ static inline void unxlate_dev_mem_ptr(phys_addr_t phys, void *addr)
  *
  * Set a range of I/O memory to a given value.
  */
-static inline void memset_io(volatile void __iomem *addr, int value,
-			     size_t size)
-{
-	memset(__io_virt(addr), value, size);
-}
+void memset_io(volatile void __iomem *addr, int val, size_t count);
 #endif
 
 #ifndef memcpy_fromio
-#define memcpy_fromio memcpy_fromio
 /**
  * memcpy_fromio	Copy a block of data from I/O memory
  * @dst:		The (RAM) destination for the copy
@@ -1237,16 +1231,10 @@ static inline void memset_io(volatile void __iomem *addr, int value,
  *
  * Copy a block of data from I/O memory.
  */
-static inline void memcpy_fromio(void *buffer,
-				 const volatile void __iomem *addr,
-				 size_t size)
-{
-	memcpy(buffer, __io_virt(addr), size);
-}
+void memcpy_fromio(void *dst, const volatile void __iomem *src, size_t count);
 #endif
 
 #ifndef memcpy_toio
-#define memcpy_toio memcpy_toio
 /**
  * memcpy_toio		Copy a block of data into I/O memory
  * @dst:		The (I/O memory) destination for the copy
@@ -1255,11 +1243,7 @@ static inline void memcpy_fromio(void *buffer,
  *
  * Copy a block of data to I/O memory.
  */
-static inline void memcpy_toio(volatile void __iomem *addr, const void *buffer,
-			       size_t size)
-{
-	memcpy(__io_virt(addr), buffer, size);
-}
+void memcpy_toio(volatile void __iomem *dst, const void *src, size_t count);
 #endif
 
 extern int devmem_is_allowed(unsigned long pfn);
