@@ -38,6 +38,10 @@ struct subplatform_desc {
 	struct stepping_desc step_info;
 };
 
+#define SUBPLATFORM(_platform, _subplatform)				\
+	.subplatform = (INTEL_DISPLAY_##_platform##_##_subplatform),	\
+	.name = #_subplatform
+
 struct platform_desc {
 	enum intel_display_platform platform;
 	const char *name;
@@ -499,11 +503,11 @@ static const struct platform_desc hsw_desc = {
 	PLATFORM(HASWELL),
 	.subplatforms = (const struct subplatform_desc[]) {
 		{
-			INTEL_DISPLAY_HASWELL_ULT, "ULT",
+			SUBPLATFORM(HASWELL, ULT),
 			.pciidlist = hsw_ult_ids,
 		},
 		{
-			INTEL_DISPLAY_HASWELL_ULX, "ULX",
+			SUBPLATFORM(HASWELL, ULX),
 			.pciidlist = hsw_ulx_ids,
 		},
 		{},
@@ -549,11 +553,11 @@ static const struct platform_desc bdw_desc = {
 	PLATFORM(BROADWELL),
 	.subplatforms = (const struct subplatform_desc[]) {
 		{
-			INTEL_DISPLAY_BROADWELL_ULT, "ULT",
+			SUBPLATFORM(BROADWELL, ULT),
 			.pciidlist = bdw_ult_ids,
 		},
 		{
-			INTEL_DISPLAY_BROADWELL_ULX, "ULX",
+			SUBPLATFORM(BROADWELL, ULX),
 			.pciidlist = bdw_ulx_ids,
 		},
 		{},
@@ -646,11 +650,11 @@ static const struct platform_desc skl_desc = {
 	PLATFORM(SKYLAKE),
 	.subplatforms = (const struct subplatform_desc[]) {
 		{
-			INTEL_DISPLAY_SKYLAKE_ULT, "ULT",
+			SUBPLATFORM(SKYLAKE, ULT),
 			.pciidlist = skl_ult_ids,
 		},
 		{
-			INTEL_DISPLAY_SKYLAKE_ULX, "ULX",
+			SUBPLATFORM(SKYLAKE, ULX),
 			.pciidlist = skl_ulx_ids,
 		},
 		{},
@@ -687,11 +691,11 @@ static const struct platform_desc kbl_desc = {
 	PLATFORM(KABYLAKE),
 	.subplatforms = (const struct subplatform_desc[]) {
 		{
-			INTEL_DISPLAY_KABYLAKE_ULT, "ULT",
+			SUBPLATFORM(KABYLAKE, ULT),
 			.pciidlist = kbl_ult_ids,
 		},
 		{
-			INTEL_DISPLAY_KABYLAKE_ULX, "ULX",
+			SUBPLATFORM(KABYLAKE, ULX),
 			.pciidlist = kbl_ulx_ids,
 		},
 		{},
@@ -718,11 +722,11 @@ static const struct platform_desc cfl_desc = {
 	PLATFORM(COFFEELAKE),
 	.subplatforms = (const struct subplatform_desc[]) {
 		{
-			INTEL_DISPLAY_COFFEELAKE_ULT, "ULT",
+			SUBPLATFORM(COFFEELAKE, ULT),
 			.pciidlist = cfl_ult_ids,
 		},
 		{
-			INTEL_DISPLAY_COFFEELAKE_ULX, "ULX",
+			SUBPLATFORM(COFFEELAKE, ULX),
 			.pciidlist = cfl_ulx_ids,
 		},
 		{},
@@ -740,7 +744,7 @@ static const struct platform_desc cml_desc = {
 	PLATFORM(COMETLAKE),
 	.subplatforms = (const struct subplatform_desc[]) {
 		{
-			INTEL_DISPLAY_COMETLAKE_ULT, "ULT",
+			SUBPLATFORM(COMETLAKE, ULT),
 			.pciidlist = cml_ult_ids,
 		},
 		{},
@@ -859,7 +863,7 @@ static const struct platform_desc icl_desc = {
 	PLATFORM(ICELAKE),
 	.subplatforms = (const struct subplatform_desc[]) {
 		{
-			INTEL_DISPLAY_ICELAKE_PORT_F, "Port F",
+			SUBPLATFORM(ICELAKE, PORT_F),
 			.pciidlist = icl_port_f_ids,
 		},
 		{},
@@ -959,7 +963,7 @@ static const struct platform_desc tgl_desc = {
 	PLATFORM(TIGERLAKE),
 	.subplatforms = (const struct subplatform_desc[]) {
 		{
-			INTEL_DISPLAY_TIGERLAKE_UY, "UY",
+			SUBPLATFORM(TIGERLAKE, UY),
 			.pciidlist = tgl_uy_ids,
 			STEP_INFO(tgl_uy_steppings),
 		},
@@ -1039,7 +1043,7 @@ static const struct platform_desc adl_s_desc = {
 	PLATFORM(ALDERLAKE_S),
 	.subplatforms = (const struct subplatform_desc[]) {
 		{
-			INTEL_DISPLAY_ALDERLAKE_S_RAPTORLAKE_S, "RPL-S",
+			SUBPLATFORM(ALDERLAKE_S, RAPTORLAKE_S),
 			.pciidlist = adls_rpls_ids,
 			STEP_INFO(adl_s_rpl_s_steppings),
 		},
@@ -1146,17 +1150,17 @@ static const struct platform_desc adl_p_desc = {
 	PLATFORM(ALDERLAKE_P),
 	.subplatforms = (const struct subplatform_desc[]) {
 		{
-			INTEL_DISPLAY_ALDERLAKE_P_ALDERLAKE_N, "ADL-N",
+			SUBPLATFORM(ALDERLAKE_P, ALDERLAKE_N),
 			.pciidlist = adlp_adln_ids,
 			STEP_INFO(adl_p_adl_n_steppings),
 		},
 		{
-			INTEL_DISPLAY_ALDERLAKE_P_RAPTORLAKE_P, "RPL-P",
+			SUBPLATFORM(ALDERLAKE_P, RAPTORLAKE_P),
 			.pciidlist = adlp_rplp_ids,
 			STEP_INFO(adl_p_rpl_pu_steppings),
 		},
 		{
-			INTEL_DISPLAY_ALDERLAKE_P_RAPTORLAKE_U, "RPL-U",
+			SUBPLATFORM(ALDERLAKE_P, RAPTORLAKE_U),
 			.pciidlist = adlp_rplu_ids,
 			STEP_INFO(adl_p_rpl_pu_steppings),
 		},
@@ -1214,17 +1218,17 @@ static const struct platform_desc dg2_desc = {
 	PLATFORM(DG2),
 	.subplatforms = (const struct subplatform_desc[]) {
 		{
-			INTEL_DISPLAY_DG2_G10, "G10",
+			SUBPLATFORM(DG2, G10),
 			.pciidlist = dg2_g10_ids,
 			STEP_INFO(dg2_g10_steppings),
 		},
 		{
-			INTEL_DISPLAY_DG2_G11, "G11",
+			SUBPLATFORM(DG2, G11),
 			.pciidlist = dg2_g11_ids,
 			STEP_INFO(dg2_g11_steppings),
 		},
 		{
-			INTEL_DISPLAY_DG2_G12, "G12",
+			SUBPLATFORM(DG2, G12),
 			.pciidlist = dg2_g12_ids,
 			STEP_INFO(dg2_g12_steppings),
 		},
