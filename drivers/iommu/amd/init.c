@@ -2070,13 +2070,6 @@ static int __init iommu_init_pci(struct amd_iommu *iommu)
 
 	init_iommu_perf_ctr(iommu);
 
-	if (amd_iommu_pgtable == AMD_IOMMU_V2) {
-		if (!amd_iommu_v2_pgtbl_supported()) {
-			pr_warn("Cannot enable v2 page table for DMA-API. Fallback to v1.\n");
-			amd_iommu_pgtable = AMD_IOMMU_V1;
-		}
-	}
-
 	if (is_rd890_iommu(iommu->dev)) {
 		int i, j;
 
@@ -3089,6 +3082,13 @@ static int __init early_amd_iommu_init(void)
 	if (cpu_feature_enabled(X86_FEATURE_LA57) &&
 	    FIELD_GET(FEATURE_GATS, amd_iommu_efr) == GUEST_PGTABLE_5_LEVEL)
 		amd_iommu_gpt_level = PAGE_MODE_5_LEVEL;
+
+	if (amd_iommu_pgtable == AMD_IOMMU_V2) {
+		if (!amd_iommu_v2_pgtbl_supported()) {
+			pr_warn("Cannot enable v2 page table for DMA-API. Fallback to v1.\n");
+			amd_iommu_pgtable = AMD_IOMMU_V1;
+		}
+	}
 
 	/* Disable any previously enabled IOMMUs */
 	if (!is_kdump_kernel() || amd_iommu_disabled)
