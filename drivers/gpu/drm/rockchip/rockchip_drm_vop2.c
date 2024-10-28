@@ -1271,8 +1271,9 @@ static void vop2_plane_atomic_update(struct drm_plane *plane,
 	dsp_w = drm_rect_width(dest);
 
 	if (dest->x1 + dsp_w > adjusted_mode->hdisplay) {
-		drm_err(vop2->drm, "vp%d %s dest->x1[%d] + dsp_w[%d] exceed mode hdisplay[%d]\n",
-			vp->id, win->data->name, dest->x1, dsp_w, adjusted_mode->hdisplay);
+		drm_dbg_kms(vop2->drm,
+			    "vp%d %s dest->x1[%d] + dsp_w[%d] exceed mode hdisplay[%d]\n",
+			    vp->id, win->data->name, dest->x1, dsp_w, adjusted_mode->hdisplay);
 		dsp_w = adjusted_mode->hdisplay - dest->x1;
 		if (dsp_w < 4)
 			dsp_w = 4;
@@ -1282,8 +1283,9 @@ static void vop2_plane_atomic_update(struct drm_plane *plane,
 	dsp_h = drm_rect_height(dest);
 
 	if (dest->y1 + dsp_h > adjusted_mode->vdisplay) {
-		drm_err(vop2->drm, "vp%d %s dest->y1[%d] + dsp_h[%d] exceed mode vdisplay[%d]\n",
-			vp->id, win->data->name, dest->y1, dsp_h, adjusted_mode->vdisplay);
+		drm_dbg_kms(vop2->drm,
+			    "vp%d %s dest->y1[%d] + dsp_h[%d] exceed mode vdisplay[%d]\n",
+			    vp->id, win->data->name, dest->y1, dsp_h, adjusted_mode->vdisplay);
 		dsp_h = adjusted_mode->vdisplay - dest->y1;
 		if (dsp_h < 4)
 			dsp_h = 4;
@@ -1296,15 +1298,15 @@ static void vop2_plane_atomic_update(struct drm_plane *plane,
 	 */
 	if (!(win->data->feature & WIN_FEATURE_AFBDC)) {
 		if (actual_w > dsp_w && (actual_w & 0xf) == 1) {
-			drm_err(vop2->drm, "vp%d %s act_w[%d] MODE 16 == 1\n",
-				vp->id, win->data->name, actual_w);
+			drm_dbg_kms(vop2->drm, "vp%d %s act_w[%d] MODE 16 == 1\n",
+				    vp->id, win->data->name, actual_w);
 			actual_w -= 1;
 		}
 	}
 
 	if (afbc_en && actual_w % 4) {
-		drm_err(vop2->drm, "vp%d %s actual_w[%d] not 4 pixel aligned\n",
-			vp->id, win->data->name, actual_w);
+		drm_dbg_kms(vop2->drm, "vp%d %s actual_w[%d] not 4 pixel aligned\n",
+			    vp->id, win->data->name, actual_w);
 		actual_w = ALIGN_DOWN(actual_w, 4);
 	}
 
@@ -1341,8 +1343,8 @@ static void vop2_plane_atomic_update(struct drm_plane *plane,
 		 */
 		stride = (fb->pitches[0] << 3) / bpp;
 		if ((stride & 0x3f) && (xmirror || rotate_90 || rotate_270))
-			drm_err(vop2->drm, "vp%d %s stride[%d] not 64 pixel aligned\n",
-				vp->id, win->data->name, stride);
+			drm_dbg_kms(vop2->drm, "vp%d %s stride[%d] not 64 pixel aligned\n",
+				    vp->id, win->data->name, stride);
 
 		uv_swap = vop2_afbc_uv_swap(fb->format->format);
 		/*
