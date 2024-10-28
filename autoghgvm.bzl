@@ -60,6 +60,7 @@ def define_autoghgvm():
         "net/core/failover.ko",
         "net/qrtr/qrtr.ko",
         "net/qrtr/qrtr-mhi.ko",
+        "net/vmw_vsock/vmw_vsock_virtio_transport.ko",
     ]
 
     _autoghgvm_consolidate_in_tree_modules = _autoghgvm_in_tree_modules + [
