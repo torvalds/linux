@@ -73,13 +73,9 @@ struct ethosn_inference {
 struct ethosn_network_req;
 struct ethosn_inference_req;
 
-int ethosn_network_register(struct ethosn_device *ethosn,
-			    struct ethosn_dma_allocator *asset_allocator,
-			    struct ethosn_network_req *net_req);
+int ethosn_network_register(struct ethosn_device *ethosn, struct ethosn_dma_allocator *asset_allocator, struct ethosn_network_req *net_req);
 
-void ethosn_set_inference_done(struct ethosn_core *core,
-			       struct ethosn_inference *inference,
-			       int new_status, u64 cycle_count);
+void ethosn_set_inference_done(struct ethosn_core *core, struct ethosn_inference *inference, int new_status, u64 cycle_count);
 
 void ethosn_schedule_queued_inference(struct ethosn_core *core);
 

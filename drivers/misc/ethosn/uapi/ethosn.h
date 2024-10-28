@@ -248,16 +248,12 @@ enum ethosn_poll_counter_name {
 #define ETHOSN_IOWR(nr, type) _IOWR(ETHOSN_IOCTL_BASE, nr, type)
 
 #define ETHOSN_IOCTL_CREATE_BUFFER ETHOSN_IOW(0x00, struct ethosn_buffer_req)
-#define ETHOSN_IOCTL_REGISTER_NETWORK                                          \
-	ETHOSN_IOW(0x01, struct ethosn_network_req)
-#define ETHOSN_IOCTL_SCHEDULE_INFERENCE                                        \
-	ETHOSN_IOW(0x02, struct ethosn_inference_req)
+#define ETHOSN_IOCTL_REGISTER_NETWORK ETHOSN_IOW(0x01, struct ethosn_network_req)
+#define ETHOSN_IOCTL_SCHEDULE_INFERENCE ETHOSN_IOW(0x02, struct ethosn_inference_req)
 #define ETHOSN_IOCTL_FW_HW_CAPABILITIES ETHOSN_IOR(0x03, void *)
 #define ETHOSN_IOCTL_LOG_CLEAR ETHOSN_IO(0x04)
-#define ETHOSN_IOCTL_GET_COUNTER_VALUE                                         \
-	ETHOSN_IOW(0x05, enum ethosn_poll_counter_name)
-#define ETHOSN_IOCTL_CONFIGURE_PROFILING                                       \
-	ETHOSN_IOW(0x06, struct ethosn_profiling_config)
+#define ETHOSN_IOCTL_GET_COUNTER_VALUE ETHOSN_IOW(0x05, enum ethosn_poll_counter_name)
+#define ETHOSN_IOCTL_CONFIGURE_PROFILING ETHOSN_IOW(0x06, struct ethosn_profiling_config)
 #define ETHOSN_IOCTL_GET_CLOCK_FREQUENCY ETHOSN_IOW(0x07, void *)
 #define ETHOSN_IOCTL_PING ETHOSN_IO(0x08)
 #define ETHOSN_IOCTL_GET_INTERMEDIATE_BUFFER ETHOSN_IO(0x09)
@@ -265,8 +261,7 @@ enum ethosn_poll_counter_name {
 #define ETHOSN_IOCTL_SYNC_FOR_CPU ETHOSN_IO(0x0b)
 #define ETHOSN_IOCTL_SYNC_FOR_DEVICE ETHOSN_IO(0x0c)
 #define ETHOSN_IOCTL_IMPORT_BUFFER ETHOSN_IO(0x0d)
-#define ETHOSN_IOCTL_CREATE_PROC_MEM_ALLOCATOR                                 \
-	ETHOSN_IOW(0x0e, struct ethosn_proc_mem_allocator_req)
+#define ETHOSN_IOCTL_CREATE_PROC_MEM_ALLOCATOR ETHOSN_IOW(0x0e, struct ethosn_proc_mem_allocator_req)
 #define ETHOSN_IOCTL_GET_CYCLE_COUNT ETHOSN_IOW(0x0f, __u64 *)
 
 /*

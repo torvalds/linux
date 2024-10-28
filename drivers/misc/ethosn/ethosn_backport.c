@@ -23,16 +23,12 @@
 #include "ethosn_backport.h"
 
 #if (KERNEL_VERSION(5, 10, 0) > LINUX_VERSION_CODE)
-struct page *dma_alloc_pages(struct device *dev, size_t size,
-			     dma_addr_t *dma_handle,
-			     enum dma_data_direction dir, gfp_t gfp)
+struct page *dma_alloc_pages(struct device *dev, size_t size, dma_addr_t *dma_handle, enum dma_data_direction dir, gfp_t gfp)
 {
 	struct page *page;
 
 	if (size != PAGE_SIZE) {
-		dev_dbg(dev,
-			"Backport implementation only supports size equal to PAGE_SIZE=%lu\n",
-			PAGE_SIZE);
+		dev_dbg(dev, "Backport implementation only supports size equal to PAGE_SIZE=%lu\n", PAGE_SIZE);
 
 		return NULL;
 	}
@@ -46,8 +42,7 @@ struct page *dma_alloc_pages(struct device *dev, size_t size,
 	return page;
 }
 
-void dma_free_pages(struct device *dev, size_t size, struct page *page,
-		    dma_addr_t dma_handle, enum dma_data_direction dir)
+void dma_free_pages(struct device *dev, size_t size, struct page *page, dma_addr_t dma_handle, enum dma_data_direction dir)
 {
 	if (dma_handle)
 		dma_unmap_page(dev, dma_handle, size, dir);
@@ -57,8 +52,7 @@ void dma_free_pages(struct device *dev, size_t size, struct page *page,
 }
 
 #endif
-void ethosn_iommu_put_domain_for_dev(struct device *dev,
-				     struct iommu_domain *domain)
+void ethosn_iommu_put_domain_for_dev(struct device *dev, struct iommu_domain *domain)
 {
 #if (KERNEL_VERSION(4, 20, 0) > LINUX_VERSION_CODE)
 
@@ -108,9 +102,7 @@ struct iommu_domain *ethosn_iommu_get_domain_for_dev(struct device *dev)
 	return domain;
 }
 
-int ethosn_bitmap_find_next_zero_area(struct device *dev, void **bitmap,
-				      size_t *bits, int nr_pages,
-				      unsigned long *start, bool extend_bitmap)
+int ethosn_bitmap_find_next_zero_area(struct device *dev, void **bitmap, size_t *bits, int nr_pages, unsigned long *start, bool extend_bitmap)
 {
 #if (KERNEL_VERSION(4, 20, 0) > LINUX_VERSION_CODE)
 	*start = bitmap_find_next_zero_area(*bitmap, *bits, 0, nr_pages, 0);
@@ -145,8 +137,7 @@ retry:
 	return 0;
 }
 
-struct sg_table *
-ethosn_dma_buf_map_attachment(struct dma_buf_attachment *attach)
+struct sg_table *ethosn_dma_buf_map_attachment(struct dma_buf_attachment *attach)
 {
 #if (KERNEL_VERSION(5, 3, 0) > LINUX_VERSION_CODE)
 
@@ -158,8 +149,7 @@ ethosn_dma_buf_map_attachment(struct dma_buf_attachment *attach)
 }
 
 #if (KERNEL_VERSION(4, 19, 0) > LINUX_VERSION_CODE)
-struct device_node *of_get_compatible_child(const struct device_node *parent,
-					    const char *compatible)
+struct device_node *of_get_compatible_child(const struct device_node *parent, const char *compatible)
 {
 	struct device_node *current_child = NULL;
 

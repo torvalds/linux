@@ -38,11 +38,9 @@ void ethosn_asset_allocator_get(struct ethosn_dma_allocator *asset_allocator);
 
 int ethosn_asset_allocator_put(struct ethosn_dma_allocator *asset_allocator);
 
-struct ethosn_dma_allocator *
-ethosn_asset_allocator_find(const struct ethosn_device *ethosn, pid_t pid);
+struct ethosn_dma_allocator *ethosn_asset_allocator_find(const struct ethosn_device *ethosn, pid_t pid);
 
-struct ethosn_dma_allocator *
-ethosn_asset_allocator_reserve(struct ethosn_device *ethosn, pid_t pid);
+struct ethosn_dma_allocator *ethosn_asset_allocator_reserve(struct ethosn_device *ethosn, pid_t pid);
 
 int ethosn_asset_allocator_platform_driver_register(void);
 

@@ -38,12 +38,7 @@
  * enum ethosn_profiling_entry_type - Equivalent to the Driver Library's
  *                                 ProfilingEntry::Type enum.
  */
-enum ethosn_profiling_entry_type {
-	TIMELINE_EVENT_START,
-	TIMELINE_EVENT_END,
-	TIMELINE_EVENT_INSTANT,
-	COUNTER_VALUE
-};
+enum ethosn_profiling_entry_type { TIMELINE_EVENT_START, TIMELINE_EVENT_END, TIMELINE_EVENT_INSTANT, COUNTER_VALUE };
 
 /**
  * struct ethosn_profiling_entry - The firmware records a big stream of these,
@@ -78,8 +73,7 @@ struct ethosn_profiling_entry {
 };
 
 #if defined(__cplusplus)
-static_assert(sizeof(ethosn_profiling_entry) == 8,
-	      "ethosn_profiling_entry struct packing is incorrect");
+static_assert(sizeof(ethosn_profiling_entry) == 8, "ethosn_profiling_entry struct packing is incorrect");
 #endif
 
 /**

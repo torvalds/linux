@@ -74,9 +74,7 @@ int ethosn_smc_is_secure(const struct device *dev, phys_addr_t core_addr);
  *
  * Return: 0 on success, else error code.
  */
-int ethosn_smc_core_reset(const struct device *dev, phys_addr_t core_addr,
-			  uint32_t asset_alloc_idx, bool halt, bool hard_reset,
-			  bool is_protected,
+int ethosn_smc_core_reset(const struct device *dev, phys_addr_t core_addr, uint32_t asset_alloc_idx, bool halt, bool hard_reset, bool is_protected,
 			  const struct ethosn_smc_aux_config *aux_config);
 
 /**
@@ -87,8 +85,7 @@ int ethosn_smc_core_reset(const struct device *dev, phys_addr_t core_addr,
  *
  * Return: 0 if active, 1 if sleeping or negative error code on failure.
  */
-int ethosn_smc_core_is_sleeping(const struct device *dev,
-				phys_addr_t core_addr);
+int ethosn_smc_core_is_sleeping(const struct device *dev, phys_addr_t core_addr);
 
 #ifdef ETHOSN_TZMP1
 
@@ -102,9 +99,7 @@ int ethosn_smc_core_is_sleeping(const struct device *dev,
  *
  * Return: 0 on success, negative error code on failure.
  */
-int ethosn_smc_get_firmware_version(const struct device *dev,
-				    uint32_t *out_major, uint32_t *out_minor,
-				    uint32_t *out_patch);
+int ethosn_smc_get_firmware_version(const struct device *dev, uint32_t *out_major, uint32_t *out_minor, uint32_t *out_patch);
 
 /**
  * ethosn_smc_get_firmware_mem_info() - Call SiP service to get the NPU firmware
@@ -115,8 +110,7 @@ int ethosn_smc_get_firmware_version(const struct device *dev,
  *
  * Return: 0 on success, negative error code on failure.
  */
-int ethosn_smc_get_firmware_mem_info(const struct device *dev,
-				     phys_addr_t *out_addr, size_t *out_size);
+int ethosn_smc_get_firmware_mem_info(const struct device *dev, phys_addr_t *out_addr, size_t *out_size);
 
 /**
  * ethosn_smc_get_firmware_offsets() - Call SiP service to get the NPU firmware
@@ -127,9 +121,7 @@ int ethosn_smc_get_firmware_mem_info(const struct device *dev,
  *
  * Return: 0 on success, negative error code on failure.
  */
-int ethosn_smc_get_firmware_offsets(const struct device *dev,
-				    uint32_t *out_ple_offset,
-				    uint32_t *out_stack_offset);
+int ethosn_smc_get_firmware_offsets(const struct device *dev, uint32_t *out_ple_offset, uint32_t *out_stack_offset);
 
 /**
  * ethosn_smc_get_firmware_va_map() - Call SiP service to get virtual base
@@ -141,10 +133,7 @@ int ethosn_smc_get_firmware_offsets(const struct device *dev,
  *
  * Return: 0 on success, negative error code on failure.
  */
-int ethosn_smc_get_firmware_va_map(const struct device *dev,
-				   dma_addr_t *out_firmware_va,
-				   dma_addr_t *out_working_data_va,
-				   dma_addr_t *out_command_stream_va);
+int ethosn_smc_get_firmware_va_map(const struct device *dev, dma_addr_t *out_firmware_va, dma_addr_t *out_working_data_va, dma_addr_t *out_command_stream_va);
 
 /**
  * ethosn_smc_core_boot_firmware() - Call SiP service to boot firmware on a NPU
@@ -154,8 +143,7 @@ int ethosn_smc_get_firmware_va_map(const struct device *dev,
  *
  * Return: 0 on success, negative error code on failure.
  */
-int ethosn_smc_core_boot_firmware(const struct device *dev,
-				  phys_addr_t core_addr);
+int ethosn_smc_core_boot_firmware(const struct device *dev, phys_addr_t core_addr);
 
 #endif
 

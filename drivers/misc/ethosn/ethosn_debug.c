@@ -36,17 +36,14 @@
  *
  * Return: File descriptor on success (positive), else error code (negative).
  */
-int ethosn_get_dma_view_fd(struct ethosn_device *ethosn,
-			   struct ethosn_dma_allocator *allocator,
-			   struct ethosn_dma_info *dma_info)
+int ethosn_get_dma_view_fd(struct ethosn_device *ethosn, struct ethosn_dma_allocator *allocator, struct ethosn_dma_info *dma_info)
 {
 	struct ethosn_buffer *buf;
 	const struct file_operations *fops = ethosn_get_dma_view_fops();
 	int fd;
 
 	if (dma_info == NULL) {
-		dev_err(ethosn->dev,
-			"Failed to crate DMA view handle - dma_info is NULL\n");
+		dev_err(ethosn->dev, "Failed to crate DMA view handle - dma_info is NULL\n");
 
 		return -EINVAL;
 	}
@@ -64,8 +61,7 @@ int ethosn_get_dma_view_fd(struct ethosn_device *ethosn,
 	buf->dma_info = dma_info;
 	buf->asset_allocator = allocator;
 
-	fd = anon_inode_getfd("ethosn-dma-view", fops, buf,
-			      O_RDONLY | O_CLOEXEC);
+	fd = anon_inode_getfd("ethosn-dma-view", fops, buf, O_RDONLY | O_CLOEXEC);
 	if (fd < 0)
 		goto err_kfree;
 
@@ -85,9 +81,7 @@ err_kfree:
 }
 
 #else
-int ethosn_get_dma_view_fd(struct ethosn_device *ethosn,
-			   struct ethosn_dma_allocator *allocator,
-			   struct ethosn_dma_info *dma_info)
+int ethosn_get_dma_view_fd(struct ethosn_device *ethosn, struct ethosn_dma_allocator *allocator, struct ethosn_dma_info *dma_info)
 {
 	dev_err(ethosn->dev, "Buffer view only available in debug mode\n");
 

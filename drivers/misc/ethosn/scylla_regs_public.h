@@ -175,8 +175,7 @@ struct dl1_sysctlr0_r {
 	}
 	CONSTEXPR soft_reset_t get_soft_rstreq() const
 	{
-		soft_reset_t value =
-			static_cast<soft_reset_t>(bits.soft_rstreq);
+		soft_reset_t value = static_cast<soft_reset_t>(bits.soft_rstreq);
 		return value;
 	}
 	CONSTEXPR void set_soft_rstreq(soft_reset_t value)
@@ -552,8 +551,7 @@ struct dl1_auxctlr_r {
 	}
 	CONSTEXPR uint32_t get_increase_outstanding_writes() const
 	{
-		uint32_t value =
-			static_cast<uint32_t>(bits.increase_outstanding_writes);
+		uint32_t value = static_cast<uint32_t>(bits.increase_outstanding_writes);
 		return value;
 	}
 	CONSTEXPR void set_increase_outstanding_writes(uint32_t value)
@@ -583,8 +581,7 @@ struct dl1_auxctlr_r {
 	}
 	CONSTEXPR uint32_t get_dis_ext_err_unrecoverable() const
 	{
-		uint32_t value =
-			static_cast<uint32_t>(bits.dis_ext_err_unrecoverable);
+		uint32_t value = static_cast<uint32_t>(bits.dis_ext_err_unrecoverable);
 		return value;
 	}
 	CONSTEXPR void set_dis_ext_err_unrecoverable(uint32_t value)
@@ -594,8 +591,7 @@ struct dl1_auxctlr_r {
 	}
 	CONSTEXPR uint32_t get_dis_ext_err_recoverable() const
 	{
-		uint32_t value =
-			static_cast<uint32_t>(bits.dis_ext_err_recoverable);
+		uint32_t value = static_cast<uint32_t>(bits.dis_ext_err_recoverable);
 		return value;
 	}
 	CONSTEXPR void set_dis_ext_err_recoverable(uint32_t value)
@@ -605,8 +601,7 @@ struct dl1_auxctlr_r {
 	}
 	CONSTEXPR uint32_t get_dis_ext_err_functional() const
 	{
-		uint32_t value =
-			static_cast<uint32_t>(bits.dis_ext_err_functional);
+		uint32_t value = static_cast<uint32_t>(bits.dis_ext_err_functional);
 		return value;
 	}
 	CONSTEXPR void set_dis_ext_err_functional(uint32_t value)
@@ -616,8 +611,7 @@ struct dl1_auxctlr_r {
 	}
 	CONSTEXPR uint32_t get_dis_ext_err_tolerable() const
 	{
-		uint32_t value =
-			static_cast<uint32_t>(bits.dis_ext_err_tolerable);
+		uint32_t value = static_cast<uint32_t>(bits.dis_ext_err_tolerable);
 		return value;
 	}
 	CONSTEXPR void set_dis_ext_err_tolerable(uint32_t value)
@@ -627,15 +621,13 @@ struct dl1_auxctlr_r {
 	}
 	CONSTEXPR uint32_t get_dis_non_broadcast_global_err() const
 	{
-		uint32_t value = static_cast<uint32_t>(
-			bits.dis_non_broadcast_global_err);
+		uint32_t value = static_cast<uint32_t>(bits.dis_non_broadcast_global_err);
 		return value;
 	}
 	CONSTEXPR void set_dis_non_broadcast_global_err(uint32_t value)
 	{
 		assert(static_cast<uint32_t>(value) < 2u);
-		bits.dis_non_broadcast_global_err =
-			static_cast<uint32_t>(value);
+		bits.dis_non_broadcast_global_err = static_cast<uint32_t>(value);
 	}
 	CONSTEXPR uint32_t get_en_ple_block_done() const
 	{
@@ -649,8 +641,7 @@ struct dl1_auxctlr_r {
 	}
 	CONSTEXPR mac_ramp_t get_mac_ramp_cycles() const
 	{
-		mac_ramp_t value =
-			static_cast<mac_ramp_t>(bits.mac_ramp_cycles);
+		mac_ramp_t value = static_cast<mac_ramp_t>(bits.mac_ramp_cycles);
 		return value;
 	}
 	CONSTEXPR void set_mac_ramp_cycles(mac_ramp_t value)
@@ -1316,8 +1307,7 @@ struct dl1_stream0_memattr_r {
 	}
 	CONSTEXPR memory_attributes_t get_memattr() const
 	{
-		memory_attributes_t value =
-			static_cast<memory_attributes_t>(bits.memattr);
+		memory_attributes_t value = static_cast<memory_attributes_t>(bits.memattr);
 		return value;
 	}
 	CONSTEXPR void set_memattr(memory_attributes_t value)
@@ -1379,8 +1369,7 @@ struct dl1_npu_id_r {
 	}
 	CONSTEXPR npu_version_status_t get_version_status() const
 	{
-		npu_version_status_t value =
-			static_cast<npu_version_status_t>(bits.version_status);
+		npu_version_status_t value = static_cast<npu_version_status_t>(bits.version_status);
 		return value;
 	}
 	CONSTEXPR void set_version_status(npu_version_status_t value)
@@ -1525,8 +1514,7 @@ struct dl1_mce_features_r {
 	}
 	CONSTEXPR uint32_t get_ifm_generated_per_engine() const
 	{
-		uint32_t value =
-			static_cast<uint32_t>(bits.ifm_generated_per_engine);
+		uint32_t value = static_cast<uint32_t>(bits.ifm_generated_per_engine);
 		return value;
 	}
 	CONSTEXPR void set_ifm_generated_per_engine(uint32_t value)
@@ -1536,8 +1524,7 @@ struct dl1_mce_features_r {
 	}
 	CONSTEXPR uint32_t get_ofm_generated_per_engine() const
 	{
-		uint32_t value =
-			static_cast<uint32_t>(bits.ofm_generated_per_engine);
+		uint32_t value = static_cast<uint32_t>(bits.ofm_generated_per_engine);
 		return value;
 	}
 	CONSTEXPR void set_ofm_generated_per_engine(uint32_t value)
@@ -1577,8 +1564,7 @@ struct dl1_mce_features_r {
 	}
 	CONSTEXPR uint32_t get_tsu_16bit_sequence_support() const
 	{
-		uint32_t value =
-			static_cast<uint32_t>(bits.tsu_16bit_sequence_support);
+		uint32_t value = static_cast<uint32_t>(bits.tsu_16bit_sequence_support);
 		return value;
 	}
 	CONSTEXPR void set_tsu_16bit_sequence_support(uint32_t value)
@@ -1588,8 +1574,7 @@ struct dl1_mce_features_r {
 	}
 	CONSTEXPR uint32_t get_ofm_scaling_16bit_support() const
 	{
-		uint32_t value =
-			static_cast<uint32_t>(bits.ofm_scaling_16bit_support);
+		uint32_t value = static_cast<uint32_t>(bits.ofm_scaling_16bit_support);
 		return value;
 	}
 	CONSTEXPR void set_ofm_scaling_16bit_support(uint32_t value)
@@ -1619,15 +1604,13 @@ struct dl1_dfc_features_r {
 	}
 	CONSTEXPR uint32_t get_dfc_mem_size_per_emc() const
 	{
-		uint32_t value =
-			static_cast<uint32_t>(bits.dfc_mem_size_per_emc);
+		uint32_t value = static_cast<uint32_t>(bits.dfc_mem_size_per_emc);
 		return (value << 12);
 	}
 	CONSTEXPR void set_dfc_mem_size_per_emc(uint32_t value)
 	{
 		assert(static_cast<uint32_t>((value >> 12)) < 65536u);
-		bits.dfc_mem_size_per_emc =
-			static_cast<uint32_t>((value >> 12));
+		bits.dfc_mem_size_per_emc = static_cast<uint32_t>((value >> 12));
 	}
 	CONSTEXPR uint32_t get_bank_count() const
 	{
@@ -1641,8 +1624,7 @@ struct dl1_dfc_features_r {
 	}
 	CONSTEXPR uint32_t get_activation_compression() const
 	{
-		uint32_t value =
-			static_cast<uint32_t>(bits.activation_compression);
+		uint32_t value = static_cast<uint32_t>(bits.activation_compression);
 		return value;
 	}
 	CONSTEXPR void set_activation_compression(uint32_t value)
@@ -1682,8 +1664,7 @@ struct dl1_ple_features_r {
 	}
 	CONSTEXPR uint32_t get_ple_output_mem_size() const
 	{
-		uint32_t value =
-			static_cast<uint32_t>(bits.ple_output_mem_size);
+		uint32_t value = static_cast<uint32_t>(bits.ple_output_mem_size);
 		return (value << 8);
 	}
 	CONSTEXPR void set_ple_output_mem_size(uint32_t value)
@@ -1753,8 +1734,7 @@ struct dl1_wd_features_r {
 	}
 	CONSTEXPR uint32_t get_compression_version() const
 	{
-		uint32_t value =
-			static_cast<uint32_t>(bits.compression_version);
+		uint32_t value = static_cast<uint32_t>(bits.compression_version);
 		return value;
 	}
 	CONSTEXPR void set_compression_version(uint32_t value)
@@ -1783,8 +1763,7 @@ struct dl1_vector_engine_features_r {
 	}
 	CONSTEXPR uint32_t get_vector_engine_version() const
 	{
-		uint32_t value =
-			static_cast<uint32_t>(bits.vector_engine_version);
+		uint32_t value = static_cast<uint32_t>(bits.vector_engine_version);
 		return value;
 	}
 	CONSTEXPR void set_vector_engine_version(uint32_t value)

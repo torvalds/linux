@@ -25,7 +25,6 @@
 
 #include "ethosn_dma.h"
 
-struct ethosn_dma_sub_allocator *
-ethosn_dma_carveout_allocator_create(struct device *dev);
+struct ethosn_dma_sub_allocator *ethosn_dma_carveout_allocator_create(struct device *dev);
 
 #endif /* _ETHOSN_DMA_CARVEOUT_H_ */

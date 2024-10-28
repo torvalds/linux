@@ -71,8 +71,7 @@ struct ethosn_queue {
 /**
  * 检查给定大小的数据是否能被队列容纳, 即使队列是完全空的. 这是一个简单的容量检查, 但用函数封装是因为所涉及的比较可能与您的直觉不同.
  */
-static inline bool ethosn_queue_can_ever_fit(const struct ethosn_queue *queue,
-					     uint32_t size)
+static inline bool ethosn_queue_can_ever_fit(const struct ethosn_queue *queue, uint32_t size)
 {
 	/* 注意我们不允许队列变得完全满, 因为那会使得满的状态与空的状态无法区分! */
 	return size < queue->capacity;
@@ -90,8 +89,7 @@ static inline uint32_t ethosn_queue_get_size(const struct ethosn_queue *queue)
 /**
  * 获取给定队列中的可用空间, 即可以写入的字节数.
  */
-static inline uint32_t
-ethosn_queue_get_free_space(const struct ethosn_queue *queue)
+static inline uint32_t ethosn_queue_get_free_space(const struct ethosn_queue *queue)
 {
 	/* 注意我们减去一个以防止队列变得完全满, 因为那将无法与完全空区分开! */
 	return queue->capacity - ethosn_queue_get_size(queue) - 1;
@@ -116,8 +114,7 @@ static inline bool ethosn_queue_skip(struct ethosn_queue *queue, uint8_t size)
  * 从队列中读取给定数量的字节.
  * 如果队列中的数据不足以读取, 则返回 false.
  */
-static inline bool ethosn_queue_read(struct ethosn_queue *queue, uint8_t *dst,
-				     uint32_t size)
+static inline bool ethosn_queue_read(struct ethosn_queue *queue, uint8_t *dst, uint32_t size)
 {
 	const uint32_t mask = queue->capacity - 1;
 	uint32_t read = queue->read;
@@ -143,10 +140,7 @@ static inline bool ethosn_queue_read(struct ethosn_queue *queue, uint8_t *dst,
  * @buffers: 缓冲区数组, 长度为 num_buffers, 每个元素是指向将写入队列的缓冲区的指针.
  * @sizes: 数组, 长度为 num_buffers, 每个元素是 @buffers 中相应缓冲区的长度.
  */
-static inline bool ethosn_queue_write(struct ethosn_queue *queue,
-				      const uint8_t *const *buffers,
-				      const uint32_t *sizes,
-				      uint32_t num_buffers,
+static inline bool ethosn_queue_write(struct ethosn_queue *queue, const uint8_t *const *buffers, const uint32_t *sizes, uint32_t num_buffers,
 				      uint32_t *out_write_pending)
 {
 	const uint32_t mask = queue->capacity - 1;
@@ -286,11 +280,7 @@ struct ethosn_buffer_array {
 /**
  * 推理状态.
  */
-enum ethosn_inference_status {
-	ETHOSN_INFERENCE_STATUS_OK,
-	ETHOSN_INFERENCE_STATUS_ERROR,
-	ETHOSN_INFERENCE_STATUS_MAX
-};
+enum ethosn_inference_status { ETHOSN_INFERENCE_STATUS_OK, ETHOSN_INFERENCE_STATUS_ERROR, ETHOSN_INFERENCE_STATUS_MAX };
 
 /**
  * struct ethosn_message_inference_request - 推理请求消息
@@ -325,14 +315,7 @@ struct ethosn_message_inference_response {
 /**
  * 日志消息的严重性.
  */
-enum ethosn_log_severity {
-	ETHOSN_LOG_PANIC,
-	ETHOSN_LOG_ERROR,
-	ETHOSN_LOG_WARNING,
-	ETHOSN_LOG_INFO,
-	ETHOSN_LOG_DEBUG,
-	ETHOSN_LOG_VERBOSE
-};
+enum ethosn_log_severity { ETHOSN_LOG_PANIC, ETHOSN_LOG_ERROR, ETHOSN_LOG_WARNING, ETHOSN_LOG_INFO, ETHOSN_LOG_DEBUG, ETHOSN_LOG_VERBOSE };
 
 /**
  * struct ethosn_message_text - 文本消息
@@ -364,8 +347,7 @@ struct ethosn_firmware_profiling_configuration {
 	ethosn_address_t buffer_address;
 	uint32_t buffer_size;
 	uint32_t num_hw_counters;
-	enum ethosn_profiling_hw_counter_types
-		hw_counters[ETHOSN_PROFILING_MAX_HW_COUNTERS];
+	enum ethosn_profiling_hw_counter_types hw_counters[ETHOSN_PROFILING_MAX_HW_COUNTERS];
 };
 
 /**
@@ -405,12 +387,7 @@ struct ethosn_message_profiling_entries {
 /**
  * 请求错误状态
  */
-enum ethosn_error_status {
-	ETHOSN_ERROR_STATUS_INVALID_STATE,
-	ETHOSN_ERROR_STATUS_INVALID_MESSAGE,
-	ETHOSN_ERROR_STATUS_FAILED,
-	ETHOSN_ERROR_STATUS_MAX
-};
+enum ethosn_error_status { ETHOSN_ERROR_STATUS_INVALID_STATE, ETHOSN_ERROR_STATUS_INVALID_MESSAGE, ETHOSN_ERROR_STATUS_FAILED, ETHOSN_ERROR_STATUS_MAX };
 
 /**
  * struct ethosn_message_error_response - 错误响应消息
@@ -569,8 +546,7 @@ struct ethosn_firmware_dump {
 #define ETHOSN_FIRMWARE_DUMP_MAGIC 0x12345678
 
 #if defined(__cplusplus)
-static_assert(sizeof(ethosn_firmware_dump) <= 32,
-	      "ethosn_firmware_dump 结构过大, 无法适用于 GP 寄存器");
+static_assert(sizeof(ethosn_firmware_dump) <= 32, "ethosn_firmware_dump 结构过大, 无法适用于 GP 寄存器");
 #endif
 
 #pragma pack(pop)

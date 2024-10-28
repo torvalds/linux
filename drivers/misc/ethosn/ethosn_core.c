@@ -37,21 +37,17 @@
 #include <linux/iommu.h>
 #include <linux/pm_runtime.h>
 
-static ssize_t architecture_show(struct device *dev,
-				 struct device_attribute *attr, char *buf)
+static ssize_t architecture_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct ethosn_core *core = dev_get_drvdata(dev);
 	struct dl1_npu_id_r scylla_id;
 
 	scylla_id.word = ethosn_read_top_reg(core, DL1_RP, DL1_NPU_ID);
 
-	return scnprintf(buf, PAGE_SIZE, "%u.%u.%u\n",
-			 scylla_id.bits.arch_major, scylla_id.bits.arch_minor,
-			 scylla_id.bits.arch_rev);
+	return scnprintf(buf, PAGE_SIZE, "%u.%u.%u\n", scylla_id.bits.arch_major, scylla_id.bits.arch_minor, scylla_id.bits.arch_rev);
 }
 
-static ssize_t product_show(struct device *dev, struct device_attribute *attr,
-			    char *buf)
+static ssize_t product_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct ethosn_core *core = dev_get_drvdata(dev);
 	struct dl1_npu_id_r scylla_id;
@@ -61,22 +57,17 @@ static ssize_t product_show(struct device *dev, struct device_attribute *attr,
 	return scnprintf(buf, PAGE_SIZE, "%u\n", scylla_id.bits.product_major);
 }
 
-static ssize_t version_show(struct device *dev, struct device_attribute *attr,
-			    char *buf)
+static ssize_t version_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct ethosn_core *core = dev_get_drvdata(dev);
 	struct dl1_npu_id_r scylla_id;
 
 	scylla_id.word = ethosn_read_top_reg(core, DL1_RP, DL1_NPU_ID);
 
-	return scnprintf(buf, PAGE_SIZE, "%u.%u.%u\n",
-			 scylla_id.bits.version_major,
-			 scylla_id.bits.version_minor,
-			 scylla_id.bits.version_status);
+	return scnprintf(buf, PAGE_SIZE, "%u.%u.%u\n", scylla_id.bits.version_major, scylla_id.bits.version_minor, scylla_id.bits.version_status);
 }
 
-static ssize_t unit_count_show(struct device *dev,
-			       struct device_attribute *attr, char *buf)
+static ssize_t unit_count_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct ethosn_core *core = dev_get_drvdata(dev);
 	struct dl1_unit_count_r unit_count;
@@ -87,13 +78,10 @@ static ssize_t unit_count_show(struct device *dev,
 			 "quad_count=%u\n"
 			 "engines_per_quad=%u\n"
 			 "dfc_emc_per_engine=%u\n",
-			 unit_count.bits.quad_count,
-			 unit_count.bits.engines_per_quad,
-			 unit_count.bits.dfc_emc_per_engine);
+			 unit_count.bits.quad_count, unit_count.bits.engines_per_quad, unit_count.bits.dfc_emc_per_engine);
 }
 
-static ssize_t mce_features_show(struct device *dev,
-				 struct device_attribute *attr, char *buf)
+static ssize_t mce_features_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct ethosn_core *core = dev_get_drvdata(dev);
 	struct dl1_mce_features_r mce;
@@ -108,16 +96,11 @@ static ssize_t mce_features_show(struct device *dev,
 			 "winograd_support=%u\n"
 			 "tsu_16bit_sequence_support=%u\n"
 			 "ofm_scaling_16bit_support=%u\n",
-			 mce.bits.ifm_generated_per_engine,
-			 mce.bits.ofm_generated_per_engine,
-			 mce.bits.mce_num_macs, mce.bits.mce_num_acc,
-			 mce.bits.winograd_support,
-			 mce.bits.tsu_16bit_sequence_support,
-			 mce.bits.ofm_scaling_16bit_support);
+			 mce.bits.ifm_generated_per_engine, mce.bits.ofm_generated_per_engine, mce.bits.mce_num_macs, mce.bits.mce_num_acc,
+			 mce.bits.winograd_support, mce.bits.tsu_16bit_sequence_support, mce.bits.ofm_scaling_16bit_support);
 }
 
-static ssize_t dfc_features_show(struct device *dev,
-				 struct device_attribute *attr, char *buf)
+static ssize_t dfc_features_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct ethosn_core *core = dev_get_drvdata(dev);
 	struct dl1_dfc_features_r dfc;
@@ -127,12 +110,10 @@ static ssize_t dfc_features_show(struct device *dev,
 	return scnprintf(buf, PAGE_SIZE,
 			 "dfc_mem_size_per_emc=%u\n"
 			 "bank_count=%u\n",
-			 dfc.bits.dfc_mem_size_per_emc << 12,
-			 dfc.bits.bank_count);
+			 dfc.bits.dfc_mem_size_per_emc << 12, dfc.bits.bank_count);
 }
 
-static ssize_t ple_features_show(struct device *dev,
-				 struct device_attribute *attr, char *buf)
+static ssize_t ple_features_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct ethosn_core *core = dev_get_drvdata(dev);
 	struct dl1_ple_features_r ple;
@@ -144,14 +125,10 @@ static ssize_t ple_features_show(struct device *dev,
 			 "ple_output_mem_size=%u\n"
 			 "ple_vrf_mem_size=%u\n"
 			 "ple_mem_size=%u\n",
-			 ple.bits.ple_input_mem_size << 8,
-			 ple.bits.ple_output_mem_size << 8,
-			 ple.bits.ple_vrf_mem_size << 4,
-			 ple.bits.ple_mem_size << 8);
+			 ple.bits.ple_input_mem_size << 8, ple.bits.ple_output_mem_size << 8, ple.bits.ple_vrf_mem_size << 4, ple.bits.ple_mem_size << 8);
 }
 
-static ssize_t ecoid_show(struct device *dev, struct device_attribute *attr,
-			  char *buf)
+static ssize_t ecoid_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct ethosn_core *core = dev_get_drvdata(dev);
 	struct dl1_ecoid_r ecoid;
@@ -161,9 +138,7 @@ static ssize_t ecoid_show(struct device *dev, struct device_attribute *attr,
 	return scnprintf(buf, PAGE_SIZE, "%x\n", ecoid.bits.ecoid);
 }
 
-static ssize_t firmware_reset_store(struct device *dev,
-				    struct device_attribute *attr,
-				    const char *buf, size_t count)
+static ssize_t firmware_reset_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct ethosn_core *core = dev_get_drvdata(dev);
 	int ret;
@@ -175,8 +150,7 @@ static ssize_t firmware_reset_store(struct device *dev,
 	return count;
 }
 
-static ssize_t variant_show(struct device *dev, struct device_attribute *attr,
-			    char *buf)
+static ssize_t variant_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct ethosn_core *core = dev_get_drvdata(dev);
 
@@ -189,8 +163,7 @@ static ssize_t variant_show(struct device *dev, struct device_attribute *attr,
 
 	mce_features.word = ethosn_read_top_reg(core, DL1_RP, DL1_MCE_FEATURES);
 	unit_count.word = ethosn_read_top_reg(core, DL1_RP, DL1_UNIT_COUNT);
-	ve_features.word =
-		ethosn_read_top_reg(core, DL1_RP, DL1_VECTOR_ENGINE_FEATURES);
+	ve_features.word = ethosn_read_top_reg(core, DL1_RP, DL1_VECTOR_ENGINE_FEATURES);
 	dfc_features.word = ethosn_read_top_reg(core, DL1_RP, DL1_DFC_FEATURES);
 
 	engines = unit_count.bits.quad_count * unit_count.bits.engines_per_quad;
@@ -199,11 +172,9 @@ static ssize_t variant_show(struct device *dev, struct device_attribute *attr,
 	/* Calculate TOPS, assuming the standard frequency of 1GHz. */
 	tops = (mce_features.bits.mce_num_macs * igs * ogs * 2) / 1024;
 	ple_ratio = ((ve_features.bits.ple_lanes + 1) * engines) / tops;
-	sram = (dfc_features.bits.dfc_mem_size_per_emc << 12) *
-	       unit_count.bits.dfc_emc_per_engine * engines;
+	sram = (dfc_features.bits.dfc_mem_size_per_emc << 12) * unit_count.bits.dfc_emc_per_engine * engines;
 
-	return scnprintf(buf, PAGE_SIZE, "%uTOPS_%uPLE_RATIO_%uKB\n", tops,
-			 ple_ratio, sram / 1024);
+	return scnprintf(buf, PAGE_SIZE, "%uTOPS_%uPLE_RATIO_%uKB\n", tops, ple_ratio, sram / 1024);
 }
 
 static const DEVICE_ATTR_RO(architecture);
@@ -242,9 +213,7 @@ static bool ethosn_is_sleeping(struct ethosn_core *core)
 	int ret = ethosn_smc_core_is_sleeping(core->dev, core->phys_addr);
 
 	if (ret < 0)
-		dev_err(core->dev,
-			"Failed to get core state, assuming it's active: %d\n",
-			ret);
+		dev_err(core->dev, "Failed to get core state, assuming it's active: %d\n", ret);
 
 	return ret == 1;
 #endif
@@ -339,15 +308,13 @@ static int ethosn_pm_common_suspend(struct device *dev)
 	 * out of sleep.
 	 */
 	if (core->current_inference) {
-		WARN_ON(core->current_inference->status !=
-			ETHOSN_INFERENCE_RUNNING);
+		WARN_ON(core->current_inference->status != ETHOSN_INFERENCE_RUNNING);
 		core->current_inference->status = ETHOSN_INFERENCE_SCHEDULED;
 		pm_runtime_mark_last_busy(core->dev);
 		pm_runtime_put(core->dev);
 		ethosn = core->parent;
 
-		ret = mutex_lock_interruptible(
-			&ethosn->queue.inference_queue_mutex);
+		ret = mutex_lock_interruptible(&ethosn->queue.inference_queue_mutex);
 
 		if (ret) {
 			ret = -EFAULT;
@@ -355,8 +322,7 @@ static int ethosn_pm_common_suspend(struct device *dev)
 		}
 
 		/* Queue the inference again */
-		list_add(&core->current_inference->queue_node,
-			 &ethosn->queue.inference_queue);
+		list_add(&core->current_inference->queue_node, &ethosn->queue.inference_queue);
 
 		mutex_unlock(&ethosn->queue.inference_queue_mutex);
 
@@ -424,13 +390,11 @@ static int ethosn_pm_restore(struct device *dev)
 	return ret;
 }
 
-static const struct dev_pm_ops ethosn_pm_ops = {
-	.resume = ethosn_pm_resume,
-	.suspend_noirq = ethosn_pm_suspend_noirq,
-	.restore = ethosn_pm_restore,
-	.freeze_noirq = ethosn_pm_freeze_noirq,
-	SET_RUNTIME_PM_OPS(ethosn_rpm_suspend, ethosn_rpm_resume, NULL)
-};
+static const struct dev_pm_ops ethosn_pm_ops = { .resume = ethosn_pm_resume,
+						 .suspend_noirq = ethosn_pm_suspend_noirq,
+						 .restore = ethosn_pm_restore,
+						 .freeze_noirq = ethosn_pm_freeze_noirq,
+						 SET_RUNTIME_PM_OPS(ethosn_rpm_suspend, ethosn_rpm_resume, NULL) };
 #define ETHOSN_PM_OPS (&ethosn_pm_ops)
 #else
 #define ETHOSN_PM_OPS (NULL)
@@ -468,8 +432,7 @@ static int ethosn_child_pdev_remove(struct platform_device *pdev)
 	sysfs_remove_files(&core->dev->kobj, attrs);
 	dev_set_drvdata(&pdev->dev, NULL);
 
-	dev_dbg(&pdev->dev, "Removed core %u from parent %u\n", core->core_id,
-		core->parent->parent_id);
+	dev_dbg(&pdev->dev, "Removed core %u from parent %u\n", core->core_id, core->parent->parent_id);
 
 	return 0;
 }
@@ -493,8 +456,7 @@ static int ethosn_child_pdev_probe(struct platform_device *pdev)
 	/* Allocating the core device (ie struct ethosn_core)
 	 * Allocated against parent device
 	 */
-	ethosn->core[core_id] = devm_kzalloc(
-		pdev->dev.parent, sizeof(struct ethosn_core), GFP_KERNEL);
+	ethosn->core[core_id] = devm_kzalloc(pdev->dev.parent, sizeof(struct ethosn_core), GFP_KERNEL);
 
 	if (!ethosn->core[core_id])
 		return -ENOMEM;
@@ -512,8 +474,7 @@ static int ethosn_child_pdev_probe(struct platform_device *pdev)
 		goto err_free_core;
 	}
 
-	pm_runtime_set_autosuspend_delay(&pdev->dev,
-					 ETHOSN_AUTOSUSPEND_DELAY_MS);
+	pm_runtime_set_autosuspend_delay(&pdev->dev, ETHOSN_AUTOSUSPEND_DELAY_MS);
 	pm_runtime_use_autosuspend(&pdev->dev);
 	pm_runtime_get_noresume(&pdev->dev);
 	pm_runtime_set_active(&pdev->dev);
@@ -522,16 +483,13 @@ static int ethosn_child_pdev_probe(struct platform_device *pdev)
 	dev_dbg(&pdev->dev, "Init reserved mem\n");
 
 	if (ethosn_init_reserved_mem(&pdev->dev))
-		dev_dbg(&pdev->dev,
-			"Reserved mem not present or init failed\n");
+		dev_dbg(&pdev->dev, "Reserved mem not present or init failed\n");
 
 	/* Main allocator handled as a child node in SMMU case */
 	if (ethosn->smmu_available) {
-		ret = of_platform_default_populate(pdev->dev.of_node, NULL,
-						   &pdev->dev);
+		ret = of_platform_default_populate(pdev->dev.of_node, NULL, &pdev->dev);
 		if (ret) {
-			dev_err(&pdev->dev,
-				"Failed to populate child devices\n");
+			dev_err(&pdev->dev, "Failed to populate child devices\n");
 
 			ret = -EINVAL;
 			goto err_free_core;

@@ -43,9 +43,7 @@
 #define ETHOSN_FW_PROP_OFFSETS 0xF02
 #define ETHOSN_FW_PROP_VA_MAP 0xF03
 
-static inline int __must_check ethosn_smc_core_call(u32 cmd,
-						    phys_addr_t core_addr,
-						    struct arm_smccc_res *res)
+static inline int __must_check ethosn_smc_core_call(u32 cmd, phys_addr_t core_addr, struct arm_smccc_res *res)
 {
 	arm_smccc_smc(cmd, core_addr, 0, 0, 0, 0, 0, 0, res);
 
@@ -56,12 +54,10 @@ static inline int __must_check ethosn_smc_core_call(u32 cmd,
 	return ((int)(res->a0 & 0xFFFFFFFF));
 }
 
-static inline int __must_check ethosn_smc_core_reset_call(
-	u32 cmd, phys_addr_t core_addr, uint32_t asset_alloc_idx, bool halt,
-	bool is_protected, u32 aux_config, struct arm_smccc_res *res)
+static inline int __must_check ethosn_smc_core_reset_call(u32 cmd, phys_addr_t core_addr, uint32_t asset_alloc_idx, bool halt, bool is_protected,
+							  u32 aux_config, struct arm_smccc_res *res)
 {
-	arm_smccc_smc(cmd, core_addr, asset_alloc_idx, halt, is_protected,
-		      aux_config, 0, 0, res);
+	arm_smccc_smc(cmd, core_addr, asset_alloc_idx, halt, is_protected, aux_config, 0, 0, res);
 
 	/*
 	 * Only use the first 32-bits of the response to handle an error from a
@@ -70,8 +66,7 @@ static inline int __must_check ethosn_smc_core_reset_call(
 	return ((int)(res->a0 & 0xFFFFFFFF));
 }
 
-static inline int __must_check ethosn_smc_call(u32 cmd,
-					       struct arm_smccc_res *res)
+static inline int __must_check ethosn_smc_call(u32 cmd, struct arm_smccc_res *res)
 {
 	return ethosn_smc_core_call(cmd, 0U, res);
 }
@@ -87,10 +82,8 @@ int ethosn_smc_version_check(const struct device *dev)
 		return -ENXIO;
 	}
 
-	if (res.a0 != ETHOSN_SIP_MAJOR_VERSION ||
-	    res.a1 < ETHOSN_SIP_MINOR_VERSION) {
-		dev_warn(dev, "Incompatible SiP service version: %lu.%lu\n",
-			 res.a0, res.a1);
+	if (res.a0 != ETHOSN_SIP_MAJOR_VERSION || res.a1 < ETHOSN_SIP_MINOR_VERSION) {
+		dev_warn(dev, "Incompatible SiP service version: %lu.%lu\n", res.a0, res.a1);
 
 		return -EPROTO;
 	}
@@ -121,23 +114,15 @@ int ethosn_smc_is_secure(const struct device *dev, phys_addr_t core_addr)
 /* Exported for use by test module */
 // EXPORT_SYMBOL(ethosn_smc_is_secure);
 
-int ethosn_smc_core_reset(const struct device *dev, phys_addr_t core_addr,
-			  uint32_t asset_alloc_idx, bool halt, bool hard_reset,
-			  bool is_protected,
+int ethosn_smc_core_reset(const struct device *dev, phys_addr_t core_addr, uint32_t asset_alloc_idx, bool halt, bool hard_reset, bool is_protected,
 			  const struct ethosn_smc_aux_config *aux_config)
 {
 	struct arm_smccc_res res = { 0 };
-	const u32 smc_reset_call = hard_reset ? ETHOSN_SMC_CORE_HARD_RESET :
-						ETHOSN_SMC_CORE_SOFT_RESET;
-	int ret =
-		ethosn_smc_core_reset_call(smc_reset_call, core_addr,
-					   asset_alloc_idx, halt, is_protected,
-					   aux_config->word, &res);
+	const u32 smc_reset_call = hard_reset ? ETHOSN_SMC_CORE_HARD_RESET : ETHOSN_SMC_CORE_SOFT_RESET;
+	int ret = ethosn_smc_core_reset_call(smc_reset_call, core_addr, asset_alloc_idx, halt, is_protected, aux_config->word, &res);
 
 	if (ret) {
-		dev_warn(dev,
-			 "Failed to %s%s reset the hardware in %scontext: %d\n",
-			 hard_reset ? "hard" : "soft", halt ? " halt" : "",
+		dev_warn(dev, "Failed to %s%s reset the hardware in %scontext: %d\n", hard_reset ? "hard" : "soft", halt ? " halt" : "",
 			 is_protected ? "" : "non-", ret);
 
 		return -EFAULT;
@@ -149,8 +134,7 @@ int ethosn_smc_core_reset(const struct device *dev, phys_addr_t core_addr,
 int ethosn_smc_core_is_sleeping(const struct device *dev, phys_addr_t core_addr)
 {
 	struct arm_smccc_res res = { 0 };
-	int ret = ethosn_smc_core_call(ETHOSN_SMC_CORE_IS_SLEEPING, core_addr,
-				       &res);
+	int ret = ethosn_smc_core_call(ETHOSN_SMC_CORE_IS_SLEEPING, core_addr, &res);
 
 	if (WARN_ONCE(ret < 0, "Failed to get core sleep state: %d\n", ret))
 		return -ENXIO;
@@ -166,18 +150,13 @@ int ethosn_smc_core_is_sleeping(const struct device *dev, phys_addr_t core_addr)
 
 #ifdef ETHOSN_TZMP1
 
-int ethosn_smc_get_firmware_version(const struct device *dev,
-				    uint32_t *out_major, uint32_t *out_minor,
-				    uint32_t *out_patch)
+int ethosn_smc_get_firmware_version(const struct device *dev, uint32_t *out_major, uint32_t *out_minor, uint32_t *out_patch)
 {
 	struct arm_smccc_res res = { 0 };
-	int ret = ethosn_smc_core_call(ETHOSN_SMC_GET_FW_PROP,
-				       ETHOSN_FW_PROP_VERSION, &res);
+	int ret = ethosn_smc_core_call(ETHOSN_SMC_GET_FW_PROP, ETHOSN_FW_PROP_VERSION, &res);
 
 	if (ret < 0) {
-		dev_err(dev,
-			"Failed to get firmware version from SiP service: %d\n",
-			ret);
+		dev_err(dev, "Failed to get firmware version from SiP service: %d\n", ret);
 
 		return -ENXIO;
 	}
@@ -189,17 +168,13 @@ int ethosn_smc_get_firmware_version(const struct device *dev,
 	return ret;
 }
 
-int ethosn_smc_get_firmware_mem_info(const struct device *dev,
-				     phys_addr_t *out_addr, size_t *out_size)
+int ethosn_smc_get_firmware_mem_info(const struct device *dev, phys_addr_t *out_addr, size_t *out_size)
 {
 	struct arm_smccc_res res = { 0 };
-	int ret = ethosn_smc_core_call(ETHOSN_SMC_GET_FW_PROP,
-				       ETHOSN_FW_PROP_MEM_INFO, &res);
+	int ret = ethosn_smc_core_call(ETHOSN_SMC_GET_FW_PROP, ETHOSN_FW_PROP_MEM_INFO, &res);
 
 	if (ret < 0) {
-		dev_err(dev,
-			"Failed to get firmware memory info from SiP service: %d\n",
-			ret);
+		dev_err(dev, "Failed to get firmware memory info from SiP service: %d\n", ret);
 
 		return -ENXIO;
 	}
@@ -210,18 +185,13 @@ int ethosn_smc_get_firmware_mem_info(const struct device *dev,
 	return ret;
 }
 
-int ethosn_smc_get_firmware_offsets(const struct device *dev,
-				    uint32_t *out_ple_offset,
-				    uint32_t *out_stack_offset)
+int ethosn_smc_get_firmware_offsets(const struct device *dev, uint32_t *out_ple_offset, uint32_t *out_stack_offset)
 {
 	struct arm_smccc_res res = { 0 };
-	int ret = ethosn_smc_core_call(ETHOSN_SMC_GET_FW_PROP,
-				       ETHOSN_FW_PROP_OFFSETS, &res);
+	int ret = ethosn_smc_core_call(ETHOSN_SMC_GET_FW_PROP, ETHOSN_FW_PROP_OFFSETS, &res);
 
 	if (ret < 0) {
-		dev_err(dev,
-			"Failed to get firmware offsets from SiP service: %d\n",
-			ret);
+		dev_err(dev, "Failed to get firmware offsets from SiP service: %d\n", ret);
 
 		return -ENXIO;
 	}
@@ -232,19 +202,13 @@ int ethosn_smc_get_firmware_offsets(const struct device *dev,
 	return ret;
 }
 
-int ethosn_smc_get_firmware_va_map(const struct device *dev,
-				   dma_addr_t *out_firmware_va,
-				   dma_addr_t *out_working_data_va,
-				   dma_addr_t *out_command_stream_va)
+int ethosn_smc_get_firmware_va_map(const struct device *dev, dma_addr_t *out_firmware_va, dma_addr_t *out_working_data_va, dma_addr_t *out_command_stream_va)
 {
 	struct arm_smccc_res res = { 0 };
-	int ret = ethosn_smc_core_call(ETHOSN_SMC_GET_FW_PROP,
-				       ETHOSN_FW_PROP_VA_MAP, &res);
+	int ret = ethosn_smc_core_call(ETHOSN_SMC_GET_FW_PROP, ETHOSN_FW_PROP_VA_MAP, &res);
 
 	if (ret < 0) {
-		dev_err(dev,
-			"Failed to get firmware virtual address map from SiP service: %d\n",
-			ret);
+		dev_err(dev, "Failed to get firmware virtual address map from SiP service: %d\n", ret);
 
 		return -ENXIO;
 	}
@@ -256,12 +220,10 @@ int ethosn_smc_get_firmware_va_map(const struct device *dev,
 	return ret;
 }
 
-int ethosn_smc_core_boot_firmware(const struct device *dev,
-				  phys_addr_t core_addr)
+int ethosn_smc_core_boot_firmware(const struct device *dev, phys_addr_t core_addr)
 {
 	struct arm_smccc_res res = { 0 };
-	int ret =
-		ethosn_smc_core_call(ETHOSN_SMC_CORE_BOOT_FW, core_addr, &res);
+	int ret = ethosn_smc_core_call(ETHOSN_SMC_CORE_BOOT_FW, core_addr, &res);
 
 	if (ret < 0) {
 		dev_err(dev, "Failed to boot firmware on core: %d\n", ret);

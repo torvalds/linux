@@ -59,8 +59,7 @@ static int ethosn_main_allocator_pdev_remove(struct platform_device *pdev)
 
 	of_platform_depopulate(&pdev->dev);
 
-	ret = ethosn_dma_top_allocator_destroy(&pdev->dev,
-					       &core->main_allocator);
+	ret = ethosn_dma_top_allocator_destroy(&pdev->dev, &core->main_allocator);
 
 	if (ret)
 		return ret;
@@ -74,7 +73,7 @@ static int ethosn_main_allocator_pdev_remove(struct platform_device *pdev)
 // 从设备树文件中获取 pdev 所指向的平台设备节点，初始化与之对应的抽象数据结构，并绑定到父设备core的抽象数据结构中
 static int ethosn_main_allocator_pdev_probe(struct platform_device *pdev)
 {
-    // 这里根据设备树文件，找到当前设备 main_allocator 所属的 core
+	// 这里根据设备树文件，找到当前设备 main_allocator 所属的 core
 	struct ethosn_core *core = ethosn_core(pdev);
 	struct ethosn_dma_allocator *main_allocator;
 	int ret = 0;
@@ -87,19 +86,18 @@ static int ethosn_main_allocator_pdev_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-    // 注意到实际为该平台设备分配的并非 ethosn_dma_allocator 结构, 而是 ethosn_main_allocator
-	main_allocator = ethosn_dma_top_allocator_create(&pdev->dev,
-							 ETHOSN_ALLOCATOR_MAIN);
+	// 注意到实际为该平台设备分配的并非 ethosn_dma_allocator 结构, 而是 ethosn_main_allocator
+	main_allocator = ethosn_dma_top_allocator_create(&pdev->dev, ETHOSN_ALLOCATOR_MAIN);
 
 	if (IS_ERR_OR_NULL(main_allocator))
 		return -ENOMEM;
 
 	core->main_allocator = main_allocator;
 
-    // 这里将平台设备 pdev 与抽象设备数据结构绑定起来
+	// 这里将平台设备 pdev 与抽象设备数据结构绑定起来
 	dev_set_drvdata(&pdev->dev, main_allocator);
 
-    // 为当前 pdev 向内核自动创建和注册平台设备
+	// 为当前 pdev 向内核自动创建和注册平台设备
 	ret = of_platform_default_populate(pdev->dev.of_node, NULL, &pdev->dev);
 	if (ret)
 		dev_err(&pdev->dev, "Failed to populate child devices\n");

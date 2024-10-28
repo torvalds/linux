@@ -26,8 +26,6 @@
 #include "ethosn_device.h"
 #include "ethosn_dma.h"
 
-int ethosn_get_dma_view_fd(struct ethosn_device *ethosn,
-			   struct ethosn_dma_allocator *allocator,
-			   struct ethosn_dma_info *dma_info);
+int ethosn_get_dma_view_fd(struct ethosn_device *ethosn, struct ethosn_dma_allocator *allocator, struct ethosn_dma_info *dma_info);
 
 #endif /* _ETHOSN_DEBUG_H_ */

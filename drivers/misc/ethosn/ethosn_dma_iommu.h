@@ -42,8 +42,7 @@
 /* IOMMU address space size, use the same for all streams. */
 #define IOMMU_ADDR_SIZE 0x20000000UL
 
-struct ethosn_dma_sub_allocator *ethosn_dma_iommu_allocator_create(
-	struct device *dev, enum ethosn_stream_type stream_type,
-	dma_addr_t addr_base, phys_addr_t speculative_page_addr);
+struct ethosn_dma_sub_allocator *ethosn_dma_iommu_allocator_create(struct device *dev, enum ethosn_stream_type stream_type, dma_addr_t addr_base,
+								   phys_addr_t speculative_page_addr);
 
 #endif /* _ETHOSN_DMA_IOMMU_H_ */

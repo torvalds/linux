@@ -57,12 +57,9 @@
 
 #define ETHOSN_DRIVER_NAME "ethosn"
 #define ETHOSN_STR(s) #s
-#define ETHOSN_DRIVER_VERSION_STR(major, minor, patch)                         \
-	ETHOSN_STR(major) "." ETHOSN_STR(minor) "." ETHOSN_STR(patch)
-#define ETHOSN_DRIVER_VERSION                                                  \
-	ETHOSN_DRIVER_VERSION_STR(ETHOSN_KERNEL_MODULE_VERSION_MAJOR,          \
-				  ETHOSN_KERNEL_MODULE_VERSION_MINOR,          \
-				  ETHOSN_KERNEL_MODULE_VERSION_PATCH)
+#define ETHOSN_DRIVER_VERSION_STR(major, minor, patch) ETHOSN_STR(major) "." ETHOSN_STR(minor) "." ETHOSN_STR(patch)
+#define ETHOSN_DRIVER_VERSION                                                                                                                                  \
+	ETHOSN_DRIVER_VERSION_STR(ETHOSN_KERNEL_MODULE_VERSION_MAJOR, ETHOSN_KERNEL_MODULE_VERSION_MINOR, ETHOSN_KERNEL_MODULE_VERSION_PATCH)
 
 #define ETHOSN_MAX_DEVICES (1U << MINORBITS)
 
@@ -86,38 +83,28 @@ static struct class ethosn_class = {
 	.name = ETHOSN_DRIVER_NAME,
 };
 
-static void __iomem *ethosn_map_iomem(const struct ethosn_core *const core,
-				      const struct resource *const res,
-				      const resource_size_t size)
+static void __iomem *ethosn_map_iomem(const struct ethosn_core *const core, const struct resource *const res, const resource_size_t size)
 {
 	const resource_size_t rsize = resource_size(res);
 	void __iomem *ptr;
 	char *full_res_name;
 
-	dev_dbg(core->dev, "Mapping resource. name=%s, start=%llx, size=%llu\n",
-		res->name, res->start, size);
+	dev_dbg(core->dev, "Mapping resource. name=%s, start=%llx, size=%llu\n", res->name, res->start, size);
 
 	/* Check resource size */
 	if (rsize < size) {
-		dev_err(core->dev,
-			"'%s' resource not found or not big enough: %llu < %llu\n",
-			res->name, rsize, size);
+		dev_err(core->dev, "'%s' resource not found or not big enough: %llu < %llu\n", res->name, rsize, size);
 
 		return IOMEM_ERR_PTR(-EINVAL);
 	}
 
-	full_res_name =
-		devm_kasprintf(core->parent->dev, GFP_KERNEL, "%s : %s",
-			       of_node_full_name(core->parent->dev->of_node),
-			       res->name);
+	full_res_name = devm_kasprintf(core->parent->dev, GFP_KERNEL, "%s : %s", of_node_full_name(core->parent->dev->of_node), res->name);
 	if (!full_res_name)
 		return IOMEM_ERR_PTR(-ENOMEM);
 
 	/* Reserve address space */
-	if (!devm_request_mem_region(core->parent->dev, res->start, size,
-				     full_res_name)) {
-		dev_err(core->dev, "can't request region for resource %pR\n",
-			res);
+	if (!devm_request_mem_region(core->parent->dev, res->start, size, full_res_name)) {
+		dev_err(core->dev, "can't request region for resource %pR\n", res);
 
 		return IOMEM_ERR_PTR(-EBUSY);
 	}
@@ -125,14 +112,12 @@ static void __iomem *ethosn_map_iomem(const struct ethosn_core *const core,
 	/* Map address space */
 	ptr = devm_ioremap(core->parent->dev, res->start, size);
 	if (IS_ERR(ptr))
-		dev_err(core->dev, "failed to map '%s': start=%llu size=%llu\n",
-			res->name, res->start, size);
+		dev_err(core->dev, "failed to map '%s': start=%llu size=%llu\n", res->name, res->start, size);
 
 	return ptr;
 }
 
-static const char *severity_to_kern_level(const struct device *dev,
-					  uint32_t severity)
+static const char *severity_to_kern_level(const struct device *dev, uint32_t severity)
 {
 	switch (severity) {
 	case ETHOSN_LOG_PANIC: {
@@ -153,8 +138,7 @@ static const char *severity_to_kern_level(const struct device *dev,
 		return KERN_DEBUG;
 	}
 	default: {
-		dev_err(dev, "Unknown text message severity level: %u\n",
-			severity);
+		dev_err(dev, "Unknown text message severity level: %u\n", severity);
 
 		return KERN_ERR;
 	}
@@ -243,8 +227,7 @@ static void update_busy_core(struct ethosn_core *core)
 	uint32_t core_mask = (1 << core_id);
 
 	if ((ethosn->current_busy_cores & core_mask) == 0) {
-		dev_err(core->dev,
-			"Scheduler has scheduled an inference on the wrong core");
+		dev_err(core->dev, "Scheduler has scheduled an inference on the wrong core");
 		ethosn->status_mask |= (1 << WRONG_CORE_SCHEDULE);
 	} else {
 		ethosn->current_busy_cores &= ~(1 << core->core_id);
@@ -260,8 +243,7 @@ static void update_busy_core(struct ethosn_core *core)
 	}
 }
 
-static void write_to_firmware_log(struct ethosn_core *core, const char *text,
-				  size_t len_exc_terminator)
+static void write_to_firmware_log(struct ethosn_core *core, const char *text, size_t len_exc_terminator)
 {
 	/* Plus one for the newline that we append */
 	size_t num_bytes_required = len_exc_terminator + 1U;
@@ -271,8 +253,7 @@ static void write_to_firmware_log(struct ethosn_core *core, const char *text,
 		/* Unfortunately there is no API to skip multiple bytes,
 		 * so we do it ourselves
 		 */
-		size_t num_bytes_to_skip =
-			num_bytes_required - kfifo_avail(&core->firmware_log);
+		size_t num_bytes_to_skip = num_bytes_required - kfifo_avail(&core->firmware_log);
 		core->firmware_log.kfifo.out += num_bytes_to_skip;
 	}
 
@@ -288,13 +269,11 @@ static int handle_message(struct ethosn_core *core)
 	int ret;
 
 	/* Read message from queue. Reserve one byte for end of string. */
-	ret = ethosn_read_message(core, &header, core->mailbox_message,
-				  core->queue_size - 1);
+	ret = ethosn_read_message(core, &header, core->mailbox_message, core->queue_size - 1);
 	if (ret <= 0)
 		return ret;
 
-	dev_dbg(core->dev, "Message. type=%u, length=%u\n", header.type,
-		header.length);
+	dev_dbg(core->dev, "Message. type=%u, length=%u\n", header.type, header.length);
 
 	switch (header.type) {
 	case ETHOSN_MESSAGE_FW_HW_CAPS_RESPONSE: {
@@ -302,40 +281,31 @@ static int handle_message(struct ethosn_core *core)
 
 		/* Free previous memory (if any) */
 		if (core->fw_and_hw_caps.data)
-			devm_kfree(core->parent->dev,
-				   core->fw_and_hw_caps.data);
+			devm_kfree(core->parent->dev, core->fw_and_hw_caps.data);
 
 		/* Allocate new memory */
-		core->fw_and_hw_caps.data = devm_kzalloc(
-			core->parent->dev, header.length, GFP_KERNEL);
+		core->fw_and_hw_caps.data = devm_kzalloc(core->parent->dev, header.length, GFP_KERNEL);
 		if (!core->fw_and_hw_caps.data)
 			return -ENOMEM;
 
 		/* Copy data returned from firmware into our storage, so that it
 		 * can be passed to user-space when queried
 		 */
-		memcpy(core->fw_and_hw_caps.data, core->mailbox_message,
-		       header.length);
+		memcpy(core->fw_and_hw_caps.data, core->mailbox_message, header.length);
 		core->fw_and_hw_caps.size = header.length;
 		break;
 	}
 	case ETHOSN_MESSAGE_INFERENCE_RESPONSE: {
-		struct ethosn_message_inference_response *rsp =
-			core->mailbox_message;
+		struct ethosn_message_inference_response *rsp = core->mailbox_message;
 		struct ethosn_inference *inference = (void *)rsp->user_argument;
 		int status;
 
-		dev_dbg(core->dev,
-			"<- Inference. user_arg=0x%llx, status=%u, cycle_count=%llu\n",
-			rsp->user_argument, rsp->status, rsp->cycle_count);
+		dev_dbg(core->dev, "<- Inference. user_arg=0x%llx, status=%u, cycle_count=%llu\n", rsp->user_argument, rsp->status, rsp->cycle_count);
 
-		status = rsp->status == ETHOSN_INFERENCE_STATUS_OK ?
-				 ETHOSN_INFERENCE_COMPLETED :
-				 ETHOSN_INFERENCE_ERROR;
+		status = rsp->status == ETHOSN_INFERENCE_STATUS_OK ? ETHOSN_INFERENCE_COMPLETED : ETHOSN_INFERENCE_ERROR;
 
 		update_busy_core(core);
-		ethosn_set_inference_done(core, inference, status,
-					  rsp->cycle_count);
+		ethosn_set_inference_done(core, inference, status, rsp->cycle_count);
 		break;
 	}
 	case ETHOSN_MESSAGE_PONG: {
@@ -345,15 +315,12 @@ static int handle_message(struct ethosn_core *core)
 	}
 	case ETHOSN_MESSAGE_TEXT: {
 		struct ethosn_message_text *text = core->mailbox_message;
-		size_t msg_len_excluding_terminator =
-			header.length -
-			offsetof(struct ethosn_message_text, text);
+		size_t msg_len_excluding_terminator = header.length - offsetof(struct ethosn_message_text, text);
 		/* Null terminate str. One byte has been reserved for this. */
 		text->text[msg_len_excluding_terminator] = '\0';
 
 		/* Always write to the dedicated firmware log file. */
-		write_to_firmware_log(core, text->text,
-				      msg_len_excluding_terminator);
+		write_to_firmware_log(core, text->text, msg_len_excluding_terminator);
 
 		/* Optionally print to kernel log. This is very slow when there
 		 * are lots of log messages so it is optional.
@@ -361,10 +328,7 @@ static int handle_message(struct ethosn_core *core)
 		 * above buffer using the debugfs entry instead in this case.
 		 */
 		if (firmware_log_to_kernel_log)
-			dev_printk(severity_to_kern_level(core->dev,
-							  text->severity),
-				   core->dev, "<- Text. text=\"%s\"\n",
-				   rtrim(text->text, "\n"));
+			dev_printk(severity_to_kern_level(core->dev, text->severity), core->dev, "<- Text. text=\"%s\"\n", rtrim(text->text, "\n"));
 
 		break;
 	}
@@ -374,20 +338,15 @@ static int handle_message(struct ethosn_core *core)
 		break;
 	}
 	case ETHOSN_MESSAGE_ERROR_RESPONSE: {
-		struct ethosn_message_error_response *rsp =
-			core->mailbox_message;
+		struct ethosn_message_error_response *rsp = core->mailbox_message;
 
-		dev_err(core->dev, "<- %s(%u) error. status=%s(%u)\n",
-			err_msg_type_to_str(rsp->type), rsp->type,
-			err_msg_status_to_str(rsp->status), rsp->status);
+		dev_err(core->dev, "<- %s(%u) error. status=%s(%u)\n", err_msg_type_to_str(rsp->type), rsp->type, err_msg_status_to_str(rsp->status),
+			rsp->status);
 
 		return -EFAULT;
 	}
 	default: {
-		dev_warn(
-			core->dev,
-			"Unsupported message type. Type=%u, Length=%u, ret=%d.\n",
-			header.type, header.length, ret);
+		dev_warn(core->dev, "Unsupported message type. Type=%u, Length=%u, ret=%d.\n", header.type, header.length, ret);
 		break;
 	}
 	}
@@ -400,8 +359,7 @@ static int handle_message(struct ethosn_core *core)
  * Returns the buffer pointer provided (useful for calling
  * this in a printf format arg).
  */
-static char *print_irq_status_reg(char *buffer, size_t buffer_size,
-				  struct dl1_irq_status_r status)
+static char *print_irq_status_reg(char *buffer, size_t buffer_size, struct dl1_irq_status_r status)
 {
 	char *buffer_start = buffer;
 	char *buffer_end = buffer + buffer_size;
@@ -410,40 +368,31 @@ static char *print_irq_status_reg(char *buffer, size_t buffer_size,
 	if (status.word != 0) {
 		buffer += snprintf(buffer, buffer_end - buffer, " (");
 		if (status.bits.setirq_err)
-			buffer += snprintf(buffer, buffer_end - buffer,
-					   " setirq_err");
+			buffer += snprintf(buffer, buffer_end - buffer, " setirq_err");
 
 		if (status.bits.setirq_dbg)
-			buffer += snprintf(buffer, buffer_end - buffer,
-					   " setirq_dbg");
+			buffer += snprintf(buffer, buffer_end - buffer, " setirq_dbg");
 
 		if (status.bits.setirq_job)
-			buffer += snprintf(buffer, buffer_end - buffer,
-					   " setirq_job");
+			buffer += snprintf(buffer, buffer_end - buffer, " setirq_job");
 
 		if (status.bits.tsu_dbg)
-			buffer += snprintf(buffer, buffer_end - buffer,
-					   " tsu_dbg");
+			buffer += snprintf(buffer, buffer_end - buffer, " tsu_dbg");
 
 		if (status.bits.pmu_dbg)
-			buffer += snprintf(buffer, buffer_end - buffer,
-					   " pmu_dbg");
+			buffer += snprintf(buffer, buffer_end - buffer, " pmu_dbg");
 
 		if (status.bits.tol_err)
-			buffer += snprintf(buffer, buffer_end - buffer,
-					   " tol_err");
+			buffer += snprintf(buffer, buffer_end - buffer, " tol_err");
 
 		if (status.bits.func_err)
-			buffer += snprintf(buffer, buffer_end - buffer,
-					   " func_err");
+			buffer += snprintf(buffer, buffer_end - buffer, " func_err");
 
 		if (status.bits.rec_err)
-			buffer += snprintf(buffer, buffer_end - buffer,
-					   " rec_err");
+			buffer += snprintf(buffer, buffer_end - buffer, " rec_err");
 
 		if (status.bits.unrec_err)
-			buffer += snprintf(buffer, buffer_end - buffer,
-					   " unrec_err");
+			buffer += snprintf(buffer, buffer_end - buffer, " unrec_err");
 
 		snprintf(buffer, buffer_end - buffer, " )");
 	}
@@ -464,8 +413,7 @@ static bool print_firmware_dump_if_present(struct ethosn_core *core)
 	 * word at a time.
 	 */
 	for (gp = 0; gp < 8; ++gp)
-		*((uint32_t *)&dump + gp) = ethosn_read_top_reg(
-			core, DL1_RP, DL1_GP0 + gp * (DL1_GP1 - DL1_GP0));
+		*((uint32_t *)&dump + gp) = ethosn_read_top_reg(core, DL1_RP, DL1_GP0 + gp * (DL1_GP1 - DL1_GP0));
 
 	if (dump.magic != ETHOSN_FIRMWARE_DUMP_MAGIC)
 		return false;
@@ -475,221 +423,107 @@ static bool print_firmware_dump_if_present(struct ethosn_core *core)
 	dev_err(core->dev, "  ISR = %d\n", dump.ISR);
 	dev_err(core->dev, "  CFSR\n");
 	dev_err(core->dev, "    MMFSR\n");
-	dev_err(core->dev, "      MMARVALID   = %d\n",
-		dump.CFSR_MMFSR_MMARVALID);
+	dev_err(core->dev, "      MMARVALID   = %d\n", dump.CFSR_MMFSR_MMARVALID);
 	dev_err(core->dev, "      MSTKERR     = %d\n", dump.CFSR_MMFSR_MSTKERR);
-	dev_err(core->dev, "      MUNSTKERR   = %d\n",
-		dump.CFSR_MMFSR_MUNSTKERR);
-	dev_err(core->dev, "      DACCVIOL    = %d\n",
-		dump.CFSR_MMFSR_DACCVIOL);
-	dev_err(core->dev, "      IACCVIOL    = %d\n",
-		dump.CFSR_MMFSR_IACCVIOL);
+	dev_err(core->dev, "      MUNSTKERR   = %d\n", dump.CFSR_MMFSR_MUNSTKERR);
+	dev_err(core->dev, "      DACCVIOL    = %d\n", dump.CFSR_MMFSR_DACCVIOL);
+	dev_err(core->dev, "      IACCVIOL    = %d\n", dump.CFSR_MMFSR_IACCVIOL);
 	dev_err(core->dev, "    BFSR\n");
-	dev_err(core->dev, "      BFARVALID   = %d\n",
-		dump.CFSR_BFSR_BFARVALID);
+	dev_err(core->dev, "      BFARVALID   = %d\n", dump.CFSR_BFSR_BFARVALID);
 	dev_err(core->dev, "      STKERR      = %d\n", dump.CFSR_BFSR_STKERR);
 	dev_err(core->dev, "      UNSTKERR    = %d\n", dump.CFSR_BFSR_UNSTKERR);
-	dev_err(core->dev, "      IMPRECISERR = %d\n",
-		dump.CFSR_BFSR_IMPRECISERR);
-	dev_err(core->dev, "      PRECISERR   = %d\n",
-		dump.CFSR_BFSR_PRECISERR);
+	dev_err(core->dev, "      IMPRECISERR = %d\n", dump.CFSR_BFSR_IMPRECISERR);
+	dev_err(core->dev, "      PRECISERR   = %d\n", dump.CFSR_BFSR_PRECISERR);
 	dev_err(core->dev, "      IBUSERR     = %d\n", dump.CFSR_BFSR_IBUSERR);
 	dev_err(core->dev, "    UFSR\n");
-	dev_err(core->dev, "      DIVBYZERO   = %d\n",
-		dump.CFSR_UFSR_DIVBYZERO);
-	dev_err(core->dev, "      UNALIGNED   = %d\n",
-		dump.CFSR_UFSR_UNALIGNED);
+	dev_err(core->dev, "      DIVBYZERO   = %d\n", dump.CFSR_UFSR_DIVBYZERO);
+	dev_err(core->dev, "      UNALIGNED   = %d\n", dump.CFSR_UFSR_UNALIGNED);
 	dev_err(core->dev, "      NOCP        = %d\n", dump.CFSR_UFSR_NOCP);
 	dev_err(core->dev, "      INVPC       = %d\n", dump.CFSR_UFSR_INVPC);
 	dev_err(core->dev, "      INVSTATE    = %d\n", dump.CFSR_UFSR_INVSTATE);
-	dev_err(core->dev, "      UNDEFINSTR  = %d\n",
-		dump.CFSR_UFSR_UNDEFINSTR);
+	dev_err(core->dev, "      UNDEFINSTR  = %d\n", dump.CFSR_UFSR_UNDEFINSTR);
 	dev_err(core->dev, "  HFSR\n");
 	dev_err(core->dev, "    FORCED        = %d\n", dump.HFSR_FORCED);
 	dev_err(core->dev, "    VECTTBL       = %d\n", dump.HFSR_VECTTBL);
 	dev_err(core->dev, "  MMFAR           = 0x%08x\n", dump.MMFAR);
 	dev_err(core->dev, "  BFAR            = 0x%08x\n", dump.BFAR);
 	dev_err(core->dev, "  TOP_ERR_CAUSE\n");
-	dev_err(core->dev, "    ENGINE_RAM_CORRECTABLE_ERR     = %d\n",
-		dump.TOP_ERR_CAUSE_ENGINE_RAM_CORRECTABLE_ERR);
-	dev_err(core->dev, "    ENGINE_RAM_UNCORRECTABLE_ERR   = %d\n",
-		dump.TOP_ERR_CAUSE_ENGINE_RAM_UNCORRECTABLE_ERR);
-	dev_err(core->dev, "    TOP_TOLERABLE_RAM_ERR          = %d\n",
-		dump.TOP_ERR_CAUSE_TOP_TOLERABLE_RAM_ERR);
-	dev_err(core->dev, "    TOP_RECOVERABLE_RAM_ERR        = %d\n",
-		dump.TOP_ERR_CAUSE_TOP_RECOVERABLE_RAM_ERR);
-	dev_err(core->dev, "    MCU_LOCKUP_ERR                 = %d\n",
-		dump.TOP_ERR_CAUSE_MCU_LOCKUP_ERR);
-	dev_err(core->dev, "    MCU_INSTR_ERR                  = %d\n",
-		dump.TOP_ERR_CAUSE_MCU_INSTR_ERR);
-	dev_err(core->dev, "    MCU_DATA_READ_ERR              = %d\n",
-		dump.TOP_ERR_CAUSE_MCU_DATA_READ_ERR);
-	dev_err(core->dev, "    MCU_DATA_WRITE_ERR             = %d\n",
-		dump.TOP_ERR_CAUSE_MCU_DATA_WRITE_ERR);
-	dev_err(core->dev, "    DMA_READ_ERR                   = %d\n",
-		dump.TOP_ERR_CAUSE_DMA_READ_ERR);
-	dev_err(core->dev, "    DMA_WRITE_ERR                  = %d\n",
-		dump.TOP_ERR_CAUSE_DMA_WRITE_ERR);
-	dev_err(core->dev, "    STASH_TRANSLATION_ERR          = %d\n",
-		dump.TOP_ERR_CAUSE_STASH_TRANSLATION_ERR);
-	dev_err(core->dev, "    DMA_QUEUE_PROGRAMMING_ERR      = %d\n",
-		dump.TOP_ERR_CAUSE_DMA_QUEUE_PROGRAMMING_ERR);
-	dev_err(core->dev, "    PWRCTLR_ACTIVE_PROGRAMMING_ERR = %d\n",
-		dump.TOP_ERR_CAUSE_PWRCTLR_ACTIVE_PROGRAMMING_ERR);
-	dev_err(core->dev, "    STASH_TRANS_PROGRAMMING_ERR    = %d\n",
-		dump.TOP_ERR_CAUSE_STASH_TRANS_PROGRAMMING_ERR);
-	dev_err(core->dev, "    TSU_EVENT_OVERFLOW_ERR         = %d\n",
-		dump.TOP_ERR_CAUSE_TSU_EVENT_OVERFLOW_ERR);
-	dev_err(core->dev, "    STRIPE_PROGRAMMING_ERR         = %d\n",
-		dump.TOP_ERR_CAUSE_STRIPE_PROGRAMMING_ERR);
-	dev_err(core->dev, "    STRIPE_WRITE_WHILE_BUSY_ERR    = %d\n",
-		dump.TOP_ERR_CAUSE_STRIPE_WRITE_WHILE_BUSY_ERR);
-	dev_err(core->dev, "    BLOCK_PROGRAMMING_ERR          = %d\n",
-		dump.TOP_ERR_CAUSE_BLOCK_PROGRAMMING_ERR);
-	dev_err(core->dev, "    BLOCK_WRITE_WHILE_BUSY_ERR     = %d\n",
-		dump.TOP_ERR_CAUSE_BLOCK_WRITE_WHILE_BUSY_ERR);
-	dev_err(core->dev, "    SHADOW_ERR                     = %d\n",
-		dump.TOP_ERR_CAUSE_SHADOW_ERR);
-	dev_err(core->dev, "    ENGINE_FUNC_ERR                = %d\n",
-		dump.TOP_ERR_CAUSE_ENGINE_FUNC_ERR);
+	dev_err(core->dev, "    ENGINE_RAM_CORRECTABLE_ERR     = %d\n", dump.TOP_ERR_CAUSE_ENGINE_RAM_CORRECTABLE_ERR);
+	dev_err(core->dev, "    ENGINE_RAM_UNCORRECTABLE_ERR   = %d\n", dump.TOP_ERR_CAUSE_ENGINE_RAM_UNCORRECTABLE_ERR);
+	dev_err(core->dev, "    TOP_TOLERABLE_RAM_ERR          = %d\n", dump.TOP_ERR_CAUSE_TOP_TOLERABLE_RAM_ERR);
+	dev_err(core->dev, "    TOP_RECOVERABLE_RAM_ERR        = %d\n", dump.TOP_ERR_CAUSE_TOP_RECOVERABLE_RAM_ERR);
+	dev_err(core->dev, "    MCU_LOCKUP_ERR                 = %d\n", dump.TOP_ERR_CAUSE_MCU_LOCKUP_ERR);
+	dev_err(core->dev, "    MCU_INSTR_ERR                  = %d\n", dump.TOP_ERR_CAUSE_MCU_INSTR_ERR);
+	dev_err(core->dev, "    MCU_DATA_READ_ERR              = %d\n", dump.TOP_ERR_CAUSE_MCU_DATA_READ_ERR);
+	dev_err(core->dev, "    MCU_DATA_WRITE_ERR             = %d\n", dump.TOP_ERR_CAUSE_MCU_DATA_WRITE_ERR);
+	dev_err(core->dev, "    DMA_READ_ERR                   = %d\n", dump.TOP_ERR_CAUSE_DMA_READ_ERR);
+	dev_err(core->dev, "    DMA_WRITE_ERR                  = %d\n", dump.TOP_ERR_CAUSE_DMA_WRITE_ERR);
+	dev_err(core->dev, "    STASH_TRANSLATION_ERR          = %d\n", dump.TOP_ERR_CAUSE_STASH_TRANSLATION_ERR);
+	dev_err(core->dev, "    DMA_QUEUE_PROGRAMMING_ERR      = %d\n", dump.TOP_ERR_CAUSE_DMA_QUEUE_PROGRAMMING_ERR);
+	dev_err(core->dev, "    PWRCTLR_ACTIVE_PROGRAMMING_ERR = %d\n", dump.TOP_ERR_CAUSE_PWRCTLR_ACTIVE_PROGRAMMING_ERR);
+	dev_err(core->dev, "    STASH_TRANS_PROGRAMMING_ERR    = %d\n", dump.TOP_ERR_CAUSE_STASH_TRANS_PROGRAMMING_ERR);
+	dev_err(core->dev, "    TSU_EVENT_OVERFLOW_ERR         = %d\n", dump.TOP_ERR_CAUSE_TSU_EVENT_OVERFLOW_ERR);
+	dev_err(core->dev, "    STRIPE_PROGRAMMING_ERR         = %d\n", dump.TOP_ERR_CAUSE_STRIPE_PROGRAMMING_ERR);
+	dev_err(core->dev, "    STRIPE_WRITE_WHILE_BUSY_ERR    = %d\n", dump.TOP_ERR_CAUSE_STRIPE_WRITE_WHILE_BUSY_ERR);
+	dev_err(core->dev, "    BLOCK_PROGRAMMING_ERR          = %d\n", dump.TOP_ERR_CAUSE_BLOCK_PROGRAMMING_ERR);
+	dev_err(core->dev, "    BLOCK_WRITE_WHILE_BUSY_ERR     = %d\n", dump.TOP_ERR_CAUSE_BLOCK_WRITE_WHILE_BUSY_ERR);
+	dev_err(core->dev, "    SHADOW_ERR                     = %d\n", dump.TOP_ERR_CAUSE_SHADOW_ERR);
+	dev_err(core->dev, "    ENGINE_FUNC_ERR                = %d\n", dump.TOP_ERR_CAUSE_ENGINE_FUNC_ERR);
 	dev_err(core->dev, "  TOP_ERR_ADDRESS\n");
-	dev_err(core->dev, "    ADDRESS                        = 0x%04x\n",
-		dump.TOP_ERR_ADDRESS_ADDRESS);
-	dev_err(core->dev, "    BANK                           = %d\n",
-		dump.TOP_ERR_ADDRESS_BANK);
-	dev_err(core->dev, "    NCU_MCU_ICACHE_TAG             = %d\n",
-		dump.TOP_ERR_ADDRESS_NCU_MCU_ICACHE_TAG);
-	dev_err(core->dev, "    NCU_MCU_ICACHE_DATA            = %d\n",
-		dump.TOP_ERR_ADDRESS_NCU_MCU_ICACHE_DATA);
-	dev_err(core->dev, "    NCU_MCU_DCACHE_TAG             = %d\n",
-		dump.TOP_ERR_ADDRESS_NCU_MCU_DCACHE_TAG);
-	dev_err(core->dev, "    NCU_MCU_DCACHE_DATA            = %d\n",
-		dump.TOP_ERR_ADDRESS_NCU_MCU_DCACHE_DATA);
-	dev_err(core->dev, "    DFC_ROB                        = %d\n",
-		dump.TOP_ERR_ADDRESS_DFC_ROB);
-	dev_err(core->dev, "    DFC_COMPRESSOR_SIM             = %d\n",
-		dump.TOP_ERR_ADDRESS_DFC_COMPRESSOR_SIM);
-	dev_err(core->dev, "    DFC_COMPRESSOR_REM             = %d\n",
-		dump.TOP_ERR_ADDRESS_DFC_COMPRESSOR_REM);
-	dev_err(core->dev, "    DFC_COMPRESSOR_UNARY           = %d\n",
-		dump.TOP_ERR_ADDRESS_DFC_COMPRESSOR_UNARY);
-	dev_err(core->dev, "    DFC_DECOMPRESSOR               = %d\n",
-		dump.TOP_ERR_ADDRESS_DFC_DECOMPRESSOR);
-	dev_err(core->dev, "    ERR_MULTI                      = %d\n",
-		dump.TOP_ERR_ADDRESS_ERR_MULTI);
-	dev_err(core->dev, "    ERR_UNCORRECTED                = %d\n",
-		dump.TOP_ERR_ADDRESS_ERR_UNCORRECTED);
+	dev_err(core->dev, "    ADDRESS                        = 0x%04x\n", dump.TOP_ERR_ADDRESS_ADDRESS);
+	dev_err(core->dev, "    BANK                           = %d\n", dump.TOP_ERR_ADDRESS_BANK);
+	dev_err(core->dev, "    NCU_MCU_ICACHE_TAG             = %d\n", dump.TOP_ERR_ADDRESS_NCU_MCU_ICACHE_TAG);
+	dev_err(core->dev, "    NCU_MCU_ICACHE_DATA            = %d\n", dump.TOP_ERR_ADDRESS_NCU_MCU_ICACHE_DATA);
+	dev_err(core->dev, "    NCU_MCU_DCACHE_TAG             = %d\n", dump.TOP_ERR_ADDRESS_NCU_MCU_DCACHE_TAG);
+	dev_err(core->dev, "    NCU_MCU_DCACHE_DATA            = %d\n", dump.TOP_ERR_ADDRESS_NCU_MCU_DCACHE_DATA);
+	dev_err(core->dev, "    DFC_ROB                        = %d\n", dump.TOP_ERR_ADDRESS_DFC_ROB);
+	dev_err(core->dev, "    DFC_COMPRESSOR_SIM             = %d\n", dump.TOP_ERR_ADDRESS_DFC_COMPRESSOR_SIM);
+	dev_err(core->dev, "    DFC_COMPRESSOR_REM             = %d\n", dump.TOP_ERR_ADDRESS_DFC_COMPRESSOR_REM);
+	dev_err(core->dev, "    DFC_COMPRESSOR_UNARY           = %d\n", dump.TOP_ERR_ADDRESS_DFC_COMPRESSOR_UNARY);
+	dev_err(core->dev, "    DFC_DECOMPRESSOR               = %d\n", dump.TOP_ERR_ADDRESS_DFC_DECOMPRESSOR);
+	dev_err(core->dev, "    ERR_MULTI                      = %d\n", dump.TOP_ERR_ADDRESS_ERR_MULTI);
+	dev_err(core->dev, "    ERR_UNCORRECTED                = %d\n", dump.TOP_ERR_ADDRESS_ERR_UNCORRECTED);
 	if (dump.cesWithError == 0) {
 		dev_err(core->dev, "  cesWithError = <none>\n");
 	} else {
-		dev_err(core->dev,
-			"  cesWithError                                =%s%s%s%s%s%s%s%s\n",
-			(dump.cesWithError & (1 << 0)) ? " 0" : "",
-			(dump.cesWithError & (1 << 1)) ? " 1" : "",
-			(dump.cesWithError & (1 << 2)) ? " 2" : "",
-			(dump.cesWithError & (1 << 3)) ? " 3" : "",
-			(dump.cesWithError & (1 << 4)) ? " 4" : "",
-			(dump.cesWithError & (1 << 5)) ? " 5" : "",
-			(dump.cesWithError & (1 << 6)) ? " 6" : "",
+		dev_err(core->dev, "  cesWithError                                =%s%s%s%s%s%s%s%s\n", (dump.cesWithError & (1 << 0)) ? " 0" : "",
+			(dump.cesWithError & (1 << 1)) ? " 1" : "", (dump.cesWithError & (1 << 2)) ? " 2" : "", (dump.cesWithError & (1 << 3)) ? " 3" : "",
+			(dump.cesWithError & (1 << 4)) ? " 4" : "", (dump.cesWithError & (1 << 5)) ? " 5" : "", (dump.cesWithError & (1 << 6)) ? " 6" : "",
 			(dump.cesWithError & (1 << 7)) ? " 7" : "");
 		dev_err(core->dev, "  CE_ERR_CAUSE\n");
-		dev_err(core->dev,
-			"    CE_ERR_CAUSE_ENGINE_RAM_CORRECTABLE_ERR   = %d\n",
-			dump.CE_ERR_CAUSE_ENGINE_RAM_CORRECTABLE_ERR);
-		dev_err(core->dev,
-			"    CE_ERR_CAUSE_ENGINE_RAM_UNCORRECTABLE_ERR = %d\n",
-			dump.CE_ERR_CAUSE_ENGINE_RAM_UNCORRECTABLE_ERR);
-		dev_err(core->dev,
-			"    CE_ERR_CAUSE_MCU_LOCKUP_ERR               = %d\n",
-			dump.CE_ERR_CAUSE_MCU_LOCKUP_ERR);
-		dev_err(core->dev,
-			"    CE_ERR_CAUSE_MCU_INSTR_ERR                = %d\n",
-			dump.CE_ERR_CAUSE_MCU_INSTR_ERR);
-		dev_err(core->dev,
-			"    CE_ERR_CAUSE_MCU_DATA_READ_ERR            = %d\n",
-			dump.CE_ERR_CAUSE_MCU_DATA_READ_ERR);
-		dev_err(core->dev,
-			"    CE_ERR_CAUSE_MCU_DATA_WRITE_ERR           = %d\n",
-			dump.CE_ERR_CAUSE_MCU_DATA_WRITE_ERR);
-		dev_err(core->dev,
-			"    CE_ERR_CAUSE_UDMA_LOAD_ERR                = %d\n",
-			dump.CE_ERR_CAUSE_UDMA_LOAD_ERR);
-		dev_err(core->dev,
-			"    CE_ERR_CAUSE_UDMA_STORE_ERR               = %d\n",
-			dump.CE_ERR_CAUSE_UDMA_STORE_ERR);
-		dev_err(core->dev,
-			"    CE_ERR_CAUSE_MCU_ILLEGAL_COPROC_ERR       = %d\n",
-			dump.CE_ERR_CAUSE_MCU_ILLEGAL_COPROC_ERR);
-		dev_err(core->dev,
-			"    CE_ERR_CAUSE_UDMA_COLLISION_ERR           = %d\n",
-			dump.CE_ERR_CAUSE_UDMA_COLLISION_ERR);
-		dev_err(core->dev,
-			"    CE_ERR_CAUSE_RF_RD_COLLISION_ERR          = %d\n",
-			dump.CE_ERR_CAUSE_RF_RD_COLLISION_ERR);
-		dev_err(core->dev,
-			"    CE_ERR_CAUSE_RF_WR_COLLISION_ERR          = %d\n",
-			dump.CE_ERR_CAUSE_RF_WR_COLLISION_ERR);
-		dev_err(core->dev,
-			"    CE_ERR_CAUSE_VE_DIV_0_ERR                 = %d\n",
-			dump.CE_ERR_CAUSE_VE_DIV_0_ERR);
-		dev_err(core->dev,
-			"    CE_ERR_CAUSE_PLE_LANE_ERR                 = %d\n",
-			dump.CE_ERR_CAUSE_PLE_LANE_ERR);
+		dev_err(core->dev, "    CE_ERR_CAUSE_ENGINE_RAM_CORRECTABLE_ERR   = %d\n", dump.CE_ERR_CAUSE_ENGINE_RAM_CORRECTABLE_ERR);
+		dev_err(core->dev, "    CE_ERR_CAUSE_ENGINE_RAM_UNCORRECTABLE_ERR = %d\n", dump.CE_ERR_CAUSE_ENGINE_RAM_UNCORRECTABLE_ERR);
+		dev_err(core->dev, "    CE_ERR_CAUSE_MCU_LOCKUP_ERR               = %d\n", dump.CE_ERR_CAUSE_MCU_LOCKUP_ERR);
+		dev_err(core->dev, "    CE_ERR_CAUSE_MCU_INSTR_ERR                = %d\n", dump.CE_ERR_CAUSE_MCU_INSTR_ERR);
+		dev_err(core->dev, "    CE_ERR_CAUSE_MCU_DATA_READ_ERR            = %d\n", dump.CE_ERR_CAUSE_MCU_DATA_READ_ERR);
+		dev_err(core->dev, "    CE_ERR_CAUSE_MCU_DATA_WRITE_ERR           = %d\n", dump.CE_ERR_CAUSE_MCU_DATA_WRITE_ERR);
+		dev_err(core->dev, "    CE_ERR_CAUSE_UDMA_LOAD_ERR                = %d\n", dump.CE_ERR_CAUSE_UDMA_LOAD_ERR);
+		dev_err(core->dev, "    CE_ERR_CAUSE_UDMA_STORE_ERR               = %d\n", dump.CE_ERR_CAUSE_UDMA_STORE_ERR);
+		dev_err(core->dev, "    CE_ERR_CAUSE_MCU_ILLEGAL_COPROC_ERR       = %d\n", dump.CE_ERR_CAUSE_MCU_ILLEGAL_COPROC_ERR);
+		dev_err(core->dev, "    CE_ERR_CAUSE_UDMA_COLLISION_ERR           = %d\n", dump.CE_ERR_CAUSE_UDMA_COLLISION_ERR);
+		dev_err(core->dev, "    CE_ERR_CAUSE_RF_RD_COLLISION_ERR          = %d\n", dump.CE_ERR_CAUSE_RF_RD_COLLISION_ERR);
+		dev_err(core->dev, "    CE_ERR_CAUSE_RF_WR_COLLISION_ERR          = %d\n", dump.CE_ERR_CAUSE_RF_WR_COLLISION_ERR);
+		dev_err(core->dev, "    CE_ERR_CAUSE_VE_DIV_0_ERR                 = %d\n", dump.CE_ERR_CAUSE_VE_DIV_0_ERR);
+		dev_err(core->dev, "    CE_ERR_CAUSE_PLE_LANE_ERR                 = %d\n", dump.CE_ERR_CAUSE_PLE_LANE_ERR);
 		dev_err(core->dev, "  CE_ERR_ADDRESS\n");
-		dev_err(core->dev,
-			"    CE_ERR_ADDRESS_ADDRESS                    = 0x%04x\n",
-			dump.CE_ERR_ADDRESS_ADDRESS);
-		dev_err(core->dev,
-			"    CE_ERR_ADDRESS_BANK                       = %d\n",
-			dump.CE_ERR_ADDRESS_BANK);
-		dev_err(core->dev,
-			"    CE_ERR_ADDRESS_DFC_EMC0                   = %d\n",
-			dump.CE_ERR_ADDRESS_DFC_EMC0);
-		dev_err(core->dev,
-			"    CE_ERR_ADDRESS_DFC_EMC1                   = %d\n",
-			dump.CE_ERR_ADDRESS_DFC_EMC1);
-		dev_err(core->dev,
-			"    CE_ERR_ADDRESS_DFC_EMC2                   = %d\n",
-			dump.CE_ERR_ADDRESS_DFC_EMC2);
-		dev_err(core->dev,
-			"    CE_ERR_ADDRESS_DFC_EMC3                   = %d\n",
-			dump.CE_ERR_ADDRESS_DFC_EMC3);
-		dev_err(core->dev,
-			"    CE_ERR_ADDRESS_MCE_OFM0                   = %d\n",
-			dump.CE_ERR_ADDRESS_MCE_OFM0);
-		dev_err(core->dev,
-			"    CE_ERR_ADDRESS_MCE_OFM1                   = %d\n",
-			dump.CE_ERR_ADDRESS_MCE_OFM1);
-		dev_err(core->dev,
-			"    CE_ERR_ADDRESS_MCE_OFM2                   = %d\n",
-			dump.CE_ERR_ADDRESS_MCE_OFM2);
-		dev_err(core->dev,
-			"    CE_ERR_ADDRESS_MCE_OFM3                   = %d\n",
-			dump.CE_ERR_ADDRESS_MCE_OFM3);
-		dev_err(core->dev,
-			"    CE_ERR_ADDRESS_PLE_INPUT0                 = %d\n",
-			dump.CE_ERR_ADDRESS_PLE_INPUT0);
-		dev_err(core->dev,
-			"    CE_ERR_ADDRESS_PLE_INPUT1                 = %d\n",
-			dump.CE_ERR_ADDRESS_PLE_INPUT1);
-		dev_err(core->dev,
-			"    CE_ERR_ADDRESS_PLE_INPUT2                 = %d\n",
-			dump.CE_ERR_ADDRESS_PLE_INPUT2);
-		dev_err(core->dev,
-			"    CE_ERR_ADDRESS_PLE_INPUT3                 = %d\n",
-			dump.CE_ERR_ADDRESS_PLE_INPUT3);
-		dev_err(core->dev,
-			"    CE_ERR_ADDRESS_PLE_OUTPUT                 = %d\n",
-			dump.CE_ERR_ADDRESS_PLE_OUTPUT);
-		dev_err(core->dev,
-			"    CE_ERR_ADDRESS_PLE_MCU                    = %d\n",
-			dump.CE_ERR_ADDRESS_PLE_MCU);
-		dev_err(core->dev,
-			"    CE_ERR_ADDRESS_ERR_MULTI                  = %d\n",
-			dump.CE_ERR_ADDRESS_ERR_MULTI);
-		dev_err(core->dev,
-			"    CE_ERR_ADDRESS_ERR_UNCORRECTED            = %d\n",
-			dump.CE_ERR_ADDRESS_ERR_UNCORRECTED);
+		dev_err(core->dev, "    CE_ERR_ADDRESS_ADDRESS                    = 0x%04x\n", dump.CE_ERR_ADDRESS_ADDRESS);
+		dev_err(core->dev, "    CE_ERR_ADDRESS_BANK                       = %d\n", dump.CE_ERR_ADDRESS_BANK);
+		dev_err(core->dev, "    CE_ERR_ADDRESS_DFC_EMC0                   = %d\n", dump.CE_ERR_ADDRESS_DFC_EMC0);
+		dev_err(core->dev, "    CE_ERR_ADDRESS_DFC_EMC1                   = %d\n", dump.CE_ERR_ADDRESS_DFC_EMC1);
+		dev_err(core->dev, "    CE_ERR_ADDRESS_DFC_EMC2                   = %d\n", dump.CE_ERR_ADDRESS_DFC_EMC2);
+		dev_err(core->dev, "    CE_ERR_ADDRESS_DFC_EMC3                   = %d\n", dump.CE_ERR_ADDRESS_DFC_EMC3);
+		dev_err(core->dev, "    CE_ERR_ADDRESS_MCE_OFM0                   = %d\n", dump.CE_ERR_ADDRESS_MCE_OFM0);
+		dev_err(core->dev, "    CE_ERR_ADDRESS_MCE_OFM1                   = %d\n", dump.CE_ERR_ADDRESS_MCE_OFM1);
+		dev_err(core->dev, "    CE_ERR_ADDRESS_MCE_OFM2                   = %d\n", dump.CE_ERR_ADDRESS_MCE_OFM2);
+		dev_err(core->dev, "    CE_ERR_ADDRESS_MCE_OFM3                   = %d\n", dump.CE_ERR_ADDRESS_MCE_OFM3);
+		dev_err(core->dev, "    CE_ERR_ADDRESS_PLE_INPUT0                 = %d\n", dump.CE_ERR_ADDRESS_PLE_INPUT0);
+		dev_err(core->dev, "    CE_ERR_ADDRESS_PLE_INPUT1                 = %d\n", dump.CE_ERR_ADDRESS_PLE_INPUT1);
+		dev_err(core->dev, "    CE_ERR_ADDRESS_PLE_INPUT2                 = %d\n", dump.CE_ERR_ADDRESS_PLE_INPUT2);
+		dev_err(core->dev, "    CE_ERR_ADDRESS_PLE_INPUT3                 = %d\n", dump.CE_ERR_ADDRESS_PLE_INPUT3);
+		dev_err(core->dev, "    CE_ERR_ADDRESS_PLE_OUTPUT                 = %d\n", dump.CE_ERR_ADDRESS_PLE_OUTPUT);
+		dev_err(core->dev, "    CE_ERR_ADDRESS_PLE_MCU                    = %d\n", dump.CE_ERR_ADDRESS_PLE_MCU);
+		dev_err(core->dev, "    CE_ERR_ADDRESS_ERR_MULTI                  = %d\n", dump.CE_ERR_ADDRESS_ERR_MULTI);
+		dev_err(core->dev, "    CE_ERR_ADDRESS_ERR_UNCORRECTED            = %d\n", dump.CE_ERR_ADDRESS_ERR_UNCORRECTED);
 	}
 
 	dev_err(core->dev, "======== End of firmware dump ========\n");
@@ -705,8 +539,7 @@ static bool print_firmware_dump_if_present(struct ethosn_core *core)
  */
 static void ethosn_irq_bottom(struct work_struct *work)
 {
-	struct ethosn_core *core =
-		container_of(work, struct ethosn_core, irq_work);
+	struct ethosn_core *core = container_of(work, struct ethosn_core, irq_work);
 	struct dl1_irq_status_r status;
 	bool error_status;
 	int ret;
@@ -746,12 +579,9 @@ static void ethosn_irq_bottom(struct work_struct *work)
 	/* Read and clear the IRQ status bits. */
 	status.word = atomic_xchg(&core->irq_status, 0);
 
-	dev_dbg(core->dev, "Irq bottom, IRQ_STATUS = %s\n",
-		print_irq_status_reg(buffer, sizeof(buffer), status));
+	dev_dbg(core->dev, "Irq bottom, IRQ_STATUS = %s\n", print_irq_status_reg(buffer, sizeof(buffer), status));
 
-	error_status = status.bits.setirq_err || status.bits.tol_err ||
-		       status.bits.func_err || status.bits.rec_err ||
-		       status.bits.unrec_err;
+	error_status = status.bits.setirq_err || status.bits.tol_err || status.bits.func_err || status.bits.rec_err || status.bits.unrec_err;
 
 	/* Mailbox or IRQ error reported. Reset firmware. */
 	if (ret < 0 || error_status) {
@@ -759,16 +589,13 @@ static void ethosn_irq_bottom(struct work_struct *work)
 		if (error_status) {
 			uint32_t sysctlr0;
 
-			dev_err(core->dev,
-				"Error reported by IRQ_STATUS: %s. Will reset core after dump.\n",
-				print_irq_status_reg(buffer, sizeof(buffer),
-						     status));
+			dev_err(core->dev, "Error reported by IRQ_STATUS: %s. Will reset core after dump.\n",
+				print_irq_status_reg(buffer, sizeof(buffer), status));
 
 			/* DL1_SYSCTLR0 might contain useful
 			 * information (e.g.lockup)
 			 */
-			sysctlr0 =
-				ethosn_read_top_reg(core, DL1_RP, DL1_SYSCTLR0);
+			sysctlr0 = ethosn_read_top_reg(core, DL1_RP, DL1_SYSCTLR0);
 			dev_err(core->dev, "SYSCTLR0=0x%x.\n", sysctlr0);
 
 			/* Print the firmware dump struct, if one was provided
@@ -777,23 +604,17 @@ static void ethosn_irq_bottom(struct work_struct *work)
 			 * provide some insight.
 			 */
 			if (!print_firmware_dump_if_present(core)) {
-				dev_err(core->dev,
-					"Firmware dump not present, dumping raw GPs:\n");
+				dev_err(core->dev, "Firmware dump not present, dumping raw GPs:\n");
 				ethosn_dump_gps(core);
 			}
 		} else {
-			dev_err(core->dev,
-				"Reset core due to mailbox error. status=%d\n",
-				ret);
+			dev_err(core->dev, "Reset core due to mailbox error. status=%d\n", ret);
 		}
 
 		if (core->firmware_running) {
-			(void)ethosn_reset_and_start_ethosn(core,
-							    core->set_alloc_id);
+			(void)ethosn_reset_and_start_ethosn(core, core->set_alloc_id);
 			if (core->current_inference)
-				ethosn_set_inference_done(
-					core, core->current_inference,
-					ETHOSN_INFERENCE_ERROR, 0);
+				ethosn_set_inference_done(core, core->current_inference, ETHOSN_INFERENCE_ERROR, 0);
 		}
 	}
 
@@ -860,11 +681,8 @@ static irqreturn_t ethosn_irq_top(const int irq, void *dev)
  * * 0 - Success
  * * Negative error code
  */
-static int
-ethosn_init_interrupt(struct ethosn_core *const core,
-		      const int irq_numbers[ETHOSN_MAX_NUM_IRQS],
-		      const unsigned long irq_flags[ETHOSN_MAX_NUM_IRQS],
-		      unsigned int num_irqs)
+static int ethosn_init_interrupt(struct ethosn_core *const core, const int irq_numbers[ETHOSN_MAX_NUM_IRQS], const unsigned long irq_flags[ETHOSN_MAX_NUM_IRQS],
+				 unsigned int num_irqs)
 {
 	int ret;
 	int irq_idx;
@@ -895,15 +713,11 @@ ethosn_init_interrupt(struct ethosn_core *const core,
 		const int irq_num = irq_numbers[irq_idx];
 		const unsigned long this_irq_flags = irq_flags[irq_idx];
 
-		dev_dbg(core->dev, "Requesting IRQ %d with flags 0x%lx\n",
-			irq_num, this_irq_flags);
+		dev_dbg(core->dev, "Requesting IRQ %d with flags 0x%lx\n", irq_num, this_irq_flags);
 
-		ret = devm_request_irq(core->dev, irq_num, &ethosn_irq_top,
-				       this_irq_flags, ETHOSN_DRIVER_NAME,
-				       core);
+		ret = devm_request_irq(core->dev, irq_num, &ethosn_irq_top, this_irq_flags, ETHOSN_DRIVER_NAME, core);
 		if (ret) {
-			dev_err(core->dev, "Failed to request IRQ %d\n",
-				irq_num);
+			dev_err(core->dev, "Failed to request IRQ %d\n", irq_num);
 
 			return ret;
 		}
@@ -912,16 +726,14 @@ ethosn_init_interrupt(struct ethosn_core *const core,
 	return 0;
 }
 
-static ssize_t num_cores_show(struct device *dev, struct device_attribute *attr,
-			      char *buf)
+static ssize_t num_cores_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct ethosn_device *ethosn = dev_get_drvdata(dev);
 
 	return scnprintf(buf, PAGE_SIZE, "%d\n", ethosn->num_cores);
 }
 
-static ssize_t status_mask_show(struct device *dev,
-				struct device_attribute *attr, char *buf)
+static ssize_t status_mask_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct ethosn_device *ethosn = dev_get_drvdata(dev);
 
@@ -931,8 +743,7 @@ static ssize_t status_mask_show(struct device *dev,
 static const DEVICE_ATTR_RO(num_cores);
 static const DEVICE_ATTR_RO(status_mask);
 
-static const struct attribute *attrs[] = { &dev_attr_num_cores.attr,
-					   &dev_attr_status_mask.attr, NULL };
+static const struct attribute *attrs[] = { &dev_attr_num_cores.attr, &dev_attr_status_mask.attr, NULL };
 
 /**
  * ethosn_open() - Open the Ethos-N core node.
@@ -942,8 +753,7 @@ static const struct attribute *attrs[] = { &dev_attr_num_cores.attr,
  */
 static int ethosn_open(struct inode *inode, struct file *file)
 {
-	file->private_data =
-		container_of(inode->i_cdev, struct ethosn_device, cdev);
+	file->private_data = container_of(inode->i_cdev, struct ethosn_device, cdev);
 
 	return nonseekable_open(inode, file);
 }
@@ -956,8 +766,7 @@ static int ethosn_open(struct inode *inode, struct file *file)
  *
  * Return: 0 on success, else error code.
  */
-static long ethosn_ioctl(struct file *const filep, unsigned int cmd,
-			 unsigned long arg)
+static long ethosn_ioctl(struct file *const filep, unsigned int cmd, unsigned long arg)
 {
 	struct ethosn_device *ethosn = filep->private_data;
 	void __user *const udata = (void __user *)arg;
@@ -987,21 +796,17 @@ static long ethosn_ioctl(struct file *const filep, unsigned int cmd,
 			break;
 		}
 
-		dev_dbg(ethosn->dev,
-			"IOCTL: Create process memory allocator\n");
+		dev_dbg(ethosn->dev, "IOCTL: Create process memory allocator\n");
 
 		ret = mutex_lock_interruptible(&ethosn->mutex);
 		if (ret)
 			break;
 
-		ret = ethosn_process_mem_allocator_create(
-			ethosn, pid, alloc_req.is_protected);
+		ret = ethosn_process_mem_allocator_create(ethosn, pid, alloc_req.is_protected);
 
 		mutex_unlock(&ethosn->mutex);
 
-		dev_dbg(ethosn->dev,
-			"IOCTL: Created process mem allocator. fd=%d for pid = %d\n",
-			ret, pid);
+		dev_dbg(ethosn->dev, "IOCTL: Created process mem allocator. fd=%d for pid = %d\n", ret, pid);
 
 		break;
 	}
@@ -1023,11 +828,8 @@ static long ethosn_ioctl(struct file *const filep, unsigned int cmd,
 		if (!udata) {
 			ret = core->fw_and_hw_caps.size;
 		} else {
-			if (copy_to_user(udata, core->fw_and_hw_caps.data,
-					 core->fw_and_hw_caps.size)) {
-				dev_warn(
-					core->dev,
-					"Failed to copy firmware and hardware capabilities to user.\n");
+			if (copy_to_user(udata, core->fw_and_hw_caps.data, core->fw_and_hw_caps.size)) {
+				dev_warn(core->dev, "Failed to copy firmware and hardware capabilities to user.\n");
 				ret = -EFAULT;
 			} else {
 				ret = 0;
@@ -1065,11 +867,8 @@ static long ethosn_ioctl(struct file *const filep, unsigned int cmd,
 			goto configure_profiling_mutex;
 		}
 
-		dev_dbg(core->dev,
-			"IOCTL: Configure profiling. enable_profiling=%u, firmware_buffer_size=%u num_hw_counters=%d\n",
-			new_config.enable_profiling,
-			new_config.firmware_buffer_size,
-			new_config.num_hw_counters);
+		dev_dbg(core->dev, "IOCTL: Configure profiling. enable_profiling=%u, firmware_buffer_size=%u num_hw_counters=%d\n", new_config.enable_profiling,
+			new_config.firmware_buffer_size, new_config.num_hw_counters);
 
 		/* Forward new state to the firmware */
 		ret = ethosn_configure_firmware_profiling(core, &new_config);
@@ -1077,8 +876,7 @@ static long ethosn_ioctl(struct file *const filep, unsigned int cmd,
 		if (ret != 0)
 			goto configure_profiling_mutex;
 
-		if (core->profiling.config.enable_profiling &&
-		    !new_config.enable_profiling)
+		if (core->profiling.config.enable_profiling && !new_config.enable_profiling)
 			reset_profiling_counters(core);
 
 		core->profiling.config = new_config;
@@ -1105,11 +903,9 @@ static long ethosn_ioctl(struct file *const filep, unsigned int cmd,
 			goto get_counter_value_end;
 		}
 
-		if (copy_from_user(&counter_name, udata,
-				   sizeof(counter_name))) {
+		if (copy_from_user(&counter_name, udata, sizeof(counter_name))) {
 			ret = -EFAULT;
-			dev_err(core->dev,
-				"Profiling counter: error in copy_from_user\n");
+			dev_err(core->dev, "Profiling counter: error in copy_from_user\n");
 			goto get_counter_value_end;
 		}
 
@@ -1134,8 +930,7 @@ static long ethosn_ioctl(struct file *const filep, unsigned int cmd,
 			break;
 		default:
 			ret = -EINVAL;
-			dev_err(core->dev,
-				"Profiling counter: invalid counter_name\n");
+			dev_err(core->dev, "Profiling counter: invalid counter_name\n");
 			break;
 		}
 
@@ -1179,8 +974,7 @@ static long ethosn_ioctl(struct file *const filep, unsigned int cmd,
 			goto ping_put;
 
 		/* Wait for a pong to come back, with a timeout. */
-		for (timeout = 0; timeout < ETHOSN_PING_TIMEOUT_US;
-		     timeout += ETHOSN_PING_WAIT_US) {
+		for (timeout = 0; timeout < ETHOSN_PING_TIMEOUT_US; timeout += ETHOSN_PING_WAIT_US) {
 			if (core->num_pongs_received > num_pongs_before)
 				break;
 
@@ -1188,8 +982,7 @@ static long ethosn_ioctl(struct file *const filep, unsigned int cmd,
 		}
 
 		if (timeout >= ETHOSN_PING_TIMEOUT_US) {
-			dev_err(core->dev,
-				"Timeout while waiting for device to pong\n");
+			dev_err(core->dev, "Timeout while waiting for device to pong\n");
 			ret = -ETIME;
 			goto ping_put;
 		}
@@ -1259,8 +1052,7 @@ static int ethosn_device_create(struct ethosn_device *ethosn, int id)
 		return ret;
 	}
 
-	sysdev = device_create(&ethosn_class, ethosn->dev, devt, ethosn,
-			       "ethosn%d", id);
+	sysdev = device_create(&ethosn_class, ethosn->dev, devt, ethosn, "ethosn%d", id);
 	if (IS_ERR(sysdev)) {
 		dev_err(ethosn->dev, "device register failed\n");
 		ret = PTR_ERR(sysdev);
@@ -1271,8 +1063,7 @@ static int ethosn_device_create(struct ethosn_device *ethosn, int id)
 	if (ret)
 		goto destroy_device;
 
-	return devm_add_action_or_reset(ethosn->dev, ethosn_device_release,
-					ethosn);
+	return devm_add_action_or_reset(ethosn->dev, ethosn_device_release, ethosn);
 
 destroy_device:
 	device_destroy(&ethosn_class, ethosn->cdev.dev);
@@ -1286,15 +1077,13 @@ static int ethosn_create_carveout_asset_allocator(struct ethosn_device *ethosn)
 {
 	int ret;
 
-	ethosn->asset_allocator = devm_kzalloc(
-		ethosn->dev, sizeof(struct ethosn_dma_allocator *), GFP_KERNEL);
+	ethosn->asset_allocator = devm_kzalloc(ethosn->dev, sizeof(struct ethosn_dma_allocator *), GFP_KERNEL);
 
 	if (IS_ERR_OR_NULL(ethosn->asset_allocator))
 		return PTR_ERR(ethosn->asset_allocator);
 
 	ethosn->num_asset_allocs = 1;
-	ethosn->asset_allocator[0] = ethosn_dma_top_allocator_create(
-		ethosn->dev, ETHOSN_ALLOCATOR_CARVEOUT);
+	ethosn->asset_allocator[0] = ethosn_dma_top_allocator_create(ethosn->dev, ETHOSN_ALLOCATOR_CARVEOUT);
 	ethosn->asset_allocator[0]->pid = ETHOSN_INVALID_PID;
 
 	if (IS_ERR_OR_NULL(ethosn->asset_allocator[0]))
@@ -1304,14 +1093,10 @@ static int ethosn_create_carveout_asset_allocator(struct ethosn_device *ethosn)
 	 * address base from the device tree and doesn't use a speculative page
 	 * so giving IO BUFFER and 0 as the parameters are still required.
 	 */
-	ret = ethosn_dma_sub_allocator_create(ethosn->dev,
-					      ethosn->asset_allocator[0],
-					      ETHOSN_STREAM_IO_BUFFER, 0U, 0U,
-					      false);
+	ret = ethosn_dma_sub_allocator_create(ethosn->dev, ethosn->asset_allocator[0], ETHOSN_STREAM_IO_BUFFER, 0U, 0U, false);
 
 	if (ret) {
-		ethosn_dma_top_allocator_destroy(ethosn->dev,
-						 &ethosn->asset_allocator[0]);
+		ethosn_dma_top_allocator_destroy(ethosn->dev, &ethosn->asset_allocator[0]);
 
 		return ret;
 	}
@@ -1319,22 +1104,18 @@ static int ethosn_create_carveout_asset_allocator(struct ethosn_device *ethosn)
 	return 0;
 }
 
-static void
-ethosn_destroy_carveout_asset_allocators(struct ethosn_device *ethosn)
+static void ethosn_destroy_carveout_asset_allocators(struct ethosn_device *ethosn)
 {
-	ethosn_dma_sub_allocator_destroy(ethosn->asset_allocator[0],
-					 ETHOSN_STREAM_IO_BUFFER);
+	ethosn_dma_sub_allocator_destroy(ethosn->asset_allocator[0], ETHOSN_STREAM_IO_BUFFER);
 
-	ethosn_dma_top_allocator_destroy(ethosn->dev,
-					 &ethosn->asset_allocator[0]);
+	ethosn_dma_top_allocator_destroy(ethosn->dev, &ethosn->asset_allocator[0]);
 }
 
 static int ethosn_create_carveout_main_allocator(struct ethosn_core *core)
 {
 	int ret;
 
-	core->main_allocator = ethosn_dma_top_allocator_create(
-		core->dev, ETHOSN_ALLOCATOR_CARVEOUT);
+	core->main_allocator = ethosn_dma_top_allocator_create(core->dev, ETHOSN_ALLOCATOR_CARVEOUT);
 
 	if (IS_ERR_OR_NULL(core->main_allocator))
 		return PTR_ERR(core->main_allocator);
@@ -1343,13 +1124,10 @@ static int ethosn_create_carveout_main_allocator(struct ethosn_core *core)
 	 * address base from the device tree and doesn't use a speculative page
 	 * so giving IO BUFFER and 0 as the parameters are still required.
 	 */
-	ret = ethosn_dma_sub_allocator_create(core->dev, core->main_allocator,
-					      ETHOSN_STREAM_IO_BUFFER, 0U, 0U,
-					      false);
+	ret = ethosn_dma_sub_allocator_create(core->dev, core->main_allocator, ETHOSN_STREAM_IO_BUFFER, 0U, 0U, false);
 
 	if (ret) {
-		ethosn_dma_top_allocator_destroy(core->dev,
-						 &core->main_allocator);
+		ethosn_dma_top_allocator_destroy(core->dev, &core->main_allocator);
 
 		return ret;
 	}
@@ -1359,8 +1137,7 @@ static int ethosn_create_carveout_main_allocator(struct ethosn_core *core)
 
 void ethosn_destroy_carveout_main_allocator(struct ethosn_core *core)
 {
-	ethosn_dma_sub_allocator_destroy(core->main_allocator,
-					 ETHOSN_STREAM_IO_BUFFER);
+	ethosn_dma_sub_allocator_destroy(core->main_allocator, ETHOSN_STREAM_IO_BUFFER);
 
 	ethosn_dma_top_allocator_destroy(core->dev, &core->main_allocator);
 }
@@ -1379,13 +1156,11 @@ static int ethosn_check_smc_firmware_version(const struct device *dev)
 	if (ret)
 		return ret;
 
-	dev_dbg(dev, "Firmware version from SiP service: %u.%u.%u\n", major,
-		minor, patch);
+	dev_dbg(dev, "Firmware version from SiP service: %u.%u.%u\n", major, minor, patch);
 
 	if (major != ETHOSN_FIRMWARE_VERSION_MAJOR) {
-		dev_err(dev,
-			"Unsupported firmware version from SiP service: %u.%u.%u. Version %u.x.x is required.\n",
-			major, minor, patch, ETHOSN_FIRMWARE_VERSION_MAJOR);
+		dev_err(dev, "Unsupported firmware version from SiP service: %u.%u.%u. Version %u.x.x is required.\n", major, minor, patch,
+			ETHOSN_FIRMWARE_VERSION_MAJOR);
 
 		return -EPROTO;
 	}
@@ -1395,28 +1170,23 @@ static int ethosn_check_smc_firmware_version(const struct device *dev)
 
 static int ethosn_populate_protected_firmware(struct ethosn_device *ethosn)
 {
-	struct ethosn_protected_firmware *firmware =
-		&ethosn->protected_firmware;
+	struct ethosn_protected_firmware *firmware = &ethosn->protected_firmware;
 	int ret;
 
 	ret = ethosn_check_smc_firmware_version(ethosn->dev);
 	if (ret)
 		return ret;
 
-	ret = ethosn_smc_get_firmware_mem_info(ethosn->dev, &firmware->addr,
-					       &firmware->size);
+	ret = ethosn_smc_get_firmware_mem_info(ethosn->dev, &firmware->addr, &firmware->size);
 	if (ret)
 		return ret;
 
-	ret = ethosn_smc_get_firmware_offsets(
-		ethosn->dev, &firmware->ple_offset, &firmware->stack_offset);
+	ret = ethosn_smc_get_firmware_offsets(ethosn->dev, &firmware->ple_offset, &firmware->stack_offset);
 	if (ret)
 		return ret;
 
-	ret = ethosn_smc_get_firmware_va_map(
-		ethosn->dev, &firmware->firmware_addr_base,
-		&firmware->working_data_addr_base,
-		&firmware->command_stream_addr_base);
+	ret = ethosn_smc_get_firmware_va_map(ethosn->dev, &firmware->firmware_addr_base, &firmware->working_data_addr_base,
+					     &firmware->command_stream_addr_base);
 	if (ret)
 		return ret;
 
@@ -1426,8 +1196,7 @@ static int ethosn_populate_protected_firmware(struct ethosn_device *ethosn)
 #endif
 
 #ifndef ETHOSN_NO_SMC
-static int ethosn_check_smc_core_secure_status(const struct device *dev,
-					       phys_addr_t core_addr)
+static int ethosn_check_smc_core_secure_status(const struct device *dev, phys_addr_t core_addr)
 {
 	int ret = ethosn_smc_is_secure(dev, core_addr);
 
@@ -1438,8 +1207,7 @@ static int ethosn_check_smc_core_secure_status(const struct device *dev,
 	 * If not, assume it's non-secure.
 	 */
 	if (ret == 1) {
-		dev_err(dev,
-			"Core in secure mode, non-secure kernel not supported.\n");
+		dev_err(dev, "Core in secure mode, non-secure kernel not supported.\n");
 
 		return -EPERM;
 	}
@@ -1449,8 +1217,7 @@ static int ethosn_check_smc_core_secure_status(const struct device *dev,
 		return ret;
 
 	if (ret == 0) {
-		dev_err(dev,
-			"Core in non-secure mode is not supported for secure or TZMP1 kernel.\n");
+		dev_err(dev, "Core in non-secure mode is not supported for secure or TZMP1 kernel.\n");
 
 		return -EPERM;
 	}
@@ -1473,12 +1240,8 @@ static int ethosn_check_smc_core_secure_status(const struct device *dev,
  * @force_firmware_level_interrupts: Whether to tell the firmware to send
  *                                   level-sensitive interrupts in all cases.
  */
-static int
-ethosn_driver_probe(struct ethosn_core *core,
-		    const struct resource *const top_regs,
-		    const int irq_numbers[ETHOSN_MAX_NUM_IRQS],
-		    const unsigned long irq_flags[ETHOSN_MAX_NUM_IRQS],
-		    unsigned int num_irqs, bool force_firmware_level_interrupts)
+static int ethosn_driver_probe(struct ethosn_core *core, const struct resource *const top_regs, const int irq_numbers[ETHOSN_MAX_NUM_IRQS],
+			       const unsigned long irq_flags[ETHOSN_MAX_NUM_IRQS], unsigned int num_irqs, bool force_firmware_level_interrupts)
 {
 	struct ethosn_profiling_config config = {};
 	const phys_addr_t core_addr = top_regs->start;
@@ -1568,10 +1331,7 @@ destroy_allocator:
  * * Number of valid entries in the irq_numbers and irq_flags arrays.
  * * -EINVAL - Invalid number of IRQ in dtb
  */
-static int ethosn_pdev_enum_interrupts(struct platform_device *pdev,
-				       int *irq_numbers,
-				       unsigned long *irq_flags,
-				       bool *force_firmware_level_interrupts)
+static int ethosn_pdev_enum_interrupts(struct platform_device *pdev, int *irq_numbers, unsigned long *irq_flags, bool *force_firmware_level_interrupts)
 {
 	int num_irqs = 0;
 	int irq_count = platform_irq_count(pdev);
@@ -1579,8 +1339,7 @@ static int ethosn_pdev_enum_interrupts(struct platform_device *pdev,
 	bool force_level_interrupts = true;
 
 	if (irq_count > ETHOSN_MAX_NUM_IRQS) {
-		dev_err(&pdev->dev, "Invalid number of IRQs %d > %d", irq_count,
-			ETHOSN_MAX_NUM_IRQS);
+		dev_err(&pdev->dev, "Invalid number of IRQs %d > %d", irq_count, ETHOSN_MAX_NUM_IRQS);
 
 		return -EINVAL;
 	}
@@ -1595,12 +1354,9 @@ static int ethosn_pdev_enum_interrupts(struct platform_device *pdev,
 		int irq_idx_existing;
 		int irq_number;
 		unsigned long flags = IRQF_SHARED;
-		struct resource *resource =
-			platform_get_resource(pdev, IORESOURCE_IRQ, irq_idx);
+		struct resource *resource = platform_get_resource(pdev, IORESOURCE_IRQ, irq_idx);
 		if (!resource) {
-			dev_err(&pdev->dev,
-				"platform_get_resource failed for IRQ index %d.\n",
-				irq_idx);
+			dev_err(&pdev->dev, "platform_get_resource failed for IRQ index %d.\n", irq_idx);
 
 			return -EINVAL;
 		}
@@ -1611,18 +1367,14 @@ static int ethosn_pdev_enum_interrupts(struct platform_device *pdev,
 		} else if (resource->flags & IORESOURCE_IRQ_HIGHLEVEL) {
 			flags |= IRQF_TRIGGER_HIGH;
 		} else {
-			dev_err(&pdev->dev,
-				"Invalid interrupt configuration for IRQ index %d.\n",
-				irq_idx);
+			dev_err(&pdev->dev, "Invalid interrupt configuration for IRQ index %d.\n", irq_idx);
 
 			return -EINVAL;
 		}
 
 		irq_number = platform_get_irq(pdev, irq_idx);
 		if (irq_number < 0) {
-			dev_err(&pdev->dev,
-				"platform_get_irq failed for IRQ index %d.\n",
-				irq_idx);
+			dev_err(&pdev->dev, "platform_get_irq failed for IRQ index %d.\n", irq_idx);
 
 			return -EINVAL;
 		}
@@ -1631,8 +1383,7 @@ static int ethosn_pdev_enum_interrupts(struct platform_device *pdev,
 		 * number. (i.e. a line that is shared for more than
 		 * one interrupt).
 		 */
-		for (irq_idx_existing = 0; irq_idx_existing < num_irqs;
-		     ++irq_idx_existing)
+		for (irq_idx_existing = 0; irq_idx_existing < num_irqs; ++irq_idx_existing)
 			if (irq_numbers[irq_idx_existing] == irq_number)
 				break;
 
@@ -1649,9 +1400,7 @@ static int ethosn_pdev_enum_interrupts(struct platform_device *pdev,
 			} else if (strcmp(resource->name, "debug") == 0) {
 				irq_flags[num_irqs] = flags;
 			} else {
-				dev_err(&pdev->dev,
-					"Unknown interrupt name '%s'.\n",
-					resource->name);
+				dev_err(&pdev->dev, "Unknown interrupt name '%s'.\n", resource->name);
 
 				return -EINVAL;
 			}
@@ -1665,8 +1414,7 @@ static int ethosn_pdev_enum_interrupts(struct platform_device *pdev,
 			 * sensitive interrupts in all cases, so they
 			 * can be safely ORed.
 			 */
-			irq_flags[irq_idx_existing] =
-				IRQF_SHARED | IRQF_TRIGGER_HIGH;
+			irq_flags[irq_idx_existing] = IRQF_SHARED | IRQF_TRIGGER_HIGH;
 			force_level_interrupts = true;
 		}
 	}
@@ -1706,8 +1454,7 @@ static int ethosn_pdev_remove(struct platform_device *pdev)
  * Return:
  * * Number of nodes with that compatible string
  */
-static unsigned int ethosn_pdev_num_compat(struct platform_device *pdev,
-					   const char *compatible)
+static unsigned int ethosn_pdev_num_compat(struct platform_device *pdev, const char *compatible)
 {
 	unsigned int num_compatible = 0;
 	struct device_node *node = NULL;
@@ -1722,8 +1469,7 @@ static unsigned int ethosn_pdev_num_compat(struct platform_device *pdev,
 	return num_compatible;
 }
 
-static int ethosn_pdev_get_smmu_status_from_dts(struct device *dev,
-						bool *smmu_available)
+static int ethosn_pdev_get_smmu_status_from_dts(struct device *dev, bool *smmu_available)
 {
 	struct device_node *asset_allocator_node = NULL;
 	struct device_node *child = NULL;
@@ -1736,8 +1482,7 @@ static int ethosn_pdev_get_smmu_status_from_dts(struct device *dev,
 	 * the asset allocator for an iommu property.
 	 */
 	for_each_available_child_of_node (dev->of_node, child) {
-		if (of_device_is_compatible(child,
-					    ETHOSN_ASSET_ALLOC_DRIVER_NAME))
+		if (of_device_is_compatible(child, ETHOSN_ASSET_ALLOC_DRIVER_NAME))
 			break;
 	}
 
@@ -1787,10 +1532,8 @@ static int ethosn_check_main_allocator(const struct ethosn_core *core)
 		return -ENODEV;
 	}
 
-	if (!ethosn_get_sub_allocator(main_allocator,
-				      ETHOSN_STREAM_WORKING_DATA)) {
-		dev_err(core->dev,
-			"Working data sub allocator probe failed.\n");
+	if (!ethosn_get_sub_allocator(main_allocator, ETHOSN_STREAM_WORKING_DATA)) {
+		dev_err(core->dev, "Working data sub allocator probe failed.\n");
 
 		return -ENODEV;
 	}
@@ -1798,8 +1541,7 @@ static int ethosn_check_main_allocator(const struct ethosn_core *core)
 	return 0;
 }
 
-static int ethosn_check_asset_allocators(const struct ethosn_device *ethosn,
-					 unsigned int num_of_asset_allocs)
+static int ethosn_check_asset_allocators(const struct ethosn_device *ethosn, unsigned int num_of_asset_allocs)
 {
 	struct ethosn_dma_allocator **dma_allocator_list;
 	enum ethosn_stream_type stream_type;
@@ -1813,47 +1555,38 @@ static int ethosn_check_asset_allocators(const struct ethosn_device *ethosn,
 	}
 
 	if (num_of_asset_allocs != ethosn->num_asset_allocs) {
-		dev_err(ethosn->dev,
-			"Asset allocator probe failed expected %u successfully probed %u\n",
-			num_of_asset_allocs, ethosn->num_asset_allocs);
+		dev_err(ethosn->dev, "Asset allocator probe failed expected %u successfully probed %u\n", num_of_asset_allocs, ethosn->num_asset_allocs);
 
 		return -EINVAL;
 	}
 
 	for (idx = 0; idx < num_of_asset_allocs; idx++) {
 		stream_type = ETHOSN_STREAM_COMMAND_STREAM;
-		if (!ethosn_get_sub_allocator(dma_allocator_list[idx],
-					      stream_type))
+		if (!ethosn_get_sub_allocator(dma_allocator_list[idx], stream_type))
 			goto sub_alloc_err;
 
 		stream_type = ETHOSN_STREAM_WEIGHT_DATA;
-		if (!ethosn_get_sub_allocator(dma_allocator_list[idx],
-					      stream_type))
+		if (!ethosn_get_sub_allocator(dma_allocator_list[idx], stream_type))
 			goto sub_alloc_err;
 
 		stream_type = ETHOSN_STREAM_IO_BUFFER;
-		if (!ethosn_get_sub_allocator(dma_allocator_list[idx],
-					      stream_type))
+		if (!ethosn_get_sub_allocator(dma_allocator_list[idx], stream_type))
 			goto sub_alloc_err;
 
 		stream_type = ETHOSN_STREAM_INTERMEDIATE_BUFFER;
-		if (!ethosn_get_sub_allocator(dma_allocator_list[idx],
-					      stream_type))
+		if (!ethosn_get_sub_allocator(dma_allocator_list[idx], stream_type))
 			goto sub_alloc_err;
 	}
 
 	return 0;
 
 sub_alloc_err:
-	dev_err(ethosn->dev,
-		"Sub allocator probe failed for asset %u stream type %u\n", idx,
-		stream_type);
+	dev_err(ethosn->dev, "Sub allocator probe failed for asset %u stream type %u\n", idx, stream_type);
 
 	return -ENODEV;
 }
 
-static int ethosn_check_allocator_probe_status(struct ethosn_device *ethosn,
-					       unsigned int num_of_asset_allocs)
+static int ethosn_check_allocator_probe_status(struct ethosn_device *ethosn, unsigned int num_of_asset_allocs)
 {
 	int idx;
 	int ret;
@@ -1861,9 +1594,7 @@ static int ethosn_check_allocator_probe_status(struct ethosn_device *ethosn,
 	for (idx = 0; idx < ethosn->num_cores; ++idx) {
 		ret = ethosn_check_main_allocator(ethosn->core[idx]);
 		if (ret) {
-			dev_err(ethosn->dev,
-				"Failed to probe main allocator for core %u\n",
-				idx);
+			dev_err(ethosn->dev, "Failed to probe main allocator for core %u\n", idx);
 
 			return ret;
 		}
@@ -1908,16 +1639,14 @@ static int ethosn_pdev_probe(struct platform_device *pdev)
 
 #ifdef ETHOSN_TZMP1
 	if (!smmu_available) {
-		dev_err(&pdev->dev,
-			"TZMP1 support requires the NPU to use an SMMU\n");
+		dev_err(&pdev->dev, "TZMP1 support requires the NPU to use an SMMU\n");
 
 		return -EINVAL;
 	}
 
 #endif
 
-	dma_set_mask_and_coherent(&pdev->dev,
-				  DMA_BIT_MASK(ETHOSN_SMMU_MAX_ADDR_BITS));
+	dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(ETHOSN_SMMU_MAX_ADDR_BITS));
 
 	num_of_npus = ethosn_pdev_num_compat(pdev, ETHOSN_CORE_DRIVER_NAME);
 	if (num_of_npus == 0) {
@@ -1928,16 +1657,14 @@ static int ethosn_pdev_probe(struct platform_device *pdev)
 
 #ifdef ETHOSN_TZMP1
 	if (num_of_npus > ETHOSN_TZMP1_CORE_NUM_MAX) {
-		dev_err(&pdev->dev, "TZMP1 only supports one core. Found %u\n",
-			num_of_npus);
+		dev_err(&pdev->dev, "TZMP1 only supports one core. Found %u\n", num_of_npus);
 
 		return -EINVAL;
 	}
 
 #else
 	if (num_of_npus > ETHOSN_CORE_NUM_MAX) {
-		dev_err(&pdev->dev, "Invalid number of cores, max = %d\n",
-			ETHOSN_CORE_NUM_MAX);
+		dev_err(&pdev->dev, "Invalid number of cores, max = %d\n", ETHOSN_CORE_NUM_MAX);
 
 		return -EINVAL;
 	}
@@ -1947,24 +1674,21 @@ static int ethosn_pdev_probe(struct platform_device *pdev)
 #ifndef ETHOSN_NS
 	ret = ethosn_smc_version_check(&pdev->dev);
 	if (ret) {
-		dev_err(&pdev->dev,
-			"SiP service required for secure or TZMP1 kernel.\n");
+		dev_err(&pdev->dev, "SiP service required for secure or TZMP1 kernel.\n");
 
 		return -EPERM;
 	}
 
 #endif
 
-	platform_id =
-		ida_simple_get(&ethosn_ida, 0, ETHOSN_MAX_DEVICES, GFP_KERNEL);
+	platform_id = ida_simple_get(&ethosn_ida, 0, ETHOSN_MAX_DEVICES, GFP_KERNEL);
 	if (platform_id < 0)
 		return platform_id;
 
 	/* We need to allocate the parent device (ie struct
 	 * ethosn_parent_device) only for the first time.
 	 */
-	dev_dbg(&pdev->dev, "Probing Ethos-N device id %u with %u core%s\n",
-		platform_id, num_of_npus, num_of_npus > 1 ? "s" : "");
+	dev_dbg(&pdev->dev, "Probing Ethos-N device id %u with %u core%s\n", platform_id, num_of_npus, num_of_npus > 1 ? "s" : "");
 
 	ethosn = devm_kzalloc(&pdev->dev, sizeof(*ethosn), GFP_KERNEL);
 	if (!ethosn)
@@ -1995,12 +1719,9 @@ static int ethosn_pdev_probe(struct platform_device *pdev)
 	ethosn->debug_dir = debugfs_create_dir(name, NULL);
 	if (IS_ERR_OR_NULL(ethosn->debug_dir)) {
 		if (PTR_ERR(ethosn->debug_dir) == -ENODEV) {
-			dev_dbg(&pdev->dev,
-				"debugfs is not enabled in the kernel, so no ethosn debugfs nodes will be created");
+			dev_dbg(&pdev->dev, "debugfs is not enabled in the kernel, so no ethosn debugfs nodes will be created");
 		} else {
-			dev_err(&pdev->dev,
-				"debugfs_create_dir failed with: %ld",
-				PTR_ERR(ethosn->debug_dir));
+			dev_err(&pdev->dev, "debugfs_create_dir failed with: %ld", PTR_ERR(ethosn->debug_dir));
 			goto err_free_ethosn;
 		}
 	}
@@ -2016,42 +1737,31 @@ static int ethosn_pdev_probe(struct platform_device *pdev)
 		if (ret)
 			goto err_remove_debugfs;
 	} else {
-		num_of_asset_allocs = ethosn_pdev_num_compat(
-			pdev, ETHOSN_ASSET_ALLOC_DRIVER_NAME);
+		num_of_asset_allocs = ethosn_pdev_num_compat(pdev, ETHOSN_ASSET_ALLOC_DRIVER_NAME);
 
 		if (num_of_asset_allocs == 0) {
-			dev_info(&pdev->dev,
-				 "Failed to probe any asset allocators\n");
+			dev_info(&pdev->dev, "Failed to probe any asset allocators\n");
 
 			ret = -EINVAL;
 			goto err_free_ethosn;
 		}
 
 		if (num_of_asset_allocs > ETHOSN_ASSET_ALLOC_NUM_MAX) {
-			dev_err(&pdev->dev,
-				"Invalid number of asset allocators, max = %d\n",
-				ETHOSN_ASSET_ALLOC_NUM_MAX);
+			dev_err(&pdev->dev, "Invalid number of asset allocators, max = %d\n", ETHOSN_ASSET_ALLOC_NUM_MAX);
 
 			ret = -EINVAL;
 			goto err_free_ethosn;
 		}
 
 		/* Allocate space for num_of_asset_allocs asset allocators */
-		ethosn->asset_allocator =
-			devm_kzalloc(&pdev->dev,
-				     (sizeof(struct ethosn_dma_allocator *) *
-				      num_of_asset_allocs),
-				     GFP_KERNEL);
+		ethosn->asset_allocator = devm_kzalloc(&pdev->dev, (sizeof(struct ethosn_dma_allocator *) * num_of_asset_allocs), GFP_KERNEL);
 
 		if (!ethosn->asset_allocator)
 			goto err_free_ethosn;
 	}
 
 	/* Allocate space for num_of_npus ethosn cores */
-	ethosn->core =
-		devm_kzalloc(&pdev->dev,
-			     (sizeof(struct ethosn_core *) * num_of_npus),
-			     GFP_KERNEL);
+	ethosn->core = devm_kzalloc(&pdev->dev, (sizeof(struct ethosn_core *) * num_of_npus), GFP_KERNEL);
 
 	if (!ethosn->core)
 		goto err_destroy_allocator;
@@ -2084,8 +1794,7 @@ static int ethosn_pdev_probe(struct platform_device *pdev)
 	 * successfully probed.
 	 */
 	if (smmu_available) {
-		ret = ethosn_check_allocator_probe_status(ethosn,
-							  num_of_asset_allocs);
+		ret = ethosn_check_allocator_probe_status(ethosn, num_of_asset_allocs);
 		if (ret)
 			goto err_depopulate_device;
 	}
@@ -2103,8 +1812,7 @@ static int ethosn_pdev_probe(struct platform_device *pdev)
 
 	ret = ethosn_init_reserved_mem(&pdev->dev);
 	if (ret)
-		dev_dbg(&pdev->dev,
-			"Reserved mem not present or init failed\n");
+		dev_dbg(&pdev->dev, "Reserved mem not present or init failed\n");
 
 	if (!smmu_available)
 		if (ret)
@@ -2112,8 +1820,7 @@ static int ethosn_pdev_probe(struct platform_device *pdev)
 
 	dev_dbg(&pdev->dev, "smmu available\n");
 	/* Enumerate irqs */
-	num_irqs = ethosn_pdev_enum_interrupts(
-		pdev, irq_numbers, irq_flags, &force_firmware_level_interrupts);
+	num_irqs = ethosn_pdev_enum_interrupts(pdev, irq_numbers, irq_flags, &force_firmware_level_interrupts);
 
 	if (num_irqs < 0) {
 		ret = num_irqs;
@@ -2123,30 +1830,24 @@ static int ethosn_pdev_probe(struct platform_device *pdev)
 	/* At this point, all child device have been populated.
 	 * Now the ethosn cores can be properly probed.
 	 */
-	for (resource_idx = 0; resource_idx < ethosn->num_cores;
-	     ++resource_idx) {
-		struct resource *top_regs = platform_get_resource(
-			pdev, IORESOURCE_MEM, resource_idx);
+	for (resource_idx = 0; resource_idx < ethosn->num_cores; ++resource_idx) {
+		struct resource *top_regs = platform_get_resource(pdev, IORESOURCE_MEM, resource_idx);
 
 		if (!ethosn->core[resource_idx]->dev) {
-			dev_err(&pdev->dev,
-				"NULL ethosn-core device reference");
+			dev_err(&pdev->dev, "NULL ethosn-core device reference");
 
 			ret = -EINVAL;
 			goto err_depopulate_device;
 		}
 
 		if (!top_regs) {
-			dev_err(ethosn->core[resource_idx]->dev,
-				"ethosn-core address not specified");
+			dev_err(ethosn->core[resource_idx]->dev, "ethosn-core address not specified");
 
 			ret = -EINVAL;
 			goto err_depopulate_device;
 		}
 
-		ret = ethosn_driver_probe(ethosn->core[resource_idx], top_regs,
-					  irq_numbers, irq_flags, num_irqs,
-					  force_firmware_level_interrupts);
+		ret = ethosn_driver_probe(ethosn->core[resource_idx], top_regs, irq_numbers, irq_flags, num_irqs, force_firmware_level_interrupts);
 		if (ret)
 			goto err_depopulate_device;
 	}
@@ -2216,8 +1917,7 @@ static int ethosn_major_init(void)
 	dev_t devt;
 	int ret;
 
-	ret = alloc_chrdev_region(&devt, 0, ETHOSN_MAX_DEVICES,
-				  ETHOSN_DRIVER_NAME);
+	ret = alloc_chrdev_region(&devt, 0, ETHOSN_MAX_DEVICES, ETHOSN_DRIVER_NAME);
 	if (ret)
 		return ret;
 
@@ -2261,8 +1961,8 @@ static void ethosn_class_release(void)
 }
 
 static int __init ethosn_init(void)
-{   
-    // 向内核注册字符设备和初始化设备类
+{
+	// 向内核注册字符设备和初始化设备类
 	int ret = ethosn_class_init();
 
 	if (ret)

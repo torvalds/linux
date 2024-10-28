@@ -51,28 +51,20 @@ static inline struct iommu_fwspec *dev_iommu_fwspec_get(struct device *dev)
 #endif
 
 #if (KERNEL_VERSION(5, 10, 0) > LINUX_VERSION_CODE)
-struct page *dma_alloc_pages(struct device *dev, size_t size,
-			     dma_addr_t *dma_handle,
-			     enum dma_data_direction dir, gfp_t gfp);
+struct page *dma_alloc_pages(struct device *dev, size_t size, dma_addr_t *dma_handle, enum dma_data_direction dir, gfp_t gfp);
 
-void dma_free_pages(struct device *dev, size_t size, struct page *page,
-		    dma_addr_t dma_handle, enum dma_data_direction dir);
+void dma_free_pages(struct device *dev, size_t size, struct page *page, dma_addr_t dma_handle, enum dma_data_direction dir);
 #endif
-void ethosn_iommu_put_domain_for_dev(struct device *dev,
-				     struct iommu_domain *domain);
+void ethosn_iommu_put_domain_for_dev(struct device *dev, struct iommu_domain *domain);
 
 struct iommu_domain *ethosn_iommu_get_domain_for_dev(struct device *dev);
 
-int ethosn_bitmap_find_next_zero_area(struct device *dev, void **bitmap,
-				      size_t *bits, int nr_pages,
-				      unsigned long *start, bool extend_bitmap);
+int ethosn_bitmap_find_next_zero_area(struct device *dev, void **bitmap, size_t *bits, int nr_pages, unsigned long *start, bool extend_bitmap);
 
-struct sg_table *
-ethosn_dma_buf_map_attachment(struct dma_buf_attachment *attach);
+struct sg_table *ethosn_dma_buf_map_attachment(struct dma_buf_attachment *attach);
 
 #if (KERNEL_VERSION(4, 19, 0) > LINUX_VERSION_CODE)
-struct device_node *of_get_compatible_child(const struct device_node *parent,
-					    const char *compatible);
+struct device_node *of_get_compatible_child(const struct device_node *parent, const char *compatible);
 
 bool of_node_name_eq(const struct device_node *node, const char *name);
 #endif

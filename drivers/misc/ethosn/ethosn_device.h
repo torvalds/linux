@@ -82,11 +82,7 @@ struct ethosn_big_fw {
  * considered as this way of reporting this kind of error pollutes the
  * production code.
  */
-enum ethosn_status_code {
-	WRONG_CORE_SCHEDULE,
-	CONCURRENT_INFERENCE_DETECTED,
-	INFERENCE_SCHEDULED_ON_BUSY_CORE
-};
+enum ethosn_status_code { WRONG_CORE_SCHEDULE, CONCURRENT_INFERENCE_DETECTED, INFERENCE_SCHEDULED_ON_BUSY_CORE };
 
 #ifdef ETHOSN_TZMP1
 struct ethosn_protected_firmware {
@@ -127,12 +123,12 @@ struct ethosn_core {
 	struct dentry *debug_dir;
 	struct debugfs_regset32 debug_regset;
 
-    // 当前core映射的虚拟io地址
+	// 当前core映射的虚拟io地址
 	void __iomem *top_regs;
-    // 当前core在memory map中的物理地址
+	// 当前core在memory map中的物理地址
 	uintptr_t phys_addr;
 
-    // 当前core所设计的环形缓冲区的长度
+	// 当前core所设计的环形缓冲区的长度
 	int queue_size;
 	uint32_t set_alloc_id;
 
@@ -213,10 +209,10 @@ struct ethosn_core {
 	 */
 	bool force_firmware_level_interrupts;
 
-    /* 下面的两个成员主要用于配合中断处理程序的下半部 */
-    // 当前core绑定的中断等待队列
+	/* 下面的两个成员主要用于配合中断处理程序的下半部 */
+	// 当前core绑定的中断等待队列
 	struct workqueue_struct *irq_wq;
-    // 当前core绑定的中断工作队列
+	// 当前core绑定的中断工作队列
 	struct work_struct irq_work;
 
 	atomic_t irq_status;
@@ -339,8 +335,7 @@ int ethosn_init_reserved_mem(struct device *const dev);
  *
  * Return: Ethos-N address on success, else error code.
  */
-resource_size_t to_ethosn_addr(const resource_size_t linux_addr,
-			       const struct ethosn_addr_map *addr_map);
+resource_size_t to_ethosn_addr(const resource_size_t linux_addr, const struct ethosn_addr_map *addr_map);
 
 /**
  * ethosn_write_top_reg() - Write top register.
@@ -349,8 +344,7 @@ resource_size_t to_ethosn_addr(const resource_size_t linux_addr,
  * @offset:	Register offset.
  * @value:	Value to be written.
  */
-void ethosn_write_top_reg(struct ethosn_core *core, const u32 page,
-			  const u32 offset, const u32 value);
+void ethosn_write_top_reg(struct ethosn_core *core, const u32 page, const u32 offset, const u32 value);
 
 /**
  * ethosn_read_top_reg() - Read top register.
@@ -360,8 +354,7 @@ void ethosn_write_top_reg(struct ethosn_core *core, const u32 page,
  *
  * Return: Register value.
  */
-u32 ethosn_read_top_reg(struct ethosn_core *core, const u32 page,
-			const u32 offset);
+u32 ethosn_read_top_reg(struct ethosn_core *core, const u32 page, const u32 offset);
 
 /**
  * ethosn_reset_and_start_ethosn() - Perform startup sequence for device
@@ -412,9 +405,7 @@ void ethosn_dump_gps(struct ethosn_core *core);
  *
  * Return: 0 on success, else error code.
  */
-int ethosn_read_message(struct ethosn_core *core,
-			struct ethosn_message_header *header, void *data,
-			size_t length);
+int ethosn_read_message(struct ethosn_core *core, struct ethosn_message_header *header, void *data, size_t length);
 
 /**
  * ethosn_write_message() - Write message to Ethos-N mailbox.
@@ -425,9 +416,7 @@ int ethosn_read_message(struct ethosn_core *core,
  *
  * Return: 0 on success, else error code.
  */
-int ethosn_write_message(struct ethosn_core *core,
-			 enum ethosn_message_type type, void *data,
-			 size_t length);
+int ethosn_write_message(struct ethosn_core *core, enum ethosn_message_type type, void *data, size_t length);
 
 /**
  * ethosn_send_version_request() - Send version request to Ethos-N .
@@ -460,8 +449,7 @@ int ethosn_send_stash_request(struct ethosn_core *core);
  *
  * Return: 0 on success, else error code.
  */
-int ethosn_configure_firmware_profiling(
-	struct ethosn_core *core, struct ethosn_profiling_config *new_config);
+int ethosn_configure_firmware_profiling(struct ethosn_core *core, struct ethosn_profiling_config *new_config);
 
 /**
  * ethosn_configure_firmware_profiling_ack() - Update internal state to
@@ -492,8 +480,7 @@ int ethosn_send_ping(struct ethosn_core *core);
  *
  * Return: 0 on success, else error code.
  */
-int ethosn_send_inference(struct ethosn_core *core, dma_addr_t buffer_array,
-			  uint64_t user_arg);
+int ethosn_send_inference(struct ethosn_core *core, dma_addr_t buffer_array, uint64_t user_arg);
 
 /* ethosn_profiling_enabled() - Get status of the profiling enabled switch.
  *

@@ -34,7 +34,6 @@ struct ethosn_allocator {
 	struct ethosn_dma_allocator *asset_allocator;
 };
 
-int ethosn_process_mem_allocator_create(struct ethosn_device *ethosn, pid_t pid,
-					bool proteced);
+int ethosn_process_mem_allocator_create(struct ethosn_device *ethosn, pid_t pid, bool proteced);
 
 #endif /* _ETHOSN_PROC_MEM_ALLOCATOR_H_ */
