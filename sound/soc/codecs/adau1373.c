@@ -8,6 +8,7 @@
 
 #include <linux/module.h>
 #include <linux/init.h>
+#include <linux/gpio/consumer.h>
 #include <linux/delay.h>
 #include <linux/pm.h>
 #include <linux/property.h>
@@ -1485,6 +1486,11 @@ static const struct snd_soc_component_driver adau1373_component_driver = {
 	.endianness		= 1,
 };
 
+static void adau1373_reset(void *reset_gpio)
+{
+	gpiod_set_value_cansleep(reset_gpio, 1);
+}
+
 static int adau1373_parse_fw(struct device *dev, struct adau1373 *adau1373)
 {
 	int ret, drc_count;
@@ -1547,6 +1553,7 @@ static int adau1373_parse_fw(struct device *dev, struct adau1373 *adau1373)
 static int adau1373_i2c_probe(struct i2c_client *client)
 {
 	struct adau1373 *adau1373;
+	struct gpio_desc *gpiod;
 	int ret;
 
 	adau1373 = devm_kzalloc(&client->dev, sizeof(*adau1373), GFP_KERNEL);
@@ -1558,7 +1565,26 @@ static int adau1373_i2c_probe(struct i2c_client *client)
 	if (IS_ERR(adau1373->regmap))
 		return PTR_ERR(adau1373->regmap);
 
-	regmap_write(adau1373->regmap, ADAU1373_SOFT_RESET, 0x00);
+	/*
+	 * If the powerdown GPIO is specified, we use it for reset. Otherwise
+	 * a software reset is done.
+	 */
+	gpiod = devm_gpiod_get_optional(&client->dev, "powerdown",
+					GPIOD_OUT_HIGH);
+	if (IS_ERR(gpiod))
+		return PTR_ERR(gpiod);
+
+	if (gpiod) {
+		gpiod_set_value_cansleep(gpiod, 0);
+		fsleep(10);
+
+		ret = devm_add_action_or_reset(&client->dev, adau1373_reset,
+					       gpiod);
+		if (ret)
+			return ret;
+	} else {
+		regmap_write(adau1373->regmap, ADAU1373_SOFT_RESET, 0x00);
+	}
 
 	dev_set_drvdata(&client->dev, adau1373);
 
