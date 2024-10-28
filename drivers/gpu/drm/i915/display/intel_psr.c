@@ -1453,11 +1453,15 @@ static bool intel_psr2_config_valid(struct intel_dp *intel_dp,
 		return false;
 	}
 
-	if (DISPLAY_VER(display) >= 12) {
+	if (DISPLAY_VER(display) >= 20) {
+		psr_max_h = crtc_hdisplay;
+		psr_max_v = crtc_vdisplay;
+		max_bpp = crtc_state->pipe_bpp;
+	} else if (IS_DISPLAY_VER(display, 12, 14)) {
 		psr_max_h = 5120;
 		psr_max_v = 3200;
 		max_bpp = 30;
-	} else if (DISPLAY_VER(display) >= 10) {
+	} else if (IS_DISPLAY_VER(display, 10, 11)) {
 		psr_max_h = 4096;
 		psr_max_v = 2304;
 		max_bpp = 24;
