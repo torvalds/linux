@@ -2164,6 +2164,9 @@ static int __init amd_iommu_init_pci(void)
 	struct amd_iommu_pci_seg *pci_seg;
 	int ret;
 
+	/* Init global identity domain before registering IOMMU */
+	amd_iommu_init_identity_domain();
+
 	for_each_iommu(iommu) {
 		ret = iommu_init_pci(iommu);
 		if (ret) {
