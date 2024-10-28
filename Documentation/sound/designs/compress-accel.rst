@@ -57,7 +57,7 @@ from the input buffer size).
 State Machine
 =============
 
-The passthrough audio stream state machine is described below :
+The passthrough audio stream state machine is described below::
 
                                        +----------+
                                        |          |
