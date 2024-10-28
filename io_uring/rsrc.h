@@ -97,18 +97,12 @@ static inline void io_put_rsrc_node(struct io_ring_ctx *ctx, struct io_rsrc_node
 		io_rsrc_node_ref_zero(node);
 }
 
-static inline void io_charge_rsrc_node(struct io_ring_ctx *ctx,
-				       struct io_rsrc_node *node)
-{
-	node->refs++;
-}
-
 static inline void __io_req_set_rsrc_node(struct io_kiocb *req,
 					  struct io_ring_ctx *ctx)
 {
 	lockdep_assert_held(&ctx->uring_lock);
 	req->rsrc_node = ctx->rsrc_node;
-	io_charge_rsrc_node(ctx, ctx->rsrc_node);
+	ctx->rsrc_node->refs++;
 }
 
 static inline void io_req_set_rsrc_node(struct io_kiocb *req,
