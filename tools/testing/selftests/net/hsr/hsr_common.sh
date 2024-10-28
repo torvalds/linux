@@ -15,7 +15,7 @@ do_ping()
 {
 	local netns="$1"
 	local connect_addr="$2"
-	local ping_args="-q -c 2"
+	local ping_args="-q -c 2 -i 0.1"
 
 	if is_v6 "${connect_addr}"; then
 		$ipv6 || return 0
@@ -36,7 +36,7 @@ do_ping_long()
 {
 	local netns="$1"
 	local connect_addr="$2"
-	local ping_args="-q -c 10"
+	local ping_args="-q -c 10 -i 0.1"
 
 	if is_v6 "${connect_addr}"; then
 		$ipv6 || return 0
