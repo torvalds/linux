@@ -835,7 +835,7 @@ section named by ``btf_ext_info_sec->sec_name_off``.
 See :ref:`Documentation/bpf/llvm_reloc.rst <btf-co-re-relocations>`
 for more information on CO-RE relocations.
 
-4.2 .BTF_ids section
+4.3 .BTF_ids section
 --------------------
 
 The .BTF_ids section encodes BTF ID values that are used within the kernel.
@@ -895,6 +895,81 @@ and is used as a filter when resolving the BTF ID value.
 
 All the BTF ID lists and sets are compiled in the .BTF_ids section and
 resolved during the linking phase of kernel build by ``resolve_btfids`` tool.
+
+4.4 .BTF.base section
+---------------------
+Split BTF - where the .BTF section only contains types not in the associated
+base .BTF section - is an extremely efficient way to encode type information
+for kernel modules, since they generally consist of a few module-specific
+types along with a large set of shared kernel types. The former are encoded
+in split BTF, while the latter are encoded in base BTF, resulting in more
+compact representations. A type in split BTF that refers to a type in
+base BTF refers to it using its base BTF ID, and split BTF IDs start
+at last_base_BTF_ID + 1.
+
+The downside of this approach however is that this makes the split BTF
+somewhat brittle - when the base BTF changes, base BTF ID references are
+no longer valid and the split BTF itself becomes useless. The role of the
+.BTF.base section is to make split BTF more resilient for cases where
+the base BTF may change, as is the case for kernel modules not built every
+time the kernel is for example. .BTF.base contains named base types; INTs,
+FLOATs, STRUCTs, UNIONs, ENUM[64]s and FWDs. INTs and FLOATs are fully
+described in .BTF.base sections, while composite types like structs
+and unions are not fully defined - the .BTF.base type simply serves as
+a description of the type the split BTF referred to, so structs/unions
+have 0 members in the .BTF.base section. ENUM[64]s are similarly recorded
+with 0 members. Any other types are added to the split BTF. This
+distillation process then leaves us with a .BTF.base section with
+such minimal descriptions of base types and .BTF split section which refers
+to those base types. Later, we can relocate the split BTF using both the
+information stored in the .BTF.base section and the new .BTF base; the type
+information in the .BTF.base section allows us to update the split BTF
+references to point at the corresponding new base BTF IDs.
+
+BTF relocation happens on kernel module load when a kernel module has a
+.BTF.base section, and libbpf also provides a btf__relocate() API to
+accomplish this.
+
+As an example consider the following base BTF::
+
+      [1] INT 'int' size=4 bits_offset=0 nr_bits=32 encoding=SIGNED
+      [2] STRUCT 'foo' size=8 vlen=2
+              'f1' type_id=1 bits_offset=0
+              'f2' type_id=1 bits_offset=32
+
+...and associated split BTF::
+
+      [3] PTR '(anon)' type_id=2
+
+i.e. split BTF describes a pointer to struct foo { int f1; int f2 };
+
+.BTF.base will consist of::
+
+      [1] INT 'int' size=4 bits_offset=0 nr_bits=32 encoding=SIGNED
+      [2] STRUCT 'foo' size=8 vlen=0
+
+If we relocate the split BTF later using the following new base BTF::
+
+      [1] INT 'long unsigned int' size=8 bits_offset=0 nr_bits=64 encoding=(none)
+      [2] INT 'int' size=4 bits_offset=0 nr_bits=32 encoding=SIGNED
+      [3] STRUCT 'foo' size=8 vlen=2
+              'f1' type_id=2 bits_offset=0
+              'f2' type_id=2 bits_offset=32
+
+...we can use our .BTF.base description to know that the split BTF reference
+is to struct foo, and relocation results in new split BTF::
+
+      [4] PTR '(anon)' type_id=3
+
+Note that we had to update BTF ID and start BTF ID for the split BTF.
+
+So we see how .BTF.base plays the role of facilitating later relocation,
+leading to more resilient split BTF.
+
+.BTF.base sections will be generated automatically for out-of-tree kernel module
+builds - i.e. where KBUILD_EXTMOD is set (as it would be for "make M=path/2/mod"
+cases). .BTF.base generation requires pahole support for the "distilled_base"
+BTF feature; this is available in pahole v1.28 and later.
 
 5. Using BTF
 ============
