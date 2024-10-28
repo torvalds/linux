@@ -25,6 +25,7 @@ description: |
         ipq4018
         ipq5018
         ipq5332
+        ipq5424
         ipq6018
         ipq8074
         ipq9574
@@ -352,6 +353,11 @@ properties:
               - qcom,ipq5332-ap-mi01.6
               - qcom,ipq5332-ap-mi01.9
           - const: qcom,ipq5332
+
+      - items:
+          - enum:
+              - qcom,ipq5424-rdp466
+          - const: qcom,ipq5424
 
       - items:
           - enum:
