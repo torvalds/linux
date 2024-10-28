@@ -1463,7 +1463,7 @@ static ssize_t reset_method_store(struct device *dev,
 	struct pci_dev *pdev = to_pci_dev(dev);
 	char *tmp_options, *name;
 	int m, n;
-	u8 reset_methods[PCI_NUM_RESET_METHODS] = { 0 };
+	u8 reset_methods[PCI_NUM_RESET_METHODS] = {};
 
 	if (sysfs_streq(buf, "")) {
 		pdev->reset_methods[0] = 0;
