@@ -766,6 +766,7 @@ struct pci_reset_fn_method {
 	int (*reset_fn)(struct pci_dev *pdev, bool probe);
 	char *name;
 };
+extern const struct pci_reset_fn_method pci_reset_fn_methods[];
 
 #ifdef CONFIG_PCI_QUIRKS
 int pci_dev_specific_reset(struct pci_dev *dev, bool probe);
@@ -959,8 +960,6 @@ static inline pci_power_t acpi_pci_choose_state(struct pci_dev *pdev)
 #ifdef CONFIG_PCIEASPM
 extern const struct attribute_group aspm_ctrl_attr_group;
 #endif
-
-extern const struct attribute_group pci_dev_reset_method_attr_group;
 
 #ifdef CONFIG_X86_INTEL_MID
 bool pci_use_mid_pm(void);
