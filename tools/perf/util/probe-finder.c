@@ -1874,7 +1874,11 @@ int find_source_path(const char *raw_path, const char *sbuild_id,
 	const char *prefix = symbol_conf.source_prefix;
 
 	if (sbuild_id && !prefix) {
-		if (!get_source_from_debuginfod(raw_path, sbuild_id, new_path))
+		char prefixed_raw_path[PATH_MAX];
+
+		path__join(prefixed_raw_path, sizeof(prefixed_raw_path), comp_dir, raw_path);
+
+		if (!get_source_from_debuginfod(prefixed_raw_path, sbuild_id, new_path))
 			return 0;
 	}
 
