@@ -44,6 +44,11 @@ if [ $UID != 0 ] && [ $EVALUATE_ONLY == 0 ]; then
     exit $ksft_skip
 fi
 
+if ! command -v cpupower &> /dev/null; then
+	echo $msg cpupower could not be found, please install it >&2
+	exit $ksft_skip
+fi
+
 max_cpus=$(($(nproc)-1))
 
 function run_test () {
