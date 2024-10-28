@@ -16,6 +16,8 @@
 
 #include "common.h"
 
+#define SCMI_SHMEM_LAYOUT_OVERHEAD	24
+
 /*
  * SCMI specification requires all parameters, message headers, return
  * arguments or any protocol data to be expressed in little endian
@@ -221,6 +223,11 @@ static void __iomem *shmem_setup_iomap(struct scmi_chan_info *cinfo,
 	}
 
 	size = resource_size(res);
+	if (cinfo->max_msg_size + SCMI_SHMEM_LAYOUT_OVERHEAD > size) {
+		dev_err(dev, "misconfigured SCMI shared memory\n");
+		return IOMEM_ERR_PTR(-ENOSPC);
+	}
+
 	addr = devm_ioremap(dev, res->start, size);
 	if (!addr) {
 		dev_err(dev, "failed to ioremap SCMI %s shared memory\n", desc);

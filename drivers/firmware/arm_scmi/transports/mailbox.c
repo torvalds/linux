@@ -371,7 +371,7 @@ static struct scmi_desc scmi_mailbox_desc = {
 	.ops = &scmi_mailbox_ops,
 	.max_rx_timeout_ms = 30, /* We may increase this if required */
 	.max_msg = 20, /* Limited by MBOX_TX_QUEUE_LEN */
-	.max_msg_size = 128,
+	.max_msg_size = SCMI_SHMEM_MAX_PAYLOAD_SIZE,
 };
 
 static const struct of_device_id scmi_of_match[] = {

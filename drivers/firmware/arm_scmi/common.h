@@ -31,6 +31,8 @@
 
 #define SCMI_MAX_RESPONSE_TIMEOUT	(2 * MSEC_PER_SEC)
 
+#define SCMI_SHMEM_MAX_PAYLOAD_SIZE	104
+
 enum scmi_error_codes {
 	SCMI_SUCCESS = 0,	/* Success */
 	SCMI_ERR_SUPPORT = -1,	/* Not supported */
@@ -165,6 +167,7 @@ void scmi_protocol_release(const struct scmi_handle *handle, u8 protocol_id);
  *	 channel
  * @is_p2a: A flag to identify a channel as P2A (RX)
  * @rx_timeout_ms: The configured RX timeout in milliseconds.
+ * @max_msg_size: Maximum size of message payload.
  * @handle: Pointer to SCMI entity handle
  * @no_completion_irq: Flag to indicate that this channel has no completion
  *		       interrupt mechanism for synchronous commands.
@@ -177,6 +180,7 @@ struct scmi_chan_info {
 	struct device *dev;
 	bool is_p2a;
 	unsigned int rx_timeout_ms;
+	unsigned int max_msg_size;
 	struct scmi_handle *handle;
 	bool no_completion_irq;
 	void *transport_info;
@@ -224,7 +228,7 @@ struct scmi_transport_ops {
  * @max_msg: Maximum number of messages for a channel type (tx or rx) that can
  *	be pending simultaneously in the system. May be overridden by the
  *	get_max_msg op.
- * @max_msg_size: Maximum size of data per message that can be handled.
+ * @max_msg_size: Maximum size of data payload per message that can be handled.
  * @force_polling: Flag to force this whole transport to use SCMI core polling
  *		   mechanism instead of completion interrupts even if available.
  * @sync_cmds_completed_on_ret: Flag to indicate that the transport assures

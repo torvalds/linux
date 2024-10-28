@@ -17,8 +17,6 @@
 
 #include "../common.h"
 
-#define SCMI_OPTEE_MAX_MSG_SIZE		128
-
 enum scmi_optee_pta_cmd {
 	/*
 	 * PTA_SCMI_CMD_CAPABILITIES - Get channel capabilities
@@ -299,7 +297,7 @@ static int invoke_process_msg_channel(struct scmi_optee_channel *channel, size_t
 
 	param[2].attr = TEE_IOCTL_PARAM_ATTR_TYPE_MEMREF_OUTPUT;
 	param[2].u.memref.shm = channel->tee_shm;
-	param[2].u.memref.size = SCMI_OPTEE_MAX_MSG_SIZE;
+	param[2].u.memref.size = SCMI_SHMEM_MAX_PAYLOAD_SIZE;
 
 	ret = tee_client_invoke_func(scmi_optee_private->tee_ctx, &arg, param);
 	if (ret < 0 || arg.ret) {
@@ -332,7 +330,7 @@ static void scmi_optee_clear_channel(struct scmi_chan_info *cinfo)
 
 static int setup_dynamic_shmem(struct device *dev, struct scmi_optee_channel *channel)
 {
-	const size_t msg_size = SCMI_OPTEE_MAX_MSG_SIZE;
+	const size_t msg_size = SCMI_SHMEM_MAX_PAYLOAD_SIZE;
 	void *shbuf;
 
 	channel->tee_shm = tee_shm_alloc_kernel_buf(scmi_optee_private->tee_ctx, msg_size);
@@ -519,7 +517,7 @@ static struct scmi_desc scmi_optee_desc = {
 	.ops = &scmi_optee_ops,
 	.max_rx_timeout_ms = 30,
 	.max_msg = 20,
-	.max_msg_size = SCMI_OPTEE_MAX_MSG_SIZE,
+	.max_msg_size = SCMI_SHMEM_MAX_PAYLOAD_SIZE,
 	.sync_cmds_completed_on_ret = true,
 };
 
