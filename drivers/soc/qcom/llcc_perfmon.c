@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2019-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -16,6 +16,7 @@
 #include <linux/soc/qcom/llcc-qcom.h>
 #include <linux/module.h>
 #include <linux/clk.h>
+#include <linux/of.h>
 #include "llcc_events.h"
 #include "llcc_perfmon.h"
 
@@ -106,6 +107,7 @@ enum fltr_config {
  * @clock_enabled:	flag to control profiling enable and disable
  * @drv_ver:		driver version of llcc-qcom
  * @mc_proftag:		Prof tag to MC
+ * @snapshot_feature:	flag to indicate occupancy snapshot feature
  */
 struct llcc_perfmon_private {
 	struct regmap *llcc_map;
@@ -131,6 +133,7 @@ struct llcc_perfmon_private {
 	bool clock_enabled;
 	int drv_ver;
 	unsigned long mc_proftag;
+	bool snapshot_feature;
 };
 
 static inline void llcc_bcast_write(struct llcc_perfmon_private *llcc_priv,
@@ -1040,6 +1043,16 @@ static ssize_t perfmon_scid_status_show(struct device *dev, struct device_attrib
 	unsigned int i, j, offset;
 	ssize_t cnt = 0;
 	unsigned long total;
+
+	/*
+	 * On platforms where occupancy snapshot feature is present, snapshot of scid occupancy is
+	 * captured in status registers only by setting and deasserting trigger bit in
+	 * TRP_CAP_COUNTERS_DUMP_CFG register.
+	 */
+	if (llcc_priv->snapshot_feature) {
+		regmap_write(llcc_priv->llcc_bcast_map, TRP_CAP_COUNTERS_DUMP_CFG, 1);
+		regmap_write(llcc_priv->llcc_bcast_map, TRP_CAP_COUNTERS_DUMP_CFG, 0);
+	}
 
 	for (i = 0; i < SCID_MAX; i++) {
 		total = 0;
@@ -2105,6 +2118,10 @@ static int llcc_perfmon_probe(struct platform_device *pdev)
 		llcc_priv->version = REV_5;
 	pr_info("Revision <%x.%x.%x>, %d MEMORY CNTRLRS connected with LLCC\n",
 			MAJOR_REV_NO(val), BRANCH_NO(val), MINOR_NO(val), llcc_priv->num_mc);
+
+	/* Set snapshot_feature flag on supported platforms */
+	llcc_priv->snapshot_feature = of_property_read_bool(pdev->dev.of_node,
+							    "llcc-occupancy-snapshot");
 
 	return 0;
 }
