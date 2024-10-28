@@ -5075,19 +5075,19 @@ static int gpiolib_seq_show(struct seq_file *s, void *v)
 	struct gpio_chip *gc;
 	struct device *parent;
 
+	if (priv->newline)
+		seq_putc(s, '\n');
+
 	guard(srcu)(&gdev->srcu);
 
 	gc = srcu_dereference(gdev->chip, &gdev->srcu);
 	if (!gc) {
-		seq_printf(s, "%s%s: (dangling chip)\n",
-			   priv->newline ? "\n" : "",
-			   dev_name(&gdev->dev));
+		seq_printf(s, "%s: (dangling chip)\n", dev_name(&gdev->dev));
 		return 0;
 	}
 
-	seq_printf(s, "%s%s: GPIOs %u-%u", priv->newline ? "\n" : "",
-		   dev_name(&gdev->dev),
-		   gdev->base, gdev->base + gdev->ngpio - 1);
+	seq_printf(s, "%s: GPIOs %u-%u", dev_name(&gdev->dev), gdev->base,
+		   gdev->base + gdev->ngpio - 1);
 	parent = gc->parent;
 	if (parent)
 		seq_printf(s, ", parent: %s/%s",
