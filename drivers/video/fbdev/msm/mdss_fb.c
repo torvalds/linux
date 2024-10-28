@@ -119,8 +119,10 @@ static int mdss_fb_fbmem_ion_mmap(struct fb_info *info,
 static int mdss_fb_alloc_fb_ion_memory(struct msm_fb_data_type *mfd,
 		size_t size);
 static void mdss_fb_release_fences(struct msm_fb_data_type *mfd);
+#ifndef CONFIG_FB_MSM_MDP_NONE
 static int __mdss_fb_sync_buf_done_callback(struct notifier_block *p,
 		unsigned long val, void *data);
+#endif
 
 static int __mdss_fb_display_thread(void *data);
 static int mdss_fb_pan_idle(struct msm_fb_data_type *mfd);
@@ -1256,7 +1258,9 @@ static int mdss_fb_probe(struct platform_device *pdev)
 	struct msm_fb_data_type *mfd = NULL;
 	struct mdss_panel_data *pdata;
 	struct fb_info *fbi;
+#ifndef CONFIG_FB_MSM_MDP_NONE
 	struct mdss_overlay_private *mdp5_data = NULL;
+#endif
 	int rc;
 
 	if (fbi_list_index >= MAX_FBI_LIST)
@@ -1369,6 +1373,7 @@ static int mdss_fb_probe(struct platform_device *pdev)
 
 	mdss_fb_init_panel_modes(mfd, pdata);
 
+#ifndef CONFIG_FB_MSM_MDP_NONE
 	mfd->mdp_sync_pt_data.fence_name = "mdp-fence";
 	if (mfd->mdp_sync_pt_data.timeline == NULL) {
 		char timeline_name[32];
@@ -1397,6 +1402,7 @@ static int mdss_fb_probe(struct platform_device *pdev)
 	if (mfd->mdp.splash_init_fnc)
 		mfd->mdp.splash_init_fnc(mfd);
 
+#endif
 	/*
 	 * Register with input driver for a callback for command mode panels.
 	 * When there is an input event, mdp clocks will be turned on to reduce
@@ -3138,6 +3144,7 @@ static void mdss_fb_release_kickoff(struct msm_fb_data_type *mfd)
 	}
 }
 
+#ifndef CONFIG_FB_MSM_MDP_NONE
 /**
  * __mdss_fb_sync_buf_done_callback() - process async display events
  * @p:		Notifier block registered for async events.
@@ -3211,6 +3218,7 @@ static int __mdss_fb_sync_buf_done_callback(struct notifier_block *p,
 
 	return ret;
 }
+#endif
 
 /**
  * mdss_fb_pan_idle() - wait for panel programming to be idle
