@@ -7,8 +7,6 @@
 #define __INTEL_CX0_PHY_H__
 
 #include <linux/types.h>
-#include <linux/bitfield.h>
-#include <linux/bits.h>
 
 enum icl_port_dpll_id;
 struct drm_i915_private;
