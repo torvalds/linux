@@ -4885,7 +4885,7 @@ void intel_ddi_init(struct intel_display *display,
 		if (!assert_has_icl_dsi(dev_priv))
 			return;
 
-		icl_dsi_init(dev_priv, devdata);
+		icl_dsi_init(display, devdata);
 		return;
 	}
 
