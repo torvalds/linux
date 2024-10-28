@@ -276,9 +276,9 @@ static struct open_bucket *__try_alloc_bucket(struct bch_fs *c, struct bch_dev *
 }
 
 static struct open_bucket *try_alloc_bucket(struct btree_trans *trans, struct bch_dev *ca,
-					    enum bch_watermark watermark, u64 free_entry,
+					    enum bch_watermark watermark,
 					    struct bucket_alloc_state *s,
-					    struct bkey_s_c freespace_k,
+					    struct btree_iter *freespace_iter,
 					    struct closure *cl)
 {
 	struct bch_fs *c = trans->c;
@@ -287,8 +287,8 @@ static struct open_bucket *try_alloc_bucket(struct btree_trans *trans, struct bc
 	struct open_bucket *ob;
 	struct bch_alloc_v4 a_convert;
 	const struct bch_alloc_v4 *a;
-	u64 b = free_entry & ~(~0ULL << 56);
-	unsigned genbits = free_entry >> 56;
+	u64 b = freespace_iter->pos.offset & ~(~0ULL << 56);
+	unsigned genbits = freespace_iter->pos.offset >> 56;
 	struct printbuf buf = PRINTBUF;
 	int ret;
 
@@ -296,7 +296,7 @@ static struct open_bucket *try_alloc_bucket(struct btree_trans *trans, struct bc
 		prt_printf(&buf, "freespace btree has bucket outside allowed range %u-%llu\n"
 		       "  freespace key ",
 			ca->mi.first_bucket, ca->mi.nbuckets);
-		bch2_bkey_val_to_text(&buf, c, freespace_k);
+		bch2_bkey_to_text(&buf, &freespace_iter->k);
 		bch2_trans_inconsistent(trans, "%s", buf.buf);
 		ob = ERR_PTR(-EIO);
 		goto err;
@@ -321,7 +321,7 @@ static struct open_bucket *try_alloc_bucket(struct btree_trans *trans, struct bc
 
 		prt_printf(&buf, "non free bucket in freespace btree\n"
 		       "  freespace key ");
-		bch2_bkey_val_to_text(&buf, c, freespace_k);
+		bch2_bkey_to_text(&buf, &freespace_iter->k);
 		prt_printf(&buf, "\n  ");
 		bch2_bkey_val_to_text(&buf, c, k);
 		bch2_trans_inconsistent(trans, "%s", buf.buf);
@@ -334,7 +334,7 @@ static struct open_bucket *try_alloc_bucket(struct btree_trans *trans, struct bc
 		prt_printf(&buf, "bucket in freespace btree with wrong genbits (got %u should be %llu)\n"
 		       "  freespace key ",
 		       genbits, alloc_freespace_genbits(*a) >> 56);
-		bch2_bkey_val_to_text(&buf, c, freespace_k);
+		bch2_bkey_to_text(&buf, &freespace_iter->k);
 		prt_printf(&buf, "\n  ");
 		bch2_bkey_val_to_text(&buf, c, k);
 		bch2_trans_inconsistent(trans, "%s", buf.buf);
@@ -492,17 +492,20 @@ static struct open_bucket *bch2_bucket_alloc_freelist(struct btree_trans *trans,
 
 	BUG_ON(ca->new_fs_bucket_idx);
 again:
-	for_each_btree_key_norestart(trans, iter, BTREE_ID_freespace,
-				     POS(ca->dev_idx, alloc_cursor), 0, k, ret) {
-		if (k.k->p.inode != ca->dev_idx)
-			break;
+	for_each_btree_key_max_norestart(trans, iter, BTREE_ID_freespace,
+					 POS(ca->dev_idx, alloc_cursor),
+					 POS(ca->dev_idx, U64_MAX),
+					 0, k, ret) {
+		/*
+		 * peek normally dosen't trim extents - they can span iter.pos,
+		 * which is not what we want here:
+		 */
+		iter.k.size = iter.k.p.offset - iter.pos.offset;
 
-		for (alloc_cursor = max(alloc_cursor, bkey_start_offset(k.k));
-		     alloc_cursor < k.k->p.offset;
-		     alloc_cursor++) {
+		while (iter.k.size) {
 			s->buckets_seen++;
 
-			u64 bucket = alloc_cursor & ~(~0ULL << 56);
+			u64 bucket = iter.pos.offset & ~(~0ULL << 56);
 			if (s->btree_bitmap != BTREE_BITMAP_ANY &&
 			    s->btree_bitmap != bch2_dev_btree_bitmap_marked_sectors(ca,
 					bucket_to_sector(ca, bucket), ca->mi.bucket_size)) {
@@ -511,40 +514,42 @@ again:
 					goto fail;
 
 				bucket = sector_to_bucket(ca,
-						round_up(bucket_to_sector(ca, bucket) + 1,
+						round_up(bucket_to_sector(ca, bucket + 1),
 							 1ULL << ca->mi.btree_bitmap_shift));
-				u64 genbits = alloc_cursor >> 56;
-				alloc_cursor = bucket | (genbits << 56);
+				alloc_cursor = bucket|(iter.pos.offset & (~0ULL << 56));
 
-				if (alloc_cursor > k.k->p.offset)
-					bch2_btree_iter_set_pos(&iter, POS(ca->dev_idx, alloc_cursor));
+				bch2_btree_iter_set_pos(&iter, POS(ca->dev_idx, alloc_cursor));
 				s->skipped_mi_btree_bitmap++;
-				continue;
+				goto next;
 			}
 
-			ob = try_alloc_bucket(trans, ca, watermark,
-					      alloc_cursor, s, k, cl);
+			ob = try_alloc_bucket(trans, ca, watermark, s, &iter, cl);
 			if (ob) {
+				if (!IS_ERR(ob))
+					*dev_alloc_cursor = iter.pos.offset;
 				bch2_set_btree_iter_dontneed(&iter);
 				break;
 			}
-		}
 
+			iter.k.size--;
+			iter.pos.offset++;
+		}
+next:
 		if (ob || ret)
 			break;
 	}
 fail:
 	bch2_trans_iter_exit(trans, &iter);
 
-	if (!ob && ret)
+	BUG_ON(ob && ret);
+
+	if (ret)
 		ob = ERR_PTR(ret);
 
 	if (!ob && alloc_start > ca->mi.first_bucket) {
 		alloc_cursor = alloc_start = ca->mi.first_bucket;
 		goto again;
 	}
-
-	*dev_alloc_cursor = alloc_cursor;
 
 	return ob;
 }
