@@ -5288,7 +5288,7 @@ static void release_probe(struct ftrace_func_probe *probe)
 {
 	struct ftrace_probe_ops *probe_ops;
 
-	mutex_lock(&ftrace_lock);
+	guard(mutex)(&ftrace_lock);
 
 	WARN_ON(probe->ref <= 0);
 
@@ -5306,7 +5306,6 @@ static void release_probe(struct ftrace_func_probe *probe)
 		list_del(&probe->list);
 		kfree(probe);
 	}
-	mutex_unlock(&ftrace_lock);
 }
 
 static void acquire_probe_locked(struct ftrace_func_probe *probe)
