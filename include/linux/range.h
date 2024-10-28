@@ -32,4 +32,10 @@ int clean_sort_range(struct range *range, int az);
 
 void sort_range(struct range *range, int nr_range);
 
+#define DEFINE_RANGE(_start, _end)		\
+(struct range) {				\
+		.start = (_start),		\
+		.end = (_end),			\
+	}
+
 #endif
