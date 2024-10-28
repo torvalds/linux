@@ -87,6 +87,31 @@ diagrams:
     from:
       - function: "ethosn_device_init(struct ethosn_core *)"
 
+  ethosn_dma_iommu_allocator_create_sequence_diagram:
+    type: sequence
+    title: ethosn_dma_iommu_allocator_create() calling backtrace
+    glob:
+      - drivers/misc/ethosn/*.c
+      - drivers/misc/ethosn/*.h
+      - drivers/misc/ethosn/uapi/*.h
+    generate_condition_statements: true
+    generate_return_types: true
+    combine_free_functions_into_file_participants: true
+    include:
+      paths:
+        - drivers/misc/ethosn/
+        - drivers/misc/ethosn/uapi/
+        - include/linux/
+    exclude:
+      elements:
+        - "ethosn_major_cleanup()"
+      paths:
+        - include/linux/printk.h
+        - include/linux/fs.h
+        - include/linux/device/class.h
+    to:
+      - function: "ethosn_dma_iommu_allocator_create(struct device *,enum ethosn_stream_type,dma_addr_t,phys_addr_t)"
+
   # ethosn_device_core_class:
   #   type: class
   #   title: struct ethosn_device_core diagram

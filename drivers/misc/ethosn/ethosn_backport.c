@@ -83,11 +83,11 @@ struct iommu_domain *ethosn_iommu_get_domain_for_dev(struct device *dev)
 #if (KERNEL_VERSION(4, 20, 0) > LINUX_VERSION_CODE)
 	domain = iommu_get_domain_for_dev(dev);
 #else
-	struct iommu_group *group = iommu_group_get(dev);
+    struct iommu_group *group = iommu_group_get(dev);
 	int ret;
 
 	if (group) {
-		domain = iommu_domain_alloc(dev->bus);
+    	domain = iommu_domain_alloc(dev->bus);
 		if (domain) {
 			ret = iommu_attach_group(domain, group);
 			if (ret)

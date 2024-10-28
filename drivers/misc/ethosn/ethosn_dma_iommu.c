@@ -50,12 +50,12 @@ enum ethosn_memory_source {
 };
 
 struct ethosn_iommu_stream {
-	enum ethosn_stream_type type;
-	void *bitmap;
-	dma_addr_t addr_base;
-	size_t bits;
-	struct page *page;
-	bool allocated_page;
+	enum ethosn_stream_type type;       // 流类型 属于同一个group的设备具有同一个streamid
+	dma_addr_t addr_base;               // 对应的DMA地址的基地址, 即设备的总线物理地址空间经过IOMMU模块映射之后可以由CPU直接访问的物理地址空间中的地址
+    void *bitmap;                       // 位图的入口
+	size_t bits;                        // 位图的总位数, 每一位表示IOMMU地址空间的一页
+	struct page *page;                  // 当前流所在的CPU地址空间的页
+	bool allocated_page;                // 当前流所属的页是否是通过API分配的
 	spinlock_t lock;
 };
 
@@ -817,7 +817,7 @@ static int iommu_stream_init(struct ethosn_allocator_internal *allocator, enum e
 {
 	struct ethosn_iommu_domain *domain = &allocator->ethosn_iommu_domain;
 	struct ethosn_iommu_stream *stream = &domain->stream;
-	size_t nr_pages = DIV_ROUND_UP(IOMMU_ADDR_SIZE, PAGE_SIZE);
+	size_t nr_pages = DIV_ROUND_UP(IOMMU_ADDR_SIZE, PAGE_SIZE);     // 完整映射整个设备总线地址空间需要的CPU内存页数
 	size_t i;
 	int err;
 
@@ -846,10 +846,7 @@ static int iommu_stream_init(struct ethosn_allocator_internal *allocator, enum e
 	if (!stream->page)
 		goto free_bitmap;
 
-	/*
-	 * Map all the virtual space to a single physical page to be
-	 * protected against speculative accesses.
-	 */
+	// 这里将 stream->addr_base 开始的DMA IOVA地址, 逐页地映射到page对应的CPU物理地址空间中, 这些映射都在当前allocator对应的域中操作
 	for (i = 0; i < nr_pages; ++i) {
 		err = iommu_map(domain->iommu_domain, stream->addr_base + i * PAGE_SIZE, page_to_phys(stream->page), PAGE_SIZE, IOMMU_READ);
 
@@ -920,6 +917,7 @@ static void iommu_allocator_destroy(struct ethosn_dma_sub_allocator *_allocator)
 	ethosn_iommu_put_domain_for_dev(dev, domain);
 }
 
+// 使用 iommu 的方式构造内存管理单元
 struct ethosn_dma_sub_allocator *ethosn_dma_iommu_allocator_create(struct device *dev, enum ethosn_stream_type stream_type, dma_addr_t addr_base,
 								   phys_addr_t speculative_page_addr)
 {
@@ -948,12 +946,15 @@ struct ethosn_dma_sub_allocator *ethosn_dma_iommu_allocator_create(struct device
 		.sync_for_device = iommu_sync_for_device,
 		.sync_for_cpu = iommu_sync_for_cpu,
 	};
+
+	// 仅在当前模块中保存内部数据的数据结构, 包含了当前设备与内存相关的信息
 	struct ethosn_allocator_internal *allocator;
 	struct iommu_domain *domain = NULL;
 	struct iommu_fwspec *fwspec = NULL;
 	size_t bitmap_size;
 	int ret;
 
+	// 这里为当前设备直接分配一个新的 iommu 域
 	domain = ethosn_iommu_get_domain_for_dev(dev);
 
 	allocator = devm_kzalloc(dev, sizeof(struct ethosn_allocator_internal), GFP_KERNEL);
@@ -964,7 +965,8 @@ struct ethosn_dma_sub_allocator *ethosn_dma_iommu_allocator_create(struct device
 	allocator->ethosn_iommu_domain.iommu_domain = domain;
 
 	if (domain) {
-		bitmap_size = BITS_TO_LONGS(IOMMU_ADDR_SIZE >> PAGE_SHIFT) * sizeof(unsigned long);
+        // 位图的每一位对应 IOMMU地址空间(总线/设备地址空间) 的一个页, 这里IOMMU_ADDR_SIZE地址空间大小为512MB
+		bitmap_size = BITS_TO_LONGS(IOMMU_ADDR_SIZE >> PAGE_SHIFT) * sizeof(unsigned long); // 16KB
 
 		ret = iommu_stream_init(allocator, stream_type, addr_base, bitmap_size, speculative_page_addr);
 		if (ret)
