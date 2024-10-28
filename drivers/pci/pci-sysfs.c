@@ -13,6 +13,7 @@
  */
 
 #include <linux/bitfield.h>
+#include <linux/cleanup.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/pci.h>
@@ -1460,7 +1461,7 @@ static ssize_t reset_method_store(struct device *dev,
 				  const char *buf, size_t count)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
-	char *options, *tmp_options, *name;
+	char *tmp_options, *name;
 	int m, n;
 	u8 reset_methods[PCI_NUM_RESET_METHODS] = { 0 };
 
@@ -1475,7 +1476,7 @@ static ssize_t reset_method_store(struct device *dev,
 		return count;
 	}
 
-	options = kstrndup(buf, count, GFP_KERNEL);
+	char *options __free(kfree) = kstrndup(buf, count, GFP_KERNEL);
 	if (!options)
 		return -ENOMEM;
 
@@ -1487,20 +1488,21 @@ static ssize_t reset_method_store(struct device *dev,
 
 		name = strim(name);
 
+		/* Leave previous methods unchanged if input is invalid */
 		m = reset_method_lookup(name);
 		if (!m) {
 			pci_err(pdev, "Invalid reset method '%s'", name);
-			goto error;
+			return -EINVAL;
 		}
 
 		if (pci_reset_fn_methods[m].reset_fn(pdev, PCI_RESET_PROBE)) {
 			pci_err(pdev, "Unsupported reset method '%s'", name);
-			goto error;
+			return -EINVAL;
 		}
 
 		if (n == PCI_NUM_RESET_METHODS - 1) {
 			pci_err(pdev, "Too many reset methods\n");
-			goto error;
+			return -EINVAL;
 		}
 
 		reset_methods[n++] = m;
@@ -1513,13 +1515,7 @@ static ssize_t reset_method_store(struct device *dev,
 	    reset_methods[0] != 1)
 		pci_warn(pdev, "Device-specific reset disabled/de-prioritized by user");
 	memcpy(pdev->reset_methods, reset_methods, sizeof(pdev->reset_methods));
-	kfree(options);
 	return count;
-
-error:
-	/* Leave previous methods unchanged */
-	kfree(options);
-	return -EINVAL;
 }
 static DEVICE_ATTR_RW(reset_method);
 
