@@ -500,11 +500,6 @@ bnad_debugfs_init(struct bnad *bnad)
 	if (!bna_debugfs_root) {
 		bna_debugfs_root = debugfs_create_dir("bna", NULL);
 		atomic_set(&bna_debugfs_port_count, 0);
-		if (!bna_debugfs_root) {
-			netdev_warn(bnad->netdev,
-				    "debugfs root dir creation failed\n");
-			return;
-		}
 	}
 
 	/* Setup the pci_dev debugfs directory for the port */
@@ -523,12 +518,6 @@ bnad_debugfs_init(struct bnad *bnad)
 							bnad->port_debugfs_root,
 							bnad,
 							file->fops);
-			if (!bnad->bnad_dentry_files[i]) {
-				netdev_warn(bnad->netdev,
-					    "create %s entry failed\n",
-					    file->name);
-				return;
-			}
 		}
 	}
 }
