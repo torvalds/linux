@@ -475,7 +475,7 @@ static void assert_planes_disabled(struct intel_crtc *crtc)
 		assert_plane_disabled(plane);
 }
 
-void vlv_wait_port_ready(struct drm_i915_private *dev_priv,
+void vlv_wait_port_ready(struct intel_display *display,
 			 struct intel_digital_port *dig_port,
 			 unsigned int expected_mask)
 {
@@ -488,11 +488,11 @@ void vlv_wait_port_ready(struct drm_i915_private *dev_priv,
 		fallthrough;
 	case PORT_B:
 		port_mask = DPLL_PORTB_READY_MASK;
-		dpll_reg = DPLL(dev_priv, 0);
+		dpll_reg = DPLL(display, 0);
 		break;
 	case PORT_C:
 		port_mask = DPLL_PORTC_READY_MASK;
-		dpll_reg = DPLL(dev_priv, 0);
+		dpll_reg = DPLL(display, 0);
 		expected_mask <<= 4;
 		break;
 	case PORT_D:
@@ -501,11 +501,11 @@ void vlv_wait_port_ready(struct drm_i915_private *dev_priv,
 		break;
 	}
 
-	if (intel_de_wait(dev_priv, dpll_reg, port_mask, expected_mask, 1000))
-		drm_WARN(&dev_priv->drm, 1,
+	if (intel_de_wait(display, dpll_reg, port_mask, expected_mask, 1000))
+		drm_WARN(display->drm, 1,
 			 "timed out waiting for [ENCODER:%d:%s] port ready: got 0x%x, expected 0x%x\n",
 			 dig_port->base.base.base.id, dig_port->base.base.name,
-			 intel_de_read(dev_priv, dpll_reg) & port_mask,
+			 intel_de_read(display, dpll_reg) & port_mask,
 			 expected_mask);
 }
 
