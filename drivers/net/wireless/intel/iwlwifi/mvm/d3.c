@@ -3682,8 +3682,6 @@ void iwl_mvm_fast_suspend(struct iwl_mvm *mvm)
 		IWL_ERR(mvm,
 			"fast suspend: couldn't send D3_CONFIG_CMD %d\n", ret);
 
-	WARN_ON(iwl_mvm_power_update_mac(mvm));
-
 	ret = iwl_trans_d3_suspend(mvm->trans, false, false);
 	if (ret)
 		IWL_ERR(mvm, "fast suspend: trans_d3_suspend failed %d\n", ret);
