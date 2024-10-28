@@ -56,17 +56,12 @@ static inline void io_fixed_file_set(struct io_rsrc_node *node,
 		(io_file_get_flags(file) >> REQ_F_SUPPORT_NOWAIT_BIT);
 }
 
-static inline void io_reset_alloc_hint(struct io_ring_ctx *ctx)
-{
-	ctx->file_table.alloc_hint = ctx->file_alloc_start;
-}
-
 static inline void io_file_table_set_alloc_range(struct io_ring_ctx *ctx,
 						 unsigned off, unsigned len)
 {
 	ctx->file_alloc_start = off;
 	ctx->file_alloc_end = off + len;
-	io_reset_alloc_hint(ctx);
+	ctx->file_table.alloc_hint = ctx->file_alloc_start;
 }
 
 #endif
