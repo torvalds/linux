@@ -18,11 +18,15 @@ description:
 
 properties:
   compatible:
-    enum:
-      - fsl,imx35-esai
-      - fsl,imx6ull-esai
-      - fsl,imx8qm-esai
-      - fsl,vf610-esai
+    oneOf:
+      - enum:
+          - fsl,imx35-esai
+          - fsl,imx6ull-esai
+          - fsl,vf610-esai
+      - items:
+          - enum:
+              - fsl,imx8qm-esai
+          - const: fsl,imx6ull-esai
 
   reg:
     maxItems: 1
