@@ -485,7 +485,7 @@ int intel_display_driver_probe_nogem(struct drm_i915_private *i915)
 	return 0;
 
 err_hdcp:
-	intel_hdcp_component_fini(i915);
+	intel_hdcp_component_fini(display);
 err_mode_config:
 	intel_mode_config_cleanup(i915);
 
@@ -495,6 +495,7 @@ err_mode_config:
 /* part #3: call after gem init */
 int intel_display_driver_probe(struct drm_i915_private *i915)
 {
+	struct intel_display *display = &i915->display;
 	int ret;
 
 	if (!HAS_DISPLAY(i915))
@@ -505,7 +506,7 @@ int intel_display_driver_probe(struct drm_i915_private *i915)
 	 * the BIOS fb takeover and whatever else magic ggtt reservations
 	 * happen during gem/ggtt init.
 	 */
-	intel_hdcp_component_init(i915);
+	intel_hdcp_component_init(display);
 
 	/*
 	 * Force all active planes to recompute their states. So that on
@@ -600,7 +601,7 @@ void intel_display_driver_remove_noirq(struct drm_i915_private *i915)
 	/* flush any delayed tasks or pending work */
 	flush_workqueue(i915->unordered_wq);
 
-	intel_hdcp_component_fini(i915);
+	intel_hdcp_component_fini(display);
 
 	intel_mode_config_cleanup(i915);
 

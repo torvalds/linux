@@ -6419,6 +6419,7 @@ bool
 intel_dp_init_connector(struct intel_digital_port *dig_port,
 			struct intel_connector *intel_connector)
 {
+	struct intel_display *display = to_intel_display(dig_port);
 	struct drm_connector *connector = &intel_connector->base;
 	struct intel_dp *intel_dp = &dig_port->dp;
 	struct intel_encoder *intel_encoder = &dig_port->base;
@@ -6509,7 +6510,7 @@ intel_dp_init_connector(struct intel_digital_port *dig_port,
 
 	intel_dp_add_properties(intel_dp, connector);
 
-	if (is_hdcp_supported(dev_priv, port) && !intel_dp_is_edp(intel_dp)) {
+	if (is_hdcp_supported(display, port) && !intel_dp_is_edp(intel_dp)) {
 		int ret = intel_dp_hdcp_init(dig_port, intel_connector);
 		if (ret)
 			drm_dbg_kms(&dev_priv->drm,

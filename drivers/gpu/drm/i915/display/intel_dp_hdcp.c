@@ -873,13 +873,12 @@ static const struct intel_hdcp_shim intel_dp_mst_hdcp_shim = {
 int intel_dp_hdcp_init(struct intel_digital_port *dig_port,
 		       struct intel_connector *intel_connector)
 {
-	struct drm_device *dev = intel_connector->base.dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct intel_display *display = to_intel_display(dig_port);
 	struct intel_encoder *intel_encoder = &dig_port->base;
 	enum port port = intel_encoder->port;
 	struct intel_dp *intel_dp = &dig_port->dp;
 
-	if (!is_hdcp_supported(dev_priv, port))
+	if (!is_hdcp_supported(display, port))
 		return 0;
 
 	if (intel_connector->mst_port)
