@@ -16,7 +16,7 @@
 	};
 
 	soc {
-		pinctrl: pinctrl@3008000 {
+		pinctrl: pinctrl@3001000 {
 			compatible = "sophgo,sg2002-pinctrl";
 			reg = <0x03001000 0x1000>,
 			      <0x05027000 0x1000>;
