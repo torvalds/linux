@@ -2810,8 +2810,8 @@ int gpiolib_cdev_register(struct gpio_device *gdev, dev_t devt)
 	gdev->chrdev.owner = THIS_MODULE;
 	gdev->dev.devt = MKDEV(MAJOR(devt), gdev->id);
 
-	gdev->line_state_wq = alloc_ordered_workqueue(dev_name(&gdev->dev),
-						      WQ_HIGHPRI);
+	gdev->line_state_wq = alloc_ordered_workqueue("%s", WQ_HIGHPRI,
+						      dev_name(&gdev->dev));
 	if (!gdev->line_state_wq)
 		return -ENOMEM;
 
