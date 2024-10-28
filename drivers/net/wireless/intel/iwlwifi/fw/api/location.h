@@ -771,7 +771,7 @@ enum iwl_location_cipher {
  * @num_of_bursts: Recommended value to be sent to the AP. 2s Exponent of
  *	the number of measurement iterations (min 2^0 = 1, max 2^14)
  * @sta_id: the station id of the AP. Only relevant when associated to the AP,
- *	otherwise should be set to &IWL_MVM_INVALID_STA.
+ *	otherwise should be set to &IWL_INVALID_STA.
  * @cipher: pairwise cipher suite for secured measurement.
  *          &enum iwl_location_cipher.
  * @hltk: HLTK to be used for secured 11az measurement
@@ -818,7 +818,7 @@ struct iwl_tof_range_req_ap_entry_v6 {
  * @num_of_bursts: Recommended value to be sent to the AP. 2s Exponent of
  *	the number of measurement iterations (min 2^0 = 1, max 2^14)
  * @sta_id: the station id of the AP. Only relevant when associated to the AP,
- *	otherwise should be set to &IWL_MVM_INVALID_STA.
+ *	otherwise should be set to &IWL_INVALID_STA.
  * @cipher: pairwise cipher suite for secured measurement.
  *          &enum iwl_location_cipher.
  * @hltk: HLTK to be used for secured 11az measurement
@@ -831,10 +831,10 @@ struct iwl_tof_range_req_ap_entry_v6 {
  *	&IWL_INITIATOR_AP_FLAGS_TB is set.
  * @rx_pn: the next expected PN for protected management frames Rx. LE byte
  *	order. Only valid if &IWL_INITIATOR_AP_FLAGS_SECURED is set and sta_id
- *	is set to &IWL_MVM_INVALID_STA.
+ *	is set to &IWL_INVALID_STA.
  * @tx_pn: the next PN to use for protected management frames Tx. LE byte
  *	order. Only valid if &IWL_INITIATOR_AP_FLAGS_SECURED is set and sta_id
- *	is set to &IWL_MVM_INVALID_STA.
+ *	is set to &IWL_INVALID_STA.
  */
 struct iwl_tof_range_req_ap_entry_v7 {
 	__le32 initiator_ap_flags;
@@ -876,7 +876,7 @@ struct iwl_tof_range_req_ap_entry_v7 {
  * @num_of_bursts: Recommended value to be sent to the AP. 2s Exponent of
  *	the number of measurement iterations (min 2^0 = 1, max 2^14)
  * @sta_id: the station id of the AP. Only relevant when associated to the AP,
- *	otherwise should be set to &IWL_MVM_INVALID_STA.
+ *	otherwise should be set to &IWL_INVALID_STA.
  * @cipher: pairwise cipher suite for secured measurement.
  *          &enum iwl_location_cipher.
  * @hltk: HLTK to be used for secured 11az measurement
@@ -889,10 +889,10 @@ struct iwl_tof_range_req_ap_entry_v7 {
  *	&IWL_INITIATOR_AP_FLAGS_TB is set.
  * @rx_pn: the next expected PN for protected management frames Rx. LE byte
  *	order. Only valid if &IWL_INITIATOR_AP_FLAGS_SECURED is set and sta_id
- *	is set to &IWL_MVM_INVALID_STA.
+ *	is set to &IWL_INVALID_STA.
  * @tx_pn: the next PN to use for protected management frames Tx. LE byte
  *	order. Only valid if &IWL_INITIATOR_AP_FLAGS_SECURED is set and sta_id
- *	is set to &IWL_MVM_INVALID_STA.
+ *	is set to &IWL_INVALID_STA.
  * @r2i_ndp_params: parameters for R2I NDP ranging negotiation.
  *      bits 0 - 2: max LTF repetitions
  *      bits 3 - 5: max number of spatial streams
@@ -950,7 +950,7 @@ struct iwl_tof_range_req_ap_entry_v8 {
  * @num_of_bursts: Recommended value to be sent to the AP. 2s Exponent of
  *	the number of measurement iterations (min 2^0 = 1, max 2^14)
  * @sta_id: the station id of the AP. Only relevant when associated to the AP,
- *	otherwise should be set to &IWL_MVM_INVALID_STA.
+ *	otherwise should be set to &IWL_INVALID_STA.
  * @cipher: pairwise cipher suite for secured measurement.
  *          &enum iwl_location_cipher.
  * @hltk: HLTK to be used for secured 11az measurement
@@ -965,10 +965,10 @@ struct iwl_tof_range_req_ap_entry_v8 {
  *	&IWL_INITIATOR_AP_FLAGS_TB or &IWL_INITIATOR_AP_FLAGS_NON_TB is set.
  * @rx_pn: the next expected PN for protected management frames Rx. LE byte
  *	order. Only valid if &IWL_INITIATOR_AP_FLAGS_SECURED is set and sta_id
- *	is set to &IWL_MVM_INVALID_STA.
+ *	is set to &IWL_INVALID_STA.
  * @tx_pn: the next PN to use for protected management frames Tx. LE byte
  *	order. Only valid if &IWL_INITIATOR_AP_FLAGS_SECURED is set and sta_id
- *	is set to &IWL_MVM_INVALID_STA.
+ *	is set to &IWL_INVALID_STA.
  * @r2i_ndp_params: parameters for R2I NDP ranging negotiation.
  *      bits 0 - 2: max LTF repetitions
  *      bits 3 - 5: max number of spatial streams
@@ -1033,7 +1033,7 @@ struct iwl_tof_range_req_ap_entry_v9 {
  * @num_of_bursts: Recommended value to be sent to the AP. 2s Exponent of
  *	the number of measurement iterations (min 2^0 = 1, max 2^14)
  * @sta_id: the station id of the AP. Only relevant when associated to the AP,
- *	otherwise should be set to &IWL_MVM_INVALID_STA.
+ *	otherwise should be set to &IWL_INVALID_STA.
  * @cipher: pairwise cipher suite for secured measurement.
  *          &enum iwl_location_cipher.
  * @hltk: HLTK to be used for secured 11az measurement
@@ -1046,10 +1046,10 @@ struct iwl_tof_range_req_ap_entry_v9 {
  *	&IWL_INITIATOR_AP_FLAGS_TB is set.
  * @rx_pn: the next expected PN for protected management frames Rx. LE byte
  *	order. Only valid if &IWL_INITIATOR_AP_FLAGS_SECURED is set and sta_id
- *	is set to &IWL_MVM_INVALID_STA.
+ *	is set to &IWL_INVALID_STA.
  * @tx_pn: the next PN to use for protected management frames Tx. LE byte
  *	order. Only valid if &IWL_INITIATOR_AP_FLAGS_SECURED is set and sta_id
- *	is set to &IWL_MVM_INVALID_STA.
+ *	is set to &IWL_INVALID_STA.
  * @r2i_ndp_params: parameters for R2I NDP ranging negotiation.
  *      bits 0 - 2: max LTF repetitions
  *      bits 3 - 5: max number of spatial streams

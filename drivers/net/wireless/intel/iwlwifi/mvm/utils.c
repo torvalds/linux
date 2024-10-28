@@ -261,7 +261,7 @@ int iwl_mvm_send_lq_cmd(struct iwl_mvm *mvm, struct iwl_lq_cmd *lq)
 		.data = { lq, },
 	};
 
-	if (WARN_ON(lq->sta_id == IWL_MVM_INVALID_STA ||
+	if (WARN_ON(lq->sta_id == IWL_INVALID_STA ||
 		    iwl_mvm_has_tlc_offload(mvm)))
 		return -EINVAL;
 

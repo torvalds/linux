@@ -146,7 +146,7 @@ int iwl_mvm_mld_add_int_sta_with_queue(struct iwl_mvm *mvm,
 	unsigned int wdg_timeout = _wdg_timeout ? *_wdg_timeout :
 		mvm->trans->trans_cfg->base_params->wd_timeout;
 
-	if (WARN_ON_ONCE(sta->sta_id == IWL_MVM_INVALID_STA))
+	if (WARN_ON_ONCE(sta->sta_id == IWL_INVALID_STA))
 		return -ENOSPC;
 
 	if (sta->type == STATION_TYPE_AUX)
@@ -346,7 +346,7 @@ static int iwl_mvm_mld_rm_int_sta(struct iwl_mvm *mvm,
 
 	lockdep_assert_held(&mvm->mutex);
 
-	if (WARN_ON_ONCE(int_sta->sta_id == IWL_MVM_INVALID_STA))
+	if (WARN_ON_ONCE(int_sta->sta_id == IWL_INVALID_STA))
 		return -EINVAL;
 
 	if (flush)
@@ -565,7 +565,7 @@ static int iwl_mvm_mld_alloc_sta_link(struct iwl_mvm *mvm,
 	lockdep_assert_wiphy(mvm->hw->wiphy);
 	lockdep_assert_held(&mvm->mutex);
 
-	if (sta_id == IWL_MVM_INVALID_STA)
+	if (sta_id == IWL_INVALID_STA)
 		return -ENOSPC;
 
 	if (rcu_access_pointer(sta->link[link_id]) == &sta->deflink) {
@@ -618,10 +618,10 @@ static void iwl_mvm_mld_set_ap_sta_id(struct ieee80211_sta *sta,
 				      struct iwl_mvm_link_sta *sta_link)
 {
 	if (!sta->tdls) {
-		WARN_ON(vif_link->ap_sta_id != IWL_MVM_INVALID_STA);
+		WARN_ON(vif_link->ap_sta_id != IWL_INVALID_STA);
 		vif_link->ap_sta_id = sta_link->sta_id;
 	} else {
-		WARN_ON(vif_link->ap_sta_id == IWL_MVM_INVALID_STA);
+		WARN_ON(vif_link->ap_sta_id == IWL_INVALID_STA);
 	}
 }
 
@@ -695,7 +695,7 @@ int iwl_mvm_mld_add_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 
 		spin_lock_init(&mvm_sta->lock);
 
-		ret = iwl_mvm_sta_init(mvm, vif, sta, IWL_MVM_INVALID_STA,
+		ret = iwl_mvm_sta_init(mvm, vif, sta, IWL_INVALID_STA,
 				       STATION_TYPE_PEER);
 	} else {
 		ret = iwl_mvm_alloc_sta_after_restart(mvm, vif, sta);
@@ -870,7 +870,7 @@ int iwl_mvm_mld_rm_sta_id(struct iwl_mvm *mvm, u8 sta_id)
 	lockdep_assert_wiphy(mvm->hw->wiphy);
 	lockdep_assert_held(&mvm->mutex);
 
-	if (WARN_ON(sta_id == IWL_MVM_INVALID_STA))
+	if (WARN_ON(sta_id == IWL_INVALID_STA))
 		return 0;
 
 	ret = iwl_mvm_mld_rm_sta_from_fw(mvm, sta_id);
@@ -1120,7 +1120,7 @@ int iwl_mvm_mld_update_sta_links(struct iwl_mvm *mvm,
 			goto err;
 
 		if (vif->type == NL80211_IFTYPE_STATION)
-			mvm_vif_link->ap_sta_id = IWL_MVM_INVALID_STA;
+			mvm_vif_link->ap_sta_id = IWL_INVALID_STA;
 
 		iwl_mvm_mld_free_sta_link(mvm, mvm_sta, mvm_sta_link, link_id,
 					  false);

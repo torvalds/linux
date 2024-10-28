@@ -559,12 +559,12 @@ static int iwl_mvm_ftm_set_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 		if (mvmvif->ftm_unprotected) {
-			*sta_id = IWL_MVM_INVALID_STA;
+			*sta_id = IWL_INVALID_STA;
 			*flags &= ~cpu_to_le32(IWL_INITIATOR_AP_FLAGS_PMF);
 		}
 #endif
 	} else {
-		*sta_id = IWL_MVM_INVALID_STA;
+		*sta_id = IWL_INVALID_STA;
 	}
 
 	return 0;

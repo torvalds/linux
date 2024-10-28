@@ -1109,7 +1109,7 @@ static void iwl_mvm_cleanup_iterator(void *data, u8 *mac,
 	vif->driver_flags &= ~IEEE80211_VIF_EML_ACTIVE;
 
 	for_each_mvm_vif_valid_link(mvmvif, link_id) {
-		mvmvif->link[link_id]->ap_sta_id = IWL_MVM_INVALID_STA;
+		mvmvif->link[link_id]->ap_sta_id = IWL_INVALID_STA;
 		mvmvif->link[link_id]->fw_link_id = IWL_MVM_FW_LINK_ID_INVALID;
 		mvmvif->link[link_id]->phy_ctxt = NULL;
 		mvmvif->link[link_id]->active = 0;
@@ -2947,7 +2947,7 @@ static void iwl_mvm_bss_info_changed_station(struct iwl_mvm *mvm,
 						    IWL_MVM_SMPS_REQ_PROT,
 						    IEEE80211_SMPS_DYNAMIC, 0);
 			}
-		} else if (mvmvif->deflink.ap_sta_id != IWL_MVM_INVALID_STA) {
+		} else if (mvmvif->deflink.ap_sta_id != IWL_INVALID_STA) {
 			iwl_mvm_mei_host_disassociated(mvm);
 			/*
 			 * If update fails - SF might be running in associated
@@ -2983,7 +2983,7 @@ static void iwl_mvm_bss_info_changed_station(struct iwl_mvm *mvm,
 					IWL_ERR(mvm,
 						"failed to remove AP station\n");
 
-				mvmvif->deflink.ap_sta_id = IWL_MVM_INVALID_STA;
+				mvmvif->deflink.ap_sta_id = IWL_INVALID_STA;
 			}
 
 			/* remove quota for this interface */
@@ -3440,7 +3440,7 @@ static void __iwl_mvm_mac_sta_notify(struct ieee80211_hw *hw,
 		 */
 		break;
 	case STA_NOTIFY_AWAKE:
-		if (WARN_ON(mvmsta->deflink.sta_id == IWL_MVM_INVALID_STA))
+		if (WARN_ON(mvmsta->deflink.sta_id == IWL_INVALID_STA))
 			break;
 
 		if (txqs)

@@ -1306,7 +1306,7 @@ static int __iwl_mvm_suspend(struct ieee80211_hw *hw,
 		goto out_noreset;
 	}
 
-	if (mvm_link->ap_sta_id == IWL_MVM_INVALID_STA) {
+	if (mvm_link->ap_sta_id == IWL_INVALID_STA) {
 		/* if we're not associated, this must be netdetect */
 		if (!wowlan->nd_config) {
 			ret = 1;
@@ -3156,7 +3156,7 @@ iwl_mvm_choose_query_wakeup_reasons(struct iwl_mvm *mvm,
 	/* if FW uses status notification, status shouldn't be NULL here */
 	if (!d3_data->status) {
 		struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
-		u8 sta_id = mvm->net_detect ? IWL_MVM_INVALID_STA :
+		u8 sta_id = mvm->net_detect ? IWL_INVALID_STA :
 					      mvmvif->deflink.ap_sta_id;
 
 		/* bug - FW with MLO has status notification */
