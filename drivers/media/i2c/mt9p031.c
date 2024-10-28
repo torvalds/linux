@@ -1112,7 +1112,7 @@ static int mt9p031_probe(struct i2c_client *client)
 
 	mt9p031->output_control	= MT9P031_OUTPUT_CONTROL_DEF;
 	mt9p031->mode2 = MT9P031_READ_MODE_2_ROW_BLC;
-	mt9p031->code = (uintptr_t)i2c_get_match_data(client);
+	mt9p031->code = (uintptr_t)device_get_match_data(&client->dev);
 
 	mt9p031->regulators[0].supply = "vdd";
 	mt9p031->regulators[1].supply = "vdd_io";
@@ -1208,14 +1208,6 @@ static void mt9p031_remove(struct i2c_client *client)
 	mutex_destroy(&mt9p031->power_lock);
 }
 
-static const struct i2c_device_id mt9p031_id[] = {
-	{ "mt9p006", MEDIA_BUS_FMT_SGRBG12_1X12 },
-	{ "mt9p031", MEDIA_BUS_FMT_SGRBG12_1X12 },
-	{ "mt9p031m", MEDIA_BUS_FMT_Y12_1X12 },
-	{ /* sentinel */ }
-};
-MODULE_DEVICE_TABLE(i2c, mt9p031_id);
-
 static const struct of_device_id mt9p031_of_match[] = {
 	{ .compatible = "aptina,mt9p006", .data = (void *)MEDIA_BUS_FMT_SGRBG12_1X12 },
 	{ .compatible = "aptina,mt9p031", .data = (void *)MEDIA_BUS_FMT_SGRBG12_1X12 },
@@ -1231,7 +1223,6 @@ static struct i2c_driver mt9p031_i2c_driver = {
 	},
 	.probe          = mt9p031_probe,
 	.remove         = mt9p031_remove,
-	.id_table       = mt9p031_id,
 };
 
 module_i2c_driver(mt9p031_i2c_driver);
