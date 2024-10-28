@@ -537,13 +537,18 @@ bool iwl_fwrt_read_err_table(struct iwl_trans *trans, u32 base, u32 *err_id)
 		/* cf. struct iwl_error_event_table */
 		u32 valid;
 		__le32 err_id;
-	} err_info;
+	} err_info = {};
+	int ret;
 
 	if (!base)
 		return false;
 
-	iwl_trans_read_mem_bytes(trans, base,
-				 &err_info, sizeof(err_info));
+	ret = iwl_trans_read_mem_bytes(trans, base,
+				       &err_info, sizeof(err_info));
+
+	if (ret)
+		return true;
+
 	if (err_info.valid && err_id)
 		*err_id = le32_to_cpu(err_info.err_id);
 

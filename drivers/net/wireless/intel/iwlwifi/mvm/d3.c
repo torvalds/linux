@@ -3107,7 +3107,6 @@ static void iwl_mvm_d3_disconnect_iter(void *data, u8 *mac,
 		ieee80211_resume_disconnect(vif);
 }
 
-
 static bool iwl_mvm_check_rt_status(struct iwl_mvm *mvm,
 				   struct ieee80211_vif *vif)
 {
@@ -3706,21 +3705,30 @@ int iwl_mvm_fast_resume(struct iwl_mvm *mvm)
 	iwl_fw_dbg_read_d3_debug_data(&mvm->fwrt);
 
 	if (iwl_mvm_check_rt_status(mvm, NULL)) {
+		IWL_ERR(mvm,
+			"iwl_mvm_check_rt_status failed, device is gone during suspend\n");
 		set_bit(STATUS_FW_ERROR, &mvm->trans->status);
 		iwl_mvm_dump_nic_error_log(mvm);
 		iwl_dbg_tlv_time_point(&mvm->fwrt,
 				       IWL_FW_INI_TIME_POINT_FW_ASSERT, NULL);
 		iwl_fw_dbg_collect_desc(&mvm->fwrt, &iwl_dump_desc_assert,
 					false, 0);
-		return -ENODEV;
+		mvm->trans->state = IWL_TRANS_NO_FW;
+		ret = -ENODEV;
+
+		goto out;
 	}
 	ret = iwl_mvm_d3_notif_wait(mvm, &d3_data);
+
+	if (ret) {
+		IWL_ERR(mvm, "Couldn't get the d3 notif %d\n", ret);
+		mvm->trans->state = IWL_TRANS_NO_FW;
+	}
+
+out:
 	clear_bit(IWL_MVM_STATUS_IN_D3, &mvm->status);
 	mvm->trans->system_pm_mode = IWL_PLAT_PM_MODE_DISABLED;
 	mvm->fast_resume = false;
-
-	if (ret)
-		IWL_ERR(mvm, "Couldn't get the d3 notif %d\n", ret);
 
 	return ret;
 }
