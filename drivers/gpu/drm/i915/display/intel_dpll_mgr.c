@@ -2037,13 +2037,14 @@ static void bxt_ddi_pll_enable(struct drm_i915_private *i915,
 			       struct intel_shared_dpll *pll,
 			       const struct intel_dpll_hw_state *dpll_hw_state)
 {
+	struct intel_display *display = &i915->display;
 	const struct bxt_dpll_hw_state *hw_state = &dpll_hw_state->bxt;
 	enum port port = (enum port)pll->info->id; /* 1:1 port->PLL mapping */
 	enum dpio_phy phy;
 	enum dpio_channel ch;
 	u32 temp;
 
-	bxt_port_to_phy_channel(i915, port, &phy, &ch);
+	bxt_port_to_phy_channel(display, port, &phy, &ch);
 
 	/* Non-SSC reference */
 	intel_de_rmw(i915, BXT_PORT_PLL_ENABLE(port), 0, PORT_PLL_REF_SEL);
@@ -2159,6 +2160,7 @@ static bool bxt_ddi_pll_get_hw_state(struct drm_i915_private *i915,
 				     struct intel_shared_dpll *pll,
 				     struct intel_dpll_hw_state *dpll_hw_state)
 {
+	struct intel_display *display = &i915->display;
 	struct bxt_dpll_hw_state *hw_state = &dpll_hw_state->bxt;
 	enum port port = (enum port)pll->info->id; /* 1:1 port->PLL mapping */
 	intel_wakeref_t wakeref;
@@ -2167,7 +2169,7 @@ static bool bxt_ddi_pll_get_hw_state(struct drm_i915_private *i915,
 	u32 val;
 	bool ret;
 
-	bxt_port_to_phy_channel(i915, port, &phy, &ch);
+	bxt_port_to_phy_channel(display, port, &phy, &ch);
 
 	wakeref = intel_display_power_get_if_enabled(i915,
 						     POWER_DOMAIN_DISPLAY_CORE);
