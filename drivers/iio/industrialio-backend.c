@@ -737,8 +737,8 @@ static struct iio_backend *__devm_iio_backend_fwnode_get(struct device *dev, con
 	}
 
 	fwnode_back = fwnode_find_reference(fwnode, "io-backends", index);
-	if (IS_ERR(fwnode))
-		return dev_err_cast_probe(dev, fwnode,
+	if (IS_ERR(fwnode_back))
+		return dev_err_cast_probe(dev, fwnode_back,
 					  "Cannot get Firmware reference\n");
 
 	guard(mutex)(&iio_back_lock);
