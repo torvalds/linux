@@ -17,9 +17,8 @@
 #include <linux/log2.h>
 #include <linux/mod_devicetable.h>
 #include <linux/module.h>
-#include <linux/of.h>
-#include <linux/of_graph.h>
 #include <linux/pm.h>
+#include <linux/property.h>
 #include <linux/regulator/consumer.h>
 #include <linux/slab.h>
 #include <linux/videodev2.h>
@@ -1058,28 +1057,27 @@ static const struct v4l2_subdev_internal_ops mt9p031_subdev_internal_ops = {
  * Driver initialization and probing
  */
 
-static int mt9p031_parse_of(struct mt9p031 *mt9p031, struct device *dev)
+static int mt9p031_parse_properties(struct mt9p031 *mt9p031, struct device *dev)
 {
-	struct device_node *np;
 	struct v4l2_fwnode_endpoint endpoint = {
 		.bus_type = V4L2_MBUS_PARALLEL
 	};
+	struct fwnode_handle *np;
 	int ret;
 
-	if (!dev->of_node)
-		return -EINVAL;
-
-	np = of_graph_get_endpoint_by_regs(dev->of_node, 0, -1);
+	np = fwnode_graph_get_next_endpoint(dev_fwnode(dev), NULL);
 	if (!np)
-		return -EINVAL;
+		return dev_err_probe(dev, -EINVAL, "endpoint node not found\n");
 
-	ret = v4l2_fwnode_endpoint_parse(of_fwnode_handle(np), &endpoint);
-	of_node_put(np);
+	ret = v4l2_fwnode_endpoint_parse(np, &endpoint);
+	fwnode_handle_put(np);
 	if (ret)
-		return ret;
+		return dev_err_probe(dev, -EINVAL, "could not parse endpoint\n");
 
-	of_property_read_u32(np, "input-clock-frequency", &mt9p031->ext_freq);
-	of_property_read_u32(np, "pixel-clock-frequency", &mt9p031->target_freq);
+	fwnode_property_read_u32(np, "input-clock-frequency",
+				 &mt9p031->ext_freq);
+	fwnode_property_read_u32(np, "pixel-clock-frequency",
+				 &mt9p031->target_freq);
 
 	mt9p031->pixclk_pol = !!(endpoint.bus.parallel.flags &
 				 V4L2_MBUS_PCLK_SAMPLE_RISING);
@@ -1104,11 +1102,9 @@ static int mt9p031_probe(struct i2c_client *client)
 	if (mt9p031 == NULL)
 		return -ENOMEM;
 
-	ret = mt9p031_parse_of(mt9p031, &client->dev);
-	if (ret) {
-		dev_err(&client->dev, "Failed to parse DT properties\n");
+	ret = mt9p031_parse_properties(mt9p031, &client->dev);
+	if (ret)
 		return ret;
-	}
 
 	mt9p031->output_control	= MT9P031_OUTPUT_CONTROL_DEF;
 	mt9p031->mode2 = MT9P031_READ_MODE_2_ROW_BLC;
