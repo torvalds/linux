@@ -1326,7 +1326,7 @@ static struct platform_driver cros_typec_driver = {
 		.pm = &cros_typec_pm_ops,
 	},
 	.probe = cros_typec_probe,
-	.remove_new = cros_typec_remove,
+	.remove = cros_typec_remove,
 };
 
 module_platform_driver(cros_typec_driver);

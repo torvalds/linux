@@ -582,7 +582,7 @@ static struct platform_driver cros_ec_debugfs_driver = {
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 	},
 	.probe = cros_ec_debugfs_probe,
-	.remove_new = cros_ec_debugfs_remove,
+	.remove = cros_ec_debugfs_remove,
 	.id_table = cros_ec_debugfs_id,
 };
 
