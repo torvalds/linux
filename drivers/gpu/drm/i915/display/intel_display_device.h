@@ -22,81 +22,81 @@ struct drm_printer;
 #define INTEL_DISPLAY_PLATFORMS(func) \
 	func(PLATFORM_UNINITIALIZED) \
 	/* Display ver 2 */ \
-	func(I830) \
-	func(I845G) \
-	func(I85X) \
-	func(I865G) \
+	func(i830) \
+	func(i845g) \
+	func(i85x) \
+	func(i865g) \
 	/* Display ver 3 */ \
-	func(I915G) \
-	func(I915GM) \
-	func(I945G) \
-	func(I945GM) \
-	func(G33) \
-	func(PINEVIEW) \
+	func(i915g) \
+	func(i915gm) \
+	func(i945g) \
+	func(i945gm) \
+	func(g33) \
+	func(pineview) \
 	/* Display ver 4 */ \
-	func(I965G) \
-	func(I965GM) \
-	func(G45) \
-	func(GM45) \
+	func(i965g) \
+	func(i965gm) \
+	func(g45) \
+	func(gm45) \
 	/* Display ver 5 */ \
-	func(IRONLAKE) \
+	func(ironlake) \
 	/* Display ver 6 */ \
-	func(SANDYBRIDGE) \
+	func(sandybridge) \
 	/* Display ver 7 */ \
-	func(IVYBRIDGE) \
-	func(VALLEYVIEW) \
-	func(HASWELL) \
-	func(HASWELL_ULT) \
-	func(HASWELL_ULX) \
+	func(ivybridge) \
+	func(valleyview) \
+	func(haswell) \
+	func(haswell_ult) \
+	func(haswell_ulx) \
 	/* Display ver 8 */ \
-	func(BROADWELL) \
-	func(BROADWELL_ULT) \
-	func(BROADWELL_ULX) \
-	func(CHERRYVIEW) \
+	func(broadwell) \
+	func(broadwell_ult) \
+	func(broadwell_ulx) \
+	func(cherryview) \
 	/* Display ver 9 */ \
-	func(SKYLAKE) \
-	func(SKYLAKE_ULT) \
-	func(SKYLAKE_ULX) \
-	func(BROXTON) \
-	func(KABYLAKE) \
-	func(KABYLAKE_ULT) \
-	func(KABYLAKE_ULX) \
-	func(GEMINILAKE) \
-	func(COFFEELAKE) \
-	func(COFFEELAKE_ULT) \
-	func(COFFEELAKE_ULX) \
-	func(COMETLAKE) \
-	func(COMETLAKE_ULT) \
-	func(COMETLAKE_ULX) \
+	func(skylake) \
+	func(skylake_ult) \
+	func(skylake_ulx) \
+	func(broxton) \
+	func(kabylake) \
+	func(kabylake_ult) \
+	func(kabylake_ulx) \
+	func(geminilake) \
+	func(coffeelake) \
+	func(coffeelake_ult) \
+	func(coffeelake_ulx) \
+	func(cometlake) \
+	func(cometlake_ult) \
+	func(cometlake_ulx) \
 	/* Display ver 11 */ \
-	func(ICELAKE) \
-	func(ICELAKE_PORT_F) \
-	func(JASPERLAKE) \
-	func(ELKHARTLAKE) \
+	func(icelake) \
+	func(icelake_port_f) \
+	func(jasperlake) \
+	func(elkhartlake) \
 	/* Display ver 12 */ \
-	func(TIGERLAKE) \
-	func(TIGERLAKE_UY) \
-	func(ROCKETLAKE) \
-	func(DG1) \
-	func(ALDERLAKE_S) \
-	func(ALDERLAKE_S_RAPTORLAKE_S) \
+	func(tigerlake) \
+	func(tigerlake_uy) \
+	func(rocketlake) \
+	func(dg1) \
+	func(alderlake_s) \
+	func(alderlake_s_raptorlake_s) \
 	/* Display ver 13 */ \
-	func(ALDERLAKE_P) \
-	func(ALDERLAKE_P_ALDERLAKE_N) \
-	func(ALDERLAKE_P_RAPTORLAKE_P) \
-	func(ALDERLAKE_P_RAPTORLAKE_U) \
-	func(DG2) \
-	func(DG2_G10) \
-	func(DG2_G11) \
-	func(DG2_G12) \
+	func(alderlake_p) \
+	func(alderlake_p_alderlake_n) \
+	func(alderlake_p_raptorlake_p) \
+	func(alderlake_p_raptorlake_u) \
+	func(dg2) \
+	func(dg2_g10) \
+	func(dg2_g11) \
+	func(dg2_g12) \
 	/* Display ver 14 (based on GMD ID) */ \
-	func(METEORLAKE) \
+	func(meteorlake) \
 	/* Display ver 20 (based on GMD ID) */ \
-	func(LUNARLAKE) \
+	func(lunarlake) \
 	/* Display ver 14.1 (based on GMD ID) */ \
-	func(BATTLEMAGE) \
+	func(battlemage) \
 	/* Display ver 30 (based on GMD ID) */ \
-	func(PANTHERLAKE)
+	func(pantherlake)
 
 #define __ENUM(x) INTEL_DISPLAY_ ## x,
 

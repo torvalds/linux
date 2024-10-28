@@ -237,7 +237,7 @@ static const struct intel_display_device_info no_display = {};
 	.__runtime_defaults.cpu_transcoder_mask = BIT(TRANSCODER_A)
 
 static const struct platform_desc i830_desc = {
-	PLATFORM(I830),
+	PLATFORM(i830),
 	.info = &(const struct intel_display_device_info) {
 		I830_DISPLAY,
 
@@ -246,7 +246,7 @@ static const struct platform_desc i830_desc = {
 };
 
 static const struct platform_desc i845_desc = {
-	PLATFORM(I845G),
+	PLATFORM(i845g),
 	.info = &(const struct intel_display_device_info) {
 		I845_DISPLAY,
 
@@ -255,7 +255,7 @@ static const struct platform_desc i845_desc = {
 };
 
 static const struct platform_desc i85x_desc = {
-	PLATFORM(I85X),
+	PLATFORM(i85x),
 	.info = &(const struct intel_display_device_info) {
 		I830_DISPLAY,
 
@@ -265,7 +265,7 @@ static const struct platform_desc i85x_desc = {
 };
 
 static const struct platform_desc i865g_desc = {
-	PLATFORM(I865G),
+	PLATFORM(i865g),
 	.info = &(const struct intel_display_device_info) {
 		I845_DISPLAY,
 
@@ -287,7 +287,7 @@ static const struct platform_desc i865g_desc = {
 	.__runtime_defaults.port_mask = BIT(PORT_B) | BIT(PORT_C) /* SDVO B/C */
 
 static const struct platform_desc i915g_desc = {
-	PLATFORM(I915G),
+	PLATFORM(i915g),
 	.info = &(const struct intel_display_device_info) {
 		GEN3_DISPLAY,
 		I845_COLORS,
@@ -297,7 +297,7 @@ static const struct platform_desc i915g_desc = {
 };
 
 static const struct platform_desc i915gm_desc = {
-	PLATFORM(I915GM),
+	PLATFORM(i915gm),
 	.info = &(const struct intel_display_device_info) {
 		GEN3_DISPLAY,
 		I9XX_COLORS,
@@ -310,7 +310,7 @@ static const struct platform_desc i915gm_desc = {
 };
 
 static const struct platform_desc i945g_desc = {
-	PLATFORM(I945G),
+	PLATFORM(i945g),
 	.info = &(const struct intel_display_device_info) {
 		GEN3_DISPLAY,
 		I845_COLORS,
@@ -321,7 +321,7 @@ static const struct platform_desc i945g_desc = {
 };
 
 static const struct platform_desc i945gm_desc = {
-	PLATFORM(I915GM),
+	PLATFORM(i915gm),
 	.info = &(const struct intel_display_device_info) {
 		GEN3_DISPLAY,
 		I9XX_COLORS,
@@ -335,7 +335,7 @@ static const struct platform_desc i945gm_desc = {
 };
 
 static const struct platform_desc g33_desc = {
-	PLATFORM(G33),
+	PLATFORM(g33),
 	.info = &(const struct intel_display_device_info) {
 		GEN3_DISPLAY,
 		I845_COLORS,
@@ -344,7 +344,7 @@ static const struct platform_desc g33_desc = {
 };
 
 static const struct platform_desc pnv_desc = {
-	PLATFORM(PINEVIEW),
+	PLATFORM(pineview),
 	.info = &(const struct intel_display_device_info) {
 		GEN3_DISPLAY,
 		I9XX_COLORS,
@@ -365,7 +365,7 @@ static const struct platform_desc pnv_desc = {
 		BIT(TRANSCODER_A) | BIT(TRANSCODER_B)
 
 static const struct platform_desc i965g_desc = {
-	PLATFORM(I965G),
+	PLATFORM(i965g),
 	.info = &(const struct intel_display_device_info) {
 		GEN4_DISPLAY,
 		.has_overlay = 1,
@@ -375,7 +375,7 @@ static const struct platform_desc i965g_desc = {
 };
 
 static const struct platform_desc i965gm_desc = {
-	PLATFORM(I965GM),
+	PLATFORM(i965gm),
 	.info = &(const struct intel_display_device_info) {
 		GEN4_DISPLAY,
 		.has_overlay = 1,
@@ -387,7 +387,7 @@ static const struct platform_desc i965gm_desc = {
 };
 
 static const struct platform_desc g45_desc = {
-	PLATFORM(G45),
+	PLATFORM(g45),
 	.info = &(const struct intel_display_device_info) {
 		GEN4_DISPLAY,
 
@@ -396,7 +396,7 @@ static const struct platform_desc g45_desc = {
 };
 
 static const struct platform_desc gm45_desc = {
-	PLATFORM(GM45),
+	PLATFORM(gm45),
 	.info = &(const struct intel_display_device_info) {
 		GEN4_DISPLAY,
 		.supports_tv = 1,
@@ -419,14 +419,14 @@ static const struct platform_desc gm45_desc = {
 	.__runtime_defaults.port_mask = BIT(PORT_A) | BIT(PORT_B) | BIT(PORT_C) | BIT(PORT_D) /* DP A, SDVO/HDMI/DP B, HDMI/DP C/D */
 
 static const struct platform_desc ilk_d_desc = {
-	PLATFORM(IRONLAKE),
+	PLATFORM(ironlake),
 	.info = &(const struct intel_display_device_info) {
 		ILK_DISPLAY,
 	},
 };
 
 static const struct platform_desc ilk_m_desc = {
-	PLATFORM(IRONLAKE),
+	PLATFORM(ironlake),
 	.info = &(const struct intel_display_device_info) {
 		ILK_DISPLAY,
 
@@ -435,7 +435,7 @@ static const struct platform_desc ilk_m_desc = {
 };
 
 static const struct platform_desc snb_desc = {
-	PLATFORM(SANDYBRIDGE),
+	PLATFORM(sandybridge),
 	.info = &(const struct intel_display_device_info) {
 		.has_hotplug = 1,
 		I9XX_PIPE_OFFSETS,
@@ -452,7 +452,7 @@ static const struct platform_desc snb_desc = {
 };
 
 static const struct platform_desc ivb_desc = {
-	PLATFORM(IVYBRIDGE),
+	PLATFORM(ivybridge),
 	.info = &(const struct intel_display_device_info) {
 		.has_hotplug = 1,
 		IVB_PIPE_OFFSETS,
@@ -469,7 +469,7 @@ static const struct platform_desc ivb_desc = {
 };
 
 static const struct platform_desc vlv_desc = {
-	PLATFORM(VALLEYVIEW),
+	PLATFORM(valleyview),
 	.info = &(const struct intel_display_device_info) {
 		.has_gmch = 1,
 		.has_hotplug = 1,
@@ -500,14 +500,14 @@ static const u16 hsw_ulx_ids[] = {
 };
 
 static const struct platform_desc hsw_desc = {
-	PLATFORM(HASWELL),
+	PLATFORM(haswell),
 	.subplatforms = (const struct subplatform_desc[]) {
 		{
-			SUBPLATFORM(HASWELL, ULT),
+			SUBPLATFORM(haswell, ult),
 			.pciidlist = hsw_ult_ids,
 		},
 		{
-			SUBPLATFORM(HASWELL, ULX),
+			SUBPLATFORM(haswell, ulx),
 			.pciidlist = hsw_ulx_ids,
 		},
 		{},
@@ -550,14 +550,14 @@ static const u16 bdw_ulx_ids[] = {
 };
 
 static const struct platform_desc bdw_desc = {
-	PLATFORM(BROADWELL),
+	PLATFORM(broadwell),
 	.subplatforms = (const struct subplatform_desc[]) {
 		{
-			SUBPLATFORM(BROADWELL, ULT),
+			SUBPLATFORM(broadwell, ult),
 			.pciidlist = bdw_ult_ids,
 		},
 		{
-			SUBPLATFORM(BROADWELL, ULX),
+			SUBPLATFORM(broadwell, ulx),
 			.pciidlist = bdw_ulx_ids,
 		},
 		{},
@@ -584,7 +584,7 @@ static const struct platform_desc bdw_desc = {
 };
 
 static const struct platform_desc chv_desc = {
-	PLATFORM(CHERRYVIEW),
+	PLATFORM(cherryview),
 	.info = &(const struct intel_display_device_info) {
 		.has_hotplug = 1,
 		.has_gmch = 1,
@@ -647,14 +647,14 @@ static const enum intel_step skl_steppings[] = {
 };
 
 static const struct platform_desc skl_desc = {
-	PLATFORM(SKYLAKE),
+	PLATFORM(skylake),
 	.subplatforms = (const struct subplatform_desc[]) {
 		{
-			SUBPLATFORM(SKYLAKE, ULT),
+			SUBPLATFORM(skylake, ult),
 			.pciidlist = skl_ult_ids,
 		},
 		{
-			SUBPLATFORM(SKYLAKE, ULX),
+			SUBPLATFORM(skylake, ulx),
 			.pciidlist = skl_ulx_ids,
 		},
 		{},
@@ -688,14 +688,14 @@ static const enum intel_step kbl_steppings[] = {
 };
 
 static const struct platform_desc kbl_desc = {
-	PLATFORM(KABYLAKE),
+	PLATFORM(kabylake),
 	.subplatforms = (const struct subplatform_desc[]) {
 		{
-			SUBPLATFORM(KABYLAKE, ULT),
+			SUBPLATFORM(kabylake, ult),
 			.pciidlist = kbl_ult_ids,
 		},
 		{
-			SUBPLATFORM(KABYLAKE, ULX),
+			SUBPLATFORM(kabylake, ulx),
 			.pciidlist = kbl_ulx_ids,
 		},
 		{},
@@ -719,14 +719,14 @@ static const u16 cfl_ulx_ids[] = {
 };
 
 static const struct platform_desc cfl_desc = {
-	PLATFORM(COFFEELAKE),
+	PLATFORM(coffeelake),
 	.subplatforms = (const struct subplatform_desc[]) {
 		{
-			SUBPLATFORM(COFFEELAKE, ULT),
+			SUBPLATFORM(coffeelake, ult),
 			.pciidlist = cfl_ult_ids,
 		},
 		{
-			SUBPLATFORM(COFFEELAKE, ULX),
+			SUBPLATFORM(coffeelake, ulx),
 			.pciidlist = cfl_ulx_ids,
 		},
 		{},
@@ -741,10 +741,10 @@ static const u16 cml_ult_ids[] = {
 };
 
 static const struct platform_desc cml_desc = {
-	PLATFORM(COMETLAKE),
+	PLATFORM(cometlake),
 	.subplatforms = (const struct subplatform_desc[]) {
 		{
-			SUBPLATFORM(COMETLAKE, ULT),
+			SUBPLATFORM(cometlake, ult),
 			.pciidlist = cml_ult_ids,
 		},
 		{},
@@ -783,7 +783,7 @@ static const enum intel_step bxt_steppings[] = {
 };
 
 static const struct platform_desc bxt_desc = {
-	PLATFORM(BROXTON),
+	PLATFORM(broxton),
 	.info = &(const struct intel_display_device_info) {
 		GEN9_LP_DISPLAY,
 		.dbuf.size = 512 - 4, /* 4 blocks for bypass path allocation */
@@ -798,7 +798,7 @@ static const enum intel_step glk_steppings[] = {
 };
 
 static const struct platform_desc glk_desc = {
-	PLATFORM(GEMINILAKE),
+	PLATFORM(geminilake),
 	.info = &(const struct intel_display_device_info) {
 		GEN9_LP_DISPLAY,
 		.dbuf.size = 1024 - 4, /* 4 blocks for bypass path allocation */
@@ -860,10 +860,10 @@ static const enum intel_step icl_steppings[] = {
 };
 
 static const struct platform_desc icl_desc = {
-	PLATFORM(ICELAKE),
+	PLATFORM(icelake),
 	.subplatforms = (const struct subplatform_desc[]) {
 		{
-			SUBPLATFORM(ICELAKE, PORT_F),
+			SUBPLATFORM(icelake, port_f),
 			.pciidlist = icl_port_f_ids,
 		},
 		{},
@@ -888,13 +888,13 @@ static const enum intel_step jsl_ehl_steppings[] = {
 };
 
 static const struct platform_desc jsl_desc = {
-	PLATFORM(JASPERLAKE),
+	PLATFORM(jasperlake),
 	.info = &jsl_ehl_display,
 	STEP_INFO(jsl_ehl_steppings),
 };
 
 static const struct platform_desc ehl_desc = {
-	PLATFORM(ELKHARTLAKE),
+	PLATFORM(elkhartlake),
 	.info = &jsl_ehl_display,
 	STEP_INFO(jsl_ehl_steppings),
 };
@@ -960,10 +960,10 @@ static const enum intel_step tgl_uy_steppings[] = {
 };
 
 static const struct platform_desc tgl_desc = {
-	PLATFORM(TIGERLAKE),
+	PLATFORM(tigerlake),
 	.subplatforms = (const struct subplatform_desc[]) {
 		{
-			SUBPLATFORM(TIGERLAKE, UY),
+			SUBPLATFORM(tigerlake, uy),
 			.pciidlist = tgl_uy_ids,
 			STEP_INFO(tgl_uy_steppings),
 		},
@@ -988,7 +988,7 @@ static const enum intel_step dg1_steppings[] = {
 };
 
 static const struct platform_desc dg1_desc = {
-	PLATFORM(DG1),
+	PLATFORM(dg1),
 	.info = &(const struct intel_display_device_info) {
 		XE_D_DISPLAY,
 
@@ -1005,7 +1005,7 @@ static const enum intel_step rkl_steppings[] = {
 };
 
 static const struct platform_desc rkl_desc = {
-	PLATFORM(ROCKETLAKE),
+	PLATFORM(rocketlake),
 	.info = &(const struct intel_display_device_info) {
 		XE_D_DISPLAY,
 		.abox_mask = BIT(0),
@@ -1040,10 +1040,10 @@ static const enum intel_step adl_s_rpl_s_steppings[] = {
 };
 
 static const struct platform_desc adl_s_desc = {
-	PLATFORM(ALDERLAKE_S),
+	PLATFORM(alderlake_s),
 	.subplatforms = (const struct subplatform_desc[]) {
 		{
-			SUBPLATFORM(ALDERLAKE_S, RAPTORLAKE_S),
+			SUBPLATFORM(alderlake_s, raptorlake_s),
 			.pciidlist = adls_rpls_ids,
 			STEP_INFO(adl_s_rpl_s_steppings),
 		},
@@ -1147,20 +1147,20 @@ static const enum intel_step adl_p_rpl_pu_steppings[] = {
 };
 
 static const struct platform_desc adl_p_desc = {
-	PLATFORM(ALDERLAKE_P),
+	PLATFORM(alderlake_p),
 	.subplatforms = (const struct subplatform_desc[]) {
 		{
-			SUBPLATFORM(ALDERLAKE_P, ALDERLAKE_N),
+			SUBPLATFORM(alderlake_p, alderlake_n),
 			.pciidlist = adlp_adln_ids,
 			STEP_INFO(adl_p_adl_n_steppings),
 		},
 		{
-			SUBPLATFORM(ALDERLAKE_P, RAPTORLAKE_P),
+			SUBPLATFORM(alderlake_p, raptorlake_p),
 			.pciidlist = adlp_rplp_ids,
 			STEP_INFO(adl_p_rpl_pu_steppings),
 		},
 		{
-			SUBPLATFORM(ALDERLAKE_P, RAPTORLAKE_U),
+			SUBPLATFORM(alderlake_p, raptorlake_u),
 			.pciidlist = adlp_rplu_ids,
 			STEP_INFO(adl_p_rpl_pu_steppings),
 		},
@@ -1215,20 +1215,20 @@ static const enum intel_step dg2_g12_steppings[] = {
 };
 
 static const struct platform_desc dg2_desc = {
-	PLATFORM(DG2),
+	PLATFORM(dg2),
 	.subplatforms = (const struct subplatform_desc[]) {
 		{
-			SUBPLATFORM(DG2, G10),
+			SUBPLATFORM(dg2, g10),
 			.pciidlist = dg2_g10_ids,
 			STEP_INFO(dg2_g10_steppings),
 		},
 		{
-			SUBPLATFORM(DG2, G11),
+			SUBPLATFORM(dg2, g11),
 			.pciidlist = dg2_g11_ids,
 			STEP_INFO(dg2_g11_steppings),
 		},
 		{
-			SUBPLATFORM(DG2, G12),
+			SUBPLATFORM(dg2, g12),
 			.pciidlist = dg2_g12_ids,
 			STEP_INFO(dg2_g12_steppings),
 		},
@@ -1306,19 +1306,19 @@ static const struct intel_display_device_info xe2_hpd_display = {
  * reported by the hardware.
  */
 static const struct platform_desc mtl_desc = {
-	PLATFORM(METEORLAKE),
+	PLATFORM(meteorlake),
 };
 
 static const struct platform_desc lnl_desc = {
-	PLATFORM(LUNARLAKE),
+	PLATFORM(lunarlake),
 };
 
 static const struct platform_desc bmg_desc = {
-	PLATFORM(BATTLEMAGE),
+	PLATFORM(battlemage),
 };
 
 static const struct platform_desc ptl_desc = {
-	PLATFORM(PANTHERLAKE),
+	PLATFORM(pantherlake),
 };
 
 __diag_pop();
