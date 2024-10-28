@@ -141,7 +141,8 @@ static bool gic_irq_lock_cluster(struct irq_data *d)
 	cl = cpu_cluster(&cpu_data[cpu]);
 	if (cl == cpu_cluster(&current_cpu_data))
 		return false;
-
+	if (mips_cps_numcores(cl) == 0)
+		return false;
 	mips_cm_lock_other(cl, 0, 0, CM_GCR_Cx_OTHER_BLOCK_GLOBAL);
 	return true;
 }
@@ -507,6 +508,9 @@ static void gic_mask_local_irq_all_vpes(struct irq_data *d)
 	struct gic_all_vpes_chip_data *cd;
 	int intr, cpu;
 
+	if (!mips_cps_multicluster_cpus())
+		return;
+
 	intr = GIC_HWIRQ_TO_LOCAL(d->hwirq);
 	cd = irq_data_get_irq_chip_data(d);
 	cd->mask = false;
@@ -519,6 +523,9 @@ static void gic_unmask_local_irq_all_vpes(struct irq_data *d)
 {
 	struct gic_all_vpes_chip_data *cd;
 	int intr, cpu;
+
+	if (!mips_cps_multicluster_cpus())
+		return;
 
 	intr = GIC_HWIRQ_TO_LOCAL(d->hwirq);
 	cd = irq_data_get_irq_chip_data(d);
@@ -687,8 +694,10 @@ static int gic_irq_domain_map(struct irq_domain *d, unsigned int virq,
 	if (!gic_local_irq_is_routable(intr))
 		return -EPERM;
 
-	for_each_online_cpu_gic(cpu, &gic_lock)
-		write_gic_vo_map(mips_gic_vx_map_reg(intr), map);
+	if (mips_cps_multicluster_cpus()) {
+		for_each_online_cpu_gic(cpu, &gic_lock)
+			write_gic_vo_map(mips_gic_vx_map_reg(intr), map);
+	}
 
 	return 0;
 }
@@ -982,7 +991,7 @@ static int __init gic_of_init(struct device_node *node,
 				change_gic_trig(i, GIC_TRIG_LEVEL);
 				write_gic_rmask(i);
 			}
-		} else {
+		} else if (mips_cps_numcores(cl) != 0) {
 			mips_cm_lock_other(cl, 0, 0, CM_GCR_Cx_OTHER_BLOCK_GLOBAL);
 			for (i = 0; i < gic_shared_intrs; i++) {
 				change_gic_redir_pol(i, GIC_POL_ACTIVE_HIGH);
@@ -990,6 +999,9 @@ static int __init gic_of_init(struct device_node *node,
 				write_gic_redir_rmask(i);
 			}
 			mips_cm_unlock_other();
+
+		} else {
+			pr_warn("No CPU cores on the cluster %d skip it\n", cl);
 		}
 	}
 
