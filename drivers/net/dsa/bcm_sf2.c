@@ -1183,8 +1183,8 @@ static void bcm_sf2_sw_get_strings(struct dsa_switch *ds, int port,
 	int cnt = b53_get_sset_count(ds, port, stringset);
 
 	b53_get_strings(ds, port, stringset, data);
-	bcm_sf2_cfp_get_strings(ds, port, stringset,
-				data + cnt * ETH_GSTRING_LEN);
+	data += cnt * ETH_GSTRING_LEN;
+	bcm_sf2_cfp_get_strings(ds, port, stringset, &data);
 }
 
 static void bcm_sf2_sw_get_ethtool_stats(struct dsa_switch *ds, int port,

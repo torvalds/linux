@@ -2112,10 +2112,8 @@ static void ksz_get_strings(struct dsa_switch *ds, int port,
 	if (stringset != ETH_SS_STATS)
 		return;
 
-	for (i = 0; i < dev->info->mib_cnt; i++) {
-		memcpy(buf + i * ETH_GSTRING_LEN,
-		       dev->info->mib_names[i].string, ETH_GSTRING_LEN);
-	}
+	for (i = 0; i < dev->info->mib_cnt; i++)
+		ethtool_puts(&buf, dev->info->mib_names[i].string);
 }
 
 /**

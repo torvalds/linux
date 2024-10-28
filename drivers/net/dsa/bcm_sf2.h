@@ -228,8 +228,8 @@ int bcm_sf2_set_rxnfc(struct dsa_switch *ds, int port,
 int bcm_sf2_cfp_rst(struct bcm_sf2_priv *priv);
 void bcm_sf2_cfp_exit(struct dsa_switch *ds);
 int bcm_sf2_cfp_resume(struct dsa_switch *ds);
-void bcm_sf2_cfp_get_strings(struct dsa_switch *ds, int port,
-			     u32 stringset, uint8_t *data);
+void bcm_sf2_cfp_get_strings(struct dsa_switch *ds, int port, u32 stringset,
+			     uint8_t **data);
 void bcm_sf2_cfp_get_ethtool_stats(struct dsa_switch *ds, int port,
 				   uint64_t *data);
 int bcm_sf2_cfp_get_sset_count(struct dsa_switch *ds, int port, int sset);

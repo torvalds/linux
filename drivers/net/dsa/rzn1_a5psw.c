@@ -802,10 +802,8 @@ static void a5psw_get_strings(struct dsa_switch *ds, int port, u32 stringset,
 	if (stringset != ETH_SS_STATS)
 		return;
 
-	for (u = 0; u < ARRAY_SIZE(a5psw_stats); u++) {
-		memcpy(data + u * ETH_GSTRING_LEN, a5psw_stats[u].name,
-		       ETH_GSTRING_LEN);
-	}
+	for (u = 0; u < ARRAY_SIZE(a5psw_stats); u++)
+		ethtool_puts(&data, a5psw_stats[u].name);
 }
 
 static void a5psw_get_ethtool_stats(struct dsa_switch *ds, int port,

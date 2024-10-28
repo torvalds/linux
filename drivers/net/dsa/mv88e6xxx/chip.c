@@ -1153,42 +1153,37 @@ static uint64_t _mv88e6xxx_get_ethtool_stat(struct mv88e6xxx_chip *chip,
 	return value;
 }
 
-static int mv88e6xxx_stats_get_strings(struct mv88e6xxx_chip *chip,
-				       uint8_t *data, int types)
+static void mv88e6xxx_stats_get_strings(struct mv88e6xxx_chip *chip,
+					uint8_t **data, int types)
 {
 	const struct mv88e6xxx_hw_stat *stat;
-	int i, j;
+	int i;
 
-	for (i = 0, j = 0; i < ARRAY_SIZE(mv88e6xxx_hw_stats); i++) {
+	for (i = 0; i < ARRAY_SIZE(mv88e6xxx_hw_stats); i++) {
 		stat = &mv88e6xxx_hw_stats[i];
-		if (stat->type & types) {
-			memcpy(data + j * ETH_GSTRING_LEN, stat->string,
-			       ETH_GSTRING_LEN);
-			j++;
-		}
+		if (stat->type & types)
+			ethtool_puts(data, stat->string);
 	}
-
-	return j;
 }
 
-static int mv88e6095_stats_get_strings(struct mv88e6xxx_chip *chip,
-				       uint8_t *data)
+static void mv88e6095_stats_get_strings(struct mv88e6xxx_chip *chip,
+					uint8_t **data)
 {
-	return mv88e6xxx_stats_get_strings(chip, data,
-					   STATS_TYPE_BANK0 | STATS_TYPE_PORT);
+	mv88e6xxx_stats_get_strings(chip, data,
+				    STATS_TYPE_BANK0 | STATS_TYPE_PORT);
 }
 
-static int mv88e6250_stats_get_strings(struct mv88e6xxx_chip *chip,
-				       uint8_t *data)
+static void mv88e6250_stats_get_strings(struct mv88e6xxx_chip *chip,
+					uint8_t **data)
 {
-	return mv88e6xxx_stats_get_strings(chip, data, STATS_TYPE_BANK0);
+	mv88e6xxx_stats_get_strings(chip, data, STATS_TYPE_BANK0);
 }
 
-static int mv88e6320_stats_get_strings(struct mv88e6xxx_chip *chip,
-				       uint8_t *data)
+static void mv88e6320_stats_get_strings(struct mv88e6xxx_chip *chip,
+					uint8_t **data)
 {
-	return mv88e6xxx_stats_get_strings(chip, data,
-					   STATS_TYPE_BANK0 | STATS_TYPE_BANK1);
+	mv88e6xxx_stats_get_strings(chip, data,
+				    STATS_TYPE_BANK0 | STATS_TYPE_BANK1);
 }
 
 static const uint8_t *mv88e6xxx_atu_vtu_stats_strings[] = {
@@ -1199,21 +1194,18 @@ static const uint8_t *mv88e6xxx_atu_vtu_stats_strings[] = {
 	"vtu_miss_violation",
 };
 
-static void mv88e6xxx_atu_vtu_get_strings(uint8_t *data)
+static void mv88e6xxx_atu_vtu_get_strings(uint8_t **data)
 {
 	unsigned int i;
 
 	for (i = 0; i < ARRAY_SIZE(mv88e6xxx_atu_vtu_stats_strings); i++)
-		strscpy(data + i * ETH_GSTRING_LEN,
-			mv88e6xxx_atu_vtu_stats_strings[i],
-			ETH_GSTRING_LEN);
+		ethtool_puts(data, mv88e6xxx_atu_vtu_stats_strings[i]);
 }
 
 static void mv88e6xxx_get_strings(struct dsa_switch *ds, int port,
 				  u32 stringset, uint8_t *data)
 {
 	struct mv88e6xxx_chip *chip = ds->priv;
-	int count = 0;
 
 	if (stringset != ETH_SS_STATS)
 		return;
@@ -1221,15 +1213,12 @@ static void mv88e6xxx_get_strings(struct dsa_switch *ds, int port,
 	mv88e6xxx_reg_lock(chip);
 
 	if (chip->info->ops->stats_get_strings)
-		count = chip->info->ops->stats_get_strings(chip, data);
+		chip->info->ops->stats_get_strings(chip, &data);
 
-	if (chip->info->ops->serdes_get_strings) {
-		data += count * ETH_GSTRING_LEN;
-		count = chip->info->ops->serdes_get_strings(chip, port, data);
-	}
+	if (chip->info->ops->serdes_get_strings)
+		chip->info->ops->serdes_get_strings(chip, port, &data);
 
-	data += count * ETH_GSTRING_LEN;
-	mv88e6xxx_atu_vtu_get_strings(data);
+	mv88e6xxx_atu_vtu_get_strings(&data);
 
 	mv88e6xxx_reg_unlock(chip);
 }

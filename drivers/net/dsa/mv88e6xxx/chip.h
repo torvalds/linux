@@ -606,7 +606,7 @@ struct mv88e6xxx_ops {
 
 	/* Return the number of strings describing statistics */
 	int (*stats_get_sset_count)(struct mv88e6xxx_chip *chip);
-	int (*stats_get_strings)(struct mv88e6xxx_chip *chip,  uint8_t *data);
+	void (*stats_get_strings)(struct mv88e6xxx_chip *chip, uint8_t **data);
 	size_t (*stats_get_stat)(struct mv88e6xxx_chip *chip, int port,
 				 const struct mv88e6xxx_hw_stat *stat,
 				 uint64_t *data);
@@ -633,8 +633,8 @@ struct mv88e6xxx_ops {
 
 	/* Statistics from the SERDES interface */
 	int (*serdes_get_sset_count)(struct mv88e6xxx_chip *chip, int port);
-	int (*serdes_get_strings)(struct mv88e6xxx_chip *chip,  int port,
-				  uint8_t *data);
+	int (*serdes_get_strings)(struct mv88e6xxx_chip *chip, int port,
+				  uint8_t **data);
 	size_t (*serdes_get_stats)(struct mv88e6xxx_chip *chip, int port,
 				   uint64_t *data);
 
