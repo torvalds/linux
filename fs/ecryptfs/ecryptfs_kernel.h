@@ -343,6 +343,13 @@ struct ecryptfs_mount_crypt_stat {
 	unsigned char global_default_fn_cipher_name[
 		ECRYPTFS_MAX_CIPHER_NAME_SIZE + 1];
 	char global_default_fnek_sig[ECRYPTFS_SIG_SIZE_HEX + 1];
+	/* Mount option status trackers */
+	bool check_ruid;
+	bool sig_set;
+	bool cipher_name_set;
+	bool cipher_key_bytes_set;
+	bool fn_cipher_name_set;
+	bool fn_cipher_key_bytes_set;
 };
 
 /* superblock private data. */

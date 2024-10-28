@@ -239,18 +239,12 @@ static void ecryptfs_init_mount_crypt_stat(
  *
  * Returns zero on success; non-zero on error
  */
-static int ecryptfs_parse_options(struct ecryptfs_sb_info *sbi, char *options,
-				  uid_t *check_ruid)
+static int ecryptfs_parse_options(struct ecryptfs_sb_info *sbi, char *options)
 {
 	char *p;
 	int rc = 0;
-	int sig_set = 0;
-	int cipher_name_set = 0;
-	int fn_cipher_name_set = 0;
 	int cipher_key_bytes;
-	int cipher_key_bytes_set = 0;
 	int fn_cipher_key_bytes;
-	int fn_cipher_key_bytes_set = 0;
 	struct ecryptfs_mount_crypt_stat *mount_crypt_stat =
 		&sbi->mount_crypt_stat;
 	substring_t args[MAX_OPT_ARGS];
@@ -261,9 +255,6 @@ static int ecryptfs_parse_options(struct ecryptfs_sb_info *sbi, char *options,
 	char *fnek_src;
 	char *cipher_key_bytes_src;
 	char *fn_cipher_key_bytes_src;
-	u8 cipher_code;
-
-	*check_ruid = 0;
 
 	if (!options) {
 		rc = -EINVAL;
@@ -285,14 +276,14 @@ static int ecryptfs_parse_options(struct ecryptfs_sb_info *sbi, char *options,
 				       "global sig; rc = [%d]\n", rc);
 				goto out;
 			}
-			sig_set = 1;
+			mount_crypt_stat->sig_set = 1;
 			break;
 		case ecryptfs_opt_cipher:
 		case ecryptfs_opt_ecryptfs_cipher:
 			cipher_name_src = args[0].from;
 			strscpy(mount_crypt_stat->global_default_cipher_name,
 				cipher_name_src);
-			cipher_name_set = 1;
+			mount_crypt_stat->cipher_name_set = 1;
 			break;
 		case ecryptfs_opt_ecryptfs_key_bytes:
 			cipher_key_bytes_src = args[0].from;
@@ -301,7 +292,7 @@ static int ecryptfs_parse_options(struct ecryptfs_sb_info *sbi, char *options,
 						   &cipher_key_bytes_src, 0);
 			mount_crypt_stat->global_default_cipher_key_size =
 				cipher_key_bytes;
-			cipher_key_bytes_set = 1;
+			mount_crypt_stat->cipher_key_bytes_set = 1;
 			break;
 		case ecryptfs_opt_passthrough:
 			mount_crypt_stat->flags |=
@@ -340,7 +331,7 @@ static int ecryptfs_parse_options(struct ecryptfs_sb_info *sbi, char *options,
 			fn_cipher_name_src = args[0].from;
 			strscpy(mount_crypt_stat->global_default_fn_cipher_name,
 				fn_cipher_name_src);
-			fn_cipher_name_set = 1;
+			mount_crypt_stat->fn_cipher_name_set = 1;
 			break;
 		case ecryptfs_opt_fn_cipher_key_bytes:
 			fn_cipher_key_bytes_src = args[0].from;
@@ -349,7 +340,7 @@ static int ecryptfs_parse_options(struct ecryptfs_sb_info *sbi, char *options,
 						   &fn_cipher_key_bytes_src, 0);
 			mount_crypt_stat->global_default_fn_cipher_key_bytes =
 				fn_cipher_key_bytes;
-			fn_cipher_key_bytes_set = 1;
+			mount_crypt_stat->fn_cipher_key_bytes_set = 1;
 			break;
 		case ecryptfs_opt_unlink_sigs:
 			mount_crypt_stat->flags |= ECRYPTFS_UNLINK_SIGS;
@@ -359,7 +350,7 @@ static int ecryptfs_parse_options(struct ecryptfs_sb_info *sbi, char *options,
 				ECRYPTFS_GLOBAL_MOUNT_AUTH_TOK_ONLY;
 			break;
 		case ecryptfs_opt_check_dev_ruid:
-			*check_ruid = 1;
+			mount_crypt_stat->check_ruid = 1;
 			break;
 		case ecryptfs_opt_err:
 		default:
@@ -368,14 +359,25 @@ static int ecryptfs_parse_options(struct ecryptfs_sb_info *sbi, char *options,
 			       __func__, p);
 		}
 	}
-	if (!sig_set) {
+
+out:
+	return rc;
+}
+
+static int ecryptfs_validate_options(
+		struct ecryptfs_mount_crypt_stat *mount_crypt_stat)
+{
+	int rc = 0;
+	u8 cipher_code;
+
+	if (!mount_crypt_stat->sig_set) {
 		rc = -EINVAL;
 		ecryptfs_printk(KERN_ERR, "You must supply at least one valid "
 				"auth tok signature as a mount "
 				"parameter; see the eCryptfs README\n");
 		goto out;
 	}
-	if (!cipher_name_set) {
+	if (!mount_crypt_stat->cipher_name_set) {
 		int cipher_name_len = strlen(ECRYPTFS_DEFAULT_CIPHER);
 
 		BUG_ON(cipher_name_len > ECRYPTFS_MAX_CIPHER_NAME_SIZE);
@@ -383,13 +385,13 @@ static int ecryptfs_parse_options(struct ecryptfs_sb_info *sbi, char *options,
 		       ECRYPTFS_DEFAULT_CIPHER);
 	}
 	if ((mount_crypt_stat->flags & ECRYPTFS_GLOBAL_ENCRYPT_FILENAMES)
-	    && !fn_cipher_name_set)
+	    && !mount_crypt_stat->fn_cipher_name_set)
 		strcpy(mount_crypt_stat->global_default_fn_cipher_name,
 		       mount_crypt_stat->global_default_cipher_name);
-	if (!cipher_key_bytes_set)
+	if (!mount_crypt_stat->cipher_key_bytes_set)
 		mount_crypt_stat->global_default_cipher_key_size = 0;
 	if ((mount_crypt_stat->flags & ECRYPTFS_GLOBAL_ENCRYPT_FILENAMES)
-	    && !fn_cipher_key_bytes_set)
+	    && !mount_crypt_stat->fn_cipher_key_bytes_set)
 		mount_crypt_stat->global_default_fn_cipher_key_bytes =
 			mount_crypt_stat->global_default_cipher_key_size;
 
@@ -469,7 +471,6 @@ static struct dentry *ecryptfs_mount(struct file_system_type *fs_type, int flags
 	const char *err = "Getting sb failed";
 	struct inode *inode;
 	struct path path;
-	uid_t check_ruid;
 	int rc;
 
 	sbi = kmem_cache_zalloc(ecryptfs_sb_info_cache, GFP_KERNEL);
@@ -484,12 +485,17 @@ static struct dentry *ecryptfs_mount(struct file_system_type *fs_type, int flags
 		goto out;
 	}
 
-	rc = ecryptfs_parse_options(sbi, raw_data, &check_ruid);
+	rc = ecryptfs_parse_options(sbi, raw_data);
 	if (rc) {
 		err = "Error parsing options";
 		goto out;
 	}
 	mount_crypt_stat = &sbi->mount_crypt_stat;
+	rc = ecryptfs_validate_options(mount_crypt_stat);
+	if (rc) {
+		err = "Error validationg options";
+		goto out;
+	}
 
 	s = sget(fs_type, NULL, set_anon_super, flags, NULL);
 	if (IS_ERR(s)) {
@@ -529,7 +535,8 @@ static struct dentry *ecryptfs_mount(struct file_system_type *fs_type, int flags
 		goto out_free;
 	}
 
-	if (check_ruid && !uid_eq(d_inode(path.dentry)->i_uid, current_uid())) {
+	if (mount_crypt_stat->check_ruid &&
+	    !uid_eq(d_inode(path.dentry)->i_uid, current_uid())) {
 		rc = -EPERM;
 		printk(KERN_ERR "Mount of device (uid: %d) not owned by "
 		       "requested user (uid: %d)\n",
