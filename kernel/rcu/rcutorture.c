@@ -267,6 +267,7 @@ struct rt_read_seg {
 static int err_segs_recorded;
 static struct rt_read_seg err_segs[RCUTORTURE_RDR_MAX_SEGS];
 static int rt_read_nsegs;
+static int rt_read_preempted;
 
 static const char *rcu_torture_writer_state_getname(void)
 {
@@ -394,6 +395,7 @@ struct rcu_torture_ops {
 	void (*get_gp_data)(int *flags, unsigned long *gp_seq);
 	void (*gp_slow_register)(atomic_t *rgssp);
 	void (*gp_slow_unregister)(atomic_t *rgssp);
+	bool (*reader_blocked)(void);
 	long cbflood_max;
 	int irq_capable;
 	int can_boost;
@@ -587,6 +589,9 @@ static struct rcu_torture_ops rcu_ops = {
 	.get_gp_data		= rcutorture_get_gp_data,
 	.gp_slow_register	= rcu_gp_slow_register,
 	.gp_slow_unregister	= rcu_gp_slow_unregister,
+	.reader_blocked		= IS_ENABLED(CONFIG_RCU_TORTURE_TEST_LOG_CPU)
+				  ? has_rcu_reader_blocked
+				  : NULL,
 	.irq_capable		= 1,
 	.can_boost		= IS_ENABLED(CONFIG_RCU_BOOST),
 	.extendables		= RCUTORTURE_MAX_EXTEND,
@@ -2035,6 +2040,7 @@ static bool rcu_torture_one_read(struct torture_random_state *trsp, long myid)
 	int newstate;
 	struct rcu_torture *p;
 	int pipe_count;
+	bool preempted = false;
 	int readstate = 0;
 	struct rt_read_seg rtseg[RCUTORTURE_RDR_MAX_SEGS] = { { 0 } };
 	struct rt_read_seg *rtrsp = &rtseg[0];
@@ -2100,6 +2106,8 @@ static bool rcu_torture_one_read(struct torture_random_state *trsp, long myid)
 				  rcu_torture_writer_state,
 				  cpumask_pr_args(cpu_online_mask));
 	}
+	if (cur_ops->reader_blocked)
+		preempted = cur_ops->reader_blocked();
 	rcutorture_one_extend(&readstate, 0, trsp, rtrsp);
 	WARN_ON_ONCE(readstate);
 	// This next splat is expected behavior if leakpointer, especially
@@ -2112,6 +2120,7 @@ static bool rcu_torture_one_read(struct torture_random_state *trsp, long myid)
 		for (rtrsp1 = &rtseg[0]; rtrsp1 < rtrsp; rtrsp1++)
 			err_segs[i++] = *rtrsp1;
 		rt_read_nsegs = i;
+		rt_read_preempted = preempted;
 	}
 
 	return true;
@@ -3569,6 +3578,8 @@ rcu_torture_cleanup(void)
 			pr_cont("\n");
 
 		}
+		if (rt_read_preempted)
+			pr_alert("\tReader was preempted.\n");
 	}
 	if (atomic_read(&n_rcu_torture_error) || n_rcu_torture_barrier_error)
 		rcu_torture_print_module_parms(cur_ops, "End of test: FAILURE");
