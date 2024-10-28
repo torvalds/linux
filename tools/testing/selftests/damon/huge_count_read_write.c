@@ -18,7 +18,7 @@
 void write_read_with_huge_count(char *file)
 {
 	int filedesc = open(file, O_RDWR);
-	char buf[25];
+	char buf[256];
 	int ret;
 
 	printf("%s %s\n", __func__, file);
