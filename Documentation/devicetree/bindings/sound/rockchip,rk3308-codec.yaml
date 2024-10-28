@@ -48,6 +48,10 @@ properties:
       - const: mclk_rx
       - const: hclk
 
+  port:
+    $ref: audio-graph-port.yaml#
+    unevaluatedProperties: false
+
   resets:
     maxItems: 1
 
