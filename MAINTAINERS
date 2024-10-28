@@ -10128,7 +10128,6 @@ S:	Maintained
 F:	drivers/hid/hid-logitech-hidpp.c
 
 HIGH-RESOLUTION TIMERS, TIMER WHEEL, CLOCKEVENTS
-M:	Anna-Maria Behnsen <anna-maria@linutronix.de>
 M:	Frederic Weisbecker <frederic@kernel.org>
 M:	Thomas Gleixner <tglx@linutronix.de>
 L:	linux-kernel@vger.kernel.org
@@ -16343,7 +16342,6 @@ F:	drivers/misc/nsm.c
 F:	include/uapi/linux/nsm.h
 
 NOHZ, DYNTICKS SUPPORT
-M:	Anna-Maria Behnsen <anna-maria@linutronix.de>
 M:	Frederic Weisbecker <frederic@kernel.org>
 M:	Ingo Molnar <mingo@kernel.org>
 M:	Thomas Gleixner <tglx@linutronix.de>
@@ -18332,7 +18330,6 @@ F:	drivers/pnp/
 F:	include/linux/pnp.h
 
 POSIX CLOCKS and TIMERS
-M:	Anna-Maria Behnsen <anna-maria@linutronix.de>
 M:	Frederic Weisbecker <frederic@kernel.org>
 M:	Thomas Gleixner <tglx@linutronix.de>
 L:	linux-kernel@vger.kernel.org
