@@ -1691,6 +1691,9 @@ iwl_mvm_handle_missed_beacons_notif(struct iwl_mvm *mvm,
 			ieee80211_beacon_loss(vif);
 		else
 			ieee80211_cqm_beacon_loss_notify(vif, GFP_ATOMIC);
+
+		/* try to switch links, no-op if we don't have MLO */
+		iwl_mvm_int_mlo_scan(mvm, vif);
 	}
 
 	iwl_dbg_tlv_time_point(&mvm->fwrt,
