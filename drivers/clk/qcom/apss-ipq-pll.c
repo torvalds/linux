@@ -73,7 +73,6 @@ static const struct alpha_pll_config ipq5018_pll_config = {
 	.main_output_mask = BIT(0),
 	.aux_output_mask = BIT(1),
 	.early_output_mask = BIT(3),
-	.alpha_en_mask = BIT(24),
 	.status_val = 0x3,
 	.status_mask = GENMASK(10, 8),
 	.lock_det = BIT(2),
