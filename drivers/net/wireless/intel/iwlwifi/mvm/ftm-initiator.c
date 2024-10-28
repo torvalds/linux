@@ -1063,6 +1063,8 @@ int iwl_mvm_ftm_start(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 						   IWL_FW_CMD_VER_UNKNOWN);
 
 		switch (cmd_ver) {
+		case 15:
+			/* Version 15 has the same struct as 14 */
 		case 14:
 			err = iwl_mvm_ftm_start_v14(mvm, vif, req);
 			break;

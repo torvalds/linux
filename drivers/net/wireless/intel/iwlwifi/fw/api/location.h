@@ -616,6 +616,9 @@ struct iwl_tof_range_req_ap_entry_v2 {
  *	continue with the session and will provide the LMR feedback.
  * @IWL_INITIATOR_AP_FLAGS_TEST_INCORRECT_SAC: send an incorrect SAC in the
  *	first NDP exchange. This is used for testing.
+ * @IWL_INITIATOR_AP_FLAGS_TEST_BAD_SLTF: use incorrect secure LTF tx key. This
+ *	is used for testing. Only supported from version 15 of the range request
+ *	command.
  */
 enum iwl_initiator_ap_flags {
 	IWL_INITIATOR_AP_FLAGS_ASAP = BIT(1),
@@ -633,6 +636,7 @@ enum iwl_initiator_ap_flags {
 	IWL_INITIATOR_AP_FLAGS_PMF = BIT(14),
 	IWL_INITIATOR_AP_FLAGS_TERMINATE_ON_LMR_FEEDBACK = BIT(15),
 	IWL_INITIATOR_AP_FLAGS_TEST_INCORRECT_SAC = BIT(16),
+	IWL_INITIATOR_AP_FLAGS_TEST_BAD_SLTF = BIT(17),
 };
 
 /**
