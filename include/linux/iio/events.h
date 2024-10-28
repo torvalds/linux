@@ -30,7 +30,8 @@
 
 
 /**
- * IIO_MOD_EVENT_CODE() - create event identifier for modified channels
+ * IIO_MOD_EVENT_CODE() - create event identifier for modified (non
+ * differential) channels
  * @chan_type:	Type of the channel. Should be one of enum iio_chan_type.
  * @number:	Channel number.
  * @modifier:	Modifier for the channel. Should be one of enum iio_modifier.
@@ -43,7 +44,8 @@
 	IIO_EVENT_CODE(chan_type, 0, modifier, direction, type, number, 0, 0)
 
 /**
- * IIO_UNMOD_EVENT_CODE() - create event identifier for unmodified channels
+ * IIO_UNMOD_EVENT_CODE() - create event identifier for unmodified (non
+ * differential) channels
  * @chan_type:	Type of the channel. Should be one of enum iio_chan_type.
  * @number:	Channel number.
  * @type:	Type of the event. Should be one of enum iio_event_type.
@@ -52,5 +54,17 @@
 
 #define IIO_UNMOD_EVENT_CODE(chan_type, number, type, direction)	\
 	IIO_EVENT_CODE(chan_type, 0, 0, direction, type, number, 0, 0)
+
+/**
+ * IIO_DIFF_EVENT_CODE() - create event identifier for differential channels
+ * @chan_type:	Type of the channel. Should be one of enum iio_chan_type.
+ * @chan1:	First channel number for differential channels.
+ * @chan2:	Second channel number for differential channels.
+ * @type:	Type of the event. Should be one of enum iio_event_type.
+ * @direction:	Direction of the event. One of enum iio_event_direction.
+ */
+
+#define IIO_DIFF_EVENT_CODE(chan_type, chan1, chan2, type, direction)	\
+	IIO_EVENT_CODE(chan_type, 1, 0, direction, type, 0, chan1, chan2)
 
 #endif
