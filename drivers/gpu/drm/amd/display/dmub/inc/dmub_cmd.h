@@ -495,6 +495,7 @@ struct dmub_feature_caps {
 	uint8_t gecc_enable;
 	uint8_t replay_supported;
 	uint8_t replay_reserved[3];
+	uint8_t abm_aux_backlight_support;
 };
 
 struct dmub_visual_confirm_color {
@@ -754,7 +755,7 @@ union dmub_shared_state_ips_driver_signals {
 		uint32_t allow_ips1 : 1; /**< 1 is IPS1 is allowed */
 		uint32_t allow_ips2 : 1; /**< 1 is IPS1 is allowed */
 		uint32_t allow_z10 : 1; /**< 1 if Z10 is allowed */
-		uint32_t allow_idle : 1; /**< 1 if driver is allowing idle */
+		uint32_t allow_idle: 1; /**< 1 if driver is allowing idle */
 		uint32_t reserved_bits : 27; /**< Reversed bits */
 	} bits;
 	uint32_t all;
@@ -4460,9 +4461,9 @@ struct dmub_cmd_abm_set_backlight_data {
 	uint8_t backlight_control_type;
 
 	/**
-	 * Explicit padding to 4 byte boundary.
+	 * AUX HW instance.
 	 */
-	uint8_t pad[1];
+	uint8_t aux_inst;
 
 	/**
 	 * Minimum luminance in nits.
