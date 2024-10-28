@@ -1082,6 +1082,7 @@ struct iwl_mvm {
 	/* data related to data path */
 	struct iwl_rx_phy_info last_phy_info;
 	struct ieee80211_sta __rcu *fw_id_to_mac_id[IWL_STATION_COUNT_MAX];
+	/* note: fw_id_to_link_sta must be protected by wiphy and mvm mutexes */
 	struct ieee80211_link_sta __rcu *fw_id_to_link_sta[IWL_STATION_COUNT_MAX];
 	u8 rx_ba_sessions;
 

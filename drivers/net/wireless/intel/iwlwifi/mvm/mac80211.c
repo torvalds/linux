@@ -3516,6 +3516,8 @@ void iwl_mvm_sta_pre_rcu_remove(struct ieee80211_hw *hw,
 	struct iwl_mvm_sta *mvm_sta = iwl_mvm_sta_from_mac80211(sta);
 	unsigned int link_id;
 
+	lockdep_assert_wiphy(mvm->hw->wiphy);
+
 	/*
 	 * This is called before mac80211 does RCU synchronisation,
 	 * so here we already invalidate our internal RCU-protected

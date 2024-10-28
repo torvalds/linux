@@ -521,6 +521,9 @@ void iwl_mvm_mld_free_sta_link(struct iwl_mvm *mvm,
 			       unsigned int link_id,
 			       bool is_in_fw)
 {
+	lockdep_assert_wiphy(mvm->hw->wiphy);
+	lockdep_assert_held(&mvm->mutex);
+
 	RCU_INIT_POINTER(mvm->fw_id_to_mac_id[mvm_sta_link->sta_id],
 			 is_in_fw ? ERR_PTR(-EINVAL) : NULL);
 	RCU_INIT_POINTER(mvm->fw_id_to_link_sta[mvm_sta_link->sta_id], NULL);
@@ -558,6 +561,9 @@ static int iwl_mvm_mld_alloc_sta_link(struct iwl_mvm *mvm,
 	struct iwl_mvm_link_sta *link;
 	u32 sta_id = iwl_mvm_find_free_sta_id(mvm,
 					  ieee80211_vif_type_p2p(vif));
+
+	lockdep_assert_wiphy(mvm->hw->wiphy);
+	lockdep_assert_held(&mvm->mutex);
 
 	if (sta_id == IWL_MVM_INVALID_STA)
 		return -ENOSPC;
@@ -630,6 +636,9 @@ static int iwl_mvm_alloc_sta_after_restart(struct iwl_mvm *mvm,
 	/* no active link found */
 	int ret = -EINVAL;
 	int sta_id;
+
+	lockdep_assert_wiphy(mvm->hw->wiphy);
+	lockdep_assert_held(&mvm->mutex);
 
 	/* First add an empty station since allocating a queue requires
 	 * a valid station. Since we need a link_id to allocate a station,
@@ -858,6 +867,7 @@ int iwl_mvm_mld_rm_sta_id(struct iwl_mvm *mvm, u8 sta_id)
 {
 	int ret;
 
+	lockdep_assert_wiphy(mvm->hw->wiphy);
 	lockdep_assert_held(&mvm->mutex);
 
 	if (WARN_ON(sta_id == IWL_MVM_INVALID_STA))
@@ -1064,6 +1074,7 @@ int iwl_mvm_mld_update_sta_links(struct iwl_mvm *mvm,
 	unsigned int link_id;
 	int ret;
 
+	lockdep_assert_wiphy(mvm->hw->wiphy);
 	lockdep_assert_held(&mvm->mutex);
 
 	for_each_set_bit(link_id, &old_links_long,
