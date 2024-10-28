@@ -20,6 +20,7 @@ ARM64 Architecture
     legacy_instructions
     memory
     memory-tagging-extension
+    mops
     perf
     pointer-authentication
     ptdump
