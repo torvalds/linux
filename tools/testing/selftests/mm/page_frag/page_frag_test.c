@@ -126,7 +126,7 @@ static int __init page_frag_test_init(void)
 	u64 duration;
 	int ret;
 
-	test_nc.va = NULL;
+	page_frag_cache_init(&test_nc);
 	atomic_set(&nthreads, 2);
 	init_completion(&wait);
 
