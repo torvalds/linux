@@ -268,6 +268,7 @@ static int err_segs_recorded;
 static struct rt_read_seg err_segs[RCUTORTURE_RDR_MAX_SEGS];
 static int rt_read_nsegs;
 static int rt_read_preempted;
+static int rt_last_cpu;
 
 static const char *rcu_torture_writer_state_getname(void)
 {
@@ -2108,6 +2109,8 @@ static bool rcu_torture_one_read(struct torture_random_state *trsp, long myid)
 	}
 	if (cur_ops->reader_blocked)
 		preempted = cur_ops->reader_blocked();
+	if (IS_ENABLED(CONFIG_RCU_TORTURE_TEST_LOG_CPU))
+		rt_last_cpu = raw_smp_processor_id();
 	rcutorture_one_extend(&readstate, 0, trsp, rtrsp);
 	WARN_ON_ONCE(readstate);
 	// This next splat is expected behavior if leakpointer, especially
@@ -3580,6 +3583,8 @@ rcu_torture_cleanup(void)
 		}
 		if (rt_read_preempted)
 			pr_alert("\tReader was preempted.\n");
+		if (IS_ENABLED(CONFIG_RCU_TORTURE_TEST_LOG_CPU))
+			pr_alert("\tReader last ran on CPU %d.\n", rt_last_cpu);
 	}
 	if (atomic_read(&n_rcu_torture_error) || n_rcu_torture_barrier_error)
 		rcu_torture_print_module_parms(cur_ops, "End of test: FAILURE");
