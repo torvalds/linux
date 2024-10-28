@@ -32,6 +32,7 @@
 #include <trace/events/iommu.h>
 #include <linux/sched/mm.h>
 #include <linux/msi.h>
+#include <uapi/linux/iommufd.h>
 
 #include "dma-iommu.h"
 #include "iommu-priv.h"
@@ -99,6 +100,9 @@ static int __iommu_attach_device(struct iommu_domain *domain,
 				 struct device *dev);
 static int __iommu_attach_group(struct iommu_domain *domain,
 				struct iommu_group *group);
+static struct iommu_domain *__iommu_paging_domain_alloc_flags(struct device *dev,
+						       unsigned int type,
+						       unsigned int flags);
 
 enum {
 	IOMMU_SET_DOMAIN_MUST_SUCCEED = 1 << 0,
@@ -1585,8 +1589,30 @@ EXPORT_SYMBOL_GPL(fsl_mc_device_group);
 static struct iommu_domain *
 __iommu_group_alloc_default_domain(struct iommu_group *group, int req_type)
 {
+	struct device *dev = iommu_group_first_dev(group);
+	struct iommu_domain *dom;
+
 	if (group->default_domain && group->default_domain->type == req_type)
 		return group->default_domain;
+
+	/*
+	 * When allocating the DMA API domain assume that the driver is going to
+	 * use PASID and make sure the RID's domain is PASID compatible.
+	 */
+	if (req_type & __IOMMU_DOMAIN_PAGING) {
+		dom = __iommu_paging_domain_alloc_flags(dev, req_type,
+			   dev->iommu->max_pasids ? IOMMU_HWPT_ALLOC_PASID : 0);
+
+		/*
+		 * If driver does not support PASID feature then
+		 * try to allocate non-PASID domain
+		 */
+		if (PTR_ERR(dom) == -EOPNOTSUPP)
+			dom = __iommu_paging_domain_alloc_flags(dev, req_type, 0);
+
+		return dom;
+	}
+
 	return __iommu_group_domain_alloc(group, req_type);
 }
 
@@ -1961,16 +1987,9 @@ __iommu_group_domain_alloc(struct iommu_group *group, unsigned int type)
 	return __iommu_domain_alloc(dev_iommu_ops(dev), dev, type);
 }
 
-/**
- * iommu_paging_domain_alloc_flags() - Allocate a paging domain
- * @dev: device for which the domain is allocated
- * @flags: Enum of iommufd_hwpt_alloc_flags
- *
- * Allocate a paging domain which will be managed by a kernel driver. Return
- * allocated domain if successful, or an ERR pointer for failure.
- */
-struct iommu_domain *iommu_paging_domain_alloc_flags(struct device *dev,
-						     unsigned int flags)
+static struct iommu_domain *
+__iommu_paging_domain_alloc_flags(struct device *dev, unsigned int type,
+				  unsigned int flags)
 {
 	const struct iommu_ops *ops;
 	struct iommu_domain *domain;
@@ -1994,8 +2013,23 @@ struct iommu_domain *iommu_paging_domain_alloc_flags(struct device *dev,
 	if (!domain)
 		return ERR_PTR(-ENOMEM);
 
-	iommu_domain_init(domain, IOMMU_DOMAIN_UNMANAGED, ops);
+	iommu_domain_init(domain, type, ops);
 	return domain;
+}
+
+/**
+ * iommu_paging_domain_alloc_flags() - Allocate a paging domain
+ * @dev: device for which the domain is allocated
+ * @flags: Bitmap of iommufd_hwpt_alloc_flags
+ *
+ * Allocate a paging domain which will be managed by a kernel driver. Return
+ * allocated domain if successful, or an ERR pointer for failure.
+ */
+struct iommu_domain *iommu_paging_domain_alloc_flags(struct device *dev,
+						     unsigned int flags)
+{
+	return __iommu_paging_domain_alloc_flags(dev,
+					 IOMMU_DOMAIN_UNMANAGED, flags);
 }
 EXPORT_SYMBOL_GPL(iommu_paging_domain_alloc_flags);
 
