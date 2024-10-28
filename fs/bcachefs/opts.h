@@ -16,7 +16,7 @@ extern const char * const bch2_version_upgrade_opts[];
 extern const char * const bch2_sb_features[];
 extern const char * const bch2_sb_compat[];
 extern const char * const __bch2_btree_ids[];
-extern const char * const bch2_csum_opts[];
+extern const char * const __bch2_csum_opts[];
 extern const char * const bch2_compression_opts[];
 extern const char * const __bch2_str_hash_types[];
 extern const char * const bch2_str_hash_opts[];
@@ -27,6 +27,7 @@ extern const char * const bch2_d_types[];
 void bch2_prt_jset_entry_type(struct printbuf *,	enum bch_jset_entry_type);
 void bch2_prt_fs_usage_type(struct printbuf *,		enum bch_fs_usage_type);
 void bch2_prt_data_type(struct printbuf *,		enum bch_data_type);
+void bch2_prt_csum_opt(struct printbuf *,		enum bch_csum_opt);
 void bch2_prt_csum_type(struct printbuf *,		enum bch_csum_type);
 void bch2_prt_compression_type(struct printbuf *,	enum bch_compression_type);
 void bch2_prt_str_hash_type(struct printbuf *,		enum bch_str_hash_type);
@@ -171,12 +172,12 @@ enum fsck_err_opts {
 	  "size",	"Maximum size of checksummed/compressed extents")\
 	x(metadata_checksum,		u8,				\
 	  OPT_FS|OPT_FORMAT|OPT_MOUNT|OPT_RUNTIME,			\
-	  OPT_STR(bch2_csum_opts),					\
+	  OPT_STR(__bch2_csum_opts),					\
 	  BCH_SB_META_CSUM_TYPE,	BCH_CSUM_OPT_crc32c,		\
 	  NULL,		NULL)						\
 	x(data_checksum,		u8,				\
 	  OPT_FS|OPT_INODE|OPT_FORMAT|OPT_MOUNT|OPT_RUNTIME,		\
-	  OPT_STR(bch2_csum_opts),					\
+	  OPT_STR(__bch2_csum_opts),					\
 	  BCH_SB_DATA_CSUM_TYPE,	BCH_CSUM_OPT_crc32c,		\
 	  NULL,		NULL)						\
 	x(compression,			u8,				\

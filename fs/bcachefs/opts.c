@@ -48,7 +48,7 @@ static const char * const __bch2_csum_types[] = {
 	NULL
 };
 
-const char * const bch2_csum_opts[] = {
+const char * const __bch2_csum_opts[] = {
 	BCH_CSUM_OPTS()
 	NULL
 };
@@ -113,6 +113,7 @@ void bch2_prt_##name(struct printbuf *out, type t)				\
 PRT_STR_OPT_BOUNDSCHECKED(jset_entry_type,	enum bch_jset_entry_type);
 PRT_STR_OPT_BOUNDSCHECKED(fs_usage_type,	enum bch_fs_usage_type);
 PRT_STR_OPT_BOUNDSCHECKED(data_type,		enum bch_data_type);
+PRT_STR_OPT_BOUNDSCHECKED(csum_opt,		enum bch_csum_opt);
 PRT_STR_OPT_BOUNDSCHECKED(csum_type,		enum bch_csum_type);
 PRT_STR_OPT_BOUNDSCHECKED(compression_type,	enum bch_compression_type);
 PRT_STR_OPT_BOUNDSCHECKED(str_hash_type,	enum bch_str_hash_type);

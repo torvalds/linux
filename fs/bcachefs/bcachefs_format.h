@@ -1030,7 +1030,7 @@ static inline _Bool bch2_csum_type_is_encryption(enum bch_csum_type type)
 	x(crc64,		2)	\
 	x(xxhash,		3)
 
-enum bch_csum_opts {
+enum bch_csum_opt {
 #define x(t, n) BCH_CSUM_OPT_##t = n,
 	BCH_CSUM_OPTS()
 #undef x
