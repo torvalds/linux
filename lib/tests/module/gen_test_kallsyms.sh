@@ -99,6 +99,7 @@ module_exit(auto_test_module_exit);
 
 MODULE_AUTHOR("Luis Chamberlain <mcgrof@kernel.org>");
 MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("Test module for kallsyms");
 ____END_MODULE
 }
 
