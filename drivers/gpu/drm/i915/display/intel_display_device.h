@@ -38,6 +38,7 @@ struct drm_printer;
 	func(i965gm) \
 	func(g45) \
 	func(gm45) \
+	func(g4x) /* group alias for g45 and gm45 */ \
 	/* Display ver 5 */ \
 	func(ironlake) \
 	/* Display ver 6 */ \

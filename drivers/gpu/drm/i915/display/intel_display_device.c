@@ -54,6 +54,13 @@ struct platform_desc {
 	.platforms._platform = 1,		 \
 	.name = #_platform
 
+/*
+ * Group platform alias that matches multiple platforms. For aliases such as g4x
+ * that covers both g45 and gm45.
+ */
+#define PLATFORM_GROUP(_platform)		\
+	.platforms._platform = 1
+
 #define ID(id) (id)
 
 static const struct intel_display_device_info no_display = {};
@@ -388,6 +395,7 @@ static const struct platform_desc i965gm_desc = {
 
 static const struct platform_desc g45_desc = {
 	PLATFORM(g45),
+	PLATFORM_GROUP(g4x),
 	.info = &(const struct intel_display_device_info) {
 		GEN4_DISPLAY,
 
@@ -397,6 +405,7 @@ static const struct platform_desc g45_desc = {
 
 static const struct platform_desc gm45_desc = {
 	PLATFORM(gm45),
+	PLATFORM_GROUP(g4x),
 	.info = &(const struct intel_display_device_info) {
 		GEN4_DISPLAY,
 		.supports_tv = 1,
