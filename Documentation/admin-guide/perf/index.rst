@@ -26,3 +26,4 @@ Performance monitor support
    meson-ddr-pmu
    cxl
    ampere_cspmu
+   mrvl-pem-pmu
