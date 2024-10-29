@@ -48,8 +48,6 @@ struct sd_uhs2_wait_active_state_data {
 
 static int sd_uhs2_power_up(struct mmc_host *host)
 {
-	int err;
-
 	if (host->ios.power_mode == MMC_POWER_ON)
 		return 0;
 
@@ -58,9 +56,7 @@ static int sd_uhs2_power_up(struct mmc_host *host)
 	host->ios.timing = MMC_TIMING_UHS2_SPEED_A;
 	host->ios.power_mode = MMC_POWER_ON;
 
-	err = host->ops->uhs2_control(host, UHS2_SET_IOS);
-
-	return err;
+	return host->ops->uhs2_control(host, UHS2_SET_IOS);
 }
 
 static int sd_uhs2_power_off(struct mmc_host *host)
