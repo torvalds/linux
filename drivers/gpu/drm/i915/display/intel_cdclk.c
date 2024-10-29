@@ -2058,8 +2058,8 @@ static bool pll_enable_wa_needed(struct intel_display *display)
 {
 	struct drm_i915_private *dev_priv = to_i915(display->drm);
 
-	return (DISPLAY_VER_FULL(display) == IP_VER(20, 0) ||
-		DISPLAY_VER_FULL(display) == IP_VER(14, 0) ||
+	return (DISPLAY_VERx100(display) == 2000 ||
+		DISPLAY_VERx100(display) == 1400 ||
 		IS_DG2(dev_priv)) &&
 		display->cdclk.hw.vco > 0;
 }
@@ -3852,7 +3852,7 @@ void intel_init_cdclk_hooks(struct intel_display *display)
 	} else if (DISPLAY_VER(display) >= 20) {
 		display->funcs.cdclk = &rplu_cdclk_funcs;
 		display->cdclk.table = xe2lpd_cdclk_table;
-	} else if (DISPLAY_VER_FULL(display) >= IP_VER(14, 1)) {
+	} else if (DISPLAY_VERx100(display) >= 1401) {
 		display->funcs.cdclk = &rplu_cdclk_funcs;
 		display->cdclk.table = xe2hpd_cdclk_table;
 	} else if (DISPLAY_VER(display) >= 14) {

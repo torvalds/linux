@@ -497,7 +497,7 @@ static int mtl_max_source_rate(struct intel_dp *intel_dp)
 	if (intel_encoder_is_c10phy(encoder))
 		return 810000;
 
-	if (DISPLAY_VER_FULL(to_i915(encoder->base.dev)) == IP_VER(14, 1))
+	if (DISPLAY_VERx100(to_i915(encoder->base.dev)) == 1401)
 		return 1350000;
 
 	return 2000000;

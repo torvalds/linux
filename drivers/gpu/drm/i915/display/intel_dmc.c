@@ -171,16 +171,16 @@ static const char *dmc_firmware_default(struct intel_display *display, u32 *size
 	const char *fw_path = NULL;
 	u32 max_fw_size = 0;
 
-	if (DISPLAY_VER_FULL(display) == IP_VER(30, 0)) {
+	if (DISPLAY_VERx100(display) == 3000) {
 		fw_path = XE3LPD_DMC_PATH;
 		max_fw_size = XE2LPD_DMC_MAX_FW_SIZE;
-	} else if (DISPLAY_VER_FULL(display) == IP_VER(20, 0)) {
+	} else if (DISPLAY_VERx100(display) == 2000) {
 		fw_path = XE2LPD_DMC_PATH;
 		max_fw_size = XE2LPD_DMC_MAX_FW_SIZE;
-	} else if (DISPLAY_VER_FULL(display) == IP_VER(14, 1)) {
+	} else if (DISPLAY_VERx100(display) == 1401) {
 		fw_path = BMG_DMC_PATH;
 		max_fw_size = XELPDP_DMC_MAX_FW_SIZE;
-	} else if (DISPLAY_VER_FULL(display) == IP_VER(14, 0)) {
+	} else if (DISPLAY_VERx100(display) == 1400) {
 		fw_path = MTL_DMC_PATH;
 		max_fw_size = XELPDP_DMC_MAX_FW_SIZE;
 	} else if (IS_DG2(i915)) {

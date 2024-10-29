@@ -73,8 +73,6 @@ static inline struct drm_i915_private *to_i915(const struct drm_device *dev)
 #define IS_BROADWELL_ULT(dev_priv) (dev_priv && 0)
 #define IS_BROADWELL_ULX(dev_priv) (dev_priv && 0)
 
-#define IP_VER(ver, rel)                ((ver) << 8 | (rel))
-
 #define IS_MOBILE(xe) (xe && 0)
 
 #define IS_TIGERLAKE_UY(xe) (xe && 0)

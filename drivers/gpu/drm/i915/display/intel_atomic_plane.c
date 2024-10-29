@@ -1026,8 +1026,8 @@ int intel_plane_check_src_coordinates(struct intel_plane_state *plane_state)
 		vsub = 1;
 
 		/* Wa_16023981245 */
-		if ((DISPLAY_VER_FULL(i915) == IP_VER(20, 0) ||
-		     DISPLAY_VER_FULL(i915) == IP_VER(30, 0)) &&
+		if ((DISPLAY_VERx100(i915) == 2000 ||
+		     DISPLAY_VERx100(i915) == 3000) &&
 		     src_x % 2 != 0)
 			hsub = 2;
 	} else {

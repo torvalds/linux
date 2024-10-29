@@ -2286,13 +2286,13 @@ intel_c20_pll_tables_get(struct intel_crtc_state *crtc_state,
 		if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_EDP)) {
 			if (DISPLAY_RUNTIME_INFO(display)->edp_typec_support)
 				return xe3lpd_c20_dp_edp_tables;
-			if (DISPLAY_VER_FULL(display) == IP_VER(14, 1))
+			if (DISPLAY_VERx100(display) == 1401)
 				return xe2hpd_c20_edp_tables;
 		}
 
 		if (DISPLAY_VER(display) >= 30)
 			return xe3lpd_c20_dp_edp_tables;
-		else if (DISPLAY_VER_FULL(display) == IP_VER(14, 1))
+		else if (DISPLAY_VERx100(display) == 1401)
 			return xe2hpd_c20_dp_tables;
 		else
 			return mtl_c20_dp_tables;

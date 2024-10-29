@@ -186,10 +186,10 @@ struct intel_display_platforms {
 #define SUPPORTS_TV(i915)		(DISPLAY_INFO(i915)->supports_tv)
 
 /* Check that device has a display IP version within the specific range. */
-#define IS_DISPLAY_VER_FULL(__i915, from, until) ( \
-	BUILD_BUG_ON_ZERO((from) < IP_VER(2, 0)) + \
-	(DISPLAY_VER_FULL(__i915) >= (from) && \
-	 DISPLAY_VER_FULL(__i915) <= (until)))
+#define IS_DISPLAY_VERx100(__i915, from, until) ( \
+	BUILD_BUG_ON_ZERO((from) < 200) + \
+	(DISPLAY_VERx100(__i915) >= (from) && \
+	 DISPLAY_VERx100(__i915) <= (until)))
 
 /*
  * Check if a device has a specific IP version as well as a stepping within the
@@ -200,22 +200,22 @@ struct intel_display_platforms {
  * hardware fix is present and the software workaround is no longer necessary.
  * E.g.,
  *
- *    IS_DISPLAY_VER_STEP(i915, IP_VER(14, 0), STEP_A0, STEP_B2)
- *    IS_DISPLAY_VER_STEP(i915, IP_VER(14, 0), STEP_C0, STEP_FOREVER)
+ *    IS_DISPLAY_VERx100_STEP(i915, 1400, STEP_A0, STEP_B2)
+ *    IS_DISPLAY_VERx100_STEP(i915, 1400, STEP_C0, STEP_FOREVER)
  *
  * "STEP_FOREVER" can be passed as "until" for workarounds that have no upper
  * stepping bound for the specified IP version.
  */
-#define IS_DISPLAY_VER_STEP(__i915, ipver, from, until) \
-	(IS_DISPLAY_VER_FULL((__i915), (ipver), (ipver)) && \
+#define IS_DISPLAY_VERx100_STEP(__i915, ipver, from, until) \
+	(IS_DISPLAY_VERx100((__i915), (ipver), (ipver)) && \
 	 IS_DISPLAY_STEP((__i915), (from), (until)))
 
 #define DISPLAY_INFO(i915)		(__to_intel_display(i915)->info.__device_info)
 #define DISPLAY_RUNTIME_INFO(i915)	(&__to_intel_display(i915)->info.__runtime_info)
 
 #define DISPLAY_VER(i915)	(DISPLAY_RUNTIME_INFO(i915)->ip.ver)
-#define DISPLAY_VER_FULL(i915)	IP_VER(DISPLAY_RUNTIME_INFO(i915)->ip.ver, \
-				       DISPLAY_RUNTIME_INFO(i915)->ip.rel)
+#define DISPLAY_VERx100(i915)	(DISPLAY_RUNTIME_INFO(i915)->ip.ver * 100 + \
+				 DISPLAY_RUNTIME_INFO(i915)->ip.rel)
 #define IS_DISPLAY_VER(i915, from, until) \
 	(DISPLAY_VER(i915) >= (from) && DISPLAY_VER(i915) <= (until))
 

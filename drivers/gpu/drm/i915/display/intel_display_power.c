@@ -1684,14 +1684,14 @@ static void icl_display_core_init(struct drm_i915_private *dev_priv,
 		intel_snps_phy_wait_for_calibration(dev_priv);
 
 	/* 9. XE2_HPD: Program CHICKEN_MISC_2 before any cursor or planes are enabled */
-	if (DISPLAY_VER_FULL(dev_priv) == IP_VER(14, 1))
+	if (DISPLAY_VERx100(dev_priv) == 1401)
 		intel_de_rmw(dev_priv, CHICKEN_MISC_2, BMG_DARB_HALF_BLK_END_BURST, 1);
 
 	if (resume)
 		intel_dmc_load_program(display);
 
 	/* Wa_14011508470:tgl,dg1,rkl,adl-s,adl-p,dg2 */
-	if (IS_DISPLAY_VER_FULL(dev_priv, IP_VER(12, 0), IP_VER(13, 0)))
+	if (IS_DISPLAY_VERx100(dev_priv, 1200, 1300))
 		intel_de_rmw(dev_priv, GEN11_CHICKEN_DCPR_2, 0,
 			     DCPR_CLEAR_MEMSTAT_DIS | DCPR_SEND_RESP_IMM |
 			     DCPR_MASK_LPMODE | DCPR_MASK_MAXLATENCY_MEMUP_CLR);
