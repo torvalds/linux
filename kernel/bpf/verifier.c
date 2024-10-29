@@ -6804,20 +6804,10 @@ static int check_stack_slot_within_bounds(struct bpf_verifier_env *env,
                                           struct bpf_func_state *state,
                                           enum bpf_access_type t)
 {
-	struct bpf_insn_aux_data *aux = &env->insn_aux_data[env->insn_idx];
-	int min_valid_off, max_bpf_stack;
-
-	/* If accessing instruction is a spill/fill from bpf_fastcall pattern,
-	 * add room for all caller saved registers below MAX_BPF_STACK.
-	 * In case if bpf_fastcall rewrite won't happen maximal stack depth
-	 * would be checked by check_max_stack_depth_subprog().
-	 */
-	max_bpf_stack = MAX_BPF_STACK;
-	if (aux->fastcall_pattern)
-		max_bpf_stack += CALLER_SAVED_REGS * BPF_REG_SIZE;
+	int min_valid_off;
 
 	if (t == BPF_WRITE || env->allow_uninit_stack)
-		min_valid_off = -max_bpf_stack;
+		min_valid_off = -MAX_BPF_STACK;
 	else
 		min_valid_off = -state->allocated_stack;
 
