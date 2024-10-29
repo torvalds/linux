@@ -11,10 +11,10 @@
 
 #ifndef memset_io
 /**
- * memset_io		Set a range of I/O memory to a constant value
- * @addr:		The beginning of the I/O-memory range to set
- * @val:		The value to set the memory to
- * @count:		The number of bytes to set
+ * memset_io() - Set a range of I/O memory to a constant value
+ * @addr: The beginning of the I/O-memory range to set
+ * @val: The value to set the memory to
+ * @count: The number of bytes to set
  *
  * Set a range of I/O memory to a given value.
  */
@@ -52,10 +52,10 @@ EXPORT_SYMBOL(memset_io);
 
 #ifndef memcpy_fromio
 /**
- * memcpy_fromio	Copy a block of data from I/O memory
- * @dst:		The (RAM) destination for the copy
- * @src:		The (I/O memory) source for the data
- * @count:		The number of bytes to copy
+ * memcpy_fromio() - Copy a block of data from I/O memory
+ * @dst: The (RAM) destination for the copy
+ * @src: The (I/O memory) source for the data
+ * @count: The number of bytes to copy
  *
  * Copy a block of data from I/O memory.
  */
@@ -94,10 +94,10 @@ EXPORT_SYMBOL(memcpy_fromio);
 
 #ifndef memcpy_toio
 /**
- * memcpy_toio		Copy a block of data into I/O memory
- * @dst:		The (I/O memory) destination for the copy
- * @src:		The (RAM) source for the data
- * @count:		The number of bytes to copy
+ * memcpy_toio() -Copy a block of data into I/O memory
+ * @dst: The (I/O memory) destination for the copy
+ * @src: The (RAM) source for the data
+ * @count: The number of bytes to copy
  *
  * Copy a block of data to I/O memory.
  */
