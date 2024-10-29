@@ -559,16 +559,15 @@ static void setup_pmc_cpu(void *flags)
 {
 	struct cpu_hw_sf *cpuhw = this_cpu_ptr(&cpu_hw_sf);
 
+	sf_disable();
 	switch (*((int *)flags)) {
 	case PMC_INIT:
 		memset(cpuhw, 0, sizeof(*cpuhw));
 		qsi(&cpuhw->qsi);
 		cpuhw->flags |= PMU_F_RESERVED;
-		sf_disable();
 		break;
 	case PMC_RELEASE:
 		cpuhw->flags &= ~PMU_F_RESERVED;
-		sf_disable();
 		deallocate_buffers(cpuhw);
 		break;
 	}
