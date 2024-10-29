@@ -439,11 +439,6 @@ static inline void __set_ptes(struct mm_struct *mm,
 }
 
 /*
- * Huge pte definitions.
- */
-#define pte_mkhuge(pte)		(__pte(pte_val(pte) & ~PTE_TABLE_BIT))
-
-/*
  * Hugetlb definitions.
  */
 #define HUGE_MAX_HSTATE		4
