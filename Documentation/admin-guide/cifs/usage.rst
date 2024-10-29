@@ -722,40 +722,26 @@ Configuration pseudo-files:
 ======================= =======================================================
 SecurityFlags		Flags which control security negotiation and
 			also packet signing. Authentication (may/must)
-			flags (e.g. for NTLM and/or NTLMv2) may be combined with
+			flags (e.g. for NTLMv2) may be combined with
 			the signing flags.  Specifying two different password
 			hashing mechanisms (as "must use") on the other hand
 			does not make much sense. Default flags are::
 
-				0x07007
+				0x00C5
 
-			(NTLM, NTLMv2 and packet signing allowed).  The maximum
-			allowable flags if you want to allow mounts to servers
-			using weaker password hashes is 0x37037 (lanman,
-			plaintext, ntlm, ntlmv2, signing allowed).  Some
-			SecurityFlags require the corresponding menuconfig
-			options to be enabled.  Enabling plaintext
-			authentication currently requires also enabling
-			lanman authentication in the security flags
-			because the cifs module only supports sending
-			laintext passwords using the older lanman dialect
-			form of the session setup SMB.  (e.g. for authentication
-			using plain text passwords, set the SecurityFlags
-			to 0x30030)::
+			(NTLMv2 and packet signing allowed).  Some SecurityFlags
+			may require enabling a corresponding menuconfig option.
 
 			  may use packet signing			0x00001
 			  must use packet signing			0x01001
-			  may use NTLM (most common password hash)	0x00002
-			  must use NTLM					0x02002
 			  may use NTLMv2				0x00004
 			  must use NTLMv2				0x04004
-			  may use Kerberos security			0x00008
-			  must use Kerberos				0x08008
-			  may use lanman (weak) password hash		0x00010
-			  must use lanman password hash			0x10010
-			  may use plaintext passwords			0x00020
-			  must use plaintext passwords			0x20020
-			  (reserved for future packet encryption)	0x00040
+			  may use Kerberos security (krb5)		0x00008
+			  must use Kerberos                             0x08008
+			  may use NTLMSSP               		0x00080
+			  must use NTLMSSP           			0x80080
+			  seal (packet encryption)			0x00040
+			  must seal                                     0x40040
 
 cifsFYI			If set to non-zero value, additional debug information
 			will be logged to the system error log.  This field

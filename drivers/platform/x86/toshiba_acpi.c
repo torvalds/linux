@@ -3305,6 +3305,7 @@ static const struct dmi_system_id toshiba_dmi_quirks[] __initconst = {
 		},
 	 .driver_data = (void *)(QUIRK_TURN_ON_PANEL_ON_RESUME | QUIRK_HCI_HOTKEY_QUICKSTART),
 	},
+	{ }
 };
 
 static int toshiba_acpi_add(struct acpi_device *acpi_dev)

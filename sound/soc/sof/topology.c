@@ -1817,6 +1817,8 @@ static int sof_link_unload(struct snd_soc_component *scomp, struct snd_soc_dobj 
 	if (!slink)
 		return 0;
 
+	slink->link->platforms->name = NULL;
+
 	kfree(slink->tuples);
 	list_del(&slink->list);
 	kfree(slink->hw_configs);

@@ -46,6 +46,17 @@ struct urb_list {
 	size_t size;
 };
 
+struct udl_connector {
+	struct drm_connector connector;
+	/* last udl_detect edid */
+	struct edid *edid;
+};
+
+static inline struct udl_connector *to_udl_connector(struct drm_connector *connector)
+{
+	return container_of(connector, struct udl_connector, connector);
+}
+
 struct udl_device {
 	struct drm_device drm;
 	struct device *dev;

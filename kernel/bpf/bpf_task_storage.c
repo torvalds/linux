@@ -71,10 +71,8 @@ task_storage_lookup(struct task_struct *task, struct bpf_map *map,
 
 void bpf_task_storage_free(struct task_struct *task)
 {
-	struct bpf_local_storage_elem *selem;
 	struct bpf_local_storage *local_storage;
 	bool free_task_storage = false;
-	struct hlist_node *n;
 	unsigned long flags;
 
 	rcu_read_lock();
@@ -85,32 +83,13 @@ void bpf_task_storage_free(struct task_struct *task)
 		return;
 	}
 
-	/* Neither the bpf_prog nor the bpf-map's syscall
-	 * could be modifying the local_storage->list now.
-	 * Thus, no elem can be added-to or deleted-from the
-	 * local_storage->list by the bpf_prog or by the bpf-map's syscall.
-	 *
-	 * It is racing with bpf_local_storage_map_free() alone
-	 * when unlinking elem from the local_storage->list and
-	 * the map's bucket->list.
-	 */
 	bpf_task_storage_lock();
 	raw_spin_lock_irqsave(&local_storage->lock, flags);
-	hlist_for_each_entry_safe(selem, n, &local_storage->list, snode) {
-		/* Always unlink from map before unlinking from
-		 * local_storage.
-		 */
-		bpf_selem_unlink_map(selem);
-		free_task_storage = bpf_selem_unlink_storage_nolock(
-			local_storage, selem, false, false);
-	}
+	free_task_storage = bpf_local_storage_unlink_nolock(local_storage);
 	raw_spin_unlock_irqrestore(&local_storage->lock, flags);
 	bpf_task_storage_unlock();
 	rcu_read_unlock();
 
-	/* free_task_storage should always be true as long as
-	 * local_storage->list was non-empty.
-	 */
 	if (free_task_storage)
 		kfree_rcu(local_storage, rcu);
 }
@@ -288,23 +267,12 @@ static int notsupp_get_next_key(struct bpf_map *map, void *key, void *next_key)
 
 static struct bpf_map *task_storage_map_alloc(union bpf_attr *attr)
 {
-	struct bpf_local_storage_map *smap;
-
-	smap = bpf_local_storage_map_alloc(attr);
-	if (IS_ERR(smap))
-		return ERR_CAST(smap);
-
-	smap->cache_idx = bpf_local_storage_cache_idx_get(&task_cache);
-	return &smap->map;
+	return bpf_local_storage_map_alloc(attr, &task_cache);
 }
 
 static void task_storage_map_free(struct bpf_map *map)
 {
-	struct bpf_local_storage_map *smap;
-
-	smap = (struct bpf_local_storage_map *)map;
-	bpf_local_storage_cache_idx_free(&task_cache, smap->cache_idx);
-	bpf_local_storage_map_free(smap, &bpf_task_storage_busy);
+	bpf_local_storage_map_free(map, &task_cache, &bpf_task_storage_busy);
 }
 
 BTF_ID_LIST_SINGLE(task_storage_map_btf_ids, struct, bpf_local_storage_map)
