@@ -6762,7 +6762,7 @@ create_stream_for_sink(struct drm_connector *connector,
 		if (stream->out_transfer_func.tf == TRANSFER_FUNCTION_GAMMA22)
 			tf = TRANSFER_FUNC_GAMMA_22;
 		mod_build_vsc_infopacket(stream, &stream->vsc_infopacket, stream->output_color_space, tf);
-		aconnector->psr_skip_count = AMDGPU_DM_PSR_ENTRY_DELAY;
+		aconnector->sr_skip_count = AMDGPU_DM_PSR_ENTRY_DELAY;
 
 	}
 finish:
@@ -9028,7 +9028,7 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 			 * during the PSR-SU was disabled.
 			 */
 			if (acrtc_state->stream->link->psr_settings.psr_version >= DC_PSR_VERSION_SU_1 &&
-			    acrtc_attach->dm_irq_params.allow_psr_entry &&
+			    acrtc_attach->dm_irq_params.allow_sr_entry &&
 #ifdef CONFIG_DRM_AMD_SECURE_DISPLAY
 			    !amdgpu_dm_crc_window_is_activated(acrtc_state->base.crtc) &&
 #endif
@@ -9263,27 +9263,27 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 			}
 		}
 
-		/* Decrement skip count when PSR is enabled and we're doing fast updates. */
+		/* Decrement skip count when SR is enabled and we're doing fast updates. */
 		if (acrtc_state->update_type == UPDATE_TYPE_FAST &&
 		    acrtc_state->stream->link->psr_settings.psr_feature_enabled) {
 			struct amdgpu_dm_connector *aconn =
 				(struct amdgpu_dm_connector *)acrtc_state->stream->dm_stream_context;
 
-			if (aconn->psr_skip_count > 0)
-				aconn->psr_skip_count--;
+			if (aconn->sr_skip_count > 0)
+				aconn->sr_skip_count--;
 
-			/* Allow PSR when skip count is 0. */
-			acrtc_attach->dm_irq_params.allow_psr_entry = !aconn->psr_skip_count;
+			/* Allow SR when skip count is 0. */
+			acrtc_attach->dm_irq_params.allow_sr_entry = !aconn->sr_skip_count;
 
 			/*
-			 * If sink supports PSR SU, there is no need to rely on
-			 * a vblank event disable request to enable PSR. PSR SU
+			 * If sink supports PSR SU/Panel Replay, there is no need to rely on
+			 * a vblank event disable request to enable PSR/RP. PSR SU/RP
 			 * can be enabled immediately once OS demonstrates an
 			 * adequate number of fast atomic commits to notify KMD
 			 * of update events. See `vblank_control_worker()`.
 			 */
 			if (acrtc_state->stream->link->psr_settings.psr_version >= DC_PSR_VERSION_SU_1 &&
-			    acrtc_attach->dm_irq_params.allow_psr_entry &&
+			    acrtc_attach->dm_irq_params.allow_sr_entry &&
 #ifdef CONFIG_DRM_AMD_SECURE_DISPLAY
 			    !amdgpu_dm_crc_window_is_activated(acrtc_state->base.crtc) &&
 #endif
@@ -9294,7 +9294,7 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 			    500000000)
 				amdgpu_dm_psr_enable(acrtc_state->stream);
 		} else {
-			acrtc_attach->dm_irq_params.allow_psr_entry = false;
+			acrtc_attach->dm_irq_params.allow_sr_entry = false;
 		}
 
 		mutex_unlock(&dm->dc_lock);

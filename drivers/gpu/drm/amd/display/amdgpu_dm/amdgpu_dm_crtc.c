@@ -269,7 +269,7 @@ static void amdgpu_dm_crtc_vblank_control_worker(struct work_struct *work)
 	if (vblank_work->stream && vblank_work->stream->link) {
 		amdgpu_dm_crtc_set_panel_sr_feature(
 			vblank_work, vblank_work->enable,
-			vblank_work->acrtc->dm_irq_params.allow_psr_entry ||
+			vblank_work->acrtc->dm_irq_params.allow_sr_entry ||
 			vblank_work->stream->link->replay_settings.replay_feature_enabled);
 	}
 
