@@ -517,6 +517,11 @@ static void dcn31_reset_back_end_for_pipe(
 
 	dc->hwss.set_abm_immediate_disable(pipe_ctx);
 
+	if ((!pipe_ctx->stream->dpms_off || pipe_ctx->stream->link->link_status.link_active)
+		&& pipe_ctx->stream->sink && pipe_ctx->stream->sink->edid_caps.panel_patch.blankstream_before_otg_off) {
+		dc->hwss.blank_stream(pipe_ctx);
+	}
+
 	pipe_ctx->stream_res.tg->funcs->set_dsc_config(
 			pipe_ctx->stream_res.tg,
 			OPTC_DSC_DISABLED, 0, 0);

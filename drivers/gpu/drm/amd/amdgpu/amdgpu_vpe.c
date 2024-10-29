@@ -295,9 +295,9 @@ int amdgpu_vpe_ring_fini(struct amdgpu_vpe *vpe)
 	return 0;
 }
 
-static int vpe_early_init(void *handle)
+static int vpe_early_init(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	struct amdgpu_vpe *vpe = &adev->vpe;
 
 	switch (amdgpu_ip_version(adev, VPE_HWIP, 0)) {
@@ -356,9 +356,9 @@ static int vpe_common_init(struct amdgpu_vpe *vpe)
 	return 0;
 }
 
-static int vpe_sw_init(void *handle)
+static int vpe_sw_init(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	struct amdgpu_vpe *vpe = &adev->vpe;
 	int ret;
 
@@ -381,9 +381,9 @@ out:
 	return ret;
 }
 
-static int vpe_sw_fini(void *handle)
+static int vpe_sw_fini(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	struct amdgpu_vpe *vpe = &adev->vpe;
 
 	release_firmware(vpe->fw);
@@ -398,9 +398,9 @@ static int vpe_sw_fini(void *handle)
 	return 0;
 }
 
-static int vpe_hw_init(void *handle)
+static int vpe_hw_init(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	struct amdgpu_vpe *vpe = &adev->vpe;
 	int ret;
 
@@ -421,9 +421,9 @@ static int vpe_hw_init(void *handle)
 	return 0;
 }
 
-static int vpe_hw_fini(void *handle)
+static int vpe_hw_fini(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	struct amdgpu_vpe *vpe = &adev->vpe;
 
 	vpe_ring_stop(vpe);
@@ -434,20 +434,18 @@ static int vpe_hw_fini(void *handle)
 	return 0;
 }
 
-static int vpe_suspend(void *handle)
+static int vpe_suspend(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	cancel_delayed_work_sync(&adev->vpe.idle_work);
 
-	return vpe_hw_fini(adev);
+	return vpe_hw_fini(ip_block);
 }
 
-static int vpe_resume(void *handle)
+static int vpe_resume(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-
-	return vpe_hw_init(adev);
+	return vpe_hw_init(ip_block);
 }
 
 static void vpe_ring_insert_nop(struct amdgpu_ring *ring, uint32_t count)
@@ -908,14 +906,12 @@ static void vpe_set_ring_funcs(struct amdgpu_device *adev)
 const struct amd_ip_funcs vpe_ip_funcs = {
 	.name = "vpe_v6_1",
 	.early_init = vpe_early_init,
-	.late_init = NULL,
 	.sw_init = vpe_sw_init,
 	.sw_fini = vpe_sw_fini,
 	.hw_init = vpe_hw_init,
 	.hw_fini = vpe_hw_fini,
 	.suspend = vpe_suspend,
 	.resume = vpe_resume,
-	.soft_reset = NULL,
 	.set_clockgating_state = vpe_set_clockgating_state,
 	.set_powergating_state = vpe_set_powergating_state,
 };

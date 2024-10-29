@@ -50,13 +50,21 @@ void dpp35_dppclk_control(
 				DPPCLK_RATE_CONTROL, dppclk_div,
 				DPP_CLOCK_ENABLE, 1);
 		else
-			REG_UPDATE_2(DPP_CONTROL,
+			if (dpp->dispclk_r_gate_disable)
+				REG_UPDATE_2(DPP_CONTROL,
 					DPP_CLOCK_ENABLE, 1,
 					DISPCLK_R_GATE_DISABLE, 1);
+			else
+				REG_UPDATE(DPP_CONTROL,
+						DPP_CLOCK_ENABLE, 1);
 	} else
-		REG_UPDATE_2(DPP_CONTROL,
+		if (dpp->dispclk_r_gate_disable)
+			REG_UPDATE_2(DPP_CONTROL,
 				DPP_CLOCK_ENABLE, 0,
 				DISPCLK_R_GATE_DISABLE, 0);
+		else
+			REG_UPDATE(DPP_CONTROL,
+					DPP_CLOCK_ENABLE, 0);
 }
 
 void dpp35_program_bias_and_scale_fcnv(
@@ -128,6 +136,10 @@ bool dpp35_construct(
 			      (const struct dcn3_dpp_mask *)(tf_mask));
 
 	dpp->base.funcs = &dcn35_dpp_funcs;
+
+	// w/a for cursor memory stuck in LS by programming DISPCLK_R_GATE_DISABLE, limit w/a to some ASIC revs
+	if (dpp->base.ctx->asic_id.hw_internal_rev <= 0x10)
+		dpp->dispclk_r_gate_disable = true;
 	return ret;
 }
 

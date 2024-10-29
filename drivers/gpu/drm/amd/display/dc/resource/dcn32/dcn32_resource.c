@@ -1039,7 +1039,7 @@ static struct link_encoder *dcn32_link_encoder_create(
 	struct dcn20_link_encoder *enc20 =
 		kzalloc(sizeof(struct dcn20_link_encoder), GFP_KERNEL);
 
-	if (!enc20)
+	if (!enc20 || enc_init_data->hpd_source >= ARRAY_SIZE(link_enc_hpd_regs))
 		return NULL;
 
 #undef REG_STRUCT
@@ -1988,6 +1988,10 @@ unsigned int dcn32_calculate_mall_ways_from_bytes(const struct dc *dc, unsigned 
 
 	if (total_size_in_mall_bytes == 0) {
 		return 0;
+	}
+
+	if (dc->caps.max_cab_allocation_bytes == 0) {
+		return 0xffffffff;
 	}
 
 	/* add 2 lines for worst case alignment */
