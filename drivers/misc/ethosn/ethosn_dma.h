@@ -69,7 +69,7 @@ enum ethosn_alloc_type {
  * imported is set if it represents a shared memory.
  */
 struct ethosn_dma_info {
-	size_t size;
+	size_t size;                //  这段内存的大小
 	void *cpu_addr;
 	dma_addr_t iova_addr;
 	enum ethosn_stream_type stream_type;

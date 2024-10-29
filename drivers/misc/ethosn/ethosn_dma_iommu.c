@@ -50,17 +50,17 @@ enum ethosn_memory_source {
 };
 
 struct ethosn_iommu_stream {
-	enum ethosn_stream_type type;       // 流类型 属于同一个group的设备具有同一个streamid
-	dma_addr_t addr_base;               // 对应的DMA地址的基地址, 即设备的总线物理地址空间经过IOMMU模块映射之后可以由CPU直接访问的物理地址空间中的地址
-    void *bitmap;                       // 位图的入口
-	size_t bits;                        // 位图的总位数, 每一位表示IOMMU地址空间的一页
-	struct page *page;                  // 当前流所在的CPU地址空间的页
-	bool allocated_page;                // 当前流所属的页是否是通过API分配的
+	enum ethosn_stream_type type;       // 流类型, allocator 和 type 是一一对应的, 每一个 streamid 对应一个 group
+	dma_addr_t addr_base;               // 对应的 DMA 地址的基地址, 即 CPU 可访问的物理地址经过 IOMMU 模块映射之后可以直接访问的虚拟地址
+    void *bitmap;                       // 位图的每一个位表示将当前长度为 IOMMU_ADDR_SIZE 的虚拟地址空间完整映射到物理地址空间所需的每一个内存页, 相当于内存页的掩码
+	size_t bits;                        // 而 bits 表示满足字节对齐要求的, 能够容纳此内存页掩码所需的总位数
+	struct page *page;                  // 为当前 allocator 分配的物理内存页
+	bool allocated_page;                // 当前流所属的页是否是通过 API 分配的
 	spinlock_t lock;
 };
 
 struct ethosn_iommu_domain {
-	struct iommu_domain *iommu_domain;
+	struct iommu_domain *iommu_domain;  // iommu 域绑定在 ethos 顶层设备上, 所有 allocator 共享
 	struct ethosn_iommu_stream stream;
 };
 
@@ -177,6 +177,26 @@ static resource_size_t iommu_get_addr_size(struct ethosn_dma_sub_allocator *allo
 	return IOMMU_ADDR_SIZE;
 }
 
+/**
+ * iommu_alloc_iova - 为分配的物理页在 IOVA 地址空间中分配一个连续的虚拟地址范围
+ * @dev: 设备结构体指针, 用于锁定设备上下文
+ * @dma: 指向 ethosn_dma_info_internal 的指针, 包含 DMA 内存的信息
+ * @stream: 指向 ethosn_iommu_stream 的指针, 表示 IOMMU 的流
+ *
+ * 此函数为指定的 DMA 内存分配一个 IOVA 地址范围, 确保设备可以通过 IOMMU 访问到该内存.
+ * 首先计算需要分配的页数, 并检查流是否符合分配条件. 函数使用位图找到符合条件的连续
+ * 空闲页, 并为这些页设置 IOVA 地址. 在成功分配 IOVA 地址后, 会更新流的位图以标记此区域已使用.
+ *
+ * 重要:
+ * - 分配的 IOVA 地址范围在 stream 的地址基址之上连续分布.
+ * - 如果 `extend_bitmap` 标志位设为 true, 则会扩展位图, 允许更大范围的地址分配.
+ * - 函数在分配 IOVA 地址之前使用自旋锁, 确保多线程环境中的一致性.
+ *
+ * 返回值:
+ * 成功时返回已分配的 IOVA 地址;
+ * 失败时返回 0.
+ */
+
 static dma_addr_t iommu_alloc_iova(struct device *dev, struct ethosn_dma_info_internal *dma, struct ethosn_iommu_stream *stream)
 {
 	unsigned long start = 0;
@@ -188,11 +208,13 @@ static dma_addr_t iommu_alloc_iova(struct device *dev, struct ethosn_dma_info_in
 
 	spin_lock_irqsave(&stream->lock, flags);
 
+    // 这里去当前 allocator 绑定的 stream 中, 寻找该 stream 可用的下一段长度为 nr_pages*PAGE_SIZE 连续为零的 iova 地址段, 返回其起始地址
+    // 若 extend_bitmap 为真, 且未找到合适的 iova 地址段, 则位图可能会拓展
 	ret = ethosn_bitmap_find_next_zero_area(dev, &stream->bitmap, &stream->bits, nr_pages, &start, extend_bitmap);
 	if (ret)
 		goto ret;
 
-	bitmap_set(stream->bitmap, start, nr_pages);
+	bitmap_set(stream->bitmap, start, nr_pages);    // 现在开始需要占用这段空间
 
 	iova = stream->addr_base + PAGE_SIZE * start;
 
@@ -225,13 +247,33 @@ static void iommu_free_pages(struct ethosn_dma_sub_allocator *allocator, dma_add
 			dma_free_pages(allocator->dev, PAGE_SIZE, pages[i], dma_addr[i], DMA_BIDIRECTIONAL);
 }
 
+/**
+ * iommu_alloc - 分配 DMA 内存页并进行内存映射
+ * @allocator: 指向 ethosn_dma_sub_allocator 的指针, 用于绑定 DMA 内存分配操作
+ * @size: 要分配的内存大小 (字节数)
+ * @gfp: 用于内存分配的 GFP 标志
+ *
+ * 此函数通过分配多个物理内存页并将其映射为 DMA 地址, 为特定的流类型创建一个内存区域.
+ * 函数首先计算所需页数, 并尝试为每一页分配物理内存和 DMA 地址映射. 在分配失败或映射
+ * 失败的情况下, 函数会释放之前分配的内存, 并返回错误码. 若分配和映射成功, 函数将返回
+ * ethosn_dma_info 结构指针, 该结构包含分配内存的信息, 包括分配大小, CPU 可访问地址
+ * 和初始 DMA 地址等.
+ *
+ * 注意:
+ * 返回的 ethosn_dma_info 结构中尚未进行 IOVA 地址的映射, 即 `iova_addr` 字段未初始化.
+ * 需要调用其他函数完成 IOVA 地址的映射.
+ *
+ * 返回值:
+ * 成功时, 返回分配并映射的 ethosn_dma_info 结构的指针;
+ * 若内存分配或映射失败, 则返回错误指针, 通常为 ERR_PTR(-ENOMEM).
+ */
 static struct ethosn_dma_info *iommu_alloc(struct ethosn_dma_sub_allocator *allocator, const size_t size, gfp_t gfp)
 {
 	struct page **pages = NULL;
 	struct ethosn_dma_info_internal *dma_info;
 	void *cpu_addr = NULL;
 	dma_addr_t *dma_addr = NULL;
-	int nr_pages = DIV_ROUND_UP(size, PAGE_SIZE);
+	int nr_pages = DIV_ROUND_UP(size, PAGE_SIZE);   // 计算所需内存大小对应的页数
 	int i;
 
 	dma_info = devm_kzalloc(allocator->dev, sizeof(struct ethosn_dma_info_internal), GFP_KERNEL);
@@ -249,6 +291,7 @@ static struct ethosn_dma_info *iommu_alloc(struct ethosn_dma_sub_allocator *allo
 	if (!dma_addr)
 		goto free_pages_list;
 
+    // 为每一个页对象分配物理内存并映射 DMA 地址
 	for (i = 0; i < nr_pages; ++i) {
 		pages[i] = dma_alloc_pages(allocator->dev, PAGE_SIZE, &dma_addr[i], DMA_BIDIRECTIONAL, gfp);
 
@@ -269,6 +312,8 @@ static struct ethosn_dma_info *iommu_alloc(struct ethosn_dma_sub_allocator *allo
 	dev_dbg(allocator->dev, "Allocated DMA. handle=%pK allocator->dev = %pK", dma_info, allocator->dev);
 
 ret:
+    // 这里分配的内存并未通过 iommu 映射, 因此 iova_addr 并未初始化
+    // 这里将 cpu_addr 返回给到调用者, 是因为分配内存之后 CPU 需要立即访问并操作这些内存. 通常是初始化, 填充或者检查内容等;
 	*dma_info =
 		(struct ethosn_dma_info_internal){ .info = (struct ethosn_dma_info){ .size = size, .cpu_addr = cpu_addr, .iova_addr = 0, .imported = false },
 						   .source = ETHOSN_MEMORY_ALLOC,
@@ -312,6 +357,29 @@ static void iommu_unmap_iova_pages(struct ethosn_dma_info_internal *dma_info, st
 	dma_info->iova_mapped = false;
 }
 
+/**
+ * iommu_iova_map - 将分配的物理页映射到 IOVA 地址空间
+ * @allocator: 指向 ethosn_dma_sub_allocator 的指针, 用于绑定 DMA 内存映射操作
+ * @dma_info: 指向 ethosn_dma_info 的指针, 包含需要映射的内存信息
+ * @prot_ranges: 指向 ethosn_dma_prot_range 数组, 用于设置不同内存范围的访问权限
+ * @num_prot_ranges: prot_ranges 数组的长度, 表示不同保护范围的数量
+ *
+ * 此函数将分配的物理内存页映射到 IOMMU IOVA 地址空间, 以便设备可以通过 IOMMU 访问该内存.
+ * 根据传入的 prot_ranges 数组设置不同的访问权限 (读 / 写) 范围. 在函数执行过程中, 将
+ * `dma_info->info.size` 以页为单位分块, 并为每一块分配 IOVA 地址, 并映射到对应的物理页.
+ *
+ * 在映射过程中, 函数将检查不同的保护范围, 确保每一个 scatter-gather 条目在同一范围内使用
+ * 一致的权限. 如果出现不同权限重叠的情况或映射失败, 将取消当前映射并返回错误.
+ *
+ * 注意:
+ * - 函数要求传入的 `prot_ranges` 数组按照地址从低到高排序, 以确保每个范围内的映射权限
+ *   保持一致.
+ * - 如果当前的 dma_info 结构的 `iova_addr` 已映射到 IOVA, 则不会执行重复映射.
+ *
+ * 返回值:
+ * 成功时返回 0, 表示映射完成;
+ * 失败时返回负数错误码, 并取消已完成的部分映射.
+ */
 static int iommu_iova_map(struct ethosn_dma_sub_allocator *allocator, struct ethosn_dma_info *_dma_info, struct ethosn_dma_prot_range *prot_ranges,
 			  size_t num_prot_ranges)
 {
@@ -812,12 +880,13 @@ static int iommu_mmap(struct ethosn_dma_sub_allocator *allocator, struct vm_area
 	}
 }
 
+// 将当前 allocator 和 stream_type 所关联的, 起点为 addr_base, 长度为 IOMMU_ADDR_SIZE 的 DMA 虚拟地址空间经过页对齐之后, 全部映射到同一段物理内存页中;
 static int iommu_stream_init(struct ethosn_allocator_internal *allocator, enum ethosn_stream_type stream_type, dma_addr_t addr_base, size_t bitmap_size,
 			     phys_addr_t speculative_page_addr)
 {
 	struct ethosn_iommu_domain *domain = &allocator->ethosn_iommu_domain;
 	struct ethosn_iommu_stream *stream = &domain->stream;
-	size_t nr_pages = DIV_ROUND_UP(IOMMU_ADDR_SIZE, PAGE_SIZE);     // 完整映射整个设备总线地址空间需要的CPU内存页数
+	size_t nr_pages = DIV_ROUND_UP(IOMMU_ADDR_SIZE, PAGE_SIZE); // 为将当前虚拟地址空间全部映射到物理地址空间, 所需要的物理内存页数
 	size_t i;
 	int err;
 
@@ -829,6 +898,7 @@ static int iommu_stream_init(struct ethosn_allocator_internal *allocator, enum e
 
 	stream->addr_base = addr_base;
 	stream->type = stream_type;
+    // bitmap_size 表示能够容纳此内存页掩码所需的总字节数, 而 bits 表示能够容纳此内存页掩码所需的总位数, 而非内存页的个数, bits 是比 nr_pages 稍大的 8 的倍数, 如此满足字节对齐要求
 	stream->bits = bitmap_size * BITS_PER_BYTE;
 	spin_lock_init(&stream->lock);
 
@@ -846,7 +916,10 @@ static int iommu_stream_init(struct ethosn_allocator_internal *allocator, enum e
 	if (!stream->page)
 		goto free_bitmap;
 
-	// 这里将 stream->addr_base 开始的DMA IOVA地址, 逐页地映射到page对应的CPU物理地址空间中, 这些映射都在当前allocator对应的域中操作
+	// 这里, 将从 dma iova 基地址 addr_base 开始的长度为 nr_pages*PAGE_SIZE 的虚拟地址逐一映射到同一段物理内存页; 这些映射由同一个 domain 进行权限管理和内存隔离 
+    // 这样做的好处:
+    // 1. 这一整段连续的虚拟地址空间具有完全一致的访问权限;
+    // 2. 通过将多个虚拟地址映射到同一个物理页面, 可以简化内存管理, 因为只需要处理一个物理页面的分配和释放;
 	for (i = 0; i < nr_pages; ++i) {
 		err = iommu_map(domain->iommu_domain, stream->addr_base + i * PAGE_SIZE, page_to_phys(stream->page), PAGE_SIZE, IOMMU_READ);
 
@@ -896,6 +969,7 @@ static void iommu_stream_deinit(struct ethosn_allocator_internal *allocator)
 	stream->page = NULL;
 }
 
+// destroy 函数的作用是清理掉由 sub_allocator 构造的静态内存管理资源
 static void iommu_allocator_destroy(struct ethosn_dma_sub_allocator *_allocator)
 {
 	struct ethosn_allocator_internal *allocator;
@@ -917,7 +991,8 @@ static void iommu_allocator_destroy(struct ethosn_dma_sub_allocator *_allocator)
 	ethosn_iommu_put_domain_for_dev(dev, domain);
 }
 
-// 使用 iommu 的方式构造内存管理单元
+// 使用 iommu 的方式构造内存管理单元 allocator
+// 经此操作: 由 ethosn 设备对应的 dev 和 stream_type 共同指定的 sub_allocator 对象, 将管理起始地址为 addr_base, 长度为 IOMMU_ADDR_SIZE 的完整独立的虚拟地址空间的管理权限
 struct ethosn_dma_sub_allocator *ethosn_dma_iommu_allocator_create(struct device *dev, enum ethosn_stream_type stream_type, dma_addr_t addr_base,
 								   phys_addr_t speculative_page_addr)
 {
@@ -947,14 +1022,13 @@ struct ethosn_dma_sub_allocator *ethosn_dma_iommu_allocator_create(struct device
 		.sync_for_cpu = iommu_sync_for_cpu,
 	};
 
-	// 仅在当前模块中保存内部数据的数据结构, 包含了当前设备与内存相关的信息
+	// 仅在当前模块中保存内部数据的数据结构, 包含了当前 allocator 与物理内存相关的信息
 	struct ethosn_allocator_internal *allocator;
 	struct iommu_domain *domain = NULL;
 	struct iommu_fwspec *fwspec = NULL;
 	size_t bitmap_size;
 	int ret;
 
-	// 这里为当前设备直接分配一个新的 iommu 域
 	domain = ethosn_iommu_get_domain_for_dev(dev);
 
 	allocator = devm_kzalloc(dev, sizeof(struct ethosn_allocator_internal), GFP_KERNEL);
@@ -965,8 +1039,9 @@ struct ethosn_dma_sub_allocator *ethosn_dma_iommu_allocator_create(struct device
 	allocator->ethosn_iommu_domain.iommu_domain = domain;
 
 	if (domain) {
-        // 位图的每一位对应 IOMMU地址空间(总线/设备地址空间) 的一个页, 这里IOMMU_ADDR_SIZE地址空间大小为512MB
-		bitmap_size = BITS_TO_LONGS(IOMMU_ADDR_SIZE >> PAGE_SHIFT) * sizeof(unsigned long); // 16KB
+        // 位图的每一个位表示将当前长度为 IOMMU_ADDR_SIZE 的虚拟地址空间完整映射到物理地址空间所需的每一个内存页, 相当于内存页的掩码
+        // bitmap_size 表示能够容纳此内存页掩码所需的总字节数
+		bitmap_size = BITS_TO_LONGS(IOMMU_ADDR_SIZE >> PAGE_SHIFT) * sizeof(unsigned long);
 
 		ret = iommu_stream_init(allocator, stream_type, addr_base, bitmap_size, speculative_page_addr);
 		if (ret)

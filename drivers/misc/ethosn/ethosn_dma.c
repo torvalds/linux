@@ -408,6 +408,7 @@ struct ethosn_dma_info *ethosn_dma_alloc_and_map(struct ethosn_dma_allocator *to
 	if (!sub_allocator)
 		return NULL;
 
+    // 分配物理页并映射到cpu虚拟地址空间, 这些物理页同时获得了dma地址
 	dma_info = ethosn_dma_alloc(top_allocator, size, stream_type, gfp, debug_tag);
 	if (IS_ERR_OR_NULL(dma_info))
 		goto exit;
