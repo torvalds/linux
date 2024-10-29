@@ -150,13 +150,13 @@ static void *__mte_allocate_memory_range(size_t size, int mem_type, int mapping,
 		map_flag |= MAP_PRIVATE;
 	ptr = mmap(NULL, entire_size, prot_flag, map_flag, fd, 0);
 	if (ptr == MAP_FAILED) {
-		ksft_print_msg("FAIL: mmap allocation\n");
+		ksft_perror("mmap()");
 		return NULL;
 	}
 	if (mem_type == USE_MPROTECT) {
 		if (mprotect(ptr, entire_size, prot_flag | PROT_MTE)) {
+			ksft_perror("mprotect(PROT_MTE)");
 			munmap(ptr, size);
-			ksft_print_msg("FAIL: mprotect PROT_MTE property\n");
 			return NULL;
 		}
 	}
@@ -190,13 +190,13 @@ void *mte_allocate_file_memory(size_t size, int mem_type, int mapping, bool tags
 	lseek(fd, 0, SEEK_SET);
 	for (index = INIT_BUFFER_SIZE; index < size; index += INIT_BUFFER_SIZE) {
 		if (write(fd, buffer, INIT_BUFFER_SIZE) != INIT_BUFFER_SIZE) {
-			perror("initialising buffer");
+			ksft_perror("initialising buffer");
 			return NULL;
 		}
 	}
 	index -= INIT_BUFFER_SIZE;
 	if (write(fd, buffer, size - index) != size - index) {
-		perror("initialising buffer");
+		ksft_perror("initialising buffer");
 		return NULL;
 	}
 	return __mte_allocate_memory_range(size, mem_type, mapping, 0, 0, tags, fd);
@@ -217,12 +217,12 @@ void *mte_allocate_file_memory_tag_range(size_t size, int mem_type, int mapping,
 	lseek(fd, 0, SEEK_SET);
 	for (index = INIT_BUFFER_SIZE; index < map_size; index += INIT_BUFFER_SIZE)
 		if (write(fd, buffer, INIT_BUFFER_SIZE) != INIT_BUFFER_SIZE) {
-			perror("initialising buffer");
+			ksft_perror("initialising buffer");
 			return NULL;
 		}
 	index -= INIT_BUFFER_SIZE;
 	if (write(fd, buffer, map_size - index) != map_size - index) {
-		perror("initialising buffer");
+		ksft_perror("initialising buffer");
 		return NULL;
 	}
 	return __mte_allocate_memory_range(size, mem_type, mapping, range_before,
@@ -358,7 +358,7 @@ int create_temp_file(void)
 	/* Create a file in the tmpfs filesystem */
 	fd = mkstemp(&filename[0]);
 	if (fd == -1) {
-		perror(filename);
+		ksft_perror(filename);
 		ksft_print_msg("FAIL: Unable to open temporary file\n");
 		return 0;
 	}
