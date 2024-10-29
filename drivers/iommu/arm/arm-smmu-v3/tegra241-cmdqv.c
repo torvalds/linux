@@ -801,7 +801,9 @@ out_fallback:
 	return 0;
 }
 
+#ifdef CONFIG_IOMMU_DEBUGFS
 static struct dentry *cmdqv_debugfs_dir;
+#endif
 
 static struct arm_smmu_device *
 __tegra241_cmdqv_probe(struct arm_smmu_device *smmu, struct resource *res,
