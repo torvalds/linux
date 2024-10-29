@@ -754,17 +754,13 @@ int __bch2_read_indirect_extent(struct btree_trans *trans,
 				unsigned *offset_into_extent,
 				struct bkey_buf *orig_k)
 {
+	struct bkey_i_reflink_p *p = bkey_i_to_reflink_p(orig_k->k);
+	u64 reflink_offset = REFLINK_P_IDX(&p->v) + *offset_into_extent;
+
 	struct btree_iter iter;
-	struct bkey_s_c k;
-	u64 reflink_offset;
-	int ret;
-
-	reflink_offset = le64_to_cpu(bkey_i_to_reflink_p(orig_k->k)->v.idx) +
-		*offset_into_extent;
-
-	k = bch2_bkey_get_iter(trans, &iter, BTREE_ID_reflink,
+	struct bkey_s_c k = bch2_bkey_get_iter(trans, &iter, BTREE_ID_reflink,
 			       POS(0, reflink_offset), 0);
-	ret = bkey_err(k);
+	int ret = bkey_err(k);
 	if (ret)
 		goto err;
 

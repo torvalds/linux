@@ -35,10 +35,10 @@ int bch2_reflink_p_validate(struct bch_fs *c, struct bkey_s_c k,
 	struct bkey_s_c_reflink_p p = bkey_s_c_to_reflink_p(k);
 	int ret = 0;
 
-	bkey_fsck_err_on(le64_to_cpu(p.v->idx) < le32_to_cpu(p.v->front_pad),
+	bkey_fsck_err_on(REFLINK_P_IDX(p.v) < le32_to_cpu(p.v->front_pad),
 			 c, reflink_p_front_pad_bad,
 			 "idx < front_pad (%llu < %u)",
-			 le64_to_cpu(p.v->idx), le32_to_cpu(p.v->front_pad));
+			 REFLINK_P_IDX(p.v), le32_to_cpu(p.v->front_pad));
 fsck_err:
 	return ret;
 }
@@ -49,7 +49,7 @@ void bch2_reflink_p_to_text(struct printbuf *out, struct bch_fs *c,
 	struct bkey_s_c_reflink_p p = bkey_s_c_to_reflink_p(k);
 
 	prt_printf(out, "idx %llu front_pad %u back_pad %u",
-	       le64_to_cpu(p.v->idx),
+	       REFLINK_P_IDX(p.v),
 	       le32_to_cpu(p.v->front_pad),
 	       le32_to_cpu(p.v->back_pad));
 }
@@ -65,7 +65,7 @@ bool bch2_reflink_p_merge(struct bch_fs *c, struct bkey_s _l, struct bkey_s_c _r
 	 */
 	return false;
 
-	if (le64_to_cpu(l.v->idx) + l.k->size != le64_to_cpu(r.v->idx))
+	if (REFLINK_P_IDX(l.v) + l.k->size != REFLINK_P_IDX(r.v))
 		return false;
 
 	bch2_key_resize(l.k, l.k->size + r.k->size);
@@ -115,12 +115,12 @@ static int trans_trigger_reflink_p_segment(struct btree_trans *trans,
 		u64 pad;
 
 		pad = max_t(s64, le32_to_cpu(v->front_pad),
-			    le64_to_cpu(v->idx) - bkey_start_offset(&k->k));
+			    REFLINK_P_IDX(v) - bkey_start_offset(&k->k));
 		BUG_ON(pad > U32_MAX);
 		v->front_pad = cpu_to_le32(pad);
 
 		pad = max_t(s64, le32_to_cpu(v->back_pad),
-			    k->k.p.offset - p.k->size - le64_to_cpu(v->idx));
+			    k->k.p.offset - p.k->size - REFLINK_P_IDX(v));
 		BUG_ON(pad > U32_MAX);
 		v->back_pad = cpu_to_le32(pad);
 	}
@@ -147,8 +147,8 @@ static s64 gc_trigger_reflink_p_segment(struct btree_trans *trans,
 	struct bch_fs *c = trans->c;
 	struct reflink_gc *r;
 	int add = !(flags & BTREE_TRIGGER_overwrite) ? 1 : -1;
-	u64 start = le64_to_cpu(p.v->idx);
-	u64 end = le64_to_cpu(p.v->idx) + p.k->size;
+	u64 start = REFLINK_P_IDX(p.v);
+	u64 end = start + p.k->size;
 	u64 next_idx = end + le32_to_cpu(p.v->back_pad);
 	s64 ret = 0;
 	struct printbuf buf = PRINTBUF;
@@ -210,8 +210,8 @@ static int __trigger_reflink_p(struct btree_trans *trans,
 	struct bkey_s_c_reflink_p p = bkey_s_c_to_reflink_p(k);
 	int ret = 0;
 
-	u64 idx = le64_to_cpu(p.v->idx) - le32_to_cpu(p.v->front_pad);
-	u64 end = le64_to_cpu(p.v->idx) + p.k->size + le32_to_cpu(p.v->back_pad);
+	u64 idx = REFLINK_P_IDX(p.v) - le32_to_cpu(p.v->front_pad);
+	u64 end = REFLINK_P_IDX(p.v) + p.k->size + le32_to_cpu(p.v->back_pad);
 
 	if (flags & BTREE_TRIGGER_transactional) {
 		while (idx < end && !ret)
@@ -258,7 +258,16 @@ int bch2_trigger_reflink_p(struct btree_trans *trans,
 int bch2_reflink_v_validate(struct bch_fs *c, struct bkey_s_c k,
 			    enum bch_validate_flags flags)
 {
-	return bch2_bkey_ptrs_validate(c, k, flags);
+	int ret = 0;
+
+	bkey_fsck_err_on(bkey_gt(k.k->p, POS(0, REFLINK_P_IDX_MAX)),
+			 c, reflink_v_pos_bad,
+			 "indirect extent above maximum position 0:%llu",
+			 REFLINK_P_IDX_MAX);
+
+	ret = bch2_bkey_ptrs_validate(c, k, flags);
+fsck_err:
+	return ret;
 }
 
 void bch2_reflink_v_to_text(struct printbuf *out, struct bch_fs *c,
@@ -358,6 +367,14 @@ static int bch2_make_extent_indirect(struct btree_trans *trans,
 	if (ret)
 		goto err;
 
+	/*
+	 * XXX: we're assuming that 56 bits will be enough for the life of the
+	 * filesystem: we need to implement wraparound, with a cursor in the
+	 * logged ops btree:
+	 */
+	if (bkey_ge(reflink_iter.pos, POS(0, REFLINK_P_IDX_MAX - orig->k.size)))
+		return -ENOSPC;
+
 	r_v = bch2_trans_kmalloc(trans, sizeof(__le64) + bkey_bytes(&orig->k));
 	ret = PTR_ERR_OR_ZERO(r_v);
 	if (ret)
@@ -394,7 +411,7 @@ static int bch2_make_extent_indirect(struct btree_trans *trans,
 	memset(&r_p->v, 0, sizeof(r_p->v));
 #endif
 
-	r_p->v.idx = cpu_to_le64(bkey_start_offset(&r_v->k));
+	SET_REFLINK_P_IDX(&r_p->v, bkey_start_offset(&r_v->k));
 
 	ret = bch2_trans_update(trans, extent_iter, &r_p->k_i,
 				BTREE_UPDATE_internal_snapshot_node);
@@ -533,11 +550,11 @@ s64 bch2_remap_range(struct bch_fs *c,
 			struct bkey_i_reflink_p *dst_p =
 				bkey_reflink_p_init(new_dst.k);
 
-			u64 offset = le64_to_cpu(src_p.v->idx) +
+			u64 offset = REFLINK_P_IDX(src_p.v) +
 				(src_want.offset -
 				 bkey_start_offset(src_k.k));
 
-			dst_p->v.idx = cpu_to_le64(offset);
+			SET_REFLINK_P_IDX(&dst_p->v, offset);
 		} else {
 			BUG();
 		}

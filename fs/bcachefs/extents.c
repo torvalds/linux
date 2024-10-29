@@ -1495,7 +1495,7 @@ int bch2_cut_front_s(struct bpos where, struct bkey_s k)
 	case KEY_TYPE_reflink_p: {
 		struct bkey_s_reflink_p p = bkey_s_to_reflink_p(k);
 
-		le64_add_cpu(&p.v->idx, sub);
+		SET_REFLINK_P_IDX(p.v, REFLINK_P_IDX(p.v) + sub);
 		break;
 	}
 	case KEY_TYPE_inline_data:
