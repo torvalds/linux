@@ -19,6 +19,24 @@
 			#address-cells = <3>;
 			#size-cells = <2>;
 
+			cpu_clk: clock-600000000 {
+				compatible = "fixed-clock";
+				#clock-cells = <0>;
+				clock-frequency = <600000000>;  /* CPU clock = 600MHz */
+			};
+
+			ddr_clk: clock-30000000 {
+				compatible = "fixed-clock";
+				#clock-cells = <0>;
+				clock-frequency = <30000000>;  /* Fabric clock = 30MHz */
+			};
+
+			sys_clk: clock-15625000 {
+				compatible = "fixed-clock";
+				#clock-cells = <0>;
+				clock-frequency = <15625000>;  /* System clock = 15.625MHz */
+			};
+
 			pci-ep-bus@0 {
 				compatible = "simple-bus";
 				#address-cells = <1>;
@@ -37,24 +55,6 @@
 					interrupt-controller;
 					interrupts = <0>; /* PCI INTx assigned interrupt */
 					reg = <0xe00c0120 0x190>;
-				};
-
-				cpu_clk: cpu_clk {
-					compatible = "fixed-clock";
-					#clock-cells = <0>;
-					clock-frequency = <600000000>;  // CPU clock = 600MHz
-				};
-
-				ddr_clk: ddr_clk {
-					compatible = "fixed-clock";
-					#clock-cells = <0>;
-					clock-frequency = <30000000>;  // Fabric clock = 30MHz
-				};
-
-				sys_clk: sys_clk {
-					compatible = "fixed-clock";
-					#clock-cells = <0>;
-					clock-frequency = <15625000>;  // System clock = 15.625MHz
 				};
 
 				cpu_ctrl: syscon@e00c0000 {
