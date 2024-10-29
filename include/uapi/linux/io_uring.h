@@ -713,7 +713,8 @@ struct io_uring_clock_register {
 };
 
 enum {
-	IORING_REGISTER_SRC_REGISTERED = 1,
+	IORING_REGISTER_SRC_REGISTERED	= (1U << 0),
+	IORING_REGISTER_DST_REPLACE	= (1U << 1),
 };
 
 struct io_uring_clone_buffers {
