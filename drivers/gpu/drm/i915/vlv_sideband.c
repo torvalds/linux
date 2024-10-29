@@ -43,7 +43,7 @@ static void __vlv_punit_get(struct drm_i915_private *i915)
 	 * to the Valleyview P-unit and not all sideband communications.
 	 */
 	if (IS_VALLEYVIEW(i915)) {
-		cpu_latency_qos_update_request(&i915->sb_qos, 0);
+		cpu_latency_qos_update_request(&i915->vlv_iosf_sb.qos, 0);
 		on_each_cpu(ping, NULL, 1);
 	}
 }
@@ -51,7 +51,7 @@ static void __vlv_punit_get(struct drm_i915_private *i915)
 static void __vlv_punit_put(struct drm_i915_private *i915)
 {
 	if (IS_VALLEYVIEW(i915))
-		cpu_latency_qos_update_request(&i915->sb_qos,
+		cpu_latency_qos_update_request(&i915->vlv_iosf_sb.qos,
 					       PM_QOS_DEFAULT_VALUE);
 
 	iosf_mbi_punit_release();
@@ -254,10 +254,16 @@ void vlv_iosf_sb_init(struct drm_i915_private *i915)
 {
 	if (IS_VALLEYVIEW(i915) || IS_CHERRYVIEW(i915))
 		mutex_init(&i915->vlv_iosf_sb.lock);
+
+	if (IS_VALLEYVIEW(i915))
+		cpu_latency_qos_add_request(&i915->vlv_iosf_sb.qos, PM_QOS_DEFAULT_VALUE);
 }
 
 void vlv_iosf_sb_fini(struct drm_i915_private *i915)
 {
+	if (IS_VALLEYVIEW(i915))
+		cpu_latency_qos_remove_request(&i915->vlv_iosf_sb.qos);
+
 	if (IS_VALLEYVIEW(i915) || IS_CHERRYVIEW(i915))
 		mutex_destroy(&i915->vlv_iosf_sb.lock);
 }
