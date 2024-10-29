@@ -188,7 +188,7 @@ bool hsw_crtc_supports_ips(struct intel_crtc *crtc)
 	return HAS_IPS(to_i915(crtc->base.dev)) && crtc->pipe == PIPE_A;
 }
 
-bool hsw_crtc_state_ips_capable(const struct intel_crtc_state *crtc_state)
+static bool hsw_crtc_state_ips_capable(const struct intel_crtc_state *crtc_state)
 {
 	struct intel_display *display = to_intel_display(crtc_state);
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
@@ -216,6 +216,20 @@ bool hsw_crtc_state_ips_capable(const struct intel_crtc_state *crtc_state)
 		return false;
 
 	return true;
+}
+
+int hsw_ips_min_cdclk(const struct intel_crtc_state *crtc_state)
+{
+	struct drm_i915_private *i915 = to_i915(crtc_state->uapi.crtc->dev);
+
+	if (!IS_BROADWELL(i915))
+		return 0;
+
+	if (!hsw_crtc_state_ips_capable(crtc_state))
+		return 0;
+
+	/* pixel rate mustn't exceed 95% of cdclk with IPS on BDW */
+	return DIV_ROUND_UP(crtc_state->pixel_rate * 100, 95);
 }
 
 int hsw_ips_compute_config(struct intel_atomic_state *state,

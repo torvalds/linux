@@ -2857,10 +2857,7 @@ int intel_crtc_compute_min_cdclk(const struct intel_crtc_state *crtc_state)
 		return 0;
 
 	min_cdclk = intel_pixel_rate_to_cdclk(crtc_state);
-
-	/* pixel rate mustn't exceed 95% of cdclk with IPS on BDW */
-	if (IS_BROADWELL(dev_priv) && hsw_crtc_state_ips_capable(crtc_state))
-		min_cdclk = DIV_ROUND_UP(min_cdclk * 100, 95);
+	min_cdclk = max(hsw_ips_min_cdclk(crtc_state), min_cdclk);
 
 	/* BSpec says "Do not use DisplayPort with CDCLK less than 432 MHz,
 	 * audio enabled, port width x4, and link rate HBR2 (5.4 GHz), or else
