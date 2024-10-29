@@ -584,7 +584,7 @@ static int cmdq_get_clocks(struct device *dev, struct cmdq *cmdq)
 	struct clk_bulk_data *clks;
 
 	cmdq->clocks = devm_kcalloc(dev, cmdq->pdata->gce_num,
-				    sizeof(cmdq->clocks), GFP_KERNEL);
+				    sizeof(*cmdq->clocks), GFP_KERNEL);
 	if (!cmdq->clocks)
 		return -ENOMEM;
 
