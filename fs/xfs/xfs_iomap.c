@@ -1234,6 +1234,14 @@ xfs_buffered_write_iomap_end(
 	if (iomap->type != IOMAP_DELALLOC || !(iomap->flags & IOMAP_F_NEW))
 		return 0;
 
+	/*
+	 * iomap_page_mkwrite() will never fail in a way that requires delalloc
+	 * extents that it allocated to be revoked.  Hence never try to release
+	 * them here.
+	 */
+	if (flags & IOMAP_FAULT)
+		return 0;
+
 	/* Nothing to do if we've written the entire delalloc extent */
 	start_byte = iomap_last_written_block(inode, offset, written);
 	end_byte = round_up(offset + length, i_blocksize(inode));
@@ -1258,15 +1266,6 @@ xfs_buffered_write_iomap_end(
 const struct iomap_ops xfs_buffered_write_iomap_ops = {
 	.iomap_begin		= xfs_buffered_write_iomap_begin,
 	.iomap_end		= xfs_buffered_write_iomap_end,
-};
-
-/*
- * iomap_page_mkwrite() will never fail in a way that requires delalloc extents
- * that it allocated to be revoked. Hence we do not need an .iomap_end method
- * for this operation.
- */
-const struct iomap_ops xfs_page_mkwrite_iomap_ops = {
-	.iomap_begin		= xfs_buffered_write_iomap_begin,
 };
 
 static int
