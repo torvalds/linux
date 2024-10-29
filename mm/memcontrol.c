@@ -597,7 +597,12 @@ static inline void memcg_rstat_updated(struct mem_cgroup *memcg, int val)
 
 static void __mem_cgroup_flush_stats(struct mem_cgroup *memcg, bool force)
 {
-	if (!force && !memcg_vmstats_needs_flush(memcg->vmstats))
+	bool needs_flush = memcg_vmstats_needs_flush(memcg->vmstats);
+
+	trace_memcg_flush_stats(memcg, atomic64_read(&memcg->vmstats->stats_updates),
+		force, needs_flush);
+
+	if (!force && !needs_flush)
 		return;
 
 	if (mem_cgroup_is_root(memcg))
