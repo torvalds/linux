@@ -24,7 +24,6 @@
 
 #include <media/i2c/ds90ub9xx.h>
 #include <media/v4l2-ctrls.h>
-#include <media/v4l2-event.h>
 #include <media/v4l2-fwnode.h>
 #include <media/v4l2-mediabus.h>
 #include <media/v4l2-subdev.h>
@@ -717,8 +716,6 @@ static const struct v4l2_subdev_pad_ops ub953_pad_ops = {
 
 static const struct v4l2_subdev_core_ops ub953_subdev_core_ops = {
 	.log_status = ub953_log_status,
-	.subscribe_event = v4l2_ctrl_subdev_subscribe_event,
-	.unsubscribe_event = v4l2_event_subdev_unsubscribe,
 };
 
 static const struct v4l2_subdev_ops ub953_subdev_ops = {
@@ -1246,7 +1243,7 @@ static int ub953_subdev_init(struct ub953_data *priv)
 	priv->sd.internal_ops = &ub953_internal_ops;
 
 	priv->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE |
-			  V4L2_SUBDEV_FL_HAS_EVENTS | V4L2_SUBDEV_FL_STREAMS;
+			  V4L2_SUBDEV_FL_STREAMS;
 	priv->sd.entity.function = MEDIA_ENT_F_VID_IF_BRIDGE;
 	priv->sd.entity.ops = &ub953_entity_ops;
 

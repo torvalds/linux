@@ -21,7 +21,6 @@
 #include <media/v4l2-cci.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
-#include <media/v4l2-event.h>
 #include <media/v4l2-fwnode.h>
 #include <media/v4l2-mediabus.h>
 
@@ -1123,11 +1122,6 @@ static const u8 test_pattern_val[] = {
 	GC2145_TEST_UNIFORM | GC2145_TEST_BLACK,
 };
 
-static const struct v4l2_subdev_core_ops gc2145_core_ops = {
-	.subscribe_event = v4l2_ctrl_subdev_subscribe_event,
-	.unsubscribe_event = v4l2_event_subdev_unsubscribe,
-};
-
 static const struct v4l2_subdev_video_ops gc2145_video_ops = {
 	.s_stream = gc2145_set_stream,
 };
@@ -1141,7 +1135,6 @@ static const struct v4l2_subdev_pad_ops gc2145_pad_ops = {
 };
 
 static const struct v4l2_subdev_ops gc2145_subdev_ops = {
-	.core = &gc2145_core_ops,
 	.video = &gc2145_video_ops,
 	.pad = &gc2145_pad_ops,
 };
@@ -1407,8 +1400,7 @@ static int gc2145_probe(struct i2c_client *client)
 		goto error_power_off;
 
 	/* Initialize subdev */
-	gc2145->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE |
-			    V4L2_SUBDEV_FL_HAS_EVENTS;
+	gc2145->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
 	gc2145->sd.entity.function = MEDIA_ENT_F_CAM_SENSOR;
 
 	/* Initialize source pad */
