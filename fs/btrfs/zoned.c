@@ -707,11 +707,8 @@ int btrfs_check_zoned_mode(struct btrfs_fs_info *fs_info)
 		 * zoned mode. In this case, we don't have a valid max zone
 		 * append size.
 		 */
-		if (bdev_is_zoned(device->bdev)) {
-			blk_stack_limits(lim,
-					 &bdev_get_queue(device->bdev)->limits,
-					 0);
-		}
+		if (bdev_is_zoned(device->bdev))
+			blk_stack_limits(lim, bdev_limits(device->bdev), 0);
 	}
 
 	/*

@@ -1159,6 +1159,11 @@ enum blk_default_limits {
  */
 #define BLK_DEF_MAX_SECTORS_CAP	2560u
 
+static inline struct queue_limits *bdev_limits(struct block_device *bdev)
+{
+	return &bdev_get_queue(bdev)->limits;
+}
+
 static inline unsigned long queue_segment_boundary(const struct request_queue *q)
 {
 	return q->limits.seg_boundary_mask;
@@ -1293,23 +1298,23 @@ unsigned int bdev_discard_alignment(struct block_device *bdev);
 
 static inline unsigned int bdev_max_discard_sectors(struct block_device *bdev)
 {
-	return bdev_get_queue(bdev)->limits.max_discard_sectors;
+	return bdev_limits(bdev)->max_discard_sectors;
 }
 
 static inline unsigned int bdev_discard_granularity(struct block_device *bdev)
 {
-	return bdev_get_queue(bdev)->limits.discard_granularity;
+	return bdev_limits(bdev)->discard_granularity;
 }
 
 static inline unsigned int
 bdev_max_secure_erase_sectors(struct block_device *bdev)
 {
-	return bdev_get_queue(bdev)->limits.max_secure_erase_sectors;
+	return bdev_limits(bdev)->max_secure_erase_sectors;
 }
 
 static inline unsigned int bdev_write_zeroes_sectors(struct block_device *bdev)
 {
-	return bdev_get_queue(bdev)->limits.max_write_zeroes_sectors;
+	return bdev_limits(bdev)->max_write_zeroes_sectors;
 }
 
 static inline bool bdev_nonrot(struct block_device *bdev)
@@ -1345,7 +1350,7 @@ static inline bool bdev_write_cache(struct block_device *bdev)
 
 static inline bool bdev_fua(struct block_device *bdev)
 {
-	return bdev_get_queue(bdev)->limits.features & BLK_FEAT_FUA;
+	return bdev_limits(bdev)->features & BLK_FEAT_FUA;
 }
 
 static inline bool bdev_nowait(struct block_device *bdev)

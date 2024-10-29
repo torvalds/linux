@@ -661,7 +661,7 @@ EXPORT_SYMBOL(blk_stack_limits);
 void queue_limits_stack_bdev(struct queue_limits *t, struct block_device *bdev,
 		sector_t offset, const char *pfx)
 {
-	if (blk_stack_limits(t, &bdev_get_queue(bdev)->limits,
+	if (blk_stack_limits(t, bdev_limits(bdev),
 			get_start_sect(bdev) + offset))
 		pr_notice("%s: Warning: Device %pg is misaligned\n",
 			pfx, bdev);
