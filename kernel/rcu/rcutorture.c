@@ -3560,25 +3560,39 @@ rcu_torture_cleanup(void)
 			pr_alert("\t: No segments recorded!!!\n");
 		firsttime = 1;
 		for (i = 0; i < rt_read_nsegs; i++) {
-			pr_alert("\t%d: %#x ", i, err_segs[i].rt_readstate);
+			pr_alert("\t%d: %#4x", i, err_segs[i].rt_readstate);
 			if (err_segs[i].rt_delay_jiffies != 0) {
 				pr_cont("%s%ldjiffies", firsttime ? "" : "+",
 					err_segs[i].rt_delay_jiffies);
 				firsttime = 0;
 			}
+			if (IS_ENABLED(CONFIG_RCU_TORTURE_TEST_LOG_CPU))
+				pr_cont(" CPU %-2d", err_segs[i].rt_cpu);
 			if (err_segs[i].rt_delay_ms != 0) {
-				pr_cont("%s%ldms", firsttime ? "" : "+",
+				pr_cont(" %s%ldms", firsttime ? "" : "+",
 					err_segs[i].rt_delay_ms);
 				firsttime = 0;
 			}
 			if (err_segs[i].rt_delay_us != 0) {
-				pr_cont("%s%ldus", firsttime ? "" : "+",
+				pr_cont(" %s%ldus", firsttime ? "" : "+",
 					err_segs[i].rt_delay_us);
 				firsttime = 0;
 			}
-			pr_cont("%s", err_segs[i].rt_preempted ? "preempted" : "");
-			if (IS_ENABLED(CONFIG_RCU_TORTURE_TEST_LOG_CPU))
-				pr_cont(" CPU %d", err_segs[i].rt_cpu);
+			pr_cont("%s", err_segs[i].rt_preempted ? " preempted" : "");
+			if (err_segs[i].rt_readstate & RCUTORTURE_RDR_BH)
+				pr_cont(" BH");
+			if (err_segs[i].rt_readstate & RCUTORTURE_RDR_IRQ)
+				pr_cont(" IRQ");
+			if (err_segs[i].rt_readstate & RCUTORTURE_RDR_PREEMPT)
+				pr_cont(" PREEMPT");
+			if (err_segs[i].rt_readstate & RCUTORTURE_RDR_RBH)
+				pr_cont(" RBH");
+			if (err_segs[i].rt_readstate & RCUTORTURE_RDR_SCHED)
+				pr_cont(" SCHED");
+			if (err_segs[i].rt_readstate & RCUTORTURE_RDR_RCU_1)
+				pr_cont(" RCU_1");
+			if (err_segs[i].rt_readstate & RCUTORTURE_RDR_RCU_2)
+				pr_cont(" RCU_2");
 			pr_cont("\n");
 
 		}
