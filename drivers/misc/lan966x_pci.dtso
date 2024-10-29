@@ -15,6 +15,16 @@
 / {
 	fragment@0 {
 		target-path = "";
+
+		/*
+		 * These properties allow to avoid a dtc warnings.
+		 * The real interrupt controller is the PCI device itself. It
+		 * is the node on which the device tree overlay will be applied.
+		 * This node has those properties.
+		 */
+		#interrupt-cells = <1>;
+		interrupt-controller;
+
 		__overlay__ {
 			#address-cells = <3>;
 			#size-cells = <2>;
