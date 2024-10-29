@@ -1481,20 +1481,6 @@ xfs_write_fault(
 	return ret;
 }
 
-static vm_fault_t
-__xfs_filemap_fault(
-	struct vm_fault		*vmf,
-	unsigned int		order)
-{
-	struct inode		*inode = file_inode(vmf->vma->vm_file);
-
-	if (IS_DAX(inode))
-		return xfs_dax_read_fault(vmf, order);
-
-	trace_xfs_read_fault(XFS_I(inode), order);
-	return filemap_fault(vmf);
-}
-
 static inline bool
 xfs_is_write_fault(
 	struct vm_fault		*vmf)
@@ -1507,10 +1493,17 @@ static vm_fault_t
 xfs_filemap_fault(
 	struct vm_fault		*vmf)
 {
+	struct inode		*inode = file_inode(vmf->vma->vm_file);
+
 	/* DAX can shortcut the normal fault path on write faults! */
-	if (IS_DAX(file_inode(vmf->vma->vm_file)) && xfs_is_write_fault(vmf))
-		return xfs_write_fault(vmf, 0);
-	return __xfs_filemap_fault(vmf, 0);
+	if (IS_DAX(inode)) {
+		if (xfs_is_write_fault(vmf))
+			return xfs_write_fault(vmf, 0);
+		return xfs_dax_read_fault(vmf, 0);
+	}
+
+	trace_xfs_read_fault(XFS_I(inode), 0);
+	return filemap_fault(vmf);
 }
 
 static vm_fault_t
@@ -1524,7 +1517,7 @@ xfs_filemap_huge_fault(
 	/* DAX can shortcut the normal fault path on write faults! */
 	if (xfs_is_write_fault(vmf))
 		return xfs_write_fault(vmf, order);
-	return __xfs_filemap_fault(vmf, order);
+	return xfs_dax_read_fault(vmf, order);
 }
 
 static vm_fault_t
