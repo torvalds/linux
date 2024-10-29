@@ -999,7 +999,9 @@ static int sd_uhs2_reinit(struct mmc_host *host)
 	struct mmc_card *card = host->card;
 	int err;
 
-	sd_uhs2_power_up(host);
+	err = sd_uhs2_power_up(host);
+	if (err)
+		return err;
 
 	err = sd_uhs2_phy_init(host);
 	if (err)
