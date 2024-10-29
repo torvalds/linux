@@ -1602,7 +1602,7 @@ static DEVICE_ATTR(current_compute_partition, 0644,
 static DEVICE_ATTR(available_compute_partition, 0444,
 		   amdgpu_gfx_get_available_compute_partition, NULL);
 
-int amdgpu_gfx_sysfs_init(struct amdgpu_device *adev)
+static int amdgpu_gfx_sysfs_xcp_init(struct amdgpu_device *adev)
 {
 	struct amdgpu_xcp_mgr *xcp_mgr = adev->xcp_mgr;
 	bool xcp_switch_supported;
@@ -1629,7 +1629,7 @@ int amdgpu_gfx_sysfs_init(struct amdgpu_device *adev)
 	return r;
 }
 
-void amdgpu_gfx_sysfs_fini(struct amdgpu_device *adev)
+static void amdgpu_gfx_sysfs_xcp_fini(struct amdgpu_device *adev)
 {
 	struct amdgpu_xcp_mgr *xcp_mgr = adev->xcp_mgr;
 	bool xcp_switch_supported;
@@ -1646,25 +1646,47 @@ void amdgpu_gfx_sysfs_fini(struct amdgpu_device *adev)
 				   &dev_attr_available_compute_partition);
 }
 
-int amdgpu_gfx_sysfs_isolation_shader_init(struct amdgpu_device *adev)
+static int amdgpu_gfx_sysfs_isolation_shader_init(struct amdgpu_device *adev)
 {
 	int r;
 
 	r = device_create_file(adev->dev, &dev_attr_enforce_isolation);
 	if (r)
 		return r;
+	if (adev->gfx.enable_cleaner_shader)
+		r = device_create_file(adev->dev, &dev_attr_run_cleaner_shader);
 
-	r = device_create_file(adev->dev, &dev_attr_run_cleaner_shader);
-	if (r)
-		return r;
-
-	return 0;
+	return r;
 }
 
-void amdgpu_gfx_sysfs_isolation_shader_fini(struct amdgpu_device *adev)
+static void amdgpu_gfx_sysfs_isolation_shader_fini(struct amdgpu_device *adev)
 {
 	device_remove_file(adev->dev, &dev_attr_enforce_isolation);
-	device_remove_file(adev->dev, &dev_attr_run_cleaner_shader);
+	if (adev->gfx.enable_cleaner_shader)
+		device_remove_file(adev->dev, &dev_attr_run_cleaner_shader);
+}
+
+int amdgpu_gfx_sysfs_init(struct amdgpu_device *adev)
+{
+	int r;
+
+	r = amdgpu_gfx_sysfs_xcp_init(adev);
+	if (r) {
+		dev_err(adev->dev, "failed to create xcp sysfs files");
+		return r;
+	}
+
+	r = amdgpu_gfx_sysfs_isolation_shader_init(adev);
+	if (r)
+		dev_err(adev->dev, "failed to create isolation sysfs files");
+
+	return r;
+}
+
+void amdgpu_gfx_sysfs_fini(struct amdgpu_device *adev)
+{
+	amdgpu_gfx_sysfs_xcp_fini(adev);
+	amdgpu_gfx_sysfs_isolation_shader_fini(adev);
 }
 
 int amdgpu_gfx_cleaner_shader_sw_init(struct amdgpu_device *adev,
