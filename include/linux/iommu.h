@@ -1080,7 +1080,7 @@ static inline bool device_iommu_capable(struct device *dev, enum iommu_cap cap)
 	return false;
 }
 
-struct iommu_domain *iommu_paging_domain_alloc_flags(struct device *dev,
+static inline struct iommu_domain *iommu_paging_domain_alloc_flags(struct device *dev,
 						     unsigned int flags)
 {
 	return ERR_PTR(-ENODEV);
