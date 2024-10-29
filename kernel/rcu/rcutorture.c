@@ -639,6 +639,7 @@ static struct rcu_torture_ops rcu_busted_ops = {
 	.exp_sync	= synchronize_rcu_busted,
 	.call		= call_rcu_busted,
 	.irq_capable	= 1,
+	.extendables	= RCUTORTURE_MAX_EXTEND,
 	.name		= "busted"
 };
 
