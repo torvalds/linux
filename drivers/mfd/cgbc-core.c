@@ -321,9 +321,18 @@ static int cgbc_init_device(struct cgbc_device_data *cgbc)
 
 	ret = cgbc_get_version(cgbc);
 	if (ret)
-		return ret;
+		goto release_session;
 
-	return mfd_add_devices(cgbc->dev, -1, cgbc_devs, ARRAY_SIZE(cgbc_devs), NULL, 0, NULL);
+	ret = mfd_add_devices(cgbc->dev, -1, cgbc_devs, ARRAY_SIZE(cgbc_devs),
+			      NULL, 0, NULL);
+	if (ret)
+		goto release_session;
+
+	return 0;
+
+release_session:
+	cgbc_session_release(cgbc);
+	return ret;
 }
 
 static int cgbc_probe(struct platform_device *pdev)
