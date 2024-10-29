@@ -17886,9 +17886,11 @@ static int is_state_visited(struct bpf_verifier_env *env, int insn_idx)
 	struct bpf_verifier_state_list *sl, **pprev;
 	struct bpf_verifier_state *cur = env->cur_state, *new, *loop_entry;
 	int i, j, n, err, states_cnt = 0;
-	bool force_new_state = env->test_state_freq || is_force_checkpoint(env, insn_idx);
-	bool add_new_state = force_new_state;
-	bool force_exact;
+	bool force_new_state, add_new_state, force_exact;
+
+	force_new_state = env->test_state_freq || is_force_checkpoint(env, insn_idx) ||
+			  /* Avoid accumulating infinitely long jmp history */
+			  cur->jmp_history_cnt > 40;
 
 	/* bpf progs typically have pruning point every 4 instructions
 	 * http://vger.kernel.org/bpfconf2019.html#session-1
@@ -17898,6 +17900,7 @@ static int is_state_visited(struct bpf_verifier_env *env, int insn_idx)
 	 * In tests that amounts to up to 50% reduction into total verifier
 	 * memory consumption and 20% verifier time speedup.
 	 */
+	add_new_state = force_new_state;
 	if (env->jmps_processed - env->prev_jmps_processed >= 2 &&
 	    env->insn_processed - env->prev_insn_processed >= 8)
 		add_new_state = true;
