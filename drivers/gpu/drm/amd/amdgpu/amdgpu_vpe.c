@@ -377,6 +377,13 @@ static int vpe_sw_init(struct amdgpu_ip_block *ip_block)
 	ret = vpe_init_microcode(vpe);
 	if (ret)
 		goto out;
+
+	/* TODO: Add queue reset mask when FW fully supports it */
+	adev->vpe.supported_reset =
+		 amdgpu_get_soft_full_reset_mask(&adev->vpe.ring);
+	ret = amdgpu_vpe_sysfs_reset_mask_init(adev);
+	if (ret)
+		goto out;
 out:
 	return ret;
 }
@@ -389,6 +396,7 @@ static int vpe_sw_fini(struct amdgpu_ip_block *ip_block)
 	release_firmware(vpe->fw);
 	vpe->fw = NULL;
 
+	amdgpu_vpe_sysfs_reset_mask_fini(adev);
 	vpe_ring_fini(vpe);
 
 	amdgpu_bo_free_kernel(&adev->vpe.cmdbuf_obj,
@@ -863,6 +871,41 @@ static void vpe_ring_end_use(struct amdgpu_ring *ring)
 	struct amdgpu_device *adev = ring->adev;
 
 	schedule_delayed_work(&adev->vpe.idle_work, VPE_IDLE_TIMEOUT);
+}
+
+static ssize_t amdgpu_get_vpe_reset_mask(struct device *dev,
+						struct device_attribute *attr,
+						char *buf)
+{
+	struct drm_device *ddev = dev_get_drvdata(dev);
+	struct amdgpu_device *adev = drm_to_adev(ddev);
+
+	if (!adev)
+		return -ENODEV;
+
+	return amdgpu_show_reset_mask(buf, adev->vpe.supported_reset);
+}
+
+static DEVICE_ATTR(vpe_reset_mask, 0444,
+		   amdgpu_get_vpe_reset_mask, NULL);
+
+int amdgpu_vpe_sysfs_reset_mask_init(struct amdgpu_device *adev)
+{
+	int r = 0;
+
+	if (adev->vpe.num_instances) {
+		r = device_create_file(adev->dev, &dev_attr_vpe_reset_mask);
+		if (r)
+			return r;
+	}
+
+	return r;
+}
+
+void amdgpu_vpe_sysfs_reset_mask_fini(struct amdgpu_device *adev)
+{
+	if (adev->vpe.num_instances)
+		device_remove_file(adev->dev, &dev_attr_vpe_reset_mask);
 }
 
 static const struct amdgpu_ring_funcs vpe_ring_funcs = {
