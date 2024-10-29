@@ -1759,6 +1759,31 @@ static void vlv_dphy_param_init(struct intel_dsi *intel_dsi)
 	intel_dsi_log_params(intel_dsi);
 }
 
+int vlv_dsi_min_cdclk(const struct intel_crtc_state *crtc_state)
+{
+	struct drm_i915_private *dev_priv = to_i915(crtc_state->uapi.crtc->dev);
+	int min_cdclk = 0;
+
+	/*
+	 * On Valleyview some DSI panels lose (v|h)sync when the clock is lower
+	 * than 320000KHz.
+	 */
+	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_DSI) &&
+	    IS_VALLEYVIEW(dev_priv))
+		min_cdclk = max(320000, min_cdclk);
+
+	/*
+	 * On Geminilake once the CDCLK gets as low as 79200
+	 * picture gets unstable, despite that values are
+	 * correct for DSI PLL and DE PLL.
+	 */
+	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_DSI) &&
+	    IS_GEMINILAKE(dev_priv))
+		min_cdclk = max(158400, min_cdclk);
+
+	return min_cdclk;
+}
+
 typedef void (*vlv_dsi_dmi_quirk_func)(struct intel_dsi *intel_dsi);
 
 /*

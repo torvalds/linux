@@ -46,6 +46,7 @@
 #include "intel_vdsc.h"
 #include "skl_watermark.h"
 #include "skl_watermark_regs.h"
+#include "vlv_dsi.h"
 #include "vlv_sideband.h"
 
 /**
@@ -2849,8 +2850,6 @@ static int intel_vdsc_min_cdclk(const struct intel_crtc_state *crtc_state)
 
 int intel_crtc_compute_min_cdclk(const struct intel_crtc_state *crtc_state)
 {
-	struct intel_display *display = to_intel_display(crtc_state);
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
 	int min_cdclk;
 
 	if (!crtc_state->hw.enable)
@@ -2859,25 +2858,7 @@ int intel_crtc_compute_min_cdclk(const struct intel_crtc_state *crtc_state)
 	min_cdclk = intel_pixel_rate_to_cdclk(crtc_state);
 	min_cdclk = max(hsw_ips_min_cdclk(crtc_state), min_cdclk);
 	min_cdclk = max(intel_audio_min_cdclk(crtc_state), min_cdclk);
-
-	/*
-	 * On Valleyview some DSI panels lose (v|h)sync when the clock is lower
-	 * than 320000KHz.
-	 */
-	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_DSI) &&
-	    IS_VALLEYVIEW(dev_priv))
-		min_cdclk = max(320000, min_cdclk);
-
-	/*
-	 * On Geminilake once the CDCLK gets as low as 79200
-	 * picture gets unstable, despite that values are
-	 * correct for DSI PLL and DE PLL.
-	 */
-	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_DSI) &&
-	    IS_GEMINILAKE(dev_priv))
-		min_cdclk = max(158400, min_cdclk);
-
-	/* Account for additional needs from the planes */
+	min_cdclk = max(vlv_dsi_min_cdclk(crtc_state), min_cdclk);
 	min_cdclk = max(intel_planes_min_cdclk(crtc_state), min_cdclk);
 
 	if (crtc_state->dsc.compression_enable)
