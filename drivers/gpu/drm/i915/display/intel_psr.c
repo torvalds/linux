@@ -1781,18 +1781,19 @@ static void wm_optimization_wa(struct intel_dp *intel_dp,
 {
 	struct intel_display *display = to_intel_display(intel_dp);
 	enum pipe pipe = intel_dp->psr.pipe;
-	bool set_wa_bit = false;
+	bool activate = false;
 
 	/* Wa_14015648006 */
-	if (IS_DISPLAY_VER(display, 11, 14))
-		set_wa_bit |= crtc_state->wm_level_disabled;
+	if (IS_DISPLAY_VER(display, 11, 14) && crtc_state->wm_level_disabled)
+		activate = true;
 
 	/* Wa_16013835468 */
-	if (DISPLAY_VER(display) == 12)
-		set_wa_bit |= crtc_state->hw.adjusted_mode.crtc_vblank_start !=
-			crtc_state->hw.adjusted_mode.crtc_vdisplay;
+	if (DISPLAY_VER(display) == 12 &&
+	    crtc_state->hw.adjusted_mode.crtc_vblank_start !=
+	    crtc_state->hw.adjusted_mode.crtc_vdisplay)
+		activate = true;
 
-	if (set_wa_bit)
+	if (activate)
 		intel_de_rmw(display, GEN8_CHICKEN_DCPR_1,
 			     0, LATENCY_REPORTING_REMOVED(pipe));
 	else
