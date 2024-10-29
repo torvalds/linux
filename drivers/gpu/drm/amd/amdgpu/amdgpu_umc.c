@@ -495,10 +495,9 @@ out:
 int amdgpu_umc_mca_to_addr(struct amdgpu_device *adev,
 			uint64_t err_addr, uint32_t ch, uint32_t umc,
 			uint32_t node, uint32_t socket,
-			uint64_t *addr, bool dump_addr)
+			struct ta_ras_query_address_output *addr_out, bool dump_addr)
 {
 	struct ta_ras_query_address_input addr_in;
-	struct ta_ras_query_address_output addr_out;
 	int ret;
 
 	memset(&addr_in, 0, sizeof(addr_in));
@@ -510,14 +509,12 @@ int amdgpu_umc_mca_to_addr(struct amdgpu_device *adev,
 
 	if (adev->umc.ras && adev->umc.ras->convert_ras_err_addr) {
 		ret = adev->umc.ras->convert_ras_err_addr(adev, NULL, &addr_in,
-				&addr_out, dump_addr);
+				addr_out, dump_addr);
 		if (ret)
 			return ret;
 	} else {
 		return 0;
 	}
-
-	*addr = addr_out.pa.pa;
 
 	return 0;
 }

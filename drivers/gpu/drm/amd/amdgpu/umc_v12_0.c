@@ -180,7 +180,7 @@ static int umc_v12_0_convert_error_address(struct amdgpu_device *adev,
 					bool dump_addr)
 {
 	uint32_t col, col_lower, row, row_lower, bank;
-	uint32_t channel_index, umc_inst = 0;
+	uint32_t channel_index = 0, umc_inst = 0;
 	uint32_t i, loop_bits[UMC_V12_0_RETIRE_LOOP_BITS];
 	uint64_t soc_pa, column, err_addr;
 	struct ta_ras_query_address_output addr_out_tmp;
@@ -193,7 +193,7 @@ static int umc_v12_0_convert_error_address(struct amdgpu_device *adev,
 	else
 		paddr_out = addr_out;
 
-	err_addr = bank = channel_index = 0;
+	err_addr = bank = 0;
 	if (addr_in) {
 		err_addr = addr_in->ma.err_addr;
 		addr_in->addr_type = TA_RAS_MCA_TO_PA;
@@ -206,7 +206,6 @@ static int umc_v12_0_convert_error_address(struct amdgpu_device *adev,
 		}
 
 		bank = paddr_out->pa.bank;
-		channel_index = paddr_out->pa.channel_idx;
 		/* no need to care about umc inst if addr_in is NULL */
 		umc_inst = addr_in->ma.umc_inst;
 	}
@@ -228,6 +227,7 @@ static int umc_v12_0_convert_error_address(struct amdgpu_device *adev,
 	}
 
 	soc_pa = paddr_out->pa.pa;
+	channel_index = paddr_out->pa.channel_idx;
 	/* clear loop bits in soc physical address */
 	for (i = 0; i < UMC_V12_0_RETIRE_LOOP_BITS; i++)
 		soc_pa &= ~BIT_ULL(loop_bits[i]);
@@ -466,6 +466,7 @@ static int umc_v12_0_update_ecc_status(struct amdgpu_device *adev,
 	uint64_t page_pfn[UMC_V12_0_BAD_PAGE_NUM_PER_CHANNEL];
 	uint64_t err_addr, pa_addr = 0;
 	struct ras_ecc_err *ecc_err;
+	struct ta_ras_query_address_output addr_out;
 	int count, ret, i;
 
 	hwid = REG_GET_FIELD(ipid, MCMP1_IPIDT0, HardwareID);
@@ -495,7 +496,7 @@ static int umc_v12_0_update_ecc_status(struct amdgpu_device *adev,
 	ret = amdgpu_umc_mca_to_addr(adev,
 			err_addr, MCA_IPID_2_UMC_CH(ipid),
 			MCA_IPID_2_UMC_INST(ipid), MCA_IPID_2_DIE_ID(ipid),
-			MCA_IPID_2_SOCKET_ID(ipid), &pa_addr, true);
+			MCA_IPID_2_SOCKET_ID(ipid), &addr_out, true);
 	if (ret)
 		return ret;
 
@@ -503,10 +504,12 @@ static int umc_v12_0_update_ecc_status(struct amdgpu_device *adev,
 	if (!ecc_err)
 		return -ENOMEM;
 
+	pa_addr = addr_out.pa.pa;
 	ecc_err->status = status;
 	ecc_err->ipid = ipid;
 	ecc_err->addr = addr;
 	ecc_err->pa_pfn = pa_addr >> AMDGPU_GPU_PAGE_SHIFT;
+	ecc_err->channel_idx = addr_out.pa.channel_idx;
 
 	/* If converted pa_pfn is 0, use pa C4 pfn. */
 	if (!ecc_err->pa_pfn)
@@ -577,7 +580,7 @@ static int umc_v12_0_fill_error_record(struct amdgpu_device *adev,
 		ret = amdgpu_umc_fill_error_record(err_data,
 				ecc_err->addr,
 				page_pfn[i] << AMDGPU_GPU_PAGE_SHIFT,
-				MCA_IPID_2_UMC_CH(ecc_err->ipid),
+				ecc_err->channel_idx,
 				MCA_IPID_2_UMC_INST(ecc_err->ipid));
 		if (ret)
 			break;

@@ -146,5 +146,5 @@ int amdgpu_umc_lookup_bad_pages_in_a_row(struct amdgpu_device *adev,
 int amdgpu_umc_mca_to_addr(struct amdgpu_device *adev,
 			uint64_t err_addr, uint32_t ch, uint32_t umc,
 			uint32_t node, uint32_t socket,
-			uint64_t *addr, bool dump_addr);
+			struct ta_ras_query_address_output *addr_out, bool dump_addr);
 #endif

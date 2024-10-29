@@ -483,6 +483,8 @@ struct ras_ecc_err {
 	uint64_t ipid;
 	uint64_t addr;
 	uint64_t pa_pfn;
+	/* save global channel index across all UMC instances */
+	uint32_t channel_idx;
 	struct ras_err_pages err_pages;
 };
 
