@@ -146,7 +146,7 @@ write_attribute(trigger_journal_writes);
 write_attribute(trigger_btree_cache_shrink);
 write_attribute(trigger_btree_key_cache_shrink);
 write_attribute(trigger_freelist_wakeup);
-rw_attribute(gc_gens_pos);
+read_attribute(gc_gens_pos);
 
 read_attribute(uuid);
 read_attribute(minor);
