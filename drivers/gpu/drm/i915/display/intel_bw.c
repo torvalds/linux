@@ -1256,7 +1256,7 @@ int intel_bw_min_cdclk(struct drm_i915_private *i915,
 	min_cdclk = intel_bw_dbuf_min_cdclk(i915, bw_state);
 
 	for_each_pipe(i915, pipe)
-		min_cdclk = max(bw_state->min_cdclk[pipe], min_cdclk);
+		min_cdclk = max(min_cdclk, bw_state->min_cdclk[pipe]);
 
 	return min_cdclk;
 }

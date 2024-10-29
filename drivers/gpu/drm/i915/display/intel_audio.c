@@ -997,10 +997,10 @@ int intel_audio_min_cdclk(const struct intel_crtc_state *crtc_state)
 	    crtc_state->lane_count == 4) {
 		if (DISPLAY_VER(display) == 10) {
 			/* Display WA #1145: glk */
-			min_cdclk = max(316800, min_cdclk);
+			min_cdclk = max(min_cdclk, 316800);
 		} else if (DISPLAY_VER(display) == 9 || IS_BROADWELL(dev_priv)) {
 			/* Display WA #1144: skl,bxt */
-			min_cdclk = max(432000, min_cdclk);
+			min_cdclk = max(min_cdclk, 432000);
 		}
 	}
 
@@ -1009,7 +1009,7 @@ int intel_audio_min_cdclk(const struct intel_crtc_state *crtc_state)
 	 * the frequency of the Azalia BCLK." and BCLK is 96 MHz by default.
 	 */
 	if (DISPLAY_VER(display) >= 9)
-		min_cdclk = max(2 * 96000, min_cdclk);
+		min_cdclk = max(min_cdclk, 2 * 96000);
 
 	/*
 	 * "For DP audio configuration, cdclk frequency shall be set to
@@ -1020,7 +1020,7 @@ int intel_audio_min_cdclk(const struct intel_crtc_state *crtc_state)
 	 */
 	if ((IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) &&
 	    intel_crtc_has_dp_encoder(crtc_state))
-		min_cdclk = max(crtc_state->port_clock, min_cdclk);
+		min_cdclk = max(min_cdclk, crtc_state->port_clock);
 
 	return min_cdclk;
 }

@@ -2799,7 +2799,7 @@ static int intel_planes_min_cdclk(const struct intel_crtc_state *crtc_state)
 	int min_cdclk = 0;
 
 	for_each_intel_plane_on_crtc(display->drm, crtc, plane)
-		min_cdclk = max(crtc_state->min_cdclk[plane->id], min_cdclk);
+		min_cdclk = max(min_cdclk, crtc_state->min_cdclk[plane->id]);
 
 	return min_cdclk;
 }
@@ -2812,10 +2812,10 @@ int intel_crtc_compute_min_cdclk(const struct intel_crtc_state *crtc_state)
 		return 0;
 
 	min_cdclk = intel_pixel_rate_to_cdclk(crtc_state);
-	min_cdclk = max(hsw_ips_min_cdclk(crtc_state), min_cdclk);
-	min_cdclk = max(intel_audio_min_cdclk(crtc_state), min_cdclk);
-	min_cdclk = max(vlv_dsi_min_cdclk(crtc_state), min_cdclk);
-	min_cdclk = max(intel_planes_min_cdclk(crtc_state), min_cdclk);
+	min_cdclk = max(min_cdclk, hsw_ips_min_cdclk(crtc_state));
+	min_cdclk = max(min_cdclk, intel_audio_min_cdclk(crtc_state));
+	min_cdclk = max(min_cdclk, vlv_dsi_min_cdclk(crtc_state));
+	min_cdclk = max(min_cdclk, intel_planes_min_cdclk(crtc_state));
 	min_cdclk = max(min_cdclk, intel_vdsc_min_cdclk(crtc_state));
 
 	return min_cdclk;
@@ -2868,7 +2868,7 @@ static int intel_compute_min_cdclk(struct intel_atomic_state *state)
 	min_cdclk = max(cdclk_state->force_min_cdclk,
 			cdclk_state->bw_min_cdclk);
 	for_each_pipe(display, pipe)
-		min_cdclk = max(cdclk_state->min_cdclk[pipe], min_cdclk);
+		min_cdclk = max(min_cdclk, cdclk_state->min_cdclk[pipe]);
 
 	/*
 	 * Avoid glk_force_audio_cdclk() causing excessive screen
@@ -2880,7 +2880,7 @@ static int intel_compute_min_cdclk(struct intel_atomic_state *state)
 	 */
 	if (IS_GEMINILAKE(dev_priv) && cdclk_state->active_pipes &&
 	    !is_power_of_2(cdclk_state->active_pipes))
-		min_cdclk = max(2 * 96000, min_cdclk);
+		min_cdclk = max(min_cdclk, 2 * 96000);
 
 	if (min_cdclk > display->cdclk.max_cdclk_freq) {
 		drm_dbg_kms(display->drm,
@@ -2936,8 +2936,8 @@ static int bxt_compute_min_voltage_level(struct intel_atomic_state *state)
 
 	min_voltage_level = 0;
 	for_each_pipe(display, pipe)
-		min_voltage_level = max(cdclk_state->min_voltage_level[pipe],
-					min_voltage_level);
+		min_voltage_level = max(min_voltage_level,
+					cdclk_state->min_voltage_level[pipe]);
 
 	return min_voltage_level;
 }
