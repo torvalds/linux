@@ -101,6 +101,7 @@ void __rtnl_net_lock(struct net *net);
 void __rtnl_net_unlock(struct net *net);
 void rtnl_net_lock(struct net *net);
 void rtnl_net_unlock(struct net *net);
+int rtnl_net_trylock(struct net *net);
 int rtnl_net_lock_cmp_fn(const struct lockdep_map *a, const struct lockdep_map *b);
 
 bool rtnl_net_is_locked(struct net *net);
@@ -132,26 +133,22 @@ static inline void rtnl_net_unlock(struct net *net)
 	rtnl_unlock();
 }
 
+static inline int rtnl_net_trylock(struct net *net)
+{
+	return rtnl_trylock();
+}
+
 static inline void ASSERT_RTNL_NET(struct net *net)
 {
 	ASSERT_RTNL();
 }
 
-static inline void *rcu_dereference_rtnl_net(struct net *net, void *p)
-{
-	return rcu_dereference_rtnl(p);
-}
-
-static inline void *rtnl_net_dereference(struct net *net, void *p)
-{
-	return rtnl_dereference(p);
-}
-
-static inline void *rcu_replace_pointer_rtnl_net(struct net *net,
-						 void *rp, void *p)
-{
-	return rcu_replace_pointer_rtnl(rp, p);
-}
+#define rcu_dereference_rtnl_net(net, p)		\
+	rcu_dereference_rtnl(p)
+#define rtnl_net_dereference(net, p)			\
+	rtnl_dereference(p)
+#define rcu_replace_pointer_rtnl_net(net, rp, p)	\
+	rcu_replace_pointer_rtnl(rp, p)
 #endif
 
 static inline struct netdev_queue *dev_ingress_queue(struct net_device *dev)

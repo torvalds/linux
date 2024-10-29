@@ -210,6 +210,17 @@ void rtnl_net_unlock(struct net *net)
 }
 EXPORT_SYMBOL(rtnl_net_unlock);
 
+int rtnl_net_trylock(struct net *net)
+{
+	int ret = rtnl_trylock();
+
+	if (ret)
+		__rtnl_net_lock(net);
+
+	return ret;
+}
+EXPORT_SYMBOL(rtnl_net_trylock);
+
 static int rtnl_net_cmp_locks(const struct net *net_a, const struct net *net_b)
 {
 	if (net_eq(net_a, net_b))
