@@ -84,6 +84,17 @@ static inline void io_put_rsrc_node(struct io_rsrc_node *node)
 		io_free_rsrc_node(node);
 }
 
+static inline bool io_reset_rsrc_node(struct io_rsrc_data *data, int index)
+{
+	struct io_rsrc_node *node = data->nodes[index];
+
+	if (!node)
+		return false;
+	io_put_rsrc_node(node);
+	data->nodes[index] = NULL;
+	return true;
+}
+
 static inline void io_req_put_rsrc_nodes(struct io_kiocb *req)
 {
 	if (req->rsrc_nodes[IORING_RSRC_FILE] != rsrc_empty_node) {

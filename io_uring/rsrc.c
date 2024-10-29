@@ -181,7 +181,6 @@ static int __io_sqe_files_update(struct io_ring_ctx *ctx,
 		return -EINVAL;
 
 	for (done = 0; done < nr_args; done++) {
-		struct io_rsrc_node *node;
 		u64 tag = 0;
 
 		if ((tags && copy_from_user(&tag, &tags[done], sizeof(tag))) ||
@@ -197,12 +196,9 @@ static int __io_sqe_files_update(struct io_ring_ctx *ctx,
 			continue;
 
 		i = up->offset + done;
-		node = io_rsrc_node_lookup(&ctx->file_table.data, i);
-		if (node) {
-			io_put_rsrc_node(node);
-			ctx->file_table.data.nodes[i] = NULL;
+		if (io_reset_rsrc_node(&ctx->file_table.data, i))
 			io_file_bitmap_clear(&ctx->file_table, i);
-		}
+
 		if (fd != -1) {
 			struct file *file = fget(fd);
 			struct io_rsrc_node *node;
@@ -279,9 +275,7 @@ static int __io_sqe_buffers_update(struct io_ring_ctx *ctx,
 			break;
 		}
 		i = array_index_nospec(up->offset + done, ctx->buf_table.nr);
-		if (ctx->buf_table.nodes[i])
-			io_put_rsrc_node(ctx->buf_table.nodes[i]);
-
+		io_reset_rsrc_node(&ctx->buf_table, i);
 		ctx->buf_table.nodes[i] = node;
 		if (tag)
 			node->tag = tag;
