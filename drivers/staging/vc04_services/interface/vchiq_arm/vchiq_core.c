@@ -3486,7 +3486,6 @@ vchiq_bulk_xfer_blocking(struct vchiq_instance *instance, unsigned int handle,
 	if (vchiq_check_service(service))
 		goto error_exit;
 
-
 	status = vchiq_bulk_xfer_queue_msg_killable(service, bulk_params);
 
 error_exit:
@@ -3624,7 +3623,6 @@ error_exit:
 int vchiq_queue_kernel_message(struct vchiq_instance *instance, unsigned int handle, void *data,
 			       unsigned int size)
 {
-
 	return vchiq_queue_message(instance, handle, memcpy_copy_callback,
 				   data, size);
 }
