@@ -24,10 +24,6 @@ properties:
       - sony,imx258
       - sony,imx258-pdaf
 
-  assigned-clocks: true
-  assigned-clock-parents: true
-  assigned-clock-rates: true
-
   clocks:
     description:
       Clock frequency from 6 to 27 MHz.
@@ -124,9 +120,6 @@ examples:
             compatible = "sony,imx258";
             reg = <0x6c>;
             clocks = <&imx258_clk>;
-
-            assigned-clocks = <&imx258_clk>;
-            assigned-clock-rates = <19200000>;
 
             port {
                 endpoint {
