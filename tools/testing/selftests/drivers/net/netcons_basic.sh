@@ -20,9 +20,9 @@ SCRIPTDIR=$(dirname "$(readlink -e "${BASH_SOURCE[0]}")")
 
 # Simple script to test dynamic targets in netconsole
 SRCIF="" # to be populated later
-SRCIP=192.168.1.1
+SRCIP=192.0.2.1
 DSTIF="" # to be populated later
-DSTIP=192.168.1.2
+DSTIP=192.0.2.2
 
 PORT="6666"
 MSG="netconsole selftest"
