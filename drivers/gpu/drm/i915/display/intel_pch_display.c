@@ -86,7 +86,7 @@ static void assert_pch_ports_disabled(struct drm_i915_private *dev_priv,
 	assert_pch_dp_disabled(dev_priv, pipe, PORT_D, PCH_DP_D);
 
 	INTEL_DISPLAY_STATE_WARN(display,
-				 intel_crt_port_enabled(dev_priv, PCH_ADPA, &port_pipe) && port_pipe == pipe,
+				 intel_crt_port_enabled(display, PCH_ADPA, &port_pipe) && port_pipe == pipe,
 				 "PCH VGA enabled on transcoder %c, should be disabled\n",
 				 pipe_name(pipe));
 

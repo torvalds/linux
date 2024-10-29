@@ -8148,7 +8148,7 @@ void intel_setup_outputs(struct drm_i915_private *dev_priv)
 
 	if (HAS_DDI(dev_priv)) {
 		if (intel_ddi_crt_present(dev_priv))
-			intel_crt_init(dev_priv);
+			intel_crt_init(display);
 
 		intel_bios_for_each_encoder(display, intel_ddi_init);
 
@@ -8163,7 +8163,7 @@ void intel_setup_outputs(struct drm_i915_private *dev_priv)
 		 * incorrect sharing of the PPS.
 		 */
 		intel_lvds_init(dev_priv);
-		intel_crt_init(dev_priv);
+		intel_crt_init(display);
 
 		dpd_is_edp = intel_dp_is_port_edp(dev_priv, PORT_D);
 
@@ -8194,7 +8194,7 @@ void intel_setup_outputs(struct drm_i915_private *dev_priv)
 		bool has_edp, has_port;
 
 		if (IS_VALLEYVIEW(dev_priv) && dev_priv->display.vbt.int_crt_support)
-			intel_crt_init(dev_priv);
+			intel_crt_init(display);
 
 		/*
 		 * The DP_DETECTED bit is the latched state of the DDC
@@ -8240,14 +8240,14 @@ void intel_setup_outputs(struct drm_i915_private *dev_priv)
 		vlv_dsi_init(dev_priv);
 	} else if (IS_PINEVIEW(dev_priv)) {
 		intel_lvds_init(dev_priv);
-		intel_crt_init(dev_priv);
+		intel_crt_init(display);
 	} else if (IS_DISPLAY_VER(dev_priv, 3, 4)) {
 		bool found = false;
 
 		if (IS_MOBILE(dev_priv))
 			intel_lvds_init(dev_priv);
 
-		intel_crt_init(dev_priv);
+		intel_crt_init(display);
 
 		if (intel_de_read(dev_priv, GEN3_SDVOB) & SDVO_DETECTED) {
 			drm_dbg_kms(&dev_priv->drm, "probing SDVOB\n");
@@ -8289,7 +8289,7 @@ void intel_setup_outputs(struct drm_i915_private *dev_priv)
 		if (IS_I85X(dev_priv))
 			intel_lvds_init(dev_priv);
 
-		intel_crt_init(dev_priv);
+		intel_crt_init(display);
 		intel_dvo_init(dev_priv);
 	}
 
