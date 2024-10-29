@@ -827,24 +827,28 @@ static int sd_uhs2_init_card(struct mmc_host *host, struct mmc_card *oldcard)
 
 	err = sd_uhs2_config_read(host, card);
 	if (err)
-		return err;
+		goto err;
 
 	err = sd_uhs2_config_write(host, card);
 	if (err)
-		return err;
+		goto err;
 
-	host->card = card;
 	/* If change speed to Range B, need to GO_DORMANT_STATE */
 	if (host->ios.timing == MMC_TIMING_UHS2_SPEED_B ||
 	    host->ios.timing == MMC_TIMING_UHS2_SPEED_B_HD) {
 		err = sd_uhs2_go_dormant_state(host, node_id);
 		if (err)
-			return err;
+			goto err;
 	}
 
 	host->uhs2_sd_tran = true;
-
+	host->card = card;
 	return 0;
+
+err:
+	if (!oldcard)
+		mmc_remove_card(card);
+	return err;
 }
 
 /*
@@ -855,7 +859,7 @@ static int sd_uhs2_init_card(struct mmc_host *host, struct mmc_card *oldcard)
  * survives a soft reset through the GO_DORMANT_STATE command.
  */
 static int sd_uhs2_legacy_init(struct mmc_host *host, struct mmc_card *card,
-			       struct mmc_card *oldcard)
+			       bool reinit)
 {
 	int err;
 	u32 cid[4];
@@ -873,17 +877,15 @@ static int sd_uhs2_legacy_init(struct mmc_host *host, struct mmc_card *card,
 
 	/* Send CMD8 to communicate SD interface operation condition */
 	err = mmc_send_if_cond(host, host->ocr_avail);
-	if (err) {
-		dev_warn(mmc_dev(host), "CMD8 error\n");
-		goto err;
-	}
+	if (err)
+		return err;
 
 	/*
 	 * Probe SD card working voltage.
 	 */
 	err = mmc_send_app_op_cond(host, 0, &ocr);
 	if (err)
-		goto err;
+		return err;
 
 	card->ocr = ocr;
 
@@ -907,20 +909,18 @@ static int sd_uhs2_legacy_init(struct mmc_host *host, struct mmc_card *card,
 
 	err = mmc_send_app_op_cond(host, ocr, &rocr);
 	if (err)
-		goto err;
+		return err;
 
 	err = mmc_send_cid(host, cid);
 	if (err)
-		goto err;
+		return err;
 
-	if (oldcard) {
-		if (memcmp(cid, oldcard->raw_cid, sizeof(cid)) != 0) {
+	if (reinit) {
+		if (memcmp(cid, card->raw_cid, sizeof(cid)) != 0) {
 			pr_debug("%s: Perhaps the card was replaced\n",
 				 mmc_hostname(host));
 			return -ENOENT;
 		}
-
-		card = oldcard;
 	} else {
 		memcpy(card->raw_cid, cid, sizeof(card->raw_cid));
 		mmc_decode_cid(card);
@@ -931,29 +931,29 @@ static int sd_uhs2_legacy_init(struct mmc_host *host, struct mmc_card *card,
 	 */
 	err = mmc_send_relative_addr(host, &card->rca);
 	if (err)
-		goto err;
+		return err;
 
 	err = mmc_sd_get_csd(card, false);
 	if (err)
-		goto err;
+		return err;
 
 	/*
 	 * Select card, as all following commands rely on that.
 	 */
 	err = mmc_select_card(card);
 	if (err)
-		goto err;
+		return err;
 
 	/*
 	 * Fetch SCR from card.
 	 */
 	err = mmc_app_send_scr(card);
 	if (err)
-		goto err;
+		return err;
 
 	err = mmc_decode_scr(card);
 	if (err)
-		goto err;
+		return err;
 
 	/*
 	 * Switch to high power consumption mode.
@@ -989,9 +989,6 @@ static int sd_uhs2_legacy_init(struct mmc_host *host, struct mmc_card *card,
 
 	kfree(status);
 	return 0;
-
-err:
-	return err;
 }
 
 static int sd_uhs2_reinit(struct mmc_host *host)
@@ -1011,7 +1008,7 @@ static int sd_uhs2_reinit(struct mmc_host *host)
 	if (err)
 		return err;
 
-	return sd_uhs2_legacy_init(host, card, card);
+	return sd_uhs2_legacy_init(host, card, true);
 }
 
 static void sd_uhs2_remove(struct mmc_host *host)
@@ -1172,9 +1169,9 @@ static int sd_uhs2_attach(struct mmc_host *host)
 	if (err)
 		goto err;
 
-	err = sd_uhs2_legacy_init(host, host->card, NULL);
+	err = sd_uhs2_legacy_init(host, host->card, false);
 	if (err)
-		goto err;
+		goto remove_card;
 
 	mmc_attach_bus(host, &sd_uhs2_ops);
 
@@ -1185,13 +1182,11 @@ static int sd_uhs2_attach(struct mmc_host *host)
 		goto remove_card;
 
 	mmc_claim_host(host);
-
 	return 0;
 
 remove_card:
 	sd_uhs2_remove(host);
 	mmc_claim_host(host);
-
 err:
 	mmc_detach_bus(host);
 	sd_uhs2_power_off(host);
