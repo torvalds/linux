@@ -27,6 +27,8 @@
  * https://www.rfc-editor.org/rfc/rfc9580#table-24
  */
 
+static const u8 hash_prefix_none[] = { };
+
 static const u8 hash_prefix_md5[] = {
 	0x30, 0x20, 0x30, 0x0c, 0x06, 0x08,	  /* SEQUENCE (SEQUENCE (OID */
 	0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x02, 0x05,	/*	<algorithm>, */
@@ -93,6 +95,7 @@ static const struct hash_prefix {
 	size_t		size;
 } hash_prefixes[] = {
 #define _(X) { #X, hash_prefix_##X, sizeof(hash_prefix_##X) }
+	_(none),
 	_(md5),
 	_(sha1),
 	_(rmd160),
@@ -119,8 +122,17 @@ static const struct hash_prefix *rsassa_pkcs1_find_hash_prefix(const char *name)
 	return NULL;
 }
 
-static unsigned int rsassa_pkcs1_hash_len(const struct hash_prefix *p)
+static bool rsassa_pkcs1_invalid_hash_len(unsigned int len,
+					  const struct hash_prefix *p)
 {
+	/*
+	 * Legacy protocols such as TLS 1.1 or earlier and IKE version 1
+	 * do not prepend a Full Hash Prefix to the hash.  In that case,
+	 * the size of the Full Hash Prefix is zero.
+	 */
+	if (p->data == hash_prefix_none)
+		return false;
+
 	/*
 	 * The final byte of the Full Hash Prefix encodes the hash length.
 	 *
@@ -130,7 +142,7 @@ static unsigned int rsassa_pkcs1_hash_len(const struct hash_prefix *p)
 	 */
 	static_assert(HASH_MAX_DIGESTSIZE <= 127);
 
-	return p->data[p->size - 1];
+	return len != p->data[p->size - 1];
 }
 
 struct rsassa_pkcs1_ctx {
@@ -167,7 +179,7 @@ static int rsassa_pkcs1_sign(struct crypto_sig *tfm,
 	if (dlen < ctx->key_size)
 		return -EOVERFLOW;
 
-	if (slen != rsassa_pkcs1_hash_len(hash_prefix))
+	if (rsassa_pkcs1_invalid_hash_len(slen, hash_prefix))
 		return -EINVAL;
 
 	if (slen + hash_prefix->size > ctx->key_size - 11)
@@ -237,7 +249,7 @@ static int rsassa_pkcs1_verify(struct crypto_sig *tfm,
 	/* RFC 8017 sec 8.2.2 step 1 - length checking */
 	if (!ctx->key_size ||
 	    slen != ctx->key_size ||
-	    dlen != rsassa_pkcs1_hash_len(hash_prefix))
+	    rsassa_pkcs1_invalid_hash_len(dlen, hash_prefix))
 		return -EINVAL;
 
 	/* RFC 8017 sec 8.2.2 step 2 - RSA verification */

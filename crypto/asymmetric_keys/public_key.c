@@ -93,7 +93,7 @@ software_key_determine_akcipher(const struct public_key *pkey,
 					     pkey->pkey_algo);
 			} else {
 				if (!hash_algo)
-					return -EINVAL;
+					hash_algo = "none";
 				n = snprintf(alg_name, CRYPTO_MAX_ALG_NAME,
 					     "pkcs1(%s,%s)",
 					     pkey->pkey_algo, hash_algo);
