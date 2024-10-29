@@ -2682,7 +2682,7 @@ static struct platform_driver dbri_sbus_driver = {
 		.of_match_table = dbri_match,
 	},
 	.probe		= dbri_probe,
-	.remove_new	= dbri_remove,
+	.remove		= dbri_remove,
 };
 
 module_platform_driver(dbri_sbus_driver);
