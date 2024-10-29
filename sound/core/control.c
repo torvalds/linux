@@ -1641,6 +1641,8 @@ static int snd_ctl_elem_add(struct snd_ctl_file *file,
 	count = info->owner;
 	if (count == 0)
 		count = 1;
+	if (count > MAX_CONTROL_COUNT)
+		return -EINVAL;
 
 	/* Arrange access permissions if needed. */
 	access = info->access;

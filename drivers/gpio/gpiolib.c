@@ -114,12 +114,12 @@ const char *gpiod_get_label(struct gpio_desc *desc)
 				srcu_read_lock_held(&desc->gdev->desc_srcu));
 
 	if (test_bit(FLAG_USED_AS_IRQ, &flags))
-		return label->str ?: "interrupt";
+		return label ? label->str : "interrupt";
 
 	if (!test_bit(FLAG_REQUESTED, &flags))
 		return NULL;
 
-	return label->str;
+	return label ? label->str : NULL;
 }
 
 static void desc_free_label(struct rcu_head *rh)

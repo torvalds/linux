@@ -13,21 +13,6 @@ config SECURITY_TOMOYO
 	  found at <https://tomoyo.sourceforge.net/>.
 	  If you are unsure how to answer this question, answer N.
 
-config SECURITY_TOMOYO_LKM
-	bool "Cut out most of TOMOYO's code to a loadable kernel module"
-	default n
-	depends on SECURITY_TOMOYO
-	depends on MODULES
-	help
-	  Say Y here if you want to include TOMOYO without bloating
-	  vmlinux file. If you say Y, most of TOMOYO code is cut out to
-	  a loadable kernel module named tomoyo.ko . This option will be
-	  useful for kernels built by Linux distributors where TOMOYO is
-	  included but TOMOYO is not enabled by default. Please be sure
-	  to explicitly load tomoyo.ko if you want to activate TOMOYO
-	  without calling userspace policy loader, for tomoyo.ko is
-	  loaded immediately before calling userspace policy loader.
-
 config SECURITY_TOMOYO_MAX_ACCEPT_ENTRY
 	int "Default maximal count for learning mode"
 	default 2048

@@ -14,7 +14,7 @@
 #include <linux/wait.h>
 
 #include <asm/byteorder.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 /*
  * The device has only 3 fan channels/connectors. But all HID reports have

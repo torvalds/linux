@@ -26,7 +26,7 @@
 #include <linux/spi/spi.h>
 #include <linux/spi/mmc_spi.h>
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 
 /* NOTES:

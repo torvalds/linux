@@ -25,7 +25,7 @@
 #include <scsi/scsi_device.h>
 #include <scsi/scsi_eh.h>
 #include <scsi/scsi_transport_sas.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include "smartpqi.h"
 #include "smartpqi_sis.h"
 

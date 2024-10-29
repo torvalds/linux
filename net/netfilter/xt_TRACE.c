@@ -29,25 +29,38 @@ trace_tg(struct sk_buff *skb, const struct xt_action_param *par)
 	return XT_CONTINUE;
 }
 
-static struct xt_target trace_tg_reg __read_mostly = {
-	.name		= "TRACE",
-	.revision	= 0,
-	.family		= NFPROTO_UNSPEC,
-	.table		= "raw",
-	.target		= trace_tg,
-	.checkentry	= trace_tg_check,
-	.destroy	= trace_tg_destroy,
-	.me		= THIS_MODULE,
+static struct xt_target trace_tg_reg[] __read_mostly = {
+	{
+		.name		= "TRACE",
+		.revision	= 0,
+		.family		= NFPROTO_IPV4,
+		.table		= "raw",
+		.target		= trace_tg,
+		.checkentry	= trace_tg_check,
+		.destroy	= trace_tg_destroy,
+		.me		= THIS_MODULE,
+	},
+#if IS_ENABLED(CONFIG_IP6_NF_IPTABLES)
+	{
+		.name		= "TRACE",
+		.revision	= 0,
+		.family		= NFPROTO_IPV6,
+		.table		= "raw",
+		.target		= trace_tg,
+		.checkentry	= trace_tg_check,
+		.destroy	= trace_tg_destroy,
+	},
+#endif
 };
 
 static int __init trace_tg_init(void)
 {
-	return xt_register_target(&trace_tg_reg);
+	return xt_register_targets(trace_tg_reg, ARRAY_SIZE(trace_tg_reg));
 }
 
 static void __exit trace_tg_exit(void)
 {
-	xt_unregister_target(&trace_tg_reg);
+	xt_unregister_targets(trace_tg_reg, ARRAY_SIZE(trace_tg_reg));
 }
 
 module_init(trace_tg_init);

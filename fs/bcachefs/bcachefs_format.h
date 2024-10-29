@@ -223,7 +223,7 @@ struct bkey {
 #elif __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
 	struct bpos	p;
 	__u32		size;		/* extent size, in sectors */
-	struct bversion	version;
+	struct bversion	bversion;
 
 	__u8		pad[1];
 #endif

@@ -63,24 +63,37 @@ static int checksum_tg_check(const struct xt_tgchk_param *par)
 	return 0;
 }
 
-static struct xt_target checksum_tg_reg __read_mostly = {
-	.name		= "CHECKSUM",
-	.family		= NFPROTO_UNSPEC,
-	.target		= checksum_tg,
-	.targetsize	= sizeof(struct xt_CHECKSUM_info),
-	.table		= "mangle",
-	.checkentry	= checksum_tg_check,
-	.me		= THIS_MODULE,
+static struct xt_target checksum_tg_reg[] __read_mostly = {
+	{
+		.name		= "CHECKSUM",
+		.family		= NFPROTO_IPV4,
+		.target		= checksum_tg,
+		.targetsize	= sizeof(struct xt_CHECKSUM_info),
+		.table		= "mangle",
+		.checkentry	= checksum_tg_check,
+		.me		= THIS_MODULE,
+	},
+#if IS_ENABLED(CONFIG_IP6_NF_IPTABLES)
+	{
+		.name		= "CHECKSUM",
+		.family		= NFPROTO_IPV6,
+		.target		= checksum_tg,
+		.targetsize	= sizeof(struct xt_CHECKSUM_info),
+		.table		= "mangle",
+		.checkentry	= checksum_tg_check,
+		.me		= THIS_MODULE,
+	},
+#endif
 };
 
 static int __init checksum_tg_init(void)
 {
-	return xt_register_target(&checksum_tg_reg);
+	return xt_register_targets(checksum_tg_reg, ARRAY_SIZE(checksum_tg_reg));
 }
 
 static void __exit checksum_tg_exit(void)
 {
-	xt_unregister_target(&checksum_tg_reg);
+	xt_unregister_targets(checksum_tg_reg, ARRAY_SIZE(checksum_tg_reg));
 }
 
 module_init(checksum_tg_init);

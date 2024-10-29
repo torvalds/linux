@@ -5,7 +5,7 @@
  */
 #include <linux/blkdev.h>
 #include <linux/pr.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include "nvme.h"
 

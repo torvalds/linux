@@ -15,7 +15,7 @@
 #include <linux/ptp_classify.h>
 #include <linux/ptp_clock_kernel.h>
 #include <linux/udp.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include "mscc.h"
 #include "mscc_ptp.h"

@@ -22,7 +22,7 @@
 		__builtin_memcpy(b, __tmp, sizeof(a));	\
 	} while (0)
 
-/* asm-generic/unaligned.h */
+/* linux/unaligned.h */
 #define __get_unaligned_t(type, ptr) ({						\
 	const struct { type x; } __packed * __pptr = (typeof(__pptr))(ptr);	\
 	__pptr->x;								\

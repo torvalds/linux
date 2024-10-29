@@ -505,7 +505,7 @@ static struct platform_driver tcx_driver = {
 		.of_match_table = tcx_match,
 	},
 	.probe		= tcx_probe,
-	.remove_new	= tcx_remove,
+	.remove		= tcx_remove,
 };
 
 static int __init tcx_init(void)

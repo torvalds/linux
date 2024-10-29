@@ -41,7 +41,7 @@
 #include <linux/topology.h>
 #include <linux/dmi.h>
 #include <linux/units.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include <acpi/cppc_acpi.h>
 

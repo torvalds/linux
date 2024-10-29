@@ -838,7 +838,7 @@ config CFI_CLANG
 config CFI_ICALL_NORMALIZE_INTEGERS
 	bool "Normalize CFI tags for integers"
 	depends on CFI_CLANG
-	depends on $(cc-option,-fsanitize=kcfi -fsanitize-cfi-icall-experimental-normalize-integers)
+	depends on HAVE_CFI_ICALL_NORMALIZE_INTEGERS
 	help
 	  This option normalizes the CFI tags for integer types so that all
 	  integer types of the same size and signedness receive the same CFI
@@ -850,6 +850,22 @@ config CFI_ICALL_NORMALIZE_INTEGERS
 	  turned on.
 
 	  This option is necessary for using CFI with Rust. If unsure, say N.
+
+config HAVE_CFI_ICALL_NORMALIZE_INTEGERS
+	def_bool !GCOV_KERNEL && !KASAN
+	depends on CFI_CLANG
+	depends on $(cc-option,-fsanitize=kcfi -fsanitize-cfi-icall-experimental-normalize-integers)
+	help
+	  Is CFI_ICALL_NORMALIZE_INTEGERS supported with the set of compilers
+	  currently in use?
+
+	  This option defaults to false if GCOV or KASAN is enabled, as there is
+	  an LLVM bug that makes normalized integers tags incompatible with
+	  KASAN and GCOV. Kconfig currently does not have the infrastructure to
+	  detect whether your rustc compiler contains the fix for this bug, so
+	  it is assumed that it doesn't. If your compiler has the fix, you can
+	  explicitly enable this option in your config file. The Kconfig logic
+	  needed to detect this will be added in a future kernel release.
 
 config CFI_PERMISSIVE
 	bool "Use CFI in permissive mode"

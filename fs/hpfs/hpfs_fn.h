@@ -21,7 +21,7 @@
 #include <linux/slab.h>
 #include <linux/sched/signal.h>
 #include <linux/blkdev.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include "hpfs.h"
 
