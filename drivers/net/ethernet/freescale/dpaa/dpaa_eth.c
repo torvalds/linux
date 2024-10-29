@@ -2772,7 +2772,7 @@ static enum qman_cb_dqrr_result rx_default_dqrr(struct qman_portal *portal,
 	if (net_dev->features & NETIF_F_RXHASH && priv->keygen_in_use &&
 	    !fman_port_get_hash_result_offset(priv->mac_dev->port[RX],
 					      &hash_offset)) {
-		hash = be32_to_cpu(*(u32 *)(vaddr + hash_offset));
+		hash = be32_to_cpu(*(__be32 *)(vaddr + hash_offset));
 		hash_valid = true;
 	}
 
