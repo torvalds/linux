@@ -211,6 +211,7 @@ BCH_PERSISTENT_COUNTERS()
 #undef x
 
 rw_attribute(discard);
+read_attribute(state);
 rw_attribute(label);
 
 read_attribute(copy_gc_wait);
@@ -234,11 +235,6 @@ write_attribute(perf_test);
 		{ .name = #_name, .mode = 0644 };
 	BCH_TIME_STATS()
 #undef x
-
-static struct attribute sysfs_state_rw = {
-	.name = "state",
-	.mode =  0444,
-};
 
 static size_t bch2_btree_cache_size(struct bch_fs *c)
 {
@@ -774,7 +770,7 @@ SHOW(bch2_dev)
 		prt_char(out, '\n');
 	}
 
-	if (attr == &sysfs_state_rw) {
+	if (attr == &sysfs_state) {
 		prt_string_option(out, bch2_member_states, ca->mi.state);
 		prt_char(out, '\n');
 	}
@@ -854,7 +850,7 @@ struct attribute *bch2_dev_files[] = {
 
 	/* settings: */
 	&sysfs_discard,
-	&sysfs_state_rw,
+	&sysfs_state,
 	&sysfs_label,
 
 	&sysfs_has_data,
