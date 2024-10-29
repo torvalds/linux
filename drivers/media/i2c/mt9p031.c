@@ -111,6 +111,10 @@
 #define MT9P031_TEST_PATTERN_RED			0xa2
 #define MT9P031_TEST_PATTERN_BLUE			0xa3
 
+struct mt9p031_model_info {
+	u32 code;
+};
+
 struct mt9p031 {
 	struct v4l2_subdev subdev;
 	struct media_pad pad;
@@ -1204,10 +1208,18 @@ static void mt9p031_remove(struct i2c_client *client)
 	mutex_destroy(&mt9p031->power_lock);
 }
 
+static const struct mt9p031_model_info mt9p031_models_bayer = {
+	.code = MEDIA_BUS_FMT_SGRBG12_1X12
+};
+
+static const struct mt9p031_model_info mt9p031_models_mono = {
+	.code = MEDIA_BUS_FMT_Y12_1X12
+};
+
 static const struct of_device_id mt9p031_of_match[] = {
-	{ .compatible = "aptina,mt9p006", .data = (void *)MEDIA_BUS_FMT_SGRBG12_1X12 },
-	{ .compatible = "aptina,mt9p031", .data = (void *)MEDIA_BUS_FMT_SGRBG12_1X12 },
-	{ .compatible = "aptina,mt9p031m", .data = (void *)MEDIA_BUS_FMT_Y12_1X12 },
+	{ .compatible = "aptina,mt9p006", .data = &mt9p031_models_bayer },
+	{ .compatible = "aptina,mt9p031", .data = &mt9p031_models_bayer },
+	{ .compatible = "aptina,mt9p031m", .data = &mt9p031_models_mono },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, mt9p031_of_match);
