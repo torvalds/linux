@@ -822,27 +822,31 @@ DEFINE_INODE_EVENT(xfs_inode_inactivating);
 TRACE_DEFINE_ENUM(XFS_REFC_DOMAIN_SHARED);
 TRACE_DEFINE_ENUM(XFS_REFC_DOMAIN_COW);
 
-TRACE_EVENT(xfs_filemap_fault,
-	TP_PROTO(struct xfs_inode *ip, unsigned int order, bool write_fault),
-	TP_ARGS(ip, order, write_fault),
+DECLARE_EVENT_CLASS(xfs_fault_class,
+	TP_PROTO(struct xfs_inode *ip, unsigned int order),
+	TP_ARGS(ip, order),
 	TP_STRUCT__entry(
 		__field(dev_t, dev)
 		__field(xfs_ino_t, ino)
 		__field(unsigned int, order)
-		__field(bool, write_fault)
 	),
 	TP_fast_assign(
 		__entry->dev = VFS_I(ip)->i_sb->s_dev;
 		__entry->ino = ip->i_ino;
 		__entry->order = order;
-		__entry->write_fault = write_fault;
 	),
-	TP_printk("dev %d:%d ino 0x%llx order %u write_fault %d",
+	TP_printk("dev %d:%d ino 0x%llx order %u",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  __entry->ino,
-		  __entry->order,
-		  __entry->write_fault)
+		  __entry->order)
 )
+
+#define DEFINE_FAULT_EVENT(name) \
+DEFINE_EVENT(xfs_fault_class, name, \
+	TP_PROTO(struct xfs_inode *ip, unsigned int order), \
+	TP_ARGS(ip, order))
+DEFINE_FAULT_EVENT(xfs_read_fault);
+DEFINE_FAULT_EVENT(xfs_write_fault);
 
 DECLARE_EVENT_CLASS(xfs_iref_class,
 	TP_PROTO(struct xfs_inode *ip, unsigned long caller_ip),

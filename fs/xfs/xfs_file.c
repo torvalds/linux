@@ -1425,6 +1425,8 @@ xfs_dax_read_fault(
 	struct xfs_inode	*ip = XFS_I(file_inode(vmf->vma->vm_file));
 	vm_fault_t		ret;
 
+	trace_xfs_read_fault(ip, order);
+
 	xfs_ilock(ip, XFS_MMAPLOCK_SHARED);
 	ret = xfs_dax_fault_locked(vmf, order, false);
 	xfs_iunlock(ip, XFS_MMAPLOCK_SHARED);
@@ -1441,6 +1443,8 @@ xfs_write_fault(
 	struct xfs_inode	*ip = XFS_I(inode);
 	unsigned int		lock_mode = XFS_MMAPLOCK_SHARED;
 	vm_fault_t		ret;
+
+	trace_xfs_write_fault(ip, order);
 
 	sb_start_pagefault(inode->i_sb);
 	file_update_time(vmf->vma->vm_file);
@@ -1485,12 +1489,12 @@ __xfs_filemap_fault(
 {
 	struct inode		*inode = file_inode(vmf->vma->vm_file);
 
-	trace_xfs_filemap_fault(XFS_I(inode), order, write_fault);
-
 	if (write_fault)
 		return xfs_write_fault(vmf, order);
 	if (IS_DAX(inode))
 		return xfs_dax_read_fault(vmf, order);
+
+	trace_xfs_read_fault(XFS_I(inode), order);
 	return filemap_fault(vmf);
 }
 
