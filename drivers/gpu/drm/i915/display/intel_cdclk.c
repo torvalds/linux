@@ -2761,23 +2761,34 @@ intel_set_cdclk_post_plane_update(struct intel_atomic_state *state)
 			"Post changing CDCLK to");
 }
 
+/* pixels per CDCLK */
+static int intel_cdclk_ppc(struct intel_display *display, bool double_wide)
+{
+	return DISPLAY_VER(display) >= 10 || double_wide ? 2 : 1;
+}
+
+/* max pixel rate as % of CDCLK (not accounting for PPC) */
+static int intel_cdclk_guardband(struct intel_display *display)
+{
+	struct drm_i915_private *dev_priv = to_i915(display->drm);
+
+	if (DISPLAY_VER(display) >= 9 ||
+	    IS_BROADWELL(dev_priv) || IS_HASWELL(dev_priv))
+		return 100;
+	else if (IS_CHERRYVIEW(dev_priv))
+		return 95;
+	else
+		return 90;
+}
+
 static int intel_pixel_rate_to_cdclk(const struct intel_crtc_state *crtc_state)
 {
 	struct intel_display *display = to_intel_display(crtc_state);
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
+	int ppc = intel_cdclk_ppc(display, crtc_state->double_wide);
+	int guardband = intel_cdclk_guardband(display);
 	int pixel_rate = crtc_state->pixel_rate;
 
-	if (DISPLAY_VER(display) >= 10)
-		return DIV_ROUND_UP(pixel_rate, 2);
-	else if (DISPLAY_VER(display) == 9 ||
-		 IS_BROADWELL(dev_priv) || IS_HASWELL(dev_priv))
-		return pixel_rate;
-	else if (IS_CHERRYVIEW(dev_priv))
-		return DIV_ROUND_UP(pixel_rate * 100, 95);
-	else if (crtc_state->double_wide)
-		return DIV_ROUND_UP(pixel_rate * 100, 90 * 2);
-	else
-		return DIV_ROUND_UP(pixel_rate * 100, 90);
+	return DIV_ROUND_UP(pixel_rate * 100, guardband * ppc);
 }
 
 static int intel_planes_min_cdclk(const struct intel_crtc_state *crtc_state)
@@ -3452,20 +3463,11 @@ int intel_modeset_calc_cdclk(struct intel_atomic_state *state)
 
 static int intel_compute_max_dotclk(struct intel_display *display)
 {
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
+	int ppc = intel_cdclk_ppc(display, HAS_DOUBLE_WIDE(display));
+	int guardband = intel_cdclk_guardband(display);
 	int max_cdclk_freq = display->cdclk.max_cdclk_freq;
 
-	if (DISPLAY_VER(display) >= 10)
-		return 2 * max_cdclk_freq;
-	else if (DISPLAY_VER(display) == 9 ||
-		 IS_BROADWELL(dev_priv) || IS_HASWELL(dev_priv))
-		return max_cdclk_freq;
-	else if (IS_CHERRYVIEW(dev_priv))
-		return max_cdclk_freq*95/100;
-	else if (HAS_DOUBLE_WIDE(display))
-		return 2*max_cdclk_freq*90/100;
-	else
-		return max_cdclk_freq*90/100;
+	return ppc * max_cdclk_freq * guardband / 100;
 }
 
 /**
