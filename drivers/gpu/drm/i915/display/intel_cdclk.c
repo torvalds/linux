@@ -3462,7 +3462,7 @@ static int intel_compute_max_dotclk(struct intel_display *display)
 		return max_cdclk_freq;
 	else if (IS_CHERRYVIEW(dev_priv))
 		return max_cdclk_freq*95/100;
-	else if (DISPLAY_VER(display) < 4)
+	else if (HAS_DOUBLE_WIDE(display))
 		return 2*max_cdclk_freq*90/100;
 	else
 		return max_cdclk_freq*90/100;

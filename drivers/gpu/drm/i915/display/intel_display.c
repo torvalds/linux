@@ -2371,7 +2371,7 @@ static bool intel_crtc_supports_double_wide(const struct intel_crtc *crtc)
 	const struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 
 	/* GDG double wide on either pipe, otherwise pipe A only */
-	return DISPLAY_VER(dev_priv) < 4 &&
+	return HAS_DOUBLE_WIDE(dev_priv) &&
 		(crtc->pipe == PIPE_A || IS_I915G(dev_priv));
 }
 
@@ -3207,7 +3207,7 @@ static bool i9xx_get_pipe_config(struct intel_crtc *crtc,
 
 	intel_color_get_config(pipe_config);
 
-	if (DISPLAY_VER(dev_priv) < 4)
+	if (HAS_DOUBLE_WIDE(dev_priv))
 		pipe_config->double_wide = tmp & TRANSCONF_DOUBLE_WIDE;
 
 	intel_get_transcoder_timings(crtc, pipe_config);
