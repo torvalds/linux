@@ -123,6 +123,7 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		.tx_ring_size = DP_TCL_DATA_RING_SIZE,
 		.smp2p_wow_exit = false,
 		.support_dual_stations = false,
+		.pdev_suspend = false,
 	},
 	{
 		.hw_rev = ATH11K_HW_IPQ6018_HW10,
@@ -207,6 +208,7 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		.smp2p_wow_exit = false,
 		.support_fw_mac_sequence = false,
 		.support_dual_stations = false,
+		.pdev_suspend = false,
 	},
 	{
 		.name = "qca6390 hw2.0",
@@ -296,6 +298,7 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		.smp2p_wow_exit = false,
 		.support_fw_mac_sequence = true,
 		.support_dual_stations = true,
+		.pdev_suspend = false,
 	},
 	{
 		.name = "qcn9074 hw1.0",
@@ -379,6 +382,7 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		.smp2p_wow_exit = false,
 		.support_fw_mac_sequence = false,
 		.support_dual_stations = false,
+		.pdev_suspend = false,
 	},
 	{
 		.name = "wcn6855 hw2.0",
@@ -468,6 +472,7 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		.smp2p_wow_exit = false,
 		.support_fw_mac_sequence = true,
 		.support_dual_stations = true,
+		.pdev_suspend = false,
 	},
 	{
 		.name = "wcn6855 hw2.1",
@@ -555,6 +560,7 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		.smp2p_wow_exit = false,
 		.support_fw_mac_sequence = true,
 		.support_dual_stations = true,
+		.pdev_suspend = false,
 	},
 	{
 		.name = "wcn6750 hw1.0",
@@ -637,6 +643,7 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		.smp2p_wow_exit = true,
 		.support_fw_mac_sequence = true,
 		.support_dual_stations = false,
+		.pdev_suspend = true,
 	},
 	{
 		.hw_rev = ATH11K_HW_IPQ5018_HW10,
@@ -719,6 +726,7 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		.smp2p_wow_exit = false,
 		.support_fw_mac_sequence = false,
 		.support_dual_stations = false,
+		.pdev_suspend = false,
 	},
 	{
 		.name = "qca2066 hw2.1",
@@ -808,6 +816,7 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		.smp2p_wow_exit = false,
 		.support_fw_mac_sequence = true,
 		.support_dual_stations = true,
+		.pdev_suspend = false,
 	},
 };
 
@@ -1669,11 +1678,47 @@ err_pdev_debug:
 	return ret;
 }
 
+static void ath11k_core_pdev_suspend_target(struct ath11k_base *ab)
+{
+	struct ath11k *ar;
+	struct ath11k_pdev *pdev;
+	unsigned long time_left;
+	int ret;
+	int i;
+
+	if (!ab->hw_params.pdev_suspend)
+		return;
+
+	for (i = 0; i < ab->num_radios; i++) {
+		pdev = &ab->pdevs[i];
+		ar = pdev->ar;
+
+		reinit_completion(&ab->htc_suspend);
+
+		ret = ath11k_wmi_pdev_suspend(ar, WMI_PDEV_SUSPEND_AND_DISABLE_INTR,
+					      pdev->pdev_id);
+		if (ret) {
+			ath11k_warn(ab, "could not suspend target :%d\n", ret);
+			/* pointless to try other pdevs */
+			return;
+		}
+
+		time_left = wait_for_completion_timeout(&ab->htc_suspend, 3 * HZ);
+
+		if (!time_left) {
+			ath11k_warn(ab, "suspend timed out - target pause event never came\n");
+			/* pointless to try other pdevs */
+			return;
+		}
+	}
+}
+
 static void ath11k_core_pdev_destroy(struct ath11k_base *ab)
 {
 	ath11k_spectral_deinit(ab);
 	ath11k_thermal_unregister(ab);
 	ath11k_mac_unregister(ab);
+	ath11k_core_pdev_suspend_target(ab);
 	ath11k_hif_irq_disable(ab);
 	ath11k_dp_pdev_free(ab);
 	ath11k_debugfs_pdev_destroy(ab);
