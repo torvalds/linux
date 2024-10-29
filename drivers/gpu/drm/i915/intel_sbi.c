@@ -17,7 +17,7 @@ static int intel_sbi_rw(struct drm_i915_private *i915, u16 reg,
 	struct intel_uncore *uncore = &i915->uncore;
 	u32 cmd;
 
-	lockdep_assert_held(&i915->sb_lock);
+	lockdep_assert_held(&i915->sbi_lock);
 
 	if (intel_wait_for_register_fw(uncore,
 				       SBI_CTL_STAT, SBI_BUSY, 0,
@@ -59,12 +59,12 @@ static int intel_sbi_rw(struct drm_i915_private *i915, u16 reg,
 
 void intel_sbi_lock(struct drm_i915_private *i915)
 {
-	mutex_lock(&i915->sb_lock);
+	mutex_lock(&i915->sbi_lock);
 }
 
 void intel_sbi_unlock(struct drm_i915_private *i915)
 {
-	mutex_unlock(&i915->sb_lock);
+	mutex_unlock(&i915->sbi_lock);
 }
 
 u32 intel_sbi_read(struct drm_i915_private *i915, u16 reg,
@@ -81,4 +81,14 @@ void intel_sbi_write(struct drm_i915_private *i915, u16 reg, u32 value,
 		     enum intel_sbi_destination destination)
 {
 	intel_sbi_rw(i915, reg, destination, &value, false);
+}
+
+void intel_sbi_init(struct drm_i915_private *i915)
+{
+	mutex_init(&i915->sbi_lock);
+}
+
+void intel_sbi_fini(struct drm_i915_private *i915)
+{
+	mutex_destroy(&i915->sbi_lock);
 }

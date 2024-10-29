@@ -236,6 +236,9 @@ struct drm_i915_private {
 	spinlock_t irq_lock;
 	bool irqs_enabled;
 
+	/* LPT/WPT IOSF sideband protection */
+	struct mutex sbi_lock;
+
 	/* Sideband mailbox protection */
 	struct mutex sb_lock;
 	struct pm_qos_request sb_qos;
