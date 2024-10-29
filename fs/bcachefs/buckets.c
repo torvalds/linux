@@ -18,6 +18,7 @@
 #include "error.h"
 #include "inode.h"
 #include "movinggc.h"
+#include "rebalance.h"
 #include "recovery.h"
 #include "reflink.h"
 #include "replicas.h"

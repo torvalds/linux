@@ -21,6 +21,7 @@
 #include "journal_reclaim.h"
 #include "keylist.h"
 #include "move.h"
+#include "rebalance.h"
 #include "replicas.h"
 #include "snapshot.h"
 #include "super-io.h"
@@ -379,44 +380,6 @@ err:
 	return ret;
 }
 
-static int get_update_rebalance_opts(struct btree_trans *trans,
-				     struct bch_io_opts *io_opts,
-				     struct btree_iter *iter,
-				     struct bkey_s_c k)
-{
-	BUG_ON(iter->flags & BTREE_ITER_is_extents);
-	BUG_ON(iter->flags & BTREE_ITER_filter_snapshots);
-
-	const struct bch_extent_rebalance *r = k.k->type == KEY_TYPE_reflink_v
-		? bch2_bkey_rebalance_opts(k) : NULL;
-	if (r) {
-#define x(_name)							\
-		if (r->_name##_from_inode) {				\
-			io_opts->_name = r->_name;			\
-			io_opts->_name##_from_inode = true;		\
-		}
-		BCH_REBALANCE_OPTS()
-#undef x
-	}
-
-	if (!bch2_bkey_rebalance_needs_update(trans->c, io_opts, k))
-		return 0;
-
-	struct bkey_i *n = bch2_trans_kmalloc(trans, bkey_bytes(k.k) + 8);
-	int ret = PTR_ERR_OR_ZERO(n);
-	if (ret)
-		return ret;
-
-	bkey_reassemble(n, k);
-
-	/* On successfull transaction commit, @k was invalidated: */
-
-	return bch2_bkey_set_needs_rebalance(trans->c, io_opts, n) ?:
-		bch2_trans_update(trans, iter, n, BTREE_UPDATE_internal_snapshot_node) ?:
-		bch2_trans_commit(trans, NULL, NULL, 0) ?:
-		-BCH_ERR_transaction_restart_nested;
-}
-
 static struct bch_io_opts *bch2_move_get_io_opts(struct btree_trans *trans,
 			  struct per_snapshot_io_opts *io_opts,
 			  struct btree_iter *extent_iter,
@@ -463,7 +426,7 @@ static struct bch_io_opts *bch2_move_get_io_opts(struct btree_trans *trans,
 				break;
 			}
 out:
-	ret = get_update_rebalance_opts(trans, opts_ret, extent_iter, extent_k);
+	ret = bch2_get_update_rebalance_opts(trans, opts_ret, extent_iter, extent_k);
 	if (ret)
 		return ERR_PTR(ret);
 	return opts_ret;
@@ -497,7 +460,7 @@ int bch2_move_get_io_opts_one(struct btree_trans *trans,
 	}
 	bch2_trans_iter_exit(trans, &inode_iter);
 out:
-	return get_update_rebalance_opts(trans, io_opts, extent_iter, extent_k);
+	return bch2_get_update_rebalance_opts(trans, io_opts, extent_iter, extent_k);
 }
 
 int bch2_move_ratelimit(struct moving_context *ctxt)

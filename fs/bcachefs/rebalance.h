@@ -6,52 +6,12 @@
 #include "disk_groups.h"
 #include "rebalance_types.h"
 
-static inline unsigned bch2_bkey_ptrs_need_compress(struct bch_fs *c,
-					   struct bch_io_opts *opts,
-					   struct bkey_s_c k,
-					   struct bkey_ptrs_c ptrs)
-{
-	if (!opts->background_compression)
-		return 0;
-
-	unsigned compression_type = bch2_compression_opt_to_type(opts->background_compression);
-	const union bch_extent_entry *entry;
-	struct extent_ptr_decoded p;
-	unsigned ptr_bit = 1;
-	unsigned rewrite_ptrs = 0;
-
-	bkey_for_each_ptr_decode(k.k, ptrs, p, entry) {
-		if (p.crc.compression_type == BCH_COMPRESSION_TYPE_incompressible ||
-		    p.ptr.unwritten)
-			return 0;
-
-		if (!p.ptr.cached && p.crc.compression_type != compression_type)
-			rewrite_ptrs |= ptr_bit;
-		ptr_bit <<= 1;
-	}
-
-	return rewrite_ptrs;
-}
-
-static inline unsigned bch2_bkey_ptrs_need_move(struct bch_fs *c,
-				       struct bch_io_opts *opts,
-				       struct bkey_ptrs_c ptrs)
-{
-	if (!opts->background_target ||
-	    !bch2_target_accepts_data(c, BCH_DATA_user, opts->background_target))
-		return 0;
-
-	unsigned ptr_bit = 1;
-	unsigned rewrite_ptrs = 0;
-
-	bkey_for_each_ptr(ptrs, ptr) {
-		if (!ptr->cached && !bch2_dev_in_target(c, ptr->dev, opts->background_target))
-			rewrite_ptrs |= ptr_bit;
-		ptr_bit <<= 1;
-	}
-
-	return rewrite_ptrs;
-}
+u64 bch2_bkey_sectors_need_rebalance(struct bch_fs *, struct bkey_s_c);
+int bch2_bkey_set_needs_rebalance(struct bch_fs *, struct bch_io_opts *, struct bkey_i *);
+int bch2_get_update_rebalance_opts(struct btree_trans *,
+				   struct bch_io_opts *,
+				   struct btree_iter *,
+				   struct bkey_s_c);
 
 int bch2_set_rebalance_needs_scan_trans(struct btree_trans *, u64);
 int bch2_set_rebalance_needs_scan(struct bch_fs *, u64 inum);

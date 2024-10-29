@@ -24,6 +24,192 @@
 #include <linux/kthread.h>
 #include <linux/sched/cputime.h>
 
+/* bch_extent_rebalance: */
+
+static const struct bch_extent_rebalance *bch2_bkey_rebalance_opts(struct bkey_s_c k)
+{
+	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
+	const union bch_extent_entry *entry;
+
+	bkey_extent_entry_for_each(ptrs, entry)
+		if (__extent_entry_type(entry) == BCH_EXTENT_ENTRY_rebalance)
+			return &entry->rebalance;
+
+	return NULL;
+}
+
+static inline unsigned bch2_bkey_ptrs_need_compress(struct bch_fs *c,
+					   struct bch_io_opts *opts,
+					   struct bkey_s_c k,
+					   struct bkey_ptrs_c ptrs)
+{
+	if (!opts->background_compression)
+		return 0;
+
+	unsigned compression_type = bch2_compression_opt_to_type(opts->background_compression);
+	const union bch_extent_entry *entry;
+	struct extent_ptr_decoded p;
+	unsigned ptr_bit = 1;
+	unsigned rewrite_ptrs = 0;
+
+	bkey_for_each_ptr_decode(k.k, ptrs, p, entry) {
+		if (p.crc.compression_type == BCH_COMPRESSION_TYPE_incompressible ||
+		    p.ptr.unwritten)
+			return 0;
+
+		if (!p.ptr.cached && p.crc.compression_type != compression_type)
+			rewrite_ptrs |= ptr_bit;
+		ptr_bit <<= 1;
+	}
+
+	return rewrite_ptrs;
+}
+
+static inline unsigned bch2_bkey_ptrs_need_move(struct bch_fs *c,
+				       struct bch_io_opts *opts,
+				       struct bkey_ptrs_c ptrs)
+{
+	if (!opts->background_target ||
+	    !bch2_target_accepts_data(c, BCH_DATA_user, opts->background_target))
+		return 0;
+
+	unsigned ptr_bit = 1;
+	unsigned rewrite_ptrs = 0;
+
+	bkey_for_each_ptr(ptrs, ptr) {
+		if (!ptr->cached && !bch2_dev_in_target(c, ptr->dev, opts->background_target))
+			rewrite_ptrs |= ptr_bit;
+		ptr_bit <<= 1;
+	}
+
+	return rewrite_ptrs;
+}
+
+static unsigned bch2_bkey_ptrs_need_rebalance(struct bch_fs *c,
+					      struct bch_io_opts *opts,
+					      struct bkey_s_c k)
+{
+	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
+
+	return bch2_bkey_ptrs_need_compress(c, opts, k, ptrs) |
+		bch2_bkey_ptrs_need_move(c, opts, ptrs);
+}
+
+u64 bch2_bkey_sectors_need_rebalance(struct bch_fs *c, struct bkey_s_c k)
+{
+	const struct bch_extent_rebalance *opts = bch2_bkey_rebalance_opts(k);
+	if (!opts)
+		return 0;
+
+	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
+	const union bch_extent_entry *entry;
+	struct extent_ptr_decoded p;
+	u64 sectors = 0;
+
+	if (opts->background_compression) {
+		unsigned compression_type = bch2_compression_opt_to_type(opts->background_compression);
+
+		bkey_for_each_ptr_decode(k.k, ptrs, p, entry) {
+			if (p.crc.compression_type == BCH_COMPRESSION_TYPE_incompressible ||
+			    p.ptr.unwritten) {
+				sectors = 0;
+				goto incompressible;
+			}
+
+			if (!p.ptr.cached && p.crc.compression_type != compression_type)
+				sectors += p.crc.compressed_size;
+		}
+	}
+incompressible:
+	if (opts->background_target &&
+	    bch2_target_accepts_data(c, BCH_DATA_user, opts->background_target)) {
+		bkey_for_each_ptr_decode(k.k, ptrs, p, entry)
+			if (!p.ptr.cached && !bch2_dev_in_target(c, p.ptr.dev, opts->background_target))
+				sectors += p.crc.compressed_size;
+	}
+
+	return sectors;
+}
+
+static bool bch2_bkey_rebalance_needs_update(struct bch_fs *c, struct bch_io_opts *opts,
+					     struct bkey_s_c k)
+{
+	if (!bkey_extent_is_direct_data(k.k))
+		return 0;
+
+	const struct bch_extent_rebalance *old = bch2_bkey_rebalance_opts(k);
+
+	if (k.k->type == KEY_TYPE_reflink_v || bch2_bkey_ptrs_need_rebalance(c, opts, k)) {
+		struct bch_extent_rebalance new = io_opts_to_rebalance_opts(opts);
+		return old == NULL || memcmp(old, &new, sizeof(new));
+	} else {
+		return old != NULL;
+	}
+}
+
+int bch2_bkey_set_needs_rebalance(struct bch_fs *c, struct bch_io_opts *opts,
+				  struct bkey_i *_k)
+{
+	if (!bkey_extent_is_direct_data(&_k->k))
+		return 0;
+
+	struct bkey_s k = bkey_i_to_s(_k);
+	struct bch_extent_rebalance *old =
+		(struct bch_extent_rebalance *) bch2_bkey_rebalance_opts(k.s_c);
+
+	if (k.k->type == KEY_TYPE_reflink_v || bch2_bkey_ptrs_need_rebalance(c, opts, k.s_c)) {
+		if (!old) {
+			old = bkey_val_end(k);
+			k.k->u64s += sizeof(*old) / sizeof(u64);
+		}
+
+		*old = io_opts_to_rebalance_opts(opts);
+	} else {
+		if (old)
+			extent_entry_drop(k, (union bch_extent_entry *) old);
+	}
+
+	return 0;
+}
+
+int bch2_get_update_rebalance_opts(struct btree_trans *trans,
+				   struct bch_io_opts *io_opts,
+				   struct btree_iter *iter,
+				   struct bkey_s_c k)
+{
+	BUG_ON(iter->flags & BTREE_ITER_is_extents);
+	BUG_ON(iter->flags & BTREE_ITER_filter_snapshots);
+
+	const struct bch_extent_rebalance *r = k.k->type == KEY_TYPE_reflink_v
+		? bch2_bkey_rebalance_opts(k) : NULL;
+	if (r) {
+#define x(_name)							\
+		if (r->_name##_from_inode) {				\
+			io_opts->_name = r->_name;			\
+			io_opts->_name##_from_inode = true;		\
+		}
+		BCH_REBALANCE_OPTS()
+#undef x
+	}
+
+	if (!bch2_bkey_rebalance_needs_update(trans->c, io_opts, k))
+		return 0;
+
+	struct bkey_i *n = bch2_trans_kmalloc(trans, bkey_bytes(k.k) + 8);
+	int ret = PTR_ERR_OR_ZERO(n);
+	if (ret)
+		return ret;
+
+	bkey_reassemble(n, k);
+
+	/* On successfull transaction commit, @k was invalidated: */
+
+	return bch2_bkey_set_needs_rebalance(trans->c, io_opts, n) ?:
+		bch2_trans_update(trans, iter, n, BTREE_UPDATE_internal_snapshot_node) ?:
+		bch2_trans_commit(trans, NULL, NULL, 0) ?:
+		-BCH_ERR_transaction_restart_nested;
+}
+
 #define REBALANCE_WORK_SCAN_OFFSET	(U64_MAX - 1)
 
 static const char * const bch2_rebalance_state_strs[] = {
