@@ -2810,7 +2810,7 @@ static int intel_vdsc_min_cdclk(const struct intel_crtc_state *crtc_state)
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct intel_display *display = to_intel_display(crtc);
 	int num_vdsc_instances = intel_dsc_get_num_vdsc_instances(crtc_state);
-	int min_cdclk = 0;
+	int min_cdclk;
 
 	if (!crtc_state->dsc.compression_enable)
 		return 0;
@@ -2822,8 +2822,7 @@ static int intel_vdsc_min_cdclk(const struct intel_crtc_state *crtc_state)
 	 * If there 2 VDSC engines, then pixel clock can't be higher than
 	 * VDSC clock(cdclk) * 2 and so on.
 	 */
-	min_cdclk = max_t(int, min_cdclk,
-			  DIV_ROUND_UP(crtc_state->pixel_rate, num_vdsc_instances));
+	min_cdclk = DIV_ROUND_UP(crtc_state->pixel_rate, num_vdsc_instances);
 
 	if (crtc_state->joiner_pipes) {
 		int pixel_clock = intel_dp_mode_to_fec_clock(crtc_state->hw.adjusted_mode.clock);
