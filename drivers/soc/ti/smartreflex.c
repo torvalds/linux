@@ -969,7 +969,7 @@ MODULE_DEVICE_TABLE(of, omap_sr_match);
 
 static struct platform_driver smartreflex_driver = {
 	.probe		= omap_sr_probe,
-	.remove_new     = omap_sr_remove,
+	.remove         = omap_sr_remove,
 	.shutdown	= omap_sr_shutdown,
 	.driver		= {
 		.name	= DRIVER_NAME,

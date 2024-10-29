@@ -1086,7 +1086,7 @@ static struct platform_driver tsa_driver = {
 		.of_match_table = of_match_ptr(tsa_id_table),
 	},
 	.probe = tsa_probe,
-	.remove_new = tsa_remove,
+	.remove = tsa_remove,
 };
 module_platform_driver(tsa_driver);
 

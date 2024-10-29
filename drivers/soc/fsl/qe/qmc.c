@@ -2092,7 +2092,7 @@ static struct platform_driver qmc_driver = {
 		.of_match_table = of_match_ptr(qmc_id_table),
 	},
 	.probe = qmc_probe,
-	.remove_new = qmc_remove,
+	.remove = qmc_remove,
 };
 module_platform_driver(qmc_driver);
 

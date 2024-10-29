@@ -1401,7 +1401,7 @@ static struct platform_driver qcom_llcc_driver = {
 		.of_match_table = qcom_llcc_of_match,
 	},
 	.probe = qcom_llcc_probe,
-	.remove_new = qcom_llcc_remove,
+	.remove = qcom_llcc_remove,
 };
 module_platform_driver(qcom_llcc_driver);
 

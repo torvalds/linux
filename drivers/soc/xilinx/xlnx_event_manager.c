@@ -709,7 +709,7 @@ static void xlnx_event_manager_remove(struct platform_device *pdev)
 
 static struct platform_driver xlnx_event_manager_driver = {
 	.probe = xlnx_event_manager_probe,
-	.remove_new = xlnx_event_manager_remove,
+	.remove = xlnx_event_manager_remove,
 	.driver = {
 		.name = "xlnx_event_manager",
 	},

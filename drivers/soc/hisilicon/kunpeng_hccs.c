@@ -1348,7 +1348,7 @@ MODULE_DEVICE_TABLE(acpi, hccs_acpi_match);
 
 static struct platform_driver hccs_driver = {
 	.probe = hccs_probe,
-	.remove_new = hccs_remove,
+	.remove = hccs_remove,
 	.driver = {
 		.name = "kunpeng_hccs",
 		.acpi_match_table = hccs_acpi_match,
