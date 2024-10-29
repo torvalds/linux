@@ -129,12 +129,6 @@ void bch2_flush_fsck_errs(struct bch_fs *);
 	(unlikely(cond) ? __fsck_err(c, _flags, _err_type, __VA_ARGS__) : false);\
 })
 
-#define need_fsck_err_on(cond, c, _err_type, ...)				\
-	__fsck_err_on(cond, c, FSCK_CAN_IGNORE|FSCK_NEED_FSCK, _err_type, __VA_ARGS__)
-
-#define need_fsck_err(c, _err_type, ...)				\
-	__fsck_err(c, FSCK_CAN_IGNORE|FSCK_NEED_FSCK, _err_type, __VA_ARGS__)
-
 #define mustfix_fsck_err(c, _err_type, ...)				\
 	__fsck_err(c, FSCK_CAN_FIX, _err_type, __VA_ARGS__)
 
@@ -146,6 +140,12 @@ void bch2_flush_fsck_errs(struct bch_fs *);
 
 #define fsck_err_on(cond, c, _err_type, ...)				\
 	__fsck_err_on(cond, c, FSCK_CAN_FIX|FSCK_CAN_IGNORE, _err_type, __VA_ARGS__)
+
+#define log_fsck_err(c, _err_type, ...)					\
+	__fsck_err(c, FSCK_CAN_IGNORE, _err_type, __VA_ARGS__)
+
+#define log_fsck_err_on(cond, c, _err_type, ...)				\
+	__fsck_err_on(cond, c, FSCK_CAN_IGNORE, _err_type, __VA_ARGS__)
 
 enum bch_validate_flags;
 __printf(5, 6)

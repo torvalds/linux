@@ -62,7 +62,7 @@ int bch2_btree_node_check_topology(struct btree_trans *trans, struct btree *b)
 		if (!bpos_eq(b->data->min_key, POS_MIN)) {
 			printbuf_reset(&buf);
 			bch2_bpos_to_text(&buf, b->data->min_key);
-			need_fsck_err(trans, btree_root_bad_min_key,
+			log_fsck_err(trans, btree_root_bad_min_key,
 				      "btree root with incorrect min_key: %s", buf.buf);
 			goto topology_repair;
 		}
@@ -70,7 +70,7 @@ int bch2_btree_node_check_topology(struct btree_trans *trans, struct btree *b)
 		if (!bpos_eq(b->data->max_key, SPOS_MAX)) {
 			printbuf_reset(&buf);
 			bch2_bpos_to_text(&buf, b->data->max_key);
-			need_fsck_err(trans, btree_root_bad_max_key,
+			log_fsck_err(trans, btree_root_bad_max_key,
 				      "btree root with incorrect max_key: %s", buf.buf);
 			goto topology_repair;
 		}
@@ -106,7 +106,7 @@ int bch2_btree_node_check_topology(struct btree_trans *trans, struct btree *b)
 			prt_str(&buf, "\n  next ");
 			bch2_bkey_val_to_text(&buf, c, k);
 
-			need_fsck_err(trans, btree_node_topology_bad_min_key, "%s", buf.buf);
+			log_fsck_err(trans, btree_node_topology_bad_min_key, "%s", buf.buf);
 			goto topology_repair;
 		}
 
@@ -123,7 +123,7 @@ int bch2_btree_node_check_topology(struct btree_trans *trans, struct btree *b)
 		prt_str(&buf, " node ");
 		bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(&b->key));
 
-		need_fsck_err(trans, btree_node_topology_empty_interior_node, "%s", buf.buf);
+		log_fsck_err(trans, btree_node_topology_empty_interior_node, "%s", buf.buf);
 		goto topology_repair;
 	} else if (!bpos_eq(prev.k->k.p, b->key.k.p)) {
 		bch2_topology_error(c);
@@ -136,7 +136,7 @@ int bch2_btree_node_check_topology(struct btree_trans *trans, struct btree *b)
 		prt_str(&buf, "\n  last key ");
 		bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(prev.k));
 
-		need_fsck_err(trans, btree_node_topology_bad_max_key, "%s", buf.buf);
+		log_fsck_err(trans, btree_node_topology_bad_max_key, "%s", buf.buf);
 		goto topology_repair;
 	}
 out:
@@ -146,13 +146,7 @@ fsck_err:
 	printbuf_exit(&buf);
 	return ret;
 topology_repair:
-	if ((c->opts.recovery_passes & BIT_ULL(BCH_RECOVERY_PASS_check_topology)) &&
-	    c->curr_recovery_pass > BCH_RECOVERY_PASS_check_topology) {
-		bch2_inconsistent_error(c);
-		ret = -BCH_ERR_btree_need_topology_repair;
-	} else {
-		ret = bch2_run_explicit_recovery_pass(c, BCH_RECOVERY_PASS_check_topology);
-	}
+	ret = bch2_topology_error(c);
 	goto out;
 }
 

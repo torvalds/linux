@@ -20,6 +20,7 @@
 #include "movinggc.h"
 #include "rebalance.h"
 #include "recovery.h"
+#include "recovery_passes.h"
 #include "reflink.h"
 #include "replicas.h"
 #include "subvolume.h"
@@ -402,8 +403,8 @@ int bch2_bucket_ref_update(struct btree_trans *trans, struct bch_dev *ca,
 	BUG_ON(!sectors);
 
 	if (gen_after(ptr->gen, b_gen)) {
-		bch2_fsck_err(trans, FSCK_CAN_IGNORE|FSCK_NEED_FSCK,
-			      ptr_gen_newer_than_bucket_gen,
+		bch2_run_explicit_recovery_pass(c, BCH_RECOVERY_PASS_check_allocations);
+		log_fsck_err(trans, ptr_gen_newer_than_bucket_gen,
 			"bucket %u:%zu gen %u data type %s: ptr gen %u newer than bucket gen\n"
 			"while marking %s",
 			ptr->dev, bucket_nr, b_gen,
@@ -416,8 +417,8 @@ int bch2_bucket_ref_update(struct btree_trans *trans, struct bch_dev *ca,
 	}
 
 	if (gen_cmp(b_gen, ptr->gen) > BUCKET_GC_GEN_MAX) {
-		bch2_fsck_err(trans, FSCK_CAN_IGNORE|FSCK_NEED_FSCK,
-			      ptr_too_stale,
+		bch2_run_explicit_recovery_pass(c, BCH_RECOVERY_PASS_check_allocations);
+		log_fsck_err(trans, ptr_too_stale,
 			"bucket %u:%zu gen %u data type %s: ptr gen %u too stale\n"
 			"while marking %s",
 			ptr->dev, bucket_nr, b_gen,
@@ -436,8 +437,8 @@ int bch2_bucket_ref_update(struct btree_trans *trans, struct bch_dev *ca,
 	}
 
 	if (b_gen != ptr->gen) {
-		bch2_fsck_err(trans, FSCK_CAN_IGNORE|FSCK_NEED_FSCK,
-			      stale_dirty_ptr,
+		bch2_run_explicit_recovery_pass(c, BCH_RECOVERY_PASS_check_allocations);
+		log_fsck_err(trans, stale_dirty_ptr,
 			"bucket %u:%zu gen %u (mem gen %u) data type %s: stale dirty ptr (gen %u)\n"
 			"while marking %s",
 			ptr->dev, bucket_nr, b_gen,
@@ -452,8 +453,8 @@ int bch2_bucket_ref_update(struct btree_trans *trans, struct bch_dev *ca,
 	}
 
 	if (bucket_data_type_mismatch(bucket_data_type, ptr_data_type)) {
-		bch2_fsck_err(trans, FSCK_CAN_IGNORE|FSCK_NEED_FSCK,
-			      ptr_bucket_data_type_mismatch,
+		bch2_run_explicit_recovery_pass(c, BCH_RECOVERY_PASS_check_allocations);
+		log_fsck_err(trans, ptr_bucket_data_type_mismatch,
 			"bucket %u:%zu gen %u different types of data in same bucket: %s, %s\n"
 			"while marking %s",
 			ptr->dev, bucket_nr, b_gen,
@@ -467,8 +468,8 @@ int bch2_bucket_ref_update(struct btree_trans *trans, struct bch_dev *ca,
 	}
 
 	if ((u64) *bucket_sectors + sectors > U32_MAX) {
-		bch2_fsck_err(trans, FSCK_CAN_IGNORE|FSCK_NEED_FSCK,
-			      bucket_sector_count_overflow,
+		bch2_run_explicit_recovery_pass(c, BCH_RECOVERY_PASS_check_allocations);
+		log_fsck_err(trans, bucket_sector_count_overflow,
 			"bucket %u:%zu gen %u data type %s sector count overflow: %u + %lli > U32_MAX\n"
 			"while marking %s",
 			ptr->dev, bucket_nr, b_gen,
@@ -486,7 +487,9 @@ out:
 	printbuf_exit(&buf);
 	return ret;
 err:
+fsck_err:
 	bch2_dump_trans_updates(trans);
+	bch2_inconsistent_error(c);
 	ret = -BCH_ERR_bucket_ref_update;
 	goto out;
 }
@@ -952,6 +955,7 @@ static int __bch2_trans_mark_metadata_bucket(struct btree_trans *trans,
 				    enum bch_data_type type,
 				    unsigned sectors)
 {
+	struct bch_fs *c = trans->c;
 	struct btree_iter iter;
 	int ret = 0;
 
@@ -961,8 +965,8 @@ static int __bch2_trans_mark_metadata_bucket(struct btree_trans *trans,
 		return PTR_ERR(a);
 
 	if (a->v.data_type && type && a->v.data_type != type) {
-		bch2_fsck_err(trans, FSCK_CAN_IGNORE|FSCK_NEED_FSCK,
-			      bucket_metadata_type_mismatch,
+		bch2_run_explicit_recovery_pass(c, BCH_RECOVERY_PASS_check_allocations);
+		log_fsck_err(trans, bucket_metadata_type_mismatch,
 			"bucket %llu:%llu gen %u different types of data in same bucket: %s, %s\n"
 			"while marking %s",
 			iter.pos.inode, iter.pos.offset, a->v.gen,
@@ -980,6 +984,7 @@ static int __bch2_trans_mark_metadata_bucket(struct btree_trans *trans,
 		ret = bch2_trans_update(trans, &iter, &a->k_i, 0);
 	}
 err:
+fsck_err:
 	bch2_trans_iter_exit(trans, &iter);
 	return ret;
 }

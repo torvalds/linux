@@ -385,9 +385,7 @@ int __bch2_fsck_err(struct bch_fs *c,
 			prt_str(out, ", not ");
 			prt_actioning(out, action);
 		}
-	} else if (flags & FSCK_NEED_FSCK) {
-		prt_str(out, " (run fsck to correct)");
-	} else {
+	} else if (!(flags & FSCK_CAN_IGNORE)) {
 		prt_str(out, " (repair unimplemented)");
 	}
 
@@ -424,11 +422,18 @@ int __bch2_fsck_err(struct bch_fs *c,
 	if (inconsistent)
 		bch2_inconsistent_error(c);
 
-	if (ret == -BCH_ERR_fsck_fix) {
-		set_bit(BCH_FS_errors_fixed, &c->flags);
-	} else {
-		set_bit(BCH_FS_errors_not_fixed, &c->flags);
-		set_bit(BCH_FS_error, &c->flags);
+	/*
+	 * We don't yet track whether the filesystem currently has errors, for
+	 * log_fsck_err()s: that would require us to track for every error type
+	 * which recovery pass corrects it, to get the fsck exit status correct:
+	 */
+	if (flags & FSCK_CAN_FIX) {
+		if (ret == -BCH_ERR_fsck_fix) {
+			set_bit(BCH_FS_errors_fixed, &c->flags);
+		} else {
+			set_bit(BCH_FS_errors_not_fixed, &c->flags);
+			set_bit(BCH_FS_error, &c->flags);
+		}
 	}
 err:
 	if (action != action_orig)
