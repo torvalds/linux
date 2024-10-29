@@ -1670,8 +1670,12 @@ static int airoha_qdma_tx_napi_poll(struct napi_struct *napi, int budget)
 	irq_queued = FIELD_GET(IRQ_ENTRY_LEN_MASK, status);
 
 	while (irq_queued > 0 && done < budget) {
-		u32 qid, last, val = irq_q->q[head];
+		u32 qid, val = irq_q->q[head];
+		struct airoha_qdma_desc *desc;
+		struct airoha_queue_entry *e;
 		struct airoha_queue *q;
+		u32 index, desc_ctrl;
+		struct sk_buff *skb;
 
 		if (val == 0xff)
 			break;
@@ -1681,9 +1685,7 @@ static int airoha_qdma_tx_napi_poll(struct napi_struct *napi, int budget)
 		irq_queued--;
 		done++;
 
-		last = FIELD_GET(IRQ_DESC_IDX_MASK, val);
 		qid = FIELD_GET(IRQ_RING_IDX_MASK, val);
-
 		if (qid >= ARRAY_SIZE(qdma->q_tx))
 			continue;
 
@@ -1691,46 +1693,53 @@ static int airoha_qdma_tx_napi_poll(struct napi_struct *napi, int budget)
 		if (!q->ndesc)
 			continue;
 
+		index = FIELD_GET(IRQ_DESC_IDX_MASK, val);
+		if (index >= q->ndesc)
+			continue;
+
 		spin_lock_bh(&q->lock);
 
-		while (q->queued > 0) {
-			struct airoha_qdma_desc *desc = &q->desc[q->tail];
-			struct airoha_queue_entry *e = &q->entry[q->tail];
-			u32 desc_ctrl = le32_to_cpu(desc->ctrl);
-			struct sk_buff *skb = e->skb;
-			u16 index = q->tail;
+		if (!q->queued)
+			goto unlock;
 
-			if (!(desc_ctrl & QDMA_DESC_DONE_MASK) &&
-			    !(desc_ctrl & QDMA_DESC_DROP_MASK))
-				break;
+		desc = &q->desc[index];
+		desc_ctrl = le32_to_cpu(desc->ctrl);
 
+		if (!(desc_ctrl & QDMA_DESC_DONE_MASK) &&
+		    !(desc_ctrl & QDMA_DESC_DROP_MASK))
+			goto unlock;
+
+		e = &q->entry[index];
+		skb = e->skb;
+
+		dma_unmap_single(eth->dev, e->dma_addr, e->dma_len,
+				 DMA_TO_DEVICE);
+		memset(e, 0, sizeof(*e));
+		WRITE_ONCE(desc->msg0, 0);
+		WRITE_ONCE(desc->msg1, 0);
+		q->queued--;
+
+		/* completion ring can report out-of-order indexes if hw QoS
+		 * is enabled and packets with different priority are queued
+		 * to same DMA ring. Take into account possible out-of-order
+		 * reports incrementing DMA ring tail pointer
+		 */
+		while (q->tail != q->head && !q->entry[q->tail].dma_addr)
 			q->tail = (q->tail + 1) % q->ndesc;
-			q->queued--;
 
-			dma_unmap_single(eth->dev, e->dma_addr, e->dma_len,
-					 DMA_TO_DEVICE);
+		if (skb) {
+			u16 queue = skb_get_queue_mapping(skb);
+			struct netdev_queue *txq;
 
-			WRITE_ONCE(desc->msg0, 0);
-			WRITE_ONCE(desc->msg1, 0);
+			txq = netdev_get_tx_queue(skb->dev, queue);
+			netdev_tx_completed_queue(txq, 1, skb->len);
+			if (netif_tx_queue_stopped(txq) &&
+			    q->ndesc - q->queued >= q->free_thr)
+				netif_tx_wake_queue(txq);
 
-			if (skb) {
-				u16 queue = skb_get_queue_mapping(skb);
-				struct netdev_queue *txq;
-
-				txq = netdev_get_tx_queue(skb->dev, queue);
-				netdev_tx_completed_queue(txq, 1, skb->len);
-				if (netif_tx_queue_stopped(txq) &&
-				    q->ndesc - q->queued >= q->free_thr)
-					netif_tx_wake_queue(txq);
-
-				dev_kfree_skb_any(skb);
-				e->skb = NULL;
-			}
-
-			if (index == last)
-				break;
+			dev_kfree_skb_any(skb);
 		}
-
+unlock:
 		spin_unlock_bh(&q->lock);
 	}
 
