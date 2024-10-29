@@ -50,17 +50,35 @@ EXPORT_SYMBOL(iomem_resource);
 
 static DEFINE_RWLOCK(resource_lock);
 
-static struct resource *next_resource(struct resource *p, bool skip_children)
+/*
+ * Return the next node of @p in pre-order tree traversal.  If
+ * @skip_children is true, skip the descendant nodes of @p in
+ * traversal.  If @p is a descendant of @subtree_root, only traverse
+ * the subtree under @subtree_root.
+ */
+static struct resource *next_resource(struct resource *p, bool skip_children,
+				      struct resource *subtree_root)
 {
 	if (!skip_children && p->child)
 		return p->child;
-	while (!p->sibling && p->parent)
+	while (!p->sibling && p->parent) {
 		p = p->parent;
+		if (p == subtree_root)
+			return NULL;
+	}
 	return p->sibling;
 }
 
+/*
+ * Traverse the resource subtree under @_root in pre-order, excluding
+ * @_root itself.
+ *
+ * NOTE: '__p' is introduced to avoid shadowing '_p' outside of loop.
+ * And it is referenced to avoid unused variable warning.
+ */
 #define for_each_resource(_root, _p, _skip_children) \
-	for ((_p) = (_root)->child; (_p); (_p) = next_resource(_p, _skip_children))
+	for (typeof(_root) __root = (_root), __p = _p = __root->child;	\
+	     __p && _p; _p = next_resource(_p, _skip_children, __root))
 
 #ifdef CONFIG_PROC_FS
 
@@ -88,7 +106,7 @@ static void *r_next(struct seq_file *m, void *v, loff_t *pos)
 
 	(*pos)++;
 
-	return (void *)next_resource(p, false);
+	return (void *)next_resource(p, false, NULL);
 }
 
 static void r_stop(struct seq_file *m, void *v)
