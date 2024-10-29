@@ -9,13 +9,13 @@
 #include <linux/types.h>
 
 enum icl_port_dpll_id;
-struct drm_i915_private;
 struct intel_atomic_state;
 struct intel_c10pll_state;
 struct intel_c20pll_state;
-struct intel_cx0pll_state;
 struct intel_crtc;
 struct intel_crtc_state;
+struct intel_cx0pll_state;
+struct intel_display;
 struct intel_encoder;
 struct intel_hdmi;
 
@@ -33,7 +33,7 @@ void intel_cx0pll_readout_hw_state(struct intel_encoder *encoder,
 int intel_cx0pll_calc_port_clock(struct intel_encoder *encoder,
 				 const struct intel_cx0pll_state *pll_state);
 
-void intel_cx0pll_dump_hw_state(struct drm_i915_private *dev_priv,
+void intel_cx0pll_dump_hw_state(struct intel_display *display,
 				const struct intel_cx0pll_state *hw_state);
 void intel_cx0pll_state_verify(struct intel_atomic_state *state,
 			       struct intel_crtc *crtc);
