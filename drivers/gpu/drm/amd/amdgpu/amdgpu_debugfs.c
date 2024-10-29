@@ -2096,6 +2096,8 @@ int amdgpu_debugfs_init(struct amdgpu_device *adev)
 		amdgpu_debugfs_umsch_fwlog_init(adev, &adev->umsch_mm);
 
 	amdgpu_debugfs_jpeg_sched_mask_init(adev);
+	amdgpu_debugfs_gfx_sched_mask_init(adev);
+	amdgpu_debugfs_compute_sched_mask_init(adev);
 
 	amdgpu_ras_debugfs_create_all(adev);
 	amdgpu_rap_debugfs_init(adev);

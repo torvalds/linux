@@ -1917,3 +1917,144 @@ void amdgpu_gfx_enforce_isolation_ring_end_use(struct amdgpu_ring *ring)
 	}
 	mutex_unlock(&adev->enforce_isolation_mutex);
 }
+
+/*
+ * debugfs for to enable/disable gfx job submission to specific core.
+ */
+#if defined(CONFIG_DEBUG_FS)
+static int amdgpu_debugfs_gfx_sched_mask_set(void *data, u64 val)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)data;
+	u32 i;
+	u64 mask = 0;
+	struct amdgpu_ring *ring;
+
+	if (!adev)
+		return -ENODEV;
+
+	mask = (1 << adev->gfx.num_gfx_rings) - 1;
+	if ((val & mask) == 0)
+		return -EINVAL;
+
+	for (i = 0; i < adev->gfx.num_gfx_rings; ++i) {
+		ring = &adev->gfx.gfx_ring[i];
+		if (val & (1 << i))
+			ring->sched.ready = true;
+		else
+			ring->sched.ready = false;
+	}
+	/* publish sched.ready flag update effective immediately across smp */
+	smp_rmb();
+	return 0;
+}
+
+static int amdgpu_debugfs_gfx_sched_mask_get(void *data, u64 *val)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)data;
+	u32 i;
+	u64 mask = 0;
+	struct amdgpu_ring *ring;
+
+	if (!adev)
+		return -ENODEV;
+	for (i = 0; i < adev->gfx.num_gfx_rings; ++i) {
+		ring = &adev->gfx.gfx_ring[i];
+		if (ring->sched.ready)
+			mask |= 1 << i;
+	}
+
+	*val = mask;
+	return 0;
+}
+
+DEFINE_DEBUGFS_ATTRIBUTE(amdgpu_debugfs_gfx_sched_mask_fops,
+			 amdgpu_debugfs_gfx_sched_mask_get,
+			 amdgpu_debugfs_gfx_sched_mask_set, "%llx\n");
+
+#endif
+
+void amdgpu_debugfs_gfx_sched_mask_init(struct amdgpu_device *adev)
+{
+#if defined(CONFIG_DEBUG_FS)
+	struct drm_minor *minor = adev_to_drm(adev)->primary;
+	struct dentry *root = minor->debugfs_root;
+	char name[32];
+
+	if (!(adev->gfx.num_gfx_rings > 1))
+		return;
+	sprintf(name, "amdgpu_gfx_sched_mask");
+	debugfs_create_file(name, 0600, root, adev,
+			    &amdgpu_debugfs_gfx_sched_mask_fops);
+#endif
+}
+
+/*
+ * debugfs for to enable/disable compute job submission to specific core.
+ */
+#if defined(CONFIG_DEBUG_FS)
+static int amdgpu_debugfs_compute_sched_mask_set(void *data, u64 val)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)data;
+	u32 i;
+	u64 mask = 0;
+	struct amdgpu_ring *ring;
+
+	if (!adev)
+		return -ENODEV;
+
+	mask = (1 << adev->gfx.num_compute_rings) - 1;
+	if ((val & mask) == 0)
+		return -EINVAL;
+
+	for (i = 0; i < adev->gfx.num_compute_rings; ++i) {
+		ring = &adev->gfx.compute_ring[i];
+		if (val & (1 << i))
+			ring->sched.ready = true;
+		else
+			ring->sched.ready = false;
+	}
+
+	/* publish sched.ready flag update effective immediately across smp */
+	smp_rmb();
+	return 0;
+}
+
+static int amdgpu_debugfs_compute_sched_mask_get(void *data, u64 *val)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)data;
+	u32 i;
+	u64 mask = 0;
+	struct amdgpu_ring *ring;
+
+	if (!adev)
+		return -ENODEV;
+	for (i = 0; i < adev->gfx.num_compute_rings; ++i) {
+		ring = &adev->gfx.compute_ring[i];
+		if (ring->sched.ready)
+			mask |= 1 << i;
+	}
+
+	*val = mask;
+	return 0;
+}
+
+DEFINE_DEBUGFS_ATTRIBUTE(amdgpu_debugfs_compute_sched_mask_fops,
+			 amdgpu_debugfs_compute_sched_mask_get,
+			 amdgpu_debugfs_compute_sched_mask_set, "%llx\n");
+
+#endif
+
+void amdgpu_debugfs_compute_sched_mask_init(struct amdgpu_device *adev)
+{
+#if defined(CONFIG_DEBUG_FS)
+	struct drm_minor *minor = adev_to_drm(adev)->primary;
+	struct dentry *root = minor->debugfs_root;
+	char name[32];
+
+	if (!(adev->gfx.num_compute_rings > 1))
+		return;
+	sprintf(name, "amdgpu_compute_sched_mask");
+	debugfs_create_file(name, 0600, root, adev,
+			    &amdgpu_debugfs_compute_sched_mask_fops);
+#endif
+}
