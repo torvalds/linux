@@ -2013,6 +2013,15 @@ static void intel_psr_enable_locked(struct intel_dp *intel_dp,
 	intel_dp->psr.enabled = true;
 	intel_dp->psr.paused = false;
 
+	/*
+	 * Link_ok is sticky and set here on PSR enable. We can assume link
+	 * training is complete as we never continue to PSR enable with
+	 * untrained link. Link_ok is kept as set until first short pulse
+	 * interrupt. This is targeted to workaround panels stating bad link
+	 * after PSR is enabled.
+	 */
+	intel_dp->psr.link_ok = true;
+
 	intel_psr_activate(intel_dp);
 }
 
@@ -2171,6 +2180,8 @@ void intel_psr_disable(struct intel_dp *intel_dp,
 	mutex_lock(&intel_dp->psr.lock);
 
 	intel_psr_disable_locked(intel_dp);
+
+	intel_dp->psr.link_ok = false;
 
 	mutex_unlock(&intel_dp->psr.lock);
 	cancel_work_sync(&intel_dp->psr.work);
@@ -3462,6 +3473,8 @@ void intel_psr_short_pulse(struct intel_dp *intel_dp)
 
 	mutex_lock(&psr->lock);
 
+	psr->link_ok = false;
+
 	if (!psr->enabled)
 		goto exit;
 
@@ -3516,6 +3529,33 @@ bool intel_psr_enabled(struct intel_dp *intel_dp)
 
 	mutex_lock(&intel_dp->psr.lock);
 	ret = intel_dp->psr.enabled;
+	mutex_unlock(&intel_dp->psr.lock);
+
+	return ret;
+}
+
+/**
+ * intel_psr_link_ok - return psr->link_ok
+ * @intel_dp: struct intel_dp
+ *
+ * We are seeing unexpected link re-trainings with some panels. This is caused
+ * by panel stating bad link status after PSR is enabled. Code checking link
+ * status can call this to ensure it can ignore bad link status stated by the
+ * panel I.e. if panel is stating bad link and intel_psr_link_ok is stating link
+ * is ok caller should rely on latter.
+ *
+ * Return value of link_ok
+ */
+bool intel_psr_link_ok(struct intel_dp *intel_dp)
+{
+	bool ret;
+
+	if ((!CAN_PSR(intel_dp) && !CAN_PANEL_REPLAY(intel_dp)) ||
+	    !intel_dp_is_edp(intel_dp))
+		return false;
+
+	mutex_lock(&intel_dp->psr.lock);
+	ret = intel_dp->psr.link_ok;
 	mutex_unlock(&intel_dp->psr.lock);
 
 	return ret;

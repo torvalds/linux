@@ -5038,7 +5038,8 @@ intel_dp_needs_link_retrain(struct intel_dp *intel_dp)
 		return true;
 
 	/* Retrain if link not ok */
-	return !intel_dp_link_ok(intel_dp, link_status);
+	return !intel_dp_link_ok(intel_dp, link_status) &&
+		!intel_psr_link_ok(intel_dp);
 }
 
 bool intel_dp_has_connector(struct intel_dp *intel_dp,
