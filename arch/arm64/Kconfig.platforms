@@ -503,4 +503,14 @@ config ARCH_ZYNQMP
 	help
 	  This enables support for Xilinx ZynqMP Family
 
+config QVP_SIM
+	bool "Enable Qualcomm Technologies, Inc. Virtual Platform Simulation"
+	depends on ARM64
+	depends on ARCH_QCOM
+	help
+	  This enables support for Qualcomm Technologies, Inc.'s Virtual Platform
+	  for ARM64 Architecture.
+
+	  If unsure, say N.
+
 endmenu # "Platform selection"
