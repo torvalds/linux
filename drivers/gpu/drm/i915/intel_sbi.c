@@ -57,6 +57,16 @@ static int intel_sbi_rw(struct drm_i915_private *i915, u16 reg,
 	return 0;
 }
 
+void intel_sbi_lock(struct drm_i915_private *i915)
+{
+	mutex_lock(&i915->sb_lock);
+}
+
+void intel_sbi_unlock(struct drm_i915_private *i915)
+{
+	mutex_unlock(&i915->sb_lock);
+}
+
 u32 intel_sbi_read(struct drm_i915_private *i915, u16 reg,
 		   enum intel_sbi_destination destination)
 {
