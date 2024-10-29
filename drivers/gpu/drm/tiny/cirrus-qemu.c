@@ -46,7 +46,7 @@
 #include <drm/drm_module.h>
 #include <drm/drm_probe_helper.h>
 
-#define DRIVER_NAME "cirrus"
+#define DRIVER_NAME "cirrus-qemu"
 #define DRIVER_DESC "qemu cirrus vga"
 #define DRIVER_DATE "2019"
 #define DRIVER_MAJOR 2
