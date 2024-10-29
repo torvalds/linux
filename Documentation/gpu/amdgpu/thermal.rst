@@ -106,6 +106,12 @@ fan_zero_rpm_enable
 .. kernel-doc:: drivers/gpu/drm/amd/pm/amdgpu_pm.c
    :doc: fan_zero_rpm_enable
 
+fan_zero_rpm_stop_temperature
+-----------------------------
+
+.. kernel-doc:: drivers/gpu/drm/amd/pm/amdgpu_pm.c
+   :doc: fan_zero_rpm_stop_temperature
+
 GFXOFF
 ======
 
