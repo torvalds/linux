@@ -10,7 +10,12 @@
  * modify it under the terms of the GNU Lesser General Public License
  * as published by the Free Software Foundation; either version 2.1
  * of the licence, or (at your option) any later version.
+ *
+ * This program extracts X.509 certificates in DER form from PKCS#11 or PEM.
+ * It supports both PKCS#11 provider and engine, and can handle certificates
+ * from various sources, including files and PKCS#11 URIs.
  */
+
 #define _GNU_SOURCE
 #include <stdio.h>
 #include <stdlib.h>

@@ -2,6 +2,8 @@
 #include <linux/export.h>
 #include <linux/init.h>
 
+/* This file includes the compiled-in list of revocation X.509 certificates. */
+
 	__INITRODATA
 
 	.align 8

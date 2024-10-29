@@ -1,4 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0
+# This file defines configuration options related to certificates, such as module signing keys, system trusted keyring, and system blacklist keyring.
 menu "Certificates for signature checking"
 
 config MODULE_SIG_KEY
