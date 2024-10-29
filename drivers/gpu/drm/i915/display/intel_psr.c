@@ -1772,23 +1772,6 @@ static void intel_psr_activate(struct intel_dp *intel_dp)
 	intel_dp->psr.active = true;
 }
 
-static u32 wa_16013835468_bit_get(struct intel_dp *intel_dp)
-{
-	switch (intel_dp->psr.pipe) {
-	case PIPE_A:
-		return LATENCY_REPORTING_REMOVED_PIPE_A;
-	case PIPE_B:
-		return LATENCY_REPORTING_REMOVED_PIPE_B;
-	case PIPE_C:
-		return LATENCY_REPORTING_REMOVED_PIPE_C;
-	case PIPE_D:
-		return LATENCY_REPORTING_REMOVED_PIPE_D;
-	default:
-		MISSING_CASE(intel_dp->psr.pipe);
-		return 0;
-	}
-}
-
 /*
  * Wa_16013835468
  * Wa_14015648006
@@ -1797,6 +1780,7 @@ static void wm_optimization_wa(struct intel_dp *intel_dp,
 			       const struct intel_crtc_state *crtc_state)
 {
 	struct intel_display *display = to_intel_display(intel_dp);
+	enum pipe pipe = intel_dp->psr.pipe;
 	bool set_wa_bit = false;
 
 	/* Wa_14015648006 */
@@ -1810,10 +1794,10 @@ static void wm_optimization_wa(struct intel_dp *intel_dp,
 
 	if (set_wa_bit)
 		intel_de_rmw(display, GEN8_CHICKEN_DCPR_1,
-			     0, wa_16013835468_bit_get(intel_dp));
+			     0, LATENCY_REPORTING_REMOVED(pipe));
 	else
 		intel_de_rmw(display, GEN8_CHICKEN_DCPR_1,
-			     wa_16013835468_bit_get(intel_dp), 0);
+			     LATENCY_REPORTING_REMOVED(pipe), 0);
 }
 
 static void intel_psr_enable_source(struct intel_dp *intel_dp,
@@ -2113,7 +2097,7 @@ static void intel_psr_disable_locked(struct intel_dp *intel_dp)
 	 */
 	if (DISPLAY_VER(display) >= 11)
 		intel_de_rmw(display, GEN8_CHICKEN_DCPR_1,
-			     wa_16013835468_bit_get(intel_dp), 0);
+			     LATENCY_REPORTING_REMOVED(intel_dp->psr.pipe), 0);
 
 	if (intel_dp->psr.sel_update_enabled) {
 		/* Wa_16012604467:adlp,mtl[a0,b0] */
