@@ -126,7 +126,7 @@ static const struct regmap_test_param real_cache_types_list[] = {
 	{ .cache = REGCACHE_RBTREE, .from_reg = 0x2003 },
 	{ .cache = REGCACHE_RBTREE, .from_reg = 0x2004 },
 	{ .cache = REGCACHE_MAPLE,  .from_reg = 0 },
-	{ .cache = REGCACHE_RBTREE, .from_reg = 0, .fast_io = true },
+	{ .cache = REGCACHE_MAPLE,  .from_reg = 0, .fast_io = true },
 	{ .cache = REGCACHE_MAPLE,  .from_reg = 0x2001 },
 	{ .cache = REGCACHE_MAPLE,  .from_reg = 0x2002 },
 	{ .cache = REGCACHE_MAPLE,  .from_reg = 0x2003 },
