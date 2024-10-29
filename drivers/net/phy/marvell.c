@@ -2020,10 +2020,8 @@ static void marvell_get_strings(struct phy_device *phydev, u8 *data)
 	int count = marvell_get_sset_count(phydev);
 	int i;
 
-	for (i = 0; i < count; i++) {
-		strscpy(data + i * ETH_GSTRING_LEN,
-			marvell_hw_stats[i].string, ETH_GSTRING_LEN);
-	}
+	for (i = 0; i < count; i++)
+		ethtool_puts(&data, marvell_hw_stats[i].string);
 }
 
 static void marvell_get_strings_simple(struct phy_device *phydev, u8 *data)
@@ -2031,10 +2029,8 @@ static void marvell_get_strings_simple(struct phy_device *phydev, u8 *data)
 	int count = marvell_get_sset_count_simple(phydev);
 	int i;
 
-	for (i = 0; i < count; i++) {
-		strscpy(data + i * ETH_GSTRING_LEN,
-			marvell_hw_stats_simple[i].string, ETH_GSTRING_LEN);
-	}
+	for (i = 0; i < count; i++)
+		ethtool_puts(&data, marvell_hw_stats_simple[i].string);
 }
 
 static u64 marvell_get_stat(struct phy_device *phydev, int i)

@@ -540,8 +540,7 @@ static void ip101g_get_strings(struct phy_device *phydev, u8 *data)
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(ip101g_hw_stats); i++)
-		strscpy(data + i * ETH_GSTRING_LEN,
-			ip101g_hw_stats[i].name, ETH_GSTRING_LEN);
+		ethtool_puts(&data, ip101g_hw_stats[i].name);
 }
 
 static u64 ip101g_get_stat(struct phy_device *phydev, int i)

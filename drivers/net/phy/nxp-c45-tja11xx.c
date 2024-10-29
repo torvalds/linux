@@ -1140,13 +1140,11 @@ static void nxp_c45_get_strings(struct phy_device *phydev, u8 *data)
 
 	for (i = 0; i < count; i++) {
 		if (i < ARRAY_SIZE(common_hw_stats)) {
-			strscpy(data + i * ETH_GSTRING_LEN,
-				common_hw_stats[i].name, ETH_GSTRING_LEN);
+			ethtool_puts(&data, common_hw_stats[i].name);
 			continue;
 		}
 		idx = i - ARRAY_SIZE(common_hw_stats);
-		strscpy(data + i * ETH_GSTRING_LEN,
-			phy_data->stats[idx].name, ETH_GSTRING_LEN);
+		ethtool_puts(&data, phy_data->stats[idx].name);
 	}
 }
 
