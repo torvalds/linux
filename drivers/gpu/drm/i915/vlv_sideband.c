@@ -62,12 +62,12 @@ void vlv_iosf_sb_get(struct drm_i915_private *i915, unsigned long ports)
 	if (ports & BIT(VLV_IOSF_SB_PUNIT))
 		__vlv_punit_get(i915);
 
-	mutex_lock(&i915->sb_lock);
+	mutex_lock(&i915->vlv_iosf_sb.lock);
 }
 
 void vlv_iosf_sb_put(struct drm_i915_private *i915, unsigned long ports)
 {
-	mutex_unlock(&i915->sb_lock);
+	mutex_unlock(&i915->vlv_iosf_sb.lock);
 
 	if (ports & BIT(VLV_IOSF_SB_PUNIT))
 		__vlv_punit_put(i915);
@@ -81,7 +81,7 @@ static int vlv_sideband_rw(struct drm_i915_private *i915,
 	const bool is_read = (opcode == SB_MRD_NP || opcode == SB_CRRDDA_NP);
 	int err;
 
-	lockdep_assert_held(&i915->sb_lock);
+	lockdep_assert_held(&i915->vlv_iosf_sb.lock);
 	if (port == IOSF_PORT_PUNIT)
 		iosf_mbi_assert_punit_acquired();
 
@@ -248,4 +248,16 @@ void vlv_flisdsi_write(struct drm_i915_private *i915, u32 reg, u32 val)
 {
 	vlv_sideband_rw(i915, DPIO_DEVFN, IOSF_PORT_FLISDSI, SB_CRWRDA_NP,
 			reg, &val);
+}
+
+void vlv_iosf_sb_init(struct drm_i915_private *i915)
+{
+	if (IS_VALLEYVIEW(i915) || IS_CHERRYVIEW(i915))
+		mutex_init(&i915->vlv_iosf_sb.lock);
+}
+
+void vlv_iosf_sb_fini(struct drm_i915_private *i915)
+{
+	if (IS_VALLEYVIEW(i915) || IS_CHERRYVIEW(i915))
+		mutex_destroy(&i915->vlv_iosf_sb.lock);
 }

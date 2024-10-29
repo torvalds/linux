@@ -105,6 +105,7 @@
 #include "intel_pcode.h"
 #include "intel_region_ttm.h"
 #include "intel_sbi.h"
+#include "vlv_sideband.h"
 #include "vlv_suspend.h"
 
 static const struct drm_driver i915_drm_driver;
@@ -233,6 +234,7 @@ static int i915_driver_early_probe(struct drm_i915_private *dev_priv)
 	spin_lock_init(&dev_priv->gpu_error.lock);
 
 	intel_sbi_init(dev_priv);
+	vlv_iosf_sb_init(dev_priv);
 	mutex_init(&dev_priv->sb_lock);
 	cpu_latency_qos_add_request(&dev_priv->sb_qos, PM_QOS_DEFAULT_VALUE);
 
@@ -294,6 +296,7 @@ static void i915_driver_late_release(struct drm_i915_private *dev_priv)
 
 	cpu_latency_qos_remove_request(&dev_priv->sb_qos);
 	mutex_destroy(&dev_priv->sb_lock);
+	vlv_iosf_sb_fini(dev_priv);
 	intel_sbi_fini(dev_priv);
 
 	i915_params_free(&dev_priv->params);

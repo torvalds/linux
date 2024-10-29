@@ -239,6 +239,11 @@ struct drm_i915_private {
 	/* LPT/WPT IOSF sideband protection */
 	struct mutex sbi_lock;
 
+	/* VLV/CHV IOSF sideband */
+	struct {
+		struct mutex lock; /* protect sideband access */
+	} vlv_iosf_sb;
+
 	/* Sideband mailbox protection */
 	struct mutex sb_lock;
 	struct pm_qos_request sb_qos;
