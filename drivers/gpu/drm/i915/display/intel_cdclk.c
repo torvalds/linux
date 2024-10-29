@@ -2812,6 +2812,9 @@ static int intel_vdsc_min_cdclk(const struct intel_crtc_state *crtc_state)
 	int num_vdsc_instances = intel_dsc_get_num_vdsc_instances(crtc_state);
 	int min_cdclk = 0;
 
+	if (!crtc_state->dsc.compression_enable)
+		return 0;
+
 	/*
 	 * When we decide to use only one VDSC engine, since
 	 * each VDSC operates with 1 ppc throughput, pixel clock
@@ -2860,9 +2863,7 @@ int intel_crtc_compute_min_cdclk(const struct intel_crtc_state *crtc_state)
 	min_cdclk = max(intel_audio_min_cdclk(crtc_state), min_cdclk);
 	min_cdclk = max(vlv_dsi_min_cdclk(crtc_state), min_cdclk);
 	min_cdclk = max(intel_planes_min_cdclk(crtc_state), min_cdclk);
-
-	if (crtc_state->dsc.compression_enable)
-		min_cdclk = max(min_cdclk, intel_vdsc_min_cdclk(crtc_state));
+	min_cdclk = max(min_cdclk, intel_vdsc_min_cdclk(crtc_state));
 
 	return min_cdclk;
 }
