@@ -2858,42 +2858,7 @@ int intel_crtc_compute_min_cdclk(const struct intel_crtc_state *crtc_state)
 
 	min_cdclk = intel_pixel_rate_to_cdclk(crtc_state);
 	min_cdclk = max(hsw_ips_min_cdclk(crtc_state), min_cdclk);
-
-	/* BSpec says "Do not use DisplayPort with CDCLK less than 432 MHz,
-	 * audio enabled, port width x4, and link rate HBR2 (5.4 GHz), or else
-	 * there may be audio corruption or screen corruption." This cdclk
-	 * restriction for GLK is 316.8 MHz.
-	 */
-	if (intel_crtc_has_dp_encoder(crtc_state) &&
-	    crtc_state->has_audio &&
-	    crtc_state->port_clock >= 540000 &&
-	    crtc_state->lane_count == 4) {
-		if (DISPLAY_VER(display) == 10) {
-			/* Display WA #1145: glk */
-			min_cdclk = max(316800, min_cdclk);
-		} else if (DISPLAY_VER(display) == 9 || IS_BROADWELL(dev_priv)) {
-			/* Display WA #1144: skl,bxt */
-			min_cdclk = max(432000, min_cdclk);
-		}
-	}
-
-	/*
-	 * According to BSpec, "The CD clock frequency must be at least twice
-	 * the frequency of the Azalia BCLK." and BCLK is 96 MHz by default.
-	 */
-	if (crtc_state->has_audio && DISPLAY_VER(display) >= 9)
-		min_cdclk = max(2 * 96000, min_cdclk);
-
-	/*
-	 * "For DP audio configuration, cdclk frequency shall be set to
-	 *  meet the following requirements:
-	 *  DP Link Frequency(MHz) | Cdclk frequency(MHz)
-	 *  270                    | 320 or higher
-	 *  162                    | 200 or higher"
-	 */
-	if ((IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) &&
-	    intel_crtc_has_dp_encoder(crtc_state) && crtc_state->has_audio)
-		min_cdclk = max(crtc_state->port_clock, min_cdclk);
+	min_cdclk = max(intel_audio_min_cdclk(crtc_state), min_cdclk);
 
 	/*
 	 * On Valleyview some DSI panels lose (v|h)sync when the clock is lower
