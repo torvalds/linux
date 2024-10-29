@@ -927,10 +927,11 @@ int io_import_fixed(int ddir, struct iov_iter *iter,
 	return 0;
 }
 
-static int io_clone_buffers(struct io_ring_ctx *ctx, struct io_ring_ctx *src_ctx)
+static int io_clone_buffers(struct io_ring_ctx *ctx, struct io_ring_ctx *src_ctx,
+			    struct io_uring_clone_buffers *arg)
 {
+	int i, ret, nbufs, off, nr;
 	struct io_rsrc_data data;
-	int i, ret, nbufs;
 
 	/*
 	 * Drop our own lock here. We'll setup the data we need and reference
@@ -943,11 +944,29 @@ static int io_clone_buffers(struct io_ring_ctx *ctx, struct io_ring_ctx *src_ctx
 	nbufs = src_ctx->buf_table.nr;
 	if (!nbufs)
 		goto out_unlock;
-	ret = io_rsrc_data_alloc(&data, nbufs);
+	ret = -EINVAL;
+	if (!arg->nr)
+		arg->nr = nbufs;
+	else if (arg->nr > nbufs)
+		goto out_unlock;
+	ret = -EOVERFLOW;
+	if (check_add_overflow(arg->nr, arg->src_off, &off))
+		goto out_unlock;
+	if (off > nbufs)
+		goto out_unlock;
+	if (check_add_overflow(arg->nr, arg->dst_off, &off))
+		goto out_unlock;
+	ret = -EINVAL;
+	if (off > IORING_MAX_REG_BUFFERS)
+		goto out_unlock;
+	ret = io_rsrc_data_alloc(&data, off);
 	if (ret)
 		goto out_unlock;
 
-	for (i = 0; i < nbufs; i++) {
+	off = arg->dst_off;
+	i = arg->src_off;
+	nr = arg->nr;
+	while (nr--) {
 		struct io_rsrc_node *dst_node, *src_node;
 
 		src_node = io_rsrc_node_lookup(&src_ctx->buf_table, i);
@@ -963,7 +982,8 @@ static int io_clone_buffers(struct io_ring_ctx *ctx, struct io_ring_ctx *src_ctx
 			refcount_inc(&src_node->buf->refs);
 			dst_node->buf = src_node->buf;
 		}
-		data.nodes[i] = dst_node;
+		data.nodes[off++] = dst_node;
+		i++;
 	}
 
 	/* Have a ref on the bufs now, drop src lock and re-grab our own lock */
@@ -1018,7 +1038,7 @@ int io_register_clone_buffers(struct io_ring_ctx *ctx, void __user *arg)
 	file = io_uring_register_get_file(buf.src_fd, registered_src);
 	if (IS_ERR(file))
 		return PTR_ERR(file);
-	ret = io_clone_buffers(ctx, file->private_data);
+	ret = io_clone_buffers(ctx, file->private_data, &buf);
 	if (!registered_src)
 		fput(file);
 	return ret;
