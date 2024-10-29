@@ -587,14 +587,14 @@ static int cirrus_pipe_init(struct cirrus_device *cirrus)
 
 	encoder = &cirrus->encoder;
 	ret = drm_encoder_init(dev, encoder, &cirrus_encoder_funcs,
-			       DRM_MODE_ENCODER_DAC, NULL);
+			       DRM_MODE_ENCODER_VIRTUAL, NULL);
 	if (ret)
 		return ret;
 	encoder->possible_crtcs = drm_crtc_mask(crtc);
 
 	connector = &cirrus->connector;
 	ret = drm_connector_init(dev, connector, &cirrus_connector_funcs,
-				 DRM_MODE_CONNECTOR_VGA);
+				 DRM_MODE_CONNECTOR_VIRTUAL);
 	if (ret)
 		return ret;
 	drm_connector_helper_add(connector, &cirrus_connector_helper_funcs);
