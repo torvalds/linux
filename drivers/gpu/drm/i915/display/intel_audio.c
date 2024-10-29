@@ -984,13 +984,15 @@ int intel_audio_min_cdclk(const struct intel_crtc_state *crtc_state)
 	struct drm_i915_private *dev_priv = to_i915(display->drm);
 	int min_cdclk = 0;
 
+	if (!crtc_state->has_audio)
+		return 0;
+
 	/* BSpec says "Do not use DisplayPort with CDCLK less than 432 MHz,
 	 * audio enabled, port width x4, and link rate HBR2 (5.4 GHz), or else
 	 * there may be audio corruption or screen corruption." This cdclk
 	 * restriction for GLK is 316.8 MHz.
 	 */
 	if (intel_crtc_has_dp_encoder(crtc_state) &&
-	    crtc_state->has_audio &&
 	    crtc_state->port_clock >= 540000 &&
 	    crtc_state->lane_count == 4) {
 		if (DISPLAY_VER(display) == 10) {
@@ -1006,7 +1008,7 @@ int intel_audio_min_cdclk(const struct intel_crtc_state *crtc_state)
 	 * According to BSpec, "The CD clock frequency must be at least twice
 	 * the frequency of the Azalia BCLK." and BCLK is 96 MHz by default.
 	 */
-	if (crtc_state->has_audio && DISPLAY_VER(display) >= 9)
+	if (DISPLAY_VER(display) >= 9)
 		min_cdclk = max(2 * 96000, min_cdclk);
 
 	/*
@@ -1017,7 +1019,7 @@ int intel_audio_min_cdclk(const struct intel_crtc_state *crtc_state)
 	 *  162                    | 200 or higher"
 	 */
 	if ((IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) &&
-	    intel_crtc_has_dp_encoder(crtc_state) && crtc_state->has_audio)
+	    intel_crtc_has_dp_encoder(crtc_state))
 		min_cdclk = max(crtc_state->port_clock, min_cdclk);
 
 	return min_cdclk;
