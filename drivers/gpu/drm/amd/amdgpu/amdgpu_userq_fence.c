@@ -102,9 +102,11 @@ int amdgpu_userq_fence_driver_alloc(struct amdgpu_device *adev,
 	get_task_comm(fence_drv->timeline_name, current);
 
 	xa_lock_irqsave(&adev->userq_xa, flags);
-	__xa_store(&adev->userq_xa, userq->doorbell_index,
-		   fence_drv, GFP_KERNEL);
+	r = xa_err(__xa_store(&adev->userq_xa, userq->doorbell_index,
+			      fence_drv, GFP_KERNEL));
 	xa_unlock_irqrestore(&adev->userq_xa, flags);
+	if (r)
+		goto free_seq64;
 
 	userq->fence_drv = fence_drv;
 
