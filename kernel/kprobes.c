@@ -95,10 +95,6 @@ struct kprobe_insn_page {
 	char slot_used[];
 };
 
-#define KPROBE_INSN_PAGE_SIZE(slots)			\
-	(offsetof(struct kprobe_insn_page, slot_used) +	\
-	 (sizeof(char) * (slots)))
-
 static int slots_per_page(struct kprobe_insn_cache *c)
 {
 	return PAGE_SIZE/(c->insn_size * sizeof(kprobe_opcode_t));
@@ -175,7 +171,7 @@ kprobe_opcode_t *__get_insn_slot(struct kprobe_insn_cache *c)
 		goto retry;
 
 	/* All out of space.  Need to allocate a new page. */
-	kip = kmalloc(KPROBE_INSN_PAGE_SIZE(slots_per_page(c)), GFP_KERNEL);
+	kip = kmalloc(struct_size(kip, slot_used, slots_per_page(c)), GFP_KERNEL);
 	if (!kip)
 		goto out;
 
