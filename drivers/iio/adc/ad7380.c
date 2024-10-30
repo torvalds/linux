@@ -13,6 +13,8 @@
  * ad7381-4 : https://www.analog.com/media/en/technical-documentation/data-sheets/ad7381-4.pdf
  * ad7383/4-4 : https://www.analog.com/media/en/technical-documentation/data-sheets/ad7383-4-ad7384-4.pdf
  * ad7386/7/8-4 : https://www.analog.com/media/en/technical-documentation/data-sheets/ad7386-4-7387-4-7388-4.pdf
+ * adaq4370-4 : https://www.analog.com/media/en/technical-documentation/data-sheets/adaq4370-4.pdf
+ * adaq4380-4 : https://www.analog.com/media/en/technical-documentation/data-sheets/adaq4380-4.pdf
  */
 
 #include <linux/align.h>
@@ -22,11 +24,14 @@
 #include <linux/device.h>
 #include <linux/err.h>
 #include <linux/kernel.h>
+#include <linux/math.h>
 #include <linux/module.h>
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
 #include <linux/slab.h>
 #include <linux/spi/spi.h>
+#include <linux/units.h>
+#include <linux/util_macros.h>
 
 #include <linux/iio/buffer.h>
 #include <linux/iio/iio.h>
@@ -36,6 +41,8 @@
 #define MAX_NUM_CHANNELS		8
 /* 2.5V internal reference voltage */
 #define AD7380_INTERNAL_REF_MV		2500
+/* 3.3V internal reference voltage for ADAQ */
+#define ADAQ4380_INTERNAL_REF_MV	3300
 
 /* reading and writing registers is more reliable at lower than max speed */
 #define AD7380_REG_WR_SPEED_HZ		10000000
@@ -82,6 +89,7 @@
  * supports only 1 SDO line (standard SPI transaction)
  */
 #define AD7380_NUM_SDO_LINES		1
+#define AD7380_DEFAULT_GAIN_MILLI	1000
 
 struct ad7380_timing_specs {
 	const unsigned int t_csh_ns;	/* CS minimum high time */
@@ -92,10 +100,12 @@ struct ad7380_chip_info {
 	const struct iio_chan_spec *channels;
 	unsigned int num_channels;
 	unsigned int num_simult_channels;
+	bool has_hardware_gain;
 	bool has_mux;
 	const char * const *supplies;
 	unsigned int num_supplies;
 	bool external_ref_only;
+	bool adaq_internal_ref_only;
 	const char * const *vcm_supplies;
 	unsigned int num_vcm_supplies;
 	const unsigned long *available_scan_masks;
@@ -187,11 +197,12 @@ static const struct iio_scan_type ad7380_scan_type_16_u[] = {
 	},
 };
 
-#define AD7380_CHANNEL(index, bits, diff, sign) {				\
+#define _AD7380_CHANNEL(index, bits, diff, sign, gain) {			\
 	.type = IIO_VOLTAGE,							\
 	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |				\
+		((gain) ? BIT(IIO_CHAN_INFO_SCALE) : 0) |			\
 		((diff) ? 0 : BIT(IIO_CHAN_INFO_OFFSET)),			\
-	.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE) |			\
+	.info_mask_shared_by_type = ((gain) ? 0 : BIT(IIO_CHAN_INFO_SCALE)) |	\
 		BIT(IIO_CHAN_INFO_OVERSAMPLING_RATIO),				\
 	.info_mask_shared_by_type_available =					\
 		BIT(IIO_CHAN_INFO_OVERSAMPLING_RATIO),				\
@@ -204,6 +215,12 @@ static const struct iio_scan_type ad7380_scan_type_16_u[] = {
 	.ext_scan_type = ad7380_scan_type_##bits##_##sign,			\
 	.num_ext_scan_type = ARRAY_SIZE(ad7380_scan_type_##bits##_##sign),	\
 }
+
+#define AD7380_CHANNEL(index, bits, diff, sign)		\
+	_AD7380_CHANNEL(index, bits, diff, sign, false)
+
+#define ADAQ4380_CHANNEL(index, bits, diff, sign)	\
+	_AD7380_CHANNEL(index, bits, diff, sign, true)
 
 #define DEFINE_AD7380_2_CHANNEL(name, bits, diff, sign)	\
 static const struct iio_chan_spec name[] = {		\
@@ -219,6 +236,15 @@ static const struct iio_chan_spec name[] = {		\
 	AD7380_CHANNEL(2, bits, diff, sign),		\
 	AD7380_CHANNEL(3, bits, diff, sign),		\
 	IIO_CHAN_SOFT_TIMESTAMP(4),			\
+}
+
+#define DEFINE_ADAQ4380_4_CHANNEL(name, bits, diff, sign)	\
+static const struct iio_chan_spec name[] = {			\
+	ADAQ4380_CHANNEL(0, bits, diff, sign),			\
+	ADAQ4380_CHANNEL(1, bits, diff, sign),			\
+	ADAQ4380_CHANNEL(2, bits, diff, sign),			\
+	ADAQ4380_CHANNEL(3, bits, diff, sign),			\
+	IIO_CHAN_SOFT_TIMESTAMP(4),				\
 }
 
 #define DEFINE_AD7380_8_CHANNEL(name, bits, diff, sign)	\
@@ -239,6 +265,7 @@ DEFINE_AD7380_2_CHANNEL(ad7380_channels, 16, 1, s);
 DEFINE_AD7380_2_CHANNEL(ad7381_channels, 14, 1, s);
 DEFINE_AD7380_4_CHANNEL(ad7380_4_channels, 16, 1, s);
 DEFINE_AD7380_4_CHANNEL(ad7381_4_channels, 14, 1, s);
+DEFINE_ADAQ4380_4_CHANNEL(adaq4380_4_channels, 16, 1, s);
 /* pseudo differential */
 DEFINE_AD7380_2_CHANNEL(ad7383_channels, 16, 0, s);
 DEFINE_AD7380_2_CHANNEL(ad7384_channels, 14, 0, s);
@@ -255,6 +282,10 @@ DEFINE_AD7380_8_CHANNEL(ad7388_4_channels, 12, 0, u);
 
 static const char * const ad7380_supplies[] = {
 	"vcc", "vlogic",
+};
+
+static const char * const adaq4380_supplies[] = {
+	"ldo", "vcc", "vlogic", "vs-p", "vs-n", "refin",
 };
 
 static const char * const ad7380_2_channel_vcm_supplies[] = {
@@ -345,6 +376,11 @@ static const struct ad7380_timing_specs ad7380_4_timing = {
  */
 static const int ad7380_oversampling_ratios[] = {
 	1, 2, 4, 8, 16, 32,
+};
+
+/* Gains stored as fractions of 1000 so they can be expressed by integers. */
+static const int ad7380_gains[] = {
+	300, 600, 1000, 1600,
 };
 
 static const struct ad7380_chip_info ad7380_chip_info = {
@@ -516,6 +552,32 @@ static const struct ad7380_chip_info ad7388_4_chip_info = {
 	.timing_specs = &ad7380_4_timing,
 };
 
+static const struct ad7380_chip_info adaq4370_4_chip_info = {
+	.name = "adaq4370-4",
+	.channels = adaq4380_4_channels,
+	.num_channels = ARRAY_SIZE(adaq4380_4_channels),
+	.num_simult_channels = 4,
+	.supplies = adaq4380_supplies,
+	.num_supplies = ARRAY_SIZE(adaq4380_supplies),
+	.adaq_internal_ref_only = true,
+	.has_hardware_gain = true,
+	.available_scan_masks = ad7380_4_channel_scan_masks,
+	.timing_specs = &ad7380_4_timing,
+};
+
+static const struct ad7380_chip_info adaq4380_4_chip_info = {
+	.name = "adaq4380-4",
+	.channels = adaq4380_4_channels,
+	.num_channels = ARRAY_SIZE(adaq4380_4_channels),
+	.num_simult_channels = 4,
+	.supplies = adaq4380_supplies,
+	.num_supplies = ARRAY_SIZE(adaq4380_supplies),
+	.adaq_internal_ref_only = true,
+	.has_hardware_gain = true,
+	.available_scan_masks = ad7380_4_channel_scan_masks,
+	.timing_specs = &ad7380_4_timing,
+};
+
 struct ad7380_state {
 	const struct ad7380_chip_info *chip_info;
 	struct spi_device *spi;
@@ -526,6 +588,7 @@ struct ad7380_state {
 	bool seq;
 	unsigned int vref_mv;
 	unsigned int vcm_mv[MAX_NUM_CHANNELS];
+	unsigned int gain_milli[MAX_NUM_CHANNELS];
 	/* xfers, message an buffer for reading sample data */
 	struct spi_transfer normal_xfer[2];
 	struct spi_message normal_msg;
@@ -876,8 +939,15 @@ static int ad7380_read_raw(struct iio_dev *indio_dev,
 		 *    * (2 × VREF) / 2^N, for differential chips
 		 *    * VREF / 2^N, for pseudo-differential chips
 		 * where N is the ADC resolution (i.e realbits)
+		 *
+		 * The gain is stored as a fraction of 1000 and, as we need to
+		 * divide vref_mv by the gain, we invert the gain/1000 fraction.
 		 */
-		*val = st->vref_mv;
+		if (st->chip_info->has_hardware_gain)
+			*val = mult_frac(st->vref_mv, MILLI,
+					 st->gain_milli[chan->scan_index]);
+		else
+			*val = st->vref_mv;
 		*val2 = scan_type->realbits - chan->differential;
 
 		return IIO_VAL_FRACTIONAL_LOG2;
@@ -1059,7 +1129,19 @@ static int ad7380_probe(struct spi_device *spi)
 				     "Failed to enable power supplies\n");
 	fsleep(T_POWERUP_US);
 
-	if (st->chip_info->external_ref_only) {
+	if (st->chip_info->adaq_internal_ref_only) {
+		/*
+		 * ADAQ chips use fixed internal reference but still
+		 * require a specific reference supply to power it.
+		 * "refin" is already enabled with other power supplies
+		 * in bulk_get_enable().
+		 */
+
+		st->vref_mv = ADAQ4380_INTERNAL_REF_MV;
+
+		/* these chips don't have a register bit for this */
+		external_ref_en = false;
+	} else if (st->chip_info->external_ref_only) {
 		ret = devm_regulator_get_enable_read_voltage(dev, "refin");
 		if (ret < 0)
 			return dev_err_probe(dev, ret,
@@ -1101,6 +1183,42 @@ static int ad7380_probe(struct spi_device *spi)
 					     vcm);
 
 		st->vcm_mv[i] = ret / 1000;
+	}
+
+	for (i = 0; i < MAX_NUM_CHANNELS; i++)
+		st->gain_milli[i] = AD7380_DEFAULT_GAIN_MILLI;
+
+	if (st->chip_info->has_hardware_gain) {
+		device_for_each_child_node_scoped(dev, node) {
+			unsigned int channel, gain;
+			int gain_idx;
+
+			ret = fwnode_property_read_u32(node, "reg", &channel);
+			if (ret)
+				return dev_err_probe(dev, ret,
+						     "Failed to read reg property\n");
+
+			if (channel >= st->chip_info->num_channels - 1)
+				return dev_err_probe(dev, -EINVAL,
+						     "Invalid channel number %i\n",
+						     channel);
+
+			ret = fwnode_property_read_u32(node, "adi,gain-milli",
+						       &gain);
+			if (ret && ret != -EINVAL)
+				return dev_err_probe(dev, ret,
+						     "Failed to read gain for channel %i\n",
+						     channel);
+			if (ret != -EINVAL) {
+				/*
+				 * Match gain value from dt to one of supported
+				 * gains
+				 */
+				gain_idx = find_closest(gain, ad7380_gains,
+							ARRAY_SIZE(ad7380_gains));
+				st->gain_milli[channel] = ad7380_gains[gain_idx];
+			}
+		}
 	}
 
 	st->regmap = devm_regmap_init(dev, NULL, st, &ad7380_regmap_config);
@@ -1185,6 +1303,8 @@ static const struct of_device_id ad7380_of_match_table[] = {
 	{ .compatible = "adi,ad7386-4", .data = &ad7386_4_chip_info },
 	{ .compatible = "adi,ad7387-4", .data = &ad7387_4_chip_info },
 	{ .compatible = "adi,ad7388-4", .data = &ad7388_4_chip_info },
+	{ .compatible = "adi,adaq4370-4", .data = &adaq4370_4_chip_info },
+	{ .compatible = "adi,adaq4380-4", .data = &adaq4380_4_chip_info },
 	{ }
 };
 
@@ -1203,6 +1323,8 @@ static const struct spi_device_id ad7380_id_table[] = {
 	{ "ad7386-4", (kernel_ulong_t)&ad7386_4_chip_info },
 	{ "ad7387-4", (kernel_ulong_t)&ad7387_4_chip_info },
 	{ "ad7388-4", (kernel_ulong_t)&ad7388_4_chip_info },
+	{ "adaq4370-4", (kernel_ulong_t)&adaq4370_4_chip_info },
+	{ "adaq4380-4", (kernel_ulong_t)&adaq4380_4_chip_info },
 	{ }
 };
 MODULE_DEVICE_TABLE(spi, ad7380_id_table);
