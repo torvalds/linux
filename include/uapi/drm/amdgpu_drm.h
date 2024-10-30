@@ -55,6 +55,8 @@ extern "C" {
 #define DRM_AMDGPU_FENCE_TO_HANDLE	0x14
 #define DRM_AMDGPU_SCHED		0x15
 #define DRM_AMDGPU_USERQ		0x16
+#define DRM_AMDGPU_USERQ_SIGNAL		0x17
+#define DRM_AMDGPU_USERQ_WAIT		0x18
 
 #define DRM_IOCTL_AMDGPU_GEM_CREATE	DRM_IOWR(DRM_COMMAND_BASE + DRM_AMDGPU_GEM_CREATE, union drm_amdgpu_gem_create)
 #define DRM_IOCTL_AMDGPU_GEM_MMAP	DRM_IOWR(DRM_COMMAND_BASE + DRM_AMDGPU_GEM_MMAP, union drm_amdgpu_gem_mmap)
@@ -73,6 +75,8 @@ extern "C" {
 #define DRM_IOCTL_AMDGPU_FENCE_TO_HANDLE DRM_IOWR(DRM_COMMAND_BASE + DRM_AMDGPU_FENCE_TO_HANDLE, union drm_amdgpu_fence_to_handle)
 #define DRM_IOCTL_AMDGPU_SCHED		DRM_IOW(DRM_COMMAND_BASE + DRM_AMDGPU_SCHED, union drm_amdgpu_sched)
 #define DRM_IOCTL_AMDGPU_USERQ		DRM_IOWR(DRM_COMMAND_BASE + DRM_AMDGPU_USERQ, union drm_amdgpu_userq)
+#define DRM_IOCTL_AMDGPU_USERQ_SIGNAL	DRM_IOWR(DRM_COMMAND_BASE + DRM_AMDGPU_USERQ_SIGNAL, struct drm_amdgpu_userq_signal)
+#define DRM_IOCTL_AMDGPU_USERQ_WAIT	DRM_IOWR(DRM_COMMAND_BASE + DRM_AMDGPU_USERQ_WAIT, struct drm_amdgpu_userq_wait)
 
 /**
  * DOC: memory domains
@@ -446,6 +450,117 @@ struct drm_amdgpu_userq_mqd_compute_gfx11 {
 	 * sized.
 	 */
 	__u64   eop_va;
+};
+
+/* dma_resv usage flag */
+#define AMDGPU_USERQ_BO_WRITE	1
+
+/* userq signal/wait ioctl */
+struct drm_amdgpu_userq_signal {
+	/**
+	 * @queue_id: Queue handle used by the userq fence creation function
+	 * to retrieve the WPTR.
+	 */
+	__u32	queue_id;
+	/**
+	 * @flags: flags to indicate special function for userq fence creation.
+	 * Unused for now.
+	 */
+	__u32	flags;
+	/**
+	 * @syncobj_handles_array: An array of syncobj handles used by the userq fence
+	 * creation IOCTL to install the created dma_fence object which can be
+	 * utilized by userspace to explicitly synchronize GPU commands.
+	 */
+	__u64	syncobj_handles_array;
+	/**
+	 * @num_syncobj_handles: A count that represents the number of syncobj handles in
+	 * @syncobj_handles_array.
+	 */
+	__u64	num_syncobj_handles;
+	/**
+	 * @syncobj_point: A given point on the timeline to be signaled.
+	 * Unused for now.
+	 */
+	__u64	syncobj_point;
+	/**
+	 * @bo_handles_array: An array of GEM BO handles used by the userq fence creation
+	 * IOCTL to install the created dma_fence object which can be utilized by
+	 * userspace to synchronize the BO usage between user processes.
+	 */
+	__u64	bo_handles_array;
+	/**
+	 * @num_bo_handles: A count that represents the number of GEM BO handles in
+	 * @bo_handles_array.
+	 */
+	__u32	num_bo_handles;
+	/**
+	 * @bo_flags: flags to indicate BOs synchronize for READ or WRITE
+	 */
+	__u32	bo_flags;
+};
+
+struct drm_amdgpu_userq_fence_info {
+	/**
+	 * @va: A gpu address allocated for each queue which stores the
+	 * read pointer (RPTR) value.
+	 */
+	__u64	va;
+	/**
+	 * @value: A 64 bit value represents the write pointer (WPTR) of the
+	 * queue commands which compared with the RPTR value to signal the
+	 * fences.
+	 */
+	__u64	value;
+};
+
+struct drm_amdgpu_userq_wait {
+	/**
+	 * @waitq_id: Queue handle used to retrieve the queue information to store
+	 * the fence driver references in the wait user queue structure.
+	 */
+	__u32	waitq_id;
+	/**
+	 * @flags: flags to specify special function for userq wait information.
+	 * Unused for now.
+	 */
+	__u32	flags;
+	/**
+	 * @bo_wait_flags: flags to define the BOs for READ or WRITE to store the
+	 * matching fence wait info pair in @userq_fence_info.
+	 */
+	__u32	bo_wait_flags;
+	__u32	pad;
+	/**
+	 * @syncobj_handles_array: An array of syncobj handles defined to get the
+	 * fence wait information of every syncobj handles in the array.
+	 */
+	__u64	syncobj_handles_array;
+	/**
+	 * @bo_handles_array: An array of GEM BO handles defined to fetch the fence
+	 * wait information of every BO handles in the array.
+	 */
+	__u64	bo_handles_array;
+	/**
+	 * @num_syncobj_handles: A count that represents the number of syncobj handles in
+	 * @syncobj_handles_array.
+	 */
+	__u32	num_syncobj_handles;
+	/**
+	 * @num_bo_handles: A count that represents the number of GEM BO handles in
+	 * @bo_handles_array.
+	 */
+	__u32	num_bo_handles;
+	/**
+	 * @userq_fence_info: An array of fence information (va and value) pair of each
+	 * objects stored in @syncobj_handles_array and @bo_handles_array.
+	 */
+	__u64	userq_fence_info;
+	/**
+	 * @num_fences: A count that represents the number of actual fences installed in
+	 * each syncobj and bo handles.
+	 */
+	__u64	num_fences;
 };
 
 /* vm ioctl */
