@@ -3,6 +3,7 @@
 #include <asm/cpufeature.h>
 #include <asm/tdx.h>
 #include "capabilities.h"
+#include "mmu.h"
 #include "x86_ops.h"
 #include "lapic.h"
 #include "tdx.h"
@@ -849,6 +850,103 @@ free_hkid:
 	return ret;
 }
 
+static u64 tdx_td_metadata_field_read(struct kvm_tdx *tdx, u64 field_id,
+				      u64 *data)
+{
+	u64 err;
+
+	err = tdh_mng_rd(&tdx->td, field_id, data);
+
+	return err;
+}
+
+#define TDX_MD_UNREADABLE_LEAF_MASK	GENMASK(30, 7)
+#define TDX_MD_UNREADABLE_SUBLEAF_MASK	GENMASK(31, 7)
+
+static int tdx_read_cpuid(struct kvm_vcpu *vcpu, u32 leaf, u32 sub_leaf,
+			  bool sub_leaf_set, int *entry_index,
+			  struct kvm_cpuid_entry2 *out)
+{
+	struct kvm_tdx *kvm_tdx = to_kvm_tdx(vcpu->kvm);
+	u64 field_id = TD_MD_FIELD_ID_CPUID_VALUES;
+	u64 ebx_eax, edx_ecx;
+	u64 err = 0;
+
+	if (sub_leaf > 0b1111111)
+		return -EINVAL;
+
+	if (*entry_index >= KVM_MAX_CPUID_ENTRIES)
+		return -EINVAL;
+
+	if (leaf & TDX_MD_UNREADABLE_LEAF_MASK ||
+	    sub_leaf & TDX_MD_UNREADABLE_SUBLEAF_MASK)
+		return -EINVAL;
+
+	/*
+	 * bit 23:17, REVSERVED: reserved, must be 0;
+	 * bit 16,    LEAF_31: leaf number bit 31;
+	 * bit 15:9,  LEAF_6_0: leaf number bits 6:0, leaf bits 30:7 are
+	 *                      implicitly 0;
+	 * bit 8,     SUBLEAF_NA: sub-leaf not applicable flag;
+	 * bit 7:1,   SUBLEAF_6_0: sub-leaf number bits 6:0. If SUBLEAF_NA is 1,
+	 *                         the SUBLEAF_6_0 is all-1.
+	 *                         sub-leaf bits 31:7 are implicitly 0;
+	 * bit 0,     ELEMENT_I: Element index within field;
+	 */
+	field_id |= ((leaf & 0x80000000) ? 1 : 0) << 16;
+	field_id |= (leaf & 0x7f) << 9;
+	if (sub_leaf_set)
+		field_id |= (sub_leaf & 0x7f) << 1;
+	else
+		field_id |= 0x1fe;
+
+	err = tdx_td_metadata_field_read(kvm_tdx, field_id, &ebx_eax);
+	if (err) //TODO check for specific errors
+		goto err_out;
+
+	out->eax = (u32) ebx_eax;
+	out->ebx = (u32) (ebx_eax >> 32);
+
+	field_id++;
+	err = tdx_td_metadata_field_read(kvm_tdx, field_id, &edx_ecx);
+	/*
+	 * It's weird that reading edx_ecx fails while reading ebx_eax
+	 * succeeded.
+	 */
+	if (WARN_ON_ONCE(err))
+		goto err_out;
+
+	out->ecx = (u32) edx_ecx;
+	out->edx = (u32) (edx_ecx >> 32);
+
+	out->function = leaf;
+	out->index = sub_leaf;
+	out->flags |= sub_leaf_set ? KVM_CPUID_FLAG_SIGNIFCANT_INDEX : 0;
+
+	/*
+	 * Work around missing support on old TDX modules, fetch
+	 * guest maxpa from gfn_direct_bits.
+	 */
+	if (leaf == 0x80000008) {
+		gpa_t gpa_bits = gfn_to_gpa(kvm_gfn_direct_bits(vcpu->kvm));
+		unsigned int g_maxpa = __ffs(gpa_bits) + 1;
+
+		out->eax = tdx_set_guest_phys_addr_bits(out->eax, g_maxpa);
+	}
+
+	(*entry_index)++;
+
+	return 0;
+
+err_out:
+	out->eax = 0;
+	out->ebx = 0;
+	out->ecx = 0;
+	out->edx = 0;
+
+	return -EIO;
+}
+
 static int tdx_td_init(struct kvm *kvm, struct kvm_tdx_cmd *cmd)
 {
 	struct kvm_tdx *kvm_tdx = to_kvm_tdx(kvm);
@@ -1043,6 +1141,96 @@ free_tdvpr:
 	return ret;
 }
 
+/* Sometimes reads multipple subleafs. Return how many enties were written. */
+static int tdx_vcpu_get_cpuid_leaf(struct kvm_vcpu *vcpu, u32 leaf, int *entry_index,
+				   struct kvm_cpuid_entry2 *output_e)
+{
+	int sub_leaf = 0;
+	int ret;
+
+	/* First try without a subleaf */
+	ret = tdx_read_cpuid(vcpu, leaf, 0, false, entry_index, output_e);
+
+	/* If success, or invalid leaf, just give up */
+	if (ret != -EIO)
+		return ret;
+
+	/*
+	 * If the try without a subleaf failed, try reading subleafs until
+	 * failure. The TDX module only supports 6 bits of subleaf index.
+	 */
+	while (1) {
+		/* Keep reading subleafs until there is a failure. */
+		if (tdx_read_cpuid(vcpu, leaf, sub_leaf, true, entry_index, output_e))
+			return !sub_leaf;
+
+		sub_leaf++;
+		output_e++;
+	}
+
+	return 0;
+}
+
+static int tdx_vcpu_get_cpuid(struct kvm_vcpu *vcpu, struct kvm_tdx_cmd *cmd)
+{
+	struct kvm_cpuid2 __user *output, *td_cpuid;
+	int r = 0, i = 0, leaf;
+	u32 level;
+
+	output = u64_to_user_ptr(cmd->data);
+	td_cpuid = kzalloc(sizeof(*td_cpuid) +
+			sizeof(output->entries[0]) * KVM_MAX_CPUID_ENTRIES,
+			GFP_KERNEL);
+	if (!td_cpuid)
+		return -ENOMEM;
+
+	if (copy_from_user(td_cpuid, output, sizeof(*output))) {
+		r = -EFAULT;
+		goto out;
+	}
+
+	/* Read max CPUID for normal range */
+	if (tdx_vcpu_get_cpuid_leaf(vcpu, 0, &i, &td_cpuid->entries[i])) {
+		r = -EIO;
+		goto out;
+	}
+	level = td_cpuid->entries[0].eax;
+
+	for (leaf = 1; leaf <= level; leaf++)
+		tdx_vcpu_get_cpuid_leaf(vcpu, leaf, &i, &td_cpuid->entries[i]);
+
+	/* Read max CPUID for extended range */
+	if (tdx_vcpu_get_cpuid_leaf(vcpu, 0x80000000, &i, &td_cpuid->entries[i])) {
+		r = -EIO;
+		goto out;
+	}
+	level = td_cpuid->entries[i - 1].eax;
+
+	for (leaf = 0x80000001; leaf <= level; leaf++)
+		tdx_vcpu_get_cpuid_leaf(vcpu, leaf, &i, &td_cpuid->entries[i]);
+
+	if (td_cpuid->nent < i)
+		r = -E2BIG;
+	td_cpuid->nent = i;
+
+	if (copy_to_user(output, td_cpuid, sizeof(*output))) {
+		r = -EFAULT;
+		goto out;
+	}
+
+	if (r == -E2BIG)
+		goto out;
+
+	if (copy_to_user(output->entries, td_cpuid->entries,
+			 td_cpuid->nent * sizeof(struct kvm_cpuid_entry2)))
+		r = -EFAULT;
+
+out:
+	kfree(td_cpuid);
+
+	return r;
+}
+
 static int tdx_vcpu_init(struct kvm_vcpu *vcpu, struct kvm_tdx_cmd *cmd)
 {
 	u64 apic_base;
@@ -1091,6 +1279,9 @@ int tdx_vcpu_ioctl(struct kvm_vcpu *vcpu, void __user *argp)
 	switch (cmd.id) {
 	case KVM_TDX_INIT_VCPU:
 		ret = tdx_vcpu_init(vcpu, &cmd);
+		break;
+	case KVM_TDX_GET_CPUID:
+		ret = tdx_vcpu_get_cpuid(vcpu, &cmd);
 		break;
 	default:
 		ret = -EINVAL;
