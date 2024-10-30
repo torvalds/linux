@@ -912,13 +912,13 @@ struct unity_map_entry {
 /* size of the dma_ops aperture as power of 2 */
 extern unsigned amd_iommu_aperture_order;
 
-/* allocation bitmap for domain ids */
-extern unsigned long *amd_iommu_pd_alloc_bitmap;
-
 extern bool amd_iommu_force_isolation;
 
 /* Max levels of glxval supported */
 extern int amd_iommu_max_glx_val;
+
+/* IDA to track protection domain IDs */
+extern struct ida pdom_ids;
 
 /* Global EFR and EFR2 registers */
 extern u64 amd_iommu_efr;
