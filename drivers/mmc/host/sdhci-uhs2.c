@@ -649,7 +649,8 @@ static void __sdhci_uhs2_send_command(struct sdhci_host *host, struct mmc_comman
 	 * MSB when preparing config read/write commands.
 	 */
 	for (j = 0; j < cmd->uhs2_cmd->payload_len / sizeof(u32); j++) {
-		sdhci_writel(host, *(cmd->uhs2_cmd->payload + j), SDHCI_UHS2_CMD_PACKET + i);
+		sdhci_writel(host, *(__force u32 *)(cmd->uhs2_cmd->payload + j),
+			     SDHCI_UHS2_CMD_PACKET + i);
 		i += 4;
 	}
 
