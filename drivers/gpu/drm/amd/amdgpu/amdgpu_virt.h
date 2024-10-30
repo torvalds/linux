@@ -137,6 +137,7 @@ enum AMDGIM_FEATURE_FLAG {
 	AMDGIM_FEATURE_VCN_RB_DECOUPLE = (1 << 7),
 	/* MES info */
 	AMDGIM_FEATURE_MES_INFO_ENABLE = (1 << 8),
+	AMDGIM_FEATURE_RAS_CAPS = (1 << 9),
 };
 
 enum AMDGIM_REG_ACCESS_FLAG {
@@ -277,6 +278,8 @@ struct amdgpu_virt {
 	uint32_t autoload_ucode_id;
 
 	struct mutex rlcg_reg_lock;
+
+	union amd_sriov_ras_caps ras_en_caps;
 };
 
 struct amdgpu_video_codec_info;
@@ -320,6 +323,9 @@ struct amdgpu_video_codec_info;
 
 #define amdgpu_sriov_vf_mmio_access_protection(adev) \
 ((adev)->virt.caps & AMDGPU_VF_MMIO_ACCESS_PROTECT)
+
+#define amdgpu_sriov_ras_caps_en(adev) \
+((adev)->virt.gim_feature & AMDGIM_FEATURE_RAS_CAPS)
 
 static inline bool is_virtual_machine(void)
 {
@@ -384,4 +390,5 @@ bool amdgpu_virt_get_rlcg_reg_access_flag(struct amdgpu_device *adev,
 					  u32 acc_flags, u32 hwip,
 					  bool write, u32 *rlcg_flag);
 u32 amdgpu_virt_rlcg_reg_rw(struct amdgpu_device *adev, u32 offset, u32 v, u32 flag, u32 xcc_id);
+bool amdgpu_virt_get_ras_capability(struct amdgpu_device *adev);
 #endif
