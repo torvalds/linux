@@ -4000,9 +4000,10 @@ fail:
 
 static void rtw89_mac_dmac_tbl_init(struct rtw89_dev *rtwdev, u8 macid)
 {
+	struct rtw89_fw_secure *sec = &rtwdev->fw.sec;
 	u8 i;
 
-	if (rtwdev->chip->chip_gen != RTW89_CHIP_AX)
+	if (rtwdev->chip->chip_gen != RTW89_CHIP_AX || sec->secure_boot)
 		return;
 
 	for (i = 0; i < 4; i++) {
@@ -4014,7 +4015,9 @@ static void rtw89_mac_dmac_tbl_init(struct rtw89_dev *rtwdev, u8 macid)
 
 static void rtw89_mac_cmac_tbl_init(struct rtw89_dev *rtwdev, u8 macid)
 {
-	if (rtwdev->chip->chip_gen != RTW89_CHIP_AX)
+	struct rtw89_fw_secure *sec = &rtwdev->fw.sec;
+
+	if (rtwdev->chip->chip_gen != RTW89_CHIP_AX || sec->secure_boot)
 		return;
 
 	rtw89_write32(rtwdev, R_AX_FILTER_MODEL_ADDR,
