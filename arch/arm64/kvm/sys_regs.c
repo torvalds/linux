@@ -2553,8 +2553,11 @@ static const struct sys_reg_desc sys_reg_descs[] = {
 	{ SYS_DESC(SYS_LOREA_EL1), trap_loregion },
 	{ SYS_DESC(SYS_LORN_EL1), trap_loregion },
 	{ SYS_DESC(SYS_LORC_EL1), trap_loregion },
+	{ SYS_DESC(SYS_MPAMIDR_EL1), undef_access },
 	{ SYS_DESC(SYS_LORID_EL1), trap_loregion },
 
+	{ SYS_DESC(SYS_MPAM1_EL1), undef_access },
+	{ SYS_DESC(SYS_MPAM0_EL1), undef_access },
 	{ SYS_DESC(SYS_VBAR_EL1), access_rw, reset_val, VBAR_EL1, 0 },
 	{ SYS_DESC(SYS_DISR_EL1), NULL, reset_val, DISR_EL1, 0 },
 
@@ -2854,6 +2857,17 @@ static const struct sys_reg_desc sys_reg_descs[] = {
 
 	EL2_REG(MAIR_EL2, access_rw, reset_val, 0),
 	EL2_REG(AMAIR_EL2, access_rw, reset_val, 0),
+	{ SYS_DESC(SYS_MPAMHCR_EL2), undef_access },
+	{ SYS_DESC(SYS_MPAMVPMV_EL2), undef_access },
+	{ SYS_DESC(SYS_MPAM2_EL2), undef_access },
+	{ SYS_DESC(SYS_MPAMVPM0_EL2), undef_access },
+	{ SYS_DESC(SYS_MPAMVPM1_EL2), undef_access },
+	{ SYS_DESC(SYS_MPAMVPM2_EL2), undef_access },
+	{ SYS_DESC(SYS_MPAMVPM3_EL2), undef_access },
+	{ SYS_DESC(SYS_MPAMVPM4_EL2), undef_access },
+	{ SYS_DESC(SYS_MPAMVPM5_EL2), undef_access },
+	{ SYS_DESC(SYS_MPAMVPM6_EL2), undef_access },
+	{ SYS_DESC(SYS_MPAMVPM7_EL2), undef_access },
 
 	EL2_REG(VBAR_EL2, access_rw, reset_val, 0),
 	EL2_REG(RVBAR_EL2, access_rw, reset_val, 0),
