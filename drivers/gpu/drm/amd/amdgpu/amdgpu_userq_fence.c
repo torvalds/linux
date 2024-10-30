@@ -321,7 +321,6 @@ static const struct dma_fence_ops amdgpu_userq_fence_ops = {
 /**
  * amdgpu_userq_fence_read_wptr - Read the userq wptr value
  *
- * @filp: drm file private data structure
  * @queue: user mode queue structure pointer
  * @wptr: write pointer value
  *
@@ -331,25 +330,29 @@ static const struct dma_fence_ops amdgpu_userq_fence_ops = {
  *
  * Returns wptr value on success, error on failure.
  */
-static int amdgpu_userq_fence_read_wptr(struct drm_file *filp,
-					struct amdgpu_usermode_queue *queue,
+static int amdgpu_userq_fence_read_wptr(struct amdgpu_usermode_queue *queue,
 					u64 *wptr)
 {
-	struct amdgpu_fpriv *fpriv = filp->driver_priv;
 	struct amdgpu_bo_va_mapping *mapping;
-	struct amdgpu_vm *vm = &fpriv->vm;
 	struct amdgpu_bo *bo;
 	u64 addr, *ptr;
 	int r;
 
+	r = amdgpu_bo_reserve(queue->vm->root.bo, false);
+	if (r)
+		return r;
+
 	addr = queue->userq_prop->wptr_gpu_addr;
 	addr &= AMDGPU_GMC_HOLE_MASK;
 
-	mapping = amdgpu_vm_bo_lookup_mapping(vm, addr >> PAGE_SHIFT);
-	if (!mapping)
+	mapping = amdgpu_vm_bo_lookup_mapping(queue->vm, addr >> PAGE_SHIFT);
+	if (!mapping) {
+		DRM_ERROR("Failed to lookup amdgpu_bo_va_mapping\n");
 		return -EINVAL;
+	}
 
-	bo = mapping->bo_va->base.bo;
+	bo = amdgpu_bo_ref(mapping->bo_va->base.bo);
+	amdgpu_bo_unreserve(queue->vm->root.bo);
 	r = amdgpu_bo_reserve(bo, true);
 	if (r) {
 		DRM_ERROR("Failed to reserve userqueue wptr bo");
@@ -366,11 +369,14 @@ static int amdgpu_userq_fence_read_wptr(struct drm_file *filp,
 
 	amdgpu_bo_kunmap(bo);
 	amdgpu_bo_unreserve(bo);
+	amdgpu_bo_unref(&bo);
 
 	return 0;
 
 map_error:
 	amdgpu_bo_unreserve(bo);
+	amdgpu_bo_unref(&bo);
+
 	return r;
 }
 
@@ -449,7 +455,7 @@ int amdgpu_userq_signal_ioctl(struct drm_device *dev, void *data,
 		goto exec_fini;
 	}
 
-	r = amdgpu_userq_fence_read_wptr(filp, queue, &wptr);
+	r = amdgpu_userq_fence_read_wptr(queue, &wptr);
 	if (r)
 		goto exec_fini;
 
