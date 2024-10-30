@@ -4516,11 +4516,14 @@ enum rtw89_fw_mss_dev_type {
 };
 
 struct rtw89_fw_secure {
-	bool secure_boot;
+	bool secure_boot: 1;
+	bool can_mss_v1: 1;
+	bool can_mss_v0: 1;
 	u32 sb_sel_mgn;
 	u8 mss_dev_type;
 	u8 mss_cust_idx;
 	u8 mss_key_num;
+	u8 mss_idx; /* v0 */
 };
 
 struct rtw89_fw_info {
