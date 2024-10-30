@@ -2855,12 +2855,35 @@ struct bpf_iter_bits {
 
 struct bpf_iter_bits_kern {
 	union {
-		unsigned long *bits;
-		unsigned long bits_copy;
+		__u64 *bits;
+		__u64 bits_copy;
 	};
 	int nr_bits;
 	int bit;
 } __aligned(8);
+
+/* On 64-bit hosts, unsigned long and u64 have the same size, so passing
+ * a u64 pointer and an unsigned long pointer to find_next_bit() will
+ * return the same result, as both point to the same 8-byte area.
+ *
+ * For 32-bit little-endian hosts, using a u64 pointer or unsigned long
+ * pointer also makes no difference. This is because the first iterated
+ * unsigned long is composed of bits 0-31 of the u64 and the second unsigned
+ * long is composed of bits 32-63 of the u64.
+ *
+ * However, for 32-bit big-endian hosts, this is not the case. The first
+ * iterated unsigned long will be bits 32-63 of the u64, so swap these two
+ * ulong values within the u64.
+ */
+static void swap_ulong_in_u64(u64 *bits, unsigned int nr)
+{
+#if (BITS_PER_LONG == 32) && defined(__BIG_ENDIAN)
+	unsigned int i;
+
+	for (i = 0; i < nr; i++)
+		bits[i] = (bits[i] >> 32) | ((u64)(u32)bits[i] << 32);
+#endif
+}
 
 /**
  * bpf_iter_bits_new() - Initialize a new bits iterator for a given memory area
@@ -2904,6 +2927,8 @@ bpf_iter_bits_new(struct bpf_iter_bits *it, const u64 *unsafe_ptr__ign, u32 nr_w
 		if (err)
 			return -EFAULT;
 
+		swap_ulong_in_u64(&kit->bits_copy, nr_words);
+
 		kit->nr_bits = nr_bits;
 		return 0;
 	}
@@ -2922,6 +2947,8 @@ bpf_iter_bits_new(struct bpf_iter_bits *it, const u64 *unsafe_ptr__ign, u32 nr_w
 		return err;
 	}
 
+	swap_ulong_in_u64(kit->bits, nr_words);
+
 	kit->nr_bits = nr_bits;
 	return 0;
 }
@@ -2939,7 +2966,7 @@ __bpf_kfunc int *bpf_iter_bits_next(struct bpf_iter_bits *it)
 {
 	struct bpf_iter_bits_kern *kit = (void *)it;
 	int bit = kit->bit, nr_bits = kit->nr_bits;
-	const unsigned long *bits;
+	const void *bits;
 
 	if (!nr_bits || bit >= nr_bits)
 		return NULL;
