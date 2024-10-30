@@ -1224,7 +1224,7 @@ static void intel_mst_pre_enable_dp(struct intel_atomic_state *state,
 	if (DISPLAY_VER(dev_priv) < 12 || !first_mst_stream)
 		intel_ddi_enable_transcoder_clock(encoder, pipe_config);
 
-	if (DISPLAY_VER(dev_priv) >= 30 && !first_mst_stream)
+	if (DISPLAY_VER(dev_priv) >= 13 && !first_mst_stream)
 		intel_ddi_config_transcoder_func(encoder, pipe_config);
 
 	intel_dsc_dp_pps_write(&dig_port->base, pipe_config);
