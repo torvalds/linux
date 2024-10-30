@@ -4729,8 +4729,8 @@ static int vcpu_post_run_addressing_exception(struct kvm_vcpu *vcpu)
 
 static int vcpu_post_run_handle_fault(struct kvm_vcpu *vcpu)
 {
+	unsigned int flags = 0;
 	unsigned long gaddr;
-	unsigned int flags;
 	int rc = 0;
 
 	gaddr = current->thread.gmap_teid.addr * PAGE_SIZE;
