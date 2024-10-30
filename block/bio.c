@@ -1206,21 +1206,12 @@ EXPORT_SYMBOL_GPL(__bio_release_pages);
 
 void bio_iov_bvec_set(struct bio *bio, struct iov_iter *iter)
 {
-	size_t size = iov_iter_count(iter);
-
 	WARN_ON_ONCE(bio->bi_max_vecs);
-
-	if (bio_op(bio) == REQ_OP_ZONE_APPEND) {
-		struct request_queue *q = bdev_get_queue(bio->bi_bdev);
-		size_t max_sectors = queue_max_zone_append_sectors(q);
-
-		size = min(size, max_sectors << SECTOR_SHIFT);
-	}
 
 	bio->bi_vcnt = iter->nr_segs;
 	bio->bi_io_vec = (struct bio_vec *)iter->bvec;
 	bio->bi_iter.bi_bvec_done = iter->iov_offset;
-	bio->bi_iter.bi_size = size;
+	bio->bi_iter.bi_size = iov_iter_count(iter);
 	bio_set_flag(bio, BIO_CLONED);
 }
 
@@ -1242,20 +1233,6 @@ static int bio_iov_add_folio(struct bio *bio, struct folio *folio, size_t len,
 		return 0;
 	}
 	bio_add_folio_nofail(bio, folio, len, offset);
-	return 0;
-}
-
-static int bio_iov_add_zone_append_folio(struct bio *bio, struct folio *folio,
-					 size_t len, size_t offset)
-{
-	struct request_queue *q = bdev_get_queue(bio->bi_bdev);
-	bool same_page = false;
-
-	if (bio_add_hw_folio(q, bio, folio, len, offset,
-			queue_max_zone_append_sectors(q), &same_page) != len)
-		return -EINVAL;
-	if (same_page && bio_flagged(bio, BIO_PAGE_PINNED))
-		unpin_user_folio(folio, 1);
 	return 0;
 }
 
@@ -1365,14 +1342,7 @@ static int __bio_iov_iter_get_pages(struct bio *bio, struct iov_iter *iter)
 			len = get_contig_folio_len(&num_pages, pages, i,
 						   folio, left, offset);
 
-		if (bio_op(bio) == REQ_OP_ZONE_APPEND) {
-			ret = bio_iov_add_zone_append_folio(bio, folio, len,
-					folio_offset);
-			if (ret)
-				break;
-		} else
-			bio_iov_add_folio(bio, folio, len, folio_offset);
-
+		bio_iov_add_folio(bio, folio, len, folio_offset);
 		offset = 0;
 	}
 
