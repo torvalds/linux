@@ -149,14 +149,14 @@ void nfsd4_destroy_laundry_wq(void)
 
 static bool is_session_dead(struct nfsd4_session *ses)
 {
-	return ses->se_flags & NFS4_SESSION_DEAD;
+	return ses->se_dead;
 }
 
 static __be32 mark_session_dead_locked(struct nfsd4_session *ses, int ref_held_by_me)
 {
 	if (atomic_read(&ses->se_ref) > ref_held_by_me)
 		return nfserr_jukebox;
-	ses->se_flags |= NFS4_SESSION_DEAD;
+	ses->se_dead = true;
 	return nfs_ok;
 }
 
@@ -2133,7 +2133,7 @@ static void init_session(struct svc_rqst *rqstp, struct nfsd4_session *new, stru
 	INIT_LIST_HEAD(&new->se_conns);
 
 	new->se_cb_seq_nr = 1;
-	new->se_flags = cses->flags;
+	new->se_dead = false;
 	new->se_cb_prog = cses->callback_prog;
 	new->se_cb_sec = cses->cb_sec;
 	atomic_set(&new->se_ref, 0);
