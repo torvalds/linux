@@ -2169,34 +2169,9 @@ inline int task_curr(const struct task_struct *p)
 	return cpu_curr(task_cpu(p)) == p;
 }
 
-/*
- * ->switching_to() is called with the pi_lock and rq_lock held and must not
- * mess with locking.
- */
-void check_class_changing(struct rq *rq, struct task_struct *p,
-			  const struct sched_class *prev_class)
+void check_prio_changed(struct rq *rq, struct task_struct *p, int oldprio)
 {
-	if (prev_class != p->sched_class && p->sched_class->switching_to)
-		p->sched_class->switching_to(rq, p);
-}
-
-/*
- * switched_from, switched_to and prio_changed must _NOT_ drop rq->lock,
- * use the balance_callback list if you want balancing.
- *
- * this means any call to check_class_changed() must be followed by a call to
- * balance_callback().
- */
-void check_class_changed(struct rq *rq, struct task_struct *p,
-			 const struct sched_class *prev_class,
-			 int oldprio)
-{
-	if (prev_class != p->sched_class) {
-		if (prev_class->switched_from)
-			prev_class->switched_from(rq, p);
-
-		p->sched_class->switched_to(rq, p);
-	} else if (oldprio != p->prio || dl_task(p))
+	if (oldprio != p->prio || dl_task(p))
 		p->sched_class->prio_changed(rq, p, oldprio);
 }
 
@@ -7388,6 +7363,9 @@ void rt_mutex_setprio(struct task_struct *p, struct task_struct *pi_task)
 	prev_class = p->sched_class;
 	next_class = __setscheduler_class(p->policy, prio);
 
+	if (prev_class != next_class)
+		queue_flag |= DEQUEUE_CLASS;
+
 	if (prev_class != next_class && p->se.sched_delayed)
 		dequeue_task(rq, p, DEQUEUE_SLEEP | DEQUEUE_DELAYED | DEQUEUE_NOCLOCK);
 
@@ -7424,11 +7402,10 @@ void rt_mutex_setprio(struct task_struct *p, struct task_struct *pi_task)
 
 		p->sched_class = next_class;
 		p->prio = prio;
-
-		check_class_changing(rq, p, prev_class);
 	}
 
-	check_class_changed(rq, p, prev_class, oldprio);
+	if (!(queue_flag & DEQUEUE_CLASS))
+		check_prio_changed(rq, p, oldprio);
 out_unlock:
 	/* Avoid rq from going away on us: */
 	preempt_disable();
@@ -10862,6 +10839,11 @@ struct sched_change_ctx *sched_change_begin(struct task_struct *p, unsigned int 
 
 	lockdep_assert_rq_held(rq);
 
+	if (flags & DEQUEUE_CLASS) {
+		if (p->sched_class->switching_from)
+			p->sched_class->switching_from(rq, p);
+	}
+
 	*ctx = (struct sched_change_ctx){
 		.p = p,
 		.flags = flags,
@@ -10874,6 +10856,9 @@ struct sched_change_ctx *sched_change_begin(struct task_struct *p, unsigned int 
 	if (ctx->running)
 		put_prev_task(rq, p);
 
+	if ((flags & DEQUEUE_CLASS) && p->sched_class->switched_from)
+		p->sched_class->switched_from(rq, p);
+
 	return ctx;
 }
 
@@ -10884,8 +10869,14 @@ void sched_change_end(struct sched_change_ctx *ctx)
 
 	lockdep_assert_rq_held(rq);
 
+	if ((ctx->flags & ENQUEUE_CLASS) && p->sched_class->switching_to)
+		p->sched_class->switching_to(rq, p);
+
 	if (ctx->queued)
 		enqueue_task(rq, p, ctx->flags | ENQUEUE_NOCLOCK);
 	if (ctx->running)
 		set_next_task(rq, p);
+
+	if ((ctx->flags & ENQUEUE_CLASS) && p->sched_class->switched_to)
+		p->sched_class->switched_to(rq, p);
 }

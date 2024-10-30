@@ -3912,21 +3912,26 @@ static void scx_disable_workfn(struct kthread_work *work)
 
 	scx_task_iter_start(&sti);
 	while ((p = scx_task_iter_next_locked(&sti))) {
+		unsigned int queue_flags = DEQUEUE_SAVE | DEQUEUE_MOVE | DEQUEUE_NOCLOCK;
 		const struct sched_class *old_class = p->sched_class;
 		const struct sched_class *new_class =
 			__setscheduler_class(p->policy, p->prio);
 
 		update_rq_clock(task_rq(p));
 
+		if (old_class != new_class)
+			queue_flags |= DEQUEUE_CLASS;
+
 		if (old_class != new_class && p->se.sched_delayed)
 			dequeue_task(task_rq(p), p, DEQUEUE_SLEEP | DEQUEUE_DELAYED | DEQUEUE_NOCLOCK);
 
-		scoped_guard (sched_change, p, DEQUEUE_SAVE | DEQUEUE_MOVE | DEQUEUE_NOCLOCK) {
+		scoped_guard (sched_change, p, queue_flags) {
 			p->sched_class = new_class;
-			check_class_changing(task_rq(p), p, old_class);
 		}
 
-		check_class_changed(task_rq(p), p, old_class, p->prio);
+		if (!(queue_flags & DEQUEUE_CLASS))
+			check_prio_changed(task_rq(p), p, p->prio);
+
 		scx_exit_task(p);
 	}
 	scx_task_iter_stop(&sti);
@@ -4655,6 +4660,7 @@ static int scx_enable(struct sched_ext_ops *ops, struct bpf_link *link)
 	percpu_down_write(&scx_fork_rwsem);
 	scx_task_iter_start(&sti);
 	while ((p = scx_task_iter_next_locked(&sti))) {
+		unsigned int queue_flags = DEQUEUE_SAVE | DEQUEUE_MOVE | DEQUEUE_NOCLOCK;
 		const struct sched_class *old_class = p->sched_class;
 		const struct sched_class *new_class =
 			__setscheduler_class(p->policy, p->prio);
@@ -4664,16 +4670,20 @@ static int scx_enable(struct sched_ext_ops *ops, struct bpf_link *link)
 
 		update_rq_clock(task_rq(p));
 
+		if (old_class != new_class)
+			queue_flags |= DEQUEUE_CLASS;
+
 		if (old_class != new_class && p->se.sched_delayed)
 			dequeue_task(task_rq(p), p, DEQUEUE_SLEEP | DEQUEUE_DELAYED | DEQUEUE_NOCLOCK);
 
-		scoped_guard (sched_change, p, DEQUEUE_SAVE | DEQUEUE_MOVE | DEQUEUE_NOCLOCK) {
+		scoped_guard (sched_change, p, queue_flags) {
 			p->scx.slice = SCX_SLICE_DFL;
 			p->sched_class = new_class;
-			check_class_changing(task_rq(p), p, old_class);
 		}
 
-		check_class_changed(task_rq(p), p, old_class, p->prio);
+		if (!(queue_flags & DEQUEUE_CLASS))
+			check_prio_changed(task_rq(p), p, p->prio);
+
 		put_task_struct(p);
 	}
 	scx_task_iter_stop(&sti);
