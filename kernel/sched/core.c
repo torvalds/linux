@@ -7366,9 +7366,6 @@ void rt_mutex_setprio(struct task_struct *p, struct task_struct *pi_task)
 	if (prev_class != next_class)
 		queue_flag |= DEQUEUE_CLASS;
 
-	if (prev_class != next_class && p->se.sched_delayed)
-		dequeue_task(rq, p, DEQUEUE_SLEEP | DEQUEUE_DELAYED | DEQUEUE_NOCLOCK);
-
 	scoped_guard (sched_change, p, queue_flag) {
 		/*
 		 * Boosting condition are:
@@ -10840,8 +10837,15 @@ struct sched_change_ctx *sched_change_begin(struct task_struct *p, unsigned int 
 	lockdep_assert_rq_held(rq);
 
 	if (flags & DEQUEUE_CLASS) {
-		if (p->sched_class->switching_from)
+		if (p->sched_class->switching_from) {
+			/*
+			 * switching_from_fair() assumes CLASS implies NOCLOCK;
+			 * fixing this assumption would mean switching_from()
+			 * would need to be able to change flags.
+			 */
+			WARN_ON(!(flags & DEQUEUE_NOCLOCK));
 			p->sched_class->switching_from(rq, p);
+		}
 	}
 
 	*ctx = (struct sched_change_ctx){

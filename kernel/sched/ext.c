@@ -3922,9 +3922,6 @@ static void scx_disable_workfn(struct kthread_work *work)
 		if (old_class != new_class)
 			queue_flags |= DEQUEUE_CLASS;
 
-		if (old_class != new_class && p->se.sched_delayed)
-			dequeue_task(task_rq(p), p, DEQUEUE_SLEEP | DEQUEUE_DELAYED | DEQUEUE_NOCLOCK);
-
 		scoped_guard (sched_change, p, queue_flags) {
 			p->sched_class = new_class;
 		}
@@ -4672,9 +4669,6 @@ static int scx_enable(struct sched_ext_ops *ops, struct bpf_link *link)
 
 		if (old_class != new_class)
 			queue_flags |= DEQUEUE_CLASS;
-
-		if (old_class != new_class && p->se.sched_delayed)
-			dequeue_task(task_rq(p), p, DEQUEUE_SLEEP | DEQUEUE_DELAYED | DEQUEUE_NOCLOCK);
 
 		scoped_guard (sched_change, p, queue_flags) {
 			p->scx.slice = SCX_SLICE_DFL;
