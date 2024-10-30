@@ -19,6 +19,9 @@
 #include <linux/virtio_config.h>
 #include <linux/virtio_i2c.h>
 
+/* Virtio ID of I2C */
+#define VIRTIO_ID_I2C	49154
+
 /**
  * struct virtio_i2c - virtio I2C data
  * @vdev: virtio device for this controller
@@ -238,7 +241,7 @@ static void virtio_i2c_remove(struct virtio_device *vdev)
 }
 
 static struct virtio_device_id id_table[] = {
-	{ VIRTIO_ID_I2C_ADAPTER, VIRTIO_DEV_ANY_ID },
+	{ VIRTIO_ID_I2C, VIRTIO_DEV_ANY_ID },
 	{}
 };
 MODULE_DEVICE_TABLE(virtio, id_table);
