@@ -3,6 +3,7 @@
 #include <asm/cpufeature.h>
 #include <asm/tdx.h>
 #include "capabilities.h"
+#include "x86_ops.h"
 #include "tdx.h"
 
 #pragma GCC poison to_vmx
@@ -40,6 +41,37 @@ static __always_inline struct kvm_tdx *to_kvm_tdx(struct kvm *kvm)
 static __always_inline struct vcpu_tdx *to_tdx(struct kvm_vcpu *vcpu)
 {
 	return container_of(vcpu, struct vcpu_tdx, vcpu);
+}
+
+int tdx_vm_ioctl(struct kvm *kvm, void __user *argp)
+{
+	struct kvm_tdx_cmd tdx_cmd;
+	int r;
+
+	if (copy_from_user(&tdx_cmd, argp, sizeof(struct kvm_tdx_cmd)))
+		return -EFAULT;
+
+	/*
+	 * Userspace should never set hw_error. It is used to fill
+	 * hardware-defined error by the kernel.
+	 */
+	if (tdx_cmd.hw_error)
+		return -EINVAL;
+
+	mutex_lock(&kvm->lock);
+
+	switch (tdx_cmd.id) {
+	default:
+		r = -EINVAL;
+		goto out;
+	}
+
+	if (copy_to_user(argp, &tdx_cmd, sizeof(struct kvm_tdx_cmd)))
+		r = -EFAULT;
+
+out:
+	mutex_unlock(&kvm->lock);
+	return r;
 }
 
 static int tdx_online_cpu(unsigned int cpu)
