@@ -25,6 +25,7 @@
 #include <linux/pinctrl/consumer.h>
 #include <linux/sched/clock.h>
 #include <linux/slab.h>
+#include <linux/bootmarker_kernel.h>
 
 #define SE_GENI_TEST_BUS_CTRL	0x44
 #define SE_NUM_FOR_TEST_BUS	5
@@ -119,6 +120,7 @@ if (dev) \
 #define IMMEDIATE_DMA_LEN	8
 
 #define MIN_NUM_MSGS_FOR_MULTI_DESC_MODE	4
+#define BOOT_MARKER_SIZE	50
 
 /* FTRACE Logging */
 void i2c_trace_log(struct device *dev, const char *fmt, ...)
@@ -2779,6 +2781,9 @@ static int geni_i2c_probe(struct platform_device *pdev)
 	struct resource *res;
 	int ret;
 	struct device *dev = &pdev->dev;
+	#if (IS_ENABLED(CONFIG_BOOTMARKER_PROXY))
+	char boot_marker[BOOT_MARKER_SIZE];
+	#endif
 
 	gi2c = devm_kzalloc(&pdev->dev, sizeof(*gi2c), GFP_KERNEL);
 	if (!gi2c)
@@ -2790,7 +2795,13 @@ static int geni_i2c_probe(struct platform_device *pdev)
 
 	gi2c->dev = dev;
 
-	pr_info("boot_kpi: M - DRIVER GENI_I2C Init\n");
+	#if (IS_ENABLED(CONFIG_BOOTMARKER_PROXY))
+		snprintf(boot_marker, sizeof(boot_marker),
+					"M - DRIVER GENI_I2C Init");
+		bootmarker_place_marker(boot_marker);
+	#else
+		dev_dbg(&pdev->dev, "M - DRIVER GENI_I2C Init\n");
+	#endif
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res)
@@ -2927,8 +2938,14 @@ static int geni_i2c_probe(struct platform_device *pdev)
 		/* configure Test bus to dump test bus later, only once */
 		test_bus_enable_per_qupv3(gi2c->wrapper_dev, gi2c->ipcl);
 	}
+	#if (IS_ENABLED(CONFIG_BOOTMARKER_PROXY))
+		snprintf(boot_marker, sizeof(boot_marker),
+					"M - DRIVER GENI_I2C_%d Ready", gi2c->adap.nr);
+		bootmarker_place_marker(boot_marker);
+	#else
+		dev_dbg(&pdev->dev, "M - DRIVER GENI_I2C_%d Ready\n", gi2c->adap.nr);
+	#endif
 
-	pr_info("boot_kpi: M - DRIVER GENI_I2C_%d Ready\n", gi2c->adap.nr);
 	dev_info(gi2c->dev, "I2C probed\n");
 	return 0;
 }

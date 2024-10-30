@@ -32,6 +32,7 @@
 #include <linux/tty.h>
 #include <linux/tty_flip.h>
 #include <uapi/linux/msm_geni_serial.h>
+#include <linux/bootmarker_kernel.h>
 
 static bool con_enabled = IS_ENABLED(CONFIG_SERIAL_MSM_GENI_CONSOLE_DEFAULT_ENABLED);
 
@@ -205,6 +206,8 @@ static bool con_enabled = IS_ENABLED(CONFIG_SERIAL_MSM_GENI_CONSOLE_DEFAULT_ENAB
 
 #define CREATE_TRACE_POINTS
 #include "serial_trace.h"
+
+#define BOOT_MARKER_SIZE	50
 
 /* FTRACE Logging */
 static void __ftrace_dbg(struct device *dev, const char *fmt, ...)
@@ -5532,6 +5535,9 @@ static int msm_geni_serial_probe(struct platform_device *pdev)
 	const struct of_device_id *id;
 	bool is_console = false;
 	unsigned char prev_line_id;
+	#if (IS_ENABLED(CONFIG_BOOTMARKER_PROXY))
+	char boot_marker[BOOT_MARKER_SIZE];
+	#endif
 
 	id = of_match_device(msm_geni_device_tbl, &pdev->dev);
 	if (!id) {
@@ -5577,10 +5583,24 @@ static int msm_geni_serial_probe(struct platform_device *pdev)
 		line = pdev->id;
 	}
 
-	if (drv->cons)
-		pr_info("boot_kpi: M - DRIVER GENI_CONSOLE_%d Init\n", line);
-	else
-		pr_info("boot_kpi: M - DRIVER GENI_HS_UART_%d Init\n", line);
+	if (drv->cons) {
+	#if (IS_ENABLED(CONFIG_BOOTMARKER_PROXY))
+		snprintf(boot_marker, sizeof(boot_marker),
+			"M - DRIVER GENI_CONSOLE_%d Init", line);
+		bootmarker_place_marker(boot_marker);
+	#else
+		dev_dbg(&pdev->dev, "M - DRIVER GENI_CONSOLE_%d Init\n", line);
+	#endif
+
+	} else {
+	#if (IS_ENABLED(CONFIG_BOOTMARKER_PROXY))
+		snprintf(boot_marker, sizeof(boot_marker),
+			"M - DRIVER GENI_HS_UART_%d Init", line);
+		bootmarker_place_marker(boot_marker);
+	#else
+		dev_dbg(&pdev->dev, "M - DRIVER GENI_HS_UART_%d Init\n", line);
+	#endif
+	}
 
 	is_console = (drv->cons ? true : false);
 	dev_port = get_port_from_line(line, is_console);
@@ -5645,10 +5665,23 @@ static int msm_geni_serial_probe(struct platform_device *pdev)
 
 	msm_geni_check_stop_engine(uport);
 
-	if (is_console)
-		pr_info("boot_kpi: M - DRIVER GENI_CONSOLE_%d Ready\n", line);
-	else
-		pr_info("boot_kpi: M - DRIVER GENI_HS_UART_%d Ready\n", line);
+	if (is_console) {
+	#if (IS_ENABLED(CONFIG_BOOTMARKER_PROXY))
+		snprintf(boot_marker, sizeof(boot_marker),
+			"M - DRIVER GENI_CONSOLE_%d Ready", line);
+		bootmarker_place_marker(boot_marker);
+	#else
+		dev_dbg(&pdev->dev, "M - DRIVER GENI_CONSOLE_%d Ready\n", line);
+	#endif
+	} else {
+	#if (IS_ENABLED(CONFIG_BOOTMARKER_PROXY))
+		snprintf(boot_marker, sizeof(boot_marker),
+			"M - DRIVER GENI_HS_UART_%d Ready", line);
+		bootmarker_place_marker(boot_marker);
+	#else
+		dev_dbg(&pdev->dev, "M - DRIVER GENI_HS_UART_%d Ready\n", line);
+	#endif
+	}
 
 exit_geni_serial_probe:
 	if (ret)

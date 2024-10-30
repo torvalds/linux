@@ -21,6 +21,7 @@
 #include <linux/spi/spi.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/suspend.h>
+#include <linux/bootmarker_kernel.h>
 
 #define SPI_NUM_CHIPSELECT	(4)
 #define SPI_XFER_TIMEOUT_MS	(250)
@@ -128,6 +129,8 @@ if (dev) \
 
 #define CREATE_TRACE_POINTS
 #include "spi-qup-trace.h"
+
+#define BOOT_MARKER_SIZE	50
 
 /* FTRACE Logging */
 void spi_trace_log(struct device *dev, const char *fmt, ...)
@@ -2474,6 +2477,9 @@ static int spi_geni_probe(struct platform_device *pdev)
 	bool slave_en;
 	struct device *dev = &pdev->dev;
 	struct geni_se *spi_rsc;
+	#if (IS_ENABLED(CONFIG_BOOTMARKER_PROXY))
+	char boot_marker[BOOT_MARKER_SIZE];
+	#endif
 
 	slave_en  = of_property_read_bool(pdev->dev.of_node,
 			 "qcom,slv-ctrl");
@@ -2488,7 +2494,13 @@ static int spi_geni_probe(struct platform_device *pdev)
 	if (slave_en)
 		spi->slave_abort = spi_slv_abort;
 
-	pr_info("boot_kpi: M - DRIVER GENI_SPI Init\n");
+	#if (IS_ENABLED(CONFIG_BOOTMARKER_PROXY))
+		snprintf(boot_marker, sizeof(boot_marker),
+				"M - DRIVER GENI_SPI Init");
+		bootmarker_place_marker(boot_marker);
+	#else
+		dev_dbg(&pdev->dev, "M - DRIVER GENI_SPI Init\n");
+	#endif
 
 	platform_set_drvdata(pdev, spi);
 	geni_mas = spi_master_get_devdata(spi);
@@ -2710,7 +2722,13 @@ static int spi_geni_probe(struct platform_device *pdev)
 
 	dev_info(&pdev->dev, "%s: completed %d\n", __func__, ret);
 
-	pr_info("boot_kpi: M - DRIVER GENI_SPI_%d Ready\n", spi->bus_num);
+	#if (IS_ENABLED(CONFIG_BOOTMARKER_PROXY))
+		snprintf(boot_marker, sizeof(boot_marker),
+				"M - DRIVER GENI_SPI_%d Ready", spi->bus_num);
+		bootmarker_place_marker(boot_marker);
+	#else
+		dev_dbg(&pdev->dev, "M - DRIVER GENI_SPI_%d Ready\n", spi->bus_num);
+	#endif
 
 	return ret;
 spi_geni_probe_err:
