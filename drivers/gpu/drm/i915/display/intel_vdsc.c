@@ -770,9 +770,9 @@ void intel_dsc_enable(const struct intel_crtc_state *crtc_state)
 
 	intel_dsc_pps_configure(crtc_state);
 
-	dss_ctl2_val |= LEFT_BRANCH_VDSC_ENABLE;
+	dss_ctl2_val |= VDSC0_ENABLE;
 	if (vdsc_instances_per_pipe > 1) {
-		dss_ctl2_val |= RIGHT_BRANCH_VDSC_ENABLE;
+		dss_ctl2_val |= VDSC1_ENABLE;
 		dss_ctl1_val |= JOINER_ENABLE;
 	}
 	if (crtc_state->joiner_pipes) {
@@ -972,11 +972,11 @@ void intel_dsc_get_config(struct intel_crtc_state *crtc_state)
 	dss_ctl1 = intel_de_read(dev_priv, dss_ctl1_reg(crtc, cpu_transcoder));
 	dss_ctl2 = intel_de_read(dev_priv, dss_ctl2_reg(crtc, cpu_transcoder));
 
-	crtc_state->dsc.compression_enable = dss_ctl2 & LEFT_BRANCH_VDSC_ENABLE;
+	crtc_state->dsc.compression_enable = dss_ctl2 & VDSC0_ENABLE;
 	if (!crtc_state->dsc.compression_enable)
 		goto out;
 
-	if (dss_ctl1 & JOINER_ENABLE && dss_ctl2 & RIGHT_BRANCH_VDSC_ENABLE)
+	if (dss_ctl1 & JOINER_ENABLE && dss_ctl2 & VDSC1_ENABLE)
 		crtc_state->dsc.num_streams = 2;
 	else
 		crtc_state->dsc.num_streams = 1;
