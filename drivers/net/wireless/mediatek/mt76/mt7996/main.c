@@ -1060,9 +1060,10 @@ static void mt7996_sta_rc_work(void *data, struct ieee80211_sta *sta)
 
 static void mt7996_sta_rc_update(struct ieee80211_hw *hw,
 				 struct ieee80211_vif *vif,
-				 struct ieee80211_sta *sta,
+				 struct ieee80211_link_sta *link_sta,
 				 u32 changed)
 {
+	struct ieee80211_sta *sta = link_sta->sta;
 	struct mt7996_phy *phy = mt7996_hw_phy(hw);
 	struct mt7996_dev *dev = phy->dev;
 
@@ -1472,7 +1473,7 @@ const struct ieee80211_ops mt7996_ops = {
 	.sta_add = mt7996_sta_add,
 	.sta_remove = mt7996_sta_remove,
 	.sta_pre_rcu_remove = mt76_sta_pre_rcu_remove,
-	.sta_rc_update = mt7996_sta_rc_update,
+	.link_sta_rc_update = mt7996_sta_rc_update,
 	.set_key = mt7996_set_key,
 	.ampdu_action = mt7996_ampdu_action,
 	.set_rts_threshold = mt7996_set_rts_threshold,

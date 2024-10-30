@@ -14,19 +14,21 @@
 #include <net/iw_handler.h>
 #include <net/arp.h>
 #include <net/wext.h>
+#include "libipw.h"
 
-static inline struct iw_spy_data *get_spydata(struct net_device *dev)
+static struct iw_spy_data *get_spydata(struct net_device *dev)
 {
-	/* This is the new way */
-	if (dev->wireless_data)
-		return dev->wireless_data->spy_data;
+	struct libipw_device *ieee = netdev_priv(dev);
+
+	if (ieee->spy_enabled)
+		return &ieee->spy_data;
 	return NULL;
 }
 
-int iw_handler_set_spy(struct net_device *	dev,
-		       struct iw_request_info *	info,
-		       union iwreq_data *	wrqu,
-		       char *			extra)
+int ipw_wx_set_spy(struct net_device *		dev,
+		   struct iw_request_info *	info,
+		   union iwreq_data *		wrqu,
+		   char *			extra)
 {
 	struct iw_spy_data *	spydata = get_spydata(dev);
 	struct sockaddr *	address = (struct sockaddr *) extra;
@@ -36,15 +38,15 @@ int iw_handler_set_spy(struct net_device *	dev,
 		return -EOPNOTSUPP;
 
 	/* Disable spy collection while we copy the addresses.
-	 * While we copy addresses, any call to wireless_spy_update()
+	 * While we copy addresses, any call to libipw_spy_update()
 	 * will NOP. This is OK, as anyway the addresses are changing. */
 	spydata->spy_number = 0;
 
-	/* We want to operate without locking, because wireless_spy_update()
+	/* We want to operate without locking, because libipw_spy_update()
 	 * most likely will happen in the interrupt handler, and therefore
 	 * have its own locking constraints and needs performance.
 	 * The rtnl_lock() make sure we don't race with the other iw_handlers.
-	 * This make sure wireless_spy_update() "see" that the spy list
+	 * This make sure libipw_spy_update() "see" that the spy list
 	 * is temporarily disabled. */
 	smp_wmb();
 
@@ -69,12 +71,12 @@ int iw_handler_set_spy(struct net_device *	dev,
 
 	return 0;
 }
-EXPORT_SYMBOL(iw_handler_set_spy);
+EXPORT_SYMBOL(ipw_wx_set_spy);
 
-int iw_handler_get_spy(struct net_device *	dev,
-		       struct iw_request_info *	info,
-		       union iwreq_data *	wrqu,
-		       char *			extra)
+int ipw_wx_get_spy(struct net_device *		dev,
+		   struct iw_request_info *	info,
+		   union iwreq_data *		wrqu,
+		   char *			extra)
 {
 	struct iw_spy_data *	spydata = get_spydata(dev);
 	struct sockaddr *	address = (struct sockaddr *) extra;
@@ -101,16 +103,16 @@ int iw_handler_get_spy(struct net_device *	dev,
 		spydata->spy_stat[i].updated &= ~IW_QUAL_ALL_UPDATED;
 	return 0;
 }
-EXPORT_SYMBOL(iw_handler_get_spy);
+EXPORT_SYMBOL(ipw_wx_get_spy);
 
 /*------------------------------------------------------------------*/
 /*
  * Standard Wireless Handler : set spy threshold
  */
-int iw_handler_set_thrspy(struct net_device *	dev,
-			  struct iw_request_info *info,
-			  union iwreq_data *	wrqu,
-			  char *		extra)
+int ipw_wx_set_thrspy(struct net_device *	dev,
+		      struct iw_request_info *	info,
+		      union iwreq_data *	wrqu,
+		      char *			extra)
 {
 	struct iw_spy_data *	spydata = get_spydata(dev);
 	struct iw_thrspy *	threshold = (struct iw_thrspy *) extra;
@@ -128,16 +130,16 @@ int iw_handler_set_thrspy(struct net_device *	dev,
 
 	return 0;
 }
-EXPORT_SYMBOL(iw_handler_set_thrspy);
+EXPORT_SYMBOL(ipw_wx_set_thrspy);
 
 /*------------------------------------------------------------------*/
 /*
  * Standard Wireless Handler : get spy threshold
  */
-int iw_handler_get_thrspy(struct net_device *	dev,
-			  struct iw_request_info *info,
-			  union iwreq_data *	wrqu,
-			  char *		extra)
+int ipw_wx_get_thrspy(struct net_device *	dev,
+		      struct iw_request_info *	info,
+		      union iwreq_data *	wrqu,
+		      char *			extra)
 {
 	struct iw_spy_data *	spydata = get_spydata(dev);
 	struct iw_thrspy *	threshold = (struct iw_thrspy *) extra;
@@ -152,7 +154,7 @@ int iw_handler_get_thrspy(struct net_device *	dev,
 
 	return 0;
 }
-EXPORT_SYMBOL(iw_handler_get_thrspy);
+EXPORT_SYMBOL(ipw_wx_get_thrspy);
 
 /*------------------------------------------------------------------*/
 /*
@@ -189,9 +191,9 @@ static void iw_send_thrspy_event(struct net_device *	dev,
  * small, this is good enough. If we wanted to support larger number of
  * spy addresses, we should use something more efficient...
  */
-void wireless_spy_update(struct net_device *	dev,
-			 unsigned char *	address,
-			 struct iw_quality *	wstats)
+void libipw_spy_update(struct net_device *	dev,
+		       unsigned char *		address,
+		       struct iw_quality *	wstats)
 {
 	struct iw_spy_data *	spydata = get_spydata(dev);
 	int			i;
@@ -229,4 +231,3 @@ void wireless_spy_update(struct net_device *	dev,
 		}
 	}
 }
-EXPORT_SYMBOL(wireless_spy_update);

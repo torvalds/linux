@@ -663,7 +663,6 @@ int mwifiex_ret_802_11_associate(struct mwifiex_private *priv,
 	bool enable_data = true;
 	u16 cap_info, status_code, aid;
 	const u8 *ie_ptr;
-	struct ieee80211_ht_operation *assoc_resp_ht_oper;
 
 	if (!priv->attempted_bss_desc) {
 		mwifiex_dbg(priv->adapter, ERROR,
@@ -779,14 +778,8 @@ int mwifiex_ret_802_11_associate(struct mwifiex_private *priv,
 	ie_ptr = cfg80211_find_ie(WLAN_EID_HT_OPERATION, assoc_rsp->ie_buffer,
 				  priv->assoc_rsp_size
 				  - sizeof(struct ieee_types_assoc_rsp));
-	if (ie_ptr) {
-		assoc_resp_ht_oper = (struct ieee80211_ht_operation *)(ie_ptr
-					+ sizeof(struct ieee_types_header));
-		priv->assoc_resp_ht_param = assoc_resp_ht_oper->ht_param;
-		priv->ht_param_present = true;
-	} else {
-		priv->ht_param_present = false;
-	}
+
+	priv->ht_param_present = ie_ptr ? true : false;
 
 	mwifiex_dbg(priv->adapter, INFO,
 		    "info: ASSOC_RESP: curr_pkt_filter is %#x\n",

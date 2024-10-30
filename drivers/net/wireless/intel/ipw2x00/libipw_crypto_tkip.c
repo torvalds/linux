@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * lib80211 crypt: host-based TKIP encryption implementation for lib80211
+ * libipw crypt: host-based TKIP encryption implementation for libipw
  *
  * Copyright (c) 2003-2004, Jouni Malinen <j@w1.fi>
  * Copyright (c) 2008, John W. Linville <linville@tuxdriver.com>
@@ -21,25 +21,18 @@
 #include <linux/if_ether.h>
 #include <linux/if_arp.h>
 #include <asm/string.h>
-
 #include <linux/wireless.h>
 #include <linux/ieee80211.h>
 #include <net/iw_handler.h>
-
 #include <crypto/arc4.h>
 #include <crypto/hash.h>
 #include <linux/crypto.h>
 #include <linux/crc32.h>
-
-#include <net/lib80211.h>
-
-MODULE_AUTHOR("Jouni Malinen");
-MODULE_DESCRIPTION("lib80211 crypt: TKIP");
-MODULE_LICENSE("GPL");
+#include "libipw.h"
 
 #define TKIP_HDR_LEN 8
 
-struct lib80211_tkip_data {
+struct libipw_tkip_data {
 #define TKIP_KEY_LEN 32
 	u8 key[TKIP_KEY_LEN];
 	int key_set;
@@ -73,23 +66,23 @@ struct lib80211_tkip_data {
 	unsigned long flags;
 };
 
-static unsigned long lib80211_tkip_set_flags(unsigned long flags, void *priv)
+static unsigned long libipw_tkip_set_flags(unsigned long flags, void *priv)
 {
-	struct lib80211_tkip_data *_priv = priv;
+	struct libipw_tkip_data *_priv = priv;
 	unsigned long old_flags = _priv->flags;
 	_priv->flags = flags;
 	return old_flags;
 }
 
-static unsigned long lib80211_tkip_get_flags(void *priv)
+static unsigned long libipw_tkip_get_flags(void *priv)
 {
-	struct lib80211_tkip_data *_priv = priv;
+	struct libipw_tkip_data *_priv = priv;
 	return _priv->flags;
 }
 
-static void *lib80211_tkip_init(int key_idx)
+static void *libipw_tkip_init(int key_idx)
 {
-	struct lib80211_tkip_data *priv;
+	struct libipw_tkip_data *priv;
 
 	if (fips_enabled)
 		return NULL;
@@ -124,9 +117,9 @@ static void *lib80211_tkip_init(int key_idx)
 	return NULL;
 }
 
-static void lib80211_tkip_deinit(void *priv)
+static void libipw_tkip_deinit(void *priv)
 {
-	struct lib80211_tkip_data *_priv = priv;
+	struct libipw_tkip_data *_priv = priv;
 	if (_priv) {
 		crypto_free_shash(_priv->tx_tfm_michael);
 		crypto_free_shash(_priv->rx_tfm_michael);
@@ -280,10 +273,10 @@ static void tkip_mixing_phase2(u8 * WEPSeed, const u8 * TK, const u16 * TTAK,
 #endif
 }
 
-static int lib80211_tkip_hdr(struct sk_buff *skb, int hdr_len,
+static int libipw_tkip_hdr(struct sk_buff *skb, int hdr_len,
 			      u8 * rc4key, int keylen, void *priv)
 {
-	struct lib80211_tkip_data *tkey = priv;
+	struct libipw_tkip_data *tkey = priv;
 	u8 *pos;
 	struct ieee80211_hdr *hdr;
 
@@ -324,9 +317,9 @@ static int lib80211_tkip_hdr(struct sk_buff *skb, int hdr_len,
 	return TKIP_HDR_LEN;
 }
 
-static int lib80211_tkip_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
+static int libipw_tkip_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 {
-	struct lib80211_tkip_data *tkey = priv;
+	struct libipw_tkip_data *tkey = priv;
 	int len;
 	u8 rc4key[16], *pos, *icv;
 	u32 crc;
@@ -344,7 +337,7 @@ static int lib80211_tkip_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	len = skb->len - hdr_len;
 	pos = skb->data + hdr_len;
 
-	if ((lib80211_tkip_hdr(skb, hdr_len, rc4key, 16, priv)) < 0)
+	if ((libipw_tkip_hdr(skb, hdr_len, rc4key, 16, priv)) < 0)
 		return -1;
 
 	crc = ~crc32_le(~0, pos, len);
@@ -373,9 +366,9 @@ static inline int tkip_replay_check(u32 iv32_n, u16 iv16_n,
 	return 0;
 }
 
-static int lib80211_tkip_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
+static int libipw_tkip_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 {
-	struct lib80211_tkip_data *tkey = priv;
+	struct libipw_tkip_data *tkey = priv;
 	u8 rc4key[16];
 	u8 keyidx, *pos;
 	u32 iv32;
@@ -419,7 +412,7 @@ static int lib80211_tkip_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	pos += TKIP_HDR_LEN;
 
 	if (tkip_replay_check(iv32, iv16, tkey->rx_iv32, tkey->rx_iv16)) {
-#ifdef CONFIG_LIB80211_DEBUG
+#ifdef CONFIG_LIBIPW_DEBUG
 		net_dbg_ratelimited("TKIP: replay detected: STA=%pM previous TSC %08x%04x received TSC %08x%04x\n",
 				    hdr->addr2, tkey->rx_iv32, tkey->rx_iv16,
 				    iv32, iv16);
@@ -450,7 +443,7 @@ static int lib80211_tkip_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 			 * it needs to be recalculated for the next packet. */
 			tkey->rx_phase1_done = 0;
 		}
-#ifdef CONFIG_LIB80211_DEBUG
+#ifdef CONFIG_LIBIPW_DEBUG
 		net_dbg_ratelimited("TKIP: ICV error detected: STA=%pM\n",
 				    hdr->addr2);
 #endif
@@ -538,10 +531,10 @@ static void michael_mic_hdr(struct sk_buff *skb, u8 * hdr)
 	hdr[13] = hdr[14] = hdr[15] = 0;	/* reserved */
 }
 
-static int lib80211_michael_mic_add(struct sk_buff *skb, int hdr_len,
+static int libipw_michael_mic_add(struct sk_buff *skb, int hdr_len,
 				     void *priv)
 {
-	struct lib80211_tkip_data *tkey = priv;
+	struct libipw_tkip_data *tkey = priv;
 	u8 *pos;
 
 	if (skb_tailroom(skb) < 8 || skb->len < hdr_len) {
@@ -560,7 +553,7 @@ static int lib80211_michael_mic_add(struct sk_buff *skb, int hdr_len,
 	return 0;
 }
 
-static void lib80211_michael_mic_failure(struct net_device *dev,
+static void libipw_michael_mic_failure(struct net_device *dev,
 					  struct ieee80211_hdr *hdr,
 					  int keyidx)
 {
@@ -581,10 +574,10 @@ static void lib80211_michael_mic_failure(struct net_device *dev,
 	wireless_send_event(dev, IWEVMICHAELMICFAILURE, &wrqu, (char *)&ev);
 }
 
-static int lib80211_michael_mic_verify(struct sk_buff *skb, int keyidx,
+static int libipw_michael_mic_verify(struct sk_buff *skb, int keyidx,
 					int hdr_len, void *priv)
 {
-	struct lib80211_tkip_data *tkey = priv;
+	struct libipw_tkip_data *tkey = priv;
 	u8 mic[8];
 
 	if (!tkey->key_set)
@@ -602,7 +595,7 @@ static int lib80211_michael_mic_verify(struct sk_buff *skb, int keyidx,
 		       skb->dev ? skb->dev->name : "N/A", hdr->addr2,
 		       keyidx);
 		if (skb->dev)
-			lib80211_michael_mic_failure(skb->dev, hdr, keyidx);
+			libipw_michael_mic_failure(skb->dev, hdr, keyidx);
 		tkey->dot11RSNAStatsTKIPLocalMICFailures++;
 		return -1;
 	}
@@ -617,9 +610,9 @@ static int lib80211_michael_mic_verify(struct sk_buff *skb, int keyidx,
 	return 0;
 }
 
-static int lib80211_tkip_set_key(void *key, int len, u8 * seq, void *priv)
+static int libipw_tkip_set_key(void *key, int len, u8 * seq, void *priv)
 {
-	struct lib80211_tkip_data *tkey = priv;
+	struct libipw_tkip_data *tkey = priv;
 	int keyidx;
 	struct crypto_shash *tfm = tkey->tx_tfm_michael;
 	struct arc4_ctx *tfm2 = &tkey->tx_ctx_arc4;
@@ -650,9 +643,9 @@ static int lib80211_tkip_set_key(void *key, int len, u8 * seq, void *priv)
 	return 0;
 }
 
-static int lib80211_tkip_get_key(void *key, int len, u8 * seq, void *priv)
+static int libipw_tkip_get_key(void *key, int len, u8 * seq, void *priv)
 {
-	struct lib80211_tkip_data *tkey = priv;
+	struct libipw_tkip_data *tkey = priv;
 
 	if (len < TKIP_KEY_LEN)
 		return -1;
@@ -679,9 +672,9 @@ static int lib80211_tkip_get_key(void *key, int len, u8 * seq, void *priv)
 	return TKIP_KEY_LEN;
 }
 
-static void lib80211_tkip_print_stats(struct seq_file *m, void *priv)
+static void libipw_tkip_print_stats(struct seq_file *m, void *priv)
 {
-	struct lib80211_tkip_data *tkip = priv;
+	struct libipw_tkip_data *tkip = priv;
 	seq_printf(m,
 		   "key[%d] alg=TKIP key_set=%d "
 		   "tx_pn=%02x%02x%02x%02x%02x%02x "
@@ -705,34 +698,31 @@ static void lib80211_tkip_print_stats(struct seq_file *m, void *priv)
 		   tkip->dot11RSNAStatsTKIPLocalMICFailures);
 }
 
-static const struct lib80211_crypto_ops lib80211_crypt_tkip = {
+static const struct libipw_crypto_ops libipw_crypt_tkip = {
 	.name = "TKIP",
-	.init = lib80211_tkip_init,
-	.deinit = lib80211_tkip_deinit,
-	.encrypt_mpdu = lib80211_tkip_encrypt,
-	.decrypt_mpdu = lib80211_tkip_decrypt,
-	.encrypt_msdu = lib80211_michael_mic_add,
-	.decrypt_msdu = lib80211_michael_mic_verify,
-	.set_key = lib80211_tkip_set_key,
-	.get_key = lib80211_tkip_get_key,
-	.print_stats = lib80211_tkip_print_stats,
+	.init = libipw_tkip_init,
+	.deinit = libipw_tkip_deinit,
+	.encrypt_mpdu = libipw_tkip_encrypt,
+	.decrypt_mpdu = libipw_tkip_decrypt,
+	.encrypt_msdu = libipw_michael_mic_add,
+	.decrypt_msdu = libipw_michael_mic_verify,
+	.set_key = libipw_tkip_set_key,
+	.get_key = libipw_tkip_get_key,
+	.print_stats = libipw_tkip_print_stats,
 	.extra_mpdu_prefix_len = 4 + 4,	/* IV + ExtIV */
 	.extra_mpdu_postfix_len = 4,	/* ICV */
 	.extra_msdu_postfix_len = 8,	/* MIC */
-	.get_flags = lib80211_tkip_get_flags,
-	.set_flags = lib80211_tkip_set_flags,
+	.get_flags = libipw_tkip_get_flags,
+	.set_flags = libipw_tkip_set_flags,
 	.owner = THIS_MODULE,
 };
 
-static int __init lib80211_crypto_tkip_init(void)
+int __init libipw_crypto_tkip_init(void)
 {
-	return lib80211_register_crypto_ops(&lib80211_crypt_tkip);
+	return libipw_register_crypto_ops(&libipw_crypt_tkip);
 }
 
-static void __exit lib80211_crypto_tkip_exit(void)
+void libipw_crypto_tkip_exit(void)
 {
-	lib80211_unregister_crypto_ops(&lib80211_crypt_tkip);
+	libipw_unregister_crypto_ops(&libipw_crypt_tkip);
 }
-
-module_init(lib80211_crypto_tkip_init);
-module_exit(lib80211_crypto_tkip_exit);

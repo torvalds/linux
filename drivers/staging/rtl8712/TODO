@@ -1,6 +1,5 @@
 TODO:
 - merge Realtek's bugfixes and new features into the driver
-- switch to use LIB80211
 - switch to use MAC80211
 - checkpatch.pl fixes - only a few remain
 

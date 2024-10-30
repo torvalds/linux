@@ -27,9 +27,6 @@
 #include <linux/etherdevice.h>
 #include <linux/uaccess.h>
 #include <linux/ctype.h>
-
-#include <net/lib80211.h>
-
 #include "libipw.h"
 
 static void libipw_monitor_rx(struct libipw_device *ieee,
@@ -266,7 +263,7 @@ static int libipw_is_eapol_frame(struct libipw_device *ieee,
 /* Called only as a tasklet (software IRQ), by libipw_rx */
 static int
 libipw_rx_frame_decrypt(struct libipw_device *ieee, struct sk_buff *skb,
-			   struct lib80211_crypt_data *crypt)
+			   struct libipw_crypt_data *crypt)
 {
 	struct libipw_hdr_3addr *hdr;
 	int res, hdrlen;
@@ -298,7 +295,7 @@ libipw_rx_frame_decrypt(struct libipw_device *ieee, struct sk_buff *skb,
 static int
 libipw_rx_frame_decrypt_msdu(struct libipw_device *ieee,
 				struct sk_buff *skb, int keyidx,
-				struct lib80211_crypt_data *crypt)
+				struct libipw_crypt_data *crypt)
 {
 	struct libipw_hdr_3addr *hdr;
 	int res, hdrlen;
@@ -345,7 +342,7 @@ int libipw_rx(struct libipw_device *ieee, struct sk_buff *skb,
 #endif
 	u8 dst[ETH_ALEN];
 	u8 src[ETH_ALEN];
-	struct lib80211_crypt_data *crypt = NULL;
+	struct libipw_crypt_data *crypt = NULL;
 	int keyidx = 0;
 	int can_be_decrypted = 0;
 
@@ -396,7 +393,7 @@ int libipw_rx(struct libipw_device *ieee, struct sk_buff *skb,
 			wstats.updated |= IW_QUAL_QUAL_INVALID;
 
 		/* Update spy records */
-		wireless_spy_update(ieee->dev, hdr->addr2, &wstats);
+		libipw_spy_update(ieee->dev, hdr->addr2, &wstats);
 	}
 #endif				/* IW_WIRELESS_SPY */
 #endif				/* CONFIG_WIRELESS_EXT */

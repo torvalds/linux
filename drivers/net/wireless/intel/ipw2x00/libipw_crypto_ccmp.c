@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * lib80211 crypt: host-based CCMP encryption implementation for lib80211
+ * libipw crypt: host-based CCMP encryption implementation for libipw
  *
  * Copyright (c) 2003-2004, Jouni Malinen <j@w1.fi>
  * Copyright (c) 2008, John W. Linville <linville@tuxdriver.com>
@@ -18,17 +18,10 @@
 #include <linux/if_arp.h>
 #include <asm/string.h>
 #include <linux/wireless.h>
-
 #include <linux/ieee80211.h>
-
 #include <linux/crypto.h>
 #include <crypto/aead.h>
-
-#include <net/lib80211.h>
-
-MODULE_AUTHOR("Jouni Malinen");
-MODULE_DESCRIPTION("Host AP crypt: CCMP");
-MODULE_LICENSE("GPL");
+#include "libipw.h"
 
 #define AES_BLOCK_LEN 16
 #define CCMP_HDR_LEN 8
@@ -36,7 +29,7 @@ MODULE_LICENSE("GPL");
 #define CCMP_TK_LEN 16
 #define CCMP_PN_LEN 6
 
-struct lib80211_ccmp_data {
+struct libipw_ccmp_data {
 	u8 key[CCMP_TK_LEN];
 	int key_set;
 
@@ -56,9 +49,9 @@ struct lib80211_ccmp_data {
 	u8 rx_aad[2 * AES_BLOCK_LEN];
 };
 
-static void *lib80211_ccmp_init(int key_idx)
+static void *libipw_ccmp_init(int key_idx)
 {
-	struct lib80211_ccmp_data *priv;
+	struct libipw_ccmp_data *priv;
 
 	priv = kzalloc(sizeof(*priv), GFP_ATOMIC);
 	if (priv == NULL)
@@ -83,9 +76,9 @@ static void *lib80211_ccmp_init(int key_idx)
 	return NULL;
 }
 
-static void lib80211_ccmp_deinit(void *priv)
+static void libipw_ccmp_deinit(void *priv)
 {
-	struct lib80211_ccmp_data *_priv = priv;
+	struct libipw_ccmp_data *_priv = priv;
 	if (_priv && _priv->tfm)
 		crypto_free_aead(_priv->tfm);
 	kfree(priv);
@@ -150,10 +143,10 @@ static int ccmp_init_iv_and_aad(const struct ieee80211_hdr *hdr,
 	return aad_len;
 }
 
-static int lib80211_ccmp_hdr(struct sk_buff *skb, int hdr_len,
+static int libipw_ccmp_hdr(struct sk_buff *skb, int hdr_len,
 			      u8 *aeskey, int keylen, void *priv)
 {
-	struct lib80211_ccmp_data *key = priv;
+	struct libipw_ccmp_data *key = priv;
 	int i;
 	u8 *pos;
 
@@ -187,9 +180,9 @@ static int lib80211_ccmp_hdr(struct sk_buff *skb, int hdr_len,
 	return CCMP_HDR_LEN;
 }
 
-static int lib80211_ccmp_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
+static int libipw_ccmp_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 {
-	struct lib80211_ccmp_data *key = priv;
+	struct libipw_ccmp_data *key = priv;
 	struct ieee80211_hdr *hdr;
 	struct aead_request *req;
 	struct scatterlist sg[2];
@@ -202,7 +195,7 @@ static int lib80211_ccmp_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 		return -1;
 
 	data_len = skb->len - hdr_len;
-	len = lib80211_ccmp_hdr(skb, hdr_len, NULL, 0, priv);
+	len = libipw_ccmp_hdr(skb, hdr_len, NULL, 0, priv);
 	if (len < 0)
 		return -1;
 
@@ -251,9 +244,9 @@ static inline int ccmp_replay_check(u8 *pn_n, u8 *pn_o)
 	return 0;
 }
 
-static int lib80211_ccmp_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
+static int libipw_ccmp_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 {
-	struct lib80211_ccmp_data *key = priv;
+	struct libipw_ccmp_data *key = priv;
 	u8 keyidx, *pos;
 	struct ieee80211_hdr *hdr;
 	struct aead_request *req;
@@ -299,7 +292,7 @@ static int lib80211_ccmp_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	pos += 8;
 
 	if (ccmp_replay_check(pn, key->rx_pn)) {
-#ifdef CONFIG_LIB80211_DEBUG
+#ifdef CONFIG_LIBIPW_DEBUG
 		net_dbg_ratelimited("CCMP: replay detected: STA=%pM previous PN %02x%02x%02x%02x%02x%02x received PN %02x%02x%02x%02x%02x%02x\n",
 				    hdr->addr2,
 				    key->rx_pn[0], key->rx_pn[1], key->rx_pn[2],
@@ -344,9 +337,9 @@ static int lib80211_ccmp_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	return keyidx;
 }
 
-static int lib80211_ccmp_set_key(void *key, int len, u8 * seq, void *priv)
+static int libipw_ccmp_set_key(void *key, int len, u8 * seq, void *priv)
 {
-	struct lib80211_ccmp_data *data = priv;
+	struct libipw_ccmp_data *data = priv;
 	int keyidx;
 	struct crypto_aead *tfm = data->tfm;
 
@@ -376,9 +369,9 @@ static int lib80211_ccmp_set_key(void *key, int len, u8 * seq, void *priv)
 	return 0;
 }
 
-static int lib80211_ccmp_get_key(void *key, int len, u8 * seq, void *priv)
+static int libipw_ccmp_get_key(void *key, int len, u8 * seq, void *priv)
 {
-	struct lib80211_ccmp_data *data = priv;
+	struct libipw_ccmp_data *data = priv;
 
 	if (len < CCMP_TK_LEN)
 		return -1;
@@ -399,9 +392,9 @@ static int lib80211_ccmp_get_key(void *key, int len, u8 * seq, void *priv)
 	return CCMP_TK_LEN;
 }
 
-static void lib80211_ccmp_print_stats(struct seq_file *m, void *priv)
+static void libipw_ccmp_print_stats(struct seq_file *m, void *priv)
 {
-	struct lib80211_ccmp_data *ccmp = priv;
+	struct libipw_ccmp_data *ccmp = priv;
 
 	seq_printf(m,
 		   "key[%d] alg=CCMP key_set=%d "
@@ -418,31 +411,28 @@ static void lib80211_ccmp_print_stats(struct seq_file *m, void *priv)
 		   ccmp->dot11RSNAStatsCCMPDecryptErrors);
 }
 
-static const struct lib80211_crypto_ops lib80211_crypt_ccmp = {
+static const struct libipw_crypto_ops libipw_crypt_ccmp = {
 	.name = "CCMP",
-	.init = lib80211_ccmp_init,
-	.deinit = lib80211_ccmp_deinit,
-	.encrypt_mpdu = lib80211_ccmp_encrypt,
-	.decrypt_mpdu = lib80211_ccmp_decrypt,
+	.init = libipw_ccmp_init,
+	.deinit = libipw_ccmp_deinit,
+	.encrypt_mpdu = libipw_ccmp_encrypt,
+	.decrypt_mpdu = libipw_ccmp_decrypt,
 	.encrypt_msdu = NULL,
 	.decrypt_msdu = NULL,
-	.set_key = lib80211_ccmp_set_key,
-	.get_key = lib80211_ccmp_get_key,
-	.print_stats = lib80211_ccmp_print_stats,
+	.set_key = libipw_ccmp_set_key,
+	.get_key = libipw_ccmp_get_key,
+	.print_stats = libipw_ccmp_print_stats,
 	.extra_mpdu_prefix_len = CCMP_HDR_LEN,
 	.extra_mpdu_postfix_len = CCMP_MIC_LEN,
 	.owner = THIS_MODULE,
 };
 
-static int __init lib80211_crypto_ccmp_init(void)
+int __init libipw_crypto_ccmp_init(void)
 {
-	return lib80211_register_crypto_ops(&lib80211_crypt_ccmp);
+	return libipw_register_crypto_ops(&libipw_crypt_ccmp);
 }
 
-static void __exit lib80211_crypto_ccmp_exit(void)
+void libipw_crypto_ccmp_exit(void)
 {
-	lib80211_unregister_crypto_ops(&lib80211_crypt_ccmp);
+	libipw_unregister_crypto_ops(&libipw_crypt_ccmp);
 }
-
-module_init(lib80211_crypto_ccmp_init);
-module_exit(lib80211_crypto_ccmp_exit);

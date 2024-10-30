@@ -1182,6 +1182,9 @@ int iwl_mvm_mld_update_sta_links(struct iwl_mvm *mvm,
 		link_sta_added_to_fw |= BIT(link_id);
 
 		iwl_mvm_rs_add_sta_link(mvm, mvm_sta_link);
+
+		iwl_mvm_rs_rate_init(mvm, vif, sta, link_conf, link_sta,
+				     link_conf->chanreq.oper.chan->band);
 	}
 
 	if (sta_mask_added) {

@@ -267,7 +267,7 @@ static void rtw_fw_scan_result(struct rtw_dev *rtwdev, u8 *payload,
 static void rtw_fw_adaptivity_result(struct rtw_dev *rtwdev, u8 *payload,
 				     u8 length)
 {
-	struct rtw_hw_reg_offset *edcca_th = rtwdev->chip->edcca_th;
+	const struct rtw_hw_reg_offset *edcca_th = rtwdev->chip->edcca_th;
 	struct rtw_c2h_adaptivity *result = (struct rtw_c2h_adaptivity *)payload;
 
 	rtw_dbg(rtwdev, RTW_DBG_ADAPTIVITY,

@@ -5058,10 +5058,12 @@ rtl8xxxu_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	}
 
 	if (changed & BSS_CHANGED_BEACON_ENABLED) {
-		if (bss_conf->enable_beacon)
+		if (bss_conf->enable_beacon) {
 			rtl8xxxu_start_tx_beacon(priv);
-		else
+			schedule_delayed_work(&priv->update_beacon_work, 0);
+		} else {
 			rtl8xxxu_stop_tx_beacon(priv);
+		}
 	}
 
 	if (changed & BSS_CHANGED_BEACON)

@@ -361,6 +361,9 @@ struct iwl_mvm_vif_link_info {
  * @IWL_MVM_ESR_BLOCKED_NON_BSS: An active non-BSS interface's link is
  *	preventing EMLSR
  * @IWL_MVM_ESR_BLOCKED_ROC: remain-on-channel is preventing EMLSR
+ * @IWL_MVM_ESR_BLOCKED_TMP_NON_BSS: An expected active non-BSS interface's link
+ *      is preventing EMLSR. This is a temporary blocking that is set when there
+ *      is an indication that a non-BSS interface is to be added.
  * @IWL_MVM_ESR_EXIT_MISSED_BEACON: exited EMLSR due to missed beacons
  * @IWL_MVM_ESR_EXIT_LOW_RSSI: link is deactivated/not allowed for EMLSR
  *	due to low RSSI.
@@ -379,6 +382,7 @@ enum iwl_mvm_esr_state {
 	IWL_MVM_ESR_BLOCKED_FW		= 0x8,
 	IWL_MVM_ESR_BLOCKED_NON_BSS	= 0x10,
 	IWL_MVM_ESR_BLOCKED_ROC		= 0x20,
+	IWL_MVM_ESR_BLOCKED_TMP_NON_BSS	= 0x40,
 	IWL_MVM_ESR_EXIT_MISSED_BEACON	= 0x10000,
 	IWL_MVM_ESR_EXIT_LOW_RSSI	= 0x20000,
 	IWL_MVM_ESR_EXIT_COEX		= 0x40000,
@@ -452,6 +456,8 @@ struct iwl_mvm_esr_exit {
  * @prevent_esr_done_wk: work that should be done when esr prevention ends.
  * @mlo_int_scan_wk: work for the internal MLO scan.
  * @unblock_esr_tpt_wk: work for unblocking EMLSR when tpt is high enough.
+ * @unblock_esr_tmp_non_bss_wk: work for removing the
+ *      IWL_MVM_ESR_BLOCKED_TMP_NON_BSS blocking for EMLSR.
  * @roc_activity: currently running ROC activity for this vif (or
  *	ROC_NUM_ACTIVITIES if no activity is running).
  * @session_prot_connection_loss: the connection was lost due to session
@@ -588,6 +594,7 @@ struct iwl_mvm_vif {
 	struct wiphy_delayed_work prevent_esr_done_wk;
 	struct wiphy_delayed_work mlo_int_scan_wk;
 	struct wiphy_work unblock_esr_tpt_wk;
+	struct wiphy_delayed_work unblock_esr_tmp_non_bss_wk;
 
 	struct iwl_mvm_vif_link_info deflink;
 	struct iwl_mvm_vif_link_info *link[IEEE80211_MLD_MAX_NUM_LINKS];
@@ -773,7 +780,6 @@ struct iwl_mvm_tcm {
  * @head_sn: reorder window head sn
  * @num_stored: number of mpdus stored in the buffer
  * @queue: queue of this reorder buffer
- * @last_amsdu: track last ASMDU SN for duplication detection
  * @valid: reordering is valid for this queue
  * @lock: protect reorder buffer internal state
  */
@@ -781,7 +787,6 @@ struct iwl_mvm_reorder_buffer {
 	u16 head_sn;
 	u16 num_stored;
 	int queue;
-	u16 last_amsdu;
 	bool valid;
 	spinlock_t lock;
 } ____cacheline_aligned_in_smp;
@@ -1584,8 +1589,7 @@ static inline bool iwl_mvm_bt_is_rrc_supported(struct iwl_mvm *mvm)
 static inline bool iwl_mvm_is_csum_supported(struct iwl_mvm *mvm)
 {
 	return fw_has_capa(&mvm->fw->ucode_capa,
-			   IWL_UCODE_TLV_CAPA_CSUM_SUPPORT) &&
-		!IWL_MVM_HW_CSUM_DISABLE;
+			   IWL_UCODE_TLV_CAPA_CSUM_SUPPORT);
 }
 
 static inline bool iwl_mvm_is_mplut_supported(struct iwl_mvm *mvm)
@@ -2914,7 +2918,7 @@ iwl_mvm_mac_release_buffered_frames(struct ieee80211_hw *hw,
 				    bool more_data);
 int iwl_mvm_mac_set_rts_threshold(struct ieee80211_hw *hw, u32 value);
 void iwl_mvm_sta_rc_update(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-			   struct ieee80211_sta *sta, u32 changed);
+			   struct ieee80211_link_sta *link_sta, u32 changed);
 void iwl_mvm_mac_mgd_prepare_tx(struct ieee80211_hw *hw,
 				struct ieee80211_vif *vif,
 				struct ieee80211_prep_tx_info *info);
@@ -2982,7 +2986,8 @@ void iwl_mvm_abort_pmsr(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 bool iwl_mvm_have_links_same_channel(struct iwl_mvm_vif *vif1,
 				     struct iwl_mvm_vif *vif2);
 bool iwl_mvm_vif_is_active(struct iwl_mvm_vif *mvmvif);
-int iwl_mvm_set_tx_power(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
+int iwl_mvm_set_tx_power(struct iwl_mvm *mvm,
+			 struct ieee80211_bss_conf *bss_conf,
 			 s16 tx_power);
 int iwl_mvm_set_hw_timestamp(struct ieee80211_hw *hw,
 			     struct ieee80211_vif *vif,

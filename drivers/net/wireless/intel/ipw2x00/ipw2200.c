@@ -6463,6 +6463,14 @@ static int ipw_set_rsn_capa(struct ipw_priv *priv,
  * WE-18 support
  */
 
+static int ipw_wx_get_name(struct net_device *dev,
+			   struct iw_request_info *info,
+			   union iwreq_data *wrqu, char *extra)
+{
+	strcpy(wrqu->name, "IEEE 802.11");
+	return 0;
+}
+
 /* SIOCSIWGENIE */
 static int ipw_wx_set_genie(struct net_device *dev,
 			    struct iw_request_info *info,
@@ -6549,7 +6557,7 @@ static int ipw_wx_set_auth(struct net_device *dev,
 	struct ipw_priv *priv = libipw_priv(dev);
 	struct libipw_device *ieee = priv->ieee;
 	struct iw_param *param = &wrqu->param;
-	struct lib80211_crypt_data *crypt;
+	struct libipw_crypt_data *crypt;
 	unsigned long flags;
 	int ret = 0;
 
@@ -6648,7 +6656,7 @@ static int ipw_wx_get_auth(struct net_device *dev,
 {
 	struct ipw_priv *priv = libipw_priv(dev);
 	struct libipw_device *ieee = priv->ieee;
-	struct lib80211_crypt_data *crypt;
+	struct libipw_crypt_data *crypt;
 	struct iw_param *param = &wrqu->param;
 
 	switch (param->flags & IW_AUTH_INDEX) {
@@ -9826,7 +9834,7 @@ static int ipw_wx_sw_reset(struct net_device *dev,
 
 /* Rebase the WE IOCTLs to zero for the handler array */
 static iw_handler ipw_wx_handlers[] = {
-	IW_HANDLER(SIOCGIWNAME, cfg80211_wext_giwname),
+	IW_HANDLER(SIOCGIWNAME, ipw_wx_get_name),
 	IW_HANDLER(SIOCSIWFREQ, ipw_wx_set_freq),
 	IW_HANDLER(SIOCGIWFREQ, ipw_wx_get_freq),
 	IW_HANDLER(SIOCSIWMODE, ipw_wx_set_mode),
@@ -9856,10 +9864,10 @@ static iw_handler ipw_wx_handlers[] = {
 	IW_HANDLER(SIOCGIWENCODE, ipw_wx_get_encode),
 	IW_HANDLER(SIOCSIWPOWER, ipw_wx_set_power),
 	IW_HANDLER(SIOCGIWPOWER, ipw_wx_get_power),
-	IW_HANDLER(SIOCSIWSPY, iw_handler_set_spy),
-	IW_HANDLER(SIOCGIWSPY, iw_handler_get_spy),
-	IW_HANDLER(SIOCSIWTHRSPY, iw_handler_set_thrspy),
-	IW_HANDLER(SIOCGIWTHRSPY, iw_handler_get_thrspy),
+	IW_HANDLER(SIOCSIWSPY, ipw_wx_set_spy),
+	IW_HANDLER(SIOCGIWSPY, ipw_wx_get_spy),
+	IW_HANDLER(SIOCSIWTHRSPY, ipw_wx_set_thrspy),
+	IW_HANDLER(SIOCGIWTHRSPY, ipw_wx_get_thrspy),
 	IW_HANDLER(SIOCSIWGENIE, ipw_wx_set_genie),
 	IW_HANDLER(SIOCGIWGENIE, ipw_wx_get_genie),
 	IW_HANDLER(SIOCSIWMLME, ipw_wx_set_mlme),
@@ -11636,8 +11644,7 @@ static int ipw_pci_probe(struct pci_dev *pdev,
 	priv->ieee->worst_rssi = -85;
 
 	net_dev->netdev_ops = &ipw_netdev_ops;
-	priv->wireless_data.spy_data = &priv->ieee->spy_data;
-	net_dev->wireless_data = &priv->wireless_data;
+	priv->ieee->spy_enabled = true;
 	net_dev->wireless_handlers = &ipw_wx_handler_def;
 	net_dev->ethtool_ops = &ipw_ethtool_ops;
 

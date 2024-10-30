@@ -52,7 +52,6 @@ struct net_device_core_stats*       core_stats
 atomic_t                            carrier_up_count
 atomic_t                            carrier_down_count
 struct iw_handler_def*              wireless_handlers
-struct iw_public_data*              wireless_data
 struct ethtool_ops*                 ethtool_ops
 struct l3mdev_ops*                  l3mdev_ops
 struct ndisc_ops*                   ndisc_ops

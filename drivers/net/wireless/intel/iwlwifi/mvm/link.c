@@ -12,6 +12,7 @@
 	HOW(BLOCKED_FW)			\
 	HOW(BLOCKED_NON_BSS)		\
 	HOW(BLOCKED_ROC)		\
+	HOW(BLOCKED_TMP_NON_BSS)	\
 	HOW(EXIT_MISSED_BEACON)		\
 	HOW(EXIT_LOW_RSSI)		\
 	HOW(EXIT_COEX)			\
@@ -360,7 +361,8 @@ int iwl_mvm_link_changed(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 send_cmd:
 	cmd.modify_mask = cpu_to_le32(changes);
 	cmd.flags = cpu_to_le32(flags);
-	cmd.flags_mask = cpu_to_le32(flags_mask);
+	if (cmd_ver < 6)
+		cmd.flags_mask = cpu_to_le32(flags_mask);
 	cmd.spec_link_id = link_conf->link_id;
 	if (cmd_ver < 2)
 		cmd.listen_lmac = cpu_to_le32(link_info->listen_lmac);
