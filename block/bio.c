@@ -1065,39 +1065,6 @@ int bio_add_pc_page(struct request_queue *q, struct bio *bio,
 EXPORT_SYMBOL(bio_add_pc_page);
 
 /**
- * bio_add_zone_append_page - attempt to add page to zone-append bio
- * @bio: destination bio
- * @page: page to add
- * @len: vec entry length
- * @offset: vec entry offset
- *
- * Attempt to add a page to the bio_vec maplist of a bio that will be submitted
- * for a zone-append request. This can fail for a number of reasons, such as the
- * bio being full or the target block device is not a zoned block device or
- * other limitations of the target block device. The target block device must
- * allow bio's up to PAGE_SIZE, so it is always possible to add a single page
- * to an empty bio.
- *
- * Returns: number of bytes added to the bio, or 0 in case of a failure.
- */
-int bio_add_zone_append_page(struct bio *bio, struct page *page,
-			     unsigned int len, unsigned int offset)
-{
-	struct request_queue *q = bdev_get_queue(bio->bi_bdev);
-	bool same_page = false;
-
-	if (WARN_ON_ONCE(bio_op(bio) != REQ_OP_ZONE_APPEND))
-		return 0;
-
-	if (WARN_ON_ONCE(!bdev_is_zoned(bio->bi_bdev)))
-		return 0;
-
-	return bio_add_hw_page(q, bio, page, len, offset,
-			       queue_max_zone_append_sectors(q), &same_page);
-}
-EXPORT_SYMBOL_GPL(bio_add_zone_append_page);
-
-/**
  * __bio_add_page - add page(s) to a bio in a new segment
  * @bio: destination bio
  * @page: start page to add
