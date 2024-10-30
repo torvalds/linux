@@ -559,4 +559,3 @@ out:
 
 	return 0;
 }
-EXPORT_SYMBOL(rtw89_efuse_read_fw_secure_be);

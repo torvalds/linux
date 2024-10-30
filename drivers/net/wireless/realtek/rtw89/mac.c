@@ -1444,6 +1444,7 @@ void rtw89_mac_notify_wake(struct rtw89_dev *rtwdev)
 static int rtw89_mac_power_switch(struct rtw89_dev *rtwdev, bool on)
 {
 #define PWR_ACT 1
+	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
 	const struct rtw89_chip_info *chip = rtwdev->chip;
 	const struct rtw89_pwr_cfg * const *cfg_seq;
 	int (*cfg_func)(struct rtw89_dev *rtwdev);
@@ -1472,6 +1473,9 @@ static int rtw89_mac_power_switch(struct rtw89_dev *rtwdev, bool on)
 		return ret;
 
 	if (on) {
+		if (!test_bit(RTW89_FLAG_PROBE_DONE, rtwdev->flags))
+			mac->efuse_read_fw_secure(rtwdev);
+
 		set_bit(RTW89_FLAG_POWERON, rtwdev->flags);
 		set_bit(RTW89_FLAG_DMAC_FUNC, rtwdev->flags);
 		set_bit(RTW89_FLAG_CMAC0_FUNC, rtwdev->flags);
@@ -6673,6 +6677,7 @@ const struct rtw89_mac_gen_def rtw89_mac_gen_ax = {
 	.parse_efuse_map = rtw89_parse_efuse_map_ax,
 	.parse_phycap_map = rtw89_parse_phycap_map_ax,
 	.cnv_efuse_state = rtw89_cnv_efuse_state_ax,
+	.efuse_read_fw_secure = rtw89_efuse_read_fw_secure_ax,
 
 	.cfg_plt = rtw89_mac_cfg_plt_ax,
 	.get_plt_cnt = rtw89_mac_get_plt_cnt_ax,

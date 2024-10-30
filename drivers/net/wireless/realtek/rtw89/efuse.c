@@ -354,3 +354,8 @@ int rtw89_read_efuse_ver(struct rtw89_dev *rtwdev, u8 *ecv)
 	return 0;
 }
 EXPORT_SYMBOL(rtw89_read_efuse_ver);
+
+int rtw89_efuse_read_fw_secure_ax(struct rtw89_dev *rtwdev)
+{
+	return 0;
+}

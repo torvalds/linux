@@ -988,6 +988,7 @@ struct rtw89_mac_gen_def {
 	int (*parse_efuse_map)(struct rtw89_dev *rtwdev);
 	int (*parse_phycap_map)(struct rtw89_dev *rtwdev);
 	int (*cnv_efuse_state)(struct rtw89_dev *rtwdev, bool idle);
+	int (*efuse_read_fw_secure)(struct rtw89_dev *rtwdev);
 
 	int (*cfg_plt)(struct rtw89_dev *rtwdev, struct rtw89_mac_ax_plt *plt);
 	u16 (*get_plt_cnt)(struct rtw89_dev *rtwdev, u8 band);
