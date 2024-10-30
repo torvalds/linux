@@ -99,7 +99,7 @@ config MMC_SDHCI_BIG_ENDIAN_32BIT_BYTE_SWAPPER
 	  This is the case for the Nintendo Wii SDHCI.
 
 config MMC_SDHCI_UHS2
-	tristate "UHS2 support on SDHCI controller"
+	tristate "UHS2 support on SDHCI controller" if COMPILE_TEST
 	depends on MMC_SDHCI
 	help
 	  This option is selected by SDHCI controller drivers that want to
