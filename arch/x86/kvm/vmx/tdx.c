@@ -376,6 +376,19 @@ int tdx_vm_init(struct kvm *kvm)
 	kvm->arch.has_protected_state = true;
 	kvm->arch.has_private_mem = true;
 
+	/*
+	 * TDX has its own limit of maximum vCPUs it can support for all
+	 * TDX guests in addition to KVM_MAX_VCPUS.  TDX module reports
+	 * such limit via the MAX_VCPU_PER_TD global metadata.  In
+	 * practice, it reflects the number of logical CPUs that ALL
+	 * platforms that the TDX module supports can possibly have.
+	 *
+	 * Limit TDX guest's maximum vCPUs to the number of logical CPUs
+	 * the platform has.  Simply forwarding the MAX_VCPU_PER_TD to
+	 * userspace would result in an unpredictable ABI.
+	 */
+	kvm->max_vcpus = min_t(int, kvm->max_vcpus, num_present_cpus());
+
 	/* Place holder for TDX specific logic. */
 	return __tdx_td_init(kvm);
 }
@@ -695,6 +708,7 @@ static int __init __do_tdx_bringup(void)
 
 static int __init __tdx_bringup(void)
 {
+	const struct tdx_sys_info_td_conf *td_conf;
 	int r;
 
 	/*
@@ -726,6 +740,43 @@ static int __init __tdx_bringup(void)
 
 	if (!(tdx_sysinfo->features.tdx_features0 & MD_FIELD_ID_FEATURES0_TOPOLOGY_ENUM))
 		goto get_sysinfo_err;
+
+	/*
+	 * TDX has its own limit of maximum vCPUs it can support for all
+	 * TDX guests in addition to KVM_MAX_VCPUS.  Userspace needs to
+	 * query TDX guest's maximum vCPUs by checking KVM_CAP_MAX_VCPU
+	 * extension on per-VM basis.
+	 *
+	 * TDX module reports such limit via the MAX_VCPU_PER_TD global
+	 * metadata.  Different modules may report different values.
+	 * Some old module may also not support this metadata (in which
+	 * case this limit is U16_MAX).
+	 *
+	 * In practice, the reported value reflects the maximum logical
+	 * CPUs that ALL the platforms that the module supports can
+	 * possibly have.
+	 *
+	 * Simply forwarding the MAX_VCPU_PER_TD to userspace could
+	 * result in an unpredictable ABI.  KVM instead always advertise
+	 * the number of logical CPUs the platform has as the maximum
+	 * vCPUs for TDX guests.
+	 *
+	 * Make sure MAX_VCPU_PER_TD reported by TDX module is not
+	 * smaller than the number of logical CPUs, otherwise KVM will
+	 * report an unsupported value to userspace.
+	 *
+	 * Note, a platform with TDX enabled in the BIOS cannot support
+	 * physical CPU hotplug, and TDX requires the BIOS has marked
+	 * all logical CPUs in MADT table as enabled.  Just use
+	 * num_present_cpus() for the number of logical CPUs.
+	 */
+	td_conf = &tdx_sysinfo->td_conf;
+	if (td_conf->max_vcpus_per_td < num_present_cpus()) {
+		pr_err("Disable TDX: MAX_VCPU_PER_TD (%u) smaller than number of logical CPUs (%u).\n",
+				td_conf->max_vcpus_per_td, num_present_cpus());
+		r = -EINVAL;
+		goto get_sysinfo_err;
+	}
 
 	/*
 	 * Leave hardware virtualization enabled after TDX is enabled
