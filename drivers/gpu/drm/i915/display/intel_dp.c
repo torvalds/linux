@@ -2040,6 +2040,15 @@ static int dsc_src_max_compressed_bpp(struct intel_dp *intel_dp)
 	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
 
 	/*
+	 * Forcing DSC and using the platform's max compressed bpp is seen to cause
+	 * underruns. Since DSC isn't needed in these cases, limit the
+	 * max compressed bpp to 18, which is a safe value across platforms with different
+	 * pipe bpps.
+	 */
+	if (intel_dp->force_dsc_en)
+		return 18;
+
+	/*
 	 * Max Compressed bpp for Gen 13+ is 27bpp.
 	 * For earlier platform is 23bpp. (Bspec:49259).
 	 */
