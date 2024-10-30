@@ -4946,6 +4946,7 @@ struct rtw89_agc_gaincode_set {
 
 #define IGI_RSSI_TH_NUM 5
 #define FA_TH_NUM 4
+#define TIA_LNA_OP1DB_NUM 8
 #define LNA_GAIN_NUM 7
 #define TIA_GAIN_NUM 2
 struct rtw89_dig_info {

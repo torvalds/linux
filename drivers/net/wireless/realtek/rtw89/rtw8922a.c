@@ -963,6 +963,42 @@ static const struct rtw8922a_bb_gain bb_gain_tia[TIA_GAIN_NUM] = {
 	  .gain_g_mask = 0x1FF, .gain_a_mask = 0x3FE00 },
 };
 
+static const struct rtw8922a_bb_gain bb_op1db_lna[LNA_GAIN_NUM] = {
+	{ .gain_g = {0x40ac, 0x44ac}, .gain_a = {0x4078, 0x4478},
+	  .gain_g_mask = 0xFF00, .gain_a_mask = 0xFF000000},
+	{ .gain_g = {0x40ac, 0x44ac}, .gain_a = {0x407c, 0x447c},
+	  .gain_g_mask = 0xFF0000, .gain_a_mask = 0xFF},
+	{ .gain_g = {0x40ac, 0x44ac}, .gain_a = {0x407c, 0x447c},
+	  .gain_g_mask = 0xFF000000, .gain_a_mask = 0xFF00},
+	{ .gain_g = {0x40b0, 0x44b0}, .gain_a = {0x407c, 0x447c},
+	  .gain_g_mask = 0xFF, .gain_a_mask = 0xFF0000},
+	{ .gain_g = {0x40b0, 0x44b0}, .gain_a = {0x407c, 0x447c},
+	  .gain_g_mask = 0xFF00, .gain_a_mask = 0xFF000000},
+	{ .gain_g = {0x40b0, 0x44b0}, .gain_a = {0x4080, 0x4480},
+	  .gain_g_mask = 0xFF0000, .gain_a_mask = 0xFF},
+	{ .gain_g = {0x40b0, 0x44b0}, .gain_a = {0x4080, 0x4480},
+	  .gain_g_mask = 0xFF000000, .gain_a_mask = 0xFF00},
+};
+
+static const struct rtw8922a_bb_gain bb_op1db_tia_lna[TIA_LNA_OP1DB_NUM] = {
+	{ .gain_g = {0x40b4, 0x44b4}, .gain_a = {0x4080, 0x4480},
+	  .gain_g_mask = 0xFF0000, .gain_a_mask = 0xFF000000},
+	{ .gain_g = {0x40b4, 0x44b4}, .gain_a = {0x4084, 0x4484},
+	  .gain_g_mask = 0xFF000000, .gain_a_mask = 0xFF},
+	{ .gain_g = {0x40b8, 0x44b8}, .gain_a = {0x4084, 0x4484},
+	  .gain_g_mask = 0xFF, .gain_a_mask = 0xFF00},
+	{ .gain_g = {0x40b8, 0x44b8}, .gain_a = {0x4084, 0x4484},
+	  .gain_g_mask = 0xFF00, .gain_a_mask = 0xFF0000},
+	{ .gain_g = {0x40b8, 0x44b8}, .gain_a = {0x4084, 0x4484},
+	  .gain_g_mask = 0xFF0000, .gain_a_mask = 0xFF000000},
+	{ .gain_g = {0x40b8, 0x44b8}, .gain_a = {0x4088, 0x4488},
+	  .gain_g_mask = 0xFF000000, .gain_a_mask = 0xFF},
+	{ .gain_g = {0x40bc, 0x44bc}, .gain_a = {0x4088, 0x4488},
+	  .gain_g_mask = 0xFF, .gain_a_mask = 0xFF00},
+	{ .gain_g = {0x40bc, 0x44bc}, .gain_a = {0x4088, 0x4488},
+	  .gain_g_mask = 0xFF00, .gain_a_mask = 0xFF0000},
+};
+
 struct rtw8922a_bb_gain_bypass {
 	u32 gain_g[BB_PATH_NUM_8922A];
 	u32 gain_a[BB_PATH_NUM_8922A];
@@ -1052,6 +1088,30 @@ static void rtw8922a_set_lna_tia_gain(struct rtw89_dev *rtwdev,
 			mask = bb_gain_tia[i].gain_a_mask;
 		}
 		val = gain->tia_gain[gain_band][bw_type][path][i];
+		rtw89_phy_write32_idx(rtwdev, reg, mask, val, phy_idx);
+	}
+
+	for (i = 0; i < LNA_GAIN_NUM; i++) {
+		if (chan->band_type == RTW89_BAND_2G) {
+			reg = bb_op1db_lna[i].gain_g[path];
+			mask = bb_op1db_lna[i].gain_g_mask;
+		} else {
+			reg = bb_op1db_lna[i].gain_a[path];
+			mask = bb_op1db_lna[i].gain_a_mask;
+		}
+		val = gain->lna_op1db[gain_band][bw_type][path][i];
+		rtw89_phy_write32_idx(rtwdev, reg, mask, val, phy_idx);
+	}
+
+	for (i = 0; i < TIA_LNA_OP1DB_NUM; i++) {
+		if (chan->band_type == RTW89_BAND_2G) {
+			reg = bb_op1db_tia_lna[i].gain_g[path];
+			mask = bb_op1db_tia_lna[i].gain_g_mask;
+		} else {
+			reg = bb_op1db_tia_lna[i].gain_a[path];
+			mask = bb_op1db_tia_lna[i].gain_a_mask;
+		}
+		val = gain->tia_lna_op1db[gain_band][bw_type][path][i];
 		rtw89_phy_write32_idx(rtwdev, reg, mask, val, phy_idx);
 	}
 }
