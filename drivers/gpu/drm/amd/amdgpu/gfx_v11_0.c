@@ -1086,14 +1086,21 @@ static void gfx_v11_0_select_me_pipe_q(struct amdgpu_device *adev,
 #define MQD_FWWORKAREA_SIZE       484
 #define MQD_FWWORKAREA_ALIGNMENT  256
 
-static int gfx_v11_0_get_gfx_shadow_info(struct amdgpu_device *adev,
+static void gfx_v11_0_get_gfx_shadow_info_nocheck(struct amdgpu_device *adev,
 					 struct amdgpu_gfx_shadow_info *shadow_info)
 {
-	if (adev->gfx.cp_gfx_shadow) {
-		shadow_info->shadow_size = MQD_SHADOW_BASE_SIZE;
-		shadow_info->shadow_alignment = MQD_SHADOW_BASE_ALIGNMENT;
-		shadow_info->csa_size = MQD_FWWORKAREA_SIZE;
-		shadow_info->csa_alignment = MQD_FWWORKAREA_ALIGNMENT;
+	shadow_info->shadow_size = MQD_SHADOW_BASE_SIZE;
+	shadow_info->shadow_alignment = MQD_SHADOW_BASE_ALIGNMENT;
+	shadow_info->csa_size = MQD_FWWORKAREA_SIZE;
+	shadow_info->csa_alignment = MQD_FWWORKAREA_ALIGNMENT;
+}
+
+static int gfx_v11_0_get_gfx_shadow_info(struct amdgpu_device *adev,
+					 struct amdgpu_gfx_shadow_info *shadow_info,
+					 bool skip_check)
+{
+	if (adev->gfx.cp_gfx_shadow || skip_check) {
+		gfx_v11_0_get_gfx_shadow_info_nocheck(adev, shadow_info);
 		return 0;
 	} else {
 		memset(shadow_info, 0, sizeof(struct amdgpu_gfx_shadow_info));
