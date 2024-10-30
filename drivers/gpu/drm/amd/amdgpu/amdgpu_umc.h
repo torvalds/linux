@@ -54,6 +54,22 @@
 
 /* Page retirement tag */
 #define UMC_ECC_NEW_DETECTED_TAG       0x1
+/*
+ * a flag to indicate v2 of channel index stored in eeprom
+ *
+ * v1 (legacy way): store channel index within a umc instance in eeprom
+ *    range in UMC v12: 0 ~ 7
+ * v2: store global channel index in eeprom
+ *    range in UMC v12: 0 ~ 127
+ *
+ * NOTE: it's better to store it in eeprom_table_record.mem_channel,
+ * but there is only 8 bits in mem_channel, and the channel number may
+ * increase in the future, we decide to save it in
+ * eeprom_table_record.retired_page. retired_page is useless in v2,
+ * we depend on eeprom_table_record.address instead of retired_page in v2.
+ * Only 48 bits are saved on eeprom, use bit 47 here.
+ */
+#define UMC_CHANNEL_IDX_V2	BIT_ULL(47)
 
 typedef int (*umc_func)(struct amdgpu_device *adev, uint32_t node_inst,
 			uint32_t umc_inst, uint32_t ch_inst, void *data);

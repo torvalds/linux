@@ -841,7 +841,7 @@ int amdgpu_ras_eeprom_append(struct amdgpu_ras_eeprom_control *control,
 			     const u32 num)
 {
 	struct amdgpu_device *adev = to_amdgpu_device(control);
-	int res;
+	int res, i;
 
 	if (!__is_ras_eeprom_supported(adev))
 		return 0;
@@ -855,6 +855,10 @@ int amdgpu_ras_eeprom_append(struct amdgpu_ras_eeprom_control *control,
 		return -EINVAL;
 	}
 
+	/* set the new channel index flag */
+	for (i = 0; i < num; i++)
+		record[i].retired_page |= UMC_CHANNEL_IDX_V2;
+
 	mutex_lock(&control->ras_tbl_mutex);
 
 	res = amdgpu_ras_eeprom_append_table(control, record, num);
@@ -864,6 +868,11 @@ int amdgpu_ras_eeprom_append(struct amdgpu_ras_eeprom_control *control,
 		amdgpu_ras_debugfs_set_ret_size(control);
 
 	mutex_unlock(&control->ras_tbl_mutex);
+
+	/* clear channel index flag, the flag is only saved on eeprom */
+	for (i = 0; i < num; i++)
+		record[i].retired_page &= ~UMC_CHANNEL_IDX_V2;
+
 	return res;
 }
 
