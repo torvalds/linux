@@ -2851,6 +2851,8 @@ struct bpf_iter_bits {
 	__u64 __opaque[2];
 } __aligned(8);
 
+#define BITS_ITER_NR_WORDS_MAX 511
+
 struct bpf_iter_bits_kern {
 	union {
 		unsigned long *bits;
@@ -2865,7 +2867,8 @@ struct bpf_iter_bits_kern {
  * @it: The new bpf_iter_bits to be created
  * @unsafe_ptr__ign: A pointer pointing to a memory area to be iterated over
  * @nr_words: The size of the specified memory area, measured in 8-byte units.
- * Due to the limitation of memalloc, it can't be greater than 512.
+ * The maximum value of @nr_words is @BITS_ITER_NR_WORDS_MAX. This limit may be
+ * further reduced by the BPF memory allocator implementation.
  *
  * This function initializes a new bpf_iter_bits structure for iterating over
  * a memory area which is specified by the @unsafe_ptr__ign and @nr_words. It
@@ -2892,6 +2895,8 @@ bpf_iter_bits_new(struct bpf_iter_bits *it, const u64 *unsafe_ptr__ign, u32 nr_w
 
 	if (!unsafe_ptr__ign || !nr_words)
 		return -EINVAL;
+	if (nr_words > BITS_ITER_NR_WORDS_MAX)
+		return -E2BIG;
 
 	/* Optimization for u64 mask */
 	if (nr_bits == 64) {
@@ -2902,6 +2907,9 @@ bpf_iter_bits_new(struct bpf_iter_bits *it, const u64 *unsafe_ptr__ign, u32 nr_w
 		kit->nr_bits = nr_bits;
 		return 0;
 	}
+
+	if (bpf_mem_alloc_check_size(false, nr_bytes))
+		return -E2BIG;
 
 	/* Fallback to memalloc */
 	kit->bits = bpf_mem_alloc(&bpf_global_ma, nr_bytes);
