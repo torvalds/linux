@@ -3,6 +3,7 @@
 
 #include "enetc.h"
 #include <linux/bpf_trace.h>
+#include <linux/clk.h>
 #include <linux/tcp.h>
 #include <linux/udp.h>
 #include <linux/vmalloc.h>
@@ -21,7 +22,7 @@ void enetc_port_mac_wr(struct enetc_si *si, u32 reg, u32 val)
 {
 	enetc_port_wr(&si->hw, reg, val);
 	if (si->hw_features & ENETC_SI_F_QBU)
-		enetc_port_wr(&si->hw, reg + ENETC_PMAC_OFFSET, val);
+		enetc_port_wr(&si->hw, reg + si->drvdata->pmac_offset, val);
 }
 EXPORT_SYMBOL_GPL(enetc_port_mac_wr);
 
@@ -700,8 +701,9 @@ static void enetc_rx_dim_work(struct work_struct *w)
 		net_dim_get_rx_moderation(dim->mode, dim->profile_ix);
 	struct enetc_int_vector	*v =
 		container_of(dim, struct enetc_int_vector, rx_dim);
+	struct enetc_ndev_priv *priv = netdev_priv(v->rx_ring.ndev);
 
-	v->rx_ictt = enetc_usecs_to_cycles(moder.usec);
+	v->rx_ictt = enetc_usecs_to_cycles(moder.usec, priv->sysclk_freq);
 	dim->state = DIM_START_MEASURE;
 }
 
@@ -1736,9 +1738,15 @@ void enetc_get_si_caps(struct enetc_si *si)
 	si->num_rx_rings = (val >> 16) & 0xff;
 	si->num_tx_rings = val & 0xff;
 
-	val = enetc_rd(hw, ENETC_SIRFSCAPR);
-	si->num_fs_entries = ENETC_SIRFSCAPR_GET_NUM_RFS(val);
-	si->num_fs_entries = min(si->num_fs_entries, ENETC_MAX_RFS_SIZE);
+	val = enetc_rd(hw, ENETC_SIPCAPR0);
+	if (val & ENETC_SIPCAPR0_RFS) {
+		val = enetc_rd(hw, ENETC_SIRFSCAPR);
+		si->num_fs_entries = ENETC_SIRFSCAPR_GET_NUM_RFS(val);
+		si->num_fs_entries = min(si->num_fs_entries, ENETC_MAX_RFS_SIZE);
+	} else {
+		/* ENETC which not supports RFS */
+		si->num_fs_entries = 0;
+	}
 
 	si->num_rss = 0;
 	val = enetc_rd(hw, ENETC_SIPCAPR0);
@@ -2066,7 +2074,10 @@ int enetc_configure_si(struct enetc_ndev_priv *priv)
 	/* enable SI */
 	enetc_wr(hw, ENETC_SIMR, ENETC_SIMR_EN);
 
-	if (si->num_rss) {
+	/* TODO: RSS support for i.MX95 will be supported later, and the
+	 * is_enetc_rev1() condition will be removed
+	 */
+	if (si->num_rss && is_enetc_rev1(si)) {
 		err = enetc_setup_default_rss_table(si, priv->num_rx_rings);
 		if (err)
 			return err;
@@ -2090,9 +2101,9 @@ void enetc_init_si_rings_params(struct enetc_ndev_priv *priv)
 	 */
 	priv->num_rx_rings = min_t(int, cpus, si->num_rx_rings);
 	priv->num_tx_rings = si->num_tx_rings;
-	priv->bdr_int_num = cpus;
+	priv->bdr_int_num = priv->num_rx_rings;
 	priv->ic_mode = ENETC_IC_RX_ADAPTIVE | ENETC_IC_TX_MANUAL;
-	priv->tx_ictt = ENETC_TXIC_TIMETHR;
+	priv->tx_ictt = enetc_usecs_to_cycles(600, priv->sysclk_freq);
 }
 EXPORT_SYMBOL_GPL(enetc_init_si_rings_params);
 
@@ -2501,9 +2512,13 @@ int enetc_open(struct net_device *ndev)
 
 	extended = !!(priv->active_offloads & ENETC_F_RX_TSTAMP);
 
-	err = enetc_setup_irqs(priv);
+	err = clk_prepare_enable(priv->ref_clk);
 	if (err)
 		return err;
+
+	err = enetc_setup_irqs(priv);
+	if (err)
+		goto err_setup_irqs;
 
 	err = enetc_phylink_connect(ndev);
 	if (err)
@@ -2536,6 +2551,8 @@ err_alloc_tx:
 		phylink_disconnect_phy(priv->phylink);
 err_phy_connect:
 	enetc_free_irqs(priv);
+err_setup_irqs:
+	clk_disable_unprepare(priv->ref_clk);
 
 	return err;
 }
@@ -2589,6 +2606,7 @@ int enetc_close(struct net_device *ndev)
 	enetc_assign_tx_resources(priv, NULL);
 
 	enetc_free_irqs(priv);
+	clk_disable_unprepare(priv->ref_clk);
 
 	return 0;
 }
@@ -3253,6 +3271,56 @@ void enetc_pci_remove(struct pci_dev *pdev)
 	pci_disable_device(pdev);
 }
 EXPORT_SYMBOL_GPL(enetc_pci_remove);
+
+static const struct enetc_drvdata enetc_pf_data = {
+	.sysclk_freq = ENETC_CLK_400M,
+	.pmac_offset = ENETC_PMAC_OFFSET,
+	.eth_ops = &enetc_pf_ethtool_ops,
+};
+
+static const struct enetc_drvdata enetc4_pf_data = {
+	.sysclk_freq = ENETC_CLK_333M,
+	.pmac_offset = ENETC4_PMAC_OFFSET,
+	.eth_ops = &enetc4_pf_ethtool_ops,
+};
+
+static const struct enetc_drvdata enetc_vf_data = {
+	.sysclk_freq = ENETC_CLK_400M,
+	.eth_ops = &enetc_vf_ethtool_ops,
+};
+
+static const struct enetc_platform_info enetc_info[] = {
+	{ .revision = ENETC_REV_1_0,
+	  .dev_id = ENETC_DEV_ID_PF,
+	  .data = &enetc_pf_data,
+	},
+	{ .revision = ENETC_REV_4_1,
+	  .dev_id = NXP_ENETC_PF_DEV_ID,
+	  .data = &enetc4_pf_data,
+	},
+	{ .revision = ENETC_REV_1_0,
+	  .dev_id = ENETC_DEV_ID_VF,
+	  .data = &enetc_vf_data,
+	},
+};
+
+int enetc_get_driver_data(struct enetc_si *si)
+{
+	u16 dev_id = si->pdev->device;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(enetc_info); i++) {
+		if (si->revision == enetc_info[i].revision &&
+		    dev_id == enetc_info[i].dev_id) {
+			si->drvdata = enetc_info[i].data;
+
+			return 0;
+		}
+	}
+
+	return -ERANGE;
+}
+EXPORT_SYMBOL_GPL(enetc_get_driver_data);
 
 MODULE_DESCRIPTION("NXP ENETC Ethernet driver");
 MODULE_LICENSE("Dual BSD/GPL");

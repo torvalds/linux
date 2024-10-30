@@ -947,6 +947,13 @@ static struct enetc_si *enetc_psi_create(struct pci_dev *pdev)
 		goto out_pci_remove;
 	}
 
+	si->revision = enetc_get_ip_revision(&si->hw);
+	err = enetc_get_driver_data(si);
+	if (err) {
+		dev_err(&pdev->dev, "Could not get PF driver data\n");
+		goto out_pci_remove;
+	}
+
 	err = enetc_setup_cbdr(&pdev->dev, &si->hw, ENETC_CBDR_DEFAULT_SIZE,
 			       &si->cbd_ring);
 	if (err)
