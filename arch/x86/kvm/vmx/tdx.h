@@ -2,6 +2,8 @@
 #ifndef __KVM_X86_VMX_TDX_H
 #define __KVM_X86_VMX_TDX_H
 
+#include "tdx_arch.h"
+
 #ifdef CONFIG_KVM_INTEL_TDX
 int tdx_bringup(void);
 void tdx_cleanup(void);
