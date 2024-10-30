@@ -371,6 +371,26 @@ static int amdgpu_firmware_info(struct drm_amdgpu_info_firmware *fw_info,
 	return 0;
 }
 
+static int amdgpu_userq_metadata_info_gfx(struct amdgpu_device *adev,
+					  struct drm_amdgpu_info *info,
+					  struct drm_amdgpu_info_uq_metadata_gfx *meta)
+{
+	int ret = -EOPNOTSUPP;
+
+	if (adev->gfx.funcs->get_gfx_shadow_info) {
+		struct amdgpu_gfx_shadow_info shadow = {};
+
+		adev->gfx.funcs->get_gfx_shadow_info(adev, &shadow, true);
+		meta->shadow_size = shadow.shadow_size;
+		meta->shadow_alignment = shadow.shadow_alignment;
+		meta->csa_size = shadow.csa_size;
+		meta->csa_alignment = shadow.csa_alignment;
+		ret = 0;
+	}
+
+	return ret;
+}
+
 static int amdgpu_hw_ip_info(struct amdgpu_device *adev,
 			     struct drm_amdgpu_info *info,
 			     struct drm_amdgpu_info_hw_ip *result)
@@ -1293,6 +1313,22 @@ out:
 
 		return copy_to_user(out, &gpuvm_fault,
 				    min((size_t)size, sizeof(gpuvm_fault))) ? -EFAULT : 0;
+	}
+	case AMDGPU_INFO_UQ_FW_AREAS: {
+		struct drm_amdgpu_info_uq_metadata meta_info = {};
+
+		switch (info->query_hw_ip.type) {
+		case AMDGPU_HW_IP_GFX:
+			ret = amdgpu_userq_metadata_info_gfx(adev, info, &meta_info.gfx);
+			if (ret)
+				return ret;
+
+			ret = copy_to_user(out, &meta_info,
+						min((size_t)size, sizeof(meta_info))) ? -EFAULT : 0;
+			return 0;
+		default:
+			return -EINVAL;
+		}
 	}
 	default:
 		DRM_DEBUG_KMS("Invalid request %d\n", info->query);
