@@ -241,7 +241,6 @@ static int __get_mssc_key_idx(struct rtw89_dev *rtwdev,
 static int __parse_formatted_mssc(struct rtw89_dev *rtwdev,
 				  struct rtw89_fw_bin_info *info,
 				  struct rtw89_fw_hdr_section_info *section_info,
-				  const struct rtw89_fw_hdr_section_v1 *section,
 				  const void *content,
 				  u32 *mssc_len)
 {
@@ -324,18 +323,14 @@ ignore:
 static int __parse_security_section(struct rtw89_dev *rtwdev,
 				    struct rtw89_fw_bin_info *info,
 				    struct rtw89_fw_hdr_section_info *section_info,
-				    const struct rtw89_fw_hdr_section_v1 *section,
 				    const void *content,
 				    u32 *mssc_len)
 {
 	int ret;
 
-	section_info->mssc =
-		le32_get_bits(section->w2, FWSECTION_HDR_V1_W2_MSSC);
-
 	if (section_info->mssc == FORMATTED_MSSC) {
 		ret = __parse_formatted_mssc(rtwdev, info, section_info,
-					     section, content, mssc_len);
+					     content, mssc_len);
 		if (ret)
 			return -EINVAL;
 	} else {
@@ -401,8 +396,11 @@ static int rtw89_fw_hdr_parser_v1(struct rtw89_dev *rtwdev, const u8 *fw, u32 le
 		section_info->addr = bin;
 
 		if (section_info->type == FWDL_SECURITY_SECTION_TYPE) {
+			section_info->mssc =
+				le32_get_bits(section->w2, FWSECTION_HDR_V1_W2_MSSC);
+
 			ret = __parse_security_section(rtwdev, info, section_info,
-						       section, bin, &mssc_len);
+						       bin, &mssc_len);
 			if (ret)
 				return ret;
 		} else {
