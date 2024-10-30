@@ -775,6 +775,12 @@ void intel_dsc_enable(const struct intel_crtc_state *crtc_state)
 		dss_ctl2_val |= VDSC1_ENABLE;
 		dss_ctl1_val |= JOINER_ENABLE;
 	}
+
+	if (vdsc_instances_per_pipe > 2) {
+		dss_ctl2_val |= VDSC2_ENABLE;
+		dss_ctl2_val |= SMALL_JOINER_CONFIG_3_ENGINES;
+	}
+
 	if (crtc_state->joiner_pipes) {
 		if (intel_crtc_ultrajoiner_enable_needed(crtc_state))
 			dss_ctl1_val |= ULTRA_JOINER_ENABLE;
@@ -976,7 +982,9 @@ void intel_dsc_get_config(struct intel_crtc_state *crtc_state)
 	if (!crtc_state->dsc.compression_enable)
 		goto out;
 
-	if (dss_ctl1 & JOINER_ENABLE && dss_ctl2 & VDSC1_ENABLE)
+	if (dss_ctl1 & JOINER_ENABLE && dss_ctl2 & (VDSC2_ENABLE | SMALL_JOINER_CONFIG_3_ENGINES))
+		crtc_state->dsc.num_streams = 3;
+	else if (dss_ctl1 & JOINER_ENABLE && dss_ctl2 & VDSC1_ENABLE)
 		crtc_state->dsc.num_streams = 2;
 	else
 		crtc_state->dsc.num_streams = 1;
