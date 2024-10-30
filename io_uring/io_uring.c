@@ -947,8 +947,8 @@ void io_req_defer_failed(struct io_kiocb *req, s32 res)
 static void io_preinit_req(struct io_kiocb *req, struct io_ring_ctx *ctx)
 {
 	req->ctx = ctx;
-	req->rsrc_nodes[IORING_RSRC_FILE] = rsrc_empty_node;
-	req->rsrc_nodes[IORING_RSRC_BUFFER] = rsrc_empty_node;
+	req->rsrc_nodes[IORING_RSRC_FILE] = NULL;
+	req->rsrc_nodes[IORING_RSRC_BUFFER] = NULL;
 	req->link = NULL;
 	req->async_data = NULL;
 	/* not necessary, but safer to zero */

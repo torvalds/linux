@@ -117,8 +117,8 @@ struct io_kiocb *io_alloc_notif(struct io_ring_ctx *ctx)
 	notif->file = NULL;
 	notif->task = current;
 	io_get_task_refs(1);
-	notif->rsrc_nodes[IORING_RSRC_FILE] = rsrc_empty_node;
-	notif->rsrc_nodes[IORING_RSRC_BUFFER] = rsrc_empty_node;
+	notif->rsrc_nodes[IORING_RSRC_FILE] = NULL;
+	notif->rsrc_nodes[IORING_RSRC_BUFFER] = NULL;
 
 	nd = io_notif_to_data(notif);
 	nd->zc_report = false;
