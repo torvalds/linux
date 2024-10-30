@@ -452,6 +452,7 @@ int main(int argc, char **argv)
 {
 	int ret;
 	int timeout = 10 * (1000 / SIGNAL_INTERVAL_MS);
+	int poll_interval = 5000;
 	int cpus, i, j, c;
 	int sve_vl_count, sme_vl_count;
 	bool all_children_started = false;
@@ -587,7 +588,7 @@ int main(int argc, char **argv)
 		 * especially useful in emulation where we will both
 		 * be slow and likely to have a large set of VLs.
 		 */
-		ret = epoll_wait(epoll_fd, evs, tests, SIGNAL_INTERVAL_MS);
+		ret = epoll_wait(epoll_fd, evs, tests, poll_interval);
 		if (ret < 0) {
 			if (errno == EINTR)
 				continue;
@@ -625,6 +626,7 @@ int main(int argc, char **argv)
 			}
 
 			all_children_started = true;
+			poll_interval = SIGNAL_INTERVAL_MS;
 		}
 
 		if ((timeout % LOG_INTERVALS) == 0)
