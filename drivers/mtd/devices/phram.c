@@ -415,13 +415,13 @@ static int __init init_phram(void)
 		return ret;
 
 #ifndef MODULE
-	if (phram_paramline[0])
+	if (phram_paramline[0]) {
 		ret = phram_setup(phram_paramline);
+		if (ret)
+			platform_driver_unregister(&phram_driver);
+	}
 	phram_init_called = 1;
 #endif
-
-	if (ret)
-		platform_driver_unregister(&phram_driver);
 
 	return ret;
 }
