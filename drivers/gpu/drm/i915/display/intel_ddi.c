@@ -621,7 +621,8 @@ void intel_ddi_enable_transcoder_func(struct intel_encoder *encoder,
 
 /*
  * Same as intel_ddi_enable_transcoder_func(), but it does not set the enable
- * bit.
+ * bit for the DDI function and enables the DP2 configuration. Called for all
+ * transcoder types.
  */
 void
 intel_ddi_config_transcoder_func(struct intel_encoder *encoder,
@@ -632,12 +633,20 @@ intel_ddi_config_transcoder_func(struct intel_encoder *encoder,
 	enum transcoder cpu_transcoder = crtc_state->cpu_transcoder;
 	u32 ctl;
 
+	intel_ddi_config_transcoder_dp2(crtc_state, true);
+
 	ctl = intel_ddi_transcoder_func_reg_val_get(encoder, crtc_state);
 	ctl &= ~TRANS_DDI_FUNC_ENABLE;
 	intel_de_write(dev_priv, TRANS_DDI_FUNC_CTL(dev_priv, cpu_transcoder),
 		       ctl);
 }
 
+/*
+ * Disable the DDI function and port syncing.
+ * For SST, pre-TGL MST, TGL+ MST-slave transcoders: deselect the DDI port,
+ * SST/MST mode and disable the DP2 configuration. For TGL+ MST-master
+ * transcoders these are done later in intel_ddi_post_disable_dp().
+ */
 void intel_ddi_disable_transcoder_func(const struct intel_crtc_state *crtc_state)
 {
 	struct intel_display *display = to_intel_display(crtc_state);
@@ -673,6 +682,9 @@ void intel_ddi_disable_transcoder_func(const struct intel_crtc_state *crtc_state
 
 	intel_de_write(dev_priv, TRANS_DDI_FUNC_CTL(dev_priv, cpu_transcoder),
 		       ctl);
+
+	if (intel_dp_mst_is_slave_trans(crtc_state))
+		intel_ddi_config_transcoder_dp2(crtc_state, false);
 
 	if (intel_has_quirk(display, QUIRK_INCREASE_DDI_DISABLED_TIME) &&
 	    intel_crtc_has_type(crtc_state, INTEL_OUTPUT_HDMI)) {
@@ -2587,10 +2599,6 @@ static void mtl_ddi_pre_enable_dp(struct intel_atomic_state *state,
 
 	/*
 	 * 6.b If DP v2.0/128b mode - Configure TRANS_DP2_CTL register settings.
-	 */
-	intel_ddi_config_transcoder_dp2(crtc_state, true);
-
-	/*
 	 * 6.c Configure TRANS_DDI_FUNC_CTL DDI Select, DDI Mode Select & MST
 	 * Transport Select
 	 */
@@ -2724,8 +2732,6 @@ static void tgl_ddi_pre_enable_dp(struct intel_atomic_state *state,
 	 * Transcoder.
 	 */
 	intel_ddi_enable_transcoder_clock(encoder, crtc_state);
-
-	intel_ddi_config_transcoder_dp2(crtc_state, true);
 
 	/*
 	 * 7.b Configure TRANS_DDI_FUNC_CTL DDI Select, DDI Mode Select & MST
