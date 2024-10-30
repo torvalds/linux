@@ -6621,6 +6621,20 @@ int rtw89_fwdl_check_path_ready_ax(struct rtw89_dev *rtwdev,
 					rtwdev, R_AX_WCPU_FW_CTRL);
 }
 
+static
+void rtw89_fwdl_secure_idmem_share_mode_ax(struct rtw89_dev *rtwdev, u8 mode)
+{
+	struct rtw89_fw_secure *sec = &rtwdev->fw.sec;
+
+	if (!sec->secure_boot)
+		return;
+
+	rtw89_write32_mask(rtwdev, R_AX_WCPU_FW_CTRL,
+			   B_AX_IDMEM_SHARE_MODE_RECORD_MASK, mode);
+	rtw89_write32_set(rtwdev, R_AX_WCPU_FW_CTRL,
+			  B_AX_IDMEM_SHARE_MODE_RECORD_VALID);
+}
+
 const struct rtw89_mac_gen_def rtw89_mac_gen_ax = {
 	.band1_offset = RTW89_MAC_AX_BAND_REG_OFFSET,
 	.filter_model_addr = R_AX_FILTER_MODEL_ADDR,
@@ -6674,6 +6688,7 @@ const struct rtw89_mac_gen_def rtw89_mac_gen_ax = {
 	.fwdl_enable_wcpu = rtw89_mac_enable_cpu_ax,
 	.fwdl_get_status = rtw89_fw_get_rdy_ax,
 	.fwdl_check_path_ready = rtw89_fwdl_check_path_ready_ax,
+	.fwdl_secure_idmem_share_mode = rtw89_fwdl_secure_idmem_share_mode_ax,
 	.parse_efuse_map = rtw89_parse_efuse_map_ax,
 	.parse_phycap_map = rtw89_parse_phycap_map_ax,
 	.cnv_efuse_state = rtw89_cnv_efuse_state_ax,

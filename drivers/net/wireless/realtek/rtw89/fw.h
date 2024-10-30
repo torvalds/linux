@@ -276,6 +276,7 @@ struct rtw89_fw_bin_info {
 	u32 hdr_len;
 	bool dynamic_hdr_en;
 	u32 dynamic_hdr_len;
+	u8 idmem_share_mode;
 	bool dsp_checksum;
 	bool secure_section_exist;
 	struct rtw89_fw_hdr_section_info section_info[FWDL_SECTION_MAX_NUM];
@@ -564,6 +565,7 @@ struct rtw89_fw_hdr {
 #define FW_HDR_W6_SEC_NUM GENMASK(15, 8)
 #define FW_HDR_W7_PART_SIZE GENMASK(15, 0)
 #define FW_HDR_W7_DYN_HDR BIT(16)
+#define FW_HDR_W7_IDMEM_SHARE_MODE GENMASK(21, 18)
 #define FW_HDR_W7_CMD_VERSERION GENMASK(31, 24)
 
 struct rtw89_fw_hdr_section_v1 {
@@ -616,6 +618,7 @@ struct rtw89_fw_hdr_v1 {
 #define FW_HDR_V1_W6_DSP_CHKSUM BIT(24)
 #define FW_HDR_V1_W7_PART_SIZE GENMASK(15, 0)
 #define FW_HDR_V1_W7_DYN_HDR BIT(16)
+#define FW_HDR_V1_W7_IDMEM_SHARE_MODE GENMASK(21, 18)
 
 enum rtw89_fw_mss_pool_rmp_tbl_type {
 	MSS_POOL_RMP_TBL_BITMASK = 0x0,
