@@ -3,6 +3,7 @@
 #include <vmlinux.h>
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>
+#include "bpf_experimental.h"
 
 char _license[] SEC("license") = "GPL";
 
@@ -32,6 +33,7 @@ extern struct kmem_cache *bpf_get_kmem_cache(u64 addr) __ksym;
 /* Result, will be checked by userspace */
 int task_struct_found;
 int kmem_cache_seen;
+int open_coded_seen;
 
 SEC("iter/kmem_cache")
 int slab_info_collector(struct bpf_iter__kmem_cache *ctx)
@@ -82,5 +84,25 @@ int BPF_PROG(check_task_struct)
 		task_struct_found = 1;
 	else
 		task_struct_found = -2;
+	return 0;
+}
+
+SEC("syscall")
+int open_coded_iter(const void *ctx)
+{
+	struct kmem_cache *s;
+
+	bpf_for_each(kmem_cache, s) {
+		struct kmem_cache_result *r;
+
+		r = bpf_map_lookup_elem(&slab_result, &open_coded_seen);
+		if (!r)
+			break;
+
+		if (r->obj_size != s->size)
+			break;
+
+		open_coded_seen++;
+	}
 	return 0;
 }

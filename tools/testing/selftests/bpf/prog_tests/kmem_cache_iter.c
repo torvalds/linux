@@ -68,12 +68,27 @@ static void subtest_kmem_cache_iter_check_slabinfo(struct kmem_cache_iter *skel)
 	fclose(fp);
 }
 
+static void subtest_kmem_cache_iter_open_coded(struct kmem_cache_iter *skel)
+{
+	LIBBPF_OPTS(bpf_test_run_opts, topts);
+	int err, fd;
+
+	/* No need to attach it, just run it directly */
+	fd = bpf_program__fd(skel->progs.open_coded_iter);
+
+	err = bpf_prog_test_run_opts(fd, &topts);
+	if (!ASSERT_OK(err, "test_run_opts err"))
+		return;
+	if (!ASSERT_OK(topts.retval, "test_run_opts retval"))
+		return;
+
+	/* It should be same as we've seen from the explicit iterator */
+	ASSERT_EQ(skel->bss->open_coded_seen, skel->bss->kmem_cache_seen, "open_code_seen_eq");
+}
+
 void test_kmem_cache_iter(void)
 {
-	DECLARE_LIBBPF_OPTS(bpf_iter_attach_opts, opts);
 	struct kmem_cache_iter *skel = NULL;
-	union bpf_iter_link_info linfo = {};
-	struct bpf_link *link;
 	char buf[256];
 	int iter_fd;
 
@@ -81,16 +96,12 @@ void test_kmem_cache_iter(void)
 	if (!ASSERT_OK_PTR(skel, "kmem_cache_iter__open_and_load"))
 		return;
 
-	opts.link_info = &linfo;
-	opts.link_info_len = sizeof(linfo);
-
-	link = bpf_program__attach_iter(skel->progs.slab_info_collector, &opts);
-	if (!ASSERT_OK_PTR(link, "attach_iter"))
+	if (!ASSERT_OK(kmem_cache_iter__attach(skel), "skel_attach"))
 		goto destroy;
 
-	iter_fd = bpf_iter_create(bpf_link__fd(link));
+	iter_fd = bpf_iter_create(bpf_link__fd(skel->links.slab_info_collector));
 	if (!ASSERT_GE(iter_fd, 0, "iter_create"))
-		goto free_link;
+		goto destroy;
 
 	memset(buf, 0, sizeof(buf));
 	while (read(iter_fd, buf, sizeof(buf) > 0)) {
@@ -105,11 +116,11 @@ void test_kmem_cache_iter(void)
 		subtest_kmem_cache_iter_check_task_struct(skel);
 	if (test__start_subtest("check_slabinfo"))
 		subtest_kmem_cache_iter_check_slabinfo(skel);
+	if (test__start_subtest("open_coded_iter"))
+		subtest_kmem_cache_iter_open_coded(skel);
 
 	close(iter_fd);
 
-free_link:
-	bpf_link__destroy(link);
 destroy:
 	kmem_cache_iter__destroy(skel);
 }
