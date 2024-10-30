@@ -455,14 +455,18 @@ static u32 bdw_trans_port_sync_master_select(enum transcoder master_transcoder)
 }
 
 static void
-intel_ddi_config_transcoder_dp2(struct intel_encoder *encoder,
-				const struct intel_crtc_state *crtc_state)
+intel_ddi_config_transcoder_dp2(const struct intel_crtc_state *crtc_state,
+				bool enable)
 {
-	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
+	struct intel_display *display = to_intel_display(crtc_state);
+	struct drm_i915_private *i915 = to_i915(display->drm);
 	enum transcoder cpu_transcoder = crtc_state->cpu_transcoder;
 	u32 val = 0;
 
-	if (intel_dp_is_uhbr(crtc_state))
+	if (!HAS_DP20(i915))
+		return;
+
+	if (enable && intel_dp_is_uhbr(crtc_state))
 		val = TRANS_DP2_128B132B_CHANNEL_CODING;
 
 	intel_de_write(i915, TRANS_DP2_CTL(cpu_transcoder), val);
@@ -2584,7 +2588,7 @@ static void mtl_ddi_pre_enable_dp(struct intel_atomic_state *state,
 	/*
 	 * 6.b If DP v2.0/128b mode - Configure TRANS_DP2_CTL register settings.
 	 */
-	intel_ddi_config_transcoder_dp2(encoder, crtc_state);
+	intel_ddi_config_transcoder_dp2(crtc_state, true);
 
 	/*
 	 * 6.c Configure TRANS_DDI_FUNC_CTL DDI Select, DDI Mode Select & MST
@@ -2721,8 +2725,7 @@ static void tgl_ddi_pre_enable_dp(struct intel_atomic_state *state,
 	 */
 	intel_ddi_enable_transcoder_clock(encoder, crtc_state);
 
-	if (HAS_DP20(dev_priv))
-		intel_ddi_config_transcoder_dp2(encoder, crtc_state);
+	intel_ddi_config_transcoder_dp2(crtc_state, true);
 
 	/*
 	 * 7.b Configure TRANS_DDI_FUNC_CTL DDI Select, DDI Mode Select & MST
