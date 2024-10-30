@@ -82,7 +82,7 @@ int amdgpu_userq_fence_driver_alloc(struct amdgpu_device *adev,
 	}
 
 	/* Acquire seq64 memory */
-	r = amdgpu_seq64_alloc(adev, &fence_drv->gpu_addr,
+	r = amdgpu_seq64_alloc(adev, &fence_drv->va, &fence_drv->gpu_addr,
 			       &fence_drv->cpu_addr);
 	if (r) {
 		kfree(fence_drv);
@@ -113,7 +113,7 @@ int amdgpu_userq_fence_driver_alloc(struct amdgpu_device *adev,
 	return 0;
 
 free_seq64:
-	amdgpu_seq64_free(adev, fence_drv->gpu_addr);
+	amdgpu_seq64_free(adev, fence_drv->va);
 free_fence_drv:
 	kfree(fence_drv);
 
@@ -183,7 +183,7 @@ void amdgpu_userq_fence_driver_destroy(struct kref *ref)
 	xa_unlock_irqrestore(xa, flags);
 
 	/* Free seq64 memory */
-	amdgpu_seq64_free(adev, fence_drv->gpu_addr);
+	amdgpu_seq64_free(adev, fence_drv->va);
 	kfree(fence_drv);
 }
 
@@ -839,7 +839,7 @@ int amdgpu_userq_wait_ioctl(struct drm_device *dev, void *data,
 			}
 
 			/* Store drm syncobj's gpu va address and value */
-			fence_info[cnt].va = fence_drv->gpu_addr;
+			fence_info[cnt].va = fence_drv->va;
 			fence_info[cnt].value = fences[i]->seqno;
 
 			dma_fence_put(fences[i]);

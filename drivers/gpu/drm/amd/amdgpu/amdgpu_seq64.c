@@ -163,7 +163,8 @@ error:
  * Returns:
  * 0 on success or a negative error code on failure
  */
-int amdgpu_seq64_alloc(struct amdgpu_device *adev, u64 *va, u64 **cpu_addr)
+int amdgpu_seq64_alloc(struct amdgpu_device *adev, u64 *va,
+		       u64 *gpu_addr, u64 **cpu_addr)
 {
 	unsigned long bit_pos;
 
@@ -172,7 +173,12 @@ int amdgpu_seq64_alloc(struct amdgpu_device *adev, u64 *va, u64 **cpu_addr)
 		return -ENOSPC;
 
 	__set_bit(bit_pos, adev->seq64.used);
+
 	*va = bit_pos * sizeof(u64) + amdgpu_seq64_get_va_base(adev);
+
+	if (gpu_addr)
+		*gpu_addr = bit_pos * sizeof(u64) + adev->seq64.gpu_addr;
+
 	*cpu_addr = bit_pos + adev->seq64.cpu_base_addr;
 
 	return 0;
@@ -233,7 +239,7 @@ int amdgpu_seq64_init(struct amdgpu_device *adev)
 	 */
 	r = amdgpu_bo_create_kernel(adev, AMDGPU_VA_RESERVED_SEQ64_SIZE,
 				    PAGE_SIZE, AMDGPU_GEM_DOMAIN_GTT,
-				    &adev->seq64.sbo, NULL,
+				    &adev->seq64.sbo, &adev->seq64.gpu_addr,
 				    (void **)&adev->seq64.cpu_base_addr);
 	if (r) {
 		dev_warn(adev->dev, "(%d) create seq64 failed\n", r);

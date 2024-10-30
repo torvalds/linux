@@ -44,6 +44,7 @@ struct amdgpu_userq_fence {
 
 struct amdgpu_userq_fence_driver {
 	struct kref refcount;
+	u64 va;
 	u64 gpu_addr;
 	u64 *cpu_addr;
 	u64 context;
