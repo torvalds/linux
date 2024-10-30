@@ -878,12 +878,6 @@ extern struct list_head amd_iommu_pci_seg_list;
 extern struct list_head amd_iommu_list;
 
 /*
- * Array with pointers to each IOMMU struct
- * The indices are referenced in the protection domains
- */
-extern struct amd_iommu *amd_iommus[MAX_IOMMUS];
-
-/*
  * Structure defining one entry in the device table
  */
 struct dev_table_entry {

@@ -177,9 +177,6 @@ LIST_HEAD(amd_iommu_pci_seg_list);	/* list of all PCI segments */
 LIST_HEAD(amd_iommu_list);		/* list of all AMD IOMMUs in the
 					   system */
 
-/* Array to assign indices to IOMMUs*/
-struct amd_iommu *amd_iommus[MAX_IOMMUS];
-
 /* Number of IOMMUs present in the system */
 static int amd_iommus_present;
 
@@ -1742,9 +1739,6 @@ static int __init init_iommu_one(struct amd_iommu *iommu, struct ivhd_header *h,
 		WARN(1, "System has more IOMMUs than supported by this driver\n");
 		return -ENOSYS;
 	}
-
-	/* Index is fine - add IOMMU to the array */
-	amd_iommus[iommu->index] = iommu;
 
 	/*
 	 * Copy data from ACPI table entry to the iommu struct
