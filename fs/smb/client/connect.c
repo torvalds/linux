@@ -3026,6 +3026,44 @@ bind_socket(struct TCP_Server_Info *server)
 }
 
 static int
+smb_recv_kvec(struct TCP_Server_Info *server, struct msghdr *msg, size_t *recv)
+{
+	int rc = 0;
+	int retries = 0;
+	int msg_flags = server->noblocksnd ? MSG_DONTWAIT : 0;
+
+	*recv = 0;
+
+	while (msg_data_left(msg)) {
+		rc = sock_recvmsg(server->ssocket, msg, msg_flags);
+		if (rc == -EAGAIN) {
+			retries++;
+			if (retries >= 14 ||
+			    (!server->noblocksnd && (retries > 2))) {
+				cifs_server_dbg(VFS, "sends on sock %p stuck for 15 seconds\n",
+						server->ssocket);
+				return -EAGAIN;
+			}
+			msleep(1 << retries);
+			continue;
+		}
+
+		if (rc < 0)
+			return rc;
+
+		if (rc == 0) {
+			cifs_dbg(FYI, "Received no data (TCP RST)\n");
+			return -ECONNABORTED;
+		}
+
+		/* recv was at least partially successful */
+		*recv += rc;
+		retries = 0; /* in case we get ENOSPC on the next send */
+	}
+	return 0;
+}
+
+static int
 ip_rfc1001_connect(struct TCP_Server_Info *server)
 {
 	int rc = 0;
@@ -3035,10 +3073,12 @@ ip_rfc1001_connect(struct TCP_Server_Info *server)
 	 * sessinit is sent but no second negprot
 	 */
 	struct rfc1002_session_packet req = {};
+	struct rfc1002_session_packet resp = {};
 	struct msghdr msg = {};
 	struct kvec iov = {};
 	unsigned int len;
 	size_t sent;
+	size_t recv;
 
 	req.trailer.session_req.called_len = sizeof(req.trailer.session_req.called_name);
 
@@ -3082,10 +3122,101 @@ ip_rfc1001_connect(struct TCP_Server_Info *server)
 	/*
 	 * RFC1001 layer in at least one server requires very short break before
 	 * negprot presumably because not expecting negprot to follow so fast.
-	 * This is a simple solution that works without complicating the code
-	 * and causes no significant slowing down on mount for everyone else
+	 * For example DOS SMB servers cannot process negprot if it was received
+	 * before the server sent response for SESSION_REQUEST packet. So, wait
+	 * for the response, read it and parse it as it can contain useful error
+	 * information (e.g. specified server name was incorrect). For example
+	 * even the latest Windows Server 2022 SMB1 server over port 139 send
+	 * error if its server name was in SESSION_REQUEST packet incorrect.
+	 * Nowadays usage of port 139 is not common, so waiting for reply here
+	 * does not slowing down mounting of common case (over port 445).
 	 */
-	usleep_range(1000, 2000);
+	len = offsetof(typeof(resp), trailer);
+	iov.iov_base = &resp;
+	iov.iov_len = len;
+	iov_iter_kvec(&msg.msg_iter, ITER_DEST, &iov, 1, len);
+	rc = smb_recv_kvec(server, &msg, &recv);
+	if (rc < 0 || recv != len)
+		return (rc == -EINTR || rc == -EAGAIN) ? rc : -ECONNABORTED;
+
+	switch (resp.type) {
+	case RFC1002_POSITIVE_SESSION_RESPONSE:
+		if (be16_to_cpu(resp.length) != 0) {
+			cifs_dbg(VFS, "RFC 1002 positive session response but with invalid non-zero length %u\n",
+				 be16_to_cpu(resp.length));
+			return -EIO;
+		}
+		cifs_dbg(FYI, "RFC 1002 positive session response");
+		break;
+	case RFC1002_NEGATIVE_SESSION_RESPONSE:
+		/* Read RFC1002 response error code and convert it to errno in rc */
+		len = sizeof(resp.trailer.neg_ses_resp_error_code);
+		iov.iov_base = &resp.trailer.neg_ses_resp_error_code;
+		iov.iov_len = len;
+		iov_iter_kvec(&msg.msg_iter, ITER_DEST, &iov, 1, len);
+		if (be16_to_cpu(resp.length) == len &&
+		    smb_recv_kvec(server, &msg, &recv) == 0 &&
+		    recv == len) {
+			cifs_dbg(VFS, "RFC 1002 negative session response with error 0x%x\n",
+				 resp.trailer.neg_ses_resp_error_code);
+			switch (resp.trailer.neg_ses_resp_error_code) {
+			case RFC1002_NOT_LISTENING_CALLED:
+				/* server does not listen for specified server name */
+				fallthrough;
+			case RFC1002_NOT_PRESENT:
+				/* server name is incorrect */
+				rc = -ENOENT;
+				cifs_dbg(VFS, "Server rejected NetBIOS servername %.15s\n",
+					 server->server_RFC1001_name[0] ?
+					 server->server_RFC1001_name :
+					 DEFAULT_CIFS_CALLED_NAME);
+				cifs_dbg(VFS, "Specify correct NetBIOS servername in source path or with -o servern= option\n");
+				break;
+			case RFC1002_NOT_LISTENING_CALLING:
+				/* client name was not accepted by server */
+				rc = -EACCES;
+				cifs_dbg(VFS, "Server rejected NetBIOS clientname %.15s\n",
+					 server->workstation_RFC1001_name[0] ?
+					 server->workstation_RFC1001_name :
+					 "LINUX_CIFS_CLNT");
+				cifs_dbg(VFS, "Specify correct NetBIOS clientname with -o netbiosname= option\n");
+				break;
+			case RFC1002_INSUFFICIENT_RESOURCE:
+				/* remote server resource error */
+				rc = -EREMOTEIO;
+				break;
+			case RFC1002_UNSPECIFIED_ERROR:
+			default:
+				/* other/unknown error */
+				rc = -EIO;
+				break;
+			}
+		} else {
+			cifs_dbg(VFS, "RFC 1002 negative session response\n");
+			rc = -EIO;
+		}
+		return rc;
+	case RFC1002_RETARGET_SESSION_RESPONSE:
+		cifs_dbg(VFS, "RFC 1002 retarget session response\n");
+		if (be16_to_cpu(resp.length) == sizeof(resp.trailer.retarget_resp)) {
+			len = sizeof(resp.trailer.retarget_resp);
+			iov.iov_base = &resp.trailer.retarget_resp;
+			iov.iov_len = len;
+			iov_iter_kvec(&msg.msg_iter, ITER_DEST, &iov, 1, len);
+			if (smb_recv_kvec(server, &msg, &recv) == 0 && recv == len) {
+				cifs_dbg(VFS, "Server wants to redirect connection\n");
+				cifs_dbg(VFS, "Remount with options -o ip=%pI4,port=%u\n",
+					 &resp.trailer.retarget_resp.retarget_ip_addr,
+					 be16_to_cpu(resp.trailer.retarget_resp.port));
+			}
+		}
+		cifs_dbg(VFS, "Closing connection\n");
+		/* FIXME: Should we automatically redirect to new retarget_resp server? */
+		return -EMULTIHOP;
+	default:
+		cifs_dbg(VFS, "RFC 1002 unknown response type 0x%x\n", resp.type);
+		return -EIO;
+	}
 
 	return 0;
 }
