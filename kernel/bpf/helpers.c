@@ -2856,7 +2856,7 @@ struct bpf_iter_bits_kern {
 		unsigned long *bits;
 		unsigned long bits_copy;
 	};
-	u32 nr_bits;
+	int nr_bits;
 	int bit;
 } __aligned(8);
 
@@ -2930,17 +2930,16 @@ bpf_iter_bits_new(struct bpf_iter_bits *it, const u64 *unsafe_ptr__ign, u32 nr_w
 __bpf_kfunc int *bpf_iter_bits_next(struct bpf_iter_bits *it)
 {
 	struct bpf_iter_bits_kern *kit = (void *)it;
-	u32 nr_bits = kit->nr_bits;
+	int bit = kit->bit, nr_bits = kit->nr_bits;
 	const unsigned long *bits;
-	int bit;
 
-	if (nr_bits == 0)
+	if (!nr_bits || bit >= nr_bits)
 		return NULL;
 
 	bits = nr_bits == 64 ? &kit->bits_copy : kit->bits;
-	bit = find_next_bit(bits, nr_bits, kit->bit + 1);
+	bit = find_next_bit(bits, nr_bits, bit + 1);
 	if (bit >= nr_bits) {
-		kit->nr_bits = 0;
+		kit->bit = bit;
 		return NULL;
 	}
 
