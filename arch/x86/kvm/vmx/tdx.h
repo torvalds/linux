@@ -3,6 +3,7 @@
 #define __KVM_X86_VMX_TDX_H
 
 #include "tdx_arch.h"
+#include "tdx_errno.h"
 
 #ifdef CONFIG_KVM_INTEL_TDX
 int tdx_bringup(void);
