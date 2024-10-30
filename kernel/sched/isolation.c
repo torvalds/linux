@@ -209,9 +209,13 @@ static int __init housekeeping_isolcpus_setup(char *str)
 	int len;
 
 	while (isalpha(*str)) {
+		/*
+		 * isolcpus=nohz is equivalent to nohz_full.
+		 */
 		if (!strncmp(str, "nohz,", 5)) {
 			str += 5;
-			flags |= HK_FLAG_TICK;
+			flags |= HK_FLAG_TICK | HK_FLAG_WQ | HK_FLAG_TIMER |
+				 HK_FLAG_RCU | HK_FLAG_MISC | HK_FLAG_KTHREAD;
 			continue;
 		}
 
