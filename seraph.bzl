@@ -29,6 +29,7 @@ def define_seraph():
         "drivers/iommu/qcom_iommu_util.ko",
         "drivers/irqchip/qcom-pdc.ko",
         "drivers/mailbox/msm_qmp.ko",
+        "drivers/mailbox/qcom-ipcc.ko",
         "drivers/mmc/host/cqhci.ko",
         "drivers/mmc/host/sdhci-msm.ko",
         "drivers/nvmem/nvmem_qfprom.ko",
