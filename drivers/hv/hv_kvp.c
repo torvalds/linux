@@ -655,7 +655,7 @@ void hv_kvp_onchannelcallback(void *context)
 		if (host_negotiatied == NEGO_NOT_STARTED) {
 			host_negotiatied = NEGO_IN_PROGRESS;
 			schedule_delayed_work(&kvp_host_handshake_work,
-				      HV_UTIL_NEGO_TIMEOUT * HZ);
+						secs_to_jiffies(HV_UTIL_NEGO_TIMEOUT));
 		}
 		return;
 	}
@@ -724,7 +724,7 @@ void hv_kvp_onchannelcallback(void *context)
 		 */
 		schedule_work(&kvp_sendkey_work);
 		schedule_delayed_work(&kvp_timeout_work,
-					HV_UTIL_TIMEOUT * HZ);
+				      secs_to_jiffies(HV_UTIL_TIMEOUT));
 
 		return;
 
