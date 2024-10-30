@@ -467,6 +467,7 @@ int efa_com_get_device_attr(struct efa_com_dev *edev,
 	result->max_rdma_size = resp.u.device_attr.max_rdma_size;
 	result->device_caps = resp.u.device_attr.device_caps;
 	result->guid = resp.u.device_attr.guid;
+	result->max_link_speed_gbps = resp.u.device_attr.max_link_speed_gbps;
 
 	if (result->admin_api_version < 1) {
 		ibdev_err_ratelimited(

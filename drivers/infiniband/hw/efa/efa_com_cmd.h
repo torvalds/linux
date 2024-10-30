@@ -142,6 +142,7 @@ struct efa_com_get_device_attr_result {
 	u16 max_wr_rdma_sge;
 	u16 max_tx_batch;
 	u16 min_sq_depth;
+	u16 max_link_speed_gbps;
 	u8 db_bar;
 };
 

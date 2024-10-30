@@ -718,6 +718,15 @@ struct efa_admin_feature_device_attr_desc {
 
 	/* Unique global ID for an EFA device */
 	u64 guid;
+
+	/* The device maximum link speed in Gbit/sec */
+	u16 max_link_speed_gbps;
+
+	/* MBZ */
+	u16 reserved0;
+
+	/* MBZ */
+	u32 reserved1;
 };
 
 struct efa_admin_feature_queue_attr_desc {
