@@ -4,6 +4,7 @@
 #include <asm/tdx.h>
 #include "capabilities.h"
 #include "x86_ops.h"
+#include "lapic.h"
 #include "tdx.h"
 
 #pragma GCC poison to_vmx
@@ -404,6 +405,45 @@ int tdx_vm_init(struct kvm *kvm)
 	kvm_tdx->state = TD_STATE_UNINITIALIZED;
 
 	return 0;
+}
+
+int tdx_vcpu_create(struct kvm_vcpu *vcpu)
+{
+	struct kvm_tdx *kvm_tdx = to_kvm_tdx(vcpu->kvm);
+
+	if (kvm_tdx->state != TD_STATE_INITIALIZED)
+		return -EIO;
+
+	/* TDX module mandates APICv, which requires an in-kernel local APIC. */
+	if (!lapic_in_kernel(vcpu))
+		return -EINVAL;
+
+	fpstate_set_confidential(&vcpu->arch.guest_fpu);
+
+	vcpu->arch.efer = EFER_SCE | EFER_LME | EFER_LMA | EFER_NX;
+
+	vcpu->arch.cr0_guest_owned_bits = -1ul;
+	vcpu->arch.cr4_guest_owned_bits = -1ul;
+
+	/* KVM can't change TSC offset/multiplier as TDX module manages them. */
+	vcpu->arch.guest_tsc_protected = true;
+	vcpu->arch.tsc_offset = kvm_tdx->tsc_offset;
+	vcpu->arch.l1_tsc_offset = vcpu->arch.tsc_offset;
+	vcpu->arch.tsc_scaling_ratio = kvm_tdx->tsc_multiplier;
+	vcpu->arch.l1_tsc_scaling_ratio = kvm_tdx->tsc_multiplier;
+
+	vcpu->arch.guest_state_protected =
+		!(to_kvm_tdx(vcpu->kvm)->attributes & TDX_TD_ATTR_DEBUG);
+
+	if ((kvm_tdx->xfam & XFEATURE_MASK_XTILE) == XFEATURE_MASK_XTILE)
+		vcpu->arch.xfd_no_write_intercept = true;
+
+	return 0;
+}
+
+void tdx_vcpu_free(struct kvm_vcpu *vcpu)
+{
+	/* This is stub for now.  More logic will come. */
 }
 
 static int tdx_get_capabilities(struct kvm_tdx_cmd *cmd)
