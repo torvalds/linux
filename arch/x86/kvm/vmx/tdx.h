@@ -33,9 +33,18 @@ struct kvm_tdx {
 	struct tdx_td td;
 };
 
+/* TDX module vCPU states */
+enum vcpu_tdx_state {
+	VCPU_TD_STATE_UNINITIALIZED = 0,
+	VCPU_TD_STATE_INITIALIZED,
+};
+
 struct vcpu_tdx {
 	struct kvm_vcpu	vcpu;
-	/* TDX specific members follow. */
+
+	struct tdx_vp vp;
+
+	enum vcpu_tdx_state state;
 };
 
 static inline bool is_td(struct kvm *kvm)

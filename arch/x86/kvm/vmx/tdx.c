@@ -410,6 +410,7 @@ int tdx_vm_init(struct kvm *kvm)
 int tdx_vcpu_create(struct kvm_vcpu *vcpu)
 {
 	struct kvm_tdx *kvm_tdx = to_kvm_tdx(vcpu->kvm);
+	struct vcpu_tdx *tdx = to_tdx(vcpu);
 
 	if (kvm_tdx->state != TD_STATE_INITIALIZED)
 		return -EIO;
@@ -438,12 +439,42 @@ int tdx_vcpu_create(struct kvm_vcpu *vcpu)
 	if ((kvm_tdx->xfam & XFEATURE_MASK_XTILE) == XFEATURE_MASK_XTILE)
 		vcpu->arch.xfd_no_write_intercept = true;
 
+	tdx->state = VCPU_TD_STATE_UNINITIALIZED;
+
 	return 0;
 }
 
 void tdx_vcpu_free(struct kvm_vcpu *vcpu)
 {
-	/* This is stub for now.  More logic will come. */
+	struct kvm_tdx *kvm_tdx = to_kvm_tdx(vcpu->kvm);
+	struct vcpu_tdx *tdx = to_tdx(vcpu);
+	int i;
+
+	/*
+	 * It is not possible to reclaim pages while hkid is assigned. It might
+	 * be assigned if:
+	 * 1. the TD VM is being destroyed but freeing hkid failed, in which
+	 * case the pages are leaked
+	 * 2. TD VCPU creation failed and this on the error path, in which case
+	 * there is nothing to do anyway
+	 */
+	if (is_hkid_assigned(kvm_tdx))
+		return;
+
+	if (tdx->vp.tdcx_pages) {
+		for (i = 0; i < kvm_tdx->td.tdcx_nr_pages; i++) {
+			if (tdx->vp.tdcx_pages[i])
+				tdx_reclaim_control_page(tdx->vp.tdcx_pages[i]);
+		}
+		kfree(tdx->vp.tdcx_pages);
+		tdx->vp.tdcx_pages = NULL;
+	}
+	if (tdx->vp.tdvpr_page) {
+		tdx_reclaim_control_page(tdx->vp.tdvpr_page);
+		tdx->vp.tdvpr_page = 0;
+	}
+
+	tdx->state = VCPU_TD_STATE_UNINITIALIZED;
 }
 
 static int tdx_get_capabilities(struct kvm_tdx_cmd *cmd)
@@ -653,6 +684,8 @@ static int __tdx_td_init(struct kvm *kvm, struct td_params *td_params,
 		goto free_hkid;
 
 	kvm_tdx->td.tdcs_nr_pages = tdx_sysinfo->td_ctrl.tdcs_base_size / PAGE_SIZE;
+	/* TDVPS = TDVPR(4K page) + TDCX(multiple 4K pages), -1 for TDVPR. */
+	kvm_tdx->td.tdcx_nr_pages = tdx_sysinfo->td_ctrl.tdvps_base_size / PAGE_SIZE - 1;
 	tdcs_pages = kcalloc(kvm_tdx->td.tdcs_nr_pages, sizeof(*kvm_tdx->td.tdcs_pages),
 			     GFP_KERNEL | __GFP_ZERO);
 	if (!tdcs_pages)
@@ -928,6 +961,143 @@ int tdx_vm_ioctl(struct kvm *kvm, void __user *argp)
 out:
 	mutex_unlock(&kvm->lock);
 	return r;
+}
+
+/* VMM can pass one 64bit auxiliary data to vcpu via RCX for guest BIOS. */
+static int tdx_td_vcpu_init(struct kvm_vcpu *vcpu, u64 vcpu_rcx)
+{
+	struct kvm_tdx *kvm_tdx = to_kvm_tdx(vcpu->kvm);
+	struct vcpu_tdx *tdx = to_tdx(vcpu);
+	struct page *page;
+	int ret, i;
+	u64 err;
+
+	page = alloc_page(GFP_KERNEL);
+	if (!page)
+		return -ENOMEM;
+	tdx->vp.tdvpr_page = page;
+
+	tdx->vp.tdcx_pages = kcalloc(kvm_tdx->td.tdcx_nr_pages, sizeof(*tdx->vp.tdcx_pages),
+			       	     GFP_KERNEL);
+	if (!tdx->vp.tdcx_pages) {
+		ret = -ENOMEM;
+		goto free_tdvpr;
+	}
+
+	for (i = 0; i < kvm_tdx->td.tdcx_nr_pages; i++) {
+		page = alloc_page(GFP_KERNEL);
+		if (!page) {
+			ret = -ENOMEM;
+			goto free_tdcx;
+		}
+		tdx->vp.tdcx_pages[i] = page;
+	}
+
+	err = tdh_vp_create(&kvm_tdx->td, &tdx->vp);
+	if (KVM_BUG_ON(err, vcpu->kvm)) {
+		ret = -EIO;
+		pr_tdx_error(TDH_VP_CREATE, err);
+		goto free_tdcx;
+	}
+
+	for (i = 0; i < kvm_tdx->td.tdcx_nr_pages; i++) {
+		err = tdh_vp_addcx(&tdx->vp, tdx->vp.tdcx_pages[i]);
+		if (KVM_BUG_ON(err, vcpu->kvm)) {
+			pr_tdx_error(TDH_VP_ADDCX, err);
+			/*
+			 * Pages already added are reclaimed by the vcpu_free
+			 * method, but the rest are freed here.
+			 */
+			for (; i < kvm_tdx->td.tdcx_nr_pages; i++) {
+				__free_page(tdx->vp.tdcx_pages[i]);
+				tdx->vp.tdcx_pages[i] = NULL;
+			}
+			return -EIO;
+		}
+	}
+
+	err = tdh_vp_init(&tdx->vp, vcpu_rcx, vcpu->vcpu_id);
+	if (KVM_BUG_ON(err, vcpu->kvm)) {
+		pr_tdx_error(TDH_VP_INIT, err);
+		return -EIO;
+	}
+
+	vcpu->arch.mp_state = KVM_MP_STATE_RUNNABLE;
+
+	return 0;
+
+free_tdcx:
+	for (i = 0; i < kvm_tdx->td.tdcx_nr_pages; i++) {
+		if (tdx->vp.tdcx_pages[i])
+			__free_page(tdx->vp.tdcx_pages[i]);
+		tdx->vp.tdcx_pages[i] = NULL;
+	}
+	kfree(tdx->vp.tdcx_pages);
+	tdx->vp.tdcx_pages = NULL;
+
+free_tdvpr:
+	if (tdx->vp.tdvpr_page)
+		__free_page(tdx->vp.tdvpr_page);
+	tdx->vp.tdvpr_page = 0;
+
+	return ret;
+}
+
+static int tdx_vcpu_init(struct kvm_vcpu *vcpu, struct kvm_tdx_cmd *cmd)
+{
+	u64 apic_base;
+	struct vcpu_tdx *tdx = to_tdx(vcpu);
+	int ret;
+
+	if (cmd->flags)
+		return -EINVAL;
+
+	if (tdx->state != VCPU_TD_STATE_UNINITIALIZED)
+		return -EINVAL;
+
+	/*
+	 * TDX requires X2APIC, userspace is responsible for configuring guest
+	 * CPUID accordingly.
+	 */
+	apic_base = APIC_DEFAULT_PHYS_BASE | LAPIC_MODE_X2APIC |
+		(kvm_vcpu_is_reset_bsp(vcpu) ? MSR_IA32_APICBASE_BSP : 0);
+	if (kvm_apic_set_base(vcpu, apic_base, true))
+		return -EINVAL;
+
+	ret = tdx_td_vcpu_init(vcpu, (u64)cmd->data);
+	if (ret)
+		return ret;
+
+	tdx->state = VCPU_TD_STATE_INITIALIZED;
+
+	return 0;
+}
+
+int tdx_vcpu_ioctl(struct kvm_vcpu *vcpu, void __user *argp)
+{
+	struct kvm_tdx *kvm_tdx = to_kvm_tdx(vcpu->kvm);
+	struct kvm_tdx_cmd cmd;
+	int ret;
+
+	if (!is_hkid_assigned(kvm_tdx) || kvm_tdx->state == TD_STATE_RUNNABLE)
+		return -EINVAL;
+
+	if (copy_from_user(&cmd, argp, sizeof(cmd)))
+		return -EFAULT;
+
+	if (cmd.hw_error)
+		return -EINVAL;
+
+	switch (cmd.id) {
+	case KVM_TDX_INIT_VCPU:
+		ret = tdx_vcpu_init(vcpu, &cmd);
+		break;
+	default:
+		ret = -EINVAL;
+		break;
+	}
+
+	return ret;
 }
 
 static int tdx_online_cpu(unsigned int cpu)
