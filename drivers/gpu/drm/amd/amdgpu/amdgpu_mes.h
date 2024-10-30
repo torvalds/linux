@@ -470,8 +470,6 @@ int amdgpu_mes_ctx_map_meta_data(struct amdgpu_device *adev,
 int amdgpu_mes_ctx_unmap_meta_data(struct amdgpu_device *adev,
 				   struct amdgpu_mes_ctx_data *ctx_data);
 
-int amdgpu_mes_self_test(struct amdgpu_device *adev);
-
 int amdgpu_mes_doorbell_process_slice(struct amdgpu_device *adev);
 
 /*
