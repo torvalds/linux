@@ -11,9 +11,22 @@
 #define EF_CV_MASK GENMASK(7, 4)
 #define EF_CV_INV 15
 
+#define EFUSE_B1_MSSDEVTYPE_MASK GENMASK(3, 0)
+#define EFUSE_B1_MSSCUSTIDX0_MASK GENMASK(7, 4)
+#define EFUSE_B2_MSSKEYNUM_MASK GENMASK(3, 0)
+#define EFUSE_B2_MSSCUSTIDX1_MASK BIT(6)
+
 enum rtw89_efuse_bank {
 	RTW89_EFUSE_BANK_WIFI,
 	RTW89_EFUSE_BANK_BT,
+};
+
+enum rtw89_efuse_mss_dev_type {
+	MSS_DEV_TYPE_FWSEC_DEF = 0xF,
+	MSS_DEV_TYPE_FWSEC_WINLIN_INBOX = 0xC,
+	MSS_DEV_TYPE_FWSEC_NONLIN_INBOX_NON_COB = 0xA,
+	MSS_DEV_TYPE_FWSEC_NONLIN_INBOX_COB = 0x9,
+	MSS_DEV_TYPE_FWSEC_NONWIN_INBOX = 0x6,
 };
 
 static int rtw89_switch_efuse_bank(struct rtw89_dev *rtwdev,
@@ -354,6 +367,52 @@ int rtw89_read_efuse_ver(struct rtw89_dev *rtwdev, u8 *ecv)
 	return 0;
 }
 EXPORT_SYMBOL(rtw89_read_efuse_ver);
+
+static u8 get_mss_dev_type_idx(struct rtw89_dev *rtwdev, u8 mss_dev_type)
+{
+	switch (mss_dev_type) {
+	case MSS_DEV_TYPE_FWSEC_WINLIN_INBOX:
+		mss_dev_type = 0x0;
+		break;
+	case MSS_DEV_TYPE_FWSEC_NONLIN_INBOX_NON_COB:
+		mss_dev_type = 0x1;
+		break;
+	case MSS_DEV_TYPE_FWSEC_NONLIN_INBOX_COB:
+		mss_dev_type = 0x2;
+		break;
+	case MSS_DEV_TYPE_FWSEC_NONWIN_INBOX:
+		mss_dev_type = 0x3;
+		break;
+	case MSS_DEV_TYPE_FWSEC_DEF:
+		mss_dev_type = RTW89_FW_MSS_DEV_TYPE_FWSEC_DEF;
+		break;
+	default:
+		rtw89_warn(rtwdev, "unknown mss_dev_type %d", mss_dev_type);
+		mss_dev_type = RTW89_FW_MSS_DEV_TYPE_FWSEC_INV;
+		break;
+	}
+
+	return mss_dev_type;
+}
+
+int rtw89_efuse_recognize_mss_info_v1(struct rtw89_dev *rtwdev, u8 b1, u8 b2)
+{
+	struct rtw89_fw_secure *sec = &rtwdev->fw.sec;
+	u8 mss_dev_type;
+
+	mss_dev_type = u8_get_bits(b1, EFUSE_B1_MSSDEVTYPE_MASK);
+	sec->mss_cust_idx = 0x1F - (u8_get_bits(b1, EFUSE_B1_MSSCUSTIDX0_MASK) |
+				    u8_get_bits(b2, EFUSE_B2_MSSCUSTIDX1_MASK) << 4);
+	sec->mss_key_num = 0xF - u8_get_bits(b2, EFUSE_B2_MSSKEYNUM_MASK);
+
+	sec->mss_dev_type = get_mss_dev_type_idx(rtwdev, mss_dev_type);
+	if (sec->mss_dev_type == RTW89_FW_MSS_DEV_TYPE_FWSEC_INV) {
+		rtw89_warn(rtwdev, "invalid mss_dev_type %d\n", mss_dev_type);
+		return -ENOENT;
+	}
+
+	return 0;
+}
 
 int rtw89_efuse_read_fw_secure_ax(struct rtw89_dev *rtwdev)
 {
