@@ -4326,6 +4326,9 @@ static int trace__run(struct trace *trace, int argc, const char **argv)
 					sizeof(__u32), BPF_ANY);
 		}
 	}
+
+	if (trace->skel)
+		trace->filter_pids.map = trace->skel->maps.pids_filtered;
 #endif
 	err = trace__set_filter_pids(trace);
 	if (err < 0)
