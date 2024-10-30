@@ -519,15 +519,18 @@ static void dcn31_reset_back_end_for_pipe(
 
 	dc->hwss.set_abm_immediate_disable(pipe_ctx);
 
-	if ((!pipe_ctx->stream->dpms_off || pipe_ctx->stream->link->link_status.link_active)
-		&& pipe_ctx->stream->sink && pipe_ctx->stream->sink->edid_caps.panel_patch.blankstream_before_otg_off) {
+	link = pipe_ctx->stream->link;
+
+	if ((!pipe_ctx->stream->dpms_off || link->link_status.link_active) &&
+		(link->connector_signal == SIGNAL_TYPE_EDP))
 		dc->hwss.blank_stream(pipe_ctx);
-	}
 
 	pipe_ctx->stream_res.tg->funcs->set_dsc_config(
 			pipe_ctx->stream_res.tg,
 			OPTC_DSC_DISABLED, 0, 0);
+
 	pipe_ctx->stream_res.tg->funcs->disable_crtc(pipe_ctx->stream_res.tg);
+
 	pipe_ctx->stream_res.tg->funcs->enable_optc_clock(pipe_ctx->stream_res.tg, false);
 	if (pipe_ctx->stream_res.tg->funcs->set_odm_bypass)
 		pipe_ctx->stream_res.tg->funcs->set_odm_bypass(
@@ -539,7 +542,6 @@ static void dcn31_reset_back_end_for_pipe(
 		pipe_ctx->stream_res.tg->funcs->set_drr(
 				pipe_ctx->stream_res.tg, NULL);
 
-	link = pipe_ctx->stream->link;
 	/* DPMS may already disable or */
 	/* dpms_off status is incorrect due to fastboot
 	 * feature. When system resume from S4 with second
