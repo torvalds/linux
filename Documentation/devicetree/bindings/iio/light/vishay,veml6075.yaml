@@ -22,12 +22,30 @@ properties:
   reg:
     maxItems: 1
 
+  vishay,rset-ohms:
+    description:
+      Resistor used to select the integration time.
+    default: 270000
+    minimum: 75000
+    maximum: 1200000
+
   vdd-supply: true
 
 required:
   - compatible
   - reg
   - vdd-supply
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          enum:
+            - vishay,veml6040
+            - vishay,veml6075
+    then:
+      properties:
+        vishay,rset-ohms: false
 
 additionalProperties: false
 
