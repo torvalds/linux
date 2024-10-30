@@ -2081,59 +2081,6 @@ static void pdom_detach_iommu(struct amd_iommu *iommu,
 	spin_unlock_irqrestore(&pdom->lock, flags);
 }
 
-static int do_attach(struct iommu_dev_data *dev_data,
-		     struct protection_domain *domain)
-{
-	struct amd_iommu *iommu = get_amd_iommu_from_dev_data(dev_data);
-	int ret = 0;
-
-	/* Update data structures */
-	dev_data->domain = domain;
-	list_add(&dev_data->list, &domain->dev_list);
-
-	/* Do reference counting */
-	ret = pdom_attach_iommu(iommu, domain);
-	if (ret)
-		return ret;
-
-	/* Setup GCR3 table */
-	if (pdom_is_sva_capable(domain)) {
-		ret = init_gcr3_table(dev_data, domain);
-		if (ret) {
-			pdom_detach_iommu(iommu, domain);
-			return ret;
-		}
-	}
-
-	return ret;
-}
-
-static void do_detach(struct iommu_dev_data *dev_data)
-{
-	struct protection_domain *domain = dev_data->domain;
-	struct amd_iommu *iommu = get_amd_iommu_from_dev_data(dev_data);
-	unsigned long flags;
-
-	/* Clear DTE and flush the entry */
-	dev_update_dte(dev_data, false);
-
-	/* Flush IOTLB and wait for the flushes to finish */
-	spin_lock_irqsave(&domain->lock, flags);
-	amd_iommu_domain_flush_all(domain);
-	spin_unlock_irqrestore(&domain->lock, flags);
-
-	/* Clear GCR3 table */
-	if (pdom_is_sva_capable(domain))
-		destroy_gcr3_table(dev_data, domain);
-
-	/* Update data structures */
-	dev_data->domain = NULL;
-	list_del(&dev_data->list);
-
-	/* decrease reference counters - needs to happen after the flushes */
-	pdom_detach_iommu(iommu, domain);
-}
-
 /*
  * If a device is not yet associated with a domain, this function makes the
  * device visible in the domain
@@ -2141,10 +2088,9 @@ static void do_detach(struct iommu_dev_data *dev_data)
 static int attach_device(struct device *dev,
 			 struct protection_domain *domain)
 {
-	struct iommu_dev_data *dev_data;
+	struct iommu_dev_data *dev_data = dev_iommu_priv_get(dev);
+	struct amd_iommu *iommu = get_amd_iommu_from_dev_data(dev_data);
 	int ret = 0;
-
-	dev_data = dev_iommu_priv_get(dev);
 
 	spin_lock(&dev_data->lock);
 
@@ -2153,7 +2099,23 @@ static int attach_device(struct device *dev,
 		goto out;
 	}
 
-	ret = do_attach(dev_data, domain);
+	/* Update data structures */
+	dev_data->domain = domain;
+	list_add(&dev_data->list, &domain->dev_list);
+
+	/* Do reference counting */
+	ret = pdom_attach_iommu(iommu, domain);
+	if (ret)
+		goto out;
+
+	/* Setup GCR3 table */
+	if (pdom_is_sva_capable(domain)) {
+		ret = init_gcr3_table(dev_data, domain);
+		if (ret) {
+			pdom_detach_iommu(iommu, domain);
+			goto out;
+		}
+	}
 
 out:
 	spin_unlock(&dev_data->lock);
@@ -2168,7 +2130,9 @@ static void detach_device(struct device *dev)
 {
 	struct iommu_dev_data *dev_data = dev_iommu_priv_get(dev);
 	struct amd_iommu *iommu = get_amd_iommu_from_dev_data(dev_data);
+	struct protection_domain *domain = dev_data->domain;
 	bool ppr = dev_data->ppr;
+	unsigned long flags;
 
 	spin_lock(&dev_data->lock);
 
@@ -2188,7 +2152,24 @@ static void detach_device(struct device *dev)
 		dev_data->ppr = false;
 	}
 
-	do_detach(dev_data);
+	/* Clear DTE and flush the entry */
+	dev_update_dte(dev_data, false);
+
+	/* Flush IOTLB and wait for the flushes to finish */
+	spin_lock_irqsave(&domain->lock, flags);
+	amd_iommu_domain_flush_all(domain);
+	spin_unlock_irqrestore(&domain->lock, flags);
+
+	/* Clear GCR3 table */
+	if (pdom_is_sva_capable(domain))
+		destroy_gcr3_table(dev_data, domain);
+
+	/* Update data structures */
+	dev_data->domain = NULL;
+	list_del(&dev_data->list);
+
+	/* decrease reference counters - needs to happen after the flushes */
+	pdom_detach_iommu(iommu, domain);
 
 out:
 	spin_unlock(&dev_data->lock);
