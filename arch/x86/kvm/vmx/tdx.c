@@ -13,6 +13,8 @@ module_param_named(tdx, enable_tdx, bool, 0444);
 
 static enum cpuhp_state tdx_cpuhp_state;
 
+static const struct tdx_sys_info *tdx_sysinfo;
+
 static int tdx_online_cpu(unsigned int cpu)
 {
 	unsigned long flags;
@@ -92,11 +94,20 @@ static int __init __tdx_bringup(void)
 	if (r)
 		goto tdx_bringup_err;
 
+	/* Get TDX global information for later use */
+	tdx_sysinfo = tdx_get_sysinfo();
+	if (WARN_ON_ONCE(!tdx_sysinfo)) {
+		r = -EINVAL;
+		goto get_sysinfo_err;
+	}
+
 	/*
 	 * Leave hardware virtualization enabled after TDX is enabled
 	 * successfully.  TDX CPU hotplug depends on this.
 	 */
 	return 0;
+get_sysinfo_err:
+	__tdx_cleanup();
 tdx_bringup_err:
 	kvm_disable_virtualization();
 	return r;
