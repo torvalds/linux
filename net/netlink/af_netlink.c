@@ -2935,12 +2935,8 @@ static int __init netlink_proto_init(void)
 
 	for (i = 0; i < MAX_LINKS; i++) {
 		if (rhashtable_init(&nl_table[i].hash,
-				    &netlink_rhashtable_params) < 0) {
-			while (--i > 0)
-				rhashtable_destroy(&nl_table[i].hash);
-			kfree(nl_table);
+				    &netlink_rhashtable_params) < 0)
 			goto panic;
-		}
 	}
 
 	netlink_add_usersock_entry();
