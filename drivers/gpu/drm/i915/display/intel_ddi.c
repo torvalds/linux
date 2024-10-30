@@ -619,7 +619,7 @@ void intel_ddi_enable_transcoder_func(struct intel_encoder *encoder,
  * Same as intel_ddi_enable_transcoder_func(), but it does not set the enable
  * bit.
  */
-static void
+void
 intel_ddi_config_transcoder_func(struct intel_encoder *encoder,
 				 const struct intel_crtc_state *crtc_state)
 {
