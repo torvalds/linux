@@ -569,6 +569,10 @@ config ARCH_USING_PATCHABLE_FUNCTION_ENTRY
 	def_bool $(success,$(srctree)/arch/powerpc/tools/gcc-check-fpatchable-function-entry.sh $(CC) -mlittle-endian) if PPC64 && CPU_LITTLE_ENDIAN
 	def_bool $(success,$(srctree)/arch/powerpc/tools/gcc-check-fpatchable-function-entry.sh $(CC) -mbig-endian) if PPC64 && CPU_BIG_ENDIAN
 
+config PPC_FTRACE_OUT_OF_LINE
+	def_bool PPC64 && ARCH_USING_PATCHABLE_FUNCTION_ENTRY
+	select ARCH_WANTS_PRE_LINK_VMLINUX
+
 config HOTPLUG_CPU
 	bool "Support for enabling/disabling CPUs"
 	depends on SMP && (PPC_PSERIES || \

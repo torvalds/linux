@@ -675,5 +675,9 @@ int main(void)
 	DEFINE(BPT_SIZE, BPT_SIZE);
 #endif
 
+#ifdef CONFIG_PPC_FTRACE_OUT_OF_LINE
+	DEFINE(FTRACE_OOL_STUB_SIZE, sizeof(struct ftrace_ool_stub));
+#endif
+
 	return 0;
 }
