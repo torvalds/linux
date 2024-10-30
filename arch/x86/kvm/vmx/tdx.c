@@ -33,6 +33,8 @@ static enum cpuhp_state tdx_cpuhp_state;
 
 static const struct tdx_sys_info *tdx_sysinfo;
 
+#define KVM_SUPPORTED_TD_ATTRS (TDX_TD_ATTR_SEPT_VE_DISABLE)
+
 static __always_inline struct kvm_tdx *to_kvm_tdx(struct kvm *kvm)
 {
 	return container_of(kvm, struct kvm_tdx, kvm);
@@ -41,6 +43,129 @@ static __always_inline struct kvm_tdx *to_kvm_tdx(struct kvm *kvm)
 static __always_inline struct vcpu_tdx *to_tdx(struct kvm_vcpu *vcpu)
 {
 	return container_of(vcpu, struct vcpu_tdx, vcpu);
+}
+
+static u64 tdx_get_supported_attrs(const struct tdx_sys_info_td_conf *td_conf)
+{
+	u64 val = KVM_SUPPORTED_TD_ATTRS;
+
+	if ((val & td_conf->attributes_fixed1) != td_conf->attributes_fixed1)
+		return 0;
+
+	val &= td_conf->attributes_fixed0;
+
+	return val;
+}
+
+static u64 tdx_get_supported_xfam(const struct tdx_sys_info_td_conf *td_conf)
+{
+	u64 val = kvm_caps.supported_xcr0 | kvm_caps.supported_xss;
+
+	if ((val & td_conf->xfam_fixed1) != td_conf->xfam_fixed1)
+		return 0;
+
+	val &= td_conf->xfam_fixed0;
+
+	return val;
+}
+
+static u32 tdx_set_guest_phys_addr_bits(const u32 eax, int addr_bits)
+{
+	return (eax & ~GENMASK(23, 16)) | (addr_bits & 0xff) << 16;
+}
+
+#define KVM_TDX_CPUID_NO_SUBLEAF	((__u32)-1)
+
+static void td_init_cpuid_entry2(struct kvm_cpuid_entry2 *entry, unsigned char idx)
+{
+	const struct tdx_sys_info_td_conf *td_conf = &tdx_sysinfo->td_conf;
+
+	entry->function = (u32)td_conf->cpuid_config_leaves[idx];
+	entry->index = td_conf->cpuid_config_leaves[idx] >> 32;
+	entry->eax = (u32)td_conf->cpuid_config_values[idx][0];
+	entry->ebx = td_conf->cpuid_config_values[idx][0] >> 32;
+	entry->ecx = (u32)td_conf->cpuid_config_values[idx][1];
+	entry->edx = td_conf->cpuid_config_values[idx][1] >> 32;
+
+	if (entry->index == KVM_TDX_CPUID_NO_SUBLEAF)
+		entry->index = 0;
+
+	/*
+	 * The TDX module doesn't allow configuring the guest phys addr bits
+	 * (EAX[23:16]).  However, KVM uses it as an interface to the userspace
+	 * to configure the GPAW.  Report these bits as configurable.
+	 */
+	if (entry->function == 0x80000008)
+		entry->eax = tdx_set_guest_phys_addr_bits(entry->eax, 0xff);
+}
+
+static int init_kvm_tdx_caps(const struct tdx_sys_info_td_conf *td_conf,
+			     struct kvm_tdx_capabilities *caps)
+{
+	int i;
+
+	caps->supported_attrs = tdx_get_supported_attrs(td_conf);
+	if (!caps->supported_attrs)
+		return -EIO;
+
+	caps->supported_xfam = tdx_get_supported_xfam(td_conf);
+	if (!caps->supported_xfam)
+		return -EIO;
+
+	caps->cpuid.nent = td_conf->num_cpuid_config;
+
+	for (i = 0; i < td_conf->num_cpuid_config; i++)
+		td_init_cpuid_entry2(&caps->cpuid.entries[i], i);
+
+	return 0;
+}
+
+static int tdx_get_capabilities(struct kvm_tdx_cmd *cmd)
+{
+	const struct tdx_sys_info_td_conf *td_conf = &tdx_sysinfo->td_conf;
+	struct kvm_tdx_capabilities __user *user_caps;
+	struct kvm_tdx_capabilities *caps = NULL;
+	int ret = 0;
+
+	/* flags is reserved for future use */
+	if (cmd->flags)
+		return -EINVAL;
+
+	caps = kmalloc(sizeof(*caps) +
+		       sizeof(struct kvm_cpuid_entry2) * td_conf->num_cpuid_config,
+		       GFP_KERNEL);
+	if (!caps)
+		return -ENOMEM;
+
+	user_caps = u64_to_user_ptr(cmd->data);
+	if (copy_from_user(caps, user_caps, sizeof(*caps))) {
+		ret = -EFAULT;
+		goto out;
+	}
+
+	if (caps->cpuid.nent < td_conf->num_cpuid_config) {
+		ret = -E2BIG;
+		goto out;
+	}
+
+	ret = init_kvm_tdx_caps(td_conf, caps);
+	if (ret)
+		goto out;
+
+	if (copy_to_user(user_caps, caps, sizeof(*caps))) {
+		ret = -EFAULT;
+		goto out;
+	}
+
+	if (copy_to_user(user_caps->cpuid.entries, caps->cpuid.entries,
+			 caps->cpuid.nent *
+			 sizeof(caps->cpuid.entries[0])))
+		ret = -EFAULT;
+
+out:
+	/* kfree() accepts NULL. */
+	kfree(caps);
+	return ret;
 }
 
 int tdx_vm_ioctl(struct kvm *kvm, void __user *argp)
@@ -61,6 +186,9 @@ int tdx_vm_ioctl(struct kvm *kvm, void __user *argp)
 	mutex_lock(&kvm->lock);
 
 	switch (tdx_cmd.id) {
+	case KVM_TDX_CAPABILITIES:
+		r = tdx_get_capabilities(&tdx_cmd);
+		break;
 	default:
 		r = -EINVAL;
 		goto out;
@@ -160,11 +288,20 @@ static int __init __tdx_bringup(void)
 		goto get_sysinfo_err;
 	}
 
+	/* Check TDX module and KVM capabilities */
+	if (!tdx_get_supported_attrs(&tdx_sysinfo->td_conf) ||
+	    !tdx_get_supported_xfam(&tdx_sysinfo->td_conf))
+		goto get_sysinfo_err;
+
+	if (!(tdx_sysinfo->features.tdx_features0 & MD_FIELD_ID_FEATURES0_TOPOLOGY_ENUM))
+		goto get_sysinfo_err;
+
 	/*
 	 * Leave hardware virtualization enabled after TDX is enabled
 	 * successfully.  TDX CPU hotplug depends on this.
 	 */
 	return 0;
+
 get_sysinfo_err:
 	__tdx_cleanup();
 tdx_bringup_err:
