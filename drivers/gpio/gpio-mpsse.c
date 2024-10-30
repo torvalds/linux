@@ -430,8 +430,13 @@ static int gpio_mpsse_probe(struct usb_interface *interface,
 	if (err)
 		return err;
 
-	devm_mutex_init(dev, &priv->io_mutex);
-	devm_mutex_init(dev, &priv->irq_mutex);
+	err = devm_mutex_init(dev, &priv->io_mutex);
+	if (err)
+		return err;
+
+	err = devm_mutex_init(dev, &priv->irq_mutex);
+	if (err)
+		return err;
 
 	priv->gpio.label = devm_kasprintf(dev, GFP_KERNEL,
 					  "gpio-mpsse.%d.%d",
