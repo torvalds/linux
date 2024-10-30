@@ -441,14 +441,10 @@ static int usbg_bot_setup(struct usb_function *f,
 			pr_err("No LUNs configured?\n");
 			return -EINVAL;
 		}
-		/*
-		 * If 4 LUNs are present we return 3 i.e. LUN 0..3 can be
-		 * accessed. The upper limit is 0xf
-		 */
 		luns--;
-		if (luns > 0xf) {
+		if (luns > US_BULK_MAX_LUN_LIMIT) {
 			pr_info_once("Limiting the number of luns to 16\n");
-			luns = 0xf;
+			luns = US_BULK_MAX_LUN_LIMIT;
 		}
 		ret_lun = cdev->req->buf;
 		*ret_lun = luns;
