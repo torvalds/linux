@@ -685,7 +685,6 @@ static void __sdhci_uhs2_send_command(struct sdhci_host *host, struct mmc_comman
 
 static bool sdhci_uhs2_send_command(struct sdhci_host *host, struct mmc_command *cmd)
 {
-	int flags;
 	u32 mask;
 	unsigned long timeout;
 
@@ -714,30 +713,6 @@ static bool sdhci_uhs2_send_command(struct sdhci_host *host, struct mmc_command 
 		sdhci_uhs2_prepare_data(host, cmd);
 
 	sdhci_uhs2_set_transfer_mode(host, cmd);
-
-	if ((cmd->flags & MMC_RSP_136) && (cmd->flags & MMC_RSP_BUSY)) {
-		WARN_ONCE(1, "Unsupported response type!\n");
-		/*
-		 * This does not happen in practice because 136-bit response
-		 * commands never have busy waiting, so rather than complicate
-		 * the error path, just remove busy waiting and continue.
-		 */
-		cmd->flags &= ~MMC_RSP_BUSY;
-	}
-
-	if (!(cmd->flags & MMC_RSP_PRESENT))
-		flags = SDHCI_CMD_RESP_NONE;
-	else if (cmd->flags & MMC_RSP_136)
-		flags = SDHCI_CMD_RESP_LONG;
-	else if (cmd->flags & MMC_RSP_BUSY)
-		flags = SDHCI_CMD_RESP_SHORT_BUSY;
-	else
-		flags = SDHCI_CMD_RESP_SHORT;
-
-	if (cmd->flags & MMC_RSP_CRC)
-		flags |= SDHCI_CMD_CRC;
-	if (cmd->flags & MMC_RSP_OPCODE)
-		flags |= SDHCI_CMD_INDEX;
 
 	timeout = jiffies;
 	if (host->data_timeout)
