@@ -261,6 +261,7 @@ struct rtw89_fw_hdr_section_info {
 	u8 redl;
 	const u8 *addr;
 	u32 len;
+	u32 len_override;
 	u32 dladdr;
 	u32 mssc;
 	u8 type;

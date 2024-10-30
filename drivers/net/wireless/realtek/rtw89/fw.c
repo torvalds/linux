@@ -124,7 +124,9 @@ static int rtw89_fw_hdr_parser_v0(struct rtw89_dev *rtwdev, const u8 *fw, u32 le
 				  struct rtw89_fw_bin_info *info)
 {
 	const struct rtw89_fw_hdr *fw_hdr = (const struct rtw89_fw_hdr *)fw;
+	const struct rtw89_chip_info *chip = rtwdev->chip;
 	struct rtw89_fw_hdr_section_info *section_info;
+	struct rtw89_fw_secure *sec = &rtwdev->fw.sec;
 	const struct rtw89_fw_dynhdr_hdr *fwdynhdr;
 	const struct rtw89_fw_hdr_section *section;
 	const u8 *fw_end = fw + len;
@@ -165,6 +167,9 @@ static int rtw89_fw_hdr_parser_v0(struct rtw89_dev *rtwdev, const u8 *fw, u32 le
 			section_info->mssc =
 				le32_get_bits(section->w2, FWSECTION_HDR_W2_MSSC);
 			mssc_len += section_info->mssc * FWDL_SECURITY_SIGLEN;
+
+			if (sec->secure_boot && chip->chip_id == RTL8852B)
+				section_info->len_override = 960;
 		} else {
 			section_info->mssc = 0;
 		}
@@ -1155,8 +1160,23 @@ static u32 __rtw89_fw_download_tweak_hdr_v0(struct rtw89_dev *rtwdev,
 					    struct rtw89_fw_bin_info *info,
 					    struct rtw89_fw_hdr *fw_hdr)
 {
+	struct rtw89_fw_hdr_section_info *section_info;
+	struct rtw89_fw_hdr_section *section;
+	int i;
+
 	le32p_replace_bits(&fw_hdr->w7, FWDL_SECTION_PER_PKT_LEN,
 			   FW_HDR_W7_PART_SIZE);
+
+	for (i = 0; i < info->section_num; i++) {
+		section_info = &info->section_info[i];
+
+		if (!section_info->len_override)
+			continue;
+
+		section = &fw_hdr->sections[i];
+		le32p_replace_bits(&section->w1, section_info->len_override,
+				   FWSECTION_HDR_W1_SEC_SIZE);
+	}
 
 	return 0;
 }
@@ -1286,10 +1306,20 @@ static int __rtw89_fw_download_main(struct rtw89_dev *rtwdev,
 	if (info->ignore)
 		return 0;
 
+	if (info->len_override) {
+		if (info->len_override > info->len)
+			rtw89_warn(rtwdev, "override length %u larger than original %u\n",
+				   info->len_override, info->len);
+		else
+			residue_len = info->len_override;
+	}
+
 	if (info->key_addr && info->key_len) {
-		if (info->len > FWDL_SECTION_PER_PKT_LEN || info->len < info->key_len)
-			rtw89_warn(rtwdev, "ignore to copy key data because of len %d, %d, %d\n",
-				   info->len, FWDL_SECTION_PER_PKT_LEN, info->key_len);
+		if (residue_len > FWDL_SECTION_PER_PKT_LEN || info->len < info->key_len)
+			rtw89_warn(rtwdev,
+				   "ignore to copy key data because of len %d, %d, %d, %d\n",
+				   info->len, FWDL_SECTION_PER_PKT_LEN,
+				   info->key_len, residue_len);
 		else
 			copy_key = true;
 	}
