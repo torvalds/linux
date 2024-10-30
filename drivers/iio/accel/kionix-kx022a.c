@@ -594,7 +594,7 @@ static int kx022a_get_axis(struct kx022a_data *data,
 	if (ret)
 		return ret;
 
-	*val = le16_to_cpu(data->buffer[0]);
+	*val = (s16)le16_to_cpu(data->buffer[0]);
 
 	return IIO_VAL_INT;
 }
