@@ -91,6 +91,8 @@ struct amdgpu_umc_ras {
 			struct ta_ras_query_address_input *addr_in,
 			struct ta_ras_query_address_output *addr_out,
 			bool dump_addr);
+	uint32_t (*get_die_id_from_pa)(struct amdgpu_device *adev,
+			uint64_t mca_addr, uint64_t retired_page);
 };
 
 struct amdgpu_umc_funcs {
