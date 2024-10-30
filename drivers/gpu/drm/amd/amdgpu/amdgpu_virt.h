@@ -95,6 +95,7 @@ struct amdgpu_virt_ops {
 	void (*ras_poison_handler)(struct amdgpu_device *adev,
 					enum amdgpu_ras_block block);
 	bool (*rcvd_ras_intr)(struct amdgpu_device *adev);
+	int (*req_ras_err_count)(struct amdgpu_device *adev);
 };
 
 /*
