@@ -1142,9 +1142,10 @@ generic_listxattr(struct dentry *dentry, char *buffer, size_t buffer_size)
 {
 	const struct xattr_handler *handler, * const *handlers = dentry->d_sb->s_xattr;
 	ssize_t remaining_size = buffer_size;
-	int err = 0;
 
 	for_each_xattr_handler(handlers, handler) {
+		int err;
+
 		if (!handler->name || (handler->list && !handler->list(dentry)))
 			continue;
 		err = xattr_list_one(&buffer, &remaining_size, handler->name);
@@ -1152,7 +1153,7 @@ generic_listxattr(struct dentry *dentry, char *buffer, size_t buffer_size)
 			return err;
 	}
 
-	return err ? err : buffer_size - remaining_size;
+	return buffer_size - remaining_size;
 }
 EXPORT_SYMBOL(generic_listxattr);
 
