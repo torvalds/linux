@@ -583,6 +583,7 @@ struct rtw89_fw_hdr_section_v1 {
 #define FWSECTION_HDR_V1_W1_REDL BIT(29)
 #define FWSECTION_HDR_V1_W2_MSSC GENMASK(7, 0)
 #define FORMATTED_MSSC 0xFF
+#define FORMATTED_MSSC_MASK GENMASK(7, 0)
 #define FWSECTION_HDR_V1_W2_BBMCU_IDX GENMASK(27, 24)
 
 struct rtw89_fw_hdr_v1 {

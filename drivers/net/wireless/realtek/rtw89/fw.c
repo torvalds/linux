@@ -56,6 +56,11 @@ static void rtw89_fw_c2h_cmd_handle(struct rtw89_dev *rtwdev,
 				    struct sk_buff *skb);
 static int rtw89_h2c_tx_and_wait(struct rtw89_dev *rtwdev, struct sk_buff *skb,
 				 struct rtw89_wait_info *wait, unsigned int cond);
+static int __parse_security_section(struct rtw89_dev *rtwdev,
+				    struct rtw89_fw_bin_info *info,
+				    struct rtw89_fw_hdr_section_info *section_info,
+				    const void *content,
+				    u32 *mssc_len);
 
 static struct sk_buff *rtw89_fw_h2c_alloc_skb(struct rtw89_dev *rtwdev, u32 len,
 					      bool header)
@@ -132,7 +137,8 @@ static int rtw89_fw_hdr_parser_v0(struct rtw89_dev *rtwdev, const u8 *fw, u32 le
 	const u8 *fw_end = fw + len;
 	const u8 *bin;
 	u32 base_hdr_len;
-	u32 mssc_len = 0;
+	u32 mssc_len;
+	int ret;
 	u32 i;
 
 	if (!info)
@@ -164,29 +170,47 @@ static int rtw89_fw_hdr_parser_v0(struct rtw89_dev *rtwdev, const u8 *fw, u32 le
 		section = &fw_hdr->sections[i];
 		section_info->type =
 			le32_get_bits(section->w1, FWSECTION_HDR_W1_SECTIONTYPE);
-		if (section_info->type == FWDL_SECURITY_SECTION_TYPE) {
-			section_info->mssc =
-				le32_get_bits(section->w2, FWSECTION_HDR_W2_MSSC);
-			mssc_len += section_info->mssc * FWDL_SECURITY_SIGLEN;
-
-			if (sec->secure_boot && chip->chip_id == RTL8852B)
-				section_info->len_override = 960;
-		} else {
-			section_info->mssc = 0;
-		}
-
 		section_info->len = le32_get_bits(section->w1, FWSECTION_HDR_W1_SEC_SIZE);
+
 		if (le32_get_bits(section->w1, FWSECTION_HDR_W1_CHECKSUM))
 			section_info->len += FWDL_SECTION_CHKSUM_LEN;
 		section_info->redl = le32_get_bits(section->w1, FWSECTION_HDR_W1_REDL);
 		section_info->dladdr =
 			le32_get_bits(section->w0, FWSECTION_HDR_W0_DL_ADDR) & 0x1fffffff;
 		section_info->addr = bin;
-		bin += section_info->len;
+
+		if (section_info->type == FWDL_SECURITY_SECTION_TYPE) {
+			section_info->mssc =
+				le32_get_bits(section->w2, FWSECTION_HDR_W2_MSSC);
+
+			ret = __parse_security_section(rtwdev, info, section_info,
+						       bin, &mssc_len);
+			if (ret)
+				return ret;
+
+			if (sec->secure_boot && chip->chip_id == RTL8852B)
+				section_info->len_override = 960;
+		} else {
+			section_info->mssc = 0;
+			mssc_len = 0;
+		}
+
+		rtw89_debug(rtwdev, RTW89_DBG_FW,
+			    "section[%d] type=%d len=0x%-6x mssc=%d mssc_len=%d addr=%tx\n",
+			    i, section_info->type, section_info->len,
+			    section_info->mssc, mssc_len, bin - fw);
+		rtw89_debug(rtwdev, RTW89_DBG_FW,
+			    "           ignore=%d key_addr=%p (0x%tx) key_len=%d key_idx=%d\n",
+			    section_info->ignore, section_info->key_addr,
+			    section_info->key_addr ?
+			    section_info->key_addr - section_info->addr : 0,
+			    section_info->key_len, section_info->key_idx);
+
+		bin += section_info->len + mssc_len;
 		section_info++;
 	}
 
-	if (fw_end != bin + mssc_len) {
+	if (fw_end != bin) {
 		rtw89_err(rtwdev, "[ERR]fw bin size\n");
 		return -EINVAL;
 	}
@@ -326,9 +350,10 @@ static int __parse_security_section(struct rtw89_dev *rtwdev,
 				    const void *content,
 				    u32 *mssc_len)
 {
+	struct rtw89_fw_secure *sec = &rtwdev->fw.sec;
 	int ret;
 
-	if (section_info->mssc == FORMATTED_MSSC) {
+	if ((section_info->mssc & FORMATTED_MSSC_MASK) == FORMATTED_MSSC) {
 		ret = __parse_formatted_mssc(rtwdev, info, section_info,
 					     content, mssc_len);
 		if (ret)
@@ -337,6 +362,14 @@ static int __parse_security_section(struct rtw89_dev *rtwdev,
 		*mssc_len = section_info->mssc * FWDL_SECURITY_SIGLEN;
 		if (info->dsp_checksum)
 			*mssc_len += section_info->mssc * FWDL_SECURITY_CHKSUM_LEN;
+
+		if (sec->secure_boot) {
+			if (sec->mss_idx >= section_info->mssc)
+				return -EFAULT;
+			section_info->key_addr = content + section_info->len +
+						 sec->mss_idx * FWDL_SECURITY_SIGLEN;
+			section_info->key_len = FWDL_SECURITY_SIGLEN;
+		}
 
 		info->secure_section_exist = true;
 	}
