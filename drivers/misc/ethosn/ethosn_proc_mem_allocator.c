@@ -93,7 +93,7 @@ static void print_buffer_info(struct ethosn_device *ethosn, const char *prefix, 
 	u32 i;
 	const char *delim = "";
 
-	n += scnprintf(&buf[n], sizeof(buf) - n, "    %s: ", prefix);
+	n += scnprintf(&buf[n], sizeof(buf) - n, "%s:", prefix);
 
 	for (i = 0; i < ninfos; ++i) {
 		struct ethosn_buffer_info info;
@@ -103,7 +103,7 @@ static void print_buffer_info(struct ethosn_device *ethosn, const char *prefix, 
 
 		n += scnprintf(&buf[n], sizeof(buf) - n, "%s{%u, %u, %u}", delim, info.id, info.offset, info.size);
 
-		delim = ", ";
+		delim = ",";
 	}
 
 	dev_dbg(ethosn->dev, "%s\n", buf);
@@ -266,12 +266,12 @@ static const struct file_operations allocator_fops = {
  * -EINVAL - Invalid argument.
  * -ENOMEM - Failed to allocate memory or a free asset_allocator.
  */
-int ethosn_process_mem_allocator_create(struct ethosn_device *ethosn, pid_t pid, bool protected)        // process_mem_allocator 用于在程序运行过程中动态地构造DMA内存空间
+int ethosn_process_mem_allocator_create(struct ethosn_device *ethosn, pid_t pid, bool protected)        // process_mem_allocator 用于在程序运行过程中动态地构造 DMA 内存空间
 {
 	int ret = 0;
 	int fd;
 	struct ethosn_allocator *proc_mem_allocator;
-	struct ethosn_dma_allocator *asset_allocator = ethosn_asset_allocator_find(ethosn, pid);
+	struct ethosn_dma_allocator *asset_allocator = ethosn_asset_allocator_find(ethosn, pid);    // pid 的主要用来索引 asset_allocator, 一个 pid 对应一个 asset_allocator
 
 	if (pid <= 0) {
 		dev_err(ethosn->dev, "%s: Unsupported pid=%d, must be >0\n", __func__, pid);
@@ -279,7 +279,7 @@ int ethosn_process_mem_allocator_create(struct ethosn_device *ethosn, pid_t pid,
 		return -EINVAL;
 	}
 
-	dev_dbg(ethosn->dev, "Process %d requests a %sprotected asset allocator", pid, protected ? "" : "non-");
+	dev_dbg(ethosn->dev, "Process %d requests a %sprotected asset allocator", pid, protected ? "":"non-");
 
 #if !defined(ETHOSN_TZMP1)
 	if (protected) {
@@ -333,7 +333,7 @@ int ethosn_process_mem_allocator_create(struct ethosn_device *ethosn, pid_t pid,
 
 	fput(proc_mem_allocator->file);
 
-	dev_dbg(ethosn->dev, "Assigned %sprotected asset_allocator. proc memory allocator handle=0x%pK\n", protected ? "" : "non-", proc_mem_allocator);
+	dev_dbg(ethosn->dev, "Assigned %sprotected asset_allocator. proc memory allocator handle=0x%pK\n", protected ? "":"non-", proc_mem_allocator);
 
 	return fd;
 
