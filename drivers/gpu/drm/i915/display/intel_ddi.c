@@ -3097,6 +3097,8 @@ static void intel_ddi_post_disable_dp(struct intel_atomic_state *state,
 
 	intel_dp_sink_set_fec_ready(intel_dp, old_crtc_state, false);
 
+	intel_ddi_config_transcoder_dp2(old_crtc_state, false);
+
 	/*
 	 * From TGL spec: "If single stream or multi-stream master transcoder:
 	 * Configure Transcoder Clock select to direct no clock to the
