@@ -452,9 +452,6 @@ struct drm_amdgpu_userq_mqd_compute_gfx11 {
 	__u64   eop_va;
 };
 
-/* dma_resv usage flag */
-#define AMDGPU_USERQ_BO_WRITE	1
-
 /* userq signal/wait ioctl */
 struct drm_amdgpu_userq_signal {
 	/**
@@ -484,20 +481,30 @@ struct drm_amdgpu_userq_signal {
 	 */
 	__u64	syncobj_point;
 	/**
-	 * @bo_handles_array: An array of GEM BO handles used by the userq fence creation
-	 * IOCTL to install the created dma_fence object which can be utilized by
-	 * userspace to synchronize the BO usage between user processes.
+	 * @bo_read_handles: The list of BO handles that the submitted user queue job
+	 * is using for read only. This will update BO fences in the kernel.
 	 */
-	__u64	bo_handles_array;
+	__u64	bo_read_handles;
 	/**
-	 * @num_bo_handles: A count that represents the number of GEM BO handles in
-	 * @bo_handles_array.
+	 * @bo_write_handles: The list of BO handles that the submitted user queue job
+	 * is using for write only. This will update BO fences in the kernel.
 	 */
-	__u32	num_bo_handles;
+	__u64	bo_write_handles;
+	/**
+	 * @num_read_bo_handles: A count that represents the number of read BO handles in
+	 * @bo_read_handles.
+	 */
+	__u32	num_read_bo_handles;
+	/**
+	 * @num_write_bo_handles: A count that represents the number of write BO handles in
+	 * @bo_write_handles.
+	 */
+	__u32	num_write_bo_handles;
 	/**
 	 * @bo_flags: flags to indicate BOs synchronize for READ or WRITE
 	 */
 	__u32	bo_flags;
+	__u32	pad;
 };
 
 struct drm_amdgpu_userq_fence_info {
@@ -551,20 +558,31 @@ struct drm_amdgpu_userq_wait {
 	 */
 	__u64	syncobj_timeline_points;
 	/**
-	 * @bo_handles_array: An array of GEM BO handles defined to fetch the fence
-	 * wait information of every BO handles in the array.
+	 * @bo_read_handles: The list of read BO handles submitted by the user queue
+	 * job to get the va/value pairs.
 	 */
-	__u64	bo_handles_array;
+	__u64	bo_read_handles;
+	/**
+	 * @bo_write_handles: The list of write BO handles submitted by the user queue
+	 * job to get the va/value pairs.
+	 */
+	__u64	bo_write_handles;
 	/**
 	 * @num_syncobj_handles: A count that represents the number of syncobj handles in
 	 * @syncobj_handles_array.
 	 */
 	__u32	num_syncobj_handles;
 	/**
-	 * @num_bo_handles: A count that represents the number of GEM BO handles in
-	 * @bo_handles_array.
+	 * @num_read_bo_handles: A count that represents the number of read BO handles in
+	 * @bo_read_handles.
 	 */
-	__u32	num_bo_handles;
+	__u32	num_read_bo_handles;
+	/**
+	 * @num_write_bo_handles: A count that represents the number of write BO handles in
+	 * @bo_write_handles.
+	 */
+	__u32	num_write_bo_handles;
+	__u32	pad;
 	/**
 	 * @userq_fence_info: An array of fence information (va and value) pair of each
 	 * objects stored in @syncobj_handles_array and @bo_handles_array.

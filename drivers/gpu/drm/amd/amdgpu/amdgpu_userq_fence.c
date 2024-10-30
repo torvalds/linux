@@ -386,12 +386,14 @@ int amdgpu_userq_signal_ioctl(struct drm_device *dev, void *data,
 	struct amdgpu_fpriv *fpriv = filp->driver_priv;
 	struct amdgpu_userq_mgr *userq_mgr = &fpriv->userq_mgr;
 	struct drm_amdgpu_userq_signal *args = data;
+	struct drm_gem_object **gobj_write = NULL;
+	struct drm_gem_object **gobj_read = NULL;
 	struct amdgpu_usermode_queue *queue;
-	struct drm_gem_object **gobj = NULL;
 	struct drm_syncobj **syncobj = NULL;
+	u32 *bo_handles_write, num_write_bo_handles;
 	u32 *syncobj_handles, num_syncobj_handles;
-	u32 *bo_handles, num_bo_handles;
-	int r, i, entry, boentry;
+	u32 *bo_handles_read, num_read_bo_handles;
+	int r, i, entry, rentry, wentry;
 	struct dma_fence *fence;
 	struct drm_exec exec;
 	u64 wptr;
@@ -417,32 +419,63 @@ int amdgpu_userq_signal_ioctl(struct drm_device *dev, void *data,
 		}
 	}
 
-	num_bo_handles = args->num_bo_handles;
-	bo_handles = memdup_user(u64_to_user_ptr(args->bo_handles_array),
-				 sizeof(u32) * num_bo_handles);
-	if (IS_ERR(bo_handles))
+	num_read_bo_handles = args->num_read_bo_handles;
+	bo_handles_read = memdup_user(u64_to_user_ptr(args->bo_read_handles),
+				      sizeof(u32) * num_read_bo_handles);
+	if (IS_ERR(bo_handles_read)) {
+		r = PTR_ERR(bo_handles_read);
 		goto free_syncobj;
-
-	/* Array of pointers to the GEM objects */
-	gobj = kmalloc_array(num_bo_handles, sizeof(*gobj), GFP_KERNEL);
-	if (!gobj) {
-		r = -ENOMEM;
-		goto free_bo_handles;
 	}
 
-	for (boentry = 0; boentry < num_bo_handles; boentry++) {
-		gobj[boentry] = drm_gem_object_lookup(filp, bo_handles[boentry]);
-		if (!gobj[boentry]) {
+	/* Array of pointers to the GEM read objects */
+	gobj_read = kmalloc_array(num_read_bo_handles, sizeof(*gobj_read), GFP_KERNEL);
+	if (!gobj_read) {
+		r = -ENOMEM;
+		goto free_bo_handles_read;
+	}
+
+	for (rentry = 0; rentry < num_read_bo_handles; rentry++) {
+		gobj_read[rentry] = drm_gem_object_lookup(filp, bo_handles_read[rentry]);
+		if (!gobj_read[rentry]) {
 			r = -ENOENT;
-			goto put_gobj;
+			goto put_gobj_read;
 		}
 	}
 
-	drm_exec_init(&exec, DRM_EXEC_INTERRUPTIBLE_WAIT, num_bo_handles);
+	num_write_bo_handles = args->num_write_bo_handles;
+	bo_handles_write = memdup_user(u64_to_user_ptr(args->bo_write_handles),
+				       sizeof(u32) * num_write_bo_handles);
+	if (IS_ERR(bo_handles_write)) {
+		r = PTR_ERR(bo_handles_write);
+		goto put_gobj_read;
+	}
+
+	/* Array of pointers to the GEM write objects */
+	gobj_write = kmalloc_array(num_write_bo_handles, sizeof(*gobj_write), GFP_KERNEL);
+	if (!gobj_write) {
+		r = -ENOMEM;
+		goto free_bo_handles_write;
+	}
+
+	for (wentry = 0; wentry < num_write_bo_handles; wentry++) {
+		gobj_write[wentry] = drm_gem_object_lookup(filp, bo_handles_write[wentry]);
+		if (!gobj_write[wentry]) {
+			r = -ENOENT;
+			goto put_gobj_write;
+		}
+	}
+
+	drm_exec_init(&exec, DRM_EXEC_INTERRUPTIBLE_WAIT,
+		      (num_read_bo_handles + num_write_bo_handles));
 
 	/* Lock all BOs with retry handling */
 	drm_exec_until_all_locked(&exec) {
-		r = drm_exec_prepare_array(&exec, gobj, num_bo_handles, 1);
+		r = drm_exec_prepare_array(&exec, gobj_read, num_read_bo_handles, 1);
+		drm_exec_retry_on_contention(&exec);
+		if (r)
+			goto exec_fini;
+
+		r = drm_exec_prepare_array(&exec, gobj_write, num_write_bo_handles, 1);
 		drm_exec_retry_on_contention(&exec);
 		if (r)
 			goto exec_fini;
@@ -464,10 +497,21 @@ int amdgpu_userq_signal_ioctl(struct drm_device *dev, void *data,
 	if (r)
 		goto exec_fini;
 
-	for (i = 0; i < num_bo_handles; i++)
-		dma_resv_add_fence(gobj[i]->resv, fence,
-				   dma_resv_usage_rw(args->bo_flags &
-				   AMDGPU_USERQ_BO_WRITE));
+	for (i = 0; i < num_read_bo_handles; i++) {
+		if (!gobj_read || !gobj_read[i]->resv)
+			continue;
+
+		dma_resv_add_fence(gobj_read[i]->resv, fence,
+				   DMA_RESV_USAGE_READ);
+	}
+
+	for (i = 0; i < num_write_bo_handles; i++) {
+		if (!gobj_write || !gobj_write[i]->resv)
+			continue;
+
+		dma_resv_add_fence(gobj_write[i]->resv, fence,
+				   DMA_RESV_USAGE_WRITE);
+	}
 
 	/* Add the created fence to syncobj/BO's */
 	for (i = 0; i < num_syncobj_handles; i++)
@@ -478,12 +522,18 @@ int amdgpu_userq_signal_ioctl(struct drm_device *dev, void *data,
 
 exec_fini:
 	drm_exec_fini(&exec);
-put_gobj:
-	while (boentry-- > 0)
-		drm_gem_object_put(gobj[boentry]);
-	kfree(gobj);
-free_bo_handles:
-	kfree(bo_handles);
+put_gobj_write:
+	while (wentry-- > 0)
+		drm_gem_object_put(gobj_write[wentry]);
+	kfree(gobj_write);
+free_bo_handles_write:
+	kfree(bo_handles_write);
+put_gobj_read:
+	while (rentry-- > 0)
+		drm_gem_object_put(gobj_read[rentry]);
+	kfree(gobj_read);
+free_bo_handles_read:
+	kfree(bo_handles_read);
 free_syncobj:
 	while (entry-- > 0)
 		if (syncobj[entry])
@@ -498,28 +548,37 @@ free_syncobj_handles:
 int amdgpu_userq_wait_ioctl(struct drm_device *dev, void *data,
 			    struct drm_file *filp)
 {
-	u32 *syncobj_handles, *timeline_points, *timeline_handles, *bo_handles;
-	u32 num_syncobj, num_bo_handles, num_points;
+	u32 *syncobj_handles, *timeline_points, *timeline_handles, *bo_handles_read, *bo_handles_write;
+	u32 num_syncobj, num_read_bo_handles, num_write_bo_handles, num_points;
 	struct drm_amdgpu_userq_fence_info *fence_info = NULL;
 	struct drm_amdgpu_userq_wait *wait_info = data;
+	struct drm_gem_object **gobj_write;
+	struct drm_gem_object **gobj_read;
 	struct dma_fence **fences = NULL;
-	struct drm_gem_object **gobj;
+	int r, i, rentry, wentry, cnt;
 	struct drm_exec exec;
-	int r, i, entry, cnt;
 	u64 num_fences = 0;
 
-	num_bo_handles = wait_info->num_bo_handles;
-	bo_handles = memdup_user(u64_to_user_ptr(wait_info->bo_handles_array),
-				 sizeof(u32) * num_bo_handles);
-	if (IS_ERR(bo_handles))
-		return PTR_ERR(bo_handles);
+	num_read_bo_handles = wait_info->num_read_bo_handles;
+	bo_handles_read = memdup_user(u64_to_user_ptr(wait_info->bo_read_handles),
+				      sizeof(u32) * num_read_bo_handles);
+	if (IS_ERR(bo_handles_read))
+		return PTR_ERR(bo_handles_read);
+
+	num_write_bo_handles = wait_info->num_write_bo_handles;
+	bo_handles_write = memdup_user(u64_to_user_ptr(wait_info->bo_write_handles),
+				       sizeof(u32) * num_write_bo_handles);
+	if (IS_ERR(bo_handles_write)) {
+		r = PTR_ERR(bo_handles_write);
+		goto free_bo_handles_read;
+	}
 
 	num_syncobj = wait_info->num_syncobj_handles;
 	syncobj_handles = memdup_user(u64_to_user_ptr(wait_info->syncobj_handles_array),
 				      sizeof(u32) * num_syncobj);
 	if (IS_ERR(syncobj_handles)) {
 		r = PTR_ERR(syncobj_handles);
-		goto free_bo_handles;
+		goto free_bo_handles_write;
 	}
 
 	num_points = wait_info->num_points;
@@ -537,29 +596,51 @@ int amdgpu_userq_wait_ioctl(struct drm_device *dev, void *data,
 		goto free_timeline_handles;
 	}
 
-	gobj = kmalloc_array(num_bo_handles, sizeof(*gobj), GFP_KERNEL);
-	if (!gobj) {
+	gobj_read = kmalloc_array(num_read_bo_handles, sizeof(*gobj_read), GFP_KERNEL);
+	if (!gobj_read) {
 		r = -ENOMEM;
 		goto free_timeline_points;
 	}
 
-	for (entry = 0; entry < num_bo_handles; entry++) {
-		gobj[entry] = drm_gem_object_lookup(filp, bo_handles[entry]);
-		if (!gobj[entry]) {
+	for (rentry = 0; rentry < num_read_bo_handles; rentry++) {
+		gobj_read[rentry] = drm_gem_object_lookup(filp, bo_handles_read[rentry]);
+		if (!gobj_read[rentry]) {
 			r = -ENOENT;
-			goto put_gobj;
+			goto put_gobj_read;
 		}
 	}
 
-	drm_exec_init(&exec, DRM_EXEC_INTERRUPTIBLE_WAIT, num_bo_handles);
+	gobj_write = kmalloc_array(num_write_bo_handles, sizeof(*gobj_write), GFP_KERNEL);
+	if (!gobj_write) {
+		r = -ENOMEM;
+		goto put_gobj_read;
+	}
+
+	for (wentry = 0; wentry < num_write_bo_handles; wentry++) {
+		gobj_write[wentry] = drm_gem_object_lookup(filp, bo_handles_write[wentry]);
+		if (!gobj_write[wentry]) {
+			r = -ENOENT;
+			goto put_gobj_write;
+		}
+	}
+
+	drm_exec_init(&exec, DRM_EXEC_INTERRUPTIBLE_WAIT,
+		      (num_read_bo_handles + num_write_bo_handles));
 
 	/* Lock all BOs with retry handling */
 	drm_exec_until_all_locked(&exec) {
-		r = drm_exec_prepare_array(&exec, gobj, num_bo_handles, 0);
+		r = drm_exec_prepare_array(&exec, gobj_read, num_read_bo_handles, 1);
 		drm_exec_retry_on_contention(&exec);
 		if (r) {
 			drm_exec_fini(&exec);
-			goto put_gobj;
+			goto put_gobj_write;
+		}
+
+		r = drm_exec_prepare_array(&exec, gobj_write, num_write_bo_handles, 1);
+		drm_exec_retry_on_contention(&exec);
+		if (r) {
+			drm_exec_fini(&exec);
+			goto put_gobj_write;
 		}
 	}
 
@@ -600,13 +681,21 @@ int amdgpu_userq_wait_ioctl(struct drm_device *dev, void *data,
 		}
 
 		/* Count GEM objects fence */
-		for (i = 0; i < num_bo_handles; i++) {
+		for (i = 0; i < num_read_bo_handles; i++) {
 			struct dma_resv_iter resv_cursor;
 			struct dma_fence *fence;
 
-			dma_resv_for_each_fence(&resv_cursor, gobj[i]->resv,
-						dma_resv_usage_rw(wait_info->bo_wait_flags &
-						AMDGPU_USERQ_BO_WRITE), fence)
+			dma_resv_for_each_fence(&resv_cursor, gobj_read[i]->resv,
+						DMA_RESV_USAGE_READ, fence)
+				num_fences++;
+		}
+
+		for (i = 0; i < num_write_bo_handles; i++) {
+			struct dma_resv_iter resv_cursor;
+			struct dma_fence *fence;
+
+			dma_resv_for_each_fence(&resv_cursor, gobj_write[i]->resv,
+						DMA_RESV_USAGE_WRITE, fence)
 				num_fences++;
 		}
 
@@ -632,14 +721,30 @@ int amdgpu_userq_wait_ioctl(struct drm_device *dev, void *data,
 			goto free_fence_info;
 		}
 
-		/* Retrieve GEM objects fence */
-		for (i = 0; i < num_bo_handles; i++) {
+		/* Retrieve GEM read objects fence */
+		for (i = 0; i < num_read_bo_handles; i++) {
 			struct dma_resv_iter resv_cursor;
 			struct dma_fence *fence;
 
-			dma_resv_for_each_fence(&resv_cursor, gobj[i]->resv,
-						dma_resv_usage_rw(wait_info->bo_wait_flags &
-						AMDGPU_USERQ_BO_WRITE), fence) {
+			dma_resv_for_each_fence(&resv_cursor, gobj_read[i]->resv,
+						DMA_RESV_USAGE_READ, fence) {
+				if (WARN_ON_ONCE(num_fences >= wait_info->num_fences)) {
+					r = -EINVAL;
+					goto free_fences;
+				}
+
+				fences[num_fences++] = fence;
+				dma_fence_get(fence);
+			}
+		}
+
+		/* Retrieve GEM write objects fence */
+		for (i = 0; i < num_write_bo_handles; i++) {
+			struct dma_resv_iter resv_cursor;
+			struct dma_fence *fence;
+
+			dma_resv_for_each_fence(&resv_cursor, gobj_write[i]->resv,
+						DMA_RESV_USAGE_WRITE, fence) {
 				if (WARN_ON_ONCE(num_fences >= wait_info->num_fences)) {
 					r = -EINVAL;
 					goto free_fences;
@@ -755,14 +860,19 @@ int amdgpu_userq_wait_ioctl(struct drm_device *dev, void *data,
 	}
 
 	drm_exec_fini(&exec);
-	for (i = 0; i < num_bo_handles; i++)
-		drm_gem_object_put(gobj[i]);
-	kfree(gobj);
+	for (i = 0; i < num_read_bo_handles; i++)
+		drm_gem_object_put(gobj_read[i]);
+	kfree(gobj_read);
+
+	for (i = 0; i < num_write_bo_handles; i++)
+		drm_gem_object_put(gobj_write[i]);
+	kfree(gobj_write);
 
 	kfree(timeline_points);
 	kfree(timeline_handles);
 	kfree(syncobj_handles);
-	kfree(bo_handles);
+	kfree(bo_handles_write);
+	kfree(bo_handles_read);
 
 	return 0;
 
@@ -774,18 +884,24 @@ free_fence_info:
 	kfree(fence_info);
 exec_fini:
 	drm_exec_fini(&exec);
-put_gobj:
-	while (entry-- > 0)
-		drm_gem_object_put(gobj[entry]);
-	kfree(gobj);
+put_gobj_write:
+	while (wentry-- > 0)
+		drm_gem_object_put(gobj_write[wentry]);
+	kfree(gobj_write);
+put_gobj_read:
+	while (rentry-- > 0)
+		drm_gem_object_put(gobj_read[rentry]);
+	kfree(gobj_read);
 free_timeline_points:
 	kfree(timeline_points);
 free_timeline_handles:
 	kfree(timeline_handles);
 free_syncobj_handles:
 	kfree(syncobj_handles);
-free_bo_handles:
-	kfree(bo_handles);
+free_bo_handles_write:
+	kfree(bo_handles_write);
+free_bo_handles_read:
+	kfree(bo_handles_read);
 
 	return r;
 }
