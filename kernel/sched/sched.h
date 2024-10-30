@@ -3885,23 +3885,38 @@ extern void check_class_changed(struct rq *rq, struct task_struct *p,
 extern struct balance_callback *splice_balance_callbacks(struct rq *rq);
 extern void balance_callbacks(struct rq *rq, struct balance_callback *head);
 
-#ifdef CONFIG_SCHED_CLASS_EXT
 /*
- * Used by SCX in the enable/disable paths to move tasks between sched_classes
- * and establish invariants.
+ * The 'sched_change' pattern is the safe, easy and slow way of changing a
+ * task's scheduling properties. It dequeues a task, such that the scheduler
+ * is fully unaware of it; at which point its properties can be modified;
+ * after which it is enqueued again.
+ *
+ * Typically this must be called while holding task_rq_lock, since most/all
+ * properties are serialized under those locks. There is currently one
+ * exception to this rule in sched/ext which only holds rq->lock.
  */
-struct sched_enq_and_set_ctx {
+
+/*
+ * This structure is a temporary, used to preserve/convey the queueing state
+ * of the task between sched_change_begin() and sched_change_end(). Ensuring
+ * the task's queueing state is idempotent across the operation.
+ */
+struct sched_change_ctx {
 	struct task_struct	*p;
-	int			queue_flags;
+	int			flags;
 	bool			queued;
 	bool			running;
 };
 
-void sched_deq_and_put_task(struct task_struct *p, int queue_flags,
-			    struct sched_enq_and_set_ctx *ctx);
-void sched_enq_and_set_task(struct sched_enq_and_set_ctx *ctx);
+struct sched_change_ctx *sched_change_begin(struct task_struct *p, unsigned int flags);
+void sched_change_end(struct sched_change_ctx *ctx);
 
-#endif /* CONFIG_SCHED_CLASS_EXT */
+DEFINE_CLASS(sched_change, struct sched_change_ctx *,
+	     sched_change_end(_T),
+	     sched_change_begin(p, flags),
+	     struct task_struct *p, unsigned int flags)
+
+DEFINE_CLASS_IS_UNCONDITIONAL(sched_change)
 
 #include "ext.h"
 
