@@ -4,10 +4,11 @@
 # Error out on error
 set -e
 
-is_64bit="$1"
-objdump="$2"
-vmlinux_o="$3"
-arch_vmlinux_S="$4"
+num_ool_stubs_text_builtin="$1"
+is_64bit="$2"
+objdump="$3"
+vmlinux_o="$4"
+arch_vmlinux_S="$5"
 
 RELOCATION=R_PPC64_ADDR64
 if [ -z "$is_64bit" ]; then
@@ -19,15 +20,23 @@ num_ool_stubs_text=$($objdump -r -j __patchable_function_entries "$vmlinux_o" |
 num_ool_stubs_inittext=$($objdump -r -j __patchable_function_entries "$vmlinux_o" |
 			 grep ".init.text" | grep -c "$RELOCATION")
 
+if [ "$num_ool_stubs_text" -gt "$num_ool_stubs_text_builtin" ]; then
+	num_ool_stubs_text_end=$((num_ool_stubs_text - num_ool_stubs_text_builtin))
+else
+	num_ool_stubs_text_end=0
+fi
+
 cat > "$arch_vmlinux_S" <<EOF
 #include <asm/asm-offsets.h>
 #include <linux/linkage.h>
 
 .pushsection .tramp.ftrace.text,"aw"
-SYM_DATA(ftrace_ool_stub_text_end_count, .long $num_ool_stubs_text)
+SYM_DATA(ftrace_ool_stub_text_end_count, .long $num_ool_stubs_text_end)
 
 SYM_CODE_START(ftrace_ool_stub_text_end)
-	.space $num_ool_stubs_text * FTRACE_OOL_STUB_SIZE
+#if $num_ool_stubs_text_end
+	.space $num_ool_stubs_text_end * FTRACE_OOL_STUB_SIZE
+#endif
 SYM_CODE_END(ftrace_ool_stub_text_end)
 .popsection
 
