@@ -28,12 +28,13 @@ fi
 
 cat > "$arch_vmlinux_S" <<EOF
 #include <asm/asm-offsets.h>
+#include <asm/ppc_asm.h>
 #include <linux/linkage.h>
 
 .pushsection .tramp.ftrace.text,"aw"
 SYM_DATA(ftrace_ool_stub_text_end_count, .long $num_ool_stubs_text_end)
 
-SYM_CODE_START(ftrace_ool_stub_text_end)
+SYM_START(ftrace_ool_stub_text_end, SYM_L_GLOBAL, .balign SZL)
 #if $num_ool_stubs_text_end
 	.space $num_ool_stubs_text_end * FTRACE_OOL_STUB_SIZE
 #endif
@@ -43,7 +44,7 @@ SYM_CODE_END(ftrace_ool_stub_text_end)
 .pushsection .tramp.ftrace.init,"aw"
 SYM_DATA(ftrace_ool_stub_inittext_count, .long $num_ool_stubs_inittext)
 
-SYM_CODE_START(ftrace_ool_stub_inittext)
+SYM_START(ftrace_ool_stub_inittext, SYM_L_GLOBAL, .balign SZL)
 	.space $num_ool_stubs_inittext * FTRACE_OOL_STUB_SIZE
 SYM_CODE_END(ftrace_ool_stub_inittext)
 .popsection
