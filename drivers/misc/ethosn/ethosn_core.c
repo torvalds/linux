@@ -96,8 +96,7 @@ static ssize_t mce_features_show(struct device *dev, struct device_attribute *at
 			 "winograd_support=%u\n"
 			 "tsu_16bit_sequence_support=%u\n"
 			 "ofm_scaling_16bit_support=%u\n",
-			 mce.bits.ifm_generated_per_engine, mce.bits.ofm_generated_per_engine, mce.bits.mce_num_macs, mce.bits.mce_num_acc,
-			 mce.bits.winograd_support, mce.bits.tsu_16bit_sequence_support, mce.bits.ofm_scaling_16bit_support);
+			 mce.bits.ifm_generated_per_engine, mce.bits.ofm_generated_per_engine, mce.bits.mce_num_macs, mce.bits.mce_num_acc, mce.bits.winograd_support, mce.bits.tsu_16bit_sequence_support, mce.bits.ofm_scaling_16bit_support);
 }
 
 static ssize_t dfc_features_show(struct device *dev, struct device_attribute *attr, char *buf)

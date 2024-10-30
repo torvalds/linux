@@ -201,8 +201,7 @@ static int ethosn_mem_stream_pdev_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	ret = ethosn_dma_sub_allocator_create(&pdev->dev, top_allocator, stream_type, get_stream_addr_base(ethosn, stream_type),
-					      get_stream_speculative_page_addr(ethosn, stream_type), ethosn->smmu_available);
+	ret = ethosn_dma_sub_allocator_create(&pdev->dev, top_allocator, stream_type, get_stream_addr_base(ethosn, stream_type), get_stream_speculative_page_addr(ethosn, stream_type), ethosn->smmu_available);
 
 	if (ret)
 		return ret;

@@ -79,8 +79,7 @@ static struct ethosn_dma_info *carveout_alloc(struct ethosn_dma_sub_allocator *a
 	return dma_info;
 }
 
-static int carveout_map(struct ethosn_dma_sub_allocator *allocator, struct ethosn_dma_info *dma_info, struct ethosn_dma_prot_range *prot_ranges,
-			size_t num_prot_ranges)
+static int carveout_map(struct ethosn_dma_sub_allocator *allocator, struct ethosn_dma_info *dma_info, struct ethosn_dma_prot_range *prot_ranges, size_t num_prot_ranges)
 {
 	return 0;
 }
@@ -130,8 +129,7 @@ static int carveout_mmap(struct ethosn_dma_sub_allocator *allocator, struct vm_a
 	if (ret)
 		dev_warn(allocator->dev, "Failed to DMA map buffer. handle=0x%pK, addr=0x%llx, size=%lu\n", dma_info, mmap_addr, vma->vm_end - vma->vm_start);
 	else
-		dev_dbg(allocator->dev, "DMA map. handle=0x%pK, addr=0x%llx, start=0x%lx, size=%lu\n", dma_info, mmap_addr, vma->vm_start,
-			vma->vm_end - vma->vm_start);
+		dev_dbg(allocator->dev, "DMA map. handle=0x%pK, addr=0x%llx, start=0x%lx, size=%lu\n", dma_info, mmap_addr, vma->vm_start, vma->vm_end - vma->vm_start);
 
 	return ret;
 }
@@ -230,8 +228,7 @@ struct ethosn_dma_sub_allocator *ethosn_dma_carveout_allocator_create(struct dev
 	 * our requirements.
 	 */
 	if (res_mem_details.start % CARVEOUT_ALIGNMENT != 0) {
-		dev_err(dev, "Carveout memory region at %#llx has incorrect alignment. It must be aligned to a %#llx boundary.\n", res_mem_details.start,
-			CARVEOUT_ALIGNMENT);
+		dev_err(dev, "Carveout memory region at %#llx has incorrect alignment. It must be aligned to a %#llx boundary.\n", res_mem_details.start, CARVEOUT_ALIGNMENT);
 
 		return ERR_PTR(-EINVAL);
 	}

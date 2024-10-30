@@ -58,8 +58,7 @@
 #define ETHOSN_DRIVER_NAME "ethosn"
 #define ETHOSN_STR(s) #s
 #define ETHOSN_DRIVER_VERSION_STR(major, minor, patch) ETHOSN_STR(major) "." ETHOSN_STR(minor) "." ETHOSN_STR(patch)
-#define ETHOSN_DRIVER_VERSION                                                                                                                                  \
-	ETHOSN_DRIVER_VERSION_STR(ETHOSN_KERNEL_MODULE_VERSION_MAJOR, ETHOSN_KERNEL_MODULE_VERSION_MINOR, ETHOSN_KERNEL_MODULE_VERSION_PATCH)
+#define ETHOSN_DRIVER_VERSION ETHOSN_DRIVER_VERSION_STR(ETHOSN_KERNEL_MODULE_VERSION_MAJOR, ETHOSN_KERNEL_MODULE_VERSION_MINOR, ETHOSN_KERNEL_MODULE_VERSION_PATCH)
 
 #define ETHOSN_MAX_DEVICES (1U << MINORBITS)
 
@@ -340,8 +339,7 @@ static int handle_message(struct ethosn_core *core)
 	case ETHOSN_MESSAGE_ERROR_RESPONSE: {
 		struct ethosn_message_error_response *rsp = core->mailbox_message;
 
-		dev_err(core->dev, "<- %s(%u) error. status=%s(%u)\n", err_msg_type_to_str(rsp->type), rsp->type, err_msg_status_to_str(rsp->status),
-			rsp->status);
+		dev_err(core->dev, "<- %s(%u) error. status=%s(%u)\n", err_msg_type_to_str(rsp->type), rsp->type, err_msg_status_to_str(rsp->status), rsp->status);
 
 		return -EFAULT;
 	}
@@ -486,9 +484,8 @@ static bool print_firmware_dump_if_present(struct ethosn_core *core)
 	if (dump.cesWithError == 0) {
 		dev_err(core->dev, "  cesWithError = <none>\n");
 	} else {
-		dev_err(core->dev, "  cesWithError                                =%s%s%s%s%s%s%s%s\n", (dump.cesWithError & (1 << 0)) ? " 0" : "",
-			(dump.cesWithError & (1 << 1)) ? " 1" : "", (dump.cesWithError & (1 << 2)) ? " 2" : "", (dump.cesWithError & (1 << 3)) ? " 3" : "",
-			(dump.cesWithError & (1 << 4)) ? " 4" : "", (dump.cesWithError & (1 << 5)) ? " 5" : "", (dump.cesWithError & (1 << 6)) ? " 6" : "",
+		dev_err(core->dev, "  cesWithError                                =%s%s%s%s%s%s%s%s\n", (dump.cesWithError & (1 << 0)) ? " 0" : "", (dump.cesWithError & (1 << 1)) ? " 1" : "", (dump.cesWithError & (1 << 2)) ? " 2" : "",
+			(dump.cesWithError & (1 << 3)) ? " 3" : "", (dump.cesWithError & (1 << 4)) ? " 4" : "", (dump.cesWithError & (1 << 5)) ? " 5" : "", (dump.cesWithError & (1 << 6)) ? " 6" : "",
 			(dump.cesWithError & (1 << 7)) ? " 7" : "");
 		dev_err(core->dev, "  CE_ERR_CAUSE\n");
 		dev_err(core->dev, "    CE_ERR_CAUSE_ENGINE_RAM_CORRECTABLE_ERR   = %d\n", dump.CE_ERR_CAUSE_ENGINE_RAM_CORRECTABLE_ERR);
@@ -589,8 +586,7 @@ static void ethosn_irq_bottom(struct work_struct *work)
 		if (error_status) {
 			uint32_t sysctlr0;
 
-			dev_err(core->dev, "Error reported by IRQ_STATUS: %s. Will reset core after dump.\n",
-				print_irq_status_reg(buffer, sizeof(buffer), status));
+			dev_err(core->dev, "Error reported by IRQ_STATUS: %s. Will reset core after dump.\n", print_irq_status_reg(buffer, sizeof(buffer), status));
 
 			/* DL1_SYSCTLR0 might contain useful
 			 * information (e.g.lockup)
@@ -681,8 +677,7 @@ static irqreturn_t ethosn_irq_top(const int irq, void *dev)
  * * 0 - Success
  * * Negative error code
  */
-static int ethosn_init_interrupt(struct ethosn_core *const core, const int irq_numbers[ETHOSN_MAX_NUM_IRQS], const unsigned long irq_flags[ETHOSN_MAX_NUM_IRQS],
-				 unsigned int num_irqs)
+static int ethosn_init_interrupt(struct ethosn_core *const core, const int irq_numbers[ETHOSN_MAX_NUM_IRQS], const unsigned long irq_flags[ETHOSN_MAX_NUM_IRQS], unsigned int num_irqs)
 {
 	int ret;
 	int irq_idx;
@@ -867,8 +862,7 @@ static long ethosn_ioctl(struct file *const filep, unsigned int cmd, unsigned lo
 			goto configure_profiling_mutex;
 		}
 
-		dev_dbg(core->dev, "IOCTL: Configure profiling. enable_profiling=%u, firmware_buffer_size=%u num_hw_counters=%d\n", new_config.enable_profiling,
-			new_config.firmware_buffer_size, new_config.num_hw_counters);
+		dev_dbg(core->dev, "IOCTL: Configure profiling. enable_profiling=%u, firmware_buffer_size=%u num_hw_counters=%d\n", new_config.enable_profiling, new_config.firmware_buffer_size, new_config.num_hw_counters);
 
 		/* Forward new state to the firmware */
 		ret = ethosn_configure_firmware_profiling(core, &new_config);
@@ -1159,8 +1153,7 @@ static int ethosn_check_smc_firmware_version(const struct device *dev)
 	dev_dbg(dev, "Firmware version from SiP service: %u.%u.%u\n", major, minor, patch);
 
 	if (major != ETHOSN_FIRMWARE_VERSION_MAJOR) {
-		dev_err(dev, "Unsupported firmware version from SiP service: %u.%u.%u. Version %u.x.x is required.\n", major, minor, patch,
-			ETHOSN_FIRMWARE_VERSION_MAJOR);
+		dev_err(dev, "Unsupported firmware version from SiP service: %u.%u.%u. Version %u.x.x is required.\n", major, minor, patch, ETHOSN_FIRMWARE_VERSION_MAJOR);
 
 		return -EPROTO;
 	}
@@ -1185,8 +1178,7 @@ static int ethosn_populate_protected_firmware(struct ethosn_device *ethosn)
 	if (ret)
 		return ret;
 
-	ret = ethosn_smc_get_firmware_va_map(ethosn->dev, &firmware->firmware_addr_base, &firmware->working_data_addr_base,
-					     &firmware->command_stream_addr_base);
+	ret = ethosn_smc_get_firmware_va_map(ethosn->dev, &firmware->firmware_addr_base, &firmware->working_data_addr_base, &firmware->command_stream_addr_base);
 	if (ret)
 		return ret;
 
@@ -1240,8 +1232,8 @@ static int ethosn_check_smc_core_secure_status(const struct device *dev, phys_ad
  * @force_firmware_level_interrupts: Whether to tell the firmware to send
  *                                   level-sensitive interrupts in all cases.
  */
-static int ethosn_driver_probe(struct ethosn_core *core, const struct resource *const top_regs, const int irq_numbers[ETHOSN_MAX_NUM_IRQS],
-			       const unsigned long irq_flags[ETHOSN_MAX_NUM_IRQS], unsigned int num_irqs, bool force_firmware_level_interrupts)
+static int ethosn_driver_probe(struct ethosn_core *core, const struct resource *const top_regs, const int irq_numbers[ETHOSN_MAX_NUM_IRQS], const unsigned long irq_flags[ETHOSN_MAX_NUM_IRQS], unsigned int num_irqs,
+			       bool force_firmware_level_interrupts)
 {
 	struct ethosn_profiling_config config = {};
 	const phys_addr_t core_addr = top_regs->start;
@@ -1607,6 +1599,7 @@ static int ethosn_check_allocator_probe_status(struct ethosn_device *ethosn, uns
 	return ret;
 }
 
+// 设备驱动起点
 /**
  * ethosn_pdev_probe() - Do platform specific probing
  * @pdev: Platform device
@@ -1917,6 +1910,7 @@ static int ethosn_major_init(void)
 	dev_t devt;
 	int ret;
 
+    // 动态分配字符设备的主设备号和次设备号
 	ret = alloc_chrdev_region(&devt, 0, ETHOSN_MAX_DEVICES, ETHOSN_DRIVER_NAME);
 	if (ret)
 		return ret;
@@ -1960,29 +1954,34 @@ static void ethosn_class_release(void)
 	ethosn_major_cleanup();
 }
 
+// 驱动入口
 static int __init ethosn_init(void)
 {
-	// 向内核注册字符设备和初始化设备类
+	// 由于板载的ethosn设备可能不止一个, 使用设备类进行管理
 	int ret = ethosn_class_init();
 
 	if (ret)
 		return ret;
 
+	// 注册 ethosn-main_allocator 节点设备驱动
 	ret = ethosn_main_allocator_platform_driver_register();
 
 	if (ret)
 		return ret;
 
+	// 注册 ethosn-memory 节点设备驱动
 	ret = ethosn_mem_stream_platform_driver_register();
 
 	if (ret)
 		return ret;
 
+	// 注册 ethosn-core 节点设备驱动
 	ret = ethosn_core_platform_driver_register();
 
 	if (ret)
 		return ret;
 
+	// 注册 ethosn-asset_allocator 节点设备驱动
 	ret = ethosn_asset_allocator_platform_driver_register();
 
 	if (ret)

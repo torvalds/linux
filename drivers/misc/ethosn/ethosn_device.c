@@ -239,22 +239,19 @@ static int mailbox_alloc(struct ethosn_core *core)
 	resource_size_t response_end;
 	int ret = -ENOMEM;
 
-	core->mailbox = ethosn_dma_alloc_and_map(allocator, sizeof(struct ethosn_mailbox), ETHOSN_PROT_READ | ETHOSN_PROT_WRITE, ETHOSN_STREAM_WORKING_DATA,
-						 GFP_KERNEL, "mailbox-header");
+	core->mailbox = ethosn_dma_alloc_and_map(allocator, sizeof(struct ethosn_mailbox), ETHOSN_PROT_READ | ETHOSN_PROT_WRITE, ETHOSN_STREAM_WORKING_DATA, GFP_KERNEL, "mailbox-header");
 	if (IS_ERR_OR_NULL(core->mailbox)) {
 		dev_warn(core->dev, "Failed to allocate memory for mailbox");
 		goto err_exit;
 	}
 
-	core->mailbox_request = ethosn_dma_alloc_and_map(allocator, sizeof(struct ethosn_queue) + core->queue_size, ETHOSN_PROT_READ | ETHOSN_PROT_WRITE,
-							 ETHOSN_STREAM_WORKING_DATA, GFP_KERNEL, "mailbox-request");
+	core->mailbox_request = ethosn_dma_alloc_and_map(allocator, sizeof(struct ethosn_queue) + core->queue_size, ETHOSN_PROT_READ | ETHOSN_PROT_WRITE, ETHOSN_STREAM_WORKING_DATA, GFP_KERNEL, "mailbox-request");
 	if (IS_ERR_OR_NULL(core->mailbox_request)) {
 		dev_warn(core->dev, "Failed to allocate memory for mailbox request queue");
 		goto err_free_mailbox;
 	}
 
-	core->mailbox_response = ethosn_dma_alloc_and_map(allocator, sizeof(struct ethosn_queue) + core->queue_size, ETHOSN_PROT_READ | ETHOSN_PROT_WRITE,
-							  ETHOSN_STREAM_WORKING_DATA, GFP_KERNEL, "mailbox-response");
+	core->mailbox_response = ethosn_dma_alloc_and_map(allocator, sizeof(struct ethosn_queue) + core->queue_size, ETHOSN_PROT_READ | ETHOSN_PROT_WRITE, ETHOSN_STREAM_WORKING_DATA, GFP_KERNEL, "mailbox-response");
 	if (IS_ERR_OR_NULL(core->mailbox_response)) {
 		dev_warn(core->dev, "Failed to allocate memory for mailbox response queue");
 		goto err_free_mailbox_request;
@@ -264,8 +261,7 @@ static int mailbox_alloc(struct ethosn_core *core)
 	request_end = core->mailbox_request->iova_addr + core->mailbox_request->size;
 	response_end = core->mailbox_response->iova_addr + core->mailbox_response->size;
 
-	core->mailbox_size =
-		roundup_pow_of_two(max3(mailbox_end, request_end, response_end) - ethosn_dma_get_addr_base(core->main_allocator, ETHOSN_STREAM_WORKING_DATA));
+	core->mailbox_size = roundup_pow_of_two(max3(mailbox_end, request_end, response_end) - ethosn_dma_get_addr_base(core->main_allocator, ETHOSN_STREAM_WORKING_DATA));
 
 	dev_dbg(core->dev, "Mailbox size: %zu bytes\n", core->mailbox_size);
 
@@ -323,8 +319,7 @@ static int debug_monitor_channel_alloc(struct ethosn_core *core)
 	struct ethosn_dma_allocator *allocator = core->main_allocator;
 	int ret = -ENOMEM;
 
-	core->debug_monitor_channel = ethosn_dma_alloc_and_map(allocator, sizeof(struct ethosn_debug_monitor_channel), ETHOSN_PROT_READ | ETHOSN_PROT_WRITE,
-							       ETHOSN_STREAM_WORKING_DATA, GFP_KERNEL, "debug_monitor_channel-header");
+	core->debug_monitor_channel = ethosn_dma_alloc_and_map(allocator, sizeof(struct ethosn_debug_monitor_channel), ETHOSN_PROT_READ | ETHOSN_PROT_WRITE, ETHOSN_STREAM_WORKING_DATA, GFP_KERNEL, "debug_monitor_channel-header");
 	if (IS_ERR_OR_NULL(core->debug_monitor_channel)) {
 		dev_warn(core->dev, "Failed to allocate memory for debug_monitor_channel");
 		goto err_exit;
@@ -334,16 +329,14 @@ static int debug_monitor_channel_alloc(struct ethosn_core *core)
 	 * mailbox queues. This is fairly arbitrary.
 	 */
 	core->debug_monitor_channel_request =
-		ethosn_dma_alloc_and_map(allocator, sizeof(struct ethosn_queue) + core->queue_size, ETHOSN_PROT_READ | ETHOSN_PROT_WRITE,
-					 ETHOSN_STREAM_WORKING_DATA, GFP_KERNEL, "debug_monitor_channel-request");
+		ethosn_dma_alloc_and_map(allocator, sizeof(struct ethosn_queue) + core->queue_size, ETHOSN_PROT_READ | ETHOSN_PROT_WRITE, ETHOSN_STREAM_WORKING_DATA, GFP_KERNEL, "debug_monitor_channel-request");
 	if (IS_ERR_OR_NULL(core->debug_monitor_channel_request)) {
 		dev_warn(core->dev, "Failed to allocate memory for debug_monitor_channel request queue");
 		goto err_free_debug_monitor_channel;
 	}
 
 	core->debug_monitor_channel_response =
-		ethosn_dma_alloc_and_map(allocator, sizeof(struct ethosn_queue) + core->queue_size, ETHOSN_PROT_READ | ETHOSN_PROT_WRITE,
-					 ETHOSN_STREAM_WORKING_DATA, GFP_KERNEL, "debug_monitor_channel-response");
+		ethosn_dma_alloc_and_map(allocator, sizeof(struct ethosn_queue) + core->queue_size, ETHOSN_PROT_READ | ETHOSN_PROT_WRITE, ETHOSN_STREAM_WORKING_DATA, GFP_KERNEL, "debug_monitor_channel-response");
 	if (IS_ERR_OR_NULL(core->debug_monitor_channel_response)) {
 		dev_warn(core->dev, "Failed to allocate memory for debug_monitor_channel response queue");
 		goto err_free_debug_monitor_channel_request;
@@ -552,8 +545,7 @@ static int ethosn_core_reset(struct ethosn_core *core, bool hard_reset, bool hal
 
 #else
 	const bool smmu_available = core->parent->smmu_available;
-	const struct ethosn_smc_aux_config aux_config = { .bits = { .level_irq = core->force_firmware_level_interrupts,
-								    .stashing = (ethosn_stashing_enabled() && smmu_available) } };
+	const struct ethosn_smc_aux_config aux_config = { .bits = { .level_irq = core->force_firmware_level_interrupts, .stashing = (ethosn_stashing_enabled() && smmu_available) } };
 
 	dev_info(core->dev, "%s reset the hardware through SMC.\n", reset_type);
 	core->set_is_protected = ethosn_core_has_protected_allocator(core);
@@ -1014,8 +1006,7 @@ int ethosn_send_fw_hw_capabilities_request(struct ethosn_core *core)
  * are in the process of updating that, it may not yet have been committed.
  * Instead we take the arguments explicitly.
  */
-static int ethosn_send_configure_profiling(struct ethosn_core *core, bool enable, uint32_t num_hw_counters, enum ethosn_profiling_hw_counter_types *hw_counters,
-					   struct ethosn_dma_info *buffer)
+static int ethosn_send_configure_profiling(struct ethosn_core *core, bool enable, uint32_t num_hw_counters, enum ethosn_profiling_hw_counter_types *hw_counters, struct ethosn_dma_info *buffer)
 {
 	struct ethosn_firmware_profiling_configuration fw_new_config = { 0 };
 	int i;
@@ -1048,8 +1039,7 @@ static int ethosn_send_configure_profiling(struct ethosn_core *core, bool enable
 	 */
 	fw_new_config.enable_profiling = enable;
 
-	dev_dbg(core->dev, "-> Configure profiling, enable_profiling=%d, buffer_address=0x%08llx, buffer_size=%d\n", fw_new_config.enable_profiling,
-		fw_new_config.buffer_address, fw_new_config.buffer_size);
+	dev_dbg(core->dev, "-> Configure profiling, enable_profiling=%d, buffer_address=0x%08llx, buffer_size=%d\n", fw_new_config.enable_profiling, fw_new_config.buffer_address, fw_new_config.buffer_size);
 
 	return ethosn_write_message(core, ETHOSN_MESSAGE_CONFIGURE_PROFILING, &fw_new_config, sizeof(fw_new_config));
 }
@@ -1077,8 +1067,7 @@ int ethosn_configure_firmware_profiling(struct ethosn_core *core, struct ethosn_
 		struct ethosn_profiling_buffer *buffer;
 
 		core->profiling.firmware_buffer_pending =
-			ethosn_dma_alloc_and_map(core->main_allocator, new_config->firmware_buffer_size, ETHOSN_PROT_READ | ETHOSN_PROT_WRITE,
-						 ETHOSN_STREAM_WORKING_DATA, GFP_KERNEL, "profiling-firmware-buffer");
+			ethosn_dma_alloc_and_map(core->main_allocator, new_config->firmware_buffer_size, ETHOSN_PROT_READ | ETHOSN_PROT_WRITE, ETHOSN_STREAM_WORKING_DATA, GFP_KERNEL, "profiling-firmware-buffer");
 		if (IS_ERR(core->profiling.firmware_buffer_pending)) {
 			dev_err(core->dev, "Error allocating firmware profiling buffer.\n");
 
@@ -1095,8 +1084,7 @@ int ethosn_configure_firmware_profiling(struct ethosn_core *core, struct ethosn_
 
 	core->profiling.is_waiting_for_firmware_ack = true;
 
-	ret = ethosn_send_configure_profiling(core, new_config->enable_profiling, new_config->num_hw_counters, new_config->hw_counters,
-					      core->profiling.firmware_buffer_pending);
+	ret = ethosn_send_configure_profiling(core, new_config->enable_profiling, new_config->num_hw_counters, new_config->hw_counters, core->profiling.firmware_buffer_pending);
 	if (ret != 0) {
 		dev_err(core->dev, "ethosn_send_configure_profiling failed.\n");
 
@@ -1256,8 +1244,7 @@ static bool validate_big_fw_header(struct ethosn_core *core, struct ethosn_big_f
 	}
 
 	if (big_fw->fw_ver_major != ETHOSN_FIRMWARE_VERSION_MAJOR) {
-		dev_err(core->dev, "Unsupported BIG FW version: %u.%u.%u. Version %u.x.x is required.\n", big_fw->fw_ver_major, big_fw->fw_ver_minor,
-			big_fw->fw_ver_patch, ETHOSN_FIRMWARE_VERSION_MAJOR);
+		dev_err(core->dev, "Unsupported BIG FW version: %u.%u.%u. Version %u.x.x is required.\n", big_fw->fw_ver_major, big_fw->fw_ver_minor, big_fw->fw_ver_patch, ETHOSN_FIRMWARE_VERSION_MAJOR);
 
 		return false;
 	}
@@ -1265,8 +1252,8 @@ static bool validate_big_fw_header(struct ethosn_core *core, struct ethosn_big_f
 	npu_id.word = ethosn_read_top_reg(core, DL1_RP, DL1_NPU_ID);
 	arch = npu_id.bits.arch_major << 24 | npu_id.bits.arch_minor << 16 | npu_id.bits.arch_rev;
 
-	dev_dbg(core->dev, "NPU reported arch version %u.%u.%u. BIG FW Magic: 0x%04x, version: %u.%u.%u\n", npu_id.bits.arch_major, npu_id.bits.arch_minor,
-		npu_id.bits.arch_rev, big_fw->fw_magic, big_fw->fw_ver_major, big_fw->fw_ver_minor, big_fw->fw_ver_patch);
+	dev_dbg(core->dev, "NPU reported arch version %u.%u.%u. BIG FW Magic: 0x%04x, version: %u.%u.%u\n", npu_id.bits.arch_major, npu_id.bits.arch_minor, npu_id.bits.arch_rev, big_fw->fw_magic, big_fw->fw_ver_major, big_fw->fw_ver_minor,
+		big_fw->fw_ver_patch);
 
 	if (big_fw->arch_min > arch || arch > big_fw->arch_max) {
 		dev_err(core->dev, "BIG FW is not compatible.\n");
@@ -1310,8 +1297,7 @@ static int firmware_load(struct ethosn_core *core)
 		goto release_fw;
 	}
 
-	dev_info(core->dev, "Found FW. arch_min=0x%08x, arch_max=0x%08x, offset=0x%08x, size=0x%08x\n", big_fw->arch_min, big_fw->arch_max, big_fw->offset,
-		 big_fw->size);
+	dev_info(core->dev, "Found FW. arch_min=0x%08x, arch_max=0x%08x, offset=0x%08x, size=0x%08x\n", big_fw->arch_min, big_fw->arch_max, big_fw->offset, big_fw->size);
 	dev_dbg(core->dev, "Firmware asset offsets+sizes:\n");
 
 	dev_dbg(core->dev, "  Code: 0x%08x + 0x%08x\n", big_fw->code_offset, big_fw->code_size);
@@ -1323,8 +1309,7 @@ static int firmware_load(struct ethosn_core *core)
 	/* First check that the assets are in the expected
 	 * order, otherwise the following logic might be wrong.
 	 */
-	if (big_fw->code_offset >= big_fw->ple_offset || big_fw->ple_offset >= big_fw->vector_table_offset ||
-	    big_fw->vector_table_offset >= big_fw->unpriv_stack_offset || big_fw->unpriv_stack_offset >= big_fw->priv_stack_offset) {
+	if (big_fw->code_offset >= big_fw->ple_offset || big_fw->ple_offset >= big_fw->vector_table_offset || big_fw->vector_table_offset >= big_fw->unpriv_stack_offset || big_fw->unpriv_stack_offset >= big_fw->priv_stack_offset) {
 		dev_err(core->dev, "%s: Firmware assets in wrong order\n", __func__);
 		ret = -EINVAL;
 		goto release_fw;
@@ -1392,8 +1377,7 @@ static int firmware_load(struct ethosn_core *core)
 	if (is_carveout_second_core) {
 		uint32_t *vtable = core->firmware->cpu_addr + big_fw->vector_table_offset - load_src_offset;
 		/* Calculate bottom of the privileged stack */
-		uint32_t new_stack_pointer =
-			(core->firmware->iova_addr + big_fw->priv_stack_offset + big_fw->priv_stack_size - load_src_offset) & ETHOSN_REGION_MASK;
+		uint32_t new_stack_pointer = (core->firmware->iova_addr + big_fw->priv_stack_offset + big_fw->priv_stack_size - load_src_offset) & ETHOSN_REGION_MASK;
 
 		ethosn_dma_sync_for_cpu(core->main_allocator, core->firmware);
 
@@ -1775,8 +1759,7 @@ static ssize_t firmware_profiling_read(struct file *file, char __user *buf_user,
 		 */
 		if (num_bytes_read > 0 && num_bytes_read < count) {
 			read_buffer_offset = 0;
-			num_bytes_read += simple_read_from_buffer(buf_user + num_bytes_read, count - num_bytes_read, &read_buffer_offset, buffer->entries,
-								  firmware_write_offset);
+			num_bytes_read += simple_read_from_buffer(buf_user + num_bytes_read, count - num_bytes_read, &read_buffer_offset, buffer->entries, firmware_write_offset);
 		}
 	} else {
 		/* No more data available (or the firmware has written so much

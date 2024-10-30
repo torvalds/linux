@@ -74,8 +74,7 @@ int ethosn_smc_is_secure(const struct device *dev, phys_addr_t core_addr);
  *
  * Return: 0 on success, else error code.
  */
-int ethosn_smc_core_reset(const struct device *dev, phys_addr_t core_addr, uint32_t asset_alloc_idx, bool halt, bool hard_reset, bool is_protected,
-			  const struct ethosn_smc_aux_config *aux_config);
+int ethosn_smc_core_reset(const struct device *dev, phys_addr_t core_addr, uint32_t asset_alloc_idx, bool halt, bool hard_reset, bool is_protected, const struct ethosn_smc_aux_config *aux_config);
 
 /**
  * ethosn_smc_core_is_sleeping() - Call SiP service to check if the NPU core is

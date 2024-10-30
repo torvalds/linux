@@ -159,8 +159,7 @@ int ethosn_dma_top_allocator_destroy(struct device *dev, struct ethosn_dma_alloc
 	return 0;
 }
 
-int ethosn_dma_sub_allocator_create(struct device *dev, struct ethosn_dma_allocator *top_allocator, enum ethosn_stream_type stream_type, dma_addr_t addr_base,
-				    phys_addr_t speculative_page_addr, bool is_smmu_available)
+int ethosn_dma_sub_allocator_create(struct device *dev, struct ethosn_dma_allocator *top_allocator, enum ethosn_stream_type stream_type, dma_addr_t addr_base, phys_addr_t speculative_page_addr, bool is_smmu_available)
 {
 	struct ethosn_dma_sub_allocator **allocator;
 
@@ -204,8 +203,8 @@ void ethosn_dma_sub_allocator_destroy(struct ethosn_dma_allocator *top_allocator
 	*sub_allocator = NULL;
 }
 
-struct ethosn_dma_info *ethosn_dma_alloc(struct ethosn_dma_allocator *top_allocator, const size_t size, enum ethosn_stream_type stream_type, gfp_t gfp,
-					 const char *debug_tag)
+// 通过top_allocator和stream_type锁定sub_allocator, 执行sub_allocator的绑定的alloc接口函数
+struct ethosn_dma_info *ethosn_dma_alloc(struct ethosn_dma_allocator *top_allocator, const size_t size, enum ethosn_stream_type stream_type, gfp_t gfp, const char *debug_tag)
 {
 	struct ethosn_dma_sub_allocator *sub_allocator = ethosn_get_sub_allocator(top_allocator, stream_type);
 	const struct ethosn_dma_allocator_ops *ops;
@@ -232,8 +231,7 @@ struct ethosn_dma_info *ethosn_dma_alloc(struct ethosn_dma_allocator *top_alloca
 
 	dma_info->stream_type = stream_type;
 
-	dev_dbg(sub_allocator->dev, "DMA alloc for %s. handle=0x%pK, cpu_addr=0x%pK, size=%zu (0x%zx)\n", debug_tag == NULL ? "(unknown)" : debug_tag, dma_info,
-		dma_info->cpu_addr, size, size);
+	dev_dbg(sub_allocator->dev, "DMA alloc for %s. handle=0x%pK, cpu_addr=0x%pK, size=%zu (0x%zx)\n", debug_tag == NULL ? "(unknown)" : debug_tag, dma_info, dma_info->cpu_addr, size, size);
 
 	/* Zero the memory. This ensures the previous contents of the
 	 * memory doesn't affect us (if the same physical memory
@@ -296,8 +294,7 @@ int ethosn_dma_map(struct ethosn_dma_allocator *top_allocator, struct ethosn_dma
 	return ethosn_dma_map_with_prot_ranges(top_allocator, dma_info, &prot_range, 1);
 }
 
-int ethosn_dma_map_with_prot_ranges(struct ethosn_dma_allocator *top_allocator, struct ethosn_dma_info *dma_info, struct ethosn_dma_prot_range *prot_ranges,
-				    size_t num_prot_ranges)
+int ethosn_dma_map_with_prot_ranges(struct ethosn_dma_allocator *top_allocator, struct ethosn_dma_info *dma_info, struct ethosn_dma_prot_range *prot_ranges, size_t num_prot_ranges)
 {
 	struct ethosn_dma_sub_allocator *sub_allocator;
 	const struct ethosn_dma_allocator_ops *ops;
@@ -367,8 +364,7 @@ int ethosn_dma_map_with_prot_ranges(struct ethosn_dma_allocator *top_allocator, 
 	if (ret)
 		dev_err(sub_allocator->dev, "failed mapping dma on stream %d\n", dma_info->stream_type);
 	else
-		dev_dbg(sub_allocator->dev, "DMA mapped. handle=0x%pK, iova=0x%llx, prot=0x%x (+%zu others), stream=%u\n", dma_info, dma_info->iova_addr,
-			prot_ranges[0].prot, num_prot_ranges - 1, dma_info->stream_type);
+		dev_dbg(sub_allocator->dev, "DMA mapped. handle=0x%pK, iova=0x%llx, prot=0x%x (+%zu others), stream=%u\n", dma_info, dma_info->iova_addr, prot_ranges[0].prot, num_prot_ranges - 1, dma_info->stream_type);
 
 exit:
 
@@ -398,8 +394,7 @@ void ethosn_dma_unmap(struct ethosn_dma_allocator *top_allocator, struct ethosn_
 	ops->unmap(sub_allocator, dma_info);
 }
 
-struct ethosn_dma_info *ethosn_dma_alloc_and_map(struct ethosn_dma_allocator *top_allocator, const size_t size, int prot, enum ethosn_stream_type stream_type,
-						 gfp_t gfp, const char *debug_tag)
+struct ethosn_dma_info *ethosn_dma_alloc_and_map(struct ethosn_dma_allocator *top_allocator, const size_t size, int prot, enum ethosn_stream_type stream_type, gfp_t gfp, const char *debug_tag)
 {
 	struct ethosn_dma_sub_allocator *sub_allocator = ethosn_get_sub_allocator(top_allocator, stream_type);
 	struct ethosn_dma_info *dma_info = NULL;
@@ -408,7 +403,6 @@ struct ethosn_dma_info *ethosn_dma_alloc_and_map(struct ethosn_dma_allocator *to
 	if (!sub_allocator)
 		return NULL;
 
-    // 分配物理页并映射到cpu虚拟地址空间, 这些物理页同时获得了dma地址
 	dma_info = ethosn_dma_alloc(top_allocator, size, stream_type, gfp, debug_tag);
 	if (IS_ERR_OR_NULL(dma_info))
 		goto exit;

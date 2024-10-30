@@ -54,8 +54,7 @@ static inline int __must_check ethosn_smc_core_call(u32 cmd, phys_addr_t core_ad
 	return ((int)(res->a0 & 0xFFFFFFFF));
 }
 
-static inline int __must_check ethosn_smc_core_reset_call(u32 cmd, phys_addr_t core_addr, uint32_t asset_alloc_idx, bool halt, bool is_protected,
-							  u32 aux_config, struct arm_smccc_res *res)
+static inline int __must_check ethosn_smc_core_reset_call(u32 cmd, phys_addr_t core_addr, uint32_t asset_alloc_idx, bool halt, bool is_protected, u32 aux_config, struct arm_smccc_res *res)
 {
 	arm_smccc_smc(cmd, core_addr, asset_alloc_idx, halt, is_protected, aux_config, 0, 0, res);
 
@@ -114,16 +113,14 @@ int ethosn_smc_is_secure(const struct device *dev, phys_addr_t core_addr)
 /* Exported for use by test module */
 // EXPORT_SYMBOL(ethosn_smc_is_secure);
 
-int ethosn_smc_core_reset(const struct device *dev, phys_addr_t core_addr, uint32_t asset_alloc_idx, bool halt, bool hard_reset, bool is_protected,
-			  const struct ethosn_smc_aux_config *aux_config)
+int ethosn_smc_core_reset(const struct device *dev, phys_addr_t core_addr, uint32_t asset_alloc_idx, bool halt, bool hard_reset, bool is_protected, const struct ethosn_smc_aux_config *aux_config)
 {
 	struct arm_smccc_res res = { 0 };
 	const u32 smc_reset_call = hard_reset ? ETHOSN_SMC_CORE_HARD_RESET : ETHOSN_SMC_CORE_SOFT_RESET;
 	int ret = ethosn_smc_core_reset_call(smc_reset_call, core_addr, asset_alloc_idx, halt, is_protected, aux_config->word, &res);
 
 	if (ret) {
-		dev_warn(dev, "Failed to %s%s reset the hardware in %scontext: %d\n", hard_reset ? "hard" : "soft", halt ? " halt" : "",
-			 is_protected ? "" : "non-", ret);
+		dev_warn(dev, "Failed to %s%s reset the hardware in %scontext: %d\n", hard_reset ? "hard" : "soft", halt ? " halt" : "", is_protected ? "" : "non-", ret);
 
 		return -EFAULT;
 	}

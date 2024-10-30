@@ -139,9 +139,8 @@ static long proc_mem_allocator_ioctl(struct file *filep, unsigned int cmd, unsig
 			break;
 		}
 
-		dev_dbg(ethosn->dev, "IOCTL: Register network. num_dma=%u, num_cu=%u, num_intermediates=%u, num_inputs=%u, num_outputs=%u\n",
-			net_req.dma_buffers.num, net_req.cu_buffers.num, net_req.intermediate_desc.buffers.num, net_req.input_buffers.num,
-			net_req.output_buffers.num);
+		dev_dbg(ethosn->dev, "IOCTL: Register network. num_dma=%u, num_cu=%u, num_intermediates=%u, num_inputs=%u, num_outputs=%u\n", net_req.dma_buffers.num, net_req.cu_buffers.num, net_req.intermediate_desc.buffers.num,
+			net_req.input_buffers.num, net_req.output_buffers.num);
 
 		print_buffer_info(ethosn, "dma", net_req.dma_buffers.num, net_req.dma_buffers.info);
 		print_buffer_info(ethosn, "cu", net_req.cu_buffers.num, net_req.cu_buffers.info);
@@ -149,8 +148,7 @@ static long proc_mem_allocator_ioctl(struct file *filep, unsigned int cmd, unsig
 		print_buffer_info(ethosn, "input", net_req.input_buffers.num, net_req.input_buffers.info);
 		print_buffer_info(ethosn, "output", net_req.output_buffers.num, net_req.output_buffers.info);
 
-		if (net_req.intermediate_desc.buffers.num && net_req.intermediate_desc.memory.type == ALLOCATE &&
-		    proc_mem_allocator->asset_allocator->is_protected) {
+		if (net_req.intermediate_desc.buffers.num && net_req.intermediate_desc.memory.type == ALLOCATE && proc_mem_allocator->asset_allocator->is_protected) {
 			dev_dbg(ethosn->dev, "IOCTL: Register Network requires imported intermediate buffers while in protected context\n");
 			ret = -EPERM;
 			break;
@@ -268,7 +266,7 @@ static const struct file_operations allocator_fops = {
  * -EINVAL - Invalid argument.
  * -ENOMEM - Failed to allocate memory or a free asset_allocator.
  */
-int ethosn_process_mem_allocator_create(struct ethosn_device *ethosn, pid_t pid, bool protected)
+int ethosn_process_mem_allocator_create(struct ethosn_device *ethosn, pid_t pid, bool protected)        // process_mem_allocator 用于在程序运行过程中动态地构造DMA内存空间
 {
 	int ret = 0;
 	int fd;

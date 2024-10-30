@@ -140,8 +140,7 @@ static inline bool ethosn_queue_read(struct ethosn_queue *queue, uint8_t *dst, u
  * @buffers: 缓冲区数组, 长度为 num_buffers, 每个元素是指向将写入队列的缓冲区的指针.
  * @sizes: 数组, 长度为 num_buffers, 每个元素是 @buffers 中相应缓冲区的长度.
  */
-static inline bool ethosn_queue_write(struct ethosn_queue *queue, const uint8_t *const *buffers, const uint32_t *sizes, uint32_t num_buffers,
-				      uint32_t *out_write_pending)
+static inline bool ethosn_queue_write(struct ethosn_queue *queue, const uint8_t *const *buffers, const uint32_t *sizes, uint32_t num_buffers, uint32_t *out_write_pending)
 {
 	const uint32_t mask = queue->capacity - 1;
 	uint32_t write = queue->write;
@@ -244,14 +243,7 @@ struct ethosn_message_header {
 /******************************************************************************
  * Inference
  ******************************************************************************/
-enum ethosn_buffer_type {
-	ETHOSN_BUFFER_INPUT,
-	ETHOSN_BUFFER_INTERMEDIATE,
-	ETHOSN_BUFFER_OUTPUT,
-	ETHOSN_BUFFER_CONSTANT,
-	ETHOSN_BUFFER_CMD_FW,
-	ETHOSN_BUFFER_MAX
-};
+enum ethosn_buffer_type { ETHOSN_BUFFER_INPUT, ETHOSN_BUFFER_INTERMEDIATE, ETHOSN_BUFFER_OUTPUT, ETHOSN_BUFFER_CONSTANT, ETHOSN_BUFFER_CMD_FW, ETHOSN_BUFFER_MAX };
 
 /**
  * struct ethosn_buffer_desc - 缓冲区描述符
