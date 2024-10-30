@@ -24,6 +24,7 @@
 
 #include <linux/kref.h>
 #include <linux/slab.h>
+#include <linux/dma-fence-unwrap.h>
 
 #include <drm/drm_exec.h>
 #include <drm/drm_syncobj.h>
@@ -474,11 +475,11 @@ free_syncobj_handles:
 int amdgpu_userq_wait_ioctl(struct drm_device *dev, void *data,
 			    struct drm_file *filp)
 {
+	u32 *syncobj_handles, *timeline_points, *timeline_handles, *bo_handles;
+	u32 num_syncobj, num_bo_handles, num_points;
 	struct drm_amdgpu_userq_fence_info *fence_info = NULL;
 	struct drm_amdgpu_userq_wait *wait_info = data;
-	u32 *syncobj_handles, *bo_handles;
 	struct dma_fence **fences = NULL;
-	u32 num_syncobj, num_bo_handles;
 	struct drm_gem_object **gobj;
 	struct drm_exec exec;
 	int r, i, entry, cnt;
@@ -498,11 +499,26 @@ int amdgpu_userq_wait_ioctl(struct drm_device *dev, void *data,
 		goto free_bo_handles;
 	}
 
+	num_points = wait_info->num_points;
+	timeline_handles = memdup_user(u64_to_user_ptr(wait_info->syncobj_timeline_handles),
+				       sizeof(u32) * num_points);
+	if (IS_ERR(timeline_handles)) {
+		r = PTR_ERR(timeline_handles);
+		goto free_syncobj_handles;
+	}
+
+	timeline_points = memdup_user(u64_to_user_ptr(wait_info->syncobj_timeline_points),
+				      sizeof(u32) * num_points);
+	if (IS_ERR(timeline_points)) {
+		r = PTR_ERR(timeline_points);
+		goto free_timeline_handles;
+	}
+
 	/* Array of GEM object handles */
 	gobj = kmalloc_array(num_bo_handles, sizeof(*gobj), GFP_KERNEL);
 	if (!gobj) {
 		r = -ENOMEM;
-		goto free_syncobj_handles;
+		goto free_timeline_points;
 	}
 
 	for (entry = 0; entry < num_bo_handles; entry++) {
@@ -524,12 +540,34 @@ int amdgpu_userq_wait_ioctl(struct drm_device *dev, void *data,
 	}
 
 	if (!wait_info->num_fences) {
+		if (num_points) {
+			struct dma_fence_unwrap iter;
+			struct dma_fence *fence;
+			struct dma_fence *f;
+
+			for (i = 0; i < num_points; i++) {
+				r = drm_syncobj_find_fence(filp, timeline_handles[i],
+							   timeline_points[i],
+							   DRM_SYNCOBJ_WAIT_FLAGS_WAIT_FOR_SUBMIT,
+							   &fence);
+				if (r)
+					goto exec_fini;
+
+				dma_fence_unwrap_for_each(f, &iter, fence)
+					num_fences++;
+
+				dma_fence_put(fence);
+			}
+		}
+
 		/* Count syncobj's fence */
 		for (i = 0; i < num_syncobj; i++) {
 			struct dma_fence *fence;
 
 			r = drm_syncobj_find_fence(filp, syncobj_handles[i],
-						   0, 0, &fence);
+						   0,
+						   DRM_SYNCOBJ_WAIT_FLAGS_WAIT_FOR_SUBMIT,
+						   &fence);
 			if (r)
 				goto exec_fini;
 
@@ -588,12 +626,41 @@ int amdgpu_userq_wait_ioctl(struct drm_device *dev, void *data,
 			}
 		}
 
+		if (num_points) {
+			struct dma_fence_unwrap iter;
+			struct dma_fence *fence;
+			struct dma_fence *f;
+
+			for (i = 0; i < num_points; i++) {
+				r = drm_syncobj_find_fence(filp, timeline_handles[i],
+							   timeline_points[i],
+							   DRM_SYNCOBJ_WAIT_FLAGS_WAIT_FOR_SUBMIT,
+							   &fence);
+				if (r)
+					goto free_fences;
+
+				dma_fence_unwrap_for_each(f, &iter, fence) {
+					if (WARN_ON_ONCE(num_fences >= wait_info->num_fences)) {
+						r = -EINVAL;
+						goto free_fences;
+					}
+
+					dma_fence_get(f);
+					fences[num_fences++] = f;
+				}
+
+				dma_fence_put(fence);
+			}
+		}
+
 		/* Retrieve syncobj's fence */
 		for (i = 0; i < num_syncobj; i++) {
 			struct dma_fence *fence;
 
 			r = drm_syncobj_find_fence(filp, syncobj_handles[i],
-						   0, 0, &fence);
+						   0,
+						   DRM_SYNCOBJ_WAIT_FLAGS_WAIT_FOR_SUBMIT,
+						   &fence);
 			if (r)
 				goto free_fences;
 
@@ -616,9 +683,13 @@ int amdgpu_userq_wait_ioctl(struct drm_device *dev, void *data,
 				 * Just waiting on other driver fences should
 				 * be good for now
 				 */
-				dma_fence_wait(fences[i], false);
-				dma_fence_put(fences[i]);
+				r = dma_fence_wait(fences[i], true);
+				if (r) {
+					dma_fence_put(fences[i]);
+					goto free_fences;
+				}
 
+				dma_fence_put(fences[i]);
 				continue;
 			}
 
@@ -664,6 +735,8 @@ int amdgpu_userq_wait_ioctl(struct drm_device *dev, void *data,
 		drm_gem_object_put(gobj[i]);
 	kfree(gobj);
 
+	kfree(timeline_points);
+	kfree(timeline_handles);
 	kfree(syncobj_handles);
 	kfree(bo_handles);
 
@@ -681,6 +754,10 @@ put_gobj:
 	while (entry-- > 0)
 		drm_gem_object_put(gobj[entry]);
 	kfree(gobj);
+free_timeline_points:
+	kfree(timeline_points);
+free_timeline_handles:
+	kfree(timeline_handles);
 free_syncobj_handles:
 	kfree(syncobj_handles);
 free_bo_handles:

@@ -530,12 +530,26 @@ struct drm_amdgpu_userq_wait {
 	 * matching fence wait info pair in @userq_fence_info.
 	 */
 	__u32	bo_wait_flags;
-	__u32	pad;
+	/**
+	 * @num_points: A count that represents the number of timeline syncobj handles in
+	 * syncobj_handles_array.
+	 */
+	__u32	num_points;
 	/**
 	 * @syncobj_handles_array: An array of syncobj handles defined to get the
 	 * fence wait information of every syncobj handles in the array.
 	 */
 	__u64	syncobj_handles_array;
+	/**
+	 * @syncobj_timeline_handles: An array of timeline syncobj handles defined to get the
+	 * fence wait information of every timeline syncobj handles in the array.
+	 */
+	__u64   syncobj_timeline_handles;
+	/**
+	 * @syncobj_timeline_points: An array of timeline syncobj points defined to get the
+	 * fence wait points of every timeline syncobj handles in the syncobj_handles_array.
+	 */
+	__u64	syncobj_timeline_points;
 	/**
 	 * @bo_handles_array: An array of GEM BO handles defined to fetch the fence
 	 * wait information of every BO handles in the array.
