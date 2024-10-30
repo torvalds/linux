@@ -21,6 +21,7 @@ choice
 config M68KCLASSIC
 	bool "Classic M68K CPU/machine family support"
 	select HAVE_ARCH_PFN_VALID
+	select M68020 if MMU && !(M68030 || M68040 || M68060)
 
 config COLDFIRE
 	bool "Coldfire CPU family support"
