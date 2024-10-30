@@ -231,19 +231,22 @@ out_deselect:
 
 static int rtl_snand_dma_xfer(struct rtl_snand *snand, int cs, const struct spi_mem_op *op)
 {
+	unsigned int pos, nbytes;
 	int ret;
 	dma_addr_t buf_dma;
 	enum dma_data_direction dir;
-	u32 trig;
+	u32 trig, len, maxlen;
 
 	ret = rtl_snand_xfer_head(snand, cs, op);
 	if (ret)
 		goto out_deselect;
 
 	if (op->data.dir == SPI_MEM_DATA_IN) {
+		maxlen = 2080;
 		dir = DMA_FROM_DEVICE;
 		trig = 0;
 	} else if (op->data.dir == SPI_MEM_DATA_OUT) {
+		maxlen = 520;
 		dir = DMA_TO_DEVICE;
 		trig = 1;
 	} else {
@@ -264,26 +267,37 @@ static int rtl_snand_dma_xfer(struct rtl_snand *snand, int cs, const struct spi_
 	if (ret)
 		goto out_unmap;
 
-	reinit_completion(&snand->comp);
+	pos = 0;
+	len = op->data.nbytes;
 
-	ret = regmap_write(snand->regmap, SNAFDRSAR, buf_dma);
-	if (ret)
-		goto out_disable_int;
+	while (pos < len) {
+		nbytes = len - pos;
+		if (nbytes > maxlen)
+			nbytes = maxlen;
 
-	ret = regmap_write(snand->regmap, SNAFDLR,
-			   CMR_WID(op->data.buswidth) | (op->data.nbytes & 0xffff));
-	if (ret)
-		goto out_disable_int;
+		reinit_completion(&snand->comp);
 
-	ret = regmap_write(snand->regmap, SNAFDTR, trig);
-	if (ret)
-		goto out_disable_int;
+		ret = regmap_write(snand->regmap, SNAFDRSAR, buf_dma + pos);
+		if (ret)
+			goto out_disable_int;
 
-	if (!wait_for_completion_timeout(&snand->comp, usecs_to_jiffies(20000)))
-		ret = -ETIMEDOUT;
+		pos += nbytes;
 
-	if (ret)
-		goto out_disable_int;
+		ret = regmap_write(snand->regmap, SNAFDLR,
+				CMR_WID(op->data.buswidth) | nbytes);
+		if (ret)
+			goto out_disable_int;
+
+		ret = regmap_write(snand->regmap, SNAFDTR, trig);
+		if (ret)
+			goto out_disable_int;
+
+		if (!wait_for_completion_timeout(&snand->comp, usecs_to_jiffies(20000)))
+			ret = -ETIMEDOUT;
+
+		if (ret)
+			goto out_disable_int;
+	}
 
 out_disable_int:
 	regmap_update_bits(snand->regmap, SNAFCFR, SNAFCFR_DMA_IE, 0);
