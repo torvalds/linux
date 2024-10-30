@@ -786,11 +786,11 @@ static void loop_config_discard(struct loop_device *lo,
 	 * file-backed loop devices: discarded regions read back as zero.
 	 */
 	if (S_ISBLK(inode->i_mode)) {
-		struct request_queue *backingq = bdev_get_queue(I_BDEV(inode));
+		struct block_device *bdev = I_BDEV(inode);
 
-		max_discard_sectors = backingq->limits.max_write_zeroes_sectors;
-		granularity = bdev_discard_granularity(I_BDEV(inode)) ?:
-			queue_physical_block_size(backingq);
+		max_discard_sectors = bdev_write_zeroes_sectors(bdev);
+		granularity = bdev_discard_granularity(bdev) ?:
+			bdev_physical_block_size(bdev);
 
 	/*
 	 * We use punch hole to reclaim the free space used by the
