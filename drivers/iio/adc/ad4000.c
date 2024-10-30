@@ -344,6 +344,8 @@ static int ad4000_single_conversion(struct iio_dev *indio_dev,
 
 	if (chan->scan_type.sign == 's')
 		*val = sign_extend32(sample, chan->scan_type.realbits - 1);
+	else
+		*val = sample;
 
 	return IIO_VAL_INT;
 }
