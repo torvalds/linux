@@ -886,7 +886,7 @@ static void hal2_remove(struct platform_device *pdev)
 
 static struct platform_driver hal2_driver = {
 	.probe	= hal2_probe,
-	.remove_new = hal2_remove,
+	.remove = hal2_remove,
 	.driver = {
 		.name	= "sgihal2",
 	}
