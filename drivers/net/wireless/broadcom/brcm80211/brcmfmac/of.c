@@ -112,9 +112,8 @@ int brcmf_of_probe(struct device *dev, enum brcmf_bus_type bus_type,
 		}
 		strreplace(board_type, '/', '-');
 		settings->board_type = board_type;
-
-		of_node_put(root);
 	}
+	of_node_put(root);
 
 	clk = devm_clk_get_optional_enabled_with_rate(dev, "lpo", 32768);
 	if (IS_ERR(clk))
