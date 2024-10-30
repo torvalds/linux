@@ -42,6 +42,14 @@ MODULE_LICENSE("GPL");
 MODULE_ALIAS("wmi:" LEGACY_CONTROL_GUID);
 MODULE_ALIAS("wmi:" WMAX_CONTROL_GUID);
 
+static bool force_platform_profile;
+module_param_unsafe(force_platform_profile, bool, 0);
+MODULE_PARM_DESC(force_platform_profile, "Forces auto-detecting thermal profiles without checking if WMI thermal backend is available");
+
+static bool force_gmode;
+module_param_unsafe(force_gmode, bool, 0);
+MODULE_PARM_DESC(force_gmode, "Forces G-Mode when performance profile is selected");
+
 enum INTERFACE_FLAGS {
 	LEGACY,
 	WMAX,
@@ -1074,6 +1082,16 @@ static int __init alienware_wmi_init(void)
 	dmi_check_system(alienware_quirks);
 	if (quirks == NULL)
 		quirks = &quirk_unknown;
+
+	if (force_platform_profile)
+		quirks->thermal = true;
+
+	if (force_gmode) {
+		if (quirks->thermal)
+			quirks->gmode = true;
+		else
+			pr_warn("force_gmode requieres platform profile support\n");
+	}
 
 	ret = platform_driver_register(&platform_driver);
 	if (ret)
