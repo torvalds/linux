@@ -3812,10 +3812,35 @@ void f2fs_update_device_state(struct f2fs_sb_info *sbi, nid_t ino,
 	}
 }
 
+static int log_type_to_seg_type(enum log_type type)
+{
+	int seg_type = CURSEG_COLD_DATA;
+
+	switch (type) {
+	case CURSEG_HOT_DATA:
+	case CURSEG_WARM_DATA:
+	case CURSEG_COLD_DATA:
+	case CURSEG_HOT_NODE:
+	case CURSEG_WARM_NODE:
+	case CURSEG_COLD_NODE:
+		seg_type = (int)type;
+		break;
+	case CURSEG_COLD_DATA_PINNED:
+	case CURSEG_ALL_DATA_ATGC:
+		seg_type = CURSEG_COLD_DATA;
+		break;
+	default:
+		break;
+	}
+	return seg_type;
+}
+
 static void do_write_page(struct f2fs_summary *sum, struct f2fs_io_info *fio)
 {
-	int type = __get_segment_type(fio);
-	bool keep_order = (f2fs_lfs_mode(fio->sbi) && type == CURSEG_COLD_DATA);
+	enum log_type type = __get_segment_type(fio);
+	int seg_type = log_type_to_seg_type(type);
+	bool keep_order = (f2fs_lfs_mode(fio->sbi) &&
+				seg_type == CURSEG_COLD_DATA);
 
 	if (keep_order)
 		f2fs_down_read(&fio->sbi->io_order_lock);
@@ -4797,12 +4822,7 @@ static int build_curseg(struct f2fs_sb_info *sbi)
 				sizeof(struct f2fs_journal), GFP_KERNEL);
 		if (!array[i].journal)
 			return -ENOMEM;
-		if (i < NR_PERSISTENT_LOG)
-			array[i].seg_type = CURSEG_HOT_DATA + i;
-		else if (i == CURSEG_COLD_DATA_PINNED)
-			array[i].seg_type = CURSEG_COLD_DATA;
-		else if (i == CURSEG_ALL_DATA_ATGC)
-			array[i].seg_type = CURSEG_COLD_DATA;
+		array[i].seg_type = log_type_to_seg_type(i);
 		reset_curseg_fields(&array[i]);
 	}
 	return restore_curseg_summaries(sbi);
