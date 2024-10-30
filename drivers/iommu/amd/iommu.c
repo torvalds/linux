@@ -77,8 +77,6 @@ DEFINE_IDA(pdom_ids);
 
 struct kmem_cache *amd_iommu_irq_cache;
 
-static void detach_device(struct device *dev);
-
 static int amd_iommu_attach_device(struct iommu_domain *dom,
 				   struct device *dev);
 
@@ -563,22 +561,6 @@ static void iommu_ignore_device(struct amd_iommu *iommu, struct device *dev)
 	setup_aliases(iommu, dev);
 }
 
-static void amd_iommu_uninit_device(struct device *dev)
-{
-	struct iommu_dev_data *dev_data;
-
-	dev_data = dev_iommu_priv_get(dev);
-	if (!dev_data)
-		return;
-
-	if (dev_data->domain)
-		detach_device(dev);
-
-	/*
-	 * We keep dev_data around for unplugged devices and reuse it when the
-	 * device is re-plugged - not doing so would introduce a ton of races.
-	 */
-}
 
 /****************************************************************************
  *
@@ -2249,17 +2231,14 @@ out_err:
 
 static void amd_iommu_release_device(struct device *dev)
 {
-	struct amd_iommu *iommu;
+	struct iommu_dev_data *dev_data = dev_iommu_priv_get(dev);
 
-	if (!check_device(dev))
-		return;
+	WARN_ON(dev_data->domain);
 
-	iommu = rlookup_amd_iommu(dev);
-	if (!iommu)
-		return;
-
-	amd_iommu_uninit_device(dev);
-	iommu_completion_wait(iommu);
+	/*
+	 * We keep dev_data around for unplugged devices and reuse it when the
+	 * device is re-plugged - not doing so would introduce a ton of races.
+	 */
 }
 
 static struct iommu_group *amd_iommu_device_group(struct device *dev)
