@@ -305,13 +305,26 @@ Kernel Mode Driver
 ------------------
 
 The KMD is responsible for checking if the device needs a reset, and to perform
-it as needed. Usually a hang is detected when a job gets stuck executing. KMD
-should keep track of resets, because userspace can query any time about the
-reset status for a specific context. This is needed to propagate to the rest of
-the stack that a reset has happened. Currently, this is implemented by each
-driver separately, with no common DRM interface. Ideally this should be properly
-integrated at DRM scheduler to provide a common ground for all drivers. After a
-reset, KMD should reject new command submissions for affected contexts.
+it as needed. Usually a hang is detected when a job gets stuck executing.
+
+Propagation of errors to userspace has proven to be tricky since it goes in
+the opposite direction of the usual flow of commands. Because of this vendor
+independent error handling was added to the &dma_fence object, this way drivers
+can add an error code to their fences before signaling them. See function
+dma_fence_set_error() on how to do this and for examples of error codes to use.
+
+The DRM scheduler also allows setting error codes on all pending fences when
+hardware submissions are restarted after an reset. Error codes are also
+forwarded from the hardware fence to the scheduler fence to bubble up errors
+to the higher levels of the stack and eventually userspace.
+
+Fence errors can be queried by userspace through the generic SYNC_IOC_FILE_INFO
+IOCTL as well as through driver specific interfaces.
+
+Additional to setting fence errors drivers should also keep track of resets per
+context, the DRM scheduler provides the drm_sched_entity_error() function as
+helper for this use case. After a reset, KMD should reject new command
+submissions for affected contexts.
 
 User Mode Driver
 ----------------

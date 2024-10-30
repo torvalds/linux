@@ -34,7 +34,7 @@
 #include <linux/sort.h>
 #include <linux/units.h>
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 static char *mutex_path_override;
 

@@ -639,7 +639,7 @@ static inline struct vmw_surface *vmw_res_to_srf(struct vmw_resource *res)
 
 static inline struct vmw_private *vmw_priv(struct drm_device *dev)
 {
-	return (struct vmw_private *)dev->dev_private;
+	return container_of(dev, struct vmw_private, drm);
 }
 
 static inline struct vmw_private *vmw_priv_from_ttm(struct ttm_device *bdev)

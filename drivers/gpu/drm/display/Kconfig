@@ -3,7 +3,7 @@
 config DRM_DISPLAY_DP_AUX_BUS
 	tristate
 	depends on DRM
-	depends on OF || COMPILE_TEST
+	depends on OF
 
 config DRM_DISPLAY_HELPER
 	tristate
@@ -63,6 +63,12 @@ config DRM_DISPLAY_DP_TUNNEL_STATE_DEBUG
 	  streams contained in tunnels.
 
 	  If in doubt, say "N".
+
+config DRM_DISPLAY_DSC_HELPER
+	bool
+	depends on DRM_DISPLAY_HELPER
+	help
+	  DRM display helpers for VESA DSC (used by DSI and DisplayPort).
 
 config DRM_DISPLAY_HDCP_HELPER
 	bool

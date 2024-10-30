@@ -3,12 +3,13 @@
  * Copyright (C) 2023 Loongson Technology Corporation Limited
  */
 
+#include <linux/aperture.h>
 #include <linux/pci.h>
 #include <linux/vgaarb.h>
 
-#include <drm/drm_aperture.h>
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_client_setup.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_fbdev_ttm.h>
 #include <drm/drm_gem_framebuffer_helper.h>
@@ -47,6 +48,7 @@ static const struct drm_driver lsdc_drm_driver = {
 	.dumb_create = lsdc_dumb_create,
 	.dumb_map_offset = lsdc_dumb_map_offset,
 	.gem_prime_import_sg_table = lsdc_prime_import_sg_table,
+	DRM_FBDEV_TTM_DRIVER_OPS,
 };
 
 static const struct drm_mode_config_funcs lsdc_mode_config_funcs = {
@@ -213,9 +215,9 @@ lsdc_create_device(struct pci_dev *pdev,
 		return ERR_PTR(ret);
 	}
 
-	ret = drm_aperture_remove_conflicting_framebuffers(ldev->vram_base,
-							   ldev->vram_size,
-							   driver);
+	ret = aperture_remove_conflicting_devices(ldev->vram_base,
+						  ldev->vram_size,
+						  driver->name);
 	if (ret) {
 		drm_err(ddev, "Remove firmware framebuffers failed: %d\n", ret);
 		return ERR_PTR(ret);
@@ -314,7 +316,7 @@ static int lsdc_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (ret)
 		return ret;
 
-	drm_fbdev_ttm_setup(ddev, 32);
+	drm_client_setup(ddev, NULL);
 
 	return 0;
 }

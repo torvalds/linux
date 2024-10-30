@@ -448,7 +448,8 @@ TRACE_EVENT(netfs_folio,
 			     ),
 
 	    TP_fast_assign(
-		    __entry->ino = folio->mapping->host->i_ino;
+		    struct address_space *__m = READ_ONCE(folio->mapping);
+		    __entry->ino = __m ? __m->host->i_ino : 0;
 		    __entry->why = why;
 		    __entry->index = folio_index(folio);
 		    __entry->nr = folio_nr_pages(folio);

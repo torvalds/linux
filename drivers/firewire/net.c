@@ -28,7 +28,7 @@
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <net/arp.h>
 #include <net/firewire.h>
 

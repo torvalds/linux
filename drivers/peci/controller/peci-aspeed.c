@@ -2,7 +2,7 @@
 // Copyright (c) 2012-2017 ASPEED Technology Inc.
 // Copyright (c) 2018-2021 Intel Corporation
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include <linux/bitfield.h>
 #include <linux/clk.h>

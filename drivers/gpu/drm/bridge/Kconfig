@@ -140,6 +140,8 @@ config DRM_LONTIUM_LT9611
 	select DRM_PANEL_BRIDGE
 	select DRM_KMS_HELPER
 	select DRM_MIPI_DSI
+	select DRM_DISPLAY_HELPER
+	select DRM_DISPLAY_HDMI_STATE_HELPER
 	select REGMAP_I2C
 	help
 	  Driver for Lontium LT9611 DSI to HDMI bridge
@@ -367,6 +369,13 @@ config DRM_TI_DLPC3433
 
 	  It supports up to 720p resolution with 60 and 120 Hz refresh
 	  rates.
+
+config DRM_TI_TDP158
+	tristate "TI TDP158 HDMI/TMDS bridge"
+	depends on OF
+	select DRM_PANEL_BRIDGE
+	help
+	  Texas Instruments TDP158 HDMI/TMDS Bridge driver
 
 config DRM_TI_TFP410
 	tristate "TI TFP410 DVI/HDMI bridge"

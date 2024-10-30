@@ -78,6 +78,12 @@ enum panthor_fw_binary_entry_type {
 
 	/** @CSF_FW_BINARY_ENTRY_TYPE_TIMELINE_METADATA: Timeline metadata interface. */
 	CSF_FW_BINARY_ENTRY_TYPE_TIMELINE_METADATA = 4,
+
+	/**
+	 * @CSF_FW_BINARY_ENTRY_TYPE_BUILD_INFO_METADATA: Metadata about how
+	 * the FW binary was built.
+	 */
+	CSF_FW_BINARY_ENTRY_TYPE_BUILD_INFO_METADATA = 6
 };
 
 #define CSF_FW_BINARY_ENTRY_TYPE(ehdr)					((ehdr) & 0xff)
@@ -130,6 +136,13 @@ struct panthor_fw_binary_section_entry_hdr {
 		/** @end: End offset in the FW binary. */
 		u32 end;
 	} data;
+};
+
+struct panthor_fw_build_info_hdr {
+	/** @meta_start: Offset of the build info data in the FW binary */
+	u32 meta_start;
+	/** @meta_size: Size of the build info data in the FW binary */
+	u32 meta_size;
 };
 
 /**
@@ -628,6 +641,46 @@ static int panthor_fw_load_section_entry(struct panthor_device *ptdev,
 	return 0;
 }
 
+static int panthor_fw_read_build_info(struct panthor_device *ptdev,
+				      const struct firmware *fw,
+				      struct panthor_fw_binary_iter *iter,
+				      u32 ehdr)
+{
+	struct panthor_fw_build_info_hdr hdr;
+	char header[9];
+	const char git_sha_header[sizeof(header)] = "git_sha: ";
+	int ret;
+
+	ret = panthor_fw_binary_iter_read(ptdev, iter, &hdr, sizeof(hdr));
+	if (ret)
+		return ret;
+
+	if (hdr.meta_start > fw->size ||
+	    hdr.meta_start + hdr.meta_size > fw->size) {
+		drm_err(&ptdev->base, "Firmware build info corrupt\n");
+		/* We don't need the build info, so continue */
+		return 0;
+	}
+
+	if (memcmp(git_sha_header, fw->data + hdr.meta_start,
+		   sizeof(git_sha_header))) {
+		/* Not the expected header, this isn't metadata we understand */
+		return 0;
+	}
+
+	/* Check that the git SHA is NULL terminated as expected */
+	if (fw->data[hdr.meta_start + hdr.meta_size - 1] != '\0') {
+		drm_warn(&ptdev->base, "Firmware's git sha is not NULL terminated\n");
+		/* Don't treat as fatal */
+		return 0;
+	}
+
+	drm_info(&ptdev->base, "Firmware git sha: %s\n",
+		 fw->data + hdr.meta_start + sizeof(git_sha_header));
+
+	return 0;
+}
+
 static void
 panthor_reload_fw_sections(struct panthor_device *ptdev, bool full_reload)
 {
@@ -672,6 +725,8 @@ static int panthor_fw_load_entry(struct panthor_device *ptdev,
 	switch (CSF_FW_BINARY_ENTRY_TYPE(ehdr)) {
 	case CSF_FW_BINARY_ENTRY_TYPE_IFACE:
 		return panthor_fw_load_section_entry(ptdev, fw, &eiter, ehdr);
+	case CSF_FW_BINARY_ENTRY_TYPE_BUILD_INFO_METADATA:
+		return panthor_fw_read_build_info(ptdev, fw, &eiter, ehdr);
 
 	/* FIXME: handle those entry types? */
 	case CSF_FW_BINARY_ENTRY_TYPE_CONFIG:
@@ -921,7 +976,7 @@ static int panthor_fw_init_ifaces(struct panthor_device *ptdev)
 			return ret;
 	}
 
-	drm_info(&ptdev->base, "CSF FW v%d.%d.%d, Features %#x Instrumentation features %#x",
+	drm_info(&ptdev->base, "CSF FW using interface v%d.%d.%d, Features %#x Instrumentation features %#x",
 		 CSF_IFACE_VERSION_MAJOR(glb_iface->control->version),
 		 CSF_IFACE_VERSION_MINOR(glb_iface->control->version),
 		 CSF_IFACE_VERSION_PATCH(glb_iface->control->version),

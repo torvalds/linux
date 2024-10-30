@@ -15,6 +15,7 @@
 #include "xe_ggtt.h"
 #include "xe_gt.h"
 #include "xe_gt_mcr.h"
+#include "xe_gt_idle.h"
 #include "xe_gt_sriov_pf_debugfs.h"
 #include "xe_gt_sriov_vf_debugfs.h"
 #include "xe_gt_stats.h"
@@ -107,6 +108,17 @@ static int hw_engines(struct xe_gt *gt, struct drm_printer *p)
 		return err;
 
 	return 0;
+}
+
+static int powergate_info(struct xe_gt *gt, struct drm_printer *p)
+{
+	int ret;
+
+	xe_pm_runtime_get(gt_to_xe(gt));
+	ret = xe_gt_idle_pg_print(gt, p);
+	xe_pm_runtime_put(gt_to_xe(gt));
+
+	return ret;
 }
 
 static int force_reset(struct xe_gt *gt, struct drm_printer *p)
@@ -288,6 +300,7 @@ static const struct drm_info_list debugfs_list[] = {
 	{"topology", .show = xe_gt_debugfs_simple_show, .data = topology},
 	{"steering", .show = xe_gt_debugfs_simple_show, .data = steering},
 	{"ggtt", .show = xe_gt_debugfs_simple_show, .data = ggtt},
+	{"powergate_info", .show = xe_gt_debugfs_simple_show, .data = powergate_info},
 	{"register-save-restore", .show = xe_gt_debugfs_simple_show, .data = register_save_restore},
 	{"workarounds", .show = xe_gt_debugfs_simple_show, .data = workarounds},
 	{"pat", .show = xe_gt_debugfs_simple_show, .data = pat},

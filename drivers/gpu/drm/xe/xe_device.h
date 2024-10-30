@@ -9,6 +9,8 @@
 #include <drm/drm_util.h>
 
 #include "xe_device_types.h"
+#include "xe_gt_types.h"
+#include "xe_sriov.h"
 
 static inline struct xe_device *to_xe_device(const struct drm_device *dev)
 {
@@ -138,7 +140,7 @@ static inline bool xe_device_uc_enabled(struct xe_device *xe)
 
 static inline struct xe_force_wake *gt_to_fw(struct xe_gt *gt)
 {
-	return &gt->mmio.fw;
+	return &gt->pm.fw;
 }
 
 void xe_device_assert_mem_access(struct xe_device *xe);
@@ -153,9 +155,20 @@ static inline bool xe_device_has_sriov(struct xe_device *xe)
 	return xe->info.has_sriov;
 }
 
+static inline bool xe_device_has_msix(struct xe_device *xe)
+{
+	/* TODO: change this when MSI-X support is fully integrated */
+	return false;
+}
+
 static inline bool xe_device_has_memirq(struct xe_device *xe)
 {
 	return GRAPHICS_VERx100(xe) >= 1250;
+}
+
+static inline bool xe_device_uses_memirq(struct xe_device *xe)
+{
+	return xe_device_has_memirq(xe) && (IS_SRIOV_VF(xe) || xe_device_has_msix(xe));
 }
 
 u32 xe_device_ccs_bytes(struct xe_device *xe, u64 size);

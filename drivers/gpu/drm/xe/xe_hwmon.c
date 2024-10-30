@@ -149,7 +149,7 @@ static void xe_hwmon_power_max_read(struct xe_hwmon *hwmon, int channel, long *v
 	u64 reg_val, min, max;
 	struct xe_device *xe = hwmon->xe;
 	struct xe_reg rapl_limit, pkg_power_sku;
-	struct xe_gt *mmio = xe_root_mmio_gt(xe);
+	struct xe_mmio *mmio = xe_root_tile_mmio(xe);
 
 	rapl_limit = xe_hwmon_get_reg(hwmon, REG_PKG_RAPL_LIMIT, channel);
 	pkg_power_sku = xe_hwmon_get_reg(hwmon, REG_PKG_POWER_SKU, channel);
@@ -190,7 +190,7 @@ unlock:
 
 static int xe_hwmon_power_max_write(struct xe_hwmon *hwmon, int channel, long value)
 {
-	struct xe_gt *mmio = xe_root_mmio_gt(hwmon->xe);
+	struct xe_mmio *mmio = xe_root_tile_mmio(hwmon->xe);
 	int ret = 0;
 	u64 reg_val;
 	struct xe_reg rapl_limit;
@@ -222,7 +222,7 @@ unlock:
 
 static void xe_hwmon_power_rated_max_read(struct xe_hwmon *hwmon, int channel, long *value)
 {
-	struct xe_gt *mmio = xe_root_mmio_gt(hwmon->xe);
+	struct xe_mmio *mmio = xe_root_tile_mmio(hwmon->xe);
 	struct xe_reg reg = xe_hwmon_get_reg(hwmon, REG_PKG_POWER_SKU, channel);
 	u64 reg_val;
 
@@ -259,7 +259,7 @@ static void xe_hwmon_power_rated_max_read(struct xe_hwmon *hwmon, int channel, l
 static void
 xe_hwmon_energy_get(struct xe_hwmon *hwmon, int channel, long *energy)
 {
-	struct xe_gt *mmio = xe_root_mmio_gt(hwmon->xe);
+	struct xe_mmio *mmio = xe_root_tile_mmio(hwmon->xe);
 	struct xe_hwmon_energy_info *ei = &hwmon->ei[channel];
 	u64 reg_val;
 
@@ -282,7 +282,7 @@ xe_hwmon_power_max_interval_show(struct device *dev, struct device_attribute *at
 				 char *buf)
 {
 	struct xe_hwmon *hwmon = dev_get_drvdata(dev);
-	struct xe_gt *mmio = xe_root_mmio_gt(hwmon->xe);
+	struct xe_mmio *mmio = xe_root_tile_mmio(hwmon->xe);
 	u32 x, y, x_w = 2; /* 2 bits */
 	u64 r, tau4, out;
 	int sensor_index = to_sensor_dev_attr(attr)->index;
@@ -323,7 +323,7 @@ xe_hwmon_power_max_interval_store(struct device *dev, struct device_attribute *a
 				  const char *buf, size_t count)
 {
 	struct xe_hwmon *hwmon = dev_get_drvdata(dev);
-	struct xe_gt *mmio = xe_root_mmio_gt(hwmon->xe);
+	struct xe_mmio *mmio = xe_root_tile_mmio(hwmon->xe);
 	u32 x, y, rxy, x_w = 2; /* 2 bits */
 	u64 tau4, r, max_win;
 	unsigned long val;
@@ -498,7 +498,7 @@ static int xe_hwmon_power_curr_crit_write(struct xe_hwmon *hwmon, int channel,
 
 static void xe_hwmon_get_voltage(struct xe_hwmon *hwmon, int channel, long *value)
 {
-	struct xe_gt *mmio = xe_root_mmio_gt(hwmon->xe);
+	struct xe_mmio *mmio = xe_root_tile_mmio(hwmon->xe);
 	u64 reg_val;
 
 	reg_val = xe_mmio_read32(mmio, xe_hwmon_get_reg(hwmon, REG_GT_PERF_STATUS, channel));
@@ -781,7 +781,7 @@ static const struct hwmon_chip_info hwmon_chip_info = {
 static void
 xe_hwmon_get_preregistration_info(struct xe_device *xe)
 {
-	struct xe_gt *mmio = xe_root_mmio_gt(xe);
+	struct xe_mmio *mmio = xe_root_tile_mmio(xe);
 	struct xe_hwmon *hwmon = xe->hwmon;
 	long energy;
 	u64 val_sku_unit = 0;

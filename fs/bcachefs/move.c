@@ -692,7 +692,7 @@ int bch2_evacuate_bucket(struct moving_context *ctxt,
 	a = bch2_alloc_to_v4(k, &a_convert);
 	dirty_sectors = bch2_bucket_sectors_dirty(*a);
 	bucket_size = ca->mi.bucket_size;
-	fragmentation = a->fragmentation_lru;
+	fragmentation = alloc_lru_idx_fragmentation(*a, ca);
 
 	ret = bch2_btree_write_buffer_tryflush(trans);
 	bch_err_msg(c, ret, "flushing btree write buffer");

@@ -12,6 +12,7 @@
 #include <linux/ptrace.h>
 #include <linux/uaccess.h>
 #include <asm/disasm.h>
+#include "unaligned.h"
 
 #ifdef CONFIG_CPU_BIG_ENDIAN
 #define BE		1

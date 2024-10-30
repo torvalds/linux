@@ -18,7 +18,7 @@
 #include <linux/blkdev.h>
 #include <linux/pagemap.h>
 #include <linux/msdos_partition.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include <scsi/scsicam.h>
 

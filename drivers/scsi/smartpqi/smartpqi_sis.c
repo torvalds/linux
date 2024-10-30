@@ -14,7 +14,7 @@
 #include <linux/delay.h>
 #include <linux/pci.h>
 #include <scsi/scsi_device.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include "smartpqi.h"
 #include "smartpqi_sis.h"
 

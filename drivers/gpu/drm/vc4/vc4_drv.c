@@ -20,6 +20,7 @@
  * driver.
  */
 
+#include <linux/aperture.h>
 #include <linux/clk.h>
 #include <linux/component.h>
 #include <linux/device.h>
@@ -30,10 +31,11 @@
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 
-#include <drm/drm_aperture.h>
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_client_setup.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_fbdev_dma.h>
+#include <drm/drm_fourcc.h>
 #include <drm/drm_vblank.h>
 
 #include <soc/bcm2835/raspberrypi-firmware.h>
@@ -98,7 +100,7 @@ static int vc4_get_param_ioctl(struct drm_device *dev, void *data,
 	if (args->pad != 0)
 		return -EINVAL;
 
-	if (WARN_ON_ONCE(vc4->is_vc5))
+	if (WARN_ON_ONCE(vc4->gen > VC4_GEN_4))
 		return -ENODEV;
 
 	if (!vc4->v3d)
@@ -147,7 +149,7 @@ static int vc4_open(struct drm_device *dev, struct drm_file *file)
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
 	struct vc4_file *vc4file;
 
-	if (WARN_ON_ONCE(vc4->is_vc5))
+	if (WARN_ON_ONCE(vc4->gen > VC4_GEN_4))
 		return -ENODEV;
 
 	vc4file = kzalloc(sizeof(*vc4file), GFP_KERNEL);
@@ -165,7 +167,7 @@ static void vc4_close(struct drm_device *dev, struct drm_file *file)
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
 	struct vc4_file *vc4file = file->driver_priv;
 
-	if (WARN_ON_ONCE(vc4->is_vc5))
+	if (WARN_ON_ONCE(vc4->gen > VC4_GEN_4))
 		return;
 
 	if (vc4file->bin_bo_used)
@@ -212,6 +214,7 @@ const struct drm_driver vc4_drm_driver = {
 	.gem_create_object = vc4_create_object,
 
 	DRM_GEM_DMA_DRIVER_OPS_WITH_DUMB_CREATE(vc4_bo_dumb_create),
+	DRM_FBDEV_DMA_DRIVER_OPS,
 
 	.ioctls = vc4_drm_ioctls,
 	.num_ioctls = ARRAY_SIZE(vc4_drm_ioctls),
@@ -235,6 +238,7 @@ const struct drm_driver vc5_drm_driver = {
 #endif
 
 	DRM_GEM_DMA_DRIVER_OPS_WITH_DUMB_CREATE(vc5_dumb_create),
+	DRM_FBDEV_DMA_DRIVER_OPS,
 
 	.fops = &vc4_drm_fops,
 
@@ -291,13 +295,17 @@ static int vc4_drm_bind(struct device *dev)
 	struct vc4_dev *vc4;
 	struct device_node *node;
 	struct drm_crtc *crtc;
-	bool is_vc5;
+	enum vc4_gen gen;
 	int ret = 0;
 
 	dev->coherent_dma_mask = DMA_BIT_MASK(32);
 
-	is_vc5 = of_device_is_compatible(dev->of_node, "brcm,bcm2711-vc5");
-	if (is_vc5)
+	if (of_device_is_compatible(dev->of_node, "brcm,bcm2711-vc5"))
+		gen = VC4_GEN_5;
+	else
+		gen = VC4_GEN_4;
+
+	if (gen > VC4_GEN_4)
 		driver = &vc5_drm_driver;
 	else
 		driver = &vc4_drm_driver;
@@ -315,13 +323,13 @@ static int vc4_drm_bind(struct device *dev)
 	vc4 = devm_drm_dev_alloc(dev, driver, struct vc4_dev, base);
 	if (IS_ERR(vc4))
 		return PTR_ERR(vc4);
-	vc4->is_vc5 = is_vc5;
+	vc4->gen = gen;
 	vc4->dev = dev;
 
 	drm = &vc4->base;
 	platform_set_drvdata(pdev, drm);
 
-	if (!is_vc5) {
+	if (gen == VC4_GEN_4) {
 		ret = drmm_mutex_init(drm, &vc4->bin_bo_lock);
 		if (ret)
 			goto err;
@@ -335,7 +343,7 @@ static int vc4_drm_bind(struct device *dev)
 	if (ret)
 		goto err;
 
-	if (!is_vc5) {
+	if (gen == VC4_GEN_4) {
 		ret = vc4_gem_init(drm);
 		if (ret)
 			goto err;
@@ -352,7 +360,7 @@ static int vc4_drm_bind(struct device *dev)
 		}
 	}
 
-	ret = drm_aperture_remove_framebuffers(driver);
+	ret = aperture_remove_all_conflicting_devices(driver->name);
 	if (ret)
 		goto err;
 
@@ -389,7 +397,7 @@ static int vc4_drm_bind(struct device *dev)
 	if (ret < 0)
 		goto err;
 
-	drm_fbdev_dma_setup(drm, 16);
+	drm_client_setup_with_fourcc(drm, DRM_FORMAT_RGB565);
 
 	return 0;
 

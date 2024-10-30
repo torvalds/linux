@@ -17,7 +17,7 @@
 #include <linux/types.h>
 #include <linux/usb/input.h>
 #include <linux/usb/cdc.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #define IMS_PCU_KEYMAP_LEN		32
 

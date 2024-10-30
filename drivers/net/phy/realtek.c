@@ -527,6 +527,9 @@ static int rtl8211f_led_hw_control_get(struct phy_device *phydev, u8 index,
 {
 	int val;
 
+	if (index >= RTL8211F_LED_COUNT)
+		return -EINVAL;
+
 	val = phy_read_paged(phydev, 0xd04, RTL8211F_LEDCR);
 	if (val < 0)
 		return val;

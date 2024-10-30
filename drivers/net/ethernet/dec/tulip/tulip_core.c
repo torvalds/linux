@@ -23,7 +23,7 @@
 #include <linux/delay.h>
 #include <linux/mii.h>
 #include <linux/crc32.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <linux/uaccess.h>
 
 #ifdef CONFIG_SPARC

@@ -176,8 +176,9 @@ static loff_t dma_buf_llseek(struct file *file, loff_t offset, int whence)
 	dmabuf = file->private_data;
 
 	/* only support discovering the end of the buffer,
-	   but also allow SEEK_SET to maintain the idiomatic
-	   SEEK_END(0), SEEK_CUR(0) pattern */
+	 * but also allow SEEK_SET to maintain the idiomatic
+	 * SEEK_END(0), SEEK_CUR(0) pattern.
+	 */
 	if (whence == SEEK_END)
 		base = dmabuf->size;
 	else if (whence == SEEK_SET)
@@ -558,7 +559,7 @@ static struct file *dma_buf_getfile(size_t size, int flags)
 	 * Override ->i_ino with the unique and dmabuffs specific
 	 * value.
 	 */
-	inode->i_ino = atomic64_add_return(1, &dmabuf_inode);
+	inode->i_ino = atomic64_inc_return(&dmabuf_inode);
 	flags &= O_ACCMODE | O_NONBLOCK;
 	file = alloc_file_pseudo(inode, dma_buf_mnt, "dmabuf",
 				 flags, &dma_buf_fops);
@@ -782,13 +783,14 @@ static void mangle_sg_table(struct sg_table *sg_table)
 	/* To catch abuse of the underlying struct page by importers mix
 	 * up the bits, but take care to preserve the low SG_ bits to
 	 * not corrupt the sgt. The mixing is undone in __unmap_dma_buf
-	 * before passing the sgt back to the exporter. */
+	 * before passing the sgt back to the exporter.
+	 */
 	for_each_sgtable_sg(sg_table, sg, i)
 		sg->page_link ^= ~0xffUL;
 #endif
 
 }
-static struct sg_table * __map_dma_buf(struct dma_buf_attachment *attach,
+static struct sg_table *__map_dma_buf(struct dma_buf_attachment *attach,
 				       enum dma_data_direction direction)
 {
 	struct sg_table *sg_table;
@@ -1296,10 +1298,12 @@ EXPORT_SYMBOL_NS_GPL(dma_buf_move_notify, DMA_BUF);
  *   vmap interface is introduced. Note that on very old 32-bit architectures
  *   vmalloc space might be limited and result in vmap calls failing.
  *
- *   Interfaces::
+ *   Interfaces:
  *
- *      void \*dma_buf_vmap(struct dma_buf \*dmabuf, struct iosys_map \*map)
- *      void dma_buf_vunmap(struct dma_buf \*dmabuf, struct iosys_map \*map)
+ *   .. code-block:: c
+ *
+ *     void *dma_buf_vmap(struct dma_buf *dmabuf, struct iosys_map *map)
+ *     void dma_buf_vunmap(struct dma_buf *dmabuf, struct iosys_map *map)
  *
  *   The vmap call can fail if there is no vmap support in the exporter, or if
  *   it runs out of vmalloc space. Note that the dma-buf layer keeps a reference
@@ -1356,10 +1360,11 @@ EXPORT_SYMBOL_NS_GPL(dma_buf_move_notify, DMA_BUF);
  *   enough, since adding interfaces to intercept pagefaults and allow pte
  *   shootdowns would increase the complexity quite a bit.
  *
- *   Interface::
+ *   Interface:
  *
- *      int dma_buf_mmap(struct dma_buf \*, struct vm_area_struct \*,
- *		       unsigned long);
+ *   .. code-block:: c
+ *
+ *     int dma_buf_mmap(struct dma_buf *, struct vm_area_struct *, unsigned long);
  *
  *   If the importing subsystem simply provides a special-purpose mmap call to
  *   set up a mapping in userspace, calling do_mmap with &dma_buf.file will
@@ -1694,7 +1699,7 @@ static int dma_buf_init_debugfs(void)
 
 	dma_buf_debugfs_dir = d;
 
-	d = debugfs_create_file("bufinfo", S_IRUGO, dma_buf_debugfs_dir,
+	d = debugfs_create_file("bufinfo", 0444, dma_buf_debugfs_dir,
 				NULL, &dma_buf_debug_fops);
 	if (IS_ERR(d)) {
 		pr_debug("dma_buf: debugfs: failed to create node bufinfo\n");

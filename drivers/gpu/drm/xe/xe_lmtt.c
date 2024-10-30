@@ -193,7 +193,7 @@ static void lmtt_setup_dir_ptr(struct xe_lmtt *lmtt)
 	lmtt_assert(lmtt, xe_bo_is_vram(lmtt->pd->bo));
 	lmtt_assert(lmtt, IS_ALIGNED(offset, SZ_64K));
 
-	xe_mmio_write32(tile->primary_gt,
+	xe_mmio_write32(&tile->mmio,
 			GRAPHICS_VER(xe) >= 20 ? XE2_LMEM_CFG : LMEM_CFG,
 			LMEM_EN | REG_FIELD_PREP(LMTT_DIR_PTR, offset / SZ_64K));
 }

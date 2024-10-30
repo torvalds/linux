@@ -22,6 +22,8 @@ void xe_sched_fini(struct xe_gpu_scheduler *sched);
 void xe_sched_submission_start(struct xe_gpu_scheduler *sched);
 void xe_sched_submission_stop(struct xe_gpu_scheduler *sched);
 
+void xe_sched_submission_resume_tdr(struct xe_gpu_scheduler *sched);
+
 void xe_sched_add_msg(struct xe_gpu_scheduler *sched,
 		      struct xe_sched_msg *msg);
 void xe_sched_add_msg_locked(struct xe_gpu_scheduler *sched,

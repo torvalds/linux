@@ -8,15 +8,12 @@
 #include "ivpu_hw.h"
 #include "ivpu_hw_37xx_reg.h"
 #include "ivpu_hw_40xx_reg.h"
+#include "ivpu_hw_btrs.h"
 #include "ivpu_hw_ip.h"
 #include "ivpu_hw_reg_io.h"
 #include "ivpu_mmu.h"
 #include "ivpu_pm.h"
 
-#define PWR_ISLAND_EN_POST_DLY_FREQ_DEFAULT 0
-#define PWR_ISLAND_EN_POST_DLY_FREQ_HIGH    18
-#define PWR_ISLAND_STATUS_DLY_FREQ_DEFAULT  3
-#define PWR_ISLAND_STATUS_DLY_FREQ_HIGH	    46
 #define PWR_ISLAND_STATUS_TIMEOUT_US        (5 * USEC_PER_MSEC)
 
 #define TIM_SAFE_ENABLE		            0xf1d0dead
@@ -268,20 +265,15 @@ void ivpu_hw_ip_idle_gen_disable(struct ivpu_device *vdev)
 		idle_gen_drive_40xx(vdev, false);
 }
 
-static void pwr_island_delay_set_50xx(struct ivpu_device *vdev)
+static void
+pwr_island_delay_set_50xx(struct ivpu_device *vdev, u32 post, u32 post1, u32 post2, u32 status)
 {
-	u32 val, post, status;
-
-	if (vdev->hw->pll.profiling_freq == PLL_PROFILING_FREQ_DEFAULT) {
-		post = PWR_ISLAND_EN_POST_DLY_FREQ_DEFAULT;
-		status = PWR_ISLAND_STATUS_DLY_FREQ_DEFAULT;
-	} else {
-		post = PWR_ISLAND_EN_POST_DLY_FREQ_HIGH;
-		status = PWR_ISLAND_STATUS_DLY_FREQ_HIGH;
-	}
+	u32 val;
 
 	val = REGV_RD32(VPU_50XX_HOST_SS_AON_PWR_ISLAND_EN_POST_DLY);
 	val = REG_SET_FLD_NUM(VPU_50XX_HOST_SS_AON_PWR_ISLAND_EN_POST_DLY, POST_DLY, post, val);
+	val = REG_SET_FLD_NUM(VPU_50XX_HOST_SS_AON_PWR_ISLAND_EN_POST_DLY, POST1_DLY, post1, val);
+	val = REG_SET_FLD_NUM(VPU_50XX_HOST_SS_AON_PWR_ISLAND_EN_POST_DLY, POST2_DLY, post2, val);
 	REGV_WR32(VPU_50XX_HOST_SS_AON_PWR_ISLAND_EN_POST_DLY, val);
 
 	val = REGV_RD32(VPU_50XX_HOST_SS_AON_PWR_ISLAND_STATUS_DLY);
@@ -311,9 +303,6 @@ static void pwr_island_trickle_drive_40xx(struct ivpu_device *vdev, bool enable)
 		val = REG_CLR_FLD(VPU_40XX_HOST_SS_AON_PWR_ISLAND_TRICKLE_EN0, CSS_CPU, val);
 
 	REGV_WR32(VPU_40XX_HOST_SS_AON_PWR_ISLAND_TRICKLE_EN0, val);
-
-	if (enable)
-		ndelay(500);
 }
 
 static void pwr_island_drive_37xx(struct ivpu_device *vdev, bool enable)
@@ -326,9 +315,6 @@ static void pwr_island_drive_37xx(struct ivpu_device *vdev, bool enable)
 		val = REG_CLR_FLD(VPU_40XX_HOST_SS_AON_PWR_ISLAND_EN0, CSS_CPU, val);
 
 	REGV_WR32(VPU_40XX_HOST_SS_AON_PWR_ISLAND_EN0, val);
-
-	if (!enable)
-		ndelay(500);
 }
 
 static void pwr_island_drive_40xx(struct ivpu_device *vdev, bool enable)
@@ -347,9 +333,11 @@ static void pwr_island_enable(struct ivpu_device *vdev)
 {
 	if (ivpu_hw_ip_gen(vdev) == IVPU_HW_IP_37XX) {
 		pwr_island_trickle_drive_37xx(vdev, true);
+		ndelay(500);
 		pwr_island_drive_37xx(vdev, true);
 	} else {
 		pwr_island_trickle_drive_40xx(vdev, true);
+		ndelay(500);
 		pwr_island_drive_40xx(vdev, true);
 	}
 }
@@ -686,13 +674,36 @@ static void dpu_active_drive_37xx(struct ivpu_device *vdev, bool enable)
 	REGV_WR32(VPU_37XX_HOST_SS_AON_DPU_ACTIVE, val);
 }
 
+static void pwr_island_delay_set(struct ivpu_device *vdev)
+{
+	bool high = vdev->hw->pll.profiling_freq == PLL_PROFILING_FREQ_HIGH;
+	u32 post, post1, post2, status;
+
+	if (ivpu_hw_ip_gen(vdev) < IVPU_HW_IP_50XX)
+		return;
+
+	switch (ivpu_device_id(vdev)) {
+	case PCI_DEVICE_ID_PTL_P:
+		post = high ? 18 : 0;
+		post1 = 0;
+		post2 = 0;
+		status = high ? 46 : 3;
+		break;
+
+	default:
+		dump_stack();
+		ivpu_err(vdev, "Unknown device ID\n");
+		return;
+	}
+
+	pwr_island_delay_set_50xx(vdev, post, post1, post2, status);
+}
+
 int ivpu_hw_ip_pwr_domain_enable(struct ivpu_device *vdev)
 {
 	int ret;
 
-	if (ivpu_hw_ip_gen(vdev) == IVPU_HW_IP_50XX)
-		pwr_island_delay_set_50xx(vdev);
-
+	pwr_island_delay_set(vdev);
 	pwr_island_enable(vdev);
 
 	ret = wait_for_pwr_island_status(vdev, 0x1);
