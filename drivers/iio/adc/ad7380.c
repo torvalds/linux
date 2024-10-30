@@ -1035,12 +1035,13 @@ static int ad7380_init(struct ad7380_state *st, bool external_ref_en)
 
 static int ad7380_probe(struct spi_device *spi)
 {
+	struct device *dev = &spi->dev;
 	struct iio_dev *indio_dev;
 	struct ad7380_state *st;
 	bool external_ref_en;
 	int ret, i;
 
-	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
+	indio_dev = devm_iio_device_alloc(dev, sizeof(*st));
 	if (!indio_dev)
 		return -ENOMEM;
 
@@ -1048,21 +1049,20 @@ static int ad7380_probe(struct spi_device *spi)
 	st->spi = spi;
 	st->chip_info = spi_get_device_match_data(spi);
 	if (!st->chip_info)
-		return dev_err_probe(&spi->dev, -EINVAL, "missing match data\n");
+		return dev_err_probe(dev, -EINVAL, "missing match data\n");
 
-	ret = devm_regulator_bulk_get_enable(&spi->dev, st->chip_info->num_supplies,
+	ret = devm_regulator_bulk_get_enable(dev, st->chip_info->num_supplies,
 					     st->chip_info->supplies);
 
 	if (ret)
-		return dev_err_probe(&spi->dev, ret,
+		return dev_err_probe(dev, ret,
 				     "Failed to enable power supplies\n");
 	fsleep(T_POWERUP_US);
 
 	if (st->chip_info->external_ref_only) {
-		ret = devm_regulator_get_enable_read_voltage(&spi->dev,
-							     "refin");
+		ret = devm_regulator_get_enable_read_voltage(dev, "refin");
 		if (ret < 0)
-			return dev_err_probe(&spi->dev, ret,
+			return dev_err_probe(dev, ret,
 					     "Failed to get refin regulator\n");
 
 		st->vref_mv = ret / 1000;
@@ -1074,10 +1074,9 @@ static int ad7380_probe(struct spi_device *spi)
 		 * If there is no REFIO supply, then it means that we are using
 		 * the internal reference, otherwise REFIO is reference voltage.
 		 */
-		ret = devm_regulator_get_enable_read_voltage(&spi->dev,
-							     "refio");
+		ret = devm_regulator_get_enable_read_voltage(dev, "refio");
 		if (ret < 0 && ret != -ENODEV)
-			return dev_err_probe(&spi->dev, ret,
+			return dev_err_probe(dev, ret,
 					     "Failed to get refio regulator\n");
 
 		external_ref_en = ret != -ENODEV;
@@ -1085,7 +1084,7 @@ static int ad7380_probe(struct spi_device *spi)
 	}
 
 	if (st->chip_info->num_vcm_supplies > ARRAY_SIZE(st->vcm_mv))
-		return dev_err_probe(&spi->dev, -EINVAL,
+		return dev_err_probe(dev, -EINVAL,
 				     "invalid number of VCM supplies\n");
 
 	/*
@@ -1095,18 +1094,18 @@ static int ad7380_probe(struct spi_device *spi)
 	for (i = 0; i < st->chip_info->num_vcm_supplies; i++) {
 		const char *vcm = st->chip_info->vcm_supplies[i];
 
-		ret = devm_regulator_get_enable_read_voltage(&spi->dev, vcm);
+		ret = devm_regulator_get_enable_read_voltage(dev, vcm);
 		if (ret < 0)
-			return dev_err_probe(&spi->dev, ret,
+			return dev_err_probe(dev, ret,
 					     "Failed to get %s regulator\n",
 					     vcm);
 
 		st->vcm_mv[i] = ret / 1000;
 	}
 
-	st->regmap = devm_regmap_init(&spi->dev, NULL, st, &ad7380_regmap_config);
+	st->regmap = devm_regmap_init(dev, NULL, st, &ad7380_regmap_config);
 	if (IS_ERR(st->regmap))
-		return dev_err_probe(&spi->dev, PTR_ERR(st->regmap),
+		return dev_err_probe(dev, PTR_ERR(st->regmap),
 				     "failed to allocate register map\n");
 
 	/*
@@ -1157,7 +1156,7 @@ static int ad7380_probe(struct spi_device *spi)
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->available_scan_masks = st->chip_info->available_scan_masks;
 
-	ret = devm_iio_triggered_buffer_setup(&spi->dev, indio_dev,
+	ret = devm_iio_triggered_buffer_setup(dev, indio_dev,
 					      iio_pollfunc_store_time,
 					      ad7380_trigger_handler,
 					      &ad7380_buffer_setup_ops);
@@ -1168,7 +1167,7 @@ static int ad7380_probe(struct spi_device *spi)
 	if (ret)
 		return ret;
 
-	return devm_iio_device_register(&spi->dev, indio_dev);
+	return devm_iio_device_register(dev, indio_dev);
 }
 
 static const struct of_device_id ad7380_of_match_table[] = {
