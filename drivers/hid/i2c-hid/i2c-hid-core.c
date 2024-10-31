@@ -137,6 +137,11 @@ static const struct i2c_hid_quirks {
 	{ I2C_VENDOR_ID_CIRQUE, I2C_PRODUCT_ID_CIRQUE_1063,
 		I2C_HID_QUIRK_NO_SLEEP_ON_SUSPEND },
 	/*
+	 * Without additional power on command, at least some QTEC devices send garbage
+	 */
+	{ I2C_VENDOR_ID_QTEC, HID_ANY_ID,
+		I2C_HID_QUIRK_RE_POWER_ON },
+	/*
 	 * Sending the wakeup after reset actually break ELAN touchscreen controller
 	 */
 	{ USB_VENDOR_ID_ELAN, HID_ANY_ID,
