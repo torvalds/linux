@@ -2275,7 +2275,6 @@ static void gpio_desc_to_lineinfo(struct gpio_desc *desc,
 	 */
 	if (test_bit(FLAG_REQUESTED, &dflags) ||
 	    test_bit(FLAG_IS_HOGGED, &dflags) ||
-	    test_bit(FLAG_USED_AS_IRQ, &dflags) ||
 	    test_bit(FLAG_EXPORT, &dflags) ||
 	    test_bit(FLAG_SYSFS, &dflags) ||
 	    !gpiochip_line_is_valid(guard.gc, info->offset)) {
