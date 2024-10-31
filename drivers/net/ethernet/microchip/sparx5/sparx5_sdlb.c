@@ -25,17 +25,13 @@ struct sparx5_sdlb_group *sparx5_get_sdlb_group(int idx)
 	return &sdlb_groups[idx];
 }
 
-int sparx5_sdlb_clk_hz_get(struct sparx5 *sparx5)
+u64 sparx5_sdlb_clk_hz_get(struct sparx5 *sparx5)
 {
-	u32 clk_per_100ps;
 	u64 clk_hz;
 
-	clk_per_100ps = HSCH_SYS_CLK_PER_100PS_GET(spx5_rd(sparx5,
-							   HSCH_SYS_CLK_PER));
-	if (!clk_per_100ps)
-		clk_per_100ps = SPX5_CLK_PER_100PS_DEFAULT;
+	clk_hz = (10 * 1000 * 1000) /
+		 (sparx5_clk_period(sparx5->coreclock) / 100);
 
-	clk_hz = (10 * 1000 * 1000) / clk_per_100ps;
 	return clk_hz *= 1000;
 }
 

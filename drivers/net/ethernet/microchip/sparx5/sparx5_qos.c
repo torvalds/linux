@@ -367,9 +367,10 @@ static u32 sparx5_weight_to_hw_cost(u32 weight_min, u32 weight)
 static int sparx5_dwrr_conf_set(struct sparx5_port *port,
 				struct sparx5_dwrr *dwrr)
 {
+	u32 layer = is_sparx5(port->sparx5) ? 2 : 1;
 	int i;
 
-	spx5_rmw(HSCH_HSCH_CFG_CFG_HSCH_LAYER_SET(2) |
+	spx5_rmw(HSCH_HSCH_CFG_CFG_HSCH_LAYER_SET(layer) |
 		 HSCH_HSCH_CFG_CFG_CFG_SE_IDX_SET(port->portno),
 		 HSCH_HSCH_CFG_CFG_HSCH_LAYER | HSCH_HSCH_CFG_CFG_CFG_SE_IDX,
 		 port->sparx5, HSCH_HSCH_CFG_CFG);

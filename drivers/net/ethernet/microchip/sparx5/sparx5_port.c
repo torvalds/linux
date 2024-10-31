@@ -476,6 +476,9 @@ static int sparx5_port_fifo_sz(struct sparx5 *sparx5,
 	u32 mac_width  = 8;
 	u32 addition   = 0;
 
+	if (!is_sparx5(sparx5))
+		return 0;
+
 	switch (speed) {
 	case SPEED_25000:
 		return 0;
@@ -921,6 +924,20 @@ static int sparx5_port_config_low_set(struct sparx5 *sparx5,
 		 sparx5,
 		 DEV2G5_DEV_RST_CTRL(port->portno));
 
+	/* Enable PHAD_CTRL for better timestamping */
+	if (!is_sparx5(sparx5)) {
+		for (int i = 0; i < 2; ++i) {
+			/* Divide the port clock by three for the two
+			 * phase detection registers.
+			 */
+			spx5_rmw(DEV2G5_PHAD_CTRL_DIV_CFG_SET(3) |
+				 DEV2G5_PHAD_CTRL_PHAD_ENA_SET(1),
+				 DEV2G5_PHAD_CTRL_DIV_CFG |
+				 DEV2G5_PHAD_CTRL_PHAD_ENA,
+				 sparx5, DEV2G5_PHAD_CTRL(port->portno, i));
+		}
+	}
+
 	return 0;
 }
 
@@ -978,6 +995,7 @@ int sparx5_port_config(struct sparx5 *sparx5,
 		       struct sparx5_port_config *conf)
 {
 	bool high_speed_dev = sparx5_is_baser(conf->portmode);
+	const struct sparx5_ops *ops = sparx5->data->ops;
 	int err, urgency, stop_wm;
 
 	err = sparx5_port_verify_speed(sparx5, port, conf);
@@ -992,6 +1010,13 @@ int sparx5_port_config(struct sparx5 *sparx5,
 	err = sparx5_port_fc_setup(sparx5, port, conf);
 	if (err)
 		return err;
+
+	if (!is_sparx5(sparx5) && ops->is_port_10g(port->portno) &&
+	    conf->speed < SPEED_10000)
+		spx5_rmw(DSM_DEV_TX_STOP_WM_CFG_DEV10G_SHADOW_ENA_SET(1),
+			 DSM_DEV_TX_STOP_WM_CFG_DEV10G_SHADOW_ENA,
+			 sparx5,
+			 DSM_DEV_TX_STOP_WM_CFG(port->portno));
 
 	/* Set the DSM stop watermark */
 	stop_wm = sparx5_port_fifo_sz(sparx5, port->portno, conf->speed);
@@ -1142,6 +1167,27 @@ int sparx5_port_init(struct sparx5 *sparx5,
 			DEV25G_PCS25G_SD_CFG_SD_ENA_SET(sd_ena),
 			sparx5,
 			DEV25G_PCS25G_SD_CFG(pix));
+	}
+
+	if (!is_sparx5(sparx5)) {
+		void __iomem *inst;
+		u32 dev, tinst;
+
+		if (ops->is_port_10g(port->portno)) {
+			dev = sparx5_to_high_dev(sparx5, port->portno);
+			tinst = sparx5_port_dev_index(sparx5, port->portno);
+			inst = spx5_inst_get(sparx5, dev, tinst);
+
+			spx5_inst_wr(5, inst,
+				     DEV10G_PTP_STAMPER_CFG(port->portno));
+		} else if (ops->is_port_5g(port->portno)) {
+			dev = sparx5_to_high_dev(sparx5, port->portno);
+			tinst = sparx5_port_dev_index(sparx5, port->portno);
+			inst = spx5_inst_get(sparx5, dev, tinst);
+
+			spx5_inst_wr(5, inst,
+				     DEV5G_PTP_STAMPER_CFG(port->portno));
+		}
 	}
 
 	return 0;

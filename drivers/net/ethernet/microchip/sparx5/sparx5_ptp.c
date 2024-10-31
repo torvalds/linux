@@ -11,8 +11,6 @@
 #include "sparx5_main_regs.h"
 #include "sparx5_main.h"
 
-#define SPARX5_MAX_PTP_ID	512
-
 #define TOD_ACC_PIN		0x4
 
 enum {
@@ -38,6 +36,9 @@ static u64 sparx5_ptp_get_1ppm(struct sparx5 *sparx5)
 	case SPX5_CORE_CLOCK_250MHZ:
 		res = 2301339409586;
 		break;
+	case SPX5_CORE_CLOCK_328MHZ:
+		res = 1756832768924;
+		break;
 	case SPX5_CORE_CLOCK_500MHZ:
 		res = 1150669704793;
 		break;
@@ -59,6 +60,9 @@ static u64 sparx5_ptp_get_nominal_value(struct sparx5 *sparx5)
 	switch (sparx5->coreclock) {
 	case SPX5_CORE_CLOCK_250MHZ:
 		res = 0x1FF0000000000000;
+		break;
+	case SPX5_CORE_CLOCK_328MHZ:
+		res = 0x18604697DD0F9B5B;
 		break;
 	case SPX5_CORE_CLOCK_500MHZ:
 		res = 0x0FF8000000000000;
@@ -269,9 +273,9 @@ void sparx5_ptp_txtstamp_release(struct sparx5_port *port,
 	spin_unlock_irqrestore(&sparx5->ptp_ts_id_lock, flags);
 }
 
-static void sparx5_get_hwtimestamp(struct sparx5 *sparx5,
-				   struct timespec64 *ts,
-				   u32 nsec)
+void sparx5_get_hwtimestamp(struct sparx5 *sparx5,
+			    struct timespec64 *ts,
+			    u32 nsec)
 {
 	/* Read current PTP time to get seconds */
 	const struct sparx5_consts *consts = sparx5->data->consts;
@@ -299,6 +303,7 @@ static void sparx5_get_hwtimestamp(struct sparx5 *sparx5,
 
 	spin_unlock_irqrestore(&sparx5->ptp_clock_lock, flags);
 }
+EXPORT_SYMBOL_GPL(sparx5_get_hwtimestamp);
 
 irqreturn_t sparx5_ptp_irq_handler(int irq, void *args)
 {

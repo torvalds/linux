@@ -64,16 +64,16 @@ void sparx5_set_port_ifh(struct sparx5 *sparx5, void *ifh_hdr, u16 portno)
 	/* MISC.CPU_MASK/DPORT = Destination port */
 	ifh_encode_bitfield(ifh_hdr, portno,   29, 8);
 	/* MISC.PIPELINE_PT */
-	ifh_encode_bitfield(ifh_hdr, 16,       37, 5);
+	ifh_encode_bitfield(ifh_hdr, is_sparx5(sparx5) ? 16 : 17, 37, 5);
 	/* MISC.PIPELINE_ACT */
 	ifh_encode_bitfield(ifh_hdr, 1,        42, 3);
 	/* FWD.SRC_PORT = CPU */
 	ifh_encode_bitfield(ifh_hdr, sparx5_get_pgid(sparx5, SPX5_PORT_CPU_0),
-			    46, 7);
+			    46, is_sparx5(sparx5) ? 7 : 6);
 	/* FWD.SFLOW_ID (disable SFlow sampling) */
-	ifh_encode_bitfield(ifh_hdr, 124,      57, 7);
+	ifh_encode_bitfield(ifh_hdr, 124,      is_sparx5(sparx5) ? 57 : 56, 7);
 	/* FWD.UPDATE_FCS = Enable. Enforce update of FCS. */
-	ifh_encode_bitfield(ifh_hdr, 1,        67, 1);
+	ifh_encode_bitfield(ifh_hdr, 1,        is_sparx5(sparx5) ? 67 : 66, 1);
 }
 
 void sparx5_set_port_ifh_rew_op(void *ifh_hdr, u32 rew_op)
@@ -81,19 +81,25 @@ void sparx5_set_port_ifh_rew_op(void *ifh_hdr, u32 rew_op)
 	ifh_encode_bitfield(ifh_hdr, rew_op, VSTAX + 32,  10);
 }
 
-void sparx5_set_port_ifh_pdu_type(void *ifh_hdr, u32 pdu_type)
+void sparx5_set_port_ifh_pdu_type(struct sparx5 *sparx5, void *ifh_hdr,
+				  u32 pdu_type)
 {
-	ifh_encode_bitfield(ifh_hdr, pdu_type, 191, 4);
+	ifh_encode_bitfield(ifh_hdr, pdu_type, is_sparx5(sparx5) ? 191 : 190,
+			    4);
 }
 
-void sparx5_set_port_ifh_pdu_w16_offset(void *ifh_hdr, u32 pdu_w16_offset)
+void sparx5_set_port_ifh_pdu_w16_offset(struct sparx5 *sparx5, void *ifh_hdr,
+					u32 pdu_w16_offset)
 {
-	ifh_encode_bitfield(ifh_hdr, pdu_w16_offset, 195, 6);
+	ifh_encode_bitfield(ifh_hdr, pdu_w16_offset,
+			    is_sparx5(sparx5) ? 195 : 194, 6);
 }
 
-void sparx5_set_port_ifh_timestamp(void *ifh_hdr, u64 timestamp)
+void sparx5_set_port_ifh_timestamp(struct sparx5 *sparx5, void *ifh_hdr,
+				   u64 timestamp)
 {
-	ifh_encode_bitfield(ifh_hdr, timestamp, 232,  40);
+	ifh_encode_bitfield(ifh_hdr, timestamp, 232,
+			    is_sparx5(sparx5) ? 40 : 38);
 }
 
 static int sparx5_port_open(struct net_device *ndev)

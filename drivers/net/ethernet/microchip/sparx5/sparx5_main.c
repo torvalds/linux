@@ -24,6 +24,8 @@
 #include <linux/types.h>
 #include <linux/reset.h>
 
+#include "../lan969x/lan969x.h" /* for lan969x match data */
+
 #include "sparx5_main_regs.h"
 #include "sparx5_main.h"
 #include "sparx5_port.h"
@@ -225,6 +227,40 @@ bool is_sparx5(struct sparx5 *sparx5)
 	default:
 		return false;
 	}
+}
+
+static void sparx5_init_features(struct sparx5 *sparx5)
+{
+	switch (sparx5->target_ct) {
+	case SPX5_TARGET_CT_7546:
+	case SPX5_TARGET_CT_7549:
+	case SPX5_TARGET_CT_7552:
+	case SPX5_TARGET_CT_7556:
+	case SPX5_TARGET_CT_7558:
+	case SPX5_TARGET_CT_7546TSN:
+	case SPX5_TARGET_CT_7549TSN:
+	case SPX5_TARGET_CT_7552TSN:
+	case SPX5_TARGET_CT_7556TSN:
+	case SPX5_TARGET_CT_7558TSN:
+	case SPX5_TARGET_CT_LAN9691VAO:
+	case SPX5_TARGET_CT_LAN9694TSN:
+	case SPX5_TARGET_CT_LAN9694RED:
+	case SPX5_TARGET_CT_LAN9692VAO:
+	case SPX5_TARGET_CT_LAN9696TSN:
+	case SPX5_TARGET_CT_LAN9696RED:
+	case SPX5_TARGET_CT_LAN9693VAO:
+	case SPX5_TARGET_CT_LAN9698TSN:
+	case SPX5_TARGET_CT_LAN9698RED:
+		sparx5->features = (SPX5_FEATURE_PSFP | SPX5_FEATURE_PTP);
+		break;
+	default:
+		break;
+	}
+}
+
+bool sparx5_has_feature(struct sparx5 *sparx5, enum sparx5_feature feature)
+{
+	return sparx5->features & feature;
 }
 
 static int sparx5_create_targets(struct sparx5 *sparx5)
@@ -475,6 +511,20 @@ static int sparx5_init_coreclock(struct sparx5 *sparx5)
 		else if (sparx5->coreclock == SPX5_CORE_CLOCK_250MHZ)
 			freq = 0; /* Not supported */
 		break;
+	case SPX5_TARGET_CT_LAN9694:
+	case SPX5_TARGET_CT_LAN9691VAO:
+	case SPX5_TARGET_CT_LAN9694TSN:
+	case SPX5_TARGET_CT_LAN9694RED:
+	case SPX5_TARGET_CT_LAN9696:
+	case SPX5_TARGET_CT_LAN9692VAO:
+	case SPX5_TARGET_CT_LAN9696TSN:
+	case SPX5_TARGET_CT_LAN9696RED:
+	case SPX5_TARGET_CT_LAN9698:
+	case SPX5_TARGET_CT_LAN9693VAO:
+	case SPX5_TARGET_CT_LAN9698TSN:
+	case SPX5_TARGET_CT_LAN9698RED:
+		freq = SPX5_CORE_CLOCK_328MHZ;
+		break;
 	default:
 		dev_err(sparx5->dev, "Target (%#04x) not supported\n",
 			sparx5->target_ct);
@@ -516,16 +566,19 @@ static int sparx5_init_coreclock(struct sparx5 *sparx5)
 			 CLKGEN_LCPLL1_CORE_CLK_CFG_CORE_ROT_ENA |
 			 CLKGEN_LCPLL1_CORE_CLK_CFG_CORE_CLK_ENA,
 			 sparx5, CLKGEN_LCPLL1_CORE_CLK_CFG);
+	} else {
+		pol_upd_int = 820; // SPX5_CORE_CLOCK_328MHZ
 	}
 
 	/* Update state with chosen frequency */
 	sparx5->coreclock = freq;
 	clk_period = sparx5_clk_period(freq);
 
-	spx5_rmw(HSCH_SYS_CLK_PER_100PS_SET(clk_period / 100),
-		 HSCH_SYS_CLK_PER_100PS,
-		 sparx5,
-		 HSCH_SYS_CLK_PER);
+	if (is_sparx5(sparx5))
+		spx5_rmw(HSCH_SYS_CLK_PER_100PS_SET(clk_period / 100),
+			 HSCH_SYS_CLK_PER_100PS,
+			 sparx5,
+			 HSCH_SYS_CLK_PER);
 
 	spx5_rmw(ANA_AC_POL_BDLB_DLB_CTRL_CLK_PERIOD_01NS_SET(clk_period / 100),
 		 ANA_AC_POL_BDLB_DLB_CTRL_CLK_PERIOD_01NS,
@@ -715,15 +768,17 @@ static int sparx5_start(struct sparx5 *sparx5)
 	if (err)
 		return err;
 
-	err = sparx5_vcap_init(sparx5);
-	if (err) {
-		sparx5_unregister_notifier_blocks(sparx5);
-		return err;
+	if (is_sparx5(sparx5)) {
+		err = sparx5_vcap_init(sparx5);
+		if (err) {
+			sparx5_unregister_notifier_blocks(sparx5);
+			return err;
+		}
 	}
 
 	/* Start Frame DMA with fallback to register based INJ/XTR */
 	err = -ENXIO;
-	if (sparx5->fdma_irq >= 0) {
+	if (sparx5->fdma_irq >= 0 && is_sparx5(sparx5)) {
 		if (GCB_CHIP_ID_REV_ID_GET(sparx5->chip_id) > 0)
 			err = devm_request_threaded_irq(sparx5->dev,
 							sparx5->fdma_irq,
@@ -750,7 +805,8 @@ static int sparx5_start(struct sparx5 *sparx5)
 		sparx5->xtr_irq = -ENXIO;
 	}
 
-	if (sparx5->ptp_irq >= 0) {
+	if (sparx5->ptp_irq >= 0 &&
+	    sparx5_has_feature(sparx5, SPX5_FEATURE_PTP)) {
 		err = devm_request_threaded_irq(sparx5->dev, sparx5->ptp_irq,
 						NULL, ops->ptp_irq_handler,
 						IRQF_ONESHOT, "sparx5-ptp",
@@ -894,6 +950,9 @@ static int mchp_sparx5_probe(struct platform_device *pdev)
 	sparx5->target_ct = (enum spx5_target_chiptype)
 		GCB_CHIP_ID_PART_ID_GET(sparx5->chip_id);
 
+	/* Initialize the features based on the target */
+	sparx5_init_features(sparx5);
+
 	/* Initialize Switchcore and internal RAMs */
 	err = sparx5_init_switchcore(sparx5);
 	if (err) {
@@ -1031,6 +1090,9 @@ static const struct sparx5_match_data sparx5_desc = {
 
 static const struct of_device_id mchp_sparx5_match[] = {
 	{ .compatible = "microchip,sparx5-switch", .data = &sparx5_desc },
+#if IS_ENABLED(CONFIG_LAN969X_SWITCH)
+	{ .compatible = "microchip,lan9691-switch", .data = &lan969x_desc },
+#endif
 	{ }
 };
 MODULE_DEVICE_TABLE(of, mchp_sparx5_match);
