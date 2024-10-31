@@ -782,7 +782,7 @@ struct sg_table *dma_alloc_noncontiguous(struct device *dev, size_t size,
 		trace_dma_alloc_sgt(dev, sgt, size, dir, gfp, attrs);
 		debug_dma_map_sg(dev, sgt->sgl, sgt->orig_nents, 1, dir, attrs);
 	} else {
-		trace_dma_alloc_sgt_err(dev, NULL, 0, size, gfp, dir, attrs);
+		trace_dma_alloc_sgt_err(dev, NULL, 0, size, dir, gfp, attrs);
 	}
 	return sgt;
 }
