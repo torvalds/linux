@@ -3234,7 +3234,6 @@ static int lag_event(struct notifier_block *nb, unsigned long event, void *data)
 			}
 			err = ib_device_set_netdev(&dev->ib_dev, ndev,
 						   portnum + 1);
-			dev_put(ndev);
 			if (err)
 				return err;
 			/* Rescan gids after new netdev assignment */
