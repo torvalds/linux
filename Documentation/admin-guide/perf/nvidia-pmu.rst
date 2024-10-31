@@ -86,6 +86,21 @@ Example usage:
 
    perf stat -a -e nvidia_nvlink_c2c0_pmu_3/event=0x0/
 
+The NVLink-C2C has two ports that can be connected to one GPU (occupying both
+ports) or to two GPUs (one GPU per port). The user can use "port" bitmap
+parameter to select the port(s) to monitor. Each bit represents the port number,
+e.g. "port=0x1" corresponds to port 0 and "port=0x3" is for port 0 and 1.
+
+Example for port filtering:
+
+* Count event id 0x0 from the GPU connected with socket 0 on port 0::
+
+   perf stat -a -e nvidia_nvlink_c2c0_pmu_0/event=0x0,port=0x1/
+
+* Count event id 0x0 from the GPUs connected with socket 0 on port 0 and port 1::
+
+   perf stat -a -e nvidia_nvlink_c2c0_pmu_0/event=0x0,port=0x3/
+
 NVLink-C2C1 PMU
 -------------------
 
@@ -115,6 +130,21 @@ Example usage:
 * Count event id 0x0 from the GPU connected with socket 3::
 
    perf stat -a -e nvidia_nvlink_c2c1_pmu_3/event=0x0/
+
+The NVLink-C2C has two ports that can be connected to one GPU (occupying both
+ports) or to two GPUs (one GPU per port). The user can use "port" bitmap
+parameter to select the port(s) to monitor. Each bit represents the port number,
+e.g. "port=0x1" corresponds to port 0 and "port=0x3" is for port 0 and 1.
+
+Example for port filtering:
+
+* Count event id 0x0 from the GPU connected with socket 0 on port 0::
+
+   perf stat -a -e nvidia_nvlink_c2c1_pmu_0/event=0x0,port=0x1/
+
+* Count event id 0x0 from the GPUs connected with socket 0 on port 0 and port 1::
+
+   perf stat -a -e nvidia_nvlink_c2c1_pmu_0/event=0x0,port=0x3/
 
 CNVLink PMU
 ---------------
