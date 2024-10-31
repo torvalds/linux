@@ -9791,6 +9791,17 @@ int rdev_set_badblocks(struct md_rdev *rdev, sector_t s, int sectors,
 {
 	struct mddev *mddev = rdev->mddev;
 	int rv;
+
+	/*
+	 * Recording new badblocks for faulty rdev will force unnecessary
+	 * super block updating. This is fragile for external management because
+	 * userspace daemon may trying to remove this device and deadlock may
+	 * occur. This will be probably solved in the mdadm, but it is safer to
+	 * avoid it.
+	 */
+	if (test_bit(Faulty, &rdev->flags))
+		return 1;
+
 	if (is_new)
 		s += rdev->new_data_offset;
 	else
