@@ -237,10 +237,6 @@ static void __btree_node_free(struct btree_trans *trans, struct btree *b)
 	BUG_ON(b->will_make_reachable);
 
 	clear_btree_node_noevict(b);
-
-	mutex_lock(&c->btree_cache.lock);
-	list_move(&b->list, &c->btree_cache.freeable);
-	mutex_unlock(&c->btree_cache.lock);
 }
 
 static void bch2_btree_node_free_inmem(struct btree_trans *trans,
@@ -252,11 +248,11 @@ static void bch2_btree_node_free_inmem(struct btree_trans *trans,
 
 	bch2_btree_node_lock_write_nofail(trans, path, &b->c);
 
+	__btree_node_free(trans, b);
+
 	mutex_lock(&c->btree_cache.lock);
 	bch2_btree_node_hash_remove(&c->btree_cache, b);
 	mutex_unlock(&c->btree_cache.lock);
-
-	__btree_node_free(trans, b);
 
 	six_unlock_write(&b->c.lock);
 	mark_btree_node_locked_noreset(path, level, BTREE_NODE_INTENT_LOCKED);
@@ -289,7 +285,7 @@ static void bch2_btree_node_free_never_used(struct btree_update *as,
 	clear_btree_node_need_write(b);
 
 	mutex_lock(&c->btree_cache.lock);
-	bch2_btree_node_hash_remove(&c->btree_cache, b);
+	__bch2_btree_node_hash_remove(&c->btree_cache, b);
 	mutex_unlock(&c->btree_cache.lock);
 
 	BUG_ON(p->nr >= ARRAY_SIZE(p->b));
@@ -521,8 +517,7 @@ static void bch2_btree_reserve_put(struct btree_update *as, struct btree_trans *
 			btree_node_lock_nopath_nofail(trans, &b->c, SIX_LOCK_intent);
 			btree_node_lock_nopath_nofail(trans, &b->c, SIX_LOCK_write);
 			__btree_node_free(trans, b);
-			six_unlock_write(&b->c.lock);
-			six_unlock_intent(&b->c.lock);
+			bch2_btree_node_to_freelist(c, b);
 		}
 	}
 }
