@@ -700,6 +700,9 @@ struct nfsd4_copy {
 	struct nfsd42_write_res	cp_res;
 	struct knfsd_fh		fh;
 
+	/* offload callback */
+	struct nfsd4_cb_offload	cp_cb_offload;
+
 	struct nfs4_client      *cp_clp;
 
 	struct nfsd_file        *nf_src;
