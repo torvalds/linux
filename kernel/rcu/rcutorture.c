@@ -359,7 +359,8 @@ struct rcu_torture_ops {
 	void (*read_delay)(struct torture_random_state *rrsp,
 			   struct rt_read_seg *rtrsp);
 	void (*readunlock)(int idx);
-	int (*readlock_held)(void);
+	int (*readlock_held)(void);   // lockdep.
+	int (*readlock_nesting)(void); // actual nesting, if available, -1 if not.
 	unsigned long (*get_gp_seq)(void);
 	unsigned long (*gp_diff)(unsigned long new, unsigned long old);
 	void (*deferred_free)(struct rcu_torture *p);
@@ -466,6 +467,15 @@ static void rcu_torture_read_unlock(int idx)
 	rcu_read_unlock();
 }
 
+static int rcu_torture_readlock_nesting(void)
+{
+	if (IS_ENABLED(CONFIG_PREEMPT_RCU))
+		return rcu_preempt_depth();
+	if (IS_ENABLED(CONFIG_PREEMPT_COUNT))
+		return (preempt_count() & PREEMPT_MASK);
+	return -1;
+}
+
 /*
  * Update callback in the pipe.  This should be invoked after a grace period.
  */
@@ -555,6 +565,7 @@ static struct rcu_torture_ops rcu_ops = {
 	.read_delay		= rcu_read_delay,
 	.readunlock		= rcu_torture_read_unlock,
 	.readlock_held		= torture_readlock_not_held,
+	.readlock_nesting	= rcu_torture_readlock_nesting,
 	.get_gp_seq		= rcu_get_gp_seq,
 	.gp_diff		= rcu_seq_diff,
 	.deferred_free		= rcu_torture_deferred_free,
@@ -1847,6 +1858,44 @@ static void rcu_torture_reader_do_mbchk(long myid, struct rcu_torture *rtp,
 	smp_store_release(&rtrcp_assigner->rtc_chkrdr, -1); // Assigner can again assign.
 }
 
+// Verify the specified RCUTORTURE_RDR* state.
+#define ROEC_ARGS "%s %s: Current %#x  To add %#x  To remove %#x\n", __func__, s, curstate, new, old
+static void rcutorture_one_extend_check(char *s, int curstate, int new, int old, bool insoftirq)
+{
+	if (!IS_ENABLED(CONFIG_RCU_TORTURE_TEST_CHK_RDR_STATE))
+		return;
+
+	WARN_ONCE(!(curstate & RCUTORTURE_RDR_IRQ) && irqs_disabled(), ROEC_ARGS);
+	WARN_ONCE((curstate & RCUTORTURE_RDR_IRQ) && !irqs_disabled(), ROEC_ARGS);
+
+	// If CONFIG_PREEMPT_COUNT=n, further checks are unreliable.
+	if (!IS_ENABLED(CONFIG_PREEMPT_COUNT))
+		return;
+
+	WARN_ONCE((curstate & (RCUTORTURE_RDR_BH | RCUTORTURE_RDR_RBH)) &&
+		  !(preempt_count() & SOFTIRQ_MASK), ROEC_ARGS);
+	WARN_ONCE((curstate & (RCUTORTURE_RDR_PREEMPT | RCUTORTURE_RDR_SCHED)) &&
+		  !(preempt_count() & PREEMPT_MASK), ROEC_ARGS);
+	WARN_ONCE(cur_ops->readlock_nesting &&
+		  (curstate & (RCUTORTURE_RDR_RCU_1 | RCUTORTURE_RDR_RCU_2)) &&
+		  cur_ops->readlock_nesting() == 0, ROEC_ARGS);
+
+	// Timer handlers have all sorts of stuff disabled, so ignore
+	// unintended disabling.
+	if (insoftirq)
+		return;
+
+	WARN_ONCE(cur_ops->extendables &&
+		  !(curstate & (RCUTORTURE_RDR_BH | RCUTORTURE_RDR_RBH)) &&
+		  (preempt_count() & SOFTIRQ_MASK), ROEC_ARGS);
+	WARN_ONCE(cur_ops->extendables &&
+		  !(curstate & (RCUTORTURE_RDR_PREEMPT | RCUTORTURE_RDR_SCHED)) &&
+		  (preempt_count() & PREEMPT_MASK), ROEC_ARGS);
+	WARN_ONCE(cur_ops->readlock_nesting &&
+		  !(curstate & (RCUTORTURE_RDR_RCU_1 | RCUTORTURE_RDR_RCU_2)) &&
+		  cur_ops->readlock_nesting() > 0, ROEC_ARGS);
+}
+
 /*
  * Do one extension of an RCU read-side critical section using the
  * current reader state in readstate (set to zero for initial entry
@@ -1856,7 +1905,7 @@ static void rcu_torture_reader_do_mbchk(long myid, struct rcu_torture *rtp,
  * beginning or end of the critical section and if there was actually a
  * change, do a ->read_delay().
  */
-static void rcutorture_one_extend(int *readstate, int newstate,
+static void rcutorture_one_extend(int *readstate, int newstate, bool insoftirq,
 				  struct torture_random_state *trsp,
 				  struct rt_read_seg *rtrsp)
 {
@@ -1870,6 +1919,7 @@ static void rcutorture_one_extend(int *readstate, int newstate,
 
 	WARN_ON_ONCE(idxold2 < 0);
 	WARN_ON_ONCE(idxold2 & ~RCUTORTURE_RDR_ALLBITS);
+	rcutorture_one_extend_check("before change", idxold1, statesnew, statesold, insoftirq);
 	rtrsp->rt_readstate = newstate;
 	if (IS_ENABLED(CONFIG_RCU_TORTURE_TEST_LOG_CPU))
 		rtrsp->rt_cpu = raw_smp_processor_id();
@@ -1889,6 +1939,10 @@ static void rcutorture_one_extend(int *readstate, int newstate,
 		idxnew1 = (cur_ops->readlock() << RCUTORTURE_RDR_SHIFT_1) & RCUTORTURE_RDR_MASK_1;
 	if (statesnew & RCUTORTURE_RDR_RCU_2)
 		idxnew2 = (cur_ops->readlock() << RCUTORTURE_RDR_SHIFT_2) & RCUTORTURE_RDR_MASK_2;
+
+	// Complain unless both the old and the new protection is in place.
+	rcutorture_one_extend_check("during change",
+				    idxold1 | statesnew, statesnew, statesold, insoftirq);
 
 	/*
 	 * Next, remove old protection, in decreasing order of strength
@@ -1940,6 +1994,7 @@ static void rcutorture_one_extend(int *readstate, int newstate,
 	WARN_ON_ONCE(*readstate < 0);
 	if (WARN_ON_ONCE(*readstate & ~RCUTORTURE_RDR_ALLBITS))
 		pr_info("Unexpected readstate value of %#x\n", *readstate);
+	rcutorture_one_extend_check("after change", *readstate, statesnew, statesold, insoftirq);
 }
 
 /* Return the biggest extendables mask given current RCU and boot parameters. */
@@ -2006,7 +2061,7 @@ rcutorture_extend_mask(int oldmask, struct torture_random_state *trsp)
  * critical section.
  */
 static struct rt_read_seg *
-rcutorture_loop_extend(int *readstate, struct torture_random_state *trsp,
+rcutorture_loop_extend(int *readstate, bool insoftirq, struct torture_random_state *trsp,
 		       struct rt_read_seg *rtrsp)
 {
 	int i;
@@ -2021,7 +2076,7 @@ rcutorture_loop_extend(int *readstate, struct torture_random_state *trsp,
 	i = ((i | (i >> 3)) & RCUTORTURE_RDR_MAX_LOOPS) + 1;
 	for (j = 0; j < i; j++) {
 		mask = rcutorture_extend_mask(*readstate, trsp);
-		rcutorture_one_extend(readstate, mask, trsp, &rtrsp[j]);
+		rcutorture_one_extend(readstate, mask, insoftirq, trsp, &rtrsp[j]);
 	}
 	return &rtrsp[j];
 }
@@ -2051,7 +2106,7 @@ static bool rcu_torture_one_read(struct torture_random_state *trsp, long myid)
 
 	WARN_ON_ONCE(!rcu_is_watching());
 	newstate = rcutorture_extend_mask(readstate, trsp);
-	rcutorture_one_extend(&readstate, newstate, trsp, rtrsp++);
+	rcutorture_one_extend(&readstate, newstate, myid < 0, trsp, rtrsp++);
 	if (checkpolling) {
 		if (cur_ops->get_gp_state && cur_ops->poll_gp_state)
 			cookie = cur_ops->get_gp_state();
@@ -2064,13 +2119,13 @@ static bool rcu_torture_one_read(struct torture_random_state *trsp, long myid)
 				  !cur_ops->readlock_held || cur_ops->readlock_held());
 	if (p == NULL) {
 		/* Wait for rcu_torture_writer to get underway */
-		rcutorture_one_extend(&readstate, 0, trsp, rtrsp);
+		rcutorture_one_extend(&readstate, 0, myid < 0, trsp, rtrsp);
 		return false;
 	}
 	if (p->rtort_mbtest == 0)
 		atomic_inc(&n_rcu_torture_mberror);
 	rcu_torture_reader_do_mbchk(myid, p, trsp);
-	rtrsp = rcutorture_loop_extend(&readstate, trsp, rtrsp);
+	rtrsp = rcutorture_loop_extend(&readstate, myid < 0, trsp, rtrsp);
 	preempt_disable();
 	pipe_count = READ_ONCE(p->rtort_pipe_count);
 	if (pipe_count > RCU_TORTURE_PIPE_LEN) {
@@ -2112,7 +2167,7 @@ static bool rcu_torture_one_read(struct torture_random_state *trsp, long myid)
 		preempted = cur_ops->reader_blocked();
 	if (IS_ENABLED(CONFIG_RCU_TORTURE_TEST_LOG_CPU))
 		rt_last_cpu = raw_smp_processor_id();
-	rcutorture_one_extend(&readstate, 0, trsp, rtrsp);
+	rcutorture_one_extend(&readstate, 0, myid < 0, trsp, rtrsp);
 	WARN_ON_ONCE(readstate);
 	// This next splat is expected behavior if leakpointer, especially
 	// for CONFIG_RCU_STRICT_GRACE_PERIOD=y kernels.
