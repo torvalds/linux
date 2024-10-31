@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
 /* Copyright (c) 2024 NVIDIA Corporation & Affiliates */
 
-#include "mlx5hws_internal.h"
+#include "internal.h"
 
 u32 mlx5hws_table_get_id(struct mlx5hws_table *tbl)
 {

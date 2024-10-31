@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB */
 /* Copyright (c) 2024 NVIDIA Corporation & Affiliates */
 
-#ifndef MLX5HWS_BWC_COMPLEX_H_
-#define MLX5HWS_BWC_COMPLEX_H_
+#ifndef HWS_BWC_COMPLEX_H_
+#define HWS_BWC_COMPLEX_H_
 
 bool mlx5hws_bwc_match_params_is_complex(struct mlx5hws_context *ctx,
 					 u8 match_criteria_enable,
@@ -26,4 +26,4 @@ int mlx5hws_bwc_rule_create_complex(struct mlx5hws_bwc_rule *bwc_rule,
 
 int mlx5hws_bwc_rule_destroy_complex(struct mlx5hws_bwc_rule *bwc_rule);
 
-#endif /* MLX5HWS_BWC_COMPLEX_H_ */
+#endif /* HWS_BWC_COMPLEX_H_ */

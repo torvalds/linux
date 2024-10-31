@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
 /* Copyright (c) 2024 NVIDIA Corporation & Affiliates */
 
-#include "mlx5hws_internal.h"
+#include "internal.h"
 
 enum mlx5hws_arg_chunk_size
 mlx5hws_arg_data_size_to_arg_log_size(u16 data_size)

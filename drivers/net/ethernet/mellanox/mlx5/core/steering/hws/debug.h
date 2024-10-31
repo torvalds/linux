@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB */
 /* Copyright (c) 2024 NVIDIA Corporation & Affiliates */
 
-#ifndef MLX5HWS_DEBUG_H_
-#define MLX5HWS_DEBUG_H_
+#ifndef HWS_DEBUG_H_
+#define HWS_DEBUG_H_
 
 #define HWS_DEBUG_FORMAT_VERSION "1.0"
 
@@ -37,4 +37,4 @@ mlx5hws_debug_icm_to_idx(u64 icm_addr)
 void mlx5hws_debug_init_dump(struct mlx5hws_context *ctx);
 void mlx5hws_debug_uninit_dump(struct mlx5hws_context *ctx);
 
-#endif /* MLX5HWS_DEBUG_H_ */
+#endif /* HWS_DEBUG_H_ */

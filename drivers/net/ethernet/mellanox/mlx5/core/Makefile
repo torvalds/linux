@@ -136,21 +136,21 @@ mlx5_core-$(CONFIG_MLX5_SW_STEERING) += steering/sws/dr_domain.o \
 #
 # HW Steering
 #
-mlx5_core-$(CONFIG_MLX5_HW_STEERING) += steering/hws/mlx5hws_cmd.o \
-					steering/hws/mlx5hws_context.o \
-					steering/hws/mlx5hws_pat_arg.o \
-					steering/hws/mlx5hws_buddy.o \
-					steering/hws/mlx5hws_pool.o \
-					steering/hws/mlx5hws_table.o \
-					steering/hws/mlx5hws_action.o \
-					steering/hws/mlx5hws_rule.o \
-					steering/hws/mlx5hws_matcher.o \
-					steering/hws/mlx5hws_send.o \
-					steering/hws/mlx5hws_definer.o \
-					steering/hws/mlx5hws_bwc.o \
-					steering/hws/mlx5hws_debug.o \
-					steering/hws/mlx5hws_vport.o \
-					steering/hws/mlx5hws_bwc_complex.o
+mlx5_core-$(CONFIG_MLX5_HW_STEERING) += steering/hws/cmd.o \
+					steering/hws/context.o \
+					steering/hws/pat_arg.o \
+					steering/hws/buddy.o \
+					steering/hws/pool.o \
+					steering/hws/table.o \
+					steering/hws/action.o \
+					steering/hws/rule.o \
+					steering/hws/matcher.o \
+					steering/hws/send.o \
+					steering/hws/definer.o \
+					steering/hws/bwc.o \
+					steering/hws/debug.o \
+					steering/hws/vport.o \
+					steering/hws/bwc_complex.o
 
 
 #

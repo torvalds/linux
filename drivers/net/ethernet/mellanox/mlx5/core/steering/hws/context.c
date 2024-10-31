@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
 /* Copyright (c) 2024 NVIDIA CORPORATION. All rights reserved. */
 
-#include "mlx5hws_internal.h"
+#include "internal.h"
 
 bool mlx5hws_context_cap_dynamic_reparse(struct mlx5hws_context *ctx)
 {

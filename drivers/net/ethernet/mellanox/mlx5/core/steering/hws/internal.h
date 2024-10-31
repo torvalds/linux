@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB */
 /* Copyright (c) 2024 NVIDIA Corporation & Affiliates */
 
-#ifndef MLX5HWS_INTERNAL_H_
-#define MLX5HWS_INTERNAL_H_
+#ifndef HWS_INTERNAL_H_
+#define HWS_INTERNAL_H_
 
 #include <linux/mlx5/transobj.h>
 #include <linux/mlx5/vport.h>
@@ -10,22 +10,22 @@
 #include "wq.h"
 #include "lib/mlx5.h"
 
-#include "mlx5hws_prm.h"
+#include "prm.h"
 #include "mlx5hws.h"
-#include "mlx5hws_pool.h"
-#include "mlx5hws_vport.h"
-#include "mlx5hws_context.h"
-#include "mlx5hws_table.h"
-#include "mlx5hws_send.h"
-#include "mlx5hws_rule.h"
-#include "mlx5hws_cmd.h"
-#include "mlx5hws_action.h"
-#include "mlx5hws_definer.h"
-#include "mlx5hws_matcher.h"
-#include "mlx5hws_debug.h"
-#include "mlx5hws_pat_arg.h"
-#include "mlx5hws_bwc.h"
-#include "mlx5hws_bwc_complex.h"
+#include "pool.h"
+#include "vport.h"
+#include "context.h"
+#include "table.h"
+#include "send.h"
+#include "rule.h"
+#include "cmd.h"
+#include "action.h"
+#include "definer.h"
+#include "matcher.h"
+#include "debug.h"
+#include "pat_arg.h"
+#include "bwc.h"
+#include "bwc_complex.h"
 
 #define W_SIZE		2
 #define DW_SIZE		4
@@ -56,4 +56,4 @@ static inline unsigned long align(unsigned long val, unsigned long align)
 	return (val + align - 1) & ~(align - 1);
 }
 
-#endif /* MLX5HWS_INTERNAL_H_ */
+#endif /* HWS_INTERNAL_H_ */

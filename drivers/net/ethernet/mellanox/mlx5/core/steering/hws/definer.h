@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB */
 /* Copyright (c) 2024 NVIDIA Corporation & Affiliates */
 
-#ifndef MLX5HWS_DEFINER_H_
-#define MLX5HWS_DEFINER_H_
+#ifndef HWS_DEFINER_H_
+#define HWS_DEFINER_H_
 
 /* Max available selecotrs */
 #define DW_SELECTORS 9
@@ -831,4 +831,4 @@ mlx5hws_definer_conv_match_params_to_compressed_fc(struct mlx5hws_context *ctx,
 						   u32 *match_param,
 						   int *fc_sz);
 
-#endif /* MLX5HWS_DEFINER_H_ */
+#endif /* HWS_DEFINER_H_ */
