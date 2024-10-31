@@ -23,6 +23,7 @@ properties:
           - enum:
               - allwinner,sun8i-a83t-musb
               - allwinner,sun20i-d1-musb
+              - allwinner,sun50i-a100-musb
               - allwinner,sun50i-h6-musb
           - const: allwinner,sun8i-a33-musb
       - items:
