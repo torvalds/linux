@@ -735,7 +735,7 @@ lpfc_prep_node_fc4type(struct lpfc_vport *vport, uint32_t Did, uint8_t fc4_type)
 
 			lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
 					 "0238 Process x%06x NameServer Rsp "
-					 "Data: x%x x%x x%x x%lx x%x\n", Did,
+					 "Data: x%lx x%x x%x x%lx x%x\n", Did,
 					 ndlp->nlp_flag, ndlp->nlp_fc4_type,
 					 ndlp->nlp_state, vport->fc_flag,
 					 vport->fc_rscn_id_cnt);
@@ -744,7 +744,7 @@ lpfc_prep_node_fc4type(struct lpfc_vport *vport, uint32_t Did, uint8_t fc4_type)
 			 * state of ndlp hit devloss, change state to
 			 * allow rediscovery.
 			 */
-			if (ndlp->nlp_flag & NLP_NPR_2B_DISC &&
+			if (test_bit(NLP_NPR_2B_DISC, &ndlp->nlp_flag) &&
 			    ndlp->nlp_state == NLP_STE_UNUSED_NODE) {
 				lpfc_nlp_set_state(vport, ndlp,
 						   NLP_STE_NPR_NODE);
@@ -832,12 +832,10 @@ lpfc_ns_rsp_audit_did(struct lpfc_vport *vport, uint32_t Did, uint8_t fc4_type)
 			if (ndlp->nlp_type != NLP_NVME_INITIATOR ||
 			    ndlp->nlp_state != NLP_STE_UNMAPPED_NODE)
 				continue;
-			spin_lock_irq(&ndlp->lock);
 			if (ndlp->nlp_DID == Did)
-				ndlp->nlp_flag &= ~NLP_NVMET_RECOV;
+				clear_bit(NLP_NVMET_RECOV, &ndlp->nlp_flag);
 			else
-				ndlp->nlp_flag |= NLP_NVMET_RECOV;
-			spin_unlock_irq(&ndlp->lock);
+				set_bit(NLP_NVMET_RECOV, &ndlp->nlp_flag);
 		}
 	}
 }
@@ -894,13 +892,11 @@ lpfc_ns_rsp(struct lpfc_vport *vport, struct lpfc_dmabuf *mp, uint8_t fc4_type,
 	 */
 	if (vport->phba->nvmet_support) {
 		list_for_each_entry(ndlp, &vport->fc_nodes, nlp_listp) {
-			if (!(ndlp->nlp_flag & NLP_NVMET_RECOV))
+			if (!test_bit(NLP_NVMET_RECOV, &ndlp->nlp_flag))
 				continue;
 			lpfc_disc_state_machine(vport, ndlp, NULL,
 						NLP_EVT_DEVICE_RECOVERY);
-			spin_lock_irq(&ndlp->lock);
-			ndlp->nlp_flag &= ~NLP_NVMET_RECOV;
-			spin_unlock_irq(&ndlp->lock);
+			clear_bit(NLP_NVMET_RECOV, &ndlp->nlp_flag);
 		}
 	}
 
@@ -1440,7 +1436,7 @@ lpfc_cmpl_ct_cmd_gff_id(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	if (ndlp) {
 		lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
 				 "0242 Process x%x GFF "
-				 "NameServer Rsp Data: x%x x%lx x%x\n",
+				 "NameServer Rsp Data: x%lx x%lx x%x\n",
 				 did, ndlp->nlp_flag, vport->fc_flag,
 				 vport->fc_rscn_id_cnt);
 	} else {
