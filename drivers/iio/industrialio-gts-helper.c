@@ -205,7 +205,7 @@ static int gain_to_scaletables(struct iio_gts *gts, int **gains, int **scales)
 	memcpy(all_gains, gains[time_idx], gain_bytes);
 	new_idx = gts->num_hwgain;
 
-	while (time_idx--) {
+	while (time_idx-- > 0) {
 		for (j = 0; j < gts->num_hwgain; j++) {
 			int candidate = gains[time_idx][j];
 			int chk;
