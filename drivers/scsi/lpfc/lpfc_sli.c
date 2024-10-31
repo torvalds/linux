@@ -1932,7 +1932,7 @@ lpfc_issue_cmf_sync_wqe(struct lpfc_hba *phba, u32 ms, u64 total)
 	union lpfc_wqe128 *wqe;
 	struct lpfc_iocbq *sync_buf;
 	unsigned long iflags;
-	u32 ret_val;
+	u32 ret_val, cgn_sig_freq;
 	u32 atot, wtot, max;
 	u8 warn_sync_period = 0;
 
@@ -1987,8 +1987,10 @@ lpfc_issue_cmf_sync_wqe(struct lpfc_hba *phba, u32 ms, u64 total)
 	} else if (wtot) {
 		if (phba->cgn_reg_signal == EDC_CG_SIG_WARN_ONLY ||
 		    phba->cgn_reg_signal == EDC_CG_SIG_WARN_ALARM) {
+			cgn_sig_freq = phba->cgn_sig_freq ? phba->cgn_sig_freq :
+					lpfc_fabric_cgn_frequency;
 			/* We hit an Signal warning condition */
-			max = LPFC_SEC_TO_MSEC / lpfc_fabric_cgn_frequency *
+			max = LPFC_SEC_TO_MSEC / cgn_sig_freq *
 				lpfc_acqe_cgn_frequency;
 			bf_set(cmf_sync_wsigmax, &wqe->cmf_sync, max);
 			bf_set(cmf_sync_wsigcnt, &wqe->cmf_sync, wtot);
