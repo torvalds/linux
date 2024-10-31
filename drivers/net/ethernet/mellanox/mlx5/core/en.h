@@ -755,7 +755,7 @@ struct mlx5e_channel {
 	u8                         lag_port;
 
 	/* XDP_REDIRECT */
-	struct mlx5e_xdpsq         xdpsq;
+	struct mlx5e_xdpsq        *xdpsq;
 
 	/* AF_XDP zero-copy */
 	struct mlx5e_rq            xskrq;
