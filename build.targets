@@ -1,6 +1,7 @@
 build.config.msm.autogvm
 build.config.msm.autoghgvm
 build.config.msm.pineapple
+build.config.msm.pineapple.le
 build.config.msm.anorak
 build.config.msm.neo-la
 build.config.msm.niobe
