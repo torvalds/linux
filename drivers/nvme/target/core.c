@@ -1717,7 +1717,7 @@ static int __init nvmet_init(void)
 		goto out_free_zbd_work_queue;
 
 	nvmet_wq = alloc_workqueue("nvmet-wq",
-			WQ_MEM_RECLAIM | WQ_UNBOUND, 0);
+			WQ_MEM_RECLAIM | WQ_UNBOUND | WQ_SYSFS, 0);
 	if (!nvmet_wq)
 		goto out_free_buffered_work_queue;
 
