@@ -68,9 +68,6 @@ struct tk_read_base {
  *			shifted nano seconds.
  * @ntp_error_shift:	Shift conversion between clock shifted nano seconds and
  *			ntp shifted nano seconds.
- * @last_warning:	Warning ratelimiter (DEBUG_TIMEKEEPING)
- * @underflow_seen:	Underflow warning flag (DEBUG_TIMEKEEPING)
- * @overflow_seen:	Overflow warning flag (DEBUG_TIMEKEEPING)
  *
  * Note: For timespec(64) based interfaces wall_to_monotonic is what
  * we need to add to xtime (or xtime corrected for sub jiffy times)
@@ -124,18 +121,6 @@ struct timekeeper {
 	u32			ntp_err_mult;
 	/* Flag used to avoid updating NTP twice with same second */
 	u32			skip_second_overflow;
-#ifdef CONFIG_DEBUG_TIMEKEEPING
-	long			last_warning;
-	/*
-	 * These simple flag variables are managed
-	 * without locks, which is racy, but they are
-	 * ok since we don't really care about being
-	 * super precise about how many events were
-	 * seen, just that a problem was observed.
-	 */
-	int			underflow_seen;
-	int			overflow_seen;
-#endif
 };
 
 #ifdef CONFIG_GENERIC_TIME_VSYSCALL

@@ -195,97 +195,6 @@ static inline u64 tk_clock_read(const struct tk_read_base *tkr)
 	return clock->read(clock);
 }
 
-#ifdef CONFIG_DEBUG_TIMEKEEPING
-#define WARNING_FREQ (HZ*300) /* 5 minute rate-limiting */
-
-static void timekeeping_check_update(struct timekeeper *tk, u64 offset)
-{
-
-	u64 max_cycles = tk->tkr_mono.clock->max_cycles;
-	const char *name = tk->tkr_mono.clock->name;
-
-	if (offset > max_cycles) {
-		printk_deferred("WARNING: timekeeping: Cycle offset (%lld) is larger than allowed by the '%s' clock's max_cycles value (%lld): time overflow danger\n",
-				offset, name, max_cycles);
-		printk_deferred("         timekeeping: Your kernel is sick, but tries to cope by capping time updates\n");
-	} else {
-		if (offset > (max_cycles >> 1)) {
-			printk_deferred("INFO: timekeeping: Cycle offset (%lld) is larger than the '%s' clock's 50%% safety margin (%lld)\n",
-					offset, name, max_cycles >> 1);
-			printk_deferred("      timekeeping: Your kernel is still fine, but is feeling a bit nervous\n");
-		}
-	}
-
-	if (tk->underflow_seen) {
-		if (jiffies - tk->last_warning > WARNING_FREQ) {
-			printk_deferred("WARNING: Underflow in clocksource '%s' observed, time update ignored.\n", name);
-			printk_deferred("         Please report this, consider using a different clocksource, if possible.\n");
-			printk_deferred("         Your kernel is probably still fine.\n");
-			tk->last_warning = jiffies;
-		}
-		tk->underflow_seen = 0;
-	}
-
-	if (tk->overflow_seen) {
-		if (jiffies - tk->last_warning > WARNING_FREQ) {
-			printk_deferred("WARNING: Overflow in clocksource '%s' observed, time update capped.\n", name);
-			printk_deferred("         Please report this, consider using a different clocksource, if possible.\n");
-			printk_deferred("         Your kernel is probably still fine.\n");
-			tk->last_warning = jiffies;
-		}
-		tk->overflow_seen = 0;
-	}
-}
-
-static inline u64 timekeeping_cycles_to_ns(const struct tk_read_base *tkr, u64 cycles);
-
-static inline u64 timekeeping_debug_get_ns(const struct tk_read_base *tkr)
-{
-	struct timekeeper *tk = &tk_core.timekeeper;
-	u64 now, last, mask, max, delta;
-	unsigned int seq;
-
-	/*
-	 * Since we're called holding a seqcount, the data may shift
-	 * under us while we're doing the calculation. This can cause
-	 * false positives, since we'd note a problem but throw the
-	 * results away. So nest another seqcount here to atomically
-	 * grab the points we are checking with.
-	 */
-	do {
-		seq = read_seqcount_begin(&tk_core.seq);
-		now = tk_clock_read(tkr);
-		last = tkr->cycle_last;
-		mask = tkr->mask;
-		max = tkr->clock->max_cycles;
-	} while (read_seqcount_retry(&tk_core.seq, seq));
-
-	delta = clocksource_delta(now, last, mask);
-
-	/*
-	 * Try to catch underflows by checking if we are seeing small
-	 * mask-relative negative values.
-	 */
-	if (unlikely((~delta & mask) < (mask >> 3)))
-		tk->underflow_seen = 1;
-
-	/* Check for multiplication overflows */
-	if (unlikely(delta > max))
-		tk->overflow_seen = 1;
-
-	/* timekeeping_cycles_to_ns() handles both under and overflow */
-	return timekeeping_cycles_to_ns(tkr, now);
-}
-#else
-static inline void timekeeping_check_update(struct timekeeper *tk, u64 offset)
-{
-}
-static inline u64 timekeeping_debug_get_ns(const struct tk_read_base *tkr)
-{
-	BUG();
-}
-#endif
-
 /**
  * tk_setup_internals - Set up internals to use clocksource clock.
  *
@@ -390,17 +299,9 @@ static inline u64 timekeeping_cycles_to_ns(const struct tk_read_base *tkr, u64 c
 	return ((delta * tkr->mult) + tkr->xtime_nsec) >> tkr->shift;
 }
 
-static __always_inline u64 __timekeeping_get_ns(const struct tk_read_base *tkr)
+static __always_inline u64 timekeeping_get_ns(const struct tk_read_base *tkr)
 {
 	return timekeeping_cycles_to_ns(tkr, tk_clock_read(tkr));
-}
-
-static inline u64 timekeeping_get_ns(const struct tk_read_base *tkr)
-{
-	if (IS_ENABLED(CONFIG_DEBUG_TIMEKEEPING))
-		return timekeeping_debug_get_ns(tkr);
-
-	return __timekeeping_get_ns(tkr);
 }
 
 /**
@@ -446,7 +347,7 @@ static __always_inline u64 __ktime_get_fast_ns(struct tk_fast *tkf)
 		seq = raw_read_seqcount_latch(&tkf->seq);
 		tkr = tkf->base + (seq & 0x01);
 		now = ktime_to_ns(tkr->base);
-		now += __timekeeping_get_ns(tkr);
+		now += timekeeping_get_ns(tkr);
 	} while (raw_read_seqcount_latch_retry(&tkf->seq, seq));
 
 	return now;
@@ -562,7 +463,7 @@ static __always_inline u64 __ktime_get_real_fast(struct tk_fast *tkf, u64 *mono)
 		tkr = tkf->base + (seq & 0x01);
 		basem = ktime_to_ns(tkr->base);
 		baser = ktime_to_ns(tkr->base_real);
-		delta = __timekeeping_get_ns(tkr);
+		delta = timekeeping_get_ns(tkr);
 	} while (raw_read_seqcount_latch_retry(&tkf->seq, seq));
 
 	if (mono)
@@ -2297,9 +2198,6 @@ static bool timekeeping_advance(enum timekeeping_adv_mode mode)
 	/* Check if there's really nothing to do */
 	if (offset < real_tk->cycle_interval && mode == TK_ADV_TICK)
 		goto out;
-
-	/* Do some additional sanity checking */
-	timekeeping_check_update(tk, offset);
 
 	/*
 	 * With NO_HZ we may have to accumulate many cycle_intervals
