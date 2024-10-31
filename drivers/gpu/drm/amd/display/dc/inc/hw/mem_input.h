@@ -187,6 +187,8 @@ struct mem_input_funcs {
 			const struct dc_cursor_position *pos,
 			const struct dc_cursor_mi_param *param);
 
+	void (*mem_input_clear_tiling)(
+		struct mem_input *mem_input);
 };
 
 #endif
