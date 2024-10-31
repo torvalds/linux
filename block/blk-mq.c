@@ -120,20 +120,66 @@ void blk_mq_in_flight_rw(struct request_queue *q, struct block_device *part,
 	inflight[1] = mi.inflight[1];
 }
 
-bool __blk_freeze_queue_start(struct request_queue *q)
+#ifdef CONFIG_LOCKDEP
+static bool blk_freeze_set_owner(struct request_queue *q,
+				 struct task_struct *owner)
 {
-	int freeze;
+	if (!owner)
+		return false;
+
+	if (!q->mq_freeze_depth) {
+		q->mq_freeze_owner = owner;
+		q->mq_freeze_owner_depth = 1;
+		return true;
+	}
+
+	if (owner == q->mq_freeze_owner)
+		q->mq_freeze_owner_depth += 1;
+	return false;
+}
+
+/* verify the last unfreeze in owner context */
+static bool blk_unfreeze_check_owner(struct request_queue *q)
+{
+	if (!q->mq_freeze_owner)
+		return false;
+	if (q->mq_freeze_owner != current)
+		return false;
+	if (--q->mq_freeze_owner_depth == 0) {
+		q->mq_freeze_owner = NULL;
+		return true;
+	}
+	return false;
+}
+
+#else
+
+static bool blk_freeze_set_owner(struct request_queue *q,
+				 struct task_struct *owner)
+{
+	return false;
+}
+
+static bool blk_unfreeze_check_owner(struct request_queue *q)
+{
+	return false;
+}
+#endif
+
+bool __blk_freeze_queue_start(struct request_queue *q,
+			      struct task_struct *owner)
+{
+	bool freeze;
 
 	mutex_lock(&q->mq_freeze_lock);
+	freeze = blk_freeze_set_owner(q, owner);
 	if (++q->mq_freeze_depth == 1) {
 		percpu_ref_kill(&q->q_usage_counter);
 		mutex_unlock(&q->mq_freeze_lock);
 		if (queue_is_mq(q))
 			blk_mq_run_hw_queues(q, false);
-		freeze = true;
 	} else {
 		mutex_unlock(&q->mq_freeze_lock);
-		freeze = false;
 	}
 
 	return freeze;
@@ -141,7 +187,7 @@ bool __blk_freeze_queue_start(struct request_queue *q)
 
 void blk_freeze_queue_start(struct request_queue *q)
 {
-	if (__blk_freeze_queue_start(q))
+	if (__blk_freeze_queue_start(q, current))
 		blk_freeze_acquire_lock(q, false, false);
 }
 EXPORT_SYMBOL_GPL(blk_freeze_queue_start);
@@ -190,7 +236,7 @@ EXPORT_SYMBOL_GPL(blk_mq_freeze_queue);
 
 bool __blk_mq_unfreeze_queue(struct request_queue *q, bool force_atomic)
 {
-	int unfreeze = false;
+	bool unfreeze;
 
 	mutex_lock(&q->mq_freeze_lock);
 	if (force_atomic)
@@ -200,8 +246,8 @@ bool __blk_mq_unfreeze_queue(struct request_queue *q, bool force_atomic)
 	if (!q->mq_freeze_depth) {
 		percpu_ref_resurrect(&q->q_usage_counter);
 		wake_up_all(&q->mq_freeze_wq);
-		unfreeze = true;
 	}
+	unfreeze = blk_unfreeze_check_owner(q);
 	mutex_unlock(&q->mq_freeze_lock);
 
 	return unfreeze;
@@ -223,7 +269,7 @@ EXPORT_SYMBOL_GPL(blk_mq_unfreeze_queue);
  */
 void blk_freeze_queue_start_non_owner(struct request_queue *q)
 {
-	__blk_freeze_queue_start(q);
+	__blk_freeze_queue_start(q, NULL);
 }
 EXPORT_SYMBOL_GPL(blk_freeze_queue_start_non_owner);
 
