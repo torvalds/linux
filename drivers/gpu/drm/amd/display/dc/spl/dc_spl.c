@@ -910,6 +910,16 @@ static void spl_get_taps_non_adaptive_scaler(
 		spl_scratch->scl_data.taps.h_taps_c = in_taps->h_taps_c - 1;
 	else
 		spl_scratch->scl_data.taps.h_taps_c = in_taps->h_taps_c;
+
+	if (IDENTITY_RATIO(spl_scratch->scl_data.ratios.horz))
+		spl_scratch->scl_data.taps.h_taps = 1;
+	if (IDENTITY_RATIO(spl_scratch->scl_data.ratios.vert))
+		spl_scratch->scl_data.taps.v_taps = 1;
+	if (IDENTITY_RATIO(spl_scratch->scl_data.ratios.horz_c))
+		spl_scratch->scl_data.taps.h_taps_c = 1;
+	if (IDENTITY_RATIO(spl_scratch->scl_data.ratios.vert_c))
+		spl_scratch->scl_data.taps.v_taps_c = 1;
+
 }
 
 /* Calculate optimal number of taps */
@@ -936,10 +946,7 @@ static bool spl_get_optimal_number_of_taps(
 
 	/* Disable adaptive scaler and sharpener when integer scaling is enabled */
 	if (spl_in->scaling_quality.integer_scaling) {
-		spl_scratch->scl_data.taps.h_taps = 1;
-		spl_scratch->scl_data.taps.v_taps = 1;
-		spl_scratch->scl_data.taps.v_taps_c = 1;
-		spl_scratch->scl_data.taps.h_taps_c = 1;
+		spl_get_taps_non_adaptive_scaler(spl_scratch, in_taps);
 		*enable_easf_v = false;
 		*enable_easf_h = false;
 		*enable_isharp = false;
