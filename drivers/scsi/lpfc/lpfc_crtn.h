@@ -660,6 +660,7 @@ void lpfc_wqe_cmd_template(void);
 void lpfc_nvmet_cmd_template(void);
 void lpfc_nvme_cancel_iocb(struct lpfc_hba *phba, struct lpfc_iocbq *pwqeIn,
 			   uint32_t stat, uint32_t param);
+void lpfc_nvmels_flush_cmd(struct lpfc_hba *phba);
 extern int lpfc_enable_nvmet_cnt;
 extern unsigned long long lpfc_enable_nvmet[];
 extern int lpfc_no_hba_reset_cnt;
