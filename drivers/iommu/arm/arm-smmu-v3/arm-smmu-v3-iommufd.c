@@ -220,9 +220,12 @@ struct iommufd_viommu *arm_vsmmu_alloc(struct device *dev,
 	 * Must support some way to prevent the VM from bypassing the cache
 	 * because VFIO currently does not do any cache maintenance. canwbs
 	 * indicates the device is fully coherent and no cache maintenance is
-	 * ever required, even for PCI No-Snoop.
+	 * ever required, even for PCI No-Snoop. S2FWB means the S1 can't make
+	 * things non-coherent using the memattr, but No-Snoop behavior is not
+	 * effected.
 	 */
-	if (!arm_smmu_master_canwbs(master))
+	if (!arm_smmu_master_canwbs(master) &&
+	    !(smmu->features & ARM_SMMU_FEAT_S2FWB))
 		return ERR_PTR(-EOPNOTSUPP);
 
 	vsmmu = iommufd_viommu_alloc(ictx, struct arm_vsmmu, core,
