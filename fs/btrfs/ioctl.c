@@ -4740,9 +4740,14 @@ struct btrfs_uring_priv {
 	bool compressed;
 };
 
+struct io_btrfs_cmd {
+	struct btrfs_uring_priv *priv;
+};
+
 static void btrfs_uring_read_finished(struct io_uring_cmd *cmd, unsigned int issue_flags)
 {
-	struct btrfs_uring_priv *priv = *io_uring_cmd_to_pdu(cmd, struct btrfs_uring_priv *);
+	struct io_btrfs_cmd *bc = io_uring_cmd_to_pdu(cmd, struct io_btrfs_cmd);
+	struct btrfs_uring_priv *priv = bc->priv;
 	struct btrfs_inode *inode = BTRFS_I(file_inode(priv->iocb.ki_filp));
 	struct extent_io_tree *io_tree = &inode->io_tree;
 	unsigned long index;
@@ -4796,10 +4801,11 @@ out:
 void btrfs_uring_read_extent_endio(void *ctx, int err)
 {
 	struct btrfs_uring_priv *priv = ctx;
+	struct io_btrfs_cmd *bc = io_uring_cmd_to_pdu(priv->cmd, struct io_btrfs_cmd);
 
 	priv->err = err;
+	bc->priv = priv;
 
-	*io_uring_cmd_to_pdu(priv->cmd, struct btrfs_uring_priv *) = priv;
 	io_uring_cmd_complete_in_task(priv->cmd, btrfs_uring_read_finished);
 }
 
