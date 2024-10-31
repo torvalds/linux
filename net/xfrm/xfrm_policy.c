@@ -289,7 +289,7 @@ struct dst_entry *__xfrm_dst_lookup(int family,
 EXPORT_SYMBOL(__xfrm_dst_lookup);
 
 static inline struct dst_entry *xfrm_dst_lookup(struct xfrm_state *x,
-						int tos, int oif,
+						dscp_t dscp, int oif,
 						xfrm_address_t *prev_saddr,
 						xfrm_address_t *prev_daddr,
 						int family, u32 mark)
@@ -312,7 +312,7 @@ static inline struct dst_entry *xfrm_dst_lookup(struct xfrm_state *x,
 	params.net = net;
 	params.saddr = saddr;
 	params.daddr = daddr;
-	params.tos = tos;
+	params.tos = inet_dscp_to_dsfield(dscp);
 	params.oif = oif;
 	params.mark = mark;
 	params.ipproto = x->id.proto;
@@ -2732,9 +2732,8 @@ static struct dst_entry *xfrm_bundle_create(struct xfrm_policy *policy,
 				family = xfrm[i]->props.family;
 
 			oif = fl->flowi_oif ? : fl->flowi_l3mdev;
-			dst = xfrm_dst_lookup(xfrm[i],
-					      inet_dscp_to_dsfield(dscp), oif,
-					      &saddr, &daddr, family, mark);
+			dst = xfrm_dst_lookup(xfrm[i], dscp, oif, &saddr,
+					      &daddr, family, mark);
 			err = PTR_ERR(dst);
 			if (IS_ERR(dst))
 				goto put_states;
