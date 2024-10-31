@@ -1699,6 +1699,7 @@ static ssize_t iov_iter_extract_bvec_pages(struct iov_iter *i,
 		i->bvec++;
 		skip = 0;
 	}
+	bi.bi_idx = 0;
 	bi.bi_size = maxsize + skip;
 	bi.bi_bvec_done = skip;
 
