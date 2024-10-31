@@ -999,6 +999,8 @@ do_bch2_trans_commit_to_journal_replay(struct btree_trans *trans)
 {
 	struct bch_fs *c = trans->c;
 
+	BUG_ON(current != c->recovery_task);
+
 	trans_for_each_update(trans, i) {
 		int ret = bch2_journal_key_insert(c, i->btree_id, i->level, i->k);
 		if (ret)

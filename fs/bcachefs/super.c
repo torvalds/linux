@@ -441,6 +441,8 @@ static int __bch2_fs_read_write(struct bch_fs *c, bool early)
 {
 	int ret;
 
+	BUG_ON(!test_bit(BCH_FS_may_go_rw, &c->flags));
+
 	if (test_bit(BCH_FS_initial_gc_unfixed, &c->flags)) {
 		bch_err(c, "cannot go rw, unfixed btree errors");
 		return -BCH_ERR_erofs_unfixed_errors;
@@ -1031,9 +1033,12 @@ int bch2_fs_start(struct bch_fs *c)
 		bch2_dev_allocator_add(c, ca);
 	bch2_recalc_capacity(c);
 
+	c->recovery_task = current;
 	ret = BCH_SB_INITIALIZED(c->disk_sb.sb)
 		? bch2_fs_recovery(c)
 		: bch2_fs_initialize(c);
+	c->recovery_task = NULL;
+
 	if (ret)
 		goto err;
 

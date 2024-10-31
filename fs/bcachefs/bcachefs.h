@@ -744,6 +744,12 @@ struct bch_fs {
 	struct percpu_ref	writes;
 #endif
 	/*
+	 * Certain operations are only allowed in single threaded mode, during
+	 * recovery, and we want to assert that this is the case:
+	 */
+	struct task_struct	*recovery_task;
+
+	/*
 	 * Analagous to c->writes, for asynchronous ops that don't necessarily
 	 * need fs to be read-write
 	 */
