@@ -1308,6 +1308,39 @@ bool nfsd4_has_active_async_copies(struct nfs4_client *clp)
 	return result;
 }
 
+/**
+ * nfsd4_async_copy_reaper - Purge completed copies
+ * @nn: Network namespace with possible active copy information
+ */
+void nfsd4_async_copy_reaper(struct nfsd_net *nn)
+{
+	struct nfs4_client *clp;
+	struct nfsd4_copy *copy;
+	LIST_HEAD(reaplist);
+
+	spin_lock(&nn->client_lock);
+	list_for_each_entry(clp, &nn->client_lru, cl_lru) {
+		struct list_head *pos, *next;
+
+		spin_lock(&clp->async_lock);
+		list_for_each_safe(pos, next, &clp->async_copies) {
+			copy = list_entry(pos, struct nfsd4_copy, copies);
+			if (test_bit(NFSD4_COPY_F_OFFLOAD_DONE, &copy->cp_flags)) {
+				list_del_init(&copy->copies);
+				list_add(&copy->copies, &reaplist);
+			}
+		}
+		spin_unlock(&clp->async_lock);
+	}
+	spin_unlock(&nn->client_lock);
+
+	while (!list_empty(&reaplist)) {
+		copy = list_first_entry(&reaplist, struct nfsd4_copy, copies);
+		list_del_init(&copy->copies);
+		cleanup_async_copy(copy);
+	}
+}
+
 static void nfs4_put_copy(struct nfsd4_copy *copy)
 {
 	if (!refcount_dec_and_test(&copy->refcount))
@@ -1637,7 +1670,7 @@ static void nfsd4_cb_offload_release(struct nfsd4_callback *cb)
 	struct nfsd4_copy *copy =
 		container_of(cbo, struct nfsd4_copy, cp_cb_offload);
 
-	cleanup_async_copy(copy);
+	set_bit(NFSD4_COPY_F_OFFLOAD_DONE, &copy->cp_flags);
 }
 
 static int nfsd4_cb_offload_done(struct nfsd4_callback *cb,
