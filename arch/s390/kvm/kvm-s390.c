@@ -4737,7 +4737,7 @@ static int vcpu_post_run_handle_fault(struct kvm_vcpu *vcpu)
 	if (kvm_s390_cur_gmap_fault_is_write())
 		flags = FAULT_FLAG_WRITE;
 
-	switch (current->thread.gmap_int_code) {
+	switch (current->thread.gmap_int_code & PGM_INT_CODE_MASK) {
 	case 0:
 		vcpu->stat.exit_null++;
 		break;
