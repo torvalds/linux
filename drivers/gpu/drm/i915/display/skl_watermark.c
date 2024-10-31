@@ -3427,22 +3427,13 @@ static enum pipe intel_mbus_joined_pipe(struct intel_atomic_state *state,
 		return INVALID_PIPE;
 }
 
-static void intel_dbuf_mbus_join_update(struct intel_atomic_state *state,
-					enum pipe pipe)
+static void mbus_ctl_join_update(struct drm_i915_private *i915,
+				 const struct intel_dbuf_state *dbuf_state,
+				 enum pipe pipe)
 {
-	struct drm_i915_private *i915 = to_i915(state->base.dev);
-	const struct intel_dbuf_state *old_dbuf_state =
-		intel_atomic_get_old_dbuf_state(state);
-	const struct intel_dbuf_state *new_dbuf_state =
-		intel_atomic_get_new_dbuf_state(state);
 	u32 mbus_ctl;
 
-	drm_dbg_kms(&i915->drm, "Changing mbus joined: %s -> %s (pipe: %c)\n",
-		    str_yes_no(old_dbuf_state->joined_mbus),
-		    str_yes_no(new_dbuf_state->joined_mbus),
-		    pipe != INVALID_PIPE ? pipe_name(pipe) : '*');
-
-	if (new_dbuf_state->joined_mbus)
+	if (dbuf_state->joined_mbus)
 		mbus_ctl = MBUS_HASHING_MODE_1x4 | MBUS_JOIN;
 	else
 		mbus_ctl = MBUS_HASHING_MODE_2x2;
@@ -3455,6 +3446,23 @@ static void intel_dbuf_mbus_join_update(struct intel_atomic_state *state,
 	intel_de_rmw(i915, MBUS_CTL,
 		     MBUS_HASHING_MODE_MASK | MBUS_JOIN |
 		     MBUS_JOIN_PIPE_SELECT_MASK, mbus_ctl);
+}
+
+static void intel_dbuf_mbus_join_update(struct intel_atomic_state *state,
+					enum pipe pipe)
+{
+	struct drm_i915_private *i915 = to_i915(state->base.dev);
+	const struct intel_dbuf_state *old_dbuf_state =
+		intel_atomic_get_old_dbuf_state(state);
+	const struct intel_dbuf_state *new_dbuf_state =
+		intel_atomic_get_new_dbuf_state(state);
+
+	drm_dbg_kms(&i915->drm, "Changing mbus joined: %s -> %s (pipe: %c)\n",
+		    str_yes_no(old_dbuf_state->joined_mbus),
+		    str_yes_no(new_dbuf_state->joined_mbus),
+		    pipe != INVALID_PIPE ? pipe_name(pipe) : '*');
+
+	mbus_ctl_join_update(i915, new_dbuf_state, pipe);
 }
 
 void intel_dbuf_mbus_pre_ddb_update(struct intel_atomic_state *state)
