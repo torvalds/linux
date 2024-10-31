@@ -2804,7 +2804,7 @@ static void virtnet_rx_dim_update(struct virtnet_info *vi, struct receive_queue 
 			  u64_stats_read(&rq->stats.bytes),
 			  &cur_sample);
 
-	net_dim(&rq->dim, cur_sample);
+	net_dim(&rq->dim, &cur_sample);
 	rq->packets_in_napi = 0;
 }
 
