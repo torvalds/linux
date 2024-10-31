@@ -5212,14 +5212,6 @@ lpfc_nlp_logo_unreg(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 		ndlp->nlp_defer_did = NLP_EVT_NOTHING_PENDING;
 		lpfc_issue_els_plogi(vport, ndlp->nlp_DID, 0);
 	} else {
-		/* NLP_RELEASE_RPI is only set for SLI4 ports. */
-		if (ndlp->nlp_flag & NLP_RELEASE_RPI) {
-			lpfc_sli4_free_rpi(vport->phba, ndlp->nlp_rpi);
-			spin_lock_irq(&ndlp->lock);
-			ndlp->nlp_flag &= ~NLP_RELEASE_RPI;
-			ndlp->nlp_rpi = LPFC_RPI_ALLOC_ERROR;
-			spin_unlock_irq(&ndlp->lock);
-		}
 		spin_lock_irq(&ndlp->lock);
 		ndlp->nlp_flag &= ~NLP_UNREG_INP;
 		spin_unlock_irq(&ndlp->lock);
@@ -5242,8 +5234,6 @@ static void
 lpfc_set_unreg_login_mbx_cmpl(struct lpfc_hba *phba, struct lpfc_vport *vport,
 	struct lpfc_nodelist *ndlp, LPFC_MBOXQ_t *mbox)
 {
-	unsigned long iflags;
-
 	/* Driver always gets a reference on the mailbox job
 	 * in support of async jobs.
 	 */
@@ -5261,13 +5251,6 @@ lpfc_set_unreg_login_mbx_cmpl(struct lpfc_hba *phba, struct lpfc_vport *vport,
 		    (kref_read(&ndlp->kref) > 0)) {
 		mbox->mbox_cmpl = lpfc_sli4_unreg_rpi_cmpl_clr;
 	} else {
-		if (test_bit(FC_UNLOADING, &vport->load_flag)) {
-			if (phba->sli_rev == LPFC_SLI_REV4) {
-				spin_lock_irqsave(&ndlp->lock, iflags);
-				ndlp->nlp_flag |= NLP_RELEASE_RPI;
-				spin_unlock_irqrestore(&ndlp->lock, iflags);
-			}
-		}
 		mbox->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
 	}
 }
@@ -5330,14 +5313,11 @@ lpfc_unreg_rpi(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 				return 1;
 			}
 
+			/* Accept PLOGIs after unreg_rpi_cmpl. */
 			if (mbox->mbox_cmpl == lpfc_sli4_unreg_rpi_cmpl_clr)
-				/*
-				 * accept PLOGIs after unreg_rpi_cmpl
-				 */
 				acc_plogi = 0;
-			if (((ndlp->nlp_DID & Fabric_DID_MASK) !=
-			    Fabric_DID_MASK) &&
-			    (!test_bit(FC_OFFLINE_MODE, &vport->fc_flag)))
+
+			if (!test_bit(FC_OFFLINE_MODE, &vport->fc_flag))
 				ndlp->nlp_flag |= NLP_UNREG_INP;
 
 			lpfc_printf_vlog(vport, KERN_INFO,
@@ -5561,10 +5541,6 @@ lpfc_cleanup_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 	list_del_init(&ndlp->dev_loss_evt.evt_listp);
 	list_del_init(&ndlp->recovery_evt.evt_listp);
 	lpfc_cleanup_vports_rrqs(vport, ndlp);
-
-	if (phba->sli_rev == LPFC_SLI_REV4)
-		ndlp->nlp_flag |= NLP_RELEASE_RPI;
-
 	return 0;
 }
 
@@ -6573,8 +6549,9 @@ lpfc_nlp_init(struct lpfc_vport *vport, uint32_t did)
 	INIT_LIST_HEAD(&ndlp->nlp_listp);
 	if (vport->phba->sli_rev == LPFC_SLI_REV4) {
 		ndlp->nlp_rpi = rpi;
-		lpfc_printf_vlog(vport, KERN_INFO, LOG_NODE | LOG_DISCOVERY,
-				 "0007 Init New ndlp x%px, rpi:x%x DID:%x "
+		lpfc_printf_vlog(vport, KERN_INFO,
+				 LOG_ELS | LOG_NODE | LOG_DISCOVERY,
+				 "0007 Init New ndlp x%px, rpi:x%x DID:x%x "
 				 "flg:x%x refcnt:%d\n",
 				 ndlp, ndlp->nlp_rpi, ndlp->nlp_DID,
 				 ndlp->nlp_flag, kref_read(&ndlp->kref));
@@ -6619,19 +6596,12 @@ lpfc_nlp_release(struct kref *kref)
 	lpfc_cancel_retry_delay_tmo(vport, ndlp);
 	lpfc_cleanup_node(vport, ndlp);
 
-	/* Not all ELS transactions have registered the RPI with the port.
-	 * In these cases the rpi usage is temporary and the node is
-	 * released when the WQE is completed.  Catch this case to free the
-	 * RPI to the pool.  Because this node is in the release path, a lock
-	 * is unnecessary.  All references are gone and the node has been
-	 * dequeued.
+	/* All nodes are initialized with an RPI that needs to be released
+	 * now. All references are gone and the node has been dequeued.
 	 */
-	if (ndlp->nlp_flag & NLP_RELEASE_RPI) {
-		if (ndlp->nlp_rpi != LPFC_RPI_ALLOC_ERROR &&
-		    !(ndlp->nlp_flag & (NLP_RPI_REGISTERED | NLP_UNREG_INP))) {
-			lpfc_sli4_free_rpi(vport->phba, ndlp->nlp_rpi);
-			ndlp->nlp_rpi = LPFC_RPI_ALLOC_ERROR;
-		}
+	if (vport->phba->sli_rev == LPFC_SLI_REV4) {
+		lpfc_sli4_free_rpi(vport->phba, ndlp->nlp_rpi);
+		ndlp->nlp_rpi = LPFC_RPI_ALLOC_ERROR;
 	}
 
 	/* The node is not freed back to memory, it is released to a pool so

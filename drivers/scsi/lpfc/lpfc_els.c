@@ -3063,8 +3063,6 @@ lpfc_cmpl_els_logo(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	 */
 	if (ndlp->nlp_flag & NLP_TARGET_REMOVE) {
 		spin_lock_irq(&ndlp->lock);
-		if (phba->sli_rev == LPFC_SLI_REV4)
-			ndlp->nlp_flag |= NLP_RELEASE_RPI;
 		ndlp->nlp_flag &= ~NLP_NPR_2B_DISC;
 		spin_unlock_irq(&ndlp->lock);
 		lpfc_disc_state_machine(vport, ndlp, cmdiocb,
@@ -5456,24 +5454,14 @@ out:
 	}
 
 	/* An SLI4 NPIV instance wants to drop the node at this point under
-	 * these conditions and release the RPI.
+	 * these conditions because it doesn't need the login.
 	 */
 	if (phba->sli_rev == LPFC_SLI_REV4 &&
 	    vport && vport->port_type == LPFC_NPIV_PORT &&
 	    !(ndlp->fc4_xpt_flags & SCSI_XPT_REGD)) {
-		if (ndlp->nlp_flag & NLP_RELEASE_RPI) {
-			if (ndlp->nlp_state != NLP_STE_PLOGI_ISSUE &&
-			    ndlp->nlp_state != NLP_STE_REG_LOGIN_ISSUE) {
-				lpfc_sli4_free_rpi(phba, ndlp->nlp_rpi);
-				spin_lock_irq(&ndlp->lock);
-				ndlp->nlp_rpi = LPFC_RPI_ALLOC_ERROR;
-				ndlp->nlp_flag &= ~NLP_RELEASE_RPI;
-				spin_unlock_irq(&ndlp->lock);
-			}
-			lpfc_drop_node(vport, ndlp);
-		} else if (ndlp->nlp_state != NLP_STE_PLOGI_ISSUE &&
-			   ndlp->nlp_state != NLP_STE_REG_LOGIN_ISSUE &&
-			   ndlp->nlp_state != NLP_STE_PRLI_ISSUE) {
+		if (ndlp->nlp_state != NLP_STE_PLOGI_ISSUE &&
+		    ndlp->nlp_state != NLP_STE_REG_LOGIN_ISSUE &&
+		    ndlp->nlp_state != NLP_STE_PRLI_ISSUE) {
 			/* Drop ndlp if there is no planned or outstanding
 			 * issued PRLI.
 			 *
@@ -5850,18 +5838,6 @@ lpfc_els_rsp_reject(struct lpfc_vport *vport, uint32_t rejectError,
 	if (!elsiocb->ndlp) {
 		lpfc_els_free_iocb(phba, elsiocb);
 		return 1;
-	}
-
-	/* The NPIV instance is rejecting this unsolicited ELS. Make sure the
-	 * node's assigned RPI gets released provided this node is not already
-	 * registered with the transport.
-	 */
-	if (phba->sli_rev == LPFC_SLI_REV4 &&
-	    vport->port_type == LPFC_NPIV_PORT &&
-	    !(ndlp->fc4_xpt_flags & SCSI_XPT_REGD)) {
-		spin_lock_irq(&ndlp->lock);
-		ndlp->nlp_flag |= NLP_RELEASE_RPI;
-		spin_unlock_irq(&ndlp->lock);
 	}
 
 	rc = lpfc_sli_issue_iocb(phba, LPFC_ELS_RING, elsiocb, 0);
