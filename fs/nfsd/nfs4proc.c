@@ -1287,6 +1287,7 @@ static void nfs4_put_copy(struct nfsd4_copy *copy)
 
 static void nfsd4_stop_copy(struct nfsd4_copy *copy)
 {
+	trace_nfsd_copy_async_cancel(copy);
 	if (!test_and_set_bit(NFSD4_COPY_F_STOPPED, &copy->cp_flags))
 		kthread_stop(copy->copy_task);
 	nfs4_put_copy(copy);

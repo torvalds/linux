@@ -2244,7 +2244,7 @@ TRACE_EVENT(nfsd_copy_done,
 	)
 );
 
-TRACE_EVENT(nfsd_copy_async_done,
+DECLARE_EVENT_CLASS(nfsd_copy_async_done_class,
 	TP_PROTO(
 		const struct nfsd4_copy *copy
 	),
@@ -2312,6 +2312,15 @@ TRACE_EVENT(nfsd_copy_async_done,
 		__entry->src_cp_pos, __entry->dst_cp_pos, __entry->cp_count
 	)
 );
+
+#define DEFINE_COPY_ASYNC_DONE_EVENT(name)		\
+DEFINE_EVENT(nfsd_copy_async_done_class,		\
+	nfsd_copy_async_##name,				\
+	TP_PROTO(const struct nfsd4_copy *copy),	\
+	TP_ARGS(copy))
+
+DEFINE_COPY_ASYNC_DONE_EVENT(done);
+DEFINE_COPY_ASYNC_DONE_EVENT(cancel);
 
 #endif /* _NFSD_TRACE_H */
 
