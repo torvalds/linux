@@ -204,11 +204,8 @@ When returning from a signal handler:
 * A new regset NT_ARM_GCS is defined for use with PTRACE_GETREGSET and
   PTRACE_SETREGSET.
 
-* Due to the complexity surrounding allocation and deallocation of stacks and
-  lack of practical application it is not possible to enable GCS via ptrace.
-  GCS may be disabled via the ptrace interface.
-
-* Other GCS modes may be configured via ptrace.
+* The GCS mode, including enable and disable, may be configured via ptrace.
+  If GCS is enabled via ptrace no new GCS will be allocated for the thread.
 
 * Configuration via ptrace ignores locking of GCS mode bits.
 
