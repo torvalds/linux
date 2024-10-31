@@ -100,6 +100,12 @@ lpfc_rport_invalid(struct fc_rport *rport)
 		return -EINVAL;
 	}
 
+	if (rport->flags & FC_RPORT_DEVLOSS_CALLBK_DONE) {
+		pr_info("**** %s: devloss_callbk_done rport x%px SID x%x\n",
+			__func__, rport, rport->scsi_target_id);
+		return -EINVAL;
+	}
+
 	rdata = rport->dd_data;
 	if (!rdata) {
 		pr_err("**** %s: NULL dd_data on rport x%px SID x%x\n",
