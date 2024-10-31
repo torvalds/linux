@@ -986,11 +986,6 @@ static int idtfc3_probe(struct platform_device *pdev)
 
 	mutex_unlock(idtfc3->lock);
 
-	if (err) {
-		ptp_clock_unregister(idtfc3->ptp_clock);
-		return err;
-	}
-
 	platform_set_drvdata(pdev, idtfc3);
 
 	return 0;
