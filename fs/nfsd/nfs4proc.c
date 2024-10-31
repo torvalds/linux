@@ -1617,6 +1617,13 @@ static int nfsd4_cb_offload_done(struct nfsd4_callback *cb,
 		container_of(cb, struct nfsd4_cb_offload, co_cb);
 
 	trace_nfsd_cb_offload_done(&cbo->co_res.cb_stateid, task);
+	switch (task->tk_status) {
+	case -NFS4ERR_DELAY:
+		if (cbo->co_retries--) {
+			rpc_delay(task, 1 * HZ);
+			return 0;
+		}
+	}
 	return 1;
 }
 
@@ -1745,6 +1752,7 @@ static void nfsd4_send_cb_offload(struct nfsd4_copy *copy)
 	memcpy(&cbo->co_res, &copy->cp_res, sizeof(copy->cp_res));
 	memcpy(&cbo->co_fh, &copy->fh, sizeof(copy->fh));
 	cbo->co_nfserr = copy->nfserr;
+	cbo->co_retries = 5;
 
 	nfsd4_init_cb(&cbo->co_cb, copy->cp_clp, &nfsd4_cb_offload_ops,
 		      NFSPROC4_CLNT_CB_OFFLOAD);

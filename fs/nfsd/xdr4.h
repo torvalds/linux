@@ -676,6 +676,7 @@ struct nfsd4_cb_offload {
 	struct nfsd4_callback	co_cb;
 	struct nfsd42_write_res	co_res;
 	__be32			co_nfserr;
+	unsigned int		co_retries;
 	struct knfsd_fh		co_fh;
 };
 
