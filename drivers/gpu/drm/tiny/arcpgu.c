@@ -289,7 +289,7 @@ static int arcpgu_load(struct arcpgu_drm_private *arcpgu)
 	 * There is only one output port inside each device. It is linked with
 	 * encoder endpoint.
 	 */
-	endpoint_node = of_graph_get_next_endpoint(pdev->dev.of_node, NULL);
+	endpoint_node = of_graph_get_endpoint_by_regs(pdev->dev.of_node, 0, -1);
 	if (endpoint_node) {
 		encoder_node = of_graph_get_remote_port_parent(endpoint_node);
 		of_node_put(endpoint_node);
