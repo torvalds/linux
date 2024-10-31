@@ -161,30 +161,10 @@ int blk_mq_freeze_queue_wait_timeout(struct request_queue *q,
 }
 EXPORT_SYMBOL_GPL(blk_mq_freeze_queue_wait_timeout);
 
-/*
- * Guarantee no request is in use, so we can change any data structure of
- * the queue afterward.
- */
-void blk_freeze_queue(struct request_queue *q)
-{
-	/*
-	 * In the !blk_mq case we are only calling this to kill the
-	 * q_usage_counter, otherwise this increases the freeze depth
-	 * and waits for it to return to zero.  For this reason there is
-	 * no blk_unfreeze_queue(), and blk_freeze_queue() is not
-	 * exported to drivers as the only user for unfreeze is blk_mq.
-	 */
-	blk_freeze_queue_start(q);
-	blk_mq_freeze_queue_wait(q);
-}
-
 void blk_mq_freeze_queue(struct request_queue *q)
 {
-	/*
-	 * ...just an alias to keep freeze and unfreeze actions balanced
-	 * in the blk_mq_* namespace
-	 */
-	blk_freeze_queue(q);
+	blk_freeze_queue_start(q);
+	blk_mq_freeze_queue_wait(q);
 }
 EXPORT_SYMBOL_GPL(blk_mq_freeze_queue);
 
