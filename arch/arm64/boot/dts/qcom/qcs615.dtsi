@@ -495,6 +495,14 @@
 			qcom,bcm-voters = <&apps_bcm_voter>;
 		};
 
+		llcc: system-cache-controller@9200000 {
+			compatible = "qcom,qcs615-llcc";
+			reg = <0x0 0x09200000 0x0 0x50000>,
+			      <0x0 0x09600000 0x0 0x50000>;
+			reg-names = "llcc0_base",
+				    "llcc_broadcast_base";
+		};
+
 		gem_noc: interconnect@9680000 {
 			reg = <0x0 0x09680000 0x0 0x3e200>;
 			compatible = "qcom,qcs615-gem-noc";
