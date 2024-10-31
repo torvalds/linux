@@ -72,6 +72,66 @@ bool bch2_reflink_p_merge(struct bch_fs *c, struct bkey_s _l, struct bkey_s_c _r
 	return true;
 }
 
+/* indirect extents */
+
+int bch2_reflink_v_validate(struct bch_fs *c, struct bkey_s_c k,
+			    enum bch_validate_flags flags)
+{
+	int ret = 0;
+
+	bkey_fsck_err_on(bkey_gt(k.k->p, POS(0, REFLINK_P_IDX_MAX)),
+			 c, reflink_v_pos_bad,
+			 "indirect extent above maximum position 0:%llu",
+			 REFLINK_P_IDX_MAX);
+
+	ret = bch2_bkey_ptrs_validate(c, k, flags);
+fsck_err:
+	return ret;
+}
+
+void bch2_reflink_v_to_text(struct printbuf *out, struct bch_fs *c,
+			    struct bkey_s_c k)
+{
+	struct bkey_s_c_reflink_v r = bkey_s_c_to_reflink_v(k);
+
+	prt_printf(out, "refcount: %llu ", le64_to_cpu(r.v->refcount));
+
+	bch2_bkey_ptrs_to_text(out, c, k);
+}
+
+#if 0
+Currently disabled, needs to be debugged:
+
+bool bch2_reflink_v_merge(struct bch_fs *c, struct bkey_s _l, struct bkey_s_c _r)
+{
+	struct bkey_s_reflink_v   l = bkey_s_to_reflink_v(_l);
+	struct bkey_s_c_reflink_v r = bkey_s_c_to_reflink_v(_r);
+
+	return l.v->refcount == r.v->refcount && bch2_extent_merge(c, _l, _r);
+}
+#endif
+
+/* indirect inline data */
+
+int bch2_indirect_inline_data_validate(struct bch_fs *c, struct bkey_s_c k,
+				      enum bch_validate_flags flags)
+{
+	return 0;
+}
+
+void bch2_indirect_inline_data_to_text(struct printbuf *out,
+				       struct bch_fs *c, struct bkey_s_c k)
+{
+	struct bkey_s_c_indirect_inline_data d = bkey_s_c_to_indirect_inline_data(k);
+	unsigned datalen = bkey_inline_data_bytes(k.k);
+
+	prt_printf(out, "refcount %llu datalen %u: %*phN",
+	       le64_to_cpu(d.v->refcount), datalen,
+	       min(datalen, 32U), d.v->data);
+}
+
+/* reflink pointer trigger */
+
 static int trans_trigger_reflink_p_segment(struct btree_trans *trans,
 			struct bkey_s_c_reflink_p p, u64 *idx,
 			enum btree_iter_update_trigger_flags flags)
@@ -253,44 +313,7 @@ int bch2_trigger_reflink_p(struct btree_trans *trans,
 	return trigger_run_overwrite_then_insert(__trigger_reflink_p, trans, btree_id, level, old, new, flags);
 }
 
-/* indirect extents */
-
-int bch2_reflink_v_validate(struct bch_fs *c, struct bkey_s_c k,
-			    enum bch_validate_flags flags)
-{
-	int ret = 0;
-
-	bkey_fsck_err_on(bkey_gt(k.k->p, POS(0, REFLINK_P_IDX_MAX)),
-			 c, reflink_v_pos_bad,
-			 "indirect extent above maximum position 0:%llu",
-			 REFLINK_P_IDX_MAX);
-
-	ret = bch2_bkey_ptrs_validate(c, k, flags);
-fsck_err:
-	return ret;
-}
-
-void bch2_reflink_v_to_text(struct printbuf *out, struct bch_fs *c,
-			    struct bkey_s_c k)
-{
-	struct bkey_s_c_reflink_v r = bkey_s_c_to_reflink_v(k);
-
-	prt_printf(out, "refcount: %llu ", le64_to_cpu(r.v->refcount));
-
-	bch2_bkey_ptrs_to_text(out, c, k);
-}
-
-#if 0
-Currently disabled, needs to be debugged:
-
-bool bch2_reflink_v_merge(struct bch_fs *c, struct bkey_s _l, struct bkey_s_c _r)
-{
-	struct bkey_s_reflink_v   l = bkey_s_to_reflink_v(_l);
-	struct bkey_s_c_reflink_v r = bkey_s_c_to_reflink_v(_r);
-
-	return l.v->refcount == r.v->refcount && bch2_extent_merge(c, _l, _r);
-}
-#endif
+/* indirect extent trigger */
 
 static inline void
 check_indirect_extent_deleting(struct bkey_s new,
@@ -316,25 +339,6 @@ int bch2_trigger_reflink_v(struct btree_trans *trans,
 	return bch2_trigger_extent(trans, btree_id, level, old, new, flags);
 }
 
-/* indirect inline data */
-
-int bch2_indirect_inline_data_validate(struct bch_fs *c, struct bkey_s_c k,
-				      enum bch_validate_flags flags)
-{
-	return 0;
-}
-
-void bch2_indirect_inline_data_to_text(struct printbuf *out,
-				       struct bch_fs *c, struct bkey_s_c k)
-{
-	struct bkey_s_c_indirect_inline_data d = bkey_s_c_to_indirect_inline_data(k);
-	unsigned datalen = bkey_inline_data_bytes(k.k);
-
-	prt_printf(out, "refcount %llu datalen %u: %*phN",
-	       le64_to_cpu(d.v->refcount), datalen,
-	       min(datalen, 32U), d.v->data);
-}
-
 int bch2_trigger_indirect_inline_data(struct btree_trans *trans,
 			      enum btree_id btree_id, unsigned level,
 			      struct bkey_s_c old, struct bkey_s new,
@@ -344,6 +348,8 @@ int bch2_trigger_indirect_inline_data(struct btree_trans *trans,
 
 	return 0;
 }
+
+/* create */
 
 static int bch2_make_extent_indirect(struct btree_trans *trans,
 				     struct btree_iter *extent_iter,
@@ -607,4 +613,98 @@ err:
 	bch2_write_ref_put(c, BCH_WRITE_REF_reflink);
 
 	return dst_done ?: ret ?: ret2;
+}
+
+/* fsck */
+
+static int bch2_gc_write_reflink_key(struct btree_trans *trans,
+				     struct btree_iter *iter,
+				     struct bkey_s_c k,
+				     size_t *idx)
+{
+	struct bch_fs *c = trans->c;
+	const __le64 *refcount = bkey_refcount_c(k);
+	struct printbuf buf = PRINTBUF;
+	struct reflink_gc *r;
+	int ret = 0;
+
+	if (!refcount)
+		return 0;
+
+	while ((r = genradix_ptr(&c->reflink_gc_table, *idx)) &&
+	       r->offset < k.k->p.offset)
+		++*idx;
+
+	if (!r ||
+	    r->offset != k.k->p.offset ||
+	    r->size != k.k->size) {
+		bch_err(c, "unexpected inconsistency walking reflink table at gc finish");
+		return -EINVAL;
+	}
+
+	if (fsck_err_on(r->refcount != le64_to_cpu(*refcount),
+			trans, reflink_v_refcount_wrong,
+			"reflink key has wrong refcount:\n"
+			"  %s\n"
+			"  should be %u",
+			(bch2_bkey_val_to_text(&buf, c, k), buf.buf),
+			r->refcount)) {
+		struct bkey_i *new = bch2_bkey_make_mut_noupdate(trans, k);
+		ret = PTR_ERR_OR_ZERO(new);
+		if (ret)
+			goto out;
+
+		if (!r->refcount)
+			new->k.type = KEY_TYPE_deleted;
+		else
+			*bkey_refcount(bkey_i_to_s(new)) = cpu_to_le64(r->refcount);
+		ret = bch2_trans_update(trans, iter, new, 0);
+	}
+out:
+fsck_err:
+	printbuf_exit(&buf);
+	return ret;
+}
+
+int bch2_gc_reflink_done(struct bch_fs *c)
+{
+	size_t idx = 0;
+
+	int ret = bch2_trans_run(c,
+		for_each_btree_key_commit(trans, iter,
+				BTREE_ID_reflink, POS_MIN,
+				BTREE_ITER_prefetch, k,
+				NULL, NULL, BCH_TRANS_COMMIT_no_enospc,
+			bch2_gc_write_reflink_key(trans, &iter, k, &idx)));
+	c->reflink_gc_nr = 0;
+	return ret;
+}
+
+int bch2_gc_reflink_start(struct bch_fs *c)
+{
+	c->reflink_gc_nr = 0;
+
+	int ret = bch2_trans_run(c,
+		for_each_btree_key(trans, iter, BTREE_ID_reflink, POS_MIN,
+				   BTREE_ITER_prefetch, k, ({
+			const __le64 *refcount = bkey_refcount_c(k);
+
+			if (!refcount)
+				continue;
+
+			struct reflink_gc *r = genradix_ptr_alloc(&c->reflink_gc_table,
+							c->reflink_gc_nr++, GFP_KERNEL);
+			if (!r) {
+				ret = -BCH_ERR_ENOMEM_gc_reflink_start;
+				break;
+			}
+
+			r->offset	= k.k->p.offset;
+			r->size		= k.k->size;
+			r->refcount	= 0;
+			0;
+		})));
+
+	bch_err_fn(c, ret);
+	return ret;
 }
