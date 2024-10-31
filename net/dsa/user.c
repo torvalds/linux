@@ -1364,7 +1364,7 @@ dsa_user_mall_tc_entry_find(struct net_device *dev, unsigned long cookie)
 static int
 dsa_user_add_cls_matchall_mirred(struct net_device *dev,
 				 struct tc_cls_matchall_offload *cls,
-				 bool ingress)
+				 bool ingress, bool ingress_target)
 {
 	struct netlink_ext_ack *extack = cls->common.extack;
 	struct dsa_port *dp = dsa_user_to_port(dev);
@@ -1376,11 +1376,19 @@ dsa_user_add_cls_matchall_mirred(struct net_device *dev,
 	struct dsa_port *to_dp;
 	int err;
 
-	if (!ds->ops->port_mirror_add)
+	if (cls->common.protocol != htons(ETH_P_ALL)) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Can only offload \"protocol all\" matchall filter");
 		return -EOPNOTSUPP;
+	}
 
-	if (!flow_action_basic_hw_stats_check(&cls->rule->action,
-					      cls->common.extack))
+	if (!ds->ops->port_mirror_add) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Switch does not support mirroring operation");
+		return -EOPNOTSUPP;
+	}
+
+	if (!flow_action_basic_hw_stats_check(&cls->rule->action, extack))
 		return -EOPNOTSUPP;
 
 	act = &cls->rule->action.entries[0];
@@ -1388,10 +1396,30 @@ dsa_user_add_cls_matchall_mirred(struct net_device *dev,
 	if (!act->dev)
 		return -EINVAL;
 
-	if (!dsa_user_dev_check(act->dev))
-		return -EOPNOTSUPP;
-
-	to_dp = dsa_user_to_port(act->dev);
+	if (dsa_user_dev_check(act->dev)) {
+		if (ingress_target) {
+			/* We can only fulfill this using software assist */
+			if (cls->common.skip_sw) {
+				NL_SET_ERR_MSG_MOD(extack,
+						   "Can only mirred to ingress of DSA user port if filter also runs in software");
+				return -EOPNOTSUPP;
+			}
+			to_dp = dp->cpu_dp;
+		} else {
+			to_dp = dsa_user_to_port(act->dev);
+		}
+	} else {
+		/* Handle mirroring to foreign target ports as a mirror towards
+		 * the CPU. The software tc rule will take the packets from
+		 * there.
+		 */
+		if (cls->common.skip_sw) {
+			NL_SET_ERR_MSG_MOD(extack,
+					   "Can only mirred to CPU if filter also runs in software");
+			return -EOPNOTSUPP;
+		}
+		to_dp = dp->cpu_dp;
+	}
 
 	if (dp->ds != to_dp->ds) {
 		NL_SET_ERR_MSG_MOD(extack,
@@ -1446,8 +1474,7 @@ dsa_user_add_cls_matchall_police(struct net_device *dev,
 		return -EOPNOTSUPP;
 	}
 
-	if (!flow_action_basic_hw_stats_check(&cls->rule->action,
-					      cls->common.extack))
+	if (!flow_action_basic_hw_stats_check(&cls->rule->action, extack))
 		return -EOPNOTSUPP;
 
 	list_for_each_entry(mall_tc_entry, &p->mall_tc_list, list) {
@@ -1485,17 +1512,30 @@ static int dsa_user_add_cls_matchall(struct net_device *dev,
 				     struct tc_cls_matchall_offload *cls,
 				     bool ingress)
 {
-	int err = -EOPNOTSUPP;
+	const struct flow_action *action = &cls->rule->action;
+	struct netlink_ext_ack *extack = cls->common.extack;
 
-	if (cls->common.protocol == htons(ETH_P_ALL) &&
-	    flow_offload_has_one_action(&cls->rule->action) &&
-	    cls->rule->action.entries[0].id == FLOW_ACTION_MIRRED)
-		err = dsa_user_add_cls_matchall_mirred(dev, cls, ingress);
-	else if (flow_offload_has_one_action(&cls->rule->action) &&
-		 cls->rule->action.entries[0].id == FLOW_ACTION_POLICE)
-		err = dsa_user_add_cls_matchall_police(dev, cls, ingress);
+	if (!flow_offload_has_one_action(action)) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Cannot offload matchall filter with more than one action");
+		return -EOPNOTSUPP;
+	}
 
-	return err;
+	switch (action->entries[0].id) {
+	case FLOW_ACTION_MIRRED:
+		return dsa_user_add_cls_matchall_mirred(dev, cls, ingress,
+							false);
+	case FLOW_ACTION_MIRRED_INGRESS:
+		return dsa_user_add_cls_matchall_mirred(dev, cls, ingress,
+							true);
+	case FLOW_ACTION_POLICE:
+		return dsa_user_add_cls_matchall_police(dev, cls, ingress);
+	default:
+		NL_SET_ERR_MSG_MOD(extack, "Unknown action");
+		break;
+	}
+
+	return -EOPNOTSUPP;
 }
 
 static void dsa_user_del_cls_matchall(struct net_device *dev,
