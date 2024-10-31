@@ -1418,15 +1418,26 @@ bch2_btree_insert_keys_interior(struct btree_update *as,
 	       (bkey_cmp_left_packed(b, k, &insert->k.p) >= 0))
 		;
 
-	while (!bch2_keylist_empty(keys)) {
-		insert = bch2_keylist_front(keys);
-
-		if (bpos_gt(insert->k.p, b->key.k.p))
-			break;
-
+	for (;
+	     insert != keys->top && bpos_le(insert->k.p, b->key.k.p);
+	     insert = bkey_next(insert))
 		bch2_insert_fixup_btree_ptr(as, trans, path, b, &node_iter, insert);
-		bch2_keylist_pop_front(keys);
+
+	if (bch2_btree_node_check_topology(trans, b)) {
+		struct printbuf buf = PRINTBUF;
+
+		for (struct bkey_i *k = keys->keys;
+		     k != insert;
+		     k = bkey_next(k)) {
+			bch2_bkey_val_to_text(&buf, trans->c, bkey_i_to_s_c(k));
+			prt_newline(&buf);
+		}
+
+		panic("%s(): check_topology error: inserted keys\n%s", __func__, buf.buf);
 	}
+
+	memmove_u64s_down(keys->keys, insert, keys->top_p - insert->_data);
+	keys->top_p -= insert->_data - keys->keys_p;
 }
 
 static bool key_deleted_in_insert(struct keylist *insert_keys, struct bpos pos)
@@ -1575,8 +1586,6 @@ static void btree_split_insert_keys(struct btree_update *as,
 		bch2_btree_node_iter_init(&node_iter, b, &bch2_keylist_front(keys)->k.p);
 
 		bch2_btree_insert_keys_interior(as, trans, path, b, node_iter, keys);
-
-		BUG_ON(bch2_btree_node_check_topology(trans, b));
 	}
 }
 
@@ -1827,8 +1836,6 @@ static int bch2_btree_insert_node(struct btree_update *as, struct btree_trans *t
 
 	btree_update_updated_node(as, b);
 	bch2_btree_node_unlock_write(trans, path, b);
-
-	BUG_ON(bch2_btree_node_check_topology(trans, b));
 	return 0;
 split:
 	/*
