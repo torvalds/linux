@@ -2587,10 +2587,10 @@ xfrm_tmpl_resolve(struct xfrm_policy **pols, int npols, const struct flowi *fl,
 
 }
 
-static int xfrm_get_tos(const struct flowi *fl, int family)
+static dscp_t xfrm_get_dscp(const struct flowi *fl, int family)
 {
 	if (family == AF_INET)
-		return fl->u.ip4.flowi4_tos & INET_DSCP_MASK;
+		return inet_dsfield_to_dscp(fl->u.ip4.flowi4_tos);
 
 	return 0;
 }
@@ -2684,7 +2684,7 @@ static struct dst_entry *xfrm_bundle_create(struct xfrm_policy *policy,
 
 	xfrm_flowi_addr_get(fl, &saddr, &daddr, family);
 
-	tos = xfrm_get_tos(fl, family);
+	tos = inet_dscp_to_dsfield(xfrm_get_dscp(fl, family));
 
 	dst_hold(dst);
 
