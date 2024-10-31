@@ -662,7 +662,7 @@ static int irsd200_write_event_config(struct iio_dev *indio_dev,
 			return ret;
 
 		return regmap_field_write(
-			data->regfields[IRS_REGF_INTR_COUNT_THR_OR], !!state);
+			data->regfields[IRS_REGF_INTR_COUNT_THR_OR], state);
 	default:
 		return -EINVAL;
 	}
