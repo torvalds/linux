@@ -3319,11 +3319,20 @@ static u32 pipe_mbus_dbox_ctl(const struct intel_crtc *crtc,
 	return val;
 }
 
+static void pipe_mbus_dbox_ctl_update(struct drm_i915_private *i915,
+				      const struct intel_dbuf_state *dbuf_state)
+{
+	struct intel_crtc *crtc;
+
+	for_each_intel_crtc_in_pipe_mask(&i915->drm, crtc, dbuf_state->active_pipes)
+		intel_de_write(i915, PIPE_MBUS_DBOX_CTL(crtc->pipe),
+			       pipe_mbus_dbox_ctl(crtc, dbuf_state));
+}
+
 static void intel_mbus_dbox_update(struct intel_atomic_state *state)
 {
 	struct drm_i915_private *i915 = to_i915(state->base.dev);
 	const struct intel_dbuf_state *new_dbuf_state, *old_dbuf_state;
-	const struct intel_crtc *crtc;
 
 	if (DISPLAY_VER(i915) < 11)
 		return;
@@ -3335,9 +3344,7 @@ static void intel_mbus_dbox_update(struct intel_atomic_state *state)
 	     new_dbuf_state->active_pipes == old_dbuf_state->active_pipes))
 		return;
 
-	for_each_intel_crtc_in_pipe_mask(&i915->drm, crtc, new_dbuf_state->active_pipes)
-		intel_de_write(i915, PIPE_MBUS_DBOX_CTL(crtc->pipe),
-			       pipe_mbus_dbox_ctl(crtc, new_dbuf_state));
+	pipe_mbus_dbox_ctl_update(i915, new_dbuf_state);
 }
 
 int intel_dbuf_state_set_mdclk_cdclk_ratio(struct intel_atomic_state *state,
