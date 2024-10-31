@@ -93,7 +93,7 @@ static void update_phy_id_mapping(struct amdgpu_device *adev)
 	struct drm_connector_list_iter iter;
 	uint8_t idx = 0, idx_2 = 0, connector_cnt = 0;
 
-	dm->secure_display_phy_mapping_updated = false;
+	dm->secure_display_ctx.phy_mapping_updated = false;
 
 	mutex_lock(&ddev->mode_config.mutex);
 	drm_connector_list_iter_begin(ddev, &iter);
@@ -194,27 +194,27 @@ static void update_phy_id_mapping(struct amdgpu_device *adev)
 		}
 	}
 
-	/* Complete sorting. Assign relavant result to dm->phy_id_mapping[]*/
-	memset(dm->phy_id_mapping, 0, sizeof(dm->phy_id_mapping));
+	/* Complete sorting. Assign relavant result to dm->secure_display_ctx.phy_id_mapping[]*/
+	memset(dm->secure_display_ctx.phy_id_mapping, 0, sizeof(dm->secure_display_ctx.phy_id_mapping));
 	for (idx = 0; idx < connector_cnt; idx++) {
 		aconnector = sort_connector[idx];
 
-		dm->phy_id_mapping[idx].assigned = true;
-		dm->phy_id_mapping[idx].is_mst = false;
-		dm->phy_id_mapping[idx].enc_hw_inst = aconnector->dc_link->link_enc_hw_inst;
+		dm->secure_display_ctx.phy_id_mapping[idx].assigned = true;
+		dm->secure_display_ctx.phy_id_mapping[idx].is_mst = false;
+		dm->secure_display_ctx.phy_id_mapping[idx].enc_hw_inst = aconnector->dc_link->link_enc_hw_inst;
 
 		if (sort_connector[idx]->mst_root) {
-			dm->phy_id_mapping[idx].is_mst = true;
-			dm->phy_id_mapping[idx].lct = aconnector->mst_output_port->parent->lct;
-			dm->phy_id_mapping[idx].port_num = aconnector->mst_output_port->port_num;
-			memcpy(dm->phy_id_mapping[idx].rad, aconnector->mst_output_port->parent->rad,
-				sizeof(aconnector->mst_output_port->parent->rad));
+			dm->secure_display_ctx.phy_id_mapping[idx].is_mst = true;
+			dm->secure_display_ctx.phy_id_mapping[idx].lct = aconnector->mst_output_port->parent->lct;
+			dm->secure_display_ctx.phy_id_mapping[idx].port_num = aconnector->mst_output_port->port_num;
+			memcpy(dm->secure_display_ctx.phy_id_mapping[idx].rad,
+				aconnector->mst_output_port->parent->rad, sizeof(aconnector->mst_output_port->parent->rad));
 		}
 	}
 	mutex_unlock(&ddev->mode_config.mutex);
 
-	dm->phy_id_mapping_cnt = connector_cnt;
-	dm->secure_display_phy_mapping_updated = true;
+	dm->secure_display_ctx.phy_id_mapping_cnt = connector_cnt;
+	dm->secure_display_ctx.phy_mapping_updated = true;
 }
 
 static bool get_phy_id(struct amdgpu_display_manager *dm,
@@ -227,19 +227,20 @@ static bool get_phy_id(struct amdgpu_display_manager *dm,
 	 * Assume secure display start after all connectors are probed. The connection
 	 * config is static as well
 	 */
-	if (!dm->secure_display_phy_mapping_updated) {
+	if (!dm->secure_display_ctx.phy_mapping_updated) {
 		DRM_WARN("%s Should update the phy id table before get it's value", __func__);
 		return false;
 	}
 
-	for (idx = 0; idx < dm->phy_id_mapping_cnt; idx++) {
-		if (!dm->phy_id_mapping[idx].assigned) {
+	for (idx = 0; idx < dm->secure_display_ctx.phy_id_mapping_cnt; idx++) {
+		if (!dm->secure_display_ctx.phy_id_mapping[idx].assigned) {
 			DRM_ERROR("phy_id_mapping[%d] should be assigned", idx);
 			return false;
 		}
 
-		if (aconnector->dc_link->link_enc_hw_inst == dm->phy_id_mapping[idx].enc_hw_inst) {
-			if (!dm->phy_id_mapping[idx].is_mst) {
+		if (aconnector->dc_link->link_enc_hw_inst ==
+				dm->secure_display_ctx.phy_id_mapping[idx].enc_hw_inst) {
+			if (!dm->secure_display_ctx.phy_id_mapping[idx].is_mst) {
 				found = true;
 				goto out;
 			} else {
@@ -254,8 +255,8 @@ static bool get_phy_id(struct amdgpu_display_manager *dm,
 					DRM_WARN("%s pass in a stale mst connector", __func__);
 				}
 
-				if (aconnector->mst_output_port->parent->lct == dm->phy_id_mapping[idx].lct &&
-					aconnector->mst_output_port->port_num == dm->phy_id_mapping[idx].port_num) {
+				if (aconnector->mst_output_port->parent->lct == dm->secure_display_ctx.phy_id_mapping[idx].lct &&
+					aconnector->mst_output_port->port_num == dm->secure_display_ctx.phy_id_mapping[idx].port_num) {
 					if (aconnector->mst_output_port->parent->lct == 1) {
 						found = true;
 						goto out;
@@ -264,7 +265,7 @@ static bool get_phy_id(struct amdgpu_display_manager *dm,
 						for (idx_2 = 0; idx_2 < aconnector->mst_output_port->parent->lct - 1; idx_2++) {
 							int shift = (idx_2 % 2) ? 0 : 4;
 							int port_num = (aconnector->mst_output_port->parent->rad[idx_2 / 2] >> shift) & 0xf;
-							int port_num2 = (dm->phy_id_mapping[idx].rad[idx_2 / 2] >> shift) & 0xf;
+							int port_num2 = (dm->secure_display_ctx.phy_id_mapping[idx].rad[idx_2 / 2] >> shift) & 0xf;
 
 							if (port_num != port_num2)
 								break;
@@ -318,8 +319,8 @@ static void amdgpu_dm_set_crc_window_default(struct drm_crtc *crtc, struct dc_st
 	/* Disable secure_display if it was enabled */
 	if (was_activated) {
 		/* stop ROI update on this crtc */
-		flush_work(&dm->secure_display_ctxs[crtc->index].notify_ta_work);
-		flush_work(&dm->secure_display_ctxs[crtc->index].forward_roi_work);
+		flush_work(&dm->secure_display_ctx.crtc_ctx[crtc->index].notify_ta_work);
+		flush_work(&dm->secure_display_ctx.crtc_ctx[crtc->index].forward_roi_work);
 
 		aconnector = (struct amdgpu_dm_connector *)stream->dm_stream_context;
 
@@ -332,7 +333,7 @@ static void amdgpu_dm_set_crc_window_default(struct drm_crtc *crtc, struct dc_st
 
 static void amdgpu_dm_crtc_notify_ta_to_read(struct work_struct *work)
 {
-	struct secure_display_context *secure_display_ctx;
+	struct secure_display_crtc_context *crtc_ctx;
 	struct psp_context *psp;
 	struct ta_securedisplay_cmd *securedisplay_cmd;
 	struct drm_crtc *crtc;
@@ -342,8 +343,8 @@ static void amdgpu_dm_crtc_notify_ta_to_read(struct work_struct *work)
 	struct amdgpu_display_manager *dm;
 	int ret;
 
-	secure_display_ctx = container_of(work, struct secure_display_context, notify_ta_work);
-	crtc = secure_display_ctx->crtc;
+	crtc_ctx = container_of(work, struct secure_display_crtc_context, notify_ta_work);
+	crtc = crtc_ctx->crtc;
 
 	if (!crtc)
 		return;
@@ -393,15 +394,15 @@ static void amdgpu_dm_crtc_notify_ta_to_read(struct work_struct *work)
 static void
 amdgpu_dm_forward_crc_window(struct work_struct *work)
 {
-	struct secure_display_context *secure_display_ctx;
+	struct secure_display_crtc_context *crtc_ctx;
 	struct amdgpu_display_manager *dm;
 	struct drm_crtc *crtc;
 	struct dc_stream_state *stream;
 	struct amdgpu_dm_connector *aconnector;
 	uint8_t phy_id;
 
-	secure_display_ctx = container_of(work, struct secure_display_context, forward_roi_work);
-	crtc = secure_display_ctx->crtc;
+	crtc_ctx = container_of(work, struct secure_display_crtc_context, forward_roi_work);
+	crtc = crtc_ctx->crtc;
 
 	if (!crtc)
 		return;
@@ -422,7 +423,7 @@ amdgpu_dm_forward_crc_window(struct work_struct *work)
 	mutex_unlock(&crtc->dev->mode_config.mutex);
 
 	mutex_lock(&dm->dc_lock);
-	dc_stream_forward_crc_window(stream, &secure_display_ctx->rect,
+	dc_stream_forward_crc_window(stream, &crtc_ctx->rect,
 		phy_id, false);
 	mutex_unlock(&dm->dc_lock);
 }
@@ -656,7 +657,7 @@ int amdgpu_dm_crtc_set_crc_source(struct drm_crtc *crtc, const char *src_name)
 
 #if defined(CONFIG_DRM_AMD_SECURE_DISPLAY)
 	/* Initialize phy id mapping table for secure display*/
-	if (!dm->secure_display_phy_mapping_updated)
+	if (!dm->secure_display_ctx.phy_mapping_updated)
 		update_phy_id_mapping(adev);
 #endif
 
@@ -730,7 +731,7 @@ void amdgpu_dm_crtc_handle_crc_window_irq(struct drm_crtc *crtc)
 	enum amdgpu_dm_pipe_crc_source cur_crc_src;
 	struct amdgpu_crtc *acrtc = NULL;
 	struct amdgpu_device *adev = NULL;
-	struct secure_display_context *secure_display_ctx = NULL;
+	struct secure_display_crtc_context *crtc_ctx = NULL;
 	unsigned long flags1;
 
 	if (crtc == NULL)
@@ -756,23 +757,23 @@ void amdgpu_dm_crtc_handle_crc_window_irq(struct drm_crtc *crtc)
 		goto cleanup;
 	}
 
-	secure_display_ctx = &adev->dm.secure_display_ctxs[acrtc->crtc_id];
-	if (WARN_ON(secure_display_ctx->crtc != crtc)) {
-		/* We have set the crtc when creating secure_display_context,
+	crtc_ctx = &adev->dm.secure_display_ctx.crtc_ctx[acrtc->crtc_id];
+	if (WARN_ON(crtc_ctx->crtc != crtc)) {
+		/* We have set the crtc when creating secure_display_crtc_context,
 		 * don't expect it to be changed here.
 		 */
-		secure_display_ctx->crtc = crtc;
+		crtc_ctx->crtc = crtc;
 	}
 
 	if (acrtc->dm_irq_params.window_param.update_win) {
 		/* prepare work for dmub to update ROI */
-		secure_display_ctx->rect.x = acrtc->dm_irq_params.window_param.x_start;
-		secure_display_ctx->rect.y = acrtc->dm_irq_params.window_param.y_start;
-		secure_display_ctx->rect.width = acrtc->dm_irq_params.window_param.x_end -
+		crtc_ctx->rect.x = acrtc->dm_irq_params.window_param.x_start;
+		crtc_ctx->rect.y = acrtc->dm_irq_params.window_param.y_start;
+		crtc_ctx->rect.width = acrtc->dm_irq_params.window_param.x_end -
 								acrtc->dm_irq_params.window_param.x_start;
-		secure_display_ctx->rect.height = acrtc->dm_irq_params.window_param.y_end -
+		crtc_ctx->rect.height = acrtc->dm_irq_params.window_param.y_end -
 								acrtc->dm_irq_params.window_param.y_start;
-		schedule_work(&secure_display_ctx->forward_roi_work);
+		schedule_work(&crtc_ctx->forward_roi_work);
 
 		acrtc->dm_irq_params.window_param.update_win = false;
 
@@ -785,32 +786,34 @@ void amdgpu_dm_crtc_handle_crc_window_irq(struct drm_crtc *crtc)
 
 	} else {
 		/* prepare work for psp to read ROI/CRC and send to I2C */
-		schedule_work(&secure_display_ctx->notify_ta_work);
+		schedule_work(&crtc_ctx->notify_ta_work);
 	}
 
 cleanup:
 	spin_unlock_irqrestore(&drm_dev->event_lock, flags1);
 }
 
-struct secure_display_context *
-amdgpu_dm_crtc_secure_display_create_contexts(struct amdgpu_device *adev)
+void amdgpu_dm_crtc_secure_display_create_contexts(struct amdgpu_device *adev)
 {
-	struct secure_display_context *secure_display_ctxs = NULL;
+	struct secure_display_crtc_context *crtc_ctx = NULL;
 	int i;
 
-	secure_display_ctxs = kcalloc(adev->mode_info.num_crtc,
-				      sizeof(struct secure_display_context),
+	crtc_ctx = kcalloc(adev->mode_info.num_crtc,
+				      sizeof(struct secure_display_crtc_context),
 				      GFP_KERNEL);
 
-	if (!secure_display_ctxs)
-		return NULL;
-
-	for (i = 0; i < adev->mode_info.num_crtc; i++) {
-		INIT_WORK(&secure_display_ctxs[i].forward_roi_work, amdgpu_dm_forward_crc_window);
-		INIT_WORK(&secure_display_ctxs[i].notify_ta_work, amdgpu_dm_crtc_notify_ta_to_read);
-		secure_display_ctxs[i].crtc = &adev->mode_info.crtcs[i]->base;
+	if (!crtc_ctx) {
+		adev->dm.secure_display_ctx.crtc_ctx = NULL;
+		return;
 	}
 
-	return secure_display_ctxs;
+	for (i = 0; i < adev->mode_info.num_crtc; i++) {
+		INIT_WORK(&crtc_ctx[i].forward_roi_work, amdgpu_dm_forward_crc_window);
+		INIT_WORK(&crtc_ctx[i].notify_ta_work, amdgpu_dm_crtc_notify_ta_to_read);
+		crtc_ctx[i].crtc = &adev->mode_info.crtcs[i]->base;
+	}
+
+	adev->dm.secure_display_ctx.crtc_ctx = crtc_ctx;
+	return;
 }
 #endif
