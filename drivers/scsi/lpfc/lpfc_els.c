@@ -1236,9 +1236,9 @@ lpfc_cmpl_els_link_down(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 
 	lpfc_printf_log(phba, KERN_INFO, LOG_ELS,
 			"6445 ELS completes after LINK_DOWN: "
-			" Status %x/%x cmd x%x flg x%x\n",
+			" Status %x/%x cmd x%x flg x%x iotag x%x\n",
 			ulp_status, ulp_word4, cmd,
-			cmdiocb->cmd_flag);
+			cmdiocb->cmd_flag, cmdiocb->iotag);
 
 	if (cmdiocb->cmd_flag & LPFC_IO_FABRIC) {
 		cmdiocb->cmd_flag &= ~LPFC_IO_FABRIC;
@@ -9642,14 +9642,24 @@ lpfc_els_flush_cmd(struct lpfc_vport *vport)
 	mbx_tmo_err = test_bit(MBX_TMO_ERR, &phba->bit_flags);
 	/* First we need to issue aborts to outstanding cmds on txcmpl */
 	list_for_each_entry_safe(piocb, tmp_iocb, &pring->txcmplq, list) {
-		if (piocb->cmd_flag & LPFC_IO_LIBDFC && !mbx_tmo_err)
-			continue;
+		lpfc_printf_vlog(vport, KERN_INFO, LOG_ELS,
+				 "2243 iotag = 0x%x cmd_flag = 0x%x "
+				 "ulp_command = 0x%x this_vport %x "
+				 "sli_flag = 0x%x\n",
+				 piocb->iotag, piocb->cmd_flag,
+				 get_job_cmnd(phba, piocb),
+				 (piocb->vport == vport),
+				 phba->sli.sli_flag);
 
 		if (piocb->vport != vport)
 			continue;
 
-		if (piocb->cmd_flag & LPFC_DRIVER_ABORTED && !mbx_tmo_err)
-			continue;
+		if ((phba->sli.sli_flag & LPFC_SLI_ACTIVE) && !mbx_tmo_err) {
+			if (piocb->cmd_flag & LPFC_IO_LIBDFC)
+				continue;
+			if (piocb->cmd_flag & LPFC_DRIVER_ABORTED)
+				continue;
+		}
 
 		/* On the ELS ring we can have ELS_REQUESTs, ELS_RSPs,
 		 * or GEN_REQUESTs waiting for a CQE response.
