@@ -58,8 +58,8 @@ void uverbs_uobject_put(struct ib_uobject *uobject)
 }
 EXPORT_SYMBOL(uverbs_uobject_put);
 
-static int uverbs_try_lock_object(struct ib_uobject *uobj,
-				  enum rdma_lookup_mode mode)
+int uverbs_try_lock_object(struct ib_uobject *uobj,
+			   enum rdma_lookup_mode mode)
 {
 	/*
 	 * When a shared access is required, we use a positive counter. Each
@@ -84,6 +84,7 @@ static int uverbs_try_lock_object(struct ib_uobject *uobj,
 	}
 	return 0;
 }
+EXPORT_SYMBOL(uverbs_try_lock_object);
 
 static void assert_uverbs_usecnt(struct ib_uobject *uobj,
 				 enum rdma_lookup_mode mode)
