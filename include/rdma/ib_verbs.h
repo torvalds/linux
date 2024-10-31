@@ -2675,6 +2675,12 @@ struct ib_device_ops {
 	 */
 	void (*del_sub_dev)(struct ib_device *sub_dev);
 
+	/**
+	 * ufile_cleanup - Attempt to cleanup ubojects HW resources inside
+	 * the ufile.
+	 */
+	void (*ufile_hw_cleanup)(struct ib_uverbs_file *ufile);
+
 	DECLARE_RDMA_OBJ_SIZE(ib_ah);
 	DECLARE_RDMA_OBJ_SIZE(ib_counters);
 	DECLARE_RDMA_OBJ_SIZE(ib_cq);
