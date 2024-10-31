@@ -71,7 +71,6 @@ enum msm_dsi_controller {
 };
 
 #define MSM_GPU_MAX_RINGS 4
-#define MAX_H_TILES_PER_DISPLAY 2
 
 /* Commit/Event thread specific structure */
 struct msm_drm_thread {

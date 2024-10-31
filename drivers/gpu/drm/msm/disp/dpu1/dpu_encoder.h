@@ -19,6 +19,8 @@
 
 #define IDLE_TIMEOUT	(66 - 16/2)
 
+#define MAX_H_TILES_PER_DISPLAY 2
+
 /**
  * struct msm_display_info - defines display properties
  * @intf_type:          INTF_ type
