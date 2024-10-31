@@ -84,7 +84,7 @@ int vkms_output_init(struct vkms_device *vkmsdev, int index)
 				 DRM_MODE_CONNECTOR_VIRTUAL);
 	if (ret) {
 		DRM_ERROR("Failed to init connector\n");
-		goto err_connector;
+		return ret;
 	}
 
 	drm_connector_helper_add(connector, &vkms_conn_helper_funcs);
@@ -118,9 +118,6 @@ err_attach:
 
 err_encoder:
 	drm_connector_cleanup(connector);
-
-err_connector:
-	drm_crtc_cleanup(crtc);
 
 	return ret;
 }
