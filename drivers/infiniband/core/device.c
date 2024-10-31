@@ -437,6 +437,7 @@ int ib_device_rename(struct ib_device *ibdev, const char *name)
 		client->rename(ibdev, client_data);
 	}
 	up_read(&ibdev->client_data_rwsem);
+	rdma_nl_notify_event(ibdev, 0, RDMA_RENAME_EVENT);
 	up_read(&devices_rwsem);
 	return 0;
 }
@@ -2853,6 +2854,40 @@ static const struct rdma_nl_cbs ibnl_ls_cb_table[RDMA_NL_LS_NUM_OPS] = {
 	},
 };
 
+static int ib_netdevice_event(struct notifier_block *this,
+			      unsigned long event, void *ptr)
+{
+	struct net_device *ndev = netdev_notifier_info_to_dev(ptr);
+	struct net_device *ib_ndev;
+	struct ib_device *ibdev;
+	u32 port;
+
+	switch (event) {
+	case NETDEV_CHANGENAME:
+		ibdev = ib_device_get_by_netdev(ndev, RDMA_DRIVER_UNKNOWN);
+		if (!ibdev)
+			return NOTIFY_DONE;
+
+		rdma_for_each_port(ibdev, port) {
+			ib_ndev = ib_device_get_netdev(ibdev, port);
+			if (ndev == ib_ndev)
+				rdma_nl_notify_event(ibdev, port,
+						     RDMA_NETDEV_RENAME_EVENT);
+			dev_put(ib_ndev);
+		}
+		ib_device_put(ibdev);
+		break;
+	default:
+		break;
+	}
+
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block nb_netdevice = {
+	.notifier_call = ib_netdevice_event,
+};
+
 static int __init ib_core_init(void)
 {
 	int ret = -ENOMEM;
@@ -2924,6 +2959,8 @@ static int __init ib_core_init(void)
 		goto err_parent;
 	}
 
+	register_netdevice_notifier(&nb_netdevice);
+
 	return 0;
 
 err_parent:
@@ -2953,6 +2990,7 @@ err:
 
 static void __exit ib_core_cleanup(void)
 {
+	unregister_netdevice_notifier(&nb_netdevice);
 	roce_gid_mgmt_cleanup();
 	rdma_nl_unregister(RDMA_NL_LS);
 	nldev_exit();
