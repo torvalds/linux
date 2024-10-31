@@ -82,9 +82,10 @@ static int copy_sc_from_user(struct pt_regs *regs,
 #undef GETREG
 
 #ifdef CONFIG_X86_32
-	from_fp64 = ((void *)sc.fpstate) + offsetof(struct _fpstate_32, _fxsr_env);
+	from_fp64 = ((void __user *)sc.fpstate) +
+		    offsetof(struct _fpstate_32, _fxsr_env);
 #else
-	from_fp64 = (void *)sc.fpstate;
+	from_fp64 = (void __user *)sc.fpstate;
 #endif
 
 	err = copy_from_user(regs->regs.fp, from_fp64, host_fp_size);
@@ -97,7 +98,7 @@ static int copy_sc_from_user(struct pt_regs *regs,
 				    task_user_regset_view(current),
 				    REGSET_FP_LEGACY, 0,
 				    sizeof(struct user_i387_struct),
-				    (void *)sc.fpstate);
+				    (void __user *)sc.fpstate);
 	if (err < 0)
 		return err;
 #endif
@@ -173,7 +174,8 @@ static int copy_sc_to_user(struct sigcontext __user *to,
 	BUILD_BUG_ON(offsetof(struct _xstate, xstate_hdr) !=
 		     offsetof(struct _xstate_64, xstate_hdr) +
 			offsetof(struct _fpstate_32, _fxsr_env));
-	to_fp64 = (void *)to_fp + offsetof(struct _fpstate_32, _fxsr_env);
+	to_fp64 = (void __user *)to_fp +
+		  offsetof(struct _fpstate_32, _fxsr_env);
 #else
 	to_fp64 = to_fp;
 #endif /* CONFIG_X86_32 */
@@ -198,7 +200,8 @@ static int copy_sc_to_user(struct sigcontext __user *to,
 	__put_user(host_fp_size, &to_fp64->fpstate.sw_reserved.xstate_size);
 
 	__put_user(FP_XSTATE_MAGIC1, &to_fp64->fpstate.sw_reserved.magic1);
-	__put_user(FP_XSTATE_MAGIC2, (int *)((void *)to_fp64 + host_fp_size));
+	__put_user(FP_XSTATE_MAGIC2,
+		   (int __user *)((void __user *)to_fp64 + host_fp_size));
 
 	return 0;
 }

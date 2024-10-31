@@ -242,7 +242,7 @@ static struct user_regset uml_regsets[] __ro_after_init = {
 	/* TODO: Add TLS regset for 32bit */
 };
 
-const struct user_regset_view user_uml_view = {
+static const struct user_regset_view user_uml_view = {
 #ifdef CONFIG_X86_32
 	.name = "i386", .e_machine = EM_386,
 #else
