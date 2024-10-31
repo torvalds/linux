@@ -137,6 +137,21 @@ struct nfs4_cpntf_state {
 	time64_t		cpntf_time;	/* last time stateid used */
 };
 
+/*
+ * RFC 7862 Section 4.8 states:
+ *
+ * | A copy offload stateid will be valid until either (A) the client
+ * | or server restarts or (B) the client returns the resource by
+ * | issuing an OFFLOAD_CANCEL operation or the client replies to a
+ * | CB_OFFLOAD operation.
+ *
+ * Because a client might not reply to a CB_OFFLOAD, or a reply
+ * might get lost due to connection loss, NFSD purges async copy
+ * state after a short period to prevent it from accumulating
+ * over time.
+ */
+#define NFSD_COPY_INITIAL_TTL 10
+
 struct nfs4_cb_fattr {
 	struct nfsd4_callback ncf_getattr;
 	u32 ncf_cb_status;

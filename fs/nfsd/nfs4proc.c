@@ -1326,8 +1326,10 @@ void nfsd4_async_copy_reaper(struct nfsd_net *nn)
 		list_for_each_safe(pos, next, &clp->async_copies) {
 			copy = list_entry(pos, struct nfsd4_copy, copies);
 			if (test_bit(NFSD4_COPY_F_OFFLOAD_DONE, &copy->cp_flags)) {
-				list_del_init(&copy->copies);
-				list_add(&copy->copies, &reaplist);
+				if (--copy->cp_ttl) {
+					list_del_init(&copy->copies);
+					list_add(&copy->copies, &reaplist);
+				}
 			}
 		}
 		spin_unlock(&clp->async_lock);
@@ -1921,6 +1923,7 @@ nfsd4_copy(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 		async_copy->cp_nn = nn;
 		INIT_LIST_HEAD(&async_copy->copies);
 		refcount_set(&async_copy->refcount, 1);
+		async_copy->cp_ttl = NFSD_COPY_INITIAL_TTL;
 		/* Arbitrary cap on number of pending async copy operations */
 		if (atomic_inc_return(&nn->pending_async_copies) >
 				(int)rqstp->rq_pool->sp_nrthreads)

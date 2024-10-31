@@ -715,6 +715,7 @@ struct nfsd4_copy {
 	struct list_head	copies;
 	struct task_struct	*copy_task;
 	refcount_t		refcount;
+	unsigned int		cp_ttl;
 
 	struct nfsd4_ssc_umount_item *ss_nsui;
 	struct nfs_fh		c_fh;
