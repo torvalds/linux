@@ -830,21 +830,22 @@ struct arm_smmu_entry_writer_ops {
 	void (*sync)(struct arm_smmu_entry_writer *writer);
 };
 
+void arm_smmu_make_abort_ste(struct arm_smmu_ste *target);
+void arm_smmu_make_s2_domain_ste(struct arm_smmu_ste *target,
+				 struct arm_smmu_master *master,
+				 struct arm_smmu_domain *smmu_domain,
+				 bool ats_enabled);
+
 #if IS_ENABLED(CONFIG_KUNIT)
 void arm_smmu_get_ste_used(const __le64 *ent, __le64 *used_bits);
 void arm_smmu_write_entry(struct arm_smmu_entry_writer *writer, __le64 *cur,
 			  const __le64 *target);
 void arm_smmu_get_cd_used(const __le64 *ent, __le64 *used_bits);
-void arm_smmu_make_abort_ste(struct arm_smmu_ste *target);
 void arm_smmu_make_bypass_ste(struct arm_smmu_device *smmu,
 			      struct arm_smmu_ste *target);
 void arm_smmu_make_cdtable_ste(struct arm_smmu_ste *target,
 			       struct arm_smmu_master *master, bool ats_enabled,
 			       unsigned int s1dss);
-void arm_smmu_make_s2_domain_ste(struct arm_smmu_ste *target,
-				 struct arm_smmu_master *master,
-				 struct arm_smmu_domain *smmu_domain,
-				 bool ats_enabled);
 void arm_smmu_make_sva_cd(struct arm_smmu_cd *target,
 			  struct arm_smmu_master *master, struct mm_struct *mm,
 			  u16 asid);
@@ -901,6 +902,22 @@ static inline bool arm_smmu_master_canwbs(struct arm_smmu_master *master)
 	return dev_iommu_fwspec_get(master->dev)->flags &
 	       IOMMU_FWSPEC_PCI_RC_CANWBS;
 }
+
+struct arm_smmu_attach_state {
+	/* Inputs */
+	struct iommu_domain *old_domain;
+	struct arm_smmu_master *master;
+	bool cd_needs_ats;
+	ioasid_t ssid;
+	/* Resulting state */
+	bool ats_enabled;
+};
+
+int arm_smmu_attach_prepare(struct arm_smmu_attach_state *state,
+			    struct iommu_domain *new_domain);
+void arm_smmu_attach_commit(struct arm_smmu_attach_state *state);
+void arm_smmu_install_ste_for_dev(struct arm_smmu_master *master,
+				  const struct arm_smmu_ste *target);
 
 #ifdef CONFIG_ARM_SMMU_V3_SVA
 bool arm_smmu_sva_supported(struct arm_smmu_device *smmu);
