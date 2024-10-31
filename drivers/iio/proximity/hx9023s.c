@@ -879,7 +879,7 @@ static int hx9023s_write_event_config(struct iio_dev *indio_dev,
 	struct hx9023s_data *data = iio_priv(indio_dev);
 
 	if (test_bit(chan->channel, &data->chan_in_use)) {
-		hx9023s_ch_en(data, chan->channel, !!state);
+		hx9023s_ch_en(data, chan->channel, state);
 		__assign_bit(chan->channel, &data->chan_event,
 			     data->ch_data[chan->channel].enable);
 	}
