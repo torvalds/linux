@@ -516,6 +516,7 @@ void mlx5_modify_lag(struct mlx5_lag *ldev,
 		blocking_notifier_call_chain(&dev0->priv.lag_nh,
 					     MLX5_DRIVER_EVENT_ACTIVE_BACKUP_LAG_CHANGE_LOWERSTATE,
 					     ndev);
+		dev_put(ndev);
 	}
 }
 
