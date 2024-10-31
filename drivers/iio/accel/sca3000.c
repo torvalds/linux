@@ -1158,7 +1158,7 @@ error_ret:
 	return ret;
 }
 
-static int sca3000_freefall_set_state(struct iio_dev *indio_dev, int state)
+static int sca3000_freefall_set_state(struct iio_dev *indio_dev, bool state)
 {
 	struct sca3000_state *st = iio_priv(indio_dev);
 	int ret;
@@ -1181,7 +1181,7 @@ static int sca3000_freefall_set_state(struct iio_dev *indio_dev, int state)
 }
 
 static int sca3000_motion_detect_set_state(struct iio_dev *indio_dev, int axis,
-					   int state)
+					   bool state)
 {
 	struct sca3000_state *st = iio_priv(indio_dev);
 	int ret, ctrlval;
