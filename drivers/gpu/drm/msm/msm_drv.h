@@ -52,7 +52,6 @@ struct msm_gem_vma;
 struct msm_disp_state;
 
 #define MAX_CRTCS      8
-#define MAX_BRIDGES    8
 
 #define FRAC_16_16(mult, div)    (((mult) << 16) / (div))
 
