@@ -733,7 +733,7 @@ static int xe_vma_ops_alloc(struct xe_vma_ops *vops, bool array_of_binds)
 		vops->pt_update_ops[i].ops =
 			kmalloc_array(vops->pt_update_ops[i].num_ops,
 				      sizeof(*vops->pt_update_ops[i].ops),
-				      GFP_KERNEL);
+				      GFP_KERNEL | __GFP_RETRY_MAYFAIL | __GFP_NOWARN);
 		if (!vops->pt_update_ops[i].ops)
 			return array_of_binds ? -ENOBUFS : -ENOMEM;
 	}
@@ -2733,7 +2733,8 @@ static int vm_bind_ioctl_check_args(struct xe_device *xe,
 
 		*bind_ops = kvmalloc_array(args->num_binds,
 					   sizeof(struct drm_xe_vm_bind_op),
-					   GFP_KERNEL | __GFP_ACCOUNT);
+					   GFP_KERNEL | __GFP_ACCOUNT |
+					   __GFP_RETRY_MAYFAIL | __GFP_NOWARN);
 		if (!*bind_ops)
 			return args->num_binds > 1 ? -ENOBUFS : -ENOMEM;
 
@@ -2973,14 +2974,16 @@ int xe_vm_bind_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 
 	if (args->num_binds) {
 		bos = kvcalloc(args->num_binds, sizeof(*bos),
-			       GFP_KERNEL | __GFP_ACCOUNT);
+			       GFP_KERNEL | __GFP_ACCOUNT |
+			       __GFP_RETRY_MAYFAIL | __GFP_NOWARN);
 		if (!bos) {
 			err = -ENOMEM;
 			goto release_vm_lock;
 		}
 
 		ops = kvcalloc(args->num_binds, sizeof(*ops),
-			       GFP_KERNEL | __GFP_ACCOUNT);
+			       GFP_KERNEL | __GFP_ACCOUNT |
+			       __GFP_RETRY_MAYFAIL | __GFP_NOWARN);
 		if (!ops) {
 			err = -ENOMEM;
 			goto release_vm_lock;
