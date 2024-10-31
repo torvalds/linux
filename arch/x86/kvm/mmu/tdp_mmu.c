@@ -656,7 +656,7 @@ static inline bool __must_check tdp_mmu_iter_cond_resched(struct kvm *kvm,
 							  struct tdp_iter *iter,
 							  bool flush, bool shared)
 {
-	WARN_ON_ONCE(iter->yielded);
+	KVM_MMU_WARN_ON(iter->yielded);
 
 	if (!need_resched() && !rwlock_needbreak(&kvm->mmu_lock))
 		return false;
