@@ -312,7 +312,7 @@ static inline struct dst_entry *xfrm_dst_lookup(struct xfrm_state *x,
 	params.net = net;
 	params.saddr = saddr;
 	params.daddr = daddr;
-	params.tos = inet_dscp_to_dsfield(dscp);
+	params.dscp = dscp;
 	params.oif = oif;
 	params.mark = mark;
 	params.ipproto = x->id.proto;
