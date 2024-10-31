@@ -1564,13 +1564,6 @@ static bool _psr_compute_config(struct intel_dp *intel_dp,
 	const struct drm_display_mode *adjusted_mode = &crtc_state->hw.adjusted_mode;
 	int entry_setup_frames;
 
-	/*
-	 * Current PSR panels don't work reliably with VRR enabled
-	 * So if VRR is enabled, do not enable PSR.
-	 */
-	if (crtc_state->vrr.enable)
-		return false;
-
 	if (!CAN_PSR(intel_dp))
 		return false;
 
@@ -1678,6 +1671,12 @@ void intel_psr_compute_config(struct intel_dp *intel_dp,
 			    "PSR disabled due to joiner\n");
 		return;
 	}
+
+	/*
+	 * Currently PSR/PR doesn't work reliably with VRR enabled.
+	 */
+	if (crtc_state->vrr.enable)
+		return;
 
 	crtc_state->has_panel_replay = _panel_replay_compute_config(intel_dp,
 								    crtc_state,
