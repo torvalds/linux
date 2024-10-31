@@ -1425,25 +1425,16 @@ retry:
 		if (!rdev)
 			continue;
 
-		if (test_bit(Blocked, &rdev->flags)) {
-			if (bio->bi_opf & REQ_NOWAIT)
-				return false;
-
-			mddev_add_trace_msg(rdev->mddev, "raid1 wait rdev %d blocked",
-					    rdev->raid_disk);
-			atomic_inc(&rdev->nr_pending);
-			md_wait_for_blocked_rdev(rdev, rdev->mddev);
-			goto retry;
-		}
-
 		/* don't write here until the bad block is acknowledged */
 		if (test_bit(WriteErrorSeen, &rdev->flags) &&
 		    rdev_has_badblock(rdev, bio->bi_iter.bi_sector,
-				      bio_sectors(bio)) < 0) {
+				      bio_sectors(bio)) < 0)
+			set_bit(BlockedBadBlocks, &rdev->flags);
+
+		if (rdev_blocked(rdev)) {
 			if (bio->bi_opf & REQ_NOWAIT)
 				return false;
 
-			set_bit(BlockedBadBlocks, &rdev->flags);
 			mddev_add_trace_msg(rdev->mddev, "raid1 wait rdev %d blocked",
 					    rdev->raid_disk);
 			atomic_inc(&rdev->nr_pending);
