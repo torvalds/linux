@@ -3670,7 +3670,9 @@ static inline void mas_new_root(struct ma_state *mas, void *entry)
 	void __rcu **slots;
 	unsigned long *pivots;
 
-	if (!entry && !mas->index && mas->last == ULONG_MAX) {
+	WARN_ON_ONCE(mas->index || mas->last != ULONG_MAX);
+
+	if (!entry) {
 		mas->depth = 0;
 		mas_set_height(mas);
 		rcu_assign_pointer(mas->tree->ma_root, entry);
