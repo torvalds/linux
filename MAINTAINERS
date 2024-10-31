@@ -8488,8 +8488,8 @@ F:	rust/kernel/net/phy.rs
 F:	rust/kernel/net/phy/reg.rs
 
 EXEC & BINFMT API, ELF
+M:	Kees Cook <kees@kernel.org>
 R:	Eric Biederman <ebiederm@xmission.com>
-R:	Kees Cook <kees@kernel.org>
 L:	linux-mm@kvack.org
 S:	Supported
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/kees/linux.git for-next/execve
