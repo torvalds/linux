@@ -749,8 +749,6 @@ static int apds9960_read_event_config(struct iio_dev *indio_dev,
 	default:
 		return -EINVAL;
 	}
-
-	return 0;
 }
 
 static int apds9960_write_event_config(struct iio_dev *indio_dev,
