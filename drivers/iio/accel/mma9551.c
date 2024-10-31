@@ -45,7 +45,7 @@ enum mma9551_tilt_axis {
 struct mma9551_data {
 	struct i2c_client *client;
 	struct mutex mutex;
-	int event_enabled[3];
+	bool event_enabled[3];
 	int irqs[MMA9551_GPIO_COUNT];
 };
 
@@ -162,7 +162,7 @@ static int mma9551_read_event_config(struct iio_dev *indio_dev,
 
 static int mma9551_config_incli_event(struct iio_dev *indio_dev,
 				      enum iio_modifier axis,
-				      int state)
+				      bool state)
 {
 	struct mma9551_data *data = iio_priv(indio_dev);
 	enum mma9551_tilt_axis mma_axis;
@@ -174,7 +174,7 @@ static int mma9551_config_incli_event(struct iio_dev *indio_dev,
 	if (data->event_enabled[mma_axis] == state)
 		return 0;
 
-	if (state == 0) {
+	if (!state) {
 		ret = mma9551_gpio_config(data->client,
 					  (enum mma9551_gpio_pin)mma_axis,
 					  MMA9551_APPID_NONE, 0, 0);
