@@ -437,8 +437,8 @@ int hab_mem_unexport(struct uhab_context *ctx,
 		idr_remove(&vchan->pchan->expid_idr, param->exportid);
 	else {
 		ret = exp_super->remote_imported == 0 ? -EINVAL : -EBUSY;
-		pr_err("unexp expid %d fail on vc %x, state %d, remote imp %d\n",
-			param->exportid, vchan->id,
+		pr_err("unexp expid %d fail on vc %x, pcnt %d, state %d, remote imp %d\n",
+			param->exportid, vchan->id, exp->payload_count,
 			exp_super->exp_state, exp_super->remote_imported);
 		spin_unlock_bh(&vchan->pchan->expid_lock);
 		goto err_novchan;
