@@ -3567,6 +3567,29 @@ void intel_dbuf_post_plane_update(struct intel_atomic_state *state)
 	gen9_dbuf_slices_update(i915, new_slices);
 }
 
+static void skl_mbus_sanitize(struct drm_i915_private *i915)
+{
+	struct intel_dbuf_state *dbuf_state =
+		to_intel_dbuf_state(i915->display.dbuf.obj.state);
+
+	if (!HAS_MBUS_JOINING(i915))
+		return;
+
+	if (!dbuf_state->joined_mbus ||
+	    adlp_check_mbus_joined(dbuf_state->active_pipes))
+		return;
+
+	drm_dbg_kms(&i915->drm, "Disabling redundant MBUS joining (active pipes 0x%x)\n",
+		    dbuf_state->active_pipes);
+
+	dbuf_state->joined_mbus = false;
+	intel_dbuf_mdclk_cdclk_ratio_update(i915,
+					    dbuf_state->mdclk_cdclk_ratio,
+					    dbuf_state->joined_mbus);
+	pipe_mbus_dbox_ctl_update(i915, dbuf_state);
+	mbus_ctl_join_update(i915, dbuf_state, INVALID_PIPE);
+}
+
 static bool skl_dbuf_is_misconfigured(struct drm_i915_private *i915)
 {
 	const struct intel_dbuf_state *dbuf_state =
@@ -3599,7 +3622,7 @@ static bool skl_dbuf_is_misconfigured(struct drm_i915_private *i915)
 	return false;
 }
 
-static void skl_wm_sanitize(struct drm_i915_private *i915)
+static void skl_dbuf_sanitize(struct drm_i915_private *i915)
 {
 	struct intel_crtc *crtc;
 
@@ -3638,7 +3661,9 @@ static void skl_wm_sanitize(struct drm_i915_private *i915)
 static void skl_wm_get_hw_state_and_sanitize(struct drm_i915_private *i915)
 {
 	skl_wm_get_hw_state(i915);
-	skl_wm_sanitize(i915);
+
+	skl_mbus_sanitize(i915);
+	skl_dbuf_sanitize(i915);
 }
 
 void intel_wm_state_verify(struct intel_atomic_state *state,
