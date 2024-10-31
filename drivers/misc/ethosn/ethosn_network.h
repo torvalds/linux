@@ -47,7 +47,7 @@ struct ethosn_network {
 
 	u32 num_inputs;
 	struct ethosn_buffer_info *inputs;
-
+ 
 	u32 num_outputs;
 	struct ethosn_buffer_info *outputs;
 

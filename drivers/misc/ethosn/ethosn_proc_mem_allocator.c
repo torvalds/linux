@@ -271,7 +271,7 @@ int ethosn_process_mem_allocator_create(struct ethosn_device *ethosn, pid_t pid,
 	int ret = 0;
 	int fd;
 	struct ethosn_allocator *proc_mem_allocator;
-	struct ethosn_dma_allocator *asset_allocator = ethosn_asset_allocator_find(ethosn, pid);    // pid 的主要用来索引 asset_allocator, 一个 pid 对应一个 asset_allocator
+	struct ethosn_dma_allocator *asset_allocator = ethosn_asset_allocator_find(ethosn, pid); // 当前进程是否正占用设备的asset_allocator?
 
 	if (pid <= 0) {
 		dev_err(ethosn->dev, "%s: Unsupported pid=%d, must be >0\n", __func__, pid);
@@ -298,7 +298,7 @@ int ethosn_process_mem_allocator_create(struct ethosn_device *ethosn, pid_t pid,
 	proc_mem_allocator->ethosn = ethosn;
 
 	if (IS_ERR_OR_NULL(asset_allocator)) {
-		/* No existing allocator for process */
+		// 当前进程并未占用任何asset_allocator: 找一个可用的占用
 		proc_mem_allocator->asset_allocator = ethosn_asset_allocator_reserve(ethosn, pid);
 
 		if (!proc_mem_allocator->asset_allocator) {
@@ -323,6 +323,7 @@ int ethosn_process_mem_allocator_create(struct ethosn_device *ethosn, pid_t pid,
 
 	proc_mem_allocator->asset_allocator->is_protected = protected;
 
+    // 创建一个匿名的inode节点, 并关联一个文件描述符和文件的io操作
 	fd = anon_inode_getfd("ethosn-memory-allocator", &allocator_fops, proc_mem_allocator, O_RDONLY | O_CLOEXEC);
 	if (fd < 0) {
 		ret = -ENOMEM;

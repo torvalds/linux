@@ -651,7 +651,7 @@ static int ethosn_inference_register(struct ethosn_network *network, struct etho
 	if (ret_fd < 0)
 		goto err_free_inference;
 
-	dev_dbg(dev, "Registered %sprotected inference. handle=0x%pK\n", network->asset_allocator->is_protected ? "" : "non-", inference);
+	dev_dbg(dev, "Registered %sprotected inference. handle=0x%pK\n", network->asset_allocator->is_protected ? "":"non-", inference);
 
 	ret = mutex_lock_interruptible(&ethosn->queue.inference_queue_mutex);
 	/* Return the file descriptor */
@@ -955,12 +955,14 @@ static int alloc_init_inference_data(struct ethosn_network *network, struct etho
 	int num_cores = network->ethosn->num_cores;
 	struct device *dev = net_to_dev(network);
 
+    // total buffer nums
 	num_bindings = req->cu_buffers.num;
 	num_bindings += req->dma_buffers.num;
 	num_bindings += req->intermediate_desc.buffers.num;
 	num_bindings += req->input_buffers.num;
 	num_bindings += req->output_buffers.num;
 
+    // 构造 ethos 设备可识别的 buffer 阵列
 	size = sizeof(struct ethosn_buffer_array) + num_bindings * sizeof(struct ethosn_buffer_desc);
 
 	/*
@@ -969,11 +971,14 @@ static int alloc_init_inference_data(struct ethosn_network *network, struct etho
 	 * unique entry for the "intermediate data" inside the
 	 * ethosn_buffer_array.
 	 */
+    // 推理数据需要每一个 core 单独构造: 不同的 core 可能有不同的中间数据入口
 	network->inference_data = devm_kzalloc(dev, (sizeof(*(network->inference_data)) * num_cores), GFP_KERNEL);
 	if (!network->inference_data)
 		return ret;
 
 	for (i = 0; i < num_cores; i++) {
+        // 每一个 core 都构造一段用来保存全部 buffer 信息的 ethosn_buffer_array, 注意到 ethosn_buffer_array 只是描述了每一段 buffer 的起点长度和类型以及这些 buffer 有多少个, 这样就完成了整个数据的串化
+        // core 只需要根据 ethosn_buffer_array 取出这些 buffer 的内容即可完成数据的恢复
 		network->inference_data[i] = ethosn_dma_alloc_and_map(network->asset_allocator, size, ETHOSN_PROT_READ, ETHOSN_STREAM_COMMAND_STREAM, GFP_KERNEL, "network-inference-data");
 		if (IS_ERR_OR_NULL(network->inference_data[i])) {
 			dev_dbg(dev, "DMA alloc and map of network-inference-data failed\n");
@@ -993,11 +998,8 @@ static int alloc_init_inference_data(struct ethosn_network *network, struct etho
 		ret = -ENOMEM;
 		goto out_free_inference_data;
 	}
-
+    // 如果请求中存在中间层数据描述信息表明需要缓冲区, 则按照要求为其分配或者导入
 	if (req->intermediate_desc.buffers.num) {
-		/* If there are intermediate buffers, then allocate or import
-		 * memory for them.
-		 */
 		if (req->intermediate_desc.memory.type == IMPORT)
 			ret = import_intermediate_data(network, req, num_bindings);
 		else
@@ -1131,10 +1133,11 @@ static struct ethosn_network *create_network(struct ethosn_device *ethosn, struc
 			goto err_free_network;
 		}
 
-		ret = ethosn_dma_map(asset_alloc, network->constant_dma_data, ETHOSN_PROT_READ);
+		ret = ethosn_dma_map(asset_alloc, network->constant_dma_data, ETHOSN_PROT_READ);    // 映射到 IOVA 地址空间之后, 权重数据是只读的
 		if (ret)
 			goto err_free_const_dma_data;
 
+        // 从用户空间拷贝到 DMA 内存空间
 		if (copy_from_user(network->constant_dma_data->cpu_addr, net_req->dma_data.data, net_req->dma_data.size)) {
 			dev_err(dev, "Error reading constant dma data\n");
 			ret = -EINVAL;
@@ -1158,6 +1161,7 @@ static struct ethosn_network *create_network(struct ethosn_device *ethosn, struc
 		goto err_unmap_const_cu_data;
 	}
 
+    // 这里我们看到 net_req 只给了推理数据的 IO buffer 的描述
 	ret = alloc_init_inference_data(network, net_req);
 	if (ret)
 		goto err_unmap_const_cu_data;
@@ -1257,7 +1261,7 @@ int ethosn_network_register(struct ethosn_device *ethosn, struct ethosn_dma_allo
 	if (asset_allocator->pid != ETHOSN_INVALID_PID)
 		ethosn_asset_allocator_get(asset_allocator);
 
-	dev_dbg(ethosn->dev, "Registered %sprotected network. handle=0x%pK\n", network->asset_allocator->is_protected ? "" : "non-", network);
+	dev_dbg(ethosn->dev, "Registered %sprotected network. handle=0x%pK\n", network->asset_allocator->is_protected ? "":"non-", network);
 
 	return fd;
 }

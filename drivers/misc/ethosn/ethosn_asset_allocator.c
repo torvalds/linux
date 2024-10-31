@@ -39,6 +39,7 @@ static void ethosn_asset_allocator_unreserve(struct ethosn_dma_allocator *asset_
 	asset_allocator->pid = ETHOSN_INVALID_PID;
 }
 
+// 引用计数清空时的回调函数: 重置绑定的进程, 使当前 asset_allocator 可用
 static void asset_allocator_kref_release(struct kref *kref)
 {
 	struct ethosn_dma_allocator *const asset_allocator = container_of(kref, struct ethosn_dma_allocator, kref);
@@ -46,6 +47,7 @@ static void asset_allocator_kref_release(struct kref *kref)
 	ethosn_asset_allocator_unreserve(asset_allocator);
 }
 
+// 将当前 asset_allocator 引用计数 + 1
 void ethosn_asset_allocator_get(struct ethosn_dma_allocator *asset_allocator)
 {
 	if (WARN_ON_ONCE(!asset_allocator))
@@ -72,6 +74,7 @@ void ethosn_asset_allocator_get(struct ethosn_dma_allocator *asset_allocator)
  * * -EINVAL: If asset_allocator is NULL.
  * * 1 if the object was released and 0 otherwise.
  */
+// 当前 asset_allocator 引用计数 - 1
 int __must_check ethosn_asset_allocator_put(struct ethosn_dma_allocator *asset_allocator)
 {
 	if (WARN_ON_ONCE(!asset_allocator))
