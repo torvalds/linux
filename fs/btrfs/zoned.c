@@ -1739,7 +1739,7 @@ bool btrfs_use_zone_append(struct btrfs_bio *bbio)
 		return false;
 
 	/*
-	 * Using REQ_OP_ZONE_APPNED for relocation can break assumptions on the
+	 * Using REQ_OP_ZONE_APPEND for relocation can break assumptions on the
 	 * extent layout the relocation code has.
 	 * Furthermore we have set aside own block-group from which only the
 	 * relocation "process" can allocate and make sure only one process at a
