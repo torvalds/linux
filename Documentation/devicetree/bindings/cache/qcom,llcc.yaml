@@ -21,6 +21,7 @@ properties:
   compatible:
     enum:
       - qcom,qcs615-llcc
+      - qcom,qcs8300-llcc
       - qcom,qdu1000-llcc
       - qcom,sa8775p-llcc
       - qcom,sar1130p-llcc
@@ -195,6 +196,7 @@ allOf:
         compatible:
           contains:
             enum:
+              - qcom,qcs8300-llcc
               - qcom,sdm845-llcc
               - qcom,sm8150-llcc
               - qcom,sm8250-llcc
