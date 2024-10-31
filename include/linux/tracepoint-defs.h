@@ -32,6 +32,8 @@ struct tracepoint_func {
 struct tracepoint_ext {
 	int (*regfunc)(void);
 	void (*unregfunc)(void);
+	/* Flags. */
+	unsigned int faultable:1;
 };
 
 struct tracepoint {
