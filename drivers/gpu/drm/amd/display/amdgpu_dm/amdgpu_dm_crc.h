@@ -42,6 +42,14 @@ enum amdgpu_dm_pipe_crc_source {
 #ifdef CONFIG_DRM_AMD_SECURE_DISPLAY
 #define MAX_CRTC 6
 
+enum secure_display_mode {
+	/* via dmub + psp */
+	LEGACY_MODE = 0,
+	/* driver directly */
+	DISPLAY_CRC_MODE,
+	SECURE_DISPLAY_MODE_MAX,
+};
+
 struct phy_id_mapping {
 	bool assigned;
 	bool is_mst;
@@ -98,6 +106,7 @@ struct secure_display_context {
 	struct secure_display_crtc_context *crtc_ctx;
     /* Whether dmub support multiple ROI setting */
 	bool support_mul_roi;
+	enum secure_display_mode op_mode;
 	bool phy_mapping_updated;
 	int phy_id_mapping_cnt;
 	struct phy_id_mapping phy_id_mapping[MAX_CRTC];
