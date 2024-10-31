@@ -3256,19 +3256,19 @@ static bool xelpdp_is_only_pipe_per_dbuf_bank(enum pipe pipe, u8 active_pipes)
 {
 	switch (pipe) {
 	case PIPE_A:
-		return !(active_pipes & BIT(PIPE_D));
 	case PIPE_D:
-		return !(active_pipes & BIT(PIPE_A));
+		active_pipes &= BIT(PIPE_A) | BIT(PIPE_D);
+		break;
 	case PIPE_B:
-		return !(active_pipes & BIT(PIPE_C));
 	case PIPE_C:
-		return !(active_pipes & BIT(PIPE_B));
+		active_pipes &= BIT(PIPE_B) | BIT(PIPE_C);
+		break;
 	default: /* to suppress compiler warning */
 		MISSING_CASE(pipe);
-		break;
+		return false;
 	}
 
-	return false;
+	return is_power_of_2(active_pipes);
 }
 
 static u32 pipe_mbus_dbox_ctl(const struct intel_crtc *crtc,
