@@ -1434,6 +1434,15 @@ bch2_btree_insert_keys_interior(struct btree_update *as,
 	}
 }
 
+static bool key_deleted_in_insert(struct keylist *insert_keys, struct bpos pos)
+{
+	if (insert_keys)
+		for_each_keylist_key(insert_keys, k)
+			if (bkey_deleted(&k->k) && bpos_eq(k->k.p, pos))
+				return true;
+	return false;
+}
+
 /*
  * Move keys from n1 (original replacement node, now lower node) to n2 (higher
  * node)
@@ -1441,7 +1450,8 @@ bch2_btree_insert_keys_interior(struct btree_update *as,
 static void __btree_split_node(struct btree_update *as,
 			       struct btree_trans *trans,
 			       struct btree *b,
-			       struct btree *n[2])
+			       struct btree *n[2],
+			       struct keylist *insert_keys)
 {
 	struct bkey_packed *k;
 	struct bpos n1_pos = POS_MIN;
@@ -1476,7 +1486,8 @@ static void __btree_split_node(struct btree_update *as,
 		if (b->c.level &&
 		    u64s < n1_u64s &&
 		    u64s + k->u64s >= n1_u64s &&
-		    bch2_key_deleted_in_journal(trans, b->c.btree_id, b->c.level, uk.p))
+		    (bch2_key_deleted_in_journal(trans, b->c.btree_id, b->c.level, uk.p) ||
+		     key_deleted_in_insert(insert_keys, uk.p)))
 			n1_u64s += k->u64s;
 
 		i = u64s >= n1_u64s;
@@ -1603,7 +1614,7 @@ static int btree_split(struct btree_update *as, struct btree_trans *trans,
 		n[0] = n1 = bch2_btree_node_alloc(as, trans, b->c.level);
 		n[1] = n2 = bch2_btree_node_alloc(as, trans, b->c.level);
 
-		__btree_split_node(as, trans, b, n);
+		__btree_split_node(as, trans, b, n, keys);
 
 		if (keys) {
 			btree_split_insert_keys(as, trans, path, n1, keys);
