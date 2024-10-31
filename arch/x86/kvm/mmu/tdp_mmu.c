@@ -638,6 +638,16 @@ static inline void tdp_mmu_iter_set_spte(struct kvm *kvm, struct tdp_iter *iter,
 #define tdp_mmu_for_each_pte(_iter, _mmu, _start, _end)		\
 	for_each_tdp_pte(_iter, root_to_sp(_mmu->root.hpa), _start, _end)
 
+static inline bool __must_check tdp_mmu_iter_need_resched(struct kvm *kvm,
+							  struct tdp_iter *iter)
+{
+	if (!need_resched() && !rwlock_needbreak(&kvm->mmu_lock))
+		return false;
+
+	/* Ensure forward progress has been made before yielding. */
+	return iter->next_last_level_gfn != iter->yielded_gfn;
+}
+
 /*
  * Yield if the MMU lock is contended or this thread needs to return control
  * to the scheduler.
@@ -658,11 +668,7 @@ static inline bool __must_check tdp_mmu_iter_cond_resched(struct kvm *kvm,
 {
 	KVM_MMU_WARN_ON(iter->yielded);
 
-	if (!need_resched() && !rwlock_needbreak(&kvm->mmu_lock))
-		return false;
-
-	/* Ensure forward progress has been made before yielding. */
-	if (iter->next_last_level_gfn == iter->yielded_gfn)
+	if (!tdp_mmu_iter_need_resched(kvm, iter))
 		return false;
 
 	if (flush)
