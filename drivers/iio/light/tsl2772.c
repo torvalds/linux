@@ -1081,7 +1081,7 @@ static int tsl2772_write_interrupt_config(struct iio_dev *indio_dev,
 					  const struct iio_chan_spec *chan,
 					  enum iio_event_type type,
 					  enum iio_event_direction dir,
-					  int val)
+					  bool val)
 {
 	struct tsl2772_chip *chip = iio_priv(indio_dev);
 

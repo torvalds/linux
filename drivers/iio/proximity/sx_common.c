@@ -268,7 +268,7 @@ EXPORT_SYMBOL_NS_GPL(sx_common_read_event_config, SEMTECH_PROX);
 int sx_common_write_event_config(struct iio_dev *indio_dev,
 				 const struct iio_chan_spec *chan,
 				 enum iio_event_type type,
-				 enum iio_event_direction dir, int state)
+				 enum iio_event_direction dir, bool state)
 {
 	struct sx_common_data *data = iio_priv(indio_dev);
 	unsigned int eventirq = SX_COMMON_FAR_IRQ | SX_COMMON_CLOSE_IRQ;

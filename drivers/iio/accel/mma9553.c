@@ -725,7 +725,8 @@ static int mma9553_read_event_config(struct iio_dev *indio_dev,
 static int mma9553_write_event_config(struct iio_dev *indio_dev,
 				      const struct iio_chan_spec *chan,
 				      enum iio_event_type type,
-				      enum iio_event_direction dir, int state)
+				      enum iio_event_direction dir,
+				      bool state)
 {
 	struct mma9553_data *data = iio_priv(indio_dev);
 	struct mma9553_event *event;

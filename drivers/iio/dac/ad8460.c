@@ -573,7 +573,7 @@ static int ad8460_read_event_value(struct iio_dev *indio_dev,
 static int ad8460_write_event_config(struct iio_dev *indio_dev,
 				     const struct iio_chan_spec *chan,
 				     enum iio_event_type type,
-				     enum iio_event_direction dir, int val)
+				     enum iio_event_direction dir, bool val)
 {
 	struct ad8460_state *state = iio_priv(indio_dev);
 	int fault;

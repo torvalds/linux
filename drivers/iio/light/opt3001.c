@@ -634,7 +634,7 @@ static int opt3001_read_event_config(struct iio_dev *iio,
 
 static int opt3001_write_event_config(struct iio_dev *iio,
 		const struct iio_chan_spec *chan, enum iio_event_type type,
-		enum iio_event_direction dir, int state)
+		enum iio_event_direction dir, bool state)
 {
 	struct opt3001 *opt = iio_priv(iio);
 	int ret;

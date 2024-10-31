@@ -785,7 +785,7 @@ static const struct attribute_group bmi323_event_attribute_group = {
 static int bmi323_write_event_config(struct iio_dev *indio_dev,
 				     const struct iio_chan_spec *chan,
 				     enum iio_event_type type,
-				     enum iio_event_direction dir, int state)
+				     enum iio_event_direction dir, bool state)
 {
 	struct bmi323_data *data = iio_priv(indio_dev);
 

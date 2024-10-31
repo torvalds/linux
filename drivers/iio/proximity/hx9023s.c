@@ -874,7 +874,7 @@ static int hx9023s_write_event_config(struct iio_dev *indio_dev,
 				      const struct iio_chan_spec *chan,
 				      enum iio_event_type type,
 				      enum iio_event_direction dir,
-				      int state)
+				      bool state)
 {
 	struct hx9023s_data *data = iio_priv(indio_dev);
 

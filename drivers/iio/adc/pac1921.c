@@ -699,7 +699,8 @@ static int pac1921_read_event_config(struct iio_dev *indio_dev,
 static int pac1921_write_event_config(struct iio_dev *indio_dev,
 				      const struct iio_chan_spec *chan,
 				      enum iio_event_type type,
-				      enum iio_event_direction dir, int state)
+				      enum iio_event_direction dir,
+				      bool state)
 {
 	struct pac1921_priv *priv = iio_priv(indio_dev);
 	u8 ovf_bit;
