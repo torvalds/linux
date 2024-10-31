@@ -192,7 +192,7 @@ static int amdgpu_reserve_page_direct(struct amdgpu_device *adev, uint64_t addre
 
 	if (amdgpu_bad_page_threshold != 0) {
 		amdgpu_ras_add_bad_pages(adev, err_data.err_addr,
-					 err_data.err_addr_cnt);
+					 err_data.err_addr_cnt, false);
 		amdgpu_ras_save_bad_pages(adev, NULL);
 	}
 
@@ -2728,7 +2728,7 @@ static int amdgpu_ras_realloc_eh_data_space(struct amdgpu_device *adev,
 	return 0;
 }
 
-static int amdgpu_ras_mca2pa(struct amdgpu_device *adev,
+static int amdgpu_ras_mca2pa_by_idx(struct amdgpu_device *adev,
 			struct eeprom_table_record *bps,
 			struct ras_err_data *err_data)
 {
@@ -2757,9 +2757,46 @@ static int amdgpu_ras_mca2pa(struct amdgpu_device *adev,
 	return ret;
 }
 
+static int amdgpu_ras_mca2pa(struct amdgpu_device *adev,
+			struct eeprom_table_record *bps,
+			struct ras_err_data *err_data)
+{
+	struct ta_ras_query_address_input addr_in;
+	uint32_t die_id, socket = 0;
+
+	if (adev->smuio.funcs && adev->smuio.funcs->get_socket_id)
+		socket = adev->smuio.funcs->get_socket_id(adev);
+
+	/* although die id is gotten from PA in nps1 mode, the id is
+	 * fitable for any nps mode
+	 */
+	if (adev->umc.ras && adev->umc.ras->get_die_id_from_pa)
+		die_id = adev->umc.ras->get_die_id_from_pa(adev, bps->address,
+					bps->retired_page << AMDGPU_GPU_PAGE_SHIFT);
+	else
+		return -EINVAL;
+
+	/* reinit err_data */
+	err_data->err_addr_cnt = 0;
+	err_data->err_addr_len = adev->umc.retire_unit;
+
+	memset(&addr_in, 0, sizeof(addr_in));
+	addr_in.ma.err_addr = bps->address;
+	addr_in.ma.ch_inst = bps->mem_channel;
+	addr_in.ma.umc_inst = bps->mcumc_id;
+	addr_in.ma.node_inst = die_id;
+	addr_in.ma.socket_id = socket;
+
+	if (adev->umc.ras && adev->umc.ras->convert_ras_err_addr)
+		return adev->umc.ras->convert_ras_err_addr(adev, err_data,
+					&addr_in, NULL, false);
+	else
+		return  -EINVAL;
+}
+
 /* it deal with vram only. */
 int amdgpu_ras_add_bad_pages(struct amdgpu_device *adev,
-		struct eeprom_table_record *bps, int pages)
+		struct eeprom_table_record *bps, int pages, bool from_rom)
 {
 	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
 	struct ras_err_handler_data *data;
@@ -2782,12 +2819,7 @@ int amdgpu_ras_add_bad_pages(struct amdgpu_device *adev,
 			is_mca_add = false;
 	}
 
-	mutex_lock(&con->recovery_lock);
-	data = con->eh_data;
-	if (!data)
-		goto out;
-
-	if (is_mca_add) {
+	if (from_rom) {
 		err_data.err_addr =
 			kcalloc(adev->umc.retire_unit,
 				sizeof(struct eeprom_table_record), GFP_KERNEL);
@@ -2797,15 +2829,21 @@ int amdgpu_ras_add_bad_pages(struct amdgpu_device *adev,
 			goto out;
 		}
 
+		err_rec = err_data.err_addr;
 		loop_cnt = adev->umc.retire_unit;
 		if (adev->gmc.gmc_funcs->query_mem_partition_mode)
 			nps = adev->gmc.gmc_funcs->query_mem_partition_mode(adev);
 	}
 
+	mutex_lock(&con->recovery_lock);
+	data = con->eh_data;
+	if (!data)
+		goto free;
+
 	for (i = 0; i < pages; i++) {
 		if (is_mca_add) {
 			if (!find_pages_per_pa) {
-				if (amdgpu_ras_mca2pa(adev, &bps[i], &err_data)) {
+				if (amdgpu_ras_mca2pa_by_idx(adev, &bps[i], &err_data)) {
 					if (!i && nps == AMDGPU_NPS1_PARTITION_MODE) {
 						/* may use old RAS TA, use PA to find pages in
 						 * one row
@@ -2825,10 +2863,38 @@ int amdgpu_ras_add_bad_pages(struct amdgpu_device *adev,
 						bps[i].retired_page << AMDGPU_GPU_PAGE_SHIFT))
 					goto free;
 			}
-
-			err_rec = err_data.err_addr;
 		} else {
-			err_rec = &bps[i];
+			if (from_rom && !find_pages_per_pa) {
+				if (bps[i].retired_page & UMC_CHANNEL_IDX_V2) {
+					/* bad page in any NPS mode in eeprom */
+					if (amdgpu_ras_mca2pa_by_idx(adev, &bps[i], &err_data))
+						goto free;
+				} else {
+					/* legacy bad page in eeprom, generated only in
+					 * NPS1 mode
+					 */
+					if (amdgpu_ras_mca2pa(adev, &bps[i], &err_data)) {
+						/* old RAS TA or ASICs which don't support to
+						 * convert addrss via mca address
+						 */
+						if (!i && nps == AMDGPU_NPS1_PARTITION_MODE) {
+							find_pages_per_pa = true;
+							err_rec = &bps[i];
+							loop_cnt = 1;
+						} else {
+							/* non-nps1 mode, old RAS TA
+							 * can't support it
+							 */
+							goto free;
+						}
+					}
+				}
+
+				if (!find_pages_per_pa)
+					i += (adev->umc.retire_unit - 1);
+			} else {
+				err_rec = &bps[i];
+			}
 		}
 
 		for (j = 0; j < loop_cnt; j++) {
@@ -2852,7 +2918,7 @@ int amdgpu_ras_add_bad_pages(struct amdgpu_device *adev,
 	}
 
 free:
-	if (is_mca_add)
+	if (from_rom)
 		kfree(err_data.err_addr);
 out:
 	mutex_unlock(&con->recovery_lock);
@@ -2955,7 +3021,7 @@ static int amdgpu_ras_load_bad_pages(struct amdgpu_device *adev)
 				control->rec_type = AMDGPU_RAS_EEPROM_REC_MCA;
 		}
 
-		ret = amdgpu_ras_add_bad_pages(adev, bps, control->ras_num_recs);
+		ret = amdgpu_ras_add_bad_pages(adev, bps, control->ras_num_recs, true);
 	}
 
 	kfree(bps);
