@@ -2883,7 +2883,7 @@ static int f2fs_ioc_defragment(struct file *filp, unsigned long arg)
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
-	if (!S_ISREG(inode->i_mode) || f2fs_is_atomic_file(inode))
+	if (!S_ISREG(inode->i_mode))
 		return -EINVAL;
 
 	if (f2fs_readonly(sbi->sb))
