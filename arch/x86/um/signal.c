@@ -242,7 +242,7 @@ int setup_signal_stack_sc(unsigned long stack_top, struct ksignal *ksig,
 	if (ksig->ka.sa.sa_flags & SA_RESTORER)
 		restorer = ksig->ka.sa.sa_restorer;
 
-	err |= __put_user(restorer, (void **)&frame->pretcode);
+	err |= __put_user(restorer, (void __user * __user *)&frame->pretcode);
 	err |= __put_user(sig, &frame->sig);
 
 	fp_to = (unsigned long)frame + sizeof(*frame);
@@ -298,10 +298,10 @@ int setup_signal_stack_si(unsigned long stack_top, struct ksignal *ksig,
 	if (ksig->ka.sa.sa_flags & SA_RESTORER)
 		restorer = ksig->ka.sa.sa_restorer;
 
-	err |= __put_user(restorer, (void **)&frame->pretcode);
+	err |= __put_user(restorer, (void __user * __user *)&frame->pretcode);
 	err |= __put_user(sig, &frame->sig);
-	err |= __put_user(&frame->info, (void **)&frame->pinfo);
-	err |= __put_user(&frame->uc, (void **)&frame->puc);
+	err |= __put_user(&frame->info, (void __user * __user *)&frame->pinfo);
+	err |= __put_user(&frame->uc, (void __user * __user *)&frame->puc);
 	err |= copy_siginfo_to_user(&frame->info, &ksig->info);
 
 	fp_to = (unsigned long)frame + sizeof(*frame);
@@ -387,7 +387,7 @@ int setup_signal_stack_si(unsigned long stack_top, struct ksignal *ksig,
 
 	/* Create the ucontext.  */
 	err |= __put_user(0, &frame->uc.uc_flags);
-	err |= __put_user(0, &frame->uc.uc_link);
+	err |= __put_user(NULL, &frame->uc.uc_link);
 	err |= __save_altstack(&frame->uc.uc_stack, PT_REGS_SP(regs));
 
 	fp_to = (unsigned long)frame + sizeof(*frame);
@@ -411,7 +411,7 @@ int setup_signal_stack_si(unsigned long stack_top, struct ksignal *ksig,
 	 */
 	/* x86-64 should always use SA_RESTORER. */
 	if (ksig->ka.sa.sa_flags & SA_RESTORER)
-		err |= __put_user((void *)ksig->ka.sa.sa_restorer,
+		err |= __put_user((void __user *)ksig->ka.sa.sa_restorer,
 				  &frame->pretcode);
 	else
 		/* could use a vstub here */
