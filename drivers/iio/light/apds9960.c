@@ -133,8 +133,8 @@ struct apds9960_data {
 	struct regmap_field *reg_enable_pxs;
 
 	/* state */
-	int als_int;
-	int pxs_int;
+	bool als_int;
+	bool pxs_int;
 	int gesture_mode_running;
 
 	/* gain values */
