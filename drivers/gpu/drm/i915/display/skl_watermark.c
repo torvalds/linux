@@ -3271,22 +3271,11 @@ static bool xelpdp_is_only_pipe_per_dbuf_bank(enum pipe pipe, u8 active_pipes)
 	return false;
 }
 
-static void intel_mbus_dbox_update(struct intel_atomic_state *state)
+static u32 pipe_mbus_dbox_ctl(const struct intel_crtc *crtc,
+			      const struct intel_dbuf_state *dbuf_state)
 {
-	struct drm_i915_private *i915 = to_i915(state->base.dev);
-	const struct intel_dbuf_state *new_dbuf_state, *old_dbuf_state;
-	const struct intel_crtc *crtc;
+	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
 	u32 val = 0;
-
-	if (DISPLAY_VER(i915) < 11)
-		return;
-
-	new_dbuf_state = intel_atomic_get_new_dbuf_state(state);
-	old_dbuf_state = intel_atomic_get_old_dbuf_state(state);
-	if (!new_dbuf_state ||
-	    (new_dbuf_state->joined_mbus == old_dbuf_state->joined_mbus &&
-	     new_dbuf_state->active_pipes == old_dbuf_state->active_pipes))
-		return;
 
 	if (DISPLAY_VER(i915) >= 14)
 		val |= MBUS_DBOX_I_CREDIT(2);
@@ -3298,12 +3287,12 @@ static void intel_mbus_dbox_update(struct intel_atomic_state *state)
 	}
 
 	if (DISPLAY_VER(i915) >= 14)
-		val |= new_dbuf_state->joined_mbus ? MBUS_DBOX_A_CREDIT(12) :
-						     MBUS_DBOX_A_CREDIT(8);
+		val |= dbuf_state->joined_mbus ?
+			MBUS_DBOX_A_CREDIT(12) : MBUS_DBOX_A_CREDIT(8);
 	else if (IS_ALDERLAKE_P(i915))
 		/* Wa_22010947358:adl-p */
-		val |= new_dbuf_state->joined_mbus ? MBUS_DBOX_A_CREDIT(6) :
-						     MBUS_DBOX_A_CREDIT(4);
+		val |= dbuf_state->joined_mbus ?
+			MBUS_DBOX_A_CREDIT(6) : MBUS_DBOX_A_CREDIT(4);
 	else
 		val |= MBUS_DBOX_A_CREDIT(2);
 
@@ -3320,19 +3309,35 @@ static void intel_mbus_dbox_update(struct intel_atomic_state *state)
 		val |= MBUS_DBOX_B_CREDIT(8);
 	}
 
-	for_each_intel_crtc_in_pipe_mask(&i915->drm, crtc, new_dbuf_state->active_pipes) {
-		u32 pipe_val = val;
-
-		if (DISPLAY_VERx100(i915) == 1400) {
-			if (xelpdp_is_only_pipe_per_dbuf_bank(crtc->pipe,
-							      new_dbuf_state->active_pipes))
-				pipe_val |= MBUS_DBOX_BW_8CREDITS_MTL;
-			else
-				pipe_val |= MBUS_DBOX_BW_4CREDITS_MTL;
-		}
-
-		intel_de_write(i915, PIPE_MBUS_DBOX_CTL(crtc->pipe), pipe_val);
+	if (DISPLAY_VERx100(i915) == 1400) {
+		if (xelpdp_is_only_pipe_per_dbuf_bank(crtc->pipe, dbuf_state->active_pipes))
+			val |= MBUS_DBOX_BW_8CREDITS_MTL;
+		else
+			val |= MBUS_DBOX_BW_4CREDITS_MTL;
 	}
+
+	return val;
+}
+
+static void intel_mbus_dbox_update(struct intel_atomic_state *state)
+{
+	struct drm_i915_private *i915 = to_i915(state->base.dev);
+	const struct intel_dbuf_state *new_dbuf_state, *old_dbuf_state;
+	const struct intel_crtc *crtc;
+
+	if (DISPLAY_VER(i915) < 11)
+		return;
+
+	new_dbuf_state = intel_atomic_get_new_dbuf_state(state);
+	old_dbuf_state = intel_atomic_get_old_dbuf_state(state);
+	if (!new_dbuf_state ||
+	    (new_dbuf_state->joined_mbus == old_dbuf_state->joined_mbus &&
+	     new_dbuf_state->active_pipes == old_dbuf_state->active_pipes))
+		return;
+
+	for_each_intel_crtc_in_pipe_mask(&i915->drm, crtc, new_dbuf_state->active_pipes)
+		intel_de_write(i915, PIPE_MBUS_DBOX_CTL(crtc->pipe),
+			       pipe_mbus_dbox_ctl(crtc, new_dbuf_state));
 }
 
 int intel_dbuf_state_set_mdclk_cdclk_ratio(struct intel_atomic_state *state,
