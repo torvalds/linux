@@ -1733,8 +1733,12 @@ void bch2_delete_dead_snapshots_work(struct work_struct *work)
 
 void bch2_delete_dead_snapshots_async(struct bch_fs *c)
 {
-	if (bch2_write_ref_tryget(c, BCH_WRITE_REF_delete_dead_snapshots) &&
-	    !queue_work(c->write_ref_wq, &c->snapshot_delete_work))
+	if (!bch2_write_ref_tryget(c, BCH_WRITE_REF_delete_dead_snapshots))
+		return;
+
+	BUG_ON(!test_bit(BCH_FS_may_go_rw, &c->flags));
+
+	if (!queue_work(c->write_ref_wq, &c->snapshot_delete_work))
 		bch2_write_ref_put(c, BCH_WRITE_REF_delete_dead_snapshots);
 }
 

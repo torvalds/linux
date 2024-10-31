@@ -971,24 +971,6 @@ int bch2_trans_commit_error(struct btree_trans *trans, unsigned flags,
 	return ret;
 }
 
-static noinline int
-bch2_trans_commit_get_rw_cold(struct btree_trans *trans, unsigned flags)
-{
-	struct bch_fs *c = trans->c;
-	int ret;
-
-	if (likely(!(flags & BCH_TRANS_COMMIT_lazy_rw)) ||
-	    test_bit(BCH_FS_started, &c->flags))
-		return -BCH_ERR_erofs_trans_commit;
-
-	ret = drop_locks_do(trans, bch2_fs_read_write_early(c));
-	if (ret)
-		return ret;
-
-	bch2_write_ref_get(c, BCH_WRITE_REF_trans);
-	return 0;
-}
-
 /*
  * This is for updates done in the early part of fsck - btree_gc - before we've
  * gone RW. we only add the new key to the list of keys for journal replay to
@@ -1037,16 +1019,13 @@ int __bch2_trans_commit(struct btree_trans *trans, unsigned flags)
 	if (ret)
 		goto out_reset;
 
-	if (unlikely(!test_bit(BCH_FS_may_go_rw, &c->flags))) {
-		ret = do_bch2_trans_commit_to_journal_replay(trans);
-		goto out_reset;
-	}
-
 	if (!(flags & BCH_TRANS_COMMIT_no_check_rw) &&
 	    unlikely(!bch2_write_ref_tryget(c, BCH_WRITE_REF_trans))) {
-		ret = bch2_trans_commit_get_rw_cold(trans, flags);
-		if (ret)
-			goto out_reset;
+		if (unlikely(!test_bit(BCH_FS_may_go_rw, &c->flags)))
+			ret = do_bch2_trans_commit_to_journal_replay(trans);
+		else
+			ret = -BCH_ERR_erofs_trans_commit;
+		goto out_reset;
 	}
 
 	EBUG_ON(test_bit(BCH_FS_clean_shutdown, &c->flags));

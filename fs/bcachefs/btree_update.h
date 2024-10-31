@@ -24,7 +24,6 @@ void bch2_btree_insert_key_leaf(struct btree_trans *, struct btree_path *,
 #define BCH_TRANS_COMMIT_FLAGS()							\
 	x(no_enospc,	"don't check for enospc")					\
 	x(no_check_rw,	"don't attempt to take a ref on c->writes")			\
-	x(lazy_rw,	"go read-write if we haven't yet - only for use in recovery")	\
 	x(no_journal_res, "don't take a journal reservation, instead "			\
 			"pin journal entry referred to by trans->journal_res.seq")	\
 	x(journal_reclaim, "operation required for journal reclaim; may return error"	\

@@ -908,7 +908,7 @@ static int bch2_gc_alloc_done(struct bch_fs *c)
 					POS(ca->dev_idx, ca->mi.first_bucket),
 					POS(ca->dev_idx, ca->mi.nbuckets - 1),
 					BTREE_ITER_slots|BTREE_ITER_prefetch, k,
-					NULL, NULL, BCH_TRANS_COMMIT_lazy_rw,
+					NULL, NULL, BCH_TRANS_COMMIT_no_enospc,
 				bch2_alloc_write_key(trans, &iter, ca, k)));
 		if (ret) {
 			bch2_dev_put(ca);

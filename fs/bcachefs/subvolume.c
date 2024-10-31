@@ -675,7 +675,7 @@ err:
 /* set bi_subvol on root inode */
 int bch2_fs_upgrade_for_subvolumes(struct bch_fs *c)
 {
-	int ret = bch2_trans_commit_do(c, NULL, NULL, BCH_TRANS_COMMIT_lazy_rw,
+	int ret = bch2_trans_commit_do(c, NULL, NULL, BCH_TRANS_COMMIT_no_enospc,
 				       __bch2_fs_upgrade_for_subvolumes(trans));
 	bch_err_fn(c, ret);
 	return ret;
