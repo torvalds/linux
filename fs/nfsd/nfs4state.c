@@ -3472,7 +3472,7 @@ static bool client_has_state(struct nfs4_client *clp)
 #endif
 		|| !list_empty(&clp->cl_delegations)
 		|| !list_empty(&clp->cl_sessions)
-		|| !list_empty(&clp->async_copies);
+		|| nfsd4_has_active_async_copies(clp);
 }
 
 static __be32 copy_impl_id(struct nfs4_client *clp,

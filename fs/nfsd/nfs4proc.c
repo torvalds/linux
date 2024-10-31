@@ -1278,6 +1278,36 @@ out:
 	return status;
 }
 
+/**
+ * nfsd4_has_active_async_copies - Check for ongoing copy operations
+ * @clp: Client to be checked
+ *
+ * NFSD maintains state for async COPY operations after they complete,
+ * and this state remains in the nfs4_client's async_copies list.
+ * Ongoing copies should block the destruction of the nfs4_client, but
+ * completed copies should not.
+ *
+ * Return values:
+ *   %true: At least one active async COPY is ongoing
+ *   %false: No active async COPY operations were found
+ */
+bool nfsd4_has_active_async_copies(struct nfs4_client *clp)
+{
+	struct nfsd4_copy *copy;
+	bool result = false;
+
+	spin_lock(&clp->async_lock);
+	list_for_each_entry(copy, &clp->async_copies, copies) {
+		if (!test_bit(NFSD4_COPY_F_COMPLETED, &copy->cp_flags) &&
+		    !test_bit(NFSD4_COPY_F_STOPPED, &copy->cp_flags)) {
+			result = true;
+			break;
+		}
+	}
+	spin_unlock(&clp->async_lock);
+	return result;
+}
+
 static void nfs4_put_copy(struct nfsd4_copy *copy)
 {
 	if (!refcount_dec_and_test(&copy->refcount))
