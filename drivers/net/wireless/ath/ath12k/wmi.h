@@ -24,7 +24,7 @@
 
 struct ath12k_base;
 struct ath12k;
-struct ath12k_vif;
+struct ath12k_link_vif;
 
 /* There is no signed version of __le32, so for a temporary solution come
  * up with our own version. The idea is from fs/ntfs/endian.h.
@@ -5627,13 +5627,13 @@ int ath12k_wmi_wow_config_pno(struct ath12k *ar, u32 vdev_id,
 int ath12k_wmi_hw_data_filter_cmd(struct ath12k *ar,
 				  struct wmi_hw_data_filter_arg *arg);
 int ath12k_wmi_arp_ns_offload(struct ath12k *ar,
-			      struct ath12k_vif *arvif,
+			      struct ath12k_link_vif *arvif,
 			      struct wmi_arp_ns_offload_arg *offload,
 			      bool enable);
 int ath12k_wmi_gtk_rekey_offload(struct ath12k *ar,
-				 struct ath12k_vif *arvif, bool enable);
+				 struct ath12k_link_vif *arvif, bool enable);
 int ath12k_wmi_gtk_rekey_getinfo(struct ath12k *ar,
-				 struct ath12k_vif *arvif);
+				 struct ath12k_link_vif *arvif);
 int ath12k_wmi_sta_keepalive(struct ath12k *ar,
 			     const struct wmi_sta_keepalive_arg *arg);
 

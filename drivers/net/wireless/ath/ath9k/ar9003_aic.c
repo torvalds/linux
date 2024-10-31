@@ -409,13 +409,11 @@ static bool ar9003_aic_cal_post_process(struct ath_hw *ah)
 		sram.valid = true;
 
 		sram.rot_dir_att_db =
-			min(max(rot_dir_path_att_db,
-				(int16_t)ATH_AIC_MIN_ROT_DIR_ATT_DB),
-			    ATH_AIC_MAX_ROT_DIR_ATT_DB);
+			clamp(rot_dir_path_att_db, (int16_t)ATH_AIC_MIN_ROT_DIR_ATT_DB,
+			      ATH_AIC_MAX_ROT_DIR_ATT_DB);
 		sram.rot_quad_att_db =
-			min(max(rot_quad_path_att_db,
-				(int16_t)ATH_AIC_MIN_ROT_QUAD_ATT_DB),
-			    ATH_AIC_MAX_ROT_QUAD_ATT_DB);
+			clamp(rot_quad_path_att_db, (int16_t)ATH_AIC_MIN_ROT_QUAD_ATT_DB,
+			      ATH_AIC_MAX_ROT_QUAD_ATT_DB);
 
 		aic->aic_sram[i] = (SM(sram.vga_dir_sign,
 				       AR_PHY_AIC_SRAM_VGA_DIR_SIGN) |
