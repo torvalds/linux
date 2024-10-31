@@ -363,4 +363,6 @@ void hubp401_program_3dlut_fl_format(struct hubp *hubp, enum hubp_3dlut_fl_forma
 
 void hubp401_program_3dlut_fl_mode(struct hubp *hubp, enum hubp_3dlut_fl_mode mode);
 
+void hubp401_clear_tiling(struct hubp *hubp);
+
 #endif /* __DC_HUBP_DCN401_H__ */
