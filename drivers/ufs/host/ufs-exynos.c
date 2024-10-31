@@ -200,16 +200,12 @@ static inline void exynos_ufs_ungate_clks(struct exynos_ufs *ufs)
 
 static int exynosauto_ufs_drv_init(struct exynos_ufs *ufs)
 {
-	struct exynos_ufs_uic_attr *attr = ufs->drv_data->uic_attr;
-
 	/* IO Coherency setting */
 	if (ufs->sysreg) {
 		return regmap_update_bits(ufs->sysreg,
 					  ufs->shareability_reg_offset,
 					  UFS_SHARABLE, UFS_SHARABLE);
 	}
-
-	attr->tx_dif_p_nsec = 3200000;
 
 	return 0;
 }
