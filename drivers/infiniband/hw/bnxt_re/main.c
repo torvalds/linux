@@ -2025,7 +2025,15 @@ static int bnxt_re_probe(struct auxiliary_device *adev,
 	auxiliary_set_drvdata(adev, en_info);
 
 	rc = bnxt_re_add_device(adev, BNXT_RE_COMPLETE_INIT);
+	if (rc)
+		goto err;
 	mutex_unlock(&bnxt_re_mutex);
+	return 0;
+
+err:
+	mutex_unlock(&bnxt_re_mutex);
+	kfree(en_info);
+
 	return rc;
 }
 
