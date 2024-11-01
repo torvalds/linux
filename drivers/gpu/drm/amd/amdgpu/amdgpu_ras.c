@@ -2802,22 +2802,15 @@ int amdgpu_ras_add_bad_pages(struct amdgpu_device *adev,
 	struct ras_err_handler_data *data;
 	struct ras_err_data err_data;
 	struct eeprom_table_record *err_rec;
+	struct amdgpu_ras_eeprom_control *control =
+			&adev->psp.ras_context.ras->eeprom_control;
 	enum amdgpu_memory_partition nps = AMDGPU_NPS1_PARTITION_MODE;
 	int ret = 0;
 	uint32_t i, j, loop_cnt = 1;
-	bool is_mca_add = true, find_pages_per_pa = false;
+	bool find_pages_per_pa = false;
 
 	if (!con || !con->eh_data || !bps || pages <= 0)
 		return 0;
-
-	if (!adev->umc.ras || !adev->umc.ras->convert_ras_err_addr) {
-		is_mca_add = false;
-	} else {
-		if ((pages > 1) &&
-		    (bps[0].address == bps[1].address) &&
-		    (bps[0].mem_channel == bps[1].mem_channel))
-			is_mca_add = false;
-	}
 
 	if (from_rom) {
 		err_data.err_addr =
@@ -2841,7 +2834,8 @@ int amdgpu_ras_add_bad_pages(struct amdgpu_device *adev,
 		goto free;
 
 	for (i = 0; i < pages; i++) {
-		if (is_mca_add) {
+		if (from_rom &&
+		    control->rec_type == AMDGPU_RAS_EEPROM_REC_MCA) {
 			if (!find_pages_per_pa) {
 				if (amdgpu_ras_mca2pa_by_idx(adev, &bps[i], &err_data)) {
 					if (!i && nps == AMDGPU_NPS1_PARTITION_MODE) {
