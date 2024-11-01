@@ -17,9 +17,9 @@
 #include <linux/net_tstamp.h>
 
 #include "stmmac.h"
+#include "stmmac_fpe.h"
 #include "dwmac_dma.h"
 #include "dwxgmac2.h"
-#include "dwmac5.h"
 
 #define REG_SPACE_SIZE	0x1060
 #define GMAC4_REG_SPACE_SIZE	0x116C
