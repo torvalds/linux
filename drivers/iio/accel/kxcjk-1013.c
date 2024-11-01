@@ -193,23 +193,6 @@ static const struct kx_odr_start_up_time kxcjk1013_odr_start_up_times[] = {
 	{ }
 };
 
-/* KXCJ9-1008 */
-static const struct kx_odr_start_up_time kxcj91008_odr_start_up_times[] = {
-	{ 0x08, 100000 },
-	{ 0x09, 100000 },
-	{ 0x0A, 100000 },
-	{ 0x0B, 100000 },
-	{ 0x00, 80000 },
-	{ 0x01, 41000 },
-	{ 0x02, 21000 },
-	{ 0x03, 11000 },
-	{ 0x04, 6400 },
-	{ 0x05, 3900 },
-	{ 0x06, 2700 },
-	{ 0x07, 2100 },
-	{ }
-};
-
 /* KXCTJ2-1009 */
 static const struct kx_odr_start_up_time kxtj21009_odr_start_up_times[] = {
 	{ 0x08, 1240000 },
@@ -325,24 +308,24 @@ static const struct kx_chipset_info kxcjk1013_info = {
 
 static const struct kx_chipset_info kxcj91008_info = {
 	.regs = &kxcjk1013_regs,
-	.times = pm_ptr(kxcj91008_odr_start_up_times),
+	.times = pm_ptr(kxcjk1013_odr_start_up_times),
 };
 
 static const struct kx_chipset_info kxcj91008_kiox010a_info = {
 	.regs = &kxcjk1013_regs,
-	.times = pm_ptr(kxcj91008_odr_start_up_times),
+	.times = pm_ptr(kxcjk1013_odr_start_up_times),
 	.acpi_type = ACPI_KIOX010A,
 };
 
 static const struct kx_chipset_info kxcj91008_kiox020a_info = {
 	.regs = &kxcjk1013_regs,
-	.times = pm_ptr(kxcj91008_odr_start_up_times),
+	.times = pm_ptr(kxcjk1013_odr_start_up_times),
 	.acpi_type = ACPI_GENERIC,
 };
 
 static const struct kx_chipset_info kxcj91008_smo8500_info = {
 	.regs = &kxcjk1013_regs,
-	.times = pm_ptr(kxcj91008_odr_start_up_times),
+	.times = pm_ptr(kxcjk1013_odr_start_up_times),
 	.acpi_type = ACPI_SMO8500,
 };
 
