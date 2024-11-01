@@ -70,24 +70,17 @@ static int idio_16_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	struct device *const dev = &pdev->dev;
 	int err;
 	const size_t pci_bar_index = 2;
-	const char *const name = pci_name(pdev);
 	struct idio_16_regmap_config config = {};
 	void __iomem *regs;
 	struct regmap *map;
 
 	err = pcim_enable_device(pdev);
-	if (err) {
-		dev_err(dev, "Failed to enable PCI device (%d)\n", err);
-		return err;
-	}
+	if (err)
+		return dev_err_probe(dev, err, "Failed to enable PCI device\n");
 
-	err = pcim_iomap_regions(pdev, BIT(pci_bar_index), name);
-	if (err) {
-		dev_err(dev, "Unable to map PCI I/O addresses (%d)\n", err);
-		return err;
-	}
-
-	regs = pcim_iomap_table(pdev)[pci_bar_index];
+	regs = pcim_iomap_region(pdev, pci_bar_index, pci_name(pdev));
+	if (IS_ERR(regs))
+		return dev_err_probe(dev, PTR_ERR(regs), "Unable to map PCI I/O addresses\n");
 
 	map = devm_regmap_init_mmio(dev, regs, &idio_16_regmap_config);
 	if (IS_ERR(map))
