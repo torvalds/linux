@@ -5548,13 +5548,38 @@ struct page *shmem_read_mapping_page_gfp(struct address_space *mapping,
 EXPORT_SYMBOL_GPL(shmem_read_mapping_page_gfp);
 
 #if defined(CONFIG_SYSFS) && defined(CONFIG_TMPFS)
+
+#define __INIT_KOBJ_ATTR(_name, _mode, _show, _store)			\
+{									\
+	.attr	= { .name = __stringify(_name), .mode = _mode },	\
+	.show	= _show,						\
+	.store	= _store,						\
+}
+
+#define TMPFS_ATTR_W(_name, _store)				\
+	static struct kobj_attribute tmpfs_attr_##_name =	\
+			__INIT_KOBJ_ATTR(_name, 0200, NULL, _store)
+
+#define TMPFS_ATTR_RW(_name, _show, _store)			\
+	static struct kobj_attribute tmpfs_attr_##_name =	\
+			__INIT_KOBJ_ATTR(_name, 0644, _show, _store)
+
+#define TMPFS_ATTR_RO(_name, _show)				\
+	static struct kobj_attribute tmpfs_attr_##_name =	\
+			__INIT_KOBJ_ATTR(_name, 0444, _show, NULL)
+
 #if IS_ENABLED(CONFIG_UNICODE)
-static DEVICE_STRING_ATTR_RO(casefold, 0444, "supported");
+static ssize_t casefold_show(struct kobject *kobj, struct kobj_attribute *a,
+			char *buf)
+{
+		return sysfs_emit(buf, "supported\n");
+}
+TMPFS_ATTR_RO(casefold, casefold_show);
 #endif
 
 static struct attribute *tmpfs_attributes[] = {
 #if IS_ENABLED(CONFIG_UNICODE)
-	&dev_attr_casefold.attr.attr,
+	&tmpfs_attr_casefold.attr,
 #endif
 	NULL
 };
