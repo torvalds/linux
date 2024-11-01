@@ -2628,23 +2628,23 @@ static void __kvm_apic_set_base(struct kvm_vcpu *vcpu, u64 value)
 	}
 }
 
-int kvm_apic_set_base(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
+int kvm_apic_set_base(struct kvm_vcpu *vcpu, u64 value, bool host_initiated)
 {
 	enum lapic_mode old_mode = kvm_get_apic_mode(vcpu);
-	enum lapic_mode new_mode = kvm_apic_mode(msr_info->data);
+	enum lapic_mode new_mode = kvm_apic_mode(value);
 	u64 reserved_bits = kvm_vcpu_reserved_gpa_bits_raw(vcpu) | 0x2ff |
 		(guest_cpuid_has(vcpu, X86_FEATURE_X2APIC) ? 0 : X2APIC_ENABLE);
 
-	if ((msr_info->data & reserved_bits) != 0 || new_mode == LAPIC_MODE_INVALID)
+	if ((value & reserved_bits) != 0 || new_mode == LAPIC_MODE_INVALID)
 		return 1;
-	if (!msr_info->host_initiated) {
+	if (!host_initiated) {
 		if (old_mode == LAPIC_MODE_X2APIC && new_mode == LAPIC_MODE_XAPIC)
 			return 1;
 		if (old_mode == LAPIC_MODE_DISABLED && new_mode == LAPIC_MODE_X2APIC)
 			return 1;
 	}
 
-	__kvm_apic_set_base(vcpu, msr_info->data);
+	__kvm_apic_set_base(vcpu, value);
 	kvm_recalculate_apic_map(vcpu->kvm);
 	return 0;
 }
