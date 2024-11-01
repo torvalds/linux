@@ -469,6 +469,9 @@ struct ath12k_link_sta {
 	struct ath12k_link_vif *arvif;
 	struct ath12k_sta *ahsta;
 
+	/* link address similar to ieee80211_link_sta */
+	u8 addr[ETH_ALEN];
+
 	/* the following are protected by ar->data_lock */
 	u32 changed; /* IEEE80211_RC_* */
 	u32 bw;
