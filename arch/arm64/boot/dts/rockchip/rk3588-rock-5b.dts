@@ -304,12 +304,12 @@
 	};
 
 	cooling-maps {
-		map1 {
+		map0 {
 			trip = <&package_fan0>;
 			cooling-device = <&fan THERMAL_NO_LIMIT 1>;
 		};
 
-		map2 {
+		map1 {
 			trip = <&package_fan1>;
 			cooling-device = <&fan 2 THERMAL_NO_LIMIT>;
 		};
