@@ -1,7 +1,0 @@
-# SPDX-License-Identifier: GPL-2.0-only
-config ORANGEFS_FS
-	tristate "ORANGEFS (Powered by PVFS) support"
-	select FS_POSIX_ACL
-	help
-	   Orange is a parallel file system designed for use on high end
-	   computing (HEC) systems.

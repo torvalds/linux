@@ -1,8 +1,0 @@
-# SPDX-License-Identifier: GPL-2.0-only
-config BOARD_TPCI200
-	tristate "Support for the TEWS TPCI-200 IndustryPack carrier board"
-	depends on IPACK_BUS
-	depends on PCI
-	help
-	  This driver adds support for the TEWS TPCI200 IndustryPack carrier board.
-	default n
