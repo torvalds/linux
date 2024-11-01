@@ -438,6 +438,6 @@ static void __exit cec_devnode_exit(void)
 subsys_initcall(cec_devnode_init);
 module_exit(cec_devnode_exit)
 
-MODULE_AUTHOR("Hans Verkuil <hans.verkuil@cisco.com>");
+MODULE_AUTHOR("Hans Verkuil <hansverk@cisco.com>");
 MODULE_DESCRIPTION("Device node registration for cec drivers");
 MODULE_LICENSE("GPL");

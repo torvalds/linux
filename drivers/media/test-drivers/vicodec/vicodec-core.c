@@ -26,7 +26,7 @@
 #include "codec-v4l2-fwht.h"
 
 MODULE_DESCRIPTION("Virtual codec device");
-MODULE_AUTHOR("Hans Verkuil <hans.verkuil@cisco.com>");
+MODULE_AUTHOR("Hans Verkuil <hansverk@cisco.com>");
 MODULE_LICENSE("GPL v2");
 
 static bool multiplanar;
