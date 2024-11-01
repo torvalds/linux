@@ -903,6 +903,35 @@ err:
 	return -EMSGSIZE;
 }
 
+static int bnxt_re_fill_res_mr_entry_raw(struct sk_buff *msg, struct ib_mr *ib_mr)
+{
+	struct bnxt_re_dev *rdev;
+	struct bnxt_re_mr *mr;
+	int err, len;
+	void *data;
+
+	mr = container_of(ib_mr, struct bnxt_re_mr, ib_mr);
+	rdev = mr->rdev;
+
+	err = bnxt_re_read_context_allowed(rdev);
+	if (err)
+		return err;
+
+	len = bnxt_qplib_is_chip_gen_p7(rdev->chip_ctx) ? BNXT_RE_CONTEXT_TYPE_MRW_SIZE_P7 :
+							  BNXT_RE_CONTEXT_TYPE_MRW_SIZE_P5;
+	data = kzalloc(len, GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
+
+	err = bnxt_qplib_read_context(&rdev->rcfw, CMDQ_READ_CONTEXT_TYPE_MRW,
+				      mr->qplib_mr.lkey, len, data);
+	if (!err)
+		err = nla_put(msg, RDMA_NLDEV_ATTR_RES_RAW, len, data);
+
+	kfree(data);
+	return err;
+}
+
 static int bnxt_re_fill_res_cq_entry(struct sk_buff *msg, struct ib_cq *ib_cq)
 {
 	struct bnxt_qplib_hwq *cq_hwq;
@@ -931,6 +960,36 @@ static int bnxt_re_fill_res_cq_entry(struct sk_buff *msg, struct ib_cq *ib_cq)
 err:
 	nla_nest_cancel(msg, table_attr);
 	return -EMSGSIZE;
+}
+
+static int bnxt_re_fill_res_cq_entry_raw(struct sk_buff *msg, struct ib_cq *ib_cq)
+{
+	struct bnxt_re_dev *rdev;
+	struct bnxt_re_cq *cq;
+	int err, len;
+	void *data;
+
+	cq = container_of(ib_cq, struct bnxt_re_cq, ib_cq);
+	rdev = cq->rdev;
+
+	err = bnxt_re_read_context_allowed(rdev);
+	if (err)
+		return err;
+
+	len = bnxt_qplib_is_chip_gen_p7(rdev->chip_ctx) ? BNXT_RE_CONTEXT_TYPE_CQ_SIZE_P7 :
+					BNXT_RE_CONTEXT_TYPE_CQ_SIZE_P5;
+	data = kzalloc(len, GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
+
+	err = bnxt_qplib_read_context(&rdev->rcfw,
+				      CMDQ_READ_CONTEXT_TYPE_CQ,
+				      cq->qplib_cq.id, len, data);
+	if (!err)
+		err = nla_put(msg, RDMA_NLDEV_ATTR_RES_RAW, len, data);
+
+	kfree(data);
+	return err;
 }
 
 static int bnxt_re_fill_res_qp_entry(struct sk_buff *msg, struct ib_qp *ib_qp)
@@ -977,6 +1036,31 @@ err:
 	return -EMSGSIZE;
 }
 
+static int bnxt_re_fill_res_qp_entry_raw(struct sk_buff *msg, struct ib_qp *ibqp)
+{
+	struct bnxt_re_dev *rdev = to_bnxt_re_dev(ibqp->device, ibdev);
+	int err, len;
+	void *data;
+
+	err = bnxt_re_read_context_allowed(rdev);
+	if (err)
+		return err;
+
+	len = bnxt_qplib_is_chip_gen_p7(rdev->chip_ctx) ? BNXT_RE_CONTEXT_TYPE_QPC_SIZE_P7 :
+							  BNXT_RE_CONTEXT_TYPE_QPC_SIZE_P5;
+	data = kzalloc(len, GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
+
+	err = bnxt_qplib_read_context(&rdev->rcfw, CMDQ_READ_CONTEXT_TYPE_QPC,
+				      ibqp->qp_num, len, data);
+	if (!err)
+		err = nla_put(msg, RDMA_NLDEV_ATTR_RES_RAW, len, data);
+
+	kfree(data);
+	return err;
+}
+
 static int bnxt_re_fill_res_srq_entry(struct sk_buff *msg, struct ib_srq *ib_srq)
 {
 	struct nlattr *table_attr;
@@ -1001,6 +1085,36 @@ static int bnxt_re_fill_res_srq_entry(struct sk_buff *msg, struct ib_srq *ib_srq
 err:
 	nla_nest_cancel(msg, table_attr);
 	return -EMSGSIZE;
+}
+
+static int bnxt_re_fill_res_srq_entry_raw(struct sk_buff *msg, struct ib_srq *ib_srq)
+{
+	struct bnxt_re_dev *rdev;
+	struct bnxt_re_srq *srq;
+	int err, len;
+	void *data;
+
+	srq = container_of(ib_srq, struct bnxt_re_srq, ib_srq);
+	rdev = srq->rdev;
+
+	err = bnxt_re_read_context_allowed(rdev);
+	if (err)
+		return err;
+
+	len = bnxt_qplib_is_chip_gen_p7(rdev->chip_ctx) ? BNXT_RE_CONTEXT_TYPE_SRQ_SIZE_P7 :
+							  BNXT_RE_CONTEXT_TYPE_SRQ_SIZE_P5;
+
+	data = kzalloc(len, GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
+
+	err = bnxt_qplib_read_context(&rdev->rcfw, CMDQ_READ_CONTEXT_TYPE_SRQ,
+				      srq->qplib_srq.id, len, data);
+	if (!err)
+		err = nla_put(msg, RDMA_NLDEV_ATTR_RES_RAW, len, data);
+
+	kfree(data);
+	return err;
 }
 
 static const struct ib_device_ops bnxt_re_dev_ops = {
@@ -1063,9 +1177,13 @@ static const struct ib_device_ops bnxt_re_dev_ops = {
 
 static const struct ib_device_ops restrack_ops = {
 	.fill_res_cq_entry = bnxt_re_fill_res_cq_entry,
+	.fill_res_cq_entry_raw = bnxt_re_fill_res_cq_entry_raw,
 	.fill_res_qp_entry = bnxt_re_fill_res_qp_entry,
+	.fill_res_qp_entry_raw = bnxt_re_fill_res_qp_entry_raw,
 	.fill_res_mr_entry = bnxt_re_fill_res_mr_entry,
+	.fill_res_mr_entry_raw = bnxt_re_fill_res_mr_entry_raw,
 	.fill_res_srq_entry = bnxt_re_fill_res_srq_entry,
+	.fill_res_srq_entry_raw = bnxt_re_fill_res_srq_entry_raw,
 };
 
 static int bnxt_re_register_ib(struct bnxt_re_dev *rdev)
