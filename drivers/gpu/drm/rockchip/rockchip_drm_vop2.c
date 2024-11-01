@@ -278,6 +278,15 @@ static u32 vop2_readl(struct vop2 *vop2, u32 offset)
 	return val;
 }
 
+static u32 vop2_vp_read(struct vop2_video_port *vp, u32 offset)
+{
+	u32 val;
+
+	regmap_read(vp->vop2->map, vp->data->offset + offset, &val);
+
+	return val;
+}
+
 static void vop2_win_write(const struct vop2_win *win, unsigned int reg, u32 v)
 {
 	regmap_field_write(win->reg[reg], v);
@@ -998,6 +1007,67 @@ static void vop2_disable(struct vop2 *vop2)
 	clk_disable_unprepare(vop2->hclk);
 }
 
+static bool vop2_vp_dsp_lut_is_enabled(struct vop2_video_port *vp)
+{
+	u32 dsp_ctrl = vop2_vp_read(vp, RK3568_VP_DSP_CTRL);
+
+	return dsp_ctrl & RK3568_VP_DSP_CTRL__DSP_LUT_EN;
+}
+
+static void vop2_vp_dsp_lut_disable(struct vop2_video_port *vp)
+{
+	u32 dsp_ctrl = vop2_vp_read(vp, RK3568_VP_DSP_CTRL);
+
+	dsp_ctrl &= ~RK3568_VP_DSP_CTRL__DSP_LUT_EN;
+	vop2_vp_write(vp, RK3568_VP_DSP_CTRL, dsp_ctrl);
+}
+
+static bool vop2_vp_dsp_lut_poll_disabled(struct vop2_video_port *vp)
+{
+	u32 dsp_ctrl;
+	int ret = readx_poll_timeout(vop2_vp_dsp_lut_is_enabled, vp, dsp_ctrl,
+				!dsp_ctrl, 5, 30 * 1000);
+	if (ret) {
+		drm_err(vp->vop2->drm, "display LUT RAM enable timeout!\n");
+		return false;
+	}
+
+	return true;
+}
+
+static void vop2_vp_dsp_lut_enable(struct vop2_video_port *vp)
+{
+	u32 dsp_ctrl = vop2_vp_read(vp, RK3568_VP_DSP_CTRL);
+
+	dsp_ctrl |= RK3568_VP_DSP_CTRL__DSP_LUT_EN;
+	vop2_vp_write(vp, RK3568_VP_DSP_CTRL, dsp_ctrl);
+}
+
+static void vop2_vp_dsp_lut_update_enable(struct vop2_video_port *vp)
+{
+	u32 dsp_ctrl = vop2_vp_read(vp, RK3568_VP_DSP_CTRL);
+
+	dsp_ctrl |= RK3588_VP_DSP_CTRL__GAMMA_UPDATE_EN;
+	vop2_vp_write(vp, RK3568_VP_DSP_CTRL, dsp_ctrl);
+}
+
+static inline bool vop2_supports_seamless_gamma_lut_update(struct vop2 *vop2)
+{
+	return (vop2->data->soc_id != 3566 && vop2->data->soc_id != 3568);
+}
+
+static bool vop2_gamma_lut_in_use(struct vop2 *vop2, struct vop2_video_port *vp)
+{
+	const int nr_vps = vop2->data->nr_vps;
+	int gamma_en_vp_id;
+
+	for (gamma_en_vp_id = 0; gamma_en_vp_id < nr_vps; gamma_en_vp_id++)
+		if (vop2_vp_dsp_lut_is_enabled(&vop2->vps[gamma_en_vp_id]))
+			break;
+
+	return gamma_en_vp_id != nr_vps && gamma_en_vp_id != vp->id;
+}
+
 static void vop2_crtc_atomic_disable(struct drm_crtc *crtc,
 				     struct drm_atomic_state *state)
 {
@@ -1482,6 +1552,77 @@ static bool vop2_crtc_mode_fixup(struct drm_crtc *crtc,
 					CRTC_STEREO_DOUBLE);
 
 	return true;
+}
+
+static void vop2_crtc_write_gamma_lut(struct vop2 *vop2, struct drm_crtc *crtc)
+{
+	const struct vop2_video_port *vp = to_vop2_video_port(crtc);
+	const struct vop2_video_port_data *vp_data = &vop2->data->vp[vp->id];
+	struct drm_color_lut *lut = crtc->state->gamma_lut->data;
+	unsigned int i, bpc = ilog2(vp_data->gamma_lut_len);
+	u32 word;
+
+	for (i = 0; i < crtc->gamma_size; i++) {
+		word = (drm_color_lut_extract(lut[i].blue, bpc) << (2 * bpc)) |
+		    (drm_color_lut_extract(lut[i].green, bpc) << bpc) |
+		    drm_color_lut_extract(lut[i].red, bpc);
+
+		writel(word, vop2->lut_regs + i * 4);
+	}
+}
+
+static void vop2_crtc_atomic_set_gamma_seamless(struct vop2 *vop2,
+						struct vop2_video_port *vp,
+						struct drm_crtc *crtc)
+{
+	vop2_writel(vop2, RK3568_LUT_PORT_SEL,
+		    FIELD_PREP(RK3588_LUT_PORT_SEL__GAMMA_AHB_WRITE_SEL, vp->id));
+	vop2_vp_dsp_lut_enable(vp);
+	vop2_crtc_write_gamma_lut(vop2, crtc);
+	vop2_vp_dsp_lut_update_enable(vp);
+}
+
+static void vop2_crtc_atomic_set_gamma_rk356x(struct vop2 *vop2,
+					      struct vop2_video_port *vp,
+					      struct drm_crtc *crtc)
+{
+	vop2_vp_dsp_lut_disable(vp);
+	vop2_cfg_done(vp);
+	if (!vop2_vp_dsp_lut_poll_disabled(vp))
+		return;
+
+	vop2_writel(vop2, RK3568_LUT_PORT_SEL, vp->id);
+	vop2_crtc_write_gamma_lut(vop2, crtc);
+	vop2_vp_dsp_lut_enable(vp);
+}
+
+static void vop2_crtc_atomic_try_set_gamma(struct vop2 *vop2,
+					   struct vop2_video_port *vp,
+					   struct drm_crtc *crtc,
+					   struct drm_crtc_state *crtc_state)
+{
+	if (!vop2->lut_regs || !crtc_state->color_mgmt_changed)
+		return;
+
+	if (!crtc_state->gamma_lut) {
+		vop2_vp_dsp_lut_disable(vp);
+		return;
+	}
+
+	if (vop2_supports_seamless_gamma_lut_update(vop2))
+		vop2_crtc_atomic_set_gamma_seamless(vop2, vp, crtc);
+	else
+		vop2_crtc_atomic_set_gamma_rk356x(vop2, vp, crtc);
+}
+
+static inline void vop2_crtc_atomic_try_set_gamma_locked(struct vop2 *vop2,
+							 struct vop2_video_port *vp,
+							 struct drm_crtc *crtc,
+							 struct drm_crtc_state *crtc_state)
+{
+	vop2_lock(vop2);
+	vop2_crtc_atomic_try_set_gamma(vop2, vp, crtc, crtc_state);
+	vop2_unlock(vop2);
 }
 
 static void vop2_dither_setup(struct drm_crtc *crtc, u32 *dsp_ctrl)
@@ -2059,9 +2200,38 @@ static void vop2_crtc_atomic_enable(struct drm_crtc *crtc,
 
 	vop2_vp_write(vp, RK3568_VP_DSP_CTRL, dsp_ctrl);
 
+	vop2_crtc_atomic_try_set_gamma(vop2, vp, crtc, crtc_state);
+
 	drm_crtc_vblank_on(crtc);
 
 	vop2_unlock(vop2);
+}
+
+static int vop2_crtc_atomic_check_gamma(struct vop2_video_port *vp,
+					struct drm_crtc *crtc,
+					struct drm_atomic_state *state,
+					struct drm_crtc_state *crtc_state)
+{
+	struct vop2 *vop2 = vp->vop2;
+	unsigned int len;
+
+	if (!vp->vop2->lut_regs || !crtc_state->color_mgmt_changed ||
+	    !crtc_state->gamma_lut)
+		return 0;
+
+	len = drm_color_lut_size(crtc_state->gamma_lut);
+	if (len != crtc->gamma_size) {
+		drm_dbg(vop2->drm, "Invalid LUT size; got %d, expected %d\n",
+			len, crtc->gamma_size);
+		return -EINVAL;
+	}
+
+	if (!vop2_supports_seamless_gamma_lut_update(vop2) && vop2_gamma_lut_in_use(vop2, vp)) {
+		drm_info(vop2->drm, "Gamma LUT can be enabled for only one CRTC at a time\n");
+		return -EINVAL;
+	}
+
+	return 0;
 }
 
 static int vop2_crtc_atomic_check(struct drm_crtc *crtc,
@@ -2071,6 +2241,11 @@ static int vop2_crtc_atomic_check(struct drm_crtc *crtc,
 	struct drm_plane *plane;
 	int nplanes = 0;
 	struct drm_crtc_state *crtc_state = drm_atomic_get_new_crtc_state(state, crtc);
+	int ret;
+
+	ret = vop2_crtc_atomic_check_gamma(vp, crtc, state, crtc_state);
+	if (ret)
+		return ret;
 
 	drm_atomic_crtc_state_for_each_plane(plane, crtc_state)
 		nplanes++;
@@ -2489,7 +2664,13 @@ static void vop2_crtc_atomic_begin(struct drm_crtc *crtc,
 static void vop2_crtc_atomic_flush(struct drm_crtc *crtc,
 				   struct drm_atomic_state *state)
 {
+	struct drm_crtc_state *crtc_state = drm_atomic_get_new_crtc_state(state, crtc);
 	struct vop2_video_port *vp = to_vop2_video_port(crtc);
+	struct vop2 *vop2 = vp->vop2;
+
+	/* In case of modeset, gamma lut update already happened in atomic enable */
+	if (!drm_atomic_crtc_needs_modeset(crtc_state))
+		vop2_crtc_atomic_try_set_gamma_locked(vop2, vp, crtc, crtc_state);
 
 	vop2_post_config(crtc);
 
@@ -2792,7 +2973,12 @@ static int vop2_create_crtcs(struct vop2 *vop2)
 		}
 
 		drm_crtc_helper_add(&vp->crtc, &vop2_crtc_helper_funcs);
+		if (vop2->lut_regs) {
+			const struct vop2_video_port_data *vp_data = &vop2_data->vp[vp->id];
 
+			drm_mode_crtc_set_gamma_size(&vp->crtc, vp_data->gamma_lut_len);
+			drm_crtc_enable_color_mgmt(&vp->crtc, 0, false, vp_data->gamma_lut_len);
+		}
 		init_completion(&vp->dsp_hold_completion);
 	}
 
