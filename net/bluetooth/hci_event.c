@@ -6345,13 +6345,27 @@ static void hci_le_pa_sync_estabilished_evt(struct hci_dev *hdev, void *data,
 	struct hci_ev_le_pa_sync_established *ev = data;
 	int mask = hdev->link_mode;
 	__u8 flags = 0;
-	struct hci_conn *pa_sync;
+	struct hci_conn *pa_sync, *conn;
 
 	bt_dev_dbg(hdev, "status 0x%2.2x", ev->status);
 
 	hci_dev_lock(hdev);
 
 	hci_dev_clear_flag(hdev, HCI_PA_SYNC);
+
+	conn = hci_conn_hash_lookup_sid(hdev, ev->sid, &ev->bdaddr,
+					ev->bdaddr_type);
+	if (!conn) {
+		bt_dev_err(hdev,
+			   "Unable to find connection for dst %pMR sid 0x%2.2x",
+			   &ev->bdaddr, ev->sid);
+		goto unlock;
+	}
+
+	clear_bit(HCI_CONN_CREATE_PA_SYNC, &conn->flags);
+
+	conn->sync_handle = le16_to_cpu(ev->handle);
+	conn->sid = HCI_SID_INVALID;
 
 	mask |= hci_proto_connect_ind(hdev, &ev->bdaddr, ISO_LINK, &flags);
 	if (!(mask & HCI_LM_ACCEPT)) {
@@ -6379,6 +6393,9 @@ static void hci_le_pa_sync_estabilished_evt(struct hci_dev *hdev, void *data,
 	}
 
 unlock:
+	/* Handle any other pending PA sync command */
+	hci_pa_create_sync_pending(hdev);
+
 	hci_dev_unlock(hdev);
 }
 
