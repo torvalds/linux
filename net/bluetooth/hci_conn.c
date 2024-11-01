@@ -2180,34 +2180,93 @@ struct hci_conn *hci_pa_create_sync(struct hci_dev *hdev, bdaddr_t *dst,
 	return conn;
 }
 
+static bool hci_conn_check_create_big_sync(struct hci_conn *conn)
+{
+	if (!conn->num_bis)
+		return false;
+
+	return true;
+}
+
+int hci_le_big_create_sync_pending(struct hci_dev *hdev)
+{
+	DEFINE_FLEX(struct hci_cp_le_big_create_sync, pdu, bis, num_bis, 0x11);
+	struct hci_conn *conn;
+
+	rcu_read_lock();
+
+	pdu->num_bis = 0;
+
+	/* The spec allows only one pending LE BIG Create Sync command at
+	 * a time. If the command is pending now, don't do anything. We
+	 * check for pending connections after each BIG Sync Established
+	 * event.
+	 *
+	 * BLUETOOTH CORE SPECIFICATION Version 5.3 | Vol 4, Part E
+	 * page 2586:
+	 *
+	 * If the Host sends this command when the Controller is in the
+	 * process of synchronizing to any BIG, i.e. the HCI_LE_BIG_Sync_
+	 * Established event has not been generated, the Controller shall
+	 * return the error code Command Disallowed (0x0C).
+	 */
+	list_for_each_entry_rcu(conn, &hdev->conn_hash.list, list) {
+		if (test_bit(HCI_CONN_CREATE_BIG_SYNC, &conn->flags))
+			goto unlock;
+	}
+
+	list_for_each_entry_rcu(conn, &hdev->conn_hash.list, list) {
+		if (hci_conn_check_create_big_sync(conn)) {
+			struct bt_iso_qos *qos = &conn->iso_qos;
+
+			set_bit(HCI_CONN_CREATE_BIG_SYNC, &conn->flags);
+
+			pdu->handle = qos->bcast.big;
+			pdu->sync_handle = cpu_to_le16(conn->sync_handle);
+			pdu->encryption = qos->bcast.encryption;
+			memcpy(pdu->bcode, qos->bcast.bcode,
+			       sizeof(pdu->bcode));
+			pdu->mse = qos->bcast.mse;
+			pdu->timeout = cpu_to_le16(qos->bcast.timeout);
+			pdu->num_bis = conn->num_bis;
+			memcpy(pdu->bis, conn->bis, conn->num_bis);
+
+			break;
+		}
+	}
+
+unlock:
+	rcu_read_unlock();
+
+	if (!pdu->num_bis)
+		return 0;
+
+	return hci_send_cmd(hdev, HCI_OP_LE_BIG_CREATE_SYNC,
+			    struct_size(pdu, bis, pdu->num_bis), pdu);
+}
+
 int hci_le_big_create_sync(struct hci_dev *hdev, struct hci_conn *hcon,
 			   struct bt_iso_qos *qos,
 			   __u16 sync_handle, __u8 num_bis, __u8 bis[])
 {
-	DEFINE_FLEX(struct hci_cp_le_big_create_sync, pdu, bis, num_bis, 0x11);
 	int err;
 
-	if (num_bis < 0x01 || num_bis > pdu->num_bis)
+	if (num_bis < 0x01 || num_bis > ISO_MAX_NUM_BIS)
 		return -EINVAL;
 
 	err = qos_set_big(hdev, qos);
 	if (err)
 		return err;
 
-	if (hcon)
-		hcon->iso_qos.bcast.big = qos->bcast.big;
+	if (hcon) {
+		/* Update hcon QoS */
+		hcon->iso_qos = *qos;
 
-	pdu->handle = qos->bcast.big;
-	pdu->sync_handle = cpu_to_le16(sync_handle);
-	pdu->encryption = qos->bcast.encryption;
-	memcpy(pdu->bcode, qos->bcast.bcode, sizeof(pdu->bcode));
-	pdu->mse = qos->bcast.mse;
-	pdu->timeout = cpu_to_le16(qos->bcast.timeout);
-	pdu->num_bis = num_bis;
-	memcpy(pdu->bis, bis, num_bis);
+		hcon->num_bis = num_bis;
+		memcpy(hcon->bis, bis, num_bis);
+	}
 
-	return hci_send_cmd(hdev, HCI_OP_LE_BIG_CREATE_SYNC,
-			    struct_size(pdu, bis, num_bis), pdu);
+	return hci_le_big_create_sync_pending(hdev);
 }
 
 static void create_big_complete(struct hci_dev *hdev, void *data, int err)
