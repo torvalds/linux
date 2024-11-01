@@ -3739,14 +3739,6 @@ static int nested_vmx_run(struct kvm_vcpu *vcpu, bool launch)
 	if (unlikely(status != NVMX_VMENTRY_SUCCESS))
 		goto vmentry_failed;
 
-	/* Emulate processing of posted interrupts on VM-Enter. */
-	if (nested_cpu_has_posted_intr(vmcs12) &&
-	    kvm_apic_has_interrupt(vcpu) == vmx->nested.posted_intr_nv) {
-		vmx->nested.pi_pending = true;
-		kvm_make_request(KVM_REQ_EVENT, vcpu);
-		kvm_apic_clear_irr(vcpu, vmx->nested.posted_intr_nv);
-	}
-
 	/* Hide L1D cache contents from the nested guest.  */
 	vmx->vcpu.arch.l1tf_flush_l1d = true;
 
@@ -4208,13 +4200,25 @@ static int vmx_check_nested_events(struct kvm_vcpu *vcpu)
 	 */
 	bool block_nested_exceptions = vmx->nested.nested_run_pending;
 	/*
-	 * New events (not exceptions) are only recognized at instruction
+	 * Events that don't require injection, i.e. that are virtualized by
+	 * hardware, aren't blocked by a pending VM-Enter as KVM doesn't need
+	 * to regain control in order to deliver the event, and hardware will
+	 * handle event ordering, e.g. with respect to injected exceptions.
+	 *
+	 * But, new events (not exceptions) are only recognized at instruction
 	 * boundaries.  If an event needs reinjection, then KVM is handling a
-	 * VM-Exit that occurred _during_ instruction execution; new events are
-	 * blocked until the instruction completes.
+	 * VM-Exit that occurred _during_ instruction execution; new events,
+	 * irrespective of whether or not they're injected, are blocked until
+	 * the instruction completes.
+	 */
+	bool block_non_injected_events = kvm_event_needs_reinjection(vcpu);
+	/*
+	 * Inject events are blocked by nested VM-Enter, as KVM is responsible
+	 * for managing priority between concurrent events, i.e. KVM needs to
+	 * wait until after VM-Enter completes to deliver injected events.
 	 */
 	bool block_nested_events = block_nested_exceptions ||
-				   kvm_event_needs_reinjection(vcpu);
+				   block_non_injected_events;
 
 	if (lapic_in_kernel(vcpu) &&
 		test_bit(KVM_APIC_INIT, &apic->pending_events)) {
@@ -4326,18 +4330,26 @@ static int vmx_check_nested_events(struct kvm_vcpu *vcpu)
 	if (kvm_cpu_has_interrupt(vcpu) && !vmx_interrupt_blocked(vcpu)) {
 		int irq;
 
-		if (block_nested_events)
-			return -EBUSY;
-		if (!nested_exit_on_intr(vcpu))
+		if (!nested_exit_on_intr(vcpu)) {
+			if (block_nested_events)
+				return -EBUSY;
+
 			goto no_vmexit;
+		}
 
 		if (!nested_exit_intr_ack_set(vcpu)) {
+			if (block_nested_events)
+				return -EBUSY;
+
 			nested_vmx_vmexit(vcpu, EXIT_REASON_EXTERNAL_INTERRUPT, 0, 0);
 			return 0;
 		}
 
 		irq = kvm_cpu_get_extint(vcpu);
 		if (irq != -1) {
+			if (block_nested_events)
+				return -EBUSY;
+
 			nested_vmx_vmexit(vcpu, EXIT_REASON_EXTERNAL_INTERRUPT,
 					  INTR_INFO_VALID_MASK | INTR_TYPE_EXT_INTR | irq, 0);
 			return 0;
@@ -4356,10 +4368,21 @@ static int vmx_check_nested_events(struct kvm_vcpu *vcpu)
 		 * and enabling posted interrupts requires ACK-on-exit.
 		 */
 		if (irq == vmx->nested.posted_intr_nv) {
+			/*
+			 * Nested posted interrupts are delivered via RVI, i.e.
+			 * aren't injected by KVM, and so can be queued even if
+			 * manual event injection is disallowed.
+			 */
+			if (block_non_injected_events)
+				return -EBUSY;
+
 			vmx->nested.pi_pending = true;
 			kvm_apic_clear_irr(vcpu, irq);
 			goto no_vmexit;
 		}
+
+		if (block_nested_events)
+			return -EBUSY;
 
 		nested_vmx_vmexit(vcpu, EXIT_REASON_EXTERNAL_INTERRUPT,
 				  INTR_INFO_VALID_MASK | INTR_TYPE_EXT_INTR | irq, 0);
