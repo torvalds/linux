@@ -770,12 +770,10 @@ static int sparx5_start(struct sparx5 *sparx5)
 	if (err)
 		return err;
 
-	if (is_sparx5(sparx5)) {
-		err = sparx5_vcap_init(sparx5);
-		if (err) {
-			sparx5_unregister_notifier_blocks(sparx5);
-			return err;
-		}
+	err = sparx5_vcap_init(sparx5);
+	if (err) {
+		sparx5_unregister_notifier_blocks(sparx5);
+		return err;
 	}
 
 	/* Start Frame DMA with fallback to register based INJ/XTR */
