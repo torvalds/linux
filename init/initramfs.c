@@ -1,3 +1,8 @@
+/*
+ * This file contains the implementation of the initramfs, which is a temporary root filesystem used during the Linux kernel boot process.
+ * It is responsible for unpacking and populating the root filesystem from the initramfs image.
+ */
+
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/init.h>
 #include <linux/async.h>
@@ -24,6 +29,11 @@
 static __initdata bool csum_present;
 static __initdata u32 io_csum;
 
+/*
+ * Write data to a file.
+ * This function writes the specified data to the given file, updating the file position.
+ * If checksum calculation is enabled, it updates the checksum as well.
+ */
 static ssize_t __init xwrite(struct file *file, const unsigned char *p,
 		size_t count, loff_t *pos)
 {
@@ -578,6 +588,10 @@ extern unsigned long __initramfs_size;
 
 static BIN_ATTR(initrd, 0440, sysfs_bin_attr_simple_read, NULL, 0);
 
+/*
+ * Reserve memory for the initrd.
+ * This function reserves the memory region for the initrd, ensuring it is not used for other purposes.
+ */
 void __init reserve_initrd_mem(void)
 {
 	phys_addr_t start;
@@ -623,6 +637,10 @@ disable:
 	initrd_end = 0;
 }
 
+/*
+ * Free the memory used by the initrd.
+ * This function releases the memory region used by the initrd, making it available for other purposes.
+ */
 void __weak __init free_initrd_mem(unsigned long start, unsigned long end)
 {
 #ifdef CONFIG_ARCH_KEEP_MEMBLOCK
@@ -688,6 +706,10 @@ static void __init populate_initrd_image(char *err)
 }
 #endif /* CONFIG_BLK_DEV_RAM */
 
+/*
+ * Populate the root filesystem.
+ * This function populates the root filesystem by unpacking the initramfs image.
+ */
 static void __init do_populate_rootfs(void *unused, async_cookie_t cookie)
 {
 	/* Load the built in initramfs */
@@ -736,6 +758,10 @@ done:
 static ASYNC_DOMAIN_EXCLUSIVE(initramfs_domain);
 static async_cookie_t initramfs_cookie;
 
+/*
+ * Wait for the initramfs to be populated.
+ * This function waits for the initramfs to be fully populated before proceeding.
+ */
 void wait_for_initramfs(void)
 {
 	if (!initramfs_cookie) {
@@ -752,6 +778,10 @@ void wait_for_initramfs(void)
 }
 EXPORT_SYMBOL_GPL(wait_for_initramfs);
 
+/*
+ * Populate the root filesystem.
+ * This function schedules the population of the root filesystem by unpacking the initramfs image.
+ */
 static int __init populate_rootfs(void)
 {
 	initramfs_cookie = async_schedule_domain(do_populate_rootfs, NULL,
