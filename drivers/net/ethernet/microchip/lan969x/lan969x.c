@@ -321,6 +321,7 @@ static const struct sparx5_consts lan969x_consts = {
 	.tod_pin             = 4,
 	.vcaps               = lan969x_vcaps,
 	.vcap_stats          = &lan969x_vcap_stats,
+	.vcaps_cfg           = lan969x_vcap_inst_cfg,
 };
 
 static const struct sparx5_ops lan969x_ops = {
