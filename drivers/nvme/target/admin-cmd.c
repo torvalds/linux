@@ -88,6 +88,7 @@ static void nvmet_execute_get_supported_log_pages(struct nvmet_req *req)
 	logs->lids[NVME_LOG_FW_SLOT] = cpu_to_le32(NVME_LIDS_LSUPP);
 	logs->lids[NVME_LOG_CHANGED_NS] = cpu_to_le32(NVME_LIDS_LSUPP);
 	logs->lids[NVME_LOG_CMD_EFFECTS] = cpu_to_le32(NVME_LIDS_LSUPP);
+	logs->lids[NVME_LOG_ENDURANCE_GROUP] = cpu_to_le32(NVME_LIDS_LSUPP);
 	logs->lids[NVME_LOG_ANA] = cpu_to_le32(NVME_LIDS_LSUPP);
 	logs->lids[NVME_LOG_FEATURES] = cpu_to_le32(NVME_LIDS_LSUPP);
 	logs->lids[NVME_LOG_RESERVATION] = cpu_to_le32(NVME_LIDS_LSUPP);
@@ -303,6 +304,49 @@ static u32 nvmet_format_ana_group(struct nvmet_req *req, u32 grpid,
 	return struct_size(desc, nsids, count);
 }
 
+static void nvmet_execute_get_log_page_endgrp(struct nvmet_req *req)
+{
+	u64 host_reads, host_writes, data_units_read, data_units_written;
+	struct nvme_endurance_group_log *log;
+	u16 status;
+
+	/*
+	 * The target driver emulates each endurance group as its own
+	 * namespace, reusing the nsid as the endurance group identifier.
+	 */
+	req->cmd->common.nsid = cpu_to_le32(le16_to_cpu(
+					    req->cmd->get_log_page.lsi));
+	status = nvmet_req_find_ns(req);
+	if (status)
+		goto out;
+
+	log = kzalloc(sizeof(*log), GFP_KERNEL);
+	if (!log) {
+		status = NVME_SC_INTERNAL;
+		goto out;
+	}
+
+	if (!req->ns->bdev)
+		goto copy;
+
+	host_reads = part_stat_read(req->ns->bdev, ios[READ]);
+	data_units_read =
+		DIV_ROUND_UP(part_stat_read(req->ns->bdev, sectors[READ]), 1000);
+	host_writes = part_stat_read(req->ns->bdev, ios[WRITE]);
+	data_units_written =
+		DIV_ROUND_UP(part_stat_read(req->ns->bdev, sectors[WRITE]), 1000);
+
+	put_unaligned_le64(host_reads, &log->hrc[0]);
+	put_unaligned_le64(data_units_read, &log->dur[0]);
+	put_unaligned_le64(host_writes, &log->hwc[0]);
+	put_unaligned_le64(data_units_written, &log->duw[0]);
+copy:
+	status = nvmet_copy_to_sgl(req, 0, log, sizeof(*log));
+	kfree(log);
+out:
+	nvmet_req_complete(req, status);
+}
+
 static void nvmet_execute_get_log_page_ana(struct nvmet_req *req)
 {
 	struct nvme_ana_rsp_hdr hdr = { 0, };
@@ -401,6 +445,8 @@ static void nvmet_execute_get_log_page(struct nvmet_req *req)
 		return nvmet_execute_get_log_changed_ns(req);
 	case NVME_LOG_CMD_EFFECTS:
 		return nvmet_execute_get_log_cmd_effects_ns(req);
+	case NVME_LOG_ENDURANCE_GROUP:
+		return nvmet_execute_get_log_page_endgrp(req);
 	case NVME_LOG_ANA:
 		return nvmet_execute_get_log_page_ana(req);
 	case NVME_LOG_FEATURES:
@@ -535,6 +581,13 @@ static void nvmet_execute_identify_ctrl(struct nvmet_req *req)
 
 	id->msdbd = ctrl->ops->msdbd;
 
+	/*
+	 * Endurance group identifier is 16 bits, so we can't let namespaces
+	 * overflow that since we reuse the nsid
+	 */
+	BUILD_BUG_ON(NVMET_MAX_NAMESPACES > USHRT_MAX);
+	id->endgidmax = cpu_to_le16(NVMET_MAX_NAMESPACES);
+
 	id->anacap = (1 << 0) | (1 << 1) | (1 << 2) | (1 << 3) | (1 << 4);
 	id->anatt = 10; /* random value */
 	id->anagrpmax = cpu_to_le32(NVMET_MAX_ANAGRPS);
@@ -628,6 +681,12 @@ static void nvmet_execute_identify_ns(struct nvmet_req *req)
 			NVME_PR_SUPPORT_EXCLUSIVE_ACCESS_ALL_REGS |
 			NVME_PR_SUPPORT_IEKEY_VER_1_3_DEF;
 
+	/*
+	 * Since we don't know any better, every namespace is its own endurance
+	 * group.
+	 */
+	id->endgid = cpu_to_le16(req->ns->nsid);
+
 	memcpy(&id->nguid, &req->ns->nguid, sizeof(id->nguid));
 
 	id->lbaf[0].ds = req->ns->blksize_shift;
@@ -649,6 +708,39 @@ done:
 		status = nvmet_copy_to_sgl(req, 0, id, sizeof(*id));
 
 	kfree(id);
+out:
+	nvmet_req_complete(req, status);
+}
+
+static void nvmet_execute_identify_endgrp_list(struct nvmet_req *req)
+{
+	u16 min_endgid = le16_to_cpu(req->cmd->identify.cnssid);
+	static const int buf_size = NVME_IDENTIFY_DATA_SIZE;
+	struct nvmet_ctrl *ctrl = req->sq->ctrl;
+	struct nvmet_ns *ns;
+	unsigned long idx;
+	__le16 *list;
+	u16 status;
+	int i = 1;
+
+	list = kzalloc(buf_size, GFP_KERNEL);
+	if (!list) {
+		status = NVME_SC_INTERNAL;
+		goto out;
+	}
+
+	xa_for_each(&ctrl->subsys->namespaces, idx, ns) {
+		if (ns->nsid <= min_endgid)
+			continue;
+
+		list[i++] = cpu_to_le16(ns->nsid);
+		if (i == buf_size / sizeof(__le16))
+			break;
+	}
+
+	list[0] = cpu_to_le16(i - 1);
+	status = nvmet_copy_to_sgl(req, 0, list, buf_size);
+	kfree(list);
 out:
 	nvmet_req_complete(req, status);
 }
@@ -824,6 +916,9 @@ static void nvmet_execute_identify(struct nvmet_req *req)
 		break;
 	case NVME_ID_CNS_NS_ACTIVE_LIST_CS:
 		nvmet_execute_identify_nslist(req, true);
+		return;
+	case NVME_ID_CNS_ENDGRP_LIST:
+		nvmet_execute_identify_endgrp_list(req);
 		return;
 	}
 

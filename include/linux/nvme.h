@@ -327,7 +327,8 @@ struct nvme_id_ctrl {
 	__le32			sanicap;
 	__le32			hmminds;
 	__le16			hmmaxd;
-	__u8			rsvd338[4];
+	__le16			nvmsetidmax;
+	__le16			endgidmax;
 	__u8			anatt;
 	__u8			anacap;
 	__le32			anagrpmax;
@@ -531,6 +532,7 @@ enum {
 	NVME_ID_CNS_SCNDRY_CTRL_LIST	= 0x15,
 	NVME_ID_CNS_NS_GRANULARITY	= 0x16,
 	NVME_ID_CNS_UUID_LIST		= 0x17,
+	NVME_ID_CNS_ENDGRP_LIST		= 0x19,
 };
 
 enum {
@@ -616,6 +618,28 @@ enum {
 	NVME_NIDT_NGUID		= 0x02,
 	NVME_NIDT_UUID		= 0x03,
 	NVME_NIDT_CSI		= 0x04,
+};
+
+struct nvme_endurance_group_log {
+	__u8	egcw;
+	__u8	egfeat;
+	__u8	rsvd2;
+	__u8	avsp;
+	__u8	avspt;
+	__u8	pused;
+	__le16	did;
+	__u8	rsvd8[24];
+	__u8	ee[16];
+	__u8	dur[16];
+	__u8	duw[16];
+	__u8	muw[16];
+	__u8	hrc[16];
+	__u8	hwc[16];
+	__u8	mdie[16];
+	__u8	neile[16];
+	__u8	tegcap[16];
+	__u8	uegcap[16];
+	__u8	rsvd192[320];
 };
 
 struct nvme_smart_log {
@@ -1302,7 +1326,8 @@ struct nvme_identify {
 	__u8			cns;
 	__u8			rsvd3;
 	__le16			ctrlid;
-	__u8			rsvd11[3];
+	__le16			cnssid;
+	__u8			rsvd11;
 	__u8			csi;
 	__u32			rsvd12[4];
 };
