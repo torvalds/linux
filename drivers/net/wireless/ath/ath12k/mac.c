@@ -2859,6 +2859,67 @@ static void ath12k_peer_assoc_h_eht(struct ath12k *ar,
 	arg->punct_bitmap = ~arvif->punct_bitmap;
 }
 
+static void ath12k_peer_assoc_h_mlo(struct ath12k_link_sta *arsta,
+				    struct ath12k_wmi_peer_assoc_arg *arg)
+{
+	struct ieee80211_sta *sta = ath12k_ahsta_to_sta(arsta->ahsta);
+	struct peer_assoc_mlo_params *ml = &arg->ml;
+	struct ath12k_sta *ahsta = arsta->ahsta;
+	struct ath12k_link_sta *arsta_p;
+	struct ath12k_link_vif *arvif;
+	unsigned long links;
+	u8 link_id;
+	int i;
+
+	if (!sta->mlo || ahsta->ml_peer_id == ATH12K_MLO_PEER_ID_INVALID)
+		return;
+
+	ml->enabled = true;
+	ml->assoc_link = arsta->is_assoc_link;
+
+	/* For now considering the primary umac based on assoc link */
+	ml->primary_umac = arsta->is_assoc_link;
+	ml->peer_id_valid = true;
+	ml->logical_link_idx_valid = true;
+
+	ether_addr_copy(ml->mld_addr, sta->addr);
+	ml->logical_link_idx = arsta->link_idx;
+	ml->ml_peer_id = ahsta->ml_peer_id;
+	ml->ieee_link_id = arsta->link_id;
+	ml->num_partner_links = 0;
+	links = ahsta->links_map;
+
+	rcu_read_lock();
+
+	i = 0;
+
+	for_each_set_bit(link_id, &links, IEEE80211_MLD_MAX_NUM_LINKS) {
+		if (i >= ATH12K_WMI_MLO_MAX_LINKS)
+			break;
+
+		arsta_p = rcu_dereference(ahsta->link[link_id]);
+		arvif = rcu_dereference(ahsta->ahvif->link[link_id]);
+
+		if (arsta_p == arsta)
+			continue;
+
+		if (!arvif->is_started)
+			continue;
+
+		ml->partner_info[i].vdev_id = arvif->vdev_id;
+		ml->partner_info[i].hw_link_id = arvif->ar->pdev->hw_link_id;
+		ml->partner_info[i].assoc_link = arsta_p->is_assoc_link;
+		ml->partner_info[i].primary_umac = arsta_p->is_assoc_link;
+		ml->partner_info[i].logical_link_idx_valid = true;
+		ml->partner_info[i].logical_link_idx = arsta_p->link_idx;
+		ml->num_partner_links++;
+
+		i++;
+	}
+
+	rcu_read_unlock();
+}
+
 static void ath12k_peer_assoc_prepare(struct ath12k *ar,
 				      struct ath12k_link_vif *arvif,
 				      struct ath12k_link_sta *arsta,
@@ -2883,6 +2944,7 @@ static void ath12k_peer_assoc_prepare(struct ath12k *ar,
 	ath12k_peer_assoc_h_qos(ar, arvif, arsta, arg);
 	ath12k_peer_assoc_h_phymode(ar, arvif, arsta, arg);
 	ath12k_peer_assoc_h_smps(arsta, arg);
+	ath12k_peer_assoc_h_mlo(arsta, arg);
 
 	/* TODO: amsdu_disable req? */
 }

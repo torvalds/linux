@@ -495,9 +495,16 @@ struct ath12k_link_sta {
 	struct ath12k_rx_peer_stats *rx_stats;
 	struct ath12k_wbm_tx_stats *wbm_tx_stats;
 	u32 bw_prev;
+
+	/* For now the assoc link will be considered primary */
+	bool is_assoc_link;
+
+	 /* for firmware use only */
+	u8 link_idx;
 };
 
 struct ath12k_sta {
+	struct ath12k_vif *ahvif;
 	enum hal_pn_type pn_type;
 	struct ath12k_link_sta deflink;
 	struct ath12k_link_sta __rcu *link[IEEE80211_MLD_MAX_NUM_LINKS];
