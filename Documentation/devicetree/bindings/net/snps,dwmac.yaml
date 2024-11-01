@@ -560,7 +560,7 @@ properties:
           max read outstanding req. limit
 
       snps,kbbe:
-        $ref: /schemas/types.yaml#/definitions/uint32
+        $ref: /schemas/types.yaml#/definitions/flag
         description:
           do not cross 1KiB boundary.
 
