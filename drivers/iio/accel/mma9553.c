@@ -1031,9 +1031,9 @@ static irqreturn_t mma9553_event_handler(int irq, void *private)
 	if (ev_step_detect->enabled && (stepcnt != data->stepcnt)) {
 		data->stepcnt = stepcnt;
 		iio_push_event(indio_dev,
-			       IIO_EVENT_CODE(IIO_STEPS, 0, IIO_NO_MOD,
-					      IIO_EV_DIR_NONE,
-					      IIO_EV_TYPE_CHANGE, 0, 0, 0),
+			       IIO_UNMOD_EVENT_CODE(IIO_STEPS, 0,
+						    IIO_EV_TYPE_CHANGE,
+						    IIO_EV_DIR_NONE),
 			       data->timestamp);
 	}
 
@@ -1042,20 +1042,18 @@ static irqreturn_t mma9553_event_handler(int irq, void *private)
 		/* ev_activity can be NULL if activity == ACTIVITY_UNKNOWN */
 		if (ev_prev_activity && ev_prev_activity->enabled)
 			iio_push_event(indio_dev,
-				       IIO_EVENT_CODE(IIO_ACTIVITY, 0,
-						    ev_prev_activity->info->mod,
-						    IIO_EV_DIR_FALLING,
-						    IIO_EV_TYPE_THRESH, 0, 0,
-						    0),
+				       IIO_MOD_EVENT_CODE(IIO_ACTIVITY, 0,
+						ev_prev_activity->info->mod,
+						IIO_EV_TYPE_THRESH,
+						IIO_EV_DIR_FALLING),
 				       data->timestamp);
 
 		if (ev_activity && ev_activity->enabled)
 			iio_push_event(indio_dev,
-				       IIO_EVENT_CODE(IIO_ACTIVITY, 0,
-						      ev_activity->info->mod,
-						      IIO_EV_DIR_RISING,
-						      IIO_EV_TYPE_THRESH, 0, 0,
-						      0),
+				       IIO_MOD_EVENT_CODE(IIO_ACTIVITY, 0,
+							  ev_activity->info->mod,
+							  IIO_EV_TYPE_THRESH,
+							  IIO_EV_DIR_RISING),
 				       data->timestamp);
 	}
 	mutex_unlock(&data->mutex);
