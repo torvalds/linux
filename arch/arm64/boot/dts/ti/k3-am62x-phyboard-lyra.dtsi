@@ -112,6 +112,25 @@
 		regulator-boot-on;
 	};
 
+	vcc_3v3_hdmi: regulator-vcc-3v3-hdmi {
+		compatible = "regulator-fixed";
+		regulator-name = "VCC_3V3_HDMI";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		vin-supply = <&vcc_3v3_sw>;
+		regulator-always-on;
+		regulator-boot-on;
+	};
+
+	vcc_1v2_hdmi: regulator-vcc-1v2-hdmi {
+		compatible = "regulator-fixed";
+		regulator-name = "HDMI_CVCC";
+		regulator-min-microvolt = <1200000>;
+		regulator-max-microvolt = <1200000>;
+		regulator-always-on;
+		regulator-boot-on;
+	};
+
 	vcc_3v3_mmc: regulator-vcc-3v3-mmc {
 		compatible = "regulator-fixed";
 		regulator-name = "VCC_3V3_MMC";
@@ -366,6 +385,9 @@
 		interrupts = <16 IRQ_TYPE_EDGE_FALLING>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&hdmi_int_pins_default>;
+
+		iovcc-supply = <&vcc_3v3_hdmi>;
+		cvcc12-supply = <&vcc_1v2_hdmi>;
 
 		ports {
 			#address-cells = <1>;
