@@ -3481,14 +3481,6 @@ static int nested_vmx_check_permission(struct kvm_vcpu *vcpu)
 	return 1;
 }
 
-static u8 vmx_has_apicv_interrupt(struct kvm_vcpu *vcpu)
-{
-	u8 rvi = vmx_get_rvi();
-	u8 vppr = kvm_lapic_get_reg(vcpu->arch.apic, APIC_PROCPRI);
-
-	return ((rvi & 0xf0) > (vppr & 0xf0));
-}
-
 static void load_vmcs12_host_state(struct kvm_vcpu *vcpu,
 				   struct vmcs12 *vmcs12);
 
@@ -3529,8 +3521,6 @@ enum nvmx_vmentry_status nested_vmx_enter_non_root_mode(struct kvm_vcpu *vcpu,
 
 	evaluate_pending_interrupts = exec_controls_get(vmx) &
 		(CPU_BASED_INTR_WINDOW_EXITING | CPU_BASED_NMI_WINDOW_EXITING);
-	if (likely(!evaluate_pending_interrupts) && kvm_vcpu_apicv_active(vcpu))
-		evaluate_pending_interrupts |= vmx_has_apicv_interrupt(vcpu);
 
 	if (!vmx->nested.nested_run_pending ||
 	    !(vmcs12->vm_entry_controls & VM_ENTRY_LOAD_DEBUG_CONTROLS))
