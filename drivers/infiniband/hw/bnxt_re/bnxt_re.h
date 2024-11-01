@@ -247,4 +247,23 @@ static inline void bnxt_re_set_pacing_dev_state(struct bnxt_re_dev *rdev)
 	rdev->qplib_res.pacing_data->dev_err_state =
 		test_bit(BNXT_RE_FLAG_ERR_DEVICE_DETACHED, &rdev->flags);
 }
+
+static inline int bnxt_re_read_context_allowed(struct bnxt_re_dev *rdev)
+{
+	if (!bnxt_qplib_is_chip_gen_p5_p7(rdev->chip_ctx) ||
+	    rdev->rcfw.res->cctx->hwrm_intf_ver < HWRM_VERSION_READ_CTX)
+		return -EOPNOTSUPP;
+	return 0;
+}
+
+#define BNXT_RE_CONTEXT_TYPE_QPC_SIZE_P5	1088
+#define BNXT_RE_CONTEXT_TYPE_CQ_SIZE_P5		128
+#define BNXT_RE_CONTEXT_TYPE_MRW_SIZE_P5	128
+#define BNXT_RE_CONTEXT_TYPE_SRQ_SIZE_P5	192
+
+#define BNXT_RE_CONTEXT_TYPE_QPC_SIZE_P7	1088
+#define BNXT_RE_CONTEXT_TYPE_CQ_SIZE_P7		192
+#define BNXT_RE_CONTEXT_TYPE_MRW_SIZE_P7	192
+#define BNXT_RE_CONTEXT_TYPE_SRQ_SIZE_P7	192
+
 #endif

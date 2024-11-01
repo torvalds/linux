@@ -2265,6 +2265,46 @@ struct creq_set_func_resources_resp {
 	u8	reserved48[6];
 };
 
+/* cmdq_read_context (size:192b/24B) */
+struct cmdq_read_context {
+	u8	opcode;
+	#define CMDQ_READ_CONTEXT_OPCODE_READ_CONTEXT 0x85UL
+	#define CMDQ_READ_CONTEXT_OPCODE_LAST        CMDQ_READ_CONTEXT_OPCODE_READ_CONTEXT
+	u8	cmd_size;
+	__le16	flags;
+	__le16	cookie;
+	u8	resp_size;
+	u8	reserved8;
+	__le64	resp_addr;
+	__le32	xid;
+	u8	type;
+	#define CMDQ_READ_CONTEXT_TYPE_QPC 0x0UL
+	#define CMDQ_READ_CONTEXT_TYPE_CQ  0x1UL
+	#define CMDQ_READ_CONTEXT_TYPE_MRW 0x2UL
+	#define CMDQ_READ_CONTEXT_TYPE_SRQ 0x3UL
+	#define CMDQ_READ_CONTEXT_TYPE_LAST CMDQ_READ_CONTEXT_TYPE_SRQ
+	u8	unused_0[3];
+};
+
+/* creq_read_context (size:128b/16B) */
+struct creq_read_context {
+	u8	type;
+	#define CREQ_READ_CONTEXT_TYPE_MASK    0x3fUL
+	#define CREQ_READ_CONTEXT_TYPE_SFT     0
+	#define CREQ_READ_CONTEXT_TYPE_QP_EVENT  0x38UL
+	#define CREQ_READ_CONTEXT_TYPE_LAST     CREQ_READ_CONTEXT_TYPE_QP_EVENT
+	u8	status;
+	__le16	cookie;
+	__le32	reserved32;
+	u8	v;
+	#define CREQ_READ_CONTEXT_V     0x1UL
+	u8	event;
+	#define CREQ_READ_CONTEXT_EVENT_READ_CONTEXT 0x85UL
+	#define CREQ_READ_CONTEXT_EVENT_LAST        CREQ_READ_CONTEXT_EVENT_READ_CONTEXT
+	__le16	reserved16;
+	__le32	reserved_32;
+};
+
 /* cmdq_map_tc_to_cos (size:192b/24B) */
 struct cmdq_map_tc_to_cos {
 	u8	opcode;
