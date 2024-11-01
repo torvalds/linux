@@ -1,5 +1,0 @@
-# SPDX-License-Identifier: GPL-2.0-only
-
-comment "Raspberry Pi media platform drivers"
-
-source "drivers/media/platform/raspberrypi/pisp_be/Kconfig"
