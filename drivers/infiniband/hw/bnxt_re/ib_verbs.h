@@ -95,6 +95,7 @@ struct bnxt_re_qp {
 	struct ib_ud_header	qp1_hdr;
 	struct bnxt_re_cq	*scq;
 	struct bnxt_re_cq	*rcq;
+	struct dentry		*dentry;
 };
 
 struct bnxt_re_cq {

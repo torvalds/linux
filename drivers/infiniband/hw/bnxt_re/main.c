@@ -67,6 +67,7 @@
 #include <rdma/bnxt_re-abi.h>
 #include "bnxt.h"
 #include "hw_counters.h"
+#include "debugfs.h"
 
 static char version[] =
 		BNXT_RE_DESC "\n";
@@ -1863,6 +1864,8 @@ static void bnxt_re_dev_uninit(struct bnxt_re_dev *rdev, u8 op_type)
 	u8 type;
 	int rc;
 
+	bnxt_re_debugfs_rem_pdev(rdev);
+
 	if (test_and_clear_bit(BNXT_RE_FLAG_QOS_WORK_REG, &rdev->flags))
 		cancel_delayed_work_sync(&rdev->worker);
 
@@ -2062,6 +2065,8 @@ static int bnxt_re_dev_init(struct bnxt_re_dev *rdev, u8 op_type)
 	hash_init(rdev->cq_hash);
 	if (rdev->chip_ctx->modes.toggle_bits & BNXT_QPLIB_SRQ_TOGGLE_BIT)
 		hash_init(rdev->srq_hash);
+
+	bnxt_re_debugfs_add_pdev(rdev);
 
 	return 0;
 free_sctx:
@@ -2389,18 +2394,24 @@ static int __init bnxt_re_mod_init(void)
 	int rc;
 
 	pr_info("%s: %s", ROCE_DRV_MODULE_NAME, version);
+	bnxt_re_register_debugfs();
+
 	rc = auxiliary_driver_register(&bnxt_re_driver);
 	if (rc) {
 		pr_err("%s: Failed to register auxiliary driver\n",
 			ROCE_DRV_MODULE_NAME);
-		return rc;
+		goto err_debug;
 	}
 	return 0;
+err_debug:
+	bnxt_re_unregister_debugfs();
+	return rc;
 }
 
 static void __exit bnxt_re_mod_exit(void)
 {
 	auxiliary_driver_unregister(&bnxt_re_driver);
+	bnxt_re_unregister_debugfs();
 }
 
 module_init(bnxt_re_mod_init);
