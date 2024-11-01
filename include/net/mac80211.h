@@ -7672,12 +7672,12 @@ static inline bool ieee80211_is_tx_data(struct sk_buff *skb)
  *
  *  - change_vif_links(0x11)
  *  - unassign_vif_chanctx(link_id=0)
+ *  - assign_vif_chanctx(link_id=4)
  *  - change_sta_links(0x11) for each affected STA (the AP)
  *    (TDLS connections on now inactive links should be torn down)
  *  - remove group keys on the old link (link_id 0)
  *  - add new group keys (GTK/IGTK/BIGTK) on the new link (link_id 4)
  *  - change_sta_links(0x10) for each affected STA (the AP)
- *  - assign_vif_chanctx(link_id=4)
  *  - change_vif_links(0x10)
  *
  * Return: 0 on success. An error code otherwise.
