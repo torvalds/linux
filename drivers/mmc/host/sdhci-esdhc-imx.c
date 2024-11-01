@@ -31,6 +31,7 @@
 #include "cqhci.h"
 
 #define ESDHC_SYS_CTRL_DTOCV_MASK	0x0f
+#define ESDHC_SYS_CTRL_IPP_RST_N	BIT(23)
 #define	ESDHC_CTRL_D3CD			0x08
 #define ESDHC_BURST_LEN_EN_INCR		(1 << 27)
 /* VENDOR SPEC register */
@@ -1407,6 +1408,17 @@ static u32 esdhc_cqhci_irq(struct sdhci_host *host, u32 intmask)
 	return 0;
 }
 
+static void esdhc_hw_reset(struct sdhci_host *host)
+{
+	esdhc_clrset_le(host, ESDHC_SYS_CTRL_IPP_RST_N, 0, ESDHC_SYSTEM_CONTROL);
+	/* eMMC spec requires minimum 1us, here delay between 1-10us */
+	usleep_range(1, 10);
+	esdhc_clrset_le(host, ESDHC_SYS_CTRL_IPP_RST_N,
+			ESDHC_SYS_CTRL_IPP_RST_N, ESDHC_SYSTEM_CONTROL);
+	/* eMMC spec requires minimum 200us, here delay between 200-300us */
+	usleep_range(200, 300);
+}
+
 static struct sdhci_ops sdhci_esdhc_ops = {
 	.read_l = esdhc_readl_le,
 	.read_w = esdhc_readw_le,
@@ -1425,6 +1437,7 @@ static struct sdhci_ops sdhci_esdhc_ops = {
 	.reset = esdhc_reset,
 	.irq = esdhc_cqhci_irq,
 	.dump_vendor_regs = esdhc_dump_debug_regs,
+	.hw_reset = esdhc_hw_reset,
 };
 
 static const struct sdhci_pltfm_data sdhci_esdhc_imx_pdata = {
