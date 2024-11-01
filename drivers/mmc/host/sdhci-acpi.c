@@ -849,9 +849,6 @@ static int sdhci_acpi_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	len = resource_size(iomem);
-	if (len < 0x100)
-		dev_err(dev, "Invalid iomem size!\n");
-
 	if (!devm_request_mem_region(dev, iomem->start, len, dev_name(dev)))
 		return -ENOMEM;
 
