@@ -5091,6 +5091,7 @@ static int ath12k_mac_handle_link_sta_state(struct ieee80211_hw *hw,
 		ahsta->links_map = BIT(arsta->link_id);
 		arsta->ahsta = ahsta;
 		arsta->arvif = arvif;
+		ether_addr_copy(arsta->addr, sta->addr);
 		wiphy_work_init(&arsta->update_wk, ath12k_sta_rc_update_wk);
 
 		synchronize_rcu();
@@ -10110,6 +10111,7 @@ static struct ath12k_hw *ath12k_mac_hw_allocate(struct ath12k_base *ab,
 	ah->num_radio = num_pdev_map;
 
 	mutex_init(&ah->hw_mutex);
+	INIT_LIST_HEAD(&ah->ml_peers);
 
 	for (i = 0; i < num_pdev_map; i++) {
 		ab = pdev_map[i].ab;
