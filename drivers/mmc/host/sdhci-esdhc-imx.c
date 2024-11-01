@@ -30,7 +30,7 @@
 #include "sdhci-esdhc.h"
 #include "cqhci.h"
 
-#define ESDHC_SYS_CTRL_DTOCV_MASK	0x0f
+#define ESDHC_SYS_CTRL_DTOCV_MASK	GENMASK(19, 16)
 #define ESDHC_SYS_CTRL_IPP_RST_N	BIT(23)
 #define	ESDHC_CTRL_D3CD			0x08
 #define ESDHC_BURST_LEN_EN_INCR		(1 << 27)
@@ -1391,8 +1391,8 @@ static void esdhc_set_timeout(struct sdhci_host *host, struct mmc_command *cmd)
 
 	/* use maximum timeout counter */
 	esdhc_clrset_le(host, ESDHC_SYS_CTRL_DTOCV_MASK,
-			esdhc_is_usdhc(imx_data) ? 0xF : 0xE,
-			SDHCI_TIMEOUT_CONTROL);
+			esdhc_is_usdhc(imx_data) ? 0xF0000 : 0xE0000,
+			ESDHC_SYSTEM_CONTROL);
 }
 
 static u32 esdhc_cqhci_irq(struct sdhci_host *host, u32 intmask)
