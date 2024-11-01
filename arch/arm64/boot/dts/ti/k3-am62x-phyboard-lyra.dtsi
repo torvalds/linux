@@ -376,6 +376,7 @@
 
 				sii9022_in: endpoint {
 					remote-endpoint = <&dpi1_out>;
+					bus-width = <16>;
 				};
 			};
 
