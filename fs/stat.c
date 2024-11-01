@@ -165,7 +165,7 @@ int vfs_getattr_nosec(const struct path *path, struct kstat *stat,
 	if (inode->i_op->getattr)
 		return inode->i_op->getattr(idmap, path, stat,
 					    request_mask,
-					    query_flags | AT_GETATTR_NOSEC);
+					    query_flags);
 
 	generic_fillattr(idmap, request_mask, inode, stat);
 	return 0;
@@ -197,9 +197,6 @@ int vfs_getattr(const struct path *path, struct kstat *stat,
 		u32 request_mask, unsigned int query_flags)
 {
 	int retval;
-
-	if (WARN_ON_ONCE(query_flags & AT_GETATTR_NOSEC))
-		return -EPERM;
 
 	retval = security_inode_getattr(path);
 	if (retval)
