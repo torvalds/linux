@@ -70,7 +70,7 @@ EXPORT_SYMBOL_GPL(sdhci_uhs2_dump_regs);
 
 static inline u16 uhs2_dev_cmd(struct mmc_command *cmd)
 {
-	return be16_to_cpu((__be16)cmd->uhs2_cmd->arg) & UHS2_ARG_IOADR_MASK;
+	return be16_to_cpu((__force __be16)cmd->uhs2_cmd->arg) & UHS2_ARG_IOADR_MASK;
 }
 
 static inline int mmc_opt_regulator_set_ocr(struct mmc_host *mmc,
