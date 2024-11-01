@@ -41,7 +41,7 @@ properties:
       device, hence no steps need to be passed.
 
   rotary-encoder,rollover:
-    $ref: /schemas/types.yaml#/definitions/int32
+    $ref: /schemas/types.yaml#/definitions/flag
     description:
       Automatic rollover when the rotary value becomes
       greater than the specified steps or smaller than 0. For absolute axis only.
