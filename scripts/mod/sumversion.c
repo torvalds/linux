@@ -392,7 +392,7 @@ out_file:
 /* Calc and record src checksum. */
 void get_src_version(const char *modname, char sum[], unsigned sumlen)
 {
-	char *buf;
+	char *buf, *pos;
 	struct md4_ctx md;
 	char *fname;
 	char filelist[PATH_MAX + 1];
@@ -401,9 +401,10 @@ void get_src_version(const char *modname, char sum[], unsigned sumlen)
 	snprintf(filelist, sizeof(filelist), "%s.mod", modname);
 
 	buf = read_text_file(filelist);
+	pos = buf;
 
 	md4_init(&md);
-	while ((fname = strsep(&buf, "\n"))) {
+	while ((fname = strsep(&pos, "\n"))) {
 		if (!*fname)
 			continue;
 		if (!(is_static_library(fname)) &&

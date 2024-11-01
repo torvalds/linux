@@ -110,6 +110,7 @@ static inline void free_dev_ioctl(struct autofs_dev_ioctl *param)
  */
 static int validate_dev_ioctl(int cmd, struct autofs_dev_ioctl *param)
 {
+	unsigned int inr = _IOC_NR(cmd);
 	int err;
 
 	err = check_dev_ioctl_version(cmd, param);
@@ -133,7 +134,7 @@ static int validate_dev_ioctl(int cmd, struct autofs_dev_ioctl *param)
 		 * check_name() return for AUTOFS_DEV_IOCTL_TIMEOUT_CMD.
 		 */
 		err = check_name(param->path);
-		if (cmd == AUTOFS_DEV_IOCTL_TIMEOUT_CMD)
+		if (inr == AUTOFS_DEV_IOCTL_TIMEOUT_CMD)
 			err = err ? 0 : -EINVAL;
 		if (err) {
 			pr_warn("invalid path supplied for cmd(0x%08x)\n",
@@ -141,8 +142,6 @@ static int validate_dev_ioctl(int cmd, struct autofs_dev_ioctl *param)
 			goto out;
 		}
 	} else {
-		unsigned int inr = _IOC_NR(cmd);
-
 		if (inr == AUTOFS_DEV_IOCTL_OPENMOUNT_CMD ||
 		    inr == AUTOFS_DEV_IOCTL_REQUESTER_CMD ||
 		    inr == AUTOFS_DEV_IOCTL_ISMOUNTPOINT_CMD) {

@@ -119,12 +119,12 @@ static void input_pass_values(struct input_dev *dev,
 
 	handle = rcu_dereference(dev->grab);
 	if (handle) {
-		count = handle->handler->events(handle, vals, count);
+		count = handle->handle_events(handle, vals, count);
 	} else {
 		list_for_each_entry_rcu(handle, &dev->h_list, d_node)
 			if (handle->open) {
-				count = handle->handler->events(handle, vals,
-								count);
+				count = handle->handle_events(handle, vals,
+							      count);
 				if (!count)
 					break;
 			}
@@ -2534,57 +2534,6 @@ static int input_handler_check_methods(const struct input_handler *handler)
 	return 0;
 }
 
-/*
- * An implementation of input_handler's events() method that simply
- * invokes handler->event() method for each event one by one.
- */
-static unsigned int input_handler_events_default(struct input_handle *handle,
-						 struct input_value *vals,
-						 unsigned int count)
-{
-	struct input_handler *handler = handle->handler;
-	struct input_value *v;
-
-	for (v = vals; v != vals + count; v++)
-		handler->event(handle, v->type, v->code, v->value);
-
-	return count;
-}
-
-/*
- * An implementation of input_handler's events() method that invokes
- * handler->filter() method for each event one by one and removes events
- * that were filtered out from the "vals" array.
- */
-static unsigned int input_handler_events_filter(struct input_handle *handle,
-						struct input_value *vals,
-						unsigned int count)
-{
-	struct input_handler *handler = handle->handler;
-	struct input_value *end = vals;
-	struct input_value *v;
-
-	for (v = vals; v != vals + count; v++) {
-		if (handler->filter(handle, v->type, v->code, v->value))
-			continue;
-		if (end != v)
-			*end = *v;
-		end++;
-	}
-
-	return end - vals;
-}
-
-/*
- * An implementation of input_handler's events() method that does nothing.
- */
-static unsigned int input_handler_events_null(struct input_handle *handle,
-					      struct input_value *vals,
-					      unsigned int count)
-{
-	return count;
-}
-
 /**
  * input_register_handler - register a new input handler
  * @handler: handler to be registered
@@ -2603,13 +2552,6 @@ int input_register_handler(struct input_handler *handler)
 		return error;
 
 	INIT_LIST_HEAD(&handler->h_list);
-
-	if (handler->filter)
-		handler->events = input_handler_events_filter;
-	else if (handler->event)
-		handler->events = input_handler_events_default;
-	else if (!handler->events)
-		handler->events = input_handler_events_null;
 
 	error = mutex_lock_interruptible(&input_mutex);
 	if (error)
@@ -2684,6 +2626,75 @@ int input_handler_for_each_handle(struct input_handler *handler, void *data,
 }
 EXPORT_SYMBOL(input_handler_for_each_handle);
 
+/*
+ * An implementation of input_handle's handle_events() method that simply
+ * invokes handler->event() method for each event one by one.
+ */
+static unsigned int input_handle_events_default(struct input_handle *handle,
+						struct input_value *vals,
+						unsigned int count)
+{
+	struct input_handler *handler = handle->handler;
+	struct input_value *v;
+
+	for (v = vals; v != vals + count; v++)
+		handler->event(handle, v->type, v->code, v->value);
+
+	return count;
+}
+
+/*
+ * An implementation of input_handle's handle_events() method that invokes
+ * handler->filter() method for each event one by one and removes events
+ * that were filtered out from the "vals" array.
+ */
+static unsigned int input_handle_events_filter(struct input_handle *handle,
+					       struct input_value *vals,
+					       unsigned int count)
+{
+	struct input_handler *handler = handle->handler;
+	struct input_value *end = vals;
+	struct input_value *v;
+
+	for (v = vals; v != vals + count; v++) {
+		if (handler->filter(handle, v->type, v->code, v->value))
+			continue;
+		if (end != v)
+			*end = *v;
+		end++;
+	}
+
+	return end - vals;
+}
+
+/*
+ * An implementation of input_handle's handle_events() method that does nothing.
+ */
+static unsigned int input_handle_events_null(struct input_handle *handle,
+					     struct input_value *vals,
+					     unsigned int count)
+{
+	return count;
+}
+
+/*
+ * Sets up appropriate handle->event_handler based on the input_handler
+ * associated with the handle.
+ */
+static void input_handle_setup_event_handler(struct input_handle *handle)
+{
+	struct input_handler *handler = handle->handler;
+
+	if (handler->filter)
+		handle->handle_events = input_handle_events_filter;
+	else if (handler->event)
+		handle->handle_events = input_handle_events_default;
+	else if (handler->events)
+		handle->handle_events = handler->events;
+	else
+		handle->handle_events = input_handle_events_null;
+}
+
 /**
  * input_register_handle - register a new input handle
  * @handle: handle to register
@@ -2701,6 +2712,7 @@ int input_register_handle(struct input_handle *handle)
 	struct input_dev *dev = handle->dev;
 	int error;
 
+	input_handle_setup_event_handler(handle);
 	/*
 	 * We take dev->mutex here to prevent race with
 	 * input_release_device().

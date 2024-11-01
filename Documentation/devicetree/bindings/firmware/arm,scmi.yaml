@@ -124,7 +124,7 @@ properties:
       atomic mode of operation, even if requested.
     default: 0
 
-  max-rx-timeout-ms:
+  arm,max-rx-timeout-ms:
     description:
       An optional time value, expressed in milliseconds, representing the
       transport maximum timeout value for the receive channel. The value should

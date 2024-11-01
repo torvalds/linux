@@ -11,7 +11,6 @@
 #include <linux/irq.h>
 #include <linux/ip.h>
 #include <linux/ipv6.h>
-#include <linux/iommu.h>
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/skbuff.h>
@@ -380,24 +379,6 @@ static const struct hns3_rx_ptype hns3_rx_ptype_tbl[] = {
 
 #define HNS3_INVALID_PTYPE \
 		ARRAY_SIZE(hns3_rx_ptype_tbl)
-
-static void hns3_dma_map_sync(struct device *dev, unsigned long iova)
-{
-	struct iommu_domain *domain = iommu_get_domain_for_dev(dev);
-	struct iommu_iotlb_gather iotlb_gather;
-	size_t granule;
-
-	if (!domain || !iommu_is_dma_domain(domain))
-		return;
-
-	granule = 1 << __ffs(domain->pgsize_bitmap);
-	iova = ALIGN_DOWN(iova, granule);
-	iotlb_gather.start = iova;
-	iotlb_gather.end = iova + granule - 1;
-	iotlb_gather.pgsize = granule;
-
-	iommu_iotlb_sync(domain, &iotlb_gather);
-}
 
 static irqreturn_t hns3_irq_handle(int irq, void *vector)
 {
@@ -1051,8 +1032,6 @@ static bool hns3_can_use_tx_sgl(struct hns3_enet_ring *ring,
 static void hns3_init_tx_spare_buffer(struct hns3_enet_ring *ring)
 {
 	u32 alloc_size = ring->tqp->handle->kinfo.tx_spare_buf_size;
-	struct net_device *netdev = ring_to_netdev(ring);
-	struct hns3_nic_priv *priv = netdev_priv(netdev);
 	struct hns3_tx_spare *tx_spare;
 	struct page *page;
 	dma_addr_t dma;
@@ -1094,7 +1073,6 @@ static void hns3_init_tx_spare_buffer(struct hns3_enet_ring *ring)
 	tx_spare->buf = page_address(page);
 	tx_spare->len = PAGE_SIZE << order;
 	ring->tx_spare = tx_spare;
-	ring->tx_copybreak = priv->tx_copybreak;
 	return;
 
 dma_mapping_error:
@@ -1746,9 +1724,7 @@ static int hns3_map_and_fill_desc(struct hns3_enet_ring *ring, void *priv,
 				  unsigned int type)
 {
 	struct hns3_desc_cb *desc_cb = &ring->desc_cb[ring->next_to_use];
-	struct hnae3_handle *handle = ring->tqp->handle;
 	struct device *dev = ring_to_dev(ring);
-	struct hnae3_ae_dev *ae_dev;
 	unsigned int size;
 	dma_addr_t dma;
 
@@ -1779,13 +1755,6 @@ static int hns3_map_and_fill_desc(struct hns3_enet_ring *ring, void *priv,
 		hns3_ring_stats_update(ring, sw_err_cnt);
 		return -ENOMEM;
 	}
-
-	/* Add a SYNC command to sync io-pgtale to avoid errors in pgtable
-	 * prefetch
-	 */
-	ae_dev = hns3_get_ae_dev(handle);
-	if (ae_dev->dev_version >= HNAE3_DEVICE_VERSION_V3)
-		hns3_dma_map_sync(dev, dma);
 
 	desc_cb->priv = priv;
 	desc_cb->length = size;
@@ -2483,6 +2452,7 @@ static int hns3_nic_set_features(struct net_device *netdev,
 			return ret;
 	}
 
+	netdev->features = features;
 	return 0;
 }
 
@@ -4898,30 +4868,6 @@ static void hns3_nic_dealloc_vector_data(struct hns3_nic_priv *priv)
 	devm_kfree(&pdev->dev, priv->tqp_vector);
 }
 
-static void hns3_update_tx_spare_buf_config(struct hns3_nic_priv *priv)
-{
-#define HNS3_MIN_SPARE_BUF_SIZE (2 * 1024 * 1024)
-#define HNS3_MAX_PACKET_SIZE (64 * 1024)
-
-	struct iommu_domain *domain = iommu_get_domain_for_dev(priv->dev);
-	struct hnae3_ae_dev *ae_dev = hns3_get_ae_dev(priv->ae_handle);
-	struct hnae3_handle *handle = priv->ae_handle;
-
-	if (ae_dev->dev_version < HNAE3_DEVICE_VERSION_V3)
-		return;
-
-	if (!(domain && iommu_is_dma_domain(domain)))
-		return;
-
-	priv->min_tx_copybreak = HNS3_MAX_PACKET_SIZE;
-	priv->min_tx_spare_buf_size = HNS3_MIN_SPARE_BUF_SIZE;
-
-	if (priv->tx_copybreak < priv->min_tx_copybreak)
-		priv->tx_copybreak = priv->min_tx_copybreak;
-	if (handle->kinfo.tx_spare_buf_size < priv->min_tx_spare_buf_size)
-		handle->kinfo.tx_spare_buf_size = priv->min_tx_spare_buf_size;
-}
-
 static void hns3_ring_get_cfg(struct hnae3_queue *q, struct hns3_nic_priv *priv,
 			      unsigned int ring_type)
 {
@@ -5155,7 +5101,6 @@ int hns3_init_all_ring(struct hns3_nic_priv *priv)
 	int i, j;
 	int ret;
 
-	hns3_update_tx_spare_buf_config(priv);
 	for (i = 0; i < ring_num; i++) {
 		ret = hns3_alloc_ring_memory(&priv->ring[i]);
 		if (ret) {
@@ -5360,8 +5305,6 @@ static int hns3_client_init(struct hnae3_handle *handle)
 	priv->ae_handle = handle;
 	priv->tx_timeout_count = 0;
 	priv->max_non_tso_bd_num = ae_dev->dev_specs.max_non_tso_bd_num;
-	priv->min_tx_copybreak = 0;
-	priv->min_tx_spare_buf_size = 0;
 	set_bit(HNS3_NIC_STATE_DOWN, &priv->state);
 
 	handle->msg_enable = netif_msg_init(debug, DEFAULT_MSG_LEVEL);

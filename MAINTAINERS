@@ -2852,7 +2852,7 @@ F:	Documentation/devicetree/bindings/arm/qcom.yaml
 F:	Documentation/devicetree/bindings/bus/qcom*
 F:	Documentation/devicetree/bindings/cache/qcom,llcc.yaml
 F:	Documentation/devicetree/bindings/firmware/qcom,scm.yaml
-F:	Documentation/devicetree/bindings/reserved-memory/qcom
+F:	Documentation/devicetree/bindings/reserved-memory/qcom*
 F:	Documentation/devicetree/bindings/soc/qcom/
 F:	arch/arm/boot/dts/qcom/
 F:	arch/arm/configs/qcom_defconfig
@@ -3745,6 +3745,7 @@ F:	drivers/spi/spi-axi-spi-engine.c
 AXI PWM GENERATOR
 M:	Michael Hennerich <michael.hennerich@analog.com>
 M:	Nuno Sá <nuno.sa@analog.com>
+R:	Trevor Gamblin <tgamblin@baylibre.com>
 L:	linux-pwm@vger.kernel.org
 S:	Supported
 W:	https://ez.analog.com/linux-software-drivers
@@ -14154,6 +14155,15 @@ S:	Maintained
 T:	git git://linuxtv.org/media_tree.git
 F:	drivers/media/platform/nxp/imx-pxp.[ch]
 
+MEDIA DRIVERS FOR ASCOT2E
+M:	Abylay Ospan <aospan@amazon.com>
+L:	linux-media@vger.kernel.org
+S:	Supported
+W:	https://linuxtv.org
+W:	http://netup.tv/
+T:	git git://linuxtv.org/media_tree.git
+F:	drivers/media/dvb-frontends/ascot2e*
+
 MEDIA DRIVERS FOR CXD2099AR CI CONTROLLERS
 M:	Jasmin Jessich <jasmin@anw.at>
 L:	linux-media@vger.kernel.org
@@ -14161,6 +14171,15 @@ S:	Maintained
 W:	https://linuxtv.org
 T:	git git://linuxtv.org/media_tree.git
 F:	drivers/media/dvb-frontends/cxd2099*
+
+MEDIA DRIVERS FOR CXD2841ER
+M:	Abylay Ospan <aospan@amazon.com>
+L:	linux-media@vger.kernel.org
+S:	Supported
+W:	https://linuxtv.org
+W:	http://netup.tv/
+T:	git git://linuxtv.org/media_tree.git
+F:	drivers/media/dvb-frontends/cxd2841er*
 
 MEDIA DRIVERS FOR CXD2880
 M:	Yasunari Takiguchi <Yasunari.Takiguchi@sony.com>
@@ -14206,12 +14225,48 @@ F:	drivers/media/platform/nxp/imx-mipi-csis.c
 F:	drivers/media/platform/nxp/imx7-media-csi.c
 F:	drivers/media/platform/nxp/imx8mq-mipi-csi2.c
 
+MEDIA DRIVERS FOR HELENE
+M:	Abylay Ospan <aospan@amazon.com>
+L:	linux-media@vger.kernel.org
+S:	Supported
+W:	https://linuxtv.org
+W:	http://netup.tv/
+T:	git git://linuxtv.org/media_tree.git
+F:	drivers/media/dvb-frontends/helene*
+
+MEDIA DRIVERS FOR HORUS3A
+M:	Abylay Ospan <aospan@amazon.com>
+L:	linux-media@vger.kernel.org
+S:	Supported
+W:	https://linuxtv.org
+W:	http://netup.tv/
+T:	git git://linuxtv.org/media_tree.git
+F:	drivers/media/dvb-frontends/horus3a*
+
+MEDIA DRIVERS FOR LNBH25
+M:	Abylay Ospan <aospan@amazon.com>
+L:	linux-media@vger.kernel.org
+S:	Supported
+W:	https://linuxtv.org
+W:	http://netup.tv/
+T:	git git://linuxtv.org/media_tree.git
+F:	drivers/media/dvb-frontends/lnbh25*
+
 MEDIA DRIVERS FOR MXL5XX TUNER DEMODULATORS
 L:	linux-media@vger.kernel.org
 S:	Orphan
 W:	https://linuxtv.org
 T:	git git://linuxtv.org/media_tree.git
 F:	drivers/media/dvb-frontends/mxl5xx*
+
+MEDIA DRIVERS FOR NETUP PCI UNIVERSAL DVB devices
+M:	Abylay Ospan <aospan@amazon.com>
+L:	linux-media@vger.kernel.org
+S:	Supported
+W:	https://linuxtv.org
+W:	http://netup.tv/
+T:	git git://linuxtv.org/media_tree.git
+F:	drivers/media/pci/netup_unidvb/*
 
 MEDIA DRIVERS FOR NVIDIA TEGRA - VDE
 M:	Dmitry Osipenko <digetx@gmail.com>
@@ -16049,7 +16104,6 @@ F:	drivers/net/wireless/
 
 NETWORKING [DSA]
 M:	Andrew Lunn <andrew@lunn.ch>
-M:	Florian Fainelli <f.fainelli@gmail.com>
 M:	Vladimir Oltean <olteanv@gmail.com>
 S:	Maintained
 F:	Documentation/devicetree/bindings/net/dsa/
@@ -19821,12 +19875,10 @@ L:	linux-riscv@lists.infradead.org
 S:	Maintained
 Q:	https://patchwork.kernel.org/project/linux-riscv/list/
 T:	git https://git.kernel.org/pub/scm/linux/kernel/git/conor/linux.git/
-F:	Documentation/devicetree/bindings/riscv/
-F:	arch/riscv/boot/dts/
-X:	arch/riscv/boot/dts/allwinner/
-X:	arch/riscv/boot/dts/renesas/
-X:	arch/riscv/boot/dts/sophgo/
-X:	arch/riscv/boot/dts/thead/
+F:	arch/riscv/boot/dts/canaan/
+F:	arch/riscv/boot/dts/microchip/
+F:	arch/riscv/boot/dts/sifive/
+F:	arch/riscv/boot/dts/starfive/
 
 RISC-V PMU DRIVERS
 M:	Atish Patra <atishp@atishpatra.org>
