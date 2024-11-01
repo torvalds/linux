@@ -912,6 +912,35 @@ out:
 	nvmet_req_complete(req, status);
 }
 
+static void nvmet_execute_id_cs_indep(struct nvmet_req *req)
+{
+	struct nvme_id_ns_cs_indep *id;
+	u16 status;
+
+	status = nvmet_req_find_ns(req);
+	if (status)
+		goto out;
+
+	id = kzalloc(sizeof(*id), GFP_KERNEL);
+	if (!id) {
+		status = NVME_SC_INTERNAL;
+		goto out;
+	}
+
+	id->nstat = NVME_NSTAT_NRDY;
+	id->anagrpid = cpu_to_le32(req->ns->anagrpid);
+	id->nmic = NVME_NS_NMIC_SHARED;
+	if (req->ns->readonly)
+		id->nsattr |= NVME_NS_ATTR_RO;
+	if (req->ns->bdev && !bdev_nonrot(req->ns->bdev))
+		id->nsfeat |= NVME_NS_ROTATIONAL;
+
+	status = nvmet_copy_to_sgl(req, 0, id, sizeof(*id));
+	kfree(id);
+out:
+	nvmet_req_complete(req, status);
+}
+
 static void nvmet_execute_identify(struct nvmet_req *req)
 {
 	if (!nvmet_check_transfer_len(req, NVME_IDENTIFY_DATA_SIZE))
@@ -958,6 +987,9 @@ static void nvmet_execute_identify(struct nvmet_req *req)
 		break;
 	case NVME_ID_CNS_NS_ACTIVE_LIST_CS:
 		nvmet_execute_identify_nslist(req, true);
+		return;
+	case NVME_ID_CNS_NS_CS_INDEP:
+		nvmet_execute_id_cs_indep(req);
 		return;
 	case NVME_ID_CNS_ENDGRP_LIST:
 		nvmet_execute_identify_endgrp_list(req);
