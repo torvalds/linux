@@ -35,6 +35,7 @@
 #include <linux/rcupdate_trace.h>
 #include <linux/memcontrol.h>
 #include <linux/trace_events.h>
+#include <linux/tracepoint.h>
 
 #include <net/netfilter/nf_bpf_link.h>
 #include <net/netkit.h>
@@ -3845,8 +3846,9 @@ static int bpf_raw_tp_link_attach(struct bpf_prog *prog,
 		err = -ENOMEM;
 		goto out_put_btp;
 	}
-	bpf_link_init(&link->link, BPF_LINK_TYPE_RAW_TRACEPOINT,
-		      &bpf_raw_tp_link_lops, prog);
+	bpf_link_init_sleepable(&link->link, BPF_LINK_TYPE_RAW_TRACEPOINT,
+				&bpf_raw_tp_link_lops, prog,
+				tracepoint_is_faultable(btp->tp));
 	link->btp = btp;
 	link->cookie = cookie;
 
