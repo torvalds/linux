@@ -95,6 +95,16 @@
 		regulator-boot-on;
 	};
 
+	vddshv_3v3: regulator-vddshv-3v3 {
+		compatible = "regulator-fixed";
+		regulator-name = "VDDSHV0";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		vin-supply = <&vdd_3v3>;
+		regulator-always-on;
+		regulator-boot-on;
+	};
+
 	leds {
 		compatible = "gpio-leds";
 		pinctrl-names = "default";
@@ -313,6 +323,7 @@
 		compatible = "atmel,24c32";
 		pagesize = <32>;
 		reg = <0x50>;
+		vcc-supply = <&vddshv_3v3>;
 	};
 
 	i2c_som_rtc: rtc@52 {
