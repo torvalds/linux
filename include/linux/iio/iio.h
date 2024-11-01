@@ -624,7 +624,7 @@ struct iio_dev {
 	const struct iio_info		*info;
 	const struct iio_buffer_setup_ops	*setup_ops;
 
-	void				*priv;
+	void				*priv __private;
 };
 
 int iio_device_id(struct iio_dev *indio_dev);
@@ -785,7 +785,7 @@ struct iio_dev *iio_device_alloc(struct device *parent, int sizeof_priv);
 /* The information at the returned address is guaranteed to be cacheline aligned */
 static inline void *iio_priv(const struct iio_dev *indio_dev)
 {
-	return indio_dev->priv;
+	return ACCESS_PRIVATE(indio_dev, priv);
 }
 
 void iio_device_free(struct iio_dev *indio_dev);

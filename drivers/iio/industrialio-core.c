@@ -1665,7 +1665,7 @@ struct iio_dev *iio_device_alloc(struct device *parent, int sizeof_priv)
 	indio_dev = &iio_dev_opaque->indio_dev;
 
 	if (sizeof_priv)
-		indio_dev->priv = (char *)iio_dev_opaque +
+		ACCESS_PRIVATE(indio_dev, priv) = (char *)iio_dev_opaque +
 			ALIGN(sizeof(*iio_dev_opaque), IIO_DMA_MINALIGN);
 
 	indio_dev->dev.parent = parent;
