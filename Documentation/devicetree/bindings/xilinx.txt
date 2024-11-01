@@ -1,0 +1,165 @@
+   d) Xilinx IP cores
+
+   The Xilinx EDK toolchain ships with a set of IP cores (devices) for use
+   in Xilinx Spartan and Virtex FPGAs.  The devices cover the whole range
+   of standard device types (network, serial, etc.) and miscellaneous
+   devices (gpio, LCD, spi, etc).  Also, since these devices are
+   implemented within the fpga fabric every instance of the device can be
+   synthesised with different options that change the behaviour.
+
+   Each IP-core has a set of parameters which the FPGA designer can use to
+   control how the core is synthesized.  Historically, the EDK tool would
+   extract the device parameters relevant to device drivers and copy them
+   into an 'xparameters.h' in the form of #define symbols.  This tells the
+   device drivers how the IP cores are configured, but it requires the kernel
+   to be recompiled every time the FPGA bitstream is resynthesized.
+
+   The new approach is to export the parameters into the device tree and
+   generate a new device tree each time the FPGA bitstream changes.  The
+   parameters which used to be exported as #defines will now become
+   properties of the device node.  In general, device nodes for IP-cores
+   will take the following form:
+
+	(name): (generic-name)@(base-address) {
+		compatible = "xlnx,(ip-core-name)-(HW_VER)"
+			     [, (list of compatible devices), ...];
+		reg = <(baseaddr) (size)>;
+		interrupt-parent = <&interrupt-controller-phandle>;
+		interrupts = < ... >;
+		xlnx,(parameter1) = "(string-value)";
+		xlnx,(parameter2) = <(int-value)>;
+	};
+
+	(generic-name):   an open firmware-style name that describes the
+			generic class of device.  Preferably, this is one word, such
+			as 'serial' or 'ethernet'.
+	(ip-core-name):	the name of the ip block (given after the BEGIN
+			directive in system.mhs).  Should be in lowercase
+			and all underscores '_' converted to dashes '-'.
+	(name):		is derived from the "PARAMETER INSTANCE" value.
+	(parameter#):	C_* parameters from system.mhs.  The C_ prefix is
+			dropped from the parameter name, the name is converted
+			to lowercase and all underscore '_' characters are
+			converted to dashes '-'.
+	(baseaddr):	the baseaddr parameter value (often named C_BASEADDR).
+	(HW_VER):	from the HW_VER parameter.
+	(size):		the address range size (often C_HIGHADDR - C_BASEADDR + 1).
+
+   Typically, the compatible list will include the exact IP core version
+   followed by an older IP core version which implements the same
+   interface or any other device with the same interface.
+
+   'reg' and 'interrupts' are all optional properties.
+
+   For example, the following block from system.mhs:
+
+	BEGIN opb_uartlite
+		PARAMETER INSTANCE = opb_uartlite_0
+		PARAMETER HW_VER = 1.00.b
+		PARAMETER C_BAUDRATE = 115200
+		PARAMETER C_DATA_BITS = 8
+		PARAMETER C_ODD_PARITY = 0
+		PARAMETER C_USE_PARITY = 0
+		PARAMETER C_CLK_FREQ = 50000000
+		PARAMETER C_BASEADDR = 0xEC100000
+		PARAMETER C_HIGHADDR = 0xEC10FFFF
+		BUS_INTERFACE SOPB = opb_7
+		PORT OPB_Clk = CLK_50MHz
+		PORT Interrupt = opb_uartlite_0_Interrupt
+		PORT RX = opb_uartlite_0_RX
+		PORT TX = opb_uartlite_0_TX
+		PORT OPB_Rst = sys_bus_reset_0
+	END
+
+   becomes the following device tree node:
+
+	opb_uartlite_0: serial@ec100000 {
+		device_type = "serial";
+		compatible = "xlnx,opb-uartlite-1.00.b";
+		reg = <ec100000 10000>;
+		interrupt-parent = <&opb_intc_0>;
+		interrupts = <1 0>; // got this from the opb_intc parameters
+		current-speed = <d#115200>;	// standard serial device prop
+		clock-frequency = <d#50000000>;	// standard serial device prop
+		xlnx,data-bits = <8>;
+		xlnx,odd-parity = <0>;
+		xlnx,use-parity = <0>;
+	};
+
+   That covers the general approach to binding xilinx IP cores into the
+   device tree.  The following are bindings for specific devices:
+
+      i) Xilinx ML300 Framebuffer
+
+      Simple framebuffer device from the ML300 reference design (also on the
+      ML403 reference design as well as others).
+
+      Optional properties:
+       - resolution = <xres yres> : pixel resolution of framebuffer.  Some
+                                    implementations use a different resolution.
+                                    Default is <d#640 d#480>
+       - virt-resolution = <xvirt yvirt> : Size of framebuffer in memory.
+                                           Default is <d#1024 d#480>.
+       - rotate-display (empty) : rotate display 180 degrees.
+
+      ii) Xilinx SystemACE
+
+      The Xilinx SystemACE device is used to program FPGAs from an FPGA
+      bitstream stored on a CF card.  It can also be used as a generic CF
+      interface device.
+
+      Optional properties:
+       - 8-bit (empty) : Set this property for SystemACE in 8 bit mode
+
+      iii) Xilinx EMAC and Xilinx TEMAC
+
+      Xilinx Ethernet devices.  In addition to general xilinx properties
+      listed above, nodes for these devices should include a phy-handle
+      property, and may include other common network device properties
+      like local-mac-address.
+
+      iv) Xilinx Uartlite
+
+      Xilinx uartlite devices are simple fixed speed serial ports.
+
+      Required properties:
+       - current-speed : Baud rate of uartlite
+
+      v) Xilinx hwicap
+
+		Xilinx hwicap devices provide access to the configuration logic
+		of the FPGA through the Internal Configuration Access Port
+		(ICAP).  The ICAP enables partial reconfiguration of the FPGA,
+		readback of the configuration information, and some control over
+		'warm boots' of the FPGA fabric.
+
+		Required properties:
+		- xlnx,family : The family of the FPGA, necessary since the
+                      capabilities of the underlying ICAP hardware
+                      differ between different families.  May be
+                      'virtex2p', 'virtex4', or 'virtex5'.
+		- compatible : should contain "xlnx,xps-hwicap-1.00.a" or
+				"xlnx,opb-hwicap-1.00.b".
+
+      vi) Xilinx Uart 16550
+
+      Xilinx UART 16550 devices are very similar to the NS16550 but with
+      different register spacing and an offset from the base address.
+
+      Required properties:
+       - clock-frequency : Frequency of the clock input
+       - reg-offset : A value of 3 is required
+       - reg-shift : A value of 2 is required
+
+      vii) Xilinx USB Host controller
+
+      The Xilinx USB host controller is EHCI compatible but with a different
+      base address for the EHCI registers, and it is always a big-endian
+      USB Host controller. The hardware can be configured as high speed only,
+      or high speed/full speed hybrid.
+
+      Required properties:
+      - xlnx,support-usb-fs: A value 0 means the core is built as high speed
+                             only. A value 1 means the core also supports
+                             full speed devices.
+

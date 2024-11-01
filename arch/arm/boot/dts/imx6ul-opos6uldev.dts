@@ -1,0 +1,41 @@
+// SPDX-License-Identifier: GPL-2.0 OR MIT
+//
+// Copyright 2017 Armadeus Systems <support@armadeus.com>
+
+/dts-v1/;
+#include "imx6ul-opos6ul.dtsi"
+#include "imx6ul-imx6ull-opos6uldev.dtsi"
+
+/ {
+	model = "Armadeus Systems OPOS6UL SoM (i.MX6UL) on OPOS6ULDev board";
+	compatible = "armadeus,imx6ul-opos6uldev", "armadeus,imx6ul-opos6ul", "fsl,imx6ul";
+};
+
+&iomuxc {
+	pinctrl-0 = <&pinctrl_gpios>, <&pinctrl_tamper_gpios>;
+
+	pinctrl_tamper_gpios: tampergpiosgrp {
+		fsl,pins = <
+			MX6UL_PAD_SNVS_TAMPER0__GPIO5_IO00	0x0b0b0
+			MX6UL_PAD_SNVS_TAMPER2__GPIO5_IO02	0x0b0b0
+			MX6UL_PAD_SNVS_TAMPER3__GPIO5_IO03	0x0b0b0
+			MX6UL_PAD_SNVS_TAMPER4__GPIO5_IO04	0x0b0b0
+			MX6UL_PAD_SNVS_TAMPER5__GPIO5_IO05	0x0b0b0
+			MX6UL_PAD_SNVS_TAMPER6__GPIO5_IO06	0x0b0b0
+			MX6UL_PAD_SNVS_TAMPER7__GPIO5_IO07	0x0b0b0
+			MX6UL_PAD_SNVS_TAMPER8__GPIO5_IO08	0x0b0b0
+		>;
+	};
+
+	pinctrl_usbotg2_vbus: usbotg2vbusgrp {
+		fsl,pins = <
+			MX6UL_PAD_SNVS_TAMPER9__GPIO5_IO09	0x1b0b0
+		>;
+	};
+
+	pinctrl_w1: w1grp {
+		fsl,pins = <
+			MX6UL_PAD_SNVS_TAMPER1__GPIO5_IO01	0x0b0b0
+		>;
+	};
+};

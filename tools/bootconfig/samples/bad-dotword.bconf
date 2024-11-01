@@ -1,0 +1,4 @@
+# do not start keyword with .
+key {
+  .word = 1
+}

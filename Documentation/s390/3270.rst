@@ -1,0 +1,298 @@
+===============================
+IBM 3270 Display System support
+===============================
+
+This file describes the driver that supports local channel attachment
+of IBM 3270 devices.  It consists of three sections:
+
+	* Introduction
+	* Installation
+	* Operation
+
+
+Introduction
+============
+
+This paper describes installing and operating 3270 devices under
+Linux/390.  A 3270 device is a block-mode rows-and-columns terminal of
+which I'm sure hundreds of millions were sold by IBM and clonemakers
+twenty and thirty years ago.
+
+You may have 3270s in-house and not know it.  If you're using the
+VM-ESA operating system, define a 3270 to your virtual machine by using
+the command "DEF GRAF <hex-address>"  This paper presumes you will be
+defining four 3270s with the CP/CMS commands:
+
+	- DEF GRAF 620
+	- DEF GRAF 621
+	- DEF GRAF 622
+	- DEF GRAF 623
+
+Your network connection from VM-ESA allows you to use x3270, tn3270, or
+another 3270 emulator, started from an xterm window on your PC or
+workstation.  With the DEF GRAF command, an application such as xterm,
+and this Linux-390 3270 driver, you have another way of talking to your
+Linux box.
+
+This paper covers installation of the driver and operation of a
+dialed-in x3270.
+
+
+Installation
+============
+
+You install the driver by installing a patch, doing a kernel build, and
+running the configuration script (config3270.sh, in this directory).
+
+WARNING:  If you are using 3270 console support, you must rerun the
+configuration script every time you change the console's address (perhaps
+by using the condev= parameter in silo's /boot/parmfile).  More precisely,
+you should rerun the configuration script every time your set of 3270s,
+including the console 3270, changes subchannel identifier relative to
+one another.  ReIPL as soon as possible after running the configuration
+script and the resulting /tmp/mkdev3270.
+
+If you have chosen to make tub3270 a module, you add a line to a
+configuration file under /etc/modprobe.d/.  If you are working on a VM
+virtual machine, you can use DEF GRAF to define virtual 3270 devices.
+
+You may generate both 3270 and 3215 console support, or one or the
+other, or neither.  If you generate both, the console type under VM is
+not changed.  Use #CP Q TERM to see what the current console type is.
+Use #CP TERM CONMODE 3270 to change it to 3270.  If you generate only
+3270 console support, then the driver automatically converts your console
+at boot time to a 3270 if it is a 3215.
+
+In brief, these are the steps:
+
+	1. Install the tub3270 patch
+	2. (If a module) add a line to a file in `/etc/modprobe.d/*.conf`
+	3. (If VM) define devices with DEF GRAF
+	4. Reboot
+	5. Configure
+
+To test that everything works, assuming VM and x3270,
+
+	1. Bring up an x3270 window.
+	2. Use the DIAL command in that window.
+	3. You should immediately see a Linux login screen.
+
+Here are the installation steps in detail:
+
+	1.  The 3270 driver is a part of the official Linux kernel
+	source.  Build a tree with the kernel source and any necessary
+	patches.  Then do::
+
+		make oldconfig
+		(If you wish to disable 3215 console support, edit
+		.config; change CONFIG_TN3215's value to "n";
+		and rerun "make oldconfig".)
+		make image
+		make modules
+		make modules_install
+
+	2. (Perform this step only if you have configured tub3270 as a
+	module.)  Add a line to a file `/etc/modprobe.d/*.conf` to automatically
+	load the driver when it's needed.  With this line added, you will see
+	login prompts appear on your 3270s as soon as boot is complete (or
+	with emulated 3270s, as soon as you dial into your vm guest using the
+	command "DIAL <vmguestname>").  Since the line-mode major number is
+	227, the line to add should be::
+
+		alias char-major-227 tub3270
+
+	3. Define graphic devices to your vm guest machine, if you
+	haven't already.  Define them before you reboot (reipl):
+
+		- DEFINE GRAF 620
+		- DEFINE GRAF 621
+		- DEFINE GRAF 622
+		- DEFINE GRAF 623
+
+	4. Reboot.  The reboot process scans hardware devices, including
+	3270s, and this enables the tub3270 driver once loaded to respond
+	correctly to the configuration requests of the next step.  If
+	you have chosen 3270 console support, your console now behaves
+	as a 3270, not a 3215.
+
+	5. Run the 3270 configuration script config3270.  It is
+	distributed in this same directory, Documentation/s390, as
+	config3270.sh.  Inspect the output script it produces,
+	/tmp/mkdev3270, and then run that script.  This will create the
+	necessary character special device files and make the necessary
+	changes to /etc/inittab.
+
+	Then notify /sbin/init that /etc/inittab has changed, by issuing
+	the telinit command with the q operand::
+
+		cd Documentation/s390
+		sh config3270.sh
+		sh /tmp/mkdev3270
+		telinit q
+
+	This should be sufficient for your first time.  If your 3270
+	configuration has changed and you're reusing config3270, you
+	should follow these steps::
+
+		Change 3270 configuration
+		Reboot
+		Run config3270 and /tmp/mkdev3270
+		Reboot
+
+Here are the testing steps in detail:
+
+	1. Bring up an x3270 window, or use an actual hardware 3278 or
+	3279, or use the 3270 emulator of your choice.  You would be
+	running the emulator on your PC or workstation.  You would use
+	the command, for example::
+
+		x3270 vm-esa-domain-name &
+
+	if you wanted a 3278 Model 4 with 43 rows of 80 columns, the
+	default model number.  The driver does not take advantage of
+	extended attributes.
+
+	The screen you should now see contains a VM logo with input
+	lines near the bottom.  Use TAB to move to the bottom line,
+	probably labeled "COMMAND  ===>".
+
+	2. Use the DIAL command instead of the LOGIN command to connect
+	to one of the virtual 3270s you defined with the DEF GRAF
+	commands::
+
+		dial my-vm-guest-name
+
+	3. You should immediately see a login prompt from your
+	Linux-390 operating system.  If that does not happen, you would
+	see instead the line "DIALED TO my-vm-guest-name   0620".
+
+	To troubleshoot:  do these things.
+
+	A. Is the driver loaded?  Use the lsmod command (no operands)
+	to find out.  Probably it isn't.  Try loading it manually, with
+	the command "insmod tub3270".  Does that command give error
+	messages?  Ha!  There's your problem.
+
+	B. Is the /etc/inittab file modified as in installation step 3
+	above?  Use the grep command to find out; for instance, issue
+	"grep 3270 /etc/inittab".  Nothing found?  There's your
+	problem!
+
+	C. Are the device special files created, as in installation
+	step 2 above?  Use the ls -l command to find out; for instance,
+	issue "ls -l /dev/3270/tty620".  The output should start with the
+	letter "c" meaning character device and should contain "227, 1"
+	just to the left of the device name.  No such file?  no "c"?
+	Wrong major number?  Wrong minor number?  There's your
+	problem!
+
+	D. Do you get the message::
+
+		 "HCPDIA047E my-vm-guest-name 0620 does not exist"?
+
+	If so, you must issue the command "DEF GRAF 620" from your VM
+	3215 console and then reboot the system.
+
+
+
+OPERATION.
+==========
+
+The driver defines three areas on the 3270 screen:  the log area, the
+input area, and the status area.
+
+The log area takes up all but the bottom two lines of the screen.  The
+driver writes terminal output to it, starting at the top line and going
+down.  When it fills, the status area changes from "Linux Running" to
+"Linux More...".  After a scrolling timeout of (default) 5 sec, the
+screen clears and more output is written, from the top down.
+
+The input area extends from the beginning of the second-to-last screen
+line to the start of the status area.  You type commands in this area
+and hit ENTER to execute them.
+
+The status area initializes to "Linux Running" to give you a warm
+fuzzy feeling.  When the log area fills up and output awaits, it
+changes to "Linux More...".  At this time you can do several things or
+nothing.  If you do nothing, the screen will clear in (default) 5 sec
+and more output will appear.  You may hit ENTER with nothing typed in
+the input area to toggle between "Linux More..." and "Linux Holding",
+which indicates no scrolling will occur.  (If you hit ENTER with "Linux
+Running" and nothing typed, the application receives a newline.)
+
+You may change the scrolling timeout value.  For example, the following
+command line::
+
+	echo scrolltime=60 > /proc/tty/driver/tty3270
+
+changes the scrolling timeout value to 60 sec.  Set scrolltime to 0 if
+you wish to prevent scrolling entirely.
+
+Other things you may do when the log area fills up are:  hit PA2 to
+clear the log area and write more output to it, or hit CLEAR to clear
+the log area and the input area and write more output to the log area.
+
+Some of the Program Function (PF) and Program Attention (PA) keys are
+preassigned special functions.  The ones that are not yield an alarm
+when pressed.
+
+PA1 causes a SIGINT to the currently running application.  You may do
+the same thing from the input area, by typing "^C" and hitting ENTER.
+
+PA2 causes the log area to be cleared.  If output awaits, it is then
+written to the log area.
+
+PF3 causes an EOF to be received as input by the application.  You may
+cause an EOF also by typing "^D" and hitting ENTER.
+
+No PF key is preassigned to cause a job suspension, but you may cause a
+job suspension by typing "^Z" and hitting ENTER.  You may wish to
+assign this function to a PF key.  To make PF7 cause job suspension,
+execute the command::
+
+	echo pf7=^z > /proc/tty/driver/tty3270
+
+If the input you type does not end with the two characters "^n", the
+driver appends a newline character and sends it to the tty driver;
+otherwise the driver strips the "^n" and does not append a newline.
+The IBM 3215 driver behaves similarly.
+
+Pf10 causes the most recent command to be retrieved from the tube's
+command stack (default depth 20) and displayed in the input area.  You
+may hit PF10 again for the next-most-recent command, and so on.  A
+command is entered into the stack only when the input area is not made
+invisible (such as for password entry) and it is not identical to the
+current top entry.  PF10 rotates backward through the command stack;
+PF11 rotates forward.  You may assign the backward function to any PF
+key (or PA key, for that matter), say, PA3, with the command::
+
+	echo -e pa3=\\033k > /proc/tty/driver/tty3270
+
+This assigns the string ESC-k to PA3.  Similarly, the string ESC-j
+performs the forward function.  (Rationale:  In bash with vi-mode line
+editing, ESC-k and ESC-j retrieve backward and forward history.
+Suggestions welcome.)
+
+Is a stack size of twenty commands not to your liking?  Change it on
+the fly.  To change to saving the last 100 commands, execute the
+command::
+
+	echo recallsize=100 > /proc/tty/driver/tty3270
+
+Have a command you issue frequently?  Assign it to a PF or PA key!  Use
+the command::
+
+	echo pf24="mkdir foobar; cd foobar" > /proc/tty/driver/tty3270
+
+to execute the commands mkdir foobar and cd foobar immediately when you
+hit PF24.  Want to see the command line first, before you execute it?
+Use the -n option of the echo command::
+
+	echo -n pf24="mkdir foo; cd foo" > /proc/tty/driver/tty3270
+
+
+
+Happy testing!  I welcome any and all comments about this document, the
+driver, etc etc.
+
+Dick Hitt <rbh00@utsglobal.com>

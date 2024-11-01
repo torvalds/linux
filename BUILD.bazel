@@ -1,0 +1,968 @@
+# SPDX-License-Identifier: GPL-2.0
+# Copyright (C) 2021 The Android Open Source Project
+
+load("@bazel_skylib//rules:write_file.bzl", "write_file")
+load("//build/bazel_common_rules/dist:dist.bzl", "copy_to_dist_dir")
+load("//build/kernel/kleaf:common_kernels.bzl", "define_common_kernels")
+load("//build/kernel/kleaf:constants.bzl", "X86_64_OUTS")
+load(
+    "//build/kernel/kleaf:kernel.bzl",
+    "checkpatch",
+    "ddk_headers",
+    "kernel_abi",
+    "kernel_build",
+    "kernel_images",
+    "kernel_modules_install",
+    "merged_kernel_uapi_headers",
+)
+load(":modules.bzl", "get_gki_modules_list")
+
+package(
+    default_visibility = [
+        "//visibility:public",
+    ],
+)
+
+_GKI_AARCH64_MAKE_GOALS = [
+    "Image",
+    "Image.lz4",
+    "Image.gz",
+    "modules",
+]
+
+_GKI_RISCV64_MAKE_GOALS = [
+    "Image",
+    "Image.lz4",
+    "Image.gz",
+    "modules",
+]
+
+_GKI_X86_64_MAKE_GOALS = [
+    "bzImage",
+    "modules",
+]
+
+checkpatch(
+    name = "checkpatch",
+    checkpatch_pl = "scripts/checkpatch.pl",
+)
+
+# Deprecated - Use arch specific files from below.
+alias(
+    name = "gki_system_dlkm_modules",
+    actual = "gki_system_dlkm_modules_arm64",
+    deprecation = """
+    Common list for all architectures is deprecated.
+    Instead use the file corresponding to the architecture used:
+    i.e. `gki_system_dlkm_modules_{arch}`
+    """,
+)
+
+alias(
+    name = "android/gki_system_dlkm_modules",
+    actual = "android/gki_system_dlkm_modules_arm64",
+    deprecation = """
+    Common list for all architectures is deprecated.
+    Instead use the file corresponding to the architecture used:
+    i.e. `gki_system_dlkm_modules_{arch}`
+    """,
+)
+
+write_file(
+    name = "gki_system_dlkm_modules_arm64",
+    out = "android/gki_system_dlkm_modules_arm64",
+    content = get_gki_modules_list("arm64") + [
+        # Ensure new line at the end.
+        "",
+    ],
+)
+
+write_file(
+    name = "gki_system_dlkm_modules_x86_64",
+    out = "android/gki_system_dlkm_modules_x86_64",
+    content = get_gki_modules_list("x86_64") + [
+        # Ensure new line at the end.
+        "",
+    ],
+)
+
+write_file(
+    name = "gki_system_dlkm_modules_risc64",
+    out = "android/gki_system_dlkm_modules_riscv64",
+    content = get_gki_modules_list("riscv64") + [
+        # Ensure new line at the end.
+        "",
+    ],
+)
+
+filegroup(
+    name = "aarch64_additional_kmi_symbol_lists",
+    srcs = [
+        # keep sorted
+        "android/abi_gki_aarch64_asr",
+        "android/abi_gki_aarch64_asus",
+        "android/abi_gki_aarch64_bcmstb",
+        "android/abi_gki_aarch64_db845c",
+        "android/abi_gki_aarch64_exynos",
+        "android/abi_gki_aarch64_exynosauto",
+        "android/abi_gki_aarch64_fips140",
+        "android/abi_gki_aarch64_galaxy",
+        "android/abi_gki_aarch64_honda",
+        "android/abi_gki_aarch64_honor",
+        "android/abi_gki_aarch64_imx",
+        "android/abi_gki_aarch64_meizu",
+        "android/abi_gki_aarch64_moto",
+        "android/abi_gki_aarch64_mtk",
+        "android/abi_gki_aarch64_nothing",
+        "android/abi_gki_aarch64_oplus",
+        "android/abi_gki_aarch64_pasa",
+        "android/abi_gki_aarch64_pixel",
+        "android/abi_gki_aarch64_qcom",
+        "android/abi_gki_aarch64_rockchip",
+        "android/abi_gki_aarch64_sony",
+        "android/abi_gki_aarch64_sunxi",
+        "android/abi_gki_aarch64_telechips",
+        "android/abi_gki_aarch64_transsion",
+        "android/abi_gki_aarch64_tuxera",
+        "android/abi_gki_aarch64_type_visibility",
+        "android/abi_gki_aarch64_unisoc",
+        "android/abi_gki_aarch64_virtual_device",
+        "android/abi_gki_aarch64_vivo",
+        "android/abi_gki_aarch64_xiaomi",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+define_common_kernels(target_configs = {
+    "kernel_aarch64": {
+        "kmi_symbol_list_strict_mode": True,
+        "module_implicit_outs": get_gki_modules_list("arm64"),
+        "kmi_symbol_list": "android/abi_gki_aarch64",
+        "rewrite_absolute_paths_in_config": True,
+        "kmi_symbol_list_add_only": True,
+        "additional_kmi_symbol_lists": [":aarch64_additional_kmi_symbol_lists"],
+        "protected_exports_list": "android/abi_gki_protected_exports_aarch64",
+        "protected_modules_list": "android/gki_aarch64_protected_modules",
+        "make_goals": _GKI_AARCH64_MAKE_GOALS,
+    },
+    "kernel_aarch64_16k": {
+        "kmi_symbol_list_strict_mode": True,
+        "module_implicit_outs": get_gki_modules_list("arm64"),
+        "kmi_symbol_list": "android/abi_gki_aarch64",
+        "rewrite_absolute_paths_in_config": True,
+        "kmi_symbol_list_add_only": True,
+        "additional_kmi_symbol_lists": [":aarch64_additional_kmi_symbol_lists"],
+        "protected_exports_list": "android/abi_gki_protected_exports_aarch64",
+        "protected_modules_list": "android/gki_aarch64_protected_modules",
+        "make_goals": _GKI_AARCH64_MAKE_GOALS,
+    },
+    "kernel_aarch64_debug": {
+        "kmi_symbol_list_strict_mode": False,
+        "module_implicit_outs": get_gki_modules_list("arm64"),
+        "kmi_symbol_list": "android/abi_gki_aarch64",
+        "rewrite_absolute_paths_in_config": True,
+        "kmi_symbol_list_add_only": True,
+        "additional_kmi_symbol_lists": [":aarch64_additional_kmi_symbol_lists"],
+        "protected_exports_list": "android/abi_gki_protected_exports_aarch64",
+        "protected_modules_list": "android/gki_aarch64_protected_modules",
+        "make_goals": _GKI_AARCH64_MAKE_GOALS,
+    },
+    "kernel_riscv64": {
+        "kmi_symbol_list_strict_mode": False,
+        "module_implicit_outs": get_gki_modules_list("riscv64"),
+        "make_goals": _GKI_RISCV64_MAKE_GOALS,
+    },
+    "kernel_x86_64": {
+        "kmi_symbol_list_strict_mode": False,
+        "module_implicit_outs": get_gki_modules_list("x86_64"),
+        "protected_exports_list": "android/abi_gki_protected_exports_x86_64",
+        "protected_modules_list": "android/gki_x86_64_protected_modules",
+        "make_goals": _GKI_X86_64_MAKE_GOALS,
+    },
+    "kernel_x86_64_debug": {
+        "kmi_symbol_list_strict_mode": False,
+        "module_implicit_outs": get_gki_modules_list("x86_64"),
+        "protected_exports_list": "android/abi_gki_protected_exports_x86_64",
+        "protected_modules_list": "android/gki_x86_64_protected_modules",
+        "make_goals": _GKI_X86_64_MAKE_GOALS,
+    },
+})
+
+# Microdroid is not a real device. The kernel image is built with special
+#  configs to reduce the size. Hence, not using mixed build.
+kernel_build(
+    name = "kernel_aarch64_microdroid",
+    srcs = ["//common:kernel_aarch64_sources"],
+    outs = [
+        "Image",
+        "System.map",
+        "modules.builtin",
+        "modules.builtin.modinfo",
+        "vmlinux",
+        "vmlinux.symvers",
+    ],
+    build_config = "build.config.microdroid.aarch64",
+    make_goals = [
+        "Image",
+    ],
+)
+
+copy_to_dist_dir(
+    name = "kernel_aarch64_microdroid_dist",
+    data = [
+        ":kernel_aarch64_microdroid",
+    ],
+    dist_dir = "out/kernel_aarch64_microdroid/dist",
+    flat = True,
+    log = "info",
+)
+
+kernel_build(
+    name = "kernel_aarch64_microdroid_16k",
+    srcs = ["//common:kernel_aarch64_sources"],
+    outs = [
+        "Image",
+        "System.map",
+        "modules.builtin",
+        "modules.builtin.modinfo",
+        "vmlinux",
+        "vmlinux.symvers",
+    ],
+    build_config = "build.config.microdroid.aarch64",
+    make_goals = [
+        "Image",
+    ],
+    page_size = "16k",
+)
+
+copy_to_dist_dir(
+    name = "kernel_aarch64_microdroid_16k_dist",
+    data = [
+        ":kernel_aarch64_microdroid_16k",
+    ],
+    dist_dir = "out/kernel_aarch64_microdroid_16k/dist",
+    flat = True,
+    log = "info",
+)
+
+# Microdroid is not a real device. The kernel image is built with special
+#  configs to reduce the size. Hence, not using mixed build.
+kernel_build(
+    name = "kernel_x86_64_microdroid",
+    srcs = ["//common:kernel_x86_64_sources"],
+    outs = X86_64_OUTS,
+    arch = "x86_64",
+    build_config = "build.config.microdroid.x86_64",
+    make_goals = [
+        "bzImage",
+    ],
+)
+
+copy_to_dist_dir(
+    name = "kernel_x86_64_microdroid_dist",
+    data = [
+        ":kernel_x86_64_microdroid",
+    ],
+    dist_dir = "out/kernel_x86_64_microdroid/dist",
+    flat = True,
+    log = "info",
+)
+
+kernel_build(
+    name = "kernel_aarch64_crashdump",
+    srcs = ["//common:kernel_aarch64_sources"],
+    outs = [
+        "Image",
+    ],
+    build_config = "build.config.crashdump.aarch64",
+    make_goals = [
+        "Image",
+    ],
+)
+
+copy_to_dist_dir(
+    name = "kernel_aarch64_crashdump_dist",
+    data = [
+        ":kernel_aarch64_crashdump",
+    ],
+    dist_dir = "out/kernel_aarch64_crashdump/dist",
+    flat = True,
+    log = "info",
+)
+
+kernel_build(
+    name = "kernel_x86_64_crashdump",
+    srcs = ["//common:kernel_x86_64_sources"],
+    outs = X86_64_OUTS,
+    arch = "x86_64",
+    build_config = "build.config.crashdump.x86_64",
+    make_goals = [
+        "bzImage",
+    ],
+)
+
+copy_to_dist_dir(
+    name = "kernel_x86_64_crashdump_dist",
+    data = [
+        ":kernel_x86_64_crashdump",
+    ],
+    dist_dir = "out/kernel_x86_64_crashdump/dist",
+    flat = True,
+    log = "info",
+)
+
+_DB845C_MODULE_OUTS = [
+    # keep sorted
+    "crypto/michael_mic.ko",
+    "drivers/base/regmap/regmap-sdw.ko",
+    "drivers/base/regmap/regmap-slimbus.ko",
+    "drivers/bus/mhi/host/mhi.ko",
+    "drivers/clk/qcom/clk-qcom.ko",
+    "drivers/clk/qcom/clk-rpmh.ko",
+    "drivers/clk/qcom/clk-spmi-pmic-div.ko",
+    "drivers/clk/qcom/dispcc-sdm845.ko",
+    "drivers/clk/qcom/dispcc-sm8250.ko",
+    "drivers/clk/qcom/gcc-sdm845.ko",
+    "drivers/clk/qcom/gcc-sm8250.ko",
+    "drivers/clk/qcom/gcc-sm8450.ko",
+    "drivers/clk/qcom/gpucc-sdm845.ko",
+    "drivers/clk/qcom/gpucc-sm8250.ko",
+    "drivers/clk/qcom/lpass-gfm-sm8250.ko",
+    "drivers/clk/qcom/videocc-sdm845.ko",
+    "drivers/clk/qcom/videocc-sm8250.ko",
+    "drivers/cpufreq/qcom-cpufreq-hw.ko",
+    "drivers/dma-buf/heaps/system_heap.ko",
+    "drivers/dma/qcom/bam_dma.ko",
+    "drivers/dma/qcom/gpi.ko",
+    "drivers/extcon/extcon-usb-gpio.ko",
+    "drivers/firmware/qcom-scm.ko",
+    "drivers/gpio/gpio-wcd934x.ko",
+    "drivers/gpu/drm/bridge/display-connector.ko",
+    "drivers/gpu/drm/bridge/lontium-lt9611.ko",
+    "drivers/gpu/drm/bridge/lontium-lt9611uxc.ko",
+    "drivers/gpu/drm/display/drm_display_helper.ko",
+    "drivers/gpu/drm/display/drm_dp_aux_bus.ko",
+    "drivers/gpu/drm/msm/msm.ko",
+    "drivers/gpu/drm/scheduler/gpu-sched.ko",
+    "drivers/hwspinlock/qcom_hwspinlock.ko",
+    "drivers/i2c/busses/i2c-designware-core.ko",
+    "drivers/i2c/busses/i2c-designware-platform.ko",
+    "drivers/i2c/busses/i2c-qcom-geni.ko",
+    "drivers/i2c/busses/i2c-qup.ko",
+    "drivers/i2c/busses/i2c-rk3x.ko",
+    "drivers/i2c/i2c-dev.ko",
+    "drivers/i2c/i2c-mux.ko",
+    "drivers/i2c/muxes/i2c-mux-pca954x.ko",
+    "drivers/iio/adc/qcom-spmi-adc5.ko",
+    "drivers/iio/adc/qcom-vadc-common.ko",
+    "drivers/input/misc/pm8941-pwrkey.ko",
+    "drivers/interconnect/qcom/icc-bcm-voter.ko",
+    "drivers/interconnect/qcom/icc-osm-l3.ko",
+    "drivers/interconnect/qcom/icc-rpmh.ko",
+    "drivers/interconnect/qcom/qnoc-sdm845.ko",
+    "drivers/interconnect/qcom/qnoc-sm8250.ko",
+    "drivers/interconnect/qcom/qnoc-sm8450.ko",
+    "drivers/iommu/arm/arm-smmu/arm_smmu.ko",
+    "drivers/irqchip/qcom-pdc.ko",
+    "drivers/leds/rgb/leds-qcom-lpg.ko",
+    "drivers/mailbox/qcom-apcs-ipc-mailbox.ko",
+    "drivers/mailbox/qcom-ipcc.ko",
+    "drivers/media/platform/qcom/venus/venus-core.ko",
+    "drivers/media/platform/qcom/venus/venus-dec.ko",
+    "drivers/media/platform/qcom/venus/venus-enc.ko",
+    "drivers/mfd/qcom-spmi-pmic.ko",
+    "drivers/mfd/wcd934x.ko",
+    "drivers/misc/fastrpc.ko",
+    "drivers/mmc/host/cqhci.ko",
+    "drivers/mmc/host/sdhci-msm.ko",
+    "drivers/net/can/spi/mcp251xfd/mcp251xfd.ko",
+    "drivers/net/wireless/ath/ath.ko",
+    "drivers/net/wireless/ath/ath10k/ath10k_core.ko",
+    "drivers/net/wireless/ath/ath10k/ath10k_pci.ko",
+    "drivers/net/wireless/ath/ath10k/ath10k_snoc.ko",
+    "drivers/net/wireless/ath/ath11k/ath11k.ko",
+    "drivers/net/wireless/ath/ath11k/ath11k_ahb.ko",
+    "drivers/net/wireless/ath/ath11k/ath11k_pci.ko",
+    "drivers/nvmem/nvmem_qfprom.ko",
+    "drivers/phy/qualcomm/phy-qcom-qmp-combo.ko",
+    "drivers/phy/qualcomm/phy-qcom-qmp-pcie.ko",
+    "drivers/phy/qualcomm/phy-qcom-qmp-pcie-msm8996.ko",
+    "drivers/phy/qualcomm/phy-qcom-qmp-ufs.ko",
+    "drivers/phy/qualcomm/phy-qcom-qmp-usb.ko",
+    "drivers/phy/qualcomm/phy-qcom-qusb2.ko",
+    "drivers/phy/qualcomm/phy-qcom-snps-femto-v2.ko",
+    "drivers/phy/qualcomm/phy-qcom-usb-hs.ko",
+    "drivers/pinctrl/qcom/pinctrl-lpass-lpi.ko",
+    "drivers/pinctrl/qcom/pinctrl-msm.ko",
+    "drivers/pinctrl/qcom/pinctrl-sdm845.ko",
+    "drivers/pinctrl/qcom/pinctrl-sm8250.ko",
+    "drivers/pinctrl/qcom/pinctrl-sm8250-lpass-lpi.ko",
+    "drivers/pinctrl/qcom/pinctrl-sm8450.ko",
+    "drivers/pinctrl/qcom/pinctrl-spmi-gpio.ko",
+    "drivers/pinctrl/qcom/pinctrl-spmi-mpp.ko",
+    "drivers/power/reset/qcom-pon.ko",
+    "drivers/power/reset/reboot-mode.ko",
+    "drivers/power/reset/syscon-reboot-mode.ko",
+    "drivers/regulator/gpio-regulator.ko",
+    "drivers/regulator/qcom-rpmh-regulator.ko",
+    "drivers/regulator/qcom_spmi-regulator.ko",
+    "drivers/regulator/qcom_usb_vbus-regulator.ko",
+    "drivers/remoteproc/qcom_common.ko",
+    "drivers/remoteproc/qcom_pil_info.ko",
+    "drivers/remoteproc/qcom_q6v5.ko",
+    "drivers/remoteproc/qcom_q6v5_adsp.ko",
+    "drivers/remoteproc/qcom_q6v5_mss.ko",
+    "drivers/remoteproc/qcom_q6v5_pas.ko",
+    "drivers/remoteproc/qcom_q6v5_wcss.ko",
+    "drivers/remoteproc/qcom_sysmon.ko",
+    "drivers/reset/reset-qcom-aoss.ko",
+    "drivers/reset/reset-qcom-pdc.ko",
+    "drivers/rpmsg/qcom_glink.ko",
+    "drivers/rpmsg/qcom_glink_rpm.ko",
+    "drivers/rpmsg/qcom_glink_smem.ko",
+    "drivers/rpmsg/qcom_smd.ko",
+    "drivers/rpmsg/rpmsg_ns.ko",
+    "drivers/rtc/rtc-pm8xxx.ko",
+    "drivers/slimbus/slim-qcom-ngd-ctrl.ko",
+    "drivers/slimbus/slimbus.ko",
+    "drivers/soc/qcom/apr.ko",
+    "drivers/soc/qcom/cmd-db.ko",
+    "drivers/soc/qcom/cpr.ko",
+    "drivers/soc/qcom/llcc-qcom.ko",
+    "drivers/soc/qcom/mdt_loader.ko",
+    "drivers/soc/qcom/pdr_interface.ko",
+    "drivers/soc/qcom/qcom_aoss.ko",
+    "drivers/soc/qcom/qcom_rpmh.ko",
+    "drivers/soc/qcom/qmi_helpers.ko",
+    "drivers/soc/qcom/rmtfs_mem.ko",
+    "drivers/soc/qcom/rpmhpd.ko",
+    "drivers/soc/qcom/smem.ko",
+    "drivers/soc/qcom/smp2p.ko",
+    "drivers/soc/qcom/smsm.ko",
+    "drivers/soc/qcom/socinfo.ko",
+    "drivers/soc/qcom/spm.ko",
+    "drivers/soundwire/soundwire-bus.ko",
+    "drivers/soundwire/soundwire-qcom.ko",
+    "drivers/spi/spi-geni-qcom.ko",
+    "drivers/spi/spi-pl022.ko",
+    "drivers/spi/spi-qcom-qspi.ko",
+    "drivers/spi/spi-qup.ko",
+    "drivers/spmi/spmi-pmic-arb.ko",
+    "drivers/thermal/qcom/lmh.ko",
+    "drivers/thermal/qcom/qcom-spmi-adc-tm5.ko",
+    "drivers/thermal/qcom/qcom-spmi-temp-alarm.ko",
+    "drivers/thermal/qcom/qcom_tsens.ko",
+    "drivers/tty/serial/msm_serial.ko",
+    "drivers/ufs/host/ufs_qcom.ko",
+    "drivers/usb/common/ulpi.ko",
+    "drivers/usb/host/ohci-hcd.ko",
+    "drivers/usb/host/ohci-pci.ko",
+    "drivers/usb/host/ohci-platform.ko",
+    "drivers/usb/typec/qcom-pmic-typec.ko",
+    "net/mac80211/mac80211.ko",
+    "net/qrtr/qrtr.ko",
+    "net/qrtr/qrtr-mhi.ko",
+    "net/qrtr/qrtr-smd.ko",
+    "net/qrtr/qrtr-tun.ko",
+    "net/wireless/cfg80211.ko",
+    "sound/soc/codecs/snd-soc-dmic.ko",
+    "sound/soc/codecs/snd-soc-hdmi-codec.ko",
+    "sound/soc/codecs/snd-soc-lpass-macro-common.ko",
+    "sound/soc/codecs/snd-soc-lpass-va-macro.ko",
+    "sound/soc/codecs/snd-soc-lpass-wsa-macro.ko",
+    "sound/soc/codecs/snd-soc-max98927.ko",
+    "sound/soc/codecs/snd-soc-rl6231.ko",
+    "sound/soc/codecs/snd-soc-rt5663.ko",
+    "sound/soc/codecs/snd-soc-wcd-mbhc.ko",
+    "sound/soc/codecs/snd-soc-wcd9335.ko",
+    "sound/soc/codecs/snd-soc-wcd934x.ko",
+    "sound/soc/codecs/snd-soc-wsa881x.ko",
+    "sound/soc/qcom/qdsp6/q6adm.ko",
+    "sound/soc/qcom/qdsp6/q6afe.ko",
+    "sound/soc/qcom/qdsp6/q6afe-clocks.ko",
+    "sound/soc/qcom/qdsp6/q6afe-dai.ko",
+    "sound/soc/qcom/qdsp6/q6apm-dai.ko",
+    "sound/soc/qcom/qdsp6/q6apm-lpass-dais.ko",
+    "sound/soc/qcom/qdsp6/q6asm.ko",
+    "sound/soc/qcom/qdsp6/q6asm-dai.ko",
+    "sound/soc/qcom/qdsp6/q6core.ko",
+    "sound/soc/qcom/qdsp6/q6prm.ko",
+    "sound/soc/qcom/qdsp6/q6prm-clocks.ko",
+    "sound/soc/qcom/qdsp6/q6routing.ko",
+    "sound/soc/qcom/qdsp6/snd-q6apm.ko",
+    "sound/soc/qcom/qdsp6/snd-q6dsp-common.ko",
+    "sound/soc/qcom/snd-soc-qcom-common.ko",
+    "sound/soc/qcom/snd-soc-qcom-sdw.ko",
+    "sound/soc/qcom/snd-soc-sdm845.ko",
+    "sound/soc/qcom/snd-soc-sm8250.ko",
+]
+
+_DB845C_WATCHDOG_MODULE_OUTS = [
+    "drivers/watchdog/pm8916_wdt.ko",
+    "drivers/watchdog/qcom-wdt.ko",
+]
+
+kernel_build(
+    name = "db845c_no_kgdb",
+    outs = [
+        "arch/arm64/boot/dts/qcom/qrb5165-rb5.dtb",
+        "arch/arm64/boot/dts/qcom/sdm845-db845c.dtb",
+        "arch/arm64/boot/dts/qcom/sm8450-qrd.dtb",
+    ],
+    # Enable mixed build.
+    base_kernel = ":kernel_aarch64",
+    build_config = "build.config.db845c",
+    collect_unstripped_modules = True,
+    kmi_symbol_list = "android/abi_gki_aarch64_db845c",
+    make_goals = [
+        "modules",
+        "qcom/sdm845-db845c.dtb",
+        "qcom/qrb5165-rb5.dtb",
+        "qcom/sm8450-qrd.dtb",
+    ],
+    module_outs = _DB845C_MODULE_OUTS + _DB845C_WATCHDOG_MODULE_OUTS,
+    strip_modules = True,
+)
+
+kernel_build(
+    name = "db845c_with_kgdb",
+    outs = [
+        "arch/arm64/boot/dts/qcom/qrb5165-rb5.dtb",
+        "arch/arm64/boot/dts/qcom/sdm845-db845c.dtb",
+        "arch/arm64/boot/dts/qcom/sm8450-qrd.dtb",
+    ],
+    # Enable mixed build.
+    base_kernel = ":kernel_aarch64",
+    build_config = "build.config.db845c",
+    make_goals = [
+        "modules",
+        "qcom/sdm845-db845c.dtb",
+        "qcom/qrb5165-rb5.dtb",
+        "qcom/sm8450-qrd.dtb",
+    ],
+    module_outs = _DB845C_MODULE_OUTS,
+    strip_modules = True,
+)
+
+alias(
+    name = "db845c",
+    actual = select({
+        "//build/kernel/kleaf:kgdb_is_true": "db845c_with_kgdb",
+        "//conditions:default": "db845c_no_kgdb",
+    }),
+)
+
+kernel_abi(
+    name = "db845c_abi",
+    kernel_build = ":db845c",
+    kmi_symbol_list_add_only = True,
+)
+
+kernel_modules_install(
+    name = "db845c_modules_install",
+    kernel_build = ":db845c",
+)
+
+merged_kernel_uapi_headers(
+    name = "db845c_merged_kernel_uapi_headers",
+    kernel_build = ":db845c",
+)
+
+kernel_images(
+    name = "db845c_images",
+    build_initramfs = True,
+    kernel_build = ":db845c",
+    kernel_modules_install = ":db845c_modules_install",
+)
+
+copy_to_dist_dir(
+    name = "db845c_dist",
+    data = [
+        ":db845c",
+        ":db845c_images",
+        ":db845c_modules_install",
+        ":db845c_merged_kernel_uapi_headers",
+        # Mixed build: Additional GKI artifacts.
+        ":kernel_aarch64",
+        ":kernel_aarch64_modules",
+        ":kernel_aarch64_additional_artifacts",
+    ],
+    dist_dir = "out/db845/dist",
+    flat = True,
+    log = "info",
+)
+
+_ROCKPI4_MODULE_OUTS = [
+    # keep sorted
+    "drivers/block/virtio_blk.ko",
+    "drivers/char/hw_random/virtio-rng.ko",
+    "drivers/clk/clk-rk808.ko",
+    "drivers/cpufreq/cpufreq-dt.ko",
+    "drivers/cpufreq/tegra20-cpufreq.ko",
+    "drivers/dma/pl330.ko",
+    "drivers/gpu/drm/bridge/analogix/analogix_dp.ko",
+    "drivers/gpu/drm/bridge/synopsys/dw-hdmi.ko",
+    "drivers/gpu/drm/bridge/synopsys/dw-mipi-dsi.ko",
+    "drivers/gpu/drm/display/drm_display_helper.ko",
+    "drivers/gpu/drm/drm_dma_helper.ko",
+    "drivers/gpu/drm/rockchip/rockchipdrm.ko",
+    "drivers/i2c/busses/i2c-rk3x.ko",
+    "drivers/iio/adc/rockchip_saradc.ko",
+    "drivers/iio/buffer/industrialio-triggered-buffer.ko",
+    "drivers/iio/buffer/kfifo_buf.ko",
+    "drivers/mfd/rk808.ko",
+    "drivers/mmc/core/pwrseq_simple.ko",
+    "drivers/mmc/host/cqhci.ko",
+    "drivers/mmc/host/dw_mmc.ko",
+    "drivers/mmc/host/dw_mmc-pltfm.ko",
+    "drivers/mmc/host/dw_mmc-rockchip.ko",
+    "drivers/mmc/host/sdhci-of-arasan.ko",
+    "drivers/net/ethernet/stmicro/stmmac/dwmac-rk.ko",
+    "drivers/net/ethernet/stmicro/stmmac/stmmac.ko",
+    "drivers/net/ethernet/stmicro/stmmac/stmmac-platform.ko",
+    "drivers/net/net_failover.ko",
+    "drivers/net/pcs/pcs_xpcs.ko",
+    "drivers/net/virtio_net.ko",
+    "drivers/pci/controller/pcie-rockchip-host.ko",
+    "drivers/phy/rockchip/phy-rockchip-emmc.ko",
+    "drivers/phy/rockchip/phy-rockchip-inno-usb2.ko",
+    "drivers/phy/rockchip/phy-rockchip-pcie.ko",
+    "drivers/phy/rockchip/phy-rockchip-typec.ko",
+    "drivers/pwm/pwm-rockchip.ko",
+    "drivers/regulator/fan53555.ko",
+    "drivers/regulator/pwm-regulator.ko",
+    "drivers/regulator/rk808-regulator.ko",
+    "drivers/rtc/rtc-rk808.ko",
+    "drivers/soc/rockchip/io-domain.ko",
+    "drivers/thermal/rockchip_thermal.ko",
+    "drivers/usb/host/ohci-hcd.ko",
+    "drivers/usb/host/ohci-platform.ko",
+    "drivers/virtio/virtio_pci.ko",
+    "drivers/virtio/virtio_pci_legacy_dev.ko",
+    "drivers/virtio/virtio_pci_modern_dev.ko",
+    "net/core/failover.ko",
+]
+
+_ROCKPI4_WATCHDOG_MODULE_OUTS = [
+    # keep sorted
+    "drivers/watchdog/dw_wdt.ko",
+]
+
+# TODO(b/258259749): Convert rockpi4 to mixed build
+kernel_build(
+    name = "rockpi4_no_kgdb",
+    outs = [
+        "Image",
+        "System.map",
+        "modules.builtin",
+        "modules.builtin.modinfo",
+        "rk3399-rock-pi-4b.dtb",
+        "vmlinux",
+        "vmlinux.symvers",
+    ],
+    build_config = "build.config.rockpi4",
+    dtstree = "//common-modules/virtual-device:rockpi4_dts",
+    make_goals = [
+        "Image",
+        "modules",
+        "rk3399-rock-pi-4b.dtb",
+    ],
+    module_outs = get_gki_modules_list("arm64") + _ROCKPI4_MODULE_OUTS + _ROCKPI4_WATCHDOG_MODULE_OUTS,
+    visibility = ["//visibility:private"],
+)
+
+# TODO(b/258259749): Convert rockpi4 to mixed build
+kernel_build(
+    name = "rockpi4_with_kgdb",
+    outs = [
+        "Image",
+        "System.map",
+        "modules.builtin",
+        "modules.builtin.modinfo",
+        "rk3399-rock-pi-4b.dtb",
+        "vmlinux",
+        "vmlinux.symvers",
+    ],
+    build_config = "build.config.rockpi4",
+    dtstree = "//common-modules/virtual-device:rockpi4_dts",
+    make_goals = [
+        "Image",
+        "modules",
+        "rk3399-rock-pi-4b.dtb",
+    ],
+    module_outs = get_gki_modules_list("arm64") + _ROCKPI4_MODULE_OUTS,
+    visibility = ["//visibility:private"],
+)
+
+alias(
+    name = "rockpi4",
+    actual = select({
+        "//build/kernel/kleaf:kgdb_is_true": "rockpi4_with_kgdb",
+        "//conditions:default": "rockpi4_no_kgdb",
+    }),
+)
+
+kernel_modules_install(
+    name = "rockpi4_modules_install",
+    kernel_build = ":rockpi4",
+)
+
+kernel_images(
+    name = "rockpi4_images",
+    build_initramfs = True,
+    kernel_build = ":rockpi4",
+    kernel_modules_install = ":rockpi4_modules_install",
+)
+
+copy_to_dist_dir(
+    name = "rockpi4_dist",
+    data = [
+        ":rockpi4",
+        ":rockpi4_images",
+        ":rockpi4_modules_install",
+    ],
+    dist_dir = "out/rockpi4/dist",
+    flat = True,
+)
+
+kernel_build(
+    name = "fips140",
+    outs = [],
+    base_kernel = ":kernel_aarch64",
+    build_config = "build.config.gki.aarch64.fips140",
+    kmi_symbol_list = "android/abi_gki_aarch64_fips140",
+    module_outs = ["crypto/fips140.ko"],
+)
+
+kernel_abi(
+    name = "fips140_abi",
+    kernel_build = ":fips140",
+    kmi_symbol_list_add_only = True,
+)
+
+copy_to_dist_dir(
+    name = "fips140_dist",
+    data = [
+        ":fips140",
+    ],
+    dist_dir = "out/fips140/dist",
+    flat = True,
+)
+
+# allmodconfig build tests.
+# These are build tests only, so:
+# - outs are intentionally set to empty to not copy anything to DIST_DIR
+# - --allow-undeclared-modules must be used so modules are not declared or copied.
+# - No dist target because these are build tests. We don't care about the artifacts.
+
+# tools/bazel build --allow_undeclared_modules //common:kernel_aarch64_allmodconfig
+kernel_build(
+    name = "kernel_aarch64_allmodconfig",
+    # Hack to actually check the build.
+    # Otherwise, Bazel thinks that there are no output files, and skip building.
+    outs = [".config"],
+    build_config = "build.config.allmodconfig.aarch64",
+    visibility = ["//visibility:private"],
+)
+
+# tools/bazel build --allow_undeclared_modules //common:kernel_x86_64_allmodconfig
+kernel_build(
+    name = "kernel_x86_64_allmodconfig",
+    # Hack to actually check the build.
+    # Otherwise, Bazel thinks that there are no output files, and skip building.
+    outs = [".config"],
+    arch = "x86_64",
+    build_config = "build.config.allmodconfig.x86_64",
+    visibility = ["//visibility:private"],
+)
+
+# tools/bazel build --allow_undeclared_modules //common:kernel_arm_allmodconfig
+kernel_build(
+    name = "kernel_arm_allmodconfig",
+    # Hack to actually check the build.
+    # Otherwise, Bazel thinks that there are no output files, and skip building.
+    outs = [".config"],
+    arch = "arm",
+    build_config = "build.config.allmodconfig.arm",
+    visibility = ["//visibility:private"],
+)
+
+# DDK Headers
+# All headers. These are the public targets for DDK modules to use.
+alias(
+    name = "all_headers",
+    actual = "all_headers_aarch64",
+    visibility = ["//visibility:public"],
+)
+
+ddk_headers(
+    name = "all_headers_aarch64",
+    hdrs = [":all_headers_allowlist_aarch64"] + select({
+        "//build/kernel/kleaf:allow_ddk_unsafe_headers_set": [":all_headers_unsafe"],
+        "//conditions:default": [],
+    }),
+    visibility = ["//visibility:public"],
+)
+
+ddk_headers(
+    name = "all_headers_arm",
+    hdrs = [":all_headers_allowlist_arm"] + select({
+        "//build/kernel/kleaf:allow_ddk_unsafe_headers_set": [":all_headers_unsafe"],
+        "//conditions:default": [],
+    }),
+    visibility = ["//visibility:public"],
+)
+
+ddk_headers(
+    name = "all_headers_riscv64",
+    hdrs = [":all_headers_allowlist_riscv64"] + select({
+        "//build/kernel/kleaf:allow_ddk_unsafe_headers_set": [":all_headers_unsafe"],
+        "//conditions:default": [],
+    }),
+    visibility = ["//visibility:public"],
+)
+
+ddk_headers(
+    name = "all_headers_x86_64",
+    hdrs = [":all_headers_allowlist_x86_64"] + select({
+        "//build/kernel/kleaf:allow_ddk_unsafe_headers_set": [":all_headers_unsafe"],
+        "//conditions:default": [],
+    }),
+    visibility = ["//visibility:public"],
+)
+
+# Implementation details for DDK headers. The targets below cannot be directly
+# depended on by DDK modules.
+
+# DDK headers allowlist. This is the list of all headers and include
+# directories that are safe to use in DDK modules.
+ddk_headers(
+    name = "all_headers_allowlist_aarch64",
+    hdrs = [
+        ":all_headers_allowlist_aarch64_globs",
+        ":all_headers_allowlist_common_globs",
+    ],
+    # The list of include directories where source files can #include headers
+    # from. In other words, these are the `-I` option to the C compiler.
+    # These are prepended to LINUXINCLUDE.
+    linux_includes = [
+        "arch/arm64/include",
+        "arch/arm64/include/uapi",
+        "include",
+        "include/uapi",
+    ],
+    visibility = ["//visibility:private"],
+)
+
+ddk_headers(
+    name = "all_headers_allowlist_arm",
+    hdrs = [
+        ":all_headers_allowlist_arm_globs",
+        ":all_headers_allowlist_common_globs",
+    ],
+    # The list of include directories where source files can #include headers
+    # from. In other words, these are the `-I` option to the C compiler.
+    # These are prepended to LINUXINCLUDE.
+    linux_includes = [
+        "arch/arm/include",
+        "arch/arm/include/uapi",
+        "include",
+        "include/uapi",
+    ],
+    visibility = ["//visibility:private"],
+)
+
+ddk_headers(
+    name = "all_headers_allowlist_riscv64",
+    hdrs = [
+        ":all_headers_allowlist_common_globs",
+        ":all_headers_allowlist_riscv64_globs",
+    ],
+    # The list of include directories where source files can #include headers
+    # from. In other words, these are the `-I` option to the C compiler.
+    # These are prepended to LINUXINCLUDE.
+    linux_includes = [
+        "arch/riscv/include",
+        "arch/riscv/include/uapi",
+        "include",
+        "include/uapi",
+    ],
+    visibility = ["//visibility:private"],
+)
+
+ddk_headers(
+    name = "all_headers_allowlist_x86_64",
+    hdrs = [
+        ":all_headers_allowlist_common_globs",
+        ":all_headers_allowlist_x86_64_globs",
+    ],
+    # The list of include directories where source files can #include headers
+    # from. In other words, these are the `-I` option to the C compiler.
+    # These are prepended to LINUXINCLUDE.
+    linux_includes = [
+        "arch/x86/include",
+        "arch/x86/include/uapi",
+        "include",
+        "include/uapi",
+    ],
+    visibility = ["//visibility:private"],
+)
+
+# List of DDK headers allowlist that are glob()-ed to avoid changes of BUILD
+# file when the list of files changes. All headers in these directories
+# are safe to use.
+# These are separate filegroup targets so the all_headers_allowlist_* are
+# more friendly to batch BUILD file update tools like buildozer.
+
+# globs() for arm64 only
+filegroup(
+    name = "all_headers_allowlist_aarch64_globs",
+    srcs = glob(["arch/arm64/include/**/*.h"]),
+    visibility = ["//visibility:private"],
+)
+
+# globs() for arm only
+filegroup(
+    name = "all_headers_allowlist_arm_globs",
+    srcs = glob(["arch/arm/include/**/*.h"]),
+    visibility = ["//visibility:private"],
+)
+
+# globs() for riscv64 only
+filegroup(
+    name = "all_headers_allowlist_riscv64_globs",
+    srcs = glob(["arch/riscv/include/**/*.h"]),
+    visibility = ["//visibility:private"],
+)
+
+# globs() for x86 only
+filegroup(
+    name = "all_headers_allowlist_x86_64_globs",
+    srcs = glob(["arch/x86/include/**/*.h"]),
+    visibility = ["//visibility:private"],
+)
+
+# globs() for all architectures
+filegroup(
+    name = "all_headers_allowlist_common_globs",
+    srcs = glob(["include/**/*.h"]),
+    visibility = ["//visibility:private"],
+)
+
+# DDK headers unsafe list. This is the list of all headers and include
+# directories that may be used during migration from kernel_module's, but
+# should be avoided in general.
+# Use with caution; items may:
+# - be removed without notice
+# - be moved into all_headers
+ddk_headers(
+    name = "all_headers_unsafe",
+    hdrs = [
+        "drivers/gpu/drm/virtio/virtgpu_trace.h",
+    ],
+    # The list of include directories where source files can #include headers
+    # from. In other words, these are the `-I` option to the C compiler.
+    # Unsafe include directories are appended to ccflags-y.
+    includes = [],
+    visibility = ["//visibility:private"],
+)

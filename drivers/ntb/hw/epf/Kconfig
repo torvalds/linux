@@ -1,0 +1,6 @@
+config NTB_EPF
+	tristate "Generic EPF Non-Transparent Bridge support"
+	depends on m
+	help
+	  This driver supports EPF NTB on configurable endpoint.
+	  If unsure, say N.

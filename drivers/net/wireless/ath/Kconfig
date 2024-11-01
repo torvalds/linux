@@ -1,0 +1,67 @@
+# SPDX-License-Identifier: ISC
+config ATH_COMMON
+	tristate
+
+config WLAN_VENDOR_ATH
+	bool "Atheros/Qualcomm devices"
+	default y
+	help
+	  If you have a wireless card belonging to this class, say Y.
+
+	  Note that the answer to this question doesn't directly affect the
+	  kernel: saying N will just cause the configurator to skip all the
+	  questions about these cards. If you say Y, you will be asked for
+	  your specific card in the following questions.
+
+	  For more information and documentation on this module you can visit:
+
+	  https://wireless.wiki.kernel.org/en/users/Drivers/ath
+
+	  For information on all Atheros wireless drivers visit:
+
+	  https://wireless.wiki.kernel.org/en/users/Drivers/Atheros
+
+if WLAN_VENDOR_ATH
+
+config ATH_DEBUG
+	bool "Atheros wireless debugging"
+	help
+	  Say Y, if you want to debug atheros wireless drivers.
+	  Right now only ath9k makes use of this.
+
+config ATH_TRACEPOINTS
+	bool "Atheros wireless tracing"
+	depends on ATH_DEBUG
+	depends on EVENT_TRACING
+	help
+	  This option enables tracepoints for atheros wireless drivers.
+	  Currently, ath9k makes use of this facility.
+
+config ATH_REG_DYNAMIC_USER_REG_HINTS
+	bool "Atheros dynamic user regulatory hints"
+	depends on CFG80211_CERTIFICATION_ONUS
+	default n
+	help
+	  Say N. This should only be enabled in countries where
+	  this feature is explicitly allowed and only on cards that
+	  specifically have been tested for this.
+
+config ATH_REG_DYNAMIC_USER_CERT_TESTING
+	bool "Atheros dynamic user regulatory testing"
+	depends on ATH_REG_DYNAMIC_USER_REG_HINTS && CFG80211_CERTIFICATION_ONUS
+	default n
+	help
+	  Say N. This should only be enabled on systems
+	  undergoing certification testing.
+
+source "drivers/net/wireless/ath/ath5k/Kconfig"
+source "drivers/net/wireless/ath/ath9k/Kconfig"
+source "drivers/net/wireless/ath/carl9170/Kconfig"
+source "drivers/net/wireless/ath/ath6kl/Kconfig"
+source "drivers/net/wireless/ath/ar5523/Kconfig"
+source "drivers/net/wireless/ath/wil6210/Kconfig"
+source "drivers/net/wireless/ath/ath10k/Kconfig"
+source "drivers/net/wireless/ath/wcn36xx/Kconfig"
+source "drivers/net/wireless/ath/ath11k/Kconfig"
+
+endif

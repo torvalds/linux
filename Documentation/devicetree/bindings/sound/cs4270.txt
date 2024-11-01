@@ -1,0 +1,21 @@
+CS4270 audio CODEC
+
+The driver for this device currently only supports I2C.
+
+Required properties:
+
+  - compatible : "cirrus,cs4270"
+
+  - reg : the I2C address of the device for I2C
+
+Optional properties:
+
+  - reset-gpios : a GPIO spec for the reset pin. If specified, it will be
+		  deasserted before communication to the codec starts.
+
+Example:
+
+codec: cs4270@48 {
+	compatible = "cirrus,cs4270";
+	reg = <0x48>;
+};

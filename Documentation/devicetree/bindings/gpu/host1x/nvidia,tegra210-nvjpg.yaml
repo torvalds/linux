@@ -1,0 +1,94 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: "http://devicetree.org/schemas/gpu/host1x/nvidia,tegra210-nvjpg.yaml#"
+$schema: "http://devicetree.org/meta-schemas/core.yaml#"
+
+title: Device tree binding for NVIDIA Tegra NVJPG
+
+description: |
+  NVJPG is the hardware JPEG decoder and encoder present on NVIDIA Tegra210
+  and newer chips. It is located on the Host1x bus and typically programmed
+  through Host1x channels.
+
+maintainers:
+  - Thierry Reding <treding@gmail.com>
+  - Mikko Perttunen <mperttunen@nvidia.com>
+
+properties:
+  $nodename:
+    pattern: "^nvjpg@[0-9a-f]*$"
+
+  compatible:
+    enum:
+      - nvidia,tegra210-nvjpg
+      - nvidia,tegra186-nvjpg
+      - nvidia,tegra194-nvjpg
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+  clock-names:
+    items:
+      - const: nvjpg
+
+  resets:
+    maxItems: 1
+
+  reset-names:
+    items:
+      - const: nvjpg
+
+  power-domains:
+    maxItems: 1
+
+  iommus:
+    maxItems: 1
+
+  dma-coherent: true
+
+  interconnects:
+    items:
+      - description: DMA read memory client
+      - description: DMA write memory client
+
+  interconnect-names:
+    items:
+      - const: dma-mem
+      - const: write
+
+required:
+  - compatible
+  - reg
+  - clocks
+  - clock-names
+  - resets
+  - reset-names
+  - power-domains
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/tegra186-clock.h>
+    #include <dt-bindings/memory/tegra186-mc.h>
+    #include <dt-bindings/power/tegra186-powergate.h>
+    #include <dt-bindings/reset/tegra186-reset.h>
+
+    nvjpg@15380000 {
+            compatible = "nvidia,tegra186-nvjpg";
+            reg = <0x15380000 0x40000>;
+            clocks = <&bpmp TEGRA186_CLK_NVJPG>;
+            clock-names = "nvjpg";
+            resets = <&bpmp TEGRA186_RESET_NVJPG>;
+            reset-names = "nvjpg";
+
+            power-domains = <&bpmp TEGRA186_POWER_DOMAIN_NVJPG>;
+            interconnects = <&mc TEGRA186_MEMORY_CLIENT_NVJPGSRD &emc>,
+                            <&mc TEGRA186_MEMORY_CLIENT_NVJPGSWR &emc>;
+            interconnect-names = "dma-mem", "write";
+            iommus = <&smmu TEGRA186_SID_NVJPG>;
+    };

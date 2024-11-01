@@ -1,0 +1,80 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/pinctrl/samsung,pinctrl-pins-cfg.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Samsung S3C/S5P/Exynos SoC pin controller - pins configuration
+
+maintainers:
+  - Krzysztof Kozlowski <krzk@kernel.org>
+  - Sylwester Nawrocki <s.nawrocki@samsung.com>
+  - Tomasz Figa <tomasz.figa@gmail.com>
+
+description: |
+  This is a part of device tree bindings for Samsung S3C/S5P/Exynos SoC pin
+  controller.
+
+  Pins configuration for Samsung S3C/S5P/Exynos SoC pin controller.
+
+  The values used for config properties should be derived from the hardware
+  manual and these values are programmed as-is into the pin pull up/down and
+  driver strength register of the pin-controller.
+
+  See also Documentation/devicetree/bindings/pinctrl/samsung,pinctrl.yaml for
+  additional information and example.
+
+properties:
+  samsung,pins:
+    description: |
+      List of pins to configure. For initial and sleep states, the maximum
+      number is one pin. In other cases there is no upper limit.
+
+      The pins should use lowercase names matching hardware manual, e.g. for
+      GPA0 bank: gpa0-0, gpa0-1, gpa0-2.
+    $ref: /schemas/types.yaml#/definitions/string-array
+
+  samsung,pin-function:
+    description: |
+      The pin function selection that should be applied on the pins listed in the
+      child node is specified using the "samsung,pin-function" property. The value
+      of this property that should be applied to each of the pins listed in the
+      "samsung,pins" property should be picked from the hardware manual of the SoC
+      for the specified pin group. This property is optional in the child node if
+      no specific function selection is desired for the pins listed in the child
+      node. The value of this property is used as-is to program the pin-controller
+      function selector register of the pin-bank.
+    $ref: /schemas/types.yaml#/definitions/uint32
+    minimum: 0
+    maximum: 15
+
+  samsung,pin-drv:
+    description: Drive strength configuration.
+    $ref: /schemas/types.yaml#/definitions/uint32
+    minimum: 0
+    maximum: 15
+
+  samsung,pin-pud:
+    description: Pull up/down configuration.
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [0, 1, 2, 3]
+
+  samsung,pin-val:
+    description: Initial value of pin output buffer.
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [0, 1]
+
+  samsung,pin-con-pdn:
+    description: Function in power down mode.
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [0, 1, 2, 3]
+
+  samsung,pin-pud-pdn:
+    description: Pull up/down configuration in power down mode.
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [0, 1, 2, 3]
+
+required:
+  - samsung,pins
+
+additionalProperties: false

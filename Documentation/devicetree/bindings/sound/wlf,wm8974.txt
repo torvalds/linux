@@ -1,0 +1,15 @@
+WM8974 audio CODEC
+
+This device supports both I2C and SPI (configured with pin strapping
+on the board).
+
+Required properties:
+  - compatible: "wlf,wm8974"
+  - reg: the I2C address or SPI chip select number of the device
+
+Examples:
+
+codec: wm8974@1a {
+	compatible = "wlf,wm8974";
+	reg = <0x1a>;
+};

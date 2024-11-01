@@ -1,0 +1,281 @@
+# SPDX-License-Identifier: GPL-2.0-only
+menu "TI OMAP/AM/DM/DRA Family"
+	depends on ARCH_MULTI_V6 || ARCH_MULTI_V7
+
+config OMAP_HWMOD
+	bool
+
+config ARCH_OMAP2
+	bool "TI OMAP2"
+	depends on ARCH_MULTI_V6
+	select ARCH_OMAP2PLUS
+	select CPU_V6
+	select OMAP_HWMOD
+	select SOC_HAS_OMAP2_SDRC
+
+config ARCH_OMAP3
+	bool "TI OMAP3"
+	depends on ARCH_MULTI_V7
+	select ARCH_OMAP2PLUS
+	select ARM_CPU_SUSPEND
+	select OMAP_HWMOD
+	select OMAP_INTERCONNECT
+	select PM_OPP
+	select SOC_HAS_OMAP2_SDRC
+	select ARM_ERRATA_430973
+
+config ARCH_OMAP4
+	bool "TI OMAP4"
+	depends on ARCH_MULTI_V7
+	select ARCH_OMAP2PLUS
+	select ARCH_NEEDS_CPU_IDLE_COUPLED if SMP
+	select ARM_CPU_SUSPEND
+	select ARM_ERRATA_720789
+	select ARM_GIC
+	select HAVE_ARM_SCU if SMP
+	select HAVE_ARM_TWD if SMP
+	select OMAP_INTERCONNECT
+	select OMAP_INTERCONNECT_BARRIER
+	select PL310_ERRATA_588369 if CACHE_L2X0
+	select PL310_ERRATA_727915 if CACHE_L2X0
+	select PM_OPP
+	select PM if CPU_IDLE
+	select ARM_ERRATA_754322
+	select ARM_ERRATA_775420
+	select OMAP_INTERCONNECT
+
+config SOC_OMAP5
+	bool "TI OMAP5"
+	depends on ARCH_MULTI_V7
+	select ARCH_OMAP2PLUS
+	select ARM_CPU_SUSPEND
+	select ARM_GIC
+	select HAVE_ARM_SCU if SMP
+	select HAVE_ARM_ARCH_TIMER
+	select ARM_ERRATA_798181 if SMP
+	select OMAP_INTERCONNECT
+	select OMAP_INTERCONNECT_BARRIER
+	select PM_OPP
+	select ZONE_DMA if ARM_LPAE
+
+config SOC_AM33XX
+	bool "TI AM33XX"
+	depends on ARCH_MULTI_V7
+	select ARCH_OMAP2PLUS
+	select ARM_CPU_SUSPEND
+
+config SOC_AM43XX
+	bool "TI AM43x"
+	depends on ARCH_MULTI_V7
+	select ARCH_OMAP2PLUS
+	select ARM_GIC
+	select MACH_OMAP_GENERIC
+	select HAVE_ARM_SCU
+	select GENERIC_CLOCKEVENTS_BROADCAST
+	select HAVE_ARM_TWD
+	select ARM_ERRATA_754322
+	select ARM_ERRATA_775420
+	select OMAP_INTERCONNECT
+	select ARM_CPU_SUSPEND
+
+config SOC_DRA7XX
+	bool "TI DRA7XX"
+	depends on ARCH_MULTI_V7
+	select ARCH_OMAP2PLUS
+	select ARM_CPU_SUSPEND
+	select ARM_GIC
+	select HAVE_ARM_SCU if SMP
+	select HAVE_ARM_ARCH_TIMER
+	select IRQ_CROSSBAR
+	select ARM_ERRATA_798181 if SMP
+	select OMAP_INTERCONNECT
+	select OMAP_INTERCONNECT_BARRIER
+	select PM_OPP
+	select ZONE_DMA if ARM_LPAE
+	select PINCTRL_TI_IODELAY if OF && PINCTRL
+
+config ARCH_OMAP2PLUS
+	bool
+	select ARCH_HAS_BANDGAP
+	select ARCH_HAS_RESET_CONTROLLER
+	select ARCH_OMAP
+	select CLKSRC_MMIO
+	select GENERIC_IRQ_CHIP
+	select GPIOLIB
+	select MACH_OMAP_GENERIC
+	select MEMORY
+	select MFD_SYSCON
+	select OMAP_DM_SYSTIMER
+	select OMAP_DM_TIMER
+	select OMAP_GPMC
+	select PINCTRL
+	select PM
+	select PM_GENERIC_DOMAINS
+	select PM_GENERIC_DOMAINS_OF
+	select RESET_CONTROLLER
+	select SOC_BUS
+	select TI_SYSC
+	select OMAP_IRQCHIP
+	select CLKSRC_TI_32K
+	help
+	  Systems based on OMAP2, OMAP3, OMAP4 or OMAP5
+
+config OMAP_INTERCONNECT_BARRIER
+	bool
+	select ARM_HEAVY_MB
+
+config ARCH_OMAP
+	bool
+
+if ARCH_OMAP2PLUS
+
+menu "TI OMAP2/3/4 Specific Features"
+
+config ARCH_OMAP2PLUS_TYPICAL
+	bool "Typical OMAP configuration"
+	default y
+	select AEABI
+	select HIGHMEM
+	select I2C
+	select I2C_OMAP
+	select MENELAUS if ARCH_OMAP2
+	select NEON if CPU_V7
+	select REGULATOR
+	select REGULATOR_FIXED_VOLTAGE
+	select TWL4030_CORE if ARCH_OMAP3 || ARCH_OMAP4
+	select TWL4030_POWER if ARCH_OMAP3 || ARCH_OMAP4
+	select VFP
+	help
+	  Compile a kernel suitable for booting most boards
+
+config SOC_HAS_OMAP2_SDRC
+	bool "OMAP2 SDRAM Controller support"
+
+config SOC_HAS_REALTIME_COUNTER
+	bool "Real time free running counter"
+	depends on SOC_OMAP5 || SOC_DRA7XX
+	default y
+
+config POWER_AVS_OMAP
+	bool "AVS(Adaptive Voltage Scaling) support for OMAP IP versions 1&2"
+	depends on (ARCH_OMAP3 || ARCH_OMAP4) && PM
+	select POWER_SUPPLY
+	help
+	  Say Y to enable AVS(Adaptive Voltage Scaling)
+	  support on OMAP containing the version 1 or
+	  version 2 of the SmartReflex IP.
+	  V1 is the 65nm version used in OMAP3430.
+	  V2 is the update for the 45nm version of the IP used in OMAP3630
+	  and OMAP4430
+
+	  Please note, that by default SmartReflex is only
+	  initialized and not enabled. To enable the automatic voltage
+	  compensation for vdd mpu and vdd core from user space,
+	  user must write 1 to
+		/debug/smartreflex/sr_<X>/autocomp,
+	  where X is mpu_iva or core for OMAP3.
+	  Optionally autocompensation can be enabled in the kernel
+	  by default during system init via the enable_on_init flag
+	  which an be passed as platform data to the smartreflex driver.
+
+config POWER_AVS_OMAP_CLASS3
+	bool "Class 3 mode of Smartreflex Implementation"
+	depends on POWER_AVS_OMAP && TWL4030_CORE
+	help
+	  Say Y to enable Class 3 implementation of Smartreflex
+
+	  Class 3 implementation of Smartreflex employs continuous hardware
+	  voltage calibration.
+
+config OMAP3_L2_AUX_SECURE_SAVE_RESTORE
+	bool "OMAP3 HS/EMU save and restore for L2 AUX control register"
+	depends on ARCH_OMAP3 && PM
+	help
+	  Without this option, L2 Auxiliary control register contents are
+	  lost during off-mode entry on HS/EMU devices. This feature
+	  requires support from PPA / boot-loader in HS/EMU devices, which
+	  currently does not exist by default.
+
+config OMAP3_L2_AUX_SECURE_SERVICE_SET_ID
+	int "Service ID for the support routine to set L2 AUX control"
+	depends on OMAP3_L2_AUX_SECURE_SAVE_RESTORE
+	default 43
+	help
+	  PPA routine service ID for setting L2 auxiliary control register.
+
+comment "OMAP Core Type"
+	depends on ARCH_OMAP2
+
+config SOC_OMAP2420
+	bool "OMAP2420 support"
+	depends on ARCH_OMAP2
+	default y
+	select OMAP_DM_SYSTIMER
+	select OMAP_DM_TIMER
+	select SOC_HAS_OMAP2_SDRC
+
+config SOC_OMAP2430
+	bool "OMAP2430 support"
+	depends on ARCH_OMAP2
+	default y
+	select SOC_HAS_OMAP2_SDRC
+
+config SOC_OMAP3430
+	bool "OMAP3430 support"
+	depends on ARCH_OMAP3
+	default y
+	select SOC_HAS_OMAP2_SDRC
+
+config SOC_TI81XX
+	bool "TI81XX support"
+	depends on ARCH_OMAP3
+	default y
+
+comment "OMAP Legacy Platform Data Board Type"
+	depends on ARCH_OMAP2PLUS
+
+config MACH_OMAP_GENERIC
+	bool
+
+config MACH_OMAP2_TUSB6010
+	bool
+	depends on ARCH_OMAP2 && SOC_OMAP2420
+	default y if MACH_NOKIA_N8X0
+
+config MACH_NOKIA_N810
+	bool
+
+config MACH_NOKIA_N810_WIMAX
+	bool
+
+config MACH_NOKIA_N8X0
+	bool "Nokia N800/N810"
+	depends on SOC_OMAP2420
+	default y
+	select MACH_NOKIA_N810
+	select MACH_NOKIA_N810_WIMAX
+
+config OMAP3_SDRC_AC_TIMING
+	bool "Enable SDRC AC timing register changes"
+	depends on ARCH_OMAP3
+	help
+	  If you know that none of your system initiators will attempt to
+	  access SDRAM during CORE DVFS, select Y here.  This should boost
+	  SDRAM performance at lower CORE OPPs.  There are relatively few
+	  users who will wish to say yes at this point - almost everyone will
+	  wish to say no.  Selecting yes without understanding what is
+	  going on could result in system crashes;
+
+endmenu
+
+endif
+
+config OMAP5_ERRATA_801819
+	bool "Errata 801819: An eviction from L1 data cache might stall indefinitely"
+	depends on SOC_OMAP5 || SOC_DRA7XX
+	help
+	  A livelock can occur in the L2 cache arbitration that might prevent
+	  a snoop from completing. Under certain conditions this can cause the
+	  system to deadlock.
+
+endmenu

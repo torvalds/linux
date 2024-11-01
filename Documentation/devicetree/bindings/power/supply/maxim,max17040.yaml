@@ -1,0 +1,97 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/power/supply/maxim,max17040.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Maxim 17040 fuel gauge series
+
+maintainers:
+  - Sebastian Reichel <sre@kernel.org>
+
+allOf:
+  - $ref: power-supply.yaml#
+
+properties:
+  compatible:
+    enum:
+      - maxim,max17040
+      - maxim,max17041
+      - maxim,max17043
+      - maxim,max17044
+      - maxim,max17048
+      - maxim,max17049
+      - maxim,max17058
+      - maxim,max17059
+      - maxim,max77836-battery
+
+  reg:
+    maxItems: 1
+
+  maxim,alert-low-soc-level:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    minimum: 1
+    maximum: 32
+    description: |
+      The alert threshold that sets the state of charge level (%) where an interrupt is generated.
+      If skipped the power up default value of 4 (%) will be used.
+
+  maxim,double-soc:
+    type: boolean
+    description: |
+      Certain devices return double the capacity.
+      Specify this to divide the reported value in 2 and thus normalize it.
+      SoC == State of Charge == Capacity.
+
+  maxim,rcomp:
+    $ref: /schemas/types.yaml#/definitions/uint8-array
+    minItems: 1
+    maxItems: 2
+    description: |
+      A value to compensate readings for various battery chemistries and operating temperatures.
+      max17040,41 have 2 byte rcomp, default to 0x97 0x00.
+      All other devices have one byte rcomp, default to 0x97.
+
+  interrupts:
+    maxItems: 1
+
+  wakeup-source:
+    type: boolean
+    description: |
+      Use this property to use alert low SoC level interrupt as wake up source.
+
+required:
+  - compatible
+  - reg
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    i2c0 {
+      #address-cells = <1>;
+      #size-cells = <0>;
+
+      battery@36 {
+        compatible = "maxim,max17048";
+        reg = <0x36>;
+        maxim,rcomp = /bits/ 8 <0x56>;
+        maxim,alert-low-soc-level = <10>;
+        maxim,double-soc;
+      };
+    };
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+    i2c0 {
+      #address-cells = <1>;
+      #size-cells = <0>;
+
+      battery@36 {
+        compatible = "maxim,max77836-battery";
+        reg = <0x36>;
+        maxim,alert-low-soc-level = <10>;
+        interrupt-parent = <&gpio7>;
+        interrupts = <2 IRQ_TYPE_LEVEL_LOW>;
+        wakeup-source;
+      };
+    };

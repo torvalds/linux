@@ -1,0 +1,174 @@
+perf-lock(1)
+============
+
+NAME
+----
+perf-lock - Analyze lock events
+
+SYNOPSIS
+--------
+[verse]
+'perf lock' {record|report|script|info|contention}
+
+DESCRIPTION
+-----------
+You can analyze various lock behaviours
+and statistics with this 'perf lock' command.
+
+  'perf lock record <command>' records lock events
+  between start and end <command>. And this command
+  produces the file "perf.data" which contains tracing
+  results of lock events.
+
+  'perf lock report' reports statistical data.
+
+  'perf lock script' shows raw lock events.
+
+  'perf lock info' shows metadata like threads or addresses
+  of lock instances.
+
+  'perf lock contention' shows contention statistics.
+
+COMMON OPTIONS
+--------------
+
+-i::
+--input=<file>::
+        Input file name. (default: perf.data unless stdin is a fifo)
+
+-v::
+--verbose::
+        Be more verbose (show symbol address, etc).
+
+-q::
+--quiet::
+	Do not show any warnings or messages. (Suppress -v)
+
+-D::
+--dump-raw-trace::
+        Dump raw trace in ASCII.
+
+-f::
+--force::
+	Don't complain, do it.
+
+--vmlinux=<file>::
+        vmlinux pathname
+
+--kallsyms=<file>::
+        kallsyms pathname
+
+
+REPORT OPTIONS
+--------------
+
+-k::
+--key=<value>::
+        Sorting key. Possible values: acquired (default), contended,
+	avg_wait, wait_total, wait_max, wait_min.
+
+-F::
+--field=<value>::
+        Output fields. By default it shows all the fields but users can
+	customize that using this.  Possible values: acquired, contended,
+	avg_wait, wait_total, wait_max, wait_min.
+
+-c::
+--combine-locks::
+	Merge lock instances in the same class (based on name).
+
+-t::
+--threads::
+    The -t option is to show per-thread lock stat like below:
+
+      $ perf lock report -t -F acquired,contended,avg_wait
+
+                    Name   acquired  contended   avg wait (ns)
+
+                    perf     240569          9            5784
+                 swapper     106610         19             543
+                  :15789      17370          2           14538
+            ContainerMgr       8981          6             874
+                   sleep       5275          1           11281
+         ContainerThread       4416          4             944
+         RootPressureThr       3215          5            1215
+             rcu_preempt       2954          0               0
+            ContainerMgr       2560          0               0
+                 unnamed       1873          0               0
+         EventManager_De       1845          1             636
+         futex-default-S       1609          0               0
+
+-E::
+--entries=<value>::
+	Display this many entries.
+
+
+INFO OPTIONS
+------------
+
+-t::
+--threads::
+	dump thread list in perf.data
+
+-m::
+--map::
+	dump map of lock instances (address:name table)
+
+
+CONTENTION OPTIONS
+--------------
+
+-k::
+--key=<value>::
+	Sorting key. Possible values: contended, wait_total (default),
+	wait_max, wait_min, avg_wait.
+
+-F::
+--field=<value>::
+	Output fields. By default it shows all but the wait_min fields
+	and users can customize that using this.  Possible values:
+	contended, wait_total, wait_max, wait_min, avg_wait.
+
+-t::
+--threads::
+	Show per-thread lock contention stat
+
+-b::
+--use-bpf::
+	Use BPF program to collect lock contention stats instead of
+	using the input data.
+
+-a::
+--all-cpus::
+        System-wide collection from all CPUs.
+
+-C::
+--cpu::
+	Collect samples only on the list of CPUs provided. Multiple CPUs can be
+	provided as a comma-separated list with no space: 0,1. Ranges of CPUs
+	are specified with -: 0-2.  Default is to monitor all CPUs.
+
+-p::
+--pid=::
+	Record events on existing process ID (comma separated list).
+
+--tid=::
+        Record events on existing thread ID (comma separated list).
+
+--map-nr-entries::
+	Maximum number of BPF map entries (default: 10240).
+
+--max-stack::
+	Maximum stack depth when collecting lock contention (default: 8).
+
+--stack-skip
+	Number of stack depth to skip when finding a lock caller (default: 3).
+
+-E::
+--entries=<value>::
+	Display this many entries.
+
+
+SEE ALSO
+--------
+linkperf:perf[1]

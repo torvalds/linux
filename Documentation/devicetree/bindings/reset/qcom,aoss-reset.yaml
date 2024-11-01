@@ -1,0 +1,52 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/reset/qcom,aoss-reset.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Qualcomm AOSS Reset Controller
+
+maintainers:
+  - Sibi Sankar <quic_sibis@quicinc.com>
+
+description:
+  The bindings describe the reset-controller found on AOSS-CC (always on
+  subsystem) for Qualcomm Technologies Inc SoCs.
+
+properties:
+  compatible:
+    oneOf:
+      - description: on SC7180 SoCs the following compatibles must be specified
+        items:
+          - const: "qcom,sc7180-aoss-cc"
+          - const: "qcom,sdm845-aoss-cc"
+
+      - description: on SC7280 SoCs the following compatibles must be specified
+        items:
+          - const: "qcom,sc7280-aoss-cc"
+          - const: "qcom,sdm845-aoss-cc"
+
+      - description: on SDM845 SoCs the following compatibles must be specified
+        items:
+          - const: "qcom,sdm845-aoss-cc"
+
+  reg:
+    maxItems: 1
+
+  '#reset-cells':
+    const: 1
+
+required:
+  - compatible
+  - reg
+  - '#reset-cells'
+
+additionalProperties: false
+
+examples:
+  - |
+    aoss_reset: reset-controller@c2a0000 {
+      compatible = "qcom,sdm845-aoss-cc";
+      reg = <0xc2a0000 0x31000>;
+      #reset-cells = <1>;
+    };

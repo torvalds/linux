@@ -1,0 +1,18 @@
+// SPDX-License-Identifier: GPL-2.0 OR X11
+/*
+ * Copyright 2017 Boundary Devices, Inc.
+ */
+
+/dts-v1/;
+
+#include "imx6qp.dtsi"
+#include "imx6qdl-nitrogen6_som2.dtsi"
+
+/ {
+	model = "Boundary Devices i.MX6 Quad Plus Nitrogen6_SOM2 Board";
+	compatible = "boundary,imx6qp-nitrogen6_som2", "fsl,imx6qp";
+};
+
+&sata {
+	status = "okay";
+};

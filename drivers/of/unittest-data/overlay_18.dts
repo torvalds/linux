@@ -1,0 +1,15 @@
+// SPDX-License-Identifier: GPL-2.0
+/dts-v1/;
+/plugin/;
+
+/* overlay_18 - notify test */
+
+&unittest_test_bus {
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	test-unittest18 {
+		compatible = "unittest";
+		reg = <18>;
+	};
+};

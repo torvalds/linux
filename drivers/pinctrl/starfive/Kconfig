@@ -1,0 +1,18 @@
+# SPDX-License-Identifier: GPL-2.0-only
+
+config PINCTRL_STARFIVE_JH7100
+	tristate "Pinctrl and GPIO driver for the StarFive JH7100 SoC"
+	depends on SOC_STARFIVE || COMPILE_TEST
+	depends on OF
+	select GENERIC_PINCTRL_GROUPS
+	select GENERIC_PINMUX_FUNCTIONS
+	select GENERIC_PINCONF
+	select GPIOLIB
+	select GPIOLIB_IRQCHIP
+	select OF_GPIO
+	default SOC_STARFIVE
+	help
+	  Say yes here to support pin control on the StarFive JH7100 SoC.
+	  This also provides an interface to the GPIO pins not used by other
+	  peripherals supporting inputs, outputs, configuring pull-up/pull-down
+	  and interrupts on input changes.

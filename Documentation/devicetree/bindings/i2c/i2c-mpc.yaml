@@ -1,0 +1,100 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/i2c/i2c-mpc.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: I2C-Bus adapter for MPC824x/83xx/85xx/86xx/512x/52xx SoCs
+
+maintainers:
+  - Chris Packham <chris.packham@alliedtelesis.co.nz>
+
+allOf:
+  - $ref: /schemas/i2c/i2c-controller.yaml#
+
+properties:
+  compatible:
+    oneOf:
+      - items:
+          - enum:
+              - mpc5200-i2c
+              - fsl,mpc5200-i2c
+              - fsl,mpc5121-i2c
+              - fsl,mpc8313-i2c
+              - fsl,mpc8543-i2c
+              - fsl,mpc8544-i2c
+          - const: fsl-i2c
+      - items:
+          - const: fsl,mpc5200b-i2c
+          - const: fsl,mpc5200-i2c
+          - const: fsl-i2c
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  fsl,preserve-clocking:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description: |
+      if defined, the clock settings from the bootloader are
+      preserved (not touched)
+
+  fsl,timeout:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: |
+      I2C bus timeout in microseconds
+
+  fsl,i2c-erratum-a004447:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description: |
+      Indicates the presence of QorIQ erratum A-004447, which
+      says that the standard i2c recovery scheme mechanism does
+      not work and an alternate implementation is needed.
+
+required:
+  - compatible
+  - reg
+  - interrupts
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    /* MPC5121 based board */
+    i2c@1740 {
+        #address-cells = <1>;
+        #size-cells = <0>;
+        compatible = "fsl,mpc5121-i2c", "fsl-i2c";
+        reg = <0x1740 0x20>;
+        interrupts = <11 0x8>;
+        interrupt-parent = <&ipic>;
+        clock-frequency = <100000>;
+    };
+
+  - |
+    /* MPC5200B based board */
+    i2c@3d00 {
+        #address-cells = <1>;
+        #size-cells = <0>;
+        compatible = "fsl,mpc5200b-i2c", "fsl,mpc5200-i2c", "fsl-i2c";
+        reg = <0x3d00 0x40>;
+        interrupts = <2 15 0>;
+        interrupt-parent = <&mpc5200_pic>;
+        fsl,preserve-clocking;
+    };
+
+  - |
+    /* MPC8544 base board */
+    i2c@3100 {
+        #address-cells = <1>;
+        #size-cells = <0>;
+        compatible = "fsl,mpc8544-i2c", "fsl-i2c";
+        reg = <0x3100 0x100>;
+        interrupts = <43 2>;
+        interrupt-parent = <&mpic>;
+        clock-frequency = <400000>;
+        fsl,timeout = <10000>;
+    };
+...

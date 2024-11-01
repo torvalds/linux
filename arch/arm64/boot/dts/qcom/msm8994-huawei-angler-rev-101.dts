@@ -1,0 +1,64 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/* Copyright (c) 2015, Huawei Inc. All rights reserved.
+ * Copyright (c) 2016, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2021-2023, Petr Vorel <petr.vorel@gmail.com>
+ */
+
+/dts-v1/;
+
+#include "msm8994.dtsi"
+
+/ {
+	model = "Huawei Nexus 6P";
+	compatible = "huawei,angler", "qcom,msm8994";
+	chassis-type = "handset";
+	/* required for bootloader to select correct board */
+	qcom,msm-id = <207 0x20000>;
+	qcom,pmic-id = <0x10009 0x1000A 0x0 0x0>;
+	qcom,board-id = <8026 0>;
+
+	aliases {
+		serial0 = &blsp1_uart2;
+	};
+
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		cont_splash_mem: memory@3401000 {
+			reg = <0 0x03401000 0 0x1000000>;
+			no-map;
+		};
+
+		tzapp_mem: tzapp@4800000 {
+			reg = <0 0x04800000 0 0x1900000>;
+			no-map;
+		};
+
+		reserved@6300000 {
+			reg = <0 0x06300000 0 0x700000>;
+			no-map;
+		};
+	};
+};
+
+&blsp1_uart2 {
+	status = "okay";
+	pinctrl-names = "default", "sleep";
+	pinctrl-0 = <&blsp1_uart2_default>;
+	pinctrl-1 = <&blsp1_uart2_sleep>;
+};
+
+&tlmm {
+	gpio-reserved-ranges = <85 4>;
+};
+
+&sdhc1 {
+	status = "okay";
+	mmc-hs400-1_8v;
+};

@@ -1,0 +1,8 @@
+#if defined(__i386__) || defined(__x86_64__)
+DEF(amd_fam14h)
+DEF(intel_nhm)
+DEF(intel_snb)
+DEF(intel_hsw_ext)
+DEF(mperf)
+#endif
+DEF(cpuidle_sysfs)

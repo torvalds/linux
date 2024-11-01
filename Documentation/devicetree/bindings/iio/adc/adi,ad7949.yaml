@@ -1,0 +1,103 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/iio/adc/adi,ad7949.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Analog Devices AD7949/AD7682/AD7689 analog to digital converters
+
+maintainers:
+  - Charles-Antoine Couret <charles-antoine.couret@essensium.com>
+
+description: |
+  Specifications on the converters can be found at:
+    AD7949:
+      https://www.analog.com/media/en/technical-documentation/data-sheets/AD7949.pdf
+    AD7682/AD7698:
+      https://www.analog.com/media/en/technical-documentation/data-sheets/AD7682_7689.pdf
+
+properties:
+  compatible:
+    enum:
+      - adi,ad7682
+      - adi,ad7689
+      - adi,ad7949
+
+  reg:
+    maxItems: 1
+
+  vrefin-supply:
+    description:
+      Buffered ADC reference voltage supply.
+
+  vref-supply:
+    description:
+      Unbuffered ADC reference voltage supply.
+
+  adi,internal-ref-microvolt:
+    description: |
+      Internal reference voltage selection in microvolts.
+
+      If no internal reference is specified, the channel will default to the
+      external reference defined by vrefin-supply (or vref-supply).
+      vrefin-supply will take precedence over vref-supply if both are defined.
+
+      If no supplies are defined, the reference selection will default to
+      4096mV internal reference.
+
+    enum: [2500000, 4096000]
+    default: 4096000
+
+
+  '#io-channel-cells':
+    const: 1
+
+  '#address-cells':
+    const: 1
+
+  '#size-cells':
+    const: 0
+
+required:
+  - compatible
+  - reg
+
+allOf:
+  - $ref: /schemas/spi/spi-peripheral-props.yaml#
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    spi {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        adc@0 {
+            #address-cells = <1>;
+            #size-cells = <0>;
+
+            compatible = "adi,ad7949";
+            reg = <0>;
+            vref-supply = <&vdd_supply>;
+        };
+
+        adc@1 {
+            #address-cells = <1>;
+            #size-cells = <0>;
+
+            compatible = "adi,ad7949";
+            reg = <1>;
+            vrefin-supply = <&vdd_supply>;
+        };
+
+        adc@2 {
+            #address-cells = <1>;
+            #size-cells = <0>;
+
+            compatible = "adi,ad7949";
+            reg = <2>;
+            adi,internal-ref-microvolt = <4096000>;
+        };
+    };
+...

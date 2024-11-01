@@ -1,0 +1,178 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/clock/stericsson,u8500-clks.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: ST-Ericsson DB8500 (U8500) clocks
+
+maintainers:
+  - Ulf Hansson <ulf.hansson@linaro.org>
+  - Linus Walleij <linus.walleij@linaro.org>
+
+description: While named "U8500 clocks" these clocks are inside the
+  DB8500 digital baseband system-on-chip and its siblings such as
+  DB8520. These bindings consider the clocks present in the SoC
+  itself, not off-chip clocks. There are four different on-chip
+  clocks - RTC (32 kHz), CPU clock (SMP TWD), PRCMU (power reset and
+  control management unit) clocks and PRCC (peripheral reset and
+  clock controller) clocks. For some reason PRCC 4 does not exist so
+  the itemization can be a bit unintuitive.
+
+properties:
+  compatible:
+    enum:
+      - stericsson,u8500-clks
+      - stericsson,u8540-clks
+      - stericsson,u9540-clks
+
+  reg:
+    items:
+      - description: PRCC 1 register area
+      - description: PRCC 2 register area
+      - description: PRCC 3 register area
+      - description: PRCC 5 register area
+      - description: PRCC 6 register area
+
+  prcmu-clock:
+    description: A subnode with one clock cell for PRCMU (power, reset, control
+      management unit) clocks. The cell indicates which PRCMU clock in the
+      prcmu-clock node the consumer wants to use.
+    type: object
+
+    properties:
+      '#clock-cells':
+        const: 1
+
+    additionalProperties: false
+
+  prcc-periph-clock:
+    description: A subnode with two clock cells for PRCC (peripheral
+      reset and clock controller) peripheral clocks. The first cell indicates
+      which PRCC block the consumer wants to use, possible values are 1, 2, 3,
+      5, 6. The second cell indicates which clock inside the PRCC block it
+      wants, possible values are 0 thru 31.
+    type: object
+
+    properties:
+      '#clock-cells':
+        const: 2
+
+    additionalProperties: false
+
+  prcc-kernel-clock:
+    description: A subnode with two clock cells for PRCC (peripheral reset
+      and clock controller) kernel clocks. The first cell indicates which PRCC
+      block the consumer wants to use, possible values are 1, 2, 3, 5, 6. The
+      second cell indicates which clock inside the PRCC block it wants, possible
+      values are 0 thru 31.
+    type: object
+
+    properties:
+      '#clock-cells':
+        const: 2
+
+    additionalProperties: false
+
+  prcc-reset-controller:
+    description: A subnode with two reset cells for the reset portions of the
+      PRCC (peripheral reset and clock controller). The first cell indicates
+      which PRCC block the consumer wants to use, possible values are 1, 2, 3
+      5 and 6. The second cell indicates which reset line inside the PRCC block
+      it wants to control, possible values are 0 thru 31.
+    type: object
+
+    properties:
+      '#reset-cells':
+        const: 2
+
+    additionalProperties: false
+
+  rtc32k-clock:
+    description: A subnode with zero clock cells for the 32kHz RTC clock.
+    type: object
+
+    properties:
+      '#clock-cells':
+        const: 0
+
+    additionalProperties: false
+
+  smp-twd-clock:
+    description: A subnode for the ARM SMP Timer Watchdog cluster with zero
+      clock cells.
+    type: object
+
+    properties:
+      '#clock-cells':
+        const: 0
+
+    additionalProperties: false
+
+  clkout-clock:
+    description: A subnode with three clock cells for externally routed clocks,
+      output clocks. These are two PRCMU-internal clocks that can be divided and
+      muxed out on the pads of the DB8500 SoC.
+    type: object
+
+    properties:
+      '#clock-cells':
+        description:
+          The first cell indicates which output clock we are using,
+          possible values are 0 (CLKOUT1) and 1 (CLKOUT2).
+          The second cell indicates which clock we want to use as source,
+          possible values are 0 thru 7, see the defines for the different
+          source clocks.
+          The third cell is a divider, legal values are 1 thru 63.
+        const: 3
+
+    additionalProperties: false
+
+required:
+  - compatible
+  - reg
+  - prcmu-clock
+  - prcc-periph-clock
+  - prcc-kernel-clock
+  - rtc32k-clock
+  - smp-twd-clock
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/ste-db8500-clkout.h>
+    clocks@8012 {
+      compatible = "stericsson,u8500-clks";
+      reg = <0x8012f000 0x1000>, <0x8011f000 0x1000>,
+            <0x8000f000 0x1000>, <0xa03ff000 0x1000>,
+            <0xa03cf000 0x1000>;
+
+      prcmu_clk: prcmu-clock {
+        #clock-cells = <1>;
+      };
+
+      prcc_pclk: prcc-periph-clock {
+        #clock-cells = <2>;
+      };
+
+      prcc_kclk: prcc-kernel-clock {
+        #clock-cells = <2>;
+      };
+
+      prcc_reset: prcc-reset-controller {
+        #reset-cells = <2>;
+      };
+
+      rtc_clk: rtc32k-clock {
+        #clock-cells = <0>;
+      };
+
+      smp_twd_clk: smp-twd-clock {
+        #clock-cells = <0>;
+      };
+
+      clkout_clk: clkout-clock {
+        #clock-cells = <3>;
+      };
+    };

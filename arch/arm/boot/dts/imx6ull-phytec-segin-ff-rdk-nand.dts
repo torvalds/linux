@@ -1,0 +1,95 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (C) 2019 PHYTEC Messtechnik GmbH
+ * Author: Stefan Riedmueller <s.riedmueller@phytec.de>
+ */
+
+/dts-v1/;
+#include "imx6ull.dtsi"
+#include "imx6ull-phytec-phycore-som.dtsi"
+#include "imx6ull-phytec-segin.dtsi"
+#include "imx6ull-phytec-segin-peb-eval-01.dtsi"
+#include "imx6ull-phytec-segin-peb-av-02.dtsi"
+#include "imx6ull-phytec-segin-peb-wlbt-05.dtsi"
+
+/ {
+	model = "PHYTEC phyBOARD-Segin i.MX6 ULL Full Featured with NAND";
+	compatible = "phytec,imx6ull-pbacd10-nand", "phytec,imx6ull-pbacd10",
+		     "phytec,imx6ull-pcl063", "fsl,imx6ull";
+};
+
+&adc1 {
+	status = "okay";
+};
+
+&can1 {
+	status = "okay";
+};
+
+&tlv320 {
+	status = "okay";
+};
+
+&ecspi3 {
+	status = "okay";
+};
+
+&ethphy1 {
+	status = "okay";
+};
+
+&ethphy2 {
+	status = "okay";
+};
+
+&fec1 {
+	status = "okay";
+};
+
+&fec2 {
+	status = "okay";
+};
+
+&gpmi {
+	status = "okay";
+};
+
+&i2c_rtc {
+	status = "okay";
+};
+
+&reg_can1_en {
+	status = "okay";
+};
+
+&reg_sound_1v8 {
+	status = "okay";
+};
+
+&reg_sound_3v3 {
+	status = "okay";
+};
+
+&sai2 {
+	status = "okay";
+};
+
+&sound {
+	status = "okay";
+};
+
+&uart5 {
+	status = "okay";
+};
+
+&usbotg1 {
+	status = "okay";
+};
+
+&usbotg2 {
+	status = "okay";
+};
+
+&usdhc1 {
+	status = "okay";
+};

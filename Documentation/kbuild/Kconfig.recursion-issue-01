@@ -1,0 +1,57 @@
+# Simple Kconfig recursive issue
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+#
+# Test with:
+#
+# make KBUILD_KCONFIG=Documentation/kbuild/Kconfig.recursion-issue-01 allnoconfig
+#
+# This Kconfig file has a simple recursive dependency issue. In order to
+# understand why this recursive dependency issue occurs lets consider what
+# Kconfig needs to address. We iterate over what Kconfig needs to address
+# by stepping through the questions it needs to address sequentially.
+#
+#  * What values are possible for CORE?
+#
+# CORE_BELL_A_ADVANCED selects CORE, which means that it influences the values
+# that are possible for CORE. So for example if CORE_BELL_A_ADVANCED is 'y',
+# CORE must be 'y' too.
+#
+#  * What influences CORE_BELL_A_ADVANCED ?
+#
+# As the name implies CORE_BELL_A_ADVANCED is an advanced feature of
+# CORE_BELL_A so naturally it depends on CORE_BELL_A. So if CORE_BELL_A is 'y'
+# we know CORE_BELL_A_ADVANCED can be 'y' too.
+#
+#   * What influences CORE_BELL_A ?
+#
+# CORE_BELL_A depends on CORE, so CORE influences CORE_BELL_A.
+#
+# But that is a problem, because this means that in order to determine
+# what values are possible for CORE we ended up needing to address questions
+# regarding possible values of CORE itself again. Answering the original
+# question of what are the possible values of CORE would make the kconfig
+# tools run in a loop. When this happens Kconfig exits and complains about
+# the "recursive dependency detected" error.
+#
+# Reading the Documentation/kbuild/Kconfig.recursion-issue-01 file it may be
+# obvious that an easy to solution to this problem should just be the removal
+# of the "select CORE" from CORE_BELL_A_ADVANCED as that is implicit already
+# since CORE_BELL_A depends on CORE. Recursive dependency issues are not always
+# so trivial to resolve, we provide another example below of practical
+# implications of this recursive issue where the solution is perhaps not so
+# easy to understand. Note that matching semantics on the dependency on
+# CORE also consist of a solution to this recursive problem.
+
+mainmenu "Simple example to demo kconfig recursive dependency issue"
+
+config CORE
+	tristate
+
+config CORE_BELL_A
+	tristate
+	depends on CORE
+
+config CORE_BELL_A_ADVANCED
+	tristate
+	depends on CORE_BELL_A
+	select CORE

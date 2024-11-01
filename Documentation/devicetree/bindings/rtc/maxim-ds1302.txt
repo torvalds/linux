@@ -1,0 +1,46 @@
+* Maxim/Dallas Semiconductor DS-1302 RTC
+
+Simple device which could be used to store date/time between reboots.
+
+The device uses the standard MicroWire half-duplex transfer timing.
+Master output is set on low clock and sensed by the RTC on the rising
+edge. Master input is set by the RTC on the trailing edge and is sensed
+by the master on low clock.
+
+Required properties:
+
+- compatible : Should be "maxim,ds1302"
+
+Required SPI properties:
+
+- reg : Should be address of the device chip select within
+  the controller.
+
+- spi-max-frequency : DS-1302 has 500 kHz if powered at 2.2V,
+  and 2MHz if powered at 5V.
+
+- spi-3wire : The device has a shared signal IN/OUT line.
+
+- spi-lsb-first : DS-1302 requires least significant bit first
+  transfers.
+
+- spi-cs-high: DS-1302 has active high chip select line. This is
+  required unless inverted in hardware.
+
+Example:
+
+spi@901c {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	compatible = "icpdas,lp8841-spi-rtc";
+	reg = <0x901c 0x1>;
+
+	rtc@0 {
+		compatible = "maxim,ds1302";
+		reg = <0>;
+		spi-max-frequency = <500000>;
+		spi-3wire;
+		spi-lsb-first;
+		spi-cs-high;
+	};
+};

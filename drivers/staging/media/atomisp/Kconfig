@@ -1,0 +1,40 @@
+# SPDX-License-Identifier: GPL-2.0
+menuconfig INTEL_ATOMISP
+	bool "Enable support to Intel Atom ISP camera drivers"
+	depends on X86 && EFI && PCI && ACPI
+	depends on COMMON_CLK
+	select IOSF_MBI
+	select MEDIA_CONTROLLER
+	help
+	  Enable support for the Intel ISP2 camera interfaces and MIPI
+	  sensor drivers.
+
+config VIDEO_ATOMISP
+	tristate "Intel Atom Image Signal Processor Driver"
+	depends on VIDEO_DEV && INTEL_ATOMISP
+	depends on PMIC_OPREGION
+	select V4L2_FWNODE
+	select IOSF_MBI
+	select VIDEOBUF_VMALLOC
+	select VIDEO_V4L2_SUBDEV_API
+	help
+	  Say Y here if your platform supports Intel Atom SoC
+	  camera imaging subsystem.
+	  To compile this driver as a module, choose M here: the
+	  module will be called atomisp
+
+config VIDEO_ATOMISP_ISP2401
+	bool "Use Intel Atom ISP on Cherrytail/Anniedale (ISP2401)"
+	depends on VIDEO_ATOMISP
+	help
+	  Enable support for Atom ISP2401-based boards.
+
+	  Select this option for  Anniedale (Merrifield+ / Moorefield)
+	  and Cherrytrail SoCs.
+
+	  Disabling it enables support for Atom ISP2400-based boards
+	  (Merrifield and Baytrail SoCs).
+
+if VIDEO_ATOMISP
+source "drivers/staging/media/atomisp/i2c/Kconfig"
+endif

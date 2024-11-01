@@ -1,0 +1,122 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+/*
+ * aks-cdu.dts - Device Tree file for AK signal CDU
+ *
+ * Copyright (C) 2012 AK signal Brno a.s.
+ *               2012 Jiri Prchal <jiri.prchal@aksignal.cz>
+ */
+
+/dts-v1/;
+
+#include "ge863-pro3.dtsi"
+
+/ {
+	chosen {
+		bootargs = "console=ttyS0,115200 ubi.mtd=4 root=ubi0:rootfs rootfstype=ubifs";
+	};
+
+	clocks {
+		slow_xtal {
+			clock-frequency = <32768>;
+		};
+	};
+
+	ahb {
+		apb {
+			usart0: serial@fffb0000 {
+				status = "okay";
+			};
+
+			usart1: serial@fffb4000 {
+				status = "okay";
+				linux,rs485-enabled-at-boot-time;
+				rs485-rts-delay = <0 0>;
+				};
+
+			usart2: serial@fffb8000 {
+				status = "okay";
+				linux,rs485-enabled-at-boot-time;
+				rs485-rts-delay = <0 0>;
+			};
+
+			usart3: serial@fffd0000 {
+				status = "okay";
+				linux,rs485-enabled-at-boot-time;
+				rs485-rts-delay = <0 0>;
+			};
+
+			macb0: ethernet@fffc4000 {
+				phy-mode = "rmii";
+				status = "okay";
+			};
+
+			usb1: gadget@fffa4000 {
+				atmel,vbus-gpio = <&pioC 15 GPIO_ACTIVE_HIGH>;
+				status = "okay";
+			};
+		};
+
+		usb0: ohci@500000 {
+			num-ports = <2>;
+			status = "okay";
+		};
+
+		ebi: ebi@10000000 {
+			nand_controller: nand-controller {
+				nand: nand@3 {
+					partitions {
+						bootstrap@0 {
+							label = "bootstrap";
+							reg = <0x0 0x40000>;
+						};
+
+						uboot@40000 {
+							label = "uboot";
+							reg = <0x40000 0x80000>;
+						};
+
+						ubootenv@c0000 {
+							label = "ubootenv";
+							reg = <0xc0000 0x40000>;
+						};
+
+						kernel@100000 {
+							label = "kernel";
+							reg = <0x100000 0x400000>;
+						};
+
+						rootfs@500000 {
+							label = "rootfs";
+							reg = <0x500000 0x7b00000>;
+						};
+					};
+				};
+			};
+		};
+	};
+
+	leds {
+		compatible = "gpio-leds";
+
+		red {
+			gpios = <&pioC 10 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "none";
+		};
+
+		green {
+			gpios = <&pioA 5 GPIO_ACTIVE_LOW>;
+			linux,default-trigger = "none";
+			default-state = "on";
+		};
+
+		yellow {
+			gpios = <&pioB 20 GPIO_ACTIVE_LOW>;
+			linux,default-trigger = "none";
+		};
+
+		blue {
+			gpios = <&pioB 21 GPIO_ACTIVE_LOW>;
+			linux,default-trigger = "none";
+		};
+	};
+};

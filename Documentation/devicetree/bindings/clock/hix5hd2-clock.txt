@@ -1,0 +1,30 @@
+* Hisilicon Hix5hd2 Clock Controller
+
+The hix5hd2 clock controller generates and supplies clock to various
+controllers within the hix5hd2 SoC.
+
+Required Properties:
+
+- compatible: should be "hisilicon,hix5hd2-clock"
+- reg: Address and length of the register set
+- #clock-cells: Should be <1>
+
+Each clock is assigned an identifier and client nodes use this identifier
+to specify the clock which they consume.
+
+All these identifier could be found in <dt-bindings/clock/hix5hd2-clock.h>.
+
+Examples:
+	clock: clock@f8a22000 {
+		compatible = "hisilicon,hix5hd2-clock";
+		reg = <0xf8a22000 0x1000>;
+		#clock-cells = <1>;
+	};
+
+	uart0: uart@f8b00000 {
+		compatible = "arm,pl011", "arm,primecell";
+		reg = <0xf8b00000 0x1000>;
+		interrupts = <0 49 4>;
+		clocks = <&clock HIX5HD2_FIXED_83M>;
+		clock-names = "apb_pclk";
+	};

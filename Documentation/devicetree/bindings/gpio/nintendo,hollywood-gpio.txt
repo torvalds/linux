@@ -1,0 +1,26 @@
+Nintendo Wii (Hollywood) GPIO controller
+
+Required properties:
+- compatible: "nintendo,hollywood-gpio"
+- reg: Physical base address and length of the controller's registers.
+- gpio-controller: Marks the device node as a GPIO controller.
+- #gpio-cells: Should be <2>. The first cell is the pin number and the
+  second cell is used to specify optional parameters:
+   - bit 0 specifies polarity (0 for normal, 1 for inverted).
+
+Optional properties:
+- ngpios: see Documentation/devicetree/bindings/gpio/gpio.txt
+- interrupt-controller: Marks the device node as an interrupt controller.
+- #interrupt-cells: Should be two.
+- interrupts: Interrupt specifier for the controller's Broadway (PowerPC)
+  interrupt.
+
+Example:
+
+	GPIO: gpio@d8000c0 {
+		#gpio-cells = <2>;
+		compatible = "nintendo,hollywood-gpio";
+		reg = <0x0d8000c0 0x40>;
+		gpio-controller;
+		ngpios = <24>;
+	}

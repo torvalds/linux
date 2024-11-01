@@ -1,0 +1,14 @@
+[
+    {
+        "ArchStdEvent": "EXC_TAKEN"
+    },
+    {
+        "ArchStdEvent": "EXC_HVC"
+    },
+    {
+        "PublicDescription": "Number of Traps to hypervisor",
+        "EventCode": "0xDC",
+        "EventName": "EXC_TRAP_HYP",
+        "BriefDescription": "Number of Traps to hypervisor"
+    }
+]

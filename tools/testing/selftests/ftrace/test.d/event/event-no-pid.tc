@@ -1,0 +1,123 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-2.0
+# description: event tracing - restricts events based on pid notrace filtering
+# requires: set_event events/sched set_event_pid set_event_notrace_pid
+# flags: instance
+
+do_reset() {
+    echo > set_event
+    echo > set_event_pid
+    echo > set_event_notrace_pid
+    echo 0 > options/event-fork
+    echo 0 > events/enable
+    clear_trace
+    echo 1 > tracing_on
+}
+
+fail() { #msg
+    cat trace
+    do_reset
+    echo $1
+    exit_fail
+}
+
+count_pid() {
+    pid=$@
+    cat trace | grep -v '^#' | sed -e 's/[^-]*-\([0-9]*\).*/\1/' | grep $pid | wc -l
+}
+
+count_no_pid() {
+    pid=$1
+    cat trace | grep -v '^#' | sed -e 's/[^-]*-\([0-9]*\).*/\1/' | grep -v $pid | wc -l
+}
+
+enable_system() {
+    system=$1
+
+    if [ -d events/$system ]; then
+	echo 1 > events/$system/enable
+    fi
+}
+
+enable_events() {
+    echo 0 > tracing_on
+    # Enable common groups of events, as all events can allow for
+    # events to be traced via scheduling that we don't care to test.
+    enable_system syscalls
+    enable_system rcu
+    enable_system block
+    enable_system exceptions
+    enable_system irq
+    enable_system net
+    enable_system power
+    enable_system signal
+    enable_system sock
+    enable_system timer
+    enable_system thermal
+    echo 1 > tracing_on
+}
+
+other_task() {
+    sleep .001 || usleep 1 || sleep 1
+}
+
+echo 0 > options/event-fork
+
+do_reset
+
+read mypid rest < /proc/self/stat
+
+echo $mypid > set_event_notrace_pid
+grep -q $mypid set_event_notrace_pid
+
+enable_events
+
+yield
+
+echo 0 > tracing_on
+
+cnt=`count_pid $mypid`
+if [ $cnt -ne 0 ]; then
+    fail "Filtered out task has events"
+fi
+
+cnt=`count_no_pid $mypid`
+if [ $cnt -eq 0 ]; then
+    fail "No other events were recorded"
+fi
+
+do_reset
+
+echo $mypid > set_event_notrace_pid
+echo 1 > options/event-fork
+
+enable_events
+
+yield &
+child=$!
+echo "child = $child"
+wait $child
+
+# Be sure some other events will happen for small systems (e.g. 1 core)
+other_task
+
+echo 0 > tracing_on
+
+cnt=`count_pid $mypid`
+if [ $cnt -ne 0 ]; then
+    fail "Filtered out task has events"
+fi
+
+cnt=`count_pid $child`
+if [ $cnt -ne 0 ]; then
+    fail "Child of filtered out taskhas events"
+fi
+
+cnt=`count_no_pid $mypid`
+if [ $cnt -eq 0 ]; then
+    fail "No other events were recorded"
+fi
+
+do_reset
+
+exit 0

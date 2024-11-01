@@ -1,0 +1,78 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/iio/adc/adi,ad7280a.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Analog Devices AD7280a Lithium Ion Battery Monitoring System
+
+maintainers:
+  - Michael Hennerich <michael.hennerich@analog.com>
+  - Jonathan Cameron <jic23@kernel.org>
+
+description: |
+  Bindings for the Analog Devices AD7280a Battery Monitoring System.
+  Used in devices such as hybrid electric cars, battery backup and power tools.
+  Multiple chips can be daisy chained and accessed via a single SPI interface.
+  Data sheet found here:
+    https://www.analog.com/media/en/technical-documentation/data-sheets/AD7280A.pdf
+
+properties:
+  compatible:
+    const: adi,ad7280a
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    description: IRQ line for the ADC
+    maxItems: 1
+
+  adi,voltage-alert-last-chan:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description:
+      Allows limiting of scope of which channels are considered for voltage
+      alerts, typically because not all are wired to anything. Only applies to
+      last device in the daisy chain.
+    default: 5
+    enum: [3, 4, 5]
+
+  adi,acquisition-time-ns:
+    description:
+      Additional time may be needed to charge the sampling capacitors depending
+      on external writing.
+    default: 400
+    enum: [400, 800, 1200, 1600]
+
+  adi,thermistor-termination:
+    type: boolean
+    description:
+      Enable the thermistor termination function.
+
+required:
+  - compatible
+  - reg
+
+allOf:
+  - $ref: /schemas/spi/spi-peripheral-props.yaml#
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    spi {
+      #address-cells = <1>;
+      #size-cells = <0>;
+
+      adc@0 {
+        compatible = "adi,ad7280a";
+        reg = <0>;
+        spi-max-frequency = <700000>;
+        interrupt-parent = <&gpio>;
+        interrupts = <25 2>;
+        adi,thermistor-termination;
+        adi,acquisition-time-ns = <800>;
+        adi,voltage-alert-last-chan = <5>;
+      };
+    };
+...

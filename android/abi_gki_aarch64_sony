@@ -1,0 +1,8 @@
+[abi_symbol_list]
+#required for failure diagnostics
+  __traceiter_block_rq_complete
+  __tracepoint_block_rq_complete
+  __traceiter_android_vh_mmc_blk_mq_rw_recovery
+  __tracepoint_android_vh_mmc_blk_mq_rw_recovery
+  __traceiter_android_vh_sd_update_bus_speed_mode
+  __tracepoint_android_vh_sd_update_bus_speed_mode

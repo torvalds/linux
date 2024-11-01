@@ -1,0 +1,162 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+/*
+ * Copyright 2012 Markus Pargmann, Pengutronix
+ */
+
+#include "imx27-phytec-phycard-s-som.dtsi"
+
+/ {
+	model = "Phytec pca100 rapid development kit";
+	compatible = "phytec,imx27-pca100-rdk", "phytec,imx27-pca100", "fsl,imx27";
+
+	chosen {
+		stdout-path = &uart1;
+	};
+
+	display: display {
+		model = "Primeview-PD050VL1";
+		bits-per-pixel = <16>;  /* non-standard but required */
+		fsl,pcr = <0xf0c88080>;	/* non-standard but required */
+		display-timings {
+			native-mode = <&timing0>;
+			timing0: timing0 {
+				hactive = <640>;
+				vactive = <480>;
+				hback-porch = <112>;
+				hfront-porch = <36>;
+				hsync-len = <32>;
+				vback-porch = <33>;
+				vfront-porch = <33>;
+				vsync-len = <2>;
+				clock-frequency = <25000000>;
+			};
+		};
+	};
+
+	regulators {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		reg_3v3: regulator@0 {
+			compatible = "regulator-fixed";
+			reg = <0>;
+			regulator-name = "3V3";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			regulator-always-on;
+		};
+	};
+};
+
+&fb {
+	display = <&display>;
+	status = "okay";
+};
+
+&i2c1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_i2c1>;
+	status = "okay";
+
+	rtc@51 {
+		compatible = "nxp,pcf8563";
+		reg = <0x51>;
+	};
+
+	adc@64 {
+		compatible = "maxim,max1037";
+		vcc-supply = <&reg_3v3>;
+		reg = <0x64>;
+	};
+};
+
+&iomuxc {
+	imx27-phycard-s-rdk {
+		pinctrl_i2c1: i2c1grp {
+			fsl,pins = <
+				MX27_PAD_I2C_DATA__I2C_DATA 0x0
+				MX27_PAD_I2C_CLK__I2C_CLK 0x0
+			>;
+		};
+
+		pinctrl_owire1: owire1grp {
+			fsl,pins = <
+				MX27_PAD_RTCK__OWIRE 0x0
+			>;
+		};
+
+		pinctrl_sdhc2: sdhc2grp {
+			fsl,pins = <
+				MX27_PAD_SD2_CLK__SD2_CLK 0x0
+				MX27_PAD_SD2_CMD__SD2_CMD 0x0
+				MX27_PAD_SD2_D0__SD2_D0 0x0
+				MX27_PAD_SD2_D1__SD2_D1 0x0
+				MX27_PAD_SD2_D2__SD2_D2 0x0
+				MX27_PAD_SD2_D3__SD2_D3 0x0
+				MX27_PAD_SSI3_RXDAT__GPIO3_29 0x0 /* CD */
+			>;
+		};
+
+		pinctrl_uart1: uart1grp {
+			fsl,pins = <
+				MX27_PAD_UART1_TXD__UART1_TXD 0x0
+				MX27_PAD_UART1_RXD__UART1_RXD 0x0
+				MX27_PAD_UART1_CTS__UART1_CTS 0x0
+				MX27_PAD_UART1_RTS__UART1_RTS 0x0
+			>;
+		};
+
+		pinctrl_uart2: uart2grp {
+			fsl,pins = <
+				MX27_PAD_UART2_TXD__UART2_TXD 0x0
+				MX27_PAD_UART2_RXD__UART2_RXD 0x0
+				MX27_PAD_UART2_CTS__UART2_CTS 0x0
+				MX27_PAD_UART2_RTS__UART2_RTS 0x0
+			>;
+		};
+
+		pinctrl_uart3: uart3grp {
+			fsl,pins = <
+				MX27_PAD_UART3_TXD__UART3_TXD 0x0
+				MX27_PAD_UART3_RXD__UART3_RXD 0x0
+				MX27_PAD_UART3_CTS__UART3_CTS 0x0
+				MX27_PAD_UART3_RTS__UART3_RTS 0x0
+			>;
+		};
+	};
+};
+
+&owire {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_owire1>;
+	status = "okay";
+};
+
+&sdhci2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_sdhc2>;
+	cd-gpios = <&gpio3 29 GPIO_ACTIVE_HIGH>;
+	status = "okay";
+};
+
+&uart1 {
+	uart-has-rtscts;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart1>;
+	status = "okay";
+};
+
+&uart2 {
+	uart-has-rtscts;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart2>;
+	status = "okay";
+};
+
+&uart3 {
+	uart-has-rtscts;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart3>;
+	status = "okay";
+};

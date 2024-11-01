@@ -1,0 +1,49 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-2.0
+
+# Kselftest framework requirement - SKIP code is 4.
+ksft_skip=4
+
+if [ $(id -u) != 0 ]; then
+	echo $msg must be run as root >&2
+	exit $ksft_skip
+fi
+
+ret=0
+echo "--------------------"
+echo "running psock_fanout test"
+echo "--------------------"
+./in_netns.sh ./psock_fanout
+if [ $? -ne 0 ]; then
+	echo "[FAIL]"
+	ret=1
+else
+	echo "[PASS]"
+fi
+
+echo "--------------------"
+echo "running psock_tpacket test"
+echo "--------------------"
+if [ -f /proc/kallsyms ]; then
+	./in_netns.sh ./psock_tpacket
+	if [ $? -ne 0 ]; then
+		echo "[FAIL]"
+		ret=1
+	else
+		echo "[PASS]"
+	fi
+else
+	echo "[SKIP] CONFIG_KALLSYMS not enabled"
+fi
+
+echo "--------------------"
+echo "running txring_overwrite test"
+echo "--------------------"
+./in_netns.sh ./txring_overwrite
+if [ $? -ne 0 ]; then
+	echo "[FAIL]"
+	ret=1
+else
+	echo "[PASS]"
+fi
+exit $ret

@@ -1,0 +1,126 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/phy/samsung,usb3-drd-phy.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Samsung Exynos SoC USB 3.0 DRD PHY USB 2.0 PHY
+
+maintainers:
+  - Krzysztof Kozlowski <krzk@kernel.org>
+  - Marek Szyprowski <m.szyprowski@samsung.com>
+  - Sylwester Nawrocki <s.nawrocki@samsung.com>
+
+description: |
+  For samsung,exynos5250-usbdrd-phy and samsung,exynos5420-usbdrd-phy
+  compatible PHYs, the second cell in the PHY specifier identifies the
+  PHY id, which is interpreted as follows::
+    0 - UTMI+ type phy,
+    1 - PIPE3 type phy.
+
+  For SoCs like Exynos5420 having multiple USB 3.0 DRD PHY controllers,
+  'usbdrd_phy' nodes should have numbered alias in the aliases node, in the
+  form of usbdrdphyN, N = 0, 1... (depending on number of controllers).
+
+properties:
+  compatible:
+    enum:
+      - samsung,exynos5250-usbdrd-phy
+      - samsung,exynos5420-usbdrd-phy
+      - samsung,exynos5433-usbdrd-phy
+      - samsung,exynos7-usbdrd-phy
+
+  clocks:
+    minItems: 2
+    maxItems: 5
+
+  clock-names:
+    minItems: 2
+    maxItems: 5
+    description: |
+      At least two clocks::
+        - Main PHY clock (same as USB DRD controller i.e. DWC3 IP clock), used
+          for register access.
+        - PHY reference clock (usually crystal clock), used for PHY operations,
+          associated by phy name. It is used to determine bit values for clock
+          settings register.  For Exynos5420 this is given as 'sclk_usbphy30'
+          in the CMU.
+
+  "#phy-cells":
+    const: 1
+
+  port:
+    $ref: /schemas/graph.yaml#/properties/port
+    description:
+      Any connector to the data bus of this controller should be modelled using
+      the OF graph bindings specified.
+
+  reg:
+    maxItems: 1
+
+  samsung,pmu-syscon:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description:
+      Phandle to PMU system controller interface.
+
+  vbus-supply:
+    description:
+      VBUS power source.
+
+  vbus-boost-supply:
+    description:
+      VBUS Boost 5V power source.
+
+required:
+  - compatible
+  - clocks
+  - clock-names
+  - "#phy-cells"
+  - reg
+  - samsung,pmu-syscon
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - samsung,exynos5433-usbdrd-phy
+              - samsung,exynos7-usbdrd-phy
+    then:
+      properties:
+        clocks:
+          minItems: 5
+          maxItems: 5
+        clock-names:
+          items:
+            - const: phy
+            - const: ref
+            - const: phy_utmi
+            - const: phy_pipe
+            - const: itp
+    else:
+      properties:
+        clocks:
+          minItems: 2
+          maxItems: 2
+        clock-names:
+          items:
+            - const: phy
+            - const: ref
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/exynos5420.h>
+
+    phy@12100000 {
+        compatible = "samsung,exynos5420-usbdrd-phy";
+        reg = <0x12100000 0x100>;
+        #phy-cells = <1>;
+        clocks = <&clock CLK_USBD300>, <&clock CLK_SCLK_USBPHY300>;
+        clock-names = "phy", "ref";
+        samsung,pmu-syscon = <&pmu_system_controller>;
+        vbus-supply = <&usb300_vbus_reg>;
+    };

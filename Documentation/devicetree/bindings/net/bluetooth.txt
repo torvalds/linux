@@ -1,0 +1,5 @@
+The following properties are common to the Bluetooth controllers:
+
+- local-bd-address: array of 6 bytes, specifies the BD address that was
+  uniquely assigned to the Bluetooth device, formatted with least significant
+  byte first (little-endian).

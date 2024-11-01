@@ -1,0 +1,145 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/net/fsl,fman-dtsec.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: NXP FMan MAC
+
+maintainers:
+  - Madalin Bucur <madalin.bucur@nxp.com>
+
+description: |
+  Each FMan has several MACs, each implementing an Ethernet interface. Earlier
+  versions of FMan used the Datapath Three Speed Ethernet Controller (dTSEC) for
+  10/100/1000 MBit/s speeds, and the 10-Gigabit Ethernet Media Access Controller
+  (10GEC) for 10 Gbit/s speeds. Later versions of FMan use the Multirate
+  Ethernet Media Access Controller (mEMAC) to handle all speeds.
+
+properties:
+  compatible:
+    enum:
+      - fsl,fman-dtsec
+      - fsl,fman-xgec
+      - fsl,fman-memac
+
+  cell-index:
+    maximum: 64
+    description: |
+      FManV2:
+      register[bit]           MAC             cell-index
+      ============================================================
+      FM_EPI[16]              XGEC            8
+      FM_EPI[16+n]            dTSECn          n-1
+      FM_NPI[11+n]            dTSECn          n-1
+              n = 1,..,5
+
+      FManV3:
+      register[bit]           MAC             cell-index
+      ============================================================
+      FM_EPI[16+n]            mEMACn          n-1
+      FM_EPI[25]              mEMAC10         9
+
+      FM_NPI[11+n]            mEMACn          n-1
+      FM_NPI[10]              mEMAC10         9
+      FM_NPI[11]              mEMAC9          8
+              n = 1,..8
+
+      FM_EPI and FM_NPI are located in the FMan memory map.
+
+      2. SoC registers:
+
+      - P2041, P3041, P4080 P5020, P5040:
+      register[bit]           FMan            MAC             cell
+                              Unit                            index
+      ============================================================
+      DCFG_DEVDISR2[7]        1               XGEC            8
+      DCFG_DEVDISR2[7+n]      1               dTSECn          n-1
+      DCFG_DEVDISR2[15]       2               XGEC            8
+      DCFG_DEVDISR2[15+n]     2               dTSECn          n-1
+              n = 1,..5
+
+      - T1040, T2080, T4240, B4860:
+      register[bit]                   FMan    MAC             cell
+                                      Unit                    index
+      ============================================================
+      DCFG_CCSR_DEVDISR2[n-1]         1       mEMACn          n-1
+      DCFG_CCSR_DEVDISR2[11+n]        2       mEMACn          n-1
+              n = 1,..6,9,10
+
+      EVDISR, DCFG_DEVDISR2 and DCFG_CCSR_DEVDISR2 are located in
+      the specific SoC "Device Configuration/Pin Control" Memory
+      Map.
+
+  reg:
+    maxItems: 1
+
+  fsl,fman-ports:
+    $ref: /schemas/types.yaml#/definitions/phandle-array
+    maxItems: 2
+    description: |
+      An array of two references: the first is the FMan RX port and the second
+      is the TX port used by this MAC.
+
+  ptp-timer:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description: A reference to the IEEE1588 timer
+
+  pcsphy-handle:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description: A reference to the PCS (typically found on the SerDes)
+
+  tbi-handle:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description: A reference to the (TBI-based) PCS
+
+required:
+  - compatible
+  - cell-index
+  - reg
+  - fsl,fman-ports
+  - ptp-timer
+
+allOf:
+  - $ref: ethernet-controller.yaml#
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: fsl,fman-dtsec
+    then:
+      required:
+        - tbi-handle
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: fsl,fman-memac
+    then:
+      required:
+        - pcsphy-handle
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    ethernet@e0000 {
+            compatible = "fsl,fman-dtsec";
+            cell-index = <0>;
+            reg = <0xe0000 0x1000>;
+            fsl,fman-ports = <&fman1_rx8 &fman1_tx28>;
+            ptp-timer = <&ptp_timer>;
+            tbi-handle = <&tbi0>;
+    };
+  - |
+    ethernet@e8000 {
+            cell-index = <4>;
+            compatible = "fsl,fman-memac";
+            reg = <0xe8000 0x1000>;
+            fsl,fman-ports = <&fman0_rx_0x0c &fman0_tx_0x2c>;
+            ptp-timer = <&ptp_timer0>;
+            pcsphy-handle = <&pcsphy4>;
+            phy-handle = <&sgmii_phy1>;
+            phy-connection-type = "sgmii";
+    };
+...

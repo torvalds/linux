@@ -1,0 +1,44 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config SH_INTC
+	bool
+	select IRQ_DOMAIN
+
+if SH_INTC
+
+comment "Interrupt controller options"
+
+config INTC_USERIMASK
+	bool "Userspace interrupt masking support"
+	depends on (SUPERH && CPU_SH4A) || COMPILE_TEST
+	help
+	  This enables support for hardware-assisted userspace hardirq
+	  masking.
+
+	  SH-4A and newer interrupt blocks all support a special shadowed
+	  page with all non-masking registers obscured when mapped in to
+	  userspace. This is primarily for use by userspace device
+	  drivers that are using special priority levels.
+
+	  If in doubt, say N.
+
+config INTC_BALANCING
+	bool "Hardware IRQ balancing support"
+	depends on SMP && SUPERH && CPU_SHX3
+	help
+	  This enables support for IRQ auto-distribution mode on SH-X3
+	  SMP parts. All of the balancing and CPU wakeup decisions are
+	  taken care of automatically by hardware for distributed
+	  vectors.
+
+	  If in doubt, say N.
+
+config INTC_MAPPING_DEBUG
+	bool "Expose IRQ to per-controller id mapping via debugfs"
+	depends on DEBUG_FS
+	help
+	  This will create a debugfs entry for showing the relationship
+	  between system IRQs and the per-controller id tables.
+
+	  If in doubt, say N.
+
+endif

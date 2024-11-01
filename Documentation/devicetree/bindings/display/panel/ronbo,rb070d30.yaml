@@ -1,0 +1,51 @@
+# SPDX-License-Identifier: (GPL-2.0+ OR X11)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/display/panel/ronbo,rb070d30.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Ronbo RB070D30 DSI Display Panel
+
+maintainers:
+  - Maxime Ripard <mripard@kernel.org>
+
+properties:
+  compatible:
+    const: ronbo,rb070d30
+
+  reg:
+    description: MIPI-DSI virtual channel
+
+  power-gpios:
+    description: GPIO used for the power pin
+    maxItems: 1
+
+  reset-gpios:
+    description: GPIO used for the reset pin
+    maxItems: 1
+
+  shlr-gpios:
+    description: GPIO used for the shlr pin (horizontal flip)
+    maxItems: 1
+
+  updn-gpios:
+    description: GPIO used for the updn pin (vertical flip)
+    maxItems: 1
+
+  vcc-lcd-supply:
+    description: Power regulator
+
+  backlight:
+    description: Backlight used by the panel
+    $ref: "/schemas/types.yaml#/definitions/phandle"
+
+required:
+  - compatible
+  - power-gpios
+  - reg
+  - reset-gpios
+  - shlr-gpios
+  - updn-gpios
+  - vcc-lcd-supply
+
+additionalProperties: false

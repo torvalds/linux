@@ -1,0 +1,50 @@
+RT5668B audio CODEC
+
+This device supports I2C only.
+
+Required properties:
+
+- compatible : "realtek,rt5668b"
+
+- reg : The I2C address of the device.
+
+Optional properties:
+
+- interrupts : The CODEC's interrupt output.
+
+- realtek,dmic1-data-pin
+  0: dmic1 is not used
+  1: using GPIO2 pin as dmic1 data pin
+  2: using GPIO5 pin as dmic1 data pin
+
+- realtek,dmic1-clk-pin
+  0: using GPIO1 pin as dmic1 clock pin
+  1: using GPIO3 pin as dmic1 clock pin
+
+- realtek,jd-src
+  0: No JD is used
+  1: using JD1 as JD source
+
+- realtek,ldo1-en-gpios : The GPIO that controls the CODEC's LDO1_EN pin.
+
+Pins on the device (for linking into audio routes) for RT5668B:
+
+  * DMIC L1
+  * DMIC R1
+  * IN1P
+  * HPOL
+  * HPOR
+
+Example:
+
+rt5668 {
+	compatible = "realtek,rt5668b";
+	reg = <0x1a>;
+	interrupt-parent = <&gpio>;
+	interrupts = <TEGRA_GPIO(U, 6) IRQ_TYPE_LEVEL_HIGH>;
+	realtek,ldo1-en-gpios =
+		<&gpio TEGRA_GPIO(R, 2) GPIO_ACTIVE_HIGH>;
+	realtek,dmic1-data-pin = <1>;
+	realtek,dmic1-clk-pin = <1>;
+	realtek,jd-src = <1>;
+};

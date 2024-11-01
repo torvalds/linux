@@ -1,0 +1,69 @@
+* Renesas "Type-AXI" NBPFAXI* DMA controllers
+
+* DMA controller
+
+Required properties
+
+- compatible:	must be one of
+		"renesas,nbpfaxi64dmac1b4"
+		"renesas,nbpfaxi64dmac1b8"
+		"renesas,nbpfaxi64dmac1b16"
+		"renesas,nbpfaxi64dmac4b4"
+		"renesas,nbpfaxi64dmac4b8"
+		"renesas,nbpfaxi64dmac4b16"
+		"renesas,nbpfaxi64dmac8b4"
+		"renesas,nbpfaxi64dmac8b8"
+		"renesas,nbpfaxi64dmac8b16"
+- #dma-cells:	must be 2: the first integer is a terminal number, to which this
+		slave is connected, the second one is flags. Flags is a bitmask
+		with the following bits defined:
+
+#define NBPF_SLAVE_RQ_HIGH	1
+#define NBPF_SLAVE_RQ_LOW	2
+#define NBPF_SLAVE_RQ_LEVEL	4
+
+Optional properties:
+- max-burst-mem-read:	limit burst size for memory reads
+  (DMA_MEM_TO_MEM/DMA_MEM_TO_DEV) to this value, specified in bytes, rather
+  than using the maximum burst size allowed by the hardware's buffer size.
+- max-burst-mem-write:	limit burst size for memory writes
+  (DMA_DEV_TO_MEM/DMA_MEM_TO_MEM) to this value, specified in bytes, rather
+  than using the maximum burst size allowed by the hardware's buffer size.
+  If both max-burst-mem-read and max-burst-mem-write are set, DMA_MEM_TO_MEM
+  will use the lower value.
+
+You can use dma-channels and dma-requests as described in dma.txt, although they
+won't be used, this information is derived from the compatibility string.
+
+Example:
+
+	dma: dma-controller@48000000 {
+		compatible = "renesas,nbpfaxi64dmac8b4";
+		reg = <0x48000000 0x400>;
+		interrupts = <0 12 0x4
+			      0 13 0x4
+			      0 14 0x4
+			      0 15 0x4
+			      0 16 0x4
+			      0 17 0x4
+			      0 18 0x4
+			      0 19 0x4>;
+		#dma-cells = <2>;
+		dma-channels = <8>;
+		dma-requests = <8>;
+	};
+
+* DMA client
+
+Required properties:
+
+dmas and dma-names are required, as described in dma.txt.
+
+Example:
+
+#include <dt-bindings/dma/nbpfaxi.h>
+
+...
+		dmas = <&dma 0 (NBPF_SLAVE_RQ_HIGH | NBPF_SLAVE_RQ_LEVEL)
+			&dma 1 (NBPF_SLAVE_RQ_HIGH | NBPF_SLAVE_RQ_LEVEL)>;
+		dma-names = "rx", "tx";

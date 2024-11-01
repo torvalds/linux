@@ -1,0 +1,49 @@
+Krait Processor Sub-system (KPSS) Application Clock Controller (ACC)
+
+The KPSS ACC provides clock, power domain, and reset control to a Krait CPU.
+There is one ACC register region per CPU within the KPSS remapped region as
+well as an alias register region that remaps accesses to the ACC associated
+with the CPU accessing the region.
+
+PROPERTIES
+
+- compatible:
+	Usage: required
+	Value type: <string>
+	Definition: should be one of:
+			"qcom,kpss-acc-v1"
+			"qcom,kpss-acc-v2"
+
+- reg:
+	Usage: required
+	Value type: <prop-encoded-array>
+	Definition: the first element specifies the base address and size of
+		    the register region. An optional second element specifies
+		    the base address and size of the alias register region.
+
+- clocks:
+        Usage: required
+        Value type: <prop-encoded-array>
+        Definition: reference to the pll parents.
+
+- clock-names:
+        Usage: required
+        Value type: <stringlist>
+        Definition: must be "pll8_vote", "pxo".
+
+- clock-output-names:
+	Usage: optional
+	Value type: <string>
+	Definition: Name of the output clock. Typically acpuX_aux where X is a
+		    CPU number starting at 0.
+
+Example:
+
+	clock-controller@2088000 {
+		compatible = "qcom,kpss-acc-v2";
+		reg = <0x02088000 0x1000>,
+		      <0x02008000 0x1000>;
+		clocks = <&gcc PLL8_VOTE>, <&gcc PXO_SRC>;
+		clock-names = "pll8_vote", "pxo";
+		clock-output-names = "acpu0_aux";
+	};

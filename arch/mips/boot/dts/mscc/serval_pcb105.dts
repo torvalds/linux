@@ -1,0 +1,17 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2018 Microsemi Corporation
+ */
+
+/dts-v1/;
+#include "serval_common.dtsi"
+
+/ {
+	model = "Serval PCB105 Reference Board";
+	compatible = "mscc,serval-pcb105", "mscc,serval";
+
+	aliases {
+	};
+
+};
+

@@ -1,0 +1,28 @@
+AK4458 audio DAC
+
+This device supports I2C mode.
+
+Required properties:
+
+- compatible : "asahi-kasei,ak4458" or "asahi-kasei,ak4497"
+- reg : The I2C address of the device for I2C
+
+Optional properties:
+- reset-gpios: A GPIO specifier for the power down & reset pin
+- mute-gpios: A GPIO specifier for the soft mute pin
+- AVDD-supply: Analog power supply
+- DVDD-supply: Digital power supply
+- dsd-path: Select DSD input pins for ak4497
+            0: select #16, #17, #19 pins
+            1: select #3, #4, #5 pins
+
+Example:
+
+&i2c {
+	ak4458: dac@10 {
+		compatible = "asahi-kasei,ak4458";
+		reg = <0x10>;
+		reset-gpios = <&gpio1 10 GPIO_ACTIVE_LOW>
+		mute-gpios = <&gpio1 11 GPIO_ACTIVE_HIGH>
+	};
+};

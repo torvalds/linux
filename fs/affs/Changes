@@ -1,0 +1,343 @@
+(Note: I consider version numbers as cheap. That means
+that I do not like numbers like 0.1 and the like for
+things that can be used since quite some time. But
+then, 3.1 doesn't mean 'perfectly stable', too.)
+
+Known bugs:
+-----------
+
+- Doesn't work on the alpha. The only 64/32-bit
+  problem that I'm aware of (pointer/int conversion
+  in readdir()) gives compiler warnings but is
+  apparently not causing the failure, as directory
+  reads basically work (but all files are of size 0).
+  Alas, I've got no alpha to debug. :-(
+
+- The partition checker (drivers/block/genhd.c)
+  doesn't work with devices which have 256 byte
+  blocks (some very old SCSI drives). 
+
+- The feature to automatically make the fs clean
+  might leave a trashed file system with the
+  bitmap flag set valid.
+
+- When a file is truncated to a size that is not
+  a multiple of the blocksize, the rest of the
+  last allocated block is not cleared. Well,
+  this fs never claimed to be Posix conformant.
+
+Please direct bug reports to: zippel@linux-m68k.org
+
+Version 3.20
+------------
+- kill kernel lock
+- fix for a possible bitmap corruption
+
+Version 3.19
+------------
+
+- sizeof changes from Kernel Janitor Project
+- several bug fixes found with fsx
+
+Version 3.18
+------------
+
+- change to global min macro + warning fixes
+- add module tags
+
+Version 3.17
+------------
+
+- locking fixes
+- wrong sign in __affs_hash_dentry
+- remove unnecessary check in affs_new_inode
+- enable international mode for dircache fs
+
+Version 3.16
+------------
+
+- use mark_buffer_dirty_inode instead of mark_buffer_dirty.
+- introduce affs_lock_{link|dir|ext}.
+
+Version 3.15
+------------
+
+- disable link to directories until we can properly support them.
+- locking fixes for link creation/removal.
+
+Version 3.14
+------------
+
+- correctly cut off long file names for compares
+- correctly initialize s_last_bmap
+
+Version 3.13
+------------
+
+Major cleanup for 2.4 [Roman Zippel]
+- new extended block handling
+- new bitmap allocation functions
+- locking should be safe for the future
+- cleanup of some interfaces
+
+Version 3.12
+------------
+
+more 2.4 fixes: [Roman Zippel]
+- s_lock changes
+- increased getblock mess
+- clear meta blocks 
+
+Version 3.11
+------------
+
+- Converted to use 2.3.x page cache [Dave Jones]
+- Corruption in truncate() bugfix [Ken Tyler <kent@werple.net.au>]
+
+Version 3.10
+------------
+
+- Changed partition checker to allow devices
+  with physical blocks != 512 bytes.
+
+- The partition checker now also ignores the
+  word at 0xd0 that Windows likes to write to.
+
+Version 3.9
+-----------
+
+- Moved cleanup from release_file() to put_inode().
+  This makes the first one obsolete.
+
+- truncate() zeroes the unused remainder of a
+  partially used last block when a file is truncated.
+  It also marks the inode dirty now (which is not
+  really necessary as notify_change() will do
+  it anyway).
+
+- Added a few comments, fixed some typos (and
+  introduced some new ones), made the debug messages
+  more consistent. Changed a bad example in the
+  doc file (affs.txt).
+
+- Sets the NOEXEC flag in read_super() for old file
+  systems, since you can't run programs on them.
+
+Version 3.8
+-----------
+Bill Hawes kindly reviewed the affs and sent me the
+patches he did. They're marked (BH). Thanks, Bill!
+
+- Cleanup of error handling in read_super().
+  Didn't release all resources in case of an
+  error. (BH)
+
+- put_inode() releases the ext cache only if it's
+  no longer needed. (BH)
+
+- One set of dentry callbacks is enough. (BH)
+
+- Cleanup of error handling in namei.c. (BH)
+
+- Cleanup of error handling in file.c. (BH)
+
+- The original blocksize of the device is
+  restored when the fs is unmounted. (BH)
+
+- getblock() did not invalidate the key cache
+  when it allocated a new block.
+
+- Removed some unnecessary locks as Bill
+  suggested.
+
+- Simplified match_name(), changed all hashing
+  and case insensitive name comparisons to use
+  uppercase. This makes the tolower() routines
+  obsolete.
+
+- Added mount option 'mufs' to force muFS
+  uid/gid interpretation.
+
+- File mode changes were not updated on disk.
+  This was fixed before, but somehow got lost.
+
+Version 3.7
+-----------
+
+- Added dentry callbacks to allow the dcache to
+  operate case insensitive and length ignorant
+  like the affs itself.
+
+- getblock() didn't update the lastblock field in the
+  inode if the fs was not an OFS. This bug only shows
+  up if a file was enlarged via truncate() and there
+  was not enough space.
+
+- Remove some more superfluous code left over from
+  the old link days ...
+
+- Fixed some oversights which were in patch 2.1.78.
+
+- Fixed a few typos.
+
+Version 3.6
+-----------
+
+- dentry changes. (Thanks to Jes Sorensen for his help.)
+
+- Fixed bug in balloc(): Superblock was not set dirty after
+  the bitmap was changed, so the bitmap wasn't sync'd.
+
+- Fixed nasty bug in find_new_zone(): If the current
+  zone number was zero, the loop didn't terminate,
+  causing a solid lock-up.
+
+- Removed support for old-style directory reads.
+
+- Fixed bug in add_entry(): When doing a sorted insert,
+  the pointer to the next entry in the hash chain wasn't
+  correctly byte-swapped. Since most of the users of the
+  affs use it on a 68k, they didn't notice. But why did
+  I not find this during my tests?
+
+- Fixed some oversights (version wasn't updated on some
+  directory changes).
+
+- Handling of hard links rewritten. To the VFS
+  they appear now as normal Unix links. They are
+  now resolved only once in lookup(). The backside
+  is that unlink(), rename() and rmdir() have to
+  be smart about them, but the result is worth the
+  effort. This also led to some code cleanup.
+
+- Changed name type to unsigned char; the test for
+  invalid filenames didn't work correctly.
+  (Thanks to Michael Krause for pointing at this.)
+
+- Changed mapping of executable flag.
+
+- Changed all network byte-order macros to the
+  recommended ones.
+
+- Added a remount function, so attempts to remount
+  a dircache filesystem or one with errors read/write
+  can be trapped. Previously, ro remounts didn't
+  flush the super block, and rw remounts didn't
+  create allocation zones ...
+
+- Call shrink_dcache_parent() in rmdir().
+  (Thanks to Bill Hawes.)
+
+- Permission checks in unlink().
+
+- Allow mounting of volumes with superfluous
+  bitmap pointers read only, also allows them
+  to be remounted read/write.
+
+- Owner/Group defaults now to the fs user (i.e.
+  the one that mounted it) instead of root. This
+  obsoletes the mount options uid and gid.
+
+- Argument to volume option could overflow the
+  name buffer. It is now silently truncated to
+  30 characters. (Damn it! This kind of bug
+  is too embarrassing.)
+
+- Split inode.c into 2 files, the superblock
+  routines desperately wanted their own file.
+
+- truncate() didn't allocate an extension block
+  cache. If a file was extended by means of
+  truncate(), this led to an Oops.
+
+- fsuser is now checked last.
+
+- rename() will not ignore changes in filename
+  casing any more (though mv(1) still won't allow
+  you to do "mv oldname OldName").
+
+Version 3.5
+-----------
+
+- Extension block caches are now allocated on
+  demand instead of when a file is opened, as
+  files can be read and written without opening
+  them (e. g. the loopback device does this).
+
+- Removed an unused function.
+
+Version 3.4
+-----------
+
+- Hash chains are now sorted by block numbers.
+  (Thanks to Kars de Jong for finding this.)
+- Removed all unnecessary external symbols.
+
+Version 3.3
+-----------
+
+- Tried to make all types 'correct' and consistent.
+- Errors and warnings are now reported via a
+  function. They are all prefixed by a severity
+  and have the same appearance:
+    "AFFS: <function>: <error message>"
+  (There's one exception to this, as in that function
+  is no pointer to the super block available.)
+- The filesystem is remounted read-only after an
+  error.
+- The names of newly created filesystem objects are
+  now checked for validity.
+- Minor cleanups in comments.
+- Added this Changes file. At last!
+
+Version 3.2
+-----------
+
+- Extension block cache: Reading/writing of huge files
+  (several MB) is much faster (of course the added
+  overhead slows down opening, but this is hardly
+  noticeable).
+- The same get_block()-routine can now be used for
+  both OFS and FFS.
+- The super block is now searched in the block that
+  was calculated and in the one following. This
+  should remedy the round-off error introduced by
+  the 1-k blocks that Linux uses.
+- Minor changes to adhere to the new VFS interface.
+- The number of used blocks is now also calculated
+  if the filesystem is mounted read-only.
+- Prefixed some constants with AFFS_ to avoid name
+  clashes.
+- Removed 'EXPERIMENTAL' status.
+
+Version 3.1
+-----------
+
+- Fixed a nasty bug which didn't allow read-only
+  mounts.
+- Allow dir-cache filesystems to be mounted
+  read only.
+- OFS support.
+- Several other changes I just cannot remember
+  any more.
+
+Version 3.0
+-----------
+
+- Almost complete rewrite for the new VFS
+  interface in Linux 1.3.
+- Write support.
+- Support for hard and symbolic links.
+- Lots of things I remember even less ...
+
+Version 2.0
+-----------
+
+- Fixed a few things to get it compiled.
+- Automatic root block calculation.
+- Partition checker for genhd.c
+
+========================================
+
+Let's just call Ray Burr's original affs
+'Version 1.0'.

@@ -1,0 +1,259 @@
+What:		/sys/class/thermal/thermal_zoneX/type
+Description:
+		Strings which represent the thermal zone type.
+		This is given by thermal zone driver as part of registration.
+		E.g: "acpitz" indicates it's an ACPI thermal device.
+		In order to keep it consistent with hwmon sys attribute; this
+		shouldbe a short, lowercase string, not containing spaces nor
+		dashes.
+
+		RO, Required
+
+What:		/sys/class/thermal/thermal_zoneX/temp
+Description:
+		Current temperature as reported by thermal zone (sensor).
+
+		Unit: millidegree Celsius
+
+		RO, Required
+
+What:		/sys/class/thermal/thermal_zoneX/mode
+Description:
+		One of the predefined values in [enabled, disabled].
+		This file gives information about the algorithm that is
+		currently managing the thermal zone. It can be either default
+		kernel based algorithm or user space application.
+
+		enabled
+				enable Kernel Thermal management.
+		disabled
+				Preventing kernel thermal zone driver actions upon
+				trip points so that user application can take full
+				charge of the thermal management.
+
+		RW, Optional
+
+What:		/sys/class/thermal/thermal_zoneX/policy
+Description:
+		One of the various thermal governors used for a particular zone.
+
+		RW, Required
+
+What:		/sys/class/thermal/thermal_zoneX/available_policies
+Description:
+		Available thermal governors which can be used for a
+		particular zone.
+
+		RO, Required
+
+What:		/sys/class/thermal/thermal_zoneX/trip_point_Y_temp
+Description:
+		The temperature above which trip point will be fired.
+
+		Unit: millidegree Celsius
+
+		RO, Optional
+
+What:		/sys/class/thermal/thermal_zoneX/trip_point_Y_type
+Description:
+		Strings which indicate the type of the trip point.
+
+		E.g. it can be one of critical, hot, passive, `active[0-*]`
+		for ACPI thermal zone.
+
+		RO, Optional
+
+What:		/sys/class/thermal/thermal_zoneX/trip_point_Y_hyst
+Description:
+		The hysteresis value for a trip point, represented as an
+		integer.
+
+		Unit: Celsius
+
+		RW, Optional
+
+What:		/sys/class/thermal/thermal_zoneX/cdevY
+Description:
+	Sysfs link to the thermal cooling device node where the sys I/F
+	for cooling device throttling control represents.
+
+	RO, Optional
+
+What:		/sys/class/thermal/thermal_zoneX/cdevY_trip_point
+Description:
+		The trip point in this thermal zone which `cdev[0-*]` is
+		associated with; -1 means the cooling device is not
+		associated with any trip point.
+
+		RO, Optional
+
+What:		/sys/class/thermal/thermal_zoneX/cdevY_weight
+Description:
+		The influence of `cdev[0-*]` in this thermal zone. This value
+		is relative to the rest of cooling devices in the thermal
+		zone. For example, if a cooling device has a weight double
+		than that of other, it's twice as effective in cooling the
+		thermal zone.
+
+		RW, Optional
+
+What:		/sys/class/thermal/thermal_zoneX/emul_temp
+Description:
+		Interface to set the emulated temperature method in thermal zone
+		(sensor). After setting this temperature, the thermal zone may
+		pass this temperature to platform emulation function if
+		registered or cache it locally. This is useful in debugging
+		different temperature threshold and its associated cooling
+		action. This is write only node and writing 0 on this node
+		should disable emulation.
+
+		Unit: millidegree Celsius
+
+		WO, Optional
+
+		WARNING:
+		    Be careful while enabling this option on production systems,
+		    because userland can easily disable the thermal policy by simply
+		    flooding this sysfs node with low temperature values.
+
+
+What:		/sys/class/thermal/thermal_zoneX/k_d
+Description:
+		The derivative term of the power allocator governor's PID
+		controller. For more information see
+		Documentation/driver-api/thermal/power_allocator.rst
+
+		RW, Optional
+
+What:		/sys/class/thermal/thermal_zoneX/k_i
+Description:
+		The integral term of the power allocator governor's PID
+		controller. This term allows the PID controller to compensate
+		for long term drift. For more information see
+		Documentation/driver-api/thermal/power_allocator.rst
+
+		RW, Optional
+
+What:		/sys/class/thermal/thermal_zoneX/k_po
+Description:
+		The proportional term of the power allocator governor's PID
+		controller during temperature overshoot. Temperature overshoot
+		is when the current temperature is above the "desired
+		temperature" trip point. For more information see
+		Documentation/driver-api/thermal/power_allocator.rst
+
+		RW, Optional
+
+What:		/sys/class/thermal/thermal_zoneX/k_pu
+Description:
+		The proportional term of the power allocator governor's PID
+		controller during temperature undershoot. Temperature undershoot
+		is when the current temperature is below the "desired
+		temperature" trip point. For more information see
+		Documentation/driver-api/thermal/power_allocator.rst
+
+		RW, Optional
+
+What:		/sys/class/thermal/thermal_zoneX/integral_cutoff
+Description:
+		Temperature offset from the desired temperature trip point
+		above which the integral term of the power allocator
+		governor's PID controller starts accumulating errors. For
+		example, if integral_cutoff is 0, then the integral term only
+		accumulates error when temperature is above the desired
+		temperature trip point. For more information see
+		Documentation/driver-api/thermal/power_allocator.rst
+
+		Unit: millidegree Celsius
+
+		RW, Optional
+
+What:		/sys/class/thermal/thermal_zoneX/slope
+Description:
+		The slope constant used in a linear extrapolation model
+		to determine a hotspot temperature based off the sensor's
+		raw readings. It is up to the device driver to determine
+		the usage of these values.
+
+		RW, Optional
+
+What:		/sys/class/thermal/thermal_zoneX/offset
+Description:
+		The offset constant used in a linear extrapolation model
+		to determine a hotspot temperature based off the sensor's
+		raw readings. It is up to the device driver to determine
+		the usage of these values.
+
+		RW, Optional
+
+What:		/sys/class/thermal/thermal_zoneX/sustainable_power
+Description:
+		An estimate of the sustained power that can be dissipated by
+		the thermal zone. Used by the power allocator governor. For
+		more information see
+		Documentation/driver-api/thermal/power_allocator.rst
+
+		Unit: milliwatts
+
+		RW, Optional
+
+What:		/sys/class/thermal/cooling_deviceX/type
+Description:
+		String which represents the type of device, e.g:
+
+		- for generic ACPI: should be "Fan", "Processor" or "LCD"
+		- for memory controller device on intel_menlow platform:
+		  should be "Memory controller".
+
+		RO, Required
+
+What:		/sys/class/thermal/cooling_deviceX/max_state
+Description:
+		The maximum permissible cooling state of this cooling device.
+
+		RO, Required
+
+What:		/sys/class/thermal/cooling_deviceX/cur_state
+Description:
+		The current cooling state of this cooling device.
+		The value can any integer numbers between 0 and max_state:
+
+		- cur_state == 0 means no cooling
+		- cur_state == max_state means the maximum cooling.
+
+		RW, Required
+
+What:		/sys/class/thermal/cooling_deviceX/stats/reset
+Description:
+		Writing any value resets the cooling device's statistics.
+
+		WO, Required
+
+What:		/sys/class/thermal/cooling_deviceX/stats/time_in_state_ms:
+Description:
+		The amount of time spent by the cooling device in various
+		cooling states. The output will have "<state> <time>" pair
+		in each line, which will mean this cooling device spent <time>
+		msec of time at <state>.
+
+		Output will have one line for each of the supported states.
+
+		RO, Required
+
+What:		/sys/class/thermal/cooling_deviceX/stats/total_trans
+Description:
+		A single positive value showing the total number of times
+		the state of a cooling device is changed.
+
+		RO, Required
+
+What:		/sys/class/thermal/cooling_deviceX/stats/trans_table
+Description:
+		This gives fine grained information about all the cooling state
+		transitions. The cat output here is a two dimensional matrix,
+		where an entry <i,j> (row i, column j) represents the number
+		of transitions from State_i to State_j. If the transition
+		table is bigger than PAGE_SIZE, reading this will return
+		an -EFBIG error.
+
+		RO, Required

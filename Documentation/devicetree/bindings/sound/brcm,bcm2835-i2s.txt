@@ -1,0 +1,24 @@
+* Broadcom BCM2835 SoC I2S/PCM module
+
+Required properties:
+- compatible: "brcm,bcm2835-i2s"
+- reg: Should contain PCM registers location and length.
+- clocks: the (PCM) clock to use
+- dmas: List of DMA controller phandle and DMA request line ordered pairs.
+- dma-names: Identifier string for each DMA request line in the dmas property.
+  These strings correspond 1:1 with the ordered pairs in dmas.
+
+  One of the DMA channels will be responsible for transmission (should be
+  named "tx") and one for reception (should be named "rx").
+
+Example:
+
+bcm2835_i2s: i2s@7e203000 {
+	compatible = "brcm,bcm2835-i2s";
+	reg = <0x7e203000 0x24>;
+	clocks = <&clocks BCM2835_CLOCK_PCM>;
+
+	dmas = <&dma 2>,
+	       <&dma 3>;
+	dma-names = "tx", "rx";
+};

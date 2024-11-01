@@ -1,0 +1,203 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ *  linux/arch/arm/boot/nspire.dtsi
+ *
+ *  Copyright (C) 2013 Daniel Tang <tangrs@tangrs.id.au>
+ */
+
+/ {
+	#address-cells = <1>;
+	#size-cells = <1>;
+	interrupt-parent = <&intc>;
+
+	cpus {
+		cpu@0 {
+			compatible = "arm,arm926ej-s";
+		};
+	};
+
+	bootrom: bootrom@0 {
+		reg = <0x00000000 0x80000>;
+	};
+
+	sram: sram@a4000000 {
+		device = "memory";
+		reg = <0xa4000000 0x20000>;
+	};
+
+	timer_clk: timer_clk {
+		#clock-cells = <0>;
+		compatible = "fixed-clock";
+		clock-frequency = <32768>;
+	};
+
+	base_clk: base_clk {
+		#clock-cells = <0>;
+		reg = <0x900b0024 0x4>;
+	};
+
+	ahb_clk: ahb_clk {
+		#clock-cells = <0>;
+		reg = <0x900b0024 0x4>;
+		clocks = <&base_clk>;
+	};
+
+	apb_pclk: apb_pclk {
+		#clock-cells = <0>;
+		compatible = "fixed-factor-clock";
+		clock-div = <2>;
+		clock-mult = <1>;
+		clocks = <&ahb_clk>;
+	};
+
+	usb_phy: usb_phy {
+		compatible = "usb-nop-xceiv";
+		#phy-cells = <0>;
+	};
+
+	vbus_reg: vbus_reg {
+		compatible = "regulator-fixed";
+
+		regulator-name = "USB VBUS output";
+		regulator-type = "voltage";
+
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+	};
+
+	ahb {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		spi: spi@a9000000 {
+			reg = <0xa9000000 0x1000>;
+		};
+
+		usb0: usb@b0000000 {
+			compatible = "lsi,zevio-usb";
+			reg = <0xb0000000 0x1000>;
+			interrupts = <8>;
+
+			usb-phy = <&usb_phy>;
+			vbus-supply = <&vbus_reg>;
+		};
+
+		usb1: usb@b4000000 {
+			reg = <0xb4000000 0x1000>;
+			interrupts = <9>;
+			status = "disabled";
+		};
+
+		lcd: lcd@c0000000 {
+			compatible = "arm,pl111", "arm,primecell";
+			reg = <0xc0000000 0x1000>;
+			interrupts = <21>;
+
+			/*
+			 * We assume the same clock is fed to APB and CLCDCLK.
+			 * There is some code to scale the clock down by a factor
+			 * 48 for the display so likely the frequency to the
+			 * display is 1MHz and the CLCDCLK is 48 MHz.
+			 */
+			clocks = <&apb_pclk>, <&apb_pclk>;
+			clock-names = "clcdclk", "apb_pclk";
+		};
+
+		adc: adc@c4000000 {
+			reg = <0xc4000000 0x1000>;
+			interrupts = <11>;
+		};
+
+		tdes: crypto@c8010000 {
+			reg = <0xc8010000 0x1000>;
+		};
+
+		sha256: crypto@cc000000 {
+			reg = <0xcc000000 0x1000>;
+		};
+
+		apb@90000000 {
+			compatible = "simple-bus";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			clock-ranges;
+			ranges;
+
+			gpio: gpio@90000000 {
+				compatible = "lsi,zevio-gpio";
+				reg = <0x90000000 0x1000>;
+				interrupts = <7>;
+				gpio-controller;
+				#gpio-cells = <2>;
+			};
+
+			fast_timer: timer@90010000 {
+				reg = <0x90010000 0x1000>;
+				interrupts = <17>;
+			};
+
+			uart: serial@90020000 {
+				reg = <0x90020000 0x1000>;
+				interrupts = <1>;
+			};
+
+			timer0: timer@900c0000 {
+				reg = <0x900c0000 0x1000>;
+				clocks = <&timer_clk>, <&timer_clk>,
+					 <&timer_clk>;
+				clock-names = "timer0clk", "timer1clk",
+					      "apb_pclk";
+			};
+
+			timer1: timer@900d0000 {
+				reg = <0x900d0000 0x1000>;
+				interrupts = <19>;
+				clocks = <&timer_clk>, <&timer_clk>,
+					 <&timer_clk>;
+				clock-names = "timer0clk", "timer1clk",
+					      "apb_pclk";
+			};
+
+			watchdog: watchdog@90060000 {
+				compatible = "arm,amba-primecell";
+				reg = <0x90060000 0x1000>;
+				interrupts = <3>;
+			};
+
+			rtc: rtc@90090000 {
+				reg = <0x90090000 0x1000>;
+				interrupts = <4>;
+			};
+
+			misc: misc@900a0000 {
+				reg = <0x900a0000 0x1000>;
+			};
+
+			pwr: pwr@900b0000 {
+				reg = <0x900b0000 0x1000>;
+				interrupts = <15>;
+			};
+
+			keypad: input@900e0000 {
+				compatible = "ti,nspire-keypad";
+				reg = <0x900e0000 0x1000>;
+				interrupts = <16>;
+
+				scan-interval = <1000>;
+				row-delay = <200>;
+
+				clocks = <&apb_pclk>;
+			};
+
+			contrast: contrast@900f0000 {
+				reg = <0x900f0000 0x1000>;
+			};
+
+			led: led@90110000 {
+				reg = <0x90110000 0x1000>;
+			};
+		};
+	};
+};

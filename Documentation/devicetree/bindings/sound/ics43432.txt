@@ -1,0 +1,19 @@
+Invensense ICS-43432-compatible MEMS microphone with I2S output.
+
+There are no software configuration options for this device, indeed, the only
+host connection is the I2S interface. Apart from requirements on clock
+frequency (460 kHz to 3.379 MHz according to the data sheet) there must be
+64 clock cycles in each stereo output frame; 24 of the 32 available bits
+contain audio data. A hardware pin determines if the device outputs data
+on the left or right channel of the I2S frame.
+
+Required properties:
+  - compatible: should be one of the following.
+     "invensense,ics43432": For the Invensense ICS43432
+     "cui,cmm-4030d-261": For the CUI CMM-4030D-261-I2S-TR
+
+Example:
+
+	ics43432: ics43432 {
+		compatible = "invensense,ics43432";
+	};

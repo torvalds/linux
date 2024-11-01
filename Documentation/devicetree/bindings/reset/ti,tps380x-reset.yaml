@@ -1,0 +1,49 @@
+# SPDX-License-Identifier: (GPL-2.0-only or BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/reset/ti,tps380x-reset.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: TI TPS380x reset controller node bindings
+
+maintainers:
+  - Marco Felsch <kernel@pengutronix.de>
+
+description: |
+  The TPS380x family [1] of supervisory circuits monitor supply voltages to
+  provide circuit initialization and timing supervision. The devices assert a
+  RESET signal if the voltage drops below a preset threshold or upon a manual
+  reset input (MR). The RESET output remains asserted for the factory
+  programmed delay after the voltage return above its threshold or after the
+  manual reset input is released.
+
+  [1] https://www.ti.com/product/TPS3801
+
+properties:
+  compatible:
+    enum:
+      - ti,tps3801
+
+  reset-gpios:
+    maxItems: 1
+    description: Reference to the GPIO connected to the MR pin.
+
+  "#reset-cells":
+    const: 0
+
+required:
+  - compatible
+  - reset-gpios
+  - "#reset-cells"
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+    reset: reset-controller {
+        compatible = "ti,tps3801";
+        #reset-cells = <0>;
+        reset-gpios = <&gpio3 2 GPIO_ACTIVE_LOW>;
+    };
+...

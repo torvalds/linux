@@ -1,0 +1,265 @@
+/*
+ * T2081QDS Device Tree Source
+ *
+ * Copyright 2013 - 2015 Freescale Semiconductor Inc.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ *     * Redistributions of source code must retain the above copyright
+ *	 notice, this list of conditions and the following disclaimer.
+ *     * Redistributions in binary form must reproduce the above copyright
+ *	 notice, this list of conditions and the following disclaimer in the
+ *	 documentation and/or other materials provided with the distribution.
+ *     * Neither the name of Freescale Semiconductor nor the
+ *	 names of its contributors may be used to endorse or promote products
+ *	 derived from this software without specific prior written permission.
+ *
+ *
+ * ALTERNATIVELY, this software may be distributed under the terms of the
+ * GNU General Public License ("GPL") as published by the Free Software
+ * Foundation, either version 2 of that License or (at your option) any
+ * later version.
+ *
+ * THIS SOFTWARE IS PROVIDED BY Freescale Semiconductor "AS IS" AND ANY
+ * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL Freescale Semiconductor BE LIABLE FOR ANY
+ * DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+ * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+ * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
+/include/ "t208xsi-pre.dtsi"
+/include/ "t208xqds.dtsi"
+
+/ {
+	model = "fsl,T2081QDS";
+	compatible = "fsl,T2081QDS";
+	#address-cells = <2>;
+	#size-cells = <2>;
+	interrupt-parent = <&mpic>;
+
+	aliases {
+		emi1_slot1 = &t2081mdio2;
+		emi1_slot2 = &t2081mdio3;
+		emi1_slot3 = &t2081mdio4;
+		emi1_slot5 = &t2081mdio5;
+		emi1_slot6 = &t2081mdio6;
+		emi1_slot7 = &t2081mdio7;
+	};
+};
+
+&soc {
+	fman@400000 {
+		ethernet@e0000 {
+			phy-handle = <&phy_sgmii_s7_1c>;
+			phy-connection-type = "sgmii";
+		};
+
+		ethernet@e2000 {
+			phy-handle = <&phy_sgmii_s7_1d>;
+			phy-connection-type = "sgmii";
+		};
+
+		ethernet@e4000 {
+			phy-handle = <&rgmii_phy1>;
+			phy-connection-type = "rgmii";
+		};
+
+		ethernet@e6000 {
+			phy-handle = <&rgmii_phy2>;
+			phy-connection-type = "rgmii";
+		};
+
+		ethernet@e8000 {
+			phy-handle = <&phy_sgmii_s3_1c>;
+			phy-connection-type = "sgmii";
+		};
+
+		ethernet@ea000 {
+			phy-handle = <&phy_sgmii_s7_1f>;
+			phy-connection-type = "sgmii";
+		};
+
+		ethernet@f0000 {
+			phy-handle = <&phy_sgmii_s2_1c>;
+			phy-connection-type = "xgmii";
+		};
+
+		ethernet@f2000 {
+			phy-handle = <&phy_sgmii_s7_1e>;
+			phy-connection-type = "xgmii";
+		};
+	};
+};
+
+&boardctrl {
+	mdio-mux-emi1 {
+		compatible = "mdio-mux-mmioreg", "mdio-mux";
+		mdio-parent-bus = <&mdio0>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		reg = <0x54 1>;
+		mux-mask = <0xe0>;
+
+		t2081mdio0: mdio@0 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0>;
+
+			rgmii_phy1: ethernet-phy@1 {
+				reg = <0x1>;
+			};
+		};
+
+		t2081mdio1: mdio@20 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x20>;
+
+			rgmii_phy2: ethernet-phy@2 {
+				reg = <0x2>;
+			};
+		};
+
+		t2081mdio2: mdio@40 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x40>;
+
+			phy_sgmii_s1_1c: ethernet-phy@1c {
+				reg = <0x1c>;
+			};
+
+			phy_sgmii_s1_1d: ethernet-phy@1d {
+				reg = <0x1d>;
+			};
+
+			phy_sgmii_s1_1e: ethernet-phy@1e {
+				reg = <0x1e>;
+			};
+
+			phy_sgmii_s1_1f: ethernet-phy@1f {
+				reg = <0x1f>;
+			};
+		};
+
+		t2081mdio3: mdio@60 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x60>;
+
+			phy_sgmii_s2_1c: ethernet-phy@1c {
+				reg = <0x1c>;
+			};
+
+			phy_sgmii_s2_1d: ethernet-phy@1d {
+				reg = <0x1d>;
+			};
+
+			phy_sgmii_s2_1e: ethernet-phy@1e {
+				reg = <0x1e>;
+			};
+
+			phy_sgmii_s2_1f: ethernet-phy@1f {
+				reg = <0x1f>;
+			};
+		};
+
+		t2081mdio4: mdio@80 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x80>;
+			status = "disabled";
+
+			phy_sgmii_s3_1c: ethernet-phy@1c {
+				reg = <0x1c>;
+			};
+
+			phy_sgmii_s3_1d: ethernet-phy@1d {
+				reg = <0x1d>;
+			};
+
+			phy_sgmii_s3_1e: ethernet-phy@1e {
+				reg = <0x1e>;
+			};
+
+			phy_sgmii_s3_1f: ethernet-phy@1f {
+				reg = <0x1f>;
+			};
+		};
+
+		t2081mdio5: mdio@a0 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0xa0>;
+			status = "disabled";
+
+			phy_sgmii_s5_1c: ethernet-phy@1c {
+				reg = <0x1c>;
+			};
+
+			phy_sgmii_s5_1d: ethernet-phy@1d {
+				reg = <0x1d>;
+			};
+
+			phy_sgmii_s5_1e: ethernet-phy@1e {
+				reg = <0x1e>;
+			};
+
+			phy_sgmii_s5_1f: ethernet-phy@1f {
+				reg = <0x1f>;
+			};
+		};
+
+		t2081mdio6: mdio@c0 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0xc0>;
+			status = "disabled";
+
+			phy_sgmii_s6_1c: ethernet-phy@1c {
+				reg = <0x1c>;
+			};
+
+			phy_sgmii_s6_1d: ethernet-phy@1d {
+				reg = <0x1d>;
+			};
+
+			phy_sgmii_s6_1e: ethernet-phy@1e {
+				reg = <0x1e>;
+			};
+
+			phy_sgmii_s6_1f: ethernet-phy@1f {
+				reg = <0x1f>;
+			};
+		};
+
+		t2081mdio7: mdio@e0 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0xe0>;
+
+			phy_sgmii_s7_1c: ethernet-phy@1c {
+				reg = <0x1c>;
+			};
+
+			phy_sgmii_s7_1d: ethernet-phy@1d {
+				reg = <0x1d>;
+			};
+
+			phy_sgmii_s7_1e: ethernet-phy@1e {
+				reg = <0x1e>;
+			};
+
+			phy_sgmii_s7_1f: ethernet-phy@1f {
+				reg = <0x1f>;
+			};
+		};
+	};
+};
+
+/include/ "t2081si-post.dtsi"

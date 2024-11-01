@@ -1,0 +1,43 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config VIDEO_VIVID
+	tristate "Virtual Video Test Driver"
+	depends on VIDEO_DEV && !SPARC32 && !SPARC64 && FB
+	depends on HAS_DMA
+	select FONT_SUPPORT
+	select FONT_8x16
+	select FB_CFB_FILLRECT
+	select FB_CFB_COPYAREA
+	select FB_CFB_IMAGEBLIT
+	select VIDEOBUF2_VMALLOC
+	select VIDEOBUF2_DMA_CONTIG
+	select VIDEO_V4L2_TPG
+	select MEDIA_CONTROLLER
+	select MEDIA_CONTROLLER_REQUEST_API
+	help
+	  Enables a virtual video driver. This driver emulates a webcam,
+	  TV, S-Video and HDMI capture hardware, including VBI support for
+	  the SDTV inputs. Also video output, VBI output, radio receivers,
+	  transmitters and software defined radio capture is emulated.
+
+	  It is highly configurable and is ideal for testing applications.
+	  Error injection is supported to test rare errors that are hard
+	  to reproduce in real hardware.
+
+	  Say Y here if you want to test video apps or debug V4L devices.
+	  When in doubt, say N.
+
+config VIDEO_VIVID_CEC
+	bool "Enable CEC emulation support"
+	depends on VIDEO_VIVID
+	select CEC_CORE
+	help
+	  When selected the vivid module will emulate the optional
+	  HDMI CEC feature.
+
+config VIDEO_VIVID_MAX_DEVS
+	int "Maximum number of devices"
+	depends on VIDEO_VIVID
+	default "64"
+	help
+	  This allows you to specify the maximum number of devices supported
+	  by the vivid driver.

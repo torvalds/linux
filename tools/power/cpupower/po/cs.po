@@ -1,0 +1,944 @@
+# translation of cs.po to Czech
+# Czech translation for cpufrequtils package
+# Czech messages for cpufrequtils.
+# Copyright (C) 2007 kavol
+# This file is distributed under the same license as the cpufrequtils package.
+#
+# Karel Volný <kavol@seznam.cz>, 2007, 2008.
+msgid ""
+msgstr ""
+"Project-Id-Version: cs\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2011-03-08 17:03+0100\n"
+"PO-Revision-Date: 2008-06-11 16:26+0200\n"
+"Last-Translator: Karel Volný <kavol@seznam.cz>\n"
+"Language-Team: Czech <diskuze@lists.l10n.cz>\n"
+"Language: cs\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms:  nplurals=3; plural=(n==1) ? 0 : (n>=2 && n<=4) ? 1 : 2;\n"
+"X-Generator: KBabel 1.11.4\n"
+
+#: utils/idle_monitor/nhm_idle.c:36
+msgid "Processor Core C3"
+msgstr ""
+
+#: utils/idle_monitor/nhm_idle.c:43
+msgid "Processor Core C6"
+msgstr ""
+
+#: utils/idle_monitor/nhm_idle.c:51
+msgid "Processor Package C3"
+msgstr ""
+
+#: utils/idle_monitor/nhm_idle.c:58 utils/idle_monitor/amd_fam14h_idle.c:70
+msgid "Processor Package C6"
+msgstr ""
+
+#: utils/idle_monitor/snb_idle.c:33
+msgid "Processor Core C7"
+msgstr ""
+
+#: utils/idle_monitor/snb_idle.c:40
+msgid "Processor Package C2"
+msgstr ""
+
+#: utils/idle_monitor/snb_idle.c:47
+msgid "Processor Package C7"
+msgstr ""
+
+#: utils/idle_monitor/amd_fam14h_idle.c:56
+msgid "Package in sleep state (PC1 or deeper)"
+msgstr ""
+
+#: utils/idle_monitor/amd_fam14h_idle.c:63
+msgid "Processor Package C1"
+msgstr ""
+
+#: utils/idle_monitor/amd_fam14h_idle.c:77
+msgid "North Bridge P1 boolean counter (returns 0 or 1)"
+msgstr ""
+
+#: utils/idle_monitor/mperf_monitor.c:35
+msgid "Processor Core not idle"
+msgstr ""
+
+#: utils/idle_monitor/mperf_monitor.c:42
+msgid "Processor Core in an idle state"
+msgstr ""
+
+#: utils/idle_monitor/mperf_monitor.c:50
+msgid "Average Frequency (including boost) in MHz"
+msgstr ""
+
+#: utils/idle_monitor/cpupower-monitor.c:66
+#, c-format
+msgid ""
+"cpupower monitor: [-h] [ [-t] | [-l] | [-m <mon1>,[<mon2>] ] ] [-i "
+"interval_sec | -c command ...]\n"
+msgstr ""
+
+#: utils/idle_monitor/cpupower-monitor.c:69
+#, c-format
+msgid ""
+"cpupower monitor: [-v] [-h] [ [-t] | [-l] | [-m <mon1>,[<mon2>] ] ] [-i "
+"interval_sec | -c command ...]\n"
+msgstr ""
+
+#: utils/idle_monitor/cpupower-monitor.c:71
+#, c-format
+msgid "\t -v: be more verbose\n"
+msgstr ""
+
+#: utils/idle_monitor/cpupower-monitor.c:73
+#, c-format
+msgid "\t -h: print this help\n"
+msgstr ""
+
+#: utils/idle_monitor/cpupower-monitor.c:74
+#, c-format
+msgid "\t -i: time interval to measure for in seconds (default 1)\n"
+msgstr ""
+
+#: utils/idle_monitor/cpupower-monitor.c:75
+#, c-format
+msgid "\t -t: show CPU topology/hierarchy\n"
+msgstr ""
+
+#: utils/idle_monitor/cpupower-monitor.c:76
+#, c-format
+msgid "\t -l: list available CPU sleep monitors (for use with -m)\n"
+msgstr ""
+
+#: utils/idle_monitor/cpupower-monitor.c:77
+#, c-format
+msgid "\t -m: show specific CPU sleep monitors only (in same order)\n"
+msgstr ""
+
+#: utils/idle_monitor/cpupower-monitor.c:79
+#, c-format
+msgid ""
+"only one of: -t, -l, -m are allowed\n"
+"If none of them is passed,"
+msgstr ""
+
+#: utils/idle_monitor/cpupower-monitor.c:80
+#, c-format
+msgid " all supported monitors are shown\n"
+msgstr ""
+
+#: utils/idle_monitor/cpupower-monitor.c:197
+#, c-format
+msgid "Monitor %s, Counter %s has no count function. Implementation error\n"
+msgstr ""
+
+#: utils/idle_monitor/cpupower-monitor.c:207
+#, c-format
+msgid " *is offline\n"
+msgstr ""
+
+#: utils/idle_monitor/cpupower-monitor.c:236
+#, c-format
+msgid "%s: max monitor name length (%d) exceeded\n"
+msgstr ""
+
+#: utils/idle_monitor/cpupower-monitor.c:250
+#, c-format
+msgid "No matching monitor found in %s, try -l option\n"
+msgstr ""
+
+#: utils/idle_monitor/cpupower-monitor.c:266
+#, c-format
+msgid "Monitor \"%s\" (%d states) - Might overflow after %u s\n"
+msgstr ""
+
+#: utils/idle_monitor/cpupower-monitor.c:319
+#, c-format
+msgid "%s took %.5f seconds and exited with status %d\n"
+msgstr ""
+
+#: utils/idle_monitor/cpupower-monitor.c:406
+#, c-format
+msgid "Cannot read number of available processors\n"
+msgstr ""
+
+#: utils/idle_monitor/cpupower-monitor.c:417
+#, c-format
+msgid "Available monitor %s needs root access\n"
+msgstr ""
+
+#: utils/idle_monitor/cpupower-monitor.c:428
+#, c-format
+msgid "No HW Cstate monitors found\n"
+msgstr ""
+
+#: utils/cpupower.c:78
+#, c-format
+msgid "cpupower [ -c cpulist ] subcommand [ARGS]\n"
+msgstr ""
+
+#: utils/cpupower.c:79
+#, c-format
+msgid "cpupower --version\n"
+msgstr ""
+
+#: utils/cpupower.c:80
+#, c-format
+msgid "Supported subcommands are:\n"
+msgstr ""
+
+#: utils/cpupower.c:83
+#, c-format
+msgid ""
+"\n"
+"Some subcommands can make use of the -c cpulist option.\n"
+msgstr ""
+
+#: utils/cpupower.c:84
+#, c-format
+msgid "Look at the general cpupower manpage how to use it\n"
+msgstr ""
+
+#: utils/cpupower.c:85
+#, c-format
+msgid "and read up the subcommand's manpage whether it is supported.\n"
+msgstr ""
+
+#: utils/cpupower.c:86
+#, c-format
+msgid ""
+"\n"
+"Use cpupower help subcommand for getting help for above subcommands.\n"
+msgstr ""
+
+#: utils/cpupower.c:91
+#, c-format
+msgid "Report errors and bugs to %s, please.\n"
+msgstr ""
+"Chyby v programu prosím hlaste na %s (anglicky).\n"
+"Chyby v překladu prosím hlaste na kavol@seznam.cz (česky ;-)\n"
+
+#: utils/cpupower.c:114
+#, c-format
+msgid "Error parsing cpu list\n"
+msgstr ""
+
+#: utils/cpupower.c:172
+#, c-format
+msgid "Subcommand %s needs root privileges\n"
+msgstr ""
+
+#: utils/cpufreq-info.c:31
+#, c-format
+msgid "Couldn't count the number of CPUs (%s: %s), assuming 1\n"
+msgstr "Nelze zjistit počet CPU (%s: %s), předpokládá se 1.\n"
+
+#: utils/cpufreq-info.c:63
+#, c-format
+msgid ""
+"          minimum CPU frequency  -  maximum CPU frequency  -  governor\n"
+msgstr ""
+"         minimální frekvence CPU - maximální frekvence CPU -  regulátor\n"
+
+#: utils/cpufreq-info.c:151
+#, c-format
+msgid "Error while evaluating Boost Capabilities on CPU %d -- are you root?\n"
+msgstr ""
+
+#. P state changes via MSR are identified via cpuid 80000007
+#. on Intel and AMD, but we assume boost capable machines can do that
+#. if (cpuid_eax(0x80000000) >= 0x80000007
+#. && (cpuid_edx(0x80000007) & (1 << 7)))
+#.
+#: utils/cpufreq-info.c:161
+#, c-format
+msgid "  boost state support: \n"
+msgstr ""
+
+#: utils/cpufreq-info.c:163
+#, c-format
+msgid "    Supported: %s\n"
+msgstr ""
+
+#: utils/cpufreq-info.c:163 utils/cpufreq-info.c:164
+msgid "yes"
+msgstr ""
+
+#: utils/cpufreq-info.c:163 utils/cpufreq-info.c:164
+msgid "no"
+msgstr ""
+
+#: utils/cpufreq-info.c:164
+#, fuzzy, c-format
+msgid "    Active: %s\n"
+msgstr "  ovladač: %s\n"
+
+#: utils/cpufreq-info.c:177
+#, c-format
+msgid "    Boost States: %d\n"
+msgstr ""
+
+#: utils/cpufreq-info.c:178
+#, c-format
+msgid "    Total States: %d\n"
+msgstr ""
+
+#: utils/cpufreq-info.c:181
+#, c-format
+msgid "    Pstate-Pb%d: %luMHz (boost state)\n"
+msgstr ""
+
+#: utils/cpufreq-info.c:184
+#, c-format
+msgid "    Pstate-P%d:  %luMHz\n"
+msgstr ""
+
+#: utils/cpufreq-info.c:211
+#, c-format
+msgid "  no or unknown cpufreq driver is active on this CPU\n"
+msgstr "  pro tento CPU není aktivní žádný známý ovladač cpufreq\n"
+
+#: utils/cpufreq-info.c:213
+#, c-format
+msgid "  driver: %s\n"
+msgstr "  ovladač: %s\n"
+
+#: utils/cpufreq-info.c:219
+#, fuzzy, c-format
+msgid "  CPUs which run at the same hardware frequency: "
+msgstr "  CPU, které musí měnit frekvenci zároveň: "
+
+#: utils/cpufreq-info.c:230
+#, fuzzy, c-format
+msgid "  CPUs which need to have their frequency coordinated by software: "
+msgstr "  CPU, které musí měnit frekvenci zároveň: "
+
+#: utils/cpufreq-info.c:241
+#, c-format
+msgid "  maximum transition latency: "
+msgstr ""
+
+#: utils/cpufreq-info.c:247
+#, c-format
+msgid "  hardware limits: "
+msgstr "  hardwarové meze: "
+
+#: utils/cpufreq-info.c:256
+#, c-format
+msgid "  available frequency steps: "
+msgstr "  dostupné frekvence: "
+
+#: utils/cpufreq-info.c:269
+#, c-format
+msgid "  available cpufreq governors: "
+msgstr "  dostupné regulátory: "
+
+#: utils/cpufreq-info.c:280
+#, c-format
+msgid "  current policy: frequency should be within "
+msgstr "  současná taktika: frekvence by měla být mezi "
+
+#: utils/cpufreq-info.c:282
+#, c-format
+msgid " and "
+msgstr " a "
+
+#: utils/cpufreq-info.c:286
+#, c-format
+msgid ""
+"The governor \"%s\" may decide which speed to use\n"
+"                  within this range.\n"
+msgstr ""
+"  Regulátor \"%s\" může rozhodnout jakou frekvenci použít\n"
+"                    v těchto mezích.\n"
+
+#: utils/cpufreq-info.c:293
+#, c-format
+msgid "  current CPU frequency is "
+msgstr "  současná frekvence CPU je "
+
+#: utils/cpufreq-info.c:296
+#, c-format
+msgid " (asserted by call to hardware)"
+msgstr "  (zjištěno hardwarovým voláním)"
+
+#: utils/cpufreq-info.c:304
+#, c-format
+msgid "  cpufreq stats: "
+msgstr "  statistika cpufreq: "
+
+#: utils/cpufreq-info.c:472
+#, fuzzy, c-format
+msgid "Usage: cpupower freqinfo [options]\n"
+msgstr "Užití: cpufreq-info [přepínače]\n"
+
+#: utils/cpufreq-info.c:473 utils/cpufreq-set.c:26 utils/cpupower-set.c:23
+#: utils/cpupower-info.c:22 utils/cpuidle-info.c:148
+#, c-format
+msgid "Options:\n"
+msgstr "Přepínače:\n"
+
+#: utils/cpufreq-info.c:474
+#, fuzzy, c-format
+msgid "  -e, --debug          Prints out debug information [default]\n"
+msgstr "  -e, --debug          Vypíše ladicí informace\n"
+
+#: utils/cpufreq-info.c:475
+#, c-format
+msgid ""
+"  -f, --freq           Get frequency the CPU currently runs at, according\n"
+"                       to the cpufreq core *\n"
+msgstr ""
+"  -f, --freq           Zjistí aktuální frekvenci, na které CPU běží\n"
+"                       podle cpufreq *\n"
+
+#: utils/cpufreq-info.c:477
+#, c-format
+msgid ""
+"  -w, --hwfreq         Get frequency the CPU currently runs at, by reading\n"
+"                       it from hardware (only available to root) *\n"
+msgstr ""
+"  -w, --hwfreq         Zjistí aktuální frekvenci, na které CPU běží\n"
+"                       z hardware (dostupné jen uživateli root) *\n"
+
+#: utils/cpufreq-info.c:479
+#, c-format
+msgid ""
+"  -l, --hwlimits       Determine the minimum and maximum CPU frequency "
+"allowed *\n"
+msgstr ""
+"  -l, --hwlimits       Zjistí minimální a maximální dostupnou frekvenci CPU "
+"*\n"
+
+#: utils/cpufreq-info.c:480
+#, c-format
+msgid "  -d, --driver         Determines the used cpufreq kernel driver *\n"
+msgstr "  -d, --driver         Zjistí aktivní ovladač cpufreq *\n"
+
+#: utils/cpufreq-info.c:481
+#, c-format
+msgid "  -p, --policy         Gets the currently used cpufreq policy *\n"
+msgstr "  -p, --policy         Zjistí aktuální taktiku cpufreq *\n"
+
+#: utils/cpufreq-info.c:482
+#, c-format
+msgid "  -g, --governors      Determines available cpufreq governors *\n"
+msgstr "  -g, --governors      Zjistí dostupné regulátory cpufreq *\n"
+
+#: utils/cpufreq-info.c:483
+#, fuzzy, c-format
+msgid ""
+"  -r, --related-cpus   Determines which CPUs run at the same hardware "
+"frequency *\n"
+msgstr ""
+"  -a, --affected-cpus  Zjistí, které CPU musí měnit frekvenci zároveň *\n"
+
+#: utils/cpufreq-info.c:484
+#, fuzzy, c-format
+msgid ""
+"  -a, --affected-cpus  Determines which CPUs need to have their frequency\n"
+"                       coordinated by software *\n"
+msgstr ""
+"  -a, --affected-cpus  Zjistí, které CPU musí měnit frekvenci zároveň *\n"
+
+#: utils/cpufreq-info.c:486
+#, c-format
+msgid "  -s, --stats          Shows cpufreq statistics if available\n"
+msgstr "  -s, --stats          Zobrazí statistiku cpufreq, je-li dostupná\n"
+
+#: utils/cpufreq-info.c:487
+#, fuzzy, c-format
+msgid ""
+"  -y, --latency        Determines the maximum latency on CPU frequency "
+"changes *\n"
+msgstr ""
+"  -l, --hwlimits       Zjistí minimální a maximální dostupnou frekvenci CPU "
+"*\n"
+
+#: utils/cpufreq-info.c:488
+#, c-format
+msgid "  -b, --boost          Checks for turbo or boost modes  *\n"
+msgstr ""
+
+#: utils/cpufreq-info.c:489
+#, c-format
+msgid ""
+"  -o, --proc           Prints out information like provided by the /proc/"
+"cpufreq\n"
+"                       interface in 2.4. and early 2.6. kernels\n"
+msgstr ""
+"  -o, --proc           Vypíše informace ve formátu, jaký používalo rozhraní\n"
+"                       /proc/cpufreq v kernelech řady 2.4 a časné 2.6\n"
+
+#: utils/cpufreq-info.c:491
+#, fuzzy, c-format
+msgid ""
+"  -m, --human          human-readable output for the -f, -w, -s and -y "
+"parameters\n"
+msgstr ""
+"  -m, --human          Výstup parametrů -f, -w a -s v „lidmi čitelném“ "
+"formátu\n"
+
+#: utils/cpufreq-info.c:492 utils/cpuidle-info.c:152
+#, c-format
+msgid "  -h, --help           Prints out this screen\n"
+msgstr "  -h, --help           Vypíše tuto nápovědu\n"
+
+#: utils/cpufreq-info.c:495
+#, c-format
+msgid ""
+"If no argument or only the -c, --cpu parameter is given, debug output about\n"
+"cpufreq is printed which is useful e.g. for reporting bugs.\n"
+msgstr ""
+"Není-li zadán žádný parametr nebo je-li zadán pouze přepínač -c, --cpu, "
+"jsou\n"
+"vypsány ladicí informace, což může být užitečné například při hlášení chyb.\n"
+
+#: utils/cpufreq-info.c:497
+#, c-format
+msgid ""
+"For the arguments marked with *, omitting the -c or --cpu argument is\n"
+"equivalent to setting it to zero\n"
+msgstr ""
+"Není-li při použití přepínačů označených * zadán parametr -c nebo --cpu,\n"
+"předpokládá se jeho hodnota 0.\n"
+
+#: utils/cpufreq-info.c:580
+#, c-format
+msgid ""
+"The argument passed to this tool can't be combined with passing a --cpu "
+"argument\n"
+msgstr "Zadaný parametr nemůže být použit zároveň s přepínačem -c nebo --cpu\n"
+
+#: utils/cpufreq-info.c:596
+#, c-format
+msgid ""
+"You can't specify more than one --cpu parameter and/or\n"
+"more than one output-specific argument\n"
+msgstr ""
+"Nelze zadat více než jeden parametr -c nebo --cpu\n"
+"anebo více než jeden parametr určující výstup\n"
+
+#: utils/cpufreq-info.c:600 utils/cpufreq-set.c:82 utils/cpupower-set.c:42
+#: utils/cpupower-info.c:42 utils/cpuidle-info.c:213
+#, c-format
+msgid "invalid or unknown argument\n"
+msgstr "neplatný nebo neznámý parametr\n"
+
+#: utils/cpufreq-info.c:617
+#, c-format
+msgid "couldn't analyze CPU %d as it doesn't seem to be present\n"
+msgstr "nelze analyzovat CPU %d, vypadá to, že není přítomen\n"
+
+#: utils/cpufreq-info.c:620 utils/cpupower-info.c:142
+#, c-format
+msgid "analyzing CPU %d:\n"
+msgstr "analyzuji CPU %d:\n"
+
+#: utils/cpufreq-set.c:25
+#, fuzzy, c-format
+msgid "Usage: cpupower frequency-set [options]\n"
+msgstr "Užití: cpufreq-set [přepínače]\n"
+
+#: utils/cpufreq-set.c:27
+#, c-format
+msgid ""
+"  -d FREQ, --min FREQ      new minimum CPU frequency the governor may "
+"select\n"
+msgstr ""
+"  -d FREQ, --min FREQ      Nová nejnižší frekvence, kterou může regulátor "
+"vybrat\n"
+
+#: utils/cpufreq-set.c:28
+#, c-format
+msgid ""
+"  -u FREQ, --max FREQ      new maximum CPU frequency the governor may "
+"select\n"
+msgstr ""
+"  -u FREQ, --max FREQ      Nová nejvyšší frekvence, kterou může regulátor "
+"zvolit\n"
+
+#: utils/cpufreq-set.c:29
+#, c-format
+msgid "  -g GOV, --governor GOV   new cpufreq governor\n"
+msgstr "  -g GOV, --governors GOV  Nový regulátor cpufreq\n"
+
+#: utils/cpufreq-set.c:30
+#, c-format
+msgid ""
+"  -f FREQ, --freq FREQ     specific frequency to be set. Requires userspace\n"
+"                           governor to be available and loaded\n"
+msgstr ""
+"  -f FREQ, --freq FREQ     Frekvence, která má být nastavena. Vyžaduje, aby "
+"byl\n"
+"                           v jádře nahrán regulátor ‚userspace‘.\n"
+
+#: utils/cpufreq-set.c:32
+#, c-format
+msgid "  -r, --related            Switches all hardware-related CPUs\n"
+msgstr ""
+
+#: utils/cpufreq-set.c:33 utils/cpupower-set.c:28 utils/cpupower-info.c:27
+#, fuzzy, c-format
+msgid "  -h, --help               Prints out this screen\n"
+msgstr "  -h, --help           Vypíše tuto nápovědu\n"
+
+#: utils/cpufreq-set.c:35
+#, fuzzy, c-format
+msgid ""
+"Notes:\n"
+"1. Omitting the -c or --cpu argument is equivalent to setting it to \"all\"\n"
+msgstr ""
+"Není-li při použití přepínačů označených * zadán parametr -c nebo --cpu,\n"
+"předpokládá se jeho hodnota 0.\n"
+
+#: utils/cpufreq-set.c:37
+#, fuzzy, c-format
+msgid ""
+"2. The -f FREQ, --freq FREQ parameter cannot be combined with any other "
+"parameter\n"
+"   except the -c CPU, --cpu CPU parameter\n"
+"3. FREQuencies can be passed in Hz, kHz (default), MHz, GHz, or THz\n"
+"   by postfixing the value with the wanted unit name, without any space\n"
+"   (FREQuency in kHz =^ Hz * 0.001 =^ MHz * 1000 =^ GHz * 1000000).\n"
+msgstr ""
+"Poznámky:\n"
+"1. Vynechání parametru -c nebo --cpu je ekvivalentní jeho nastavení na 0\n"
+"2. Přepínač -f nebo --freq nemůže být použit zároveň s žádným jiným vyjma -"
+"c\n"
+"   nebo --cpu\n"
+"3. Frekvence (FREQ) mohou být zadány v Hz, kHz (výchozí), MHz, GHz nebo THz\n"
+"   připojením názvu jednotky bez mezery mezi číslem a jednotkou\n"
+"   (FREQ v kHz =^ Hz * 0,001 = ^ MHz * 1000 =^ GHz * 1000000)\n"
+
+#: utils/cpufreq-set.c:57
+#, c-format
+msgid ""
+"Error setting new values. Common errors:\n"
+"- Do you have proper administration rights? (super-user?)\n"
+"- Is the governor you requested available and modprobed?\n"
+"- Trying to set an invalid policy?\n"
+"- Trying to set a specific frequency, but userspace governor is not "
+"available,\n"
+"   for example because of hardware which cannot be set to a specific "
+"frequency\n"
+"   or because the userspace governor isn't loaded?\n"
+msgstr ""
+"Chyba při nastavování nových hodnot. Obvyklé problémy:\n"
+"- Máte patřičná administrátorská práva? (root?)\n"
+"- Je požadovaný regulátor dostupný v jádře? (modprobe?)\n"
+"- Snažíte se nastavit neplatnou taktiku?\n"
+"- Snažíte se nastavit určitou frekvenci, ale není dostupný\n"
+"  regulátor ‚userspace‘, například protože není nahrán v jádře,\n"
+"  nebo nelze na tomto hardware nastavit určitou frekvenci?\n"
+
+#: utils/cpufreq-set.c:170
+#, c-format
+msgid "wrong, unknown or unhandled CPU?\n"
+msgstr "neznámý nebo nepodporovaný CPU?\n"
+
+#: utils/cpufreq-set.c:302
+#, c-format
+msgid ""
+"the -f/--freq parameter cannot be combined with -d/--min, -u/--max or\n"
+"-g/--governor parameters\n"
+msgstr ""
+"přepínač -f/--freq nemůže být použit zároveň\n"
+"s přepínačem -d/--min, -u/--max nebo -g/--governor\n"
+
+#: utils/cpufreq-set.c:308
+#, c-format
+msgid ""
+"At least one parameter out of -f/--freq, -d/--min, -u/--max, and\n"
+"-g/--governor must be passed\n"
+msgstr ""
+"Musí být zadán alespoň jeden přepínač\n"
+"-f/--freq, -d/--min, -u/--max nebo -g/--governor\n"
+
+#: utils/cpufreq-set.c:347
+#, c-format
+msgid "Setting cpu: %d\n"
+msgstr ""
+
+#: utils/cpupower-set.c:22
+#, c-format
+msgid "Usage: cpupower set [ -b val ] [ -m val ] [ -s val ]\n"
+msgstr ""
+
+#: utils/cpupower-set.c:24
+#, c-format
+msgid ""
+"  -b, --perf-bias [VAL]    Sets CPU's power vs performance policy on some\n"
+"                           Intel models [0-15], see manpage for details\n"
+msgstr ""
+
+#: utils/cpupower-set.c:26
+#, c-format
+msgid ""
+"  -m, --sched-mc  [VAL]    Sets the kernel's multi core scheduler policy.\n"
+msgstr ""
+
+#: utils/cpupower-set.c:27
+#, c-format
+msgid ""
+"  -s, --sched-smt [VAL]    Sets the kernel's thread sibling scheduler "
+"policy.\n"
+msgstr ""
+
+#: utils/cpupower-set.c:80
+#, c-format
+msgid "--perf-bias param out of range [0-%d]\n"
+msgstr ""
+
+#: utils/cpupower-set.c:91
+#, c-format
+msgid "--sched-mc param out of range [0-%d]\n"
+msgstr ""
+
+#: utils/cpupower-set.c:102
+#, c-format
+msgid "--sched-smt param out of range [0-%d]\n"
+msgstr ""
+
+#: utils/cpupower-set.c:121
+#, c-format
+msgid "Error setting sched-mc %s\n"
+msgstr ""
+
+#: utils/cpupower-set.c:127
+#, c-format
+msgid "Error setting sched-smt %s\n"
+msgstr ""
+
+#: utils/cpupower-set.c:146
+#, c-format
+msgid "Error setting perf-bias value on CPU %d\n"
+msgstr ""
+
+#: utils/cpupower-info.c:21
+#, c-format
+msgid "Usage: cpupower info [ -b ] [ -m ] [ -s ]\n"
+msgstr ""
+
+#: utils/cpupower-info.c:23
+#, c-format
+msgid ""
+"  -b, --perf-bias    Gets CPU's power vs performance policy on some\n"
+"                           Intel models [0-15], see manpage for details\n"
+msgstr ""
+
+#: utils/cpupower-info.c:25
+#, fuzzy, c-format
+msgid "  -m, --sched-mc     Gets the kernel's multi core scheduler policy.\n"
+msgstr "  -p, --policy         Zjistí aktuální taktiku cpufreq *\n"
+
+#: utils/cpupower-info.c:26
+#, c-format
+msgid ""
+"  -s, --sched-smt    Gets the kernel's thread sibling scheduler policy.\n"
+msgstr ""
+
+#: utils/cpupower-info.c:28
+#, c-format
+msgid ""
+"\n"
+"Passing no option will show all info, by default only on core 0\n"
+msgstr ""
+
+#: utils/cpupower-info.c:102
+#, c-format
+msgid "System's multi core scheduler setting: "
+msgstr ""
+
+#. if sysfs file is missing it's: errno == ENOENT
+#: utils/cpupower-info.c:105 utils/cpupower-info.c:114
+#, c-format
+msgid "not supported\n"
+msgstr ""
+
+#: utils/cpupower-info.c:111
+#, c-format
+msgid "System's thread sibling scheduler setting: "
+msgstr ""
+
+#: utils/cpupower-info.c:126
+#, c-format
+msgid "Intel's performance bias setting needs root privileges\n"
+msgstr ""
+
+#: utils/cpupower-info.c:128
+#, c-format
+msgid "System does not support Intel's performance bias setting\n"
+msgstr ""
+
+#: utils/cpupower-info.c:147
+#, c-format
+msgid "Could not read perf-bias value\n"
+msgstr ""
+
+#: utils/cpupower-info.c:150
+#, c-format
+msgid "perf-bias: %d\n"
+msgstr ""
+
+#: utils/cpuidle-info.c:28
+#, fuzzy, c-format
+msgid "Analyzing CPU %d:\n"
+msgstr "analyzuji CPU %d:\n"
+
+#: utils/cpuidle-info.c:32
+#, c-format
+msgid "CPU %u: No idle states\n"
+msgstr ""
+
+#: utils/cpuidle-info.c:36
+#, c-format
+msgid "CPU %u: Can't read idle state info\n"
+msgstr ""
+
+#: utils/cpuidle-info.c:41
+#, c-format
+msgid "Could not determine max idle state %u\n"
+msgstr ""
+
+#: utils/cpuidle-info.c:46
+#, c-format
+msgid "Number of idle states: %d\n"
+msgstr ""
+
+#: utils/cpuidle-info.c:48
+#, fuzzy, c-format
+msgid "Available idle states:"
+msgstr "  dostupné frekvence: "
+
+#: utils/cpuidle-info.c:71
+#, c-format
+msgid "Flags/Description: %s\n"
+msgstr ""
+
+#: utils/cpuidle-info.c:74
+#, c-format
+msgid "Latency: %lu\n"
+msgstr ""
+
+#: utils/cpuidle-info.c:76
+#, c-format
+msgid "Usage: %lu\n"
+msgstr ""
+
+#: utils/cpuidle-info.c:78
+#, c-format
+msgid "Duration: %llu\n"
+msgstr ""
+
+#: utils/cpuidle-info.c:90
+#, c-format
+msgid "Could not determine cpuidle driver\n"
+msgstr ""
+
+#: utils/cpuidle-info.c:94
+#, fuzzy, c-format
+msgid "CPUidle driver: %s\n"
+msgstr "  ovladač: %s\n"
+
+#: utils/cpuidle-info.c:99
+#, c-format
+msgid "Could not determine cpuidle governor\n"
+msgstr ""
+
+#: utils/cpuidle-info.c:103
+#, c-format
+msgid "CPUidle governor: %s\n"
+msgstr ""
+
+#: utils/cpuidle-info.c:122
+#, c-format
+msgid "CPU %u: Can't read C-state info\n"
+msgstr ""
+
+#. printf("Cstates: %d\n", cstates);
+#: utils/cpuidle-info.c:127
+#, c-format
+msgid "active state:            C0\n"
+msgstr ""
+
+#: utils/cpuidle-info.c:128
+#, c-format
+msgid "max_cstate:              C%u\n"
+msgstr ""
+
+#: utils/cpuidle-info.c:129
+#, c-format
+msgid "maximum allowed latency: %lu usec\n"
+msgstr ""
+
+#: utils/cpuidle-info.c:130
+#, c-format
+msgid "states:\t\n"
+msgstr ""
+
+#: utils/cpuidle-info.c:132
+#, c-format
+msgid "    C%d:                  type[C%d] "
+msgstr ""
+
+#: utils/cpuidle-info.c:134
+#, c-format
+msgid "promotion[--] demotion[--] "
+msgstr ""
+
+#: utils/cpuidle-info.c:135
+#, c-format
+msgid "latency[%03lu] "
+msgstr ""
+
+#: utils/cpuidle-info.c:137
+#, c-format
+msgid "usage[%08lu] "
+msgstr ""
+
+#: utils/cpuidle-info.c:139
+#, c-format
+msgid "duration[%020Lu] \n"
+msgstr ""
+
+#: utils/cpuidle-info.c:147
+#, fuzzy, c-format
+msgid "Usage: cpupower idleinfo [options]\n"
+msgstr "Užití: cpufreq-info [přepínače]\n"
+
+#: utils/cpuidle-info.c:149
+#, fuzzy, c-format
+msgid "  -s, --silent         Only show general C-state information\n"
+msgstr "  -e, --debug          Vypíše ladicí informace\n"
+
+#: utils/cpuidle-info.c:150
+#, fuzzy, c-format
+msgid ""
+"  -o, --proc           Prints out information like provided by the /proc/"
+"acpi/processor/*/power\n"
+"                       interface in older kernels\n"
+msgstr ""
+"  -o, --proc           Vypíše informace ve formátu, jaký používalo rozhraní\n"
+"                       /proc/cpufreq v kernelech řady 2.4 a časné 2.6\n"
+
+#: utils/cpuidle-info.c:209
+#, fuzzy, c-format
+msgid "You can't specify more than one output-specific argument\n"
+msgstr ""
+"Nelze zadat více než jeden parametr -c nebo --cpu\n"
+"anebo více než jeden parametr určující výstup\n"
+
+#~ msgid ""
+#~ "  -c CPU, --cpu CPU    CPU number which information shall be determined "
+#~ "about\n"
+#~ msgstr ""
+#~ "  -c CPU, --cpu CPU    Číslo CPU, o kterém se mají zjistit informace\n"
+
+#~ msgid ""
+#~ "  -c CPU, --cpu CPU        number of CPU where cpufreq settings shall be "
+#~ "modified\n"
+#~ msgstr ""
+#~ "  -c CPU, --cpu CPU        Číslo CPU pro který se má provést nastavení "
+#~ "cpufreq\n"

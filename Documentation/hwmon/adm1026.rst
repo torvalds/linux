@@ -1,0 +1,101 @@
+Kernel driver adm1026
+=====================
+
+Supported chips:
+  * Analog Devices ADM1026
+
+    Prefix: 'adm1026'
+
+    Addresses scanned: I2C 0x2c, 0x2d, 0x2e
+
+    Datasheet: Publicly available at the Analog Devices website
+
+	       https://www.onsemi.com/PowerSolutions/product.do?id=ADM1026
+
+Authors:
+	- Philip Pokorny <ppokorny@penguincomputing.com> for Penguin Computing
+	- Justin Thiessen <jthiessen@penguincomputing.com>
+
+Module Parameters
+-----------------
+
+* gpio_input: int array (min = 1, max = 17)
+    List of GPIO pins (0-16) to program as inputs
+
+* gpio_output: int array (min = 1, max = 17)
+    List of GPIO pins (0-16) to program as outputs
+
+* gpio_inverted: int array (min = 1, max = 17)
+    List of GPIO pins (0-16) to program as inverted
+
+* gpio_normal: int array (min = 1, max = 17)
+    List of GPIO pins (0-16) to program as normal/non-inverted
+
+* gpio_fan: int array (min = 1, max = 8)
+    List of GPIO pins (0-7) to program as fan tachs
+
+
+Description
+-----------
+
+This driver implements support for the Analog Devices ADM1026. Analog
+Devices calls it a "complete thermal system management controller."
+
+The ADM1026 implements three (3) temperature sensors, 17 voltage sensors,
+16 general purpose digital I/O lines, eight (8) fan speed sensors (8-bit),
+an analog output and a PWM output along with limit, alarm and mask bits for
+all of the above. There is even 8k bytes of EEPROM memory on chip.
+
+Temperatures are measured in degrees Celsius. There are two external
+sensor inputs and one internal sensor. Each sensor has a high and low
+limit. If the limit is exceeded, an interrupt (#SMBALERT) can be
+generated. The interrupts can be masked. In addition, there are over-temp
+limits for each sensor. If this limit is exceeded, the #THERM output will
+be asserted. The current temperature and limits have a resolution of 1
+degree.
+
+Fan rotation speeds are reported in RPM (rotations per minute) but measured
+in counts of a 22.5kHz internal clock. Each fan has a high limit which
+corresponds to a minimum fan speed. If the limit is exceeded, an interrupt
+can be generated. Each fan can be programmed to divide the reference clock
+by 1, 2, 4 or 8. Not all RPM values can accurately be represented, so some
+rounding is done. With a divider of 8, the slowest measurable speed of a
+two pulse per revolution fan is 661 RPM.
+
+There are 17 voltage sensors. An alarm is triggered if the voltage has
+crossed a programmable minimum or maximum limit. Note that minimum in this
+case always means 'closest to zero'; this is important for negative voltage
+measurements. Several inputs have integrated attenuators so they can measure
+higher voltages directly. 3.3V, 5V, 12V, -12V and battery voltage all have
+dedicated inputs. There are several inputs scaled to 0-3V full-scale range
+for SCSI terminator power. The remaining inputs are not scaled and have
+a 0-2.5V full-scale range. A 2.5V or 1.82V reference voltage is provided
+for negative voltage measurements.
+
+If an alarm triggers, it will remain triggered until the hardware register
+is read at least once. This means that the cause for the alarm may already
+have disappeared! Note that in the current implementation, all hardware
+registers are read whenever any data is read (unless it is less than 2.0
+seconds since the last update). This means that you can easily miss
+once-only alarms.
+
+The ADM1026 measures continuously. Analog inputs are measured about 4
+times a second. Fan speed measurement time depends on fan speed and
+divisor. It can take as long as 1.5 seconds to measure all fan speeds.
+
+The ADM1026 has the ability to automatically control fan speed based on the
+temperature sensor inputs. Both the PWM output and the DAC output can be
+used to control fan speed. Usually only one of these two outputs will be
+used. Write the minimum PWM or DAC value to the appropriate control
+register. Then set the low temperature limit in the tmin values for each
+temperature sensor. The range of control is fixed at 20 °C, and the
+largest difference between current and tmin of the temperature sensors sets
+the control output. See the datasheet for several example circuits for
+controlling fan speed with the PWM and DAC outputs. The fan speed sensors
+do not have PWM compensation, so it is probably best to control the fan
+voltage from the power lead rather than on the ground lead.
+
+The datasheet shows an example application with VID signals attached to
+GPIO lines. Unfortunately, the chip may not be connected to the VID lines
+in this way. The driver assumes that the chips *is* connected this way to
+get a VID voltage.

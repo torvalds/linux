@@ -1,0 +1,79 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/usb/ingenic,musb.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Ingenic JZ47xx USB IP DT bindings
+
+maintainers:
+  - Paul Cercueil <paul@crapouillou.net>
+
+properties:
+  $nodename:
+    pattern: '^usb@.*'
+
+  compatible:
+    oneOf:
+      - enum:
+          - ingenic,jz4770-musb
+          - ingenic,jz4740-musb
+      - items:
+          - const: ingenic,jz4725b-musb
+          - const: ingenic,jz4740-musb
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+  clock-names:
+    items:
+      - const: udc
+
+  interrupts:
+    maxItems: 1
+
+  interrupt-names:
+    items:
+      - const: mc
+
+  phys:
+    maxItems: 1
+
+  usb-role-switch:
+    type: boolean
+
+required:
+  - compatible
+  - reg
+  - clocks
+  - clock-names
+  - interrupts
+  - interrupt-names
+  - phys
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/ingenic,jz4740-cgu.h>
+    usb_phy: usb-phy {
+      compatible = "usb-nop-xceiv";
+      #phy-cells = <0>;
+    };
+
+    udc: usb@13040000 {
+      compatible = "ingenic,jz4740-musb";
+      reg = <0x13040000 0x10000>;
+
+      interrupt-parent = <&intc>;
+      interrupts = <24>;
+      interrupt-names = "mc";
+
+      clocks = <&cgu JZ4740_CLK_UDC>;
+      clock-names = "udc";
+
+      phys = <&usb_phy>;
+    };

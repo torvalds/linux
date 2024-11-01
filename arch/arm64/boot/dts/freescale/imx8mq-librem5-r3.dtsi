@@ -1,0 +1,45 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+// Copyright (C) 2021 Purism SPC <kernel@puri.sm>
+
+/dts-v1/;
+
+/*
+ * This file describes hardware that is shared among r3 ("Dogwood") and
+ * later revisions of the Librem 5 so it has to be included in dts there.
+ */
+
+#include "imx8mq-librem5.dtsi"
+
+/ {
+	model = "Purism Librem 5r3";
+	compatible = "purism,librem5r3", "purism,librem5", "fsl,imx8mq";
+};
+
+&accel_gyro {
+	mount-matrix =  "1",  "0",  "0",
+			"0",  "1",  "0",
+			"0",  "0", "-1";
+};
+
+&bq25895 {
+	ti,battery-regulation-voltage = <4200000>; /* uV */
+	ti,charge-current = <1500000>; /* uA */
+	ti,termination-current = <144000>;  /* uA */
+};
+
+&camera_front {
+	pinctrl-0 = <&pinctrl_csi1>, <&pinctrl_r3_camera_pwr>;
+	shutdown-gpios = <&gpio5 4 GPIO_ACTIVE_LOW>;
+};
+
+&iomuxc {
+	pinctrl_r3_camera_pwr: r3camerapwrgrp {
+		fsl,pins = <
+			MX8MQ_IOMUXC_SPDIF_RX_GPIO5_IO4		0x83
+		>;
+	};
+};
+
+&proximity {
+	proximity-near-level = <25>;
+};

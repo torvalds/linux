@@ -1,0 +1,116 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Realtek device configuration
+#
+
+config NET_VENDOR_REALTEK
+	bool "Realtek devices"
+	default y
+	depends on PCI || (PARPORT && X86)
+	help
+	  If you have a network (Ethernet) card belonging to this class, say Y.
+
+	  Note that the answer to this question doesn't directly affect the
+	  kernel: saying N will just cause the configurator to skip all
+	  the questions about Realtek devices. If you say Y, you will be asked for
+	  your specific card in the following questions.
+
+if NET_VENDOR_REALTEK
+
+config ATP
+	tristate "AT-LAN-TEC/RealTek pocket adapter support"
+	depends on PARPORT && X86
+	select CRC32
+	help
+	  This is a network (Ethernet) device which attaches to your parallel
+	  port. Read the file <file:drivers/net/ethernet/realtek/atp.c>
+	  if you want to use this.  If you intend to use this driver, you
+	  should have said N to the "Parallel printer support", because the two
+	  drivers don't like each other.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called atp.
+
+config 8139CP
+	tristate "RealTek RTL-8139 C+ PCI Fast Ethernet Adapter support"
+	depends on PCI
+	select CRC32
+	select MII
+	help
+	  This is a driver for the Fast Ethernet PCI network cards based on
+	  the RTL8139C+ chips. If you have one of those, say Y here.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called 8139cp.  This is recommended.
+
+config 8139TOO
+	tristate "RealTek RTL-8129/8130/8139 PCI Fast Ethernet Adapter support"
+	depends on PCI
+	select CRC32
+	select MII
+	help
+	  This is a driver for the Fast Ethernet PCI network cards based on
+	  the RTL 8129/8130/8139 chips. If you have one of those, say Y here.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called 8139too.  This is recommended.
+
+config 8139TOO_PIO
+	bool "Use PIO instead of MMIO"
+	default y
+	depends on 8139TOO
+	help
+	  This instructs the driver to use programmed I/O ports (PIO) instead
+	  of PCI shared memory (MMIO).  This can possibly solve some problems
+	  in case your mainboard has memory consistency issues.  If unsure,
+	  say N.
+
+config 8139TOO_TUNE_TWISTER
+	bool "Support for uncommon RTL-8139 rev. K (automatic channel equalization)"
+	depends on 8139TOO
+	help
+	  This implements a function which might come in handy in case you
+	  are using low quality on long cabling. It is required for RealTek
+	  RTL-8139 revision K boards, and totally unused otherwise.  It tries
+	  to match the transceiver to the cable characteristics. This is
+	  experimental since hardly documented by the manufacturer.
+	  If unsure, say Y.
+
+config 8139TOO_8129
+	bool "Support for older RTL-8129/8130 boards"
+	depends on 8139TOO
+	help
+	  This enables support for the older and uncommon RTL-8129 and
+	  RTL-8130 chips, which support MII via an external transceiver,
+	  instead of an internal one.  Disabling this option will save some
+	  memory by making the code size smaller.  If unsure, say Y.
+
+config 8139_OLD_RX_RESET
+	bool "Use older RX-reset method"
+	depends on 8139TOO
+	help
+	  The 8139too driver was recently updated to contain a more rapid
+	  reset sequence, in the face of severe receive errors.  This "new"
+	  RX-reset method should be adequate for all boards.  But if you
+	  experience problems, you can enable this option to restore the
+	  old RX-reset behavior.  If unsure, say N.
+
+config R8169
+	tristate "Realtek 8169/8168/8101/8125 ethernet support"
+	depends on PCI
+	select FW_LOADER
+	select CRC32
+	select PHYLIB
+	select REALTEK_PHY
+	help
+	  Say Y here if you have a Realtek Ethernet adapter belonging to
+	  the following families:
+	  RTL8169 Gigabit Ethernet
+	  RTL8168 Gigabit Ethernet
+	  RTL8101 Fast Ethernet
+	  RTL8125 2.5GBit Ethernet
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called r8169.  This is recommended.
+
+endif # NET_VENDOR_REALTEK

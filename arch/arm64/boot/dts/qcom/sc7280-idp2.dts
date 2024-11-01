@@ -1,0 +1,40 @@
+// SPDX-License-Identifier: BSD-3-Clause
+/*
+ * sc7280 IDP2 board device tree source
+ *
+ * Copyright (c) 2021, The Linux Foundation. All rights reserved.
+ */
+
+/dts-v1/;
+
+#include "sc7280-idp.dtsi"
+#include "sc7280-idp-ec-h1.dtsi"
+
+/ {
+	model = "Qualcomm Technologies, Inc. sc7280 IDP SKU2 platform";
+	compatible = "qcom,sc7280-idp2", "google,piglin", "qcom,sc7280";
+
+	aliases {
+		serial0 = &uart5;
+	};
+
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+};
+
+&bluetooth {
+	vddio-supply = <&vreg_l18b_1p8>;
+};
+
+&nvme_pwren {
+	pins = "gpio51";
+};
+
+&nvme_3v3_regulator {
+	gpio = <&tlmm 51 GPIO_ACTIVE_HIGH>;
+};
+
+&pm8350c_pwm {
+	status = "okay";
+};

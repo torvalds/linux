@@ -1,0 +1,25 @@
+# SPDX-License-Identifier: GPL-2.0
+#
+# Serial bus device driver configuration
+#
+menuconfig SERIAL_DEV_BUS
+	tristate "Serial device bus"
+	help
+	  Core support for devices connected via a serial port.
+
+	  Note that you typically also want to enable TTY port controller support.
+
+if SERIAL_DEV_BUS
+
+config SERIAL_DEV_CTRL_TTYPORT
+	bool "Serial device TTY port controller"
+	help
+	  Say Y here if you want to use the Serial device bus with common TTY
+	  drivers (e.g. serial drivers).
+
+	  If unsure, say Y.
+	depends on TTY
+	depends on SERIAL_DEV_BUS != m
+	default y
+
+endif

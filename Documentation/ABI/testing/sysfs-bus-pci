@@ -1,0 +1,492 @@
+What:		/sys/bus/pci/drivers/.../bind
+What:		/sys/devices/pciX/.../bind
+Date:		December 2003
+Contact:	linux-pci@vger.kernel.org
+Description:
+		Writing a device location to this file will cause
+		the driver to attempt to bind to the device found at
+		this location.	This is useful for overriding default
+		bindings.  The format for the location is: DDDD:BB:DD.F.
+		That is Domain:Bus:Device.Function and is the same as
+		found in /sys/bus/pci/devices/.  For example::
+
+		  # echo 0000:00:19.0 > /sys/bus/pci/drivers/foo/bind
+
+		(Note: kernels before 2.6.28 may require echo -n).
+
+What:		/sys/bus/pci/drivers/.../unbind
+What:		/sys/devices/pciX/.../unbind
+Date:		December 2003
+Contact:	linux-pci@vger.kernel.org
+Description:
+		Writing a device location to this file will cause the
+		driver to attempt to unbind from the device found at
+		this location.	This may be useful when overriding default
+		bindings.  The format for the location is: DDDD:BB:DD.F.
+		That is Domain:Bus:Device.Function and is the same as
+		found in /sys/bus/pci/devices/. For example::
+
+		  # echo 0000:00:19.0 > /sys/bus/pci/drivers/foo/unbind
+
+		(Note: kernels before 2.6.28 may require echo -n).
+
+What:		/sys/bus/pci/drivers/.../new_id
+What:		/sys/devices/pciX/.../new_id
+Date:		December 2003
+Contact:	linux-pci@vger.kernel.org
+Description:
+		Writing a device ID to this file will attempt to
+		dynamically add a new device ID to a PCI device driver.
+		This may allow the driver to support more hardware than
+		was included in the driver's static device ID support
+		table at compile time.  The format for the device ID is:
+		VVVV DDDD SVVV SDDD CCCC MMMM PPPP.  That is Vendor ID,
+		Device ID, Subsystem Vendor ID, Subsystem Device ID,
+		Class, Class Mask, and Private Driver Data.  The Vendor ID
+		and Device ID fields are required, the rest are optional.
+		Upon successfully adding an ID, the driver will probe
+		for the device and attempt to bind to it.  For example::
+
+		  # echo "8086 10f5" > /sys/bus/pci/drivers/foo/new_id
+
+What:		/sys/bus/pci/drivers/.../remove_id
+What:		/sys/devices/pciX/.../remove_id
+Date:		February 2009
+Contact:	Chris Wright <chrisw@sous-sol.org>
+Description:
+		Writing a device ID to this file will remove an ID
+		that was dynamically added via the new_id sysfs entry.
+		The format for the device ID is:
+		VVVV DDDD SVVV SDDD CCCC MMMM.	That is Vendor ID, Device
+		ID, Subsystem Vendor ID, Subsystem Device ID, Class,
+		and Class Mask.  The Vendor ID and Device ID fields are
+		required, the rest are optional.  After successfully
+		removing an ID, the driver will no longer support the
+		device.  This is useful to ensure auto probing won't
+		match the driver to the device.  For example::
+
+		  # echo "8086 10f5" > /sys/bus/pci/drivers/foo/remove_id
+
+What:		/sys/bus/pci/rescan
+Date:		January 2009
+Contact:	Linux PCI developers <linux-pci@vger.kernel.org>
+Description:
+		Writing a non-zero value to this attribute will
+		force a rescan of all PCI buses in the system, and
+		re-discover previously removed devices.
+
+What:		/sys/bus/pci/devices/.../msi_bus
+Date:		September 2014
+Contact:	Linux PCI developers <linux-pci@vger.kernel.org>
+Description:
+		Writing a zero value to this attribute disallows MSI and
+		MSI-X for any future drivers of the device.  If the device
+		is a bridge, MSI and MSI-X will be disallowed for future
+		drivers of all child devices under the bridge.  Drivers
+		must be reloaded for the new setting to take effect.
+
+What:		/sys/bus/pci/devices/.../msi_irqs/
+Date:		September, 2011
+Contact:	Neil Horman <nhorman@tuxdriver.com>
+Description:
+		The /sys/devices/.../msi_irqs directory contains a variable set
+		of files, with each file being named after a corresponding msi
+		irq vector allocated to that device.
+
+What:		/sys/bus/pci/devices/.../msi_irqs/<N>
+Date:		September 2011
+Contact:	Neil Horman <nhorman@tuxdriver.com>
+Description:
+		This attribute indicates the mode that the irq vector named by
+		the file is in (msi vs. msix)
+
+What:		/sys/bus/pci/devices/.../irq
+Date:		August 2021
+Contact:	Linux PCI developers <linux-pci@vger.kernel.org>
+Description:
+		If a driver has enabled MSI (not MSI-X), "irq" contains the
+		IRQ of the first MSI vector. Otherwise "irq" contains the
+		IRQ of the legacy INTx interrupt.
+
+		"irq" being set to 0 indicates that the device isn't
+		capable of generating legacy INTx interrupts.
+
+What:		/sys/bus/pci/devices/.../remove
+Date:		January 2009
+Contact:	Linux PCI developers <linux-pci@vger.kernel.org>
+Description:
+		Writing a non-zero value to this attribute will
+		hot-remove the PCI device and any of its children.
+
+What:		/sys/bus/pci/devices/.../pci_bus/.../rescan
+Date:		May 2011
+Contact:	Linux PCI developers <linux-pci@vger.kernel.org>
+Description:
+		Writing a non-zero value to this attribute will
+		force a rescan of the bus and all child buses,
+		and re-discover devices removed earlier from this
+		part of the device tree.
+
+What:		/sys/bus/pci/devices/.../rescan
+Date:		January 2009
+Contact:	Linux PCI developers <linux-pci@vger.kernel.org>
+Description:
+		Writing a non-zero value to this attribute will
+		force a rescan of the device's parent bus and all
+		child buses, and re-discover devices removed earlier
+		from this part of the device tree.
+
+What:		/sys/bus/pci/devices/.../reset_method
+Date:		August 2021
+Contact:	Amey Narkhede <ameynarkhede03@gmail.com>
+Description:
+		Some devices allow an individual function to be reset
+		without affecting other functions in the same slot.
+
+		For devices that have this support, a file named
+		reset_method is present in sysfs.  Reading this file
+		gives names of the supported and enabled reset methods and
+		their ordering.  Writing a space-separated list of names of
+		reset methods sets the reset methods and ordering to be
+		used when resetting the device.  Writing an empty string
+		disables the ability to reset the device.  Writing
+		"default" enables all supported reset methods in the
+		default ordering.
+
+What:		/sys/bus/pci/devices/.../reset
+Date:		July 2009
+Contact:	Michael S. Tsirkin <mst@redhat.com>
+Description:
+		Some devices allow an individual function to be reset
+		without affecting other functions in the same device.
+		For devices that have this support, a file named reset
+		will be present in sysfs.  Writing 1 to this file
+		will perform reset.
+
+What:		/sys/bus/pci/devices/.../vpd
+Date:		February 2008
+Contact:	Ben Hutchings <bwh@kernel.org>
+Description:
+		A file named vpd in a device directory will be a
+		binary file containing the Vital Product Data for the
+		device.  It should follow the VPD format defined in
+		PCI Specification 2.1 or 2.2, but users should consider
+		that some devices may have incorrectly formatted data.  
+		If the underlying VPD has a writable section then the
+		corresponding section of this file will be writable.
+
+What:		/sys/bus/pci/devices/.../virtfn<N>
+Date:		March 2009
+Contact:	Yu Zhao <yu.zhao@intel.com>
+Description:
+		This symbolic link appears when hardware supports the SR-IOV
+		capability and the Physical Function driver has enabled it.
+		The symbolic link points to the PCI device sysfs entry of the
+		Virtual Function whose index is N (0...MaxVFs-1).
+
+What:		/sys/bus/pci/devices/.../dep_link
+Date:		March 2009
+Contact:	Yu Zhao <yu.zhao@intel.com>
+Description:
+		This symbolic link appears when hardware supports the SR-IOV
+		capability and the Physical Function driver has enabled it,
+		and this device has vendor specific dependencies with others.
+		The symbolic link points to the PCI device sysfs entry of
+		Physical Function this device depends on.
+
+What:		/sys/bus/pci/devices/.../physfn
+Date:		March 2009
+Contact:	Yu Zhao <yu.zhao@intel.com>
+Description:
+		This symbolic link appears when a device is a Virtual Function.
+		The symbolic link points to the PCI device sysfs entry of the
+		Physical Function this device associates with.
+
+What:		/sys/bus/pci/devices/.../modalias
+Date:		May 2005
+Contact:	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Description:
+		This attribute indicates the PCI ID of the device object.
+
+		That is in the format:
+		pci:vXXXXXXXXdXXXXXXXXsvXXXXXXXXsdXXXXXXXXbcXXscXXiXX,
+		where:
+
+		    - vXXXXXXXX contains the vendor ID;
+		    - dXXXXXXXX contains the device ID;
+		    - svXXXXXXXX contains the sub-vendor ID;
+		    - sdXXXXXXXX contains the subsystem device ID;
+		    - bcXX contains the device class;
+		    - scXX contains the device subclass;
+		    - iXX contains the device class programming interface.
+
+What:		/sys/bus/pci/slots/.../module
+Date:		June 2009
+Contact:	linux-pci@vger.kernel.org
+Description:
+		This symbolic link points to the PCI hotplug controller driver
+		module that manages the hotplug slot.
+
+What:		/sys/bus/pci/devices/.../label
+Date:		July 2010
+Contact:	Narendra K <narendra_k@dell.com>, linux-bugs@dell.com
+Description:
+		Reading this attribute will provide the firmware
+		given name (SMBIOS type 41 string or ACPI _DSM string) of
+		the PCI device.	The attribute will be created only
+		if the firmware	has given a name to the PCI device.
+		ACPI _DSM string name will be given priority if the
+		system firmware provides SMBIOS type 41 string also.
+Users:
+		Userspace applications interested in knowing the
+		firmware assigned name of the PCI device.
+
+What:		/sys/bus/pci/devices/.../index
+Date:		July 2010
+Contact:	Narendra K <narendra_k@dell.com>, linux-bugs@dell.com
+Description:
+		Reading this attribute will provide the firmware given instance
+		number of the PCI device.  Depending on the platform this can
+		be for example the SMBIOS type 41 device type instance or the
+		user-defined ID (UID) on s390. The attribute will be created
+		only if the firmware has given an instance number to the PCI
+		device and that number is guaranteed to uniquely identify the
+		device in the system.
+Users:
+		Userspace applications interested in knowing the
+		firmware assigned device type instance of the PCI
+		device that can help in understanding the firmware
+		intended order of the PCI device.
+
+What:		/sys/bus/pci/devices/.../acpi_index
+Date:		July 2010
+Contact:	Narendra K <narendra_k@dell.com>, linux-bugs@dell.com
+Description:
+		Reading this attribute will provide the firmware
+		given instance (ACPI _DSM instance number) of the PCI device.
+		The attribute will be created only if the firmware has given
+		an instance number to the PCI device. ACPI _DSM instance number
+		will be given priority if the system firmware provides SMBIOS
+		type 41 device type instance also.
+Users:
+		Userspace applications interested in knowing the
+		firmware assigned instance number of the PCI
+		device that can help in understanding the firmware
+		intended order of the PCI device.
+
+What:		/sys/bus/pci/devices/.../d3cold_allowed
+Date:		July 2012
+Contact:	Huang Ying <ying.huang@intel.com>
+Description:
+		d3cold_allowed is bit to control whether the corresponding PCI
+		device can be put into D3Cold state.  If it is cleared, the
+		device will never be put into D3Cold state.  If it is set, the
+		device may be put into D3Cold state if other requirements are
+		satisfied too.  Reading this attribute will show the current
+		value of d3cold_allowed bit.  Writing this attribute will set
+		the value of d3cold_allowed bit.
+
+What:		/sys/bus/pci/devices/.../sriov_totalvfs
+Date:		November 2012
+Contact:	Donald Dutile <ddutile@redhat.com>
+Description:
+		This file appears when a physical PCIe device supports SR-IOV.
+		Userspace applications can read this file to determine the
+		maximum number of Virtual Functions (VFs) a PCIe physical
+		function (PF) can support. Typically, this is the value reported
+		in the PF's SR-IOV extended capability structure's TotalVFs
+		element.  Drivers have the ability at probe time to reduce the
+		value read from this file via the pci_sriov_set_totalvfs()
+		function.
+
+What:		/sys/bus/pci/devices/.../sriov_numvfs
+Date:		November 2012
+Contact:	Donald Dutile <ddutile@redhat.com>
+Description:
+		This file appears when a physical PCIe device supports SR-IOV.
+		Userspace applications can read and write to this file to
+		determine and control the enablement or disablement of Virtual
+		Functions (VFs) on the physical function (PF). A read of this
+		file will return the number of VFs that are enabled on this PF.
+		A number written to this file will enable the specified
+		number of VFs. A userspace application would typically read the
+		file and check that the value is zero, and then write the number
+		of VFs that should be enabled on the PF; the value written
+		should be less than or equal to the value in the sriov_totalvfs
+		file. A userspace application wanting to disable the VFs would
+		write a zero to this file. The core ensures that valid values
+		are written to this file, and returns errors when values are not
+		valid.  For example, writing a 2 to this file when sriov_numvfs
+		is not 0 and not 2 already will return an error. Writing a 10
+		when the value of sriov_totalvfs is 8 will return an error.
+
+What:		/sys/bus/pci/devices/.../driver_override
+Date:		April 2014
+Contact:	Alex Williamson <alex.williamson@redhat.com>
+Description:
+		This file allows the driver for a device to be specified which
+		will override standard static and dynamic ID matching.  When
+		specified, only a driver with a name matching the value written
+		to driver_override will have an opportunity to bind to the
+		device.  The override is specified by writing a string to the
+		driver_override file (echo pci-stub > driver_override) and
+		may be cleared with an empty string (echo > driver_override).
+		This returns the device to standard matching rules binding.
+		Writing to driver_override does not automatically unbind the
+		device from its current driver or make any attempt to
+		automatically load the specified driver.  If no driver with a
+		matching name is currently loaded in the kernel, the device
+		will not bind to any driver.  This also allows devices to
+		opt-out of driver binding using a driver_override name such as
+		"none".  Only a single driver may be specified in the override,
+		there is no support for parsing delimiters.
+
+What:		/sys/bus/pci/devices/.../numa_node
+Date:		Oct 2014
+Contact:	Prarit Bhargava <prarit@redhat.com>
+Description:
+		This file contains the NUMA node to which the PCI device is
+		attached, or -1 if the node is unknown.  The initial value
+		comes from an ACPI _PXM method or a similar firmware
+		source.  If that is missing or incorrect, this file can be
+		written to override the node.  In that case, please report
+		a firmware bug to the system vendor.  Writing to this file
+		taints the kernel with TAINT_FIRMWARE_WORKAROUND, which
+		reduces the supportability of your system.
+
+What:		/sys/bus/pci/devices/.../revision
+Date:		November 2016
+Contact:	Emil Velikov <emil.l.velikov@gmail.com>
+Description:
+		This file contains the revision field of the PCI device.
+		The value comes from device config space. The file is read only.
+
+What:		/sys/bus/pci/devices/.../sriov_drivers_autoprobe
+Date:		April 2017
+Contact:	Bodong Wang<bodong@mellanox.com>
+Description:
+		This file is associated with the PF of a device that
+		supports SR-IOV.  It determines whether newly-enabled VFs
+		are immediately bound to a driver.  It initially contains
+		1, which means the kernel automatically binds VFs to a
+		compatible driver immediately after they are enabled.  If
+		an application writes 0 to the file before enabling VFs,
+		the kernel will not bind VFs to a driver.
+
+		A typical use case is to write 0 to this file, then enable
+		VFs, then assign the newly-created VFs to virtual machines.
+		Note that changing this file does not affect already-
+		enabled VFs.  In this scenario, the user must first disable
+		the VFs, write 0 to sriov_drivers_autoprobe, then re-enable
+		the VFs.
+
+		This is similar to /sys/bus/pci/drivers_autoprobe, but
+		affects only the VFs associated with a specific PF.
+
+What:		/sys/bus/pci/devices/.../p2pmem/size
+Date:		November 2017
+Contact:	Logan Gunthorpe <logang@deltatee.com>
+Description:
+		If the device has any Peer-to-Peer memory registered, this
+	        file contains the total amount of memory that the device
+		provides (in decimal).
+
+What:		/sys/bus/pci/devices/.../p2pmem/available
+Date:		November 2017
+Contact:	Logan Gunthorpe <logang@deltatee.com>
+Description:
+		If the device has any Peer-to-Peer memory registered, this
+	        file contains the amount of memory that has not been
+		allocated (in decimal).
+
+What:		/sys/bus/pci/devices/.../p2pmem/published
+Date:		November 2017
+Contact:	Logan Gunthorpe <logang@deltatee.com>
+Description:
+		If the device has any Peer-to-Peer memory registered, this
+	        file contains a '1' if the memory has been published for
+		use outside the driver that owns the device.
+
+What:		/sys/bus/pci/devices/.../link/clkpm
+		/sys/bus/pci/devices/.../link/l0s_aspm
+		/sys/bus/pci/devices/.../link/l1_aspm
+		/sys/bus/pci/devices/.../link/l1_1_aspm
+		/sys/bus/pci/devices/.../link/l1_2_aspm
+		/sys/bus/pci/devices/.../link/l1_1_pcipm
+		/sys/bus/pci/devices/.../link/l1_2_pcipm
+Date:		October 2019
+Contact:	Heiner Kallweit <hkallweit1@gmail.com>
+Description:	If ASPM is supported for an endpoint, these files can be
+		used to disable or enable the individual power management
+		states. Write y/1/on to enable, n/0/off to disable.
+
+What:		/sys/bus/pci/devices/.../power_state
+Date:		November 2020
+Contact:	Linux PCI developers <linux-pci@vger.kernel.org>
+Description:
+		This file contains the current PCI power state of the device.
+		The value comes from the PCI kernel device state and can be one
+		of: "unknown", "error", "D0", D1", "D2", "D3hot", "D3cold".
+		The file is read only.
+
+What:		/sys/bus/pci/devices/.../sriov_vf_total_msix
+Date:		January 2021
+Contact:	Leon Romanovsky <leonro@nvidia.com>
+Description:
+		This file is associated with a SR-IOV physical function (PF).
+		It contains the total number of MSI-X vectors available for
+		assignment to all virtual functions (VFs) associated with PF.
+		The value will be zero if the device doesn't support this
+		functionality. For supported devices, the value will be
+		constant and won't be changed after MSI-X vectors assignment.
+
+What:		/sys/bus/pci/devices/.../sriov_vf_msix_count
+Date:		January 2021
+Contact:	Leon Romanovsky <leonro@nvidia.com>
+Description:
+		This file is associated with a SR-IOV virtual function (VF).
+		It allows configuration of the number of MSI-X vectors for
+		the VF. This allows devices that have a global pool of MSI-X
+		vectors to optimally divide them between VFs based on VF usage.
+
+		The values accepted are:
+		 * > 0 - this number will be reported as the Table Size in the
+			 VF's MSI-X capability
+		 * < 0 - not valid
+		 * = 0 - will reset to the device default value
+
+		The file is writable if the PF is bound to a driver that
+		implements ->sriov_set_msix_vec_count().
+
+What:		/sys/bus/pci/devices/.../resourceN_resize
+Date:		September 2022
+Contact:	Alex Williamson <alex.williamson@redhat.com>
+Description:
+		These files provide an interface to PCIe Resizable BAR support.
+		A file is created for each BAR resource (N) supported by the
+		PCIe Resizable BAR extended capability of the device.  Reading
+		each file exposes the bitmap of available resource sizes:
+
+		# cat resource1_resize
+		00000000000001c0
+
+		The bitmap represents supported resource sizes for the BAR,
+		where bit0 = 1MB, bit1 = 2MB, bit2 = 4MB, etc.  In the above
+		example the device supports 64MB, 128MB, and 256MB BAR sizes.
+
+		When writing the file, the user provides the bit position of
+		the desired resource size, for example:
+
+		# echo 7 > resource1_resize
+
+		This indicates to set the size value corresponding to bit 7,
+		128MB.  The resulting size is 2 ^ (bit# + 20).  This definition
+		matches the PCIe specification of this capability.
+
+		In order to make use of resource resizing, all PCI drivers must
+		be unbound from the device and peer devices under the same
+		parent bridge may need to be soft removed.  In the case of
+		VGA devices, writing a resize value will remove low level
+		console drivers from the device.  Raw users of pci-sysfs
+		resourceN attributes must be terminated prior to resizing.
+		Success of the resizing operation is not guaranteed.

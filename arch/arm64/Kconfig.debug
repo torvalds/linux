@@ -1,0 +1,23 @@
+# SPDX-License-Identifier: GPL-2.0-only
+
+config PID_IN_CONTEXTIDR
+	bool "Write the current PID to the CONTEXTIDR register"
+	help
+	  Enabling this option causes the kernel to write the current PID to
+	  the CONTEXTIDR register, at the expense of some additional
+	  instructions during context switch. Say Y here only if you are
+	  planning to use hardware trace tools with this kernel.
+
+config DEBUG_EFI
+	depends on EFI && DEBUG_INFO
+	bool "UEFI debugging"
+	help
+	  Enable this option to include EFI specific debugging features into
+	  the kernel that are only useful when using a debug build of the
+	  UEFI firmware
+
+config ARM64_RELOC_TEST
+	depends on m
+	tristate "Relocation testing module"
+
+source "drivers/hwtracing/coresight/Kconfig"

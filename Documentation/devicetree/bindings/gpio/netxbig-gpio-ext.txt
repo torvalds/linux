@@ -1,0 +1,22 @@
+Binding for the GPIO extension bus found on some LaCie/Seagate boards
+(Example: 2Big/5Big Network v2, 2Big NAS).
+
+Required properties:
+- compatible: "lacie,netxbig-gpio-ext".
+- addr-gpios: GPIOs representing the address register (LSB -> MSB).
+- data-gpios: GPIOs representing the data register (LSB -> MSB).
+- enable-gpio: latches the new configuration (address, data) on raising edge.
+
+Example:
+
+netxbig_gpio_ext: netxbig-gpio-ext {
+	compatible = "lacie,netxbig-gpio-ext";
+
+	addr-gpios = <&gpio1 15 GPIO_ACTIVE_HIGH
+		      &gpio1 16 GPIO_ACTIVE_HIGH
+		      &gpio1 17 GPIO_ACTIVE_HIGH>;
+	data-gpios = <&gpio1 12 GPIO_ACTIVE_HIGH
+		      &gpio1 13 GPIO_ACTIVE_HIGH
+		      &gpio1 14 GPIO_ACTIVE_HIGH>;
+	enable-gpio = <&gpio0 29 GPIO_ACTIVE_HIGH>;
+};

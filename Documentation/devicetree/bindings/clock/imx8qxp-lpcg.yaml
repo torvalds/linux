@@ -1,0 +1,103 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/clock/imx8qxp-lpcg.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: NXP i.MX8QXP LPCG (Low-Power Clock Gating) Clock bindings
+
+maintainers:
+  - Aisheng Dong <aisheng.dong@nxp.com>
+
+description: |
+  The Low-Power Clock Gate (LPCG) modules contain a local programming
+  model to control the clock gates for the peripherals. An LPCG module
+  is used to locally gate the clocks for the associated peripheral.
+
+  This level of clock gating is provided after the clocks are generated
+  by the SCU resources and clock controls. Thus even if the clock is
+  enabled by these control bits, it might still not be running based
+  on the base resource.
+
+  The clock consumer should specify the desired clock by having the clock
+  ID in its "clocks" phandle cell. See the full list of clock IDs from:
+  include/dt-bindings/clock/imx8-lpcg.h
+
+properties:
+  compatible:
+    oneOf:
+      - const: fsl,imx8qxp-lpcg
+      - items:
+          - enum:
+              - fsl,imx8qm-lpcg
+          - const: fsl,imx8qxp-lpcg
+      - enum:
+          - fsl,imx8qxp-lpcg-adma
+          - fsl,imx8qxp-lpcg-conn
+          - fsl,imx8qxp-lpcg-dc
+          - fsl,imx8qxp-lpcg-dsp
+          - fsl,imx8qxp-lpcg-gpu
+          - fsl,imx8qxp-lpcg-hsio
+          - fsl,imx8qxp-lpcg-img
+          - fsl,imx8qxp-lpcg-lsio
+          - fsl,imx8qxp-lpcg-vpu
+        deprecated: true
+  reg:
+    maxItems: 1
+
+  '#clock-cells':
+    const: 1
+
+  clocks:
+    description: |
+      Input parent clocks phandle array for each clock
+    minItems: 1
+    maxItems: 8
+
+  clock-indices:
+    description: |
+      An integer array indicating the bit offset for each clock.
+      Refer to <include/dt-bindings/clock/imx8-lpcg.h> for the
+      supported LPCG clock indices.
+    minItems: 1
+    maxItems: 8
+
+  clock-output-names:
+    description: |
+      Shall be the corresponding names of the outputs.
+      NOTE this property must be specified in the same order
+      as the clock-indices property.
+    minItems: 1
+    maxItems: 8
+
+  power-domains:
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+  - '#clock-cells'
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/imx8-lpcg.h>
+    #include <dt-bindings/firmware/imx/rsrc.h>
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+
+    sdhc0_lpcg: clock-controller@5b200000 {
+        compatible = "fsl,imx8qxp-lpcg";
+        reg = <0x5b200000 0x10000>;
+        #clock-cells = <1>;
+        clocks = <&sdhc0_clk IMX_SC_PM_CLK_PER>,
+                 <&conn_ipg_clk>,
+                 <&conn_axi_clk>;
+        clock-indices = <IMX_LPCG_CLK_0>,
+                        <IMX_LPCG_CLK_4>,
+                        <IMX_LPCG_CLK_5>;
+        clock-output-names = "sdhc0_lpcg_per_clk",
+                             "sdhc0_lpcg_ipg_clk",
+                             "sdhc0_lpcg_ahb_clk";
+        power-domains = <&pd IMX_SC_R_SDHC_0>;
+    };

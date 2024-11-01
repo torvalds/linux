@@ -1,0 +1,19 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config VIDEO_MEYE
+	tristate "Sony Vaio Picturebook Motion Eye Video For Linux (DEPRECATED)"
+	depends on PCI && VIDEO_DEV
+	depends on SONY_LAPTOP
+	depends on X86 || COMPILE_TEST
+	help
+	  This is the video4linux driver for the Motion Eye camera found
+	  in the Vaio Picturebook laptops. Please read the material in
+	  <file:Documentation/admin-guide/media/meye.rst> for more information.
+
+	  If you say Y or M here, you need to say Y or M to "Sony Laptop
+	  Extras" in the misc device section.
+
+	  This driver is deprecated and is scheduled for removal by
+	  the beginning of 2023. See the TODO file for more information.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called meye.

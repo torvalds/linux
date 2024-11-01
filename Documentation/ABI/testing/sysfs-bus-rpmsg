@@ -1,0 +1,95 @@
+What:		/sys/bus/rpmsg/devices/.../name
+Date:		June 2011
+KernelVersion:	3.3
+Contact:	Ohad Ben-Cohen <ohad@wizery.com>
+Description:
+		Every rpmsg device is a communication channel with a remote
+		processor. Channels are identified with a (textual) name,
+		which is maximum 32 bytes long (defined as RPMSG_NAME_SIZE in
+		rpmsg.h).
+
+		This sysfs entry contains the name of this channel.
+
+What:		/sys/bus/rpmsg/devices/.../src
+Date:		June 2011
+KernelVersion:	3.3
+Contact:	Ohad Ben-Cohen <ohad@wizery.com>
+Description:
+		Every rpmsg device is a communication channel with a remote
+		processor. Channels have a local ("source") rpmsg address,
+		and remote ("destination") rpmsg address. When an entity
+		starts listening on one end of a channel, it assigns it with
+		a unique rpmsg address (a 32 bits integer). This way when
+		inbound messages arrive to this address, the rpmsg core
+		dispatches them to the listening entity (a kernel driver).
+
+		This sysfs entry contains the src (local) rpmsg address
+		of this channel. If it contains 0xffffffff, then an address
+		wasn't assigned (can happen if no driver exists for this
+		channel).
+
+What:		/sys/bus/rpmsg/devices/.../dst
+Date:		June 2011
+KernelVersion:	3.3
+Contact:	Ohad Ben-Cohen <ohad@wizery.com>
+Description:
+		Every rpmsg device is a communication channel with a remote
+		processor. Channels have a local ("source") rpmsg address,
+		and remote ("destination") rpmsg address. When an entity
+		starts listening on one end of a channel, it assigns it with
+		a unique rpmsg address (a 32 bits integer). This way when
+		inbound messages arrive to this address, the rpmsg core
+		dispatches them to the listening entity.
+
+		This sysfs entry contains the dst (remote) rpmsg address
+		of this channel. If it contains 0xffffffff, then an address
+		wasn't assigned (can happen if the kernel driver that
+		is attached to this channel is exposing a service to the
+		remote processor. This make it a local rpmsg server,
+		and it is listening for inbound messages that may be sent
+		from any remote rpmsg client; it is not bound to a single
+		remote entity).
+
+What:		/sys/bus/rpmsg/devices/.../announce
+Date:		June 2011
+KernelVersion:	3.3
+Contact:	Ohad Ben-Cohen <ohad@wizery.com>
+Description:
+		Every rpmsg device is a communication channel with a remote
+		processor. Channels are identified by a textual name (see
+		/sys/bus/rpmsg/devices/.../name above) and have a local
+		("source") rpmsg address, and remote ("destination") rpmsg
+		address.
+
+		A channel is first created when an entity, whether local
+		or remote, starts listening on it for messages (and is thus
+		called an rpmsg server).
+
+		When that happens, a "name service" announcement is sent
+		to the other processor, in order to let it know about the
+		creation of the channel (this way remote clients know they
+		can start sending messages).
+
+		This sysfs entry tells us whether the channel is a local
+		server channel that is announced (values are either
+		true or false).
+
+What:		/sys/bus/rpmsg/devices/.../driver_override
+Date:		April 2018
+KernelVersion:	4.18
+Contact:	Bjorn Andersson <bjorn.andersson@linaro.org>
+Description:
+		Every rpmsg device is a communication channel with a remote
+		processor. Channels are identified by a textual name (see
+		/sys/bus/rpmsg/devices/.../name above) and have a local
+		("source") rpmsg address, and remote ("destination") rpmsg
+		address.
+
+		The listening entity (or client) which communicates with a
+		remote processor is referred as rpmsg driver. The rpmsg device
+		and rpmsg driver are matched based on rpmsg device name and
+		rpmsg driver ID table.
+
+		This sysfs entry allows the rpmsg driver for a rpmsg device
+		to be specified which will override standard OF, ID table
+		and name matching.

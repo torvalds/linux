@@ -1,0 +1,4 @@
+cflags-$(CONFIG_MACH_TX49XX)	+=					\
+		 -I$(srctree)/arch/mips/include/asm/mach-tx49xx
+
+load-$(CONFIG_MACH_TX49XX)	+= 0xffffffff80100000

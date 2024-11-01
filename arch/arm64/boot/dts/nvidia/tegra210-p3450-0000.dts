@@ -1,0 +1,1989 @@
+// SPDX-License-Identifier: GPL-2.0
+/dts-v1/;
+
+#include <dt-bindings/input/gpio-keys.h>
+#include <dt-bindings/input/linux-event-codes.h>
+#include <dt-bindings/mfd/max77620.h>
+
+#include "tegra210.dtsi"
+
+/ {
+	model = "NVIDIA Jetson Nano Developer Kit";
+	compatible = "nvidia,p3450-0000", "nvidia,tegra210";
+
+	aliases {
+		ethernet = "/pcie@1003000/pci@2,0/ethernet@0,0";
+		rtc0 = "/i2c@7000d000/pmic@3c";
+		rtc1 = "/rtc@7000e000";
+		serial0 = &uarta;
+	};
+
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+
+	memory@80000000 {
+		device_type = "memory";
+		reg = <0x0 0x80000000 0x1 0x0>;
+	};
+
+	pcie@1003000 {
+		status = "okay";
+
+		hvddio-pex-supply = <&vdd_1v8>;
+		dvddio-pex-supply = <&vdd_pex_1v05>;
+		vddio-pex-ctl-supply = <&vdd_1v8>;
+
+		pci@1,0 {
+			phys = <&{/padctl@7009f000/pads/pcie/lanes/pcie-1}>,
+			       <&{/padctl@7009f000/pads/pcie/lanes/pcie-2}>,
+			       <&{/padctl@7009f000/pads/pcie/lanes/pcie-3}>,
+			       <&{/padctl@7009f000/pads/pcie/lanes/pcie-4}>;
+			phy-names = "pcie-0", "pcie-1", "pcie-2", "pcie-3";
+			nvidia,num-lanes = <4>;
+			status = "okay";
+		};
+
+		pci@2,0 {
+			phys = <&{/padctl@7009f000/pads/pcie/lanes/pcie-0}>;
+			phy-names = "pcie-0";
+			status = "okay";
+
+			ethernet@0,0 {
+				reg = <0x000000 0 0 0 0>;
+				local-mac-address = [ 00 00 00 00 00 00 ];
+			};
+		};
+	};
+
+	host1x@50000000 {
+		dpaux@54040000 {
+			status = "okay";
+		};
+
+		vi@54080000 {
+			status = "okay";
+
+			avdd-dsi-csi-supply = <&vdd_sys_1v2>;
+
+			csi@838 {
+				status = "okay";
+			};
+		};
+
+		sor@54540000 {
+			status = "okay";
+
+			avdd-io-hdmi-dp-supply = <&avdd_io_edp_1v05>;
+			vdd-hdmi-dp-pll-supply = <&vdd_1v8>;
+
+			nvidia,xbar-cfg = <2 1 0 3 4>;
+			nvidia,dpaux = <&dpaux>;
+		};
+
+		sor@54580000 {
+			status = "okay";
+
+			avdd-io-hdmi-dp-supply = <&avdd_1v05>;
+			vdd-hdmi-dp-pll-supply = <&vdd_1v8>;
+			hdmi-supply = <&vdd_hdmi>;
+
+			nvidia,ddc-i2c-bus = <&hdmi_ddc>;
+			nvidia,hpd-gpio = <&gpio TEGRA_GPIO(CC, 1)
+					   GPIO_ACTIVE_LOW>;
+			nvidia,xbar-cfg = <0 1 2 3 4>;
+		};
+
+		dpaux@545c0000 {
+			status = "okay";
+		};
+
+		i2c@546c0000 {
+			status = "okay";
+		};
+	};
+
+	gpu@57000000 {
+		vdd-supply = <&vdd_gpu>;
+		status = "okay";
+	};
+
+	pinmux@700008d4 {
+		dvfs_pwm_active_state: dvfs_pwm_active {
+			dvfs_pwm_pbb1 {
+				nvidia,pins = "dvfs_pwm_pbb1";
+				nvidia,tristate = <TEGRA_PIN_DISABLE>;
+			};
+		};
+
+		dvfs_pwm_inactive_state: dvfs_pwm_inactive {
+			dvfs_pwm_pbb1 {
+				nvidia,pins = "dvfs_pwm_pbb1";
+				nvidia,tristate = <TEGRA_PIN_ENABLE>;
+			};
+		};
+	};
+
+	/* debug port */
+	serial@70006000 {
+		status = "okay";
+	};
+
+	pwm@7000a000 {
+		status = "okay";
+	};
+
+	i2c@7000c500 {
+		status = "okay";
+		clock-frequency = <100000>;
+
+		eeprom@50 {
+			compatible = "atmel,24c02";
+			reg = <0x50>;
+
+			label = "module";
+			vcc-supply = <&vdd_1v8>;
+			address-width = <8>;
+			pagesize = <8>;
+			size = <256>;
+			read-only;
+		};
+
+		eeprom@57 {
+			compatible = "atmel,24c02";
+			reg = <0x57>;
+
+			label = "system";
+			vcc-supply = <&vdd_1v8>;
+			address-width = <8>;
+			pagesize = <8>;
+			size = <256>;
+			read-only;
+		};
+	};
+
+	hdmi_ddc: i2c@7000c700 {
+		status = "okay";
+		clock-frequency = <100000>;
+	};
+
+	i2c@7000d000 {
+		status = "okay";
+		clock-frequency = <400000>;
+
+		pmic: pmic@3c {
+			compatible = "maxim,max77620";
+			reg = <0x3c>;
+			interrupt-parent = <&tegra_pmc>;
+			interrupts = <51 IRQ_TYPE_LEVEL_LOW>;
+
+			#interrupt-cells = <2>;
+			interrupt-controller;
+
+			#gpio-cells = <2>;
+			gpio-controller;
+
+			pinctrl-names = "default";
+			pinctrl-0 = <&max77620_default>;
+
+			max77620_default: pinmux {
+				gpio0 {
+					pins = "gpio0";
+					function = "gpio";
+				};
+
+				gpio1 {
+					pins = "gpio1";
+					function = "fps-out";
+					drive-push-pull = <1>;
+					maxim,active-fps-source = <MAX77620_FPS_SRC_NONE>;
+					maxim,active-fps-power-up-slot = <0>;
+					maxim,active-fps-power-down-slot = <7>;
+				};
+
+				gpio2 {
+					pins = "gpio2";
+					function = "fps-out";
+					drive-open-drain = <1>;
+					maxim,active-fps-source = <MAX77620_FPS_SRC_0>;
+					maxim,active-fps-power-up-slot = <0>;
+					maxim,active-fps-power-down-slot = <7>;
+				};
+
+				gpio3 {
+					pins = "gpio3";
+					function = "fps-out";
+					drive-open-drain = <1>;
+					maxim,active-fps-source = <MAX77620_FPS_SRC_0>;
+					maxim,active-fps-power-up-slot = <4>;
+					maxim,active-fps-power-down-slot = <3>;
+				};
+
+				gpio4 {
+					pins = "gpio4";
+					function = "32k-out1";
+				};
+
+				gpio5_6_7 {
+					pins = "gpio5", "gpio6", "gpio7";
+					function = "gpio";
+					drive-push-pull = <1>;
+				};
+			};
+
+			fps {
+				fps0 {
+					maxim,fps-event-source = <MAX77620_FPS_EVENT_SRC_EN0>;
+					maxim,suspend-fps-time-period-us = <5120>;
+				};
+
+				fps1 {
+					maxim,fps-event-source = <MAX77620_FPS_EVENT_SRC_EN1>;
+					maxim,suspend-fps-time-period-us = <5120>;
+				};
+
+				fps2 {
+					maxim,fps-event-source = <MAX77620_FPS_EVENT_SRC_EN0>;
+				};
+			};
+
+			regulators {
+				in-ldo0-1-supply = <&vdd_pre>;
+				in-ldo2-supply = <&vdd_3v3_sys>;
+				in-ldo3-5-supply = <&vdd_1v8>;
+				in-ldo4-6-supply = <&vdd_5v0_sys>;
+				in-ldo7-8-supply = <&vdd_pre>;
+				in-sd0-supply = <&vdd_5v0_sys>;
+				in-sd1-supply = <&vdd_5v0_sys>;
+				in-sd2-supply = <&vdd_5v0_sys>;
+				in-sd3-supply = <&vdd_5v0_sys>;
+
+				vdd_soc: sd0 {
+					regulator-name = "VDD_SOC";
+					regulator-min-microvolt = <1000000>;
+					regulator-max-microvolt = <1170000>;
+					regulator-enable-ramp-delay = <146>;
+					regulator-ramp-delay = <27500>;
+					regulator-ramp-delay-scale = <300>;
+					regulator-always-on;
+					regulator-boot-on;
+
+					maxim,active-fps-source = <MAX77620_FPS_SRC_1>;
+					maxim,active-fps-power-up-slot = <1>;
+					maxim,active-fps-power-down-slot = <6>;
+				};
+
+				vdd_ddr: sd1 {
+					regulator-name = "VDD_DDR_1V1_PMIC";
+					regulator-min-microvolt = <1150000>;
+					regulator-max-microvolt = <1150000>;
+					regulator-enable-ramp-delay = <176>;
+					regulator-ramp-delay = <27500>;
+					regulator-ramp-delay-scale = <300>;
+					regulator-always-on;
+					regulator-boot-on;
+
+					maxim,active-fps-source = <MAX77620_FPS_SRC_0>;
+					maxim,active-fps-power-up-slot = <5>;
+					maxim,active-fps-power-down-slot = <2>;
+				};
+
+				vdd_pre: sd2 {
+					regulator-name = "VDD_PRE_REG_1V35";
+					regulator-min-microvolt = <1350000>;
+					regulator-max-microvolt = <1350000>;
+					regulator-enable-ramp-delay = <176>;
+					regulator-ramp-delay = <27500>;
+					regulator-ramp-delay-scale = <350>;
+					regulator-always-on;
+					regulator-boot-on;
+
+					maxim,active-fps-source = <MAX77620_FPS_SRC_1>;
+					maxim,active-fps-power-up-slot = <2>;
+					maxim,active-fps-power-down-slot = <5>;
+				};
+
+				vdd_1v8: sd3 {
+					regulator-name = "VDD_1V8";
+					regulator-min-microvolt = <1800000>;
+					regulator-max-microvolt = <1800000>;
+					regulator-enable-ramp-delay = <242>;
+					regulator-ramp-delay = <27500>;
+					regulator-ramp-delay-scale = <360>;
+					regulator-always-on;
+					regulator-boot-on;
+
+					maxim,active-fps-source = <MAX77620_FPS_SRC_0>;
+					maxim,active-fps-power-up-slot = <3>;
+					maxim,active-fps-power-down-slot = <4>;
+				};
+
+				vdd_sys_1v2: ldo0 {
+					regulator-name = "AVDD_SYS_1V2";
+					regulator-min-microvolt = <1200000>;
+					regulator-max-microvolt = <1200000>;
+					regulator-enable-ramp-delay = <26>;
+					regulator-ramp-delay = <100000>;
+					regulator-ramp-delay-scale = <200>;
+					regulator-always-on;
+					regulator-boot-on;
+
+					maxim,active-fps-source = <MAX77620_FPS_SRC_NONE>;
+					maxim,active-fps-power-up-slot = <0>;
+					maxim,active-fps-power-down-slot = <7>;
+				};
+
+				vdd_pex_1v05: ldo1 {
+					regulator-name = "VDD_PEX_1V05";
+					regulator-min-microvolt = <1050000>;
+					regulator-max-microvolt = <1050000>;
+					regulator-enable-ramp-delay = <22>;
+					regulator-ramp-delay = <100000>;
+					regulator-ramp-delay-scale = <200>;
+
+					maxim,active-fps-source = <MAX77620_FPS_SRC_NONE>;
+					maxim,active-fps-power-up-slot = <0>;
+					maxim,active-fps-power-down-slot = <7>;
+				};
+
+				vddio_sdmmc: ldo2 {
+					regulator-name = "VDDIO_SDMMC";
+					regulator-min-microvolt = <1800000>;
+					regulator-max-microvolt = <3300000>;
+					regulator-enable-ramp-delay = <62>;
+					regulator-ramp-delay = <100000>;
+					regulator-ramp-delay-scale = <200>;
+
+					maxim,active-fps-source = <MAX77620_FPS_SRC_NONE>;
+					maxim,active-fps-power-up-slot = <0>;
+					maxim,active-fps-power-down-slot = <7>;
+				};
+
+				ldo3 {
+					status = "disabled";
+				};
+
+				vdd_rtc: ldo4 {
+					regulator-name = "VDD_RTC";
+					regulator-min-microvolt = <850000>;
+					regulator-max-microvolt = <1100000>;
+					regulator-enable-ramp-delay = <22>;
+					regulator-ramp-delay = <100000>;
+					regulator-ramp-delay-scale = <200>;
+					regulator-disable-active-discharge;
+					regulator-always-on;
+					regulator-boot-on;
+
+					maxim,active-fps-source = <MAX77620_FPS_SRC_0>;
+					maxim,active-fps-power-up-slot = <1>;
+					maxim,active-fps-power-down-slot = <6>;
+				};
+
+				ldo5 {
+					status = "disabled";
+				};
+
+				ldo6 {
+					status = "disabled";
+				};
+
+				avdd_1v05_pll: ldo7 {
+					regulator-name = "AVDD_1V05_PLL";
+					regulator-min-microvolt = <1050000>;
+					regulator-max-microvolt = <1050000>;
+					regulator-enable-ramp-delay = <24>;
+					regulator-ramp-delay = <100000>;
+					regulator-ramp-delay-scale = <200>;
+
+					maxim,active-fps-source = <MAX77620_FPS_SRC_1>;
+					maxim,active-fps-power-up-slot = <3>;
+					maxim,active-fps-power-down-slot = <4>;
+				};
+
+				avdd_1v05: ldo8 {
+					regulator-name = "AVDD_SATA_HDMI_DP_1V05";
+					regulator-min-microvolt = <1050000>;
+					regulator-max-microvolt = <1050000>;
+					regulator-enable-ramp-delay = <22>;
+					regulator-ramp-delay = <100000>;
+					regulator-ramp-delay-scale = <200>;
+
+					maxim,active-fps-source = <MAX77620_FPS_SRC_1>;
+					maxim,active-fps-power-up-slot = <6>;
+					maxim,active-fps-power-down-slot = <1>;
+				};
+			};
+		};
+	};
+
+	pmc@7000e400 {
+		nvidia,invert-interrupt;
+		nvidia,suspend-mode = <0>;
+		nvidia,cpu-pwr-good-time = <0>;
+		nvidia,cpu-pwr-off-time = <0>;
+		nvidia,core-pwr-good-time = <4587 3876>;
+		nvidia,core-pwr-off-time = <39065>;
+		nvidia,core-power-req-active-high;
+		nvidia,sys-clock-req-active-high;
+	};
+
+	hda@70030000 {
+		nvidia,model = "NVIDIA Jetson Nano HDA";
+
+		status = "okay";
+	};
+
+	usb@70090000 {
+		phys = <&{/padctl@7009f000/pads/usb2/lanes/usb2-0}>,
+		       <&{/padctl@7009f000/pads/usb2/lanes/usb2-1}>,
+		       <&{/padctl@7009f000/pads/usb2/lanes/usb2-2}>,
+		       <&{/padctl@7009f000/pads/pcie/lanes/pcie-6}>;
+		phy-names = "usb2-0", "usb2-1", "usb2-2", "usb3-0";
+
+		avdd-usb-supply = <&vdd_3v3_sys>;
+		dvddio-pex-supply = <&vdd_pex_1v05>;
+		hvddio-pex-supply = <&vdd_1v8>;
+
+		status = "okay";
+	};
+
+	padctl@7009f000 {
+		status = "okay";
+
+		avdd-pll-utmip-supply = <&vdd_1v8>;
+		avdd-pll-uerefe-supply = <&vdd_pex_1v05>;
+		dvdd-pex-pll-supply = <&vdd_pex_1v05>;
+		hvdd-pex-pll-e-supply = <&vdd_1v8>;
+
+		pads {
+			usb2 {
+				status = "okay";
+
+				lanes {
+					micro_b: usb2-0 {
+						nvidia,function = "xusb";
+						status = "okay";
+					};
+
+					usb2-1 {
+						nvidia,function = "xusb";
+						status = "okay";
+					};
+
+					usb2-2 {
+						nvidia,function = "xusb";
+						status = "okay";
+					};
+				};
+			};
+
+			pcie {
+				status = "okay";
+
+				lanes {
+					pcie-0 {
+						nvidia,function = "pcie-x1";
+						status = "okay";
+					};
+
+					pcie-1 {
+						nvidia,function = "pcie-x4";
+						status = "okay";
+					};
+
+					pcie-2 {
+						nvidia,function = "pcie-x4";
+						status = "okay";
+					};
+
+					pcie-3 {
+						nvidia,function = "pcie-x4";
+						status = "okay";
+					};
+
+					pcie-4 {
+						nvidia,function = "pcie-x4";
+						status = "okay";
+					};
+
+					pcie-5 {
+						nvidia,function = "usb3-ss";
+						status = "okay";
+					};
+
+					pcie-6 {
+						nvidia,function = "usb3-ss";
+						status = "okay";
+					};
+				};
+			};
+		};
+
+		ports {
+			usb2-0 {
+				status = "okay";
+				mode = "peripheral";
+				usb-role-switch;
+
+				vbus-supply = <&vdd_5v0_usb>;
+
+				connector {
+					compatible = "gpio-usb-b-connector",
+						     "usb-b-connector";
+					label = "micro-USB";
+					type = "micro";
+					vbus-gpios = <&gpio TEGRA_GPIO(CC, 4)
+						      GPIO_ACTIVE_LOW>;
+				};
+			};
+
+			usb2-1 {
+				status = "okay";
+				mode = "host";
+			};
+
+			usb2-2 {
+				status = "okay";
+				mode = "host";
+			};
+
+			usb3-0 {
+				status = "okay";
+				nvidia,usb2-companion = <1>;
+				vbus-supply = <&vdd_hub_3v3>;
+			};
+		};
+	};
+
+	mmc@700b0000 {
+		status = "okay";
+		bus-width = <4>;
+
+		cd-gpios = <&gpio TEGRA_GPIO(Z, 1) GPIO_ACTIVE_LOW>;
+		disable-wp;
+
+		vqmmc-supply = <&vddio_sdmmc>;
+		vmmc-supply = <&vdd_3v3_sd>;
+	};
+
+	mmc@700b0400 {
+		status = "okay";
+		bus-width = <4>;
+
+		vqmmc-supply = <&vdd_1v8>;
+		vmmc-supply = <&vdd_3v3_sys>;
+
+		non-removable;
+		cap-sdio-irq;
+		keep-power-in-suspend;
+		wakeup-source;
+	};
+
+	usb@700d0000 {
+		status = "okay";
+		phys = <&micro_b>;
+		phy-names = "usb2-0";
+		avddio-usb-supply = <&vdd_3v3_sys>;
+		hvdd-usb-supply = <&vdd_1v8>;
+	};
+
+	clock@70110000 {
+		status = "okay";
+
+		nvidia,cf = <6>;
+		nvidia,ci = <0>;
+		nvidia,cg = <2>;
+		nvidia,droop-ctrl = <0x00000f00>;
+		nvidia,force-mode = <1>;
+		nvidia,sample-rate = <25000>;
+
+		nvidia,pwm-min-microvolts = <708000>;
+		nvidia,pwm-period-nanoseconds = <2500>; /* 2.5us */
+		nvidia,pwm-to-pmic;
+		nvidia,pwm-tristate-microvolts = <1000000>;
+		nvidia,pwm-voltage-step-microvolts = <19200>;
+
+		pinctrl-names = "dvfs_pwm_enable", "dvfs_pwm_disable";
+		pinctrl-0 = <&dvfs_pwm_active_state>;
+		pinctrl-1 = <&dvfs_pwm_inactive_state>;
+	};
+
+	aconnect@702c0000 {
+		status = "okay";
+
+		dma-controller@702e2000 {
+			status = "okay";
+		};
+
+		interrupt-controller@702f9000 {
+			status = "okay";
+		};
+
+		ahub@702d0800 {
+			status = "okay";
+
+			admaif@702d0000 {
+				status = "okay";
+			};
+
+			i2s@702d1200 {
+				status = "okay";
+
+				ports {
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					port@0 {
+						reg = <0>;
+
+						i2s3_cif_ep: endpoint {
+							remote-endpoint = <&xbar_i2s3_ep>;
+						};
+					};
+
+					i2s3_port: port@1 {
+						reg = <1>;
+
+						i2s3_dap_ep: endpoint {
+							dai-format = "i2s";
+							/* Placeholder for external Codec */
+						};
+					};
+				};
+			};
+
+			i2s@702d1300 {
+				status = "okay";
+
+				ports {
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					port@0 {
+						reg = <0>;
+
+						i2s4_cif_ep: endpoint {
+							remote-endpoint = <&xbar_i2s4_ep>;
+						};
+					};
+
+					i2s4_port: port@1 {
+						reg = <1>;
+
+						i2s4_dap_ep: endpoint {
+							dai-format = "i2s";
+							/* Placeholder for external Codec */
+						};
+					};
+				};
+			};
+
+			dmic@702d4000 {
+				status = "okay";
+
+				ports {
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					port@0 {
+						reg = <0>;
+
+						dmic1_cif_ep: endpoint {
+							remote-endpoint = <&xbar_dmic1_ep>;
+						};
+					};
+
+					dmic1_port: port@1 {
+						reg = <1>;
+
+						dmic1_dap_ep: endpoint {
+							/* Placeholder for external Codec */
+						};
+					};
+				};
+			};
+
+			dmic@702d4100 {
+				status = "okay";
+
+				ports {
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					port@0 {
+						reg = <0>;
+
+						dmic2_cif_ep: endpoint {
+							remote-endpoint = <&xbar_dmic2_ep>;
+						};
+					};
+
+					dmic2_port: port@1 {
+						reg = <1>;
+
+						dmic2_dap_ep: endpoint {
+							/* Placeholder for external Codec */
+						};
+					};
+				};
+			};
+
+			sfc@702d2000 {
+				status = "okay";
+
+				ports {
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					port@0 {
+						reg = <0>;
+
+						sfc1_cif_in_ep: endpoint {
+							remote-endpoint = <&xbar_sfc1_in_ep>;
+						};
+					};
+
+					sfc1_out_port: port@1 {
+						reg = <1>;
+
+						sfc1_cif_out_ep: endpoint {
+							remote-endpoint = <&xbar_sfc1_out_ep>;
+						};
+					};
+				};
+			};
+
+			sfc@702d2200 {
+				status = "okay";
+
+				ports {
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					port@0 {
+						reg = <0>;
+
+						sfc2_cif_in_ep: endpoint {
+							remote-endpoint = <&xbar_sfc2_in_ep>;
+						};
+					};
+
+					sfc2_out_port: port@1 {
+						reg = <1>;
+
+						sfc2_cif_out_ep: endpoint {
+							remote-endpoint = <&xbar_sfc2_out_ep>;
+						};
+					};
+				};
+			};
+
+			sfc@702d2400 {
+				status = "okay";
+
+				ports {
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					port@0 {
+						reg = <0>;
+
+						sfc3_cif_in_ep: endpoint {
+							remote-endpoint = <&xbar_sfc3_in_ep>;
+						};
+					};
+
+					sfc3_out_port: port@1 {
+						reg = <1>;
+
+						sfc3_cif_out_ep: endpoint {
+							remote-endpoint = <&xbar_sfc3_out_ep>;
+						};
+					};
+				};
+			};
+
+			sfc@702d2600 {
+				status = "okay";
+
+				ports {
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					port@0 {
+						reg = <0>;
+
+						sfc4_cif_in_ep: endpoint {
+							remote-endpoint = <&xbar_sfc4_in_ep>;
+						};
+					};
+
+					sfc4_out_port: port@1 {
+						reg = <1>;
+
+						sfc4_cif_out_ep: endpoint {
+							remote-endpoint = <&xbar_sfc4_out_ep>;
+						};
+					};
+				};
+			};
+
+			mvc@702da000 {
+				status = "okay";
+
+				ports {
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					port@0 {
+						reg = <0>;
+
+						mvc1_cif_in_ep: endpoint {
+							remote-endpoint = <&xbar_mvc1_in_ep>;
+						};
+					};
+
+					mvc1_out_port: port@1 {
+						reg = <1>;
+
+						mvc1_cif_out_ep: endpoint {
+							remote-endpoint = <&xbar_mvc1_out_ep>;
+						};
+					};
+				};
+			};
+
+			mvc@702da200 {
+				status = "okay";
+
+				ports {
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					port@0 {
+						reg = <0>;
+
+						mvc2_cif_in_ep: endpoint {
+							remote-endpoint = <&xbar_mvc2_in_ep>;
+						};
+					};
+
+					mvc2_out_port: port@1 {
+						reg = <1>;
+
+						mvc2_cif_out_ep: endpoint {
+							remote-endpoint = <&xbar_mvc2_out_ep>;
+						};
+					};
+				};
+			};
+
+			amx@702d3000 {
+				status = "okay";
+
+				ports {
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					port@0 {
+						reg = <0>;
+
+						amx1_in1_ep: endpoint {
+							remote-endpoint = <&xbar_amx1_in1_ep>;
+						};
+					};
+
+					port@1 {
+						reg = <1>;
+
+						amx1_in2_ep: endpoint {
+							remote-endpoint = <&xbar_amx1_in2_ep>;
+						};
+					};
+
+					port@2 {
+						reg = <2>;
+
+						amx1_in3_ep: endpoint {
+							remote-endpoint = <&xbar_amx1_in3_ep>;
+						};
+					};
+
+					port@3 {
+						reg = <3>;
+
+						amx1_in4_ep: endpoint {
+							remote-endpoint = <&xbar_amx1_in4_ep>;
+						};
+					};
+
+					amx1_out_port: port@4 {
+						reg = <4>;
+
+						amx1_out_ep: endpoint {
+							remote-endpoint = <&xbar_amx1_out_ep>;
+						};
+					};
+				};
+			};
+
+			amx@702d3100 {
+				status = "okay";
+
+				ports {
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					port@0 {
+						reg = <0>;
+
+						amx2_in1_ep: endpoint {
+							remote-endpoint = <&xbar_amx2_in1_ep>;
+						};
+					};
+
+					port@1 {
+						reg = <1>;
+
+						amx2_in2_ep: endpoint {
+							remote-endpoint = <&xbar_amx2_in2_ep>;
+						};
+					};
+
+					amx2_in3_port: port@2 {
+						reg = <2>;
+
+						amx2_in3_ep: endpoint {
+							remote-endpoint = <&xbar_amx2_in3_ep>;
+						};
+					};
+
+					amx2_in4_port: port@3 {
+						reg = <3>;
+
+						amx2_in4_ep: endpoint {
+							remote-endpoint = <&xbar_amx2_in4_ep>;
+						};
+					};
+
+					amx2_out_port: port@4 {
+						reg = <4>;
+
+						amx2_out_ep: endpoint {
+							remote-endpoint = <&xbar_amx2_out_ep>;
+						};
+					};
+				};
+			};
+
+			adx@702d3800 {
+				status = "okay";
+
+				ports {
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					port@0 {
+						reg = <0>;
+
+						adx1_in_ep: endpoint {
+							remote-endpoint = <&xbar_adx1_in_ep>;
+						};
+					};
+
+					adx1_out1_port: port@1 {
+						reg = <1>;
+
+						adx1_out1_ep: endpoint {
+							remote-endpoint = <&xbar_adx1_out1_ep>;
+						};
+					};
+
+					adx1_out2_port: port@2 {
+						reg = <2>;
+
+						adx1_out2_ep: endpoint {
+							remote-endpoint = <&xbar_adx1_out2_ep>;
+						};
+					};
+
+					adx1_out3_port: port@3 {
+						reg = <3>;
+
+						adx1_out3_ep: endpoint {
+							remote-endpoint = <&xbar_adx1_out3_ep>;
+						};
+					};
+
+					adx1_out4_port: port@4 {
+						reg = <4>;
+
+						adx1_out4_ep: endpoint {
+							remote-endpoint = <&xbar_adx1_out4_ep>;
+						};
+					};
+				};
+			};
+
+			adx@702d3900 {
+				status = "okay";
+
+				ports {
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					port@0 {
+						reg = <0>;
+
+						adx2_in_ep: endpoint {
+							remote-endpoint = <&xbar_adx2_in_ep>;
+						};
+					};
+
+					adx2_out1_port: port@1 {
+						reg = <1>;
+
+						adx2_out1_ep: endpoint {
+							remote-endpoint = <&xbar_adx2_out1_ep>;
+						};
+					};
+
+					adx2_out2_port: port@2 {
+						reg = <2>;
+
+						adx2_out2_ep: endpoint {
+							remote-endpoint = <&xbar_adx2_out2_ep>;
+						};
+					};
+
+					adx2_out3_port: port@3 {
+						reg = <3>;
+
+						adx2_out3_ep: endpoint {
+							remote-endpoint = <&xbar_adx2_out3_ep>;
+						};
+					};
+
+					adx2_out4_port: port@4 {
+						reg = <4>;
+
+						adx2_out4_ep: endpoint {
+							remote-endpoint = <&xbar_adx2_out4_ep>;
+						};
+					};
+				};
+			};
+
+			processing-engine@702d8000 {
+				status = "okay";
+
+				ports {
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					port@0 {
+						reg = <0x0>;
+
+						ope1_cif_in_ep: endpoint {
+							remote-endpoint = <&xbar_ope1_in_ep>;
+						};
+					};
+
+					ope1_out_port: port@1 {
+						reg = <0x1>;
+
+						ope1_cif_out_ep: endpoint {
+							remote-endpoint = <&xbar_ope1_out_ep>;
+						};
+					};
+				};
+			};
+
+			processing-engine@702d8400 {
+				status = "okay";
+
+				ports {
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					port@0 {
+						reg = <0x0>;
+
+						ope2_cif_in_ep: endpoint {
+							remote-endpoint = <&xbar_ope2_in_ep>;
+						};
+					};
+
+					ope2_out_port: port@1 {
+						reg = <0x1>;
+
+						ope2_cif_out_ep: endpoint {
+							remote-endpoint = <&xbar_ope2_out_ep>;
+						};
+					};
+				};
+			};
+
+			amixer@702dbb00 {
+				status = "okay";
+
+				ports {
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					port@0 {
+						reg = <0x0>;
+
+						mixer_in1_ep: endpoint {
+							remote-endpoint = <&xbar_mixer_in1_ep>;
+						};
+					};
+
+					port@1 {
+						reg = <0x1>;
+
+						mixer_in2_ep: endpoint {
+							remote-endpoint = <&xbar_mixer_in2_ep>;
+						};
+					};
+
+					port@2 {
+						reg = <0x2>;
+
+						mixer_in3_ep: endpoint {
+							remote-endpoint = <&xbar_mixer_in3_ep>;
+						};
+					};
+
+					port@3 {
+						reg = <0x3>;
+
+						mixer_in4_ep: endpoint {
+							remote-endpoint = <&xbar_mixer_in4_ep>;
+						};
+					};
+
+					port@4 {
+						reg = <0x4>;
+
+						mixer_in5_ep: endpoint {
+							remote-endpoint = <&xbar_mixer_in5_ep>;
+						};
+					};
+
+					port@5 {
+						reg = <0x5>;
+
+						mixer_in6_ep: endpoint {
+							remote-endpoint = <&xbar_mixer_in6_ep>;
+						};
+					};
+
+					port@6 {
+						reg = <0x6>;
+
+						mixer_in7_ep: endpoint {
+							remote-endpoint = <&xbar_mixer_in7_ep>;
+						};
+					};
+
+					port@7 {
+						reg = <0x7>;
+
+						mixer_in8_ep: endpoint {
+							remote-endpoint = <&xbar_mixer_in8_ep>;
+						};
+					};
+
+					port@8 {
+						reg = <0x8>;
+
+						mixer_in9_ep: endpoint {
+							remote-endpoint = <&xbar_mixer_in9_ep>;
+						};
+					};
+
+					port@9 {
+						reg = <0x9>;
+
+						mixer_in10_ep: endpoint {
+							remote-endpoint = <&xbar_mixer_in10_ep>;
+						};
+					};
+
+					mixer_out1_port: port@a {
+						reg = <0xa>;
+
+						mixer_out1_ep: endpoint {
+							remote-endpoint = <&xbar_mixer_out1_ep>;
+						};
+					};
+
+					mixer_out2_port: port@b {
+						reg = <0xb>;
+
+						mixer_out2_ep: endpoint {
+							remote-endpoint = <&xbar_mixer_out2_ep>;
+						};
+					};
+
+					mixer_out3_port: port@c {
+						reg = <0xc>;
+
+						mixer_out3_ep: endpoint {
+							remote-endpoint = <&xbar_mixer_out3_ep>;
+						};
+					};
+
+					mixer_out4_port: port@d {
+						reg = <0xd>;
+
+						mixer_out4_ep: endpoint {
+							remote-endpoint = <&xbar_mixer_out4_ep>;
+						};
+					};
+
+					mixer_out5_port: port@e {
+						reg = <0xe>;
+
+						mixer_out5_ep: endpoint {
+							remote-endpoint = <&xbar_mixer_out5_ep>;
+						};
+					};
+				};
+			};
+
+			ports {
+				xbar_i2s3_port: port@c {
+					reg = <0xc>;
+
+					xbar_i2s3_ep: endpoint {
+						remote-endpoint = <&i2s3_cif_ep>;
+					};
+				};
+
+				xbar_i2s4_port: port@d {
+					reg = <0xd>;
+
+					xbar_i2s4_ep: endpoint {
+						remote-endpoint = <&i2s4_cif_ep>;
+					};
+				};
+
+				xbar_dmic1_port: port@f {
+					reg = <0xf>;
+
+					xbar_dmic1_ep: endpoint {
+						remote-endpoint = <&dmic1_cif_ep>;
+					};
+				};
+
+				xbar_dmic2_port: port@10 {
+					reg = <0x10>;
+
+					xbar_dmic2_ep: endpoint {
+						remote-endpoint = <&dmic2_cif_ep>;
+					};
+				};
+
+				xbar_sfc1_in_port: port@12 {
+					reg = <0x12>;
+
+					xbar_sfc1_in_ep: endpoint {
+						remote-endpoint = <&sfc1_cif_in_ep>;
+					};
+				};
+
+				port@13 {
+					reg = <0x13>;
+
+					xbar_sfc1_out_ep: endpoint {
+						remote-endpoint = <&sfc1_cif_out_ep>;
+					};
+				};
+
+				xbar_sfc2_in_port: port@14 {
+					reg = <0x14>;
+
+					xbar_sfc2_in_ep: endpoint {
+						remote-endpoint = <&sfc2_cif_in_ep>;
+					};
+				};
+
+				port@15 {
+					reg = <0x15>;
+
+					xbar_sfc2_out_ep: endpoint {
+						remote-endpoint = <&sfc2_cif_out_ep>;
+					};
+				};
+
+				xbar_sfc3_in_port: port@16 {
+					reg = <0x16>;
+
+					xbar_sfc3_in_ep: endpoint {
+						remote-endpoint = <&sfc3_cif_in_ep>;
+					};
+				};
+
+				port@17 {
+					reg = <0x17>;
+
+					xbar_sfc3_out_ep: endpoint {
+						remote-endpoint = <&sfc3_cif_out_ep>;
+					};
+				};
+
+				xbar_sfc4_in_port: port@18 {
+					reg = <0x18>;
+
+					xbar_sfc4_in_ep: endpoint {
+						remote-endpoint = <&sfc4_cif_in_ep>;
+					};
+				};
+
+				port@19 {
+					reg = <0x19>;
+
+					xbar_sfc4_out_ep: endpoint {
+						remote-endpoint = <&sfc4_cif_out_ep>;
+					};
+				};
+
+				xbar_mvc1_in_port: port@1a {
+					reg = <0x1a>;
+
+					xbar_mvc1_in_ep: endpoint {
+						remote-endpoint = <&mvc1_cif_in_ep>;
+					};
+				};
+
+				port@1b {
+					reg = <0x1b>;
+
+					xbar_mvc1_out_ep: endpoint {
+						remote-endpoint = <&mvc1_cif_out_ep>;
+					};
+				};
+
+				xbar_mvc2_in_port: port@1c {
+					reg = <0x1c>;
+
+					xbar_mvc2_in_ep: endpoint {
+						remote-endpoint = <&mvc2_cif_in_ep>;
+					};
+				};
+
+				port@1d {
+					reg = <0x1d>;
+
+					xbar_mvc2_out_ep: endpoint {
+						remote-endpoint = <&mvc2_cif_out_ep>;
+					};
+				};
+
+				xbar_amx1_in1_port: port@1e {
+					reg = <0x1e>;
+
+					xbar_amx1_in1_ep: endpoint {
+						remote-endpoint = <&amx1_in1_ep>;
+					};
+				};
+
+				xbar_amx1_in2_port: port@1f {
+					reg = <0x1f>;
+
+					xbar_amx1_in2_ep: endpoint {
+						remote-endpoint = <&amx1_in2_ep>;
+					};
+				};
+
+				xbar_amx1_in3_port: port@20 {
+					reg = <0x20>;
+
+					xbar_amx1_in3_ep: endpoint {
+						remote-endpoint = <&amx1_in3_ep>;
+					};
+				};
+
+				xbar_amx1_in4_port: port@21 {
+					reg = <0x21>;
+
+					xbar_amx1_in4_ep: endpoint {
+						remote-endpoint = <&amx1_in4_ep>;
+					};
+				};
+
+				port@22 {
+					reg = <0x22>;
+
+					xbar_amx1_out_ep: endpoint {
+						remote-endpoint = <&amx1_out_ep>;
+					};
+				};
+
+				xbar_amx2_in1_port: port@23 {
+					reg = <0x23>;
+
+					xbar_amx2_in1_ep: endpoint {
+						remote-endpoint = <&amx2_in1_ep>;
+					};
+				};
+
+				xbar_amx2_in2_port: port@24 {
+					reg = <0x24>;
+
+					xbar_amx2_in2_ep: endpoint {
+						remote-endpoint = <&amx2_in2_ep>;
+					};
+				};
+
+				xbar_amx2_in3_port: port@25 {
+					reg = <0x25>;
+
+					xbar_amx2_in3_ep: endpoint {
+						remote-endpoint = <&amx2_in3_ep>;
+					};
+				};
+
+				xbar_amx2_in4_port: port@26 {
+					reg = <0x26>;
+
+					xbar_amx2_in4_ep: endpoint {
+						remote-endpoint = <&amx2_in4_ep>;
+					};
+				};
+
+				port@27 {
+					reg = <0x27>;
+
+					xbar_amx2_out_ep: endpoint {
+						remote-endpoint = <&amx2_out_ep>;
+					};
+				};
+
+				xbar_adx1_in_port: port@28 {
+					reg = <0x28>;
+
+					xbar_adx1_in_ep: endpoint {
+						remote-endpoint = <&adx1_in_ep>;
+					};
+				};
+
+				port@29 {
+					reg = <0x29>;
+
+					xbar_adx1_out1_ep: endpoint {
+						remote-endpoint = <&adx1_out1_ep>;
+					};
+				};
+
+				port@2a {
+					reg = <0x2a>;
+
+					xbar_adx1_out2_ep: endpoint {
+						remote-endpoint = <&adx1_out2_ep>;
+					};
+				};
+
+				port@2b {
+					reg = <0x2b>;
+
+					xbar_adx1_out3_ep: endpoint {
+						remote-endpoint = <&adx1_out3_ep>;
+					};
+				};
+
+				port@2c {
+					reg = <0x2c>;
+
+					xbar_adx1_out4_ep: endpoint {
+						remote-endpoint = <&adx1_out4_ep>;
+					};
+				};
+
+				xbar_adx2_in_port: port@2d {
+					reg = <0x2d>;
+
+					xbar_adx2_in_ep: endpoint {
+						remote-endpoint = <&adx2_in_ep>;
+					};
+				};
+
+				port@2e {
+					reg = <0x2e>;
+
+					xbar_adx2_out1_ep: endpoint {
+						remote-endpoint = <&adx2_out1_ep>;
+					};
+				};
+
+				port@2f {
+					reg = <0x2f>;
+
+					xbar_adx2_out2_ep: endpoint {
+						remote-endpoint = <&adx2_out2_ep>;
+					};
+				};
+
+				port@30 {
+					reg = <0x30>;
+
+					xbar_adx2_out3_ep: endpoint {
+						remote-endpoint = <&adx2_out3_ep>;
+					};
+				};
+
+				port@31 {
+					reg = <0x31>;
+
+					xbar_adx2_out4_ep: endpoint {
+						remote-endpoint = <&adx2_out4_ep>;
+					};
+				};
+
+				xbar_mixer_in1_port: port@32 {
+					reg = <0x32>;
+
+					xbar_mixer_in1_ep: endpoint {
+						remote-endpoint = <&mixer_in1_ep>;
+					};
+				};
+
+				xbar_mixer_in2_port: port@33 {
+					reg = <0x33>;
+
+					xbar_mixer_in2_ep: endpoint {
+						remote-endpoint = <&mixer_in2_ep>;
+					};
+				};
+
+				xbar_mixer_in3_port: port@34 {
+					reg = <0x34>;
+
+					xbar_mixer_in3_ep: endpoint {
+						remote-endpoint = <&mixer_in3_ep>;
+					};
+				};
+
+				xbar_mixer_in4_port: port@35 {
+					reg = <0x35>;
+
+					xbar_mixer_in4_ep: endpoint {
+						remote-endpoint = <&mixer_in4_ep>;
+					};
+				};
+
+				xbar_mixer_in5_port: port@36 {
+					reg = <0x36>;
+
+					xbar_mixer_in5_ep: endpoint {
+						remote-endpoint = <&mixer_in5_ep>;
+					};
+				};
+
+				xbar_mixer_in6_port: port@37 {
+					reg = <0x37>;
+
+					xbar_mixer_in6_ep: endpoint {
+						remote-endpoint = <&mixer_in6_ep>;
+					};
+				};
+
+				xbar_mixer_in7_port: port@38 {
+					reg = <0x38>;
+
+					xbar_mixer_in7_ep: endpoint {
+						remote-endpoint = <&mixer_in7_ep>;
+					};
+				};
+
+				xbar_mixer_in8_port: port@39 {
+					reg = <0x39>;
+
+					xbar_mixer_in8_ep: endpoint {
+						remote-endpoint = <&mixer_in8_ep>;
+					};
+				};
+
+				xbar_mixer_in9_port: port@3a {
+					reg = <0x3a>;
+
+					xbar_mixer_in9_ep: endpoint {
+						remote-endpoint = <&mixer_in9_ep>;
+					};
+				};
+
+				xbar_mixer_in10_port: port@3b {
+					reg = <0x3b>;
+
+					xbar_mixer_in10_ep: endpoint {
+						remote-endpoint = <&mixer_in10_ep>;
+					};
+				};
+
+				port@3c {
+					reg = <0x3c>;
+
+					xbar_mixer_out1_ep: endpoint {
+						remote-endpoint = <&mixer_out1_ep>;
+					};
+				};
+
+				port@3d {
+					reg = <0x3d>;
+
+					xbar_mixer_out2_ep: endpoint {
+						remote-endpoint = <&mixer_out2_ep>;
+					};
+				};
+
+				port@3e {
+					reg = <0x3e>;
+
+					xbar_mixer_out3_ep: endpoint {
+						remote-endpoint = <&mixer_out3_ep>;
+					};
+				};
+
+				port@3f {
+					reg = <0x3f>;
+
+					xbar_mixer_out4_ep: endpoint {
+						remote-endpoint = <&mixer_out4_ep>;
+					};
+				};
+
+				port@40 {
+					reg = <0x40>;
+
+					xbar_mixer_out5_ep: endpoint {
+						remote-endpoint = <&mixer_out5_ep>;
+					};
+				};
+
+				xbar_ope1_in_port: port@41 {
+					reg = <0x41>;
+
+					xbar_ope1_in_ep: endpoint {
+						remote-endpoint = <&ope1_cif_in_ep>;
+					};
+				};
+
+				port@42 {
+					reg = <0x42>;
+
+					xbar_ope1_out_ep: endpoint {
+						remote-endpoint = <&ope1_cif_out_ep>;
+					};
+				};
+
+				xbar_ope2_in_port: port@43 {
+					reg = <0x43>;
+
+					xbar_ope2_in_ep: endpoint {
+						remote-endpoint = <&ope2_cif_in_ep>;
+					};
+				};
+
+				port@44 {
+					reg = <0x44>;
+
+					xbar_ope2_out_ep: endpoint {
+						remote-endpoint = <&ope2_cif_out_ep>;
+					};
+				};
+			};
+		};
+	};
+
+	spi@70410000 {
+		status = "okay";
+
+		flash@0 {
+			compatible = "jedec,spi-nor";
+			reg = <0>;
+			spi-max-frequency = <104000000>;
+			spi-tx-bus-width = <2>;
+			spi-rx-bus-width = <2>;
+		};
+	};
+
+	clk32k_in: clock-32k {
+		compatible = "fixed-clock";
+		clock-frequency = <32768>;
+		#clock-cells = <0>;
+	};
+
+	cpus {
+		cpu@0 {
+			enable-method = "psci";
+		};
+
+		cpu@1 {
+			enable-method = "psci";
+		};
+
+		cpu@2 {
+			enable-method = "psci";
+		};
+
+		cpu@3 {
+			enable-method = "psci";
+		};
+
+		idle-states {
+			cpu-sleep {
+				status = "okay";
+			};
+		};
+	};
+
+	fan: pwm-fan {
+		compatible = "pwm-fan";
+		pwms = <&pwm 3 45334>;
+
+		cooling-levels = <0 64 128 255>;
+		#cooling-cells = <2>;
+	};
+
+	thermal-zones {
+		cpu-thermal {
+			trips {
+				cpu_trip_critical: critical {
+					temperature = <96500>;
+					hysteresis = <0>;
+					type = "critical";
+				};
+
+				cpu_trip_hot: hot {
+					temperature = <70000>;
+					hysteresis = <2000>;
+					type = "hot";
+				};
+
+				cpu_trip_active: active {
+					temperature = <50000>;
+					hysteresis = <2000>;
+					type = "active";
+				};
+
+				cpu_trip_passive: passive {
+					temperature = <30000>;
+					hysteresis = <2000>;
+					type = "passive";
+				};
+			};
+
+			cooling-maps {
+				cpu-critical {
+					cooling-device = <&fan 3 3>;
+					trip = <&cpu_trip_critical>;
+				};
+
+				cpu-hot {
+					cooling-device = <&fan 2 2>;
+					trip = <&cpu_trip_hot>;
+				};
+
+				cpu-active {
+					cooling-device = <&fan 1 1>;
+					trip = <&cpu_trip_active>;
+				};
+
+				cpu-passive {
+					cooling-device = <&fan 0 0>;
+					trip = <&cpu_trip_passive>;
+				};
+			};
+		};
+	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+
+		key-power {
+			label = "Power";
+			gpios = <&gpio TEGRA_GPIO(X, 5) GPIO_ACTIVE_LOW>;
+			linux,input-type = <EV_KEY>;
+			linux,code = <KEY_POWER>;
+			debounce-interval = <30>;
+			wakeup-event-action = <EV_ACT_ASSERTED>;
+			wakeup-source;
+		};
+
+		key-force-recovery {
+			label = "Force Recovery";
+			gpios = <&gpio TEGRA_GPIO(X, 6) GPIO_ACTIVE_LOW>;
+			linux,input-type = <EV_KEY>;
+			linux,code = <BTN_1>;
+			debounce-interval = <30>;
+		};
+	};
+
+	psci {
+		compatible = "arm,psci-1.0";
+		method = "smc";
+	};
+
+	vdd_5v0_sys: regulator-vdd-5v0-sys {
+		compatible = "regulator-fixed";
+
+		regulator-name = "VDD_5V0_SYS";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		regulator-always-on;
+		regulator-boot-on;
+	};
+
+	vdd_3v3_sys: regulator-vdd-3v3-sys {
+		compatible = "regulator-fixed";
+
+		regulator-name = "VDD_3V3_SYS";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-enable-ramp-delay = <240>;
+		regulator-always-on;
+		regulator-boot-on;
+
+		gpio = <&pmic 3 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+
+		vin-supply = <&vdd_5v0_sys>;
+	};
+
+	vdd_3v3_sd: regulator-vdd-3v3-sd {
+		compatible = "regulator-fixed";
+
+		regulator-name = "VDD_3V3_SD";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+
+		gpio = <&gpio TEGRA_GPIO(Z, 3) GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+
+		vin-supply = <&vdd_3v3_sys>;
+	};
+
+	vdd_hdmi: regulator-vdd-hdmi-5v0 {
+		compatible = "regulator-fixed";
+
+		regulator-name = "VDD_HDMI_5V0";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+
+		vin-supply = <&vdd_5v0_sys>;
+	};
+
+	vdd_hub_3v3: regulator-vdd-hub-3v3 {
+		compatible = "regulator-fixed";
+
+		regulator-name = "VDD_HUB_3V3";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+
+		gpio = <&gpio TEGRA_GPIO(A, 6) GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+
+		vin-supply = <&vdd_5v0_sys>;
+	};
+
+	vdd_cpu: regulator-vdd-cpu {
+		compatible = "regulator-fixed";
+
+		regulator-name = "VDD_CPU";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		regulator-always-on;
+		regulator-boot-on;
+
+		gpio = <&pmic 5 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+
+		vin-supply = <&vdd_5v0_sys>;
+	};
+
+	vdd_gpu: regulator-vdd-gpu {
+		compatible = "pwm-regulator";
+		pwms = <&pwm 1 8000>;
+
+		regulator-name = "VDD_GPU";
+		regulator-min-microvolt = <710000>;
+		regulator-max-microvolt = <1320000>;
+		regulator-ramp-delay = <80>;
+		regulator-enable-ramp-delay = <2000>;
+		regulator-settling-time-us = <160>;
+
+		enable-gpios = <&pmic 6 GPIO_ACTIVE_HIGH>;
+		vin-supply = <&vdd_5v0_sys>;
+	};
+
+	avdd_io_edp_1v05: regulator-avdd-io-epd-1v05 {
+		compatible = "regulator-fixed";
+
+		regulator-name = "AVDD_IO_EDP_1V05";
+		regulator-min-microvolt = <1050000>;
+		regulator-max-microvolt = <1050000>;
+
+		gpio = <&pmic 7 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+
+		vin-supply = <&avdd_1v05_pll>;
+	};
+
+	vdd_5v0_usb: regulator-vdd-5v-usb {
+		compatible = "regulator-fixed";
+
+		regulator-name = "VDD_5V_USB";
+		regulator-min-microvolt = <50000000>;
+		regulator-max-microvolt = <50000000>;
+
+		vin-supply = <&vdd_5v0_sys>;
+	};
+
+	sound {
+		compatible = "nvidia,tegra210-audio-graph-card";
+		status = "okay";
+
+		dais = /* FE */
+		       <&admaif1_port>, <&admaif2_port>, <&admaif3_port>,
+		       <&admaif4_port>, <&admaif5_port>, <&admaif6_port>,
+		       <&admaif7_port>, <&admaif8_port>, <&admaif9_port>,
+		       <&admaif10_port>,
+		       /* Router */
+		       <&xbar_i2s3_port>, <&xbar_i2s4_port>,
+		       <&xbar_dmic1_port>, <&xbar_dmic2_port>,
+		       <&xbar_sfc1_in_port>, <&xbar_sfc2_in_port>,
+		       <&xbar_sfc3_in_port>, <&xbar_sfc4_in_port>,
+		       <&xbar_mvc1_in_port>, <&xbar_mvc2_in_port>,
+		       <&xbar_amx1_in1_port>, <&xbar_amx1_in2_port>,
+		       <&xbar_amx1_in3_port>, <&xbar_amx1_in4_port>,
+		       <&xbar_amx2_in1_port>, <&xbar_amx2_in2_port>,
+		       <&xbar_amx2_in3_port>, <&xbar_amx2_in4_port>,
+		       <&xbar_adx1_in_port>, <&xbar_adx2_in_port>,
+		       <&xbar_mixer_in1_port>, <&xbar_mixer_in2_port>,
+		       <&xbar_mixer_in3_port>, <&xbar_mixer_in4_port>,
+		       <&xbar_mixer_in5_port>, <&xbar_mixer_in6_port>,
+		       <&xbar_mixer_in7_port>, <&xbar_mixer_in8_port>,
+		       <&xbar_mixer_in9_port>, <&xbar_mixer_in10_port>,
+		       <&xbar_ope1_in_port>, <&xbar_ope2_in_port>,
+		       /* HW accelerators */
+		       <&sfc1_out_port>, <&sfc2_out_port>,
+		       <&sfc3_out_port>, <&sfc4_out_port>,
+		       <&mvc1_out_port>, <&mvc2_out_port>,
+		       <&amx1_out_port>, <&amx2_out_port>,
+		       <&adx1_out1_port>, <&adx1_out2_port>,
+		       <&adx1_out3_port>, <&adx1_out4_port>,
+		       <&adx2_out1_port>, <&adx2_out2_port>,
+		       <&adx2_out3_port>, <&adx2_out4_port>,
+		       <&mixer_out1_port>, <&mixer_out2_port>,
+		       <&mixer_out3_port>, <&mixer_out4_port>,
+		       <&mixer_out5_port>,
+		       <&ope1_out_port>, <&ope2_out_port>,
+		       /* I/O DAP Ports */
+		       <&i2s3_port>, <&i2s4_port>,
+		       <&dmic1_port>, <&dmic2_port>;
+
+		label = "NVIDIA Jetson Nano APE";
+	};
+};

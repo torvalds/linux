@@ -1,0 +1,16 @@
+NAU8822 audio CODEC
+
+This device supports I2C only.
+
+Required properties:
+
+  - compatible : "nuvoton,nau8822"
+
+  - reg : the I2C address of the device.
+
+Example:
+
+codec: nau8822@1a {
+	compatible = "nuvoton,nau8822";
+	reg = <0x1a>;
+};

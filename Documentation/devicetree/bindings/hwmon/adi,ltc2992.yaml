@@ -1,0 +1,80 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/hwmon/adi,ltc2992.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Linear Technology 2992 Power Monitor
+
+maintainers:
+  - Alexandru Tachici <alexandru.tachici@analog.com>
+
+description: |
+  Linear Technology 2992 Dual Wide Range Power Monitor
+  https://www.analog.com/media/en/technical-documentation/data-sheets/ltc2992.pdf
+
+properties:
+  compatible:
+    enum:
+      - adi,ltc2992
+
+  reg:
+    maxItems: 1
+
+  '#address-cells':
+    const: 1
+
+  '#size-cells':
+    const: 0
+
+  avcc-supply: true
+
+patternProperties:
+  "^channel@([0-1])$":
+    type: object
+    description: |
+      Represents the two supplies to be monitored.
+
+    properties:
+      reg:
+        description: |
+          The channel number. LTC2992 can monitor two supplies.
+        items:
+          minimum: 0
+          maximum: 1
+
+      shunt-resistor-micro-ohms:
+        description:
+          The value of curent sense resistor in microohms.
+
+required:
+  - compatible
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+    i2c1 {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        ltc2992@6F {
+                #address-cells = <1>;
+                #size-cells = <0>;
+
+                compatible = "adi,ltc2992";
+                reg = <0x6F>;
+
+                channel@0 {
+                        reg = <0x0>;
+                        shunt-resistor-micro-ohms = <10000>;
+                };
+
+                channel@1 {
+                        reg = <0x1>;
+                        shunt-resistor-micro-ohms = <10000>;
+                };
+        };
+    };
+...

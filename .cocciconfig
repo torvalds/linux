@@ -1,0 +1,3 @@
+[spatch]
+	options = --timeout 200
+	options = --use-gitgrep

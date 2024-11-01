@@ -1,0 +1,12 @@
+What:		/sys/devices/.../resource_in_use
+Date:		January 2013
+Contact:	Rafael J. Wysocki <rafael.j.wysocki@intel.com>
+Description:
+		The /sys/devices/.../resource_in_use attribute is only present
+		for device objects representing ACPI power resources.
+
+		If present, it contains a number (0 or 1) representing the
+		current status of the given power resource (0 means that the
+		resource is not in use and therefore it has been turned off).
+
+		This attribute is read-only.
