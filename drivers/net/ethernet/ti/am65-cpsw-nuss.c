@@ -2441,6 +2441,7 @@ static int am65_cpsw_nuss_init_rx_chns(struct am65_cpsw_common *common)
 		flow = &rx_chn->flows[i];
 		flow->id = i;
 		flow->common = common;
+		flow->irq = -EINVAL;
 
 		rx_flow_cfg.ring_rxfdq0_id = fdqring_id;
 		rx_flow_cfg.rx_cfg.size = max_desc_num;
@@ -2483,6 +2484,7 @@ static int am65_cpsw_nuss_init_rx_chns(struct am65_cpsw_common *common)
 		if (ret) {
 			dev_err(dev, "failure requesting rx %d irq %u, %d\n",
 				i, flow->irq, ret);
+			flow->irq = -EINVAL;
 			goto err;
 		}
 	}
