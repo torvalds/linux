@@ -1,6 +1,0 @@
-What:		/config/usb-gadget/gadget/functions/tcm.name
-Date:		Dec 2015
-KernelVersion:	4.5
-Description:
-		There are no attributes because all the configuration
-		is performed in the "target" subsystem of configfs.
