@@ -132,7 +132,7 @@ int ivpu_jsm_get_heartbeat(struct ivpu_device *vdev, u32 engine, u64 *heartbeat)
 	struct vpu_jsm_msg resp;
 	int ret;
 
-	if (engine > VPU_ENGINE_COPY)
+	if (engine != VPU_ENGINE_COMPUTE)
 		return -EINVAL;
 
 	req.payload.query_engine_hb.engine_idx = engine;
@@ -155,7 +155,7 @@ int ivpu_jsm_reset_engine(struct ivpu_device *vdev, u32 engine)
 	struct vpu_jsm_msg resp;
 	int ret;
 
-	if (engine > VPU_ENGINE_COPY)
+	if (engine != VPU_ENGINE_COMPUTE)
 		return -EINVAL;
 
 	req.payload.engine_reset.engine_idx = engine;
@@ -174,7 +174,7 @@ int ivpu_jsm_preempt_engine(struct ivpu_device *vdev, u32 engine, u32 preempt_id
 	struct vpu_jsm_msg resp;
 	int ret;
 
-	if (engine > VPU_ENGINE_COPY)
+	if (engine != VPU_ENGINE_COMPUTE)
 		return -EINVAL;
 
 	req.payload.engine_preempt.engine_idx = engine;
@@ -346,7 +346,7 @@ int ivpu_jsm_hws_resume_engine(struct ivpu_device *vdev, u32 engine)
 	struct vpu_jsm_msg resp;
 	int ret;
 
-	if (engine >= VPU_ENGINE_NB)
+	if (engine != VPU_ENGINE_COMPUTE)
 		return -EINVAL;
 
 	req.payload.hws_resume_engine.engine_idx = engine;

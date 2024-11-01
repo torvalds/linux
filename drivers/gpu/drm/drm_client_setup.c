@@ -64,3 +64,6 @@ void drm_client_setup_with_color_mode(struct drm_device *dev, unsigned int color
 	drm_client_setup_with_fourcc(dev, fourcc);
 }
 EXPORT_SYMBOL(drm_client_setup_with_color_mode);
+
+MODULE_DESCRIPTION("In-kernel DRM clients");
+MODULE_LICENSE("GPL and additional rights");

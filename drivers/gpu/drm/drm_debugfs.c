@@ -32,7 +32,6 @@
 #include <drm/drm_atomic.h>
 #include <drm/drm_auth.h>
 #include <drm/drm_bridge.h>
-#include <drm/drm_client.h>
 #include <drm/drm_debugfs.h>
 #include <drm/drm_device.h>
 #include <drm/drm_drv.h>

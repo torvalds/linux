@@ -61,11 +61,37 @@ err_drm_err:
 	return ret;
 }
 
+static int drm_fbdev_client_suspend(struct drm_client_dev *client, bool holds_console_lock)
+{
+	struct drm_fb_helper *fb_helper = drm_fb_helper_from_client(client);
+
+	if (holds_console_lock)
+		drm_fb_helper_set_suspend(fb_helper, true);
+	else
+		drm_fb_helper_set_suspend_unlocked(fb_helper, true);
+
+	return 0;
+}
+
+static int drm_fbdev_client_resume(struct drm_client_dev *client, bool holds_console_lock)
+{
+	struct drm_fb_helper *fb_helper = drm_fb_helper_from_client(client);
+
+	if (holds_console_lock)
+		drm_fb_helper_set_suspend(fb_helper, false);
+	else
+		drm_fb_helper_set_suspend_unlocked(fb_helper, false);
+
+	return 0;
+}
+
 static const struct drm_client_funcs drm_fbdev_client_funcs = {
 	.owner		= THIS_MODULE,
 	.unregister	= drm_fbdev_client_unregister,
 	.restore	= drm_fbdev_client_restore,
 	.hotplug	= drm_fbdev_client_hotplug,
+	.suspend	= drm_fbdev_client_suspend,
+	.resume		= drm_fbdev_client_resume,
 };
 
 /**
@@ -76,8 +102,8 @@ static const struct drm_client_funcs drm_fbdev_client_funcs = {
  *
  * This function sets up fbdev emulation. Restore, hotplug events and
  * teardown are all taken care of. Drivers that do suspend/resume need
- * to call drm_fb_helper_set_suspend_unlocked() themselves. Simple
- * drivers might use drm_mode_config_helper_suspend().
+ * to call drm_client_dev_suspend() and drm_client_dev_resume() by
+ * themselves. Simple drivers might use drm_mode_config_helper_suspend().
  *
  * This function is safe to call even when there are no connectors present.
  * Setup will be retried on the next hotplug event.

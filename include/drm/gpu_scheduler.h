@@ -340,6 +340,14 @@ struct drm_sched_fence *to_drm_sched_fence(struct dma_fence *f);
 struct drm_sched_job {
 	struct spsc_node		queue_node;
 	struct list_head		list;
+
+	/**
+	 * @sched:
+	 *
+	 * The scheduler this job is or will be scheduled on. Gets set by
+	 * drm_sched_job_arm(). Valid until drm_sched_backend_ops.free_job()
+	 * has finished.
+	 */
 	struct drm_gpu_scheduler	*sched;
 	struct drm_sched_fence		*s_fence;
 
