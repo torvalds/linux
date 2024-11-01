@@ -2053,14 +2053,14 @@ int sparx5_vcap_init(struct sparx5 *sparx5)
 
 	sparx5->vcap_ctrl = ctrl;
 	/* select the sparx5 VCAP model */
-	ctrl->vcaps = sparx5_vcaps;
-	ctrl->stats = &sparx5_vcap_stats;
+	ctrl->vcaps = consts->vcaps;
+	ctrl->stats = consts->vcap_stats;
 	/* Setup callbacks to allow the API to use the VCAP HW */
 	ctrl->ops = &sparx5_vcap_ops;
 
 	INIT_LIST_HEAD(&ctrl->list);
 	for (idx = 0; idx < ARRAY_SIZE(sparx5_vcap_inst_cfg); ++idx) {
-		cfg = &sparx5_vcap_inst_cfg[idx];
+		cfg = &consts->vcaps_cfg[idx];
 		admin = sparx5_vcap_admin_alloc(sparx5, ctrl, cfg);
 		if (IS_ERR(admin)) {
 			err = PTR_ERR(admin);

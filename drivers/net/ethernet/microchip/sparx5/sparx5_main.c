@@ -30,6 +30,8 @@
 #include "sparx5_main.h"
 #include "sparx5_port.h"
 #include "sparx5_qos.h"
+#include "sparx5_vcap_ag_api.h"
+#include "sparx5_vcap_impl.h"
 
 const struct sparx5_regs *regs;
 
@@ -1063,6 +1065,9 @@ static const struct sparx5_consts sparx5_consts = {
 	.qres_max_prio_idx   = 630,
 	.qres_max_colour_idx = 638,
 	.tod_pin             = 4,
+	.vcaps               = sparx5_vcaps,
+	.vcaps_cfg           = sparx5_vcap_inst_cfg,
+	.vcap_stats          = &sparx5_vcap_stats,
 };
 
 static const struct sparx5_ops sparx5_ops = {
