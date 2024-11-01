@@ -789,8 +789,7 @@ static void loop_config_discard(struct loop_device *lo,
 		struct block_device *bdev = I_BDEV(inode);
 
 		max_discard_sectors = bdev_write_zeroes_sectors(bdev);
-		granularity = bdev_discard_granularity(bdev) ?:
-			bdev_physical_block_size(bdev);
+		granularity = bdev_discard_granularity(bdev);
 
 	/*
 	 * We use punch hole to reclaim the free space used by the
