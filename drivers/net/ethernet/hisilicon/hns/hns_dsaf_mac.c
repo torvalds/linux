@@ -1190,8 +1190,7 @@ void hns_mac_get_stats(struct hns_mac_cb *mac_cb, u64 *data)
 	mac_ctrl_drv->get_ethtool_stats(mac_ctrl_drv, data);
 }
 
-void hns_mac_get_strings(struct hns_mac_cb *mac_cb,
-			 int stringset, u8 *data)
+void hns_mac_get_strings(struct hns_mac_cb *mac_cb, int stringset, u8 **data)
 {
 	struct mac_driver *mac_ctrl_drv = hns_mac_get_drv(mac_cb);
 
