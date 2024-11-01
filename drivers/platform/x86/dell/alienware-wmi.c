@@ -1090,7 +1090,7 @@ static int __init alienware_wmi_init(void)
 		if (quirks->thermal)
 			quirks->gmode = true;
 		else
-			pr_warn("force_gmode requieres platform profile support\n");
+			pr_warn("force_gmode requires platform profile support\n");
 	}
 
 	ret = platform_driver_register(&platform_driver);
