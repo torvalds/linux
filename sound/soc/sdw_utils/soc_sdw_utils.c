@@ -1022,6 +1022,7 @@ void asoc_sdw_init_dai_link(struct device *dev, struct snd_soc_dai_link *dai_lin
 	dev_dbg(dev, "create dai link %s, id %d\n", name, *be_id);
 	dai_links->id = (*be_id)++;
 	dai_links->name = name;
+	dai_links->stream_name = name;
 	dai_links->platforms = platform_component;
 	dai_links->num_platforms = num_platforms;
 	dai_links->no_pcm = no_pcm;
