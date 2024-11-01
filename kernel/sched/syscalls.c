@@ -95,12 +95,6 @@ void set_user_nice(struct task_struct *p, long nice)
 		old_prio = p->prio;
 		p->prio = effective_prio(p);
 	}
-
-	/*
-	 * If the task increased its priority or is running and
-	 * lowered its priority, then reschedule its CPU:
-	 */
-	p->sched_class->prio_changed(rq, p, old_prio);
 }
 EXPORT_SYMBOL(set_user_nice);
 
@@ -705,9 +699,6 @@ change:
 				scope->flags |= ENQUEUE_HEAD;
 		}
 	}
-
-	if (!(queue_flags & DEQUEUE_CLASS))
-		check_prio_changed(rq, p, oldprio);
 
 	/* Avoid rq from going away on us: */
 	preempt_disable();

@@ -2169,12 +2169,6 @@ inline int task_curr(const struct task_struct *p)
 	return cpu_curr(task_cpu(p)) == p;
 }
 
-void check_prio_changed(struct rq *rq, struct task_struct *p, int oldprio)
-{
-	if (oldprio != p->prio || dl_task(p))
-		p->sched_class->prio_changed(rq, p, oldprio);
-}
-
 void wakeup_preempt(struct rq *rq, struct task_struct *p, int flags)
 {
 	struct task_struct *donor = rq->donor;
@@ -7400,9 +7394,6 @@ void rt_mutex_setprio(struct task_struct *p, struct task_struct *pi_task)
 		p->sched_class = next_class;
 		p->prio = prio;
 	}
-
-	if (!(queue_flag & DEQUEUE_CLASS))
-		check_prio_changed(rq, p, oldprio);
 out_unlock:
 	/* Avoid rq from going away on us: */
 	preempt_disable();
@@ -10855,6 +10846,13 @@ struct sched_change_ctx *sched_change_begin(struct task_struct *p, unsigned int 
 		.running = task_current_donor(rq, p),
 	};
 
+	if (!(flags & DEQUEUE_CLASS)) {
+		if (p->sched_class->get_prio)
+			ctx->prio = p->sched_class->get_prio(rq, p);
+		else
+			ctx->prio = p->prio;
+	}
+
 	if (ctx->queued)
 		dequeue_task(rq, p, flags);
 	if (ctx->running)
@@ -10881,6 +10879,10 @@ void sched_change_end(struct sched_change_ctx *ctx)
 	if (ctx->running)
 		set_next_task(rq, p);
 
-	if ((ctx->flags & ENQUEUE_CLASS) && p->sched_class->switched_to)
-		p->sched_class->switched_to(rq, p);
+	if (ctx->flags & ENQUEUE_CLASS) {
+		if (p->sched_class->switched_to)
+			p->sched_class->switched_to(rq, p);
+	} else {
+		p->sched_class->prio_changed(rq, p, ctx->prio);
+	}
 }

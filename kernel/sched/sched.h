@@ -2451,8 +2451,10 @@ struct sched_class {
 
 	void (*reweight_task)(struct rq *this_rq, struct task_struct *task,
 			      const struct load_weight *lw);
+
+	u64  (*get_prio)     (struct rq *this_rq, struct task_struct *task);
 	void (*prio_changed) (struct rq *this_rq, struct task_struct *task,
-			      int oldprio);
+			      u64 oldprio);
 
 	unsigned int (*get_rr_interval)(struct rq *rq,
 					struct task_struct *task);
@@ -3877,8 +3879,6 @@ extern void set_load_weight(struct task_struct *p, bool update_load);
 extern void enqueue_task(struct rq *rq, struct task_struct *p, int flags);
 extern bool dequeue_task(struct rq *rq, struct task_struct *p, int flags);
 
-extern void check_prio_changed(struct rq *rq, struct task_struct *p, int oldprio);
-
 extern struct balance_callback *splice_balance_callbacks(struct rq *rq);
 extern void balance_callbacks(struct rq *rq, struct balance_callback *head);
 
@@ -3899,6 +3899,7 @@ extern void balance_callbacks(struct rq *rq, struct balance_callback *head);
  * the task's queueing state is idempotent across the operation.
  */
 struct sched_change_ctx {
+	u64			prio;
 	struct task_struct	*p;
 	int			flags;
 	bool			queued;

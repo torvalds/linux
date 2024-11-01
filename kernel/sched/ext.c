@@ -2961,7 +2961,7 @@ static void reweight_task_scx(struct rq *rq, struct task_struct *p,
 				 p, p->scx.weight);
 }
 
-static void prio_changed_scx(struct rq *rq, struct task_struct *p, int oldprio)
+static void prio_changed_scx(struct rq *rq, struct task_struct *p, u64 oldprio)
 {
 }
 
@@ -3926,9 +3926,6 @@ static void scx_disable_workfn(struct kthread_work *work)
 			p->sched_class = new_class;
 		}
 
-		if (!(queue_flags & DEQUEUE_CLASS))
-			check_prio_changed(task_rq(p), p, p->prio);
-
 		scx_exit_task(p);
 	}
 	scx_task_iter_stop(&sti);
@@ -4674,9 +4671,6 @@ static int scx_enable(struct sched_ext_ops *ops, struct bpf_link *link)
 			p->scx.slice = SCX_SLICE_DFL;
 			p->sched_class = new_class;
 		}
-
-		if (!(queue_flags & DEQUEUE_CLASS))
-			check_prio_changed(task_rq(p), p, p->prio);
 
 		put_task_struct(p);
 	}
