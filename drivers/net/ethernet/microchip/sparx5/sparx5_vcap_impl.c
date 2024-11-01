@@ -17,7 +17,6 @@
 #define SUPER_VCAP_BLK_SIZE 3072 /* addresses per Super VCAP block */
 #define STREAMSIZE (64 * 4)  /* bytes in the VCAP cache area */
 
-#define SPARX5_IS2_LOOKUPS 4
 #define VCAP_IS2_KEYSEL(_ena, _noneth, _v4_mc, _v4_uc, _v6_mc, _v6_uc, _arp) \
 	(ANA_ACL_VCAP_S2_KEY_SEL_KEY_SEL_ENA_SET(_ena) | \
 	 ANA_ACL_VCAP_S2_KEY_SEL_NON_ETH_KEY_SEL_SET(_noneth) | \
@@ -27,7 +26,6 @@
 	 ANA_ACL_VCAP_S2_KEY_SEL_IP6_UC_KEY_SEL_SET(_v6_uc) | \
 	 ANA_ACL_VCAP_S2_KEY_SEL_ARP_KEY_SEL_SET(_arp))
 
-#define SPARX5_IS0_LOOKUPS 6
 #define VCAP_IS0_KEYSEL(_ena, _etype, _ipv4, _ipv6, _mpls_uc, _mpls_mc, _mlbs) \
 	(ANA_CL_ADV_CL_CFG_LOOKUP_ENA_SET(_ena) | \
 	ANA_CL_ADV_CL_CFG_ETYPE_CLM_KEY_SEL_SET(_etype) | \
@@ -37,31 +35,17 @@
 	ANA_CL_ADV_CL_CFG_MPLS_MC_CLM_KEY_SEL_SET(_mpls_mc) | \
 	ANA_CL_ADV_CL_CFG_MLBS_CLM_KEY_SEL_SET(_mlbs))
 
-#define SPARX5_ES0_LOOKUPS 1
 #define VCAP_ES0_KEYSEL(_key) (REW_RTAG_ETAG_CTRL_ES0_ISDX_KEY_ENA_SET(_key))
 #define SPARX5_STAT_ESDX_GRN_PKTS  0x300
 #define SPARX5_STAT_ESDX_YEL_PKTS  0x301
 
-#define SPARX5_ES2_LOOKUPS 2
 #define VCAP_ES2_KEYSEL(_ena, _arp, _ipv4, _ipv6) \
 	(EACL_VCAP_ES2_KEY_SEL_KEY_ENA_SET(_ena) | \
 	EACL_VCAP_ES2_KEY_SEL_ARP_KEY_SEL_SET(_arp) | \
 	EACL_VCAP_ES2_KEY_SEL_IP4_KEY_SEL_SET(_ipv4) | \
 	EACL_VCAP_ES2_KEY_SEL_IP6_KEY_SEL_SET(_ipv6))
 
-static struct sparx5_vcap_inst {
-	enum vcap_type vtype; /* type of vcap */
-	int vinst; /* instance number within the same type */
-	int lookups; /* number of lookups in this vcap type */
-	int lookups_per_instance; /* number of lookups in this instance */
-	int first_cid; /* first chain id in this vcap */
-	int last_cid; /* last chain id in this vcap */
-	int count; /* number of available addresses, not in super vcap */
-	int map_id; /* id in the super vcap block mapping (if applicable) */
-	int blockno; /* starting block in super vcap (if applicable) */
-	int blocks; /* number of blocks in super vcap (if applicable) */
-	bool ingress; /* is vcap in the ingress path */
-} sparx5_vcap_inst_cfg[] = {
+const struct sparx5_vcap_inst sparx5_vcap_inst_cfg[] = {
 	{
 		.vtype = VCAP_TYPE_IS0, /* CLM-0 */
 		.vinst = 0,
