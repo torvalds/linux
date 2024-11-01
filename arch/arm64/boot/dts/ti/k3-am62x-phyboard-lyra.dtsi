@@ -416,6 +416,7 @@
 		compatible = "atmel,24c02";
 		pagesize = <16>;
 		reg = <0x51>;
+		vcc-supply = <&vcc_3v3_mmc>;
 	};
 };
 
