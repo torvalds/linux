@@ -7034,8 +7034,7 @@ err_peer_del:
 		ret = ath12k_wait_for_peer_delete_done(ar, arvif->vdev_id,
 						       arvif->bssid);
 		if (ret)
-			/* KVALO: why not goto err? */
-			return ret;
+			goto err_vdev_del;
 
 		ar->num_peers--;
 	}
