@@ -34,9 +34,6 @@ int xe_bo_evict_all(struct xe_device *xe)
 	u8 id;
 	int ret;
 
-	if (!IS_DGFX(xe))
-		return 0;
-
 	/* User memory */
 	for (mem_type = XE_PL_VRAM0; mem_type <= XE_PL_VRAM1; ++mem_type) {
 		struct ttm_resource_manager *man =
@@ -124,9 +121,6 @@ int xe_bo_restore_kernel(struct xe_device *xe)
 {
 	struct xe_bo *bo;
 	int ret;
-
-	if (!IS_DGFX(xe))
-		return 0;
 
 	spin_lock(&xe->pinned.lock);
 	for (;;) {
