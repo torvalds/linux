@@ -790,7 +790,7 @@ static int create_sdw_dailink(struct snd_soc_card *card,
 		asoc_sdw_init_dai_link(dev, *dai_links, be_id, name, playback, capture,
 				       cpus, num_cpus, platform_component,
 				       ARRAY_SIZE(platform_component), codecs, num_codecs,
-				       asoc_sdw_rtd_init, &sdw_ops);
+				       1, asoc_sdw_rtd_init, &sdw_ops);
 
 		/*
 		 * SoundWire DAILINKs use 'stream' functions and Bank Switch operations
@@ -867,7 +867,7 @@ static int create_ssp_dailinks(struct snd_soc_card *card,
 						    playback, capture, cpu_dai_name,
 						    platform_component->name,
 						    ARRAY_SIZE(platform_component), codec_name,
-						    ssp_info->dais[0].dai_name, NULL,
+						    ssp_info->dais[0].dai_name, 1, NULL,
 						    ssp_info->ops);
 		if (ret)
 			return ret;
@@ -892,7 +892,7 @@ static int create_dmic_dailinks(struct snd_soc_card *card,
 					    0, 1, // DMIC only supports capture
 					    "DMIC01 Pin", platform_component->name,
 					    ARRAY_SIZE(platform_component),
-					    "dmic-codec", "dmic-hifi",
+					    "dmic-codec", "dmic-hifi", 1,
 					    asoc_sdw_dmic_init, NULL);
 	if (ret)
 		return ret;
@@ -903,7 +903,7 @@ static int create_dmic_dailinks(struct snd_soc_card *card,
 					    0, 1, // DMIC only supports capture
 					    "DMIC16k Pin", platform_component->name,
 					    ARRAY_SIZE(platform_component),
-					    "dmic-codec", "dmic-hifi",
+					    "dmic-codec", "dmic-hifi", 1,
 					    /* don't call asoc_sdw_dmic_init() twice */
 					    NULL, NULL);
 	if (ret)
@@ -947,7 +947,7 @@ static int create_hdmi_dailinks(struct snd_soc_card *card,
 						    1, 0, // HDMI only supports playback
 						    cpu_dai_name, platform_component->name,
 						    ARRAY_SIZE(platform_component),
-						    codec_name, codec_dai_name,
+						    codec_name, codec_dai_name, 1,
 						    i == 0 ? sof_sdw_hdmi_init : NULL, NULL);
 		if (ret)
 			return ret;
@@ -975,7 +975,7 @@ static int create_bt_dailinks(struct snd_soc_card *card,
 					    1, 1, cpu_dai_name, platform_component->name,
 					    ARRAY_SIZE(platform_component),
 					    snd_soc_dummy_dlc.name, snd_soc_dummy_dlc.dai_name,
-					    NULL, NULL);
+					    1, NULL, NULL);
 	if (ret)
 		return ret;
 

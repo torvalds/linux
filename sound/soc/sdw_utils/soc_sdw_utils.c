@@ -1015,7 +1015,8 @@ void asoc_sdw_init_dai_link(struct device *dev, struct snd_soc_dai_link *dai_lin
 			    struct snd_soc_dai_link_component *cpus, int cpus_num,
 			    struct snd_soc_dai_link_component *platform_component,
 			    int num_platforms, struct snd_soc_dai_link_component *codecs,
-			    int codecs_num, int (*init)(struct snd_soc_pcm_runtime *rtd),
+			    int codecs_num, int no_pcm,
+			    int (*init)(struct snd_soc_pcm_runtime *rtd),
 			    const struct snd_soc_ops *ops)
 {
 	dev_dbg(dev, "create dai link %s, id %d\n", name, *be_id);
@@ -1023,7 +1024,7 @@ void asoc_sdw_init_dai_link(struct device *dev, struct snd_soc_dai_link *dai_lin
 	dai_links->name = name;
 	dai_links->platforms = platform_component;
 	dai_links->num_platforms = num_platforms;
-	dai_links->no_pcm = 1;
+	dai_links->no_pcm = no_pcm;
 	dai_links->cpus = cpus;
 	dai_links->num_cpus = cpus_num;
 	dai_links->codecs = codecs;
@@ -1039,7 +1040,7 @@ int asoc_sdw_init_simple_dai_link(struct device *dev, struct snd_soc_dai_link *d
 				  int *be_id, char *name, int playback, int capture,
 				  const char *cpu_dai_name, const char *platform_comp_name,
 				  int num_platforms, const char *codec_name,
-				  const char *codec_dai_name,
+				  const char *codec_dai_name, int no_pcm,
 				  int (*init)(struct snd_soc_pcm_runtime *rtd),
 				  const struct snd_soc_ops *ops)
 {
@@ -1058,7 +1059,7 @@ int asoc_sdw_init_simple_dai_link(struct device *dev, struct snd_soc_dai_link *d
 
 	asoc_sdw_init_dai_link(dev, dai_links, be_id, name, playback, capture,
 			       &dlc[0], 1, &dlc[1], num_platforms,
-			       &dlc[2], 1, init, ops);
+			       &dlc[2], 1, no_pcm, init, ops);
 
 	return 0;
 }
