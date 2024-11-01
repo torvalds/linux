@@ -821,6 +821,8 @@ int ath12k_wmi_vdev_create(struct ath12k *ar, u8 *macaddr,
 	struct wmi_vdev_create_cmd *cmd;
 	struct sk_buff *skb;
 	struct ath12k_wmi_vdev_txrx_streams_params *txrx_streams;
+	bool is_ml_vdev = is_valid_ether_addr(args->mld_addr);
+	struct wmi_vdev_create_mlo_params *ml_params;
 	struct wmi_tlv *tlv;
 	int ret, len;
 	void *ptr;
@@ -830,7 +832,8 @@ int ath12k_wmi_vdev_create(struct ath12k *ar, u8 *macaddr,
 	 * both the bands.
 	 */
 	len = sizeof(*cmd) + TLV_HDR_SIZE +
-		(WMI_NUM_SUPPORTED_BAND_MAX * sizeof(*txrx_streams));
+		(WMI_NUM_SUPPORTED_BAND_MAX * sizeof(*txrx_streams)) +
+		(is_ml_vdev ? TLV_HDR_SIZE + sizeof(*ml_params) : 0);
 
 	skb = ath12k_wmi_alloc_skb(wmi->wmi_ab, len);
 	if (!skb)
@@ -878,6 +881,21 @@ int ath12k_wmi_vdev_create(struct ath12k *ar, u8 *macaddr,
 				cpu_to_le32(args->chains[NL80211_BAND_5GHZ].tx);
 	txrx_streams->supported_rx_streams =
 				cpu_to_le32(args->chains[NL80211_BAND_5GHZ].rx);
+
+	ptr += WMI_NUM_SUPPORTED_BAND_MAX * sizeof(*txrx_streams);
+
+	if (is_ml_vdev) {
+		tlv = ptr;
+		tlv->header = ath12k_wmi_tlv_hdr(WMI_TAG_ARRAY_STRUCT,
+						 sizeof(*ml_params));
+		ptr += TLV_HDR_SIZE;
+		ml_params = ptr;
+
+		ml_params->tlv_header =
+			ath12k_wmi_tlv_cmd_hdr(WMI_TAG_MLO_VDEV_CREATE_PARAMS,
+					       sizeof(*ml_params));
+		ether_addr_copy(ml_params->mld_macaddr.addr, args->mld_addr);
+	}
 
 	ath12k_dbg(ar->ab, ATH12K_DBG_WMI,
 		   "WMI vdev create: id %d type %d subtype %d macaddr %pM pdevid %d\n",
@@ -1020,19 +1038,27 @@ static void ath12k_wmi_put_wmi_channel(struct ath12k_wmi_channel_params *chan,
 int ath12k_wmi_vdev_start(struct ath12k *ar, struct wmi_vdev_start_req_arg *arg,
 			  bool restart)
 {
+	struct wmi_vdev_start_mlo_params *ml_params;
+	struct wmi_partner_link_info *partner_info;
 	struct ath12k_wmi_pdev *wmi = ar->wmi;
 	struct wmi_vdev_start_request_cmd *cmd;
 	struct sk_buff *skb;
 	struct ath12k_wmi_channel_params *chan;
 	struct wmi_tlv *tlv;
 	void *ptr;
-	int ret, len;
+	int ret, len, i, ml_arg_size = 0;
 
 	if (WARN_ON(arg->ssid_len > sizeof(cmd->ssid.ssid)))
 		return -EINVAL;
 
 	len = sizeof(*cmd) + sizeof(*chan) + TLV_HDR_SIZE;
 
+	if (!restart && arg->ml.enabled) {
+		ml_arg_size = TLV_HDR_SIZE + sizeof(*ml_params) +
+			      TLV_HDR_SIZE + (arg->ml.num_partner_links *
+					      sizeof(*partner_info));
+		len += ml_arg_size;
+	}
 	skb = ath12k_wmi_alloc_skb(wmi->wmi_ab, len);
 	if (!skb)
 		return -ENOMEM;
@@ -1084,6 +1110,61 @@ int ath12k_wmi_vdev_start(struct ath12k *ar, struct wmi_vdev_start_req_arg *arg,
 	 */
 
 	ptr += sizeof(*tlv);
+
+	if (ml_arg_size) {
+		tlv = ptr;
+		tlv->header = ath12k_wmi_tlv_hdr(WMI_TAG_ARRAY_STRUCT,
+						 sizeof(*ml_params));
+		ptr += TLV_HDR_SIZE;
+
+		ml_params = ptr;
+
+		ml_params->tlv_header =
+			ath12k_wmi_tlv_cmd_hdr(WMI_TAG_MLO_VDEV_START_PARAMS,
+					       sizeof(*ml_params));
+
+		ml_params->flags = le32_encode_bits(arg->ml.enabled,
+						    ATH12K_WMI_FLAG_MLO_ENABLED) |
+				   le32_encode_bits(arg->ml.assoc_link,
+						    ATH12K_WMI_FLAG_MLO_ASSOC_LINK) |
+				   le32_encode_bits(arg->ml.mcast_link,
+						    ATH12K_WMI_FLAG_MLO_MCAST_VDEV) |
+				   le32_encode_bits(arg->ml.link_add,
+						    ATH12K_WMI_FLAG_MLO_LINK_ADD);
+
+		ath12k_dbg(ar->ab, ATH12K_DBG_WMI, "vdev %d start ml flags 0x%x\n",
+			   arg->vdev_id, ml_params->flags);
+
+		ptr += sizeof(*ml_params);
+
+		tlv = ptr;
+		tlv->header = ath12k_wmi_tlv_hdr(WMI_TAG_ARRAY_STRUCT,
+						 arg->ml.num_partner_links *
+						 sizeof(*partner_info));
+		ptr += TLV_HDR_SIZE;
+
+		partner_info = ptr;
+
+		for (i = 0; i < arg->ml.num_partner_links; i++) {
+			partner_info->tlv_header =
+				ath12k_wmi_tlv_cmd_hdr(WMI_TAG_MLO_PARTNER_LINK_PARAMS,
+						       sizeof(*partner_info));
+			partner_info->vdev_id =
+				cpu_to_le32(arg->ml.partner_info[i].vdev_id);
+			partner_info->hw_link_id =
+				cpu_to_le32(arg->ml.partner_info[i].hw_link_id);
+			ether_addr_copy(partner_info->vdev_addr.addr,
+					arg->ml.partner_info[i].addr);
+
+			ath12k_dbg(ar->ab, ATH12K_DBG_WMI, "partner vdev %d hw_link_id %d macaddr%pM\n",
+				   partner_info->vdev_id, partner_info->hw_link_id,
+				   partner_info->vdev_addr.addr);
+
+			partner_info++;
+		}
+
+		ptr = partner_info;
+	}
 
 	ath12k_dbg(ar->ab, ATH12K_DBG_WMI, "vdev %s id 0x%x freq 0x%x mode 0x%x\n",
 		   restart ? "restart" : "start", arg->vdev_id,

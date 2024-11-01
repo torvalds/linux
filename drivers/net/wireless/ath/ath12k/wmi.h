@@ -1929,6 +1929,19 @@ enum wmi_tlv_tag {
 	WMI_TAG_REGULATORY_RULE_EXT_STRUCT = 0x3A9,
 	WMI_TAG_REG_CHAN_LIST_CC_EXT_EVENT,
 	WMI_TAG_EHT_RATE_SET = 0x3C4,
+	WMI_TAG_DCS_AWGN_INT_TYPE = 0x3C5,
+	WMI_TAG_MLO_TX_SEND_PARAMS,
+	WMI_TAG_MLO_PARTNER_LINK_PARAMS,
+	WMI_TAG_MLO_PARTNER_LINK_PARAMS_PEER_ASSOC,
+	WMI_TAG_MLO_SETUP_CMD = 0x3C9,
+	WMI_TAG_MLO_SETUP_COMPLETE_EVENT,
+	WMI_TAG_MLO_READY_CMD,
+	WMI_TAG_MLO_TEARDOWN_CMD,
+	WMI_TAG_MLO_TEARDOWN_COMPLETE,
+	WMI_TAG_MLO_PEER_ASSOC_PARAMS = 0x3D0,
+	WMI_TAG_MLO_PEER_CREATE_PARAMS = 0x3D5,
+	WMI_TAG_MLO_VDEV_START_PARAMS = 0x3D6,
+	WMI_TAG_MLO_VDEV_CREATE_PARAMS = 0x3D7,
 	WMI_TAG_PDEV_SET_BIOS_SAR_TABLE_CMD = 0x3D8,
 	WMI_TAG_PDEV_SET_BIOS_GEO_TABLE_CMD = 0x3D9,
 	WMI_TAG_PDEV_SET_BIOS_INTERFACE_CMD = 0x3FB,
@@ -2740,6 +2753,7 @@ struct ath12k_wmi_vdev_create_arg {
 	u8 if_stats_id;
 	u32 mbssid_flags;
 	u32 mbssid_tx_vdev_id;
+	u8 mld_addr[ETH_ALEN];
 };
 
 #define ATH12K_MAX_VDEV_STATS_ID	0x30
@@ -2764,6 +2778,33 @@ struct ath12k_wmi_vdev_txrx_streams_params {
 	__le32 band;
 	__le32 supported_tx_streams;
 	__le32 supported_rx_streams;
+} __packed;
+
+struct wmi_vdev_create_mlo_params {
+	__le32 tlv_header;
+	struct ath12k_wmi_mac_addr_params mld_macaddr;
+} __packed;
+
+#define ATH12K_WMI_FLAG_MLO_ENABLED			BIT(0)
+#define ATH12K_WMI_FLAG_MLO_ASSOC_LINK			BIT(1)
+#define ATH12K_WMI_FLAG_MLO_PRIMARY_UMAC		BIT(2)
+#define ATH12K_WMI_FLAG_MLO_LOGICAL_LINK_IDX_VALID	BIT(3)
+#define ATH12K_WMI_FLAG_MLO_PEER_ID_VALID		BIT(4)
+#define ATH12K_WMI_FLAG_MLO_MCAST_VDEV			BIT(5)
+#define ATH12K_WMI_FLAG_MLO_EMLSR_SUPPORT		BIT(6)
+#define ATH12K_WMI_FLAG_MLO_FORCED_INACTIVE		BIT(7)
+#define ATH12K_WMI_FLAG_MLO_LINK_ADD			BIT(8)
+
+struct wmi_vdev_start_mlo_params {
+	__le32 tlv_header;
+	__le32 flags;
+} __packed;
+
+struct wmi_partner_link_info {
+	__le32 tlv_header;
+	__le32 vdev_id;
+	__le32 hw_link_id;
+	struct ath12k_wmi_mac_addr_params vdev_addr;
 } __packed;
 
 struct wmi_vdev_delete_cmd {
@@ -2909,6 +2950,27 @@ enum wmi_phy_mode {
 	MODE_MAX = 33,
 };
 
+#define ATH12K_WMI_MLO_MAX_LINKS 4
+
+struct wmi_ml_partner_info {
+	u32 vdev_id;
+	u32 hw_link_id;
+	u8 addr[ETH_ALEN];
+	bool assoc_link;
+	bool primary_umac;
+	bool logical_link_idx_valid;
+	u32 logical_link_idx;
+};
+
+struct wmi_ml_arg {
+	bool enabled;
+	bool assoc_link;
+	bool mcast_link;
+	bool link_add;
+	u8 num_partner_links;
+	struct wmi_ml_partner_info partner_info[ATH12K_WMI_MLO_MAX_LINKS];
+};
+
 struct wmi_vdev_start_req_arg {
 	u32 vdev_id;
 	u32 freq;
@@ -2946,6 +3008,7 @@ struct wmi_vdev_start_req_arg {
 	u32 mbssid_flags;
 	u32 mbssid_tx_vdev_id;
 	u32 punct_bitmap;
+	struct wmi_ml_arg ml;
 };
 
 struct ath12k_wmi_peer_create_arg {
