@@ -91,6 +91,7 @@ static void nvmet_execute_get_supported_log_pages(struct nvmet_req *req)
 	logs->lids[NVME_LOG_ENDURANCE_GROUP] = cpu_to_le32(NVME_LIDS_LSUPP);
 	logs->lids[NVME_LOG_ANA] = cpu_to_le32(NVME_LIDS_LSUPP);
 	logs->lids[NVME_LOG_FEATURES] = cpu_to_le32(NVME_LIDS_LSUPP);
+	logs->lids[NVME_LOG_RMI] = cpu_to_le32(NVME_LIDS_LSUPP);
 	logs->lids[NVME_LOG_RESERVATION] = cpu_to_le32(NVME_LIDS_LSUPP);
 
 	status = nvmet_copy_to_sgl(req, 0, logs, sizeof(*logs));
@@ -156,6 +157,45 @@ static u16 nvmet_get_smart_log_all(struct nvmet_req *req,
 	put_unaligned_le64(data_units_written, &slog->data_units_written[0]);
 
 	return NVME_SC_SUCCESS;
+}
+
+static void nvmet_execute_get_log_page_rmi(struct nvmet_req *req)
+{
+	struct nvme_rotational_media_log *log;
+	struct gendisk *disk;
+	u16 status;
+
+	req->cmd->common.nsid = cpu_to_le32(le16_to_cpu(
+					    req->cmd->get_log_page.lsi));
+	status = nvmet_req_find_ns(req);
+	if (status)
+		goto out;
+
+	if (!req->ns->bdev || bdev_nonrot(req->ns->bdev)) {
+		status = NVME_SC_INVALID_FIELD | NVME_STATUS_DNR;
+		goto out;
+	}
+
+	if (req->transfer_len != sizeof(*log)) {
+		status = NVME_SC_SGL_INVALID_DATA | NVME_STATUS_DNR;
+		goto out;
+	}
+
+	log = kzalloc(sizeof(*log), GFP_KERNEL);
+	if (!log)
+		goto out;
+
+	log->endgid = req->cmd->get_log_page.lsi;
+	disk = req->ns->bdev->bd_disk;
+	if (disk && disk->ia_ranges)
+		log->numa = cpu_to_le16(disk->ia_ranges->nr_ia_ranges);
+	else
+		log->numa = cpu_to_le16(1);
+
+	status = nvmet_copy_to_sgl(req, 0, log, sizeof(*log));
+	kfree(log);
+out:
+	nvmet_req_complete(req, status);
 }
 
 static void nvmet_execute_get_log_page_smart(struct nvmet_req *req)
@@ -451,6 +491,8 @@ static void nvmet_execute_get_log_page(struct nvmet_req *req)
 		return nvmet_execute_get_log_page_ana(req);
 	case NVME_LOG_FEATURES:
 		return nvmet_execute_get_log_page_features(req);
+	case NVME_LOG_RMI:
+		return nvmet_execute_get_log_page_rmi(req);
 	case NVME_LOG_RESERVATION:
 		return nvmet_execute_get_log_page_resv(req);
 	}
