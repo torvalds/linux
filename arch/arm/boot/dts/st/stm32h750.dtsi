@@ -1,6 +1,0 @@
-/* SPDX-License-Identifier: (GPL-2.0+ OR BSD-3-Clause) */
-/* Copyright (C) STMicroelectronics 2021 - All Rights Reserved */
-
-#include "stm32h743.dtsi"
-
-
