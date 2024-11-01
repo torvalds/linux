@@ -79,12 +79,29 @@ struct ath12k_peer *ath12k_peer_find_by_addr(struct ath12k_base *ab,
 	return NULL;
 }
 
+static struct ath12k_peer *ath12k_peer_find_by_ml_id(struct ath12k_base *ab,
+						     int ml_peer_id)
+{
+	struct ath12k_peer *peer;
+
+	lockdep_assert_held(&ab->base_lock);
+
+	list_for_each_entry(peer, &ab->peers, list)
+		if (ml_peer_id == peer->ml_id)
+			return peer;
+
+	return NULL;
+}
+
 struct ath12k_peer *ath12k_peer_find_by_id(struct ath12k_base *ab,
 					   int peer_id)
 {
 	struct ath12k_peer *peer;
 
 	lockdep_assert_held(&ab->base_lock);
+
+	if (peer_id & ATH12K_PEER_ML_ID_VALID)
+		return ath12k_peer_find_by_ml_id(ab, peer_id);
 
 	list_for_each_entry(peer, &ab->peers, list)
 		if (peer_id == peer->peer_id)

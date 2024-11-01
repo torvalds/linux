@@ -19,6 +19,8 @@ struct ppdu_user_delayba {
 	u32 resp_rate_flags;
 };
 
+#define ATH12K_PEER_ML_ID_VALID         BIT(13)
+
 struct ath12k_peer {
 	struct list_head list;
 	struct ieee80211_sta *sta;
@@ -47,6 +49,8 @@ struct ath12k_peer {
 
 	/* protected by ab->data_lock */
 	bool dp_setup_done;
+
+	u16 ml_id;
 };
 
 struct ath12k_ml_peer {
