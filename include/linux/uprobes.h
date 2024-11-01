@@ -121,6 +121,9 @@ struct hprobe {
 struct uprobe_task {
 	enum uprobe_task_state		state;
 
+	unsigned int			depth;
+	struct return_instance		*return_instances;
+
 	union {
 		struct {
 			struct arch_uprobe_task	autask;
@@ -138,9 +141,6 @@ struct uprobe_task {
 	unsigned long			xol_vaddr;
 
 	struct arch_uprobe              *auprobe;
-
-	struct return_instance		*return_instances;
-	unsigned int			depth;
 };
 
 struct return_consumer {
