@@ -668,6 +668,7 @@ struct hci_conn {
 	__u8		adv_instance;
 	__u16		handle;
 	__u16		sync_handle;
+	__u8		sid;
 	__u16		state;
 	__u16		mtu;
 	__u8		mode;
@@ -947,6 +948,7 @@ enum {
 	HCI_CONN_CREATE_CIS,
 	HCI_CONN_BIG_SYNC,
 	HCI_CONN_BIG_SYNC_FAILED,
+	HCI_CONN_CREATE_PA_SYNC,
 	HCI_CONN_PA_SYNC,
 	HCI_CONN_PA_SYNC_FAILED,
 };
@@ -1094,6 +1096,30 @@ static inline struct hci_conn *hci_conn_hash_lookup_bis(struct hci_dev *hdev,
 			return c;
 		}
 	}
+	rcu_read_unlock();
+
+	return NULL;
+}
+
+static inline struct hci_conn *hci_conn_hash_lookup_sid(struct hci_dev *hdev,
+							__u8 sid,
+							bdaddr_t *dst,
+							__u8 dst_type)
+{
+	struct hci_conn_hash *h = &hdev->conn_hash;
+	struct hci_conn  *c;
+
+	rcu_read_lock();
+
+	list_for_each_entry_rcu(c, &h->list, list) {
+		if (c->type != ISO_LINK  || bacmp(&c->dst, dst) ||
+		    c->dst_type != dst_type || c->sid != sid)
+			continue;
+
+		rcu_read_unlock();
+		return c;
+	}
+
 	rcu_read_unlock();
 
 	return NULL;
@@ -1328,6 +1354,13 @@ hci_conn_hash_lookup_pa_sync_handle(struct hci_dev *hdev, __u16 sync_handle)
 		if (c->type != ISO_LINK)
 			continue;
 
+		/* Ignore the listen hcon, we are looking
+		 * for the child hcon that was created as
+		 * a result of the PA sync established event.
+		 */
+		if (c->state == BT_LISTEN)
+			continue;
+
 		if (c->sync_handle == sync_handle) {
 			rcu_read_unlock();
 			return c;
@@ -1445,6 +1478,7 @@ bool hci_setup_sync(struct hci_conn *conn, __u16 handle);
 void hci_sco_setup(struct hci_conn *conn, __u8 status);
 bool hci_iso_setup_path(struct hci_conn *conn);
 int hci_le_create_cis_pending(struct hci_dev *hdev);
+int hci_pa_create_sync_pending(struct hci_dev *hdev);
 int hci_conn_check_create_cis(struct hci_conn *conn);
 
 struct hci_conn *hci_conn_add(struct hci_dev *hdev, int type, bdaddr_t *dst,

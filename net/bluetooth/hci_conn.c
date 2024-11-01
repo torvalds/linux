@@ -952,6 +952,7 @@ static struct hci_conn *__hci_conn_add(struct hci_dev *hdev, int type, bdaddr_t 
 	conn->tx_power = HCI_TX_POWER_INVALID;
 	conn->max_tx_power = HCI_TX_POWER_INVALID;
 	conn->sync_handle = HCI_SYNC_HANDLE_INVALID;
+	conn->sid = HCI_SID_INVALID;
 
 	set_bit(HCI_CONN_POWER_SAVE, &conn->flags);
 	conn->disc_timeout = HCI_DISCONN_TIMEOUT;
@@ -2062,73 +2063,119 @@ static int create_big_sync(struct hci_dev *hdev, void *data)
 
 static void create_pa_complete(struct hci_dev *hdev, void *data, int err)
 {
-	struct hci_cp_le_pa_create_sync *cp = data;
-
 	bt_dev_dbg(hdev, "");
 
 	if (err)
 		bt_dev_err(hdev, "Unable to create PA: %d", err);
+}
 
-	kfree(cp);
+static bool hci_conn_check_create_pa_sync(struct hci_conn *conn)
+{
+	if (conn->type != ISO_LINK || conn->sid == HCI_SID_INVALID)
+		return false;
+
+	return true;
 }
 
 static int create_pa_sync(struct hci_dev *hdev, void *data)
 {
-	struct hci_cp_le_pa_create_sync *cp = data;
-	int err;
+	struct hci_cp_le_pa_create_sync *cp = NULL;
+	struct hci_conn *conn;
+	int err = 0;
 
-	err = __hci_cmd_sync_status(hdev, HCI_OP_LE_PA_CREATE_SYNC,
-				    sizeof(*cp), cp, HCI_CMD_TIMEOUT);
-	if (err) {
-		hci_dev_clear_flag(hdev, HCI_PA_SYNC);
-		return err;
+	hci_dev_lock(hdev);
+
+	rcu_read_lock();
+
+	/* The spec allows only one pending LE Periodic Advertising Create
+	 * Sync command at a time. If the command is pending now, don't do
+	 * anything. We check for pending connections after each PA Sync
+	 * Established event.
+	 *
+	 * BLUETOOTH CORE SPECIFICATION Version 5.3 | Vol 4, Part E
+	 * page 2493:
+	 *
+	 * If the Host issues this command when another HCI_LE_Periodic_
+	 * Advertising_Create_Sync command is pending, the Controller shall
+	 * return the error code Command Disallowed (0x0C).
+	 */
+	list_for_each_entry_rcu(conn, &hdev->conn_hash.list, list) {
+		if (test_bit(HCI_CONN_CREATE_PA_SYNC, &conn->flags))
+			goto unlock;
 	}
 
-	return hci_update_passive_scan_sync(hdev);
+	list_for_each_entry_rcu(conn, &hdev->conn_hash.list, list) {
+		if (hci_conn_check_create_pa_sync(conn)) {
+			struct bt_iso_qos *qos = &conn->iso_qos;
+
+			cp = kzalloc(sizeof(*cp), GFP_KERNEL);
+			if (!cp) {
+				err = -ENOMEM;
+				goto unlock;
+			}
+
+			cp->options = qos->bcast.options;
+			cp->sid = conn->sid;
+			cp->addr_type = conn->dst_type;
+			bacpy(&cp->addr, &conn->dst);
+			cp->skip = cpu_to_le16(qos->bcast.skip);
+			cp->sync_timeout = cpu_to_le16(qos->bcast.sync_timeout);
+			cp->sync_cte_type = qos->bcast.sync_cte_type;
+
+			break;
+		}
+	}
+
+unlock:
+	rcu_read_unlock();
+
+	hci_dev_unlock(hdev);
+
+	if (cp) {
+		hci_dev_set_flag(hdev, HCI_PA_SYNC);
+		set_bit(HCI_CONN_CREATE_PA_SYNC, &conn->flags);
+
+		err = __hci_cmd_sync_status(hdev, HCI_OP_LE_PA_CREATE_SYNC,
+					    sizeof(*cp), cp, HCI_CMD_TIMEOUT);
+		if (!err)
+			err = hci_update_passive_scan_sync(hdev);
+
+		kfree(cp);
+
+		if (err) {
+			hci_dev_clear_flag(hdev, HCI_PA_SYNC);
+			clear_bit(HCI_CONN_CREATE_PA_SYNC, &conn->flags);
+		}
+	}
+
+	return err;
+}
+
+int hci_pa_create_sync_pending(struct hci_dev *hdev)
+{
+	/* Queue start pa_create_sync and scan */
+	return hci_cmd_sync_queue(hdev, create_pa_sync,
+				  NULL, create_pa_complete);
 }
 
 struct hci_conn *hci_pa_create_sync(struct hci_dev *hdev, bdaddr_t *dst,
 				    __u8 dst_type, __u8 sid,
 				    struct bt_iso_qos *qos)
 {
-	struct hci_cp_le_pa_create_sync *cp;
 	struct hci_conn *conn;
-	int err;
-
-	if (hci_dev_test_and_set_flag(hdev, HCI_PA_SYNC))
-		return ERR_PTR(-EBUSY);
 
 	conn = hci_conn_add_unset(hdev, ISO_LINK, dst, HCI_ROLE_SLAVE);
 	if (IS_ERR(conn))
 		return conn;
 
 	conn->iso_qos = *qos;
+	conn->dst_type = dst_type;
+	conn->sid = sid;
 	conn->state = BT_LISTEN;
 
 	hci_conn_hold(conn);
 
-	cp = kzalloc(sizeof(*cp), GFP_KERNEL);
-	if (!cp) {
-		hci_dev_clear_flag(hdev, HCI_PA_SYNC);
-		hci_conn_drop(conn);
-		return ERR_PTR(-ENOMEM);
-	}
-
-	cp->options = qos->bcast.options;
-	cp->sid = sid;
-	cp->addr_type = dst_type;
-	bacpy(&cp->addr, dst);
-	cp->skip = cpu_to_le16(qos->bcast.skip);
-	cp->sync_timeout = cpu_to_le16(qos->bcast.sync_timeout);
-	cp->sync_cte_type = qos->bcast.sync_cte_type;
-
-	/* Queue start pa_create_sync and scan */
-	err = hci_cmd_sync_queue(hdev, create_pa_sync, cp, create_pa_complete);
-	if (err < 0) {
-		hci_conn_drop(conn);
-		kfree(cp);
-		return ERR_PTR(err);
-	}
+	hci_pa_create_sync_pending(hdev);
 
 	return conn;
 }
