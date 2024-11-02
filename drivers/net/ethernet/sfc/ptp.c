@@ -1800,11 +1800,6 @@ int efx_ptp_tx(struct efx_nic *efx, struct sk_buff *skb)
 	return NETDEV_TX_OK;
 }
 
-int efx_ptp_get_mode(struct efx_nic *efx)
-{
-	return efx->ptp_data->mode;
-}
-
 int efx_ptp_change_mode(struct efx_nic *efx, bool enable_wanted,
 			unsigned int new_mode)
 {

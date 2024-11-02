@@ -49,14 +49,6 @@ static inline u8 *efx_tx_get_copy_buffer(struct efx_tx_queue *tx_queue,
 	return (u8 *)page_buf->addr + offset;
 }
 
-u8 *efx_tx_get_copy_buffer_limited(struct efx_tx_queue *tx_queue,
-				   struct efx_tx_buffer *buffer, size_t len)
-{
-	if (len > EFX_TX_CB_SIZE)
-		return NULL;
-	return efx_tx_get_copy_buffer(tx_queue, buffer);
-}
-
 static void efx_tx_maybe_stop_queue(struct efx_tx_queue *txq1)
 {
 	/* We need to consider all queues that the net core sees as one */
