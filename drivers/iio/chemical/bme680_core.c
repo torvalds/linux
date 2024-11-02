@@ -16,8 +16,11 @@
 #include <linux/module.h>
 #include <linux/regmap.h>
 
+#include <linux/iio/buffer.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
+#include <linux/iio/trigger_consumer.h>
+#include <linux/iio/triggered_buffer.h>
 
 #include <linux/unaligned.h>
 
@@ -101,6 +104,13 @@ enum bme680_op_mode {
 	BME680_MODE_FORCED = 1,
 };
 
+enum bme680_scan {
+	BME680_TEMP,
+	BME680_PRESS,
+	BME680_HUMID,
+	BME680_GAS,
+};
+
 struct bme680_data {
 	struct regmap *regmap;
 	struct bme680_calib bme680;
@@ -111,8 +121,13 @@ struct bme680_data {
 	u16 heater_dur;
 	u16 heater_temp;
 
+	struct {
+		s32 chan[4];
+		aligned_s64 ts;
+	} scan;
+
 	union {
-		u8 buf[3];
+		u8 buf[BME680_NUM_BULK_READ_REGS];
 		unsigned int check;
 		__be16 be16;
 		u8 bme680_cal_buf_1[BME680_CALIB_RANGE_1_LEN];
@@ -149,6 +164,13 @@ static const struct iio_chan_spec bme680_channels[] = {
 				      BIT(IIO_CHAN_INFO_RAW) |
 				      BIT(IIO_CHAN_INFO_SCALE) |
 				      BIT(IIO_CHAN_INFO_OVERSAMPLING_RATIO),
+		.scan_index = 0,
+		.scan_type = {
+			.sign = 's',
+			.realbits = 16,
+			.storagebits = 16,
+			.endianness = IIO_CPU,
+		},
 	},
 	{
 		.type = IIO_PRESSURE,
@@ -157,6 +179,13 @@ static const struct iio_chan_spec bme680_channels[] = {
 				      BIT(IIO_CHAN_INFO_RAW) |
 				      BIT(IIO_CHAN_INFO_SCALE) |
 				      BIT(IIO_CHAN_INFO_OVERSAMPLING_RATIO),
+		.scan_index = 1,
+		.scan_type = {
+			.sign = 'u',
+			.realbits = 32,
+			.storagebits = 32,
+			.endianness = IIO_CPU,
+		},
 	},
 	{
 		.type = IIO_HUMIDITYRELATIVE,
@@ -165,11 +194,26 @@ static const struct iio_chan_spec bme680_channels[] = {
 				      BIT(IIO_CHAN_INFO_RAW) |
 				      BIT(IIO_CHAN_INFO_SCALE) |
 				      BIT(IIO_CHAN_INFO_OVERSAMPLING_RATIO),
+		.scan_index = 2,
+		.scan_type = {
+			.sign = 'u',
+			.realbits = 32,
+			.storagebits = 32,
+			.endianness = IIO_CPU,
+		},
 	},
 	{
 		.type = IIO_RESISTANCE,
 		.info_mask_separate = BIT(IIO_CHAN_INFO_PROCESSED),
+		.scan_index = 3,
+		.scan_type = {
+			.sign = 'u',
+			.realbits = 32,
+			.storagebits = 32,
+			.endianness = IIO_CPU,
+		},
 	},
+	IIO_CHAN_SOFT_TIMESTAMP(4),
 };
 
 static int bme680_read_calib(struct bme680_data *data,
@@ -920,6 +964,86 @@ static const struct iio_info bme680_info = {
 	.attrs = &bme680_attribute_group,
 };
 
+static const unsigned long bme680_avail_scan_masks[] = {
+	BIT(BME680_GAS) | BIT(BME680_HUMID) | BIT(BME680_PRESS) | BIT(BME680_TEMP),
+	0
+};
+
+static irqreturn_t bme680_trigger_handler(int irq, void *p)
+{
+	struct iio_poll_func *pf = p;
+	struct iio_dev *indio_dev = pf->indio_dev;
+	struct bme680_data *data = iio_priv(indio_dev);
+	struct device *dev = regmap_get_device(data->regmap);
+	u32 adc_temp, adc_press, adc_humid;
+	u16 adc_gas_res, gas_regs_val;
+	u8 gas_range;
+	s32 t_fine;
+	int ret;
+
+	guard(mutex)(&data->lock);
+
+	ret = bme680_set_mode(data, BME680_MODE_FORCED);
+	if (ret < 0)
+		goto out;
+
+	ret = bme680_wait_for_eoc(data);
+	if (ret)
+		goto out;
+
+	ret = regmap_bulk_read(data->regmap, BME680_REG_MEAS_STAT_0,
+			       data->buf, sizeof(data->buf));
+	if (ret) {
+		dev_err(dev, "failed to burst read sensor data\n");
+		goto out;
+	}
+	if (data->buf[0] & BME680_GAS_MEAS_BIT) {
+		dev_err(dev, "gas measurement incomplete\n");
+		goto out;
+	}
+
+	/* Temperature calculations */
+	adc_temp = FIELD_GET(BME680_MEAS_TRIM_MASK, get_unaligned_be24(&data->buf[5]));
+	if (adc_temp == BME680_MEAS_SKIPPED) {
+		dev_err(dev, "reading temperature skipped\n");
+		goto out;
+	}
+	data->scan.chan[0] = bme680_compensate_temp(data, adc_temp);
+	t_fine = bme680_calc_t_fine(data, adc_temp);
+
+	/* Pressure calculations */
+	adc_press = FIELD_GET(BME680_MEAS_TRIM_MASK, get_unaligned_be24(&data->buf[2]));
+	if (adc_press == BME680_MEAS_SKIPPED) {
+		dev_err(dev, "reading pressure skipped\n");
+		goto out;
+	}
+	data->scan.chan[1] = bme680_compensate_press(data, adc_press, t_fine);
+
+	/* Humidity calculations */
+	adc_humid = get_unaligned_be16(&data->buf[8]);
+	if (adc_humid == BME680_MEAS_SKIPPED) {
+		dev_err(dev, "reading humidity skipped\n");
+		goto out;
+	}
+	data->scan.chan[2] = bme680_compensate_humid(data, adc_humid, t_fine);
+
+	/* Gas calculations */
+	gas_regs_val = get_unaligned_be16(&data->buf[13]);
+	adc_gas_res = FIELD_GET(BME680_ADC_GAS_RES, gas_regs_val);
+	if ((gas_regs_val & BME680_GAS_STAB_BIT) == 0) {
+		dev_err(dev, "heater failed to reach the target temperature\n");
+		goto out;
+	}
+	gas_range = FIELD_GET(BME680_GAS_RANGE_MASK, gas_regs_val);
+	data->scan.chan[3] = bme680_compensate_gas(data, adc_gas_res, gas_range);
+
+	iio_push_to_buffers_with_timestamp(indio_dev, &data->scan,
+					   iio_get_time_ns(indio_dev));
+out:
+	iio_trigger_notify_done(indio_dev->trig);
+	return IRQ_HANDLED;
+}
+
 int bme680_core_probe(struct device *dev, struct regmap *regmap,
 		      const char *name)
 {
@@ -938,6 +1062,7 @@ int bme680_core_probe(struct device *dev, struct regmap *regmap,
 	indio_dev->name = name;
 	indio_dev->channels = bme680_channels;
 	indio_dev->num_channels = ARRAY_SIZE(bme680_channels);
+	indio_dev->available_scan_masks = bme680_avail_scan_masks;
 	indio_dev->info = &bme680_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 
@@ -979,6 +1104,14 @@ int bme680_core_probe(struct device *dev, struct regmap *regmap,
 	if (ret < 0)
 		return dev_err_probe(dev, ret,
 				     "failed to set gas config data\n");
+
+	ret = devm_iio_triggered_buffer_setup(dev, indio_dev,
+					      iio_pollfunc_store_time,
+					      bme680_trigger_handler,
+					      NULL);
+	if (ret)
+		return dev_err_probe(dev, ret,
+				     "iio triggered buffer setup failed\n");
 
 	return devm_iio_device_register(dev, indio_dev);
 }
