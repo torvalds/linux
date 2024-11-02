@@ -201,6 +201,16 @@ _c_flags += $(if $(patsubst n%,, \
 	$(CFLAGS_AUTOFDO_CLANG))
 endif
 
+#
+# Enable Propeller build flags except some files or directories we don't want to
+# enable (depends on variables AUTOFDO_PROPELLER_obj.o and PROPELLER_PROFILE).
+#
+ifdef CONFIG_PROPELLER_CLANG
+_c_flags += $(if $(patsubst n%,, \
+	$(AUTOFDO_PROFILE_$(target-stem).o)$(AUTOFDO_PROFILE)$(PROPELLER_PROFILE))$(is-kernel-object), \
+	$(CFLAGS_PROPELLER_CLANG))
+endif
+
 # $(src) for including checkin headers from generated source files
 # $(obj) for including generated headers from checkin source files
 ifeq ($(KBUILD_EXTMOD),)

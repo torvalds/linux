@@ -831,6 +831,25 @@ config AUTOFDO_CLANG
 
 	  If unsure, say N.
 
+config ARCH_SUPPORTS_PROPELLER_CLANG
+	bool
+
+config PROPELLER_CLANG
+	bool "Enable Clang's Propeller build"
+	depends on ARCH_SUPPORTS_PROPELLER_CLANG
+	depends on CC_IS_CLANG && CLANG_VERSION >= 190000
+	help
+	  This option enables Clang’s Propeller build. When the Propeller
+	  profiles is specified in variable CLANG_PROPELLER_PROFILE_PREFIX
+	  during the build process, Clang uses the profiles to optimize
+	  the kernel.
+
+	  If no profile is specified, Propeller options are still passed
+	  to Clang to facilitate the collection of perf data for creating
+	  the Propeller profiles in subsequent builds.
+
+	  If unsure, say N.
+
 config ARCH_SUPPORTS_CFI_CLANG
 	bool
 	help
