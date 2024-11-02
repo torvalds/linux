@@ -9,7 +9,6 @@
 #include "etnaviv_gem.h"
 #include "etnaviv_gpu.h"
 #include "etnaviv_mmu.h"
-#include "etnaviv_perfmon.h"
 
 #define SUBALLOC_SIZE		SZ_512K
 #define SUBALLOC_GRANULE	SZ_4K
