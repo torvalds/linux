@@ -21930,17 +21930,6 @@ L:	linux-media@vger.kernel.org
 S:	Maintained
 F:	drivers/staging/media/atomisp/
 
-STAGING - FIELDBUS SUBSYSTEM
-M:	Sven Van Asbroeck <TheSven73@gmail.com>
-S:	Maintained
-F:	drivers/staging/fieldbus/*
-F:	drivers/staging/fieldbus/Documentation/
-
-STAGING - HMS ANYBUS-S BUS
-M:	Sven Van Asbroeck <TheSven73@gmail.com>
-S:	Maintained
-F:	drivers/staging/fieldbus/anybuss/
-
 STAGING - INDUSTRIAL IO
 M:	Jonathan Cameron <jic23@kernel.org>
 L:	linux-iio@vger.kernel.org
