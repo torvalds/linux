@@ -191,6 +191,16 @@ _c_flags += $(if $(patsubst n%,, \
 	-D__KCSAN_INSTRUMENT_BARRIERS__)
 endif
 
+#
+# Enable AutoFDO build flags except some files or directories we don't want to
+# enable (depends on variables AUTOFDO_PROFILE_obj.o and AUTOFDO_PROFILE).
+#
+ifeq ($(CONFIG_AUTOFDO_CLANG),y)
+_c_flags += $(if $(patsubst n%,, \
+	$(AUTOFDO_PROFILE_$(target-stem).o)$(AUTOFDO_PROFILE)$(is-kernel-object)), \
+	$(CFLAGS_AUTOFDO_CLANG))
+endif
+
 # $(src) for including checkin headers from generated source files
 # $(obj) for including generated headers from checkin source files
 ifeq ($(KBUILD_EXTMOD),)
