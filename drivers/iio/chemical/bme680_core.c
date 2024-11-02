@@ -118,6 +118,7 @@ struct bme680_data {
 	u8 oversampling_temp;
 	u8 oversampling_press;
 	u8 oversampling_humid;
+	u8 preheat_curr_mA;
 	u16 heater_dur;
 	u16 heater_temp;
 
@@ -214,6 +215,12 @@ static const struct iio_chan_spec bme680_channels[] = {
 		},
 	},
 	IIO_CHAN_SOFT_TIMESTAMP(4),
+	{
+		.type = IIO_CURRENT,
+		.info_mask_separate = BIT(IIO_CHAN_INFO_PROCESSED),
+		.output = 1,
+		.scan_index = -1,
+	},
 };
 
 static int bme680_read_calib(struct bme680_data *data,
@@ -561,6 +568,12 @@ static u8 bme680_calc_heater_dur(u16 dur)
 	return durval;
 }
 
+/* Taken from datasheet, section 5.3.3 */
+static u8 bme680_calc_heater_preheat_current(u8 curr)
+{
+	return 8 * curr - 1;
+}
+
 static int bme680_set_mode(struct bme680_data *data, enum bme680_op_mode mode)
 {
 	struct device *dev = regmap_get_device(data->regmap);
@@ -659,6 +672,20 @@ static int bme680_chip_config(struct bme680_data *data)
 	return 0;
 }
 
+static int bme680_preheat_curr_config(struct bme680_data *data, u8 val)
+{
+	struct device *dev = regmap_get_device(data->regmap);
+	u8 heatr_curr;
+	int ret;
+
+	heatr_curr = bme680_calc_heater_preheat_current(val);
+	ret = regmap_write(data->regmap, BME680_REG_IDAC_HEAT_0, heatr_curr);
+	if (ret < 0)
+		dev_err(dev, "failed to write idac_heat_0 register\n");
+
+	return ret;
+}
+
 static int bme680_gas_config(struct bme680_data *data)
 {
 	struct device *dev = regmap_get_device(data->regmap);
@@ -686,6 +713,10 @@ static int bme680_gas_config(struct bme680_data *data)
 		dev_err(dev, "failed to write gas_wait_0 register\n");
 		return ret;
 	}
+
+	ret = bme680_preheat_curr_config(data, data->preheat_curr_mA);
+	if (ret)
+		return ret;
 
 	/* Enable the gas sensor and select heater profile set-point 0 */
 	ret = regmap_update_bits(data->regmap, BME680_REG_CTRL_GAS_1,
@@ -939,6 +970,15 @@ static int bme680_write_raw(struct iio_dev *indio_dev,
 
 		return bme680_chip_config(data);
 	}
+	case IIO_CHAN_INFO_PROCESSED:
+	{
+		switch (chan->type) {
+		case IIO_CURRENT:
+			return bme680_preheat_curr_config(data, (u8)val);
+		default:
+			return -EINVAL;
+		}
+	}
 	default:
 		return -EINVAL;
 	}
@@ -1072,6 +1112,7 @@ int bme680_core_probe(struct device *dev, struct regmap *regmap,
 	data->oversampling_temp = 8;  /* 8X oversampling rate */
 	data->heater_temp = 320; /* degree Celsius */
 	data->heater_dur = 150;  /* milliseconds */
+	data->preheat_curr_mA = 0;
 
 	ret = regmap_write(regmap, BME680_REG_SOFT_RESET, BME680_CMD_SOFTRESET);
 	if (ret < 0)
