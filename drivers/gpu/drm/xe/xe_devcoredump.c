@@ -29,30 +29,39 @@
 /**
  * DOC: Xe device coredump
  *
- * Devices overview:
  * Xe uses dev_coredump infrastructure for exposing the crash errors in a
- * standardized way.
- * devcoredump exposes a temporary device under /sys/class/devcoredump/
- * which is linked with our card device directly.
- * The core dump can be accessed either from
- * /sys/class/drm/card<n>/device/devcoredump/ or from
- * /sys/class/devcoredump/devcd<m> where
- * /sys/class/devcoredump/devcd<m>/failing_device is a link to
- * /sys/class/drm/card<n>/device/.
+ * standardized way. Once a crash occurs, devcoredump exposes a temporary
+ * node under ``/sys/class/devcoredump/devcd<m>/``. The same node is also
+ * accessible in ``/sys/class/drm/card<n>/device/devcoredump/``. The
+ * ``failing_device`` symlink points to the device that crashed and created the
+ * coredump.
  *
- * Snapshot at hang:
- * The 'data' file is printed with a drm_printer pointer at devcoredump read
- * time. For this reason, we need to take snapshots from when the hang has
- * happened, and not only when the user is reading the file. Otherwise the
- * information is outdated since the resets might have happened in between.
+ * The following characteristics are observed by xe when creating a device
+ * coredump:
  *
- * 'First' failure snapshot:
- * In general, the first hang is the most critical one since the following hangs
- * can be a consequence of the initial hang. For this reason we only take the
- * snapshot of the 'first' failure and ignore subsequent calls of this function,
- * at least while the coredump device is alive. Dev_coredump has a delayed work
- * queue that will eventually delete the device and free all the dump
- * information.
+ * **Snapshot at hang**:
+ *   The 'data' file contains a snapshot of the HW and driver states at the time
+ *   the hang happened. Due to the driver recovering from resets/crashes, it may
+ *   not correspond to the state of the system when the file is read by
+ *   userspace.
+ *
+ * **Coredump release**:
+ *   After a coredump is generated, it stays in kernel memory until released by
+ *   userpace by writing anything to it, or after an internal timer expires. The
+ *   exact timeout may vary and should not be relied upon. Example to release
+ *   a coredump:
+ *
+ *   .. code-block:: shell
+ *
+ *	$ > /sys/class/drm/card0/device/devcoredump/data
+ *
+ * **First failure only**:
+ *   In general, the first hang is the most critical one since the following
+ *   hangs can be a consequence of the initial hang. For this reason a snapshot
+ *   is taken only for the first failure. Until the devcoredump is released by
+ *   userspace or kernel, all subsequent hangs do not override the snapshot nor
+ *   create new ones. Devcoredump has a delayed work queue that will eventually
+ *   delete the file node and free all the dump information.
  */
 
 #ifdef CONFIG_DEV_COREDUMP
