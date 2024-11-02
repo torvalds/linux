@@ -495,9 +495,14 @@ alternative_else_nop_endif
 	 * via capabilities.
 	 */
 	mrs	x9, ID_AA64MMFR1_EL1
-	and	x9, x9, ID_AA64MMFR1_EL1_HAFDBS_MASK
+	ubfx	x9, x9, ID_AA64MMFR1_EL1_HAFDBS_SHIFT, #4
 	cbz	x9, 1f
 	orr	tcr, tcr, #TCR_HA		// hardware Access flag update
+#ifdef CONFIG_ARM64_HAFT
+	cmp	x9, ID_AA64MMFR1_EL1_HAFDBS_HAFT
+	b.lt	1f
+	orr	tcr2, tcr2, TCR2_EL1x_HAFT
+#endif /* CONFIG_ARM64_HAFT */
 1:
 #endif	/* CONFIG_ARM64_HW_AFDBM */
 	msr	mair_el1, mair

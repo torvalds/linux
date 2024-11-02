@@ -2176,6 +2176,21 @@ config ARCH_PKEY_BITS
 	int
 	default 3
 
+config ARM64_HAFT
+	bool "Support for Hardware managed Access Flag for Table Descriptors"
+	depends on ARM64_HW_AFDBM
+	default y
+	help
+	  The ARMv8.9/ARMv9.5 introduces the feature Hardware managed Access
+	  Flag for Table descriptors. When enabled an architectural executed
+	  memory access will update the Access Flag in each Table descriptor
+	  which is accessed during the translation table walk and for which
+	  the Access Flag is 0. The Access Flag of the Table descriptor use
+	  the same bit of PTE_AF.
+
+	  The feature will only be enabled if all the CPUs in the system
+	  support this feature. If unsure, say Y.
+
 endmenu # "ARMv8.9 architectural features"
 
 config ARM64_SVE

@@ -2591,6 +2591,21 @@ static const struct arm64_cpu_capabilities arm64_features[] = {
 		ARM64_CPUID_FIELDS(ID_AA64MMFR1_EL1, HAFDBS, DBM)
 	},
 #endif
+#ifdef CONFIG_ARM64_HAFT
+	{
+		.desc = "Hardware managed Access Flag for Table Descriptors",
+		/*
+		 * Contrary to the page/block access flag, the table access flag
+		 * cannot be emulated in software (no access fault will occur).
+		 * Therefore this should be used only if it's supported system
+		 * wide.
+		 */
+		.type = ARM64_CPUCAP_SYSTEM_FEATURE,
+		.capability = ARM64_HAFT,
+		.matches = has_cpuid_feature,
+		ARM64_CPUID_FIELDS(ID_AA64MMFR1_EL1, HAFDBS, HAFT)
+	},
+#endif
 	{
 		.desc = "CRC32 instructions",
 		.capability = ARM64_HAS_CRC32,
