@@ -76,17 +76,6 @@ void efx_mae_mport_uplink(struct efx_nic *efx __always_unused, u32 *out)
 	*out = EFX_DWORD_VAL(mport);
 }
 
-void efx_mae_mport_vf(struct efx_nic *efx __always_unused, u32 vf_id, u32 *out)
-{
-	efx_dword_t mport;
-
-	EFX_POPULATE_DWORD_3(mport,
-			     MAE_MPORT_SELECTOR_TYPE, MAE_MPORT_SELECTOR_TYPE_FUNC,
-			     MAE_MPORT_SELECTOR_FUNC_PF_ID, MAE_MPORT_SELECTOR_FUNC_PF_ID_CALLER,
-			     MAE_MPORT_SELECTOR_FUNC_VF_ID, vf_id);
-	*out = EFX_DWORD_VAL(mport);
-}
-
 /* Constructs an mport selector from an mport ID, because they're not the same */
 void efx_mae_mport_mport(struct efx_nic *efx __always_unused, u32 mport_id, u32 *out)
 {
