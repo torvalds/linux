@@ -241,8 +241,8 @@ static int _dpu_format_populate_plane_sizes_linear(
 	return 0;
 }
 
-/*
- * dpu_format_populate_addrs - populate non-address part of the layout based on
+/**
+ * dpu_format_populate_plane_sizes - populate non-address part of the layout based on
  *                     fb, and format found in the fb
  * @fb:                framebuffer pointer
  * @layout:              format layout structure to populate
@@ -366,6 +366,13 @@ static void _dpu_format_populate_addrs_linear(struct msm_gem_address_space *aspa
 		layout->plane_addr[i] = msm_framebuffer_iova(fb, aspace, i);
 }
 
+/**
+ * dpu_format_populate_addrs - populate buffer addresses based on
+ *                     mmu, fb, and format found in the fb
+ * @aspace:            address space pointer
+ * @fb:                framebuffer pointer
+ * @layout:            format layout structure to populate
+ */
 void dpu_format_populate_addrs(struct msm_gem_address_space *aspace,
 			       struct drm_framebuffer *fb,
 			       struct dpu_hw_fmt_layout *layout)

@@ -213,6 +213,14 @@ static void _setup_wb_ops(struct dpu_hw_wb_ops *ops,
 		ops->setup_clk_force_ctrl = dpu_hw_wb_setup_clk_force_ctrl;
 }
 
+/**
+ * dpu_hw_wb_init() - Initializes the writeback hw driver object.
+ * @dev:  Corresponding device for devres management
+ * @cfg:  wb_path catalog entry for which driver object is required
+ * @addr: mapped register io address of MDP
+ * @mdss_rev: dpu core's major and minor versions
+ * Return: Error code or allocated dpu_hw_wb context
+ */
 struct dpu_hw_wb *dpu_hw_wb_init(struct drm_device *dev,
 				 const struct dpu_wb_cfg *cfg,
 				 void __iomem *addr,

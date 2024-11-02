@@ -319,15 +319,7 @@ struct dpu_hw_sspp {
 };
 
 struct dpu_kms;
-/**
- * dpu_hw_sspp_init() - Initializes the sspp hw driver object.
- * Should be called once before accessing every pipe.
- * @dev:  Corresponding device for devres management
- * @cfg:  Pipe catalog entry for which driver object is required
- * @addr: Mapped register io address of MDP
- * @mdss_data: UBWC / MDSS configuration data
- * @mdss_rev: dpu core's major and minor versions
- */
+
 struct dpu_hw_sspp *dpu_hw_sspp_init(struct drm_device *dev,
 				     const struct dpu_sspp_cfg *cfg,
 				     void __iomem *addr,

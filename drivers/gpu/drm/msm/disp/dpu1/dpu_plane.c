@@ -1041,6 +1041,10 @@ static void dpu_plane_flush_csc(struct dpu_plane *pdpu, struct dpu_sw_pipe *pipe
 
 }
 
+/**
+ * dpu_plane_flush - final plane operations before commit flush
+ * @plane: Pointer to drm plane structure
+ */
 void dpu_plane_flush(struct drm_plane *plane)
 {
 	struct dpu_plane *pdpu;
@@ -1429,7 +1433,15 @@ static const struct drm_plane_helper_funcs dpu_plane_helper_funcs = {
 		.atomic_update = dpu_plane_atomic_update,
 };
 
-/* initialize plane */
+/**
+ * dpu_plane_init - create new dpu plane for the given pipe
+ * @dev:   Pointer to DRM device
+ * @pipe:  dpu hardware pipe identifier
+ * @type:  Plane type - PRIMARY/OVERLAY/CURSOR
+ * @possible_crtcs: bitmask of crtc that can be attached to the given pipe
+ *
+ * Initialize the plane.
+ */
 struct drm_plane *dpu_plane_init(struct drm_device *dev,
 		uint32_t pipe, enum drm_plane_type type,
 		unsigned long possible_crtcs)
