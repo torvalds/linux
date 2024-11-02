@@ -196,21 +196,26 @@ static vm_fault_t vvar_vclock_fault(const struct vm_special_mapping *sm,
 	switch (vmf->pgoff) {
 #ifdef CONFIG_PARAVIRT_CLOCK
 	case VDSO_PAGE_PVCLOCK_OFFSET:
+	{
 		struct pvclock_vsyscall_time_info *pvti =
 			pvclock_get_pvti_cpu0_va();
+
 		if (pvti && vclock_was_used(VDSO_CLOCKMODE_PVCLOCK))
 			return vmf_insert_pfn_prot(vma, vmf->address,
 					__pa(pvti) >> PAGE_SHIFT,
 					pgprot_decrypted(vma->vm_page_prot));
 		break;
+	}
 #endif /* CONFIG_PARAVIRT_CLOCK */
 #ifdef CONFIG_HYPERV_TIMER
 	case VDSO_PAGE_HVCLOCK_OFFSET:
+	{
 		unsigned long pfn = hv_get_tsc_pfn();
 
 		if (pfn && vclock_was_used(VDSO_CLOCKMODE_HVCLOCK))
 			return vmf_insert_pfn(vma, vmf->address, pfn);
 		break;
+	}
 #endif /* CONFIG_HYPERV_TIMER */
 	}
 
