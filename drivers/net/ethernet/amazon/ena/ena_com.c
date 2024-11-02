@@ -2183,21 +2183,6 @@ int ena_com_get_ena_srd_info(struct ena_com_dev *ena_dev,
 	return ret;
 }
 
-int ena_com_get_dev_basic_stats(struct ena_com_dev *ena_dev,
-				struct ena_admin_basic_stats *stats)
-{
-	struct ena_com_stats_ctx ctx;
-	int ret;
-
-	memset(&ctx, 0x0, sizeof(ctx));
-	ret = ena_get_dev_stats(ena_dev, &ctx, ENA_ADMIN_GET_STATS_TYPE_BASIC);
-	if (likely(ret == 0))
-		memcpy(stats, &ctx.get_resp.u.basic_stats,
-		       sizeof(ctx.get_resp.u.basic_stats));
-
-	return ret;
-}
-
 int ena_com_get_customer_metrics(struct ena_com_dev *ena_dev, char *buffer, u32 len)
 {
 	struct ena_admin_aq_get_stats_cmd *get_cmd;
@@ -2272,24 +2257,6 @@ int ena_com_set_dev_mtu(struct ena_com_dev *ena_dev, u32 mtu)
 		netdev_err(ena_dev->net_device, "Failed to set mtu %d. error: %d\n", mtu, ret);
 
 	return ret;
-}
-
-int ena_com_get_offload_settings(struct ena_com_dev *ena_dev,
-				 struct ena_admin_feature_offload_desc *offload)
-{
-	int ret;
-	struct ena_admin_get_feat_resp resp;
-
-	ret = ena_com_get_feature(ena_dev, &resp,
-				  ENA_ADMIN_STATELESS_OFFLOAD_CONFIG, 0);
-	if (unlikely(ret)) {
-		netdev_err(ena_dev->net_device, "Failed to get offload capabilities %d\n", ret);
-		return ret;
-	}
-
-	memcpy(offload, &resp.u.offload, sizeof(resp.u.offload));
-
-	return 0;
 }
 
 int ena_com_set_hash_function(struct ena_com_dev *ena_dev)
