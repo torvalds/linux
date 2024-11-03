@@ -241,7 +241,6 @@ extern void block_signals(void);
 extern void unblock_signals(void);
 extern int um_set_signals(int enable);
 extern int um_set_signals_trace(int enable);
-extern int os_is_signal_stack(void);
 extern void deliver_alarm(void);
 extern void register_pm_wake_signal(void);
 extern void block_signals_hard(void);

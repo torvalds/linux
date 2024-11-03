@@ -487,11 +487,3 @@ void unblock_signals_hard(void)
 	unblocking = false;
 }
 #endif
-
-int os_is_signal_stack(void)
-{
-	stack_t ss;
-	sigaltstack(NULL, &ss);
-
-	return ss.ss_flags & SS_ONSTACK;
-}
