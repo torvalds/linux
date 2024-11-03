@@ -166,9 +166,90 @@ static int mlx5_dpll_device_mode_get(const struct dpll_device *dpll,
 	return 0;
 }
 
+enum {
+	MLX5_DPLL_SSM_CODE_PRC = 0b0010,
+	MLX5_DPLL_SSM_CODE_SSU_A = 0b0100,
+	MLX5_DPLL_SSM_CODE_SSU_B = 0b1000,
+	MLX5_DPLL_SSM_CODE_EEC1 = 0b1011,
+	MLX5_DPLL_SSM_CODE_PRTC = 0b0010,
+	MLX5_DPLL_SSM_CODE_EPRTC = 0b0010,
+	MLX5_DPLL_SSM_CODE_EEEC = 0b1011,
+	MLX5_DPLL_SSM_CODE_EPRC = 0b0010,
+};
+
+enum {
+	MLX5_DPLL_ENHANCED_SSM_CODE_PRC = 0xff,
+	MLX5_DPLL_ENHANCED_SSM_CODE_SSU_A = 0xff,
+	MLX5_DPLL_ENHANCED_SSM_CODE_SSU_B = 0xff,
+	MLX5_DPLL_ENHANCED_SSM_CODE_EEC1 = 0xff,
+	MLX5_DPLL_ENHANCED_SSM_CODE_PRTC = 0x20,
+	MLX5_DPLL_ENHANCED_SSM_CODE_EPRTC = 0x21,
+	MLX5_DPLL_ENHANCED_SSM_CODE_EEEC = 0x22,
+	MLX5_DPLL_ENHANCED_SSM_CODE_EPRC = 0x23,
+};
+
+#define __MLX5_DPLL_SSM_COMBINED_CODE(ssm_code, enhanced_ssm_code)		\
+	((ssm_code) | ((enhanced_ssm_code) << 8))
+
+#define MLX5_DPLL_SSM_COMBINED_CODE(type)					\
+	__MLX5_DPLL_SSM_COMBINED_CODE(MLX5_DPLL_SSM_CODE_##type,		\
+				      MLX5_DPLL_ENHANCED_SSM_CODE_##type)
+
+static int mlx5_dpll_clock_quality_level_get(const struct dpll_device *dpll,
+					     void *priv, unsigned long *qls,
+					     struct netlink_ext_ack *extack)
+{
+	u8 network_option, ssm_code, enhanced_ssm_code;
+	u32 out[MLX5_ST_SZ_DW(msecq_reg)] = {};
+	u32 in[MLX5_ST_SZ_DW(msecq_reg)] = {};
+	struct mlx5_dpll *mdpll = priv;
+	int err;
+
+	err = mlx5_core_access_reg(mdpll->mdev, in, sizeof(in),
+				   out, sizeof(out), MLX5_REG_MSECQ, 0, 0);
+	if (err)
+		return err;
+	network_option = MLX5_GET(msecq_reg, out, network_option);
+	if (network_option != 1)
+		goto errout;
+	ssm_code = MLX5_GET(msecq_reg, out, local_ssm_code);
+	enhanced_ssm_code = MLX5_GET(msecq_reg, out, local_enhanced_ssm_code);
+
+	switch (__MLX5_DPLL_SSM_COMBINED_CODE(ssm_code, enhanced_ssm_code)) {
+	case MLX5_DPLL_SSM_COMBINED_CODE(PRC):
+		__set_bit(DPLL_CLOCK_QUALITY_LEVEL_ITU_OPT1_PRC, qls);
+		return 0;
+	case MLX5_DPLL_SSM_COMBINED_CODE(SSU_A):
+		__set_bit(DPLL_CLOCK_QUALITY_LEVEL_ITU_OPT1_SSU_A, qls);
+		return 0;
+	case MLX5_DPLL_SSM_COMBINED_CODE(SSU_B):
+		__set_bit(DPLL_CLOCK_QUALITY_LEVEL_ITU_OPT1_SSU_B, qls);
+		return 0;
+	case MLX5_DPLL_SSM_COMBINED_CODE(EEC1):
+		__set_bit(DPLL_CLOCK_QUALITY_LEVEL_ITU_OPT1_EEC1, qls);
+		return 0;
+	case MLX5_DPLL_SSM_COMBINED_CODE(PRTC):
+		__set_bit(DPLL_CLOCK_QUALITY_LEVEL_ITU_OPT1_PRTC, qls);
+		return 0;
+	case MLX5_DPLL_SSM_COMBINED_CODE(EPRTC):
+		__set_bit(DPLL_CLOCK_QUALITY_LEVEL_ITU_OPT1_EPRTC, qls);
+		return 0;
+	case MLX5_DPLL_SSM_COMBINED_CODE(EEEC):
+		__set_bit(DPLL_CLOCK_QUALITY_LEVEL_ITU_OPT1_EEEC, qls);
+		return 0;
+	case MLX5_DPLL_SSM_COMBINED_CODE(EPRC):
+		__set_bit(DPLL_CLOCK_QUALITY_LEVEL_ITU_OPT1_EPRC, qls);
+		return 0;
+	}
+errout:
+	NL_SET_ERR_MSG_MOD(extack, "Invalid clock quality level obtained from firmware\n");
+	return -EINVAL;
+}
+
 static const struct dpll_device_ops mlx5_dpll_device_ops = {
 	.lock_status_get = mlx5_dpll_device_lock_status_get,
 	.mode_get = mlx5_dpll_device_mode_get,
+	.clock_quality_level_get = mlx5_dpll_clock_quality_level_get,
 };
 
 static int mlx5_dpll_pin_direction_get(const struct dpll_pin *pin,
