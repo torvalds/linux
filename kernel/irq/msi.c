@@ -718,7 +718,7 @@ static int msi_domain_alloc(struct irq_domain *domain, unsigned int virq,
 		ret = ops->msi_init(domain, info, virq + i, hwirq + i, arg);
 		if (ret < 0) {
 			if (ops->msi_free) {
-				for (i--; i > 0; i--)
+				for (i--; i >= 0; i--)
 					ops->msi_free(domain, info, virq + i);
 			}
 			irq_domain_free_irqs_top(domain, virq, nr_irqs);
