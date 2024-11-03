@@ -10,16 +10,18 @@
 #endif
 
 struct sockaddr_in6 srv_sa6 = {};
+struct sockaddr_in srv_sa4 = {};
 __u16 listen_tp_sport = 0;
 __u16 req_sk_sport = 0;
 __u32 recv_cookie = 0;
 __u32 gen_cookie = 0;
+__u32 mss = 0;
 __u32 linum = 0;
 
 #define LOG() ({ if (!linum) linum = __LINE__; })
 
-static void test_syncookie_helper(struct ipv6hdr *ip6h, struct tcphdr *th,
-				  struct tcp_sock *tp,
+static void test_syncookie_helper(void *iphdr, int iphdr_size,
+				  struct tcphdr *th, struct tcp_sock *tp,
 				  struct __sk_buff *skb)
 {
 	if (th->syn) {
@@ -38,17 +40,18 @@ static void test_syncookie_helper(struct ipv6hdr *ip6h, struct tcphdr *th,
 			return;
 		}
 
-		mss_cookie = bpf_tcp_gen_syncookie(tp, ip6h, sizeof(*ip6h),
+		mss_cookie = bpf_tcp_gen_syncookie(tp, iphdr, iphdr_size,
 						   th, 40);
 		if (mss_cookie < 0) {
 			if (mss_cookie != -ENOENT)
 				LOG();
 		} else {
 			gen_cookie = (__u32)mss_cookie;
+			mss = mss_cookie >> 32;
 		}
 	} else if (gen_cookie) {
 		/* It was in cookie mode */
-		int ret = bpf_tcp_check_syncookie(tp, ip6h, sizeof(*ip6h),
+		int ret = bpf_tcp_check_syncookie(tp, iphdr, iphdr_size,
 						  th, sizeof(*th));
 
 		if (ret < 0) {
@@ -60,26 +63,58 @@ static void test_syncookie_helper(struct ipv6hdr *ip6h, struct tcphdr *th,
 	}
 }
 
-static int handle_ip6_tcp(struct ipv6hdr *ip6h, struct __sk_buff *skb)
+static int handle_ip_tcp(struct ethhdr *eth, struct __sk_buff *skb)
 {
-	struct bpf_sock_tuple *tuple;
+	struct bpf_sock_tuple *tuple = NULL;
+	unsigned int tuple_len = 0;
 	struct bpf_sock *bpf_skc;
-	unsigned int tuple_len;
+	void *data_end, *iphdr;
+	struct ipv6hdr *ip6h;
+	struct iphdr *ip4h;
 	struct tcphdr *th;
-	void *data_end;
+	int iphdr_size;
 
 	data_end = (void *)(long)(skb->data_end);
 
-	th = (struct tcphdr *)(ip6h + 1);
-	if (th + 1 > data_end)
+	switch (eth->h_proto) {
+	case bpf_htons(ETH_P_IP):
+		ip4h = (struct iphdr *)(eth + 1);
+		if (ip4h + 1 > data_end)
+			return TC_ACT_OK;
+		if (ip4h->protocol != IPPROTO_TCP)
+			return TC_ACT_OK;
+		th = (struct tcphdr *)(ip4h + 1);
+		if (th + 1 > data_end)
+			return TC_ACT_OK;
+		/* Is it the testing traffic? */
+		if (th->dest != srv_sa4.sin_port)
+			return TC_ACT_OK;
+		tuple_len = sizeof(tuple->ipv4);
+		tuple = (struct bpf_sock_tuple *)&ip4h->saddr;
+		iphdr = ip4h;
+		iphdr_size = sizeof(*ip4h);
+		break;
+	case bpf_htons(ETH_P_IPV6):
+		ip6h = (struct ipv6hdr *)(eth + 1);
+		if (ip6h + 1 > data_end)
+			return TC_ACT_OK;
+		if (ip6h->nexthdr != IPPROTO_TCP)
+			return TC_ACT_OK;
+		th = (struct tcphdr *)(ip6h + 1);
+		if (th + 1 > data_end)
+			return TC_ACT_OK;
+		/* Is it the testing traffic? */
+		if (th->dest != srv_sa6.sin6_port)
+			return TC_ACT_OK;
+		tuple_len = sizeof(tuple->ipv6);
+		tuple = (struct bpf_sock_tuple *)&ip6h->saddr;
+		iphdr = ip6h;
+		iphdr_size = sizeof(*ip6h);
+		break;
+	default:
 		return TC_ACT_OK;
+	}
 
-	/* Is it the testing traffic? */
-	if (th->dest != srv_sa6.sin6_port)
-		return TC_ACT_OK;
-
-	tuple_len = sizeof(tuple->ipv6);
-	tuple = (struct bpf_sock_tuple *)&ip6h->saddr;
 	if ((void *)tuple + tuple_len > data_end) {
 		LOG();
 		return TC_ACT_OK;
@@ -126,7 +161,7 @@ static int handle_ip6_tcp(struct ipv6hdr *ip6h, struct __sk_buff *skb)
 
 		listen_tp_sport = tp->inet_conn.icsk_inet.sk.__sk_common.skc_num;
 
-		test_syncookie_helper(ip6h, th, tp, skb);
+		test_syncookie_helper(iphdr, iphdr_size, th, tp, skb);
 		bpf_sk_release(tp);
 		return TC_ACT_OK;
 	}
@@ -142,7 +177,6 @@ release:
 SEC("tc")
 int cls_ingress(struct __sk_buff *skb)
 {
-	struct ipv6hdr *ip6h;
 	struct ethhdr *eth;
 	void *data_end;
 
@@ -152,17 +186,11 @@ int cls_ingress(struct __sk_buff *skb)
 	if (eth + 1 > data_end)
 		return TC_ACT_OK;
 
-	if (eth->h_proto != bpf_htons(ETH_P_IPV6))
+	if (eth->h_proto != bpf_htons(ETH_P_IP) &&
+	    eth->h_proto != bpf_htons(ETH_P_IPV6))
 		return TC_ACT_OK;
 
-	ip6h = (struct ipv6hdr *)(eth + 1);
-	if (ip6h + 1 > data_end)
-		return TC_ACT_OK;
-
-	if (ip6h->nexthdr == IPPROTO_TCP)
-		return handle_ip6_tcp(ip6h, skb);
-
-	return TC_ACT_OK;
+	return handle_ip_tcp(eth, skb);
 }
 
 char _license[] SEC("license") = "GPL";
