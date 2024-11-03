@@ -130,9 +130,7 @@ u8 rtw_hal_set_def_var(struct adapter *padapter, enum hal_def_variable eVariable
 
 u8 rtw_hal_get_def_var(struct adapter *padapter, enum hal_def_variable eVariable, void *pValue)
 {
-	if (padapter->HalFunc.GetHalDefVarHandler)
-		return padapter->HalFunc.GetHalDefVarHandler(padapter, eVariable, pValue);
-	return _FAIL;
+	return GetHalDefVar8723BSDIO(padapter, eVariable, pValue);
 }
 
 void rtw_hal_set_odm_var(struct adapter *padapter, enum hal_odm_variable eVariable, void *pValue1, bool bSet)
