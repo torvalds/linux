@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB */
 /* Copyright (c) 2024 NVIDIA Corporation & Affiliates */
 
-#ifndef MLX5HWS_ACTION_H_
-#define MLX5HWS_ACTION_H_
+#ifndef HWS_ACTION_H_
+#define HWS_ACTION_H_
 
 /* Max number of STEs needed for a rule (including match) */
 #define MLX5HWS_ACTION_MAX_STE 20
@@ -304,4 +304,4 @@ mlx5hws_action_apply_setter(struct mlx5hws_actions_apply_data *apply,
 		htonl(num_of_actions << 29);
 }
 
-#endif /* MLX5HWS_ACTION_H_ */
+#endif /* HWS_ACTION_H_ */

@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB */
 /* Copyright (c) 2024 NVIDIA Corporation & Affiliates */
 
-#ifndef MLX5HWS_CMD_H_
-#define MLX5HWS_CMD_H_
+#ifndef HWS_CMD_H_
+#define HWS_CMD_H_
 
 #define WIRE_PORT 0xFFFF
 
@@ -358,4 +358,4 @@ int mlx5hws_cmd_allow_other_vhca_access(struct mlx5_core_dev *mdev,
 int mlx5hws_cmd_query_gvmi(struct mlx5_core_dev *mdev, bool other_function,
 			   u16 vport_number, u16 *gvmi);
 
-#endif /* MLX5HWS_CMD_H_ */
+#endif /* HWS_CMD_H_ */

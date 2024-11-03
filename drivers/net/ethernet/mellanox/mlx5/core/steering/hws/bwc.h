@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB */
 /* Copyright (c) 2024 NVIDIA Corporation & Affiliates */
 
-#ifndef MLX5HWS_BWC_H_
-#define MLX5HWS_BWC_H_
+#ifndef HWS_BWC_H_
+#define HWS_BWC_H_
 
 #define MLX5HWS_BWC_MATCHER_INIT_SIZE_LOG 1
 #define MLX5HWS_BWC_MATCHER_SIZE_LOG_STEP 1
@@ -70,4 +70,4 @@ static inline u16 mlx5hws_bwc_get_queue_id(struct mlx5hws_context *ctx, u16 idx)
 	return idx + mlx5hws_bwc_queues(ctx);
 }
 
-#endif /* MLX5HWS_BWC_H_ */
+#endif /* HWS_BWC_H_ */

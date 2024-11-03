@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
 /* Copyright (c) 2024 NVIDIA Corporation & Affiliates */
 
-#include "mlx5hws_internal.h"
+#include "internal.h"
 
 bool mlx5hws_bwc_match_params_is_complex(struct mlx5hws_context *ctx,
 					 u8 match_criteria_enable,

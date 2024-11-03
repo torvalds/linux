@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB */
 /* Copyright (c) 2024 NVIDIA Corporation & Affiliates */
 
-#ifndef MLX5HWS_CONTEXT_H_
-#define MLX5HWS_CONTEXT_H_
+#ifndef HWS_CONTEXT_H_
+#define HWS_CONTEXT_H_
 
 enum mlx5hws_context_flags {
 	MLX5HWS_CONTEXT_FLAG_HWS_SUPPORT = 1 << 0,
@@ -62,4 +62,4 @@ bool mlx5hws_context_cap_dynamic_reparse(struct mlx5hws_context *ctx);
 
 u8 mlx5hws_context_get_reparse_mode(struct mlx5hws_context *ctx);
 
-#endif /* MLX5HWS_CONTEXT_H_ */
+#endif /* HWS_CONTEXT_H_ */

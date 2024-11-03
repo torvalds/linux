@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB */
 /* Copyright (c) 2024 NVIDIA Corporation & Affiliates */
 
-#ifndef MLX5HWS_MATCHER_H_
-#define MLX5HWS_MATCHER_H_
+#ifndef HWS_MATCHER_H_
+#define HWS_MATCHER_H_
 
 /* We calculated that concatenating a collision table to the main table with
  * 3% of the main table rows will be enough resources for high insertion
@@ -104,4 +104,4 @@ static inline bool mlx5hws_matcher_is_insert_by_idx(struct mlx5hws_matcher *matc
 	return matcher->attr.insert_mode == MLX5HWS_MATCHER_INSERT_BY_INDEX;
 }
 
-#endif /* MLX5HWS_MATCHER_H_ */
+#endif /* HWS_MATCHER_H_ */

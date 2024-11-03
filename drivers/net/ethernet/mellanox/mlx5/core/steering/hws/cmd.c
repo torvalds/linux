@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
 /* Copyright (c) 2024 NVIDIA Corporation & Affiliates */
 
-#include "mlx5hws_internal.h"
+#include "internal.h"
 
 static enum mlx5_ifc_flow_destination_type
 hws_cmd_dest_type_to_ifc_dest_type(enum mlx5_flow_destination_type type)

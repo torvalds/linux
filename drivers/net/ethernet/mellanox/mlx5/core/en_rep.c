@@ -600,7 +600,8 @@ mlx5e_add_sqs_fwd_rules(struct mlx5e_priv *priv)
 			if (c->xdp)
 				sqs[num_sqs++] = c->rq_xdpsq.sqn;
 
-			sqs[num_sqs++] = c->xdpsq.sqn;
+			if (c->xdpsq)
+				sqs[num_sqs++] = c->xdpsq->sqn;
 		}
 	}
 	if (ptp_sq) {

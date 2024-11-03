@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
 /* Copyright (c) 2024 NVIDIA Corporation & Affiliates */
 
-#include "mlx5hws_internal.h"
-#include "mlx5hws_buddy.h"
+#include "internal.h"
+#include "buddy.h"
 
 static int hws_buddy_init(struct mlx5hws_buddy_mem *buddy, u32 max_order)
 {

@@ -5,7 +5,7 @@
 #include <linux/kernel.h>
 #include <linux/seq_file.h>
 #include <linux/version.h>
-#include "mlx5hws_internal.h"
+#include "internal.h"
 
 static int
 hws_debug_dump_matcher_template_definer(struct seq_file *f,

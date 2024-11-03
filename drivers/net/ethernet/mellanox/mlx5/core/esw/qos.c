@@ -951,6 +951,9 @@ static int esw_qos_devlink_rate_to_mbps(struct mlx5_core_dev *mdev, const char *
 
 int mlx5_esw_qos_init(struct mlx5_eswitch *esw)
 {
+	if (esw->qos.domain)
+		return 0;  /* Nothing to change. */
+
 	return esw_qos_domain_init(esw);
 }
 

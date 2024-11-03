@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
 /* Copyright (c) 2024 NVIDIA Corporation & Affiliates */
 
-#include "mlx5hws_internal.h"
-#include "mlx5hws_buddy.h"
+#include "internal.h"
+#include "buddy.h"
 
 static void hws_pool_free_one_resource(struct mlx5hws_pool_resource *resource)
 {
