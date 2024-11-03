@@ -180,10 +180,6 @@ struct hal_ops {
 	void (*run_thread)(struct adapter *padapter);
 	void (*cancel_thread)(struct adapter *padapter);
 
-	/*
-	 * mgnt_xmit should be implemented to run in interrupt context
-	 */
-	s32 (*mgnt_xmit)(struct adapter *padapter, struct xmit_frame *pmgntframe);
 	s32	(*hal_xmitframe_enqueue)(struct adapter *padapter, struct xmit_frame *pxmitframe);
 
 	u32 (*read_bbreg)(struct adapter *padapter, u32 RegAddr, u32 BitMask);

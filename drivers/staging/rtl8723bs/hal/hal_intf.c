@@ -170,8 +170,6 @@ s32	rtw_hal_xmit(struct adapter *padapter, struct xmit_frame *pxmitframe)
  */
 s32	rtw_hal_mgnt_xmit(struct adapter *padapter, struct xmit_frame *pmgntframe)
 {
-	s32 ret = _FAIL;
-
 	update_mgntframe_attrib_addr(padapter, pmgntframe);
 	/* pframe = (u8 *)(pmgntframe->buf_addr) + TXDESC_OFFSET; */
 	/* pwlanhdr = (struct rtw_ieee80211_hdr *)pframe; */
@@ -188,9 +186,7 @@ s32	rtw_hal_mgnt_xmit(struct adapter *padapter, struct xmit_frame *pmgntframe)
 		rtw_mgmt_xmitframe_coalesce(padapter, pmgntframe->pkt, pmgntframe);
 	}
 
-	if (padapter->HalFunc.mgnt_xmit)
-		ret = padapter->HalFunc.mgnt_xmit(padapter, pmgntframe);
-	return ret;
+	return rtl8723bs_mgnt_xmit(padapter, pmgntframe);
 }
 
 s32	rtw_hal_init_xmit_priv(struct adapter *padapter)
