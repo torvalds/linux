@@ -156,12 +156,7 @@ void rtw_hal_disable_interrupt(struct adapter *padapter)
 
 u8 rtw_hal_check_ips_status(struct adapter *padapter)
 {
-	u8 val = false;
-
-	if (padapter->HalFunc.check_ips_status)
-		val = padapter->HalFunc.check_ips_status(padapter);
-
-	return val;
+	return CheckIPSStatus(padapter);
 }
 
 s32	rtw_hal_xmitframe_enqueue(struct adapter *padapter, struct xmit_frame *pxmitframe)
