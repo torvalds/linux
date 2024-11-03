@@ -623,7 +623,7 @@ static int vhost_user_set_mem_table(struct virtio_uml_device *vu_dev)
 {
 	struct vhost_user_msg msg = {
 		.header.request = VHOST_USER_SET_MEM_TABLE,
-		.header.size = sizeof(msg.payload.mem_regions),
+		.header.size = offsetof(typeof(msg.payload.mem_regions), regions[1]),
 		.payload.mem_regions.num = 1,
 	};
 	unsigned long reserved = uml_reserved - uml_physmem;
