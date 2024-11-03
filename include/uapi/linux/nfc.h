@@ -164,6 +164,7 @@ enum nfc_commands {
  * @NFC_ATTR_VENDOR_SUBCMD: Vendor specific sub command
  * @NFC_ATTR_VENDOR_DATA: Vendor specific data, to be optionally passed
  *	to a vendor specific command implementation
+ * @NFC_ATTR_TARGET_ATS: ISO 14443 type A target Answer To Select
  */
 enum nfc_attrs {
 	NFC_ATTR_UNSPEC,
@@ -198,6 +199,7 @@ enum nfc_attrs {
 	NFC_ATTR_VENDOR_ID,
 	NFC_ATTR_VENDOR_SUBCMD,
 	NFC_ATTR_VENDOR_DATA,
+	NFC_ATTR_TARGET_ATS,
 /* private: internal use only */
 	__NFC_ATTR_AFTER_LAST
 };
@@ -225,6 +227,7 @@ enum nfc_sdp_attr {
 #define NFC_GB_MAXSIZE			48
 #define NFC_FIRMWARE_NAME_MAXSIZE	32
 #define NFC_ISO15693_UID_MAXSIZE	8
+#define NFC_ATS_MAXSIZE			20
 
 /* NFC protocols */
 #define NFC_PROTO_JEWEL		1
