@@ -841,7 +841,7 @@ static const struct attribute_group pci_dev_config_attr_group = {
 static __maybe_unused loff_t
 pci_llseek_resource(struct file *filep,
 		    struct kobject *kobj __always_unused,
-		    struct bin_attribute *attr,
+		    const struct bin_attribute *attr,
 		    loff_t offset, int whence)
 {
 	return fixed_size_llseek(filep, offset, whence, attr->size);
