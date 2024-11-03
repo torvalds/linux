@@ -925,7 +925,7 @@ static struct bin_attribute *dev_bin_attrs[] = {
 };
 
 static umode_t dev_bin_attrs_are_visible(struct kobject *kobj,
-		struct bin_attribute *a, int n)
+		const struct bin_attribute *a, int n)
 {
 	struct device *dev = kobj_to_dev(kobj);
 	struct usb_device *udev = to_usb_device(dev);

@@ -101,7 +101,7 @@ struct attribute_group {
 	umode_t			(*is_visible)(struct kobject *,
 					      struct attribute *, int);
 	umode_t			(*is_bin_visible)(struct kobject *,
-						  struct bin_attribute *, int);
+						  const struct bin_attribute *, int);
 	size_t			(*bin_size)(struct kobject *,
 					    const struct bin_attribute *,
 					    int);
@@ -199,22 +199,22 @@ struct attribute_group {
  * attributes, the group visibility is determined by the function
  * specified to is_visible() not is_bin_visible()
  */
-#define DEFINE_SYSFS_BIN_GROUP_VISIBLE(name)                             \
-	static inline umode_t sysfs_group_visible_##name(                \
-		struct kobject *kobj, struct bin_attribute *attr, int n) \
-	{                                                                \
-		if (n == 0 && !name##_group_visible(kobj))               \
-			return SYSFS_GROUP_INVISIBLE;                    \
-		return name##_attr_visible(kobj, attr, n);               \
+#define DEFINE_SYSFS_BIN_GROUP_VISIBLE(name)                                   \
+	static inline umode_t sysfs_group_visible_##name(                      \
+		struct kobject *kobj, const struct bin_attribute *attr, int n) \
+	{                                                                      \
+		if (n == 0 && !name##_group_visible(kobj))                     \
+			return SYSFS_GROUP_INVISIBLE;                          \
+		return name##_attr_visible(kobj, attr, n);                     \
 	}
 
-#define DEFINE_SIMPLE_SYSFS_BIN_GROUP_VISIBLE(name)                   \
-	static inline umode_t sysfs_group_visible_##name(             \
-		struct kobject *kobj, struct bin_attribute *a, int n) \
-	{                                                             \
-		if (n == 0 && !name##_group_visible(kobj))            \
-			return SYSFS_GROUP_INVISIBLE;                 \
-		return a->mode;                                       \
+#define DEFINE_SIMPLE_SYSFS_BIN_GROUP_VISIBLE(name)                         \
+	static inline umode_t sysfs_group_visible_##name(                   \
+		struct kobject *kobj, const struct bin_attribute *a, int n) \
+	{                                                                   \
+		if (n == 0 && !name##_group_visible(kobj))                  \
+			return SYSFS_GROUP_INVISIBLE;                       \
+		return a->mode;                                             \
 	}
 
 #define SYSFS_GROUP_VISIBLE(fn) sysfs_group_visible_##fn
