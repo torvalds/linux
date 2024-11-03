@@ -1028,7 +1028,6 @@ static u16 hal_EfuseGetCurrentSize_BT(struct adapter *padapter, u8 bPseudoTest)
 		/*  only when bank is switched we have to reset the efuse_addr. */
 		if (bank != startBank)
 			efuse_addr = 0;
-#if 1
 
 		while (AVAILABLE_EFUSE_ADDR(efuse_addr)) {
 			if (efuse_OneByteRead(padapter, efuse_addr,
@@ -1057,33 +1056,6 @@ static u16 hal_EfuseGetCurrentSize_BT(struct adapter *padapter, u8 bPseudoTest)
 			/* read next header */
 			efuse_addr += (word_cnts*2)+1;
 		}
-#else
-	while (
-		bContinual &&
-		efuse_OneByteRead(padapter, efuse_addr, &efuse_data, bPseudoTest) &&
-		AVAILABLE_EFUSE_ADDR(efuse_addr)
-	) {
-			if (efuse_data != 0xFF) {
-				if ((efuse_data&0x1F) == 0x0F) { /* extended header */
-					efuse_addr++;
-					efuse_OneByteRead(padapter, efuse_addr, &efuse_data, bPseudoTest);
-					if ((efuse_data & 0x0F) == 0x0F) {
-						efuse_addr++;
-						continue;
-					} else {
-						hworden = efuse_data & 0x0F;
-					}
-				} else {
-					hworden =  efuse_data & 0x0F;
-				}
-				word_cnts = Efuse_CalculateWordCnts(hworden);
-				/* read next header */
-				efuse_addr = efuse_addr + (word_cnts*2)+1;
-			} else
-				bContinual = false;
-		}
-#endif
-
 
 		/*  Check if we need to check next bank efuse */
 		if (efuse_addr < retU2)
