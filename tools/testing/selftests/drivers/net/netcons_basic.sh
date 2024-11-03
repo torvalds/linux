@@ -20,16 +20,19 @@ SCRIPTDIR=$(dirname "$(readlink -e "${BASH_SOURCE[0]}")")
 
 # Simple script to test dynamic targets in netconsole
 SRCIF="" # to be populated later
-SRCIP=192.168.1.1
+SRCIP=192.0.2.1
 DSTIF="" # to be populated later
-DSTIP=192.168.1.2
+DSTIP=192.0.2.2
 
 PORT="6666"
 MSG="netconsole selftest"
+USERDATA_KEY="key"
+USERDATA_VALUE="value"
 TARGET=$(mktemp -u netcons_XXXXX)
 DEFAULT_PRINTK_VALUES=$(cat /proc/sys/kernel/printk)
 NETCONS_CONFIGFS="/sys/kernel/config/netconsole"
 NETCONS_PATH="${NETCONS_CONFIGFS}"/"${TARGET}"
+KEY_PATH="${NETCONS_PATH}/userdata/${USERDATA_KEY}"
 # NAMESPACE will be populated by setup_ns with a random value
 NAMESPACE=""
 
@@ -122,6 +125,8 @@ function cleanup() {
 
 	# delete netconsole dynamic reconfiguration
 	echo 0 > "${NETCONS_PATH}"/enabled
+	# Remove key
+	rmdir "${KEY_PATH}"
 	# Remove the configfs entry
 	rmdir "${NETCONS_PATH}"
 
@@ -136,6 +141,18 @@ function cleanup() {
 	echo "${DEFAULT_PRINTK_VALUES}" > /proc/sys/kernel/printk
 }
 
+function set_user_data() {
+	if [[ ! -d "${NETCONS_PATH}""/userdata" ]]
+	then
+		echo "Userdata path not available in ${NETCONS_PATH}/userdata"
+		exit "${ksft_skip}"
+	fi
+
+	mkdir -p "${KEY_PATH}"
+	VALUE_PATH="${KEY_PATH}""/value"
+	echo "${USERDATA_VALUE}" > "${VALUE_PATH}"
+}
+
 function listen_port_and_save_to() {
 	local OUTPUT=${1}
 	# Just wait for 2 seconds
@@ -146,6 +163,10 @@ function listen_port_and_save_to() {
 function validate_result() {
 	local TMPFILENAME="$1"
 
+	# TMPFILENAME will contain something like:
+	# 6.11.1-0_fbk0_rc13_509_g30d75cea12f7,13,1822,115075213798,-;netconsole selftest: netcons_gtJHM
+	#  key=value
+
 	# Check if the file exists
 	if [ ! -f "$TMPFILENAME" ]; then
 		echo "FAIL: File was not generated." >&2
@@ -154,6 +175,12 @@ function validate_result() {
 
 	if ! grep -q "${MSG}" "${TMPFILENAME}"; then
 		echo "FAIL: ${MSG} not found in ${TMPFILENAME}" >&2
+		cat "${TMPFILENAME}" >&2
+		exit "${ksft_fail}"
+	fi
+
+	if ! grep -q "${USERDATA_KEY}=${USERDATA_VALUE}" "${TMPFILENAME}"; then
+		echo "FAIL: ${USERDATA_KEY}=${USERDATA_VALUE} not found in ${TMPFILENAME}" >&2
 		cat "${TMPFILENAME}" >&2
 		exit "${ksft_fail}"
 	fi
@@ -220,6 +247,8 @@ trap cleanup EXIT
 set_network
 # Create a dynamic target for netconsole
 create_dynamic_target
+# Set userdata "key" with the "value" value
+set_user_data
 # Listed for netconsole port inside the namespace and destination interface
 listen_port_and_save_to "${OUTPUT_FILE}" &
 # Wait for socat to start and listen to the port.
