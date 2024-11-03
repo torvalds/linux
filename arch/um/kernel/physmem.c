@@ -101,7 +101,6 @@ void __init setup_physmem(unsigned long start, unsigned long reserve_end,
 	 */
 	os_seek_file(physmem_fd, __pa(__syscall_stub_start));
 	os_write_file(physmem_fd, __syscall_stub_start, PAGE_SIZE);
-	os_fsync_file(physmem_fd);
 
 	memblock_add(__pa(start), len);
 	memblock_reserve(__pa(start), reserve);
