@@ -118,8 +118,7 @@ void rtw_hal_get_hwreg(struct adapter *padapter, u8 variable, u8 *val)
 
 void rtw_hal_set_hwreg_with_buf(struct adapter *padapter, u8 variable, u8 *pbuf, int len)
 {
-	if (padapter->HalFunc.SetHwRegHandlerWithBuf)
-		padapter->HalFunc.SetHwRegHandlerWithBuf(padapter, variable, pbuf, len);
+	SetHwRegWithBuf8723B(padapter, variable, pbuf, len);
 }
 
 u8 rtw_hal_set_def_var(struct adapter *padapter, enum hal_def_variable eVariable, void *pValue)
