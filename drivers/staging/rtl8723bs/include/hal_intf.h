@@ -170,8 +170,6 @@ struct hal_ops {
 	void (*hal_dm_watchdog)(struct adapter *padapter);
 	void (*hal_dm_watchdog_in_lps)(struct adapter *padapter);
 
-	void (*GetHwRegHandler)(struct adapter *padapter, u8 variable, u8 *val);
-
 	void (*SetHwRegHandlerWithBuf)(struct adapter *padapter, u8 variable, u8 *pbuf, int len);
 
 	u8 (*GetHalDefVarHandler)(struct adapter *padapter, enum hal_def_variable eVariable, void *pValue);
@@ -318,5 +316,6 @@ s32 rtw_hal_macid_wakeup(struct adapter *padapter, u32 macid);
 s32 rtw_hal_fill_h2c_cmd(struct adapter *, u8 ElementID, u32 CmdLen, u8 *pCmdBuffer);
 
 void SetHwReg8723BS(struct adapter *padapter, u8 variable, u8 *val);
+void GetHwReg8723BS(struct adapter *padapter, u8 variable, u8 *val);
 
 #endif /* __HAL_INTF_H__ */
