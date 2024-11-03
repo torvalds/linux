@@ -47,7 +47,7 @@ static void io_req_uring_cleanup(struct io_kiocb *req, unsigned int issue_flags)
 }
 
 bool io_uring_try_cancel_uring_cmd(struct io_ring_ctx *ctx,
-				   struct task_struct *task, bool cancel_all)
+				   struct io_uring_task *tctx, bool cancel_all)
 {
 	struct hlist_node *tmp;
 	struct io_kiocb *req;
@@ -61,7 +61,7 @@ bool io_uring_try_cancel_uring_cmd(struct io_ring_ctx *ctx,
 				struct io_uring_cmd);
 		struct file *file = req->file;
 
-		if (!cancel_all && req->task != task)
+		if (!cancel_all && req->task->io_uring != tctx)
 			continue;
 
 		if (cmd->flags & IORING_URING_CMD_CANCELABLE) {

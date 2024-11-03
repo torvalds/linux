@@ -714,7 +714,7 @@ int io_arm_poll_handler(struct io_kiocb *req, unsigned issue_flags)
 /*
  * Returns true if we found and killed one or more poll requests
  */
-__cold bool io_poll_remove_all(struct io_ring_ctx *ctx, struct task_struct *tsk,
+__cold bool io_poll_remove_all(struct io_ring_ctx *ctx, struct io_uring_task *tctx,
 			       bool cancel_all)
 {
 	unsigned nr_buckets = 1U << ctx->cancel_table.hash_bits;
@@ -729,7 +729,7 @@ __cold bool io_poll_remove_all(struct io_ring_ctx *ctx, struct task_struct *tsk,
 		struct io_hash_bucket *hb = &ctx->cancel_table.hbs[i];
 
 		hlist_for_each_entry_safe(req, tmp, &hb->list, hash_node) {
-			if (io_match_task_safe(req, tsk, cancel_all)) {
+			if (io_match_task_safe(req, tctx, cancel_all)) {
 				hlist_del_init(&req->hash_node);
 				io_poll_cancel_req(req);
 				found = true;

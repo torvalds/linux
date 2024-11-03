@@ -637,13 +637,13 @@ void io_queue_linked_timeout(struct io_kiocb *req)
 	io_put_req(req);
 }
 
-static bool io_match_task(struct io_kiocb *head, struct task_struct *task,
+static bool io_match_task(struct io_kiocb *head, struct io_uring_task *tctx,
 			  bool cancel_all)
 	__must_hold(&head->ctx->timeout_lock)
 {
 	struct io_kiocb *req;
 
-	if (task && head->task != task)
+	if (tctx && head->task->io_uring != tctx)
 		return false;
 	if (cancel_all)
 		return true;
@@ -656,7 +656,7 @@ static bool io_match_task(struct io_kiocb *head, struct task_struct *task,
 }
 
 /* Returns true if we found and killed one or more timeouts */
-__cold bool io_kill_timeouts(struct io_ring_ctx *ctx, struct task_struct *tsk,
+__cold bool io_kill_timeouts(struct io_ring_ctx *ctx, struct io_uring_task *tctx,
 			     bool cancel_all)
 {
 	struct io_timeout *timeout, *tmp;
@@ -671,7 +671,7 @@ __cold bool io_kill_timeouts(struct io_ring_ctx *ctx, struct task_struct *tsk,
 	list_for_each_entry_safe(timeout, tmp, &ctx->timeout_list, list) {
 		struct io_kiocb *req = cmd_to_io_kiocb(timeout);
 
-		if (io_match_task(req, tsk, cancel_all) &&
+		if (io_match_task(req, tctx, cancel_all) &&
 		    io_kill_timeout(req, -ECANCELED))
 			canceled++;
 	}
