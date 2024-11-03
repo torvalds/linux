@@ -589,10 +589,11 @@ struct panthor_group {
 	 * @timedout: True when a timeout occurred on any of the queues owned by
 	 * this group.
 	 *
-	 * Timeouts can be reported by drm_sched or by the FW. In any case, any
-	 * timeout situation is unrecoverable, and the group becomes useless.
-	 * We simply wait for all references to be dropped so we can release the
-	 * group object.
+	 * Timeouts can be reported by drm_sched or by the FW. If a reset is required,
+	 * and the group can't be suspended, this also leads to a timeout. In any case,
+	 * any timeout situation is unrecoverable, and the group becomes useless. We
+	 * simply wait for all references to be dropped so we can release the group
+	 * object.
 	 */
 	bool timedout;
 
@@ -2640,6 +2641,12 @@ void panthor_sched_suspend(struct panthor_device *ptdev)
 		csgs_upd_ctx_init(&upd_ctx);
 		while (slot_mask) {
 			u32 csg_id = ffs(slot_mask) - 1;
+			struct panthor_csg_slot *csg_slot = &sched->csg_slots[csg_id];
+
+			/* We consider group suspension failures as fatal and flag the
+			 * group as unusable by setting timedout=true.
+			 */
+			csg_slot->group->timedout = true;
 
 			csgs_upd_ctx_queue_reqs(ptdev, &upd_ctx, csg_id,
 						CSG_STATE_TERMINATE,
@@ -3405,6 +3412,11 @@ panthor_job_create(struct panthor_file *pfile,
 
 	job->group = group_from_handle(gpool, group_handle);
 	if (!job->group) {
+		ret = -EINVAL;
+		goto err_put_job;
+	}
+
+	if (!group_can_run(job->group)) {
 		ret = -EINVAL;
 		goto err_put_job;
 	}

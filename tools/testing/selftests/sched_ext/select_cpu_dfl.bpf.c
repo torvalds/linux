@@ -35,6 +35,6 @@ void BPF_STRUCT_OPS(select_cpu_dfl_enqueue, struct task_struct *p,
 
 SEC(".struct_ops.link")
 struct sched_ext_ops select_cpu_dfl_ops = {
-	.enqueue		= select_cpu_dfl_enqueue,
+	.enqueue		= (void *) select_cpu_dfl_enqueue,
 	.name			= "select_cpu_dfl",
 };

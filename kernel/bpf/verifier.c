@@ -6804,20 +6804,10 @@ static int check_stack_slot_within_bounds(struct bpf_verifier_env *env,
                                           struct bpf_func_state *state,
                                           enum bpf_access_type t)
 {
-	struct bpf_insn_aux_data *aux = &env->insn_aux_data[env->insn_idx];
-	int min_valid_off, max_bpf_stack;
-
-	/* If accessing instruction is a spill/fill from bpf_fastcall pattern,
-	 * add room for all caller saved registers below MAX_BPF_STACK.
-	 * In case if bpf_fastcall rewrite won't happen maximal stack depth
-	 * would be checked by check_max_stack_depth_subprog().
-	 */
-	max_bpf_stack = MAX_BPF_STACK;
-	if (aux->fastcall_pattern)
-		max_bpf_stack += CALLER_SAVED_REGS * BPF_REG_SIZE;
+	int min_valid_off;
 
 	if (t == BPF_WRITE || env->allow_uninit_stack)
-		min_valid_off = -max_bpf_stack;
+		min_valid_off = -MAX_BPF_STACK;
 	else
 		min_valid_off = -state->allocated_stack;
 
@@ -17886,9 +17876,11 @@ static int is_state_visited(struct bpf_verifier_env *env, int insn_idx)
 	struct bpf_verifier_state_list *sl, **pprev;
 	struct bpf_verifier_state *cur = env->cur_state, *new, *loop_entry;
 	int i, j, n, err, states_cnt = 0;
-	bool force_new_state = env->test_state_freq || is_force_checkpoint(env, insn_idx);
-	bool add_new_state = force_new_state;
-	bool force_exact;
+	bool force_new_state, add_new_state, force_exact;
+
+	force_new_state = env->test_state_freq || is_force_checkpoint(env, insn_idx) ||
+			  /* Avoid accumulating infinitely long jmp history */
+			  cur->jmp_history_cnt > 40;
 
 	/* bpf progs typically have pruning point every 4 instructions
 	 * http://vger.kernel.org/bpfconf2019.html#session-1
@@ -17898,6 +17890,7 @@ static int is_state_visited(struct bpf_verifier_env *env, int insn_idx)
 	 * In tests that amounts to up to 50% reduction into total verifier
 	 * memory consumption and 20% verifier time speedup.
 	 */
+	add_new_state = force_new_state;
 	if (env->jmps_processed - env->prev_jmps_processed >= 2 &&
 	    env->insn_processed - env->prev_insn_processed >= 8)
 		add_new_state = true;

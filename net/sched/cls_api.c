@@ -1518,6 +1518,7 @@ int tcf_block_get_ext(struct tcf_block **p_block, struct Qdisc *q,
 	return 0;
 
 err_dev_insert:
+	tcf_block_offload_unbind(block, q, ei);
 err_block_offload_bind:
 	tcf_chain0_head_change_cb_del(block, ei);
 err_chain0_head_change_cb_add:
