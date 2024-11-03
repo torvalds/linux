@@ -1247,8 +1247,7 @@ u8 GetHalDefVar8723BSDIO(
 /* 	Description: */
 /* 		Change default setting of specified variable. */
 /*  */
-static u8 SetHalDefVar8723BSDIO(struct adapter *Adapter,
-				enum hal_def_variable eVariable, void *pValue)
+u8 SetHalDefVar8723BSDIO(struct adapter *Adapter, enum hal_def_variable eVariable, void *pValue)
 {
 	return SetHalDefVar8723B(Adapter, eVariable, pValue);
 }
@@ -1258,8 +1257,6 @@ void rtl8723bs_set_hal_ops(struct adapter *padapter)
 	struct hal_ops *pHalFunc = &padapter->HalFunc;
 
 	rtl8723b_set_hal_ops(pHalFunc);
-
-	pHalFunc->SetHalDefVarHandler = &SetHalDefVar8723BSDIO;
 
 	pHalFunc->hal_xmit = &rtl8723bs_hal_xmit;
 	pHalFunc->mgnt_xmit = &rtl8723bs_mgnt_xmit;
