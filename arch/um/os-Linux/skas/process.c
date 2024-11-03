@@ -413,12 +413,14 @@ void userspace(struct uml_pt_regs *regs)
 		 */
 		if (time_travel_mode == TT_MODE_INFCPU ||
 		    time_travel_mode == TT_MODE_EXTERNAL) {
-			if (UML_CONFIG_UML_MAX_USERSPACE_ITERATIONS &&
+#ifdef CONFIG_UML_MAX_USERSPACE_ITERATIONS
+			if (CONFIG_UML_MAX_USERSPACE_ITERATIONS &&
 			    unscheduled_userspace_iterations++ >
-			    UML_CONFIG_UML_MAX_USERSPACE_ITERATIONS) {
+			    CONFIG_UML_MAX_USERSPACE_ITERATIONS) {
 				tt_extra_sched_jiffies += 1;
 				unscheduled_userspace_iterations = 0;
 			}
+#endif
 		}
 
 		time_travel_print_bc_msg();
