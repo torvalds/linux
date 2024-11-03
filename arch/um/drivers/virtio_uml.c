@@ -888,7 +888,7 @@ static int vu_setup_vq_call_fd(struct virtio_uml_device *vu_dev,
 {
 	struct virtio_uml_vq_info *info = vq->priv;
 	int call_fds[2];
-	int rc;
+	int rc, irq;
 
 	/* no call FD needed/desired in this case */
 	if (vu_dev->protocol_features &
@@ -905,19 +905,23 @@ static int vu_setup_vq_call_fd(struct virtio_uml_device *vu_dev,
 		return rc;
 
 	info->call_fd = call_fds[0];
-	rc = um_request_irq(vu_dev->irq, info->call_fd, IRQ_READ,
-			    vu_interrupt, IRQF_SHARED, info->name, vq);
-	if (rc < 0)
+	irq = um_request_irq(vu_dev->irq, info->call_fd, IRQ_READ,
+			     vu_interrupt, IRQF_SHARED, info->name, vq);
+	if (irq < 0) {
+		rc = irq;
 		goto close_both;
+	}
 
 	rc = vhost_user_set_vring_call(vu_dev, vq->index, call_fds[1]);
 	if (rc)
 		goto release_irq;
 
+	vu_dev->irq = irq;
+
 	goto out;
 
 release_irq:
-	um_free_irq(vu_dev->irq, vq);
+	um_free_irq(irq, vq);
 close_both:
 	os_close_file(call_fds[0]);
 out:
@@ -1201,6 +1205,7 @@ static int virtio_uml_probe(struct platform_device *pdev)
 	vu_dev->vdev.id.vendor = VIRTIO_DEV_ANY_ID;
 	vu_dev->pdev = pdev;
 	vu_dev->req_fd = -1;
+	vu_dev->irq = UM_IRQ_ALLOC;
 
 	time_travel_propagate_time();
 
