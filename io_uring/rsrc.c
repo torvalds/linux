@@ -124,9 +124,8 @@ struct io_rsrc_node *io_rsrc_node_alloc(struct io_ring_ctx *ctx, int type)
 
 	node = kzalloc(sizeof(*node), GFP_KERNEL);
 	if (node) {
-		node->ctx = ctx;
+		node->ctx_ptr = (unsigned long) ctx | type;
 		node->refs = 1;
-		node->type = type;
 	}
 	return node;
 }
@@ -445,21 +444,21 @@ int io_files_update(struct io_kiocb *req, unsigned int issue_flags)
 
 void io_free_rsrc_node(struct io_rsrc_node *node)
 {
-	struct io_ring_ctx *ctx = node->ctx;
+	struct io_ring_ctx *ctx = io_rsrc_node_ctx(node);
 
 	lockdep_assert_held(&ctx->uring_lock);
 
 	if (node->tag)
-		io_post_aux_cqe(node->ctx, node->tag, 0, 0);
+		io_post_aux_cqe(ctx, node->tag, 0, 0);
 
-	switch (node->type) {
+	switch (io_rsrc_node_type(node)) {
 	case IORING_RSRC_FILE:
 		if (io_slot_file(node))
 			fput(io_slot_file(node));
 		break;
 	case IORING_RSRC_BUFFER:
 		if (node->buf)
-			io_buffer_unmap(node->ctx, node);
+			io_buffer_unmap(ctx, node);
 		break;
 	default:
 		WARN_ON_ONCE(1);
