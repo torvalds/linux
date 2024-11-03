@@ -205,7 +205,7 @@ int io_async_cancel(struct io_kiocb *req, unsigned int issue_flags)
 		.opcode	= cancel->opcode,
 		.seq	= atomic_inc_return(&req->ctx->cancel_seq),
 	};
-	struct io_uring_task *tctx = req->task->io_uring;
+	struct io_uring_task *tctx = req->tctx;
 	int ret;
 
 	if (cd.flags & IORING_ASYNC_CANCEL_FD) {

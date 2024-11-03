@@ -89,8 +89,8 @@ static void io_msg_tw_complete(struct io_kiocb *req, struct io_tw_state *ts)
 static int io_msg_remote_post(struct io_ring_ctx *ctx, struct io_kiocb *req,
 			      int res, u32 cflags, u64 user_data)
 {
-	req->task = READ_ONCE(ctx->submitter_task);
-	if (!req->task) {
+	req->tctx = READ_ONCE(ctx->submitter_task->io_uring);
+	if (!req->tctx) {
 		kmem_cache_free(req_cachep, req);
 		return -EOWNERDEAD;
 	}

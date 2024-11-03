@@ -84,6 +84,7 @@ struct io_uring_task {
 	/* submission side */
 	int				cached_refs;
 	const struct io_ring_ctx 	*last;
+	struct task_struct		*task;
 	struct io_wq			*io_wq;
 	struct file			*registered_rings[IO_RINGFD_REG_MAX];
 
@@ -625,7 +626,7 @@ struct io_kiocb {
 	struct io_cqe			cqe;
 
 	struct io_ring_ctx		*ctx;
-	struct task_struct		*task;
+	struct io_uring_task		*tctx;
 
 	union {
 		/* stores selected buf, valid IFF REQ_F_BUFFER_SELECTED is set */

@@ -203,7 +203,7 @@ __cold void io_uring_show_fdinfo(struct seq_file *m, struct file *file)
 
 		hlist_for_each_entry(req, &hb->list, hash_node)
 			seq_printf(m, "  op=%d, task_works=%d\n", req->opcode,
-					task_work_pending(req->task));
+					task_work_pending(req->tctx->task));
 	}
 
 	if (has_lock)
