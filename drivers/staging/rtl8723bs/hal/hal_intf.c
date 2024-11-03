@@ -162,10 +162,7 @@ s32	rtw_hal_xmitframe_enqueue(struct adapter *padapter, struct xmit_frame *pxmit
 
 s32	rtw_hal_xmit(struct adapter *padapter, struct xmit_frame *pxmitframe)
 {
-	if (padapter->HalFunc.hal_xmit)
-		return padapter->HalFunc.hal_xmit(padapter, pxmitframe);
-
-	return false;
+	return rtl8723bs_hal_xmit(padapter, pxmitframe);
 }
 
 /*
