@@ -56,6 +56,7 @@ struct virtio_uml_device {
 	int sock, req_fd, irq;
 	u64 features;
 	u64 protocol_features;
+	u64 max_vqs;
 	u8 status;
 	u8 registered:1;
 	u8 suspended:1;
@@ -341,6 +342,17 @@ static int vhost_user_set_protocol_features(struct virtio_uml_device *vu_dev,
 				   protocol_features);
 }
 
+static int vhost_user_get_queue_num(struct virtio_uml_device *vu_dev,
+				    u64 *queue_num)
+{
+	int rc = vhost_user_send_no_payload(vu_dev, true,
+			VHOST_USER_GET_QUEUE_NUM);
+
+	if (rc)
+		return rc;
+	return vhost_user_recv_u64(vu_dev, queue_num);
+}
+
 static void vhost_user_reply(struct virtio_uml_device *vu_dev,
 			     struct vhost_user_msg *msg, int response)
 {
@@ -512,6 +524,15 @@ static int vhost_user_init(struct virtio_uml_device *vu_dev)
 		rc = vhost_user_init_slave_req(vu_dev);
 		if (rc)
 			return rc;
+	}
+
+	if (vu_dev->protocol_features &
+			BIT_ULL(VHOST_USER_PROTOCOL_F_MQ)) {
+		rc = vhost_user_get_queue_num(vu_dev, &vu_dev->max_vqs);
+		if (rc)
+			return rc;
+	} else {
+		vu_dev->max_vqs = U64_MAX;
 	}
 
 	return 0;
@@ -1018,7 +1039,9 @@ static int vu_find_vqs(struct virtio_device *vdev, unsigned nvqs,
 	struct virtqueue *vq;
 
 	/* not supported for now */
-	if (WARN_ON(nvqs > 64))
+	if (WARN(nvqs > 64 || nvqs > vu_dev->max_vqs,
+		 "%d VQs requested, only up to 64 or %lld supported\n",
+		 nvqs, vu_dev->max_vqs))
 		return -EINVAL;
 
 	rc = vhost_user_set_mem_table(vu_dev);
