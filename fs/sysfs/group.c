@@ -87,6 +87,7 @@ static int create_files(struct kernfs_node *parent, struct kobject *kobj,
 	if (grp->bin_attrs) {
 		for (i = 0, bin_attr = grp->bin_attrs; *bin_attr; i++, bin_attr++) {
 			umode_t mode = (*bin_attr)->attr.mode;
+			size_t size = (*bin_attr)->size;
 
 			if (update)
 				kernfs_remove_by_name(parent,
@@ -104,7 +105,7 @@ static int create_files(struct kernfs_node *parent, struct kobject *kobj,
 
 			mode &= SYSFS_PREALLOC | 0664;
 			error = sysfs_add_bin_file_mode_ns(parent, *bin_attr,
-							   mode, uid, gid,
+							   mode, size, uid, gid,
 							   NULL);
 			if (error)
 				break;
