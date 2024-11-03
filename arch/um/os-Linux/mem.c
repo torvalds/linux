@@ -39,6 +39,18 @@ void kasan_map_memory(void *start, size_t len)
 			strerror(errno));
 		exit(1);
 	}
+
+	if (madvise(start, len, MADV_DONTDUMP)) {
+		os_info("Couldn't set MAD_DONTDUMP on shadow memory: %s\n.",
+			strerror(errno));
+		exit(1);
+	}
+
+	if (madvise(start, len, MADV_DONTFORK)) {
+		os_info("Couldn't set MADV_DONTFORK on shadow memory: %s\n.",
+			strerror(errno));
+		exit(1);
+	}
 }
 
 /* Set by make_tempfile() during early boot. */
