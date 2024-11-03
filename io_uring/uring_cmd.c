@@ -219,7 +219,7 @@ int io_uring_cmd_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 		 * being called. This prevents destruction of the mapped buffer
 		 * we'll need at actual import time.
 		 */
-		io_req_assign_rsrc_node(req, node);
+		io_req_assign_rsrc_node(&req->buf_node, node);
 	}
 	ioucmd->cmd_op = READ_ONCE(sqe->cmd_op);
 
@@ -275,7 +275,7 @@ int io_uring_cmd_import_fixed(u64 ubuf, unsigned long len, int rw,
 			      struct iov_iter *iter, void *ioucmd)
 {
 	struct io_kiocb *req = cmd_to_io_kiocb(ioucmd);
-	struct io_rsrc_node *node = req->rsrc_nodes[IORING_RSRC_BUFFER];
+	struct io_rsrc_node *node = req->buf_node;
 
 	/* Must have had rsrc_node assigned at prep time */
 	if (node)

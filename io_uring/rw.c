@@ -341,7 +341,8 @@ static int io_prep_rw_fixed(struct io_kiocb *req, const struct io_uring_sqe *sqe
 	node = io_rsrc_node_lookup(&ctx->buf_table, req->buf_index);
 	if (!node)
 		return -EFAULT;
-	io_req_assign_rsrc_node(req, node);
+	io_req_assign_rsrc_node(&req->buf_node, node);
+	req->flags |= REQ_F_BUF_NODE;
 
 	io = req->async_data;
 	ret = io_import_fixed(ddir, &io->iter, node->buf, rw->addr, rw->len);

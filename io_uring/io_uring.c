@@ -948,8 +948,8 @@ void io_req_defer_failed(struct io_kiocb *req, s32 res)
 static void io_preinit_req(struct io_kiocb *req, struct io_ring_ctx *ctx)
 {
 	req->ctx = ctx;
-	req->rsrc_nodes[IORING_RSRC_FILE] = NULL;
-	req->rsrc_nodes[IORING_RSRC_BUFFER] = NULL;
+	req->buf_node = NULL;
+	req->file_node = NULL;
 	req->link = NULL;
 	req->async_data = NULL;
 	/* not necessary, but safer to zero */
@@ -1882,7 +1882,7 @@ inline struct file *io_file_get_fixed(struct io_kiocb *req, int fd,
 	io_ring_submit_lock(ctx, issue_flags);
 	node = io_rsrc_node_lookup(&ctx->file_table.data, fd);
 	if (node) {
-		io_req_assign_rsrc_node(req, node);
+		io_req_assign_rsrc_node(&req->file_node, node);
 		req->flags |= io_slot_flags(node);
 		file = io_slot_file(node);
 	}

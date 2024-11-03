@@ -95,10 +95,14 @@ static inline bool io_reset_rsrc_node(struct io_rsrc_data *data, int index)
 
 static inline void io_req_put_rsrc_nodes(struct io_kiocb *req)
 {
-	io_put_rsrc_node(req->rsrc_nodes[IORING_RSRC_FILE]);
-	io_put_rsrc_node(req->rsrc_nodes[IORING_RSRC_BUFFER]);
-	req->rsrc_nodes[IORING_RSRC_FILE] = NULL;
-	req->rsrc_nodes[IORING_RSRC_BUFFER] = NULL;
+	if (req->file_node) {
+		io_put_rsrc_node(req->file_node);
+		req->file_node = NULL;
+	}
+	if (req->flags & REQ_F_BUF_NODE) {
+		io_put_rsrc_node(req->buf_node);
+		req->buf_node = NULL;
+	}
 }
 
 static inline struct io_ring_ctx *io_rsrc_node_ctx(struct io_rsrc_node *node)
@@ -111,11 +115,11 @@ static inline int io_rsrc_node_type(struct io_rsrc_node *node)
 	return node->ctx_ptr & IORING_RSRC_TYPE_MASK;
 }
 
-static inline void io_req_assign_rsrc_node(struct io_kiocb *req,
+static inline void io_req_assign_rsrc_node(struct io_rsrc_node **dst_node,
 					   struct io_rsrc_node *node)
 {
 	node->refs++;
-	req->rsrc_nodes[io_rsrc_node_type(node)] = node;
+	*dst_node = node;
 }
 
 int io_files_update(struct io_kiocb *req, unsigned int issue_flags);

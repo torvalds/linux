@@ -67,7 +67,8 @@ int io_nop(struct io_kiocb *req, unsigned int issue_flags)
 		io_ring_submit_lock(ctx, issue_flags);
 		node = io_rsrc_node_lookup(&ctx->buf_table, nop->buffer);
 		if (node) {
-			io_req_assign_rsrc_node(req, node);
+			io_req_assign_rsrc_node(&req->buf_node, node);
+			req->flags |= REQ_F_BUF_NODE;
 			ret = 0;
 		}
 		io_ring_submit_unlock(ctx, issue_flags);
