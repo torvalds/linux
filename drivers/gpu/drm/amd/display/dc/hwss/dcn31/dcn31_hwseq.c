@@ -653,7 +653,8 @@ static void dmub_abm_set_backlight(struct dc_context *dc,
 	cmd.abm_set_backlight.header.sub_type = DMUB_CMD__ABM_SET_BACKLIGHT;
 	cmd.abm_set_backlight.abm_set_backlight_data.frame_ramp = backlight_level_params->frame_ramp;
 	cmd.abm_set_backlight.abm_set_backlight_data.backlight_user_level = backlight_level_params->backlight_pwm_u16_16;
-	cmd.abm_set_backlight.abm_set_backlight_data.backlight_control_type = backlight_level_params->control_type;
+	cmd.abm_set_backlight.abm_set_backlight_data.backlight_control_type =
+		(enum dmub_backlight_control_type) backlight_level_params->control_type;
 	cmd.abm_set_backlight.abm_set_backlight_data.min_luminance = backlight_level_params->min_luminance;
 	cmd.abm_set_backlight.abm_set_backlight_data.max_luminance = backlight_level_params->max_luminance;
 	cmd.abm_set_backlight.abm_set_backlight_data.min_backlight_pwm = backlight_level_params->min_backlight_pwm;
