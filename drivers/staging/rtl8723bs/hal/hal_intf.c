@@ -108,8 +108,7 @@ uint rtw_hal_deinit(struct adapter *padapter)
 
 void rtw_hal_set_hwreg(struct adapter *padapter, u8 variable, u8 *val)
 {
-	if (padapter->HalFunc.SetHwRegHandler)
-		padapter->HalFunc.SetHwRegHandler(padapter, variable, val);
+	SetHwReg8723BS(padapter, variable, val);
 }
 
 void rtw_hal_get_hwreg(struct adapter *padapter, u8 variable, u8 *val)

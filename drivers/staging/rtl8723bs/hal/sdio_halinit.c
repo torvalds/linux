@@ -1144,7 +1144,7 @@ void ReadAdapterInfo8723BS(struct adapter *padapter)
  * If variable not handled here,
  * some variables will be processed in SetHwReg8723B()
  */
-static void SetHwReg8723BS(struct adapter *padapter, u8 variable, u8 *val)
+void SetHwReg8723BS(struct adapter *padapter, u8 variable, u8 *val)
 {
 	u8 val8;
 
@@ -1259,7 +1259,6 @@ void rtl8723bs_set_hal_ops(struct adapter *padapter)
 
 	rtl8723b_set_hal_ops(pHalFunc);
 
-	pHalFunc->SetHwRegHandler = &SetHwReg8723BS;
 	pHalFunc->GetHwRegHandler = &GetHwReg8723BS;
 	pHalFunc->SetHwRegHandlerWithBuf = &SetHwRegWithBuf8723B;
 	pHalFunc->GetHalDefVarHandler = &GetHalDefVar8723BSDIO;
