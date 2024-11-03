@@ -10583,10 +10583,25 @@ static int check_helper_call(struct bpf_verifier_env *env, struct bpf_insn *insn
 
 	switch (func_id) {
 	case BPF_FUNC_tail_call:
+		if (env->cur_state->active_lock.ptr) {
+			verbose(env, "tail_call cannot be used inside bpf_spin_lock-ed region\n");
+			return -EINVAL;
+		}
+
 		err = check_reference_leak(env, false);
 		if (err) {
 			verbose(env, "tail_call would lead to reference leak\n");
 			return err;
+		}
+
+		if (env->cur_state->active_rcu_lock) {
+			verbose(env, "tail_call cannot be used inside bpf_rcu_read_lock-ed region\n");
+			return -EINVAL;
+		}
+
+		if (env->cur_state->active_preempt_lock) {
+			verbose(env, "tail_call cannot be used inside bpf_preempt_disable-ed region\n");
+			return -EINVAL;
 		}
 		break;
 	case BPF_FUNC_get_local_storage:
