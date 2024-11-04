@@ -12,6 +12,9 @@ struct xfs_mount;
 struct xfs_trans;
 
 enum xfs_rtg_inodes {
+	XFS_RTGI_BITMAP,	/* allocation bitmap */
+	XFS_RTGI_SUMMARY,	/* allocation summary */
+
 	XFS_RTGI_MAX,
 };
 
@@ -26,10 +29,19 @@ struct xfs_rtgroup {
 	struct xfs_group	rtg_group;
 
 	/* per-rtgroup metadata inodes */
-	struct xfs_inode	*rtg_inodes[1 /* hack */];
+	struct xfs_inode	*rtg_inodes[XFS_RTGI_MAX];
 
 	/* Number of blocks in this group */
 	xfs_rtxnum_t		rtg_extents;
+
+	/*
+	 * Cache of rt summary level per bitmap block with the invariant that
+	 * rtg_rsum_cache[bbno] > the maximum i for which rsum[i][bbno] != 0,
+	 * or 0 if rsum[i][bbno] == 0 for all i.
+	 *
+	 * Reads and writes are serialized by the rsumip inode lock.
+	 */
+	uint8_t			*rtg_rsum_cache;
 };
 
 static inline struct xfs_rtgroup *to_rtg(struct xfs_group *xg)

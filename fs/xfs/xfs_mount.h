@@ -124,8 +124,6 @@ typedef struct xfs_mount {
 	struct xfs_da_geometry	*m_dir_geo;	/* directory block geometry */
 	struct xfs_da_geometry	*m_attr_geo;	/* attribute block geometry */
 	struct xlog		*m_log;		/* log specific stuff */
-	struct xfs_inode	*m_rbmip;	/* pointer to bitmap inode */
-	struct xfs_inode	*m_rsumip;	/* pointer to summary inode */
 	struct xfs_inode	*m_rootip;	/* pointer to root directory */
 	struct xfs_inode	*m_metadirip;	/* ptr to metadata directory */
 	struct xfs_inode	*m_rtdirip;	/* ptr to realtime metadir */
@@ -134,14 +132,6 @@ typedef struct xfs_mount {
 	struct xfs_buftarg	*m_logdev_targp;/* log device */
 	struct xfs_buftarg	*m_rtdev_targp;	/* rt device */
 	void __percpu		*m_inodegc;	/* percpu inodegc structures */
-
-	/*
-	 * Optional cache of rt summary level per bitmap block with the
-	 * invariant that m_rsum_cache[bbno] > the maximum i for which
-	 * rsum[i][bbno] != 0, or 0 if rsum[i][bbno] == 0 for all i.
-	 * Reads and writes are serialized by the rsumip inode lock.
-	 */
-	uint8_t			*m_rsum_cache;
 	struct xfs_mru_cache	*m_filestream;  /* per-mount filestream data */
 	struct workqueue_struct *m_buf_workqueue;
 	struct workqueue_struct	*m_unwritten_workqueue;

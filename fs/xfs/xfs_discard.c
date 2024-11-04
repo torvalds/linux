@@ -507,7 +507,7 @@ xfs_discard_rtdev_extents(
 
 static int
 xfs_trim_gather_rtextent(
-	struct xfs_mount		*mp,
+	struct xfs_rtgroup		*rtg,
 	struct xfs_trans		*tp,
 	const struct xfs_rtalloc_rec	*rec,
 	void				*priv)
@@ -526,12 +526,12 @@ xfs_trim_gather_rtextent(
 		return -ECANCELED;
 	}
 
-	rbno = xfs_rtx_to_rtb(mp, rec->ar_startext);
-	rlen = xfs_rtx_to_rtb(mp, rec->ar_extcount);
+	rbno = xfs_rtx_to_rtb(rtg_mount(rtg), rec->ar_startext);
+	rlen = xfs_rtx_to_rtb(rtg_mount(rtg), rec->ar_extcount);
 
 	/* Ignore too small. */
 	if (rlen < tr->minlen_fsb) {
-		trace_xfs_discard_rttoosmall(mp, rbno, rlen);
+		trace_xfs_discard_rttoosmall(rtg_mount(rtg), rbno, rlen);
 		return 0;
 	}
 
@@ -550,11 +550,12 @@ xfs_trim_gather_rtextent(
 
 static int
 xfs_trim_rtextents(
-	struct xfs_mount	*mp,
+	struct xfs_rtgroup	*rtg,
 	xfs_rtxnum_t		low,
 	xfs_rtxnum_t		high,
 	xfs_daddr_t		minlen)
 {
+	struct xfs_mount	*mp = rtg_mount(rtg);
 	struct xfs_trim_rtdev	tr = {
 		.minlen_fsb	= XFS_BB_TO_FSB(mp, minlen),
 		.extent_list	= LIST_HEAD_INIT(tr.extent_list),
@@ -572,25 +573,25 @@ xfs_trim_rtextents(
 	 */
 	do {
 		tr.stop_rtx = low + (mp->m_sb.sb_blocksize * NBBY);
-		xfs_rtbitmap_lock_shared(mp, XFS_RBMLOCK_BITMAP);
-		error = xfs_rtalloc_query_range(mp, tp, low, high,
+		xfs_rtgroup_lock(rtg, XFS_RTGLOCK_BITMAP_SHARED);
+		error = xfs_rtalloc_query_range(rtg, tp, low, high,
 				xfs_trim_gather_rtextent, &tr);
 
 		if (error == -ECANCELED)
 			error = 0;
 		if (error) {
-			xfs_rtbitmap_unlock_shared(mp, XFS_RBMLOCK_BITMAP);
+			xfs_rtgroup_unlock(rtg, XFS_RTGLOCK_BITMAP_SHARED);
 			xfs_discard_free_rtdev_extents(&tr);
 			break;
 		}
 
 		if (list_empty(&tr.extent_list)) {
-			xfs_rtbitmap_unlock_shared(mp, XFS_RBMLOCK_BITMAP);
+			xfs_rtgroup_unlock(rtg, XFS_RTGLOCK_BITMAP_SHARED);
 			break;
 		}
 
 		error = xfs_discard_rtdev_extents(mp, &tr);
-		xfs_rtbitmap_unlock_shared(mp, XFS_RBMLOCK_BITMAP);
+		xfs_rtgroup_unlock(rtg, XFS_RTGLOCK_BITMAP_SHARED);
 		if (error)
 			break;
 
@@ -610,6 +611,9 @@ xfs_trim_rtdev_extents(
 {
 	xfs_rtblock_t		start_rtbno, end_rtbno;
 	xfs_rtxnum_t		start_rtx, end_rtx;
+	xfs_rgnumber_t		start_rgno, end_rgno;
+	int			last_error = 0, error;
+	struct xfs_rtgroup	*rtg = NULL;
 
 	/* Shift the start and end downwards to match the rt device. */
 	start_rtbno = xfs_daddr_to_rtb(mp, start);
@@ -618,14 +622,33 @@ xfs_trim_rtdev_extents(
 	else
 		start_rtbno = 0;
 	start_rtx = xfs_rtb_to_rtx(mp, start_rtbno);
+	start_rgno = xfs_rtb_to_rgno(mp, start_rtbno);
 
 	end_rtbno = xfs_daddr_to_rtb(mp, end);
 	if (end_rtbno <= mp->m_sb.sb_dblocks)
 		return 0;
 	end_rtbno -= mp->m_sb.sb_dblocks;
 	end_rtx = xfs_rtb_to_rtx(mp, end_rtbno + mp->m_sb.sb_rextsize - 1);
+	end_rgno = xfs_rtb_to_rgno(mp, end_rtbno);
 
-	return xfs_trim_rtextents(mp, start_rtx, end_rtx, minlen);
+	while ((rtg = xfs_rtgroup_next_range(mp, rtg, start_rgno, end_rgno))) {
+		xfs_rtxnum_t	rtg_end = rtg->rtg_extents;
+
+		if (rtg_rgno(rtg) == end_rgno)
+			rtg_end = min(rtg_end, end_rtx);
+
+		error = xfs_trim_rtextents(rtg, start_rtx, rtg_end, minlen);
+		if (error)
+			last_error = error;
+
+		if (xfs_trim_should_stop()) {
+			xfs_rtgroup_rele(rtg);
+			break;
+		}
+		start_rtx = 0;
+	}
+
+	return last_error;
 }
 #else
 # define xfs_trim_rtdev_extents(...)	(-EOPNOTSUPP)

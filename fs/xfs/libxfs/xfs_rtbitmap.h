@@ -6,7 +6,10 @@
 #ifndef __XFS_RTBITMAP_H__
 #define	__XFS_RTBITMAP_H__
 
+#include "xfs_rtgroup.h"
+
 struct xfs_rtalloc_args {
+	struct xfs_rtgroup	*rtg;
 	struct xfs_mount	*mp;
 	struct xfs_trans	*tp;
 
@@ -268,7 +271,7 @@ struct xfs_rtalloc_rec {
 };
 
 typedef int (*xfs_rtalloc_query_range_fn)(
-	struct xfs_mount		*mp,
+	struct xfs_rtgroup		*rtg,
 	struct xfs_trans		*tp,
 	const struct xfs_rtalloc_rec	*rec,
 	void				*priv);
@@ -291,53 +294,37 @@ int xfs_rtmodify_summary(struct xfs_rtalloc_args *args, int log,
 		xfs_fileoff_t bbno, int delta);
 int xfs_rtfree_range(struct xfs_rtalloc_args *args, xfs_rtxnum_t start,
 		xfs_rtxlen_t len);
-int xfs_rtalloc_query_range(struct xfs_mount *mp, struct xfs_trans *tp,
+int xfs_rtalloc_query_range(struct xfs_rtgroup *rtg, struct xfs_trans *tp,
 		xfs_rtxnum_t start, xfs_rtxnum_t end,
 		xfs_rtalloc_query_range_fn fn, void *priv);
-int xfs_rtalloc_query_all(struct xfs_mount *mp, struct xfs_trans *tp,
-			  xfs_rtalloc_query_range_fn fn,
-			  void *priv);
-int xfs_rtalloc_extent_is_free(struct xfs_mount *mp, struct xfs_trans *tp,
-			       xfs_rtxnum_t start, xfs_rtxlen_t len,
-			       bool *is_free);
-/*
- * Free an extent in the realtime subvolume.  Length is expressed in
- * realtime extents, as is the block number.
- */
-int					/* error */
-xfs_rtfree_extent(
-	struct xfs_trans	*tp,	/* transaction pointer */
-	xfs_rtxnum_t		start,	/* starting rtext number to free */
-	xfs_rtxlen_t		len);	/* length of extent freed */
-
+int xfs_rtalloc_query_all(struct xfs_rtgroup *rtg, struct xfs_trans *tp,
+		xfs_rtalloc_query_range_fn fn, void *priv);
+int xfs_rtalloc_extent_is_free(struct xfs_rtgroup *rtg, struct xfs_trans *tp,
+		xfs_rtxnum_t start, xfs_rtxlen_t len, bool *is_free);
+int xfs_rtfree_extent(struct xfs_trans *tp, struct xfs_rtgroup *rtg,
+		xfs_rtxnum_t start, xfs_rtxlen_t len);
 /* Same as above, but in units of rt blocks. */
-int xfs_rtfree_blocks(struct xfs_trans *tp, xfs_fsblock_t rtbno,
-		xfs_filblks_t rtlen);
+int xfs_rtfree_blocks(struct xfs_trans *tp, struct xfs_rtgroup *rtg,
+		xfs_fsblock_t rtbno, xfs_filblks_t rtlen);
 
 xfs_filblks_t xfs_rtbitmap_blockcount(struct xfs_mount *mp, xfs_rtbxlen_t
 		rtextents);
 xfs_filblks_t xfs_rtsummary_blockcount(struct xfs_mount *mp,
 		unsigned int rsumlevels, xfs_extlen_t rbmblocks);
 
-int xfs_rtfile_initialize_blocks(struct xfs_inode *ip,
-		xfs_fileoff_t offset_fsb, xfs_fileoff_t end_fsb, void *data);
+int xfs_rtfile_initialize_blocks(struct xfs_rtgroup *rtg,
+		enum xfs_rtg_inodes type, xfs_fileoff_t offset_fsb,
+		xfs_fileoff_t end_fsb, void *data);
 
-void xfs_rtbitmap_lock(struct xfs_mount *mp);
-void xfs_rtbitmap_unlock(struct xfs_mount *mp);
-void xfs_rtbitmap_trans_join(struct xfs_trans *tp);
-
-/* Lock the rt bitmap inode in shared mode */
-#define XFS_RBMLOCK_BITMAP	(1U << 0)
-/* Lock the rt summary inode in shared mode */
-#define XFS_RBMLOCK_SUMMARY	(1U << 1)
-
-void xfs_rtbitmap_lock_shared(struct xfs_mount *mp,
-		unsigned int rbmlock_flags);
-void xfs_rtbitmap_unlock_shared(struct xfs_mount *mp,
-		unsigned int rbmlock_flags);
 #else /* CONFIG_XFS_RT */
 # define xfs_rtfree_extent(t,b,l)			(-ENOSYS)
-# define xfs_rtfree_blocks(t,rb,rl)			(-ENOSYS)
+
+static inline int xfs_rtfree_blocks(struct xfs_trans *tp,
+		struct xfs_rtgroup *rtg, xfs_fsblock_t rtbno,
+		xfs_filblks_t rtlen)
+{
+	return -ENOSYS;
+}
 # define xfs_rtalloc_query_range(m,t,l,h,f,p)		(-ENOSYS)
 # define xfs_rtalloc_query_all(m,t,f,p)			(-ENOSYS)
 # define xfs_rtbitmap_read_buf(a,b)			(-ENOSYS)
@@ -351,11 +338,6 @@ xfs_rtbitmap_blockcount(struct xfs_mount *mp, xfs_rtbxlen_t rtextents)
 	return 0;
 }
 # define xfs_rtsummary_blockcount(mp, l, b)		(0)
-# define xfs_rtbitmap_lock(mp)			do { } while (0)
-# define xfs_rtbitmap_trans_join(tp)		do { } while (0)
-# define xfs_rtbitmap_unlock(mp)		do { } while (0)
-# define xfs_rtbitmap_lock_shared(mp, lf)	do { } while (0)
-# define xfs_rtbitmap_unlock_shared(mp, lf)	do { } while (0)
 #endif /* CONFIG_XFS_RT */
 
 #endif /* __XFS_RTBITMAP_H__ */

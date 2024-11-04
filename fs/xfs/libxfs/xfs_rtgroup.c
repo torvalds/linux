@@ -162,10 +162,16 @@ xfs_rtgroup_lock(
 	ASSERT(!(rtglock_flags & XFS_RTGLOCK_BITMAP_SHARED) ||
 	       !(rtglock_flags & XFS_RTGLOCK_BITMAP));
 
-	if (rtglock_flags & XFS_RTGLOCK_BITMAP)
-		xfs_rtbitmap_lock(rtg_mount(rtg));
-	else if (rtglock_flags & XFS_RTGLOCK_BITMAP_SHARED)
-		xfs_rtbitmap_lock_shared(rtg_mount(rtg), XFS_RBMLOCK_BITMAP);
+	if (rtglock_flags & XFS_RTGLOCK_BITMAP) {
+		/*
+		 * Lock both realtime free space metadata inodes for a freespace
+		 * update.
+		 */
+		xfs_ilock(rtg->rtg_inodes[XFS_RTGI_BITMAP], XFS_ILOCK_EXCL);
+		xfs_ilock(rtg->rtg_inodes[XFS_RTGI_SUMMARY], XFS_ILOCK_EXCL);
+	} else if (rtglock_flags & XFS_RTGLOCK_BITMAP_SHARED) {
+		xfs_ilock(rtg->rtg_inodes[XFS_RTGI_BITMAP], XFS_ILOCK_SHARED);
+	}
 }
 
 /* Unlock metadata inodes associated with this rt group. */
@@ -178,10 +184,12 @@ xfs_rtgroup_unlock(
 	ASSERT(!(rtglock_flags & XFS_RTGLOCK_BITMAP_SHARED) ||
 	       !(rtglock_flags & XFS_RTGLOCK_BITMAP));
 
-	if (rtglock_flags & XFS_RTGLOCK_BITMAP)
-		xfs_rtbitmap_unlock(rtg_mount(rtg));
-	else if (rtglock_flags & XFS_RTGLOCK_BITMAP_SHARED)
-		xfs_rtbitmap_unlock_shared(rtg_mount(rtg), XFS_RBMLOCK_BITMAP);
+	if (rtglock_flags & XFS_RTGLOCK_BITMAP) {
+		xfs_iunlock(rtg->rtg_inodes[XFS_RTGI_SUMMARY], XFS_ILOCK_EXCL);
+		xfs_iunlock(rtg->rtg_inodes[XFS_RTGI_BITMAP], XFS_ILOCK_EXCL);
+	} else if (rtglock_flags & XFS_RTGLOCK_BITMAP_SHARED) {
+		xfs_iunlock(rtg->rtg_inodes[XFS_RTGI_BITMAP], XFS_ILOCK_SHARED);
+	}
 }
 
 /*
@@ -197,8 +205,12 @@ xfs_rtgroup_trans_join(
 	ASSERT(!(rtglock_flags & ~XFS_RTGLOCK_ALL_FLAGS));
 	ASSERT(!(rtglock_flags & XFS_RTGLOCK_BITMAP_SHARED));
 
-	if (rtglock_flags & XFS_RTGLOCK_BITMAP)
-		xfs_rtbitmap_trans_join(tp);
+	if (rtglock_flags & XFS_RTGLOCK_BITMAP) {
+		xfs_trans_ijoin(tp, rtg->rtg_inodes[XFS_RTGI_BITMAP],
+				XFS_ILOCK_EXCL);
+		xfs_trans_ijoin(tp, rtg->rtg_inodes[XFS_RTGI_SUMMARY],
+				XFS_ILOCK_EXCL);
+	}
 }
 
 #ifdef CONFIG_PROVE_LOCKING
@@ -263,6 +275,14 @@ struct xfs_rtginode_ops {
 };
 
 static const struct xfs_rtginode_ops xfs_rtginode_ops[XFS_RTGI_MAX] = {
+	[XFS_RTGI_BITMAP] = {
+		.name		= "bitmap",
+		.metafile_type	= XFS_METAFILE_RTBITMAP,
+	},
+	[XFS_RTGI_SUMMARY] = {
+		.name		= "summary",
+		.metafile_type	= XFS_METAFILE_RTSUMMARY,
+	},
 };
 
 /* Return the shortname of this rtgroup inode. */
@@ -302,7 +322,6 @@ xfs_rtginode_load(
 	struct xfs_trans	*tp)
 {
 	struct xfs_mount	*mp = tp->t_mountp;
-	const char		*path;
 	struct xfs_inode	*ip;
 	const struct xfs_rtginode_ops *ops = &xfs_rtginode_ops[type];
 	int			error;
@@ -310,15 +329,36 @@ xfs_rtginode_load(
 	if (!xfs_rtginode_enabled(rtg, type))
 		return 0;
 
-	if (!mp->m_rtdirip)
-		return -EFSCORRUPTED;
+	if (!xfs_has_rtgroups(mp)) {
+		xfs_ino_t	ino;
 
-	path = xfs_rtginode_path(rtg_rgno(rtg), type);
-	if (!path)
-		return -ENOMEM;
-	error = xfs_metadir_load(tp, mp->m_rtdirip, path, ops->metafile_type,
-			&ip);
-	kfree(path);
+		switch (type) {
+		case XFS_RTGI_BITMAP:
+			ino = mp->m_sb.sb_rbmino;
+			break;
+		case XFS_RTGI_SUMMARY:
+			ino = mp->m_sb.sb_rsumino;
+			break;
+		default:
+			/* None of the other types exist on !rtgroups */
+			return 0;
+		}
+
+		error = xfs_trans_metafile_iget(tp, ino, ops->metafile_type,
+				&ip);
+	} else {
+		const char	*path;
+
+		if (!mp->m_rtdirip)
+			return -EFSCORRUPTED;
+
+		path = xfs_rtginode_path(rtg_rgno(rtg), type);
+		if (!path)
+			return -ENOMEM;
+		error = xfs_metadir_load(tp, mp->m_rtdirip, path,
+				ops->metafile_type, &ip);
+		kfree(path);
+	}
 
 	if (error)
 		return error;

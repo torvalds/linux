@@ -215,10 +215,15 @@ static void
 xfs_qm_unmount_rt(
 	struct xfs_mount	*mp)
 {
-	if (mp->m_rbmip)
-		xfs_qm_dqdetach(mp->m_rbmip);
-	if (mp->m_rsumip)
-		xfs_qm_dqdetach(mp->m_rsumip);
+	struct xfs_rtgroup	*rtg = xfs_rtgroup_grab(mp, 0);
+
+	if (!rtg)
+		return;
+	if (rtg->rtg_inodes[XFS_RTGI_BITMAP])
+		xfs_qm_dqdetach(rtg->rtg_inodes[XFS_RTGI_BITMAP]);
+	if (rtg->rtg_inodes[XFS_RTGI_SUMMARY])
+		xfs_qm_dqdetach(rtg->rtg_inodes[XFS_RTGI_SUMMARY]);
+	xfs_rtgroup_rele(rtg);
 }
 
 /*

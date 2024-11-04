@@ -5121,7 +5121,12 @@ xfs_bmap_free_rtblocks(
 	struct xfs_trans	*tp,
 	struct xfs_bmbt_irec	*del)
 {
+	struct xfs_rtgroup	*rtg;
 	int			error;
+
+	rtg = xfs_rtgroup_grab(tp->t_mountp, 0);
+	if (!rtg)
+		return -EIO;
 
 	/*
 	 * Ensure the bitmap and summary inodes are locked and joined to the
@@ -5129,11 +5134,13 @@ xfs_bmap_free_rtblocks(
 	 */
 	if (!(tp->t_flags & XFS_TRANS_RTBITMAP_LOCKED)) {
 		tp->t_flags |= XFS_TRANS_RTBITMAP_LOCKED;
-		xfs_rtbitmap_lock(tp->t_mountp);
-		xfs_rtbitmap_trans_join(tp);
+		xfs_rtgroup_lock(rtg, XFS_RTGLOCK_BITMAP);
+		xfs_rtgroup_trans_join(tp, rtg, XFS_RTGLOCK_BITMAP);
 	}
 
-	error = xfs_rtfree_blocks(tp, del->br_startblock, del->br_blockcount);
+	error = xfs_rtfree_blocks(tp, rtg, del->br_startblock,
+			del->br_blockcount);
+	xfs_rtgroup_rele(rtg);
 	return error;
 }
 

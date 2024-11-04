@@ -712,7 +712,7 @@ xfs_getfsmap_logdev(
 /* Transform a rtbitmap "record" into a fsmap */
 STATIC int
 xfs_getfsmap_rtdev_rtbitmap_helper(
-	struct xfs_mount		*mp,
+	struct xfs_rtgroup		*rtg,
 	struct xfs_trans		*tp,
 	const struct xfs_rtalloc_rec	*rec,
 	void				*priv)
@@ -720,6 +720,7 @@ xfs_getfsmap_rtdev_rtbitmap_helper(
 	struct xfs_fsmap_irec		frec = {
 		.owner			= XFS_RMAP_OWN_NULL, /* "free" */
 	};
+	struct xfs_mount		*mp = rtg_mount(rtg);
 	struct xfs_getfsmap_info	*info = priv;
 	xfs_rtblock_t			rtbno;
 
@@ -751,10 +752,11 @@ xfs_getfsmap_rtdev_rtbitmap(
 	const struct xfs_fsmap		*keys,
 	struct xfs_getfsmap_info	*info)
 {
-
-	struct xfs_rtalloc_rec		ahigh = { 0 };
 	struct xfs_mount		*mp = tp->t_mountp;
 	xfs_rtblock_t			start_rtbno, end_rtbno;
+	xfs_rtxnum_t			start_rtx, end_rtx;
+	xfs_rgnumber_t			start_rgno, end_rgno;
+	struct xfs_rtgroup		*rtg = NULL;
 	uint64_t			eofs;
 	int				error;
 
@@ -772,36 +774,61 @@ xfs_getfsmap_rtdev_rtbitmap(
 		if (info->low_daddr >= eofs)
 			return 0;
 	}
+	start_rtx = xfs_rtb_to_rtx(mp, start_rtbno);
+	start_rgno = xfs_rtb_to_rgno(mp, start_rtbno);
 
 	end_rtbno = xfs_daddr_to_rtb(mp, min(eofs - 1, keys[1].fmr_physical));
+	end_rgno = xfs_rtb_to_rgno(mp, end_rtbno);
 
 	trace_xfs_fsmap_low_linear_key(mp, info->dev, start_rtbno);
 	trace_xfs_fsmap_high_linear_key(mp, info->dev, end_rtbno);
 
-	xfs_rtbitmap_lock_shared(mp, XFS_RBMLOCK_BITMAP);
+	end_rtx = -1ULL;
 
-	/*
-	 * Set up query parameters to return free rtextents covering the range
-	 * we want.
-	 */
-	error = xfs_rtalloc_query_range(mp, tp, xfs_rtb_to_rtx(mp, start_rtbno),
-			xfs_rtb_to_rtxup(mp, end_rtbno),
-			xfs_getfsmap_rtdev_rtbitmap_helper, info);
-	if (error)
-		goto err;
+	while ((rtg = xfs_rtgroup_next_range(mp, rtg, start_rgno, end_rgno))) {
+		if (rtg_rgno(rtg) == end_rgno)
+			end_rtx = xfs_rtb_to_rtx(mp,
+					end_rtbno + mp->m_sb.sb_rextsize - 1);
 
-	/*
-	 * Report any gaps at the end of the rtbitmap by simulating a null
-	 * rmap starting at the block after the end of the query range.
-	 */
-	info->last = true;
-	ahigh.ar_startext = min(mp->m_sb.sb_rextents, high);
+		info->group = rtg_group(rtg);
+		xfs_rtgroup_lock(rtg, XFS_RTGLOCK_BITMAP_SHARED);
+		error = xfs_rtalloc_query_range(rtg, tp, start_rtx, end_rtx,
+				xfs_getfsmap_rtdev_rtbitmap_helper, info);
+		if (error)
+			break;
 
-	error = xfs_getfsmap_rtdev_rtbitmap_helper(mp, tp, &ahigh, info);
-	if (error)
-		goto err;
-err:
-	xfs_rtbitmap_unlock_shared(mp, XFS_RBMLOCK_BITMAP);
+		/*
+		 * Report any gaps at the end of the rtbitmap by simulating a
+		 * zero-length free extent starting at the rtx after the end
+		 * of the query range.
+		 */
+		if (rtg_rgno(rtg) == end_rgno) {
+			struct xfs_rtalloc_rec	ahigh = {
+				.ar_startext	= min(end_rtx + 1,
+						      rtg->rtg_extents),
+			};
+
+			info->last = true;
+			error = xfs_getfsmap_rtdev_rtbitmap_helper(rtg, tp,
+					&ahigh, info);
+			if (error)
+				break;
+		}
+
+		xfs_rtgroup_unlock(rtg, XFS_RTGLOCK_BITMAP_SHARED);
+		info->group = NULL;
+		start_rtx = 0;
+	}
+
+	/* loop termination case */
+	if (rtg) {
+		if (info->group) {
+			xfs_rtgroup_unlock(rtg, XFS_RTGLOCK_BITMAP_SHARED);
+			info->group = NULL;
+		}
+		xfs_rtgroup_rele(rtg);
+	}
+
 	return error;
 }
 #endif /* CONFIG_XFS_RT */
