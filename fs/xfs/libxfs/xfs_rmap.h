@@ -173,7 +173,7 @@ struct xfs_rmap_intent {
 	int					ri_whichfork;
 	uint64_t				ri_owner;
 	struct xfs_bmbt_irec			ri_bmap;
-	struct xfs_perag			*ri_pag;
+	struct xfs_group			*ri_group;
 };
 
 /* functions for updating the rmapbt based on bmbt map/unmap operations */

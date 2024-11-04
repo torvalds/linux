@@ -248,7 +248,7 @@ struct xfs_bmap_intent {
 	enum xfs_bmap_intent_type		bi_type;
 	int					bi_whichfork;
 	struct xfs_inode			*bi_owner;
-	struct xfs_perag			*bi_pag;
+	struct xfs_group			*bi_group;
 	struct xfs_bmbt_irec			bi_bmap;
 };
 

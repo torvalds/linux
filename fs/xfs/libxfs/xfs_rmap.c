@@ -2586,28 +2586,30 @@ xfs_rmap_finish_one(
 	 * If we haven't gotten a cursor or the cursor AG doesn't match
 	 * the startblock, get one now.
 	 */
-	if (rcur != NULL && to_perag(rcur->bc_group) != ri->ri_pag) {
+	if (rcur != NULL && rcur->bc_group != ri->ri_group) {
 		xfs_btree_del_cursor(rcur, 0);
 		rcur = NULL;
 		*pcur = NULL;
 	}
 	if (rcur == NULL) {
+		struct xfs_perag	*pag = to_perag(ri->ri_group);
+
 		/*
 		 * Refresh the freelist before we start changing the
 		 * rmapbt, because a shape change could cause us to
 		 * allocate blocks.
 		 */
-		error = xfs_free_extent_fix_freelist(tp, ri->ri_pag, &agbp);
+		error = xfs_free_extent_fix_freelist(tp, pag, &agbp);
 		if (error) {
-			xfs_ag_mark_sick(ri->ri_pag, XFS_SICK_AG_AGFL);
+			xfs_ag_mark_sick(pag, XFS_SICK_AG_AGFL);
 			return error;
 		}
 		if (XFS_IS_CORRUPT(tp->t_mountp, !agbp)) {
-			xfs_ag_mark_sick(ri->ri_pag, XFS_SICK_AG_AGFL);
+			xfs_ag_mark_sick(pag, XFS_SICK_AG_AGFL);
 			return -EFSCORRUPTED;
 		}
 
-		*pcur = rcur = xfs_rmapbt_init_cursor(mp, tp, agbp, ri->ri_pag);
+		*pcur = rcur = xfs_rmapbt_init_cursor(mp, tp, agbp, pag);
 	}
 
 	xfs_rmap_ino_owner(&oinfo, ri->ri_owner, ri->ri_whichfork,
@@ -2620,8 +2622,8 @@ xfs_rmap_finish_one(
 	if (error)
 		return error;
 
-	xfs_rmap_update_hook(tp, pag_group(ri->ri_pag), ri->ri_type, bno,
-			     ri->ri_bmap.br_blockcount, unwritten, &oinfo);
+	xfs_rmap_update_hook(tp, ri->ri_group, ri->ri_type, bno,
+			ri->ri_bmap.br_blockcount, unwritten, &oinfo);
 	return 0;
 }
 

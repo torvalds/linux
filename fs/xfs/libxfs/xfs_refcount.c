@@ -1358,7 +1358,7 @@ xfs_refcount_finish_one(
 	 * If we haven't gotten a cursor or the cursor AG doesn't match
 	 * the startblock, get one now.
 	 */
-	if (rcur != NULL && to_perag(rcur->bc_group) != ri->ri_pag) {
+	if (rcur != NULL && rcur->bc_group != ri->ri_group) {
 		nr_ops = rcur->bc_refc.nr_ops;
 		shape_changes = rcur->bc_refc.shape_changes;
 		xfs_btree_del_cursor(rcur, 0);
@@ -1366,13 +1366,14 @@ xfs_refcount_finish_one(
 		*pcur = NULL;
 	}
 	if (rcur == NULL) {
-		error = xfs_alloc_read_agf(ri->ri_pag, tp,
+		struct xfs_perag	*pag = to_perag(ri->ri_group);
+
+		error = xfs_alloc_read_agf(pag, tp,
 				XFS_ALLOC_FLAG_FREEING, &agbp);
 		if (error)
 			return error;
 
-		*pcur = rcur = xfs_refcountbt_init_cursor(mp, tp, agbp,
-							  ri->ri_pag);
+		*pcur = rcur = xfs_refcountbt_init_cursor(mp, tp, agbp, pag);
 		rcur->bc_refc.nr_ops = nr_ops;
 		rcur->bc_refc.shape_changes = shape_changes;
 	}
