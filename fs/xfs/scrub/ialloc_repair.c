@@ -146,15 +146,12 @@ xrep_ibt_check_ifree(
 	struct xfs_scrub	*sc = ri->sc;
 	struct xfs_mount	*mp = sc->mp;
 	struct xfs_dinode	*dip;
-	xfs_ino_t		fsino;
 	xfs_agino_t		agino;
-	xfs_agnumber_t		agno = ri->sc->sa.pag->pag_agno;
 	unsigned int		cluster_buf_base;
 	unsigned int		offset;
 	int			error;
 
 	agino = cluster_ag_base + cluster_index;
-	fsino = XFS_AGINO_TO_INO(mp, agno, agino);
 
 	/* Inode uncached or half assembled, read disk buffer */
 	cluster_buf_base = XFS_INO_TO_OFFSET(mp, cluster_ag_base);
@@ -165,7 +162,8 @@ xrep_ibt_check_ifree(
 	if (be16_to_cpu(dip->di_magic) != XFS_DINODE_MAGIC)
 		return -EFSCORRUPTED;
 
-	if (dip->di_version >= 3 && be64_to_cpu(dip->di_ino) != fsino)
+	if (dip->di_version >= 3 &&
+	    be64_to_cpu(dip->di_ino) != xfs_agino_to_ino(ri->sc->sa.pag, agino))
 		return -EFSCORRUPTED;
 
 	/* Will the in-core inode tell us if it's in use? */

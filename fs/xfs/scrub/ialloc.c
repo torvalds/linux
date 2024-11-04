@@ -303,7 +303,6 @@ xchk_iallocbt_check_cluster_ifree(
 	unsigned int			irec_ino,
 	struct xfs_dinode		*dip)
 {
-	struct xfs_mount		*mp = bs->cur->bc_mp;
 	xfs_ino_t			fsino;
 	xfs_agino_t			agino;
 	bool				irec_free;
@@ -319,7 +318,7 @@ xchk_iallocbt_check_cluster_ifree(
 	 * the record, compute which fs inode we're talking about.
 	 */
 	agino = irec->ir_startino + irec_ino;
-	fsino = XFS_AGINO_TO_INO(mp, bs->cur->bc_ag.pag->pag_agno, agino);
+	fsino = xfs_agino_to_ino(bs->cur->bc_ag.pag, agino);
 	irec_free = (irec->ir_free & XFS_INOBT_MASK(irec_ino));
 
 	if (be16_to_cpu(dip->di_magic) != XFS_DINODE_MAGIC ||

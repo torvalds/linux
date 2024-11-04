@@ -176,7 +176,6 @@ xfs_iwalk_ag_recs(
 	struct xfs_mount	*mp = iwag->mp;
 	struct xfs_trans	*tp = iwag->tp;
 	struct xfs_perag	*pag = iwag->pag;
-	xfs_ino_t		ino;
 	unsigned int		i, j;
 	int			error;
 
@@ -207,9 +206,10 @@ xfs_iwalk_ag_recs(
 				continue;
 
 			/* Otherwise call our function. */
-			ino = XFS_AGINO_TO_INO(mp, pag->pag_agno,
-						irec->ir_startino + j);
-			error = iwag->iwalk_fn(mp, tp, ino, iwag->data);
+			error = iwag->iwalk_fn(mp, tp,
+					xfs_agino_to_ino(pag,
+						irec->ir_startino + j),
+					iwag->data);
 			if (error)
 				return error;
 		}
@@ -304,7 +304,7 @@ xfs_iwalk_ag_start(
 		return -EFSCORRUPTED;
 	}
 
-	iwag->lastino = XFS_AGINO_TO_INO(mp, pag->pag_agno,
+	iwag->lastino = xfs_agino_to_ino(pag,
 				irec->ir_startino + XFS_INODES_PER_CHUNK - 1);
 
 	/*
@@ -424,7 +424,7 @@ xfs_iwalk_ag(
 			break;
 
 		/* Make sure that we always move forward. */
-		rec_fsino = XFS_AGINO_TO_INO(mp, pag->pag_agno, irec->ir_startino);
+		rec_fsino = xfs_agino_to_ino(pag, irec->ir_startino);
 		if (iwag->lastino != NULLFSINO &&
 		    XFS_IS_CORRUPT(mp, iwag->lastino >= rec_fsino)) {
 			xfs_btree_mark_sick(cur);

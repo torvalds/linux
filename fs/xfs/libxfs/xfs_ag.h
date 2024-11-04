@@ -346,4 +346,12 @@ xfs_agbno_to_daddr(
 	return XFS_AGB_TO_DADDR(pag->pag_mount, pag->pag_agno, agbno);
 }
 
+static inline xfs_ino_t
+xfs_agino_to_ino(
+	struct xfs_perag	*pag,
+	xfs_agino_t		agino)
+{
+	return XFS_AGINO_TO_INO(pag->pag_mount, pag->pag_agno, agino);
+}
+
 #endif /* __LIBXFS_AG_H */

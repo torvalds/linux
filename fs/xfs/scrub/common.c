@@ -1336,7 +1336,7 @@ xchk_inode_is_allocated(
 	}
 
 	/* reject inode numbers outside existing AGs */
-	ino = XFS_AGINO_TO_INO(sc->mp, pag->pag_agno, agino);
+	ino = xfs_agino_to_ino(pag, agino);
 	if (!xfs_verify_ino(mp, ino))
 		return -EINVAL;
 

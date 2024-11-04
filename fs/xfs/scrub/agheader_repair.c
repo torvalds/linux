@@ -1038,12 +1038,10 @@ xrep_iunlink_reload_next(
 {
 	struct xfs_scrub	*sc = ragi->sc;
 	struct xfs_inode	*ip;
-	xfs_ino_t		ino;
 	xfs_agino_t		ret = NULLAGINO;
 	int			error;
 
-	ino = XFS_AGINO_TO_INO(sc->mp, sc->sa.pag->pag_agno, agino);
-	error = xchk_iget(ragi->sc, ino, &ip);
+	error = xchk_iget(ragi->sc, xfs_agino_to_ino(sc->sa.pag, agino), &ip);
 	if (error)
 		return ret;
 
@@ -1278,9 +1276,7 @@ xrep_iunlink_mark_ondisk_rec(
 		 * on because we haven't actually scrubbed the inobt or the
 		 * inodes yet.
 		 */
-		error = xchk_iget(ragi->sc,
-				XFS_AGINO_TO_INO(mp, sc->sa.pag->pag_agno,
-						 agino),
+		error = xchk_iget(ragi->sc, xfs_agino_to_ino(sc->sa.pag, agino),
 				&ip);
 		if (error)
 			continue;
@@ -1539,15 +1535,13 @@ xrep_iunlink_relink_next(
 
 	ip = xfs_iunlink_lookup(pag, agino);
 	if (!ip) {
-		xfs_ino_t	ino;
 		xfs_agino_t	prev_agino;
 
 		/*
 		 * No inode exists in cache.  Load it off the disk so that we
 		 * can reinsert it into the incore unlinked list.
 		 */
-		ino = XFS_AGINO_TO_INO(sc->mp, pag->pag_agno, agino);
-		error = xchk_iget(sc, ino, &ip);
+		error = xchk_iget(sc, xfs_agino_to_ino(pag, agino), &ip);
 		if (error)
 			return -EFSCORRUPTED;
 
@@ -1601,15 +1595,13 @@ xrep_iunlink_relink_prev(
 
 	ip = xfs_iunlink_lookup(pag, agino);
 	if (!ip) {
-		xfs_ino_t	ino;
 		xfs_agino_t	next_agino;
 
 		/*
 		 * No inode exists in cache.  Load it off the disk so that we
 		 * can reinsert it into the incore unlinked list.
 		 */
-		ino = XFS_AGINO_TO_INO(sc->mp, pag->pag_agno, agino);
-		error = xchk_iget(sc, ino, &ip);
+		error = xchk_iget(sc, xfs_agino_to_ino(pag, agino), &ip);
 		if (error)
 			return -EFSCORRUPTED;
 
