@@ -28,6 +28,7 @@
 #include "xfs_da_format.h"
 #include "xfs_metafile.h"
 #include "xfs_rtgroup.h"
+#include "xfs_error.h"
 
 /*
  * Return whether there are any free extents in the size range given
@@ -652,6 +653,16 @@ xfs_rtallocate_extent_size(
 	return -ENOSPC;
 }
 
+static void
+xfs_rtunmount_rtg(
+	struct xfs_rtgroup	*rtg)
+{
+	int			i;
+
+	for (i = 0; i < XFS_RTGI_MAX; i++)
+		xfs_rtginode_irele(&rtg->rtg_inodes[i]);
+}
+
 static int
 xfs_alloc_rsum_cache(
 	struct xfs_mount	*mp,
@@ -1127,6 +1138,43 @@ out_unlock:
 	return error;
 }
 
+static void
+xfs_rtgroup_unmount_inodes(
+	struct xfs_mount	*mp)
+{
+	struct xfs_rtgroup	*rtg = NULL;
+
+	while ((rtg = xfs_rtgroup_next(mp, rtg)))
+		xfs_rtunmount_rtg(rtg);
+	xfs_rtginode_irele(&mp->m_rtdirip);
+}
+
+static int
+xfs_rtmount_rtg(
+	struct xfs_mount	*mp,
+	struct xfs_trans	*tp,
+	struct xfs_rtgroup	*rtg)
+{
+	int			error, i;
+
+	rtg->rtg_extents = xfs_rtgroup_extents(mp, rtg_rgno(rtg));
+
+	for (i = 0; i < XFS_RTGI_MAX; i++) {
+		error = xfs_rtginode_load(rtg, i, tp);
+		if (error)
+			return error;
+
+		if (rtg->rtg_inodes[i]) {
+			error = xfs_rtmount_iread_extents(tp,
+					rtg->rtg_inodes[i], 0);
+			if (error)
+				return error;
+		}
+	}
+
+	return 0;
+}
+
 /*
  * Get the bitmap and summary inodes and the summary cache into the mount
  * structure at mount time.
@@ -1168,15 +1216,28 @@ xfs_rtmount_inodes(
 	if (error)
 		goto out_rele_summary;
 
-	while ((rtg = xfs_rtgroup_next(mp, rtg)))
-		rtg->rtg_extents = xfs_rtgroup_extents(mp, rtg_rgno(rtg));
+	if (xfs_has_rtgroups(mp) && mp->m_sb.sb_rgcount > 0) {
+		error = xfs_rtginode_load_parent(tp);
+		if (error)
+			goto out_rele_summary;
+	}
+
+	while ((rtg = xfs_rtgroup_next(mp, rtg))) {
+		error = xfs_rtmount_rtg(mp, tp, rtg);
+		if (error) {
+			xfs_rtgroup_rele(rtg);
+			goto out_rele_inodes;
+		}
+	}
 
 	error = xfs_alloc_rsum_cache(mp, sbp->sb_rbmblocks);
 	if (error)
-		goto out_rele_summary;
+		goto out_rele_inodes;
 	xfs_trans_cancel(tp);
 	return 0;
 
+out_rele_inodes:
+	xfs_rtgroup_unmount_inodes(mp);
 out_rele_summary:
 	xfs_irele(mp->m_rsumip);
 out_rele_bitmap:
@@ -1191,6 +1252,8 @@ xfs_rtunmount_inodes(
 	struct xfs_mount	*mp)
 {
 	kvfree(mp->m_rsum_cache);
+
+	xfs_rtgroup_unmount_inodes(mp);
 	if (mp->m_rbmip)
 		xfs_irele(mp->m_rbmip);
 	if (mp->m_rsumip)
