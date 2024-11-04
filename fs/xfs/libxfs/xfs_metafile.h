@@ -17,6 +17,10 @@
 #define XFS_METADIR_DIFLAGS	(XFS_METAFILE_DIFLAGS | \
 				 XFS_DIFLAG_NOSYMLINKS)
 
+void xfs_metafile_set_iflag(struct xfs_trans *tp, struct xfs_inode *ip,
+		enum xfs_metafile_type metafile_type);
+void xfs_metafile_clear_iflag(struct xfs_trans *tp, struct xfs_inode *ip);
+
 /* Code specific to kernel/userspace; must be provided externally. */
 
 int xfs_trans_metafile_iget(struct xfs_trans *tp, xfs_ino_t ino,
