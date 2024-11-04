@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0
 config KEBA_CP500
 	tristate "KEBA CP500 system FPGA support"
+	depends on X86_64 || ARM64 || COMPILE_TEST
 	depends on PCI
 	depends on I2C
 	select AUXILIARY_BUS
