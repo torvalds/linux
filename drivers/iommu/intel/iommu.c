@@ -1329,18 +1329,17 @@ static void free_dmar_iommu(struct intel_iommu *iommu)
  * Check and return whether first level is used by default for
  * DMA translation.
  */
-static bool first_level_by_default(unsigned int type)
+static bool first_level_by_default(struct intel_iommu *iommu)
 {
 	/* Only SL is available in legacy mode */
-	if (!scalable_mode_support())
+	if (!sm_supported(iommu))
 		return false;
 
 	/* Only level (either FL or SL) is available, just use it */
-	if (intel_cap_flts_sanity() ^ intel_cap_slts_sanity())
-		return intel_cap_flts_sanity();
+	if (ecap_flts(iommu->ecap) ^ ecap_slts(iommu->ecap))
+		return ecap_flts(iommu->ecap);
 
-	/* Both levels are available, decide it based on domain type */
-	return type != IOMMU_DOMAIN_UNMANAGED;
+	return true;
 }
 
 int domain_attach_iommu(struct dmar_domain *domain, struct intel_iommu *iommu)
@@ -3110,7 +3109,7 @@ int __init intel_iommu_init(void)
 		 * the virtual and physical IOMMU page-tables.
 		 */
 		if (cap_caching_mode(iommu->cap) &&
-		    !first_level_by_default(IOMMU_DOMAIN_DMA)) {
+		    !first_level_by_default(iommu)) {
 			pr_info_once("IOMMU batching disallowed due to virtualization\n");
 			iommu_set_dma_strict();
 		}
@@ -4359,10 +4358,12 @@ static struct iommu_domain identity_domain = {
 
 static struct iommu_domain *intel_iommu_domain_alloc_paging(struct device *dev)
 {
+	struct device_domain_info *info = dev_iommu_priv_get(dev);
+	struct intel_iommu *iommu = info->iommu;
 	struct dmar_domain *dmar_domain;
 	bool first_stage;
 
-	first_stage = first_level_by_default(0);
+	first_stage = first_level_by_default(iommu);
 	dmar_domain = paging_domain_alloc(dev, first_stage);
 	if (IS_ERR(dmar_domain))
 		return ERR_CAST(dmar_domain);
