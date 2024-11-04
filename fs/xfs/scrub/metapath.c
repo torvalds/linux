@@ -20,6 +20,7 @@
 #include "xfs_bmap_btree.h"
 #include "xfs_trans_space.h"
 #include "xfs_attr.h"
+#include "xfs_rtgroup.h"
 #include "scrub/scrub.h"
 #include "scrub/common.h"
 #include "scrub/trace.h"
@@ -79,6 +80,91 @@ xchk_metapath_cleanup(
 	kfree(mpath->path);
 }
 
+/* Set up a metadir path scan.  @path must be dynamically allocated. */
+static inline int
+xchk_setup_metapath_scan(
+	struct xfs_scrub	*sc,
+	struct xfs_inode	*dp,
+	const char		*path,
+	struct xfs_inode	*ip)
+{
+	struct xchk_metapath	*mpath;
+	int			error;
+
+	if (!path)
+		return -ENOMEM;
+
+	error = xchk_install_live_inode(sc, ip);
+	if (error) {
+		kfree(path);
+		return error;
+	}
+
+	mpath = kzalloc(sizeof(struct xchk_metapath), XCHK_GFP_FLAGS);
+	if (!mpath) {
+		kfree(path);
+		return -ENOMEM;
+	}
+
+	mpath->sc = sc;
+	sc->buf = mpath;
+	sc->buf_cleanup = xchk_metapath_cleanup;
+
+	mpath->dp = dp;
+	mpath->path = path; /* path is now owned by mpath */
+
+	mpath->xname.name = mpath->path;
+	mpath->xname.len = strlen(mpath->path);
+	mpath->xname.type = xfs_mode_to_ftype(VFS_I(ip)->i_mode);
+
+	return 0;
+}
+
+#ifdef CONFIG_XFS_RT
+/* Scan the /rtgroups directory itself. */
+static int
+xchk_setup_metapath_rtdir(
+	struct xfs_scrub	*sc)
+{
+	if (!sc->mp->m_rtdirip)
+		return -ENOENT;
+
+	return xchk_setup_metapath_scan(sc, sc->mp->m_metadirip,
+			kasprintf(GFP_KERNEL, "rtgroups"), sc->mp->m_rtdirip);
+}
+
+/* Scan a rtgroup inode under the /rtgroups directory. */
+static int
+xchk_setup_metapath_rtginode(
+	struct xfs_scrub	*sc,
+	enum xfs_rtg_inodes	type)
+{
+	struct xfs_rtgroup	*rtg;
+	struct xfs_inode	*ip;
+	int			error;
+
+	rtg = xfs_rtgroup_get(sc->mp, sc->sm->sm_agno);
+	if (!rtg)
+		return -ENOENT;
+
+	ip = rtg->rtg_inodes[type];
+	if (!ip) {
+		error = -ENOENT;
+		goto out_put_rtg;
+	}
+
+	error = xchk_setup_metapath_scan(sc, sc->mp->m_rtdirip,
+			xfs_rtginode_path(rtg_rgno(rtg), type), ip);
+
+out_put_rtg:
+	xfs_rtgroup_put(rtg);
+	return error;
+}
+#else
+# define xchk_setup_metapath_rtdir(...)		(-ENOENT)
+# define xchk_setup_metapath_rtginode(...)	(-ENOENT)
+#endif /* CONFIG_XFS_RT */
+
 int
 xchk_setup_metapath(
 	struct xfs_scrub	*sc)
@@ -94,6 +180,12 @@ xchk_setup_metapath(
 		if (sc->sm->sm_agno)
 			return -EINVAL;
 		return 0;
+	case XFS_SCRUB_METAPATH_RTDIR:
+		return xchk_setup_metapath_rtdir(sc);
+	case XFS_SCRUB_METAPATH_RTBITMAP:
+		return xchk_setup_metapath_rtginode(sc, XFS_RTGI_BITMAP);
+	case XFS_SCRUB_METAPATH_RTSUMMARY:
+		return xchk_setup_metapath_rtginode(sc, XFS_RTGI_SUMMARY);
 	default:
 		return -ENOENT;
 	}
