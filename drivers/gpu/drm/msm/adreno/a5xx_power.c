@@ -307,7 +307,7 @@ int a5xx_power_init(struct msm_gpu *gpu)
 	else if (adreno_is_a540(adreno_gpu))
 		a540_lm_setup(gpu);
 
-	/* Set up SP/TP power collpase */
+	/* Set up SP/TP power collapse */
 	a5xx_pc_init(gpu);
 
 	/* Start the GPMU */

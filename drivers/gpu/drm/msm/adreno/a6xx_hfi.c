@@ -478,6 +478,37 @@ static void a660_build_bw_table(struct a6xx_hfi_msg_bw_table *msg)
 	msg->cnoc_cmds_data[1][0] =  0x60000001;
 }
 
+static void a663_build_bw_table(struct a6xx_hfi_msg_bw_table *msg)
+{
+	/*
+	 * Send a single "off" entry just to get things running
+	 * TODO: bus scaling
+	 */
+	msg->bw_level_num = 1;
+
+	msg->ddr_cmds_num = 3;
+	msg->ddr_wait_bitmask = 0x07;
+
+	msg->ddr_cmds_addrs[0] = 0x50004;
+	msg->ddr_cmds_addrs[1] = 0x50000;
+	msg->ddr_cmds_addrs[2] = 0x500b4;
+
+	msg->ddr_cmds_data[0][0] =  0x40000000;
+	msg->ddr_cmds_data[0][1] =  0x40000000;
+	msg->ddr_cmds_data[0][2] =  0x40000000;
+
+	/*
+	 * These are the CX (CNOC) votes - these are used by the GMU but the
+	 * votes are known and fixed for the target
+	 */
+	msg->cnoc_cmds_num = 1;
+	msg->cnoc_wait_bitmask = 0x01;
+
+	msg->cnoc_cmds_addrs[0] = 0x50058;
+	msg->cnoc_cmds_data[0][0] =  0x40000000;
+	msg->cnoc_cmds_data[1][0] =  0x60000001;
+}
+
 static void adreno_7c3_build_bw_table(struct a6xx_hfi_msg_bw_table *msg)
 {
 	/*
@@ -630,32 +661,44 @@ static void a6xx_build_bw_table(struct a6xx_hfi_msg_bw_table *msg)
 
 static int a6xx_hfi_send_bw_table(struct a6xx_gmu *gmu)
 {
-	struct a6xx_hfi_msg_bw_table msg = { 0 };
+	struct a6xx_hfi_msg_bw_table *msg;
 	struct a6xx_gpu *a6xx_gpu = container_of(gmu, struct a6xx_gpu, gmu);
 	struct adreno_gpu *adreno_gpu = &a6xx_gpu->base;
 
-	if (adreno_is_a618(adreno_gpu))
-		a618_build_bw_table(&msg);
-	else if (adreno_is_a619(adreno_gpu))
-		a619_build_bw_table(&msg);
-	else if (adreno_is_a640_family(adreno_gpu))
-		a640_build_bw_table(&msg);
-	else if (adreno_is_a650(adreno_gpu))
-		a650_build_bw_table(&msg);
-	else if (adreno_is_7c3(adreno_gpu))
-		adreno_7c3_build_bw_table(&msg);
-	else if (adreno_is_a660(adreno_gpu))
-		a660_build_bw_table(&msg);
-	else if (adreno_is_a690(adreno_gpu))
-		a690_build_bw_table(&msg);
-	else if (adreno_is_a730(adreno_gpu))
-		a730_build_bw_table(&msg);
-	else if (adreno_is_a740_family(adreno_gpu))
-		a740_build_bw_table(&msg);
-	else
-		a6xx_build_bw_table(&msg);
+	if (gmu->bw_table)
+		goto send;
 
-	return a6xx_hfi_send_msg(gmu, HFI_H2F_MSG_BW_TABLE, &msg, sizeof(msg),
+	msg = devm_kzalloc(gmu->dev, sizeof(*msg), GFP_KERNEL);
+	if (!msg)
+		return -ENOMEM;
+
+	if (adreno_is_a618(adreno_gpu))
+		a618_build_bw_table(msg);
+	else if (adreno_is_a619(adreno_gpu))
+		a619_build_bw_table(msg);
+	else if (adreno_is_a640_family(adreno_gpu))
+		a640_build_bw_table(msg);
+	else if (adreno_is_a650(adreno_gpu))
+		a650_build_bw_table(msg);
+	else if (adreno_is_7c3(adreno_gpu))
+		adreno_7c3_build_bw_table(msg);
+	else if (adreno_is_a660(adreno_gpu))
+		a660_build_bw_table(msg);
+	else if (adreno_is_a663(adreno_gpu))
+		a663_build_bw_table(msg);
+	else if (adreno_is_a690(adreno_gpu))
+		a690_build_bw_table(msg);
+	else if (adreno_is_a730(adreno_gpu))
+		a730_build_bw_table(msg);
+	else if (adreno_is_a740_family(adreno_gpu))
+		a740_build_bw_table(msg);
+	else
+		a6xx_build_bw_table(msg);
+
+	gmu->bw_table = msg;
+
+send:
+	return a6xx_hfi_send_msg(gmu, HFI_H2F_MSG_BW_TABLE, gmu->bw_table, sizeof(*(gmu->bw_table)),
 		NULL, 0);
 }
 

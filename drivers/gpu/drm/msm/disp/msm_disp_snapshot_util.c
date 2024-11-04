@@ -25,24 +25,21 @@ static void msm_disp_state_dump_regs(u32 **reg, u32 aligned_len, void __iomem *b
 	addr = base_addr;
 	end_addr = base_addr + aligned_len;
 
-	if (!(*reg))
-		*reg = kvzalloc(len_padded, GFP_KERNEL);
+	*reg = kvzalloc(len_padded, GFP_KERNEL);
+	if (!*reg)
+		return;
 
-	if (*reg)
-		dump_addr = *reg;
-
+	dump_addr = *reg;
 	for (i = 0; i < num_rows; i++) {
 		x0 = (addr < end_addr) ? readl_relaxed(addr + 0x0) : 0;
 		x4 = (addr + 0x4 < end_addr) ? readl_relaxed(addr + 0x4) : 0;
 		x8 = (addr + 0x8 < end_addr) ? readl_relaxed(addr + 0x8) : 0;
 		xc = (addr + 0xc < end_addr) ? readl_relaxed(addr + 0xc) : 0;
 
-		if (dump_addr) {
-			dump_addr[i * 4] = x0;
-			dump_addr[i * 4 + 1] = x4;
-			dump_addr[i * 4 + 2] = x8;
-			dump_addr[i * 4 + 3] = xc;
-		}
+		dump_addr[i * 4] = x0;
+		dump_addr[i * 4 + 1] = x4;
+		dump_addr[i * 4 + 2] = x8;
+		dump_addr[i * 4 + 3] = xc;
 
 		addr += REG_DUMP_ALIGN;
 	}
