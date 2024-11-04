@@ -20,7 +20,7 @@ struct xfs_alloc_arg;
 struct xfs_extent_busy {
 	struct rb_node	rb_node;	/* ag by-bno indexed search tree */
 	struct list_head list;		/* transaction busy extent list */
-	xfs_agnumber_t	agno;
+	struct xfs_perag *pag;
 	xfs_agblock_t	bno;
 	xfs_extlen_t	length;
 	unsigned int	flags;

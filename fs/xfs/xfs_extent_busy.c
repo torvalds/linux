@@ -34,7 +34,7 @@ xfs_extent_busy_insert_list(
 
 	new = kzalloc(sizeof(struct xfs_extent_busy),
 			GFP_KERNEL | __GFP_NOFAIL);
-	new->agno = pag->pag_agno;
+	new->pag = xfs_perag_hold(pag);
 	new->bno = bno;
 	new->length = len;
 	INIT_LIST_HEAD(&new->list);
@@ -526,12 +526,14 @@ xfs_extent_busy_clear_one(
 			busyp->flags = XFS_EXTENT_BUSY_DISCARDED;
 			return false;
 		}
-		trace_xfs_extent_busy_clear(pag->pag_mount, busyp->agno,
-				busyp->bno, busyp->length);
+		trace_xfs_extent_busy_clear(pag->pag_mount,
+				busyp->pag->pag_agno, busyp->bno,
+				busyp->length);
 		rb_erase(&busyp->rb_node, &pag->pagb_tree);
 	}
 
 	list_del_init(&busyp->list);
+	xfs_perag_put(busyp->pag);
 	kfree(busyp);
 	return true;
 }
@@ -554,10 +556,9 @@ xfs_extent_busy_clear(
 		return;
 
 	do {
+		struct xfs_perag	*pag = xfs_perag_hold(busyp->pag);
 		bool			wakeup = false;
-		struct xfs_perag	*pag;
 
-		pag = xfs_perag_get(mp, busyp->agno);
 		spin_lock(&pag->pagb_lock);
 		do {
 			next = list_next_entry(busyp, list);
@@ -565,7 +566,7 @@ xfs_extent_busy_clear(
 				wakeup = true;
 			busyp = next;
 		} while (!list_entry_is_head(busyp, list, list) &&
-			 busyp->agno == pag->pag_agno);
+			 busyp->pag == pag);
 
 		if (wakeup) {
 			pag->pagb_gen++;
@@ -662,7 +663,7 @@ xfs_extent_busy_ag_cmp(
 		container_of(l2, struct xfs_extent_busy, list);
 	s32 diff;
 
-	diff = b1->agno - b2->agno;
+	diff = b1->pag->pag_agno - b2->pag->pag_agno;
 	if (!diff)
 		diff = b1->bno - b2->bno;
 	return diff;
