@@ -4237,25 +4237,6 @@ DEFINE_INODE_CORRUPT_EVENT(xfs_inode_mark_corrupt);
 DEFINE_INODE_CORRUPT_EVENT(xfs_inode_mark_healthy);
 DEFINE_INODE_CORRUPT_EVENT(xfs_inode_unfixed_corruption);
 
-TRACE_EVENT(xfs_iwalk_ag,
-	TP_PROTO(struct xfs_mount *mp, xfs_agnumber_t agno,
-		 xfs_agino_t startino),
-	TP_ARGS(mp, agno, startino),
-	TP_STRUCT__entry(
-		__field(dev_t, dev)
-		__field(xfs_agnumber_t, agno)
-		__field(xfs_agino_t, startino)
-	),
-	TP_fast_assign(
-		__entry->dev = mp->m_super->s_dev;
-		__entry->agno = agno;
-		__entry->startino = startino;
-	),
-	TP_printk("dev %d:%d agno 0x%x startino 0x%x",
-		  MAJOR(__entry->dev), MINOR(__entry->dev), __entry->agno,
-		  __entry->startino)
-)
-
 TRACE_EVENT(xfs_iwalk_ag_rec,
 	TP_PROTO(struct xfs_mount *mp, xfs_agnumber_t agno,
 		 struct xfs_inobt_rec_incore *irec),
