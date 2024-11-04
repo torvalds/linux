@@ -442,6 +442,13 @@ static const struct xchk_meta_ops meta_scrub_ops[] = {
 		.has	= xfs_has_parent,
 		.repair	= xrep_dirtree,
 	},
+	[XFS_SCRUB_TYPE_METAPATH] = {	/* metadata directory tree path */
+		.type	= ST_GENERIC,
+		.setup	= xchk_setup_metapath,
+		.scrub	= xchk_metapath,
+		.has	= xfs_has_metadir,
+		.repair	= xrep_notsupported,
+	},
 };
 
 static int
@@ -488,6 +495,8 @@ xchk_validate_inputs(
 	case ST_INODE:
 		if (sm->sm_agno || (sm->sm_gen && !sm->sm_ino))
 			goto out;
+		break;
+	case ST_GENERIC:
 		break;
 	default:
 		goto out;
