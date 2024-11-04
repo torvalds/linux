@@ -526,8 +526,12 @@ xrep_dinode_nlinks(
 		return;
 	}
 
-	if (!xfs_dinode_is_metadir(dip))
+	if (xfs_dinode_is_metadir(dip)) {
+		if (be16_to_cpu(dip->di_metatype) >= XFS_METAFILE_MAX)
+			dip->di_metatype = cpu_to_be16(XFS_METAFILE_UNKNOWN);
+	} else {
 		dip->di_metatype = 0;
+	}
 }
 
 /* Fix any conflicting flags that the verifiers complain about. */

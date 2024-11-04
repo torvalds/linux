@@ -443,8 +443,13 @@ xchk_dinode(
 		break;
 	case 2:
 	case 3:
-		if (!xfs_dinode_is_metadir(dip) && dip->di_metatype)
-			xchk_ino_set_corrupt(sc, ino);
+		if (xfs_dinode_is_metadir(dip)) {
+			if (be16_to_cpu(dip->di_metatype) >= XFS_METAFILE_MAX)
+				xchk_ino_set_corrupt(sc, ino);
+		} else {
+			if (dip->di_metatype != 0)
+				xchk_ino_set_corrupt(sc, ino);
+		}
 
 		if (dip->di_mode == 0 && sc->ip)
 			xchk_ino_set_corrupt(sc, ino);
