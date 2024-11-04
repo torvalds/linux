@@ -1895,19 +1895,6 @@ void dmar_msi_write(int irq, struct msi_msg *msg)
 	raw_spin_unlock_irqrestore(&iommu->register_lock, flag);
 }
 
-void dmar_msi_read(int irq, struct msi_msg *msg)
-{
-	struct intel_iommu *iommu = irq_get_handler_data(irq);
-	int reg = dmar_msi_reg(iommu, irq);
-	unsigned long flag;
-
-	raw_spin_lock_irqsave(&iommu->register_lock, flag);
-	msg->data = readl(iommu->reg + reg + 4);
-	msg->address_lo = readl(iommu->reg + reg + 8);
-	msg->address_hi = readl(iommu->reg + reg + 12);
-	raw_spin_unlock_irqrestore(&iommu->register_lock, flag);
-}
-
 static int dmar_fault_do_one(struct intel_iommu *iommu, int type,
 		u8 fault_reason, u32 pasid, u16 source_id,
 		unsigned long long addr)
