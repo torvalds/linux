@@ -824,7 +824,7 @@ static int ti_qspi_probe(struct platform_device *pdev)
 	}
 
 
-	if (of_property_read_bool(np, "syscon-chipselects")) {
+	if (of_property_present(np, "syscon-chipselects")) {
 		qspi->ctrl_base =
 		syscon_regmap_lookup_by_phandle(np,
 						"syscon-chipselects");
