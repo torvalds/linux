@@ -39,6 +39,7 @@
 #include "scrub/trace.h"
 #include "scrub/repair.h"
 #include "scrub/health.h"
+#include "scrub/tempfile.h"
 
 /* Common code for the metadata scrubbers. */
 
@@ -1087,6 +1088,10 @@ xchk_setup_inode_contents(
 	int			error;
 
 	error = xchk_iget_for_scrubbing(sc);
+	if (error)
+		return error;
+
+	error = xrep_tempfile_adjust_directory_tree(sc);
 	if (error)
 		return error;
 
