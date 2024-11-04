@@ -784,7 +784,7 @@ static int virtblk_read_zoned_limits(struct virtio_blk *vblk,
 			wg, v);
 		return -ENODEV;
 	}
-	lim->max_zone_append_sectors = v;
+	lim->max_hw_zone_append_sectors = v;
 	dev_dbg(&vdev->dev, "max append sectors = %u\n", v);
 
 	return 0;

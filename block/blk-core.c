@@ -607,7 +607,7 @@ static inline blk_status_t blk_check_zone_append(struct request_queue *q,
 		return BLK_STS_IOERR;
 
 	/* Make sure the BIO is small enough and will not get split */
-	if (nr_sectors > queue_max_zone_append_sectors(q))
+	if (nr_sectors > q->limits.max_zone_append_sectors)
 		return BLK_STS_IOERR;
 
 	bio->bi_opf |= REQ_NOMERGE;
