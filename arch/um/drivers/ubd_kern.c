@@ -898,6 +898,8 @@ static int ubd_add(int n, char **error_out)
 	if (err)
 		goto out_cleanup_disk;
 
+	ubd_dev->disk = disk;
+
 	return 0;
 
 out_cleanup_disk:
