@@ -560,7 +560,6 @@ int intel_pasid_setup_nested(struct intel_iommu *iommu, struct device *dev,
 			     u32 pasid, struct dmar_domain *domain)
 {
 	struct iommu_hwpt_vtd_s1 *s1_cfg = &domain->s1_cfg;
-	pgd_t *s1_gpgd = (pgd_t *)(uintptr_t)domain->s1_pgtbl;
 	struct dmar_domain *s2_domain = domain->s2_domain;
 	u16 did = domain_id_iommu(domain, iommu);
 	struct dma_pte *pgd = s2_domain->pgd;
@@ -611,7 +610,7 @@ int intel_pasid_setup_nested(struct intel_iommu *iommu, struct device *dev,
 	if (s1_cfg->addr_width == ADDR_WIDTH_5LEVEL)
 		pasid_set_flpm(pte, 1);
 
-	pasid_set_flptr(pte, (uintptr_t)s1_gpgd);
+	pasid_set_flptr(pte, s1_cfg->pgtbl_addr);
 
 	if (s1_cfg->flags & IOMMU_VTD_S1_SRE) {
 		pasid_set_sre(pte);
