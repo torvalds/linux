@@ -2178,6 +2178,8 @@ xfs_inode_near_dquot_enforcement(
 	xfs_dqtype_t		type)
 {
 	struct xfs_dquot	*dqp;
+	struct xfs_dquot_res	*res;
+	struct xfs_dquot_pre	*pre;
 	int64_t			freesp;
 
 	/* We only care for quotas that are enabled and enforced. */
@@ -2186,21 +2188,30 @@ xfs_inode_near_dquot_enforcement(
 		return false;
 
 	if (xfs_dquot_res_over_limits(&dqp->q_ino) ||
+	    xfs_dquot_res_over_limits(&dqp->q_blk) ||
 	    xfs_dquot_res_over_limits(&dqp->q_rtb))
 		return true;
 
+	if (XFS_IS_REALTIME_INODE(ip)) {
+		res = &dqp->q_rtb;
+		pre = &dqp->q_rtb_prealloc;
+	} else {
+		res = &dqp->q_blk;
+		pre = &dqp->q_blk_prealloc;
+	}
+
 	/* For space on the data device, check the various thresholds. */
-	if (!dqp->q_prealloc_hi_wmark)
+	if (!pre->q_prealloc_hi_wmark)
 		return false;
 
-	if (dqp->q_blk.reserved < dqp->q_prealloc_lo_wmark)
+	if (res->reserved < pre->q_prealloc_lo_wmark)
 		return false;
 
-	if (dqp->q_blk.reserved >= dqp->q_prealloc_hi_wmark)
+	if (res->reserved >= pre->q_prealloc_hi_wmark)
 		return true;
 
-	freesp = dqp->q_prealloc_hi_wmark - dqp->q_blk.reserved;
-	if (freesp < dqp->q_low_space[XFS_QLOWSP_5_PCNT])
+	freesp = pre->q_prealloc_hi_wmark - res->reserved;
+	if (freesp < pre->q_low_space[XFS_QLOWSP_5_PCNT])
 		return true;
 
 	return false;
