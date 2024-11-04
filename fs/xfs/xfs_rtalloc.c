@@ -748,7 +748,7 @@ xfs_growfs_rt_alloc_fake_mount(
 	nmp->m_sb.sb_rextsize = rextsize;
 	xfs_mount_sb_set_rextsize(nmp, &nmp->m_sb);
 	nmp->m_sb.sb_rblocks = rblocks;
-	nmp->m_sb.sb_rextents = xfs_rtb_to_rtx(nmp, nmp->m_sb.sb_rblocks);
+	nmp->m_sb.sb_rextents = xfs_blen_to_rtbxlen(nmp, nmp->m_sb.sb_rblocks);
 	nmp->m_sb.sb_rbmblocks = xfs_rtbitmap_blockcount(nmp);
 	nmp->m_sb.sb_rextslog = xfs_compute_rextslog(nmp->m_sb.sb_rextents);
 	nmp->m_rsumblocks = xfs_rtsummary_blockcount(nmp, &nmp->m_rsumlevels);
@@ -1463,7 +1463,7 @@ xfs_rtallocate(
 	xfs_trans_mod_sb(tp, wasdel ?
 			XFS_TRANS_SB_RES_FREXTENTS : XFS_TRANS_SB_FREXTENTS,
 			-(long)len);
-	*bno = xfs_rtx_to_rtb(args.mp, rtx);
+	*bno = xfs_rtx_to_rtb(args.rtg, rtx);
 	*blen = xfs_rtxlen_to_extlen(args.mp, len);
 
 out_release:
