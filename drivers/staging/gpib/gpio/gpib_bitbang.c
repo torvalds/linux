@@ -202,7 +202,7 @@ int gpios_vector[] = {
 
 /* Lookup table for general GPIOs */
 
-static struct gpiod_lookup_table gpib_gpio_table_0 = {
+static struct gpiod_lookup_table gpib_gpio_table_1 = {
 	// for bcm2835/6
 	.dev_id = "",	 // device id of board device
 	.table = {
@@ -232,7 +232,7 @@ static struct gpiod_lookup_table gpib_gpio_table_0 = {
 	},
 };
 
-static struct gpiod_lookup_table gpib_gpio_table_2 = {
+static struct gpiod_lookup_table gpib_gpio_table_0 = {
 	.dev_id = "",	 // device id of board device
 	.table = {
 		// for bcm27xx based pis (b b+ 2b 3b 3b+ 4 5)
@@ -264,7 +264,7 @@ static struct gpiod_lookup_table gpib_gpio_table_2 = {
 
 static struct gpiod_lookup_table *lookup_tables[] = {
 	&gpib_gpio_table_0,
-	&gpib_gpio_table_2,
+	&gpib_gpio_table_1,
 	0
 };
 
