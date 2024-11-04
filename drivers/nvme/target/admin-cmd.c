@@ -701,6 +701,20 @@ static void nvmet_execute_identify_ctrl_nvm(struct nvmet_req *req)
 		   nvmet_zero_sgl(req, 0, sizeof(struct nvme_id_ctrl_nvm)));
 }
 
+static void nvme_execute_identify_ns_nvm(struct nvmet_req *req)
+{
+	u16 status;
+
+	status = nvmet_req_find_ns(req);
+	if (status)
+		goto out;
+
+	status = nvmet_copy_to_sgl(req, 0, ZERO_PAGE(0),
+				   NVME_IDENTIFY_DATA_SIZE);
+out:
+	nvmet_req_complete(req, status);
+}
+
 static void nvmet_execute_identify(struct nvmet_req *req)
 {
 	if (!nvmet_check_transfer_len(req, NVME_IDENTIFY_DATA_SIZE))
@@ -722,8 +736,8 @@ static void nvmet_execute_identify(struct nvmet_req *req)
 	case NVME_ID_CNS_CS_NS:
 		switch (req->cmd->identify.csi) {
 		case NVME_CSI_NVM:
-			/* Not supported */
-			break;
+			nvme_execute_identify_ns_nvm(req);
+			return;
 		case NVME_CSI_ZNS:
 			if (IS_ENABLED(CONFIG_BLK_DEV_ZONED)) {
 				nvmet_execute_identify_ns_zns(req);
