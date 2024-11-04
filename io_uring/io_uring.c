@@ -2245,6 +2245,7 @@ static bool io_get_sqe(struct io_ring_ctx *ctx, const struct io_uring_sqe **sqe)
 				   READ_ONCE(ctx->rings->sq_dropped) + 1);
 			return false;
 		}
+		head = array_index_nospec(head, ctx->sq_entries);
 	}
 
 	/*
