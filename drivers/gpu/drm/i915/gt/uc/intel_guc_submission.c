@@ -1688,6 +1688,10 @@ void intel_guc_submission_reset_prepare(struct intel_guc *guc)
 	spin_lock_irq(guc_to_gt(guc)->irq_lock);
 	spin_unlock_irq(guc_to_gt(guc)->irq_lock);
 
+	/* Flush tasklet */
+	tasklet_disable(&guc->ct.receive_tasklet);
+	tasklet_enable(&guc->ct.receive_tasklet);
+
 	guc_flush_submissions(guc);
 	guc_flush_destroyed_contexts(guc);
 	flush_work(&guc->ct.requests.worker);
