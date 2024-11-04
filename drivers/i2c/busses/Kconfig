@@ -431,7 +431,7 @@ config I2C_AT91
 	  are facing this situation, use the i2c-gpio driver.
 
 config I2C_AT91_SLAVE_EXPERIMENTAL
-	tristate "Microchip AT91 I2C experimental slave mode"
+	bool "Microchip AT91 I2C experimental slave mode"
 	depends on I2C_AT91
 	select I2C_SLAVE
 	help
@@ -440,7 +440,7 @@ config I2C_AT91_SLAVE_EXPERIMENTAL
 	  been tested in a heavy way, help wanted.
 	  There are known bugs:
 	    - It can hang, on a SAMA5D4, after several transfers.
-	    - There are some mismtaches with a SAMA5D4 as slave and a SAMA5D2 as
+	    - There are some mismatches with a SAMA5D4 as slave and a SAMA5D2 as
 	    master.
 
 config I2C_AU1550
