@@ -31,7 +31,6 @@
 #define KEY_LOAD_TRIES	5
 #define HDCP2_LC_RETRY_CNT			3
 
-/* WA: 16022217614 */
 static void
 intel_hdcp_disable_hdcp_line_rekeying(struct intel_encoder *encoder,
 				      struct intel_hdcp *hdcp)
@@ -42,16 +41,18 @@ intel_hdcp_disable_hdcp_line_rekeying(struct intel_encoder *encoder,
 	if (encoder->type != INTEL_OUTPUT_HDMI)
 		return;
 
-	if (DISPLAY_VER(display) >= 14) {
-		if (IS_DISPLAY_VERx100_STEP(display, 1400, STEP_D0, STEP_FOREVER))
-			intel_de_rmw(display, MTL_CHICKEN_TRANS(hdcp->cpu_transcoder),
-				     0, HDCP_LINE_REKEY_DISABLE);
-		else if (IS_DISPLAY_VERx100_STEP(display, 1401, STEP_B0, STEP_FOREVER) ||
-			 IS_DISPLAY_VERx100_STEP(display, 2000, STEP_B0, STEP_FOREVER))
-			intel_de_rmw(display,
-				     TRANS_DDI_FUNC_CTL(display, hdcp->cpu_transcoder),
-				     0, TRANS_DDI_HDCP_LINE_REKEY_DISABLE);
-	}
+	if (DISPLAY_VER(display) >= 30)
+		intel_de_rmw(display,
+			     TRANS_DDI_FUNC_CTL(display, hdcp->cpu_transcoder),
+			     0, XE3_TRANS_DDI_HDCP_LINE_REKEY_DISABLE);
+	else if (IS_DISPLAY_VERx100_STEP(display, 1401, STEP_B0, STEP_FOREVER) ||
+		 IS_DISPLAY_VERx100_STEP(display, 2000, STEP_B0, STEP_FOREVER))
+		intel_de_rmw(display,
+			     TRANS_DDI_FUNC_CTL(display, hdcp->cpu_transcoder),
+			     0, TRANS_DDI_HDCP_LINE_REKEY_DISABLE);
+	else if (IS_DISPLAY_VERx100_STEP(display, 1400, STEP_D0, STEP_FOREVER))
+		intel_de_rmw(display, MTL_CHICKEN_TRANS(hdcp->cpu_transcoder),
+			     0, HDCP_LINE_REKEY_DISABLE);
 }
 
 static int intel_conn_to_vcpi(struct intel_atomic_state *state,
