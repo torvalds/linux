@@ -300,6 +300,8 @@ xfs_suminfo_get(
 {
 	union xfs_suminfo_raw	*info = xfs_rsumblock_infoptr(args, index);
 
+	if (xfs_has_rtgroups(args->mp))
+		return be32_to_cpu(info->rtg);
 	return info->old;
 }
 
@@ -311,6 +313,11 @@ xfs_suminfo_add(
 	int			delta)
 {
 	union xfs_suminfo_raw	*info = xfs_rsumblock_infoptr(args, index);
+
+	if (xfs_has_rtgroups(args->mp)) {
+		be32_add_cpu(&info->rtg, delta);
+		return be32_to_cpu(info->rtg);
+	}
 
 	info->old += delta;
 	return info->old;
