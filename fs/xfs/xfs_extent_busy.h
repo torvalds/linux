@@ -58,12 +58,12 @@ xfs_extent_busy_clear(struct xfs_mount *mp, struct list_head *list,
 	bool do_discard);
 
 int
-xfs_extent_busy_search(struct xfs_mount *mp, struct xfs_perag *pag,
-	xfs_agblock_t bno, xfs_extlen_t len);
+xfs_extent_busy_search(struct xfs_perag *pag, xfs_agblock_t bno,
+		xfs_extlen_t len);
 
 void
-xfs_extent_busy_reuse(struct xfs_mount *mp, struct xfs_perag *pag,
-	xfs_agblock_t fbno, xfs_extlen_t flen, bool userdata);
+xfs_extent_busy_reuse(struct xfs_perag *pag, xfs_agblock_t fbno,
+		xfs_extlen_t flen, bool userdata);
 
 bool
 xfs_extent_busy_trim(struct xfs_alloc_arg *args, xfs_agblock_t *bno,

@@ -101,7 +101,6 @@ xfs_extent_busy_insert_discard(
  */
 int
 xfs_extent_busy_search(
-	struct xfs_mount	*mp,
 	struct xfs_perag	*pag,
 	xfs_agblock_t		bno,
 	xfs_extlen_t		len)
@@ -148,7 +147,6 @@ xfs_extent_busy_search(
  */
 STATIC bool
 xfs_extent_busy_update_extent(
-	struct xfs_mount	*mp,
 	struct xfs_perag	*pag,
 	struct xfs_extent_busy	*busyp,
 	xfs_agblock_t		fbno,
@@ -280,24 +278,22 @@ xfs_extent_busy_update_extent(
 		ASSERT(0);
 	}
 
-	trace_xfs_extent_busy_reuse(mp, pag->pag_agno, fbno, flen);
+	trace_xfs_extent_busy_reuse(pag->pag_mount, pag->pag_agno, fbno, flen);
 	return true;
 
 out_force_log:
 	spin_unlock(&pag->pagb_lock);
-	xfs_log_force(mp, XFS_LOG_SYNC);
-	trace_xfs_extent_busy_force(mp, pag->pag_agno, fbno, flen);
+	xfs_log_force(pag->pag_mount, XFS_LOG_SYNC);
+	trace_xfs_extent_busy_force(pag->pag_mount, pag->pag_agno, fbno, flen);
 	spin_lock(&pag->pagb_lock);
 	return false;
 }
-
 
 /*
  * For a given extent [fbno, flen], make sure we can reuse it safely.
  */
 void
 xfs_extent_busy_reuse(
-	struct xfs_mount	*mp,
 	struct xfs_perag	*pag,
 	xfs_agblock_t		fbno,
 	xfs_extlen_t		flen,
@@ -323,7 +319,7 @@ restart:
 			continue;
 		}
 
-		if (!xfs_extent_busy_update_extent(mp, pag, busyp, fbno, flen,
+		if (!xfs_extent_busy_update_extent(pag, busyp, fbno, flen,
 						  userdata))
 			goto restart;
 	}
