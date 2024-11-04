@@ -1181,8 +1181,9 @@ F:	Documentation/hid/amd-sfh*
 F:	drivers/hid/amd-sfh-hid/
 
 AMD SPI DRIVER
-M:	Sanjay R Mehta <sanju.mehta@amd.com>
-S:	Maintained
+M:	Raju Rangoju <Raju.Rangoju@amd.com>
+L:	linux-spi@vger.kernel.org
+S:	Supported
 F:	drivers/spi/spi-amd.c
 
 AMD XGBE DRIVER
