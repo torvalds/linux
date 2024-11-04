@@ -572,7 +572,7 @@ xfs_trim_rtextents(
 	 * trims the extents returned.
 	 */
 	do {
-		tr.stop_rtx = low + (mp->m_sb.sb_blocksize * NBBY);
+		tr.stop_rtx = low + xfs_rtbitmap_rtx_per_rbmblock(mp);
 		xfs_rtgroup_lock(rtg, XFS_RTGLOCK_BITMAP_SHARED);
 		error = xfs_rtalloc_query_range(rtg, tp, low, high,
 				xfs_trim_gather_rtextent, &tr);

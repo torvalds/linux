@@ -776,7 +776,7 @@ xfs_growfs_rt_nrblocks(
 	struct xfs_mount	*mp = rtg_mount(rtg);
 	xfs_rfsblock_t		step;
 
-	step = (bmbno + 1) * NBBY * mp->m_sb.sb_blocksize * rextsize;
+	step = (bmbno + 1) * mp->m_rtx_per_rbmblock * rextsize;
 	if (xfs_has_rtgroups(mp)) {
 		xfs_rfsblock_t	rgblocks = mp->m_sb.sb_rgextents * rextsize;
 
