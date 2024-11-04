@@ -6719,28 +6719,33 @@ static int perf_mmap(struct file *file, struct vm_area_struct *vma)
 			return -EINVAL;
 
 		WARN_ON_ONCE(event->ctx->parent_ctx);
-again:
 		mutex_lock(&event->mmap_mutex);
+
 		if (event->rb) {
 			if (data_page_nr(event->rb) != nr_pages) {
 				ret = -EINVAL;
 				goto unlock;
 			}
 
-			if (!atomic_inc_not_zero(&event->rb->mmap_count)) {
+			if (atomic_inc_not_zero(&event->rb->mmap_count)) {
 				/*
-				 * Raced against perf_mmap_close(); remove the
-				 * event and try again.
+				 * Success -- managed to mmap() the same buffer
+				 * multiple times.
 				 */
-				ring_buffer_attach(event, NULL);
-				mutex_unlock(&event->mmap_mutex);
-				goto again;
+				ret = 0;
+				/* We need the rb to map pages. */
+				rb = event->rb;
+				goto unlock;
 			}
 
-			/* We need the rb to map pages. */
-			rb = event->rb;
-			goto unlock;
+			/*
+			 * Raced against perf_mmap_close()'s
+			 * atomic_dec_and_mutex_lock() remove the
+			 * event and continue as if !event->rb
+			 */
+			ring_buffer_attach(event, NULL);
 		}
+
 	} else {
 		/*
 		 * AUX area mapping: if rb->aux_nr_pages != 0, it's already
