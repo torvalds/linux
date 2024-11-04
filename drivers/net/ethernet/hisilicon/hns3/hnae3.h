@@ -677,7 +677,7 @@ struct hnae3_ae_ops {
 	void (*get_mac_stats)(struct hnae3_handle *handle,
 			      struct hns3_mac_stats *mac_stats);
 	void (*get_strings)(struct hnae3_handle *handle,
-			    u32 stringset, u8 *data);
+			    u32 stringset, u8 **data);
 	int (*get_sset_count)(struct hnae3_handle *handle, int stringset);
 
 	void (*get_regs)(struct hnae3_handle *handle, u32 *version,
