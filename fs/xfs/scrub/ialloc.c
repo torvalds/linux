@@ -367,7 +367,6 @@ xchk_iallocbt_check_cluster(
 	struct xfs_mount		*mp = bs->cur->bc_mp;
 	struct xfs_buf			*cluster_bp;
 	unsigned int			nr_inodes;
-	xfs_agnumber_t			agno = bs->cur->bc_ag.pag->pag_agno;
 	xfs_agblock_t			agbno;
 	unsigned int			cluster_index;
 	uint16_t			cluster_mask = 0;
@@ -406,7 +405,7 @@ xchk_iallocbt_check_cluster(
 		return 0;
 	}
 
-	trace_xchk_iallocbt_check_cluster(mp, agno, irec->ir_startino,
+	trace_xchk_iallocbt_check_cluster(bs->cur->bc_ag.pag, irec->ir_startino,
 			imap.im_blkno, imap.im_len, cluster_base, nr_inodes,
 			cluster_mask, ir_holemask,
 			XFS_INO_TO_OFFSET(mp, irec->ir_startino +

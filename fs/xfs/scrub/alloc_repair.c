@@ -210,7 +210,7 @@ xrep_abt_stash(
 	if (error)
 		return error;
 
-	trace_xrep_abt_found(sc->mp, sc->sa.pag->pag_agno, &arec);
+	trace_xrep_abt_found(sc->sa.pag, &arec);
 
 	error = xfarray_append(ra->free_records, &arec);
 	if (error)

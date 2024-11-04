@@ -3360,7 +3360,7 @@ xfs_read_agf(
 	struct xfs_mount	*mp = pag->pag_mount;
 	int			error;
 
-	trace_xfs_read_agf(pag->pag_mount, pag->pag_agno);
+	trace_xfs_read_agf(pag);
 
 	error = xfs_trans_read_buf(mp, tp, mp->m_ddev_targp,
 			XFS_AG_DADDR(mp, pag->pag_agno, XFS_AGF_DADDR(mp)),
@@ -3391,7 +3391,7 @@ xfs_alloc_read_agf(
 	int			error;
 	int			allocbt_blks;
 
-	trace_xfs_alloc_read_agf(pag->pag_mount, pag->pag_agno);
+	trace_xfs_alloc_read_agf(pag);
 
 	/* We don't support trylock when freeing. */
 	ASSERT((flags & (XFS_ALLOC_FLAG_FREEING | XFS_ALLOC_FLAG_TRYLOCK)) !=

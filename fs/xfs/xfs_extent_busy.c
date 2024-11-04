@@ -41,7 +41,7 @@ xfs_extent_busy_insert_list(
 	new->flags = flags;
 
 	/* trace before insert to be able to see failed inserts */
-	trace_xfs_extent_busy(pag->pag_mount, pag->pag_agno, bno, len);
+	trace_xfs_extent_busy(pag, bno, len);
 
 	spin_lock(&pag->pagb_lock);
 	rbp = &pag->pagb_tree.rb_node;
@@ -278,13 +278,13 @@ xfs_extent_busy_update_extent(
 		ASSERT(0);
 	}
 
-	trace_xfs_extent_busy_reuse(pag->pag_mount, pag->pag_agno, fbno, flen);
+	trace_xfs_extent_busy_reuse(pag, fbno, flen);
 	return true;
 
 out_force_log:
 	spin_unlock(&pag->pagb_lock);
 	xfs_log_force(pag->pag_mount, XFS_LOG_SYNC);
-	trace_xfs_extent_busy_force(pag->pag_mount, pag->pag_agno, fbno, flen);
+	trace_xfs_extent_busy_force(pag, fbno, flen);
 	spin_lock(&pag->pagb_lock);
 	return false;
 }
@@ -496,8 +496,7 @@ xfs_extent_busy_trim(
 out:
 
 	if (fbno != *bno || flen != *len) {
-		trace_xfs_extent_busy_trim(args->mp, args->agno, *bno, *len,
-					  fbno, flen);
+		trace_xfs_extent_busy_trim(args->pag, *bno, *len, fbno, flen);
 		*bno = fbno;
 		*len = flen;
 		*busy_gen = args->pag->pagb_gen;
@@ -526,9 +525,7 @@ xfs_extent_busy_clear_one(
 			busyp->flags = XFS_EXTENT_BUSY_DISCARDED;
 			return false;
 		}
-		trace_xfs_extent_busy_clear(pag->pag_mount,
-				busyp->pag->pag_agno, busyp->bno,
-				busyp->length);
+		trace_xfs_extent_busy_clear(pag, busyp->bno, busyp->length);
 		rb_erase(&busyp->rb_node, &pag->pagb_tree);
 	}
 

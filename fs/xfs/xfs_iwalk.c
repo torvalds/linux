@@ -182,7 +182,7 @@ xfs_iwalk_ag_recs(
 	for (i = 0; i < iwag->nr_recs; i++) {
 		struct xfs_inobt_rec_incore	*irec = &iwag->recs[i];
 
-		trace_xfs_iwalk_ag_rec(mp, pag->pag_agno, irec);
+		trace_xfs_iwalk_ag_rec(pag, irec);
 
 		if (xfs_pwork_want_abort(&iwag->pwork))
 			return 0;

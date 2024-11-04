@@ -192,7 +192,7 @@ xrep_ibt_stash(
 	if (ri->rie.ir_freecount > 0)
 		ri->finobt_recs++;
 
-	trace_xrep_ibt_found(ri->sc->mp, ri->sc->sa.pag->pag_agno, &ri->rie);
+	trace_xrep_ibt_found(ri->sc->sa.pag, &ri->rie);
 
 	error = xfarray_append(ri->inode_records, &ri->rie);
 	if (error)

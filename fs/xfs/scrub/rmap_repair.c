@@ -231,7 +231,7 @@ xrep_rmap_stash(
 	if (xchk_iscan_aborted(&rr->iscan))
 		return -EFSCORRUPTED;
 
-	trace_xrep_rmap_found(sc->mp, sc->sa.pag->pag_agno, &rmap);
+	trace_xrep_rmap_found(sc->sa.pag, &rmap);
 
 	mutex_lock(&rr->lock);
 	mcur = xfs_rmapbt_mem_cursor(sc->sa.pag, sc->tp, &rr->rmap_btree);
@@ -1552,7 +1552,7 @@ xrep_rmapbt_live_update(
 	if (!xrep_rmapbt_want_live_update(&rr->iscan, &p->oinfo))
 		goto out_unlock;
 
-	trace_xrep_rmap_live_update(mp, rr->sc->sa.pag->pag_agno, action, p);
+	trace_xrep_rmap_live_update(rr->sc->sa.pag, action, p);
 
 	error = xrep_trans_alloc_hook_dummy(mp, &txcookie, &tp);
 	if (error)

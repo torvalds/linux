@@ -117,8 +117,7 @@ xfs_discard_extents(
 
 	blk_start_plug(&plug);
 	list_for_each_entry(busyp, &extents->extent_list, list) {
-		trace_xfs_discard_extent(mp, busyp->pag->pag_agno, busyp->bno,
-					 busyp->length);
+		trace_xfs_discard_extent(busyp->pag, busyp->bno, busyp->length);
 
 		error = __blkdev_issue_discard(mp->m_ddev_targp->bt_bdev,
 				xfs_agbno_to_daddr(busyp->pag, busyp->bno),
@@ -239,11 +238,11 @@ xfs_trim_gather_extents(
 		 * overlapping ranges for now.
 		 */
 		if (fbno + flen < tcur->start) {
-			trace_xfs_discard_exclude(mp, pag->pag_agno, fbno, flen);
+			trace_xfs_discard_exclude(pag, fbno, flen);
 			goto next_extent;
 		}
 		if (fbno > tcur->end) {
-			trace_xfs_discard_exclude(mp, pag->pag_agno, fbno, flen);
+			trace_xfs_discard_exclude(pag, fbno, flen);
 			if (tcur->by_bno) {
 				tcur->count = 0;
 				break;
@@ -261,7 +260,7 @@ xfs_trim_gather_extents(
 
 		/* Too small?  Give up. */
 		if (flen < tcur->minlen) {
-			trace_xfs_discard_toosmall(mp, pag->pag_agno, fbno, flen);
+			trace_xfs_discard_toosmall(pag, fbno, flen);
 			if (tcur->by_bno)
 				goto next_extent;
 			tcur->count = 0;
@@ -273,7 +272,7 @@ xfs_trim_gather_extents(
 		 * discard and try again the next time.
 		 */
 		if (xfs_extent_busy_search(pag, fbno, flen)) {
-			trace_xfs_discard_busy(mp, pag->pag_agno, fbno, flen);
+			trace_xfs_discard_busy(pag, fbno, flen);
 			goto next_extent;
 		}
 

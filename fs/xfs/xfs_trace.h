@@ -300,15 +300,15 @@ TRACE_EVENT(xfs_inodegc_shrinker_scan,
 );
 
 DECLARE_EVENT_CLASS(xfs_ag_class,
-	TP_PROTO(struct xfs_mount *mp, xfs_agnumber_t agno),
-	TP_ARGS(mp, agno),
+	TP_PROTO(const struct xfs_perag *pag),
+	TP_ARGS(pag),
 	TP_STRUCT__entry(
 		__field(dev_t, dev)
 		__field(xfs_agnumber_t, agno)
 	),
 	TP_fast_assign(
-		__entry->dev = mp->m_super->s_dev;
-		__entry->agno = agno;
+		__entry->dev = pag->pag_mount->m_super->s_dev;
+		__entry->agno = pag->pag_agno;
 	),
 	TP_printk("dev %d:%d agno 0x%x",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
@@ -316,8 +316,8 @@ DECLARE_EVENT_CLASS(xfs_ag_class,
 );
 #define DEFINE_AG_EVENT(name)	\
 DEFINE_EVENT(xfs_ag_class, name,	\
-	TP_PROTO(struct xfs_mount *mp, xfs_agnumber_t agno),	\
-	TP_ARGS(mp, agno))
+	TP_PROTO(const struct xfs_perag *pag),	\
+	TP_ARGS(pag))
 
 DEFINE_AG_EVENT(xfs_read_agf);
 DEFINE_AG_EVENT(xfs_alloc_read_agf);
@@ -1636,9 +1636,9 @@ TRACE_EVENT(xfs_bunmap,
 );
 
 DECLARE_EVENT_CLASS(xfs_extent_busy_class,
-	TP_PROTO(struct xfs_mount *mp, xfs_agnumber_t agno,
-		 xfs_agblock_t agbno, xfs_extlen_t len),
-	TP_ARGS(mp, agno, agbno, len),
+	TP_PROTO(const struct xfs_perag *pag, xfs_agblock_t agbno,
+		 xfs_extlen_t len),
+	TP_ARGS(pag, agbno, len),
 	TP_STRUCT__entry(
 		__field(dev_t, dev)
 		__field(xfs_agnumber_t, agno)
@@ -1646,8 +1646,8 @@ DECLARE_EVENT_CLASS(xfs_extent_busy_class,
 		__field(xfs_extlen_t, len)
 	),
 	TP_fast_assign(
-		__entry->dev = mp->m_super->s_dev;
-		__entry->agno = agno;
+		__entry->dev = pag->pag_mount->m_super->s_dev;
+		__entry->agno = pag->pag_agno;
 		__entry->agbno = agbno;
 		__entry->len = len;
 	),
@@ -1659,19 +1659,18 @@ DECLARE_EVENT_CLASS(xfs_extent_busy_class,
 );
 #define DEFINE_BUSY_EVENT(name) \
 DEFINE_EVENT(xfs_extent_busy_class, name, \
-	TP_PROTO(struct xfs_mount *mp, xfs_agnumber_t agno, \
-		 xfs_agblock_t agbno, xfs_extlen_t len), \
-	TP_ARGS(mp, agno, agbno, len))
+	TP_PROTO(const struct xfs_perag *pag, xfs_agblock_t agbno, \
+			xfs_extlen_t len), \
+	TP_ARGS(pag, agbno, len))
 DEFINE_BUSY_EVENT(xfs_extent_busy);
 DEFINE_BUSY_EVENT(xfs_extent_busy_force);
 DEFINE_BUSY_EVENT(xfs_extent_busy_reuse);
 DEFINE_BUSY_EVENT(xfs_extent_busy_clear);
 
 TRACE_EVENT(xfs_extent_busy_trim,
-	TP_PROTO(struct xfs_mount *mp, xfs_agnumber_t agno,
-		 xfs_agblock_t agbno, xfs_extlen_t len,
-		 xfs_agblock_t tbno, xfs_extlen_t tlen),
-	TP_ARGS(mp, agno, agbno, len, tbno, tlen),
+	TP_PROTO(const struct xfs_perag *pag, xfs_agblock_t agbno,
+		 xfs_extlen_t len, xfs_agblock_t tbno, xfs_extlen_t tlen),
+	TP_ARGS(pag, agbno, len, tbno, tlen),
 	TP_STRUCT__entry(
 		__field(dev_t, dev)
 		__field(xfs_agnumber_t, agno)
@@ -1681,8 +1680,8 @@ TRACE_EVENT(xfs_extent_busy_trim,
 		__field(xfs_extlen_t, tlen)
 	),
 	TP_fast_assign(
-		__entry->dev = mp->m_super->s_dev;
-		__entry->agno = agno;
+		__entry->dev = pag->pag_mount->m_super->s_dev;
+		__entry->agno = pag->pag_agno;
 		__entry->agbno = agbno;
 		__entry->len = len;
 		__entry->tbno = tbno;
@@ -2428,9 +2427,9 @@ DEFINE_LOG_RECOVER_ICREATE_ITEM(xfs_log_recover_icreate_cancel);
 DEFINE_LOG_RECOVER_ICREATE_ITEM(xfs_log_recover_icreate_recover);
 
 DECLARE_EVENT_CLASS(xfs_discard_class,
-	TP_PROTO(struct xfs_mount *mp, xfs_agnumber_t agno,
-		 xfs_agblock_t agbno, xfs_extlen_t len),
-	TP_ARGS(mp, agno, agbno, len),
+	TP_PROTO(const struct xfs_perag *pag, xfs_agblock_t agbno,
+		 xfs_extlen_t len),
+	TP_ARGS(pag, agbno, len),
 	TP_STRUCT__entry(
 		__field(dev_t, dev)
 		__field(xfs_agnumber_t, agno)
@@ -2438,8 +2437,8 @@ DECLARE_EVENT_CLASS(xfs_discard_class,
 		__field(xfs_extlen_t, len)
 	),
 	TP_fast_assign(
-		__entry->dev = mp->m_super->s_dev;
-		__entry->agno = agno;
+		__entry->dev = pag->pag_mount->m_super->s_dev;
+		__entry->agno = pag->pag_agno;
 		__entry->agbno = agbno;
 		__entry->len = len;
 	),
@@ -2452,9 +2451,9 @@ DECLARE_EVENT_CLASS(xfs_discard_class,
 
 #define DEFINE_DISCARD_EVENT(name) \
 DEFINE_EVENT(xfs_discard_class, name, \
-	TP_PROTO(struct xfs_mount *mp, xfs_agnumber_t agno, \
-		 xfs_agblock_t agbno, xfs_extlen_t len), \
-	TP_ARGS(mp, agno, agbno, len))
+	TP_PROTO(const struct xfs_perag *pag, xfs_agblock_t agbno, \
+		xfs_extlen_t len), \
+	TP_ARGS(pag, agbno, len))
 DEFINE_DISCARD_EVENT(xfs_discard_extent);
 DEFINE_DISCARD_EVENT(xfs_discard_toosmall);
 DEFINE_DISCARD_EVENT(xfs_discard_exclude);
@@ -4030,9 +4029,9 @@ DEFINE_TRANS_EVENT(xfs_trans_commit_items);
 DEFINE_TRANS_EVENT(xfs_trans_free_items);
 
 TRACE_EVENT(xfs_iunlink_update_bucket,
-	TP_PROTO(struct xfs_mount *mp, xfs_agnumber_t agno, unsigned int bucket,
+	TP_PROTO(const struct xfs_perag *pag, unsigned int bucket,
 		 xfs_agino_t old_ptr, xfs_agino_t new_ptr),
-	TP_ARGS(mp, agno, bucket, old_ptr, new_ptr),
+	TP_ARGS(pag, bucket, old_ptr, new_ptr),
 	TP_STRUCT__entry(
 		__field(dev_t, dev)
 		__field(xfs_agnumber_t, agno)
@@ -4041,8 +4040,8 @@ TRACE_EVENT(xfs_iunlink_update_bucket,
 		__field(xfs_agino_t, new_ptr)
 	),
 	TP_fast_assign(
-		__entry->dev = mp->m_super->s_dev;
-		__entry->agno = agno;
+		__entry->dev = pag->pag_mount->m_super->s_dev;
+		__entry->agno = pag->pag_agno;
 		__entry->bucket = bucket;
 		__entry->old_ptr = old_ptr;
 		__entry->new_ptr = new_ptr;
@@ -4180,16 +4179,16 @@ DEFINE_FS_CORRUPT_EVENT(xfs_rt_mark_healthy);
 DEFINE_FS_CORRUPT_EVENT(xfs_rt_unfixed_corruption);
 
 DECLARE_EVENT_CLASS(xfs_ag_corrupt_class,
-	TP_PROTO(struct xfs_mount *mp, xfs_agnumber_t agno, unsigned int flags),
-	TP_ARGS(mp, agno, flags),
+	TP_PROTO(const struct xfs_perag *pag, unsigned int flags),
+	TP_ARGS(pag, flags),
 	TP_STRUCT__entry(
 		__field(dev_t, dev)
 		__field(xfs_agnumber_t, agno)
 		__field(unsigned int, flags)
 	),
 	TP_fast_assign(
-		__entry->dev = mp->m_super->s_dev;
-		__entry->agno = agno;
+		__entry->dev = pag->pag_mount->m_super->s_dev;
+		__entry->agno = pag->pag_agno;
 		__entry->flags = flags;
 	),
 	TP_printk("dev %d:%d agno 0x%x flags 0x%x",
@@ -4198,9 +4197,8 @@ DECLARE_EVENT_CLASS(xfs_ag_corrupt_class,
 );
 #define DEFINE_AG_CORRUPT_EVENT(name)	\
 DEFINE_EVENT(xfs_ag_corrupt_class, name,	\
-	TP_PROTO(struct xfs_mount *mp, xfs_agnumber_t agno, \
-		 unsigned int flags), \
-	TP_ARGS(mp, agno, flags))
+	TP_PROTO(const struct xfs_perag *pag, unsigned int flags), \
+	TP_ARGS(pag, flags))
 DEFINE_AG_CORRUPT_EVENT(xfs_ag_mark_sick);
 DEFINE_AG_CORRUPT_EVENT(xfs_ag_mark_corrupt);
 DEFINE_AG_CORRUPT_EVENT(xfs_ag_mark_healthy);
@@ -4233,9 +4231,9 @@ DEFINE_INODE_CORRUPT_EVENT(xfs_inode_mark_healthy);
 DEFINE_INODE_CORRUPT_EVENT(xfs_inode_unfixed_corruption);
 
 TRACE_EVENT(xfs_iwalk_ag_rec,
-	TP_PROTO(struct xfs_mount *mp, xfs_agnumber_t agno,
+	TP_PROTO(const struct xfs_perag *pag, \
 		 struct xfs_inobt_rec_incore *irec),
-	TP_ARGS(mp, agno, irec),
+	TP_ARGS(pag, irec),
 	TP_STRUCT__entry(
 		__field(dev_t, dev)
 		__field(xfs_agnumber_t, agno)
@@ -4243,8 +4241,8 @@ TRACE_EVENT(xfs_iwalk_ag_rec,
 		__field(uint64_t, freemask)
 	),
 	TP_fast_assign(
-		__entry->dev = mp->m_super->s_dev;
-		__entry->agno = agno;
+		__entry->dev = pag->pag_mount->m_super->s_dev;
+		__entry->agno = pag->pag_agno;
 		__entry->startino = irec->ir_startino;
 		__entry->freemask = irec->ir_free;
 	),

@@ -41,7 +41,7 @@ xfs_health_unmount(
 	for_each_perag(mp, agno, pag) {
 		xfs_ag_measure_sickness(pag, &sick, &checked);
 		if (sick) {
-			trace_xfs_ag_unfixed_corruption(mp, agno, sick);
+			trace_xfs_ag_unfixed_corruption(pag, sick);
 			warn = true;
 		}
 	}
@@ -233,7 +233,7 @@ xfs_ag_mark_sick(
 	unsigned int		mask)
 {
 	ASSERT(!(mask & ~XFS_SICK_AG_ALL));
-	trace_xfs_ag_mark_sick(pag->pag_mount, pag->pag_agno, mask);
+	trace_xfs_ag_mark_sick(pag, mask);
 
 	spin_lock(&pag->pag_state_lock);
 	pag->pag_sick |= mask;
@@ -247,7 +247,7 @@ xfs_ag_mark_corrupt(
 	unsigned int		mask)
 {
 	ASSERT(!(mask & ~XFS_SICK_AG_ALL));
-	trace_xfs_ag_mark_corrupt(pag->pag_mount, pag->pag_agno, mask);
+	trace_xfs_ag_mark_corrupt(pag, mask);
 
 	spin_lock(&pag->pag_state_lock);
 	pag->pag_sick |= mask;
@@ -262,7 +262,7 @@ xfs_ag_mark_healthy(
 	unsigned int		mask)
 {
 	ASSERT(!(mask & ~XFS_SICK_AG_ALL));
-	trace_xfs_ag_mark_healthy(pag->pag_mount, pag->pag_agno, mask);
+	trace_xfs_ag_mark_healthy(pag, mask);
 
 	spin_lock(&pag->pag_state_lock);
 	pag->pag_sick &= ~mask;

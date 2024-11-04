@@ -772,12 +772,12 @@ TRACE_EVENT(xchk_xref_error,
 );
 
 TRACE_EVENT(xchk_iallocbt_check_cluster,
-	TP_PROTO(struct xfs_mount *mp, xfs_agnumber_t agno,
-		 xfs_agino_t startino, xfs_daddr_t map_daddr,
-		 unsigned short map_len, unsigned int chunk_ino,
-		 unsigned int nr_inodes, uint16_t cluster_mask,
-		 uint16_t holemask, unsigned int cluster_ino),
-	TP_ARGS(mp, agno, startino, map_daddr, map_len, chunk_ino, nr_inodes,
+	TP_PROTO(const struct xfs_perag *pag, xfs_agino_t startino,
+		 xfs_daddr_t map_daddr,  unsigned short map_len,
+		 unsigned int chunk_ino,  unsigned int nr_inodes,
+		 uint16_t cluster_mask, uint16_t holemask,
+		 unsigned int cluster_ino),
+	TP_ARGS(pag, startino, map_daddr, map_len, chunk_ino, nr_inodes,
 		cluster_mask, holemask, cluster_ino),
 	TP_STRUCT__entry(
 		__field(dev_t, dev)
@@ -792,8 +792,8 @@ TRACE_EVENT(xchk_iallocbt_check_cluster,
 		__field(uint16_t, holemask)
 	),
 	TP_fast_assign(
-		__entry->dev = mp->m_super->s_dev;
-		__entry->agno = agno;
+		__entry->dev = pag->pag_mount->m_super->s_dev;
+		__entry->agno = pag->pag_agno;
 		__entry->startino = startino;
 		__entry->map_daddr = map_daddr;
 		__entry->map_len = map_len;
@@ -2016,9 +2016,9 @@ TRACE_EVENT(xrep_ibt_walk_rmap,
 );
 
 TRACE_EVENT(xrep_abt_found,
-	TP_PROTO(struct xfs_mount *mp, xfs_agnumber_t agno,
+	TP_PROTO(const struct xfs_perag *pag,
 		 const struct xfs_alloc_rec_incore *rec),
-	TP_ARGS(mp, agno, rec),
+	TP_ARGS(pag, rec),
 	TP_STRUCT__entry(
 		__field(dev_t, dev)
 		__field(xfs_agnumber_t, agno)
@@ -2026,8 +2026,8 @@ TRACE_EVENT(xrep_abt_found,
 		__field(xfs_extlen_t, blockcount)
 	),
 	TP_fast_assign(
-		__entry->dev = mp->m_super->s_dev;
-		__entry->agno = agno;
+		__entry->dev = pag->pag_mount->m_super->s_dev;
+		__entry->agno = pag->pag_agno;
 		__entry->startblock = rec->ar_startblock;
 		__entry->blockcount = rec->ar_blockcount;
 	),
@@ -2039,9 +2039,9 @@ TRACE_EVENT(xrep_abt_found,
 )
 
 TRACE_EVENT(xrep_ibt_found,
-	TP_PROTO(struct xfs_mount *mp, xfs_agnumber_t agno,
+	TP_PROTO(const struct xfs_perag *pag,
 		 const struct xfs_inobt_rec_incore *rec),
-	TP_ARGS(mp, agno, rec),
+	TP_ARGS(pag, rec),
 	TP_STRUCT__entry(
 		__field(dev_t, dev)
 		__field(xfs_agnumber_t, agno)
@@ -2052,8 +2052,8 @@ TRACE_EVENT(xrep_ibt_found,
 		__field(uint64_t, freemask)
 	),
 	TP_fast_assign(
-		__entry->dev = mp->m_super->s_dev;
-		__entry->agno = agno;
+		__entry->dev = pag->pag_mount->m_super->s_dev;
+		__entry->agno = pag->pag_agno;
 		__entry->startino = rec->ir_startino;
 		__entry->holemask = rec->ir_holemask;
 		__entry->count = rec->ir_count;
@@ -2132,9 +2132,8 @@ TRACE_EVENT(xrep_bmap_found,
 );
 
 TRACE_EVENT(xrep_rmap_found,
-	TP_PROTO(struct xfs_mount *mp, xfs_agnumber_t agno,
-		 const struct xfs_rmap_irec *rec),
-	TP_ARGS(mp, agno, rec),
+	TP_PROTO(const struct xfs_perag *pag, const struct xfs_rmap_irec *rec),
+	TP_ARGS(pag, rec),
 	TP_STRUCT__entry(
 		__field(dev_t, dev)
 		__field(xfs_agnumber_t, agno)
@@ -2145,8 +2144,8 @@ TRACE_EVENT(xrep_rmap_found,
 		__field(unsigned int, flags)
 	),
 	TP_fast_assign(
-		__entry->dev = mp->m_super->s_dev;
-		__entry->agno = agno;
+		__entry->dev = pag->pag_mount->m_super->s_dev;
+		__entry->agno = pag->pag_agno;
 		__entry->agbno = rec->rm_startblock;
 		__entry->len = rec->rm_blockcount;
 		__entry->owner = rec->rm_owner;
@@ -2164,9 +2163,9 @@ TRACE_EVENT(xrep_rmap_found,
 );
 
 TRACE_EVENT(xrep_findroot_block,
-	TP_PROTO(struct xfs_mount *mp, xfs_agnumber_t agno, xfs_agblock_t agbno,
+	TP_PROTO(const struct xfs_perag *pag, xfs_agblock_t agbno,
 		 uint32_t magic, uint16_t level),
-	TP_ARGS(mp, agno, agbno, magic, level),
+	TP_ARGS(pag, agbno, magic, level),
 	TP_STRUCT__entry(
 		__field(dev_t, dev)
 		__field(xfs_agnumber_t, agno)
@@ -2175,8 +2174,8 @@ TRACE_EVENT(xrep_findroot_block,
 		__field(uint16_t, level)
 	),
 	TP_fast_assign(
-		__entry->dev = mp->m_super->s_dev;
-		__entry->agno = agno;
+		__entry->dev = pag->pag_mount->m_super->s_dev;
+		__entry->agno = pag->pag_agno;
 		__entry->agbno = agbno;
 		__entry->magic = magic;
 		__entry->level = level;
@@ -2298,8 +2297,8 @@ DECLARE_EVENT_CLASS(xrep_newbt_extent_class,
 );
 #define DEFINE_NEWBT_EXTENT_EVENT(name) \
 DEFINE_EVENT(xrep_newbt_extent_class, name, \
-	TP_PROTO(struct xfs_perag *pag, xfs_agblock_t agbno, xfs_extlen_t len, \
-		 int64_t owner), \
+	TP_PROTO(const struct xfs_perag *pag, xfs_agblock_t agbno, \
+		 xfs_extlen_t len, int64_t owner), \
 	TP_ARGS(pag, agbno, len, owner))
 DEFINE_NEWBT_EXTENT_EVENT(xrep_newbt_alloc_ag_blocks);
 DEFINE_NEWBT_EXTENT_EVENT(xrep_newbt_alloc_file_blocks);
@@ -2644,9 +2643,9 @@ DEFINE_SCRUB_NLINKS_DIFF_EVENT(xrep_nlinks_update_inode);
 DEFINE_SCRUB_NLINKS_DIFF_EVENT(xrep_nlinks_unfixable_inode);
 
 TRACE_EVENT(xrep_rmap_live_update,
-	TP_PROTO(struct xfs_mount *mp, xfs_agnumber_t agno, unsigned int op,
+	TP_PROTO(const struct xfs_perag *pag, unsigned int op,
 		 const struct xfs_rmap_update_params *p),
-	TP_ARGS(mp, agno, op, p),
+	TP_ARGS(pag, op, p),
 	TP_STRUCT__entry(
 		__field(dev_t, dev)
 		__field(xfs_agnumber_t, agno)
@@ -2658,8 +2657,8 @@ TRACE_EVENT(xrep_rmap_live_update,
 		__field(unsigned int, flags)
 	),
 	TP_fast_assign(
-		__entry->dev = mp->m_super->s_dev;
-		__entry->agno = agno;
+		__entry->dev = pag->pag_mount->m_super->s_dev;
+		__entry->agno = pag->pag_agno;
 		__entry->op = op;
 		__entry->agbno = p->startblock;
 		__entry->len = p->blockcount;
