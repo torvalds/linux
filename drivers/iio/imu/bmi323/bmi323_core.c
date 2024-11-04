@@ -2172,7 +2172,6 @@ int bmi323_core_probe(struct device *dev)
 }
 EXPORT_SYMBOL_NS_GPL(bmi323_core_probe, IIO_BMI323);
 
-#if defined(CONFIG_PM)
 static int bmi323_core_runtime_suspend(struct device *dev)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
@@ -2199,12 +2198,12 @@ static int bmi323_core_runtime_suspend(struct device *dev)
 	}
 
 	for (unsigned int i = 0; i < ARRAY_SIZE(bmi323_ext_reg_savestate); i++) {
-		ret = bmi323_read_ext_reg(data, bmi323_reg_savestate[i],
-					  &savestate->reg_settings[i]);
+		ret = bmi323_read_ext_reg(data, bmi323_ext_reg_savestate[i],
+					  &savestate->ext_reg_settings[i]);
 		if (ret) {
 			dev_err(data->dev,
 				"Error reading bmi323 external reg 0x%x: %d\n",
-				bmi323_reg_savestate[i], ret);
+				bmi323_ext_reg_savestate[i], ret);
 			return ret;
 		}
 	}
@@ -2232,8 +2231,10 @@ static int bmi323_core_runtime_resume(struct device *dev)
 	 * after being reset in the lower power state by runtime-pm.
 	 */
 	ret = bmi323_init(data);
-	if (!ret)
+	if (ret) {
+		dev_err(data->dev, "Device power-on and init failed: %d", ret);
 		return ret;
+	}
 
 	/* Register must be cleared before changing an active config */
 	ret = regmap_write(data->regmap, BMI323_FEAT_IO0_REG, 0);
@@ -2243,12 +2244,12 @@ static int bmi323_core_runtime_resume(struct device *dev)
 	}
 
 	for (unsigned int i = 0; i < ARRAY_SIZE(bmi323_ext_reg_savestate); i++) {
-		ret = bmi323_write_ext_reg(data, bmi323_reg_savestate[i],
-					   savestate->reg_settings[i]);
+		ret = bmi323_write_ext_reg(data, bmi323_ext_reg_savestate[i],
+					   savestate->ext_reg_settings[i]);
 		if (ret) {
 			dev_err(data->dev,
 				"Error writing bmi323 external reg 0x%x: %d\n",
-				bmi323_reg_savestate[i], ret);
+				bmi323_ext_reg_savestate[i], ret);
 			return ret;
 		}
 	}
@@ -2293,11 +2294,9 @@ static int bmi323_core_runtime_resume(struct device *dev)
 	return iio_device_resume_triggering(indio_dev);
 }
 
-#endif
-
 const struct dev_pm_ops bmi323_core_pm_ops = {
-	SET_RUNTIME_PM_OPS(bmi323_core_runtime_suspend,
-			   bmi323_core_runtime_resume, NULL)
+	RUNTIME_PM_OPS(bmi323_core_runtime_suspend,
+		       bmi323_core_runtime_resume, NULL)
 };
 EXPORT_SYMBOL_NS_GPL(bmi323_core_pm_ops, IIO_BMI323);
 

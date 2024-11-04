@@ -147,7 +147,7 @@ bw2_blank(int blank, struct fb_info *info)
 	return 0;
 }
 
-static struct sbus_mmap_map bw2_mmap_map[] = {
+static const struct sbus_mmap_map bw2_mmap_map[] = {
 	{
 		.size = SBUS_MMAP_FBSIZE(1)
 	},

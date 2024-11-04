@@ -324,6 +324,7 @@ static int pckmo_key2protkey(const u8 *key, u32 keylen,
 		memcpy(protkey, t->protkey, t->len);
 		*protkeylen = t->len;
 		*protkeytype = t->keytype;
+		rc = 0;
 		break;
 	}
 	case TOKVER_CLEAR_KEY: {

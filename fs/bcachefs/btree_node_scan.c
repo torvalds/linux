@@ -171,6 +171,9 @@ static void try_read_btree_node(struct find_btree_nodes *f, struct bch_dev *ca,
 	if (BTREE_NODE_LEVEL(bn) >= BTREE_MAX_DEPTH)
 		return;
 
+	if (BTREE_NODE_ID(bn) >= BTREE_ID_NR_MAX)
+		return;
+
 	rcu_read_lock();
 	struct found_btree_node n = {
 		.btree_id	= BTREE_NODE_ID(bn),

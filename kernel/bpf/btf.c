@@ -3523,7 +3523,7 @@ end:
  *   (i + 1) * elem_size
  * where i is the repeat index and elem_size is the size of an element.
  */
-static int btf_repeat_fields(struct btf_field_info *info,
+static int btf_repeat_fields(struct btf_field_info *info, int info_cnt,
 			     u32 field_cnt, u32 repeat_cnt, u32 elem_size)
 {
 	u32 i, j;
@@ -3542,6 +3542,12 @@ static int btf_repeat_fields(struct btf_field_info *info,
 			return -EINVAL;
 		}
 	}
+
+	/* The type of struct size or variable size is u32,
+	 * so the multiplication will not overflow.
+	 */
+	if (field_cnt * (repeat_cnt + 1) > info_cnt)
+		return -E2BIG;
 
 	cur = field_cnt;
 	for (i = 0; i < repeat_cnt; i++) {
@@ -3587,7 +3593,7 @@ static int btf_find_nested_struct(const struct btf *btf, const struct btf_type *
 		info[i].off += off;
 
 	if (nelems > 1) {
-		err = btf_repeat_fields(info, ret, nelems - 1, t->size);
+		err = btf_repeat_fields(info, info_cnt, ret, nelems - 1, t->size);
 		if (err == 0)
 			ret *= nelems;
 		else
@@ -3681,10 +3687,10 @@ static int btf_find_field_one(const struct btf *btf,
 
 	if (ret == BTF_FIELD_IGNORE)
 		return 0;
-	if (nelems > info_cnt)
+	if (!info_cnt)
 		return -E2BIG;
 	if (nelems > 1) {
-		ret = btf_repeat_fields(info, 1, nelems - 1, sz);
+		ret = btf_repeat_fields(info, info_cnt, 1, nelems - 1, sz);
 		if (ret < 0)
 			return ret;
 	}
@@ -8961,6 +8967,7 @@ int bpf_core_apply(struct bpf_core_ctx *ctx, const struct bpf_core_relo *relo,
 	if (!type) {
 		bpf_log(ctx->log, "relo #%u: bad type id %u\n",
 			relo_idx, relo->type_id);
+		kfree(specs);
 		return -EINVAL;
 	}
 

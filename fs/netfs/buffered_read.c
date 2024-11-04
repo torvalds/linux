@@ -67,7 +67,8 @@ static int netfs_begin_cache_read(struct netfs_io_request *rreq, struct netfs_in
  * Decant the list of folios to read into a rolling buffer.
  */
 static size_t netfs_load_buffer_from_ra(struct netfs_io_request *rreq,
-					struct folio_queue *folioq)
+					struct folio_queue *folioq,
+					struct folio_batch *put_batch)
 {
 	unsigned int order, nr;
 	size_t size = 0;
@@ -82,6 +83,9 @@ static size_t netfs_load_buffer_from_ra(struct netfs_io_request *rreq,
 		order = folio_order(folio);
 		folioq->orders[i] = order;
 		size += PAGE_SIZE << order;
+
+		if (!folio_batch_add(put_batch, folio))
+			folio_batch_release(put_batch);
 	}
 
 	for (int i = nr; i < folioq_nr_slots(folioq); i++)
@@ -120,6 +124,9 @@ static ssize_t netfs_prepare_read_iterator(struct netfs_io_subrequest *subreq)
 		 * that we will need to release later - but we don't want to do
 		 * that until after we've started the I/O.
 		 */
+		struct folio_batch put_batch;
+
+		folio_batch_init(&put_batch);
 		while (rreq->submitted < subreq->start + rsize) {
 			struct folio_queue *tail = rreq->buffer_tail, *new;
 			size_t added;
@@ -132,10 +139,11 @@ static ssize_t netfs_prepare_read_iterator(struct netfs_io_subrequest *subreq)
 			new->prev = tail;
 			tail->next = new;
 			rreq->buffer_tail = new;
-			added = netfs_load_buffer_from_ra(rreq, new);
+			added = netfs_load_buffer_from_ra(rreq, new, &put_batch);
 			rreq->iter.count += added;
 			rreq->submitted += added;
 		}
+		folio_batch_release(&put_batch);
 	}
 
 	subreq->len = rsize;
@@ -348,6 +356,7 @@ static int netfs_wait_for_read(struct netfs_io_request *rreq)
 static int netfs_prime_buffer(struct netfs_io_request *rreq)
 {
 	struct folio_queue *folioq;
+	struct folio_batch put_batch;
 	size_t added;
 
 	folioq = kmalloc(sizeof(*folioq), GFP_KERNEL);
@@ -360,37 +369,12 @@ static int netfs_prime_buffer(struct netfs_io_request *rreq)
 	rreq->submitted = rreq->start;
 	iov_iter_folio_queue(&rreq->iter, ITER_DEST, folioq, 0, 0, 0);
 
-	added = netfs_load_buffer_from_ra(rreq, folioq);
+	folio_batch_init(&put_batch);
+	added = netfs_load_buffer_from_ra(rreq, folioq, &put_batch);
+	folio_batch_release(&put_batch);
 	rreq->iter.count += added;
 	rreq->submitted += added;
 	return 0;
-}
-
-/*
- * Drop the ref on each folio that we inherited from the VM readahead code.  We
- * still have the folio locks to pin the page until we complete the I/O.
- *
- * Note that we can't just release the batch in each queue struct as we use the
- * occupancy count in other places.
- */
-static void netfs_put_ra_refs(struct folio_queue *folioq)
-{
-	struct folio_batch fbatch;
-
-	folio_batch_init(&fbatch);
-	while (folioq) {
-		for (unsigned int slot = 0; slot < folioq_count(folioq); slot++) {
-			struct folio *folio = folioq_folio(folioq, slot);
-			if (!folio)
-				continue;
-			trace_netfs_folio(folio, netfs_folio_trace_read_put);
-			if (!folio_batch_add(&fbatch, folio))
-				folio_batch_release(&fbatch);
-		}
-		folioq = folioq->next;
-	}
-
-	folio_batch_release(&fbatch);
 }
 
 /**
@@ -435,9 +419,6 @@ void netfs_readahead(struct readahead_control *ractl)
 	if (netfs_prime_buffer(rreq) < 0)
 		goto cleanup_free;
 	netfs_read_to_pagecache(rreq);
-
-	/* Release the folio refs whilst we're waiting for the I/O. */
-	netfs_put_ra_refs(rreq->buffer);
 
 	netfs_put_request(rreq, true, netfs_rreq_trace_put_return);
 	return;

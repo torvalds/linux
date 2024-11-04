@@ -941,14 +941,18 @@ static void __hws_send_queues_close(struct mlx5hws_context *ctx, u16 queues)
 
 static void hws_send_queues_bwc_locks_destroy(struct mlx5hws_context *ctx)
 {
-	int bwc_queues = ctx->queues - 1;
+	int bwc_queues = mlx5hws_bwc_queues(ctx);
 	int i;
 
 	if (!mlx5hws_context_bwc_supported(ctx))
 		return;
 
-	for (i = 0; i < bwc_queues; i++)
+	for (i = 0; i < bwc_queues; i++) {
 		mutex_destroy(&ctx->bwc_send_queue_locks[i]);
+		lockdep_unregister_key(ctx->bwc_lock_class_keys + i);
+	}
+
+	kfree(ctx->bwc_lock_class_keys);
 	kfree(ctx->bwc_send_queue_locks);
 }
 
@@ -977,10 +981,22 @@ static int hws_bwc_send_queues_init(struct mlx5hws_context *ctx)
 	if (!ctx->bwc_send_queue_locks)
 		return -ENOMEM;
 
-	for (i = 0; i < bwc_queues; i++)
+	ctx->bwc_lock_class_keys = kcalloc(bwc_queues,
+					   sizeof(*ctx->bwc_lock_class_keys),
+					   GFP_KERNEL);
+	if (!ctx->bwc_lock_class_keys)
+		goto err_lock_class_keys;
+
+	for (i = 0; i < bwc_queues; i++) {
 		mutex_init(&ctx->bwc_send_queue_locks[i]);
+		lockdep_register_key(ctx->bwc_lock_class_keys + i);
+	}
 
 	return 0;
+
+err_lock_class_keys:
+	kfree(ctx->bwc_send_queue_locks);
+	return -ENOMEM;
 }
 
 int mlx5hws_send_queues_open(struct mlx5hws_context *ctx,
