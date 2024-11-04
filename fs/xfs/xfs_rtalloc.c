@@ -734,6 +734,36 @@ xfs_rtginode_ensure(
 	return xfs_rtginode_create(rtg, type, true);
 }
 
+static struct xfs_mount *
+xfs_growfs_rt_alloc_fake_mount(
+	const struct xfs_mount	*mp,
+	xfs_rfsblock_t		rblocks,
+	xfs_agblock_t		rextsize)
+{
+	struct xfs_mount	*nmp;
+
+	nmp = kmemdup(mp, sizeof(*mp), GFP_KERNEL);
+	if (!nmp)
+		return NULL;
+	nmp->m_sb.sb_rextsize = rextsize;
+	xfs_mount_sb_set_rextsize(nmp, &nmp->m_sb);
+	nmp->m_sb.sb_rblocks = rblocks;
+	nmp->m_sb.sb_rextents = xfs_rtb_to_rtx(nmp, nmp->m_sb.sb_rblocks);
+	nmp->m_sb.sb_rbmblocks = xfs_rtbitmap_blockcount(nmp,
+			nmp->m_sb.sb_rextents);
+	nmp->m_sb.sb_rextslog = xfs_compute_rextslog(nmp->m_sb.sb_rextents);
+	nmp->m_rsumlevels = nmp->m_sb.sb_rextslog + 1;
+	nmp->m_rsumblocks = xfs_rtsummary_blockcount(nmp, nmp->m_rsumlevels,
+			nmp->m_sb.sb_rbmblocks);
+
+	if (rblocks > 0)
+		nmp->m_features |= XFS_FEAT_REALTIME;
+
+	/* recompute growfsrt reservation from new rsumsize */
+	xfs_trans_resv_calc(nmp, &nmp->m_resv);
+	return nmp;
+}
+
 static int
 xfs_growfs_rt_bmblock(
 	struct xfs_rtgroup	*rtg,
@@ -756,25 +786,15 @@ xfs_growfs_rt_bmblock(
 	xfs_rtbxlen_t		freed_rtx;
 	int			error;
 
-
-	nrblocks_step = (bmbno + 1) * NBBY * mp->m_sb.sb_blocksize * rextsize;
-
-	nmp = nargs.mp = kmemdup(mp, sizeof(*mp), GFP_KERNEL);
-	if (!nmp)
-		return -ENOMEM;
-
 	/*
 	 * Calculate new sb and mount fields for this round.
 	 */
-	nmp->m_sb.sb_rextsize = rextsize;
-	xfs_mount_sb_set_rextsize(nmp, &nmp->m_sb);
-	nmp->m_sb.sb_rbmblocks = bmbno + 1;
-	nmp->m_sb.sb_rblocks = min(nrblocks, nrblocks_step);
-	nmp->m_sb.sb_rextents = xfs_rtb_to_rtx(nmp, nmp->m_sb.sb_rblocks);
-	nmp->m_sb.sb_rextslog = xfs_compute_rextslog(nmp->m_sb.sb_rextents);
-	nmp->m_rsumlevels = nmp->m_sb.sb_rextslog + 1;
-	nmp->m_rsumblocks = xfs_rtsummary_blockcount(mp, nmp->m_rsumlevels,
-			nmp->m_sb.sb_rbmblocks);
+	nrblocks_step = (bmbno + 1) * NBBY * mp->m_sb.sb_blocksize * rextsize;
+	nmp = nargs.mp = xfs_growfs_rt_alloc_fake_mount(mp,
+			min(nrblocks, nrblocks_step), rextsize);
+	if (!nmp)
+		return -ENOMEM;
+
 	rtg->rtg_extents = xfs_rtgroup_extents(nmp, rtg_rgno(rtg));
 
 	/*
