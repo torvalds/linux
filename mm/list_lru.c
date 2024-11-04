@@ -106,7 +106,6 @@ bool list_lru_add(struct list_lru *lru, struct list_head *item, int nid,
 	spin_unlock(&nlru->lock);
 	return false;
 }
-EXPORT_SYMBOL_GPL(list_lru_add);
 
 bool list_lru_add_obj(struct list_lru *lru, struct list_head *item)
 {
