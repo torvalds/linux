@@ -337,7 +337,7 @@ static void of_gpio_flags_quirks(const struct device_node *np,
 	 * to determine if the flags should have inverted semantics.
 	 */
 	if (IS_ENABLED(CONFIG_SPI_MASTER) && !strcmp(propname, "cs-gpios") &&
-	    of_property_read_bool(np, "cs-gpios")) {
+	    of_property_present(np, "cs-gpios")) {
 		u32 cs;
 		int ret;
 
