@@ -155,26 +155,33 @@ static struct gpiod_lookup_table * const *gpiod_lookup_tables;
 static const struct software_node *bat_swnode;
 static void (*exit_handler)(void);
 
+static struct i2c_adapter *
+get_i2c_adap_by_handle(const struct x86_i2c_client_info *client_info)
+{
+	acpi_handle handle;
+	acpi_status status;
+
+	status = acpi_get_handle(NULL, client_info->adapter_path, &handle);
+	if (ACPI_FAILURE(status)) {
+		pr_err("Error could not get %s handle\n", client_info->adapter_path);
+		return NULL;
+	}
+
+	return i2c_acpi_find_adapter_by_handle(handle);
+}
+
 static __init int x86_instantiate_i2c_client(const struct x86_dev_info *dev_info,
 					     int idx)
 {
 	const struct x86_i2c_client_info *client_info = &dev_info->i2c_client_info[idx];
 	struct i2c_board_info board_info = client_info->board_info;
 	struct i2c_adapter *adap;
-	acpi_handle handle;
-	acpi_status status;
 
 	board_info.irq = x86_acpi_irq_helper_get(&client_info->irq_data);
 	if (board_info.irq < 0)
 		return board_info.irq;
 
-	status = acpi_get_handle(NULL, client_info->adapter_path, &handle);
-	if (ACPI_FAILURE(status)) {
-		pr_err("Error could not get %s handle\n", client_info->adapter_path);
-		return -ENODEV;
-	}
-
-	adap = i2c_acpi_find_adapter_by_handle(handle);
+	adap = get_i2c_adap_by_handle(client_info);
 	if (!adap) {
 		pr_err("error could not get %s adapter\n", client_info->adapter_path);
 		return -ENODEV;
