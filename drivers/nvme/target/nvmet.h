@@ -22,7 +22,7 @@
 #include <linux/t10-pi.h>
 #include <linux/kfifo.h>
 
-#define NVMET_DEFAULT_VS		NVME_VS(1, 3, 0)
+#define NVMET_DEFAULT_VS		NVME_VS(2, 1, 0)
 
 #define NVMET_ASYNC_EVENTS		4
 #define NVMET_ERROR_LOG_SLOTS		128
