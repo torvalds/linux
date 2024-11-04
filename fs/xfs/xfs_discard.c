@@ -159,7 +159,7 @@ xfs_trim_gather_extents(
 	struct xfs_trim_cur	*tcur,
 	struct xfs_busy_extents	*extents)
 {
-	struct xfs_mount	*mp = pag->pag_mount;
+	struct xfs_mount	*mp = pag_mount(pag);
 	struct xfs_trans	*tp;
 	struct xfs_btree_cur	*cur;
 	struct xfs_buf		*agbp;
@@ -365,7 +365,7 @@ xfs_trim_perag_extents(
 		 * list  after this function call, as it may have been freed by
 		 * the time control returns to us.
 		 */
-		error = xfs_discard_extents(pag->pag_mount, extents);
+		error = xfs_discard_extents(pag_mount(pag), extents);
 		if (error)
 			break;
 

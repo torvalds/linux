@@ -283,7 +283,7 @@ xfs_extent_busy_update_extent(
 
 out_force_log:
 	spin_unlock(&pag->pagb_lock);
-	xfs_log_force(pag->pag_mount, XFS_LOG_SYNC);
+	xfs_log_force(pag_mount(pag), XFS_LOG_SYNC);
 	trace_xfs_extent_busy_force(pag, fbno, flen);
 	spin_lock(&pag->pagb_lock);
 	return false;
@@ -659,7 +659,7 @@ xfs_extent_busy_ag_cmp(
 		container_of(l2, struct xfs_extent_busy, list);
 	s32 diff;
 
-	diff = b1->pag->pag_agno - b2->pag->pag_agno;
+	diff = pag_agno(b1->pag) - pag_agno(b2->pag);
 	if (!diff)
 		diff = b1->bno - b2->bno;
 	return diff;

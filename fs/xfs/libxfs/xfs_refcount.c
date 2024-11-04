@@ -154,7 +154,7 @@ xfs_refcount_complain_bad_rec(
 
 	xfs_warn(mp,
  "Refcount BTree record corruption in AG %d detected at %pS!",
-				cur->bc_ag.pag->pag_agno, fa);
+				pag_agno(cur->bc_ag.pag), fa);
 	xfs_warn(mp,
 		"Start block 0x%x, block count 0x%x, references 0x%x",
 		irec->rc_startblock, irec->rc_blockcount, irec->rc_refcount);
@@ -1321,7 +1321,7 @@ xfs_refcount_continue_op(
 	ri->ri_startblock = xfs_agbno_to_fsb(pag, new_agbno);
 
 	ASSERT(xfs_verify_fsbext(mp, ri->ri_startblock, ri->ri_blockcount));
-	ASSERT(pag->pag_agno == XFS_FSB_TO_AGNO(mp, ri->ri_startblock));
+	ASSERT(pag_agno(pag) == XFS_FSB_TO_AGNO(mp, ri->ri_startblock));
 
 	return 0;
 }

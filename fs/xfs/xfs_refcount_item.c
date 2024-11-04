@@ -244,7 +244,7 @@ xfs_refcount_update_diff_items(
 	struct xfs_refcount_intent	*ra = ci_entry(a);
 	struct xfs_refcount_intent	*rb = ci_entry(b);
 
-	return ra->ri_pag->pag_agno - rb->ri_pag->pag_agno;
+	return pag_agno(ra->ri_pag) - pag_agno(rb->ri_pag);
 }
 
 /* Log refcount updates in the intent item. */

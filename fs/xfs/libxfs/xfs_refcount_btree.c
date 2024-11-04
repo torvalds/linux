@@ -81,7 +81,7 @@ xfs_refcountbt_alloc_block(
 		*stat = 0;
 		return 0;
 	}
-	ASSERT(args.agno == cur->bc_ag.pag->pag_agno);
+	ASSERT(args.agno == pag_agno(cur->bc_ag.pag));
 	ASSERT(args.len == 1);
 
 	new->s = cpu_to_be32(args.agbno);
@@ -169,7 +169,7 @@ xfs_refcountbt_init_ptr_from_cur(
 {
 	struct xfs_agf		*agf = cur->bc_ag.agbp->b_addr;
 
-	ASSERT(cur->bc_ag.pag->pag_agno == be32_to_cpu(agf->agf_seqno));
+	ASSERT(pag_agno(cur->bc_ag.pag) == be32_to_cpu(agf->agf_seqno));
 
 	ptr->s = agf->agf_refcount_root;
 }
@@ -361,7 +361,7 @@ xfs_refcountbt_init_cursor(
 {
 	struct xfs_btree_cur	*cur;
 
-	ASSERT(pag->pag_agno < mp->m_sb.sb_agcount);
+	ASSERT(pag_agno(pag) < mp->m_sb.sb_agcount);
 
 	cur = xfs_btree_alloc_cursor(mp, tp, &xfs_refcountbt_ops,
 			mp->m_refc_maxlevels, xfs_refcountbt_cur_cache);
@@ -514,7 +514,7 @@ xfs_refcountbt_calc_reserves(
 	 * never be available for the kinds of things that would require btree
 	 * expansion.  We therefore can pretend the space isn't there.
 	 */
-	if (xfs_ag_contains_log(mp, pag->pag_agno))
+	if (xfs_ag_contains_log(mp, pag_agno(pag)))
 		agblocks -= mp->m_sb.sb_logblocks;
 
 	*ask += xfs_refcountbt_max_size(mp, agblocks);

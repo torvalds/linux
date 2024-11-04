@@ -372,7 +372,7 @@ xfs_btree_check_ptr(
 		case XFS_BTREE_TYPE_AG:
 			xfs_err(cur->bc_mp,
 "AG %u: Corrupt %sbt pointer at level %d index %d.",
-				cur->bc_ag.pag->pag_agno, cur->bc_ops->name,
+				pag_agno(cur->bc_ag.pag), cur->bc_ops->name,
 				level, index);
 			break;
 		}
@@ -1312,7 +1312,7 @@ xfs_btree_owner(
 	case XFS_BTREE_TYPE_INODE:
 		return cur->bc_ino.ip->i_ino;
 	case XFS_BTREE_TYPE_AG:
-		return cur->bc_ag.pag->pag_agno;
+		return pag_agno(cur->bc_ag.pag);
 	default:
 		ASSERT(0);
 		return 0;
@@ -4744,7 +4744,7 @@ xfs_btree_agblock_v5hdr_verify(
 		return __this_address;
 	if (block->bb_u.s.bb_blkno != cpu_to_be64(xfs_buf_daddr(bp)))
 		return __this_address;
-	if (pag && be32_to_cpu(block->bb_u.s.bb_owner) != pag->pag_agno)
+	if (pag && be32_to_cpu(block->bb_u.s.bb_owner) != pag_agno(pag))
 		return __this_address;
 	return NULL;
 }

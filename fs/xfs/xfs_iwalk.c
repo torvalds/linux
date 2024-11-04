@@ -188,7 +188,7 @@ xfs_iwalk_ag_recs(
 			return 0;
 
 		if (iwag->inobt_walk_fn) {
-			error = iwag->inobt_walk_fn(mp, tp, pag->pag_agno, irec,
+			error = iwag->inobt_walk_fn(mp, tp, pag_agno(pag), irec,
 					iwag->data);
 			if (error)
 				return error;
@@ -405,7 +405,7 @@ xfs_iwalk_ag(
 	int				error = 0;
 
 	/* Set up our cursor at the right place in the inode btree. */
-	ASSERT(pag->pag_agno == XFS_INO_TO_AGNO(mp, iwag->startino));
+	ASSERT(pag_agno(pag) == XFS_INO_TO_AGNO(mp, iwag->startino));
 	agino = XFS_INO_TO_AGINO(mp, iwag->startino);
 	error = xfs_iwalk_ag_start(iwag, agino, &cur, &agi_bp, &has_more);
 
@@ -677,7 +677,7 @@ xfs_iwalk_threaded(
 		iwag->sz_recs = xfs_iwalk_prefetch(inode_records);
 		iwag->lastino = NULLFSINO;
 		xfs_pwork_queue(&pctl, &iwag->pwork);
-		startino = XFS_AGINO_TO_INO(mp, pag->pag_agno + 1, 0);
+		startino = XFS_AGINO_TO_INO(mp, pag_agno(pag) + 1, 0);
 		if (flags & XFS_IWALK_SAME_AG)
 			break;
 	}

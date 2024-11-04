@@ -71,6 +71,10 @@ struct xfs_inodegc {
 	unsigned int		cpu;
 };
 
+struct xfs_groups {
+	struct xarray		xa;
+};
+
 /*
  * The struct xfsmount layout is optimised to separate read-mostly variables
  * from variables that are frequently modified. We put the read-mostly variables
@@ -208,7 +212,7 @@ typedef struct xfs_mount {
 	 */
 	atomic64_t		m_allocbt_blks;
 
-	struct xarray		m_perags;	/* per-ag accounting info */
+	struct xfs_groups	m_groups[XG_TYPE_MAX];
 	uint64_t		m_resblks;	/* total reserved blocks */
 	uint64_t		m_resblks_avail;/* available reserved blocks */
 	uint64_t		m_resblks_save;	/* reserved blks @ remount,ro */

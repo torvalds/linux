@@ -58,7 +58,7 @@ xrep_newbt_estimate_slack(
 
 	if (sc->ops->type == ST_PERAG) {
 		free = sc->sa.pag->pagf_freeblks;
-		sz = xfs_ag_block_count(sc->mp, sc->sa.pag->pag_agno);
+		sz = xfs_ag_block_count(sc->mp, pag_agno(sc->sa.pag));
 	} else {
 		free = percpu_counter_sum(&sc->mp->m_fdblocks);
 		sz = sc->mp->m_sb.sb_dblocks;
@@ -205,7 +205,7 @@ xrep_newbt_validate_ag_alloc_hint(
 	struct xfs_scrub	*sc = xnr->sc;
 	xfs_agnumber_t		agno = XFS_FSB_TO_AGNO(sc->mp, xnr->alloc_hint);
 
-	if (agno == sc->sa.pag->pag_agno &&
+	if (agno == pag_agno(sc->sa.pag) &&
 	    xfs_verify_fsbno(sc->mp, xnr->alloc_hint))
 		return;
 
@@ -250,8 +250,8 @@ xrep_newbt_alloc_ag_blocks(
 			return -ENOSPC;
 
 		agno = XFS_FSB_TO_AGNO(mp, args.fsbno);
-		if (agno != sc->sa.pag->pag_agno) {
-			ASSERT(agno == sc->sa.pag->pag_agno);
+		if (agno != pag_agno(sc->sa.pag)) {
+			ASSERT(agno == pag_agno(sc->sa.pag));
 			return -EFSCORRUPTED;
 		}
 

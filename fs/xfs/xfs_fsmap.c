@@ -353,7 +353,7 @@ xfs_getfsmap_helper(
 		return -ECANCELED;
 
 	trace_xfs_fsmap_mapping(mp, info->dev,
-			info->pag ? info->pag->pag_agno : NULLAGNUMBER, rec);
+			info->pag ? pag_agno(info->pag) : NULLAGNUMBER, rec);
 
 	fmr.fmr_device = info->dev;
 	fmr.fmr_physical = rec_daddr;
@@ -519,7 +519,7 @@ __xfs_getfsmap_datadev(
 		 * is the last AG that we're querying.
 		 */
 		info->pag = pag;
-		if (pag->pag_agno == end_ag) {
+		if (pag_agno(pag) == end_ag) {
 			info->high.rm_startblock = XFS_FSB_TO_AGBNO(mp,
 					end_fsb);
 			info->high.rm_offset = XFS_BB_TO_FSBT(mp,
@@ -541,9 +541,9 @@ __xfs_getfsmap_datadev(
 		if (error)
 			break;
 
-		trace_xfs_fsmap_low_key(mp, info->dev, pag->pag_agno,
+		trace_xfs_fsmap_low_key(mp, info->dev, pag_agno(pag),
 				&info->low);
-		trace_xfs_fsmap_high_key(mp, info->dev, pag->pag_agno,
+		trace_xfs_fsmap_high_key(mp, info->dev, pag_agno(pag),
 				&info->high);
 
 		error = query_fn(tp, info, &bt_cur, priv);
@@ -554,7 +554,7 @@ __xfs_getfsmap_datadev(
 		 * Set the AG low key to the start of the AG prior to
 		 * moving on to the next AG.
 		 */
-		if (pag->pag_agno == start_ag)
+		if (pag_agno(pag) == start_ag)
 			memset(&info->low, 0, sizeof(info->low));
 
 		/*
@@ -562,7 +562,7 @@ __xfs_getfsmap_datadev(
 		 * before we drop the reference to the perag when the loop
 		 * terminates.
 		 */
-		if (pag->pag_agno == end_ag) {
+		if (pag_agno(pag) == end_ag) {
 			info->last = true;
 			error = query_fn(tp, info, &bt_cur, priv);
 			if (error)

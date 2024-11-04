@@ -144,7 +144,7 @@ xfs_reflink_find_shared(
 	if (error)
 		return error;
 
-	cur = xfs_refcountbt_init_cursor(pag->pag_mount, tp, agbp, pag);
+	cur = xfs_refcountbt_init_cursor(pag_mount(pag), tp, agbp, pag);
 
 	error = xfs_refcount_find_shared(cur, agbno, aglen, fbno, flen,
 			find_end_of_shared);

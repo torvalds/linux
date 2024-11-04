@@ -213,7 +213,7 @@ xfs_rmap_check_irec(
 	struct xfs_perag		*pag,
 	const struct xfs_rmap_irec	*irec)
 {
-	struct xfs_mount		*mp = pag->pag_mount;
+	struct xfs_mount		*mp = pag_mount(pag);
 	bool				is_inode;
 	bool				is_unwritten;
 	bool				is_bmbt;
@@ -288,7 +288,7 @@ xfs_rmap_complain_bad_rec(
 	else
 		xfs_warn(mp,
  "Reverse Mapping BTree record corruption in AG %d detected at %pS!",
-			cur->bc_ag.pag->pag_agno, fa);
+			pag_agno(cur->bc_ag.pag), fa);
 	xfs_warn(mp,
 		"Owner 0x%llx, flags 0x%x, start block 0x%x block count 0x%x",
 		irec->rm_owner, irec->rm_flags, irec->rm_startblock,

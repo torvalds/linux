@@ -243,7 +243,7 @@ xfs_rmap_update_diff_items(
 	struct xfs_rmap_intent		*ra = ri_entry(a);
 	struct xfs_rmap_intent		*rb = ri_entry(b);
 
-	return ra->ri_pag->pag_agno - rb->ri_pag->pag_agno;
+	return pag_agno(ra->ri_pag) - pag_agno(rb->ri_pag);
 }
 
 /* Log rmap updates in the intent item. */

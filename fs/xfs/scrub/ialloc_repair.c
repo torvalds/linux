@@ -814,7 +814,7 @@ xrep_iallocbt(
 	sc->sick_mask = XFS_SICK_AG_INOBT | XFS_SICK_AG_FINOBT;
 
 	/* Set up enough storage to handle an AG with nothing but inodes. */
-	xfs_agino_range(mp, sc->sa.pag->pag_agno, &first_agino, &last_agino);
+	xfs_agino_range(mp, pag_agno(sc->sa.pag), &first_agino, &last_agino);
 	last_agino /= XFS_INODES_PER_CHUNK;
 	descr = xchk_xfile_ag_descr(sc, "inode index records");
 	error = xfarray_create(descr, last_agino,

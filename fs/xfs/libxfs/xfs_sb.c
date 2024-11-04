@@ -1120,7 +1120,7 @@ xfs_update_secondary_sbs(
 		struct xfs_buf		*bp;
 
 		error = xfs_buf_get(mp->m_ddev_targp,
-				 XFS_AG_DADDR(mp, pag->pag_agno, XFS_SB_DADDR),
+				 XFS_AG_DADDR(mp, pag_agno(pag), XFS_SB_DADDR),
 				 XFS_FSS_TO_BB(mp, 1), &bp);
 		/*
 		 * If we get an error reading or writing alternate superblocks,
@@ -1132,7 +1132,7 @@ xfs_update_secondary_sbs(
 		if (error) {
 			xfs_warn(mp,
 		"error allocating secondary superblock for ag %d",
-				pag->pag_agno);
+				pag_agno(pag));
 			if (!saved_error)
 				saved_error = error;
 			continue;
@@ -1153,7 +1153,7 @@ xfs_update_secondary_sbs(
 		if (error) {
 			xfs_warn(mp,
 		"write error %d updating a secondary superblock near ag %d",
-				error, pag->pag_agno);
+				error, pag_agno(pag));
 			if (!saved_error)
 				saved_error = error;
 			continue;

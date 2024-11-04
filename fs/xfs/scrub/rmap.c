@@ -410,7 +410,7 @@ xchk_rmapbt_walk_ag_metadata(
 		goto out;
 
 	/* OWN_LOG: Internal log */
-	if (xfs_ag_contains_log(mp, sc->sa.pag->pag_agno)) {
+	if (xfs_ag_contains_log(mp, pag_agno(sc->sa.pag))) {
 		error = xagb_bitmap_set(&cr->log_owned,
 				XFS_FSB_TO_AGBNO(mp, mp->m_sb.sb_logstart),
 				mp->m_sb.sb_logblocks);

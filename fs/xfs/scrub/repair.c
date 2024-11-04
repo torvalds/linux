@@ -413,7 +413,7 @@ xrep_fix_freelist(
 
 	args.mp = sc->mp;
 	args.tp = sc->tp;
-	args.agno = sc->sa.pag->pag_agno;
+	args.agno = pag_agno(sc->sa.pag);
 	args.alignment = 1;
 	args.pag = sc->sa.pag;
 
@@ -972,7 +972,7 @@ xrep_reset_perag_resv(
 	if (error == -ENOSPC) {
 		xfs_err(sc->mp,
 "Insufficient free space to reset per-AG reservation for AG %u after repair.",
-				sc->sa.pag->pag_agno);
+				pag_agno(sc->sa.pag));
 		error = 0;
 	}
 
