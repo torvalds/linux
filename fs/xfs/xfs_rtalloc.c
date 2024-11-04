@@ -751,6 +751,11 @@ xfs_growfs_rt_alloc_fake_mount(
 	nmp->m_sb.sb_rextents = xfs_blen_to_rtbxlen(nmp, nmp->m_sb.sb_rblocks);
 	nmp->m_sb.sb_rbmblocks = xfs_rtbitmap_blockcount(nmp);
 	nmp->m_sb.sb_rextslog = xfs_compute_rextslog(nmp->m_sb.sb_rextents);
+	if (xfs_has_rtgroups(nmp))
+		nmp->m_sb.sb_rgcount = howmany_64(nmp->m_sb.sb_rextents,
+						  nmp->m_sb.sb_rgextents);
+	else
+		nmp->m_sb.sb_rgcount = 1;
 	nmp->m_rsumblocks = xfs_rtsummary_blockcount(nmp, &nmp->m_rsumlevels);
 
 	if (rblocks > 0)
@@ -759,6 +764,26 @@ xfs_growfs_rt_alloc_fake_mount(
 	/* recompute growfsrt reservation from new rsumsize */
 	xfs_trans_resv_calc(nmp, &nmp->m_resv);
 	return nmp;
+}
+
+static xfs_rfsblock_t
+xfs_growfs_rt_nrblocks(
+	struct xfs_rtgroup	*rtg,
+	xfs_rfsblock_t		nrblocks,
+	xfs_agblock_t		rextsize,
+	xfs_fileoff_t		bmbno)
+{
+	struct xfs_mount	*mp = rtg_mount(rtg);
+	xfs_rfsblock_t		step;
+
+	step = (bmbno + 1) * NBBY * mp->m_sb.sb_blocksize * rextsize;
+	if (xfs_has_rtgroups(mp)) {
+		xfs_rfsblock_t	rgblocks = mp->m_sb.sb_rgextents * rextsize;
+
+		step = min(rgblocks, step) + rgblocks * rtg_rgno(rtg);
+	}
+
+	return min(nrblocks, step);
 }
 
 static int
@@ -779,16 +804,15 @@ xfs_growfs_rt_bmblock(
 		.rtg		= rtg,
 	};
 	struct xfs_mount	*nmp;
-	xfs_rfsblock_t		nrblocks_step;
 	xfs_rtbxlen_t		freed_rtx;
 	int			error;
 
 	/*
 	 * Calculate new sb and mount fields for this round.
 	 */
-	nrblocks_step = (bmbno + 1) * NBBY * mp->m_sb.sb_blocksize * rextsize;
 	nmp = nargs.mp = xfs_growfs_rt_alloc_fake_mount(mp,
-			min(nrblocks, nrblocks_step), rextsize);
+			xfs_growfs_rt_nrblocks(rtg, nrblocks, rextsize, bmbno),
+			rextsize);
 	if (!nmp)
 		return -ENOMEM;
 
