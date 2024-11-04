@@ -508,10 +508,10 @@ int blk_stack_limits(struct queue_limits *t, struct queue_limits *b,
 	t->features |= (b->features & BLK_FEAT_INHERIT_MASK);
 
 	/*
-	 * BLK_FEAT_NOWAIT and BLK_FEAT_POLL need to be supported both by the
-	 * stacking driver and all underlying devices.  The stacking driver sets
-	 * the flags before stacking the limits, and this will clear the flags
-	 * if any of the underlying devices does not support it.
+	 * Some feaures need to be supported both by the stacking driver and all
+	 * underlying devices.  The stacking driver sets these flags before
+	 * stacking the limits, and this will clear the flags if any of the
+	 * underlying devices does not support it.
 	 */
 	if (!(b->features & BLK_FEAT_NOWAIT))
 		t->features &= ~BLK_FEAT_NOWAIT;
