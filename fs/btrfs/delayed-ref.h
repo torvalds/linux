@@ -61,7 +61,8 @@ struct btrfs_delayed_ref_node {
 	/*
 	 * If action is BTRFS_ADD_DELAYED_REF, also link this node to
 	 * ref_head->ref_add_list, then we do not need to iterate the
-	 * whole ref_head->ref_list to find BTRFS_ADD_DELAYED_REF nodes.
+	 * refs rbtree in the corresponding delayed ref head
+	 * (struct btrfs_delayed_ref_head::ref_tree).
 	 */
 	struct list_head add_list;
 
