@@ -32,6 +32,8 @@ struct list_lru_one {
 	struct list_head	list;
 	/* may become negative during memcg reparenting */
 	long			nr_items;
+	/* protects all fields above */
+	spinlock_t		lock;
 };
 
 struct list_lru_memcg {
@@ -41,11 +43,9 @@ struct list_lru_memcg {
 };
 
 struct list_lru_node {
-	/* protects all lists on the node, including per cgroup */
-	spinlock_t		lock;
 	/* global list, used for the root cgroup in cgroup aware lrus */
 	struct list_lru_one	lru;
-	long			nr_items;
+	atomic_long_t		nr_items;
 } ____cacheline_aligned_in_smp;
 
 struct list_lru {

@@ -711,9 +711,9 @@ static void zswap_lru_add(struct list_lru *list_lru, struct zswap_entry *entry)
 	 * Note that it is safe to use rcu_read_lock() here, even in the face of
 	 * concurrent memcg offlining:
 	 *
-	 * 1. list_lru_add() is called before list_lru_memcg is erased. The
+	 * 1. list_lru_add() is called before list_lru_one is dead. The
 	 *    new entry will be reparented to memcg's parent's list_lru.
-	 * 2. list_lru_add() is called after list_lru_memcg is erased. The
+	 * 2. list_lru_add() is called after list_lru_one is dead. The
 	 *    new entry will be added directly to memcg's parent's list_lru.
 	 *
 	 * Similar reasoning holds for list_lru_del().
@@ -1179,7 +1179,6 @@ static enum lru_status shrink_memcg_cb(struct list_head *item, struct list_lru_o
 		zswap_written_back_pages++;
 	}
 
-	spin_lock(lock);
 	return ret;
 }
 

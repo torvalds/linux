@@ -1106,7 +1106,6 @@ enum lru_status binder_alloc_free_page(struct list_head *item,
 	mmput_async(mm);
 	__free_page(page_to_free);
 
-	spin_lock(lock);
 	return LRU_REMOVED_RETRY;
 
 err_invalid_vma:

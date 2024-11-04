@@ -496,7 +496,6 @@ out_unlock_dirty:
 	trace_xfs_dqreclaim_busy(dqp);
 	XFS_STATS_INC(dqp->q_mount, xs_qm_dqreclaim_misses);
 	xfs_dqunlock(dqp);
-	spin_lock(lru_lock);
 	return LRU_RETRY;
 }
 

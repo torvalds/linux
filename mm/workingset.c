@@ -767,7 +767,6 @@ out_invalid:
 	ret = LRU_REMOVED_RETRY;
 out:
 	cond_resched();
-	spin_lock_irq(lru_lock);
 	return ret;
 }
 
