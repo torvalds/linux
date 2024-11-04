@@ -73,6 +73,8 @@
  * extent search so that it overlaps in flight discard IO.
  */
 
+#define XFS_DISCARD_MAX_EXAMINE	(100)
+
 struct workqueue_struct *xfs_discard_wq;
 
 static void
@@ -185,7 +187,7 @@ xfs_trim_gather_extents(
 	struct xfs_buf		*agbp;
 	int			error;
 	int			i;
-	int			batch = 100;
+	int			batch = XFS_DISCARD_MAX_EXAMINE;
 
 	/*
 	 * Force out the log.  This means any transactions that might have freed
@@ -565,6 +567,7 @@ xfs_trim_gather_rtextent(
 	return 0;
 }
 
+/* Trim extents on an !rtgroups realtime device */
 static int
 xfs_trim_rtextents(
 	struct xfs_rtgroup	*rtg,
@@ -619,6 +622,140 @@ xfs_trim_rtextents(
 	return error;
 }
 
+struct xfs_trim_rtgroup {
+	/* list of rtgroup extents to free */
+	struct xfs_busy_extents	*extents;
+
+	/* minimum length that caller allows us to trim */
+	xfs_rtblock_t		minlen_fsb;
+
+	/* restart point for the rtbitmap walk */
+	xfs_rtxnum_t		restart_rtx;
+
+	/* number of extents to examine before stopping to issue discard ios */
+	int			batch;
+
+	/* number of extents queued for discard */
+	int			queued;
+};
+
+static int
+xfs_trim_gather_rtgroup_extent(
+	struct xfs_rtgroup		*rtg,
+	struct xfs_trans		*tp,
+	const struct xfs_rtalloc_rec	*rec,
+	void				*priv)
+{
+	struct xfs_trim_rtgroup		*tr = priv;
+	xfs_rgblock_t			rgbno;
+	xfs_extlen_t			len;
+
+	if (--tr->batch <= 0) {
+		/*
+		 * If we've checked a large number of extents, update the
+		 * cursor to point at this extent so we restart the next batch
+		 * from this extent.
+		 */
+		tr->restart_rtx = rec->ar_startext;
+		return -ECANCELED;
+	}
+
+	rgbno = xfs_rtx_to_rgbno(rtg, rec->ar_startext);
+	len = xfs_rtxlen_to_extlen(rtg_mount(rtg), rec->ar_extcount);
+
+	/* Ignore too small. */
+	if (len < tr->minlen_fsb) {
+		trace_xfs_discard_toosmall(rtg_group(rtg), rgbno, len);
+		return 0;
+	}
+
+	/*
+	 * If any blocks in the range are still busy, skip the discard and try
+	 * again the next time.
+	 */
+	if (xfs_extent_busy_search(rtg_group(rtg), rgbno, len)) {
+		trace_xfs_discard_busy(rtg_group(rtg), rgbno, len);
+		return 0;
+	}
+
+	xfs_extent_busy_insert_discard(rtg_group(rtg), rgbno, len,
+			&tr->extents->extent_list);
+
+	tr->queued++;
+	tr->restart_rtx = rec->ar_startext + rec->ar_extcount;
+	return 0;
+}
+
+/* Trim extents in this rtgroup using the busy extent machinery. */
+static int
+xfs_trim_rtgroup_extents(
+	struct xfs_rtgroup	*rtg,
+	xfs_rtxnum_t		low,
+	xfs_rtxnum_t		high,
+	xfs_daddr_t		minlen)
+{
+	struct xfs_mount	*mp = rtg_mount(rtg);
+	struct xfs_trim_rtgroup	tr = {
+		.minlen_fsb	= XFS_BB_TO_FSB(mp, minlen),
+	};
+	struct xfs_trans	*tp;
+	int			error;
+
+	error = xfs_trans_alloc_empty(mp, &tp);
+	if (error)
+		return error;
+
+	/*
+	 * Walk the free ranges between low and high.  The query_range function
+	 * trims the extents returned.
+	 */
+	do {
+		tr.extents = kzalloc(sizeof(*tr.extents), GFP_KERNEL);
+		if (!tr.extents) {
+			error = -ENOMEM;
+			break;
+		}
+
+		tr.queued = 0;
+		tr.batch = XFS_DISCARD_MAX_EXAMINE;
+		tr.extents->owner = tr.extents;
+		INIT_LIST_HEAD(&tr.extents->extent_list);
+
+		xfs_rtgroup_lock(rtg, XFS_RTGLOCK_BITMAP_SHARED);
+		error = xfs_rtalloc_query_range(rtg, tp, low, high,
+				xfs_trim_gather_rtgroup_extent, &tr);
+		xfs_rtgroup_unlock(rtg, XFS_RTGLOCK_BITMAP_SHARED);
+		if (error == -ECANCELED)
+			error = 0;
+		if (error) {
+			kfree(tr.extents);
+			break;
+		}
+
+		if (!tr.queued)
+			break;
+
+		/*
+		 * We hand the extent list to the discard function here so the
+		 * discarded extents can be removed from the busy extent list.
+		 * This allows the discards to run asynchronously with
+		 * gathering the next round of extents to discard.
+		 *
+		 * However, we must ensure that we do not reference the extent
+		 * list  after this function call, as it may have been freed by
+		 * the time control returns to us.
+		 */
+		error = xfs_discard_extents(rtg_mount(rtg), tr.extents);
+		if (error)
+			break;
+
+		low = tr.restart_rtx;
+	} while (!xfs_trim_should_stop() && low <= high);
+
+	xfs_trans_cancel(tp);
+	return error;
+}
+
 static int
 xfs_trim_rtdev_extents(
 	struct xfs_mount	*mp,
@@ -657,7 +794,12 @@ xfs_trim_rtdev_extents(
 		if (rtg_rgno(rtg) == end_rgno)
 			rtg_end = min(rtg_end, end_rtx);
 
-		error = xfs_trim_rtextents(rtg, start_rtx, rtg_end, minlen);
+		if (xfs_has_rtgroups(mp))
+			error = xfs_trim_rtgroup_extents(rtg, start_rtx,
+					rtg_end, minlen);
+		else
+			error = xfs_trim_rtextents(rtg, start_rtx, rtg_end,
+					minlen);
 		if (error)
 			last_error = error;
 
