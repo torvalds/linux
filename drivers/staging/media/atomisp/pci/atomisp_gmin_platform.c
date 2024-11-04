@@ -225,16 +225,6 @@ static struct gmin_cfg_var ffrd8_vars[] = {
 	{},
 };
 
-/* Cribbed from MCG defaults in the mt9m114 driver, not actually verified
- * vs. T100 hardware
- */
-static struct gmin_cfg_var t100_vars[] = {
-	{ "INT33F0:00_CsiPort",  "0" },
-	{ "INT33F0:00_CsiLanes", "1" },
-	{ "INT33F0:00_CamClk",   "1" },
-	{},
-};
-
 static struct gmin_cfg_var mrd7_vars[] = {
 	{"INT33F8:00_CamType", "1"},
 	{"INT33F8:00_CsiPort", "1"},
@@ -308,13 +298,6 @@ static const struct dmi_system_id gmin_vars[] = {
 			DMI_MATCH(DMI_BOARD_NAME, "BYT-T FFD8"),
 		},
 		.driver_data = ffrd8_vars,
-	},
-	{
-		.ident = "T100TA",
-		.matches = {
-			DMI_MATCH(DMI_BOARD_NAME, "T100TA"),
-		},
-		.driver_data = t100_vars,
 	},
 	{
 		.ident = "MRD7",
