@@ -3591,22 +3591,23 @@ static int ucc_geth_probe(struct platform_device* ofdev)
 	if ((ucc_num < 0) || (ucc_num > 7))
 		return -ENODEV;
 
-	ug_info = kmemdup(&ugeth_primary_info, sizeof(*ug_info), GFP_KERNEL);
-	if (ug_info == NULL)
+	ug_info = devm_kmemdup(&ofdev->dev, &ugeth_primary_info,
+			       sizeof(*ug_info), GFP_KERNEL);
+	if (!ug_info)
 		return -ENOMEM;
 
 	ug_info->uf_info.ucc_num = ucc_num;
 
 	err = ucc_geth_parse_clock(np, "rx", &ug_info->uf_info.rx_clock);
 	if (err)
-		goto err_free_info;
+		return err;
 	err = ucc_geth_parse_clock(np, "tx", &ug_info->uf_info.tx_clock);
 	if (err)
-		goto err_free_info;
+		return err;
 
 	err = of_address_to_resource(np, 0, &res);
 	if (err)
-		goto err_free_info;
+		return err;
 
 	ug_info->uf_info.regs = res.start;
 	ug_info->uf_info.irq = irq_of_parse_and_map(np, 0);
@@ -3619,7 +3620,7 @@ static int ucc_geth_probe(struct platform_device* ofdev)
 		 */
 		err = of_phy_register_fixed_link(np);
 		if (err)
-			goto err_free_info;
+			return err;
 		ug_info->phy_node = of_node_get(np);
 	}
 
@@ -3748,9 +3749,6 @@ err_deregister_fixed_link:
 		of_phy_deregister_fixed_link(np);
 	of_node_put(ug_info->tbi_node);
 	of_node_put(ug_info->phy_node);
-err_free_info:
-	kfree(ug_info);
-
 	return err;
 }
 
@@ -3766,7 +3764,6 @@ static void ucc_geth_remove(struct platform_device* ofdev)
 		of_phy_deregister_fixed_link(np);
 	of_node_put(ugeth->ug_info->tbi_node);
 	of_node_put(ugeth->ug_info->phy_node);
-	kfree(ugeth->ug_info);
 	free_netdev(dev);
 }
 
