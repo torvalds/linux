@@ -91,6 +91,7 @@ struct x86_dev_info {
 	int gpio_button_count;
 	int (*init)(struct device *dev);
 	void (*exit)(void);
+	bool use_pci_devname;
 };
 
 int x86_android_tablet_get_gpiod(const char *chip, int pin, const char *con_id,
