@@ -1218,7 +1218,7 @@ static int i915_pmu_cpu_offline(unsigned int cpu, struct hlist_node *node)
 	return 0;
 }
 
-static enum cpuhp_state cpuhp_slot = CPUHP_INVALID;
+static enum cpuhp_state cpuhp_state = CPUHP_INVALID;
 
 int i915_pmu_init(void)
 {
@@ -1232,28 +1232,28 @@ int i915_pmu_init(void)
 		pr_notice("Failed to setup cpuhp state for i915 PMU! (%d)\n",
 			  ret);
 	else
-		cpuhp_slot = ret;
+		cpuhp_state = ret;
 
 	return 0;
 }
 
 void i915_pmu_exit(void)
 {
-	if (cpuhp_slot != CPUHP_INVALID)
-		cpuhp_remove_multi_state(cpuhp_slot);
+	if (cpuhp_state != CPUHP_INVALID)
+		cpuhp_remove_multi_state(cpuhp_state);
 }
 
 static int i915_pmu_register_cpuhp_state(struct i915_pmu *pmu)
 {
-	if (cpuhp_slot == CPUHP_INVALID)
+	if (cpuhp_state == CPUHP_INVALID)
 		return -EINVAL;
 
-	return cpuhp_state_add_instance(cpuhp_slot, &pmu->cpuhp.node);
+	return cpuhp_state_add_instance(cpuhp_state, &pmu->cpuhp.node);
 }
 
 static void i915_pmu_unregister_cpuhp_state(struct i915_pmu *pmu)
 {
-	cpuhp_state_remove_instance(cpuhp_slot, &pmu->cpuhp.node);
+	cpuhp_state_remove_instance(cpuhp_state, &pmu->cpuhp.node);
 }
 
 void i915_pmu_register(struct drm_i915_private *i915)
