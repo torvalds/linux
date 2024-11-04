@@ -37,17 +37,26 @@ struct ethosn_network {
 	struct ethosn_device *ethosn;
 	struct ethosn_dma_allocator *asset_allocator;
 
+    // 保存权重数据的 DMA 内存空间, 在注册网络时分配
 	struct ethosn_dma_info *constant_dma_data;
+
+    // 保存命令流数据的 DMA 内存空间, 在注册网络时分配
 	struct ethosn_dma_info *constant_cu_data;
+    
+    // 对于每一个核中的 *inference_data, 其内容是描述一次 ethosn_network_req 中全部 buffer 信息的 ethosn_buffer_array
 	struct ethosn_dma_info **inference_data;
+
+    // 中间层数据也是核内处理的, 其内容正是 ethosn_network_req.ethosn_intermediate_desc.ethosn_memory描述的, 分配或导入的中间层DMA内存空间
 	struct ethosn_dma_info **intermediate_data;
 
 	u32 num_intermediates;
 	struct ethosn_buffer_info *intermediates;
 
+    // 描述输入缓冲区布局信息, 网络模型是不包含输入缓冲区数据的
 	u32 num_inputs;
 	struct ethosn_buffer_info *inputs;
  
+    // 描述输出缓冲区布局信息, 网络模型是不包含输出缓冲区数据的
 	u32 num_outputs;
 	struct ethosn_buffer_info *outputs;
 
@@ -56,7 +65,9 @@ struct ethosn_network {
 };
 
 struct ethosn_inference {
+    // 当前推理任务绑定的核心
 	struct ethosn_core *core;
+    // 当前推理任务绑定的网络模型
 	struct ethosn_network *network;
 
 	struct list_head queue_node;

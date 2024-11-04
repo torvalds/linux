@@ -127,8 +127,13 @@
  */
 
 struct ethosn_buffer_info {
-	__u32 id; /* <- id in command stream */
-	__u32 offset; /* <- ignored for inputs/outputs */
+    // 标识当前 buffer 在 buffer 流 data 中的唯一标识符, 用于匹配同一 ethosn_network_req 发出的五类 buffer 数据中的信息
+	__u32 id;
+
+    // 标识当前 buffer 起点相对 buffer 流起点 data 的偏移, 这里由于 inputs/outputs buffer 并未在注册 network 阶段传入实际数据, 因此 offset 成员忽略
+	__u32 offset;
+
+    // 标识当前 buffer 的长度
 	__u32 size;
 };
 
@@ -148,6 +153,7 @@ struct ethosn_dma_buf_req {
 	__kernel_size_t size;
 };
 
+// 中间层数据的 buffer 可能是需要分配或者直接导入的, 因此使用 type 做区分
 struct ethosn_intermediate_desc {
 	struct ethosn_memory {
 		enum { ALLOCATE, IMPORT } type;
@@ -161,14 +167,18 @@ struct ethosn_intermediate_desc {
 };
 
 struct ethosn_network_req {
+    // 权重 buffer 的数据及其描述信息
 	struct ethosn_buffer_infos dma_buffers;
 	struct ethosn_constant_data dma_data;
 
+    // 命令流 buffer 的数据及其描述信息
 	struct ethosn_buffer_infos cu_buffers;
 	struct ethosn_constant_data cu_data;
 
+    // 中间层 buffer 的描述信息
 	struct ethosn_intermediate_desc intermediate_desc;
 
+    // 输入输出 buffer 的描述信息
 	struct ethosn_buffer_infos input_buffers;
 	struct ethosn_buffer_infos output_buffers;
 };
@@ -268,6 +278,7 @@ enum ethosn_poll_counter_name {
  * Results from reading an inference file descriptor.
  * Note these must be kept in-sync with the driver library's definitions.
  */
+// 初始状态
 #define ETHOSN_INFERENCE_SCHEDULED 0
 #define ETHOSN_INFERENCE_RUNNING 1
 #define ETHOSN_INFERENCE_COMPLETED 2

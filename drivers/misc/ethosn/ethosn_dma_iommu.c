@@ -246,7 +246,7 @@ static struct ethosn_dma_info *iommu_alloc(struct ethosn_dma_sub_allocator *allo
 	void *cpu_addr = NULL;
 	dma_addr_t *dma_addr = NULL;
 
-	// 为完整映射目标内存大小 size 所需的物理页面数量, 显然需要页对齐
+	// 为完整映射目标内存大小 size 所需的物理页面数量, 需要页对齐
 	int nr_pages = DIV_ROUND_UP(size, PAGE_SIZE);
 	int i;
 

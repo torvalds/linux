@@ -62,6 +62,7 @@ static struct ethosn_buffer_array *get_inference_header(const struct ethosn_netw
 	return network->inference_data[core_id]->cpu_addr;
 }
 
+
 static int set_binding(struct ethosn_network *network, uint32_t core_id, struct ethosn_buffer_info *buf_info, ethosn_address_t container_start, ethosn_address_t container_size, bool check_in_container, enum ethosn_buffer_type buffer_type)
 {
 	ethosn_address_t buf_start = container_start + buf_info->offset;
@@ -322,6 +323,7 @@ int ethosn_schedule_inference(struct ethosn_inference *inference)
 			goto out_inference_error;
 	}
 
+    // 这里将输入输出 buffer 信息绑定到 network 和 core_id 索引的 inference_data
 	for (i = 0; i < network->num_inputs; ++i) {
 		struct ethosn_dma_info *dma_info = inference->inputs[i]->dma_info;
 
@@ -346,6 +348,8 @@ int ethosn_schedule_inference(struct ethosn_inference *inference)
 
 	/* kick off execution */
 	dev_dbg(core_dev, "Starting execution of inference");
+
+    // 这里将 network->inference_data[core_id] 对应 dma 内存空间, 即一段完整描述当前 buffer 信息的内存控制权交给 ethos 设备
 	ethosn_dma_sync_for_device(network->asset_allocator, network->inference_data[core_id]);
 	core->current_inference = inference;
 
@@ -679,7 +683,7 @@ static int ethosn_inference_register(struct ethosn_network *network, struct etho
 		if (ret)
 			goto end;
 
-		if (core->current_inference == NULL) {
+		if (core->current_inference == NULL) {  // 当前 core 是否正在执行推理
 			found = true;
 			ethosn_schedule_queued_inference(core);
 		}
@@ -811,7 +815,9 @@ static int init_inference_data(struct ethosn_network *network, struct ethosn_cor
 	for (i = 0; i < num_bindings; ++i)
 		memset(&buffers->buffers[i], 0, sizeof(buffers->buffers[i]));
 
+    // 这里将权重缓冲区的描述信息写入到 inference_data[core_id] 对应的变长的 ethosn_buffer_array 数组中, 后续对端设备将通过此结构拿到所有缓冲区的信息
 	if (network->constant_dma_data) {
+        // 移交控制权
 		ethosn_dma_sync_for_device(network->asset_allocator, network->constant_dma_data);
 		ret = init_bindings(network, core_id, net_req->dma_buffers.num, net_req->dma_buffers.info, network->constant_dma_data->iova_addr, net_req->dma_data.size, true, NULL, ETHOSN_BUFFER_CONSTANT);
 		if (ret)
@@ -962,23 +968,16 @@ static int alloc_init_inference_data(struct ethosn_network *network, struct etho
 	num_bindings += req->input_buffers.num;
 	num_bindings += req->output_buffers.num;
 
-    // 构造 ethos 设备可识别的 buffer 阵列
+    // 构造 ethos 设备可识别的缓冲区数组, 这里 num_bindings 表示全部 buffer 片段的数量
 	size = sizeof(struct ethosn_buffer_array) + num_bindings * sizeof(struct ethosn_buffer_desc);
 
-	/*
-	 * The inference data (which is ethosn_buffer_array) needs to be
-	 * allocated per core. The reason being each core may have a
-	 * unique entry for the "intermediate data" inside the
-	 * ethosn_buffer_array.
-	 */
     // 推理数据需要每一个 core 单独构造: 不同的 core 可能有不同的中间数据入口
 	network->inference_data = devm_kzalloc(dev, (sizeof(*(network->inference_data)) * num_cores), GFP_KERNEL);
 	if (!network->inference_data)
 		return ret;
 
 	for (i = 0; i < num_cores; i++) {
-        // 每一个 core 都构造一段用来保存全部 buffer 信息的 ethosn_buffer_array, 注意到 ethosn_buffer_array 只是描述了每一段 buffer 的起点长度和类型以及这些 buffer 有多少个, 这样就完成了整个数据的串化
-        // core 只需要根据 ethosn_buffer_array 取出这些 buffer 的内容即可完成数据的恢复
+        // inference_data[core_id] 结构将保存一次推理所需的全部 buffer 片段的布局信息
 		network->inference_data[i] = ethosn_dma_alloc_and_map(network->asset_allocator, size, ETHOSN_PROT_READ, ETHOSN_STREAM_COMMAND_STREAM, GFP_KERNEL, "network-inference-data");
 		if (IS_ERR_OR_NULL(network->inference_data[i])) {
 			dev_dbg(dev, "DMA alloc and map of network-inference-data failed\n");
@@ -1133,11 +1132,10 @@ static struct ethosn_network *create_network(struct ethosn_device *ethosn, struc
 			goto err_free_network;
 		}
 
-		ret = ethosn_dma_map(asset_alloc, network->constant_dma_data, ETHOSN_PROT_READ);    // 映射到 IOVA 地址空间之后, 权重数据是只读的
+		ret = ethosn_dma_map(asset_alloc, network->constant_dma_data, ETHOSN_PROT_READ);
 		if (ret)
 			goto err_free_const_dma_data;
 
-        // 从用户空间拷贝到 DMA 内存空间
 		if (copy_from_user(network->constant_dma_data->cpu_addr, net_req->dma_data.data, net_req->dma_data.size)) {
 			dev_err(dev, "Error reading constant dma data\n");
 			ret = -EINVAL;
@@ -1161,7 +1159,6 @@ static struct ethosn_network *create_network(struct ethosn_device *ethosn, struc
 		goto err_unmap_const_cu_data;
 	}
 
-    // 这里我们看到 net_req 只给了推理数据的 IO buffer 的描述
 	ret = alloc_init_inference_data(network, net_req);
 	if (ret)
 		goto err_unmap_const_cu_data;

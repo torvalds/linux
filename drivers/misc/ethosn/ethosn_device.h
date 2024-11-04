@@ -217,7 +217,7 @@ struct ethosn_core {
 
 	atomic_t irq_status;
 
-	struct ethosn_inference *current_inference;
+	struct ethosn_inference *current_inference;     // 当前core正执行的推理
 
 	/*
 	 * This tells us if the device initialization has been completed.
