@@ -7930,19 +7930,26 @@ void sched_setnuma(struct task_struct *p, int nid)
 
 #ifdef CONFIG_HOTPLUG_CPU
 /*
- * Ensure that the idle task is using init_mm right before its CPU goes
- * offline.
+ * Invoked on the outgoing CPU in context of the CPU hotplug thread
+ * after ensuring that there are no user space tasks left on the CPU.
+ *
+ * If there is a lazy mm in use on the hotplug thread, drop it and
+ * switch to init_mm.
+ *
+ * The reference count on init_mm is dropped in finish_cpu().
  */
-void idle_task_exit(void)
+static void sched_force_init_mm(void)
 {
 	struct mm_struct *mm = current->active_mm;
 
-	BUG_ON(cpu_online(smp_processor_id()));
-	BUG_ON(current != this_rq()->idle);
-
 	if (mm != &init_mm) {
-		switch_mm(mm, &init_mm, current);
+		mmgrab_lazy_tlb(&init_mm);
+		local_irq_disable();
+		current->active_mm = &init_mm;
+		switch_mm_irqs_off(mm, &init_mm, current);
+		local_irq_enable();
 		finish_arch_post_lock_switch();
+		mmdrop_lazy_tlb(mm);
 	}
 
 	/* finish_cpu(), as ran on the BP, will clean up the active_mm state */
@@ -8344,6 +8351,7 @@ int sched_cpu_starting(unsigned int cpu)
 int sched_cpu_wait_empty(unsigned int cpu)
 {
 	balance_hotplug_wait();
+	sched_force_init_mm();
 	return 0;
 }
 
