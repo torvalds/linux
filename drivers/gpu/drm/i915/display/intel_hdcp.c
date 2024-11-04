@@ -1511,6 +1511,8 @@ static int hdcp2_deauthenticate_port(struct intel_connector *connector)
 static int hdcp2_authentication_key_exchange(struct intel_connector *connector)
 {
 	struct intel_display *display = to_intel_display(connector);
+	struct intel_digital_port *dig_port =
+		intel_attached_dig_port(connector);
 	struct intel_hdcp *hdcp = &connector->hdcp;
 	union {
 		struct hdcp2_ake_init ake_init;
@@ -1521,11 +1523,17 @@ static int hdcp2_authentication_key_exchange(struct intel_connector *connector)
 	} msgs;
 	const struct intel_hdcp_shim *shim = hdcp->shim;
 	size_t size;
-	int ret, i;
+	int ret, i, max_retries;
 
 	/* Init for seq_num */
 	hdcp->seq_num_v = 0;
 	hdcp->seq_num_m = 0;
+
+	if (intel_encoder_is_dp(&dig_port->base) ||
+	    intel_encoder_is_mst(&dig_port->base))
+		max_retries = 10;
+	else
+		max_retries = 1;
 
 	ret = hdcp2_prepare_ake_init(connector, &msgs.ake_init);
 	if (ret < 0)
@@ -1533,18 +1541,18 @@ static int hdcp2_authentication_key_exchange(struct intel_connector *connector)
 
 	/*
 	 * Retry the first read and write to downstream at least 10 times
-	 * with a 50ms delay if not hdcp2 capable(dock decides to stop advertising
-	 * hdcp2 capability for some reason). The reason being that
-	 * during suspend resume dock usually keeps the HDCP2 registers inaccesible
-	 * causing AUX error. This wouldn't be a big problem if the userspace
-	 * just kept retrying with some delay while it continues to play low
-	 * value content but most userpace applications end up throwing an error
-	 * when it receives one from KMD. This makes sure we give the dock
-	 * and the sink devices to complete its power cycle and then try HDCP
-	 * authentication. The values of 10 and delay of 50ms was decided based
-	 * on multiple trial and errors.
+	 * with a 50ms delay if not hdcp2 capable for DP/DPMST encoders
+	 * (dock decides to stop advertising hdcp2 capability for some reason).
+	 * The reason being that during suspend resume dock usually keeps the
+	 * HDCP2 registers inaccesible causing AUX error. This wouldn't be a
+	 * big problem if the userspace just kept retrying with some delay while
+	 * it continues to play low value content but most userpace applications
+	 * end up throwing an error when it receives one from KMD. This makes
+	 * sure we give the dock and the sink devices to complete its power cycle
+	 * and then try HDCP authentication. The values of 10 and delay of 50ms
+	 * was decided based on multiple trial and errors.
 	 */
-	for (i = 0; i < 10; i++) {
+	for (i = 0; i < max_retries; i++) {
 		if (!intel_hdcp2_get_capability(connector)) {
 			msleep(50);
 			continue;
