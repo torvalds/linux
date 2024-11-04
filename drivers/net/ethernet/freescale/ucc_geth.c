@@ -3732,7 +3732,9 @@ static int ucc_geth_probe(struct platform_device* ofdev)
 		goto err_deregister_fixed_link;
 	}
 
-	of_get_ethdev_address(np, dev);
+	err = of_get_ethdev_address(np, dev);
+	if (err == -EPROBE_DEFER)
+		goto err_deregister_fixed_link;
 
 	ugeth->ug_info = ug_info;
 	ugeth->dev = device;
