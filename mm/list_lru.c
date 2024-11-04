@@ -421,35 +421,16 @@ out:
 	spin_unlock_irq(&nlru->lock);
 }
 
-static void memcg_reparent_list_lru(struct list_lru *lru,
-				    int src_idx, struct mem_cgroup *dst_memcg)
-{
-	int i;
-
-	for_each_node(i)
-		memcg_reparent_list_lru_node(lru, i, src_idx, dst_memcg);
-
-	memcg_list_lru_free(lru, src_idx);
-}
-
 void memcg_reparent_list_lrus(struct mem_cgroup *memcg, struct mem_cgroup *parent)
 {
 	struct cgroup_subsys_state *css;
 	struct list_lru *lru;
-	int src_idx = memcg->kmemcg_id;
+	int src_idx = memcg->kmemcg_id, i;
 
 	/*
 	 * Change kmemcg_id of this cgroup and all its descendants to the
 	 * parent's id, and then move all entries from this cgroup's list_lrus
 	 * to ones of the parent.
-	 *
-	 * After we have finished, all list_lrus corresponding to this cgroup
-	 * are guaranteed to remain empty. So we can safely free this cgroup's
-	 * list lrus in memcg_list_lru_free().
-	 *
-	 * Changing ->kmemcg_id to the parent can prevent memcg_list_lru_alloc()
-	 * from allocating list lrus for this cgroup after memcg_list_lru_free()
-	 * call.
 	 */
 	rcu_read_lock();
 	css_for_each_descendant_pre(css, &memcg->css) {
@@ -460,9 +441,23 @@ void memcg_reparent_list_lrus(struct mem_cgroup *memcg, struct mem_cgroup *paren
 	}
 	rcu_read_unlock();
 
+	/*
+	 * With kmemcg_id set to parent, holding the lock of each list_lru_node
+	 * below can prevent list_lru_{add,del,isolate} from touching the lru,
+	 * safe to reparent.
+	 */
 	mutex_lock(&list_lrus_mutex);
-	list_for_each_entry(lru, &memcg_list_lrus, list)
-		memcg_reparent_list_lru(lru, src_idx, parent);
+	list_for_each_entry(lru, &memcg_list_lrus, list) {
+		for_each_node(i)
+			memcg_reparent_list_lru_node(lru, i, src_idx, parent);
+
+		/*
+		 * Here all list_lrus corresponding to the cgroup are guaranteed
+		 * to remain empty, we can safely free this lru, any further
+		 * memcg_list_lru_alloc() call will simply bail out.
+		 */
+		memcg_list_lru_free(lru, src_idx);
+	}
 	mutex_unlock(&list_lrus_mutex);
 }
 
