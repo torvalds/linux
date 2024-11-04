@@ -4684,35 +4684,39 @@ TRACE_EVENT(xfs_force_shutdown,
 );
 
 #ifdef CONFIG_XFS_DRAIN_INTENTS
-DECLARE_EVENT_CLASS(xfs_perag_intents_class,
-	TP_PROTO(const struct xfs_perag *pag, void *caller_ip),
-	TP_ARGS(pag, caller_ip),
+DECLARE_EVENT_CLASS(xfs_group_intents_class,
+	TP_PROTO(const struct xfs_group *xg, void *caller_ip),
+	TP_ARGS(xg, caller_ip),
 	TP_STRUCT__entry(
 		__field(dev_t, dev)
-		__field(xfs_agnumber_t, agno)
+		__field(enum xfs_group_type, type)
+		__field(uint32_t, index)
 		__field(long, nr_intents)
 		__field(void *, caller_ip)
 	),
 	TP_fast_assign(
-		__entry->dev = pag_mount(pag)->m_super->s_dev;
-		__entry->agno = pag_agno(pag);
-		__entry->nr_intents = atomic_read(&pag->pag_intents_drain.dr_count);
+		__entry->dev = xg->xg_mount->m_super->s_dev;
+		__entry->type = xg->xg_type;
+		__entry->index = xg->xg_gno;
+		__entry->nr_intents =
+			atomic_read(&xg->xg_intents_drain.dr_count);
 		__entry->caller_ip = caller_ip;
 	),
-	TP_printk("dev %d:%d agno 0x%x intents %ld caller %pS",
+	TP_printk("dev %d:%d %sno 0x%x intents %ld caller %pS",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
-		  __entry->agno,
+		  __print_symbolic(__entry->type, XG_TYPE_STRINGS),
+		  __entry->index,
 		  __entry->nr_intents,
 		  __entry->caller_ip)
 );
 
-#define DEFINE_PERAG_INTENTS_EVENT(name)	\
-DEFINE_EVENT(xfs_perag_intents_class, name,					\
-	TP_PROTO(const struct xfs_perag *pag, void *caller_ip), \
-	TP_ARGS(pag, caller_ip))
-DEFINE_PERAG_INTENTS_EVENT(xfs_perag_intent_hold);
-DEFINE_PERAG_INTENTS_EVENT(xfs_perag_intent_rele);
-DEFINE_PERAG_INTENTS_EVENT(xfs_perag_wait_intents);
+#define DEFINE_GROUP_INTENTS_EVENT(name)	\
+DEFINE_EVENT(xfs_group_intents_class, name,					\
+	TP_PROTO(const struct xfs_group *xg, void *caller_ip), \
+	TP_ARGS(xg, caller_ip))
+DEFINE_GROUP_INTENTS_EVENT(xfs_group_intent_hold);
+DEFINE_GROUP_INTENTS_EVENT(xfs_group_intent_rele);
+DEFINE_GROUP_INTENTS_EVENT(xfs_group_wait_intents);
 
 #endif /* CONFIG_XFS_DRAIN_INTENTS */
 

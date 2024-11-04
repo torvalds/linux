@@ -94,24 +94,26 @@ static inline int xfs_defer_drain_wait(struct xfs_defer_drain *dr)
 }
 
 /*
- * Declare an intent to update AG metadata.  Other threads that need exclusive
- * access can decide to back off if they see declared intentions.
+ * Declare an intent to update group metadata.  Other threads that need
+ * exclusive access can decide to back off if they see declared intentions.
  */
 static void
-xfs_perag_intent_hold(
-	struct xfs_perag	*pag)
+xfs_group_intent_hold(
+	struct xfs_group	*xg)
 {
-	trace_xfs_perag_intent_hold(pag, __return_address);
-	xfs_defer_drain_grab(&pag->pag_intents_drain);
+	trace_xfs_group_intent_hold(xg, __return_address);
+	xfs_defer_drain_grab(&xg->xg_intents_drain);
 }
 
-/* Release our intent to update this AG's metadata. */
+/*
+ * Release our intent to update this groups metadata.
+ */
 static void
-xfs_perag_intent_rele(
-	struct xfs_perag	*pag)
+xfs_group_intent_rele(
+	struct xfs_group	*xg)
 {
-	trace_xfs_perag_intent_rele(pag, __return_address);
-	xfs_defer_drain_rele(&pag->pag_intents_drain);
+	trace_xfs_group_intent_rele(xg, __return_address);
+	xfs_defer_drain_rele(&xg->xg_intents_drain);
 }
 
 /*
@@ -129,7 +131,7 @@ xfs_perag_intent_get(
 	if (!pag)
 		return NULL;
 
-	xfs_perag_intent_hold(pag);
+	xfs_group_intent_hold(pag_group(pag));
 	return pag;
 }
 
@@ -141,7 +143,7 @@ void
 xfs_perag_intent_put(
 	struct xfs_perag	*pag)
 {
-	xfs_perag_intent_rele(pag);
+	xfs_group_intent_rele(pag_group(pag));
 	xfs_perag_put(pag);
 }
 
@@ -150,17 +152,19 @@ xfs_perag_intent_put(
  * Callers must not hold any AG header buffers.
  */
 int
-xfs_perag_intent_drain(
-	struct xfs_perag	*pag)
+xfs_group_intent_drain(
+	struct xfs_group	*xg)
 {
-	trace_xfs_perag_wait_intents(pag, __return_address);
-	return xfs_defer_drain_wait(&pag->pag_intents_drain);
+	trace_xfs_group_wait_intents(xg, __return_address);
+	return xfs_defer_drain_wait(&xg->xg_intents_drain);
 }
 
-/* Has anyone declared an intent to update this AG? */
+/*
+ * Has anyone declared an intent to update this group?
+ */
 bool
-xfs_perag_intent_busy(
-	struct xfs_perag	*pag)
+xfs_group_intent_busy(
+	struct xfs_group	*xg)
 {
-	return xfs_defer_drain_busy(&pag->pag_intents_drain);
+	return xfs_defer_drain_busy(&xg->xg_intents_drain);
 }

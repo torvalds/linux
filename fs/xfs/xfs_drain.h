@@ -6,6 +6,7 @@
 #ifndef XFS_DRAIN_H_
 #define XFS_DRAIN_H_
 
+struct xfs_group;
 struct xfs_perag;
 
 #ifdef CONFIG_XFS_DRAIN_INTENTS
@@ -65,8 +66,9 @@ struct xfs_perag *xfs_perag_intent_get(struct xfs_mount *mp,
 		xfs_fsblock_t fsbno);
 void xfs_perag_intent_put(struct xfs_perag *pag);
 
-int xfs_perag_intent_drain(struct xfs_perag *pag);
-bool xfs_perag_intent_busy(struct xfs_perag *pag);
+int xfs_group_intent_drain(struct xfs_group *xg);
+bool xfs_group_intent_busy(struct xfs_group *xg);
+
 #else
 struct xfs_defer_drain { /* empty */ };
 
