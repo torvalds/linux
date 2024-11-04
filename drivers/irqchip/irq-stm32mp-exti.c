@@ -696,8 +696,7 @@ static int stm32mp_exti_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	if (of_property_read_bool(np, "interrupts-extended"))
-		host_data->dt_has_irqs_desc = true;
+	host_data->dt_has_irqs_desc = of_property_present(np, "interrupts-extended");
 
 	return 0;
 }
