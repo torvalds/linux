@@ -27,6 +27,7 @@
 #include "xfs_health.h"
 #include "xfs_da_format.h"
 #include "xfs_metafile.h"
+#include "xfs_rtgroup.h"
 
 /*
  * Return whether there are any free extents in the size range given
@@ -1136,6 +1137,7 @@ xfs_rtmount_inodes(
 {
 	struct xfs_trans	*tp;
 	struct xfs_sb		*sbp = &mp->m_sb;
+	struct xfs_rtgroup	*rtg = NULL;
 	int			error;
 
 	error = xfs_trans_alloc_empty(mp, &tp);
@@ -1165,6 +1167,9 @@ xfs_rtmount_inodes(
 	error = xfs_rtmount_iread_extents(tp, mp->m_rsumip, XFS_ILOCK_RTSUM);
 	if (error)
 		goto out_rele_summary;
+
+	while ((rtg = xfs_rtgroup_next(mp, rtg)))
+		rtg->rtg_extents = xfs_rtgroup_extents(mp, rtg_rgno(rtg));
 
 	error = xfs_alloc_rsum_cache(mp, sbp->sb_rbmblocks);
 	if (error)

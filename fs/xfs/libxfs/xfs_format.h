@@ -176,6 +176,9 @@ typedef struct xfs_sb {
 
 	xfs_ino_t	sb_metadirino;	/* metadata directory tree root */
 
+	xfs_rgnumber_t	sb_rgcount;	/* number of realtime groups */
+	xfs_rtxlen_t	sb_rgextents;	/* size of a realtime group in rtx */
+
 	/* must be padded to 64 bit alignment */
 } xfs_sb_t;
 

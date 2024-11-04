@@ -25,6 +25,7 @@
 #include "xfs_alloc_btree.h"
 #include "xfs_rtbitmap.h"
 #include "xfs_ag.h"
+#include "xfs_rtgroup.h"
 
 /* Convert an xfs_fsmap to an fsmap. */
 static void
@@ -735,7 +736,7 @@ xfs_getfsmap_rtdev_rtbitmap_helper(
 		frec.start_daddr = info->end_daddr;
 	} else {
 		rtbno = xfs_rtx_to_rtb(mp, rec->ar_startext);
-		frec.start_daddr = XFS_FSB_TO_BB(mp, rtbno);
+		frec.start_daddr = xfs_rtb_to_daddr(mp, rtbno);
 	}
 
 	rtbno = xfs_rtx_to_rtb(mp, rec->ar_extcount);
@@ -770,7 +771,7 @@ xfs_getfsmap_rtdev_rtbitmap(
 
 	/* Adjust the low key if we are continuing from where we left off. */
 	if (keys[0].fmr_length > 0) {
-		info->low_daddr = XFS_FSB_TO_BB(mp, start_rtb);
+		info->low_daddr = xfs_rtb_to_daddr(mp, start_rtb);
 		if (info->low_daddr >= eofs)
 			return 0;
 	}

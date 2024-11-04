@@ -25,6 +25,7 @@
 #include "xfs_alloc.h"
 #include "xfs_ag.h"
 #include "xfs_sb.h"
+#include "xfs_rtgroup.h"
 
 /*
  * This is the number of entries in the l_buf_cancel_table used during
@@ -704,6 +705,7 @@ xlog_recover_do_primary_sb_buffer(
 {
 	struct xfs_dsb			*dsb = bp->b_addr;
 	xfs_agnumber_t			orig_agcount = mp->m_sb.sb_agcount;
+	xfs_rgnumber_t			orig_rgcount = mp->m_sb.sb_rgcount;
 	int				error;
 
 	xlog_recover_do_reg_buffer(mp, item, bp, buf_f, current_lsn);
@@ -722,6 +724,11 @@ xlog_recover_do_primary_sb_buffer(
 		xfs_alert(mp, "Shrinking AG count in log recovery not supported");
 		return -EFSCORRUPTED;
 	}
+	if (mp->m_sb.sb_rgcount < orig_rgcount) {
+		xfs_warn(mp,
+ "Shrinking rtgroup count in log recovery not supported");
+		return -EFSCORRUPTED;
+	}
 
 	/*
 	 * If the last AG was grown or shrunk, we also need to update the
@@ -730,6 +737,17 @@ xlog_recover_do_primary_sb_buffer(
 	error = xfs_update_last_ag_size(mp, orig_agcount);
 	if (error)
 		return error;
+
+	/*
+	 * If the last rtgroup was grown or shrunk, we also need to update the
+	 * length in the in-core rtgroup structure and values depending on it.
+	 * Ignore this on any filesystem with zero rtgroups.
+	 */
+	if (orig_rgcount > 0) {
+		error = xfs_update_last_rtgroup_size(mp, orig_rgcount);
+		if (error)
+			return error;
+	}
 
 	/*
 	 * Initialize the new perags, and also update various block and inode
@@ -744,6 +762,13 @@ xlog_recover_do_primary_sb_buffer(
 		return error;
 	}
 	mp->m_alloc_set_aside = xfs_alloc_set_aside(mp);
+
+	error = xfs_initialize_rtgroups(mp, orig_rgcount, mp->m_sb.sb_rgcount,
+			mp->m_sb.sb_rextents);
+	if (error) {
+		xfs_warn(mp, "Failed recovery rtgroup init: %d", error);
+		return error;
+	}
 	return 0;
 }
 

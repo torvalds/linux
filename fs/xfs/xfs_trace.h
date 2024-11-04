@@ -219,6 +219,7 @@ DEFINE_PERAG_REF_EVENT(xfs_perag_clear_inode_tag);
 DEFINE_PERAG_REF_EVENT(xfs_reclaim_inodes_count);
 
 TRACE_DEFINE_ENUM(XG_TYPE_AG);
+TRACE_DEFINE_ENUM(XG_TYPE_RTG);
 
 DECLARE_EVENT_CLASS(xfs_group_class,
 	TP_PROTO(struct xfs_group *xg, unsigned long caller_ip),
