@@ -261,7 +261,7 @@ MODULE_DEVICE_TABLE(acpi, crystal_cove_acpi_match);
 
 static struct i2c_driver crystal_cove_i2c_driver = {
 	.driver = {
-		.name = "crystal_cove_i2c",
+		.name = "intel_soc_pmic_crc",
 		.pm = pm_sleep_ptr(&crystal_cove_pm_ops),
 		.acpi_match_table = crystal_cove_acpi_match,
 	},
