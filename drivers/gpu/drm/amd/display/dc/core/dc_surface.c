@@ -83,13 +83,6 @@ uint8_t  dc_plane_get_pipe_mask(struct dc_state *dc_state, const struct dc_plane
 /*******************************************************************************
  * Public functions
  ******************************************************************************/
-void enable_surface_flip_reporting(struct dc_plane_state *plane_state,
-		uint32_t controller_id)
-{
-	plane_state->irq_source = controller_id + DC_IRQ_SOURCE_PFLIP1 - 1;
-	/*register_flip_interrupt(surface);*/
-}
-
 struct dc_plane_state *dc_create_plane_state(const struct dc *dc)
 {
 	struct dc_plane_state *plane_state = kvzalloc(sizeof(*plane_state),

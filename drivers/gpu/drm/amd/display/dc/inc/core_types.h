@@ -45,9 +45,6 @@
 #define MAX_SVP_PHANTOM_STREAMS 2
 #define MAX_SVP_PHANTOM_PLANES 2
 
-void enable_surface_flip_reporting(struct dc_plane_state *plane_state,
-		uint32_t controller_id);
-
 #include "grph_object_id.h"
 #include "link_encoder.h"
 #include "stream_encoder.h"
