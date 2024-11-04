@@ -1028,7 +1028,7 @@ xfs_ioc_setlabel(
 	 * buffered reads from userspace (i.e. from blkid) are invalidated,
 	 * and userspace will see the newly-written label.
 	 */
-	error = xfs_sync_sb_buf(mp);
+	error = xfs_sync_sb_buf(mp, true);
 	if (error)
 		goto out;
 	/*
@@ -1039,6 +1039,8 @@ xfs_ioc_setlabel(
 	mutex_unlock(&mp->m_growlock);
 
 	invalidate_bdev(mp->m_ddev_targp->bt_bdev);
+	if (xfs_has_rtsb(mp) && mp->m_rtdev_targp)
+		invalidate_bdev(mp->m_rtdev_targp->bt_bdev);
 
 out:
 	mnt_drop_write_file(filp);

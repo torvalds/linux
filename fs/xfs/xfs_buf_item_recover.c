@@ -1061,6 +1061,18 @@ xlog_recover_buf_commit_pass2(
 				current_lsn);
 		if (error)
 			goto out_release;
+
+		/* Update the rt superblock if we have one. */
+		if (xfs_has_rtsb(mp) && mp->m_rtsb_bp) {
+			struct xfs_buf	*rtsb_bp = mp->m_rtsb_bp;
+
+			xfs_buf_lock(rtsb_bp);
+			xfs_buf_hold(rtsb_bp);
+			xfs_update_rtsb(rtsb_bp, bp);
+			rtsb_bp->b_flags |= _XBF_LOGRECOVERY;
+			xfs_buf_delwri_queue(rtsb_bp, buffer_list);
+			xfs_buf_relse(rtsb_bp);
+		}
 	} else {
 		xlog_recover_do_reg_buffer(mp, item, bp, buf_f, current_lsn);
 	}
