@@ -158,6 +158,19 @@ static int vf_post_migration_requery_guc(struct xe_device *xe)
 }
 
 /*
+ * vf_post_migration_imminent - Check if post-restore recovery is coming.
+ * @xe: the &xe_device struct instance
+ *
+ * Return: True if migration recovery worker will soon be running. Any worker currently
+ * executing does not affect the result.
+ */
+static bool vf_post_migration_imminent(struct xe_device *xe)
+{
+	return xe->sriov.vf.migration.gt_flags != 0 ||
+	work_pending(&xe->sriov.vf.migration.worker);
+}
+
+/*
  * Notify all GuCs about resource fixups apply finished.
  */
 static void vf_post_migration_notify_resfix_done(struct xe_device *xe)
@@ -166,8 +179,14 @@ static void vf_post_migration_notify_resfix_done(struct xe_device *xe)
 	unsigned int id;
 
 	for_each_gt(gt, xe, id) {
+		if (vf_post_migration_imminent(xe))
+			goto skip;
 		xe_gt_sriov_vf_notify_resfix_done(gt);
 	}
+	return;
+
+skip:
+	drm_dbg(&xe->drm, "another recovery imminent, skipping notifications\n");
 }
 
 static void vf_post_migration_recovery(struct xe_device *xe)
@@ -177,6 +196,8 @@ static void vf_post_migration_recovery(struct xe_device *xe)
 	drm_dbg(&xe->drm, "migration recovery in progress\n");
 	xe_pm_runtime_get(xe);
 	err = vf_post_migration_requery_guc(xe);
+	if (vf_post_migration_imminent(xe))
+		goto defer;
 	if (unlikely(err))
 		goto fail;
 
@@ -184,6 +205,10 @@ static void vf_post_migration_recovery(struct xe_device *xe)
 	vf_post_migration_notify_resfix_done(xe);
 	xe_pm_runtime_put(xe);
 	drm_notice(&xe->drm, "migration recovery ended\n");
+	return;
+defer:
+	xe_pm_runtime_put(xe);
+	drm_dbg(&xe->drm, "migration recovery deferred\n");
 	return;
 fail:
 	xe_pm_runtime_put(xe);
