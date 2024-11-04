@@ -56,16 +56,28 @@ struct list_lru {
 	bool			memcg_aware;
 	struct xarray		xa;
 #endif
+#ifdef CONFIG_LOCKDEP
+	struct lock_class_key	*key;
+#endif
 };
 
 void list_lru_destroy(struct list_lru *lru);
 int __list_lru_init(struct list_lru *lru, bool memcg_aware,
-		    struct lock_class_key *key, struct shrinker *shrinker);
+		    struct shrinker *shrinker);
 
 #define list_lru_init(lru)				\
-	__list_lru_init((lru), false, NULL, NULL)
+	__list_lru_init((lru), false, NULL)
 #define list_lru_init_memcg(lru, shrinker)		\
-	__list_lru_init((lru), true, NULL, shrinker)
+	__list_lru_init((lru), true, shrinker)
+
+static inline int list_lru_init_memcg_key(struct list_lru *lru, struct shrinker *shrinker,
+					  struct lock_class_key *key)
+{
+#ifdef CONFIG_LOCKDEP
+	lru->key = key;
+#endif
+	return list_lru_init_memcg(lru, shrinker);
+}
 
 int memcg_list_lru_alloc(struct mem_cgroup *memcg, struct list_lru *lru,
 			 gfp_t gfp);

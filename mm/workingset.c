@@ -813,8 +813,8 @@ static int __init workingset_init(void)
 	if (!workingset_shadow_shrinker)
 		goto err;
 
-	ret = __list_lru_init(&shadow_nodes, true, &shadow_nodes_key,
-			      workingset_shadow_shrinker);
+	ret = list_lru_init_memcg_key(&shadow_nodes, workingset_shadow_shrinker,
+				      &shadow_nodes_key);
 	if (ret)
 		goto err_list_lru;
 

@@ -562,8 +562,7 @@ static void memcg_destroy_list_lru(struct list_lru *lru)
 }
 #endif /* CONFIG_MEMCG */
 
-int __list_lru_init(struct list_lru *lru, bool memcg_aware,
-		    struct lock_class_key *key, struct shrinker *shrinker)
+int __list_lru_init(struct list_lru *lru, bool memcg_aware, struct shrinker *shrinker)
 {
 	int i;
 
@@ -583,8 +582,10 @@ int __list_lru_init(struct list_lru *lru, bool memcg_aware,
 
 	for_each_node(i) {
 		spin_lock_init(&lru->node[i].lock);
-		if (key)
-			lockdep_set_class(&lru->node[i].lock, key);
+#ifdef CONFIG_LOCKDEP
+		if (lru->key)
+			lockdep_set_class(&lru->node[i].lock, lru->key);
+#endif
 		init_one_lru(&lru->node[i].lru);
 	}
 
