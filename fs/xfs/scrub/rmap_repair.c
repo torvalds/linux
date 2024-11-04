@@ -1611,7 +1611,7 @@ xrep_rmap_setup_scan(
 	 */
 	ASSERT(sc->flags & XCHK_FSGATES_RMAP);
 	xfs_rmap_hook_setup(&rr->rhook, xrep_rmapbt_live_update);
-	error = xfs_rmap_hook_add(sc->sa.pag, &rr->rhook);
+	error = xfs_rmap_hook_add(pag_group(sc->sa.pag), &rr->rhook);
 	if (error)
 		goto out_iscan;
 	return 0;
@@ -1632,7 +1632,7 @@ xrep_rmap_teardown(
 	struct xfs_scrub	*sc = rr->sc;
 
 	xchk_iscan_abort(&rr->iscan);
-	xfs_rmap_hook_del(sc->sa.pag, &rr->rhook);
+	xfs_rmap_hook_del(pag_group(sc->sa.pag), &rr->rhook);
 	xchk_iscan_teardown(&rr->iscan);
 	xfbtree_destroy(&rr->rmap_btree);
 	mutex_destroy(&rr->lock);
