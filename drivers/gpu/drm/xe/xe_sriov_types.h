@@ -9,6 +9,7 @@
 #include <linux/build_bug.h>
 #include <linux/mutex.h>
 #include <linux/types.h>
+#include <linux/workqueue_types.h>
 
 /**
  * VFID - Virtual Function Identifier
@@ -54,6 +55,22 @@ struct xe_device_pf {
 
 	/** @master_lock: protects all VFs configurations across GTs */
 	struct mutex master_lock;
+};
+
+/**
+ * struct xe_device_vf - Xe Virtual Function related data
+ *
+ * The data in this structure is valid only if driver is running in the
+ * @XE_SRIOV_MODE_VF mode.
+ */
+struct xe_device_vf {
+	/** @migration: VF Migration state data */
+	struct {
+		/** @migration.worker: VF migration recovery worker */
+		struct work_struct worker;
+		/** @migration.gt_flags: Per-GT request flags for VF migration recovery */
+		unsigned long gt_flags;
+	} migration;
 };
 
 #endif

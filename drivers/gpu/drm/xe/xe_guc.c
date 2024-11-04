@@ -1099,10 +1099,21 @@ int xe_guc_self_cfg64(struct xe_guc *guc, u16 key, u64 val)
 	return guc_self_cfg(guc, key, 2, val);
 }
 
+static void xe_guc_sw_0_irq_handler(struct xe_guc *guc)
+{
+	struct xe_gt *gt = guc_to_gt(guc);
+
+	if (IS_SRIOV_VF(gt_to_xe(gt)))
+		xe_gt_sriov_vf_migrated_event_handler(gt);
+}
+
 void xe_guc_irq_handler(struct xe_guc *guc, const u16 iir)
 {
 	if (iir & GUC_INTR_GUC2HOST)
 		xe_guc_ct_irq_handler(&guc->ct);
+
+	if (iir & GUC_INTR_SW_INT_0)
+		xe_guc_sw_0_irq_handler(guc);
 }
 
 void xe_guc_sanitize(struct xe_guc *guc)

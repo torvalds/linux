@@ -27,6 +27,7 @@
 #include "xe_guc_relay.h"
 #include "xe_mmio.h"
 #include "xe_sriov.h"
+#include "xe_sriov_vf.h"
 #include "xe_uc_fw.h"
 #include "xe_wopcm.h"
 
@@ -690,6 +691,30 @@ int xe_gt_sriov_vf_connect(struct xe_gt *gt)
 failed:
 	xe_gt_sriov_err(gt, "Failed to get version info (%pe)\n", ERR_PTR(err));
 	return err;
+}
+
+/**
+ * xe_gt_sriov_vf_migrated_event_handler - Start a VF migration recovery,
+ *   or just mark that a GuC is ready for it.
+ * @gt: the &xe_gt struct instance linked to target GuC
+ *
+ * This function shall be called only by VF.
+ */
+void xe_gt_sriov_vf_migrated_event_handler(struct xe_gt *gt)
+{
+	struct xe_device *xe = gt_to_xe(gt);
+
+	xe_gt_assert(gt, IS_SRIOV_VF(xe));
+
+	set_bit(gt->info.id, &xe->sriov.vf.migration.gt_flags);
+	/*
+	 * We need to be certain that if all flags were set, at least one
+	 * thread will notice that and schedule the recovery.
+	 */
+	smp_mb__after_atomic();
+
+	xe_gt_sriov_info(gt, "ready for recovery after migration\n");
+	xe_sriov_vf_start_migration_recovery(xe);
 }
 
 static bool vf_is_negotiated(struct xe_gt *gt, u16 major, u16 minor)

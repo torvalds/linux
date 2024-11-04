@@ -442,6 +442,9 @@ static void memirq_dispatch_guc(struct xe_memirq *memirq, struct iosys_map *stat
 
 	if (memirq_received(memirq, status, ilog2(GUC_INTR_GUC2HOST), name))
 		xe_guc_irq_handler(guc, GUC_INTR_GUC2HOST);
+
+	if (memirq_received(memirq, status, ilog2(GUC_INTR_SW_INT_0), name))
+		xe_guc_irq_handler(guc, GUC_INTR_SW_INT_0);
 }
 
 /**

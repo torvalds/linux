@@ -14,6 +14,7 @@
 #include "xe_mmio.h"
 #include "xe_sriov.h"
 #include "xe_sriov_pf.h"
+#include "xe_sriov_vf.h"
 
 /**
  * xe_sriov_mode_to_string - Convert enum value to string.
@@ -113,6 +114,9 @@ int xe_sriov_init(struct xe_device *xe)
 		if (err)
 			return err;
 	}
+
+	if (IS_SRIOV_VF(xe))
+		xe_sriov_vf_init_early(xe);
 
 	xe_assert(xe, !xe->sriov.wq);
 	xe->sriov.wq = alloc_workqueue("xe-sriov-wq", 0, 0);
