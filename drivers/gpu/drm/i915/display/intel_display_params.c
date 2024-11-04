@@ -173,14 +173,16 @@ static void _param_print_charp(struct drm_printer *p, const char *driver_name,
 
 /**
  * intel_display_params_dump - dump intel display modparams
- * @display: display device
+ * @params: display params
+ * @driver_name: driver name to use for printing
  * @p: the &drm_printer
  *
  * Pretty printer for i915 modparams.
  */
-void intel_display_params_dump(struct intel_display *display, struct drm_printer *p)
+void intel_display_params_dump(const struct intel_display_params *params,
+			       const char *driver_name, struct drm_printer *p)
 {
-#define PRINT(T, x, ...) _param_print(p, display->drm->driver->name, #x, display->params.x);
+#define PRINT(T, x, ...) _param_print(p, driver_name, #x, params->x);
 	INTEL_DISPLAY_PARAMS_FOR_EACH(PRINT);
 #undef PRINT
 }

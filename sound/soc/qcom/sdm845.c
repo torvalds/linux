@@ -15,6 +15,7 @@
 #include <uapi/linux/input-event-codes.h>
 #include "common.h"
 #include "qdsp6/q6afe.h"
+#include "sdw.h"
 #include "../codecs/rt5663.h"
 
 #define DRIVER_NAME	"sdm845"
@@ -416,7 +417,7 @@ static int sdm845_snd_startup(struct snd_pcm_substream *substream)
 		pr_err("%s: invalid dai id 0x%x\n", __func__, cpu_dai->id);
 		break;
 	}
-	return 0;
+	return qcom_snd_sdw_startup(substream);
 }
 
 static void  sdm845_snd_shutdown(struct snd_pcm_substream *substream)
@@ -425,6 +426,7 @@ static void  sdm845_snd_shutdown(struct snd_pcm_substream *substream)
 	struct snd_soc_card *card = rtd->card;
 	struct sdm845_snd_data *data = snd_soc_card_get_drvdata(card);
 	struct snd_soc_dai *cpu_dai = snd_soc_rtd_to_cpu(rtd, 0);
+	struct sdw_stream_runtime *sruntime = data->sruntime[cpu_dai->id];
 
 	switch (cpu_dai->id) {
 	case PRIMARY_MI2S_RX:
@@ -463,6 +465,9 @@ static void  sdm845_snd_shutdown(struct snd_pcm_substream *substream)
 		pr_err("%s: invalid dai id 0x%x\n", __func__, cpu_dai->id);
 		break;
 	}
+
+	data->sruntime[cpu_dai->id] = NULL;
+	sdw_release_stream(sruntime);
 }
 
 static int sdm845_snd_prepare(struct snd_pcm_substream *substream)

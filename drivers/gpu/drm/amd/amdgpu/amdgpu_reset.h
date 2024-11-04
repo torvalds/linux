@@ -153,4 +153,9 @@ void amdgpu_reset_get_desc(struct amdgpu_reset_context *rst_ctxt, char *buf,
 	for (i = 0; (i < AMDGPU_RESET_MAX_HANDLERS) &&           \
 		    (handler = (*reset_ctl->reset_handlers)[i]); \
 	     ++i)
+
+extern struct amdgpu_reset_handler xgmi_reset_on_init_handler;
+int amdgpu_reset_do_xgmi_reset_on_init(
+	struct amdgpu_reset_context *reset_context);
+
 #endif

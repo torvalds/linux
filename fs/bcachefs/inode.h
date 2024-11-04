@@ -5,6 +5,7 @@
 #include "bkey.h"
 #include "bkey_methods.h"
 #include "opts.h"
+#include "snapshot.h"
 
 enum bch_validate_flags;
 extern const char * const bch2_inode_opts[];
@@ -16,6 +17,15 @@ int bch2_inode_v2_validate(struct bch_fs *, struct bkey_s_c,
 int bch2_inode_v3_validate(struct bch_fs *, struct bkey_s_c,
 			  enum bch_validate_flags);
 void bch2_inode_to_text(struct printbuf *, struct bch_fs *, struct bkey_s_c);
+
+int __bch2_inode_has_child_snapshots(struct btree_trans *, struct bpos);
+
+static inline int bch2_inode_has_child_snapshots(struct btree_trans *trans, struct bpos pos)
+{
+	return bch2_snapshot_is_leaf(trans->c, pos.snapshot) <= 0
+		? __bch2_inode_has_child_snapshots(trans, pos)
+		: 0;
+}
 
 int bch2_trigger_inode(struct btree_trans *, enum btree_id, unsigned,
 		       struct bkey_s_c, struct bkey_s,
@@ -82,6 +92,7 @@ struct bch_inode_unpacked {
 	BCH_INODE_FIELDS_v3()
 #undef  x
 };
+BITMASK(INODE_STR_HASH,	struct bch_inode_unpacked, bi_flags, 20, 24);
 
 struct bkey_inode_buf {
 	struct bkey_i_inode_v3	inode;

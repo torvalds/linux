@@ -2022,9 +2022,9 @@ static uint32_t si_get_rev_id(struct amdgpu_device *adev)
 		>> CC_DRM_ID_STRAPS__ATI_REV_ID__SHIFT;
 }
 
-static int si_common_early_init(void *handle)
+static int si_common_early_init(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	adev->smc_rreg = &si_smc_rreg;
 	adev->smc_wreg = &si_smc_wreg;
@@ -2147,17 +2147,6 @@ static int si_common_early_init(void *handle)
 
 	return 0;
 }
-
-static int si_common_sw_init(void *handle)
-{
-	return 0;
-}
-
-static int si_common_sw_fini(void *handle)
-{
-	return 0;
-}
-
 
 static void si_init_golden_registers(struct amdgpu_device *adev)
 {
@@ -2633,9 +2622,9 @@ static void si_fix_pci_max_read_req_size(struct amdgpu_device *adev)
 		pcie_set_readrq(adev->pdev, 512);
 }
 
-static int si_common_hw_init(void *handle)
+static int si_common_hw_init(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	si_fix_pci_max_read_req_size(adev);
 	si_init_golden_registers(adev);
@@ -2645,38 +2634,19 @@ static int si_common_hw_init(void *handle)
 	return 0;
 }
 
-static int si_common_hw_fini(void *handle)
+static int si_common_hw_fini(struct amdgpu_ip_block *ip_block)
 {
 	return 0;
 }
 
-static int si_common_suspend(void *handle)
+static int si_common_resume(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-
-	return si_common_hw_fini(adev);
-}
-
-static int si_common_resume(void *handle)
-{
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-
-	return si_common_hw_init(adev);
+	return si_common_hw_init(ip_block);
 }
 
 static bool si_common_is_idle(void *handle)
 {
 	return true;
-}
-
-static int si_common_wait_for_idle(void *handle)
-{
-	return 0;
-}
-
-static int si_common_soft_reset(void *handle)
-{
-	return 0;
 }
 
 static int si_common_set_clockgating_state(void *handle,
@@ -2694,20 +2664,12 @@ static int si_common_set_powergating_state(void *handle,
 static const struct amd_ip_funcs si_common_ip_funcs = {
 	.name = "si_common",
 	.early_init = si_common_early_init,
-	.late_init = NULL,
-	.sw_init = si_common_sw_init,
-	.sw_fini = si_common_sw_fini,
 	.hw_init = si_common_hw_init,
 	.hw_fini = si_common_hw_fini,
-	.suspend = si_common_suspend,
 	.resume = si_common_resume,
 	.is_idle = si_common_is_idle,
-	.wait_for_idle = si_common_wait_for_idle,
-	.soft_reset = si_common_soft_reset,
 	.set_clockgating_state = si_common_set_clockgating_state,
 	.set_powergating_state = si_common_set_powergating_state,
-	.dump_ip_state = NULL,
-	.print_ip_state = NULL,
 };
 
 static const struct amdgpu_ip_block_version si_common_ip_block =

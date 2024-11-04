@@ -14,6 +14,7 @@
 
 #include "i915_utils.h"
 #include "intel_runtime_pm.h"
+#include "xe_device.h" /* for xe_device_has_flat_ccs() */
 #include "xe_device_types.h"
 
 static inline struct drm_i915_private *to_i915(const struct drm_device *dev)
@@ -74,10 +75,6 @@ static inline struct drm_i915_private *to_i915(const struct drm_device *dev)
 #define IP_VER(ver, rel)                ((ver) << 8 | (rel))
 
 #define IS_MOBILE(xe) (xe && 0)
-
-#define IS_LP(xe) ((xe) && 0)
-#define IS_GEN9_LP(xe) ((xe) && 0)
-#define IS_GEN9_BC(xe) ((xe) && 0)
 
 #define IS_TIGERLAKE_UY(xe) (xe && 0)
 #define IS_COMETLAKE_ULX(xe) (xe && 0)

@@ -54,7 +54,7 @@ static void cik_sdma_set_ring_funcs(struct amdgpu_device *adev);
 static void cik_sdma_set_irq_funcs(struct amdgpu_device *adev);
 static void cik_sdma_set_buffer_funcs(struct amdgpu_device *adev);
 static void cik_sdma_set_vm_pte_funcs(struct amdgpu_device *adev);
-static int cik_sdma_soft_reset(void *handle);
+static int cik_sdma_soft_reset(struct amdgpu_ip_block *ip_block);
 
 MODULE_FIRMWARE("amdgpu/bonaire_sdma.bin");
 MODULE_FIRMWARE("amdgpu/bonaire_sdma1.bin");
@@ -918,9 +918,9 @@ static void cik_enable_sdma_mgls(struct amdgpu_device *adev,
 	}
 }
 
-static int cik_sdma_early_init(void *handle)
+static int cik_sdma_early_init(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	int r;
 
 	adev->sdma.num_instances = SDMA_MAX_INSTANCE;
@@ -937,10 +937,10 @@ static int cik_sdma_early_init(void *handle)
 	return 0;
 }
 
-static int cik_sdma_sw_init(void *handle)
+static int cik_sdma_sw_init(struct amdgpu_ip_block *ip_block)
 {
 	struct amdgpu_ring *ring;
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	int r, i;
 
 	/* SDMA trap event */
@@ -977,9 +977,9 @@ static int cik_sdma_sw_init(void *handle)
 	return r;
 }
 
-static int cik_sdma_sw_fini(void *handle)
+static int cik_sdma_sw_fini(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	int i;
 
 	for (i = 0; i < adev->sdma.num_instances; i++)
@@ -989,10 +989,10 @@ static int cik_sdma_sw_fini(void *handle)
 	return 0;
 }
 
-static int cik_sdma_hw_init(void *handle)
+static int cik_sdma_hw_init(struct amdgpu_ip_block *ip_block)
 {
 	int r;
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	r = cik_sdma_start(adev);
 	if (r)
@@ -1001,9 +1001,9 @@ static int cik_sdma_hw_init(void *handle)
 	return r;
 }
 
-static int cik_sdma_hw_fini(void *handle)
+static int cik_sdma_hw_fini(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	cik_ctx_switch_enable(adev, false);
 	cik_sdma_enable(adev, false);
@@ -1011,20 +1011,16 @@ static int cik_sdma_hw_fini(void *handle)
 	return 0;
 }
 
-static int cik_sdma_suspend(void *handle)
+static int cik_sdma_suspend(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-
-	return cik_sdma_hw_fini(adev);
+	return cik_sdma_hw_fini(ip_block);
 }
 
-static int cik_sdma_resume(void *handle)
+static int cik_sdma_resume(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	cik_sdma_soft_reset(ip_block);
 
-	cik_sdma_soft_reset(handle);
-
-	return cik_sdma_hw_init(adev);
+	return cik_sdma_hw_init(ip_block);
 }
 
 static bool cik_sdma_is_idle(void *handle)
@@ -1039,11 +1035,11 @@ static bool cik_sdma_is_idle(void *handle)
 	return true;
 }
 
-static int cik_sdma_wait_for_idle(void *handle)
+static int cik_sdma_wait_for_idle(struct amdgpu_ip_block *ip_block)
 {
 	unsigned i;
 	u32 tmp;
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	for (i = 0; i < adev->usec_timeout; i++) {
 		tmp = RREG32(mmSRBM_STATUS2) & (SRBM_STATUS2__SDMA_BUSY_MASK |
@@ -1056,10 +1052,10 @@ static int cik_sdma_wait_for_idle(void *handle)
 	return -ETIMEDOUT;
 }
 
-static int cik_sdma_soft_reset(void *handle)
+static int cik_sdma_soft_reset(struct amdgpu_ip_block *ip_block)
 {
 	u32 srbm_soft_reset = 0;
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	u32 tmp;
 
 	/* sdma0 */
@@ -1217,7 +1213,6 @@ static int cik_sdma_set_powergating_state(void *handle,
 static const struct amd_ip_funcs cik_sdma_ip_funcs = {
 	.name = "cik_sdma",
 	.early_init = cik_sdma_early_init,
-	.late_init = NULL,
 	.sw_init = cik_sdma_sw_init,
 	.sw_fini = cik_sdma_sw_fini,
 	.hw_init = cik_sdma_hw_init,
@@ -1229,8 +1224,6 @@ static const struct amd_ip_funcs cik_sdma_ip_funcs = {
 	.soft_reset = cik_sdma_soft_reset,
 	.set_clockgating_state = cik_sdma_set_clockgating_state,
 	.set_powergating_state = cik_sdma_set_powergating_state,
-	.dump_ip_state = NULL,
-	.print_ip_state = NULL,
 };
 
 static const struct amdgpu_ring_funcs cik_sdma_ring_funcs = {

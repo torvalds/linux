@@ -194,9 +194,6 @@ static int __try_to_reclaim_swap(struct swap_info_struct *si,
 	if (IS_ERR(folio))
 		return 0;
 
-	/* offset could point to the middle of a large folio */
-	entry = folio->swap;
-	offset = swp_offset(entry);
 	nr_pages = folio_nr_pages(folio);
 	ret = -nr_pages;
 
@@ -209,6 +206,10 @@ static int __try_to_reclaim_swap(struct swap_info_struct *si,
 	 */
 	if (!folio_trylock(folio))
 		goto out;
+
+	/* offset could point to the middle of a large folio */
+	entry = folio->swap;
+	offset = swp_offset(entry);
 
 	need_reclaim = ((flags & TTRS_ANYWAY) ||
 			((flags & TTRS_UNMAPPED) && !folio_mapped(folio)) ||
@@ -730,15 +731,16 @@ done:
 	return offset;
 }
 
-static void swap_reclaim_full_clusters(struct swap_info_struct *si)
+/* Return true if reclaimed a whole cluster */
+static void swap_reclaim_full_clusters(struct swap_info_struct *si, bool force)
 {
 	long to_scan = 1;
 	unsigned long offset, end;
 	struct swap_cluster_info *ci;
 	unsigned char *map = si->swap_map;
-	int nr_reclaim, total_reclaimed = 0;
+	int nr_reclaim;
 
-	if (atomic_long_read(&nr_swap_pages) <= SWAPFILE_CLUSTER)
+	if (force)
 		to_scan = si->inuse_pages / SWAPFILE_CLUSTER;
 
 	while (!list_empty(&si->full_clusters)) {
@@ -748,26 +750,34 @@ static void swap_reclaim_full_clusters(struct swap_info_struct *si)
 		end = min(si->max, offset + SWAPFILE_CLUSTER);
 		to_scan--;
 
+		spin_unlock(&si->lock);
 		while (offset < end) {
 			if (READ_ONCE(map[offset]) == SWAP_HAS_CACHE) {
-				spin_unlock(&si->lock);
 				nr_reclaim = __try_to_reclaim_swap(si, offset,
 								   TTRS_ANYWAY | TTRS_DIRECT);
-				spin_lock(&si->lock);
-				if (nr_reclaim > 0) {
-					offset += nr_reclaim;
-					total_reclaimed += nr_reclaim;
-					continue;
-				} else if (nr_reclaim < 0) {
-					offset += -nr_reclaim;
+				if (nr_reclaim) {
+					offset += abs(nr_reclaim);
 					continue;
 				}
 			}
 			offset++;
 		}
-		if (to_scan <= 0 || total_reclaimed)
+		spin_lock(&si->lock);
+
+		if (to_scan <= 0)
 			break;
 	}
+}
+
+static void swap_reclaim_work(struct work_struct *work)
+{
+	struct swap_info_struct *si;
+
+	si = container_of(work, struct swap_info_struct, reclaim_work);
+
+	spin_lock(&si->lock);
+	swap_reclaim_full_clusters(si, true);
+	spin_unlock(&si->lock);
 }
 
 /*
@@ -798,6 +808,10 @@ new_cluster:
 		VM_BUG_ON(!found);
 		goto done;
 	}
+
+	/* Try reclaim from full clusters if free clusters list is drained */
+	if (vm_swap_full())
+		swap_reclaim_full_clusters(si, false);
 
 	if (order < PMD_ORDER) {
 		unsigned int frags = 0;
@@ -880,13 +894,6 @@ new_cluster:
 	}
 
 done:
-	/* Try reclaim from full clusters if device is nearfull */
-	if (vm_swap_full() && (!found || (si->pages - si->inuse_pages) < SWAPFILE_CLUSTER)) {
-		swap_reclaim_full_clusters(si);
-		if (!found && !order && si->pages != si->inuse_pages)
-			goto new_cluster;
-	}
-
 	cluster->next[order] = offset;
 	return found;
 }
@@ -921,6 +928,9 @@ static void swap_range_alloc(struct swap_info_struct *si, unsigned long offset,
 		si->lowest_bit = si->max;
 		si->highest_bit = 0;
 		del_from_avail_list(si);
+
+		if (vm_swap_full())
+			schedule_work(&si->reclaim_work);
 	}
 }
 
@@ -2312,7 +2322,7 @@ static int unuse_mm(struct mm_struct *mm, unsigned int type)
 
 	mmap_read_lock(mm);
 	for_each_vma(vmi, vma) {
-		if (vma->anon_vma) {
+		if (vma->anon_vma && !is_vm_hugetlb_page(vma)) {
 			ret = unuse_vma(vma, type);
 			if (ret)
 				break;
@@ -2815,6 +2825,7 @@ SYSCALL_DEFINE1(swapoff, const char __user *, specialfile)
 	wait_for_completion(&p->comp);
 
 	flush_work(&p->discard_work);
+	flush_work(&p->reclaim_work);
 
 	destroy_swap_extents(p);
 	if (p->flags & SWP_CONTINUED)
@@ -3375,6 +3386,7 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
 		return PTR_ERR(si);
 
 	INIT_WORK(&si->discard_work, swap_discard_work);
+	INIT_WORK(&si->reclaim_work, swap_reclaim_work);
 
 	name = getname(specialfile);
 	if (IS_ERR(name)) {

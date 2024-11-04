@@ -8,6 +8,7 @@
 
 #include "i915_drv.h"
 #include "i915_trace.h"
+#include "intel_dsb.h"
 #include "intel_uncore.h"
 
 static inline struct intel_uncore *__to_uncore(struct intel_display *display)
@@ -232,5 +233,15 @@ __intel_de_write_notrace(struct intel_display *display, i915_reg_t reg,
 	intel_uncore_write_notrace(__to_uncore(display), reg, val);
 }
 #define intel_de_write_notrace(p,...) __intel_de_write_notrace(__to_intel_display(p), __VA_ARGS__)
+
+static __always_inline void
+intel_de_write_dsb(struct intel_display *display, struct intel_dsb *dsb,
+		   i915_reg_t reg, u32 val)
+{
+	if (dsb)
+		intel_dsb_reg_write(dsb, reg, val);
+	else
+		intel_de_write_fw(display, reg, val);
+}
 
 #endif /* __INTEL_DE_H__ */

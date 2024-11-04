@@ -137,6 +137,7 @@ void intel_fdi_link_train(struct intel_crtc *crtc,
  */
 int intel_fdi_add_affected_crtcs(struct intel_atomic_state *state)
 {
+	struct intel_display *display = to_intel_display(state);
 	struct drm_i915_private *i915 = to_i915(state->base.dev);
 	const struct intel_crtc_state *old_crtc_state;
 	const struct intel_crtc_state *new_crtc_state;
@@ -145,7 +146,7 @@ int intel_fdi_add_affected_crtcs(struct intel_atomic_state *state)
 	if (!IS_IVYBRIDGE(i915) || INTEL_NUM_PIPES(i915) != 3)
 		return 0;
 
-	crtc = intel_crtc_for_pipe(i915, PIPE_C);
+	crtc = intel_crtc_for_pipe(display, PIPE_C);
 	new_crtc_state = intel_atomic_get_new_crtc_state(state, crtc);
 	if (!new_crtc_state)
 		return 0;
@@ -157,7 +158,7 @@ int intel_fdi_add_affected_crtcs(struct intel_atomic_state *state)
 	if (!old_crtc_state->fdi_lanes)
 		return 0;
 
-	crtc = intel_crtc_for_pipe(i915, PIPE_B);
+	crtc = intel_crtc_for_pipe(display, PIPE_B);
 	new_crtc_state = intel_atomic_get_crtc_state(&state->base, crtc);
 	if (IS_ERR(new_crtc_state))
 		return PTR_ERR(new_crtc_state);
@@ -184,6 +185,7 @@ static int ilk_check_fdi_lanes(struct drm_device *dev, enum pipe pipe,
 			       struct intel_crtc_state *pipe_config,
 			       enum pipe *pipe_to_reduce)
 {
+	struct intel_display *display = to_intel_display(dev);
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct drm_atomic_state *state = pipe_config->uapi.state;
 	struct intel_crtc *other_crtc;
@@ -223,7 +225,7 @@ static int ilk_check_fdi_lanes(struct drm_device *dev, enum pipe pipe,
 		if (pipe_config->fdi_lanes <= 2)
 			return 0;
 
-		other_crtc = intel_crtc_for_pipe(dev_priv, PIPE_C);
+		other_crtc = intel_crtc_for_pipe(display, PIPE_C);
 		other_crtc_state =
 			intel_atomic_get_crtc_state(state, other_crtc);
 		if (IS_ERR(other_crtc_state))
@@ -244,7 +246,7 @@ static int ilk_check_fdi_lanes(struct drm_device *dev, enum pipe pipe,
 			return -EINVAL;
 		}
 
-		other_crtc = intel_crtc_for_pipe(dev_priv, PIPE_B);
+		other_crtc = intel_crtc_for_pipe(display, PIPE_B);
 		other_crtc_state =
 			intel_atomic_get_crtc_state(state, other_crtc);
 		if (IS_ERR(other_crtc_state))

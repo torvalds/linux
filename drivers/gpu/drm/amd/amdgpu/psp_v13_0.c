@@ -823,6 +823,30 @@ static bool psp_v13_0_is_aux_sos_load_required(struct psp_context *psp)
 	return (pmfw_ver < 0x557300);
 }
 
+static bool psp_v13_0_is_reload_needed(struct psp_context *psp)
+{
+	uint32_t ucode_ver;
+
+	if (!psp_v13_0_is_sos_alive(psp))
+		return false;
+
+	/* Restrict reload support only to specific IP versions */
+	switch (amdgpu_ip_version(psp->adev, MP0_HWIP, 0)) {
+	case IP_VERSION(13, 0, 2):
+	case IP_VERSION(13, 0, 6):
+	case IP_VERSION(13, 0, 14):
+		/* TOS version read from microcode header */
+		ucode_ver = psp->sos.fw_version;
+		/* Read TOS version from hardware */
+		psp_v13_0_init_sos_version(psp);
+		return (ucode_ver != psp->sos.fw_version);
+	default:
+		return false;
+	}
+
+	return false;
+}
+
 static const struct psp_funcs psp_v13_0_funcs = {
 	.init_microcode = psp_v13_0_init_microcode,
 	.wait_for_bootloader = psp_v13_0_wait_for_bootloader_steady_state,
@@ -847,6 +871,7 @@ static const struct psp_funcs psp_v13_0_funcs = {
 	.fatal_error_recovery_quirk = psp_v13_0_fatal_error_recovery_quirk,
 	.get_ras_capability = psp_v13_0_get_ras_capability,
 	.is_aux_sos_load_required = psp_v13_0_is_aux_sos_load_required,
+	.is_reload_needed = psp_v13_0_is_reload_needed,
 };
 
 void psp_v13_0_set_psp_funcs(struct psp_context *psp)

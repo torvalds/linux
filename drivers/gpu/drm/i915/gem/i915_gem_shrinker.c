@@ -117,7 +117,7 @@ i915_gem_shrink(struct i915_gem_ww_ctx *ww,
 		},
 		{ NULL, 0 },
 	}, *phase;
-	intel_wakeref_t wakeref = 0;
+	intel_wakeref_t wakeref = NULL;
 	unsigned long count = 0;
 	unsigned long scanned = 0;
 	int err = 0, i = 0;

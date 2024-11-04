@@ -294,20 +294,11 @@ bool amdgpu_vcn_is_disabled_vcn(struct amdgpu_device *adev, enum vcn_ring_type t
 	return ret;
 }
 
-int amdgpu_vcn_suspend(struct amdgpu_device *adev)
+int amdgpu_vcn_save_vcpu_bo(struct amdgpu_device *adev)
 {
 	unsigned int size;
 	void *ptr;
 	int i, idx;
-
-	bool in_ras_intr = amdgpu_ras_intr_triggered();
-
-	cancel_delayed_work_sync(&adev->vcn.idle_work);
-
-	/* err_event_athub will corrupt VCPU buffer, so we need to
-	 * restore fw data and clear buffer in amdgpu_vcn_resume() */
-	if (in_ras_intr)
-		return 0;
 
 	for (i = 0; i < adev->vcn.num_vcn_inst; ++i) {
 		if (adev->vcn.harvest_config & (1 << i))
@@ -327,7 +318,22 @@ int amdgpu_vcn_suspend(struct amdgpu_device *adev)
 			drm_dev_exit(idx);
 		}
 	}
+
 	return 0;
+}
+
+int amdgpu_vcn_suspend(struct amdgpu_device *adev)
+{
+	bool in_ras_intr = amdgpu_ras_intr_triggered();
+
+	cancel_delayed_work_sync(&adev->vcn.idle_work);
+
+	/* err_event_athub will corrupt VCPU buffer, so we need to
+	 * restore fw data and clear buffer in amdgpu_vcn_resume() */
+	if (in_ras_intr)
+		return 0;
+
+	return amdgpu_vcn_save_vcpu_bo(adev);
 }
 
 int amdgpu_vcn_resume(struct amdgpu_device *adev)
