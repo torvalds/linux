@@ -186,11 +186,10 @@ xrep_newbt_add_extent(
 	xfs_agblock_t		agbno,
 	xfs_extlen_t		len)
 {
-	struct xfs_mount	*mp = xnr->sc->mp;
 	struct xfs_alloc_arg	args = {
 		.tp		= NULL, /* no autoreap */
 		.oinfo		= xnr->oinfo,
-		.fsbno		= XFS_AGB_TO_FSB(mp, pag->pag_agno, agbno),
+		.fsbno		= xfs_agbno_to_fsb(pag, agbno),
 		.len		= len,
 		.resv		= xnr->resv,
 	};
@@ -210,8 +209,8 @@ xrep_newbt_validate_ag_alloc_hint(
 	    xfs_verify_fsbno(sc->mp, xnr->alloc_hint))
 		return;
 
-	xnr->alloc_hint = XFS_AGB_TO_FSB(sc->mp, sc->sa.pag->pag_agno,
-					 XFS_AGFL_BLOCK(sc->mp) + 1);
+	xnr->alloc_hint =
+		xfs_agbno_to_fsb(sc->sa.pag, XFS_AGFL_BLOCK(sc->mp) + 1);
 }
 
 /* Allocate disk space for a new per-AG btree. */
@@ -376,7 +375,6 @@ xrep_newbt_free_extent(
 	struct xfs_scrub	*sc = xnr->sc;
 	xfs_agblock_t		free_agbno = resv->agbno;
 	xfs_extlen_t		free_aglen = resv->len;
-	xfs_fsblock_t		fsbno;
 	int			error;
 
 	if (!btree_committed || resv->used == 0) {
@@ -413,9 +411,9 @@ xrep_newbt_free_extent(
 	 * Use EFIs to free the reservations.  This reduces the chance
 	 * that we leak blocks if the system goes down.
 	 */
-	fsbno = XFS_AGB_TO_FSB(sc->mp, resv->pag->pag_agno, free_agbno);
-	error = xfs_free_extent_later(sc->tp, fsbno, free_aglen, &xnr->oinfo,
-			xnr->resv, XFS_FREE_EXTENT_SKIP_DISCARD);
+	error = xfs_free_extent_later(sc->tp,
+			xfs_agbno_to_fsb(resv->pag, free_agbno), free_aglen,
+			&xnr->oinfo, xnr->resv, XFS_FREE_EXTENT_SKIP_DISCARD);
 	if (error)
 		return error;
 
@@ -545,8 +543,7 @@ xrep_newbt_claim_block(
 			xnr->oinfo.oi_owner);
 
 	if (cur->bc_ops->ptr_len == XFS_BTREE_LONG_PTR_LEN)
-		ptr->l = cpu_to_be64(XFS_AGB_TO_FSB(mp, resv->pag->pag_agno,
-								agbno));
+		ptr->l = cpu_to_be64(xfs_agbno_to_fsb(resv->pag, agbno));
 	else
 		ptr->s = cpu_to_be32(agbno);
 

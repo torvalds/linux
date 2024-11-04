@@ -307,7 +307,7 @@ xrep_ibt_process_cluster(
 	 * inobt because imap_to_bp directly maps the buffer without touching
 	 * either inode btree.
 	 */
-	imap.im_blkno = XFS_AGB_TO_DADDR(mp, sc->sa.pag->pag_agno, cluster_bno);
+	imap.im_blkno = xfs_agbno_to_daddr(sc->sa.pag, cluster_bno);
 	imap.im_len = XFS_FSB_TO_BB(mp, igeo->blocks_per_cluster);
 	imap.im_boffset = 0;
 	error = xfs_imap_to_bp(mp, sc->tp, &imap, &cluster_bp);
@@ -634,7 +634,6 @@ xrep_ibt_build_new_trees(
 	struct xfs_scrub	*sc = ri->sc;
 	struct xfs_btree_cur	*ino_cur;
 	struct xfs_btree_cur	*fino_cur = NULL;
-	xfs_fsblock_t		fsbno;
 	bool			need_finobt;
 	int			error;
 
@@ -656,9 +655,8 @@ xrep_ibt_build_new_trees(
 	 *
 	 * Start by setting up the inobt staging cursor.
 	 */
-	fsbno = XFS_AGB_TO_FSB(sc->mp, sc->sa.pag->pag_agno,
-			XFS_IBT_BLOCK(sc->mp));
-	xrep_newbt_init_ag(&ri->new_inobt, sc, &XFS_RMAP_OINFO_INOBT, fsbno,
+	xrep_newbt_init_ag(&ri->new_inobt, sc, &XFS_RMAP_OINFO_INOBT,
+			xfs_agbno_to_fsb(sc->sa.pag, XFS_IBT_BLOCK(sc->mp)),
 			XFS_AG_RESV_NONE);
 	ri->new_inobt.bload.claim_block = xrep_ibt_claim_block;
 	ri->new_inobt.bload.get_records = xrep_ibt_get_records;
@@ -677,10 +675,9 @@ xrep_ibt_build_new_trees(
 		if (sc->mp->m_finobt_nores)
 			resv = XFS_AG_RESV_NONE;
 
-		fsbno = XFS_AGB_TO_FSB(sc->mp, sc->sa.pag->pag_agno,
-				XFS_FIBT_BLOCK(sc->mp));
 		xrep_newbt_init_ag(&ri->new_finobt, sc, &XFS_RMAP_OINFO_INOBT,
-				fsbno, resv);
+				xfs_agbno_to_fsb(sc->sa.pag, XFS_FIBT_BLOCK(sc->mp)),
+				resv);
 		ri->new_finobt.bload.claim_block = xrep_fibt_claim_block;
 		ri->new_finobt.bload.get_records = xrep_fibt_get_records;
 

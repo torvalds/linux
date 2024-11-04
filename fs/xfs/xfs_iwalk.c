@@ -100,7 +100,6 @@ xfs_iwalk_ichunk_ra(
 	struct xfs_inobt_rec_incore	*irec)
 {
 	struct xfs_ino_geometry		*igeo = M_IGEO(mp);
-	xfs_agnumber_t			agno = pag->pag_agno;
 	xfs_agblock_t			agbno;
 	struct blk_plug			plug;
 	int				i;	/* inode chunk index */
@@ -114,7 +113,7 @@ xfs_iwalk_ichunk_ra(
 		imask = xfs_inobt_maskn(i, igeo->inodes_per_cluster);
 		if (imask & ~irec->ir_free) {
 			xfs_buf_readahead(mp->m_ddev_targp,
-					XFS_AGB_TO_DADDR(mp, agno, agbno),
+					xfs_agbno_to_daddr(pag, agbno),
 					igeo->blocks_per_cluster * mp->m_bsize,
 					&xfs_inode_buf_ops);
 		}

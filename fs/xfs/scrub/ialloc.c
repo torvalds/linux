@@ -396,7 +396,7 @@ xchk_iallocbt_check_cluster(
 	 * ir_startino can be large enough to make im_boffset nonzero.
 	 */
 	ir_holemask = (irec->ir_holemask & cluster_mask);
-	imap.im_blkno = XFS_AGB_TO_DADDR(mp, agno, agbno);
+	imap.im_blkno = xfs_agbno_to_daddr(bs->cur->bc_ag.pag, agbno);
 	imap.im_len = XFS_FSB_TO_BB(mp, M_IGEO(mp)->blocks_per_cluster);
 	imap.im_boffset = XFS_INO_TO_OFFSET(mp, irec->ir_startino) <<
 			mp->m_sb.sb_inodelog;

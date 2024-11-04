@@ -137,7 +137,6 @@ xrep_cow_mark_shared_staging(
 {
 	struct xrep_cow			*xc = priv;
 	struct xfs_refcount_irec	rrec;
-	xfs_fsblock_t			fsbno;
 
 	if (!xfs_refcount_check_domain(rec) ||
 	    rec->rc_domain != XFS_REFC_DOMAIN_SHARED)
@@ -145,9 +144,9 @@ xrep_cow_mark_shared_staging(
 
 	xrep_cow_trim_refcount(xc, &rrec, rec);
 
-	fsbno = XFS_AGB_TO_FSB(xc->sc->mp, cur->bc_ag.pag->pag_agno,
-			rrec.rc_startblock);
-	return xrep_cow_mark_file_range(xc, fsbno, rrec.rc_blockcount);
+	return xrep_cow_mark_file_range(xc,
+			xfs_agbno_to_fsb(cur->bc_ag.pag, rrec.rc_startblock),
+			rrec.rc_blockcount);
 }
 
 /*
@@ -178,8 +177,7 @@ xrep_cow_mark_missing_staging(
 		goto next;
 
 	error = xrep_cow_mark_file_range(xc,
-			XFS_AGB_TO_FSB(xc->sc->mp, cur->bc_ag.pag->pag_agno,
-				       xc->next_bno),
+			xfs_agbno_to_fsb(cur->bc_ag.pag, xc->next_bno),
 			rrec.rc_startblock - xc->next_bno);
 	if (error)
 		return error;
@@ -200,7 +198,6 @@ xrep_cow_mark_missing_staging_rmap(
 	void				*priv)
 {
 	struct xrep_cow			*xc = priv;
-	xfs_fsblock_t			fsbno;
 	xfs_agblock_t			rec_bno;
 	xfs_extlen_t			rec_len;
 	unsigned int			adj;
@@ -222,8 +219,8 @@ xrep_cow_mark_missing_staging_rmap(
 		rec_len -= adj;
 	}
 
-	fsbno = XFS_AGB_TO_FSB(xc->sc->mp, cur->bc_ag.pag->pag_agno, rec_bno);
-	return xrep_cow_mark_file_range(xc, fsbno, rec_len);
+	return xrep_cow_mark_file_range(xc,
+			xfs_agbno_to_fsb(cur->bc_ag.pag, rec_bno), rec_len);
 }
 
 /*
@@ -275,8 +272,7 @@ xrep_cow_find_bad(
 
 	if (xc->next_bno < xc->irec_startbno + xc->irec.br_blockcount) {
 		error = xrep_cow_mark_file_range(xc,
-				XFS_AGB_TO_FSB(sc->mp, pag->pag_agno,
-					       xc->next_bno),
+				xfs_agbno_to_fsb(pag, xc->next_bno),
 				xc->irec_startbno + xc->irec.br_blockcount -
 				xc->next_bno);
 		if (error)

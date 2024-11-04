@@ -1272,7 +1272,6 @@ xrep_rmap_build_new_tree(
 	struct xfs_perag	*pag = sc->sa.pag;
 	struct xfs_agf		*agf = sc->sa.agf_bp->b_addr;
 	struct xfs_btree_cur	*rmap_cur;
-	xfs_fsblock_t		fsbno;
 	int			error;
 
 	/*
@@ -1290,9 +1289,9 @@ xrep_rmap_build_new_tree(
 	 * rmapbt per-AG reservation, which we will adjust further after
 	 * committing the new btree.
 	 */
-	fsbno = XFS_AGB_TO_FSB(sc->mp, pag->pag_agno, XFS_RMAP_BLOCK(sc->mp));
 	xrep_newbt_init_ag(&rr->new_btree, sc, &XFS_RMAP_OINFO_SKIP_UPDATE,
-			fsbno, XFS_AG_RESV_RMAPBT);
+			xfs_agbno_to_fsb(pag, XFS_RMAP_BLOCK(sc->mp)),
+			XFS_AG_RESV_RMAPBT);
 	rr->new_btree.bload.get_records = xrep_rmap_get_records;
 	rr->new_btree.bload.claim_block = xrep_rmap_claim_block;
 	rr->new_btree.alloc_vextent = xrep_rmap_alloc_vextent;

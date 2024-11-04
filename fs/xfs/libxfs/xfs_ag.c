@@ -869,7 +869,7 @@ xfs_ag_shrink_space(
 
 	/* internal log shouldn't also show up in the free space btrees */
 	error = xfs_alloc_vextent_exact_bno(&args,
-			XFS_AGB_TO_FSB(mp, pag->pag_agno, aglen - delta));
+			xfs_agbno_to_fsb(pag, aglen - delta));
 	if (!error && args.agbno == NULLAGBLOCK)
 		error = -ENOSPC;
 

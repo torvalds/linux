@@ -483,7 +483,7 @@ xrep_findroot_block(
 	int				block_level;
 	int				error = 0;
 
-	daddr = XFS_AGB_TO_DADDR(mp, ri->sc->sa.pag->pag_agno, agbno);
+	daddr = xfs_agbno_to_daddr(ri->sc->sa.pag, agbno);
 
 	/*
 	 * Blocks in the AGFL have stale contents that might just happen to

@@ -330,4 +330,20 @@ int xfs_ag_extend_space(struct xfs_perag *pag, struct xfs_trans *tp,
 			xfs_extlen_t len);
 int xfs_ag_get_geometry(struct xfs_perag *pag, struct xfs_ag_geometry *ageo);
 
+static inline xfs_fsblock_t
+xfs_agbno_to_fsb(
+	struct xfs_perag	*pag,
+	xfs_agblock_t		agbno)
+{
+	return XFS_AGB_TO_FSB(pag->pag_mount, pag->pag_agno, agbno);
+}
+
+static inline xfs_daddr_t
+xfs_agbno_to_daddr(
+	struct xfs_perag	*pag,
+	xfs_agblock_t		agbno)
+{
+	return XFS_AGB_TO_DADDR(pag->pag_mount, pag->pag_agno, agbno);
+}
+
 #endif /* __LIBXFS_AG_H */

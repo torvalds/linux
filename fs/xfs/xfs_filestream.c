@@ -227,7 +227,7 @@ xfs_filestream_lookup_association(
 
 	trace_xfs_filestream_lookup(pag, ap->ip->i_ino);
 
-	ap->blkno = XFS_AGB_TO_FSB(args->mp, pag->pag_agno, 0);
+	ap->blkno = xfs_agbno_to_fsb(pag, 0);
 	xfs_bmap_adjacent(ap);
 
 	/*
@@ -344,7 +344,6 @@ xfs_filestream_select_ag(
 	struct xfs_alloc_arg	*args,
 	xfs_extlen_t		*longest)
 {
-	struct xfs_mount	*mp = args->mp;
 	struct xfs_inode	*pip;
 	xfs_ino_t		ino = 0;
 	int			error = 0;
@@ -370,7 +369,7 @@ xfs_filestream_select_ag(
 		return error;
 
 out_select:
-	ap->blkno = XFS_AGB_TO_FSB(mp, args->pag->pag_agno, 0);
+	ap->blkno = xfs_agbno_to_fsb(args->pag, 0);
 	return 0;
 }
 
