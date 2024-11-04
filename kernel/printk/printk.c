@@ -560,10 +560,11 @@ bool printk_percpu_data_ready(void)
 /* Must be called under syslog_lock. */
 static void latched_seq_write(struct latched_seq *ls, u64 val)
 {
-	raw_write_seqcount_latch(&ls->latch);
+	write_seqcount_latch_begin(&ls->latch);
 	ls->val[0] = val;
-	raw_write_seqcount_latch(&ls->latch);
+	write_seqcount_latch(&ls->latch);
 	ls->val[1] = val;
+	write_seqcount_latch_end(&ls->latch);
 }
 
 /* Can be called from any context. */
@@ -574,10 +575,10 @@ static u64 latched_seq_read_nolock(struct latched_seq *ls)
 	u64 val;
 
 	do {
-		seq = raw_read_seqcount_latch(&ls->latch);
+		seq = read_seqcount_latch(&ls->latch);
 		idx = seq & 0x1;
 		val = ls->val[idx];
-	} while (raw_read_seqcount_latch_retry(&ls->latch, seq));
+	} while (read_seqcount_latch_retry(&ls->latch, seq));
 
 	return val;
 }

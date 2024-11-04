@@ -14,7 +14,7 @@
  *
  * If we need to allow unconditional lookups (say as required for NMI context
  * usage) we need a more complex setup; this data structure provides this by
- * employing the latch technique -- see @raw_write_seqcount_latch -- to
+ * employing the latch technique -- see @write_seqcount_latch_begin -- to
  * implement a latched RB-tree which does allow for unconditional lookups by
  * virtue of always having (at least) one stable copy of the tree.
  *
@@ -132,7 +132,7 @@ __lt_find(void *key, struct latch_tree_root *ltr, int idx,
  * @ops: operators defining the node order
  *
  * It inserts @node into @root in an ordered fashion such that we can always
- * observe one complete tree. See the comment for raw_write_seqcount_latch().
+ * observe one complete tree. See the comment for write_seqcount_latch_begin().
  *
  * The inserts use rcu_assign_pointer() to publish the element such that the
  * tree structure is stored before we can observe the new @node.
@@ -145,10 +145,11 @@ latch_tree_insert(struct latch_tree_node *node,
 		  struct latch_tree_root *root,
 		  const struct latch_tree_ops *ops)
 {
-	raw_write_seqcount_latch(&root->seq);
+	write_seqcount_latch_begin(&root->seq);
 	__lt_insert(node, root, 0, ops->less);
-	raw_write_seqcount_latch(&root->seq);
+	write_seqcount_latch(&root->seq);
 	__lt_insert(node, root, 1, ops->less);
+	write_seqcount_latch_end(&root->seq);
 }
 
 /**
@@ -159,7 +160,7 @@ latch_tree_insert(struct latch_tree_node *node,
  *
  * Removes @node from the trees @root in an ordered fashion such that we can
  * always observe one complete tree. See the comment for
- * raw_write_seqcount_latch().
+ * write_seqcount_latch_begin().
  *
  * It is assumed that @node will observe one RCU quiescent state before being
  * reused of freed.
@@ -172,10 +173,11 @@ latch_tree_erase(struct latch_tree_node *node,
 		 struct latch_tree_root *root,
 		 const struct latch_tree_ops *ops)
 {
-	raw_write_seqcount_latch(&root->seq);
+	write_seqcount_latch_begin(&root->seq);
 	__lt_erase(node, root, 0);
-	raw_write_seqcount_latch(&root->seq);
+	write_seqcount_latch(&root->seq);
 	__lt_erase(node, root, 1);
+	write_seqcount_latch_end(&root->seq);
 }
 
 /**
@@ -204,9 +206,9 @@ latch_tree_find(void *key, struct latch_tree_root *root,
 	unsigned int seq;
 
 	do {
-		seq = raw_read_seqcount_latch(&root->seq);
+		seq = read_seqcount_latch(&root->seq);
 		node = __lt_find(key, root, seq & 1, ops->comp);
-	} while (raw_read_seqcount_latch_retry(&root->seq, seq));
+	} while (read_seqcount_latch_retry(&root->seq, seq));
 
 	return node;
 }
