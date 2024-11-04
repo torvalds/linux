@@ -52,6 +52,7 @@ description: |
         msm8996pro
         msm8998
         qcs404
+        qcs615
         qcs8550
         qcm2290
         qcm6490
@@ -920,6 +921,11 @@ properties:
               - qcom,qcs404-evb-4000
           - const: qcom,qcs404-evb
           - const: qcom,qcs404
+
+      - items:
+          - enum:
+              - qcom,qcs615-ride
+          - const: qcom,qcs615
 
       - items:
           - enum:
