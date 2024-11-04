@@ -461,6 +461,8 @@ size_t copy_page_from_iter_atomic(struct page *page, size_t offset,
 		size_t bytes, struct iov_iter *i)
 {
 	size_t n, copied = 0;
+	bool uses_kmap = IS_ENABLED(CONFIG_DEBUG_KMAP_LOCAL_FORCE_MAP) ||
+			 PageHighMem(page);
 
 	if (!page_copy_sane(page, offset, bytes))
 		return 0;
@@ -471,7 +473,7 @@ size_t copy_page_from_iter_atomic(struct page *page, size_t offset,
 		char *p;
 
 		n = bytes - copied;
-		if (PageHighMem(page)) {
+		if (uses_kmap) {
 			page += offset / PAGE_SIZE;
 			offset %= PAGE_SIZE;
 			n = min_t(size_t, n, PAGE_SIZE - offset);
@@ -482,7 +484,7 @@ size_t copy_page_from_iter_atomic(struct page *page, size_t offset,
 		kunmap_atomic(p);
 		copied += n;
 		offset += n;
-	} while (PageHighMem(page) && copied != bytes && n > 0);
+	} while (uses_kmap && copied != bytes && n > 0);
 
 	return copied;
 }
@@ -1021,15 +1023,18 @@ static ssize_t iter_folioq_get_pages(struct iov_iter *iter,
 		size_t offset = iov_offset, fsize = folioq_folio_size(folioq, slot);
 		size_t part = PAGE_SIZE - offset % PAGE_SIZE;
 
-		part = umin(part, umin(maxsize - extracted, fsize - offset));
-		count -= part;
-		iov_offset += part;
-		extracted += part;
+		if (offset < fsize) {
+			part = umin(part, umin(maxsize - extracted, fsize - offset));
+			count -= part;
+			iov_offset += part;
+			extracted += part;
 
-		*pages = folio_page(folio, offset / PAGE_SIZE);
-		get_page(*pages);
-		pages++;
-		maxpages--;
+			*pages = folio_page(folio, offset / PAGE_SIZE);
+			get_page(*pages);
+			pages++;
+			maxpages--;
+		}
+
 		if (maxpages == 0 || extracted >= maxsize)
 			break;
 

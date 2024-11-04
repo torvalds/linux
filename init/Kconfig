@@ -62,7 +62,7 @@ config LLD_VERSION
 
 config RUSTC_VERSION
 	int
-	default $(shell,$(srctree)/scripts/rustc-version.sh $(RUSTC))
+	default $(rustc-version)
 	help
 	  It does not depend on `RUST` since that one may need to use the version
 	  in a `depends on`.
@@ -77,6 +77,10 @@ config RUST_IS_AVAILABLE
 
 	  In particular, the Makefile target 'rustavailable' is useful to check
 	  why the Rust toolchain is not being detected.
+
+config RUSTC_LLVM_VERSION
+	int
+	default $(rustc-llvm-version)
 
 config CC_CAN_LINK
 	bool
@@ -1946,7 +1950,7 @@ config RUST
 	depends on !GCC_PLUGIN_RANDSTRUCT
 	depends on !RANDSTRUCT
 	depends on !DEBUG_INFO_BTF || PAHOLE_HAS_LANG_EXCLUDE
-	depends on !CFI_CLANG || RUSTC_VERSION >= 107900 && HAVE_CFI_ICALL_NORMALIZE_INTEGERS
+	depends on !CFI_CLANG || HAVE_CFI_ICALL_NORMALIZE_INTEGERS_RUSTC
 	select CFI_ICALL_NORMALIZE_INTEGERS if CFI_CLANG
 	depends on !CALL_PADDING || RUSTC_VERSION >= 108100
 	depends on !KASAN_SW_TAGS

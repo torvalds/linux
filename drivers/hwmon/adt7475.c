@@ -1735,11 +1735,10 @@ static int adt7475_pwm_properties_parse_args(struct fwnode_handle *fwnode,
 static int adt7475_fan_pwm_config(struct i2c_client *client)
 {
 	struct adt7475_data *data = i2c_get_clientdata(client);
-	struct fwnode_handle *child;
 	struct adt7475_pwm_config cfg = {};
 	int ret;
 
-	device_for_each_child_node(&client->dev, child) {
+	device_for_each_child_node_scoped(&client->dev, child) {
 		if (!fwnode_property_present(child, "pwms"))
 			continue;
 
