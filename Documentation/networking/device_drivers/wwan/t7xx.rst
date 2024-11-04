@@ -7,12 +7,13 @@
 ============================================
 t7xx driver for MTK PCIe based T700 5G modem
 ============================================
-The t7xx driver is a WWAN PCIe host driver developed for linux or Chrome OS platforms
-for data exchange over PCIe interface between Host platform & MediaTek's T700 5G modem.
-The driver exposes an interface conforming to the MBIM protocol [1]. Any front end
-application (e.g. Modem Manager) could easily manage the MBIM interface to enable
-data communication towards WWAN. The driver also provides an interface to interact
-with the MediaTek's modem via AT commands.
+The t7xx driver is a WWAN PCIe host driver developed for linux or Chrome OS
+platforms for data exchange over PCIe interface between Host platform &
+MediaTek's T700 5G modem.
+The driver exposes an interface conforming to the MBIM protocol [1]. Any front
+end application (e.g. Modem Manager) could easily manage the MBIM interface to
+enable data communication towards WWAN. The driver also provides an interface
+to interact with the MediaTek's modem via AT commands.
 
 Basic usage
 ===========
@@ -45,8 +46,8 @@ The driver provides sysfs interfaces to userspace.
 
 t7xx_mode
 ---------
-The sysfs interface provides userspace with access to the device mode, this interface
-supports read and write operations.
+The sysfs interface provides userspace with access to the device mode, this
+interface supports read and write operations.
 
 Device mode:
 
