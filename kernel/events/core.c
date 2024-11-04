@@ -6680,7 +6680,7 @@ static int perf_mmap(struct file *file, struct vm_area_struct *vma)
 	unsigned long vma_size;
 	unsigned long nr_pages;
 	long user_extra = 0, extra = 0;
-	int ret = 0, flags = 0;
+	int ret, flags = 0;
 
 	/*
 	 * Don't allow mmap() of inherited per-task counters. This would
@@ -6708,6 +6708,9 @@ static int perf_mmap(struct file *file, struct vm_area_struct *vma)
 
 	user_extra = nr_pages;
 
+	mutex_lock(&event->mmap_mutex);
+	ret = -EINVAL;
+
 	if (vma->vm_pgoff == 0) {
 		nr_pages -= 1;
 
@@ -6716,16 +6719,13 @@ static int perf_mmap(struct file *file, struct vm_area_struct *vma)
 		 * can do bitmasks instead of modulo.
 		 */
 		if (nr_pages != 0 && !is_power_of_2(nr_pages))
-			return -EINVAL;
+			goto unlock;
 
 		WARN_ON_ONCE(event->ctx->parent_ctx);
-		mutex_lock(&event->mmap_mutex);
 
 		if (event->rb) {
-			if (data_page_nr(event->rb) != nr_pages) {
-				ret = -EINVAL;
+			if (data_page_nr(event->rb) != nr_pages)
 				goto unlock;
-			}
 
 			if (atomic_inc_not_zero(&event->rb->mmap_count)) {
 				/*
@@ -6753,12 +6753,6 @@ static int perf_mmap(struct file *file, struct vm_area_struct *vma)
 		 * and offset. Must be above the normal perf buffer.
 		 */
 		u64 aux_offset, aux_size;
-
-		if (!event->rb)
-			return -EINVAL;
-
-		mutex_lock(&event->mmap_mutex);
-		ret = -EINVAL;
 
 		rb = event->rb;
 		if (!rb)
@@ -6868,6 +6862,8 @@ static int perf_mmap(struct file *file, struct vm_area_struct *vma)
 		if (!ret)
 			rb->aux_mmap_locked = extra;
 	}
+
+	ret = 0;
 
 unlock:
 	if (!ret) {
