@@ -34,6 +34,32 @@
 #include "xfs_metafile.h"
 #include "xfs_metadir.h"
 
+/* Find the first usable fsblock in this rtgroup. */
+static inline uint32_t
+xfs_rtgroup_min_block(
+	struct xfs_mount	*mp,
+	xfs_rgnumber_t		rgno)
+{
+	if (xfs_has_rtsb(mp) && rgno == 0)
+		return mp->m_sb.sb_rextsize;
+
+	return 0;
+}
+
+/* Precompute this group's geometry */
+void
+xfs_rtgroup_calc_geometry(
+	struct xfs_mount	*mp,
+	struct xfs_rtgroup	*rtg,
+	xfs_rgnumber_t		rgno,
+	xfs_rgnumber_t		rgcount,
+	xfs_rtbxlen_t		rextents)
+{
+	rtg->rtg_extents = __xfs_rtgroup_extents(mp, rgno, rgcount, rextents);
+	rtg_group(rtg)->xg_block_count = rtg->rtg_extents * mp->m_sb.sb_rextsize;
+	rtg_group(rtg)->xg_min_gbno = xfs_rtgroup_min_block(mp, rgno);
+}
+
 int
 xfs_rtgroup_alloc(
 	struct xfs_mount	*mp,
@@ -47,6 +73,8 @@ xfs_rtgroup_alloc(
 	rtg = kzalloc(sizeof(struct xfs_rtgroup), GFP_KERNEL);
 	if (!rtg)
 		return -ENOMEM;
+
+	xfs_rtgroup_calc_geometry(mp, rtg, rgno, rgcount, rextents);
 
 	error = xfs_group_insert(mp, rtg_group(rtg), rgno, XG_TYPE_RTG);
 	if (error)
@@ -149,6 +177,7 @@ xfs_update_last_rtgroup_size(
 		return -EFSCORRUPTED;
 	rtg->rtg_extents = __xfs_rtgroup_extents(mp, prev_rgcount - 1,
 			mp->m_sb.sb_rgcount, mp->m_sb.sb_rextents);
+	rtg_group(rtg)->xg_block_count = rtg->rtg_extents * mp->m_sb.sb_rextsize;
 	xfs_rtgroup_rele(rtg);
 	return 0;
 }
@@ -223,7 +252,7 @@ xfs_rtgroup_get_geometry(
 	/* Fill out form. */
 	memset(rgeo, 0, sizeof(*rgeo));
 	rgeo->rg_number = rtg_rgno(rtg);
-	rgeo->rg_length = rtg->rtg_extents * rtg_mount(rtg)->m_sb.sb_rextsize;
+	rgeo->rg_length = rtg_group(rtg)->xg_block_count;
 	xfs_rtgroup_geom_health(rtg, rgeo);
 	return 0;
 }

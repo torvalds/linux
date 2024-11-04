@@ -337,7 +337,7 @@ xfs_trim_perag_extents(
 	};
 	int			error = 0;
 
-	if (start != 0 || end != pag->block_count)
+	if (start != 0 || end != pag_group(pag)->xg_block_count)
 		tcur.by_bno = true;
 
 	do {
@@ -403,7 +403,7 @@ xfs_trim_datadev_extents(
 	end_agbno = xfs_daddr_to_agbno(mp, ddev_end);
 
 	while ((pag = xfs_perag_next_range(mp, pag, start_agno, end_agno))) {
-		xfs_agblock_t	agend = pag->block_count;
+		xfs_agblock_t	agend = pag_group(pag)->xg_block_count;
 
 		if (pag_agno(pag) == end_agno)
 			agend = end_agbno;

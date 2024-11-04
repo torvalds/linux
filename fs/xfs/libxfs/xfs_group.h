@@ -12,6 +12,10 @@ struct xfs_group {
 	atomic_t		xg_ref;		/* passive reference count */
 	atomic_t		xg_active_ref;	/* active reference count */
 
+	/* Precalculated geometry info */
+	uint32_t		xg_block_count;	/* max usable gbno */
+	uint32_t		xg_min_gbno;	/* min usable gbno */
+
 #ifdef __KERNEL__
 	/* -- kernel only structures below this line -- */
 
@@ -126,6 +130,35 @@ xfs_fsb_to_gbno(
 	enum xfs_group_type	type)
 {
 	return fsbno & mp->m_groups[type].blkmask;
+}
+
+static inline bool
+xfs_verify_gbno(
+	struct xfs_group	*xg,
+	uint32_t		gbno)
+{
+	if (gbno >= xg->xg_block_count)
+		return false;
+	if (gbno < xg->xg_min_gbno)
+		return false;
+	return true;
+}
+
+static inline bool
+xfs_verify_gbext(
+	struct xfs_group	*xg,
+	uint32_t		gbno,
+	uint32_t		glen)
+{
+	uint32_t		end;
+
+	if (!xfs_verify_gbno(xg, gbno))
+		return false;
+	if (glen == 0 || check_add_overflow(gbno, glen - 1, &end))
+		return false;
+	if (!xfs_verify_gbno(xg, end))
+		return false;
+	return true;
 }
 
 #endif /* __LIBXFS_GROUP_H */

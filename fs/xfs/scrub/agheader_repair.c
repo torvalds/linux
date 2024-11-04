@@ -209,7 +209,7 @@ xrep_agf_init_header(
 	agf->agf_magicnum = cpu_to_be32(XFS_AGF_MAGIC);
 	agf->agf_versionnum = cpu_to_be32(XFS_AGF_VERSION);
 	agf->agf_seqno = cpu_to_be32(pag_agno(pag));
-	agf->agf_length = cpu_to_be32(pag->block_count);
+	agf->agf_length = cpu_to_be32(pag_group(pag)->xg_block_count);
 	agf->agf_flfirst = old_agf->agf_flfirst;
 	agf->agf_fllast = old_agf->agf_fllast;
 	agf->agf_flcount = old_agf->agf_flcount;
@@ -898,7 +898,7 @@ xrep_agi_init_header(
 	agi->agi_magicnum = cpu_to_be32(XFS_AGI_MAGIC);
 	agi->agi_versionnum = cpu_to_be32(XFS_AGI_VERSION);
 	agi->agi_seqno = cpu_to_be32(pag_agno(pag));
-	agi->agi_length = cpu_to_be32(pag->block_count);
+	agi->agi_length = cpu_to_be32(pag_group(pag)->xg_block_count);
 	agi->agi_newino = cpu_to_be32(NULLAGINO);
 	agi->agi_dirino = cpu_to_be32(NULLAGINO);
 	if (xfs_has_crc(mp))
