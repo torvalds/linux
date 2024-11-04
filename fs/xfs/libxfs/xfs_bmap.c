@@ -3152,10 +3152,8 @@ xfs_bmap_adjacent_valid(
 
 	if (XFS_IS_REALTIME_INODE(ap->ip) &&
 	    (ap->datatype & XFS_ALLOC_USERDATA)) {
-		if (x >= mp->m_sb.sb_rblocks)
-			return false;
 		if (!xfs_has_rtgroups(mp))
-			return true;
+			return x < mp->m_sb.sb_rblocks;
 
 		return xfs_rtb_to_rgno(mp, x) == xfs_rtb_to_rgno(mp, y) &&
 			xfs_rtb_to_rgno(mp, x) < mp->m_sb.sb_rgcount &&

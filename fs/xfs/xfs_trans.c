@@ -26,6 +26,7 @@
 #include "xfs_icache.h"
 #include "xfs_rtbitmap.h"
 #include "xfs_rtgroup.h"
+#include "xfs_sb.h"
 
 struct kmem_cache	*xfs_trans_cache;
 
@@ -547,6 +548,18 @@ xfs_trans_apply_sb_deltas(
 	}
 	if (tp->t_rextsize_delta) {
 		be32_add_cpu(&sbp->sb_rextsize, tp->t_rextsize_delta);
+
+		/*
+		 * Because the ondisk sb records rtgroup size in units of rt
+		 * extents, any time we update the rt extent size we have to
+		 * recompute the ondisk rtgroup block log.  The incore values
+		 * will be recomputed in xfs_trans_unreserve_and_mod_sb.
+		 */
+		if (xfs_has_rtgroups(tp->t_mountp)) {
+			sbp->sb_rgblklog = xfs_compute_rgblklog(
+						be32_to_cpu(sbp->sb_rgextents),
+						be32_to_cpu(sbp->sb_rextsize));
+		}
 		whole = 1;
 	}
 	if (tp->t_rbmblocks_delta) {
@@ -673,11 +686,9 @@ xfs_trans_unreserve_and_mod_sb(
 	mp->m_sb.sb_dblocks += tp->t_dblocks_delta;
 	mp->m_sb.sb_agcount += tp->t_agcount_delta;
 	mp->m_sb.sb_imax_pct += tp->t_imaxpct_delta;
-	mp->m_sb.sb_rextsize += tp->t_rextsize_delta;
-	if (tp->t_rextsize_delta) {
-		mp->m_rtxblklog = log2_if_power2(mp->m_sb.sb_rextsize);
-		mp->m_rtxblkmask = mask64_if_power2(mp->m_sb.sb_rextsize);
-	}
+	if (tp->t_rextsize_delta)
+		xfs_mount_sb_set_rextsize(mp, &mp->m_sb,
+				mp->m_sb.sb_rextsize + tp->t_rextsize_delta);
 	mp->m_sb.sb_rbmblocks += tp->t_rbmblocks_delta;
 	mp->m_sb.sb_rblocks += tp->t_rblocks_delta;
 	mp->m_sb.sb_rextents += tp->t_rextents_delta;

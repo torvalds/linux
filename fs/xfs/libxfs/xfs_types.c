@@ -146,9 +146,6 @@ xfs_verify_rtbno(
 	struct xfs_mount	*mp,
 	xfs_rtblock_t		rtbno)
 {
-	if (rtbno >= mp->m_sb.sb_rblocks)
-		return false;
-
 	if (xfs_has_rtgroups(mp)) {
 		xfs_rgnumber_t	rgno = xfs_rtb_to_rgno(mp, rtbno);
 		xfs_rtxnum_t	rtx = xfs_rtb_to_rtx(mp, rtbno);
@@ -159,8 +156,10 @@ xfs_verify_rtbno(
 			return false;
 		if (xfs_has_rtsb(mp) && rgno == 0 && rtx == 0)
 			return false;
+		return true;
 	}
-	return true;
+
+	return rtbno < mp->m_sb.sb_rblocks;
 }
 
 /*

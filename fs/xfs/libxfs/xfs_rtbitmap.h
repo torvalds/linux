@@ -26,7 +26,7 @@ xfs_rtx_to_rtb(
 	xfs_rtxnum_t		rtx)
 {
 	struct xfs_mount	*mp = rtg_mount(rtg);
-	xfs_rtblock_t		start = xfs_rgno_start_rtb(mp, rtg_rgno(rtg));
+	xfs_rtblock_t		start = xfs_group_start_fsb(rtg_group(rtg));
 
 	if (mp->m_rtxblklog >= 0)
 		return start + (rtx << mp->m_rtxblklog);
@@ -128,11 +128,11 @@ xfs_rtb_to_rtx(
 	struct xfs_mount	*mp,
 	xfs_rtblock_t		rtbno)
 {
-	uint64_t		__rgbno = __xfs_rtb_to_rgbno(mp, rtbno);
-
+	/* open-coded 64-bit masking operation */
+	rtbno &= mp->m_groups[XG_TYPE_RTG].blkmask;
 	if (likely(mp->m_rtxblklog >= 0))
-		return __rgbno >> mp->m_rtxblklog;
-	return div_u64(__rgbno, mp->m_sb.sb_rextsize);
+		return rtbno >> mp->m_rtxblklog;
+	return div_u64(rtbno, mp->m_sb.sb_rextsize);
 }
 
 /* Return the offset of an rt block number within an rt extent. */
@@ -141,9 +141,10 @@ xfs_rtb_to_rtxoff(
 	struct xfs_mount	*mp,
 	xfs_rtblock_t		rtbno)
 {
+	/* open-coded 64-bit masking operation */
+	rtbno &= mp->m_groups[XG_TYPE_RTG].blkmask;
 	if (likely(mp->m_rtxblklog >= 0))
 		return rtbno & mp->m_rtxblkmask;
-
 	return do_div(rtbno, mp->m_sb.sb_rextsize);
 }
 

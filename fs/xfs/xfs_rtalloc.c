@@ -745,8 +745,7 @@ xfs_growfs_rt_alloc_fake_mount(
 	nmp = kmemdup(mp, sizeof(*mp), GFP_KERNEL);
 	if (!nmp)
 		return NULL;
-	nmp->m_sb.sb_rextsize = rextsize;
-	xfs_mount_sb_set_rextsize(nmp, &nmp->m_sb);
+	xfs_mount_sb_set_rextsize(nmp, &nmp->m_sb, rextsize);
 	nmp->m_sb.sb_rblocks = rblocks;
 	nmp->m_sb.sb_rextents = xfs_blen_to_rtbxlen(nmp, nmp->m_sb.sb_rblocks);
 	nmp->m_sb.sb_rbmblocks = xfs_rtbitmap_blockcount(nmp);
@@ -968,7 +967,6 @@ xfs_growfs_rt_bmblock(
 	 */
 	mp->m_rsumlevels = nmp->m_rsumlevels;
 	mp->m_rsumblocks = nmp->m_rsumblocks;
-	xfs_mount_sb_set_rextsize(mp, &mp->m_sb);
 
 	/*
 	 * Recompute the growfsrt reservation from the new rsumsize.

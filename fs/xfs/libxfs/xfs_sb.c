@@ -368,12 +368,23 @@ xfs_validate_sb_write(
 	return 0;
 }
 
+int
+xfs_compute_rgblklog(
+	xfs_rtxlen_t	rgextents,
+	xfs_rgblock_t	rextsize)
+{
+	uint64_t	rgblocks = (uint64_t)rgextents * rextsize;
+
+	return xfs_highbit64(rgblocks - 1) + 1;
+}
+
 static int
 xfs_validate_sb_rtgroups(
 	struct xfs_mount	*mp,
 	struct xfs_sb		*sbp)
 {
 	uint64_t		groups;
+	int			rgblklog;
 
 	if (sbp->sb_rextsize == 0) {
 		xfs_warn(mp,
@@ -415,6 +426,14 @@ xfs_validate_sb_rtgroups(
 	if (!(sbp->sb_features_incompat & XFS_SB_FEAT_INCOMPAT_EXCHRANGE)) {
 		xfs_warn(mp,
 "Realtime groups feature requires exchange-range support.");
+		return -EINVAL;
+	}
+
+	rgblklog = xfs_compute_rgblklog(sbp->sb_rgextents, sbp->sb_rextsize);
+	if (sbp->sb_rgblklog != rgblklog) {
+		xfs_warn(mp,
+"Realtime group log (%d) does not match expected value (%d).",
+				sbp->sb_rgblklog, rgblklog);
 		return -EINVAL;
 	}
 
@@ -484,6 +503,12 @@ xfs_validate_sb_common(
 		}
 
 		if (sbp->sb_features_incompat & XFS_SB_FEAT_INCOMPAT_METADIR) {
+			if (memchr_inv(sbp->sb_pad, 0, sizeof(sbp->sb_pad))) {
+				xfs_warn(mp,
+"Metadir superblock padding fields must be zero.");
+				return -EINVAL;
+			}
+
 			error = xfs_validate_sb_rtgroups(mp, sbp);
 			if (error)
 				return error;
@@ -789,6 +814,8 @@ __xfs_sb_from_disk(
 
 	if (to->sb_features_incompat & XFS_SB_FEAT_INCOMPAT_METADIR) {
 		to->sb_metadirino = be64_to_cpu(from->sb_metadirino);
+		to->sb_rgblklog = from->sb_rgblklog;
+		memcpy(to->sb_pad, from->sb_pad, sizeof(to->sb_pad));
 		to->sb_rgcount = be32_to_cpu(from->sb_rgcount);
 		to->sb_rgextents = be32_to_cpu(from->sb_rgextents);
 		to->sb_rbmino = NULLFSINO;
@@ -956,6 +983,8 @@ xfs_sb_to_disk(
 
 	if (from->sb_features_incompat & XFS_SB_FEAT_INCOMPAT_METADIR) {
 		to->sb_metadirino = cpu_to_be64(from->sb_metadirino);
+		to->sb_rgblklog = from->sb_rgblklog;
+		memset(to->sb_pad, 0, sizeof(to->sb_pad));
 		to->sb_rgcount = cpu_to_be32(from->sb_rgcount);
 		to->sb_rgextents = cpu_to_be32(from->sb_rgextents);
 		to->sb_rbmino = cpu_to_be64(0);
@@ -1090,8 +1119,9 @@ const struct xfs_buf_ops xfs_sb_quiet_buf_ops = {
 	.verify_write = xfs_sb_write_verify,
 };
 
+/* Compute cached rt geometry from the incore sb. */
 void
-xfs_mount_sb_set_rextsize(
+xfs_sb_mount_rextsize(
 	struct xfs_mount	*mp,
 	struct xfs_sb		*sbp)
 {
@@ -1100,13 +1130,32 @@ xfs_mount_sb_set_rextsize(
 	mp->m_rtxblklog = log2_if_power2(sbp->sb_rextsize);
 	mp->m_rtxblkmask = mask64_if_power2(sbp->sb_rextsize);
 
-	mp->m_rgblocks = sbp->sb_rgextents * sbp->sb_rextsize;
-	mp->m_rgblklog = log2_if_power2(mp->m_rgblocks);
-	mp->m_rgblkmask = mask64_if_power2(mp->m_rgblocks);
+	if (xfs_sb_is_v5(sbp) &&
+	    (sbp->sb_features_incompat & XFS_SB_FEAT_INCOMPAT_METADIR)) {
+		rgs->blocks = sbp->sb_rgextents * sbp->sb_rextsize;
+		rgs->blklog = mp->m_sb.sb_rgblklog;
+		rgs->blkmask = xfs_mask32lo(mp->m_sb.sb_rgblklog);
+	} else {
+		rgs->blocks = 0;
+		rgs->blklog = 0;
+		rgs->blkmask = (uint64_t)-1;
+	}
+}
 
-	rgs->blocks = 0;
-	rgs->blklog = 0;
-	rgs->blkmask = (uint64_t)-1;
+/* Update incore sb rt extent size, then recompute the cached rt geometry. */
+void
+xfs_mount_sb_set_rextsize(
+	struct xfs_mount	*mp,
+	struct xfs_sb		*sbp,
+	xfs_agblock_t		rextsize)
+{
+	sbp->sb_rextsize = rextsize;
+	if (xfs_sb_is_v5(sbp) &&
+	    (sbp->sb_features_incompat & XFS_SB_FEAT_INCOMPAT_METADIR))
+		sbp->sb_rgblklog = xfs_compute_rgblklog(sbp->sb_rgextents,
+							rextsize);
+
+	xfs_sb_mount_rextsize(mp, sbp);
 }
 
 /*
@@ -1140,7 +1189,7 @@ xfs_sb_mount_common(
 	ags->blklog = mp->m_sb.sb_agblklog;
 	ags->blkmask = xfs_mask32lo(mp->m_sb.sb_agblklog);
 
-	xfs_mount_sb_set_rextsize(mp, sbp);
+	xfs_sb_mount_rextsize(mp, sbp);
 
 	mp->m_alloc_mxr[0] = xfs_allocbt_maxrecs(mp, sbp->sb_blocksize, true);
 	mp->m_alloc_mxr[1] = xfs_allocbt_maxrecs(mp, sbp->sb_blocksize, false);
