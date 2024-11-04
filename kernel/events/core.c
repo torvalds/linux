@@ -6701,6 +6701,42 @@ static int perf_mmap(struct file *file, struct vm_area_struct *vma)
 
 	if (vma->vm_pgoff == 0) {
 		nr_pages = (vma_size / PAGE_SIZE) - 1;
+
+		/*
+		 * If we have rb pages ensure they're a power-of-two number, so we
+		 * can do bitmasks instead of modulo.
+		 */
+		if (nr_pages != 0 && !is_power_of_2(nr_pages))
+			return -EINVAL;
+
+		if (vma_size != PAGE_SIZE * (1 + nr_pages))
+			return -EINVAL;
+
+		WARN_ON_ONCE(event->ctx->parent_ctx);
+again:
+		mutex_lock(&event->mmap_mutex);
+		if (event->rb) {
+			if (data_page_nr(event->rb) != nr_pages) {
+				ret = -EINVAL;
+				goto unlock;
+			}
+
+			if (!atomic_inc_not_zero(&event->rb->mmap_count)) {
+				/*
+				 * Raced against perf_mmap_close(); remove the
+				 * event and try again.
+				 */
+				ring_buffer_attach(event, NULL);
+				mutex_unlock(&event->mmap_mutex);
+				goto again;
+			}
+
+			/* We need the rb to map pages. */
+			rb = event->rb;
+			goto unlock;
+		}
+
+		user_extra = nr_pages + 1;
 	} else {
 		/*
 		 * AUX area mapping: if rb->aux_nr_pages != 0, it's already
@@ -6760,47 +6796,8 @@ static int perf_mmap(struct file *file, struct vm_area_struct *vma)
 
 		atomic_set(&rb->aux_mmap_count, 1);
 		user_extra = nr_pages;
-
-		goto accounting;
 	}
 
-	/*
-	 * If we have rb pages ensure they're a power-of-two number, so we
-	 * can do bitmasks instead of modulo.
-	 */
-	if (nr_pages != 0 && !is_power_of_2(nr_pages))
-		return -EINVAL;
-
-	if (vma_size != PAGE_SIZE * (1 + nr_pages))
-		return -EINVAL;
-
-	WARN_ON_ONCE(event->ctx->parent_ctx);
-again:
-	mutex_lock(&event->mmap_mutex);
-	if (event->rb) {
-		if (data_page_nr(event->rb) != nr_pages) {
-			ret = -EINVAL;
-			goto unlock;
-		}
-
-		if (!atomic_inc_not_zero(&event->rb->mmap_count)) {
-			/*
-			 * Raced against perf_mmap_close(); remove the
-			 * event and try again.
-			 */
-			ring_buffer_attach(event, NULL);
-			mutex_unlock(&event->mmap_mutex);
-			goto again;
-		}
-
-		/* We need the rb to map pages. */
-		rb = event->rb;
-		goto unlock;
-	}
-
-	user_extra = nr_pages + 1;
-
-accounting:
 	user_lock_limit = sysctl_perf_event_mlock >> (PAGE_SHIFT - 10);
 
 	/*
