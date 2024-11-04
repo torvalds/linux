@@ -28,7 +28,7 @@
 #define SMU14_DRIVER_IF_VERSION_INV 0xFFFFFFFF
 #define SMU14_DRIVER_IF_VERSION_SMU_V14_0_0 0x7
 #define SMU14_DRIVER_IF_VERSION_SMU_V14_0_1 0x6
-#define SMU14_DRIVER_IF_VERSION_SMU_V14_0_2 0x26
+#define SMU14_DRIVER_IF_VERSION_SMU_V14_0_2 0x2E
 
 #define FEATURE_MASK(feature) (1ULL << feature)
 
@@ -186,7 +186,7 @@ int smu_v14_0_get_dpm_ultimate_freq(struct smu_context *smu, enum smu_clk_type c
 				    uint32_t *min, uint32_t *max);
 
 int smu_v14_0_set_soft_freq_limited_range(struct smu_context *smu, enum smu_clk_type clk_type,
-					  uint32_t min, uint32_t max);
+					  uint32_t min, uint32_t max, bool automatic);
 
 int smu_v14_0_set_hard_freq_limited_range(struct smu_context *smu,
 					  enum smu_clk_type clk_type,

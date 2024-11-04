@@ -1,10 +1,5 @@
 core_setmaster@master-drop-set-shared-fd,Fail
-device_reset@cold-reset-bound,Fail
-device_reset@reset-bound,Fail
-device_reset@unbind-cold-reset-rebind,Fail
-device_reset@unbind-reset-rebind,Fail
 dumb_buffer@create-clear,Crash
-dumb_buffer@invalid-bpp,Fail
 fbdev@eof,Fail
 fbdev@pan,Fail
 fbdev@read,Fail
@@ -18,5 +13,4 @@ kms_color@invalid-gamma-lut-sizes,Fail
 kms_flip@flip-vs-panning-vs-hang,Fail
 kms_flip@flip-vs-suspend,Fail
 kms_lease@lease-uevent,Fail
-kms_properties@plane-properties-atomic,Fail
 kms_rmfb@close-fd,Fail

@@ -1391,11 +1391,12 @@ static struct ep93xx_dma_engine *ep93xx_dma_of_probe(struct platform_device *pde
 	INIT_LIST_HEAD(&dma_dev->channels);
 	for (i = 0; i < edma->num_channels; i++) {
 		struct ep93xx_dma_chan *edmac = &edma->channels[i];
+		int len;
 
 		edmac->chan.device = dma_dev;
 		edmac->regs = devm_platform_ioremap_resource(pdev, i);
 		if (IS_ERR(edmac->regs))
-			return edmac->regs;
+			return ERR_CAST(edmac->regs);
 
 		edmac->irq = fwnode_irq_get(dev_fwnode(dev), i);
 		if (edmac->irq < 0)
@@ -1404,9 +1405,11 @@ static struct ep93xx_dma_engine *ep93xx_dma_of_probe(struct platform_device *pde
 		edmac->edma = edma;
 
 		if (edma->m2m)
-			snprintf(dma_clk_name, sizeof(dma_clk_name), "m2m%u", i);
+			len = snprintf(dma_clk_name, sizeof(dma_clk_name), "m2m%u", i);
 		else
-			snprintf(dma_clk_name, sizeof(dma_clk_name), "m2p%u", i);
+			len = snprintf(dma_clk_name, sizeof(dma_clk_name), "m2p%u", i);
+		if (len >= sizeof(dma_clk_name))
+			return ERR_PTR(-ENOBUFS);
 
 		edmac->clk = devm_clk_get(dev, dma_clk_name);
 		if (IS_ERR(edmac->clk)) {

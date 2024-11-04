@@ -691,7 +691,6 @@ static int hws_bwc_matcher_move(struct mlx5hws_bwc_matcher *bwc_matcher)
 static int
 hws_bwc_matcher_rehash_size(struct mlx5hws_bwc_matcher *bwc_matcher)
 {
-	u32 num_of_rules;
 	int ret;
 
 	/* If the current matcher size is already at its max size, we can't
@@ -705,8 +704,7 @@ hws_bwc_matcher_rehash_size(struct mlx5hws_bwc_matcher *bwc_matcher)
 	 * Need to check again if we really need rehash.
 	 * If the reason for rehash was size, but not any more - skip rehash.
 	 */
-	num_of_rules = __atomic_load_n(&bwc_matcher->num_of_rules, __ATOMIC_RELAXED);
-	if (!hws_bwc_matcher_rehash_size_needed(bwc_matcher, num_of_rules))
+	if (!hws_bwc_matcher_rehash_size_needed(bwc_matcher, bwc_matcher->num_of_rules))
 		return 0;
 
 	/* Now we're done all the checking - do the rehash:

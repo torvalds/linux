@@ -73,6 +73,11 @@ scope of each device, in which case `drm-pdev` shall be present as well.
 Userspace should make sure to not double account any usage statistics by using
 the above described criteria in order to associate data to individual clients.
 
+- drm-client-name: <valstr>
+
+String optionally set by userspace using DRM_IOCTL_SET_CLIENT_NAME.
+
+
 Utilization
 ^^^^^^^^^^^
 
@@ -144,13 +149,18 @@ Memory
 
 Each possible memory type which can be used to store buffer objects by the
 GPU in question shall be given a stable and unique name to be returned as the
-string here.  The name "memory" is reserved to refer to normal system memory.
+string here.
+
+The region name "memory" is reserved to refer to normal system memory.
 
 Value shall reflect the amount of storage currently consumed by the buffer
 objects belong to this client, in the respective memory region.
 
 Default unit shall be bytes with optional unit specifiers of 'KiB' or 'MiB'
 indicating kibi- or mebi-bytes.
+
+This key is deprecated and is an alias for drm-resident-<region>. Only one of
+the two should be present in the output.
 
 - drm-shared-<region>: <uint> [KiB|MiB]
 
@@ -159,19 +169,33 @@ than a single handle).
 
 - drm-total-<region>: <uint> [KiB|MiB]
 
-The total size of buffers that including shared and private memory.
+The total size of all created buffers including shared and private memory. The
+backing store for the buffers does not have to be currently instantiated to be
+counted under this category.
 
 - drm-resident-<region>: <uint> [KiB|MiB]
 
-The total size of buffers that are resident in the specified region.
+The total size of buffers that are resident (have their backing store present or
+instantiated) in the specified region.
+
+This is an alias for drm-memory-<region> and only one of the two should be
+present in the output.
 
 - drm-purgeable-<region>: <uint> [KiB|MiB]
 
 The total size of buffers that are purgeable.
 
+For example drivers which implement a form of 'madvise' like functionality can
+here count buffers which have instantiated backing store, but have been marked
+with an equivalent of MADV_DONTNEED.
+
 - drm-active-<region>: <uint> [KiB|MiB]
 
 The total size of buffers that are active on one or more engines.
+
+One practical example of this can be presence of unsignaled fences in an GEM
+buffer reservation object. Therefore the active category is a subset of
+resident.
 
 Implementation Details
 ======================
@@ -186,4 +210,5 @@ Driver specific implementations
 
 * :ref:`i915-usage-stats`
 * :ref:`panfrost-usage-stats`
+* :ref:`panthor-usage-stats`
 * :ref:`xe-usage-stats`

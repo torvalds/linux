@@ -10,7 +10,7 @@
 #include <linux/dccp.h>
 #include <linux/module.h>
 #include <linux/types.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <linux/kernel.h>
 #include <linux/skbuff.h>
 

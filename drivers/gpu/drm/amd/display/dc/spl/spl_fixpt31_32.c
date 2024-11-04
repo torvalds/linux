@@ -29,7 +29,7 @@ static inline unsigned long long complete_integer_division_u64(
 {
 	unsigned long long result;
 
-	ASSERT(divisor);
+	SPL_ASSERT(divisor);
 
 	result = spl_div64_u64_rem(dividend, divisor, remainder);
 
@@ -63,7 +63,7 @@ struct spl_fixed31_32 spl_fixpt_from_fraction(long long numerator, long long den
 	unsigned long long res_value = complete_integer_division_u64(
 		arg1_value, arg2_value, &remainder);
 
-	ASSERT(res_value <= LONG_MAX);
+	SPL_ASSERT(res_value <= (unsigned long long)LONG_MAX);
 
 	/* determine fractional part */
 	{
@@ -85,7 +85,7 @@ struct spl_fixed31_32 spl_fixpt_from_fraction(long long numerator, long long den
 	{
 		unsigned long long summand = (remainder << 1) >= arg2_value;
 
-		ASSERT(res_value <= LLONG_MAX - summand);
+		SPL_ASSERT(res_value <= (unsigned long long)LLONG_MAX - summand);
 
 		res_value += summand;
 	}
@@ -118,19 +118,19 @@ struct spl_fixed31_32 spl_fixpt_mul(struct spl_fixed31_32 arg1, struct spl_fixed
 
 	res.value = arg1_int * arg2_int;
 
-	ASSERT(res.value <= (long long)LONG_MAX);
+	SPL_ASSERT(res.value <= (long long)LONG_MAX);
 
 	res.value <<= FIXED31_32_BITS_PER_FRACTIONAL_PART;
 
 	tmp = arg1_int * arg2_fra;
 
-	ASSERT(tmp <= (unsigned long long)(LLONG_MAX - res.value));
+	SPL_ASSERT(tmp <= (unsigned long long)(LLONG_MAX - res.value));
 
 	res.value += tmp;
 
 	tmp = arg2_int * arg1_fra;
 
-	ASSERT(tmp <= (unsigned long long)(LLONG_MAX - res.value));
+	SPL_ASSERT(tmp <= (unsigned long long)(LLONG_MAX - res.value));
 
 	res.value += tmp;
 
@@ -139,7 +139,7 @@ struct spl_fixed31_32 spl_fixpt_mul(struct spl_fixed31_32 arg1, struct spl_fixed
 	tmp = (tmp >> FIXED31_32_BITS_PER_FRACTIONAL_PART) +
 		(tmp >= (unsigned long long)spl_fixpt_half.value);
 
-	ASSERT(tmp <= (unsigned long long)(LLONG_MAX - res.value));
+	SPL_ASSERT(tmp <= (unsigned long long)(LLONG_MAX - res.value));
 
 	res.value += tmp;
 
@@ -163,17 +163,17 @@ struct spl_fixed31_32 spl_fixpt_sqr(struct spl_fixed31_32 arg)
 
 	res.value = arg_int * arg_int;
 
-	ASSERT(res.value <= (long long)LONG_MAX);
+	SPL_ASSERT(res.value <= (long long)LONG_MAX);
 
 	res.value <<= FIXED31_32_BITS_PER_FRACTIONAL_PART;
 
 	tmp = arg_int * arg_fra;
 
-	ASSERT(tmp <= (unsigned long long)(LLONG_MAX - res.value));
+	SPL_ASSERT(tmp <= (unsigned long long)(LLONG_MAX - res.value));
 
 	res.value += tmp;
 
-	ASSERT(tmp <= (unsigned long long)(LLONG_MAX - res.value));
+	SPL_ASSERT(tmp <= (unsigned long long)(LLONG_MAX - res.value));
 
 	res.value += tmp;
 
@@ -182,7 +182,7 @@ struct spl_fixed31_32 spl_fixpt_sqr(struct spl_fixed31_32 arg)
 	tmp = (tmp >> FIXED31_32_BITS_PER_FRACTIONAL_PART) +
 		(tmp >= (unsigned long long)spl_fixpt_half.value);
 
-	ASSERT(tmp <= (unsigned long long)(LLONG_MAX - res.value));
+	SPL_ASSERT(tmp <= (unsigned long long)(LLONG_MAX - res.value));
 
 	res.value += tmp;
 
@@ -196,7 +196,7 @@ struct spl_fixed31_32 spl_fixpt_recip(struct spl_fixed31_32 arg)
 	 * Good idea to use Newton's method
 	 */
 
-	ASSERT(arg.value);
+	SPL_ASSERT(arg.value);
 
 	return spl_fixpt_from_fraction(
 		spl_fixpt_one.value,
@@ -295,7 +295,7 @@ static struct spl_fixed31_32 fixed31_32_exp_from_taylor_series(struct spl_fixed3
 		n + 1);
 	/* TODO find correct res */
 
-	ASSERT(spl_fixpt_lt(arg, spl_fixpt_one));
+	SPL_ASSERT(spl_fixpt_lt(arg, spl_fixpt_one));
 
 	do
 		res = spl_fixpt_add(
@@ -337,9 +337,9 @@ struct spl_fixed31_32 spl_fixpt_exp(struct spl_fixed31_32 arg)
 				spl_fixpt_ln2,
 				m));
 
-		ASSERT(m != 0);
+		SPL_ASSERT(m != 0);
 
-		ASSERT(spl_fixpt_lt(
+		SPL_ASSERT(spl_fixpt_lt(
 			spl_fixpt_abs(r),
 			spl_fixpt_one));
 
@@ -364,7 +364,7 @@ struct spl_fixed31_32 spl_fixpt_log(struct spl_fixed31_32 arg)
 
 	struct spl_fixed31_32 error;
 
-	ASSERT(arg.value > 0);
+	SPL_ASSERT(arg.value > 0);
 	/* TODO if arg is negative, return NaN */
 	/* TODO if arg is zero, return -INF */
 

@@ -36,7 +36,7 @@
 #include "amdgpu_dm_debugfs.h"
 
 #define HPD_DETECTION_PERIOD_uS 5000000
-#define HPD_DETECTION_TIME_uS 1000
+#define HPD_DETECTION_TIME_uS 100000
 
 void amdgpu_dm_crtc_handle_vblank(struct amdgpu_crtc *acrtc)
 {
@@ -154,6 +154,7 @@ static void amdgpu_dm_crtc_set_panel_sr_feature(
 
 			amdgpu_dm_psr_enable(vblank_work->stream);
 			if (dm->idle_workqueue &&
+			    (dm->dc->config.disable_ips == DMUB_IPS_ENABLE) &&
 			    dm->dc->idle_optimizations_allowed &&
 			    dm->idle_workqueue->enable &&
 			    !dm->idle_workqueue->running)

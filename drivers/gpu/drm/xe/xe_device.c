@@ -5,11 +5,11 @@
 
 #include "xe_device.h"
 
+#include <linux/aperture.h>
 #include <linux/delay.h>
 #include <linux/fault-inject.h>
 #include <linux/units.h>
 
-#include <drm/drm_aperture.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_client.h>
 #include <drm/drm_gem_ttm_helper.h>
@@ -302,7 +302,7 @@ struct xe_device *xe_device_create(struct pci_dev *pdev,
 
 	xe_display_driver_set_hooks(&driver);
 
-	err = drm_aperture_remove_conflicting_pci_framebuffers(pdev, &driver);
+	err = aperture_remove_conflicting_pci_devices(pdev, driver.name);
 	if (err)
 		return ERR_PTR(err);
 

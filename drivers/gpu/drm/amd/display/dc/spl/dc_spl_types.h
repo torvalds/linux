@@ -5,10 +5,8 @@
 #ifndef __DC_SPL_TYPES_H__
 #define __DC_SPL_TYPES_H__
 
+#include "spl_debug.h"
 #include "spl_os_types.h"   // swap
-#ifndef SPL_ASSERT
-#define SPL_ASSERT(_bool) ((void *)0)
-#endif
 #include "spl_fixpt31_32.h"	// fixed31_32 and related functions
 #include "spl_custom_float.h" // custom float and related functions
 
@@ -510,7 +508,6 @@ struct spl_funcs	{
 struct spl_debug {
 	int visual_confirm_base_offset;
 	int visual_confirm_dpp_offset;
-	enum sharpen_policy sharpen_policy;
 	enum scale_to_sharpness_policy scale_to_sharpness_policy;
 };
 
@@ -532,6 +529,7 @@ struct spl_in	{
 	int h_active;
 	int v_active;
 	int sdr_white_level_nits;
+	enum sharpen_policy sharpen_policy;
 };
 // end of SPL inputs
 

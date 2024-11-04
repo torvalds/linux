@@ -20,7 +20,7 @@
 #include <linux/units.h>
 #include <net/mac80211.h>
 #include <linux/etherdevice.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include "common.h"
 #include "4965.h"

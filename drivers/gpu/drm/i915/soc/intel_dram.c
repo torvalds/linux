@@ -714,7 +714,7 @@ void intel_dram_detect(struct drm_i915_private *i915)
 	 * Assume level 0 watermark latency adjustment is needed until proven
 	 * otherwise, this w/a is not needed by bxt/glk.
 	 */
-	dram_info->wm_lv_0_adjust_needed = !IS_GEN9_LP(i915);
+	dram_info->wm_lv_0_adjust_needed = !IS_BROXTON(i915) && !IS_GEMINILAKE(i915);
 
 	if (DISPLAY_VER(i915) >= 14)
 		ret = xelpdp_get_dram_info(i915);
@@ -722,7 +722,7 @@ void intel_dram_detect(struct drm_i915_private *i915)
 		ret = gen12_get_dram_info(i915);
 	else if (GRAPHICS_VER(i915) >= 11)
 		ret = gen11_get_dram_info(i915);
-	else if (IS_GEN9_LP(i915))
+	else if (IS_BROXTON(i915) || IS_GEMINILAKE(i915))
 		ret = bxt_get_dram_info(i915);
 	else
 		ret = skl_get_dram_info(i915);

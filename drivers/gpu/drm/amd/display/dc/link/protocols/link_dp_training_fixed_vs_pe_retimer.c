@@ -412,7 +412,6 @@ enum link_training_result dp_perform_fixed_vs_pe_training_sequence(
 
 			/* 5. check CR done*/
 			if (dp_is_cr_done(lane_count, dpcd_lane_status)) {
-				status = LINK_TRAINING_SUCCESS;
 				break;
 			}
 

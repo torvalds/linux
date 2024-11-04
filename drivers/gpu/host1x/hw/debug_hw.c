@@ -177,7 +177,16 @@ static void show_gather(struct output *o, dma_addr_t phys_addr,
 
 	for (i = 0; i < words; i++) {
 		dma_addr_t addr = phys_addr + i * 4;
-		u32 val = *(map_addr + offset / 4 + i);
+		u32 voffset = offset + i * 4;
+		u32 val;
+
+		/* If we reach the RESTART opcode, continue at the beginning of pushbuffer */
+		if (cdma && voffset >= cdma->push_buffer.size) {
+			addr -= cdma->push_buffer.size;
+			voffset -= cdma->push_buffer.size;
+		}
+
+		val = *(map_addr + voffset / 4);
 
 		if (!data_count) {
 			host1x_debug_output(o, "    %pad: %08x: ", &addr, val);
@@ -203,7 +212,7 @@ static void show_channel_gathers(struct output *o, struct host1x_cdma *cdma)
 				    job->num_slots, job->num_unpins);
 
 		show_gather(o, pb->dma + job->first_get, job->num_slots * 2, cdma,
-			    pb->dma + job->first_get, pb->mapped + job->first_get);
+			    pb->dma, pb->mapped);
 
 		for (i = 0; i < job->num_cmds; i++) {
 			struct host1x_job_gather *g;
@@ -227,7 +236,7 @@ static void show_channel_gathers(struct output *o, struct host1x_cdma *cdma)
 			host1x_debug_output(o, "  GATHER at %pad+%#x, %d words\n",
 					    &g->base, g->offset, g->words);
 
-			show_gather(o, g->base + g->offset, g->words, cdma,
+			show_gather(o, g->base + g->offset, g->words, NULL,
 				    g->base, mapped);
 
 			if (!job->gather_copy_mapped)

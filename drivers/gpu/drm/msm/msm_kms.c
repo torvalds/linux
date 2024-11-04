@@ -5,11 +5,11 @@
  * Author: Rob Clark <robdclark@gmail.com>
  */
 
+#include <linux/aperture.h>
 #include <linux/kthread.h>
 #include <linux/sched/mm.h>
 #include <uapi/linux/sched/types.h>
 
-#include <drm/drm_aperture.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_mode_config.h>
 #include <drm/drm_vblank.h>
@@ -237,7 +237,7 @@ int msm_drm_kms_init(struct device *dev, const struct drm_driver *drv)
 	int ret;
 
 	/* the fw fb could be anywhere in memory */
-	ret = drm_aperture_remove_framebuffers(drv);
+	ret = aperture_remove_all_conflicting_devices(drv->name);
 	if (ret)
 		return ret;
 

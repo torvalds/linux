@@ -98,7 +98,7 @@ static int conntrack_data_insert(struct mnl_socket *sock, struct nlmsghdr *nlh,
 	char buf[MNL_SOCKET_BUFFER_SIZE];
 	struct nlmsghdr *rplnlh;
 	unsigned int portid;
-	int err, ret;
+	int ret;
 
 	portid = mnl_socket_get_portid(sock);
 
@@ -207,6 +207,7 @@ static int conntrack_data_generate_v6(struct mnl_socket *sock,
 static int count_entries(const struct nlmsghdr *nlh, void *data)
 {
 	reply_counter++;
+	return MNL_CB_OK;
 }
 
 static int conntracK_count_zone(struct mnl_socket *sock, uint16_t zone)
@@ -216,7 +217,7 @@ static int conntracK_count_zone(struct mnl_socket *sock, uint16_t zone)
 	struct nfgenmsg *nfh;
 	struct nlattr *nest;
 	unsigned int portid;
-	int err, ret;
+	int ret;
 
 	portid = mnl_socket_get_portid(sock);
 
@@ -263,7 +264,7 @@ static int conntrack_flush_zone(struct mnl_socket *sock, uint16_t zone)
 	struct nfgenmsg *nfh;
 	struct nlattr *nest;
 	unsigned int portid;
-	int err, ret;
+	int ret;
 
 	portid = mnl_socket_get_portid(sock);
 

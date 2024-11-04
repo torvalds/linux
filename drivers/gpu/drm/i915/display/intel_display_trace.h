@@ -18,7 +18,7 @@
 #include "intel_display_types.h"
 #include "intel_vblank.h"
 
-#define __dev_name_i915(i915) dev_name((i915)->drm.dev)
+#define __dev_name_display(display) dev_name((display)->drm->dev)
 #define __dev_name_kms(obj) dev_name((obj)->base.dev->dev)
 
 TRACE_EVENT(intel_pipe_enable,
@@ -32,10 +32,10 @@ TRACE_EVENT(intel_pipe_enable,
 			     __field(enum pipe, pipe)
 			     ),
 	    TP_fast_assign(
-			   struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+			   struct intel_display *display = to_intel_display(crtc);
 			   struct intel_crtc *it__;
 			   __assign_str(dev);
-			   for_each_intel_crtc(&dev_priv->drm, it__) {
+			   for_each_intel_crtc(display->drm, it__) {
 				   __entry->frame[it__->pipe] = intel_crtc_get_vblank_counter(it__);
 				   __entry->scanline[it__->pipe] = intel_get_crtc_scanline(it__);
 			   }
@@ -61,10 +61,10 @@ TRACE_EVENT(intel_pipe_disable,
 			     ),
 
 	    TP_fast_assign(
-			   struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+			   struct intel_display *display = to_intel_display(crtc);
 			   struct intel_crtc *it__;
 			   __assign_str(dev);
-			   for_each_intel_crtc(&dev_priv->drm, it__) {
+			   for_each_intel_crtc(display->drm, it__) {
 				   __entry->frame[it__->pipe] = intel_crtc_get_vblank_counter(it__);
 				   __entry->scanline[it__->pipe] = intel_get_crtc_scanline(it__);
 			   }
@@ -130,18 +130,18 @@ TRACE_EVENT(intel_pipe_crc,
 );
 
 TRACE_EVENT(intel_cpu_fifo_underrun,
-	    TP_PROTO(struct drm_i915_private *dev_priv, enum pipe pipe),
-	    TP_ARGS(dev_priv, pipe),
+	    TP_PROTO(struct intel_display *display, enum pipe pipe),
+	    TP_ARGS(display, pipe),
 
 	    TP_STRUCT__entry(
-			     __string(dev, __dev_name_i915(dev_priv))
+			     __string(dev, __dev_name_display(display))
 			     __field(enum pipe, pipe)
 			     __field(u32, frame)
 			     __field(u32, scanline)
 			     ),
 
 	    TP_fast_assign(
-			    struct intel_crtc *crtc = intel_crtc_for_pipe(dev_priv, pipe);
+			   struct intel_crtc *crtc = intel_crtc_for_pipe(display, pipe);
 			   __assign_str(dev);
 			   __entry->pipe = pipe;
 			   __entry->frame = intel_crtc_get_vblank_counter(crtc);
@@ -154,11 +154,11 @@ TRACE_EVENT(intel_cpu_fifo_underrun,
 );
 
 TRACE_EVENT(intel_pch_fifo_underrun,
-	    TP_PROTO(struct drm_i915_private *dev_priv, enum pipe pch_transcoder),
-	    TP_ARGS(dev_priv, pch_transcoder),
+	    TP_PROTO(struct intel_display *display, enum pipe pch_transcoder),
+	    TP_ARGS(display, pch_transcoder),
 
 	    TP_STRUCT__entry(
-			     __string(dev, __dev_name_i915(dev_priv))
+			     __string(dev, __dev_name_display(display))
 			     __field(enum pipe, pipe)
 			     __field(u32, frame)
 			     __field(u32, scanline)
@@ -166,7 +166,7 @@ TRACE_EVENT(intel_pch_fifo_underrun,
 
 	    TP_fast_assign(
 			   enum pipe pipe = pch_transcoder;
-			   struct intel_crtc *crtc = intel_crtc_for_pipe(dev_priv, pipe);
+			   struct intel_crtc *crtc = intel_crtc_for_pipe(display, pipe);
 			   __assign_str(dev);
 			   __entry->pipe = pipe;
 			   __entry->frame = intel_crtc_get_vblank_counter(crtc);
@@ -179,11 +179,11 @@ TRACE_EVENT(intel_pch_fifo_underrun,
 );
 
 TRACE_EVENT(intel_memory_cxsr,
-	    TP_PROTO(struct drm_i915_private *dev_priv, bool old, bool new),
-	    TP_ARGS(dev_priv, old, new),
+	    TP_PROTO(struct intel_display *display, bool old, bool new),
+	    TP_ARGS(display, old, new),
 
 	    TP_STRUCT__entry(
-			     __string(dev, __dev_name_i915(dev_priv))
+			     __string(dev, __dev_name_display(display))
 			     __array(u32, frame, 3)
 			     __array(u32, scanline, 3)
 			     __field(bool, old)
@@ -193,7 +193,7 @@ TRACE_EVENT(intel_memory_cxsr,
 	    TP_fast_assign(
 			   struct intel_crtc *crtc;
 			   __assign_str(dev);
-			   for_each_intel_crtc(&dev_priv->drm, crtc) {
+			   for_each_intel_crtc(display->drm, crtc) {
 				   __entry->frame[crtc->pipe] = intel_crtc_get_vblank_counter(crtc);
 				   __entry->scanline[crtc->pipe] = intel_get_crtc_scanline(crtc);
 			   }
@@ -458,7 +458,8 @@ TRACE_EVENT(intel_fbc_activate,
 			     ),
 
 	    TP_fast_assign(
-			   struct intel_crtc *crtc = intel_crtc_for_pipe(to_i915(plane->base.dev),
+			   struct intel_display *display = to_intel_display(plane->base.dev);
+			   struct intel_crtc *crtc = intel_crtc_for_pipe(display,
 									 plane->pipe);
 			   __assign_str(dev);
 			   __assign_str(name);
@@ -485,7 +486,8 @@ TRACE_EVENT(intel_fbc_deactivate,
 			     ),
 
 	    TP_fast_assign(
-			   struct intel_crtc *crtc = intel_crtc_for_pipe(to_i915(plane->base.dev),
+			   struct intel_display *display = to_intel_display(plane->base.dev);
+			   struct intel_crtc *crtc = intel_crtc_for_pipe(display,
 									 plane->pipe);
 			   __assign_str(dev);
 			   __assign_str(name);
@@ -512,7 +514,8 @@ TRACE_EVENT(intel_fbc_nuke,
 			     ),
 
 	    TP_fast_assign(
-			   struct intel_crtc *crtc = intel_crtc_for_pipe(to_i915(plane->base.dev),
+			   struct intel_display *display = to_intel_display(plane->base.dev);
+			   struct intel_crtc *crtc = intel_crtc_for_pipe(display,
 									 plane->pipe);
 			   __assign_str(dev);
 			   __assign_str(name);
@@ -652,12 +655,12 @@ TRACE_EVENT(intel_pipe_update_end,
 );
 
 TRACE_EVENT(intel_frontbuffer_invalidate,
-	    TP_PROTO(struct drm_i915_private *i915,
+	    TP_PROTO(struct intel_display *display,
 		     unsigned int frontbuffer_bits, unsigned int origin),
-	    TP_ARGS(i915, frontbuffer_bits, origin),
+	    TP_ARGS(display, frontbuffer_bits, origin),
 
 	    TP_STRUCT__entry(
-			     __string(dev, __dev_name_i915(i915))
+			     __string(dev, __dev_name_display(display))
 			     __field(unsigned int, frontbuffer_bits)
 			     __field(unsigned int, origin)
 			     ),
@@ -673,12 +676,12 @@ TRACE_EVENT(intel_frontbuffer_invalidate,
 );
 
 TRACE_EVENT(intel_frontbuffer_flush,
-	    TP_PROTO(struct drm_i915_private *i915,
+	    TP_PROTO(struct intel_display *display,
 		     unsigned int frontbuffer_bits, unsigned int origin),
-	    TP_ARGS(i915, frontbuffer_bits, origin),
+	    TP_ARGS(display, frontbuffer_bits, origin),
 
 	    TP_STRUCT__entry(
-			     __string(dev, __dev_name_i915(i915))
+			     __string(dev, __dev_name_display(display))
 			     __field(unsigned int, frontbuffer_bits)
 			     __field(unsigned int, origin)
 			     ),

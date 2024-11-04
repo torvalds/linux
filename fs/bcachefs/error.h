@@ -167,10 +167,11 @@ void bch2_flush_fsck_errs(struct bch_fs *);
 #define fsck_err_on(cond, c, _err_type, ...)				\
 	__fsck_err_on(cond, c, FSCK_CAN_FIX|FSCK_CAN_IGNORE, _err_type, __VA_ARGS__)
 
+enum bch_validate_flags;
 __printf(5, 6)
 int __bch2_bkey_fsck_err(struct bch_fs *,
 			 struct bkey_s_c,
-			 enum bch_fsck_flags,
+			 enum bch_validate_flags,
 			 enum bch_sb_error_id,
 			 const char *, ...);
 
@@ -180,11 +181,7 @@ int __bch2_bkey_fsck_err(struct bch_fs *,
  */
 #define bkey_fsck_err(c, _err_type, _err_msg, ...)			\
 do {									\
-	if ((flags & BCH_VALIDATE_silent)) {				\
-		ret = -BCH_ERR_fsck_delete_bkey;			\
-		goto fsck_err;						\
-	}								\
-	int _ret = __bch2_bkey_fsck_err(c, k, FSCK_CAN_FIX|FSCK_AUTOFIX,\
+	int _ret = __bch2_bkey_fsck_err(c, k, flags,			\
 				BCH_FSCK_ERR_##_err_type,		\
 				_err_msg, ##__VA_ARGS__);		\
 	if (_ret != -BCH_ERR_fsck_fix &&				\

@@ -20,7 +20,7 @@
 #include <linux/mmc/sdio.h>
 #include <linux/mmc/card.h>
 #include <linux/rtsx_pci.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <linux/pm_runtime.h>
 
 struct realtek_pci_sdmmc {

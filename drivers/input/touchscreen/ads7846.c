@@ -30,7 +30,7 @@
 #include <linux/spi/ads7846.h>
 #include <linux/regulator/consumer.h>
 #include <linux/module.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 /*
  * This code has been heavily tested on a Nokia 770, and lightly

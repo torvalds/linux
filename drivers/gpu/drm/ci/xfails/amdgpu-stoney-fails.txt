@@ -2,6 +2,7 @@ amdgpu/amd_abm@abm_enabled,Fail
 amdgpu/amd_abm@abm_gradual,Fail
 amdgpu/amd_abm@backlight_monotonic_abm,Fail
 amdgpu/amd_abm@backlight_monotonic_basic,Fail
+amdgpu/amd_abm@dpms_cycle,Fail
 amdgpu/amd_assr@assr-links,Fail
 amdgpu/amd_assr@assr-links-dpms,Fail
 amdgpu/amd_mall@static-screen,Crash
@@ -14,7 +15,6 @@ amdgpu/amd_plane@mpo-scale-p010,Fail
 amdgpu/amd_plane@mpo-scale-rgb,Crash
 amdgpu/amd_plane@mpo-swizzle-toggle,Fail
 amdgpu/amd_uvd_dec@amdgpu_uvd_decode,Fail
-dumb_buffer@invalid-bpp,Fail
 kms_addfb_basic@bad-pitch-65536,Fail
 kms_addfb_basic@bo-too-small,Fail
 kms_addfb_basic@too-high,Fail

@@ -87,16 +87,6 @@ int amdgpu_gfx_me_queue_to_bit(struct amdgpu_device *adev,
 	return bit;
 }
 
-void amdgpu_gfx_bit_to_me_queue(struct amdgpu_device *adev, int bit,
-				int *me, int *pipe, int *queue)
-{
-	*queue = bit % adev->gfx.me.num_queue_per_pipe;
-	*pipe = (bit / adev->gfx.me.num_queue_per_pipe)
-		% adev->gfx.me.num_pipe_per_me;
-	*me = (bit / adev->gfx.me.num_queue_per_pipe)
-		/ adev->gfx.me.num_pipe_per_me;
-}
-
 bool amdgpu_gfx_is_me_queue_enabled(struct amdgpu_device *adev,
 				    int me, int pipe, int queue)
 {
@@ -415,7 +405,7 @@ int amdgpu_gfx_mqd_sw_init(struct amdgpu_device *adev,
 		}
 
 		/* prepare MQD backup */
-		kiq->mqd_backup = kmalloc(mqd_size, GFP_KERNEL);
+		kiq->mqd_backup = kzalloc(mqd_size, GFP_KERNEL);
 		if (!kiq->mqd_backup) {
 			dev_warn(adev->dev,
 				 "no memory to create MQD backup for ring %s\n", ring->name);
@@ -438,7 +428,7 @@ int amdgpu_gfx_mqd_sw_init(struct amdgpu_device *adev,
 
 				ring->mqd_size = mqd_size;
 				/* prepare MQD backup */
-				adev->gfx.me.mqd_backup[i] = kmalloc(mqd_size, GFP_KERNEL);
+				adev->gfx.me.mqd_backup[i] = kzalloc(mqd_size, GFP_KERNEL);
 				if (!adev->gfx.me.mqd_backup[i]) {
 					dev_warn(adev->dev, "no memory to create MQD backup for ring %s\n", ring->name);
 					return -ENOMEM;
@@ -462,7 +452,7 @@ int amdgpu_gfx_mqd_sw_init(struct amdgpu_device *adev,
 
 			ring->mqd_size = mqd_size;
 			/* prepare MQD backup */
-			adev->gfx.mec.mqd_backup[j] = kmalloc(mqd_size, GFP_KERNEL);
+			adev->gfx.mec.mqd_backup[j] = kzalloc(mqd_size, GFP_KERNEL);
 			if (!adev->gfx.mec.mqd_backup[j]) {
 				dev_warn(adev->dev, "no memory to create MQD backup for ring %s\n", ring->name);
 				return -ENOMEM;
@@ -1363,35 +1353,35 @@ static ssize_t amdgpu_gfx_set_compute_partition(struct device *dev,
 	return count;
 }
 
+static const char *xcp_desc[] = {
+	[AMDGPU_SPX_PARTITION_MODE] = "SPX",
+	[AMDGPU_DPX_PARTITION_MODE] = "DPX",
+	[AMDGPU_TPX_PARTITION_MODE] = "TPX",
+	[AMDGPU_QPX_PARTITION_MODE] = "QPX",
+	[AMDGPU_CPX_PARTITION_MODE] = "CPX",
+};
+
 static ssize_t amdgpu_gfx_get_available_compute_partition(struct device *dev,
 						struct device_attribute *addr,
 						char *buf)
 {
 	struct drm_device *ddev = dev_get_drvdata(dev);
 	struct amdgpu_device *adev = drm_to_adev(ddev);
-	char *supported_partition;
+	struct amdgpu_xcp_mgr *xcp_mgr = adev->xcp_mgr;
+	int size = 0, mode;
+	char *sep = "";
 
-	/* TBD */
-	switch (NUM_XCC(adev->gfx.xcc_mask)) {
-	case 8:
-		supported_partition = "SPX, DPX, QPX, CPX";
-		break;
-	case 6:
-		supported_partition = "SPX, TPX, CPX";
-		break;
-	case 4:
-		supported_partition = "SPX, DPX, CPX";
-		break;
-	/* this seems only existing in emulation phase */
-	case 2:
-		supported_partition = "SPX, CPX";
-		break;
-	default:
-		supported_partition = "Not supported";
-		break;
+	if (!xcp_mgr || !xcp_mgr->avail_xcp_modes)
+		return sysfs_emit(buf, "Not supported\n");
+
+	for_each_inst(mode, xcp_mgr->avail_xcp_modes) {
+		size += sysfs_emit_at(buf, size, "%s%s", sep, xcp_desc[mode]);
+		sep = ", ";
 	}
 
-	return sysfs_emit(buf, "%s\n", supported_partition);
+	size += sysfs_emit_at(buf, size, "\n");
+
+	return size;
 }
 
 static int amdgpu_gfx_run_cleaner_shader_job(struct amdgpu_ring *ring)
@@ -1614,32 +1604,55 @@ static DEVICE_ATTR(available_compute_partition, 0444,
 
 int amdgpu_gfx_sysfs_init(struct amdgpu_device *adev)
 {
+	struct amdgpu_xcp_mgr *xcp_mgr = adev->xcp_mgr;
+	bool xcp_switch_supported;
 	int r;
+
+	if (!xcp_mgr)
+		return 0;
+
+	xcp_switch_supported =
+		(xcp_mgr->funcs && xcp_mgr->funcs->switch_partition_mode);
+
+	if (!xcp_switch_supported)
+		dev_attr_current_compute_partition.attr.mode &=
+			~(S_IWUSR | S_IWGRP | S_IWOTH);
 
 	r = device_create_file(adev->dev, &dev_attr_current_compute_partition);
 	if (r)
 		return r;
 
-	r = device_create_file(adev->dev, &dev_attr_available_compute_partition);
+	if (xcp_switch_supported)
+		r = device_create_file(adev->dev,
+				       &dev_attr_available_compute_partition);
 
 	return r;
 }
 
 void amdgpu_gfx_sysfs_fini(struct amdgpu_device *adev)
 {
+	struct amdgpu_xcp_mgr *xcp_mgr = adev->xcp_mgr;
+	bool xcp_switch_supported;
+
+	if (!xcp_mgr)
+		return;
+
+	xcp_switch_supported =
+		(xcp_mgr->funcs && xcp_mgr->funcs->switch_partition_mode);
 	device_remove_file(adev->dev, &dev_attr_current_compute_partition);
-	device_remove_file(adev->dev, &dev_attr_available_compute_partition);
+
+	if (xcp_switch_supported)
+		device_remove_file(adev->dev,
+				   &dev_attr_available_compute_partition);
 }
 
 int amdgpu_gfx_sysfs_isolation_shader_init(struct amdgpu_device *adev)
 {
 	int r;
 
-	if (!amdgpu_sriov_vf(adev)) {
-		r = device_create_file(adev->dev, &dev_attr_enforce_isolation);
-		if (r)
-			return r;
-	}
+	r = device_create_file(adev->dev, &dev_attr_enforce_isolation);
+	if (r)
+		return r;
 
 	r = device_create_file(adev->dev, &dev_attr_run_cleaner_shader);
 	if (r)
@@ -1650,8 +1663,7 @@ int amdgpu_gfx_sysfs_isolation_shader_init(struct amdgpu_device *adev)
 
 void amdgpu_gfx_sysfs_isolation_shader_fini(struct amdgpu_device *adev)
 {
-	if (!amdgpu_sriov_vf(adev))
-		device_remove_file(adev->dev, &dev_attr_enforce_isolation);
+	device_remove_file(adev->dev, &dev_attr_enforce_isolation);
 	device_remove_file(adev->dev, &dev_attr_run_cleaner_shader);
 }
 

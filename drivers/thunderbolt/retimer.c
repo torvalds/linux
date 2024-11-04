@@ -516,7 +516,7 @@ int tb_retimer_scan(struct tb_port *port, bool add)
 	 */
 	tb_retimer_set_inbound_sbtx(port);
 
-	for (i = 1; i <= TB_MAX_RETIMER_INDEX; i++) {
+	for (max = 1, i = 1; i <= TB_MAX_RETIMER_INDEX; i++) {
 		/*
 		 * Last retimer is true only for the last on-board
 		 * retimer (the one connected directly to the Type-C
@@ -527,9 +527,10 @@ int tb_retimer_scan(struct tb_port *port, bool add)
 			last_idx = i;
 		else if (ret < 0)
 			break;
+
+		max = i;
 	}
 
-	max = i;
 	ret = 0;
 
 	/* Add retimers if they do not exist already */

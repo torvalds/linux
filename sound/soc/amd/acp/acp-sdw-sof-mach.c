@@ -400,9 +400,6 @@ err_dai:
 	return ret;
 }
 
-/* SoC card */
-static const char sdw_card_long_name[] = "AMD Soundwire SOF";
-
 static int mc_probe(struct platform_device *pdev)
 {
 	struct snd_soc_acpi_mach *mach = dev_get_platdata(&pdev->dev);
@@ -462,8 +459,6 @@ static int mc_probe(struct platform_device *pdev)
 					  " cfg-amp:%d", amp_num);
 	if (!card->components)
 		return -ENOMEM;
-
-	card->long_name = sdw_card_long_name;
 
 	/* Register the card */
 	ret = devm_snd_soc_register_card(card->dev, card);

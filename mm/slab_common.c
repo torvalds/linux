@@ -508,8 +508,9 @@ void kmem_cache_destroy(struct kmem_cache *s)
 	kasan_cache_shutdown(s);
 
 	err = __kmem_cache_shutdown(s);
-	WARN(err, "%s %s: Slab cache still has objects when called from %pS",
-	     __func__, s->name, (void *)_RET_IP_);
+	if (!slab_in_kunit_test())
+		WARN(err, "%s %s: Slab cache still has objects when called from %pS",
+		     __func__, s->name, (void *)_RET_IP_);
 
 	list_del(&s->list);
 
@@ -1208,7 +1209,7 @@ __do_krealloc(const void *p, size_t new_size, gfp_t flags)
 		/* Zero out spare memory. */
 		if (want_init_on_alloc(flags)) {
 			kasan_disable_current();
-			memset((void *)p + new_size, 0, ks - new_size);
+			memset(kasan_reset_tag(p) + new_size, 0, ks - new_size);
 			kasan_enable_current();
 		}
 

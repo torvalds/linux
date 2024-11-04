@@ -570,6 +570,14 @@ struct dmub_notification {
 	};
 };
 
+/* enum dmub_ips_mode - IPS mode identifier */
+enum dmub_ips_mode {
+	DMUB_IPS_MODE_IPS1_MAX		= 0,
+	DMUB_IPS_MODE_IPS2,
+	DMUB_IPS_MODE_IPS1_RCG,
+	DMUB_IPS_MODE_IPS1_ONO2_ON
+};
+
 /**
  * DMUB firmware version helper macro - useful for checking if the version
  * of a firmware to know if feature or functionality is supported or present.

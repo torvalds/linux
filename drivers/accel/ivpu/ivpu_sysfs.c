@@ -6,6 +6,8 @@
 #include <linux/device.h>
 #include <linux/err.h>
 
+#include "ivpu_drv.h"
+#include "ivpu_fw.h"
 #include "ivpu_hw.h"
 #include "ivpu_sysfs.h"
 
@@ -39,8 +41,30 @@ npu_busy_time_us_show(struct device *dev, struct device_attribute *attr, char *b
 
 static DEVICE_ATTR_RO(npu_busy_time_us);
 
+/**
+ * DOC: sched_mode
+ *
+ * The sched_mode is used to report current NPU scheduling mode.
+ *
+ * It returns following strings:
+ * - "HW"		- Hardware Scheduler mode
+ * - "OS"		- Operating System Scheduler mode
+ *
+ */
+static ssize_t
+sched_mode_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct drm_device *drm = dev_get_drvdata(dev);
+	struct ivpu_device *vdev = to_ivpu_device(drm);
+
+	return sysfs_emit(buf, "%s\n", vdev->fw->sched_mode ? "HW" : "OS");
+}
+
+static DEVICE_ATTR_RO(sched_mode);
+
 static struct attribute *ivpu_dev_attrs[] = {
 	&dev_attr_npu_busy_time_us.attr,
+	&dev_attr_sched_mode.attr,
 	NULL,
 };
 

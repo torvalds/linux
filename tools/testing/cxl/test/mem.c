@@ -9,7 +9,7 @@
 #include <linux/sizes.h>
 #include <linux/bits.h>
 #include <cxl/mailbox.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <crypto/sha2.h>
 #include <cxlmem.h>
 
@@ -1673,6 +1673,7 @@ static struct platform_driver cxl_mock_mem_driver = {
 		.name = KBUILD_MODNAME,
 		.dev_groups = cxl_mock_mem_groups,
 		.groups = cxl_mock_mem_core_groups,
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 	},
 };
 
