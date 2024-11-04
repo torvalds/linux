@@ -103,10 +103,10 @@ static int sctp_inet6addr_event(struct notifier_block *this, unsigned long ev,
 			    ipv6_addr_equal(&addr->a.v6.sin6_addr,
 					    &ifa->addr) &&
 			    addr->a.v6.sin6_scope_id == ifa->idev->dev->ifindex) {
-				sctp_addr_wq_mgmt(net, addr, SCTP_ADDR_DEL);
 				found = 1;
 				addr->valid = 0;
 				list_del_rcu(&addr->list);
+				sctp_addr_wq_mgmt(net, addr, SCTP_ADDR_DEL);
 				break;
 			}
 		}
