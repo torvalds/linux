@@ -467,18 +467,26 @@ __XFS_HAS_FEAT(nouuid, NOUUID)
  */
 #define XFS_OPSTATE_BLOCKGC_ENABLED	6
 
+/* Kernel has logged a warning about pNFS being used on this fs. */
+#define XFS_OPSTATE_WARNED_PNFS		7
 /* Kernel has logged a warning about online fsck being used on this fs. */
-#define XFS_OPSTATE_WARNED_SCRUB	7
+#define XFS_OPSTATE_WARNED_SCRUB	8
 /* Kernel has logged a warning about shrink being used on this fs. */
-#define XFS_OPSTATE_WARNED_SHRINK	8
+#define XFS_OPSTATE_WARNED_SHRINK	9
 /* Kernel has logged a warning about logged xattr updates being used. */
-#define XFS_OPSTATE_WARNED_LARP		9
+#define XFS_OPSTATE_WARNED_LARP		10
 /* Mount time quotacheck is running */
-#define XFS_OPSTATE_QUOTACHECK_RUNNING	10
+#define XFS_OPSTATE_QUOTACHECK_RUNNING	11
 /* Do we want to clear log incompat flags? */
-#define XFS_OPSTATE_UNSET_LOG_INCOMPAT	11
+#define XFS_OPSTATE_UNSET_LOG_INCOMPAT	12
 /* Filesystem can use logged extended attributes */
-#define XFS_OPSTATE_USE_LARP		12
+#define XFS_OPSTATE_USE_LARP		13
+/* Kernel has logged a warning about blocksize > pagesize on this fs. */
+#define XFS_OPSTATE_WARNED_LBS		14
+/* Kernel has logged a warning about exchange-range being used on this fs. */
+#define XFS_OPSTATE_WARNED_EXCHRANGE	15
+/* Kernel has logged a warning about parent pointers being used on this fs. */
+#define XFS_OPSTATE_WARNED_PPTR		16
 
 #define __XFS_IS_OPSTATE(name, NAME) \
 static inline bool xfs_is_ ## name (struct xfs_mount *mp) \

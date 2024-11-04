@@ -1657,9 +1657,7 @@ xfs_fs_fill_super(
 			goto out_free_sb;
 		}
 
-		xfs_warn(mp,
-"EXPERIMENTAL: V5 Filesystem with Large Block Size (%d bytes) enabled.",
-			mp->m_sb.sb_blocksize);
+		xfs_warn_experimental(mp, XFS_EXPERIMENTAL_LBS);
 	}
 
 	/* Ensure this filesystem fits in the page cache limits */
@@ -1755,12 +1753,10 @@ xfs_fs_fill_super(
 	}
 
 	if (xfs_has_exchange_range(mp))
-		xfs_warn(mp,
-	"EXPERIMENTAL exchange-range feature enabled. Use at your own risk!");
+		xfs_warn_experimental(mp, XFS_EXPERIMENTAL_EXCHRANGE);
 
 	if (xfs_has_parent(mp))
-		xfs_warn(mp,
-	"EXPERIMENTAL parent pointer feature enabled. Use at your own risk!");
+		xfs_warn_experimental(mp, XFS_EXPERIMENTAL_PPTR);
 
 	error = xfs_mountfs(mp);
 	if (error)
