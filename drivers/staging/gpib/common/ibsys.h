@@ -16,6 +16,9 @@
 #include <asm/irq.h>
 #include <asm/dma.h>
 
+#define MAX_GPIB_PRIMARY_ADDRESS 30
+#define MAX_GPIB_SECONDARY_ADDRESS 31
+
 int gpib_allocate_board(gpib_board_t *board);
 void gpib_deallocate_board(gpib_board_t *board);
 

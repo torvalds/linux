@@ -479,7 +479,7 @@ int ibsre(gpib_board_t *board, int enable)
  */
 int ibpad(gpib_board_t *board, unsigned int addr)
 {
-	if (addr > 30) {
+	if (addr > MAX_GPIB_PRIMARY_ADDRESS) {
 		pr_err("gpib: invalid primary address %u\n", addr);
 		return -1;
 	}
@@ -498,8 +498,8 @@ int ibpad(gpib_board_t *board, unsigned int addr)
  */
 int ibsad(gpib_board_t *board, int addr)
 {
-	if (addr > 30) {
-		pr_err("gpib: invalid secondary address %i, must be 0-30\n", addr);
+	if (addr > MAX_GPIB_SECONDARY_ADDRESS) {
+		pr_err("gpib: invalid secondary address %i\n", addr);
 		return -1;
 	}
 	board->sad = addr;
