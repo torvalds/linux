@@ -193,7 +193,6 @@ struct ad7173_channel_config {
 };
 
 struct ad7173_channel {
-	unsigned int chan_reg;
 	unsigned int ain;
 	struct ad7173_channel_config cfg;
 };
@@ -1316,7 +1315,6 @@ static int ad7173_fw_parse_channel_config(struct iio_dev *indio_dev)
 		chan->address = chan_index;
 		chan->scan_index = chan_index;
 		chan->channel = ain[0];
-		chan_st_priv->chan_reg = chan_index;
 		chan_st_priv->cfg.input_buf = st->info->has_input_buf;
 		chan_st_priv->cfg.odr = 0;
 
