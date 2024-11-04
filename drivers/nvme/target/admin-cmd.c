@@ -71,6 +71,32 @@ static void nvmet_execute_get_log_page_error(struct nvmet_req *req)
 	nvmet_req_complete(req, 0);
 }
 
+static void nvmet_execute_get_supported_log_pages(struct nvmet_req *req)
+{
+	struct nvme_supported_log *logs;
+	u16 status;
+
+	logs = kzalloc(sizeof(*logs), GFP_KERNEL);
+	if (!logs) {
+		status = NVME_SC_INTERNAL;
+		goto out;
+	}
+
+	logs->lids[NVME_LOG_SUPPORTED] = cpu_to_le32(NVME_LIDS_LSUPP);
+	logs->lids[NVME_LOG_ERROR] = cpu_to_le32(NVME_LIDS_LSUPP);
+	logs->lids[NVME_LOG_SMART] = cpu_to_le32(NVME_LIDS_LSUPP);
+	logs->lids[NVME_LOG_FW_SLOT] = cpu_to_le32(NVME_LIDS_LSUPP);
+	logs->lids[NVME_LOG_CHANGED_NS] = cpu_to_le32(NVME_LIDS_LSUPP);
+	logs->lids[NVME_LOG_CMD_EFFECTS] = cpu_to_le32(NVME_LIDS_LSUPP);
+	logs->lids[NVME_LOG_ANA] = cpu_to_le32(NVME_LIDS_LSUPP);
+	logs->lids[NVME_LOG_RESERVATION] = cpu_to_le32(NVME_LIDS_LSUPP);
+
+	status = nvmet_copy_to_sgl(req, 0, logs, sizeof(*logs));
+	kfree(logs);
+out:
+	nvmet_req_complete(req, status);
+}
+
 static u16 nvmet_get_smart_log_nsid(struct nvmet_req *req,
 		struct nvme_smart_log *slog)
 {
@@ -327,6 +353,8 @@ static void nvmet_execute_get_log_page(struct nvmet_req *req)
 		return;
 
 	switch (req->cmd->get_log_page.lid) {
+	case NVME_LOG_SUPPORTED:
+		return nvmet_execute_get_supported_log_pages(req);
 	case NVME_LOG_ERROR:
 		return nvmet_execute_get_log_page_error(req);
 	case NVME_LOG_SMART:

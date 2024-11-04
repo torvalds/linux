@@ -1245,6 +1245,7 @@ enum {
 	NVME_FEAT_WRITE_PROTECT	= 0x84,
 	NVME_FEAT_VENDOR_START	= 0xC0,
 	NVME_FEAT_VENDOR_END	= 0xFF,
+	NVME_LOG_SUPPORTED	= 0x00,
 	NVME_LOG_ERROR		= 0x01,
 	NVME_LOG_SMART		= 0x02,
 	NVME_LOG_FW_SLOT	= 0x03,
@@ -1260,6 +1261,14 @@ enum {
 	NVME_FWACT_REPL		= (0 << 3),
 	NVME_FWACT_REPL_ACTV	= (1 << 3),
 	NVME_FWACT_ACTV		= (2 << 3),
+};
+
+struct nvme_supported_log {
+	__le32	lids[256];
+};
+
+enum {
+	NVME_LIDS_LSUPP	= 1 << 0,
 };
 
 /* NVMe Namespace Write Protect State */
