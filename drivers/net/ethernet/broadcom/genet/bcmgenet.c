@@ -1144,14 +1144,14 @@ static int bcmgenet_get_sset_count(struct net_device *dev, int string_set)
 static void bcmgenet_get_strings(struct net_device *dev, u32 stringset,
 				 u8 *data)
 {
+	const char *str;
 	int i;
 
 	switch (stringset) {
 	case ETH_SS_STATS:
 		for (i = 0; i < BCMGENET_STATS_LEN; i++) {
-			memcpy(data + i * ETH_GSTRING_LEN,
-			       bcmgenet_gstrings_stats[i].stat_string,
-			       ETH_GSTRING_LEN);
+			str = bcmgenet_gstrings_stats[i].stat_string;
+			ethtool_puts(&data, str);
 		}
 		break;
 	}

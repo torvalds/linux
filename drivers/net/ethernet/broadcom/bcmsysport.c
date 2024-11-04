@@ -346,32 +346,22 @@ static void bcm_sysport_get_strings(struct net_device *dev,
 {
 	struct bcm_sysport_priv *priv = netdev_priv(dev);
 	const struct bcm_sysport_stats *s;
-	char buf[128];
-	int i, j;
+	int i;
 
 	switch (stringset) {
 	case ETH_SS_STATS:
-		for (i = 0, j = 0; i < BCM_SYSPORT_STATS_LEN; i++) {
+		for (i = 0; i < BCM_SYSPORT_STATS_LEN; i++) {
 			s = &bcm_sysport_gstrings_stats[i];
 			if (priv->is_lite &&
 			    !bcm_sysport_lite_stat_valid(s->type))
 				continue;
 
-			memcpy(data + j * ETH_GSTRING_LEN, s->stat_string,
-			       ETH_GSTRING_LEN);
-			j++;
+			ethtool_puts(&data, s->stat_string);
 		}
 
 		for (i = 0; i < dev->num_tx_queues; i++) {
-			snprintf(buf, sizeof(buf), "txq%d_packets", i);
-			memcpy(data + j * ETH_GSTRING_LEN, buf,
-			       ETH_GSTRING_LEN);
-			j++;
-
-			snprintf(buf, sizeof(buf), "txq%d_bytes", i);
-			memcpy(data + j * ETH_GSTRING_LEN, buf,
-			       ETH_GSTRING_LEN);
-			j++;
+			ethtool_sprintf(&data, "txq%d_packets", i);
+			ethtool_sprintf(&data, "txq%d_bytes", i);
 		}
 		break;
 	default:

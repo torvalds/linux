@@ -101,14 +101,14 @@ static int bcmasp_get_sset_count(struct net_device *dev, int string_set)
 static void bcmasp_get_strings(struct net_device *dev, u32 stringset,
 			       u8 *data)
 {
+	const char *str;
 	unsigned int i;
 
 	switch (stringset) {
 	case ETH_SS_STATS:
 		for (i = 0; i < BCMASP_STATS_LEN; i++) {
-			memcpy(data + i * ETH_GSTRING_LEN,
-			       bcmasp_gstrings_stats[i].stat_string,
-			       ETH_GSTRING_LEN);
+			str = bcmasp_gstrings_stats[i].stat_string;
+			ethtool_puts(&data, str);
 		}
 		break;
 	default:

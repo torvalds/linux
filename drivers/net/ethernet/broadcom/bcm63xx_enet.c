@@ -1339,14 +1339,14 @@ static int bcm_enet_get_sset_count(struct net_device *netdev,
 static void bcm_enet_get_strings(struct net_device *netdev,
 				 u32 stringset, u8 *data)
 {
+	const char *str;
 	int i;
 
 	switch (stringset) {
 	case ETH_SS_STATS:
 		for (i = 0; i < BCM_ENET_STATS_LEN; i++) {
-			memcpy(data + i * ETH_GSTRING_LEN,
-			       bcm_enet_gstrings_stats[i].stat_string,
-			       ETH_GSTRING_LEN);
+			str = bcm_enet_gstrings_stats[i].stat_string;
+			ethtool_puts(&data, str);
 		}
 		break;
 	}
@@ -2503,14 +2503,14 @@ static const struct bcm_enet_stats bcm_enetsw_gstrings_stats[] = {
 static void bcm_enetsw_get_strings(struct net_device *netdev,
 				   u32 stringset, u8 *data)
 {
+	const char *str;
 	int i;
 
 	switch (stringset) {
 	case ETH_SS_STATS:
 		for (i = 0; i < BCM_ENETSW_STATS_LEN; i++) {
-			memcpy(data + i * ETH_GSTRING_LEN,
-			       bcm_enetsw_gstrings_stats[i].stat_string,
-			       ETH_GSTRING_LEN);
+			str = bcm_enetsw_gstrings_stats[i].stat_string;
+			ethtool_puts(&data, str);
 		}
 		break;
 	}
