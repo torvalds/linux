@@ -410,7 +410,9 @@ EXPORT_SYMBOL_GPL(drm_of_lvds_get_dual_link_pixel_order);
  * Return:
  * * MEDIA_BUS_FMT_RGB666_1X7X3_SPWG - data-mapping is "jeida-18"
  * * MEDIA_BUS_FMT_RGB888_1X7X4_JEIDA - data-mapping is "jeida-24"
+ * * MEDIA_BUS_FMT_RGB101010_1X7X5_JEIDA - data-mapping is "jeida-30"
  * * MEDIA_BUS_FMT_RGB888_1X7X4_SPWG - data-mapping is "vesa-24"
+ * * MEDIA_BUS_FMT_RGB101010_1X7X5_SPWG - data-mapping is "vesa-30"
  * * -EINVAL - the "data-mapping" property is unsupported
  * * -ENODEV - the "data-mapping" property is missing
  */
@@ -427,8 +429,12 @@ int drm_of_lvds_get_data_mapping(const struct device_node *port)
 		return MEDIA_BUS_FMT_RGB666_1X7X3_SPWG;
 	if (!strcmp(mapping, "jeida-24"))
 		return MEDIA_BUS_FMT_RGB888_1X7X4_JEIDA;
+	if (!strcmp(mapping, "jeida-30"))
+		return MEDIA_BUS_FMT_RGB101010_1X7X5_JEIDA;
 	if (!strcmp(mapping, "vesa-24"))
 		return MEDIA_BUS_FMT_RGB888_1X7X4_SPWG;
+	if (!strcmp(mapping, "vesa-30"))
+		return MEDIA_BUS_FMT_RGB101010_1X7X5_SPWG;
 
 	return -EINVAL;
 }
