@@ -4215,31 +4215,34 @@ DEFINE_FS_CORRUPT_EVENT(xfs_rt_mark_corrupt);
 DEFINE_FS_CORRUPT_EVENT(xfs_rt_mark_healthy);
 DEFINE_FS_CORRUPT_EVENT(xfs_rt_unfixed_corruption);
 
-DECLARE_EVENT_CLASS(xfs_ag_corrupt_class,
-	TP_PROTO(const struct xfs_perag *pag, unsigned int flags),
-	TP_ARGS(pag, flags),
+DECLARE_EVENT_CLASS(xfs_group_corrupt_class,
+	TP_PROTO(const struct xfs_group *xg, unsigned int flags),
+	TP_ARGS(xg, flags),
 	TP_STRUCT__entry(
 		__field(dev_t, dev)
-		__field(xfs_agnumber_t, agno)
+		__field(enum xfs_group_type, type)
+		__field(uint32_t, index)
 		__field(unsigned int, flags)
 	),
 	TP_fast_assign(
-		__entry->dev = pag_mount(pag)->m_super->s_dev;
-		__entry->agno = pag_agno(pag);
+		__entry->dev = xg->xg_mount->m_super->s_dev;
+		__entry->type = xg->xg_type;
+		__entry->index = xg->xg_gno;
 		__entry->flags = flags;
 	),
-	TP_printk("dev %d:%d agno 0x%x flags 0x%x",
+	TP_printk("dev %d:%d %sno 0x%x flags 0x%x",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
-		  __entry->agno, __entry->flags)
+		  __print_symbolic(__entry->type, XG_TYPE_STRINGS),
+		  __entry->index, __entry->flags)
 );
-#define DEFINE_AG_CORRUPT_EVENT(name)	\
-DEFINE_EVENT(xfs_ag_corrupt_class, name,	\
-	TP_PROTO(const struct xfs_perag *pag, unsigned int flags), \
-	TP_ARGS(pag, flags))
-DEFINE_AG_CORRUPT_EVENT(xfs_ag_mark_sick);
-DEFINE_AG_CORRUPT_EVENT(xfs_ag_mark_corrupt);
-DEFINE_AG_CORRUPT_EVENT(xfs_ag_mark_healthy);
-DEFINE_AG_CORRUPT_EVENT(xfs_ag_unfixed_corruption);
+#define DEFINE_GROUP_CORRUPT_EVENT(name)	\
+DEFINE_EVENT(xfs_group_corrupt_class, name,	\
+	TP_PROTO(const struct xfs_group *xg, unsigned int flags), \
+	TP_ARGS(xg, flags))
+DEFINE_GROUP_CORRUPT_EVENT(xfs_group_mark_sick);
+DEFINE_GROUP_CORRUPT_EVENT(xfs_group_mark_corrupt);
+DEFINE_GROUP_CORRUPT_EVENT(xfs_group_mark_healthy);
+DEFINE_GROUP_CORRUPT_EVENT(xfs_group_unfixed_corruption);
 
 DECLARE_EVENT_CLASS(xfs_inode_corrupt_class,
 	TP_PROTO(struct xfs_inode *ip, unsigned int flags),

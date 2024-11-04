@@ -38,9 +38,10 @@ xfs_health_unmount(
 
 	/* Measure AG corruption levels. */
 	while ((pag = xfs_perag_next(mp, pag))) {
-		xfs_ag_measure_sickness(pag, &sick, &checked);
+		xfs_group_measure_sickness(pag_group(pag), &sick, &checked);
 		if (sick) {
-			trace_xfs_ag_unfixed_corruption(pag, sick);
+			trace_xfs_group_unfixed_corruption(pag_group(pag),
+					sick);
 			warn = true;
 		}
 	}
@@ -227,61 +228,65 @@ xfs_agno_mark_sick(
 
 /* Mark unhealthy per-ag metadata. */
 void
-xfs_ag_mark_sick(
-	struct xfs_perag	*pag,
+xfs_group_mark_sick(
+	struct xfs_group	*xg,
 	unsigned int		mask)
 {
 	ASSERT(!(mask & ~XFS_SICK_AG_ALL));
-	trace_xfs_ag_mark_sick(pag, mask);
+	trace_xfs_group_mark_sick(xg, mask);
 
-	spin_lock(&pag->pag_state_lock);
-	pag->pag_sick |= mask;
-	spin_unlock(&pag->pag_state_lock);
+	spin_lock(&xg->xg_state_lock);
+	xg->xg_sick |= mask;
+	spin_unlock(&xg->xg_state_lock);
 }
 
-/* Mark per-ag metadata as having been checked and found unhealthy by fsck. */
+/*
+ * Mark per-group metadata as having been checked and found unhealthy by fsck.
+ */
 void
-xfs_ag_mark_corrupt(
-	struct xfs_perag	*pag,
+xfs_group_mark_corrupt(
+	struct xfs_group	*xg,
 	unsigned int		mask)
 {
 	ASSERT(!(mask & ~XFS_SICK_AG_ALL));
-	trace_xfs_ag_mark_corrupt(pag, mask);
+	trace_xfs_group_mark_corrupt(xg, mask);
 
-	spin_lock(&pag->pag_state_lock);
-	pag->pag_sick |= mask;
-	pag->pag_checked |= mask;
-	spin_unlock(&pag->pag_state_lock);
+	spin_lock(&xg->xg_state_lock);
+	xg->xg_sick |= mask;
+	xg->xg_checked |= mask;
+	spin_unlock(&xg->xg_state_lock);
 }
 
-/* Mark per-ag metadata ok. */
+/*
+ * Mark per-group metadata ok.
+ */
 void
-xfs_ag_mark_healthy(
-	struct xfs_perag	*pag,
+xfs_group_mark_healthy(
+	struct xfs_group	*xg,
 	unsigned int		mask)
 {
 	ASSERT(!(mask & ~XFS_SICK_AG_ALL));
-	trace_xfs_ag_mark_healthy(pag, mask);
+	trace_xfs_group_mark_healthy(xg, mask);
 
-	spin_lock(&pag->pag_state_lock);
-	pag->pag_sick &= ~mask;
-	if (!(pag->pag_sick & XFS_SICK_AG_PRIMARY))
-		pag->pag_sick &= ~XFS_SICK_AG_SECONDARY;
-	pag->pag_checked |= mask;
-	spin_unlock(&pag->pag_state_lock);
+	spin_lock(&xg->xg_state_lock);
+	xg->xg_sick &= ~mask;
+	if (!(xg->xg_sick & XFS_SICK_AG_PRIMARY))
+		xg->xg_sick &= ~XFS_SICK_AG_SECONDARY;
+	xg->xg_checked |= mask;
+	spin_unlock(&xg->xg_state_lock);
 }
 
 /* Sample which per-ag metadata are unhealthy. */
 void
-xfs_ag_measure_sickness(
-	struct xfs_perag	*pag,
+xfs_group_measure_sickness(
+	struct xfs_group	*xg,
 	unsigned int		*sick,
 	unsigned int		*checked)
 {
-	spin_lock(&pag->pag_state_lock);
-	*sick = pag->pag_sick;
-	*checked = pag->pag_checked;
-	spin_unlock(&pag->pag_state_lock);
+	spin_lock(&xg->xg_state_lock);
+	*sick = xg->xg_sick;
+	*checked = xg->xg_checked;
+	spin_unlock(&xg->xg_state_lock);
 }
 
 /* Mark the unhealthy parts of an inode. */
@@ -447,7 +452,7 @@ xfs_ag_geom_health(
 	ageo->ag_sick = 0;
 	ageo->ag_checked = 0;
 
-	xfs_ag_measure_sickness(pag, &sick, &checked);
+	xfs_group_measure_sickness(pag_group(pag), &sick, &checked);
 	for (m = ag_map; m->sick_mask; m++) {
 		if (checked & m->sick_mask)
 			ageo->ag_checked |= m->ioctl_mask;
