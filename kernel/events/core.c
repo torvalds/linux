@@ -6698,18 +6698,24 @@ static int perf_mmap(struct file *file, struct vm_area_struct *vma)
 		return ret;
 
 	vma_size = vma->vm_end - vma->vm_start;
+	nr_pages = vma_size / PAGE_SIZE;
+
+	if (nr_pages > INT_MAX)
+		return -ENOMEM;
+
+	if (vma_size != PAGE_SIZE * nr_pages)
+		return -EINVAL;
+
+	user_extra = nr_pages;
 
 	if (vma->vm_pgoff == 0) {
-		nr_pages = (vma_size / PAGE_SIZE) - 1;
+		nr_pages -= 1;
 
 		/*
 		 * If we have rb pages ensure they're a power-of-two number, so we
 		 * can do bitmasks instead of modulo.
 		 */
 		if (nr_pages != 0 && !is_power_of_2(nr_pages))
-			return -EINVAL;
-
-		if (vma_size != PAGE_SIZE * (1 + nr_pages))
 			return -EINVAL;
 
 		WARN_ON_ONCE(event->ctx->parent_ctx);
@@ -6735,8 +6741,6 @@ again:
 			rb = event->rb;
 			goto unlock;
 		}
-
-		user_extra = nr_pages + 1;
 	} else {
 		/*
 		 * AUX area mapping: if rb->aux_nr_pages != 0, it's already
@@ -6747,10 +6751,6 @@ again:
 
 		if (!event->rb)
 			return -EINVAL;
-
-		nr_pages = vma_size / PAGE_SIZE;
-		if (nr_pages > INT_MAX)
-			return -ENOMEM;
 
 		mutex_lock(&event->mmap_mutex);
 		ret = -EINVAL;
@@ -6795,7 +6795,6 @@ again:
 		}
 
 		atomic_set(&rb->aux_mmap_count, 1);
-		user_extra = nr_pages;
 	}
 
 	user_lock_limit = sysctl_perf_event_mlock >> (PAGE_SHIFT - 10);
