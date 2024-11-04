@@ -65,9 +65,6 @@ struct xfs_perag *xfs_perag_intent_get(struct xfs_mount *mp,
 		xfs_fsblock_t fsbno);
 void xfs_perag_intent_put(struct xfs_perag *pag);
 
-void xfs_perag_intent_hold(struct xfs_perag *pag);
-void xfs_perag_intent_rele(struct xfs_perag *pag);
-
 int xfs_perag_intent_drain(struct xfs_perag *pag);
 bool xfs_perag_intent_busy(struct xfs_perag *pag);
 #else
@@ -79,9 +76,6 @@ struct xfs_defer_drain { /* empty */ };
 #define xfs_perag_intent_get(mp, fsbno) \
 	xfs_perag_get((mp), XFS_FSB_TO_AGNO(mp, fsbno))
 #define xfs_perag_intent_put(pag)		xfs_perag_put(pag)
-
-static inline void xfs_perag_intent_hold(struct xfs_perag *pag) { }
-static inline void xfs_perag_intent_rele(struct xfs_perag *pag) { }
 
 #endif /* CONFIG_XFS_DRAIN_INTENTS */
 
