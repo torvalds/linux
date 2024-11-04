@@ -10,8 +10,12 @@
 #include "xfs_trans_resv.h"
 #include "xfs_mount.h"
 #include "xfs_rtgroup.h"
+#include "xfs_log_format.h"
+#include "xfs_trans.h"
+#include "xfs_sb.h"
 #include "scrub/scrub.h"
 #include "scrub/common.h"
+#include "scrub/repair.h"
 
 /* Set us up with a transaction and an empty context. */
 int
@@ -66,3 +70,15 @@ xchk_rgsuperblock(
 	xchk_rgsuperblock_xref(sc);
 	return 0;
 }
+
+#ifdef CONFIG_XFS_ONLINE_REPAIR
+int
+xrep_rgsuperblock(
+	struct xfs_scrub	*sc)
+{
+	ASSERT(rtg_rgno(sc->sr.rtg) == 0);
+
+	xfs_log_sb(sc->tp);
+	return 0;
+}
+#endif /* CONFIG_XFS_ONLINE_REPAIR */
