@@ -3040,7 +3040,7 @@ xfs_inode_alloc_unitsize(
 /* Should we always be using copy on write for file writes? */
 bool
 xfs_is_always_cow_inode(
-	struct xfs_inode	*ip)
+	const struct xfs_inode	*ip)
 {
 	return ip->i_mount->m_always_cow && xfs_has_reflink(ip->i_mount);
 }
