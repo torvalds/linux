@@ -58,16 +58,38 @@ properties:
       access window as configured.
 
 patternProperties:
-  "^.*@[a-f0-9]+(,[a-f0-9]+)+$":
+  "^nand@[a-f0-9]+(,[a-f0-9]+)+$":
     type: object
-    description: |
-      Child device nodes describe the devices connected to IFC such as NOR (e.g.
-      cfi-flash) and NAND (fsl,ifc-nand). There might be board specific devices
-      like FPGAs, CPLDs, etc.
+    properties:
+      compatible:
+        const: fsl,ifc-nand
+
+      reg:
+        maxItems: 1
+
+      "#address-cells":
+        const: 1
+
+      "#size-cells":
+        const: 1
+
+    patternProperties:
+      "^partition@[0-9a-f]+":
+        $ref: /schemas/mtd/partitions/partition.yaml#
+        deprecated: true
 
     required:
       - compatible
       - reg
+
+    additionalProperties: false
+
+  "(flash|fpga|board-control|cpld)@[a-f0-9]+(,[a-f0-9]+)+$":
+    type: object
+    oneOf:
+      - $ref: /schemas/board/fsl,fpga-qixis.yaml#
+      - $ref: /schemas/mtd/mtd-physmap.yaml#
+    unevaluatedProperties: false
 
 required:
   - compatible
