@@ -876,6 +876,43 @@ xfs_last_rt_bmblock(
 }
 
 /*
+ * Allocate space to the bitmap and summary files, as necessary.
+ */
+static int
+xfs_growfs_rt_alloc_blocks(
+	struct xfs_mount	*mp,
+	xfs_rfsblock_t		nrblocks,
+	xfs_agblock_t		rextsize,
+	xfs_extlen_t		*nrbmblocks)
+{
+	struct xfs_inode	*rbmip = mp->m_rbmip;
+	struct xfs_inode	*rsumip = mp->m_rsumip;
+	xfs_rtxnum_t		nrextents = div_u64(nrblocks, rextsize);
+	xfs_extlen_t		orbmblocks;
+	xfs_extlen_t		orsumblocks;
+	xfs_extlen_t		nrsumblocks;
+	int			error;
+
+	/*
+	 * Get the old block counts for bitmap and summary inodes.
+	 * These can't change since other growfs callers are locked out.
+	 */
+	orbmblocks = XFS_B_TO_FSB(mp, rbmip->i_disk_size);
+	orsumblocks = XFS_B_TO_FSB(mp, rsumip->i_disk_size);
+
+	*nrbmblocks = xfs_rtbitmap_blockcount(mp, nrextents);
+	nrsumblocks = xfs_rtsummary_blockcount(mp,
+		xfs_compute_rextslog(nrextents) + 1, *nrbmblocks);
+
+	error = xfs_rtfile_initialize_blocks(rbmip, orbmblocks,
+			*nrbmblocks, NULL);
+	if (error)
+		return error;
+	return xfs_rtfile_initialize_blocks(rsumip, orsumblocks,
+			nrsumblocks, NULL);
+}
+
+/*
  * Grow the realtime area of the filesystem.
  */
 int
@@ -889,8 +926,6 @@ xfs_growfs_rt(
 	xfs_extlen_t	nrbmblocks;	/* new number of rt bitmap blocks */
 	xfs_rtxnum_t	nrextents;	/* new number of realtime extents */
 	xfs_extlen_t	nrsumblocks;	/* new number of summary blocks */
-	xfs_extlen_t	rbmblocks;	/* current number of rt bitmap blocks */
-	xfs_extlen_t	rsumblocks;	/* current number of rt summary blks */
 	uint8_t		*rsum_cache;	/* old summary cache */
 	xfs_agblock_t	old_rextsize = mp->m_sb.sb_rextsize;
 
@@ -963,21 +998,8 @@ xfs_growfs_rt(
 		goto out_unlock;
 	}
 
-	/*
-	 * Get the old block counts for bitmap and summary inodes.
-	 * These can't change since other growfs callers are locked out.
-	 */
-	rbmblocks = XFS_B_TO_FSB(mp, mp->m_rbmip->i_disk_size);
-	rsumblocks = XFS_B_TO_FSB(mp, mp->m_rsumip->i_disk_size);
-	/*
-	 * Allocate space to the bitmap and summary files, as necessary.
-	 */
-	error = xfs_rtfile_initialize_blocks(mp->m_rbmip, rbmblocks,
-			nrbmblocks, NULL);
-	if (error)
-		goto out_unlock;
-	error = xfs_rtfile_initialize_blocks(mp->m_rsumip, rsumblocks,
-			nrsumblocks, NULL);
+	error = xfs_growfs_rt_alloc_blocks(mp, in->newblocks, in->extsize,
+			&nrbmblocks);
 	if (error)
 		goto out_unlock;
 
