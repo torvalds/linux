@@ -94,31 +94,11 @@ static inline int xfs_defer_drain_wait(struct xfs_defer_drain *dr)
 }
 
 /*
- * Declare an intent to update group metadata.  Other threads that need
- * exclusive access can decide to back off if they see declared intentions.
- */
-static void
-xfs_group_intent_hold(
-	struct xfs_group	*xg)
-{
-	trace_xfs_group_intent_hold(xg, __return_address);
-	xfs_defer_drain_grab(&xg->xg_intents_drain);
-}
-
-/*
- * Release our intent to update this groups metadata.
- */
-static void
-xfs_group_intent_rele(
-	struct xfs_group	*xg)
-{
-	trace_xfs_group_intent_rele(xg, __return_address);
-	xfs_defer_drain_rele(&xg->xg_intents_drain);
-}
-
-/*
- * Get a passive reference to the AG that contains a fsbno and declare an intent
- * to update its metadata.
+ * Get a passive reference to the AG that contains a fsbno and declare an
+ * intent to update its metadata.
+ *
+ * Other threads that need exclusive access can decide to back off if they see
+ * declared intentions.
  */
 struct xfs_perag *
 xfs_perag_intent_get(
@@ -131,7 +111,8 @@ xfs_perag_intent_get(
 	if (!pag)
 		return NULL;
 
-	xfs_group_intent_hold(pag_group(pag));
+	trace_xfs_group_intent_hold(pag_group(pag), __return_address);
+	xfs_defer_drain_grab(pag_group(pag).xg_intents_drain);
 	return pag;
 }
 
@@ -143,7 +124,8 @@ void
 xfs_perag_intent_put(
 	struct xfs_perag	*pag)
 {
-	xfs_group_intent_rele(pag_group(pag));
+	trace_xfs_group_intent_rele(pag_group(pag), __return_address);
+	xfs_defer_drain_rele(pag_group(pag).xg_intents_drain);
 	xfs_perag_put(pag);
 }
 
