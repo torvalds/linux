@@ -5339,8 +5339,7 @@ static bool exclusive_event_installable(struct perf_event *event,
 	return true;
 }
 
-static void perf_addr_filters_splice(struct perf_event *event,
-				       struct list_head *head);
+static void perf_free_addr_filters(struct perf_event *event);
 
 static void perf_pending_task_sync(struct perf_event *event)
 {
@@ -5439,7 +5438,7 @@ static void _free_event(struct perf_event *event)
 	}
 
 	perf_event_free_bpf_prog(event);
-	perf_addr_filters_splice(event, NULL);
+	perf_free_addr_filters(event);
 
 	__free_event(event);
 }
@@ -11002,6 +11001,17 @@ static void perf_addr_filters_splice(struct perf_event *event,
 	raw_spin_unlock_irqrestore(&event->addr_filters.lock, flags);
 
 	free_filters_list(&list);
+}
+
+static void perf_free_addr_filters(struct perf_event *event)
+{
+	/*
+	 * Used during free paths, there is no concurrency.
+	 */
+	if (list_empty(&event->addr_filters.list))
+		return;
+
+	perf_addr_filters_splice(event, NULL);
 }
 
 /*
