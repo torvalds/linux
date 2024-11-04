@@ -21,6 +21,7 @@
 #include "xfs_rtbitmap.h"
 #include "xfs_health.h"
 #include "xfs_sb.h"
+#include "xfs_errortag.h"
 #include "xfs_log.h"
 #include "xfs_buf_item.h"
 
@@ -1064,6 +1065,9 @@ xfs_rtfree_extent(
 
 	ASSERT(rbmip->i_itemp != NULL);
 	xfs_assert_ilocked(rbmip, XFS_ILOCK_EXCL);
+
+	if (XFS_TEST_ERROR(false, mp, XFS_ERRTAG_FREE_EXTENT))
+		return -EIO;
 
 	error = xfs_rtcheck_alloc_range(&args, start, len);
 	if (error)
