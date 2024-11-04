@@ -21,6 +21,7 @@
 #include "xfs_ag.h"
 #include "xfs_health.h"
 #include "xfs_rtbitmap.h"
+#include "xfs_rtgroup.h"
 
 /*
  * Notes on an efficient, low latency fstrim algorithm
@@ -548,43 +549,22 @@ xfs_trim_gather_rtextent(
 }
 
 static int
-xfs_trim_rtdev_extents(
+xfs_trim_rtextents(
 	struct xfs_mount	*mp,
-	xfs_daddr_t		start,
-	xfs_daddr_t		end,
+	xfs_rtxnum_t		low,
+	xfs_rtxnum_t		high,
 	xfs_daddr_t		minlen)
 {
 	struct xfs_trim_rtdev	tr = {
 		.minlen_fsb	= XFS_BB_TO_FSB(mp, minlen),
+		.extent_list	= LIST_HEAD_INIT(tr.extent_list),
 	};
-	xfs_rtxnum_t		low, high;
 	struct xfs_trans	*tp;
-	xfs_daddr_t		rtdev_daddr;
 	int			error;
-
-	INIT_LIST_HEAD(&tr.extent_list);
-
-	/* Shift the start and end downwards to match the rt device. */
-	rtdev_daddr = XFS_FSB_TO_BB(mp, mp->m_sb.sb_dblocks);
-	if (start > rtdev_daddr)
-		start -= rtdev_daddr;
-	else
-		start = 0;
-
-	if (end <= rtdev_daddr)
-		return 0;
-	end -= rtdev_daddr;
 
 	error = xfs_trans_alloc_empty(mp, &tp);
 	if (error)
 		return error;
-
-	end = min_t(xfs_daddr_t, end,
-			XFS_FSB_TO_BB(mp, mp->m_sb.sb_rblocks) - 1);
-
-	/* Convert the rt blocks to rt extents */
-	low = xfs_rtb_to_rtxup(mp, XFS_BB_TO_FSB(mp, start));
-	high = xfs_rtb_to_rtx(mp, XFS_BB_TO_FSBT(mp, end));
 
 	/*
 	 * Walk the free ranges between low and high.  The query_range function
@@ -619,6 +599,33 @@ xfs_trim_rtdev_extents(
 
 	xfs_trans_cancel(tp);
 	return error;
+}
+
+static int
+xfs_trim_rtdev_extents(
+	struct xfs_mount	*mp,
+	xfs_daddr_t		start,
+	xfs_daddr_t		end,
+	xfs_daddr_t		minlen)
+{
+	xfs_rtblock_t		start_rtbno, end_rtbno;
+	xfs_rtxnum_t		start_rtx, end_rtx;
+
+	/* Shift the start and end downwards to match the rt device. */
+	start_rtbno = xfs_daddr_to_rtb(mp, start);
+	if (start_rtbno > mp->m_sb.sb_dblocks)
+		start_rtbno -= mp->m_sb.sb_dblocks;
+	else
+		start_rtbno = 0;
+	start_rtx = xfs_rtb_to_rtx(mp, start_rtbno);
+
+	end_rtbno = xfs_daddr_to_rtb(mp, end);
+	if (end_rtbno <= mp->m_sb.sb_dblocks)
+		return 0;
+	end_rtbno -= mp->m_sb.sb_dblocks;
+	end_rtx = xfs_rtb_to_rtx(mp, end_rtbno + mp->m_sb.sb_rextsize - 1);
+
+	return xfs_trim_rtextents(mp, start_rtx, end_rtx, minlen);
 }
 #else
 # define xfs_trim_rtdev_extents(...)	(-EOPNOTSUPP)
