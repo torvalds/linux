@@ -40,7 +40,7 @@ static int intel_nested_attach_dev(struct iommu_domain *domain,
 	 * The s2_domain will be used in nested translation, hence needs
 	 * to ensure the s2_domain is compatible with this IOMMU.
 	 */
-	ret = prepare_domain_attach_device(&dmar_domain->s2_domain->domain, dev);
+	ret = paging_domain_compatible(&dmar_domain->s2_domain->domain, dev);
 	if (ret) {
 		dev_err_ratelimited(dev, "s2 domain is not compatible\n");
 		return ret;

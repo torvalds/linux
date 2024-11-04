@@ -1606,7 +1606,7 @@ static int domain_context_mapping_one(struct dmar_domain *domain,
 	int translation = CONTEXT_TT_MULTI_LEVEL;
 	struct dma_pte *pgd = domain->pgd;
 	struct context_entry *context;
-	int agaw, ret;
+	int ret;
 
 	pr_debug("Set context mapping for %02x:%02x.%d\n",
 		bus, PCI_SLOT(devfn), PCI_FUNC(devfn));
@@ -1623,19 +1623,7 @@ static int domain_context_mapping_one(struct dmar_domain *domain,
 
 	copied_context_tear_down(iommu, context, bus, devfn);
 	context_clear_entry(context);
-
 	context_set_domain_id(context, did);
-
-	/*
-	 * Skip top levels of page tables for iommu which has
-	 * less agaw than default. Unnecessary for PT mode.
-	 */
-	for (agaw = domain->agaw; agaw > iommu->agaw; agaw--) {
-		ret = -ENOMEM;
-		pgd = phys_to_virt(dma_pte_addr(pgd));
-		if (!dma_pte_present(pgd))
-			goto out_unlock;
-	}
 
 	if (info && info->ats_supported)
 		translation = CONTEXT_TT_DEV_IOTLB;
@@ -1643,7 +1631,7 @@ static int domain_context_mapping_one(struct dmar_domain *domain,
 		translation = CONTEXT_TT_MULTI_LEVEL;
 
 	context_set_address_root(context, virt_to_phys(pgd));
-	context_set_address_width(context, agaw);
+	context_set_address_width(context, domain->agaw);
 	context_set_translation_type(context, translation);
 	context_set_fault_enable(context);
 	context_set_present(context);
@@ -1876,20 +1864,9 @@ static int domain_setup_first_level(struct intel_iommu *iommu,
 				    u32 pasid)
 {
 	struct dma_pte *pgd = domain->pgd;
-	int agaw, level;
-	int flags = 0;
+	int level, flags = 0;
 
-	/*
-	 * Skip top levels of page tables for iommu which has
-	 * less agaw than default. Unnecessary for PT mode.
-	 */
-	for (agaw = domain->agaw; agaw > iommu->agaw; agaw--) {
-		pgd = phys_to_virt(dma_pte_addr(pgd));
-		if (!dma_pte_present(pgd))
-			return -ENOMEM;
-	}
-
-	level = agaw_to_level(agaw);
+	level = agaw_to_level(domain->agaw);
 	if (level != 4 && level != 5)
 		return -EINVAL;
 
@@ -3492,13 +3469,15 @@ static void intel_iommu_domain_free(struct iommu_domain *domain)
 	domain_exit(dmar_domain);
 }
 
-int prepare_domain_attach_device(struct iommu_domain *domain,
-				 struct device *dev)
+int paging_domain_compatible(struct iommu_domain *domain, struct device *dev)
 {
 	struct device_domain_info *info = dev_iommu_priv_get(dev);
 	struct dmar_domain *dmar_domain = to_dmar_domain(domain);
 	struct intel_iommu *iommu = info->iommu;
 	int addr_width;
+
+	if (WARN_ON_ONCE(!(domain->type & __IOMMU_DOMAIN_PAGING)))
+		return -EPERM;
 
 	if (dmar_domain->force_snooping && !ecap_sc_support(iommu->ecap))
 		return -EINVAL;
@@ -3506,28 +3485,25 @@ int prepare_domain_attach_device(struct iommu_domain *domain,
 	if (domain->dirty_ops && !ssads_supported(iommu))
 		return -EINVAL;
 
+	if (dmar_domain->iommu_coherency !=
+			iommu_paging_structure_coherency(iommu))
+		return -EINVAL;
+
+	if (dmar_domain->iommu_superpage !=
+			iommu_superpage_capability(iommu, dmar_domain->use_first_level))
+		return -EINVAL;
+
+	if (dmar_domain->use_first_level &&
+	    (!sm_supported(iommu) || !ecap_flts(iommu->ecap)))
+		return -EINVAL;
+
 	/* check if this iommu agaw is sufficient for max mapped address */
 	addr_width = agaw_to_width(iommu->agaw);
 	if (addr_width > cap_mgaw(iommu->cap))
 		addr_width = cap_mgaw(iommu->cap);
 
-	if (dmar_domain->max_addr > (1LL << addr_width))
+	if (dmar_domain->gaw > addr_width || dmar_domain->agaw > iommu->agaw)
 		return -EINVAL;
-	dmar_domain->gaw = addr_width;
-
-	/*
-	 * Knock out extra levels of page tables if necessary
-	 */
-	while (iommu->agaw < dmar_domain->agaw) {
-		struct dma_pte *pte;
-
-		pte = dmar_domain->pgd;
-		if (dma_pte_present(pte)) {
-			dmar_domain->pgd = phys_to_virt(dma_pte_addr(pte));
-			iommu_free_page(pte);
-		}
-		dmar_domain->agaw--;
-	}
 
 	if (sm_supported(iommu) && !dev_is_real_dma_subdevice(dev) &&
 	    context_copied(iommu, info->bus, info->devfn))
@@ -3543,7 +3519,7 @@ static int intel_iommu_attach_device(struct iommu_domain *domain,
 
 	device_block_translation(dev);
 
-	ret = prepare_domain_attach_device(domain, dev);
+	ret = paging_domain_compatible(domain, dev);
 	if (ret)
 		return ret;
 
@@ -4214,7 +4190,7 @@ static int intel_iommu_set_dev_pasid(struct iommu_domain *domain,
 	if (context_copied(iommu, info->bus, info->devfn))
 		return -EBUSY;
 
-	ret = prepare_domain_attach_device(domain, dev);
+	ret = paging_domain_compatible(domain, dev);
 	if (ret)
 		return ret;
 

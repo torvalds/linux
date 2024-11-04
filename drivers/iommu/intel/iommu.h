@@ -1230,8 +1230,7 @@ void __iommu_flush_iotlb(struct intel_iommu *iommu, u16 did, u64 addr,
 int domain_attach_iommu(struct dmar_domain *domain, struct intel_iommu *iommu);
 void domain_detach_iommu(struct dmar_domain *domain, struct intel_iommu *iommu);
 void device_block_translation(struct device *dev);
-int prepare_domain_attach_device(struct iommu_domain *domain,
-				 struct device *dev);
+int paging_domain_compatible(struct iommu_domain *domain, struct device *dev);
 void domain_update_iommu_cap(struct dmar_domain *domain);
 
 int dmar_ir_support(void);
