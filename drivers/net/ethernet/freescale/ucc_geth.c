@@ -3688,9 +3688,8 @@ static int ucc_geth_probe(struct platform_device* ofdev)
 			ug_info->uf_info.irq);
 
 	/* Create an ethernet device instance */
-	dev = alloc_etherdev(sizeof(*ugeth));
-
-	if (dev == NULL) {
+	dev = devm_alloc_etherdev(&ofdev->dev, sizeof(*ugeth));
+	if (!dev) {
 		err = -ENOMEM;
 		goto err_deregister_fixed_link;
 	}
@@ -3730,7 +3729,7 @@ static int ucc_geth_probe(struct platform_device* ofdev)
 		if (netif_msg_probe(ugeth))
 			pr_err("%s: Cannot register net device, aborting\n",
 			       dev->name);
-		goto err_free_netdev;
+		goto err_deregister_fixed_link;
 	}
 
 	of_get_ethdev_address(np, dev);
@@ -3742,8 +3741,6 @@ static int ucc_geth_probe(struct platform_device* ofdev)
 
 	return 0;
 
-err_free_netdev:
-	free_netdev(dev);
 err_deregister_fixed_link:
 	if (of_phy_is_fixed_link(np))
 		of_phy_deregister_fixed_link(np);
@@ -3764,7 +3761,6 @@ static void ucc_geth_remove(struct platform_device* ofdev)
 		of_phy_deregister_fixed_link(np);
 	of_node_put(ugeth->ug_info->tbi_node);
 	of_node_put(ugeth->ug_info->phy_node);
-	free_netdev(dev);
 }
 
 static const struct of_device_id ucc_geth_match[] = {
