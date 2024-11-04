@@ -25,7 +25,7 @@
 #define SMU14_DRIVER_IF_V14_0_H
 
 //Increment this version if SkuTable_t or BoardTable_t change
-#define PPTABLE_VERSION 0x18
+#define PPTABLE_VERSION 0x1B
 
 #define NUM_GFXCLK_DPM_LEVELS    16
 #define NUM_SOCCLK_DPM_LEVELS    8
@@ -145,7 +145,7 @@ typedef enum {
 } FEATURE_BTC_e;
 
 // Debug Overrides Bitmask
-#define DEBUG_OVERRIDE_DISABLE_VOLT_LINK_VCN_FCLK      0x00000001
+#define DEBUG_OVERRIDE_NOT_USE      				   0x00000001
 #define DEBUG_OVERRIDE_DISABLE_VOLT_LINK_DCN_FCLK      0x00000002
 #define DEBUG_OVERRIDE_DISABLE_VOLT_LINK_MP0_FCLK      0x00000004
 #define DEBUG_OVERRIDE_DISABLE_VOLT_LINK_VCN_DCFCLK    0x00000008
@@ -161,6 +161,7 @@ typedef enum {
 #define DEBUG_OVERRIDE_ENABLE_SOC_VF_BRINGUP_MODE      0x00002000
 #define DEBUG_OVERRIDE_ENABLE_PER_WGP_RESIENCY         0x00004000
 #define DEBUG_OVERRIDE_DISABLE_MEMORY_VOLTAGE_SCALING  0x00008000
+#define DEBUG_OVERRIDE_DFLL_BTC_FCW_LOG                0x00010000
 
 // VR Mapping Bit Defines
 #define VR_MAPPING_VR_SELECT_MASK  0x01
@@ -390,6 +391,21 @@ typedef struct {
 typedef struct {
   EccInfo_t  EccInfo[24];
 } EccInfoTable_t;
+
+#define EPCS_HIGH_POWER                  600
+#define EPCS_NORMAL_POWER                450
+#define EPCS_LOW_POWER                   300
+#define EPCS_SHORTED_POWER               150
+#define EPCS_NO_BOOTUP                   0
+
+typedef enum{
+  EPCS_SHORTED_LIMIT,
+  EPCS_LOW_POWER_LIMIT,
+  EPCS_NORMAL_POWER_LIMIT,
+  EPCS_HIGH_POWER_LIMIT,
+  EPCS_NOT_CONFIGURED,
+  EPCS_STATUS_COUNT,
+} EPCS_STATUS_e;
 
 //D3HOT sequences
 typedef enum {
@@ -662,7 +678,7 @@ typedef enum {
 } PP_GRTAVFS_FW_SEP_FUSE_e;
 
 #define PP_NUM_RTAVFS_PWL_ZONES 5
-
+#define PP_NUM_PSM_DIDT_PWL_ZONES 3
 
 // VBIOS or PPLIB configures telemetry slope and offset. Only slope expected to be set for SVI3
 // Slope Q1.7, Offset Q1.2
@@ -746,10 +762,10 @@ typedef struct {
   uint16_t               Padding;
 
   //Frequency changes
-  int16_t                GfxclkFmin;           // MHz
-  int16_t                GfxclkFmax;           // MHz
-  uint16_t               UclkFmin;             // MHz
-  uint16_t               UclkFmax;             // MHz
+  int16_t                GfxclkFoffset;
+  uint16_t               Padding1;
+  uint16_t               UclkFmin;
+  uint16_t               UclkFmax;
   uint16_t               FclkFmin;
   uint16_t               FclkFmax;
 
@@ -770,19 +786,23 @@ typedef struct {
   uint8_t                MaxOpTemp;
 
   uint8_t                AdvancedOdModeEnabled;
-  uint8_t                Padding1[3];
+  uint8_t                Padding2[3];
 
   uint16_t               GfxVoltageFullCtrlMode;
   uint16_t               SocVoltageFullCtrlMode;
   uint16_t               GfxclkFullCtrlMode;
   uint16_t               UclkFullCtrlMode;
   uint16_t               FclkFullCtrlMode;
-  uint16_t               Padding2;
+  uint16_t               Padding3;
 
   int16_t                GfxEdc;
   int16_t                GfxPccLimitControl;
 
-  uint32_t               Spare[10];
+  uint16_t               GfxclkFmaxVmax;
+  uint8_t                GfxclkFmaxVmaxTemperature;
+  uint8_t                Padding4[1];
+
+  uint32_t               Spare[9];
   uint32_t               MmHubPadding[8]; // SMU internal use. Adding here instead of external as a workaround
 } OverDriveTable_t;
 
@@ -802,8 +822,8 @@ typedef struct {
   uint16_t               VddSocVmax;
 
   //gfxclk
-  int16_t                GfxclkFmin;           // MHz
-  int16_t                GfxclkFmax;           // MHz
+  int16_t                GfxclkFoffset;
+  uint16_t               Padding;
   //uclk
   uint16_t               UclkFmin;             // MHz
   uint16_t               UclkFmax;             // MHz
@@ -828,7 +848,7 @@ typedef struct {
   uint8_t                FanZeroRpmEnable;
   //temperature
   uint8_t                MaxOpTemp;
-  uint8_t                Padding[2];
+  uint8_t                Padding1[2];
 
   //Full Ctrl
   uint16_t               GfxVoltageFullCtrlMode;
@@ -839,7 +859,7 @@ typedef struct {
   //EDC
   int16_t                GfxEdc;
   int16_t                GfxPccLimitControl;
-  int16_t                Padding1;
+  int16_t                Padding2;
 
   uint32_t               Spare[5];
 } OverDriveLimits_t;
@@ -987,8 +1007,9 @@ typedef struct {
   uint16_t BaseClockDc;
   uint16_t GameClockDc;
   uint16_t BoostClockDc;
-
-  uint32_t Reserved[4];
+  uint16_t MaxReportedClock;
+  uint16_t Padding;
+  uint32_t Reserved[3];
 } DriverReportedClocks_t;
 
 typedef struct {
@@ -1132,7 +1153,7 @@ typedef struct {
   uint32_t      DcModeMaxFreq     [PPCLK_COUNT            ];     // In MHz
 
   uint16_t      GfxclkAibFmax;
-  uint16_t      GfxclkFreqCap;
+  uint16_t      GfxDpmPadding;
 
   //GFX Idle Power Settings
   uint16_t      GfxclkFgfxoffEntry;   // Entry in RLC stage (PLL), in Mhz
@@ -1172,8 +1193,7 @@ typedef struct {
   uint32_t        DvoFmaxLowScaler; //Unitless float
 
   // GFX DCS
-  uint16_t      DcsGfxOffVoltage;     //Voltage in mV(Q2) applied to VDDGFX when entering DCS GFXOFF phase
-  uint16_t      PaddingDcs;
+  uint32_t      PaddingDcs;
 
   uint16_t      DcsMinGfxOffTime;     //Minimum amount of time PMFW shuts GFX OFF as part of GFX DCS phase
   uint16_t      DcsMaxGfxOffTime;      //Maximum amount of time PMFW can shut GFX OFF as part of GFX DCS phase at a stretch.
@@ -1205,8 +1225,7 @@ typedef struct {
   uint16_t      DalDcModeMaxUclkFreq;
   uint8_t       PaddingsMem[2];
   //FCLK Section
-  uint16_t      FclkDpmDisallowPstateFreq;  //Frequency which FW will target when indicated that display config cannot support P-state. Set to 0 use FW calculated value
-  uint16_t      PaddingFclk;
+  uint32_t      PaddingFclk;
 
   // Link DPM Settings
   uint8_t       PcieGenSpeed[NUM_LINK_LEVELS];           ///< 0:PciE-gen1 1:PciE-gen2 2:PciE-gen3 3:PciE-gen4 4:PciE-gen5
@@ -1215,12 +1234,19 @@ typedef struct {
 
   // SECTION: VDD_GFX AVFS
   uint8_t       OverrideGfxAvfsFuses;
-  uint8_t       GfxAvfsPadding[3];
+  uint8_t       GfxAvfsPadding[1];
+  uint16_t      DroopGBStDev;
 
   uint32_t      SocHwRtAvfsFuses[PP_GRTAVFS_HW_FUSE_COUNT];   //new added for Soc domain
   uint32_t      GfxL2HwRtAvfsFuses[PP_GRTAVFS_HW_FUSE_COUNT]; //see fusedoc for encoding
   //uint32_t      GfxSeHwRtAvfsFuses[PP_GRTAVFS_HW_FUSE_COUNT];
-  uint32_t      spare_HwRtAvfsFuses[PP_GRTAVFS_HW_FUSE_COUNT];
+
+  uint16_t      PsmDidt_Vcross[PP_NUM_PSM_DIDT_PWL_ZONES-1];
+  uint32_t      PsmDidt_StaticDroop_A[PP_NUM_PSM_DIDT_PWL_ZONES];
+  uint32_t      PsmDidt_StaticDroop_B[PP_NUM_PSM_DIDT_PWL_ZONES];
+  uint32_t      PsmDidt_DynDroop_A[PP_NUM_PSM_DIDT_PWL_ZONES];
+  uint32_t      PsmDidt_DynDroop_B[PP_NUM_PSM_DIDT_PWL_ZONES];
+  uint32_t      spare_HwRtAvfsFuses[19];
 
   uint32_t      SocCommonRtAvfs[PP_GRTAVFS_FW_COMMON_FUSE_COUNT];
   uint32_t      GfxCommonRtAvfs[PP_GRTAVFS_FW_COMMON_FUSE_COUNT];
@@ -1246,11 +1272,7 @@ typedef struct {
   uint32_t      dGbV_dT_vmin;
   uint32_t      dGbV_dT_vmax;
 
-  //Unused: PMFW-9370
-  uint32_t      V2F_vmin_range_low;
-  uint32_t      V2F_vmin_range_high;
-  uint32_t      V2F_vmax_range_low;
-  uint32_t      V2F_vmax_range_high;
+  uint32_t      PaddingV2F[4];
 
   AvfsDcBtcParams_t DcBtcGfxParams;
   QuadraticInt_t    SSCurve_GFX;
@@ -1327,18 +1349,18 @@ typedef struct {
   uint16_t        PsmDidtReleaseTimer;
   uint32_t        PsmDidtStallPattern; //Will be written to both pattern 1 and didt_static_level_prog
   // CAC EDC
-  uint32_t        Leakage_C0; // in IEEE float
-  uint32_t        Leakage_C1; // in IEEE float
-  uint32_t        Leakage_C2; // in IEEE float
-  uint32_t        Leakage_C3; // in IEEE float
-  uint32_t        Leakage_C4; // in IEEE float
-  uint32_t        Leakage_C5; // in IEEE float
-  uint32_t        GFX_CLK_SCALAR; // in IEEE float
-  uint32_t        GFX_CLK_INTERCEPT; // in IEEE float
-  uint32_t        GFX_CAC_M; // in IEEE float
-  uint32_t        GFX_CAC_B; // in IEEE float
-  uint32_t        VDD_GFX_CurrentLimitGuardband; // in IEEE float
-  uint32_t        DynToTotalCacScalar; // in IEEE
+  uint32_t        CacEdcCacLeakageC0;
+  uint32_t        CacEdcCacLeakageC1;
+  uint32_t        CacEdcCacLeakageC2;
+  uint32_t        CacEdcCacLeakageC3;
+  uint32_t        CacEdcCacLeakageC4;
+  uint32_t        CacEdcCacLeakageC5;
+  uint32_t        CacEdcGfxClkScalar;
+  uint32_t        CacEdcGfxClkIntercept;
+  uint32_t        CacEdcCac_m;
+  uint32_t        CacEdcCac_b;
+  uint32_t        CacEdcCurrLimitGuardband;
+  uint32_t        CacEdcDynToTotalCacRatio;
   // GFX EDC XVMIN
   uint32_t        XVmin_Gfx_EdcThreshScalar;
   uint32_t        XVmin_Gfx_EdcEnableFreq;
@@ -1467,7 +1489,7 @@ typedef struct {
   uint8_t      VddqOffEnabled;
   uint8_t      PaddingUmcFlags[2];
 
-  uint32_t    PostVoltageSetBacoDelay; // in microseconds. Amount of time FW will wait after power good is established or PSI0 command is issued
+  uint32_t    Paddign1;
   uint32_t    BacoEntryDelay; // in milliseconds. Amount of time FW will wait to trigger BACO entry after receiving entry notification from OS
 
   uint8_t     FuseWritePowerMuxPresent;
@@ -1530,7 +1552,7 @@ typedef struct {
   int16_t     FuzzyFan_ErrorSetDelta;
   int16_t     FuzzyFan_ErrorRateSetDelta;
   int16_t     FuzzyFan_PwmSetDelta;
-  uint16_t    FuzzyFan_Reserved;
+  uint16_t    FanPadding2;
 
   uint16_t    FwCtfLimit[TEMP_COUNT];
 
@@ -1547,8 +1569,9 @@ typedef struct {
   uint16_t    FanSpare[1];
   uint8_t     FanIntakeSensorSupport;
   uint8_t     FanIntakePadding;
-  uint32_t    FanAmbientPerfBoostThreshold;
   uint32_t    FanSpare2[12];
+
+  uint32_t ODFeatureCtrlMask;
 
   uint16_t TemperatureLimit_Hynix; // In degrees Celsius. Memory temperature limit associated with Hynix
   uint16_t TemperatureLimit_Micron; // In degrees Celsius. Memory temperature limit associated with Micron
@@ -1637,7 +1660,7 @@ typedef struct {
   uint16_t AverageDclk0Frequency  ;
   uint16_t AverageVclk1Frequency  ;
   uint16_t AverageDclk1Frequency  ;
-  uint16_t PCIeBusy               ;
+  uint16_t AveragePCIeBusy        ;
   uint16_t dGPU_W_MAX             ;
   uint16_t padding                ;
 
@@ -1665,12 +1688,12 @@ typedef struct {
 
   uint16_t AverageGfxActivity    ;
   uint16_t AverageUclkActivity   ;
-  uint16_t Vcn0ActivityPercentage  ;
+  uint16_t AverageVcn0ActivityPercentage;
   uint16_t Vcn1ActivityPercentage  ;
 
   uint32_t EnergyAccumulator;
   uint16_t AverageSocketPower;
-  uint16_t MovingAverageTotalBoardPower;
+  uint16_t AverageTotalBoardPower;
 
   uint16_t AvgTemperature[TEMP_COUNT];
   uint16_t AvgTemperatureFanIntake;
@@ -1684,7 +1707,8 @@ typedef struct {
 
 
   uint8_t  ThrottlingPercentage[THROTTLER_COUNT];
-  uint8_t  padding1[3];
+  uint8_t  VmaxThrottlingPercentage;
+  uint8_t  padding1[2];
 
   //metrics for D3hot entry/exit and driver ARM msgs
   uint32_t D3HotEntryCountPerMode[D3HOT_SEQUENCE_COUNT];
@@ -1693,7 +1717,7 @@ typedef struct {
 
   uint16_t ApuSTAPMSmartShiftLimit;
   uint16_t ApuSTAPMLimit;
-  uint16_t MovingAvgApuSocketPower;
+  uint16_t AvgApuSocketPower;
 
   uint16_t AverageUclkActivity_MAX;
 
@@ -1823,6 +1847,17 @@ typedef struct {
 #define TABLE_TRANSFER_FAILED     0xFF
 #define TABLE_TRANSFER_PENDING    0xAB
 
+#define TABLE_PPT_FAILED                          0x100
+#define TABLE_TDC_FAILED                          0x200
+#define TABLE_TEMP_FAILED                         0x400
+#define TABLE_FAN_TARGET_TEMP_FAILED              0x800
+#define TABLE_FAN_STOP_TEMP_FAILED               0x1000
+#define TABLE_FAN_START_TEMP_FAILED              0x2000
+#define TABLE_FAN_PWM_MIN_FAILED                 0x4000
+#define TABLE_ACOUSTIC_TARGET_RPM_FAILED         0x8000
+#define TABLE_ACOUSTIC_LIMIT_RPM_FAILED         0x10000
+#define TABLE_MGPU_ACOUSTIC_TARGET_RPM_FAILED   0x20000
+
 // Table types
 #define TABLE_PPTABLE            0
 #define TABLE_COMBO_PPTABLE           1
@@ -1849,5 +1884,6 @@ typedef struct {
 #define IH_INTERRUPT_CONTEXT_ID_THERMAL_THROTTLING  0x7
 #define IH_INTERRUPT_CONTEXT_ID_FAN_ABNORMAL        0x8
 #define IH_INTERRUPT_CONTEXT_ID_FAN_RECOVERY        0x9
+#define IH_INTERRUPT_CONTEXT_ID_DYNAMIC_TABLE       0xA
 
 #endif

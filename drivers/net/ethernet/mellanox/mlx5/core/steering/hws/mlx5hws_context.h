@@ -46,6 +46,7 @@ struct mlx5hws_context {
 	struct mlx5hws_send_engine *send_queue;
 	size_t queues;
 	struct mutex *bwc_send_queue_locks; /* protect BWC queues */
+	struct lock_class_key *bwc_lock_class_keys;
 	struct list_head tbl_list;
 	struct mlx5hws_context_debug_info debug_info;
 	struct xarray peer_ctx_xa;

@@ -1591,6 +1591,17 @@ static int skl_plane_check_fb(const struct intel_crtc_state *crtc_state,
 		return -EINVAL;
 	}
 
+	/*
+	 * Display20 onward tile4 hflip is not supported
+	 */
+	if (rotation & DRM_MODE_REFLECT_X &&
+	    intel_fb_is_tile4_modifier(fb->modifier) &&
+	    DISPLAY_VER(dev_priv) >= 20) {
+		drm_dbg_kms(&dev_priv->drm,
+			    "horizontal flip is not supported with tile4 surface formats\n");
+		return -EINVAL;
+	}
+
 	if (drm_rotation_90_or_270(rotation)) {
 		if (!intel_fb_supports_90_270_rotation(to_intel_framebuffer(fb))) {
 			drm_dbg_kms(&dev_priv->drm,

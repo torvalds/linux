@@ -450,7 +450,7 @@ static int insert_test_overlapping_extent(struct bch_fs *c, u64 inum, u64 start,
 	k.k_i.k.p.snapshot = snapid;
 	k.k_i.k.size = len;
 
-	ret = bch2_trans_do(c, NULL, NULL, 0,
+	ret = bch2_trans_commit_do(c, NULL, NULL, 0,
 		bch2_btree_insert_nonextent(trans, BTREE_ID_extents, &k.k_i,
 					    BTREE_UPDATE_internal_snapshot_node));
 	bch_err_fn(c, ret);
@@ -510,7 +510,7 @@ static int test_snapshots(struct bch_fs *c, u64 nr)
 	if (ret)
 		return ret;
 
-	ret = bch2_trans_do(c, NULL, NULL, 0,
+	ret = bch2_trans_commit_do(c, NULL, NULL, 0,
 		      bch2_snapshot_node_create(trans, U32_MAX,
 						snapids,
 						snapid_subvols,
