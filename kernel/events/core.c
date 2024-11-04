@@ -10905,6 +10905,9 @@ int perf_event_set_bpf_prog(struct perf_event *event, struct bpf_prog *prog,
 
 void perf_event_free_bpf_prog(struct perf_event *event)
 {
+	if (!event->prog)
+		return;
+
 	if (!perf_event_is_tracing(event)) {
 		perf_event_free_bpf_handler(event);
 		return;
