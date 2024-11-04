@@ -254,11 +254,11 @@ static int of_count_cache_leaves(struct device_node *np)
 {
 	unsigned int leaves = 0;
 
-	if (of_property_read_bool(np, "cache-size"))
+	if (of_property_present(np, "cache-size"))
 		++leaves;
-	if (of_property_read_bool(np, "i-cache-size"))
+	if (of_property_present(np, "i-cache-size"))
 		++leaves;
-	if (of_property_read_bool(np, "d-cache-size"))
+	if (of_property_present(np, "d-cache-size"))
 		++leaves;
 
 	if (!leaves) {
