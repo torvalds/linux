@@ -471,8 +471,7 @@ __xfs_getfsmap_datadev(
 	struct xfs_btree_cur		*bt_cur = NULL;
 	xfs_fsblock_t			start_fsb;
 	xfs_fsblock_t			end_fsb;
-	xfs_agnumber_t			start_ag;
-	xfs_agnumber_t			end_ag;
+	xfs_agnumber_t			start_ag, end_ag, ag;
 	uint64_t			eofs;
 	int				error = 0;
 
@@ -520,7 +519,8 @@ __xfs_getfsmap_datadev(
 	start_ag = XFS_FSB_TO_AGNO(mp, start_fsb);
 	end_ag = XFS_FSB_TO_AGNO(mp, end_fsb);
 
-	for_each_perag_range(mp, start_ag, end_ag, pag) {
+	ag = start_ag;
+	for_each_perag_range(mp, ag, end_ag, pag) {
 		/*
 		 * Set the AG high key from the fsmap high key if this
 		 * is the last AG that we're querying.
