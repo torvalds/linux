@@ -531,24 +531,13 @@ void
 xfs_btree_mark_sick(
 	struct xfs_btree_cur		*cur)
 {
-	switch (cur->bc_ops->type) {
-	case XFS_BTREE_TYPE_MEM:
-		/* no health state tracking for ephemeral btrees */
-		return;
-	case XFS_BTREE_TYPE_AG:
+	if (xfs_btree_is_bmap(cur->bc_ops)) {
+		xfs_bmap_mark_sick(cur->bc_ino.ip, cur->bc_ino.whichfork);
+	/* no health state tracking for ephemeral btrees */
+	} else if (cur->bc_ops->type != XFS_BTREE_TYPE_MEM) {
+		ASSERT(cur->bc_group);
 		ASSERT(cur->bc_ops->sick_mask);
-		xfs_ag_mark_sick(cur->bc_ag.pag, cur->bc_ops->sick_mask);
-		return;
-	case XFS_BTREE_TYPE_INODE:
-		if (xfs_btree_is_bmap(cur->bc_ops)) {
-			xfs_bmap_mark_sick(cur->bc_ino.ip,
-					   cur->bc_ino.whichfork);
-			return;
-		}
-		fallthrough;
-	default:
-		ASSERT(0);
-		return;
+		xfs_group_mark_sick(cur->bc_group, cur->bc_ops->sick_mask);
 	}
 }
 

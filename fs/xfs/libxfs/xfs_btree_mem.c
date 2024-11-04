@@ -57,10 +57,8 @@ xfbtree_dup_cursor(
 	ncur->bc_flags = cur->bc_flags;
 	ncur->bc_nlevels = cur->bc_nlevels;
 	ncur->bc_mem.xfbtree = cur->bc_mem.xfbtree;
-
-	if (cur->bc_mem.pag)
-		ncur->bc_mem.pag = xfs_perag_hold(cur->bc_mem.pag);
-
+	if (cur->bc_group)
+		ncur->bc_group = xfs_group_hold(cur->bc_group);
 	return ncur;
 }
 

@@ -622,7 +622,7 @@ xrep_rmap_walk_inobt(
 		return error;
 
 	xfs_inobt_btrec_to_irec(mp, rec, &irec);
-	if (xfs_inobt_check_irec(cur->bc_ag.pag, &irec) != NULL)
+	if (xfs_inobt_check_irec(to_perag(cur->bc_group), &irec) != NULL)
 		return -EFSCORRUPTED;
 
 	agino = irec.ir_startino;

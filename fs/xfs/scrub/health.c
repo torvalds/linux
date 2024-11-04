@@ -276,7 +276,7 @@ xchk_ag_btree_del_cursor_if_sick(
 	    type_to_health_flag[sc->sm->sm_type].group == XHG_AG)
 		mask &= ~sc->sick_mask;
 
-	if (xfs_ag_has_sickness((*curp)->bc_ag.pag, mask)) {
+	if (xfs_group_has_sickness((*curp)->bc_group, mask)) {
 		sc->sm->sm_flags |= XFS_SCRUB_OFLAG_XFAIL;
 		xfs_btree_del_cursor(*curp, XFS_BTREE_NOERROR);
 		*curp = NULL;

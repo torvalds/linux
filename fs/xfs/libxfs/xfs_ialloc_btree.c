@@ -37,7 +37,7 @@ STATIC struct xfs_btree_cur *
 xfs_inobt_dup_cursor(
 	struct xfs_btree_cur	*cur)
 {
-	return xfs_inobt_init_cursor(cur->bc_ag.pag, cur->bc_tp,
+	return xfs_inobt_init_cursor(to_perag(cur->bc_group), cur->bc_tp,
 			cur->bc_ag.agbp);
 }
 
@@ -45,7 +45,7 @@ STATIC struct xfs_btree_cur *
 xfs_finobt_dup_cursor(
 	struct xfs_btree_cur	*cur)
 {
-	return xfs_finobt_init_cursor(cur->bc_ag.pag, cur->bc_tp,
+	return xfs_finobt_init_cursor(to_perag(cur->bc_group), cur->bc_tp,
 			cur->bc_ag.agbp);
 }
 
@@ -112,7 +112,7 @@ __xfs_inobt_alloc_block(
 	memset(&args, 0, sizeof(args));
 	args.tp = cur->bc_tp;
 	args.mp = cur->bc_mp;
-	args.pag = cur->bc_ag.pag;
+	args.pag = to_perag(cur->bc_group);
 	args.oinfo = XFS_RMAP_OINFO_INOBT;
 	args.minlen = 1;
 	args.maxlen = 1;
@@ -248,7 +248,7 @@ xfs_inobt_init_ptr_from_cur(
 {
 	struct xfs_agi		*agi = cur->bc_ag.agbp->b_addr;
 
-	ASSERT(pag_agno(cur->bc_ag.pag) == be32_to_cpu(agi->agi_seqno));
+	ASSERT(cur->bc_group->xg_gno == be32_to_cpu(agi->agi_seqno));
 
 	ptr->s = agi->agi_root;
 }
@@ -260,7 +260,8 @@ xfs_finobt_init_ptr_from_cur(
 {
 	struct xfs_agi		*agi = cur->bc_ag.agbp->b_addr;
 
-	ASSERT(pag_agno(cur->bc_ag.pag) == be32_to_cpu(agi->agi_seqno));
+	ASSERT(cur->bc_group->xg_gno == be32_to_cpu(agi->agi_seqno));
+
 	ptr->s = agi->agi_free_root;
 }
 
@@ -483,7 +484,7 @@ xfs_inobt_init_cursor(
 
 	cur = xfs_btree_alloc_cursor(mp, tp, &xfs_inobt_ops,
 			M_IGEO(mp)->inobt_maxlevels, xfs_inobt_cur_cache);
-	cur->bc_ag.pag = xfs_perag_hold(pag);
+	cur->bc_group = xfs_group_hold(pag_group(pag));
 	cur->bc_ag.agbp = agbp;
 	if (agbp) {
 		struct xfs_agi		*agi = agbp->b_addr;
@@ -509,7 +510,7 @@ xfs_finobt_init_cursor(
 
 	cur = xfs_btree_alloc_cursor(mp, tp, &xfs_finobt_ops,
 			M_IGEO(mp)->inobt_maxlevels, xfs_inobt_cur_cache);
-	cur->bc_ag.pag = xfs_perag_hold(pag);
+	cur->bc_group = xfs_group_hold(pag_group(pag));
 	cur->bc_ag.agbp = agbp;
 	if (agbp) {
 		struct xfs_agi		*agi = agbp->b_addr;

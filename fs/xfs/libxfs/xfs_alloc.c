@@ -275,7 +275,7 @@ xfs_alloc_complain_bad_rec(
 
 	xfs_warn(mp,
 		"%sbt record corruption in AG %d detected at %pS!",
-		cur->bc_ops->name, pag_agno(cur->bc_ag.pag), fa);
+		cur->bc_ops->name, cur->bc_group->xg_gno, fa);
 	xfs_warn(mp,
 		"start block 0x%x block count 0x%x", irec->ar_startblock,
 		irec->ar_blockcount);
@@ -303,7 +303,7 @@ xfs_alloc_get_rec(
 		return error;
 
 	xfs_alloc_btrec_to_irec(rec, &irec);
-	fa = xfs_alloc_check_irec(cur->bc_ag.pag, &irec);
+	fa = xfs_alloc_check_irec(to_perag(cur->bc_group), &irec);
 	if (fa)
 		return xfs_alloc_complain_bad_rec(cur, fa, &irec);
 
@@ -540,7 +540,7 @@ static int
 xfs_alloc_fixup_longest(
 	struct xfs_btree_cur	*cnt_cur)
 {
-	struct xfs_perag	*pag = cnt_cur->bc_ag.pag;
+	struct xfs_perag	*pag = to_perag(cnt_cur->bc_group);
 	struct xfs_buf		*bp = cnt_cur->bc_ag.agbp;
 	struct xfs_agf		*agf = bp->b_addr;
 	xfs_extlen_t		longest = 0;
@@ -4044,7 +4044,7 @@ xfs_alloc_query_range_helper(
 	xfs_failaddr_t				fa;
 
 	xfs_alloc_btrec_to_irec(rec, &irec);
-	fa = xfs_alloc_check_irec(cur->bc_ag.pag, &irec);
+	fa = xfs_alloc_check_irec(to_perag(cur->bc_group), &irec);
 	if (fa)
 		return xfs_alloc_complain_bad_rec(cur, fa, &irec);
 

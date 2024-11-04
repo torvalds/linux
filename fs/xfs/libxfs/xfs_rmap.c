@@ -269,9 +269,7 @@ xfs_rmap_check_btrec(
 	struct xfs_btree_cur		*cur,
 	const struct xfs_rmap_irec	*irec)
 {
-	if (xfs_btree_is_mem_rmap(cur->bc_ops))
-		return xfs_rmap_check_irec(cur->bc_mem.pag, irec);
-	return xfs_rmap_check_irec(cur->bc_ag.pag, irec);
+	return xfs_rmap_check_irec(to_perag(cur->bc_group), irec);
 }
 
 static inline int
@@ -288,7 +286,7 @@ xfs_rmap_complain_bad_rec(
 	else
 		xfs_warn(mp,
  "Reverse Mapping BTree record corruption in AG %d detected at %pS!",
-			pag_agno(cur->bc_ag.pag), fa);
+			cur->bc_group->xg_gno, fa);
 	xfs_warn(mp,
 		"Owner 0x%llx, flags 0x%x, start block 0x%x block count 0x%x",
 		irec->rm_owner, irec->rm_flags, irec->rm_startblock,
@@ -2588,7 +2586,7 @@ xfs_rmap_finish_one(
 	 * If we haven't gotten a cursor or the cursor AG doesn't match
 	 * the startblock, get one now.
 	 */
-	if (rcur != NULL && rcur->bc_ag.pag != ri->ri_pag) {
+	if (rcur != NULL && to_perag(rcur->bc_group) != ri->ri_pag) {
 		xfs_btree_del_cursor(rcur, 0);
 		rcur = NULL;
 		*pcur = NULL;

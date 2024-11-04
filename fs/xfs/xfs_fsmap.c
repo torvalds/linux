@@ -394,7 +394,8 @@ xfs_getfsmap_datadev_helper(
 	struct xfs_getfsmap_info	*info = priv;
 
 	return xfs_getfsmap_helper(cur->bc_tp, info, rec,
-			xfs_agbno_to_daddr(cur->bc_ag.pag, rec->rm_startblock),
+			xfs_agbno_to_daddr(to_perag(cur->bc_group),
+				rec->rm_startblock),
 			0);
 }
 
@@ -415,7 +416,8 @@ xfs_getfsmap_datadev_bnobt_helper(
 	irec.rm_flags = 0;
 
 	return xfs_getfsmap_helper(cur->bc_tp, info, &irec,
-			xfs_agbno_to_daddr(cur->bc_ag.pag, rec->ar_startblock),
+			xfs_agbno_to_daddr(to_perag(cur->bc_group),
+				rec->ar_startblock),
 			0);
 }
 
