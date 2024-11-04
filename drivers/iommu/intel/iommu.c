@@ -352,36 +352,6 @@ static bool iommu_paging_structure_coherency(struct intel_iommu *iommu)
 			ecap_smpwc(iommu->ecap) : ecap_coherent(iommu->ecap);
 }
 
-static void domain_update_iommu_coherency(struct dmar_domain *domain)
-{
-	struct iommu_domain_info *info;
-	struct dmar_drhd_unit *drhd;
-	struct intel_iommu *iommu;
-	bool found = false;
-	unsigned long i;
-
-	domain->iommu_coherency = true;
-	xa_for_each(&domain->iommu_array, i, info) {
-		found = true;
-		if (!iommu_paging_structure_coherency(info->iommu)) {
-			domain->iommu_coherency = false;
-			break;
-		}
-	}
-	if (found)
-		return;
-
-	/* No hardware attached; use lowest common denominator */
-	rcu_read_lock();
-	for_each_active_iommu(iommu, drhd) {
-		if (!iommu_paging_structure_coherency(iommu)) {
-			domain->iommu_coherency = false;
-			break;
-		}
-	}
-	rcu_read_unlock();
-}
-
 static int domain_update_iommu_superpage(struct dmar_domain *domain,
 					 struct intel_iommu *skip)
 {
@@ -412,29 +382,6 @@ static int domain_update_iommu_superpage(struct dmar_domain *domain,
 	return fls(mask);
 }
 
-static int domain_update_device_node(struct dmar_domain *domain)
-{
-	struct device_domain_info *info;
-	int nid = NUMA_NO_NODE;
-	unsigned long flags;
-
-	spin_lock_irqsave(&domain->lock, flags);
-	list_for_each_entry(info, &domain->devices, link) {
-		/*
-		 * There could possibly be multiple device numa nodes as devices
-		 * within the same domain may sit behind different IOMMUs. There
-		 * isn't perfect answer in such situation, so we select first
-		 * come first served policy.
-		 */
-		nid = dev_to_node(info->dev);
-		if (nid != NUMA_NO_NODE)
-			break;
-	}
-	spin_unlock_irqrestore(&domain->lock, flags);
-
-	return nid;
-}
-
 /* Return the super pagesize bitmap if supported. */
 static unsigned long domain_super_pgsize_bitmap(struct dmar_domain *domain)
 {
@@ -450,34 +397,6 @@ static unsigned long domain_super_pgsize_bitmap(struct dmar_domain *domain)
 		bitmap |= SZ_2M | SZ_1G;
 
 	return bitmap;
-}
-
-/* Some capabilities may be different across iommus */
-void domain_update_iommu_cap(struct dmar_domain *domain)
-{
-	domain_update_iommu_coherency(domain);
-	domain->iommu_superpage = domain_update_iommu_superpage(domain, NULL);
-
-	/*
-	 * If RHSA is missing, we should default to the device numa domain
-	 * as fall back.
-	 */
-	if (domain->nid == NUMA_NO_NODE)
-		domain->nid = domain_update_device_node(domain);
-
-	/*
-	 * First-level translation restricts the input-address to a
-	 * canonical address (i.e., address bits 63:N have the same
-	 * value as address bit [N-1], where N is 48-bits with 4-level
-	 * paging and 57-bits with 5-level paging). Hence, skip bit
-	 * [N-1].
-	 */
-	if (domain->use_first_level)
-		domain->domain.geometry.aperture_end = __DOMAIN_MAX_ADDR(domain->gaw - 1);
-	else
-		domain->domain.geometry.aperture_end = __DOMAIN_MAX_ADDR(domain->gaw);
-
-	domain->domain.pgsize_bitmap |= domain_super_pgsize_bitmap(domain);
 }
 
 struct context_entry *iommu_context_addr(struct intel_iommu *iommu, u8 bus,
@@ -1493,7 +1412,6 @@ int domain_attach_iommu(struct dmar_domain *domain, struct intel_iommu *iommu)
 		ret = xa_err(curr) ? : -EBUSY;
 		goto err_clear;
 	}
-	domain_update_iommu_cap(domain);
 
 	spin_unlock(&iommu->lock);
 	return 0;
@@ -1519,7 +1437,6 @@ void domain_detach_iommu(struct dmar_domain *domain, struct intel_iommu *iommu)
 		clear_bit(info->did, iommu->domain_ids);
 		xa_erase(&domain->iommu_array, iommu->seq_id);
 		domain->nid = NUMA_NO_NODE;
-		domain_update_iommu_cap(domain);
 		kfree(info);
 	}
 	spin_unlock(&iommu->lock);
