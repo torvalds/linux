@@ -592,7 +592,7 @@ out:
 	nvmet_req_complete(req, status);
 }
 
-static void nvmet_execute_identify_nslist(struct nvmet_req *req)
+static void nvmet_execute_identify_nslist(struct nvmet_req *req, bool match_css)
 {
 	static const int buf_size = NVME_IDENTIFY_DATA_SIZE;
 	struct nvmet_ctrl *ctrl = req->sq->ctrl;
@@ -621,6 +621,8 @@ static void nvmet_execute_identify_nslist(struct nvmet_req *req)
 
 	xa_for_each(&ctrl->subsys->namespaces, idx, ns) {
 		if (ns->nsid <= min_nsid)
+			continue;
+		if (match_css && req->ns->csi != req->cmd->identify.csi)
 			continue;
 		list[i++] = cpu_to_le32(ns->nsid);
 		if (i == buf_size / sizeof(__le32))
@@ -728,7 +730,7 @@ static void nvmet_execute_identify(struct nvmet_req *req)
 		nvmet_execute_identify_ctrl(req);
 		return;
 	case NVME_ID_CNS_NS_ACTIVE_LIST:
-		nvmet_execute_identify_nslist(req);
+		nvmet_execute_identify_nslist(req, false);
 		return;
 	case NVME_ID_CNS_NS_DESC_LIST:
 		nvmet_execute_identify_desclist(req);
@@ -759,6 +761,9 @@ static void nvmet_execute_identify(struct nvmet_req *req)
 			break;
 		}
 		break;
+	case NVME_ID_CNS_NS_ACTIVE_LIST_CS:
+		nvmet_execute_identify_nslist(req, true);
+		return;
 	}
 
 	pr_debug("unhandled identify cns %d on qid %d\n",
