@@ -172,6 +172,10 @@ xrep_findparent_walk_directory(
 	 */
 	lock_mode = xfs_ilock_data_map_shared(dp);
 
+	/* Don't mix metadata and regular directory trees. */
+	if (xfs_is_metadir_inode(dp) != xfs_is_metadir_inode(sc->ip))
+		goto out_unlock;
+
 	/*
 	 * If this directory is known to be sick, we cannot scan it reliably
 	 * and must abort.
@@ -368,6 +372,12 @@ xrep_findparent_confirm(
 		return 0;
 	}
 
+	/* The metadata root directory always points to itself. */
+	if (sc->ip == sc->mp->m_metadirip) {
+		*parent_ino = sc->mp->m_sb.sb_metadirino;
+		return 0;
+	}
+
 	/* Unlinked dirs can point anywhere; point them up to the root dir. */
 	if (VFS_I(sc->ip)->i_nlink == 0) {
 		*parent_ino = xchk_inode_rootdir_inum(sc->ip);
@@ -414,6 +424,9 @@ xrep_findparent_self_reference(
 {
 	if (sc->ip->i_ino == sc->mp->m_sb.sb_rootino)
 		return sc->mp->m_sb.sb_rootino;
+
+	if (sc->ip->i_ino == sc->mp->m_sb.sb_metadirino)
+		return sc->mp->m_sb.sb_metadirino;
 
 	if (VFS_I(sc->ip)->i_nlink == 0)
 		return xchk_inode_rootdir_inum(sc->ip);
