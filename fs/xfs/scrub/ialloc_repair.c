@@ -421,9 +421,7 @@ xrep_ibt_record_inode_blocks(
 	if (error)
 		return error;
 
-	trace_xrep_ibt_walk_rmap(mp, ri->sc->sa.pag->pag_agno,
-			rec->rm_startblock, rec->rm_blockcount, rec->rm_owner,
-			rec->rm_offset, rec->rm_flags);
+	trace_xrep_ibt_walk_rmap(ri->sc->sa.pag, rec);
 
 	/*
 	 * Record the free/hole masks for each inode cluster that could be
