@@ -1335,13 +1335,8 @@ void i915_pmu_unregister(struct drm_i915_private *i915)
 	if (!pmu->registered)
 		return;
 
-	/*
-	 * "Disconnect" the PMU callbacks - since all are atomic synchronize_rcu
-	 * ensures all currently executing ones will have exited before we
-	 * proceed with unregistration.
-	 */
+	/* Disconnect the PMU callbacks */
 	pmu->registered = false;
-	synchronize_rcu();
 
 	hrtimer_cancel(&pmu->timer);
 
