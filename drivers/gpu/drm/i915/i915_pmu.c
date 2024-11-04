@@ -302,7 +302,7 @@ void i915_pmu_gt_parked(struct intel_gt *gt)
 {
 	struct i915_pmu *pmu = &gt->i915->pmu;
 
-	if (pmu->closed)
+	if (!pmu->registered)
 		return;
 
 	spin_lock_irq(&pmu->lock);
@@ -324,7 +324,7 @@ void i915_pmu_gt_unparked(struct intel_gt *gt)
 {
 	struct i915_pmu *pmu = &gt->i915->pmu;
 
-	if (pmu->closed)
+	if (!pmu->registered)
 		return;
 
 	spin_lock_irq(&pmu->lock);
@@ -626,7 +626,7 @@ static int i915_pmu_event_init(struct perf_event *event)
 	struct drm_i915_private *i915 = pmu_to_i915(pmu);
 	int ret;
 
-	if (pmu->closed)
+	if (!pmu->registered)
 		return -ENODEV;
 
 	if (event->attr.type != event->pmu->type)
@@ -724,7 +724,7 @@ static void i915_pmu_event_read(struct perf_event *event)
 	struct hw_perf_event *hwc = &event->hw;
 	u64 prev, new;
 
-	if (pmu->closed) {
+	if (!pmu->registered) {
 		event->hw.state = PERF_HES_STOPPED;
 		return;
 	}
@@ -850,7 +850,7 @@ static void i915_pmu_event_start(struct perf_event *event, int flags)
 {
 	struct i915_pmu *pmu = event_to_pmu(event);
 
-	if (pmu->closed)
+	if (!pmu->registered)
 		return;
 
 	i915_pmu_enable(event);
@@ -861,7 +861,7 @@ static void i915_pmu_event_stop(struct perf_event *event, int flags)
 {
 	struct i915_pmu *pmu = event_to_pmu(event);
 
-	if (pmu->closed)
+	if (!pmu->registered)
 		goto out;
 
 	if (flags & PERF_EF_UPDATE)
@@ -877,7 +877,7 @@ static int i915_pmu_event_add(struct perf_event *event, int flags)
 {
 	struct i915_pmu *pmu = event_to_pmu(event);
 
-	if (pmu->closed)
+	if (!pmu->registered)
 		return -ENODEV;
 
 	if (flags & PERF_EF_START)
@@ -1193,7 +1193,7 @@ static int i915_pmu_cpu_offline(unsigned int cpu, struct hlist_node *node)
 	 * Unregistering an instance generates a CPU offline event which we must
 	 * ignore to avoid incorrectly modifying the shared i915_pmu_cpumask.
 	 */
-	if (pmu->closed)
+	if (!pmu->registered)
 		return 0;
 
 	if (cpumask_test_and_clear_cpu(cpu, &i915_pmu_cpumask)) {
@@ -1263,8 +1263,6 @@ void i915_pmu_register(struct drm_i915_private *i915)
 	};
 	int ret = -ENOMEM;
 
-	pmu->closed = true;
-
 	spin_lock_init(&pmu->lock);
 	hrtimer_init(&pmu->timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 	pmu->timer.function = i915_sample;
@@ -1313,7 +1311,7 @@ void i915_pmu_register(struct drm_i915_private *i915)
 	if (ret)
 		goto err_unreg;
 
-	pmu->closed = false;
+	pmu->registered = true;
 
 	return;
 
@@ -1334,12 +1332,15 @@ void i915_pmu_unregister(struct drm_i915_private *i915)
 {
 	struct i915_pmu *pmu = &i915->pmu;
 
+	if (!pmu->registered)
+		return;
+
 	/*
 	 * "Disconnect" the PMU callbacks - since all are atomic synchronize_rcu
 	 * ensures all currently executing ones will have exited before we
 	 * proceed with unregistration.
 	 */
-	pmu->closed = true;
+	pmu->registered = false;
 	synchronize_rcu();
 
 	hrtimer_cancel(&pmu->timer);
