@@ -1762,7 +1762,7 @@ xrep_inode_pptr(
 	 * Metadata inodes are rooted in the superblock and do not have any
 	 * parents.
 	 */
-	if (xfs_is_metadata_inode(ip))
+	if (xfs_is_internal_inode(ip))
 		return 0;
 
 	/* Inode already has an attr fork; no further work possible here. */

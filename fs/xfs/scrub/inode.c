@@ -95,7 +95,7 @@ xchk_setup_inode(
 	}
 
 	/* Reject internal metadata files and obviously bad inode numbers. */
-	if (xfs_internal_inum(mp, sc->sm->sm_ino))
+	if (xfs_is_sb_inum(mp, sc->sm->sm_ino))
 		return -ENOENT;
 	if (!xfs_verify_ino(sc->mp, sc->sm->sm_ino))
 		return -ENOENT;

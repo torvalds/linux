@@ -295,7 +295,7 @@ xrep_orphanage_can_adopt(
 		return false;
 	if (sc->ip == sc->orphanage)
 		return false;
-	if (xfs_internal_inum(sc->mp, sc->ip->i_ino))
+	if (xfs_is_sb_inum(sc->mp, sc->ip->i_ino))
 		return false;
 	return true;
 }

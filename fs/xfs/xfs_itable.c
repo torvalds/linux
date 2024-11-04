@@ -69,7 +69,7 @@ xfs_bulkstat_one_int(
 	vfsuid_t		vfsuid;
 	vfsgid_t		vfsgid;
 
-	if (xfs_internal_inum(mp, ino))
+	if (xfs_is_sb_inum(mp, ino))
 		goto out_advance;
 
 	error = xfs_iget(mp, tp, ino,

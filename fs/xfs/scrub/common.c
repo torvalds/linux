@@ -948,7 +948,7 @@ xchk_iget_for_scrubbing(
 		return xchk_install_live_inode(sc, ip_in);
 
 	/* Reject internal metadata files and obviously bad inode numbers. */
-	if (xfs_internal_inum(mp, sc->sm->sm_ino))
+	if (xfs_is_sb_inum(mp, sc->sm->sm_ino))
 		return -ENOENT;
 	if (!xfs_verify_ino(sc->mp, sc->sm->sm_ino))
 		return -ENOENT;

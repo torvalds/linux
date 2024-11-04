@@ -910,7 +910,7 @@ xchk_pptr_looks_zapped(
 	 * any parents.  Hence the attr fork will not be initialized, but
 	 * there are no parent pointers that might have been zapped.
 	 */
-	if (xfs_is_metadata_inode(ip))
+	if (xfs_is_internal_inode(ip))
 		return false;
 
 	/*
