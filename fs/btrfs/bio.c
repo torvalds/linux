@@ -649,8 +649,14 @@ static u64 btrfs_append_map_length(struct btrfs_bio *bbio, u64 map_length)
 	map_length = min(map_length, bbio->fs_info->max_zone_append_size);
 	sector_offset = bio_split_rw_at(&bbio->bio, &bbio->fs_info->limits,
 					&nr_segs, map_length);
-	if (sector_offset)
-		return sector_offset << SECTOR_SHIFT;
+	if (sector_offset) {
+		/*
+		 * bio_split_rw_at() could split at a size smaller than our
+		 * sectorsize and thus cause unaligned I/Os.  Fix that by
+		 * always rounding down to the nearest boundary.
+		 */
+		return ALIGN_DOWN(sector_offset << SECTOR_SHIFT, bbio->fs_info->sectorsize);
+	}
 	return map_length;
 }
 
