@@ -709,12 +709,11 @@ static void zswap_lru_add(struct list_lru *list_lru, struct zswap_entry *entry)
 
 	/*
 	 * Note that it is safe to use rcu_read_lock() here, even in the face of
-	 * concurrent memcg offlining. Thanks to the memcg->kmemcg_id indirection
-	 * used in list_lru lookup, only two scenarios are possible:
+	 * concurrent memcg offlining:
 	 *
-	 * 1. list_lru_add() is called before memcg->kmemcg_id is updated. The
+	 * 1. list_lru_add() is called before list_lru_memcg is erased. The
 	 *    new entry will be reparented to memcg's parent's list_lru.
-	 * 2. list_lru_add() is called after memcg->kmemcg_id is updated. The
+	 * 2. list_lru_add() is called after list_lru_memcg is erased. The
 	 *    new entry will be added directly to memcg's parent's list_lru.
 	 *
 	 * Similar reasoning holds for list_lru_del().
