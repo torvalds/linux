@@ -3041,6 +3041,16 @@ static int mmhub_err_codes[] = {
 	CODE_VML2, CODE_VML2_WALKER, CODE_MMCANE,
 };
 
+static int vcn_err_codes[] = {
+	CODE_VIDD, CODE_VIDV,
+};
+static int jpeg_err_codes[] = {
+	CODE_JPEG0S, CODE_JPEG0D, CODE_JPEG1S, CODE_JPEG1D,
+	CODE_JPEG2S, CODE_JPEG2D, CODE_JPEG3S, CODE_JPEG3D,
+	CODE_JPEG4S, CODE_JPEG4D, CODE_JPEG5S, CODE_JPEG5D,
+	CODE_JPEG6S, CODE_JPEG6D, CODE_JPEG7S, CODE_JPEG7D,
+};
+
 static const struct mca_ras_info mca_ras_table[] = {
 	{
 		.blkid = AMDGPU_RAS_BLOCK__UMC,
@@ -3069,6 +3079,20 @@ static const struct mca_ras_info mca_ras_table[] = {
 		.blkid = AMDGPU_RAS_BLOCK__XGMI_WAFL,
 		.ip = AMDGPU_MCA_IP_PCS_XGMI,
 		.get_err_count = mca_pcs_xgmi_mca_get_err_count,
+	}, {
+		.blkid = AMDGPU_RAS_BLOCK__VCN,
+		.ip = AMDGPU_MCA_IP_SMU,
+		.err_code_array = vcn_err_codes,
+		.err_code_count = ARRAY_SIZE(vcn_err_codes),
+		.get_err_count = mca_smu_mca_get_err_count,
+		.bank_is_valid = mca_smu_bank_is_valid,
+	}, {
+		.blkid = AMDGPU_RAS_BLOCK__JPEG,
+		.ip = AMDGPU_MCA_IP_SMU,
+		.err_code_array = jpeg_err_codes,
+		.err_code_count = ARRAY_SIZE(jpeg_err_codes),
+		.get_err_count = mca_smu_mca_get_err_count,
+		.bank_is_valid = mca_smu_bank_is_valid,
 	},
 };
 
