@@ -55,4 +55,5 @@ TEST_FILES := lib.sh
 TEST_FILES += packetdrill
 
 TEST_INCLUDES := \
-	../lib.sh
+	../lib.sh \
+	$(wildcard ../lib/sh/*.sh)
