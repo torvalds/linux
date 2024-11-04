@@ -217,7 +217,6 @@ static struct gpio_desc *gpio_led_get_gpiod(struct device *dev, int idx,
 					    const struct gpio_led *template)
 {
 	struct gpio_desc *gpiod;
-	unsigned long flags = GPIOF_OUT_INIT_LOW;
 	int ret;
 
 	/*
@@ -244,10 +243,7 @@ static struct gpio_desc *gpio_led_get_gpiod(struct device *dev, int idx,
 	if (!gpio_is_valid(template->gpio))
 		return ERR_PTR(-ENOENT);
 
-	if (template->active_low)
-		flags |= GPIOF_ACTIVE_LOW;
-
-	ret = devm_gpio_request_one(dev, template->gpio, flags,
+	ret = devm_gpio_request_one(dev, template->gpio, GPIOF_OUT_INIT_LOW,
 				    template->name);
 	if (ret < 0)
 		return ERR_PTR(ret);
@@ -255,6 +251,9 @@ static struct gpio_desc *gpio_led_get_gpiod(struct device *dev, int idx,
 	gpiod = gpio_to_desc(template->gpio);
 	if (!gpiod)
 		return ERR_PTR(-EINVAL);
+
+	if (template->active_low ^ gpiod_is_active_low(gpiod))
+		gpiod_toggle_active_low(gpiod);
 
 	return gpiod;
 }
