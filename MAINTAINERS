@@ -14141,6 +14141,15 @@ S:	Maintained
 T:	git git://linuxtv.org/media_tree.git
 F:	drivers/media/platform/nxp/imx-pxp.[ch]
 
+MEDIA DRIVERS FOR ASCOT2E
+M:	Abylay Ospan <aospan@amazon.com>
+L:	linux-media@vger.kernel.org
+S:	Supported
+W:	https://linuxtv.org
+W:	http://netup.tv/
+T:	git git://linuxtv.org/media_tree.git
+F:	drivers/media/dvb-frontends/ascot2e*
+
 MEDIA DRIVERS FOR CXD2099AR CI CONTROLLERS
 M:	Jasmin Jessich <jasmin@anw.at>
 L:	linux-media@vger.kernel.org
@@ -14148,6 +14157,15 @@ S:	Maintained
 W:	https://linuxtv.org
 T:	git git://linuxtv.org/media_tree.git
 F:	drivers/media/dvb-frontends/cxd2099*
+
+MEDIA DRIVERS FOR CXD2841ER
+M:	Abylay Ospan <aospan@amazon.com>
+L:	linux-media@vger.kernel.org
+S:	Supported
+W:	https://linuxtv.org
+W:	http://netup.tv/
+T:	git git://linuxtv.org/media_tree.git
+F:	drivers/media/dvb-frontends/cxd2841er*
 
 MEDIA DRIVERS FOR CXD2880
 M:	Yasunari Takiguchi <Yasunari.Takiguchi@sony.com>
@@ -14193,12 +14211,48 @@ F:	drivers/media/platform/nxp/imx-mipi-csis.c
 F:	drivers/media/platform/nxp/imx7-media-csi.c
 F:	drivers/media/platform/nxp/imx8mq-mipi-csi2.c
 
+MEDIA DRIVERS FOR HELENE
+M:	Abylay Ospan <aospan@amazon.com>
+L:	linux-media@vger.kernel.org
+S:	Supported
+W:	https://linuxtv.org
+W:	http://netup.tv/
+T:	git git://linuxtv.org/media_tree.git
+F:	drivers/media/dvb-frontends/helene*
+
+MEDIA DRIVERS FOR HORUS3A
+M:	Abylay Ospan <aospan@amazon.com>
+L:	linux-media@vger.kernel.org
+S:	Supported
+W:	https://linuxtv.org
+W:	http://netup.tv/
+T:	git git://linuxtv.org/media_tree.git
+F:	drivers/media/dvb-frontends/horus3a*
+
+MEDIA DRIVERS FOR LNBH25
+M:	Abylay Ospan <aospan@amazon.com>
+L:	linux-media@vger.kernel.org
+S:	Supported
+W:	https://linuxtv.org
+W:	http://netup.tv/
+T:	git git://linuxtv.org/media_tree.git
+F:	drivers/media/dvb-frontends/lnbh25*
+
 MEDIA DRIVERS FOR MXL5XX TUNER DEMODULATORS
 L:	linux-media@vger.kernel.org
 S:	Orphan
 W:	https://linuxtv.org
 T:	git git://linuxtv.org/media_tree.git
 F:	drivers/media/dvb-frontends/mxl5xx*
+
+MEDIA DRIVERS FOR NETUP PCI UNIVERSAL DVB devices
+M:	Abylay Ospan <aospan@amazon.com>
+L:	linux-media@vger.kernel.org
+S:	Supported
+W:	https://linuxtv.org
+W:	http://netup.tv/
+T:	git git://linuxtv.org/media_tree.git
+F:	drivers/media/pci/netup_unidvb/*
 
 MEDIA DRIVERS FOR NVIDIA TEGRA - VDE
 M:	Dmitry Osipenko <digetx@gmail.com>
