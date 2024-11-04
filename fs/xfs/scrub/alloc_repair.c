@@ -132,13 +132,16 @@ int
 xrep_setup_ag_allocbt(
 	struct xfs_scrub	*sc)
 {
+	struct xfs_group	*xg = pag_group(sc->sa.pag);
+	unsigned int		busy_gen;
+
 	/*
 	 * Make sure the busy extent list is clear because we can't put extents
 	 * on there twice.
 	 */
-	if (xfs_extent_busy_list_empty(sc->sa.pag, &busy_gen))
+	if (xfs_extent_busy_list_empty(xg, &busy_gen))
 		return 0;
-	return xfs_extent_busy_flush(sc->tp, sc->sa.pag, busy_gen, 0);
+	return xfs_extent_busy_flush(sc->tp, xg, busy_gen, 0);
 }
 
 /* Check for any obvious conflicts in the free extent. */
@@ -866,7 +869,7 @@ xrep_allocbt(
 	 * on there twice.  In theory we cleared this before we started, but
 	 * let's not risk the filesystem.
 	 */
-	if (!xfs_extent_busy_list_empty(sc->sa.pag, &busy_gen)) {
+	if (!xfs_extent_busy_list_empty(pag_group(sc->sa.pag), &busy_gen)) {
 		error = -EDEADLOCK;
 		goto out_ra;
 	}

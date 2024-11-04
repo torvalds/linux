@@ -16,6 +16,11 @@ struct xfs_group {
 	/* -- kernel only structures below this line -- */
 
 	/*
+	 * Track freed but not yet committed extents.
+	 */
+	struct xfs_extent_busy_tree *xg_busy_extents;
+
+	/*
 	 * Bitsets of per-ag metadata that have been checked and/or are sick.
 	 * Callers should hold xg_state_lock before accessing this field.
 	 */
