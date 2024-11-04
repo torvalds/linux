@@ -67,8 +67,7 @@ xchk_setup_rtbitmap(
 	if (mp->m_sb.sb_rblocks) {
 		rtb->rextents = xfs_rtb_to_rtx(mp, mp->m_sb.sb_rblocks);
 		rtb->rextslog = xfs_compute_rextslog(rtb->rextents);
-		rtb->rbmblocks = xfs_rtbitmap_blockcount(mp,
-				mp->m_sb.sb_rextents);
+		rtb->rbmblocks = xfs_rtbitmap_blockcount(mp);
 	}
 
 	return 0;
