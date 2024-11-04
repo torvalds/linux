@@ -534,6 +534,35 @@ xfs_iwalk_prefetch(
 	return max(inobt_records, 2U);
 }
 
+static int
+xfs_iwalk_args(
+	struct xfs_iwalk_ag	*iwag,
+	unsigned int		flags)
+{
+	struct xfs_mount	*mp = iwag->mp;
+	xfs_agnumber_t		agno = XFS_INO_TO_AGNO(mp, iwag->startino);
+	int			error;
+
+	ASSERT(agno < mp->m_sb.sb_agcount);
+	ASSERT(!(flags & ~XFS_IWALK_FLAGS_ALL));
+
+	error = xfs_iwalk_alloc(iwag);
+	if (error)
+		return error;
+
+	for_each_perag_from(mp, agno, iwag->pag) {
+		error = xfs_iwalk_ag(iwag);
+		if (error || (flags & XFS_IWALK_SAME_AG)) {
+			xfs_perag_rele(iwag->pag);
+			break;
+		}
+		iwag->startino = XFS_AGINO_TO_INO(mp, agno + 1, 0);
+	}
+
+	xfs_iwalk_free(iwag);
+	return error;
+}
+
 /*
  * Walk all inodes in the filesystem starting from @startino.  The @iwalk_fn
  * will be called for each allocated inode, being passed the inode's number and
@@ -562,32 +591,8 @@ xfs_iwalk(
 		.pwork		= XFS_PWORK_SINGLE_THREADED,
 		.lastino	= NULLFSINO,
 	};
-	struct xfs_perag	*pag;
-	xfs_agnumber_t		agno = XFS_INO_TO_AGNO(mp, startino);
-	int			error;
 
-	ASSERT(agno < mp->m_sb.sb_agcount);
-	ASSERT(!(flags & ~XFS_IWALK_FLAGS_ALL));
-
-	error = xfs_iwalk_alloc(&iwag);
-	if (error)
-		return error;
-
-	for_each_perag_from(mp, agno, pag) {
-		iwag.pag = pag;
-		error = xfs_iwalk_ag(&iwag);
-		if (error)
-			break;
-		iwag.startino = XFS_AGINO_TO_INO(mp, agno + 1, 0);
-		if (flags & XFS_INOBT_WALK_SAME_AG)
-			break;
-		iwag.pag = NULL;
-	}
-
-	if (iwag.pag)
-		xfs_perag_rele(pag);
-	xfs_iwalk_free(&iwag);
-	return error;
+	return xfs_iwalk_args(&iwag, flags);
 }
 
 /* Run per-thread iwalk work. */
@@ -673,7 +678,7 @@ xfs_iwalk_threaded(
 		iwag->lastino = NULLFSINO;
 		xfs_pwork_queue(&pctl, &iwag->pwork);
 		startino = XFS_AGINO_TO_INO(mp, pag->pag_agno + 1, 0);
-		if (flags & XFS_INOBT_WALK_SAME_AG)
+		if (flags & XFS_IWALK_SAME_AG)
 			break;
 	}
 	if (pag)
@@ -747,30 +752,6 @@ xfs_inobt_walk(
 		.pwork		= XFS_PWORK_SINGLE_THREADED,
 		.lastino	= NULLFSINO,
 	};
-	struct xfs_perag	*pag;
-	xfs_agnumber_t		agno = XFS_INO_TO_AGNO(mp, startino);
-	int			error;
 
-	ASSERT(agno < mp->m_sb.sb_agcount);
-	ASSERT(!(flags & ~XFS_INOBT_WALK_FLAGS_ALL));
-
-	error = xfs_iwalk_alloc(&iwag);
-	if (error)
-		return error;
-
-	for_each_perag_from(mp, agno, pag) {
-		iwag.pag = pag;
-		error = xfs_iwalk_ag(&iwag);
-		if (error)
-			break;
-		iwag.startino = XFS_AGINO_TO_INO(mp, pag->pag_agno + 1, 0);
-		if (flags & XFS_INOBT_WALK_SAME_AG)
-			break;
-		iwag.pag = NULL;
-	}
-
-	if (iwag.pag)
-		xfs_perag_rele(pag);
-	xfs_iwalk_free(&iwag);
-	return error;
+	return xfs_iwalk_args(&iwag, flags);
 }
