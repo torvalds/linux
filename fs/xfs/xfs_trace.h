@@ -97,6 +97,7 @@ struct xfs_extent_free_item;
 struct xfs_rmap_intent;
 struct xfs_refcount_intent;
 struct xfs_metadir_update;
+struct xfs_rtgroup;
 
 #define XFS_ATTR_FILTER_FLAGS \
 	{ XFS_ATTR_ROOT,	"ROOT" }, \
@@ -1743,6 +1744,80 @@ TRACE_EVENT(xfs_extent_busy_trim,
 		  __entry->tbno,
 		  __entry->tlen)
 );
+
+#ifdef CONFIG_XFS_RT
+TRACE_EVENT(xfs_rtalloc_extent_busy,
+	TP_PROTO(struct xfs_rtgroup *rtg, xfs_rtxnum_t start,
+		 xfs_rtxlen_t minlen, xfs_rtxlen_t maxlen,
+		 xfs_rtxlen_t len, xfs_rtxlen_t prod, xfs_rtxnum_t rtx,
+		 unsigned busy_gen),
+	TP_ARGS(rtg, start, minlen, maxlen, len, prod, rtx, busy_gen),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_rgnumber_t, rgno)
+		__field(xfs_rtxnum_t, start)
+		__field(xfs_rtxlen_t, minlen)
+		__field(xfs_rtxlen_t, maxlen)
+		__field(xfs_rtxlen_t, mod)
+		__field(xfs_rtxlen_t, prod)
+		__field(xfs_rtxlen_t, len)
+		__field(xfs_rtxnum_t, rtx)
+		__field(unsigned, busy_gen)
+	),
+	TP_fast_assign(
+		__entry->dev = rtg_mount(rtg)->m_super->s_dev;
+		__entry->rgno = rtg_rgno(rtg);
+		__entry->start = start;
+		__entry->minlen = minlen;
+		__entry->maxlen = maxlen;
+		__entry->prod = prod;
+		__entry->len = len;
+		__entry->rtx = rtx;
+		__entry->busy_gen = busy_gen;
+	),
+	TP_printk("dev %d:%d rgno 0x%x startrtx 0x%llx minlen %u maxlen %u "
+		  "prod %u len %u rtx 0%llx busy_gen 0x%x",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->rgno,
+		  __entry->start,
+		  __entry->minlen,
+		  __entry->maxlen,
+		  __entry->prod,
+		  __entry->len,
+		  __entry->rtx,
+		  __entry->busy_gen)
+)
+
+TRACE_EVENT(xfs_rtalloc_extent_busy_trim,
+	TP_PROTO(struct xfs_rtgroup *rtg, xfs_rtxnum_t old_rtx,
+		 xfs_rtxlen_t old_len, xfs_rtxnum_t new_rtx,
+		 xfs_rtxlen_t new_len),
+	TP_ARGS(rtg, old_rtx, old_len, new_rtx, new_len),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_rgnumber_t, rgno)
+		__field(xfs_rtxnum_t, old_rtx)
+		__field(xfs_rtxnum_t, new_rtx)
+		__field(xfs_rtxlen_t, old_len)
+		__field(xfs_rtxlen_t, new_len)
+	),
+	TP_fast_assign(
+		__entry->dev = rtg_mount(rtg)->m_super->s_dev;
+		__entry->rgno = rtg_rgno(rtg);
+		__entry->old_rtx = old_rtx;
+		__entry->old_len = old_len;
+		__entry->new_rtx = new_rtx;
+		__entry->new_len = new_len;
+	),
+	TP_printk("dev %d:%d rgno 0x%x rtx 0x%llx rtxcount 0x%x -> rtx 0x%llx rtxcount 0x%x",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->rgno,
+		  __entry->old_rtx,
+		  __entry->old_len,
+		  __entry->new_rtx,
+		  __entry->new_len)
+);
+#endif /* CONFIG_XFS_RT */
 
 DECLARE_EVENT_CLASS(xfs_agf_class,
 	TP_PROTO(struct xfs_mount *mp, struct xfs_agf *agf, int flags,

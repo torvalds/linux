@@ -29,6 +29,7 @@
 #include "xfs_metafile.h"
 #include "xfs_rtgroup.h"
 #include "xfs_error.h"
+#include "xfs_trace.h"
 
 /*
  * Return whether there are any free extents in the size range given
@@ -1659,6 +1660,114 @@ xfs_rtalloc_align_minmax(
 	*raminlen = newminlen;
 }
 
+/* Given a free extent, find any part of it that isn't busy, if possible. */
+STATIC bool
+xfs_rtalloc_check_busy(
+	struct xfs_rtalloc_args	*args,
+	xfs_rtxnum_t		start,
+	xfs_rtxlen_t		minlen_rtx,
+	xfs_rtxlen_t		maxlen_rtx,
+	xfs_rtxlen_t		len_rtx,
+	xfs_rtxlen_t		prod,
+	xfs_rtxnum_t		rtx,
+	xfs_rtxlen_t		*reslen,
+	xfs_rtxnum_t		*resrtx,
+	unsigned		*busy_gen)
+{
+	struct xfs_rtgroup	*rtg = args->rtg;
+	struct xfs_mount	*mp = rtg_mount(rtg);
+	xfs_agblock_t		rgbno = xfs_rtx_to_rgbno(rtg, rtx);
+	xfs_rgblock_t		min_rgbno = xfs_rtx_to_rgbno(rtg, start);
+	xfs_extlen_t		minlen = xfs_rtxlen_to_extlen(mp, minlen_rtx);
+	xfs_extlen_t		len = xfs_rtxlen_to_extlen(mp, len_rtx);
+	xfs_extlen_t		diff;
+	bool			busy;
+
+	busy = xfs_extent_busy_trim(rtg_group(rtg), minlen,
+			xfs_rtxlen_to_extlen(mp, maxlen_rtx), &rgbno, &len,
+			busy_gen);
+
+	/*
+	 * If we have a largish extent that happens to start before min_rgbno,
+	 * see if we can shift it into range...
+	 */
+	if (rgbno < min_rgbno && rgbno + len > min_rgbno) {
+		diff = min_rgbno - rgbno;
+		if (len > diff) {
+			rgbno += diff;
+			len -= diff;
+		}
+	}
+
+	if (prod > 1 && len >= minlen) {
+		xfs_rgblock_t	aligned_rgbno = roundup(rgbno, prod);
+
+		diff = aligned_rgbno - rgbno;
+
+		*resrtx = xfs_rgbno_to_rtx(mp, aligned_rgbno);
+		*reslen = xfs_extlen_to_rtxlen(mp,
+				diff >= len ? 0 : len - diff);
+	} else {
+		*resrtx = xfs_rgbno_to_rtx(mp, rgbno);
+		*reslen = xfs_extlen_to_rtxlen(mp, len);
+	}
+
+	return busy;
+}
+
+/*
+ * Adjust the given free extent so that it isn't busy, or flush the log and
+ * wait for the space to become unbusy.  Only needed for rtgroups.
+ */
+STATIC int
+xfs_rtallocate_adjust_for_busy(
+	struct xfs_rtalloc_args	*args,
+	xfs_rtxnum_t		start,
+	xfs_rtxlen_t		minlen,
+	xfs_rtxlen_t		maxlen,
+	xfs_rtxlen_t		*len,
+	xfs_rtxlen_t		prod,
+	xfs_rtxnum_t		*rtx)
+{
+	xfs_rtxnum_t		resrtx;
+	xfs_rtxlen_t		reslen;
+	unsigned		busy_gen;
+	bool			busy;
+	int			error;
+
+again:
+	busy = xfs_rtalloc_check_busy(args, start, minlen, maxlen, *len, prod,
+			*rtx, &reslen, &resrtx, &busy_gen);
+	if (!busy)
+		return 0;
+
+	if (reslen < minlen || (start != 0 && resrtx != *rtx)) {
+		/*
+		 * Enough of the extent was busy that we cannot satisfy the
+		 * allocation, or this is a near allocation and the start of
+		 * the extent is busy.  Flush the log and wait for the busy
+		 * situation to resolve.
+		 */
+		trace_xfs_rtalloc_extent_busy(args->rtg, start, minlen, maxlen,
+				*len, prod, *rtx, busy_gen);
+
+		error = xfs_extent_busy_flush(args->tp, rtg_group(args->rtg),
+				busy_gen, 0);
+		if (error)
+			return error;
+
+		goto again;
+	}
+
+	/* Some of the free space wasn't busy, hand that back to the caller. */
+	trace_xfs_rtalloc_extent_busy_trim(args->rtg, *rtx, *len, resrtx,
+			reslen);
+	*len = reslen;
+	*rtx = resrtx;
+
+	return 0;
+}
+
 static int
 xfs_rtallocate_rtg(
 	struct xfs_trans	*tp,
@@ -1740,15 +1849,19 @@ xfs_rtallocate_rtg(
 	}
 
 	if (error) {
-		if (xfs_has_rtgroups(args.mp)) {
-			xfs_rtgroup_unlock(args.rtg, XFS_RTGLOCK_BITMAP);
-			*rtlocked = false;
-		}
+		if (xfs_has_rtgroups(args.mp))
+			goto out_unlock;
 		goto out_release;
 	}
 
-	if (xfs_has_rtgroups(args.mp))
+	if (xfs_has_rtgroups(args.mp)) {
+		error = xfs_rtallocate_adjust_for_busy(&args, start, minlen,
+				maxlen, &len, prod, &rtx);
+		if (error)
+			goto out_unlock;
+
 		xfs_rtgroup_trans_join(tp, args.rtg, XFS_RTGLOCK_BITMAP);
+	}
 
 	error = xfs_rtallocate_range(&args, rtx, len);
 	if (error)
@@ -1764,6 +1877,10 @@ out_release:
 	xfs_rtgroup_rele(args.rtg);
 	xfs_rtbuf_cache_relse(&args);
 	return error;
+out_unlock:
+	xfs_rtgroup_unlock(args.rtg, XFS_RTGLOCK_BITMAP);
+	*rtlocked = false;
+	goto out_release;
 }
 
 static int
