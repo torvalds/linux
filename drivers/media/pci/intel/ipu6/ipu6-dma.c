@@ -428,11 +428,12 @@ static int ipu6_dma_map_sg(struct device *dev, struct scatterlist *sglist,
 
 	iova_addr = iova->pfn_lo;
 	for_each_sg(sglist, sg, count, i) {
+		phys_addr_t iova_pa;
 		int ret;
 
-		dev_dbg(dev, "mapping entry %d: iova 0x%llx phy %pad size %d\n",
-			i, PFN_PHYS(iova_addr), &sg_dma_address(sg),
-			sg_dma_len(sg));
+		iova_pa = PFN_PHYS(iova_addr);
+		dev_dbg(dev, "mapping entry %d: iova %pap phy %pap size %d\n",
+			i, &iova_pa, &sg_dma_address(sg), sg_dma_len(sg));
 
 		ret = ipu6_mmu_map(mmu->dmap->mmu_info, PFN_PHYS(iova_addr),
 				   sg_dma_address(sg),
