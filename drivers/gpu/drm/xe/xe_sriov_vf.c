@@ -132,6 +132,31 @@ void xe_sriov_vf_init_early(struct xe_device *xe)
 	INIT_WORK(&xe->sriov.vf.migration.worker, migration_worker_func);
 }
 
+/**
+ * vf_post_migration_requery_guc - Re-query GuC for current VF provisioning.
+ * @xe: the &xe_device struct instance
+ *
+ * After migration, we need to re-query all VF configuration to make sure
+ * they match previous provisioning. Note that most of VF provisioning
+ * shall be the same, except GGTT range, since GGTT is not virtualized per-VF.
+ *
+ * Returns: 0 if the operation completed successfully, or a negative error
+ * code otherwise.
+ */
+static int vf_post_migration_requery_guc(struct xe_device *xe)
+{
+	struct xe_gt *gt;
+	unsigned int id;
+	int err, ret = 0;
+
+	for_each_gt(gt, xe, id) {
+		err = xe_gt_sriov_vf_query_config(gt);
+		ret = ret ?: err;
+	}
+
+	return ret;
+}
+
 /*
  * Notify all GuCs about resource fixups apply finished.
  */
@@ -147,12 +172,23 @@ static void vf_post_migration_notify_resfix_done(struct xe_device *xe)
 
 static void vf_post_migration_recovery(struct xe_device *xe)
 {
+	int err;
+
 	drm_dbg(&xe->drm, "migration recovery in progress\n");
 	xe_pm_runtime_get(xe);
+	err = vf_post_migration_requery_guc(xe);
+	if (unlikely(err))
+		goto fail;
+
 	/* FIXME: add the recovery steps */
 	vf_post_migration_notify_resfix_done(xe);
 	xe_pm_runtime_put(xe);
 	drm_notice(&xe->drm, "migration recovery ended\n");
+	return;
+fail:
+	xe_pm_runtime_put(xe);
+	drm_err(&xe->drm, "migration recovery failed (%pe)\n", ERR_PTR(err));
+	xe_device_declare_wedged(xe);
 }
 
 static void migration_worker_func(struct work_struct *w)
