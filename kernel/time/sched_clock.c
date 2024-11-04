@@ -80,7 +80,7 @@ notrace int sched_clock_read_retry(unsigned int seq)
 	return raw_read_seqcount_latch_retry(&cd.seq, seq);
 }
 
-unsigned long long noinstr sched_clock_noinstr(void)
+static __always_inline unsigned long long __sched_clock(void)
 {
 	struct clock_read_data *rd;
 	unsigned int seq;
@@ -98,11 +98,23 @@ unsigned long long noinstr sched_clock_noinstr(void)
 	return res;
 }
 
+unsigned long long noinstr sched_clock_noinstr(void)
+{
+	return __sched_clock();
+}
+
 unsigned long long notrace sched_clock(void)
 {
 	unsigned long long ns;
 	preempt_disable_notrace();
-	ns = sched_clock_noinstr();
+	/*
+	 * All of __sched_clock() is a seqcount_latch reader critical section,
+	 * but relies on the raw helpers which are uninstrumented. For KCSAN,
+	 * mark all accesses in __sched_clock() as atomic.
+	 */
+	kcsan_nestable_atomic_begin();
+	ns = __sched_clock();
+	kcsan_nestable_atomic_end();
 	preempt_enable_notrace();
 	return ns;
 }
