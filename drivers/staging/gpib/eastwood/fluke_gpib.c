@@ -430,7 +430,7 @@ static int fluke_dma_write(gpib_board_t *board, uint8_t *buffer, size_t length,
 				     test_bit(BUS_ERROR_BN, &nec_priv->state) ||
 				     test_bit(DEV_CLEAR_BN, &nec_priv->state) ||
 				     test_bit(TIMO_NUM, &board->status))) {
-		GPIB_DPRINTK("gpib write interrupted!\n");
+		dev_dbg(board->gpib_dev, "gpib write interrupted!\n");
 		retval = -ERESTARTSYS;
 	}
 	if (test_bit(TIMO_NUM, &board->status))

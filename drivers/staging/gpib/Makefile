@@ -1,5 +1,4 @@
 
-subdir-ccflags-$(CONFIG_GPIB_KERNEL_DEBUG) := -DGPIB_DEBUG
 subdir-ccflags-y += -I$(src)/include -I$(src)/uapi
 
 obj-$(CONFIG_GPIB_AGILENT_82350B) += agilent_82350b/

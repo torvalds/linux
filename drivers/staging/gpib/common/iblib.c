@@ -178,13 +178,13 @@ static int autospoll_thread(void *board_void)
 	gpib_board_t *board = board_void;
 	int retval = 0;
 
-	GPIB_DPRINTK("entering autospoll thread\n");
+	dev_dbg(board->gpib_dev, "entering autospoll thread\n");
 
 	while (1) {
 		wait_event_interruptible(board->wait,
 					 kthread_should_stop() ||
 					 autospoll_wait_should_wake_up(board));
-		GPIB_DPRINTK("autospoll wait satisfied\n");
+		dev_dbg(board->gpib_dev, "autospoll wait satisfied\n");
 		if (kthread_should_stop())
 			break;
 
@@ -247,7 +247,7 @@ int ibonline(gpib_board_t *board)
 	}
 #endif
 	board->online = 1;
-	GPIB_DPRINTK("gpib: board online\n");
+	dev_dbg(board->gpib_dev, "gpib: board online\n");
 
 	return 0;
 }
@@ -272,7 +272,7 @@ int iboffline(gpib_board_t *board)
 	board->interface->detach(board);
 	gpib_deallocate_board(board);
 	board->online = 0;
-	GPIB_DPRINTK("gpib: board offline\n");
+	dev_dbg(board->gpib_dev, "gpib: board offline\n");
 
 	return 0;
 }
@@ -436,7 +436,7 @@ int ibsic(gpib_board_t *board, unsigned int usec_duration)
 		pr_warn("gpib: warning, shortening long udelay\n");
 	}
 
-	GPIB_DPRINTK("sending interface clear\n");
+	dev_dbg(board->gpib_dev, "sending interface clear\n");
 	board->interface->interface_clear(board, 1);
 	udelay(usec_duration);
 	board->interface->interface_clear(board, 0);
@@ -486,7 +486,7 @@ int ibpad(gpib_board_t *board, unsigned int addr)
 	board->pad = addr;
 	if (board->online)
 		board->interface->primary_address(board, board->pad);
-	GPIB_DPRINTK("set primary addr to %i\n", board->pad);
+	dev_dbg(board->gpib_dev, "set primary addr to %i\n", board->pad);
 	return 0;
 }
 
@@ -509,7 +509,7 @@ int ibsad(gpib_board_t *board, int addr)
 		else
 			board->interface->secondary_address(board, 0, 0);
 	}
-	GPIB_DPRINTK("set secondary addr to %i\n", board->sad);
+	dev_dbg(board->gpib_dev, "set secondary addr to %i\n", board->sad);
 
 	return 0;
 }
@@ -683,7 +683,7 @@ int ibwait(gpib_board_t *board, int wait_mask, int clear_mask, int set_mask,
 
 	if (wait_event_interruptible(board->wait, wait_satisfied(&winfo, status_queue,
 								 wait_mask, status, desc))) {
-		GPIB_DPRINTK("wait interrupted\n");
+		dev_dbg(board->gpib_dev, "wait interrupted\n");
 		retval = -ERESTARTSYS;
 	}
 	remove_wait_timer(&winfo);

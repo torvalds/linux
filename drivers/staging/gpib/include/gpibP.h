@@ -26,7 +26,7 @@ struct pci_dev *gpib_pci_get_subsys(const gpib_board_config_t *config, unsigned 
 				    unsigned int ss_device, struct pci_dev *from);
 unsigned int num_gpib_events(const gpib_event_queue_t *queue);
 int push_gpib_event(gpib_board_t *board, short event_type);
-int pop_gpib_event(gpib_event_queue_t *queue, short *event_type);
+int pop_gpib_event(gpib_board_t *board, gpib_event_queue_t *queue, short *event_type);
 int gpib_request_pseudo_irq(gpib_board_t *board, irqreturn_t (*handler)(int, void *));
 void gpib_free_pseudo_irq(gpib_board_t *board);
 int gpib_match_device_path(struct device *dev, const char *device_path_in);
@@ -34,12 +34,6 @@ int gpib_match_device_path(struct device *dev, const char *device_path_in);
 extern gpib_board_t board_array[GPIB_MAX_NUM_BOARDS];
 
 extern struct list_head registered_drivers;
-
-#ifdef GPIB_DEBUG
-#define GPIB_DPRINTK(format, args...) pr_info("gpib debug: " format, ## args)
-#else
-#define GPIB_DPRINTK(arg...)
-#endif
 
 #include <linux/io.h>
 

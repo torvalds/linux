@@ -12,16 +12,6 @@ menuconfig GPIB
 
 if GPIB
 
-config GPIB_KERNEL_DEBUG
-	bool "GPIB debugging"
-	depends on BROKEN
-	help
-	  This is an option for use by developers; most people should
-	  say N here.
-
-	  It enables gpib core and driver debugging
-	  messages to be printed on the console.
-
 config GPIB_COMMON
 	tristate "GPIB core"
 	help

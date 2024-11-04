@@ -382,7 +382,7 @@ static unsigned int update_status_nolock(gpib_board_t *board, struct tms9914_pri
 			clear_bit(SRQI_NUM, &board->status);
 	}
 
-	GPIB_DPRINTK("status 0x%lx, state 0x%lx\n", board->status, priv->state);
+	dev_dbg(board->gpib_dev, "status 0x%lx, state 0x%lx\n", board->status, priv->state);
 
 	return board->status;
 }
@@ -549,7 +549,7 @@ static int pio_write_wait(gpib_board_t *board, struct tms9914_priv *priv)
 				     test_bit(BUS_ERROR_BN, &priv->state) ||
 				     test_bit(DEV_CLEAR_BN, &priv->state) ||
 				     test_bit(TIMO_NUM, &board->status))) {
-		GPIB_DPRINTK("gpib write interrupted!\n");
+		dev_dbg(board->gpib_dev, "gpib write interrupted!\n");
 		return -ERESTARTSYS;
 	}
 	if (test_bit(TIMO_NUM, &board->status))
@@ -774,7 +774,7 @@ irqreturn_t tms9914_interrupt_have_status(gpib_board_t *board, struct tms9914_pr
 	}
 
 	if (status1 & HR_ERR) {
-		GPIB_DPRINTK("gpib bus error\n");
+		dev_dbg(board->gpib_dev, "gpib bus error\n");
 		set_bit(BUS_ERROR_BN, &priv->state);
 	}
 
@@ -807,7 +807,7 @@ irqreturn_t tms9914_interrupt_have_status(gpib_board_t *board, struct tms9914_pr
 	}
 
 	if ((status0 & priv->imr0_bits) || (status1 & priv->imr1_bits))	{
-//		GPIB_DPRINTK("isr0 0x%x, imr0 0x%x, isr1 0x%x, imr1 0x%x\n",
+//		dev_dbg(board->gpib_dev, "isr0 0x%x, imr0 0x%x, isr1 0x%x, imr1 0x%x\n",
 //			status0, priv->imr0_bits, status1, priv->imr1_bits);
 		update_status_nolock(board, priv);
 		wake_up_interruptible(&board->wait);

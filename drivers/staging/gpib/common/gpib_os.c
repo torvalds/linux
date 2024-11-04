@@ -69,7 +69,7 @@ static int t1_delay_ioctl(gpib_board_t *board, unsigned long arg);
 
 static int cleanup_open_devices(gpib_file_private_t *file_priv, gpib_board_t *board);
 
-static int pop_gpib_event_nolock(gpib_event_queue_t *queue, short *event_type);
+static int pop_gpib_event_nolock(gpib_board_t *board, gpib_event_queue_t *queue, short *event_type);
 
 /*
  * Timer functions
@@ -225,7 +225,7 @@ unsigned int num_status_bytes(const gpib_status_queue_t *dev)
 }
 
 // push status byte onto back of status byte fifo
-int push_status_byte(gpib_status_queue_t *device, u8 poll_byte)
+int push_status_byte(gpib_board_t *board, gpib_status_queue_t *device, u8 poll_byte)
 {
 	struct list_head *head = &device->status_bytes;
 	status_byte_t *status;
@@ -236,7 +236,7 @@ int push_status_byte(gpib_status_queue_t *device, u8 poll_byte)
 		u8 lost_byte;
 
 		device->dropped_byte = 1;
-		retval = pop_status_byte(device, &lost_byte);
+		retval = pop_status_byte(board, device, &lost_byte);
 		if (retval < 0)
 			return retval;
 	}
@@ -252,14 +252,14 @@ int push_status_byte(gpib_status_queue_t *device, u8 poll_byte)
 
 	device->num_status_bytes++;
 
-	GPIB_DPRINTK("pushed status byte 0x%x, %i in queue\n",
-		     (int)poll_byte, num_status_bytes(device));
+	dev_dbg(board->gpib_dev, "pushed status byte 0x%x, %i in queue\n",
+		(int)poll_byte, num_status_bytes(device));
 
 	return 0;
 }
 
 // pop status byte from front of status byte fifo
-int pop_status_byte(gpib_status_queue_t *device, u8 *poll_byte)
+int pop_status_byte(gpib_board_t *board, gpib_status_queue_t *device, u8 *poll_byte)
 {
 	struct list_head *head = &device->status_bytes;
 	struct list_head *front = head->next;
@@ -284,8 +284,8 @@ int pop_status_byte(gpib_status_queue_t *device, u8 *poll_byte)
 
 	device->num_status_bytes--;
 
-	GPIB_DPRINTK("popped status byte 0x%x, %i in queue\n",
-		     (int)*poll_byte, num_status_bytes(device));
+	dev_dbg(board->gpib_dev, "popped status byte 0x%x, %i in queue\n",
+		(int)*poll_byte, num_status_bytes(device));
 
 	return 0;
 }
@@ -310,11 +310,11 @@ int get_serial_poll_byte(gpib_board_t *board, unsigned int pad, int sad, unsigne
 {
 	gpib_status_queue_t *device;
 
-	GPIB_DPRINTK("%s:()\n", __func__);
+	dev_dbg(board->gpib_dev, "%s:()\n", __func__);
 
 	device = get_gpib_status_queue(board, pad, sad);
 	if (num_status_bytes(device))
-		return pop_status_byte(device, poll_byte);
+		return pop_status_byte(board, device, poll_byte);
 	else
 		return dvrsp(board, pad, sad, usec_timeout, poll_byte);
 }
@@ -323,7 +323,7 @@ int autopoll_all_devices(gpib_board_t *board)
 {
 	int retval;
 
-	GPIB_DPRINTK("entering %s()\n", __func__);
+	dev_dbg(board->gpib_dev, "entering %s()\n", __func__);
 	if (mutex_lock_interruptible(&board->user_mutex))
 		return -ERESTARTSYS;
 	if (mutex_lock_interruptible(&board->big_gpib_mutex)) {
@@ -331,7 +331,7 @@ int autopoll_all_devices(gpib_board_t *board)
 		return -ERESTARTSYS;
 	}
 
-	GPIB_DPRINTK("autopoll has board lock\n");
+	dev_dbg(board->gpib_dev, "autopoll has board lock\n");
 
 	retval = serial_poll_all(board, serial_timeout);
 	if (retval < 0)	{
@@ -340,7 +340,7 @@ int autopoll_all_devices(gpib_board_t *board)
 		return retval;
 	}
 
-	GPIB_DPRINTK("%s complete\n", __func__);
+	dev_dbg(board->gpib_dev, "%s complete\n", __func__);
 	/* need to wake wait queue in case someone is
 	 * waiting on RQS
 	 */
@@ -358,7 +358,7 @@ static int setup_serial_poll(gpib_board_t *board, unsigned int usec_timeout)
 	size_t bytes_written;
 	int ret;
 
-	GPIB_DPRINTK("entering %s()\n", __func__);
+	dev_dbg(board->gpib_dev, "entering %s()\n", __func__);
 
 	os_start_timer(board, usec_timeout);
 	ret = ibcac(board, 1, 1);
@@ -394,7 +394,7 @@ static int read_serial_poll_byte(gpib_board_t *board, unsigned int pad,
 	int i;
 	size_t nbytes;
 
-	GPIB_DPRINTK("entering %s(), pad=%i sad=%i\n", __func__, pad, sad);
+	dev_dbg(board->gpib_dev, "entering %s(), pad=%i sad=%i\n", __func__, pad, sad);
 
 	os_start_timer(board, usec_timeout);
 	ret = ibcac(board, 1, 1);
@@ -436,7 +436,7 @@ static int cleanup_serial_poll(gpib_board_t *board, unsigned int usec_timeout)
 	int ret;
 	size_t bytes_written;
 
-	GPIB_DPRINTK("entering %s()\n", __func__);
+	dev_dbg(board->gpib_dev, "entering %s()\n", __func__);
 
 	os_start_timer(board, usec_timeout);
 	ret = ibcac(board, 1, 1);
@@ -485,7 +485,7 @@ int serial_poll_all(gpib_board_t *board, unsigned int usec_timeout)
 	u8 result;
 	unsigned int num_bytes = 0;
 
-	GPIB_DPRINTK("entering %s()\n", __func__);
+	dev_dbg(board->gpib_dev, "entering %s()\n", __func__);
 
 	head = &board->device_list;
 	if (head->next == head)
@@ -502,7 +502,7 @@ int serial_poll_all(gpib_board_t *board, unsigned int usec_timeout)
 		if (retval < 0)
 			continue;
 		if (result & request_service_bit) {
-			retval = push_status_byte(device, result);
+			retval = push_status_byte(board, device, result);
 			if (retval < 0)
 				continue;
 			num_bytes++;
@@ -596,15 +596,15 @@ int ibopen(struct inode *inode, struct file *filep)
 	priv = filep->private_data;
 	init_gpib_file_private((gpib_file_private_t *)filep->private_data);
 
-	GPIB_DPRINTK("pid %i, gpib: opening minor %d\n", current->pid, minor);
+	dev_dbg(board->gpib_dev, "pid %i, gpib: opening minor %d\n", current->pid, minor);
 
 	if (board->use_count == 0) {
 		int retval;
 
 		retval = request_module("gpib%i", minor);
 		if (retval) {
-			GPIB_DPRINTK("pid %i, gpib: request module returned %i\n",
-				     current->pid, retval);
+			dev_dbg(board->gpib_dev, "pid %i, gpib: request module returned %i\n",
+				current->pid, retval);
 		}
 	}
 	if (board->interface) {
@@ -630,16 +630,16 @@ int ibclose(struct inode *inode, struct file *filep)
 		return -ENODEV;
 	}
 
-	GPIB_DPRINTK("pid %i, gpib: closing minor %d\n", current->pid, minor);
-
 	board = &board_array[minor];
+
+	dev_dbg(board->gpib_dev, "pid %i, closing minor %d\n", current->pid, minor);
 
 	if (priv) {
 		desc = handle_to_descriptor(priv, 0);
 		if (desc) {
 			if (desc->autopoll_enabled) {
-				GPIB_DPRINTK("pid %i, gpib: decrementing autospollers\n",
-					     current->pid);
+				dev_dbg(board->gpib_dev, "pid %i, decrementing autospollers\n",
+					current->pid);
 				if (board->autospollers > 0)
 					board->autospollers--;
 				else
@@ -682,11 +682,11 @@ long ibioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 	if (mutex_lock_interruptible(&board->big_gpib_mutex))
 		return -ERESTARTSYS;
 
-	GPIB_DPRINTK("pid %i, minor %i, ioctl %d, interface=%s, use=%d, onl=%d\n",
-		     current->pid, minor, cmd & 0xff,
-		     board->interface ? board->interface->name : "",
-		     board->use_count,
-		     board->online);
+	dev_dbg(board->gpib_dev, "pid %i, ioctl %d, interface=%s, use=%d, onl=%d\n",
+		current->pid, cmd & 0xff,
+		board->interface ? board->interface->name : "",
+		board->use_count,
+		board->online);
 
 	switch (cmd) {
 	case CFCBOARDTYPE:
@@ -870,7 +870,7 @@ long ibioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 
 done:
 	mutex_unlock(&board->big_gpib_mutex);
-	GPIB_DPRINTK("ioctl done status = 0x%lx\n", board->status);
+	dev_dbg(board->gpib_dev, "ioctl done status = 0x%lx\n", board->status);
 	return retval;
 }
 
@@ -1180,7 +1180,8 @@ static int status_bytes_ioctl(gpib_board_t *board, unsigned long arg)
 	return 0;
 }
 
-static int increment_open_device_count(struct list_head *head, unsigned int pad, int sad)
+static int increment_open_device_count(gpib_board_t *board, struct list_head *head,
+				       unsigned int pad, int sad)
 {
 	struct list_head *list_ptr;
 	gpib_status_queue_t *device;
@@ -1191,8 +1192,8 @@ static int increment_open_device_count(struct list_head *head, unsigned int pad,
 	for (list_ptr = head->next; list_ptr != head; list_ptr = list_ptr->next) {
 		device = list_entry(list_ptr, gpib_status_queue_t, list);
 		if (gpib_address_equal(device->pad, device->sad, pad, sad)) {
-			GPIB_DPRINTK("pid %i, incrementing open count for pad %i, sad %i\n",
-				     current->pid, device->pad, device->sad);
+			dev_dbg(board->gpib_dev, "pid %i, incrementing open count for pad %i, sad %i\n",
+				current->pid, device->pad, device->sad);
 			device->reference_count++;
 			return 0;
 		}
@@ -1209,14 +1210,14 @@ static int increment_open_device_count(struct list_head *head, unsigned int pad,
 
 	list_add(&device->list, head);
 
-	GPIB_DPRINTK("pid %i, opened pad %i, sad %i\n",
-		     current->pid, device->pad, device->sad);
+	dev_dbg(board->gpib_dev, "pid %i, opened pad %i, sad %i\n",
+		current->pid, device->pad, device->sad);
 
 	return 0;
 }
 
-static int subtract_open_device_count(struct list_head *head, unsigned int pad, int sad,
-				      unsigned int count)
+static int subtract_open_device_count(gpib_board_t *board, struct list_head *head,
+				      unsigned int pad, int sad, unsigned int count)
 {
 	gpib_status_queue_t *device;
 	struct list_head *list_ptr;
@@ -1224,16 +1225,16 @@ static int subtract_open_device_count(struct list_head *head, unsigned int pad, 
 	for (list_ptr = head->next; list_ptr != head; list_ptr = list_ptr->next) {
 		device = list_entry(list_ptr, gpib_status_queue_t, list);
 		if (gpib_address_equal(device->pad, device->sad, pad, sad)) {
-			GPIB_DPRINTK("pid %i, decrementing open count for pad %i, sad %i\n",
-				     current->pid, device->pad, device->sad);
+			dev_dbg(board->gpib_dev, "pid %i, decrementing open count for pad %i, sad %i\n",
+				current->pid, device->pad, device->sad);
 			if (count > device->reference_count) {
 				pr_err("gpib: bug! in %s()\n", __func__);
 				return -EINVAL;
 			}
 			device->reference_count -= count;
 			if (device->reference_count == 0) {
-				GPIB_DPRINTK("pid %i, closing pad %i, sad %i\n",
-					     current->pid, device->pad, device->sad);
+				dev_dbg(board->gpib_dev, "pid %i, closing pad %i, sad %i\n",
+					current->pid, device->pad, device->sad);
 				list_del(list_ptr);
 				kfree(device);
 			}
@@ -1244,9 +1245,10 @@ static int subtract_open_device_count(struct list_head *head, unsigned int pad, 
 	return -EINVAL;
 }
 
-static inline int decrement_open_device_count(struct list_head *head, unsigned int pad, int sad)
+static inline int decrement_open_device_count(gpib_board_t *board, struct list_head *head,
+					      unsigned int pad, int sad)
 {
-	return subtract_open_device_count(head, pad, sad, 1);
+	return subtract_open_device_count(board, head, pad, sad, 1);
 }
 
 static int cleanup_open_devices(gpib_file_private_t *file_priv, gpib_board_t *board)
@@ -1262,7 +1264,7 @@ static int cleanup_open_devices(gpib_file_private_t *file_priv, gpib_board_t *bo
 			continue;
 
 		if (desc->is_board == 0) {
-			retval = decrement_open_device_count(&board->device_list, desc->pad,
+			retval = decrement_open_device_count(board, &board->device_list, desc->pad,
 							     desc->sad);
 			if (retval < 0)
 				return retval;
@@ -1306,7 +1308,7 @@ static int open_dev_ioctl(struct file *filep, gpib_board_t *board, unsigned long
 	file_priv->descriptors[i]->is_board = open_dev_cmd.is_board;
 	mutex_unlock(&file_priv->descriptors_mutex);
 
-	retval = increment_open_device_count(&board->device_list, open_dev_cmd.pad,
+	retval = increment_open_device_count(board, &board->device_list, open_dev_cmd.pad,
 					     open_dev_cmd.sad);
 	if (retval < 0)
 		return retval;
@@ -1339,7 +1341,7 @@ static int close_dev_ioctl(struct file *filep, gpib_board_t *board, unsigned lon
 	if (!file_priv->descriptors[cmd.handle])
 		return -EINVAL;
 
-	retval = decrement_open_device_count(&board->device_list,
+	retval = decrement_open_device_count(board, &board->device_list,
 					     file_priv->descriptors[cmd.handle]->pad,
 					     file_priv->descriptors[cmd.handle]->sad);
 	if (retval < 0)
@@ -1356,7 +1358,7 @@ static int serial_poll_ioctl(gpib_board_t *board, unsigned long arg)
 	serial_poll_ioctl_t serial_cmd;
 	int retval;
 
-	GPIB_DPRINTK("pid %i, entering %s()\n", __func__, current->pid);
+	dev_dbg(board->gpib_dev, "pid %i, entering %s()\n", current->pid, __func__);
 
 	retval = copy_from_user(&serial_cmd, (void *)arg, sizeof(serial_cmd));
 	if (retval)
@@ -1521,13 +1523,15 @@ static int pad_ioctl(gpib_board_t *board, gpib_file_private_t *file_priv,
 		if (retval < 0)
 			return retval;
 	} else {
-		retval = decrement_open_device_count(&board->device_list, desc->pad, desc->sad);
+		retval = decrement_open_device_count(board, &board->device_list, desc->pad,
+						     desc->sad);
 		if (retval < 0)
 			return retval;
 
 		desc->pad = cmd.pad;
 
-		retval = increment_open_device_count(&board->device_list, desc->pad, desc->sad);
+		retval = increment_open_device_count(board, &board->device_list, desc->pad,
+						     desc->sad);
 		if (retval < 0)
 			return retval;
 	}
@@ -1555,13 +1559,15 @@ static int sad_ioctl(gpib_board_t *board, gpib_file_private_t *file_priv,
 		if (retval < 0)
 			return retval;
 	} else {
-		retval = decrement_open_device_count(&board->device_list, desc->pad, desc->sad);
+		retval = decrement_open_device_count(board, &board->device_list, desc->pad,
+						     desc->sad);
 		if (retval < 0)
 			return retval;
 
 		desc->sad = cmd.sad;
 
-		retval = increment_open_device_count(&board->device_list, desc->pad, desc->sad);
+		retval = increment_open_device_count(board, &board->device_list, desc->pad,
+						     desc->sad);
 		if (retval < 0)
 			return retval;
 	}
@@ -1717,7 +1723,8 @@ static int mutex_ioctl(gpib_board_t *board, gpib_file_private_t *file_priv,
 
 		atomic_set(&file_priv->holding_mutex, 1);
 
-		GPIB_DPRINTK("pid %i, locked board %d mutex\n", current->pid, board->minor);
+		dev_dbg(board->gpib_dev, "pid %i, locked board %d mutex\n",
+			current->pid, board->minor);
 	} else {
 		spin_lock(&board->locking_pid_spinlock);
 		if (current->pid != board->locking_pid) {
@@ -1732,7 +1739,8 @@ static int mutex_ioctl(gpib_board_t *board, gpib_file_private_t *file_priv,
 		atomic_set(&file_priv->holding_mutex, 0);
 
 		mutex_unlock(&board->user_mutex);
-		GPIB_DPRINTK("pid %i, unlocked board %i mutex\n", current->pid, board->minor);
+		dev_dbg(board->gpib_dev, "pid %i, unlocked board %i mutex\n",
+			current->pid, board->minor);
 	}
 	return 0;
 }
@@ -1747,7 +1755,7 @@ static int timeout_ioctl(gpib_board_t *board, unsigned long arg)
 		return -EFAULT;
 
 	board->usec_timeout = timeout;
-	GPIB_DPRINTK("pid %i, timeout set to %i usec\n", current->pid, timeout);
+	dev_dbg(board->gpib_dev, "pid %i, timeout set to %i usec\n", current->pid, timeout);
 
 	return 0;
 }
@@ -1922,7 +1930,7 @@ static int push_gpib_event_nolock(gpib_board_t *board, short event_type)
 		short lost_event;
 
 		queue->dropped_event = 1;
-		retval = pop_gpib_event_nolock(queue, &lost_event);
+		retval = pop_gpib_event_nolock(board, queue, &lost_event);
 		if (retval < 0)
 			return retval;
 	}
@@ -1941,8 +1949,8 @@ static int push_gpib_event_nolock(gpib_board_t *board, short event_type)
 
 	queue->num_events++;
 
-	GPIB_DPRINTK("pushed event %i, %i in queue\n",
-		     (int)event_type, num_gpib_events(queue));
+	dev_dbg(board->gpib_dev, "pushed event %i, %i in queue\n",
+		(int)event_type, num_gpib_events(queue));
 
 	return 0;
 }
@@ -1966,7 +1974,7 @@ int push_gpib_event(gpib_board_t *board, short event_type)
 }
 EXPORT_SYMBOL(push_gpib_event);
 
-static int pop_gpib_event_nolock(gpib_event_queue_t *queue, short *event_type)
+static int pop_gpib_event_nolock(gpib_board_t *board, gpib_event_queue_t *queue, short *event_type)
 {
 	struct list_head *head = &queue->event_head;
 	struct list_head *front = head->next;
@@ -1993,20 +2001,20 @@ static int pop_gpib_event_nolock(gpib_event_queue_t *queue, short *event_type)
 
 	queue->num_events--;
 
-	GPIB_DPRINTK("popped event %i, %i in queue\n",
-		     (int)*event_type, num_gpib_events(queue));
+	dev_dbg(board->gpib_dev, "popped event %i, %i in queue\n",
+		(int)*event_type, num_gpib_events(queue));
 
 	return 0;
 }
 
 // pop event from front of event queue
-int pop_gpib_event(gpib_event_queue_t *queue, short *event_type)
+int pop_gpib_event(gpib_board_t *board, gpib_event_queue_t *queue, short *event_type)
 {
 	unsigned long flags;
 	int retval;
 
 	spin_lock_irqsave(&queue->lock, flags);
-	retval = pop_gpib_event_nolock(queue, event_type);
+	retval = pop_gpib_event_nolock(board, queue, event_type);
 	spin_unlock_irqrestore(&queue->lock, flags);
 	return retval;
 }
@@ -2017,7 +2025,7 @@ static int event_ioctl(gpib_board_t *board, unsigned long arg)
 	int retval;
 	short event;
 
-	retval = pop_gpib_event(&board->event_queue, &event);
+	retval = pop_gpib_event(board, &board->event_queue, &event);
 	if (retval < 0)
 		return retval;
 
@@ -2199,7 +2207,7 @@ void gpib_deallocate_board(gpib_board_t *board)
 		board->buffer_length = 0;
 	}
 	while (num_gpib_events(&board->event_queue))
-		pop_gpib_event(&board->event_queue, &dummy);
+		pop_gpib_event(board, &board->event_queue, &dummy);
 }
 
 static void init_board_array(gpib_board_t *board_array, unsigned int length)

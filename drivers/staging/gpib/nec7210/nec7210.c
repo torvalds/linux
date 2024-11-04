@@ -53,7 +53,7 @@ int nec7210_parallel_poll(gpib_board_t *board, struct nec7210_priv *priv, uint8_
 	// wait for result FIXME: support timeouts
 	ret = wait_event_interruptible(board->wait, test_bit(COMMAND_READY_BN, &priv->state));
 	if (ret) {
-		GPIB_DPRINTK("gpib: parallel poll interrupted\n");
+		dev_dbg(board->gpib_dev, "gpib: parallel poll interrupted\n");
 		return -ERESTARTSYS;
 	}
 	*result = read_byte(priv, CPTR);
@@ -198,7 +198,7 @@ unsigned int nec7210_update_status_nolock(gpib_board_t *board, struct nec7210_pr
 		priv->srq_pending = 0;
 		set_bit(SPOLL_NUM, &board->status);
 	}
-//	GPIB_DPRINTK("status 0x%x, state 0x%x\n", board->status, priv->state);
+//	dev_dbg(board->gpib_dev, "status 0x%x, state 0x%x\n", board->status, priv->state);
 
 	/* we rely on the interrupt handler to set the
 	 * rest of the status bits
@@ -430,7 +430,7 @@ int nec7210_command(gpib_board_t *board, struct nec7210_priv *priv, uint8_t
 					     test_bit(COMMAND_READY_BN, &priv->state) ||
 					     test_bit(BUS_ERROR_BN, &priv->state) ||
 					     test_bit(TIMO_NUM, &board->status))) {
-			GPIB_DPRINTK("gpib command wait interrupted\n");
+			dev_dbg(board->gpib_dev, "gpib command wait interrupted\n");
 			retval = -ERESTARTSYS;
 			break;
 		}
@@ -455,11 +455,11 @@ int nec7210_command(gpib_board_t *board, struct nec7210_priv *priv, uint8_t
 	if (wait_event_interruptible(board->wait, test_bit(COMMAND_READY_BN, &priv->state) ||
 				     test_bit(BUS_ERROR_BN, &priv->state) ||
 				     test_bit(TIMO_NUM, &board->status))) {
-		GPIB_DPRINTK("gpib command wait interrupted\n");
+		dev_dbg(board->gpib_dev, "gpib command wait interrupted\n");
 		retval = -ERESTARTSYS;
 	}
 	if (test_bit(TIMO_NUM, &board->status))	{
-		GPIB_DPRINTK("gpib command timed out\n");
+		dev_dbg(board->gpib_dev, "gpib command timed out\n");
 		retval = -ETIMEDOUT;
 	}
 	if (test_and_clear_bit(BUS_ERROR_BN, &priv->state)) {
@@ -484,7 +484,7 @@ static int pio_read(gpib_board_t *board, struct nec7210_priv *priv, uint8_t *buf
 					     test_bit(READ_READY_BN, &priv->state) ||
 					     test_bit(DEV_CLEAR_BN, &priv->state) ||
 					     test_bit(TIMO_NUM, &board->status))) {
-			GPIB_DPRINTK("nec7210: pio read wait interrupted\n");
+			dev_dbg(board->gpib_dev, "nec7210: pio read wait interrupted\n");
 			retval = -ERESTARTSYS;
 			break;
 		}
@@ -503,12 +503,12 @@ static int pio_read(gpib_board_t *board, struct nec7210_priv *priv, uint8_t *buf
 				break;
 		}
 		if (test_bit(TIMO_NUM, &board->status)) {
-			GPIB_DPRINTK("interrupted by timeout\n");
+			dev_dbg(board->gpib_dev, "interrupted by timeout\n");
 			retval = -ETIMEDOUT;
 			break;
 		}
 		if (test_bit(DEV_CLEAR_BN, &priv->state)) {
-			GPIB_DPRINTK("interrupted by device clear\n");
+			dev_dbg(board->gpib_dev, "interrupted by device clear\n");
 			retval = -EINTR;
 			break;
 		}
@@ -558,7 +558,7 @@ static ssize_t __dma_read(gpib_board_t *board, struct nec7210_priv *priv, size_t
 				     test_bit(DMA_READ_IN_PROGRESS_BN, &priv->state) == 0 ||
 				     test_bit(DEV_CLEAR_BN, &priv->state) ||
 				     test_bit(TIMO_NUM, &board->status))) {
-		GPIB_DPRINTK("nec7210: dma read wait interrupted\n");
+		dev_dbg(board->gpib_dev, "nec7210: dma read wait interrupted\n");
 		retval = -ERESTARTSYS;
 	}
 	if (test_bit(TIMO_NUM, &board->status))
@@ -639,19 +639,19 @@ static int pio_write_wait(gpib_board_t *board, struct nec7210_priv *priv,
 				     (wake_on_lacs && test_bit(LACS_NUM, &board->status)) ||
 				     (wake_on_atn && test_bit(ATN_NUM, &board->status)) ||
 				     test_bit(TIMO_NUM, &board->status))) {
-		GPIB_DPRINTK("gpib write interrupted\n");
+		dev_dbg(board->gpib_dev, "gpib write interrupted\n");
 		return -ERESTARTSYS;
 	}
 	if (test_bit(TIMO_NUM, &board->status))	{
-		GPIB_DPRINTK("nec7210: write timed out\n");
+		dev_dbg(board->gpib_dev, "nec7210: write timed out\n");
 		return -ETIMEDOUT;
 	}
 	if (test_bit(DEV_CLEAR_BN, &priv->state)) {
-		GPIB_DPRINTK("nec7210: write interrupted by clear\n");
+		dev_dbg(board->gpib_dev, "nec7210: write interrupted by clear\n");
 		return -EINTR;
 	}
 	if (wake_on_bus_error && test_and_clear_bit(BUS_ERROR_BN, &priv->state)) {
-		GPIB_DPRINTK("nec7210: bus error on write\n");
+		dev_dbg(board->gpib_dev, "nec7210: bus error on write\n");
 		return -EIO;
 	}
 	return 0;
@@ -677,7 +677,7 @@ static int pio_write(gpib_board_t *board, struct nec7210_priv *priv, uint8_t *bu
 		if (retval == -EIO) {
 			/* resend last byte on bus error */
 			*bytes_written = last_count;
-			GPIB_DPRINTK("resending %c\n", buffer[*bytes_written]);
+			dev_dbg(board->gpib_dev, "resending %c\n", buffer[*bytes_written]);
 			/* we can get unrecoverable bus errors,
 			 * so give up after a while
 			 */
@@ -734,7 +734,7 @@ static ssize_t __dma_write(gpib_board_t *board, struct nec7210_priv *priv, dma_a
 				     test_bit(BUS_ERROR_BN, &priv->state) ||
 				     test_bit(DEV_CLEAR_BN, &priv->state) ||
 				     test_bit(TIMO_NUM, &board->status))) {
-		GPIB_DPRINTK("gpib write interrupted!\n");
+		dev_dbg(board->gpib_dev, "gpib write interrupted!\n");
 		retval = -ERESTARTSYS;
 	}
 	if (test_bit(TIMO_NUM, &board->status))
@@ -969,8 +969,8 @@ irqreturn_t nec7210_interrupt_have_status(gpib_board_t *board,
 	    (status2 & (priv->reg_bits[IMR2] & IMR2_ENABLE_INTR_MASK)) ||
 	    nec7210_atn_has_changed(board, priv))	{
 		nec7210_update_status_nolock(board, priv);
-		GPIB_DPRINTK("minor %i, stat %lx, isr1 0x%x, imr1 0x%x, isr2 0x%x, imr2 0x%x\n",
-			     board->minor, board->status, status1, priv->reg_bits[IMR1], status2,
+		dev_dbg(board->gpib_dev, "minor %i, stat %lx, isr1 0x%x, imr1 0x%x, isr2 0x%x, imr2 0x%x\n",
+			board->minor, board->status, status1, priv->reg_bits[IMR1], status2,
 			     priv->reg_bits[IMR2]);
 		wake_up_interruptible(&board->wait); /* wake up sleeping process */
 		retval = IRQ_HANDLED;

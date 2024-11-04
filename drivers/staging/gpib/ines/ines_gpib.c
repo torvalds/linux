@@ -202,7 +202,7 @@ static int ines_write_wait(gpib_board_t *board, struct ines_priv *ines_priv,
 				     test_bit(BUS_ERROR_BN, &nec_priv->state) ||
 				     test_bit(DEV_CLEAR_BN, &nec_priv->state) ||
 				     test_bit(TIMO_NUM, &board->status))) {
-		GPIB_DPRINTK("gpib write interrupted\n");
+		dev_dbg(board->gpib_dev, "gpib write interrupted\n");
 		return -ERESTARTSYS;
 	}
 	if (test_bit(BUS_ERROR_BN, &nec_priv->state))

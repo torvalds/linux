@@ -491,7 +491,7 @@ static int write_wait(gpib_board_t *board, struct tnt4882_priv *tnt_priv,
 				     test_bit(BUS_ERROR_BN, &nec_priv->state) ||
 				     test_bit(DEV_CLEAR_BN, &nec_priv->state) ||
 				     test_bit(TIMO_NUM, &board->status))) {
-		GPIB_DPRINTK("gpib write interrupted\n");
+		dev_dbg(board->gpib_dev, "gpib write interrupted\n");
 		return -ERESTARTSYS;
 	}
 	if (test_bit(TIMO_NUM, &board->status))	{
@@ -637,9 +637,8 @@ irqreturn_t tnt4882_internal_interrupt(gpib_board_t *board)
 	if (isr3_bits & HR_DONE)
 		priv->imr3_bits &= ~HR_DONE;
 	if (isr3_bits & (HR_INTR | HR_TLCI)) {
-		GPIB_DPRINTK("tnt4882: minor %i isr0 0x%x imr0 0x%x isr3 0x%x imr3 0x%x\n",
-			     board->minor,
-			     isr0_bits, priv->imr0_bits, isr3_bits, imr3_bits);
+		dev_dbg(board->gpib_dev, "tnt4882: minor %i isr0 0x%x imr0 0x%x isr3 0x%x imr3 0x%x\n",
+			board->minor, isr0_bits, priv->imr0_bits, isr3_bits, imr3_bits);
 		tnt_writeb(priv, priv->imr3_bits, IMR3);
 		wake_up_interruptible(&board->wait);
 	}
