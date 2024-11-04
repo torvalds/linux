@@ -1824,7 +1824,8 @@ nla_put_failure:
 	return -ENOSPC;
 }
 
-static int nft_dump_basechain_hook(struct sk_buff *skb, int family,
+static int nft_dump_basechain_hook(struct sk_buff *skb,
+				   const struct net *net, int family,
 				   const struct nft_base_chain *basechain,
 				   const struct list_head *hook_list)
 {
@@ -1849,7 +1850,8 @@ static int nft_dump_basechain_hook(struct sk_buff *skb, int family,
 		if (!hook_list)
 			hook_list = &basechain->hook_list;
 
-		list_for_each_entry_rcu(hook, hook_list, list) {
+		list_for_each_entry_rcu(hook, hook_list, list,
+					lockdep_commit_lock_is_held(net)) {
 			if (!first)
 				first = hook;
 
@@ -1900,7 +1902,7 @@ static int nf_tables_fill_chain_info(struct sk_buff *skb, struct net *net,
 		const struct nft_base_chain *basechain = nft_base_chain(chain);
 		struct nft_stats __percpu *stats;
 
-		if (nft_dump_basechain_hook(skb, family, basechain, hook_list))
+		if (nft_dump_basechain_hook(skb, net, family, basechain, hook_list))
 			goto nla_put_failure;
 
 		if (nla_put_be32(skb, NFTA_CHAIN_POLICY,
