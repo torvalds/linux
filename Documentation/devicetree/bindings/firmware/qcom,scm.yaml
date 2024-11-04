@@ -42,8 +42,11 @@ properties:
           - qcom,scm-msm8996
           - qcom,scm-msm8998
           - qcom,scm-qcm2290
+          - qcom,scm-qcs8300
           - qcom,scm-qdu1000
+          - qcom,scm-sa8255p
           - qcom,scm-sa8775p
+          - qcom,scm-sar2130p
           - qcom,scm-sc7180
           - qcom,scm-sc7280
           - qcom,scm-sc8180x
@@ -204,6 +207,7 @@ allOf:
           compatible:
             contains:
               enum:
+                - qcom,scm-sa8255p
                 - qcom,scm-sa8775p
     then:
       properties:
