@@ -33,7 +33,6 @@ struct xfs_extent_busy {
  * to discard completion.
  */
 struct xfs_busy_extents {
-	struct xfs_mount	*mount;
 	struct list_head	extent_list;
 	struct work_struct	endio_work;
 
@@ -54,8 +53,7 @@ xfs_extent_busy_insert_discard(struct xfs_perag *pag, xfs_agblock_t bno,
 	xfs_extlen_t len, struct list_head *busy_list);
 
 void
-xfs_extent_busy_clear(struct xfs_mount *mp, struct list_head *list,
-	bool do_discard);
+xfs_extent_busy_clear(struct list_head *list, bool do_discard);
 
 int
 xfs_extent_busy_search(struct xfs_perag *pag, xfs_agblock_t bno,

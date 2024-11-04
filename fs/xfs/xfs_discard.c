@@ -81,7 +81,7 @@ xfs_discard_endio_work(
 	struct xfs_busy_extents	*extents =
 		container_of(work, struct xfs_busy_extents, endio_work);
 
-	xfs_extent_busy_clear(extents->mount, &extents->extent_list, false);
+	xfs_extent_busy_clear(&extents->extent_list, false);
 	kfree(extents->owner);
 }
 
@@ -301,7 +301,7 @@ next_extent:
 	 * we aren't going to issue a discard on them any more.
 	 */
 	if (error)
-		xfs_extent_busy_clear(mp, &extents->extent_list, false);
+		xfs_extent_busy_clear(&extents->extent_list, false);
 out_del_cursor:
 	xfs_btree_del_cursor(cur, error);
 out_trans_cancel:
@@ -347,7 +347,6 @@ xfs_trim_perag_extents(
 			break;
 		}
 
-		extents->mount = pag->pag_mount;
 		extents->owner = extents;
 		INIT_LIST_HEAD(&extents->extent_list);
 
