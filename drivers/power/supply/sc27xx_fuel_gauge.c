@@ -1183,10 +1183,14 @@ static int sc27xx_fgu_probe(struct platform_device *pdev)
 		return PTR_ERR(data->charge_chan);
 	}
 
-	data->gpiod = devm_gpiod_get(dev, "bat-detect", GPIOD_IN);
+	data->gpiod = devm_gpiod_get(dev, "battery-detect", GPIOD_IN);
 	if (IS_ERR(data->gpiod)) {
-		dev_err(dev, "failed to get battery detection GPIO\n");
-		return PTR_ERR(data->gpiod);
+		data->gpiod = devm_gpiod_get(dev, "bat-detect", GPIOD_IN);
+		if (IS_ERR(data->gpiod)) {
+			dev_err(dev, "failed to get battery detection GPIO\n");
+			return PTR_ERR(data->gpiod);
+		}
+		dev_warn(dev, "bat-detect is deprecated, please use battery-detect\n");
 	}
 
 	ret = gpiod_get_value_cansleep(data->gpiod);
