@@ -89,6 +89,7 @@ static void nvmet_execute_get_supported_log_pages(struct nvmet_req *req)
 	logs->lids[NVME_LOG_CHANGED_NS] = cpu_to_le32(NVME_LIDS_LSUPP);
 	logs->lids[NVME_LOG_CMD_EFFECTS] = cpu_to_le32(NVME_LIDS_LSUPP);
 	logs->lids[NVME_LOG_ANA] = cpu_to_le32(NVME_LIDS_LSUPP);
+	logs->lids[NVME_LOG_FEATURES] = cpu_to_le32(NVME_LIDS_LSUPP);
 	logs->lids[NVME_LOG_RESERVATION] = cpu_to_le32(NVME_LIDS_LSUPP);
 
 	status = nvmet_copy_to_sgl(req, 0, logs, sizeof(*logs));
@@ -347,6 +348,36 @@ out:
 	nvmet_req_complete(req, status);
 }
 
+static void nvmet_execute_get_log_page_features(struct nvmet_req *req)
+{
+	struct nvme_supported_features_log *features;
+	u16 status;
+
+	features = kzalloc(sizeof(*features), GFP_KERNEL);
+	if (!features) {
+		status = NVME_SC_INTERNAL;
+		goto out;
+	}
+
+	features->fis[NVME_FEAT_NUM_QUEUES] =
+		cpu_to_le32(NVME_FIS_FSUPP | NVME_FIS_CSCPE);
+	features->fis[NVME_FEAT_KATO] =
+		cpu_to_le32(NVME_FIS_FSUPP | NVME_FIS_CSCPE);
+	features->fis[NVME_FEAT_ASYNC_EVENT] =
+		cpu_to_le32(NVME_FIS_FSUPP | NVME_FIS_CSCPE);
+	features->fis[NVME_FEAT_HOST_ID] =
+		cpu_to_le32(NVME_FIS_FSUPP | NVME_FIS_CSCPE);
+	features->fis[NVME_FEAT_WRITE_PROTECT] =
+		cpu_to_le32(NVME_FIS_FSUPP | NVME_FIS_NSCPE);
+	features->fis[NVME_FEAT_RESV_MASK] =
+		cpu_to_le32(NVME_FIS_FSUPP | NVME_FIS_NSCPE);
+
+	status = nvmet_copy_to_sgl(req, 0, features, sizeof(*features));
+	kfree(features);
+out:
+	nvmet_req_complete(req, status);
+}
+
 static void nvmet_execute_get_log_page(struct nvmet_req *req)
 {
 	if (!nvmet_check_transfer_len(req, nvmet_get_log_page_len(req->cmd)))
@@ -372,6 +403,8 @@ static void nvmet_execute_get_log_page(struct nvmet_req *req)
 		return nvmet_execute_get_log_cmd_effects_ns(req);
 	case NVME_LOG_ANA:
 		return nvmet_execute_get_log_page_ana(req);
+	case NVME_LOG_FEATURES:
+		return nvmet_execute_get_log_page_features(req);
 	case NVME_LOG_RESERVATION:
 		return nvmet_execute_get_log_page_resv(req);
 	}

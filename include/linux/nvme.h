@@ -1256,6 +1256,7 @@ enum {
 	NVME_LOG_TELEMETRY_CTRL = 0x08,
 	NVME_LOG_ENDURANCE_GROUP = 0x09,
 	NVME_LOG_ANA		= 0x0c,
+	NVME_LOG_FEATURES	= 0x12,
 	NVME_LOG_DISC		= 0x70,
 	NVME_LOG_RESERVATION	= 0x80,
 	NVME_FWACT_REPL		= (0 << 3),
@@ -1269,6 +1270,16 @@ struct nvme_supported_log {
 
 enum {
 	NVME_LIDS_LSUPP	= 1 << 0,
+};
+
+struct nvme_supported_features_log {
+	__le32	fis[256];
+};
+
+enum {
+	NVME_FIS_FSUPP	= 1 << 0,
+	NVME_FIS_NSCPE	= 1 << 20,
+	NVME_FIS_CSCPE	= 1 << 21,
 };
 
 /* NVMe Namespace Write Protect State */
