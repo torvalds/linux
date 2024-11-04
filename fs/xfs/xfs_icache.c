@@ -878,6 +878,7 @@ bad_rele:
 whine:
 	xfs_err(mp, "metadata inode 0x%llx type %u is corrupt", ino,
 			metafile_type);
+	xfs_fs_mark_sick(mp, XFS_SICK_FS_METADIR);
 	return -EFSCORRUPTED;
 }
 
