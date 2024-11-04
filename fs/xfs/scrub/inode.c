@@ -421,7 +421,7 @@ xchk_dinode(
 		break;
 	case 2:
 	case 3:
-		if (dip->di_onlink != 0)
+		if (!xfs_dinode_is_metadir(dip) && dip->di_metatype)
 			xchk_ino_set_corrupt(sc, ino);
 
 		if (dip->di_mode == 0 && sc->ip)

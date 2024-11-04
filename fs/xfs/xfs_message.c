@@ -169,6 +169,10 @@ xfs_warn_experimental(
 			.opstate	= XFS_OPSTATE_WARNED_PPTR,
 			.name		= "parent pointer",
 		},
+		[XFS_EXPERIMENTAL_METADIR] = {
+			.opstate	= XFS_OPSTATE_WARNED_METADIR,
+			.name		= "metadata directory tree",
+		},
 	};
 	ASSERT(feat >= 0 && feat < XFS_EXPERIMENTAL_MAX);
 	BUILD_BUG_ON(ARRAY_SIZE(features) != XFS_EXPERIMENTAL_MAX);

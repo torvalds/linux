@@ -209,12 +209,15 @@ xfs_inode_from_disk(
 	 * They will also be unconditionally written back to disk as v2 inodes.
 	 */
 	if (unlikely(from->di_version == 1)) {
-		set_nlink(inode, be16_to_cpu(from->di_onlink));
+		/* di_metatype used to be di_onlink */
+		set_nlink(inode, be16_to_cpu(from->di_metatype));
 		ip->i_projid = 0;
 	} else {
 		set_nlink(inode, be32_to_cpu(from->di_nlink));
 		ip->i_projid = (prid_t)be16_to_cpu(from->di_projid_hi) << 16 |
 					be16_to_cpu(from->di_projid_lo);
+		if (xfs_dinode_is_metadir(from))
+			ip->i_metatype = be16_to_cpu(from->di_metatype);
 	}
 
 	i_uid_write(inode, be32_to_cpu(from->di_uid));
@@ -315,7 +318,10 @@ xfs_inode_to_disk(
 	struct inode		*inode = VFS_I(ip);
 
 	to->di_magic = cpu_to_be16(XFS_DINODE_MAGIC);
-	to->di_onlink = 0;
+	if (xfs_is_metadir_inode(ip))
+		to->di_metatype = cpu_to_be16(ip->i_metatype);
+	else
+		to->di_metatype = 0;
 
 	to->di_format = xfs_ifork_format(&ip->i_df);
 	to->di_uid = cpu_to_be32(i_uid_read(inode));
@@ -523,8 +529,11 @@ xfs_dinode_verify(
 	 * di_nlink==0 on a V1 inode.  V2/3 inodes would get written out with
 	 * di_onlink==0, so we can check that.
 	 */
-	if (dip->di_version >= 2) {
-		if (dip->di_onlink)
+	if (dip->di_version == 2) {
+		if (dip->di_metatype)
+			return __this_address;
+	} else if (dip->di_version >= 3) {
+		if (!xfs_dinode_is_metadir(dip) && dip->di_metatype)
 			return __this_address;
 	}
 
@@ -546,7 +555,8 @@ xfs_dinode_verify(
 			if (dip->di_nlink)
 				return __this_address;
 		} else {
-			if (dip->di_onlink)
+			/* di_metatype used to be di_onlink */
+			if (dip->di_metatype)
 				return __this_address;
 		}
 	}

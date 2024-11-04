@@ -521,10 +521,13 @@ STATIC void
 xrep_dinode_nlinks(
 	struct xfs_dinode	*dip)
 {
-	if (dip->di_version > 1)
-		dip->di_onlink = 0;
-	else
+	if (dip->di_version < 2) {
 		dip->di_nlink = 0;
+		return;
+	}
+
+	if (!xfs_dinode_is_metadir(dip))
+		dip->di_metatype = 0;
 }
 
 /* Fix any conflicting flags that the verifiers complain about. */
