@@ -540,23 +540,25 @@ xfs_iwalk_args(
 	unsigned int		flags)
 {
 	struct xfs_mount	*mp = iwag->mp;
-	xfs_agnumber_t		agno = XFS_INO_TO_AGNO(mp, iwag->startino);
+	xfs_agnumber_t		start_agno;
 	int			error;
 
-	ASSERT(agno < mp->m_sb.sb_agcount);
+	start_agno = XFS_INO_TO_AGNO(iwag->mp, iwag->startino);
+	ASSERT(start_agno < iwag->mp->m_sb.sb_agcount);
 	ASSERT(!(flags & ~XFS_IWALK_FLAGS_ALL));
 
 	error = xfs_iwalk_alloc(iwag);
 	if (error)
 		return error;
 
-	for_each_perag_from(mp, agno, iwag->pag) {
+	while ((iwag->pag = xfs_perag_next_from(mp, iwag->pag, start_agno))) {
 		error = xfs_iwalk_ag(iwag);
 		if (error || (flags & XFS_IWALK_SAME_AG)) {
 			xfs_perag_rele(iwag->pag);
 			break;
 		}
-		iwag->startino = XFS_AGINO_TO_INO(mp, agno + 1, 0);
+		iwag->startino =
+			XFS_AGINO_TO_INO(mp, pag_agno(iwag->pag) + 1, 0);
 	}
 
 	xfs_iwalk_free(iwag);
@@ -644,19 +646,19 @@ xfs_iwalk_threaded(
 	bool			polled,
 	void			*data)
 {
+	xfs_agnumber_t		start_agno = XFS_INO_TO_AGNO(mp, startino);
 	struct xfs_pwork_ctl	pctl;
-	struct xfs_perag	*pag;
-	xfs_agnumber_t		agno = XFS_INO_TO_AGNO(mp, startino);
+	struct xfs_perag	*pag = NULL;
 	int			error;
 
-	ASSERT(agno < mp->m_sb.sb_agcount);
+	ASSERT(start_agno < mp->m_sb.sb_agcount);
 	ASSERT(!(flags & ~XFS_IWALK_FLAGS_ALL));
 
 	error = xfs_pwork_init(mp, &pctl, xfs_iwalk_ag_work, "xfs_iwalk");
 	if (error)
 		return error;
 
-	for_each_perag_from(mp, agno, pag) {
+	while ((pag = xfs_perag_next_from(mp, pag, start_agno))) {
 		struct xfs_iwalk_ag	*iwag;
 
 		if (xfs_pwork_ctl_want_abort(&pctl))

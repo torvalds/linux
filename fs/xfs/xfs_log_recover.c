@@ -2845,10 +2845,9 @@ static void
 xlog_recover_process_iunlinks(
 	struct xlog	*log)
 {
-	struct xfs_perag	*pag;
-	xfs_agnumber_t		agno;
+	struct xfs_perag	*pag = NULL;
 
-	for_each_perag(log->l_mp, agno, pag)
+	while ((pag = xfs_perag_next(log->l_mp, pag)))
 		xlog_recover_iunlink_ag(pag);
 }
 

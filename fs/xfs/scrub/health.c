@@ -160,12 +160,11 @@ STATIC void
 xchk_mark_all_healthy(
 	struct xfs_mount	*mp)
 {
-	struct xfs_perag	*pag;
-	xfs_agnumber_t		agno;
+	struct xfs_perag	*pag = NULL;
 
 	xfs_fs_mark_healthy(mp, XFS_SICK_FS_INDIRECT);
 	xfs_rt_mark_healthy(mp, XFS_SICK_RT_INDIRECT);
-	for_each_perag(mp, agno, pag)
+	while ((pag = xfs_perag_next(mp, pag)))
 		xfs_ag_mark_healthy(pag, XFS_SICK_AG_INDIRECT);
 }
 
@@ -294,9 +293,7 @@ xchk_health_record(
 	struct xfs_scrub	*sc)
 {
 	struct xfs_mount	*mp = sc->mp;
-	struct xfs_perag	*pag;
-	xfs_agnumber_t		agno;
-
+	struct xfs_perag	*pag = NULL;
 	unsigned int		sick;
 	unsigned int		checked;
 
@@ -308,7 +305,7 @@ xchk_health_record(
 	if (sick & XFS_SICK_RT_PRIMARY)
 		xchk_set_corrupt(sc);
 
-	for_each_perag(mp, agno, pag) {
+	while ((pag = xfs_perag_next(mp, pag))) {
 		xfs_ag_measure_sickness(pag, &sick, &checked);
 		if (sick & XFS_SICK_AG_PRIMARY)
 			xchk_set_corrupt(sc);

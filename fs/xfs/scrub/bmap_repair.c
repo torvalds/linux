@@ -407,12 +407,11 @@ xrep_bmap_find_mappings(
 	struct xrep_bmap	*rb)
 {
 	struct xfs_scrub	*sc = rb->sc;
-	struct xfs_perag	*pag;
-	xfs_agnumber_t		agno;
+	struct xfs_perag	*pag = NULL;
 	int			error = 0;
 
 	/* Iterate the rmaps for extents. */
-	for_each_perag(sc->mp, agno, pag) {
+	while ((pag = xfs_perag_next(sc->mp, pag))) {
 		error = xrep_bmap_scan_ag(rb, pag);
 		if (error) {
 			xfs_perag_rele(pag);

@@ -387,8 +387,8 @@ xfs_trim_datadev_extents(
 {
 	xfs_agnumber_t		start_agno, end_agno;
 	xfs_agblock_t		start_agbno, end_agbno;
+	struct xfs_perag	*pag = NULL;
 	xfs_daddr_t		ddev_end;
-	struct xfs_perag	*pag;
 	int			last_error = 0, error;
 
 	ddev_end = min_t(xfs_daddr_t, end,
@@ -399,10 +399,10 @@ xfs_trim_datadev_extents(
 	end_agno = xfs_daddr_to_agno(mp, ddev_end);
 	end_agbno = xfs_daddr_to_agbno(mp, ddev_end);
 
-	for_each_perag_range(mp, start_agno, end_agno, pag) {
+	while ((pag = xfs_perag_next_range(mp, pag, start_agno, end_agno))) {
 		xfs_agblock_t	agend = pag->block_count;
 
-		if (start_agno == end_agno)
+		if (pag_agno(pag) == end_agno)
 			agend = end_agbno;
 		error = xfs_trim_perag_extents(pag, start_agbno, agend, minlen);
 		if (error)
