@@ -125,7 +125,7 @@ static void *child_thread(void *ctx)
 	struct child *child = ctx;
 	int c = 0, err;
 
-	child->tid = syscall(SYS_gettid);
+	child->tid = sys_gettid();
 
 	/* let parent know we are ready */
 	err = write(child->c2p[1], &c, 1);
