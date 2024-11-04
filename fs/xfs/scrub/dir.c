@@ -253,7 +253,7 @@ xchk_dir_actor(
 		 * If this is ".." in the root inode, check that the inum
 		 * matches this dir.
 		 */
-		if (dp->i_ino == mp->m_sb.sb_rootino && ino != dp->i_ino)
+		if (xchk_inode_is_dirtree_root(dp) && ino != dp->i_ino)
 			xchk_fblock_set_corrupt(sc, XFS_DATA_FORK, offset);
 	}
 

@@ -300,7 +300,7 @@ xchk_parent_pptr_and_dotdot(
 	}
 
 	/* Is this the root dir?  Then '..' must point to itself. */
-	if (sc->ip == sc->mp->m_rootip) {
+	if (xchk_inode_is_dirtree_root(sc->ip)) {
 		if (sc->ip->i_ino != pp->parent_ino)
 			xchk_fblock_set_corrupt(sc, XFS_DATA_FORK, 0);
 		return 0;
@@ -711,7 +711,7 @@ xchk_parent_count_pptrs(
 	}
 
 	if (S_ISDIR(VFS_I(sc->ip)->i_mode)) {
-		if (sc->ip == sc->mp->m_rootip)
+		if (xchk_inode_is_dirtree_root(sc->ip))
 			pp->pptrs_found++;
 
 		if (VFS_I(sc->ip)->i_nlink == 0 && pp->pptrs_found > 0)
@@ -885,10 +885,9 @@ bool
 xchk_pptr_looks_zapped(
 	struct xfs_inode	*ip)
 {
-	struct xfs_mount	*mp = ip->i_mount;
 	struct inode		*inode = VFS_I(ip);
 
-	ASSERT(xfs_has_parent(mp));
+	ASSERT(xfs_has_parent(ip->i_mount));
 
 	/*
 	 * Temporary files that cannot be linked into the directory tree do not
@@ -902,15 +901,15 @@ xchk_pptr_looks_zapped(
 	 * of a parent pointer scan is always the empty set.  It's safe to scan
 	 * them even if the attr fork was zapped.
 	 */
-	if (ip == mp->m_rootip)
+	if (xchk_inode_is_dirtree_root(ip))
 		return false;
 
 	/*
-	 * Metadata inodes are all rooted in the superblock and do not have
-	 * any parents.  Hence the attr fork will not be initialized, but
-	 * there are no parent pointers that might have been zapped.
+	 * Metadata inodes that are rooted in the superblock do not have any
+	 * parents.  Hence the attr fork will not be initialized, but there are
+	 * no parent pointers that might have been zapped.
 	 */
-	if (xfs_is_internal_inode(ip))
+	if (xchk_inode_is_sb_rooted(ip))
 		return false;
 
 	/*

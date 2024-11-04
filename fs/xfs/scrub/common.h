@@ -242,4 +242,8 @@ void xchk_fsgates_enable(struct xfs_scrub *sc, unsigned int scrub_fshooks);
 int xchk_inode_is_allocated(struct xfs_scrub *sc, xfs_agino_t agino,
 		bool *inuse);
 
+bool xchk_inode_is_dirtree_root(const struct xfs_inode *ip);
+bool xchk_inode_is_sb_rooted(const struct xfs_inode *ip);
+xfs_ino_t xchk_inode_rootdir_inum(const struct xfs_inode *ip);
+
 #endif	/* __XFS_SCRUB_COMMON_H__ */

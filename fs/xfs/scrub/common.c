@@ -1452,3 +1452,32 @@ out_rcu:
 	rcu_read_unlock();
 	return error;
 }
+
+/* Is this inode a root directory for either tree? */
+bool
+xchk_inode_is_dirtree_root(const struct xfs_inode *ip)
+{
+	struct xfs_mount	*mp = ip->i_mount;
+
+	return ip == mp->m_rootip ||
+		(xfs_has_metadir(mp) && ip == mp->m_metadirip);
+}
+
+/* Does the superblock point down to this inode? */
+bool
+xchk_inode_is_sb_rooted(const struct xfs_inode *ip)
+{
+	return xchk_inode_is_dirtree_root(ip) ||
+	       xfs_is_sb_inum(ip->i_mount, ip->i_ino);
+}
+
+/* What is the root directory inumber for this inode? */
+xfs_ino_t
+xchk_inode_rootdir_inum(const struct xfs_inode *ip)
+{
+	struct xfs_mount	*mp = ip->i_mount;
+
+	if (xfs_is_metadir_inode(ip))
+		return mp->m_metadirip->i_ino;
+	return mp->m_rootip->i_ino;
+}

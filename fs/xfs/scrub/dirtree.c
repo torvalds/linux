@@ -917,7 +917,7 @@ xchk_dirtree(
 	 * scan, because the hook doesn't detach until after sc->ip gets
 	 * released during teardown.
 	 */
-	dl->root_ino = sc->mp->m_rootip->i_ino;
+	dl->root_ino = xchk_inode_rootdir_inum(sc->ip);
 	dl->scan_ino = sc->ip->i_ino;
 
 	trace_xchk_dirtree_start(sc->ip, sc->sm, 0);
@@ -982,4 +982,17 @@ out_scanlock:
 out:
 	trace_xchk_dirtree_done(sc->ip, sc->sm, error);
 	return error;
+}
+
+/* Does the directory targetted by this scrub have no parents? */
+bool
+xchk_dirtree_parentless(const struct xchk_dirtree *dl)
+{
+	struct xfs_scrub	*sc = dl->sc;
+
+	if (xchk_inode_is_dirtree_root(sc->ip))
+		return true;
+	if (VFS_I(sc->ip)->i_nlink == 0)
+		return true;
+	return false;
 }
