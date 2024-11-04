@@ -298,7 +298,7 @@ restart:
 			break;
 		--*nr_to_walk;
 
-		ret = isolate(item, l, &l->lock, cb_arg);
+		ret = isolate(item, l, cb_arg);
 		switch (ret) {
 		/*
 		 * LRU_RETRY, LRU_REMOVED_RETRY and LRU_STOP will drop the lru

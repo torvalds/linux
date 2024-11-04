@@ -412,9 +412,8 @@ static enum lru_status
 xfs_qm_dquot_isolate(
 	struct list_head	*item,
 	struct list_lru_one	*lru,
-	spinlock_t		*lru_lock,
 	void			*arg)
-		__releases(lru_lock) __acquires(lru_lock)
+		__releases(&lru->lock) __acquires(&lru->lock)
 {
 	struct xfs_dquot	*dqp = container_of(item,
 						struct xfs_dquot, q_lru);
@@ -460,7 +459,7 @@ xfs_qm_dquot_isolate(
 		trace_xfs_dqreclaim_dirty(dqp);
 
 		/* we have to drop the LRU lock to flush the dquot */
-		spin_unlock(lru_lock);
+		spin_unlock(&lru->lock);
 
 		error = xfs_qm_dqflush(dqp, &bp);
 		if (error)

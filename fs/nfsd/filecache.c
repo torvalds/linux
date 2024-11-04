@@ -487,7 +487,6 @@ void nfsd_file_net_dispose(struct nfsd_net *nn)
  * nfsd_file_lru_cb - Examine an entry on the LRU list
  * @item: LRU entry to examine
  * @lru: controlling LRU
- * @lock: LRU list lock (unused)
  * @arg: dispose list
  *
  * Return values:
@@ -497,9 +496,7 @@ void nfsd_file_net_dispose(struct nfsd_net *nn)
  */
 static enum lru_status
 nfsd_file_lru_cb(struct list_head *item, struct list_lru_one *lru,
-		 spinlock_t *lock, void *arg)
-	__releases(lock)
-	__acquires(lock)
+		 void *arg)
 {
 	struct list_head *head = arg;
 	struct nfsd_file *nf = list_entry(item, struct nfsd_file, nf_lru);

@@ -1102,7 +1102,7 @@ static int zswap_writeback_entry(struct zswap_entry *entry,
  *    for reclaim by this ratio.
  */
 static enum lru_status shrink_memcg_cb(struct list_head *item, struct list_lru_one *l,
-				       spinlock_t *lock, void *arg)
+				       void *arg)
 {
 	struct zswap_entry *entry = container_of(item, struct zswap_entry, lru);
 	bool *encountered_page_in_swapcache = (bool *)arg;
@@ -1158,7 +1158,7 @@ static enum lru_status shrink_memcg_cb(struct list_head *item, struct list_lru_o
 	 * It's safe to drop the lock here because we return either
 	 * LRU_REMOVED_RETRY or LRU_RETRY.
 	 */
-	spin_unlock(lock);
+	spin_unlock(&l->lock);
 
 	writeback_result = zswap_writeback_entry(entry, swpentry);
 

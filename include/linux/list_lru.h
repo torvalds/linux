@@ -184,7 +184,7 @@ void list_lru_isolate_move(struct list_lru_one *list, struct list_head *item,
 			   struct list_head *head);
 
 typedef enum lru_status (*list_lru_walk_cb)(struct list_head *item,
-		struct list_lru_one *list, spinlock_t *lock, void *cb_arg);
+		struct list_lru_one *list, void *cb_arg);
 
 /**
  * list_lru_walk_one: walk a @lru, isolating and disposing freeable items.
