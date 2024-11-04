@@ -373,6 +373,9 @@ struct ioctl_sick_map {
 	unsigned int		ioctl_mask;
 };
 
+#define for_each_sick_map(map, m) \
+	for ((m) = (map); (m) < (map) + ARRAY_SIZE(map); (m)++)
+
 static const struct ioctl_sick_map fs_map[] = {
 	{ XFS_SICK_FS_COUNTERS,	XFS_FSOP_GEOM_SICK_COUNTERS},
 	{ XFS_SICK_FS_UQUOTA,	XFS_FSOP_GEOM_SICK_UQUOTA },
@@ -382,13 +385,11 @@ static const struct ioctl_sick_map fs_map[] = {
 	{ XFS_SICK_FS_NLINKS,	XFS_FSOP_GEOM_SICK_NLINKS },
 	{ XFS_SICK_FS_METADIR,	XFS_FSOP_GEOM_SICK_METADIR },
 	{ XFS_SICK_FS_METAPATH,	XFS_FSOP_GEOM_SICK_METAPATH },
-	{ 0, 0 },
 };
 
 static const struct ioctl_sick_map rt_map[] = {
 	{ XFS_SICK_RT_BITMAP,	XFS_FSOP_GEOM_SICK_RT_BITMAP },
 	{ XFS_SICK_RT_SUMMARY,	XFS_FSOP_GEOM_SICK_RT_SUMMARY },
-	{ 0, 0 },
 };
 
 static inline void
@@ -418,11 +419,11 @@ xfs_fsop_geom_health(
 	geo->checked = 0;
 
 	xfs_fs_measure_sickness(mp, &sick, &checked);
-	for (m = fs_map; m->sick_mask; m++)
+	for_each_sick_map(fs_map, m)
 		xfgeo_health_tick(geo, sick, checked, m);
 
 	xfs_rt_measure_sickness(mp, &sick, &checked);
-	for (m = rt_map; m->sick_mask; m++)
+	for_each_sick_map(rt_map, m)
 		xfgeo_health_tick(geo, sick, checked, m);
 }
 
@@ -438,7 +439,6 @@ static const struct ioctl_sick_map ag_map[] = {
 	{ XFS_SICK_AG_RMAPBT,	XFS_AG_GEOM_SICK_RMAPBT },
 	{ XFS_SICK_AG_REFCNTBT,	XFS_AG_GEOM_SICK_REFCNTBT },
 	{ XFS_SICK_AG_INODES,	XFS_AG_GEOM_SICK_INODES },
-	{ 0, 0 },
 };
 
 /* Fill out ag geometry health info. */
@@ -455,7 +455,7 @@ xfs_ag_geom_health(
 	ageo->ag_checked = 0;
 
 	xfs_group_measure_sickness(pag_group(pag), &sick, &checked);
-	for (m = ag_map; m->sick_mask; m++) {
+	for_each_sick_map(ag_map, m) {
 		if (checked & m->sick_mask)
 			ageo->ag_checked |= m->ioctl_mask;
 		if (sick & m->sick_mask)
@@ -477,7 +477,6 @@ static const struct ioctl_sick_map ino_map[] = {
 	{ XFS_SICK_INO_DIR_ZAPPED,	XFS_BS_SICK_DIR },
 	{ XFS_SICK_INO_SYMLINK_ZAPPED,	XFS_BS_SICK_SYMLINK },
 	{ XFS_SICK_INO_DIRTREE,	XFS_BS_SICK_DIRTREE },
-	{ 0, 0 },
 };
 
 /* Fill out bulkstat health info. */
@@ -494,7 +493,7 @@ xfs_bulkstat_health(
 	bs->bs_checked = 0;
 
 	xfs_inode_measure_sickness(ip, &sick, &checked);
-	for (m = ino_map; m->sick_mask; m++) {
+	for_each_sick_map(ino_map, m) {
 		if (checked & m->sick_mask)
 			bs->bs_checked |= m->ioctl_mask;
 		if (sick & m->sick_mask)
