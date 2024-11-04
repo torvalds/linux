@@ -2275,6 +2275,11 @@ static void intel_pstate_get_cpu_pstates(struct cpudata *cpu)
 		} else {
 			cpu->pstate.scaling = perf_ctl_scaling;
 		}
+		/*
+		 * If the CPU is going online for the first time and it was
+		 * offline initially, asym capacity scaling needs to be updated.
+		 */
+		hybrid_update_capacity(cpu);
 	} else {
 		cpu->pstate.scaling = perf_ctl_scaling;
 		cpu->pstate.max_pstate = pstate_funcs.get_max(cpu->cpu);
