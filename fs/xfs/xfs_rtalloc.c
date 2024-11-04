@@ -935,10 +935,10 @@ xfs_growfs_rt_alloc_blocks(
 	struct xfs_mount	*mp = rtg_mount(rtg);
 	struct xfs_inode	*rbmip = rtg->rtg_inodes[XFS_RTGI_BITMAP];
 	struct xfs_inode	*rsumip = rtg->rtg_inodes[XFS_RTGI_SUMMARY];
-	xfs_rtxnum_t		nrextents = div_u64(nrblocks, rextsize);
 	xfs_extlen_t		orbmblocks;
 	xfs_extlen_t		orsumblocks;
 	xfs_extlen_t		nrsumblocks;
+	struct xfs_mount	*nmp;
 	int			error;
 
 	/*
@@ -948,9 +948,13 @@ xfs_growfs_rt_alloc_blocks(
 	orbmblocks = XFS_B_TO_FSB(mp, rbmip->i_disk_size);
 	orsumblocks = XFS_B_TO_FSB(mp, rsumip->i_disk_size);
 
-	*nrbmblocks = xfs_rtbitmap_blockcount(mp, nrextents);
-	nrsumblocks = xfs_rtsummary_blockcount(mp,
-		xfs_compute_rextslog(nrextents) + 1, *nrbmblocks);
+	nmp = xfs_growfs_rt_alloc_fake_mount(mp, nrblocks, rextsize);
+	if (!nmp)
+		return -ENOMEM;
+
+	*nrbmblocks = nmp->m_sb.sb_rbmblocks;
+	nrsumblocks = nmp->m_rsumblocks;
+	kfree(nmp);
 
 	error = xfs_rtfile_initialize_blocks(rtg, XFS_RTGI_BITMAP, orbmblocks,
 			*nrbmblocks, NULL);
