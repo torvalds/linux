@@ -20,7 +20,8 @@
 
 #define CRC_T10DIF_PMULL_CHUNK_SIZE	16U
 
-asmlinkage u16 crc_t10dif_pmull_p8(u16 init_crc, const u8 *buf, size_t len);
+asmlinkage void crc_t10dif_pmull_p8(u16 init_crc, const u8 *buf, size_t len,
+				    u8 out[16]);
 asmlinkage u16 crc_t10dif_pmull_p64(u16 init_crc, const u8 *buf, size_t len);
 
 static int crct10dif_init(struct shash_desc *desc)
@@ -34,16 +35,21 @@ static int crct10dif_init(struct shash_desc *desc)
 static int crct10dif_update_pmull_p8(struct shash_desc *desc, const u8 *data,
 			    unsigned int length)
 {
-	u16 *crc = shash_desc_ctx(desc);
+	u16 *crcp = shash_desc_ctx(desc);
+	u16 crc = *crcp;
+	u8 buf[16];
 
-	if (length >= CRC_T10DIF_PMULL_CHUNK_SIZE && crypto_simd_usable()) {
+	if (length > CRC_T10DIF_PMULL_CHUNK_SIZE && crypto_simd_usable()) {
 		kernel_neon_begin();
-		*crc = crc_t10dif_pmull_p8(*crc, data, length);
+		crc_t10dif_pmull_p8(crc, data, length, buf);
 		kernel_neon_end();
-	} else {
-		*crc = crc_t10dif_generic(*crc, data, length);
+
+		crc = 0;
+		data = buf;
+		length = sizeof(buf);
 	}
 
+	*crcp = crc_t10dif_generic(crc, data, length);
 	return 0;
 }
 
