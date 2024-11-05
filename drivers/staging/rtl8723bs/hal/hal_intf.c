@@ -243,11 +243,7 @@ void rtw_hal_stop_thread(struct adapter *padapter)
 
 u32 rtw_hal_read_bbreg(struct adapter *padapter, u32 RegAddr, u32 BitMask)
 {
-	u32 data = 0;
-
-	if (padapter->HalFunc.read_bbreg)
-		 data = padapter->HalFunc.read_bbreg(padapter, RegAddr, BitMask);
-	return data;
+	return PHY_QueryBBReg_8723B(padapter, RegAddr, BitMask);
 }
 void rtw_hal_write_bbreg(struct adapter *padapter, u32 RegAddr, u32 BitMask, u32 Data)
 {
