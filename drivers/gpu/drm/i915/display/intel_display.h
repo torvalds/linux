@@ -492,7 +492,7 @@ bool intel_encoder_is_tc(struct intel_encoder *encoder);
 enum tc_port intel_encoder_to_tc(struct intel_encoder *encoder);
 
 int ilk_get_lanes_required(int target_clock, int link_bw, int bpp);
-void vlv_wait_port_ready(struct drm_i915_private *dev_priv,
+void vlv_wait_port_ready(struct intel_display *display,
 			 struct intel_digital_port *dig_port,
 			 unsigned int expected_mask);
 
@@ -585,18 +585,17 @@ void assert_transcoder(struct drm_i915_private *dev_priv,
 bool assert_port_valid(struct drm_i915_private *i915, enum port port);
 
 /*
- * Use I915_STATE_WARN(x) (rather than WARN() and WARN_ON()) for hw state sanity
- * checks to check for unexpected conditions which may not necessarily be a user
- * visible problem. This will either WARN() or DRM_ERROR() depending on the
- * verbose_state_checks module param, to enable distros and users to tailor
- * their preferred amount of i915 abrt spam.
+ * Use INTEL_DISPLAY_STATE_WARN(x) (rather than WARN() and WARN_ON()) for hw
+ * state sanity checks to check for unexpected conditions which may not
+ * necessarily be a user visible problem. This will either drm_WARN() or
+ * drm_err() depending on the verbose_state_checks module param, to enable
+ * distros and users to tailor their preferred amount of i915 abrt spam.
  */
-#define I915_STATE_WARN(__i915, condition, format...) ({		\
-	struct drm_device *drm = &(__i915)->drm;			\
+#define INTEL_DISPLAY_STATE_WARN(__display, condition, format...) ({	\
 	int __ret_warn_on = !!(condition);				\
 	if (unlikely(__ret_warn_on))					\
-		if (!drm_WARN(drm, __i915->display.params.verbose_state_checks, format)) \
-			drm_err(drm, format);				\
+		if (!drm_WARN((__display)->drm, (__display)->params.verbose_state_checks, format)) \
+			drm_err((__display)->drm, format);		\
 	unlikely(__ret_warn_on);					\
 })
 

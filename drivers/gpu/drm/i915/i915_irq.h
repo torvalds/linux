@@ -40,11 +40,11 @@ bool intel_irqs_enabled(struct drm_i915_private *dev_priv);
 void intel_synchronize_irq(struct drm_i915_private *i915);
 void intel_synchronize_hardirq(struct drm_i915_private *i915);
 
-void gen3_assert_iir_is_zero(struct intel_uncore *uncore, i915_reg_t reg);
+void gen2_assert_iir_is_zero(struct intel_uncore *uncore, i915_reg_t reg);
 
-void gen3_irq_reset(struct intel_uncore *uncore, struct i915_irq_regs regs);
+void gen2_irq_reset(struct intel_uncore *uncore, struct i915_irq_regs regs);
 
-void gen3_irq_init(struct intel_uncore *uncore, struct i915_irq_regs regs,
+void gen2_irq_init(struct intel_uncore *uncore, struct i915_irq_regs regs,
 		   u32 imr_val, u32 ier_val);
 
 #endif /* __I915_IRQ_H__ */

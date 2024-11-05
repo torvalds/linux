@@ -83,8 +83,10 @@
 #include "intel_modeset_lock.h"
 #include "intel_panel.h"
 #include "intel_pch_display.h"
+#include "intel_pfit.h"
 #include "intel_pps.h"
 #include "intel_psr.h"
+#include "intel_runtime_pm.h"
 #include "intel_quirks.h"
 #include "intel_tc.h"
 #include "intel_vdsc.h"
@@ -495,7 +497,7 @@ static int mtl_max_source_rate(struct intel_dp *intel_dp)
 	if (intel_encoder_is_c10phy(encoder))
 		return 810000;
 
-	if (DISPLAY_VER_FULL(to_i915(encoder->base.dev)) == IP_VER(14, 1))
+	if (DISPLAY_VERx100(to_i915(encoder->base.dev)) == 1401)
 		return 1350000;
 
 	return 2000000;
@@ -1313,14 +1315,17 @@ bool intel_dp_needs_joiner(struct intel_dp *intel_dp,
 			   int num_joined_pipes)
 {
 	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
+	int hdisplay_limit;
 
 	if (!intel_dp_has_joiner(intel_dp))
 		return false;
 
 	num_joined_pipes /= 2;
 
+	hdisplay_limit = DISPLAY_VER(i915) >= 30 ? 6144 : 5120;
+
 	return clock > num_joined_pipes * i915->display.cdclk.max_dotclk_freq ||
-	       hdisplay > num_joined_pipes * 5120;
+	       hdisplay > num_joined_pipes * hdisplay_limit;
 }
 
 int intel_dp_num_joined_pipes(struct intel_dp *intel_dp,
@@ -2475,7 +2480,7 @@ intel_dp_compute_config_link_bpp_limits(struct intel_dp *intel_dp,
 		    encoder->base.base.id, encoder->base.name,
 		    crtc->base.base.id, crtc->base.name,
 		    adjusted_mode->crtc_clock,
-		    dsc ? "on" : "off",
+		    str_on_off(dsc),
 		    limits->max_lane_count,
 		    limits->max_rate,
 		    limits->pipe.max_bpp,
@@ -3399,28 +3404,41 @@ void intel_dp_sink_disable_decompression(struct intel_atomic_state *state,
 }
 
 static void
-intel_edp_init_source_oui(struct intel_dp *intel_dp, bool careful)
+intel_dp_init_source_oui(struct intel_dp *intel_dp)
 {
 	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
 	u8 oui[] = { 0x00, 0xaa, 0x01 };
 	u8 buf[3] = {};
 
+	if (READ_ONCE(intel_dp->oui_valid))
+		return;
+
+	WRITE_ONCE(intel_dp->oui_valid, true);
+
 	/*
 	 * During driver init, we want to be careful and avoid changing the source OUI if it's
 	 * already set to what we want, so as to avoid clearing any state by accident
 	 */
-	if (careful) {
-		if (drm_dp_dpcd_read(&intel_dp->aux, DP_SOURCE_OUI, buf, sizeof(buf)) < 0)
-			drm_err(&i915->drm, "Failed to read source OUI\n");
+	if (drm_dp_dpcd_read(&intel_dp->aux, DP_SOURCE_OUI, buf, sizeof(buf)) < 0)
+		drm_err(&i915->drm, "Failed to read source OUI\n");
 
-		if (memcmp(oui, buf, sizeof(oui)) == 0)
-			return;
+	if (memcmp(oui, buf, sizeof(oui)) == 0) {
+		/* Assume the OUI was written now. */
+		intel_dp->last_oui_write = jiffies;
+		return;
 	}
 
-	if (drm_dp_dpcd_write(&intel_dp->aux, DP_SOURCE_OUI, oui, sizeof(oui)) < 0)
-		drm_err(&i915->drm, "Failed to write source OUI\n");
+	if (drm_dp_dpcd_write(&intel_dp->aux, DP_SOURCE_OUI, oui, sizeof(oui)) < 0) {
+		drm_info(&i915->drm, "Failed to write source OUI\n");
+		WRITE_ONCE(intel_dp->oui_valid, false);
+	}
 
 	intel_dp->last_oui_write = jiffies;
+}
+
+void intel_dp_invalidate_source_oui(struct intel_dp *intel_dp)
+{
+	WRITE_ONCE(intel_dp->oui_valid, false);
 }
 
 void intel_dp_wait_source_oui(struct intel_dp *intel_dp)
@@ -3458,8 +3476,7 @@ void intel_dp_set_power(struct intel_dp *intel_dp, u8 mode)
 		lspcon_resume(dp_to_dig_port(intel_dp));
 
 		/* Write the source OUI as early as possible */
-		if (intel_dp_is_edp(intel_dp))
-			intel_edp_init_source_oui(intel_dp, false);
+		intel_dp_init_source_oui(intel_dp);
 
 		/*
 		 * When turning on, we need to retry for 1ms to give the sink
@@ -3997,6 +4014,23 @@ static void intel_edp_get_dsc_sink_cap(u8 edp_dpcd_rev, struct intel_connector *
 	intel_dp_read_dsc_dpcd(connector->dp.dsc_decompression_aux, connector->dp.dsc_dpcd);
 }
 
+static void
+intel_dp_detect_dsc_caps(struct intel_dp *intel_dp, struct intel_connector *connector)
+{
+	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
+
+	/* Read DP Sink DSC Cap DPCD regs for DP v1.4 */
+	if (!HAS_DSC(i915))
+		return;
+
+	if (intel_dp_is_edp(intel_dp))
+		intel_edp_get_dsc_sink_cap(intel_dp->edp_dpcd[0],
+					   connector);
+	else
+		intel_dp_get_dsc_sink_cap(intel_dp->dpcd[DP_DPCD_REV],
+					  connector);
+}
+
 static void intel_edp_mso_mode_fixup(struct intel_connector *connector,
 				     struct drm_display_mode *mode)
 {
@@ -4163,6 +4197,12 @@ intel_edp_init_dpcd(struct intel_dp *intel_dp, struct intel_connector *connector
 	}
 
 	/*
+	 * If needed, program our source OUI so we can make various Intel-specific AUX services
+	 * available (such as HDR backlight controls)
+	 */
+	intel_dp_init_source_oui(intel_dp);
+
+	/*
 	 * This has to be called after intel_dp->edp_dpcd is filled, PSR checks
 	 * for SET_POWER_CAPABLE bit in intel_dp->edp_dpcd[1]
 	 */
@@ -4172,15 +4212,7 @@ intel_edp_init_dpcd(struct intel_dp *intel_dp, struct intel_connector *connector
 	intel_dp_set_max_sink_lane_count(intel_dp);
 
 	/* Read the eDP DSC DPCD registers */
-	if (HAS_DSC(dev_priv))
-		intel_edp_get_dsc_sink_cap(intel_dp->edp_dpcd[0],
-					   connector);
-
-	/*
-	 * If needed, program our source OUI so we can make various Intel-specific AUX services
-	 * available (such as HDR backlight controls)
-	 */
-	intel_edp_init_source_oui(intel_dp, true);
+	intel_dp_detect_dsc_caps(intel_dp, connector);
 
 	return true;
 }
@@ -5006,7 +5038,8 @@ intel_dp_needs_link_retrain(struct intel_dp *intel_dp)
 		return true;
 
 	/* Retrain if link not ok */
-	return !intel_dp_link_ok(intel_dp, link_status);
+	return !intel_dp_link_ok(intel_dp, link_status) &&
+		!intel_psr_link_ok(intel_dp);
 }
 
 bool intel_dp_has_connector(struct intel_dp *intel_dp,
@@ -5032,6 +5065,21 @@ bool intel_dp_has_connector(struct intel_dp *intel_dp,
 	}
 
 	return false;
+}
+
+static void wait_for_connector_hw_done(const struct drm_connector_state *conn_state)
+{
+	struct intel_connector *connector = to_intel_connector(conn_state->connector);
+	struct intel_display *display = to_intel_display(connector);
+
+	drm_modeset_lock_assert_held(&display->drm->mode_config.connection_mutex);
+
+	if (!conn_state->commit)
+		return;
+
+	drm_WARN_ON(display->drm,
+		    !wait_for_completion_timeout(&conn_state->commit->hw_done,
+						 msecs_to_jiffies(5000)));
 }
 
 int intel_dp_get_active_pipes(struct intel_dp *intel_dp,
@@ -5070,16 +5118,18 @@ int intel_dp_get_active_pipes(struct intel_dp *intel_dp,
 		if (!crtc_state->hw.active)
 			continue;
 
-		if (conn_state->commit)
-			drm_WARN_ON(&i915->drm,
-				    !wait_for_completion_timeout(&conn_state->commit->hw_done,
-								 msecs_to_jiffies(5000)));
+		wait_for_connector_hw_done(conn_state);
 
 		*pipe_mask |= BIT(crtc->pipe);
 	}
 	drm_connector_list_iter_end(&conn_iter);
 
 	return ret;
+}
+
+void intel_dp_flush_connector_commits(struct intel_connector *connector)
+{
+	wait_for_connector_hw_done(connector->base.state);
 }
 
 static bool intel_dp_is_connected(struct intel_dp *intel_dp)
@@ -5545,23 +5595,6 @@ intel_dp_unset_edid(struct intel_dp *intel_dp)
 }
 
 static void
-intel_dp_detect_dsc_caps(struct intel_dp *intel_dp, struct intel_connector *connector)
-{
-	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
-
-	/* Read DP Sink DSC Cap DPCD regs for DP v1.4 */
-	if (!HAS_DSC(i915))
-		return;
-
-	if (intel_dp_is_edp(intel_dp))
-		intel_edp_get_dsc_sink_cap(intel_dp->edp_dpcd[0],
-					   connector);
-	else
-		intel_dp_get_dsc_sink_cap(intel_dp->dpcd[DP_DPCD_REV],
-					  connector);
-}
-
-static void
 intel_dp_detect_sdp_caps(struct intel_dp *intel_dp)
 {
 	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
@@ -5595,6 +5628,10 @@ intel_dp_detect(struct drm_connector *connector,
 	if (!intel_display_driver_check_access(dev_priv))
 		return connector->status;
 
+	intel_dp_flush_connector_commits(intel_connector);
+
+	intel_pps_vdd_on(intel_dp);
+
 	/* Can't disconnect eDP */
 	if (intel_dp_is_edp(intel_dp))
 		status = edp_detect(intel_dp);
@@ -5625,12 +5662,17 @@ intel_dp_detect(struct drm_connector *connector,
 
 		intel_dp_tunnel_disconnect(intel_dp);
 
-		goto out;
+		goto out_unset_edid;
 	}
 
+	intel_dp_init_source_oui(intel_dp);
+
 	ret = intel_dp_tunnel_detect(intel_dp, ctx);
-	if (ret == -EDEADLK)
-		return ret;
+	if (ret == -EDEADLK) {
+		status = ret;
+
+		goto out_vdd_off;
+	}
 
 	if (ret == 1)
 		intel_connector->base.epoch_counter++;
@@ -5658,7 +5700,7 @@ intel_dp_detect(struct drm_connector *connector,
 		 * with EDID on it
 		 */
 		status = connector_status_disconnected;
-		goto out;
+		goto out_unset_edid;
 	}
 
 	/*
@@ -5687,7 +5729,7 @@ intel_dp_detect(struct drm_connector *connector,
 
 	intel_dp_check_device_service_irq(intel_dp);
 
-out:
+out_unset_edid:
 	if (status != connector_status_connected && !intel_dp->is_mst)
 		intel_dp_unset_edid(intel_dp);
 
@@ -5696,6 +5738,9 @@ out:
 						 status,
 						 intel_dp->dpcd,
 						 intel_dp->downstream_ports);
+out_vdd_off:
+	intel_pps_vdd_off(intel_dp);
+
 	return status;
 }
 
@@ -6054,7 +6099,9 @@ intel_dp_hpd_pulse(struct intel_digital_port *dig_port, bool long_hpd)
 	u8 dpcd[DP_RECEIVER_CAP_SIZE];
 
 	if (dig_port->base.type == INTEL_OUTPUT_EDP &&
-	    (long_hpd || !intel_pps_have_panel_power_or_vdd(intel_dp))) {
+	    (long_hpd ||
+	     intel_runtime_pm_suspended(&i915->runtime_pm) ||
+	     !intel_pps_have_panel_power_or_vdd(intel_dp))) {
 		/*
 		 * vdd off can generate a long/short pulse on eDP which
 		 * would require vdd on to handle it, and thus we
@@ -6087,6 +6134,8 @@ intel_dp_hpd_pulse(struct intel_digital_port *dig_port, bool long_hpd)
 
 	if (long_hpd) {
 		intel_dp->reset_link_params = true;
+		intel_dp_invalidate_source_oui(intel_dp);
+
 		return IRQ_NONE;
 	}
 
@@ -6372,6 +6421,7 @@ static bool intel_edp_init_connector(struct intel_dp *intel_dp,
 
 out_vdd_off:
 	intel_pps_vdd_off_sync(intel_dp);
+	intel_bios_fini_panel(&intel_connector->panel);
 
 	return false;
 }
@@ -6411,6 +6461,7 @@ bool
 intel_dp_init_connector(struct intel_digital_port *dig_port,
 			struct intel_connector *intel_connector)
 {
+	struct intel_display *display = to_intel_display(dig_port);
 	struct drm_connector *connector = &intel_connector->base;
 	struct intel_dp *intel_dp = &dig_port->dp;
 	struct intel_encoder *intel_encoder = &dig_port->base;
@@ -6436,10 +6487,11 @@ intel_dp_init_connector(struct intel_digital_port *dig_port,
 
 	if (_intel_dp_is_port_edp(dev_priv, intel_encoder->devdata, port)) {
 		/*
-		 * Currently we don't support eDP on TypeC ports, although in
-		 * theory it could work on TypeC legacy ports.
+		 * Currently we don't support eDP on TypeC ports for DISPLAY_VER < 30,
+		 * although in theory it could work on TypeC legacy ports.
 		 */
-		drm_WARN_ON(dev, intel_encoder_is_tc(intel_encoder));
+		drm_WARN_ON(dev, intel_encoder_is_tc(intel_encoder) &&
+			    DISPLAY_VER(dev_priv) < 30);
 		type = DRM_MODE_CONNECTOR_eDP;
 		intel_encoder->type = INTEL_OUTPUT_EDP;
 
@@ -6473,7 +6525,8 @@ intel_dp_init_connector(struct intel_digital_port *dig_port,
 	if (!HAS_GMCH(dev_priv) && DISPLAY_VER(dev_priv) < 12)
 		connector->interlace_allowed = true;
 
-	intel_connector->polled = DRM_CONNECTOR_POLL_HPD;
+	if (type != DRM_MODE_CONNECTOR_eDP)
+		intel_connector->polled = DRM_CONNECTOR_POLL_HPD;
 	intel_connector->base.polled = intel_connector->polled;
 
 	intel_connector_attach_encoder(intel_connector, intel_encoder);
@@ -6499,7 +6552,7 @@ intel_dp_init_connector(struct intel_digital_port *dig_port,
 
 	intel_dp_add_properties(intel_dp, connector);
 
-	if (is_hdcp_supported(dev_priv, port) && !intel_dp_is_edp(intel_dp)) {
+	if (is_hdcp_supported(display, port) && !intel_dp_is_edp(intel_dp)) {
 		int ret = intel_dp_hdcp_init(dig_port, intel_connector);
 		if (ret)
 			drm_dbg_kms(&dev_priv->drm,

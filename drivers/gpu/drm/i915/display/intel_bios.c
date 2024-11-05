@@ -1169,7 +1169,6 @@ static int intel_bios_ssc_frequency(struct intel_display *display,
 static void
 parse_general_features(struct intel_display *display)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
 	const struct bdb_general_features *general;
 
 	general = bdb_find_section(display, BDB_GENERAL_FEATURES);
@@ -1179,7 +1178,7 @@ parse_general_features(struct intel_display *display)
 	display->vbt.int_tv_support = general->int_tv_support;
 	/* int_crt_support can't be trusted on earlier platforms */
 	if (display->vbt.version >= 155 &&
-	    (HAS_DDI(display) || IS_VALLEYVIEW(i915)))
+	    (HAS_DDI(display) || display->platform.valleyview))
 		display->vbt.int_crt_support = general->int_crt_support;
 	display->vbt.lvds_use_ssc = general->enable_ssc;
 	display->vbt.lvds_ssc_freq =
@@ -1542,7 +1541,6 @@ static void
 parse_psr(struct intel_display *display,
 	  struct intel_panel *panel)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
 	const struct bdb_psr *psr;
 	const struct psr_table *psr_table;
 	int panel_type = panel->vbt.panel_type;
@@ -1567,7 +1565,7 @@ parse_psr(struct intel_display *display,
 	 * Old decimal value is wake up time in multiples of 100 us.
 	 */
 	if (display->vbt.version >= 205 &&
-	    (DISPLAY_VER(display) >= 9 && !IS_BROXTON(i915))) {
+	    (DISPLAY_VER(display) >= 9 && !display->platform.broxton)) {
 		switch (psr_table->tp1_wakeup_time) {
 		case 0:
 			panel->vbt.psr.tp1_wakeup_time_us = 500;
@@ -2029,11 +2027,9 @@ static void icl_fixup_mipi_sequences(struct intel_display *display,
 static void fixup_mipi_sequences(struct intel_display *display,
 				 struct intel_panel *panel)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
-
 	if (DISPLAY_VER(display) >= 11)
 		icl_fixup_mipi_sequences(display, panel);
-	else if (IS_VALLEYVIEW(i915))
+	else if (display->platform.valleyview)
 		vlv_fixup_mipi_sequences(display, panel);
 }
 
@@ -2243,15 +2239,15 @@ static u8 map_ddc_pin(struct intel_display *display, u8 vbt_pin)
 	const u8 *ddc_pin_map;
 	int i, n_entries;
 
-	if (INTEL_PCH_TYPE(i915) >= PCH_MTL || IS_ALDERLAKE_P(i915)) {
+	if (INTEL_PCH_TYPE(i915) >= PCH_MTL || display->platform.alderlake_p) {
 		ddc_pin_map = adlp_ddc_pin_map;
 		n_entries = ARRAY_SIZE(adlp_ddc_pin_map);
-	} else if (IS_ALDERLAKE_S(i915)) {
+	} else if (display->platform.alderlake_s) {
 		ddc_pin_map = adls_ddc_pin_map;
 		n_entries = ARRAY_SIZE(adls_ddc_pin_map);
 	} else if (INTEL_PCH_TYPE(i915) >= PCH_DG1) {
 		return vbt_pin;
-	} else if (IS_ROCKETLAKE(i915) && INTEL_PCH_TYPE(i915) == PCH_TGP) {
+	} else if (display->platform.rocketlake && INTEL_PCH_TYPE(i915) == PCH_TGP) {
 		ddc_pin_map = rkl_pch_tgp_ddc_pin_map;
 		n_entries = ARRAY_SIZE(rkl_pch_tgp_ddc_pin_map);
 	} else if (HAS_PCH_TGP(i915) && DISPLAY_VER(display) == 9) {
@@ -2334,7 +2330,6 @@ static enum port __dvo_port_to_port(int n_ports, int n_dvo,
 static enum port dvo_port_to_port(struct intel_display *display,
 				  u8 dvo_port)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
 	/*
 	 * Each DDI port can have more than one value on the "DVO Port" field,
 	 * so look for all the possible values for each port.
@@ -2391,12 +2386,12 @@ static enum port dvo_port_to_port(struct intel_display *display,
 					  ARRAY_SIZE(xelpd_port_mapping[0]),
 					  xelpd_port_mapping,
 					  dvo_port);
-	else if (IS_ALDERLAKE_S(i915))
+	else if (display->platform.alderlake_s)
 		return __dvo_port_to_port(ARRAY_SIZE(adls_port_mapping),
 					  ARRAY_SIZE(adls_port_mapping[0]),
 					  adls_port_mapping,
 					  dvo_port);
-	else if (IS_DG1(i915) || IS_ROCKETLAKE(i915))
+	else if (display->platform.dg1 || display->platform.rocketlake)
 		return __dvo_port_to_port(ARRAY_SIZE(rkl_port_mapping),
 					  ARRAY_SIZE(rkl_port_mapping[0]),
 					  rkl_port_mapping,
@@ -2519,7 +2514,6 @@ static void sanitize_hdmi_level_shift(struct intel_bios_encoder_data *devdata,
 				      enum port port)
 {
 	struct intel_display *display = devdata->display;
-	struct drm_i915_private *i915 = to_i915(display->drm);
 
 	if (!intel_bios_encoder_supports_dvi(devdata))
 		return;
@@ -2529,7 +2523,7 @@ static void sanitize_hdmi_level_shift(struct intel_bios_encoder_data *devdata,
 	 * with a HSW VBT where the level shifter value goes
 	 * up to 11, whereas the BDW max is 9.
 	 */
-	if (IS_BROADWELL(i915) && devdata->child.hdmi_level_shifter_value > 9) {
+	if (display->platform.broadwell && devdata->child.hdmi_level_shifter_value > 9) {
 		drm_dbg_kms(display->drm,
 			    "Bogus port %c VBT HDMI level shift %d, adjusting to %d\n",
 			    port_name(port), devdata->child.hdmi_level_shifter_value, 9);
@@ -2618,14 +2612,13 @@ int intel_bios_hdmi_max_tmds_clock(const struct intel_bios_encoder_data *devdata
 
 static bool is_port_valid(struct intel_display *display, enum port port)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
 	/*
 	 * On some ICL SKUs port F is not present, but broken VBTs mark
 	 * the port as present. Only try to initialize port F for the
 	 * SKUs that may actually have it.
 	 */
-	if (port == PORT_F && IS_ICELAKE(i915))
-		return IS_ICL_WITH_PORT_F(i915);
+	if (port == PORT_F && display->platform.icelake)
+		return display->platform.icelake_port_f;
 
 	return true;
 }
@@ -2723,9 +2716,7 @@ static void parse_ddi_port(struct intel_bios_encoder_data *devdata)
 
 static bool has_ddi_port_info(struct intel_display *display)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
-
-	return DISPLAY_VER(display) >= 5 || IS_G4X(i915);
+	return DISPLAY_VER(display) >= 5 || display->platform.g4x;
 }
 
 static void parse_ddi_ports(struct intel_display *display)
@@ -2796,7 +2787,6 @@ static bool child_device_size_valid(struct intel_display *display, int size)
 static void
 parse_general_definitions(struct intel_display *display)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
 	const struct bdb_general_definitions *defs;
 	struct intel_bios_encoder_data *devdata;
 	const struct child_device_config *child;
@@ -2821,7 +2811,7 @@ parse_general_definitions(struct intel_display *display)
 
 	bus_pin = defs->crt_ddc_gmbus_pin;
 	drm_dbg_kms(display->drm, "crt_ddc_bus_pin: %d\n", bus_pin);
-	if (intel_gmbus_is_valid_pin(i915, bus_pin))
+	if (intel_gmbus_is_valid_pin(display, bus_pin))
 		display->vbt.crt_ddc_pin = bus_pin;
 
 	if (!child_device_size_valid(display, defs->child_dev_size))
@@ -2907,7 +2897,7 @@ init_vbt_missing_defaults(struct intel_display *display)
 	unsigned int ports = DISPLAY_RUNTIME_INFO(display)->port_mask;
 	enum port port;
 
-	if (!HAS_DDI(display) && !IS_CHERRYVIEW(i915))
+	if (!HAS_DDI(display) && !display->platform.cherryview)
 		return;
 
 	for_each_port_masked(port, ports) {
@@ -3338,7 +3328,6 @@ bool intel_bios_is_tv_present(struct intel_display *display)
  */
 bool intel_bios_is_lvds_present(struct intel_display *display, u8 *i2c_pin)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
 	const struct intel_bios_encoder_data *devdata;
 
 	if (list_empty(&display->vbt.display_devices))
@@ -3355,7 +3344,7 @@ bool intel_bios_is_lvds_present(struct intel_display *display, u8 *i2c_pin)
 		    child->device_type != DEVICE_TYPE_LFP)
 			continue;
 
-		if (intel_gmbus_is_valid_pin(i915, child->i2c_pin))
+		if (intel_gmbus_is_valid_pin(display, child->i2c_pin))
 			*i2c_pin = child->i2c_pin;
 
 		/* However, we cannot trust the BIOS writers to populate
@@ -3603,17 +3592,16 @@ static const u8 direct_aux_ch_map[] = {
 
 static enum aux_ch map_aux_ch(struct intel_display *display, u8 aux_channel)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
 	const u8 *aux_ch_map;
 	int i, n_entries;
 
 	if (DISPLAY_VER(display) >= 13) {
 		aux_ch_map = adlp_aux_ch_map;
 		n_entries = ARRAY_SIZE(adlp_aux_ch_map);
-	} else if (IS_ALDERLAKE_S(i915)) {
+	} else if (display->platform.alderlake_s) {
 		aux_ch_map = adls_aux_ch_map;
 		n_entries = ARRAY_SIZE(adls_aux_ch_map);
-	} else if (IS_DG1(i915) || IS_ROCKETLAKE(i915)) {
+	} else if (display->platform.dg1 || display->platform.rocketlake) {
 		aux_ch_map = rkl_aux_ch_map;
 		n_entries = ARRAY_SIZE(rkl_aux_ch_map);
 	} else {

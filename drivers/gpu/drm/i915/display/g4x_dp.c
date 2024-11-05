@@ -170,13 +170,12 @@ static void assert_dp_port(struct intel_dp *intel_dp, bool state)
 {
 	struct intel_display *display = to_intel_display(intel_dp);
 	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
-	struct drm_i915_private *dev_priv = to_i915(dig_port->base.base.dev);
 	bool cur_state = intel_de_read(display, intel_dp->output_reg) & DP_PORT_EN;
 
-	I915_STATE_WARN(dev_priv, cur_state != state,
-			"[ENCODER:%d:%s] state assertion failure (expected %s, current %s)\n",
-			dig_port->base.base.base.id, dig_port->base.base.name,
-			str_on_off(state), str_on_off(cur_state));
+	INTEL_DISPLAY_STATE_WARN(display, cur_state != state,
+				 "[ENCODER:%d:%s] state assertion failure (expected %s, current %s)\n",
+				 dig_port->base.base.base.id, dig_port->base.base.name,
+				 str_on_off(state), str_on_off(cur_state));
 }
 #define assert_dp_port_disabled(d) assert_dp_port((d), false)
 
@@ -185,9 +184,9 @@ static void assert_edp_pll(struct drm_i915_private *dev_priv, bool state)
 	struct intel_display *display = &dev_priv->display;
 	bool cur_state = intel_de_read(display, DP_A) & DP_PLL_ENABLE;
 
-	I915_STATE_WARN(dev_priv, cur_state != state,
-			"eDP PLL state assertion failure (expected %s, current %s)\n",
-			str_on_off(state), str_on_off(cur_state));
+	INTEL_DISPLAY_STATE_WARN(display, cur_state != state,
+				 "eDP PLL state assertion failure (expected %s, current %s)\n",
+				 str_on_off(state), str_on_off(cur_state));
 }
 #define assert_edp_pll_enabled(d) assert_edp_pll((d), true)
 #define assert_edp_pll_disabled(d) assert_edp_pll((d), false)
@@ -706,8 +705,7 @@ static void intel_enable_dp(struct intel_atomic_state *state,
 		if (IS_CHERRYVIEW(dev_priv))
 			lane_mask = intel_dp_unused_lane_mask(pipe_config->lane_count);
 
-		vlv_wait_port_ready(dev_priv, dp_to_dig_port(intel_dp),
-				    lane_mask);
+		vlv_wait_port_ready(display, dp_to_dig_port(intel_dp), lane_mask);
 	}
 
 	intel_dp_set_power(intel_dp, DP_SET_POWER_D0);
@@ -1251,6 +1249,7 @@ static void intel_dp_encoder_reset(struct drm_encoder *encoder)
 	intel_dp->DP = intel_de_read(display, intel_dp->output_reg);
 
 	intel_dp->reset_link_params = true;
+	intel_dp_invalidate_source_oui(intel_dp);
 
 	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
 		vlv_pps_pipe_reset(intel_dp);

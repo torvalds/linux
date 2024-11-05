@@ -7,7 +7,7 @@
 #include "i915_reg.h"
 #include "intel_uncore.h"
 
-void gen3_irq_reset(struct intel_uncore *uncore, struct i915_irq_regs regs)
+void gen2_irq_reset(struct intel_uncore *uncore, struct i915_irq_regs regs)
 {
 	intel_uncore_write(uncore, regs.imr, 0xffffffff);
 	intel_uncore_posting_read(uncore, regs.imr);
@@ -24,7 +24,7 @@ void gen3_irq_reset(struct intel_uncore *uncore, struct i915_irq_regs regs)
 /*
  * We should clear IMR at preinstall/uninstall, and just check at postinstall.
  */
-void gen3_assert_iir_is_zero(struct intel_uncore *uncore, i915_reg_t reg)
+void gen2_assert_iir_is_zero(struct intel_uncore *uncore, i915_reg_t reg)
 {
 	struct xe_device *xe = container_of(uncore, struct xe_device, uncore);
 	u32 val = intel_uncore_read(uncore, reg);
@@ -41,10 +41,10 @@ void gen3_assert_iir_is_zero(struct intel_uncore *uncore, i915_reg_t reg)
 	intel_uncore_posting_read(uncore, reg);
 }
 
-void gen3_irq_init(struct intel_uncore *uncore, struct i915_irq_regs regs,
+void gen2_irq_init(struct intel_uncore *uncore, struct i915_irq_regs regs,
 		   u32 imr_val, u32 ier_val)
 {
-	gen3_assert_iir_is_zero(uncore, regs.iir);
+	gen2_assert_iir_is_zero(uncore, regs.iir);
 
 	intel_uncore_write(uncore, regs.ier, ier_val);
 	intel_uncore_write(uncore, regs.imr, imr_val);

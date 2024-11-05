@@ -20,6 +20,14 @@ static inline void enable_rpm_wakeref_asserts(void *rpm)
 {
 }
 
+static inline bool
+intel_runtime_pm_suspended(struct xe_runtime_pm *pm)
+{
+	struct xe_device *xe = container_of(pm, struct xe_device, runtime_pm);
+
+	return pm_runtime_suspended(xe->drm.dev);
+}
+
 static inline intel_wakeref_t intel_runtime_pm_get(struct xe_runtime_pm *pm)
 {
 	struct xe_device *xe = container_of(pm, struct xe_device, runtime_pm);

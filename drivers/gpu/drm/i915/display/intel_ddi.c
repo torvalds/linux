@@ -2236,7 +2236,7 @@ static void intel_dp_sink_set_fec_ready(struct intel_dp *intel_dp,
 	if (drm_dp_dpcd_writeb(&intel_dp->aux, DP_FEC_CONFIGURATION,
 			       enable ? DP_FEC_READY : 0) <= 0)
 		drm_dbg_kms(display->drm, "Failed to set FEC_READY to %s in the sink\n",
-			    enable ? "enabled" : "disabled");
+			    str_enabled_disabled(enable));
 
 	if (enable &&
 	    drm_dp_dpcd_writeb(&intel_dp->aux, DP_FEC_STATUS,
@@ -2256,9 +2256,9 @@ static int read_fec_detected_status(struct drm_dp_aux *aux)
 	return status;
 }
 
-static void wait_for_fec_detected(struct drm_dp_aux *aux, bool enabled)
+static int wait_for_fec_detected(struct drm_dp_aux *aux, bool enabled)
 {
-	struct drm_i915_private *i915 = to_i915(aux->drm_dev);
+	struct intel_display *display = to_intel_display(aux->drm_dev);
 	int mask = enabled ? DP_FEC_DECODE_EN_DETECTED : DP_FEC_DECODE_DIS_DETECTED;
 	int status;
 	int err;
@@ -2267,57 +2267,92 @@ static void wait_for_fec_detected(struct drm_dp_aux *aux, bool enabled)
 				 status & mask || status < 0,
 				 10000, 200000);
 
-	if (!err && status >= 0)
-		return;
+	if (err || status < 0) {
+		drm_dbg_kms(display->drm,
+			    "Failed waiting for FEC %s to get detected: %d (status %d)\n",
+			    str_enabled_disabled(enabled), err, status);
+		return err ? err : status;
+	}
 
-	if (err == -ETIMEDOUT)
-		drm_dbg_kms(&i915->drm, "Timeout waiting for FEC %s to get detected\n",
-			    str_enabled_disabled(enabled));
-	else
-		drm_dbg_kms(&i915->drm, "FEC detected status read error: %d\n", status);
+	return 0;
 }
 
-void intel_ddi_wait_for_fec_status(struct intel_encoder *encoder,
-				   const struct intel_crtc_state *crtc_state,
-				   bool enabled)
+int intel_ddi_wait_for_fec_status(struct intel_encoder *encoder,
+				  const struct intel_crtc_state *crtc_state,
+				  bool enabled)
 {
-	struct drm_i915_private *i915 = to_i915(crtc_state->uapi.crtc->dev);
+	struct intel_display *display = to_intel_display(encoder);
 	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 	int ret;
 
 	if (!crtc_state->fec_enable)
-		return;
+		return 0;
 
 	if (enabled)
-		ret = intel_de_wait_for_set(i915, dp_tp_status_reg(encoder, crtc_state),
+		ret = intel_de_wait_for_set(display, dp_tp_status_reg(encoder, crtc_state),
 					    DP_TP_STATUS_FEC_ENABLE_LIVE, 1);
 	else
-		ret = intel_de_wait_for_clear(i915, dp_tp_status_reg(encoder, crtc_state),
+		ret = intel_de_wait_for_clear(display, dp_tp_status_reg(encoder, crtc_state),
 					      DP_TP_STATUS_FEC_ENABLE_LIVE, 1);
 
-	if (ret)
-		drm_err(&i915->drm,
+	if (ret) {
+		drm_err(display->drm,
 			"Timeout waiting for FEC live state to get %s\n",
 			str_enabled_disabled(enabled));
-
+		return ret;
+	}
 	/*
 	 * At least the Synoptics MST hub doesn't set the detected flag for
 	 * FEC decoding disabling so skip waiting for that.
 	 */
-	if (enabled)
-		wait_for_fec_detected(&intel_dp->aux, enabled);
+	if (enabled) {
+		ret = wait_for_fec_detected(&intel_dp->aux, enabled);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
 }
 
 static void intel_ddi_enable_fec(struct intel_encoder *encoder,
 				 const struct intel_crtc_state *crtc_state)
 {
-	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	struct intel_display *display = to_intel_display(encoder);
+	int i;
+	int ret;
 
 	if (!crtc_state->fec_enable)
 		return;
 
-	intel_de_rmw(dev_priv, dp_tp_ctl_reg(encoder, crtc_state),
+	intel_de_rmw(display, dp_tp_ctl_reg(encoder, crtc_state),
 		     0, DP_TP_CTL_FEC_ENABLE);
+
+	if (DISPLAY_VER(display) < 30)
+		return;
+
+	ret = intel_ddi_wait_for_fec_status(encoder, crtc_state, true);
+	if (!ret)
+		return;
+
+	for (i = 0; i < 3; i++) {
+		drm_dbg_kms(display->drm, "Retry FEC enabling\n");
+
+		intel_de_rmw(display, dp_tp_ctl_reg(encoder, crtc_state),
+			     DP_TP_CTL_FEC_ENABLE, 0);
+
+		ret = intel_ddi_wait_for_fec_status(encoder, crtc_state, false);
+		if (ret)
+			continue;
+
+		intel_de_rmw(display, dp_tp_ctl_reg(encoder, crtc_state),
+			     0, DP_TP_CTL_FEC_ENABLE);
+
+		ret = intel_ddi_wait_for_fec_status(encoder, crtc_state, true);
+		if (!ret)
+			return;
+	}
+
+	drm_err(display->drm, "Failed to enable FEC after retries\n");
 }
 
 static void intel_ddi_disable_fec(struct intel_encoder *encoder,
@@ -3478,6 +3513,13 @@ static void intel_ddi_update_pipe_dp(struct intel_atomic_state *state,
 	drm_connector_update_privacy_screen(conn_state);
 }
 
+static void intel_ddi_update_pipe_hdmi(struct intel_encoder *encoder,
+				       const struct intel_crtc_state *crtc_state,
+				       const struct drm_connector_state *conn_state)
+{
+	intel_hdmi_fastset_infoframes(encoder, crtc_state, conn_state);
+}
+
 void intel_ddi_update_pipe(struct intel_atomic_state *state,
 			   struct intel_encoder *encoder,
 			   const struct intel_crtc_state *crtc_state,
@@ -3488,6 +3530,10 @@ void intel_ddi_update_pipe(struct intel_atomic_state *state,
 	    !intel_encoder_is_mst(encoder))
 		intel_ddi_update_pipe_dp(state, encoder, crtc_state,
 					 conn_state);
+
+	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_HDMI))
+		intel_ddi_update_pipe_hdmi(encoder, crtc_state,
+					   conn_state);
 
 	intel_hdcp_update_pipe(state, encoder, crtc_state, conn_state);
 }
@@ -4392,6 +4438,7 @@ static void intel_ddi_encoder_reset(struct drm_encoder *encoder)
 	struct intel_digital_port *dig_port = enc_to_dig_port(to_intel_encoder(encoder));
 
 	intel_dp->reset_link_params = true;
+	intel_dp_invalidate_source_oui(intel_dp);
 
 	intel_pps_encoder_reset(intel_dp);
 
@@ -4885,7 +4932,7 @@ void intel_ddi_init(struct intel_display *display,
 		if (!assert_has_icl_dsi(dev_priv))
 			return;
 
-		icl_dsi_init(dev_priv, devdata);
+		icl_dsi_init(display, devdata);
 		return;
 	}
 

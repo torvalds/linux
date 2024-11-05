@@ -1618,6 +1618,8 @@ struct intel_psr {
 	u32 dc3co_exit_delay;
 	struct delayed_work dc3co_work;
 	u8 entry_setup_frames;
+
+	bool link_ok;
 };
 
 struct intel_dp {
@@ -1765,6 +1767,7 @@ struct intel_dp {
 
 	/* When we last wrote the OUI for eDP */
 	unsigned long last_oui_write;
+	bool oui_valid;
 
 	bool colorimetry_support;
 
@@ -2104,6 +2107,10 @@ to_intel_frontbuffer(struct drm_framebuffer *fb)
 	__drm_device_to_intel_display((p)->base.dev)
 #define __intel_hdmi_to_intel_display(p)	\
 	__drm_device_to_intel_display(hdmi_to_dig_port(p)->base.base.dev)
+#define __intel_plane_to_intel_display(p)		\
+	__drm_device_to_intel_display((p)->base.dev)
+#define __intel_plane_state_to_intel_display(p)			\
+	__drm_device_to_intel_display((p)->uapi.plane->dev)
 
 /* Helper for generic association. Map types to conversion functions/macros. */
 #define __assoc(type, p) \
@@ -2122,6 +2129,8 @@ to_intel_frontbuffer(struct drm_framebuffer *fb)
 		 __assoc(intel_digital_port, p),	\
 		 __assoc(intel_dp, p),			\
 		 __assoc(intel_encoder, p),		\
-		 __assoc(intel_hdmi, p))
+		 __assoc(intel_hdmi, p),		\
+		 __assoc(intel_plane, p),		\
+		 __assoc(intel_plane_state, p))
 
 #endif /*  __INTEL_DISPLAY_TYPES_H__ */

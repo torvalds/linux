@@ -13,7 +13,7 @@
 
 #include <drm/drm_color_mgmt.h>
 #include <drm/drm_drv.h>
-#include <drm/intel/xe_pciids.h>
+#include <drm/intel/pciids.h>
 
 #include "display/xe_display.h"
 #include "regs/xe_gt_regs.h"
@@ -233,7 +233,7 @@ static const struct xe_device_desc rkl_desc = {
 	.require_force_probe = true,
 };
 
-static const u16 adls_rpls_ids[] = { XE_RPLS_IDS(NOP), 0 };
+static const u16 adls_rpls_ids[] = { INTEL_RPLS_IDS(NOP), 0 };
 
 static const struct xe_device_desc adl_s_desc = {
 	.graphics = &graphics_xelp,
@@ -248,7 +248,7 @@ static const struct xe_device_desc adl_s_desc = {
 	},
 };
 
-static const u16 adlp_rplu_ids[] = { XE_RPLU_IDS(NOP), 0 };
+static const u16 adlp_rplu_ids[] = { INTEL_RPLU_IDS(NOP), 0 };
 
 static const struct xe_device_desc adl_p_desc = {
 	.graphics = &graphics_xelp,
@@ -285,9 +285,9 @@ static const struct xe_device_desc dg1_desc = {
 	.require_force_probe = true,
 };
 
-static const u16 dg2_g10_ids[] = { XE_DG2_G10_IDS(NOP), XE_ATS_M150_IDS(NOP), 0 };
-static const u16 dg2_g11_ids[] = { XE_DG2_G11_IDS(NOP), XE_ATS_M75_IDS(NOP), 0 };
-static const u16 dg2_g12_ids[] = { XE_DG2_G12_IDS(NOP), 0 };
+static const u16 dg2_g10_ids[] = { INTEL_DG2_G10_IDS(NOP), INTEL_ATS_M150_IDS(NOP), 0 };
+static const u16 dg2_g11_ids[] = { INTEL_DG2_G11_IDS(NOP), INTEL_ATS_M75_IDS(NOP), 0 };
+static const u16 dg2_g12_ids[] = { INTEL_DG2_G12_IDS(NOP), 0 };
 
 #define DG2_FEATURES \
 	DGFX_FEATURES, \
@@ -348,7 +348,7 @@ static const struct xe_device_desc bmg_desc = {
 
 static const struct xe_device_desc ptl_desc = {
 	PLATFORM(PANTHERLAKE),
-	.has_display = false,
+	.has_display = true,
 	.require_force_probe = true,
 };
 
@@ -374,11 +374,6 @@ static const struct gmdid_map media_ip_map[] = {
 	{ 3000, &media_xe2 },
 };
 
-#define INTEL_VGA_DEVICE(id, info) {			\
-	PCI_DEVICE(PCI_VENDOR_ID_INTEL, id),		\
-	PCI_BASE_CLASS_DISPLAY << 16, 0xff << 16,	\
-	(unsigned long) info }
-
 /*
  * Make sure any device matches here are from most specific to most
  * general.  For example, since the Quanta match is based on the subsystem
@@ -386,27 +381,25 @@ static const struct gmdid_map media_ip_map[] = {
  * PCI ID matches, otherwise we'll use the wrong info struct above.
  */
 static const struct pci_device_id pciidlist[] = {
-	XE_TGL_IDS(INTEL_VGA_DEVICE, &tgl_desc),
-	XE_RKL_IDS(INTEL_VGA_DEVICE, &rkl_desc),
-	XE_ADLS_IDS(INTEL_VGA_DEVICE, &adl_s_desc),
-	XE_ADLP_IDS(INTEL_VGA_DEVICE, &adl_p_desc),
-	XE_ADLN_IDS(INTEL_VGA_DEVICE, &adl_n_desc),
-	XE_RPLU_IDS(INTEL_VGA_DEVICE, &adl_p_desc),
-	XE_RPLP_IDS(INTEL_VGA_DEVICE, &adl_p_desc),
-	XE_RPLS_IDS(INTEL_VGA_DEVICE, &adl_s_desc),
-	XE_DG1_IDS(INTEL_VGA_DEVICE, &dg1_desc),
-	XE_ATS_M_IDS(INTEL_VGA_DEVICE, &ats_m_desc),
-	XE_ARL_IDS(INTEL_VGA_DEVICE, &mtl_desc),
-	XE_DG2_IDS(INTEL_VGA_DEVICE, &dg2_desc),
-	XE_MTL_IDS(INTEL_VGA_DEVICE, &mtl_desc),
-	XE_LNL_IDS(INTEL_VGA_DEVICE, &lnl_desc),
-	XE_BMG_IDS(INTEL_VGA_DEVICE, &bmg_desc),
-	XE_PTL_IDS(INTEL_VGA_DEVICE, &ptl_desc),
+	INTEL_TGL_IDS(INTEL_VGA_DEVICE, &tgl_desc),
+	INTEL_RKL_IDS(INTEL_VGA_DEVICE, &rkl_desc),
+	INTEL_ADLS_IDS(INTEL_VGA_DEVICE, &adl_s_desc),
+	INTEL_ADLP_IDS(INTEL_VGA_DEVICE, &adl_p_desc),
+	INTEL_ADLN_IDS(INTEL_VGA_DEVICE, &adl_n_desc),
+	INTEL_RPLU_IDS(INTEL_VGA_DEVICE, &adl_p_desc),
+	INTEL_RPLP_IDS(INTEL_VGA_DEVICE, &adl_p_desc),
+	INTEL_RPLS_IDS(INTEL_VGA_DEVICE, &adl_s_desc),
+	INTEL_DG1_IDS(INTEL_VGA_DEVICE, &dg1_desc),
+	INTEL_ATS_M_IDS(INTEL_VGA_DEVICE, &ats_m_desc),
+	INTEL_ARL_IDS(INTEL_VGA_DEVICE, &mtl_desc),
+	INTEL_DG2_IDS(INTEL_VGA_DEVICE, &dg2_desc),
+	INTEL_MTL_IDS(INTEL_VGA_DEVICE, &mtl_desc),
+	INTEL_LNL_IDS(INTEL_VGA_DEVICE, &lnl_desc),
+	INTEL_BMG_IDS(INTEL_VGA_DEVICE, &bmg_desc),
+	INTEL_PTL_IDS(INTEL_VGA_DEVICE, &ptl_desc),
 	{ }
 };
 MODULE_DEVICE_TABLE(pci, pciidlist);
-
-#undef INTEL_VGA_DEVICE
 
 /* is device_id present in comma separated list of ids */
 static bool device_id_in_list(u16 device_id, const char *devices, bool negative)

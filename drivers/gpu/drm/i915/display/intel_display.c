@@ -422,6 +422,7 @@ intel_wait_for_pipe_off(const struct intel_crtc_state *old_crtc_state)
 void assert_transcoder(struct drm_i915_private *dev_priv,
 		       enum transcoder cpu_transcoder, bool state)
 {
+	struct intel_display *display = &dev_priv->display;
 	bool cur_state;
 	enum intel_display_power_domain power_domain;
 	intel_wakeref_t wakeref;
@@ -442,24 +443,24 @@ void assert_transcoder(struct drm_i915_private *dev_priv,
 		cur_state = false;
 	}
 
-	I915_STATE_WARN(dev_priv, cur_state != state,
-			"transcoder %s assertion failure (expected %s, current %s)\n",
-			transcoder_name(cpu_transcoder), str_on_off(state),
-			str_on_off(cur_state));
+	INTEL_DISPLAY_STATE_WARN(display, cur_state != state,
+				 "transcoder %s assertion failure (expected %s, current %s)\n",
+				 transcoder_name(cpu_transcoder), str_on_off(state),
+				 str_on_off(cur_state));
 }
 
 static void assert_plane(struct intel_plane *plane, bool state)
 {
-	struct drm_i915_private *i915 = to_i915(plane->base.dev);
+	struct intel_display *display = to_intel_display(plane->base.dev);
 	enum pipe pipe;
 	bool cur_state;
 
 	cur_state = plane->get_hw_state(plane, &pipe);
 
-	I915_STATE_WARN(i915, cur_state != state,
-			"%s assertion failure (expected %s, current %s)\n",
-			plane->base.name, str_on_off(state),
-			str_on_off(cur_state));
+	INTEL_DISPLAY_STATE_WARN(display, cur_state != state,
+				 "%s assertion failure (expected %s, current %s)\n",
+				 plane->base.name, str_on_off(state),
+				 str_on_off(cur_state));
 }
 
 #define assert_plane_enabled(p) assert_plane(p, true)
@@ -474,7 +475,7 @@ static void assert_planes_disabled(struct intel_crtc *crtc)
 		assert_plane_disabled(plane);
 }
 
-void vlv_wait_port_ready(struct drm_i915_private *dev_priv,
+void vlv_wait_port_ready(struct intel_display *display,
 			 struct intel_digital_port *dig_port,
 			 unsigned int expected_mask)
 {
@@ -487,11 +488,11 @@ void vlv_wait_port_ready(struct drm_i915_private *dev_priv,
 		fallthrough;
 	case PORT_B:
 		port_mask = DPLL_PORTB_READY_MASK;
-		dpll_reg = DPLL(dev_priv, 0);
+		dpll_reg = DPLL(display, 0);
 		break;
 	case PORT_C:
 		port_mask = DPLL_PORTC_READY_MASK;
-		dpll_reg = DPLL(dev_priv, 0);
+		dpll_reg = DPLL(display, 0);
 		expected_mask <<= 4;
 		break;
 	case PORT_D:
@@ -500,11 +501,11 @@ void vlv_wait_port_ready(struct drm_i915_private *dev_priv,
 		break;
 	}
 
-	if (intel_de_wait(dev_priv, dpll_reg, port_mask, expected_mask, 1000))
-		drm_WARN(&dev_priv->drm, 1,
+	if (intel_de_wait(display, dpll_reg, port_mask, expected_mask, 1000))
+		drm_WARN(display->drm, 1,
 			 "timed out waiting for [ENCODER:%d:%s] port ready: got 0x%x, expected 0x%x\n",
 			 dig_port->base.base.base.id, dig_port->base.base.name,
-			 intel_de_read(dev_priv, dpll_reg) & port_mask,
+			 intel_de_read(display, dpll_reg) & port_mask,
 			 expected_mask);
 }
 
@@ -861,7 +862,7 @@ static void icl_set_pipe_chicken(const struct intel_crtc_state *crtc_state)
 	 */
 	if (IS_DG2(dev_priv))
 		tmp &= ~UNDERRUN_RECOVERY_ENABLE_DG2;
-	else if (DISPLAY_VER(dev_priv) >= 13)
+	else if ((DISPLAY_VER(dev_priv) >= 13) && (DISPLAY_VER(dev_priv) < 30))
 		tmp |= UNDERRUN_RECOVERY_DISABLE_ADLP;
 
 	/* Wa_14010547955:dg2 */
@@ -2609,12 +2610,28 @@ static int intel_crtc_compute_pipe_mode(struct intel_crtc_state *crtc_state)
 	return 0;
 }
 
+static bool intel_crtc_needs_wa_14015401596(struct intel_crtc_state *crtc_state)
+{
+	struct intel_display *display = to_intel_display(crtc_state);
+	const struct drm_display_mode *adjusted_mode = &crtc_state->hw.adjusted_mode;
+
+	return intel_vrr_possible(crtc_state) && crtc_state->has_psr &&
+		adjusted_mode->crtc_vblank_start == adjusted_mode->crtc_vdisplay &&
+		IS_DISPLAY_VER(display, 13, 14);
+}
+
 static int intel_crtc_compute_config(struct intel_atomic_state *state,
 				     struct intel_crtc *crtc)
 {
 	struct intel_crtc_state *crtc_state =
 		intel_atomic_get_new_crtc_state(state, crtc);
+	struct drm_display_mode *adjusted_mode =
+		&crtc_state->hw.adjusted_mode;
 	int ret;
+
+	/* Wa_14015401596 */
+	if (intel_crtc_needs_wa_14015401596(crtc_state))
+		adjusted_mode->crtc_vblank_start += 1;
 
 	ret = intel_dpll_crtc_compute_clock(state, crtc);
 	if (ret)
@@ -5050,6 +5067,8 @@ intel_modeset_pipe_config_late(struct intel_atomic_state *state,
 	struct drm_connector *connector;
 	int i;
 
+	intel_vrr_compute_config_late(crtc_state);
+
 	for_each_new_connector_in_state(&state->base, connector,
 					conn_state, i) {
 		struct intel_encoder *encoder =
@@ -5287,15 +5306,15 @@ pipe_config_cx0pll_mismatch(struct drm_printer *p, bool fastset,
 			    const struct intel_cx0pll_state *a,
 			    const struct intel_cx0pll_state *b)
 {
-	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
+	struct intel_display *display = to_intel_display(crtc);
 	char *chipname = a->use_c10 ? "C10" : "C20";
 
 	pipe_config_mismatch(p, fastset, crtc, name, chipname);
 
 	drm_printf(p, "expected:\n");
-	intel_cx0pll_dump_hw_state(i915, a);
+	intel_cx0pll_dump_hw_state(display, a);
 	drm_printf(p, "found:\n");
-	intel_cx0pll_dump_hw_state(i915, b);
+	intel_cx0pll_dump_hw_state(display, b);
 }
 
 bool
@@ -5683,7 +5702,8 @@ intel_pipe_config_compare(const struct intel_crtc_state *current_config,
 	PIPE_CONF_CHECK_INFOFRAME(avi);
 	PIPE_CONF_CHECK_INFOFRAME(spd);
 	PIPE_CONF_CHECK_INFOFRAME(hdmi);
-	PIPE_CONF_CHECK_INFOFRAME(drm);
+	if (!fastset)
+		PIPE_CONF_CHECK_INFOFRAME(drm);
 	PIPE_CONF_CHECK_DP_VSC_SDP(vsc);
 	PIPE_CONF_CHECK_DP_AS_SDP(as_sdp);
 
@@ -8129,7 +8149,7 @@ void intel_setup_outputs(struct drm_i915_private *dev_priv)
 
 	if (HAS_DDI(dev_priv)) {
 		if (intel_ddi_crt_present(dev_priv))
-			intel_crt_init(dev_priv);
+			intel_crt_init(display);
 
 		intel_bios_for_each_encoder(display, intel_ddi_init);
 
@@ -8144,7 +8164,7 @@ void intel_setup_outputs(struct drm_i915_private *dev_priv)
 		 * incorrect sharing of the PPS.
 		 */
 		intel_lvds_init(dev_priv);
-		intel_crt_init(dev_priv);
+		intel_crt_init(display);
 
 		dpd_is_edp = intel_dp_is_port_edp(dev_priv, PORT_D);
 
@@ -8175,7 +8195,7 @@ void intel_setup_outputs(struct drm_i915_private *dev_priv)
 		bool has_edp, has_port;
 
 		if (IS_VALLEYVIEW(dev_priv) && dev_priv->display.vbt.int_crt_support)
-			intel_crt_init(dev_priv);
+			intel_crt_init(display);
 
 		/*
 		 * The DP_DETECTED bit is the latched state of the DDC
@@ -8221,14 +8241,14 @@ void intel_setup_outputs(struct drm_i915_private *dev_priv)
 		vlv_dsi_init(dev_priv);
 	} else if (IS_PINEVIEW(dev_priv)) {
 		intel_lvds_init(dev_priv);
-		intel_crt_init(dev_priv);
+		intel_crt_init(display);
 	} else if (IS_DISPLAY_VER(dev_priv, 3, 4)) {
 		bool found = false;
 
 		if (IS_MOBILE(dev_priv))
 			intel_lvds_init(dev_priv);
 
-		intel_crt_init(dev_priv);
+		intel_crt_init(display);
 
 		if (intel_de_read(dev_priv, GEN3_SDVOB) & SDVO_DETECTED) {
 			drm_dbg_kms(&dev_priv->drm, "probing SDVOB\n");
@@ -8270,7 +8290,7 @@ void intel_setup_outputs(struct drm_i915_private *dev_priv)
 		if (IS_I85X(dev_priv))
 			intel_lvds_init(dev_priv);
 
-		intel_crt_init(dev_priv);
+		intel_crt_init(display);
 		intel_dvo_init(dev_priv);
 	}
 
@@ -8432,7 +8452,10 @@ intel_mode_valid_max_plane_size(struct drm_i915_private *dev_priv,
 	 * plane so let's not advertize modes that are
 	 * too big for that.
 	 */
-	if (DISPLAY_VER(dev_priv) >= 11) {
+	if (DISPLAY_VER(dev_priv) >= 30) {
+		plane_width_max = 6144 * num_joined_pipes;
+		plane_height_max = 4800;
+	} else if (DISPLAY_VER(dev_priv) >= 11) {
 		plane_width_max = 5120 * num_joined_pipes;
 		plane_height_max = 4320;
 	} else {
