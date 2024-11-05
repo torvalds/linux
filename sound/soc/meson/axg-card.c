@@ -43,7 +43,7 @@ static int axg_card_tdm_be_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
 	struct meson_card *priv = snd_soc_card_get_drvdata(rtd->card);
 	struct axg_dai_link_tdm_data *be =
-		(struct axg_dai_link_tdm_data *)priv->link_data[rtd->num];
+		(struct axg_dai_link_tdm_data *)priv->link_data[rtd->id];
 
 	return meson_card_i2s_set_sysclk(substream, params, be->mclk_fs);
 }
@@ -56,7 +56,7 @@ static int axg_card_tdm_dai_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct meson_card *priv = snd_soc_card_get_drvdata(rtd->card);
 	struct axg_dai_link_tdm_data *be =
-		(struct axg_dai_link_tdm_data *)priv->link_data[rtd->num];
+		(struct axg_dai_link_tdm_data *)priv->link_data[rtd->id];
 	struct snd_soc_dai *codec_dai;
 	int ret, i;
 
@@ -86,7 +86,7 @@ static int axg_card_tdm_dai_lb_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct meson_card *priv = snd_soc_card_get_drvdata(rtd->card);
 	struct axg_dai_link_tdm_data *be =
-		(struct axg_dai_link_tdm_data *)priv->link_data[rtd->num];
+		(struct axg_dai_link_tdm_data *)priv->link_data[rtd->id];
 	int ret;
 
 	/* The loopback rx_mask is the pad tx_mask */

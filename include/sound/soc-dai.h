@@ -216,8 +216,7 @@ void snd_soc_dai_shutdown(struct snd_soc_dai *dai,
 			  struct snd_pcm_substream *substream, int rollback);
 void snd_soc_dai_suspend(struct snd_soc_dai *dai);
 void snd_soc_dai_resume(struct snd_soc_dai *dai);
-int snd_soc_dai_compress_new(struct snd_soc_dai *dai,
-			     struct snd_soc_pcm_runtime *rtd, int num);
+int snd_soc_dai_compress_new(struct snd_soc_dai *dai, struct snd_soc_pcm_runtime *rtd);
 bool snd_soc_dai_stream_valid(const struct snd_soc_dai *dai, int stream);
 void snd_soc_dai_action(struct snd_soc_dai *dai,
 			int stream, int action);
@@ -275,7 +274,7 @@ struct snd_soc_dai_ops {
 	int (*probe)(struct snd_soc_dai *dai);
 	int (*remove)(struct snd_soc_dai *dai);
 	/* compress dai */
-	int (*compress_new)(struct snd_soc_pcm_runtime *rtd, int num);
+	int (*compress_new)(struct snd_soc_pcm_runtime *rtd);
 	/* Optional Callback used at pcm creation*/
 	int (*pcm_new)(struct snd_soc_pcm_runtime *rtd,
 		       struct snd_soc_dai *dai);

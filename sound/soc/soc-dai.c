@@ -457,12 +457,12 @@ void snd_soc_dai_shutdown(struct snd_soc_dai *dai,
 }
 
 int snd_soc_dai_compress_new(struct snd_soc_dai *dai,
-			     struct snd_soc_pcm_runtime *rtd, int num)
+			     struct snd_soc_pcm_runtime *rtd)
 {
 	int ret = -ENOTSUPP;
 	if (dai->driver->ops &&
 	    dai->driver->ops->compress_new)
-		ret = dai->driver->ops->compress_new(rtd, num);
+		ret = dai->driver->ops->compress_new(rtd);
 	return soc_dai_ret(dai, ret);
 }
 

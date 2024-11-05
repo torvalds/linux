@@ -1843,7 +1843,7 @@ int rsnd_kctrl_new(struct rsnd_mod *mod,
 		.iface		= SNDRV_CTL_ELEM_IFACE_MIXER,
 		.name		= name,
 		.info		= rsnd_kctrl_info,
-		.index		= rtd->num,
+		.index		= rtd->id,
 		.get		= rsnd_kctrl_get,
 		.put		= rsnd_kctrl_put,
 	};

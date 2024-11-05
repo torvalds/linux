@@ -486,11 +486,11 @@ struct snd_soc_component *snd_soc_lookup_component_nolocked(struct device *dev,
 struct snd_soc_component *snd_soc_lookup_component(struct device *dev,
 						   const char *driver_name);
 
-int soc_new_pcm(struct snd_soc_pcm_runtime *rtd, int num);
+int soc_new_pcm(struct snd_soc_pcm_runtime *rtd);
 #ifdef CONFIG_SND_SOC_COMPRESS
-int snd_soc_new_compress(struct snd_soc_pcm_runtime *rtd, int num);
+int snd_soc_new_compress(struct snd_soc_pcm_runtime *rtd);
 #else
-static inline int snd_soc_new_compress(struct snd_soc_pcm_runtime *rtd, int num)
+static inline int snd_soc_new_compress(struct snd_soc_pcm_runtime *rtd)
 {
 	return 0;
 }
@@ -1195,7 +1195,7 @@ struct snd_soc_pcm_runtime {
 	struct dentry *debugfs_dpcm_root;
 #endif
 
-	unsigned int num; /* 0-based and monotonic increasing */
+	unsigned int id; /* 0-based and monotonic increasing */
 	struct list_head list; /* rtd list of the soc card */
 
 	/* function mark */
