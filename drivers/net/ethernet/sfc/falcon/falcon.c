@@ -2564,7 +2564,7 @@ static void falcon_remove_nic(struct ef4_nic *efx)
 	efx->nic_data = NULL;
 }
 
-static size_t falcon_describe_nic_stats(struct ef4_nic *efx, u8 *names)
+static size_t falcon_describe_nic_stats(struct ef4_nic *efx, u8 **names)
 {
 	return ef4_nic_describe_stats(falcon_stat_desc, FALCON_STAT_COUNT,
 				      falcon_stat_mask, names);

@@ -239,8 +239,9 @@ void efx_siena_get_regs(struct efx_nic *efx, void *buf);
 
 #define EFX_MC_STATS_GENERATION_INVALID ((__force __le64)(-1))
 
-size_t efx_siena_describe_stats(const struct efx_hw_stat_desc *desc, size_t count,
-				const unsigned long *mask, u8 *names);
+size_t efx_siena_describe_stats(const struct efx_hw_stat_desc *desc,
+				size_t count, const unsigned long *mask,
+				u8 **names);
 void efx_siena_update_stats(const struct efx_hw_stat_desc *desc, size_t count,
 			    const unsigned long *mask, u64 *stats,
 			    const void *dma_buf, bool accumulate);

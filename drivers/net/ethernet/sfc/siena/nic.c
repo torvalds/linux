@@ -449,20 +449,20 @@ void efx_siena_get_regs(struct efx_nic *efx, void *buf)
  * Returns the number of visible statistics, i.e. the number of set
  * bits in the first @count bits of @mask for which a name is defined.
  */
-size_t efx_siena_describe_stats(const struct efx_hw_stat_desc *desc, size_t count,
-				const unsigned long *mask, u8 *names)
+size_t efx_siena_describe_stats(const struct efx_hw_stat_desc *desc,
+				size_t count, const unsigned long *mask,
+				u8 **names)
 {
 	size_t visible = 0;
 	size_t index;
 
 	for_each_set_bit(index, mask, count) {
 		if (desc[index].name) {
-			if (names) {
-				strscpy(names, desc[index].name,
-					ETH_GSTRING_LEN);
-				names += ETH_GSTRING_LEN;
-			}
 			++visible;
+			if (!names)
+				continue;
+
+			ethtool_puts(names, desc[index].name);
 		}
 	}
 

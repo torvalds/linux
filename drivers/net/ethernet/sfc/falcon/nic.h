@@ -497,7 +497,7 @@ size_t ef4_nic_get_regs_len(struct ef4_nic *efx);
 void ef4_nic_get_regs(struct ef4_nic *efx, void *buf);
 
 size_t ef4_nic_describe_stats(const struct ef4_hw_stat_desc *desc, size_t count,
-			      const unsigned long *mask, u8 *names);
+			      const unsigned long *mask, u8 **names);
 void ef4_nic_update_stats(const struct ef4_hw_stat_desc *desc, size_t count,
 			  const unsigned long *mask, u64 *stats,
 			  const void *dma_buf, bool accumulate);
