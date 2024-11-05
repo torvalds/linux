@@ -203,7 +203,7 @@ static int rt721_sdca_update_status(struct sdw_slave *slave,
 		 * This also could sync with the cache value as the rt721_sdca_jack_init set.
 		 */
 			sdw_write_no_pm(rt721->slave, SDW_SCP_SDCA_INTMASK1,
-				SDW_SCP_SDCA_INTMASK_SDCA_6);
+				SDW_SCP_SDCA_INTMASK_SDCA_0);
 			sdw_write_no_pm(rt721->slave, SDW_SCP_SDCA_INTMASK2,
 				SDW_SCP_SDCA_INTMASK_SDCA_8);
 		}
@@ -280,7 +280,7 @@ static int rt721_sdca_read_prop(struct sdw_slave *slave)
 	}
 
 	/* set the timeout values */
-	prop->clk_stop_timeout = 900;
+	prop->clk_stop_timeout = 1380;
 
 	/* wake-up event */
 	prop->wake_capable = 1;
@@ -335,11 +335,6 @@ static int rt721_sdca_interrupt_callback(struct sdw_slave *slave,
 		if (ret & SDW_SCP_SDCA_INTMASK_SDCA_0) {
 			ret = sdw_update_no_pm(rt721->slave, SDW_SCP_SDCA_INT1,
 				SDW_SCP_SDCA_INT_SDCA_0, SDW_SCP_SDCA_INT_SDCA_0);
-			if (ret < 0)
-				goto io_error;
-		} else if (ret & SDW_SCP_SDCA_INTMASK_SDCA_6) {
-			ret = sdw_update_no_pm(rt721->slave, SDW_SCP_SDCA_INT1,
-				SDW_SCP_SDCA_INT_SDCA_6, SDW_SCP_SDCA_INT_SDCA_6);
 			if (ret < 0)
 				goto io_error;
 		}
@@ -475,7 +470,7 @@ static int __maybe_unused rt721_sdca_dev_system_suspend(struct device *dev)
 	mutex_lock(&rt721_sdca->disable_irq_lock);
 	rt721_sdca->disable_irq = true;
 	ret1 = sdw_update_no_pm(slave, SDW_SCP_SDCA_INTMASK1,
-				SDW_SCP_SDCA_INTMASK_SDCA_0 | SDW_SCP_SDCA_INTMASK_SDCA_6, 0);
+				SDW_SCP_SDCA_INTMASK_SDCA_0, 0);
 	ret2 = sdw_update_no_pm(slave, SDW_SCP_SDCA_INTMASK2,
 				SDW_SCP_SDCA_INTMASK_SDCA_8, 0);
 	mutex_unlock(&rt721_sdca->disable_irq_lock);
@@ -502,7 +497,7 @@ static int __maybe_unused rt721_sdca_dev_resume(struct device *dev)
 	if (!slave->unattach_request) {
 		mutex_lock(&rt721->disable_irq_lock);
 		if (rt721->disable_irq == true) {
-			sdw_write_no_pm(slave, SDW_SCP_SDCA_INTMASK1, SDW_SCP_SDCA_INTMASK_SDCA_6);
+			sdw_write_no_pm(slave, SDW_SCP_SDCA_INTMASK1, SDW_SCP_SDCA_INTMASK_SDCA_0);
 			sdw_write_no_pm(slave, SDW_SCP_SDCA_INTMASK2, SDW_SCP_SDCA_INTMASK_SDCA_8);
 			rt721->disable_irq = false;
 		}

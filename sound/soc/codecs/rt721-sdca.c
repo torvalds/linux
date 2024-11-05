@@ -39,7 +39,7 @@ static void rt721_sdca_jack_detect_handler(struct work_struct *work)
 		return;
 
 	/* SDW_SCP_SDCA_INT_SDCA_6 is used for jack detection */
-	if (rt721->scp_sdca_stat1 & SDW_SCP_SDCA_INT_SDCA_6) {
+	if (rt721->scp_sdca_stat1 & SDW_SCP_SDCA_INT_SDCA_0) {
 		rt721->jack_type = rt_sdca_headset_detect(rt721->regmap,
 							RT721_SDCA_ENT_GE49);
 		if (rt721->jack_type < 0)
@@ -286,7 +286,7 @@ static void rt721_sdca_jack_init(struct rt721_sdca_priv *rt721)
 	mutex_lock(&rt721->calibrate_mutex);
 	if (rt721->hs_jack) {
 		sdw_write_no_pm(rt721->slave, SDW_SCP_SDCA_INTMASK1,
-			SDW_SCP_SDCA_INTMASK_SDCA_0 | SDW_SCP_SDCA_INTMASK_SDCA_6);
+			SDW_SCP_SDCA_INTMASK_SDCA_0);
 		sdw_write_no_pm(rt721->slave, SDW_SCP_SDCA_INTMASK2,
 			SDW_SCP_SDCA_INTMASK_SDCA_8);
 		dev_dbg(&rt721->slave->dev, "in %s enable\n", __func__);
@@ -298,6 +298,8 @@ static void rt721_sdca_jack_init(struct rt721_sdca_priv *rt721)
 		regmap_write(rt721->regmap,
 			SDW_SDCA_CTL(FUNC_NUM_JACK_CODEC, RT721_SDCA_ENT_XU0D,
 				RT721_SDCA_CTL_SELECTED_MODE, 0), 0);
+		rt_sdca_index_write(rt721->mbq_regmap, RT721_HDA_SDCA_FLOAT,
+			RT721_XU_REL_CTRL, 0x0000);
 		rt_sdca_index_update_bits(rt721->mbq_regmap, RT721_HDA_SDCA_FLOAT,
 			RT721_GE_REL_CTRL1, 0x4000, 0x4000);
 	}

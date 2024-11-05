@@ -133,6 +133,7 @@ struct rt721_sdca_dmic_kctrl_priv {
 #define RT721_HDA_LEGACY_UAJ_CTL		0x02
 #define RT721_HDA_LEGACY_CTL1			0x05
 #define RT721_HDA_LEGACY_RESET_CTL		0x06
+#define RT721_XU_REL_CTRL			0x0c
 #define RT721_GE_REL_CTRL1			0x0d
 #define RT721_HDA_LEGACY_GPIO_WAKE_EN_CTL	0x0e
 #define RT721_GE_SDCA_RST_CTRL			0x10
