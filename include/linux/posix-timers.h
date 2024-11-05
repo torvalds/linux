@@ -42,6 +42,7 @@ static inline int clockid_to_fd(const clockid_t clk)
  * @pid:	Pointer to target task PID
  * @elist:	List head for the expiry list
  * @firing:	Timer is currently firing
+ * @nanosleep:	Timer is used for nanosleep and is not a regular posix-timer
  * @handling:	Pointer to the task which handles expiry
  */
 struct cpu_timer {
@@ -50,6 +51,7 @@ struct cpu_timer {
 	struct pid			*pid;
 	struct list_head		elist;
 	bool				firing;
+	bool				nanosleep;
 	struct task_struct __rcu	*handling;
 };
 
