@@ -526,7 +526,7 @@ struct idpf_vc_xn_manager;
  * @crc_enable: Enable CRC insertion offload
  * @req_tx_splitq: TX split or single queue model to request
  * @req_rx_splitq: RX split or single queue model to request
- * @vport_ctrl_lock: Lock to protect the vport control flow
+ * @vport_cfg_lock: Lock to protect the vport config flow
  * @vector_lock: Lock to protect vector distribution
  * @queue_lock: Lock to protect queue distribution
  * @vc_buf_lock: Lock to protect virtchnl buffer
@@ -583,7 +583,7 @@ struct idpf_adapter {
 	bool req_tx_splitq;
 	bool req_rx_splitq;
 
-	struct mutex vport_ctrl_lock;
+	struct mutex vport_cfg_lock;
 	struct mutex vector_lock;
 	struct mutex queue_lock;
 	struct mutex vc_buf_lock;
@@ -787,24 +787,24 @@ static inline u16 idpf_get_max_tx_hdr_size(struct idpf_adapter *adapter)
 }
 
 /**
- * idpf_vport_ctrl_lock - Acquire the vport control lock
+ * idpf_vport_cfg_lock - Acquire the vport config lock
  * @adapter: private data struct
  *
  * This lock should be used by non-datapath code to protect against vport
  * destruction.
  */
-static inline void idpf_vport_ctrl_lock(struct idpf_adapter *adapter)
+static inline void idpf_vport_cfg_lock(struct idpf_adapter *adapter)
 {
-	mutex_lock(&adapter->vport_ctrl_lock);
+	mutex_lock(&adapter->vport_cfg_lock);
 }
 
 /**
- * idpf_vport_ctrl_unlock - Release the vport control lock
+ * idpf_vport_cfg_unlock - Release the vport config lock
  * @adapter: private data struct
  */
-static inline void idpf_vport_ctrl_unlock(struct idpf_adapter *adapter)
+static inline void idpf_vport_cfg_unlock(struct idpf_adapter *adapter)
 {
-	mutex_unlock(&adapter->vport_ctrl_lock);
+	mutex_unlock(&adapter->vport_cfg_lock);
 }
 
 void idpf_statistics_task(struct work_struct *work);

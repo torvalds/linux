@@ -72,7 +72,7 @@ destroy_wqs:
 	kfree(adapter->vcxn_mngr);
 	adapter->vcxn_mngr = NULL;
 
-	mutex_destroy(&adapter->vport_ctrl_lock);
+	mutex_destroy(&adapter->vport_cfg_lock);
 	mutex_destroy(&adapter->vector_lock);
 	mutex_destroy(&adapter->queue_lock);
 	mutex_destroy(&adapter->vc_buf_lock);
@@ -234,7 +234,7 @@ static int idpf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto err_cfg_hw;
 	}
 
-	mutex_init(&adapter->vport_ctrl_lock);
+	mutex_init(&adapter->vport_cfg_lock);
 	mutex_init(&adapter->vector_lock);
 	mutex_init(&adapter->queue_lock);
 	mutex_init(&adapter->vc_buf_lock);
