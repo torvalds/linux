@@ -134,6 +134,7 @@ to_mock_domain(struct iommu_domain *domain)
 
 struct mock_iommu_domain_nested {
 	struct iommu_domain domain;
+	struct mock_viommu *mock_viommu;
 	struct mock_iommu_domain *parent;
 	u32 iotlb[MOCK_NESTED_DOMAIN_IOTLB_NUM];
 };
@@ -142,6 +143,16 @@ static inline struct mock_iommu_domain_nested *
 to_mock_nested(struct iommu_domain *domain)
 {
 	return container_of(domain, struct mock_iommu_domain_nested, domain);
+}
+
+struct mock_viommu {
+	struct iommufd_viommu core;
+	struct mock_iommu_domain *s2_parent;
+};
+
+static inline struct mock_viommu *to_mock_viommu(struct iommufd_viommu *viommu)
+{
+	return container_of(viommu, struct mock_viommu, core);
 }
 
 enum selftest_obj_type {
@@ -569,6 +580,61 @@ static int mock_dev_disable_feat(struct device *dev, enum iommu_dev_features fea
 	return 0;
 }
 
+static void mock_viommu_destroy(struct iommufd_viommu *viommu)
+{
+	struct mock_iommu_device *mock_iommu = container_of(
+		viommu->iommu_dev, struct mock_iommu_device, iommu_dev);
+
+	if (refcount_dec_and_test(&mock_iommu->users))
+		complete(&mock_iommu->complete);
+
+	/* iommufd core frees mock_viommu and viommu */
+}
+
+static struct iommu_domain *
+mock_viommu_alloc_domain_nested(struct iommufd_viommu *viommu, u32 flags,
+				const struct iommu_user_data *user_data)
+{
+	struct mock_viommu *mock_viommu = to_mock_viommu(viommu);
+	struct mock_iommu_domain_nested *mock_nested;
+
+	if (flags & ~IOMMU_HWPT_FAULT_ID_VALID)
+		return ERR_PTR(-EOPNOTSUPP);
+
+	mock_nested = __mock_domain_alloc_nested(user_data);
+	if (IS_ERR(mock_nested))
+		return ERR_CAST(mock_nested);
+	mock_nested->mock_viommu = mock_viommu;
+	mock_nested->parent = mock_viommu->s2_parent;
+	return &mock_nested->domain;
+}
+
+static struct iommufd_viommu_ops mock_viommu_ops = {
+	.destroy = mock_viommu_destroy,
+	.alloc_domain_nested = mock_viommu_alloc_domain_nested,
+};
+
+static struct iommufd_viommu *mock_viommu_alloc(struct device *dev,
+						struct iommu_domain *domain,
+						struct iommufd_ctx *ictx,
+						unsigned int viommu_type)
+{
+	struct mock_iommu_device *mock_iommu =
+		iommu_get_iommu_dev(dev, struct mock_iommu_device, iommu_dev);
+	struct mock_viommu *mock_viommu;
+
+	if (viommu_type != IOMMU_VIOMMU_TYPE_SELFTEST)
+		return ERR_PTR(-EOPNOTSUPP);
+
+	mock_viommu = iommufd_viommu_alloc(ictx, struct mock_viommu, core,
+					   &mock_viommu_ops);
+	if (IS_ERR(mock_viommu))
+		return ERR_CAST(mock_viommu);
+
+	refcount_inc(&mock_iommu->users);
+	return &mock_viommu->core;
+}
+
 static const struct iommu_ops mock_ops = {
 	/*
 	 * IOMMU_DOMAIN_BLOCKED cannot be returned from def_domain_type()
@@ -588,6 +654,7 @@ static const struct iommu_ops mock_ops = {
 	.dev_enable_feat = mock_dev_enable_feat,
 	.dev_disable_feat = mock_dev_disable_feat,
 	.user_pasid_table = true,
+	.viommu_alloc = mock_viommu_alloc,
 	.default_domain_ops =
 		&(struct iommu_domain_ops){
 			.free = mock_domain_free,
