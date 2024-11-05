@@ -252,11 +252,7 @@ void rtw_hal_write_bbreg(struct adapter *padapter, u32 RegAddr, u32 BitMask, u32
 
 u32 rtw_hal_read_rfreg(struct adapter *padapter, u32 eRFPath, u32 RegAddr, u32 BitMask)
 {
-	u32 data = 0;
-
-	if (padapter->HalFunc.read_rfreg)
-		data = padapter->HalFunc.read_rfreg(padapter, eRFPath, RegAddr, BitMask);
-	return data;
+	return PHY_QueryRFReg_8723B(padapter, eRFPath, RegAddr, BitMask);
 }
 void rtw_hal_write_rfreg(struct adapter *padapter, u32 eRFPath, u32 RegAddr, u32 BitMask, u32 Data)
 {
