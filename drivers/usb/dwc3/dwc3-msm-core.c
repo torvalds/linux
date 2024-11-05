@@ -6759,21 +6759,48 @@ static int dwc3_msm_host_notifier(struct notifier_block *nb,
 {
 	struct dwc3_msm *mdwc = container_of(nb, struct dwc3_msm, host_nb);
 	struct dwc3 *dwc = platform_get_drvdata(mdwc->dwc3);
-	struct usb_hcd *hcd = platform_get_drvdata(dwc->xhci);
+	struct usb_hcd *hcd;
 	struct usb_device *udev = ptr;
+	struct usb_bus *ubus = ptr;
+	struct xhci_hcd *xhci;
 
-	if (event == USB_BUS_ADD && mdwc->enable_host_slow_suspend) {
-		struct usb_bus *ubus = ptr;
-		struct xhci_hcd *xhci = hcd_to_xhci(hcd);
+	if (!dwc->xhci)
+		return NOTIFY_DONE;
+
+	hcd = platform_get_drvdata(dwc->xhci);
+	if (!hcd)
+		return NOTIFY_DONE;
+
+	if (event == USB_BUS_ADD) {
+		/*
+		 * If the hcd or the shared_hcd do not match the one
+		 * associated with the bus, bail out.
+		 */
+		if (hcd != bus_to_hcd(ubus) &&
+		    hcd->shared_hcd != bus_to_hcd(ubus))
+			return NOTIFY_DONE;
 
 		if (usb_hcd_is_primary_hcd(hcd)) {
-			dev_dbg(ubus->controller, "enable slow suspend\n");
-			xhci->quirks |= XHCI_SLOW_SUSPEND;
+			xhci = hcd_to_xhci(hcd);
+
+			if (mdwc->enable_host_slow_suspend)
+				xhci->quirks |= XHCI_SLOW_SUSPEND;
 		}
 	}
 
 	if (event != USB_DEVICE_ADD && event != USB_DEVICE_REMOVE)
 		return NOTIFY_DONE;
+
+	/*
+	 * If the USB device's bus does not match either the primary HCD's
+	 * bus or the shared HCD's bus, bail out.
+	 */
+	if (udev->bus != hcd_to_bus(hcd)) {
+		if (!hcd->shared_hcd ||
+		    udev->bus != hcd_to_bus(hcd->shared_hcd)) {
+			return NOTIFY_DONE;
+		}
+	}
 
 	/*
 	 * Regardless of where the device is in the host tree, the USB generic
