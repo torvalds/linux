@@ -53,6 +53,8 @@ int devkmsg_sysctl_set_loglvl(const struct ctl_table *table, int write,
 
 /* Flags for a single printk record. */
 enum printk_info_flags {
+	/* always show on console, ignore console_loglevel */
+	LOG_FORCE_CON	= 1,
 	LOG_NEWLINE	= 2,	/* text ended with a newline */
 	LOG_CONT	= 8,	/* text is a fragment of a continuation line */
 };
@@ -90,6 +92,7 @@ bool printk_percpu_data_ready(void);
 
 void defer_console_output(void);
 bool is_printk_legacy_deferred(void);
+bool is_printk_force_console(void);
 
 u16 printk_parse_prefix(const char *text, int *level,
 			enum printk_info_flags *flags);
