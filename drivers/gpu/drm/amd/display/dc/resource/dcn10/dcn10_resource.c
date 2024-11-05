@@ -559,17 +559,6 @@ static const struct dc_debug_options debug_defaults_drv = {
 		.using_dml2 = false,
 };
 
-static const struct dc_debug_options debug_defaults_diags = {
-		.disable_dmcu = false,
-		.force_abm_enable = false,
-		.clock_trace = true,
-		.disable_stutter = true,
-		.disable_pplib_clock_request = true,
-		.disable_pplib_wm_range = true,
-		.underflow_assert_delay_us = 0xFFFFFFFF,
-		.enable_legacy_fast_update = true,
-};
-
 static void dcn10_dpp_destroy(struct dpp **dpp)
 {
 	kfree(TO_DCN10_DPP(*dpp));
@@ -1398,8 +1387,6 @@ static bool dcn10_resource_construct(
 
 	if (dc->ctx->dce_environment == DCE_ENV_PRODUCTION_DRV)
 		dc->debug = debug_defaults_drv;
-	else
-		dc->debug = debug_defaults_diags;
 
 	/*************************************************
 	 *  Create resources                             *
