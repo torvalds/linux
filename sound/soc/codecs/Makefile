@@ -49,6 +49,7 @@ snd-soc-arizona-y := arizona.o arizona-jack.o
 snd-soc-audio-iio-aux-y := audio-iio-aux.o
 snd-soc-aw8738-y := aw8738.o
 snd-soc-aw87390-y := aw87390.o
+snd-soc-aw88081-y := aw88081.o
 snd-soc-aw88395-lib-y := aw88395/aw88395_lib.o
 snd-soc-aw88395-y := aw88395/aw88395.o \
 			aw88395/aw88395_device.o
@@ -465,6 +466,7 @@ obj-$(CONFIG_SND_SOC_ARIZONA)	+= snd-soc-arizona.o
 obj-$(CONFIG_SND_SOC_AUDIO_IIO_AUX)	+= snd-soc-audio-iio-aux.o
 obj-$(CONFIG_SND_SOC_AW8738)	+= snd-soc-aw8738.o
 obj-$(CONFIG_SND_SOC_AW87390)	+= snd-soc-aw87390.o
+obj-$(CONFIG_SND_SOC_AW88081)	+= snd-soc-aw88081.o
 obj-$(CONFIG_SND_SOC_AW88395_LIB) += snd-soc-aw88395-lib.o
 obj-$(CONFIG_SND_SOC_AW88395)	+=snd-soc-aw88395.o
 obj-$(CONFIG_SND_SOC_AW88261)	+=snd-soc-aw88261.o
