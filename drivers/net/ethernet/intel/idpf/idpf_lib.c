@@ -1000,7 +1000,10 @@ static void idpf_vport_dealloc(struct idpf_vport *vport)
 	unsigned int i = vport->idx;
 
 	idpf_deinit_mac_addr(vport);
+
+	idpf_vport_cfg_lock(adapter);
 	idpf_vport_stop(vport);
+	idpf_vport_cfg_unlock(adapter);
 
 	if (!test_bit(IDPF_HR_RESET_IN_PROG, adapter->flags))
 		idpf_decfg_netdev(vport);
@@ -1522,8 +1525,11 @@ void idpf_init_task(struct work_struct *work)
 	/* Once state is put into DOWN, driver is ready for dev_open */
 	np = netdev_priv(vport->netdev);
 	np->state = __IDPF_VPORT_DOWN;
-	if (test_and_clear_bit(IDPF_VPORT_UP_REQUESTED, vport_config->flags))
+	if (test_and_clear_bit(IDPF_VPORT_UP_REQUESTED, vport_config->flags)) {
+		idpf_vport_cfg_lock(adapter);
 		idpf_vport_open(vport);
+		idpf_vport_cfg_unlock(adapter);
+	}
 
 	/* Spawn and return 'idpf_init_task' work queue until all the
 	 * default vports are created
@@ -1601,16 +1607,18 @@ static int idpf_sriov_ena(struct idpf_adapter *adapter, int num_vfs)
 }
 
 /**
- * idpf_sriov_configure - Configure the requested VFs
+ * idpf_sriov_config_vfs - Configure the requested VFs
  * @pdev: pointer to a pci_dev structure
  * @num_vfs: number of vfs to allocate
  *
  * Enable or change the number of VFs. Called when the user updates the number
  * of VFs in sysfs.
  **/
-int idpf_sriov_configure(struct pci_dev *pdev, int num_vfs)
+int idpf_sriov_config_vfs(struct pci_dev *pdev, int num_vfs)
 {
 	struct idpf_adapter *adapter = pci_get_drvdata(pdev);
+
+	lockdep_assert_held(&adapter->vport_init_lock);
 
 	if (!idpf_is_cap_ena(adapter, IDPF_OTHER_CAPS, VIRTCHNL2_CAP_SRIOV)) {
 		dev_info(&pdev->dev, "SR-IOV is not supported on this device\n");
@@ -1632,6 +1640,26 @@ int idpf_sriov_configure(struct pci_dev *pdev, int num_vfs)
 	adapter->num_vfs = 0;
 
 	return 0;
+}
+
+/**
+ * idpf_sriov_configure - Call idpf_sriov_config_vfs to configure
+ * @pdev: pointer to a pci_dev structure
+ * @num_vfs: number of vfs to allocate
+ *
+ * Enable or change the number of VFs. Called when the user updates the number
+ * of VFs in sysfs.
+ **/
+int idpf_sriov_configure(struct pci_dev *pdev, int num_vfs)
+{
+	struct idpf_adapter *adapter = pci_get_drvdata(pdev);
+	int ret;
+
+	idpf_vport_init_lock(adapter);
+	ret = idpf_sriov_config_vfs(pdev, num_vfs);
+	idpf_vport_init_unlock(adapter);
+
+	return ret;
 }
 
 /**
@@ -1733,7 +1761,7 @@ static int idpf_init_hard_reset(struct idpf_adapter *adapter)
 	int err;
 	u16 i;
 
-	mutex_lock(&adapter->vport_cfg_lock);
+	idpf_vport_init_lock(adapter);
 
 	dev_info(dev, "Device HW Reset initiated\n");
 
@@ -1798,7 +1826,7 @@ static int idpf_init_hard_reset(struct idpf_adapter *adapter)
 		msleep(100);
 
 unlock_mutex:
-	mutex_unlock(&adapter->vport_cfg_lock);
+	idpf_vport_init_unlock(adapter);
 
 	return err;
 }
@@ -2154,6 +2182,9 @@ static int idpf_open(struct net_device *netdev)
 	struct idpf_adapter *adapter = idpf_netdev_to_adapter(netdev);
 	struct idpf_vport *vport;
 	int err;
+
+	if (test_bit(IDPF_REMOVE_IN_PROG, adapter->flags))
+		return 0;
 
 	idpf_vport_cfg_lock(adapter);
 	vport = idpf_netdev_to_vport(netdev);

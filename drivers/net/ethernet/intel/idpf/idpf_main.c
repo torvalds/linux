@@ -28,10 +28,13 @@ static void idpf_remove(struct pci_dev *pdev)
 	 * end up in bad state.
 	 */
 	cancel_delayed_work_sync(&adapter->vc_event_task);
+
+	idpf_vport_init_lock(adapter);
 	if (adapter->num_vfs)
-		idpf_sriov_configure(pdev, 0);
+		idpf_sriov_config_vfs(pdev, 0);
 
 	idpf_vc_core_deinit(adapter);
+	idpf_vport_init_unlock(adapter);
 
 	/* Be a good citizen and leave the device clean on exit */
 	adapter->dev_ops.reg_ops.trigger_reset(adapter, IDPF_HR_FUNC_RESET);
@@ -72,6 +75,7 @@ destroy_wqs:
 	kfree(adapter->vcxn_mngr);
 	adapter->vcxn_mngr = NULL;
 
+	mutex_destroy(&adapter->vport_init_lock);
 	mutex_destroy(&adapter->vport_cfg_lock);
 	mutex_destroy(&adapter->vector_lock);
 	mutex_destroy(&adapter->queue_lock);
@@ -234,6 +238,7 @@ static int idpf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto err_cfg_hw;
 	}
 
+	mutex_init(&adapter->vport_init_lock);
 	mutex_init(&adapter->vport_cfg_lock);
 	mutex_init(&adapter->vector_lock);
 	mutex_init(&adapter->queue_lock);

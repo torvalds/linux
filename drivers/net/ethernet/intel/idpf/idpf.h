@@ -526,6 +526,7 @@ struct idpf_vc_xn_manager;
  * @crc_enable: Enable CRC insertion offload
  * @req_tx_splitq: TX split or single queue model to request
  * @req_rx_splitq: RX split or single queue model to request
+ * @vport_init_lock: Lock to protect vport init, re-init, and deinit flow
  * @vport_cfg_lock: Lock to protect the vport config flow
  * @vector_lock: Lock to protect vector distribution
  * @queue_lock: Lock to protect queue distribution
@@ -583,6 +584,7 @@ struct idpf_adapter {
 	bool req_tx_splitq;
 	bool req_rx_splitq;
 
+	struct mutex vport_init_lock;
 	struct mutex vport_cfg_lock;
 	struct mutex vector_lock;
 	struct mutex queue_lock;
@@ -787,6 +789,28 @@ static inline u16 idpf_get_max_tx_hdr_size(struct idpf_adapter *adapter)
 }
 
 /**
+ * idpf_vport_init_lock -acquire init/deinit control lock
+ * @adapter: private data struct
+ *
+ * It controls and protect vport initialization, re-initialization,
+ * and deinitialization code flow and its resources. This
+ * lock is only used by non-datapath code.
+ */
+static inline void idpf_vport_init_lock(struct idpf_adapter *adapter)
+{
+	mutex_lock(&adapter->vport_init_lock);
+}
+
+/**
+ * idpf_vport_init_unlock - release vport init lock
+ * @adapter: private data struct
+ */
+static inline void idpf_vport_init_unlock(struct idpf_adapter *adapter)
+{
+	mutex_unlock(&adapter->vport_init_lock);
+}
+
+/**
  * idpf_vport_cfg_lock - Acquire the vport config lock
  * @adapter: private data struct
  *
@@ -827,6 +851,7 @@ void idpf_set_ethtool_ops(struct net_device *netdev);
 void idpf_vport_intr_write_itr(struct idpf_q_vector *q_vector,
 			       u16 itr, bool tx);
 int idpf_sriov_configure(struct pci_dev *pdev, int num_vfs);
+int idpf_sriov_config_vfs(struct pci_dev *pdev, int num_vfs);
 
 u8 idpf_vport_get_hsplit(const struct idpf_vport *vport);
 bool idpf_vport_set_hsplit(const struct idpf_vport *vport, u8 val);
