@@ -181,7 +181,7 @@ static int sd_uhs2_dev_init(struct mmc_host *host)
 			    UHS2_DEV_INIT_COMPLETE_FLAG |
 			    ((gd & 0xF) << 4) |
 			    (gap & 0xF);
-		uhs2_cmd.payload[0] = payload0;
+		uhs2_cmd.payload[0] = (__force __be32)payload0;
 
 		sd_uhs2_cmd_assemble(&cmd, &uhs2_cmd, UHS2_DEV_INIT_PAYLOAD_LEN,
 				     UHS2_DEV_INIT_RESP_LEN);
