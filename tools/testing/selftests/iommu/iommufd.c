@@ -133,6 +133,7 @@ TEST_F(iommufd, cmd_length)
 	TEST_LENGTH(iommu_option, IOMMU_OPTION, val64);
 	TEST_LENGTH(iommu_vfio_ioas, IOMMU_VFIO_IOAS, __reserved);
 	TEST_LENGTH(iommu_ioas_map_file, IOMMU_IOAS_MAP_FILE, iova);
+	TEST_LENGTH(iommu_viommu_alloc, IOMMU_VIOMMU_ALLOC, out_viommu_id);
 #undef TEST_LENGTH
 }
 
@@ -2477,6 +2478,142 @@ TEST_F(vfio_compat_mock_domain, huge_map)
 				     ioctl(self->fd, VFIO_IOMMU_UNMAP_DMA,
 					   &unmap_cmd));
 		}
+	}
+}
+
+FIXTURE(iommufd_viommu)
+{
+	int fd;
+	uint32_t ioas_id;
+	uint32_t stdev_id;
+	uint32_t hwpt_id;
+	uint32_t nested_hwpt_id;
+	uint32_t device_id;
+	uint32_t viommu_id;
+};
+
+FIXTURE_VARIANT(iommufd_viommu)
+{
+	unsigned int viommu;
+};
+
+FIXTURE_SETUP(iommufd_viommu)
+{
+	self->fd = open("/dev/iommu", O_RDWR);
+	ASSERT_NE(-1, self->fd);
+	test_ioctl_ioas_alloc(&self->ioas_id);
+	test_ioctl_set_default_memory_limit();
+
+	if (variant->viommu) {
+		struct iommu_hwpt_selftest data = {
+			.iotlb = IOMMU_TEST_IOTLB_DEFAULT,
+		};
+
+		test_cmd_mock_domain(self->ioas_id, &self->stdev_id, NULL,
+				     &self->device_id);
+
+		/* Allocate a nesting parent hwpt */
+		test_cmd_hwpt_alloc(self->device_id, self->ioas_id,
+				    IOMMU_HWPT_ALLOC_NEST_PARENT,
+				    &self->hwpt_id);
+
+		/* Allocate a vIOMMU taking refcount of the parent hwpt */
+		test_cmd_viommu_alloc(self->device_id, self->hwpt_id,
+				      IOMMU_VIOMMU_TYPE_SELFTEST,
+				      &self->viommu_id);
+
+		/* Allocate a regular nested hwpt */
+		test_cmd_hwpt_alloc_nested(self->device_id, self->viommu_id, 0,
+					   &self->nested_hwpt_id,
+					   IOMMU_HWPT_DATA_SELFTEST, &data,
+					   sizeof(data));
+	}
+}
+
+FIXTURE_TEARDOWN(iommufd_viommu)
+{
+	teardown_iommufd(self->fd, _metadata);
+}
+
+FIXTURE_VARIANT_ADD(iommufd_viommu, no_viommu)
+{
+	.viommu = 0,
+};
+
+FIXTURE_VARIANT_ADD(iommufd_viommu, mock_viommu)
+{
+	.viommu = 1,
+};
+
+TEST_F(iommufd_viommu, viommu_auto_destroy)
+{
+}
+
+TEST_F(iommufd_viommu, viommu_negative_tests)
+{
+	uint32_t device_id = self->device_id;
+	uint32_t ioas_id = self->ioas_id;
+	uint32_t hwpt_id;
+
+	if (self->device_id) {
+		/* Negative test -- invalid hwpt (hwpt_id=0) */
+		test_err_viommu_alloc(ENOENT, device_id, 0,
+				      IOMMU_VIOMMU_TYPE_SELFTEST, NULL);
+
+		/* Negative test -- not a nesting parent hwpt */
+		test_cmd_hwpt_alloc(device_id, ioas_id, 0, &hwpt_id);
+		test_err_viommu_alloc(EINVAL, device_id, hwpt_id,
+				      IOMMU_VIOMMU_TYPE_SELFTEST, NULL);
+		test_ioctl_destroy(hwpt_id);
+
+		/* Negative test -- unsupported viommu type */
+		test_err_viommu_alloc(EOPNOTSUPP, device_id, self->hwpt_id,
+				      0xdead, NULL);
+		EXPECT_ERRNO(EBUSY,
+			     _test_ioctl_destroy(self->fd, self->hwpt_id));
+		EXPECT_ERRNO(EBUSY,
+			     _test_ioctl_destroy(self->fd, self->viommu_id));
+	} else {
+		test_err_viommu_alloc(ENOENT, self->device_id, self->hwpt_id,
+				      IOMMU_VIOMMU_TYPE_SELFTEST, NULL);
+	}
+}
+
+TEST_F(iommufd_viommu, viommu_alloc_nested_iopf)
+{
+	struct iommu_hwpt_selftest data = {
+		.iotlb = IOMMU_TEST_IOTLB_DEFAULT,
+	};
+	uint32_t viommu_id = self->viommu_id;
+	uint32_t dev_id = self->device_id;
+	uint32_t iopf_hwpt_id;
+	uint32_t fault_id;
+	uint32_t fault_fd;
+
+	if (self->device_id) {
+		test_ioctl_fault_alloc(&fault_id, &fault_fd);
+		test_err_hwpt_alloc_iopf(
+			ENOENT, dev_id, viommu_id, UINT32_MAX,
+			IOMMU_HWPT_FAULT_ID_VALID, &iopf_hwpt_id,
+			IOMMU_HWPT_DATA_SELFTEST, &data, sizeof(data));
+		test_err_hwpt_alloc_iopf(
+			EOPNOTSUPP, dev_id, viommu_id, fault_id,
+			IOMMU_HWPT_FAULT_ID_VALID | (1 << 31), &iopf_hwpt_id,
+			IOMMU_HWPT_DATA_SELFTEST, &data, sizeof(data));
+		test_cmd_hwpt_alloc_iopf(
+			dev_id, viommu_id, fault_id, IOMMU_HWPT_FAULT_ID_VALID,
+			&iopf_hwpt_id, IOMMU_HWPT_DATA_SELFTEST, &data,
+			sizeof(data));
+
+		test_cmd_mock_domain_replace(self->stdev_id, iopf_hwpt_id);
+		EXPECT_ERRNO(EBUSY,
+			     _test_ioctl_destroy(self->fd, iopf_hwpt_id));
+		test_cmd_trigger_iopf(dev_id, fault_fd);
+
+		test_cmd_mock_domain_replace(self->stdev_id, self->ioas_id);
+		test_ioctl_destroy(iopf_hwpt_id);
+		close(fault_fd);
+		test_ioctl_destroy(fault_id);
 	}
 }
 
