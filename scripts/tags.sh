@@ -262,7 +262,7 @@ exuberant()
 	# identifiers to ignore by ctags
 	local ign=(
 		ACPI_EXPORT_SYMBOL
-		DEFINE_TRACE
+		DEFINE_{TRACE,MUTEX}
 		EXPORT_SYMBOL EXPORT_SYMBOL_GPL
 		EXPORT_TRACEPOINT_SYMBOL EXPORT_TRACEPOINT_SYMBOL_GPL
 		____cacheline_aligned ____cacheline_aligned_in_smp
