@@ -162,6 +162,10 @@ static void open_bucket_free_unused(struct bch_fs *c, struct open_bucket *ob)
 	       ARRAY_SIZE(c->open_buckets_partial));
 
 	spin_lock(&c->freelist_lock);
+	rcu_read_lock();
+	bch2_dev_rcu(c, ob->dev)->nr_partial_buckets++;
+	rcu_read_unlock();
+
 	ob->on_partial_list = true;
 	c->open_buckets_partial[c->open_buckets_partial_nr++] =
 		ob - c->open_buckets;
@@ -684,7 +688,7 @@ struct open_bucket *bch2_bucket_alloc(struct bch_fs *c, struct bch_dev *ca,
 	struct bch_dev_usage usage;
 	struct open_bucket *ob;
 
-	bch2_trans_do(c, NULL, NULL, 0,
+	bch2_trans_do(c,
 		      PTR_ERR_OR_ZERO(ob = bch2_bucket_alloc_trans(trans, ca, watermark,
 							data_type, cl, false, &usage)));
 	return ob;
@@ -972,7 +976,7 @@ static int bucket_alloc_set_partial(struct bch_fs *c,
 			u64 avail;
 
 			bch2_dev_usage_read_fast(ca, &usage);
-			avail = dev_buckets_free(ca, usage, watermark);
+			avail = dev_buckets_free(ca, usage, watermark) + ca->nr_partial_buckets;
 			if (!avail)
 				continue;
 
@@ -980,6 +984,10 @@ static int bucket_alloc_set_partial(struct bch_fs *c,
 					  c->open_buckets_partial_nr,
 					  i);
 			ob->on_partial_list = false;
+
+			rcu_read_lock();
+			bch2_dev_rcu(c, ob->dev)->nr_partial_buckets--;
+			rcu_read_unlock();
 
 			ret = add_new_bucket(c, ptrs, devs_may_alloc,
 					     nr_replicas, nr_effective,
@@ -1191,7 +1199,13 @@ void bch2_open_buckets_stop(struct bch_fs *c, struct bch_dev *ca,
 			--c->open_buckets_partial_nr;
 			swap(c->open_buckets_partial[i],
 			     c->open_buckets_partial[c->open_buckets_partial_nr]);
+
 			ob->on_partial_list = false;
+
+			rcu_read_lock();
+			bch2_dev_rcu(c, ob->dev)->nr_partial_buckets--;
+			rcu_read_unlock();
+
 			spin_unlock(&c->freelist_lock);
 			bch2_open_bucket_put(c, ob);
 			spin_lock(&c->freelist_lock);
@@ -1610,8 +1624,7 @@ void bch2_open_buckets_to_text(struct printbuf *out, struct bch_fs *c,
 	     ob < c->open_buckets + ARRAY_SIZE(c->open_buckets);
 	     ob++) {
 		spin_lock(&ob->lock);
-		if (ob->valid && !ob->on_partial_list &&
-		    (!ca || ob->dev == ca->dev_idx))
+		if (ob->valid && (!ca || ob->dev == ca->dev_idx))
 			bch2_open_bucket_to_text(out, c, ob);
 		spin_unlock(&ob->lock);
 	}
