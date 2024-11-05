@@ -1609,7 +1609,7 @@
 
 		netcmix_blk_ctrl: syscon@4c810000 {
 			compatible = "nxp,imx95-netcmix-blk-ctrl", "syscon";
-			reg = <0x0 0x4c810000 0x0 0x10000>;
+			reg = <0x0 0x4c810000 0x0 0x8>;
 			#clock-cells = <1>;
 			clocks = <&scmi_clk IMX95_CLK_BUSNETCMIX>;
 			assigned-clocks = <&scmi_clk IMX95_CLK_BUSNETCMIX>;
