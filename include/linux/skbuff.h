@@ -3027,7 +3027,10 @@ static inline unsigned char *skb_network_header(const struct sk_buff *skb)
 
 static inline void skb_reset_network_header(struct sk_buff *skb)
 {
-	skb->network_header = skb->data - skb->head;
+	long offset = skb->data - skb->head;
+
+	DEBUG_NET_WARN_ON_ONCE(offset != (typeof(skb->network_header))offset);
+	skb->network_header = offset;
 }
 
 static inline void skb_set_network_header(struct sk_buff *skb, const int offset)
