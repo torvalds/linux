@@ -406,6 +406,13 @@
 
 &mcu_pmx0 {
 
+	mcu_i2c0_pins_default: mcu-i2c0-default-pins {
+		pinctrl-single,pins = <
+			J722S_MCU_IOPAD(0x048, PIN_INPUT, 0) /* (E11) MCU_I2C0_SDA */
+			J722S_MCU_IOPAD(0x044, PIN_INPUT, 0) /* (B13) MCU_I2C0_SCL */
+		>;
+	};
+
 	mcu_mcan0_pins_default: mcu-mcan0-default-pins {
 		pinctrl-single,pins = <
 			J722S_MCU_IOPAD(0x038, PIN_INPUT, 0) /* (D8) MCU_MCAN0_RX */
@@ -810,5 +817,12 @@
 };
 
 &mcu_gpio0 {
+	status = "okay";
+};
+
+&mcu_i2c0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&mcu_i2c0_pins_default>;
+	clock-frequency = <400000>;
 	status = "okay";
 };
