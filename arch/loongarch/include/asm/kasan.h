@@ -16,7 +16,7 @@
 #define XRANGE_SHIFT (48)
 
 /* Valid address length */
-#define XRANGE_SHADOW_SHIFT	(PGDIR_SHIFT + PAGE_SHIFT - 3)
+#define XRANGE_SHADOW_SHIFT	min(cpu_vabits, VA_BITS)
 /* Used for taking out the valid address */
 #define XRANGE_SHADOW_MASK	GENMASK_ULL(XRANGE_SHADOW_SHIFT - 1, 0)
 /* One segment whole address space size */

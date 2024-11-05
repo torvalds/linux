@@ -6130,6 +6130,50 @@ void wiphy_delayed_work_flush(struct wiphy *wiphy,
 			      struct wiphy_delayed_work *dwork);
 
 /**
+ * wiphy_delayed_work_pending - Find out whether a wiphy delayable
+ * work item is currently pending.
+ *
+ * @wiphy: the wiphy, for debug purposes
+ * @dwork: the delayed work in question
+ *
+ * Return: true if timer is pending, false otherwise
+ *
+ * How wiphy_delayed_work_queue() works is by setting a timer which
+ * when it expires calls wiphy_work_queue() to queue the wiphy work.
+ * Because wiphy_delayed_work_queue() uses mod_timer(), if it is
+ * called twice and the second call happens before the first call
+ * deadline, the work will rescheduled for the second deadline and
+ * won't run before that.
+ *
+ * wiphy_delayed_work_pending() can be used to detect if calling
+ * wiphy_work_delayed_work_queue() would start a new work schedule
+ * or delayed a previous one. As seen below it cannot be used to
+ * detect precisely if the work has finished to execute nor if it
+ * is currently executing.
+ *
+ *      CPU0                                CPU1
+ * wiphy_delayed_work_queue(wk)
+ *  mod_timer(wk->timer)
+ *                                     wiphy_delayed_work_pending(wk) -> true
+ *
+ * [...]
+ * expire_timers(wk->timer)
+ *  detach_timer(wk->timer)
+ *                                     wiphy_delayed_work_pending(wk) -> false
+ *  wk->timer->function()                          |
+ *   wiphy_work_queue(wk)                          | delayed work pending
+ *    list_add_tail()                              | returns false but
+ *    queue_work(cfg80211_wiphy_work)              | wk->func() has not
+ *                                                 | been run yet
+ * [...]                                           |
+ *  cfg80211_wiphy_work()                          |
+ *   wk->func()                                    V
+ *
+ */
+bool wiphy_delayed_work_pending(struct wiphy *wiphy,
+				struct wiphy_delayed_work *dwork);
+
+/**
  * enum ieee80211_ap_reg_power - regulatory power for an Access Point
  *
  * @IEEE80211_REG_UNSET_AP: Access Point has no regulatory power mode

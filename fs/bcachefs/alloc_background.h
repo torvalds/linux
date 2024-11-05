@@ -168,6 +168,9 @@ static inline bool data_type_movable(enum bch_data_type type)
 static inline u64 alloc_lru_idx_fragmentation(struct bch_alloc_v4 a,
 					      struct bch_dev *ca)
 {
+	if (a.data_type >= BCH_DATA_NR)
+		return 0;
+
 	if (!data_type_movable(a.data_type) ||
 	    !bch2_bucket_sectors_fragmented(ca, a))
 		return 0;

@@ -3810,8 +3810,18 @@ static int its_vpe_set_affinity(struct irq_data *d,
 	 * Check if we're racing against a VPE being destroyed, for
 	 * which we don't want to allow a VMOVP.
 	 */
-	if (!atomic_read(&vpe->vmapp_count))
-		return -EINVAL;
+	if (!atomic_read(&vpe->vmapp_count)) {
+		if (gic_requires_eager_mapping())
+			return -EINVAL;
+
+		/*
+		 * If we lazily map the VPEs, this isn't an error and
+		 * we can exit cleanly.
+		 */
+		cpu = cpumask_first(mask_val);
+		irq_data_update_effective_affinity(d, cpumask_of(cpu));
+		return IRQ_SET_MASK_OK_DONE;
+	}
 
 	/*
 	 * Changing affinity is mega expensive, so let's be as lazy as
