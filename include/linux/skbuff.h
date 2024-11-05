@@ -3007,7 +3007,10 @@ static inline unsigned char *skb_transport_header(const struct sk_buff *skb)
 
 static inline void skb_reset_transport_header(struct sk_buff *skb)
 {
-	skb->transport_header = skb->data - skb->head;
+	long offset = skb->data - skb->head;
+
+	DEBUG_NET_WARN_ON_ONCE(offset != (typeof(skb->transport_header))offset);
+	skb->transport_header = offset;
 }
 
 static inline void skb_set_transport_header(struct sk_buff *skb,
