@@ -136,7 +136,7 @@ static inline void io_lockdep_assert_cq_locked(struct io_ring_ctx *ctx)
 		 * Not from an SQE, as those cannot be submitted, but via
 		 * updating tagged resources.
 		 */
-		if (ctx->submitter_task->flags & PF_EXITING)
+		if (percpu_ref_is_dying(&ctx->refs))
 			lockdep_assert(current_work());
 		else
 			lockdep_assert(current == ctx->submitter_task);
