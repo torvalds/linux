@@ -297,8 +297,7 @@ void rtw_hal_dm_watchdog_in_lps(struct adapter *padapter)
 
 void beacon_timing_control(struct adapter *padapter)
 {
-	if (padapter->HalFunc.SetBeaconRelatedRegistersHandler)
-		padapter->HalFunc.SetBeaconRelatedRegistersHandler(padapter);
+	rtl8723b_SetBeaconRelatedRegisters(padapter);
 }
 
 

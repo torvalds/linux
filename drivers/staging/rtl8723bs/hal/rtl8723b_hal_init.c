@@ -1625,7 +1625,7 @@ static void _BeaconFunctionEnable(struct adapter *padapter, u8 Enable, u8 Linked
 	rtw_write8(padapter, REG_RD_CTRL+1, 0x6F);
 }
 
-static void rtl8723b_SetBeaconRelatedRegisters(struct adapter *padapter)
+void rtl8723b_SetBeaconRelatedRegisters(struct adapter *padapter)
 {
 	u8 val8;
 	u32 value32;
@@ -1744,8 +1744,6 @@ void UpdateHalRAMask8723B(struct adapter *padapter, u32 mac_id, u8 rssi_level)
 
 void rtl8723b_set_hal_ops(struct hal_ops *pHalFunc)
 {
-	pHalFunc->SetBeaconRelatedRegistersHandler = &rtl8723b_SetBeaconRelatedRegisters;
-
 	pHalFunc->Add_RateATid = &rtl8723b_Add_RateATid;
 
 	pHalFunc->run_thread = &rtl8723b_start_thread;
