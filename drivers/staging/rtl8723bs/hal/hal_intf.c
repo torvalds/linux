@@ -280,10 +280,7 @@ void rtw_hal_set_chan(struct adapter *padapter, u8 channel)
 void rtw_hal_set_chnl_bw(struct adapter *padapter, u8 channel,
 			 enum channel_width Bandwidth, u8 Offset40, u8 Offset80)
 {
-	if (padapter->HalFunc.set_chnl_bw_handler)
-		padapter->HalFunc.set_chnl_bw_handler(padapter, channel,
-						      Bandwidth, Offset40,
-						      Offset80);
+	PHY_SetSwChnlBWMode8723B(padapter, channel, Bandwidth, Offset40, Offset80);
 }
 
 void rtw_hal_dm_watchdog(struct adapter *padapter)

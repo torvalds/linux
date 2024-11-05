@@ -162,8 +162,6 @@ enum hal_intf_ps_func {
 typedef s32 (*c2h_id_filter)(u8 *c2h_evt);
 
 struct hal_ops {
-	void (*set_chnl_bw_handler)(struct adapter *padapter, u8 channel, enum channel_width Bandwidth, u8 Offset40, u8 Offset80);
-
 	void (*set_tx_power_level_handler)(struct adapter *padapter, u8 channel);
 
 	void (*hal_dm_watchdog)(struct adapter *padapter);
