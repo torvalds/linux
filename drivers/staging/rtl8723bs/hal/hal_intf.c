@@ -285,8 +285,7 @@ void rtw_hal_set_chnl_bw(struct adapter *padapter, u8 channel,
 
 void rtw_hal_dm_watchdog(struct adapter *padapter)
 {
-	if (padapter->HalFunc.hal_dm_watchdog)
-		padapter->HalFunc.hal_dm_watchdog(padapter);
+	rtl8723b_HalDmWatchDog(padapter);
 }
 
 void rtw_hal_dm_watchdog_in_lps(struct adapter *padapter)
