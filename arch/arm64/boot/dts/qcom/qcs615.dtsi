@@ -278,6 +278,13 @@
 		reg = <0 0x80000000 0 0>;
 	};
 
+	firmware {
+		scm {
+			compatible = "qcom,scm-qcs615", "qcom,scm";
+			qcom,dload-mode = <&tcsr 0x13000>;
+		};
+	};
+
 	camnoc_virt: interconnect-0 {
 		compatible = "qcom,qcs615-camnoc-virt";
 		#interconnect-cells = <2>;
