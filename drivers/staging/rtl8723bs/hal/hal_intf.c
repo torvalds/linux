@@ -256,8 +256,7 @@ u32 rtw_hal_read_rfreg(struct adapter *padapter, u32 eRFPath, u32 RegAddr, u32 B
 }
 void rtw_hal_write_rfreg(struct adapter *padapter, u32 eRFPath, u32 RegAddr, u32 BitMask, u32 Data)
 {
-	if (padapter->HalFunc.write_rfreg)
-		padapter->HalFunc.write_rfreg(padapter, eRFPath, RegAddr, BitMask, Data);
+	PHY_SetRFReg_8723B(padapter, eRFPath, RegAddr, BitMask, Data);
 }
 
 void rtw_hal_set_chan(struct adapter *padapter, u8 channel)
