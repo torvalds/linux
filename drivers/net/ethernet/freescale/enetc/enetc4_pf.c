@@ -632,7 +632,7 @@ static int enetc4_pf_netdev_create(struct enetc_si *si)
 	priv = netdev_priv(ndev);
 	priv->ref_clk = devm_clk_get_optional(dev, "ref");
 	if (IS_ERR(priv->ref_clk)) {
-		dev_err(dev, "Get referencce clock failed\n");
+		dev_err(dev, "Get reference clock failed\n");
 		err = PTR_ERR(priv->ref_clk);
 		goto err_clk_get;
 	}
