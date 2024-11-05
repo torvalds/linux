@@ -233,8 +233,7 @@ void rtw_hal_add_ra_tid(struct adapter *padapter, u32 bitmap, u8 *arg, u8 rssi_l
 /*Start specifical interface thread		*/
 void rtw_hal_start_thread(struct adapter *padapter)
 {
-	if (padapter->HalFunc.run_thread)
-		padapter->HalFunc.run_thread(padapter);
+	rtl8723b_start_thread(padapter);
 }
 /*Start specifical interface thread		*/
 void rtw_hal_stop_thread(struct adapter *padapter)
