@@ -692,6 +692,20 @@ ext4_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	if (IS_DAX(inode))
 		return ext4_dax_write_iter(iocb, from);
 #endif
+
+	if (iocb->ki_flags & IOCB_ATOMIC) {
+		size_t len = iov_iter_count(from);
+		int ret;
+
+		if (len < EXT4_SB(inode->i_sb)->s_awu_min ||
+		    len > EXT4_SB(inode->i_sb)->s_awu_max)
+			return -EINVAL;
+
+		ret = generic_atomic_write_valid(iocb, from);
+		if (ret)
+			return ret;
+	}
+
 	if (iocb->ki_flags & IOCB_DIRECT)
 		return ext4_dio_write_iter(iocb, from);
 	else
