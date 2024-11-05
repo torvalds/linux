@@ -1340,18 +1340,18 @@ static int nhi_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (res)
 		return dev_err_probe(dev, res, "cannot enable PCI device, aborting\n");
 
-	res = pcim_iomap_regions(pdev, 1 << 0, "thunderbolt");
-	if (res)
-		return dev_err_probe(dev, res, "cannot obtain PCI resources, aborting\n");
-
 	nhi = devm_kzalloc(&pdev->dev, sizeof(*nhi), GFP_KERNEL);
 	if (!nhi)
 		return -ENOMEM;
 
 	nhi->pdev = pdev;
 	nhi->ops = (const struct tb_nhi_ops *)id->driver_data;
-	/* cannot fail - table is allocated in pcim_iomap_regions */
-	nhi->iobase = pcim_iomap_table(pdev)[0];
+
+	nhi->iobase = pcim_iomap_region(pdev, 0, "thunderbolt");
+	res = PTR_ERR_OR_ZERO(nhi->iobase);
+	if (res)
+		return dev_err_probe(dev, res, "cannot obtain PCI resources, aborting\n");
+
 	nhi->hop_count = ioread32(nhi->iobase + REG_CAPS) & 0x3ff;
 	dev_dbg(dev, "total paths: %d\n", nhi->hop_count);
 
