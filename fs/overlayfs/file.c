@@ -51,7 +51,7 @@ static struct file *ovl_open_realfile(const struct file *file,
 		realfile = backing_file_open(&file->f_path, flags, realpath,
 					     current_cred());
 	}
-	revert_creds(old_cred);
+	ovl_revert_creds(old_cred);
 
 	pr_debug("open(%p[%pD2/%c], 0%o) -> (%p, 0%o)\n",
 		 file, file, ovl_whatisit(inode, realinode), file->f_flags,
@@ -215,7 +215,7 @@ static loff_t ovl_llseek(struct file *file, loff_t offset, int whence)
 
 	old_cred = ovl_override_creds(inode->i_sb);
 	ret = vfs_llseek(fd_file(real), offset, whence);
-	revert_creds(old_cred);
+	ovl_revert_creds(old_cred);
 
 	file->f_pos = fd_file(real)->f_pos;
 	ovl_inode_unlock(inode);
@@ -412,7 +412,7 @@ static int ovl_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 	if (file_inode(fd_file(real)) == ovl_inode_upper(file_inode(file))) {
 		old_cred = ovl_override_creds(file_inode(file)->i_sb);
 		ret = vfs_fsync_range(fd_file(real), start, end, datasync);
-		revert_creds(old_cred);
+		ovl_revert_creds(old_cred);
 	}
 
 	fdput(real);
@@ -451,7 +451,7 @@ static long ovl_fallocate(struct file *file, int mode, loff_t offset, loff_t len
 
 	old_cred = ovl_override_creds(file_inode(file)->i_sb);
 	ret = vfs_fallocate(fd_file(real), mode, offset, len);
-	revert_creds(old_cred);
+	ovl_revert_creds(old_cred);
 
 	/* Update size */
 	ovl_file_modified(file);
@@ -476,7 +476,7 @@ static int ovl_fadvise(struct file *file, loff_t offset, loff_t len, int advice)
 
 	old_cred = ovl_override_creds(file_inode(file)->i_sb);
 	ret = vfs_fadvise(fd_file(real), offset, len, advice);
-	revert_creds(old_cred);
+	ovl_revert_creds(old_cred);
 
 	fdput(real);
 
@@ -535,7 +535,7 @@ static loff_t ovl_copyfile(struct file *file_in, loff_t pos_in,
 						flags);
 		break;
 	}
-	revert_creds(old_cred);
+	ovl_revert_creds(old_cred);
 
 	/* Update size */
 	ovl_file_modified(file_out);
@@ -597,7 +597,7 @@ static int ovl_flush(struct file *file, fl_owner_t id)
 	if (fd_file(real)->f_op->flush) {
 		old_cred = ovl_override_creds(file_inode(file)->i_sb);
 		err = fd_file(real)->f_op->flush(fd_file(real), id);
-		revert_creds(old_cred);
+		ovl_revert_creds(old_cred);
 	}
 	fdput(real);
 
