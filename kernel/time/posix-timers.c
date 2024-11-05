@@ -233,11 +233,12 @@ __initcall(init_posix_timers);
  * The siginfo si_overrun field and the return value of timer_getoverrun(2)
  * are of type int. Clamp the overrun value to INT_MAX
  */
-static inline int timer_overrun_to_int(struct k_itimer *timr, int baseval)
+static inline int timer_overrun_to_int(struct k_itimer *timr)
 {
-	s64 sum = timr->it_overrun_last + (s64)baseval;
+	if (timr->it_overrun_last > (s64)INT_MAX)
+		return INT_MAX;
 
-	return sum > (s64)INT_MAX ? INT_MAX : (int)sum;
+	return (int)timr->it_overrun_last;
 }
 
 static void common_hrtimer_rearm(struct k_itimer *timr)
@@ -280,7 +281,7 @@ bool posixtimer_deliver_signal(struct kernel_siginfo *info)
 		timr->it_overrun = -1LL;
 		++timr->it_signal_seq;
 
-		info->si_overrun = timer_overrun_to_int(timr, info->si_overrun);
+		info->si_overrun = timer_overrun_to_int(timr);
 	}
 	ret = true;
 
@@ -774,7 +775,7 @@ SYSCALL_DEFINE1(timer_getoverrun, timer_t, timer_id)
 	if (!timr)
 		return -EINVAL;
 
-	overrun = timer_overrun_to_int(timr, 0);
+	overrun = timer_overrun_to_int(timr);
 	unlock_timer(timr, flags);
 
 	return overrun;
