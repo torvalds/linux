@@ -6,7 +6,6 @@
 #include <linux/etherdevice.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
-#include <linux/irq.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/netdevice.h>
@@ -3585,17 +3584,6 @@ static int hclge_set_vf_link_state(struct hnae3_handle *handle, int vf,
 	return ret;
 }
 
-static void hclge_set_reset_pending(struct hclge_dev *hdev,
-				    enum hnae3_reset_type reset_type)
-{
-	/* When an incorrect reset type is executed, the get_reset_level
-	 * function generates the HNAE3_NONE_RESET flag. As a result, this
-	 * type do not need to pending.
-	 */
-	if (reset_type != HNAE3_NONE_RESET)
-		set_bit(reset_type, &hdev->reset_pending);
-}
-
 static u32 hclge_check_event_cause(struct hclge_dev *hdev, u32 *clearval)
 {
 	u32 cmdq_src_reg, msix_src_reg, hw_err_src_reg;
@@ -3616,7 +3604,7 @@ static u32 hclge_check_event_cause(struct hclge_dev *hdev, u32 *clearval)
 	 */
 	if (BIT(HCLGE_VECTOR0_IMPRESET_INT_B) & msix_src_reg) {
 		dev_info(&hdev->pdev->dev, "IMP reset interrupt\n");
-		hclge_set_reset_pending(hdev, HNAE3_IMP_RESET);
+		set_bit(HNAE3_IMP_RESET, &hdev->reset_pending);
 		set_bit(HCLGE_COMM_STATE_CMD_DISABLE, &hdev->hw.hw.comm_state);
 		*clearval = BIT(HCLGE_VECTOR0_IMPRESET_INT_B);
 		hdev->rst_stats.imp_rst_cnt++;
@@ -3626,7 +3614,7 @@ static u32 hclge_check_event_cause(struct hclge_dev *hdev, u32 *clearval)
 	if (BIT(HCLGE_VECTOR0_GLOBALRESET_INT_B) & msix_src_reg) {
 		dev_info(&hdev->pdev->dev, "global reset interrupt\n");
 		set_bit(HCLGE_COMM_STATE_CMD_DISABLE, &hdev->hw.hw.comm_state);
-		hclge_set_reset_pending(hdev, HNAE3_GLOBAL_RESET);
+		set_bit(HNAE3_GLOBAL_RESET, &hdev->reset_pending);
 		*clearval = BIT(HCLGE_VECTOR0_GLOBALRESET_INT_B);
 		hdev->rst_stats.global_rst_cnt++;
 		return HCLGE_VECTOR0_EVENT_RST;
@@ -3781,7 +3769,7 @@ static int hclge_misc_irq_init(struct hclge_dev *hdev)
 	snprintf(hdev->misc_vector.name, HNAE3_INT_NAME_LEN, "%s-misc-%s",
 		 HCLGE_NAME, pci_name(hdev->pdev));
 	ret = request_irq(hdev->misc_vector.vector_irq, hclge_misc_irq_handle,
-			  IRQ_NOAUTOEN, hdev->misc_vector.name, hdev);
+			  0, hdev->misc_vector.name, hdev);
 	if (ret) {
 		hclge_free_vector(hdev, 0);
 		dev_err(&hdev->pdev->dev, "request misc irq(%d) fail\n",
@@ -4074,7 +4062,7 @@ static void hclge_do_reset(struct hclge_dev *hdev)
 	case HNAE3_FUNC_RESET:
 		dev_info(&pdev->dev, "PF reset requested\n");
 		/* schedule again to check later */
-		hclge_set_reset_pending(hdev, HNAE3_FUNC_RESET);
+		set_bit(HNAE3_FUNC_RESET, &hdev->reset_pending);
 		hclge_reset_task_schedule(hdev);
 		break;
 	default:
@@ -4107,8 +4095,6 @@ static enum hnae3_reset_type hclge_get_reset_level(struct hnae3_ae_dev *ae_dev,
 		rst_level = HNAE3_FLR_RESET;
 		clear_bit(HNAE3_FLR_RESET, addr);
 	}
-
-	clear_bit(HNAE3_NONE_RESET, addr);
 
 	if (hdev->reset_type != HNAE3_NONE_RESET &&
 	    rst_level < hdev->reset_type)
@@ -4251,7 +4237,7 @@ static bool hclge_reset_err_handle(struct hclge_dev *hdev)
 		return false;
 	} else if (hdev->rst_stats.reset_fail_cnt < MAX_RESET_FAIL_CNT) {
 		hdev->rst_stats.reset_fail_cnt++;
-		hclge_set_reset_pending(hdev, hdev->reset_type);
+		set_bit(hdev->reset_type, &hdev->reset_pending);
 		dev_info(&hdev->pdev->dev,
 			 "re-schedule reset task(%u)\n",
 			 hdev->rst_stats.reset_fail_cnt);
@@ -4494,19 +4480,7 @@ static void hclge_reset_event(struct pci_dev *pdev, struct hnae3_handle *handle)
 static void hclge_set_def_reset_request(struct hnae3_ae_dev *ae_dev,
 					enum hnae3_reset_type rst_type)
 {
-#define HCLGE_SUPPORT_RESET_TYPE \
-	(BIT(HNAE3_FLR_RESET) | BIT(HNAE3_FUNC_RESET) | \
-	BIT(HNAE3_GLOBAL_RESET) | BIT(HNAE3_IMP_RESET))
-
 	struct hclge_dev *hdev = ae_dev->priv;
-
-	if (!(BIT(rst_type) & HCLGE_SUPPORT_RESET_TYPE)) {
-		/* To prevent reset triggered by hclge_reset_event */
-		set_bit(HNAE3_NONE_RESET, &hdev->default_reset_request);
-		dev_warn(&hdev->pdev->dev, "unsupported reset type %d\n",
-			 rst_type);
-		return;
-	}
 
 	set_bit(rst_type, &hdev->default_reset_request);
 }
@@ -11917,6 +11891,9 @@ static int hclge_init_ae_dev(struct hnae3_ae_dev *ae_dev)
 
 	hclge_init_rxd_adv_layout(hdev);
 
+	/* Enable MISC vector(vector0) */
+	hclge_enable_vector(&hdev->misc_vector, true);
+
 	ret = hclge_init_wol(hdev);
 	if (ret)
 		dev_warn(&pdev->dev,
@@ -11928,10 +11905,6 @@ static int hclge_init_ae_dev(struct hnae3_ae_dev *ae_dev)
 
 	hclge_state_init(hdev);
 	hdev->last_reset_time = jiffies;
-
-	/* Enable MISC vector(vector0) */
-	enable_irq(hdev->misc_vector.vector_irq);
-	hclge_enable_vector(&hdev->misc_vector, true);
 
 	dev_info(&hdev->pdev->dev, "%s driver initialization finished.\n",
 		 HCLGE_DRIVER_NAME);
@@ -12338,7 +12311,7 @@ static void hclge_uninit_ae_dev(struct hnae3_ae_dev *ae_dev)
 
 	/* Disable MISC vector(vector0) */
 	hclge_enable_vector(&hdev->misc_vector, false);
-	disable_irq(hdev->misc_vector.vector_irq);
+	synchronize_irq(hdev->misc_vector.vector_irq);
 
 	/* Disable all hw interrupts */
 	hclge_config_mac_tnl_int(hdev, false);
