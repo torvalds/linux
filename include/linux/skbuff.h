@@ -2937,7 +2937,10 @@ static inline int skb_inner_transport_offset(const struct sk_buff *skb)
 
 static inline void skb_reset_inner_transport_header(struct sk_buff *skb)
 {
-	skb->inner_transport_header = skb->data - skb->head;
+	long offset = skb->data - skb->head;
+
+	DEBUG_NET_WARN_ON_ONCE(offset != (typeof(skb->inner_transport_header))offset);
+	skb->inner_transport_header = offset;
 }
 
 static inline void skb_set_inner_transport_header(struct sk_buff *skb,
