@@ -236,7 +236,7 @@ static int create_sdw_dailink(struct snd_soc_card *card,
 		asoc_sdw_init_dai_link(dev, *dai_links, be_id, name, playback, capture,
 				       cpus, num_cpus, platform_component,
 				       ARRAY_SIZE(platform_component), codecs, num_codecs,
-				       asoc_sdw_rtd_init, &sdw_ops);
+				       1, asoc_sdw_rtd_init, &sdw_ops);
 
 		/*
 		 * SoundWire DAILINKs use 'stream' functions and Bank Switch operations
@@ -285,7 +285,7 @@ static int create_sdw_dailinks(struct snd_soc_card *card,
 }
 
 static int create_dmic_dailinks(struct snd_soc_card *card,
-				struct snd_soc_dai_link **dai_links, int *be_id)
+				struct snd_soc_dai_link **dai_links, int *be_id, int no_pcm)
 {
 	struct device *dev = card->dev;
 	int ret;
@@ -294,7 +294,7 @@ static int create_dmic_dailinks(struct snd_soc_card *card,
 					    0, 1, // DMIC only supports capture
 					    "acp-sof-dmic", platform_component->name,
 					    ARRAY_SIZE(platform_component),
-					    "dmic-codec", "dmic-hifi",
+					    "dmic-codec", "dmic-hifi", no_pcm,
 					    asoc_sdw_dmic_init, NULL);
 	if (ret)
 		return ret;
@@ -377,7 +377,7 @@ static int sof_card_dai_links_create(struct snd_soc_card *card)
 		if (ctx->ignore_internal_dmic) {
 			dev_warn(dev, "Ignoring ACP DMIC\n");
 		} else {
-			ret = create_dmic_dailinks(card, &dai_links, &be_id);
+			ret = create_dmic_dailinks(card, &dai_links, &be_id, 1);
 			if (ret)
 				return ret;
 		}
