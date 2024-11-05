@@ -1106,6 +1106,15 @@ properties:
               - ysoft,imx8mp-iota2-lumpy  # Y Soft i.MX8MP IOTA2 Lumpy Board
           - const: fsl,imx8mp
 
+      - description: ABB Boards with i.MX8M Plus Modules from ADLink
+        items:
+          - enum:
+              - abb,imx8mp-aristanetos3-adpismarc # i.MX8MP ABB SoM on PI SMARC Board
+              - abb,imx8mp-aristanetos3-helios    # i.MX8MP ABB SoM on helios Board
+              - abb,imx8mp-aristanetos3-proton2s  # i.MX8MP ABB SoM on proton2s Board
+          - const: abb,imx8mp-aristanetos3-som    # i.MX8MP ABB SoM
+          - const: fsl,imx8mp
+
       - description: Avnet (MSC Branded) Boards with SM2S i.MX8M Plus Modules
         items:
           - const: avnet,sm2s-imx8mp-14N0600E-ep1 # SM2S-IMX8PLUS-14N0600E on SM2-MB-EP1 Carrier Board
