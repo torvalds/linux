@@ -1049,7 +1049,6 @@ static noinline int btrfs_mksnapshot(const struct path *parent,
 				   struct btrfs_qgroup_inherit *inherit)
 {
 	int ret;
-	bool snapshot_force_cow = false;
 
 	/*
 	 * Force new buffered writes to reserve space even when NOCOW is
@@ -1068,15 +1067,13 @@ static noinline int btrfs_mksnapshot(const struct path *parent,
 	 * creation.
 	 */
 	atomic_inc(&root->snapshot_force_cow);
-	snapshot_force_cow = true;
 
 	btrfs_wait_ordered_extents(root, U64_MAX, NULL);
 
 	ret = btrfs_mksubvol(parent, idmap, name, namelen,
 			     root, readonly, inherit);
+	atomic_dec(&root->snapshot_force_cow);
 out:
-	if (snapshot_force_cow)
-		atomic_dec(&root->snapshot_force_cow);
 	btrfs_drew_read_unlock(&root->snapshot_lock);
 	return ret;
 }
