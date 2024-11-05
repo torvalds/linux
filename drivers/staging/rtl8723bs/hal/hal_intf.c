@@ -274,8 +274,7 @@ void rtw_hal_write_rfreg(struct adapter *padapter, u32 eRFPath, u32 RegAddr, u32
 
 void rtw_hal_set_chan(struct adapter *padapter, u8 channel)
 {
-	if (padapter->HalFunc.set_channel_handler)
-		padapter->HalFunc.set_channel_handler(padapter, channel);
+	PHY_SwChnl8723B(padapter, channel);
 }
 
 void rtw_hal_set_chnl_bw(struct adapter *padapter, u8 channel,
