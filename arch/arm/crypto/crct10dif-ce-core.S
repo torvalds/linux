@@ -144,11 +144,6 @@ CPU_LE(	vrev64.8	q12, q12	)
 	veor.8		\dst_reg, \dst_reg, \src_reg
 	.endm
 
-	.macro		__adrl, out, sym
-	movw		\out, #:lower16:\sym
-	movt		\out, #:upper16:\sym
-	.endm
-
 //
 // u16 crc_t10dif_pmull(u16 init_crc, const u8 *buf, size_t len);
 //
@@ -160,7 +155,7 @@ ENTRY(crc_t10dif_pmull)
 	cmp		len, #256
 	blt		.Lless_than_256_bytes
 
-	__adrl		fold_consts_ptr, .Lfold_across_128_bytes_consts
+	mov_l		fold_consts_ptr, .Lfold_across_128_bytes_consts
 
 	// Load the first 128 data bytes.  Byte swapping is necessary to make
 	// the bit order match the polynomial coefficient order.
@@ -262,7 +257,7 @@ CPU_LE(	vrev64.8	q0, q0	)
 	vswp		q0l, q0h
 
 	// q1 = high order part of second chunk: q7 left-shifted by 'len' bytes.
-	__adrl		r3, .Lbyteshift_table + 16
+	mov_l		r3, .Lbyteshift_table + 16
 	sub		r3, r3, len
 	vld1.8		{q2}, [r3]
 	vtbl.8		q1l, {q7l-q7h}, q2l
@@ -324,7 +319,7 @@ CPU_LE(	vrev64.8	q0, q0	)
 .Lless_than_256_bytes:
 	// Checksumming a buffer of length 16...255 bytes
 
-	__adrl		fold_consts_ptr, .Lfold_across_16_bytes_consts
+	mov_l		fold_consts_ptr, .Lfold_across_16_bytes_consts
 
 	// Load the first 16 data bytes.
 	vld1.64		{q7}, [buf]!
