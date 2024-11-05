@@ -337,15 +337,19 @@
 			cache-unified;
 			next-level-cache = <&l3_cache>;
 		};
+	};
 
-		l3_cache: l3-cache {
-			compatible = "cache";
-			cache-size = <3145728>;
-			cache-line-size = <64>;
-			cache-sets = <4096>;
-			cache-level = <3>;
-			cache-unified;
-		};
+	/*
+	 * The L3 cache belongs to the DynamIQ Shared Unit (DSU),
+	 * so it's represented here, outside the "cpus" node
+	 */
+	l3_cache: l3-cache {
+		compatible = "cache";
+		cache-size = <3145728>;
+		cache-line-size = <64>;
+		cache-sets = <4096>;
+		cache-level = <3>;
+		cache-unified;
 	};
 
 	display_subsystem: display-subsystem {
