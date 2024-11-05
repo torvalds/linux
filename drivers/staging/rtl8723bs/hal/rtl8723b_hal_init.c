@@ -1704,7 +1704,7 @@ static void hal_notch_filter_8723b(struct adapter *adapter, bool enable)
 		rtw_write8(adapter, rOFDM0_RxDSP+1, rtw_read8(adapter, rOFDM0_RxDSP+1) & ~BIT1);
 }
 
-static void UpdateHalRAMask8723B(struct adapter *padapter, u32 mac_id, u8 rssi_level)
+void UpdateHalRAMask8723B(struct adapter *padapter, u32 mac_id, u8 rssi_level)
 {
 	u32 mask, rate_bitmap;
 	u8 shortGIrate = false;
@@ -1744,8 +1744,6 @@ static void UpdateHalRAMask8723B(struct adapter *padapter, u32 mac_id, u8 rssi_l
 
 void rtl8723b_set_hal_ops(struct hal_ops *pHalFunc)
 {
-	pHalFunc->UpdateRAMaskHandler = &UpdateHalRAMask8723B;
-
 	pHalFunc->set_channel_handler = &PHY_SwChnl8723B;
 	pHalFunc->set_chnl_bw_handler = &PHY_SetSwChnlBWMode8723B;
 

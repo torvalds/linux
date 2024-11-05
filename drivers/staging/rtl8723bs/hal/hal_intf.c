@@ -221,8 +221,7 @@ void rtw_hal_update_ra_mask(struct sta_info *psta, u8 rssi_level)
 	if (check_fwstate(pmlmepriv, WIFI_AP_STATE) == true)
 		add_RATid(padapter, psta, rssi_level);
 	else {
-		if (padapter->HalFunc.UpdateRAMaskHandler)
-			padapter->HalFunc.UpdateRAMaskHandler(padapter, psta->mac_id, rssi_level);
+		UpdateHalRAMask8723B(padapter, psta->mac_id, rssi_level);
 	}
 }
 
