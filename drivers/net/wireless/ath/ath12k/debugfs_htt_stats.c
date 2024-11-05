@@ -3296,6 +3296,45 @@ ath12k_htt_print_tx_pdev_rate_stats_be_ofdma_tlv(const void *tag_buf, u16 tag_le
 	stats_req->buf_len = len;
 }
 
+static void
+ath12k_htt_print_pdev_mbssid_ctrl_frame_stats_tlv(const void *tag_buf, u16 tag_len,
+						  struct debug_htt_stats_req *stats_req)
+{
+	const struct ath12k_htt_pdev_mbssid_ctrl_frame_tlv *htt_stats_buf = tag_buf;
+	u8 *buf = stats_req->buf;
+	u32 len = stats_req->buf_len;
+	u32 buf_len = ATH12K_HTT_STATS_BUF_SIZE;
+	u32 mac_id_word;
+
+	if (tag_len < sizeof(*htt_stats_buf))
+		return;
+
+	mac_id_word = le32_to_cpu(htt_stats_buf->mac_id__word);
+
+	len += scnprintf(buf + len, buf_len - len, "HTT_MBSSID_CTRL_FRAME_STATS_TLV:\n");
+	len += scnprintf(buf + len, buf_len - len, "mac_id = %u\n",
+			 u32_get_bits(mac_id_word, ATH12K_HTT_STATS_MAC_ID));
+	len += scnprintf(buf + len, buf_len - len, "basic_trigger_across_bss = %u\n",
+			 le32_to_cpu(htt_stats_buf->basic_trigger_across_bss));
+	len += scnprintf(buf + len, buf_len - len, "basic_trigger_within_bss = %u\n",
+			 le32_to_cpu(htt_stats_buf->basic_trigger_within_bss));
+	len += scnprintf(buf + len, buf_len - len, "bsr_trigger_across_bss = %u\n",
+			 le32_to_cpu(htt_stats_buf->bsr_trigger_across_bss));
+	len += scnprintf(buf + len, buf_len - len, "bsr_trigger_within_bss = %u\n",
+			 le32_to_cpu(htt_stats_buf->bsr_trigger_within_bss));
+	len += scnprintf(buf + len, buf_len - len, "mu_rts_across_bss = %u\n",
+			 le32_to_cpu(htt_stats_buf->mu_rts_across_bss));
+	len += scnprintf(buf + len, buf_len - len, "mu_rts_within_bss = %u\n",
+			 le32_to_cpu(htt_stats_buf->mu_rts_within_bss));
+	len += scnprintf(buf + len, buf_len - len, "ul_mumimo_trigger_across_bss = %u\n",
+			 le32_to_cpu(htt_stats_buf->ul_mumimo_trigger_across_bss));
+	len += scnprintf(buf + len, buf_len - len,
+			 "ul_mumimo_trigger_within_bss = %u\n\n",
+			 le32_to_cpu(htt_stats_buf->ul_mumimo_trigger_within_bss));
+
+	stats_req->buf_len = len;
+}
+
 static int ath12k_dbg_htt_ext_stats_parse(struct ath12k_base *ab,
 					  u16 tag, u16 len, const void *tag_buf,
 					  void *user_data)
@@ -3501,6 +3540,10 @@ static int ath12k_dbg_htt_ext_stats_parse(struct ath12k_base *ab,
 		break;
 	case HTT_STATS_TX_PDEV_RATE_STATS_BE_OFDMA_TAG:
 		ath12k_htt_print_tx_pdev_rate_stats_be_ofdma_tlv(tag_buf, len, stats_req);
+		break;
+	case HTT_STATS_PDEV_MBSSID_CTRL_FRAME_STATS_TAG:
+		ath12k_htt_print_pdev_mbssid_ctrl_frame_stats_tlv(tag_buf, len,
+								  stats_req);
 		break;
 	default:
 		break;

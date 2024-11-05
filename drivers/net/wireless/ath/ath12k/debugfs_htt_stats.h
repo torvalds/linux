@@ -142,6 +142,7 @@ enum ath12k_dbg_htt_ext_stats_type {
 	ATH12K_DBG_HTT_EXT_STATS_SOC_ERROR		= 45,
 	ATH12K_DBG_HTT_EXT_STATS_PDEV_SCHED_ALGO	= 49,
 	ATH12K_DBG_HTT_EXT_STATS_MANDATORY_MUOFDMA	= 51,
+	ATH12K_DGB_HTT_EXT_STATS_PDEV_MBSSID_CTRL_FRAME	= 54,
 
 	/* keep this last */
 	ATH12K_DBG_HTT_NUM_EXT_STATS,
@@ -214,6 +215,7 @@ enum ath12k_dbg_htt_tlv_tag {
 	HTT_STATS_DMAC_RESET_STATS_TAG			= 155,
 	HTT_STATS_PHY_TPC_STATS_TAG			= 157,
 	HTT_STATS_PDEV_SCHED_ALGO_OFDMA_STATS_TAG	= 165,
+	HTT_STATS_PDEV_MBSSID_CTRL_FRAME_STATS_TAG	= 176,
 
 	HTT_STATS_MAX_TAG,
 };
@@ -1320,6 +1322,18 @@ struct ath12k_htt_tx_pdev_rate_stats_be_ofdma_tlv {
 	__le32 gi[ATH12K_HTT_TX_PDEV_NUM_GI_CNTRS][ATH12K_HTT_TX_PDEV_NUM_BE_MCS_CNTRS];
 	__le32 be_ofdma_tx_ru_size[ATH12K_HTT_TX_RX_PDEV_NUM_BE_RU_SIZE_CNTRS];
 	__le32 be_ofdma_eht_sig_mcs[ATH12K_HTT_TX_PDEV_NUM_EHT_SIG_MCS_CNTRS];
+} __packed;
+
+struct ath12k_htt_pdev_mbssid_ctrl_frame_tlv {
+	__le32 mac_id__word;
+	__le32 basic_trigger_across_bss;
+	__le32 basic_trigger_within_bss;
+	__le32 bsr_trigger_across_bss;
+	__le32 bsr_trigger_within_bss;
+	__le32 mu_rts_across_bss;
+	__le32 mu_rts_within_bss;
+	__le32 ul_mumimo_trigger_across_bss;
+	__le32 ul_mumimo_trigger_within_bss;
 } __packed;
 
 #endif
