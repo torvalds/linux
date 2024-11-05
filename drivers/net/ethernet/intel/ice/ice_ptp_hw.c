@@ -926,7 +926,7 @@ static enum ice_sbq_msg_dev ice_ptp_get_dest_dev_e825(struct ice_hw *hw,
  * @addr: PHY register address
  * @val: Value to write
  *
- * Return: 0 on success, other error codes when failed to write to PHY
+ * Return: 0 on success, other error codes when failed to write to PHY.
  */
 static int ice_write_phy_eth56g(struct ice_hw *hw, u8 port, u32 addr, u32 val)
 {
@@ -954,7 +954,7 @@ static int ice_write_phy_eth56g(struct ice_hw *hw, u8 port, u32 addr, u32 val)
  * @addr: PHY register address
  * @val: Value to write
  *
- * Return: 0 on success, other error codes when failed to read from PHY
+ * Return: 0 on success, other error codes when failed to read from PHY.
  */
 static int ice_read_phy_eth56g(struct ice_hw *hw, u8 port, u32 addr, u32 *val)
 {
@@ -2064,7 +2064,8 @@ int ice_phy_cfg_ptp_1step_eth56g(struct ice_hw *hw, u8 port)
 	else
 		val &= ~BIT(quad_lane);
 
-	val &= ~(PHY_PTP_1STEP_T1S_UP64_M | PHY_PTP_1STEP_T1S_DELTA_M);
+	val &= ~PHY_PTP_1STEP_T1S_UP64_M;
+	val &= ~PHY_PTP_1STEP_T1S_DELTA_M;
 
 	err = ice_write_quad_ptp_reg_eth56g(hw, port, addr, val);
 	if (err)
