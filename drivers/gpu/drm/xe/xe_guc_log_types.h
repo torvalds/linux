@@ -27,7 +27,7 @@ struct xe_guc_log_snapshot {
 	/** @ktime: Kernel time the snapshot was taken */
 	u64 ktime;
 	/** @stamp: GuC timestamp at which the snapshot was taken */
-	u32 stamp;
+	u64 stamp;
 	/** @level: GuC log verbosity level */
 	u32 level;
 	/** @ver_found: GuC firmware version */

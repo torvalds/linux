@@ -717,6 +717,7 @@ guc_exec_queue_run_job(struct drm_sched_job *drm_job)
 	struct xe_exec_queue *q = job->q;
 	struct xe_guc *guc = exec_queue_to_guc(q);
 	struct xe_device *xe = guc_to_xe(guc);
+	struct dma_fence *fence = NULL;
 	bool lr = xe_exec_queue_is_lr(q);
 
 	xe_assert(xe, !(exec_queue_destroyed(q) || exec_queue_pending_disable(q)) ||
@@ -734,12 +735,12 @@ guc_exec_queue_run_job(struct drm_sched_job *drm_job)
 
 	if (lr) {
 		xe_sched_job_set_error(job, -EOPNOTSUPP);
-		return NULL;
-	} else if (test_and_set_bit(JOB_FLAG_SUBMIT, &job->fence->flags)) {
-		return job->fence;
+		dma_fence_put(job->fence);	/* Drop ref from xe_sched_job_arm */
 	} else {
-		return dma_fence_get(job->fence);
+		fence = job->fence;
 	}
+
+	return fence;
 }
 
 static void guc_exec_queue_free_job(struct drm_sched_job *drm_job)
@@ -1035,6 +1036,7 @@ guc_exec_queue_timedout_job(struct drm_sched_job *drm_job)
 	struct xe_guc *guc = exec_queue_to_guc(q);
 	const char *process_name = "no process";
 	struct xe_device *xe = guc_to_xe(guc);
+	unsigned int fw_ref;
 	int err = -ETIME;
 	pid_t pid = -1;
 	int i = 0;
@@ -1068,12 +1070,13 @@ guc_exec_queue_timedout_job(struct drm_sched_job *drm_job)
 	if (!exec_queue_killed(q) && !xe->devcoredump.captured &&
 	    !xe_guc_capture_get_matching_and_lock(job)) {
 		/* take force wake before engine register manual capture */
-		if (xe_force_wake_get(gt_to_fw(q->gt), XE_FORCEWAKE_ALL))
+		fw_ref = xe_force_wake_get(gt_to_fw(q->gt), XE_FORCEWAKE_ALL);
+		if (!xe_force_wake_ref_has_domain(fw_ref, XE_FORCEWAKE_ALL))
 			xe_gt_info(q->gt, "failed to get forcewake for coredump capture\n");
 
 		xe_engine_snapshot_capture_for_job(job);
 
-		xe_force_wake_put(gt_to_fw(q->gt), XE_FORCEWAKE_ALL);
+		xe_force_wake_put(gt_to_fw(q->gt), fw_ref);
 	}
 
 	/*
