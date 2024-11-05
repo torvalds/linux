@@ -1970,7 +1970,7 @@ static inline struct task_struct *posixtimer_get_target(struct k_itimer *tmr)
 	return t;
 }
 
-int posixtimer_send_sigqueue(struct k_itimer *tmr)
+void posixtimer_send_sigqueue(struct k_itimer *tmr)
 {
 	struct sigqueue *q = &tmr->sigq;
 	int sig = q->info.si_signo;
@@ -1982,10 +1982,10 @@ int posixtimer_send_sigqueue(struct k_itimer *tmr)
 
 	t = posixtimer_get_target(tmr);
 	if (!t)
-		return -1;
+		return;
 
 	if (!likely(lock_task_sighand(t, &flags)))
-		return -1;
+		return;
 
 	/*
 	 * Update @tmr::sigqueue_seq for posix timer signals with sighand
@@ -2054,7 +2054,6 @@ int posixtimer_send_sigqueue(struct k_itimer *tmr)
 out:
 	trace_signal_generate(sig, &q->info, t, tmr->it_pid_type != PIDTYPE_PID, result);
 	unlock_task_sighand(t, &flags);
-	return 0;
 }
 
 static inline void posixtimer_sig_ignore(struct task_struct *tsk, struct sigqueue *q)
