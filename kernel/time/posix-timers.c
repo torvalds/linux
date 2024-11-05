@@ -1027,6 +1027,18 @@ int common_timer_del(struct k_itimer *timer)
 	return 0;
 }
 
+/*
+ * If the deleted timer is on the ignored list, remove it and
+ * drop the associated reference.
+ */
+static inline void posix_timer_cleanup_ignored(struct k_itimer *tmr)
+{
+	if (!hlist_unhashed(&tmr->ignored_list)) {
+		hlist_del_init(&tmr->ignored_list);
+		posixtimer_putref(tmr);
+	}
+}
+
 static inline int timer_delete_hook(struct k_itimer *timer)
 {
 	const struct k_clock *kc = timer->kclock;
@@ -1059,6 +1071,7 @@ retry_delete:
 
 	spin_lock(&current->sighand->siglock);
 	hlist_del(&timer->list);
+	posix_timer_cleanup_ignored(timer);
 	spin_unlock(&current->sighand->siglock);
 	/*
 	 * A concurrent lookup could check timer::it_signal lockless. It
@@ -1110,6 +1123,8 @@ retry_delete:
 	}
 	hlist_del(&timer->list);
 
+	posix_timer_cleanup_ignored(timer);
+
 	/*
 	 * Setting timer::it_signal to NULL is technically not required
 	 * here as nothing can access the timer anymore legitimately via
@@ -1142,6 +1157,19 @@ void exit_itimers(struct task_struct *tsk)
 	/* The timers are not longer accessible via tsk::signal */
 	while (!hlist_empty(&timers))
 		itimer_delete(hlist_entry(timers.first, struct k_itimer, list));
+
+	/*
+	 * There should be no timers on the ignored list. itimer_delete() has
+	 * mopped them up.
+	 */
+	if (!WARN_ON_ONCE(!hlist_empty(&tsk->signal->ignored_posix_timers)))
+		return;
+
+	hlist_move_list(&tsk->signal->ignored_posix_timers, &timers);
+	while (!hlist_empty(&timers)) {
+		posix_timer_cleanup_ignored(hlist_entry(timers.first, struct k_itimer,
+							ignored_list));
+	}
 }
 
 SYSCALL_DEFINE2(clock_settime, const clockid_t, which_clock,
