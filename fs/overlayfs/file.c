@@ -119,16 +119,14 @@ static bool ovl_is_real_file(const struct file *realfile,
 	return file_inode(realfile) == d_inode(realpath->dentry);
 }
 
-static int ovl_real_fdget_path(const struct file *file, struct fd *real,
-			       struct path *realpath)
+static struct file *ovl_real_file_path(const struct file *file,
+				       struct path *realpath)
 {
 	struct ovl_file *of = file->private_data;
 	struct file *realfile = of->realfile;
 
-	real->word = 0;
-
 	if (WARN_ON_ONCE(!realpath->dentry))
-		return -EIO;
+		return ERR_PTR(-EIO);
 
 	/*
 	 * If the realfile that we want is not where the data used to be at
@@ -143,7 +141,7 @@ static int ovl_real_fdget_path(const struct file *file, struct fd *real,
 		if (!upperfile) { /* Nobody opened upperfile yet */
 			upperfile = ovl_open_realfile(file, realpath);
 			if (IS_ERR(upperfile))
-				return PTR_ERR(upperfile);
+				return upperfile;
 
 			/* Store the upperfile for later */
 			old = cmpxchg_release(&of->upperfile, NULL, upperfile);
@@ -157,20 +155,23 @@ static int ovl_real_fdget_path(const struct file *file, struct fd *real,
 		 * been corrupting the upper layer.
 		 */
 		if (WARN_ON_ONCE(!ovl_is_real_file(upperfile, realpath)))
-			return -EIO;
+			return ERR_PTR(-EIO);
 
 		realfile = upperfile;
 	}
 
 	/* Did the flags change since open? */
-	if (unlikely((file->f_flags ^ realfile->f_flags) & ~OVL_OPEN_FLAGS))
-		return ovl_change_flags(realfile, file->f_flags);
+	if (unlikely((file->f_flags ^ realfile->f_flags) & ~OVL_OPEN_FLAGS)) {
+		int err = ovl_change_flags(realfile, file->f_flags);
 
-	real->word = (unsigned long)realfile;
-	return 0;
+		if (err)
+			return ERR_PTR(err);
+	}
+
+	return realfile;
 }
 
-static int ovl_real_fdget(const struct file *file, struct fd *real)
+static struct file *ovl_real_file(const struct file *file)
 {
 	struct dentry *dentry = file_dentry(file);
 	struct path realpath;
@@ -178,20 +179,30 @@ static int ovl_real_fdget(const struct file *file, struct fd *real)
 
 	if (d_is_dir(dentry)) {
 		struct file *f = ovl_dir_real_file(file, false);
-		if (IS_ERR(f))
-			return PTR_ERR(f);
-		real->word = (unsigned long)f;
-		return 0;
+
+		if (WARN_ON_ONCE(!f))
+			return ERR_PTR(-EIO);
+		return f;
 	}
 
 	/* lazy lookup and verify of lowerdata */
 	err = ovl_verify_lowerdata(dentry);
 	if (err)
-		return err;
+		return ERR_PTR(err);
 
 	ovl_path_realdata(dentry, &realpath);
 
-	return ovl_real_fdget_path(file, real, &realpath);
+	return ovl_real_file_path(file, &realpath);
+}
+
+static int ovl_real_fdget(const struct file *file, struct fd *real)
+{
+	struct file *f = ovl_real_file(file);
+
+	if (IS_ERR(f))
+		return PTR_ERR(f);
+	real->word = (unsigned long)f;
+	return 0;
 }
 
 static int ovl_open(struct inode *inode, struct file *file)
@@ -458,7 +469,7 @@ static int ovl_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 	struct dentry *dentry = file_dentry(file);
 	enum ovl_path_type type;
 	struct path upperpath;
-	struct fd real;
+	struct file *upperfile;
 	const struct cred *old_cred;
 	int ret;
 
@@ -472,15 +483,13 @@ static int ovl_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 		return 0;
 
 	ovl_path_upper(dentry, &upperpath);
-	ret = ovl_real_fdget_path(file, &real, &upperpath);
-	if (ret)
-		return ret;
+	upperfile = ovl_real_file_path(file, &upperpath);
+	if (IS_ERR(upperfile))
+		return PTR_ERR(upperfile);
 
 	old_cred = ovl_override_creds(file_inode(file)->i_sb);
-	ret = vfs_fsync_range(fd_file(real), start, end, datasync);
+	ret = vfs_fsync_range(upperfile, start, end, datasync);
 	ovl_revert_creds(old_cred);
-
-	fdput(real);
 
 	return ret;
 }
