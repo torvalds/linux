@@ -64,6 +64,7 @@ struct ethosn_network {
 	struct file *file;
 };
 
+// 推理任务
 struct ethosn_inference {
     // 当前推理任务绑定的核心
 	struct ethosn_core *core;
@@ -72,12 +73,14 @@ struct ethosn_inference {
 
 	struct list_head queue_node;
 
+    // 根据推理请求获得的输入输出缓冲区信息
 	struct ethosn_buffer **inputs;
 	struct ethosn_buffer **outputs;
 
 	u32 status;
 	u64 cycle_count;
 
+    // 等待队列的粒度也是推理任务级别的
 	wait_queue_head_t poll_wqh;
 };
 

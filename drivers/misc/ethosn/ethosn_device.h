@@ -123,12 +123,12 @@ struct ethosn_core {
 	struct dentry *debug_dir;
 	struct debugfs_regset32 debug_regset;
 
-	// 当前core映射的虚拟io地址
+	// 当前 core 映射的虚拟 io 地址
 	void __iomem *top_regs;
-	// 当前core在memory map中的物理地址
+	// 当前 core 在 memory map 中的物理地址
 	uintptr_t phys_addr;
 
-	// 当前core所设计的环形缓冲区的长度
+	// 当前 core 所设计的环形缓冲区的长度
 	int queue_size;
 	uint32_t set_alloc_id;
 
@@ -142,7 +142,7 @@ struct ethosn_core {
 	struct ethosn_dma_info *mailbox;
 	struct ethosn_dma_info *mailbox_request;
 	struct ethosn_dma_info *mailbox_response;
-	void *mailbox_message;
+	void *mailbox_message;  // 每一个 core 维护一个长度为环形缓冲区长度的内部 buffer, 用来暂存读到的内容
 	size_t mailbox_size;
 
 	/*
@@ -209,15 +209,15 @@ struct ethosn_core {
 	 */
 	bool force_firmware_level_interrupts;
 
-	/* 下面的两个成员主要用于配合中断处理程序的下半部 */
-	// 当前core绑定的中断等待队列
+	
+    // 每个核维护一个用于中断处理的工作队列 irq_wq, 中断上半部快速处理寄存器相关工作, 结束时将一个中断任务 irq_work 提交到 irq_wq
 	struct workqueue_struct *irq_wq;
-	// 当前core绑定的中断工作队列
+    // 当中断任务出队时, 执行其绑定的回调函数, 即中断下半部处理函数, 来完成除寄存器控制外的其他工作
 	struct work_struct irq_work;
 
 	atomic_t irq_status;
 
-	struct ethosn_inference *current_inference;     // 当前core正执行的推理
+	struct ethosn_inference *current_inference;     // 当前 core 正执行的推理
 
 	/*
 	 * This tells us if the device initialization has been completed.

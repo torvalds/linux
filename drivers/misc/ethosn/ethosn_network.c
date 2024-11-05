@@ -194,7 +194,8 @@ static struct ethosn_buffer **read_buffer_fds(struct ethosn_network *network, u3
 			error = -EFAULT;
 			goto err_free_bufs;
 		}
-
+        
+        // 从文件描述符中获取当前 DMA 内存空间的信息
 		buf = ethosn_buffer_get(fd);
 		if (IS_ERR(buf)) {
 			error = PTR_ERR(buf);
@@ -291,7 +292,7 @@ static bool ethosn_check_if_ok_to_schedule(struct ethosn_device *ethosn, struct 
 int ethosn_schedule_inference(struct ethosn_inference *inference)
 {
 	struct ethosn_network *network = inference->network;
-	struct ethosn_core *core = inference->core;
+	struct ethosn_core *core = inference->core;         // 当前推理任务绑定的 core 应当处于空闲状态
 	struct ethosn_device *ethosn = core->parent;
 	uint32_t core_id = core->core_id;
 	struct device *core_dev = core->dev;
@@ -314,6 +315,7 @@ int ethosn_schedule_inference(struct ethosn_inference *inference)
 	if (inference->status != ETHOSN_INFERENCE_SCHEDULED)
 		return 0;
 
+    // 开始调度推理任务
 	inference->status = ETHOSN_INFERENCE_RUNNING;
 	if (core->set_is_protected != network->asset_allocator->is_protected || core->set_alloc_id != network->asset_allocator->alloc_id) {
 		dev_dbg(core_dev, "Restarting core due to alloc_id changed (%d to %d) or protected context changed (%d to %d)", core->set_alloc_id, network->asset_allocator->alloc_id, core->set_is_protected,
@@ -323,7 +325,7 @@ int ethosn_schedule_inference(struct ethosn_inference *inference)
 			goto out_inference_error;
 	}
 
-    // 这里将输入输出 buffer 信息绑定到 network 和 core_id 索引的 inference_data
+    // 这里从推理任务中拿到了从用户空间分配的输入输出缓冲区的描述信息, 将其更新到了网络模型 inference_data 成员所执行的, 完整描述整个推理任务所需缓冲区信息的结构 ethosn_buffer_array 中
 	for (i = 0; i < network->num_inputs; ++i) {
 		struct ethosn_dma_info *dma_info = inference->inputs[i]->dma_info;
 
@@ -406,6 +408,7 @@ void ethosn_schedule_queued_inference(struct ethosn_core *core)
 	 * The first inference that meets the neccessary criteria is scheduled.
 	 * If none, then the inference queue is checked again after next request
 	 */
+    // 在推理任务队列中依次查找能够调度的推理任务, 找到之后将其从队列中移除
 	if (!list_empty(&ethosn->queue.inference_queue)) {
 		list_for_each_entry (inference, &ethosn->queue.inference_queue, queue_node) {
 			schedule_inference = ethosn_check_if_ok_to_schedule(ethosn, inference);
@@ -418,6 +421,7 @@ void ethosn_schedule_queued_inference(struct ethosn_core *core)
 
 	mutex_unlock(&ethosn->queue.inference_queue_mutex);
 
+    // 找到能够调度的推理任务, 执行调度
 	if (schedule_inference) {
 		/* Schedule the inference on a particular core */
 		inference->core = core;
@@ -456,6 +460,7 @@ static struct ethosn_inference *inference_create(struct ethosn_network *network,
 	inference->status = ETHOSN_INFERENCE_SCHEDULED;
 	init_waitqueue_head(&inference->poll_wqh);
 
+    // 根据推理请求中提供的输入缓冲区内容和网络中的输入缓冲区描述信息, 构建当前推理任务的输入缓冲区 ethosn_buffer 数组
 	inference->inputs = read_buffer_fds(network, ifr_req->num_inputs, ifr_req->input_fds, network->inputs);
 	if (IS_ERR(inference->inputs)) {
 		ret = PTR_ERR(inference->inputs);
@@ -668,6 +673,7 @@ static int ethosn_inference_register(struct ethosn_network *network, struct etho
 	}
 
 	/* Queue and schedule inference. */
+    // 将当前推理任务添加到 ethosn 设备管理的推理任务队列中
 	list_add_tail(&inference->queue_node, &ethosn->queue.inference_queue);
 
 	mutex_unlock(&ethosn->queue.inference_queue_mutex);
@@ -683,7 +689,8 @@ static int ethosn_inference_register(struct ethosn_network *network, struct etho
 		if (ret)
 			goto end;
 
-		if (core->current_inference == NULL) {  // 当前 core 是否正在执行推理
+        // 寻找当前处于空闲状态的 core
+		if (core->current_inference == NULL) {
 			found = true;
 			ethosn_schedule_queued_inference(core);
 		}
@@ -1285,7 +1292,7 @@ void ethosn_set_inference_done(struct ethosn_core *core, struct ethosn_inference
 	inference->status = new_status;
 	inference->cycle_count = cycle_count;
 
-	wake_up_poll(&inference->poll_wqh, EPOLLIN);
+	wake_up_poll(&inference->poll_wqh, EPOLLIN);    // 唤醒正在等待当前推理任务 poll_wqh 的 poll syscall
 
 	dev_dbg(core->dev, "END_INFERENCE: inference 0x%pK time %llu on core_id = %u", inference, ktime_get_ns(), core->core_id);
 

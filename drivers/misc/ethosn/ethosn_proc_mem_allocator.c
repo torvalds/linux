@@ -271,7 +271,7 @@ int ethosn_process_mem_allocator_create(struct ethosn_device *ethosn, pid_t pid,
 	int ret = 0;
 	int fd;
 	struct ethosn_allocator *proc_mem_allocator;
-	struct ethosn_dma_allocator *asset_allocator = ethosn_asset_allocator_find(ethosn, pid); // 当前进程是否正占用设备的asset_allocator?
+	struct ethosn_dma_allocator *asset_allocator = ethosn_asset_allocator_find(ethosn, pid); // 当前进程是否正占用设备的 asset_allocator?
 
 	if (pid <= 0) {
 		dev_err(ethosn->dev, "%s: Unsupported pid=%d, must be >0\n", __func__, pid);

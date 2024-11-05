@@ -232,7 +232,7 @@ static int ethosn_debug_monitor_channel_init(struct ethosn_core *core)
  */
 static int mailbox_alloc(struct ethosn_core *core)
 {
-	// 核心core的主分配器所管辖的内存空间为: 1. 加载固件所需的内存空间; 2. 与NPU之间进行数据交互所需环形缓冲区
+	// 核心 core 的主分配器所管辖的内存空间为: 1. 加载固件所需的内存空间; 2. 与 NPU 之间进行数据交互所需环形缓冲区
 	struct ethosn_dma_allocator *allocator = core->main_allocator;
 	resource_size_t mailbox_end;
 	resource_size_t request_end;
@@ -883,11 +883,12 @@ void ethosn_dump_gps(struct ethosn_core *core)
  */
 int ethosn_read_message(struct ethosn_core *core, struct ethosn_message_header *header, void *data, size_t length)
 {
-	struct ethosn_queue *queue = core->mailbox_response->cpu_addr;
+	struct ethosn_queue *queue = core->mailbox_response->cpu_addr;  // queue 是 core->mailbox_response->cpu_addr 所指向 DMA 内存中保存的真实对象
 	bool ret;
 
 	ethosn_dma_sync_for_cpu(core->main_allocator, core->mailbox_response);
 
+    // 首先把消息头拿到
 	ret = ethosn_queue_read(queue, (uint8_t *)header, sizeof(struct ethosn_message_header));
 	if (!ret)
 		return 0;
@@ -1300,11 +1301,11 @@ static int firmware_load(struct ethosn_core *core)
 	dev_info(core->dev, "Found FW. arch_min=0x%08x, arch_max=0x%08x, offset=0x%08x, size=0x%08x\n", big_fw->arch_min, big_fw->arch_max, big_fw->offset, big_fw->size);
 	dev_dbg(core->dev, "Firmware asset offsets+sizes:\n");
 
-	dev_dbg(core->dev, "  Code: 0x%08x + 0x%08x\n", big_fw->code_offset, big_fw->code_size);
-	dev_dbg(core->dev, "  PLE: 0x%08x + 0x%08x\n", big_fw->ple_offset, big_fw->ple_size);
-	dev_dbg(core->dev, "  Vector table: 0x%08x + 0x%08x\n", big_fw->vector_table_offset, big_fw->vector_table_size);
-	dev_dbg(core->dev, "  Unpriv stack: 0x%08x + 0x%08x\n", big_fw->unpriv_stack_offset, big_fw->unpriv_stack_size);
-	dev_dbg(core->dev, "  Priv stack: 0x%08x + 0x%08x\n", big_fw->priv_stack_offset, big_fw->priv_stack_size);
+	dev_dbg(core->dev, "Code: 0x%08x + 0x%08x\n", big_fw->code_offset, big_fw->code_size);
+	dev_dbg(core->dev, "PLE: 0x%08x + 0x%08x\n", big_fw->ple_offset, big_fw->ple_size);
+	dev_dbg(core->dev, "Vector table: 0x%08x + 0x%08x\n", big_fw->vector_table_offset, big_fw->vector_table_size);
+	dev_dbg(core->dev, "Unpriv stack: 0x%08x + 0x%08x\n", big_fw->unpriv_stack_offset, big_fw->unpriv_stack_size);
+	dev_dbg(core->dev, "Priv stack: 0x%08x + 0x%08x\n", big_fw->priv_stack_offset, big_fw->priv_stack_size);
 
 	/* First check that the assets are in the expected
 	 * order, otherwise the following logic might be wrong.
@@ -1584,9 +1585,9 @@ static ssize_t mailbox_fops_read(struct file *file, char __user *buf_user, size_
 		ethosn_dma_sync_for_cpu(core->main_allocator, core->mailbox_request);
 
 		n += scnprintf(&buf[n], sizeof(buf) - n, "Request queue : %llx\n", core->mailbox_request->iova_addr);
-		n += scnprintf(&buf[n], sizeof(buf) - n, "    capacity  : %u\n", queue->capacity);
-		n += scnprintf(&buf[n], sizeof(buf) - n, "    read      : %u\n", queue->read);
-		n += scnprintf(&buf[n], sizeof(buf) - n, "    write     : %u\n", queue->write);
+		n += scnprintf(&buf[n], sizeof(buf) - n, "capacity  : %u\n", queue->capacity);
+		n += scnprintf(&buf[n], sizeof(buf) - n, "read      : %u\n", queue->read);
+		n += scnprintf(&buf[n], sizeof(buf) - n, "write     : %u\n", queue->write);
 	}
 
 	if (core->mailbox_response) {
@@ -1595,9 +1596,9 @@ static ssize_t mailbox_fops_read(struct file *file, char __user *buf_user, size_
 		ethosn_dma_sync_for_cpu(core->main_allocator, core->mailbox_response);
 
 		n += scnprintf(&buf[n], sizeof(buf) - n, "Response queue: %llx\n", core->mailbox_response->iova_addr);
-		n += scnprintf(&buf[n], sizeof(buf) - n, "    capacity  : %u\n", queue->capacity);
-		n += scnprintf(&buf[n], sizeof(buf) - n, "    read      : %u\n", queue->read);
-		n += scnprintf(&buf[n], sizeof(buf) - n, "    write     : %u\n", queue->write);
+		n += scnprintf(&buf[n], sizeof(buf) - n, "capacity  : %u\n", queue->capacity);
+		n += scnprintf(&buf[n], sizeof(buf) - n, "read      : %u\n", queue->read);
+		n += scnprintf(&buf[n], sizeof(buf) - n, "write     : %u\n", queue->write);
 	}
 
 	if (core->mailbox) {

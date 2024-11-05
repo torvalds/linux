@@ -31,9 +31,9 @@
  ******************************************************************************/
 
 /**
- * NPU设备中内存的地址
- * 指向 当前NPU中可由CPU直接访问的内存 的地址应为 32 位.
- * 指向 当前NPU中借助DMA复制访问的内存 的地址可达 49 位.
+ * NPU 设备中内存的地址
+ * 指向 当前 NPU 中可由 CPU 直接访问的内存 的地址应为 32 位.
+ * 指向 当前 NPU 中借助 DMA 复制访问的内存 的地址可达 49 位.
  */
 typedef uint64_t ethosn_address_t;
 
@@ -295,7 +295,7 @@ struct ethosn_message_inference_request {
  * 遵循 ethosn_message_header.
  */
 struct ethosn_message_inference_response {
-	uint64_t user_argument;
+	uint64_t user_argument;                     // 这里无论是 request 还是 response 都将一个 inference 推理任务的指针传入, 用来标识唯一的推理任务对象
 	uint32_t status;
 	uint64_t cycle_count;
 };

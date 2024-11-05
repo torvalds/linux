@@ -262,6 +262,7 @@ static void write_to_firmware_log(struct ethosn_core *core, const char *text, si
 	wake_up_interruptible(&core->firmware_log_read_poll_wqh);
 }
 
+// 中断处理函数的实际工作
 static int handle_message(struct ethosn_core *core)
 {
 	struct ethosn_message_header header;
