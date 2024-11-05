@@ -99,7 +99,7 @@ static struct spl_rect calculate_plane_rec_in_timing_active(
 	 *
 	 * recout_x = 128 + round(plane_x * 2304 / 1920)
 	 * recout_w = 128 + round((plane_x + plane_w) * 2304 / 1920) - recout_x
-	 * recout_y = 0 + round(plane_y * 1440 / 1280)
+	 * recout_y = 0 + round(plane_y * 1440 / 1200)
 	 * recout_h = 0 + round((plane_y + plane_h) * 1440 / 1200) - recout_y
 	 *
 	 * NOTE: fixed point division is not error free. To reduce errors
@@ -1746,6 +1746,32 @@ static void spl_set_isharp_data(struct dscl_prog_data *dscl_prog_data,
 	spl_set_blur_scale_data(dscl_prog_data, data);
 }
 
+/* Calculate recout, scaling ratio, and viewport, then get optimal number of taps */
+static bool spl_calculate_number_of_taps(struct spl_in *spl_in, struct spl_scratch *spl_scratch, struct spl_out *spl_out,
+	bool *enable_easf_v, bool *enable_easf_h, bool *enable_isharp)
+{
+	bool res = false;
+
+	memset(spl_scratch, 0, sizeof(struct spl_scratch));
+	spl_scratch->scl_data.h_active = spl_in->h_active;
+	spl_scratch->scl_data.v_active = spl_in->v_active;
+
+	// All SPL calls
+	/* recout calculation */
+	/* depends on h_active */
+	spl_calculate_recout(spl_in, spl_scratch, spl_out);
+	/* depends on pixel format */
+	spl_calculate_scaling_ratios(spl_in, spl_scratch, spl_out);
+	/* depends on scaling ratios and recout, does not calculate offset yet */
+	spl_calculate_viewport_size(spl_in, spl_scratch);
+
+	res = spl_get_optimal_number_of_taps(
+			  spl_in->basic_out.max_downscale_src_width, spl_in,
+			  spl_scratch, &spl_in->scaling_quality, enable_easf_v,
+			  enable_easf_h, enable_isharp);
+	return res;
+}
+
 /* Calculate scaler parameters */
 bool spl_calculate_scaler_params(struct spl_in *spl_in, struct spl_out *spl_out)
 {
@@ -1760,23 +1786,9 @@ bool spl_calculate_scaler_params(struct spl_in *spl_in, struct spl_out *spl_out)
 	bool enable_isharp = false;
 	const struct spl_scaler_data *data = &spl_scratch.scl_data;
 
-	memset(&spl_scratch, 0, sizeof(struct spl_scratch));
-	spl_scratch.scl_data.h_active = spl_in->h_active;
-	spl_scratch.scl_data.v_active = spl_in->v_active;
+	res = spl_calculate_number_of_taps(spl_in, &spl_scratch, spl_out,
+		&enable_easf_v, &enable_easf_h, &enable_isharp);
 
-	// All SPL calls
-	/* recout calculation */
-	/* depends on h_active */
-	spl_calculate_recout(spl_in, &spl_scratch, spl_out);
-	/* depends on pixel format */
-	spl_calculate_scaling_ratios(spl_in, &spl_scratch, spl_out);
-	/* depends on scaling ratios and recout, does not calculate offset yet */
-	spl_calculate_viewport_size(spl_in, &spl_scratch);
-
-	res = spl_get_optimal_number_of_taps(
-			  spl_in->basic_out.max_downscale_src_width, spl_in,
-			  &spl_scratch, &spl_in->scaling_quality, &enable_easf_v,
-			  &enable_easf_h, &enable_isharp);
 	/*
 	 * Depends on recout, scaling ratios, h_active and taps
 	 * May need to re-check lb size after this in some obscure scenario
@@ -1822,5 +1834,22 @@ bool spl_calculate_scaler_params(struct spl_in *spl_in, struct spl_out *spl_out)
 		spl_in->lls_pref, spl_in->basic_in.format, data, isharp_scale_ratio, setup,
 		spl_in->debug.scale_to_sharpness_policy);
 
+	return res;
+}
+
+/* External interface to get number of taps only */
+bool spl_get_number_of_taps(struct spl_in *spl_in, struct spl_out *spl_out)
+{
+	bool res = false;
+	bool enable_easf_v = false;
+	bool enable_easf_h = false;
+	bool enable_isharp = false;
+	struct spl_scratch spl_scratch;
+	struct dscl_prog_data *dscl_prog_data = spl_out->dscl_prog_data;
+	const struct spl_scaler_data *data = &spl_scratch.scl_data;
+
+	res = spl_calculate_number_of_taps(spl_in, &spl_scratch, spl_out,
+		&enable_easf_v, &enable_easf_h, &enable_isharp);
+	spl_set_taps_data(dscl_prog_data, data);
 	return res;
 }
