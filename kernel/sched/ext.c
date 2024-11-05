@@ -867,6 +867,7 @@ static DEFINE_MUTEX(scx_ops_enable_mutex);
 DEFINE_STATIC_KEY_FALSE(__scx_ops_enabled);
 DEFINE_STATIC_PERCPU_RWSEM(scx_fork_rwsem);
 static atomic_t scx_ops_enable_state_var = ATOMIC_INIT(SCX_OPS_DISABLED);
+static unsigned long scx_in_softlockup;
 static atomic_t scx_ops_breather_depth = ATOMIC_INIT(0);
 static int scx_ops_bypass_depth;
 static bool scx_ops_init_task_enabled;
@@ -4615,6 +4616,49 @@ bool task_should_scx(struct task_struct *p)
 }
 
 /**
+ * scx_softlockup - sched_ext softlockup handler
+ *
+ * On some multi-socket setups (e.g. 2x Intel 8480c), the BPF scheduler can
+ * live-lock the system by making many CPUs target the same DSQ to the point
+ * where soft-lockup detection triggers. This function is called from
+ * soft-lockup watchdog when the triggering point is close and tries to unjam
+ * the system by enabling the breather and aborting the BPF scheduler.
+ */
+void scx_softlockup(u32 dur_s)
+{
+	switch (scx_ops_enable_state()) {
+	case SCX_OPS_ENABLING:
+	case SCX_OPS_ENABLED:
+		break;
+	default:
+		return;
+	}
+
+	/* allow only one instance, cleared at the end of scx_ops_bypass() */
+	if (test_and_set_bit(0, &scx_in_softlockup))
+		return;
+
+	printk_deferred(KERN_ERR "sched_ext: Soft lockup - CPU%d stuck for %us, disabling \"%s\"\n",
+			smp_processor_id(), dur_s, scx_ops.name);
+
+	/*
+	 * Some CPUs may be trapped in the dispatch paths. Enable breather
+	 * immediately; otherwise, we might even be able to get to
+	 * scx_ops_bypass().
+	 */
+	atomic_inc(&scx_ops_breather_depth);
+
+	scx_ops_error("soft lockup - CPU#%d stuck for %us",
+		      smp_processor_id(), dur_s);
+}
+
+static void scx_clear_softlockup(void)
+{
+	if (test_and_clear_bit(0, &scx_in_softlockup))
+		atomic_dec(&scx_ops_breather_depth);
+}
+
+/**
  * scx_ops_bypass - [Un]bypass scx_ops and guarantee forward progress
  *
  * Bypassing guarantees that all runnable tasks make forward progress without
@@ -4724,6 +4768,7 @@ static void scx_ops_bypass(bool bypass)
 	atomic_dec(&scx_ops_breather_depth);
 unlock:
 	raw_spin_unlock_irqrestore(&bypass_lock, flags);
+	scx_clear_softlockup();
 }
 
 static void free_exit_info(struct scx_exit_info *ei)

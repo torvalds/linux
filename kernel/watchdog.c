@@ -644,6 +644,14 @@ static int is_softlockup(unsigned long touch_ts,
 		    need_counting_irqs())
 			start_counting_irqs();
 
+		/*
+		 * A poorly behaving BPF scheduler can live-lock the system into
+		 * soft lockups. Tell sched_ext to try ejecting the BPF
+		 * scheduler when close to a soft lockup.
+		 */
+		if (time_after_eq(now, period_ts + get_softlockup_thresh() * 3 / 4))
+			scx_softlockup(now - touch_ts);
+
 		/* Warn about unreasonable delays. */
 		if (time_after(now, period_ts + get_softlockup_thresh()))
 			return now - touch_ts;
