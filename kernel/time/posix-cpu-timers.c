@@ -493,20 +493,20 @@ static int posix_cpu_timer_del(struct k_itimer *timer)
 		 */
 		WARN_ON_ONCE(ctmr->head || timerqueue_node_queued(&ctmr->node));
 	} else {
-		if (timer->it.cpu.firing) {
+		if (timer->it.cpu.firing)
 			ret = TIMER_RETRY;
-		} else {
+		else
 			disarm_timer(timer, p);
-			timer->it_status = POSIX_TIMER_DISARMED;
-		}
 		unlock_task_sighand(p, &flags);
 	}
 
 out:
 	rcu_read_unlock();
-	if (!ret)
-		put_pid(ctmr->pid);
 
+	if (!ret) {
+		put_pid(ctmr->pid);
+		timer->it_status = POSIX_TIMER_DISARMED;
+	}
 	return ret;
 }
 
