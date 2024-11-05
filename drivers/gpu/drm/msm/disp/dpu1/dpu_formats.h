@@ -31,13 +31,6 @@ static inline bool dpu_find_format(u32 format, const u32 *supported_formats,
 	return false;
 }
 
-/**
- * dpu_format_populate_addrs - populate buffer addresses based on
- *                     mmu, fb, and format found in the fb
- * @aspace:            address space pointer
- * @fb:                framebuffer pointer
- * @fmtl:              format layout structure to populate
- */
 void dpu_format_populate_addrs(struct msm_gem_address_space *aspace,
 			       struct drm_framebuffer *fb,
 			       struct dpu_hw_fmt_layout *layout);

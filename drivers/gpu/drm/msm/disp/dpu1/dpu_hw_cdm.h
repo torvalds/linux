@@ -122,14 +122,6 @@ struct dpu_hw_cdm {
 	struct dpu_hw_cdm_ops ops;
 };
 
-/**
- * dpu_hw_cdm_init - initializes the cdm hw driver object.
- * should be called once before accessing every cdm.
- * @dev: DRM device handle
- * @cdm: CDM catalog entry for which driver object is required
- * @addr :   mapped register io address of MDSS
- * @mdss_rev: mdss hw core revision
- */
 struct dpu_hw_cdm *dpu_hw_cdm_init(struct drm_device *dev,
 				   const struct dpu_cdm_cfg *cdm, void __iomem *addr,
 				   const struct dpu_mdss_version *mdss_rev);
