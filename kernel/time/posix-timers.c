@@ -259,7 +259,7 @@ static bool __posixtimer_deliver_signal(struct kernel_siginfo *info, struct k_it
 	 * since the signal was queued. In either case, don't rearm and
 	 * drop the signal.
 	 */
-	if (timr->it_signal_seq != info->si_sys_private || WARN_ON_ONCE(!timr->it_signal))
+	if (timr->it_signal_seq != timr->it_sigqueue_seq || WARN_ON_ONCE(!timr->it_signal))
 		return false;
 
 	if (!timr->it_interval || WARN_ON_ONCE(timr->it_status != POSIX_TIMER_REQUEUE_PENDING))
@@ -297,9 +297,6 @@ bool posixtimer_deliver_signal(struct kernel_siginfo *info, struct sigqueue *tim
 	posixtimer_putref(timr);
 
 	spin_lock(&current->sighand->siglock);
-
-	/* Don't expose the si_sys_private value to userspace */
-	info->si_sys_private = 0;
 	return ret;
 }
 

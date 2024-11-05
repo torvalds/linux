@@ -1976,12 +1976,10 @@ int posixtimer_send_sigqueue(struct k_itimer *tmr)
 		return -1;
 
 	/*
-	 * Update @q::info::si_sys_private for posix timer signals with
-	 * sighand locked to prevent a race against dequeue_signal() which
-	 * decides based on si_sys_private whether to invoke
-	 * posixtimer_rearm() or not.
+	 * Update @tmr::sigqueue_seq for posix timer signals with sighand
+	 * locked to prevent a race against dequeue_signal().
 	 */
-	q->info.si_sys_private = tmr->it_signal_seq;
+	tmr->it_sigqueue_seq = tmr->it_signal_seq;
 
 	ret = 1; /* the signal is ignored */
 	if (!prepare_signal(sig, t, false)) {

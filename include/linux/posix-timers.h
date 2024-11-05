@@ -162,6 +162,7 @@ static inline void posix_cputimers_init_work(void) { }
  * @it_overrun:		The overrun counter for pending signals
  * @it_overrun_last:	The overrun at the time of the last delivered signal
  * @it_signal_seq:	Sequence count to control signal delivery
+ * @it_sigqueue_seq:	The sequence count at the point where the signal was queued
  * @it_sigev_notify:	The notify word of sigevent struct for signal delivery
  * @it_interval:	The interval for periodic timers
  * @it_signal:		Pointer to the creators signal struct
@@ -184,6 +185,7 @@ struct k_itimer {
 	s64			it_overrun;
 	s64			it_overrun_last;
 	unsigned int		it_signal_seq;
+	unsigned int		it_sigqueue_seq;
 	int			it_sigev_notify;
 	enum pid_type		it_pid_type;
 	ktime_t			it_interval;
