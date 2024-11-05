@@ -250,15 +250,40 @@ static void common_hrtimer_rearm(struct k_itimer *timr)
 	hrtimer_restart(timer);
 }
 
+static bool __posixtimer_deliver_signal(struct kernel_siginfo *info, struct k_itimer *timr)
+{
+	guard(spinlock)(&timr->it_lock);
+
+	/*
+	 * Check if the timer is still alive or whether it got modified
+	 * since the signal was queued. In either case, don't rearm and
+	 * drop the signal.
+	 */
+	if (timr->it_signal_seq != info->si_sys_private || WARN_ON_ONCE(!timr->it_signal))
+		return false;
+
+	if (!timr->it_interval || WARN_ON_ONCE(timr->it_status != POSIX_TIMER_REQUEUE_PENDING))
+		return true;
+
+	timr->kclock->timer_rearm(timr);
+	timr->it_status = POSIX_TIMER_ARMED;
+	timr->it_overrun_last = timr->it_overrun;
+	timr->it_overrun = -1LL;
+	++timr->it_signal_seq;
+	info->si_overrun = timer_overrun_to_int(timr);
+	return true;
+}
+
 /*
  * This function is called from the signal delivery code. It decides
- * whether the signal should be dropped and rearms interval timers.
+ * whether the signal should be dropped and rearms interval timers.  The
+ * timer can be unconditionally accessed as there is a reference held on
+ * it.
  */
 bool posixtimer_deliver_signal(struct kernel_siginfo *info, struct sigqueue *timer_sigq)
 {
-	struct k_itimer *timr;
-	unsigned long flags;
-	bool ret = false;
+	struct k_itimer *timr = container_of(timer_sigq, struct k_itimer, sigq);
+	bool ret;
 
 	/*
 	 * Release siglock to ensure proper locking order versus
@@ -266,28 +291,11 @@ bool posixtimer_deliver_signal(struct kernel_siginfo *info, struct sigqueue *tim
 	 */
 	spin_unlock(&current->sighand->siglock);
 
-	timr = lock_timer(info->si_tid, &flags);
-	if (!timr)
-		goto out;
+	ret = __posixtimer_deliver_signal(info, timr);
 
-	if (timr->it_signal_seq != info->si_sys_private)
-		goto out_unlock;
+	/* Drop the reference which was acquired when the signal was queued */
+	posixtimer_putref(timr);
 
-	if (timr->it_interval && !WARN_ON_ONCE(timr->it_status != POSIX_TIMER_REQUEUE_PENDING)) {
-		timr->kclock->timer_rearm(timr);
-
-		timr->it_status = POSIX_TIMER_ARMED;
-		timr->it_overrun_last = timr->it_overrun;
-		timr->it_overrun = -1LL;
-		++timr->it_signal_seq;
-
-		info->si_overrun = timer_overrun_to_int(timr);
-	}
-	ret = true;
-
-out_unlock:
-	unlock_timer(timr, flags);
-out:
 	spin_lock(&current->sighand->siglock);
 
 	/* Don't expose the si_sys_private value to userspace */
@@ -404,17 +412,17 @@ static struct pid *good_sigevent(sigevent_t * event)
 	}
 }
 
-static struct k_itimer * alloc_posix_timer(void)
+static struct k_itimer *alloc_posix_timer(void)
 {
 	struct k_itimer *tmr = kmem_cache_zalloc(posix_timers_cache, GFP_KERNEL);
 
 	if (!tmr)
 		return tmr;
-	if (unlikely(!(tmr->sigq = sigqueue_alloc()))) {
+
+	if (unlikely(!posixtimer_init_sigqueue(&tmr->sigq))) {
 		kmem_cache_free(posix_timers_cache, tmr);
 		return NULL;
 	}
-	clear_siginfo(&tmr->sigq->info);
 	rcuref_init(&tmr->rcuref, 1);
 	return tmr;
 }
@@ -422,7 +430,8 @@ static struct k_itimer * alloc_posix_timer(void)
 void posixtimer_free_timer(struct k_itimer *tmr)
 {
 	put_pid(tmr->it_pid);
-	sigqueue_free(tmr->sigq);
+	if (tmr->sigq.ucounts)
+		dec_rlimit_put_ucounts(tmr->sigq.ucounts, UCOUNT_RLIMIT_SIGPENDING);
 	kfree_rcu(tmr, rcu);
 }
 
@@ -484,13 +493,13 @@ static int do_timer_create(clockid_t which_clock, struct sigevent *event,
 			goto out;
 		}
 		new_timer->it_sigev_notify     = event->sigev_notify;
-		new_timer->sigq->info.si_signo = event->sigev_signo;
-		new_timer->sigq->info.si_value = event->sigev_value;
+		new_timer->sigq.info.si_signo = event->sigev_signo;
+		new_timer->sigq.info.si_value = event->sigev_value;
 	} else {
 		new_timer->it_sigev_notify     = SIGEV_SIGNAL;
-		new_timer->sigq->info.si_signo = SIGALRM;
-		memset(&new_timer->sigq->info.si_value, 0, sizeof(sigval_t));
-		new_timer->sigq->info.si_value.sival_int = new_timer->it_id;
+		new_timer->sigq.info.si_signo = SIGALRM;
+		memset(&new_timer->sigq.info.si_value, 0, sizeof(sigval_t));
+		new_timer->sigq.info.si_value.sival_int = new_timer->it_id;
 		new_timer->it_pid = get_pid(task_tgid(current));
 	}
 
@@ -499,8 +508,8 @@ static int do_timer_create(clockid_t which_clock, struct sigevent *event,
 	else
 		new_timer->it_pid_type = PIDTYPE_TGID;
 
-	new_timer->sigq->info.si_tid   = new_timer->it_id;
-	new_timer->sigq->info.si_code  = SI_TIMER;
+	new_timer->sigq.info.si_tid = new_timer->it_id;
+	new_timer->sigq.info.si_code = SI_TIMER;
 
 	if (copy_to_user(created_timer_id, &new_timer_id, sizeof (new_timer_id))) {
 		error = -EFAULT;
@@ -584,7 +593,14 @@ static struct k_itimer *__lock_timer(timer_t timer_id, unsigned long *flags)
 	 *  1) Set timr::it_signal to NULL with timr::it_lock held
 	 *  2) Release timr::it_lock
 	 *  3) Remove from the hash under hash_lock
-	 *  4) Call RCU for removal after the grace period
+	 *  4) Put the reference count.
+	 *
+	 * The reference count might not drop to zero if timr::sigq is
+	 * queued. In that case the signal delivery or flush will put the
+	 * last reference count.
+	 *
+	 * When the reference count reaches zero, the timer is scheduled
+	 * for RCU removal after the grace period.
 	 *
 	 * Holding rcu_read_lock() accross the lookup ensures that
 	 * the timer cannot be freed.
