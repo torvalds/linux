@@ -58,7 +58,7 @@
 #include <internal/lib.h>
 
 #ifdef HAVE_LIBTRACEEVENT
-#include <traceevent/event-parse.h>
+#include <event-parse.h>
 #endif
 
 /*

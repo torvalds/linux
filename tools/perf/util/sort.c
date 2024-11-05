@@ -35,7 +35,7 @@
 #include <linux/string.h>
 
 #ifdef HAVE_LIBTRACEEVENT
-#include <traceevent/event-parse.h>
+#include <event-parse.h>
 #endif
 
 regex_t		parent_regex;

@@ -147,7 +147,7 @@ int common_lock_depth(struct scripting_context *context);
 int perf_sample__sprintf_flags(u32 flags, char *str, size_t sz);
 
 #if defined(LIBTRACEEVENT_VERSION) &&  LIBTRACEEVENT_VERSION >= MAKE_LIBTRACEEVENT_VERSION(1, 5, 0)
-#include <traceevent/event-parse.h>
+#include <event-parse.h>
 
 static inline bool tep_field_is_relative(unsigned long flags)
 {

@@ -88,7 +88,7 @@
 #include <perf/mmap.h>
 
 #ifdef HAVE_LIBTRACEEVENT
-#include <traceevent/event-parse.h>
+#include <event-parse.h>
 #endif
 
 #ifndef O_CLOEXEC

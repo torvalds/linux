@@ -70,7 +70,7 @@
 #include <linux/ctype.h>
 
 #ifdef HAVE_LIBTRACEEVENT
-#include <traceevent/event-parse.h>
+#include <event-parse.h>
 #endif
 
 struct perf_missing_features perf_missing_features;
