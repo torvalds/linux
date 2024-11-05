@@ -30,6 +30,8 @@
 #include "sparx5_main.h"
 #include "sparx5_port.h"
 #include "sparx5_qos.h"
+#include "sparx5_vcap_ag_api.h"
+#include "sparx5_vcap_impl.h"
 
 const struct sparx5_regs *regs;
 
@@ -768,12 +770,10 @@ static int sparx5_start(struct sparx5 *sparx5)
 	if (err)
 		return err;
 
-	if (is_sparx5(sparx5)) {
-		err = sparx5_vcap_init(sparx5);
-		if (err) {
-			sparx5_unregister_notifier_blocks(sparx5);
-			return err;
-		}
+	err = sparx5_vcap_init(sparx5);
+	if (err) {
+		sparx5_unregister_notifier_blocks(sparx5);
+		return err;
 	}
 
 	/* Start Frame DMA with fallback to register based INJ/XTR */
@@ -1063,6 +1063,9 @@ static const struct sparx5_consts sparx5_consts = {
 	.qres_max_prio_idx   = 630,
 	.qres_max_colour_idx = 638,
 	.tod_pin             = 4,
+	.vcaps               = sparx5_vcaps,
+	.vcaps_cfg           = sparx5_vcap_inst_cfg,
+	.vcap_stats          = &sparx5_vcap_stats,
 };
 
 static const struct sparx5_ops sparx5_ops = {

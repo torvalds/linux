@@ -303,6 +303,9 @@ struct sparx5_consts {
 	u32 qres_max_prio_idx;   /* Maximum QRES prio index */
 	u32 qres_max_colour_idx; /* Maximum QRES colour index */
 	u32 tod_pin;             /* PTP TOD pin */
+	const struct sparx5_vcap_inst *vcaps_cfg;
+	const struct vcap_info *vcaps;
+	const struct vcap_statistics *vcap_stats;
 };
 
 struct sparx5_ops {
