@@ -41,20 +41,26 @@ static struct miscdevice vfio_misc_dev;
 void iommufd_object_finalize(struct iommufd_ctx *ictx,
 			     struct iommufd_object *obj)
 {
+	XA_STATE(xas, &ictx->objects, obj->id);
 	void *old;
 
-	old = xa_store(&ictx->objects, obj->id, obj, GFP_KERNEL);
-	/* obj->id was returned from xa_alloc() so the xa_store() cannot fail */
-	WARN_ON(old);
+	xa_lock(&ictx->objects);
+	old = xas_store(&xas, obj);
+	xa_unlock(&ictx->objects);
+	/* obj->id was returned from xa_alloc() so the xas_store() cannot fail */
+	WARN_ON(old != XA_ZERO_ENTRY);
 }
 
 /* Undo _iommufd_object_alloc() if iommufd_object_finalize() was not called */
 void iommufd_object_abort(struct iommufd_ctx *ictx, struct iommufd_object *obj)
 {
+	XA_STATE(xas, &ictx->objects, obj->id);
 	void *old;
 
-	old = xa_erase(&ictx->objects, obj->id);
-	WARN_ON(old);
+	xa_lock(&ictx->objects);
+	old = xas_store(&xas, NULL);
+	xa_unlock(&ictx->objects);
+	WARN_ON(old != XA_ZERO_ENTRY);
 	kfree(obj);
 }
 
