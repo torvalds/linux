@@ -1286,7 +1286,7 @@ static int gsc_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	/* context initailization */
+	/* context initialization */
 	ctx->id = pdev->id;
 
 	platform_set_drvdata(pdev, ctx);
