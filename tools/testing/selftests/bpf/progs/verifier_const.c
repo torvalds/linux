@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Copyright (c) 2024 Isovalent */
 
-#include <linux/bpf.h>
+#include "vmlinux.h"
 #include <bpf/bpf_helpers.h>
+#include <bpf/bpf_tracing.h>
 #include "bpf_misc.h"
 
 const volatile long foo = 42;
@@ -64,6 +65,34 @@ int tcx6(struct __sk_buff *skb)
 {
 	bpf_check_mtu(skb, skb->ifindex, (__u32 *)&bart, 0, 0);
 	return TCX_PASS;
+}
+
+static inline void write_fixed(volatile void *p, __u32 val)
+{
+	*(volatile __u32 *)p = val;
+}
+
+static inline void write_dyn(void *p, void *val, int len)
+{
+	bpf_copy_from_user(p, len, val);
+}
+
+SEC("tc/ingress")
+__description("rodata/mark: write with unknown reg rejected")
+__failure __msg("write into map forbidden")
+int tcx7(struct __sk_buff *skb)
+{
+	write_fixed((void *)&foo, skb->mark);
+	return TCX_PASS;
+}
+
+SEC("lsm.s/bprm_committed_creds")
+__description("rodata/mark: write with unknown reg rejected")
+__failure __msg("write into map forbidden")
+int BPF_PROG(bprm, struct linux_binprm *bprm)
+{
+	write_dyn((void *)&foo, &bart, bpf_get_prandom_u32() & 3);
+	return 0;
 }
 
 char LICENSE[] SEC("license") = "GPL";
