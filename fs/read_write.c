@@ -1848,3 +1848,4 @@ int generic_atomic_write_valid(struct kiocb *iocb, struct iov_iter *iter)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(generic_atomic_write_valid);
