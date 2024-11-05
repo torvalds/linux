@@ -493,10 +493,18 @@ static int posix_cpu_timer_del(struct k_itimer *timer)
 		 */
 		WARN_ON_ONCE(ctmr->head || timerqueue_node_queued(&ctmr->node));
 	} else {
-		if (timer->it.cpu.firing)
+		if (timer->it.cpu.firing) {
+			/*
+			 * Prevent signal delivery. The timer cannot be dequeued
+			 * because it is on the firing list which is not protected
+			 * by sighand->lock. The delivery path is waiting for
+			 * the timer lock. So go back, unlock and retry.
+			 */
+			timer->it.cpu.firing = false;
 			ret = TIMER_RETRY;
-		else
+		} else {
 			disarm_timer(timer, p);
+		}
 		unlock_task_sighand(p, &flags);
 	}
 
@@ -668,7 +676,13 @@ static int posix_cpu_timer_set(struct k_itimer *timer, int timer_flags,
 	old_expires = cpu_timer_getexpires(ctmr);
 
 	if (unlikely(timer->it.cpu.firing)) {
-		timer->it.cpu.firing = -1;
+		/*
+		 * Prevent signal delivery. The timer cannot be dequeued
+		 * because it is on the firing list which is not protected
+		 * by sighand->lock. The delivery path is waiting for
+		 * the timer lock. So go back, unlock and retry.
+		 */
+		timer->it.cpu.firing = false;
 		ret = TIMER_RETRY;
 	} else {
 		cpu_timer_dequeue(ctmr);
@@ -809,7 +823,7 @@ static u64 collect_timerqueue(struct timerqueue_head *head,
 		if (++i == MAX_COLLECTED || now < expires)
 			return expires;
 
-		ctmr->firing = 1;
+		ctmr->firing = true;
 		/* See posix_cpu_timer_wait_running() */
 		rcu_assign_pointer(ctmr->handling, current);
 		cpu_timer_dequeue(ctmr);
@@ -1364,7 +1378,7 @@ static void handle_posix_cpu_timers(struct task_struct *tsk)
 	 * timer call will interfere.
 	 */
 	list_for_each_entry_safe(timer, next, &firing, it.cpu.elist) {
-		int cpu_firing;
+		bool cpu_firing;
 
 		/*
 		 * spin_lock() is sufficient here even independent of the
@@ -1376,13 +1390,13 @@ static void handle_posix_cpu_timers(struct task_struct *tsk)
 		spin_lock(&timer->it_lock);
 		list_del_init(&timer->it.cpu.elist);
 		cpu_firing = timer->it.cpu.firing;
-		timer->it.cpu.firing = 0;
+		timer->it.cpu.firing = false;
 		/*
-		 * The firing flag is -1 if we collided with a reset
-		 * of the timer, which already reported this
-		 * almost-firing as an overrun.  So don't generate an event.
+		 * If the firing flag is cleared then this raced with a
+		 * timer rearm/delete operation. So don't generate an
+		 * event.
 		 */
-		if (likely(cpu_firing >= 0))
+		if (likely(cpu_firing))
 			cpu_timer_fire(timer);
 		/* See posix_cpu_timer_wait_running() */
 		rcu_assign_pointer(timer->it.cpu.handling, NULL);

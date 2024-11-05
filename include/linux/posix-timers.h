@@ -49,7 +49,7 @@ struct cpu_timer {
 	struct timerqueue_head		*head;
 	struct pid			*pid;
 	struct list_head		elist;
-	int				firing;
+	bool				firing;
 	struct task_struct __rcu	*handling;
 };
 
