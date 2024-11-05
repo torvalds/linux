@@ -160,6 +160,7 @@ static inline void posix_cputimers_init_work(void) { }
  * @it_clock:		The posix timer clock id
  * @it_id:		The posix timer id for identifying the timer
  * @it_status:		The status of the timer
+ * @it_sig_periodic:	The periodic status at signal delivery
  * @it_overrun:		The overrun counter for pending signals
  * @it_overrun_last:	The overrun at the time of the last delivered signal
  * @it_signal_seq:	Sequence count to control signal delivery
@@ -184,6 +185,7 @@ struct k_itimer {
 	clockid_t		it_clock;
 	timer_t			it_id;
 	int			it_status;
+	bool			it_sig_periodic;
 	s64			it_overrun;
 	s64			it_overrun_last;
 	unsigned int		it_signal_seq;

@@ -1072,12 +1072,17 @@ retry_delete:
 	spin_lock(&current->sighand->siglock);
 	hlist_del(&timer->list);
 	posix_timer_cleanup_ignored(timer);
-	spin_unlock(&current->sighand->siglock);
 	/*
 	 * A concurrent lookup could check timer::it_signal lockless. It
 	 * will reevaluate with timer::it_lock held and observe the NULL.
+	 *
+	 * It must be written with siglock held so that the signal code
+	 * observes timer->it_signal == NULL in do_sigaction(SIG_IGN),
+	 * which prevents it from moving a pending signal of a deleted
+	 * timer to the ignore list.
 	 */
 	WRITE_ONCE(timer->it_signal, NULL);
+	spin_unlock(&current->sighand->siglock);
 
 	unlock_timer(timer, flags);
 	posix_timer_unhash_and_free(timer);
