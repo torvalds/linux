@@ -36,5 +36,18 @@ out_free:
 }
 EXPORT_SYMBOL_NS_GPL(_iommufd_object_alloc, IOMMUFD);
 
+/* Caller should xa_lock(&viommu->vdevs) to protect the return value */
+struct device *iommufd_viommu_find_dev(struct iommufd_viommu *viommu,
+				       unsigned long vdev_id)
+{
+	struct iommufd_vdevice *vdev;
+
+	lockdep_assert_held(&viommu->vdevs.xa_lock);
+
+	vdev = xa_load(&viommu->vdevs, vdev_id);
+	return vdev ? vdev->dev : NULL;
+}
+EXPORT_SYMBOL_NS_GPL(iommufd_viommu_find_dev, IOMMUFD);
+
 MODULE_DESCRIPTION("iommufd code shared with builtin modules");
 MODULE_LICENSE("GPL");

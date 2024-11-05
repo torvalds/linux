@@ -185,12 +185,20 @@ static inline int iommufd_vfio_compat_set_no_iommu(struct iommufd_ctx *ictx)
 struct iommufd_object *_iommufd_object_alloc(struct iommufd_ctx *ictx,
 					     size_t size,
 					     enum iommufd_object_type type);
+struct device *iommufd_viommu_find_dev(struct iommufd_viommu *viommu,
+				       unsigned long vdev_id);
 #else /* !CONFIG_IOMMUFD_DRIVER_CORE */
 static inline struct iommufd_object *
 _iommufd_object_alloc(struct iommufd_ctx *ictx, size_t size,
 		      enum iommufd_object_type type)
 {
 	return ERR_PTR(-EOPNOTSUPP);
+}
+
+static inline struct device *
+iommufd_viommu_find_dev(struct iommufd_viommu *viommu, unsigned long vdev_id)
+{
+	return NULL;
 }
 #endif /* CONFIG_IOMMUFD_DRIVER_CORE */
 
