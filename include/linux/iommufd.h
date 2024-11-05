@@ -135,4 +135,17 @@ static inline int iommufd_vfio_compat_set_no_iommu(struct iommufd_ctx *ictx)
 	return -EOPNOTSUPP;
 }
 #endif /* CONFIG_IOMMUFD */
+
+#if IS_ENABLED(CONFIG_IOMMUFD_DRIVER_CORE)
+struct iommufd_object *_iommufd_object_alloc(struct iommufd_ctx *ictx,
+					     size_t size,
+					     enum iommufd_object_type type);
+#else /* !CONFIG_IOMMUFD_DRIVER_CORE */
+static inline struct iommufd_object *
+_iommufd_object_alloc(struct iommufd_ctx *ictx, size_t size,
+		      enum iommufd_object_type type)
+{
+	return ERR_PTR(-EOPNOTSUPP);
+}
+#endif /* CONFIG_IOMMUFD_DRIVER_CORE */
 #endif
