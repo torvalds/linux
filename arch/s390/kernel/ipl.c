@@ -1717,6 +1717,24 @@ static ssize_t dump_type_store(struct kobject *kobj,
 static struct kobj_attribute dump_type_attr =
 	__ATTR(dump_type, 0644, dump_type_show, dump_type_store);
 
+static ssize_t dump_area_size_show(struct kobject *kobj,
+				   struct kobj_attribute *attr, char *page)
+{
+	return sysfs_emit(page, "%lu\n", sclp.hsa_size);
+}
+
+static struct kobj_attribute dump_area_size_attr = __ATTR_RO(dump_area_size);
+
+static struct attribute *dump_attrs[] = {
+	&dump_type_attr.attr,
+	&dump_area_size_attr.attr,
+	NULL,
+};
+
+static struct attribute_group dump_attr_group = {
+	.attrs = dump_attrs,
+};
+
 static struct kset *dump_kset;
 
 static void diag308_dump(void *dump_block)
@@ -1853,7 +1871,7 @@ static int __init dump_init(void)
 	dump_kset = kset_create_and_add("dump", NULL, firmware_kobj);
 	if (!dump_kset)
 		return -ENOMEM;
-	rc = sysfs_create_file(&dump_kset->kobj, &dump_type_attr.attr);
+	rc = sysfs_create_group(&dump_kset->kobj, &dump_attr_group);
 	if (rc) {
 		kset_unregister(dump_kset);
 		return rc;
