@@ -227,8 +227,7 @@ void rtw_hal_update_ra_mask(struct sta_info *psta, u8 rssi_level)
 
 void rtw_hal_add_ra_tid(struct adapter *padapter, u32 bitmap, u8 *arg, u8 rssi_level)
 {
-	if (padapter->HalFunc.Add_RateATid)
-		padapter->HalFunc.Add_RateATid(padapter, bitmap, arg, rssi_level);
+	rtl8723b_Add_RateATid(padapter, bitmap, arg, rssi_level);
 }
 
 /*Start specifical interface thread		*/

@@ -1744,8 +1744,6 @@ void UpdateHalRAMask8723B(struct adapter *padapter, u32 mac_id, u8 rssi_level)
 
 void rtl8723b_set_hal_ops(struct hal_ops *pHalFunc)
 {
-	pHalFunc->Add_RateATid = &rtl8723b_Add_RateATid;
-
 	pHalFunc->run_thread = &rtl8723b_start_thread;
 	pHalFunc->cancel_thread = &rtl8723b_stop_thread;
 
