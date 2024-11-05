@@ -95,6 +95,13 @@ static void vcn_v4_0_3_unified_ring_set_wptr(struct amdgpu_ring *ring);
 static void vcn_v4_0_3_set_ras_funcs(struct amdgpu_device *adev);
 static void vcn_v4_0_3_enable_ras(struct amdgpu_device *adev,
 				  int inst_idx, bool indirect);
+
+static inline bool vcn_v4_0_3_normalizn_reqd(struct amdgpu_device *adev)
+{
+	return (amdgpu_sriov_vf(adev) ||
+		(amdgpu_ip_version(adev, GC_HWIP, 0) == IP_VERSION(9, 4, 4)));
+}
+
 /**
  * vcn_v4_0_3_early_init - set function pointers
  *
@@ -1428,8 +1435,8 @@ static uint64_t vcn_v4_0_3_unified_ring_get_wptr(struct amdgpu_ring *ring)
 static void vcn_v4_0_3_enc_ring_emit_reg_wait(struct amdgpu_ring *ring, uint32_t reg,
 				uint32_t val, uint32_t mask)
 {
-	/* For VF, only local offsets should be used */
-	if (amdgpu_sriov_vf(ring->adev))
+	/* Use normalized offsets when required */
+	if (vcn_v4_0_3_normalizn_reqd(ring->adev))
 		reg = NORMALIZE_VCN_REG_OFFSET(reg);
 
 	amdgpu_ring_write(ring, VCN_ENC_CMD_REG_WAIT);
@@ -1440,8 +1447,8 @@ static void vcn_v4_0_3_enc_ring_emit_reg_wait(struct amdgpu_ring *ring, uint32_t
 
 static void vcn_v4_0_3_enc_ring_emit_wreg(struct amdgpu_ring *ring, uint32_t reg, uint32_t val)
 {
-	/* For VF, only local offsets should be used */
-	if (amdgpu_sriov_vf(ring->adev))
+	/* Use normalized offsets when required */
+	if (vcn_v4_0_3_normalizn_reqd(ring->adev))
 		reg = NORMALIZE_VCN_REG_OFFSET(reg);
 
 	amdgpu_ring_write(ring, VCN_ENC_CMD_REG_WRITE);
