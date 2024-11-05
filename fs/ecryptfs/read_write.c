@@ -41,30 +41,29 @@ int ecryptfs_write_lower(struct inode *ecryptfs_inode, char *data,
 /**
  * ecryptfs_write_lower_page_segment
  * @ecryptfs_inode: The eCryptfs inode
- * @page_for_lower: The page containing the data to be written to the
+ * @folio_for_lower: The folio containing the data to be written to the
  *                  lower file
- * @offset_in_page: The offset in the @page_for_lower from which to
+ * @offset_in_page: The offset in the @folio_for_lower from which to
  *                  start writing the data
- * @size: The amount of data from @page_for_lower to write to the
+ * @size: The amount of data from @folio_for_lower to write to the
  *        lower file
  *
  * Determines the byte offset in the file for the given page and
  * offset within the page, maps the page, and makes the call to write
- * the contents of @page_for_lower to the lower inode.
+ * the contents of @folio_for_lower to the lower inode.
  *
  * Returns zero on success; non-zero otherwise
  */
 int ecryptfs_write_lower_page_segment(struct inode *ecryptfs_inode,
-				      struct page *page_for_lower,
+				      struct folio *folio_for_lower,
 				      size_t offset_in_page, size_t size)
 {
 	char *virt;
 	loff_t offset;
 	int rc;
 
-	offset = ((((loff_t)page_for_lower->index) << PAGE_SHIFT)
-		  + offset_in_page);
-	virt = kmap_local_page(page_for_lower);
+	offset = (loff_t)folio_for_lower->index * PAGE_SIZE + offset_in_page;
+	virt = kmap_local_folio(folio_for_lower, 0);
 	rc = ecryptfs_write_lower(ecryptfs_inode, virt, offset, size);
 	if (rc > 0)
 		rc = 0;
@@ -93,7 +92,6 @@ int ecryptfs_write_lower_page_segment(struct inode *ecryptfs_inode,
 int ecryptfs_write(struct inode *ecryptfs_inode, char *data, loff_t offset,
 		   size_t size)
 {
-	struct page *ecryptfs_page;
 	struct ecryptfs_crypt_stat *crypt_stat;
 	char *ecryptfs_page_virt;
 	loff_t ecryptfs_file_size = i_size_read(ecryptfs_inode);
@@ -111,6 +109,7 @@ int ecryptfs_write(struct inode *ecryptfs_inode, char *data, loff_t offset,
 	else
 		pos = offset;
 	while (pos < (offset + size)) {
+		struct folio *ecryptfs_folio;
 		pgoff_t ecryptfs_page_idx = (pos >> PAGE_SHIFT);
 		size_t start_offset_in_page = (pos & ~PAGE_MASK);
 		size_t num_bytes = (PAGE_SIZE - start_offset_in_page);
@@ -130,17 +129,18 @@ int ecryptfs_write(struct inode *ecryptfs_inode, char *data, loff_t offset,
 			if (num_bytes > total_remaining_zeros)
 				num_bytes = total_remaining_zeros;
 		}
-		ecryptfs_page = ecryptfs_get_locked_page(ecryptfs_inode,
-							 ecryptfs_page_idx);
-		if (IS_ERR(ecryptfs_page)) {
-			rc = PTR_ERR(ecryptfs_page);
+		ecryptfs_folio = read_mapping_folio(ecryptfs_inode->i_mapping,
+				ecryptfs_page_idx, NULL);
+		if (IS_ERR(ecryptfs_folio)) {
+			rc = PTR_ERR(ecryptfs_folio);
 			printk(KERN_ERR "%s: Error getting page at "
 			       "index [%ld] from eCryptfs inode "
 			       "mapping; rc = [%d]\n", __func__,
 			       ecryptfs_page_idx, rc);
 			goto out;
 		}
-		ecryptfs_page_virt = kmap_local_page(ecryptfs_page);
+		folio_lock(ecryptfs_folio);
+		ecryptfs_page_virt = kmap_local_folio(ecryptfs_folio, 0);
 
 		/*
 		 * pos: where we're now writing, offset: where the request was
@@ -164,17 +164,17 @@ int ecryptfs_write(struct inode *ecryptfs_inode, char *data, loff_t offset,
 			data_offset += num_bytes;
 		}
 		kunmap_local(ecryptfs_page_virt);
-		flush_dcache_page(ecryptfs_page);
-		SetPageUptodate(ecryptfs_page);
-		unlock_page(ecryptfs_page);
+		flush_dcache_folio(ecryptfs_folio);
+		folio_mark_uptodate(ecryptfs_folio);
+		folio_unlock(ecryptfs_folio);
 		if (crypt_stat->flags & ECRYPTFS_ENCRYPTED)
-			rc = ecryptfs_encrypt_page(ecryptfs_page);
+			rc = ecryptfs_encrypt_page(ecryptfs_folio);
 		else
 			rc = ecryptfs_write_lower_page_segment(ecryptfs_inode,
-						ecryptfs_page,
+						ecryptfs_folio,
 						start_offset_in_page,
 						data_offset);
-		put_page(ecryptfs_page);
+		folio_put(ecryptfs_folio);
 		if (rc) {
 			printk(KERN_ERR "%s: Error encrypting "
 			       "page; rc = [%d]\n", __func__, rc);
@@ -228,7 +228,7 @@ int ecryptfs_read_lower(char *data, loff_t offset, size_t size,
 
 /**
  * ecryptfs_read_lower_page_segment
- * @page_for_ecryptfs: The page into which data for eCryptfs will be
+ * @folio_for_ecryptfs: The folio into which data for eCryptfs will be
  *                     written
  * @page_index: Page index in @page_for_ecryptfs from which to start
  *		writing
@@ -243,7 +243,7 @@ int ecryptfs_read_lower(char *data, loff_t offset, size_t size,
  *
  * Returns zero on success; non-zero otherwise
  */
-int ecryptfs_read_lower_page_segment(struct page *page_for_ecryptfs,
+int ecryptfs_read_lower_page_segment(struct folio *folio_for_ecryptfs,
 				     pgoff_t page_index,
 				     size_t offset_in_page, size_t size,
 				     struct inode *ecryptfs_inode)
@@ -252,12 +252,12 @@ int ecryptfs_read_lower_page_segment(struct page *page_for_ecryptfs,
 	loff_t offset;
 	int rc;
 
-	offset = ((((loff_t)page_index) << PAGE_SHIFT) + offset_in_page);
-	virt = kmap_local_page(page_for_ecryptfs);
+	offset = (loff_t)page_index * PAGE_SIZE + offset_in_page;
+	virt = kmap_local_folio(folio_for_ecryptfs, 0);
 	rc = ecryptfs_read_lower(virt, offset, size, ecryptfs_inode);
 	if (rc > 0)
 		rc = 0;
 	kunmap_local(virt);
-	flush_dcache_page(page_for_ecryptfs);
+	flush_dcache_folio(folio_for_ecryptfs);
 	return rc;
 }
