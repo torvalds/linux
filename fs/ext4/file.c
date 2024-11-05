@@ -599,6 +599,13 @@ out:
 		ssize_t err;
 		loff_t endbyte;
 
+		/*
+		 * There is no support for atomic writes on buffered-io yet,
+		 * we should never fallback to buffered-io for DIO atomic
+		 * writes.
+		 */
+		WARN_ON_ONCE(iocb->ki_flags & IOCB_ATOMIC);
+
 		offset = iocb->ki_pos;
 		err = ext4_buffered_write_iter(iocb, from);
 		if (err < 0)
