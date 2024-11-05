@@ -424,6 +424,8 @@ struct amdgpu_gfx {
 	/* reset mask */
 	uint32_t                        grbm_soft_reset;
 	uint32_t                        srbm_soft_reset;
+	uint32_t 			gfx_supported_reset;
+	uint32_t 			compute_supported_reset;
 
 	/* gfx off */
 	bool                            gfx_off_state;      /* true: enabled, false: disabled */
