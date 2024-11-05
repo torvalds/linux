@@ -2982,7 +2982,10 @@ static inline unsigned char *skb_inner_mac_header(const struct sk_buff *skb)
 
 static inline void skb_reset_inner_mac_header(struct sk_buff *skb)
 {
-	skb->inner_mac_header = skb->data - skb->head;
+	long offset = skb->data - skb->head;
+
+	DEBUG_NET_WARN_ON_ONCE(offset != (typeof(skb->inner_mac_header))offset);
+	skb->inner_mac_header = offset;
 }
 
 static inline void skb_set_inner_mac_header(struct sk_buff *skb,
