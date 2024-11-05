@@ -77,7 +77,7 @@ struct adapter *padapter,
 u8 bWrite,
 u8 PwrState)
 {
-	padapter->HalFunc.EfusePowerSwitch(padapter, bWrite, PwrState);
+	Hal_EfusePowerSwitch(padapter, bWrite, PwrState);
 }
 
 /*-----------------------------------------------------------------------------
