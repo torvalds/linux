@@ -2021,6 +2021,15 @@ int xe_guc_exec_queue_memory_cat_error_handler(struct xe_guc *guc, u32 *msg,
 
 	guc_id = msg[0];
 
+	if (guc_id == GUC_ID_UNKNOWN) {
+		/*
+		 * GuC uses GUC_ID_UNKNOWN if it can not map the CAT fault to any PF/VF
+		 * context. In such case only PF will be notified about that fault.
+		 */
+		xe_gt_err_ratelimited(gt, "Memory CAT error reported by GuC!\n");
+		return 0;
+	}
+
 	q = g2h_exec_queue_lookup(guc, guc_id);
 	if (unlikely(!q))
 		return -EPROTO;
