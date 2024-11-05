@@ -254,7 +254,7 @@ static void common_hrtimer_rearm(struct k_itimer *timr)
  * This function is called from the signal delivery code. It decides
  * whether the signal should be dropped and rearms interval timers.
  */
-bool posixtimer_deliver_signal(struct kernel_siginfo *info)
+bool posixtimer_deliver_signal(struct kernel_siginfo *info, struct sigqueue *timer_sigq)
 {
 	struct k_itimer *timr;
 	unsigned long flags;
