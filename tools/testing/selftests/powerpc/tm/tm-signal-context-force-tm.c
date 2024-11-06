@@ -176,5 +176,5 @@ int tm_signal_context_force_tm(void)
 
 int main(int argc, char **argv)
 {
-	test_harness(tm_signal_context_force_tm, "tm_signal_context_force_tm");
+	return test_harness(tm_signal_context_force_tm, "tm_signal_context_force_tm");
 }
