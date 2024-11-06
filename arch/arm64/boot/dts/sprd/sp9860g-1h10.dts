@@ -84,6 +84,11 @@
 	};
 };
 
+&pmic_fgu {
+	monitored-battery = <&bat>;
+	status = "okay";
+};
+
 &uart0 {
 	status = "okay";
 };
