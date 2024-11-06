@@ -1151,78 +1151,6 @@ static u8 Hal_EfuseWordEnableDataWrite(
 	return badworden;
 }
 
-static s32 Hal_EfusePgPacketRead(
-	struct adapter *padapter,
-	u8 offset,
-	u8 *data,
-	bool bPseudoTest
-)
-{
-	u8 efuse_data, word_cnts = 0;
-	u16 efuse_addr = 0;
-	u8 hoffset = 0, hworden = 0;
-	u8 i;
-	u8 max_section = 0;
-	s32	ret;
-
-
-	if (!data)
-		return false;
-
-	EFUSE_GetEfuseDefinition(padapter, EFUSE_WIFI, TYPE_EFUSE_MAX_SECTION, &max_section, bPseudoTest);
-	if (offset > max_section)
-		return false;
-
-	memset(data, 0xFF, PGPKT_DATA_SIZE);
-	ret = true;
-
-	/*  */
-	/*  <Roger_TODO> Efuse has been pre-programmed dummy 5Bytes at the end of Efuse by CP. */
-	/*  Skip dummy parts to prevent unexpected data read from Efuse. */
-	/*  By pass right now. 2009.02.19. */
-	/*  */
-	while (AVAILABLE_EFUSE_ADDR(efuse_addr)) {
-		if (efuse_OneByteRead(padapter, efuse_addr++, &efuse_data, bPseudoTest) == false) {
-			ret = false;
-			break;
-		}
-
-		if (efuse_data == 0xFF)
-			break;
-
-		if (EXT_HEADER(efuse_data)) {
-			hoffset = GET_HDR_OFFSET_2_0(efuse_data);
-			efuse_OneByteRead(padapter, efuse_addr++, &efuse_data, bPseudoTest);
-			if (ALL_WORDS_DISABLED(efuse_data))
-				continue;
-
-			hoffset |= ((efuse_data & 0xF0) >> 1);
-			hworden = efuse_data & 0x0F;
-		} else {
-			hoffset = (efuse_data>>4) & 0x0F;
-			hworden =  efuse_data & 0x0F;
-		}
-
-		if (hoffset == offset) {
-			for (i = 0; i < EFUSE_MAX_WORD_UNIT; i++) {
-				/*  Check word enable condition in the section */
-				if (!(hworden & (0x01<<i))) {
-					efuse_OneByteRead(padapter, efuse_addr++, &efuse_data, bPseudoTest);
-					data[i*2] = efuse_data;
-
-					efuse_OneByteRead(padapter, efuse_addr++, &efuse_data, bPseudoTest);
-					data[(i*2)+1] = efuse_data;
-				}
-			}
-		} else {
-			word_cnts = Efuse_CalculateWordCnts(hworden);
-			efuse_addr += word_cnts*2;
-		}
-	}
-
-	return ret;
-}
-
 static u8 hal_EfusePgCheckAvailableAddr(
 	struct adapter *padapter, u8 efuseType, u8 bPseudoTest
 )
@@ -1745,7 +1673,6 @@ void UpdateHalRAMask8723B(struct adapter *padapter, u32 mac_id, u8 rssi_level)
 void rtl8723b_set_hal_ops(struct hal_ops *pHalFunc)
 {
 	/*  Efuse related function */
-	pHalFunc->Efuse_PgPacketRead = &Hal_EfusePgPacketRead;
 	pHalFunc->Efuse_PgPacketWrite = &Hal_EfusePgPacketWrite;
 	pHalFunc->Efuse_WordEnableDataWrite = &Hal_EfuseWordEnableDataWrite;
 	pHalFunc->Efuse_PgPacketWrite_BT = &Hal_EfusePgPacketWrite_BT;
