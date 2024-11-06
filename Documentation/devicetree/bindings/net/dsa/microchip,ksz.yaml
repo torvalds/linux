@@ -81,6 +81,17 @@ properties:
   interrupts:
     maxItems: 1
 
+  mdio:
+    $ref: /schemas/net/mdio.yaml#
+    unevaluatedProperties: false
+    patternProperties:
+      "^ethernet-phy@[0-9a-f]$":
+        type: object
+        $ref: /schemas/net/ethernet-phy.yaml#
+        unevaluatedProperties: false
+        description:
+          Integrated PHY node
+
 required:
   - compatible
   - reg
