@@ -2666,6 +2666,8 @@ static int macsec_update_offload(struct net_device *dev, enum macsec_offload off
 	macsec_set_head_tail_room(dev);
 	macsec->insert_tx_tag = macsec_needs_tx_tag(macsec, ops);
 
+	netdev_update_features(dev);
+
 	return ret;
 }
 
@@ -3521,6 +3523,10 @@ static netdev_tx_t macsec_start_xmit(struct sk_buff *skb,
 #define MACSEC_FEATURES \
 	(NETIF_F_SG | NETIF_F_HIGHDMA | NETIF_F_FRAGLIST)
 
+#define MACSEC_OFFLOAD_FEATURES \
+	(MACSEC_FEATURES | NETIF_F_GSO_SOFTWARE | NETIF_F_SOFT_FEATURES | \
+	 NETIF_F_LRO | NETIF_F_RXHASH | NETIF_F_CSUM_MASK | NETIF_F_RXCSUM)
+
 static int macsec_dev_init(struct net_device *dev)
 {
 	struct macsec_dev *macsec = macsec_priv(dev);
@@ -3531,7 +3537,10 @@ static int macsec_dev_init(struct net_device *dev)
 	if (err)
 		return err;
 
-	dev->features = real_dev->features & MACSEC_FEATURES;
+	dev->hw_features = real_dev->hw_features & MACSEC_OFFLOAD_FEATURES;
+	dev->hw_features |= NETIF_F_GSO_SOFTWARE;
+
+	dev->features = real_dev->features & MACSEC_OFFLOAD_FEATURES;
 	dev->features |= NETIF_F_GSO_SOFTWARE;
 	dev->lltx = true;
 	dev->pcpu_stat_type = NETDEV_PCPU_STAT_TSTATS;
@@ -3561,8 +3570,12 @@ static netdev_features_t macsec_fix_features(struct net_device *dev,
 {
 	struct macsec_dev *macsec = macsec_priv(dev);
 	struct net_device *real_dev = macsec->real_dev;
+	netdev_features_t mask;
 
-	features &= (real_dev->features & MACSEC_FEATURES) |
+	mask = macsec_is_offloaded(macsec) ? MACSEC_OFFLOAD_FEATURES
+					   : MACSEC_FEATURES;
+
+	features &= (real_dev->features & mask) |
 		    NETIF_F_GSO_SOFTWARE | NETIF_F_SOFT_FEATURES;
 
 	return features;
