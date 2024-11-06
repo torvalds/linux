@@ -67,9 +67,8 @@ static u16 pixels_from_txbyteclkhs(u16 clk_hs, int bpp, int lane_count,
 						(bpp * burst_mode_ratio));
 }
 
-enum mipi_dsi_pixel_format pixel_format_from_register_bits(u32 fmt)
+static enum mipi_dsi_pixel_format pixel_format_from_register_bits(u32 fmt)
 {
-	/* It just so happens the VBT matches register contents. */
 	switch (fmt) {
 	case VID_MODE_FORMAT_RGB888:
 		return MIPI_DSI_FMT_RGB888;
