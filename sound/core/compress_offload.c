@@ -418,7 +418,7 @@ static __poll_t snd_compr_poll(struct file *f, poll_table *wait)
 
 	guard(mutex)(&stream->device->lock);
 
-	switch (stream->runtime->state) {
+	switch (runtime->state) {
 	case SNDRV_PCM_STATE_OPEN:
 	case SNDRV_PCM_STATE_XRUN:
 		return snd_compr_get_poll(stream) | EPOLLERR;
@@ -426,7 +426,7 @@ static __poll_t snd_compr_poll(struct file *f, poll_table *wait)
 		break;
 	}
 
-	poll_wait(f, &stream->runtime->sleep, wait);
+	poll_wait(f, &runtime->sleep, wait);
 
 #if IS_ENABLED(CONFIG_SND_COMPRESS_ACCEL)
 	if (stream->direction == SND_COMPRESS_ACCEL) {
@@ -445,18 +445,18 @@ static __poll_t snd_compr_poll(struct file *f, poll_table *wait)
 	avail = snd_compr_get_avail(stream);
 	pr_debug("avail is %ld\n", (unsigned long)avail);
 	/* check if we have at least one fragment to fill */
-	switch (stream->runtime->state) {
+	switch (runtime->state) {
 	case SNDRV_PCM_STATE_DRAINING:
 		/* stream has been woken up after drain is complete
 		 * draining done so set stream state to stopped
 		 */
 		retval = snd_compr_get_poll(stream);
-		stream->runtime->state = SNDRV_PCM_STATE_SETUP;
+		runtime->state = SNDRV_PCM_STATE_SETUP;
 		break;
 	case SNDRV_PCM_STATE_RUNNING:
 	case SNDRV_PCM_STATE_PREPARED:
 	case SNDRV_PCM_STATE_PAUSED:
-		if (avail >= stream->runtime->fragment_size)
+		if (avail >= runtime->fragment_size)
 			retval = snd_compr_get_poll(stream);
 		break;
 	default:
