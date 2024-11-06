@@ -233,6 +233,7 @@ static int route_doit(struct sk_buff *skb, struct nlmsghdr *nlh,
 {
 	struct net *net = sock_net(skb->sk);
 	struct nlattr *tb[RTA_MAX+1];
+	bool sync_needed = false;
 	struct net_device *dev;
 	struct rtmsg *rtm;
 	u32 ifindex;
@@ -269,13 +270,20 @@ static int route_doit(struct sk_buff *skb, struct nlmsghdr *nlh,
 		return -ENODEV;
 	}
 
-	if (nlh->nlmsg_type == RTM_NEWROUTE)
+	if (nlh->nlmsg_type == RTM_NEWROUTE) {
 		err = phonet_route_add(dev, dst);
-	else
+	} else {
 		err = phonet_route_del(dev, dst);
+		if (!err)
+			sync_needed = true;
+	}
 
 	rcu_read_unlock();
 
+	if (sync_needed) {
+		synchronize_rcu();
+		dev_put(dev);
+	}
 	if (!err)
 		rtm_phonet_notify(net, nlh->nlmsg_type, ifindex, dst);
 
