@@ -127,8 +127,8 @@ static inline void arch_spin_lock_queued(arch_spinlock_t *lp)
 	node_id = node->node_id;
 
 	/* Enqueue the node for this CPU in the spinlock wait queue */
+	old = READ_ONCE(lp->lock);
 	while (1) {
-		old = READ_ONCE(lp->lock);
 		if ((old & _Q_LOCK_CPU_MASK) == 0 &&
 		    (old & _Q_LOCK_STEAL_MASK) != _Q_LOCK_STEAL_MASK) {
 			/*
@@ -139,7 +139,7 @@ static inline void arch_spin_lock_queued(arch_spinlock_t *lp)
 			 * waiter will get the lock.
 			 */
 			new = (old ? (old + _Q_LOCK_STEAL_ADD) : 0) | lockval;
-			if (__atomic_cmpxchg_bool(&lp->lock, old, new))
+			if (arch_try_cmpxchg(&lp->lock, &old, new))
 				/* Got the lock */
 				goto out;
 			/* lock passing in progress */
@@ -147,7 +147,7 @@ static inline void arch_spin_lock_queued(arch_spinlock_t *lp)
 		}
 		/* Make the node of this CPU the new tail. */
 		new = node_id | (old & _Q_LOCK_MASK);
-		if (__atomic_cmpxchg_bool(&lp->lock, old, new))
+		if (arch_try_cmpxchg(&lp->lock, &old, new))
 			break;
 	}
 	/* Set the 'next' pointer of the tail node in the queue */
@@ -184,7 +184,7 @@ static inline void arch_spin_lock_queued(arch_spinlock_t *lp)
 		if (!owner) {
 			tail_id = old & _Q_TAIL_MASK;
 			new = ((tail_id != node_id) ? tail_id : 0) | lockval;
-			if (__atomic_cmpxchg_bool(&lp->lock, old, new))
+			if (arch_try_cmpxchg(&lp->lock, &old, new))
 				/* Got the lock */
 				break;
 			continue;
@@ -258,7 +258,7 @@ int arch_spin_trylock_retry(arch_spinlock_t *lp)
 		owner = READ_ONCE(lp->lock);
 		/* Try to get the lock if it is free. */
 		if (!owner) {
-			if (__atomic_cmpxchg_bool(&lp->lock, 0, cpu))
+			if (arch_try_cmpxchg(&lp->lock, &owner, cpu))
 				return 1;
 		}
 	}
@@ -300,7 +300,7 @@ void arch_write_lock_wait(arch_rwlock_t *rw)
 	while (1) {
 		old = READ_ONCE(rw->cnts);
 		if ((old & 0x1ffff) == 0 &&
-		    __atomic_cmpxchg_bool(&rw->cnts, old, old | 0x10000))
+		    arch_try_cmpxchg(&rw->cnts, &old, old | 0x10000))
 			/* Got the lock */
 			break;
 		barrier();
