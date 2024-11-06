@@ -39,6 +39,8 @@
 #ifndef __BNXT_QPLIB_RES_H__
 #define __BNXT_QPLIB_RES_H__
 
+#include "bnxt_ulp.h"
+
 extern const struct bnxt_qplib_gid bnxt_qplib_gid_zero;
 
 #define CHIP_NUM_57508		0x1750
@@ -302,6 +304,7 @@ struct bnxt_qplib_res {
 	struct bnxt_qplib_chip_ctx	*cctx;
 	struct bnxt_qplib_dev_attr      *dattr;
 	struct net_device		*netdev;
+	struct bnxt_en_dev		*en_dev;
 	struct bnxt_qplib_rcfw		*rcfw;
 	struct bnxt_qplib_pd_tbl	pd_tbl;
 	/* To protect the pd table bit map */

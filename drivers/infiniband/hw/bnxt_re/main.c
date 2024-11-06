@@ -184,6 +184,7 @@ static int bnxt_re_setup_chip_ctx(struct bnxt_re_dev *rdev)
 	rdev->rcfw.res = &rdev->qplib_res;
 	rdev->qplib_res.dattr = &rdev->dev_attr;
 	rdev->qplib_res.is_vf = BNXT_EN_VF(en_dev);
+	rdev->qplib_res.en_dev = en_dev;
 
 	bnxt_re_set_drv_mode(rdev);
 
@@ -285,6 +286,10 @@ static void bnxt_re_set_resource_limits(struct bnxt_re_dev *rdev)
 
 static void bnxt_re_vf_res_config(struct bnxt_re_dev *rdev)
 {
+	/*
+	 * Use the total VF count since the actual VF count may not be
+	 * available at this point.
+	 */
 	rdev->num_vfs = pci_sriov_get_totalvfs(rdev->en_dev->pdev);
 	if (!bnxt_qplib_is_chip_gen_p5_p7(rdev->chip_ctx)) {
 		bnxt_re_set_resource_limits(rdev);
@@ -2056,11 +2061,9 @@ static int bnxt_re_dev_init(struct bnxt_re_dev *rdev, u8 op_type)
 		INIT_DELAYED_WORK(&rdev->worker, bnxt_re_worker);
 		set_bit(BNXT_RE_FLAG_QOS_WORK_REG, &rdev->flags);
 		schedule_delayed_work(&rdev->worker, msecs_to_jiffies(30000));
-		/*
-		 * Use the total VF count since the actual VF count may not be
-		 * available at this point.
-		 */
-		bnxt_re_vf_res_config(rdev);
+
+		if (!(rdev->qplib_res.en_dev->flags & BNXT_EN_FLAG_ROCE_VF_RES_MGMT))
+			bnxt_re_vf_res_config(rdev);
 	}
 	hash_init(rdev->cq_hash);
 	if (rdev->chip_ctx->modes.toggle_bits & BNXT_QPLIB_SRQ_TOGGLE_BIT)
