@@ -1468,6 +1468,12 @@ static int msecs_to_pps_units(int msecs)
 	return msecs * 10;
 }
 
+static int pps_units_to_msecs(int val)
+{
+	/* PPS uses 100us units */
+	return DIV_ROUND_UP(val, 10);
+}
+
 static void pps_init_delays_bios(struct intel_dp *intel_dp,
 				 struct intel_pps_delays *bios)
 {
@@ -1554,7 +1560,7 @@ static void pps_init_delays(struct intel_dp *intel_dp)
 	assign_final(power_cycle);
 #undef assign_final
 
-#define get_delay(field)	(DIV_ROUND_UP(final->field, 10))
+#define get_delay(field)	pps_units_to_msecs(final->field)
 	intel_dp->pps.panel_power_up_delay = get_delay(power_up);
 	intel_dp->pps.backlight_on_delay = get_delay(backlight_on);
 	intel_dp->pps.backlight_off_delay = get_delay(backlight_off);
