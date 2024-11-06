@@ -314,6 +314,32 @@ DEFINE_EVENT(xhci_log_urb, xhci_urb_dequeue,
 	TP_ARGS(urb)
 );
 
+DECLARE_EVENT_CLASS(xhci_log_stream_ctx,
+	TP_PROTO(struct xhci_stream_info *info, unsigned int stream_id),
+	TP_ARGS(info, stream_id),
+	TP_STRUCT__entry(
+		__field(unsigned int, stream_id)
+		__field(u64, stream_ring)
+		__field(dma_addr_t, ctx_array_dma)
+
+	),
+	TP_fast_assign(
+		__entry->stream_id = stream_id;
+		__entry->stream_ring = le64_to_cpu(info->stream_ctx_array[stream_id].stream_ring);
+		__entry->ctx_array_dma = info->ctx_array_dma + stream_id * 16;
+
+	),
+	TP_printk("stream %u ctx @%pad: SCT %llu deq %llx", __entry->stream_id,
+		&__entry->ctx_array_dma, CTX_TO_SCT(__entry->stream_ring),
+		__entry->stream_ring
+	)
+);
+
+DEFINE_EVENT(xhci_log_stream_ctx, xhci_alloc_stream_info_ctx,
+	TP_PROTO(struct xhci_stream_info *info, unsigned int stream_id),
+	TP_ARGS(info, stream_id)
+);
+
 DECLARE_EVENT_CLASS(xhci_log_ep_ctx,
 	TP_PROTO(struct xhci_ep_ctx *ctx),
 	TP_ARGS(ctx),
