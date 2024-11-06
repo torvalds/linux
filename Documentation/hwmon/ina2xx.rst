@@ -63,6 +63,17 @@ Supported chips:
 
 	       https://www.ti.com/
 
+  * Silergy SY24655
+
+    Prefix: 'sy24655'
+
+    Addresses: I2C 0x40 - 0x4f
+
+    Datasheet: Publicly available at the Silergy website
+
+	       https://us1.silergy.com/
+
+
 Author: Lothar Felten <lothar.felten@gmail.com>
 
 Description
@@ -84,6 +95,11 @@ bus supply voltage.
 
 INA260 is a high or low side current and power monitor with integrated shunt
 resistor.
+
+The SY24655 is a high- and low-side current shunt and power monitor with an I2C
+interface. The SY24655 supports both shunt drop and supply voltage, with
+programmable calibration value and conversion times. The SY24655 can also
+calculate average power for use in energy conversion.
 
 The shunt value in micro-ohms can be set via platform data or device tree at
 compile-time or via the shunt_resistor attribute in sysfs at run-time. Please
@@ -108,8 +124,8 @@ power1_input		Power(uW) measurement channel
 shunt_resistor		Shunt resistance(uOhm) channel (not for ina260)
 ======================= ===============================================
 
-Additional sysfs entries for ina226, ina230, ina231, and ina260
----------------------------------------------------------------
+Additional sysfs entries for ina226, ina230, ina231, ina260, and sy24655
+------------------------------------------------------------------------
 
 ======================= ====================================================
 curr1_lcrit		Critical low current
@@ -128,6 +144,13 @@ power1_crit		Critical high power
 power1_crit_alarm	Power critical high alarm
 update_interval		data conversion time; affects number of samples used
 			to average results for shunt and bus voltages.
+======================= ====================================================
+
+Sysfs entries for sy24655 only
+------------------------------
+
+======================= ====================================================
+power1_average		average power from last reading to the present.
 ======================= ====================================================
 
 .. note::
