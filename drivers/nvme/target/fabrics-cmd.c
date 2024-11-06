@@ -245,11 +245,9 @@ static void nvmet_execute_admin_connect(struct nvmet_req *req)
 	d->subsysnqn[NVMF_NQN_FIELD_LEN - 1] = '\0';
 	d->hostnqn[NVMF_NQN_FIELD_LEN - 1] = '\0';
 	status = nvmet_alloc_ctrl(d->subsysnqn, d->hostnqn, req,
-				  le32_to_cpu(c->kato), &ctrl);
+				  le32_to_cpu(c->kato), &ctrl, &d->hostid);
 	if (status)
 		goto out;
-
-	uuid_copy(&ctrl->hostid, &d->hostid);
 
 	dhchap_status = nvmet_setup_auth(ctrl);
 	if (dhchap_status) {

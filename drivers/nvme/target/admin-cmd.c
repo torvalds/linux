@@ -176,6 +176,10 @@ static void nvmet_get_cmd_effects_nvm(struct nvme_effects_log *log)
 	log->iocs[nvme_cmd_read] =
 	log->iocs[nvme_cmd_flush] =
 	log->iocs[nvme_cmd_dsm]	=
+	log->iocs[nvme_cmd_resv_acquire] =
+	log->iocs[nvme_cmd_resv_register] =
+	log->iocs[nvme_cmd_resv_release] =
+	log->iocs[nvme_cmd_resv_report] =
 		cpu_to_le32(NVME_CMD_EFFECTS_CSUPP);
 	log->iocs[nvme_cmd_write] =
 	log->iocs[nvme_cmd_write_zeroes] =
@@ -340,6 +344,8 @@ static void nvmet_execute_get_log_page(struct nvmet_req *req)
 		return nvmet_execute_get_log_cmd_effects_ns(req);
 	case NVME_LOG_ANA:
 		return nvmet_execute_get_log_page_ana(req);
+	case NVME_LOG_RESERVATION:
+		return nvmet_execute_get_log_page_resv(req);
 	}
 	pr_debug("unhandled lid %d on qid %d\n",
 	       req->cmd->get_log_page.lid, req->sq->qid);
@@ -433,7 +439,8 @@ static void nvmet_execute_identify_ctrl(struct nvmet_req *req)
 	id->nn = cpu_to_le32(NVMET_MAX_NAMESPACES);
 	id->mnan = cpu_to_le32(NVMET_MAX_NAMESPACES);
 	id->oncs = cpu_to_le16(NVME_CTRL_ONCS_DSM |
-			NVME_CTRL_ONCS_WRITE_ZEROES);
+			NVME_CTRL_ONCS_WRITE_ZEROES |
+			NVME_CTRL_ONCS_RESERVATIONS);
 
 	/* XXX: don't report vwc if the underlying device is write through */
 	id->vwc = NVME_CTRL_VWC_PRESENT;
@@ -550,6 +557,15 @@ static void nvmet_execute_identify_ns(struct nvmet_req *req)
 	 */
 	id->nmic = NVME_NS_NMIC_SHARED;
 	id->anagrpid = cpu_to_le32(req->ns->anagrpid);
+
+	if (req->ns->pr.enable)
+		id->rescap = NVME_PR_SUPPORT_WRITE_EXCLUSIVE |
+			NVME_PR_SUPPORT_EXCLUSIVE_ACCESS |
+			NVME_PR_SUPPORT_WRITE_EXCLUSIVE_REG_ONLY |
+			NVME_PR_SUPPORT_EXCLUSIVE_ACCESS_REG_ONLY |
+			NVME_PR_SUPPORT_WRITE_EXCLUSIVE_ALL_REGS |
+			NVME_PR_SUPPORT_EXCLUSIVE_ACCESS_ALL_REGS |
+			NVME_PR_SUPPORT_IEKEY_VER_1_3_DEF;
 
 	memcpy(&id->nguid, &req->ns->nguid, sizeof(id->nguid));
 
@@ -861,6 +877,9 @@ void nvmet_execute_set_features(struct nvmet_req *req)
 	case NVME_FEAT_WRITE_PROTECT:
 		status = nvmet_set_feat_write_protect(req);
 		break;
+	case NVME_FEAT_RESV_MASK:
+		status = nvmet_set_feat_resv_notif_mask(req, cdw11);
+		break;
 	default:
 		req->error_loc = offsetof(struct nvme_common_command, cdw10);
 		status = NVME_SC_INVALID_FIELD | NVME_STATUS_DNR;
@@ -958,6 +977,9 @@ void nvmet_execute_get_features(struct nvmet_req *req)
 		break;
 	case NVME_FEAT_WRITE_PROTECT:
 		status = nvmet_get_feat_write_protect(req);
+		break;
+	case NVME_FEAT_RESV_MASK:
+		status = nvmet_get_feat_resv_notif_mask(req);
 		break;
 	default:
 		req->error_loc =
