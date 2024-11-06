@@ -712,12 +712,20 @@ static const struct eqc_early_match_data eqc_eyeq6h_central_early_match_data __i
 
 /* Required early for UART. */
 static const struct eqc_pll eqc_eyeq6h_west_early_plls[] = {
-	{ .index = 0, .name = "pll-west", .reg64 = 0x074 },
+	{ .index = EQ6HC_WEST_PLL_PER, .name = "pll-west", .reg64 = 0x074 },
+};
+
+static const struct eqc_fixed_factor eqc_eyeq6h_west_early_fixed_factors[] = {
+	{ EQ6HC_WEST_PER_OCC,  "west-per-occ",  1, 10, EQ6HC_WEST_PLL_PER },
+	{ EQ6HC_WEST_PER_UART, "west-per-uart", 1, 1,  EQ6HC_WEST_PER_OCC },
 };
 
 static const struct eqc_early_match_data eqc_eyeq6h_west_early_match_data __initconst = {
 	.early_pll_count	= ARRAY_SIZE(eqc_eyeq6h_west_early_plls),
 	.early_plls		= eqc_eyeq6h_west_early_plls,
+
+	.early_fixed_factor_count = ARRAY_SIZE(eqc_eyeq6h_west_early_fixed_factors),
+	.early_fixed_factors = eqc_eyeq6h_west_early_fixed_factors,
 };
 
 static void __init eqc_early_init(struct device_node *np,
