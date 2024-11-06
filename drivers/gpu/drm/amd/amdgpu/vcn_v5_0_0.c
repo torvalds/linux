@@ -1233,7 +1233,7 @@ static int vcn_v5_0_0_wait_for_idle(struct amdgpu_ip_block *ip_block)
 /**
  * vcn_v5_0_0_set_clockgating_state - set VCN block clockgating state
  *
- * @handle: amdgpu_device pointer
+ * @ip_block: amdgpu_ip_block pointer
  * @state: clock gating state
  *
  * Set VCN block clockgating state
@@ -1264,7 +1264,7 @@ static int vcn_v5_0_0_set_clockgating_state(struct amdgpu_ip_block *ip_block,
 /**
  * vcn_v5_0_0_set_powergating_state - set VCN block powergating state
  *
- * @handle: amdgpu_device pointer
+ * @ip_block: amdgpu_ip_block pointer
  * @state: power gating state
  *
  * Set VCN block powergating state
