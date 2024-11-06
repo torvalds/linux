@@ -517,7 +517,7 @@ static void generic_metric(struct perf_stat_config *config,
 	if (!metric_events[i]) {
 		if (expr__parse(&ratio, pctx, metric_expr) == 0) {
 			char *unit;
-			char metric_bf[64];
+			char metric_bf[128];
 
 			if (metric_threshold &&
 			    expr__parse(&threshold, pctx, metric_threshold) == 0 &&
