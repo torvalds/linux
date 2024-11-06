@@ -118,13 +118,13 @@ static int mt8365_dai_configure_dmic(struct mtk_base_afe *afe,
 	unsigned int clk_phase_sel_ch1 = dmic_data->clk_phase_sel_ch1;
 	unsigned int clk_phase_sel_ch2 = dmic_data->clk_phase_sel_ch2;
 	unsigned int val = 0;
-	unsigned int rate = dai->rate;
-	int reg = get_chan_reg(dai->channels);
+	unsigned int rate = dai->symmetric_rate;
+	int reg = get_chan_reg(dai->symmetric_channels);
 
 	if (reg < 0)
 		return -EINVAL;
 
-	dmic_data->dmic_channel = dai->channels;
+	dmic_data->dmic_channel = dai->symmetric_channels;
 
 	val |= DMIC_TOP_CON_SDM3_LEVEL_MODE;
 

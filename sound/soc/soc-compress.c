@@ -69,10 +69,10 @@ static int soc_compr_clean(struct snd_compr_stream *cstream, int rollback)
 	snd_soc_dai_digital_mute(codec_dai, 1, stream);
 
 	if (!snd_soc_dai_active(cpu_dai))
-		cpu_dai->rate = 0;
+		cpu_dai->symmetric_rate = 0;
 
 	if (!snd_soc_dai_active(codec_dai))
-		codec_dai->rate = 0;
+		codec_dai->symmetric_rate = 0;
 
 	snd_soc_link_compr_shutdown(cstream, rollback);
 

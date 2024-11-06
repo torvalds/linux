@@ -447,13 +447,13 @@ static void soc_pcm_set_dai_params(struct snd_soc_dai *dai,
 				   struct snd_pcm_hw_params *params)
 {
 	if (params) {
-		dai->rate	 = params_rate(params);
-		dai->channels	 = params_channels(params);
-		dai->sample_bits = snd_pcm_format_physical_width(params_format(params));
+		dai->symmetric_rate	   = params_rate(params);
+		dai->symmetric_channels	   = params_channels(params);
+		dai->symmetric_sample_bits = snd_pcm_format_physical_width(params_format(params));
 	} else {
-		dai->rate	 = 0;
-		dai->channels	 = 0;
-		dai->sample_bits = 0;
+		dai->symmetric_rate	   = 0;
+		dai->symmetric_channels	   = 0;
+		dai->symmetric_sample_bits = 0;
 	}
 }
 
@@ -467,14 +467,14 @@ static int soc_pcm_apply_symmetry(struct snd_pcm_substream *substream,
 		return 0;
 
 #define __soc_pcm_apply_symmetry(name, NAME)				\
-	if (soc_dai->name && (soc_dai->driver->symmetric_##name ||	\
-			      rtd->dai_link->symmetric_##name)) {	\
+	if (soc_dai->symmetric_##name &&				\
+	    (soc_dai->driver->symmetric_##name || rtd->dai_link->symmetric_##name)) { \
 		dev_dbg(soc_dai->dev, "ASoC: Symmetry forces %s to %d\n",\
-			#name, soc_dai->name);				\
+			#name, soc_dai->symmetric_##name);		\
 									\
 		ret = snd_pcm_hw_constraint_single(substream->runtime,	\
 						   SNDRV_PCM_HW_PARAM_##NAME,\
-						   soc_dai->name);	\
+						   soc_dai->symmetric_##name);	\
 		if (ret < 0) {						\
 			dev_err(soc_dai->dev,				\
 				"ASoC: Unable to apply %s constraint: %d\n",\
@@ -510,9 +510,11 @@ static int soc_pcm_params_symmetry(struct snd_pcm_substream *substream,
 	if (symmetry)							\
 		for_each_rtd_cpu_dais(rtd, i, cpu_dai)			\
 			if (!snd_soc_dai_is_dummy(cpu_dai) &&		\
-			    cpu_dai->xxx && cpu_dai->xxx != d.xxx) {	\
+			    cpu_dai->symmetric_##xxx &&			\
+			    cpu_dai->symmetric_##xxx != d.symmetric_##xxx) { \
 				dev_err(rtd->dev, "ASoC: unmatched %s symmetry: %s:%d - %s:%d\n", \
-					#xxx, cpu_dai->name, cpu_dai->xxx, d.name, d.xxx); \
+					#xxx, cpu_dai->name, cpu_dai->symmetric_##xxx, \
+					d.name, d.symmetric_##xxx);	\
 				return -EINVAL;				\
 			}
 
@@ -783,8 +785,7 @@ static int soc_pcm_clean(struct snd_soc_pcm_runtime *rtd,
 
 		/* Make sure DAI parameters cleared if the DAI becomes inactive */
 		for_each_rtd_dais(rtd, i, dai) {
-			if (snd_soc_dai_active(dai) == 0 &&
-			    (dai->rate || dai->channels || dai->sample_bits))
+			if (snd_soc_dai_active(dai) == 0)
 				soc_pcm_set_dai_params(dai, NULL);
 		}
 	}
