@@ -21,7 +21,6 @@ ALL_TESTS="
 	kci_test_vrf
 	kci_test_encap
 	kci_test_macsec
-	kci_test_macsec_offload
 	kci_test_ipsec
 	kci_test_ipsec_offload
 	kci_test_fdb_get
@@ -558,73 +557,6 @@ kci_test_macsec()
 	fi
 
 	end_test "PASS: macsec"
-}
-
-kci_test_macsec_offload()
-{
-	sysfsd=/sys/kernel/debug/netdevsim/netdevsim0/ports/0/
-	sysfsnet=/sys/bus/netdevsim/devices/netdevsim0/net/
-	probed=false
-	local ret=0
-	run_cmd_grep "^Usage: ip macsec" ip macsec help
-	if [ $? -ne 0 ]; then
-		end_test "SKIP: macsec: iproute2 too old"
-		return $ksft_skip
-	fi
-
-	if ! mount | grep -q debugfs; then
-		mount -t debugfs none /sys/kernel/debug/ &> /dev/null
-	fi
-
-	# setup netdevsim since dummydev doesn't have offload support
-	if [ ! -w /sys/bus/netdevsim/new_device ] ; then
-		run_cmd modprobe -q netdevsim
-
-		if [ $ret -ne 0 ]; then
-			end_test "SKIP: macsec_offload can't load netdevsim"
-			return $ksft_skip
-		fi
-		probed=true
-	fi
-
-	echo "0" > /sys/bus/netdevsim/new_device
-	while [ ! -d $sysfsnet ] ; do :; done
-	udevadm settle
-	dev=`ls $sysfsnet`
-
-	ip link set $dev up
-	if [ ! -d $sysfsd ] ; then
-		end_test "FAIL: macsec_offload can't create device $dev"
-		return 1
-	fi
-	run_cmd_grep 'macsec-hw-offload: on' ethtool -k $dev
-	if [ $? -eq 1 ] ; then
-		end_test "FAIL: macsec_offload netdevsim doesn't support MACsec offload"
-		return 1
-	fi
-	run_cmd ip link add link $dev kci_macsec1 type macsec port 4 offload mac
-	run_cmd ip link add link $dev kci_macsec2 type macsec address "aa:bb:cc:dd:ee:ff" port 5 offload mac
-	run_cmd ip link add link $dev kci_macsec3 type macsec sci abbacdde01020304 offload mac
-	run_cmd_fail ip link add link $dev kci_macsec4 type macsec port 8 offload mac
-
-	msname=kci_macsec1
-	run_cmd ip macsec add "$msname" tx sa 0 pn 1024 on key 01 12345678901234567890123456789012
-	run_cmd ip macsec add "$msname" rx port 1234 address "1c:ed:de:ad:be:ef"
-	run_cmd ip macsec add "$msname" rx port 1234 address "1c:ed:de:ad:be:ef" sa 0 pn 1 on \
-		key 00 0123456789abcdef0123456789abcdef
-	run_cmd_fail ip macsec add "$msname" rx port 1235 address "1c:ed:de:ad:be:ef"
-	# clean up any leftovers
-	for msdev in kci_macsec{1,2,3,4} ; do
-	    ip link del $msdev 2> /dev/null
-	done
-	echo 0 > /sys/bus/netdevsim/del_device
-	$probed && rmmod netdevsim
-
-	if [ $ret -ne 0 ]; then
-		end_test "FAIL: macsec_offload"
-		return 1
-	fi
-	end_test "PASS: macsec_offload"
 }
 
 #-------------------------------------------------------------------
