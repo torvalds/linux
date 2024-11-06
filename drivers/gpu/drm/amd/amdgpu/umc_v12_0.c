@@ -467,6 +467,8 @@ static int umc_v12_0_update_ecc_status(struct amdgpu_device *adev,
 	uint64_t err_addr, pa_addr = 0;
 	struct ras_ecc_err *ecc_err;
 	struct ta_ras_query_address_output addr_out;
+	enum amdgpu_memory_partition nps = AMDGPU_NPS1_PARTITION_MODE;
+	uint32_t shift_bit = UMC_V12_0_PA_C4_BIT;
 	int count, ret, i;
 
 	hwid = REG_GET_FIELD(ipid, MCMP1_IPIDT0, HardwareID);
@@ -511,9 +513,14 @@ static int umc_v12_0_update_ecc_status(struct amdgpu_device *adev,
 	ecc_err->pa_pfn = pa_addr >> AMDGPU_GPU_PAGE_SHIFT;
 	ecc_err->channel_idx = addr_out.pa.channel_idx;
 
+	if (adev->gmc.gmc_funcs->query_mem_partition_mode)
+		nps = adev->gmc.gmc_funcs->query_mem_partition_mode(adev);
+	if (nps == AMDGPU_NPS4_PARTITION_MODE)
+		shift_bit = UMC_V12_0_PA_B0_BIT;
+
 	/* If converted pa_pfn is 0, use pa C4 pfn. */
 	if (!ecc_err->pa_pfn)
-		ecc_err->pa_pfn = BIT_ULL(UMC_V12_0_PA_C4_BIT) >> AMDGPU_GPU_PAGE_SHIFT;
+		ecc_err->pa_pfn = BIT_ULL(shift_bit) >> AMDGPU_GPU_PAGE_SHIFT;
 
 	ret = amdgpu_umc_logs_ecc_err(adev, &con->umc_ecc_log.de_page_tree, ecc_err);
 	if (ret) {
