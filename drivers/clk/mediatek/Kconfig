@@ -133,6 +133,34 @@ config COMMON_CLK_MT6735
 	  by apmixedsys, topckgen, infracfg and pericfg on the
 	  MediaTek MT6735 SoC.
 
+config COMMON_CLK_MT6735_IMGSYS
+	tristate "Clock driver for MediaTek MT6735 imgsys"
+	depends on COMMON_CLK_MT6735
+	help
+	  This enables a driver for clocks provided by imgsys
+	  on the MediaTek MT6735 SoC.
+
+config COMMON_CLK_MT6735_MFGCFG
+	tristate "Clock driver for MediaTek MT6735 mfgcfg"
+	depends on COMMON_CLK_MT6735
+	help
+	  This enables a driver for clocks and resets provided
+	  by mfgcfg on the MediaTek MT6735 SoC.
+
+config COMMON_CLK_MT6735_VDECSYS
+	tristate "Clock driver for MediaTek MT6735 vdecsys"
+	depends on COMMON_CLK_MT6735
+	help
+	  This enables a driver for clocks and resets provided
+	  by vdecsys on the MediaTek MT6735 SoC.
+
+config COMMON_CLK_MT6735_VENCSYS
+	tristate "Clock driver for MediaTek MT6735 vencsys"
+	depends on COMMON_CLK_MT6735
+	help
+	  This enables a driver for clocks provided by vencsys
+	  on the MediaTek MT6735 SoC.
+
 config COMMON_CLK_MT6765
        bool "Clock driver for MediaTek MT6765"
        depends on (ARCH_MEDIATEK && ARM64) || COMPILE_TEST
