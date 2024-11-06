@@ -1390,7 +1390,7 @@ static void
 intel_pps_readout_hw_state(struct intel_dp *intel_dp, struct edp_power_seq *seq)
 {
 	struct intel_display *display = to_intel_display(intel_dp);
-	u32 pp_on, pp_off, pp_ctl;
+	u32 pp_on, pp_off, pp_ctl, power_cycle_delay;
 	struct pps_registers regs;
 
 	intel_pps_get_registers(intel_dp, &regs);
@@ -1415,10 +1415,13 @@ intel_pps_readout_hw_state(struct intel_dp *intel_dp, struct edp_power_seq *seq)
 
 		pp_div = intel_de_read(display, regs.pp_div);
 
-		seq->t11_t12 = REG_FIELD_GET(PANEL_POWER_CYCLE_DELAY_MASK, pp_div) * 1000;
+		power_cycle_delay = REG_FIELD_GET(PANEL_POWER_CYCLE_DELAY_MASK, pp_div);
 	} else {
-		seq->t11_t12 = REG_FIELD_GET(BXT_POWER_CYCLE_DELAY_MASK, pp_ctl) * 1000;
+		power_cycle_delay = REG_FIELD_GET(BXT_POWER_CYCLE_DELAY_MASK, pp_ctl);
 	}
+
+	/* hardware wants <delay>+1 in 100ms units */
+	seq->t11_t12 = power_cycle_delay ? (power_cycle_delay - 1) * 1000 : 0;
 }
 
 static void
@@ -1494,12 +1497,6 @@ static void pps_init_delays_vbt(struct intel_dp *intel_dp,
 			    vbt->t11_t12);
 	}
 
-	/* T11_T12 delay is special and actually in units of 100ms, but zero
-	 * based in the hw (so we need to add 100 ms). But the sw vbt
-	 * table multiplies it with 1000 to make it in units of 100usec,
-	 * too. */
-	vbt->t11_t12 += 100 * 10;
-
 	intel_pps_dump_state(intel_dp, "vbt", vbt);
 }
 
@@ -1516,11 +1513,7 @@ static void pps_init_delays_spec(struct intel_dp *intel_dp,
 	spec->t8 = 50 * 10; /* no limit for t8, use t7 instead */
 	spec->t9 = 50 * 10; /* no limit for t9, make it symmetric with t8 */
 	spec->t10 = 500 * 10;
-	/* This one is special and actually in units of 100ms, but zero
-	 * based in the hw (so we need to add 100 ms). But the sw vbt
-	 * table multiplies it with 1000 to make it in units of 100usec,
-	 * too. */
-	spec->t11_t12 = (510 + 100) * 10;
+	spec->t11_t12 = 510 * 10;
 
 	intel_pps_dump_state(intel_dp, "spec", spec);
 }
@@ -1665,11 +1658,14 @@ static void pps_init_registers(struct intel_dp *intel_dp, bool force_disable_vdd
 	 */
 	if (i915_mmio_reg_valid(regs.pp_div))
 		intel_de_write(display, regs.pp_div,
-			       REG_FIELD_PREP(PP_REFERENCE_DIVIDER_MASK, (100 * div) / 2 - 1) | REG_FIELD_PREP(PANEL_POWER_CYCLE_DELAY_MASK, DIV_ROUND_UP(seq->t11_t12, 1000)));
+			       REG_FIELD_PREP(PP_REFERENCE_DIVIDER_MASK,
+					      (100 * div) / 2 - 1) |
+			       REG_FIELD_PREP(PANEL_POWER_CYCLE_DELAY_MASK,
+					      DIV_ROUND_UP(seq->t11_t12, 1000) + 1));
 	else
 		intel_de_rmw(display, regs.pp_ctrl, BXT_POWER_CYCLE_DELAY_MASK,
 			     REG_FIELD_PREP(BXT_POWER_CYCLE_DELAY_MASK,
-					    DIV_ROUND_UP(seq->t11_t12, 1000)));
+					    DIV_ROUND_UP(seq->t11_t12, 1000) + 1));
 
 	drm_dbg_kms(display->drm,
 		    "panel power sequencer register settings: PP_ON %#x, PP_OFF %#x, PP_DIV %#x\n",
