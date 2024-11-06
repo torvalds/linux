@@ -1232,7 +1232,7 @@ static struct clk_hw_onecell_data sun20i_d1_hw_clks = {
 	},
 };
 
-static struct ccu_reset_map sun20i_d1_ccu_resets[] = {
+static const struct ccu_reset_map sun20i_d1_ccu_resets[] = {
 	[RST_MBUS]		= { 0x540, BIT(30) },
 	[RST_BUS_DE]		= { 0x60c, BIT(16) },
 	[RST_BUS_DI]		= { 0x62c, BIT(16) },
@@ -1371,7 +1371,7 @@ static int sun20i_d1_ccu_probe(struct platform_device *pdev)
 
 	/* Enforce m1 = 0, m0 = 0 for PLL_AUDIO0 */
 	val = readl(reg + SUN20I_D1_PLL_AUDIO0_REG);
-	val &= ~BIT(1) | BIT(0);
+	val &= ~(BIT(1) | BIT(0));
 	writel(val, reg + SUN20I_D1_PLL_AUDIO0_REG);
 
 	/* Force fanout-27M factor N to 0. */

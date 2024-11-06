@@ -216,19 +216,29 @@ static struct ccu_nkmp pll_de_clk = {
 };
 
 /*
- * TODO: Determine SDM settings for the audio PLL. The manual suggests
- * PLL_FACTOR_N=16, PLL_POST_DIV_P=2, OUTPUT_DIV=2, pattern=0xe000c49b
- * for 24.576 MHz, and PLL_FACTOR_N=22, PLL_POST_DIV_P=3, OUTPUT_DIV=2,
- * pattern=0xe001288c for 22.5792 MHz.
- * This clashes with our fixed PLL_POST_DIV_P.
+ * Sigma-delta modulation settings table obtained from the vendor SDK driver.
+ * There are additional M0 and M1 divider bits not modelled here, so forced to
+ * fixed values in the probe routine. Sigma-delta modulation allows providing a
+ * fractional-N divider in the PLL, to help reaching those specific
+ * frequencies with less error.
  */
+static struct ccu_sdm_setting pll_audio_sdm_table[] = {
+	{ .rate = 90316800, .pattern = 0xc001288d, .m = 3, .n = 22 },
+	{ .rate = 98304000, .pattern = 0xc001eb85, .m = 5, .n = 40 },
+};
+
 #define SUN50I_H616_PLL_AUDIO_REG	0x078
 static struct ccu_nm pll_audio_hs_clk = {
 	.enable		= BIT(31),
 	.lock		= BIT(28),
 	.n		= _SUNXI_CCU_MULT_MIN(8, 8, 12),
-	.m		= _SUNXI_CCU_DIV(1, 1), /* input divider */
+	.m		= _SUNXI_CCU_DIV(16, 6),
+	.sdm		= _SUNXI_CCU_SDM(pll_audio_sdm_table,
+					 BIT(24), 0x178, BIT(31)),
+	.fixed_post_div = 2,
 	.common		= {
+		.features	= CCU_FEATURE_FIXED_POSTDIV |
+				  CCU_FEATURE_SIGMA_DELTA_MOD,
 		.reg		= 0x078,
 		.hw.init	= CLK_HW_INIT("pll-audio-hs", "osc24M",
 					      &ccu_nm_ops,
@@ -685,18 +695,20 @@ static const struct clk_hw *clk_parent_pll_audio[] = {
 };
 
 /*
- * The divider of pll-audio is fixed to 24 for now, so 24576000 and 22579200
- * rates can be set exactly in conjunction with sigma-delta modulation.
+ * The PLL_AUDIO_4X clock defaults to 24.5714 MHz according to the manual, with
+ * a final divider of 1. The 2X and 1X clocks use 2 and 4 respectively. The 1x
+ * clock is set to either 24576000 or 22579200 for 48Khz and 44.1Khz (and
+ * multiples).
  */
 static CLK_FIXED_FACTOR_HWS(pll_audio_1x_clk, "pll-audio-1x",
 			    clk_parent_pll_audio,
-			    96, 1, CLK_SET_RATE_PARENT);
+			    4, 1, CLK_SET_RATE_PARENT);
 static CLK_FIXED_FACTOR_HWS(pll_audio_2x_clk, "pll-audio-2x",
 			    clk_parent_pll_audio,
-			    48, 1, CLK_SET_RATE_PARENT);
+			    2, 1, CLK_SET_RATE_PARENT);
 static CLK_FIXED_FACTOR_HWS(pll_audio_4x_clk, "pll-audio-4x",
 			    clk_parent_pll_audio,
-			    24, 1, CLK_SET_RATE_PARENT);
+			    1, 1, CLK_SET_RATE_PARENT);
 
 static const struct clk_hw *pll_periph0_parents[] = {
 	&pll_periph0_clk.common.hw
@@ -990,7 +1002,7 @@ static struct clk_hw_onecell_data sun50i_h616_hw_clks = {
 	.num = CLK_NUMBER,
 };
 
-static struct ccu_reset_map sun50i_h616_ccu_resets[] = {
+static const struct ccu_reset_map sun50i_h616_ccu_resets[] = {
 	[RST_MBUS]		= { 0x540, BIT(30) },
 
 	[RST_BUS_DE]		= { 0x60c, BIT(16) },
@@ -1136,12 +1148,14 @@ static int sun50i_h616_ccu_probe(struct platform_device *pdev)
 	}
 
 	/*
-	 * Force the post-divider of pll-audio to 12 and the output divider
-	 * of it to 2, so 24576000 and 22579200 rates can be set exactly.
+	 * Set the output-divider for the pll-audio clocks (M0) to 2 and the
+	 * input divider (M1) to 1 as recommended by the manual when using
+	 * SDM.
 	 */
 	val = readl(reg + SUN50I_H616_PLL_AUDIO_REG);
-	val &= ~(GENMASK(21, 16) | BIT(0));
-	writel(val | (11 << 16) | BIT(0), reg + SUN50I_H616_PLL_AUDIO_REG);
+	val &= ~BIT(1);
+	val |= BIT(0);
+	writel(val, reg + SUN50I_H616_PLL_AUDIO_REG);
 
 	/*
 	 * First clock parent (osc32K) is unusable for CEC. But since there
