@@ -75,6 +75,39 @@ for dev in ${MACSEC_NETDEV}{,2,3} ; do
 done
 
 
+#
+# test ethtool features when toggling offload
+#
+
+ip link add link $NSIM_NETDEV $MACSEC_NETDEV type macsec offload mac
+TMP_FEATS_ON_1="$(ethtool -k $MACSEC_NETDEV)"
+
+ip link set $MACSEC_NETDEV type macsec offload off
+TMP_FEATS_OFF_1="$(ethtool -k $MACSEC_NETDEV)"
+
+ip link set $MACSEC_NETDEV type macsec offload mac
+TMP_FEATS_ON_2="$(ethtool -k $MACSEC_NETDEV)"
+
+[ "$TMP_FEATS_ON_1" = "$TMP_FEATS_ON_2" ]
+check $?
+
+ip link del $MACSEC_NETDEV
+
+ip link add link $NSIM_NETDEV $MACSEC_NETDEV type macsec
+check $?
+
+TMP_FEATS_OFF_2="$(ethtool -k $MACSEC_NETDEV)"
+[ "$TMP_FEATS_OFF_1" = "$TMP_FEATS_OFF_2" ]
+check $?
+
+ip link set $MACSEC_NETDEV type macsec offload mac
+check $?
+
+TMP_FEATS_ON_3="$(ethtool -k $MACSEC_NETDEV)"
+[ "$TMP_FEATS_ON_1" = "$TMP_FEATS_ON_3" ]
+check $?
+
+
 if [ $num_errors -eq 0 ]; then
     echo "PASSED all $((num_passes)) checks"
     exit 0
