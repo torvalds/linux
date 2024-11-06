@@ -80,7 +80,7 @@ static __always_inline int arch_atomic_xchg(atomic_t *v, int new)
 
 static __always_inline int arch_atomic_cmpxchg(atomic_t *v, int old, int new)
 {
-	return __atomic_cmpxchg(&v->counter, old, new);
+	return arch_cmpxchg(&v->counter, old, new);
 }
 #define arch_atomic_cmpxchg arch_atomic_cmpxchg
 
@@ -124,7 +124,7 @@ static __always_inline s64 arch_atomic64_xchg(atomic64_t *v, s64 new)
 
 static __always_inline s64 arch_atomic64_cmpxchg(atomic64_t *v, s64 old, s64 new)
 {
-	return __atomic64_cmpxchg((long *)&v->counter, old, new);
+	return arch_cmpxchg(&v->counter, old, new);
 }
 #define arch_atomic64_cmpxchg arch_atomic64_cmpxchg
 
