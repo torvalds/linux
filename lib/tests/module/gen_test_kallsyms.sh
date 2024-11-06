@@ -32,7 +32,7 @@ gen_num_syms()
 	PREFIX=$1
 	NUM=$2
 	for i in $(seq 1 $NUM); do
-		printf "int auto_test_%s_%010d = 0xff;\n" $PREFIX $i
+		printf "int auto_test_%s_%010d = 0;\n" $PREFIX $i
 		printf "EXPORT_SYMBOL_GPL(auto_test_%s_%010d);\n" $PREFIX $i
 	done
 	echo
