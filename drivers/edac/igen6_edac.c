@@ -1350,6 +1350,15 @@ static void unregister_err_handler(void)
 	unregister_nmi_handler(NMI_SERR, IGEN6_NMI_NAME);
 }
 
+static void opstate_set(struct res_config *cfg)
+{
+	/* Set the mode according to the configuration data. */
+	if (cfg->machine_check)
+		edac_op_state = EDAC_OPSTATE_INT;
+	else
+		edac_op_state = EDAC_OPSTATE_NMI;
+}
+
 static int igen6_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	u64 mchbar;
@@ -1366,6 +1375,8 @@ static int igen6_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	rc = igen6_pci_setup(pdev, &mchbar);
 	if (rc)
 		goto fail;
+
+	opstate_set(res_cfg);
 
 	for (i = 0; i < res_cfg->num_imc; i++) {
 		rc = igen6_register_mci(i, mchbar, pdev);
@@ -1449,8 +1460,6 @@ static int __init igen6_init(void)
 	owner = edac_get_owner();
 	if (owner && strncmp(owner, EDAC_MOD_STR, sizeof(EDAC_MOD_STR)))
 		return -EBUSY;
-
-	edac_op_state = EDAC_OPSTATE_NMI;
 
 	rc = pci_register_driver(&igen6_driver);
 	if (rc)
