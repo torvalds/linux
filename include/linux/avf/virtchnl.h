@@ -1096,11 +1096,6 @@ struct virtchnl_filter {
 
 VIRTCHNL_CHECK_STRUCT_LEN(272, virtchnl_filter);
 
-struct virtchnl_supported_rxdids {
-	/* see enum virtchnl_rx_desc_id_bitmasks */
-	u64 supported_rxdids;
-};
-
 /* VIRTCHNL_OP_EVENT
  * PF sends this message to inform the VF driver of events that may affect it.
  * No direct response is expected from the VF, though it may generate other
