@@ -1168,20 +1168,6 @@ static u8 hal_EfusePgCheckAvailableAddr(
 	return true;
 }
 
-static void hal_EfuseConstructPGPkt(
-	u8 offset,
-	u8 word_en,
-	u8 *pData,
-	struct pgpkt_struct *pTargetPkt
-)
-{
-	memset(pTargetPkt->data, 0xFF, PGPKT_DATA_SIZE);
-	pTargetPkt->offset = offset;
-	pTargetPkt->word_en = word_en;
-	efuse_WordEnableDataRead(word_en, pData, pTargetPkt->data);
-	pTargetPkt->word_cnts = Efuse_CalculateWordCnts(pTargetPkt->word_en);
-}
-
 static u8 hal_EfusePgPacketWrite1ByteHeader(
 	struct adapter *padapter,
 	u8 efuseType,
