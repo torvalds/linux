@@ -329,7 +329,7 @@ void btrfs_folio_end_lock_bitmap(const struct btrfs_fs_info *fs_info,
 	int cleared = 0;
 	int bit;
 
-	if (unlikely(!fs_info) || !btrfs_is_subpage(fs_info, folio->mapping)) {
+	if (!btrfs_is_subpage(fs_info, folio->mapping)) {
 		folio_unlock(folio);
 		return;
 	}
