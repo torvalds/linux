@@ -4441,31 +4441,26 @@ static int macsec_notify(struct notifier_block *this, unsigned long event,
 			 void *ptr)
 {
 	struct net_device *real_dev = netdev_notifier_info_to_dev(ptr);
+	struct macsec_rxh_data *rxd;
+	struct macsec_dev *m, *n;
 	LIST_HEAD(head);
 
 	if (!is_macsec_master(real_dev))
 		return NOTIFY_DONE;
 
+	rxd = macsec_data_rtnl(real_dev);
+
 	switch (event) {
 	case NETDEV_DOWN:
 	case NETDEV_UP:
-	case NETDEV_CHANGE: {
-		struct macsec_dev *m, *n;
-		struct macsec_rxh_data *rxd;
-
-		rxd = macsec_data_rtnl(real_dev);
+	case NETDEV_CHANGE:
 		list_for_each_entry_safe(m, n, &rxd->secys, secys) {
 			struct net_device *dev = m->secy.netdev;
 
 			netif_stacked_transfer_operstate(real_dev, dev);
 		}
 		break;
-	}
-	case NETDEV_UNREGISTER: {
-		struct macsec_dev *m, *n;
-		struct macsec_rxh_data *rxd;
-
-		rxd = macsec_data_rtnl(real_dev);
+	case NETDEV_UNREGISTER:
 		list_for_each_entry_safe(m, n, &rxd->secys, secys) {
 			macsec_common_dellink(m->secy.netdev, &head);
 		}
@@ -4475,12 +4470,7 @@ static int macsec_notify(struct notifier_block *this, unsigned long event,
 
 		unregister_netdevice_many(&head);
 		break;
-	}
-	case NETDEV_CHANGEMTU: {
-		struct macsec_dev *m;
-		struct macsec_rxh_data *rxd;
-
-		rxd = macsec_data_rtnl(real_dev);
+	case NETDEV_CHANGEMTU:
 		list_for_each_entry(m, &rxd->secys, secys) {
 			struct net_device *dev = m->secy.netdev;
 			unsigned int mtu = real_dev->mtu - (m->secy.icv_len +
@@ -4489,7 +4479,6 @@ static int macsec_notify(struct notifier_block *this, unsigned long event,
 			if (dev->mtu > mtu)
 				dev_set_mtu(dev, mtu);
 		}
-	}
 	}
 
 	return NOTIFY_OK;
