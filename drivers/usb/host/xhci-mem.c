@@ -71,18 +71,18 @@ static void xhci_segment_free(struct xhci_hcd *xhci, struct xhci_segment *seg)
 	kfree(seg);
 }
 
-static void xhci_free_segments_for_ring(struct xhci_hcd *xhci,
-				struct xhci_segment *first)
+static void xhci_ring_segments_free(struct xhci_hcd *xhci, struct xhci_ring *ring)
 {
-	struct xhci_segment *seg;
+	struct xhci_segment *seg, *next;
 
-	seg = first->next;
-	while (seg && seg != first) {
-		struct xhci_segment *next = seg->next;
+	ring->last_seg->next = NULL;
+	seg = ring->first_seg;
+
+	while (seg) {
+		next = seg->next;
 		xhci_segment_free(xhci, seg);
 		seg = next;
 	}
-	xhci_segment_free(xhci, first);
 }
 
 /*
@@ -282,7 +282,7 @@ void xhci_ring_free(struct xhci_hcd *xhci, struct xhci_ring *ring)
 	if (ring->first_seg) {
 		if (ring->type == TYPE_STREAM)
 			xhci_remove_stream_mapping(ring);
-		xhci_free_segments_for_ring(xhci, ring->first_seg);
+		xhci_ring_segments_free(xhci, ring);
 	}
 
 	kfree(ring);
@@ -344,7 +344,8 @@ static int xhci_alloc_segments_for_ring(struct xhci_hcd *xhci, struct xhci_ring 
 	return 0;
 
 free_segments:
-	xhci_free_segments_for_ring(xhci, ring->first_seg);
+	ring->last_seg = prev;
+	xhci_ring_segments_free(xhci, ring);
 	return -ENOMEM;
 }
 
@@ -433,7 +434,7 @@ int xhci_ring_expansion(struct xhci_hcd *xhci, struct xhci_ring *ring,
 	return 0;
 
 free_segments:
-	xhci_free_segments_for_ring(xhci, new_ring.first_seg);
+	xhci_ring_segments_free(xhci, &new_ring);
 	return ret;
 }
 
