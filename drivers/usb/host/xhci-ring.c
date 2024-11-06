@@ -1714,7 +1714,7 @@ static void handle_cmd_completion(struct xhci_hcd *xhci,
 	cmd_dma = le64_to_cpu(event->cmd_trb);
 	cmd_trb = xhci->cmd_ring->dequeue;
 
-	trace_xhci_handle_command(xhci->cmd_ring, &cmd_trb->generic);
+	trace_xhci_handle_command(xhci->cmd_ring, &cmd_trb->generic, cmd_dma);
 
 	cmd_comp_code = GET_COMP_CODE(le32_to_cpu(event->status));
 
@@ -2886,7 +2886,7 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 		ep_ring->last_td_was_short = false;
 
 	ep_trb = &ep_seg->trbs[(ep_trb_dma - ep_seg->dma) / sizeof(*ep_trb)];
-	trace_xhci_handle_transfer(ep_ring, (struct xhci_generic_trb *) ep_trb);
+	trace_xhci_handle_transfer(ep_ring, (struct xhci_generic_trb *) ep_trb, ep_trb_dma);
 
 	/*
 	 * No-op TRB could trigger interrupts in a case where a URB was killed
@@ -2936,7 +2936,9 @@ static int xhci_handle_event_trb(struct xhci_hcd *xhci, struct xhci_interrupter 
 {
 	u32 trb_type;
 
-	trace_xhci_handle_event(ir->event_ring, &event->generic);
+	trace_xhci_handle_event(ir->event_ring, &event->generic,
+				xhci_trb_virt_to_dma(ir->event_ring->deq_seg,
+						     ir->event_ring->dequeue));
 
 	/*
 	 * Barrier between reading the TRB_CYCLE (valid) flag before, and any
@@ -3159,7 +3161,8 @@ static void queue_trb(struct xhci_hcd *xhci, struct xhci_ring *ring,
 	wmb();
 	trb->field[3] = cpu_to_le32(field4);
 
-	trace_xhci_queue_trb(ring, trb);
+	trace_xhci_queue_trb(ring, trb,
+			     xhci_trb_virt_to_dma(ring->enq_seg, ring->enqueue));
 
 	inc_enq(xhci, ring, more_trbs_coming);
 }

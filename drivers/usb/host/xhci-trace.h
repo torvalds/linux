@@ -108,9 +108,10 @@ DEFINE_EVENT(xhci_log_ctx, xhci_address_ctx,
 );
 
 DECLARE_EVENT_CLASS(xhci_log_trb,
-	TP_PROTO(struct xhci_ring *ring, struct xhci_generic_trb *trb),
-	TP_ARGS(ring, trb),
+	TP_PROTO(struct xhci_ring *ring, struct xhci_generic_trb *trb, dma_addr_t dma),
+	TP_ARGS(ring, trb, dma),
 	TP_STRUCT__entry(
+		__field(dma_addr_t, dma)
 		__field(u32, type)
 		__field(u32, field0)
 		__field(u32, field1)
@@ -118,51 +119,54 @@ DECLARE_EVENT_CLASS(xhci_log_trb,
 		__field(u32, field3)
 	),
 	TP_fast_assign(
+		__entry->dma = dma;
 		__entry->type = ring->type;
 		__entry->field0 = le32_to_cpu(trb->field[0]);
 		__entry->field1 = le32_to_cpu(trb->field[1]);
 		__entry->field2 = le32_to_cpu(trb->field[2]);
 		__entry->field3 = le32_to_cpu(trb->field[3]);
 	),
-	TP_printk("%s: %s", xhci_ring_type_string(__entry->type),
+	TP_printk("%s: @%pad %s",
+		  xhci_ring_type_string(__entry->type), &__entry->dma,
 		  xhci_decode_trb(__get_buf(XHCI_MSG_MAX), XHCI_MSG_MAX, __entry->field0,
 				  __entry->field1, __entry->field2, __entry->field3)
 	)
 );
 
 DEFINE_EVENT(xhci_log_trb, xhci_handle_event,
-	TP_PROTO(struct xhci_ring *ring, struct xhci_generic_trb *trb),
-	TP_ARGS(ring, trb)
+	TP_PROTO(struct xhci_ring *ring, struct xhci_generic_trb *trb, dma_addr_t dma),
+	TP_ARGS(ring, trb, dma)
 );
 
 DEFINE_EVENT(xhci_log_trb, xhci_handle_command,
-	TP_PROTO(struct xhci_ring *ring, struct xhci_generic_trb *trb),
-	TP_ARGS(ring, trb)
+	TP_PROTO(struct xhci_ring *ring, struct xhci_generic_trb *trb, dma_addr_t dma),
+	TP_ARGS(ring, trb, dma)
 );
 
 DEFINE_EVENT(xhci_log_trb, xhci_handle_transfer,
-	TP_PROTO(struct xhci_ring *ring, struct xhci_generic_trb *trb),
-	TP_ARGS(ring, trb)
+	TP_PROTO(struct xhci_ring *ring, struct xhci_generic_trb *trb, dma_addr_t dma),
+	TP_ARGS(ring, trb, dma)
 );
 
 DEFINE_EVENT(xhci_log_trb, xhci_queue_trb,
-	TP_PROTO(struct xhci_ring *ring, struct xhci_generic_trb *trb),
-	TP_ARGS(ring, trb)
+	TP_PROTO(struct xhci_ring *ring, struct xhci_generic_trb *trb, dma_addr_t dma),
+	TP_ARGS(ring, trb, dma)
+
 );
 
 DEFINE_EVENT(xhci_log_trb, xhci_dbc_handle_event,
-	TP_PROTO(struct xhci_ring *ring, struct xhci_generic_trb *trb),
-	TP_ARGS(ring, trb)
+	TP_PROTO(struct xhci_ring *ring, struct xhci_generic_trb *trb, dma_addr_t dma),
+	TP_ARGS(ring, trb, dma)
 );
 
 DEFINE_EVENT(xhci_log_trb, xhci_dbc_handle_transfer,
-	TP_PROTO(struct xhci_ring *ring, struct xhci_generic_trb *trb),
-	TP_ARGS(ring, trb)
+	TP_PROTO(struct xhci_ring *ring, struct xhci_generic_trb *trb, dma_addr_t dma),
+	TP_ARGS(ring, trb, dma)
 );
 
 DEFINE_EVENT(xhci_log_trb, xhci_dbc_gadget_ep_queue,
-	TP_PROTO(struct xhci_ring *ring, struct xhci_generic_trb *trb),
-	TP_ARGS(ring, trb)
+	TP_PROTO(struct xhci_ring *ring, struct xhci_generic_trb *trb, dma_addr_t dma),
+	TP_ARGS(ring, trb, dma)
 );
 
 DECLARE_EVENT_CLASS(xhci_log_free_virt_dev,
