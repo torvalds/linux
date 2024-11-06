@@ -10882,7 +10882,7 @@ static void bnxt_free_irq(struct bnxt *bp)
 		irq = &bp->irq_tbl[map_idx];
 		if (irq->requested) {
 			if (irq->have_cpumask) {
-				irq_set_affinity_hint(irq->vector, NULL);
+				irq_update_affinity_hint(irq->vector, NULL);
 				free_cpumask_var(irq->cpu_mask);
 				irq->have_cpumask = 0;
 			}
@@ -10937,10 +10937,10 @@ static int bnxt_request_irq(struct bnxt *bp)
 			irq->have_cpumask = 1;
 			cpumask_set_cpu(cpumask_local_spread(i, numa_node),
 					irq->cpu_mask);
-			rc = irq_set_affinity_hint(irq->vector, irq->cpu_mask);
+			rc = irq_update_affinity_hint(irq->vector, irq->cpu_mask);
 			if (rc) {
 				netdev_warn(bp->dev,
-					    "Set affinity failed, IRQ = %d\n",
+					    "Update affinity hint failed, IRQ = %d\n",
 					    irq->vector);
 				break;
 			}
