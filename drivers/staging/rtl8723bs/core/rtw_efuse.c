@@ -80,31 +80,6 @@ u8 PwrState)
 	Hal_EfusePowerSwitch(padapter, bWrite, PwrState);
 }
 
-/*-----------------------------------------------------------------------------
- * Function:	Efuse_GetCurrentSize
- *
- * Overview:	Get current efuse size!!!
- *
- * Input:       NONE
- *
- * Output:      NONE
- *
- * Return:      NONE
- *
- * Revised History:
- * When			Who		Remark
- * 11/16/2008	MHC		Create Version 0.
- *
- *---------------------------------------------------------------------------*/
-u16
-Efuse_GetCurrentSize(
-	struct adapter *padapter,
-	u8	efuseType,
-	bool		bPseudoTest)
-{
-	return Hal_EfuseGetCurrentSize(padapter, efuseType, bPseudoTest);
-}
-
 /*  11/16/2008 MH Add description. Get current efuse area enabled word!!. */
 u8
 Efuse_CalculateWordCnts(u8 word_en)
