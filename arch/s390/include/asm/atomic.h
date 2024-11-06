@@ -84,6 +84,12 @@ static __always_inline int arch_atomic_cmpxchg(atomic_t *v, int old, int new)
 }
 #define arch_atomic_cmpxchg arch_atomic_cmpxchg
 
+static __always_inline bool arch_atomic_try_cmpxchg(atomic_t *v, int *old, int new)
+{
+	return arch_try_cmpxchg(&v->counter, old, new);
+}
+#define arch_atomic_try_cmpxchg arch_atomic_try_cmpxchg
+
 #define ATOMIC64_INIT(i)  { (i) }
 
 static __always_inline s64 arch_atomic64_read(const atomic64_t *v)
@@ -127,6 +133,12 @@ static __always_inline s64 arch_atomic64_cmpxchg(atomic64_t *v, s64 old, s64 new
 	return arch_cmpxchg(&v->counter, old, new);
 }
 #define arch_atomic64_cmpxchg arch_atomic64_cmpxchg
+
+static __always_inline bool arch_atomic64_try_cmpxchg(atomic64_t *v, s64 *old, s64 new)
+{
+	return arch_try_cmpxchg(&v->counter, old, new);
+}
+#define arch_atomic64_try_cmpxchg arch_atomic64_try_cmpxchg
 
 #define ATOMIC64_OPS(op)							\
 static __always_inline void arch_atomic64_##op(s64 i, atomic64_t *v)		\
