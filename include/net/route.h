@@ -156,12 +156,12 @@ static inline struct rtable *ip_route_output_key(struct net *net, struct flowi4 
  * structure is only partially set, it may bypass some fib-rules.
  */
 static inline struct rtable *ip_route_output(struct net *net, __be32 daddr,
-					     __be32 saddr, u8 tos, int oif,
-					     __u8 scope)
+					     __be32 saddr, dscp_t dscp,
+					     int oif, __u8 scope)
 {
 	struct flowi4 fl4 = {
 		.flowi4_oif = oif,
-		.flowi4_tos = tos,
+		.flowi4_tos = inet_dscp_to_dsfield(dscp),
 		.flowi4_scope = scope,
 		.daddr = daddr,
 		.saddr = saddr,
