@@ -120,7 +120,11 @@ struct eh_frame {
 	union {
 		struct { // CIE
 			u8	version;
-			u8	augmentation_string[];
+			u8	augmentation_string[3];
+			u8	code_alignment_factor;
+			u8	data_alignment_factor;
+			u8	return_address_register;
+			u8	augmentation_data_size;
 		};
 
 		struct { // FDE
@@ -132,25 +136,21 @@ struct eh_frame {
 };
 
 static int scs_handle_fde_frame(const struct eh_frame *frame,
-				bool fde_has_augmentation_data,
 				int code_alignment_factor,
 				bool dry_run)
 {
 	int size = frame->size - offsetof(struct eh_frame, opcodes) + 4;
 	u64 loc = (u64)offset_to_ptr(&frame->initial_loc);
 	const u8 *opcode = frame->opcodes;
+	int l;
 
-	if (fde_has_augmentation_data) {
-		int l;
+	// assume single byte uleb128_t for augmentation data size
+	if (*opcode & BIT(7))
+		return EDYNSCS_INVALID_FDE_AUGM_DATA_SIZE;
 
-		// assume single byte uleb128_t
-		if (WARN_ON(*opcode & BIT(7)))
-			return -ENOEXEC;
-
-		l = *opcode++;
-		opcode += l;
-		size -= l + 1;
-	}
+	l = *opcode++;
+	opcode += l;
+	size -= l + 1;
 
 	/*
 	 * Starting from 'loc', apply the CFA opcodes that advance the location
@@ -201,7 +201,7 @@ static int scs_handle_fde_frame(const struct eh_frame *frame,
 			break;
 
 		default:
-			return -ENOEXEC;
+			return EDYNSCS_INVALID_CFA_OPCODE;
 		}
 	}
 	return 0;
@@ -209,12 +209,11 @@ static int scs_handle_fde_frame(const struct eh_frame *frame,
 
 int scs_patch(const u8 eh_frame[], int size)
 {
+	int code_alignment_factor = 1;
 	const u8 *p = eh_frame;
 
 	while (size > 4) {
 		const struct eh_frame *frame = (const void *)p;
-		bool fde_has_augmentation_data = true;
-		int code_alignment_factor = 1;
 		int ret;
 
 		if (frame->size == 0 ||
@@ -223,28 +222,36 @@ int scs_patch(const u8 eh_frame[], int size)
 			break;
 
 		if (frame->cie_id_or_pointer == 0) {
-			const u8 *p = frame->augmentation_string;
-
-			/* a 'z' in the augmentation string must come first */
-			fde_has_augmentation_data = *p == 'z';
+			/*
+			 * Require presence of augmentation data (z) with a
+			 * specifier for the size of the FDE initial_loc and
+			 * range fields (R), and nothing else.
+			 */
+			if (strcmp(frame->augmentation_string, "zR"))
+				return EDYNSCS_INVALID_CIE_HEADER;
 
 			/*
 			 * The code alignment factor is a uleb128 encoded field
 			 * but given that the only sensible values are 1 or 4,
-			 * there is no point in decoding the whole thing.
+			 * there is no point in decoding the whole thing.  Also
+			 * sanity check the size of the data alignment factor
+			 * field, and the values of the return address register
+			 * and augmentation data size fields.
 			 */
-			p += strlen(p) + 1;
-			if (!WARN_ON(*p & BIT(7)))
-				code_alignment_factor = *p;
+			if ((frame->code_alignment_factor & BIT(7)) ||
+			    (frame->data_alignment_factor & BIT(7)) ||
+			    frame->return_address_register != 30 ||
+			    frame->augmentation_data_size != 1)
+				return EDYNSCS_INVALID_CIE_HEADER;
+
+			code_alignment_factor = frame->code_alignment_factor;
 		} else {
-			ret = scs_handle_fde_frame(frame,
-						   fde_has_augmentation_data,
-						   code_alignment_factor,
+			ret = scs_handle_fde_frame(frame, code_alignment_factor,
 						   true);
 			if (ret)
 				return ret;
-			scs_handle_fde_frame(frame, fde_has_augmentation_data,
-					     code_alignment_factor, false);
+			scs_handle_fde_frame(frame, code_alignment_factor,
+					     false);
 		}
 
 		p += sizeof(frame->size) + frame->size;
