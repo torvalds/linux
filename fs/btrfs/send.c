@@ -8125,6 +8125,14 @@ long btrfs_ioctl_send(struct btrfs_inode *inode, const struct btrfs_ioctl_send_a
 	 * making it RW. This also protects against deletion.
 	 */
 	spin_lock(&send_root->root_item_lock);
+	/*
+	 * Unlikely but possible, if the subvolume is marked for deletion but
+	 * is slow to remove the directory entry, send can still be started.
+	 */
+	if (btrfs_root_dead(send_root)) {
+		spin_unlock(&send_root->root_item_lock);
+		return -EPERM;
+	}
 	if (btrfs_root_readonly(send_root) && send_root->dedupe_in_progress) {
 		dedupe_in_progress_warn(send_root);
 		spin_unlock(&send_root->root_item_lock);
@@ -8207,15 +8215,6 @@ long btrfs_ioctl_send(struct btrfs_inode *inode, const struct btrfs_ioctl_send_a
 	}
 
 	sctx->send_root = send_root;
-	/*
-	 * Unlikely but possible, if the subvolume is marked for deletion but
-	 * is slow to remove the directory entry, send can still be started
-	 */
-	if (btrfs_root_dead(sctx->send_root)) {
-		ret = -EPERM;
-		goto out;
-	}
-
 	sctx->clone_roots_cnt = arg->clone_sources_count;
 
 	if (sctx->proto >= 2) {
