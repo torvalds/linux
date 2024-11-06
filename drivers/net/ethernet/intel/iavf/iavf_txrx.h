@@ -262,6 +262,8 @@ struct iavf_ring {
 	u16 next_to_use;
 	u16 next_to_clean;
 
+	u16 rxdid;		/* Rx descriptor format */
+
 	u16 flags;
 #define IAVF_TXR_FLAGS_WB_ON_ITR		BIT(0)
 #define IAVF_TXR_FLAGS_ARM_WB			BIT(1)
