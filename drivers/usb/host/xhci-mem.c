@@ -116,45 +116,42 @@ static void xhci_link_segments(struct xhci_segment *prev,
 }
 
 /*
- * Link the ring to the new segments.
+ * Link the src ring segments to the dst ring.
  * Set Toggle Cycle for the new ring if needed.
  */
-static void xhci_link_rings(struct xhci_hcd *xhci, struct xhci_ring *ring,
-		struct xhci_segment *first, struct xhci_segment *last,
-		unsigned int num_segs)
+static void xhci_link_rings(struct xhci_hcd *xhci, struct xhci_ring *src, struct xhci_ring *dst)
 {
-	struct xhci_segment *next, *seg;
+	struct xhci_segment *seg;
 	bool chain_links;
 
-	if (!ring || !first || !last)
+	if (!src || !dst)
 		return;
 
-	chain_links = xhci_link_chain_quirk(xhci, ring->type);
+	chain_links = xhci_link_chain_quirk(xhci, dst->type);
 
 	/* If the cycle state is 0, set the cycle bit to 1 for all the TRBs */
-	if (ring->cycle_state == 0) {
-		xhci_for_each_ring_seg(ring->first_seg, seg) {
+	if (dst->cycle_state == 0) {
+		xhci_for_each_ring_seg(src->first_seg, seg) {
 			for (int i = 0; i < TRBS_PER_SEGMENT; i++)
 				seg->trbs[i].link.control |= cpu_to_le32(TRB_CYCLE);
 		}
 	}
 
-	next = ring->enq_seg->next;
-	xhci_link_segments(ring->enq_seg, first, ring->type, chain_links);
-	xhci_link_segments(last, next, ring->type, chain_links);
-	ring->num_segs += num_segs;
+	xhci_link_segments(src->last_seg, dst->enq_seg->next, dst->type, chain_links);
+	xhci_link_segments(dst->enq_seg, src->first_seg, dst->type, chain_links);
+	dst->num_segs += src->num_segs;
 
-	if (ring->enq_seg == ring->last_seg) {
-		if (ring->type != TYPE_EVENT) {
-			ring->last_seg->trbs[TRBS_PER_SEGMENT-1].link.control
+	if (dst->enq_seg == dst->last_seg) {
+		if (dst->type != TYPE_EVENT) {
+			dst->last_seg->trbs[TRBS_PER_SEGMENT-1].link.control
 				&= ~cpu_to_le32(LINK_TOGGLE);
-			last->trbs[TRBS_PER_SEGMENT-1].link.control
+			src->last_seg->trbs[TRBS_PER_SEGMENT-1].link.control
 				|= cpu_to_le32(LINK_TOGGLE);
 		}
-		ring->last_seg = last;
+		dst->last_seg = src->last_seg;
 	}
 
-	for (seg = ring->enq_seg; seg != ring->last_seg; seg = seg->next)
+	for (seg = dst->enq_seg; seg != dst->last_seg; seg = seg->next)
 		seg->next->num = seg->num + 1;
 }
 
@@ -411,6 +408,9 @@ int xhci_ring_expansion(struct xhci_hcd *xhci, struct xhci_ring *ring,
 	struct xhci_ring new_ring;
 	int ret;
 
+	if (num_new_segs == 0)
+		return 0;
+
 	new_ring.num_segs = num_new_segs;
 	new_ring.bounce_buf_len = ring->bounce_buf_len;
 	new_ring.type = ring->type;
@@ -425,7 +425,7 @@ int xhci_ring_expansion(struct xhci_hcd *xhci, struct xhci_ring *ring,
 			goto free_segments;
 	}
 
-	xhci_link_rings(xhci, ring, new_ring.first_seg, new_ring.last_seg, num_new_segs);
+	xhci_link_rings(xhci, ring, &new_ring);
 	trace_xhci_ring_expansion(ring);
 	xhci_dbg_trace(xhci, trace_xhci_dbg_ring_expansion,
 			"ring expansion succeed, now has %d segments",
