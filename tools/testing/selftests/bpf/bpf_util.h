@@ -67,5 +67,8 @@ static inline void bpf_strlcpy(char *dst, const char *src, size_t sz)
 #define sys_gettid() syscall(SYS_gettid)
 #endif
 
+#ifndef ENOTSUPP
+#define ENOTSUPP 524
+#endif
 
 #endif /* __BPF_UTIL__ */
