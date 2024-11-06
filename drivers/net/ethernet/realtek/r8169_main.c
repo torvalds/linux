@@ -1431,19 +1431,11 @@ static enum rtl_dash_type rtl_get_dash_type(struct rtl8169_private *tp)
 
 static void rtl_set_d3_pll_down(struct rtl8169_private *tp, bool enable)
 {
-	switch (tp->mac_version) {
-	case RTL_GIGA_MAC_VER_25 ... RTL_GIGA_MAC_VER_26:
-	case RTL_GIGA_MAC_VER_29 ... RTL_GIGA_MAC_VER_30:
-	case RTL_GIGA_MAC_VER_32 ... RTL_GIGA_MAC_VER_37:
-	case RTL_GIGA_MAC_VER_39 ... RTL_GIGA_MAC_VER_66:
-		if (enable)
-			RTL_W8(tp, PMCH, RTL_R8(tp, PMCH) & ~D3_NO_PLL_DOWN);
-		else
-			RTL_W8(tp, PMCH, RTL_R8(tp, PMCH) | D3_NO_PLL_DOWN);
-		break;
-	default:
-		break;
-	}
+	if (tp->mac_version >= RTL_GIGA_MAC_VER_25 &&
+	    tp->mac_version != RTL_GIGA_MAC_VER_28 &&
+	    tp->mac_version != RTL_GIGA_MAC_VER_31 &&
+	    tp->mac_version != RTL_GIGA_MAC_VER_38)
+		r8169_mod_reg8_cond(tp, PMCH, D3_NO_PLL_DOWN, !enable);
 }
 
 static void rtl_reset_packet_filter(struct rtl8169_private *tp)
