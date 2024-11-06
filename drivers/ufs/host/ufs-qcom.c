@@ -874,7 +874,8 @@ static void ufs_qcom_advertise_quirks(struct ufs_hba *hba)
 	if (host->hw_ver.major > 0x3)
 		hba->quirks |= UFSHCD_QUIRK_REINIT_AFTER_MAX_GEAR_SWITCH;
 
-	if (of_device_is_compatible(hba->dev->of_node, "qcom,sm8550-ufshc"))
+	if (of_device_is_compatible(hba->dev->of_node, "qcom,sm8550-ufshc") ||
+	    of_device_is_compatible(hba->dev->of_node, "qcom,sm8650-ufshc"))
 		hba->quirks |= UFSHCD_QUIRK_BROKEN_LSDBS_CAP;
 }
 
