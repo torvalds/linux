@@ -748,6 +748,20 @@ static void rtl_mod_config5(struct rtl8169_private *tp, u8 clear, u8 set)
 	RTL_W8(tp, Config5, (val & ~clear) | set);
 }
 
+static void r8169_mod_reg8_cond(struct rtl8169_private *tp, int reg,
+				u8 bits, bool cond)
+{
+	u8 val, old_val;
+
+	old_val = RTL_R8(tp, reg);
+	if (cond)
+		val = old_val | bits;
+	else
+		val = old_val & ~bits;
+	if (val != old_val)
+		RTL_W8(tp, reg, val);
+}
+
 static bool rtl_is_8125(struct rtl8169_private *tp)
 {
 	return tp->mac_version >= RTL_GIGA_MAC_VER_61;
@@ -1538,58 +1552,37 @@ static void rtl8169_get_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 
 static void __rtl8169_set_wol(struct rtl8169_private *tp, u32 wolopts)
 {
-	static const struct {
-		u32 opt;
-		u16 reg;
-		u8  mask;
-	} cfg[] = {
-		{ WAKE_PHY,   Config3, LinkUp },
-		{ WAKE_UCAST, Config5, UWF },
-		{ WAKE_BCAST, Config5, BWF },
-		{ WAKE_MCAST, Config5, MWF },
-		{ WAKE_ANY,   Config5, LanWake },
-		{ WAKE_MAGIC, Config3, MagicPacket }
-	};
-	unsigned int i, tmp = ARRAY_SIZE(cfg);
-	u8 options;
-
 	rtl_unlock_config_regs(tp);
 
 	if (rtl_is_8168evl_up(tp)) {
-		tmp--;
 		if (wolopts & WAKE_MAGIC)
 			rtl_eri_set_bits(tp, 0x0dc, MagicPacket_v2);
 		else
 			rtl_eri_clear_bits(tp, 0x0dc, MagicPacket_v2);
 	} else if (rtl_is_8125(tp)) {
-		tmp--;
 		if (wolopts & WAKE_MAGIC)
 			r8168_mac_ocp_modify(tp, 0xc0b6, 0, BIT(0));
 		else
 			r8168_mac_ocp_modify(tp, 0xc0b6, BIT(0), 0);
+	} else {
+		r8169_mod_reg8_cond(tp, Config3, MagicPacket,
+				    wolopts & WAKE_MAGIC);
 	}
 
-	for (i = 0; i < tmp; i++) {
-		options = RTL_R8(tp, cfg[i].reg) & ~cfg[i].mask;
-		if (wolopts & cfg[i].opt)
-			options |= cfg[i].mask;
-		RTL_W8(tp, cfg[i].reg, options);
-	}
+	r8169_mod_reg8_cond(tp, Config3, LinkUp, wolopts & WAKE_PHY);
+	r8169_mod_reg8_cond(tp, Config5, UWF, wolopts & WAKE_UCAST);
+	r8169_mod_reg8_cond(tp, Config5, BWF, wolopts & WAKE_BCAST);
+	r8169_mod_reg8_cond(tp, Config5, MWF, wolopts & WAKE_MCAST);
+	r8169_mod_reg8_cond(tp, Config5, LanWake, wolopts);
 
 	switch (tp->mac_version) {
 	case RTL_GIGA_MAC_VER_02 ... RTL_GIGA_MAC_VER_06:
-		options = RTL_R8(tp, Config1) & ~PMEnable;
-		if (wolopts)
-			options |= PMEnable;
-		RTL_W8(tp, Config1, options);
+		r8169_mod_reg8_cond(tp, Config1, PMEnable, wolopts);
 		break;
 	case RTL_GIGA_MAC_VER_34:
 	case RTL_GIGA_MAC_VER_37:
 	case RTL_GIGA_MAC_VER_39 ... RTL_GIGA_MAC_VER_66:
-		if (wolopts)
-			rtl_mod_config2(tp, 0, PME_SIGNAL);
-		else
-			rtl_mod_config2(tp, PME_SIGNAL, 0);
+		r8169_mod_reg8_cond(tp, Config2, PME_SIGNAL, wolopts);
 		break;
 	default:
 		break;
