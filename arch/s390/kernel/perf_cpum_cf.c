@@ -879,8 +879,8 @@ static int hw_perf_event_reset(struct perf_event *event)
 	u64 prev, new;
 	int err;
 
+	prev = local64_read(&event->hw.prev_count);
 	do {
-		prev = local64_read(&event->hw.prev_count);
 		err = ecctr(event->hw.config, &new);
 		if (err) {
 			if (err != 3)
@@ -892,7 +892,7 @@ static int hw_perf_event_reset(struct perf_event *event)
 			 */
 			new = 0;
 		}
-	} while (local64_cmpxchg(&event->hw.prev_count, prev, new) != prev);
+	} while (!local64_try_cmpxchg(&event->hw.prev_count, &prev, new));
 
 	return err;
 }
@@ -902,12 +902,12 @@ static void hw_perf_event_update(struct perf_event *event)
 	u64 prev, new, delta;
 	int err;
 
+	prev = local64_read(&event->hw.prev_count);
 	do {
-		prev = local64_read(&event->hw.prev_count);
 		err = ecctr(event->hw.config, &new);
 		if (err)
 			return;
-	} while (local64_cmpxchg(&event->hw.prev_count, prev, new) != prev);
+	} while (!local64_try_cmpxchg(&event->hw.prev_count, &prev, new));
 
 	delta = (prev <= new) ? new - prev
 			      : (-1ULL - prev) + new + 1;	 /* overflow */
