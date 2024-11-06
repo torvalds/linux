@@ -4,6 +4,7 @@ TEST_PROGS = devlink.sh \
 	devlink_in_netns.sh \
 	devlink_trap.sh \
 	ethtool-coalesce.sh \
+	ethtool-features.sh \
 	ethtool-fec.sh \
 	ethtool-pause.sh \
 	ethtool-ring.sh \
