@@ -39,6 +39,8 @@ trace/beauty/generated/
 pmu-events/pmu-events.c
 pmu-events/jevents
 pmu-events/metric_test.log
+pmu-events/empty-pmu-events.log
+pmu-events/test-empty-pmu-events.c
 *.shellcheck_log
 feature/
 libapi/
