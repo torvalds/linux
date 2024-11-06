@@ -680,7 +680,8 @@ EXPORT_SYMBOL_GPL(genphy_c45_read_mdix);
  * @phydev: target phy_device struct
  * @adv: the linkmode advertisement settings
  */
-int genphy_c45_write_eee_adv(struct phy_device *phydev, unsigned long *adv)
+static int genphy_c45_write_eee_adv(struct phy_device *phydev,
+				    unsigned long *adv)
 {
 	int val, changed = 0;
 
