@@ -72,7 +72,7 @@
 		charge-full-design-microamp-hours = <1900000>;
 		charge-term-current-microamp = <120000>;
 		constant-charge-voltage-max-microvolt = <4350000>;
-		internal-resistance-micro-ohms = <250000>;
+		factory-internal-resistance-micro-ohms = <250000>;
 		ocv-capacity-celsius = <20>;
 		ocv-capacity-table-0 = <4185000 100>, <4113000 95>, <4066000 90>,
 			<4022000 85>, <3983000 80>, <3949000 75>,
