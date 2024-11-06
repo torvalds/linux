@@ -1,0 +1,45 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/clock/amlogic,meson8-clkc.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Amlogic Meson8, Meson8b and Meson8m2 Clock and Reset Controller
+
+maintainers:
+  - Neil Armstrong <neil.armstrong@linaro.org>
+
+properties:
+  compatible:
+    oneOf:
+      - enum:
+          - amlogic,meson8-clkc
+          - amlogic,meson8b-clkc
+      - items:
+          - const: amlogic,meson8m2-clkc
+          - const: amlogic,meson8-clkc
+
+  clocks:
+    minItems: 2
+    maxItems: 3
+
+  clock-names:
+    minItems: 2
+    items:
+      - const: xtal
+      - const: ddr_pll
+      - const: clk_32k
+
+  '#clock-cells':
+    const: 1
+
+  '#reset-cells':
+    const: 1
+
+required:
+  - compatible
+  - clocks
+  - clock-names
+  - '#reset-cells'
+
+additionalProperties: false
