@@ -55,7 +55,7 @@ static void __init fdt_bus_default_count_cells(const void *blob, int parentoffse
 		if (prop)
 			*addrc = be32_to_cpup(prop);
 		else
-			*addrc = dt_root_addr_cells;
+			*addrc = -1;
 	}
 
 	if (sizec) {
@@ -63,7 +63,7 @@ static void __init fdt_bus_default_count_cells(const void *blob, int parentoffse
 		if (prop)
 			*sizec = be32_to_cpup(prop);
 		else
-			*sizec = dt_root_size_cells;
+			*sizec = -1;
 	}
 }
 
