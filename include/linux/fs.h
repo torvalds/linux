@@ -3477,12 +3477,12 @@ int generic_ci_d_compare(const struct dentry *dentry, unsigned int len,
  * @name: name of the new file
  *
  * Return:
- * * True if the filename is suitable for this directory. It can be
- * true if a given name is not suitable for a strict encoding
- * directory, but the directory being used isn't strict
+ * * True: if the filename is suitable for this directory. It can be
+ *   true if a given name is not suitable for a strict encoding
+ *   directory, but the directory being used isn't strict
  * * False if the filename isn't suitable for this directory. This only
- * happens when a directory is casefolded and the filesystem is strict
- * about its encoding.
+ *   happens when a directory is casefolded and the filesystem is strict
+ *   about its encoding.
  */
 static inline bool generic_ci_validate_strict_name(struct inode *dir, struct qstr *name)
 {

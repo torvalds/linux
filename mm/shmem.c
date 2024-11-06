@@ -5126,6 +5126,66 @@ static struct file_system_type shmem_fs_type = {
 	.fs_flags	= FS_USERNS_MOUNT | FS_ALLOW_IDMAP,
 };
 
+#if defined(CONFIG_SYSFS) && defined(CONFIG_TMPFS)
+
+#define __INIT_KOBJ_ATTR(_name, _mode, _show, _store)			\
+{									\
+	.attr	= { .name = __stringify(_name), .mode = _mode },	\
+	.show	= _show,						\
+	.store	= _store,						\
+}
+
+#define TMPFS_ATTR_W(_name, _store)				\
+	static struct kobj_attribute tmpfs_attr_##_name =	\
+			__INIT_KOBJ_ATTR(_name, 0200, NULL, _store)
+
+#define TMPFS_ATTR_RW(_name, _show, _store)			\
+	static struct kobj_attribute tmpfs_attr_##_name =	\
+			__INIT_KOBJ_ATTR(_name, 0644, _show, _store)
+
+#define TMPFS_ATTR_RO(_name, _show)				\
+	static struct kobj_attribute tmpfs_attr_##_name =	\
+			__INIT_KOBJ_ATTR(_name, 0444, _show, NULL)
+
+#if IS_ENABLED(CONFIG_UNICODE)
+static ssize_t casefold_show(struct kobject *kobj, struct kobj_attribute *a,
+			char *buf)
+{
+		return sysfs_emit(buf, "supported\n");
+}
+TMPFS_ATTR_RO(casefold, casefold_show);
+#endif
+
+static struct attribute *tmpfs_attributes[] = {
+#if IS_ENABLED(CONFIG_UNICODE)
+	&tmpfs_attr_casefold.attr,
+#endif
+	NULL
+};
+
+static const struct attribute_group tmpfs_attribute_group = {
+	.attrs = tmpfs_attributes,
+	.name = "features"
+};
+
+static struct kobject *tmpfs_kobj;
+
+static int __init tmpfs_sysfs_init(void)
+{
+	int ret;
+
+	tmpfs_kobj = kobject_create_and_add("tmpfs", fs_kobj);
+	if (!tmpfs_kobj)
+		return -ENOMEM;
+
+	ret = sysfs_create_group(tmpfs_kobj, &tmpfs_attribute_group);
+	if (ret)
+		kobject_put(tmpfs_kobj);
+
+	return ret;
+}
+#endif /* CONFIG_SYSFS && CONFIG_TMPFS */
+
 void __init shmem_init(void)
 {
 	int error;
@@ -5148,6 +5208,14 @@ void __init shmem_init(void)
 		pr_err("Could not kern_mount tmpfs\n");
 		goto out1;
 	}
+
+#if defined(CONFIG_SYSFS) && defined(CONFIG_TMPFS)
+	error = tmpfs_sysfs_init();
+	if (error) {
+		pr_err("Could not init tmpfs sysfs\n");
+		goto out1;
+	}
+#endif
 
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
 	if (has_transparent_hugepage() && shmem_huge > SHMEM_HUGE_DENY)
@@ -5546,40 +5614,3 @@ struct page *shmem_read_mapping_page_gfp(struct address_space *mapping,
 	return page;
 }
 EXPORT_SYMBOL_GPL(shmem_read_mapping_page_gfp);
-
-#if defined(CONFIG_SYSFS) && defined(CONFIG_TMPFS)
-#if IS_ENABLED(CONFIG_UNICODE)
-static DEVICE_STRING_ATTR_RO(casefold, 0444, "supported");
-#endif
-
-static struct attribute *tmpfs_attributes[] = {
-#if IS_ENABLED(CONFIG_UNICODE)
-	&dev_attr_casefold.attr.attr,
-#endif
-	NULL
-};
-
-static const struct attribute_group tmpfs_attribute_group = {
-	.attrs = tmpfs_attributes,
-	.name = "features"
-};
-
-static struct kobject *tmpfs_kobj;
-
-static int __init tmpfs_sysfs_init(void)
-{
-	int ret;
-
-	tmpfs_kobj = kobject_create_and_add("tmpfs", fs_kobj);
-	if (!tmpfs_kobj)
-		return -ENOMEM;
-
-	ret = sysfs_create_group(tmpfs_kobj, &tmpfs_attribute_group);
-	if (ret)
-		kobject_put(tmpfs_kobj);
-
-	return ret;
-}
-
-fs_initcall(tmpfs_sysfs_init);
-#endif /* CONFIG_SYSFS && CONFIG_TMPFS */
