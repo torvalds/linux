@@ -113,6 +113,22 @@ static void xhci_set_link_trb(struct xhci_segment *seg, bool chain_links)
 	trb->link.segment_ptr = cpu_to_le64(seg->next->dma);
 }
 
+static void xhci_initialize_ring_segments(struct xhci_hcd *xhci, struct xhci_ring *ring)
+{
+	struct xhci_segment *seg;
+	bool chain_links;
+
+	if (ring->type == TYPE_EVENT)
+		return;
+
+	chain_links = xhci_link_chain_quirk(xhci, ring->type);
+	xhci_for_each_ring_seg(ring->first_seg, seg)
+		xhci_set_link_trb(seg, chain_links);
+
+	/* See section 4.9.2.1 and 6.4.4.1 */
+	ring->last_seg->trbs[TRBS_PER_SEGMENT - 1].link.control |= cpu_to_le32(LINK_TOGGLE);
+}
+
 /*
  * Link the src ring segments to the dst ring.
  * Set Toggle Cycle for the new ring if needed.
@@ -143,13 +159,13 @@ static void xhci_link_rings(struct xhci_hcd *xhci, struct xhci_ring *src, struct
 	dst->num_segs += src->num_segs;
 
 	if (dst->enq_seg == dst->last_seg) {
-		if (dst->type != TYPE_EVENT) {
+		if (dst->type != TYPE_EVENT)
 			dst->last_seg->trbs[TRBS_PER_SEGMENT-1].link.control
 				&= ~cpu_to_le32(LINK_TOGGLE);
-			src->last_seg->trbs[TRBS_PER_SEGMENT-1].link.control
-				|= cpu_to_le32(LINK_TOGGLE);
-		}
+
 		dst->last_seg = src->last_seg;
+	} else if (dst->type != TYPE_EVENT) {
+		src->last_seg->trbs[TRBS_PER_SEGMENT-1].link.control &= ~cpu_to_le32(LINK_TOGGLE);
 	}
 
 	for (seg = dst->enq_seg; seg != dst->last_seg; seg = seg->next)
@@ -315,9 +331,6 @@ static int xhci_alloc_segments_for_ring(struct xhci_hcd *xhci, struct xhci_ring 
 {
 	struct xhci_segment *prev;
 	unsigned int num = 0;
-	bool chain_links;
-
-	chain_links = xhci_link_chain_quirk(xhci, ring->type);
 
 	prev = xhci_segment_alloc(xhci, ring->bounce_buf_len, num, flags);
 	if (!prev)
@@ -333,17 +346,12 @@ static int xhci_alloc_segments_for_ring(struct xhci_hcd *xhci, struct xhci_ring 
 			goto free_segments;
 
 		prev->next = next;
-		if (ring->type != TYPE_EVENT)
-			xhci_set_link_trb(prev, chain_links);
 		prev = next;
 		num++;
 	}
 	ring->last_seg = prev;
 
 	ring->last_seg->next = ring->first_seg;
-	if (ring->type != TYPE_EVENT)
-		xhci_set_link_trb(prev, chain_links);
-
 	return 0;
 
 free_segments:
@@ -381,12 +389,7 @@ struct xhci_ring *xhci_ring_alloc(struct xhci_hcd *xhci, unsigned int num_segs,
 	if (ret)
 		goto fail;
 
-	/* Only event ring does not use link TRB */
-	if (type != TYPE_EVENT) {
-		/* See section 4.9.2.1 and 6.4.4.1 */
-		ring->last_seg->trbs[TRBS_PER_SEGMENT - 1].link.control |=
-			cpu_to_le32(LINK_TOGGLE);
-	}
+	xhci_initialize_ring_segments(xhci, ring);
 	xhci_initialize_ring_info(ring);
 	trace_xhci_ring_alloc(ring);
 	return ring;
@@ -423,6 +426,8 @@ int xhci_ring_expansion(struct xhci_hcd *xhci, struct xhci_ring *ring,
 	ret = xhci_alloc_segments_for_ring(xhci, &new_ring, flags);
 	if (ret)
 		return -ENOMEM;
+
+	xhci_initialize_ring_segments(xhci, &new_ring);
 
 	if (ring->type == TYPE_STREAM) {
 		ret = xhci_update_stream_segment_mapping(ring->trb_address_map, ring,
