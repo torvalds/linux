@@ -5362,7 +5362,23 @@
 
 	rcutorture.gp_cond= [KNL]
 			Use conditional/asynchronous update-side
-			primitives, if available.
+			normal-grace-period primitives, if available.
+
+	rcutorture.gp_cond_exp= [KNL]
+			Use conditional/asynchronous update-side
+			expedited-grace-period primitives, if available.
+
+	rcutorture.gp_cond_full= [KNL]
+			Use conditional/asynchronous update-side
+			normal-grace-period primitives that also take
+			concurrent expedited grace periods into account,
+			if available.
+
+	rcutorture.gp_cond_exp_full= [KNL]
+			Use conditional/asynchronous update-side
+			expedited-grace-period primitives that also take
+			concurrent normal grace periods into account,
+			if available.
 
 	rcutorture.gp_exp= [KNL]
 			Use expedited update-side primitives, if available.
@@ -5370,6 +5386,24 @@
 	rcutorture.gp_normal= [KNL]
 			Use normal (non-expedited) asynchronous
 			update-side primitives, if available.
+
+	rcutorture.gp_poll= [KNL]
+			Use polled update-side normal-grace-period
+			primitives, if available.
+
+	rcutorture.gp_poll_exp= [KNL]
+			Use polled update-side expedited-grace-period
+			primitives, if available.
+
+	rcutorture.gp_poll_full= [KNL]
+			Use polled update-side normal-grace-period
+			primitives that also take concurrent expedited
+			grace periods into account, if available.
+
+	rcutorture.gp_poll_exp_full= [KNL]
+			Use polled update-side expedited-grace-period
+			primitives that also take concurrent normal
+			grace periods into account, if available.
 
 	rcutorture.gp_sync= [KNL]
 			Use normal (non-expedited) synchronous
