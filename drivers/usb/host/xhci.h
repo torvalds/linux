@@ -1023,9 +1023,6 @@ enum xhci_setup_dev {
 /* Interrupter Target - which MSI-X vector to target the completion event at */
 #define TRB_INTR_TARGET(p)	(((p) & 0x3ff) << 22)
 #define GET_INTR_TARGET(p)	(((p) >> 22) & 0x3ff)
-/* Total burst count field, Rsvdz on xhci 1.1 with Extended TBC enabled (ETE) */
-#define TRB_TBC(p)		(((p) & 0x3) << 7)
-#define TRB_TLBPC(p)		(((p) & 0xf) << 16)
 
 /* Cycle bit - indicates TRB ownership by HC or HCD */
 #define TRB_CYCLE		(1<<0)
@@ -1059,6 +1056,12 @@ enum xhci_setup_dev {
 /* Isochronous TRB specific fields */
 #define TRB_SIA			(1<<31)
 #define TRB_FRAME_ID(p)		(((p) & 0x7ff) << 20)
+#define GET_FRAME_ID(p)		(((p) >> 20) & 0x7ff)
+/* Total burst count field, Rsvdz on xhci 1.1 with Extended TBC enabled (ETE) */
+#define TRB_TBC(p)		(((p) & 0x3) << 7)
+#define GET_TBC(p)		(((p) >> 7) & 0x3)
+#define TRB_TLBPC(p)		(((p) & 0xf) << 16)
+#define GET_TLBPC(p)		(((p) >> 16) & 0xf)
 
 /* TRB cache size for xHC with TRB cache */
 #define TRB_CACHE_SIZE_HS	8
@@ -2072,7 +2075,6 @@ static inline const char *xhci_decode_trb(char *str, size_t size,
 				field3 & TRB_CYCLE ? 'C' : 'c');
 		break;
 	case TRB_NORMAL:
-	case TRB_ISOC:
 	case TRB_EVENT_DATA:
 	case TRB_TR_NOOP:
 		snprintf(str, size,
@@ -2089,7 +2091,25 @@ static inline const char *xhci_decode_trb(char *str, size_t size,
 			field3 & TRB_ENT ? 'E' : 'e',
 			field3 & TRB_CYCLE ? 'C' : 'c');
 		break;
-
+	case TRB_ISOC:
+		snprintf(str, size,
+			"Buffer %08x%08x length %d TD size/TBC %d intr %d type '%s' TBC %u TLBPC %u frame_id %u flags %c:%c:%c:%c:%c:%c:%c:%c:%c",
+			field1, field0, TRB_LEN(field2), GET_TD_SIZE(field2),
+			GET_INTR_TARGET(field2),
+			xhci_trb_type_string(type),
+			GET_TBC(field3),
+			GET_TLBPC(field3),
+			GET_FRAME_ID(field3),
+			field3 & TRB_SIA ? 'S' : 's',
+			field3 & TRB_BEI ? 'B' : 'b',
+			field3 & TRB_IDT ? 'I' : 'i',
+			field3 & TRB_IOC ? 'I' : 'i',
+			field3 & TRB_CHAIN ? 'C' : 'c',
+			field3 & TRB_NO_SNOOP ? 'S' : 's',
+			field3 & TRB_ISP ? 'I' : 'i',
+			field3 & TRB_ENT ? 'E' : 'e',
+			field3 & TRB_CYCLE ? 'C' : 'c');
+		break;
 	case TRB_CMD_NOOP:
 	case TRB_ENABLE_SLOT:
 		snprintf(str, size,
