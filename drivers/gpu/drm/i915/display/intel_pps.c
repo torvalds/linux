@@ -1512,11 +1512,11 @@ static void pps_init_delays_spec(struct intel_dp *intel_dp,
 
 	/* Upper limits from eDP 1.3 spec. Note that we use the clunky units of
 	 * our hw here, which are all in 100usec. */
-	spec->power_up = 210 * 10; /* T1+T3 */
+	spec->power_up = (10 + 200) * 10; /* T1+T3 */
 	spec->backlight_on = 50 * 10; /* no limit for T8, use T7 instead */
 	spec->backlight_off = 50 * 10; /* no limit for T9, make it symmetric with T8 */
 	spec->power_down = 500 * 10; /* T10 */
-	spec->power_cycle = 510 * 10; /* T11+T12 */
+	spec->power_cycle = (10 + 500) * 10; /* T11+T12 */
 
 	intel_pps_dump_state(intel_dp, "spec", spec);
 }
