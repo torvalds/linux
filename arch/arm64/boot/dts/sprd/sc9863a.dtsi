@@ -288,7 +288,7 @@
 				};
 			};
 
-			in-port {
+			in-ports {
 				port {
 					etf_little_in: endpoint {
 						remote-endpoint =
