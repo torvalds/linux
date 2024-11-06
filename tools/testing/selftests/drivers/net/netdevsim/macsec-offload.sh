@@ -48,6 +48,27 @@ check $?
 ip macsec add "${MACSEC_NETDEV}" rx port 1235 address "1c:ed:de:ad:be:ef" 2> /dev/null
 check $? '' '' 1
 
+# can't disable macsec offload when SAs are configured
+ip link set "${MACSEC_NETDEV}" type macsec offload off 2> /dev/null
+check $? '' '' 1
+
+ip macsec offload "${MACSEC_NETDEV}" off 2> /dev/null
+check $? '' '' 1
+
+# toggle macsec offload via rtnetlink
+ip link set "${MACSEC_NETDEV}2" type macsec offload off
+check $?
+
+ip link set "${MACSEC_NETDEV}2" type macsec offload mac
+check $?
+
+# toggle macsec offload via genetlink
+ip macsec offload "${MACSEC_NETDEV}2" off
+check $?
+
+ip macsec offload "${MACSEC_NETDEV}2" mac
+check $?
+
 for dev in ${MACSEC_NETDEV}{,2,3} ; do
     ip link del $dev
     check $?
