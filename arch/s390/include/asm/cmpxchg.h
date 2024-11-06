@@ -249,5 +249,6 @@ static __always_inline u128 arch_cmpxchg128(volatile u128 *ptr, u128 old, u128 n
 }
 
 #define arch_cmpxchg128		arch_cmpxchg128
+#define arch_cmpxchg128_local	arch_cmpxchg128
 
 #endif /* __ASM_CMPXCHG_H */
