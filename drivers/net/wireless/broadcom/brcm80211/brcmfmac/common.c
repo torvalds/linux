@@ -594,7 +594,7 @@ static void brcmf_common_pd_remove(struct platform_device *pdev)
 }
 
 static struct platform_driver brcmf_pd = {
-	.remove_new	= brcmf_common_pd_remove,
+	.remove		= brcmf_common_pd_remove,
 	.driver		= {
 		.name	= BRCMFMAC_PDATA_NAME,
 	}
