@@ -105,8 +105,8 @@ struct ethosn_device {
 	struct mutex mutex;
 	int parent_id;
 	int num_cores;
-	struct ethosn_inference_queue queue;
-	struct ethosn_dma_allocator **asset_allocator;
+	struct ethosn_inference_queue queue;                // 队列中的推理任务在注册时入队, 由调度器寻找空闲 core 执行
+	struct ethosn_dma_allocator **asset_allocator;      // 当前设备持有的 asset_allocator 组, asset_allocator 绑定到一次推理任务始末, 辅助完成内存分配
 	int num_asset_allocs;
 	uint32_t current_busy_cores;
 	uint32_t status_mask;
