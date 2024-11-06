@@ -5,6 +5,7 @@
 #include <asm/current.h>
 #include <linux/thread_info.h>
 #include <asm/atomic_ops.h>
+#include <asm/cmpxchg.h>
 #include <asm/march.h>
 
 #ifdef MARCH_HAS_Z196_FEATURES
@@ -22,12 +23,10 @@ static __always_inline void preempt_count_set(int pc)
 {
 	int old, new;
 
+	old = READ_ONCE(get_lowcore()->preempt_count);
 	do {
-		old = READ_ONCE(get_lowcore()->preempt_count);
-		new = (old & PREEMPT_NEED_RESCHED) |
-			(pc & ~PREEMPT_NEED_RESCHED);
-	} while (__atomic_cmpxchg(&get_lowcore()->preempt_count,
-				  old, new) != old);
+		new = (old & PREEMPT_NEED_RESCHED) | (pc & ~PREEMPT_NEED_RESCHED);
+	} while (!arch_try_cmpxchg(&get_lowcore()->preempt_count, &old, new));
 }
 
 static __always_inline void set_preempt_need_resched(void)
