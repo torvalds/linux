@@ -148,6 +148,7 @@ int iavf_send_vf_config_msg(struct iavf_adapter *adapter)
 	       VIRTCHNL_VF_OFFLOAD_CRC |
 	       VIRTCHNL_VF_OFFLOAD_ENCAP_CSUM |
 	       VIRTCHNL_VF_OFFLOAD_REQ_QUEUES |
+	       VIRTCHNL_VF_CAP_PTP |
 	       VIRTCHNL_VF_OFFLOAD_ADQ |
 	       VIRTCHNL_VF_OFFLOAD_USO |
 	       VIRTCHNL_VF_OFFLOAD_FDIR_PF |
@@ -189,6 +190,41 @@ int iavf_send_vf_supported_rxdids_msg(struct iavf_adapter *adapter)
 
 	return iavf_send_pf_msg(adapter, VIRTCHNL_OP_GET_SUPPORTED_RXDIDS,
 				NULL, 0);
+}
+
+/**
+ * iavf_send_vf_ptp_caps_msg - Send request for PTP capabilities
+ * @adapter: private adapter structure
+ *
+ * Send the VIRTCHNL_OP_1588_PTP_GET_CAPS command to the PF to request the PTP
+ * capabilities available to this device. This includes the following
+ * potential access:
+ *
+ * * READ_PHC - access to read the PTP hardware clock time
+ * * RX_TSTAMP - access to request Rx timestamps on all received packets
+ *
+ * The PF will reply with the same opcode a filled out copy of the
+ * virtchnl_ptp_caps structure which defines the specifics of which features
+ * are accessible to this device.
+ *
+ * Return: 0 if success, error code otherwise.
+ */
+int iavf_send_vf_ptp_caps_msg(struct iavf_adapter *adapter)
+{
+	struct virtchnl_ptp_caps hw_caps = {
+		.caps = VIRTCHNL_1588_PTP_CAP_READ_PHC |
+			VIRTCHNL_1588_PTP_CAP_RX_TSTAMP
+	};
+
+	adapter->aq_required &= ~IAVF_FLAG_AQ_GET_PTP_CAPS;
+
+	if (!IAVF_PTP_ALLOWED(adapter))
+		return -EOPNOTSUPP;
+
+	adapter->current_op = VIRTCHNL_OP_1588_PTP_GET_CAPS;
+
+	return iavf_send_pf_msg(adapter, VIRTCHNL_OP_1588_PTP_GET_CAPS,
+				(u8 *)&hw_caps, sizeof(hw_caps));
 }
 
 /**
@@ -290,6 +326,23 @@ int iavf_get_vf_supported_rxdids(struct iavf_adapter *adapter)
 				     VIRTCHNL_OP_GET_SUPPORTED_RXDIDS);
 	if (!err)
 		adapter->supp_rxdids = rxdids;
+
+	return err;
+}
+
+int iavf_get_vf_ptp_caps(struct iavf_adapter *adapter)
+{
+	struct virtchnl_ptp_caps caps = {};
+	struct iavf_arq_event_info event;
+	int err;
+
+	event.msg_buf = (u8 *)&caps;
+	event.buf_len = sizeof(caps);
+
+	err = iavf_poll_virtchnl_msg(&adapter->hw, &event,
+				     VIRTCHNL_OP_1588_PTP_GET_CAPS);
+	if (!err)
+		adapter->ptp.hw_caps = caps;
 
 	return err;
 }
@@ -2547,6 +2600,13 @@ void iavf_virtchnl_completion(struct iavf_adapter *adapter,
 			return;
 
 		adapter->supp_rxdids = *(u64 *)msg;
+
+		break;
+	case VIRTCHNL_OP_1588_PTP_GET_CAPS:
+		if (msglen != sizeof(adapter->ptp.hw_caps))
+			return;
+
+		adapter->ptp.hw_caps = *(struct virtchnl_ptp_caps *)msg;
 
 		break;
 	case VIRTCHNL_OP_ENABLE_QUEUES:
