@@ -3432,7 +3432,7 @@ void intel_dp_sink_disable_decompression(struct intel_atomic_state *state,
 static void
 intel_dp_init_source_oui(struct intel_dp *intel_dp)
 {
-	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
+	struct intel_display *display = to_intel_display(intel_dp);
 	u8 oui[] = { 0x00, 0xaa, 0x01 };
 	u8 buf[3] = {};
 
@@ -3446,7 +3446,7 @@ intel_dp_init_source_oui(struct intel_dp *intel_dp)
 	 * already set to what we want, so as to avoid clearing any state by accident
 	 */
 	if (drm_dp_dpcd_read(&intel_dp->aux, DP_SOURCE_OUI, buf, sizeof(buf)) < 0)
-		drm_err(&i915->drm, "Failed to read source OUI\n");
+		drm_dbg_kms(display->drm, "Failed to read source OUI\n");
 
 	if (memcmp(oui, buf, sizeof(oui)) == 0) {
 		/* Assume the OUI was written now. */
@@ -3455,7 +3455,7 @@ intel_dp_init_source_oui(struct intel_dp *intel_dp)
 	}
 
 	if (drm_dp_dpcd_write(&intel_dp->aux, DP_SOURCE_OUI, oui, sizeof(oui)) < 0) {
-		drm_info(&i915->drm, "Failed to write source OUI\n");
+		drm_dbg_kms(display->drm, "Failed to write source OUI\n");
 		WRITE_ONCE(intel_dp->oui_valid, false);
 	}
 
