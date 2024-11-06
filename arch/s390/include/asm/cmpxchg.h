@@ -11,6 +11,7 @@
 #include <linux/mmdebug.h>
 #include <linux/types.h>
 #include <linux/bug.h>
+#include <asm/asm.h>
 
 void __xchg_called_with_bad_pointer(void);
 
@@ -173,6 +174,57 @@ static __always_inline u64 __arch_cmpxchg(u64 ptr, u64 old, u64 new, int size)
 #define arch_cmpxchg64		arch_cmpxchg
 #define arch_cmpxchg_local	arch_cmpxchg
 #define arch_cmpxchg64_local	arch_cmpxchg
+
+#ifdef __HAVE_ASM_FLAG_OUTPUTS__
+
+#define arch_try_cmpxchg(ptr, oldp, new)				\
+({									\
+	__typeof__(ptr) __oldp = (__typeof__(ptr))(oldp);		\
+	__typeof__(*(ptr)) __old = *__oldp;				\
+	__typeof__(*(ptr)) __new = (new);				\
+	__typeof__(*(ptr)) __prev;					\
+	int __cc;							\
+									\
+	switch (sizeof(*(ptr))) {					\
+	case 1:								\
+	case 2: {							\
+		__prev = arch_cmpxchg((ptr), (__old), (__new));		\
+		__cc = (__prev != __old);				\
+		if (unlikely(__cc))					\
+			*__oldp = __prev;				\
+		break;							\
+	}								\
+	case 4:	{							\
+		asm volatile(						\
+			"	cs	%[__old],%[__new],%[__ptr]\n"	\
+			: [__old] "+d" (*__oldp),			\
+			  [__ptr] "+Q" (*(ptr)),			\
+			  "=@cc" (__cc)					\
+			: [__new] "d" (__new)				\
+			: "memory");					\
+		break;							\
+	}								\
+	case 8:	{							\
+		 asm volatile(						\
+			 "	csg	%[__old],%[__new],%[__ptr]\n"	\
+			 : [__old] "+d" (*__oldp),			\
+			   [__ptr] "+QS" (*(ptr)),			\
+			   "=@cc" (__cc)				\
+			 : [__new] "d" (__new)				\
+			 : "memory");					\
+		 break;							\
+	}								\
+	default:							\
+		__cmpxchg_called_with_bad_pointer();			\
+	}								\
+	likely(__cc == 0);						\
+})
+
+#define arch_try_cmpxchg64		arch_try_cmpxchg
+#define arch_try_cmpxchg_local		arch_try_cmpxchg
+#define arch_try_cmpxchg64_local	arch_try_cmpxchg
+
+#endif /* __HAVE_ASM_FLAG_OUTPUTS__ */
 
 #define system_has_cmpxchg128()		1
 
