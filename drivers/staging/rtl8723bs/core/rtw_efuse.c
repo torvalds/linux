@@ -311,17 +311,6 @@ u8 efuse_OneByteWrite(struct adapter *padapter, u16 addr, u8 data, bool bPseudoT
 	return bResult;
 }
 
-int
-Efuse_PgPacketWrite(struct adapter *padapter,
-				u8	offset,
-				u8	word_en,
-				u8	*data,
-				bool		bPseudoTest)
-{
-	return padapter->HalFunc.Efuse_PgPacketWrite(padapter, offset, word_en,
-						     data, bPseudoTest);
-}
-
 /*-----------------------------------------------------------------------------
  * Function:	efuse_WordEnableDataRead
  *
