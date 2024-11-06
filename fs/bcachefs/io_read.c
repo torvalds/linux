@@ -262,7 +262,8 @@ err:
 		bio_free_pages(&(*rbio)->bio);
 	kfree(*rbio);
 	*rbio = NULL;
-	kfree(op);
+	/* We may have added to the rhashtable and thus need rcu freeing: */
+	kfree_rcu(op, rcu);
 	bch2_write_ref_put(c, BCH_WRITE_REF_promote);
 	return ERR_PTR(ret);
 }
