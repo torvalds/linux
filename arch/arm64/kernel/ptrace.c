@@ -898,7 +898,11 @@ static int sve_set_common(struct task_struct *target,
 	if (ret)
 		goto out;
 
-	/* Actual VL set may be less than the user asked for: */
+	/*
+	 * Actual VL set may be different from what the user asked
+	 * for, or we may have configured the _ONEXEC VL not the
+	 * current VL:
+	 */
 	vq = sve_vq_from_vl(task_get_vl(target, type));
 
 	/* Enter/exit streaming mode */
@@ -1125,7 +1129,11 @@ static int za_set(struct task_struct *target,
 	if (ret)
 		goto out;
 
-	/* Actual VL set may be less than the user asked for: */
+	/*
+	 * Actual VL set may be different from what the user asked
+	 * for, or we may have configured the _ONEXEC rather than
+	 * current VL:
+	 */
 	vq = sve_vq_from_vl(task_get_sme_vl(target));
 
 	/* Ensure there is some SVE storage for streaming mode */
