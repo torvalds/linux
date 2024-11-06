@@ -2372,6 +2372,76 @@ static void ksz_irq_phy_free(struct ksz_device *dev)
 }
 
 /**
+ * ksz_parse_dt_phy_config - Parse and validate PHY configuration from DT
+ * @dev: pointer to the KSZ device structure
+ * @bus: pointer to the MII bus structure
+ * @mdio_np: pointer to the MDIO node in the device tree
+ *
+ * This function parses and validates PHY configurations for each user port
+ * defined in the device tree for a KSZ switch device. It verifies that the
+ * `phy-handle` properties are correctly set and that the internal PHYs match
+ * expected addresses and parent nodes. Sets up the PHY mask in the MII bus if
+ * all validations pass. Logs error messages for any mismatches or missing data.
+ *
+ * Return: 0 on success, or a negative error code on failure.
+ */
+static int ksz_parse_dt_phy_config(struct ksz_device *dev, struct mii_bus *bus,
+				   struct device_node *mdio_np)
+{
+	struct device_node *phy_node, *phy_parent_node;
+	bool phys_are_valid = true;
+	struct dsa_port *dp;
+	u32 phy_addr;
+	int ret;
+
+	dsa_switch_for_each_user_port(dp, dev->ds) {
+		if (!dev->info->internal_phy[dp->index])
+			continue;
+
+		phy_node = of_parse_phandle(dp->dn, "phy-handle", 0);
+		if (!phy_node) {
+			dev_err(dev->dev, "failed to parse phy-handle for port %d.\n",
+				dp->index);
+			phys_are_valid = false;
+			continue;
+		}
+
+		phy_parent_node = of_get_parent(phy_node);
+		if (!phy_parent_node) {
+			dev_err(dev->dev, "failed to get PHY-parent node for port %d\n",
+				dp->index);
+			phys_are_valid = false;
+		} else if (phy_parent_node != mdio_np) {
+			dev_err(dev->dev, "PHY-parent node mismatch for port %d, expected %pOF, got %pOF\n",
+				dp->index, mdio_np, phy_parent_node);
+			phys_are_valid = false;
+		} else {
+			ret = of_property_read_u32(phy_node, "reg", &phy_addr);
+			if (ret < 0) {
+				dev_err(dev->dev, "failed to read PHY address for port %d. Error %d\n",
+					dp->index, ret);
+				phys_are_valid = false;
+			} else if (phy_addr != dev->phy_addr_map[dp->index]) {
+				dev_err(dev->dev, "PHY address mismatch for port %d, expected 0x%x, got 0x%x\n",
+					dp->index, dev->phy_addr_map[dp->index],
+					phy_addr);
+				phys_are_valid = false;
+			} else {
+				bus->phy_mask |= BIT(phy_addr);
+			}
+		}
+
+		of_node_put(phy_node);
+		of_node_put(phy_parent_node);
+	}
+
+	if (!phys_are_valid)
+		return -EINVAL;
+
+	return 0;
+}
+
+/**
  * ksz_mdio_register - Register and configure the MDIO bus for the KSZ device.
  * @dev: Pointer to the KSZ device structure.
  *
@@ -2390,7 +2460,6 @@ static int ksz_mdio_register(struct ksz_device *dev)
 	struct dsa_switch *ds = dev->ds;
 	struct device_node *mdio_np;
 	struct mii_bus *bus;
-	struct dsa_port *dp;
 	int ret, i;
 
 	mdio_np = of_get_child_by_name(dev->dev->of_node, "mdio");
@@ -2449,11 +2518,9 @@ static int ksz_mdio_register(struct ksz_device *dev)
 		snprintf(bus->id, MII_BUS_ID_SIZE, "SMI-%d", ds->index);
 	}
 
-	dsa_switch_for_each_user_port(dp, dev->ds) {
-		if (dev->info->internal_phy[dp->index] &&
-		    dev->phy_addr_map[dp->index] < PHY_MAX_ADDR)
-			bus->phy_mask |= BIT(dev->phy_addr_map[dp->index]);
-	}
+	ret = ksz_parse_dt_phy_config(dev, bus, mdio_np);
+	if (ret)
+		goto put_mdio_node;
 
 	ds->phys_mii_mask = bus->phy_mask;
 	bus->parent = ds->dev;
