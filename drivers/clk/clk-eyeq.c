@@ -695,12 +695,19 @@ builtin_platform_driver(eqc_driver);
 
 /* Required early for GIC timer. */
 static const struct eqc_pll eqc_eyeq6h_central_early_plls[] = {
-	{ .index = 0, .name = "pll-cpu", .reg64 = 0x02C },
+	{ .index = EQ6HC_CENTRAL_PLL_CPU, .name = "pll-cpu", .reg64 = 0x02C },
+};
+
+static const struct eqc_fixed_factor eqc_eyeq6h_central_early_fixed_factors[] = {
+	{ EQ6HC_CENTRAL_CPU_OCC, "occ-cpu", 1, 1, EQ6HC_CENTRAL_PLL_CPU },
 };
 
 static const struct eqc_early_match_data eqc_eyeq6h_central_early_match_data __initconst = {
 	.early_pll_count	= ARRAY_SIZE(eqc_eyeq6h_central_early_plls),
 	.early_plls		= eqc_eyeq6h_central_early_plls,
+
+	.early_fixed_factor_count = ARRAY_SIZE(eqc_eyeq6h_central_early_fixed_factors),
+	.early_fixed_factors = eqc_eyeq6h_central_early_fixed_factors,
 };
 
 /* Required early for UART. */
