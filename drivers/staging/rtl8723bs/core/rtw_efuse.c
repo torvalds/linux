@@ -102,8 +102,7 @@ Efuse_GetCurrentSize(
 	u8	efuseType,
 	bool		bPseudoTest)
 {
-	return padapter->HalFunc.EfuseGetCurrentSize(padapter, efuseType,
-						     bPseudoTest);
+	return Hal_EfuseGetCurrentSize(padapter, efuseType, bPseudoTest);
 }
 
 /*  11/16/2008 MH Add description. Get current efuse area enabled word!!. */
