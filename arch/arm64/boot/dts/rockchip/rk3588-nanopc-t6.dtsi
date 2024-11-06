@@ -171,6 +171,20 @@
 		vin-supply = <&vcc5v0_sys>;
 	};
 
+	vbus5v0_usb: regulator-vbus5v0-usb {
+		compatible = "regulator-fixed";
+		enable-active-high;
+		gpio = <&gpio4 RK_PB0 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&usb5v_pwren>;
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-name = "vbus5v0_usb";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		vin-supply = <&vcc5v0_sys>;
+	};
+
 	vcc3v3_pcie2x1l0: regulator-vcc3v3-pcie2x1l0 {
 		compatible = "regulator-fixed";
 		enable-active-high;
@@ -607,6 +621,10 @@
 			rockchip,pins = <1 RK_PD2 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 
+		usb5v_pwren: usb5v_pwren {
+			rockchip,pins = <4 RK_PB0 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+
 		usbc0_int: usbc0-int {
 			rockchip,pins = <0 RK_PD3 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
@@ -1005,6 +1023,14 @@
 	status = "okay";
 };
 
+&u2phy1 {
+	status = "okay";
+};
+
+&u2phy1_otg {
+	status = "okay";
+};
+
 &u2phy2_host {
 	status = "okay";
 };
@@ -1044,6 +1070,11 @@
 	};
 };
 
+&usbdp_phy1 {
+	phy-supply = <&vbus5v0_usb>;
+	status = "okay";
+};
+
 &usb_host0_ehci {
 	status = "okay";
 };
@@ -1062,6 +1093,11 @@
 			remote-endpoint = <&usbc0_hs>;
 		};
 	};
+};
+
+&usb_host1_xhci {
+	dr_mode = "host";
+	status = "okay";
 };
 
 &usb_host1_ehci {
