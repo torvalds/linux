@@ -740,8 +740,7 @@ static int xhci_move_dequeue_past_td(struct xhci_hcd *xhci,
  * (The last TRB actually points to the ring enqueue pointer, which is not part
  * of this TD.)  This is used to remove partially enqueued isoc TDs from a ring.
  */
-static void td_to_noop(struct xhci_hcd *xhci, struct xhci_ring *ep_ring,
-		       struct xhci_td *td, bool flip_cycle)
+static void td_to_noop(struct xhci_td *td, bool flip_cycle)
 {
 	struct xhci_segment *seg	= td->start_seg;
 	union xhci_trb *trb		= td->start_trb;
@@ -1020,16 +1019,16 @@ static int xhci_invalidate_cancelled_tds(struct xhci_virt_ep *ep)
 						  "Found multiple active URBs %p and %p in stream %u?\n",
 						  td->urb, cached_td->urb,
 						  td->urb->stream_id);
-					td_to_noop(xhci, ring, cached_td, false);
+					td_to_noop(cached_td, false);
 					cached_td->cancel_status = TD_CLEARED;
 				}
-				td_to_noop(xhci, ring, td, false);
+				td_to_noop(td, false);
 				td->cancel_status = TD_CLEARING_CACHE;
 				cached_td = td;
 				break;
 			}
 		} else {
-			td_to_noop(xhci, ring, td, false);
+			td_to_noop(td, false);
 			td->cancel_status = TD_CLEARED;
 		}
 	}
@@ -1054,7 +1053,7 @@ static int xhci_invalidate_cancelled_tds(struct xhci_virt_ep *ep)
 				continue;
 			xhci_warn(xhci, "Failed to clear cancelled cached URB %p, mark clear anyway\n",
 				  td->urb);
-			td_to_noop(xhci, ring, td, false);
+			td_to_noop(td, false);
 			td->cancel_status = TD_CLEARED;
 		}
 	}
@@ -4192,7 +4191,7 @@ cleanup:
 	 */
 	urb_priv->td[0].end_trb = ep_ring->enqueue;
 	/* Every TRB except the first & last will have its cycle bit flipped. */
-	td_to_noop(xhci, ep_ring, &urb_priv->td[0], true);
+	td_to_noop(&urb_priv->td[0], true);
 
 	/* Reset the ring enqueue back to the first TRB and its cycle bit. */
 	ep_ring->enqueue = urb_priv->td[0].start_trb;
