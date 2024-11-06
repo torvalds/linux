@@ -1560,13 +1560,11 @@ static void pps_init_delays(struct intel_dp *intel_dp)
 	assign_final(power_cycle);
 #undef assign_final
 
-#define get_delay(field)	pps_units_to_msecs(final->field)
-	intel_dp->pps.panel_power_up_delay = get_delay(power_up);
-	intel_dp->pps.backlight_on_delay = get_delay(backlight_on);
-	intel_dp->pps.backlight_off_delay = get_delay(backlight_off);
-	intel_dp->pps.panel_power_down_delay = get_delay(power_down);
-	intel_dp->pps.panel_power_cycle_delay = get_delay(power_cycle);
-#undef get_delay
+	intel_dp->pps.panel_power_up_delay = pps_units_to_msecs(final->power_up);
+	intel_dp->pps.backlight_on_delay = pps_units_to_msecs(final->backlight_on);
+	intel_dp->pps.backlight_off_delay = pps_units_to_msecs(final->backlight_off);
+	intel_dp->pps.panel_power_down_delay = pps_units_to_msecs(final->power_down);
+	intel_dp->pps.panel_power_cycle_delay = pps_units_to_msecs(final->power_cycle);
 
 	drm_dbg_kms(display->drm,
 		    "panel power up delay %d, power down delay %d, power cycle delay %d\n",
