@@ -2406,6 +2406,8 @@ struct bnxt {
 	#define BNXT_FW_CAP_DCBX_AGENT			BIT_ULL(2)
 	#define BNXT_FW_CAP_NEW_RM			BIT_ULL(3)
 	#define BNXT_FW_CAP_IF_CHANGE			BIT_ULL(4)
+	#define BNXT_FW_CAP_ENABLE_RDMA_SRIOV           BIT_ULL(5)
+	#define BNXT_FW_CAP_ROCE_VF_RESC_MGMT_SUPPORTED	BIT_ULL(6)
 	#define BNXT_FW_CAP_KONG_MB_CHNL		BIT_ULL(7)
 	#define BNXT_FW_CAP_OVS_64BIT_HANDLE		BIT_ULL(10)
 	#define BNXT_FW_CAP_TRUSTED_VF			BIT_ULL(11)
@@ -2452,6 +2454,10 @@ struct bnxt {
 #define BNXT_SUPPORTS_QUEUE_API(bp)				\
 	(BNXT_PF(bp) && BNXT_SUPPORTS_NTUPLE_VNIC(bp) &&	\
 	 ((bp)->fw_cap & BNXT_FW_CAP_VNIC_RE_FLUSH))
+#define BNXT_RDMA_SRIOV_EN(bp)		\
+	((bp)->fw_cap & BNXT_FW_CAP_ENABLE_RDMA_SRIOV)
+#define BNXT_ROCE_VF_RESC_CAP(bp)	\
+	((bp)->fw_cap & BNXT_FW_CAP_ROCE_VF_RESC_MGMT_SUPPORTED)
 
 	u32			hwrm_spec_code;
 	u16			hwrm_cmd_seq;
