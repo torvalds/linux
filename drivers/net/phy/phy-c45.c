@@ -951,6 +951,7 @@ int genphy_c45_an_config_eee_aneg(struct phy_device *phydev)
 
 	return genphy_c45_write_eee_adv(phydev, phydev->advertising_eee);
 }
+EXPORT_SYMBOL_GPL(genphy_c45_an_config_eee_aneg);
 
 /**
  * genphy_c45_pma_baset1_read_abilities - read supported baset1 link modes from PMA
