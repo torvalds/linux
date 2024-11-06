@@ -92,6 +92,7 @@ struct dm_verity_io {
 	sector_t block;
 	unsigned int n_blocks;
 	bool in_bh;
+	bool had_mismatch;
 
 	struct work_struct work;
 	struct work_struct bh_work;
