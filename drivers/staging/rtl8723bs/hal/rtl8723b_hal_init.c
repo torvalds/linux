@@ -1151,38 +1151,6 @@ static u8 Hal_EfuseWordEnableDataWrite(
 	return badworden;
 }
 
-static u8 hal_EfusePgPacketWrite1ByteHeader(
-	struct adapter *padapter,
-	u8 efuseType,
-	u16 *pAddr,
-	struct pgpkt_struct *pTargetPkt,
-	u8 bPseudoTest
-)
-{
-	u8 pg_header = 0, tmp_header = 0;
-	u16 efuse_addr = *pAddr;
-	u8 repeatcnt = 0;
-
-	pg_header = ((pTargetPkt->offset << 4) & 0xf0) | pTargetPkt->word_en;
-
-	do {
-		efuse_OneByteWrite(padapter, efuse_addr, pg_header, bPseudoTest);
-		efuse_OneByteRead(padapter, efuse_addr, &tmp_header, bPseudoTest);
-		if (tmp_header != 0xFF)
-			break;
-		if (repeatcnt++ > EFUSE_REPEAT_THRESHOLD_)
-			return false;
-
-	} while (1);
-
-	if (tmp_header != pg_header)
-		return false;
-
-	*pAddr = efuse_addr;
-
-	return true;
-}
-
 static struct hal_version ReadChipVersion8723B(struct adapter *padapter)
 {
 	u32 value32;
