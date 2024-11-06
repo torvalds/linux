@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2017-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2023, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2023-2024, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/io.h>
@@ -209,6 +209,7 @@ struct qmp_device {
 
 	void *ilc;
 	bool early_boot;
+	bool hibernate_entry;
 };
 
 /**
@@ -389,6 +390,9 @@ static int qmp_send_data(struct mbox_chan *chan, void *data)
 
 	mdev = mbox->mdev;
 
+	if (mdev->hibernate_entry)
+		return -ENXIO;
+
 	spin_lock_irqsave(&mbox->tx_lock, flags);
 	addr = mbox->desc + mbox->mcore_mbox_offset;
 	if (mbox->tx_sent) {
@@ -524,6 +528,16 @@ static void init_mcore_state(struct qmp_mbox *mbox)
 static irqreturn_t qmp_irq_handler(int irq, void *priv)
 {
 	struct qmp_device *mdev = (struct qmp_device *)priv;
+
+	/* QMP comes very early in cold boot, so there is
+	 * a chance to miss the interrupt from remote qmp.
+	 * In case of hibernate, early interrupt corrupts the
+	 * QMP state machine and endup with invalid values.
+	 * By ignore the first interrupt after hibernate exit
+	 * this can be avoided.
+	 */
+	if (mdev->hibernate_entry && mdev->early_boot)
+		return IRQ_NONE;
 
 	if (mdev->rx_reset_reg)
 		writel_relaxed(mdev->irq_mask, mdev->rx_reset_reg);
@@ -798,10 +812,16 @@ static int qmp_shim_send_data(struct mbox_chan *chan, void *data)
 {
 	struct qmp_mbox *mbox = chan->con_priv;
 	struct qmp_pkt *pkt = (struct qmp_pkt *)data;
+	struct qmp_device *mdev;
 	int i;
 
 	if (!mbox || !mbox->mdev || !data)
 		return -EINVAL;
+
+	mdev = mbox->mdev;
+
+	if (mdev->hibernate_entry)
+		return -ENXIO;
 
 	if (pkt->size > SZ_4K)
 		return -EINVAL;
@@ -901,6 +921,7 @@ static int qmp_mbox_init(struct device_node *n, struct qmp_device *mdev)
 	INIT_DELAYED_WORK(&mbox->dwork, qmp_notify_timeout);
 	mbox->suspend_flag = false;
 
+	mdev->hibernate_entry = false;
 	mdev_add_mbox(mdev, mbox);
 	return 0;
 }
@@ -992,6 +1013,7 @@ static int qmp_shim_init(struct platform_device *pdev, struct qmp_device *mdev)
 	mdev_add_mbox(mdev, mbox);
 	mdev->ilc = ipc_log_context_create(QMP_IPC_LOG_PAGE_CNT, mdev->name, 0);
 
+	mdev->hibernate_entry = false;
 	return 0;
 }
 
@@ -1144,6 +1166,10 @@ static int qmp_mbox_probe(struct platform_device *pdev)
 
 static int qmp_mbox_freeze(struct device *dev)
 {
+	struct qmp_device *mdev = dev_get_drvdata(dev);
+
+	mdev->hibernate_entry = true;
+	dev_info(dev, "QMP: Hibernate entry\n");
 	return 0;
 }
 
@@ -1151,6 +1177,11 @@ static int qmp_mbox_restore(struct device *dev)
 {
 	struct qmp_device *mdev = dev_get_drvdata(dev);
 	struct qmp_mbox *mbox;
+	struct device_node *edge_node = dev->of_node;
+
+	/* skip negotiation if device has shim layer */
+	if (of_parse_phandle(edge_node, "qcom,qmp", 0))
+		goto end;
 
 	list_for_each_entry(mbox, &mdev->mboxes, list) {
 		mbox->local_state = LINK_DISCONNECTED;
@@ -1169,6 +1200,11 @@ static int qmp_mbox_restore(struct device *dev)
 			__qmp_rx_worker(mbox);
 	}
 
+end:
+	if (mdev->hibernate_entry)
+		mdev->hibernate_entry = false;
+
+	dev_info(dev, "QMP: Hibernate exit\n");
 	return 0;
 }
 
