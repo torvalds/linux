@@ -8133,22 +8133,18 @@ long btrfs_ioctl_send(struct btrfs_inode *inode, const struct btrfs_ioctl_send_a
 		spin_unlock(&send_root->root_item_lock);
 		return -EPERM;
 	}
-	if (btrfs_root_readonly(send_root) && send_root->dedupe_in_progress) {
+	/* Userspace tools do the checks and warn the user if it's not RO. */
+	if (!btrfs_root_readonly(send_root)) {
+		spin_unlock(&send_root->root_item_lock);
+		return -EPERM;
+	}
+	if (send_root->dedupe_in_progress) {
 		dedupe_in_progress_warn(send_root);
 		spin_unlock(&send_root->root_item_lock);
 		return -EAGAIN;
 	}
 	send_root->send_in_progress++;
 	spin_unlock(&send_root->root_item_lock);
-
-	/*
-	 * Userspace tools do the checks and warn the user if it's
-	 * not RO.
-	 */
-	if (!btrfs_root_readonly(send_root)) {
-		ret = -EPERM;
-		goto out;
-	}
 
 	/*
 	 * Check that we don't overflow at later allocations, we request
