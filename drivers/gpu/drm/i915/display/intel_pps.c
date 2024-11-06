@@ -1462,6 +1462,12 @@ static bool pps_delays_valid(struct intel_pps_delays *delays)
 		delays->power_down || delays->power_cycle;
 }
 
+static int msecs_to_pps_units(int msecs)
+{
+	/* PPS uses 100us units */
+	return msecs * 10;
+}
+
 static void pps_init_delays_bios(struct intel_dp *intel_dp,
 				 struct intel_pps_delays *bios)
 {
@@ -1494,7 +1500,7 @@ static void pps_init_delays_vbt(struct intel_dp *intel_dp,
 	 * seems sufficient to avoid this problem.
 	 */
 	if (intel_has_quirk(display, QUIRK_INCREASE_T12_DELAY)) {
-		vbt->power_cycle = max_t(u16, vbt->power_cycle, 1300 * 10);
+		vbt->power_cycle = max_t(u16, vbt->power_cycle, msecs_to_pps_units(1300));
 		drm_dbg_kms(display->drm,
 			    "Increasing T12 panel delay as per the quirk to %d\n",
 			    vbt->power_cycle);
@@ -1510,13 +1516,12 @@ static void pps_init_delays_spec(struct intel_dp *intel_dp,
 
 	lockdep_assert_held(&display->pps.mutex);
 
-	/* Upper limits from eDP 1.3 spec. Note that we use the clunky units of
-	 * our hw here, which are all in 100usec. */
-	spec->power_up = (10 + 200) * 10; /* T1+T3 */
-	spec->backlight_on = 50 * 10; /* no limit for T8, use T7 instead */
-	spec->backlight_off = 50 * 10; /* no limit for T9, make it symmetric with T8 */
-	spec->power_down = 500 * 10; /* T10 */
-	spec->power_cycle = (10 + 500) * 10; /* T11+T12 */
+	/* Upper limits from eDP 1.3 spec */
+	spec->power_up = msecs_to_pps_units(10 + 200); /* T1+T3 */
+	spec->backlight_on = msecs_to_pps_units(50); /* no limit for T8, use T7 instead */
+	spec->backlight_off = msecs_to_pps_units(50); /* no limit for T9, make it symmetric with T8 */
+	spec->power_down = msecs_to_pps_units(500); /* T10 */
+	spec->power_cycle = msecs_to_pps_units(10 + 500); /* T11+T12 */
 
 	intel_pps_dump_state(intel_dp, "spec", spec);
 }
@@ -1582,7 +1587,7 @@ static void pps_init_delays(struct intel_dp *intel_dp)
 	 * HW has only a 100msec granularity for power_cycle so round it up
 	 * accordingly.
 	 */
-	final->power_cycle = roundup(final->power_cycle, 100 * 10);
+	final->power_cycle = roundup(final->power_cycle, msecs_to_pps_units(100));
 }
 
 static void pps_init_registers(struct intel_dp *intel_dp, bool force_disable_vdd)
