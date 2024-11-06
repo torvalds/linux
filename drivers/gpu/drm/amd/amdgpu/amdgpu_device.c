@@ -6200,6 +6200,9 @@ bool amdgpu_device_is_peer_accessible(struct amdgpu_device *adev,
 	bool p2p_access =
 		!adev->gmc.xgmi.connected_to_cpu &&
 		!(pci_p2pdma_distance(adev->pdev, peer_adev->dev, false) < 0);
+	if (!p2p_access)
+		dev_info(adev->dev, "PCIe P2P access from peer device %s is not supported by the chipset\n",
+			pci_name(peer_adev->pdev));
 
 	bool is_large_bar = adev->gmc.visible_vram_size &&
 		adev->gmc.real_vram_size == adev->gmc.visible_vram_size;
