@@ -68,6 +68,7 @@
 #define HCI_I2C		8
 #define HCI_SMD		9
 #define HCI_VIRTIO	10
+#define HCI_IPC		11
 
 /* HCI device quirks */
 enum {
