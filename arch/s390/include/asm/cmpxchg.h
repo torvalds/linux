@@ -84,106 +84,90 @@ __arch_xchg(unsigned long x, unsigned long address, int size)
 
 void __cmpxchg_called_with_bad_pointer(void);
 
-static __always_inline unsigned long __cmpxchg(unsigned long address,
-					       unsigned long old,
-					       unsigned long new, int size)
+static __always_inline u32 __cs_asm(u64 ptr, u32 old, u32 new)
+{
+	asm volatile(
+		"	cs	%[old],%[new],%[ptr]\n"
+		: [old] "+d" (old), [ptr] "+Q" (*(u32 *)ptr)
+		: [new] "d" (new)
+		: "memory", "cc");
+	return old;
+}
+
+static __always_inline u64 __csg_asm(u64 ptr, u64 old, u64 new)
+{
+	asm volatile(
+		"	csg	%[old],%[new],%[ptr]\n"
+		: [old] "+d" (old), [ptr] "+QS" (*(u64 *)ptr)
+		: [new] "d" (new)
+		: "memory", "cc");
+	return old;
+}
+
+static inline u8 __arch_cmpxchg1(u64 ptr, u8 old, u8 new)
+{
+	union {
+		u8 b[4];
+		u32 w;
+	} old32, new32;
+	u32 prev;
+	int i;
+
+	i = ptr & 3;
+	ptr &= ~0x3;
+	prev = READ_ONCE(*(u32 *)ptr);
+	do {
+		old32.w = prev;
+		if (old32.b[i] != old)
+			return old32.b[i];
+		new32.w = old32.w;
+		new32.b[i] = new;
+		prev = __cs_asm(ptr, old32.w, new32.w);
+	} while (prev != old32.w);
+	return old;
+}
+
+static inline u16 __arch_cmpxchg2(u64 ptr, u16 old, u16 new)
+{
+	union {
+		u16 b[2];
+		u32 w;
+	} old32, new32;
+	u32 prev;
+	int i;
+
+	i = (ptr & 3) >> 1;
+	ptr &= ~0x3;
+	prev = READ_ONCE(*(u32 *)ptr);
+	do {
+		old32.w = prev;
+		if (old32.b[i] != old)
+			return old32.b[i];
+		new32.w = old32.w;
+		new32.b[i] = new;
+		prev = __cs_asm(ptr, old32.w, new32.w);
+	} while (prev != old32.w);
+	return old;
+}
+
+static __always_inline u64 __arch_cmpxchg(u64 ptr, u64 old, u64 new, int size)
 {
 	switch (size) {
-	case 1: {
-		unsigned int prev, shift, mask;
-
-		shift = (3 ^ (address & 3)) << 3;
-		address ^= address & 3;
-		old = (old & 0xff) << shift;
-		new = (new & 0xff) << shift;
-		mask = ~(0xff << shift);
-		asm volatile(
-			"	l	%[prev],%[address]\n"
-			"	nr	%[prev],%[mask]\n"
-			"	xilf	%[mask],0xffffffff\n"
-			"	or	%[new],%[prev]\n"
-			"	or	%[prev],%[tmp]\n"
-			"0:	lr	%[tmp],%[prev]\n"
-			"	cs	%[prev],%[new],%[address]\n"
-			"	jnl	1f\n"
-			"	xr	%[tmp],%[prev]\n"
-			"	xr	%[new],%[tmp]\n"
-			"	nr	%[tmp],%[mask]\n"
-			"	jz	0b\n"
-			"1:"
-			: [prev] "=&d" (prev),
-			  [address] "+Q" (*(int *)address),
-			  [tmp] "+&d" (old),
-			  [new] "+&d" (new),
-			  [mask] "+&d" (mask)
-			:: "memory", "cc");
-		return prev >> shift;
+	case 1:	 return __arch_cmpxchg1(ptr, old & 0xff, new & 0xff);
+	case 2:  return __arch_cmpxchg2(ptr, old & 0xffff, new & 0xffff);
+	case 4:  return __cs_asm(ptr, old & 0xffffffff, new & 0xffffffff);
+	case 8:  return __csg_asm(ptr, old, new);
+	default: __cmpxchg_called_with_bad_pointer();
 	}
-	case 2: {
-		unsigned int prev, shift, mask;
-
-		shift = (2 ^ (address & 2)) << 3;
-		address ^= address & 2;
-		old = (old & 0xffff) << shift;
-		new = (new & 0xffff) << shift;
-		mask = ~(0xffff << shift);
-		asm volatile(
-			"	l	%[prev],%[address]\n"
-			"	nr	%[prev],%[mask]\n"
-			"	xilf	%[mask],0xffffffff\n"
-			"	or	%[new],%[prev]\n"
-			"	or	%[prev],%[tmp]\n"
-			"0:	lr	%[tmp],%[prev]\n"
-			"	cs	%[prev],%[new],%[address]\n"
-			"	jnl	1f\n"
-			"	xr	%[tmp],%[prev]\n"
-			"	xr	%[new],%[tmp]\n"
-			"	nr	%[tmp],%[mask]\n"
-			"	jz	0b\n"
-			"1:"
-			: [prev] "=&d" (prev),
-			  [address] "+Q" (*(int *)address),
-			  [tmp] "+&d" (old),
-			  [new] "+&d" (new),
-			  [mask] "+&d" (mask)
-			:: "memory", "cc");
-		return prev >> shift;
-	}
-	case 4: {
-		unsigned int prev = old;
-
-		asm volatile(
-			"	cs	%[prev],%[new],%[address]\n"
-			: [prev] "+&d" (prev),
-			  [address] "+Q" (*(int *)address)
-			: [new] "d" (new)
-			: "memory", "cc");
-		return prev;
-	}
-	case 8: {
-		unsigned long prev = old;
-
-		asm volatile(
-			"	csg	%[prev],%[new],%[address]\n"
-			: [prev] "+&d" (prev),
-			  [address] "+QS" (*(long *)address)
-			: [new] "d" (new)
-			: "memory", "cc");
-		return prev;
-	}
-	}
-	__cmpxchg_called_with_bad_pointer();
 	return old;
 }
 
 #define arch_cmpxchg(ptr, o, n)						\
 ({									\
-	__typeof__(*(ptr)) __ret;					\
-									\
-	__ret = (__typeof__(*(ptr)))					\
-		__cmpxchg((unsigned long)(ptr), (unsigned long)(o),	\
-			  (unsigned long)(n), sizeof(*(ptr)));		\
-	__ret;								\
+	(__typeof__(*(ptr)))__arch_cmpxchg((unsigned long)(ptr),	\
+					   (unsigned long)(o),		\
+					   (unsigned long)(n),		\
+					   sizeof(*(ptr)));		\
 })
 
 #define arch_cmpxchg64		arch_cmpxchg
