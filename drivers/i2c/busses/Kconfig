@@ -1053,6 +1053,16 @@ config I2C_RK3X
 	  This driver can also be built as a module. If so, the module will
 	  be called i2c-rk3x.
 
+config I2C_RTL9300
+	tristate "Realtek RTL9300 I2C controller"
+	depends on MACH_REALTEK_RTL || COMPILE_TEST
+	help
+	  Say Y here to include support for the I2C controller in Realtek
+	  RTL9300 SoCs.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called i2c-rtl9300.
+
 config I2C_RZV2M
 	tristate "Renesas RZ/V2M adapter"
 	depends on ARCH_RENESAS || COMPILE_TEST
