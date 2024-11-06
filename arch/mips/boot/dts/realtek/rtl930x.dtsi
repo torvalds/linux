@@ -41,6 +41,22 @@
 			reg = <0x0c 0x4>;
 			value = <0x01>;
 		};
+
+		i2c0: i2c@36c {
+			compatible = "realtek,rtl9301-i2c";
+			reg = <0x36c 0x14>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+		};
+
+		i2c1: i2c@388 {
+			compatible = "realtek,rtl9301-i2c";
+			reg = <0x388 0x14>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+		};
 	};
 };
 
