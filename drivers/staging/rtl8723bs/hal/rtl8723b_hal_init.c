@@ -1182,64 +1182,6 @@ static void hal_EfuseConstructPGPkt(
 	pTargetPkt->word_cnts = Efuse_CalculateWordCnts(pTargetPkt->word_en);
 }
 
-static u8 hal_EfusePartialWriteCheck(
-	struct adapter *padapter,
-	u8 efuseType,
-	u16 *pAddr,
-	struct pgpkt_struct *pTargetPkt,
-	u8 bPseudoTest
-)
-{
-	struct hal_com_data *pHalData = GET_HAL_DATA(padapter);
-	struct efuse_hal *pEfuseHal = &pHalData->EfuseHal;
-	u8 bRet = false;
-	u16 startAddr = 0, efuse_max_available_len = 0, efuse_max = 0;
-	u8 efuse_data = 0;
-
-	EFUSE_GetEfuseDefinition(padapter, efuseType, TYPE_AVAILABLE_EFUSE_BYTES_TOTAL, &efuse_max_available_len, bPseudoTest);
-	EFUSE_GetEfuseDefinition(padapter, efuseType, TYPE_EFUSE_CONTENT_LEN_BANK, &efuse_max, bPseudoTest);
-
-	if (efuseType == EFUSE_WIFI) {
-		if (bPseudoTest) {
-#ifdef HAL_EFUSE_MEMORY
-			startAddr = (u16)pEfuseHal->fakeEfuseUsedBytes;
-#else
-			startAddr = (u16)fakeEfuseUsedBytes;
-#endif
-		} else
-			rtw_hal_get_hwreg(padapter, HW_VAR_EFUSE_BYTES, (u8 *)&startAddr);
-	} else {
-		if (bPseudoTest) {
-#ifdef HAL_EFUSE_MEMORY
-			startAddr = (u16)pEfuseHal->fakeBTEfuseUsedBytes;
-#else
-			startAddr = (u16)fakeBTEfuseUsedBytes;
-#endif
-		} else
-			rtw_hal_get_hwreg(padapter, HW_VAR_EFUSE_BT_BYTES, (u8 *)&startAddr);
-	}
-	startAddr %= efuse_max;
-
-	while (1) {
-		if (startAddr >= efuse_max_available_len) {
-			bRet = false;
-			break;
-		}
-
-		if (efuse_OneByteRead(padapter, startAddr, &efuse_data, bPseudoTest) && (efuse_data != 0xFF)) {
-			bRet = false;
-			break;
-		} else {
-			/*  not used header, 0xff */
-			*pAddr = startAddr;
-			bRet = true;
-			break;
-		}
-	}
-
-	return bRet;
-}
-
 static u8 hal_EfusePgPacketWrite1ByteHeader(
 	struct adapter *padapter,
 	u8 efuseType,
