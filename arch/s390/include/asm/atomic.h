@@ -72,7 +72,11 @@ ATOMIC_OPS(xor)
 #define arch_atomic_fetch_or		arch_atomic_fetch_or
 #define arch_atomic_fetch_xor		arch_atomic_fetch_xor
 
-#define arch_atomic_xchg(v, new)	(arch_xchg(&((v)->counter), new))
+static __always_inline int arch_atomic_xchg(atomic_t *v, int new)
+{
+	return arch_xchg(&v->counter, new);
+}
+#define arch_atomic_xchg arch_atomic_xchg
 
 static __always_inline int arch_atomic_cmpxchg(atomic_t *v, int old, int new)
 {
@@ -112,7 +116,11 @@ static __always_inline void arch_atomic64_add(s64 i, atomic64_t *v)
 }
 #define arch_atomic64_add arch_atomic64_add
 
-#define arch_atomic64_xchg(v, new)	(arch_xchg(&((v)->counter), new))
+static __always_inline s64 arch_atomic64_xchg(atomic64_t *v, s64 new)
+{
+	return arch_xchg(&v->counter, new);
+}
+#define arch_atomic64_xchg arch_atomic64_xchg
 
 static __always_inline s64 arch_atomic64_cmpxchg(atomic64_t *v, s64 old, s64 new)
 {
