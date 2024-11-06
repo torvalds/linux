@@ -2512,11 +2512,6 @@ int xhci_mem_init(struct xhci_hcd *xhci, gfp_t flags)
 
 	ir->isoc_bei_interval = AVOID_BEI_INTERVAL_MAX;
 
-	/*
-	 * XXX: Might need to set the Interrupter Moderation Register to
-	 * something other than the default (~1ms minimum between interrupts).
-	 * See section 5.5.1.2.
-	 */
 	for (i = 0; i < MAX_HC_SLOTS; i++)
 		xhci->devs[i] = NULL;
 
