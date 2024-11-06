@@ -203,14 +203,14 @@ retry:
 		write_locked = false;
 	}
 	if (err)
-		goto err_syncs;
+		goto err_hw_exec_mode;
 
 	if (write_locked) {
 		err = xe_vm_userptr_pin(vm);
 		downgrade_write(&vm->lock);
 		write_locked = false;
 		if (err)
-			goto err_hw_exec_mode;
+			goto err_unlock_list;
 	}
 
 	if (!args->num_batch_buffer) {
