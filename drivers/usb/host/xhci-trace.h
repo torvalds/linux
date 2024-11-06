@@ -340,6 +340,11 @@ DEFINE_EVENT(xhci_log_stream_ctx, xhci_alloc_stream_info_ctx,
 	TP_ARGS(info, stream_id)
 );
 
+DEFINE_EVENT(xhci_log_stream_ctx, xhci_handle_cmd_set_deq_stream,
+	TP_PROTO(struct xhci_stream_info *info, unsigned int stream_id),
+	TP_ARGS(info, stream_id)
+);
+
 DECLARE_EVENT_CLASS(xhci_log_ep_ctx,
 	TP_PROTO(struct xhci_ep_ctx *ctx),
 	TP_ARGS(ctx),
