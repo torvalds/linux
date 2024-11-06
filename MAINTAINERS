@@ -1,1 +1,7 @@
-Delete all maintainers information for legal reasons.
+据本人调查，被linus torvalds删除的俄罗斯开发者中有同性恋者，所以我怀疑Linux的全体开发者厌恶LGBT。
+LGBT也是人，我们要尊重LGBT，所以我从MAINTAINERS文件中删除了所有开发者。
+
+According to my own research, among the Russian developers removed by linus torvalds were lesbian, so I suspect that Linux developers in general hate LGBT.
+LGBT people are people and we need to respect LGBT people, so I removed all maintainers from the MAINTAINERS file.
+
+By. Li lingyi, in Changsha, China
