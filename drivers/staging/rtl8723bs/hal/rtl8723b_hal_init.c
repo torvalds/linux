@@ -1345,26 +1345,6 @@ static u8 hal_EfusePgPacketWriteHeader(
 	return bRet;
 }
 
-static u8 hal_EfusePgPacketWriteData(
-	struct adapter *padapter,
-	u8 efuseType,
-	u16 *pAddr,
-	struct pgpkt_struct *pTargetPkt,
-	u8 bPseudoTest
-)
-{
-	u16 efuse_addr;
-	u8 badworden;
-
-
-	efuse_addr = *pAddr;
-	badworden = Efuse_WordEnableDataWrite(padapter, efuse_addr+1, pTargetPkt->word_en, pTargetPkt->data, bPseudoTest);
-	if (badworden != 0x0F)
-		return false;
-
-	return true;
-}
-
 static struct hal_version ReadChipVersion8723B(struct adapter *padapter)
 {
 	u32 value32;
