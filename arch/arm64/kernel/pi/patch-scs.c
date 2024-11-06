@@ -50,6 +50,10 @@ bool dynamic_scs_is_enabled;
 #define DW_CFA_GNU_negative_offset_extended 0x2f
 #define DW_CFA_hi_user                      0x3f
 
+#define DW_EH_PE_sdata4                     0x0b
+#define DW_EH_PE_sdata8                     0x0c
+#define DW_EH_PE_pcrel                      0x10
+
 enum {
 	PACIASP		= 0xd503233f,
 	AUTIASP		= 0xd50323bf,
@@ -125,6 +129,7 @@ struct eh_frame {
 			u8	data_alignment_factor;
 			u8	return_address_register;
 			u8	augmentation_data_size;
+			u8	fde_pointer_format;
 		};
 
 		struct { // FDE
@@ -132,17 +137,30 @@ struct eh_frame {
 			s32	range;
 			u8	opcodes[];
 		};
+
+		struct { // FDE
+			s64	initial_loc64;
+			s64	range64;
+			u8	opcodes64[];
+		};
 	};
 };
 
 static int scs_handle_fde_frame(const struct eh_frame *frame,
 				int code_alignment_factor,
+				bool use_sdata8,
 				bool dry_run)
 {
 	int size = frame->size - offsetof(struct eh_frame, opcodes) + 4;
 	u64 loc = (u64)offset_to_ptr(&frame->initial_loc);
 	const u8 *opcode = frame->opcodes;
 	int l;
+
+	if (use_sdata8) {
+		loc = (u64)&frame->initial_loc64 + frame->initial_loc64;
+		opcode = frame->opcodes64;
+		size -= 8;
+	}
 
 	// assume single byte uleb128_t for augmentation data size
 	if (*opcode & BIT(7))
@@ -210,6 +228,7 @@ static int scs_handle_fde_frame(const struct eh_frame *frame,
 int scs_patch(const u8 eh_frame[], int size)
 {
 	int code_alignment_factor = 1;
+	bool fde_use_sdata8 = false;
 	const u8 *p = eh_frame;
 
 	while (size > 4) {
@@ -245,13 +264,24 @@ int scs_patch(const u8 eh_frame[], int size)
 				return EDYNSCS_INVALID_CIE_HEADER;
 
 			code_alignment_factor = frame->code_alignment_factor;
+
+			switch (frame->fde_pointer_format) {
+			case DW_EH_PE_pcrel | DW_EH_PE_sdata4:
+				fde_use_sdata8 = false;
+				break;
+			case DW_EH_PE_pcrel | DW_EH_PE_sdata8:
+				fde_use_sdata8 = true;
+				break;
+			default:
+				return EDYNSCS_INVALID_CIE_SDATA_SIZE;
+			}
 		} else {
 			ret = scs_handle_fde_frame(frame, code_alignment_factor,
-						   true);
+						   fde_use_sdata8, true);
 			if (ret)
 				return ret;
 			scs_handle_fde_frame(frame, code_alignment_factor,
-					     false);
+					     fde_use_sdata8, false);
 		}
 
 		p += sizeof(frame->size) + frame->size;
