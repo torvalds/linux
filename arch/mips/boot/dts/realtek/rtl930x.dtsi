@@ -29,6 +29,19 @@
 		#clock-cells = <0>;
 		clock-frequency  = <175000000>;
 	};
+
+	switch0: switch@1b000000 {
+		compatible = "realtek,rtl9301-switch", "syscon", "simple-mfd";
+		reg = <0x1b000000 0x10000>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		reboot@c {
+			compatible = "syscon-reboot";
+			reg = <0x0c 0x4>;
+			value = <0x01>;
+		};
+	};
 };
 
 &soc {
