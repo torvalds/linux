@@ -3719,12 +3719,12 @@ static int ext4_run_li_request(struct ext4_li_request *elr)
 		ret = 1;
 
 	if (!ret) {
-		start_time = ktime_get_real_ns();
+		start_time = ktime_get_ns();
 		ret = ext4_init_inode_table(sb, group,
 					    elr->lr_timeout ? 0 : 1);
 		trace_ext4_lazy_itable_init(sb, group);
 		if (elr->lr_timeout == 0) {
-			elr->lr_timeout = nsecs_to_jiffies((ktime_get_real_ns() - start_time) *
+			elr->lr_timeout = nsecs_to_jiffies((ktime_get_ns() - start_time) *
 				EXT4_SB(elr->lr_super)->s_li_wait_mult);
 		}
 		elr->lr_next_sched = jiffies + elr->lr_timeout;
@@ -3784,8 +3784,9 @@ static int ext4_lazyinit_thread(void *arg)
 
 cont_thread:
 	while (true) {
-		next_wakeup = MAX_JIFFY_OFFSET;
+		bool next_wakeup_initialized = false;
 
+		next_wakeup = 0;
 		mutex_lock(&eli->li_list_mtx);
 		if (list_empty(&eli->li_request_list)) {
 			mutex_unlock(&eli->li_list_mtx);
@@ -3798,8 +3799,11 @@ cont_thread:
 					 lr_request);
 
 			if (time_before(jiffies, elr->lr_next_sched)) {
-				if (time_before(elr->lr_next_sched, next_wakeup))
+				if (!next_wakeup_initialized ||
+				    time_before(elr->lr_next_sched, next_wakeup)) {
 					next_wakeup = elr->lr_next_sched;
+					next_wakeup_initialized = true;
+				}
 				continue;
 			}
 			if (down_read_trylock(&elr->lr_super->s_umount)) {
@@ -3827,16 +3831,18 @@ cont_thread:
 				elr->lr_next_sched = jiffies +
 					get_random_u32_below(EXT4_DEF_LI_MAX_START_DELAY * HZ);
 			}
-			if (time_before(elr->lr_next_sched, next_wakeup))
+			if (!next_wakeup_initialized ||
+			    time_before(elr->lr_next_sched, next_wakeup)) {
 				next_wakeup = elr->lr_next_sched;
+				next_wakeup_initialized = true;
+			}
 		}
 		mutex_unlock(&eli->li_list_mtx);
 
 		try_to_freeze();
 
 		cur = jiffies;
-		if ((time_after_eq(cur, next_wakeup)) ||
-		    (MAX_JIFFY_OFFSET == next_wakeup)) {
+		if (!next_wakeup_initialized || time_after_eq(cur, next_wakeup)) {
 			cond_resched();
 			continue;
 		}
