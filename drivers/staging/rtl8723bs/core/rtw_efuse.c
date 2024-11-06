@@ -171,7 +171,7 @@ EFUSE_GetEfuseDefinition(
 	bool		bPseudoTest
 	)
 {
-	padapter->HalFunc.EFUSEGetEfuseDefinition(padapter, efuseType, type, pOut, bPseudoTest);
+	Hal_GetEfuseDefinition(padapter, efuseType, type, pOut, bPseudoTest);
 }
 
 /*-----------------------------------------------------------------------------
