@@ -116,12 +116,6 @@ void event_format__fprintf(struct tep_event *event,
 	trace_seq_destroy(&s);
 }
 
-void event_format__print(struct tep_event *event,
-			 int cpu, void *data, int size)
-{
-	return event_format__fprintf(event, cpu, data, size, stdout);
-}
-
 /*
  * prev_state is of size long, which is 32 bits on 32 bit architectures.
  * As it needs to have the same bits for both 32 bit and 64 bit architectures

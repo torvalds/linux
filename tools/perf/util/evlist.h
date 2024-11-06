@@ -132,7 +132,6 @@ int __evlist__set_tracepoints_handlers(struct evlist *evlist,
 	__evlist__set_tracepoints_handlers(evlist, array, ARRAY_SIZE(array))
 
 int evlist__set_tp_filter(struct evlist *evlist, const char *filter);
-int evlist__set_tp_filter_pid(struct evlist *evlist, pid_t pid);
 int evlist__set_tp_filter_pids(struct evlist *evlist, size_t npids, pid_t *pids);
 
 int evlist__append_tp_filter(struct evlist *evlist, const char *filter);
@@ -140,7 +139,6 @@ int evlist__append_tp_filter(struct evlist *evlist, const char *filter);
 int evlist__append_tp_filter_pid(struct evlist *evlist, pid_t pid);
 int evlist__append_tp_filter_pids(struct evlist *evlist, size_t npids, pid_t *pids);
 
-struct evsel *evlist__find_tracepoint_by_id(struct evlist *evlist, int id);
 struct evsel *evlist__find_tracepoint_by_name(struct evlist *evlist, const char *name);
 
 int evlist__add_pollfd(struct evlist *evlist, int fd);
