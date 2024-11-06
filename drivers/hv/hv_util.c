@@ -590,10 +590,8 @@ static int util_probe(struct hv_device *dev,
 	srv->channel = dev->channel;
 	if (srv->util_init) {
 		ret = srv->util_init(srv);
-		if (ret) {
-			ret = -ENODEV;
+		if (ret)
 			goto error1;
-		}
 	}
 
 	/*
