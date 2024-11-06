@@ -92,12 +92,20 @@ torture_param(bool, gp_cond_exp, false, "Use conditional/async expedited GP wait
 torture_param(bool, gp_cond_full, false, "Use conditional/async full-state GP wait primitives");
 torture_param(bool, gp_cond_exp_full, false,
 		    "Use conditional/async full-stateexpedited GP wait primitives");
+torture_param(int, gp_cond_wi, 16 * USEC_PER_SEC / HZ,
+		   "Wait interval for normal conditional grace periods, us (default 16 jiffies)");
+torture_param(int, gp_cond_wi_exp, 128,
+		   "Wait interval for expedited conditional grace periods, us (default 128 us)");
 torture_param(bool, gp_exp, false, "Use expedited GP wait primitives");
 torture_param(bool, gp_normal, false, "Use normal (non-expedited) GP wait primitives");
 torture_param(bool, gp_poll, false, "Use polling GP wait primitives");
 torture_param(bool, gp_poll_exp, false, "Use polling expedited GP wait primitives");
 torture_param(bool, gp_poll_full, false, "Use polling full-state GP wait primitives");
 torture_param(bool, gp_poll_exp_full, false, "Use polling full-state expedited GP wait primitives");
+torture_param(int, gp_poll_wi, 16 * USEC_PER_SEC / HZ,
+		   "Wait interval for normal polled grace periods, us (default 16 jiffies)");
+torture_param(int, gp_poll_wi_exp, 128,
+		   "Wait interval for expedited polled grace periods, us (default 128 us)");
 torture_param(bool, gp_sync, false, "Use synchronous GP wait primitives");
 torture_param(int, irqreader, 1, "Allow RCU readers from irq handlers");
 torture_param(int, leakpointer, 0, "Leak pointer dereferences from readers");
@@ -1370,6 +1378,7 @@ static void rcu_torture_write_types(void)
 		pr_alert("%s: gp_sync without primitives.\n", __func__);
 	}
 	pr_alert("%s: Testing %d update types.\n", __func__, nsynctypes);
+	pr_info("%s: gp_cond_wi %d gp_cond_wi_exp %d gp_poll_wi %d gp_poll_wi_exp %d\n", __func__, gp_cond_wi, gp_cond_wi_exp, gp_poll_wi, gp_poll_wi_exp);
 }
 
 /*
@@ -1536,7 +1545,8 @@ rcu_torture_writer(void *arg)
 			case RTWS_COND_GET:
 				rcu_torture_writer_state = RTWS_COND_GET;
 				gp_snap = cur_ops->get_gp_state();
-				torture_hrtimeout_jiffies(torture_random(&rand) % 16, &rand);
+				torture_hrtimeout_us(torture_random(&rand) % gp_cond_wi,
+						     1000, &rand);
 				rcu_torture_writer_state = RTWS_COND_SYNC;
 				cur_ops->cond_sync(gp_snap);
 				rcu_torture_pipe_update(old_rp);
@@ -1544,7 +1554,8 @@ rcu_torture_writer(void *arg)
 			case RTWS_COND_GET_EXP:
 				rcu_torture_writer_state = RTWS_COND_GET_EXP;
 				gp_snap = cur_ops->get_gp_state_exp();
-				torture_hrtimeout_jiffies(torture_random(&rand) % 16, &rand);
+				torture_hrtimeout_us(torture_random(&rand) % gp_cond_wi_exp,
+						     1000, &rand);
 				rcu_torture_writer_state = RTWS_COND_SYNC_EXP;
 				cur_ops->cond_sync_exp(gp_snap);
 				rcu_torture_pipe_update(old_rp);
@@ -1552,7 +1563,8 @@ rcu_torture_writer(void *arg)
 			case RTWS_COND_GET_FULL:
 				rcu_torture_writer_state = RTWS_COND_GET_FULL;
 				cur_ops->get_gp_state_full(&gp_snap_full);
-				torture_hrtimeout_jiffies(torture_random(&rand) % 16, &rand);
+				torture_hrtimeout_us(torture_random(&rand) % gp_cond_wi,
+						     1000, &rand);
 				rcu_torture_writer_state = RTWS_COND_SYNC_FULL;
 				cur_ops->cond_sync_full(&gp_snap_full);
 				rcu_torture_pipe_update(old_rp);
@@ -1560,7 +1572,8 @@ rcu_torture_writer(void *arg)
 			case RTWS_COND_GET_EXP_FULL:
 				rcu_torture_writer_state = RTWS_COND_GET_EXP_FULL;
 				cur_ops->get_gp_state_full(&gp_snap_full);
-				torture_hrtimeout_jiffies(torture_random(&rand) % 16, &rand);
+				torture_hrtimeout_us(torture_random(&rand) % gp_cond_wi_exp,
+						     1000, &rand);
 				rcu_torture_writer_state = RTWS_COND_SYNC_EXP_FULL;
 				cur_ops->cond_sync_exp_full(&gp_snap_full);
 				rcu_torture_pipe_update(old_rp);
@@ -1580,8 +1593,8 @@ rcu_torture_writer(void *arg)
 							break;
 						}
 					WARN_ON_ONCE(ulo_size > 0 && i >= ulo_size);
-					torture_hrtimeout_us(torture_random(&rand) % 128, 1000,
-							     &rand);
+					torture_hrtimeout_us(torture_random(&rand) % gp_poll_wi,
+							     1000, &rand);
 				}
 				rcu_torture_pipe_update(old_rp);
 				break;
@@ -1601,8 +1614,8 @@ rcu_torture_writer(void *arg)
 							break;
 						}
 					WARN_ON_ONCE(rgo_size > 0 && i >= rgo_size);
-					torture_hrtimeout_us(torture_random(&rand) % 128, 1000,
-							     &rand);
+					torture_hrtimeout_us(torture_random(&rand) % gp_poll_wi,
+							     1000, &rand);
 				}
 				rcu_torture_pipe_update(old_rp);
 				break;
@@ -1611,8 +1624,8 @@ rcu_torture_writer(void *arg)
 				gp_snap = cur_ops->start_gp_poll_exp();
 				rcu_torture_writer_state = RTWS_POLL_WAIT_EXP;
 				while (!cur_ops->poll_gp_state_exp(gp_snap))
-					torture_hrtimeout_us(torture_random(&rand) % 128, 1000,
-							     &rand);
+					torture_hrtimeout_us(torture_random(&rand) % gp_poll_wi_exp,
+							     1000, &rand);
 				rcu_torture_pipe_update(old_rp);
 				break;
 			case RTWS_POLL_GET_EXP_FULL:
@@ -1620,8 +1633,8 @@ rcu_torture_writer(void *arg)
 				cur_ops->start_gp_poll_exp_full(&gp_snap_full);
 				rcu_torture_writer_state = RTWS_POLL_WAIT_EXP_FULL;
 				while (!cur_ops->poll_gp_state_full(&gp_snap_full))
-					torture_hrtimeout_us(torture_random(&rand) % 128, 1000,
-							     &rand);
+					torture_hrtimeout_us(torture_random(&rand) % gp_poll_wi_exp,
+							     1000, &rand);
 				rcu_torture_pipe_update(old_rp);
 				break;
 			case RTWS_SYNC:
