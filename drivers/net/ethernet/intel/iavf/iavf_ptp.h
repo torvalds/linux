@@ -11,13 +11,17 @@ void iavf_ptp_init(struct iavf_adapter *adapter);
 void iavf_ptp_release(struct iavf_adapter *adapter);
 void iavf_ptp_process_caps(struct iavf_adapter *adapter);
 bool iavf_ptp_cap_supported(const struct iavf_adapter *adapter, u32 cap);
+void iavf_virtchnl_send_ptp_cmd(struct iavf_adapter *adapter);
 #else /* IS_ENABLED(CONFIG_PTP_1588_CLOCK) */
 static inline void iavf_ptp_init(struct iavf_adapter *adapter) { }
 static inline void iavf_ptp_release(struct iavf_adapter *adapter) { }
 static inline void iavf_ptp_process_caps(struct iavf_adapter *adapter) { }
-static inline bool iavf_ptp_cap_supported(struct iavf_adapter *adapter, u32 cap)
+static inline bool iavf_ptp_cap_supported(const struct iavf_adapter *adapter,
+					  u32 cap)
 {
 	return false;
 }
+
+static inline void iavf_virtchnl_send_ptp_cmd(struct iavf_adapter *adapter) { }
 #endif /* IS_ENABLED(CONFIG_PTP_1588_CLOCK) */
 #endif /* _IAVF_PTP_H_ */
