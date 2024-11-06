@@ -651,10 +651,11 @@ static void ucsi_unregister_altmodes(struct ucsi_connector *con, u8 recipient)
 static int ucsi_get_connector_status(struct ucsi_connector *con, bool conn_ack)
 {
 	u64 command = UCSI_GET_CONNECTOR_STATUS | UCSI_CONNECTOR_NUMBER(con->num);
-	struct ucsi *ucsi = con->ucsi;
+	size_t size = min(UCSI_GET_CONNECTOR_STATUS_SIZE, UCSI_MAX_DATA_LENGTH(con->ucsi));
 	int ret;
 
-	ret = ucsi_send_command_common(ucsi, command, &con->status, sizeof(con->status), conn_ack);
+	ret = ucsi_send_command_common(con->ucsi, command, &con->status, size, conn_ack);
+
 	return ret < 0 ? ret : 0;
 }
 
@@ -668,8 +669,7 @@ static int ucsi_read_pdos(struct ucsi_connector *con,
 
 	if (is_partner &&
 	    ucsi->quirks & UCSI_NO_PARTNER_PDOS &&
-	    ((con->status.flags & UCSI_CONSTAT_PWR_DIR) ||
-	     !is_source(role)))
+	    (UCSI_CONSTAT(con, PWR_DIR) || !is_source(role)))
 		return 0;
 
 	command = UCSI_COMMAND(UCSI_GET_PDOS) | UCSI_CONNECTOR_NUMBER(con->num);
@@ -983,6 +983,7 @@ static void ucsi_unregister_cable(struct ucsi_connector *con)
 
 static int ucsi_check_connector_capability(struct ucsi_connector *con)
 {
+	u64 pd_revision;
 	u64 command;
 	int ret;
 
@@ -996,17 +997,17 @@ static int ucsi_check_connector_capability(struct ucsi_connector *con)
 		return ret;
 	}
 
-	typec_partner_set_pd_revision(con->partner,
-		UCSI_CONCAP_FLAG_PARTNER_PD_MAJOR_REV_AS_BCD(con->cap.flags));
+	pd_revision = UCSI_CONCAP(con, PARTNER_PD_REVISION_V2_1);
+	typec_partner_set_pd_revision(con->partner, UCSI_SPEC_REVISION_TO_BCD(pd_revision));
 
 	return ret;
 }
 
 static void ucsi_pwr_opmode_change(struct ucsi_connector *con)
 {
-	switch (UCSI_CONSTAT_PWR_OPMODE(con->status.flags)) {
+	switch (UCSI_CONSTAT(con, PWR_OPMODE)) {
 	case UCSI_CONSTAT_PWR_OPMODE_PD:
-		con->rdo = con->status.request_data_obj;
+		con->rdo = UCSI_CONSTAT(con, RDO);
 		typec_set_pwr_opmode(con->port, TYPEC_PWR_MODE_PD);
 		ucsi_partner_task(con, ucsi_get_src_pdos, 30, 0);
 		ucsi_partner_task(con, ucsi_check_altmodes, 30, HZ);
@@ -1030,7 +1031,7 @@ static void ucsi_pwr_opmode_change(struct ucsi_connector *con)
 
 static int ucsi_register_partner(struct ucsi_connector *con)
 {
-	u8 pwr_opmode = UCSI_CONSTAT_PWR_OPMODE(con->status.flags);
+	u8 pwr_opmode = UCSI_CONSTAT(con, PWR_OPMODE);
 	struct typec_partner_desc desc;
 	struct typec_partner *partner;
 
@@ -1039,7 +1040,7 @@ static int ucsi_register_partner(struct ucsi_connector *con)
 
 	memset(&desc, 0, sizeof(desc));
 
-	switch (UCSI_CONSTAT_PARTNER_TYPE(con->status.flags)) {
+	switch (UCSI_CONSTAT(con, PARTNER_TYPE)) {
 	case UCSI_CONSTAT_PARTNER_TYPE_DEBUG:
 		desc.accessory = TYPEC_ACCESSORY_DEBUG;
 		break;
@@ -1057,6 +1058,11 @@ static int ucsi_register_partner(struct ucsi_connector *con)
 		desc.identity = &con->partner_identity;
 	desc.usb_pd = pwr_opmode == UCSI_CONSTAT_PWR_OPMODE_PD;
 
+	if (con->ucsi->version >= UCSI_VERSION_2_1) {
+		u64 pd_revision = UCSI_CONCAP(con, PARTNER_PD_REVISION_V2_1);
+		desc.pd_revision = UCSI_SPEC_REVISION_TO_BCD(pd_revision);
+	}
+
 	partner = typec_register_partner(con->port, &desc);
 	if (IS_ERR(partner)) {
 		dev_err(con->ucsi->dev,
@@ -1067,13 +1073,11 @@ static int ucsi_register_partner(struct ucsi_connector *con)
 
 	con->partner = partner;
 
-	if ((con->ucsi->version >= UCSI_VERSION_3_0) &&
-	    (UCSI_CONSTAT_PARTNER_FLAGS(con->status.flags) &
-	     UCSI_CONSTAT_PARTNER_FLAG_USB4_GEN4))
+	if (con->ucsi->version >= UCSI_VERSION_3_0 &&
+	    UCSI_CONSTAT(con, PARTNER_FLAG_USB4_GEN4))
 		typec_partner_set_usb_mode(partner, USB_MODE_USB4);
-	else if ((con->ucsi->version >= UCSI_VERSION_2_0) &&
-		 (UCSI_CONSTAT_PARTNER_FLAGS(con->status.flags) &
-		  UCSI_CONSTAT_PARTNER_FLAG_USB4_GEN3))
+	else if (con->ucsi->version >= UCSI_VERSION_2_0 &&
+		 UCSI_CONSTAT(con, PARTNER_FLAG_USB4_GEN3))
 		typec_partner_set_usb_mode(partner, USB_MODE_USB4);
 
 	return 0;
@@ -1100,7 +1104,7 @@ static void ucsi_partner_change(struct ucsi_connector *con)
 	enum usb_role u_role = USB_ROLE_NONE;
 	int ret;
 
-	switch (UCSI_CONSTAT_PARTNER_TYPE(con->status.flags)) {
+	switch (UCSI_CONSTAT(con, PARTNER_TYPE)) {
 	case UCSI_CONSTAT_PARTNER_TYPE_UFP:
 	case UCSI_CONSTAT_PARTNER_TYPE_CABLE_AND_UFP:
 		u_role = USB_ROLE_HOST;
@@ -1116,8 +1120,8 @@ static void ucsi_partner_change(struct ucsi_connector *con)
 		break;
 	}
 
-	if (con->status.flags & UCSI_CONSTAT_CONNECTED) {
-		switch (UCSI_CONSTAT_PARTNER_TYPE(con->status.flags)) {
+	if (UCSI_CONSTAT(con, CONNECTED)) {
+		switch (UCSI_CONSTAT(con, PARTNER_TYPE)) {
 		case UCSI_CONSTAT_PARTNER_TYPE_DEBUG:
 			typec_set_mode(con->port, TYPEC_MODE_DEBUG);
 			break;
@@ -1125,14 +1129,13 @@ static void ucsi_partner_change(struct ucsi_connector *con)
 			typec_set_mode(con->port, TYPEC_MODE_AUDIO);
 			break;
 		default:
-			if (UCSI_CONSTAT_PARTNER_FLAGS(con->status.flags) ==
-					UCSI_CONSTAT_PARTNER_FLAG_USB)
+			if (UCSI_CONSTAT(con, PARTNER_FLAG_USB))
 				typec_set_mode(con->port, TYPEC_STATE_USB);
 		}
 	}
 
 	/* Only notify USB controller if partner supports USB data */
-	if (!(UCSI_CONSTAT_PARTNER_FLAGS(con->status.flags) & UCSI_CONSTAT_PARTNER_FLAG_USB))
+	if (!(UCSI_CONSTAT(con, PARTNER_FLAG_USB)))
 		u_role = USB_ROLE_NONE;
 
 	ret = usb_role_switch_set_role(con->usb_role_sw, u_role);
@@ -1143,7 +1146,7 @@ static void ucsi_partner_change(struct ucsi_connector *con)
 
 static int ucsi_check_connection(struct ucsi_connector *con)
 {
-	u8 prev_flags = con->status.flags;
+	u8 prev_state = UCSI_CONSTAT(con, CONNECTED);
 	int ret;
 
 	ret = ucsi_get_connector_status(con, false);
@@ -1152,10 +1155,9 @@ static int ucsi_check_connection(struct ucsi_connector *con)
 		return ret;
 	}
 
-	if (con->status.flags == prev_flags)
-		return 0;
-
-	if (con->status.flags & UCSI_CONSTAT_CONNECTED) {
+	if (UCSI_CONSTAT(con, CONNECTED)) {
+		if (prev_state)
+			return 0;
 		ucsi_register_partner(con);
 		ucsi_pwr_opmode_change(con);
 		ucsi_partner_change(con);
@@ -1211,6 +1213,7 @@ static void ucsi_handle_connector_change(struct work_struct *work)
 						  work);
 	struct ucsi *ucsi = con->ucsi;
 	enum typec_role role;
+	u16 change;
 	int ret;
 
 	mutex_lock(&con->lock);
@@ -1227,14 +1230,15 @@ static void ucsi_handle_connector_change(struct work_struct *work)
 		goto out_unlock;
 	}
 
-	trace_ucsi_connector_change(con->num, &con->status);
+	trace_ucsi_connector_change(con->num, con);
 
 	if (ucsi->ops->connector_status)
 		ucsi->ops->connector_status(con);
 
-	role = !!(con->status.flags & UCSI_CONSTAT_PWR_DIR);
+	change = UCSI_CONSTAT(con, CHANGE);
+	role = UCSI_CONSTAT(con, PWR_DIR);
 
-	if (con->status.change & UCSI_CONSTAT_POWER_DIR_CHANGE) {
+	if (change & UCSI_CONSTAT_POWER_DIR_CHANGE) {
 		typec_set_pwr_role(con->port, role);
 
 		/* Complete pending power role swap */
@@ -1242,12 +1246,12 @@ static void ucsi_handle_connector_change(struct work_struct *work)
 			complete(&con->complete);
 	}
 
-	if (con->status.change & UCSI_CONSTAT_CONNECT_CHANGE) {
+	if (change & UCSI_CONSTAT_CONNECT_CHANGE) {
 		typec_set_pwr_role(con->port, role);
 		ucsi_port_psy_changed(con);
 		ucsi_partner_change(con);
 
-		if (con->status.flags & UCSI_CONSTAT_CONNECTED) {
+		if (UCSI_CONSTAT(con, CONNECTED)) {
 			ucsi_register_partner(con);
 			ucsi_partner_task(con, ucsi_check_connection, 1, HZ);
 			if (con->ucsi->cap.features & UCSI_CAP_GET_PD_MESSAGE)
@@ -1255,8 +1259,7 @@ static void ucsi_handle_connector_change(struct work_struct *work)
 			if (con->ucsi->cap.features & UCSI_CAP_CABLE_DETAILS)
 				ucsi_partner_task(con, ucsi_check_cable, 1, HZ);
 
-			if (UCSI_CONSTAT_PWR_OPMODE(con->status.flags) ==
-			    UCSI_CONSTAT_PWR_OPMODE_PD) {
+			if (UCSI_CONSTAT(con, PWR_OPMODE) == UCSI_CONSTAT_PWR_OPMODE_PD) {
 				ucsi_partner_task(con, ucsi_register_partner_pdos, 1, HZ);
 				ucsi_partner_task(con, ucsi_check_connector_capability, 1, HZ);
 			}
@@ -1265,11 +1268,10 @@ static void ucsi_handle_connector_change(struct work_struct *work)
 		}
 	}
 
-	if (con->status.change & UCSI_CONSTAT_POWER_OPMODE_CHANGE ||
-	    con->status.change & UCSI_CONSTAT_POWER_LEVEL_CHANGE)
+	if (change & (UCSI_CONSTAT_POWER_OPMODE_CHANGE | UCSI_CONSTAT_POWER_LEVEL_CHANGE))
 		ucsi_pwr_opmode_change(con);
 
-	if (con->partner && con->status.change & UCSI_CONSTAT_PARTNER_CHANGE) {
+	if (con->partner && (change & UCSI_CONSTAT_PARTNER_CHANGE)) {
 		ucsi_partner_change(con);
 
 		/* Complete pending data role swap */
@@ -1277,10 +1279,10 @@ static void ucsi_handle_connector_change(struct work_struct *work)
 			complete(&con->complete);
 	}
 
-	if (con->status.change & UCSI_CONSTAT_CAM_CHANGE)
+	if (change & UCSI_CONSTAT_CAM_CHANGE)
 		ucsi_partner_task(con, ucsi_check_altmodes, 1, HZ);
 
-	if (con->status.change & UCSI_CONSTAT_BC_CHANGE)
+	if (change & UCSI_CONSTAT_BC_CHANGE)
 		ucsi_port_psy_changed(con);
 
 out_unlock:
@@ -1440,7 +1442,7 @@ static int ucsi_dr_swap(struct typec_port *port, enum typec_data_role role)
 		goto out_unlock;
 	}
 
-	partner_type = UCSI_CONSTAT_PARTNER_TYPE(con->status.flags);
+	partner_type = UCSI_CONSTAT(con, PARTNER_TYPE);
 	if ((partner_type == UCSI_CONSTAT_PARTNER_TYPE_DFP &&
 	     role == TYPEC_DEVICE) ||
 	    (partner_type == UCSI_CONSTAT_PARTNER_TYPE_UFP &&
@@ -1484,7 +1486,7 @@ static int ucsi_pr_swap(struct typec_port *port, enum typec_role role)
 		goto out_unlock;
 	}
 
-	cur_role = !!(con->status.flags & UCSI_CONSTAT_PWR_DIR);
+	cur_role = UCSI_CONSTAT(con, PWR_DIR);
 
 	if (cur_role == role)
 		goto out_unlock;
@@ -1507,8 +1509,7 @@ static int ucsi_pr_swap(struct typec_port *port, enum typec_role role)
 	mutex_lock(&con->lock);
 
 	/* Something has gone wrong while swapping the role */
-	if (UCSI_CONSTAT_PWR_OPMODE(con->status.flags) !=
-	    UCSI_CONSTAT_PWR_OPMODE_PD) {
+	if (UCSI_CONSTAT(con, PWR_OPMODE) != UCSI_CONSTAT_PWR_OPMODE_PD) {
 		ucsi_reset_connector(con, true);
 		ret = -EPROTO;
 	}
@@ -1576,19 +1577,18 @@ static int ucsi_register_port(struct ucsi *ucsi, struct ucsi_connector *con)
 	if (ret < 0)
 		goto out_unlock;
 
-	if (con->cap.op_mode & UCSI_CONCAP_OPMODE_DRP)
+	if (UCSI_CONCAP(con, OPMODE_DRP))
 		cap->data = TYPEC_PORT_DRD;
-	else if (con->cap.op_mode & UCSI_CONCAP_OPMODE_DFP)
+	else if (UCSI_CONCAP(con, OPMODE_DFP))
 		cap->data = TYPEC_PORT_DFP;
-	else if (con->cap.op_mode & UCSI_CONCAP_OPMODE_UFP)
+	else if (UCSI_CONCAP(con, OPMODE_UFP))
 		cap->data = TYPEC_PORT_UFP;
 
-	if ((con->cap.flags & UCSI_CONCAP_FLAG_PROVIDER) &&
-	    (con->cap.flags & UCSI_CONCAP_FLAG_CONSUMER))
+	if (UCSI_CONCAP(con, PROVIDER) && UCSI_CONCAP(con, CONSUMER))
 		cap->type = TYPEC_PORT_DRP;
-	else if (con->cap.flags & UCSI_CONCAP_FLAG_PROVIDER)
+	else if (UCSI_CONCAP(con, PROVIDER))
 		cap->type = TYPEC_PORT_SRC;
-	else if (con->cap.flags & UCSI_CONCAP_FLAG_CONSUMER)
+	else if (UCSI_CONCAP(con, CONSUMER))
 		cap->type = TYPEC_PORT_SNK;
 
 	cap->revision = ucsi->cap.typec_version;
@@ -1596,9 +1596,9 @@ static int ucsi_register_port(struct ucsi *ucsi, struct ucsi_connector *con)
 	cap->svdm_version = SVDM_VER_2_0;
 	cap->prefer_role = TYPEC_NO_PREFERRED_ROLE;
 
-	if (con->cap.op_mode & UCSI_CONCAP_OPMODE_AUDIO_ACCESSORY)
+	if (UCSI_CONCAP(con, OPMODE_AUDIO_ACCESSORY))
 		*accessory++ = TYPEC_ACCESSORY_AUDIO;
-	if (con->cap.op_mode & UCSI_CONCAP_OPMODE_DEBUG_ACCESSORY)
+	if (UCSI_CONCAP(con, OPMODE_DEBUG_ACCESSORY))
 		*accessory = TYPEC_ACCESSORY_DEBUG;
 
 	if (UCSI_CONCAP_USB2_SUPPORT(con))
@@ -1646,7 +1646,7 @@ static int ucsi_register_port(struct ucsi *ucsi, struct ucsi_connector *con)
 	if (ucsi->ops->connector_status)
 		ucsi->ops->connector_status(con);
 
-	switch (UCSI_CONSTAT_PARTNER_TYPE(con->status.flags)) {
+	switch (UCSI_CONSTAT(con, PARTNER_TYPE)) {
 	case UCSI_CONSTAT_PARTNER_TYPE_UFP:
 	case UCSI_CONSTAT_PARTNER_TYPE_CABLE_AND_UFP:
 		u_role = USB_ROLE_HOST;
@@ -1663,9 +1663,8 @@ static int ucsi_register_port(struct ucsi *ucsi, struct ucsi_connector *con)
 	}
 
 	/* Check if there is already something connected */
-	if (con->status.flags & UCSI_CONSTAT_CONNECTED) {
-		typec_set_pwr_role(con->port,
-				  !!(con->status.flags & UCSI_CONSTAT_PWR_DIR));
+	if (UCSI_CONSTAT(con, CONNECTED)) {
+		typec_set_pwr_role(con->port, UCSI_CONSTAT(con, PWR_DIR));
 		ucsi_register_partner(con);
 		ucsi_pwr_opmode_change(con);
 		ucsi_port_psy_changed(con);
@@ -1676,7 +1675,7 @@ static int ucsi_register_port(struct ucsi *ucsi, struct ucsi_connector *con)
 	}
 
 	/* Only notify USB controller if partner supports USB data */
-	if (!(UCSI_CONSTAT_PARTNER_FLAGS(con->status.flags) & UCSI_CONSTAT_PARTNER_FLAG_USB))
+	if (!(UCSI_CONSTAT(con, PARTNER_FLAG_USB)))
 		u_role = USB_ROLE_NONE;
 
 	ret = usb_role_switch_set_role(con->usb_role_sw, u_role);
@@ -1686,16 +1685,14 @@ static int ucsi_register_port(struct ucsi *ucsi, struct ucsi_connector *con)
 		ret = 0;
 	}
 
-	if (con->partner &&
-	    UCSI_CONSTAT_PWR_OPMODE(con->status.flags) ==
-	    UCSI_CONSTAT_PWR_OPMODE_PD) {
+	if (con->partner && UCSI_CONSTAT(con, PWR_OPMODE) == UCSI_CONSTAT_PWR_OPMODE_PD) {
 		ucsi_register_device_pdos(con);
 		ucsi_get_src_pdos(con);
 		ucsi_check_altmodes(con);
 		ucsi_check_connector_capability(con);
 	}
 
-	trace_ucsi_register_port(con->num, &con->status);
+	trace_ucsi_register_port(con->num, con);
 
 out:
 	fwnode_handle_put(cap->fwnode);
@@ -1778,7 +1775,7 @@ static int ucsi_init(struct ucsi *ucsi)
 
 	/* Get PPM capabilities */
 	command = UCSI_GET_CAPABILITY;
-	ret = ucsi_send_command(ucsi, command, &ucsi->cap, sizeof(ucsi->cap));
+	ret = ucsi_send_command(ucsi, command, &ucsi->cap, UCSI_GET_CAPABILITY_SIZE);
 	if (ret < 0)
 		goto err_reset;
 

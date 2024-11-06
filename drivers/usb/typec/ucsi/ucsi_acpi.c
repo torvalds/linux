@@ -104,7 +104,6 @@ static int ucsi_gram_read_message_in(struct ucsi *ucsi, void *val, size_t val_le
 	u16 bogus_change = UCSI_CONSTAT_POWER_LEVEL_CHANGE |
 			   UCSI_CONSTAT_PDOS_CHANGE;
 	struct ucsi_acpi *ua = ucsi_get_drvdata(ucsi);
-	struct ucsi_connector_status *status;
 	int ret;
 
 	ret = ucsi_acpi_read_message_in(ucsi, val, val_len);
@@ -113,11 +112,9 @@ static int ucsi_gram_read_message_in(struct ucsi *ucsi, void *val, size_t val_le
 
 	if (UCSI_COMMAND(ua->cmd) == UCSI_GET_CONNECTOR_STATUS &&
 	    ua->check_bogus_event) {
-		status = (struct ucsi_connector_status *)val;
-
 		/* Clear the bogus change */
-		if (status->change == bogus_change)
-			status->change = 0;
+		if (*(u16 *)val == bogus_change)
+			*(u16 *)val = 0;
 
 		ua->check_bogus_event = false;
 	}
