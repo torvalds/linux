@@ -676,7 +676,7 @@ static void wait_panel_power_cycle(struct intel_dp *intel_dp)
 		    pps_name(intel_dp));
 
 	/* take the difference of current time and panel power off time
-	 * and then make panel wait for t11_t12 if needed. */
+	 * and then make panel wait for power_cycle if needed. */
 	panel_power_on_time = ktime_get_boottime();
 	panel_power_off_duration = ktime_ms_delta(panel_power_on_time, intel_dp->pps.panel_power_off_time);
 
@@ -1405,10 +1405,10 @@ intel_pps_readout_hw_state(struct intel_dp *intel_dp, struct intel_pps_delays *s
 	pp_off = intel_de_read(display, regs.pp_off);
 
 	/* Pull timing values out of registers */
-	seq->t1_t3 = REG_FIELD_GET(PANEL_POWER_UP_DELAY_MASK, pp_on);
-	seq->t8 = REG_FIELD_GET(PANEL_LIGHT_ON_DELAY_MASK, pp_on);
-	seq->t9 = REG_FIELD_GET(PANEL_LIGHT_OFF_DELAY_MASK, pp_off);
-	seq->t10 = REG_FIELD_GET(PANEL_POWER_DOWN_DELAY_MASK, pp_off);
+	seq->power_up = REG_FIELD_GET(PANEL_POWER_UP_DELAY_MASK, pp_on);
+	seq->backlight_on = REG_FIELD_GET(PANEL_LIGHT_ON_DELAY_MASK, pp_on);
+	seq->backlight_off = REG_FIELD_GET(PANEL_LIGHT_OFF_DELAY_MASK, pp_off);
+	seq->power_down = REG_FIELD_GET(PANEL_POWER_DOWN_DELAY_MASK, pp_off);
 
 	if (i915_mmio_reg_valid(regs.pp_div)) {
 		u32 pp_div;
@@ -1421,7 +1421,7 @@ intel_pps_readout_hw_state(struct intel_dp *intel_dp, struct intel_pps_delays *s
 	}
 
 	/* hardware wants <delay>+1 in 100ms units */
-	seq->t11_t12 = power_cycle_delay ? (power_cycle_delay - 1) * 1000 : 0;
+	seq->power_cycle = power_cycle_delay ? (power_cycle_delay - 1) * 1000 : 0;
 }
 
 static void
@@ -1431,9 +1431,9 @@ intel_pps_dump_state(struct intel_dp *intel_dp, const char *state_name,
 	struct intel_display *display = to_intel_display(intel_dp);
 
 	drm_dbg_kms(display->drm,
-		    "%s t1_t3 %d t8 %d t9 %d t10 %d t11_t12 %d\n",
-		    state_name,
-		    seq->t1_t3, seq->t8, seq->t9, seq->t10, seq->t11_t12);
+		    "%s power_up %d backlight_on %d backlight_off %d power_down %d power_cycle %d\n",
+		    state_name, seq->power_up, seq->backlight_on,
+		    seq->backlight_off, seq->power_down, seq->power_cycle);
 }
 
 static void
@@ -1445,8 +1445,11 @@ intel_pps_verify_state(struct intel_dp *intel_dp)
 
 	intel_pps_readout_hw_state(intel_dp, &hw);
 
-	if (hw.t1_t3 != sw->t1_t3 || hw.t8 != sw->t8 || hw.t9 != sw->t9 ||
-	    hw.t10 != sw->t10 || hw.t11_t12 != sw->t11_t12) {
+	if (hw.power_up != sw->power_up ||
+	    hw.backlight_on != sw->backlight_on ||
+	    hw.backlight_off != sw->backlight_off ||
+	    hw.power_down != sw->power_down ||
+	    hw.power_cycle != sw->power_cycle) {
 		drm_err(display->drm, "PPS state mismatch\n");
 		intel_pps_dump_state(intel_dp, "sw", sw);
 		intel_pps_dump_state(intel_dp, "hw", &hw);
@@ -1455,8 +1458,8 @@ intel_pps_verify_state(struct intel_dp *intel_dp)
 
 static bool pps_delays_valid(struct intel_pps_delays *delays)
 {
-	return delays->t1_t3 || delays->t8 || delays->t9 ||
-		delays->t10 || delays->t11_t12;
+	return delays->power_up || delays->backlight_on || delays->backlight_off ||
+		delays->power_down || delays->power_cycle;
 }
 
 static void pps_init_delays_bios(struct intel_dp *intel_dp,
@@ -1491,10 +1494,10 @@ static void pps_init_delays_vbt(struct intel_dp *intel_dp,
 	 * seems sufficient to avoid this problem.
 	 */
 	if (intel_has_quirk(display, QUIRK_INCREASE_T12_DELAY)) {
-		vbt->t11_t12 = max_t(u16, vbt->t11_t12, 1300 * 10);
+		vbt->power_cycle = max_t(u16, vbt->power_cycle, 1300 * 10);
 		drm_dbg_kms(display->drm,
 			    "Increasing T12 panel delay as per the quirk to %d\n",
-			    vbt->t11_t12);
+			    vbt->power_cycle);
 	}
 
 	intel_pps_dump_state(intel_dp, "vbt", vbt);
@@ -1509,11 +1512,11 @@ static void pps_init_delays_spec(struct intel_dp *intel_dp,
 
 	/* Upper limits from eDP 1.3 spec. Note that we use the clunky units of
 	 * our hw here, which are all in 100usec. */
-	spec->t1_t3 = 210 * 10;
-	spec->t8 = 50 * 10; /* no limit for t8, use t7 instead */
-	spec->t9 = 50 * 10; /* no limit for t9, make it symmetric with t8 */
-	spec->t10 = 500 * 10;
-	spec->t11_t12 = 510 * 10;
+	spec->power_up = 210 * 10; /* T1+T3 */
+	spec->backlight_on = 50 * 10; /* no limit for T8, use T7 instead */
+	spec->backlight_off = 50 * 10; /* no limit for T9, make it symmetric with T8 */
+	spec->power_down = 500 * 10; /* T10 */
+	spec->power_cycle = 510 * 10; /* T11+T12 */
 
 	intel_pps_dump_state(intel_dp, "spec", spec);
 }
@@ -1539,19 +1542,19 @@ static void pps_init_delays(struct intel_dp *intel_dp)
 #define assign_final(field)	final->field = (max(cur.field, vbt.field) == 0 ? \
 				       spec.field : \
 				       max(cur.field, vbt.field))
-	assign_final(t1_t3);
-	assign_final(t8);
-	assign_final(t9);
-	assign_final(t10);
-	assign_final(t11_t12);
+	assign_final(power_up);
+	assign_final(backlight_on);
+	assign_final(backlight_off);
+	assign_final(power_down);
+	assign_final(power_cycle);
 #undef assign_final
 
 #define get_delay(field)	(DIV_ROUND_UP(final->field, 10))
-	intel_dp->pps.panel_power_up_delay = get_delay(t1_t3);
-	intel_dp->pps.backlight_on_delay = get_delay(t8);
-	intel_dp->pps.backlight_off_delay = get_delay(t9);
-	intel_dp->pps.panel_power_down_delay = get_delay(t10);
-	intel_dp->pps.panel_power_cycle_delay = get_delay(t11_t12);
+	intel_dp->pps.panel_power_up_delay = get_delay(power_up);
+	intel_dp->pps.backlight_on_delay = get_delay(backlight_on);
+	intel_dp->pps.backlight_off_delay = get_delay(backlight_off);
+	intel_dp->pps.panel_power_down_delay = get_delay(power_down);
+	intel_dp->pps.panel_power_cycle_delay = get_delay(power_cycle);
 #undef get_delay
 
 	drm_dbg_kms(display->drm,
@@ -1566,19 +1569,20 @@ static void pps_init_delays(struct intel_dp *intel_dp)
 
 	/*
 	 * We override the HW backlight delays to 1 because we do manual waits
-	 * on them. For T8, even BSpec recommends doing it. For T9, if we
-	 * don't do this, we'll end up waiting for the backlight off delay
-	 * twice: once when we do the manual sleep, and once when we disable
-	 * the panel and wait for the PP_STATUS bit to become zero.
+	 * on them. For backlight_on, even BSpec recommends doing it. For
+	 * backlight_off, if we don't do this, we'll end up waiting for the
+	 * backlight off delay twice: once when we do the manual sleep, and
+	 * once when we disable the panel and wait for the PP_STATUS bit to
+	 * become zero.
 	 */
-	final->t8 = 1;
-	final->t9 = 1;
+	final->backlight_on = 1;
+	final->backlight_off = 1;
 
 	/*
-	 * HW has only a 100msec granularity for t11_t12 so round it up
+	 * HW has only a 100msec granularity for power_cycle so round it up
 	 * accordingly.
 	 */
-	final->t11_t12 = roundup(final->t11_t12, 100 * 10);
+	final->power_cycle = roundup(final->power_cycle, 100 * 10);
 }
 
 static void pps_init_registers(struct intel_dp *intel_dp, bool force_disable_vdd)
@@ -1622,10 +1626,10 @@ static void pps_init_registers(struct intel_dp *intel_dp, bool force_disable_vdd
 		intel_de_write(display, regs.pp_ctrl, pp);
 	}
 
-	pp_on = REG_FIELD_PREP(PANEL_POWER_UP_DELAY_MASK, seq->t1_t3) |
-		REG_FIELD_PREP(PANEL_LIGHT_ON_DELAY_MASK, seq->t8);
-	pp_off = REG_FIELD_PREP(PANEL_LIGHT_OFF_DELAY_MASK, seq->t9) |
-		REG_FIELD_PREP(PANEL_POWER_DOWN_DELAY_MASK, seq->t10);
+	pp_on = REG_FIELD_PREP(PANEL_POWER_UP_DELAY_MASK, seq->power_up) |
+		REG_FIELD_PREP(PANEL_LIGHT_ON_DELAY_MASK, seq->backlight_on);
+	pp_off = REG_FIELD_PREP(PANEL_LIGHT_OFF_DELAY_MASK, seq->backlight_off) |
+		REG_FIELD_PREP(PANEL_POWER_DOWN_DELAY_MASK, seq->power_down);
 
 	/* Haswell doesn't have any port selection bits for the panel
 	 * power sequencer any more. */
@@ -1661,11 +1665,11 @@ static void pps_init_registers(struct intel_dp *intel_dp, bool force_disable_vdd
 			       REG_FIELD_PREP(PP_REFERENCE_DIVIDER_MASK,
 					      (100 * div) / 2 - 1) |
 			       REG_FIELD_PREP(PANEL_POWER_CYCLE_DELAY_MASK,
-					      DIV_ROUND_UP(seq->t11_t12, 1000) + 1));
+					      DIV_ROUND_UP(seq->power_cycle, 1000) + 1));
 	else
 		intel_de_rmw(display, regs.pp_ctrl, BXT_POWER_CYCLE_DELAY_MASK,
 			     REG_FIELD_PREP(BXT_POWER_CYCLE_DELAY_MASK,
-					    DIV_ROUND_UP(seq->t11_t12, 1000) + 1));
+					    DIV_ROUND_UP(seq->power_cycle, 1000) + 1));
 
 	drm_dbg_kms(display->drm,
 		    "panel power sequencer register settings: PP_ON %#x, PP_OFF %#x, PP_DIV %#x\n",

@@ -303,11 +303,11 @@ struct intel_panel_bl_funcs {
 
 /* in 100us units */
 struct intel_pps_delays {
-	u16 t1_t3;
-	u16 t8;
-	u16 t9;
-	u16 t10;
-	u16 t11_t12;
+	u16 power_up;      /* eDP: T1+T3 */
+	u16 backlight_on;  /* eDP: T8 */
+	u16 backlight_off; /* eDP: T9 */
+	u16 power_down;    /* eDP: T10 */
+	u16 power_cycle;   /* eDP: T11+T12 */
 };
 
 enum drrs_type {

@@ -1405,11 +1405,11 @@ parse_power_conservation_features(struct intel_display *display,
 static void vbt_edp_to_pps_delays(struct intel_pps_delays *pps,
 				  const struct edp_power_seq *edp_pps)
 {
-	pps->t1_t3 = edp_pps->t1_t3;
-	pps->t8 = edp_pps->t8;
-	pps->t9 = edp_pps->t9;
-	pps->t10 = edp_pps->t10;
-	pps->t11_t12 = edp_pps->t11_t12;
+	pps->power_up = edp_pps->t1_t3;
+	pps->backlight_on = edp_pps->t8;
+	pps->backlight_off = edp_pps->t9;
+	pps->power_down = edp_pps->t10;
+	pps->power_cycle = edp_pps->t11_t12;
 }
 
 static void
