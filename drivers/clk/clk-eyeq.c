@@ -367,11 +367,7 @@ static int eqc_probe(struct platform_device *pdev)
 
 	eqc_probe_init_divs(dev, data, base, cells);
 
-	/* When providing a single clock, require no cell. */
-	if (clk_count == 1)
-		return of_clk_add_hw_provider(np, of_clk_hw_simple_get, cells->hws[0]);
-	else
-		return of_clk_add_hw_provider(np, of_clk_hw_onecell_get, cells);
+	return of_clk_add_hw_provider(np, of_clk_hw_onecell_get, cells);
 }
 
 /* Required early for GIC timer (pll-cpu) and UARTs (pll-per). */
@@ -637,11 +633,7 @@ static void __init eqc_early_init(struct device_node *np,
 		}
 	}
 
-	/* When providing a single clock, require no cell. */
-	if (clk_count == 1)
-		ret = of_clk_add_hw_provider(np, of_clk_hw_simple_get, cells->hws[0]);
-	else
-		ret = of_clk_add_hw_provider(np, of_clk_hw_onecell_get, cells);
+	ret = of_clk_add_hw_provider(np, of_clk_hw_onecell_get, cells);
 	if (ret) {
 		pr_err("failed registering clk provider: %d\n", ret);
 		goto err;
