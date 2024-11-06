@@ -251,4 +251,23 @@ static __always_inline u128 arch_cmpxchg128(volatile u128 *ptr, u128 old, u128 n
 #define arch_cmpxchg128		arch_cmpxchg128
 #define arch_cmpxchg128_local	arch_cmpxchg128
 
+#ifdef __HAVE_ASM_FLAG_OUTPUTS__
+
+static __always_inline bool arch_try_cmpxchg128(volatile u128 *ptr, u128 *oldp, u128 new)
+{
+	int cc;
+
+	asm volatile(
+		"	cdsg	%[old],%[new],%[ptr]\n"
+		: [old] "+d" (*oldp), [ptr] "+QS" (*ptr), "=@cc" (cc)
+		: [new] "d" (new)
+		: "memory");
+	return likely(cc == 0);
+}
+
+#define arch_try_cmpxchg128		arch_try_cmpxchg128
+#define arch_try_cmpxchg128_local	arch_try_cmpxchg128
+
+#endif /* __HAVE_ASM_FLAG_OUTPUTS__ */
+
 #endif /* __ASM_CMPXCHG_H */
