@@ -937,12 +937,12 @@ int __init early_init_dt_scan_root(void)
 	dt_root_addr_cells = OF_ROOT_NODE_ADDR_CELLS_DEFAULT;
 
 	prop = of_get_flat_dt_prop(node, "#size-cells", NULL);
-	if (prop)
+	if (!WARN(!prop, "No '#size-cells' in root node\n"))
 		dt_root_size_cells = be32_to_cpup(prop);
 	pr_debug("dt_root_size_cells = %x\n", dt_root_size_cells);
 
 	prop = of_get_flat_dt_prop(node, "#address-cells", NULL);
-	if (prop)
+	if (!WARN(!prop, "No '#address-cells' in root node\n"))
 		dt_root_addr_cells = be32_to_cpup(prop);
 	pr_debug("dt_root_addr_cells = %x\n", dt_root_addr_cells);
 
