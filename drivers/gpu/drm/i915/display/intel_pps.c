@@ -1387,7 +1387,7 @@ static void pps_init_timestamps(struct intel_dp *intel_dp)
 }
 
 static void
-intel_pps_readout_hw_state(struct intel_dp *intel_dp, struct edp_power_seq *seq)
+intel_pps_readout_hw_state(struct intel_dp *intel_dp, struct intel_pps_delays *seq)
 {
 	struct intel_display *display = to_intel_display(intel_dp);
 	u32 pp_on, pp_off, pp_ctl, power_cycle_delay;
@@ -1426,7 +1426,7 @@ intel_pps_readout_hw_state(struct intel_dp *intel_dp, struct edp_power_seq *seq)
 
 static void
 intel_pps_dump_state(struct intel_dp *intel_dp, const char *state_name,
-		     const struct edp_power_seq *seq)
+		     const struct intel_pps_delays *seq)
 {
 	struct intel_display *display = to_intel_display(intel_dp);
 
@@ -1440,8 +1440,8 @@ static void
 intel_pps_verify_state(struct intel_dp *intel_dp)
 {
 	struct intel_display *display = to_intel_display(intel_dp);
-	struct edp_power_seq hw;
-	struct edp_power_seq *sw = &intel_dp->pps.pps_delays;
+	struct intel_pps_delays hw;
+	struct intel_pps_delays *sw = &intel_dp->pps.pps_delays;
 
 	intel_pps_readout_hw_state(intel_dp, &hw);
 
@@ -1453,14 +1453,14 @@ intel_pps_verify_state(struct intel_dp *intel_dp)
 	}
 }
 
-static bool pps_delays_valid(struct edp_power_seq *delays)
+static bool pps_delays_valid(struct intel_pps_delays *delays)
 {
 	return delays->t1_t3 || delays->t8 || delays->t9 ||
 		delays->t10 || delays->t11_t12;
 }
 
 static void pps_init_delays_bios(struct intel_dp *intel_dp,
-				 struct edp_power_seq *bios)
+				 struct intel_pps_delays *bios)
 {
 	struct intel_display *display = to_intel_display(intel_dp);
 
@@ -1475,7 +1475,7 @@ static void pps_init_delays_bios(struct intel_dp *intel_dp,
 }
 
 static void pps_init_delays_vbt(struct intel_dp *intel_dp,
-				struct edp_power_seq *vbt)
+				struct intel_pps_delays *vbt)
 {
 	struct intel_display *display = to_intel_display(intel_dp);
 	struct intel_connector *connector = intel_dp->attached_connector;
@@ -1501,7 +1501,7 @@ static void pps_init_delays_vbt(struct intel_dp *intel_dp,
 }
 
 static void pps_init_delays_spec(struct intel_dp *intel_dp,
-				 struct edp_power_seq *spec)
+				 struct intel_pps_delays *spec)
 {
 	struct intel_display *display = to_intel_display(intel_dp);
 
@@ -1521,7 +1521,7 @@ static void pps_init_delays_spec(struct intel_dp *intel_dp,
 static void pps_init_delays(struct intel_dp *intel_dp)
 {
 	struct intel_display *display = to_intel_display(intel_dp);
-	struct edp_power_seq cur, vbt, spec,
+	struct intel_pps_delays cur, vbt, spec,
 		*final = &intel_dp->pps.pps_delays;
 
 	lockdep_assert_held(&display->pps.mutex);
@@ -1589,7 +1589,7 @@ static void pps_init_registers(struct intel_dp *intel_dp, bool force_disable_vdd
 	int div = DISPLAY_RUNTIME_INFO(display)->rawclk_freq / 1000;
 	struct pps_registers regs;
 	enum port port = dp_to_dig_port(intel_dp)->base.port;
-	const struct edp_power_seq *seq = &intel_dp->pps.pps_delays;
+	const struct intel_pps_delays *seq = &intel_dp->pps.pps_delays;
 
 	lockdep_assert_held(&display->pps.mutex);
 

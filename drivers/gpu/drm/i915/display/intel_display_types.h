@@ -301,6 +301,15 @@ struct intel_panel_bl_funcs {
 	u32 (*hz_to_pwm)(struct intel_connector *connector, u32 hz);
 };
 
+/* in 100us units */
+struct intel_pps_delays {
+	u16 t1_t3;
+	u16 t8;
+	u16 t9;
+	u16 t10;
+	u16 t11_t12;
+};
+
 enum drrs_type {
 	DRRS_TYPE_NONE,
 	DRRS_TYPE_STATIC,
@@ -328,7 +337,7 @@ struct intel_vbt_panel_data {
 		int preemphasis;
 		int vswing;
 		int bpp;
-		struct edp_power_seq pps;
+		struct intel_pps_delays pps;
 		u8 drrs_msa_timing_delay;
 		bool low_vswing;
 		bool hobl;
@@ -1570,8 +1579,8 @@ struct intel_pps {
 	 * requiring a reinitialization. Only relevant on BXT+.
 	 */
 	bool bxt_pps_reset;
-	struct edp_power_seq pps_delays;
-	struct edp_power_seq bios_pps_delays;
+	struct intel_pps_delays pps_delays;
+	struct intel_pps_delays bios_pps_delays;
 };
 
 struct intel_psr {
