@@ -453,6 +453,7 @@ void ath9k_tasklet(struct tasklet_struct *t)
 			ath_rx_tasklet(sc, 0, true);
 
 		ath_rx_tasklet(sc, 0, false);
+		sc->rx_active_count++;
 	}
 
 	if (status & ATH9K_INT_TX) {

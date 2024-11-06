@@ -1018,6 +1018,8 @@ struct ath_softc {
 
 	u8 gtt_cnt;
 	u32 intrstatus;
+	u32 rx_active_check_time;
+	u32 rx_active_count;
 	u16 ps_flags; /* PS_* */
 	bool ps_enabled;
 	bool ps_idle;
