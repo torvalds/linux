@@ -1562,6 +1562,9 @@ static void __rtl8169_set_wol(struct rtl8169_private *tp, u32 wolopts)
 	}
 
 	r8169_mod_reg8_cond(tp, Config3, LinkUp, wolopts & WAKE_PHY);
+	if (rtl_is_8125(tp))
+		r8168_mac_ocp_modify(tp, 0xe0c6, 0x3f,
+				     wolopts & WAKE_PHY ? 0x13 : 0);
 	r8169_mod_reg8_cond(tp, Config5, UWF, wolopts & WAKE_UCAST);
 	r8169_mod_reg8_cond(tp, Config5, BWF, wolopts & WAKE_BCAST);
 	r8169_mod_reg8_cond(tp, Config5, MWF, wolopts & WAKE_MCAST);
