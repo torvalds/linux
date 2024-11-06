@@ -1365,35 +1365,6 @@ static u8 hal_EfusePgPacketWriteData(
 	return true;
 }
 
-static s32 Hal_EfusePgPacketWrite(
-	struct adapter *padapter,
-	u8 offset,
-	u8 word_en,
-	u8 *pData,
-	bool bPseudoTest
-)
-{
-	struct pgpkt_struct targetPkt;
-	u16 startAddr = 0;
-	u8 efuseType = EFUSE_WIFI;
-
-	if (!hal_EfusePgCheckAvailableAddr(padapter, efuseType, bPseudoTest))
-		return false;
-
-	hal_EfuseConstructPGPkt(offset, word_en, pData, &targetPkt);
-
-	if (!hal_EfusePartialWriteCheck(padapter, efuseType, &startAddr, &targetPkt, bPseudoTest))
-		return false;
-
-	if (!hal_EfusePgPacketWriteHeader(padapter, efuseType, &startAddr, &targetPkt, bPseudoTest))
-		return false;
-
-	if (!hal_EfusePgPacketWriteData(padapter, efuseType, &startAddr, &targetPkt, bPseudoTest))
-		return false;
-
-	return true;
-}
-
 static bool Hal_EfusePgPacketWrite_BT(
 	struct adapter *padapter,
 	u8 offset,
@@ -1673,7 +1644,6 @@ void UpdateHalRAMask8723B(struct adapter *padapter, u32 mac_id, u8 rssi_level)
 void rtl8723b_set_hal_ops(struct hal_ops *pHalFunc)
 {
 	/*  Efuse related function */
-	pHalFunc->Efuse_PgPacketWrite = &Hal_EfusePgPacketWrite;
 	pHalFunc->Efuse_WordEnableDataWrite = &Hal_EfuseWordEnableDataWrite;
 	pHalFunc->Efuse_PgPacketWrite_BT = &Hal_EfusePgPacketWrite_BT;
 
