@@ -54,7 +54,6 @@ enum {
 };
 
 int __pi_scs_patch(const u8 eh_frame[], int size);
-asmlinkage void __pi_scs_patch_vmlinux(void);
 
 #endif /* __ASSEMBLY __ */
 
