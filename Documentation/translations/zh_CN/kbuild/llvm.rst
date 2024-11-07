@@ -188,7 +188,7 @@ LLVM 并不支持 Linux 内核所有可支持的架构，同样，即使 LLVM �
 
 我们在 `kernel.org <https://kernel.org/pub/tools/llvm/>`_ 提供预编译的稳定版 LLVM。
 这些版本已经针对 Linux 内核构建，使用配置文件数据进行优化。相较于其他发行版中的 LLVM，它们应该
-能提高内核构建时间。
+能提高内核构建效率。
 
 以下是一些有助于从源代码构建 LLVM 或通过发行版的包管理器获取 LLVM 的链接。
 
