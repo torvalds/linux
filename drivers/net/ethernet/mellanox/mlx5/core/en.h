@@ -629,6 +629,7 @@ struct mlx5e_shampo_hd {
 	u16 curr_page_index;
 	u32 hd_per_wq;
 	u16 hd_per_wqe;
+	u16 pages_per_wq;
 	unsigned long *bitmap;
 	u16 pi;
 	u16 ci;

@@ -671,7 +671,7 @@ static int mlx5e_build_shampo_hd_umr(struct mlx5e_rq *rq,
 		header_offset = (index & (MLX5E_SHAMPO_WQ_HEADER_PER_PAGE - 1)) <<
 			MLX5E_SHAMPO_LOG_MAX_HEADER_ENTRY_SIZE;
 		if (!(header_offset & (PAGE_SIZE - 1))) {
-			page_index = (page_index + 1) & (shampo->hd_per_wq - 1);
+			page_index = (page_index + 1) & (shampo->pages_per_wq - 1);
 			frag_page = &shampo->pages[page_index];
 
 			err = mlx5e_page_alloc_fragmented(rq, frag_page);
