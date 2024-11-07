@@ -12,6 +12,7 @@
 #include <asm/pgalloc.h>
 #include <asm/kfence.h>
 #include <asm/page.h>
+#include <asm/asm.h>
 #include <asm/set_memory.h>
 
 static inline unsigned long sske_frame(unsigned long addr, unsigned char skey)
@@ -414,11 +415,11 @@ bool kernel_page_present(struct page *page)
 	addr = (unsigned long)page_address(page);
 	asm volatile(
 		"	lra	%[addr],0(%[addr])\n"
-		"	ipm	%[cc]\n"
-		: [cc] "=d" (cc), [addr] "+a" (addr)
+		CC_IPM(cc)
+		: CC_OUT(cc, cc), [addr] "+a" (addr)
 		:
-		: "cc");
-	return (cc >> 28) == 0;
+		: CC_CLOBBER);
+	return CC_TRANSFORM(cc) == 0;
 }
 
 #if defined(CONFIG_DEBUG_PAGEALLOC) || defined(CONFIG_KFENCE)
