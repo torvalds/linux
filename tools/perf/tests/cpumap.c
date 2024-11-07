@@ -160,14 +160,14 @@ static int test__cpu_map_merge(struct test_suite *test __maybe_unused, int subte
 {
 	struct perf_cpu_map *a = perf_cpu_map__new("4,2,1");
 	struct perf_cpu_map *b = perf_cpu_map__new("4,5,7");
-	struct perf_cpu_map *c = perf_cpu_map__merge(a, b);
 	char buf[100];
 
-	TEST_ASSERT_VAL("failed to merge map: bad nr", perf_cpu_map__nr(c) == 5);
-	cpu_map__snprint(c, buf, sizeof(buf));
+	perf_cpu_map__merge(&a, b);
+	TEST_ASSERT_VAL("failed to merge map: bad nr", perf_cpu_map__nr(a) == 5);
+	cpu_map__snprint(a, buf, sizeof(buf));
 	TEST_ASSERT_VAL("failed to merge map: bad result", !strcmp(buf, "1-2,4-5,7"));
 	perf_cpu_map__put(b);
-	perf_cpu_map__put(c);
+	perf_cpu_map__put(a);
 	return 0;
 }
 
@@ -233,9 +233,8 @@ static int test__cpu_map_equal(struct test_suite *test __maybe_unused, int subte
 	}
 
 	/* Maps equal made maps. */
-	tmp = perf_cpu_map__merge(perf_cpu_map__get(one), two);
-	TEST_ASSERT_VAL("pair", perf_cpu_map__equal(pair, tmp));
-	perf_cpu_map__put(tmp);
+	perf_cpu_map__merge(&two, one);
+	TEST_ASSERT_VAL("pair", perf_cpu_map__equal(pair, two));
 
 	tmp = perf_cpu_map__intersect(pair, one);
 	TEST_ASSERT_VAL("one", perf_cpu_map__equal(one, tmp));
