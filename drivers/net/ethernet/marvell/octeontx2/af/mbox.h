@@ -1583,6 +1583,7 @@ struct rep_evt_data {
 	u16 rx_mode;
 	u16 rx_flags;
 	u16 mtu;
+	u8 mac[ETH_ALEN];
 	u64 rsvd[5];
 };
 
@@ -1593,6 +1594,7 @@ struct rep_event {
 #define RVU_EVENT_PFVF_STATE		BIT_ULL(1)
 #define RVU_EVENT_MTU_CHANGE		BIT_ULL(2)
 #define RVU_EVENT_RX_MODE_CHANGE	BIT_ULL(3)
+#define RVU_EVENT_MAC_ADDR_CHANGE	BIT_ULL(4)
 	u16 event;
 	struct rep_evt_data evt_data;
 };

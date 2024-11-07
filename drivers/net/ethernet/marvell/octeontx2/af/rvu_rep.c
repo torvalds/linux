@@ -35,10 +35,14 @@ MBOX_UP_REP_MESSAGES
 
 static int rvu_rep_up_notify(struct rvu *rvu, struct rep_event *event)
 {
+	struct rvu_pfvf *pfvf = rvu_get_pfvf(rvu, event->pcifunc);
 	struct rep_event *msg;
 	int pf;
 
 	pf = rvu_get_pf(event->pcifunc);
+
+	if (event->event & RVU_EVENT_MAC_ADDR_CHANGE)
+		ether_addr_copy(pfvf->mac_addr, event->evt_data.mac);
 
 	mutex_lock(&rvu->mbox_lock);
 	msg = otx2_mbox_alloc_msg_rep_event_up_notify(rvu, pf);

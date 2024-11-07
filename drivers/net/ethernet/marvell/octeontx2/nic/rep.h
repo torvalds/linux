@@ -34,10 +34,12 @@ struct rep_dev {
 	struct net_device *netdev;
 	struct rep_stats stats;
 	struct delayed_work stats_wrk;
+	struct devlink_port dl_port;
 #define RVU_REP_VF_INITIALIZED		BIT_ULL(0)
 	u64 flags;
 	u16 rep_id;
 	u16 pcifunc;
+	u8 mac[ETH_ALEN];
 };
 
 static inline bool otx2_rep_dev(struct pci_dev *pdev)
