@@ -55,12 +55,20 @@
 #include "intel_pch_refclk.h"
 
 /* Here's the desired hotplug mode */
-#define ADPA_HOTPLUG_BITS (ADPA_CRT_HOTPLUG_PERIOD_128 |		\
+#define ADPA_HOTPLUG_BITS (ADPA_CRT_HOTPLUG_ENABLE |			\
+			   ADPA_CRT_HOTPLUG_PERIOD_128 |		\
 			   ADPA_CRT_HOTPLUG_WARMUP_10MS |		\
 			   ADPA_CRT_HOTPLUG_SAMPLE_4S |			\
 			   ADPA_CRT_HOTPLUG_VOLTAGE_50 |		\
-			   ADPA_CRT_HOTPLUG_VOLREF_325MV |		\
-			   ADPA_CRT_HOTPLUG_ENABLE)
+			   ADPA_CRT_HOTPLUG_VOLREF_325MV)
+#define ADPA_HOTPLUG_MASK (ADPA_CRT_HOTPLUG_MONITOR_MASK |		\
+			   ADPA_CRT_HOTPLUG_ENABLE |			\
+			   ADPA_CRT_HOTPLUG_PERIOD_MASK |		\
+			   ADPA_CRT_HOTPLUG_WARMUP_MASK |		\
+			   ADPA_CRT_HOTPLUG_SAMPLE_MASK |		\
+			   ADPA_CRT_HOTPLUG_VOLTAGE_MASK |		\
+			   ADPA_CRT_HOTPLUG_VOLREF_MASK |		\
+			   ADPA_CRT_HOTPLUG_FORCE_TRIGGER)
 
 struct intel_crt {
 	struct intel_encoder base;
@@ -984,7 +992,7 @@ void intel_crt_reset(struct drm_encoder *encoder)
 		u32 adpa;
 
 		adpa = intel_de_read(display, crt->adpa_reg);
-		adpa &= ~ADPA_CRT_HOTPLUG_MASK;
+		adpa &= ~ADPA_HOTPLUG_MASK;
 		adpa |= ADPA_HOTPLUG_BITS;
 		intel_de_write(display, crt->adpa_reg, adpa);
 		intel_de_posting_read(display, crt->adpa_reg);
