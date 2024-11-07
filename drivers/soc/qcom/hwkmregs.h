@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef _QTI_HARDWARE_KEY_MANAGER_REGS_H_
@@ -211,4 +211,14 @@
 #define RSP_FIFO_UNDERFLOW			4
 #define CMD_FIFO_UNDERFLOW			5
 
+#if IS_ENABLED(CONFIG_QTI_HW_KEY_MANAGER)
+#define MINOR_VERSION_OFFSET			16
+#define MAJOR_VERSION_OFFSET			24
+#define MINOR_VERSION_BITS_MASK			0x110000
+#define MAJOR_VERSION_BITS_MASK			0xFF000000
+
+unsigned int qti_hwkm_get_reg_data(void __iomem *ice_hwkm_mmio,
+					u32 reg, u32 offset, u32 mask,
+					enum hwkm_destination dest);
+#endif
 #endif /* __QTI_HARDWARE_KEY_MANAGER_REGS_H_ */
