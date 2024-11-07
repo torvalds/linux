@@ -223,7 +223,7 @@ static void child_output(struct child_data *child, uint32_t events,
 static void child_tickle(struct child_data *child)
 {
 	if (child->output_seen && !child->exited)
-		kill(child->pid, SIGUSR2);
+		kill(child->pid, SIGUSR1);
 }
 
 static void child_stop(struct child_data *child)
