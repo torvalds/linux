@@ -98,7 +98,7 @@ free:
 }
 
 char *
-get_cpuid_str(struct perf_pmu *pmu __maybe_unused)
+get_cpuid_str(struct perf_cpu cpu __maybe_unused)
 {
 	return _get_cpuid();
 }

@@ -42,7 +42,7 @@ get_cpuid(char *buffer, size_t sz, struct perf_cpu cpu __maybe_unused)
 }
 
 char *
-get_cpuid_str(struct perf_pmu *pmu __maybe_unused)
+get_cpuid_str(struct perf_cpu cpu __maybe_unused)
 {
 	char *bufp;
 	unsigned long pvr;

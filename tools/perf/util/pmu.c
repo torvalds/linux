@@ -819,26 +819,6 @@ static int is_sysfs_pmu_core(const char *name)
 	return file_available(path);
 }
 
-char *perf_pmu__getcpuid(struct perf_pmu *pmu)
-{
-	char *cpuid;
-	static bool printed;
-
-	cpuid = getenv("PERF_CPUID");
-	if (cpuid)
-		cpuid = strdup(cpuid);
-	if (!cpuid)
-		cpuid = get_cpuid_str(pmu);
-	if (!cpuid)
-		return NULL;
-
-	if (!printed) {
-		pr_debug("Using CPUID %s\n", cpuid);
-		printed = true;
-	}
-	return cpuid;
-}
-
 __weak const struct pmu_metrics_table *pmu_metrics_table__find(void)
 {
 	return perf_pmu__find_metrics_table(NULL);

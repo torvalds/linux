@@ -1031,13 +1031,16 @@ static const struct pmu_events_map *map_for_pmu(struct perf_pmu *pmu)
         } last_map_search;
         static bool has_last_result, has_last_map_search;
         const struct pmu_events_map *map = NULL;
+        struct perf_cpu cpu = {-1};
         char *cpuid = NULL;
         size_t i;
 
         if (has_last_result && last_result.pmu == pmu)
                 return last_result.map;
 
-        cpuid = perf_pmu__getcpuid(pmu);
+        if (pmu)
+                cpu = perf_cpu_map__min(pmu->cpus);
+        cpuid = get_cpuid_allow_env_override(cpu);
 
         /*
          * On some platforms which uses cpus map, cpuid can be NULL for

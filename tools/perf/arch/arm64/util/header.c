@@ -62,22 +62,18 @@ int get_cpuid(char *buf, size_t sz, struct perf_cpu cpu)
 	return EINVAL;
 }
 
-char *get_cpuid_str(struct perf_pmu *pmu)
+char *get_cpuid_str(struct perf_cpu cpu)
 {
-	char *buf = NULL;
+	char *buf = malloc(MIDR_SIZE);
 	int res;
 
-	if (!pmu || !pmu->cpus)
-		return NULL;
-
-	buf = malloc(MIDR_SIZE);
 	if (!buf)
 		return NULL;
 
 	/* read midr from list of cpus mapped to this pmu */
-	res = get_cpuid(buf, MIDR_SIZE, perf_cpu_map__min(pmu->cpus));
+	res = get_cpuid(buf, MIDR_SIZE, cpu);
 	if (res) {
-		pr_err("failed to get cpuid string for PMU %s\n", pmu->name);
+		pr_err("failed to get cpuid string for CPU %d\n", cpu.cpu);
 		free(buf);
 		buf = NULL;
 	}

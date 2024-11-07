@@ -819,9 +819,29 @@ static int write_group_desc(struct feat_fd *ff,
  * Each architecture should provide a more precise id string that
  * can be use to match the architecture's "mapfile".
  */
-char * __weak get_cpuid_str(struct perf_pmu *pmu __maybe_unused)
+char * __weak get_cpuid_str(struct perf_cpu cpu __maybe_unused)
 {
 	return NULL;
+}
+
+char *get_cpuid_allow_env_override(struct perf_cpu cpu)
+{
+	char *cpuid;
+	static bool printed;
+
+	cpuid = getenv("PERF_CPUID");
+	if (cpuid)
+		cpuid = strdup(cpuid);
+	if (!cpuid)
+		cpuid = get_cpuid_str(cpu);
+	if (!cpuid)
+		return NULL;
+
+	if (!printed) {
+		pr_debug("Using CPUID %s\n", cpuid);
+		printed = true;
+	}
+	return cpuid;
 }
 
 /* Return zero when the cpuid from the mapfile.csv matches the

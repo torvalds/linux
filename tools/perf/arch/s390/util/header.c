@@ -137,11 +137,11 @@ skip_sysinfo:
 	return (nbytes >= sz) ? ENOBUFS : 0;
 }
 
-char *get_cpuid_str(struct perf_pmu *pmu __maybe_unused)
+char *get_cpuid_str(struct perf_cpu cpu)
 {
 	char *buf = malloc(128);
 
-	if (buf && get_cpuid(buf, 128))
+	if (buf && get_cpuid(buf, 128, cpu))
 		zfree(&buf);
 	return buf;
 }

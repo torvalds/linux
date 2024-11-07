@@ -4,10 +4,9 @@
 #include "util/expr.h"
 #include "util/hashmap.h"
 #include "util/header.h"
-#include "util/pmu.h"
-#include "util/pmus.h"
 #include "util/smt.h"
 #include "tests.h"
+#include <perf/cpumap.h>
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>
@@ -78,8 +77,8 @@ static int test__expr(struct test_suite *t __maybe_unused, int subtest __maybe_u
 	struct expr_parse_ctx *ctx;
 	bool is_intel = false;
 	char strcmp_cpuid_buf[256];
-	struct perf_pmu *pmu = perf_pmus__find_core_pmu();
-	char *cpuid = perf_pmu__getcpuid(pmu);
+	struct perf_cpu cpu = {-1};
+	char *cpuid = get_cpuid_allow_env_override(cpu);
 	char *escaped_cpuid1, *escaped_cpuid2;
 
 	TEST_ASSERT_VAL("get_cpuid", cpuid);

@@ -23,6 +23,7 @@
 #include "../../../util/debug.h"
 #include "../../../util/auxtrace.h"
 #include "../../../util/record.h"
+#include "../../../util/header.h"
 #include "../../../util/arm-spe.h"
 #include <tools/libc_compat.h> // reallocarray
 
@@ -85,22 +86,11 @@ static int arm_spe_save_cpu_header(struct auxtrace_record *itr,
 	struct arm_spe_recording *sper =
 			container_of(itr, struct arm_spe_recording, itr);
 	struct perf_pmu *pmu = NULL;
-	struct perf_pmu tmp_pmu;
-	char cpu_id_str[16];
 	char *cpuid = NULL;
 	u64 val;
 
-	snprintf(cpu_id_str, sizeof(cpu_id_str), "%d", cpu.cpu);
-	tmp_pmu.cpus = perf_cpu_map__new(cpu_id_str);
-	if (!tmp_pmu.cpus)
-		return -ENOMEM;
-
 	/* Read CPU MIDR */
-	cpuid = perf_pmu__getcpuid(&tmp_pmu);
-
-	/* The CPU map will not be used anymore, release it */
-	perf_cpu_map__put(tmp_pmu.cpus);
-
+	cpuid = get_cpuid_allow_env_override(cpu);
 	if (!cpuid)
 		return -ENOMEM;
 	val = strtol(cpuid, NULL, 16);
