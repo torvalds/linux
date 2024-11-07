@@ -124,7 +124,7 @@ struct io_rsrc_node *io_rsrc_node_alloc(struct io_ring_ctx *ctx, int type)
 
 	node = kzalloc(sizeof(*node), GFP_KERNEL);
 	if (node) {
-		node->ctx_ptr = (unsigned long) ctx | type;
+		node->type = type;
 		node->refs = 1;
 	}
 	return node;
@@ -449,7 +449,7 @@ void io_free_rsrc_node(struct io_ring_ctx *ctx, struct io_rsrc_node *node)
 	if (node->tag)
 		io_post_aux_cqe(ctx, node->tag, 0, 0);
 
-	switch (io_rsrc_node_type(node)) {
+	switch (node->type) {
 	case IORING_RSRC_FILE:
 		if (io_slot_file(node))
 			fput(io_slot_file(node));

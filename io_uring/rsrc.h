@@ -11,12 +11,10 @@
 enum {
 	IORING_RSRC_FILE		= 0,
 	IORING_RSRC_BUFFER		= 1,
-
-	IORING_RSRC_TYPE_MASK		= 0x3UL,
 };
 
 struct io_rsrc_node {
-	unsigned long			ctx_ptr;
+	unsigned char			type;
 	int				refs;
 
 	u64 tag;
@@ -104,11 +102,6 @@ static inline void io_req_put_rsrc_nodes(struct io_kiocb *req)
 		io_put_rsrc_node(req->ctx, req->buf_node);
 		req->buf_node = NULL;
 	}
-}
-
-static inline int io_rsrc_node_type(struct io_rsrc_node *node)
-{
-	return node->ctx_ptr & IORING_RSRC_TYPE_MASK;
 }
 
 static inline void io_req_assign_rsrc_node(struct io_rsrc_node **dst_node,
