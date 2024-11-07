@@ -1188,11 +1188,6 @@
 #define   ADPA_VSYNC_ACTIVE_LOW	0
 #define   ADPA_HSYNC_ACTIVE_HIGH (1 << 3)
 #define   ADPA_HSYNC_ACTIVE_LOW	0
-#define   ADPA_DPMS_MASK	(~(3 << 10))
-#define   ADPA_DPMS_ON		(0 << 10)
-#define   ADPA_DPMS_SUSPEND	(1 << 10)
-#define   ADPA_DPMS_STANDBY	(2 << 10)
-#define   ADPA_DPMS_OFF		(3 << 10)
 
 /* Hotplug control (945+ only) */
 #define PORT_HOTPLUG_EN(dev_priv)		_MMIO(DISPLAY_MMIO_BASE(dev_priv) + 0x61110)
