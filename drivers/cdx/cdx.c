@@ -707,7 +707,7 @@ static const struct vm_operations_struct cdx_phys_vm_ops = {
  * Return: true on success, false otherwise.
  */
 static int cdx_mmap_resource(struct file *fp, struct kobject *kobj,
-			     struct bin_attribute *attr,
+			     const struct bin_attribute *attr,
 			     struct vm_area_struct *vma)
 {
 	struct cdx_device *cdx_dev = to_cdx_device(kobj_to_dev(kobj));
