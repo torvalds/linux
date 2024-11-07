@@ -426,9 +426,8 @@ static int intel_atomic_setup_scaler(struct intel_crtc_scaler_state *scaler_stat
 
 /**
  * intel_atomic_setup_scalers() - setup scalers for crtc per staged requests
- * @dev_priv: i915 device
- * @crtc: intel crtc
- * @crtc_state: incoming crtc_state to validate and setup scalers
+ * @intel_state: atomic state
+ * @crtc: crtc
  *
  * This function sets up scalers based on staged scaling requests for
  * a @crtc and its planes. It is called from crtc level check path. If request
@@ -441,16 +440,16 @@ static int intel_atomic_setup_scaler(struct intel_crtc_scaler_state *scaler_stat
  *         0 - scalers were setup successfully
  *         error code - otherwise
  */
-int intel_atomic_setup_scalers(struct drm_i915_private *dev_priv,
-			       struct intel_crtc *crtc,
-			       struct intel_crtc_state *crtc_state)
+int intel_atomic_setup_scalers(struct intel_atomic_state *intel_state,
+			       struct intel_crtc *crtc)
 {
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	struct intel_crtc_state *crtc_state =
+		intel_atomic_get_new_crtc_state(intel_state, crtc);
 	struct drm_plane *plane = NULL;
 	struct intel_plane *intel_plane;
 	struct intel_crtc_scaler_state *scaler_state =
 		&crtc_state->scaler_state;
-	struct drm_atomic_state *drm_state = crtc_state->uapi.state;
-	struct intel_atomic_state *intel_state = to_intel_atomic_state(drm_state);
 	int num_scalers_need;
 	int i;
 
@@ -498,7 +497,7 @@ int intel_atomic_setup_scalers(struct drm_i915_private *dev_priv,
 
 			/* plane scaler case: assign as a plane scaler */
 			/* find the plane that set the bit as scaler_user */
-			plane = drm_state->planes[i].ptr;
+			plane = intel_state->base.planes[i].ptr;
 
 			/*
 			 * to enable/disable hq mode, add planes that are using scaler
@@ -516,7 +515,7 @@ int intel_atomic_setup_scalers(struct drm_i915_private *dev_priv,
 					continue;
 
 				plane = drm_plane_from_index(&dev_priv->drm, i);
-				state = drm_atomic_get_plane_state(drm_state, plane);
+				state = drm_atomic_get_plane_state(&intel_state->base, plane);
 				if (IS_ERR(state)) {
 					drm_dbg_kms(&dev_priv->drm,
 						    "Failed to add [PLANE:%d] to drm_state\n",
