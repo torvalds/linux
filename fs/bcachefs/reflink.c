@@ -482,7 +482,8 @@ int bch2_trigger_indirect_inline_data(struct btree_trans *trans,
 
 static int bch2_make_extent_indirect(struct btree_trans *trans,
 				     struct btree_iter *extent_iter,
-				     struct bkey_i *orig)
+				     struct bkey_i *orig,
+				     bool reflink_p_may_update_opts_field)
 {
 	struct bch_fs *c = trans->c;
 	struct btree_iter reflink_iter = { NULL };
@@ -548,6 +549,9 @@ static int bch2_make_extent_indirect(struct btree_trans *trans,
 
 	SET_REFLINK_P_IDX(&r_p->v, bkey_start_offset(&r_v->k));
 
+	if (reflink_p_may_update_opts_field)
+		SET_REFLINK_P_MAY_UPDATE_OPTIONS(&r_p->v, true);
+
 	ret = bch2_trans_update(trans, extent_iter, &r_p->k_i,
 				BTREE_UPDATE_internal_snapshot_node);
 err:
@@ -578,7 +582,8 @@ s64 bch2_remap_range(struct bch_fs *c,
 		     subvol_inum dst_inum, u64 dst_offset,
 		     subvol_inum src_inum, u64 src_offset,
 		     u64 remap_sectors,
-		     u64 new_i_size, s64 *i_sectors_delta)
+		     u64 new_i_size, s64 *i_sectors_delta,
+		     bool may_change_src_io_path_opts)
 {
 	struct btree_trans *trans;
 	struct btree_iter dst_iter, src_iter;
@@ -591,6 +596,8 @@ s64 bch2_remap_range(struct bch_fs *c,
 	struct bpos src_want;
 	u64 dst_done = 0;
 	u32 dst_snapshot, src_snapshot;
+	bool reflink_p_may_update_opts_field =
+		bch2_request_incompat_feature(c, bcachefs_metadata_version_reflink_p_may_update_opts);
 	int ret = 0, ret2 = 0;
 
 	if (!bch2_write_ref_tryget(c, BCH_WRITE_REF_reflink))
@@ -672,7 +679,8 @@ s64 bch2_remap_range(struct bch_fs *c,
 			src_k = bkey_i_to_s_c(new_src.k);
 
 			ret = bch2_make_extent_indirect(trans, &src_iter,
-						new_src.k);
+						new_src.k,
+						reflink_p_may_update_opts_field);
 			if (ret)
 				continue;
 
@@ -690,6 +698,10 @@ s64 bch2_remap_range(struct bch_fs *c,
 				 bkey_start_offset(src_k.k));
 
 			SET_REFLINK_P_IDX(&dst_p->v, offset);
+
+			if (reflink_p_may_update_opts_field &&
+			    may_change_src_io_path_opts)
+				SET_REFLINK_P_MAY_UPDATE_OPTIONS(&dst_p->v, true);
 		} else {
 			BUG();
 		}

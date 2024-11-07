@@ -78,7 +78,8 @@ struct bkey_s_c bch2_lookup_indirect_extent(struct btree_trans *, struct btree_i
 					    bool, unsigned);
 
 s64 bch2_remap_range(struct bch_fs *, subvol_inum, u64,
-		     subvol_inum, u64, u64, u64, s64 *);
+		     subvol_inum, u64, u64, u64, s64 *,
+		     bool);
 
 int bch2_gc_reflink_done(struct bch_fs *);
 int bch2_gc_reflink_start(struct bch_fs *);

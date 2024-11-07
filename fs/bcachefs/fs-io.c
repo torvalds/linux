@@ -906,11 +906,18 @@ loff_t bch2_remap_file_range(struct file *file_src, loff_t pos_src,
 	bch2_mark_pagecache_unallocated(src, pos_src >> 9,
 				   (pos_src + aligned_len) >> 9);
 
+	/*
+	 * XXX: we'd like to be telling bch2_remap_range() if we have
+	 * permission to write to the source file, and thus if io path option
+	 * changes should be propagated through the copy, but we need mnt_idmap
+	 * from the pathwalk, awkward
+	 */
 	ret = bch2_remap_range(c,
 			       inode_inum(dst), pos_dst >> 9,
 			       inode_inum(src), pos_src >> 9,
 			       aligned_len >> 9,
-			       pos_dst + len, &i_sectors_delta);
+			       pos_dst + len, &i_sectors_delta,
+			       false);
 	if (ret < 0)
 		goto err;
 
