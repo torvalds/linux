@@ -503,12 +503,11 @@ static void ml_ff_destroy(struct ff_device *ff)
 int input_ff_create_memless(struct input_dev *dev, void *data,
 		int (*play_effect)(struct input_dev *, void *, struct ff_effect *))
 {
-	struct ml_device *ml;
 	struct ff_device *ff;
 	int error;
 	int i;
 
-	ml = kzalloc(sizeof(struct ml_device), GFP_KERNEL);
+	struct ml_device *ml __free(kfree) = kzalloc(sizeof(*ml), GFP_KERNEL);
 	if (!ml)
 		return -ENOMEM;
 
@@ -521,13 +520,10 @@ int input_ff_create_memless(struct input_dev *dev, void *data,
 	set_bit(FF_GAIN, dev->ffbit);
 
 	error = input_ff_create(dev, FF_MEMLESS_EFFECTS);
-	if (error) {
-		kfree(ml);
+	if (error)
 		return error;
-	}
 
 	ff = dev->ff;
-	ff->private = ml;
 	ff->upload = ml_ff_upload;
 	ff->playback = ml_ff_playback;
 	ff->set_gain = ml_ff_set_gain;
@@ -543,6 +539,8 @@ int input_ff_create_memless(struct input_dev *dev, void *data,
 
 	for (i = 0; i < FF_MEMLESS_EFFECTS; i++)
 		ml->states[i].effect = &ff->effects[i];
+
+	ff->private = no_free_ptr(ml);
 
 	return 0;
 }
