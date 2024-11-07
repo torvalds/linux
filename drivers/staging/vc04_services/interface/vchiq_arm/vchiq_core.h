@@ -7,11 +7,11 @@
 #include <linux/mutex.h>
 #include <linux/completion.h>
 #include <linux/dma-mapping.h>
-#include <linux/debugfs.h>
 #include <linux/dev_printk.h>
 #include <linux/kthread.h>
 #include <linux/kref.h>
 #include <linux/rcupdate.h>
+#include <linux/seq_file.h>
 #include <linux/spinlock_types.h>
 #include <linux/wait.h>
 
