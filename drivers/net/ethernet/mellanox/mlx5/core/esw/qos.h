@@ -13,6 +13,7 @@ int mlx5_esw_qos_set_vport_rate(struct mlx5_vport *evport, u32 max_rate, u32 min
 bool mlx5_esw_qos_get_vport_rate(struct mlx5_vport *vport, u32 *max_rate, u32 *min_rate);
 void mlx5_esw_qos_vport_disable(struct mlx5_vport *vport);
 
+void mlx5_esw_qos_vport_qos_free(struct mlx5_vport *vport);
 u32 mlx5_esw_qos_vport_get_sched_elem_ix(const struct mlx5_vport *vport);
 struct mlx5_esw_sched_node *mlx5_esw_qos_vport_get_parent(const struct mlx5_vport *vport);
 
