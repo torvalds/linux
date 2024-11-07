@@ -214,6 +214,19 @@ static void test_dfltcc_asm_block(u8 (*query)[32])
 			: "cc", "0", "1");
 }
 
+/*
+ * Testing Perform Function with Concurrent Results (PFCR)
+ * CPU subfunctions's ASM block
+ */
+static void test_pfcr_asm_block(u8 (*query)[16])
+{
+	asm volatile("	lghi	0,0\n"
+			"	.insn   rsy,0xeb0000000016,0,0,%[query]\n"
+			: [query] "=QS" (*query)
+			:
+			: "cc", "0");
+}
+
 typedef void (*testfunc_t)(u8 (*array)[]);
 
 struct testdef {
@@ -249,6 +262,8 @@ struct testdef {
 	{ "SORTL", cpu_subfunc.sortl, sizeof(cpu_subfunc.sortl), test_sortl_asm_block, 150 },
 	/* DFLTCC - Facility bit 151 */
 	{ "DFLTCC", cpu_subfunc.dfltcc, sizeof(cpu_subfunc.dfltcc), test_dfltcc_asm_block, 151 },
+	/* Concurrent-function facility - Facility bit 201 */
+	{ "PFCR", cpu_subfunc.pfcr, sizeof(cpu_subfunc.pfcr), test_pfcr_asm_block, 201 },
 };
 
 int main(int argc, char *argv[])
