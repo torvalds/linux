@@ -590,22 +590,21 @@ static void esw_qos_put(struct mlx5_eswitch *esw)
 		esw_qos_destroy(esw);
 }
 
-static int esw_qos_vport_enable(struct mlx5_vport *vport, u32 max_rate, u32 bw_share,
-				struct netlink_ext_ack *extack)
+static int esw_qos_vport_enable(struct mlx5_vport *vport, struct mlx5_esw_sched_node *parent,
+				u32 max_rate, u32 bw_share, struct netlink_ext_ack *extack)
 {
 	struct mlx5_eswitch *esw = vport->dev->priv.eswitch;
 	struct mlx5_esw_sched_node *sched_node;
 	int err;
 
 	esw_assert_qos_lock_held(esw);
-	if (vport->qos.sched_node)
-		return 0;
 
 	err = esw_qos_get(esw, extack);
 	if (err)
 		return err;
 
-	sched_node = __esw_qos_alloc_node(esw, 0, SCHED_NODE_TYPE_VPORT, esw->qos.node0);
+	parent = parent ?: esw->qos.node0;
+	sched_node = __esw_qos_alloc_node(parent->esw, 0, SCHED_NODE_TYPE_VPORT, parent);
 	if (!sched_node) {
 		err = -ENOMEM;
 		goto err_alloc;
@@ -657,21 +656,42 @@ unlock:
 	esw_qos_unlock(esw);
 }
 
+static int mlx5_esw_qos_set_vport_max_rate(struct mlx5_vport *vport, u32 max_rate,
+					   struct netlink_ext_ack *extack)
+{
+	struct mlx5_esw_sched_node *vport_node = vport->qos.sched_node;
+
+	esw_assert_qos_lock_held(vport->dev->priv.eswitch);
+
+	if (!vport_node)
+		return esw_qos_vport_enable(vport, NULL, max_rate, 0, extack);
+	else
+		return esw_qos_sched_elem_config(vport_node, max_rate, vport_node->bw_share,
+						 extack);
+}
+
+static int mlx5_esw_qos_set_vport_min_rate(struct mlx5_vport *vport, u32 min_rate,
+					   struct netlink_ext_ack *extack)
+{
+	struct mlx5_esw_sched_node *vport_node = vport->qos.sched_node;
+
+	esw_assert_qos_lock_held(vport->dev->priv.eswitch);
+
+	if (!vport_node)
+		return esw_qos_vport_enable(vport, NULL, 0, min_rate, extack);
+	else
+		return esw_qos_set_node_min_rate(vport_node, min_rate, extack);
+}
+
 int mlx5_esw_qos_set_vport_rate(struct mlx5_vport *vport, u32 max_rate, u32 min_rate)
 {
 	struct mlx5_eswitch *esw = vport->dev->priv.eswitch;
 	int err;
 
 	esw_qos_lock(esw);
-	err = esw_qos_vport_enable(vport, 0, 0, NULL);
-	if (err)
-		goto unlock;
-
-	err = esw_qos_set_node_min_rate(vport->qos.sched_node, min_rate, NULL);
+	err = mlx5_esw_qos_set_vport_min_rate(vport, min_rate, NULL);
 	if (!err)
-		err = esw_qos_sched_elem_config(vport->qos.sched_node, max_rate,
-						vport->qos.sched_node->bw_share, NULL);
-unlock:
+		err = mlx5_esw_qos_set_vport_max_rate(vport, max_rate, NULL);
 	esw_qos_unlock(esw);
 	return err;
 }
@@ -757,10 +777,8 @@ static int mlx5_esw_qos_link_speed_verify(struct mlx5_core_dev *mdev,
 
 int mlx5_esw_qos_modify_vport_rate(struct mlx5_eswitch *esw, u16 vport_num, u32 rate_mbps)
 {
-	u32 ctx[MLX5_ST_SZ_DW(scheduling_context)] = {};
 	struct mlx5_vport *vport;
 	u32 link_speed_max;
-	u32 bitmask;
 	int err;
 
 	vport = mlx5_eswitch_get_vport(esw, vport_num);
@@ -779,20 +797,7 @@ int mlx5_esw_qos_modify_vport_rate(struct mlx5_eswitch *esw, u16 vport_num, u32 
 	}
 
 	esw_qos_lock(esw);
-	if (!vport->qos.sched_node) {
-		/* Eswitch QoS wasn't enabled yet. Enable it and vport QoS. */
-		err = esw_qos_vport_enable(vport, rate_mbps, 0, NULL);
-	} else {
-		struct mlx5_core_dev *dev = vport->qos.sched_node->parent->esw->dev;
-
-		MLX5_SET(scheduling_context, ctx, max_average_bw, rate_mbps);
-		bitmask = MODIFY_SCHEDULING_ELEMENT_IN_MODIFY_BITMASK_MAX_AVERAGE_BW;
-		err = mlx5_modify_scheduling_element_cmd(dev,
-							 SCHEDULING_HIERARCHY_E_SWITCH,
-							 ctx,
-							 vport->qos.sched_node->ix,
-							 bitmask);
-	}
+	err = mlx5_esw_qos_set_vport_max_rate(vport, rate_mbps, NULL);
 	esw_qos_unlock(esw);
 
 	return err;
@@ -863,12 +868,7 @@ int mlx5_esw_devlink_rate_leaf_tx_share_set(struct devlink_rate *rate_leaf, void
 		return err;
 
 	esw_qos_lock(esw);
-	err = esw_qos_vport_enable(vport, 0, 0, extack);
-	if (err)
-		goto unlock;
-
-	err = esw_qos_set_node_min_rate(vport->qos.sched_node, tx_share, extack);
-unlock:
+	err = mlx5_esw_qos_set_vport_min_rate(vport, tx_share, extack);
 	esw_qos_unlock(esw);
 	return err;
 }
@@ -889,13 +889,7 @@ int mlx5_esw_devlink_rate_leaf_tx_max_set(struct devlink_rate *rate_leaf, void *
 		return err;
 
 	esw_qos_lock(esw);
-	err = esw_qos_vport_enable(vport, 0, 0, extack);
-	if (err)
-		goto unlock;
-
-	err = esw_qos_sched_elem_config(vport->qos.sched_node, tx_max,
-					vport->qos.sched_node->bw_share, extack);
-unlock:
+	err = mlx5_esw_qos_set_vport_max_rate(vport, tx_max, extack);
 	esw_qos_unlock(esw);
 	return err;
 }
@@ -991,13 +985,10 @@ int mlx5_esw_qos_vport_update_node(struct mlx5_vport *vport,
 	}
 
 	esw_qos_lock(esw);
-	if (!vport->qos.sched_node && !node)
-		goto unlock;
-
-	err = esw_qos_vport_enable(vport, 0, 0, extack);
-	if (!err)
+	if (!vport->qos.sched_node && node)
+		err = esw_qos_vport_enable(vport, node, 0, 0, extack);
+	else if (vport->qos.sched_node)
 		err = esw_qos_vport_update_node(vport, node, extack);
-unlock:
 	esw_qos_unlock(esw);
 	return err;
 }
