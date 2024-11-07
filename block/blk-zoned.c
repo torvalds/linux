@@ -18,7 +18,7 @@
 #include <linux/vmalloc.h>
 #include <linux/sched/mm.h>
 #include <linux/spinlock.h>
-#include <linux/atomic.h>
+#include <linux/refcount.h>
 #include <linux/mempool.h>
 
 #include "blk.h"
@@ -64,7 +64,7 @@ static const char *const zone_cond_name[] = {
 struct blk_zone_wplug {
 	struct hlist_node	node;
 	struct list_head	link;
-	atomic_t		ref;
+	refcount_t		ref;
 	spinlock_t		lock;
 	unsigned int		flags;
 	unsigned int		zone_no;
@@ -417,7 +417,7 @@ static struct blk_zone_wplug *disk_get_zone_wplug(struct gendisk *disk,
 
 	hlist_for_each_entry_rcu(zwplug, &disk->zone_wplugs_hash[idx], node) {
 		if (zwplug->zone_no == zno &&
-		    atomic_inc_not_zero(&zwplug->ref)) {
+		    refcount_inc_not_zero(&zwplug->ref)) {
 			rcu_read_unlock();
 			return zwplug;
 		}
@@ -438,7 +438,7 @@ static void disk_free_zone_wplug_rcu(struct rcu_head *rcu_head)
 
 static inline void disk_put_zone_wplug(struct blk_zone_wplug *zwplug)
 {
-	if (atomic_dec_and_test(&zwplug->ref)) {
+	if (refcount_dec_and_test(&zwplug->ref)) {
 		WARN_ON_ONCE(!bio_list_empty(&zwplug->bio_list));
 		WARN_ON_ONCE(!list_empty(&zwplug->link));
 		WARN_ON_ONCE(!(zwplug->flags & BLK_ZONE_WPLUG_UNHASHED));
@@ -469,7 +469,7 @@ static inline bool disk_should_remove_zone_wplug(struct gendisk *disk,
 	 * taken when the plug was allocated and another reference taken by the
 	 * caller context).
 	 */
-	if (atomic_read(&zwplug->ref) > 2)
+	if (refcount_read(&zwplug->ref) > 2)
 		return false;
 
 	/* We can remove zone write plugs for zones that are empty or full. */
@@ -539,7 +539,7 @@ again:
 
 	INIT_HLIST_NODE(&zwplug->node);
 	INIT_LIST_HEAD(&zwplug->link);
-	atomic_set(&zwplug->ref, 2);
+	refcount_set(&zwplug->ref, 2);
 	spin_lock_init(&zwplug->lock);
 	zwplug->flags = 0;
 	zwplug->zone_no = zno;
@@ -630,7 +630,7 @@ static inline void disk_zone_wplug_set_error(struct gendisk *disk,
 	 * finished.
 	 */
 	zwplug->flags |= BLK_ZONE_WPLUG_ERROR;
-	atomic_inc(&zwplug->ref);
+	refcount_inc(&zwplug->ref);
 
 	spin_lock_irqsave(&disk->zone_wplugs_lock, flags);
 	list_add_tail(&zwplug->link, &disk->zone_wplugs_err_list);
@@ -1105,7 +1105,7 @@ static void disk_zone_wplug_schedule_bio_work(struct gendisk *disk,
 	 * reference we take here.
 	 */
 	WARN_ON_ONCE(!(zwplug->flags & BLK_ZONE_WPLUG_PLUGGED));
-	atomic_inc(&zwplug->ref);
+	refcount_inc(&zwplug->ref);
 	queue_work(disk->zone_wplugs_wq, &zwplug->bio_work);
 }
 
@@ -1450,7 +1450,7 @@ static void disk_destroy_zone_wplugs_hash_table(struct gendisk *disk)
 		while (!hlist_empty(&disk->zone_wplugs_hash[i])) {
 			zwplug = hlist_entry(disk->zone_wplugs_hash[i].first,
 					     struct blk_zone_wplug, node);
-			atomic_inc(&zwplug->ref);
+			refcount_inc(&zwplug->ref);
 			disk_remove_zone_wplug(disk, zwplug);
 			disk_put_zone_wplug(zwplug);
 		}
@@ -1876,7 +1876,7 @@ int queue_zone_wplugs_show(void *data, struct seq_file *m)
 			spin_lock_irqsave(&zwplug->lock, flags);
 			zwp_zone_no = zwplug->zone_no;
 			zwp_flags = zwplug->flags;
-			zwp_ref = atomic_read(&zwplug->ref);
+			zwp_ref = refcount_read(&zwplug->ref);
 			zwp_wp_offset = zwplug->wp_offset;
 			zwp_bio_list_size = bio_list_size(&zwplug->bio_list);
 			spin_unlock_irqrestore(&zwplug->lock, flags);
