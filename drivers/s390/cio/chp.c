@@ -144,6 +144,18 @@ static ssize_t measurement_chars_read(struct file *filp, struct kobject *kobj,
 }
 static BIN_ATTR_ADMIN_RO(measurement_chars, sizeof(struct cmg_chars));
 
+static ssize_t measurement_chars_full_read(struct file *filp,
+					   struct kobject *kobj,
+					   struct bin_attribute *bin_attr,
+					   char *buf, loff_t off, size_t count)
+{
+	struct channel_path *chp = to_channelpath(kobj_to_dev(kobj));
+
+	return memory_read_from_buffer(buf, count, &off, &chp->cmcb,
+				       sizeof(chp->cmcb));
+}
+static BIN_ATTR_ADMIN_RO(measurement_chars_full, sizeof(struct cmg_cmcb));
+
 static ssize_t chp_measurement_copy_block(void *buf, loff_t off, size_t count,
 					  struct kobject *kobj, bool extended)
 {
@@ -201,6 +213,7 @@ static BIN_ATTR_ADMIN_RO(ext_measurement, sizeof(struct cmg_ext_entry));
 
 static struct bin_attribute *measurement_attrs[] = {
 	&bin_attr_measurement_chars,
+	&bin_attr_measurement_chars_full,
 	&bin_attr_measurement,
 	&bin_attr_ext_measurement,
 	NULL,
