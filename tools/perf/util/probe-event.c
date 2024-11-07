@@ -1039,6 +1039,17 @@ static int _show_one_line(FILE *fp, int l, bool skip, bool show_num)
 	return rv;
 }
 
+static int sprint_line_description(char *sbuf, size_t size, struct line_range *lr)
+{
+	if (!lr->function)
+		return snprintf(sbuf, size, "file: %s, line: %d", lr->file, lr->start);
+
+	if (lr->file)
+		return snprintf(sbuf, size, "function: %s, file:%s, line: %d", lr->function, lr->file, lr->start);
+
+	return snprintf(sbuf, size, "function: %s, line:%d", lr->function, lr->start);
+}
+
 #define show_one_line_with_num(f,l)	_show_one_line(f,l,false,true)
 #define show_one_line(f,l)		_show_one_line(f,l,false,false)
 #define skip_one_line(f,l)		_show_one_line(f,l,true,false)
@@ -1071,6 +1082,8 @@ static int __show_line_range(struct line_range *lr, const char *module,
 		ret = get_alternative_line_range(dinfo, lr, module, user);
 		if (!ret)
 			ret = debuginfo__find_line_range(dinfo, lr);
+		else /* Ignore error, we just failed to find it. */
+			ret = -ENOENT;
 	}
 	if (dinfo->build_id) {
 		build_id__init(&bid, dinfo->build_id, BUILD_ID_SIZE);
@@ -1078,7 +1091,8 @@ static int __show_line_range(struct line_range *lr, const char *module,
 	}
 	debuginfo__delete(dinfo);
 	if (ret == 0 || ret == -ENOENT) {
-		pr_warning("Specified source line is not found.\n");
+		sprint_line_description(sbuf, sizeof(sbuf), lr);
+		pr_warning("Specified source line(%s) is not found.\n", sbuf);
 		return -ENOENT;
 	} else if (ret < 0) {
 		pr_warning("Debuginfo analysis failed.\n");
