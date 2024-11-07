@@ -38,6 +38,7 @@
 #include "i915_reg.h"
 #include "intel_connector.h"
 #include "intel_crt.h"
+#include "intel_crt_regs.h"
 #include "intel_crtc.h"
 #include "intel_ddi.h"
 #include "intel_ddi_buf_trans.h"
