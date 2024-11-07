@@ -1395,6 +1395,33 @@ static inline bool bdev_is_zone_start(struct block_device *bdev,
 	return bdev_offset_from_zone_start(bdev, sector) == 0;
 }
 
+/**
+ * bdev_zone_is_seq - check if a sector belongs to a sequential write zone
+ * @bdev:	block device to check
+ * @sector:	sector number
+ *
+ * Check if @sector on @bdev is contained in a sequential write required zone.
+ */
+static inline bool bdev_zone_is_seq(struct block_device *bdev, sector_t sector)
+{
+	bool is_seq = false;
+
+#if IS_ENABLED(CONFIG_BLK_DEV_ZONED)
+	if (bdev_is_zoned(bdev)) {
+		struct gendisk *disk = bdev->bd_disk;
+		unsigned long *bitmap;
+
+		rcu_read_lock();
+		bitmap = rcu_dereference(disk->conv_zones_bitmap);
+		is_seq = !bitmap ||
+			!test_bit(disk_zone_no(disk, sector), bitmap);
+		rcu_read_unlock();
+	}
+#endif
+
+	return is_seq;
+}
+
 static inline int queue_dma_alignment(const struct request_queue *q)
 {
 	return q->limits.dma_alignment;

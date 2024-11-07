@@ -348,19 +348,6 @@ fail:
 	return ret;
 }
 
-static inline bool disk_zone_is_conv(struct gendisk *disk, sector_t sector)
-{
-	unsigned long *bitmap;
-	bool is_conv;
-
-	rcu_read_lock();
-	bitmap = rcu_dereference(disk->conv_zones_bitmap);
-	is_conv = bitmap && test_bit(disk_zone_no(disk, sector), bitmap);
-	rcu_read_unlock();
-
-	return is_conv;
-}
-
 static bool disk_zone_is_last(struct gendisk *disk, struct blk_zone *zone)
 {
 	return zone->start + zone->len >= get_capacity(disk);
@@ -715,7 +702,7 @@ static bool blk_zone_wplug_handle_reset_or_finish(struct bio *bio,
 	struct blk_zone_wplug *zwplug;
 
 	/* Conventional zones cannot be reset nor finished. */
-	if (disk_zone_is_conv(disk, sector)) {
+	if (!bdev_zone_is_seq(bio->bi_bdev, sector)) {
 		bio_io_error(bio);
 		return true;
 	}
@@ -969,7 +956,7 @@ static bool blk_zone_wplug_handle_write(struct bio *bio, unsigned int nr_segs)
 	}
 
 	/* Conventional zones do not need write plugging. */
-	if (disk_zone_is_conv(disk, sector)) {
+	if (!bdev_zone_is_seq(bio->bi_bdev, sector)) {
 		/* Zone append to conventional zones is not allowed. */
 		if (bio_op(bio) == REQ_OP_ZONE_APPEND) {
 			bio_io_error(bio);
