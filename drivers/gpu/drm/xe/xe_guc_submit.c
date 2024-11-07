@@ -763,7 +763,6 @@ static void disable_scheduling_deregister(struct xe_guc *guc,
 					  struct xe_exec_queue *q)
 {
 	MAKE_SCHED_CONTEXT_ACTION(q, DISABLE);
-	struct xe_device *xe = guc_to_xe(guc);
 	int ret;
 
 	set_min_preemption_timeout(guc, q);
@@ -773,7 +772,7 @@ static void disable_scheduling_deregister(struct xe_guc *guc,
 	if (!ret) {
 		struct xe_gpu_scheduler *sched = &q->guc->sched;
 
-		drm_warn(&xe->drm, "Pending enable failed to respond");
+		xe_gt_warn(q->gt, "Pending enable failed to respond\n");
 		xe_sched_submission_start(sched);
 		xe_gt_reset_async(q->gt);
 		xe_sched_tdr_queue_imm(sched);
@@ -817,7 +816,7 @@ static void xe_guc_exec_queue_trigger_cleanup(struct xe_exec_queue *q)
  */
 void xe_guc_submit_wedge(struct xe_guc *guc)
 {
-	struct xe_device *xe = guc_to_xe(guc);
+	struct xe_gt *gt = guc_to_gt(guc);
 	struct xe_exec_queue *q;
 	unsigned long index;
 	int err;
@@ -827,7 +826,8 @@ void xe_guc_submit_wedge(struct xe_guc *guc)
 	err = devm_add_action_or_reset(guc_to_xe(guc)->drm.dev,
 				       guc_submit_wedged_fini, guc);
 	if (err) {
-		drm_err(&xe->drm, "Failed to register xe_guc_submit clean-up on wedged.mode=2. Although device is wedged.\n");
+		xe_gt_err(gt, "Failed to register clean-up on wedged.mode=2; "
+			  "Although device is wedged.\n");
 		return;
 	}
 
@@ -859,7 +859,6 @@ static void xe_guc_exec_queue_lr_cleanup(struct work_struct *w)
 		container_of(w, struct xe_guc_exec_queue, lr_tdr);
 	struct xe_exec_queue *q = ge->q;
 	struct xe_guc *guc = exec_queue_to_guc(q);
-	struct xe_device *xe = guc_to_xe(guc);
 	struct xe_gpu_scheduler *sched = &ge->sched;
 	bool wedged;
 
@@ -897,7 +896,7 @@ static void xe_guc_exec_queue_lr_cleanup(struct work_struct *w)
 					 !exec_queue_pending_disable(q) ||
 					 xe_guc_read_stopped(guc), HZ * 5);
 		if (!ret) {
-			drm_warn(&xe->drm, "Schedule disable failed to respond");
+			xe_gt_warn(q->gt, "Schedule disable failed to respond\n");
 			xe_sched_submission_start(sched);
 			xe_gt_reset_async(q->gt);
 			return;
@@ -1801,17 +1800,17 @@ int xe_guc_submit_start(struct xe_guc *guc)
 static struct xe_exec_queue *
 g2h_exec_queue_lookup(struct xe_guc *guc, u32 guc_id)
 {
-	struct xe_device *xe = guc_to_xe(guc);
+	struct xe_gt *gt = guc_to_gt(guc);
 	struct xe_exec_queue *q;
 
 	if (unlikely(guc_id >= GUC_ID_MAX)) {
-		drm_err(&xe->drm, "Invalid guc_id %u", guc_id);
+		xe_gt_err(gt, "Invalid guc_id %u\n", guc_id);
 		return NULL;
 	}
 
 	q = xa_load(&guc->submission_state.exec_queue_lookup, guc_id);
 	if (unlikely(!q)) {
-		drm_err(&xe->drm, "Not engine present for guc_id %u", guc_id);
+		xe_gt_err(gt, "Not engine present for guc_id %u\n", guc_id);
 		return NULL;
 	}
 
@@ -2039,7 +2038,7 @@ int xe_guc_exec_queue_memory_cat_error_handler(struct xe_guc *guc, u32 *msg,
 
 int xe_guc_exec_queue_reset_failure_handler(struct xe_guc *guc, u32 *msg, u32 len)
 {
-	struct xe_device *xe = guc_to_xe(guc);
+	struct xe_gt *gt = guc_to_gt(guc);
 	u8 guc_class, instance;
 	u32 reason;
 
@@ -2051,10 +2050,10 @@ int xe_guc_exec_queue_reset_failure_handler(struct xe_guc *guc, u32 *msg, u32 le
 	reason = msg[2];
 
 	/* Unexpected failure of a hardware feature, log an actual error */
-	drm_err(&xe->drm, "GuC engine reset request failed on %d:%d because 0x%08X",
-		guc_class, instance, reason);
+	xe_gt_err(gt, "GuC engine reset request failed on %d:%d because 0x%08X",
+		  guc_class, instance, reason);
 
-	xe_gt_reset_async(guc_to_gt(guc));
+	xe_gt_reset_async(gt);
 
 	return 0;
 }
