@@ -861,7 +861,7 @@ intel_crt_detect(struct drm_connector *connector,
 	struct intel_display *display = to_intel_display(connector->dev);
 	struct drm_i915_private *dev_priv = to_i915(connector->dev);
 	struct intel_crt *crt = intel_attached_crt(to_intel_connector(connector));
-	struct intel_encoder *intel_encoder = &crt->base;
+	struct intel_encoder *encoder = &crt->base;
 	struct drm_atomic_state *state;
 	intel_wakeref_t wakeref;
 	int status;
@@ -877,8 +877,7 @@ intel_crt_detect(struct drm_connector *connector,
 		return connector->status;
 
 	if (display->params.load_detect_test) {
-		wakeref = intel_display_power_get(dev_priv,
-						  intel_encoder->power_domain);
+		wakeref = intel_display_power_get(dev_priv, encoder->power_domain);
 		goto load_detect;
 	}
 
@@ -886,8 +885,7 @@ intel_crt_detect(struct drm_connector *connector,
 	if (dmi_check_system(intel_spurious_crt_detect))
 		return connector_status_disconnected;
 
-	wakeref = intel_display_power_get(dev_priv,
-					  intel_encoder->power_domain);
+	wakeref = intel_display_power_get(dev_priv, encoder->power_domain);
 
 	if (I915_HAS_HOTPLUG(display)) {
 		/* We can not rely on the HPD pin always being correctly wired
@@ -944,7 +942,7 @@ load_detect:
 	}
 
 out:
-	intel_display_power_put(dev_priv, intel_encoder->power_domain, wakeref);
+	intel_display_power_put(dev_priv, encoder->power_domain, wakeref);
 
 	return status;
 }
@@ -954,7 +952,7 @@ static int intel_crt_get_modes(struct drm_connector *connector)
 	struct intel_display *display = to_intel_display(connector->dev);
 	struct drm_i915_private *dev_priv = to_i915(connector->dev);
 	struct intel_crt *crt = intel_attached_crt(to_intel_connector(connector));
-	struct intel_encoder *intel_encoder = &crt->base;
+	struct intel_encoder *encoder = &crt->base;
 	intel_wakeref_t wakeref;
 	struct i2c_adapter *ddc;
 	int ret;
@@ -962,8 +960,7 @@ static int intel_crt_get_modes(struct drm_connector *connector)
 	if (!intel_display_driver_check_access(dev_priv))
 		return drm_edid_connector_add_modes(connector);
 
-	wakeref = intel_display_power_get(dev_priv,
-					  intel_encoder->power_domain);
+	wakeref = intel_display_power_get(dev_priv, encoder->power_domain);
 
 	ret = intel_crt_ddc_get_modes(connector, connector->ddc);
 	if (ret || !IS_G4X(dev_priv))
@@ -974,7 +971,7 @@ static int intel_crt_get_modes(struct drm_connector *connector)
 	ret = intel_crt_ddc_get_modes(connector, ddc);
 
 out:
-	intel_display_power_put(dev_priv, intel_encoder->power_domain, wakeref);
+	intel_display_power_put(dev_priv, encoder->power_domain, wakeref);
 
 	return ret;
 }
@@ -1026,9 +1023,8 @@ static const struct drm_encoder_funcs intel_crt_enc_funcs = {
 void intel_crt_init(struct intel_display *display)
 {
 	struct drm_i915_private *dev_priv = to_i915(display->drm);
-	struct drm_connector *connector;
+	struct intel_connector *connector;
 	struct intel_crt *crt;
-	struct intel_connector *intel_connector;
 	i915_reg_t adpa_reg;
 	u8 ddc_pin;
 	u32 adpa;
@@ -1063,17 +1059,17 @@ void intel_crt_init(struct intel_display *display)
 	if (!crt)
 		return;
 
-	intel_connector = intel_connector_alloc();
-	if (!intel_connector) {
+	connector = intel_connector_alloc();
+	if (!connector) {
 		kfree(crt);
 		return;
 	}
 
 	ddc_pin = display->vbt.crt_ddc_pin;
 
-	connector = &intel_connector->base;
-	crt->connector = intel_connector;
-	drm_connector_init_with_ddc(display->drm, connector,
+	crt->connector = connector;
+
+	drm_connector_init_with_ddc(display->drm, &connector->base,
 				    &intel_crt_connector_funcs,
 				    DRM_MODE_CONNECTOR_VGA,
 				    intel_gmbus_get_adapter(display, ddc_pin));
@@ -1081,7 +1077,7 @@ void intel_crt_init(struct intel_display *display)
 	drm_encoder_init(display->drm, &crt->base.base, &intel_crt_enc_funcs,
 			 DRM_MODE_ENCODER_DAC, "CRT");
 
-	intel_connector_attach_encoder(intel_connector, &crt->base);
+	intel_connector_attach_encoder(connector, &crt->base);
 
 	crt->base.type = INTEL_OUTPUT_ANALOG;
 	crt->base.cloneable = BIT(INTEL_OUTPUT_DVO) | BIT(INTEL_OUTPUT_HDMI);
@@ -1091,7 +1087,7 @@ void intel_crt_init(struct intel_display *display)
 		crt->base.pipe_mask = ~0;
 
 	if (DISPLAY_VER(display) != 2)
-		connector->interlace_allowed = true;
+		connector->base.interlace_allowed = true;
 
 	crt->adpa_reg = adpa_reg;
 
@@ -1101,11 +1097,11 @@ void intel_crt_init(struct intel_display *display)
 	    !dmi_check_system(intel_spurious_crt_detect)) {
 		crt->base.hpd_pin = HPD_CRT;
 		crt->base.hotplug = intel_encoder_hotplug;
-		intel_connector->polled = DRM_CONNECTOR_POLL_HPD;
+		connector->polled = DRM_CONNECTOR_POLL_HPD;
 	} else {
-		intel_connector->polled = DRM_CONNECTOR_POLL_CONNECT;
+		connector->polled = DRM_CONNECTOR_POLL_CONNECT;
 	}
-	intel_connector->base.polled = intel_connector->polled;
+	connector->base.polled = connector->polled;
 
 	if (HAS_DDI(display)) {
 		assert_port_valid(dev_priv, PORT_E);
@@ -1138,9 +1134,9 @@ void intel_crt_init(struct intel_display *display)
 		crt->base.get_hw_state = intel_crt_get_hw_state;
 		crt->base.enable = intel_enable_crt;
 	}
-	intel_connector->get_hw_state = intel_connector_get_hw_state;
+	connector->get_hw_state = intel_connector_get_hw_state;
 
-	drm_connector_helper_add(connector, &intel_crt_connector_helper_funcs);
+	drm_connector_helper_add(&connector->base, &intel_crt_connector_helper_funcs);
 
 	/*
 	 * TODO: find a proper way to discover whether we need to set the the
