@@ -5,10 +5,6 @@
 #ifndef INTEL_SCALER_H
 #define INTEL_SCALER_H
 
-#include <linux/types.h>
-
-enum drm_scaling_filter;
-enum pipe;
 struct drm_i915_private;
 struct intel_crtc;
 struct intel_crtc_state;
