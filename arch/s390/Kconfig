@@ -52,6 +52,13 @@ config KASAN_SHADOW_OFFSET
 	depends on KASAN
 	default 0x1C000000000000
 
+config GCC_ASM_FLAG_OUTPUT_BROKEN
+	def_bool CC_IS_GCC && GCC_VERSION < 140200
+	help
+	  GCC versions before 14.2.0 may die with an internal
+	  compiler error in some configurations if flag output
+	  operands are used within inline assemblies.
+
 config S390
 	def_bool y
 	#
