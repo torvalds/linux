@@ -872,7 +872,6 @@ xe_hw_engine_snapshot_capture(struct xe_hw_engine *hwe, struct xe_exec_queue *q)
 			struct xe_devcoredump *coredump = &xe->devcoredump;
 
 			coredump->snapshot.matched_node = node;
-			snapshot->source = XE_ENGINE_CAPTURE_SOURCE_GUC;
 			xe_gt_dbg(hwe->gt, "Found and locked GuC-err-capture node");
 			return snapshot;
 		}
@@ -880,7 +879,6 @@ xe_hw_engine_snapshot_capture(struct xe_hw_engine *hwe, struct xe_exec_queue *q)
 
 	/* otherwise, do manual capture */
 	xe_engine_manual_capture(hwe, snapshot);
-	snapshot->source = XE_ENGINE_CAPTURE_SOURCE_MANUAL;
 	xe_gt_dbg(hwe->gt, "Proceeding with manual engine snapshot");
 
 	return snapshot;
