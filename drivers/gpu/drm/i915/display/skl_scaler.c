@@ -426,7 +426,7 @@ static int intel_atomic_setup_scaler(struct intel_crtc_scaler_state *scaler_stat
 
 /**
  * intel_atomic_setup_scalers() - setup scalers for crtc per staged requests
- * @intel_state: atomic state
+ * @state: atomic state
  * @crtc: crtc
  *
  * This function sets up scalers based on staged scaling requests for
@@ -440,14 +440,12 @@ static int intel_atomic_setup_scaler(struct intel_crtc_scaler_state *scaler_stat
  *         0 - scalers were setup successfully
  *         error code - otherwise
  */
-int intel_atomic_setup_scalers(struct intel_atomic_state *intel_state,
+int intel_atomic_setup_scalers(struct intel_atomic_state *state,
 			       struct intel_crtc *crtc)
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	struct intel_crtc_state *crtc_state =
-		intel_atomic_get_new_crtc_state(intel_state, crtc);
-	struct drm_plane *plane = NULL;
-	struct intel_plane *intel_plane;
+		intel_atomic_get_new_crtc_state(state, crtc);
 	struct intel_crtc_scaler_state *scaler_state =
 		&crtc_state->scaler_state;
 	int num_scalers_need;
@@ -493,47 +491,29 @@ int intel_atomic_setup_scalers(struct intel_atomic_state *intel_state,
 			/* panel fitter case: assign as a crtc scaler */
 			scaler_id = &scaler_state->scaler_id;
 		} else {
-			name = "PLANE";
-
-			/* plane scaler case: assign as a plane scaler */
-			/* find the plane that set the bit as scaler_user */
-			plane = intel_state->base.planes[i].ptr;
-
-			/*
-			 * to enable/disable hq mode, add planes that are using scaler
-			 * into this transaction
-			 */
-			if (!plane) {
-				struct drm_plane_state *state;
-
-				/*
-				 * GLK+ scalers don't have a HQ mode so it
-				 * isn't necessary to change between HQ and dyn mode
-				 * on those platforms.
-				 */
-				if (DISPLAY_VER(dev_priv) >= 10)
-					continue;
-
-				plane = drm_plane_from_index(&dev_priv->drm, i);
-				state = drm_atomic_get_plane_state(&intel_state->base, plane);
-				if (IS_ERR(state)) {
-					drm_dbg_kms(&dev_priv->drm,
-						    "Failed to add [PLANE:%d] to drm_state\n",
-						    plane->base.id);
-					return PTR_ERR(state);
-				}
-			}
-
-			intel_plane = to_intel_plane(plane);
-			idx = plane->base.id;
+			struct intel_plane *plane =
+				to_intel_plane(drm_plane_from_index(&dev_priv->drm, i));
 
 			/* plane on different crtc cannot be a scaler user of this crtc */
-			if (drm_WARN_ON(&dev_priv->drm,
-					intel_plane->pipe != crtc->pipe))
+			if (drm_WARN_ON(&dev_priv->drm, plane->pipe != crtc->pipe))
 				continue;
 
-			plane_state = intel_atomic_get_new_plane_state(intel_state,
-								       intel_plane);
+			plane_state = intel_atomic_get_new_plane_state(state, plane);
+
+			/*
+			 * GLK+ scalers don't have a HQ mode so it
+			 * isn't necessary to change between HQ and dyn mode
+			 * on those platforms.
+			 */
+			if (!plane_state && DISPLAY_VER(dev_priv) >= 10)
+				continue;
+
+			plane_state = intel_atomic_get_plane_state(state, plane);
+			if (IS_ERR(plane_state))
+				return PTR_ERR(plane_state);
+
+			name = "PLANE";
+			idx = plane->base.base.id;
 			scaler_id = &plane_state->scaler_id;
 		}
 
