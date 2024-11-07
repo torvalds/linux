@@ -105,9 +105,9 @@ struct ethosn_dma_allocator {
 	enum ethosn_alloc_type type;
 	uint32_t alloc_id;
 	struct device *dev;
-	struct kref kref;                   // 引用计数, 标识当前allocator需要被其他进程占用
-	pid_t pid;                          // 占用当前allocator的进程id
-	__u8 is_protected;                  // 当前allocator是否允许被同一进程重复占用
+	struct kref kref;                   // 引用计数, 标识当前 allocator 需要被其他进程占用
+	pid_t pid;                          // 占用当前 allocator 的进程 id
+	__u8 is_protected;                  // 当前 allocator 是否为进程独占?
 };
 
 /**

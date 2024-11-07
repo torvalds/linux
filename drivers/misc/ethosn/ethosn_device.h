@@ -108,8 +108,8 @@ struct ethosn_device {
 	struct ethosn_inference_queue queue;                // 队列中的推理任务在注册时入队, 由调度器寻找空闲 core 执行
 	struct ethosn_dma_allocator **asset_allocator;      // 当前设备持有的 asset_allocator 组, asset_allocator 绑定到一次推理任务始末, 辅助完成内存分配
 	int num_asset_allocs;
-	uint32_t current_busy_cores;
-	uint32_t status_mask;
+	uint32_t current_busy_cores;                        // 当前正执行推理任务的 core 的数量
+	uint32_t status_mask;                               // 设备状态掩码
 	bool smmu_available;
 	struct dentry *debug_dir;
 #ifdef ETHOSN_TZMP1
@@ -134,9 +134,13 @@ struct ethosn_core {
 
 	struct ethosn_device *parent;
 	struct ethosn_dma_allocator *main_allocator;
+
+    // 各 DMA 内存空间经过 iommu 映射之后的在设备中 iova 地址与其在设备中的物理地址之间的映射表
 	struct ethosn_addr_map dma_map;
 	struct ethosn_addr_map firmware_map;
 	struct ethosn_addr_map work_data_map;
+
+
 	struct ethosn_dma_info *firmware;
 	dma_addr_t firmware_vtable_dma_addr;
 	struct ethosn_dma_info *mailbox;

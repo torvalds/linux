@@ -147,7 +147,8 @@ static long proc_mem_allocator_ioctl(struct file *filep, unsigned int cmd, unsig
 		print_buffer_info(ethosn, "intermediate", net_req.intermediate_desc.buffers.num, net_req.intermediate_desc.buffers.info);
 		print_buffer_info(ethosn, "input", net_req.input_buffers.num, net_req.input_buffers.info);
 		print_buffer_info(ethosn, "output", net_req.output_buffers.num, net_req.output_buffers.info);
-
+        
+        // 独占的 allocator 不允许构造缓冲区
 		if (net_req.intermediate_desc.buffers.num && net_req.intermediate_desc.memory.type == ALLOCATE && proc_mem_allocator->asset_allocator->is_protected) {
 			dev_dbg(ethosn->dev, "IOCTL: Register Network requires imported intermediate buffers while in protected context\n");
 			ret = -EPERM;
@@ -174,6 +175,7 @@ static long proc_mem_allocator_ioctl(struct file *filep, unsigned int cmd, unsig
 			break;
 		}
 
+        // 独占的 allocator 不允许构造缓冲区
 		if (proc_mem_allocator->asset_allocator->is_protected) {
 			dev_dbg(ethosn->dev, "IOCTL: Create buffer not allowed when in protected context\n");
 			ret = -EPERM;
@@ -266,12 +268,14 @@ static const struct file_operations allocator_fops = {
  * -EINVAL - Invalid argument.
  * -ENOMEM - Failed to allocate memory or a free asset_allocator.
  */
-int ethosn_process_mem_allocator_create(struct ethosn_device *ethosn, pid_t pid, bool protected)        // process_mem_allocator 用于在程序运行过程中动态地构造 DMA 内存空间
+int ethosn_process_mem_allocator_create(struct ethosn_device *ethosn, pid_t pid, bool protected)
 {
 	int ret = 0;
 	int fd;
 	struct ethosn_allocator *proc_mem_allocator;
-	struct ethosn_dma_allocator *asset_allocator = ethosn_asset_allocator_find(ethosn, pid); // 当前进程是否正占用设备的 asset_allocator?
+
+    // 尝试通过 pid 寻找一个正在占用的 asset_allocator
+	struct ethosn_dma_allocator *asset_allocator = ethosn_asset_allocator_find(ethosn, pid);
 
 	if (pid <= 0) {
 		dev_err(ethosn->dev, "%s: Unsupported pid=%d, must be >0\n", __func__, pid);
@@ -298,7 +302,6 @@ int ethosn_process_mem_allocator_create(struct ethosn_device *ethosn, pid_t pid,
 	proc_mem_allocator->ethosn = ethosn;
 
 	if (IS_ERR_OR_NULL(asset_allocator)) {
-		// 当前进程并未占用任何asset_allocator: 找一个可用的占用
 		proc_mem_allocator->asset_allocator = ethosn_asset_allocator_reserve(ethosn, pid);
 
 		if (!proc_mem_allocator->asset_allocator) {
@@ -307,7 +310,8 @@ int ethosn_process_mem_allocator_create(struct ethosn_device *ethosn, pid_t pid,
 			goto asset_allocator_reserve_fail;
 		}
 	} else {
-		/* Process already has an allocator */
+		// 找到一个绑定到当前 pid 的 allocator, 查看该 allocator 是否允许独占且当前 pid 是否要求独占
+        // 如果是, 则将二者绑定
 		if (asset_allocator->is_protected == protected) {
 			proc_mem_allocator->asset_allocator = asset_allocator;
 			ethosn_asset_allocator_get(asset_allocator);
@@ -323,7 +327,7 @@ int ethosn_process_mem_allocator_create(struct ethosn_device *ethosn, pid_t pid,
 
 	proc_mem_allocator->asset_allocator->is_protected = protected;
 
-    // 创建一个匿名的inode节点, 并关联一个文件描述符和文件的io操作
+    // 创建一个匿名的 inode 节点, 并关联一个文件描述符和文件的 io 操作
 	fd = anon_inode_getfd("ethosn-memory-allocator", &allocator_fops, proc_mem_allocator, O_RDONLY | O_CLOEXEC);
 	if (fd < 0) {
 		ret = -ENOMEM;

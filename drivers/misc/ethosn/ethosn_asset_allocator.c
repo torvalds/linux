@@ -144,6 +144,7 @@ static int ethosn_asset_allocator_pdev_remove(struct platform_device *pdev)
 	return ret;
 }
 
+// 为指定的进程 pid 预留一个 asset_allocator
 struct ethosn_dma_allocator *ethosn_asset_allocator_reserve(struct ethosn_device *ethosn, pid_t pid)
 {
 	struct ethosn_dma_allocator *asset_allocator = NULL;

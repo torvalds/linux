@@ -111,7 +111,7 @@ static void __iomem *ethosn_map_iomem(const struct ethosn_core *const core, cons
 	/* Map address space */
 	ptr = devm_ioremap(core->parent->dev, res->start, size);
 	if (IS_ERR(ptr))
-		dev_err(core->dev, "failed to map '%s': start=%llu size=%llu\n", res->name, res->start, size);
+		dev_err(core->dev, "failed to map'%s': start=%llu size=%llu\n", res->name, res->start, size);
 
 	return ptr;
 }
@@ -218,6 +218,7 @@ static void reset_profiling_counters(struct ethosn_core *core)
 	core->profiling.pm_resume_count = 0;
 }
 
+// 为处于忙碌状态的 core 更新状态
 static void update_busy_core(struct ethosn_core *core)
 {
 	struct ethosn_device *ethosn = core->parent;
@@ -225,10 +226,12 @@ static void update_busy_core(struct ethosn_core *core)
 	uint32_t core_id = core->core_id;
 	uint32_t core_mask = (1 << core_id);
 
+    // 当前 core 不在忙碌列表中
 	if ((ethosn->current_busy_cores & core_mask) == 0) {
 		dev_err(core->dev, "Scheduler has scheduled an inference on the wrong core");
 		ethosn->status_mask |= (1 << WRONG_CORE_SCHEDULE);
 	} else {
+        // 将该 core 置为空闲状态
 		ethosn->current_busy_cores &= ~(1 << core->core_id);
 	}
 
@@ -304,7 +307,7 @@ static int handle_message(struct ethosn_core *core)
 
 		status = rsp->status == ETHOSN_INFERENCE_STATUS_OK ? ETHOSN_INFERENCE_COMPLETED : ETHOSN_INFERENCE_ERROR;
 
-		update_busy_core(core);
+		update_busy_core(core); // 中断拿到当前 core 推理结果之后, 立即更新其忙碌状态
 		ethosn_set_inference_done(core, inference, status, rsp->cycle_count);
 		break;
 	}
@@ -365,35 +368,35 @@ static char *print_irq_status_reg(char *buffer, size_t buffer_size, struct dl1_i
 
 	buffer += snprintf(buffer, buffer_end - buffer, "0x%08x", status.word);
 	if (status.word != 0) {
-		buffer += snprintf(buffer, buffer_end - buffer, " (");
+		buffer += snprintf(buffer, buffer_end - buffer, "(");
 		if (status.bits.setirq_err)
-			buffer += snprintf(buffer, buffer_end - buffer, " setirq_err");
+			buffer += snprintf(buffer, buffer_end - buffer, "setirq_err");
 
 		if (status.bits.setirq_dbg)
-			buffer += snprintf(buffer, buffer_end - buffer, " setirq_dbg");
+			buffer += snprintf(buffer, buffer_end - buffer, "setirq_dbg");
 
 		if (status.bits.setirq_job)
-			buffer += snprintf(buffer, buffer_end - buffer, " setirq_job");
+			buffer += snprintf(buffer, buffer_end - buffer, "setirq_job");
 
 		if (status.bits.tsu_dbg)
-			buffer += snprintf(buffer, buffer_end - buffer, " tsu_dbg");
+			buffer += snprintf(buffer, buffer_end - buffer, "tsu_dbg");
 
 		if (status.bits.pmu_dbg)
-			buffer += snprintf(buffer, buffer_end - buffer, " pmu_dbg");
+			buffer += snprintf(buffer, buffer_end - buffer, "pmu_dbg");
 
 		if (status.bits.tol_err)
-			buffer += snprintf(buffer, buffer_end - buffer, " tol_err");
+			buffer += snprintf(buffer, buffer_end - buffer, "tol_err");
 
 		if (status.bits.func_err)
-			buffer += snprintf(buffer, buffer_end - buffer, " func_err");
+			buffer += snprintf(buffer, buffer_end - buffer, "func_err");
 
 		if (status.bits.rec_err)
-			buffer += snprintf(buffer, buffer_end - buffer, " rec_err");
+			buffer += snprintf(buffer, buffer_end - buffer, "rec_err");
 
 		if (status.bits.unrec_err)
-			buffer += snprintf(buffer, buffer_end - buffer, " unrec_err");
+			buffer += snprintf(buffer, buffer_end - buffer, "unrec_err");
 
-		snprintf(buffer, buffer_end - buffer, " )");
+		snprintf(buffer, buffer_end - buffer, ")");
 	}
 
 	return buffer_start;
@@ -418,110 +421,110 @@ static bool print_firmware_dump_if_present(struct ethosn_core *core)
 		return false;
 
 	dev_err(core->dev, "======== Firmware dump ========\n");
-	dev_err(core->dev, "  pc  = 0x%08x\n", dump.pc);
-	dev_err(core->dev, "  ISR = %d\n", dump.ISR);
-	dev_err(core->dev, "  CFSR\n");
-	dev_err(core->dev, "    MMFSR\n");
-	dev_err(core->dev, "      MMARVALID   = %d\n", dump.CFSR_MMFSR_MMARVALID);
-	dev_err(core->dev, "      MSTKERR     = %d\n", dump.CFSR_MMFSR_MSTKERR);
-	dev_err(core->dev, "      MUNSTKERR   = %d\n", dump.CFSR_MMFSR_MUNSTKERR);
-	dev_err(core->dev, "      DACCVIOL    = %d\n", dump.CFSR_MMFSR_DACCVIOL);
-	dev_err(core->dev, "      IACCVIOL    = %d\n", dump.CFSR_MMFSR_IACCVIOL);
-	dev_err(core->dev, "    BFSR\n");
-	dev_err(core->dev, "      BFARVALID   = %d\n", dump.CFSR_BFSR_BFARVALID);
-	dev_err(core->dev, "      STKERR      = %d\n", dump.CFSR_BFSR_STKERR);
-	dev_err(core->dev, "      UNSTKERR    = %d\n", dump.CFSR_BFSR_UNSTKERR);
-	dev_err(core->dev, "      IMPRECISERR = %d\n", dump.CFSR_BFSR_IMPRECISERR);
-	dev_err(core->dev, "      PRECISERR   = %d\n", dump.CFSR_BFSR_PRECISERR);
-	dev_err(core->dev, "      IBUSERR     = %d\n", dump.CFSR_BFSR_IBUSERR);
-	dev_err(core->dev, "    UFSR\n");
-	dev_err(core->dev, "      DIVBYZERO   = %d\n", dump.CFSR_UFSR_DIVBYZERO);
-	dev_err(core->dev, "      UNALIGNED   = %d\n", dump.CFSR_UFSR_UNALIGNED);
-	dev_err(core->dev, "      NOCP        = %d\n", dump.CFSR_UFSR_NOCP);
-	dev_err(core->dev, "      INVPC       = %d\n", dump.CFSR_UFSR_INVPC);
-	dev_err(core->dev, "      INVSTATE    = %d\n", dump.CFSR_UFSR_INVSTATE);
-	dev_err(core->dev, "      UNDEFINSTR  = %d\n", dump.CFSR_UFSR_UNDEFINSTR);
-	dev_err(core->dev, "  HFSR\n");
-	dev_err(core->dev, "    FORCED        = %d\n", dump.HFSR_FORCED);
-	dev_err(core->dev, "    VECTTBL       = %d\n", dump.HFSR_VECTTBL);
-	dev_err(core->dev, "  MMFAR           = 0x%08x\n", dump.MMFAR);
-	dev_err(core->dev, "  BFAR            = 0x%08x\n", dump.BFAR);
-	dev_err(core->dev, "  TOP_ERR_CAUSE\n");
-	dev_err(core->dev, "    ENGINE_RAM_CORRECTABLE_ERR     = %d\n", dump.TOP_ERR_CAUSE_ENGINE_RAM_CORRECTABLE_ERR);
-	dev_err(core->dev, "    ENGINE_RAM_UNCORRECTABLE_ERR   = %d\n", dump.TOP_ERR_CAUSE_ENGINE_RAM_UNCORRECTABLE_ERR);
-	dev_err(core->dev, "    TOP_TOLERABLE_RAM_ERR          = %d\n", dump.TOP_ERR_CAUSE_TOP_TOLERABLE_RAM_ERR);
-	dev_err(core->dev, "    TOP_RECOVERABLE_RAM_ERR        = %d\n", dump.TOP_ERR_CAUSE_TOP_RECOVERABLE_RAM_ERR);
-	dev_err(core->dev, "    MCU_LOCKUP_ERR                 = %d\n", dump.TOP_ERR_CAUSE_MCU_LOCKUP_ERR);
-	dev_err(core->dev, "    MCU_INSTR_ERR                  = %d\n", dump.TOP_ERR_CAUSE_MCU_INSTR_ERR);
-	dev_err(core->dev, "    MCU_DATA_READ_ERR              = %d\n", dump.TOP_ERR_CAUSE_MCU_DATA_READ_ERR);
-	dev_err(core->dev, "    MCU_DATA_WRITE_ERR             = %d\n", dump.TOP_ERR_CAUSE_MCU_DATA_WRITE_ERR);
-	dev_err(core->dev, "    DMA_READ_ERR                   = %d\n", dump.TOP_ERR_CAUSE_DMA_READ_ERR);
-	dev_err(core->dev, "    DMA_WRITE_ERR                  = %d\n", dump.TOP_ERR_CAUSE_DMA_WRITE_ERR);
-	dev_err(core->dev, "    STASH_TRANSLATION_ERR          = %d\n", dump.TOP_ERR_CAUSE_STASH_TRANSLATION_ERR);
-	dev_err(core->dev, "    DMA_QUEUE_PROGRAMMING_ERR      = %d\n", dump.TOP_ERR_CAUSE_DMA_QUEUE_PROGRAMMING_ERR);
-	dev_err(core->dev, "    PWRCTLR_ACTIVE_PROGRAMMING_ERR = %d\n", dump.TOP_ERR_CAUSE_PWRCTLR_ACTIVE_PROGRAMMING_ERR);
-	dev_err(core->dev, "    STASH_TRANS_PROGRAMMING_ERR    = %d\n", dump.TOP_ERR_CAUSE_STASH_TRANS_PROGRAMMING_ERR);
-	dev_err(core->dev, "    TSU_EVENT_OVERFLOW_ERR         = %d\n", dump.TOP_ERR_CAUSE_TSU_EVENT_OVERFLOW_ERR);
-	dev_err(core->dev, "    STRIPE_PROGRAMMING_ERR         = %d\n", dump.TOP_ERR_CAUSE_STRIPE_PROGRAMMING_ERR);
-	dev_err(core->dev, "    STRIPE_WRITE_WHILE_BUSY_ERR    = %d\n", dump.TOP_ERR_CAUSE_STRIPE_WRITE_WHILE_BUSY_ERR);
-	dev_err(core->dev, "    BLOCK_PROGRAMMING_ERR          = %d\n", dump.TOP_ERR_CAUSE_BLOCK_PROGRAMMING_ERR);
-	dev_err(core->dev, "    BLOCK_WRITE_WHILE_BUSY_ERR     = %d\n", dump.TOP_ERR_CAUSE_BLOCK_WRITE_WHILE_BUSY_ERR);
-	dev_err(core->dev, "    SHADOW_ERR                     = %d\n", dump.TOP_ERR_CAUSE_SHADOW_ERR);
-	dev_err(core->dev, "    ENGINE_FUNC_ERR                = %d\n", dump.TOP_ERR_CAUSE_ENGINE_FUNC_ERR);
-	dev_err(core->dev, "  TOP_ERR_ADDRESS\n");
-	dev_err(core->dev, "    ADDRESS                        = 0x%04x\n", dump.TOP_ERR_ADDRESS_ADDRESS);
-	dev_err(core->dev, "    BANK                           = %d\n", dump.TOP_ERR_ADDRESS_BANK);
-	dev_err(core->dev, "    NCU_MCU_ICACHE_TAG             = %d\n", dump.TOP_ERR_ADDRESS_NCU_MCU_ICACHE_TAG);
-	dev_err(core->dev, "    NCU_MCU_ICACHE_DATA            = %d\n", dump.TOP_ERR_ADDRESS_NCU_MCU_ICACHE_DATA);
-	dev_err(core->dev, "    NCU_MCU_DCACHE_TAG             = %d\n", dump.TOP_ERR_ADDRESS_NCU_MCU_DCACHE_TAG);
-	dev_err(core->dev, "    NCU_MCU_DCACHE_DATA            = %d\n", dump.TOP_ERR_ADDRESS_NCU_MCU_DCACHE_DATA);
-	dev_err(core->dev, "    DFC_ROB                        = %d\n", dump.TOP_ERR_ADDRESS_DFC_ROB);
-	dev_err(core->dev, "    DFC_COMPRESSOR_SIM             = %d\n", dump.TOP_ERR_ADDRESS_DFC_COMPRESSOR_SIM);
-	dev_err(core->dev, "    DFC_COMPRESSOR_REM             = %d\n", dump.TOP_ERR_ADDRESS_DFC_COMPRESSOR_REM);
-	dev_err(core->dev, "    DFC_COMPRESSOR_UNARY           = %d\n", dump.TOP_ERR_ADDRESS_DFC_COMPRESSOR_UNARY);
-	dev_err(core->dev, "    DFC_DECOMPRESSOR               = %d\n", dump.TOP_ERR_ADDRESS_DFC_DECOMPRESSOR);
-	dev_err(core->dev, "    ERR_MULTI                      = %d\n", dump.TOP_ERR_ADDRESS_ERR_MULTI);
-	dev_err(core->dev, "    ERR_UNCORRECTED                = %d\n", dump.TOP_ERR_ADDRESS_ERR_UNCORRECTED);
+	dev_err(core->dev, "pc  = 0x%08x\n", dump.pc);
+	dev_err(core->dev, "ISR = %d\n", dump.ISR);
+	dev_err(core->dev, "CFSR\n");
+	dev_err(core->dev, "MMFSR\n");
+	dev_err(core->dev, "MMARVALID   = %d\n", dump.CFSR_MMFSR_MMARVALID);
+	dev_err(core->dev, "MSTKERR     = %d\n", dump.CFSR_MMFSR_MSTKERR);
+	dev_err(core->dev, "MUNSTKERR   = %d\n", dump.CFSR_MMFSR_MUNSTKERR);
+	dev_err(core->dev, "DACCVIOL    = %d\n", dump.CFSR_MMFSR_DACCVIOL);
+	dev_err(core->dev, "IACCVIOL    = %d\n", dump.CFSR_MMFSR_IACCVIOL);
+	dev_err(core->dev, "BFSR\n");
+	dev_err(core->dev, "BFARVALID   = %d\n", dump.CFSR_BFSR_BFARVALID);
+	dev_err(core->dev, "STKERR      = %d\n", dump.CFSR_BFSR_STKERR);
+	dev_err(core->dev, "UNSTKERR    = %d\n", dump.CFSR_BFSR_UNSTKERR);
+	dev_err(core->dev, "IMPRECISERR = %d\n", dump.CFSR_BFSR_IMPRECISERR);
+	dev_err(core->dev, "PRECISERR   = %d\n", dump.CFSR_BFSR_PRECISERR);
+	dev_err(core->dev, "IBUSERR     = %d\n", dump.CFSR_BFSR_IBUSERR);
+	dev_err(core->dev, "UFSR\n");
+	dev_err(core->dev, "DIVBYZERO   = %d\n", dump.CFSR_UFSR_DIVBYZERO);
+	dev_err(core->dev, "UNALIGNED   = %d\n", dump.CFSR_UFSR_UNALIGNED);
+	dev_err(core->dev, "NOCP        = %d\n", dump.CFSR_UFSR_NOCP);
+	dev_err(core->dev, "INVPC       = %d\n", dump.CFSR_UFSR_INVPC);
+	dev_err(core->dev, "INVSTATE    = %d\n", dump.CFSR_UFSR_INVSTATE);
+	dev_err(core->dev, "UNDEFINSTR  = %d\n", dump.CFSR_UFSR_UNDEFINSTR);
+	dev_err(core->dev, "HFSR\n");
+	dev_err(core->dev, "FORCED        = %d\n", dump.HFSR_FORCED);
+	dev_err(core->dev, "VECTTBL       = %d\n", dump.HFSR_VECTTBL);
+	dev_err(core->dev, "MMFAR           = 0x%08x\n", dump.MMFAR);
+	dev_err(core->dev, "BFAR            = 0x%08x\n", dump.BFAR);
+	dev_err(core->dev, "TOP_ERR_CAUSE\n");
+	dev_err(core->dev, "ENGINE_RAM_CORRECTABLE_ERR     = %d\n", dump.TOP_ERR_CAUSE_ENGINE_RAM_CORRECTABLE_ERR);
+	dev_err(core->dev, "ENGINE_RAM_UNCORRECTABLE_ERR   = %d\n", dump.TOP_ERR_CAUSE_ENGINE_RAM_UNCORRECTABLE_ERR);
+	dev_err(core->dev, "TOP_TOLERABLE_RAM_ERR          = %d\n", dump.TOP_ERR_CAUSE_TOP_TOLERABLE_RAM_ERR);
+	dev_err(core->dev, "TOP_RECOVERABLE_RAM_ERR        = %d\n", dump.TOP_ERR_CAUSE_TOP_RECOVERABLE_RAM_ERR);
+	dev_err(core->dev, "MCU_LOCKUP_ERR                 = %d\n", dump.TOP_ERR_CAUSE_MCU_LOCKUP_ERR);
+	dev_err(core->dev, "MCU_INSTR_ERR                  = %d\n", dump.TOP_ERR_CAUSE_MCU_INSTR_ERR);
+	dev_err(core->dev, "MCU_DATA_READ_ERR              = %d\n", dump.TOP_ERR_CAUSE_MCU_DATA_READ_ERR);
+	dev_err(core->dev, "MCU_DATA_WRITE_ERR             = %d\n", dump.TOP_ERR_CAUSE_MCU_DATA_WRITE_ERR);
+	dev_err(core->dev, "DMA_READ_ERR                   = %d\n", dump.TOP_ERR_CAUSE_DMA_READ_ERR);
+	dev_err(core->dev, "DMA_WRITE_ERR                  = %d\n", dump.TOP_ERR_CAUSE_DMA_WRITE_ERR);
+	dev_err(core->dev, "STASH_TRANSLATION_ERR          = %d\n", dump.TOP_ERR_CAUSE_STASH_TRANSLATION_ERR);
+	dev_err(core->dev, "DMA_QUEUE_PROGRAMMING_ERR      = %d\n", dump.TOP_ERR_CAUSE_DMA_QUEUE_PROGRAMMING_ERR);
+	dev_err(core->dev, "PWRCTLR_ACTIVE_PROGRAMMING_ERR = %d\n", dump.TOP_ERR_CAUSE_PWRCTLR_ACTIVE_PROGRAMMING_ERR);
+	dev_err(core->dev, "STASH_TRANS_PROGRAMMING_ERR    = %d\n", dump.TOP_ERR_CAUSE_STASH_TRANS_PROGRAMMING_ERR);
+	dev_err(core->dev, "TSU_EVENT_OVERFLOW_ERR         = %d\n", dump.TOP_ERR_CAUSE_TSU_EVENT_OVERFLOW_ERR);
+	dev_err(core->dev, "STRIPE_PROGRAMMING_ERR         = %d\n", dump.TOP_ERR_CAUSE_STRIPE_PROGRAMMING_ERR);
+	dev_err(core->dev, "STRIPE_WRITE_WHILE_BUSY_ERR    = %d\n", dump.TOP_ERR_CAUSE_STRIPE_WRITE_WHILE_BUSY_ERR);
+	dev_err(core->dev, "BLOCK_PROGRAMMING_ERR          = %d\n", dump.TOP_ERR_CAUSE_BLOCK_PROGRAMMING_ERR);
+	dev_err(core->dev, "BLOCK_WRITE_WHILE_BUSY_ERR     = %d\n", dump.TOP_ERR_CAUSE_BLOCK_WRITE_WHILE_BUSY_ERR);
+	dev_err(core->dev, "SHADOW_ERR                     = %d\n", dump.TOP_ERR_CAUSE_SHADOW_ERR);
+	dev_err(core->dev, "ENGINE_FUNC_ERR                = %d\n", dump.TOP_ERR_CAUSE_ENGINE_FUNC_ERR);
+	dev_err(core->dev, "TOP_ERR_ADDRESS\n");
+	dev_err(core->dev, "ADDRESS                        = 0x%04x\n", dump.TOP_ERR_ADDRESS_ADDRESS);
+	dev_err(core->dev, "BANK                           = %d\n", dump.TOP_ERR_ADDRESS_BANK);
+	dev_err(core->dev, "NCU_MCU_ICACHE_TAG             = %d\n", dump.TOP_ERR_ADDRESS_NCU_MCU_ICACHE_TAG);
+	dev_err(core->dev, "NCU_MCU_ICACHE_DATA            = %d\n", dump.TOP_ERR_ADDRESS_NCU_MCU_ICACHE_DATA);
+	dev_err(core->dev, "NCU_MCU_DCACHE_TAG             = %d\n", dump.TOP_ERR_ADDRESS_NCU_MCU_DCACHE_TAG);
+	dev_err(core->dev, "NCU_MCU_DCACHE_DATA            = %d\n", dump.TOP_ERR_ADDRESS_NCU_MCU_DCACHE_DATA);
+	dev_err(core->dev, "DFC_ROB                        = %d\n", dump.TOP_ERR_ADDRESS_DFC_ROB);
+	dev_err(core->dev, "DFC_COMPRESSOR_SIM             = %d\n", dump.TOP_ERR_ADDRESS_DFC_COMPRESSOR_SIM);
+	dev_err(core->dev, "DFC_COMPRESSOR_REM             = %d\n", dump.TOP_ERR_ADDRESS_DFC_COMPRESSOR_REM);
+	dev_err(core->dev, "DFC_COMPRESSOR_UNARY           = %d\n", dump.TOP_ERR_ADDRESS_DFC_COMPRESSOR_UNARY);
+	dev_err(core->dev, "DFC_DECOMPRESSOR               = %d\n", dump.TOP_ERR_ADDRESS_DFC_DECOMPRESSOR);
+	dev_err(core->dev, "ERR_MULTI                      = %d\n", dump.TOP_ERR_ADDRESS_ERR_MULTI);
+	dev_err(core->dev, "ERR_UNCORRECTED                = %d\n", dump.TOP_ERR_ADDRESS_ERR_UNCORRECTED);
 	if (dump.cesWithError == 0) {
-		dev_err(core->dev, "  cesWithError = <none>\n");
+		dev_err(core->dev, "cesWithError = <none>\n");
 	} else {
-		dev_err(core->dev, "  cesWithError                                =%s%s%s%s%s%s%s%s\n", (dump.cesWithError & (1 << 0)) ? " 0" : "", (dump.cesWithError & (1 << 1)) ? " 1" : "", (dump.cesWithError & (1 << 2)) ? " 2" : "",
-			(dump.cesWithError & (1 << 3)) ? " 3" : "", (dump.cesWithError & (1 << 4)) ? " 4" : "", (dump.cesWithError & (1 << 5)) ? " 5" : "", (dump.cesWithError & (1 << 6)) ? " 6" : "",
-			(dump.cesWithError & (1 << 7)) ? " 7" : "");
-		dev_err(core->dev, "  CE_ERR_CAUSE\n");
-		dev_err(core->dev, "    CE_ERR_CAUSE_ENGINE_RAM_CORRECTABLE_ERR   = %d\n", dump.CE_ERR_CAUSE_ENGINE_RAM_CORRECTABLE_ERR);
-		dev_err(core->dev, "    CE_ERR_CAUSE_ENGINE_RAM_UNCORRECTABLE_ERR = %d\n", dump.CE_ERR_CAUSE_ENGINE_RAM_UNCORRECTABLE_ERR);
-		dev_err(core->dev, "    CE_ERR_CAUSE_MCU_LOCKUP_ERR               = %d\n", dump.CE_ERR_CAUSE_MCU_LOCKUP_ERR);
-		dev_err(core->dev, "    CE_ERR_CAUSE_MCU_INSTR_ERR                = %d\n", dump.CE_ERR_CAUSE_MCU_INSTR_ERR);
-		dev_err(core->dev, "    CE_ERR_CAUSE_MCU_DATA_READ_ERR            = %d\n", dump.CE_ERR_CAUSE_MCU_DATA_READ_ERR);
-		dev_err(core->dev, "    CE_ERR_CAUSE_MCU_DATA_WRITE_ERR           = %d\n", dump.CE_ERR_CAUSE_MCU_DATA_WRITE_ERR);
-		dev_err(core->dev, "    CE_ERR_CAUSE_UDMA_LOAD_ERR                = %d\n", dump.CE_ERR_CAUSE_UDMA_LOAD_ERR);
-		dev_err(core->dev, "    CE_ERR_CAUSE_UDMA_STORE_ERR               = %d\n", dump.CE_ERR_CAUSE_UDMA_STORE_ERR);
-		dev_err(core->dev, "    CE_ERR_CAUSE_MCU_ILLEGAL_COPROC_ERR       = %d\n", dump.CE_ERR_CAUSE_MCU_ILLEGAL_COPROC_ERR);
-		dev_err(core->dev, "    CE_ERR_CAUSE_UDMA_COLLISION_ERR           = %d\n", dump.CE_ERR_CAUSE_UDMA_COLLISION_ERR);
-		dev_err(core->dev, "    CE_ERR_CAUSE_RF_RD_COLLISION_ERR          = %d\n", dump.CE_ERR_CAUSE_RF_RD_COLLISION_ERR);
-		dev_err(core->dev, "    CE_ERR_CAUSE_RF_WR_COLLISION_ERR          = %d\n", dump.CE_ERR_CAUSE_RF_WR_COLLISION_ERR);
-		dev_err(core->dev, "    CE_ERR_CAUSE_VE_DIV_0_ERR                 = %d\n", dump.CE_ERR_CAUSE_VE_DIV_0_ERR);
-		dev_err(core->dev, "    CE_ERR_CAUSE_PLE_LANE_ERR                 = %d\n", dump.CE_ERR_CAUSE_PLE_LANE_ERR);
-		dev_err(core->dev, "  CE_ERR_ADDRESS\n");
-		dev_err(core->dev, "    CE_ERR_ADDRESS_ADDRESS                    = 0x%04x\n", dump.CE_ERR_ADDRESS_ADDRESS);
-		dev_err(core->dev, "    CE_ERR_ADDRESS_BANK                       = %d\n", dump.CE_ERR_ADDRESS_BANK);
-		dev_err(core->dev, "    CE_ERR_ADDRESS_DFC_EMC0                   = %d\n", dump.CE_ERR_ADDRESS_DFC_EMC0);
-		dev_err(core->dev, "    CE_ERR_ADDRESS_DFC_EMC1                   = %d\n", dump.CE_ERR_ADDRESS_DFC_EMC1);
-		dev_err(core->dev, "    CE_ERR_ADDRESS_DFC_EMC2                   = %d\n", dump.CE_ERR_ADDRESS_DFC_EMC2);
-		dev_err(core->dev, "    CE_ERR_ADDRESS_DFC_EMC3                   = %d\n", dump.CE_ERR_ADDRESS_DFC_EMC3);
-		dev_err(core->dev, "    CE_ERR_ADDRESS_MCE_OFM0                   = %d\n", dump.CE_ERR_ADDRESS_MCE_OFM0);
-		dev_err(core->dev, "    CE_ERR_ADDRESS_MCE_OFM1                   = %d\n", dump.CE_ERR_ADDRESS_MCE_OFM1);
-		dev_err(core->dev, "    CE_ERR_ADDRESS_MCE_OFM2                   = %d\n", dump.CE_ERR_ADDRESS_MCE_OFM2);
-		dev_err(core->dev, "    CE_ERR_ADDRESS_MCE_OFM3                   = %d\n", dump.CE_ERR_ADDRESS_MCE_OFM3);
-		dev_err(core->dev, "    CE_ERR_ADDRESS_PLE_INPUT0                 = %d\n", dump.CE_ERR_ADDRESS_PLE_INPUT0);
-		dev_err(core->dev, "    CE_ERR_ADDRESS_PLE_INPUT1                 = %d\n", dump.CE_ERR_ADDRESS_PLE_INPUT1);
-		dev_err(core->dev, "    CE_ERR_ADDRESS_PLE_INPUT2                 = %d\n", dump.CE_ERR_ADDRESS_PLE_INPUT2);
-		dev_err(core->dev, "    CE_ERR_ADDRESS_PLE_INPUT3                 = %d\n", dump.CE_ERR_ADDRESS_PLE_INPUT3);
-		dev_err(core->dev, "    CE_ERR_ADDRESS_PLE_OUTPUT                 = %d\n", dump.CE_ERR_ADDRESS_PLE_OUTPUT);
-		dev_err(core->dev, "    CE_ERR_ADDRESS_PLE_MCU                    = %d\n", dump.CE_ERR_ADDRESS_PLE_MCU);
-		dev_err(core->dev, "    CE_ERR_ADDRESS_ERR_MULTI                  = %d\n", dump.CE_ERR_ADDRESS_ERR_MULTI);
-		dev_err(core->dev, "    CE_ERR_ADDRESS_ERR_UNCORRECTED            = %d\n", dump.CE_ERR_ADDRESS_ERR_UNCORRECTED);
+		dev_err(core->dev, "cesWithError                                =%s%s%s%s%s%s%s%s\n", (dump.cesWithError & (1 << 0)) ? "0" : "", (dump.cesWithError & (1 << 1)) ?" 1":"", (dump.cesWithError & (1 << 2)) ? "2" : "",
+			(dump.cesWithError & (1 << 3)) ? "3" : "", (dump.cesWithError & (1 << 4)) ?" 4":"", (dump.cesWithError & (1 << 5)) ? "5" : "", (dump.cesWithError & (1 << 6)) ?" 6":"",
+			(dump.cesWithError & (1 << 7)) ? "7" : "");
+		dev_err(core->dev, "CE_ERR_CAUSE\n");
+		dev_err(core->dev, "CE_ERR_CAUSE_ENGINE_RAM_CORRECTABLE_ERR   = %d\n", dump.CE_ERR_CAUSE_ENGINE_RAM_CORRECTABLE_ERR);
+		dev_err(core->dev, "CE_ERR_CAUSE_ENGINE_RAM_UNCORRECTABLE_ERR = %d\n", dump.CE_ERR_CAUSE_ENGINE_RAM_UNCORRECTABLE_ERR);
+		dev_err(core->dev, "CE_ERR_CAUSE_MCU_LOCKUP_ERR               = %d\n", dump.CE_ERR_CAUSE_MCU_LOCKUP_ERR);
+		dev_err(core->dev, "CE_ERR_CAUSE_MCU_INSTR_ERR                = %d\n", dump.CE_ERR_CAUSE_MCU_INSTR_ERR);
+		dev_err(core->dev, "CE_ERR_CAUSE_MCU_DATA_READ_ERR            = %d\n", dump.CE_ERR_CAUSE_MCU_DATA_READ_ERR);
+		dev_err(core->dev, "CE_ERR_CAUSE_MCU_DATA_WRITE_ERR           = %d\n", dump.CE_ERR_CAUSE_MCU_DATA_WRITE_ERR);
+		dev_err(core->dev, "CE_ERR_CAUSE_UDMA_LOAD_ERR                = %d\n", dump.CE_ERR_CAUSE_UDMA_LOAD_ERR);
+		dev_err(core->dev, "CE_ERR_CAUSE_UDMA_STORE_ERR               = %d\n", dump.CE_ERR_CAUSE_UDMA_STORE_ERR);
+		dev_err(core->dev, "CE_ERR_CAUSE_MCU_ILLEGAL_COPROC_ERR       = %d\n", dump.CE_ERR_CAUSE_MCU_ILLEGAL_COPROC_ERR);
+		dev_err(core->dev, "CE_ERR_CAUSE_UDMA_COLLISION_ERR           = %d\n", dump.CE_ERR_CAUSE_UDMA_COLLISION_ERR);
+		dev_err(core->dev, "CE_ERR_CAUSE_RF_RD_COLLISION_ERR          = %d\n", dump.CE_ERR_CAUSE_RF_RD_COLLISION_ERR);
+		dev_err(core->dev, "CE_ERR_CAUSE_RF_WR_COLLISION_ERR          = %d\n", dump.CE_ERR_CAUSE_RF_WR_COLLISION_ERR);
+		dev_err(core->dev, "CE_ERR_CAUSE_VE_DIV_0_ERR                 = %d\n", dump.CE_ERR_CAUSE_VE_DIV_0_ERR);
+		dev_err(core->dev, "CE_ERR_CAUSE_PLE_LANE_ERR                 = %d\n", dump.CE_ERR_CAUSE_PLE_LANE_ERR);
+		dev_err(core->dev, "CE_ERR_ADDRESS\n");
+		dev_err(core->dev, "CE_ERR_ADDRESS_ADDRESS                    = 0x%04x\n", dump.CE_ERR_ADDRESS_ADDRESS);
+		dev_err(core->dev, "CE_ERR_ADDRESS_BANK                       = %d\n", dump.CE_ERR_ADDRESS_BANK);
+		dev_err(core->dev, "CE_ERR_ADDRESS_DFC_EMC0                   = %d\n", dump.CE_ERR_ADDRESS_DFC_EMC0);
+		dev_err(core->dev, "CE_ERR_ADDRESS_DFC_EMC1                   = %d\n", dump.CE_ERR_ADDRESS_DFC_EMC1);
+		dev_err(core->dev, "CE_ERR_ADDRESS_DFC_EMC2                   = %d\n", dump.CE_ERR_ADDRESS_DFC_EMC2);
+		dev_err(core->dev, "CE_ERR_ADDRESS_DFC_EMC3                   = %d\n", dump.CE_ERR_ADDRESS_DFC_EMC3);
+		dev_err(core->dev, "CE_ERR_ADDRESS_MCE_OFM0                   = %d\n", dump.CE_ERR_ADDRESS_MCE_OFM0);
+		dev_err(core->dev, "CE_ERR_ADDRESS_MCE_OFM1                   = %d\n", dump.CE_ERR_ADDRESS_MCE_OFM1);
+		dev_err(core->dev, "CE_ERR_ADDRESS_MCE_OFM2                   = %d\n", dump.CE_ERR_ADDRESS_MCE_OFM2);
+		dev_err(core->dev, "CE_ERR_ADDRESS_MCE_OFM3                   = %d\n", dump.CE_ERR_ADDRESS_MCE_OFM3);
+		dev_err(core->dev, "CE_ERR_ADDRESS_PLE_INPUT0                 = %d\n", dump.CE_ERR_ADDRESS_PLE_INPUT0);
+		dev_err(core->dev, "CE_ERR_ADDRESS_PLE_INPUT1                 = %d\n", dump.CE_ERR_ADDRESS_PLE_INPUT1);
+		dev_err(core->dev, "CE_ERR_ADDRESS_PLE_INPUT2                 = %d\n", dump.CE_ERR_ADDRESS_PLE_INPUT2);
+		dev_err(core->dev, "CE_ERR_ADDRESS_PLE_INPUT3                 = %d\n", dump.CE_ERR_ADDRESS_PLE_INPUT3);
+		dev_err(core->dev, "CE_ERR_ADDRESS_PLE_OUTPUT                 = %d\n", dump.CE_ERR_ADDRESS_PLE_OUTPUT);
+		dev_err(core->dev, "CE_ERR_ADDRESS_PLE_MCU                    = %d\n", dump.CE_ERR_ADDRESS_PLE_MCU);
+		dev_err(core->dev, "CE_ERR_ADDRESS_ERR_MULTI                  = %d\n", dump.CE_ERR_ADDRESS_ERR_MULTI);
+		dev_err(core->dev, "CE_ERR_ADDRESS_ERR_UNCORRECTED            = %d\n", dump.CE_ERR_ADDRESS_ERR_UNCORRECTED);
 	}
 
 	dev_err(core->dev, "======== End of firmware dump ========\n");
@@ -1393,7 +1396,7 @@ static int ethosn_pdev_enum_interrupts(struct platform_device *pdev, int *irq_nu
 			} else if (strcmp(resource->name, "debug") == 0) {
 				irq_flags[num_irqs] = flags;
 			} else {
-				dev_err(&pdev->dev, "Unknown interrupt name '%s'.\n", resource->name);
+				dev_err(&pdev->dev, "Unknown interrupt name'%s'.\n", resource->name);
 
 				return -EINVAL;
 			}
@@ -1958,7 +1961,7 @@ static void ethosn_class_release(void)
 // 驱动入口
 static int __init ethosn_init(void)
 {
-	// 由于板载的ethosn设备可能不止一个, 使用设备类进行管理
+	// 由于板载的 ethosn 设备可能不止一个, 使用设备类进行管理
 	int ret = ethosn_class_init();
 
 	if (ret)

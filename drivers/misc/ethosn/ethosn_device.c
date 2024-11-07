@@ -1470,7 +1470,7 @@ int ethosn_reset_and_start_ethosn(struct ethosn_core *core, uint32_t alloc_id)
 	ret = ethosn_set_addr_map(core, ETHOSN_STREAM_WORKING_DATA, work_data_base_addr, &core->work_data_map);
 	if (ret)
 		return ret;
-
+    
 	ret = ethosn_set_addr_map(core, ETHOSN_STREAM_COMMAND_STREAM, command_stream_base_addr, &core->dma_map);
 	if (ret)
 		return ret;

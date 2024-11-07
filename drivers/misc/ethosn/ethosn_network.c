@@ -1274,15 +1274,10 @@ void ethosn_set_inference_done(struct ethosn_core *core, struct ethosn_inference
 {
 	WARN_ON(new_status != ETHOSN_INFERENCE_COMPLETED && new_status != ETHOSN_INFERENCE_ERROR);
 
-	/* The inference may have been cancelled (by the user, or by power
-	 * management),
-	 * but finishes anyway due to parallelism.
-	 * The ethosn_inference object may not even be valid at this point, so
-	 * we can't even dereference the pointer.
-	 * Therefore we ignore this call, as the inference will have already
-	 * been re-scheduled
-	 * if necessary, so there is nothing for us to do.
-	 */
+    /**
+     * 当前正处理的推理任务已经跟中断回来的不是同一个: 推理任务可能被用户或电源管理工具取消了, 但还是由对端的 ethosn 设备完成并返回;
+     * 返回的指针指向的推理任务可能已经不存在了, 因此不能解引;
+     */
 	if (core->current_inference != inference) {
 		dev_dbg(core->dev, "%s: inference 0x%pK ignored because it is no longer the current inference.\n", __func__, inference);
 
@@ -1296,12 +1291,14 @@ void ethosn_set_inference_done(struct ethosn_core *core, struct ethosn_inference
 
 	dev_dbg(core->dev, "END_INFERENCE: inference 0x%pK time %llu on core_id = %u", inference, ktime_get_ns(), core->core_id);
 
+    // 这里告知 pm 当前 core 刚刚活跃过, pm 可以根据当前 core 的最后活跃时间以及休眠超时设定, 决定是否将 core 置为低功耗模式
 	pm_runtime_mark_last_busy(core->dev);
-	pm_runtime_put(core->dev);
 
-	/* Reset current running inference. */
+    // 运行时活动引用计数 - 1, 若引用计数为 0, 且设备空闲, pm 会尝试将该设备至于空闲状态
+	pm_runtime_put(core->dev); 
+
 	core->current_inference = NULL;
 
-	/* Schedule next queued inference. */
+	// 继续调度队列中的下一个推理
 	ethosn_schedule_queued_inference(core);
 }

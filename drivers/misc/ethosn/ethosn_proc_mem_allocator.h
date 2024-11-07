@@ -30,10 +30,12 @@
 
 struct ethosn_allocator {
 	struct ethosn_device *ethosn;
-	struct file *file;
-	struct ethosn_dma_allocator *asset_allocator;
+	struct file *file;                                  // 用于将 ethosn_allocator 对象抽象为文件, 提供 ioctl 操作
+	struct ethosn_dma_allocator *asset_allocator;       // 当前 ethosn_allocator 对象占用的资源管理器
 };
 
+// process_mem_allocator 主要用来确保在同一进程中, 创建缓冲区, 注册网络模型以及执行推理的全流程使用同一内存资源管理单元
+// 从 process_mem_allocator 创建到释放的流程, 该内存管理单元都是独占的
 int ethosn_process_mem_allocator_create(struct ethosn_device *ethosn, pid_t pid, bool proteced);
 
 #endif /* _ETHOSN_PROC_MEM_ALLOCATOR_H_ */

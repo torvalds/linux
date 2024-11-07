@@ -34,7 +34,6 @@ struct ethosn_buffer {
 	struct ethosn_device *ethosn;
 	struct ethosn_dma_allocator *asset_allocator;
 	struct ethosn_dma_info *dma_info;
-	/* file pointer used for user-space mmap and for ref-counting */
 	struct file *file;
 };
 
