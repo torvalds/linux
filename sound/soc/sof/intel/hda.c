@@ -936,6 +936,12 @@ void hda_dsp_remove(struct snd_sof_dev *sdev)
 	/* disable DSP */
 	hda_dsp_ctrl_ppcap_enable(sdev, false);
 
+	/* Free the persistent DMA buffers used for base firmware download */
+	if (hda->cl_dmab.area)
+		snd_dma_free_pages(&hda->cl_dmab);
+	if (hda->iccmax_dmab.area)
+		snd_dma_free_pages(&hda->iccmax_dmab);
+
 skip_disable_dsp:
 	free_irq(sdev->ipc_irq, sdev);
 	if (sdev->msi_enabled)
