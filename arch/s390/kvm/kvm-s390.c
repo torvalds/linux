@@ -43,6 +43,7 @@
 #include <asm/sclp.h>
 #include <asm/cpacf.h>
 #include <asm/timex.h>
+#include <asm/asm.h>
 #include <asm/fpu.h>
 #include <asm/ap.h>
 #include <asm/uv.h>
@@ -340,12 +341,11 @@ static inline int plo_test_bit(unsigned char nr)
 		"	lgr	0,%[function]\n"
 		/* Parameter registers are ignored for "test bit" */
 		"	plo	0,0,0,0(0)\n"
-		"	ipm	%0\n"
-		"	srl	%0,28\n"
-		: "=d" (cc)
+		CC_IPM(cc)
+		: CC_OUT(cc, cc)
 		: [function] "d" (function)
-		: "cc", "0");
-	return cc == 0;
+		: CC_CLOBBER_LIST("0"));
+	return CC_TRANSFORM(cc) == 0;
 }
 
 static __always_inline void __sortl_query(u8 (*query)[32])
