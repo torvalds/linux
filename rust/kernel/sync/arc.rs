@@ -127,6 +127,14 @@ mod std_vendor;
 /// ```
 pub struct Arc<T: ?Sized> {
     ptr: NonNull<ArcInner<T>>,
+    // NB: this informs dropck that objects of type `ArcInner<T>` may be used in `<Arc<T> as
+    // Drop>::drop`. Note that dropck already assumes that objects of type `T` may be used in
+    // `<Arc<T> as Drop>::drop` and the distinction between `T` and `ArcInner<T>` is not presently
+    // meaningful with respect to dropck - but this may change in the future so this is left here
+    // out of an abundance of caution.
+    //
+    // See https://doc.rust-lang.org/nomicon/phantom-data.html#generic-parameters-and-drop-checking
+    // for more detail on the semantics of dropck in the presence of `PhantomData`.
     _p: PhantomData<ArcInner<T>>,
 }
 
