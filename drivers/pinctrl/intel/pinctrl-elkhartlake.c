@@ -264,6 +264,43 @@ static const struct intel_pinctrl_soc_data ehl_community1_soc_data = {
 	.ncommunities = ARRAY_SIZE(ehl_community1),
 };
 
+static const struct pinctrl_pin_desc ehl_community2_pins[] = {
+	/* DSW */
+	PINCTRL_PIN(0, "BATLOWB"),
+	PINCTRL_PIN(1, "ACPRESENT"),
+	PINCTRL_PIN(2, "LAN_WAKEB"),
+	PINCTRL_PIN(3, "PWRBTNB"),
+	PINCTRL_PIN(4, "SLP_S3B"),
+	PINCTRL_PIN(5, "SLP_S4B"),
+	PINCTRL_PIN(6, "SLP_AB"),
+	PINCTRL_PIN(7, "GPD_7"),
+	PINCTRL_PIN(8, "SUSCLK"),
+	PINCTRL_PIN(9, "SLP_WLANB"),
+	PINCTRL_PIN(10, "SLP_S5B"),
+	PINCTRL_PIN(11, "LANPHYPC"),
+	PINCTRL_PIN(12, "INPUT3VSEL"),
+	PINCTRL_PIN(13, "SLP_LANB"),
+	PINCTRL_PIN(14, "SLP_SUSB"),
+	PINCTRL_PIN(15, "WAKEB"),
+	PINCTRL_PIN(16, "DRAM_RESETB"),
+};
+
+static const struct intel_padgroup ehl_community2_gpps[] = {
+	EHL_GPP(0, 0, 16),	/* DSW */
+};
+
+static const struct intel_community ehl_community2[] = {
+	EHL_COMMUNITY(0, 0, 16, ehl_community2_gpps),
+};
+
+static const struct intel_pinctrl_soc_data ehl_community2_soc_data = {
+	.uid = "2",
+	.pins = ehl_community2_pins,
+	.npins = ARRAY_SIZE(ehl_community2_pins),
+	.communities = ehl_community2,
+	.ncommunities = ARRAY_SIZE(ehl_community2),
+};
+
 static const struct pinctrl_pin_desc ehl_community3_pins[] = {
 	/* CPU */
 	PINCTRL_PIN(0, "HDACPU_SDI"),
@@ -474,6 +511,7 @@ static const struct intel_pinctrl_soc_data ehl_community5_soc_data = {
 static const struct intel_pinctrl_soc_data *ehl_soc_data_array[] = {
 	&ehl_community0_soc_data,
 	&ehl_community1_soc_data,
+	&ehl_community2_soc_data,
 	&ehl_community3_soc_data,
 	&ehl_community4_soc_data,
 	&ehl_community5_soc_data,
