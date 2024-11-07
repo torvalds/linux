@@ -148,20 +148,16 @@ function check_za
 	b	memcmp
 endfunction
 
-// Any SME register modified here can cause corruption in the main
-// thread -- but *only* the locations modified here.
+// Modify the live SME register state, signal return will undo our changes
 function irritator_handler
 	// Increment the irritation signal count (x23):
 	ldr	x0, [x2, #ucontext_regs + 8 * 23]
 	add	x0, x0, #1
 	str	x0, [x2, #ucontext_regs + 8 * 23]
 
-	// Corrupt some random ZA data
-#if 0
-	movi	v0.8b, #1
-	movi	v9.16b, #2
-	movi	v31.8b, #3
-#endif
+	// This will reset ZA to all bits 0
+	smstop
+	smstart
 
 	ret
 endfunction
