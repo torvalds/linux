@@ -73,9 +73,6 @@
 
 struct intel_crt {
 	struct intel_encoder base;
-	/* DPMS state is stored in the connector, which we need in the
-	 * encoder's enable/disable callbacks */
-	struct intel_connector *connector;
 	bool force_hotplug_required;
 	i915_reg_t adpa_reg;
 };
@@ -1066,8 +1063,6 @@ void intel_crt_init(struct intel_display *display)
 	}
 
 	ddc_pin = display->vbt.crt_ddc_pin;
-
-	crt->connector = connector;
 
 	drm_connector_init_with_ddc(display->drm, &connector->base,
 				    &intel_crt_connector_funcs,
