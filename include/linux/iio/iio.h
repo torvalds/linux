@@ -624,7 +624,7 @@ struct iio_dev {
 	const struct iio_info		*info;
 	const struct iio_buffer_setup_ops	*setup_ops;
 
-	void				*priv __private;
+	void				*__private priv;
 };
 
 int iio_device_id(struct iio_dev *indio_dev);
