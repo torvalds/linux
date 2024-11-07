@@ -666,8 +666,7 @@ static int mlx5e_build_shampo_hd_umr(struct mlx5e_rq *rq,
 	u16 pi, header_offset, err, wqe_bbs;
 	u32 lkey = rq->mdev->mlx5e_res.hw_objs.mkey;
 	struct mlx5e_umr_wqe *umr_wqe;
-	int headroom, i;
-	u64 addr = 0;
+	int headroom, i = 0;
 
 	headroom = rq->buff.headroom;
 	wqe_bbs = MLX5E_KSM_UMR_WQEBBS(ksm_entries);
@@ -676,22 +675,25 @@ static int mlx5e_build_shampo_hd_umr(struct mlx5e_rq *rq,
 	build_ksm_umr(sq, umr_wqe, shampo->key, index, ksm_entries);
 
 	WARN_ON_ONCE(ksm_entries & (MLX5E_SHAMPO_WQ_HEADER_PER_PAGE - 1));
-	for (i = 0; i < ksm_entries; i++, index++) {
-		header_offset = mlx5e_shampo_hd_offset(index);
-		if (!header_offset) {
-			struct mlx5e_frag_page *frag_page = mlx5e_shampo_hd_to_frag_page(rq, index);
+	while (i < ksm_entries) {
+		struct mlx5e_frag_page *frag_page = mlx5e_shampo_hd_to_frag_page(rq, index);
+		u64 addr;
 
-			err = mlx5e_page_alloc_fragmented(rq, frag_page);
-			if (unlikely(err))
-				goto err_unmap;
+		err = mlx5e_page_alloc_fragmented(rq, frag_page);
+		if (unlikely(err))
+			goto err_unmap;
 
-			addr = page_pool_get_dma_addr(frag_page->page);
+
+		addr = page_pool_get_dma_addr(frag_page->page);
+
+		for (int j = 0; j < MLX5E_SHAMPO_WQ_HEADER_PER_PAGE; j++) {
+			header_offset = mlx5e_shampo_hd_offset(index++);
+
+			umr_wqe->inline_ksms[i++] = (struct mlx5_ksm) {
+				.key = cpu_to_be32(lkey),
+				.va  = cpu_to_be64(addr + header_offset + headroom),
+			};
 		}
-
-		umr_wqe->inline_ksms[i] = (struct mlx5_ksm) {
-			.key = cpu_to_be32(lkey),
-			.va  = cpu_to_be64(addr + header_offset + headroom),
-		};
 	}
 
 	sq->db.wqe_info[pi] = (struct mlx5e_icosq_wqe_info) {
