@@ -928,7 +928,7 @@ intel_enable_tv(struct intel_atomic_state *state,
 		const struct intel_crtc_state *pipe_config,
 		const struct drm_connector_state *conn_state)
 {
-	struct intel_display *display = to_intel_display(state);
+	struct intel_display *display = to_intel_display(encoder);
 
 	/* Prevents vblank waits from timing out in intel_tv_detect_type() */
 	intel_crtc_wait_for_next_vblank(to_intel_crtc(pipe_config->uapi.crtc));
@@ -942,7 +942,7 @@ intel_disable_tv(struct intel_atomic_state *state,
 		 const struct intel_crtc_state *old_crtc_state,
 		 const struct drm_connector_state *old_conn_state)
 {
-	struct intel_display *display = to_intel_display(state);
+	struct intel_display *display = to_intel_display(encoder);
 
 	intel_de_rmw(display, TV_CTL, TV_ENC_ENABLE, 0);
 }
