@@ -93,7 +93,7 @@ int input_ff_upload(struct input_dev *dev, struct ff_effect *effect,
 {
 	struct ff_device *ff = dev->ff;
 	struct ff_effect *old;
-	int ret = 0;
+	int error;
 	int id;
 
 	if (!test_bit(EV_FF, dev->evbit))
@@ -114,22 +114,20 @@ int input_ff_upload(struct input_dev *dev, struct ff_effect *effect,
 	}
 
 	if (!test_bit(effect->type, ff->ffbit)) {
-		ret = compat_effect(ff, effect);
-		if (ret)
-			return ret;
+		error = compat_effect(ff, effect);
+		if (error)
+			return error;
 	}
 
-	mutex_lock(&ff->mutex);
+	guard(mutex)(&ff->mutex);
 
 	if (effect->id == -1) {
 		for (id = 0; id < ff->max_effects; id++)
 			if (!ff->effect_owners[id])
 				break;
 
-		if (id >= ff->max_effects) {
-			ret = -ENOSPC;
-			goto out;
-		}
+		if (id >= ff->max_effects)
+			return -ENOSPC;
 
 		effect->id = id;
 		old = NULL;
@@ -137,30 +135,26 @@ int input_ff_upload(struct input_dev *dev, struct ff_effect *effect,
 	} else {
 		id = effect->id;
 
-		ret = check_effect_access(ff, id, file);
-		if (ret)
-			goto out;
+		error = check_effect_access(ff, id, file);
+		if (error)
+			return error;
 
 		old = &ff->effects[id];
 
-		if (!check_effects_compatible(effect, old)) {
-			ret = -EINVAL;
-			goto out;
-		}
+		if (!check_effects_compatible(effect, old))
+			return -EINVAL;
 	}
 
-	ret = ff->upload(dev, effect, old);
-	if (ret)
-		goto out;
+	error = ff->upload(dev, effect, old);
+	if (error)
+		return error;
 
-	spin_lock_irq(&dev->event_lock);
-	ff->effects[id] = *effect;
-	ff->effect_owners[id] = file;
-	spin_unlock_irq(&dev->event_lock);
+	scoped_guard(spinlock_irq, &dev->event_lock) {
+		ff->effects[id] = *effect;
+		ff->effect_owners[id] = file;
+	}
 
- out:
-	mutex_unlock(&ff->mutex);
-	return ret;
+	return 0;
 }
 EXPORT_SYMBOL_GPL(input_ff_upload);
 
@@ -178,17 +172,16 @@ static int erase_effect(struct input_dev *dev, int effect_id,
 	if (error)
 		return error;
 
-	spin_lock_irq(&dev->event_lock);
-	ff->playback(dev, effect_id, 0);
-	ff->effect_owners[effect_id] = NULL;
-	spin_unlock_irq(&dev->event_lock);
+	scoped_guard(spinlock_irq, &dev->event_lock) {
+		ff->playback(dev, effect_id, 0);
+		ff->effect_owners[effect_id] = NULL;
+	}
 
 	if (ff->erase) {
 		error = ff->erase(dev, effect_id);
 		if (error) {
-			spin_lock_irq(&dev->event_lock);
-			ff->effect_owners[effect_id] = file;
-			spin_unlock_irq(&dev->event_lock);
+			scoped_guard(spinlock_irq, &dev->event_lock)
+				ff->effect_owners[effect_id] = file;
 
 			return error;
 		}
@@ -210,16 +203,12 @@ static int erase_effect(struct input_dev *dev, int effect_id,
 int input_ff_erase(struct input_dev *dev, int effect_id, struct file *file)
 {
 	struct ff_device *ff = dev->ff;
-	int ret;
 
 	if (!test_bit(EV_FF, dev->evbit))
 		return -ENOSYS;
 
-	mutex_lock(&ff->mutex);
-	ret = erase_effect(dev, effect_id, file);
-	mutex_unlock(&ff->mutex);
-
-	return ret;
+	guard(mutex)(&ff->mutex);
+	return erase_effect(dev, effect_id, file);
 }
 EXPORT_SYMBOL_GPL(input_ff_erase);
 
@@ -239,12 +228,10 @@ int input_ff_flush(struct input_dev *dev, struct file *file)
 
 	dev_dbg(&dev->dev, "flushing now\n");
 
-	mutex_lock(&ff->mutex);
+	guard(mutex)(&ff->mutex);
 
 	for (i = 0; i < ff->max_effects; i++)
 		erase_effect(dev, i, file);
-
-	mutex_unlock(&ff->mutex);
 
 	return 0;
 }
