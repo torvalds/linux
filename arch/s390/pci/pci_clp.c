@@ -20,6 +20,7 @@
 #include <asm/asm-extable.h>
 #include <asm/pci_debug.h>
 #include <asm/pci_clp.h>
+#include <asm/asm.h>
 #include <asm/clp.h>
 #include <uapi/asm/clp.h>
 
@@ -52,18 +53,20 @@ static inline void zpci_err_clp(unsigned int rsp, int rc)
 static inline int clp_get_ilp(unsigned long *ilp)
 {
 	unsigned long mask;
-	int cc = 3;
+	int cc, exception;
 
+	exception = 1;
 	asm volatile (
 		"	.insn	rrf,0xb9a00000,%[mask],%[cmd],8,0\n"
-		"0:	ipm	%[cc]\n"
-		"	srl	%[cc],28\n"
+		"0:	lhi	%[exc],0\n"
 		"1:\n"
+		CC_IPM(cc)
 		EX_TABLE(0b, 1b)
-		: [cc] "+d" (cc), [mask] "=d" (mask) : [cmd] "a" (1)
-		: "cc");
+		: CC_OUT(cc, cc), [mask] "=d" (mask), [exc] "+d" (exception)
+		: [cmd] "a" (1)
+		: CC_CLOBBER);
 	*ilp = mask;
-	return cc;
+	return exception ? 3 : CC_TRANSFORM(cc);
 }
 
 /*
@@ -72,19 +75,20 @@ static inline int clp_get_ilp(unsigned long *ilp)
 static __always_inline int clp_req(void *data, unsigned int lps)
 {
 	struct { u8 _[CLP_BLK_SIZE]; } *req = data;
+	int cc, exception;
 	u64 ignored;
-	int cc = 3;
 
+	exception = 1;
 	asm volatile (
 		"	.insn	rrf,0xb9a00000,%[ign],%[req],0,%[lps]\n"
-		"0:	ipm	%[cc]\n"
-		"	srl	%[cc],28\n"
+		"0:	lhi	%[exc],0\n"
 		"1:\n"
+		CC_IPM(cc)
 		EX_TABLE(0b, 1b)
-		: [cc] "+d" (cc), [ign] "=d" (ignored), "+m" (*req)
+		: CC_OUT(cc, cc), [ign] "=d" (ignored), "+m" (*req), [exc] "+d" (exception)
 		: [req] "a" (req), [lps] "i" (lps)
-		: "cc");
-	return cc;
+		: CC_CLOBBER);
+	return exception ? 3 : CC_TRANSFORM(cc);
 }
 
 static void *clp_alloc_block(gfp_t gfp_mask)
