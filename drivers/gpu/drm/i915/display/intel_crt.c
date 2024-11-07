@@ -150,27 +150,27 @@ static unsigned int intel_crt_get_flags(struct intel_encoder *encoder)
 }
 
 static void intel_crt_get_config(struct intel_encoder *encoder,
-				 struct intel_crtc_state *pipe_config)
+				 struct intel_crtc_state *crtc_state)
 {
-	pipe_config->output_types |= BIT(INTEL_OUTPUT_ANALOG);
+	crtc_state->output_types |= BIT(INTEL_OUTPUT_ANALOG);
 
-	pipe_config->hw.adjusted_mode.flags |= intel_crt_get_flags(encoder);
+	crtc_state->hw.adjusted_mode.flags |= intel_crt_get_flags(encoder);
 
-	pipe_config->hw.adjusted_mode.crtc_clock = pipe_config->port_clock;
+	crtc_state->hw.adjusted_mode.crtc_clock = crtc_state->port_clock;
 }
 
 static void hsw_crt_get_config(struct intel_encoder *encoder,
-			       struct intel_crtc_state *pipe_config)
+			       struct intel_crtc_state *crtc_state)
 {
-	lpt_pch_get_config(pipe_config);
+	lpt_pch_get_config(crtc_state);
 
-	hsw_ddi_get_config(encoder, pipe_config);
+	hsw_ddi_get_config(encoder, crtc_state);
 
-	pipe_config->hw.adjusted_mode.flags &= ~(DRM_MODE_FLAG_PHSYNC |
-					      DRM_MODE_FLAG_NHSYNC |
-					      DRM_MODE_FLAG_PVSYNC |
-					      DRM_MODE_FLAG_NVSYNC);
-	pipe_config->hw.adjusted_mode.flags |= intel_crt_get_flags(encoder);
+	crtc_state->hw.adjusted_mode.flags &= ~(DRM_MODE_FLAG_PHSYNC |
+						DRM_MODE_FLAG_NHSYNC |
+						DRM_MODE_FLAG_PVSYNC |
+						DRM_MODE_FLAG_NVSYNC);
+	crtc_state->hw.adjusted_mode.flags |= intel_crt_get_flags(encoder);
 }
 
 /* Note: The caller is required to filter out dpms modes not supported by the
@@ -408,48 +408,48 @@ intel_crt_mode_valid(struct drm_connector *connector,
 }
 
 static int intel_crt_compute_config(struct intel_encoder *encoder,
-				    struct intel_crtc_state *pipe_config,
+				    struct intel_crtc_state *crtc_state,
 				    struct drm_connector_state *conn_state)
 {
 	struct drm_display_mode *adjusted_mode =
-		&pipe_config->hw.adjusted_mode;
+		&crtc_state->hw.adjusted_mode;
 
 	if (adjusted_mode->flags & DRM_MODE_FLAG_DBLSCAN)
 		return -EINVAL;
 
-	pipe_config->sink_format = INTEL_OUTPUT_FORMAT_RGB;
-	pipe_config->output_format = INTEL_OUTPUT_FORMAT_RGB;
+	crtc_state->sink_format = INTEL_OUTPUT_FORMAT_RGB;
+	crtc_state->output_format = INTEL_OUTPUT_FORMAT_RGB;
 
 	return 0;
 }
 
 static int pch_crt_compute_config(struct intel_encoder *encoder,
-				  struct intel_crtc_state *pipe_config,
+				  struct intel_crtc_state *crtc_state,
 				  struct drm_connector_state *conn_state)
 {
 	struct drm_display_mode *adjusted_mode =
-		&pipe_config->hw.adjusted_mode;
+		&crtc_state->hw.adjusted_mode;
 
 	if (adjusted_mode->flags & DRM_MODE_FLAG_DBLSCAN)
 		return -EINVAL;
 
-	pipe_config->has_pch_encoder = true;
-	if (!intel_fdi_compute_pipe_bpp(pipe_config))
+	crtc_state->has_pch_encoder = true;
+	if (!intel_fdi_compute_pipe_bpp(crtc_state))
 		return -EINVAL;
 
-	pipe_config->output_format = INTEL_OUTPUT_FORMAT_RGB;
+	crtc_state->output_format = INTEL_OUTPUT_FORMAT_RGB;
 
 	return 0;
 }
 
 static int hsw_crt_compute_config(struct intel_encoder *encoder,
-				  struct intel_crtc_state *pipe_config,
+				  struct intel_crtc_state *crtc_state,
 				  struct drm_connector_state *conn_state)
 {
 	struct intel_display *display = to_intel_display(encoder);
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct drm_display_mode *adjusted_mode =
-		&pipe_config->hw.adjusted_mode;
+		&crtc_state->hw.adjusted_mode;
 
 	if (adjusted_mode->flags & DRM_MODE_FLAG_DBLSCAN)
 		return -EINVAL;
@@ -459,30 +459,30 @@ static int hsw_crt_compute_config(struct intel_encoder *encoder,
 	    adjusted_mode->crtc_hblank_start > 4096)
 		return -EINVAL;
 
-	pipe_config->has_pch_encoder = true;
-	if (!intel_fdi_compute_pipe_bpp(pipe_config))
+	crtc_state->has_pch_encoder = true;
+	if (!intel_fdi_compute_pipe_bpp(crtc_state))
 		return -EINVAL;
 
-	pipe_config->output_format = INTEL_OUTPUT_FORMAT_RGB;
+	crtc_state->output_format = INTEL_OUTPUT_FORMAT_RGB;
 
 	/* LPT FDI RX only supports 8bpc. */
 	if (HAS_PCH_LPT(dev_priv)) {
 		/* TODO: Check crtc_state->max_link_bpp_x16 instead of bw_constrained */
-		if (pipe_config->bw_constrained && pipe_config->pipe_bpp < 24) {
+		if (crtc_state->bw_constrained && crtc_state->pipe_bpp < 24) {
 			drm_dbg_kms(display->drm,
 				    "LPT only supports 24bpp\n");
 			return -EINVAL;
 		}
 
-		pipe_config->pipe_bpp = 24;
+		crtc_state->pipe_bpp = 24;
 	}
 
 	/* FDI must always be 2.7 GHz */
-	pipe_config->port_clock = 135000 * 2;
+	crtc_state->port_clock = 135000 * 2;
 
-	pipe_config->enhanced_framing = true;
+	crtc_state->enhanced_framing = true;
 
-	adjusted_mode->crtc_clock = lpt_iclkip(pipe_config);
+	adjusted_mode->crtc_clock = lpt_iclkip(crtc_state);
 
 	return 0;
 }
