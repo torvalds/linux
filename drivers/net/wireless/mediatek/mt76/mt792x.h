@@ -133,6 +133,9 @@ struct mt792x_vif {
 	struct mt792x_phy *phy;
 	u16 valid_links;
 	u8 deflink_id;
+
+	struct work_struct csa_work;
+	struct timer_list csa_timer;
 };
 
 struct mt792x_phy {
@@ -237,6 +240,8 @@ struct mt792x_dev {
 	enum environment_cap country_ie_env;
 	u32 backup_l1;
 	u32 backup_l2;
+
+	struct ieee80211_chanctx_conf *new_ctx;
 };
 
 static inline struct mt792x_bss_conf *
@@ -369,6 +374,7 @@ void mt792x_set_tsf(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		    u64 timestamp);
 void mt792x_tx_worker(struct mt76_worker *w);
 void mt792x_roc_timer(struct timer_list *timer);
+void mt792x_csa_timer(struct timer_list *timer);
 void mt792x_flush(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		  u32 queues, bool drop);
 int mt792x_assign_vif_chanctx(struct ieee80211_hw *hw,

@@ -289,6 +289,14 @@ void mt792x_roc_timer(struct timer_list *timer)
 }
 EXPORT_SYMBOL_GPL(mt792x_roc_timer);
 
+void mt792x_csa_timer(struct timer_list *timer)
+{
+	struct mt792x_vif *mvif = from_timer(mvif, timer, csa_timer);
+
+	ieee80211_queue_work(mvif->phy->mt76->hw, &mvif->csa_work);
+}
+EXPORT_SYMBOL_GPL(mt792x_csa_timer);
+
 void mt792x_flush(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		  u32 queues, bool drop)
 {
@@ -330,6 +338,11 @@ void mt792x_unassign_vif_chanctx(struct ieee80211_hw *hw,
 	mctx->bss_conf = NULL;
 	mvif->bss_conf.mt76.ctx = NULL;
 	mutex_unlock(&dev->mt76.mutex);
+
+	if (vif->bss_conf.csa_active) {
+		del_timer_sync(&mvif->csa_timer);
+		cancel_work_sync(&mvif->csa_work);
+	}
 }
 EXPORT_SYMBOL_GPL(mt792x_unassign_vif_chanctx);
 
@@ -652,6 +665,7 @@ int mt792x_init_wiphy(struct ieee80211_hw *hw)
 	ieee80211_hw_set(hw, SUPPORTS_DYNAMIC_PS);
 	ieee80211_hw_set(hw, SUPPORTS_VHT_EXT_NSS_BW);
 	ieee80211_hw_set(hw, CONNECTION_MONITOR);
+	ieee80211_hw_set(hw, CHANCTX_STA_CSA);
 
 	if (dev->pm.enable)
 		ieee80211_hw_set(hw, CONNECTION_MONITOR);
