@@ -245,69 +245,20 @@ static void esw_qos_normalize_min_rate(struct mlx5_eswitch *esw,
 	}
 }
 
-static int esw_qos_set_vport_min_rate(struct mlx5_vport *vport,
-				      u32 min_rate, struct netlink_ext_ack *extack)
-{
-	struct mlx5_esw_sched_node *vport_node = vport->qos.sched_node;
-	bool min_rate_supported;
-	u32 fw_max_bw_share;
-
-	esw_assert_qos_lock_held(vport_node->esw);
-	fw_max_bw_share = MLX5_CAP_QOS(vport->dev, max_tsar_bw_share);
-	min_rate_supported = MLX5_CAP_QOS(vport->dev, esw_bw_share) &&
-				fw_max_bw_share >= MLX5_MIN_BW_SHARE;
-	if (min_rate && !min_rate_supported)
-		return -EOPNOTSUPP;
-	if (min_rate == vport_node->min_rate)
-		return 0;
-
-	vport_node->min_rate = min_rate;
-	esw_qos_normalize_min_rate(vport_node->parent->esw, vport_node->parent, extack);
-
-	return 0;
-}
-
-static int esw_qos_set_vport_max_rate(struct mlx5_vport *vport,
-				      u32 max_rate, struct netlink_ext_ack *extack)
-{
-	struct mlx5_esw_sched_node *vport_node = vport->qos.sched_node;
-	u32 act_max_rate = max_rate;
-	bool max_rate_supported;
-	int err;
-
-	esw_assert_qos_lock_held(vport_node->esw);
-	max_rate_supported = MLX5_CAP_QOS(vport->dev, esw_rate_limit);
-
-	if (max_rate && !max_rate_supported)
-		return -EOPNOTSUPP;
-	if (max_rate == vport_node->max_rate)
-		return 0;
-
-	/* Use parent node limit if new max rate is 0. */
-	if (!max_rate)
-		act_max_rate = vport_node->parent->max_rate;
-
-	err = esw_qos_sched_elem_config(vport_node, act_max_rate, vport_node->bw_share, extack);
-	if (!err)
-		vport_node->max_rate = max_rate;
-
-	return err;
-}
-
 static int esw_qos_set_node_min_rate(struct mlx5_esw_sched_node *node,
 				     u32 min_rate, struct netlink_ext_ack *extack)
 {
 	struct mlx5_eswitch *esw = node->esw;
 
-	if (!MLX5_CAP_QOS(esw->dev, esw_bw_share) ||
-	    MLX5_CAP_QOS(esw->dev, max_tsar_bw_share) < MLX5_MIN_BW_SHARE)
+	if (min_rate && (!MLX5_CAP_QOS(esw->dev, esw_bw_share) ||
+			 MLX5_CAP_QOS(esw->dev, max_tsar_bw_share) < MLX5_MIN_BW_SHARE))
 		return -EOPNOTSUPP;
 
 	if (min_rate == node->min_rate)
 		return 0;
 
 	node->min_rate = min_rate;
-	esw_qos_normalize_min_rate(esw, NULL, extack);
+	esw_qos_normalize_min_rate(esw, node->parent, extack);
 
 	return 0;
 }
@@ -321,11 +272,17 @@ static int esw_qos_set_node_max_rate(struct mlx5_esw_sched_node *node,
 	if (node->max_rate == max_rate)
 		return 0;
 
+	/* Use parent node limit if new max rate is 0. */
+	if (!max_rate && node->parent)
+		max_rate = node->parent->max_rate;
+
 	err = esw_qos_sched_elem_config(node, max_rate, node->bw_share, extack);
 	if (err)
 		return err;
 
 	node->max_rate = max_rate;
+	if (node->type != SCHED_NODE_TYPE_VPORTS_TSAR)
+		return 0;
 
 	/* Any unlimited vports in the node should be set with the value of the node. */
 	list_for_each_entry(vport_node, &node->children, entry) {
@@ -748,9 +705,9 @@ int mlx5_esw_qos_set_vport_rate(struct mlx5_vport *vport, u32 max_rate, u32 min_
 	if (err)
 		goto unlock;
 
-	err = esw_qos_set_vport_min_rate(vport, min_rate, NULL);
+	err = esw_qos_set_node_min_rate(vport->qos.sched_node, min_rate, NULL);
 	if (!err)
-		err = esw_qos_set_vport_max_rate(vport, max_rate, NULL);
+		err = esw_qos_set_node_max_rate(vport->qos.sched_node, max_rate, NULL);
 unlock:
 	esw_qos_unlock(esw);
 	return err;
@@ -947,7 +904,7 @@ int mlx5_esw_devlink_rate_leaf_tx_share_set(struct devlink_rate *rate_leaf, void
 	if (err)
 		goto unlock;
 
-	err = esw_qos_set_vport_min_rate(vport, tx_share, extack);
+	err = esw_qos_set_node_min_rate(vport->qos.sched_node, tx_share, extack);
 unlock:
 	esw_qos_unlock(esw);
 	return err;
@@ -973,7 +930,7 @@ int mlx5_esw_devlink_rate_leaf_tx_max_set(struct devlink_rate *rate_leaf, void *
 	if (err)
 		goto unlock;
 
-	err = esw_qos_set_vport_max_rate(vport, tx_max, extack);
+	err = esw_qos_set_node_max_rate(vport->qos.sched_node, tx_max, extack);
 unlock:
 	esw_qos_unlock(esw);
 	return err;
