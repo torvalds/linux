@@ -73,19 +73,15 @@ static int bnxt_ptp_settime(struct ptp_clock_info *ptp_info,
 	return 0;
 }
 
-static int bnxt_refclk_read(struct bnxt *bp, struct ptp_system_timestamp *sts,
-			    u64 *ns)
+/* Caller holds ptp_lock */
+static int __bnxt_refclk_read(struct bnxt *bp, struct ptp_system_timestamp *sts,
+			      u64 *ns)
 {
 	struct bnxt_ptp_cfg *ptp = bp->ptp_cfg;
 	u32 high_before, high_now, low;
-	unsigned long flags;
 
-	/* We have to serialize reg access and FW reset */
-	read_seqlock_excl_irqsave(&ptp->ptp_lock, flags);
-	if (test_bit(BNXT_STATE_IN_FW_RESET, &bp->state)) {
-		read_sequnlock_excl_irqrestore(&ptp->ptp_lock, flags);
+	if (test_bit(BNXT_STATE_IN_FW_RESET, &bp->state))
 		return -EIO;
-	}
 
 	high_before = readl(bp->bar0 + ptp->refclk_mapped_regs[1]);
 	ptp_read_system_prets(sts);
@@ -97,10 +93,23 @@ static int bnxt_refclk_read(struct bnxt *bp, struct ptp_system_timestamp *sts,
 		low = readl(bp->bar0 + ptp->refclk_mapped_regs[0]);
 		ptp_read_system_postts(sts);
 	}
-	read_sequnlock_excl_irqrestore(&ptp->ptp_lock, flags);
 	*ns = ((u64)high_now << 32) | low;
 
 	return 0;
+}
+
+static int bnxt_refclk_read(struct bnxt *bp, struct ptp_system_timestamp *sts,
+			    u64 *ns)
+{
+	struct bnxt_ptp_cfg *ptp = bp->ptp_cfg;
+	unsigned long flags;
+	int rc;
+
+	/* We have to serialize reg access and FW reset */
+	read_seqlock_excl_irqsave(&ptp->ptp_lock, flags);
+	rc = __bnxt_refclk_read(bp, sts, ns);
+	read_sequnlock_excl_irqrestore(&ptp->ptp_lock, flags);
+	return rc;
 }
 
 static void bnxt_ptp_get_current_time(struct bnxt *bp)
@@ -674,7 +683,7 @@ static u64 bnxt_cc_read(const struct cyclecounter *cc)
 	struct bnxt_ptp_cfg *ptp = container_of(cc, struct bnxt_ptp_cfg, cc);
 	u64 ns = 0;
 
-	bnxt_refclk_read(ptp->bp, NULL, &ns);
+	__bnxt_refclk_read(ptp->bp, NULL, &ns);
 	return ns;
 }
 
@@ -936,6 +945,7 @@ static bool bnxt_pps_config_ok(struct bnxt *bp)
 static void bnxt_ptp_timecounter_init(struct bnxt *bp, bool init_tc)
 {
 	struct bnxt_ptp_cfg *ptp = bp->ptp_cfg;
+	unsigned long flags;
 
 	if (!ptp->ptp_clock) {
 		memset(&ptp->cc, 0, sizeof(ptp->cc));
@@ -952,8 +962,11 @@ static void bnxt_ptp_timecounter_init(struct bnxt *bp, bool init_tc)
 		}
 		ptp->next_overflow_check = jiffies + BNXT_PHC_OVERFLOW_PERIOD;
 	}
-	if (init_tc)
+	if (init_tc) {
+		write_seqlock_irqsave(&ptp->ptp_lock, flags);
 		timecounter_init(&ptp->tc, &ptp->cc, ktime_to_ns(ktime_get_real()));
+		write_sequnlock_irqrestore(&ptp->ptp_lock, flags);
+	}
 }
 
 /* Caller holds ptp_lock */
