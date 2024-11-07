@@ -162,7 +162,7 @@ static ssize_t input_dev_set_poll_interval(struct device *dev,
 	if (interval > poller->poll_interval_max)
 		return -EINVAL;
 
-	mutex_lock(&input->mutex);
+	guard(mutex)(&input->mutex);
 
 	poller->poll_interval = interval;
 
@@ -171,8 +171,6 @@ static ssize_t input_dev_set_poll_interval(struct device *dev,
 		if (poller->poll_interval > 0)
 			input_dev_poller_queue_work(poller);
 	}
-
-	mutex_unlock(&input->mutex);
 
 	return count;
 }
