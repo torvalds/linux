@@ -9,6 +9,7 @@
 #include <asm/sections.h>
 #include <asm/setup.h>
 #include <asm/sclp.h>
+#include <asm/asm.h>
 #include <asm/uv.h>
 #include "decompressor.h"
 #include "boot.h"
@@ -59,13 +60,13 @@ static int __diag260(unsigned long rx1, unsigned long rx2)
 {
 	unsigned long reg1, reg2, ry;
 	union register_pair rx;
+	int cc, exception;
 	psw_t old;
-	int rc;
 
 	rx.even = rx1;
 	rx.odd	= rx2;
 	ry = 0x10; /* storage configuration */
-	rc = -1;   /* fail */
+	exception = 1;
 	asm volatile(
 		"	mvc	0(16,%[psw_old]),0(%[psw_pgm])\n"
 		"	epsw	%[reg1],%[reg2]\n"
@@ -74,20 +75,22 @@ static int __diag260(unsigned long rx1, unsigned long rx2)
 		"	larl	%[reg1],1f\n"
 		"	stg	%[reg1],8(%[psw_pgm])\n"
 		"	diag	%[rx],%[ry],0x260\n"
-		"	ipm	%[rc]\n"
-		"	srl	%[rc],28\n"
+		"	lhi	%[exc],0\n"
 		"1:	mvc	0(16,%[psw_pgm]),0(%[psw_old])\n"
-		: [reg1] "=&d" (reg1),
+		CC_IPM(cc)
+		: CC_OUT(cc, cc),
+		  [exc] "+d" (exception),
+		  [reg1] "=&d" (reg1),
 		  [reg2] "=&a" (reg2),
-		  [rc] "+&d" (rc),
 		  [ry] "+&d" (ry),
 		  "+Q" (get_lowcore()->program_new_psw),
 		  "=Q" (old)
 		: [rx] "d" (rx.pair),
 		  [psw_old] "a" (&old),
 		  [psw_pgm] "a" (&get_lowcore()->program_new_psw)
-		: "cc", "memory");
-	return rc == 0 ? ry : -1;
+		: CC_CLOBBER_LIST("memory"));
+	cc = exception ? -1 : CC_TRANSFORM(cc);
+	return cc == 0 ? ry : -1;
 }
 
 static int diag260(void)
@@ -148,9 +151,10 @@ static int diag500_storage_limit(unsigned long *max_physmem_end)
 static int tprot(unsigned long addr)
 {
 	unsigned long reg1, reg2;
-	int rc = -EFAULT;
+	int cc, exception;
 	psw_t old;
 
+	exception = 1;
 	asm volatile(
 		"	mvc	0(16,%[psw_old]),0(%[psw_pgm])\n"
 		"	epsw	%[reg1],%[reg2]\n"
@@ -159,19 +163,21 @@ static int tprot(unsigned long addr)
 		"	larl	%[reg1],1f\n"
 		"	stg	%[reg1],8(%[psw_pgm])\n"
 		"	tprot	0(%[addr]),0\n"
-		"	ipm	%[rc]\n"
-		"	srl	%[rc],28\n"
+		"	lhi	%[exc],0\n"
 		"1:	mvc	0(16,%[psw_pgm]),0(%[psw_old])\n"
-		: [reg1] "=&d" (reg1),
+		CC_IPM(cc)
+		: CC_OUT(cc, cc),
+		  [exc] "+d" (exception),
+		  [reg1] "=&d" (reg1),
 		  [reg2] "=&a" (reg2),
-		  [rc] "+&d" (rc),
 		  "=Q" (get_lowcore()->program_new_psw.addr),
 		  "=Q" (old)
 		: [psw_old] "a" (&old),
 		  [psw_pgm] "a" (&get_lowcore()->program_new_psw),
 		  [addr] "a" (addr)
-		: "cc", "memory");
-	return rc;
+		: CC_CLOBBER_LIST("memory"));
+	cc = exception ? -EFAULT : CC_TRANSFORM(cc);
+	return cc;
 }
 
 static unsigned long search_mem_end(void)
