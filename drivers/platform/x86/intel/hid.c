@@ -119,6 +119,13 @@ static const struct dmi_system_id button_array_table[] = {
 		},
 	},
 	{
+		.ident = "Lenovo ThinkPad X1 Tablet Gen 1",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_PRODUCT_FAMILY, "ThinkPad X12 Detachable Gen 1"),
+		},
+	},
+	{
 		.ident = "Lenovo ThinkPad X1 Tablet Gen 2",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
