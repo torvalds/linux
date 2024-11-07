@@ -1360,6 +1360,8 @@ static bool is_c_func_name(const char *name)
  *
  *         SRC[:SLN[+NUM|-ELN]]
  *         FNC[@SRC][:SLN[+NUM|-ELN]]
+ *
+ * FNC@SRC accepts `FNC@*` which forcibly specify FNC as function name.
  */
 int parse_line_range_desc(const char *arg, struct line_range *lr)
 {
@@ -1415,13 +1417,21 @@ int parse_line_range_desc(const char *arg, struct line_range *lr)
 
 	file = strpbrk_esc(name, "@");
 	if (file) {
-		*file = '\0';
-		lr->file = strdup(++file);
-		if (lr->file == NULL) {
-			err = -ENOMEM;
+		*file++ = '\0';
+		if (strcmp(file, "*")) {
+			lr->file = strdup_esc(file);
+			if (lr->file == NULL) {
+				err = -ENOMEM;
+				goto err;
+			}
+		}
+		if (*name != '\0')
+			lr->function = name;
+		if (!lr->function && !lr->file) {
+			semantic_error("Only '@*' is not allowed.\n");
+			err = -EINVAL;
 			goto err;
 		}
-		lr->function = name;
 	} else if (strpbrk_esc(name, "/."))
 		lr->file = name;
 	else if (is_c_func_name(name))/* We reuse it for checking funcname */
@@ -1622,6 +1632,8 @@ static int parse_perf_probe_point(char *arg, struct perf_probe_event *pev)
 				semantic_error("SRC@SRC is not allowed.\n");
 				return -EINVAL;
 			}
+			if (!strcmp(arg, "*"))
+				break;
 			pp->file = strdup_esc(arg);
 			if (pp->file == NULL)
 				return -ENOMEM;
