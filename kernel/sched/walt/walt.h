@@ -178,6 +178,7 @@ struct walt_sched_cluster {
 	u64			aggr_grp_load;
 	unsigned long		util_to_cost[1024];
 	u64			found_ts;
+	int8_t			sibling_cluster;
 };
 
 struct freq_relation_map {
