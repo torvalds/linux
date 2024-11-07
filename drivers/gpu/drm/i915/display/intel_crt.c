@@ -1047,7 +1047,9 @@ void intel_crt_init(struct intel_display *display)
 		 * it and see what happens.
 		 */
 		intel_de_write(display, adpa_reg,
-			       adpa | ADPA_DAC_ENABLE | ADPA_HSYNC_CNTL_DISABLE | ADPA_VSYNC_CNTL_DISABLE);
+			       adpa | ADPA_DAC_ENABLE |
+			       ADPA_HSYNC_CNTL_DISABLE |
+			       ADPA_VSYNC_CNTL_DISABLE);
 		if ((intel_de_read(display, adpa_reg) & ADPA_DAC_ENABLE) == 0)
 			return;
 		intel_de_write(display, adpa_reg, adpa);
