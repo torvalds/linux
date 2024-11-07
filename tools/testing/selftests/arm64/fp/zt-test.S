@@ -127,7 +127,6 @@ function irritator_handler
 
 	// Corrupt some random ZT data
 #if 0
-	adr	x0, .text + (irritator_handler - .text) / 16 * 16
 	movi	v0.8b, #1
 	movi	v9.16b, #2
 	movi	v31.8b, #3
