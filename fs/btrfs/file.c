@@ -39,52 +39,6 @@
 #include "print-tree.h"
 
 /*
- * Helper to fault in page and copy.  This should go away and be replaced with
- * calls into generic code.
- */
-static noinline int btrfs_copy_from_user(loff_t pos, size_t write_bytes,
-					 struct folio *folio, struct iov_iter *i)
-{
-	size_t copied = 0;
-	size_t total_copied = 0;
-	int offset = offset_in_page(pos);
-
-	while (write_bytes > 0) {
-		size_t count = min_t(size_t, PAGE_SIZE - offset, write_bytes);
-		/*
-		 * Copy data from userspace to the current page
-		 */
-		copied = copy_folio_from_iter_atomic(folio, offset, count, i);
-
-		/* Flush processor's dcache for this page */
-		flush_dcache_folio(folio);
-
-		/*
-		 * if we get a partial write, we can end up with
-		 * partially up to date page.  These add
-		 * a lot of complexity, so make sure they don't
-		 * happen by forcing this copy to be retried.
-		 *
-		 * The rest of the btrfs_file_write code will fall
-		 * back to page at a time copies after we return 0.
-		 */
-		if (unlikely(copied < count)) {
-			if (!folio_test_uptodate(folio)) {
-				iov_iter_revert(i, copied);
-				copied = 0;
-			}
-			if (!copied)
-				break;
-		}
-
-		write_bytes -= copied;
-		total_copied += copied;
-		offset += copied;
-	}
-	return total_copied;
-}
-
-/*
  * Unlock folio after btrfs_file_write() is done with it.
  */
 static void btrfs_drop_folio(struct btrfs_fs_info *fs_info, struct folio *folio,
@@ -107,7 +61,7 @@ static void btrfs_drop_folio(struct btrfs_fs_info *fs_info, struct folio *folio,
 }
 
 /*
- * After btrfs_copy_from_user(), update the following things for delalloc:
+ * After copy_folio_from_iter_atomic(), update the following things for delalloc:
  * - Mark newly dirtied folio as DELALLOC in the io tree.
  *   Used to advise which range is to be written back.
  * - Mark modified folio as Uptodate/Dirty and not needing COW fixup
@@ -1269,7 +1223,23 @@ again:
 			break;
 		}
 
-		copied = btrfs_copy_from_user(pos, write_bytes, folio, i);
+		copied = copy_folio_from_iter_atomic(folio,
+				offset_in_folio(folio, pos), write_bytes, i);
+		flush_dcache_folio(folio);
+
+		/*
+		 * If we get a partial write, we can end up with partially
+		 * uptodate page. Although if sector size < page size we can
+		 * handle it, but if it's not sector aligned it can cause
+		 * a lot of complexity, so make sure they don't happen by
+		 * forcing retry this copy.
+		 */
+		if (unlikely(copied < write_bytes)) {
+			if (!folio_test_uptodate(folio)) {
+				iov_iter_revert(i, copied);
+				copied = 0;
+			}
+		}
 
 		num_sectors = BTRFS_BYTES_TO_BLKS(fs_info, reserve_bytes);
 		dirty_sectors = round_up(copied + sector_offset,
