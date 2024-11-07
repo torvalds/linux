@@ -633,7 +633,6 @@ struct mlx5e_shampo_hd {
 	u16 pi;
 	u16 ci;
 	__be32 key;
-	u64 last_addr;
 };
 
 struct mlx5e_hw_gro_data {

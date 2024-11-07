@@ -648,30 +648,26 @@ static int mlx5e_build_shampo_hd_umr(struct mlx5e_rq *rq,
 				     u16 ksm_entries, u16 index)
 {
 	struct mlx5e_shampo_hd *shampo = rq->mpwqe.shampo;
-	u16 entries, pi, header_offset, err, wqe_bbs, new_entries;
+	u16 pi, header_offset, err, wqe_bbs;
 	u32 lkey = rq->mdev->mlx5e_res.hw_objs.mkey;
 	u16 page_index = shampo->curr_page_index;
 	struct mlx5e_frag_page *frag_page;
-	u64 addr = shampo->last_addr;
 	struct mlx5e_dma_info *dma_info;
 	struct mlx5e_umr_wqe *umr_wqe;
 	int headroom, i;
+	u64 addr = 0;
 
 	headroom = rq->buff.headroom;
-	new_entries = ksm_entries - (shampo->pi & (MLX5_UMR_KSM_NUM_ENTRIES_ALIGNMENT - 1));
-	entries = ALIGN(ksm_entries, MLX5_UMR_KSM_NUM_ENTRIES_ALIGNMENT);
-	wqe_bbs = MLX5E_KSM_UMR_WQEBBS(entries);
+	wqe_bbs = MLX5E_KSM_UMR_WQEBBS(ksm_entries);
 	pi = mlx5e_icosq_get_next_pi(sq, wqe_bbs);
 	umr_wqe = mlx5_wq_cyc_get_wqe(&sq->wq, pi);
-	build_ksm_umr(sq, umr_wqe, shampo->key, index, entries);
+	build_ksm_umr(sq, umr_wqe, shampo->key, index, ksm_entries);
 
 	frag_page = &shampo->pages[page_index];
 
-	for (i = 0; i < entries; i++, index++) {
+	WARN_ON_ONCE(ksm_entries & (MLX5E_SHAMPO_WQ_HEADER_PER_PAGE - 1));
+	for (i = 0; i < ksm_entries; i++, index++) {
 		dma_info = &shampo->info[index];
-		if (i >= ksm_entries || (index < shampo->pi && shampo->pi - index <
-					 MLX5_UMR_KSM_NUM_ENTRIES_ALIGNMENT))
-			goto update_ksm;
 		header_offset = (index & (MLX5E_SHAMPO_WQ_HEADER_PER_PAGE - 1)) <<
 			MLX5E_SHAMPO_LOG_MAX_HEADER_ENTRY_SIZE;
 		if (!(header_offset & (PAGE_SIZE - 1))) {
@@ -691,7 +687,6 @@ static int mlx5e_build_shampo_hd_umr(struct mlx5e_rq *rq,
 			dma_info->frag_page = frag_page;
 		}
 
-update_ksm:
 		umr_wqe->inline_ksms[i] = (struct mlx5_ksm) {
 			.key = cpu_to_be32(lkey),
 			.va  = cpu_to_be64(dma_info->addr + headroom),
@@ -701,12 +696,11 @@ update_ksm:
 	sq->db.wqe_info[pi] = (struct mlx5e_icosq_wqe_info) {
 		.wqe_type	= MLX5E_ICOSQ_WQE_SHAMPO_HD_UMR,
 		.num_wqebbs	= wqe_bbs,
-		.shampo.len	= new_entries,
+		.shampo.len	= ksm_entries,
 	};
 
-	shampo->pi = (shampo->pi + new_entries) & (shampo->hd_per_wq - 1);
+	shampo->pi = (shampo->pi + ksm_entries) & (shampo->hd_per_wq - 1);
 	shampo->curr_page_index = page_index;
-	shampo->last_addr = addr;
 	sq->pc += wqe_bbs;
 	sq->doorbell_cseg = &umr_wqe->ctrl;
 
@@ -731,7 +725,8 @@ static int mlx5e_alloc_rx_hd_mpwqe(struct mlx5e_rq *rq)
 	struct mlx5e_icosq *sq = rq->icosq;
 	int i, err, max_ksm_entries, len;
 
-	max_ksm_entries = MLX5E_MAX_KSM_PER_WQE(rq->mdev);
+	max_ksm_entries = ALIGN_DOWN(MLX5E_MAX_KSM_PER_WQE(rq->mdev),
+				     MLX5E_SHAMPO_WQ_HEADER_PER_PAGE);
 	ksm_entries = bitmap_find_window(shampo->bitmap,
 					 shampo->hd_per_wqe,
 					 shampo->hd_per_wq, shampo->pi);
@@ -739,8 +734,8 @@ static int mlx5e_alloc_rx_hd_mpwqe(struct mlx5e_rq *rq)
 	if (!ksm_entries)
 		return 0;
 
-	ksm_entries += (shampo->pi & (MLX5_UMR_KSM_NUM_ENTRIES_ALIGNMENT - 1));
-	index = ALIGN_DOWN(shampo->pi, MLX5_UMR_KSM_NUM_ENTRIES_ALIGNMENT);
+	/* pi is aligned to MLX5E_SHAMPO_WQ_HEADER_PER_PAGE */
+	index = shampo->pi;
 	entries_before = shampo->hd_per_wq - index;
 
 	if (unlikely(entries_before < ksm_entries))
