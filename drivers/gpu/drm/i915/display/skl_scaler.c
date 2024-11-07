@@ -150,7 +150,7 @@ skl_update_scaler(struct intel_crtc_state *crtc_state, bool force_detach,
 	if (force_detach || !need_scaler) {
 		if (*scaler_id >= 0) {
 			scaler_state->scaler_users &= ~(1 << scaler_user);
-			scaler_state->scalers[*scaler_id].in_use = 0;
+			scaler_state->scalers[*scaler_id].in_use = false;
 
 			drm_dbg_kms(display->drm,
 				    "scaler_user index %u.%u: "
@@ -309,7 +309,7 @@ static int intel_atomic_setup_scaler(struct intel_crtc_scaler_state *scaler_stat
 				continue;
 
 			*scaler_id = j;
-			scaler_state->scalers[*scaler_id].in_use = 1;
+			scaler_state->scalers[*scaler_id].in_use = true;
 			break;
 		}
 	}
@@ -350,9 +350,9 @@ static int intel_atomic_setup_scaler(struct intel_crtc_scaler_state *scaler_stat
 		 * scaler 0 operates in high quality (HQ) mode.
 		 * In this case use scaler 0 to take advantage of HQ mode
 		 */
-		scaler_state->scalers[*scaler_id].in_use = 0;
+		scaler_state->scalers[*scaler_id].in_use = false;
 		*scaler_id = 0;
-		scaler_state->scalers[0].in_use = 1;
+		scaler_state->scalers[0].in_use = true;
 		mode = SKL_PS_SCALER_MODE_HQ;
 	} else {
 		mode = SKL_PS_SCALER_MODE_DYN;
