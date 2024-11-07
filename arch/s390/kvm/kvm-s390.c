@@ -348,6 +348,16 @@ static inline int plo_test_bit(unsigned char nr)
 	return cc == 0;
 }
 
+static __always_inline void pfcr_query(u8 (*query)[16])
+{
+	asm volatile(
+		"	lghi	0,0\n"
+		"	.insn   rsy,0xeb0000000016,0,0,%[query]\n"
+		: [query] "=QS" (*query)
+		:
+		: "cc", "0");
+}
+
 static __always_inline void __sortl_query(u8 (*query)[32])
 {
 	asm volatile(
@@ -428,6 +438,9 @@ static void __init kvm_s390_cpu_feat_init(void)
 
 	if (test_facility(151)) /* DFLTCC */
 		__dfltcc_query(&kvm_s390_available_subfunc.dfltcc);
+
+	if (test_facility(201))	/* PFCR */
+		pfcr_query(&kvm_s390_available_subfunc.pfcr);
 
 	if (MACHINE_HAS_ESOP)
 		allow_cpu_feat(KVM_S390_VM_CPU_FEAT_ESOP);
@@ -1543,6 +1556,9 @@ static int kvm_s390_set_processor_subfunc(struct kvm *kvm,
 		 ((unsigned long *) &kvm->arch.model.subfuncs.dfltcc)[1],
 		 ((unsigned long *) &kvm->arch.model.subfuncs.dfltcc)[2],
 		 ((unsigned long *) &kvm->arch.model.subfuncs.dfltcc)[3]);
+	VM_EVENT(kvm, 3, "GET: guest PFCR   subfunc 0x%16.16lx.%16.16lx",
+		 ((unsigned long *) &kvm_s390_available_subfunc.pfcr)[0],
+		 ((unsigned long *) &kvm_s390_available_subfunc.pfcr)[1]);
 
 	return 0;
 }
@@ -1757,6 +1773,9 @@ static int kvm_s390_get_processor_subfunc(struct kvm *kvm,
 		 ((unsigned long *) &kvm->arch.model.subfuncs.dfltcc)[1],
 		 ((unsigned long *) &kvm->arch.model.subfuncs.dfltcc)[2],
 		 ((unsigned long *) &kvm->arch.model.subfuncs.dfltcc)[3]);
+	VM_EVENT(kvm, 3, "GET: guest PFCR   subfunc 0x%16.16lx.%16.16lx",
+		 ((unsigned long *) &kvm_s390_available_subfunc.pfcr)[0],
+		 ((unsigned long *) &kvm_s390_available_subfunc.pfcr)[1]);
 
 	return 0;
 }
@@ -1825,6 +1844,9 @@ static int kvm_s390_get_machine_subfunc(struct kvm *kvm,
 		 ((unsigned long *) &kvm_s390_available_subfunc.dfltcc)[1],
 		 ((unsigned long *) &kvm_s390_available_subfunc.dfltcc)[2],
 		 ((unsigned long *) &kvm_s390_available_subfunc.dfltcc)[3]);
+	VM_EVENT(kvm, 3, "GET: host  PFCR   subfunc 0x%16.16lx.%16.16lx",
+		 ((unsigned long *) &kvm_s390_available_subfunc.pfcr)[0],
+		 ((unsigned long *) &kvm_s390_available_subfunc.pfcr)[1]);
 
 	return 0;
 }
