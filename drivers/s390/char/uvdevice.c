@@ -63,11 +63,13 @@ static void __init set_supp_uv_cmds(unsigned long *supp_uv_cmds)
 }
 
 /**
- * uvio_uvdev_info() - get information about the uvdevice
+ * uvio_uvdev_info() - Get information about the uvdevice
  *
  * @uv_ioctl: ioctl control block
  *
  * Lists all IOCTLs that are supported by this uvdevice
+ *
+ * Return: 0 on success or a negative error code on error
  */
 static int uvio_uvdev_info(struct uvio_ioctl_cb *uv_ioctl)
 {
@@ -178,7 +180,7 @@ static int get_uvio_attest(struct uvio_ioctl_cb *uv_ioctl, struct uvio_attest *u
  *
  * Context: might sleep
  *
- * Return: 0 on success or a negative error code on error.
+ * Return: 0 on success or a negative error code on error
  */
 static int uvio_attestation(struct uvio_ioctl_cb *uv_ioctl)
 {
@@ -238,7 +240,8 @@ out:
 	return ret;
 }
 
-/** uvio_add_secret() - perform an Add Secret UVC
+/**
+ * uvio_add_secret() - Perform an Add Secret UVC
  *
  * @uv_ioctl: ioctl control block
  *
@@ -261,7 +264,7 @@ out:
  *
  * Context: might sleep
  *
- * Return: 0 on success or a negative error code on error.
+ * Return: 0 on success or a negative error code on error
  */
 static int uvio_add_secret(struct uvio_ioctl_cb *uv_ioctl)
 {
@@ -332,7 +335,9 @@ static int uvio_get_list(void *zpage, struct uvio_ioctl_cb *uv_ioctl)
 	return 0;
 }
 
-/** uvio_list_secrets() - perform a List Secret UVC
+/**
+ * uvio_list_secrets() - Perform a List Secret UVC
+ *
  * @uv_ioctl: ioctl control block
  *
  * uvio_list_secrets() performs the List Secret Ultravisor Call. It verifies
@@ -355,7 +360,7 @@ static int uvio_get_list(void *zpage, struct uvio_ioctl_cb *uv_ioctl)
  *
  * Context: might sleep
  *
- * Return: 0 on success or a negative error code on error.
+ * Return: 0 on success or a negative error code on error
  */
 static int uvio_list_secrets(struct uvio_ioctl_cb *uv_ioctl)
 {
@@ -376,8 +381,10 @@ static int uvio_list_secrets(struct uvio_ioctl_cb *uv_ioctl)
 	return rc;
 }
 
-/** uvio_lock_secrets() - perform a Lock Secret Store UVC
- * @uv_ioctl: ioctl control block
+/**
+ * uvio_lock_secrets() - Perform a Lock Secret Store UVC
+ *
+ * @ioctl: ioctl control block
  *
  * uvio_lock_secrets() performs the Lock Secret Store Ultravisor Call. It
  * performs the UV-call and copies the return codes to the ioctl control block.
@@ -392,7 +399,7 @@ static int uvio_list_secrets(struct uvio_ioctl_cb *uv_ioctl)
  *
  * Context: might sleep
  *
- * Return: 0 on success or a negative error code on error.
+ * Return: 0 on success or a negative error code on error
  */
 static int uvio_lock_secrets(struct uvio_ioctl_cb *ioctl)
 {
@@ -412,7 +419,8 @@ static int uvio_lock_secrets(struct uvio_ioctl_cb *ioctl)
 }
 
 /**
- * uvio_retr_secret() - perform a retrieve secret UVC.
+ * uvio_retr_secret() - Perform a retrieve secret UVC
+ *
  * @uv_ioctl: ioctl control block.
  *
  * uvio_retr_secret() performs the Retrieve Secret Ultravisor Call.
@@ -421,9 +429,9 @@ static int uvio_lock_secrets(struct uvio_ioctl_cb *ioctl)
  * is enough space.
  * The argument length must be at least two bytes and at max 8192 bytes.
  *
- * Context: might sleep.
+ * Context: might sleep
  *
- * Return: 0 on success or a negative error code on error.
+ * Return: 0 on success or a negative error code on error
  */
 static int uvio_retr_secret(struct uvio_ioctl_cb *uv_ioctl)
 {
