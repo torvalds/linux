@@ -1,0 +1,17 @@
+name: C/C++ CI
+
+on:
+  push:
+    branches: [ "lmi-mainline-v6.12.0rc6" ]
+  pull_request:
+    branches: [ "lmi-mainline-v6.12.0rc6" ]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+    - run: sudo apt update && sudo apt install -y bc bison flex gcc-aarch64-linux-gnu gcc-arm-linux-gnueabihf make
+    - run: make -j4 ARCH=arm64 lmi_defconfig all
