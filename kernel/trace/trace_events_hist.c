@@ -1354,10 +1354,7 @@ static const char *hist_field_name(struct hist_field *field,
 	} else if (field->flags & HIST_FIELD_FL_TIMESTAMP)
 		field_name = "common_timestamp";
 	else if (field->flags & HIST_FIELD_FL_STACKTRACE) {
-		if (field->field)
-			field_name = field->field->name;
-		else
-			field_name = "common_stacktrace";
+		field_name = "common_stacktrace";
 	} else if (field->flags & HIST_FIELD_FL_HITCOUNT)
 		field_name = "hitcount";
 
