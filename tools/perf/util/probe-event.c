@@ -1372,7 +1372,7 @@ int parse_line_range_desc(const char *arg, struct line_range *lr)
 	lr->start = 0;
 	lr->end = INT_MAX;
 
-	range = strchr(name, ':');
+	range = strpbrk_esc(name, ":");
 	if (range) {
 		*range++ = '\0';
 
@@ -1413,7 +1413,7 @@ int parse_line_range_desc(const char *arg, struct line_range *lr)
 		}
 	}
 
-	file = strchr(name, '@');
+	file = strpbrk_esc(name, "@");
 	if (file) {
 		*file = '\0';
 		lr->file = strdup(++file);
@@ -1422,7 +1422,7 @@ int parse_line_range_desc(const char *arg, struct line_range *lr)
 			goto err;
 		}
 		lr->function = name;
-	} else if (strchr(name, '/') || strchr(name, '.'))
+	} else if (strpbrk_esc(name, "/."))
 		lr->file = name;
 	else if (is_c_func_name(name))/* We reuse it for checking funcname */
 		lr->function = name;
