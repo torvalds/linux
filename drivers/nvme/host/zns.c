@@ -111,7 +111,7 @@ void nvme_update_zone_info(struct nvme_ns *ns, struct queue_limits *lim,
 	lim->features |= BLK_FEAT_ZONED;
 	lim->max_open_zones = zi->max_open_zones;
 	lim->max_active_zones = zi->max_active_zones;
-	lim->max_hw_zone_append_sectors = ns->ctrl->max_zone_append;
+	lim->max_zone_append_sectors = ns->ctrl->max_zone_append;
 	lim->chunk_sectors = ns->head->zsze =
 		nvme_lba_to_sect(ns->head, zi->zone_size);
 }

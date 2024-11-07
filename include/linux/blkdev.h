@@ -375,7 +375,6 @@ struct queue_limits {
 	unsigned int		max_user_discard_sectors;
 	unsigned int		max_secure_erase_sectors;
 	unsigned int		max_write_zeroes_sectors;
-	unsigned int		max_hw_zone_append_sectors;
 	unsigned int		max_zone_append_sectors;
 	unsigned int		discard_granularity;
 	unsigned int		discard_alignment;
@@ -1205,9 +1204,25 @@ static inline unsigned int queue_max_segment_size(const struct request_queue *q)
 	return q->limits.max_segment_size;
 }
 
+static inline unsigned int
+queue_limits_max_zone_append_sectors(const struct queue_limits *l)
+{
+	unsigned int max_sectors = min(l->chunk_sectors, l->max_hw_sectors);
+
+	return min_not_zero(l->max_zone_append_sectors, max_sectors);
+}
+
+static inline unsigned int queue_max_zone_append_sectors(struct request_queue *q)
+{
+	if (!blk_queue_is_zoned(q))
+		return 0;
+
+	return queue_limits_max_zone_append_sectors(&q->limits);
+}
+
 static inline bool queue_emulates_zone_append(struct request_queue *q)
 {
-	return blk_queue_is_zoned(q) && !q->limits.max_hw_zone_append_sectors;
+	return blk_queue_is_zoned(q) && !q->limits.max_zone_append_sectors;
 }
 
 static inline bool bdev_emulates_zone_append(struct block_device *bdev)
@@ -1218,7 +1233,7 @@ static inline bool bdev_emulates_zone_append(struct block_device *bdev)
 static inline unsigned int
 bdev_max_zone_append_sectors(struct block_device *bdev)
 {
-	return bdev_limits(bdev)->max_zone_append_sectors;
+	return queue_max_zone_append_sectors(bdev_get_queue(bdev));
 }
 
 static inline unsigned int bdev_max_segments(struct block_device *bdev)
