@@ -36,20 +36,21 @@ static int io_file_bitmap_get(struct io_ring_ctx *ctx)
 	return -ENFILE;
 }
 
-bool io_alloc_file_tables(struct io_file_table *table, unsigned nr_files)
+bool io_alloc_file_tables(struct io_ring_ctx *ctx, struct io_file_table *table,
+			  unsigned nr_files)
 {
 	if (io_rsrc_data_alloc(&table->data, nr_files))
 		return false;
 	table->bitmap = bitmap_zalloc(nr_files, GFP_KERNEL_ACCOUNT);
 	if (table->bitmap)
 		return true;
-	io_rsrc_data_free(&table->data);
+	io_rsrc_data_free(ctx, &table->data);
 	return false;
 }
 
-void io_free_file_tables(struct io_file_table *table)
+void io_free_file_tables(struct io_ring_ctx *ctx, struct io_file_table *table)
 {
-	io_rsrc_data_free(&table->data);
+	io_rsrc_data_free(ctx, &table->data);
 	bitmap_free(table->bitmap);
 	table->bitmap = NULL;
 }
@@ -71,7 +72,7 @@ static int io_install_fixed_file(struct io_ring_ctx *ctx, struct file *file,
 	if (!node)
 		return -ENOMEM;
 
-	if (!io_reset_rsrc_node(&ctx->file_table.data, slot_index))
+	if (!io_reset_rsrc_node(ctx, &ctx->file_table.data, slot_index))
 		io_file_bitmap_set(&ctx->file_table, slot_index);
 
 	ctx->file_table.data.nodes[slot_index] = node;
@@ -130,7 +131,7 @@ int io_fixed_fd_remove(struct io_ring_ctx *ctx, unsigned int offset)
 	node = io_rsrc_node_lookup(&ctx->file_table.data, offset);
 	if (!node)
 		return -EBADF;
-	io_reset_rsrc_node(&ctx->file_table.data, offset);
+	io_reset_rsrc_node(ctx, &ctx->file_table.data, offset);
 	io_file_bitmap_clear(&ctx->file_table, offset);
 	return 0;
 }

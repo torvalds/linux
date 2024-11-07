@@ -6,8 +6,8 @@
 #include <linux/io_uring_types.h>
 #include "rsrc.h"
 
-bool io_alloc_file_tables(struct io_file_table *table, unsigned nr_files);
-void io_free_file_tables(struct io_file_table *table);
+bool io_alloc_file_tables(struct io_ring_ctx *ctx, struct io_file_table *table, unsigned nr_files);
+void io_free_file_tables(struct io_ring_ctx *ctx, struct io_file_table *table);
 
 int io_fixed_fd_install(struct io_kiocb *req, unsigned int issue_flags,
 			struct file *file, unsigned int file_slot);

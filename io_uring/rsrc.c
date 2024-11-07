@@ -130,13 +130,13 @@ struct io_rsrc_node *io_rsrc_node_alloc(struct io_ring_ctx *ctx, int type)
 	return node;
 }
 
-__cold void io_rsrc_data_free(struct io_rsrc_data *data)
+__cold void io_rsrc_data_free(struct io_ring_ctx *ctx, struct io_rsrc_data *data)
 {
 	if (!data->nr)
 		return;
 	while (data->nr--) {
 		if (data->nodes[data->nr])
-			io_put_rsrc_node(data->nodes[data->nr]);
+			io_put_rsrc_node(ctx, data->nodes[data->nr]);
 	}
 	kvfree(data->nodes);
 	data->nodes = NULL;
@@ -184,7 +184,7 @@ static int __io_sqe_files_update(struct io_ring_ctx *ctx,
 			continue;
 
 		i = up->offset + done;
-		if (io_reset_rsrc_node(&ctx->file_table.data, i))
+		if (io_reset_rsrc_node(ctx, &ctx->file_table.data, i))
 			io_file_bitmap_clear(&ctx->file_table, i);
 
 		if (fd != -1) {
@@ -266,7 +266,7 @@ static int __io_sqe_buffers_update(struct io_ring_ctx *ctx,
 			node->tag = tag;
 		}
 		i = array_index_nospec(up->offset + done, ctx->buf_table.nr);
-		io_reset_rsrc_node(&ctx->buf_table, i);
+		io_reset_rsrc_node(ctx, &ctx->buf_table, i);
 		ctx->buf_table.nodes[i] = node;
 		if (ctx->compat)
 			user_data += sizeof(struct compat_iovec);
@@ -442,10 +442,8 @@ int io_files_update(struct io_kiocb *req, unsigned int issue_flags)
 	return IOU_OK;
 }
 
-void io_free_rsrc_node(struct io_rsrc_node *node)
+void io_free_rsrc_node(struct io_ring_ctx *ctx, struct io_rsrc_node *node)
 {
-	struct io_ring_ctx *ctx = io_rsrc_node_ctx(node);
-
 	lockdep_assert_held(&ctx->uring_lock);
 
 	if (node->tag)
@@ -473,7 +471,7 @@ int io_sqe_files_unregister(struct io_ring_ctx *ctx)
 	if (!ctx->file_table.data.nr)
 		return -ENXIO;
 
-	io_free_file_tables(&ctx->file_table);
+	io_free_file_tables(ctx, &ctx->file_table);
 	io_file_table_set_alloc_range(ctx, 0, 0);
 	return 0;
 }
@@ -494,7 +492,7 @@ int io_sqe_files_register(struct io_ring_ctx *ctx, void __user *arg,
 		return -EMFILE;
 	if (nr_args > rlimit(RLIMIT_NOFILE))
 		return -EMFILE;
-	if (!io_alloc_file_tables(&ctx->file_table, nr_args))
+	if (!io_alloc_file_tables(ctx, &ctx->file_table, nr_args))
 		return -ENOMEM;
 
 	for (i = 0; i < nr_args; i++) {
@@ -551,7 +549,7 @@ int io_sqe_buffers_unregister(struct io_ring_ctx *ctx)
 {
 	if (!ctx->buf_table.nr)
 		return -ENXIO;
-	io_rsrc_data_free(&ctx->buf_table);
+	io_rsrc_data_free(ctx, &ctx->buf_table);
 	return 0;
 }
 
@@ -788,7 +786,7 @@ done:
 	if (ret) {
 		kvfree(imu);
 		if (node)
-			io_put_rsrc_node(node);
+			io_put_rsrc_node(ctx, node);
 		node = ERR_PTR(ret);
 	}
 	kvfree(pages);
@@ -1018,7 +1016,7 @@ static int io_clone_buffers(struct io_ring_ctx *ctx, struct io_ring_ctx *src_ctx
 	 * old and new nodes at this point.
 	 */
 	if (arg->flags & IORING_REGISTER_DST_REPLACE)
-		io_rsrc_data_free(&ctx->buf_table);
+		io_rsrc_data_free(ctx, &ctx->buf_table);
 
 	/*
 	 * ctx->buf_table should be empty now - either the contents are being
@@ -1042,7 +1040,7 @@ out_put_free:
 		kfree(data.nodes[i]);
 	}
 out_unlock:
-	io_rsrc_data_free(&data);
+	io_rsrc_data_free(ctx, &data);
 	mutex_unlock(&src_ctx->uring_lock);
 	mutex_lock(&ctx->uring_lock);
 	return ret;

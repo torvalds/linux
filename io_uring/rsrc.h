@@ -45,8 +45,8 @@ struct io_imu_folio_data {
 };
 
 struct io_rsrc_node *io_rsrc_node_alloc(struct io_ring_ctx *ctx, int type);
-void io_free_rsrc_node(struct io_rsrc_node *node);
-void io_rsrc_data_free(struct io_rsrc_data *data);
+void io_free_rsrc_node(struct io_ring_ctx *ctx, struct io_rsrc_node *node);
+void io_rsrc_data_free(struct io_ring_ctx *ctx, struct io_rsrc_data *data);
 int io_rsrc_data_alloc(struct io_rsrc_data *data, unsigned nr);
 
 int io_import_fixed(int ddir, struct iov_iter *iter,
@@ -76,19 +76,20 @@ static inline struct io_rsrc_node *io_rsrc_node_lookup(struct io_rsrc_data *data
 	return NULL;
 }
 
-static inline void io_put_rsrc_node(struct io_rsrc_node *node)
+static inline void io_put_rsrc_node(struct io_ring_ctx *ctx, struct io_rsrc_node *node)
 {
 	if (node && !--node->refs)
-		io_free_rsrc_node(node);
+		io_free_rsrc_node(ctx, node);
 }
 
-static inline bool io_reset_rsrc_node(struct io_rsrc_data *data, int index)
+static inline bool io_reset_rsrc_node(struct io_ring_ctx *ctx,
+				      struct io_rsrc_data *data, int index)
 {
 	struct io_rsrc_node *node = data->nodes[index];
 
 	if (!node)
 		return false;
-	io_put_rsrc_node(node);
+	io_put_rsrc_node(ctx, node);
 	data->nodes[index] = NULL;
 	return true;
 }
@@ -96,18 +97,13 @@ static inline bool io_reset_rsrc_node(struct io_rsrc_data *data, int index)
 static inline void io_req_put_rsrc_nodes(struct io_kiocb *req)
 {
 	if (req->file_node) {
-		io_put_rsrc_node(req->file_node);
+		io_put_rsrc_node(req->ctx, req->file_node);
 		req->file_node = NULL;
 	}
 	if (req->flags & REQ_F_BUF_NODE) {
-		io_put_rsrc_node(req->buf_node);
+		io_put_rsrc_node(req->ctx, req->buf_node);
 		req->buf_node = NULL;
 	}
-}
-
-static inline struct io_ring_ctx *io_rsrc_node_ctx(struct io_rsrc_node *node)
-{
-	return (struct io_ring_ctx *) (node->ctx_ptr & ~IORING_RSRC_TYPE_MASK);
 }
 
 static inline int io_rsrc_node_type(struct io_rsrc_node *node)
