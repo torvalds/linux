@@ -156,19 +156,43 @@ static int test__cpu_map_print(struct test_suite *test __maybe_unused, int subte
 	return 0;
 }
 
-static int test__cpu_map_merge(struct test_suite *test __maybe_unused, int subtest __maybe_unused)
+static int __test__cpu_map_merge(const char *lhs, const char *rhs, int nr, const char *expected)
 {
-	struct perf_cpu_map *a = perf_cpu_map__new("4,2,1");
-	struct perf_cpu_map *b = perf_cpu_map__new("4,5,7");
+	struct perf_cpu_map *a = perf_cpu_map__new(lhs);
+	struct perf_cpu_map *b = perf_cpu_map__new(rhs);
 	char buf[100];
 
 	perf_cpu_map__merge(&a, b);
-	TEST_ASSERT_VAL("failed to merge map: bad nr", perf_cpu_map__nr(a) == 5);
+	TEST_ASSERT_VAL("failed to merge map: bad nr", perf_cpu_map__nr(a) == nr);
 	cpu_map__snprint(a, buf, sizeof(buf));
-	TEST_ASSERT_VAL("failed to merge map: bad result", !strcmp(buf, "1-2,4-5,7"));
+	TEST_ASSERT_VAL("failed to merge map: bad result", !strcmp(buf, expected));
 	perf_cpu_map__put(b);
 	perf_cpu_map__put(a);
 	return 0;
+}
+
+static int test__cpu_map_merge(struct test_suite *test __maybe_unused,
+			       int subtest __maybe_unused)
+{
+	int ret;
+
+	ret = __test__cpu_map_merge("4,2,1", "4,5,7", 5, "1-2,4-5,7");
+	if (ret)
+		return ret;
+	ret = __test__cpu_map_merge("1-8", "6-9", 9, "1-9");
+	if (ret)
+		return ret;
+	ret = __test__cpu_map_merge("1-8,12-20", "6-9,15", 18, "1-9,12-20");
+	if (ret)
+		return ret;
+	ret = __test__cpu_map_merge("4,2,1", "1", 3, "1-2,4");
+	if (ret)
+		return ret;
+	ret = __test__cpu_map_merge("1", "4,2,1", 3, "1-2,4");
+	if (ret)
+		return ret;
+	ret = __test__cpu_map_merge("1", "1", 1, "1");
+	return ret;
 }
 
 static int __test__cpu_map_intersect(const char *lhs, const char *rhs, int nr, const char *expected)
