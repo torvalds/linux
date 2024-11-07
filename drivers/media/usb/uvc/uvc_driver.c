@@ -220,20 +220,127 @@ static struct uvc_streaming *uvc_stream_new(struct uvc_device *dev,
  * Descriptors parsing
  */
 
+static int uvc_parse_frame(struct uvc_device *dev,
+			   struct uvc_streaming *streaming,
+			   struct uvc_format *format, struct uvc_frame *frame,
+			   u32 **intervals, u8 ftype, int width_multiplier,
+			   const unsigned char *buffer, int buflen)
+{
+	struct usb_host_interface *alts = streaming->intf->cur_altsetting;
+	unsigned int maxIntervalIndex;
+	unsigned int interval;
+	unsigned int i, n;
+
+	if (ftype != UVC_VS_FRAME_FRAME_BASED)
+		n = buflen > 25 ? buffer[25] : 0;
+	else
+		n = buflen > 21 ? buffer[21] : 0;
+
+	n = n ? n : 3;
+
+	if (buflen < 26 + 4 * n) {
+		uvc_dbg(dev, DESCR,
+			"device %d videostreaming interface %d FRAME error\n",
+			dev->udev->devnum, alts->desc.bInterfaceNumber);
+		return -EINVAL;
+	}
+
+	frame->bFrameIndex = buffer[3];
+	frame->bmCapabilities = buffer[4];
+	frame->wWidth = get_unaligned_le16(&buffer[5]) * width_multiplier;
+	frame->wHeight = get_unaligned_le16(&buffer[7]);
+	frame->dwMinBitRate = get_unaligned_le32(&buffer[9]);
+	frame->dwMaxBitRate = get_unaligned_le32(&buffer[13]);
+	if (ftype != UVC_VS_FRAME_FRAME_BASED) {
+		frame->dwMaxVideoFrameBufferSize =
+			get_unaligned_le32(&buffer[17]);
+		frame->dwDefaultFrameInterval =
+			get_unaligned_le32(&buffer[21]);
+		frame->bFrameIntervalType = buffer[25];
+	} else {
+		frame->dwMaxVideoFrameBufferSize = 0;
+		frame->dwDefaultFrameInterval =
+			get_unaligned_le32(&buffer[17]);
+		frame->bFrameIntervalType = buffer[21];
+	}
+
+	/*
+	 * Copy the frame intervals.
+	 *
+	 * Some bogus devices report dwMinFrameInterval equal to
+	 * dwMaxFrameInterval and have dwFrameIntervalStep set to zero. Setting
+	 * all null intervals to 1 fixes the problem and some other divisions
+	 * by zero that could happen.
+	 */
+	frame->dwFrameInterval = *intervals;
+
+	for (i = 0; i < n; ++i) {
+		interval = get_unaligned_le32(&buffer[26 + 4 * i]);
+		(*intervals)[i] = interval ? interval : 1;
+	}
+
+	/*
+	 * Apply more fixes, quirks and workarounds to handle incorrect or
+	 * broken descriptors.
+	 */
+
+	/*
+	 * Several UVC chipsets screw up dwMaxVideoFrameBufferSize completely.
+	 * Observed behaviours range from setting the value to 1.1x the actual
+	 * frame size to hardwiring the 16 low bits to 0. This results in a
+	 * higher than necessary memory usage as well as a wrong image size
+	 * information. For uncompressed formats this can be fixed by computing
+	 * the value from the frame size.
+	 */
+	if (!(format->flags & UVC_FMT_FLAG_COMPRESSED))
+		frame->dwMaxVideoFrameBufferSize = format->bpp * frame->wWidth
+						 * frame->wHeight / 8;
+
+	/*
+	 * Clamp the default frame interval to the boundaries. A zero
+	 * bFrameIntervalType value indicates a continuous frame interval
+	 * range, with dwFrameInterval[0] storing the minimum value and
+	 * dwFrameInterval[1] storing the maximum value.
+	 */
+	maxIntervalIndex = frame->bFrameIntervalType ? n - 1 : 1;
+	frame->dwDefaultFrameInterval =
+		clamp(frame->dwDefaultFrameInterval,
+		      frame->dwFrameInterval[0],
+		      frame->dwFrameInterval[maxIntervalIndex]);
+
+	/*
+	 * Some devices report frame intervals that are not functional. If the
+	 * corresponding quirk is set, restrict operation to the first interval
+	 * only.
+	 */
+	if (dev->quirks & UVC_QUIRK_RESTRICT_FRAME_RATE) {
+		frame->bFrameIntervalType = 1;
+		(*intervals)[0] = frame->dwDefaultFrameInterval;
+	}
+
+	uvc_dbg(dev, DESCR, "- %ux%u (%u.%u fps)\n",
+		frame->wWidth, frame->wHeight,
+		10000000 / frame->dwDefaultFrameInterval,
+		(100000000 / frame->dwDefaultFrameInterval) % 10);
+
+	*intervals += n;
+
+	return buffer[0];
+}
+
 static int uvc_parse_format(struct uvc_device *dev,
 	struct uvc_streaming *streaming, struct uvc_format *format,
 	struct uvc_frame *frames, u32 **intervals, const unsigned char *buffer,
 	int buflen)
 {
-	struct usb_interface *intf = streaming->intf;
-	struct usb_host_interface *alts = intf->cur_altsetting;
+	struct usb_host_interface *alts = streaming->intf->cur_altsetting;
 	const struct uvc_format_desc *fmtdesc;
 	struct uvc_frame *frame;
 	const unsigned char *start = buffer;
 	unsigned int width_multiplier = 1;
-	unsigned int interval;
 	unsigned int i, n;
 	u8 ftype;
+	int ret;
 
 	format->type = buffer[2];
 	format->index = buffer[3];
@@ -371,111 +478,19 @@ static int uvc_parse_format(struct uvc_device *dev,
 	 * Parse the frame descriptors. Only uncompressed, MJPEG and frame
 	 * based formats have frame descriptors.
 	 */
-	while (ftype && buflen > 2 && buffer[1] == USB_DT_CS_INTERFACE &&
-	       buffer[2] == ftype) {
-		unsigned int maxIntervalIndex;
-
-		frame = &frames[format->nframes];
-		if (ftype != UVC_VS_FRAME_FRAME_BASED)
-			n = buflen > 25 ? buffer[25] : 0;
-		else
-			n = buflen > 21 ? buffer[21] : 0;
-
-		n = n ? n : 3;
-
-		if (buflen < 26 + 4*n) {
-			uvc_dbg(dev, DESCR,
-				"device %d videostreaming interface %d FRAME error\n",
-				dev->udev->devnum,
-				alts->desc.bInterfaceNumber);
-			return -EINVAL;
+	if (ftype) {
+		while (buflen > 2 && buffer[1] == USB_DT_CS_INTERFACE &&
+		       buffer[2] == ftype) {
+			frame = &frames[format->nframes];
+			ret = uvc_parse_frame(dev, streaming, format, frame,
+					      intervals, ftype, width_multiplier,
+					      buffer, buflen);
+			if (ret < 0)
+				return ret;
+			format->nframes++;
+			buflen -= ret;
+			buffer += ret;
 		}
-
-		frame->bFrameIndex = buffer[3];
-		frame->bmCapabilities = buffer[4];
-		frame->wWidth = get_unaligned_le16(&buffer[5])
-			      * width_multiplier;
-		frame->wHeight = get_unaligned_le16(&buffer[7]);
-		frame->dwMinBitRate = get_unaligned_le32(&buffer[9]);
-		frame->dwMaxBitRate = get_unaligned_le32(&buffer[13]);
-		if (ftype != UVC_VS_FRAME_FRAME_BASED) {
-			frame->dwMaxVideoFrameBufferSize =
-				get_unaligned_le32(&buffer[17]);
-			frame->dwDefaultFrameInterval =
-				get_unaligned_le32(&buffer[21]);
-			frame->bFrameIntervalType = buffer[25];
-		} else {
-			frame->dwMaxVideoFrameBufferSize = 0;
-			frame->dwDefaultFrameInterval =
-				get_unaligned_le32(&buffer[17]);
-			frame->bFrameIntervalType = buffer[21];
-		}
-
-		/*
-		 * Copy the frame intervals.
-		 *
-		 * Some bogus devices report dwMinFrameInterval equal to
-		 * dwMaxFrameInterval and have dwFrameIntervalStep set to
-		 * zero. Setting all null intervals to 1 fixes the problem and
-		 * some other divisions by zero that could happen.
-		 */
-		frame->dwFrameInterval = *intervals;
-
-		for (i = 0; i < n; ++i) {
-			interval = get_unaligned_le32(&buffer[26+4*i]);
-			(*intervals)[i] = interval ? interval : 1;
-		}
-
-		/*
-		 * Apply more fixes, quirks and workarounds to handle incorrect
-		 * or broken descriptors.
-		 */
-
-		/*
-		 * Several UVC chipsets screw up dwMaxVideoFrameBufferSize
-		 * completely. Observed behaviours range from setting the
-		 * value to 1.1x the actual frame size to hardwiring the
-		 * 16 low bits to 0. This results in a higher than necessary
-		 * memory usage as well as a wrong image size information. For
-		 * uncompressed formats this can be fixed by computing the
-		 * value from the frame size.
-		 */
-		if (!(format->flags & UVC_FMT_FLAG_COMPRESSED))
-			frame->dwMaxVideoFrameBufferSize = format->bpp
-				* frame->wWidth * frame->wHeight / 8;
-
-		/*
-		 * Clamp the default frame interval to the boundaries. A zero
-		 * bFrameIntervalType value indicates a continuous frame
-		 * interval range, with dwFrameInterval[0] storing the minimum
-		 * value and dwFrameInterval[1] storing the maximum value.
-		 */
-		maxIntervalIndex = frame->bFrameIntervalType ? n - 1 : 1;
-		frame->dwDefaultFrameInterval =
-			clamp(frame->dwDefaultFrameInterval,
-			      frame->dwFrameInterval[0],
-			      frame->dwFrameInterval[maxIntervalIndex]);
-
-		/*
-		 * Some devices report frame intervals that are not functional.
-		 * If the corresponding quirk is set, restrict operation to the
-		 * first interval only.
-		 */
-		if (dev->quirks & UVC_QUIRK_RESTRICT_FRAME_RATE) {
-			frame->bFrameIntervalType = 1;
-			(*intervals)[0] = frame->dwDefaultFrameInterval;
-		}
-
-		uvc_dbg(dev, DESCR, "- %ux%u (%u.%u fps)\n",
-			frame->wWidth, frame->wHeight,
-			10000000 / frame->dwDefaultFrameInterval,
-			(100000000 / frame->dwDefaultFrameInterval) % 10);
-
-		format->nframes++;
-		*intervals += n;
-
-		buflen -= buffer[0];
-		buffer += buffer[0];
 	}
 
 	if (buflen > 2 && buffer[1] == USB_DT_CS_INTERFACE &&
