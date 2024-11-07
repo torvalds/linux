@@ -408,13 +408,9 @@ static int intel_qep_probe(struct pci_dev *pci, const struct pci_device_id *id)
 
 	pci_set_master(pci);
 
-	ret = pcim_iomap_regions(pci, BIT(0), pci_name(pci));
-	if (ret)
-		return ret;
-
-	regs = pcim_iomap_table(pci)[0];
-	if (!regs)
-		return -ENOMEM;
+	regs = pcim_iomap_region(pci, 0, pci_name(pci));
+	if (IS_ERR(regs))
+		return PTR_ERR(regs);
 
 	qep->dev = dev;
 	qep->regs = regs;
