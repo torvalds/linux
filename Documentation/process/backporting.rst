@@ -553,7 +553,7 @@ Submitting backports to stable
 ==============================
 
 As the stable maintainers try to cherry-pick mainline fixes onto their
-stable kernels, they may send out emails asking for backports when when
+stable kernels, they may send out emails asking for backports when
 encountering conflicts, see e.g.
 <https://lore.kernel.org/stable/2023101528-jawed-shelving-071a@gregkh/>.
 These emails typically include the exact steps you need to cherry-pick
@@ -563,9 +563,9 @@ One thing to make sure is that your changelog conforms to the expected
 format::
 
   <original patch title>
-  
+
   [ Upstream commit <mainline rev> ]
-  
+
   <rest of the original changelog>
   [ <summary of the conflicts and their resolutions> ]
   Signed-off-by: <your name and email>
