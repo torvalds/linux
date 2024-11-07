@@ -28,4 +28,7 @@ static inline bool otx2_rep_dev(struct pci_dev *pdev)
 {
 	return pdev->device == PCI_DEVID_RVU_REP;
 }
+
+int rvu_rep_create(struct otx2_nic *priv, struct netlink_ext_ack *extack);
+void rvu_rep_destroy(struct otx2_nic *priv);
 #endif /* REP_H */

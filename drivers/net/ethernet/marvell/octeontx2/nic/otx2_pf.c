@@ -1400,6 +1400,7 @@ irqreturn_t otx2_cq_intr_handler(int irq, void *cq_irq)
 
 	return IRQ_HANDLED;
 }
+EXPORT_SYMBOL(otx2_cq_intr_handler);
 
 void otx2_disable_napi(struct otx2_nic *pf)
 {
@@ -1417,6 +1418,7 @@ void otx2_disable_napi(struct otx2_nic *pf)
 		netif_napi_del(&cq_poll->napi);
 	}
 }
+EXPORT_SYMBOL(otx2_disable_napi);
 
 static void otx2_free_cq_res(struct otx2_nic *pf)
 {
@@ -1607,6 +1609,7 @@ exit:
 	mutex_unlock(&mbox->lock);
 	return err;
 }
+EXPORT_SYMBOL(otx2_init_hw_resources);
 
 void otx2_free_hw_resources(struct otx2_nic *pf)
 {
@@ -1696,6 +1699,7 @@ void otx2_free_hw_resources(struct otx2_nic *pf)
 	}
 	mutex_unlock(&mbox->lock);
 }
+EXPORT_SYMBOL(otx2_free_hw_resources);
 
 static bool otx2_promisc_use_mce_list(struct otx2_nic *pfvf)
 {
@@ -1789,6 +1793,7 @@ void otx2_free_queue_mem(struct otx2_qset *qset)
 	kfree(qset->napi);
 	qset->napi = NULL;
 }
+EXPORT_SYMBOL(otx2_free_queue_mem);
 
 int otx2_alloc_queue_mem(struct otx2_nic *pf)
 {
@@ -1835,6 +1840,7 @@ err_free_mem:
 	otx2_free_queue_mem(qset);
 	return -ENOMEM;
 }
+EXPORT_SYMBOL(otx2_alloc_queue_mem);
 
 int otx2_open(struct net_device *netdev)
 {
@@ -2866,6 +2872,7 @@ int otx2_realloc_msix_vectors(struct otx2_nic *pf)
 
 	return otx2_register_mbox_intr(pf, false);
 }
+EXPORT_SYMBOL(otx2_realloc_msix_vectors);
 
 static int otx2_sriov_vfcfg_init(struct otx2_nic *pf)
 {
