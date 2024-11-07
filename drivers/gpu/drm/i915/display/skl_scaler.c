@@ -291,6 +291,23 @@ int skl_update_scaler_plane(struct intel_crtc_state *crtc_state,
 				 need_scaler);
 }
 
+static int intel_allocate_scaler(struct intel_crtc_scaler_state *scaler_state,
+				 struct intel_crtc *crtc)
+{
+	int i;
+
+	for (i = 0; i < crtc->num_scalers; i++) {
+		if (scaler_state->scalers[i].in_use)
+			continue;
+
+		scaler_state->scalers[i].in_use = true;
+
+		return i;
+	}
+
+	return -1;
+}
+
 static int intel_atomic_setup_scaler(struct intel_crtc_scaler_state *scaler_state,
 				     int num_scalers_need, struct intel_crtc *crtc,
 				     const char *name, int idx,
@@ -299,20 +316,10 @@ static int intel_atomic_setup_scaler(struct intel_crtc_scaler_state *scaler_stat
 {
 	struct intel_display *display = to_intel_display(crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
-	int j;
 	u32 mode;
 
-	if (*scaler_id < 0) {
-		/* find a free scaler */
-		for (j = 0; j < crtc->num_scalers; j++) {
-			if (scaler_state->scalers[j].in_use)
-				continue;
-
-			*scaler_id = j;
-			scaler_state->scalers[*scaler_id].in_use = true;
-			break;
-		}
-	}
+	if (*scaler_id < 0)
+		*scaler_id = intel_allocate_scaler(scaler_state, crtc);
 
 	if (drm_WARN(display->drm, *scaler_id < 0,
 		     "Cannot find scaler for %s:%d\n", name, idx))
