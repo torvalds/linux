@@ -1512,9 +1512,10 @@ static int journal_load_superblock(journal_t *journal)
  * destroy journal_t structures, and to initialise and read existing
  * journal blocks from disk.  */
 
-/* First: create and setup a journal_t object in memory.  We initialise
- * very few fields yet: that has to wait until we have created the
- * journal structures from from scratch, or loaded them from disk. */
+/* The journal_init_common() function creates and fills a journal_t object
+ * in memory. It calls journal_load_superblock() to load the on-disk journal
+ * superblock and initialize the journal_t object.
+ */
 
 static journal_t *journal_init_common(struct block_device *bdev,
 			struct block_device *fs_dev,
