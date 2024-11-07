@@ -134,8 +134,7 @@ function check_vreg
 	b	memcmp
 endfunction
 
-// Any SVE register modified here can cause corruption in the main
-// thread -- but *only* the registers modified here.
+// Modify live register state, the signal return will undo our changes
 function irritator_handler
 	// Increment the irritation signal count (x23):
 	ldr	x0, [x2, #ucontext_regs + 8 * 23]
