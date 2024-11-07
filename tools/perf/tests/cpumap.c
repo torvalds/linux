@@ -167,6 +167,15 @@ static int __test__cpu_map_merge(const char *lhs, const char *rhs, int nr, const
 	cpu_map__snprint(a, buf, sizeof(buf));
 	TEST_ASSERT_VAL("failed to merge map: bad result", !strcmp(buf, expected));
 	perf_cpu_map__put(b);
+
+	/*
+	 * If 'b' is a superset of 'a', 'a' points to the same map with the
+	 * map 'b'. In this case, the owner 'b' has released the resource above
+	 * but 'a' still keeps the ownership, the reference counter should be 1.
+	 */
+	TEST_ASSERT_VAL("unexpected refcnt: bad result",
+			refcount_read(perf_cpu_map__refcnt(a)) == 1);
+
 	perf_cpu_map__put(a);
 	return 0;
 }
