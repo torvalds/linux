@@ -1124,14 +1124,15 @@ static int bnxt_grxclsrule(struct bnxt *bp, struct ethtool_rxnfc *cmd)
 	fkeys = &fltr->fkeys;
 	fmasks = &fltr->fmasks;
 	if (fkeys->basic.n_proto == htons(ETH_P_IP)) {
-		if (fkeys->basic.ip_proto == IPPROTO_ICMP ||
-		    fkeys->basic.ip_proto == IPPROTO_RAW) {
+		if (fkeys->basic.ip_proto == BNXT_IP_PROTO_WILDCARD) {
 			fs->flow_type = IP_USER_FLOW;
 			fs->h_u.usr_ip4_spec.ip_ver = ETH_RX_NFC_IP4;
-			if (fkeys->basic.ip_proto == IPPROTO_ICMP)
-				fs->h_u.usr_ip4_spec.proto = IPPROTO_ICMP;
-			else
-				fs->h_u.usr_ip4_spec.proto = IPPROTO_RAW;
+			fs->h_u.usr_ip4_spec.proto = BNXT_IP_PROTO_WILDCARD;
+			fs->m_u.usr_ip4_spec.proto = 0;
+		} else if (fkeys->basic.ip_proto == IPPROTO_ICMP) {
+			fs->flow_type = IP_USER_FLOW;
+			fs->h_u.usr_ip4_spec.ip_ver = ETH_RX_NFC_IP4;
+			fs->h_u.usr_ip4_spec.proto = IPPROTO_ICMP;
 			fs->m_u.usr_ip4_spec.proto = BNXT_IP_PROTO_FULL_MASK;
 		} else if (fkeys->basic.ip_proto == IPPROTO_TCP) {
 			fs->flow_type = TCP_V4_FLOW;
@@ -1153,13 +1154,13 @@ static int bnxt_grxclsrule(struct bnxt *bp, struct ethtool_rxnfc *cmd)
 			fs->m_u.tcp_ip4_spec.pdst = fmasks->ports.dst;
 		}
 	} else {
-		if (fkeys->basic.ip_proto == IPPROTO_ICMPV6 ||
-		    fkeys->basic.ip_proto == IPPROTO_RAW) {
+		if (fkeys->basic.ip_proto == BNXT_IP_PROTO_WILDCARD) {
 			fs->flow_type = IPV6_USER_FLOW;
-			if (fkeys->basic.ip_proto == IPPROTO_ICMPV6)
-				fs->h_u.usr_ip6_spec.l4_proto = IPPROTO_ICMPV6;
-			else
-				fs->h_u.usr_ip6_spec.l4_proto = IPPROTO_RAW;
+			fs->h_u.usr_ip6_spec.l4_proto = BNXT_IP_PROTO_WILDCARD;
+			fs->m_u.usr_ip6_spec.l4_proto = 0;
+		} else if (fkeys->basic.ip_proto == IPPROTO_ICMPV6) {
+			fs->flow_type = IPV6_USER_FLOW;
+			fs->h_u.usr_ip6_spec.l4_proto = IPPROTO_ICMPV6;
 			fs->m_u.usr_ip6_spec.l4_proto = BNXT_IP_PROTO_FULL_MASK;
 		} else if (fkeys->basic.ip_proto == IPPROTO_TCP) {
 			fs->flow_type = TCP_V6_FLOW;
@@ -1282,10 +1283,12 @@ static int bnxt_add_l2_cls_rule(struct bnxt *bp,
 static bool bnxt_verify_ntuple_ip4_flow(struct ethtool_usrip4_spec *ip_spec,
 					struct ethtool_usrip4_spec *ip_mask)
 {
+	u8 mproto = ip_mask->proto;
+	u8 sproto = ip_spec->proto;
+
 	if (ip_mask->l4_4_bytes || ip_mask->tos ||
 	    ip_spec->ip_ver != ETH_RX_NFC_IP4 ||
-	    ip_mask->proto != BNXT_IP_PROTO_FULL_MASK ||
-	    (ip_spec->proto != IPPROTO_RAW && ip_spec->proto != IPPROTO_ICMP))
+	    (mproto && (mproto != BNXT_IP_PROTO_FULL_MASK || sproto != IPPROTO_ICMP)))
 		return false;
 	return true;
 }
@@ -1293,10 +1296,11 @@ static bool bnxt_verify_ntuple_ip4_flow(struct ethtool_usrip4_spec *ip_spec,
 static bool bnxt_verify_ntuple_ip6_flow(struct ethtool_usrip6_spec *ip_spec,
 					struct ethtool_usrip6_spec *ip_mask)
 {
+	u8 mproto = ip_mask->l4_proto;
+	u8 sproto = ip_spec->l4_proto;
+
 	if (ip_mask->l4_4_bytes || ip_mask->tclass ||
-	    ip_mask->l4_proto != BNXT_IP_PROTO_FULL_MASK ||
-	    (ip_spec->l4_proto != IPPROTO_RAW &&
-	     ip_spec->l4_proto != IPPROTO_ICMPV6))
+	    (mproto && (mproto != BNXT_IP_PROTO_FULL_MASK || sproto != IPPROTO_ICMPV6)))
 		return false;
 	return true;
 }
@@ -1350,7 +1354,8 @@ static int bnxt_add_ntuple_cls_rule(struct bnxt *bp,
 		struct ethtool_usrip4_spec *ip_spec = &fs->h_u.usr_ip4_spec;
 		struct ethtool_usrip4_spec *ip_mask = &fs->m_u.usr_ip4_spec;
 
-		fkeys->basic.ip_proto = ip_spec->proto;
+		fkeys->basic.ip_proto = ip_mask->proto ? ip_spec->proto
+						       : BNXT_IP_PROTO_WILDCARD;
 		fkeys->basic.n_proto = htons(ETH_P_IP);
 		fkeys->addrs.v4addrs.src = ip_spec->ip4src;
 		fmasks->addrs.v4addrs.src = ip_mask->ip4src;
@@ -1381,7 +1386,8 @@ static int bnxt_add_ntuple_cls_rule(struct bnxt *bp,
 		struct ethtool_usrip6_spec *ip_spec = &fs->h_u.usr_ip6_spec;
 		struct ethtool_usrip6_spec *ip_mask = &fs->m_u.usr_ip6_spec;
 
-		fkeys->basic.ip_proto = ip_spec->l4_proto;
+		fkeys->basic.ip_proto = ip_mask->l4_proto ? ip_spec->l4_proto
+							  : BNXT_IP_PROTO_WILDCARD;
 		fkeys->basic.n_proto = htons(ETH_P_IPV6);
 		fkeys->addrs.v6addrs.src = *(struct in6_addr *)&ip_spec->ip6src;
 		fmasks->addrs.v6addrs.src = *(struct in6_addr *)&ip_mask->ip6src;
