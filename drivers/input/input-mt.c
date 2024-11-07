@@ -39,20 +39,20 @@ static void copy_abs(struct input_dev *dev, unsigned int dst, unsigned int src)
 int input_mt_init_slots(struct input_dev *dev, unsigned int num_slots,
 			unsigned int flags)
 {
-	struct input_mt *mt = dev->mt;
-	int i;
-
 	if (!num_slots)
 		return 0;
-	if (mt)
-		return mt->num_slots != num_slots ? -EINVAL : 0;
+
+	if (dev->mt)
+		return dev->mt->num_slots != num_slots ? -EINVAL : 0;
+
 	/* Arbitrary limit for avoiding too large memory allocation. */
 	if (num_slots > 1024)
 		return -EINVAL;
 
-	mt = kzalloc(struct_size(mt, slots, num_slots), GFP_KERNEL);
+	struct input_mt *mt __free(kfree) =
+			kzalloc(struct_size(mt, slots, num_slots), GFP_KERNEL);
 	if (!mt)
-		goto err_mem;
+		return -ENOMEM;
 
 	mt->num_slots = num_slots;
 	mt->flags = flags;
@@ -86,21 +86,18 @@ int input_mt_init_slots(struct input_dev *dev, unsigned int num_slots,
 		unsigned int n2 = num_slots * num_slots;
 		mt->red = kcalloc(n2, sizeof(*mt->red), GFP_KERNEL);
 		if (!mt->red)
-			goto err_mem;
+			return -ENOMEM;
 	}
 
 	/* Mark slots as 'inactive' */
-	for (i = 0; i < num_slots; i++)
+	for (unsigned int i = 0; i < num_slots; i++)
 		input_mt_set_value(&mt->slots[i], ABS_MT_TRACKING_ID, -1);
 
 	/* Mark slots as 'unused' */
 	mt->frame = 1;
 
-	dev->mt = mt;
+	dev->mt = no_free_ptr(mt);
 	return 0;
-err_mem:
-	kfree(mt);
-	return -ENOMEM;
 }
 EXPORT_SYMBOL(input_mt_init_slots);
 
