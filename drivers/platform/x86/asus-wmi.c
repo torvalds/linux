@@ -3755,28 +3755,6 @@ static int throttle_thermal_policy_set_default(struct asus_wmi *asus)
 	return throttle_thermal_policy_write(asus);
 }
 
-static int throttle_thermal_policy_switch_next(struct asus_wmi *asus)
-{
-	u8 new_mode = asus->throttle_thermal_policy_mode + 1;
-	int err;
-
-	if (new_mode > PLATFORM_PROFILE_MAX)
-		new_mode = ASUS_THROTTLE_THERMAL_POLICY_DEFAULT;
-
-	asus->throttle_thermal_policy_mode = new_mode;
-	err = throttle_thermal_policy_write(asus);
-	if (err)
-		return err;
-
-	/*
-	 * Ensure that platform_profile updates userspace with the change to ensure
-	 * that platform_profile and throttle_thermal_policy_mode are in sync.
-	 */
-	platform_profile_notify();
-
-	return 0;
-}
-
 static ssize_t throttle_thermal_policy_show(struct device *dev,
 				   struct device_attribute *attr, char *buf)
 {
@@ -4291,7 +4269,7 @@ static void asus_wmi_handle_event_code(int code, struct asus_wmi *asus)
 		if (asus->fan_boost_mode_available)
 			fan_boost_mode_switch_next(asus);
 		if (asus->throttle_thermal_policy_dev)
-			throttle_thermal_policy_switch_next(asus);
+			platform_profile_cycle();
 		return;
 
 	}
