@@ -356,6 +356,7 @@ struct kvm_s390_sie_block {
 #define ECD_MEF		0x08000000
 #define ECD_ETOKENF	0x02000000
 #define ECD_ECC		0x00200000
+#define ECD_HMAC	0x00004000
 	__u32	ecd;			/* 0x01c8 */
 	__u8	reserved1cc[18];	/* 0x01cc */
 	__u64	pp;			/* 0x01de */

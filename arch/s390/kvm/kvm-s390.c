@@ -3796,6 +3796,13 @@ static bool kvm_has_pckmo_ecc(struct kvm *kvm)
 
 }
 
+static bool kvm_has_pckmo_hmac(struct kvm *kvm)
+{
+	/* At least one HMAC subfunction must be present */
+	return kvm_has_pckmo_subfunc(kvm, 118) ||
+	       kvm_has_pckmo_subfunc(kvm, 122);
+}
+
 static void kvm_s390_vcpu_crypto_setup(struct kvm_vcpu *vcpu)
 {
 	/*
@@ -3808,7 +3815,7 @@ static void kvm_s390_vcpu_crypto_setup(struct kvm_vcpu *vcpu)
 	vcpu->arch.sie_block->crycbd = vcpu->kvm->arch.crypto.crycbd;
 	vcpu->arch.sie_block->ecb3 &= ~(ECB3_AES | ECB3_DEA);
 	vcpu->arch.sie_block->eca &= ~ECA_APIE;
-	vcpu->arch.sie_block->ecd &= ~ECD_ECC;
+	vcpu->arch.sie_block->ecd &= ~(ECD_ECC | ECD_HMAC);
 
 	if (vcpu->kvm->arch.crypto.apie)
 		vcpu->arch.sie_block->eca |= ECA_APIE;
@@ -3816,9 +3823,11 @@ static void kvm_s390_vcpu_crypto_setup(struct kvm_vcpu *vcpu)
 	/* Set up protected key support */
 	if (vcpu->kvm->arch.crypto.aes_kw) {
 		vcpu->arch.sie_block->ecb3 |= ECB3_AES;
-		/* ecc is also wrapped with AES key */
+		/* ecc/hmac is also wrapped with AES key */
 		if (kvm_has_pckmo_ecc(vcpu->kvm))
 			vcpu->arch.sie_block->ecd |= ECD_ECC;
+		if (kvm_has_pckmo_hmac(vcpu->kvm))
+			vcpu->arch.sie_block->ecd |= ECD_HMAC;
 	}
 
 	if (vcpu->kvm->arch.crypto.dea_kw)
