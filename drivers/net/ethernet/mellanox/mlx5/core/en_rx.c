@@ -651,7 +651,7 @@ static int mlx5e_build_shampo_hd_umr(struct mlx5e_rq *rq,
 	u16 pi, header_offset, err, wqe_bbs;
 	u32 lkey = rq->mdev->mlx5e_res.hw_objs.mkey;
 	u16 page_index = shampo->curr_page_index;
-	struct mlx5e_frag_page *frag_page;
+	struct mlx5e_frag_page *frag_page = NULL;
 	struct mlx5e_dma_info *dma_info;
 	struct mlx5e_umr_wqe *umr_wqe;
 	int headroom, i;
@@ -663,16 +663,14 @@ static int mlx5e_build_shampo_hd_umr(struct mlx5e_rq *rq,
 	umr_wqe = mlx5_wq_cyc_get_wqe(&sq->wq, pi);
 	build_ksm_umr(sq, umr_wqe, shampo->key, index, ksm_entries);
 
-	frag_page = &shampo->pages[page_index];
-
 	WARN_ON_ONCE(ksm_entries & (MLX5E_SHAMPO_WQ_HEADER_PER_PAGE - 1));
 	for (i = 0; i < ksm_entries; i++, index++) {
 		dma_info = &shampo->info[index];
 		header_offset = (index & (MLX5E_SHAMPO_WQ_HEADER_PER_PAGE - 1)) <<
 			MLX5E_SHAMPO_LOG_MAX_HEADER_ENTRY_SIZE;
 		if (!(header_offset & (PAGE_SIZE - 1))) {
-			page_index = (page_index + 1) & (shampo->pages_per_wq - 1);
 			frag_page = &shampo->pages[page_index];
+			page_index = (page_index + 1) & (shampo->pages_per_wq - 1);
 
 			err = mlx5e_page_alloc_fragmented(rq, frag_page);
 			if (unlikely(err))
