@@ -376,7 +376,7 @@ static bool uc_handle_sieic(FIXTURE_DATA(uc_kvm) *self)
 	struct kvm_run *run = self->run;
 
 	/* check SIE interception code */
-	pr_info("sieic: 0x%.2x 0x%.4x 0x%.4x\n",
+	pr_info("sieic: 0x%.2x 0x%.4x 0x%.8x\n",
 		run->s390_sieic.icptcode,
 		run->s390_sieic.ipa,
 		run->s390_sieic.ipb);
