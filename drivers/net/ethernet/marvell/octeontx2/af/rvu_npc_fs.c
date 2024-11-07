@@ -1398,6 +1398,7 @@ int rvu_mbox_handler_npc_install_flow(struct rvu *rvu,
 				      struct npc_install_flow_rsp *rsp)
 {
 	bool from_vf = !!(req->hdr.pcifunc & RVU_PFVF_FUNC_MASK);
+	bool from_rep_dev = !!is_rep_dev(rvu, req->hdr.pcifunc);
 	struct rvu_switch *rswitch = &rvu->rswitch;
 	int blkaddr, nixlf, err;
 	struct rvu_pfvf *pfvf;
@@ -1454,14 +1455,19 @@ process_flow:
 	/* AF installing for a PF/VF */
 	if (!req->hdr.pcifunc)
 		target = req->vf;
+
 	/* PF installing for its VF */
-	else if (!from_vf && req->vf) {
+	if (!from_vf && req->vf && !from_rep_dev) {
 		target = (req->hdr.pcifunc & ~RVU_PFVF_FUNC_MASK) | req->vf;
 		pf_set_vfs_mac = req->default_rule &&
 				(req->features & BIT_ULL(NPC_DMAC));
 	}
-	/* msg received from PF/VF */
+
+	/* Representor device installing for a representee */
+	if (from_rep_dev && req->vf)
+		target = req->vf;
 	else
+		/* msg received from PF/VF */
 		target = req->hdr.pcifunc;
 
 	/* ignore chan_mask in case pf func is not AF, revisit later */
@@ -1474,8 +1480,10 @@ process_flow:
 
 	pfvf = rvu_get_pfvf(rvu, target);
 
+	if (from_rep_dev)
+		req->channel = pfvf->rx_chan_base;
 	/* PF installing for its VF */
-	if (req->hdr.pcifunc && !from_vf && req->vf)
+	if (req->hdr.pcifunc && !from_vf && req->vf && !from_rep_dev)
 		set_bit(PF_SET_VF_CFG, &pfvf->flags);
 
 	/* update req destination mac addr */

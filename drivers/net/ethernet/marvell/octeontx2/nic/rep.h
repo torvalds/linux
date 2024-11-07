@@ -35,6 +35,7 @@ struct rep_dev {
 	struct rep_stats stats;
 	struct delayed_work stats_wrk;
 	struct devlink_port dl_port;
+	struct otx2_flow_config	*flow_cfg;
 #define RVU_REP_VF_INITIALIZED		BIT_ULL(0)
 	u64 flags;
 	u16 rep_id;

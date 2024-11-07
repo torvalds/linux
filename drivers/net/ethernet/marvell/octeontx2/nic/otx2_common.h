@@ -1142,4 +1142,11 @@ int otx2_get_txq_by_classid(struct otx2_nic *pfvf, u16 classid);
 void otx2_qos_config_txschq(struct otx2_nic *pfvf);
 void otx2_clean_qos_queues(struct otx2_nic *pfvf);
 int rvu_event_up_notify(struct otx2_nic *pf, struct rep_event *info);
+int otx2_setup_tc_cls_flower(struct otx2_nic *nic,
+			     struct flow_cls_offload *cls_flower);
+
+static inline int mcam_entry_cmp(const void *a, const void *b)
+{
+	return *(u16 *)a - *(u16 *)b;
+}
 #endif /* OTX2_COMMON_H */

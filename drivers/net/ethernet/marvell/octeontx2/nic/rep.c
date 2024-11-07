@@ -9,6 +9,7 @@
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/net_tstamp.h>
+#include <linux/sort.h>
 
 #include "otx2_common.h"
 #include "cn10k.h"
@@ -30,6 +31,117 @@ MODULE_DEVICE_TABLE(pci, rvu_rep_id_table);
 
 static int rvu_rep_notify_pfvf(struct otx2_nic *priv, u16 event,
 			       struct rep_event *data);
+
+static int rvu_rep_mcam_flow_init(struct rep_dev *rep)
+{
+	struct npc_mcam_alloc_entry_req *req;
+	struct npc_mcam_alloc_entry_rsp *rsp;
+	struct otx2_nic *priv = rep->mdev;
+	int ent, allocated = 0;
+	int count;
+
+	rep->flow_cfg = kcalloc(1, sizeof(struct otx2_flow_config), GFP_KERNEL);
+
+	if (!rep->flow_cfg)
+		return -ENOMEM;
+
+	count = OTX2_DEFAULT_FLOWCOUNT;
+
+	rep->flow_cfg->flow_ent = kcalloc(count, sizeof(u16), GFP_KERNEL);
+	if (!rep->flow_cfg->flow_ent)
+		return -ENOMEM;
+
+	while (allocated < count) {
+		req = otx2_mbox_alloc_msg_npc_mcam_alloc_entry(&priv->mbox);
+		if (!req)
+			goto exit;
+
+		req->hdr.pcifunc = rep->pcifunc;
+		req->contig = false;
+		req->ref_entry = 0;
+		req->count = (count - allocated) > NPC_MAX_NONCONTIG_ENTRIES ?
+				NPC_MAX_NONCONTIG_ENTRIES : count - allocated;
+
+		if (otx2_sync_mbox_msg(&priv->mbox))
+			goto exit;
+
+		rsp = (struct npc_mcam_alloc_entry_rsp *)otx2_mbox_get_rsp
+			(&priv->mbox.mbox, 0, &req->hdr);
+
+		for (ent = 0; ent < rsp->count; ent++)
+			rep->flow_cfg->flow_ent[ent + allocated] = rsp->entry_list[ent];
+
+		allocated += rsp->count;
+
+		if (rsp->count != req->count)
+			break;
+	}
+exit:
+	/* Multiple MCAM entry alloc requests could result in non-sequential
+	 * MCAM entries in the flow_ent[] array. Sort them in an ascending
+	 * order, otherwise user installed ntuple filter index and MCAM entry
+	 * index will not be in sync.
+	 */
+	if (allocated)
+		sort(&rep->flow_cfg->flow_ent[0], allocated,
+		     sizeof(rep->flow_cfg->flow_ent[0]), mcam_entry_cmp, NULL);
+
+	mutex_unlock(&priv->mbox.lock);
+
+	rep->flow_cfg->max_flows = allocated;
+
+	if (allocated) {
+		rep->flags |= OTX2_FLAG_MCAM_ENTRIES_ALLOC;
+		rep->flags |= OTX2_FLAG_NTUPLE_SUPPORT;
+		rep->flags |= OTX2_FLAG_TC_FLOWER_SUPPORT;
+	}
+
+	INIT_LIST_HEAD(&rep->flow_cfg->flow_list);
+	INIT_LIST_HEAD(&rep->flow_cfg->flow_list_tc);
+	return 0;
+}
+
+static int rvu_rep_setup_tc_cb(enum tc_setup_type type,
+			       void *type_data, void *cb_priv)
+{
+	struct rep_dev *rep = cb_priv;
+	struct otx2_nic *priv = rep->mdev;
+
+	if (!(rep->flags & RVU_REP_VF_INITIALIZED))
+		return -EINVAL;
+
+	if (!(rep->flags & OTX2_FLAG_TC_FLOWER_SUPPORT))
+		rvu_rep_mcam_flow_init(rep);
+
+	priv->netdev = rep->netdev;
+	priv->flags = rep->flags;
+	priv->pcifunc = rep->pcifunc;
+	priv->flow_cfg = rep->flow_cfg;
+
+	switch (type) {
+	case TC_SETUP_CLSFLOWER:
+		return otx2_setup_tc_cls_flower(priv, type_data);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
+static LIST_HEAD(rvu_rep_block_cb_list);
+static int rvu_rep_setup_tc(struct net_device *netdev, enum tc_setup_type type,
+			    void *type_data)
+{
+	struct rvu_rep *rep = netdev_priv(netdev);
+
+	switch (type) {
+	case TC_SETUP_BLOCK:
+		return flow_block_cb_setup_simple(type_data,
+						  &rvu_rep_block_cb_list,
+						  rvu_rep_setup_tc_cb,
+						  rep, rep, true);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
 
 static int
 rvu_rep_sp_stats64(const struct net_device *dev,
@@ -367,6 +479,7 @@ static const struct net_device_ops rvu_rep_netdev_ops = {
 	.ndo_change_mtu		= rvu_rep_change_mtu,
 	.ndo_has_offload_stats	= rvu_rep_has_offload_stats,
 	.ndo_get_offload_stats	= rvu_rep_get_offload_stats,
+	.ndo_setup_tc		= rvu_rep_setup_tc,
 };
 
 static int rvu_rep_napi_init(struct otx2_nic *priv,
@@ -512,6 +625,7 @@ void rvu_rep_destroy(struct otx2_nic *priv)
 		unregister_netdev(rep->netdev);
 		rvu_rep_devlink_port_unregister(rep);
 		free_netdev(rep->netdev);
+		kfree(rep->flow_cfg);
 	}
 	kfree(priv->reps);
 	rvu_rep_rsrc_free(priv);
@@ -562,6 +676,7 @@ int rvu_rep_create(struct otx2_nic *priv, struct netlink_ext_ack *extack)
 			       NETIF_F_IPV6_CSUM | NETIF_F_RXHASH |
 			       NETIF_F_SG | NETIF_F_TSO | NETIF_F_TSO6);
 
+		ndev->hw_features |= NETIF_F_HW_TC;
 		ndev->features |= ndev->hw_features;
 		eth_hw_addr_random(ndev);
 		err = rvu_rep_devlink_port_register(rep);
