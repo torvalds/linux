@@ -109,6 +109,7 @@ static struct facility_def facility_defs[] = {
 			15, /* AP Facilities Test */
 			156, /* etoken facility */
 			165, /* nnpa facility */
+			170, /* ineffective-nonconstrained-transaction facility */
 			193, /* bear enhancement facility */
 			194, /* rdp enhancement facility */
 			196, /* processor activity instrumentation facility */
