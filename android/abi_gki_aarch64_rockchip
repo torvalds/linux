@@ -2105,6 +2105,7 @@
 # required by pcie-dw-rockchip.ko
   device_release_driver
   dw_pcie_find_ext_capability
+  dw_pcie_host_deinit
   dw_pcie_host_init
   dw_pcie_link_up
   dw_pcie_read
@@ -2121,6 +2122,7 @@
   devm_pci_remap_cfg_resource
   jiffies_to_usecs
   of_pci_get_max_link_speed
+  of_pci_get_slot_power_limit
   pci_host_probe
   pci_remove_root_bus
   pci_stop_root_bus

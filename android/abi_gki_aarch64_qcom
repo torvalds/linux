@@ -1879,6 +1879,7 @@
   lowpan_register_netdevice
   lowpan_unregister_netdev
   lowpan_unregister_netdevice
+  lru_gen_caps
   mac_pton
   mas_find
   match_string
@@ -2292,12 +2293,14 @@
   pcie_capability_clear_and_set_word
   pcie_capability_read_dword
   pcie_capability_read_word
+  pci_ecam_map_bus
   pci_enable_device
   pci_enable_pcie_error_reporting
   pci_find_ext_capability
   pci_free_irq_vectors
   pci_get_device
   pci_get_domain_bus_and_slot
+  pci_host_common_probe
   pci_host_probe
   pci_iomap
   pci_iounmap
@@ -2488,6 +2491,7 @@
   power_supply_get_property
   power_supply_put
   power_supply_register
+  power_supply_register_no_ws
   power_supply_reg_notifier
   power_supply_set_property
   power_supply_unregister
@@ -3766,6 +3770,7 @@
   __uio_register_device
   uio_unregister_device
   unlock_page
+  unpack_shadow
   unregister_blkdev
   unregister_candev
   __unregister_chrdev

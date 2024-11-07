@@ -262,6 +262,8 @@ static int __pkvm_create_hyp_vm(struct kvm *host_kvm)
 	host_kvm->arch.pkvm.handle = handle;
 
 	total_sz = hyp_vm_sz + last_ran_sz + pgd_sz;
+	atomic64_set(&host_kvm->stat.protected_hyp_mem, total_sz);
+	kvm_account_pgtable_pages(pgd, pgd_sz >> PAGE_SHIFT);
 
 	/* Donate memory for the vcpus at hyp and initialize it. */
 	hyp_vcpu_sz = PAGE_ALIGN(PKVM_HYP_VCPU_SIZE);
@@ -280,18 +282,15 @@ static int __pkvm_create_hyp_vm(struct kvm *host_kvm)
 			goto destroy_vm;
 		}
 
-		total_sz += hyp_vcpu_sz;
-
 		ret = kvm_call_hyp_nvhe(__pkvm_init_vcpu, handle, host_vcpu,
 					hyp_vcpu);
 		if (ret) {
 			free_pages_exact(hyp_vcpu, hyp_vcpu_sz);
 			goto destroy_vm;
 		}
-	}
 
-	atomic64_set(&host_kvm->stat.protected_hyp_mem, total_sz);
-	kvm_account_pgtable_pages(pgd, pgd_sz >> PAGE_SHIFT);
+		atomic64_add(hyp_vcpu_sz, &host_kvm->stat.protected_hyp_mem);
+	}
 
 	return 0;
 

@@ -147,6 +147,7 @@
   dma_map_sg_attrs
   dma_set_coherent_mask
   dma_set_mask
+  dma_sync_single_for_device
   dma_unmap_page_attrs
   dma_unmap_sg_attrs
   do_trace_netlink_extack
@@ -188,6 +189,7 @@
   get_net_ns_by_fd
   get_net_ns_by_pid
   get_random_bytes
+  get_zeroed_page
   gic_nonsecure_priorities
   gpiochip_add_data_with_key
   gpiochip_find
@@ -415,6 +417,7 @@
   phy_start
   phy_stop
   phy_trigger_machine
+  platform_device_put
   platform_device_register_full
   platform_device_unregister
   __platform_driver_probe
@@ -783,7 +786,6 @@
   dma_sync_single_for_cpu
   of_get_ethdev_address
   of_platform_populate
-  platform_get_irq_byname
   __skb_pad
   synchronize_irq
 
@@ -862,6 +864,23 @@
   get_user_pages
   of_find_net_device_by_node
   of_find_node_by_phandle
+
+# required by brcmstb-iommu.ko
+  devm_get_free_pages
+  generic_device_group
+  iommu_device_register
+  iommu_device_sysfs_add
+  iommu_device_sysfs_remove
+  iommu_device_unlink
+  iommu_device_unregister
+  iommu_fwspec_init
+  iommu_group_alloc
+  iommu_group_put
+  iommu_group_ref_get
+  iommu_group_set_name
+  pci_device_group
+  pci_find_host_bridge
+  platform_get_irq_byname
 
 # required by brcmstb-proc-info.ko
   find_get_pid
@@ -1075,7 +1094,6 @@
   platform_device_add_data
   platform_device_add_resources
   platform_device_alloc
-  platform_device_put
   softnet_data
 
 # required by gpio-brcmstb.ko
@@ -1594,7 +1612,6 @@
   dma_get_slave_caps
   dma_release_channel
   dma_request_chan
-  dma_sync_single_for_device
   empty_zero_page
   gpiochip_request_own_desc
   __of_get_address
@@ -1689,7 +1706,6 @@
   device_find_child_by_name
   device_for_each_child
   _find_first_zero_bit
-  get_zeroed_page
   rtnl_configure_link
   rtnl_create_link
 
@@ -1751,3 +1767,11 @@
 # required by bstm.ko
   phys_mem_access_prot
   generic_access_phys
+
+# required by bcm_astra.ko
+  strnlen_user
+  tty_buffer_set_limit
+  tty_buffer_request_room
+
+# required by bcm_athena.ko
+  __read_overflow2_field

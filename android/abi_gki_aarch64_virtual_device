@@ -1367,6 +1367,12 @@
   snd_pcm_set_ops
   wait_for_completion_interruptible_timeout
 
+# required by virtio-audio
+  snd_device_new
+  snd_pcm_hw_limit_rates
+  _snd_pcm_stream_lock_irqsave
+  snd_pcm_stream_unlock_irqrestore
+
 # required by vkms.ko
   __devm_drm_dev_alloc
   devres_open_group
