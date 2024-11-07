@@ -17,6 +17,15 @@
 	qcom,msm-id = <0x125 0x00>;
 	qcom,board-id = <0x41 0x82b1 0x41 0x83b0>;
 
+	battery: battery {
+		compatible = "simple-battery";
+
+		charge-full-design-microamp-hours = <5000000>;
+		constant-charge-current-max-microamp = <1000000>;
+		voltage-min-design-microvolt = <3400000>;
+		voltage-max-design-microvolt = <4400000>;
+	};
+
 	gpio-keys {
 		compatible = "gpio-keys";
 
@@ -28,6 +37,21 @@
 			gpios = <&tlmm 85 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_VOLUMEUP>;
 			debounce-interval = <15>;
+		};
+
+		one-key-low-power {
+			label = "onekeylowpower";
+			gpios = <&tlmm 86 GPIO_ACTIVE_LOW>;
+			linux,code = <ABS_HAT1Y>;
+			debounce-interval = <15>;
+		};
+
+		homepage {
+			label = "homepage";
+			gpios = <&tlmm 132 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_HOMEPAGE>;
+			debounce-interval = <15>;
+			gpio-key,wakeup;
 		};
 	};
 
@@ -47,6 +71,25 @@
 		};
 	};
 
+	i2c-sensors {
+		compatible = "i2c-gpio";
+		sda-gpios = <&tlmm 14 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)>;
+		scl-gpios = <&tlmm 15 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)>;
+		i2c-gpio,delay-us = <2>; /* ~100 kHz */
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		imu@6a {
+			compatible = "st,lsm6ds3";
+			reg = <0x6a>;
+			vdd-supply = <&pm8953_l22>;
+			vddio-supply = <&pm8953_l6>;
+			mount-matrix = "0", "-1", "0",
+				       "-1", "0", "0",
+				       "0", "0", "1";
+		};
+	};
+
 	vph_pwr: vph-pwr-regulator {
 		compatible = "regulator-fixed";
 		regulator-name = "vph_pwr";
@@ -63,8 +106,73 @@
 	status = "okay";
 };
 
+&ibb {
+	qcom,discharge-resistor-kohms = <32>;
+};
+
+&lab {
+	qcom,soft-start-us = <800>;
+};
+
+&lpass {
+	status = "okay";
+};
+
+&mdss {
+	status = "okay";
+};
+
+&mdss_dsi0 {
+	vdda-supply = <&pm8953_s3>;
+	vddio-supply = <&pm8953_l6>;
+	status = "okay";
+
+	panel: panel@0 {
+		compatible = "lenovo,kuntao-549";
+		reg = <0>;
+
+		pinctrl-0 = <&pmx_mdss_default>;
+		pinctrl-1 = <&pmx_mdss_sleep>;
+		pinctrl-names = "default", "sleep";
+
+		reset-gpios = <&tlmm 61 GPIO_ACTIVE_LOW>;
+
+		vsp-supply = <&lab>;
+		vsn-supply = <&ibb>;
+
+		port {
+			panel_in: endpoint {
+				remote-endpoint = <&mdss_dsi0_out>;
+			};
+		};
+	};
+};
+
+&mdss_dsi0_out {
+	data-lanes = <0 1 2 3>;
+	remote-endpoint = <&panel_in>;
+};
+
+&mdss_dsi0_phy {
+	vcca-supply = <&pm8953_l3>;
+
+	status = "okay";
+};
+
+&mpss {
+	mss-supply = <&pm8953_s1>;
+	pll-supply = <&pm8953_l7>;
+
+	status = "okay";
+};
+
 &pm8953_resin {
 	linux,code = <KEY_VOLUMEDOWN>;
+	status = "okay";
+};
+
+&pmi8950_fg {
+	monitored-battery = <&battery>;
 	status = "okay";
 };
 
@@ -214,6 +322,28 @@
 
 &tlmm {
 	gpio-reserved-ranges = <0 4>, <135 4>;
+
+	gpio_key_default: gpio-key-default-state {
+		pins = "gpio85", "gpio86", "gpio132";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-pull-up;
+	};
+
+	pmx_mdss_default: pmx-mdss-default-state {
+		pins = "gpio61", "gpio59";
+		function = "gpio";
+		drive-strength = <8>;
+		bias-disable;
+		output-high;
+	};
+
+	pmx_mdss_sleep: pmx-mdss-sleep-state {
+		pins = "gpio61", "gpio59";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-pull-down;
+	};
 };
 
 &usb3 {
