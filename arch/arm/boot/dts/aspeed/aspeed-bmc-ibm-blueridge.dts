@@ -740,7 +740,7 @@
 			type = <PCA955X_TYPE_LED>;
 		};
 
-		led@10 {
+		led@a {
 			reg = <10>;
 			default-state = "keep";
 			label = "ddimm10";
@@ -748,7 +748,7 @@
 			type = <PCA955X_TYPE_LED>;
 		};
 
-		led@11 {
+		led@b {
 			reg = <11>;
 			default-state = "keep";
 			label = "ddimm11";
@@ -756,7 +756,7 @@
 			type = <PCA955X_TYPE_LED>;
 		};
 
-		led@12 {
+		led@c {
 			reg = <12>;
 			default-state = "keep";
 			label = "ddimm12";
@@ -764,7 +764,7 @@
 			type = <PCA955X_TYPE_LED>;
 		};
 
-		led@13 {
+		led@d {
 			reg = <13>;
 			default-state = "keep";
 			label = "ddimm13";
@@ -772,7 +772,7 @@
 			type = <PCA955X_TYPE_LED>;
 		};
 
-		led@14 {
+		led@e {
 			reg = <14>;
 			default-state = "keep";
 			label = "ddimm14";
@@ -780,7 +780,7 @@
 			type = <PCA955X_TYPE_LED>;
 		};
 
-		led@15 {
+		led@f {
 			reg = <15>;
 			default-state = "keep";
 			label = "ddimm15";
@@ -877,7 +877,7 @@
 			type = <PCA955X_TYPE_LED>;
 		};
 
-		led@10 {
+		led@a {
 			reg = <10>;
 			default-state = "keep";
 			label = "ddimm26";
@@ -885,7 +885,7 @@
 			type = <PCA955X_TYPE_LED>;
 		};
 
-		led@11 {
+		led@b {
 			reg = <11>;
 			default-state = "keep";
 			label = "ddimm27";
@@ -893,7 +893,7 @@
 			type = <PCA955X_TYPE_LED>;
 		};
 
-		led@12 {
+		led@c {
 			reg = <12>;
 			default-state = "keep";
 			label = "ddimm28";
@@ -901,7 +901,7 @@
 			type = <PCA955X_TYPE_LED>;
 		};
 
-		led@13 {
+		led@d {
 			reg = <13>;
 			default-state = "keep";
 			label = "ddimm29";
@@ -909,7 +909,7 @@
 			type = <PCA955X_TYPE_LED>;
 		};
 
-		led@14 {
+		led@e {
 			reg = <14>;
 			default-state = "keep";
 			label = "ddimm30";
@@ -917,7 +917,7 @@
 			type = <PCA955X_TYPE_LED>;
 		};
 
-		led@15 {
+		led@f {
 			reg = <15>;
 			default-state = "keep";
 			label = "ddimm31";
@@ -1006,7 +1006,7 @@
 			type = <PCA955X_TYPE_LED>;
 		};
 
-		led@10 {
+		led@a {
 			reg = <10>;
 			default-state = "keep";
 			label = "pcieslot7";
@@ -1014,7 +1014,7 @@
 			type = <PCA955X_TYPE_LED>;
 		};
 
-		led@11 {
+		led@b {
 			reg = <11>;
 			default-state = "keep";
 			label = "pcieslot8";
@@ -1022,7 +1022,7 @@
 			type = <PCA955X_TYPE_LED>;
 		};
 
-		led@12 {
+		led@c {
 			reg = <12>;
 			default-state = "keep";
 			label = "pcieslot9";
@@ -1030,7 +1030,7 @@
 			type = <PCA955X_TYPE_LED>;
 		};
 
-		led@13 {
+		led@d {
 			reg = <13>;
 			default-state = "keep";
 			label = "pcieslot10";
@@ -1038,7 +1038,7 @@
 			type = <PCA955X_TYPE_LED>;
 		};
 
-		led@14 {
+		led@e {
 			reg = <14>;
 			default-state = "keep";
 			label = "pcieslot11";
@@ -1046,7 +1046,7 @@
 			type = <PCA955X_TYPE_LED>;
 		};
 
-		led@15 {
+		led@f {
 			reg = <15>;
 			default-state = "keep";
 			label = "tpm-wilson";
