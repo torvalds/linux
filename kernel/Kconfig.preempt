@@ -88,7 +88,7 @@ endchoice
 
 config PREEMPT_RT
 	bool "Fully Preemptible Kernel (Real-Time)"
-	depends on EXPERT && ARCH_SUPPORTS_RT
+	depends on EXPERT && ARCH_SUPPORTS_RT && !COMPILE_TEST
 	select PREEMPTION
 	help
 	  This option turns the kernel into a real-time kernel by replacing
