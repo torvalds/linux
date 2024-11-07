@@ -290,8 +290,6 @@ EXPORT_SYMBOL_GPL(input_ff_event);
  */
 int input_ff_create(struct input_dev *dev, unsigned int max_effects)
 {
-	struct ff_device *ff;
-	size_t ff_dev_size;
 	int i;
 
 	if (!max_effects) {
@@ -304,25 +302,19 @@ int input_ff_create(struct input_dev *dev, unsigned int max_effects)
 		return -EINVAL;
 	}
 
-	ff_dev_size = struct_size(ff, effect_owners, max_effects);
-	if (ff_dev_size == SIZE_MAX) /* overflow */
-		return -EINVAL;
-
-	ff = kzalloc(ff_dev_size, GFP_KERNEL);
+	struct ff_device *ff __free(kfree) =
+		kzalloc(struct_size(ff, effect_owners, max_effects),
+			GFP_KERNEL);
 	if (!ff)
 		return -ENOMEM;
 
-	ff->effects = kcalloc(max_effects, sizeof(struct ff_effect),
-			      GFP_KERNEL);
-	if (!ff->effects) {
-		kfree(ff);
+	ff->effects = kcalloc(max_effects, sizeof(*ff->effects), GFP_KERNEL);
+	if (!ff->effects)
 		return -ENOMEM;
-	}
 
 	ff->max_effects = max_effects;
 	mutex_init(&ff->mutex);
 
-	dev->ff = ff;
 	dev->flush = input_ff_flush;
 	dev->event = input_ff_event;
 	__set_bit(EV_FF, dev->evbit);
@@ -334,6 +326,8 @@ int input_ff_create(struct input_dev *dev, unsigned int max_effects)
 	/* we can emulate RUMBLE with periodic effects */
 	if (test_bit(FF_PERIODIC, ff->ffbit))
 		__set_bit(FF_RUMBLE, dev->ffbit);
+
+	dev->ff = no_free_ptr(ff);
 
 	return 0;
 }
