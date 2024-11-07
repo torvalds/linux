@@ -15,10 +15,11 @@ if [ -z "$is_64bit" ]; then
 	RELOCATION=R_PPC_ADDR32
 fi
 
-num_ool_stubs_text=$($objdump -r -j __patchable_function_entries "$vmlinux_o" |
-		     grep -v ".init.text" | grep -c "$RELOCATION")
+num_ool_stubs_total=$($objdump -r -j __patchable_function_entries "$vmlinux_o" |
+		      grep -c "$RELOCATION")
 num_ool_stubs_inittext=$($objdump -r -j __patchable_function_entries "$vmlinux_o" |
-			 grep ".init.text" | grep -c "$RELOCATION")
+			 grep -e ".init.text" -e ".text.startup" | grep -c "$RELOCATION")
+num_ool_stubs_text=$((num_ool_stubs_total - num_ool_stubs_inittext))
 
 if [ "$num_ool_stubs_text" -gt "$num_ool_stubs_text_builtin" ]; then
 	num_ool_stubs_text_end=$((num_ool_stubs_text - num_ool_stubs_text_builtin))
