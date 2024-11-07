@@ -285,14 +285,10 @@ void input_mt_drop_unused(struct input_dev *dev)
 	struct input_mt *mt = dev->mt;
 
 	if (mt) {
-		unsigned long flags;
-
-		spin_lock_irqsave(&dev->event_lock, flags);
+		guard(spinlock_irqsave)(&dev->event_lock);
 
 		__input_mt_drop_unused(dev, mt);
 		mt->frame++;
-
-		spin_unlock_irqrestore(&dev->event_lock, flags);
 	}
 }
 EXPORT_SYMBOL(input_mt_drop_unused);
@@ -339,11 +335,8 @@ void input_mt_sync_frame(struct input_dev *dev)
 		return;
 
 	if (mt->flags & INPUT_MT_DROP_UNUSED) {
-		unsigned long flags;
-
-		spin_lock_irqsave(&dev->event_lock, flags);
+		guard(spinlock_irqsave)(&dev->event_lock);
 		__input_mt_drop_unused(dev, mt);
-		spin_unlock_irqrestore(&dev->event_lock, flags);
 	}
 
 	if ((mt->flags & INPUT_MT_POINTER) && !(mt->flags & INPUT_MT_SEMI_MT))
