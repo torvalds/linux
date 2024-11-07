@@ -869,15 +869,17 @@ static int consumer_test(struct uprobe_multi_consumers *skel,
 			fmt = "prog 0/1: uprobe";
 		} else {
 			/*
-			 * to trigger uretprobe consumer, the uretprobe needs to be installed,
-			 * which means one of the 'return' uprobes was alive when probe was hit:
-			 *
-			 *   idxs: 2/3 uprobe return in 'installed' mask
+			 * To trigger uretprobe consumer, the uretprobe under test either stayed from
+			 * before to after (uret_stays + test_bit) or uretprobe instance survived and
+			 * we have uretprobe active in after (uret_survives + test_bit)
 			 */
-			unsigned long had_uretprobes  = before & 0b1100; /* is uretprobe installed */
 
-			if (had_uretprobes && test_bit(idx, after))
+			bool uret_stays = before & after & 0b1100;
+			bool uret_survives = (before & 0b1100) && (after & 0b1100) && (before & 0b0011);
+
+			if ((uret_stays || uret_survives) && test_bit(idx, after))
 				val++;
+
 			fmt = "idx 2/3: uretprobe";
 		}
 
