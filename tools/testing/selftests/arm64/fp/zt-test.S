@@ -126,7 +126,7 @@ function irritator_handler
 
 	// This will reset ZT to all bits 0
 	smstop
-	smstart
+	smstart_za
 
 	ret
 endfunction
