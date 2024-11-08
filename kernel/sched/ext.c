@@ -3130,11 +3130,62 @@ found:
 }
 
 /*
+ * Return true if the LLC domains do not perfectly overlap with the NUMA
+ * domains, false otherwise.
+ */
+static bool llc_numa_mismatch(void)
+{
+	int cpu;
+
+	/*
+	 * We need to scan all online CPUs to verify whether their scheduling
+	 * domains overlap.
+	 *
+	 * While it is rare to encounter architectures with asymmetric NUMA
+	 * topologies, CPU hotplugging or virtualized environments can result
+	 * in asymmetric configurations.
+	 *
+	 * For example:
+	 *
+	 *  NUMA 0:
+	 *    - LLC 0: cpu0..cpu7
+	 *    - LLC 1: cpu8..cpu15 [offline]
+	 *
+	 *  NUMA 1:
+	 *    - LLC 0: cpu16..cpu23
+	 *    - LLC 1: cpu24..cpu31
+	 *
+	 * In this case, if we only check the first online CPU (cpu0), we might
+	 * incorrectly assume that the LLC and NUMA domains are fully
+	 * overlapping, which is incorrect (as NUMA 1 has two distinct LLC
+	 * domains).
+	 */
+	for_each_online_cpu(cpu) {
+		const struct cpumask *numa_cpus;
+		struct sched_domain *sd;
+
+		sd = rcu_dereference(per_cpu(sd_llc, cpu));
+		if (!sd)
+			return true;
+
+		numa_cpus = cpumask_of_node(cpu_to_node(cpu));
+		if (sd->span_weight != cpumask_weight(numa_cpus))
+			return true;
+	}
+
+	return false;
+}
+
+/*
  * Initialize topology-aware scheduling.
  *
  * Detect if the system has multiple LLC or multiple NUMA domains and enable
  * cache-aware / NUMA-aware scheduling optimizations in the default CPU idle
  * selection policy.
+ *
+ * Assumption: the kernel's internal topology representation assumes that each
+ * CPU belongs to a single LLC domain, and that each LLC domain is entirely
+ * contained within a single NUMA node.
  */
 static void update_selcpu_topology(void)
 {
@@ -3144,26 +3195,34 @@ static void update_selcpu_topology(void)
 	s32 cpu = cpumask_first(cpu_online_mask);
 
 	/*
-	 * We only need to check the NUMA node and LLC domain of the first
-	 * available CPU to determine if they cover all CPUs.
+	 * Enable LLC domain optimization only when there are multiple LLC
+	 * domains among the online CPUs. If all online CPUs are part of a
+	 * single LLC domain, the idle CPU selection logic can choose any
+	 * online CPU without bias.
 	 *
-	 * If all CPUs belong to the same NUMA node or share the same LLC
-	 * domain, enabling NUMA or LLC optimizations is unnecessary.
-	 * Otherwise, these optimizations can be enabled.
+	 * Note that it is sufficient to check the LLC domain of the first
+	 * online CPU to determine whether a single LLC domain includes all
+	 * CPUs.
 	 */
 	rcu_read_lock();
 	sd = rcu_dereference(per_cpu(sd_llc, cpu));
 	if (sd) {
-		cpus = sched_domain_span(sd);
-		if (cpumask_weight(cpus) < num_possible_cpus())
+		if (sd->span_weight < num_online_cpus())
 			enable_llc = true;
 	}
-	sd = highest_flag_domain(cpu, SD_NUMA);
-	if (sd) {
-		cpus = sched_group_span(sd->groups);
-		if (cpumask_weight(cpus) < num_possible_cpus())
-			enable_numa = true;
-	}
+
+	/*
+	 * Enable NUMA optimization only when there are multiple NUMA domains
+	 * among the online CPUs and the NUMA domains don't perfectly overlaps
+	 * with the LLC domains.
+	 *
+	 * If all CPUs belong to the same NUMA node and the same LLC domain,
+	 * enabling both NUMA and LLC optimizations is unnecessary, as checking
+	 * for an idle CPU in the same domain twice is redundant.
+	 */
+	cpus = cpumask_of_node(cpu_to_node(cpu));
+	if ((cpumask_weight(cpus) < num_online_cpus()) & llc_numa_mismatch())
+		enable_numa = true;
 	rcu_read_unlock();
 
 	pr_debug("sched_ext: LLC idle selection %s\n",
