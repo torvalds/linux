@@ -87,14 +87,6 @@
 			      <&adc2 0>, <&adc2 1>, <&adc2 2>, <&adc2 3>;
 	};
 
-	reg_sd1_vmmc: regulator-sd1-vmmc {
-		compatible = "regulator-fixed";
-		regulator-name = "VCC3V3_SD1";
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
-		regulator-always-on;
-	};
-
 	reg_fec1_pwdn: regulator-fec1-pwdn {
 		compatible = "regulator-fixed";
 		regulator-name = "PWDN_FEC1";
@@ -676,7 +668,7 @@
 	pinctrl-2 = <&pinctrl_usdhc1_200mhz>, <&pinctrl_usdhc1_gpio>;
 	cd-gpios = <&gpio5 0 GPIO_ACTIVE_LOW>;
 	wp-gpios = <&gpio5 1 GPIO_ACTIVE_HIGH>;
-	vmmc-supply = <&reg_sd1_vmmc>;
+	vmmc-supply = <&reg_mba_3v3>;
 	bus-width = <4>;
 	no-1-8-v;
 	no-sdio;
