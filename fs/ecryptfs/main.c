@@ -451,7 +451,7 @@ static int ecryptfs_get_tree(struct fs_context *fc)
 	mount_crypt_stat = &sbi->mount_crypt_stat;
 	rc = ecryptfs_validate_options(fc);
 	if (rc) {
-		err = "Error validationg options";
+		err = "Error validating options";
 		goto out;
 	}
 
