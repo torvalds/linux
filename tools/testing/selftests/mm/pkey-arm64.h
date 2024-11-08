@@ -127,7 +127,7 @@ static inline u64 get_pkey_bits(u64 reg, int pkey)
 	return 0;
 }
 
-static void aarch64_write_signal_pkey(ucontext_t *uctxt, u64 pkey)
+static inline void aarch64_write_signal_pkey(ucontext_t *uctxt, u64 pkey)
 {
 	struct _aarch64_ctx *ctx = GET_UC_RESV_HEAD(uctxt);
 	struct poe_context *poe_ctx =
