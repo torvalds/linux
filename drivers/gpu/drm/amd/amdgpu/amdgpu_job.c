@@ -137,6 +137,7 @@ static enum drm_gpu_sched_stat amdgpu_job_timedout(struct drm_sched_job *s_job)
 	/* attempt a per ring reset */
 	if (amdgpu_gpu_recovery &&
 	    ring->funcs->reset) {
+		dev_err(adev->dev, "Starting %s ring reset\n", s_job->sched->name);
 		/* stop the scheduler, but don't mess with the
 		 * bad job yet because if ring reset fails
 		 * we'll fall back to full GPU reset.
@@ -152,6 +153,7 @@ static enum drm_gpu_sched_stat amdgpu_job_timedout(struct drm_sched_job *s_job)
 				drm_sched_start(&ring->sched, 0);
 			goto exit;
 		}
+		dev_err(adev->dev, "Ring %s reset failure\n", ring->sched.name);
 	}
 
 	if (amdgpu_device_should_recover_gpu(ring->adev)) {

@@ -118,7 +118,7 @@
 
 #define MAX_GPU_INSTANCE		64
 
-#define GFX_SLICE_PERIOD		msecs_to_jiffies(250)
+#define GFX_SLICE_PERIOD_MS		250
 
 struct amdgpu_gpu_instance {
 	struct amdgpu_device		*adev;
@@ -1111,8 +1111,6 @@ struct amdgpu_device {
 	bool				in_s3;
 	bool				in_s4;
 	bool				in_s0ix;
-	/* indicate amdgpu suspension status */
-	bool				suspend_complete;
 
 	enum pp_mp1_state               mp1_state;
 	struct amdgpu_doorbell_index doorbell_index;

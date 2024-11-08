@@ -46,11 +46,6 @@
 			DC_LOG_IF_TRACE(__VA_ARGS__); \
 } while (0)
 
-#define TIMING_TRACE(...) do {\
-	if (dc->debug.timing_trace) \
-		DC_LOG_SYNC(__VA_ARGS__); \
-} while (0)
-
 #define CLOCK_TRACE(...) do {\
 	if (dc->debug.clock_trace) \
 		DC_LOG_BANDWIDTH_CALCS(__VA_ARGS__); \
@@ -306,43 +301,6 @@ void post_surface_trace(struct dc *dc)
 
 }
 
-void context_timing_trace(
-		struct dc *dc,
-		struct resource_context *res_ctx)
-{
-	int i;
-	int h_pos[MAX_PIPES] = {0}, v_pos[MAX_PIPES] = {0};
-	struct crtc_position position;
-	unsigned int underlay_idx = dc->res_pool->underlay_pipe_index;
-	DC_LOGGER_INIT(dc->ctx->logger);
-
-
-	for (i = 0; i < dc->res_pool->pipe_count; i++) {
-		struct pipe_ctx *pipe_ctx = &res_ctx->pipe_ctx[i];
-		/* get_position() returns CRTC vertical/horizontal counter
-		 * hence not applicable for underlay pipe
-		 */
-		if (pipe_ctx->stream == NULL || pipe_ctx->pipe_idx == underlay_idx)
-			continue;
-
-		pipe_ctx->stream_res.tg->funcs->get_position(pipe_ctx->stream_res.tg, &position);
-		h_pos[i] = position.horizontal_count;
-		v_pos[i] = position.vertical_count;
-	}
-	for (i = 0; i < dc->res_pool->pipe_count; i++) {
-		struct pipe_ctx *pipe_ctx = &res_ctx->pipe_ctx[i];
-
-		if (pipe_ctx->stream == NULL || pipe_ctx->pipe_idx == underlay_idx)
-			continue;
-
-		TIMING_TRACE("OTG_%d   H_tot:%d  V_tot:%d   H_pos:%d  V_pos:%d\n",
-				pipe_ctx->stream_res.tg->inst,
-				pipe_ctx->stream->timing.h_total,
-				pipe_ctx->stream->timing.v_total,
-				h_pos[i], v_pos[i]);
-	}
-}
-
 void context_clock_trace(
 		struct dc *dc,
 		struct dc_state *context)
@@ -433,4 +391,44 @@ char *dc_status_to_str(enum dc_status status)
 	}
 
 	return "Unexpected status error";
+}
+
+char *dc_pixel_encoding_to_str(enum dc_pixel_encoding pixel_encoding)
+{
+	switch (pixel_encoding) {
+	case PIXEL_ENCODING_RGB:
+		return "RGB";
+	case PIXEL_ENCODING_YCBCR422:
+		return "YUV422";
+	case PIXEL_ENCODING_YCBCR444:
+		return "YUV444";
+	case PIXEL_ENCODING_YCBCR420:
+		return "YUV420";
+	default:
+		return "Unknown";
+	}
+}
+
+char *dc_color_depth_to_str(enum dc_color_depth color_depth)
+{
+	switch (color_depth) {
+	case COLOR_DEPTH_666:
+		return "6-bpc";
+	case COLOR_DEPTH_888:
+		return "8-bpc";
+	case COLOR_DEPTH_101010:
+		return "10-bpc";
+	case COLOR_DEPTH_121212:
+		return "12-bpc";
+	case COLOR_DEPTH_141414:
+		return "14-bpc";
+	case COLOR_DEPTH_161616:
+		return "16-bpc";
+	case COLOR_DEPTH_999:
+		return "9-bpc";
+	case COLOR_DEPTH_111111:
+		return "11-bpc";
+	default:
+		return "Unknown";
+	}
 }

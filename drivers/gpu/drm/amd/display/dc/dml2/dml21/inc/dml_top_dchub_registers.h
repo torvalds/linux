@@ -88,6 +88,7 @@ struct dml2_display_arb_regs {
 	uint32_t sdpif_request_rate_limit;
 	uint32_t allow_sdpif_rate_limit_when_cstate_req;
 	uint32_t dcfclk_deep_sleep_hysteresis;
+	uint32_t pstate_stall_threshold;
 };
 
 struct dml2_cursor_dlg_regs{

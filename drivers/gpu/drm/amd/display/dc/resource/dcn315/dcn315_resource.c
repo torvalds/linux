@@ -858,7 +858,6 @@ static const struct dc_debug_options debug_defaults_drv = {
 	.disable_z10 = true, /*hw not support it*/
 	.disable_dmcu = true,
 	.force_abm_enable = false,
-	.timing_trace = false,
 	.clock_trace = true,
 	.disable_pplib_clock_request = false,
 	.pipe_split_policy = MPC_SPLIT_DYNAMIC,

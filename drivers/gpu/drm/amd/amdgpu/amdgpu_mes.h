@@ -75,6 +75,7 @@ struct amdgpu_mes {
 
 	uint32_t			sched_version;
 	uint32_t			kiq_version;
+	uint32_t			fw_version[AMDGPU_MAX_MES_PIPES];
 	bool                            enable_legacy_queue_map;
 
 	uint32_t                        total_max_queue;

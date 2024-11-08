@@ -139,17 +139,6 @@ struct amdgpu_bo_vm {
 	struct amdgpu_vm_bo_base        entries[];
 };
 
-struct amdgpu_mem_stats {
-	struct drm_memory_stats drm;
-
-	uint64_t total;
-	uint64_t visible;
-	uint64_t evicted;
-	uint64_t evicted_visible;
-	uint64_t requested;
-	uint64_t requested_visible;
-};
-
 static inline struct amdgpu_bo *ttm_to_amdgpu_bo(struct ttm_buffer_object *tbo)
 {
 	return container_of(tbo, struct amdgpu_bo, tbo);

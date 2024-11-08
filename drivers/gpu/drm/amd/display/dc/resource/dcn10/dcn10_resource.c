@@ -533,7 +533,6 @@ static const struct dc_debug_options debug_defaults_drv = {
 		.sanity_checks = true,
 		.disable_dmcu = false,
 		.force_abm_enable = false,
-		.timing_trace = false,
 		.clock_trace = true,
 
 		/* raven smu dones't allow 0 disp clk,
@@ -563,7 +562,6 @@ static const struct dc_debug_options debug_defaults_drv = {
 static const struct dc_debug_options debug_defaults_diags = {
 		.disable_dmcu = false,
 		.force_abm_enable = false,
-		.timing_trace = true,
 		.clock_trace = true,
 		.disable_stutter = true,
 		.disable_pplib_clock_request = true,

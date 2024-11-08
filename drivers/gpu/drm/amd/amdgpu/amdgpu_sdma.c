@@ -343,3 +343,73 @@ int amdgpu_sdma_ras_sw_init(struct amdgpu_device *adev)
 
 	return 0;
 }
+
+/*
+ * debugfs for to enable/disable sdma job submission to specific core.
+ */
+#if defined(CONFIG_DEBUG_FS)
+static int amdgpu_debugfs_sdma_sched_mask_set(void *data, u64 val)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)data;
+	u32 i;
+	u64 mask = 0;
+	struct amdgpu_ring *ring;
+
+	if (!adev)
+		return -ENODEV;
+
+	mask = (1 << adev->sdma.num_instances) - 1;
+	if ((val & mask) == 0)
+		return -EINVAL;
+
+	for (i = 0; i < adev->sdma.num_instances; ++i) {
+		ring = &adev->sdma.instance[i].ring;
+		if (val & (1 << i))
+			ring->sched.ready = true;
+		else
+			ring->sched.ready = false;
+	}
+	/* publish sched.ready flag update effective immediately across smp */
+	smp_rmb();
+	return 0;
+}
+
+static int amdgpu_debugfs_sdma_sched_mask_get(void *data, u64 *val)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)data;
+	u32 i;
+	u64 mask = 0;
+	struct amdgpu_ring *ring;
+
+	if (!adev)
+		return -ENODEV;
+	for (i = 0; i < adev->sdma.num_instances; ++i) {
+		ring = &adev->sdma.instance[i].ring;
+		if (ring->sched.ready)
+			mask |= 1 << i;
+	}
+
+	*val = mask;
+	return 0;
+}
+
+DEFINE_DEBUGFS_ATTRIBUTE(amdgpu_debugfs_sdma_sched_mask_fops,
+			 amdgpu_debugfs_sdma_sched_mask_get,
+			 amdgpu_debugfs_sdma_sched_mask_set, "%llx\n");
+
+#endif
+
+void amdgpu_debugfs_sdma_sched_mask_init(struct amdgpu_device *adev)
+{
+#if defined(CONFIG_DEBUG_FS)
+	struct drm_minor *minor = adev_to_drm(adev)->primary;
+	struct dentry *root = minor->debugfs_root;
+	char name[32];
+
+	if (!(adev->sdma.num_instances > 1))
+		return;
+	sprintf(name, "amdgpu_sdma_sched_mask");
+	debugfs_create_file(name, 0600, root, adev,
+			    &amdgpu_debugfs_sdma_sched_mask_fops);
+#endif
+}

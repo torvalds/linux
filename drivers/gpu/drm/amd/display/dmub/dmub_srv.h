@@ -301,6 +301,7 @@ struct dmub_srv_hw_params {
 	bool disallow_phy_access;
 	bool disable_sldo_opt;
 	bool enable_non_transparent_setconfig;
+	bool lower_hbr3_phy_ssc;
 };
 
 /**

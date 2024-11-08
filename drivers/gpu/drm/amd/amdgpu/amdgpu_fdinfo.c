@@ -33,6 +33,7 @@
 #include <drm/amdgpu_drm.h>
 #include <drm/drm_debugfs.h>
 #include <drm/drm_drv.h>
+#include <drm/drm_file.h>
 
 #include "amdgpu.h"
 #include "amdgpu_vm.h"
@@ -65,6 +66,10 @@ void amdgpu_show_fdinfo(struct drm_printer *p, struct drm_file *file)
 		[TTM_PL_VRAM] = "vram",
 		[TTM_PL_TT] = "gtt",
 		[TTM_PL_SYSTEM] = "cpu",
+		[AMDGPU_PL_GDS] = "gds",
+		[AMDGPU_PL_GWS] = "gws",
+		[AMDGPU_PL_OA] = "oa",
+		[AMDGPU_PL_DOORBELL] = "doorbell",
 	};
 	unsigned int hw_ip, i;
 	int ret;
@@ -86,32 +91,30 @@ void amdgpu_show_fdinfo(struct drm_printer *p, struct drm_file *file)
 
 	drm_printf(p, "pasid:\t%u\n", fpriv->vm.pasid);
 
-	for (i = 0; i < TTM_PL_PRIV; i++)
+	for (i = 0; i < ARRAY_SIZE(pl_name); i++) {
+		if (!pl_name[i])
+			continue;
+
 		drm_print_memory_stats(p,
 				       &stats[i].drm,
 				       DRM_GEM_OBJECT_RESIDENT |
 				       DRM_GEM_OBJECT_PURGEABLE,
 				       pl_name[i]);
+	}
 
 	/* Legacy amdgpu keys, alias to drm-resident-memory-: */
 	drm_printf(p, "drm-memory-vram:\t%llu KiB\n",
-		   stats[TTM_PL_VRAM].total/1024UL);
+		   stats[TTM_PL_VRAM].drm.resident/1024UL);
 	drm_printf(p, "drm-memory-gtt: \t%llu KiB\n",
-		   stats[TTM_PL_TT].total/1024UL);
+		   stats[TTM_PL_TT].drm.resident/1024UL);
 	drm_printf(p, "drm-memory-cpu: \t%llu KiB\n",
-		   stats[TTM_PL_SYSTEM].total/1024UL);
+		   stats[TTM_PL_SYSTEM].drm.resident/1024UL);
 
 	/* Amdgpu specific memory accounting keys: */
-	drm_printf(p, "amd-memory-visible-vram:\t%llu KiB\n",
-		   stats[TTM_PL_VRAM].visible/1024UL);
 	drm_printf(p, "amd-evicted-vram:\t%llu KiB\n",
 		   stats[TTM_PL_VRAM].evicted/1024UL);
-	drm_printf(p, "amd-evicted-visible-vram:\t%llu KiB\n",
-		   stats[TTM_PL_VRAM].evicted_visible/1024UL);
 	drm_printf(p, "amd-requested-vram:\t%llu KiB\n",
 		   stats[TTM_PL_VRAM].requested/1024UL);
-	drm_printf(p, "amd-requested-visible-vram:\t%llu KiB\n",
-		   stats[TTM_PL_VRAM].requested_visible/1024UL);
 	drm_printf(p, "amd-requested-gtt:\t%llu KiB\n",
 		   stats[TTM_PL_TT].requested/1024UL);
 

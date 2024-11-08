@@ -461,7 +461,9 @@ static int vangogh_init_smc_tables(struct smu_context *smu)
 	return smu_v11_0_init_smc_tables(smu);
 }
 
-static int vangogh_dpm_set_vcn_enable(struct smu_context *smu, bool enable)
+static int vangogh_dpm_set_vcn_enable(struct smu_context *smu,
+				       bool enable,
+				       int inst)
 {
 	int ret = 0;
 
@@ -1079,7 +1081,7 @@ static int vangogh_set_power_profile_mode(struct smu_context *smu, long *input, 
 	}
 
 	ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_ActiveProcessNotify,
-				    1 << workload_type,
+				    smu->workload_mask,
 				    NULL);
 	if (ret) {
 		dev_err_once(smu->adev->dev, "Fail to set workload type %d\n",
@@ -1087,7 +1089,7 @@ static int vangogh_set_power_profile_mode(struct smu_context *smu, long *input, 
 		return ret;
 	}
 
-	smu->power_profile_mode = profile_mode;
+	smu_cmn_assign_power_profile(smu);
 
 	return 0;
 }

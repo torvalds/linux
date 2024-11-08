@@ -1554,6 +1554,11 @@ void dcn401_optimize_bandwidth(
 						pipe_ctx->dlg_regs.min_dst_y_next_start);
 		}
 	}
+
+	/* update timeout thresholds */
+	if (hubbub->funcs->program_timeout_thresholds) {
+		hubbub->funcs->program_timeout_thresholds(hubbub, &context->bw_ctx.bw.dcn.arb_regs);
+	}
 }
 
 void dcn401_fams2_global_control_lock(struct dc *dc,

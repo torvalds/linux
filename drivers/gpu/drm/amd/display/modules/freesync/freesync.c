@@ -129,6 +129,9 @@ unsigned int mod_freesync_calc_v_total_from_refresh(
 	unsigned int v_total;
 	unsigned int frame_duration_in_ns;
 
+	if (refresh_in_uhz == 0)
+		return stream->timing.v_total;
+
 	frame_duration_in_ns =
 			((unsigned int)(div64_u64((1000000000ULL * 1000000),
 					refresh_in_uhz)));

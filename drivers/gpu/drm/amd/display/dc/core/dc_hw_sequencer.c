@@ -312,11 +312,11 @@ void get_mpctree_visual_confirm_color(
 {
 	const struct tg_color pipe_colors[6] = {
 			{MAX_TG_COLOR_VALUE, 0, 0}, /* red */
-			{MAX_TG_COLOR_VALUE, MAX_TG_COLOR_VALUE / 4, 0}, /* orange */
 			{MAX_TG_COLOR_VALUE, MAX_TG_COLOR_VALUE, 0}, /* yellow */
 			{0, MAX_TG_COLOR_VALUE, 0}, /* green */
+			{0, MAX_TG_COLOR_VALUE, MAX_TG_COLOR_VALUE}, /* cyan */
 			{0, 0, MAX_TG_COLOR_VALUE}, /* blue */
-			{MAX_TG_COLOR_VALUE / 2, 0, MAX_TG_COLOR_VALUE / 2}, /* purple */
+			{MAX_TG_COLOR_VALUE, 0, MAX_TG_COLOR_VALUE}, /* magenta */
 	};
 
 	struct pipe_ctx *top_pipe = pipe_ctx;

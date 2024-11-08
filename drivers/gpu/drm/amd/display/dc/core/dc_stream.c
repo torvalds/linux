@@ -292,7 +292,9 @@ bool dc_stream_set_cursor_attributes(
 	 * 2. If not subvp high refresh, for single display cases, if resolution is >= 5K and refresh rate < 120hz
 	 * 3. If not subvp high refresh, for multi display cases, if resolution is >= 4K and refresh rate < 120hz
 	 */
-	if (dc->debug.allow_sw_cursor_fallback && attributes->height * attributes->width * 4 > 16384) {
+	if (dc->debug.allow_sw_cursor_fallback &&
+		attributes->height * attributes->width * 4 > 16384 &&
+		!stream->hw_cursor_req) {
 		if (check_subvp_sw_cursor_fallback_req(dc, stream))
 			return false;
 	}
@@ -810,12 +812,12 @@ void dc_stream_log(const struct dc *dc, const struct dc_stream_state *stream)
 			stream->dst.height,
 			stream->output_color_space);
 	DC_LOG_DC(
-			"\tpix_clk_khz: %d, h_total: %d, v_total: %d, pixelencoder:%d, displaycolorDepth:%d\n",
+			"\tpix_clk_khz: %d, h_total: %d, v_total: %d, pixel_encoding:%s, color_depth:%s\n",
 			stream->timing.pix_clk_100hz / 10,
 			stream->timing.h_total,
 			stream->timing.v_total,
-			stream->timing.pixel_encoding,
-			stream->timing.display_color_depth);
+			dc_pixel_encoding_to_str(stream->timing.pixel_encoding),
+			dc_color_depth_to_str(stream->timing.display_color_depth));
 	DC_LOG_DC(
 			"\tlink: %d\n",
 			stream->link->link_index);

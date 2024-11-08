@@ -1594,6 +1594,7 @@ int amdgpu_mes_init_microcode(struct amdgpu_device *adev, int pipe)
 	char ucode_prefix[30];
 	char fw_name[50];
 	bool need_retry = false;
+	u32 *ucode_ptr;
 	int r;
 
 	amdgpu_ucode_ip_version_decode(adev, GC_HWIP, ucode_prefix,
@@ -1631,6 +1632,10 @@ int amdgpu_mes_init_microcode(struct amdgpu_device *adev, int pipe)
 	adev->mes.data_start_addr[pipe] =
 		le32_to_cpu(mes_hdr->mes_data_start_addr_lo) |
 		((uint64_t)(le32_to_cpu(mes_hdr->mes_data_start_addr_hi)) << 32);
+	ucode_ptr = (u32 *)(adev->mes.fw[pipe]->data +
+			  sizeof(union amdgpu_firmware_header));
+	adev->mes.fw_version[pipe] =
+		le32_to_cpu(ucode_ptr[24]) & AMDGPU_MES_VERSION_MASK;
 
 	if (adev->firmware.load_type == AMDGPU_FW_LOAD_PSP) {
 		int ucode, ucode_data;

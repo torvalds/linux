@@ -42,7 +42,6 @@ struct amdgpu_bo_va;
 struct amdgpu_job;
 struct amdgpu_bo_list_entry;
 struct amdgpu_bo_vm;
-struct amdgpu_mem_stats;
 
 /*
  * GPUVM handling
@@ -320,6 +319,16 @@ struct amdgpu_vm_fault_info {
 	uint32_t	status;
 	/* which vmhub? gfxhub, mmhub, etc. */
 	unsigned int	vmhub;
+};
+
+struct amdgpu_mem_stats {
+	struct drm_memory_stats drm;
+
+	/* buffers that requested this placement */
+	uint64_t requested;
+	/* buffers that requested this placement
+	 * but are currently evicted */
+	uint64_t evicted;
 };
 
 struct amdgpu_vm {

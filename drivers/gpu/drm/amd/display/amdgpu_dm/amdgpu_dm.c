@@ -3170,8 +3170,7 @@ static int dm_resume(struct amdgpu_ip_block *ip_block)
 	struct dm_atomic_state *dm_state = to_dm_atomic_state(dm->atomic_obj.state);
 	enum dc_connection_type new_connection_type = dc_connection_none;
 	struct dc_state *dc_state;
-	int i, r, j, ret;
-	bool need_hotplug = false;
+	int i, r, j;
 	struct dc_commit_streams_params commit_params = {};
 
 	if (dm->dc->caps.ips_support) {
@@ -3360,22 +3359,15 @@ static int dm_resume(struct amdgpu_ip_block *ip_block)
 		    aconnector->mst_root)
 			continue;
 
-		ret = drm_dp_mst_topology_mgr_resume(&aconnector->mst_mgr, true);
-
-		if (ret < 0) {
-			dm_helpers_dp_mst_stop_top_mgr(aconnector->dc_link->ctx,
-					aconnector->dc_link);
-			need_hotplug = true;
-		}
+		drm_dp_mst_topology_queue_probe(&aconnector->mst_mgr);
 	}
 	drm_connector_list_iter_end(&iter);
-
-	if (need_hotplug)
-		drm_kms_helper_hotplug_event(ddev);
 
 	amdgpu_dm_irq_resume_late(adev);
 
 	amdgpu_dm_smu_write_watermarks_table(adev);
+
+	drm_kms_helper_hotplug_event(ddev);
 
 	return 0;
 }
@@ -4648,7 +4640,12 @@ static void amdgpu_dm_backlight_set_level(struct amdgpu_display_manager *dm,
 		if (!rc)
 			DRM_DEBUG("DM: Failed to update backlight via AUX on eDP[%d]\n", bl_idx);
 	} else {
-		rc = dc_link_set_backlight_level(link, brightness, 0);
+		struct set_backlight_level_params backlight_level_params = { 0 };
+
+		backlight_level_params.backlight_pwm_u16_16 = brightness;
+		backlight_level_params.transition_time_in_ms = 0;
+
+		rc = dc_link_set_backlight_level(link, &backlight_level_params);
 		if (!rc)
 			DRM_DEBUG("DM: Failed to update backlight on eDP[%d]\n", bl_idx);
 	}
@@ -7326,9 +7323,14 @@ create_validate_stream_for_sink(struct amdgpu_dm_connector *aconnector,
 	const struct drm_connector_state *drm_state = dm_state ? &dm_state->base : NULL;
 	int requested_bpc = drm_state ? drm_state->max_requested_bpc : 8;
 	enum dc_status dc_result = DC_OK;
+	uint8_t bpc_limit = 6;
 
 	if (!dm_state)
 		return NULL;
+
+	if (aconnector->dc_link->connector_signal == SIGNAL_TYPE_HDMI_TYPE_A ||
+	    aconnector->dc_link->dpcd_caps.dongle_type == DISPLAY_DONGLE_DP_HDMI_CONVERTER)
+		bpc_limit = 8;
 
 	do {
 		stream = create_stream_for_sink(connector, drm_mode,
@@ -7350,11 +7352,12 @@ create_validate_stream_for_sink(struct amdgpu_dm_connector *aconnector,
 			dc_result = dm_validate_stream_and_context(adev->dm.dc, stream);
 
 		if (dc_result != DC_OK) {
-			DRM_DEBUG_KMS("Mode %dx%d (clk %d) failed DC validation with error %d (%s)\n",
+			DRM_DEBUG_KMS("Mode %dx%d (clk %d) pixel_encoding:%s color_depth:%s failed validation -- %s\n",
 				      drm_mode->hdisplay,
 				      drm_mode->vdisplay,
 				      drm_mode->clock,
-				      dc_result,
+				      dc_pixel_encoding_to_str(stream->timing.pixel_encoding),
+				      dc_color_depth_to_str(stream->timing.display_color_depth),
 				      dc_status_to_str(dc_result));
 
 			dc_stream_release(stream);
@@ -7362,10 +7365,13 @@ create_validate_stream_for_sink(struct amdgpu_dm_connector *aconnector,
 			requested_bpc -= 2; /* lower bpc to retry validation */
 		}
 
-	} while (stream == NULL && requested_bpc >= 6);
+	} while (stream == NULL && requested_bpc >= bpc_limit);
 
-	if (dc_result == DC_FAIL_ENC_VALIDATE && !aconnector->force_yuv420_output) {
-		DRM_DEBUG_KMS("Retry forcing YCbCr420 encoding\n");
+	if ((dc_result == DC_FAIL_ENC_VALIDATE ||
+	     dc_result == DC_EXCEED_DONGLE_CAP) &&
+	     !aconnector->force_yuv420_output) {
+		DRM_DEBUG_KMS("%s:%d Retry forcing yuv420 encoding\n",
+				     __func__, __LINE__);
 
 		aconnector->force_yuv420_output = true;
 		stream = create_validate_stream_for_sink(aconnector, drm_mode,
@@ -9442,6 +9448,7 @@ static void amdgpu_dm_commit_streams(struct drm_atomic_state *state,
 	bool mode_set_reset_required = false;
 	u32 i;
 	struct dc_commit_streams_params params = {dc_state->streams, dc_state->stream_count};
+	bool set_backlight_level = false;
 
 	/* Disable writeback */
 	for_each_old_connector_in_state(state, connector, old_con_state, i) {
@@ -9561,6 +9568,7 @@ static void amdgpu_dm_commit_streams(struct drm_atomic_state *state,
 			acrtc->hw_mode = new_crtc_state->mode;
 			crtc->hwmode = new_crtc_state->mode;
 			mode_set_reset_required = true;
+			set_backlight_level = true;
 		} else if (modereset_required(new_crtc_state)) {
 			drm_dbg_atomic(dev,
 				       "Atomic commit: RESET. crtc id %d:[%p]\n",
@@ -9610,6 +9618,19 @@ static void amdgpu_dm_commit_streams(struct drm_atomic_state *state,
 					dm_new_crtc_state->stream, acrtc);
 			else
 				acrtc->otg_inst = status->primary_otg_inst;
+		}
+	}
+
+	/* During boot up and resume the DC layer will reset the panel brightness
+	 * to fix a flicker issue.
+	 * It will cause the dm->actual_brightness is not the current panel brightness
+	 * level. (the dm->brightness is the correct panel level)
+	 * So we set the backlight level with dm->brightness value after set mode
+	 */
+	if (set_backlight_level) {
+		for (i = 0; i < dm->num_of_edps; i++) {
+			if (dm->backlight_dev[i])
+				amdgpu_dm_backlight_set_level(dm, i, dm->brightness[i]);
 		}
 	}
 }
