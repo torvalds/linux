@@ -495,9 +495,12 @@ int show_interrupts(struct seq_file *p, void *v)
 	if (!desc->action || irq_desc_is_chained(desc) || !desc->kstat_irqs)
 		goto outsparse;
 
-	seq_printf(p, "%*d: ", prec, i);
-	for_each_online_cpu(j)
-		seq_printf(p, "%10u ", desc->kstat_irqs ? per_cpu(desc->kstat_irqs->cnt, j) : 0);
+	seq_printf(p, "%*d:", prec, i);
+	for_each_online_cpu(j) {
+		unsigned int cnt = desc->kstat_irqs ? per_cpu(desc->kstat_irqs->cnt, j) : 0;
+
+		seq_put_decimal_ull_width(p, " ", cnt, 10);
+	}
 
 	raw_spin_lock_irqsave(&desc->lock, flags);
 	if (desc->irq_data.chip) {
