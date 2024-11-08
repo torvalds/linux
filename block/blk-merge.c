@@ -392,11 +392,10 @@ struct bio *bio_split_rw(struct bio *bio, const struct queue_limits *lim,
 struct bio *bio_split_zone_append(struct bio *bio,
 		const struct queue_limits *lim, unsigned *nr_segs)
 {
-	unsigned int max_sectors = queue_limits_max_zone_append_sectors(lim);
 	int split_sectors;
 
 	split_sectors = bio_split_rw_at(bio, lim, nr_segs,
-			max_sectors << SECTOR_SHIFT);
+			lim->max_zone_append_sectors << SECTOR_SHIFT);
 	if (WARN_ON_ONCE(split_sectors > 0))
 		split_sectors = -EINVAL;
 	return bio_submit_split(bio, split_sectors);

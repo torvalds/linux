@@ -50,7 +50,7 @@ void blk_set_stacking_limits(struct queue_limits *lim)
 	lim->max_sectors = UINT_MAX;
 	lim->max_dev_sectors = UINT_MAX;
 	lim->max_write_zeroes_sectors = UINT_MAX;
-	lim->max_zone_append_sectors = UINT_MAX;
+	lim->max_hw_zone_append_sectors = UINT_MAX;
 	lim->max_user_discard_sectors = UINT_MAX;
 }
 EXPORT_SYMBOL(blk_set_stacking_limits);
@@ -91,17 +91,16 @@ static int blk_validate_zoned_limits(struct queue_limits *lim)
 	if (lim->zone_write_granularity < lim->logical_block_size)
 		lim->zone_write_granularity = lim->logical_block_size;
 
-	if (lim->max_zone_append_sectors) {
-		/*
-		 * The Zone Append size is limited by the maximum I/O size
-		 * and the zone size given that it can't span zones.
-		 */
-		lim->max_zone_append_sectors =
-			min3(lim->max_hw_sectors,
-			     lim->max_zone_append_sectors,
-			     lim->chunk_sectors);
-	}
-
+	/*
+	 * The Zone Append size is limited by the maximum I/O size and the zone
+	 * size given that it can't span zones.
+	 *
+	 * If no max_hw_zone_append_sectors limit is provided, the block layer
+	 * will emulated it, else we're also bound by the hardware limit.
+	 */
+	lim->max_zone_append_sectors =
+		min_not_zero(lim->max_hw_zone_append_sectors,
+			min(lim->chunk_sectors, lim->max_hw_sectors));
 	return 0;
 }
 
@@ -527,8 +526,8 @@ int blk_stack_limits(struct queue_limits *t, struct queue_limits *b,
 	t->max_dev_sectors = min_not_zero(t->max_dev_sectors, b->max_dev_sectors);
 	t->max_write_zeroes_sectors = min(t->max_write_zeroes_sectors,
 					b->max_write_zeroes_sectors);
-	t->max_zone_append_sectors = min(queue_limits_max_zone_append_sectors(t),
-					 queue_limits_max_zone_append_sectors(b));
+	t->max_hw_zone_append_sectors = min(t->max_hw_zone_append_sectors,
+					b->max_hw_zone_append_sectors);
 
 	t->seg_boundary_mask = min_not_zero(t->seg_boundary_mask,
 					    b->seg_boundary_mask);
