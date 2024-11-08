@@ -22,7 +22,7 @@ bool BPF_STRUCT_OPS(maybe_null_fail_yield, struct task_struct *from,
 
 SEC(".struct_ops.link")
 struct sched_ext_ops maybe_null_fail = {
-	.yield			= maybe_null_fail_yield,
-	.enable			= maybe_null_running,
+	.yield			= (void *) maybe_null_fail_yield,
+	.enable			= (void *) maybe_null_running,
 	.name			= "maybe_null_fail_yield",
 };
