@@ -162,15 +162,6 @@
 		enable-active-high;
 	};
 
-	reg_lvds_transmitter: regulator-lvds-transmitter {
-		compatible = "regulator-fixed";
-		regulator-name = "#SHTDN_LVDS";
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
-		gpio = <&pca9555 1 GPIO_ACTIVE_HIGH>;
-		enable-active-high;
-	};
-
 	reg_vref_1v8: regulator-vref-1v8 {
 		compatible = "regulator-fixed";
 		regulator-name = "VCC1V8_REF";
