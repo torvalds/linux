@@ -271,12 +271,12 @@ struct rt_read_seg {
 	unsigned long rt_delay_us;
 	bool rt_preempted;
 	int rt_cpu;
+	int rt_end_cpu;
 };
 static int err_segs_recorded;
 static struct rt_read_seg err_segs[RCUTORTURE_RDR_MAX_SEGS];
 static int rt_read_nsegs;
 static int rt_read_preempted;
-static int rt_last_cpu;
 
 static const char *rcu_torture_writer_state_getname(void)
 {
@@ -1922,6 +1922,7 @@ static void rcutorture_one_extend(int *readstate, int newstate, bool insoftirq,
 				  struct torture_random_state *trsp,
 				  struct rt_read_seg *rtrsp)
 {
+	bool first;
 	unsigned long flags;
 	int idxnew1 = -1;
 	int idxnew2 = -1;
@@ -1930,12 +1931,11 @@ static void rcutorture_one_extend(int *readstate, int newstate, bool insoftirq,
 	int statesnew = ~*readstate & newstate;
 	int statesold = *readstate & ~newstate;
 
+	first = idxold1 == 0;
 	WARN_ON_ONCE(idxold2 < 0);
 	WARN_ON_ONCE(idxold2 & ~RCUTORTURE_RDR_ALLBITS);
 	rcutorture_one_extend_check("before change", idxold1, statesnew, statesold, insoftirq);
 	rtrsp->rt_readstate = newstate;
-	if (IS_ENABLED(CONFIG_RCU_TORTURE_TEST_LOG_CPU))
-		rtrsp->rt_cpu = raw_smp_processor_id();
 
 	/* First, put new protection in place to avoid critical-section gap. */
 	if (statesnew & RCUTORTURE_RDR_BH)
@@ -1956,6 +1956,14 @@ static void rcutorture_one_extend(int *readstate, int newstate, bool insoftirq,
 	// Complain unless both the old and the new protection is in place.
 	rcutorture_one_extend_check("during change",
 				    idxold1 | statesnew, statesnew, statesold, insoftirq);
+
+	// Sample CPU under both sets of protections to reduce confusion.
+	if (IS_ENABLED(CONFIG_RCU_TORTURE_TEST_LOG_CPU)) {
+		int cpu = raw_smp_processor_id();
+		rtrsp->rt_cpu = cpu;
+		if (!first)
+			rtrsp[-1].rt_end_cpu = cpu;
+	}
 
 	/*
 	 * Next, remove old protection, in decreasing order of strength
@@ -2178,8 +2186,6 @@ static bool rcu_torture_one_read(struct torture_random_state *trsp, long myid)
 	}
 	if (cur_ops->reader_blocked)
 		preempted = cur_ops->reader_blocked();
-	if (IS_ENABLED(CONFIG_RCU_TORTURE_TEST_LOG_CPU))
-		rt_last_cpu = raw_smp_processor_id();
 	rcutorture_one_extend(&readstate, 0, myid < 0, trsp, rtrsp);
 	WARN_ON_ONCE(readstate);
 	// This next splat is expected behavior if leakpointer, especially
@@ -3634,8 +3640,13 @@ rcu_torture_cleanup(void)
 					err_segs[i].rt_delay_jiffies);
 				firsttime = 0;
 			}
-			if (IS_ENABLED(CONFIG_RCU_TORTURE_TEST_LOG_CPU))
-				pr_cont(" CPU %-2d", err_segs[i].rt_cpu);
+			if (IS_ENABLED(CONFIG_RCU_TORTURE_TEST_LOG_CPU)) {
+				pr_cont(" CPU %2d", err_segs[i].rt_cpu);
+				if (err_segs[i].rt_cpu != err_segs[i].rt_end_cpu)
+					pr_cont("->%-2d", err_segs[i].rt_end_cpu);
+				else
+					pr_cont(" ...");
+			}
 			if (err_segs[i].rt_delay_ms != 0) {
 				pr_cont(" %s%ldms", firsttime ? "" : "+",
 					err_segs[i].rt_delay_ms);
@@ -3666,8 +3677,6 @@ rcu_torture_cleanup(void)
 		}
 		if (rt_read_preempted)
 			pr_alert("\tReader was preempted.\n");
-		if (IS_ENABLED(CONFIG_RCU_TORTURE_TEST_LOG_CPU))
-			pr_alert("\tReader last ran on CPU %d.\n", rt_last_cpu);
 	}
 	if (atomic_read(&n_rcu_torture_error) || n_rcu_torture_barrier_error)
 		rcu_torture_print_module_parms(cur_ops, "End of test: FAILURE");
