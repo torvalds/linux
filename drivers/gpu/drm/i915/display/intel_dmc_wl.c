@@ -99,21 +99,22 @@ out_unlock:
 	spin_unlock_irqrestore(&wl->lock, flags);
 }
 
-static bool intel_dmc_wl_check_range(i915_reg_t reg)
+static bool intel_dmc_wl_reg_in_range(i915_reg_t reg,
+				      const struct intel_dmc_wl_range ranges[])
 {
-	int i;
-	bool wl_needed = false;
 	u32 offset = i915_mmio_reg_offset(reg);
 
-	for (i = 0; lnl_wl_range[i].start; i++) {
-		if (offset >= lnl_wl_range[i].start &&
-		    offset <= lnl_wl_range[i].end) {
-			wl_needed = true;
-			break;
-		}
+	for (int i = 0; ranges[i].start; i++) {
+		if (ranges[i].start <= offset && offset <= ranges[i].end)
+			return true;
 	}
 
-	return wl_needed;
+	return false;
+}
+
+static bool intel_dmc_wl_check_range(i915_reg_t reg)
+{
+	return intel_dmc_wl_reg_in_range(reg, lnl_wl_range);
 }
 
 static bool __intel_dmc_wl_supported(struct intel_display *display)
