@@ -15,6 +15,7 @@
 #include "hgsl_hyp.h"
 #include "hgsl_memory.h"
 #include "hgsl_tcsr.h"
+#include "hgsl_gmugos.h"
 
 #define HGSL_TIMELINE_NAME_LEN 64
 
@@ -25,12 +26,32 @@
 #define MAX_DB_QUEUE 9
 #define HGSL_TCSR_NUM 4
 
-#define HGSL_CONTEXT_NUM 256
+/* Number of the GPU device */
+#define HGSL_DEVICE_NUM  (2)
+#define HGSL_CONTEXT_NUM (256)
 
 #define HGSL_MAX_IOC_SIZE (128)
 #define HGSL_IOCTL_FUNC(_cmd, _func) \
 	[_IOC_NR((_cmd))] = \
 		{ .cmd = (_cmd), .func = (_func) }
+
+enum {
+	HGSL_DB_SIGNAL_NONE = 0,
+	HGSL_DB_SIGNAL_TCSR_0,
+	HGSL_DB_SIGNAL_TCSR_1,
+	HGSL_DB_SIGNAL_TCSR_2,
+	HGSL_DB_SIGNAL_TCSR_3,
+	HGSL_DB_SIGNAL_GMU_GOS_0,
+	HGSL_DB_SIGNAL_GMU_GOS_1,
+	HGSL_DB_SIGNAL_GMU_GOS_2,
+	HGSL_DB_SIGNAL_GMU_GOS_3,
+	HGSL_DB_SIGNAL_GMU_GOS_4,
+	HGSL_DB_SIGNAL_GMU_GOS_5,
+	HGSL_DB_SIGNAL_GMU_GOS_6,
+	HGSL_DB_SIGNAL_GMU_GOS_7,
+	HGSL_DB_SIGNAL_MAX = HGSL_DB_SIGNAL_GMU_GOS_7,
+	HGSL_DB_SIGNAL_NUM
+};
 
 struct hgsl_ioctl {
 	unsigned int cmd;
@@ -125,8 +146,11 @@ struct qcom_hgsl {
 	/* global doorbell tcsr */
 	struct hgsl_tcsr *tcsr[HGSL_TCSR_NUM][HGSL_TCSR_ROLE_MAX];
 	int tcsr_idx;
-	struct hgsl_context **contexts;
+
+	struct hgsl_context **contexts[HGSL_DEVICE_NUM];
 	rwlock_t ctxt_lock;
+
+	struct hgsl_gmugos gmugos[HGSL_DEVICE_NUM];
 
 	struct list_head active_wait_list;
 	spinlock_t active_wait_lock;
@@ -184,6 +208,7 @@ struct hgsl_context {
 	struct mutex lock;
 	struct doorbell_context_queue *dbcq;
 	uint32_t dbcq_export_id;
+	uint32_t db_signal;
 };
 
 struct hgsl_priv {
@@ -234,6 +259,12 @@ static inline bool hgsl_mem_rb_empty(struct hgsl_priv *priv)
 {
 	return (RB_EMPTY_ROOT(&priv->mem_mapped) &&
 		RB_EMPTY_ROOT(&priv->mem_allocated));
+}
+
+static inline u32 hgsl_hnd2id(u32 dev_hnd)
+{
+	return (dev_hnd == GSL_HANDLE_NULL) ? (U32_MAX) :
+		((dev_hnd == GSL_HANDLE_DEV1) ? 1 : 0);
 }
 
 /**
@@ -327,5 +358,7 @@ int hgsl_isync_forward(struct hgsl_priv *priv, uint32_t timeline_id,
 int hgsl_isync_query(struct hgsl_priv *priv, uint32_t timeline_id,
 							uint64_t *ts);
 int hgsl_isync_wait_multiple(struct hgsl_priv *priv, struct hgsl_timeline_wait *param);
+
+void hgsl_retire_common(struct qcom_hgsl *hgsl, u32 dev_hnd);
 
 #endif /* __HGSL_H_ */

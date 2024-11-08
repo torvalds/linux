@@ -111,11 +111,16 @@ enum gsl_deviceid_t {
 	GSL_DEVICE_UNUSED = -1,	/* gcc compiler warning fix, unsigned->signed */
 	GSL_DEVICE_ANY    = 0,
 	GSL_DEVICE_3D     = 1,
-	GSL_DEVICE_2DVG   = 2,
-	GSL_DEVICE_2DVG_1 = 3,
-	GSL_DEVICE_MAX    = 3,
+	GSL_DEVICE_0      = 2,
+	GSL_DEVICE_1      = 3,
 
 	GSL_DEVICE_FOOBAR = 0x7FFFFFFF
+};
+
+enum gsl_devhandle_t {
+	GSL_HANDLE_NULL   = 0,
+	GSL_HANDLE_DEV0   = 1,
+	GSL_HANDLE_DEV1   = 2
 };
 
 /****************************/

@@ -231,6 +231,8 @@ struct hgsl_ioctl_get_shadowts_mem_params {
 	__u32 ctxthandle;
 	__u32 flags;
 	__s32 fd;
+	__u32 devhandle;
+	__u32 padding;
 };
 
 #define HGSL_IOCTL_GET_SHADOWTS_MEM \
@@ -239,6 +241,8 @@ struct hgsl_ioctl_get_shadowts_mem_params {
 struct hgsl_ioctl_put_shadowts_mem_params {
 	__u32 ctxthandle;
 	__u32 padding;
+	__u32 devhandle;
+	__u32 padding_1;
 };
 
 #define HGSL_IOCTL_PUT_SHADOWTS_MEM \
@@ -395,14 +399,17 @@ struct hgsl_ioctl_perfcounter_read_params {
 /**
  * struct hgsl_hsync_fence_create - wait a h-sync fence
  * @timestamp: The user timestamp attached to the fence
- * @context_id; The conext to create fence
+ * @context_id: The conext to create fence
  * @fence_fd: File descriptor of the new created fence
+ * @devhandle GPU device handle
  */
 struct hgsl_hsync_fence_create {
 	__u32 timestamp;
 	__u32 padding;
 	__s32 context_id;
 	__s32 fence_fd;
+	__u32 devhandle;
+	__u32 padding_1;
 };
 
 #define HGSL_IOCTL_HSYNC_FENCE_CREATE \

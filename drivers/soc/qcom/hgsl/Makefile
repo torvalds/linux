@@ -3,7 +3,8 @@ qcom_hgsl-objs = hgsl.o \
             hgsl_sync.o \
             hgsl_memory.o \
             hgsl_hyp.o \
-            hgsl_hyp_socket.o
+            hgsl_hyp_socket.o \
+            hgsl_gmugos.o
 
 qcom_hgsl-$(CONFIG_SYSFS) += hgsl_sysfs.o
 qcom_hgsl-$(CONFIG_DEBUG_FS) += hgsl_debugfs.o
