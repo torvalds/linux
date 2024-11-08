@@ -3,10 +3,11 @@
 #include <drm/drm_client.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_drv.h>
-#include <drm/drm_fbdev_client.h>
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_fourcc.h>
 #include <drm/drm_print.h>
+
+#include "drm_client_internal.h"
 
 /*
  * struct drm_client_funcs
@@ -164,4 +165,3 @@ err_drm_client_init:
 	kfree(fb_helper);
 	return ret;
 }
-EXPORT_SYMBOL(drm_fbdev_client_setup);
