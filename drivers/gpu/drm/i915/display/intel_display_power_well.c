@@ -988,6 +988,7 @@ void gen9_disable_dc_states(struct intel_display *display)
 	struct drm_i915_private *dev_priv = to_i915(display->drm);
 	struct i915_power_domains *power_domains = &display->power.domains;
 	struct intel_cdclk_config cdclk_config = {};
+	u32 old_state = power_domains->dc_state;
 
 	if (power_domains->target_dc_state == DC_STATE_EN_DC3CO) {
 		tgl_disable_dc3co(display);
@@ -1003,7 +1004,9 @@ void gen9_disable_dc_states(struct intel_display *display)
 		return;
 	}
 
-	intel_dmc_wl_disable(display);
+	if (old_state == DC_STATE_EN_UPTO_DC5 ||
+	    old_state == DC_STATE_EN_UPTO_DC6)
+		intel_dmc_wl_disable(display);
 
 	intel_cdclk_get_cdclk(display, &cdclk_config);
 	/* Can't read out voltage_level so can't use intel_cdclk_changed() */
