@@ -1938,11 +1938,11 @@ int f2fs_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 			goto out;
 	}
 
-	if (F2FS_BYTES_TO_BLK(len) == 0)
-		len = F2FS_BLKSIZE;
-
 	start_blk = F2FS_BYTES_TO_BLK(start);
 	last_blk = F2FS_BYTES_TO_BLK(start + len - 1);
+
+	if (len & F2FS_BLKSIZE_MASK)
+		len = round_up(len, F2FS_BLKSIZE);
 
 next:
 	memset(&map, 0, sizeof(map));
