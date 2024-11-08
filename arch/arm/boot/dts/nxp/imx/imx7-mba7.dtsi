@@ -87,26 +87,6 @@
 			      <&adc2 0>, <&adc2 1>, <&adc2 2>, <&adc2 3>;
 	};
 
-	reg_fec1_pwdn: regulator-fec1-pwdn {
-		compatible = "regulator-fixed";
-		regulator-name = "PWDN_FEC1";
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
-		regulator-always-on;
-		gpio = <&gpio1 9 GPIO_ACTIVE_HIGH>;
-		enable-active-high;
-	};
-
-	reg_fec2_pwdn: regulator-fec2-pwdn {
-		compatible = "regulator-fixed";
-		regulator-name = "PWDN_FEC2";
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
-		regulator-always-on;
-		gpio = <&gpio2 31 GPIO_ACTIVE_HIGH>;
-		enable-active-high;
-	};
-
 	reg_usb_otg1_vbus: regulator-usb-otg1-vbus {
 		compatible = "regulator-fixed";
 		regulator-name = "VBUS_USBOTG1";
@@ -231,7 +211,6 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_enet1>;
 	phy-mode = "rgmii-id";
-	phy-supply = <&reg_fec1_pwdn>;
 	phy-handle = <&ethphy1_0>;
 	fsl,magic-packet;
 	status = "okay";
@@ -252,6 +231,8 @@
 			reset-gpios = <&gpio7 15 GPIO_ACTIVE_LOW>;
 			reset-assert-us = <1000>;
 			reset-deassert-us = <500>;
+			interrupt-parent = <&gpio1>;
+			interrupts = <9 IRQ_TYPE_EDGE_FALLING>;
 		};
 	};
 };
