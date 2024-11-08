@@ -3221,7 +3221,7 @@ static void update_selcpu_topology(void)
 	 * for an idle CPU in the same domain twice is redundant.
 	 */
 	cpus = cpumask_of_node(cpu_to_node(cpu));
-	if ((cpumask_weight(cpus) < num_online_cpus()) & llc_numa_mismatch())
+	if ((cpumask_weight(cpus) < num_online_cpus()) && llc_numa_mismatch())
 		enable_numa = true;
 	rcu_read_unlock();
 
