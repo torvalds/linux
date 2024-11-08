@@ -70,9 +70,9 @@ void amd_mp2_stb_deinit(struct amd_pmc_dev *dev);
 #define PCI_DEVICE_ID_AMD_1AH_M60H_ROOT 0x1122
 #define PCI_DEVICE_ID_AMD_MP2_STB	0x172c
 
-int amd_pmc_s2d_init(struct amd_pmc_dev *dev);
-int amd_pmc_read_stb(struct amd_pmc_dev *dev, u32 *buf);
-int amd_pmc_write_stb(struct amd_pmc_dev *dev, u32 data);
+int amd_stb_s2d_init(struct amd_pmc_dev *dev);
+int amd_stb_read(struct amd_pmc_dev *dev, u32 *buf);
+int amd_stb_write(struct amd_pmc_dev *dev, u32 data);
 int amd_pmc_send_cmd(struct amd_pmc_dev *dev, u32 arg, u32 *data, u8 msg, bool ret);
 
 #endif /* PMC_H */
