@@ -13,6 +13,7 @@
  * must never change:
  */
 #define BCH_RECOVERY_PASSES()							\
+	x(recovery_pass_empty,			41, PASS_SILENT)		\
 	x(scan_for_btree_nodes,			37, 0)				\
 	x(check_topology,			 4, 0)				\
 	x(accounting_read,			39, PASS_ALWAYS)		\
