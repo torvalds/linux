@@ -3379,6 +3379,7 @@ static int rtnl_setlink(struct sk_buff *skb, struct nlmsghdr *nlh,
 	struct net *net = sock_net(skb->sk);
 	struct nlattr *tb[IFLA_MAX+1];
 	struct net_device *dev = NULL;
+	struct rtnl_nets rtnl_nets;
 	struct net *tgt_net;
 	int err;
 
@@ -3397,6 +3398,12 @@ static int rtnl_setlink(struct sk_buff *skb, struct nlmsghdr *nlh,
 		goto errout;
 	}
 
+	rtnl_nets_init(&rtnl_nets);
+	rtnl_nets_add(&rtnl_nets, get_net(net));
+	rtnl_nets_add(&rtnl_nets, tgt_net);
+
+	rtnl_nets_lock(&rtnl_nets);
+
 	if (ifm->ifi_index > 0)
 		dev = __dev_get_by_index(net, ifm->ifi_index);
 	else if (tb[IFLA_IFNAME] || tb[IFLA_ALT_IFNAME])
@@ -3409,7 +3416,7 @@ static int rtnl_setlink(struct sk_buff *skb, struct nlmsghdr *nlh,
 	else if (!err)
 		err = -ENODEV;
 
-	put_net(tgt_net);
+	rtnl_nets_unlock(&rtnl_nets);
 errout:
 	return err;
 }
@@ -3494,6 +3501,8 @@ static int rtnl_dellink(struct sk_buff *skb, struct nlmsghdr *nlh,
 			return PTR_ERR(tgt_net);
 	}
 
+	rtnl_net_lock(tgt_net);
+
 	if (ifm->ifi_index > 0)
 		dev = __dev_get_by_index(tgt_net, ifm->ifi_index);
 	else if (tb[IFLA_IFNAME] || tb[IFLA_ALT_IFNAME])
@@ -3507,6 +3516,8 @@ static int rtnl_dellink(struct sk_buff *skb, struct nlmsghdr *nlh,
 		err = rtnl_group_dellink(tgt_net, nla_get_u32(tb[IFLA_GROUP]));
 	else
 		err = -EINVAL;
+
+	rtnl_net_unlock(tgt_net);
 
 	if (netnsid >= 0)
 		put_net(tgt_net);
@@ -6994,10 +7005,12 @@ static struct pernet_operations rtnetlink_net_ops = {
 static const struct rtnl_msg_handler rtnetlink_rtnl_msg_handlers[] __initconst = {
 	{.msgtype = RTM_NEWLINK, .doit = rtnl_newlink,
 	 .flags = RTNL_FLAG_DOIT_PERNET},
-	{.msgtype = RTM_DELLINK, .doit = rtnl_dellink},
+	{.msgtype = RTM_DELLINK, .doit = rtnl_dellink,
+	 .flags = RTNL_FLAG_DOIT_PERNET_WIP},
 	{.msgtype = RTM_GETLINK, .doit = rtnl_getlink,
 	 .dumpit = rtnl_dump_ifinfo, .flags = RTNL_FLAG_DUMP_SPLIT_NLM_DONE},
-	{.msgtype = RTM_SETLINK, .doit = rtnl_setlink},
+	{.msgtype = RTM_SETLINK, .doit = rtnl_setlink,
+	 .flags = RTNL_FLAG_DOIT_PERNET_WIP},
 	{.msgtype = RTM_GETADDR, .dumpit = rtnl_dump_all},
 	{.msgtype = RTM_GETROUTE, .dumpit = rtnl_dump_all},
 	{.msgtype = RTM_GETNETCONF, .dumpit = rtnl_dump_all},
