@@ -109,7 +109,12 @@ static int __set_task_frozen(struct task_struct *p, void *arg)
 {
 	unsigned int state = READ_ONCE(p->__state);
 
-	if (p->on_rq)
+	/*
+	 * Allow freezing the sched_delayed tasks; they will not execute until
+	 * ttwu() fixes them up, so it is safe to swap their state now, instead
+	 * of waiting for them to get fully dequeued.
+	 */
+	if (task_is_runnable(p))
 		return 0;
 
 	if (p != current && task_curr(p))

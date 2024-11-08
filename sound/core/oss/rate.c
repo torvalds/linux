@@ -294,7 +294,7 @@ static int rate_action(struct snd_pcm_plugin *plugin,
 	default:
 		break;
 	}
-	return 0;	/* silenty ignore other actions */
+	return 0;	/* silently ignore other actions */
 }
 
 int snd_pcm_plugin_build_rate(struct snd_pcm_substream *plug,

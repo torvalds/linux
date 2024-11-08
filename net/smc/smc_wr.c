@@ -648,8 +648,10 @@ void smc_wr_free_link(struct smc_link *lnk)
 	smc_wr_tx_wait_no_pending_sends(lnk);
 	percpu_ref_kill(&lnk->wr_reg_refs);
 	wait_for_completion(&lnk->reg_ref_comp);
+	percpu_ref_exit(&lnk->wr_reg_refs);
 	percpu_ref_kill(&lnk->wr_tx_refs);
 	wait_for_completion(&lnk->tx_ref_comp);
+	percpu_ref_exit(&lnk->wr_tx_refs);
 
 	if (lnk->wr_rx_dma_addr) {
 		ib_dma_unmap_single(ibdev, lnk->wr_rx_dma_addr,
@@ -912,11 +914,13 @@ int smc_wr_create_link(struct smc_link *lnk)
 	init_waitqueue_head(&lnk->wr_reg_wait);
 	rc = percpu_ref_init(&lnk->wr_reg_refs, smcr_wr_reg_refs_free, 0, GFP_KERNEL);
 	if (rc)
-		goto dma_unmap;
+		goto cancel_ref;
 	init_completion(&lnk->reg_ref_comp);
 	init_waitqueue_head(&lnk->wr_rx_empty_wait);
 	return rc;
 
+cancel_ref:
+	percpu_ref_exit(&lnk->wr_tx_refs);
 dma_unmap:
 	if (lnk->wr_rx_v2_dma_addr) {
 		ib_dma_unmap_single(ibdev, lnk->wr_rx_v2_dma_addr,

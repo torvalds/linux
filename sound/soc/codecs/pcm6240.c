@@ -12,7 +12,7 @@
 // Author: Shenghao Ding <shenghao-ding@ti.com>
 //
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <linux/firmware.h>
 #include <linux/gpio.h>
 #include <linux/i2c.h>

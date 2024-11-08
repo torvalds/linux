@@ -258,12 +258,6 @@ L:	linux-acenic@sunsite.dk
 S:	Maintained
 F:	drivers/net/ethernet/alteon/acenic*
 
-ACER ASPIRE 1 EMBEDDED CONTROLLER DRIVER
-M:	Nikita Travkin <nikita@trvn.ru>
-S:	Maintained
-F:	Documentation/devicetree/bindings/platform/acer,aspire1-ec.yaml
-F:	drivers/platform/arm64/acer-aspire1-ec.c
-
 ACER ASPIRE ONE TEMPERATURE AND FAN DRIVER
 M:	Peter Kaestle <peter@piie.net>
 L:	platform-driver-x86@vger.kernel.org
@@ -860,7 +854,7 @@ F:	drivers/crypto/allwinner/
 
 ALLWINNER DMIC DRIVERS
 M:	Ban Tao <fengzheng923@gmail.com>
-L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
+L:	linux-sound@vger.kernel.org
 S:	Maintained
 F:	Documentation/devicetree/bindings/sound/allwinner,sun50i-h6-dmic.yaml
 F:	sound/soc/sunxi/sun50i-dmic.c
@@ -888,7 +882,6 @@ F:	drivers/staging/media/sunxi/cedrus/
 
 ALPHA PORT
 M:	Richard Henderson <richard.henderson@linaro.org>
-M:	Ivan Kokshaysky <ink@jurassic.park.msu.ru>
 M:	Matt Turner <mattst88@gmail.com>
 L:	linux-alpha@vger.kernel.org
 S:	Odd Fixes
@@ -1517,7 +1510,7 @@ F:	drivers/iio/gyro/adxrs290.c
 ANALOG DEVICES INC ASOC CODEC DRIVERS
 M:	Lars-Peter Clausen <lars@metafoo.de>
 M:	Nuno Sá <nuno.sa@analog.com>
-L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
+L:	linux-sound@vger.kernel.org
 S:	Supported
 W:	http://wiki.analog.com/
 W:	https://ez.analog.com/linux-software-drivers
@@ -1594,7 +1587,7 @@ F:	drivers/rtc/rtc-goldfish.c
 AOA (Apple Onboard Audio) ALSA DRIVER
 M:	Johannes Berg <johannes@sipsolutions.net>
 L:	linuxppc-dev@lists.ozlabs.org
-L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
+L:	linux-sound@vger.kernel.org
 S:	Maintained
 F:	sound/aoa/
 
@@ -1761,8 +1754,8 @@ F:	include/uapi/linux/if_arcnet.h
 ARM AND ARM64 SoC SUB-ARCHITECTURES (COMMON PARTS)
 M:	Arnd Bergmann <arnd@arndb.de>
 M:	Olof Johansson <olof@lixom.net>
-M:	soc@kernel.org
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
+L:	soc@lists.linux.dev
 S:	Maintained
 P:	Documentation/process/maintainer-soc.rst
 C:	irc://irc.libera.chat/armlinux
@@ -2091,7 +2084,7 @@ F:	drivers/crypto/amlogic/
 
 ARM/Amlogic Meson SoC Sound Drivers
 M:	Jerome Brunet <jbrunet@baylibre.com>
-L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
+L:	linux-sound@vger.kernel.org
 S:	Maintained
 F:	Documentation/devicetree/bindings/sound/amlogic*
 F:	sound/soc/meson/
@@ -2129,7 +2122,7 @@ F:	drivers/*/*alpine*
 ARM/APPLE MACHINE SOUND DRIVERS
 M:	Martin Povišer <povik+lin@cutebit.org>
 L:	asahi@lists.linux.dev
-L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
+L:	linux-sound@vger.kernel.org
 S:	Maintained
 F:	Documentation/devicetree/bindings/sound/adi,ssm3515.yaml
 F:	Documentation/devicetree/bindings/sound/apple,*
@@ -2262,12 +2255,6 @@ M:	Lukasz Majewski <lukma@denx.de>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 F:	arch/arm/mach-ep93xx/ts72xx.c
-
-ARM/CIRRUS LOGIC CLPS711X ARM ARCHITECTURE
-M:	Alexander Shiyan <shc_work@mail.ru>
-L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
-S:	Odd Fixes
-N:	clps711x
 
 ARM/CIRRUS LOGIC EP93XX ARM ARCHITECTURE
 M:	Hartley Sweeten <hsweeten@visionengravers.com>
@@ -3732,7 +3719,7 @@ F:	arch/arm/boot/dts/microchip/at91-tse850-3.dts
 
 AXENTIA ASOC DRIVERS
 M:	Peter Rosin <peda@axentia.se>
-L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
+L:	linux-sound@vger.kernel.org
 S:	Maintained
 F:	Documentation/devicetree/bindings/sound/axentia,*
 F:	sound/soc/atmel/tse850-pcm5142.c
@@ -3814,14 +3801,6 @@ F:	Documentation/devicetree/bindings/leds/backlight
 F:	drivers/video/backlight/
 F:	include/linux/backlight.h
 F:	include/linux/pwm_backlight.h
-
-BAIKAL-T1 PVT HARDWARE MONITOR DRIVER
-M:	Serge Semin <fancer.lancer@gmail.com>
-L:	linux-hwmon@vger.kernel.org
-S:	Supported
-F:	Documentation/devicetree/bindings/hwmon/baikal,bt1-pvt.yaml
-F:	Documentation/hwmon/bt1-pvt.rst
-F:	drivers/hwmon/bt1-pvt.[ch]
 
 BARCO P50 GPIO DRIVER
 M:	Santosh Kumar Yadav <santoshkumar.yadav@barco.com>
@@ -4851,7 +4830,7 @@ F:	include/uapi/linux/bsg.h
 
 BT87X AUDIO DRIVER
 M:	Clemens Ladisch <clemens@ladisch.de>
-L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
+L:	linux-sound@vger.kernel.org
 S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tiwai/sound.git
 F:	Documentation/sound/cards/bt87x.rst
@@ -4913,7 +4892,7 @@ F:	drivers/net/can/bxcan.c
 
 C-MEDIA CMI8788 DRIVER
 M:	Clemens Ladisch <clemens@ladisch.de>
-L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
+L:	linux-sound@vger.kernel.org
 S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tiwai/sound.git
 F:	sound/pci/oxygen/
@@ -6476,7 +6455,6 @@ F:	drivers/mtd/nand/raw/denali*
 
 DESIGNWARE EDMA CORE IP DRIVER
 M:	Manivannan Sadhasivam <manivannan.sadhasivam@linaro.org>
-R:	Serge Semin <fancer.lancer@gmail.com>
 L:	dmaengine@vger.kernel.org
 S:	Maintained
 F:	drivers/dma/dw-edma/
@@ -7832,6 +7810,8 @@ F:	drivers/gpu/drm/xlnx/
 DRM GPU SCHEDULER
 M:	Luben Tuikov <ltuikov89@gmail.com>
 M:	Matthew Brost <matthew.brost@intel.com>
+M:	Danilo Krummrich <dakr@kernel.org>
+M:	Philipp Stanner <pstanner@redhat.com>
 L:	dri-devel@lists.freedesktop.org
 S:	Maintained
 T:	git https://gitlab.freedesktop.org/drm/misc/kernel.git
@@ -8252,7 +8232,7 @@ F:	drivers/edac/ti_edac.c
 
 EDIROL UA-101/UA-1000 DRIVER
 M:	Clemens Ladisch <clemens@ladisch.de>
-L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
+L:	linux-sound@vger.kernel.org
 S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tiwai/sound.git
 F:	sound/usb/misc/ua101.c
@@ -8814,7 +8794,7 @@ F:	drivers/net/can/usb/f81604.c
 FIREWIRE AUDIO DRIVERS and IEC 61883-1/6 PACKET STREAMING ENGINE
 M:	Clemens Ladisch <clemens@ladisch.de>
 M:	Takashi Sakamoto <o-takashi@sakamocchi.jp>
-L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
+L:	linux-sound@vger.kernel.org
 S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tiwai/sound.git
 F:	include/uapi/sound/firewire.h
@@ -8888,7 +8868,7 @@ F:	drivers/input/joystick/fsia6b.c
 
 FOCUSRITE SCARLETT2 MIXER DRIVER (Scarlett Gen 2+ and Clarett)
 M:	Geoffrey D. Bennett <g@b4.vu>
-L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
+L:	linux-sound@vger.kernel.org
 S:	Maintained
 W:	https://github.com/geoffreybennett/scarlett-gen2
 B:	https://github.com/geoffreybennett/scarlett-gen2/issues
@@ -8912,6 +8892,7 @@ F:	include/linux/fortify-string.h
 F:	lib/fortify_kunit.c
 F:	lib/memcpy_kunit.c
 F:	lib/test_fortify/*
+K:	\bunsafe_memcpy\b
 K:	\b__NO_FORTIFY\b
 
 FPGA DFL DRIVERS
@@ -9209,7 +9190,7 @@ M:	Shengjiu Wang <shengjiu.wang@gmail.com>
 M:	Xiubo Li <Xiubo.Lee@gmail.com>
 R:	Fabio Estevam <festevam@gmail.com>
 R:	Nicolin Chen <nicoleotsuka@gmail.com>
-L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
+L:	linux-sound@vger.kernel.org
 L:	linuxppc-dev@lists.ozlabs.org
 S:	Maintained
 F:	sound/soc/fsl/fsl*
@@ -9219,7 +9200,7 @@ FREESCALE SOC LPC32XX SOUND DRIVERS
 M:	J.M.B. Downing <jonathan.downing@nautel.com>
 M:	Piotr Wojtaszczyk <piotr.wojtaszczyk@timesys.com>
 R:	Vladimir Zapolskiy <vz@mleia.com>
-L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
+L:	linux-sound@vger.kernel.org
 L:	linuxppc-dev@lists.ozlabs.org
 S:	Maintained
 F:	Documentation/devicetree/bindings/sound/nxp,lpc3220-i2s.yaml
@@ -9227,7 +9208,7 @@ F:	sound/soc/fsl/lpc3xxx-*
 
 FREESCALE SOC SOUND QMC DRIVER
 M:	Herve Codina <herve.codina@bootlin.com>
-L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
+L:	linux-sound@vger.kernel.org
 L:	linuxppc-dev@lists.ozlabs.org
 S:	Maintained
 F:	Documentation/devicetree/bindings/sound/fsl,qmc-audio.yaml
@@ -9742,6 +9723,7 @@ F:	include/dt-bindings/gpio/
 F:	include/linux/gpio.h
 F:	include/linux/gpio/
 F:	include/linux/of_gpio.h
+K:	(devm_)?gpio_(request|free|direction|get|set)
 
 GPIO UAPI
 M:	Bartosz Golaszewski <brgl@bgdev.pl>
@@ -9755,14 +9737,6 @@ F:	Documentation/userspace-api/gpio/
 F:	drivers/gpio/gpiolib-cdev.c
 F:	include/uapi/linux/gpio.h
 F:	tools/gpio/
-
-GRE DEMULTIPLEXER DRIVER
-M:	Dmitry Kozlov <xeb@mail.ru>
-L:	netdev@vger.kernel.org
-S:	Maintained
-F:	include/net/gre.h
-F:	net/ipv4/gre_demux.c
-F:	net/ipv4/gre_offload.c
 
 GRETH 10/100/1G Ethernet MAC device driver
 M:	Andreas Larsson <andreas@gaisler.com>
@@ -10267,7 +10241,7 @@ F:	Documentation/devicetree/bindings/arm/hisilicon/low-pin-count.yaml
 F:	drivers/bus/hisi_lpc.c
 
 HISILICON NETWORK SUBSYSTEM 3 DRIVER (HNS3)
-M:	Yisen Zhuang <yisen.zhuang@huawei.com>
+M:	Jian Shen <shenjian15@huawei.com>
 M:	Salil Mehta <salil.mehta@huawei.com>
 M:	Jijie Shao <shaojijie@huawei.com>
 L:	netdev@vger.kernel.org
@@ -10276,7 +10250,7 @@ W:	http://www.hisilicon.com
 F:	drivers/net/ethernet/hisilicon/hns3/
 
 HISILICON NETWORK SUBSYSTEM DRIVER
-M:	Yisen Zhuang <yisen.zhuang@huawei.com>
+M:	Jian Shen <shenjian15@huawei.com>
 M:	Salil Mehta <salil.mehta@huawei.com>
 L:	netdev@vger.kernel.org
 S:	Maintained
@@ -11154,7 +11128,7 @@ F:	drivers/iio/pressure/dps310.c
 
 INFINEON PEB2466 ASoC CODEC
 M:	Herve Codina <herve.codina@bootlin.com>
-L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
+L:	linux-sound@vger.kernel.org
 S:	Maintained
 F:	Documentation/devicetree/bindings/sound/infineon,peb2466.yaml
 F:	sound/soc/codecs/peb2466.c
@@ -11280,10 +11254,10 @@ F:	security/integrity/
 F:	security/integrity/ima/
 
 INTEGRITY POLICY ENFORCEMENT (IPE)
-M:	Fan Wu <wufan@linux.microsoft.com>
+M:	Fan Wu <wufan@kernel.org>
 L:	linux-security-module@vger.kernel.org
 S:	Supported
-T:	git https://github.com/microsoft/ipe.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/wufan/ipe.git
 F:	Documentation/admin-guide/LSM/ipe.rst
 F:	Documentation/security/ipe.rst
 F:	scripts/ipe/
@@ -11317,7 +11291,7 @@ M:	Bard Liao <yung-chuan.liao@linux.intel.com>
 M:	Ranjani Sridharan <ranjani.sridharan@linux.intel.com>
 M:	Kai Vehmanen <kai.vehmanen@linux.intel.com>
 R:	Pierre-Louis Bossart <pierre-louis.bossart@linux.dev>
-L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
+L:	linux-sound@vger.kernel.org
 S:	Supported
 F:	sound/soc/intel/
 
@@ -11496,7 +11470,7 @@ F:	include/uapi/linux/idxd.h
 
 INTEL IN FIELD SCAN (IFS) DEVICE
 M:	Jithu Joseph <jithu.joseph@intel.com>
-R:	Ashok Raj <ashok.raj@intel.com>
+R:	Ashok Raj <ashok.raj.linux@gmail.com>
 R:	Tony Luck <tony.luck@intel.com>
 S:	Maintained
 F:	drivers/platform/x86/intel/ifs
@@ -11600,6 +11574,16 @@ F:	drivers/crypto/intel/keembay/Makefile
 F:	drivers/crypto/intel/keembay/keembay-ocs-hcu-core.c
 F:	drivers/crypto/intel/keembay/ocs-hcu.c
 F:	drivers/crypto/intel/keembay/ocs-hcu.h
+
+INTEL LA JOLLA COVE ADAPTER (LJCA) USB I/O EXPANDER DRIVERS
+M:	Wentong Wu <wentong.wu@intel.com>
+M:	Sakari Ailus <sakari.ailus@linux.intel.com>
+S:	Maintained
+F:	drivers/gpio/gpio-ljca.c
+F:	drivers/i2c/busses/i2c-ljca.c
+F:	drivers/spi/spi-ljca.c
+F:	drivers/usb/misc/usb-ljca.c
+F:	include/linux/usb/ljca.h
 
 INTEL MANAGEMENT ENGINE (mei)
 M:	Tomas Winkler <tomas.winkler@intel.com>
@@ -12001,7 +11985,7 @@ F:	drivers/tty/ipwireless/
 
 IRON DEVICE AUDIO CODEC DRIVERS
 M:	Kiseok Jo <kiseok.jo@irondevice.com>
-L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
+L:	linux-sound@vger.kernel.org
 S:	Maintained
 F:	Documentation/devicetree/bindings/sound/irondevice,*
 F:	sound/soc/codecs/sma*
@@ -12239,6 +12223,7 @@ R:	Dmitry Vyukov <dvyukov@google.com>
 R:	Vincenzo Frascino <vincenzo.frascino@arm.com>
 L:	kasan-dev@googlegroups.com
 S:	Maintained
+B:	https://bugzilla.kernel.org/buglist.cgi?component=Sanitizers&product=Memory%20Management
 F:	Documentation/dev-tools/kasan.rst
 F:	arch/*/include/asm/*kasan.h
 F:	arch/*/mm/kasan_init*
@@ -12262,6 +12247,7 @@ R:	Dmitry Vyukov <dvyukov@google.com>
 R:	Andrey Konovalov <andreyknvl@gmail.com>
 L:	kasan-dev@googlegroups.com
 S:	Maintained
+B:	https://bugzilla.kernel.org/buglist.cgi?component=Sanitizers&product=Memory%20Management
 F:	Documentation/dev-tools/kcov.rst
 F:	include/linux/kcov.h
 F:	include/uapi/linux/kcov.h
@@ -12343,6 +12329,7 @@ F:	include/linux/randomize_kstack.h
 F:	kernel/configs/hardening.config
 F:	lib/usercopy_kunit.c
 F:	mm/usercopy.c
+F:	security/Kconfig.hardening
 K:	\b(add|choose)_random_kstack_offset\b
 K:	\b__check_(object_size|heap_object)\b
 K:	\b__counted_by\b
@@ -12940,49 +12927,29 @@ LIBATA PATA ARASAN COMPACT FLASH CONTROLLER
 M:	Viresh Kumar <vireshk@kernel.org>
 L:	linux-ide@vger.kernel.org
 S:	Maintained
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/axboe/linux-block.git
 F:	drivers/ata/pata_arasan_cf.c
 F:	include/linux/pata_arasan_cf_data.h
-
-LIBATA PATA DRIVERS
-R:	Sergey Shtylyov <s.shtylyov@omp.ru>
-L:	linux-ide@vger.kernel.org
-F:	drivers/ata/ata_*.c
-F:	drivers/ata/pata_*.c
 
 LIBATA PATA FARADAY FTIDE010 AND GEMINI SATA BRIDGE DRIVERS
 M:	Linus Walleij <linus.walleij@linaro.org>
 L:	linux-ide@vger.kernel.org
 S:	Maintained
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/axboe/linux-block.git
 F:	drivers/ata/pata_ftide010.c
 F:	drivers/ata/sata_gemini.c
 F:	drivers/ata/sata_gemini.h
 
 LIBATA SATA AHCI PLATFORM devices support
 M:	Hans de Goede <hdegoede@redhat.com>
-M:	Jens Axboe <axboe@kernel.dk>
 L:	linux-ide@vger.kernel.org
 S:	Maintained
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/axboe/linux-block.git
 F:	drivers/ata/ahci_platform.c
 F:	drivers/ata/libahci_platform.c
 F:	include/linux/ahci_platform.h
-
-LIBATA SATA AHCI SYNOPSYS DWC CONTROLLER DRIVER
-M:	Serge Semin <fancer.lancer@gmail.com>
-L:	linux-ide@vger.kernel.org
-S:	Maintained
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/dlemoal/libata.git
-F:	Documentation/devicetree/bindings/ata/baikal,bt1-ahci.yaml
-F:	Documentation/devicetree/bindings/ata/snps,dwc-ahci.yaml
-F:	drivers/ata/ahci_dwc.c
 
 LIBATA SATA PROMISE TX2/TX4 CONTROLLER DRIVER
 M:	Mikael Pettersson <mikpelinux@gmail.com>
 L:	linux-ide@vger.kernel.org
 S:	Maintained
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/axboe/linux-block.git
 F:	drivers/ata/sata_promise.*
 
 LIBATA SUBSYSTEM (Serial and Parallel ATA drivers)
@@ -13952,7 +13919,7 @@ F:	drivers/media/i2c/max96717.c
 
 MAX9860 MONO AUDIO VOICE CODEC DRIVER
 M:	Peter Rosin <peda@axentia.se>
-L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
+L:	linux-sound@vger.kernel.org
 S:	Maintained
 F:	Documentation/devicetree/bindings/sound/max9860.txt
 F:	sound/soc/codecs/max9860.*
@@ -14174,16 +14141,6 @@ S:	Maintained
 T:	git git://linuxtv.org/media_tree.git
 F:	drivers/media/platform/nxp/imx-pxp.[ch]
 
-MEDIA DRIVERS FOR ASCOT2E
-M:	Sergey Kozlov <serjk@netup.ru>
-M:	Abylay Ospan <aospan@netup.ru>
-L:	linux-media@vger.kernel.org
-S:	Supported
-W:	https://linuxtv.org
-W:	http://netup.tv/
-T:	git git://linuxtv.org/media_tree.git
-F:	drivers/media/dvb-frontends/ascot2e*
-
 MEDIA DRIVERS FOR CXD2099AR CI CONTROLLERS
 M:	Jasmin Jessich <jasmin@anw.at>
 L:	linux-media@vger.kernel.org
@@ -14191,16 +14148,6 @@ S:	Maintained
 W:	https://linuxtv.org
 T:	git git://linuxtv.org/media_tree.git
 F:	drivers/media/dvb-frontends/cxd2099*
-
-MEDIA DRIVERS FOR CXD2841ER
-M:	Sergey Kozlov <serjk@netup.ru>
-M:	Abylay Ospan <aospan@netup.ru>
-L:	linux-media@vger.kernel.org
-S:	Supported
-W:	https://linuxtv.org
-W:	http://netup.tv/
-T:	git git://linuxtv.org/media_tree.git
-F:	drivers/media/dvb-frontends/cxd2841er*
 
 MEDIA DRIVERS FOR CXD2880
 M:	Yasunari Takiguchi <Yasunari.Takiguchi@sony.com>
@@ -14246,51 +14193,12 @@ F:	drivers/media/platform/nxp/imx-mipi-csis.c
 F:	drivers/media/platform/nxp/imx7-media-csi.c
 F:	drivers/media/platform/nxp/imx8mq-mipi-csi2.c
 
-MEDIA DRIVERS FOR HELENE
-M:	Abylay Ospan <aospan@netup.ru>
-L:	linux-media@vger.kernel.org
-S:	Supported
-W:	https://linuxtv.org
-W:	http://netup.tv/
-T:	git git://linuxtv.org/media_tree.git
-F:	drivers/media/dvb-frontends/helene*
-
-MEDIA DRIVERS FOR HORUS3A
-M:	Sergey Kozlov <serjk@netup.ru>
-M:	Abylay Ospan <aospan@netup.ru>
-L:	linux-media@vger.kernel.org
-S:	Supported
-W:	https://linuxtv.org
-W:	http://netup.tv/
-T:	git git://linuxtv.org/media_tree.git
-F:	drivers/media/dvb-frontends/horus3a*
-
-MEDIA DRIVERS FOR LNBH25
-M:	Sergey Kozlov <serjk@netup.ru>
-M:	Abylay Ospan <aospan@netup.ru>
-L:	linux-media@vger.kernel.org
-S:	Supported
-W:	https://linuxtv.org
-W:	http://netup.tv/
-T:	git git://linuxtv.org/media_tree.git
-F:	drivers/media/dvb-frontends/lnbh25*
-
 MEDIA DRIVERS FOR MXL5XX TUNER DEMODULATORS
 L:	linux-media@vger.kernel.org
 S:	Orphan
 W:	https://linuxtv.org
 T:	git git://linuxtv.org/media_tree.git
 F:	drivers/media/dvb-frontends/mxl5xx*
-
-MEDIA DRIVERS FOR NETUP PCI UNIVERSAL DVB devices
-M:	Sergey Kozlov <serjk@netup.ru>
-M:	Abylay Ospan <aospan@netup.ru>
-L:	linux-media@vger.kernel.org
-S:	Supported
-W:	https://linuxtv.org
-W:	http://netup.tv/
-T:	git git://linuxtv.org/media_tree.git
-F:	drivers/media/pci/netup_unidvb/*
 
 MEDIA DRIVERS FOR NVIDIA TEGRA - VDE
 M:	Dmitry Osipenko <digetx@gmail.com>
@@ -14909,9 +14817,10 @@ N:	include/linux/page[-_]*
 
 MEMORY MAPPING
 M:	Andrew Morton <akpm@linux-foundation.org>
-R:	Liam R. Howlett <Liam.Howlett@oracle.com>
+M:	Liam R. Howlett <Liam.Howlett@oracle.com>
+M:	Lorenzo Stoakes <lorenzo.stoakes@oracle.com>
 R:	Vlastimil Babka <vbabka@suse.cz>
-R:	Lorenzo Stoakes <lorenzo.stoakes@oracle.com>
+R:	Jann Horn <jannh@google.com>
 L:	linux-mm@kvack.org
 S:	Maintained
 W:	http://www.linux-mm.org
@@ -14933,13 +14842,6 @@ F:	Documentation/devicetree/bindings/mtd/
 F:	drivers/mtd/
 F:	include/linux/mtd/
 F:	include/uapi/mtd/
-
-MEMSENSING MICROSYSTEMS MSA311 DRIVER
-M:	Dmitry Rokosov <ddrokosov@sberdevices.ru>
-L:	linux-iio@vger.kernel.org
-S:	Maintained
-F:	Documentation/devicetree/bindings/iio/accel/memsensing,msa311.yaml
-F:	drivers/iio/accel/msa311.c
 
 MEN A21 WATCHDOG DRIVER
 M:	Johannes Thumshirn <morbidrsa@gmail.com>
@@ -15085,7 +14987,8 @@ F:	drivers/spi/spi-at91-usart.c
 
 MICROCHIP AUDIO ASOC DRIVERS
 M:	Claudiu Beznea <claudiu.beznea@tuxon.dev>
-L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
+M:	Andrei Simion <andrei.simion@microchip.com>
+L:	linux-sound@vger.kernel.org
 S:	Supported
 F:	Documentation/devicetree/bindings/sound/atmel*
 F:	Documentation/devicetree/bindings/sound/axentia,tse850-pcm5142.txt
@@ -15193,6 +15096,7 @@ F:	include/video/atmel_lcdc.h
 
 MICROCHIP MCP16502 PMIC DRIVER
 M:	Claudiu Beznea <claudiu.beznea@tuxon.dev>
+M:	Andrei Simion <andrei.simion@microchip.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Supported
 F:	Documentation/devicetree/bindings/regulator/microchip,mcp16502.yaml
@@ -15274,7 +15178,6 @@ F:	drivers/tty/serial/8250/8250_pci1xxxx.c
 
 MICROCHIP POLARFIRE FPGA DRIVERS
 M:	Conor Dooley <conor.dooley@microchip.com>
-R:	Vladimir Georgiev <v.georgiev@metrotek.ru>
 L:	linux-fpga@vger.kernel.org
 S:	Supported
 F:	Documentation/devicetree/bindings/fpga/microchip,mpf-spi-fpga-mgr.yaml
@@ -15324,6 +15227,7 @@ F:	drivers/spi/spi-atmel.*
 
 MICROCHIP SSC DRIVER
 M:	Claudiu Beznea <claudiu.beznea@tuxon.dev>
+M:	Andrei Simion <andrei.simion@microchip.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Supported
 F:	Documentation/devicetree/bindings/misc/atmel-ssc.txt
@@ -15529,17 +15433,6 @@ F:	arch/mips/
 F:	drivers/platform/mips/
 F:	include/dt-bindings/mips/
 
-MIPS BAIKAL-T1 PLATFORM
-M:	Serge Semin <fancer.lancer@gmail.com>
-L:	linux-mips@vger.kernel.org
-S:	Supported
-F:	Documentation/devicetree/bindings/bus/baikal,bt1-*.yaml
-F:	Documentation/devicetree/bindings/clock/baikal,bt1-*.yaml
-F:	drivers/bus/bt1-*.c
-F:	drivers/clk/baikal-t1/
-F:	drivers/memory/bt1-l2-ctl.c
-F:	drivers/mtd/maps/physmap-bt1-rom.[ch]
-
 MIPS BOSTON DEVELOPMENT BOARD
 M:	Paul Burton <paulburton@kernel.org>
 L:	linux-mips@vger.kernel.org
@@ -15552,7 +15445,6 @@ F:	include/dt-bindings/clock/boston-clock.h
 
 MIPS CORE DRIVERS
 M:	Thomas Bogendoerfer <tsbogend@alpha.franken.de>
-M:	Serge Semin <fancer.lancer@gmail.com>
 L:	linux-mips@vger.kernel.org
 S:	Supported
 F:	drivers/bus/mips_cdmm.c
@@ -15957,7 +15849,7 @@ F:	include/linux/mtd/*nand*.h
 
 NATIVE INSTRUMENTS USB SOUND INTERFACE DRIVER
 M:	Daniel Mack <zonque@gmail.com>
-L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
+L:	linux-sound@vger.kernel.org
 S:	Maintained
 W:	http://www.native-instruments.com
 F:	sound/usb/caiaq/
@@ -16088,6 +15980,7 @@ F:	include/uapi/linux/net_dropmon.h
 F:	net/core/drop_monitor.c
 
 NETWORKING DRIVERS
+M:	Andrew Lunn <andrew+netdev@lunn.ch>
 M:	"David S. Miller" <davem@davemloft.net>
 M:	Eric Dumazet <edumazet@google.com>
 M:	Jakub Kicinski <kuba@kernel.org>
@@ -16153,6 +16046,7 @@ M:	"David S. Miller" <davem@davemloft.net>
 M:	Eric Dumazet <edumazet@google.com>
 M:	Jakub Kicinski <kuba@kernel.org>
 M:	Paolo Abeni <pabeni@redhat.com>
+R:	Simon Horman <horms@kernel.org>
 L:	netdev@vger.kernel.org
 S:	Maintained
 P:	Documentation/process/maintainer-netdev.rst
@@ -16195,10 +16089,22 @@ F:	include/uapi/linux/rtnetlink.h
 F:	lib/net_utils.c
 F:	lib/random32.c
 F:	net/
+F:	samples/pktgen/
 F:	tools/net/
 F:	tools/testing/selftests/net/
+X:	Documentation/networking/mac80211-injection.rst
+X:	Documentation/networking/mac80211_hwsim/
+X:	Documentation/networking/regulatory.rst
+X:	include/net/cfg80211.h
+X:	include/net/ieee80211_radiotap.h
+X:	include/net/iw_handler.h
+X:	include/net/mac80211.h
+X:	include/net/wext.h
 X:	net/9p/
 X:	net/bluetooth/
+X:	net/mac80211/
+X:	net/rfkill/
+X:	net/wireless/
 
 NETWORKING [IPSEC]
 M:	Steffen Klassert <steffen.klassert@secunet.com>
@@ -16508,12 +16414,6 @@ F:	include/linux/ntb.h
 F:	include/linux/ntb_transport.h
 F:	tools/testing/selftests/ntb/
 
-NTB IDT DRIVER
-M:	Serge Semin <fancer.lancer@gmail.com>
-L:	ntb@lists.linux.dev
-S:	Supported
-F:	drivers/ntb/hw/idt/
-
 NTB INTEL DRIVER
 M:	Dave Jiang <dave.jiang@intel.com>
 L:	ntb@lists.linux.dev
@@ -16728,7 +16628,7 @@ F:	drivers/extcon/extcon-ptn5150.c
 
 NXP SGTL5000 DRIVER
 M:	Fabio Estevam <festevam@gmail.com>
-L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
+L:	linux-sound@vger.kernel.org
 S:	Maintained
 F:	Documentation/devicetree/bindings/sound/fsl,sgtl5000.yaml
 F:	sound/soc/codecs/sgtl5000*
@@ -16752,7 +16652,7 @@ K:	"nxp,tda998x"
 
 NXP TFA9879 DRIVER
 M:	Peter Rosin <peda@axentia.se>
-L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
+L:	linux-sound@vger.kernel.org
 S:	Maintained
 F:	Documentation/devicetree/bindings/sound/nxp,tfa9879.yaml
 F:	sound/soc/codecs/tfa9879*
@@ -16764,7 +16664,7 @@ F:	drivers/nfc/nxp-nci
 
 NXP/Goodix TFA989X (TFA1) DRIVER
 M:	Stephan Gerhold <stephan@gerhold.net>
-L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
+L:	linux-sound@vger.kernel.org
 S:	Maintained
 F:	Documentation/devicetree/bindings/sound/nxp,tfa989x.yaml
 F:	sound/soc/codecs/tfa989x.c
@@ -16850,7 +16750,7 @@ F:	include/uapi/misc/ocxl.h
 OMAP AUDIO SUPPORT
 M:	Peter Ujfalusi <peter.ujfalusi@gmail.com>
 M:	Jarkko Nikula <jarkko.nikula@bitmer.com>
-L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
+L:	linux-sound@vger.kernel.org
 L:	linux-omap@vger.kernel.org
 S:	Maintained
 F:	sound/soc/ti/n810.c
@@ -17407,7 +17307,7 @@ F:	include/linux/pm_opp.h
 
 OPL4 DRIVER
 M:	Clemens Ladisch <clemens@ladisch.de>
-L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
+L:	linux-sound@vger.kernel.org
 S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tiwai/sound.git
 F:	sound/drivers/opl4/
@@ -18534,13 +18434,6 @@ F:	drivers/pps/
 F:	include/linux/pps*.h
 F:	include/uapi/linux/pps.h
 
-PPTP DRIVER
-M:	Dmitry Kozlov <xeb@mail.ru>
-L:	netdev@vger.kernel.org
-S:	Maintained
-W:	http://sourceforge.net/projects/accel-pptp
-F:	drivers/net/ppp/pptp.c
-
 PRESSURE STALL INFORMATION (PSI)
 M:	Johannes Weiner <hannes@cmpxchg.org>
 M:	Suren Baghdasaryan <surenb@google.com>
@@ -18790,7 +18683,7 @@ F:	drivers/crypto/intel/qat/
 
 QCOM AUDIO (ASoC) DRIVERS
 M:	Srinivas Kandagatla <srinivas.kandagatla@linaro.org>
-L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
+L:	linux-sound@vger.kernel.org
 L:	linux-arm-msm@vger.kernel.org
 S:	Supported
 F:	Documentation/devicetree/bindings/soc/qcom/qcom,apr*
@@ -19514,6 +19407,14 @@ S:	Maintained
 F:	Documentation/tools/rtla/
 F:	tools/tracing/rtla/
 
+Real-time Linux (PREEMPT_RT)
+M:	Sebastian Andrzej Siewior <bigeasy@linutronix.de>
+M:	Clark Williams <clrkwllms@kernel.org>
+M:	Steven Rostedt <rostedt@goodmis.org>
+L:	linux-rt-devel@lists.linux.dev
+S:	Supported
+K:	PREEMPT_RT
+
 REALTEK AUDIO CODECS
 M:	Oder Chiou <oder_chiou@realtek.com>
 S:	Maintained
@@ -19623,15 +19524,6 @@ S:	Supported
 F:	Documentation/devicetree/bindings/i2c/renesas,iic-emev2.yaml
 F:	drivers/i2c/busses/i2c-emev2.c
 
-RENESAS ETHERNET AVB DRIVER
-R:	Sergey Shtylyov <s.shtylyov@omp.ru>
-L:	netdev@vger.kernel.org
-L:	linux-renesas-soc@vger.kernel.org
-F:	Documentation/devicetree/bindings/net/renesas,etheravb.yaml
-F:	drivers/net/ethernet/renesas/Kconfig
-F:	drivers/net/ethernet/renesas/Makefile
-F:	drivers/net/ethernet/renesas/ravb*
-
 RENESAS ETHERNET SWITCH DRIVER
 R:	Yoshihiro Shimoda <yoshihiro.shimoda.uh@renesas.com>
 L:	netdev@vger.kernel.org
@@ -19652,7 +19544,7 @@ F:	drivers/net/ethernet/renesas/rtsn.*
 
 RENESAS IDT821034 ASoC CODEC
 M:	Herve Codina <herve.codina@bootlin.com>
-L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
+L:	linux-sound@vger.kernel.org
 S:	Maintained
 F:	Documentation/devicetree/bindings/sound/renesas,idt821034.yaml
 F:	sound/soc/codecs/idt821034.c
@@ -19680,14 +19572,6 @@ F:	Documentation/devicetree/bindings/i2c/renesas,rcar-i2c.yaml
 F:	Documentation/devicetree/bindings/i2c/renesas,rmobile-iic.yaml
 F:	drivers/i2c/busses/i2c-rcar.c
 F:	drivers/i2c/busses/i2c-sh_mobile.c
-
-RENESAS R-CAR SATA DRIVER
-R:	Sergey Shtylyov <s.shtylyov@omp.ru>
-L:	linux-ide@vger.kernel.org
-L:	linux-renesas-soc@vger.kernel.org
-S:	Supported
-F:	Documentation/devicetree/bindings/ata/renesas,rcar-sata.yaml
-F:	drivers/ata/sata_rcar.c
 
 RENESAS R-CAR THERMAL DRIVERS
 M:	Niklas Söderlund <niklas.soderlund@ragnatech.se>
@@ -19763,16 +19647,6 @@ L:	linux-renesas-soc@vger.kernel.org
 S:	Supported
 F:	Documentation/devicetree/bindings/i2c/renesas,rzv2m.yaml
 F:	drivers/i2c/busses/i2c-rzv2m.c
-
-RENESAS SUPERH ETHERNET DRIVER
-R:	Sergey Shtylyov <s.shtylyov@omp.ru>
-L:	netdev@vger.kernel.org
-L:	linux-renesas-soc@vger.kernel.org
-F:	Documentation/devicetree/bindings/net/renesas,ether.yaml
-F:	drivers/net/ethernet/renesas/Kconfig
-F:	drivers/net/ethernet/renesas/Makefile
-F:	drivers/net/ethernet/renesas/sh_eth*
-F:	include/linux/sh_eth.h
 
 RENESAS USB PHY DRIVER
 M:	Yoshihiro Shimoda <yoshihiro.shimoda.uh@renesas.com>
@@ -20403,7 +20277,7 @@ F:	security/safesetid/
 
 SAMSUNG AUDIO (ASoC) DRIVERS
 M:	Sylwester Nawrocki <s.nawrocki@samsung.com>
-L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
+L:	linux-sound@vger.kernel.org
 S:	Maintained
 B:	mailto:linux-samsung-soc@vger.kernel.org
 F:	Documentation/devicetree/bindings/sound/samsung*
@@ -20939,7 +20813,7 @@ F:	drivers/media/rc/serial_ir.c
 
 SERIAL LOW-POWER INTER-CHIP MEDIA BUS (SLIMbus)
 M:	Srinivas Kandagatla <srinivas.kandagatla@linaro.org>
-L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
+L:	linux-sound@vger.kernel.org
 S:	Maintained
 F:	Documentation/devicetree/bindings/slimbus/
 F:	drivers/slimbus/
@@ -21373,7 +21247,7 @@ F:	Documentation/devicetree/bindings/i2c/socionext,synquacer-i2c.yaml
 F:	drivers/i2c/busses/i2c-synquacer.c
 
 SOCIONEXT UNIPHIER SOUND DRIVER
-L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
+L:	linux-sound@vger.kernel.org
 S:	Orphan
 F:	sound/soc/uniphier/
 
@@ -21632,7 +21506,7 @@ F:	tools/testing/selftests/alsa
 
 SOUND - COMPRESSED AUDIO
 M:	Vinod Koul <vkoul@kernel.org>
-L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
+L:	linux-sound@vger.kernel.org
 S:	Supported
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tiwai/sound.git
 F:	Documentation/sound/designs/compress-offload.rst
@@ -21695,7 +21569,7 @@ M:	Vinod Koul <vkoul@kernel.org>
 M:	Bard Liao <yung-chuan.liao@linux.intel.com>
 R:	Pierre-Louis Bossart <pierre-louis.bossart@linux.dev>
 R:	Sanyog Kale <sanyog.r.kale@intel.com>
-L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
+L:	linux-sound@vger.kernel.org
 S:	Supported
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/vkoul/soundwire.git
 F:	Documentation/driver-api/soundwire/
@@ -21768,8 +21642,8 @@ F:	drivers/accessibility/speakup/
 SPEAR PLATFORM/CLOCK/PINCTRL SUPPORT
 M:	Viresh Kumar <vireshk@kernel.org>
 M:	Shiraz Hashim <shiraz.linux.kernel@gmail.com>
-M:	soc@kernel.org
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
+L:	soc@lists.linux.dev
 S:	Maintained
 W:	http://www.st.com/spear
 F:	arch/arm/boot/dts/st/spear*
@@ -22168,7 +22042,7 @@ F:	kernel/static_call.c
 
 STI AUDIO (ASoC) DRIVERS
 M:	Arnaud Pouliquen <arnaud.pouliquen@foss.st.com>
-L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
+L:	linux-sound@vger.kernel.org
 S:	Maintained
 F:	Documentation/devicetree/bindings/sound/st,sti-asoc-card.txt
 F:	sound/soc/sti/
@@ -22189,7 +22063,7 @@ F:	drivers/media/usb/stk1160/
 STM32 AUDIO (ASoC) DRIVERS
 M:	Olivier Moysan <olivier.moysan@foss.st.com>
 M:	Arnaud Pouliquen <arnaud.pouliquen@foss.st.com>
-L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
+L:	linux-sound@vger.kernel.org
 S:	Maintained
 F:	Documentation/devicetree/bindings/iio/adc/st,stm32-dfsdm-adc.yaml
 F:	Documentation/devicetree/bindings/sound/st,stm32-*.yaml
@@ -22427,18 +22301,10 @@ F:	drivers/tty/serial/8250/8250_lpss.c
 
 SYNOPSYS DESIGNWARE APB GPIO DRIVER
 M:	Hoan Tran <hoan@os.amperecomputing.com>
-M:	Serge Semin <fancer.lancer@gmail.com>
 L:	linux-gpio@vger.kernel.org
 S:	Maintained
 F:	Documentation/devicetree/bindings/gpio/snps,dw-apb-gpio.yaml
 F:	drivers/gpio/gpio-dwapb.c
-
-SYNOPSYS DESIGNWARE APB SSI DRIVER
-M:	Serge Semin <fancer.lancer@gmail.com>
-L:	linux-spi@vger.kernel.org
-S:	Supported
-F:	Documentation/devicetree/bindings/spi/snps,dw-apb-ssi.yaml
-F:	drivers/spi/spi-dw*
 
 SYNOPSYS DESIGNWARE AXI DMAC DRIVER
 M:	Eugeniy Paltsev <Eugeniy.Paltsev@synopsys.com>
@@ -22892,7 +22758,7 @@ F:	drivers/irqchip/irq-xtensa-*
 
 TEXAS INSTRUMENTS ASoC DRIVERS
 M:	Peter Ujfalusi <peter.ujfalusi@gmail.com>
-L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
+L:	linux-sound@vger.kernel.org
 S:	Maintained
 F:	Documentation/devicetree/bindings/sound/davinci-mcasp-audio.yaml
 F:	sound/soc/ti/
@@ -22901,7 +22767,7 @@ TEXAS INSTRUMENTS AUDIO (ASoC/HDA) DRIVERS
 M:	Shenghao Ding <shenghao-ding@ti.com>
 M:	Kevin Lu <kevin-lu@ti.com>
 M:	Baojun Xu <baojun.xu@ti.com>
-L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
+L:	linux-sound@vger.kernel.org
 S:	Maintained
 F:	Documentation/devicetree/bindings/sound/tas2552.txt
 F:	Documentation/devicetree/bindings/sound/ti,tas2562.yaml
@@ -23269,7 +23135,7 @@ F:	drivers/soc/ti/*
 TI LM49xxx FAMILY ASoC CODEC DRIVERS
 M:	M R Swami Reddy <mr.swami.reddy@ti.com>
 M:	Vishwas A Deshpande <vishwas.a.deshpande@ti.com>
-L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
+L:	linux-sound@vger.kernel.org
 S:	Maintained
 F:	sound/soc/codecs/isabelle*
 F:	sound/soc/codecs/lm49453*
@@ -23283,15 +23149,15 @@ F:	Documentation/devicetree/bindings/iio/adc/ti,lmp92064.yaml
 F:	drivers/iio/adc/ti-lmp92064.c
 
 TI PCM3060 ASoC CODEC DRIVER
-M:	Kirill Marinushkin <kmarinushkin@birdec.com>
-L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
+M:	Kirill Marinushkin <k.marinushkin@gmail.com>
+L:	linux-sound@vger.kernel.org
 S:	Maintained
 F:	Documentation/devicetree/bindings/sound/pcm3060.txt
 F:	sound/soc/codecs/pcm3060*
 
 TI TAS571X FAMILY ASoC CODEC DRIVER
 M:	Kevin Cernekee <cernekee@chromium.org>
-L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
+L:	linux-sound@vger.kernel.org
 S:	Odd Fixes
 F:	sound/soc/codecs/tas571x*
 
@@ -23319,7 +23185,7 @@ F:	drivers/iio/adc/ti-tsc2046.c
 
 TI TWL4030 SERIES SOC CODEC DRIVER
 M:	Peter Ujfalusi <peter.ujfalusi@gmail.com>
-L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
+L:	linux-sound@vger.kernel.org
 S:	Maintained
 F:	sound/soc/codecs/twl4030*
 
@@ -23749,12 +23615,6 @@ L:	linux-input@vger.kernel.org
 S:	Maintained
 F:	drivers/hid/hid-udraw-ps3.c
 
-UFS FILESYSTEM
-M:	Evgeniy Dushistov <dushistov@mail.ru>
-S:	Maintained
-F:	Documentation/admin-guide/ufs.rst
-F:	fs/ufs/
-
 UHID USERSPACE HID IO DRIVER
 M:	David Rheinsberg <david@readahead.eu>
 L:	linux-input@vger.kernel.org
@@ -23995,7 +23855,7 @@ F:	drivers/usb/storage/
 
 USB MIDI DRIVER
 M:	Clemens Ladisch <clemens@ladisch.de>
-L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
+L:	linux-sound@vger.kernel.org
 S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tiwai/sound.git
 F:	sound/usb/midi.*
@@ -24057,6 +23917,7 @@ USB RAW GADGET DRIVER
 R:	Andrey Konovalov <andreyknvl@gmail.com>
 L:	linux-usb@vger.kernel.org
 S:	Maintained
+B:	https://github.com/xairy/raw-gadget/issues
 F:	Documentation/usb/raw-gadget.rst
 F:	drivers/usb/gadget/legacy/raw_gadget.c
 F:	include/uapi/linux/usb/raw_gadget.h
@@ -24173,8 +24034,12 @@ F:	drivers/usb/host/xhci*
 
 USER DATAGRAM PROTOCOL (UDP)
 M:	Willem de Bruijn <willemdebruijn.kernel@gmail.com>
+L:	netdev@vger.kernel.org
 S:	Maintained
 F:	include/linux/udp.h
+F:	include/net/udp.h
+F:	include/trace/events/udp.h
+F:	include/uapi/linux/udp.h
 F:	net/ipv4/udp.c
 F:	net/ipv6/udp.c
 
@@ -24655,7 +24520,7 @@ VIRTIO SOUND DRIVER
 M:	Anton Yakovlev <anton.yakovlev@opensynergy.com>
 M:	"Michael S. Tsirkin" <mst@redhat.com>
 L:	virtualization@lists.linux.dev
-L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
+L:	linux-sound@vger.kernel.org
 S:	Maintained
 F:	include/uapi/linux/virtio_snd.h
 F:	sound/virtio/*
@@ -24724,9 +24589,10 @@ F:	tools/testing/vsock/
 
 VMA
 M:	Andrew Morton <akpm@linux-foundation.org>
-R:	Liam R. Howlett <Liam.Howlett@oracle.com>
+M:	Liam R. Howlett <Liam.Howlett@oracle.com>
+M:	Lorenzo Stoakes <lorenzo.stoakes@oracle.com>
 R:	Vlastimil Babka <vbabka@suse.cz>
-R:	Lorenzo Stoakes <lorenzo.stoakes@oracle.com>
+R:	Jann Horn <jannh@google.com>
 L:	linux-mm@kvack.org
 S:	Maintained
 W:	https://www.linux-mm.org
@@ -25384,7 +25250,7 @@ F:	include/xen/interface/io/usbif.h
 XEN SOUND FRONTEND DRIVER
 M:	Oleksandr Andrushchenko <oleksandr_andrushchenko@epam.com>
 L:	xen-devel@lists.xenproject.org (moderated for non-subscribers)
-L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
+L:	linux-sound@vger.kernel.org
 S:	Supported
 F:	sound/xen/*
 
@@ -25400,7 +25266,7 @@ F:	include/xen/arm/swiotlb-xen.h
 F:	include/xen/swiotlb-xen.h
 
 XFS FILESYSTEM
-M:	Chandan Babu R <chandan.babu@oracle.com>
+M:	Carlos Maiolino <cem@kernel.org>
 R:	Darrick J. Wong <djwong@kernel.org>
 L:	linux-xfs@vger.kernel.org
 S:	Supported

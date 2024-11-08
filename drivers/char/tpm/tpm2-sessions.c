@@ -71,7 +71,7 @@
 #include "tpm.h"
 #include <linux/random.h>
 #include <linux/scatterlist.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <crypto/kpp.h>
 #include <crypto/ecdh.h>
 #include <crypto/hash.h>

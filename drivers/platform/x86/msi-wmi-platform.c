@@ -22,7 +22,7 @@
 #include <linux/types.h>
 #include <linux/wmi.h>
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #define DRIVER_NAME	"msi-wmi-platform"
 

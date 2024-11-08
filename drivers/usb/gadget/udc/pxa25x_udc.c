@@ -38,7 +38,7 @@
 #include <asm/byteorder.h>
 #include <asm/dma.h>
 #include <asm/mach-types.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>

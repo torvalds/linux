@@ -14,7 +14,7 @@
 #include <linux/power_supply.h>
 #include <linux/regmap.h>
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 /* Nonvolatile registers */
 #define MAX1720X_NXTABLE0		0x80

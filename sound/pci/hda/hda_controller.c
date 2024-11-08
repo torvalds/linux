@@ -275,8 +275,7 @@ static int azx_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 	spin_lock(&bus->reg_lock);
 	/* reset SYNC bits */
 	snd_hdac_stream_sync_trigger(hstr, false, sbits, sync_reg);
-	if (start)
-		snd_hdac_stream_timecounter_init(hstr, sbits);
+	snd_hdac_stream_timecounter_init(hstr, sbits, start);
 	spin_unlock(&bus->reg_lock);
 	return 0;
 }

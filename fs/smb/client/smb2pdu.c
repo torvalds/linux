@@ -2986,7 +2986,7 @@ replay_again:
 
 	SMB2_close(xid, tcon, rsp->PersistentFileId, rsp->VolatileFileId);
 
-	/* Eventually save off posix specific response info and timestaps */
+	/* Eventually save off posix specific response info and timestamps */
 
 err_free_rsp_buf:
 	free_rsp_buf(resp_buftype, rsp);
@@ -3313,6 +3313,15 @@ SMB2_ioctl_init(struct cifs_tcon *tcon, struct TCP_Server_Info *server,
 		return rc;
 
 	if (indatalen) {
+		unsigned int len;
+
+		if (WARN_ON_ONCE(smb3_encryption_required(tcon) &&
+				 (check_add_overflow(total_len - 1,
+						     ALIGN(indatalen, 8), &len) ||
+				  len > MAX_CIFS_SMALL_BUFFER_SIZE))) {
+			cifs_small_buf_release(req);
+			return -EIO;
+		}
 		/*
 		 * indatalen is usually small at a couple of bytes max, so
 		 * just allocate through generic pool
@@ -4581,7 +4590,7 @@ smb2_readv_callback(struct mid_q_entry *mid)
 	}
 #ifdef CONFIG_CIFS_SMB_DIRECT
 	/*
-	 * If this rdata has a memmory registered, the MR can be freed
+	 * If this rdata has a memory registered, the MR can be freed
 	 * MR needs to be freed as soon as I/O finishes to prevent deadlock
 	 * because they have limited number and are used for future I/Os
 	 */

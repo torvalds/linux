@@ -16,7 +16,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/power_supply.h>
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include "i2c-ccgx-ucsi.h"
 

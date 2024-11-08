@@ -710,7 +710,7 @@ static int ffb_blank(int blank, struct fb_info *info)
 	return 0;
 }
 
-static struct sbus_mmap_map ffb_mmap_map[] = {
+static const struct sbus_mmap_map ffb_mmap_map[] = {
 	{
 		.voff	= FFB_SFB8R_VOFF,
 		.poff	= FFB_SFB8R_POFF,
@@ -1053,7 +1053,7 @@ static struct platform_driver ffb_driver = {
 		.of_match_table = ffb_match,
 	},
 	.probe		= ffb_probe,
-	.remove_new	= ffb_remove,
+	.remove		= ffb_remove,
 };
 
 static int __init ffb_init(void)

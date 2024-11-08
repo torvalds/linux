@@ -225,6 +225,7 @@ static long bch2_ioctl_fsck_offline(struct bch_ioctl_fsck_offline __user *user_a
 
 	opt_set(thr->opts, stdio, (u64)(unsigned long)&thr->thr.stdio);
 	opt_set(thr->opts, read_only, 1);
+	opt_set(thr->opts, ratelimit_errors, 0);
 
 	/* We need request_key() to be called before we punt to kthread: */
 	opt_set(thr->opts, nostart, true);

@@ -7,7 +7,7 @@
  * Copyright (C) 2009 Bernie Thompson <bernie@plugable.com>
  */
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include "udl_drv.h"
 #include "udl_proto.h"

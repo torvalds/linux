@@ -800,6 +800,9 @@ static int create_ssp_dailinks(struct snd_soc_card *card,
 		char *cpu_dai_name = devm_kasprintf(dev, GFP_KERNEL, "SSP%d Pin", i);
 		char *codec_name = devm_kasprintf(dev, GFP_KERNEL, "i2c-%s:0%d",
 						  ssp_info->acpi_id, j++);
+		if (!name || !cpu_dai_name || !codec_name)
+			return -ENOMEM;
+
 		int playback = ssp_info->dais[0].direction[SNDRV_PCM_STREAM_PLAYBACK];
 		int capture = ssp_info->dais[0].direction[SNDRV_PCM_STREAM_CAPTURE];
 
@@ -866,6 +869,9 @@ static int create_hdmi_dailinks(struct snd_soc_card *card,
 	for (i = 0; i < hdmi_num; i++) {
 		char *name = devm_kasprintf(dev, GFP_KERNEL, "iDisp%d", i + 1);
 		char *cpu_dai_name = devm_kasprintf(dev, GFP_KERNEL, "iDisp%d Pin", i + 1);
+		if (!name || !cpu_dai_name)
+			return -ENOMEM;
+
 		char *codec_name, *codec_dai_name;
 
 		if (intel_ctx->hdmi.idisp_codec) {
@@ -876,6 +882,9 @@ static int create_hdmi_dailinks(struct snd_soc_card *card,
 			codec_name = "snd-soc-dummy";
 			codec_dai_name = "snd-soc-dummy-dai";
 		}
+
+		if (!codec_dai_name)
+			return -ENOMEM;
 
 		ret = asoc_sdw_init_simple_dai_link(dev, *dai_links, be_id, name,
 						    1, 0, // HDMI only supports playback
@@ -900,6 +909,9 @@ static int create_bt_dailinks(struct snd_soc_card *card,
 			SOF_BT_OFFLOAD_SSP_SHIFT;
 	char *name = devm_kasprintf(dev, GFP_KERNEL, "SSP%d-BT", port);
 	char *cpu_dai_name = devm_kasprintf(dev, GFP_KERNEL, "SSP%d Pin", port);
+	if (!name || !cpu_dai_name)
+		return -ENOMEM;
+
 	int ret;
 
 	ret = asoc_sdw_init_simple_dai_link(dev, *dai_links, be_id, name,

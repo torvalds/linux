@@ -32,7 +32,7 @@
 #include <linux/migrate.h>
 #include <linux/sched/mm.h>
 #include <linux/iomap.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <linux/fsverity.h>
 #include "misc.h"
 #include "ctree.h"
@@ -3111,6 +3111,11 @@ int btrfs_finish_one_ordered(struct btrfs_ordered_extent *ordered_extent)
 		ret = btrfs_update_inode_fallback(trans, inode);
 		if (ret) /* -ENOMEM or corruption */
 			btrfs_abort_transaction(trans, ret);
+
+		ret = btrfs_insert_raid_extent(trans, ordered_extent);
+		if (ret)
+			btrfs_abort_transaction(trans, ret);
+
 		goto out;
 	}
 
@@ -4363,11 +4368,8 @@ static int btrfs_unlink_subvol(struct btrfs_trans_handle *trans,
 	 */
 	if (btrfs_ino(inode) == BTRFS_EMPTY_SUBVOL_DIR_OBJECTID) {
 		di = btrfs_search_dir_index_item(root, path, dir_ino, &fname.disk_name);
-		if (IS_ERR_OR_NULL(di)) {
-			if (!di)
-				ret = -ENOENT;
-			else
-				ret = PTR_ERR(di);
+		if (IS_ERR(di)) {
+			ret = PTR_ERR(di);
 			btrfs_abort_transaction(trans, ret);
 			goto out;
 		}

@@ -96,6 +96,7 @@ enum {
  * @features: features supported by ALE
  * @tbl_entries: number of ALE entries
  * @reg_fields: pointer to array of register field configuration
+ * @num_fields: number of fields in the reg_fields array
  * @nu_switch_ale: NU Switch ALE
  * @vlan_entry_tbl: ALE vlan entry fields description tbl
  */
@@ -104,6 +105,7 @@ struct cpsw_ale_dev_id {
 	u32 features;
 	u32 tbl_entries;
 	const struct reg_field *reg_fields;
+	int num_fields;
 	bool nu_switch_ale;
 	const struct ale_entry_fld *vlan_entry_tbl;
 };
@@ -1400,6 +1402,7 @@ static const struct cpsw_ale_dev_id cpsw_ale_id_match[] = {
 		.dev_id = "cpsw",
 		.tbl_entries = 1024,
 		.reg_fields = ale_fields_cpsw,
+		.num_fields = ARRAY_SIZE(ale_fields_cpsw),
 		.vlan_entry_tbl = vlan_entry_cpsw,
 	},
 	{
@@ -1407,12 +1410,14 @@ static const struct cpsw_ale_dev_id cpsw_ale_id_match[] = {
 		.dev_id = "66ak2h-xgbe",
 		.tbl_entries = 2048,
 		.reg_fields = ale_fields_cpsw,
+		.num_fields = ARRAY_SIZE(ale_fields_cpsw),
 		.vlan_entry_tbl = vlan_entry_cpsw,
 	},
 	{
 		.dev_id = "66ak2el",
 		.features = CPSW_ALE_F_STATUS_REG,
 		.reg_fields = ale_fields_cpsw_nu,
+		.num_fields = ARRAY_SIZE(ale_fields_cpsw_nu),
 		.nu_switch_ale = true,
 		.vlan_entry_tbl = vlan_entry_nu,
 	},
@@ -1421,6 +1426,7 @@ static const struct cpsw_ale_dev_id cpsw_ale_id_match[] = {
 		.features = CPSW_ALE_F_STATUS_REG,
 		.tbl_entries = 64,
 		.reg_fields = ale_fields_cpsw_nu,
+		.num_fields = ARRAY_SIZE(ale_fields_cpsw_nu),
 		.nu_switch_ale = true,
 		.vlan_entry_tbl = vlan_entry_nu,
 	},
@@ -1429,6 +1435,7 @@ static const struct cpsw_ale_dev_id cpsw_ale_id_match[] = {
 		.features = CPSW_ALE_F_STATUS_REG | CPSW_ALE_F_HW_AUTOAGING,
 		.tbl_entries = 64,
 		.reg_fields = ale_fields_cpsw_nu,
+		.num_fields = ARRAY_SIZE(ale_fields_cpsw_nu),
 		.nu_switch_ale = true,
 		.vlan_entry_tbl = vlan_entry_nu,
 	},
@@ -1436,12 +1443,14 @@ static const struct cpsw_ale_dev_id cpsw_ale_id_match[] = {
 		.dev_id = "j721e-cpswxg",
 		.features = CPSW_ALE_F_STATUS_REG | CPSW_ALE_F_HW_AUTOAGING,
 		.reg_fields = ale_fields_cpsw_nu,
+		.num_fields = ARRAY_SIZE(ale_fields_cpsw_nu),
 		.vlan_entry_tbl = vlan_entry_k3_cpswxg,
 	},
 	{
 		.dev_id = "am64-cpswxg",
 		.features = CPSW_ALE_F_STATUS_REG | CPSW_ALE_F_HW_AUTOAGING,
 		.reg_fields = ale_fields_cpsw_nu,
+		.num_fields = ARRAY_SIZE(ale_fields_cpsw_nu),
 		.vlan_entry_tbl = vlan_entry_k3_cpswxg,
 		.tbl_entries = 512,
 	},
@@ -1477,7 +1486,7 @@ static int cpsw_ale_regfield_init(struct cpsw_ale *ale)
 	struct regmap *regmap = ale->regmap;
 	int i;
 
-	for (i = 0; i < ALE_FIELDS_MAX; i++) {
+	for (i = 0; i < ale->params.num_fields; i++) {
 		ale->fields[i] = devm_regmap_field_alloc(dev, regmap,
 							 reg_fields[i]);
 		if (IS_ERR(ale->fields[i])) {
@@ -1503,6 +1512,7 @@ struct cpsw_ale *cpsw_ale_create(struct cpsw_ale_params *params)
 	params->ale_entries = ale_dev_id->tbl_entries;
 	params->nu_switch_ale = ale_dev_id->nu_switch_ale;
 	params->reg_fields = ale_dev_id->reg_fields;
+	params->num_fields = ale_dev_id->num_fields;
 
 	ale = devm_kzalloc(params->dev, sizeof(*ale), GFP_KERNEL);
 	if (!ale)

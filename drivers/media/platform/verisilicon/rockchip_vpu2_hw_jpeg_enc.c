@@ -22,7 +22,7 @@
  * zigzag, nor linear.
  */
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <media/v4l2-mem2mem.h>
 #include "hantro_jpeg.h"
 #include "hantro.h"

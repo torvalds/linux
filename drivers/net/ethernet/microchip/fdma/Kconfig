@@ -6,7 +6,7 @@
 if NET_VENDOR_MICROCHIP
 
 config FDMA
-	bool "FDMA API"
+	bool "FDMA API" if COMPILE_TEST
 	help
 	  Provides the basic FDMA functionality for multiple Microchip
 	  switchcores.
