@@ -1984,7 +1984,7 @@ static void __exit msm_serial_exit(void)
 	uart_unregister_driver(&msm_uart_driver);
 }
 
-subsys_initcall(msm_serial_init);
+module_init(msm_serial_init);
 module_exit(msm_serial_exit);
 
 MODULE_AUTHOR("Robert Love <rlove@google.com>");
