@@ -319,6 +319,26 @@ static void rtnl_nets_add(struct rtnl_nets *rtnl_nets, struct net *net)
 	rtnl_nets->len++;
 }
 
+static void rtnl_nets_lock(struct rtnl_nets *rtnl_nets)
+{
+	int i;
+
+	rtnl_lock();
+
+	for (i = 0; i < rtnl_nets->len; i++)
+		__rtnl_net_lock(rtnl_nets->net[i]);
+}
+
+static void rtnl_nets_unlock(struct rtnl_nets *rtnl_nets)
+{
+	int i;
+
+	for (i = 0; i < rtnl_nets->len; i++)
+		__rtnl_net_unlock(rtnl_nets->net[i]);
+
+	rtnl_unlock();
+}
+
 static struct rtnl_link __rcu *__rcu *rtnl_msg_handlers[RTNL_FAMILY_MAX + 1];
 
 static inline int rtm_msgindex(int msgtype)
@@ -3903,9 +3923,7 @@ static int rtnl_newlink(struct sk_buff *skb, struct nlmsghdr *nlh,
 		ops = rtnl_link_ops_get(kind, &ops_srcu_index);
 #ifdef CONFIG_MODULES
 		if (!ops) {
-			__rtnl_unlock();
 			request_module("rtnl-link-%s", kind);
-			rtnl_lock();
 			ops = rtnl_link_ops_get(kind, &ops_srcu_index);
 		}
 #endif
@@ -3968,7 +3986,9 @@ static int rtnl_newlink(struct sk_buff *skb, struct nlmsghdr *nlh,
 		}
 	}
 
+	rtnl_nets_lock(&rtnl_nets);
 	ret = __rtnl_newlink(skb, nlh, ops, tgt_net, link_net, tbs, data, extack);
+	rtnl_nets_unlock(&rtnl_nets);
 
 put_net:
 	rtnl_nets_destroy(&rtnl_nets);
@@ -6972,7 +6992,8 @@ static struct pernet_operations rtnetlink_net_ops = {
 };
 
 static const struct rtnl_msg_handler rtnetlink_rtnl_msg_handlers[] __initconst = {
-	{.msgtype = RTM_NEWLINK, .doit = rtnl_newlink},
+	{.msgtype = RTM_NEWLINK, .doit = rtnl_newlink,
+	 .flags = RTNL_FLAG_DOIT_PERNET},
 	{.msgtype = RTM_DELLINK, .doit = rtnl_dellink},
 	{.msgtype = RTM_GETLINK, .doit = rtnl_getlink,
 	 .dumpit = rtnl_dump_ifinfo, .flags = RTNL_FLAG_DUMP_SPLIT_NLM_DONE},
