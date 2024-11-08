@@ -166,6 +166,7 @@ err:
 
 static int __init dummy_init_module(void)
 {
+	bool need_unregister = false;
 	int i, err = 0;
 
 	down_write(&pernet_ops_rwsem);
@@ -179,11 +180,14 @@ static int __init dummy_init_module(void)
 		cond_resched();
 	}
 	if (err < 0)
-		__rtnl_link_unregister(&dummy_link_ops);
+		need_unregister = true;
 
 out:
 	rtnl_unlock();
 	up_write(&pernet_ops_rwsem);
+
+	if (need_unregister)
+		rtnl_link_unregister(&dummy_link_ops);
 
 	return err;
 }

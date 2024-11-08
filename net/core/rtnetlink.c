@@ -568,27 +568,6 @@ static void __rtnl_kill_links(struct net *net, struct rtnl_link_ops *ops)
 	unregister_netdevice_many(&list_kill);
 }
 
-/**
- * __rtnl_link_unregister - Unregister rtnl_link_ops from rtnetlink.
- * @ops: struct rtnl_link_ops * to unregister
- *
- * The caller must hold the rtnl_mutex and guarantee net_namespace_list
- * integrity (hold pernet_ops_rwsem for writing to close the race
- * with setup_net() and cleanup_net()).
- */
-void __rtnl_link_unregister(struct rtnl_link_ops *ops)
-{
-	struct net *net;
-
-	list_del_rcu(&ops->list);
-	synchronize_srcu(&ops->srcu);
-	cleanup_srcu_struct(&ops->srcu);
-
-	for_each_net(net)
-		__rtnl_kill_links(net, ops);
-}
-EXPORT_SYMBOL_GPL(__rtnl_link_unregister);
-
 /* Return with the rtnl_lock held when there are no network
  * devices unregistering in any network namespace.
  */
@@ -617,10 +596,19 @@ static void rtnl_lock_unregistering_all(void)
  */
 void rtnl_link_unregister(struct rtnl_link_ops *ops)
 {
+	struct net *net;
+
 	/* Close the race with setup_net() and cleanup_net() */
 	down_write(&pernet_ops_rwsem);
 	rtnl_lock_unregistering_all();
-	__rtnl_link_unregister(ops);
+
+	list_del_rcu(&ops->list);
+	synchronize_srcu(&ops->srcu);
+	cleanup_srcu_struct(&ops->srcu);
+
+	for_each_net(net)
+		__rtnl_kill_links(net, ops);
+
 	rtnl_unlock();
 	up_write(&pernet_ops_rwsem);
 }

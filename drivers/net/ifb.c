@@ -424,6 +424,7 @@ err:
 
 static int __init ifb_init_module(void)
 {
+	bool need_unregister = false;
 	int i, err;
 
 	down_write(&pernet_ops_rwsem);
@@ -437,11 +438,14 @@ static int __init ifb_init_module(void)
 		cond_resched();
 	}
 	if (err)
-		__rtnl_link_unregister(&ifb_link_ops);
+		need_unregister = true;
 
 out:
 	rtnl_unlock();
 	up_write(&pernet_ops_rwsem);
+
+	if (need_unregister)
+		rtnl_link_unregister(&ifb_link_ops);
 
 	return err;
 }

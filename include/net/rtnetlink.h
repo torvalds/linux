@@ -165,7 +165,6 @@ struct rtnl_link_ops {
 };
 
 int __rtnl_link_register(struct rtnl_link_ops *ops);
-void __rtnl_link_unregister(struct rtnl_link_ops *ops);
 
 int rtnl_link_register(struct rtnl_link_ops *ops);
 void rtnl_link_unregister(struct rtnl_link_ops *ops);
