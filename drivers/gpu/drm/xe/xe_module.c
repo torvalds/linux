@@ -19,7 +19,7 @@
 
 struct xe_modparam xe_modparam = {
 	.probe_display = true,
-	.guc_log_level = 5,
+	.guc_log_level = 3,
 	.force_probe = CONFIG_DRM_XE_FORCE_PROBE,
 	.wedged_mode = 1,
 	/* the rest are 0 by default */
