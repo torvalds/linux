@@ -91,14 +91,15 @@ out_unlock:
 	spin_unlock_irqrestore(&wl->lock, flags);
 }
 
-static bool intel_dmc_wl_check_range(u32 address)
+static bool intel_dmc_wl_check_range(i915_reg_t reg)
 {
 	int i;
 	bool wl_needed = false;
+	u32 offset = i915_mmio_reg_offset(reg);
 
 	for (i = 0; i < ARRAY_SIZE(lnl_wl_range); i++) {
-		if (address >= lnl_wl_range[i].start &&
-		    address <= lnl_wl_range[i].end) {
+		if (offset >= lnl_wl_range[i].start &&
+		    offset <= lnl_wl_range[i].end) {
 			wl_needed = true;
 			break;
 		}
@@ -191,7 +192,7 @@ void intel_dmc_wl_get(struct intel_display *display, i915_reg_t reg)
 	if (!__intel_dmc_wl_supported(display))
 		return;
 
-	if (!intel_dmc_wl_check_range(reg.reg))
+	if (!intel_dmc_wl_check_range(reg))
 		return;
 
 	spin_lock_irqsave(&wl->lock, flags);
@@ -239,7 +240,7 @@ void intel_dmc_wl_put(struct intel_display *display, i915_reg_t reg)
 	if (!__intel_dmc_wl_supported(display))
 		return;
 
-	if (!intel_dmc_wl_check_range(reg.reg))
+	if (!intel_dmc_wl_check_range(reg))
 		return;
 
 	spin_lock_irqsave(&wl->lock, flags);
