@@ -833,7 +833,7 @@ void gen9_enable_dc5(struct intel_display *display)
 		intel_de_rmw(display, GEN8_CHICKEN_DCPR_1,
 			     0, SKL_SELECT_ALTERNATE_DC_EXIT);
 
-	intel_dmc_wl_enable(display);
+	intel_dmc_wl_enable(display, DC_STATE_EN_UPTO_DC5);
 
 	gen9_set_dc_state(display, DC_STATE_EN_UPTO_DC5);
 }
@@ -866,7 +866,7 @@ void skl_enable_dc6(struct intel_display *display)
 		intel_de_rmw(display, GEN8_CHICKEN_DCPR_1,
 			     0, SKL_SELECT_ALTERNATE_DC_EXIT);
 
-	intel_dmc_wl_enable(display);
+	intel_dmc_wl_enable(display, DC_STATE_EN_UPTO_DC6);
 
 	gen9_set_dc_state(display, DC_STATE_EN_UPTO_DC6);
 }

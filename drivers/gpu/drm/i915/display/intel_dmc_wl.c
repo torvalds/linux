@@ -5,6 +5,7 @@
 
 #include <linux/kernel.h>
 
+#include "i915_reg.h"
 #include "intel_de.h"
 #include "intel_dmc.h"
 #include "intel_dmc_regs.h"
@@ -53,6 +54,87 @@ struct intel_dmc_wl_range {
 
 static struct intel_dmc_wl_range powered_off_ranges[] = {
 	{ .start = 0x60000, .end = 0x7ffff },
+	{},
+};
+
+static struct intel_dmc_wl_range xe3lpd_dc5_dc6_dmc_ranges[] = {
+	{ .start = 0x45500, .end = 0x45500 }, /* DC_STATE_SEL */
+	{ .start = 0x457a0, .end = 0x457b0 }, /* DC*_RESIDENCY_COUNTER */
+	{ .start = 0x45504, .end = 0x45504 }, /* DC_STATE_EN */
+	{ .start = 0x45400, .end = 0x4540c }, /* PWR_WELL_CTL_* */
+	{ .start = 0x454f0, .end = 0x454f0 }, /* RETENTION_CTRL */
+
+	/* DBUF_CTL_* */
+	{ .start = 0x44300, .end = 0x44300 },
+	{ .start = 0x44304, .end = 0x44304 },
+	{ .start = 0x44f00, .end = 0x44f00 },
+	{ .start = 0x44f04, .end = 0x44f04 },
+	{ .start = 0x44fe8, .end = 0x44fe8 },
+	{ .start = 0x45008, .end = 0x45008 },
+
+	{ .start = 0x46070, .end = 0x46070 }, /* CDCLK_PLL_ENABLE */
+	{ .start = 0x46000, .end = 0x46000 }, /* CDCLK_CTL */
+	{ .start = 0x46008, .end = 0x46008 }, /* CDCLK_SQUASH_CTL */
+
+	/* TRANS_CMTG_CTL_* */
+	{ .start = 0x6fa88, .end = 0x6fa88 },
+	{ .start = 0x6fb88, .end = 0x6fb88 },
+
+	{ .start = 0x46430, .end = 0x46430 }, /* CHICKEN_DCPR_1 */
+	{ .start = 0x46434, .end = 0x46434 }, /* CHICKEN_DCPR_2 */
+	{ .start = 0x454a0, .end = 0x454a0 }, /* CHICKEN_DCPR_4 */
+	{ .start = 0x42084, .end = 0x42084 }, /* CHICKEN_MISC_2 */
+	{ .start = 0x42088, .end = 0x42088 }, /* CHICKEN_MISC_3 */
+	{ .start = 0x46160, .end = 0x46160 }, /* CMTG_CLK_SEL */
+	{ .start = 0x8f000, .end = 0x8ffff }, /* Main DMC registers */
+
+	{},
+};
+
+static struct intel_dmc_wl_range xe3lpd_dc3co_dmc_ranges[] = {
+	{ .start = 0x454a0, .end = 0x454a0 }, /* CHICKEN_DCPR_4 */
+
+	{ .start = 0x45504, .end = 0x45504 }, /* DC_STATE_EN */
+
+	/* DBUF_CTL_* */
+	{ .start = 0x44300, .end = 0x44300 },
+	{ .start = 0x44304, .end = 0x44304 },
+	{ .start = 0x44f00, .end = 0x44f00 },
+	{ .start = 0x44f04, .end = 0x44f04 },
+	{ .start = 0x44fe8, .end = 0x44fe8 },
+	{ .start = 0x45008, .end = 0x45008 },
+
+	{ .start = 0x46070, .end = 0x46070 }, /* CDCLK_PLL_ENABLE */
+	{ .start = 0x46000, .end = 0x46000 }, /* CDCLK_CTL */
+	{ .start = 0x46008, .end = 0x46008 }, /* CDCLK_SQUASH_CTL */
+	{ .start = 0x8f000, .end = 0x8ffff }, /* Main DMC registers */
+
+	/* Scanline registers */
+	{ .start = 0x70000, .end = 0x70000 },
+	{ .start = 0x70004, .end = 0x70004 },
+	{ .start = 0x70014, .end = 0x70014 },
+	{ .start = 0x70018, .end = 0x70018 },
+	{ .start = 0x71000, .end = 0x71000 },
+	{ .start = 0x71004, .end = 0x71004 },
+	{ .start = 0x71014, .end = 0x71014 },
+	{ .start = 0x71018, .end = 0x71018 },
+	{ .start = 0x72000, .end = 0x72000 },
+	{ .start = 0x72004, .end = 0x72004 },
+	{ .start = 0x72014, .end = 0x72014 },
+	{ .start = 0x72018, .end = 0x72018 },
+	{ .start = 0x73000, .end = 0x73000 },
+	{ .start = 0x73004, .end = 0x73004 },
+	{ .start = 0x73014, .end = 0x73014 },
+	{ .start = 0x73018, .end = 0x73018 },
+	{ .start = 0x7b000, .end = 0x7b000 },
+	{ .start = 0x7b004, .end = 0x7b004 },
+	{ .start = 0x7b014, .end = 0x7b014 },
+	{ .start = 0x7b018, .end = 0x7b018 },
+	{ .start = 0x7c000, .end = 0x7c000 },
+	{ .start = 0x7c004, .end = 0x7c004 },
+	{ .start = 0x7c014, .end = 0x7c014 },
+	{ .start = 0x7c018, .end = 0x7c018 },
+
 	{},
 };
 
@@ -112,13 +194,37 @@ static bool intel_dmc_wl_reg_in_range(i915_reg_t reg,
 	return false;
 }
 
-static bool intel_dmc_wl_check_range(i915_reg_t reg)
+static bool intel_dmc_wl_check_range(i915_reg_t reg, u32 dc_state)
 {
+	const struct intel_dmc_wl_range *ranges;
+
 	/*
 	 * Check that the offset is in one of the ranges for which
 	 * registers are powered off during DC states.
 	 */
-	return intel_dmc_wl_reg_in_range(reg, powered_off_ranges);
+	if (intel_dmc_wl_reg_in_range(reg, powered_off_ranges))
+		return true;
+
+	/*
+	 * Check that the offset is for a register that is touched by
+	 * the DMC and requires a DC exit for proper access.
+	 */
+	switch (dc_state) {
+	case DC_STATE_EN_DC3CO:
+		ranges = xe3lpd_dc3co_dmc_ranges;
+		break;
+	case DC_STATE_EN_UPTO_DC5:
+	case DC_STATE_EN_UPTO_DC6:
+		ranges = xe3lpd_dc5_dc6_dmc_ranges;
+		break;
+	default:
+		ranges = NULL;
+	}
+
+	if (ranges && intel_dmc_wl_reg_in_range(reg, ranges))
+		return true;
+
+	return false;
 }
 
 static bool __intel_dmc_wl_supported(struct intel_display *display)
@@ -144,7 +250,7 @@ void intel_dmc_wl_init(struct intel_display *display)
 	refcount_set(&wl->refcount, 0);
 }
 
-void intel_dmc_wl_enable(struct intel_display *display)
+void intel_dmc_wl_enable(struct intel_display *display, u32 dc_state)
 {
 	struct intel_dmc_wl *wl = &display->wl;
 	unsigned long flags;
@@ -153,6 +259,8 @@ void intel_dmc_wl_enable(struct intel_display *display)
 		return;
 
 	spin_lock_irqsave(&wl->lock, flags);
+
+	wl->dc_state = dc_state;
 
 	if (wl->enabled)
 		goto out_unlock;
@@ -205,10 +313,10 @@ void intel_dmc_wl_get(struct intel_display *display, i915_reg_t reg)
 	if (!__intel_dmc_wl_supported(display))
 		return;
 
-	if (i915_mmio_reg_valid(reg) && !intel_dmc_wl_check_range(reg))
-		return;
-
 	spin_lock_irqsave(&wl->lock, flags);
+
+	if (i915_mmio_reg_valid(reg) && !intel_dmc_wl_check_range(reg, wl->dc_state))
+		goto out_unlock;
 
 	if (!wl->enabled)
 		goto out_unlock;
@@ -257,10 +365,10 @@ void intel_dmc_wl_put(struct intel_display *display, i915_reg_t reg)
 	if (!__intel_dmc_wl_supported(display))
 		return;
 
-	if (i915_mmio_reg_valid(reg) && !intel_dmc_wl_check_range(reg))
-		return;
-
 	spin_lock_irqsave(&wl->lock, flags);
+
+	if (i915_mmio_reg_valid(reg) && !intel_dmc_wl_check_range(reg, wl->dc_state))
+		goto out_unlock;
 
 	if (!wl->enabled)
 		goto out_unlock;
