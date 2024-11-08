@@ -1467,7 +1467,6 @@ static void phylink_resolve(struct work_struct *w)
 		switch (pl->cur_link_an_mode) {
 		case MLO_AN_PHY:
 			link_state = pl->phy_state;
-			phylink_apply_manual_flow(pl, &link_state);
 			mac_config = link_state.link;
 			break;
 
@@ -1528,10 +1527,12 @@ static void phylink_resolve(struct work_struct *w)
 				link_state.pause = pl->phy_state.pause;
 				mac_config = true;
 			}
-			phylink_apply_manual_flow(pl, &link_state);
 			break;
 		}
 	}
+
+	if (pl->cur_link_an_mode != MLO_AN_FIXED)
+		phylink_apply_manual_flow(pl, &link_state);
 
 	if (mac_config) {
 		if (link_state.interface != pl->link_config.interface) {
