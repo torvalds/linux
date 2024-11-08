@@ -17,5 +17,5 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
-    - run: sudo apt update && sudo apt install -y bc bison flex gcc-aarch64-linux-gnu gcc-arm-linux-gnueabihf make libelf-dev libssl-dev device-tree-compiler
+    - run: sudo apt update && sudo apt install -y bc bison flex gcc-aarch64-linux-gnu gcc-arm-linux-gnueabihf make libelf-dev libssl-dev debhelper-compat debhelper device-tree-compiler
     - run: make -j16 ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- CROSS_COMPILE_ARM32=arm-linux-gnuabeihf- lmi_defconfig ${{ matrix.type }}
