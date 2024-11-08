@@ -808,7 +808,7 @@ static int intel_bts_synth_events(struct intel_bts *bts,
 static const char * const intel_bts_info_fmts[] = {
 	[INTEL_BTS_PMU_TYPE]		= "  PMU Type           %"PRId64"\n",
 	[INTEL_BTS_TIME_SHIFT]		= "  Time Shift         %"PRIu64"\n",
-	[INTEL_BTS_TIME_MULT]		= "  Time Muliplier     %"PRIu64"\n",
+	[INTEL_BTS_TIME_MULT]		= "  Time Multiplier    %"PRIu64"\n",
 	[INTEL_BTS_TIME_ZERO]		= "  Time Zero          %"PRIu64"\n",
 	[INTEL_BTS_CAP_USER_TIME_ZERO]	= "  Cap Time Zero      %"PRId64"\n",
 	[INTEL_BTS_SNAPSHOT_MODE]	= "  Snapshot mode      %"PRId64"\n",

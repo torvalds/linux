@@ -4110,7 +4110,7 @@ static int intel_pt_parse_vm_tm_corr_args(struct intel_pt *pt)
 static const char * const intel_pt_info_fmts[] = {
 	[INTEL_PT_PMU_TYPE]		= "  PMU Type            %"PRId64"\n",
 	[INTEL_PT_TIME_SHIFT]		= "  Time Shift          %"PRIu64"\n",
-	[INTEL_PT_TIME_MULT]		= "  Time Muliplier      %"PRIu64"\n",
+	[INTEL_PT_TIME_MULT]		= "  Time Multiplier     %"PRIu64"\n",
 	[INTEL_PT_TIME_ZERO]		= "  Time Zero           %"PRIu64"\n",
 	[INTEL_PT_CAP_USER_TIME_ZERO]	= "  Cap Time Zero       %"PRId64"\n",
 	[INTEL_PT_TSC_BIT]		= "  TSC bit             %#"PRIx64"\n",
