@@ -495,19 +495,20 @@ static void rtnl_link_ops_put(struct rtnl_link_ops *ops, int srcu_index)
 }
 
 /**
- * __rtnl_link_register - Register rtnl_link_ops with rtnetlink.
+ * rtnl_link_register - Register rtnl_link_ops with rtnetlink.
  * @ops: struct rtnl_link_ops * to register
- *
- * The caller must hold the rtnl_mutex. This function should be used
- * by drivers that create devices during module initialization. It
- * must be called before registering the devices.
  *
  * Returns 0 on success or a negative error code.
  */
-int __rtnl_link_register(struct rtnl_link_ops *ops)
+int rtnl_link_register(struct rtnl_link_ops *ops)
 {
 	struct rtnl_link_ops *tmp;
 	int err;
+
+	/* Sanity-check max sizes to avoid stack buffer overflow. */
+	if (WARN_ON(ops->maxtype > RTNL_MAX_TYPE ||
+		    ops->slave_maxtype > RTNL_SLAVE_MAX_TYPE))
+		return -EINVAL;
 
 	/* The check for alloc/setup is here because if ops
 	 * does not have that filled up, it is not possible
@@ -534,28 +535,6 @@ int __rtnl_link_register(struct rtnl_link_ops *ops)
 unlock:
 	mutex_unlock(&link_ops_mutex);
 
-	return err;
-}
-EXPORT_SYMBOL_GPL(__rtnl_link_register);
-
-/**
- * rtnl_link_register - Register rtnl_link_ops with rtnetlink.
- * @ops: struct rtnl_link_ops * to register
- *
- * Returns 0 on success or a negative error code.
- */
-int rtnl_link_register(struct rtnl_link_ops *ops)
-{
-	int err;
-
-	/* Sanity-check max sizes to avoid stack buffer overflow. */
-	if (WARN_ON(ops->maxtype > RTNL_MAX_TYPE ||
-		    ops->slave_maxtype > RTNL_SLAVE_MAX_TYPE))
-		return -EINVAL;
-
-	rtnl_lock();
-	err = __rtnl_link_register(ops);
-	rtnl_unlock();
 	return err;
 }
 EXPORT_SYMBOL_GPL(rtnl_link_register);
