@@ -354,6 +354,12 @@ nfs_local_read_done(struct nfs_local_kiocb *iocb, long status)
 
 	nfs_local_pgio_done(hdr, status);
 
+	/*
+	 * Must clear replen otherwise NFSv3 data corruption will occur
+	 * if/when switching from LOCALIO back to using normal RPC.
+	 */
+	hdr->res.replen = 0;
+
 	if (hdr->res.count != hdr->args.count ||
 	    hdr->args.offset + hdr->res.count >= i_size_read(file_inode(filp)))
 		hdr->res.eof = true;
