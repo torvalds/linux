@@ -856,7 +856,7 @@
 		};
 
 		gpi_dma2: qcom,gpi-dma@800000  {
-			compatible = "qcom,sm6350-gpi-dma";
+			compatible = "qcom,sa8775p-gpi-dma", "qcom,sm6350-gpi-dma";
 			reg = <0x0 0x00800000 0x0 0x60000>;
 			#dma-cells = <3>;
 			interrupts = <GIC_SPI 588 IRQ_TYPE_LEVEL_HIGH>,
@@ -1347,7 +1347,7 @@
 		};
 
 		gpi_dma0: qcom,gpi-dma@900000  {
-			compatible = "qcom,sm6350-gpi-dma";
+			compatible = "qcom,sa8775p-gpi-dma", "qcom,sm6350-gpi-dma";
 			reg = <0x0 0x00900000 0x0 0x60000>;
 			#dma-cells = <3>;
 			interrupts = <GIC_SPI 244 IRQ_TYPE_LEVEL_HIGH>,
@@ -1772,7 +1772,7 @@
 		};
 
 		gpi_dma1: qcom,gpi-dma@a00000  {
-			compatible = "qcom,sm6350-gpi-dma";
+			compatible = "qcom,sa8775p-gpi-dma", "qcom,sm6350-gpi-dma";
 			reg = <0x0 0x00a00000 0x0 0x60000>;
 			#dma-cells = <3>;
 			interrupts = <GIC_SPI 279 IRQ_TYPE_LEVEL_HIGH>,
@@ -2227,7 +2227,7 @@
 		};
 
 		gpi_dma3: qcom,gpi-dma@b00000  {
-			compatible = "qcom,sm6350-gpi-dma";
+			compatible = "qcom,sa8775p-gpi-dma", "qcom,sm6350-gpi-dma";
 			reg = <0x0 0x00b00000 0x0 0x58000>;
 			#dma-cells = <3>;
 			interrupts = <GIC_SPI 368 IRQ_TYPE_LEVEL_HIGH>,
