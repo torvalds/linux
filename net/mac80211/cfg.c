@@ -143,7 +143,7 @@ static int ieee80211_set_mon_options(struct ieee80211_sub_if_data *sdata,
 }
 
 static int ieee80211_set_ap_mbssid_options(struct ieee80211_sub_if_data *sdata,
-					   struct cfg80211_mbssid_config params,
+					   struct cfg80211_mbssid_config *params,
 					   struct ieee80211_bss_conf *link_conf)
 {
 	struct ieee80211_sub_if_data *tx_sdata;
@@ -154,10 +154,10 @@ static int ieee80211_set_ap_mbssid_options(struct ieee80211_sub_if_data *sdata,
 	link_conf->ema_ap = false;
 	link_conf->bssid_indicator = 0;
 
-	if (sdata->vif.type != NL80211_IFTYPE_AP || !params.tx_wdev)
+	if (sdata->vif.type != NL80211_IFTYPE_AP || !params->tx_wdev)
 		return -EINVAL;
 
-	tx_sdata = IEEE80211_WDEV_TO_SUB_IF(params.tx_wdev);
+	tx_sdata = IEEE80211_WDEV_TO_SUB_IF(params->tx_wdev);
 	if (!tx_sdata)
 		return -EINVAL;
 
@@ -166,9 +166,9 @@ static int ieee80211_set_ap_mbssid_options(struct ieee80211_sub_if_data *sdata,
 	} else {
 		sdata->vif.mbssid_tx_vif = &tx_sdata->vif;
 		link_conf->nontransmitted = true;
-		link_conf->bssid_index = params.index;
+		link_conf->bssid_index = params->index;
 	}
-	if (params.ema)
+	if (params->ema)
 		link_conf->ema_ap = true;
 
 	return 0;
@@ -1414,7 +1414,7 @@ static int ieee80211_start_ap(struct wiphy *wiphy, struct net_device *dev,
 	if (sdata->vif.type == NL80211_IFTYPE_AP &&
 	    params->mbssid_config.tx_wdev) {
 		err = ieee80211_set_ap_mbssid_options(sdata,
-						      params->mbssid_config,
+						      &params->mbssid_config,
 						      link_conf);
 		if (err)
 			return err;
