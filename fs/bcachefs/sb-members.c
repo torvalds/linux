@@ -163,7 +163,7 @@ static int validate_member(struct printbuf *err,
 		return -BCH_ERR_invalid_sb_members;
 	}
 
-	if (m.btree_bitmap_shift >= 64) {
+	if (m.btree_bitmap_shift >= BCH_MI_BTREE_BITMAP_SHIFT_MAX) {
 		prt_printf(err, "device %u: invalid btree_bitmap_shift %u", i, m.btree_bitmap_shift);
 		return -BCH_ERR_invalid_sb_members;
 	}
@@ -450,7 +450,7 @@ static void __bch2_dev_btree_bitmap_mark(struct bch_sb_field_members_v2 *mi, uns
 		m->btree_bitmap_shift += resize;
 	}
 
-	BUG_ON(m->btree_bitmap_shift > 57);
+	BUG_ON(m->btree_bitmap_shift >= BCH_MI_BTREE_BITMAP_SHIFT_MAX);
 	BUG_ON(end > 64ULL << m->btree_bitmap_shift);
 
 	for (unsigned bit = start >> m->btree_bitmap_shift;
