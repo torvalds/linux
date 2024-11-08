@@ -1291,40 +1291,35 @@ static int diskstats_show(struct seq_file *seqf, void *v)
 			part_stat_unlock();
 		}
 		part_stat_read_all(hd, &stat);
-		seq_printf(seqf, "%4d %7d %pg "
-			   "%lu %lu %lu %u "
-			   "%lu %lu %lu %u "
-			   "%u %u %u "
-			   "%lu %lu %lu %u "
-			   "%lu %u"
-			   "\n",
-			   MAJOR(hd->bd_dev), MINOR(hd->bd_dev), hd,
-			   stat.ios[STAT_READ],
-			   stat.merges[STAT_READ],
-			   stat.sectors[STAT_READ],
-			   (unsigned int)div_u64(stat.nsecs[STAT_READ],
-							NSEC_PER_MSEC),
-			   stat.ios[STAT_WRITE],
-			   stat.merges[STAT_WRITE],
-			   stat.sectors[STAT_WRITE],
-			   (unsigned int)div_u64(stat.nsecs[STAT_WRITE],
-							NSEC_PER_MSEC),
-			   inflight,
-			   jiffies_to_msecs(stat.io_ticks),
-			   (unsigned int)div_u64(stat.nsecs[STAT_READ] +
-						 stat.nsecs[STAT_WRITE] +
-						 stat.nsecs[STAT_DISCARD] +
-						 stat.nsecs[STAT_FLUSH],
-							NSEC_PER_MSEC),
-			   stat.ios[STAT_DISCARD],
-			   stat.merges[STAT_DISCARD],
-			   stat.sectors[STAT_DISCARD],
-			   (unsigned int)div_u64(stat.nsecs[STAT_DISCARD],
-						 NSEC_PER_MSEC),
-			   stat.ios[STAT_FLUSH],
-			   (unsigned int)div_u64(stat.nsecs[STAT_FLUSH],
-						 NSEC_PER_MSEC)
-			);
+		seq_put_decimal_ull_width(seqf, "",  MAJOR(hd->bd_dev), 4);
+		seq_put_decimal_ull_width(seqf, " ", MINOR(hd->bd_dev), 7);
+		seq_printf(seqf, " %pg", hd);
+		seq_put_decimal_ull(seqf, " ", stat.ios[STAT_READ]);
+		seq_put_decimal_ull(seqf, " ", stat.merges[STAT_READ]);
+		seq_put_decimal_ull(seqf, " ", stat.sectors[STAT_READ]);
+		seq_put_decimal_ull(seqf, " ", (unsigned int)div_u64(stat.nsecs[STAT_READ],
+								     NSEC_PER_MSEC));
+		seq_put_decimal_ull(seqf, " ", stat.ios[STAT_WRITE]);
+		seq_put_decimal_ull(seqf, " ", stat.merges[STAT_WRITE]);
+		seq_put_decimal_ull(seqf, " ", stat.sectors[STAT_WRITE]);
+		seq_put_decimal_ull(seqf, " ", (unsigned int)div_u64(stat.nsecs[STAT_WRITE],
+								     NSEC_PER_MSEC));
+		seq_put_decimal_ull(seqf, " ", inflight);
+		seq_put_decimal_ull(seqf, " ", jiffies_to_msecs(stat.io_ticks));
+		seq_put_decimal_ull(seqf, " ", (unsigned int)div_u64(stat.nsecs[STAT_READ] +
+								     stat.nsecs[STAT_WRITE] +
+								     stat.nsecs[STAT_DISCARD] +
+								     stat.nsecs[STAT_FLUSH],
+								     NSEC_PER_MSEC));
+		seq_put_decimal_ull(seqf, " ", stat.ios[STAT_DISCARD]);
+		seq_put_decimal_ull(seqf, " ", stat.merges[STAT_DISCARD]);
+		seq_put_decimal_ull(seqf, " ", stat.sectors[STAT_DISCARD]);
+		seq_put_decimal_ull(seqf, " ", (unsigned int)div_u64(stat.nsecs[STAT_DISCARD],
+								     NSEC_PER_MSEC));
+		seq_put_decimal_ull(seqf, " ", stat.ios[STAT_FLUSH]);
+		seq_put_decimal_ull(seqf, " ", (unsigned int)div_u64(stat.nsecs[STAT_FLUSH],
+								     NSEC_PER_MSEC));
+		seq_putc(seqf, '\n');
 	}
 	rcu_read_unlock();
 
