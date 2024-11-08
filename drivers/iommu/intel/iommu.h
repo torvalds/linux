@@ -22,6 +22,7 @@
 #include <linux/bitfield.h>
 #include <linux/xarray.h>
 #include <linux/perf_event.h>
+#include <linux/pci.h>
 
 #include <asm/cacheflush.h>
 #include <asm/iommu.h>
@@ -830,6 +831,12 @@ iommu_domain_did(struct iommu_domain *domain, struct intel_iommu *iommu)
 	    domain->type == IOMMU_DOMAIN_IDENTITY)
 		return FLPT_DEFAULT_DID;
 	return domain_id_iommu(to_dmar_domain(domain), iommu);
+}
+
+static inline bool dev_is_real_dma_subdevice(struct device *dev)
+{
+	return dev && dev_is_pci(dev) &&
+	       pci_real_dma_dev(to_pci_dev(dev)) != to_pci_dev(dev);
 }
 
 /*
