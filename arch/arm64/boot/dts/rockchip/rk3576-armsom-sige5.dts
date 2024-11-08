@@ -646,7 +646,6 @@
 	max-frequency = <200000000>;
 	no-sdio;
 	no-mmc;
-	non-removable;
 	sd-uhs-sdr104;
 	vmmc-supply = <&vcc_3v3_s3>;
 	vqmmc-supply = <&vccio_sd_s0>;
