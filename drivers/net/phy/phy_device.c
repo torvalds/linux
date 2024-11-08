@@ -2240,29 +2240,6 @@ static int genphy_c37_config_advert(struct phy_device *phydev)
 }
 
 /**
- * genphy_config_eee_advert - disable unwanted eee mode advertisement
- * @phydev: target phy_device struct
- *
- * Description: Writes MDIO_AN_EEE_ADV after disabling unsupported energy
- *   efficent ethernet modes. Returns 0 if the PHY's advertisement hasn't
- *   changed, and 1 if it has changed.
- */
-int genphy_config_eee_advert(struct phy_device *phydev)
-{
-	int err;
-
-	/* Nothing to disable */
-	if (!phydev->eee_broken_modes)
-		return 0;
-
-	err = phy_modify_mmd_changed(phydev, MDIO_MMD_AN, MDIO_AN_EEE_ADV,
-				     phydev->eee_broken_modes, 0);
-	/* If the call failed, we assume that EEE is not supported */
-	return err < 0 ? 0 : err;
-}
-EXPORT_SYMBOL(genphy_config_eee_advert);
-
-/**
  * genphy_setup_forced - configures/forces speed/duplex from @phydev
  * @phydev: target phy_device struct
  *

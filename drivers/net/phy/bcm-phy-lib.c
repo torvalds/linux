@@ -1136,7 +1136,7 @@ int bcm_config_lre_aneg(struct phy_device *phydev, bool changed)
 {
 	int err;
 
-	if (genphy_config_eee_advert(phydev))
+	if (genphy_c45_an_config_eee_aneg(phydev) > 0)
 		changed = true;
 
 	err = bcm_setup_lre_master_slave(phydev);
