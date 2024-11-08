@@ -188,14 +188,6 @@
 		vin-supply = <&reg_mba_3v3>;
 	};
 
-	reg_vcc_3v3: regulator-vcc-3v3 {
-		compatible = "regulator-fixed";
-		regulator-name = "VCC3V3";
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
-		regulator-always-on;
-	};
-
 	sound {
 		compatible = "fsl,imx-audio-tlv320aic32x4";
 		model = "imx-audio-tlv320aic32x4";
@@ -318,7 +310,7 @@
 	lm75: temperature-sensor@49 {
 		compatible = "national,lm75a";
 		reg = <0x49>;
-		vs-supply = <&reg_vcc_3v3>;
+		vs-supply = <&reg_mba_3v3>;
 	};
 };
 
@@ -351,7 +343,7 @@
 		interrupts = <12 IRQ_TYPE_EDGE_FALLING>;
 		interrupt-controller;
 		#interrupt-cells = <2>;
-		vcc-supply = <&reg_vcc_3v3>;
+		vcc-supply = <&reg_mba_3v3>;
 	};
 };
 
