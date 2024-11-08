@@ -1177,6 +1177,7 @@ static int soc15_common_early_init(struct amdgpu_ip_block *ip_block)
 		break;
 	case IP_VERSION(9, 4, 3):
 	case IP_VERSION(9, 4, 4):
+	case IP_VERSION(9, 5, 0):
 		adev->asic_funcs = &aqua_vanjaram_asic_funcs;
 		adev->cg_flags =
 			AMD_CG_SUPPORT_GFX_MGCG | AMD_CG_SUPPORT_GFX_CGCG |
