@@ -2560,7 +2560,7 @@ static int ip6mr_rtm_getroute(struct sk_buff *in_skb, struct nlmsghdr *nlh,
 		src = nla_get_in6_addr(tb[RTA_SRC]);
 	if (tb[RTA_DST])
 		grp = nla_get_in6_addr(tb[RTA_DST]);
-	tableid = tb[RTA_TABLE] ? nla_get_u32(tb[RTA_TABLE]) : 0;
+	tableid = nla_get_u32_default(tb[RTA_TABLE], 0);
 
 	mrt = ip6mr_get_table(net, tableid ?: RT_TABLE_DEFAULT);
 	if (!mrt) {

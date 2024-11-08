@@ -4299,9 +4299,9 @@ static int macsec_validate_attr(struct nlattr *tb[], struct nlattr *data[],
 		}
 	}
 
-	es  = data[IFLA_MACSEC_ES] ? nla_get_u8(data[IFLA_MACSEC_ES]) : false;
-	sci = data[IFLA_MACSEC_INC_SCI] ? nla_get_u8(data[IFLA_MACSEC_INC_SCI]) : false;
-	scb = data[IFLA_MACSEC_SCB] ? nla_get_u8(data[IFLA_MACSEC_SCB]) : false;
+	es  = nla_get_u8_default(data[IFLA_MACSEC_ES], false);
+	sci = nla_get_u8_default(data[IFLA_MACSEC_INC_SCI], false);
+	scb = nla_get_u8_default(data[IFLA_MACSEC_SCB], false);
 
 	if ((sci && (scb || es)) || (scb && es))
 		return -EINVAL;

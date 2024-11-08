@@ -82,10 +82,7 @@ static int hsr_newlink(struct net *src_net, struct net_device *dev,
 		return -EINVAL;
 	}
 
-	if (!data[IFLA_HSR_MULTICAST_SPEC])
-		multicast_spec = 0;
-	else
-		multicast_spec = nla_get_u8(data[IFLA_HSR_MULTICAST_SPEC]);
+	multicast_spec = nla_get_u8_default(data[IFLA_HSR_MULTICAST_SPEC], 0);
 
 	if (data[IFLA_HSR_PROTOCOL])
 		proto = nla_get_u8(data[IFLA_HSR_PROTOCOL]);

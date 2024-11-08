@@ -200,7 +200,7 @@ static int verify_newsa_info(struct xfrm_usersa_info *p,
 			     struct netlink_ext_ack *extack)
 {
 	int err;
-	u8 sa_dir = attrs[XFRMA_SA_DIR] ? nla_get_u8(attrs[XFRMA_SA_DIR]) : 0;
+	u8 sa_dir = nla_get_u8_default(attrs[XFRMA_SA_DIR], 0);
 	u16 family = p->sel.family;
 
 	err = -EINVAL;
@@ -767,10 +767,8 @@ static void xfrm_smark_init(struct nlattr **attrs, struct xfrm_mark *m)
 {
 	if (attrs[XFRMA_SET_MARK]) {
 		m->v = nla_get_u32(attrs[XFRMA_SET_MARK]);
-		if (attrs[XFRMA_SET_MARK_MASK])
-			m->m = nla_get_u32(attrs[XFRMA_SET_MARK_MASK]);
-		else
-			m->m = 0xffffffff;
+		m->m = nla_get_u32_default(attrs[XFRMA_SET_MARK_MASK],
+					   0xffffffff);
 	} else {
 		m->v = m->m = 0;
 	}

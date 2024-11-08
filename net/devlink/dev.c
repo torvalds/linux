@@ -531,10 +531,8 @@ int devlink_nl_reload_doit(struct sk_buff *skb, struct genl_info *info)
 		return err;
 	}
 
-	if (info->attrs[DEVLINK_ATTR_RELOAD_ACTION])
-		action = nla_get_u8(info->attrs[DEVLINK_ATTR_RELOAD_ACTION]);
-	else
-		action = DEVLINK_RELOAD_ACTION_DRIVER_REINIT;
+	action = nla_get_u8_default(info->attrs[DEVLINK_ATTR_RELOAD_ACTION],
+				    DEVLINK_RELOAD_ACTION_DRIVER_REINIT);
 
 	if (!devlink_reload_action_is_supported(devlink, action)) {
 		NL_SET_ERR_MSG(info->extack, "Requested reload action is not supported by the driver");

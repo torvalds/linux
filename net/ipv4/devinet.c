@@ -926,8 +926,7 @@ static struct in_ifaddr *inet_rtm_to_ifa(struct net *net, struct nlmsghdr *nlh,
 
 	ifa->ifa_prefixlen = ifm->ifa_prefixlen;
 	ifa->ifa_mask = inet_make_mask(ifm->ifa_prefixlen);
-	ifa->ifa_flags = tb[IFA_FLAGS] ? nla_get_u32(tb[IFA_FLAGS]) :
-					 ifm->ifa_flags;
+	ifa->ifa_flags = nla_get_u32_default(tb[IFA_FLAGS], ifm->ifa_flags);
 	ifa->ifa_scope = ifm->ifa_scope;
 	ifa->ifa_local = nla_get_in_addr(tb[IFA_LOCAL]);
 	ifa->ifa_address = nla_get_in_addr(tb[IFA_ADDRESS]);

@@ -2546,9 +2546,9 @@ static int ipmr_rtm_getroute(struct sk_buff *in_skb, struct nlmsghdr *nlh,
 	if (err < 0)
 		goto errout;
 
-	src = tb[RTA_SRC] ? nla_get_in_addr(tb[RTA_SRC]) : 0;
-	grp = tb[RTA_DST] ? nla_get_in_addr(tb[RTA_DST]) : 0;
-	tableid = tb[RTA_TABLE] ? nla_get_u32(tb[RTA_TABLE]) : 0;
+	src = nla_get_in_addr_default(tb[RTA_SRC], 0);
+	grp = nla_get_in_addr_default(tb[RTA_DST], 0);
+	tableid = nla_get_u32_default(tb[RTA_TABLE], 0);
 
 	mrt = ipmr_get_table(net, tableid ? tableid : RT_TABLE_DEFAULT);
 	if (!mrt) {

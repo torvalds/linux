@@ -2940,10 +2940,7 @@ static int do_setlink(const struct sk_buff *skb, struct net_device *dev,
 		const char *pat = ifname[0] ? ifname : NULL;
 		int new_ifindex;
 
-		if (tb[IFLA_NEW_IFINDEX])
-			new_ifindex = nla_get_s32(tb[IFLA_NEW_IFINDEX]);
-		else
-			new_ifindex = 0;
+		new_ifindex = nla_get_s32_default(tb[IFLA_NEW_IFINDEX], 0);
 
 		err = __dev_change_net_namespace(dev, tgt_net, pat, new_ifindex);
 		if (err)

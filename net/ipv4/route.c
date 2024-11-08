@@ -3231,10 +3231,10 @@ static int inet_rtm_getroute(struct sk_buff *in_skb, struct nlmsghdr *nlh,
 		return err;
 
 	rtm = nlmsg_data(nlh);
-	src = tb[RTA_SRC] ? nla_get_in_addr(tb[RTA_SRC]) : 0;
-	dst = tb[RTA_DST] ? nla_get_in_addr(tb[RTA_DST]) : 0;
-	iif = tb[RTA_IIF] ? nla_get_u32(tb[RTA_IIF]) : 0;
-	mark = tb[RTA_MARK] ? nla_get_u32(tb[RTA_MARK]) : 0;
+	src = nla_get_in_addr_default(tb[RTA_SRC], 0);
+	dst = nla_get_in_addr_default(tb[RTA_DST], 0);
+	iif = nla_get_u32_default(tb[RTA_IIF], 0);
+	mark = nla_get_u32_default(tb[RTA_MARK], 0);
 	if (tb[RTA_UID])
 		uid = make_kuid(current_user_ns(), nla_get_u32(tb[RTA_UID]));
 	else
@@ -3260,7 +3260,7 @@ static int inet_rtm_getroute(struct sk_buff *in_skb, struct nlmsghdr *nlh,
 	fl4.daddr = dst;
 	fl4.saddr = src;
 	fl4.flowi4_tos = rtm->rtm_tos & INET_DSCP_MASK;
-	fl4.flowi4_oif = tb[RTA_OIF] ? nla_get_u32(tb[RTA_OIF]) : 0;
+	fl4.flowi4_oif = nla_get_u32_default(tb[RTA_OIF], 0);
 	fl4.flowi4_mark = mark;
 	fl4.flowi4_uid = uid;
 	if (sport)

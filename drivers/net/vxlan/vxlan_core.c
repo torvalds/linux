@@ -1232,10 +1232,7 @@ static int vxlan_fdb_parse(struct nlattr *tb[], struct vxlan_dev *vxlan,
 		*ifindex = 0;
 	}
 
-	if (tb[NDA_NH_ID])
-		*nhid = nla_get_u32(tb[NDA_NH_ID]);
-	else
-		*nhid = 0;
+	*nhid = nla_get_u32_default(tb[NDA_NH_ID], 0);
 
 	return 0;
 }

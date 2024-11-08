@@ -3247,12 +3247,8 @@ static int nh_valid_get_del_req(const struct nlmsghdr *nlh,
 		return -EINVAL;
 	}
 
-	if (op_flags) {
-		if (tb[NHA_OP_FLAGS])
-			*op_flags = nla_get_u32(tb[NHA_OP_FLAGS]);
-		else
-			*op_flags = 0;
-	}
+	if (op_flags)
+		*op_flags = nla_get_u32_default(tb[NHA_OP_FLAGS], 0);
 
 	return 0;
 }
@@ -3433,10 +3429,7 @@ static int nh_valid_dump_req(const struct nlmsghdr *nlh,
 	if (err < 0)
 		return err;
 
-	if (tb[NHA_OP_FLAGS])
-		filter->op_flags = nla_get_u32(tb[NHA_OP_FLAGS]);
-	else
-		filter->op_flags = 0;
+	filter->op_flags = nla_get_u32_default(tb[NHA_OP_FLAGS], 0);
 
 	return __nh_valid_dump_req(nlh, tb, filter, cb->extack);
 }

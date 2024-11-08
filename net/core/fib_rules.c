@@ -558,8 +558,7 @@ static int fib_nl2rule(struct sk_buff *skb, struct nlmsghdr *nlh,
 		nlrule->pref = fib_default_rule_pref(ops);
 	}
 
-	nlrule->proto = tb[FRA_PROTOCOL] ?
-		nla_get_u8(tb[FRA_PROTOCOL]) : RTPROT_UNSPEC;
+	nlrule->proto = nla_get_u8_default(tb[FRA_PROTOCOL], RTPROT_UNSPEC);
 
 	if (tb[FRA_IIFNAME]) {
 		struct net_device *dev;

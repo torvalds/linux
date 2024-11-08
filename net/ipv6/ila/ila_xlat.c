@@ -105,16 +105,11 @@ static int parse_nl_config(struct genl_info *info,
 		xp->ip.locator_match.v64 = (__force __be64)nla_get_u64(
 			info->attrs[ILA_ATTR_LOCATOR_MATCH]);
 
-	if (info->attrs[ILA_ATTR_CSUM_MODE])
-		xp->ip.csum_mode = nla_get_u8(info->attrs[ILA_ATTR_CSUM_MODE]);
-	else
-		xp->ip.csum_mode = ILA_CSUM_NO_ACTION;
+	xp->ip.csum_mode = nla_get_u8_default(info->attrs[ILA_ATTR_CSUM_MODE],
+					      ILA_CSUM_NO_ACTION);
 
-	if (info->attrs[ILA_ATTR_IDENT_TYPE])
-		xp->ip.ident_type = nla_get_u8(
-				info->attrs[ILA_ATTR_IDENT_TYPE]);
-	else
-		xp->ip.ident_type = ILA_ATYPE_USE_FORMAT;
+	xp->ip.ident_type = nla_get_u8_default(info->attrs[ILA_ATTR_IDENT_TYPE],
+					       ILA_ATYPE_USE_FORMAT);
 
 	if (info->attrs[ILA_ATTR_IFINDEX])
 		xp->ifindex = nla_get_s32(info->attrs[ILA_ATTR_IFINDEX]);
