@@ -463,7 +463,7 @@ static int scftorture_invoker(void *arg)
 
 	// Make sure that the CPU is affinitized appropriately during testing.
 	curcpu = raw_smp_processor_id();
-	WARN_ONCE(curcpu != scfp->cpu % nr_cpu_ids,
+	WARN_ONCE(curcpu != cpu,
 		  "%s: Wanted CPU %d, running on %d, nr_cpu_ids = %d\n",
 		  __func__, scfp->cpu, curcpu, nr_cpu_ids);
 
