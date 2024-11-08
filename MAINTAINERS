@@ -18719,6 +18719,7 @@ F:	Documentation/devicetree/bindings/pps/pps-gpio.yaml
 F:	Documentation/driver-api/pps.rst
 F:	drivers/pps/
 F:	include/linux/pps*.h
+F:	include/uapi/linux/pps-gen.h
 F:	include/uapi/linux/pps.h
 
 PRESSURE STALL INFORMATION (PSI)
