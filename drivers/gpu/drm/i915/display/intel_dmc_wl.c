@@ -53,6 +53,7 @@ struct intel_dmc_wl_range {
 
 static struct intel_dmc_wl_range lnl_wl_range[] = {
 	{ .start = 0x60000, .end = 0x7ffff },
+	{},
 };
 
 static void __intel_dmc_wl_release(struct intel_display *display)
@@ -104,7 +105,7 @@ static bool intel_dmc_wl_check_range(i915_reg_t reg)
 	bool wl_needed = false;
 	u32 offset = i915_mmio_reg_offset(reg);
 
-	for (i = 0; i < ARRAY_SIZE(lnl_wl_range); i++) {
+	for (i = 0; lnl_wl_range[i].start; i++) {
 		if (offset >= lnl_wl_range[i].start &&
 		    offset <= lnl_wl_range[i].end) {
 			wl_needed = true;
