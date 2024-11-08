@@ -150,7 +150,6 @@
 		reg = <0x50>;
 		pagesize = <32>;
 		vcc-supply = <&vgen4_reg>;
-		status = "okay";
 	};
 
 	at24c02: eeprom@56 {
@@ -158,7 +157,6 @@
 		reg = <0x56>;
 		pagesize = <16>;
 		vcc-supply = <&vgen4_reg>;
-		status = "okay";
 	};
 
 	ds1339: rtc@68 {
