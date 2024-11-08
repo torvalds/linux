@@ -466,6 +466,7 @@ void __rtnl_unregister_many(const struct rtnl_msg_handler *handlers, int n)
 }
 EXPORT_SYMBOL_GPL(__rtnl_unregister_many);
 
+static DEFINE_MUTEX(link_ops_mutex);
 static LIST_HEAD(link_ops);
 
 static struct rtnl_link_ops *rtnl_link_ops_get(const char *kind, int *srcu_index)
@@ -508,14 +509,6 @@ int __rtnl_link_register(struct rtnl_link_ops *ops)
 	struct rtnl_link_ops *tmp;
 	int err;
 
-	/* When RTNL is removed, add lock for link_ops. */
-	ASSERT_RTNL();
-
-	list_for_each_entry(tmp, &link_ops, list) {
-		if (!strcmp(ops->kind, tmp->kind))
-			return -EEXIST;
-	}
-
 	/* The check for alloc/setup is here because if ops
 	 * does not have that filled up, it is not possible
 	 * to use the ops for creating device. So do not
@@ -528,9 +521,20 @@ int __rtnl_link_register(struct rtnl_link_ops *ops)
 	if (err)
 		return err;
 
-	list_add_tail_rcu(&ops->list, &link_ops);
+	mutex_lock(&link_ops_mutex);
 
-	return 0;
+	list_for_each_entry(tmp, &link_ops, list) {
+		if (!strcmp(ops->kind, tmp->kind)) {
+			err = -EEXIST;
+			goto unlock;
+		}
+	}
+
+	list_add_tail_rcu(&ops->list, &link_ops);
+unlock:
+	mutex_unlock(&link_ops_mutex);
+
+	return err;
 }
 EXPORT_SYMBOL_GPL(__rtnl_link_register);
 
@@ -598,13 +602,16 @@ void rtnl_link_unregister(struct rtnl_link_ops *ops)
 {
 	struct net *net;
 
+	mutex_lock(&link_ops_mutex);
+	list_del_rcu(&ops->list);
+	mutex_unlock(&link_ops_mutex);
+
+	synchronize_srcu(&ops->srcu);
+	cleanup_srcu_struct(&ops->srcu);
+
 	/* Close the race with setup_net() and cleanup_net() */
 	down_write(&pernet_ops_rwsem);
 	rtnl_lock_unregistering_all();
-
-	list_del_rcu(&ops->list);
-	synchronize_srcu(&ops->srcu);
-	cleanup_srcu_struct(&ops->srcu);
 
 	for_each_net(net)
 		__rtnl_kill_links(net, ops);

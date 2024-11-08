@@ -71,7 +71,7 @@ static inline int rtnl_msg_family(const struct nlmsghdr *nlh)
 /**
  *	struct rtnl_link_ops - rtnetlink link operations
  *
- *	@list: Used internally, protected by RTNL and SRCU
+ *	@list: Used internally, protected by link_ops_mutex and SRCU
  *	@srcu: Used internally
  *	@kind: Identifier
  *	@netns_refund: Physical device, move to init_net on netns exit
