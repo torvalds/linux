@@ -118,6 +118,16 @@ __intel_de_wait_for_register_nowl(struct intel_display *display,
 }
 
 static inline int
+__intel_de_wait_for_register_atomic_nowl(struct intel_display *display,
+					 i915_reg_t reg,
+					 u32 mask, u32 value,
+					 unsigned int fast_timeout_us)
+{
+	return __intel_wait_for_register(__to_uncore(display), reg, mask,
+					 value, fast_timeout_us, 0, NULL);
+}
+
+static inline int
 intel_de_wait(struct intel_display *display, i915_reg_t reg,
 	      u32 mask, u32 value, unsigned int timeout)
 {

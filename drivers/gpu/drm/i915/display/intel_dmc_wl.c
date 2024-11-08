@@ -39,7 +39,11 @@
  * potential future use.
  */
 
-#define DMC_WAKELOCK_CTL_TIMEOUT 5
+/*
+ * Define DMC_WAKELOCK_CTL_TIMEOUT_US in microseconds because we use the
+ * atomic variant of waiting MMIO.
+ */
+#define DMC_WAKELOCK_CTL_TIMEOUT_US 5000
 #define DMC_WAKELOCK_HOLD_TIME 50
 
 struct intel_dmc_wl_range {
@@ -78,9 +82,9 @@ static void intel_dmc_wl_work(struct work_struct *work)
 
 	__intel_de_rmw_nowl(display, DMC_WAKELOCK1_CTL, DMC_WAKELOCK_CTL_REQ, 0);
 
-	if (__intel_de_wait_for_register_nowl(display, DMC_WAKELOCK1_CTL,
-					      DMC_WAKELOCK_CTL_ACK, 0,
-					      DMC_WAKELOCK_CTL_TIMEOUT)) {
+	if (__intel_de_wait_for_register_atomic_nowl(display, DMC_WAKELOCK1_CTL,
+						     DMC_WAKELOCK_CTL_ACK, 0,
+						     DMC_WAKELOCK_CTL_TIMEOUT_US)) {
 		WARN_RATELIMIT(1, "DMC wakelock release timed out");
 		goto out_unlock;
 	}
@@ -217,10 +221,14 @@ void intel_dmc_wl_get(struct intel_display *display, i915_reg_t reg)
 		__intel_de_rmw_nowl(display, DMC_WAKELOCK1_CTL, 0,
 				    DMC_WAKELOCK_CTL_REQ);
 
-		if (__intel_de_wait_for_register_nowl(display, DMC_WAKELOCK1_CTL,
-						      DMC_WAKELOCK_CTL_ACK,
-						      DMC_WAKELOCK_CTL_ACK,
-						      DMC_WAKELOCK_CTL_TIMEOUT)) {
+		/*
+		 * We need to use the atomic variant of the waiting routine
+		 * because the DMC wakelock is also taken in atomic context.
+		 */
+		if (__intel_de_wait_for_register_atomic_nowl(display, DMC_WAKELOCK1_CTL,
+							     DMC_WAKELOCK_CTL_ACK,
+							     DMC_WAKELOCK_CTL_ACK,
+							     DMC_WAKELOCK_CTL_TIMEOUT_US)) {
 			WARN_RATELIMIT(1, "DMC wakelock ack timed out");
 			goto out_unlock;
 		}
