@@ -58,8 +58,8 @@ void *rb_reserve_trace_entry(struct hyp_rb_per_cpu *cpu_buffer, unsigned long le
 int __pkvm_load_tracing(unsigned long pack_va, size_t pack_size);
 void __pkvm_teardown_tracing(void);
 int __pkvm_enable_tracing(bool enable);
-int __pkvm_rb_swap_reader_page(int cpu);
-int __pkvm_rb_update_footers(int cpu);
+int __pkvm_rb_swap_reader_page(unsigned int cpu);
+int __pkvm_rb_update_footers(unsigned int cpu);
 int __pkvm_enable_event(unsigned short id, bool enable);
 
 #define HYP_EVENT(__name, __proto, __struct, __assign, __printk)		\
@@ -94,12 +94,12 @@ static inline void __pkvm_teardown_tracing(void) { }
 
 static inline int __pkvm_enable_tracing(bool enable) { return -ENODEV; }
 
-static inline int __pkvm_rb_swap_reader_page(int cpu)
+static inline int __pkvm_rb_swap_reader_page(unsigned int cpu)
 {
 	return -ENODEV;
 }
 
-static inline int __pkvm_rb_update_footers(int cpu)
+static inline int __pkvm_rb_update_footers(unsigned int cpu)
 {
 	return -ENODEV;
 }

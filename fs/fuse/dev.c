@@ -23,6 +23,8 @@
 #include <linux/splice.h>
 #include <linux/sched.h>
 
+#include <trace/hooks/fuse.h>
+
 MODULE_ALIAS_MISCDEV(FUSE_MINOR);
 MODULE_ALIAS("devname:fuse");
 
@@ -234,6 +236,7 @@ __releases(fiq->lock)
 		fuse_len_args(req->args->in_numargs,
 			      (struct fuse_arg *) req->args->in_args);
 	list_add_tail(&req->list, &fiq->pending);
+	trace_android_vh_queue_request_and_unlock(&fiq->waitq, sync);
 	fiq->ops->wake_pending_and_unlock(fiq, sync);
 }
 
@@ -331,6 +334,7 @@ void fuse_request_end(struct fuse_req *req)
 	} else {
 		/* Wake up waiter sleeping in request_wait_answer() */
 		wake_up(&req->waitq);
+		trace_android_vh_fuse_request_end(current);
 	}
 
 	if (test_bit(FR_ASYNC, &req->flags))

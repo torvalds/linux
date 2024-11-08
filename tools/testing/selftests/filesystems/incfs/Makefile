@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
-CFLAGS += -D_FILE_OFFSET_BITS=64 -Wall -Werror -I../.. -I../../../../.. -fno-omit-frame-pointer -fsanitize=address -g
-LDLIBS := -llz4 -lzstd -lcrypto -lpthread -fsanitize=address
+CFLAGS += -D_FILE_OFFSET_BITS=64 -Wall -Wno-deprecated-declarations -Werror -I../.. -I../../../../.. -fno-omit-frame-pointer -g
+LDLIBS := -llz4 -lzstd -lcrypto -lpthread
 TEST_GEN_PROGS := incfs_test incfs_stress incfs_perf
 
 include ../../lib.mk

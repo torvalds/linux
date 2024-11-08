@@ -21,7 +21,7 @@ struct ui_browser {
 	u8	      extra_title_lines;
 	int	      current_color;
 	void	      *priv;
-	const char    *title;
+	char	      *title;
 	char	      *helpline;
 	const char    *no_samples_msg;
 	void 	      (*refresh_dimensions)(struct ui_browser *browser);

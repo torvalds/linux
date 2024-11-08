@@ -11,6 +11,10 @@ struct task_struct;
 DECLARE_HOOK(android_vh_syscall_prctl_finished,
 	TP_PROTO(int option, struct task_struct *task),
 	TP_ARGS(option, task));
+DECLARE_RESTRICTED_HOOK(android_rvh_pr_set_vma_name_bypass,
+	TP_PROTO(struct mm_struct *mm, unsigned long addr, unsigned long size,
+		      struct anon_vma_name *anon_name, int *error, bool *bypass),
+	TP_ARGS(mm, addr, size, anon_name, error, bypass), 1);
 #endif
 
 #include <trace/define_trace.h>

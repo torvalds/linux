@@ -76,6 +76,7 @@
   __bitmap_andnot
   __bitmap_clear
   __bitmap_equal
+  bitmap_find_free_region
   bitmap_find_next_zero_area_off
   bitmap_free
   bitmap_from_arr32
@@ -84,6 +85,7 @@
   bitmap_parselist
   bitmap_parse_user
   bitmap_print_to_pagebuf
+  bitmap_release_region
   __bitmap_set
   __bitmap_subset
   bitmap_to_arr32
@@ -367,6 +369,7 @@
   dev_fetch_sw_netstats
   devfreq_add_device
   devfreq_add_governor
+  devfreq_get_devfreq_by_phandle
   devfreq_monitor_resume
   devfreq_monitor_start
   devfreq_monitor_stop
@@ -425,6 +428,8 @@
   devm_clk_get
   devm_clk_get_optional
   devm_clk_put
+  devm_devfreq_add_device
+  devm_devfreq_remove_device
   devm_device_add_group
   devm_device_add_groups
   devm_device_remove_group
@@ -518,6 +523,7 @@
   dev_pm_opp_of_register_em
   dev_pm_opp_of_remove_table
   dev_pm_opp_put
+  dev_pm_opp_remove_all_dynamic
   dev_pm_opp_set_config
   dev_pm_qos_add_notifier
   dev_pm_qos_add_request
@@ -570,6 +576,7 @@
   dma_direct_free
   dmaengine_unmap_put
   dma_fence_add_callback
+  dma_fence_allocate_private_stub
   dma_fence_array_create
   dma_fence_array_ops
   dma_fence_context_alloc
@@ -1429,6 +1436,7 @@
   __netdev_alloc_skb
   netdev_err
   netdev_info
+  netdev_refcnt_read
   netdev_set_default_ethtool_ops
   netdev_state_change
   netdev_update_features
@@ -1516,6 +1524,7 @@
   of_get_parent
   of_get_property
   of_get_regulator_init_data
+  of_graph_get_endpoint_by_regs
   of_graph_get_next_endpoint
   of_graph_get_port_parent
   of_graph_get_remote_endpoint
@@ -2000,6 +2009,7 @@
   set_capacity_and_notify
   set_cpus_allowed_ptr
   set_freezable
+  set_normalized_timespec64
   set_page_dirty
   set_page_dirty_lock
   __SetPageMovable
@@ -2298,6 +2308,7 @@
   teo_cpu_get_util_threshold
   teo_cpu_set_util_threshold
   thermal_cdev_update
+  thermal_cooling_device_register
   thermal_cooling_device_unregister
   thermal_of_cooling_device_register
   thermal_pressure
@@ -2342,6 +2353,7 @@
   __traceiter_android_rvh_irqs_enable
   __traceiter_android_rvh_madvise_pageout_begin
   __traceiter_android_rvh_madvise_pageout_end
+  __traceiter_android_rvh_mapping_shrinkable
   __traceiter_android_rvh_meminfo_proc_show
   __traceiter_android_rvh_post_init_entity_util_avg
   __traceiter_android_rvh_preempt_disable
@@ -2371,6 +2383,7 @@
   __traceiter_android_rvh_update_misfit_status
   __traceiter_android_rvh_update_rt_rq_load_avg
   __traceiter_android_rvh_usb_dev_suspend
+  __traceiter_android_rvh_util_est_update
   __traceiter_android_rvh_util_fits_cpu
   __traceiter_android_vh_arch_set_freq_scale
   __traceiter_android_vh_audio_usb_offload_connect
@@ -2394,6 +2407,7 @@
   __traceiter_android_vh_rmqueue
   __traceiter_android_vh_scheduler_tick
   __traceiter_android_vh_setscheduler_uclamp
+  __traceiter_android_vh_set_task_comm
   __traceiter_android_vh_si_meminfo_adjust
   __traceiter_android_vh_sound_usb_support_cpu_suspend
   __traceiter_android_vh_sysrq_crash
@@ -2470,6 +2484,7 @@
   __tracepoint_android_rvh_irqs_enable
   __tracepoint_android_rvh_madvise_pageout_begin
   __tracepoint_android_rvh_madvise_pageout_end
+  __tracepoint_android_rvh_mapping_shrinkable
   __tracepoint_android_rvh_meminfo_proc_show
   __tracepoint_android_rvh_post_init_entity_util_avg
   __tracepoint_android_rvh_preempt_disable
@@ -2499,6 +2514,7 @@
   __tracepoint_android_rvh_update_misfit_status
   __tracepoint_android_rvh_update_rt_rq_load_avg
   __tracepoint_android_rvh_usb_dev_suspend
+  __tracepoint_android_rvh_util_est_update
   __tracepoint_android_rvh_util_fits_cpu
   __tracepoint_android_vh_arch_set_freq_scale
   __tracepoint_android_vh_audio_usb_offload_connect
@@ -2522,6 +2538,7 @@
   __tracepoint_android_vh_rmqueue
   __tracepoint_android_vh_scheduler_tick
   __tracepoint_android_vh_setscheduler_uclamp
+  __tracepoint_android_vh_set_task_comm
   __tracepoint_android_vh_si_meminfo_adjust
   __tracepoint_android_vh_sound_usb_support_cpu_suspend
   __tracepoint_android_vh_sysrq_crash
@@ -2788,6 +2805,7 @@
   vmf_insert_pfn_prot
   vm_iomap_memory
   vm_node_stat
+  vm_unmapped_area
   vm_zone_stat
   vprintk
   vprintk_emit

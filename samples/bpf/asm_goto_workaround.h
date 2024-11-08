@@ -4,14 +4,14 @@
 #define __ASM_GOTO_WORKAROUND_H
 
 /*
- * This will bring in asm_volatile_goto and asm_inline macro definitions
+ * This will bring in asm_goto_output and asm_inline macro definitions
  * if enabled by compiler and config options.
  */
 #include <linux/types.h>
 
-#ifdef asm_volatile_goto
-#undef asm_volatile_goto
-#define asm_volatile_goto(x...) asm volatile("invalid use of asm_volatile_goto")
+#ifdef asm_goto_output
+#undef asm_goto_output
+#define asm_goto_output(x...) asm volatile("invalid use of asm_goto_output")
 #endif
 
 /*

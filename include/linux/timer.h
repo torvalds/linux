@@ -187,14 +187,7 @@ extern int timer_reduce(struct timer_list *timer, unsigned long expires);
 extern void add_timer(struct timer_list *timer);
 
 extern int try_to_del_timer_sync(struct timer_list *timer);
-
-#if defined(CONFIG_SMP) || defined(CONFIG_PREEMPT_RT)
-  extern int del_timer_sync(struct timer_list *timer);
-#else
-# define del_timer_sync(t)		del_timer(t)
-#endif
-
-#define del_singleshot_timer_sync(t) del_timer_sync(t)
+extern int del_timer_sync(struct timer_list *timer);
 
 extern void init_timers(void);
 struct hrtimer;

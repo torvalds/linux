@@ -7,6 +7,18 @@
 #include "en/health.h"
 #include <net/xdp_sock_drv.h>
 
+static int mlx5e_legacy_rq_validate_xsk(struct mlx5_core_dev *mdev,
+					struct mlx5e_params *params,
+					struct mlx5e_xsk_param *xsk)
+{
+	if (!mlx5e_rx_is_linear_skb(mdev, params, xsk)) {
+		mlx5_core_err(mdev, "Legacy RQ linear mode for XSK can't be activated with current params\n");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 /* The limitation of 2048 can be altered, but shouldn't go beyond the minimal
  * stride size of striding RQ.
  */
@@ -16,9 +28,14 @@ bool mlx5e_validate_xsk_param(struct mlx5e_params *params,
 			      struct mlx5e_xsk_param *xsk,
 			      struct mlx5_core_dev *mdev)
 {
-	/* AF_XDP doesn't support frames larger than PAGE_SIZE. */
-	if (xsk->chunk_size > PAGE_SIZE || xsk->chunk_size < MLX5E_MIN_XSK_CHUNK_SIZE)
+	/* AF_XDP doesn't support frames larger than PAGE_SIZE,
+	 * and xsk->chunk_size is limited to 65535 bytes.
+	 */
+	if ((size_t)xsk->chunk_size > PAGE_SIZE || xsk->chunk_size < MLX5E_MIN_XSK_CHUNK_SIZE) {
+		mlx5_core_err(mdev, "XSK chunk size %u out of bounds [%u, %lu]\n", xsk->chunk_size,
+			      MLX5E_MIN_XSK_CHUNK_SIZE, PAGE_SIZE);
 		return false;
+	}
 
 	/* frag_sz is different for regular and XSK RQs, so ensure that linear
 	 * SKB mode is possible.
@@ -27,7 +44,7 @@ bool mlx5e_validate_xsk_param(struct mlx5e_params *params,
 	case MLX5_WQ_TYPE_LINKED_LIST_STRIDING_RQ:
 		return !mlx5e_mpwrq_validate_xsk(mdev, params, xsk);
 	default: /* MLX5_WQ_TYPE_CYCLIC */
-		return mlx5e_rx_is_linear_skb(mdev, params, xsk);
+		return !mlx5e_legacy_rq_validate_xsk(mdev, params, xsk);
 	}
 }
 

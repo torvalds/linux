@@ -485,7 +485,7 @@ static void rb_teardown_bpage_backing(void)
 	hyp_buffer_pages_backing.size = 0;
 }
 
-int __pkvm_rb_update_footers(int cpu)
+int __pkvm_rb_update_footers(unsigned int cpu)
 {
 	struct hyp_rb_per_cpu *cpu_buffer;
 	int ret = 0;
@@ -508,9 +508,9 @@ int __pkvm_rb_update_footers(int cpu)
 	return ret;
 }
 
-int __pkvm_rb_swap_reader_page(int cpu)
+int __pkvm_rb_swap_reader_page(unsigned int cpu)
 {
-	struct hyp_rb_per_cpu *cpu_buffer = per_cpu_ptr(&trace_rb, cpu);
+	struct hyp_rb_per_cpu *cpu_buffer;
 	int ret = 0;
 
 	if (cpu >= hyp_nr_cpus)

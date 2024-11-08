@@ -45,6 +45,7 @@
   __arch_copy_from_user
   __arch_copy_to_user
   arch_freq_scale
+  arch_invalidate_pmem
   arch_timer_read_counter
   argv_free
   argv_split
@@ -1262,6 +1263,7 @@
   get_random_u32
   __get_random_u32_below
   get_sg_io_hdr
+  get_shadow_from_swap_cache
   get_slabinfo
   get_state_synchronize_rcu
   get_state_synchronize_srcu
@@ -1328,6 +1330,7 @@
   gro_cells_destroy
   gro_cells_init
   gro_cells_receive
+  groups_free
   h4_recv_buf
   handle_bad_irq
   handle_edge_irq
@@ -1880,6 +1883,7 @@
   lowpan_register_netdevice
   lowpan_unregister_netdev
   lowpan_unregister_netdevice
+  lru_gen_caps
   mac_pton
   mas_find
   match_string
@@ -2130,6 +2134,7 @@
   nvmem_cell_put
   nvmem_cell_read
   nvmem_cell_read_u32
+  nvmem_cell_read_variable_le_u32
   nvmem_cell_write
   nvmem_device_read
   nvmem_device_write
@@ -2914,6 +2919,7 @@
   security_sk_clone
   security_sock_graft
   select_fallback_rq
+  send_sig_info
   seq_buf_printf
   seq_hex_dump
   seq_hlist_next
@@ -3453,11 +3459,13 @@
   __traceiter_android_vh_gic_v3_suspend
   __traceiter_android_vh_hibernated_do_mem_alloc
   __traceiter_android_vh_hibernate_save_cmp_len
+  __traceiter_android_vh_hibernate_state
   __traceiter_android_vh_ignore_dmabuf_vmap_bounds
   __traceiter_android_vh_init_aes_encrypt
   __traceiter_android_vh_ipi_stop
   __traceiter_android_vh_jiffies_update
   __traceiter_android_vh_kswapd_per_node
+  __traceiter_android_vh_madvise_cold_or_pageout_page
   __traceiter_android_vh_mpam_set
   __traceiter_android_vh_post_image_save
   __traceiter_android_vh_printk_hotplug
@@ -3604,11 +3612,13 @@
   __tracepoint_android_vh_gic_v3_suspend
   __tracepoint_android_vh_hibernated_do_mem_alloc
   __tracepoint_android_vh_hibernate_save_cmp_len
+  __tracepoint_android_vh_hibernate_state
   __tracepoint_android_vh_ignore_dmabuf_vmap_bounds
   __tracepoint_android_vh_init_aes_encrypt
   __tracepoint_android_vh_ipi_stop
   __tracepoint_android_vh_jiffies_update
   __tracepoint_android_vh_kswapd_per_node
+  __tracepoint_android_vh_madvise_cold_or_pageout_page
   __tracepoint_android_vh_mpam_set
   __tracepoint_android_vh_post_image_save
   __tracepoint_android_vh_printk_hotplug
@@ -3768,6 +3778,7 @@
   __uio_register_device
   uio_unregister_device
   unlock_page
+  unpack_shadow
   unregister_blkdev
   unregister_candev
   __unregister_chrdev

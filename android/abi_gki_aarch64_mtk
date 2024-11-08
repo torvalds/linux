@@ -17,6 +17,7 @@
   alarm_start_relative
   alarm_try_to_cancel
   alloc_chrdev_region
+  alloc_contig_range
   alloc_etherdev_mqs
   alloc_io_pgtable_ops
   alloc_netdev_mqs
@@ -31,6 +32,8 @@
   android_rvh_probe_register
   anon_inode_getfd
   anon_inode_getfile
+  arc4_crypt
+  arc4_setkey
   __arch_clear_user
   __arch_copy_from_user
   __arch_copy_to_user
@@ -554,6 +557,8 @@
   devm_request_threaded_irq
   __devm_reset_control_get
   devm_reset_controller_register
+  devm_rproc_add
+  devm_rproc_alloc
   devm_rtc_allocate_device
   devm_rtc_nvmem_register
   __devm_rtc_register_device
@@ -591,6 +596,7 @@
   dev_pm_opp_put_opp_table
   dev_pm_opp_register_notifier
   dev_pm_opp_remove_all_dynamic
+  dev_pm_opp_remove_table
   dev_pm_opp_set_config
   dev_pm_opp_unregister_notifier
   dev_pm_qos_add_notifier
@@ -962,6 +968,7 @@
   frame_vector_destroy
   frame_vector_to_pages
   frame_vector_to_pfns
+  free_contig_range
   free_io_pgtable_ops
   free_irq
   free_netdev
@@ -2261,6 +2268,9 @@
   round_jiffies
   round_jiffies_relative
   round_jiffies_up
+  rpmsg_chrdev_eptdev_create
+  rpmsg_chrdev_eptdev_destroy
+  rpmsg_class
   rpmsg_create_ept
   rpmsg_destroy_ept
   rpmsg_find_device
@@ -2492,6 +2502,7 @@
   snd_soc_bytes_info_ext
   snd_soc_bytes_tlv_callback
   snd_soc_card_jack_new
+  snd_soc_cnew
   snd_soc_component_exit_regmap
   snd_soc_component_init_regmap
   snd_soc_component_read

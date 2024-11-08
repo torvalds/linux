@@ -447,6 +447,7 @@
   misc_register
   mod_delayed_work_on
   mod_timer
+  __module_get
   module_layout
   __msecs_to_jiffies
   msleep
@@ -565,6 +566,7 @@
   pm_runtime_forbid
   pm_runtime_force_resume
   pm_runtime_force_suspend
+  pm_runtime_get_if_active
   __pm_runtime_idle
   __pm_runtime_resume
   pm_runtime_set_autosuspend_delay
@@ -847,6 +849,7 @@
   vunmap
   vzalloc
   wait_for_completion_interruptible
+  wait_for_completion_interruptible_timeout
   wait_for_completion_timeout
   __wake_up
   wake_up_process

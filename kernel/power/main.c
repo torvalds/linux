@@ -16,6 +16,8 @@
 #include <linux/suspend.h>
 #include <linux/syscalls.h>
 #include <linux/pm_runtime.h>
+#include <trace/events/power.h>
+#include <trace/hooks/power.h>
 
 #include "power.h"
 
@@ -639,6 +641,7 @@ static ssize_t state_store(struct kobject *kobj, struct kobj_attribute *attr,
 		error = pm_suspend(state);
 	} else if (state == PM_SUSPEND_MAX) {
 		error = hibernate();
+		trace_android_vh_hibernate_state(error);
 	} else {
 		error = -EINVAL;
 	}

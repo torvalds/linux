@@ -57,7 +57,7 @@
 
 /* Jump to label if @reg is zero */
 #define NFT_PIPAPO_AVX2_NOMATCH_GOTO(reg, label)			\
-	asm_volatile_goto("vptest %%ymm" #reg ", %%ymm" #reg ";"	\
+	asm goto("vptest %%ymm" #reg ", %%ymm" #reg ";"	\
 			  "je %l[" #label "]" : : : : label)
 
 /* Store 256 bits from YMM register into memory. Contrary to bucket load

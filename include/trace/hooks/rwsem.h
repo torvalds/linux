@@ -34,6 +34,22 @@ DECLARE_HOOK(android_vh_rwsem_direct_rsteal,
 DECLARE_HOOK(android_vh_rwsem_optimistic_rspin,
 	TP_PROTO(struct rw_semaphore *sem, long *adjustment, bool *rspin),
 	TP_ARGS(sem, adjustment, rspin));
+DECLARE_HOOK(android_vh_rwsem_read_trylock_failed,
+	TP_PROTO(struct rw_semaphore *sem, long *cntp, int *ret),
+	TP_ARGS(sem, cntp, ret));
+DECLARE_HOOK(android_vh_record_rwsem_reader_owned,
+	TP_PROTO(struct rw_semaphore *sem,
+		 struct list_head *wlist),
+	TP_ARGS(sem, wlist));
+DECLARE_HOOK(android_vh_clear_rwsem_reader_owned,
+	TP_PROTO(struct rw_semaphore *sem),
+	TP_ARGS(sem));
+DECLARE_HOOK(android_vh_record_rwsem_writer_owned,
+	TP_PROTO(struct rw_semaphore *sem),
+	TP_ARGS(sem));
+DECLARE_HOOK(android_vh_clear_rwsem_writer_owned,
+	TP_PROTO(struct rw_semaphore *sem),
+	TP_ARGS(sem));
 #endif /* _TRACE_HOOK_RWSEM_H */
 /* This part must be outside protection */
 #include <trace/define_trace.h>

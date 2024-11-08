@@ -106,10 +106,10 @@ static void exit_vmid_context(struct tlb_inv_context *cxt)
 	else
 		__load_host_stage2();
 
-	if (cpus_have_final_cap(ARM64_WORKAROUND_SPECULATIVE_AT)) {
-		/* Ensure write of the old VMID */
-		isb();
+	/* Ensure write of the old VMID */
+	isb();
 
+	if (cpus_have_final_cap(ARM64_WORKAROUND_SPECULATIVE_AT)) {
 		if (!(cxt->sctlr & SCTLR_ELx_M)) {
 			write_sysreg_el1(cxt->sctlr, SYS_SCTLR);
 			isb();

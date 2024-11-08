@@ -2,7 +2,7 @@
 /*
  * Broadcom GENET MDIO routines
  *
- * Copyright (c) 2014-2017 Broadcom
+ * Copyright (c) 2014-2024 Broadcom
  */
 
 #include <linux/acpi.h>
@@ -72,10 +72,10 @@ static void bcmgenet_mac_config(struct net_device *dev)
 	 * Receive clock is provided by the PHY.
 	 */
 	reg = bcmgenet_ext_readl(priv, EXT_RGMII_OOB_CTRL);
-	reg &= ~OOB_DISABLE;
 	reg |= RGMII_LINK;
 	bcmgenet_ext_writel(priv, reg, EXT_RGMII_OOB_CTRL);
 
+	spin_lock_bh(&priv->reg_lock);
 	reg = bcmgenet_umac_readl(priv, UMAC_CMD);
 	reg &= ~((CMD_SPEED_MASK << CMD_SPEED_SHIFT) |
 		       CMD_HD_EN |
@@ -88,6 +88,7 @@ static void bcmgenet_mac_config(struct net_device *dev)
 		reg |= CMD_TX_EN | CMD_RX_EN;
 	}
 	bcmgenet_umac_writel(priv, reg, UMAC_CMD);
+	spin_unlock_bh(&priv->reg_lock);
 
 	priv->eee.eee_active = phy_init_eee(phydev, 0) >= 0;
 	bcmgenet_eee_enable_set(dev,
@@ -100,10 +101,18 @@ static void bcmgenet_mac_config(struct net_device *dev)
  */
 void bcmgenet_mii_setup(struct net_device *dev)
 {
+	struct bcmgenet_priv *priv = netdev_priv(dev);
 	struct phy_device *phydev = dev->phydev;
+	u32 reg;
 
-	if (phydev->link)
+	if (phydev->link) {
 		bcmgenet_mac_config(dev);
+	} else {
+		reg = bcmgenet_ext_readl(priv, EXT_RGMII_OOB_CTRL);
+		reg &= ~RGMII_LINK;
+		bcmgenet_ext_writel(priv, reg, EXT_RGMII_OOB_CTRL);
+	}
+
 	phy_print_status(phydev);
 }
 
@@ -264,18 +273,22 @@ int bcmgenet_mii_config(struct net_device *dev, bool init)
 			(priv->phy_interface != PHY_INTERFACE_MODE_MOCA);
 
 	/* This is an external PHY (xMII), so we need to enable the RGMII
-	 * block for the interface to work
+	 * block for the interface to work, unconditionally clear the
+	 * Out-of-band disable since we do not need it.
 	 */
+	mutex_lock(&phydev->lock);
+	reg = bcmgenet_ext_readl(priv, EXT_RGMII_OOB_CTRL);
+	reg &= ~OOB_DISABLE;
 	if (priv->ext_phy) {
-		reg = bcmgenet_ext_readl(priv, EXT_RGMII_OOB_CTRL);
 		reg &= ~ID_MODE_DIS;
 		reg |= id_mode_dis;
 		if (GENET_IS_V1(priv) || GENET_IS_V2(priv) || GENET_IS_V3(priv))
 			reg |= RGMII_MODE_EN_V123;
 		else
 			reg |= RGMII_MODE_EN;
-		bcmgenet_ext_writel(priv, reg, EXT_RGMII_OOB_CTRL);
 	}
+	bcmgenet_ext_writel(priv, reg, EXT_RGMII_OOB_CTRL);
+	mutex_unlock(&phydev->lock);
 
 	if (init)
 		dev_info(kdev, "configuring instance for %s\n", phy_name);

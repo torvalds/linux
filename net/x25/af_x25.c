@@ -460,11 +460,11 @@ static int x25_getsockopt(struct socket *sock, int level, int optname,
 	if (get_user(len, optlen))
 		goto out;
 
-	len = min_t(unsigned int, len, sizeof(int));
-
 	rc = -EINVAL;
 	if (len < 0)
 		goto out;
+
+	len = min_t(unsigned int, len, sizeof(int));
 
 	rc = -EFAULT;
 	if (put_user(len, optlen))

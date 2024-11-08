@@ -169,10 +169,6 @@
 	};
 };
 
-&blsp_dma {
-	status = "okay";
-};
-
 &blsp_i2c2 {
 	/* On Low speed expansion */
 	status = "okay";

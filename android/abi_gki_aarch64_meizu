@@ -11,4 +11,14 @@
   __tracepoint_android_vh_tune_swappiness
   __tracepoint_android_vh_tune_scan_type
   __tracepoint_android_vh_alloc_pages_slowpath
+  cgroup_add_legacy_cftypes
+  clk_set_duty_cycle
+  console_verbose
+  gpiod_get_direction
+  end_buffer_write_sync
+  mem_cgroup_from_id
+  register_sysrq_key
+  try_to_free_mem_cgroup_pages
+  timespec64_to_jiffies
+  ufshcd_read_desc_param
 
