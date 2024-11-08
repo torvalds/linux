@@ -1191,7 +1191,6 @@ static int sma1307_dai_hw_params_amp(struct snd_pcm_substream *substream,
 	struct snd_soc_component *component = dai->component;
 	struct sma1307_priv *sma1307 = snd_soc_component_get_drvdata(component);
 	unsigned int bclk = 0;
-	int ret = 0;
 
 	if (sma1307->format == SND_SOC_DAIFMT_DSP_A)
 		bclk = params_rate(params) * sma1307->frame_size;
@@ -1336,8 +1335,6 @@ static int sma1307_dai_hw_params_amp(struct snd_pcm_substream *substream,
 			params_format(params));
 		return -EINVAL;
 	}
-	if (ret < 0)
-		return -EINVAL;
 
 	return 0;
 }
