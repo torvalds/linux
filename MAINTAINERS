@@ -21617,6 +21617,15 @@ S:	Supported
 W:	https://github.com/thesofproject/linux/
 F:	sound/soc/sof/
 
+SOUND - GENERIC SOUND CARD (Simple-Audio-Card, Audio-Graph-Card)
+M:	Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
+S:	Supported
+L:	linux-sound@vger.kernel.org
+F:	sound/soc/generic/
+F:	include/sound/simple_card*
+F:	Documentation/devicetree/bindings/sound/simple-card.yaml
+F:	Documentation/devicetree/bindings/sound/audio-graph*.yaml
+
 SOUNDWIRE SUBSYSTEM
 M:	Vinod Koul <vkoul@kernel.org>
 M:	Bard Liao <yung-chuan.liao@linux.intel.com>
