@@ -1752,10 +1752,10 @@ static void domain_context_clear_one(struct device_domain_info *info, u8 bus, u8
 	intel_context_flush_present(info, context, did, true);
 }
 
-static int __domain_setup_first_level(struct intel_iommu *iommu,
-				      struct device *dev, ioasid_t pasid,
-				      u16 did, pgd_t *pgd, int flags,
-				      struct iommu_domain *old)
+int __domain_setup_first_level(struct intel_iommu *iommu,
+			       struct device *dev, ioasid_t pasid,
+			       u16 did, pgd_t *pgd, int flags,
+			       struct iommu_domain *old)
 {
 	if (!old)
 		return intel_pasid_setup_first_level(iommu, dev, pgd,
