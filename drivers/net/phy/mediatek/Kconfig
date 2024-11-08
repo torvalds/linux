@@ -4,6 +4,7 @@ config MTK_NET_PHYLIB
 
 config MEDIATEK_GE_PHY
 	tristate "MediaTek Gigabit Ethernet PHYs"
+	select MTK_NET_PHYLIB
 	help
 	  Supports the MediaTek non-built-in Gigabit Ethernet PHYs.
 
