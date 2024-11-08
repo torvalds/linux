@@ -333,7 +333,11 @@ static unsigned int of_bus_isa_get_flags(const __be32 *addr)
 
 static int of_bus_default_flags_match(struct device_node *np)
 {
-	return of_bus_n_addr_cells(np) == 3;
+	/*
+	 * Check for presence first since of_bus_n_addr_cells() will warn when
+	 * walking parent nodes.
+	 */
+	return of_property_present(np, "#address-cells") && (of_bus_n_addr_cells(np) == 3);
 }
 
 /*
@@ -701,15 +705,15 @@ const __be32 *__of_get_address(struct device_node *dev, int index, int bar_no,
 	if (strcmp(bus->name, "pci") && (bar_no >= 0))
 		return NULL;
 
-	bus->count_cells(dev, &na, &ns);
-	if (!OF_CHECK_ADDR_COUNT(na))
-		return NULL;
-
 	/* Get "reg" or "assigned-addresses" property */
 	prop = of_get_property(dev, bus->addresses, &psize);
 	if (prop == NULL)
 		return NULL;
 	psize /= 4;
+
+	bus->count_cells(dev, &na, &ns);
+	if (!OF_CHECK_ADDR_COUNT(na))
+		return NULL;
 
 	onesize = na + ns;
 	for (i = 0; psize >= onesize; psize -= onesize, prop += onesize, i++) {
