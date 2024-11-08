@@ -51,7 +51,7 @@ struct intel_dmc_wl_range {
 	u32 end;
 };
 
-static struct intel_dmc_wl_range lnl_wl_range[] = {
+static struct intel_dmc_wl_range powered_off_ranges[] = {
 	{ .start = 0x60000, .end = 0x7ffff },
 	{},
 };
@@ -114,7 +114,11 @@ static bool intel_dmc_wl_reg_in_range(i915_reg_t reg,
 
 static bool intel_dmc_wl_check_range(i915_reg_t reg)
 {
-	return intel_dmc_wl_reg_in_range(reg, lnl_wl_range);
+	/*
+	 * Check that the offset is in one of the ranges for which
+	 * registers are powered off during DC states.
+	 */
+	return intel_dmc_wl_reg_in_range(reg, powered_off_ranges);
 }
 
 static bool __intel_dmc_wl_supported(struct intel_display *display)
