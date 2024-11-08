@@ -1174,8 +1174,9 @@ F:	Documentation/hid/amd-sfh*
 F:	drivers/hid/amd-sfh-hid/
 
 AMD SPI DRIVER
-M:	Sanjay R Mehta <sanju.mehta@amd.com>
-S:	Maintained
+M:	Raju Rangoju <Raju.Rangoju@amd.com>
+L:	linux-spi@vger.kernel.org
+S:	Supported
 F:	drivers/spi/spi-amd.c
 
 AMD XGBE DRIVER
@@ -3745,6 +3746,7 @@ F:	drivers/spi/spi-axi-spi-engine.c
 AXI PWM GENERATOR
 M:	Michael Hennerich <michael.hennerich@analog.com>
 M:	Nuno Sá <nuno.sa@analog.com>
+R:	Trevor Gamblin <tgamblin@baylibre.com>
 L:	linux-pwm@vger.kernel.org
 S:	Supported
 W:	https://ez.analog.com/linux-software-drivers
@@ -16082,7 +16084,6 @@ F:	drivers/net/wireless/
 
 NETWORKING [DSA]
 M:	Andrew Lunn <andrew@lunn.ch>
-M:	Florian Fainelli <f.fainelli@gmail.com>
 M:	Vladimir Oltean <olteanv@gmail.com>
 S:	Maintained
 F:	Documentation/devicetree/bindings/net/dsa/

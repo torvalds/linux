@@ -222,7 +222,7 @@ static int mse102x_tx_frame_spi(struct mse102x_net *mse, struct sk_buff *txp,
 	struct mse102x_net_spi *mses = to_mse102x_spi(mse);
 	struct spi_transfer *xfer = &mses->spi_xfer;
 	struct spi_message *msg = &mses->spi_msg;
-	struct sk_buff *tskb;
+	struct sk_buff *tskb = NULL;
 	int ret;
 
 	netif_dbg(mse, tx_queued, mse->ndev, "%s: skb %p, %d@%p\n",
@@ -235,7 +235,6 @@ static int mse102x_tx_frame_spi(struct mse102x_net *mse, struct sk_buff *txp,
 		if (!tskb)
 			return -ENOMEM;
 
-		dev_kfree_skb(txp);
 		txp = tskb;
 	}
 
@@ -256,6 +255,8 @@ static int mse102x_tx_frame_spi(struct mse102x_net *mse, struct sk_buff *txp,
 			   __func__, ret);
 		mse->stats.xfer_err++;
 	}
+
+	dev_kfree_skb(tskb);
 
 	return ret;
 }
