@@ -1472,51 +1472,48 @@ static void phylink_resolve(struct work_struct *w)
 	} else {
 		phylink_mac_pcs_get_state(pl, &link_state);
 
-		/* The PCS may have a latching link-fail indicator.
-		 * If the link was up, bring the link down and
-		 * re-trigger the resolve. Otherwise, re-read the
-		 * PCS state to get the current status of the link.
+		/* The PCS may have a latching link-fail indicator. If the link
+		 * was up, bring the link down and re-trigger the resolve.
+		 * Otherwise, re-read the PCS state to get the current status
+		 * of the link.
 		 */
 		if (!link_state.link) {
 			if (cur_link_state)
 				retrigger = true;
 			else
-				phylink_mac_pcs_get_state(pl,
-							  &link_state);
+				phylink_mac_pcs_get_state(pl, &link_state);
 		}
 
-		/* If we have a phy, the "up" state is the union of
-		 * both the PHY and the MAC
+		/* If we have a phy, the "up" state is the union of both the
+		 * PHY and the MAC
 		 */
 		if (pl->phydev)
 			link_state.link &= pl->phy_state.link;
 
 		/* Only update if the PHY link is up */
 		if (pl->phydev && pl->phy_state.link) {
-			/* If the interface has changed, force a
-			 * link down event if the link isn't already
-			 * down, and re-resolve.
+			/* If the interface has changed, force a link down
+			 * event if the link isn't already down, and re-resolve.
 			 */
-			if (link_state.interface !=
-			    pl->phy_state.interface) {
+			if (link_state.interface != pl->phy_state.interface) {
 				retrigger = true;
 				link_state.link = false;
 			}
+
 			link_state.interface = pl->phy_state.interface;
 
-			/* If we are doing rate matching, then the
-			 * link speed/duplex comes from the PHY
+			/* If we are doing rate matching, then the link
+			 * speed/duplex comes from the PHY
 			 */
 			if (pl->phy_state.rate_matching) {
 				link_state.rate_matching =
 					pl->phy_state.rate_matching;
 				link_state.speed = pl->phy_state.speed;
-				link_state.duplex =
-					pl->phy_state.duplex;
+				link_state.duplex = pl->phy_state.duplex;
 			}
 
-			/* If we have a PHY, we need to update with
-			 * the PHY flow control bits.
+			/* If we have a PHY, we need to update with the PHY
+			 * flow control bits.
 			 */
 			link_state.pause = pl->phy_state.pause;
 			mac_config = true;
