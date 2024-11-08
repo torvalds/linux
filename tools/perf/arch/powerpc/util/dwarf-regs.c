@@ -9,29 +9,25 @@
 #include <errno.h>
 #include <string.h>
 #include <dwarf-regs.h>
-#include <linux/ptrace.h>
 #include <linux/kernel.h>
 #include <linux/stringify.h>
 
-struct pt_regs_dwarfnum {
+struct regs_dwarfnum {
 	const char *name;
 	unsigned int dwarfnum;
-	unsigned int ptregs_offset;
 };
 
 #define REG_DWARFNUM_NAME(r, num)					\
-		{.name = __stringify(%)__stringify(r), .dwarfnum = num,			\
-		.ptregs_offset = offsetof(struct pt_regs, r)}
+	{.name = __stringify(%)__stringify(r), .dwarfnum = num}
 #define GPR_DWARFNUM_NAME(num)						\
-		{.name = __stringify(%gpr##num), .dwarfnum = num,		\
-		.ptregs_offset = offsetof(struct pt_regs, gpr[num])}
-#define REG_DWARFNUM_END {.name = NULL, .dwarfnum = 0, .ptregs_offset = 0}
+	{.name = __stringify(%gpr##num), .dwarfnum = num}
+#define REG_DWARFNUM_END {.name = NULL, .dwarfnum = 0}
 
 /*
  * Reference:
  * http://refspecs.linuxfoundation.org/ELF/ppc64/PPC-elf64abi-1.9.html
  */
-static const struct pt_regs_dwarfnum regdwarfnum_table[] = {
+static const struct regs_dwarfnum regdwarfnum_table[] = {
 	GPR_DWARFNUM_NAME(0),
 	GPR_DWARFNUM_NAME(1),
 	GPR_DWARFNUM_NAME(2),
@@ -83,20 +79,12 @@ static const struct pt_regs_dwarfnum regdwarfnum_table[] = {
  */
 const char *get_arch_regstr(unsigned int n)
 {
-	const struct pt_regs_dwarfnum *roff;
+	const struct regs_dwarfnum *roff;
+
 	for (roff = regdwarfnum_table; roff->name != NULL; roff++)
 		if (roff->dwarfnum == n)
 			return roff->name;
 	return NULL;
-}
-
-int regs_query_register_offset(const char *name)
-{
-	const struct pt_regs_dwarfnum *roff;
-	for (roff = regdwarfnum_table; roff->name != NULL; roff++)
-		if (!strcmp(roff->name, name))
-			return roff->ptregs_offset;
-	return -EINVAL;
 }
 
 #define PPC_OP(op)	(((op) >> 26) & 0x3F)

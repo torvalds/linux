@@ -9,7 +9,7 @@
 #include <string.h> /* for strcmp */
 #include <dwarf-regs.h>
 
-struct pt_regs_dwarfnum {
+struct regs_dwarfnum {
 	const char *name;
 	unsigned int dwarfnum;
 };
@@ -17,7 +17,7 @@ struct pt_regs_dwarfnum {
 #define REG_DWARFNUM_NAME(r, num) {.name = r, .dwarfnum = num}
 #define REG_DWARFNUM_END {.name = NULL, .dwarfnum = 0}
 
-struct pt_regs_dwarfnum riscv_dwarf_regs_table[] = {
+struct regs_dwarfnum riscv_dwarf_regs_table[] = {
 	REG_DWARFNUM_NAME("%zero", 0),
 	REG_DWARFNUM_NAME("%ra", 1),
 	REG_DWARFNUM_NAME("%sp", 2),
@@ -59,14 +59,4 @@ struct pt_regs_dwarfnum riscv_dwarf_regs_table[] = {
 const char *get_arch_regstr(unsigned int n)
 {
 	return (n < RISCV_MAX_REGS) ? riscv_dwarf_regs_table[n].name : NULL;
-}
-
-int regs_query_register_offset(const char *name)
-{
-	const struct pt_regs_dwarfnum *roff;
-
-	for (roff = riscv_dwarf_regs_table; roff->name; roff++)
-		if (!strcmp(roff->name, name))
-			return roff->dwarfnum;
-	return -EINVAL;
 }

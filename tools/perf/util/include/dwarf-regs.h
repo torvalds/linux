@@ -42,12 +42,4 @@ static inline void get_powerpc_regs(u32 raw_insn __maybe_unused, int is_source _
 void get_powerpc_regs(u32 raw_insn, int is_source, struct annotated_op_loc *op_loc);
 #endif
 
-#ifdef HAVE_ARCH_REGS_QUERY_REGISTER_OFFSET
-/*
- * Arch should support fetching the offset of a register in pt_regs
- * by its name. See kernel's regs_query_register_offset in
- * arch/xxx/kernel/ptrace.c.
- */
-int regs_query_register_offset(const char *name);
-#endif
 #endif

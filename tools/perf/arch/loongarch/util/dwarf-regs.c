@@ -32,13 +32,3 @@ const char *get_arch_regstr(unsigned int n)
 	n %= 32;
 	return loongarch_gpr_table[n].name;
 }
-
-int regs_query_register_offset(const char *name)
-{
-	const struct pt_regs_dwarfnum *roff;
-
-	for (roff = loongarch_gpr_table; roff->name != NULL; roff++)
-		if (!strcmp(roff->name, name))
-			return roff->dwarfnum;
-	return -EINVAL;
-}
