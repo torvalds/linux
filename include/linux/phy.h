@@ -721,15 +721,14 @@ struct phy_device {
 	/* used for eee validation and configuration*/
 	__ETHTOOL_DECLARE_LINK_MODE_MASK(supported_eee);
 	__ETHTOOL_DECLARE_LINK_MODE_MASK(advertising_eee);
+	/* Energy efficient ethernet modes which should be prohibited */
+	__ETHTOOL_DECLARE_LINK_MODE_MASK(eee_broken_modes);
 	bool eee_enabled;
+	bool enable_tx_lpi;
+	struct eee_config eee_cfg;
 
 	/* Host supported PHY interface types. Should be ignored if empty. */
 	DECLARE_PHY_INTERFACE_MASK(host_interfaces);
-
-	/* Energy efficient ethernet modes which should be prohibited */
-	u32 eee_broken_modes;
-	bool enable_tx_lpi;
-	struct eee_config eee_cfg;
 
 #ifdef CONFIG_LED_TRIGGER_PHY
 	struct phy_led_trigger *phy_led_triggers;
