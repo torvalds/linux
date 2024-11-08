@@ -197,6 +197,13 @@ void bch2_moving_ctxt_exit(struct moving_context *ctxt)
 	list_del(&ctxt->list);
 	mutex_unlock(&c->moving_context_lock);
 
+	/*
+	 * Generally, releasing a transaction within a transaction restart means
+	 * an unhandled transaction restart: but this can happen legitimately
+	 * within the move code, e.g. when bch2_move_ratelimit() tells us to
+	 * exit before we've retried
+	 */
+	bch2_trans_begin(ctxt->trans);
 	bch2_trans_put(ctxt->trans);
 	memset(ctxt, 0, sizeof(*ctxt));
 }
