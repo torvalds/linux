@@ -290,7 +290,7 @@ static void __bch2_fs_read_only(struct bch_fs *c)
 
 	bch2_fs_journal_stop(&c->journal);
 
-	bch_info(c, "%sshutdown complete, journal seq %llu",
+	bch_info(c, "%sclean shutdown complete, journal seq %llu",
 		 test_bit(BCH_FS_clean_shutdown, &c->flags) ? "" : "un",
 		 c->journal.seq_ondisk);
 
