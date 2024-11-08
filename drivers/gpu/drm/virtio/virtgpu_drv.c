@@ -32,9 +32,9 @@
 #include <linux/poll.h>
 #include <linux/wait.h>
 
+#include <drm/clients/drm_client_setup.h>
 #include <drm/drm.h>
 #include <drm/drm_atomic_helper.h>
-#include <drm/drm_client_setup.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_fbdev_shmem.h>
 #include <drm/drm_file.h>

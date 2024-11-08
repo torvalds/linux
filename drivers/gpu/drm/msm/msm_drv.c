@@ -11,7 +11,7 @@
 #include <linux/of_address.h>
 #include <linux/uaccess.h>
 
-#include <drm/drm_client_setup.h>
+#include <drm/clients/drm_client_setup.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_file.h>
 #include <drm/drm_ioctl.h>
