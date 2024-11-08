@@ -862,6 +862,13 @@ use_clean:
 	if (ret)
 		goto err;
 
+	/*
+	 * Normally set by the appropriate recovery pass: when cleared, this
+	 * indicates we're in early recovery and btree updates should be done by
+	 * being applied to the journal replay keys. _Must_ be cleared before
+	 * multithreaded use:
+	 */
+	set_bit(BCH_FS_may_go_rw, &c->flags);
 	clear_bit(BCH_FS_fsck_running, &c->flags);
 
 	/* in case we don't run journal replay, i.e. norecovery mode */
