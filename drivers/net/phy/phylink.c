@@ -1466,13 +1466,11 @@ static void phylink_resolve(struct work_struct *w)
 	} else if (pl->cur_link_an_mode == MLO_AN_FIXED) {
 		phylink_get_fixed_state(pl, &link_state);
 		mac_config = link_state.link;
+	} else if (pl->cur_link_an_mode == MLO_AN_PHY) {
+		link_state = pl->phy_state;
+		mac_config = link_state.link;
 	} else {
 		switch (pl->cur_link_an_mode) {
-		case MLO_AN_PHY:
-			link_state = pl->phy_state;
-			mac_config = link_state.link;
-			break;
-
 		case MLO_AN_INBAND:
 			phylink_mac_pcs_get_state(pl, &link_state);
 
