@@ -1872,7 +1872,7 @@ static void rcu_torture_reader_do_mbchk(long myid, struct rcu_torture *rtp,
 }
 
 // Verify the specified RCUTORTURE_RDR* state.
-#define ROEC_ARGS "%s %s: Current %#x  To add %#x  To remove %#x\n", __func__, s, curstate, new, old
+#define ROEC_ARGS "%s %s: Current %#x  To add %#x  To remove %#x  preempt_count() %#x\n", __func__, s, curstate, new, old, preempt_count()
 static void rcutorture_one_extend_check(char *s, int curstate, int new, int old, bool insoftirq)
 {
 	if (!IS_ENABLED(CONFIG_RCU_TORTURE_TEST_CHK_RDR_STATE))
