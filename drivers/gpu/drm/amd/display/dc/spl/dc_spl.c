@@ -739,14 +739,13 @@ static enum scl_mode spl_get_dscl_mode(const struct spl_in *spl_in,
 			return SCL_MODE_SCALING_444_RGB_ENABLE;
 	}
 
-	/* Bypass YUV if at 1:1 with no ISHARP or if doing 2:1 YUV
-	 *  downscale without EASF
+	/*
+	 * Bypass YUV if Y is 1:1 with no ISHARP
+	 * Do not bypass UV at 1:1 for cositing to be applied
 	 */
-	if ((!enable_isharp) && (!enable_easf)) {
+	if (!enable_isharp) {
 		if (data->ratios.horz.value == one && data->ratios.vert.value == one)
 			return SCL_MODE_SCALING_420_LUMA_BYPASS;
-		if (data->ratios.horz_c.value == one && data->ratios.vert_c.value == one)
-			return SCL_MODE_SCALING_420_CHROMA_BYPASS;
 	}
 
 	return SCL_MODE_SCALING_420_YCBCR_ENABLE;
@@ -933,6 +932,7 @@ static bool spl_get_optimal_number_of_taps(
 	int min_taps_y, min_taps_c;
 	enum lb_memory_config lb_config;
 	bool skip_easf = false;
+	bool is_ycbcr = spl_dscl_is_video_format(spl_in->basic_in.format);
 
 	if (spl_scratch->scl_data.viewport.width > spl_scratch->scl_data.h_active &&
 		max_downscale_src_width != 0 &&
@@ -1074,10 +1074,9 @@ static bool spl_get_optimal_number_of_taps(
 
 	/* Sharpener requires scaler to be enabled, including for 1:1
 	 * Check if ISHARP can be enabled
-	 * If ISHARP is not enabled, for 1:1, set taps to 1 and disable
-	 *  EASF
-	 * For case of 2:1 YUV where chroma is 1:1, set taps to 1 if
-	 *  EASF is not enabled
+	 * If ISHARP is not enabled, set taps to 1 if ratio is 1:1
+	 *  except for chroma taps.  Keep previous taps so it can
+	 *  handle cositing
 	 */
 
 	*enable_isharp = spl_get_isharp_en(spl_in, spl_scratch);
@@ -1087,20 +1086,28 @@ static bool spl_get_optimal_number_of_taps(
 			spl_scratch->scl_data.taps.h_taps = 1;
 			spl_scratch->scl_data.taps.v_taps = 1;
 
-			if (IDENTITY_RATIO(spl_scratch->scl_data.ratios.horz_c))
+			if (IDENTITY_RATIO(spl_scratch->scl_data.ratios.horz_c) && !is_ycbcr)
 				spl_scratch->scl_data.taps.h_taps_c = 1;
 
-			if (IDENTITY_RATIO(spl_scratch->scl_data.ratios.vert_c))
+			if (IDENTITY_RATIO(spl_scratch->scl_data.ratios.vert_c) && !is_ycbcr)
 				spl_scratch->scl_data.taps.v_taps_c = 1;
 
 			*enable_easf_v = false;
 			*enable_easf_h = false;
 		} else {
 			if ((!*enable_easf_h) &&
+				(IDENTITY_RATIO(spl_scratch->scl_data.ratios.horz)))
+				spl_scratch->scl_data.taps.h_taps = 1;
+
+			if ((!*enable_easf_v) &&
+				(IDENTITY_RATIO(spl_scratch->scl_data.ratios.vert)))
+				spl_scratch->scl_data.taps.v_taps = 1;
+
+			if ((!*enable_easf_h) && !is_ycbcr &&
 				(IDENTITY_RATIO(spl_scratch->scl_data.ratios.horz_c)))
 				spl_scratch->scl_data.taps.h_taps_c = 1;
 
-			if ((!*enable_easf_v) &&
+			if ((!*enable_easf_v) && !is_ycbcr &&
 				(IDENTITY_RATIO(spl_scratch->scl_data.ratios.vert_c)))
 				spl_scratch->scl_data.taps.v_taps_c = 1;
 		}
@@ -1111,8 +1118,7 @@ static bool spl_get_optimal_number_of_taps(
 static void spl_set_black_color_data(enum spl_pixel_format format,
 			struct scl_black_color *scl_black_color)
 {
-	bool ycbcr = format >= SPL_PIXEL_FORMAT_VIDEO_BEGIN
-					&& format <= SPL_PIXEL_FORMAT_VIDEO_END;
+	bool ycbcr = spl_dscl_is_video_format(format);
 	if (ycbcr)	{
 		scl_black_color->offset_rgb_y = BLACK_OFFSET_RGB_Y;
 		scl_black_color->offset_rgb_cbcr = BLACK_OFFSET_CBCR;
