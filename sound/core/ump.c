@@ -366,7 +366,7 @@ int snd_ump_block_new(struct snd_ump_endpoint *ump, unsigned int blk,
 {
 	struct snd_ump_block *fb, *p;
 
-	if (blk < 0 || blk >= SNDRV_UMP_MAX_BLOCKS)
+	if (blk >= SNDRV_UMP_MAX_BLOCKS)
 		return -EINVAL;
 
 	if (snd_ump_get_block(ump, blk))
