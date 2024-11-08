@@ -994,10 +994,14 @@ void gen9_disable_dc_states(struct intel_display *display)
 		return;
 	}
 
-	gen9_set_dc_state(display, DC_STATE_DISABLE);
-
-	if (!HAS_DISPLAY(display))
+	if (HAS_DISPLAY(display)) {
+		intel_dmc_wl_get_noreg(display);
+		gen9_set_dc_state(display, DC_STATE_DISABLE);
+		intel_dmc_wl_put_noreg(display);
+	} else {
+		gen9_set_dc_state(display, DC_STATE_DISABLE);
 		return;
+	}
 
 	intel_dmc_wl_disable(display);
 

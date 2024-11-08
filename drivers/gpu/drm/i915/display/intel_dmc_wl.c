@@ -199,7 +199,7 @@ void intel_dmc_wl_get(struct intel_display *display, i915_reg_t reg)
 	if (!__intel_dmc_wl_supported(display))
 		return;
 
-	if (!intel_dmc_wl_check_range(reg))
+	if (i915_mmio_reg_valid(reg) && !intel_dmc_wl_check_range(reg))
 		return;
 
 	spin_lock_irqsave(&wl->lock, flags);
@@ -251,7 +251,7 @@ void intel_dmc_wl_put(struct intel_display *display, i915_reg_t reg)
 	if (!__intel_dmc_wl_supported(display))
 		return;
 
-	if (!intel_dmc_wl_check_range(reg))
+	if (i915_mmio_reg_valid(reg) && !intel_dmc_wl_check_range(reg))
 		return;
 
 	spin_lock_irqsave(&wl->lock, flags);
@@ -271,4 +271,14 @@ void intel_dmc_wl_put(struct intel_display *display, i915_reg_t reg)
 
 out_unlock:
 	spin_unlock_irqrestore(&wl->lock, flags);
+}
+
+void intel_dmc_wl_get_noreg(struct intel_display *display)
+{
+	intel_dmc_wl_get(display, INVALID_MMIO_REG);
+}
+
+void intel_dmc_wl_put_noreg(struct intel_display *display)
+{
+	intel_dmc_wl_put(display, INVALID_MMIO_REG);
 }

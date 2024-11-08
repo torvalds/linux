@@ -27,5 +27,7 @@ void intel_dmc_wl_enable(struct intel_display *display);
 void intel_dmc_wl_disable(struct intel_display *display);
 void intel_dmc_wl_get(struct intel_display *display, i915_reg_t reg);
 void intel_dmc_wl_put(struct intel_display *display, i915_reg_t reg);
+void intel_dmc_wl_get_noreg(struct intel_display *display);
+void intel_dmc_wl_put_noreg(struct intel_display *display);
 
 #endif /* __INTEL_WAKELOCK_H__ */
