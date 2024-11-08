@@ -36,6 +36,11 @@
 #define AMD_S2D_REGISTER_RESPONSE	0xA80
 #define AMD_S2D_REGISTER_ARGUMENT	0xA88
 
+/* STB S2D (Spill to DRAM) message port offset for 44h model */
+#define AMD_GNR_REGISTER_MESSAGE	0x524
+#define AMD_GNR_REGISTER_RESPONSE	0x570
+#define AMD_GNR_REGISTER_ARGUMENT	0xA40
+
 static bool enable_stb;
 module_param(enable_stb, bool, 0644);
 MODULE_PARM_DESC(enable_stb, "Enable the STB debug mechanism");
@@ -233,12 +238,33 @@ static const struct file_operations amd_stb_debugfs_fops_v2 = {
 	.release = amd_stb_debugfs_release_v2,
 };
 
+static void amd_stb_update_args(struct amd_pmc_dev *dev)
+{
+	if (cpu_feature_enabled(X86_FEATURE_ZEN5))
+		switch (boot_cpu_data.x86_model) {
+		case 0x44:
+			dev->stb_arg.msg = AMD_GNR_REGISTER_MESSAGE;
+			dev->stb_arg.arg = AMD_GNR_REGISTER_ARGUMENT;
+			dev->stb_arg.resp = AMD_GNR_REGISTER_RESPONSE;
+			return;
+		default:
+			break;
+	}
+
+	dev->stb_arg.msg = AMD_S2D_REGISTER_MESSAGE;
+	dev->stb_arg.arg = AMD_S2D_REGISTER_ARGUMENT;
+	dev->stb_arg.resp = AMD_S2D_REGISTER_RESPONSE;
+}
+
 static bool amd_is_stb_supported(struct amd_pmc_dev *dev)
 {
 	switch (dev->cpu_id) {
 	case AMD_CPU_ID_YC:
 	case AMD_CPU_ID_CB:
-		dev->stb_arg.s2d_msg_id = 0xBE;
+		if (boot_cpu_data.x86_model == 0x44)
+			dev->stb_arg.s2d_msg_id = 0x9B;
+		else
+			dev->stb_arg.s2d_msg_id = 0xBE;
 		break;
 	case AMD_CPU_ID_PS:
 		dev->stb_arg.s2d_msg_id = 0x85;
@@ -254,10 +280,7 @@ static bool amd_is_stb_supported(struct amd_pmc_dev *dev)
 		return false;
 	}
 
-	dev->stb_arg.msg = AMD_S2D_REGISTER_MESSAGE;
-	dev->stb_arg.arg = AMD_S2D_REGISTER_ARGUMENT;
-	dev->stb_arg.resp = AMD_S2D_REGISTER_RESPONSE;
-
+	amd_stb_update_args(dev);
 	return true;
 }
 
