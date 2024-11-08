@@ -32,7 +32,6 @@ struct mmc_pwrseq_simple {
 	struct clk *ext_clk;
 	struct gpio_descs *reset_gpios;
 	struct reset_control *reset_ctrl;
-	bool use_reset;
 };
 
 #define to_pwrseq_simple(p) container_of(p, struct mmc_pwrseq_simple, pwrseq)
@@ -71,7 +70,7 @@ static void mmc_pwrseq_simple_pre_power_on(struct mmc_host *host)
 		pwrseq->clk_enabled = true;
 	}
 
-	if (pwrseq->use_reset) {
+	if (pwrseq->reset_ctrl) {
 		reset_control_deassert(pwrseq->reset_ctrl);
 		reset_control_assert(pwrseq->reset_ctrl);
 	} else
@@ -82,7 +81,7 @@ static void mmc_pwrseq_simple_post_power_on(struct mmc_host *host)
 {
 	struct mmc_pwrseq_simple *pwrseq = to_pwrseq_simple(host->pwrseq);
 
-	if (pwrseq->use_reset)
+	if (pwrseq->reset_ctrl)
 		reset_control_deassert(pwrseq->reset_ctrl);
 	else
 		mmc_pwrseq_simple_set_gpios_value(pwrseq, 0);
@@ -95,7 +94,7 @@ static void mmc_pwrseq_simple_power_off(struct mmc_host *host)
 {
 	struct mmc_pwrseq_simple *pwrseq = to_pwrseq_simple(host->pwrseq);
 
-	if (pwrseq->use_reset)
+	if (pwrseq->reset_ctrl)
 		reset_control_assert(pwrseq->reset_ctrl);
 	else
 		mmc_pwrseq_simple_set_gpios_value(pwrseq, 1);
@@ -137,15 +136,18 @@ static int mmc_pwrseq_simple_probe(struct platform_device *pdev)
 		return dev_err_probe(dev, PTR_ERR(pwrseq->ext_clk), "external clock not ready\n");
 
 	ngpio = of_count_phandle_with_args(dev->of_node, "reset-gpios", "#gpio-cells");
-	if (ngpio == 1)
-		pwrseq->use_reset = true;
-
-	if (pwrseq->use_reset) {
+	if (ngpio == 1) {
 		pwrseq->reset_ctrl = devm_reset_control_get_optional_shared(dev, NULL);
 		if (IS_ERR(pwrseq->reset_ctrl))
 			return dev_err_probe(dev, PTR_ERR(pwrseq->reset_ctrl),
 					     "reset control not ready\n");
-	} else {
+	}
+
+	/*
+	 * Fallback to GPIO based reset control in case of multiple reset lines
+	 * are specified or the platform doesn't have support for RESET at all.
+	 */
+	if (!pwrseq->reset_ctrl) {
 		pwrseq->reset_gpios = devm_gpiod_get_array(dev, "reset", GPIOD_OUT_HIGH);
 		if (IS_ERR(pwrseq->reset_gpios) &&
 		    PTR_ERR(pwrseq->reset_gpios) != -ENOENT &&
