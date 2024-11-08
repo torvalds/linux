@@ -537,7 +537,7 @@ physical address, using the Linux page table APIs:
       void *laddr, *paddr;
 
       pgd = pgd_offset(mm, vaddr);
-      pud = pud_offet(pgd, vaddr);
+      pud = pud_offset(pgd, vaddr);
       pmd = pmd_offset(pud, vaddr);
       pte = pte_offset(pmd, vaddr);
       page = pte_page(pte);
