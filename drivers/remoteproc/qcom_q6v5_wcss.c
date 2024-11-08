@@ -1056,18 +1056,33 @@ static int q6v5_wcss_probe(struct platform_device *pdev)
 	qcom_add_pdm_subdev(rproc, &wcss->pdm_subdev);
 	qcom_add_ssr_subdev(rproc, &wcss->ssr_subdev, "q6wcss");
 
-	if (desc->ssctl_id)
+	if (desc->ssctl_id) {
 		wcss->sysmon = qcom_add_sysmon_subdev(rproc,
 						      desc->sysmon_name,
 						      desc->ssctl_id);
+		if (IS_ERR(wcss->sysmon)) {
+			ret = PTR_ERR(wcss->sysmon);
+			goto deinit_remove_subdevs;
+		}
+	}
 
 	ret = rproc_add(rproc);
 	if (ret)
-		return ret;
+		goto remove_sysmon_subdev;
 
 	platform_set_drvdata(pdev, rproc);
 
 	return 0;
+
+remove_sysmon_subdev:
+	if (desc->ssctl_id)
+		qcom_remove_sysmon_subdev(wcss->sysmon);
+deinit_remove_subdevs:
+	qcom_q6v5_deinit(&wcss->q6v5);
+	qcom_remove_glink_subdev(rproc, &wcss->glink_subdev);
+	qcom_remove_pdm_subdev(rproc, &wcss->pdm_subdev);
+	qcom_remove_ssr_subdev(rproc, &wcss->ssr_subdev);
+	return ret;
 }
 
 static void q6v5_wcss_remove(struct platform_device *pdev)
