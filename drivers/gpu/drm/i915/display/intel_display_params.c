@@ -123,10 +123,10 @@ intel_display_param_named_unsafe(enable_psr2_sel_fetch, bool, 0400,
 	"(0=disabled, 1=enabled) "
 	"Default: 1");
 
-intel_display_param_named_unsafe(enable_dmc_wl, bool, 0400,
+intel_display_param_named_unsafe(enable_dmc_wl, int, 0400,
 	"Enable DMC wakelock "
-	"(0=disabled, 1=enabled) "
-	"Default: 0");
+	"(-1=use per-chip default, 0=disabled, 1=enabled) "
+	"Default: -1");
 
 __maybe_unused
 static void _param_print_bool(struct drm_printer *p, const char *driver_name,
