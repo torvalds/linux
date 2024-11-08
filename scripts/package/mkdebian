@@ -4,7 +4,7 @@
 #
 # Simple script to generate a debian/ directory for a Linux kernel.
 
-set -eu
+set -eux
 
 is_enabled() {
 	grep -q "^$1=y" include/config/auto.conf
@@ -200,9 +200,7 @@ Rules-Requires-Root: no
 Build-Depends: debhelper-compat (= 12)
 Build-Depends-Arch: bc, bison, cpio, flex,
  gcc-${host_gnu} <!pkg.${sourcename}.nokernelheaders>,
- kmod, libelf-dev:native,
- libssl-dev:native, libssl-dev <!pkg.${sourcename}.nokernelheaders>,
- rsync
+ kmod, rsync
 Homepage: https://www.kernel.org/
 
 Package: $packagename-$version
