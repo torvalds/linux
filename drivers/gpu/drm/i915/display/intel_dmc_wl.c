@@ -76,8 +76,11 @@ static void intel_dmc_wl_work(struct work_struct *work)
 
 	spin_lock_irqsave(&wl->lock, flags);
 
-	/* Bail out if refcount reached zero while waiting for the spinlock */
-	if (!refcount_read(&wl->refcount))
+	/*
+	 * Bail out if refcount became non-zero while waiting for the spinlock,
+	 * meaning that the lock is now taken again.
+	 */
+	if (refcount_read(&wl->refcount))
 		goto out_unlock;
 
 	__intel_de_rmw_nowl(display, DMC_WAKELOCK1_CTL, DMC_WAKELOCK_CTL_REQ, 0);
