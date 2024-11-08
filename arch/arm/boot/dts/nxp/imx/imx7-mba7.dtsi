@@ -141,6 +141,7 @@
 		gpio = <&pca9555 12 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
 		regulator-always-on;
+		vin-supply = <&reg_mba_5v>;
 	};
 
 	reg_mpcie_3v3: regulator-mpcie-3v3 {
@@ -151,6 +152,7 @@
 		gpio = <&pca9555 10 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
 		regulator-always-on;
+		vin-supply = <&reg_mba_3v3>;
 	};
 
 	reg_mba_12v0: regulator-mba-12v0 {
@@ -160,6 +162,20 @@
 		regulator-max-microvolt = <12000000>;
 		gpio = <&pca9555 11 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
+	};
+
+	reg_mba_5v: regulator-mba-5v {
+		compatible = "regulator-fixed";
+		regulator-name = "VCC5V";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+	};
+
+	reg_mba_3v3: regulator-mba-3v3 {
+		compatible = "regulator-fixed";
+		regulator-name = "VCC3V3";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
 	};
 
 	reg_vref_1v8: regulator-vref-1v8 {
@@ -177,6 +193,7 @@
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
 		regulator-always-on;
+		vin-supply = <&reg_mba_3v3>;
 	};
 
 	reg_vcc_3v3: regulator-vcc-3v3 {
