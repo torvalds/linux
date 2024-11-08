@@ -607,6 +607,11 @@ struct xe_file {
 		 * which does things while being held.
 		 */
 		struct mutex lock;
+		/**
+		 * @exec_queue.pending_removal: items pending to be removed to
+		 * synchronize GPU state update with ongoing query.
+		 */
+		atomic_t pending_removal;
 	} exec_queue;
 
 	/** @run_ticks: hw engine class run time in ticks for this drm client */

@@ -262,8 +262,11 @@ void xe_exec_queue_fini(struct xe_exec_queue *q)
 
 	/*
 	 * Before releasing our ref to lrc and xef, accumulate our run ticks
+	 * and wakeup any waiters.
 	 */
 	xe_exec_queue_update_run_ticks(q);
+	if (q->xef && atomic_dec_and_test(&q->xef->exec_queue.pending_removal))
+		wake_up_var(&q->xef->exec_queue.pending_removal);
 
 	for (i = 0; i < q->width; ++i)
 		xe_lrc_put(q->lrc[i]);
@@ -826,7 +829,10 @@ int xe_exec_queue_destroy_ioctl(struct drm_device *dev, void *data,
 
 	mutex_lock(&xef->exec_queue.lock);
 	q = xa_erase(&xef->exec_queue.xa, args->exec_queue_id);
+	if (q)
+		atomic_inc(&xef->exec_queue.pending_removal);
 	mutex_unlock(&xef->exec_queue.lock);
+
 	if (XE_IOCTL_DBG(xe, !q))
 		return -ENOENT;
 
