@@ -39,6 +39,7 @@ NAMESPACE=""
 # IDs for netdevsim
 NSIM_DEV_1_ID=$((256 + RANDOM % 256))
 NSIM_DEV_2_ID=$((512 + RANDOM % 256))
+NSIM_DEV_SYS_NEW="/sys/bus/netdevsim/new_device"
 
 # Used to create and delete namespaces
 source "${SCRIPTDIR}"/../../net/lib.sh
@@ -46,7 +47,6 @@ source "${SCRIPTDIR}"/../../net/net_helper.sh
 
 # Create netdevsim interfaces
 create_ifaces() {
-	local NSIM_DEV_SYS_NEW=/sys/bus/netdevsim/new_device
 
 	echo "$NSIM_DEV_2_ID" > "$NSIM_DEV_SYS_NEW"
 	echo "$NSIM_DEV_1_ID" > "$NSIM_DEV_SYS_NEW"
@@ -209,6 +209,11 @@ function check_for_dependencies() {
 
 	if ! which udevadm > /dev/null ; then
 		echo "SKIP: udevadm(1) is not available" >&2
+		exit "${ksft_skip}"
+	fi
+
+	if [ ! -f "${NSIM_DEV_SYS_NEW}" ]; then
+		echo "SKIP: file ${NSIM_DEV_SYS_NEW} does not exist. Check if CONFIG_NETDEVSIM is enabled" >&2
 		exit "${ksft_skip}"
 	fi
 
