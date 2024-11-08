@@ -10,6 +10,8 @@
 
 #include <asm/byteorder.h>
 
+#define BCH_SB_READ_SCRATCH_BUF_SIZE		4096
+
 static inline bool bch2_version_compatible(u16 version)
 {
 	return BCH_VERSION_MAJOR(version) <= BCH_VERSION_MAJOR(bcachefs_metadata_version_current) &&

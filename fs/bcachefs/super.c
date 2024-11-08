@@ -1201,7 +1201,7 @@ static void bch2_dev_free(struct bch_dev *ca)
 
 	free_percpu(ca->io_done);
 	bch2_dev_buckets_free(ca);
-	free_page((unsigned long) ca->sb_read_scratch);
+	kfree(ca->sb_read_scratch);
 
 	bch2_time_stats_quantiles_exit(&ca->io_latency[WRITE]);
 	bch2_time_stats_quantiles_exit(&ca->io_latency[READ]);
@@ -1340,7 +1340,7 @@ static struct bch_dev *__bch2_dev_alloc(struct bch_fs *c,
 
 	if (percpu_ref_init(&ca->io_ref, bch2_dev_io_ref_complete,
 			    PERCPU_REF_INIT_DEAD, GFP_KERNEL) ||
-	    !(ca->sb_read_scratch = (void *) __get_free_page(GFP_KERNEL)) ||
+	    !(ca->sb_read_scratch = kmalloc(BCH_SB_READ_SCRATCH_BUF_SIZE, GFP_KERNEL)) ||
 	    bch2_dev_buckets_alloc(c, ca) ||
 	    !(ca->io_done	= alloc_percpu(*ca->io_done)))
 		goto err;
