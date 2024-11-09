@@ -35,7 +35,7 @@ dispatch:
 
 SEC(".struct_ops.link")
 struct sched_ext_ops select_cpu_dispatch_ops = {
-	.select_cpu		= select_cpu_dispatch_select_cpu,
+	.select_cpu		= (void *) select_cpu_dispatch_select_cpu,
 	.name			= "select_cpu_dispatch",
 	.timeout_ms		= 1000U,
 };

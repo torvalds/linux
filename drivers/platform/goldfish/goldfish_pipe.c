@@ -61,7 +61,6 @@
 #include <linux/io.h>
 #include <linux/dma-mapping.h>
 #include <linux/mm.h>
-#include <linux/acpi.h>
 #include <linux/bug.h>
 #include "goldfish_pipe_qemu.h"
 
@@ -940,7 +939,7 @@ static struct platform_driver goldfish_pipe_driver = {
 	.driver = {
 		.name = "goldfish_pipe",
 		.of_match_table = goldfish_pipe_of_match,
-		.acpi_match_table = ACPI_PTR(goldfish_pipe_acpi_match),
+		.acpi_match_table = goldfish_pipe_acpi_match,
 	}
 };
 

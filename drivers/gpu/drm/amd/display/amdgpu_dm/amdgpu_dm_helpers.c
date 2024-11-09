@@ -44,6 +44,7 @@
 
 #include "dm_helpers.h"
 #include "ddc_service_types.h"
+#include "clk_mgr.h"
 
 static u32 edid_extract_panel_id(struct edid *edid)
 {
@@ -1121,6 +1122,8 @@ bool dm_helpers_dp_handle_test_pattern_request(
 	struct pipe_ctx *pipe_ctx = NULL;
 	struct amdgpu_dm_connector *aconnector = link->priv;
 	struct drm_device *dev = aconnector->base.dev;
+	struct dc_state *dc_state = ctx->dc->current_state;
+	struct clk_mgr *clk_mgr = ctx->dc->clk_mgr;
 	int i;
 
 	for (i = 0; i < MAX_PIPES; i++) {
@@ -1220,6 +1223,16 @@ bool dm_helpers_dp_handle_test_pattern_request(
 
 	pipe_ctx->stream->test_pattern.type = test_pattern;
 	pipe_ctx->stream->test_pattern.color_space = test_pattern_color_space;
+
+	/* Temp W/A for compliance test failure */
+	dc_state->bw_ctx.bw.dcn.clk.p_state_change_support = false;
+	dc_state->bw_ctx.bw.dcn.clk.dramclk_khz = clk_mgr->dc_mode_softmax_enabled ?
+		clk_mgr->bw_params->dc_mode_softmax_memclk : clk_mgr->bw_params->max_memclk_mhz;
+	dc_state->bw_ctx.bw.dcn.clk.idle_dramclk_khz = dc_state->bw_ctx.bw.dcn.clk.dramclk_khz;
+	ctx->dc->clk_mgr->funcs->update_clocks(
+			ctx->dc->clk_mgr,
+			dc_state,
+			false);
 
 	dc_link_dp_set_test_pattern(
 		(struct dc_link *) link,

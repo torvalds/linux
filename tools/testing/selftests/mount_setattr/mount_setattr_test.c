@@ -1414,6 +1414,13 @@ TEST_F(mount_setattr_idmapped, idmap_mount_tree_invalid)
 	ASSERT_EQ(expected_uid_gid(-EBADF, "/tmp/B/b", 0, 0, 0), 0);
 	ASSERT_EQ(expected_uid_gid(-EBADF, "/tmp/B/BB/b", 0, 0, 0), 0);
 
+	ASSERT_EQ(mount("testing", "/mnt/A", "ramfs", MS_NOATIME | MS_NODEV,
+			"size=100000,mode=700"), 0);
+
+	ASSERT_EQ(mkdir("/mnt/A/AA", 0777), 0);
+
+	ASSERT_EQ(mount("/tmp", "/mnt/A/AA", NULL, MS_BIND | MS_REC, NULL), 0);
+
 	open_tree_fd = sys_open_tree(-EBADF, "/mnt/A",
 				     AT_RECURSIVE |
 				     AT_EMPTY_PATH |
@@ -1433,6 +1440,8 @@ TEST_F(mount_setattr_idmapped, idmap_mount_tree_invalid)
 	ASSERT_EQ(expected_uid_gid(-EBADF, "/tmp/B/BB/b", 0, 0, 0), 0);
 	ASSERT_EQ(expected_uid_gid(open_tree_fd, "B/b", 0, 0, 0), 0);
 	ASSERT_EQ(expected_uid_gid(open_tree_fd, "B/BB/b", 0, 0, 0), 0);
+
+	(void)umount2("/mnt/A", MNT_DETACH);
 }
 
 TEST_F(mount_setattr, mount_attr_nosymfollow)

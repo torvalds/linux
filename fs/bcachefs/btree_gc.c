@@ -820,12 +820,22 @@ static int bch2_alloc_write_key(struct btree_trans *trans,
 	 * fix that here:
 	 */
 	alloc_data_type_set(&gc, gc.data_type);
-
 	if (gc.data_type != old_gc.data_type ||
 	    gc.dirty_sectors != old_gc.dirty_sectors) {
 		ret = bch2_alloc_key_to_dev_counters(trans, ca, &old_gc, &gc, BTREE_TRIGGER_gc);
 		if (ret)
 			return ret;
+
+		/*
+		 * Ugly: alloc_key_to_dev_counters(..., BTREE_TRIGGER_gc) is not
+		 * safe w.r.t. transaction restarts, so fixup the gc_bucket so
+		 * we don't run it twice:
+		 */
+		percpu_down_read(&c->mark_lock);
+		struct bucket *gc_m = gc_bucket(ca, iter->pos.offset);
+		gc_m->data_type = gc.data_type;
+		gc_m->dirty_sectors = gc.dirty_sectors;
+		percpu_up_read(&c->mark_lock);
 	}
 
 	if (fsck_err_on(new.data_type != gc.data_type,

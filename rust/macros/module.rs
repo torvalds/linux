@@ -232,6 +232,7 @@ pub(crate) fn module(ts: TokenStream) -> TokenStream {
             mod __module_init {{
                 mod __module_init {{
                     use super::super::{type_};
+                    use kernel::init::PinInit;
 
                     /// The \"Rust loadable module\" mark.
                     //
@@ -242,7 +243,8 @@ pub(crate) fn module(ts: TokenStream) -> TokenStream {
                     #[used]
                     static __IS_RUST_MODULE: () = ();
 
-                    static mut __MOD: Option<{type_}> = None;
+                    static mut __MOD: core::mem::MaybeUninit<{type_}> =
+                        core::mem::MaybeUninit::uninit();
 
                     // Loadable modules need to export the `{{init,cleanup}}_module` identifiers.
                     /// # Safety
@@ -331,20 +333,14 @@ pub(crate) fn module(ts: TokenStream) -> TokenStream {
                     ///
                     /// This function must only be called once.
                     unsafe fn __init() -> core::ffi::c_int {{
-                        match <{type_} as kernel::Module>::init(&super::super::THIS_MODULE) {{
-                            Ok(m) => {{
-                                // SAFETY: No data race, since `__MOD` can only be accessed by this
-                                // module and there only `__init` and `__exit` access it. These
-                                // functions are only called once and `__exit` cannot be called
-                                // before or during `__init`.
-                                unsafe {{
-                                    __MOD = Some(m);
-                                }}
-                                return 0;
-                            }}
-                            Err(e) => {{
-                                return e.to_errno();
-                            }}
+                        let initer =
+                            <{type_} as kernel::InPlaceModule>::init(&super::super::THIS_MODULE);
+                        // SAFETY: No data race, since `__MOD` can only be accessed by this module
+                        // and there only `__init` and `__exit` access it. These functions are only
+                        // called once and `__exit` cannot be called before or during `__init`.
+                        match unsafe {{ initer.__pinned_init(__MOD.as_mut_ptr()) }} {{
+                            Ok(m) => 0,
+                            Err(e) => e.to_errno(),
                         }}
                     }}
 
@@ -359,7 +355,7 @@ pub(crate) fn module(ts: TokenStream) -> TokenStream {
                         // called once and `__init` was already called.
                         unsafe {{
                             // Invokes `drop()` on `__MOD`, which should be used for cleanup.
-                            __MOD = None;
+                            __MOD.assume_init_drop();
                         }}
                     }}
 

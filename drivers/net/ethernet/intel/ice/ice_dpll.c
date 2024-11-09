@@ -10,6 +10,7 @@
 #define ICE_DPLL_PIN_IDX_INVALID		0xff
 #define ICE_DPLL_RCLK_NUM_PER_PF		1
 #define ICE_DPLL_PIN_ESYNC_PULSE_HIGH_PERCENT	25
+#define ICE_DPLL_PIN_GEN_RCLK_FREQ		1953125
 
 /**
  * enum ice_dpll_pin_type - enumerate ice pin types:
@@ -2064,6 +2065,73 @@ static int ice_dpll_init_worker(struct ice_pf *pf)
 }
 
 /**
+ * ice_dpll_init_info_pins_generic - initializes generic pins info
+ * @pf: board private structure
+ * @input: if input pins initialized
+ *
+ * Init information for generic pins, cache them in PF's pins structures.
+ *
+ * Return:
+ * * 0 - success
+ * * negative - init failure reason
+ */
+static int ice_dpll_init_info_pins_generic(struct ice_pf *pf, bool input)
+{
+	struct ice_dpll *de = &pf->dplls.eec, *dp = &pf->dplls.pps;
+	static const char labels[][sizeof("99")] = {
+		"0", "1", "2", "3", "4", "5", "6", "7", "8",
+		"9", "10", "11", "12", "13", "14", "15" };
+	u32 cap = DPLL_PIN_CAPABILITIES_STATE_CAN_CHANGE;
+	enum ice_dpll_pin_type pin_type;
+	int i, pin_num, ret = -EINVAL;
+	struct ice_dpll_pin *pins;
+	u32 phase_adj_max;
+
+	if (input) {
+		pin_num = pf->dplls.num_inputs;
+		pins = pf->dplls.inputs;
+		phase_adj_max = pf->dplls.input_phase_adj_max;
+		pin_type = ICE_DPLL_PIN_TYPE_INPUT;
+		cap |= DPLL_PIN_CAPABILITIES_PRIORITY_CAN_CHANGE;
+	} else {
+		pin_num = pf->dplls.num_outputs;
+		pins = pf->dplls.outputs;
+		phase_adj_max = pf->dplls.output_phase_adj_max;
+		pin_type = ICE_DPLL_PIN_TYPE_OUTPUT;
+	}
+	if (pin_num > ARRAY_SIZE(labels))
+		return ret;
+
+	for (i = 0; i < pin_num; i++) {
+		pins[i].idx = i;
+		pins[i].prop.board_label = labels[i];
+		pins[i].prop.phase_range.min = phase_adj_max;
+		pins[i].prop.phase_range.max = -phase_adj_max;
+		pins[i].prop.capabilities = cap;
+		pins[i].pf = pf;
+		ret = ice_dpll_pin_state_update(pf, &pins[i], pin_type, NULL);
+		if (ret)
+			break;
+		if (input && pins[i].freq == ICE_DPLL_PIN_GEN_RCLK_FREQ)
+			pins[i].prop.type = DPLL_PIN_TYPE_MUX;
+		else
+			pins[i].prop.type = DPLL_PIN_TYPE_EXT;
+		if (!input)
+			continue;
+		ret = ice_aq_get_cgu_ref_prio(&pf->hw, de->dpll_idx, i,
+					      &de->input_prio[i]);
+		if (ret)
+			break;
+		ret = ice_aq_get_cgu_ref_prio(&pf->hw, dp->dpll_idx, i,
+					      &dp->input_prio[i]);
+		if (ret)
+			break;
+	}
+
+	return ret;
+}
+
+/**
  * ice_dpll_init_info_direct_pins - initializes direct pins info
  * @pf: board private structure
  * @pin_type: type of pins being initialized
@@ -2101,6 +2169,8 @@ ice_dpll_init_info_direct_pins(struct ice_pf *pf,
 	default:
 		return -EINVAL;
 	}
+	if (num_pins != ice_cgu_get_num_pins(hw, input))
+		return ice_dpll_init_info_pins_generic(pf, input);
 
 	for (i = 0; i < num_pins; i++) {
 		caps = 0;

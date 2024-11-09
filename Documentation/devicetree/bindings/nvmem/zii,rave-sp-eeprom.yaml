@@ -1,0 +1,54 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/nvmem/zii,rave-sp-eeprom.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Zodiac Inflight Innovations RAVE EEPROM
+
+maintainers:
+  - Frank Li <Frank.Li@nxp.com>
+
+description:
+  RAVE SP EEPROM device is a "MFD cell" device exposing physical EEPROM
+  attached to RAVE Supervisory Processor. It is expected that its Device
+  Tree node is specified as a child of the node corresponding to the
+  parent RAVE SP device (as documented in
+  Documentation/devicetree/bindings/mfd/zii,rave-sp.yaml)
+
+properties:
+  compatible:
+    const: zii,rave-sp-eeprom
+
+  reg:
+    maxItems: 1
+
+  zii,eeprom-name:
+    $ref: /schemas/types.yaml#/definitions/string
+    description:
+      Unique EEPROM identifier describing its function in the
+      system. Will be used as created NVMEM deivce's name.
+
+required:
+  - compatible
+
+allOf:
+  - $ref: nvmem.yaml#
+  - $ref: nvmem-deprecated-cells.yaml#
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    eeprom@a4 {
+        compatible = "zii,rave-sp-eeprom";
+        reg = <0xa4 0x4000>;
+        #address-cells = <1>;
+        #size-cells = <1>;
+        zii,eeprom-name = "main-eeprom";
+
+        wdt-timeout@81 {
+            reg = <0x81 2>;
+        };
+    };
+
