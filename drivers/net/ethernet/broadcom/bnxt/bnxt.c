@@ -864,6 +864,11 @@ static void bnxt_tx_int(struct bnxt *bp, struct bnxt_napi *bnapi, int budget)
 		bnapi->events &= ~BNXT_TX_CMP_EVENT;
 }
 
+static bool bnxt_separate_head_pool(void)
+{
+	return PAGE_SIZE > BNXT_RX_PAGE_SIZE;
+}
+
 static struct page *__bnxt_alloc_rx_page(struct bnxt *bp, dma_addr_t *mapping,
 					 struct bnxt_rx_ring_info *rxr,
 					 unsigned int *offset,
@@ -886,27 +891,19 @@ static struct page *__bnxt_alloc_rx_page(struct bnxt *bp, dma_addr_t *mapping,
 }
 
 static inline u8 *__bnxt_alloc_rx_frag(struct bnxt *bp, dma_addr_t *mapping,
+				       struct bnxt_rx_ring_info *rxr,
 				       gfp_t gfp)
 {
-	u8 *data;
-	struct pci_dev *pdev = bp->pdev;
+	unsigned int offset;
+	struct page *page;
 
-	if (gfp == GFP_ATOMIC)
-		data = napi_alloc_frag(bp->rx_buf_size);
-	else
-		data = netdev_alloc_frag(bp->rx_buf_size);
-	if (!data)
+	page = page_pool_alloc_frag(rxr->head_pool, &offset,
+				    bp->rx_buf_size, gfp);
+	if (!page)
 		return NULL;
 
-	*mapping = dma_map_single_attrs(&pdev->dev, data + bp->rx_dma_offset,
-					bp->rx_buf_use_size, bp->rx_dir,
-					DMA_ATTR_WEAK_ORDERING);
-
-	if (dma_mapping_error(&pdev->dev, *mapping)) {
-		skb_free_frag(data);
-		data = NULL;
-	}
-	return data;
+	*mapping = page_pool_get_dma_addr(page) + bp->rx_dma_offset + offset;
+	return page_address(page) + offset;
 }
 
 int bnxt_alloc_rx_data(struct bnxt *bp, struct bnxt_rx_ring_info *rxr,
@@ -928,7 +925,7 @@ int bnxt_alloc_rx_data(struct bnxt *bp, struct bnxt_rx_ring_info *rxr,
 		rx_buf->data = page;
 		rx_buf->data_ptr = page_address(page) + offset + bp->rx_offset;
 	} else {
-		u8 *data = __bnxt_alloc_rx_frag(bp, &mapping, gfp);
+		u8 *data = __bnxt_alloc_rx_frag(bp, &mapping, rxr, gfp);
 
 		if (!data)
 			return -ENOMEM;
@@ -1179,13 +1176,14 @@ static struct sk_buff *bnxt_rx_skb(struct bnxt *bp,
 	}
 
 	skb = napi_build_skb(data, bp->rx_buf_size);
-	dma_unmap_single_attrs(&bp->pdev->dev, dma_addr, bp->rx_buf_use_size,
-			       bp->rx_dir, DMA_ATTR_WEAK_ORDERING);
+	dma_sync_single_for_cpu(&bp->pdev->dev, dma_addr, bp->rx_buf_use_size,
+				bp->rx_dir);
 	if (!skb) {
-		skb_free_frag(data);
+		page_pool_free_va(rxr->head_pool, data, true);
 		return NULL;
 	}
 
+	skb_mark_for_recycle(skb);
 	skb_reserve(skb, bp->rx_offset);
 	skb_put(skb, offset_and_len & 0xffff);
 	return skb;
@@ -1840,7 +1838,8 @@ static inline struct sk_buff *bnxt_tpa_end(struct bnxt *bp,
 		u8 *new_data;
 		dma_addr_t new_mapping;
 
-		new_data = __bnxt_alloc_rx_frag(bp, &new_mapping, GFP_ATOMIC);
+		new_data = __bnxt_alloc_rx_frag(bp, &new_mapping, rxr,
+						GFP_ATOMIC);
 		if (!new_data) {
 			bnxt_abort_tpa(cpr, idx, agg_bufs);
 			cpr->sw_stats->rx.rx_oom_discards += 1;
@@ -1852,16 +1851,16 @@ static inline struct sk_buff *bnxt_tpa_end(struct bnxt *bp,
 		tpa_info->mapping = new_mapping;
 
 		skb = napi_build_skb(data, bp->rx_buf_size);
-		dma_unmap_single_attrs(&bp->pdev->dev, mapping,
-				       bp->rx_buf_use_size, bp->rx_dir,
-				       DMA_ATTR_WEAK_ORDERING);
+		dma_sync_single_for_cpu(&bp->pdev->dev, mapping,
+					bp->rx_buf_use_size, bp->rx_dir);
 
 		if (!skb) {
-			skb_free_frag(data);
+			page_pool_free_va(rxr->head_pool, data, true);
 			bnxt_abort_tpa(cpr, idx, agg_bufs);
 			cpr->sw_stats->rx.rx_oom_discards += 1;
 			return NULL;
 		}
+		skb_mark_for_recycle(skb);
 		skb_reserve(skb, bp->rx_offset);
 		skb_put(skb, len);
 	}
@@ -3308,28 +3307,22 @@ static void bnxt_free_tx_skbs(struct bnxt *bp)
 
 static void bnxt_free_one_rx_ring(struct bnxt *bp, struct bnxt_rx_ring_info *rxr)
 {
-	struct pci_dev *pdev = bp->pdev;
 	int i, max_idx;
 
 	max_idx = bp->rx_nr_pages * RX_DESC_CNT;
 
 	for (i = 0; i < max_idx; i++) {
 		struct bnxt_sw_rx_bd *rx_buf = &rxr->rx_buf_ring[i];
-		dma_addr_t mapping = rx_buf->mapping;
 		void *data = rx_buf->data;
 
 		if (!data)
 			continue;
 
 		rx_buf->data = NULL;
-		if (BNXT_RX_PAGE_MODE(bp)) {
+		if (BNXT_RX_PAGE_MODE(bp))
 			page_pool_recycle_direct(rxr->page_pool, data);
-		} else {
-			dma_unmap_single_attrs(&pdev->dev, mapping,
-					       bp->rx_buf_use_size, bp->rx_dir,
-					       DMA_ATTR_WEAK_ORDERING);
-			skb_free_frag(data);
-		}
+		else
+			page_pool_free_va(rxr->head_pool, data, true);
 	}
 }
 
@@ -3356,7 +3349,6 @@ static void bnxt_free_one_rx_agg_ring(struct bnxt *bp, struct bnxt_rx_ring_info 
 static void bnxt_free_one_rx_ring_skbs(struct bnxt *bp, int ring_nr)
 {
 	struct bnxt_rx_ring_info *rxr = &bp->rx_ring[ring_nr];
-	struct pci_dev *pdev = bp->pdev;
 	struct bnxt_tpa_idx_map *map;
 	int i;
 
@@ -3370,13 +3362,8 @@ static void bnxt_free_one_rx_ring_skbs(struct bnxt *bp, int ring_nr)
 		if (!data)
 			continue;
 
-		dma_unmap_single_attrs(&pdev->dev, tpa_info->mapping,
-				       bp->rx_buf_use_size, bp->rx_dir,
-				       DMA_ATTR_WEAK_ORDERING);
-
 		tpa_info->data = NULL;
-
-		skb_free_frag(data);
+		page_pool_free_va(rxr->head_pool, data, false);
 	}
 
 skip_rx_tpa_free:
@@ -3592,7 +3579,9 @@ static void bnxt_free_rx_rings(struct bnxt *bp)
 			xdp_rxq_info_unreg(&rxr->xdp_rxq);
 
 		page_pool_destroy(rxr->page_pool);
-		rxr->page_pool = NULL;
+		if (rxr->page_pool != rxr->head_pool)
+			page_pool_destroy(rxr->head_pool);
+		rxr->page_pool = rxr->head_pool = NULL;
 
 		kfree(rxr->rx_agg_bmap);
 		rxr->rx_agg_bmap = NULL;
@@ -3610,6 +3599,7 @@ static int bnxt_alloc_rx_page_pool(struct bnxt *bp,
 				   int numa_node)
 {
 	struct page_pool_params pp = { 0 };
+	struct page_pool *pool;
 
 	pp.pool_size = bp->rx_agg_ring_size;
 	if (BNXT_RX_PAGE_MODE(bp))
@@ -3622,14 +3612,25 @@ static int bnxt_alloc_rx_page_pool(struct bnxt *bp,
 	pp.max_len = PAGE_SIZE;
 	pp.flags = PP_FLAG_DMA_MAP | PP_FLAG_DMA_SYNC_DEV;
 
-	rxr->page_pool = page_pool_create(&pp);
-	if (IS_ERR(rxr->page_pool)) {
-		int err = PTR_ERR(rxr->page_pool);
+	pool = page_pool_create(&pp);
+	if (IS_ERR(pool))
+		return PTR_ERR(pool);
+	rxr->page_pool = pool;
 
-		rxr->page_pool = NULL;
-		return err;
+	if (bnxt_separate_head_pool()) {
+		pp.pool_size = max(bp->rx_ring_size, 1024);
+		pool = page_pool_create(&pp);
+		if (IS_ERR(pool))
+			goto err_destroy_pp;
 	}
+	rxr->head_pool = pool;
+
 	return 0;
+
+err_destroy_pp:
+	page_pool_destroy(rxr->page_pool);
+	rxr->page_pool = NULL;
+	return PTR_ERR(pool);
 }
 
 static int bnxt_alloc_rx_rings(struct bnxt *bp)
@@ -4180,7 +4181,8 @@ static int bnxt_alloc_one_rx_ring(struct bnxt *bp, int ring_nr)
 		u8 *data;
 
 		for (i = 0; i < bp->max_tpa; i++) {
-			data = __bnxt_alloc_rx_frag(bp, &mapping, GFP_KERNEL);
+			data = __bnxt_alloc_rx_frag(bp, &mapping, rxr,
+						    GFP_KERNEL);
 			if (!data)
 				return -ENOMEM;
 
