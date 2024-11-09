@@ -236,7 +236,7 @@ static void madera_irq_remove(struct platform_device *pdev)
 
 static struct platform_driver madera_irq_driver = {
 	.probe		= madera_irq_probe,
-	.remove_new	= madera_irq_remove,
+	.remove		= madera_irq_remove,
 	.driver = {
 		.name	= "madera-irq",
 		.pm	= &madera_irq_pm_ops,
