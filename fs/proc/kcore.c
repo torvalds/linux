@@ -69,7 +69,7 @@ static int kcore_nphdr;
 static size_t kcore_phdrs_len;
 static size_t kcore_notes_len;
 static size_t kcore_data_offset;
-static DECLARE_RWSEM(kclist_lock);
+DEFINE_STATIC_PERCPU_RWSEM(kclist_lock);
 static int kcore_need_update = 1;
 
 /*
@@ -276,7 +276,7 @@ static int kcore_update_ram(void)
 	struct kcore_list *tmp, *pos;
 	int ret = 0;
 
-	down_write(&kclist_lock);
+	percpu_down_write(&kclist_lock);
 	if (!xchg(&kcore_need_update, 0))
 		goto out;
 
@@ -297,7 +297,7 @@ static int kcore_update_ram(void)
 	update_kcore_size();
 
 out:
-	up_write(&kclist_lock);
+	percpu_up_write(&kclist_lock);
 	list_for_each_entry_safe(pos, tmp, &garbage, list) {
 		list_del(&pos->list);
 		kfree(pos);
@@ -335,7 +335,7 @@ static ssize_t read_kcore_iter(struct kiocb *iocb, struct iov_iter *iter)
 	size_t orig_buflen = buflen;
 	int ret = 0;
 
-	down_read(&kclist_lock);
+	percpu_down_read(&kclist_lock);
 	/*
 	 * Don't race against drivers that set PageOffline() and expect no
 	 * further page access.
@@ -626,7 +626,7 @@ skip:
 
 out:
 	page_offline_thaw();
-	up_read(&kclist_lock);
+	percpu_up_read(&kclist_lock);
 	if (ret)
 		return ret;
 	return orig_buflen - buflen;
