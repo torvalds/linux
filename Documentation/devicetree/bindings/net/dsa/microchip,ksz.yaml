@@ -34,6 +34,7 @@ properties:
       - microchip,ksz9563
       - microchip,ksz8563
       - microchip,ksz8567
+      - microchip,lan9646
 
   reset-gpios:
     description:
