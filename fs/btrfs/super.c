@@ -1979,25 +1979,10 @@ error:
  *     fsconfig(FSCONFIG_SET_FLAG, "ro"). This option is seen by the filesystem
  *     in fc->sb_flags.
  *
- * This disambiguation has rather positive consequences.  Mounting a subvolume
- * ro will not also turn the superblock ro. Only the mount for the subvolume
- * will become ro.
- *
- * So, if the superblock creation request comes from the new mount API the
- * caller must have explicitly done:
- *
- *      fsconfig(FSCONFIG_SET_FLAG, "ro")
- *      fsmount/mount_setattr(MOUNT_ATTR_RDONLY)
- *
- * IOW, at some point the caller must have explicitly turned the whole
- * superblock ro and we shouldn't just undo it like we did for the old mount
- * API. In any case, it lets us avoid the hack in the new mount API.
- *
- * Consequently, the remounting hack must only be used for requests originating
- * from the old mount API and should be marked for full deprecation so it can be
- * turned off in a couple of years.
- *
- * The new mount API has no reason to support this hack.
+ * But, currently the util-linux mount command already utilizes the new mount
+ * API and is still setting fsconfig(FSCONFIG_SET_FLAG, "ro") no matter if it's
+ * btrfs or not, setting the whole super block RO.  To make per-subvolume mounting
+ * work with different options work we need to keep backward compatibility.
  */
 static struct vfsmount *btrfs_reconfigure_for_mount(struct fs_context *fc)
 {
@@ -2019,7 +2004,7 @@ static struct vfsmount *btrfs_reconfigure_for_mount(struct fs_context *fc)
 	if (IS_ERR(mnt))
 		return mnt;
 
-	if (!fc->oldapi || !ro2rw)
+	if (!ro2rw)
 		return mnt;
 
 	/* We need to convert to rw, call reconfigure. */

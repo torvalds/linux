@@ -809,6 +809,11 @@ int bch2_btree_perf_test(struct bch_fs *c, const char *testname,
 	unsigned i;
 	u64 time;
 
+	if (nr == 0 || nr_threads == 0) {
+		pr_err("nr of iterations or threads is not allowed to be 0");
+		return -EINVAL;
+	}
+
 	atomic_set(&j.ready, nr_threads);
 	init_waitqueue_head(&j.ready_wait);
 

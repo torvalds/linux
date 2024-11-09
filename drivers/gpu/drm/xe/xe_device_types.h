@@ -353,15 +353,6 @@ struct xe_device {
 		struct workqueue_struct *wq;
 	} sriov;
 
-	/** @clients: drm clients info */
-	struct {
-		/** @clients.lock: Protects drm clients info */
-		spinlock_t lock;
-
-		/** @clients.count: number of drm clients */
-		u64 count;
-	} clients;
-
 	/** @usm: unified memory state */
 	struct {
 		/** @usm.asid: convert a ASID to VM */
