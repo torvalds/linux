@@ -199,8 +199,10 @@ struct scx_dump_ctx {
 /**
  * struct sched_ext_ops - Operation table for BPF scheduler implementation
  *
- * Userland can implement an arbitrary scheduling policy by implementing and
- * loading operations in this table.
+ * A BPF scheduler can implement an arbitrary scheduling policy by
+ * implementing and loading operations in this table. Note that a userland
+ * scheduling policy can also be implemented using the BPF scheduler
+ * as a shim layer.
  */
 struct sched_ext_ops {
 	/**
