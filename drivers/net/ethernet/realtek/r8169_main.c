@@ -2543,86 +2543,31 @@ static void rtl8169_init_ring_indexes(struct rtl8169_private *tp)
 	tp->dirty_tx = tp->cur_tx = tp->cur_rx = 0;
 }
 
-static void r8168c_hw_jumbo_enable(struct rtl8169_private *tp)
-{
-	RTL_W8(tp, Config3, RTL_R8(tp, Config3) | Jumbo_En0);
-	RTL_W8(tp, Config4, RTL_R8(tp, Config4) | Jumbo_En1);
-}
-
-static void r8168c_hw_jumbo_disable(struct rtl8169_private *tp)
-{
-	RTL_W8(tp, Config3, RTL_R8(tp, Config3) & ~Jumbo_En0);
-	RTL_W8(tp, Config4, RTL_R8(tp, Config4) & ~Jumbo_En1);
-}
-
-static void r8168dp_hw_jumbo_enable(struct rtl8169_private *tp)
-{
-	RTL_W8(tp, Config3, RTL_R8(tp, Config3) | Jumbo_En0);
-}
-
-static void r8168dp_hw_jumbo_disable(struct rtl8169_private *tp)
-{
-	RTL_W8(tp, Config3, RTL_R8(tp, Config3) & ~Jumbo_En0);
-}
-
-static void r8168e_hw_jumbo_enable(struct rtl8169_private *tp)
-{
-	RTL_W8(tp, MaxTxPacketSize, 0x24);
-	RTL_W8(tp, Config3, RTL_R8(tp, Config3) | Jumbo_En0);
-	RTL_W8(tp, Config4, RTL_R8(tp, Config4) | 0x01);
-}
-
-static void r8168e_hw_jumbo_disable(struct rtl8169_private *tp)
-{
-	RTL_W8(tp, MaxTxPacketSize, 0x3f);
-	RTL_W8(tp, Config3, RTL_R8(tp, Config3) & ~Jumbo_En0);
-	RTL_W8(tp, Config4, RTL_R8(tp, Config4) & ~0x01);
-}
-
-static void r8168b_1_hw_jumbo_enable(struct rtl8169_private *tp)
-{
-	RTL_W8(tp, Config4, RTL_R8(tp, Config4) | (1 << 0));
-}
-
-static void r8168b_1_hw_jumbo_disable(struct rtl8169_private *tp)
-{
-	RTL_W8(tp, Config4, RTL_R8(tp, Config4) & ~(1 << 0));
-}
-
 static void rtl_jumbo_config(struct rtl8169_private *tp)
 {
 	bool jumbo = tp->dev->mtu > ETH_DATA_LEN;
 	int readrq = 4096;
 
+	if (jumbo && tp->mac_version >= RTL_GIGA_MAC_VER_17 &&
+	    tp->mac_version <= RTL_GIGA_MAC_VER_26)
+		readrq = 512;
+
 	rtl_unlock_config_regs(tp);
 	switch (tp->mac_version) {
 	case RTL_GIGA_MAC_VER_17:
-		if (jumbo) {
-			readrq = 512;
-			r8168b_1_hw_jumbo_enable(tp);
-		} else {
-			r8168b_1_hw_jumbo_disable(tp);
-		}
+		r8169_mod_reg8_cond(tp, Config4, BIT(0), jumbo);
 		break;
 	case RTL_GIGA_MAC_VER_18 ... RTL_GIGA_MAC_VER_26:
-		if (jumbo) {
-			readrq = 512;
-			r8168c_hw_jumbo_enable(tp);
-		} else {
-			r8168c_hw_jumbo_disable(tp);
-		}
+		r8169_mod_reg8_cond(tp, Config3, Jumbo_En0, jumbo);
+		r8169_mod_reg8_cond(tp, Config4, Jumbo_En1, jumbo);
 		break;
 	case RTL_GIGA_MAC_VER_28:
-		if (jumbo)
-			r8168dp_hw_jumbo_enable(tp);
-		else
-			r8168dp_hw_jumbo_disable(tp);
+		r8169_mod_reg8_cond(tp, Config3, Jumbo_En0, jumbo);
 		break;
 	case RTL_GIGA_MAC_VER_31 ... RTL_GIGA_MAC_VER_33:
-		if (jumbo)
-			r8168e_hw_jumbo_enable(tp);
-		else
-			r8168e_hw_jumbo_disable(tp);
+		RTL_W8(tp, MaxTxPacketSize, jumbo ? 0x24 : 0x3f);
+		r8169_mod_reg8_cond(tp, Config3, Jumbo_En0, jumbo);
+		r8169_mod_reg8_cond(tp, Config4, BIT(0), jumbo);
 		break;
 	default:
 		break;
