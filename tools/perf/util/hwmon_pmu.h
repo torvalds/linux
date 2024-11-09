@@ -2,7 +2,11 @@
 #ifndef __HWMON_PMU_H
 #define __HWMON_PMU_H
 
+#include "pmu.h"
 #include <stdbool.h>
+
+struct list_head;
+struct perf_thread_map;
 
 /**
  * enum hwmon_type:
@@ -87,6 +91,9 @@ enum hwmon_item {
 	HWMON_ITEM__MAX,
 };
 
+bool perf_pmu__is_hwmon(const struct perf_pmu *pmu);
+bool evsel__is_hwmon(const struct evsel *evsel);
+
 /**
  * parse_hwmon_filename() - Parse filename into constituent parts.
  *
@@ -107,5 +114,38 @@ bool parse_hwmon_filename(const char *filename,
 			  int *number,
 			  enum hwmon_item *item,
 			  bool *alarm);
+
+/**
+ * hwmon_pmu__new() - Allocate and construct a hwmon PMU.
+ *
+ * @pmus: The list of PMUs to be added to.
+ * @hwmon_dir: An O_DIRECTORY file descriptor for a hwmon directory.
+ * @sysfs_name: Name of the hwmon sysfs directory like hwmon0.
+ * @name: The contents of the "name" file in the hwmon directory.
+ *
+ * Exposed for testing. Regular construction should happen via
+ * perf_pmus__read_hwmon_pmus.
+ */
+struct perf_pmu *hwmon_pmu__new(struct list_head *pmus, int hwmon_dir,
+				const char *sysfs_name, const char *name);
+void hwmon_pmu__exit(struct perf_pmu *pmu);
+
+int hwmon_pmu__for_each_event(struct perf_pmu *pmu, void *state, pmu_event_callback cb);
+size_t hwmon_pmu__num_events(struct perf_pmu *pmu);
+bool hwmon_pmu__have_event(struct perf_pmu *pmu, const char *name);
+int hwmon_pmu__config_terms(const struct perf_pmu *pmu,
+			    struct perf_event_attr *attr,
+			    struct parse_events_terms *terms,
+			    struct parse_events_error *err);
+int hwmon_pmu__check_alias(struct parse_events_terms *terms, struct perf_pmu_info *info,
+			   struct parse_events_error *err);
+
+int perf_pmus__read_hwmon_pmus(struct list_head *pmus);
+
+
+int evsel__hwmon_pmu_open(struct evsel *evsel,
+			 struct perf_thread_map *threads,
+			 int start_cpu_map_idx, int end_cpu_map_idx);
+int evsel__hwmon_pmu_read(struct evsel *evsel, int cpu_map_idx, int thread);
 
 #endif /* __HWMON_PMU_H */
