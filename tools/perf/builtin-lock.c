@@ -1660,6 +1660,7 @@ static int __cmd_contention(int argc, const char **argv)
 	if (IS_ERR(session)) {
 		pr_err("Initializing perf session failed\n");
 		err = PTR_ERR(session);
+		session = NULL;
 		goto out_delete;
 	}
 
