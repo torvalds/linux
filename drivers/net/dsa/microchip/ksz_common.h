@@ -236,6 +236,7 @@ enum ksz_model {
 	LAN9372,
 	LAN9373,
 	LAN9374,
+	LAN9646,
 };
 
 enum ksz_regs {
