@@ -536,7 +536,7 @@ int acpi_quirk_skip_serdev_enumeration(struct device *controller_parent, bool *s
 	 * Set skip to true so that the tty core creates a serdev ctrl device.
 	 * The backlight driver will manually create the serdev client device.
 	 */
-	if (acpi_dev_hid_match(adev, "DELL0501")) {
+	if (adev && acpi_dev_hid_match(adev, "DELL0501")) {
 		*skip = true;
 		/*
 		 * Create a platform dev for dell-uart-backlight to bind to.
