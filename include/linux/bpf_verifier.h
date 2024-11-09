@@ -265,23 +265,10 @@ struct bpf_reference_state {
 	 * is used purely to inform the user of a reference leak.
 	 */
 	int insn_idx;
-	union {
-		/* There can be a case like:
-		 * main (frame 0)
-		 *  cb (frame 1)
-		 *   func (frame 3)
-		 *    cb (frame 4)
-		 * Hence for frame 4, if callback_ref just stored boolean, it would be
-		 * impossible to distinguish nested callback refs. Hence store the
-		 * frameno and compare that to callback_ref in check_reference_leak when
-		 * exiting a callback function.
-		 */
-		int callback_ref;
-		/* Use to keep track of the source object of a lock, to ensure
-		 * it matches on unlock.
-		 */
-		void *ptr;
-	};
+	/* Use to keep track of the source object of a lock, to ensure
+	 * it matches on unlock.
+	 */
+	void *ptr;
 };
 
 struct bpf_retval_range {

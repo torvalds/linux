@@ -1358,7 +1358,6 @@ static int acquire_reference_state(struct bpf_verifier_env *env, int insn_idx)
 	state->refs[new_ofs].type = REF_TYPE_PTR;
 	state->refs[new_ofs].id = id;
 	state->refs[new_ofs].insn_idx = insn_idx;
-	state->refs[new_ofs].callback_ref = state->in_callback_fn ? state->frameno : 0;
 
 	return id;
 }
@@ -1392,9 +1391,6 @@ static int release_reference_state(struct bpf_func_state *state, int ptr_id)
 		if (state->refs[i].type != REF_TYPE_PTR)
 			continue;
 		if (state->refs[i].id == ptr_id) {
-			/* Cannot release caller references in callbacks */
-			if (state->in_callback_fn && state->refs[i].callback_ref != state->frameno)
-				return -EINVAL;
 			if (last_idx && i != last_idx)
 				memcpy(&state->refs[i], &state->refs[last_idx],
 				       sizeof(*state->refs));
@@ -10267,17 +10263,10 @@ static int prepare_func_exit(struct bpf_verifier_env *env, int *insn_idx)
 		caller->regs[BPF_REG_0] = *r0;
 	}
 
-	/* callback_fn frame should have released its own additions to parent's
-	 * reference state at this point, or check_reference_leak would
-	 * complain, hence it must be the same as the caller. There is no need
-	 * to copy it back.
-	 */
-	if (!callee->in_callback_fn) {
-		/* Transfer references to the caller */
-		err = copy_reference_state(caller, callee);
-		if (err)
-			return err;
-	}
+	/* Transfer references to the caller */
+	err = copy_reference_state(caller, callee);
+	if (err)
+		return err;
 
 	/* for callbacks like bpf_loop or bpf_for_each_map_elem go back to callsite,
 	 * there function call logic would reschedule callback visit. If iteration
@@ -10447,13 +10436,11 @@ static int check_reference_leak(struct bpf_verifier_env *env, bool exception_exi
 	bool refs_lingering = false;
 	int i;
 
-	if (!exception_exit && state->frameno && !state->in_callback_fn)
+	if (!exception_exit && state->frameno)
 		return 0;
 
 	for (i = 0; i < state->acquired_refs; i++) {
 		if (state->refs[i].type != REF_TYPE_PTR)
-			continue;
-		if (!exception_exit && state->in_callback_fn && state->refs[i].callback_ref != state->frameno)
 			continue;
 		verbose(env, "Unreleased reference id=%d alloc_insn=%d\n",
 			state->refs[i].id, state->refs[i].insn_idx);
@@ -17707,8 +17694,6 @@ static bool refsafe(struct bpf_func_state *old, struct bpf_func_state *cur,
 			return false;
 		switch (old->refs[i].type) {
 		case REF_TYPE_PTR:
-			if (old->refs[i].callback_ref != cur->refs[i].callback_ref)
-				return false;
 			break;
 		case REF_TYPE_LOCK:
 			if (old->refs[i].ptr != cur->refs[i].ptr)
