@@ -391,3 +391,7 @@
 	vddpa-supply = <&pm8953_l9>;
 	vdddig-supply = <&pm8953_l5>;
 };
+
+&zap_shader {
+	firmware-name = "qcom/msm8953/lenovo/tbx605f/a506_zap.mdt";
+};

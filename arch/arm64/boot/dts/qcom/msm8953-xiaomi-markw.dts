@@ -315,3 +315,7 @@
 	qcom,mbhc-vthreshold-high = <75 225 450 510 540>;
 	qcom,mbhc-vthreshold-low = <25 200 325 500 530>;
 };
+
+&zap_shader {
+	firmware-name = "qcom/msm8953/xiaomi/markw/a506_zap.mdt";
+};

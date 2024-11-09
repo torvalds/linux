@@ -273,3 +273,7 @@
 	qcom,mbhc-vthreshold-high = <73 233 438 438 438>;
 	qcom,mbhc-vthreshold-low = <73 233 438 438 438>;
 };
+
+&zap_shader {
+	firmware-name = "qcom/msm8953/xiaomi/mido/a506_zap.mdt";
+};

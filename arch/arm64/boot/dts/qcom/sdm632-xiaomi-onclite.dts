@@ -427,3 +427,7 @@
 		bias-pull-down;
 	};
 };
+
+&zap_shader {
+	firmware-name = "qcom/msm8953/xiaomi/onclite/a506_zap.mdt";
+};

@@ -215,3 +215,7 @@
 &wcnss_iris {
 	compatible = "qcom,wcn3620";
 };
+
+&zap_shader {
+	firmware-name = "qcom/msm8953/xiaomi/rosy/a506_zap.mdt";
+};

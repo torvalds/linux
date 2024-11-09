@@ -238,3 +238,7 @@
 &tlmm {
 	gpio-reserved-ranges = <0 4>, <96 4>;
 };
+
+&zap_shader {
+	firmware-name = "qcom/msm8953/xiaomi/ysl/a506_zap.mdt";
+};

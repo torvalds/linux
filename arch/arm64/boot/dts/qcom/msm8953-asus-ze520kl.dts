@@ -18,3 +18,7 @@
 &sound_card {
 	model = "asus-ze520kl";
 };
+
+&zap_shader {
+	firmware-name = "qcom/msm8953/asus/ze520kl/a506_zap.mdt";
+};

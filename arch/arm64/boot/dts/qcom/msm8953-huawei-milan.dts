@@ -533,3 +533,7 @@
 	vddpa-supply = <&pm8953_l9>;
 	vdddig-supply = <&pm8953_l5>;
 };
+
+&zap_shader {
+	firmware-name = "qcom/msm8953/huawei/milan/a506_zap.mdt";
+};

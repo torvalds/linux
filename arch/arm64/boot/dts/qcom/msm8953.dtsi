@@ -1961,7 +1961,7 @@
 
 			status = "okay";
 
-			zap-shader {
+			zap_shader: zap-shader {
 				memory-region = <&zap_shader_region>;
 				firmware-name = "a506_zap.mdt";
 			};

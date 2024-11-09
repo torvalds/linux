@@ -347,8 +347,11 @@
 
 &wcnss {
 	status = "okay";
-
 	vddpx-supply = <&pm8953_l5>;
+};
+
+&wcnss_ctrl {
+	firmware-name = "qcom/msm8953/motorola/ali/WCNSS_qcom_wlan_nv.bin";
 };
 
 &wcnss_iris {
@@ -358,4 +361,8 @@
 	vddrfa-supply = <&pm8953_l19>;
 	vddpa-supply = <&pm8953_l9>;
 	vdddig-supply = <&pm8953_l5>;
+};
+
+&zap_shader {
+	firmware-name = "qcom/msm8953/motorola/ali/a506_zap.mdt";
 };
