@@ -979,7 +979,7 @@ bool msm_disp_drv_should_bind(struct device *dev, bool dpu_driver)
 }
 #else
 
-static bool prefer_mdp5 = true;
+static bool prefer_mdp5 = false;
 MODULE_PARM_DESC(prefer_mdp5, "Select whether MDP5 or DPU driver should be preferred");
 module_param(prefer_mdp5, bool, 0444);
 
