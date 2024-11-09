@@ -48,22 +48,6 @@ enum bpf_reg_liveness {
 	REG_LIVE_DONE = 0x8, /* liveness won't be updating this register anymore */
 };
 
-/* For every reg representing a map value or allocated object pointer,
- * we consider the tuple of (ptr, id) for them to be unique in verifier
- * context and conside them to not alias each other for the purposes of
- * tracking lock state.
- */
-struct bpf_active_lock {
-	/* This can either be reg->map_ptr or reg->btf. If ptr is NULL,
-	 * there's no active lock held, and other fields have no
-	 * meaning. If non-NULL, it indicates that a lock is held and
-	 * id member has the reg->id of the register which can be >= 0.
-	 */
-	void *ptr;
-	/* This will be reg->id */
-	u32 id;
-};
-
 #define ITER_PREFIX "bpf_iter_"
 
 enum bpf_iter_state {
@@ -266,6 +250,13 @@ struct bpf_stack_state {
 };
 
 struct bpf_reference_state {
+	/* Each reference object has a type. Ensure REF_TYPE_PTR is zero to
+	 * default to pointer reference on zero initialization of a state.
+	 */
+	enum ref_state_type {
+		REF_TYPE_PTR = 0,
+		REF_TYPE_LOCK,
+	} type;
 	/* Track each reference created with a unique id, even if the same
 	 * instruction creates the reference multiple times (eg, via CALL).
 	 */
@@ -274,17 +265,10 @@ struct bpf_reference_state {
 	 * is used purely to inform the user of a reference leak.
 	 */
 	int insn_idx;
-	/* There can be a case like:
-	 * main (frame 0)
-	 *  cb (frame 1)
-	 *   func (frame 3)
-	 *    cb (frame 4)
-	 * Hence for frame 4, if callback_ref just stored boolean, it would be
-	 * impossible to distinguish nested callback refs. Hence store the
-	 * frameno and compare that to callback_ref in check_reference_leak when
-	 * exiting a callback function.
+	/* Use to keep track of the source object of a lock, to ensure
+	 * it matches on unlock.
 	 */
-	int callback_ref;
+	void *ptr;
 };
 
 struct bpf_retval_range {
@@ -332,6 +316,7 @@ struct bpf_func_state {
 
 	/* The following fields should be last. See copy_func_state() */
 	int acquired_refs;
+	int active_locks;
 	struct bpf_reference_state *refs;
 	/* The state of the stack. Each element of the array describes BPF_REG_SIZE
 	 * (i.e. 8) bytes worth of stack memory.
@@ -434,7 +419,6 @@ struct bpf_verifier_state {
 	u32 insn_idx;
 	u32 curframe;
 
-	struct bpf_active_lock active_lock;
 	bool speculative;
 	bool active_rcu_lock;
 	u32 active_preempt_lock;
