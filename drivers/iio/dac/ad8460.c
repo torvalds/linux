@@ -573,7 +573,7 @@ static int ad8460_read_event_value(struct iio_dev *indio_dev,
 static int ad8460_write_event_config(struct iio_dev *indio_dev,
 				     const struct iio_chan_spec *chan,
 				     enum iio_event_type type,
-				     enum iio_event_direction dir, int val)
+				     enum iio_event_direction dir, bool val)
 {
 	struct ad8460_state *state = iio_priv(indio_dev);
 	int fault;
@@ -924,10 +924,16 @@ static int ad8460_probe(struct spi_device *spi)
 }
 
 static const struct of_device_id ad8460_of_match[] = {
-	{ .compatible = "adi, ad8460" },
+	{ .compatible = "adi,ad8460" },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, ad8460_of_match);
+
+static const struct spi_device_id ad8460_spi_match[] = {
+	{ .name = "ad8460" },
+	{ }
+};
+MODULE_DEVICE_TABLE(spi, ad8460_spi_match);
 
 static struct spi_driver ad8460_driver = {
 	.driver = {
@@ -935,6 +941,7 @@ static struct spi_driver ad8460_driver = {
 		.of_match_table = ad8460_of_match,
 	},
 	.probe = ad8460_probe,
+	.id_table = ad8460_spi_match,
 };
 module_spi_driver(ad8460_driver);
 

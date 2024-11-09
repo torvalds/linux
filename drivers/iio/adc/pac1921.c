@@ -699,7 +699,8 @@ static int pac1921_read_event_config(struct iio_dev *indio_dev,
 static int pac1921_write_event_config(struct iio_dev *indio_dev,
 				      const struct iio_chan_spec *chan,
 				      enum iio_event_type type,
-				      enum iio_event_direction dir, int state)
+				      enum iio_event_direction dir,
+				      bool state)
 {
 	struct pac1921_priv *priv = iio_priv(indio_dev);
 	u8 ovf_bit;
@@ -1170,7 +1171,9 @@ static int pac1921_probe(struct i2c_client *client)
 		return dev_err_probe(dev, PTR_ERR(priv->regmap),
 				     "Cannot initialize register map\n");
 
-	devm_mutex_init(dev, &priv->lock);
+	ret = devm_mutex_init(dev, &priv->lock);
+	if (ret)
+		return ret;
 
 	priv->dv_gain = PAC1921_DEFAULT_DV_GAIN;
 	priv->di_gain = PAC1921_DEFAULT_DI_GAIN;

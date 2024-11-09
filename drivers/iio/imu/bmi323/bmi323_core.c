@@ -467,7 +467,7 @@ static int bmi323_feature_engine_events(struct bmi323_data *data,
 			    BMI323_FEAT_IO_STATUS_MSK);
 }
 
-static int bmi323_step_wtrmrk_en(struct bmi323_data *data, int state)
+static int bmi323_step_wtrmrk_en(struct bmi323_data *data, bool state)
 {
 	enum bmi323_irq_pin step_irq;
 	int ret;
@@ -484,7 +484,7 @@ static int bmi323_step_wtrmrk_en(struct bmi323_data *data, int state)
 	ret = bmi323_update_ext_reg(data, BMI323_STEP_SC1_REG,
 				    BMI323_STEP_SC1_WTRMRK_MSK,
 				    FIELD_PREP(BMI323_STEP_SC1_WTRMRK_MSK,
-					       state ? 1 : 0));
+					       state));
 	if (ret)
 		return ret;
 
@@ -506,7 +506,7 @@ static int bmi323_motion_config_reg(enum iio_event_direction dir)
 }
 
 static int bmi323_motion_event_en(struct bmi323_data *data,
-				  enum iio_event_direction dir, int state)
+				  enum iio_event_direction dir, bool state)
 {
 	unsigned int state_value = state ? BMI323_FEAT_XYZ_MSK : 0;
 	int config, ret, msk, raw, field_value;
@@ -570,7 +570,7 @@ static int bmi323_motion_event_en(struct bmi323_data *data,
 }
 
 static int bmi323_tap_event_en(struct bmi323_data *data,
-			       enum iio_event_direction dir, int state)
+			       enum iio_event_direction dir, bool state)
 {
 	enum bmi323_irq_pin tap_irq;
 	int ret, tap_enabled;
@@ -785,7 +785,7 @@ static const struct attribute_group bmi323_event_attribute_group = {
 static int bmi323_write_event_config(struct iio_dev *indio_dev,
 				     const struct iio_chan_spec *chan,
 				     enum iio_event_type type,
-				     enum iio_event_direction dir, int state)
+				     enum iio_event_direction dir, bool state)
 {
 	struct bmi323_data *data = iio_priv(indio_dev);
 

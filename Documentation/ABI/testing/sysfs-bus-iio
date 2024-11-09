@@ -2268,6 +2268,30 @@ Description:
 		An example format is 16-bytes, 2-digits-per-byte, HEX-string
 		representing the sensor unique ID number.
 
+What:		/sys/bus/iio/devices/iio:deviceX/filter_type_available
+What:		/sys/bus/iio/devices/iio:deviceX/in_voltage-voltage_filter_mode_available
+KernelVersion:	6.1
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Reading returns a list with the possible filter modes. Options
+		for the attribute:
+
+		* "sinc3" - The digital sinc3 filter. Moderate 1st
+		  conversion time. Good noise performance.
+		* "sinc4" - Sinc 4. Excellent noise performance. Long
+		  1st conversion time.
+		* "sinc5" - The digital sinc5 filter. Excellent noise
+		  performance
+		* "sinc4+sinc1" - Sinc4 + averaging by 8. Low 1st conversion
+		  time.
+		* "sinc3+rej60" - Sinc3 + 60Hz rejection.
+		* "sinc3+sinc1" - Sinc3 + averaging by 8. Low 1st conversion
+		  time.
+		* "sinc3+pf1" - Sinc3 + device specific Post Filter 1.
+		* "sinc3+pf2" - Sinc3 + device specific Post Filter 2.
+		* "sinc3+pf3" - Sinc3 + device specific Post Filter 3.
+		* "sinc3+pf4" - Sinc3 + device specific Post Filter 4.
+
 What:		/sys/.../events/in_proximity_thresh_either_runningperiod
 KernelVersion:	6.6
 Contact:	linux-iio@vger.kernel.org
@@ -2339,3 +2363,11 @@ KernelVersion:	6.10
 Contact:	linux-iio@vger.kernel.org
 Description:
 		The value of current sense resistor in Ohms.
+
+What:		/sys/.../iio:deviceX/in_attention_input
+KernelVersion:	6.13
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Value representing the user's attention to the system expressed
+		in units as percentage. This usually means if the user is
+		looking at the screen or not.

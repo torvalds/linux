@@ -822,17 +822,15 @@ static irqreturn_t ad7280_event_handler(int irq, void *private)
 		if (FIELD_GET(AD7280A_TRANS_READ_CONV_CHANADDR_MSK, channels[i]) <=
 		    AD7280A_CELL_VOLTAGE_6_REG) {
 			if (val >= st->cell_threshhigh) {
-				u64 tmp = IIO_EVENT_CODE(IIO_VOLTAGE, 1, 0,
-							 IIO_EV_DIR_RISING,
-							 IIO_EV_TYPE_THRESH,
-							 0, 0, 0);
+				u64 tmp = IIO_DIFF_EVENT_CODE(IIO_VOLTAGE, 0, 0,
+							IIO_EV_TYPE_THRESH,
+							IIO_EV_DIR_RISING);
 				iio_push_event(indio_dev, tmp,
 					       iio_get_time_ns(indio_dev));
 			} else if (val <= st->cell_threshlow) {
-				u64 tmp = IIO_EVENT_CODE(IIO_VOLTAGE, 1, 0,
-							 IIO_EV_DIR_FALLING,
-							 IIO_EV_TYPE_THRESH,
-							 0, 0, 0);
+				u64 tmp = IIO_DIFF_EVENT_CODE(IIO_VOLTAGE, 0, 0,
+							IIO_EV_TYPE_THRESH,
+							IIO_EV_DIR_FALLING);
 				iio_push_event(indio_dev, tmp,
 					       iio_get_time_ns(indio_dev));
 			}

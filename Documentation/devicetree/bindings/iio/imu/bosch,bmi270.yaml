@@ -18,7 +18,9 @@ description: |
 
 properties:
   compatible:
-    const: bosch,bmi270
+    enum:
+      - bosch,bmi260
+      - bosch,bmi270
 
   reg:
     maxItems: 1

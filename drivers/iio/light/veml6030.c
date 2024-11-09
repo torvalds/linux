@@ -821,13 +821,10 @@ static int veml6030_read_interrupt_config(struct iio_dev *indio_dev,
  */
 static int veml6030_write_interrupt_config(struct iio_dev *indio_dev,
 		const struct iio_chan_spec *chan, enum iio_event_type type,
-		enum iio_event_direction dir, int state)
+		enum iio_event_direction dir, bool state)
 {
 	int ret;
 	struct veml6030_data *data = iio_priv(indio_dev);
-
-	if (state < 0 || state > 1)
-		return -EINVAL;
 
 	ret = veml6030_als_shut_down(data);
 	if (ret < 0) {

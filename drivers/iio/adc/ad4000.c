@@ -639,7 +639,9 @@ static int ad4000_probe(struct spi_device *spi)
 	indio_dev->name = chip->dev_name;
 	indio_dev->num_channels = 1;
 
-	devm_mutex_init(dev, &st->lock);
+	ret = devm_mutex_init(dev, &st->lock);
+	if (ret)
+		return ret;
 
 	st->gain_milli = 1000;
 	if (chip->has_hardware_gain) {
