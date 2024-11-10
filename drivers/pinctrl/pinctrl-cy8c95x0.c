@@ -746,14 +746,12 @@ static int cy8c95x0_gpio_get_direction(struct gpio_chip *gc, unsigned int off)
 
 	ret = cy8c95x0_regmap_read(chip, CY8C95X0_DIRECTION, port, &reg_val);
 	if (ret < 0)
-		goto out;
+		return ret;
 
 	if (reg_val & bit)
 		return GPIO_LINE_DIRECTION_IN;
 
 	return GPIO_LINE_DIRECTION_OUT;
-out:
-	return ret;
 }
 
 static int cy8c95x0_gpio_get_pincfg(struct cy8c95x0_pinctrl *chip,
@@ -815,8 +813,7 @@ static int cy8c95x0_gpio_get_pincfg(struct cy8c95x0_pinctrl *chip,
 	case PIN_CONFIG_SLEEP_HARDWARE_STATE:
 	case PIN_CONFIG_SLEW_RATE:
 	default:
-		ret = -ENOTSUPP;
-		goto out;
+		return -ENOTSUPP;
 	}
 	/*
 	 * Writing 1 to one of the drive mode registers will automatically
@@ -824,7 +821,7 @@ static int cy8c95x0_gpio_get_pincfg(struct cy8c95x0_pinctrl *chip,
 	 */
 	ret = cy8c95x0_regmap_read(chip, reg, port, &reg_val);
 	if (ret < 0)
-		goto out;
+		return ret;
 
 	if (reg_val & bit)
 		arg = 1;
@@ -832,8 +829,7 @@ static int cy8c95x0_gpio_get_pincfg(struct cy8c95x0_pinctrl *chip,
 		arg = !arg;
 
 	*config = pinconf_to_config_packed(param, (u16)arg);
-out:
-	return ret;
+	return 0;
 }
 
 static int cy8c95x0_gpio_set_pincfg(struct cy8c95x0_pinctrl *chip,
@@ -845,7 +841,6 @@ static int cy8c95x0_gpio_set_pincfg(struct cy8c95x0_pinctrl *chip,
 	unsigned long param = pinconf_to_config_param(config);
 	unsigned long arg = pinconf_to_config_argument(config);
 	unsigned int reg;
-	int ret;
 
 	switch (param) {
 	case PIN_CONFIG_BIAS_PULL_UP:
@@ -876,22 +871,17 @@ static int cy8c95x0_gpio_set_pincfg(struct cy8c95x0_pinctrl *chip,
 		reg = CY8C95X0_PWMSEL;
 		break;
 	case PIN_CONFIG_OUTPUT_ENABLE:
-		ret = cy8c95x0_pinmux_direction(chip, off, !arg);
-		goto out;
+		return cy8c95x0_pinmux_direction(chip, off, !arg);
 	case PIN_CONFIG_INPUT_ENABLE:
-		ret = cy8c95x0_pinmux_direction(chip, off, arg);
-		goto out;
+		return cy8c95x0_pinmux_direction(chip, off, arg);
 	default:
-		ret = -ENOTSUPP;
-		goto out;
+		return -ENOTSUPP;
 	}
 	/*
 	 * Writing 1 to one of the drive mode registers will automatically
 	 * clear conflicting set bits in the other drive mode registers.
 	 */
-	ret = cy8c95x0_regmap_write_bits(chip, reg, port, bit, bit);
-out:
-	return ret;
+	return cy8c95x0_regmap_write_bits(chip, reg, port, bit, bit);
 }
 
 static int cy8c95x0_gpio_get_multiple(struct gpio_chip *gc,
