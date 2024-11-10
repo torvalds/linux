@@ -310,6 +310,9 @@ static void tt_put_tt_zone(struct tt_thermal_zone *tt_zone)
 	tt_zone->refcount--;
 }
 
+DEFINE_FREE(put_tt_zone, struct tt_thermal_zone *,
+	    if (!IS_ERR_OR_NULL(_T)) tt_put_tt_zone(_T))
+
 static void tt_zone_add_trip_work_fn(struct work_struct *work)
 {
 	struct tt_work *tt_work = tt_work_of_work(work);
@@ -332,9 +335,9 @@ static void tt_zone_add_trip_work_fn(struct work_struct *work)
 
 int tt_zone_add_trip(const char *arg)
 {
+	struct tt_thermal_zone *tt_zone __free(put_tt_zone) = NULL;
 	struct tt_work *tt_work __free(kfree);
 	struct tt_trip *tt_trip __free(kfree);
-	struct tt_thermal_zone *tt_zone;
 	int id;
 
 	tt_work = kzalloc(sizeof(*tt_work), GFP_KERNEL);
@@ -350,10 +353,8 @@ int tt_zone_add_trip(const char *arg)
 		return PTR_ERR(tt_zone);
 
 	id = ida_alloc(&tt_zone->ida, GFP_KERNEL);
-	if (id < 0) {
-		tt_put_tt_zone(tt_zone);
+	if (id < 0)
 		return id;
-	}
 
 	tt_trip->trip.type = THERMAL_TRIP_ACTIVE;
 	tt_trip->trip.temperature = THERMAL_TEMP_INVALID;
@@ -366,7 +367,7 @@ int tt_zone_add_trip(const char *arg)
 	tt_zone->num_trips++;
 
 	INIT_WORK(&tt_work->work, tt_zone_add_trip_work_fn);
-	tt_work->tt_zone = tt_zone;
+	tt_work->tt_zone = no_free_ptr(tt_zone);
 	tt_work->tt_trip = no_free_ptr(tt_trip);
 	schedule_work(&(no_free_ptr(tt_work)->work));
 
@@ -425,31 +426,24 @@ static int tt_zone_register_tz(struct tt_thermal_zone *tt_zone)
 
 int tt_zone_reg(const char *arg)
 {
-	struct tt_thermal_zone *tt_zone;
-	int ret;
+	struct tt_thermal_zone *tt_zone __free(put_tt_zone);
 
 	tt_zone = tt_get_tt_zone(arg);
 	if (IS_ERR(tt_zone))
 		return PTR_ERR(tt_zone);
 
-	ret = tt_zone_register_tz(tt_zone);
-
-	tt_put_tt_zone(tt_zone);
-
-	return ret;
+	return tt_zone_register_tz(tt_zone);
 }
 
 int tt_zone_unreg(const char *arg)
 {
-	struct tt_thermal_zone *tt_zone;
+	struct tt_thermal_zone *tt_zone __free(put_tt_zone);
 
 	tt_zone = tt_get_tt_zone(arg);
 	if (IS_ERR(tt_zone))
 		return PTR_ERR(tt_zone);
 
 	tt_zone_unregister_tz(tt_zone);
-
-	tt_put_tt_zone(tt_zone);
 
 	return 0;
 }
