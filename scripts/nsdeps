@@ -51,4 +51,4 @@ generate_deps() {
 while read line
 do
 	generate_deps $line
-done < $MODULES_NSDEPS
+done < modules.nsdeps
