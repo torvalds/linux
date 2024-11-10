@@ -176,18 +176,20 @@ export KBUILD_EXTRA_WARN
 # The O= assignment takes precedence over the KBUILD_OUTPUT environment
 # variable.
 
-# Do we want to change the working directory?
 ifeq ("$(origin O)", "command line")
   KBUILD_OUTPUT := $(O)
 endif
 
-ifneq ($(KBUILD_OUTPUT),)
+output := $(KBUILD_OUTPUT)
+
+# Do we want to change the working directory?
+ifneq ($(output),)
 # $(realpath ...) gets empty if the path does not exist. Run 'mkdir -p' first.
-$(shell mkdir -p "$(KBUILD_OUTPUT)")
+$(shell mkdir -p "$(output)")
 # $(realpath ...) resolves symlinks
-abs_output := $(realpath $(KBUILD_OUTPUT))
-$(if $(abs_output),,$(error failed to create output directory "$(KBUILD_OUTPUT)"))
-endif # ifneq ($(KBUILD_OUTPUT),)
+abs_output := $(realpath $(output))
+$(if $(abs_output),,$(error failed to create output directory "$(output)"))
+endif
 
 ifneq ($(words $(subst :, ,$(abs_srctree))), 1)
 $(error source directory cannot contain spaces or colons)
