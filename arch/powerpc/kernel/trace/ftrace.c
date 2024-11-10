@@ -194,6 +194,8 @@ __ftrace_make_nop(struct module *mod,
 	 * get corrupted.
 	 *
 	 * Use a b +8 to jump over the load.
+	 * XXX: could make PCREL depend on MPROFILE_KERNEL
+	 * XXX: check PCREL && MPROFILE_KERNEL calling sequence
 	 */
 	if (IS_ENABLED(CONFIG_MPROFILE_KERNEL) || IS_ENABLED(CONFIG_PPC32))
 		pop = ppc_inst(PPC_RAW_NOP());

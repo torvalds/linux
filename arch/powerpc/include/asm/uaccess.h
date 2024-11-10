@@ -6,6 +6,7 @@
 #include <asm/page.h>
 #include <asm/extable.h>
 #include <asm/kup.h>
+#include <asm/asm-compat.h>
 
 #ifdef __powerpc64__
 /* We use TASK_SIZE_USER64 as TASK_SIZE is not constant */
@@ -71,19 +72,25 @@ __pu_failed:							\
  * because we do not write to any memory gcc knows about, so there
  * are no aliasing issues.
  */
+/* -mprefixed can generate offsets beyond range, fall back hack */
+#ifdef CONFIG_PPC_KERNEL_PREFIXED
+#define __put_user_asm_goto(x, addr, label, op)			\
+	asm_volatile_goto(					\
+		"1:	" op " %0,0(%1)	# put_user\n"		\
+		EX_TABLE(1b, %l2)				\
+		:						\
+		: "r" (x), "b" (addr)				\
+		:						\
+		: label)
+#else
 #define __put_user_asm_goto(x, addr, label, op)			\
 	asm goto(					\
 		"1:	" op "%U1%X1 %0,%1	# put_user\n"	\
 		EX_TABLE(1b, %l2)				\
 		:						\
-		: "r" (x), "m<>" (*addr)		\
+		: "r" (x), "m<>" (*addr)			\
 		:						\
 		: label)
-
-#ifdef CONFIG_CC_IS_CLANG
-#define DS_FORM_CONSTRAINT "Z<>"
-#else
-#define DS_FORM_CONSTRAINT "YZ<>"
 #endif
 
 #ifdef __powerpc64__
@@ -142,14 +149,26 @@ do {								\
 
 #ifdef CONFIG_CC_HAS_ASM_GOTO_OUTPUT
 
+/* -mprefixed can generate offsets beyond range, fall back hack */
+#ifdef CONFIG_PPC_KERNEL_PREFIXED
+#define __get_user_asm_goto(x, addr, label, op)			\
+	asm_volatile_goto(					\
+		"1:	"op" %0,0(%1)	# get_user\n"		\
+		EX_TABLE(1b, %l2)				\
+		: "=r" (x)					\
+		: "b" (addr)					\
+		:						\
+		: label)
+#else
 #define __get_user_asm_goto(x, addr, label, op)			\
 	asm_goto_output(					\
 		"1:	"op"%U1%X1 %0, %1	# get_user\n"	\
 		EX_TABLE(1b, %l2)				\
 		: "=r" (x)					\
-		: "m<>" (*addr)				\
+		: "m<>" (*addr)					\
 		:						\
 		: label)
+#endif
 
 #ifdef __powerpc64__
 #define __get_user_asm2_goto(x, addr, label)			\
