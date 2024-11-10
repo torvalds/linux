@@ -1424,7 +1424,7 @@ static int cy8c95x0_detect(struct i2c_client *client,
 	}
 
 	dev_info(&client->dev, "Found a %s chip at 0x%02x.\n", name, client->addr);
-	strscpy(info->type, name, I2C_NAME_SIZE);
+	strscpy(info->type, name);
 
 	return 0;
 }
@@ -1457,15 +1457,15 @@ static int cy8c95x0_probe(struct i2c_client *client)
 
 	switch (chip->tpin) {
 	case 20:
-		strscpy(chip->name, cy8c95x0_id[0].name, I2C_NAME_SIZE);
+		strscpy(chip->name, cy8c95x0_id[0].name);
 		regmap_range_conf.range_max = CY8C95X0_VIRTUAL + 3 * MUXED_STRIDE;
 		break;
 	case 40:
-		strscpy(chip->name, cy8c95x0_id[1].name, I2C_NAME_SIZE);
+		strscpy(chip->name, cy8c95x0_id[1].name);
 		regmap_range_conf.range_max = CY8C95X0_VIRTUAL + 6 * MUXED_STRIDE;
 		break;
 	case 60:
-		strscpy(chip->name, cy8c95x0_id[2].name, I2C_NAME_SIZE);
+		strscpy(chip->name, cy8c95x0_id[2].name);
 		regmap_range_conf.range_max = CY8C95X0_VIRTUAL + 8 * MUXED_STRIDE;
 		break;
 	default:
