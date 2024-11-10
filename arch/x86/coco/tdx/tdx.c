@@ -12,6 +12,7 @@
 #include <asm/insn.h>
 #include <asm/insn-eval.h>
 #include <asm/pgtable.h>
+#include <asm/traps.h>
 
 /* TDX module Call Leaf IDs */
 #define TDX_GET_INFO			1
@@ -369,6 +370,11 @@ static int handle_mmio(struct pt_regs *regs, struct ve_info *ve)
 		reg = insn_get_modrm_reg_ptr(&insn, regs);
 		if (!reg)
 			return -EINVAL;
+	}
+
+	if (!fault_in_kernel_space(ve->gla)) {
+		WARN_ONCE(1, "Access to userspace address is not supported");
+		return -EINVAL;
 	}
 
 	/*
