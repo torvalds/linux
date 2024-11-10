@@ -111,13 +111,13 @@ endif
 else
 
 # set src + obj - they may be used in the modules's Makefile
-obj := $(KBUILD_EXTMOD)
-src := $(if $(VPATH),$(VPATH)/)$(obj)
+obj := .
+src := $(srcroot)
 
 # Include the module's Makefile to find KBUILD_EXTRA_SYMBOLS
 include $(kbuild-file)
 
-output-symdump := $(KBUILD_EXTMOD)/Module.symvers
+output-symdump := Module.symvers
 
 ifeq ($(wildcard $(objtree)/Module.symvers),)
 missing-input := $(objtree)/Module.symvers
