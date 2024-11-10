@@ -159,7 +159,7 @@ struct cy8c95x0_pinctrl {
 	DECLARE_BITMAP(irq_trig_high, MAX_LINE);
 	DECLARE_BITMAP(push_pull, MAX_LINE);
 	DECLARE_BITMAP(shiftmask, MAX_LINE);
-	int nport;
+	unsigned int nport;
 	struct gpio_chip gpio_chip;
 	unsigned long driver_data;
 	struct device *dev;
@@ -610,9 +610,8 @@ static int cy8c95x0_write_regs_mask(struct cy8c95x0_pinctrl *chip, int reg,
 	DECLARE_BITMAP(tmask, MAX_LINE);
 	DECLARE_BITMAP(tval, MAX_LINE);
 	int write_val;
-	int ret = 0;
-	int i;
 	u8 bits;
+	int ret;
 
 	/* Add the 4 bit gap of Gport2 */
 	bitmap_andnot(tmask, mask, chip->shiftmask, MAX_LINE);
@@ -623,7 +622,7 @@ static int cy8c95x0_write_regs_mask(struct cy8c95x0_pinctrl *chip, int reg,
 	bitmap_shift_left(tval, tval, 4, MAX_LINE);
 	bitmap_replace(tval, tval, val, chip->shiftmask, BANK_SZ * 3);
 
-	for (i = 0; i < chip->nport; i++) {
+	for (unsigned int i = 0; i < chip->nport; i++) {
 		/* Skip over unused banks */
 		bits = bitmap_get_value8(tmask, i * BANK_SZ);
 		if (!bits)
@@ -632,15 +631,13 @@ static int cy8c95x0_write_regs_mask(struct cy8c95x0_pinctrl *chip, int reg,
 		write_val = bitmap_get_value8(tval, i * BANK_SZ);
 
 		ret = cy8c95x0_regmap_update_bits(chip, reg, i, bits, write_val);
-		if (ret < 0)
-			goto out;
+		if (ret < 0) {
+			dev_err(chip->dev, "failed writing register %d, port %u: err %d\n", reg, i, ret);
+			return ret;
+		}
 	}
-out:
 
-	if (ret < 0)
-		dev_err(chip->dev, "failed writing register %d, port %d: err %d\n", reg, i, ret);
-
-	return ret;
+	return 0;
 }
 
 static int cy8c95x0_read_regs_mask(struct cy8c95x0_pinctrl *chip, int reg,
@@ -650,9 +647,8 @@ static int cy8c95x0_read_regs_mask(struct cy8c95x0_pinctrl *chip, int reg,
 	DECLARE_BITMAP(tval, MAX_LINE);
 	DECLARE_BITMAP(tmp, MAX_LINE);
 	int read_val;
-	int ret = 0;
-	int i;
 	u8 bits;
+	int ret;
 
 	/* Add the 4 bit gap of Gport2 */
 	bitmap_andnot(tmask, mask, chip->shiftmask, MAX_LINE);
@@ -663,15 +659,17 @@ static int cy8c95x0_read_regs_mask(struct cy8c95x0_pinctrl *chip, int reg,
 	bitmap_shift_left(tval, tval, 4, MAX_LINE);
 	bitmap_replace(tval, tval, val, chip->shiftmask, BANK_SZ * 3);
 
-	for (i = 0; i < chip->nport; i++) {
+	for (unsigned int i = 0; i < chip->nport; i++) {
 		/* Skip over unused banks */
 		bits = bitmap_get_value8(tmask, i * BANK_SZ);
 		if (!bits)
 			continue;
 
 		ret = cy8c95x0_regmap_read(chip, reg, i, &read_val);
-		if (ret < 0)
-			goto out;
+		if (ret < 0) {
+			dev_err(chip->dev, "failed reading register %d, port %u: err %d\n", reg, i, ret);
+			return ret;
+		}
 
 		read_val &= bits;
 		read_val |= bitmap_get_value8(tval, i * BANK_SZ) & ~bits;
@@ -682,11 +680,7 @@ static int cy8c95x0_read_regs_mask(struct cy8c95x0_pinctrl *chip, int reg,
 	bitmap_shift_right(tmp, tval, 4, MAX_LINE);
 	bitmap_replace(val, tmp, tval, chip->shiftmask, MAX_LINE);
 
-out:
-	if (ret < 0)
-		dev_err(chip->dev, "failed reading register %d, port %d: err %d\n", reg, i, ret);
-
-	return ret;
+	return 0;
 }
 
 static int cy8c95x0_gpio_direction_input(struct gpio_chip *gc, unsigned int off)
