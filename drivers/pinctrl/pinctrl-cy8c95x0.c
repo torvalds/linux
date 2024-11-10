@@ -1475,12 +1475,11 @@ static int cy8c95x0_probe(struct i2c_client *client)
 	chip->gpio_reset = devm_gpiod_get_optional(&client->dev, "reset", GPIOD_OUT_HIGH);
 	if (IS_ERR(chip->gpio_reset))
 		return dev_err_probe(chip->dev, PTR_ERR(chip->gpio_reset), "Failed to get GPIO 'reset'\n");
+	gpiod_set_consumer_name(chip->gpio_reset, "CY8C95X0 RESET");
 	if (chip->gpio_reset) {
-		usleep_range(1000, 2000);
+		fsleep(1000);
 		gpiod_set_value_cansleep(chip->gpio_reset, 0);
-		usleep_range(250000, 300000);
-
-		gpiod_set_consumer_name(chip->gpio_reset, "CY8C95X0 RESET");
+		fsleep(250000);
 	}
 
 	/* Regmap for direct and paged registers */
