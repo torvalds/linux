@@ -228,12 +228,12 @@ else # need-sub-make
 
 # We process the rest of the Makefile if this is the final invocation of make
 
-ifeq ($(abs_srctree),$(abs_objtree))
+ifeq ($(abs_srctree),$(CURDIR))
         # building in the source tree
         srctree := .
 	building_out_of_srctree :=
 else
-        ifeq ($(abs_srctree)/,$(dir $(abs_objtree)))
+        ifeq ($(abs_srctree)/,$(dir $(CURDIR)))
                 # building in a subdirectory of the source tree
                 srctree := ..
         else
