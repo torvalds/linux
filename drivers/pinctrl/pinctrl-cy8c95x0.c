@@ -1429,16 +1429,17 @@ static int cy8c95x0_detect(struct i2c_client *client,
 
 static int cy8c95x0_probe(struct i2c_client *client)
 {
+	struct device *dev = &client->dev;
 	struct cy8c95x0_pinctrl *chip;
 	struct regmap_config regmap_conf;
 	struct regmap_range_cfg regmap_range_conf;
 	int ret;
 
-	chip = devm_kzalloc(&client->dev, sizeof(*chip), GFP_KERNEL);
+	chip = devm_kzalloc(dev, sizeof(*chip), GFP_KERNEL);
 	if (!chip)
 		return -ENOMEM;
 
-	chip->dev = &client->dev;
+	chip->dev = dev;
 
 	/* Set the device type */
 	chip->driver_data = (uintptr_t)i2c_get_match_data(client);
@@ -1467,14 +1468,14 @@ static int cy8c95x0_probe(struct i2c_client *client)
 		return -ENODEV;
 	}
 
-	ret = devm_regulator_get_enable(&client->dev, "vdd");
+	ret = devm_regulator_get_enable(dev, "vdd");
 	if (ret)
-		return dev_err_probe(&client->dev, ret, "failed to enable regulator vdd\n");
+		return dev_err_probe(dev, ret, "failed to enable regulator vdd\n");
 
 	/* bring the chip out of reset if reset pin is provided */
-	chip->gpio_reset = devm_gpiod_get_optional(&client->dev, "reset", GPIOD_OUT_HIGH);
+	chip->gpio_reset = devm_gpiod_get_optional(dev, "reset", GPIOD_OUT_HIGH);
 	if (IS_ERR(chip->gpio_reset))
-		return dev_err_probe(chip->dev, PTR_ERR(chip->gpio_reset), "Failed to get GPIO 'reset'\n");
+		return dev_err_probe(dev, PTR_ERR(chip->gpio_reset), "Failed to get GPIO 'reset'\n");
 	gpiod_set_consumer_name(chip->gpio_reset, "CY8C95X0 RESET");
 	if (chip->gpio_reset) {
 		fsleep(1000);
