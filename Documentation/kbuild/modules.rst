@@ -59,6 +59,12 @@ Command Syntax
 
 		$ make -C /lib/modules/`uname -r`/build M=$PWD modules_install
 
+	Starting from Linux 6.13, you can use the -f option instead of -C. This
+	will avoid unnecessary change of the working directory. The external
+	module will be output to the directory where you invoke make.
+
+		$ make -f /lib/modules/`uname -r`/build/Makefile M=$PWD
+
 Options
 -------
 
@@ -220,6 +226,21 @@ Separate Kbuild File and Makefile
 	each file; however, some external modules use makefiles
 	consisting of several hundred lines, and here it really pays
 	off to separate the kbuild part from the rest.
+
+	Linux 6.13 and later support another way. The external module Makefile
+	can include the kernel Makefile directly, rather than invoking sub Make.
+
+	Example 3::
+
+		--> filename: Kbuild
+		obj-m  := 8123.o
+		8123-y := 8123_if.o 8123_pci.o
+
+		--> filename: Makefile
+		KDIR ?= /lib/modules/$(shell uname -r)/build
+		export KBUILD_EXTMOD := $(realpath $(dir $(lastword $(MAKEFILE_LIST))))
+		include $(KDIR)/Makefile
+
 
 Building Multiple Modules
 -------------------------

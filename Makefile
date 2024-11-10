@@ -189,9 +189,13 @@ ifdef KBUILD_EXTMOD
         objtree := $(realpath $(KBUILD_OUTPUT))
         $(if $(objtree),,$(error specified kernel directory "$(KBUILD_OUTPUT)" does not exist))
     else
-        objtree := $(CURDIR)
+        objtree := $(abs_srctree)
     endif
-    output := $(or $(KBUILD_EXTMOD_OUTPUT),$(KBUILD_EXTMOD))
+    # If Make is invoked from the kernel directory (either kernel
+    # source directory or kernel build directory), external modules
+    # are built in $(KBUILD_EXTMOD) for backward compatibility,
+    # otherwise, built in the current directory.
+    output := $(or $(KBUILD_EXTMOD_OUTPUT),$(if $(filter $(CURDIR),$(objtree) $(abs_srctree)),$(KBUILD_EXTMOD)))
     # KBUILD_EXTMOD might be a relative path. Remember its absolute path before
     # Make changes the working directory.
     srcroot := $(realpath $(KBUILD_EXTMOD))
