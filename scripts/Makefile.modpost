@@ -35,10 +35,10 @@
 PHONY := __modpost
 __modpost:
 
-include include/config/auto.conf
+include $(objtree)/include/config/auto.conf
 include $(srctree)/scripts/Kbuild.include
 
-MODPOST = scripts/mod/modpost
+MODPOST = $(objtree)/scripts/mod/modpost
 
 modpost-args =										\
 	$(if $(CONFIG_MODULES),-M)							\
@@ -119,11 +119,11 @@ include $(kbuild-file)
 
 output-symdump := $(KBUILD_EXTMOD)/Module.symvers
 
-ifeq ($(wildcard Module.symvers),)
-missing-input := Module.symvers
+ifeq ($(wildcard $(objtree)/Module.symvers),)
+missing-input := $(objtree)/Module.symvers
 else
-modpost-args += -i Module.symvers
-modpost-deps += Module.symvers
+modpost-args += -i $(objtree)/Module.symvers
+modpost-deps += $(objtree)/Module.symvers
 endif
 
 modpost-args += -e $(addprefix -i , $(KBUILD_EXTRA_SYMBOLS))
