@@ -636,6 +636,7 @@ static struct aa_label *profile_transition(const struct cred *subj_cred,
 	struct aa_ruleset *rules = list_first_entry(&profile->rules,
 						    typeof(*rules), list);
 	struct aa_label *new = NULL;
+	struct aa_profile *new_profile = NULL;
 	const char *info = NULL, *name = NULL, *target = NULL;
 	aa_state_t state = rules->file->start[AA_CLASS_FILE];
 	struct aa_perms perms = {};
@@ -692,8 +693,6 @@ static struct aa_label *profile_transition(const struct cred *subj_cred,
 	} else if (COMPLAIN_MODE(profile)) {
 create_learning_profile:
 		/* no exec permission - learning mode */
-		struct aa_profile *new_profile = NULL;
-
 		new_profile = aa_new_learning_profile(profile, false, name,
 						      GFP_KERNEL);
 		if (!new_profile) {
