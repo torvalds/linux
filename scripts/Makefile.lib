@@ -213,12 +213,10 @@ endif
 
 # $(src) for including checkin headers from generated source files
 # $(obj) for including generated headers from checkin source files
-ifeq ($(KBUILD_EXTMOD),)
 ifdef building_out_of_srctree
 _c_flags   += $(addprefix -I, $(src) $(obj))
 _a_flags   += $(addprefix -I, $(src) $(obj))
 _cpp_flags += $(addprefix -I, $(src) $(obj))
-endif
 endif
 
 # If $(is-kernel-object) is 'y', this object will be linked to vmlinux or modules

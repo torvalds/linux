@@ -66,7 +66,10 @@ Options
 	of the kernel output directory if the kernel was built in a separate
 	build directory.)
 
-	make -C $KDIR M=$PWD
+	You can optionally pass MO= option if you want to build the modules in
+	a separate directory.
+
+	make -C $KDIR M=$PWD [MO=$BUILD_DIR]
 
 	-C $KDIR
 		The directory that contains the kernel and relevant build
@@ -79,6 +82,9 @@ Options
 		The value given to "M" is the absolute path of the
 		directory where the external module (kbuild file) is
 		located.
+
+	MO=$BUILD_DIR
+		Specifies a separate output directory for the external module.
 
 Targets
 -------
