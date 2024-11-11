@@ -1081,44 +1081,26 @@ static void rvu_mcam_add_rule(struct npc_mcam *mcam,
 static void rvu_mcam_remove_counter_from_rule(struct rvu *rvu, u16 pcifunc,
 					      struct rvu_npc_mcam_rule *rule)
 {
-	struct npc_mcam_oper_counter_req free_req = { 0 };
-	struct msg_rsp free_rsp;
+	struct npc_mcam *mcam = &rvu->hw->mcam;
 
-	if (!rule->has_cntr)
-		return;
+	mutex_lock(&mcam->lock);
 
-	free_req.hdr.pcifunc = pcifunc;
-	free_req.cntr = rule->cntr;
+	__rvu_mcam_remove_counter_from_rule(rvu, pcifunc, rule);
 
-	rvu_mbox_handler_npc_mcam_free_counter(rvu, &free_req, &free_rsp);
-	rule->has_cntr = false;
+	mutex_unlock(&mcam->lock);
 }
 
 static void rvu_mcam_add_counter_to_rule(struct rvu *rvu, u16 pcifunc,
 					 struct rvu_npc_mcam_rule *rule,
 					 struct npc_install_flow_rsp *rsp)
 {
-	struct npc_mcam_alloc_counter_req cntr_req = { 0 };
-	struct npc_mcam_alloc_counter_rsp cntr_rsp = { 0 };
-	int err;
+	struct npc_mcam *mcam = &rvu->hw->mcam;
 
-	cntr_req.hdr.pcifunc = pcifunc;
-	cntr_req.contig = true;
-	cntr_req.count = 1;
+	mutex_lock(&mcam->lock);
 
-	/* we try to allocate a counter to track the stats of this
-	 * rule. If counter could not be allocated then proceed
-	 * without counter because counters are limited than entries.
-	 */
-	err = rvu_mbox_handler_npc_mcam_alloc_counter(rvu, &cntr_req,
-						      &cntr_rsp);
-	if (!err && cntr_rsp.count) {
-		rule->cntr = cntr_rsp.cntr;
-		rule->has_cntr = true;
-		rsp->counter = rule->cntr;
-	} else {
-		rsp->counter = err;
-	}
+	__rvu_mcam_add_counter_to_rule(rvu, pcifunc, rule, rsp);
+
+	mutex_unlock(&mcam->lock);
 }
 
 static int npc_mcast_update_action_index(struct rvu *rvu, struct npc_install_flow_req *req,
