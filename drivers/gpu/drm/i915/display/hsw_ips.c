@@ -185,7 +185,9 @@ void hsw_ips_post_update(struct intel_atomic_state *state,
 /* IPS only exists on ULT machines and is tied to pipe A. */
 bool hsw_crtc_supports_ips(struct intel_crtc *crtc)
 {
-	return HAS_IPS(to_i915(crtc->base.dev)) && crtc->pipe == PIPE_A;
+	struct intel_display *display = to_intel_display(crtc);
+
+	return HAS_IPS(display) && crtc->pipe == PIPE_A;
 }
 
 static bool hsw_crtc_state_ips_capable(const struct intel_crtc_state *crtc_state)
