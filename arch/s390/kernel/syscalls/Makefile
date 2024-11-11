@@ -23,7 +23,7 @@ uapi:	$(uapi-hdrs-y)
 # Create output directory if not already present
 $(shell mkdir -p $(uapi) $(kapi))
 
-filechk_syshdr = $(CONFIG_SHELL) '$(systbl)' -H -a $(syshdr_abi_$(basetarget)) -f "$2" < $<
+filechk_syshdr = $(CONFIG_SHELL) '$(systbl)' -H -a $(syshdr_abi_$(basetarget)) -f "$@" < $<
 
 filechk_sysnr = $(CONFIG_SHELL) '$(systbl)' -N -a $(sysnr_abi_$(basetarget)) < $<
 
@@ -31,11 +31,11 @@ filechk_syscalls = $(CONFIG_SHELL) '$(systbl)' -S < $<
 
 syshdr_abi_unistd_32 := common,32
 $(uapi)/unistd_32.h: $(syscall) FORCE
-	$(call filechk,syshdr,$@)
+	$(call filechk,syshdr)
 
 syshdr_abi_unistd_64 := common,64
 $(uapi)/unistd_64.h: $(syscall) FORCE
-	$(call filechk,syshdr,$@)
+	$(call filechk,syshdr)
 
 $(kapi)/syscall_table.h: $(syscall) FORCE
 	$(call filechk,syscalls)
