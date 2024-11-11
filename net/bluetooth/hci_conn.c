@@ -2079,7 +2079,7 @@ static bool hci_conn_check_create_pa_sync(struct hci_conn *conn)
 
 static int create_pa_sync(struct hci_dev *hdev, void *data)
 {
-	struct hci_cp_le_pa_create_sync *cp = NULL;
+	struct hci_cp_le_pa_create_sync cp = {0};
 	struct hci_conn *conn;
 	int err = 0;
 
@@ -2108,19 +2108,13 @@ static int create_pa_sync(struct hci_dev *hdev, void *data)
 		if (hci_conn_check_create_pa_sync(conn)) {
 			struct bt_iso_qos *qos = &conn->iso_qos;
 
-			cp = kzalloc(sizeof(*cp), GFP_KERNEL);
-			if (!cp) {
-				err = -ENOMEM;
-				goto unlock;
-			}
-
-			cp->options = qos->bcast.options;
-			cp->sid = conn->sid;
-			cp->addr_type = conn->dst_type;
-			bacpy(&cp->addr, &conn->dst);
-			cp->skip = cpu_to_le16(qos->bcast.skip);
-			cp->sync_timeout = cpu_to_le16(qos->bcast.sync_timeout);
-			cp->sync_cte_type = qos->bcast.sync_cte_type;
+			cp.options = qos->bcast.options;
+			cp.sid = conn->sid;
+			cp.addr_type = conn->dst_type;
+			bacpy(&cp.addr, &conn->dst);
+			cp.skip = cpu_to_le16(qos->bcast.skip);
+			cp.sync_timeout = cpu_to_le16(qos->bcast.sync_timeout);
+			cp.sync_cte_type = qos->bcast.sync_cte_type;
 
 			break;
 		}
@@ -2131,16 +2125,14 @@ unlock:
 
 	hci_dev_unlock(hdev);
 
-	if (cp) {
+	if (bacmp(&cp.addr, BDADDR_ANY)) {
 		hci_dev_set_flag(hdev, HCI_PA_SYNC);
 		set_bit(HCI_CONN_CREATE_PA_SYNC, &conn->flags);
 
 		err = __hci_cmd_sync_status(hdev, HCI_OP_LE_PA_CREATE_SYNC,
-					    sizeof(*cp), cp, HCI_CMD_TIMEOUT);
+					    sizeof(cp), &cp, HCI_CMD_TIMEOUT);
 		if (!err)
 			err = hci_update_passive_scan_sync(hdev);
-
-		kfree(cp);
 
 		if (err) {
 			hci_dev_clear_flag(hdev, HCI_PA_SYNC);
