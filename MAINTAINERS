@@ -11553,7 +11553,7 @@ F:	Documentation/admin-guide/media/ipu6-isys.rst
 F:	drivers/media/pci/intel/ipu6/
 
 INTEL ISHTP ECLITE DRIVER
-M:	Sumesh K Naduvalath <sumesh.k.naduvalath@intel.com>
+M:	Srinivas Pandruvada <srinivas.pandruvada@linux.intel.com>
 L:	platform-driver-x86@vger.kernel.org
 S:	Supported
 F:	drivers/platform/x86/intel/ishtp_eclite.c
