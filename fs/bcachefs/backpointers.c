@@ -952,9 +952,13 @@ int bch2_check_extents_to_backpointers(struct bch_fs *c)
 static int check_one_backpointer(struct btree_trans *trans,
 				 struct bbpos start,
 				 struct bbpos end,
-				 struct bkey_s_c_backpointer bp,
+				 struct bkey_s_c bp_k,
 				 struct bkey_buf *last_flushed)
 {
+	if (bp_k.k->type != KEY_TYPE_backpointer)
+		return 0;
+
+	struct bkey_s_c_backpointer bp = bkey_s_c_to_backpointer(bp_k);
 	struct bch_fs *c = trans->c;
 	struct btree_iter iter;
 	struct bbpos pos = bp_to_bbpos(*bp.v);
@@ -1009,9 +1013,7 @@ static int bch2_check_backpointers_to_extents_pass(struct btree_trans *trans,
 				  POS_MIN, BTREE_ITER_prefetch, k,
 				  NULL, NULL, BCH_TRANS_COMMIT_no_enospc, ({
 			progress_update_iter(trans, &progress, &iter, "backpointers_to_extents");
-			check_one_backpointer(trans, start, end,
-					      bkey_s_c_to_backpointer(k),
-					      &last_flushed);
+			check_one_backpointer(trans, start, end, k, &last_flushed);
 	}));
 
 	bch2_bkey_buf_exit(&last_flushed, c);
