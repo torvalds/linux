@@ -174,7 +174,7 @@ struct statmount {
 	__u32 mnt_point;	/* [str] Mountpoint relative to current root */
 	__u64 mnt_ns_id;	/* ID of the mount namespace */
 	__u32 fs_subtype;	/* [str] Subtype of fs_type (if any) */
-	__u32 __spare1[1];
+	__u32 sb_source;	/* [str] Source string of the mount */
 	__u64 __spare2[48];
 	char str[];		/* Variable size part containing strings */
 };
@@ -210,6 +210,7 @@ struct mnt_id_req {
 #define STATMOUNT_MNT_NS_ID		0x00000040U	/* Want/got mnt_ns_id */
 #define STATMOUNT_MNT_OPTS		0x00000080U	/* Want/got mnt_opts */
 #define STATMOUNT_FS_SUBTYPE		0x00000100U	/* Want/got fs_subtype */
+#define STATMOUNT_SB_SOURCE		0x00000200U	/* Want/got sb_source */
 
 /*
  * Special @mnt_id values that can be passed to listmount
