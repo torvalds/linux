@@ -1687,7 +1687,7 @@ static void __intel_display_device_info_runtime_init(struct drm_i915_private *i9
 		display_runtime->num_scalers[PIPE_C] = 1;
 	}
 
-	if (DISPLAY_VER(i915) >= 13 || HAS_D12_PLANE_MINIMIZATION(i915))
+	if (DISPLAY_VER(i915) >= 13 || HAS_D12_PLANE_MINIMIZATION(display))
 		for_each_pipe(i915, pipe)
 			display_runtime->num_sprites[pipe] = 4;
 	else if (DISPLAY_VER(i915) >= 11)
