@@ -1775,7 +1775,8 @@ static int ucsi_init(struct ucsi *ucsi)
 
 	/* Get PPM capabilities */
 	command = UCSI_GET_CAPABILITY;
-	ret = ucsi_send_command(ucsi, command, &ucsi->cap, UCSI_GET_CAPABILITY_SIZE);
+	ret = ucsi_send_command(ucsi, command, &ucsi->cap,
+				BITS_TO_BYTES(UCSI_GET_CAPABILITY_SIZE));
 	if (ret < 0)
 		goto err_reset;
 
