@@ -77,20 +77,23 @@ static bool skl_needs_memory_bw_wa(struct drm_i915_private *i915)
 bool
 intel_has_sagv(struct drm_i915_private *i915)
 {
-	return HAS_SAGV(i915) &&
-		i915->display.sagv.status != I915_SAGV_NOT_CONTROLLED;
+	struct intel_display *display = &i915->display;
+
+	return HAS_SAGV(display) && display->sagv.status != I915_SAGV_NOT_CONTROLLED;
 }
 
 static u32
 intel_sagv_block_time(struct drm_i915_private *i915)
 {
-	if (DISPLAY_VER(i915) >= 14) {
+	struct intel_display *display = &i915->display;
+
+	if (DISPLAY_VER(display) >= 14) {
 		u32 val;
 
-		val = intel_de_read(i915, MTL_LATENCY_SAGV);
+		val = intel_de_read(display, MTL_LATENCY_SAGV);
 
 		return REG_FIELD_GET(MTL_LATENCY_QCLK_SAGV, val);
-	} else if (DISPLAY_VER(i915) >= 12) {
+	} else if (DISPLAY_VER(display) >= 12) {
 		u32 val = 0;
 		int ret;
 
@@ -98,14 +101,14 @@ intel_sagv_block_time(struct drm_i915_private *i915)
 				     GEN12_PCODE_READ_SAGV_BLOCK_TIME_US,
 				     &val, NULL);
 		if (ret) {
-			drm_dbg_kms(&i915->drm, "Couldn't read SAGV block time!\n");
+			drm_dbg_kms(display->drm, "Couldn't read SAGV block time!\n");
 			return 0;
 		}
 
 		return val;
-	} else if (DISPLAY_VER(i915) == 11) {
+	} else if (DISPLAY_VER(display) == 11) {
 		return 10;
-	} else if (HAS_SAGV(i915)) {
+	} else if (HAS_SAGV(display)) {
 		return 30;
 	} else {
 		return 0;
@@ -114,31 +117,33 @@ intel_sagv_block_time(struct drm_i915_private *i915)
 
 static void intel_sagv_init(struct drm_i915_private *i915)
 {
-	if (!HAS_SAGV(i915))
-		i915->display.sagv.status = I915_SAGV_NOT_CONTROLLED;
+	struct intel_display *display = &i915->display;
+
+	if (!HAS_SAGV(display))
+		display->sagv.status = I915_SAGV_NOT_CONTROLLED;
 
 	/*
 	 * Probe to see if we have working SAGV control.
 	 * For icl+ this was already determined by intel_bw_init_hw().
 	 */
-	if (DISPLAY_VER(i915) < 11)
+	if (DISPLAY_VER(display) < 11)
 		skl_sagv_disable(i915);
 
-	drm_WARN_ON(&i915->drm, i915->display.sagv.status == I915_SAGV_UNKNOWN);
+	drm_WARN_ON(display->drm, display->sagv.status == I915_SAGV_UNKNOWN);
 
-	i915->display.sagv.block_time_us = intel_sagv_block_time(i915);
+	display->sagv.block_time_us = intel_sagv_block_time(i915);
 
-	drm_dbg_kms(&i915->drm, "SAGV supported: %s, original SAGV block time: %u us\n",
-		    str_yes_no(intel_has_sagv(i915)), i915->display.sagv.block_time_us);
+	drm_dbg_kms(display->drm, "SAGV supported: %s, original SAGV block time: %u us\n",
+		    str_yes_no(intel_has_sagv(i915)), display->sagv.block_time_us);
 
 	/* avoid overflow when adding with wm0 latency/etc. */
-	if (drm_WARN(&i915->drm, i915->display.sagv.block_time_us > U16_MAX,
+	if (drm_WARN(display->drm, display->sagv.block_time_us > U16_MAX,
 		     "Excessive SAGV block time %u, ignoring\n",
-		     i915->display.sagv.block_time_us))
-		i915->display.sagv.block_time_us = 0;
+		     display->sagv.block_time_us))
+		display->sagv.block_time_us = 0;
 
 	if (!intel_has_sagv(i915))
-		i915->display.sagv.block_time_us = 0;
+		display->sagv.block_time_us = 0;
 }
 
 /*
@@ -3878,13 +3883,14 @@ DEFINE_SHOW_ATTRIBUTE(intel_sagv_status);
 
 void skl_watermark_debugfs_register(struct drm_i915_private *i915)
 {
-	struct drm_minor *minor = i915->drm.primary;
+	struct intel_display *display = &i915->display;
+	struct drm_minor *minor = display->drm->primary;
 
-	if (HAS_IPC(i915))
+	if (HAS_IPC(display))
 		debugfs_create_file("i915_ipc_status", 0644, minor->debugfs_root, i915,
 				    &skl_watermark_ipc_status_fops);
 
-	if (HAS_SAGV(i915))
+	if (HAS_SAGV(display))
 		debugfs_create_file("i915_sagv_status", 0444, minor->debugfs_root, i915,
 				    &intel_sagv_status_fops);
 }
