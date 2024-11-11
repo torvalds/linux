@@ -480,6 +480,9 @@ static const struct snd_kcontrol_new max98088_snd_controls[] = {
        SOC_SINGLE("INA Volume", M98088_REG_37_LVL_INA, 0, 7, 1),
        SOC_SINGLE("INB Volume", M98088_REG_38_LVL_INB, 0, 7, 1),
 
+       SOC_SINGLE("DACL Volume", M98088_REG_2F_LVL_DAI1_PLAY, 0, 15, 1),
+       SOC_SINGLE("DACR Volume", M98088_REG_31_LVL_DAI2_PLAY, 0, 15, 1),
+
        SOC_SINGLE("ADCL Volume", M98088_REG_33_LVL_ADC_L, 0, 15, 0),
        SOC_SINGLE("ADCR Volume", M98088_REG_34_LVL_ADC_R, 0, 15, 0),
 
