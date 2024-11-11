@@ -1424,6 +1424,15 @@ err:
 }
 #endif
 
+#if !defined(HAVE_LIBCAPSTONE_SUPPORT) || !defined(HAVE_LIBLLVM_SUPPORT)
+static void symbol__disassembler_missing(const char *disassembler, const char *filename,
+					 struct symbol *sym)
+{
+	pr_debug("The %s disassembler isn't linked in for %s in %s\n",
+		 disassembler, sym->name, filename);
+}
+#endif
+
 #ifdef HAVE_LIBCAPSTONE_SUPPORT
 static void print_capstone_detail(cs_insn *insn, char *buf, size_t len,
 				  struct annotate_args *args, u64 addr)
@@ -1715,7 +1724,21 @@ err:
 	count = -1;
 	goto out;
 }
-#endif
+#else // HAVE_LIBCAPSTONE_SUPPORT
+static int symbol__disassemble_capstone(char *filename, struct symbol *sym,
+					struct annotate_args *args __maybe_unused)
+{
+	symbol__disassembler_missing("capstone", filename, sym);
+	return -1;
+}
+
+static int symbol__disassemble_capstone_powerpc(char *filename, struct symbol *sym,
+						struct annotate_args *args __maybe_unused)
+{
+	symbol__disassembler_missing("capstone powerpc", filename, sym);
+	return -1;
+}
+#endif // HAVE_LIBCAPSTONE_SUPPORT
 
 static int symbol__disassemble_raw(char *filename, struct symbol *sym,
 					struct annotate_args *args)
@@ -1983,7 +2006,14 @@ err:
 	free(line_storage);
 	return ret;
 }
-#endif
+#else // HAVE_LIBLLVM_SUPPORT
+static int symbol__disassemble_llvm(char *filename, struct symbol *sym,
+				    struct annotate_args *args __maybe_unused)
+{
+	symbol__disassembler_missing("LLVM", filename, sym);
+	return -1;
+}
+#endif // HAVE_LIBLLVM_SUPPORT
 
 /*
  * Possibly create a new version of line with tabs expanded. Returns the
@@ -2242,24 +2272,21 @@ int symbol__disassemble(struct symbol *sym, struct annotate_args *args)
 			err = symbol__disassemble_raw(symfs_filename, sym, args);
 			if (err == 0)
 				goto out_remove_tmp;
-#ifdef HAVE_LIBCAPSTONE_SUPPORT
+
 			err = symbol__disassemble_capstone_powerpc(symfs_filename, sym, args);
 			if (err == 0)
 				goto out_remove_tmp;
-#endif
 		}
 	}
 
-#ifdef HAVE_LIBLLVM_SUPPORT
 	err = symbol__disassemble_llvm(symfs_filename, sym, args);
 	if (err == 0)
 		goto out_remove_tmp;
-#endif
-#ifdef HAVE_LIBCAPSTONE_SUPPORT
+
 	err = symbol__disassemble_capstone(symfs_filename, sym, args);
 	if (err == 0)
 		goto out_remove_tmp;
-#endif
+
 	err = symbol__disassemble_objdump(symfs_filename, sym, args);
 
 out_remove_tmp:
