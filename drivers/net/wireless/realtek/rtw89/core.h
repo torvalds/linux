@@ -4255,6 +4255,7 @@ struct rtw89_chip_info {
 	u16 support_bandwidths;
 	bool support_unii4;
 	bool support_rnr;
+	bool support_ant_gain;
 	bool ul_tb_waveform_ctrl;
 	bool ul_tb_pwr_diff;
 	bool hw_sec_hdr;
@@ -4597,12 +4598,43 @@ struct rtw89_sar_info {
 	};
 };
 
+enum rtw89_ant_gain_subband {
+	RTW89_ANT_GAIN_2GHZ_SUBBAND,
+	RTW89_ANT_GAIN_5GHZ_SUBBAND_1,   /* U-NII-1 */
+	RTW89_ANT_GAIN_5GHZ_SUBBAND_2,   /* U-NII-2 */
+	RTW89_ANT_GAIN_5GHZ_SUBBAND_2E,  /* U-NII-2-Extended */
+	RTW89_ANT_GAIN_5GHZ_SUBBAND_3_4, /* U-NII-3 and U-NII-4 */
+	RTW89_ANT_GAIN_6GHZ_SUBBAND_5_L, /* U-NII-5 lower part */
+	RTW89_ANT_GAIN_6GHZ_SUBBAND_5_H, /* U-NII-5 higher part */
+	RTW89_ANT_GAIN_6GHZ_SUBBAND_6,   /* U-NII-6 */
+	RTW89_ANT_GAIN_6GHZ_SUBBAND_7_L, /* U-NII-7 lower part */
+	RTW89_ANT_GAIN_6GHZ_SUBBAND_7_H, /* U-NII-7 higher part */
+	RTW89_ANT_GAIN_6GHZ_SUBBAND_8,   /* U-NII-8 */
+
+	RTW89_ANT_GAIN_SUBBAND_NR,
+};
+
+enum rtw89_ant_gain_domain_type {
+	RTW89_ANT_GAIN_ETSI = 0,
+
+	RTW89_ANT_GAIN_DOMAIN_NUM,
+};
+
+#define RTW89_ANT_GAIN_CHAIN_NUM 2
+struct rtw89_ant_gain_info {
+	s8 offset[RTW89_ANT_GAIN_CHAIN_NUM][RTW89_ANT_GAIN_SUBBAND_NR];
+	u32 regd_enabled;
+};
+
 struct rtw89_6ghz_span {
 	enum rtw89_sar_subband sar_subband_low;
 	enum rtw89_sar_subband sar_subband_high;
+	enum rtw89_ant_gain_subband ant_gain_subband_low;
+	enum rtw89_ant_gain_subband ant_gain_subband_high;
 };
 
 #define RTW89_SAR_SPAN_VALID(span) ((span)->sar_subband_high)
+#define RTW89_ANT_GAIN_SPAN_VALID(span) ((span)->ant_gain_subband_high)
 
 enum rtw89_tas_state {
 	RTW89_TAS_STATE_DPR_OFF,
@@ -5643,6 +5675,7 @@ struct rtw89_dev {
 	struct rtw89_regulatory_info regulatory;
 	struct rtw89_sar_info sar;
 	struct rtw89_tas_info tas;
+	struct rtw89_ant_gain_info ant_gain;
 
 	struct rtw89_btc btc;
 	enum rtw89_ps_mode ps_mode;

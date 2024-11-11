@@ -63,8 +63,17 @@ struct rtw89_acpi_dsm_result {
 	} u;
 };
 
+struct rtw89_acpi_rtag_result {
+	u8 tag[4];
+	u8 revision;
+	__le32 domain;
+	u8 ant_gain_table[RTW89_ANT_GAIN_CHAIN_NUM][RTW89_ANT_GAIN_SUBBAND_NR];
+} __packed;
+
 int rtw89_acpi_evaluate_dsm(struct rtw89_dev *rtwdev,
 			    enum rtw89_acpi_dsm_func func,
 			    struct rtw89_acpi_dsm_result *res);
+int rtw89_acpi_evaluate_rtag(struct rtw89_dev *rtwdev,
+			     struct rtw89_acpi_rtag_result *res);
 
 #endif
