@@ -6648,19 +6648,14 @@ L:	linux-rtc@vger.kernel.org
 S:	Maintained
 F:	drivers/rtc/rtc-sd2405al.c
 
-DH ELECTRONICS IMX6 DHCOM/DHCOR BOARD SUPPORT
+DH ELECTRONICS DHSOM SOM AND BOARD SUPPORT
 M:	Christoph Niedermaier <cniedermaier@dh-electronics.com>
-L:	kernel@dh-electronics.com
-S:	Maintained
-F:	arch/arm/boot/dts/nxp/imx/imx6*-dhcom-*
-F:	arch/arm/boot/dts/nxp/imx/imx6*-dhcor-*
-
-DH ELECTRONICS STM32MP1 DHCOM/DHCOR BOARD SUPPORT
 M:	Marek Vasut <marex@denx.de>
 L:	kernel@dh-electronics.com
 S:	Maintained
-F:	arch/arm/boot/dts/st/stm32mp1*-dhcom-*
-F:	arch/arm/boot/dts/st/stm32mp1*-dhcor-*
+N:	dhcom
+N:	dhcor
+N:	dhsom
 
 DIALOG SEMICONDUCTOR DRIVERS
 M:	Support Opensource <support.opensource@diasemi.com>
