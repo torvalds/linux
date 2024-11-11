@@ -1001,7 +1001,7 @@ static bool ath9k_uses_beacons(int type)
 static void ath9k_vif_iter_set_beacon(struct ath9k_vif_iter_data *iter_data,
 				      struct ieee80211_vif *vif)
 {
-	/* Use the first (configured) interface, but prefering AP interfaces. */
+	/* Use the first (configured) interface, but preferring AP interfaces. */
 	if (!iter_data->primary_beacon_vif) {
 		iter_data->primary_beacon_vif = vif;
 	} else {

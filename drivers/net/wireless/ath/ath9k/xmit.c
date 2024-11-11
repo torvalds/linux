@@ -557,7 +557,7 @@ static void ath_tx_complete_aggr(struct ath_softc *sc, struct ath_txq *txq,
 			/*
 			 * AR5416 can become deaf/mute when BA
 			 * issue happens. Chip needs to be reset.
-			 * But AP code may have sychronization issues
+			 * But AP code may have synchronization issues
 			 * when perform internal reset in this routine.
 			 * Only enable reset in STA mode for now.
 			 */

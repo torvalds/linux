@@ -60,7 +60,7 @@ static int ath9k_wow_add_disassoc_deauth_pattern(struct ath_softc *sc)
 	memset(dis_deauth_mask, 0, MAX_PATTERN_SIZE);
 
 	/*
-	 * Create Dissassociate / Deauthenticate packet filter
+	 * Create Disassociate / Deauthenticate packet filter
 	 *
 	 *     2 bytes        2 byte    6 bytes   6 bytes  6 bytes
 	 *  +--------------+----------+---------+--------+--------+----
@@ -70,7 +70,7 @@ static int ath9k_wow_add_disassoc_deauth_pattern(struct ath_softc *sc)
 	 * The above is the management frame format for disassociate/
 	 * deauthenticate pattern, from this we need to match the first byte
 	 * of 'Frame Control' and DA, SA, and BSSID fields
-	 * (skipping 2nd byte of FC and Duration feild.
+	 * (skipping 2nd byte of FC and Duration field.
 	 *
 	 * Disassociate pattern
 	 * --------------------
@@ -225,7 +225,7 @@ int ath9k_suspend(struct ieee80211_hw *hw,
 	ath9k_stop_btcoex(sc);
 
 	/*
-	 * Enable wake up on recieving disassoc/deauth
+	 * Enable wake up on receiving disassoc/deauth
 	 * frame by default.
 	 */
 	ret = ath9k_wow_add_disassoc_deauth_pattern(sc);
