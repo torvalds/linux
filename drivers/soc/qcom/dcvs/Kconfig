@@ -64,6 +64,30 @@ config QCOM_BWPROF
 	  at regular intervals, providing the userspace clients with a detailed
 	  view of the current state of the system.
 
+config QCOM_LLCC_MISS
+	tristate "Qualcomm Technologies Inc. LLCC_MISS_STATS Driver"
+	depends on ARCH_QCOM && QCOM_BUS_PROF
+	default n
+	help
+	  This enables the QCOM LLCC miss stats driver which exposes LLCC miss
+	  stats to user space clients at modest time intervals for the intention
+	  of profiling.
+
+	  The purpose of the driver is to enable the monitoring of LLCC misses
+	  at regular intervals and providing the miss rate data to the user
+	  space clients upon read.
+
+config QCOM_BUS_PROF
+	tristate "Qualcomm Technologies Inc. BUS_PROF Driver"
+	depends on ARCH_QCOM
+	default n
+	help
+	  This enables the QCOM bus profiling common framework and ftraces,
+	  which provide support for a variety of features. These features
+	  include memory latency, LLCC miss, and LLCC occupancy, all of
+	  which are supported on certain Qualcomm Technologies, Inc.
+	  (QTI) chipsets.
+
 config QTI_PMU_SCMI_CLIENT
 	tristate "Qualcomm Technologies Inc. SCMI client driver for PMU"
 	depends on QTI_SCMI_PMU_PROTOCOL && QCOM_PMU_LIB
