@@ -752,6 +752,7 @@ const struct rtw89_chip_info rtw8852bt_chip_info = {
 	.nctl_post_table	= NULL,
 	.dflt_parms		= NULL,
 	.rfe_parms_conf		= NULL,
+	.txpwr_factor_bb	= 3,
 	.txpwr_factor_rf	= 2,
 	.txpwr_factor_mac	= 1,
 	.dig_table		= NULL,

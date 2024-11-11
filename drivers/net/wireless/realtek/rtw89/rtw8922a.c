@@ -2729,6 +2729,7 @@ const struct rtw89_chip_info rtw8922a_chip_info = {
 	.nctl_post_table	= NULL,
 	.dflt_parms		= NULL, /* load parm from fw */
 	.rfe_parms_conf		= NULL, /* load parm from fw */
+	.txpwr_factor_bb	= 3,
 	.txpwr_factor_rf	= 2,
 	.txpwr_factor_mac	= 1,
 	.dig_table		= NULL,

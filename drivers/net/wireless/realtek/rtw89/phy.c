@@ -2040,6 +2040,23 @@ static s8 rtw89_phy_ant_gain_offset(struct rtw89_dev *rtwdev, u8 band, u32 cente
 	return max(offset_patha, offset_pathb);
 }
 
+s16 rtw89_phy_ant_gain_pwr_offset(struct rtw89_dev *rtwdev,
+				  const struct rtw89_chan *chan)
+{
+	struct rtw89_ant_gain_info *ant_gain = &rtwdev->ant_gain;
+	u8 regd = rtw89_regd_get(rtwdev, chan->band_type);
+	s8 offset_patha, offset_pathb;
+
+	if (!(ant_gain->regd_enabled & BIT(regd)))
+		return 0;
+
+	offset_patha = rtw89_phy_ant_gain_query(rtwdev, RF_PATH_A, chan->freq);
+	offset_pathb = rtw89_phy_ant_gain_query(rtwdev, RF_PATH_B, chan->freq);
+
+	return rtw89_phy_txpwr_rf_to_bb(rtwdev, offset_patha - offset_pathb);
+}
+EXPORT_SYMBOL(rtw89_phy_ant_gain_pwr_offset);
+
 void rtw89_print_ant_gain(struct seq_file *m, struct rtw89_dev *rtwdev,
 			  const struct rtw89_chan *chan)
 {
@@ -2122,20 +2139,6 @@ void rtw89_phy_load_txpwr_byrate(struct rtw89_dev *rtwdev,
 	}
 }
 EXPORT_SYMBOL(rtw89_phy_load_txpwr_byrate);
-
-static s8 rtw89_phy_txpwr_rf_to_mac(struct rtw89_dev *rtwdev, s8 txpwr_rf)
-{
-	const struct rtw89_chip_info *chip = rtwdev->chip;
-
-	return txpwr_rf >> (chip->txpwr_factor_rf - chip->txpwr_factor_mac);
-}
-
-static s8 rtw89_phy_txpwr_dbm_to_mac(struct rtw89_dev *rtwdev, s8 dbm)
-{
-	const struct rtw89_chip_info *chip = rtwdev->chip;
-
-	return clamp_t(s16, dbm << chip->txpwr_factor_mac, -64, 63);
-}
 
 static s8 rtw89_phy_txpwr_dbm_without_tolerance(s8 dbm)
 {

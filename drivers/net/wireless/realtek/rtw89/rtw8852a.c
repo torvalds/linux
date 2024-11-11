@@ -2181,6 +2181,7 @@ const struct rtw89_chip_info rtw8852a_chip_info = {
 	.nctl_post_table	= NULL,
 	.dflt_parms		= &rtw89_8852a_dflt_parms,
 	.rfe_parms_conf		= NULL,
+	.txpwr_factor_bb	= 3,
 	.txpwr_factor_rf	= 2,
 	.txpwr_factor_mac	= 1,
 	.dig_table		= &rtw89_8852a_phy_dig_table,

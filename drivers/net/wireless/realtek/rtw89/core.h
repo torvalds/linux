@@ -4297,6 +4297,7 @@ struct rtw89_chip_info {
 	const struct rtw89_rfe_parms *dflt_parms;
 	const struct rtw89_chanctx_listener *chanctx_listener;
 
+	u8 txpwr_factor_bb;
 	u8 txpwr_factor_rf;
 	u8 txpwr_factor_mac;
 
