@@ -6422,9 +6422,8 @@ static const struct btf_kfunc_id_set scx_kfunc_set_enqueue_dispatch = {
 	.set			= &scx_kfunc_ids_enqueue_dispatch,
 };
 
-static bool scx_dispatch_from_dsq(struct bpf_iter_scx_dsq_kern *kit,
-				  struct task_struct *p, u64 dsq_id,
-				  u64 enq_flags)
+static bool scx_dsq_move(struct bpf_iter_scx_dsq_kern *kit,
+			 struct task_struct *p, u64 dsq_id, u64 enq_flags)
 {
 	struct scx_dispatch_q *src_dsq = kit->dsq, *dst_dsq;
 	struct rq *this_rq, *src_rq, *locked_rq;
@@ -6594,16 +6593,16 @@ __bpf_kfunc bool scx_bpf_consume(u64 dsq_id)
 }
 
 /**
- * scx_bpf_dispatch_from_dsq_set_slice - Override slice when dispatching from DSQ
+ * scx_bpf_dsq_move_set_slice - Override slice when moving between DSQs
  * @it__iter: DSQ iterator in progress
- * @slice: duration the dispatched task can run for in nsecs
+ * @slice: duration the moved task can run for in nsecs
  *
- * Override the slice of the next task that will be dispatched from @it__iter
- * using scx_bpf_dispatch_from_dsq[_vtime](). If this function is not called,
- * the previous slice duration is kept.
+ * Override the slice of the next task that will be moved from @it__iter using
+ * scx_bpf_dsq_move[_vtime](). If this function is not called, the previous
+ * slice duration is kept.
  */
-__bpf_kfunc void scx_bpf_dispatch_from_dsq_set_slice(
-				struct bpf_iter_scx_dsq *it__iter, u64 slice)
+__bpf_kfunc void scx_bpf_dsq_move_set_slice(struct bpf_iter_scx_dsq *it__iter,
+					    u64 slice)
 {
 	struct bpf_iter_scx_dsq_kern *kit = (void *)it__iter;
 
@@ -6611,18 +6610,26 @@ __bpf_kfunc void scx_bpf_dispatch_from_dsq_set_slice(
 	kit->cursor.flags |= __SCX_DSQ_ITER_HAS_SLICE;
 }
 
+/* for backward compatibility, will be removed in v6.15 */
+__bpf_kfunc void scx_bpf_dispatch_from_dsq_set_slice(
+			struct bpf_iter_scx_dsq *it__iter, u64 slice)
+{
+	printk_deferred_once(KERN_WARNING "sched_ext: scx_bpf_dispatch_from_dsq_set_slice() renamed to scx_bpf_dsq_move_set_slice()");
+	scx_bpf_dsq_move_set_slice(it__iter, slice);
+}
+
 /**
- * scx_bpf_dispatch_from_dsq_set_vtime - Override vtime when dispatching from DSQ
+ * scx_bpf_dsq_move_set_vtime - Override vtime when moving between DSQs
  * @it__iter: DSQ iterator in progress
  * @vtime: task's ordering inside the vtime-sorted queue of the target DSQ
  *
- * Override the vtime of the next task that will be dispatched from @it__iter
- * using scx_bpf_dispatch_from_dsq_vtime(). If this function is not called, the
- * previous slice vtime is kept. If scx_bpf_dispatch_from_dsq() is used to
- * dispatch the next task, the override is ignored and cleared.
+ * Override the vtime of the next task that will be moved from @it__iter using
+ * scx_bpf_dsq_move_vtime(). If this function is not called, the previous slice
+ * vtime is kept. If scx_bpf_dsq_move() is used to dispatch the next task, the
+ * override is ignored and cleared.
  */
-__bpf_kfunc void scx_bpf_dispatch_from_dsq_set_vtime(
-				struct bpf_iter_scx_dsq *it__iter, u64 vtime)
+__bpf_kfunc void scx_bpf_dsq_move_set_vtime(struct bpf_iter_scx_dsq *it__iter,
+					    u64 vtime)
 {
 	struct bpf_iter_scx_dsq_kern *kit = (void *)it__iter;
 
@@ -6630,8 +6637,16 @@ __bpf_kfunc void scx_bpf_dispatch_from_dsq_set_vtime(
 	kit->cursor.flags |= __SCX_DSQ_ITER_HAS_VTIME;
 }
 
+/* for backward compatibility, will be removed in v6.15 */
+__bpf_kfunc void scx_bpf_dispatch_from_dsq_set_vtime(
+			struct bpf_iter_scx_dsq *it__iter, u64 vtime)
+{
+	printk_deferred_once(KERN_WARNING "sched_ext: scx_bpf_dispatch_from_dsq_set_vtime() renamed to scx_bpf_dsq_move_set_vtime()");
+	scx_bpf_dsq_move_set_vtime(it__iter, vtime);
+}
+
 /**
- * scx_bpf_dispatch_from_dsq - Move a task from DSQ iteration to a DSQ
+ * scx_bpf_dsq_move - Move a task from DSQ iteration to a DSQ
  * @it__iter: DSQ iterator in progress
  * @p: task to transfer
  * @dsq_id: DSQ to move @p to
@@ -6646,8 +6661,7 @@ __bpf_kfunc void scx_bpf_dispatch_from_dsq_set_vtime(
  * @p was obtained from the DSQ iteration. @p just has to be on the DSQ and have
  * been queued before the iteration started.
  *
- * @p's slice is kept by default. Use scx_bpf_dispatch_from_dsq_set_slice() to
- * update.
+ * @p's slice is kept by default. Use scx_bpf_dsq_move_set_slice() to update.
  *
  * Can be called from ops.dispatch() or any BPF context which doesn't hold a rq
  * lock (e.g. BPF timers or SYSCALL programs).
@@ -6655,16 +6669,25 @@ __bpf_kfunc void scx_bpf_dispatch_from_dsq_set_vtime(
  * Returns %true if @p has been consumed, %false if @p had already been consumed
  * or dequeued.
  */
+__bpf_kfunc bool scx_bpf_dsq_move(struct bpf_iter_scx_dsq *it__iter,
+				  struct task_struct *p, u64 dsq_id,
+				  u64 enq_flags)
+{
+	return scx_dsq_move((struct bpf_iter_scx_dsq_kern *)it__iter,
+			    p, dsq_id, enq_flags);
+}
+
+/* for backward compatibility, will be removed in v6.15 */
 __bpf_kfunc bool scx_bpf_dispatch_from_dsq(struct bpf_iter_scx_dsq *it__iter,
 					   struct task_struct *p, u64 dsq_id,
 					   u64 enq_flags)
 {
-	return scx_dispatch_from_dsq((struct bpf_iter_scx_dsq_kern *)it__iter,
-				     p, dsq_id, enq_flags);
+	printk_deferred_once(KERN_WARNING "sched_ext: scx_bpf_dispatch_from_dsq() renamed to scx_bpf_dsq_move()");
+	return scx_bpf_dsq_move(it__iter, p, dsq_id, enq_flags);
 }
 
 /**
- * scx_bpf_dispatch_vtime_from_dsq - Move a task from DSQ iteration to a PRIQ DSQ
+ * scx_bpf_dsq_move_vtime - Move a task from DSQ iteration to a PRIQ DSQ
  * @it__iter: DSQ iterator in progress
  * @p: task to transfer
  * @dsq_id: DSQ to move @p to
@@ -6674,19 +6697,27 @@ __bpf_kfunc bool scx_bpf_dispatch_from_dsq(struct bpf_iter_scx_dsq *it__iter,
  * priority queue of the DSQ specified by @dsq_id. The destination must be a
  * user DSQ as only user DSQs support priority queue.
  *
- * @p's slice and vtime are kept by default. Use
- * scx_bpf_dispatch_from_dsq_set_slice() and
- * scx_bpf_dispatch_from_dsq_set_vtime() to update.
+ * @p's slice and vtime are kept by default. Use scx_bpf_dsq_move_set_slice()
+ * and scx_bpf_dsq_move_set_vtime() to update.
  *
- * All other aspects are identical to scx_bpf_dispatch_from_dsq(). See
+ * All other aspects are identical to scx_bpf_dsq_move(). See
  * scx_bpf_dsq_insert_vtime() for more information on @vtime.
  */
+__bpf_kfunc bool scx_bpf_dsq_move_vtime(struct bpf_iter_scx_dsq *it__iter,
+					struct task_struct *p, u64 dsq_id,
+					u64 enq_flags)
+{
+	return scx_dsq_move((struct bpf_iter_scx_dsq_kern *)it__iter,
+			    p, dsq_id, enq_flags | SCX_ENQ_DSQ_PRIQ);
+}
+
+/* for backward compatibility, will be removed in v6.15 */
 __bpf_kfunc bool scx_bpf_dispatch_vtime_from_dsq(struct bpf_iter_scx_dsq *it__iter,
 						 struct task_struct *p, u64 dsq_id,
 						 u64 enq_flags)
 {
-	return scx_dispatch_from_dsq((struct bpf_iter_scx_dsq_kern *)it__iter,
-				     p, dsq_id, enq_flags | SCX_ENQ_DSQ_PRIQ);
+	printk_deferred_once(KERN_WARNING "sched_ext: scx_bpf_dispatch_from_dsq_vtime() renamed to scx_bpf_dsq_move_vtime()");
+	return scx_bpf_dsq_move_vtime(it__iter, p, dsq_id, enq_flags);
 }
 
 __bpf_kfunc_end_defs();
@@ -6696,6 +6727,10 @@ BTF_ID_FLAGS(func, scx_bpf_dispatch_nr_slots)
 BTF_ID_FLAGS(func, scx_bpf_dispatch_cancel)
 BTF_ID_FLAGS(func, scx_bpf_dsq_move_to_local)
 BTF_ID_FLAGS(func, scx_bpf_consume)
+BTF_ID_FLAGS(func, scx_bpf_dsq_move_set_slice)
+BTF_ID_FLAGS(func, scx_bpf_dsq_move_set_vtime)
+BTF_ID_FLAGS(func, scx_bpf_dsq_move, KF_RCU)
+BTF_ID_FLAGS(func, scx_bpf_dsq_move_vtime, KF_RCU)
 BTF_ID_FLAGS(func, scx_bpf_dispatch_from_dsq_set_slice)
 BTF_ID_FLAGS(func, scx_bpf_dispatch_from_dsq_set_vtime)
 BTF_ID_FLAGS(func, scx_bpf_dispatch_from_dsq, KF_RCU)
@@ -6796,6 +6831,10 @@ __bpf_kfunc_end_defs();
 
 BTF_KFUNCS_START(scx_kfunc_ids_unlocked)
 BTF_ID_FLAGS(func, scx_bpf_create_dsq, KF_SLEEPABLE)
+BTF_ID_FLAGS(func, scx_bpf_dsq_move_set_slice)
+BTF_ID_FLAGS(func, scx_bpf_dsq_move_set_vtime)
+BTF_ID_FLAGS(func, scx_bpf_dsq_move, KF_RCU)
+BTF_ID_FLAGS(func, scx_bpf_dsq_move_vtime, KF_RCU)
 BTF_ID_FLAGS(func, scx_bpf_dispatch_from_dsq_set_slice)
 BTF_ID_FLAGS(func, scx_bpf_dispatch_from_dsq_set_vtime)
 BTF_ID_FLAGS(func, scx_bpf_dispatch_from_dsq, KF_RCU)

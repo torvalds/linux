@@ -294,10 +294,10 @@ static void update_core_sched_head_seq(struct task_struct *p)
 }
 
 /*
- * To demonstrate the use of scx_bpf_dispatch_from_dsq(), implement silly
- * selective priority boosting mechanism by scanning SHARED_DSQ looking for
- * highpri tasks, moving them to HIGHPRI_DSQ and then consuming them first. This
- * makes minor difference only when dsp_batch is larger than 1.
+ * To demonstrate the use of scx_bpf_dsq_move(), implement silly selective
+ * priority boosting mechanism by scanning SHARED_DSQ looking for highpri tasks,
+ * moving them to HIGHPRI_DSQ and then consuming them first. This makes minor
+ * difference only when dsp_batch is larger than 1.
  *
  * scx_bpf_dispatch[_vtime]_from_dsq() are allowed both from ops.dispatch() and
  * non-rq-lock holding BPF programs. As demonstration, this function is called
@@ -318,11 +318,11 @@ static bool dispatch_highpri(bool from_timer)
 
 		if (tctx->highpri) {
 			/* exercise the set_*() and vtime interface too */
-			__COMPAT_scx_bpf_dispatch_from_dsq_set_slice(
+			__COMPAT_scx_bpf_dsq_move_set_slice(
 				BPF_FOR_EACH_ITER, slice_ns * 2);
-			__COMPAT_scx_bpf_dispatch_from_dsq_set_vtime(
+			__COMPAT_scx_bpf_dsq_move_set_vtime(
 				BPF_FOR_EACH_ITER, highpri_seq++);
-			__COMPAT_scx_bpf_dispatch_vtime_from_dsq(
+			__COMPAT_scx_bpf_dsq_move_vtime(
 				BPF_FOR_EACH_ITER, p, HIGHPRI_DSQ, 0);
 		}
 	}
@@ -340,9 +340,9 @@ static bool dispatch_highpri(bool from_timer)
 		else
 			cpu = scx_bpf_pick_any_cpu(p->cpus_ptr, 0);
 
-		if (__COMPAT_scx_bpf_dispatch_from_dsq(BPF_FOR_EACH_ITER, p,
-						       SCX_DSQ_LOCAL_ON | cpu,
-						       SCX_ENQ_PREEMPT)) {
+		if (__COMPAT_scx_bpf_dsq_move(BPF_FOR_EACH_ITER, p,
+					      SCX_DSQ_LOCAL_ON | cpu,
+					      SCX_ENQ_PREEMPT)) {
 			if (cpu == this_cpu) {
 				dispatched = true;
 				__sync_fetch_and_add(&nr_expedited_local, 1);
