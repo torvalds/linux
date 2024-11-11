@@ -1719,13 +1719,13 @@ static int intel_dp_max_bpp(struct intel_dp *intel_dp,
 
 static bool has_seamless_m_n(struct intel_connector *connector)
 {
-	struct drm_i915_private *i915 = to_i915(connector->base.dev);
+	struct intel_display *display = to_intel_display(connector);
 
 	/*
 	 * Seamless M/N reprogramming only implemented
 	 * for BDW+ double buffered M/N registers so far.
 	 */
-	return HAS_DOUBLE_BUFFERED_M_N(i915) &&
+	return HAS_DOUBLE_BUFFERED_M_N(display) &&
 		intel_panel_drrs_type(connector) == DRRS_TYPE_SEAMLESS;
 }
 
