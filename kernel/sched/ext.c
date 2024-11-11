@@ -2634,7 +2634,7 @@ static int balance_one(struct rq *rq, struct task_struct *prev)
 
 	lockdep_assert_rq_held(rq);
 	rq->scx.flags |= SCX_RQ_IN_BALANCE;
-	rq->scx.flags &= ~SCX_RQ_BAL_KEEP;
+	rq->scx.flags &= ~(SCX_RQ_BAL_PENDING | SCX_RQ_BAL_KEEP);
 
 	if (static_branch_unlikely(&scx_ops_cpu_preempt) &&
 	    unlikely(rq->scx.cpu_released)) {
@@ -2948,12 +2948,11 @@ static struct task_struct *pick_task_scx(struct rq *rq)
 {
 	struct task_struct *prev = rq->curr;
 	struct task_struct *p;
+	bool prev_on_scx = prev->sched_class == &ext_sched_class;
+	bool keep_prev = rq->scx.flags & SCX_RQ_BAL_KEEP;
+	bool kick_idle = false;
 
 	/*
-	 * If balance_scx() is telling us to keep running @prev, replenish slice
-	 * if necessary and keep running @prev. Otherwise, pop the first one
-	 * from the local DSQ.
-	 *
 	 * WORKAROUND:
 	 *
 	 * %SCX_RQ_BAL_KEEP should be set iff $prev is on SCX as it must just
@@ -2962,22 +2961,41 @@ static struct task_struct *pick_task_scx(struct rq *rq)
 	 * which then ends up calling pick_task_scx() without preceding
 	 * balance_scx().
 	 *
-	 * For now, ignore cases where $prev is not on SCX. This isn't great and
-	 * can theoretically lead to stalls. However, for switch_all cases, this
-	 * happens only while a BPF scheduler is being loaded or unloaded, and,
-	 * for partial cases, fair will likely keep triggering this CPU.
+	 * Keep running @prev if possible and avoid stalling from entering idle
+	 * without balancing.
 	 *
-	 * Once fair is fixed, restore WARN_ON_ONCE().
+	 * Once fair is fixed, remove the workaround and trigger WARN_ON_ONCE()
+	 * if pick_task_scx() is called without preceding balance_scx().
 	 */
-	if ((rq->scx.flags & SCX_RQ_BAL_KEEP) &&
-	    prev->sched_class == &ext_sched_class) {
+	if (unlikely(rq->scx.flags & SCX_RQ_BAL_PENDING)) {
+		if (prev_on_scx) {
+			keep_prev = true;
+		} else {
+			keep_prev = false;
+			kick_idle = true;
+		}
+	} else if (unlikely(keep_prev && !prev_on_scx)) {
+		/* only allowed during transitions */
+		WARN_ON_ONCE(scx_ops_enable_state() == SCX_OPS_ENABLED);
+		keep_prev = false;
+	}
+
+	/*
+	 * If balance_scx() is telling us to keep running @prev, replenish slice
+	 * if necessary and keep running @prev. Otherwise, pop the first one
+	 * from the local DSQ.
+	 */
+	if (keep_prev) {
 		p = prev;
 		if (!p->scx.slice)
 			p->scx.slice = SCX_SLICE_DFL;
 	} else {
 		p = first_local_task(rq);
-		if (!p)
+		if (!p) {
+			if (kick_idle)
+				scx_bpf_kick_cpu(cpu_of(rq), SCX_KICK_IDLE);
 			return NULL;
+		}
 
 		if (unlikely(!p->scx.slice)) {
 			if (!scx_rq_bypassing(rq) && !scx_warned_zero_slice) {
@@ -4979,7 +4997,7 @@ static int scx_ops_enable(struct sched_ext_ops *ops, struct bpf_link *link)
 
 	if (!cpumask_equal(housekeeping_cpumask(HK_TYPE_DOMAIN),
 			   cpu_possible_mask)) {
-		pr_err("sched_ext: Not compatible with \"isolcpus=\" domain isolation");
+		pr_err("sched_ext: Not compatible with \"isolcpus=\" domain isolation\n");
 		return -EINVAL;
 	}
 
