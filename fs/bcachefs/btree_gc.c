@@ -182,7 +182,7 @@ static int set_node_max(struct bch_fs *c, struct btree *b, struct bpos new_max)
 	bch2_btree_node_drop_keys_outside_node(b);
 
 	mutex_lock(&c->btree_cache.lock);
-	bch2_btree_node_hash_remove(&c->btree_cache, b);
+	__bch2_btree_node_hash_remove(&c->btree_cache, b);
 
 	bkey_copy(&b->key, &new->k_i);
 	ret = __bch2_btree_node_hash_insert(&c->btree_cache, b);
