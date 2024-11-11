@@ -736,7 +736,6 @@ static void skl_write_plane_wm(struct intel_dsb *dsb,
 			       const struct intel_crtc_state *crtc_state)
 {
 	struct intel_display *display = to_intel_display(plane->base.dev);
-	struct drm_i915_private *i915 = to_i915(plane->base.dev);
 	enum plane_id plane_id = plane->id;
 	enum pipe pipe = plane->pipe;
 	const struct skl_pipe_wm *pipe_wm = &crtc_state->wm.skl.optimal;
@@ -746,14 +745,14 @@ static void skl_write_plane_wm(struct intel_dsb *dsb,
 		&crtc_state->wm.skl.plane_ddb_y[plane_id];
 	int level;
 
-	for (level = 0; level < i915->display.wm.num_levels; level++)
+	for (level = 0; level < display->wm.num_levels; level++)
 		intel_de_write_dsb(display, dsb, PLANE_WM(pipe, plane_id, level),
 				   skl_plane_wm_reg_val(skl_plane_wm_level(pipe_wm, plane_id, level)));
 
 	intel_de_write_dsb(display, dsb, PLANE_WM_TRANS(pipe, plane_id),
 			   skl_plane_wm_reg_val(skl_plane_trans_wm(pipe_wm, plane_id)));
 
-	if (HAS_HW_SAGV_WM(i915)) {
+	if (HAS_HW_SAGV_WM(display)) {
 		const struct skl_plane_wm *wm = &pipe_wm->planes[plane_id];
 
 		intel_de_write_dsb(display, dsb, PLANE_WM_SAGV(pipe, plane_id),
@@ -765,7 +764,7 @@ static void skl_write_plane_wm(struct intel_dsb *dsb,
 	intel_de_write_dsb(display, dsb, PLANE_BUF_CFG(pipe, plane_id),
 			   skl_plane_ddb_reg_val(ddb));
 
-	if (DISPLAY_VER(i915) < 11)
+	if (DISPLAY_VER(display) < 11)
 		intel_de_write_dsb(display, dsb, PLANE_NV12_BUF_CFG(pipe, plane_id),
 				   skl_plane_ddb_reg_val(ddb_y));
 }

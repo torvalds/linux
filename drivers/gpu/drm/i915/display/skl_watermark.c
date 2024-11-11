@@ -449,6 +449,7 @@ bool intel_can_enable_sagv(struct drm_i915_private *i915,
 
 static int intel_compute_sagv_mask(struct intel_atomic_state *state)
 {
+	struct intel_display *display = to_intel_display(state);
 	struct drm_i915_private *i915 = to_i915(state->base.dev);
 	int ret;
 	struct intel_crtc *crtc;
@@ -484,7 +485,7 @@ static int intel_compute_sagv_mask(struct intel_atomic_state *state)
 		 * other crtcs can't be allowed to use the more optimal
 		 * normal (ie. non-SAGV) watermarks.
 		 */
-		pipe_wm->use_sagv_wm = !HAS_HW_SAGV_WM(i915) &&
+		pipe_wm->use_sagv_wm = !HAS_HW_SAGV_WM(display) &&
 			DISPLAY_VER(i915) >= 12 &&
 			intel_crtc_can_enable_sagv(new_crtc_state);
 
@@ -2748,10 +2749,10 @@ static bool skl_plane_selected_wm_equals(struct intel_plane *plane,
 					 const struct skl_pipe_wm *old_pipe_wm,
 					 const struct skl_pipe_wm *new_pipe_wm)
 {
-	struct drm_i915_private *i915 = to_i915(plane->base.dev);
+	struct intel_display *display = to_intel_display(plane);
 	int level;
 
-	for (level = 0; level < i915->display.wm.num_levels; level++) {
+	for (level = 0; level < display->wm.num_levels; level++) {
 		/*
 		 * We don't check uv_wm as the hardware doesn't actually
 		 * use it. It only gets used for calculating the required
@@ -2762,7 +2763,7 @@ static bool skl_plane_selected_wm_equals(struct intel_plane *plane,
 			return false;
 	}
 
-	if (HAS_HW_SAGV_WM(i915)) {
+	if (HAS_HW_SAGV_WM(display)) {
 		const struct skl_plane_wm *old_wm = &old_pipe_wm->planes[plane->id];
 		const struct skl_plane_wm *new_wm = &new_pipe_wm->planes[plane->id];
 
@@ -2937,6 +2938,7 @@ static void skl_wm_level_from_reg_val(u32 val, struct skl_wm_level *level)
 static void skl_pipe_wm_get_hw_state(struct intel_crtc *crtc,
 				     struct skl_pipe_wm *out)
 {
+	struct intel_display *display = to_intel_display(crtc);
 	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
 	enum pipe pipe = crtc->pipe;
 	enum plane_id plane_id;
@@ -2962,7 +2964,7 @@ static void skl_pipe_wm_get_hw_state(struct intel_crtc *crtc,
 
 		skl_wm_level_from_reg_val(val, &wm->trans_wm);
 
-		if (HAS_HW_SAGV_WM(i915)) {
+		if (HAS_HW_SAGV_WM(display)) {
 			if (plane_id != PLANE_CURSOR)
 				val = intel_de_read(i915, PLANE_WM_SAGV(pipe, plane_id));
 			else
@@ -3196,17 +3198,19 @@ static void skl_read_wm_latency(struct drm_i915_private *i915, u16 wm[])
 
 static void skl_setup_wm_latency(struct drm_i915_private *i915)
 {
-	if (HAS_HW_SAGV_WM(i915))
-		i915->display.wm.num_levels = 6;
-	else
-		i915->display.wm.num_levels = 8;
+	struct intel_display *display = &i915->display;
 
-	if (DISPLAY_VER(i915) >= 14)
-		mtl_read_wm_latency(i915, i915->display.wm.skl_latency);
+	if (HAS_HW_SAGV_WM(display))
+		display->wm.num_levels = 6;
 	else
-		skl_read_wm_latency(i915, i915->display.wm.skl_latency);
+		display->wm.num_levels = 8;
 
-	intel_print_wm_latency(i915, "Gen9 Plane", i915->display.wm.skl_latency);
+	if (DISPLAY_VER(display) >= 14)
+		mtl_read_wm_latency(i915, display->wm.skl_latency);
+	else
+		skl_read_wm_latency(i915, display->wm.skl_latency);
+
+	intel_print_wm_latency(i915, "Gen9 Plane", display->wm.skl_latency);
 }
 
 static struct intel_global_state *intel_dbuf_duplicate_state(struct intel_global_obj *obj)
@@ -3677,6 +3681,7 @@ static void skl_wm_get_hw_state_and_sanitize(struct drm_i915_private *i915)
 void intel_wm_state_verify(struct intel_atomic_state *state,
 			   struct intel_crtc *crtc)
 {
+	struct intel_display *display = to_intel_display(state);
 	struct drm_i915_private *i915 = to_i915(state->base.dev);
 	const struct intel_crtc_state *new_crtc_state =
 		intel_atomic_get_new_crtc_state(state, crtc);
@@ -3751,7 +3756,7 @@ void intel_wm_state_verify(struct intel_atomic_state *state,
 		hw_wm_level = &hw->wm.planes[plane->id].sagv.wm0;
 		sw_wm_level = &sw_wm->planes[plane->id].sagv.wm0;
 
-		if (HAS_HW_SAGV_WM(i915) &&
+		if (HAS_HW_SAGV_WM(display) &&
 		    !skl_wm_level_equals(hw_wm_level, sw_wm_level)) {
 			drm_err(&i915->drm,
 				"[PLANE:%d:%s] mismatch in SAGV WM (expected e=%d b=%u l=%u, got e=%d b=%u l=%u)\n",
@@ -3767,7 +3772,7 @@ void intel_wm_state_verify(struct intel_atomic_state *state,
 		hw_wm_level = &hw->wm.planes[plane->id].sagv.trans_wm;
 		sw_wm_level = &sw_wm->planes[plane->id].sagv.trans_wm;
 
-		if (HAS_HW_SAGV_WM(i915) &&
+		if (HAS_HW_SAGV_WM(display) &&
 		    !skl_wm_level_equals(hw_wm_level, sw_wm_level)) {
 			drm_err(&i915->drm,
 				"[PLANE:%d:%s] mismatch in SAGV trans WM (expected e=%d b=%u l=%u, got e=%d b=%u l=%u)\n",
