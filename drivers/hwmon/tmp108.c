@@ -420,6 +420,7 @@ MODULE_DEVICE_TABLE(i2c, tmp108_i2c_ids);
 
 #ifdef CONFIG_OF
 static const struct of_device_id tmp108_of_ids[] = {
+	{ .compatible = "nxp,p3t1085", },
 	{ .compatible = "ti,tmp108", },
 	{}
 };
