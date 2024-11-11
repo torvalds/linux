@@ -383,11 +383,6 @@ static loff_t iomap_dio_bio_iter(const struct iomap_iter *iter,
 			goto out;
 	}
 
-	/*
-	 * Set the operation flags early so that bio_iov_iter_get_pages
-	 * can set up the page vector appropriately for a ZONE_APPEND
-	 * operation.
-	 */
 	bio_opf = iomap_dio_bio_opflags(dio, iomap, use_fua, atomic);
 
 	nr_pages = bio_iov_vecs_to_alloc(dio->submit.iter, BIO_MAX_VECS);
