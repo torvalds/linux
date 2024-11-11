@@ -210,8 +210,9 @@ int io_uring_cmd_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	if (ioucmd->flags & IORING_URING_CMD_FIXED) {
 		struct io_ring_ctx *ctx = req->ctx;
 		struct io_rsrc_node *node;
+		u16 index = READ_ONCE(sqe->buf_index);
 
-		node = io_rsrc_node_lookup(&ctx->buf_table, req->buf_index);
+		node = io_rsrc_node_lookup(&ctx->buf_table, index);
 		if (unlikely(!node))
 			return -EFAULT;
 		/*
