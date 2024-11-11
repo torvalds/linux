@@ -341,7 +341,7 @@ s32 BPF_STRUCT_OPS(fcg_select_cpu, struct task_struct *p, s32 prev_cpu, u64 wake
 	if (is_idle) {
 		set_bypassed_at(p, taskc);
 		stat_inc(FCG_STAT_LOCAL);
-		scx_bpf_dispatch(p, SCX_DSQ_LOCAL, SCX_SLICE_DFL, 0);
+		scx_bpf_dsq_insert(p, SCX_DSQ_LOCAL, SCX_SLICE_DFL, 0);
 	}
 
 	return cpu;
@@ -377,10 +377,12 @@ void BPF_STRUCT_OPS(fcg_enqueue, struct task_struct *p, u64 enq_flags)
 		 */
 		if (p->nr_cpus_allowed == 1 && (p->flags & PF_KTHREAD)) {
 			stat_inc(FCG_STAT_LOCAL);
-			scx_bpf_dispatch(p, SCX_DSQ_LOCAL, SCX_SLICE_DFL, enq_flags);
+			scx_bpf_dsq_insert(p, SCX_DSQ_LOCAL, SCX_SLICE_DFL,
+					   enq_flags);
 		} else {
 			stat_inc(FCG_STAT_GLOBAL);
-			scx_bpf_dispatch(p, FALLBACK_DSQ, SCX_SLICE_DFL, enq_flags);
+			scx_bpf_dsq_insert(p, FALLBACK_DSQ, SCX_SLICE_DFL,
+					   enq_flags);
 		}
 		return;
 	}
@@ -391,7 +393,7 @@ void BPF_STRUCT_OPS(fcg_enqueue, struct task_struct *p, u64 enq_flags)
 		goto out_release;
 
 	if (fifo_sched) {
-		scx_bpf_dispatch(p, cgrp->kn->id, SCX_SLICE_DFL, enq_flags);
+		scx_bpf_dsq_insert(p, cgrp->kn->id, SCX_SLICE_DFL, enq_flags);
 	} else {
 		u64 tvtime = p->scx.dsq_vtime;
 
@@ -402,8 +404,8 @@ void BPF_STRUCT_OPS(fcg_enqueue, struct task_struct *p, u64 enq_flags)
 		if (vtime_before(tvtime, cgc->tvtime_now - SCX_SLICE_DFL))
 			tvtime = cgc->tvtime_now - SCX_SLICE_DFL;
 
-		scx_bpf_dispatch_vtime(p, cgrp->kn->id, SCX_SLICE_DFL,
-				       tvtime, enq_flags);
+		scx_bpf_dsq_insert_vtime(p, cgrp->kn->id, SCX_SLICE_DFL,
+					 tvtime, enq_flags);
 	}
 
 	cgrp_enqueued(cgrp, cgc);

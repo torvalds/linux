@@ -226,7 +226,7 @@ void BPF_STRUCT_OPS(qmap_enqueue, struct task_struct *p, u64 enq_flags)
 	 */
 	if (tctx->force_local) {
 		tctx->force_local = false;
-		scx_bpf_dispatch(p, SCX_DSQ_LOCAL, slice_ns, enq_flags);
+		scx_bpf_dsq_insert(p, SCX_DSQ_LOCAL, slice_ns, enq_flags);
 		return;
 	}
 
@@ -234,7 +234,7 @@ void BPF_STRUCT_OPS(qmap_enqueue, struct task_struct *p, u64 enq_flags)
 	if (!(enq_flags & SCX_ENQ_CPU_SELECTED) &&
 	    (cpu = pick_direct_dispatch_cpu(p, scx_bpf_task_cpu(p))) >= 0) {
 		__sync_fetch_and_add(&nr_ddsp_from_enq, 1);
-		scx_bpf_dispatch(p, SCX_DSQ_LOCAL_ON | cpu, slice_ns, enq_flags);
+		scx_bpf_dsq_insert(p, SCX_DSQ_LOCAL_ON | cpu, slice_ns, enq_flags);
 		return;
 	}
 
@@ -247,7 +247,7 @@ void BPF_STRUCT_OPS(qmap_enqueue, struct task_struct *p, u64 enq_flags)
 	if (enq_flags & SCX_ENQ_REENQ) {
 		s32 cpu;
 
-		scx_bpf_dispatch(p, SHARED_DSQ, 0, enq_flags);
+		scx_bpf_dsq_insert(p, SHARED_DSQ, 0, enq_flags);
 		cpu = scx_bpf_pick_idle_cpu(p->cpus_ptr, 0);
 		if (cpu >= 0)
 			scx_bpf_kick_cpu(cpu, SCX_KICK_IDLE);
@@ -262,7 +262,7 @@ void BPF_STRUCT_OPS(qmap_enqueue, struct task_struct *p, u64 enq_flags)
 
 	/* Queue on the selected FIFO. If the FIFO overflows, punt to global. */
 	if (bpf_map_push_elem(ring, &pid, 0)) {
-		scx_bpf_dispatch(p, SHARED_DSQ, slice_ns, enq_flags);
+		scx_bpf_dsq_insert(p, SHARED_DSQ, slice_ns, enq_flags);
 		return;
 	}
 
@@ -385,7 +385,7 @@ void BPF_STRUCT_OPS(qmap_dispatch, s32 cpu, struct task_struct *prev)
 		 */
 		p = bpf_task_from_pid(2);
 		if (p) {
-			scx_bpf_dispatch(p, SCX_DSQ_LOCAL, slice_ns, 0);
+			scx_bpf_dsq_insert(p, SCX_DSQ_LOCAL, slice_ns, 0);
 			bpf_task_release(p);
 			return;
 		}
@@ -431,7 +431,7 @@ void BPF_STRUCT_OPS(qmap_dispatch, s32 cpu, struct task_struct *prev)
 			update_core_sched_head_seq(p);
 			__sync_fetch_and_add(&nr_dispatched, 1);
 
-			scx_bpf_dispatch(p, SHARED_DSQ, slice_ns, 0);
+			scx_bpf_dsq_insert(p, SHARED_DSQ, slice_ns, 0);
 			bpf_task_release(p);
 
 			batch--;

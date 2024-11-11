@@ -35,6 +35,32 @@
 	 scx_bpf_dispatch_vtime_from_dsq((it), (p), (dsq_id), (enq_flags)) : false)
 
 /*
+ * v6.13: The verb `dispatch` was too overloaded and confusing. kfuncs are
+ * renamed to unload the verb.
+ *
+ * Build error is triggered if old names are used. New binaries work with both
+ * new and old names. The compat macros will be removed on v6.15 release.
+ */
+void scx_bpf_dispatch___compat(struct task_struct *p, u64 dsq_id, u64 slice, u64 enq_flags) __ksym __weak;
+void scx_bpf_dispatch_vtime___compat(struct task_struct *p, u64 dsq_id, u64 slice, u64 vtime, u64 enq_flags) __ksym __weak;
+
+#define scx_bpf_dsq_insert(p, dsq_id, slice, enq_flags)				\
+	(bpf_ksym_exists(scx_bpf_dsq_insert) ?					\
+	 scx_bpf_dsq_insert((p), (dsq_id), (slice), (enq_flags)) :		\
+	 scx_bpf_dispatch___compat((p), (dsq_id), (slice), (enq_flags)))
+
+#define scx_bpf_dsq_insert_vtime(p, dsq_id, slice, vtime, enq_flags)		\
+	(bpf_ksym_exists(scx_bpf_dsq_insert_vtime) ?				\
+	 scx_bpf_dsq_insert_vtime((p), (dsq_id), (slice), (vtime), (enq_flags)) : \
+	 scx_bpf_dispatch_vtime___compat((p), (dsq_id), (slice), (vtime), (enq_flags)))
+
+#define scx_bpf_dispatch(p, dsq_id, slice, enq_flags)				\
+	_Static_assert(false, "scx_bpf_dispatch() renamed to scx_bpf_dsq_insert()")
+
+#define scx_bpf_dispatch_vtime(p, dsq_id, slice, vtime, enq_flags)		\
+	_Static_assert(false, "scx_bpf_dispatch_vtime() renamed to scx_bpf_dsq_insert_vtime()")
+
+/*
  * Define sched_ext_ops. This may be expanded to define multiple variants for
  * backward compatibility. See compat.h::SCX_OPS_LOAD/ATTACH().
  */
