@@ -190,43 +190,8 @@ static void hard_handler(int sig, siginfo_t *si, void *p)
 {
 	ucontext_t *uc = p;
 	mcontext_t *mc = &uc->uc_mcontext;
-	unsigned long pending = 1UL << sig;
 
-	do {
-		int nested, bail;
-
-		/*
-		 * pending comes back with one bit set for each
-		 * interrupt that arrived while setting up the stack,
-		 * plus a bit for this interrupt, plus the zero bit is
-		 * set if this is a nested interrupt.
-		 * If bail is true, then we interrupted another
-		 * handler setting up the stack.  In this case, we
-		 * have to return, and the upper handler will deal
-		 * with this interrupt.
-		 */
-		bail = to_irq_stack(&pending);
-		if (bail)
-			return;
-
-		nested = pending & 1;
-		pending &= ~1;
-
-		while ((sig = ffs(pending)) != 0){
-			sig--;
-			pending &= ~(1 << sig);
-			(*handlers[sig])(sig, (struct siginfo *)si, mc);
-		}
-
-		/*
-		 * Again, pending comes back with a mask of signals
-		 * that arrived while tearing down the stack.  If this
-		 * is non-zero, we just go back, set up the stack
-		 * again, and handle the new interrupts.
-		 */
-		if (!nested)
-			pending = from_irq_stack(nested);
-	} while (pending);
+	(*handlers[sig])(sig, (struct siginfo *)si, mc);
 }
 
 void set_handler(int sig)

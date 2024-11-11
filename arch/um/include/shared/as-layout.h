@@ -30,11 +30,8 @@
 
 #include <sysdep/ptrace.h>
 
-struct cpu_task {
-	void *task;
-};
-
-extern struct cpu_task cpu_tasks[];
+struct task_struct;
+extern struct task_struct *cpu_tasks[];
 
 extern unsigned long long physmem_size;
 

@@ -34,6 +34,7 @@ config UML
 	select HAVE_RUST
 	select ARCH_HAS_UBSAN
 	select HAVE_ARCH_TRACEHOOK
+	select THREAD_INFO_IN_TASK
 
 config MMU
 	bool

@@ -65,9 +65,6 @@ struct cpuinfo_um boot_cpu_data = {
 
 EXPORT_SYMBOL(boot_cpu_data);
 
-union thread_union cpu0_irqstack
-	__section(".data..init_irqstack") =
-		{ .thread_info = INIT_THREAD_INFO(init_task) };
 
 /* Changed in setup_arch, which is called in early boot */
 static char host_info[(__NEW_UTS_LEN + 1) * 5];
@@ -244,6 +241,8 @@ static struct notifier_block panic_exit_notifier = {
 
 void uml_finishsetup(void)
 {
+	cpu_tasks[0] = &init_task;
+
 	atomic_notifier_chain_register(&panic_notifier_list,
 				       &panic_exit_notifier);
 
@@ -418,7 +417,7 @@ void __init setup_arch(char **cmdline_p)
 {
 	u8 rng_seed[32];
 
-	stack_protections((unsigned long) &init_thread_info);
+	stack_protections((unsigned long) init_task.stack);
 	setup_physmem(uml_physmem, uml_reserved, physmem_size);
 	mem_total_pages(physmem_size, iomem_size);
 	uml_dtb_init();

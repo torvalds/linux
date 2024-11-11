@@ -43,7 +43,8 @@
  * cares about its entry, so it's OK if another processor is modifying its
  * entry.
  */
-struct cpu_task cpu_tasks[NR_CPUS] = { [0 ... NR_CPUS - 1] = { NULL } };
+struct task_struct *cpu_tasks[NR_CPUS];
+EXPORT_SYMBOL(cpu_tasks);
 
 void free_stack(unsigned long stack, int order)
 {
@@ -64,7 +65,7 @@ unsigned long alloc_stack(int order, int atomic)
 
 static inline void set_current(struct task_struct *task)
 {
-	cpu_tasks[task_thread_info(task)->cpu] = ((struct cpu_task) { task });
+	cpu_tasks[task_thread_info(task)->cpu] = task;
 }
 
 struct task_struct *__switch_to(struct task_struct *from, struct task_struct *to)
