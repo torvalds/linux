@@ -372,7 +372,7 @@ static inline void srcu_read_unlock_lite(struct srcu_struct *ssp, int idx)
 	WARN_ON_ONCE(idx & ~0x1);
 	srcu_check_read_flavor(ssp, SRCU_READ_FLAVOR_LITE);
 	srcu_lock_release(&ssp->dep_map);
-	__srcu_read_unlock(ssp, idx);
+	__srcu_read_unlock_lite(ssp, idx);
 }
 
 /**
