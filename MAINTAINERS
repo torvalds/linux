@@ -12385,6 +12385,13 @@ F:	Documentation/kbuild/kconfig*
 F:	scripts/Kconfig.include
 F:	scripts/kconfig/
 
+KCORE
+M:	Omar Sandoval <osandov@osandov.com>
+L:	linux-debuggers@vger.kernel.org
+S:	Maintained
+F:	fs/proc/kcore.c
+F:	include/linux/kcore.h
+
 KCOV
 R:	Dmitry Vyukov <dvyukov@google.com>
 R:	Andrey Konovalov <andreyknvl@gmail.com>
