@@ -519,7 +519,6 @@ static struct platform_driver apple_spi_driver = {
 	.probe = apple_spi_probe,
 	.driver = {
 		.name = "apple-spi",
-		.owner = THIS_MODULE,
 		.of_match_table = apple_spi_of_match,
 	},
 };
