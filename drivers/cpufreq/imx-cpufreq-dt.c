@@ -183,7 +183,7 @@ static void imx_cpufreq_dt_remove(struct platform_device *pdev)
 
 static struct platform_driver imx_cpufreq_dt_driver = {
 	.probe = imx_cpufreq_dt_probe,
-	.remove_new = imx_cpufreq_dt_remove,
+	.remove = imx_cpufreq_dt_remove,
 	.driver = {
 		.name = "imx-cpufreq-dt",
 	},

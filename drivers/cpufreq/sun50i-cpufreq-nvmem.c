@@ -283,7 +283,7 @@ static void sun50i_cpufreq_nvmem_remove(struct platform_device *pdev)
 
 static struct platform_driver sun50i_cpufreq_driver = {
 	.probe = sun50i_cpufreq_nvmem_probe,
-	.remove_new = sun50i_cpufreq_nvmem_remove,
+	.remove = sun50i_cpufreq_nvmem_remove,
 	.driver = {
 		.name = "sun50i-cpufreq-nvmem",
 	},

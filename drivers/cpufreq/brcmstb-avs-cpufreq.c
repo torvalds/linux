@@ -777,7 +777,7 @@ static struct platform_driver brcm_avs_cpufreq_platdrv = {
 		.of_match_table = brcm_avs_cpufreq_match,
 	},
 	.probe		= brcm_avs_cpufreq_probe,
-	.remove_new	= brcm_avs_cpufreq_remove,
+	.remove		= brcm_avs_cpufreq_remove,
 };
 module_platform_driver(brcm_avs_cpufreq_platdrv);
 

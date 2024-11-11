@@ -604,7 +604,7 @@ static DEFINE_SIMPLE_DEV_PM_OPS(qcom_cpufreq_pm_ops, qcom_cpufreq_suspend, NULL)
 
 static struct platform_driver qcom_cpufreq_driver = {
 	.probe = qcom_cpufreq_probe,
-	.remove_new = qcom_cpufreq_remove,
+	.remove = qcom_cpufreq_remove,
 	.driver = {
 		.name = "qcom-cpufreq-nvmem",
 		.pm = pm_sleep_ptr(&qcom_cpufreq_pm_ops),
