@@ -516,6 +516,19 @@ void thermal_debug_cdev_add(struct thermal_cooling_device *cdev, int state)
 	cdev->debugfs = thermal_dbg;
 }
 
+static struct thermal_debugfs *thermal_debug_cdev_clear(struct thermal_cooling_device *cdev)
+{
+	struct thermal_debugfs *thermal_dbg;
+
+	guard(cooling_dev)(cdev);
+
+	thermal_dbg = cdev->debugfs;
+	if (thermal_dbg)
+		cdev->debugfs = NULL;
+
+	return thermal_dbg;
+}
+
 /**
  * thermal_debug_cdev_remove - Remove a cooling device debugfs entry
  *
@@ -527,17 +540,9 @@ void thermal_debug_cdev_remove(struct thermal_cooling_device *cdev)
 {
 	struct thermal_debugfs *thermal_dbg;
 
-	mutex_lock(&cdev->lock);
-
-	thermal_dbg = cdev->debugfs;
-	if (!thermal_dbg) {
-		mutex_unlock(&cdev->lock);
+	thermal_dbg = thermal_debug_cdev_clear(cdev);
+	if (!thermal_dbg)
 		return;
-	}
-
-	cdev->debugfs = NULL;
-
-	mutex_unlock(&cdev->lock);
 
 	mutex_lock(&thermal_dbg->lock);
 
@@ -885,6 +890,19 @@ void thermal_debug_tz_add(struct thermal_zone_device *tz)
 	tz->debugfs = thermal_dbg;
 }
 
+static struct thermal_debugfs *thermal_debug_tz_clear(struct thermal_zone_device *tz)
+{
+	struct thermal_debugfs *thermal_dbg;
+
+	guard(thermal_zone)(tz);
+
+	thermal_dbg = tz->debugfs;
+	if (thermal_dbg)
+		tz->debugfs = NULL;
+
+	return thermal_dbg;
+}
+
 void thermal_debug_tz_remove(struct thermal_zone_device *tz)
 {
 	struct thermal_debugfs *thermal_dbg;
@@ -892,17 +910,9 @@ void thermal_debug_tz_remove(struct thermal_zone_device *tz)
 	struct tz_debugfs *tz_dbg;
 	int *trips_crossed;
 
-	mutex_lock(&tz->lock);
-
-	thermal_dbg = tz->debugfs;
-	if (!thermal_dbg) {
-		mutex_unlock(&tz->lock);
+	thermal_dbg = thermal_debug_tz_clear(tz);
+	if (!thermal_dbg)
 		return;
-	}
-
-	tz->debugfs = NULL;
-
-	mutex_unlock(&tz->lock);
 
 	tz_dbg = &thermal_dbg->tz_dbg;
 
