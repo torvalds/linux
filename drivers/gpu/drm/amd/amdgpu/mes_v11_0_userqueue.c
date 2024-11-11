@@ -201,8 +201,8 @@ static int mes_v11_0_userq_create_ctx_space(struct amdgpu_userq_mgr *uq_mgr,
 		mqd->shadow_base_lo = mqd_gfx_v11->shadow_va & 0xFFFFFFFC;
 		mqd->shadow_base_hi = upper_32_bits(mqd_gfx_v11->shadow_va);
 
-		mqd->gds_bkup_base_lo = mqd_gfx_v11->gds_va & 0xFFFFFFFC;
-		mqd->gds_bkup_base_hi = upper_32_bits(mqd_gfx_v11->gds_va);
+		mqd->gds_bkup_base_lo = 0;
+		mqd->gds_bkup_base_hi = 0;
 
 		mqd->fw_work_area_base_lo = mqd_gfx_v11->csa_va & 0xFFFFFFFC;
 		mqd->fw_work_area_base_hi = upper_32_bits(mqd_gfx_v11->csa_va);

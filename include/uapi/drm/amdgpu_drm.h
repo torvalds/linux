@@ -325,35 +325,28 @@ union drm_amdgpu_ctx {
 	union drm_amdgpu_ctx_out out;
 };
 
-/* user queue IOCTL */
+/* user queue IOCTL operations */
 #define AMDGPU_USERQ_OP_CREATE	1
 #define AMDGPU_USERQ_OP_FREE	2
 
-/* Flag to indicate secure buffer related workload, unused for now */
-#define AMDGPU_USERQ_MQD_FLAGS_SECURE	(1 << 0)
-/* Flag to indicate AQL workload, unused for now */
-#define AMDGPU_USERQ_MQD_FLAGS_AQL	(1 << 1)
-
 /*
- * MQD (memory queue descriptor) is a set of parameters which allow
- * the GPU to uniquely define and identify a usermode queue. This
- * structure defines the MQD for GFX-V11 IP ver 0.
+ * This structure is a container to pass input configuration
+ * info for all supported userqueue related operations.
+ * For operation AMDGPU_USERQ_OP_CREATE: user is expected
+ *  to set all fields, excep the parameter 'queue_id'.
+ * For operation AMDGPU_USERQ_OP_FREE: the only input parameter expected
+ *  to be set is 'queue_id', eveything else is ignored.
  */
 struct drm_amdgpu_userq_in {
 	/** AMDGPU_USERQ_OP_* */
 	__u32	op;
-	/** Queue handle for USERQ_OP_FREE */
+	/** Queue id passed for operation USERQ_OP_FREE */
 	__u32	queue_id;
 	/** the target GPU engine to execute workload (AMDGPU_HW_IP_*) */
 	__u32   ip_type;
 	/**
-	 * @flags: flags to indicate special function for queue like secure
-	 * buffer (TMZ). Unused for now.
-	 */
-	__u32   flags;
-	/**
 	 * @doorbell_handle: the handle of doorbell GEM object
-	 * associated to this client.
+	 * associated with this userqueue client.
 	 */
 	__u32   doorbell_handle;
 	/**
@@ -362,7 +355,7 @@ struct drm_amdgpu_userq_in {
 	 * and doorbell_offset in the doorbell bo.
 	 */
 	__u32   doorbell_offset;
-
+	__u32 _pad;
 	/**
 	 * @queue_va: Virtual address of the GPU memory which holds the queue
 	 * object. The queue holds the workload packets.
@@ -387,25 +380,31 @@ struct drm_amdgpu_userq_in {
 	 */
 	__u64   wptr_va;
 	/**
-	 * @mqd: Queue descriptor for USERQ_OP_CREATE
+	 * @mqd: MQD (memory queue descriptor) is a set of parameters which allow
+	 * the GPU to uniquely define and identify a usermode queue.
+	 *
 	 * MQD data can be of different size for different GPU IP/engine and
 	 * their respective versions/revisions, so this points to a __u64 *
-	 * which holds MQD of this usermode queue.
+	 * which holds IP specific MQD of this usermode queue.
 	 */
 	__u64 mqd;
 	/**
 	 * @size: size of MQD data in bytes, it must match the MQD structure
 	 * size of the respective engine/revision defined in UAPI for ex, for
-	 * gfx_v11 workloads, size = sizeof(drm_amdgpu_userq_mqd_gfx_v11).
+	 * gfx11 workloads, size = sizeof(drm_amdgpu_userq_mqd_gfx11).
 	 */
 	__u64 mqd_size;
 };
 
+/* The structure to carry output of userqueue ops */
 struct drm_amdgpu_userq_out {
-	/** Queue handle */
+	/**
+	 * For operation AMDGPU_USERQ_OP_CREATE: This field contains a unique
+	 * queue ID to represent the newly created userqueue in the system, otherwise
+	 * it should be ignored.
+	 */
 	__u32	queue_id;
-	/** Flags */
-	__u32	flags;
+	__u32 _pad;
 };
 
 union drm_amdgpu_userq {
@@ -420,11 +419,6 @@ struct drm_amdgpu_userq_mqd_gfx11 {
 	 * Use AMDGPU_INFO_IOCTL to find the exact size of the object.
 	 */
 	__u64   shadow_va;
-	/**
-	 * @gds_va: Virtual address of the GPU memory to hold the GDS buffer.
-	 * Use AMDGPU_INFO_IOCTL to find the exact size of the object.
-	 */
-	__u64   gds_va;
 	/**
 	 * @csa_va: Virtual address of the GPU memory to hold the CSA buffer.
 	 * Use AMDGPU_INFO_IOCTL to find the exact size of the object.
@@ -446,8 +440,8 @@ struct drm_amdgpu_userq_mqd_sdma_gfx11 {
 struct drm_amdgpu_userq_mqd_compute_gfx11 {
 	/**
 	 * @eop_va: Virtual address of the GPU memory to hold the EOP buffer.
-	 * This must be a from a separate GPU object, and must be at least 1 page
-	 * sized.
+	 * This must be a from a separate GPU object, and use AMDGPU_INFO IOCTL
+	 * to get the size.
 	 */
 	__u64   eop_va;
 };

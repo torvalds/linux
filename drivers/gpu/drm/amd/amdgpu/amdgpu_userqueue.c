@@ -225,11 +225,6 @@ amdgpu_userqueue_create(struct drm_file *filp, union drm_amdgpu_userq *args)
 		return -EINVAL;
 	}
 
-	if (args->in.flags) {
-		DRM_ERROR("Usermode queue flags not supported yet\n");
-		return -EINVAL;
-	}
-
 	mutex_lock(&uq_mgr->userq_mutex);
 
 	uq_funcs = adev->userq_funcs[args->in.ip_type];
@@ -248,7 +243,6 @@ amdgpu_userqueue_create(struct drm_file *filp, union drm_amdgpu_userq *args)
 	queue->doorbell_handle = args->in.doorbell_handle;
 	queue->doorbell_index = args->in.doorbell_offset;
 	queue->queue_type = args->in.ip_type;
-	queue->flags = args->in.flags;
 	queue->vm = &fpriv->vm;
 
 	/* Convert relative doorbell offset into absolute doorbell index */
