@@ -443,7 +443,7 @@ where
     A: Allocator,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt::Debug::fmt(&**self, f)
+        <T as fmt::Debug>::fmt(&**self, f)
     }
 }
 
