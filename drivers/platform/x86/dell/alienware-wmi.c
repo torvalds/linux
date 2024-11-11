@@ -68,6 +68,7 @@ enum WMAX_CONTROL_STATES {
 };
 
 enum WMAX_THERMAL_INFORMATION_OPERATIONS {
+	WMAX_OPERATION_SYS_DESCRIPTION		= 0x02,
 	WMAX_OPERATION_LIST_IDS			= 0x03,
 	WMAX_OPERATION_CURRENT_PROFILE		= 0x0B,
 };
@@ -1110,13 +1111,22 @@ static int thermal_profile_set(struct platform_profile_handler *pprof,
 static int create_thermal_profile(void)
 {
 	u32 out_data;
+	u8 sys_desc[4];
+	u32 first_mode;
 	enum wmax_thermal_mode mode;
 	enum platform_profile_option profile;
 	int ret;
 
-	for (u8 i = 0x2; i <= 0xD; i++) {
+	ret = wmax_thermal_information(WMAX_OPERATION_SYS_DESCRIPTION,
+				       0, (u32 *) &sys_desc);
+	if (ret < 0)
+		return ret;
+
+	first_mode = sys_desc[0] + sys_desc[1];
+
+	for (u32 i = 0; i < sys_desc[3]; i++) {
 		ret = wmax_thermal_information(WMAX_OPERATION_LIST_IDS,
-					       i, &out_data);
+					       i + first_mode, &out_data);
 
 		if (ret == -EIO)
 			return ret;
