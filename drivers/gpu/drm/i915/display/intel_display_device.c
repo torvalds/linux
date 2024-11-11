@@ -253,6 +253,7 @@ static const struct intel_display_device_info no_display = {};
 
 static const struct platform_desc i830_desc = {
 	PLATFORM(i830),
+	PLATFORM_GROUP(mobile),
 	.info = &(const struct intel_display_device_info) {
 		I830_DISPLAY,
 
@@ -271,6 +272,7 @@ static const struct platform_desc i845_desc = {
 
 static const struct platform_desc i85x_desc = {
 	PLATFORM(i85x),
+	PLATFORM_GROUP(mobile),
 	.info = &(const struct intel_display_device_info) {
 		I830_DISPLAY,
 
@@ -313,6 +315,7 @@ static const struct platform_desc i915g_desc = {
 
 static const struct platform_desc i915gm_desc = {
 	PLATFORM(i915gm),
+	PLATFORM_GROUP(mobile),
 	.info = &(const struct intel_display_device_info) {
 		GEN3_DISPLAY,
 		I9XX_COLORS,
@@ -337,6 +340,7 @@ static const struct platform_desc i945g_desc = {
 
 static const struct platform_desc i945gm_desc = {
 	PLATFORM(i915gm),
+	PLATFORM_GROUP(mobile),
 	.info = &(const struct intel_display_device_info) {
 		GEN3_DISPLAY,
 		I9XX_COLORS,
@@ -358,13 +362,21 @@ static const struct platform_desc g33_desc = {
 	},
 };
 
-static const struct platform_desc pnv_desc = {
+static const struct intel_display_device_info pnv_display = {
+	GEN3_DISPLAY,
+	I9XX_COLORS,
+	.has_hotplug = 1,
+};
+
+static const struct platform_desc pnv_g_desc = {
 	PLATFORM(pineview),
-	.info = &(const struct intel_display_device_info) {
-		GEN3_DISPLAY,
-		I9XX_COLORS,
-		.has_hotplug = 1,
-	},
+	.info = &pnv_display,
+};
+
+static const struct platform_desc pnv_m_desc = {
+	PLATFORM(pineview),
+	PLATFORM_GROUP(mobile),
+	.info = &pnv_display,
 };
 
 #define GEN4_DISPLAY \
@@ -391,6 +403,7 @@ static const struct platform_desc i965g_desc = {
 
 static const struct platform_desc i965gm_desc = {
 	PLATFORM(i965gm),
+	PLATFORM_GROUP(mobile),
 	.info = &(const struct intel_display_device_info) {
 		GEN4_DISPLAY,
 		.has_overlay = 1,
@@ -414,6 +427,7 @@ static const struct platform_desc g45_desc = {
 static const struct platform_desc gm45_desc = {
 	PLATFORM(gm45),
 	PLATFORM_GROUP(g4x),
+	PLATFORM_GROUP(mobile),
 	.info = &(const struct intel_display_device_info) {
 		GEN4_DISPLAY,
 		.supports_tv = 1,
@@ -444,6 +458,7 @@ static const struct platform_desc ilk_d_desc = {
 
 static const struct platform_desc ilk_m_desc = {
 	PLATFORM(ironlake),
+	PLATFORM_GROUP(mobile),
 	.info = &(const struct intel_display_device_info) {
 		ILK_DISPLAY,
 
@@ -451,38 +466,54 @@ static const struct platform_desc ilk_m_desc = {
 	},
 };
 
-static const struct platform_desc snb_desc = {
-	PLATFORM(sandybridge),
-	.info = &(const struct intel_display_device_info) {
-		.has_hotplug = 1,
-		I9XX_PIPE_OFFSETS,
-		I9XX_CURSOR_OFFSETS,
-		ILK_COLORS,
+static const struct intel_display_device_info snb_display = {
+	.has_hotplug = 1,
+	I9XX_PIPE_OFFSETS,
+	I9XX_CURSOR_OFFSETS,
+	ILK_COLORS,
 
-		.__runtime_defaults.ip.ver = 6,
-		.__runtime_defaults.pipe_mask = BIT(PIPE_A) | BIT(PIPE_B),
-		.__runtime_defaults.cpu_transcoder_mask =
-		BIT(TRANSCODER_A) | BIT(TRANSCODER_B),
-		.__runtime_defaults.port_mask = BIT(PORT_A) | BIT(PORT_B) | BIT(PORT_C) | BIT(PORT_D), /* DP A, SDVO/HDMI/DP B, HDMI/DP C/D */
-		.__runtime_defaults.fbc_mask = BIT(INTEL_FBC_A),
-	},
+	.__runtime_defaults.ip.ver = 6,
+	.__runtime_defaults.pipe_mask = BIT(PIPE_A) | BIT(PIPE_B),
+	.__runtime_defaults.cpu_transcoder_mask =
+	BIT(TRANSCODER_A) | BIT(TRANSCODER_B),
+	.__runtime_defaults.port_mask = BIT(PORT_A) | BIT(PORT_B) | BIT(PORT_C) | BIT(PORT_D), /* DP A, SDVO/HDMI/DP B, HDMI/DP C/D */
+	.__runtime_defaults.fbc_mask = BIT(INTEL_FBC_A),
 };
 
-static const struct platform_desc ivb_desc = {
-	PLATFORM(ivybridge),
-	.info = &(const struct intel_display_device_info) {
-		.has_hotplug = 1,
-		IVB_PIPE_OFFSETS,
-		IVB_CURSOR_OFFSETS,
-		IVB_COLORS,
+static const struct platform_desc snb_d_desc = {
+	PLATFORM(sandybridge),
+	.info = &snb_display,
+};
 
-		.__runtime_defaults.ip.ver = 7,
-		.__runtime_defaults.pipe_mask = BIT(PIPE_A) | BIT(PIPE_B) | BIT(PIPE_C),
-		.__runtime_defaults.cpu_transcoder_mask =
-		BIT(TRANSCODER_A) | BIT(TRANSCODER_B) | BIT(TRANSCODER_C),
-		.__runtime_defaults.port_mask = BIT(PORT_A) | BIT(PORT_B) | BIT(PORT_C) | BIT(PORT_D), /* DP A, SDVO/HDMI/DP B, HDMI/DP C/D */
-		.__runtime_defaults.fbc_mask = BIT(INTEL_FBC_A),
-	},
+static const struct platform_desc snb_m_desc = {
+	PLATFORM(sandybridge),
+	PLATFORM_GROUP(mobile),
+	.info = &snb_display,
+};
+
+static const struct intel_display_device_info ivb_display = {
+	.has_hotplug = 1,
+	IVB_PIPE_OFFSETS,
+	IVB_CURSOR_OFFSETS,
+	IVB_COLORS,
+
+	.__runtime_defaults.ip.ver = 7,
+	.__runtime_defaults.pipe_mask = BIT(PIPE_A) | BIT(PIPE_B) | BIT(PIPE_C),
+	.__runtime_defaults.cpu_transcoder_mask =
+	BIT(TRANSCODER_A) | BIT(TRANSCODER_B) | BIT(TRANSCODER_C),
+	.__runtime_defaults.port_mask = BIT(PORT_A) | BIT(PORT_B) | BIT(PORT_C) | BIT(PORT_D), /* DP A, SDVO/HDMI/DP B, HDMI/DP C/D */
+	.__runtime_defaults.fbc_mask = BIT(INTEL_FBC_A),
+};
+
+static const struct platform_desc ivb_d_desc = {
+	PLATFORM(ivybridge),
+	.info = &ivb_display,
+};
+
+static const struct platform_desc ivb_m_desc = {
+	PLATFORM(ivybridge),
+	PLATFORM_GROUP(mobile),
+	.info = &ivb_display,
 };
 
 static const struct platform_desc vlv_desc = {
@@ -1385,11 +1416,14 @@ static const struct {
 	INTEL_I965GM_IDS(INTEL_DISPLAY_DEVICE, &i965gm_desc),
 	INTEL_GM45_IDS(INTEL_DISPLAY_DEVICE, &gm45_desc),
 	INTEL_G45_IDS(INTEL_DISPLAY_DEVICE, &g45_desc),
-	INTEL_PNV_IDS(INTEL_DISPLAY_DEVICE, &pnv_desc),
+	INTEL_PNV_G_IDS(INTEL_DISPLAY_DEVICE, &pnv_g_desc),
+	INTEL_PNV_M_IDS(INTEL_DISPLAY_DEVICE, &pnv_m_desc),
 	INTEL_ILK_D_IDS(INTEL_DISPLAY_DEVICE, &ilk_d_desc),
 	INTEL_ILK_M_IDS(INTEL_DISPLAY_DEVICE, &ilk_m_desc),
-	INTEL_SNB_IDS(INTEL_DISPLAY_DEVICE, &snb_desc),
-	INTEL_IVB_IDS(INTEL_DISPLAY_DEVICE, &ivb_desc),
+	INTEL_SNB_D_IDS(INTEL_DISPLAY_DEVICE, &snb_d_desc),
+	INTEL_SNB_M_IDS(INTEL_DISPLAY_DEVICE, &snb_m_desc),
+	INTEL_IVB_D_IDS(INTEL_DISPLAY_DEVICE, &ivb_d_desc),
+	INTEL_IVB_M_IDS(INTEL_DISPLAY_DEVICE, &ivb_m_desc),
 	INTEL_HSW_IDS(INTEL_DISPLAY_DEVICE, &hsw_desc),
 	INTEL_VLV_IDS(INTEL_DISPLAY_DEVICE, &vlv_desc),
 	INTEL_BDW_IDS(INTEL_DISPLAY_DEVICE, &bdw_desc),

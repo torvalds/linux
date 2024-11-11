@@ -24,6 +24,7 @@ struct pci_dev;
 #define INTEL_DISPLAY_PLATFORMS(func) \
 	/* Platform group aliases */ \
 	func(g4x) /* g45 and gm45 */ \
+	func(mobile) /* mobile platforms */ \
 	func(dgfx) /* discrete graphics */ \
 	/* Display ver 2 */ \
 	func(i830) \
