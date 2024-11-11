@@ -12,6 +12,4 @@ vmwgfx-y := vmwgfx_execbuf.o vmwgfx_gmr.o vmwgfx_kms.o vmwgfx_drv.o \
 	    vmwgfx_devcaps.o ttm_object.o vmwgfx_system_manager.o \
 	    vmwgfx_gem.o
 
-vmwgfx-$(CONFIG_DRM_FBDEV_EMULATION) += vmwgfx_fb.o
-
 obj-$(CONFIG_DRM_VMWGFX) := vmwgfx.o

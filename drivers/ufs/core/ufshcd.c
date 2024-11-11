@@ -5415,10 +5415,12 @@ ufshcd_transfer_rsp_status(struct ufs_hba *hba, struct ufshcd_lrb *lrbp,
 		}
 		break;
 	case OCS_ABORTED:
-		result |= DID_ABORT << 16;
-		break;
 	case OCS_INVALID_COMMAND_STATUS:
 		result |= DID_REQUEUE << 16;
+		dev_warn(hba->dev,
+				"OCS %s from controller for tag %d\n",
+				(ocs == OCS_ABORTED? "aborted" : "invalid"),
+				lrbp->task_tag);
 		break;
 	case OCS_INVALID_CMD_TABLE_ATTR:
 	case OCS_INVALID_PRDT_ATTR:
@@ -6491,9 +6493,6 @@ static bool ufshcd_abort_all(struct ufs_hba *hba)
 
 	if (is_mcq_enabled(hba)) {
 		struct ufshcd_lrb *lrbp;
-		int tag;
-		struct ufs_hw_queue *hwq;
-		unsigned long flags;
 
 		for (tag = 0; tag < hba->nutrs; tag++) {
 			lrbp = &hba->lrb[tag];
@@ -6507,13 +6506,6 @@ static bool ufshcd_abort_all(struct ufs_hba *hba)
 				needs_reset = true;
 				goto out;
 			}
-			hwq = ufshcd_mcq_req_to_hwq(hba, scsi_cmd_to_rq(lrbp->cmd));
-			if (!hwq)
-				return 0;
-			spin_lock_irqsave(&hwq->cq_lock, flags);
-			if (ufshcd_cmd_inflight(lrbp->cmd))
-				ufshcd_release_scsi_cmd(hba, lrbp);
-			spin_unlock_irqrestore(&hwq->cq_lock, flags);
 		}
 	} else {
 		/* Clear pending transfer requests */
