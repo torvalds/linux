@@ -3323,7 +3323,7 @@ static int cs_etm__create_decoders(struct cs_etm_auxtrace *etm)
 		 * Don't create decoders for empty queues, mainly because
 		 * etmq->format is unknown for empty queues.
 		 */
-		assert(empty == (etmq->format == UNSET));
+		assert(empty || etmq->format != UNSET);
 		if (empty)
 			continue;
 

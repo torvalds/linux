@@ -370,6 +370,7 @@ static void udf_table_free_blocks(struct super_block *sb,
 	struct extent_position oepos, epos;
 	int8_t etype;
 	struct udf_inode_info *iinfo;
+	int ret = 0;
 
 	mutex_lock(&sbi->s_alloc_mutex);
 	iinfo = UDF_I(table);
@@ -383,8 +384,12 @@ static void udf_table_free_blocks(struct super_block *sb,
 	epos.block = oepos.block = iinfo->i_location;
 	epos.bh = oepos.bh = NULL;
 
-	while (count &&
-	       (etype = udf_next_aext(table, &epos, &eloc, &elen, 1)) != -1) {
+	while (count) {
+		ret = udf_next_aext(table, &epos, &eloc, &elen, &etype, 1);
+		if (ret < 0)
+			goto error_return;
+		if (ret == 0)
+			break;
 		if (((eloc.logicalBlockNum +
 			(elen >> sb->s_blocksize_bits)) == start)) {
 			if ((0x3FFFFFFF - elen) <
@@ -459,11 +464,8 @@ static void udf_table_free_blocks(struct super_block *sb,
 			adsize = sizeof(struct short_ad);
 		else if (iinfo->i_alloc_type == ICBTAG_FLAG_AD_LONG)
 			adsize = sizeof(struct long_ad);
-		else {
-			brelse(oepos.bh);
-			brelse(epos.bh);
+		else
 			goto error_return;
-		}
 
 		if (epos.offset + (2 * adsize) > sb->s_blocksize) {
 			/* Steal a block from the extent being free'd */
@@ -479,10 +481,10 @@ static void udf_table_free_blocks(struct super_block *sb,
 			__udf_add_aext(table, &epos, &eloc, elen, 1);
 	}
 
+error_return:
 	brelse(epos.bh);
 	brelse(oepos.bh);
 
-error_return:
 	mutex_unlock(&sbi->s_alloc_mutex);
 	return;
 }
@@ -498,6 +500,7 @@ static int udf_table_prealloc_blocks(struct super_block *sb,
 	struct extent_position epos;
 	int8_t etype = -1;
 	struct udf_inode_info *iinfo;
+	int ret = 0;
 
 	if (first_block >= sbi->s_partmaps[partition].s_partition_len)
 		return 0;
@@ -516,11 +519,14 @@ static int udf_table_prealloc_blocks(struct super_block *sb,
 	epos.bh = NULL;
 	eloc.logicalBlockNum = 0xFFFFFFFF;
 
-	while (first_block != eloc.logicalBlockNum &&
-	       (etype = udf_next_aext(table, &epos, &eloc, &elen, 1)) != -1) {
+	while (first_block != eloc.logicalBlockNum) {
+		ret = udf_next_aext(table, &epos, &eloc, &elen, &etype, 1);
+		if (ret < 0)
+			goto err_out;
+		if (ret == 0)
+			break;
 		udf_debug("eloc=%u, elen=%u, first_block=%u\n",
 			  eloc.logicalBlockNum, elen, first_block);
-		; /* empty loop body */
 	}
 
 	if (first_block == eloc.logicalBlockNum) {
@@ -539,6 +545,7 @@ static int udf_table_prealloc_blocks(struct super_block *sb,
 		alloc_count = 0;
 	}
 
+err_out:
 	brelse(epos.bh);
 
 	if (alloc_count)
@@ -560,6 +567,7 @@ static udf_pblk_t udf_table_new_block(struct super_block *sb,
 	struct extent_position epos, goal_epos;
 	int8_t etype;
 	struct udf_inode_info *iinfo = UDF_I(table);
+	int ret = 0;
 
 	*err = -ENOSPC;
 
@@ -583,8 +591,10 @@ static udf_pblk_t udf_table_new_block(struct super_block *sb,
 	epos.block = iinfo->i_location;
 	epos.bh = goal_epos.bh = NULL;
 
-	while (spread &&
-	       (etype = udf_next_aext(table, &epos, &eloc, &elen, 1)) != -1) {
+	while (spread) {
+		ret = udf_next_aext(table, &epos, &eloc, &elen, &etype, 1);
+		if (ret <= 0)
+			break;
 		if (goal >= eloc.logicalBlockNum) {
 			if (goal < eloc.logicalBlockNum +
 					(elen >> sb->s_blocksize_bits))
@@ -612,9 +622,11 @@ static udf_pblk_t udf_table_new_block(struct super_block *sb,
 
 	brelse(epos.bh);
 
-	if (spread == 0xFFFFFFFF) {
+	if (ret < 0 || spread == 0xFFFFFFFF) {
 		brelse(goal_epos.bh);
 		mutex_unlock(&sbi->s_alloc_mutex);
+		if (ret < 0)
+			*err = ret;
 		return 0;
 	}
 

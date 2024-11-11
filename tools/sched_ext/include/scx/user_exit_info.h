@@ -25,7 +25,11 @@ struct user_exit_info {
 
 #ifdef __bpf__
 
+#ifdef LSP
+#include "../vmlinux/vmlinux.h"
+#else
 #include "vmlinux.h"
+#endif
 #include <bpf/bpf_core_read.h>
 
 #define UEI_DEFINE(__name)							\

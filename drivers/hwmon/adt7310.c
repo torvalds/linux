@@ -10,7 +10,7 @@
 #include <linux/init.h>
 #include <linux/regmap.h>
 #include <linux/spi/spi.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include "adt7x10.h"
 

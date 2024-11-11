@@ -56,6 +56,7 @@ struct bnxt_qplib_dev_attr {
 	u32				max_qp_wqes;
 	u32				max_qp_sges;
 	u32				max_cq;
+#define BNXT_QPLIB_MAX_CQ_WQES          0xfffff
 	u32				max_cq_wqes;
 	u32				max_cq_sges;
 	u32				max_mr;

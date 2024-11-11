@@ -575,7 +575,7 @@ static struct platform_driver sh7760_lcdc_driver = {
 		   .name = "sh7760-lcdc",
 		   },
 	.probe = sh7760fb_probe,
-	.remove_new = sh7760fb_remove,
+	.remove = sh7760fb_remove,
 };
 
 module_platform_driver(sh7760_lcdc_driver);

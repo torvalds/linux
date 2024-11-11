@@ -377,7 +377,7 @@ static int atmel_qspi_set_cfg(struct atmel_qspi *aq,
 	 */
 	if (!(aq->mr & QSPI_MR_SMM)) {
 		aq->mr |= QSPI_MR_SMM;
-		atmel_qspi_write(aq->scr, aq, QSPI_MR);
+		atmel_qspi_write(aq->mr, aq, QSPI_MR);
 	}
 
 	/* Clear pending interrupts */

@@ -529,7 +529,7 @@ int __sched_setscheduler(struct task_struct *p,
 {
 	int oldpolicy = -1, policy = attr->sched_policy;
 	int retval, oldprio, newprio, queued, running;
-	const struct sched_class *prev_class;
+	const struct sched_class *prev_class, *next_class;
 	struct balance_callback *head;
 	struct rq_flags rf;
 	int reset_on_fork;
@@ -706,6 +706,12 @@ change:
 			queue_flags &= ~DEQUEUE_MOVE;
 	}
 
+	prev_class = p->sched_class;
+	next_class = __setscheduler_class(p, newprio);
+
+	if (prev_class != next_class && p->se.sched_delayed)
+		dequeue_task(rq, p, DEQUEUE_SLEEP | DEQUEUE_DELAYED | DEQUEUE_NOCLOCK);
+
 	queued = task_on_rq_queued(p);
 	running = task_current(rq, p);
 	if (queued)
@@ -713,11 +719,10 @@ change:
 	if (running)
 		put_prev_task(rq, p);
 
-	prev_class = p->sched_class;
-
 	if (!(attr->sched_flags & SCHED_FLAG_KEEP_PARAMS)) {
 		__setscheduler_params(p, attr);
-		__setscheduler_prio(p, newprio);
+		p->sched_class = next_class;
+		p->prio = newprio;
 	}
 	__setscheduler_uclamp(p, attr);
 	check_class_changing(rq, p, prev_class);

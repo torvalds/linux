@@ -26,7 +26,7 @@
 #include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/slab.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #define IQS5XX_FW_FILE_LEN	64
 #define IQS5XX_NUM_RETRIES	10

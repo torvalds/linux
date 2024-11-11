@@ -17,7 +17,7 @@
 #include <net/llc.h>
 #include <net/llc_pdu.h>
 #include <net/stp.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include "br_private.h"
 #include "br_private_stp.h"

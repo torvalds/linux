@@ -120,6 +120,7 @@ static long pidfd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	struct nsproxy *nsp __free(put_nsproxy) = NULL;
 	struct pid *pid = pidfd_pid(file);
 	struct ns_common *ns_common = NULL;
+	struct pid_namespace *pid_ns;
 
 	if (arg)
 		return -EINVAL;
@@ -202,7 +203,9 @@ static long pidfd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	case PIDFD_GET_PID_NAMESPACE:
 		if (IS_ENABLED(CONFIG_PID_NS)) {
 			rcu_read_lock();
-			ns_common = to_ns_common( get_pid_ns(task_active_pid_ns(task)));
+			pid_ns = task_active_pid_ns(task);
+			if (pid_ns)
+				ns_common = to_ns_common(get_pid_ns(pid_ns));
 			rcu_read_unlock();
 		}
 		break;

@@ -24,7 +24,7 @@
 #include <linux/firmware.h>
 #include <net/checksum.h>
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <asm/io.h>
 
 #include "bttvp.h"

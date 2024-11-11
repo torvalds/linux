@@ -8,7 +8,7 @@
  *
  */
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <crypto/aes.h>
 #include <linux/arm-smccc.h>
 #include <linux/clk.h>

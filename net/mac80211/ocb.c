@@ -16,7 +16,7 @@
 #include <linux/etherdevice.h>
 #include <linux/rtnetlink.h>
 #include <net/mac80211.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include "ieee80211_i.h"
 #include "driver-ops.h"

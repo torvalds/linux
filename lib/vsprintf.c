@@ -51,7 +51,7 @@
 
 #include <asm/page.h>		/* for PAGE_SIZE */
 #include <asm/byteorder.h>	/* cpu_to_le16 */
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include <linux/string_helpers.h>
 #include "kstrtox.h"

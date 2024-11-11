@@ -20,7 +20,7 @@
 
 #include <linux/mfd/si476x-core.h>
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #define msb(x)                  ((u8)((u16) x >> 8))
 #define lsb(x)                  ((u8)((u16) x &  0x00FF))

@@ -588,7 +588,7 @@ static struct platform_driver au1100fb_driver = {
 		.name		= "au1100-lcd",
 	},
 	.probe		= au1100fb_drv_probe,
-	.remove_new	= au1100fb_drv_remove,
+	.remove		= au1100fb_drv_remove,
 	.suspend	= au1100fb_drv_suspend,
 	.resume		= au1100fb_drv_resume,
 };

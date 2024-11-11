@@ -31,7 +31,7 @@
 #include <sound/tlv.h>
 #include <sound/tas2563-tlv.h>
 #include <sound/tas2781-tlv.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #define X2563_CL_STT_VAL(xreg, xval) \
 {	.reg = xreg, \
