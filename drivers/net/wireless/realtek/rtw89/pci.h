@@ -1290,6 +1290,7 @@ struct rtw89_pci_gen_def {
 	void (*l1ss_set)(struct rtw89_dev *rtwdev, bool enable);
 
 	void (*disable_eq)(struct rtw89_dev *rtwdev);
+	void (*power_wake)(struct rtw89_dev *rtwdev, bool pwr_up);
 };
 
 #define RTW89_PCI_SSID(v, d, ssv, ssd, cust) \
@@ -1803,6 +1804,14 @@ static inline void rtw89_pci_disable_eq(struct rtw89_dev *rtwdev)
 	const struct rtw89_pci_gen_def *gen_def = info->gen_def;
 
 	gen_def->disable_eq(rtwdev);
+}
+
+static inline void rtw89_pci_power_wake(struct rtw89_dev *rtwdev, bool pwr_up)
+{
+	const struct rtw89_pci_info *info = rtwdev->pci_info;
+	const struct rtw89_pci_gen_def *gen_def = info->gen_def;
+
+	gen_def->power_wake(rtwdev, pwr_up);
 }
 
 #endif
