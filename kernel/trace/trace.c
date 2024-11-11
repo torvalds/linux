@@ -3697,8 +3697,8 @@ static void test_can_verify(void)
 void trace_check_vprintf(struct trace_iterator *iter, const char *fmt,
 			 va_list ap)
 {
-	long text_delta = iter->tr->text_delta;
-	long data_delta = iter->tr->data_delta;
+	long text_delta = 0;
+	long data_delta = 0;
 	const char *p = fmt;
 	const char *str;
 	bool good;
@@ -3709,6 +3709,17 @@ void trace_check_vprintf(struct trace_iterator *iter, const char *fmt,
 
 	if (static_branch_unlikely(&trace_no_verify))
 		goto print;
+
+	/*
+	 * When the kernel is booted with the tp_printk command line
+	 * parameter, trace events go directly through to printk().
+	 * It also is checked by this function, but it does not
+	 * have an associated trace_array (tr) for it.
+	 */
+	if (iter->tr) {
+		text_delta = iter->tr->text_delta;
+		data_delta = iter->tr->data_delta;
+	}
 
 	/* Don't bother checking when doing a ftrace_dump() */
 	if (iter->fmt == static_fmt_buf)
@@ -5490,6 +5501,10 @@ static const struct file_operations tracing_iter_fops = {
 
 static const char readme_msg[] =
 	"tracing mini-HOWTO:\n\n"
+	"By default tracefs removes all OTH file permission bits.\n"
+	"When mounting tracefs an optional group id can be specified\n"
+	"which adds the group to every directory and file in tracefs:\n\n"
+	"\t e.g. mount -t tracefs [-o [gid=<gid>]] nodev /sys/kernel/tracing\n\n"
 	"# echo 0 > tracing_on : quick way to disable tracing\n"
 	"# echo 1 > tracing_on : quick way to re-enable tracing\n\n"
 	" Important files:\n"
@@ -10610,10 +10625,10 @@ __init static void enable_instances(void)
 		 * cannot be deleted by user space, so keep the reference
 		 * to it.
 		 */
-		if (start)
+		if (start) {
 			tr->flags |= TRACE_ARRAY_FL_BOOT;
-		else
-			trace_array_put(tr);
+			tr->ref++;
+		}
 
 		while ((tok = strsep(&curr_str, ","))) {
 			early_enable_events(tr, tok, true);

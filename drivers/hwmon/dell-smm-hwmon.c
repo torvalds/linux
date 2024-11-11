@@ -38,7 +38,7 @@
 #include <linux/wmi.h>
 
 #include <linux/i8k.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #define I8K_SMM_FN_STATUS	0x0025
 #define I8K_SMM_POWER_STATUS	0x0069

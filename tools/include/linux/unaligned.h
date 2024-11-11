@@ -1,13 +1,14 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-#ifndef __ASM_GENERIC_UNALIGNED_H
-#define __ASM_GENERIC_UNALIGNED_H
+#ifndef __LINUX_UNALIGNED_H
+#define __LINUX_UNALIGNED_H
 
 /*
  * This is the most generic implementation of unaligned accesses
  * and should work almost anywhere.
  */
-#include <linux/unaligned/packed_struct.h>
-#include <asm/byteorder.h>
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpacked"
+#pragma GCC diagnostic ignored "-Wattributes"
 #include <vdso/unaligned.h>
 
 #define get_unaligned(ptr)	__get_unaligned_t(typeof(*(ptr)), (ptr))
@@ -142,5 +143,6 @@ static inline u64 get_unaligned_be48(const void *p)
 {
 	return __get_unaligned_be48(p);
 }
+#pragma GCC diagnostic pop
 
-#endif /* __ASM_GENERIC_UNALIGNED_H */
+#endif /* __LINUX_UNALIGNED_H */

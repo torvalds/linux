@@ -339,10 +339,6 @@ BTF_ID(func, bpf_lsm_path_chmod)
 BTF_ID(func, bpf_lsm_path_chown)
 #endif /* CONFIG_SECURITY_PATH */
 
-#ifdef CONFIG_KEYS
-BTF_ID(func, bpf_lsm_key_free)
-#endif /* CONFIG_KEYS */
-
 BTF_ID(func, bpf_lsm_mmap_file)
 BTF_ID(func, bpf_lsm_netlink_send)
 BTF_ID(func, bpf_lsm_path_notify)

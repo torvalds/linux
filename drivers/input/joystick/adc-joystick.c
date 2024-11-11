@@ -11,7 +11,7 @@
 #include <linux/platform_device.h>
 #include <linux/property.h>
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 struct adc_joystick_axis {
 	u32 code;

@@ -260,7 +260,7 @@ struct smb3_fs_context {
 	unsigned int min_offload;
 	unsigned int retrans;
 	bool sockopt_tcp_nodelay:1;
-	/* attribute cache timemout for files and directories in jiffies */
+	/* attribute cache timeout for files and directories in jiffies */
 	unsigned long acregmax;
 	unsigned long acdirmax;
 	/* timeout for deferred close of files in jiffies */

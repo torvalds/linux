@@ -202,7 +202,15 @@ struct btrfs_delayed_ref_root {
 	/* head ref rbtree */
 	struct rb_root_cached href_root;
 
-	/* Track dirty extent records. */
+	/*
+	 * Track dirty extent records.
+	 * The keys correspond to the logical address of the extent ("bytenr")
+	 * right shifted by fs_info->sectorsize_bits. This is both to get a more
+	 * dense index space (optimizes xarray structure) and because indexes in
+	 * xarrays are of "unsigned long" type, meaning they are 32 bits wide on
+	 * 32 bits platforms, limiting the extent range to 4G which is too low
+	 * and makes it unusable (truncated index values) on 32 bits platforms.
+	 */
 	struct xarray dirty_extents;
 
 	/* this spin lock protects the rbtree and the entries inside */

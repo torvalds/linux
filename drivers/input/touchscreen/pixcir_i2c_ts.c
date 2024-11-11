@@ -5,7 +5,7 @@
  * Copyright (C) 2010-2011 Pixcir, Inc.
  */
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <linux/delay.h>
 #include <linux/gpio/consumer.h>
 #include <linux/i2c.h>

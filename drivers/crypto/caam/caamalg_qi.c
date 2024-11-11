@@ -19,7 +19,7 @@
 #include "jr.h"
 #include "caamalg_desc.h"
 #include <crypto/xts.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <linux/device.h>
 #include <linux/err.h>
 #include <linux/dma-mapping.h>

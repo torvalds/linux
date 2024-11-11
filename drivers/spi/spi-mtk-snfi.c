@@ -1187,7 +1187,7 @@ cleanup:
 
 /**
  * mtk_snand_is_page_ops() - check if the op is a controller supported page op.
- * @op spi-mem op to check
+ * @op: spi-mem op to check
  *
  * Check whether op can be executed with read_from_cache or program_load
  * mode in the controller.

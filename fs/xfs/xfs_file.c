@@ -348,9 +348,82 @@ xfs_file_splice_read(
 }
 
 /*
+ * Take care of zeroing post-EOF blocks when they might exist.
+ *
+ * Returns 0 if successfully, a negative error for a failure, or 1 if this
+ * function dropped the iolock and reacquired it exclusively and the caller
+ * needs to restart the write sanity checks.
+ */
+static ssize_t
+xfs_file_write_zero_eof(
+	struct kiocb		*iocb,
+	struct iov_iter		*from,
+	unsigned int		*iolock,
+	size_t			count,
+	bool			*drained_dio)
+{
+	struct xfs_inode	*ip = XFS_I(iocb->ki_filp->f_mapping->host);
+	loff_t			isize;
+	int			error;
+
+	/*
+	 * We need to serialise against EOF updates that occur in IO completions
+	 * here. We want to make sure that nobody is changing the size while
+	 * we do this check until we have placed an IO barrier (i.e. hold
+	 * XFS_IOLOCK_EXCL) that prevents new IO from being dispatched.  The
+	 * spinlock effectively forms a memory barrier once we have
+	 * XFS_IOLOCK_EXCL so we are guaranteed to see the latest EOF value and
+	 * hence be able to correctly determine if we need to run zeroing.
+	 */
+	spin_lock(&ip->i_flags_lock);
+	isize = i_size_read(VFS_I(ip));
+	if (iocb->ki_pos <= isize) {
+		spin_unlock(&ip->i_flags_lock);
+		return 0;
+	}
+	spin_unlock(&ip->i_flags_lock);
+
+	if (iocb->ki_flags & IOCB_NOWAIT)
+		return -EAGAIN;
+
+	if (!*drained_dio) {
+		/*
+		 * If zeroing is needed and we are currently holding the iolock
+		 * shared, we need to update it to exclusive which implies
+		 * having to redo all checks before.
+		 */
+		if (*iolock == XFS_IOLOCK_SHARED) {
+			xfs_iunlock(ip, *iolock);
+			*iolock = XFS_IOLOCK_EXCL;
+			xfs_ilock(ip, *iolock);
+			iov_iter_reexpand(from, count);
+		}
+
+		/*
+		 * We now have an IO submission barrier in place, but AIO can do
+		 * EOF updates during IO completion and hence we now need to
+		 * wait for all of them to drain.  Non-AIO DIO will have drained
+		 * before we are given the XFS_IOLOCK_EXCL, and so for most
+		 * cases this wait is a no-op.
+		 */
+		inode_dio_wait(VFS_I(ip));
+		*drained_dio = true;
+		return 1;
+	}
+
+	trace_xfs_zero_eof(ip, isize, iocb->ki_pos - isize);
+
+	xfs_ilock(ip, XFS_MMAPLOCK_EXCL);
+	error = xfs_zero_range(ip, isize, iocb->ki_pos - isize, NULL);
+	xfs_iunlock(ip, XFS_MMAPLOCK_EXCL);
+
+	return error;
+}
+
+/*
  * Common pre-write limit and setup checks.
  *
- * Called with the iolocked held either shared and exclusive according to
+ * Called with the iolock held either shared and exclusive according to
  * @iolock, and returns with it held.  Might upgrade the iolock to exclusive
  * if called for a direct write beyond i_size.
  */
@@ -360,13 +433,10 @@ xfs_file_write_checks(
 	struct iov_iter		*from,
 	unsigned int		*iolock)
 {
-	struct file		*file = iocb->ki_filp;
-	struct inode		*inode = file->f_mapping->host;
-	struct xfs_inode	*ip = XFS_I(inode);
-	ssize_t			error = 0;
+	struct inode		*inode = iocb->ki_filp->f_mapping->host;
 	size_t			count = iov_iter_count(from);
 	bool			drained_dio = false;
-	loff_t			isize;
+	ssize_t			error;
 
 restart:
 	error = generic_write_checks(iocb, from);
@@ -389,7 +459,7 @@ restart:
 	 * exclusively.
 	 */
 	if (*iolock == XFS_IOLOCK_SHARED && !IS_NOSEC(inode)) {
-		xfs_iunlock(ip, *iolock);
+		xfs_iunlock(XFS_I(inode), *iolock);
 		*iolock = XFS_IOLOCK_EXCL;
 		error = xfs_ilock_iocb(iocb, *iolock);
 		if (error) {
@@ -400,64 +470,24 @@ restart:
 	}
 
 	/*
-	 * If the offset is beyond the size of the file, we need to zero any
+	 * If the offset is beyond the size of the file, we need to zero all
 	 * blocks that fall between the existing EOF and the start of this
-	 * write.  If zeroing is needed and we are currently holding the iolock
-	 * shared, we need to update it to exclusive which implies having to
-	 * redo all checks before.
+	 * write.
 	 *
-	 * We need to serialise against EOF updates that occur in IO completions
-	 * here. We want to make sure that nobody is changing the size while we
-	 * do this check until we have placed an IO barrier (i.e.  hold the
-	 * XFS_IOLOCK_EXCL) that prevents new IO from being dispatched.  The
-	 * spinlock effectively forms a memory barrier once we have the
-	 * XFS_IOLOCK_EXCL so we are guaranteed to see the latest EOF value and
-	 * hence be able to correctly determine if we need to run zeroing.
-	 *
-	 * We can do an unlocked check here safely as IO completion can only
-	 * extend EOF. Truncate is locked out at this point, so the EOF can
-	 * not move backwards, only forwards. Hence we only need to take the
-	 * slow path and spin locks when we are at or beyond the current EOF.
+	 * We can do an unlocked check for i_size here safely as I/O completion
+	 * can only extend EOF.  Truncate is locked out at this point, so the
+	 * EOF can not move backwards, only forwards. Hence we only need to take
+	 * the slow path when we are at or beyond the current EOF.
 	 */
-	if (iocb->ki_pos <= i_size_read(inode))
-		goto out;
-
-	spin_lock(&ip->i_flags_lock);
-	isize = i_size_read(inode);
-	if (iocb->ki_pos > isize) {
-		spin_unlock(&ip->i_flags_lock);
-
-		if (iocb->ki_flags & IOCB_NOWAIT)
-			return -EAGAIN;
-
-		if (!drained_dio) {
-			if (*iolock == XFS_IOLOCK_SHARED) {
-				xfs_iunlock(ip, *iolock);
-				*iolock = XFS_IOLOCK_EXCL;
-				xfs_ilock(ip, *iolock);
-				iov_iter_reexpand(from, count);
-			}
-			/*
-			 * We now have an IO submission barrier in place, but
-			 * AIO can do EOF updates during IO completion and hence
-			 * we now need to wait for all of them to drain. Non-AIO
-			 * DIO will have drained before we are given the
-			 * XFS_IOLOCK_EXCL, and so for most cases this wait is a
-			 * no-op.
-			 */
-			inode_dio_wait(inode);
-			drained_dio = true;
+	if (iocb->ki_pos > i_size_read(inode)) {
+		error = xfs_file_write_zero_eof(iocb, from, iolock, count,
+				&drained_dio);
+		if (error == 1)
 			goto restart;
-		}
-
-		trace_xfs_zero_eof(ip, isize, iocb->ki_pos - isize);
-		error = xfs_zero_range(ip, isize, iocb->ki_pos - isize, NULL);
 		if (error)
 			return error;
-	} else
-		spin_unlock(&ip->i_flags_lock);
+	}
 
-out:
 	return kiocb_modified(iocb);
 }
 

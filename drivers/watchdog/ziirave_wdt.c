@@ -20,7 +20,7 @@
 #include <linux/types.h>
 #include <linux/watchdog.h>
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #define ZIIRAVE_TIMEOUT_MIN	3
 #define ZIIRAVE_TIMEOUT_MAX	255

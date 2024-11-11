@@ -88,6 +88,7 @@ TARGETS += rlimits
 TARGETS += rseq
 TARGETS += rtc
 TARGETS += rust
+TARGETS += sched_ext
 TARGETS += seccomp
 TARGETS += sgx
 TARGETS += sigaltstack
@@ -129,10 +130,10 @@ ifeq ($(filter net/lib,$(TARGETS)),)
 endif
 endif
 
-# User can optionally provide a TARGETS skiplist.  By default we skip
-# BPF since it has cutting edge build time dependencies which require
-# more effort to install.
-SKIP_TARGETS ?= bpf
+# User can optionally provide a TARGETS skiplist. By default we skip
+# targets using BPF since it has cutting edge build time dependencies
+# which require more effort to install.
+SKIP_TARGETS ?= bpf sched_ext
 ifneq ($(SKIP_TARGETS),)
 	TMP := $(filter-out $(SKIP_TARGETS), $(TARGETS))
 	override TARGETS := $(TMP)

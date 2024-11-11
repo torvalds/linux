@@ -8,7 +8,7 @@
  */
 #include <linux/fs.h>
 #include <linux/slab.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include "glob.h"
 #include "unicode.h"
 #include "smb_common.h"

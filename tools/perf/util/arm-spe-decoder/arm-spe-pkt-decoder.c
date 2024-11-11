@@ -11,7 +11,7 @@
 #include <linux/bitops.h>
 #include <stdarg.h>
 #include <linux/kernel.h>
-#include <asm-generic/unaligned.h>
+#include <linux/unaligned.h>
 
 #include "arm-spe-pkt-decoder.h"
 

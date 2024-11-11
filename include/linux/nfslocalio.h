@@ -32,7 +32,8 @@ typedef struct {
 	struct auth_domain *dom; /* auth_domain for localio */
 } nfs_uuid_t;
 
-void nfs_uuid_begin(nfs_uuid_t *);
+void nfs_uuid_init(nfs_uuid_t *);
+bool nfs_uuid_begin(nfs_uuid_t *);
 void nfs_uuid_end(nfs_uuid_t *);
 void nfs_uuid_is_local(const uuid_t *, struct list_head *,
 		       struct net *, struct auth_domain *, struct module *);
@@ -65,8 +66,23 @@ struct nfsd_file *nfs_open_local_fh(nfs_uuid_t *,
 		   struct rpc_clnt *, const struct cred *,
 		   const struct nfs_fh *, const fmode_t);
 
+static inline void nfs_to_nfsd_file_put_local(struct nfsd_file *localio)
+{
+	/*
+	 * Once reference to nfsd_serv is dropped, NFSD could be
+	 * unloaded, so ensure safe return from nfsd_file_put_local()
+	 * by always taking RCU.
+	 */
+	rcu_read_lock();
+	nfs_to->nfsd_file_put_local(localio);
+	rcu_read_unlock();
+}
+
 #else   /* CONFIG_NFS_LOCALIO */
 static inline void nfsd_localio_ops_init(void)
+{
+}
+static inline void nfs_to_nfsd_file_put_local(struct nfsd_file *localio)
 {
 }
 #endif  /* CONFIG_NFS_LOCALIO */

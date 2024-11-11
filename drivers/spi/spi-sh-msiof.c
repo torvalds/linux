@@ -27,7 +27,7 @@
 #include <linux/spi/sh_msiof.h>
 #include <linux/spi/spi.h>
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #define SH_MSIOF_FLAG_FIXED_DTDL_200	BIT(0)
 

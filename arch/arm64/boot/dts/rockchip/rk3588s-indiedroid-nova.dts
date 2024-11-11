@@ -377,7 +377,6 @@
 		assigned-clock-rates = <12288000>;
 		assigned-clocks = <&cru I2S0_8CH_MCLKOUT>;
 		AVDD-supply = <&vcc_3v3_s3>;
-		clock-names = "mclk";
 		clocks = <&cru I2S0_8CH_MCLKOUT>;
 		DVDD-supply = <&vcc_1v8_s3>;
 		HPVDD-supply = <&vcc_3v3_s3>;

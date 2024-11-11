@@ -1113,7 +1113,7 @@ TRACE_EVENT(nfsd_file_acquire,
 	),
 
 	TP_fast_assign(
-		__entry->xid = be32_to_cpu(rqstp->rq_xid);
+		__entry->xid = rqstp ? be32_to_cpu(rqstp->rq_xid) : 0;
 		__entry->inode = inode;
 		__entry->may_flags = may_flags;
 		__entry->nf_ref = nf ? refcount_read(&nf->nf_ref) : 0;
@@ -1147,7 +1147,7 @@ TRACE_EVENT(nfsd_file_insert_err,
 		__field(long, error)
 	),
 	TP_fast_assign(
-		__entry->xid = be32_to_cpu(rqstp->rq_xid);
+		__entry->xid = rqstp ? be32_to_cpu(rqstp->rq_xid) : 0;
 		__entry->inode = inode;
 		__entry->may_flags = may_flags;
 		__entry->error = error;
@@ -1177,7 +1177,7 @@ TRACE_EVENT(nfsd_file_cons_err,
 		__field(const void *, nf_file)
 	),
 	TP_fast_assign(
-		__entry->xid = be32_to_cpu(rqstp->rq_xid);
+		__entry->xid = rqstp ? be32_to_cpu(rqstp->rq_xid) : 0;
 		__entry->inode = inode;
 		__entry->may_flags = may_flags;
 		__entry->nf_ref = refcount_read(&nf->nf_ref);

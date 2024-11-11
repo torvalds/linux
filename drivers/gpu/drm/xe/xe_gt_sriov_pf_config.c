@@ -387,6 +387,8 @@ static void pf_release_ggtt(struct xe_tile *tile, struct xe_ggtt_node *node)
 		 * the xe_ggtt_clear() called by below xe_ggtt_remove_node().
 		 */
 		xe_ggtt_node_remove(node, false);
+	} else {
+		xe_ggtt_node_fini(node);
 	}
 }
 
@@ -442,7 +444,7 @@ static int pf_provision_vf_ggtt(struct xe_gt *gt, unsigned int vfid, u64 size)
 	config->ggtt_region = node;
 	return 0;
 err:
-	xe_ggtt_node_fini(node);
+	pf_release_ggtt(tile, node);
 	return err;
 }
 

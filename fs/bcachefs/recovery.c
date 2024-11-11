@@ -94,11 +94,10 @@ static void bch2_reconstruct_alloc(struct bch_fs *c)
 	__set_bit_le64(BCH_FSCK_ERR_accounting_mismatch, ext->errors_silent);
 	c->sb.compat &= ~(1ULL << BCH_COMPAT_alloc_info);
 
-	bch2_write_super(c);
-	mutex_unlock(&c->sb_lock);
-
 	c->opts.recovery_passes |= bch2_recovery_passes_from_stable(le64_to_cpu(ext->recovery_passes_required[0]));
 
+	bch2_write_super(c);
+	mutex_unlock(&c->sb_lock);
 
 	bch2_shoot_down_journal_keys(c, BTREE_ID_alloc,
 				     0, BTREE_MAX_DEPTH, POS_MIN, SPOS_MAX);
@@ -287,7 +286,8 @@ int bch2_journal_replay(struct bch_fs *c)
 				BCH_TRANS_COMMIT_no_enospc|
 				BCH_TRANS_COMMIT_journal_reclaim|
 				BCH_TRANS_COMMIT_skip_accounting_apply|
-				BCH_TRANS_COMMIT_no_journal_res,
+				BCH_TRANS_COMMIT_no_journal_res|
+				BCH_WATERMARK_reclaim,
 			     bch2_journal_replay_accounting_key(trans, k));
 		if (bch2_fs_fatal_err_on(ret, c, "error replaying accounting; %s", bch2_err_str(ret)))
 			goto err;
@@ -862,6 +862,13 @@ use_clean:
 	if (ret)
 		goto err;
 
+	/*
+	 * Normally set by the appropriate recovery pass: when cleared, this
+	 * indicates we're in early recovery and btree updates should be done by
+	 * being applied to the journal replay keys. _Must_ be cleared before
+	 * multithreaded use:
+	 */
+	set_bit(BCH_FS_may_go_rw, &c->flags);
 	clear_bit(BCH_FS_fsck_running, &c->flags);
 
 	/* in case we don't run journal replay, i.e. norecovery mode */
@@ -1001,6 +1008,7 @@ int bch2_fs_initialize(struct bch_fs *c)
 	struct bch_inode_unpacked root_inode, lostfound_inode;
 	struct bkey_inode_buf packed_inode;
 	struct qstr lostfound = QSTR("lost+found");
+	struct bch_member *m;
 	int ret;
 
 	bch_notice(c, "initializing new filesystem");
@@ -1017,6 +1025,14 @@ int bch2_fs_initialize(struct bch_fs *c)
 		SET_BCH_SB_VERSION_UPGRADE_COMPLETE(c->disk_sb.sb, bcachefs_metadata_version_current);
 		bch2_write_super(c);
 	}
+
+	for_each_member_device(c, ca) {
+		m = bch2_members_v2_get_mut(c->disk_sb.sb, ca->dev_idx);
+		SET_BCH_MEMBER_FREESPACE_INITIALIZED(m, false);
+		ca->mi = bch2_mi_to_cpu(m);
+	}
+
+	bch2_write_super(c);
 	mutex_unlock(&c->sb_lock);
 
 	c->curr_recovery_pass = BCH_RECOVERY_PASS_NR;
@@ -1090,7 +1106,7 @@ int bch2_fs_initialize(struct bch_fs *c)
 
 	bch2_inode_init_early(c, &lostfound_inode);
 
-	ret = bch2_trans_do(c, NULL, NULL, 0,
+	ret = bch2_trans_commit_do(c, NULL, NULL, 0,
 		bch2_create_trans(trans,
 				  BCACHEFS_ROOT_SUBVOL_INUM,
 				  &root_inode, &lostfound_inode,

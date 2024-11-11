@@ -20,7 +20,7 @@
 #include <sound/soc.h>
 #include <sound/tlv.h>
 #include <sound/tas2781.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #define ERROR_PRAM_CRCCHK			0x0000000
 #define ERROR_YRAM_CRCCHK			0x0000001
@@ -1992,6 +1992,7 @@ static int tasdevice_dspfw_ready(const struct firmware *fmw,
 		break;
 	case 0x202:
 	case 0x400:
+	case 0x401:
 		tas_priv->fw_parse_variable_header =
 			fw_parse_variable_header_git;
 		tas_priv->fw_parse_program_data =

@@ -25,7 +25,7 @@
 #include <linux/slab.h>
 #include <linux/kernel.h>
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include "usbatm.h"
 

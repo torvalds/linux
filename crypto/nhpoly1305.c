@@ -30,7 +30,7 @@
  *     (https://cr.yp.to/mac/poly1305-20050329.pdf)
  */
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <crypto/algapi.h>
 #include <crypto/internal/hash.h>
 #include <crypto/internal/poly1305.h>

@@ -11,10 +11,6 @@
 void topology_normalize_cpu_scale(void);
 int topology_update_cpu_topology(void);
 
-#ifdef CONFIG_ACPI_CPPC_LIB
-void topology_init_cpu_capacity_cppc(void);
-#endif
-
 struct device_node;
 bool topology_parse_cpu_capacity(struct device_node *cpu_node, int cpu);
 

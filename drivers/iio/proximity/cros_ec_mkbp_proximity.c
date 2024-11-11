@@ -21,7 +21,7 @@
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 struct cros_ec_mkbp_proximity_data {
 	struct cros_ec_device *ec;
