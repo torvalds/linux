@@ -5703,8 +5703,6 @@ static int ath11k_dp_rx_pdev_mon_status_attach(struct ath11k *ar)
 	struct ath11k_pdev_dp *dp = &ar->dp;
 	struct ath11k_mon_data *pmon = (struct ath11k_mon_data *)&dp->mon_data;
 
-	skb_queue_head_init(&pmon->rx_status_q);
-
 	pmon->mon_ppdu_status = DP_PPDU_STATUS_START;
 
 	memset(&pmon->rx_mon_stats, 0,
