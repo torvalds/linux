@@ -2496,6 +2496,7 @@ static u8 intel_dbuf_enabled_slices(const struct intel_dbuf_state *dbuf_state)
 static int
 skl_compute_ddb(struct intel_atomic_state *state)
 {
+	struct intel_display *display = to_intel_display(state);
 	struct drm_i915_private *i915 = to_i915(state->base.dev);
 	const struct intel_dbuf_state *old_dbuf_state;
 	struct intel_dbuf_state *new_dbuf_state = NULL;
@@ -2524,7 +2525,7 @@ skl_compute_ddb(struct intel_atomic_state *state)
 			return ret;
 	}
 
-	if (HAS_MBUS_JOINING(i915)) {
+	if (HAS_MBUS_JOINING(display)) {
 		new_dbuf_state->joined_mbus =
 			adlp_check_mbus_joined(new_dbuf_state->active_pipes);
 
@@ -2984,7 +2985,7 @@ static void skl_wm_get_hw_state(struct drm_i915_private *i915)
 		to_intel_dbuf_state(i915->display.dbuf.obj.state);
 	struct intel_crtc *crtc;
 
-	if (HAS_MBUS_JOINING(i915))
+	if (HAS_MBUS_JOINING(display))
 		dbuf_state->joined_mbus = intel_de_read(i915, MBUS_CTL) & MBUS_JOIN;
 
 	dbuf_state->mdclk_cdclk_ratio = intel_mdclk_cdclk_ratio(display, &display->cdclk.hw);
@@ -3364,23 +3365,24 @@ int intel_dbuf_state_set_mdclk_cdclk_ratio(struct intel_atomic_state *state,
 void intel_dbuf_mdclk_cdclk_ratio_update(struct drm_i915_private *i915,
 					 int ratio, bool joined_mbus)
 {
+	struct intel_display *display = &i915->display;
 	enum dbuf_slice slice;
 
-	if (!HAS_MBUS_JOINING(i915))
+	if (!HAS_MBUS_JOINING(display))
 		return;
 
-	if (DISPLAY_VER(i915) >= 20)
-		intel_de_rmw(i915, MBUS_CTL, MBUS_TRANSLATION_THROTTLE_MIN_MASK,
+	if (DISPLAY_VER(display) >= 20)
+		intel_de_rmw(display, MBUS_CTL, MBUS_TRANSLATION_THROTTLE_MIN_MASK,
 			     MBUS_TRANSLATION_THROTTLE_MIN(ratio - 1));
 
 	if (joined_mbus)
 		ratio *= 2;
 
-	drm_dbg_kms(&i915->drm, "Updating dbuf ratio to %d (mbus joined: %s)\n",
+	drm_dbg_kms(display->drm, "Updating dbuf ratio to %d (mbus joined: %s)\n",
 		    ratio, str_yes_no(joined_mbus));
 
-	for_each_dbuf_slice(i915, slice)
-		intel_de_rmw(i915, DBUF_CTL_S(slice),
+	for_each_dbuf_slice(display, slice)
+		intel_de_rmw(display, DBUF_CTL_S(slice),
 			     DBUF_MIN_TRACKER_STATE_SERVICE_MASK,
 			     DBUF_MIN_TRACKER_STATE_SERVICE(ratio - 1));
 }
@@ -3569,17 +3571,18 @@ void intel_dbuf_post_plane_update(struct intel_atomic_state *state)
 
 static void skl_mbus_sanitize(struct drm_i915_private *i915)
 {
+	struct intel_display *display = &i915->display;
 	struct intel_dbuf_state *dbuf_state =
-		to_intel_dbuf_state(i915->display.dbuf.obj.state);
+		to_intel_dbuf_state(display->dbuf.obj.state);
 
-	if (!HAS_MBUS_JOINING(i915))
+	if (!HAS_MBUS_JOINING(display))
 		return;
 
 	if (!dbuf_state->joined_mbus ||
 	    adlp_check_mbus_joined(dbuf_state->active_pipes))
 		return;
 
-	drm_dbg_kms(&i915->drm, "Disabling redundant MBUS joining (active pipes 0x%x)\n",
+	drm_dbg_kms(display->drm, "Disabling redundant MBUS joining (active pipes 0x%x)\n",
 		    dbuf_state->active_pipes);
 
 	dbuf_state->joined_mbus = false;
