@@ -1011,6 +1011,7 @@ static const enum intel_step dg1_steppings[] = {
 
 static const struct platform_desc dg1_desc = {
 	PLATFORM(dg1),
+	PLATFORM_GROUP(dgfx),
 	.info = &(const struct intel_display_device_info) {
 		XE_D_DISPLAY,
 
@@ -1238,6 +1239,7 @@ static const enum intel_step dg2_g12_steppings[] = {
 
 static const struct platform_desc dg2_desc = {
 	PLATFORM(dg2),
+	PLATFORM_GROUP(dgfx),
 	.subplatforms = (const struct subplatform_desc[]) {
 		{
 			SUBPLATFORM(dg2, g10),
@@ -1338,6 +1340,7 @@ static const struct platform_desc lnl_desc = {
 
 static const struct platform_desc bmg_desc = {
 	PLATFORM(battlemage),
+	PLATFORM_GROUP(dgfx),
 };
 
 static const struct platform_desc ptl_desc = {
@@ -1636,9 +1639,10 @@ void intel_display_device_probe(struct drm_i915_private *i915)
 
 	DISPLAY_RUNTIME_INFO(i915)->step = step;
 
-	drm_info(&i915->drm, "Found %s%s%s (device ID %04x) display version %u.%02u stepping %s\n",
+	drm_info(&i915->drm, "Found %s%s%s (device ID %04x) %s display version %u.%02u stepping %s\n",
 		 desc->name, subdesc ? "/" : "", subdesc ? subdesc->name : "",
-		 pdev->device, DISPLAY_RUNTIME_INFO(i915)->ip.ver,
+		 pdev->device, display->platform.dgfx ? "discrete" : "integrated",
+		 DISPLAY_RUNTIME_INFO(i915)->ip.ver,
 		 DISPLAY_RUNTIME_INFO(i915)->ip.rel,
 		 step != STEP_NONE ? intel_step_name(step) : "N/A");
 
