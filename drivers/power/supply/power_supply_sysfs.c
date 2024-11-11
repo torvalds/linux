@@ -268,9 +268,11 @@ static ssize_t power_supply_show_enum_with_available(
 	return count;
 }
 
-static ssize_t power_supply_show_property(struct device *dev,
-					  struct device_attribute *attr,
-					  char *buf) {
+static ssize_t power_supply_format_property(struct device *dev,
+					    bool uevent,
+					    struct device_attribute *attr,
+					    char *buf)
+{
 	ssize_t ret;
 	struct power_supply *psy = dev_get_drvdata(dev);
 	const struct power_supply_attr *ps_attr = to_ps_attr(attr);
@@ -303,6 +305,8 @@ static ssize_t power_supply_show_property(struct device *dev,
 				psy->desc->usb_types, value.intval, buf);
 		break;
 	case POWER_SUPPLY_PROP_CHARGE_BEHAVIOUR:
+		if (uevent) /* no possible values in uevents */
+			goto default_format;
 		ret = power_supply_charge_behaviour_show(dev, psy->desc->charge_behaviours,
 							 value.intval, buf);
 		break;
@@ -310,6 +314,7 @@ static ssize_t power_supply_show_property(struct device *dev,
 		ret = sysfs_emit(buf, "%s\n", value.strval);
 		break;
 	default:
+default_format:
 		if (ps_attr->text_values_len > 0 &&
 				value.intval < ps_attr->text_values_len && value.intval >= 0) {
 			ret = sysfs_emit(buf, "%s\n", ps_attr->text_values[value.intval]);
@@ -319,6 +324,13 @@ static ssize_t power_supply_show_property(struct device *dev,
 	}
 
 	return ret;
+}
+
+static ssize_t power_supply_show_property(struct device *dev,
+					  struct device_attribute *attr,
+					  char *buf)
+{
+	return power_supply_format_property(dev, false, attr, buf);
 }
 
 static ssize_t power_supply_store_property(struct device *dev,
@@ -437,7 +449,7 @@ static int add_prop_uevent(const struct device *dev, struct kobj_uevent_env *env
 	pwr_attr = &power_supply_attrs[prop];
 	dev_attr = &pwr_attr->dev_attr;
 
-	ret = power_supply_show_property((struct device *)dev, dev_attr, prop_buf);
+	ret = power_supply_format_property((struct device *)dev, true, dev_attr, prop_buf);
 	if (ret == -ENODEV || ret == -ENODATA) {
 		/*
 		 * When a battery is absent, we expect -ENODEV. Don't abort;
