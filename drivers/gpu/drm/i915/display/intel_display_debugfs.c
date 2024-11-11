@@ -1331,7 +1331,7 @@ static ssize_t i915_joiner_write(struct file *file,
 {
 	struct seq_file *m = file->private_data;
 	struct intel_connector *connector = m->private;
-	struct drm_i915_private *i915 = to_i915(connector->base.dev);
+	struct intel_display *display = to_intel_display(connector);
 	int force_joined_pipes = 0;
 	int ret;
 
@@ -1349,7 +1349,7 @@ static ssize_t i915_joiner_write(struct file *file,
 		connector->force_joined_pipes = force_joined_pipes;
 		break;
 	case 4:
-		if (HAS_ULTRAJOINER(i915)) {
+		if (HAS_ULTRAJOINER(display)) {
 			connector->force_joined_pipes = force_joined_pipes;
 			break;
 		}

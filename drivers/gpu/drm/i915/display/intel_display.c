@@ -3746,12 +3746,13 @@ static u8 fixup_ultrajoiner_secondary_pipes(u8 ultrajoiner_primary_pipes,
 static void enabled_ultrajoiner_pipes(struct drm_i915_private *i915,
 				      u8 *primary_pipes, u8 *secondary_pipes)
 {
+	struct intel_display *display = &i915->display;
 	struct intel_crtc *crtc;
 
 	*primary_pipes = 0;
 	*secondary_pipes = 0;
 
-	if (!HAS_ULTRAJOINER(i915))
+	if (!HAS_ULTRAJOINER(display))
 		return;
 
 	for_each_intel_crtc_in_pipe_mask(&i915->drm, crtc,
@@ -8310,11 +8311,12 @@ void intel_setup_outputs(struct drm_i915_private *dev_priv)
 
 static int max_dotclock(struct drm_i915_private *i915)
 {
-	int max_dotclock = i915->display.cdclk.max_dotclk_freq;
+	struct intel_display *display = &i915->display;
+	int max_dotclock = display->cdclk.max_dotclk_freq;
 
-	if (HAS_ULTRAJOINER(i915))
+	if (HAS_ULTRAJOINER(display))
 		max_dotclock *= 4;
-	else if (HAS_UNCOMPRESSED_JOINER(i915) || HAS_BIGJOINER(i915))
+	else if (HAS_UNCOMPRESSED_JOINER(display) || HAS_BIGJOINER(display))
 		max_dotclock *= 2;
 
 	return max_dotclock;

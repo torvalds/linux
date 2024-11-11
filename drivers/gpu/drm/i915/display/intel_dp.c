@@ -1352,16 +1352,15 @@ int intel_dp_num_joined_pipes(struct intel_dp *intel_dp,
 			      int hdisplay, int clock)
 {
 	struct intel_display *display = to_intel_display(intel_dp);
-	struct drm_i915_private *i915 = to_i915(display->drm);
 
 	if (connector->force_joined_pipes)
 		return connector->force_joined_pipes;
 
-	if (HAS_ULTRAJOINER(i915) &&
+	if (HAS_ULTRAJOINER(display) &&
 	    intel_dp_needs_joiner(intel_dp, connector, hdisplay, clock, 4))
 		return 4;
 
-	if ((HAS_BIGJOINER(i915) || HAS_UNCOMPRESSED_JOINER(i915)) &&
+	if ((HAS_BIGJOINER(display) || HAS_UNCOMPRESSED_JOINER(display)) &&
 	    intel_dp_needs_joiner(intel_dp, connector, hdisplay, clock, 2))
 		return 2;
 
