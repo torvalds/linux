@@ -42,12 +42,15 @@ struct omnia_led {
  * @client:			I2C client device
  * @lock:			mutex to protect cached state
  * @has_gamma_correction:	whether the MCU firmware supports gamma correction
+ * @brightness_knode:		kernel node of the "brightness" device sysfs attribute (this is the
+ *				driver specific global brightness, not the LED classdev brightness)
  * @leds:			flexible array of per-LED data
  */
 struct omnia_leds {
 	struct i2c_client *client;
 	struct mutex lock;
 	bool has_gamma_correction;
+	struct kernfs_node *brightness_knode;
 	struct omnia_led leds[];
 };
 
@@ -372,6 +375,59 @@ static struct attribute *omnia_led_controller_attrs[] = {
 };
 ATTRIBUTE_GROUPS(omnia_led_controller);
 
+static irqreturn_t omnia_brightness_changed_threaded_fn(int irq, void *data)
+{
+	struct omnia_leds *leds = data;
+
+	if (unlikely(!leds->brightness_knode)) {
+		/*
+		 * Note that sysfs_get_dirent() may sleep. This is okay, because we are in threaded
+		 * context.
+		 */
+		leds->brightness_knode = sysfs_get_dirent(leds->client->dev.kobj.sd, "brightness");
+		if (!leds->brightness_knode)
+			return IRQ_NONE;
+	}
+
+	sysfs_notify_dirent(leds->brightness_knode);
+
+	return IRQ_HANDLED;
+}
+
+static void omnia_brightness_knode_put(void *data)
+{
+	struct omnia_leds *leds = data;
+
+	if (leds->brightness_knode)
+		sysfs_put(leds->brightness_knode);
+}
+
+static int omnia_request_brightness_irq(struct omnia_leds *leds)
+{
+	struct device *dev = &leds->client->dev;
+	int ret;
+
+	if (!leds->client->irq) {
+		dev_info(dev,
+			 "Brightness change interrupt supported by MCU firmware but not described in device-tree\n");
+
+		return 0;
+	}
+
+	/*
+	 * Registering the brightness_knode destructor before requesting the IRQ ensures that on
+	 * removal the brightness_knode sysfs node is put only after the IRQ is freed.
+	 * This is needed because the interrupt handler uses the knode.
+	 */
+	ret = devm_add_action(dev, omnia_brightness_knode_put, leds);
+	if (ret < 0)
+		return ret;
+
+	return devm_request_threaded_irq(dev, leds->client->irq, NULL,
+					 omnia_brightness_changed_threaded_fn, IRQF_ONESHOT,
+					 "leds-turris-omnia", leds);
+}
+
 static int omnia_mcu_get_features(const struct i2c_client *mcu_client)
 {
 	u16 reply;
@@ -456,6 +512,12 @@ static int omnia_leds_probe(struct i2c_client *client)
 			 "Your board's MCU firmware does not support the LED gamma correction feature.\n");
 		dev_info(dev,
 			 "Consider upgrading MCU firmware with the omnia-mcutool utility.\n");
+	}
+
+	if (ret & OMNIA_FEAT_BRIGHTNESS_INT) {
+		ret = omnia_request_brightness_irq(leds);
+		if (ret < 0)
+			return dev_err_probe(dev, ret, "Cannot request brightness IRQ\n");
 	}
 
 	mutex_init(&leds->lock);
