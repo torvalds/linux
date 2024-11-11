@@ -492,13 +492,14 @@ static void display_device_remove(struct drm_device *dev, void *arg)
 
 int xe_display_probe(struct xe_device *xe)
 {
-	struct intel_display *display = &xe->display;
+	struct pci_dev *pdev = to_pci_dev(xe->drm.dev);
+	struct intel_display *display;
 	int err;
 
 	if (!xe->info.probe_display)
 		goto no_display;
 
-	intel_display_device_probe(xe);
+	display = intel_display_device_probe(pdev);
 
 	err = drmm_add_action_or_reset(&xe->drm, display_device_remove, display);
 	if (err)

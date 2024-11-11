@@ -16,6 +16,7 @@
 #include "intel_display_params.h"
 #include "intel_display_power.h"
 #include "intel_display_reg_defs.h"
+#include "intel_display_types.h"
 #include "intel_fbc.h"
 #include "intel_step.h"
 
@@ -1569,10 +1570,9 @@ static void display_platforms_or(struct intel_display_platforms *dst,
 	bitmap_or(dst->bitmap, dst->bitmap, src->bitmap, display_platforms_num_bits());
 }
 
-void intel_display_device_probe(struct drm_i915_private *i915)
+struct intel_display *intel_display_device_probe(struct pci_dev *pdev)
 {
-	struct intel_display *display = &i915->display;
-	struct pci_dev *pdev = to_pci_dev(i915->drm.dev);
+	struct intel_display *display = to_intel_display(pdev);
 	const struct intel_display_device_info *info;
 	struct intel_display_ip_ver ip_ver = {};
 	const struct platform_desc *desc;
@@ -1649,10 +1649,12 @@ void intel_display_device_probe(struct drm_i915_private *i915)
 		 DISPLAY_RUNTIME_INFO(display)->ip.rel,
 		 step != STEP_NONE ? intel_step_name(step) : "N/A");
 
-	return;
+	return display;
 
 no_display:
 	DISPLAY_INFO(display) = &no_display;
+
+	return display;
 }
 
 void intel_display_device_remove(struct intel_display *display)

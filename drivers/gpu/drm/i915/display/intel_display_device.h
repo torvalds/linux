@@ -12,9 +12,9 @@
 #include "intel_display_conversion.h"
 #include "intel_display_limits.h"
 
-struct drm_i915_private;
 struct drm_printer;
 struct intel_display;
+struct pci_dev;
 
 /*
  * Display platforms and subplatforms. Keep platforms in display version based
@@ -290,7 +290,7 @@ struct intel_display_device_info {
 };
 
 bool intel_display_device_enabled(struct intel_display *display);
-void intel_display_device_probe(struct drm_i915_private *i915);
+struct intel_display *intel_display_device_probe(struct pci_dev *pdev);
 void intel_display_device_remove(struct intel_display *display);
 void intel_display_device_info_runtime_init(struct intel_display *display);
 
