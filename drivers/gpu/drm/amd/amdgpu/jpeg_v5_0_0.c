@@ -31,7 +31,7 @@
 
 #include "vcn/vcn_5_0_0_offset.h"
 #include "vcn/vcn_5_0_0_sh_mask.h"
-#include "ivsrcid/vcn/irqsrcs_vcn_4_0.h"
+#include "ivsrcid/vcn/irqsrcs_vcn_5_0.h"
 #include "jpeg_v5_0_0.h"
 
 static void jpeg_v5_0_0_set_dec_ring_funcs(struct amdgpu_device *adev);
@@ -74,7 +74,7 @@ static int jpeg_v5_0_0_sw_init(struct amdgpu_ip_block *ip_block)
 
 	/* JPEG TRAP */
 	r = amdgpu_irq_add_id(adev, SOC15_IH_CLIENTID_VCN,
-		VCN_4_0__SRCID__JPEG_DECODE, &adev->jpeg.inst->irq);
+		VCN_5_0__SRCID__JPEG_DECODE, &adev->jpeg.inst->irq);
 	if (r)
 		return r;
 
@@ -612,7 +612,7 @@ static int jpeg_v5_0_0_process_interrupt(struct amdgpu_device *adev,
 	DRM_DEBUG("IH: JPEG TRAP\n");
 
 	switch (entry->src_id) {
-	case VCN_4_0__SRCID__JPEG_DECODE:
+	case VCN_5_0__SRCID__JPEG_DECODE:
 		amdgpu_fence_process(adev->jpeg.inst->ring_dec);
 		break;
 	default:
