@@ -9,6 +9,9 @@ def define_abl_dist(target, msm_target, variant):
     """
     if msm_target == "autogvm":
         return
+    if msm_target == "mdm9607":
+        return
+
     native.alias(
         name = "{}_abl".format(target),
         actual = "//bootable/bootloader/edk2:{}_abl".format(target),
