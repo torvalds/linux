@@ -1196,6 +1196,18 @@ static bool psy_desc_has_property(const struct power_supply_desc *psy_desc,
 	return found;
 }
 
+bool power_supply_has_property(struct power_supply *psy,
+			       enum power_supply_property psp)
+{
+	if (psy_desc_has_property(psy->desc, psp))
+		return true;
+
+	if (power_supply_battery_info_has_prop(psy->battery_info, psp))
+		return true;
+
+	return false;
+}
+
 int power_supply_get_property(struct power_supply *psy,
 			    enum power_supply_property psp,
 			    union power_supply_propval *val)
