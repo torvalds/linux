@@ -2539,13 +2539,14 @@ static bool tgl_plane_has_mc_ccs(struct drm_i915_private *i915,
 static u8 skl_get_plane_caps(struct drm_i915_private *i915,
 			     enum pipe pipe, enum plane_id plane_id)
 {
+	struct intel_display *display = &i915->display;
 	u8 caps = INTEL_PLANE_CAP_TILING_X;
 
-	if (DISPLAY_VER(i915) < 13 || IS_ALDERLAKE_P(i915))
+	if (DISPLAY_VER(display) < 13 || display->platform.alderlake_p)
 		caps |= INTEL_PLANE_CAP_TILING_Y;
-	if (DISPLAY_VER(i915) < 12)
+	if (DISPLAY_VER(display) < 12)
 		caps |= INTEL_PLANE_CAP_TILING_Yf;
-	if (HAS_4TILE(i915))
+	if (HAS_4TILE(display))
 		caps |= INTEL_PLANE_CAP_TILING_4;
 
 	if (!IS_ENABLED(I915) && !HAS_FLAT_CCS(i915))
@@ -2553,14 +2554,14 @@ static u8 skl_get_plane_caps(struct drm_i915_private *i915,
 
 	if (skl_plane_has_rc_ccs(i915, pipe, plane_id)) {
 		caps |= INTEL_PLANE_CAP_CCS_RC;
-		if (DISPLAY_VER(i915) >= 12)
+		if (DISPLAY_VER(display) >= 12)
 			caps |= INTEL_PLANE_CAP_CCS_RC_CC;
 	}
 
 	if (tgl_plane_has_mc_ccs(i915, plane_id))
 		caps |= INTEL_PLANE_CAP_CCS_MC;
 
-	if (DISPLAY_VER(i915) >= 14 && IS_DGFX(i915))
+	if (DISPLAY_VER(display) >= 14 && display->platform.dgfx)
 		caps |= INTEL_PLANE_CAP_NEED64K_PHYS;
 
 	return caps;
@@ -2734,6 +2735,7 @@ void
 skl_get_initial_plane_config(struct intel_crtc *crtc,
 			     struct intel_initial_plane_config *plane_config)
 {
+	struct intel_display *display = to_intel_display(crtc);
 	struct intel_crtc_state *crtc_state = to_intel_crtc_state(crtc->base.state);
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
@@ -2815,7 +2817,7 @@ skl_get_initial_plane_config(struct intel_crtc *crtc,
 			fb->modifier = I915_FORMAT_MOD_Y_TILED;
 		break;
 	case PLANE_CTL_TILED_YF: /* aka PLANE_CTL_TILED_4 on XE_LPD+ */
-		if (HAS_4TILE(dev_priv)) {
+		if (HAS_4TILE(display)) {
 			u32 rc_mask = PLANE_CTL_RENDER_DECOMPRESSION_ENABLE |
 				      PLANE_CTL_CLEAR_COLOR_DISABLE;
 
