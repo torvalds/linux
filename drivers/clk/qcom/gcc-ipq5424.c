@@ -494,11 +494,6 @@ static struct clk_rcg2 gcc_pcie_aux_clk_src = {
 	},
 };
 
-static const struct freq_tbl ftbl_gcc_qupv3_2x_core_clk_src[] = {
-	F(200000000, P_GPLL0_OUT_MAIN, 4, 0, 0),
-	{ }
-};
-
 static const struct freq_tbl ftbl_gcc_qupv3_i2c0_clk_src[] = {
 	F(4800000, P_XO, 5, 0, 0),
 	F(9600000, P_XO, 2.5, 0, 0),
@@ -954,13 +949,6 @@ static struct clk_rcg2 gcc_qpic_io_macro_clk_src = {
 	},
 };
 
-static const struct freq_tbl ftbl_gcc_qpic_clk_src[] = {
-	F(24000000, P_XO, 1, 0, 0),
-	F(100000000, P_GPLL0_OUT_MAIN, 8, 0, 0),
-	F(200000000, P_GPLL0_OUT_MAIN, 4, 0, 0),
-	{ }
-};
-
 static struct clk_rcg2 gcc_qpic_clk_src = {
 	.cmd_rcgr = 0x32020,
 	.mnd_width = 0,
@@ -1059,12 +1047,6 @@ static struct clk_regmap_div gcc_qupv3_i2c1_div_clk_src = {
 		.flags = CLK_SET_RATE_PARENT,
 		.ops = &clk_regmap_div_ro_ops,
 	},
-};
-
-static const struct freq_tbl ftbl_gcc_q6_axi_clk_src[] = {
-	F(480000000, P_GPLL4_OUT_AUX, 2.5, 0, 0),
-	F(533333333, P_GPLL0_OUT_MAIN, 1.5, 0, 0),
-	{ }
 };
 
 static struct clk_regmap_div gcc_usb0_mock_utmi_div_clk_src = {
