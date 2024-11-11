@@ -22,6 +22,7 @@
 #include "libbpf_internal.h"
 #include "hashmap.h"
 #include "strset.h"
+#include "str_error.h"
 
 #define BTF_MAX_NR_TYPES 0x7fffffffU
 #define BTF_MAX_STR_OFFSET 0x7fffffffU
@@ -1179,7 +1180,7 @@ static struct btf *btf_parse_elf(const char *path, struct btf *base_btf,
 	fd = open(path, O_RDONLY | O_CLOEXEC);
 	if (fd < 0) {
 		err = -errno;
-		pr_warn("failed to open %s: %s\n", path, strerror(errno));
+		pr_warn("failed to open %s: %s\n", path, errstr(err));
 		return ERR_PTR(err);
 	}
 
@@ -1445,7 +1446,7 @@ retry_load:
 			goto retry_load;
 
 		err = -errno;
-		pr_warn("BTF loading error: %d\n", err);
+		pr_warn("BTF loading error: %s\n", errstr(err));
 		/* don't print out contents of custom log_buf */
 		if (!log_buf && buf[0])
 			pr_warn("-- BEGIN BTF LOAD LOG ---\n%s\n-- END BTF LOAD LOG --\n", buf);
@@ -3464,42 +3465,42 @@ int btf__dedup(struct btf *btf, const struct btf_dedup_opts *opts)
 
 	err = btf_dedup_prep(d);
 	if (err) {
-		pr_debug("btf_dedup_prep failed:%d\n", err);
+		pr_debug("btf_dedup_prep failed: %s\n", errstr(err));
 		goto done;
 	}
 	err = btf_dedup_strings(d);
 	if (err < 0) {
-		pr_debug("btf_dedup_strings failed:%d\n", err);
+		pr_debug("btf_dedup_strings failed: %s\n", errstr(err));
 		goto done;
 	}
 	err = btf_dedup_prim_types(d);
 	if (err < 0) {
-		pr_debug("btf_dedup_prim_types failed:%d\n", err);
+		pr_debug("btf_dedup_prim_types failed: %s\n", errstr(err));
 		goto done;
 	}
 	err = btf_dedup_struct_types(d);
 	if (err < 0) {
-		pr_debug("btf_dedup_struct_types failed:%d\n", err);
+		pr_debug("btf_dedup_struct_types failed: %s\n", errstr(err));
 		goto done;
 	}
 	err = btf_dedup_resolve_fwds(d);
 	if (err < 0) {
-		pr_debug("btf_dedup_resolve_fwds failed:%d\n", err);
+		pr_debug("btf_dedup_resolve_fwds failed: %s\n", errstr(err));
 		goto done;
 	}
 	err = btf_dedup_ref_types(d);
 	if (err < 0) {
-		pr_debug("btf_dedup_ref_types failed:%d\n", err);
+		pr_debug("btf_dedup_ref_types failed: %s\n", errstr(err));
 		goto done;
 	}
 	err = btf_dedup_compact_types(d);
 	if (err < 0) {
-		pr_debug("btf_dedup_compact_types failed:%d\n", err);
+		pr_debug("btf_dedup_compact_types failed: %s\n", errstr(err));
 		goto done;
 	}
 	err = btf_dedup_remap_types(d);
 	if (err < 0) {
-		pr_debug("btf_dedup_remap_types failed:%d\n", err);
+		pr_debug("btf_dedup_remap_types failed: %s\n", errstr(err));
 		goto done;
 	}
 
@@ -5218,7 +5219,8 @@ struct btf *btf__load_vmlinux_btf(void)
 		btf = btf__parse(sysfs_btf_path, NULL);
 		if (!btf) {
 			err = -errno;
-			pr_warn("failed to read kernel BTF from '%s': %d\n", sysfs_btf_path, err);
+			pr_warn("failed to read kernel BTF from '%s': %s\n",
+				sysfs_btf_path, errstr(err));
 			return libbpf_err_ptr(err);
 		}
 		pr_debug("loaded kernel BTF from '%s'\n", sysfs_btf_path);
@@ -5235,7 +5237,7 @@ struct btf *btf__load_vmlinux_btf(void)
 
 		btf = btf__parse(path, NULL);
 		err = libbpf_get_error(btf);
-		pr_debug("loading kernel BTF '%s': %d\n", path, err);
+		pr_debug("loading kernel BTF '%s': %s\n", path, errstr(err));
 		if (err)
 			continue;
 
