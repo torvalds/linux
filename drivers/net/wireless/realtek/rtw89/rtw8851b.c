@@ -282,7 +282,7 @@ static int rtw8851b_pwr_on_func(struct rtw89_dev *rtwdev)
 {
 	u32 val32;
 	u8 val8;
-	u32 ret;
+	int ret;
 
 	rtw89_write32_clr(rtwdev, R_AX_SYS_PW_CTRL, B_AX_AFSM_WLSUS_EN |
 						    B_AX_AFSM_PCIE_SUS_EN);
@@ -401,7 +401,7 @@ static void rtw8851b_patch_swr_pfm2pwm(struct rtw89_dev *rtwdev)
 static int rtw8851b_pwr_off_func(struct rtw89_dev *rtwdev)
 {
 	u32 val32;
-	u32 ret;
+	int ret;
 
 	ret = rtw89_mac_write_xtal_si(rtwdev, XTAL_SI_ANAPAR_WL, XTAL_SI_RFC2RF,
 				      XTAL_SI_RFC2RF);
@@ -2454,6 +2454,7 @@ const struct rtw89_chip_info rtw8851b_chip_info = {
 	.wde_qempty_acq_grpnum	= 4,
 	.wde_qempty_mgq_grpsel	= 4,
 	.rf_base_addr		= {0xe000},
+	.thermal_th		= {0x32, 0x35},
 	.pwr_on_seq		= NULL,
 	.pwr_off_seq		= NULL,
 	.bb_table		= &rtw89_8851b_phy_bb_table,

@@ -79,7 +79,7 @@ static void rtw8723d_pwrtrack_init(struct rtw_dev *rtwdev)
 	dm_info->pwr_trk_init_trigger = true;
 	dm_info->thermal_meter_k = rtwdev->efuse.thermal_meter_k;
 	dm_info->txagc_remnant_cck = 0;
-	dm_info->txagc_remnant_ofdm = 0;
+	dm_info->txagc_remnant_ofdm[RF_PATH_A] = 0;
 }
 
 static void rtw8723d_phy_set_param(struct rtw_dev *rtwdev)
@@ -1265,7 +1265,7 @@ static void rtw8723d_pwrtrack_set_ofdm_pwr(struct rtw_dev *rtwdev, s8 swing_idx,
 {
 	struct rtw_dm_info *dm_info = &rtwdev->dm_info;
 
-	dm_info->txagc_remnant_ofdm = txagc_idx;
+	dm_info->txagc_remnant_ofdm[RF_PATH_A] = txagc_idx;
 
 	rtw8723d_set_iqk_matrix(rtwdev, swing_idx, RF_PATH_A);
 	rtw8723d_set_iqk_matrix(rtwdev, swing_idx, RF_PATH_B);
@@ -1390,6 +1390,8 @@ static void rtw8723d_pwr_track(struct rtw_dev *rtwdev)
 }
 
 static const struct rtw_chip_ops rtw8723d_ops = {
+	.power_on		= rtw_power_on,
+	.power_off		= rtw_power_off,
 	.phy_set_param		= rtw8723d_phy_set_param,
 	.read_efuse		= rtw8723x_read_efuse,
 	.query_phy_status	= query_phy_status,
@@ -2018,11 +2020,6 @@ static const struct rtw_intf_phy_para_table phy_para_table_8723d = {
 	.n_gen1_para	= ARRAY_SIZE(pcie_gen1_param_8723d),
 };
 
-static const struct rtw_rfe_def rtw8723d_rfe_defs[] = {
-	[0] = { .phy_pg_tbl	= &rtw8723d_bb_pg_tbl,
-		.txpwr_lmt_tbl	= &rtw8723d_txpwr_lmt_tbl,},
-};
-
 static const u8 rtw8723d_pwrtrk_2gb_n[] = {
 	0, 0, 1, 1, 1, 2, 2, 3, 4, 4, 4, 4, 5, 5, 5,
 	6, 6, 7, 7, 8, 8, 8, 9, 9, 9, 10, 10, 10, 10, 10
@@ -2086,6 +2083,12 @@ static const struct rtw_pwr_track_tbl rtw8723d_rtw_pwr_track_tbl = {
 	.pwrtrk_xtal_n = rtw8723d_pwrtrk_xtal_n,
 };
 
+static const struct rtw_rfe_def rtw8723d_rfe_defs[] = {
+	[0] = { .phy_pg_tbl	= &rtw8723d_bb_pg_tbl,
+		.txpwr_lmt_tbl	= &rtw8723d_txpwr_lmt_tbl,
+		.pwr_track_tbl	= &rtw8723d_rtw_pwr_track_tbl, },
+};
+
 static const struct rtw_reg_domain coex_info_hw_regs_8723d[] = {
 	{0x948, MASKDWORD, RTW_REG_DOMAIN_MAC32},
 	{0x67, BIT(7), RTW_REG_DOMAIN_MAC8},
@@ -2131,6 +2134,9 @@ const struct rtw_chip_info rtw8723d_hw_spec = {
 	.page_size = TX_PAGE_SIZE,
 	.dig_min = 0x20,
 	.usb_tx_agg_desc_num = 1,
+	.hw_feature_report = true,
+	.c2h_ra_report_size = 7,
+	.old_datarate_fb_limit = true,
 	.ht_supported = true,
 	.vht_supported = false,
 	.lps_deep_mode_supported = 0,
@@ -2154,7 +2160,6 @@ const struct rtw_chip_info rtw8723d_hw_spec = {
 	.rfe_defs = rtw8723d_rfe_defs,
 	.rfe_defs_size = ARRAY_SIZE(rtw8723d_rfe_defs),
 	.rx_ldpc = false,
-	.pwr_track_tbl = &rtw8723d_rtw_pwr_track_tbl,
 	.iqk_threshold = 8,
 	.ampdu_density = IEEE80211_HT_MPDU_DENSITY_16,
 	.max_scan_ie_len = IEEE80211_MAX_DATA_LEN,

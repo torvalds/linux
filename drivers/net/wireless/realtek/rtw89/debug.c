@@ -3672,14 +3672,19 @@ static int rtw89_debug_priv_phy_info_get(struct seq_file *m, void *v)
 	struct rtw89_pkt_stat *pkt_stat = &rtwdev->phystat.last_pkt_stat;
 	const struct rtw89_chip_info *chip = rtwdev->chip;
 	const struct rtw89_rx_rate_cnt_info *info;
+	struct rtw89_hal *hal = &rtwdev->hal;
 	enum rtw89_hw_rate first_rate;
 	u8 rssi;
 	int i;
 
 	rssi = ewma_rssi_read(&rtwdev->phystat.bcn_rssi);
 
-	seq_printf(m, "TP TX: %u [%u] Mbps (lv: %d), RX: %u [%u] Mbps (lv: %d)\n",
-		   stats->tx_throughput, stats->tx_throughput_raw, stats->tx_tfc_lv,
+	seq_printf(m, "TP TX: %u [%u] Mbps (lv: %d",
+		   stats->tx_throughput, stats->tx_throughput_raw, stats->tx_tfc_lv);
+	if (hal->thermal_prot_lv)
+		seq_printf(m, ", duty: %d%%",
+			   100 - hal->thermal_prot_lv * RTW89_THERMAL_PROT_STEP);
+	seq_printf(m, "), RX: %u [%u] Mbps (lv: %d)\n",
 		   stats->rx_throughput, stats->rx_throughput_raw, stats->rx_tfc_lv);
 	seq_printf(m, "Beacon: %u (%d dBm), TF: %u\n", pkt_stat->beacon_nr,
 		   RTW89_RSSI_RAW_TO_DBM(rssi), stats->rx_tf_periodic);
@@ -3886,6 +3891,7 @@ static const struct rtw89_disabled_dm_info {
 	const char *name;
 } rtw89_disabled_dm_infos[] = {
 	DM_INFO(DYNAMIC_EDCCA),
+	DM_INFO(THERMAL_PROTECT),
 };
 
 static int

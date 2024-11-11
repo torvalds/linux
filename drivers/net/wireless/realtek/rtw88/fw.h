@@ -85,6 +85,19 @@ struct rtw_c2h_adaptivity {
 	u8 option;
 } __packed;
 
+struct rtw_c2h_ra_rpt {
+	u8 rate_sgi;
+	u8 mac_id;
+	u8 byte2;
+	u8 status;
+	u8 byte4;
+	u8 ra_ratio;
+	u8 bw;
+} __packed;
+
+#define RTW_C2H_RA_RPT_RATE	GENMASK(6, 0)
+#define RTW_C2H_RA_RPT_SGI	BIT(7)
+
 struct rtw_h2c_register {
 	u32 w0;
 	u32 w1;
@@ -364,10 +377,6 @@ struct rtw_fw_hdr_legacy {
 #define GET_CHAN_SWITCH_CENTRAL_CH(c2h_payload)	(c2h_payload[2])
 #define GET_CHAN_SWITCH_ID(c2h_payload)		(c2h_payload[3])
 #define GET_CHAN_SWITCH_STATUS(c2h_payload)	(c2h_payload[4])
-#define GET_RA_REPORT_RATE(c2h_payload)		(c2h_payload[0] & 0x7f)
-#define GET_RA_REPORT_SGI(c2h_payload)		((c2h_payload[0] & 0x80) >> 7)
-#define GET_RA_REPORT_BW(c2h_payload)		(c2h_payload[6])
-#define GET_RA_REPORT_MACID(c2h_payload)	(c2h_payload[1])
 
 #define GET_BCN_FILTER_NOTIFY_TYPE(c2h_payload)	(c2h_payload[1] & 0xf)
 #define GET_BCN_FILTER_NOTIFY_EVENT(c2h_payload)	(c2h_payload[1] & 0x10)
