@@ -2116,6 +2116,12 @@ static int annotation__config(const char *var, const char *value, void *data)
 			opt->offset_level = ANNOTATION__MAX_OFFSET_LEVEL;
 		else if (opt->offset_level < ANNOTATION__MIN_OFFSET_LEVEL)
 			opt->offset_level = ANNOTATION__MIN_OFFSET_LEVEL;
+	} else if (!strcmp(var, "annotate.disassemblers")) {
+		opt->disassemblers_str = strdup(value);
+		if (!opt->disassemblers_str) {
+			pr_err("Not enough memory for annotate.disassemblers\n");
+			return -1;
+		}
 	} else if (!strcmp(var, "annotate.hide_src_code")) {
 		opt->hide_src_code = perf_config_bool("hide_src_code", value);
 	} else if (!strcmp(var, "annotate.jump_arrows")) {
