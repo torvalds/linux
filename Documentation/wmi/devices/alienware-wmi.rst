@@ -96,7 +96,7 @@ WMI method Thermal_Information([in] uint32 arg2, [out] uint32 argr)
          argr = 1
 
  if BYTE_0(arg2) == 0x02:
-         argr = UNKNOWN_CONSTANT
+         argr = SYSTEM_DESCRIPTION
 
  if BYTE_0(arg2) == 0x03:
          if BYTE_1(arg2) == 0x00:
@@ -178,6 +178,16 @@ WMI method Thermal_Information([in] uint32 arg2, [out] uint32 argr)
                  argr = FAN_UNKNOWN_STAT_1()
          else:
                  argr = 0xFFFFFFFF
+
+Operation 0x02 returns a *system description* buffer with the following
+structure:
+
+::
+
+ out[0] -> Number of fans
+ out[1] -> Number of sensors
+ out[2] -> 0x00
+ out[3] -> Number of thermal modes
 
 Operation 0x03 list all available fan IDs, sensor IDs and thermal profile
 codes in order, but different models may have different number of fans and
