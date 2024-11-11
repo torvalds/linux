@@ -14,6 +14,7 @@
 #include "bpf_gen_internal.h"
 #include "skel_internal.h"
 #include <asm/byteorder.h>
+#include "str_error.h"
 
 #define MAX_USED_MAPS	64
 #define MAX_USED_PROGS	32
@@ -393,7 +394,7 @@ int bpf_gen__finish(struct bpf_gen *gen, int nr_progs, int nr_maps)
 			      blob_fd_array_off(gen, i));
 	emit(gen, BPF_MOV64_IMM(BPF_REG_0, 0));
 	emit(gen, BPF_EXIT_INSN());
-	pr_debug("gen: finish %d\n", gen->error);
+	pr_debug("gen: finish %s\n", errstr(gen->error));
 	if (!gen->error) {
 		struct gen_loader_opts *opts = gen->opts;
 
