@@ -20,8 +20,9 @@ static void kunit_action_kfree_skb(void *p)
  * kunit_zalloc_skb() - Allocate and initialize a resource managed skb.
  * @test: The test case to which the skb belongs
  * @len: size to allocate
+ * @gfp: allocation flags
  *
- * Allocate a new struct sk_buff with GFP_KERNEL, zero fill the give length
+ * Allocate a new struct sk_buff with gfp flags, zero fill the given length
  * and add it as a resource to the kunit test for automatic cleanup.
  *
  * Returns: newly allocated SKB, or %NULL on error
