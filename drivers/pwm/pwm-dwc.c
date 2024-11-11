@@ -66,20 +66,16 @@ static int dwc_pwm_probe(struct pci_dev *pci, const struct pci_device_id *id)
 
 	pci_set_master(pci);
 
-	ret = pcim_iomap_regions(pci, BIT(0), pci_name(pci));
-	if (ret)
-		return dev_err_probe(dev, ret, "Failed to iomap PCI BAR\n");
-
 	info = (const struct dwc_pwm_info *)id->driver_data;
 	ddata = devm_kzalloc(dev, struct_size(ddata, chips, info->nr), GFP_KERNEL);
 	if (!ddata)
 		return -ENOMEM;
 
-	/*
-	 * No need to check for pcim_iomap_table() failure,
-	 * pcim_iomap_regions() already does it for us.
-	 */
-	ddata->io_base = pcim_iomap_table(pci)[0];
+	ddata->io_base = pcim_iomap_region(pci, 0, "pwm-dwc");
+	if (IS_ERR(ddata->io_base))
+		return dev_err_probe(dev, PTR_ERR(ddata->io_base),
+				     "Failed to request / iomap PCI BAR\n");
+
 	ddata->info = info;
 
 	for (idx = 0; idx < ddata->info->nr; idx++) {
