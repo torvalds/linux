@@ -110,7 +110,7 @@ static void amd_set_max_freq_ratio(void)
 
 static DEFINE_MUTEX(freq_invariance_lock);
 
-void init_freq_invariance_cppc(void)
+static inline void init_freq_invariance_cppc(void)
 {
 	static bool init_done;
 
@@ -125,6 +125,11 @@ void init_freq_invariance_cppc(void)
 		amd_set_max_freq_ratio();
 	init_done = true;
 	mutex_unlock(&freq_invariance_lock);
+}
+
+void acpi_processor_init_invariance_cppc(void)
+{
+	init_freq_invariance_cppc();
 }
 
 /*

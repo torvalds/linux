@@ -367,54 +367,6 @@ static int smu_v14_0_2_store_powerplay_table(struct smu_context *smu)
 	return 0;
 }
 
-#ifndef atom_smc_dpm_info_table_14_0_0
-struct atom_smc_dpm_info_table_14_0_0 {
-	struct atom_common_table_header table_header;
-	BoardTable_t BoardTable;
-};
-#endif
-
-static int smu_v14_0_2_append_powerplay_table(struct smu_context *smu)
-{
-	struct smu_table_context *table_context = &smu->smu_table;
-	PPTable_t *smc_pptable = table_context->driver_pptable;
-	struct atom_smc_dpm_info_table_14_0_0 *smc_dpm_table;
-	BoardTable_t *BoardTable = &smc_pptable->BoardTable;
-	int index, ret;
-
-	index = get_index_into_master_table(atom_master_list_of_data_tables_v2_1,
-					    smc_dpm_info);
-
-	ret = amdgpu_atombios_get_data_table(smu->adev, index, NULL, NULL, NULL,
-					     (uint8_t **)&smc_dpm_table);
-	if (ret)
-		return ret;
-
-	memcpy(BoardTable, &smc_dpm_table->BoardTable, sizeof(BoardTable_t));
-
-	return 0;
-}
-
-#if 0
-static int smu_v14_0_2_get_pptable_from_pmfw(struct smu_context *smu,
-					     void **table,
-					     uint32_t *size)
-{
-	struct smu_table_context *smu_table = &smu->smu_table;
-	void *combo_pptable = smu_table->combo_pptable;
-	int ret = 0;
-
-	ret = smu_cmn_get_combo_pptable(smu);
-	if (ret)
-		return ret;
-
-	*table = combo_pptable;
-	*size = sizeof(struct smu_14_0_powerplay_table);
-
-	return 0;
-}
-#endif
-
 static int smu_v14_0_2_get_pptable_from_pmfw(struct smu_context *smu,
 					     void **table,
 					     uint32_t *size)
@@ -436,16 +388,12 @@ static int smu_v14_0_2_get_pptable_from_pmfw(struct smu_context *smu,
 static int smu_v14_0_2_setup_pptable(struct smu_context *smu)
 {
 	struct smu_table_context *smu_table = &smu->smu_table;
-	struct amdgpu_device *adev = smu->adev;
 	int ret = 0;
 
 	if (amdgpu_sriov_vf(smu->adev))
 		return 0;
 
-	if (!adev->scpm_enabled)
-		ret = smu_v14_0_setup_pptable(smu);
-	else
-		ret = smu_v14_0_2_get_pptable_from_pmfw(smu,
+	ret = smu_v14_0_2_get_pptable_from_pmfw(smu,
 							&smu_table->power_play_table,
 							&smu_table->power_play_table_size);
 	if (ret)
@@ -454,16 +402,6 @@ static int smu_v14_0_2_setup_pptable(struct smu_context *smu)
 	ret = smu_v14_0_2_store_powerplay_table(smu);
 	if (ret)
 		return ret;
-
-	/*
-	 * With SCPM enabled, the operation below will be handled
-	 * by PSP. Driver involvment is unnecessary and useless.
-	 */
-	if (!adev->scpm_enabled) {
-		ret = smu_v14_0_2_append_powerplay_table(smu);
-		if (ret)
-			return ret;
-	}
 
 	ret = smu_v14_0_2_check_powerplay_table(smu);
 	if (ret)
@@ -1869,12 +1807,11 @@ static int smu_v14_0_2_set_power_profile_mode(struct smu_context *smu,
 	if (workload_type < 0)
 		return -EINVAL;
 
-	ret = smu_cmn_send_smc_msg_with_param(smu,
-					       SMU_MSG_SetWorkloadMask,
-					       1 << workload_type,
-					       NULL);
+	ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_SetWorkloadMask,
+										  smu->workload_mask, NULL);
+
 	if (!ret)
-		smu->workload_mask = 1 << workload_type;
+		smu_cmn_assign_power_profile(smu);
 
 	return ret;
 }
@@ -2799,7 +2736,6 @@ static const struct pptable_funcs smu_v14_0_2_ppt_funcs = {
 	.check_fw_status = smu_v14_0_check_fw_status,
 	.setup_pptable = smu_v14_0_2_setup_pptable,
 	.check_fw_version = smu_v14_0_check_fw_version,
-	.write_pptable = smu_cmn_write_pptable,
 	.set_driver_table_location = smu_v14_0_set_driver_table_location,
 	.system_features_control = smu_v14_0_system_features_control,
 	.set_allowed_mask = smu_v14_0_set_allowed_mask,

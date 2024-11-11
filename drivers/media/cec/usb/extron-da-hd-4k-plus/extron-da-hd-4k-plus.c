@@ -348,12 +348,12 @@ static int get_edid_tag_location(const u8 *edid, unsigned int size,
 
 	/* Return if not a CTA-861 extension block */
 	if (size < 256 || edid[0] != 0x02 || edid[1] != 0x03)
-		return -1;
+		return -ENOENT;
 
 	/* search tag */
 	d = edid[0x02] & 0x7f;
 	if (d <= 4)
-		return -1;
+		return -ENOENT;
 
 	i = 0x04;
 	end = 0x00 + d;
@@ -371,7 +371,7 @@ static int get_edid_tag_location(const u8 *edid, unsigned int size,
 			return offset + i;
 		i += len + 1;
 	} while (i < end);
-	return -1;
+	return -ENOENT;
 }
 
 static void extron_edid_crc(u8 *edid)
