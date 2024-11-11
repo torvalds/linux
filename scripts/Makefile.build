@@ -108,18 +108,12 @@ $(obj)/%.i: $(obj)/%.c FORCE
 	$(call if_changed_dep,cpp_i_c)
 
 genksyms = $(objtree)/scripts/genksyms/genksyms		\
-	$(if $(1), -T $(2))			\
-	$(if $(KBUILD_PRESERVE), -p)		\
-	$(addprefix -r , $(wildcard $(2:.symtypes=.symref)))
+	$(if $(KBUILD_SYMTYPES), -T $(@:.o=.symtypes))	\
+	$(if $(KBUILD_PRESERVE), -p)			\
+	$(addprefix -r , $(wildcard $(@:.o=.symref)))
 
 # These mirror gensymtypes_S and co below, keep them in synch.
 cmd_gensymtypes_c = $(CPP) -D__GENKSYMS__ $(c_flags) $< | $(genksyms)
-
-quiet_cmd_cc_symtypes_c = SYM $(quiet_modtag) $@
-      cmd_cc_symtypes_c = $(call cmd_gensymtypes_c,true,$@) >/dev/null
-
-$(obj)/%.symtypes : $(obj)/%.c FORCE
-	$(call cmd,cc_symtypes_c)
 
 # LLVM assembly
 # Generate .ll files from .c
@@ -158,8 +152,7 @@ ifdef CONFIG_MODVERSIONS
 
 gen_symversions =								\
 	if $(NM) $@ 2>/dev/null | grep -q ' __export_symbol_'; then		\
-		$(call cmd_gensymtypes_$(1),$(KBUILD_SYMTYPES),$(@:.o=.symtypes)) \
-			>> $(dot-target).cmd;					\
+		$(cmd_gensymtypes_$1) >> $(dot-target).cmd;			\
 	fi
 
 cmd_gen_symversions_c =	$(call gen_symversions,c)
@@ -322,13 +315,6 @@ cmd_gensymtypes_S =                                                         \
      echo "\#include <asm/asm-prototypes.h>" ;                              \
      $(NM) $@ | sed -n 's/.* __export_symbol_\(.*\)/EXPORT_SYMBOL(\1);/p' ; } | \
     $(CPP) -D__GENKSYMS__ $(c_flags) -xc - | $(genksyms)
-
-quiet_cmd_cc_symtypes_S = SYM $(quiet_modtag) $@
-      cmd_cc_symtypes_S = $(call cmd_gensymtypes_S,true,$@) >/dev/null
-
-$(obj)/%.symtypes : $(obj)/%.S FORCE
-	$(call cmd,cc_symtypes_S)
-
 
 quiet_cmd_cpp_s_S = CPP $(quiet_modtag) $@
 cmd_cpp_s_S       = $(CPP) $(a_flags) -o $@ $<

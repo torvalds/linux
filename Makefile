@@ -301,7 +301,7 @@ no-dot-config-targets := $(clean-targets) \
 			 outputmakefile rustavailable rustfmt rustfmtcheck
 no-sync-config-targets := $(no-dot-config-targets) %install modules_sign kernelrelease \
 			  image_name
-single-targets := %.a %.i %.ko %.lds %.ll %.lst %.mod %.o %.rsi %.s %.symtypes %/
+single-targets := %.a %.i %.ko %.lds %.ll %.lst %.mod %.o %.rsi %.s %/
 
 config-build	:=
 mixed-build	:=
