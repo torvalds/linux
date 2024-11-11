@@ -992,7 +992,7 @@ r535_dp_train_target(struct nvkm_outp *outp, u8 target, bool mst, u8 link_nr, u8
 		ctrl->data = data;
 
 		ret = nvkm_gsp_rm_ctrl_push(&disp->rm.objcom, &ctrl, sizeof(*ctrl));
-		if (ret == -EAGAIN && ctrl->retryTimeMs) {
+		if ((ret == -EAGAIN || ret == -EBUSY) && ctrl->retryTimeMs) {
 			/*
 			 * Device (likely an eDP panel) isn't ready yet, wait for the time specified
 			 * by GSP before retrying again
