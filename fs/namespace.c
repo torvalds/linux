@@ -5044,22 +5044,23 @@ static int statmount_string(struct kstatmount *s, u64 flag)
 	size_t kbufsize;
 	struct seq_file *seq = &s->seq;
 	struct statmount *sm = &s->sm;
+	u32 start = seq->count;
 
 	switch (flag) {
 	case STATMOUNT_FS_TYPE:
-		sm->fs_type = seq->count;
+		sm->fs_type = start;
 		ret = statmount_fs_type(s, seq);
 		break;
 	case STATMOUNT_MNT_ROOT:
-		sm->mnt_root = seq->count;
+		sm->mnt_root = start;
 		ret = statmount_mnt_root(s, seq);
 		break;
 	case STATMOUNT_MNT_POINT:
-		sm->mnt_point = seq->count;
+		sm->mnt_point = start;
 		ret = statmount_mnt_point(s, seq);
 		break;
 	case STATMOUNT_MNT_OPTS:
-		sm->mnt_opts = seq->count;
+		sm->mnt_opts = start;
 		ret = statmount_mnt_opts(s, seq);
 		break;
 	default:
@@ -5067,6 +5068,12 @@ static int statmount_string(struct kstatmount *s, u64 flag)
 		return -EINVAL;
 	}
 
+	/*
+	 * If nothing was emitted, return to avoid setting the flag
+	 * and terminating the buffer.
+	 */
+	if (seq->count == start)
+		return ret;
 	if (unlikely(check_add_overflow(sizeof(*sm), seq->count, &kbufsize)))
 		return -EOVERFLOW;
 	if (kbufsize >= s->bufsize)
