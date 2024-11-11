@@ -1563,11 +1563,12 @@ static int
 intel_dp_mst_detect(struct drm_connector *connector,
 		    struct drm_modeset_acquire_ctx *ctx, bool force)
 {
+	struct intel_display *display = to_intel_display(connector->dev);
 	struct drm_i915_private *i915 = to_i915(connector->dev);
 	struct intel_connector *intel_connector = to_intel_connector(connector);
 	struct intel_dp *intel_dp = intel_connector->mst_port;
 
-	if (!intel_display_device_enabled(i915))
+	if (!intel_display_device_enabled(display))
 		return connector_status_disconnected;
 
 	if (drm_connector_is_unregistered(connector))

@@ -157,7 +157,7 @@ int xe_display_init_noirq(struct xe_device *xe)
 
 	intel_bw_init_hw(xe);
 
-	intel_display_device_info_runtime_init(xe);
+	intel_display_device_info_runtime_init(display);
 
 	err = intel_display_driver_probe_noirq(xe);
 	if (err) {
@@ -485,13 +485,14 @@ void xe_display_pm_runtime_resume(struct xe_device *xe)
 
 static void display_device_remove(struct drm_device *dev, void *arg)
 {
-	struct xe_device *xe = arg;
+	struct intel_display *display = arg;
 
-	intel_display_device_remove(xe);
+	intel_display_device_remove(display);
 }
 
 int xe_display_probe(struct xe_device *xe)
 {
+	struct intel_display *display = &xe->display;
 	int err;
 
 	if (!xe->info.probe_display)
@@ -499,7 +500,7 @@ int xe_display_probe(struct xe_device *xe)
 
 	intel_display_device_probe(xe);
 
-	err = drmm_add_action_or_reset(&xe->drm, display_device_remove, xe);
+	err = drmm_add_action_or_reset(&xe->drm, display_device_remove, display);
 	if (err)
 		return err;
 
