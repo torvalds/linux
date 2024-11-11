@@ -269,6 +269,15 @@ static const struct dmi_system_id alienware_quirks[] __initconst = {
 	},
 	{
 		.callback = dmi_matched,
+		.ident = "Alienware x17 R2",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Alienware"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Alienware x17 R2"),
+		},
+		.driver_data = &quirk_x_series,
+	},
+	{
+		.callback = dmi_matched,
 		.ident = "Alienware X51 R1",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Alienware"),
