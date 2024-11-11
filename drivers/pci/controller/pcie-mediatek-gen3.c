@@ -411,7 +411,7 @@ static int mtk_pcie_startup_port(struct mtk_gen3_pcie *pcie)
 		if (pcie->num_lanes > 1)
 			val |= FIELD_PREP(PCIE_SETTING_LINK_WIDTH,
 					  GENMASK(fls(pcie->num_lanes >> 2), 0));
-	};
+	}
 	writel_relaxed(val, pcie->base + PCIE_SETTING_REG);
 
 	/* Set Link Control 2 (LNKCTL2) speed restriction, if any */
