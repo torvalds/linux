@@ -458,7 +458,7 @@ static bool srcu_readers_lock_idx(struct srcu_struct *ssp, int idx, bool gp, uns
  * Returns approximate total of the readers' ->srcu_unlock_count[] values
  * for the rank of per-CPU counters specified by idx.
  */
-static unsigned long srcu_readers_unlock_idx(struct srcu_struct *ssp, int idx)
+static unsigned long srcu_readers_unlock_idx(struct srcu_struct *ssp, int idx, unsigned long *rdm)
 {
 	int cpu;
 	unsigned long mask = 0;
@@ -468,11 +468,11 @@ static unsigned long srcu_readers_unlock_idx(struct srcu_struct *ssp, int idx)
 		struct srcu_data *sdp = per_cpu_ptr(ssp->sda, cpu);
 
 		sum += atomic_long_read(&sdp->srcu_unlock_count[idx]);
-		if (IS_ENABLED(CONFIG_PROVE_RCU))
-			mask = mask | READ_ONCE(sdp->srcu_reader_flavor);
+		mask = mask | READ_ONCE(sdp->srcu_reader_flavor);
 	}
 	WARN_ONCE(IS_ENABLED(CONFIG_PROVE_RCU) && (mask & (mask - 1)),
 		  "Mixed reader flavors for srcu_struct at %ps.\n", ssp);
+	*rdm = mask;
 	return sum;
 }
 
@@ -482,10 +482,12 @@ static unsigned long srcu_readers_unlock_idx(struct srcu_struct *ssp, int idx)
  */
 static bool srcu_readers_active_idx_check(struct srcu_struct *ssp, int idx)
 {
-	bool did_gp = !!(raw_cpu_read(ssp->sda->srcu_reader_flavor) & SRCU_READ_FLAVOR_LITE);
+	bool did_gp;
+	unsigned long rdm;
 	unsigned long unlocks;
 
-	unlocks = srcu_readers_unlock_idx(ssp, idx);
+	unlocks = srcu_readers_unlock_idx(ssp, idx, &rdm);
+	did_gp = !!(rdm & SRCU_READ_FLAVOR_LITE);
 
 	/*
 	 * Make sure that a lock is always counted if the corresponding
