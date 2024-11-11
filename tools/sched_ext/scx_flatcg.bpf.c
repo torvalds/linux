@@ -665,7 +665,7 @@ static bool try_pick_next_cgroup(u64 *cgidp)
 		goto out_free;
 	}
 
-	if (!scx_bpf_consume(cgid)) {
+	if (!scx_bpf_dsq_move_to_local(cgid)) {
 		bpf_cgroup_release(cgrp);
 		stat_inc(FCG_STAT_PNC_EMPTY);
 		goto out_stash;
@@ -745,7 +745,7 @@ void BPF_STRUCT_OPS(fcg_dispatch, s32 cpu, struct task_struct *prev)
 		goto pick_next_cgroup;
 
 	if (vtime_before(now, cpuc->cur_at + cgrp_slice_ns)) {
-		if (scx_bpf_consume(cpuc->cur_cgid)) {
+		if (scx_bpf_dsq_move_to_local(cpuc->cur_cgid)) {
 			stat_inc(FCG_STAT_CNS_KEEP);
 			return;
 		}
@@ -785,7 +785,7 @@ void BPF_STRUCT_OPS(fcg_dispatch, s32 cpu, struct task_struct *prev)
 pick_next_cgroup:
 	cpuc->cur_at = now;
 
-	if (scx_bpf_consume(FALLBACK_DSQ)) {
+	if (scx_bpf_dsq_move_to_local(FALLBACK_DSQ)) {
 		cpuc->cur_cgid = 0;
 		return;
 	}

@@ -43,6 +43,7 @@
  */
 void scx_bpf_dispatch___compat(struct task_struct *p, u64 dsq_id, u64 slice, u64 enq_flags) __ksym __weak;
 void scx_bpf_dispatch_vtime___compat(struct task_struct *p, u64 dsq_id, u64 slice, u64 vtime, u64 enq_flags) __ksym __weak;
+bool scx_bpf_consume___compat(u64 dsq_id) __ksym __weak;
 
 #define scx_bpf_dsq_insert(p, dsq_id, slice, enq_flags)				\
 	(bpf_ksym_exists(scx_bpf_dsq_insert) ?					\
@@ -54,11 +55,21 @@ void scx_bpf_dispatch_vtime___compat(struct task_struct *p, u64 dsq_id, u64 slic
 	 scx_bpf_dsq_insert_vtime((p), (dsq_id), (slice), (vtime), (enq_flags)) : \
 	 scx_bpf_dispatch_vtime___compat((p), (dsq_id), (slice), (vtime), (enq_flags)))
 
+#define scx_bpf_dsq_move_to_local(dsq_id)					\
+	(bpf_ksym_exists(scx_bpf_dsq_move_to_local) ?				\
+	 scx_bpf_dsq_move_to_local((dsq_id)) :					\
+	 scx_bpf_consume___compat((dsq_id)))
+
 #define scx_bpf_dispatch(p, dsq_id, slice, enq_flags)				\
 	_Static_assert(false, "scx_bpf_dispatch() renamed to scx_bpf_dsq_insert()")
 
 #define scx_bpf_dispatch_vtime(p, dsq_id, slice, vtime, enq_flags)		\
 	_Static_assert(false, "scx_bpf_dispatch_vtime() renamed to scx_bpf_dsq_insert_vtime()")
+
+#define scx_bpf_consume(dsq_id) ({						\
+	_Static_assert(false, "scx_bpf_consume() renamed to scx_bpf_dsq_move_to_local()"); \
+	false;									\
+})
 
 /*
  * Define sched_ext_ops. This may be expanded to define multiple variants for

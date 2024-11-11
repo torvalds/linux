@@ -203,13 +203,12 @@ an arbitrary number of dsq's using ``scx_bpf_create_dsq()`` and
 ``scx_bpf_destroy_dsq()``.
 
 A CPU always executes a task from its local DSQ. A task is "inserted" into a
-DSQ. A non-local DSQ is "consumed" to transfer a task to the consuming CPU's
-local DSQ.
+DSQ. A task in a non-local DSQ is "move"d into the target CPU's local DSQ.
 
 When a CPU is looking for the next task to run, if the local DSQ is not
-empty, the first task is picked. Otherwise, the CPU tries to consume the
-global DSQ. If that doesn't yield a runnable task either, ``ops.dispatch()``
-is invoked.
+empty, the first task is picked. Otherwise, the CPU tries to move a task
+from the global DSQ. If that doesn't yield a runnable task either,
+``ops.dispatch()`` is invoked.
 
 Scheduling Cycle
 ----------------
@@ -265,15 +264,15 @@ The following briefly shows how a waking task is scheduled and executed.
      rather than performing them immediately. There can be up to
      ``ops.dispatch_max_batch`` pending tasks.
 
-   * ``scx_bpf_consume()`` tranfers a task from the specified non-local DSQ
-     to the dispatching DSQ. This function cannot be called with any BPF
-     locks held. ``scx_bpf_consume()`` flushes the pending dispatched tasks
-     before trying to consume the specified DSQ.
+   * ``scx_bpf_move_to_local()`` moves a task from the specified non-local
+     DSQ to the dispatching DSQ. This function cannot be called with any BPF
+     locks held. ``scx_bpf_move_to_local()`` flushes the pending insertions
+     tasks before trying to move from the specified DSQ.
 
 4. After ``ops.dispatch()`` returns, if there are tasks in the local DSQ,
    the CPU runs the first one. If empty, the following steps are taken:
 
-   * Try to consume the global DSQ. If successful, run the task.
+   * Try to move from the global DSQ. If successful, run the task.
 
    * If ``ops.dispatch()`` has dispatched any tasks, retry #3.
 
@@ -286,7 +285,7 @@ Note that the BPF scheduler can always choose to dispatch tasks immediately
 in ``ops.enqueue()`` as illustrated in the above simple example. If only the
 built-in DSQs are used, there is no need to implement ``ops.dispatch()`` as
 a task is never queued on the BPF scheduler and both the local and global
-DSQs are consumed automatically.
+DSQs are executed automatically.
 
 ``scx_bpf_dsq_insert()`` inserts the task on the FIFO of the target DSQ. Use
 ``scx_bpf_dsq_insert_vtime()`` for the priority queue. Internal DSQs such as

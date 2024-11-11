@@ -264,17 +264,17 @@ struct sched_ext_ops {
 	void (*dequeue)(struct task_struct *p, u64 deq_flags);
 
 	/**
-	 * dispatch - Dispatch tasks from the BPF scheduler and/or consume DSQs
+	 * dispatch - Dispatch tasks from the BPF scheduler and/or user DSQs
 	 * @cpu: CPU to dispatch tasks for
 	 * @prev: previous task being switched out
 	 *
 	 * Called when a CPU's local dsq is empty. The operation should dispatch
 	 * one or more tasks from the BPF scheduler into the DSQs using
-	 * scx_bpf_dsq_insert() and/or consume user DSQs into the local DSQ
-	 * using scx_bpf_consume().
+	 * scx_bpf_dsq_insert() and/or move from user DSQs into the local DSQ
+	 * using scx_bpf_dsq_move_to_local().
 	 *
 	 * The maximum number of times scx_bpf_dsq_insert() can be called
-	 * without an intervening scx_bpf_consume() is specified by
+	 * without an intervening scx_bpf_dsq_move_to_local() is specified by
 	 * ops.dispatch_max_batch. See the comments on top of the two functions
 	 * for more details.
 	 *
@@ -282,7 +282,7 @@ struct sched_ext_ops {
 	 * @prev is still runnable as indicated by set %SCX_TASK_QUEUED in
 	 * @prev->scx.flags, it is not enqueued yet and will be enqueued after
 	 * ops.dispatch() returns. To keep executing @prev, return without
-	 * dispatching or consuming any tasks. Also see %SCX_OPS_ENQ_LAST.
+	 * dispatching or moving any tasks. Also see %SCX_OPS_ENQ_LAST.
 	 */
 	void (*dispatch)(s32 cpu, struct task_struct *prev);
 
@@ -6372,13 +6372,17 @@ __bpf_kfunc void scx_bpf_dispatch(struct task_struct *p, u64 dsq_id, u64 slice,
  * @enq_flags: SCX_ENQ_*
  *
  * Insert @p into the vtime priority queue of the DSQ identified by @dsq_id.
- * Tasks queued into the priority queue are ordered by @vtime and always
- * consumed after the tasks in the FIFO queue. All other aspects are identical
- * to scx_bpf_dsq_insert().
+ * Tasks queued into the priority queue are ordered by @vtime. All other aspects
+ * are identical to scx_bpf_dsq_insert().
  *
  * @vtime ordering is according to time_before64() which considers wrapping. A
  * numerically larger vtime may indicate an earlier position in the ordering and
  * vice-versa.
+ *
+ * A DSQ can only be used as a FIFO or priority queue at any given time and this
+ * function must not be called on a DSQ which already has one or more FIFO tasks
+ * queued and vice-versa. Also, the built-in DSQs (SCX_DSQ_LOCAL and
+ * SCX_DSQ_GLOBAL) cannot be used as priority queues.
  */
 __bpf_kfunc void scx_bpf_dsq_insert_vtime(struct task_struct *p, u64 dsq_id,
 					  u64 slice, u64 vtime, u64 enq_flags)
@@ -6539,21 +6543,20 @@ __bpf_kfunc void scx_bpf_dispatch_cancel(void)
 }
 
 /**
- * scx_bpf_consume - Transfer a task from a DSQ to the current CPU's local DSQ
- * @dsq_id: DSQ to consume
+ * scx_bpf_dsq_move_to_local - move a task from a DSQ to the current CPU's local DSQ
+ * @dsq_id: DSQ to move task from
  *
- * Consume a task from the non-local DSQ identified by @dsq_id and transfer it
- * to the current CPU's local DSQ for execution. Can only be called from
- * ops.dispatch().
+ * Move a task from the non-local DSQ identified by @dsq_id to the current CPU's
+ * local DSQ for execution. Can only be called from ops.dispatch().
  *
  * This function flushes the in-flight dispatches from scx_bpf_dsq_insert()
- * before trying to consume the specified DSQ. It may also grab rq locks and
+ * before trying to move from the specified DSQ. It may also grab rq locks and
  * thus can't be called under any BPF locks.
  *
- * Returns %true if a task has been consumed, %false if there isn't any task to
- * consume.
+ * Returns %true if a task has been moved, %false if there isn't any task to
+ * move.
  */
-__bpf_kfunc bool scx_bpf_consume(u64 dsq_id)
+__bpf_kfunc bool scx_bpf_dsq_move_to_local(u64 dsq_id)
 {
 	struct scx_dsp_ctx *dspc = this_cpu_ptr(scx_dsp_ctx);
 	struct scx_dispatch_q *dsq;
@@ -6581,6 +6584,13 @@ __bpf_kfunc bool scx_bpf_consume(u64 dsq_id)
 	} else {
 		return false;
 	}
+}
+
+/* for backward compatibility, will be removed in v6.15 */
+__bpf_kfunc bool scx_bpf_consume(u64 dsq_id)
+{
+	printk_deferred_once(KERN_WARNING "sched_ext: scx_bpf_consume() renamed to scx_bpf_dsq_move_to_local()");
+	return scx_bpf_dsq_move_to_local(dsq_id);
 }
 
 /**
@@ -6684,6 +6694,7 @@ __bpf_kfunc_end_defs();
 BTF_KFUNCS_START(scx_kfunc_ids_dispatch)
 BTF_ID_FLAGS(func, scx_bpf_dispatch_nr_slots)
 BTF_ID_FLAGS(func, scx_bpf_dispatch_cancel)
+BTF_ID_FLAGS(func, scx_bpf_dsq_move_to_local)
 BTF_ID_FLAGS(func, scx_bpf_consume)
 BTF_ID_FLAGS(func, scx_bpf_dispatch_from_dsq_set_slice)
 BTF_ID_FLAGS(func, scx_bpf_dispatch_from_dsq_set_vtime)

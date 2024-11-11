@@ -219,13 +219,13 @@ void BPF_STRUCT_OPS(central_dispatch, s32 cpu, struct task_struct *prev)
 		}
 
 		/* look for a task to run on the central CPU */
-		if (scx_bpf_consume(FALLBACK_DSQ_ID))
+		if (scx_bpf_dsq_move_to_local(FALLBACK_DSQ_ID))
 			return;
 		dispatch_to_cpu(central_cpu);
 	} else {
 		bool *gimme;
 
-		if (scx_bpf_consume(FALLBACK_DSQ_ID))
+		if (scx_bpf_dsq_move_to_local(FALLBACK_DSQ_ID))
 			return;
 
 		gimme = ARRAY_ELEM_PTR(cpu_gimme_task, cpu, nr_cpu_ids);
