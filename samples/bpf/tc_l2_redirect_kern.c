@@ -63,8 +63,6 @@ int _l2_to_iptun_ingress_forward(struct __sk_buff *skb)
 	void *data_end = (void *)(long)skb->data_end;
 	int key = 0, *ifindex;
 
-	int ret;
-
 	if (data + sizeof(*eth) > data_end)
 		return TC_ACT_OK;
 
@@ -113,8 +111,6 @@ int _l2_to_iptun_ingress_redirect(struct __sk_buff *skb)
 	struct eth_hdr *eth = data;
 	void *data_end = (void *)(long)skb->data_end;
 	int key = 0, *ifindex;
-
-	int ret;
 
 	if (data + sizeof(*eth) > data_end)
 		return TC_ACT_OK;
