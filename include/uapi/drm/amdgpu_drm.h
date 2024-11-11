@@ -453,27 +453,17 @@ struct drm_amdgpu_userq_signal {
 	 * to retrieve the WPTR.
 	 */
 	__u32	queue_id;
+	__u32	pad;
 	/**
-	 * @flags: flags to indicate special function for userq fence creation.
-	 * Unused for now.
+	 * @syncobj_handles: The list of syncobj handles submitted by the user queue
+	 * job to be signaled.
 	 */
-	__u32	flags;
-	/**
-	 * @syncobj_handles_array: An array of syncobj handles used by the userq fence
-	 * creation IOCTL to install the created dma_fence object which can be
-	 * utilized by userspace to explicitly synchronize GPU commands.
-	 */
-	__u64	syncobj_handles_array;
+	__u64	syncobj_handles;
 	/**
 	 * @num_syncobj_handles: A count that represents the number of syncobj handles in
-	 * @syncobj_handles_array.
+	 * @syncobj_handles.
 	 */
 	__u64	num_syncobj_handles;
-	/**
-	 * @syncobj_point: A given point on the timeline to be signaled.
-	 * Unused for now.
-	 */
-	__u64	syncobj_point;
 	/**
 	 * @bo_read_handles: The list of BO handles that the submitted user queue job
 	 * is using for read only. This will update BO fences in the kernel.
@@ -485,20 +475,15 @@ struct drm_amdgpu_userq_signal {
 	 */
 	__u64	bo_write_handles;
 	/**
-	 * @num_read_bo_handles: A count that represents the number of read BO handles in
+	 * @num_bo_read_handles: A count that represents the number of read BO handles in
 	 * @bo_read_handles.
 	 */
-	__u32	num_read_bo_handles;
+	__u32	num_bo_read_handles;
 	/**
-	 * @num_write_bo_handles: A count that represents the number of write BO handles in
+	 * @num_bo_write_handles: A count that represents the number of write BO handles in
 	 * @bo_write_handles.
 	 */
-	__u32	num_write_bo_handles;
-	/**
-	 * @bo_flags: flags to indicate BOs synchronize for READ or WRITE
-	 */
-	__u32	bo_flags;
-	__u32	pad;
+	__u32	num_bo_write_handles;
 };
 
 struct drm_amdgpu_userq_fence_info {
@@ -517,38 +502,18 @@ struct drm_amdgpu_userq_fence_info {
 
 struct drm_amdgpu_userq_wait {
 	/**
-	 * @waitq_id: Queue handle used to retrieve the queue information to store
-	 * the fence driver references in the wait user queue structure.
+	 * @syncobj_handles: The list of syncobj handles submitted by the user queue
+	 * job to get the va/value pairs.
 	 */
-	__u32	waitq_id;
+	__u64	syncobj_handles;
 	/**
-	 * @flags: flags to specify special function for userq wait information.
-	 * Unused for now.
+	 * @syncobj_timeline_handles: The list of timeline syncobj handles submitted by
+	 * the user queue job to get the va/value pairs at given @syncobj_timeline_points.
 	 */
-	__u32	flags;
+	__u64	syncobj_timeline_handles;
 	/**
-	 * @bo_wait_flags: flags to define the BOs for READ or WRITE to store the
-	 * matching fence wait info pair in @userq_fence_info.
-	 */
-	__u32	bo_wait_flags;
-	/**
-	 * @num_points: A count that represents the number of timeline syncobj handles in
-	 * syncobj_handles_array.
-	 */
-	__u32	num_points;
-	/**
-	 * @syncobj_handles_array: An array of syncobj handles defined to get the
-	 * fence wait information of every syncobj handles in the array.
-	 */
-	__u64	syncobj_handles_array;
-	/**
-	 * @syncobj_timeline_handles: An array of timeline syncobj handles defined to get the
-	 * fence wait information of every timeline syncobj handles in the array.
-	 */
-	__u64   syncobj_timeline_handles;
-	/**
-	 * @syncobj_timeline_points: An array of timeline syncobj points defined to get the
-	 * fence wait points of every timeline syncobj handles in the syncobj_handles_array.
+	 * @syncobj_timeline_points: The list of timeline syncobj points submitted by the
+	 * user queue job for the corresponding @syncobj_timeline_handles.
 	 */
 	__u64	syncobj_timeline_points;
 	/**
@@ -562,31 +527,36 @@ struct drm_amdgpu_userq_wait {
 	 */
 	__u64	bo_write_handles;
 	/**
+	 * @num_syncobj_timeline_handles: A count that represents the number of timeline
+	 * syncobj handles in @syncobj_timeline_handles.
+	 */
+	__u16	num_syncobj_timeline_handles;
+	/**
+	 * @num_fences: This field can be used both as input and output. As input it defines
+	 * the maximum number of fences that can be returned and as output it will specify
+	 * how many fences were actually returned from the ioctl.
+	 */
+	__u16	num_fences;
+	/**
 	 * @num_syncobj_handles: A count that represents the number of syncobj handles in
-	 * @syncobj_handles_array.
+	 * @syncobj_handles.
 	 */
 	__u32	num_syncobj_handles;
 	/**
-	 * @num_read_bo_handles: A count that represents the number of read BO handles in
+	 * @num_bo_read_handles: A count that represents the number of read BO handles in
 	 * @bo_read_handles.
 	 */
-	__u32	num_read_bo_handles;
+	__u32	num_bo_read_handles;
 	/**
-	 * @num_write_bo_handles: A count that represents the number of write BO handles in
+	 * @num_bo_write_handles: A count that represents the number of write BO handles in
 	 * @bo_write_handles.
 	 */
-	__u32	num_write_bo_handles;
-	__u32	pad;
+	__u32	num_bo_write_handles;
 	/**
-	 * @userq_fence_info: An array of fence information (va and value) pair of each
-	 * objects stored in @syncobj_handles_array and @bo_handles_array.
+	 * @out_fences: The field is a return value from the ioctl containing the list of
+	 * address/value pairs to wait for.
 	 */
-	__u64	userq_fence_info;
-	/**
-	 * @num_fences: A count that represents the number of actual fences installed in
-	 * each syncobj and bo handles.
-	 */
-	__u64	num_fences;
+	__u64	out_fences;
 };
 
 /* vm ioctl */

@@ -400,7 +400,7 @@ int amdgpu_userq_signal_ioctl(struct drm_device *dev, void *data,
 	u64 wptr;
 
 	num_syncobj_handles = args->num_syncobj_handles;
-	syncobj_handles = memdup_user(u64_to_user_ptr(args->syncobj_handles_array),
+	syncobj_handles = memdup_user(u64_to_user_ptr(args->syncobj_handles),
 				      sizeof(u32) * num_syncobj_handles);
 	if (IS_ERR(syncobj_handles))
 		return PTR_ERR(syncobj_handles);
@@ -420,7 +420,7 @@ int amdgpu_userq_signal_ioctl(struct drm_device *dev, void *data,
 		}
 	}
 
-	num_read_bo_handles = args->num_read_bo_handles;
+	num_read_bo_handles = args->num_bo_read_handles;
 	bo_handles_read = memdup_user(u64_to_user_ptr(args->bo_read_handles),
 				      sizeof(u32) * num_read_bo_handles);
 	if (IS_ERR(bo_handles_read)) {
@@ -443,7 +443,7 @@ int amdgpu_userq_signal_ioctl(struct drm_device *dev, void *data,
 		}
 	}
 
-	num_write_bo_handles = args->num_write_bo_handles;
+	num_write_bo_handles = args->num_bo_write_handles;
 	bo_handles_write = memdup_user(u64_to_user_ptr(args->bo_write_handles),
 				       sizeof(u32) * num_write_bo_handles);
 	if (IS_ERR(bo_handles_write)) {
@@ -558,23 +558,23 @@ int amdgpu_userq_wait_ioctl(struct drm_device *dev, void *data,
 			    struct drm_file *filp)
 {
 	u32 *syncobj_handles, *timeline_points, *timeline_handles, *bo_handles_read, *bo_handles_write;
-	u32 num_syncobj, num_read_bo_handles, num_write_bo_handles, num_points;
+	u32 num_syncobj, num_read_bo_handles, num_write_bo_handles;
 	struct drm_amdgpu_userq_fence_info *fence_info = NULL;
 	struct drm_amdgpu_userq_wait *wait_info = data;
 	struct drm_gem_object **gobj_write;
 	struct drm_gem_object **gobj_read;
 	struct dma_fence **fences = NULL;
+	u16 num_points, num_fences = 0;
 	int r, i, rentry, wentry, cnt;
 	struct drm_exec exec;
-	u64 num_fences = 0;
 
-	num_read_bo_handles = wait_info->num_read_bo_handles;
+	num_read_bo_handles = wait_info->num_bo_read_handles;
 	bo_handles_read = memdup_user(u64_to_user_ptr(wait_info->bo_read_handles),
 				      sizeof(u32) * num_read_bo_handles);
 	if (IS_ERR(bo_handles_read))
 		return PTR_ERR(bo_handles_read);
 
-	num_write_bo_handles = wait_info->num_write_bo_handles;
+	num_write_bo_handles = wait_info->num_bo_write_handles;
 	bo_handles_write = memdup_user(u64_to_user_ptr(wait_info->bo_write_handles),
 				       sizeof(u32) * num_write_bo_handles);
 	if (IS_ERR(bo_handles_write)) {
@@ -583,14 +583,14 @@ int amdgpu_userq_wait_ioctl(struct drm_device *dev, void *data,
 	}
 
 	num_syncobj = wait_info->num_syncobj_handles;
-	syncobj_handles = memdup_user(u64_to_user_ptr(wait_info->syncobj_handles_array),
+	syncobj_handles = memdup_user(u64_to_user_ptr(wait_info->syncobj_handles),
 				      sizeof(u32) * num_syncobj);
 	if (IS_ERR(syncobj_handles)) {
 		r = PTR_ERR(syncobj_handles);
 		goto free_bo_handles_write;
 	}
 
-	num_points = wait_info->num_points;
+	num_points = wait_info->num_syncobj_timeline_handles;
 	timeline_handles = memdup_user(u64_to_user_ptr(wait_info->syncobj_timeline_handles),
 				       sizeof(u32) * num_points);
 	if (IS_ERR(timeline_handles)) {
@@ -858,7 +858,7 @@ int amdgpu_userq_wait_ioctl(struct drm_device *dev, void *data,
 
 		wait_info->num_fences = cnt;
 		/* Copy userq fence info to user space */
-		if (copy_to_user(u64_to_user_ptr(wait_info->userq_fence_info),
+		if (copy_to_user(u64_to_user_ptr(wait_info->out_fences),
 				 fence_info, wait_info->num_fences * sizeof(*fence_info))) {
 			r = -EFAULT;
 			goto free_fences;
