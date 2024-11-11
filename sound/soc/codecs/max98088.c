@@ -489,6 +489,9 @@ static const struct snd_kcontrol_new max98088_snd_controls[] = {
        SOC_SINGLE("ADCL Boost Volume", M98088_REG_33_LVL_ADC_L, 4, 3, 0),
        SOC_SINGLE("ADCR Boost Volume", M98088_REG_34_LVL_ADC_R, 4, 3, 0),
 
+       SOC_SINGLE("Left HP Output Mixer Switch", M98088_REG_27_MIX_HP_CNTL, 4, 1, 0),
+       SOC_SINGLE("Right HP Output Mixer Switch", M98088_REG_27_MIX_HP_CNTL, 5, 1, 0),
+
        SOC_SINGLE("EQ1 Switch", M98088_REG_49_CFG_LEVEL, 0, 1, 0),
        SOC_SINGLE("EQ2 Switch", M98088_REG_49_CFG_LEVEL, 1, 1, 0),
 
