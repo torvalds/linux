@@ -186,32 +186,51 @@ static int tqmx86_board_id_to_clk_rate(struct device *dev, u8 board_id)
 	}
 }
 
+static int tqmx86_setup_irq(struct device *dev, const char *label, u8 irq,
+			    void __iomem *io_base, u8 reg_shift)
+{
+	u8 val, readback;
+	int irq_cfg;
+
+	switch (irq) {
+	case 0:
+		irq_cfg = TQMX86_REG_IO_EXT_INT_NONE;
+		break;
+	case 7:
+		irq_cfg = TQMX86_REG_IO_EXT_INT_7;
+		break;
+	case 9:
+		irq_cfg = TQMX86_REG_IO_EXT_INT_9;
+		break;
+	case 12:
+		irq_cfg = TQMX86_REG_IO_EXT_INT_12;
+		break;
+	default:
+		dev_err(dev, "invalid %s IRQ (%d)\n", label, irq);
+		return -EINVAL;
+	}
+
+	val = ioread8(io_base + TQMX86_REG_IO_EXT_INT);
+	val &= ~(TQMX86_REG_IO_EXT_INT_MASK << reg_shift);
+	val |= (irq_cfg & TQMX86_REG_IO_EXT_INT_MASK) << reg_shift;
+
+	iowrite8(val, io_base + TQMX86_REG_IO_EXT_INT);
+	readback = ioread8(io_base + TQMX86_REG_IO_EXT_INT);
+	if (readback != val) {
+		dev_warn(dev, "%s interrupts not supported\n", label);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int tqmx86_probe(struct platform_device *pdev)
 {
-	u8 board_id, sauc, rev, i2c_det, io_ext_int_val;
+	u8 board_id, sauc, rev, i2c_det;
 	struct device *dev = &pdev->dev;
-	u8 gpio_irq_cfg, readback;
 	const char *board_name;
 	void __iomem *io_base;
 	int err;
-
-	switch (gpio_irq) {
-	case 0:
-		gpio_irq_cfg = TQMX86_REG_IO_EXT_INT_NONE;
-		break;
-	case 7:
-		gpio_irq_cfg = TQMX86_REG_IO_EXT_INT_7;
-		break;
-	case 9:
-		gpio_irq_cfg = TQMX86_REG_IO_EXT_INT_9;
-		break;
-	case 12:
-		gpio_irq_cfg = TQMX86_REG_IO_EXT_INT_12;
-		break;
-	default:
-		pr_err("tqmx86: Invalid GPIO IRQ (%d)\n", gpio_irq);
-		return -EINVAL;
-	}
 
 	io_base = devm_ioport_map(dev, TQMX86_IOBASE, TQMX86_IOSIZE);
 	if (!io_base)
@@ -233,15 +252,11 @@ static int tqmx86_probe(struct platform_device *pdev)
 	 */
 	i2c_det = inb(TQMX86_REG_I2C_DETECT);
 
-	if (gpio_irq_cfg) {
-		io_ext_int_val =
-			gpio_irq_cfg << TQMX86_REG_IO_EXT_INT_GPIO_SHIFT;
-		iowrite8(io_ext_int_val, io_base + TQMX86_REG_IO_EXT_INT);
-		readback = ioread8(io_base + TQMX86_REG_IO_EXT_INT);
-		if (readback != io_ext_int_val) {
-			dev_warn(dev, "GPIO interrupts not supported.\n");
-			return -EINVAL;
-		}
+	if (gpio_irq) {
+		err = tqmx86_setup_irq(dev, "GPIO", gpio_irq, io_base,
+				       TQMX86_REG_IO_EXT_INT_GPIO_SHIFT);
+		if (err)
+			return err;
 
 		/* Assumes the IRQ resource is first. */
 		tqmx_gpio_resources[0].start = gpio_irq;
