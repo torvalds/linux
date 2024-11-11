@@ -11,6 +11,8 @@ ALL_TESTS="
 
 lib_dir=$(dirname "$0")
 source ${lib_dir}/bond_topo_3d1c.sh
+c_maddr="33:33:00:00:00:10"
+g_maddr="33:33:00:00:02:54"
 
 skip_prio()
 {
@@ -240,6 +242,54 @@ arp_validate_test()
 	done
 }
 
+# Testing correct multicast groups are added to slaves for ns targets
+arp_validate_mcast()
+{
+	RET=0
+	local arp_valid=$(cmd_jq "ip -n ${s_ns} -j -d link show bond0" ".[].linkinfo.info_data.arp_validate")
+	local active_slave=$(cmd_jq "ip -n ${s_ns} -d -j link show bond0" ".[].linkinfo.info_data.active_slave")
+
+	for i in $(seq 0 2); do
+		maddr_list=$(ip -n ${s_ns} maddr show dev eth${i})
+
+		# arp_valid == 0 or active_slave should not join any maddrs
+		if { [ "$arp_valid" == "null" ] || [ "eth${i}" == ${active_slave} ]; } && \
+			echo "$maddr_list" | grep -qE "${c_maddr}|${g_maddr}"; then
+			RET=1
+			check_err 1 "arp_valid $arp_valid active_slave $active_slave, eth$i has mcast group"
+		# arp_valid != 0 and backup_slave should join both maddrs
+		elif [ "$arp_valid" != "null" ] && [ "eth${i}" != ${active_slave} ] && \
+		     ( ! echo "$maddr_list" | grep -q "${c_maddr}" || \
+		       ! echo "$maddr_list" | grep -q "${m_maddr}"); then
+			RET=1
+			check_err 1 "arp_valid $arp_valid active_slave $active_slave, eth$i has mcast group"
+		fi
+	done
+
+	# Do failover
+	ip -n ${s_ns} link set ${active_slave} down
+	# wait for active link change
+	slowwait 2 active_slave_changed $active_slave
+	active_slave=$(cmd_jq "ip -n ${s_ns} -d -j link show bond0" ".[].linkinfo.info_data.active_slave")
+
+	for i in $(seq 0 2); do
+		maddr_list=$(ip -n ${s_ns} maddr show dev eth${i})
+
+		# arp_valid == 0 or active_slave should not join any maddrs
+		if { [ "$arp_valid" == "null" ] || [ "eth${i}" == ${active_slave} ]; } && \
+			echo "$maddr_list" | grep -qE "${c_maddr}|${g_maddr}"; then
+			RET=1
+			check_err 1 "arp_valid $arp_valid active_slave $active_slave, eth$i has mcast group"
+		# arp_valid != 0 and backup_slave should join both maddrs
+		elif [ "$arp_valid" != "null" ] && [ "eth${i}" != ${active_slave} ] && \
+		     ( ! echo "$maddr_list" | grep -q "${c_maddr}" || \
+		       ! echo "$maddr_list" | grep -q "${m_maddr}"); then
+			RET=1
+			check_err 1 "arp_valid $arp_valid active_slave $active_slave, eth$i has mcast group"
+		fi
+	done
+}
+
 arp_validate_arp()
 {
 	local mode=$1
@@ -261,8 +311,10 @@ arp_validate_ns()
 	fi
 
 	for val in $(seq 0 6); do
-		arp_validate_test "mode $mode arp_interval 100 ns_ip6_target ${g_ip6} arp_validate $val"
+		arp_validate_test "mode $mode arp_interval 100 ns_ip6_target ${g_ip6},${c_ip6} arp_validate $val"
 		log_test "arp_validate" "$mode ns_ip6_target arp_validate $val"
+		arp_validate_mcast
+		log_test "arp_validate" "join mcast group"
 	done
 }
 
