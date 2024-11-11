@@ -443,6 +443,101 @@ static void test_vm_ftr_id_regs(struct kvm_vcpu *vcpu, bool aarch64_only)
 	}
 }
 
+#define MPAM_IDREG_TEST	6
+static void test_user_set_mpam_reg(struct kvm_vcpu *vcpu)
+{
+	uint64_t masks[KVM_ARM_FEATURE_ID_RANGE_SIZE];
+	struct reg_mask_range range = {
+		.addr = (__u64)masks,
+	};
+	uint64_t val;
+	int idx, err;
+
+	/*
+	 * If ID_AA64PFR0.MPAM is _not_ officially modifiable and is zero,
+	 * check that if it can be set to 1, (i.e. it is supported by the
+	 * hardware), that it can't be set to other values.
+	 */
+
+	/* Get writable masks for feature ID registers */
+	memset(range.reserved, 0, sizeof(range.reserved));
+	vm_ioctl(vcpu->vm, KVM_ARM_GET_REG_WRITABLE_MASKS, &range);
+
+	/* Writeable? Nothing to test! */
+	idx = encoding_to_range_idx(SYS_ID_AA64PFR0_EL1);
+	if ((masks[idx] & ID_AA64PFR0_EL1_MPAM_MASK) == ID_AA64PFR0_EL1_MPAM_MASK) {
+		ksft_test_result_skip("ID_AA64PFR0_EL1.MPAM is officially writable, nothing to test\n");
+		return;
+	}
+
+	/* Get the id register value */
+	vcpu_get_reg(vcpu, KVM_ARM64_SYS_REG(SYS_ID_AA64PFR0_EL1), &val);
+
+	/* Try to set MPAM=0. This should always be possible. */
+	val &= ~ID_AA64PFR0_EL1_MPAM_MASK;
+	val |= FIELD_PREP(ID_AA64PFR0_EL1_MPAM_MASK, 0);
+	err = __vcpu_set_reg(vcpu, KVM_ARM64_SYS_REG(SYS_ID_AA64PFR0_EL1), val);
+	if (err)
+		ksft_test_result_fail("ID_AA64PFR0_EL1.MPAM=0 was not accepted\n");
+	else
+		ksft_test_result_pass("ID_AA64PFR0_EL1.MPAM=0 worked\n");
+
+	/* Try to set MPAM=1 */
+	val &= ~ID_AA64PFR0_EL1_MPAM_MASK;
+	val |= FIELD_PREP(ID_AA64PFR0_EL1_MPAM_MASK, 1);
+	err = __vcpu_set_reg(vcpu, KVM_ARM64_SYS_REG(SYS_ID_AA64PFR0_EL1), val);
+	if (err)
+		ksft_test_result_skip("ID_AA64PFR0_EL1.MPAM is not writable, nothing to test\n");
+	else
+		ksft_test_result_pass("ID_AA64PFR0_EL1.MPAM=1 was writable\n");
+
+	/* Try to set MPAM=2 */
+	val &= ~ID_AA64PFR0_EL1_MPAM_MASK;
+	val |= FIELD_PREP(ID_AA64PFR0_EL1_MPAM_MASK, 2);
+	err = __vcpu_set_reg(vcpu, KVM_ARM64_SYS_REG(SYS_ID_AA64PFR0_EL1), val);
+	if (err)
+		ksft_test_result_pass("ID_AA64PFR0_EL1.MPAM not arbitrarily modifiable\n");
+	else
+		ksft_test_result_fail("ID_AA64PFR0_EL1.MPAM value should not be ignored\n");
+
+	/* And again for ID_AA64PFR1_EL1.MPAM_frac */
+	idx = encoding_to_range_idx(SYS_ID_AA64PFR1_EL1);
+	if ((masks[idx] & ID_AA64PFR1_EL1_MPAM_frac_MASK) == ID_AA64PFR1_EL1_MPAM_frac_MASK) {
+		ksft_test_result_skip("ID_AA64PFR1_EL1.MPAM_frac is officially writable, nothing to test\n");
+		return;
+	}
+
+	/* Get the id register value */
+	vcpu_get_reg(vcpu, KVM_ARM64_SYS_REG(SYS_ID_AA64PFR1_EL1), &val);
+
+	/* Try to set MPAM_frac=0. This should always be possible. */
+	val &= ~ID_AA64PFR1_EL1_MPAM_frac_MASK;
+	val |= FIELD_PREP(ID_AA64PFR1_EL1_MPAM_frac_MASK, 0);
+	err = __vcpu_set_reg(vcpu, KVM_ARM64_SYS_REG(SYS_ID_AA64PFR1_EL1), val);
+	if (err)
+		ksft_test_result_fail("ID_AA64PFR0_EL1.MPAM_frac=0 was not accepted\n");
+	else
+		ksft_test_result_pass("ID_AA64PFR0_EL1.MPAM_frac=0 worked\n");
+
+	/* Try to set MPAM_frac=1 */
+	val &= ~ID_AA64PFR1_EL1_MPAM_frac_MASK;
+	val |= FIELD_PREP(ID_AA64PFR1_EL1_MPAM_frac_MASK, 1);
+	err = __vcpu_set_reg(vcpu, KVM_ARM64_SYS_REG(SYS_ID_AA64PFR1_EL1), val);
+	if (err)
+		ksft_test_result_skip("ID_AA64PFR1_EL1.MPAM_frac is not writable, nothing to test\n");
+	else
+		ksft_test_result_pass("ID_AA64PFR0_EL1.MPAM_frac=1 was writable\n");
+
+	/* Try to set MPAM_frac=2 */
+	val &= ~ID_AA64PFR1_EL1_MPAM_frac_MASK;
+	val |= FIELD_PREP(ID_AA64PFR1_EL1_MPAM_frac_MASK, 2);
+	err = __vcpu_set_reg(vcpu, KVM_ARM64_SYS_REG(SYS_ID_AA64PFR1_EL1), val);
+	if (err)
+		ksft_test_result_pass("ID_AA64PFR1_EL1.MPAM_frac not arbitrarily modifiable\n");
+	else
+		ksft_test_result_fail("ID_AA64PFR1_EL1.MPAM_frac value should not be ignored\n");
+}
+
 static void test_guest_reg_read(struct kvm_vcpu *vcpu)
 {
 	bool done = false;
@@ -581,12 +676,14 @@ int main(void)
 		   ARRAY_SIZE(ftr_id_aa64isar2_el1) + ARRAY_SIZE(ftr_id_aa64pfr0_el1) +
 		   ARRAY_SIZE(ftr_id_aa64pfr1_el1) + ARRAY_SIZE(ftr_id_aa64mmfr0_el1) +
 		   ARRAY_SIZE(ftr_id_aa64mmfr1_el1) + ARRAY_SIZE(ftr_id_aa64mmfr2_el1) +
-		   ARRAY_SIZE(ftr_id_aa64zfr0_el1) - ARRAY_SIZE(test_regs) + 2;
+		   ARRAY_SIZE(ftr_id_aa64zfr0_el1) - ARRAY_SIZE(test_regs) + 2 +
+		   MPAM_IDREG_TEST;
 
 	ksft_set_plan(test_cnt);
 
 	test_vm_ftr_id_regs(vcpu, aarch64_only);
 	test_vcpu_ftr_id_regs(vcpu);
+	test_user_set_mpam_reg(vcpu);
 
 	test_guest_reg_read(vcpu);
 
