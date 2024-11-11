@@ -188,6 +188,15 @@ static struct quirk_entry quirk_asm201 = {
 	.gmode = false,
 };
 
+static struct quirk_entry quirk_g_series = {
+	.num_zones = 2,
+	.hdmi_mux = 0,
+	.amplifier = 0,
+	.deepslp = 0,
+	.thermal = true,
+	.gmode = true,
+};
+
 static struct quirk_entry quirk_x_series = {
 	.num_zones = 2,
 	.hdmi_mux = 0,
@@ -233,6 +242,24 @@ static const struct dmi_system_id alienware_quirks[] __initconst = {
 	},
 	{
 		.callback = dmi_matched,
+		.ident = "Alienware m17 R5",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Alienware"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Alienware m17 R5 AMD"),
+		},
+		.driver_data = &quirk_x_series,
+	},
+	{
+		.callback = dmi_matched,
+		.ident = "Alienware m18 R2",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Alienware"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Alienware m18 R2"),
+		},
+		.driver_data = &quirk_x_series,
+	},
+	{
+		.callback = dmi_matched,
 		.ident = "Alienware x15 R1",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Alienware"),
@@ -266,6 +293,60 @@ static const struct dmi_system_id alienware_quirks[] __initconst = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "Alienware X51 R3"),
 		},
 		.driver_data = &quirk_x51_r3,
+	},
+	{
+		.callback = dmi_matched,
+		.ident = "Dell Inc. G15 5510",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Dell G15 5510"),
+		},
+		.driver_data = &quirk_g_series,
+	},
+	{
+		.callback = dmi_matched,
+		.ident = "Dell Inc. G15 5511",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Dell G15 5511"),
+		},
+		.driver_data = &quirk_g_series,
+	},
+	{
+		.callback = dmi_matched,
+		.ident = "Dell Inc. G15 5515",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Dell G15 5515"),
+		},
+		.driver_data = &quirk_g_series,
+	},
+	{
+		.callback = dmi_matched,
+		.ident = "Dell Inc. G3 3500",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "G3 3500"),
+		},
+		.driver_data = &quirk_g_series,
+	},
+	{
+		.callback = dmi_matched,
+		.ident = "Dell Inc. G3 3590",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "G3 3590"),
+		},
+		.driver_data = &quirk_g_series,
+	},
+	{
+		.callback = dmi_matched,
+		.ident = "Dell Inc. G5 5500",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "G5 5500"),
+		},
+		.driver_data = &quirk_g_series,
 	},
 	{
 		.callback = dmi_matched,
