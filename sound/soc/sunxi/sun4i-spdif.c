@@ -202,6 +202,10 @@ static void sun4i_spdif_configure(struct sun4i_spdif_dev *host)
 	regmap_update_bits(host->regmap, SUN4I_SPDIF_FCTL,
 			   quirks->val_fctl_ftx, quirks->val_fctl_ftx);
 
+	/* Valid data at the MSB of TXFIFO Register */
+	regmap_update_bits(host->regmap, SUN4I_SPDIF_FCTL,
+			   SUN4I_SPDIF_FCTL_TXIM, 0);
+
 	/* clear TX counter */
 	regmap_write(host->regmap, SUN4I_SPDIF_TXCNT, 0);
 }
@@ -322,9 +326,6 @@ static int sun4i_spdif_hw_params(struct snd_pcm_substream *substream,
 			"Setting SPDIF clock rate for %d Hz failed!\n", mclk);
 		return ret;
 	}
-
-	regmap_update_bits(host->regmap, SUN4I_SPDIF_FCTL,
-			   SUN4I_SPDIF_FCTL_TXIM, SUN4I_SPDIF_FCTL_TXIM);
 
 	switch (rate) {
 	case 22050:
