@@ -203,6 +203,53 @@ static const struct ieee80211_iface_combination rtw89_iface_combs[] = {
 	},
 };
 
+#define RTW89_6GHZ_SPAN_HEAD 6145
+#define RTW89_6GHZ_SPAN_IDX(center_freq) \
+	((((int)(center_freq) - RTW89_6GHZ_SPAN_HEAD) / 5) / 2)
+
+#define RTW89_DECL_6GHZ_SPAN(center_freq, subband_l, subband_h) \
+	[RTW89_6GHZ_SPAN_IDX(center_freq)] = { \
+		.sar_subband_low = RTW89_SAR_6GHZ_ ## subband_l, \
+		.sar_subband_high = RTW89_SAR_6GHZ_ ## subband_h, \
+	}
+
+/* Since 6GHz subbands are not edge aligned, some cases span two subbands.
+ * In the following, we describe each of them with rtw89_6ghz_span.
+ */
+static const struct rtw89_6ghz_span rtw89_overlapping_6ghz[] = {
+	RTW89_DECL_6GHZ_SPAN(6145, SUBBAND_5_L, SUBBAND_5_H),
+	RTW89_DECL_6GHZ_SPAN(6165, SUBBAND_5_L, SUBBAND_5_H),
+	RTW89_DECL_6GHZ_SPAN(6185, SUBBAND_5_L, SUBBAND_5_H),
+	RTW89_DECL_6GHZ_SPAN(6505, SUBBAND_6, SUBBAND_7_L),
+	RTW89_DECL_6GHZ_SPAN(6525, SUBBAND_6, SUBBAND_7_L),
+	RTW89_DECL_6GHZ_SPAN(6545, SUBBAND_6, SUBBAND_7_L),
+	RTW89_DECL_6GHZ_SPAN(6665, SUBBAND_7_L, SUBBAND_7_H),
+	RTW89_DECL_6GHZ_SPAN(6705, SUBBAND_7_L, SUBBAND_7_H),
+	RTW89_DECL_6GHZ_SPAN(6825, SUBBAND_7_H, SUBBAND_8),
+	RTW89_DECL_6GHZ_SPAN(6865, SUBBAND_7_H, SUBBAND_8),
+	RTW89_DECL_6GHZ_SPAN(6875, SUBBAND_7_H, SUBBAND_8),
+	RTW89_DECL_6GHZ_SPAN(6885, SUBBAND_7_H, SUBBAND_8),
+};
+
+const struct rtw89_6ghz_span *
+rtw89_get_6ghz_span(struct rtw89_dev *rtwdev, u32 center_freq)
+{
+	int idx;
+
+	if (center_freq >= RTW89_6GHZ_SPAN_HEAD) {
+		idx = RTW89_6GHZ_SPAN_IDX(center_freq);
+		/* To decrease size of rtw89_overlapping_6ghz[],
+		 * RTW89_6GHZ_SPAN_IDX() truncates the leading NULLs
+		 * to make first span as index 0 of the table. So, if center
+		 * frequency is less than the first one, it will get netative.
+		 */
+		if (idx >= 0 && idx < ARRAY_SIZE(rtw89_overlapping_6ghz))
+			return &rtw89_overlapping_6ghz[idx];
+	}
+
+	return NULL;
+}
+
 bool rtw89_ra_report_to_bitrate(struct rtw89_dev *rtwdev, u8 rpt_rate, u16 *bitrate)
 {
 	struct ieee80211_rate rate;

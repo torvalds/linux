@@ -4597,6 +4597,13 @@ struct rtw89_sar_info {
 	};
 };
 
+struct rtw89_6ghz_span {
+	enum rtw89_sar_subband sar_subband_low;
+	enum rtw89_sar_subband sar_subband_high;
+};
+
+#define RTW89_SAR_SPAN_VALID(span) ((span)->sar_subband_high)
+
 enum rtw89_tas_state {
 	RTW89_TAS_STATE_DPR_OFF,
 	RTW89_TAS_STATE_DPR_ON,
@@ -6908,6 +6915,8 @@ struct rtw89_sta_link *rtw89_sta_set_link(struct rtw89_sta *rtwsta,
 					  unsigned int link_id);
 void rtw89_sta_unset_link(struct rtw89_sta *rtwsta, unsigned int link_id);
 void rtw89_core_set_chip_txpwr(struct rtw89_dev *rtwdev);
+const struct rtw89_6ghz_span *
+rtw89_get_6ghz_span(struct rtw89_dev *rtwdev, u32 center_freq);
 void rtw89_get_default_chandef(struct cfg80211_chan_def *chandef);
 void rtw89_get_channel_params(const struct cfg80211_chan_def *chandef,
 			      struct rtw89_chan *chan);
