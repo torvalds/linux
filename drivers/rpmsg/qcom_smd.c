@@ -20,6 +20,7 @@
 #include <linux/wait.h>
 #include <linux/rpmsg.h>
 #include <linux/rpmsg/qcom_smd.h>
+#include <linux/termios.h>
 
 #include "rpmsg_internal.h"
 
@@ -226,6 +227,8 @@ struct qcom_smd_channel {
 	void *drvdata;
 
 	struct list_head list;
+	int (*signals_cb)(struct rpmsg_device *dev, void *priv, u32 old, u32 new);
+	u32 rsigs;
 };
 
 /*
@@ -338,6 +341,16 @@ struct smd_channel_info_word_pair {
 			channel->info_word->tx.param = cpu_to_le32(value);   \
 		else							      \
 			channel->info->tx.param = cpu_to_le32(value);	      \
+	})
+
+#define GET_RX_CHANNEL_SIGNAL(channel)					      \
+	({								      \
+		(GET_RX_CHANNEL_FLAG(channel, fDSR) ? TIOCM_DSR : 0) |	      \
+		(GET_RX_CHANNEL_FLAG(channel, fCTS) ? TIOCM_CTS : 0) |	      \
+		(GET_RX_CHANNEL_FLAG(channel, fCD) ? TIOCM_CD : 0) |	      \
+		(GET_RX_CHANNEL_FLAG(channel, fRI) ? TIOCM_RI : 0) |	\
+		(GET_TX_CHANNEL_FLAG(channel, fDSR) ? TIOCM_DTR : 0) |	\
+		(GET_TX_CHANNEL_FLAG(channel, fCTS) ? TIOCM_RTS : 0);	\
 	})
 
 /**
@@ -575,9 +588,11 @@ static int qcom_smd_channel_recv_single(struct qcom_smd_channel *channel)
  */
 static bool qcom_smd_channel_intr(struct qcom_smd_channel *channel)
 {
+	struct rpmsg_endpoint *ept = &channel->qsept->ept;
 	bool need_state_scan = false;
 	int remote_state;
 	__le32 pktlen;
+	u32 rsig = 0;
 	int avail;
 	int ret;
 
@@ -599,6 +614,12 @@ static bool qcom_smd_channel_intr(struct qcom_smd_channel *channel)
 	/* Don't consume any data until we've opened the channel */
 	if (channel->state != SMD_CHANNEL_OPENED)
 		goto out;
+	/* Check if any signal updated */
+	rsig = GET_RX_CHANNEL_SIGNAL(channel);
+	if ((channel->signals_cb) && (channel->rsigs != rsig)) {
+		channel->signals_cb(ept->rpdev, ept->priv, channel->rsigs, rsig);
+		channel->rsigs = rsig;
+	}
 
 	/* Indicate that we've seen the new data */
 	SET_RX_CHANNEL_FLAG(channel, fHEAD, 0);
@@ -1001,6 +1022,51 @@ static __poll_t qcom_smd_poll(struct rpmsg_endpoint *ept,
 		mask |= EPOLLOUT | EPOLLWRNORM;
 
 	return mask;
+}
+
+int qcom_smd_register_signals_cb(struct rpmsg_endpoint *ept,
+				   int (*cb)(struct rpmsg_device *, void *, u32, u32))
+{
+	struct qcom_smd_endpoint *channel;
+
+	if (!ept || !cb)
+		return -EINVAL;
+
+	channel = to_smd_endpoint(ept);
+	channel->qsch->signals_cb = cb;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(qcom_smd_register_signals_cb);
+
+/* For getting and setting signals for smd pkt for modem support */
+int qcom_smd_get_sigs(struct rpmsg_endpoint *ept)
+{
+	struct qcom_smd_endpoint *qsept = to_smd_endpoint(ept);
+	struct qcom_smd_channel *channel = qsept->qsch;
+
+		return GET_RX_CHANNEL_SIGNAL(channel);
+}
+
+int qcom_smd_set_sigs(struct rpmsg_endpoint *ept, u32 set, u32 clear)
+{
+	struct qcom_smd_endpoint *qsept = to_smd_endpoint(ept);
+	struct qcom_smd_channel *channel = qsept->qsch;
+
+	if (set & TIOCM_DTR)
+		SET_TX_CHANNEL_FLAG(channel, fDSR, 1);
+	else
+		SET_TX_CHANNEL_FLAG(channel, fDSR, 0);
+
+	if (set & TIOCM_RTS)
+		SET_TX_CHANNEL_FLAG(channel, fCTS, 1);
+	else
+		SET_TX_CHANNEL_FLAG(channel, fDSR, 0);
+
+	SET_TX_CHANNEL_FLAG(channel, fSTATE, 1);
+	qcom_smd_signal_channel(channel);
+
+	return 0;
 }
 
 /*
