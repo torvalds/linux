@@ -232,6 +232,14 @@ static inline void printk_deferred_exit(void)
 {
 }
 
+static inline void printk_force_console_enter(void)
+{
+}
+
+static inline void printk_force_console_exit(void)
+{
+}
+
 static inline int printk_ratelimit(void)
 {
 	return 0;
