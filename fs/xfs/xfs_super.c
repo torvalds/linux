@@ -885,7 +885,8 @@ xfs_fs_statfs(
 
 		statp->f_blocks = sbp->sb_rblocks;
 		freertx = percpu_counter_sum_positive(&mp->m_frextents);
-		statp->f_bavail = statp->f_bfree = xfs_rtx_to_rtb(mp, freertx);
+		statp->f_bavail = statp->f_bfree =
+			xfs_rtbxlen_to_blen(mp, freertx);
 	}
 
 	return 0;

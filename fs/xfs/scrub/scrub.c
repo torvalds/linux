@@ -225,6 +225,8 @@ xchk_teardown(
 			xfs_trans_cancel(sc->tp);
 		sc->tp = NULL;
 	}
+	if (sc->sr.rtg)
+		xchk_rtgroup_free(sc, &sc->sr);
 	if (sc->ip) {
 		if (sc->ilock_flags)
 			xchk_iunlock(sc, sc->ilock_flags);
@@ -382,13 +384,13 @@ static const struct xchk_meta_ops meta_scrub_ops[] = {
 		.repair	= xrep_parent,
 	},
 	[XFS_SCRUB_TYPE_RTBITMAP] = {	/* realtime bitmap */
-		.type	= ST_FS,
+		.type	= ST_RTGROUP,
 		.setup	= xchk_setup_rtbitmap,
 		.scrub	= xchk_rtbitmap,
 		.repair	= xrep_rtbitmap,
 	},
 	[XFS_SCRUB_TYPE_RTSUM] = {	/* realtime summary */
-		.type	= ST_FS,
+		.type	= ST_RTGROUP,
 		.setup	= xchk_setup_rtsummary,
 		.scrub	= xchk_rtsummary,
 		.repair	= xrep_rtsummary,
@@ -497,6 +499,33 @@ xchk_validate_inputs(
 			goto out;
 		break;
 	case ST_GENERIC:
+		break;
+	case ST_RTGROUP:
+		if (sm->sm_ino || sm->sm_gen)
+			goto out;
+		if (xfs_has_rtgroups(mp)) {
+			/*
+			 * On a rtgroups filesystem, there won't be an rtbitmap
+			 * or rtsummary file for group 0 unless there's
+			 * actually a realtime volume attached.  However, older
+			 * xfs_scrub always calls the rtbitmap/rtsummary
+			 * scrubbers with sm_agno==0 so transform the error
+			 * code to ENOENT.
+			 */
+			if (sm->sm_agno >= mp->m_sb.sb_rgcount) {
+				if (sm->sm_agno == 0)
+					error = -ENOENT;
+				goto out;
+			}
+		} else {
+			/*
+			 * Prior to rtgroups, the rtbitmap/rtsummary scrubbers
+			 * accepted sm_agno==0, so we still accept that for
+			 * scrubbing pre-rtgroups filesystems.
+			 */
+			if (sm->sm_agno != 0)
+				goto out;
+		}
 		break;
 	default:
 		goto out;

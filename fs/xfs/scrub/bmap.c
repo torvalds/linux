@@ -19,6 +19,7 @@
 #include "xfs_bmap_btree.h"
 #include "xfs_rmap.h"
 #include "xfs_rmap_btree.h"
+#include "xfs_rtgroup.h"
 #include "xfs_health.h"
 #include "scrub/scrub.h"
 #include "scrub/common.h"
@@ -314,8 +315,20 @@ xchk_bmap_rt_iextent_xref(
 	struct xchk_bmap_info	*info,
 	struct xfs_bmbt_irec	*irec)
 {
+	int			error;
+
+	error = xchk_rtgroup_init_existing(info->sc,
+			xfs_rtb_to_rgno(ip->i_mount, irec->br_startblock),
+			&info->sc->sr);
+	if (!xchk_fblock_process_error(info->sc, info->whichfork,
+			irec->br_startoff, &error))
+		return;
+
+	xchk_rtgroup_lock(&info->sc->sr, XCHK_RTGLOCK_ALL);
 	xchk_xref_is_used_rt_space(info->sc, irec->br_startblock,
 			irec->br_blockcount);
+
+	xchk_rtgroup_free(info->sc, &info->sc->sr);
 }
 
 /* Cross-reference a single datadev extent record. */

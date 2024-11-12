@@ -36,6 +36,7 @@
 #include "xfs_ag.h"
 #include "xfs_rtbitmap.h"
 #include "xfs_metafile.h"
+#include "xfs_rtgroup.h"
 #include "scrub/stats.h"
 
 static DEFINE_MUTEX(xfs_uuid_table_mutex);
@@ -834,10 +835,17 @@ xfs_mountfs(
 		goto out_free_dir;
 	}
 
+	error = xfs_initialize_rtgroups(mp, 0, sbp->sb_rgcount,
+			mp->m_sb.sb_rextents);
+	if (error) {
+		xfs_warn(mp, "Failed rtgroup init: %d", error);
+		goto out_free_perag;
+	}
+
 	if (XFS_IS_CORRUPT(mp, !sbp->sb_logblocks)) {
 		xfs_warn(mp, "no log defined");
 		error = -EFSCORRUPTED;
-		goto out_free_perag;
+		goto out_free_rtgroup;
 	}
 
 	error = xfs_inodegc_register_shrinker(mp);
@@ -1072,6 +1080,8 @@ xfs_mountfs(
 	if (mp->m_logdev_targp && mp->m_logdev_targp != mp->m_ddev_targp)
 		xfs_buftarg_drain(mp->m_logdev_targp);
 	xfs_buftarg_drain(mp->m_ddev_targp);
+ out_free_rtgroup:
+	xfs_free_rtgroups(mp, 0, mp->m_sb.sb_rgcount);
  out_free_perag:
 	xfs_free_perag_range(mp, 0, mp->m_sb.sb_agcount);
  out_free_dir:
@@ -1156,6 +1166,7 @@ xfs_unmountfs(
 	xfs_errortag_clearall(mp);
 #endif
 	shrinker_free(mp->m_inodegc_shrinker);
+	xfs_free_rtgroups(mp, 0, mp->m_sb.sb_rgcount);
 	xfs_free_perag_range(mp, 0, mp->m_sb.sb_agcount);
 	xfs_errortag_del(mp);
 	xfs_error_sysfs_del(mp);
@@ -1463,7 +1474,7 @@ xfs_mod_delalloc(
 
 	if (XFS_IS_REALTIME_INODE(ip)) {
 		percpu_counter_add_batch(&mp->m_delalloc_rtextents,
-				xfs_rtb_to_rtx(mp, data_delta),
+				xfs_blen_to_rtbxlen(mp, data_delta),
 				XFS_DELALLOC_BATCH);
 		if (!ind_delta)
 			return;

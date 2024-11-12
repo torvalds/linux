@@ -76,8 +76,9 @@ xrep_rtsummary_prep_buf(
 	union xfs_suminfo_raw	*ondisk;
 	int			error;
 
-	rts->args.mp = sc->mp;
+	rts->args.mp = mp;
 	rts->args.tp = sc->tp;
+	rts->args.rtg = sc->sr.rtg;
 	rts->args.sumbp = bp;
 	ondisk = xfs_rsumblock_infoptr(&rts->args, 0);
 	rts->args.sumbp = NULL;
@@ -162,8 +163,8 @@ xrep_rtsummary(
 		return error;
 
 	/* Reset incore state and blow out the summary cache. */
-	if (mp->m_rsum_cache)
-		memset(mp->m_rsum_cache, 0xFF, mp->m_sb.sb_rbmblocks);
+	if (sc->sr.rtg->rtg_rsum_cache)
+		memset(sc->sr.rtg->rtg_rsum_cache, 0xFF, mp->m_sb.sb_rbmblocks);
 
 	mp->m_rsumlevels = rts->rsumlevels;
 	mp->m_rsumblocks = rts->rsumblocks;

@@ -501,8 +501,8 @@ xfs_iomap_prealloc_size(
 				       alloc_blocks);
 
 	if (unlikely(XFS_IS_REALTIME_INODE(ip)))
-		freesp = xfs_rtx_to_rtb(mp,
-			xfs_iomap_freesp(&mp->m_frextents,
+		freesp = xfs_rtbxlen_to_blen(mp,
+				xfs_iomap_freesp(&mp->m_frextents,
 					mp->m_low_rtexts, &shift));
 	else
 		freesp = xfs_iomap_freesp(&mp->m_fdblocks, mp->m_low_space,

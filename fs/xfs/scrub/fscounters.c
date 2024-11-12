@@ -19,6 +19,7 @@
 #include "xfs_rtbitmap.h"
 #include "xfs_inode.h"
 #include "xfs_icache.h"
+#include "xfs_rtgroup.h"
 #include "scrub/scrub.h"
 #include "scrub/common.h"
 #include "scrub/trace.h"
@@ -386,7 +387,7 @@ retry:
 #ifdef CONFIG_XFS_RT
 STATIC int
 xchk_fscount_add_frextent(
-	struct xfs_mount		*mp,
+	struct xfs_rtgroup		*rtg,
 	struct xfs_trans		*tp,
 	const struct xfs_rtalloc_rec	*rec,
 	void				*priv)
@@ -407,6 +408,7 @@ xchk_fscount_count_frextents(
 	struct xchk_fscounters	*fsc)
 {
 	struct xfs_mount	*mp = sc->mp;
+	struct xfs_rtgroup	*rtg = NULL;
 	int			error;
 
 	fsc->frextents = 0;
@@ -414,19 +416,20 @@ xchk_fscount_count_frextents(
 	if (!xfs_has_realtime(mp))
 		return 0;
 
-	xfs_rtbitmap_lock_shared(sc->mp, XFS_RBMLOCK_BITMAP);
-	error = xfs_rtalloc_query_all(sc->mp, sc->tp,
-			xchk_fscount_add_frextent, fsc);
-	if (error) {
-		xchk_set_incomplete(sc);
-		goto out_unlock;
+	while ((rtg = xfs_rtgroup_next(mp, rtg))) {
+		xfs_rtgroup_lock(rtg, XFS_RTGLOCK_BITMAP_SHARED);
+		error = xfs_rtalloc_query_all(rtg, sc->tp,
+				xchk_fscount_add_frextent, fsc);
+		xfs_rtgroup_unlock(rtg, XFS_RTGLOCK_BITMAP_SHARED);
+		if (error) {
+			xchk_set_incomplete(sc);
+			xfs_rtgroup_rele(rtg);
+			return error;
+		}
 	}
 
 	fsc->frextents_delayed = percpu_counter_sum(&mp->m_delalloc_rtextents);
-
-out_unlock:
-	xfs_rtbitmap_unlock_shared(sc->mp, XFS_RBMLOCK_BITMAP);
-	return error;
+	return 0;
 }
 #else
 STATIC int

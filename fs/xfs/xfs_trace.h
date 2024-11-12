@@ -72,6 +72,7 @@ struct xfs_btree_cur;
 struct xfs_defer_op_type;
 struct xfs_refcount_irec;
 struct xfs_fsmap;
+struct xfs_fsmap_irec;
 struct xfs_group;
 struct xfs_rmap_irec;
 struct xfs_icreate_log;
@@ -218,6 +219,7 @@ DEFINE_PERAG_REF_EVENT(xfs_perag_clear_inode_tag);
 DEFINE_PERAG_REF_EVENT(xfs_reclaim_inodes_count);
 
 TRACE_DEFINE_ENUM(XG_TYPE_AG);
+TRACE_DEFINE_ENUM(XG_TYPE_RTG);
 
 DECLARE_EVENT_CLASS(xfs_group_class,
 	TP_PROTO(struct xfs_group *xg, unsigned long caller_ip),
@@ -3881,16 +3883,17 @@ DEFINE_INODE_IREC_EVENT(xfs_swap_extent_rmap_remap_piece);
 DEFINE_INODE_ERROR_EVENT(xfs_swap_extent_rmap_error);
 
 /* fsmap traces */
-DECLARE_EVENT_CLASS(xfs_fsmap_class,
+TRACE_EVENT(xfs_fsmap_mapping,
 	TP_PROTO(struct xfs_mount *mp, u32 keydev, xfs_agnumber_t agno,
-		 const struct xfs_rmap_irec *rmap),
-	TP_ARGS(mp, keydev, agno, rmap),
+		 const struct xfs_fsmap_irec *frec),
+	TP_ARGS(mp, keydev, agno, frec),
 	TP_STRUCT__entry(
 		__field(dev_t, dev)
 		__field(dev_t, keydev)
 		__field(xfs_agnumber_t, agno)
-		__field(xfs_fsblock_t, bno)
-		__field(xfs_filblks_t, len)
+		__field(xfs_agblock_t, agbno)
+		__field(xfs_daddr_t, start_daddr)
+		__field(xfs_daddr_t, len_daddr)
 		__field(uint64_t, owner)
 		__field(uint64_t, offset)
 		__field(unsigned int, flags)
@@ -3899,33 +3902,66 @@ DECLARE_EVENT_CLASS(xfs_fsmap_class,
 		__entry->dev = mp->m_super->s_dev;
 		__entry->keydev = new_decode_dev(keydev);
 		__entry->agno = agno;
-		__entry->bno = rmap->rm_startblock;
-		__entry->len = rmap->rm_blockcount;
+		__entry->agbno = frec->rec_key;
+		__entry->start_daddr = frec->start_daddr;
+		__entry->len_daddr = frec->len_daddr;
+		__entry->owner = frec->owner;
+		__entry->offset = frec->offset;
+		__entry->flags = frec->rm_flags;
+	),
+	TP_printk("dev %d:%d keydev %d:%d agno 0x%x rmapbno 0x%x start_daddr 0x%llx len_daddr 0x%llx owner 0x%llx fileoff 0x%llx flags 0x%x",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  MAJOR(__entry->keydev), MINOR(__entry->keydev),
+		  __entry->agno,
+		  __entry->agbno,
+		  __entry->start_daddr,
+		  __entry->len_daddr,
+		  __entry->owner,
+		  __entry->offset,
+		  __entry->flags)
+);
+
+DECLARE_EVENT_CLASS(xfs_fsmap_group_key_class,
+	TP_PROTO(struct xfs_mount *mp, u32 keydev, xfs_agnumber_t agno,
+		 const struct xfs_rmap_irec *rmap),
+	TP_ARGS(mp, keydev, agno, rmap),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(dev_t, keydev)
+		__field(xfs_agnumber_t, agno)
+		__field(xfs_agblock_t, agbno)
+		__field(uint64_t, owner)
+		__field(uint64_t, offset)
+		__field(unsigned int, flags)
+	),
+	TP_fast_assign(
+		__entry->dev = mp->m_super->s_dev;
+		__entry->keydev = new_decode_dev(keydev);
+		__entry->agno = agno;
+		__entry->agbno = rmap->rm_startblock;
 		__entry->owner = rmap->rm_owner;
 		__entry->offset = rmap->rm_offset;
 		__entry->flags = rmap->rm_flags;
 	),
-	TP_printk("dev %d:%d keydev %d:%d agno 0x%x startblock 0x%llx fsbcount 0x%llx owner 0x%llx fileoff 0x%llx flags 0x%x",
+	TP_printk("dev %d:%d keydev %d:%d agno 0x%x startblock 0x%x owner 0x%llx fileoff 0x%llx flags 0x%x",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  MAJOR(__entry->keydev), MINOR(__entry->keydev),
 		  __entry->agno,
-		  __entry->bno,
-		  __entry->len,
+		  __entry->agbno,
 		  __entry->owner,
 		  __entry->offset,
 		  __entry->flags)
 )
-#define DEFINE_FSMAP_EVENT(name) \
-DEFINE_EVENT(xfs_fsmap_class, name, \
+#define DEFINE_FSMAP_GROUP_KEY_EVENT(name) \
+DEFINE_EVENT(xfs_fsmap_group_key_class, name, \
 	TP_PROTO(struct xfs_mount *mp, u32 keydev, xfs_agnumber_t agno, \
 		 const struct xfs_rmap_irec *rmap), \
 	TP_ARGS(mp, keydev, agno, rmap))
-DEFINE_FSMAP_EVENT(xfs_fsmap_low_key);
-DEFINE_FSMAP_EVENT(xfs_fsmap_high_key);
-DEFINE_FSMAP_EVENT(xfs_fsmap_mapping);
+DEFINE_FSMAP_GROUP_KEY_EVENT(xfs_fsmap_low_group_key);
+DEFINE_FSMAP_GROUP_KEY_EVENT(xfs_fsmap_high_group_key);
 
-DECLARE_EVENT_CLASS(xfs_fsmap_linear_class,
-	TP_PROTO(struct xfs_mount *mp, u32 keydev, uint64_t bno),
+DECLARE_EVENT_CLASS(xfs_fsmap_linear_key_class,
+	TP_PROTO(struct xfs_mount *mp, u32 keydev, xfs_fsblock_t bno),
 	TP_ARGS(mp, keydev, bno),
 	TP_STRUCT__entry(
 		__field(dev_t, dev)
@@ -3942,12 +3978,12 @@ DECLARE_EVENT_CLASS(xfs_fsmap_linear_class,
 		  MAJOR(__entry->keydev), MINOR(__entry->keydev),
 		  __entry->bno)
 )
-#define DEFINE_FSMAP_LINEAR_EVENT(name) \
-DEFINE_EVENT(xfs_fsmap_linear_class, name, \
+#define DEFINE_FSMAP_LINEAR_KEY_EVENT(name) \
+DEFINE_EVENT(xfs_fsmap_linear_key_class, name, \
 	TP_PROTO(struct xfs_mount *mp, u32 keydev, uint64_t bno), \
 	TP_ARGS(mp, keydev, bno))
-DEFINE_FSMAP_LINEAR_EVENT(xfs_fsmap_low_key_linear);
-DEFINE_FSMAP_LINEAR_EVENT(xfs_fsmap_high_key_linear);
+DEFINE_FSMAP_LINEAR_KEY_EVENT(xfs_fsmap_low_linear_key);
+DEFINE_FSMAP_LINEAR_KEY_EVENT(xfs_fsmap_high_linear_key);
 
 DECLARE_EVENT_CLASS(xfs_getfsmap_class,
 	TP_PROTO(struct xfs_mount *mp, struct xfs_fsmap *fsmap),

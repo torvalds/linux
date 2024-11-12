@@ -48,6 +48,7 @@
 #include "xfs_refcount.h"
 #include "xfs_metafile.h"
 #include "xfs_metadir.h"
+#include "xfs_rtgroup.h"
 
 /*
  * We include this last to have the helpers above available for the trace

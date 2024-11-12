@@ -710,6 +710,9 @@ __xfs_sb_from_disk(
 		to->sb_metadirino = be64_to_cpu(from->sb_metadirino);
 	else
 		to->sb_metadirino = NULLFSINO;
+
+	to->sb_rgcount = 1;
+	to->sb_rgextents = 0;
 }
 
 void
@@ -994,8 +997,18 @@ xfs_mount_sb_set_rextsize(
 	struct xfs_mount	*mp,
 	struct xfs_sb		*sbp)
 {
+	struct xfs_groups	*rgs = &mp->m_groups[XG_TYPE_RTG];
+
 	mp->m_rtxblklog = log2_if_power2(sbp->sb_rextsize);
 	mp->m_rtxblkmask = mask64_if_power2(sbp->sb_rextsize);
+
+	mp->m_rgblocks = 0;
+	mp->m_rgblklog = 0;
+	mp->m_rgblkmask = (uint64_t)-1;
+
+	rgs->blocks = 0;
+	rgs->blklog = 0;
+	rgs->blkmask = (uint64_t)-1;
 }
 
 /*
