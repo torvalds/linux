@@ -350,19 +350,15 @@ static int mlx5e_rq_shampo_hd_info_alloc(struct mlx5e_rq *rq, int node)
 
 	shampo->bitmap = bitmap_zalloc_node(shampo->hd_per_wq, GFP_KERNEL,
 					    node);
-	shampo->info = kvzalloc_node(array_size(shampo->hd_per_wq,
-						sizeof(*shampo->info)),
-				     GFP_KERNEL, node);
 	shampo->pages = kvzalloc_node(array_size(shampo->hd_per_wq,
 						 sizeof(*shampo->pages)),
 				     GFP_KERNEL, node);
-	if (!shampo->bitmap || !shampo->info || !shampo->pages)
+	if (!shampo->bitmap || !shampo->pages)
 		goto err_nomem;
 
 	return 0;
 
 err_nomem:
-	kvfree(shampo->info);
 	kvfree(shampo->bitmap);
 	kvfree(shampo->pages);
 
@@ -372,7 +368,6 @@ err_nomem:
 static void mlx5e_rq_shampo_hd_info_free(struct mlx5e_rq *rq)
 {
 	kvfree(rq->mpwqe.shampo->bitmap);
-	kvfree(rq->mpwqe.shampo->info);
 	kvfree(rq->mpwqe.shampo->pages);
 }
 
@@ -767,8 +762,6 @@ static int mlx5_rq_shampo_alloc(struct mlx5_core_dev *mdev,
 				u32 *pool_size,
 				int node)
 {
-	void *wqc = MLX5_ADDR_OF(rqc, rqp->rqc, wq);
-	int wq_size;
 	int err;
 
 	if (!test_bit(MLX5E_RQ_STATE_SHAMPO, &rq->state))
@@ -793,9 +786,9 @@ static int mlx5_rq_shampo_alloc(struct mlx5_core_dev *mdev,
 		cpu_to_be32(rq->mpwqe.shampo->mkey);
 	rq->mpwqe.shampo->hd_per_wqe =
 		mlx5e_shampo_hd_per_wqe(mdev, params, rqp);
-	wq_size = BIT(MLX5_GET(wq, wqc, log_wq_sz));
-	*pool_size += (rq->mpwqe.shampo->hd_per_wqe * wq_size) /
-		     MLX5E_SHAMPO_WQ_HEADER_PER_PAGE;
+	rq->mpwqe.shampo->pages_per_wq =
+		rq->mpwqe.shampo->hd_per_wq / MLX5E_SHAMPO_WQ_HEADER_PER_PAGE;
+	*pool_size += rq->mpwqe.shampo->pages_per_wq;
 	return 0;
 
 err_hw_gro_data:
