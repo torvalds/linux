@@ -1534,6 +1534,16 @@ int __init tdx_bringup(void)
 	if (!enable_tdx)
 		return 0;
 
+	if (!enable_ept) {
+		pr_err("EPT is required for TDX\n");
+		goto success_disable_tdx;
+	}
+
+	if (!tdp_mmu_enabled || !enable_mmio_caching || !enable_ept_ad_bits) {
+		pr_err("TDP MMU and MMIO caching and EPT A/D bit is required for TDX\n");
+		goto success_disable_tdx;
+	}
+
 	if (!cpu_feature_enabled(X86_FEATURE_MOVDIR64B)) {
 		pr_err("tdx: MOVDIR64B is required for TDX\n");
 		goto success_disable_tdx;
