@@ -1245,7 +1245,7 @@ static int count_active_streams(const struct dc *dc)
 	for (i = 0; i < dc->current_state->stream_count; ++i) {
 		struct dc_stream_state *stream = dc->current_state->streams[i];
 
-		if (stream && !stream->dpms_off)
+		if (stream && (!stream->dpms_off || dc->config.disable_ips_in_dpms_off))
 			count += 1;
 	}
 
