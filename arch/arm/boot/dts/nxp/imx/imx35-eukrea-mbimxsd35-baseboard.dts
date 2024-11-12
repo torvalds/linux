@@ -69,57 +69,55 @@
 };
 
 &iomuxc {
-	imx35-eukrea {
-		pinctrl_audmux: audmuxgrp {
-			fsl,pins = <
-				MX35_PAD_STXFS4__AUDMUX_AUD4_TXFS	0x80000000
-				MX35_PAD_STXD4__AUDMUX_AUD4_TXD		0x80000000
-				MX35_PAD_SRXD4__AUDMUX_AUD4_RXD		0x80000000
-				MX35_PAD_SCK4__AUDMUX_AUD4_TXC		0x80000000
-			>;
-		};
+	pinctrl_audmux: audmuxgrp {
+		fsl,pins = <
+			MX35_PAD_STXFS4__AUDMUX_AUD4_TXFS	0x80000000
+			MX35_PAD_STXD4__AUDMUX_AUD4_TXD		0x80000000
+			MX35_PAD_SRXD4__AUDMUX_AUD4_RXD		0x80000000
+			MX35_PAD_SCK4__AUDMUX_AUD4_TXC		0x80000000
+		>;
+	};
 
-		pinctrl_bp1: bp1grp {
-			fsl,pins = <MX35_PAD_LD19__GPIO3_25  0x80000000>;
-		};
+	pinctrl_bp1: bp1grp {
+		fsl,pins = <MX35_PAD_LD19__GPIO3_25  0x80000000>;
+	};
 
-		pinctrl_esdhc1: esdhc1grp {
-			fsl,pins = <
-				MX35_PAD_SD1_CMD__ESDHC1_CMD		0x80000000
-				MX35_PAD_SD1_CLK__ESDHC1_CLK		0x80000000
-				MX35_PAD_SD1_DATA0__ESDHC1_DAT0		0x80000000
-				MX35_PAD_SD1_DATA1__ESDHC1_DAT1		0x80000000
-				MX35_PAD_SD1_DATA2__ESDHC1_DAT2		0x80000000
-				MX35_PAD_SD1_DATA3__ESDHC1_DAT3		0x80000000
-				MX35_PAD_LD18__GPIO3_24			0x80000000 /* CD */
-			>;
-		};
+	pinctrl_esdhc1: esdhc1grp {
+		fsl,pins = <
+			MX35_PAD_SD1_CMD__ESDHC1_CMD		0x80000000
+			MX35_PAD_SD1_CLK__ESDHC1_CLK		0x80000000
+			MX35_PAD_SD1_DATA0__ESDHC1_DAT0		0x80000000
+			MX35_PAD_SD1_DATA1__ESDHC1_DAT1		0x80000000
+			MX35_PAD_SD1_DATA2__ESDHC1_DAT2		0x80000000
+			MX35_PAD_SD1_DATA3__ESDHC1_DAT3		0x80000000
+			MX35_PAD_LD18__GPIO3_24			0x80000000 /* CD */
+		>;
+	};
 
-		pinctrl_led1: led1grp {
-			fsl,pins = <MX35_PAD_LD23__GPIO3_29  0x80000000>;
-		};
+	pinctrl_led1: led1grp {
+		fsl,pins = <MX35_PAD_LD23__GPIO3_29  0x80000000>;
+	};
 
-		pinctrl_reg_lcd_3v3: reg-lcd-3v3 {
-			fsl,pins = <MX35_PAD_D3_CLS__GPIO1_4 0x80000000>;
-		};
+	pinctrl_reg_lcd_3v3: reg-lcd-3v3grp {
+		fsl,pins = <MX35_PAD_D3_CLS__GPIO1_4 0x80000000>;
+	};
 
-		pinctrl_uart1: uart1grp {
-			fsl,pins = <
-				MX35_PAD_TXD1__UART1_TXD_MUX		0x1c5
-				MX35_PAD_RXD1__UART1_RXD_MUX		0x1c5
-				MX35_PAD_CTS1__UART1_CTS		0x1c5
-				MX35_PAD_RTS1__UART1_RTS		0x1c5
-			>;
-		};
+	pinctrl_uart1: uart1grp {
+		fsl,pins = <
+			MX35_PAD_TXD1__UART1_TXD_MUX		0x1c5
+			MX35_PAD_RXD1__UART1_RXD_MUX		0x1c5
+			MX35_PAD_CTS1__UART1_CTS		0x1c5
+			MX35_PAD_RTS1__UART1_RTS		0x1c5
+		>;
+	};
 
-		pinctrl_uart2: uart2grp {
-			fsl,pins = <
-				MX35_PAD_RXD2__UART2_RXD_MUX		0x1c5
-				MX35_PAD_TXD2__UART2_TXD_MUX		0x1c5
-				MX35_PAD_RTS2__UART2_RTS		0x1c5
-				MX35_PAD_CTS2__UART2_CTS		0x1c5
-			>;
-		};
+	pinctrl_uart2: uart2grp {
+		fsl,pins = <
+			MX35_PAD_RXD2__UART2_RXD_MUX		0x1c5
+			MX35_PAD_TXD2__UART2_TXD_MUX		0x1c5
+			MX35_PAD_RTS2__UART2_RTS		0x1c5
+			MX35_PAD_CTS2__UART2_CTS		0x1c5
+		>;
 	};
 };
 

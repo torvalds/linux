@@ -42,13 +42,11 @@
 / {
 	backlight0 {
 		pwms = <&pwm1 0 500000 PWM_POLARITY_INVERTED>;
-		turn-on-delay-ms = <35>;
 		power-supply = <&reg_lcd1_pwr>;
 	};
 
 	backlight1 {
 		pwms = <&pwm2 0 500000 PWM_POLARITY_INVERTED>;
-		turn-on-delay-ms = <35>;
 		power-supply = <&reg_lcd1_pwr>;
 	};
 
