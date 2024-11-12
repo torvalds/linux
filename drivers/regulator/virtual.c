@@ -357,7 +357,7 @@ static void regulator_virtual_remove(struct platform_device *pdev)
 
 static struct platform_driver regulator_virtual_consumer_driver = {
 	.probe		= regulator_virtual_probe,
-	.remove_new	= regulator_virtual_remove,
+	.remove		= regulator_virtual_remove,
 	.driver		= {
 		.name		= "reg-virt-consumer",
 		.probe_type	= PROBE_PREFER_ASYNCHRONOUS,
