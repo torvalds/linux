@@ -48,6 +48,8 @@ struct vcpu_tdx {
 
 	struct tdx_vp vp;
 
+	struct list_head cpu_list;
+
 	enum vcpu_tdx_state state;
 };
 
