@@ -35,9 +35,20 @@ int xe_bo_evict_all(struct xe_device *xe)
 	int ret;
 
 	/* User memory */
-	for (mem_type = XE_PL_VRAM0; mem_type <= XE_PL_VRAM1; ++mem_type) {
+	for (mem_type = XE_PL_TT; mem_type <= XE_PL_VRAM1; ++mem_type) {
 		struct ttm_resource_manager *man =
 			ttm_manager_type(bdev, mem_type);
+
+		/*
+		 * On igpu platforms with flat CCS we need to ensure we save and restore any CCS
+		 * state since this state lives inside graphics stolen memory which doesn't survive
+		 * hibernation.
+		 *
+		 * This can be further improved by only evicting objects that we know have actually
+		 * used a compression enabled PAT index.
+		 */
+		if (mem_type == XE_PL_TT && (IS_DGFX(xe) || !xe_device_has_flat_ccs(xe)))
+			continue;
 
 		if (man) {
 			ret = ttm_resource_manager_evict_all(bdev, man);
