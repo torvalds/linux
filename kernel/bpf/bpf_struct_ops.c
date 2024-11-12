@@ -32,7 +32,7 @@ struct bpf_struct_ops_map {
 	 * (in kvalue.data).
 	 */
 	struct bpf_link **links;
-	u32 links_cnt;
+	u32 funcs_cnt;
 	u32 image_pages_cnt;
 	/* image_pages is an array of pages that has all the trampolines
 	 * that stores the func args before calling the bpf_prog.
@@ -481,11 +481,11 @@ static void bpf_struct_ops_map_put_progs(struct bpf_struct_ops_map *st_map)
 {
 	u32 i;
 
-	for (i = 0; i < st_map->links_cnt; i++) {
-		if (st_map->links[i]) {
-			bpf_link_put(st_map->links[i]);
-			st_map->links[i] = NULL;
-		}
+	for (i = 0; i < st_map->funcs_cnt; i++) {
+		if (!st_map->links[i])
+			break;
+		bpf_link_put(st_map->links[i]);
+		st_map->links[i] = NULL;
 	}
 }
 
@@ -601,6 +601,7 @@ static long bpf_struct_ops_map_update_elem(struct bpf_map *map, void *key,
 	int prog_fd, err;
 	u32 i, trampoline_start, image_off = 0;
 	void *cur_image = NULL, *image = NULL;
+	struct bpf_link **plink;
 
 	if (flags)
 		return -EINVAL;
@@ -639,6 +640,7 @@ static long bpf_struct_ops_map_update_elem(struct bpf_map *map, void *key,
 	udata = &uvalue->data;
 	kdata = &kvalue->data;
 
+	plink = st_map->links;
 	module_type = btf_type_by_id(btf_vmlinux, st_ops_ids[IDX_MODULE_ID]);
 	for_each_member(i, t, member) {
 		const struct btf_type *mtype, *ptype;
@@ -714,7 +716,7 @@ static long bpf_struct_ops_map_update_elem(struct bpf_map *map, void *key,
 		}
 		bpf_link_init(&link->link, BPF_LINK_TYPE_STRUCT_OPS,
 			      &bpf_struct_ops_link_lops, prog);
-		st_map->links[i] = &link->link;
+		*plink++ = &link->link;
 
 		trampoline_start = image_off;
 		err = bpf_struct_ops_prepare_trampoline(tlinks, link,
@@ -895,6 +897,19 @@ static int bpf_struct_ops_map_alloc_check(union bpf_attr *attr)
 	return 0;
 }
 
+static u32 count_func_ptrs(const struct btf *btf, const struct btf_type *t)
+{
+	int i;
+	u32 count;
+	const struct btf_member *member;
+
+	count = 0;
+	for_each_member(i, t, member)
+		if (btf_type_resolve_func_ptr(btf, member->type, NULL))
+			count++;
+	return count;
+}
+
 static struct bpf_map *bpf_struct_ops_map_alloc(union bpf_attr *attr)
 {
 	const struct bpf_struct_ops_desc *st_ops_desc;
@@ -961,9 +976,9 @@ static struct bpf_map *bpf_struct_ops_map_alloc(union bpf_attr *attr)
 	map = &st_map->map;
 
 	st_map->uvalue = bpf_map_area_alloc(vt->size, NUMA_NO_NODE);
-	st_map->links_cnt = btf_type_vlen(t);
+	st_map->funcs_cnt = count_func_ptrs(btf, t);
 	st_map->links =
-		bpf_map_area_alloc(st_map->links_cnt * sizeof(struct bpf_links *),
+		bpf_map_area_alloc(st_map->funcs_cnt * sizeof(struct bpf_link *),
 				   NUMA_NO_NODE);
 	if (!st_map->uvalue || !st_map->links) {
 		ret = -ENOMEM;
@@ -994,7 +1009,7 @@ static u64 bpf_struct_ops_map_mem_usage(const struct bpf_map *map)
 	usage = sizeof(*st_map) +
 			vt->size - sizeof(struct bpf_struct_ops_value);
 	usage += vt->size;
-	usage += btf_type_vlen(vt) * sizeof(struct bpf_links *);
+	usage += st_map->funcs_cnt * sizeof(struct bpf_link *);
 	usage += PAGE_SIZE;
 	return usage;
 }
