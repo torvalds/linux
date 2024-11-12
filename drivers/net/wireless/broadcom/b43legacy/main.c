@@ -27,7 +27,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/slab.h>
 #include <net/dst.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include "b43legacy.h"
 #include "main.h"

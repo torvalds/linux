@@ -23,7 +23,7 @@
 #include <linux/regulator/consumer.h>
 #include <linux/spi/spi.h>
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 /* Commands */
 #define ADS131E08_CMD_RESET		0x06

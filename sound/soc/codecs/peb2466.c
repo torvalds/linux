@@ -6,7 +6,7 @@
 //
 // Author: Herve Codina <herve.codina@bootlin.com>
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <linux/clk.h>
 #include <linux/firmware.h>
 #include <linux/gpio/consumer.h>

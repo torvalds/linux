@@ -21,7 +21,7 @@
 #include <linux/bitops.h>
 #include <linux/etherdevice.h>
 #include <linux/gpio.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include "hw.h"
 #include "hw-ops.h"

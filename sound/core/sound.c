@@ -133,7 +133,7 @@ static struct snd_minor *autoload_device(unsigned int minor)
 		/* /dev/aloadSEQ */
 		snd_request_other(minor);
 	}
-	mutex_lock(&sound_mutex); /* reacuire lock */
+	mutex_lock(&sound_mutex); /* reacquire lock */
 	return snd_minors[minor];
 }
 #else /* !CONFIG_MODULES */

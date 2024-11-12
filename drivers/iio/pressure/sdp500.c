@@ -10,7 +10,7 @@
 #include <linux/iio/iio.h>
 #include <linux/mod_devicetable.h>
 #include <linux/regulator/consumer.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #define SDP500_CRC8_POLYNOMIAL  0x31   /* x8+x5+x4+1 (normalized to 0x31) */
 #define SDP500_READ_SIZE        3

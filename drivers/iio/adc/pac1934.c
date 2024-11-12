@@ -19,7 +19,7 @@
 #include <linux/i2c.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 /*
  * maximum accumulation time should be (17 * 60 * 1000) around 17 minutes@1024 sps

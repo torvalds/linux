@@ -47,6 +47,7 @@ static struct expr *expr_lookup(enum expr_type type, void *l, void *r)
 	e->type = type;
 	e->left._initdata = l;
 	e->right._initdata = r;
+	e->val_is_valid = false;
 
 	hash_add(expr_hashtable, &e->node, hash);
 

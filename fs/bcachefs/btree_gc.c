@@ -828,8 +828,6 @@ static int bch2_alloc_write_key(struct btree_trans *trans,
 			return ret;
 	}
 
-	gc.fragmentation_lru = alloc_lru_idx_fragmentation(gc, ca);
-
 	if (fsck_err_on(new.data_type != gc.data_type,
 			trans, alloc_key_data_type_wrong,
 			"bucket %llu:%llu gen %u has wrong data_type"
@@ -857,7 +855,6 @@ static int bch2_alloc_write_key(struct btree_trans *trans,
 	copy_bucket_field(alloc_key_cached_sectors_wrong,	cached_sectors);
 	copy_bucket_field(alloc_key_stripe_wrong,		stripe);
 	copy_bucket_field(alloc_key_stripe_redundancy_wrong,	stripe_redundancy);
-	copy_bucket_field(alloc_key_fragmentation_lru_wrong,	fragmentation_lru);
 #undef copy_bucket_field
 
 	if (!bch2_alloc_v4_cmp(*old, new))

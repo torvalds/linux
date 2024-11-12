@@ -24,7 +24,7 @@
 #include <linux/uaccess.h>
 #include <linux/usb.h>
 #include <linux/usb/serial.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include "pl2303.h"
 
 

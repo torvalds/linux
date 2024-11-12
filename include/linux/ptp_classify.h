@@ -10,7 +10,7 @@
 #ifndef _PTP_CLASSIFY_H_
 #define _PTP_CLASSIFY_H_
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <linux/ip.h>
 #include <linux/ktime.h>
 #include <linux/skbuff.h>

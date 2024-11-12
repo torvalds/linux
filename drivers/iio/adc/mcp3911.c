@@ -23,7 +23,7 @@
 #include <linux/iio/trigger_consumer.h>
 #include <linux/iio/trigger.h>
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #define MCP3911_REG_CHANNEL0		0x00
 #define MCP3911_REG_CHANNEL1		0x03

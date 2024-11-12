@@ -9,7 +9,7 @@
 #define _CRYPTO_SHA256_BASE_H
 
 #include <asm/byteorder.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <crypto/internal/hash.h>
 #include <crypto/sha2.h>
 #include <linux/string.h>

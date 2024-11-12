@@ -3,7 +3,7 @@
 #define TARGET_CORE_BACKEND_H
 
 #include <linux/types.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <target/target_core_base.h>
 
 #define TRANSPORT_FLAG_PASSTHROUGH		0x1

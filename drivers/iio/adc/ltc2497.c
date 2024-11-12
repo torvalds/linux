@@ -14,7 +14,7 @@
 #include <linux/mod_devicetable.h>
 #include <linux/property.h>
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include "ltc2497.h"
 

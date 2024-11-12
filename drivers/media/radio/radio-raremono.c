@@ -12,7 +12,7 @@
 #include <linux/hid.h>
 #include <linux/mutex.h>
 #include <linux/videodev2.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-ctrls.h>

@@ -15,7 +15,7 @@
 #include <linux/slab.h>
 #include <linux/ieee80211.h>
 #include <net/cfg80211.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include "decl.h"
 #include "cfg.h"

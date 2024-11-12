@@ -9,6 +9,7 @@
 #include <elfutils/libdw.h>
 #include <elfutils/libdwfl.h>
 #include <elfutils/version.h>
+#include <errno.h>
 
 struct strbuf;
 

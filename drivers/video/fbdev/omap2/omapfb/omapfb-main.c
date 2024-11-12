@@ -2614,7 +2614,7 @@ static void omapfb_remove(struct platform_device *pdev)
 
 static struct platform_driver omapfb_driver = {
 	.probe		= omapfb_probe,
-	.remove_new     = omapfb_remove,
+	.remove         = omapfb_remove,
 	.driver         = {
 		.name   = "omapfb",
 	},

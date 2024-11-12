@@ -20,7 +20,7 @@
 #include <linux/sysfs.h>
 #include <linux/types.h>
 #include <linux/workqueue.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include <linux/turris-omnia-mcu-interface.h>
 #include "turris-omnia-mcu.h"

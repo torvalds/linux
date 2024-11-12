@@ -12,7 +12,7 @@
 #include <linux/netdevice.h>
 #include <linux/if_arp.h>
 #include <linux/crc-ccitt.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include <net/rtnetlink.h>
 #include <net/ieee802154_netdev.h>

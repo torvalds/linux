@@ -20,7 +20,7 @@
 
 #include <asm/pstate.h>
 #include <asm/elf.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include "opcodes.h"
 

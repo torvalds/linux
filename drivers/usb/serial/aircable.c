@@ -35,7 +35,7 @@
  *
  */
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <linux/tty.h>
 #include <linux/slab.h>
 #include <linux/module.h>

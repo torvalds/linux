@@ -39,7 +39,7 @@
 #include <linux/vmalloc.h>
 
 #include <asm/byteorder.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <asm/cacheflush.h>
 #include <asm/page.h>
 #include <asm/flat.h>

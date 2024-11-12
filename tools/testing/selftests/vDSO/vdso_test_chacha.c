@@ -3,6 +3,7 @@
  * Copyright (C) 2022-2024 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved.
  */
 
+#include <linux/compiler.h>
 #include <tools/le_byteshift.h>
 #include <sys/random.h>
 #include <sys/auxv.h>
@@ -73,10 +74,10 @@ static void reference_chacha20_blocks(uint8_t *dst_bytes, const uint32_t *key, u
 	counter[1] = s[13];
 }
 
-typedef uint8_t u8;
-typedef uint32_t u32;
-typedef uint64_t u64;
-#include <vdso/getrandom.h>
+void __weak __arch_chacha20_blocks_nostack(uint8_t *dst_bytes, const uint32_t *key, uint32_t *counter, size_t nblocks)
+{
+	ksft_exit_skip("Not implemented on architecture\n");
+}
 
 int main(int argc, char *argv[])
 {
@@ -90,10 +91,8 @@ int main(int argc, char *argv[])
 	ksft_set_plan(1);
 
 	for (unsigned int trial = 0; trial < TRIALS; ++trial) {
-		if (getrandom(key, sizeof(key), 0) != sizeof(key)) {
-			printf("getrandom() failed!\n");
-			return KSFT_SKIP;
-		}
+		if (getrandom(key, sizeof(key), 0) != sizeof(key))
+			ksft_exit_skip("getrandom() failed unexpectedly\n");
 		memset(counter1, 0, sizeof(counter1));
 		reference_chacha20_blocks(output1, key, counter1, BLOCKS);
 		for (unsigned int split = 0; split < BLOCKS; ++split) {
@@ -102,8 +101,10 @@ int main(int argc, char *argv[])
 			if (split)
 				__arch_chacha20_blocks_nostack(output2, key, counter2, split);
 			__arch_chacha20_blocks_nostack(output2 + split * BLOCK_SIZE, key, counter2, BLOCKS - split);
-			if (memcmp(output1, output2, sizeof(output1)) || memcmp(counter1, counter2, sizeof(counter1)))
-				return KSFT_FAIL;
+			if (memcmp(output1, output2, sizeof(output1)))
+				ksft_exit_fail_msg("Main loop outputs do not match on trial %u, split %u\n", trial, split);
+			if (memcmp(counter1, counter2, sizeof(counter1)))
+				ksft_exit_fail_msg("Main loop counters do not match on trial %u, split %u\n", trial, split);
 		}
 	}
 	memset(counter1, 0, sizeof(counter1));
@@ -113,14 +114,19 @@ int main(int argc, char *argv[])
 
 	reference_chacha20_blocks(output1, key, counter1, BLOCKS);
 	__arch_chacha20_blocks_nostack(output2, key, counter2, BLOCKS);
-	if (memcmp(output1, output2, sizeof(output1)) || memcmp(counter1, counter2, sizeof(counter1)))
-		return KSFT_FAIL;
+	if (memcmp(output1, output2, sizeof(output1)))
+		ksft_exit_fail_msg("Block limit outputs do not match after first round\n");
+	if (memcmp(counter1, counter2, sizeof(counter1)))
+		ksft_exit_fail_msg("Block limit counters do not match after first round\n");
 
 	reference_chacha20_blocks(output1, key, counter1, BLOCKS);
 	__arch_chacha20_blocks_nostack(output2, key, counter2, BLOCKS);
-	if (memcmp(output1, output2, sizeof(output1)) || memcmp(counter1, counter2, sizeof(counter1)))
-		return KSFT_FAIL;
+	if (memcmp(output1, output2, sizeof(output1)))
+		ksft_exit_fail_msg("Block limit outputs do not match after second round\n");
+	if (memcmp(counter1, counter2, sizeof(counter1)))
+		ksft_exit_fail_msg("Block limit counters do not match after second round\n");
 
 	ksft_test_result_pass("chacha: PASS\n");
-	return KSFT_PASS;
+	ksft_exit_pass();
+	return 0;
 }

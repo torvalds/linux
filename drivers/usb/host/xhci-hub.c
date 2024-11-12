@@ -10,7 +10,7 @@
 
 
 #include <linux/slab.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <linux/bitfield.h>
 
 #include "xhci.h"

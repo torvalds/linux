@@ -203,7 +203,7 @@ Avoiding unaligned accesses
 ===========================
 
 The easiest way to avoid unaligned access is to use the get_unaligned() and
-put_unaligned() macros provided by the <asm/unaligned.h> header file.
+put_unaligned() macros provided by the <linux/unaligned.h> header file.
 
 Going back to an earlier example of code that potentially causes unaligned
 access::

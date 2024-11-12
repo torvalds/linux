@@ -19,7 +19,7 @@
 #include <linux/rcupdate.h>
 #include <linux/rculist.h>
 #include <linux/kref.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <scsi/libfc.h>
 
 #include <target/target_core_base.h>

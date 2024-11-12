@@ -14,7 +14,7 @@
 #include <linux/crypto.h>
 #include <linux/module.h>
 #include <linux/string.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 typedef void (sm3_block_fn)(struct sm3_state *sst, u8 const *src, int blocks);
 

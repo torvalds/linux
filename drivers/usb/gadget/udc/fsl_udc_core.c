@@ -39,7 +39,7 @@
 
 #include <asm/byteorder.h>
 #include <asm/io.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <asm/dma.h>
 
 #include "fsl_usb2_udc.h"

@@ -222,7 +222,7 @@ u64 bch2_read_flag_list(const char *opt, const char * const list[])
 			break;
 		}
 
-		ret |= 1 << flag;
+		ret |= BIT_ULL(flag);
 	}
 
 	kfree(d);

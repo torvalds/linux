@@ -7,12 +7,11 @@ WMI Driver API
 The WMI driver core supports a more modern bus-based interface for interacting
 with WMI devices, and an older GUID-based interface. The latter interface is
 considered to be deprecated, so new WMI drivers should generally avoid it since
-it has some issues with multiple WMI devices and events sharing the same GUIDs
-and/or notification IDs. The modern bus-based interface instead maps each
-WMI device to a :c:type:`struct wmi_device <wmi_device>`, so it supports
-WMI devices sharing GUIDs and/or notification IDs. Drivers can then register
-a :c:type:`struct wmi_driver <wmi_driver>`, which will be bound to compatible
-WMI devices by the driver core.
+it has some issues with multiple WMI devices sharing the same GUID.
+The modern bus-based interface instead maps each WMI device to a
+:c:type:`struct wmi_device <wmi_device>`, so it supports WMI devices sharing the
+same GUID. Drivers can then register a :c:type:`struct wmi_driver <wmi_driver>`
+which will be bound to compatible WMI devices by the driver core.
 
 .. kernel-doc:: include/linux/wmi.h
    :internal:

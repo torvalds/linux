@@ -19,7 +19,7 @@
 #include <linux/mutex.h>
 #include <linux/sched.h>
 #include <linux/completion.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 struct rtsx_usb_ms {
 	struct platform_device	*pdev;

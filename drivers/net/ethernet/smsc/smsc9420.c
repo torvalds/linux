@@ -18,7 +18,7 @@
 #include <linux/crc32.h>
 #include <linux/slab.h>
 #include <linux/module.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include "smsc9420.h"
 
 #define DRV_NAME		"smsc9420"

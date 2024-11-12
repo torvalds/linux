@@ -15,7 +15,7 @@
 #include <linux/string_helpers.h>
 #include <linux/types.h>
 
-#include <asm-generic/unaligned.h>
+#include <linux/unaligned.h>
 
 #include "vsc-tp.h"
 

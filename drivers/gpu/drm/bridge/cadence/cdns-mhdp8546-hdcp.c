@@ -9,7 +9,7 @@
 #include <linux/io.h>
 #include <linux/iopoll.h>
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include <drm/display/drm_hdcp_helper.h>
 

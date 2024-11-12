@@ -11,7 +11,7 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/errno.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <linux/types.h>
 #include <crypto/serpent.h>
 

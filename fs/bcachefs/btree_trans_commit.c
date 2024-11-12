@@ -832,7 +832,8 @@ revert_fs_usage:
 	for (struct jset_entry *entry2 = trans->journal_entries;
 	     entry2 != entry;
 	     entry2 = vstruct_next(entry2))
-		if (jset_entry_is_key(entry2) && entry2->start->k.type == KEY_TYPE_accounting) {
+		if (entry2->type == BCH_JSET_ENTRY_write_buffer_keys &&
+		    entry2->start->k.type == KEY_TYPE_accounting) {
 			struct bkey_s_accounting a = bkey_i_to_s_accounting(entry2->start);
 
 			bch2_accounting_neg(a);

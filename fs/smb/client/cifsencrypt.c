@@ -239,7 +239,7 @@ int cifs_verify_signature(struct smb_rqst *rqst,
 		cifs_dbg(FYI, "dummy signature received for smb command 0x%x\n",
 			 cifs_pdu->Command);
 
-	/* save off the origiginal signature so we can modify the smb and check
+	/* save off the original signature so we can modify the smb and check
 		its signature against what the server sent */
 	memcpy(server_response_sig, cifs_pdu->Signature.SecuritySignature, 8);
 
@@ -700,6 +700,7 @@ cifs_crypto_secmech_release(struct TCP_Server_Info *server)
 	cifs_free_hash(&server->secmech.aes_cmac);
 	cifs_free_hash(&server->secmech.hmacsha256);
 	cifs_free_hash(&server->secmech.md5);
+	cifs_free_hash(&server->secmech.sha512);
 
 	if (!SERVER_IS_CHAN(server)) {
 		if (server->secmech.enc) {

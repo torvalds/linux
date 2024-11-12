@@ -827,7 +827,7 @@ static bool slab_add_kunit_errors(void)
 	return true;
 }
 
-static bool slab_in_kunit_test(void)
+bool slab_in_kunit_test(void)
 {
 	struct kunit_resource *resource;
 
@@ -843,7 +843,6 @@ static bool slab_in_kunit_test(void)
 }
 #else
 static inline bool slab_add_kunit_errors(void) { return false; }
-static inline bool slab_in_kunit_test(void) { return false; }
 #endif
 
 static inline unsigned int size_from_object(struct kmem_cache *s)
@@ -5436,6 +5435,8 @@ static void list_slab_objects(struct kmem_cache *s, struct slab *slab,
 	for_each_object(p, s, addr, slab->objects) {
 
 		if (!test_bit(__obj_to_index(s, addr, p), object_map)) {
+			if (slab_add_kunit_errors())
+				continue;
 			pr_err("Object 0x%p @offset=%tu\n", p, p - addr);
 			print_tracking(s, p);
 		}

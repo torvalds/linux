@@ -17,7 +17,7 @@
 #include <linux/regulator/consumer.h>
 #include <linux/regmap.h>
 #include <linux/slab.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #define AW_DATA_PROCESS_FACTOR			1024
 #define AW96103_CHIP_ID				0xa961
