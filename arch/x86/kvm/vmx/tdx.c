@@ -1051,6 +1051,11 @@ static int tdx_td_init(struct kvm *kvm, struct kvm_tdx_cmd *cmd)
 	kvm_tdx->attributes = td_params->attributes;
 	kvm_tdx->xfam = td_params->xfam;
 
+	if (td_params->config_flags & TDX_CONFIG_FLAGS_MAX_GPAW)
+		kvm->arch.gfn_direct_bits = TDX_SHARED_BIT_PWL_5;
+	else
+		kvm->arch.gfn_direct_bits = TDX_SHARED_BIT_PWL_4;
+
 	kvm_tdx->state = TD_STATE_INITIALIZED;
 out:
 	/* kfree() accepts NULL. */
