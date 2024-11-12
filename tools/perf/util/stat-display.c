@@ -115,15 +115,29 @@ static void print_running_csv(struct perf_stat_config *config, u64 run, u64 ena)
 		config->csv_sep, run, config->csv_sep, enabled_percent);
 }
 struct outstate {
-	FILE *fh;
+	/* Std mode: insert a newline before the next metric */
 	bool newline;
+	/* JSON mode: track need for comma for a previous field or not */
 	bool first;
+	/* Num CSV separators remaining to pad out when not all fields are printed */
+	int  csv_col_pad;
+
+	/*
+	 * The following don't track state across fields, but are here as a shortcut to
+	 * pass data to the print functions. The alternative would be to update the
+	 * function signatures of the entire print stack to pass them through.
+	 */
+	/* Place to output to */
+	FILE * const fh;
 	/* Lines are timestamped in --interval-print mode */
 	char timestamp[64];
-	int  nfields;
-	int  aggr_nr;
+	/* Num items aggregated in current line. See struct perf_stat_aggr.nr */
+	int aggr_nr;
+	/* Core/socket/die etc ID for the current line */
 	struct aggr_cpu_id id;
+	/* Event for current line */
 	struct evsel *evsel;
+	/* Cgroup for current line */
 	struct cgroup *cgrp;
 };
 
@@ -473,7 +487,7 @@ static void new_line_csv(struct perf_stat_config *config, void *ctx)
 	int i;
 
 	__new_line_std_csv(config, os);
-	for (i = 0; i < os->nfields; i++)
+	for (i = 0; i < os->csv_col_pad; i++)
 		fputs(config->csv_sep, os->fh);
 }
 
@@ -550,12 +564,12 @@ static void print_metricgroup_header_csv(struct perf_stat_config *config,
 
 	if (!metricgroup_name) {
 		/* Leave space for running and enabling */
-		for (i = 0; i < os->nfields - 2; i++)
+		for (i = 0; i < os->csv_col_pad - 2; i++)
 			fputs(config->csv_sep, os->fh);
 		return;
 	}
 
-	for (i = 0; i < os->nfields; i++)
+	for (i = 0; i < os->csv_col_pad; i++)
 		fputs(config->csv_sep, os->fh);
 	fprintf(config->output, "%s", metricgroup_name);
 	new_line_csv(config, ctx);
@@ -837,7 +851,7 @@ static void printout(struct perf_stat_config *config, struct outstate *os,
 		pm = config->metric_only ? print_metric_only_csv : print_metric_csv;
 		nl = config->metric_only ? NULL : new_line_csv;
 		pmh = print_metricgroup_header_csv;
-		os->nfields = 4 + (counter->cgrp ? 1 : 0);
+		os->csv_col_pad = 4 + (counter->cgrp ? 1 : 0);
 	} else if (config->json_output) {
 		pm = config->metric_only ? print_metric_only_json : print_metric_json;
 		nl = config->metric_only ? NULL : new_line_json;
