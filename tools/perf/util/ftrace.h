@@ -22,6 +22,7 @@ struct perf_ftrace {
 	bool			use_nsec;
 	unsigned int		bucket_range;
 	unsigned int		min_latency;
+	unsigned int		max_latency;
 	int			graph_depth;
 	int			func_stack_trace;
 	int			func_irq_info;

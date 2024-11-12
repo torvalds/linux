@@ -155,6 +155,10 @@ OPTIONS for 'perf ftrace latency'
 	Minimum latency for the start of the first bucket, in ms or ns (according to
 	-n/--use-nsec).
 
+--max-latency=::
+	Maximum latency for the start of the last bucket, in ms or ns (according to
+	-n/--use-nsec). The setting is ignored if the value results in more than
+	22 buckets.
 
 OPTIONS for 'perf ftrace profile'
 ---------------------------------
