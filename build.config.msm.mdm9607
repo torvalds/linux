@@ -1,8 +1,18 @@
 ################################################################################
+## Inheriting configs from ACK
+. "${ROOT_DIR}"/msm-kernel/build.config.common
+. "${ROOT_DIR}"/msm-kernel/build.config.arm
+################################################################################
+## Variant setup
+MSM_ARCH=mdm9607
+VARIANTS=(perf_defconfig debug_defconfig)
+[ -z "${VARIANT}" ] && VARIANT=debug_defconfig
+################################################################################
 
 # boot image macros
 BUILD_BOOT_IMG=1
 
+. "${KERNEL_DIR}"/build.config.msm.common
 # Common MSM configuration for building non-GKI-based kernels
 DEFCONFIG="generic_mbb_defconfig"
 
