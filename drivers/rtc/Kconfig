@@ -2091,4 +2091,16 @@ config RTC_DRV_SSD202D
 	  This driver can also be built as a module, if so, the module
 	  will be called "rtc-ssd20xd".
 
+config RTC_DRV_AMLOGIC_A4
+	tristate "Amlogic RTC"
+	depends on ARCH_MESON || COMPILE_TEST
+	select REGMAP_MMIO
+	default y
+	help
+	  If you say yes here you get support for the RTC block on the
+	  Amlogic A113L2(A4) and A113X2(A5) SoCs.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called "rtc-amlogic-a4".
+
 endif # RTC_CLASS
