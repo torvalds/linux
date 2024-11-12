@@ -61,8 +61,6 @@ struct xfs_perag {
 	struct xfs_ag_resv	pag_rmapbt_resv;
 
 	/* Precalculated geometry info */
-	xfs_agblock_t		block_count;
-	xfs_agblock_t		min_block;
 	xfs_agino_t		agino_min;
 	xfs_agino_t		agino_max;
 
@@ -220,11 +218,7 @@ void xfs_agino_range(struct xfs_mount *mp, xfs_agnumber_t agno,
 static inline bool
 xfs_verify_agbno(struct xfs_perag *pag, xfs_agblock_t agbno)
 {
-	if (agbno >= pag->block_count)
-		return false;
-	if (agbno <= pag->min_block)
-		return false;
-	return true;
+	return xfs_verify_gbno(pag_group(pag), agbno);
 }
 
 static inline bool
@@ -233,13 +227,7 @@ xfs_verify_agbext(
 	xfs_agblock_t		agbno,
 	xfs_agblock_t		len)
 {
-	if (agbno + len <= agbno)
-		return false;
-
-	if (!xfs_verify_agbno(pag, agbno))
-		return false;
-
-	return xfs_verify_agbno(pag, agbno + len - 1);
+	return xfs_verify_gbext(pag_group(pag), agbno, len);
 }
 
 /*

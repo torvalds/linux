@@ -28,10 +28,37 @@
 #include "xfs_trace.h"
 #include "xfs_inode.h"
 #include "xfs_icache.h"
+#include "xfs_buf_item.h"
 #include "xfs_rtgroup.h"
 #include "xfs_rtbitmap.h"
 #include "xfs_metafile.h"
 #include "xfs_metadir.h"
+
+/* Find the first usable fsblock in this rtgroup. */
+static inline uint32_t
+xfs_rtgroup_min_block(
+	struct xfs_mount	*mp,
+	xfs_rgnumber_t		rgno)
+{
+	if (xfs_has_rtsb(mp) && rgno == 0)
+		return mp->m_sb.sb_rextsize;
+
+	return 0;
+}
+
+/* Precompute this group's geometry */
+void
+xfs_rtgroup_calc_geometry(
+	struct xfs_mount	*mp,
+	struct xfs_rtgroup	*rtg,
+	xfs_rgnumber_t		rgno,
+	xfs_rgnumber_t		rgcount,
+	xfs_rtbxlen_t		rextents)
+{
+	rtg->rtg_extents = __xfs_rtgroup_extents(mp, rgno, rgcount, rextents);
+	rtg_group(rtg)->xg_block_count = rtg->rtg_extents * mp->m_sb.sb_rextsize;
+	rtg_group(rtg)->xg_min_gbno = xfs_rtgroup_min_block(mp, rgno);
+}
 
 int
 xfs_rtgroup_alloc(
@@ -46,6 +73,8 @@ xfs_rtgroup_alloc(
 	rtg = kzalloc(sizeof(struct xfs_rtgroup), GFP_KERNEL);
 	if (!rtg)
 		return -ENOMEM;
+
+	xfs_rtgroup_calc_geometry(mp, rtg, rgno, rgcount, rextents);
 
 	error = xfs_group_insert(mp, rtg_group(rtg), rgno, XG_TYPE_RTG);
 	if (error)
@@ -148,6 +177,7 @@ xfs_update_last_rtgroup_size(
 		return -EFSCORRUPTED;
 	rtg->rtg_extents = __xfs_rtgroup_extents(mp, prev_rgcount - 1,
 			mp->m_sb.sb_rgcount, mp->m_sb.sb_rextents);
+	rtg_group(rtg)->xg_block_count = rtg->rtg_extents * mp->m_sb.sb_rextsize;
 	xfs_rtgroup_rele(rtg);
 	return 0;
 }
@@ -213,6 +243,20 @@ xfs_rtgroup_trans_join(
 	}
 }
 
+/* Retrieve rt group geometry. */
+int
+xfs_rtgroup_get_geometry(
+	struct xfs_rtgroup	*rtg,
+	struct xfs_rtgroup_geometry *rgeo)
+{
+	/* Fill out form. */
+	memset(rgeo, 0, sizeof(*rgeo));
+	rgeo->rg_number = rtg_rgno(rtg);
+	rgeo->rg_length = rtg_group(rtg)->xg_block_count;
+	xfs_rtgroup_geom_health(rtg, rgeo);
+	return 0;
+}
+
 #ifdef CONFIG_PROVE_LOCKING
 static struct lock_class_key xfs_rtginode_lock_class;
 
@@ -270,6 +314,8 @@ struct xfs_rtginode_ops {
 
 	enum xfs_metafile_type	metafile_type;
 
+	unsigned int		sick;	/* rtgroup sickness flag */
+
 	/* Does the fs have this feature? */
 	bool			(*enabled)(struct xfs_mount *mp);
 
@@ -284,11 +330,13 @@ static const struct xfs_rtginode_ops xfs_rtginode_ops[XFS_RTGI_MAX] = {
 	[XFS_RTGI_BITMAP] = {
 		.name		= "bitmap",
 		.metafile_type	= XFS_METAFILE_RTBITMAP,
+		.sick		= XFS_SICK_RG_BITMAP,
 		.create		= xfs_rtbitmap_create,
 	},
 	[XFS_RTGI_SUMMARY] = {
 		.name		= "summary",
 		.metafile_type	= XFS_METAFILE_RTSUMMARY,
+		.sick		= XFS_SICK_RG_SUMMARY,
 		.create		= xfs_rtsummary_create,
 	},
 };
@@ -320,6 +368,17 @@ xfs_rtginode_enabled(
 	if (!ops->enabled)
 		return true;
 	return ops->enabled(rtg_mount(rtg));
+}
+
+/* Mark an rtgroup inode sick */
+void
+xfs_rtginode_mark_sick(
+	struct xfs_rtgroup	*rtg,
+	enum xfs_rtg_inodes	type)
+{
+	const struct xfs_rtginode_ops *ops = &xfs_rtginode_ops[type];
+
+	xfs_group_mark_sick(rtg_group(rtg), ops->sick);
 }
 
 /* Load and existing rtgroup inode into the rtgroup structure. */
@@ -357,8 +416,10 @@ xfs_rtginode_load(
 	} else {
 		const char	*path;
 
-		if (!mp->m_rtdirip)
+		if (!mp->m_rtdirip) {
+			xfs_fs_mark_sick(mp, XFS_SICK_FS_METADIR);
 			return -EFSCORRUPTED;
+		}
 
 		path = xfs_rtginode_path(rtg_rgno(rtg), type);
 		if (!path)
@@ -368,17 +429,22 @@ xfs_rtginode_load(
 		kfree(path);
 	}
 
-	if (error)
+	if (error) {
+		if (xfs_metadata_is_sick(error))
+			xfs_rtginode_mark_sick(rtg, type);
 		return error;
+	}
 
 	if (XFS_IS_CORRUPT(mp, ip->i_df.if_format != XFS_DINODE_FMT_EXTENTS &&
 			       ip->i_df.if_format != XFS_DINODE_FMT_BTREE)) {
 		xfs_irele(ip);
+		xfs_rtginode_mark_sick(rtg, type);
 		return -EFSCORRUPTED;
 	}
 
 	if (XFS_IS_CORRUPT(mp, ip->i_projid != rtg_rgno(rtg))) {
 		xfs_irele(ip);
+		xfs_rtginode_mark_sick(rtg, type);
 		return -EFSCORRUPTED;
 	}
 
@@ -415,8 +481,10 @@ xfs_rtginode_create(
 	if (!xfs_rtginode_enabled(rtg, type))
 		return 0;
 
-	if (!mp->m_rtdirip)
+	if (!mp->m_rtdirip) {
+		xfs_fs_mark_sick(mp, XFS_SICK_FS_METADIR);
 		return -EFSCORRUPTED;
+	}
 
 	upd.path = xfs_rtginode_path(rtg_rgno(rtg), type);
 	if (!upd.path)
@@ -463,8 +531,10 @@ int
 xfs_rtginode_mkdir_parent(
 	struct xfs_mount	*mp)
 {
-	if (!mp->m_metadirip)
+	if (!mp->m_metadirip) {
+		xfs_fs_mark_sick(mp, XFS_SICK_FS_METADIR);
 		return -EFSCORRUPTED;
+	}
 
 	return xfs_metadir_mkdir(mp->m_metadirip, "rtgroups", &mp->m_rtdirip);
 }
@@ -476,9 +546,152 @@ xfs_rtginode_load_parent(
 {
 	struct xfs_mount	*mp = tp->t_mountp;
 
-	if (!mp->m_metadirip)
+	if (!mp->m_metadirip) {
+		xfs_fs_mark_sick(mp, XFS_SICK_FS_METADIR);
 		return -EFSCORRUPTED;
+	}
 
 	return xfs_metadir_load(tp, mp->m_metadirip, "rtgroups",
 			XFS_METAFILE_DIR, &mp->m_rtdirip);
+}
+
+/* Check superblock fields for a read or a write. */
+static xfs_failaddr_t
+xfs_rtsb_verify_common(
+	struct xfs_buf		*bp)
+{
+	struct xfs_rtsb		*rsb = bp->b_addr;
+
+	if (!xfs_verify_magic(bp, rsb->rsb_magicnum))
+		return __this_address;
+	if (rsb->rsb_pad)
+		return __this_address;
+
+	/* Everything to the end of the fs block must be zero */
+	if (memchr_inv(rsb + 1, 0, BBTOB(bp->b_length) - sizeof(*rsb)))
+		return __this_address;
+
+	return NULL;
+}
+
+/* Check superblock fields for a read or revalidation. */
+static inline xfs_failaddr_t
+xfs_rtsb_verify_all(
+	struct xfs_buf		*bp)
+{
+	struct xfs_rtsb		*rsb = bp->b_addr;
+	struct xfs_mount	*mp = bp->b_mount;
+	xfs_failaddr_t		fa;
+
+	fa = xfs_rtsb_verify_common(bp);
+	if (fa)
+		return fa;
+
+	if (memcmp(&rsb->rsb_fname, &mp->m_sb.sb_fname, XFSLABEL_MAX))
+		return __this_address;
+	if (!uuid_equal(&rsb->rsb_uuid, &mp->m_sb.sb_uuid))
+		return __this_address;
+	if (!uuid_equal(&rsb->rsb_meta_uuid, &mp->m_sb.sb_meta_uuid))
+		return  __this_address;
+
+	return NULL;
+}
+
+static void
+xfs_rtsb_read_verify(
+	struct xfs_buf		*bp)
+{
+	xfs_failaddr_t		fa;
+
+	if (!xfs_buf_verify_cksum(bp, XFS_RTSB_CRC_OFF)) {
+		xfs_verifier_error(bp, -EFSBADCRC, __this_address);
+		return;
+	}
+
+	fa = xfs_rtsb_verify_all(bp);
+	if (fa)
+		xfs_verifier_error(bp, -EFSCORRUPTED, fa);
+}
+
+static void
+xfs_rtsb_write_verify(
+	struct xfs_buf		*bp)
+{
+	xfs_failaddr_t		fa;
+
+	fa = xfs_rtsb_verify_common(bp);
+	if (fa) {
+		xfs_verifier_error(bp, -EFSCORRUPTED, fa);
+		return;
+	}
+
+	xfs_buf_update_cksum(bp, XFS_RTSB_CRC_OFF);
+}
+
+const struct xfs_buf_ops xfs_rtsb_buf_ops = {
+	.name		= "xfs_rtsb",
+	.magic		= { 0, cpu_to_be32(XFS_RTSB_MAGIC) },
+	.verify_read	= xfs_rtsb_read_verify,
+	.verify_write	= xfs_rtsb_write_verify,
+	.verify_struct	= xfs_rtsb_verify_all,
+};
+
+/* Update a realtime superblock from the primary fs super */
+void
+xfs_update_rtsb(
+	struct xfs_buf		*rtsb_bp,
+	const struct xfs_buf	*sb_bp)
+{
+	const struct xfs_dsb	*dsb = sb_bp->b_addr;
+	struct xfs_rtsb		*rsb = rtsb_bp->b_addr;
+	const uuid_t		*meta_uuid;
+
+	rsb->rsb_magicnum = cpu_to_be32(XFS_RTSB_MAGIC);
+
+	rsb->rsb_pad = 0;
+	memcpy(&rsb->rsb_fname, &dsb->sb_fname, XFSLABEL_MAX);
+
+	memcpy(&rsb->rsb_uuid, &dsb->sb_uuid, sizeof(rsb->rsb_uuid));
+
+	/*
+	 * The metadata uuid is the fs uuid if the metauuid feature is not
+	 * enabled.
+	 */
+	if (dsb->sb_features_incompat &
+				cpu_to_be32(XFS_SB_FEAT_INCOMPAT_META_UUID))
+		meta_uuid = &dsb->sb_meta_uuid;
+	else
+		meta_uuid = &dsb->sb_uuid;
+	memcpy(&rsb->rsb_meta_uuid, meta_uuid, sizeof(rsb->rsb_meta_uuid));
+}
+
+/*
+ * Update the realtime superblock from a filesystem superblock and log it to
+ * the given transaction.
+ */
+struct xfs_buf *
+xfs_log_rtsb(
+	struct xfs_trans	*tp,
+	const struct xfs_buf	*sb_bp)
+{
+	struct xfs_buf		*rtsb_bp;
+
+	if (!xfs_has_rtsb(tp->t_mountp))
+		return NULL;
+
+	rtsb_bp = xfs_trans_getrtsb(tp);
+	if (!rtsb_bp) {
+		/*
+		 * It's possible for the rtgroups feature to be enabled but
+		 * there is no incore rt superblock buffer if the rt geometry
+		 * was specified at mkfs time but the rt section has not yet
+		 * been attached.  In this case, rblocks must be zero.
+		 */
+		ASSERT(tp->t_mountp->m_sb.sb_rblocks == 0);
+		return NULL;
+	}
+
+	xfs_update_rtsb(rtsb_bp, sb_bp);
+	xfs_trans_ordered_buf(tp, rtsb_bp);
+	return rtsb_bp;
 }

@@ -40,6 +40,7 @@
 #include "xfs_file.h"
 #include "xfs_exchrange.h"
 #include "xfs_handle.h"
+#include "xfs_rtgroup.h"
 
 #include <linux/mount.h>
 #include <linux/fileattr.h>
@@ -399,6 +400,38 @@ xfs_ioc_ag_geometry(
 		return error;
 
 	if (copy_to_user(arg, &ageo, sizeof(ageo)))
+		return -EFAULT;
+	return 0;
+}
+
+STATIC int
+xfs_ioc_rtgroup_geometry(
+	struct xfs_mount	*mp,
+	void			__user *arg)
+{
+	struct xfs_rtgroup	*rtg;
+	struct xfs_rtgroup_geometry rgeo;
+	int			error;
+
+	if (copy_from_user(&rgeo, arg, sizeof(rgeo)))
+		return -EFAULT;
+	if (rgeo.rg_flags)
+		return -EINVAL;
+	if (memchr_inv(&rgeo.rg_reserved, 0, sizeof(rgeo.rg_reserved)))
+		return -EINVAL;
+	if (!xfs_has_rtgroups(mp))
+		return -EINVAL;
+
+	rtg = xfs_rtgroup_get(mp, rgeo.rg_number);
+	if (!rtg)
+		return -EINVAL;
+
+	error = xfs_rtgroup_get_geometry(rtg, &rgeo);
+	xfs_rtgroup_put(rtg);
+	if (error)
+		return error;
+
+	if (copy_to_user(arg, &rgeo, sizeof(rgeo)))
 		return -EFAULT;
 	return 0;
 }
@@ -1028,7 +1061,7 @@ xfs_ioc_setlabel(
 	 * buffered reads from userspace (i.e. from blkid) are invalidated,
 	 * and userspace will see the newly-written label.
 	 */
-	error = xfs_sync_sb_buf(mp);
+	error = xfs_sync_sb_buf(mp, true);
 	if (error)
 		goto out;
 	/*
@@ -1039,6 +1072,8 @@ xfs_ioc_setlabel(
 	mutex_unlock(&mp->m_growlock);
 
 	invalidate_bdev(mp->m_ddev_targp->bt_bdev);
+	if (xfs_has_rtsb(mp) && mp->m_rtdev_targp)
+		invalidate_bdev(mp->m_rtdev_targp->bt_bdev);
 
 out:
 	mnt_drop_write_file(filp);
@@ -1223,6 +1258,8 @@ xfs_file_ioctl(
 
 	case XFS_IOC_AG_GEOMETRY:
 		return xfs_ioc_ag_geometry(mp, arg);
+	case XFS_IOC_RTGROUP_GEOMETRY:
+		return xfs_ioc_rtgroup_geometry(mp, arg);
 
 	case XFS_IOC_GETVERSION:
 		return put_user(inode->i_generation, (int __user *)arg);

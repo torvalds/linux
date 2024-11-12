@@ -717,7 +717,7 @@ xfs_inobt_max_size(
 	struct xfs_perag	*pag)
 {
 	struct xfs_mount	*mp = pag_mount(pag);
-	xfs_agblock_t		agblocks = pag->block_count;
+	xfs_agblock_t		agblocks = pag_group(pag)->xg_block_count;
 
 	/* Bail out if we're uninitialized, which can happen in mkfs. */
 	if (M_IGEO(mp)->inobt_mxr[0] == 0)

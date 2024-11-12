@@ -18,6 +18,7 @@
 #include "xfs_trans.h"
 #include "xfs_log.h"
 #include "xfs_ag.h"
+#include "xfs_rtgroup.h"
 
 struct xfs_extent_busy_tree {
 	spinlock_t		eb_lock;
@@ -665,9 +666,14 @@ xfs_extent_busy_wait_all(
 	struct xfs_mount	*mp)
 {
 	struct xfs_perag	*pag = NULL;
+	struct xfs_rtgroup	*rtg = NULL;
 
 	while ((pag = xfs_perag_next(mp, pag)))
 		xfs_extent_busy_wait_group(pag_group(pag));
+
+	if (xfs_has_rtgroups(mp))
+		while ((rtg = xfs_rtgroup_next(mp, rtg)))
+			xfs_extent_busy_wait_group(rtg_group(rtg));
 }
 
 /*

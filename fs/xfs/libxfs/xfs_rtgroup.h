@@ -123,30 +123,11 @@ xfs_rtgroup_next(
 }
 
 static inline xfs_rtblock_t
-xfs_rgno_start_rtb(
-	struct xfs_mount	*mp,
-	xfs_rgnumber_t		rgno)
-{
-	if (mp->m_rgblklog >= 0)
-		return ((xfs_rtblock_t)rgno << mp->m_rgblklog);
-	return ((xfs_rtblock_t)rgno * mp->m_rgblocks);
-}
-
-static inline xfs_rtblock_t
-__xfs_rgbno_to_rtb(
-	struct xfs_mount	*mp,
-	xfs_rgnumber_t		rgno,
-	xfs_rgblock_t		rgbno)
-{
-	return xfs_rgno_start_rtb(mp, rgno) + rgbno;
-}
-
-static inline xfs_rtblock_t
 xfs_rgbno_to_rtb(
 	struct xfs_rtgroup	*rtg,
 	xfs_rgblock_t		rgbno)
 {
-	return __xfs_rgbno_to_rtb(rtg_mount(rtg), rtg_rgno(rtg), rgbno);
+	return xfs_gbno_to_fsb(rtg_group(rtg), rgbno);
 }
 
 static inline xfs_rgnumber_t
@@ -154,30 +135,7 @@ xfs_rtb_to_rgno(
 	struct xfs_mount	*mp,
 	xfs_rtblock_t		rtbno)
 {
-	if (!xfs_has_rtgroups(mp))
-		return 0;
-
-	if (mp->m_rgblklog >= 0)
-		return rtbno >> mp->m_rgblklog;
-
-	return div_u64(rtbno, mp->m_rgblocks);
-}
-
-static inline uint64_t
-__xfs_rtb_to_rgbno(
-	struct xfs_mount	*mp,
-	xfs_rtblock_t		rtbno)
-{
-	uint32_t		rem;
-
-	if (!xfs_has_rtgroups(mp))
-		return rtbno;
-
-	if (mp->m_rgblklog >= 0)
-		return rtbno & mp->m_rgblkmask;
-
-	div_u64_rem(rtbno, mp->m_rgblocks, &rem);
-	return rem;
+	return xfs_fsb_to_gno(mp, rtbno, XG_TYPE_RTG);
 }
 
 static inline xfs_rgblock_t
@@ -185,7 +143,29 @@ xfs_rtb_to_rgbno(
 	struct xfs_mount	*mp,
 	xfs_rtblock_t		rtbno)
 {
-	return __xfs_rtb_to_rgbno(mp, rtbno);
+	return xfs_fsb_to_gbno(mp, rtbno, XG_TYPE_RTG);
+}
+
+/* Is rtbno the start of a RT group? */
+static inline bool
+xfs_rtbno_is_group_start(
+	struct xfs_mount	*mp,
+	xfs_rtblock_t		rtbno)
+{
+	return (rtbno & mp->m_groups[XG_TYPE_RTG].blkmask) == 0;
+}
+
+/* Convert an rtgroups rt extent number into an rgbno. */
+static inline xfs_rgblock_t
+xfs_rtx_to_rgbno(
+	struct xfs_rtgroup	*rtg,
+	xfs_rtxnum_t		rtx)
+{
+	struct xfs_mount	*mp = rtg_mount(rtg);
+
+	if (likely(mp->m_rtxblklog >= 0))
+		return rtx << mp->m_rtxblklog;
+	return rtx * mp->m_sb.sb_rextsize;
 }
 
 static inline xfs_daddr_t
@@ -193,7 +173,11 @@ xfs_rtb_to_daddr(
 	struct xfs_mount	*mp,
 	xfs_rtblock_t		rtbno)
 {
-	return rtbno << mp->m_blkbb_log;
+	struct xfs_groups	*g = &mp->m_groups[XG_TYPE_RTG];
+	xfs_rgnumber_t		rgno = xfs_rtb_to_rgno(mp, rtbno);
+	uint64_t		start_bno = (xfs_rtblock_t)rgno * g->blocks;
+
+	return XFS_FSB_TO_BB(mp, start_bno + (rtbno & g->blkmask));
 }
 
 static inline xfs_rtblock_t
@@ -201,7 +185,18 @@ xfs_daddr_to_rtb(
 	struct xfs_mount	*mp,
 	xfs_daddr_t		daddr)
 {
-	return daddr >> mp->m_blkbb_log;
+	xfs_rfsblock_t		bno = XFS_BB_TO_FSBT(mp, daddr);
+
+	if (xfs_has_rtgroups(mp)) {
+		struct xfs_groups *g = &mp->m_groups[XG_TYPE_RTG];
+		xfs_rgnumber_t	rgno;
+		uint32_t	rgbno;
+
+		rgno = div_u64_rem(bno, g->blocks, &rgbno);
+		return ((xfs_rtblock_t)rgno << g->blklog) + rgbno;
+	}
+
+	return bno;
 }
 
 #ifdef CONFIG_XFS_RT
@@ -217,6 +212,9 @@ int xfs_initialize_rtgroups(struct xfs_mount *mp, xfs_rgnumber_t first_rgno,
 xfs_rtxnum_t __xfs_rtgroup_extents(struct xfs_mount *mp, xfs_rgnumber_t rgno,
 		xfs_rgnumber_t rgcount, xfs_rtbxlen_t rextents);
 xfs_rtxnum_t xfs_rtgroup_extents(struct xfs_mount *mp, xfs_rgnumber_t rgno);
+void xfs_rtgroup_calc_geometry(struct xfs_mount *mp, struct xfs_rtgroup *rtg,
+		xfs_rgnumber_t rgno, xfs_rgnumber_t rgcount,
+		xfs_rtbxlen_t rextents);
 
 int xfs_update_last_rtgroup_size(struct xfs_mount *mp,
 		xfs_rgnumber_t prev_rgcount);
@@ -234,12 +232,16 @@ void xfs_rtgroup_unlock(struct xfs_rtgroup *rtg, unsigned int rtglock_flags);
 void xfs_rtgroup_trans_join(struct xfs_trans *tp, struct xfs_rtgroup *rtg,
 		unsigned int rtglock_flags);
 
+int xfs_rtgroup_get_geometry(struct xfs_rtgroup *rtg,
+		struct xfs_rtgroup_geometry *rgeo);
+
 int xfs_rtginode_mkdir_parent(struct xfs_mount *mp);
 int xfs_rtginode_load_parent(struct xfs_trans *tp);
 
 const char *xfs_rtginode_name(enum xfs_rtg_inodes type);
 enum xfs_metafile_type xfs_rtginode_metafile_type(enum xfs_rtg_inodes type);
 bool xfs_rtginode_enabled(struct xfs_rtgroup *rtg, enum xfs_rtg_inodes type);
+void xfs_rtginode_mark_sick(struct xfs_rtgroup *rtg, enum xfs_rtg_inodes type);
 int xfs_rtginode_load(struct xfs_rtgroup *rtg, enum xfs_rtg_inodes type,
 		struct xfs_trans *tp);
 int xfs_rtginode_create(struct xfs_rtgroup *rtg, enum xfs_rtg_inodes type,
@@ -251,6 +253,11 @@ static inline const char *xfs_rtginode_path(xfs_rgnumber_t rgno,
 {
 	return kasprintf(GFP_KERNEL, "%u.%s", rgno, xfs_rtginode_name(type));
 }
+
+void xfs_update_rtsb(struct xfs_buf *rtsb_bp,
+		const struct xfs_buf *sb_bp);
+struct xfs_buf *xfs_log_rtsb(struct xfs_trans *tp,
+		const struct xfs_buf *sb_bp);
 #else
 static inline void xfs_free_rtgroups(struct xfs_mount *mp,
 		xfs_rgnumber_t first_rgno, xfs_rgnumber_t end_rgno)
@@ -269,6 +276,9 @@ static inline int xfs_initialize_rtgroups(struct xfs_mount *mp,
 # define xfs_rtgroup_lock(rtg, gf)		((void)0)
 # define xfs_rtgroup_unlock(rtg, gf)		((void)0)
 # define xfs_rtgroup_trans_join(tp, rtg, gf)	((void)0)
+# define xfs_update_rtsb(bp, sb_bp)	((void)0)
+# define xfs_log_rtsb(tp, sb_bp)	(NULL)
+# define xfs_rtgroup_get_geometry(rtg, rgeo)	(-EOPNOTSUPP)
 #endif /* CONFIG_XFS_RT */
 
 #endif /* __LIBXFS_RTGROUP_H */

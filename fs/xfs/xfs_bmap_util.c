@@ -532,7 +532,7 @@ xfs_can_free_eofblocks(
 	 */
 	end_fsb = XFS_B_TO_FSB(mp, (xfs_ufsize_t)XFS_ISIZE(ip));
 	if (xfs_inode_has_bigrtalloc(ip))
-		end_fsb = xfs_rtb_roundup_rtx(mp, end_fsb);
+		end_fsb = xfs_fileoff_roundup_rtx(mp, end_fsb);
 	last_fsb = XFS_B_TO_FSB(mp, mp->m_super->s_maxbytes);
 	if (last_fsb <= end_fsb)
 		return false;
@@ -854,8 +854,8 @@ xfs_free_file_space(
 
 	/* We can only free complete realtime extents. */
 	if (xfs_inode_has_bigrtalloc(ip)) {
-		startoffset_fsb = xfs_rtb_roundup_rtx(mp, startoffset_fsb);
-		endoffset_fsb = xfs_rtb_rounddown_rtx(mp, endoffset_fsb);
+		startoffset_fsb = xfs_fileoff_roundup_rtx(mp, startoffset_fsb);
+		endoffset_fsb = xfs_fileoff_rounddown_rtx(mp, endoffset_fsb);
 	}
 
 	/*
@@ -1520,6 +1520,18 @@ xfs_swap_extents(
 	/* Verify both files are either real-time or non-realtime */
 	if (XFS_IS_REALTIME_INODE(ip) != XFS_IS_REALTIME_INODE(tip)) {
 		error = -EINVAL;
+		goto out_unlock;
+	}
+
+	/*
+	 * The rmapbt implementation is unable to resume a swapext operation
+	 * after a crash if the allocation unit size is larger than a block.
+	 * This (deprecated) interface will not be upgraded to handle this
+	 * situation.  Defragmentation must be performed with the commit range
+	 * ioctl.
+	 */
+	if (XFS_IS_REALTIME_INODE(ip) && xfs_has_rtgroups(ip->i_mount)) {
+		error = -EOPNOTSUPP;
 		goto out_unlock;
 	}
 

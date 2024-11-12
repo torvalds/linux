@@ -279,8 +279,15 @@ xchk_superblock(
 		if (!!(sb->sb_features2 & cpu_to_be32(~v2_ok)))
 			xchk_block_set_corrupt(sc, bp);
 
-		if (sb->sb_features2 != sb->sb_bad_features2)
-			xchk_block_set_preen(sc, bp);
+		if (xfs_has_metadir(mp)) {
+			if (sb->sb_rgblklog != mp->m_sb.sb_rgblklog)
+				xchk_block_set_corrupt(sc, bp);
+			if (memchr_inv(sb->sb_pad, 0, sizeof(sb->sb_pad)))
+				xchk_block_set_preen(sc, bp);
+		} else {
+			if (sb->sb_features2 != sb->sb_bad_features2)
+				xchk_block_set_preen(sc, bp);
+		}
 	}
 
 	/* Check sb_features2 flags that are set at mkfs time. */
@@ -557,7 +564,7 @@ xchk_agf(
 
 	/* Check the AG length */
 	eoag = be32_to_cpu(agf->agf_length);
-	if (eoag != pag->block_count)
+	if (eoag != pag_group(pag)->xg_block_count)
 		xchk_block_set_corrupt(sc, sc->sa.agf_bp);
 
 	/* Check the AGF btree roots and levels */
@@ -937,7 +944,7 @@ xchk_agi(
 
 	/* Check the AG length */
 	eoag = be32_to_cpu(agi->agi_length);
-	if (eoag != pag->block_count)
+	if (eoag != pag_group(pag)->xg_block_count)
 		xchk_block_set_corrupt(sc, sc->sa.agi_bp);
 
 	/* Check btree roots and levels */

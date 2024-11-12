@@ -306,7 +306,7 @@ xrep_calc_ag_resblks(
 	/* Now grab the block counters from the AGF. */
 	error = xfs_alloc_read_agf(pag, NULL, 0, &bp);
 	if (error) {
-		aglen = pag->block_count;
+		aglen = pag_group(pag)->xg_block_count;
 		freelen = aglen;
 		usedlen = aglen;
 	} else {
@@ -326,9 +326,9 @@ xrep_calc_ag_resblks(
 
 	/* If the block counts are impossible, make worst-case assumptions. */
 	if (aglen == NULLAGBLOCK ||
-	    aglen != pag->block_count ||
+	    aglen != pag_group(pag)->xg_block_count ||
 	    freelen >= aglen) {
-		aglen = pag->block_count;
+		aglen = pag_group(pag)->xg_block_count;
 		freelen = aglen;
 		usedlen = aglen;
 	}

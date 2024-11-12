@@ -54,6 +54,7 @@ struct xfs_inode;
 struct xfs_fsop_geom;
 struct xfs_btree_cur;
 struct xfs_da_args;
+struct xfs_rtgroup;
 
 /* Observable health issues for metadata spanning the entire filesystem. */
 #define XFS_SICK_FS_COUNTERS	(1 << 0)  /* summary counters */
@@ -65,9 +66,10 @@ struct xfs_da_args;
 #define XFS_SICK_FS_METADIR	(1 << 6)  /* metadata directory tree */
 #define XFS_SICK_FS_METAPATH	(1 << 7)  /* metadata directory tree path */
 
-/* Observable health issues for realtime volume metadata. */
-#define XFS_SICK_RT_BITMAP	(1 << 0)  /* realtime bitmap */
-#define XFS_SICK_RT_SUMMARY	(1 << 1)  /* realtime summary */
+/* Observable health issues for realtime group metadata. */
+#define XFS_SICK_RG_SUPER	(1 << 0)  /* rt group superblock */
+#define XFS_SICK_RG_BITMAP	(1 << 1)  /* rt group bitmap */
+#define XFS_SICK_RG_SUMMARY	(1 << 2)  /* rt groups summary */
 
 /* Observable health issues for AG metadata. */
 #define XFS_SICK_AG_SB		(1 << 0)  /* superblock */
@@ -111,8 +113,9 @@ struct xfs_da_args;
 				 XFS_SICK_FS_METADIR | \
 				 XFS_SICK_FS_METAPATH)
 
-#define XFS_SICK_RT_PRIMARY	(XFS_SICK_RT_BITMAP | \
-				 XFS_SICK_RT_SUMMARY)
+#define XFS_SICK_RG_PRIMARY	(XFS_SICK_RG_SUPER | \
+				 XFS_SICK_RG_BITMAP | \
+				 XFS_SICK_RG_SUMMARY)
 
 #define XFS_SICK_AG_PRIMARY	(XFS_SICK_AG_SB | \
 				 XFS_SICK_AG_AGF | \
@@ -142,26 +145,26 @@ struct xfs_da_args;
 
 /* Secondary state related to (but not primary evidence of) health problems. */
 #define XFS_SICK_FS_SECONDARY	(0)
-#define XFS_SICK_RT_SECONDARY	(0)
+#define XFS_SICK_RG_SECONDARY	(0)
 #define XFS_SICK_AG_SECONDARY	(0)
 #define XFS_SICK_INO_SECONDARY	(XFS_SICK_INO_FORGET)
 
 /* Evidence of health problems elsewhere. */
 #define XFS_SICK_FS_INDIRECT	(0)
-#define XFS_SICK_RT_INDIRECT	(0)
+#define XFS_SICK_RG_INDIRECT	(0)
 #define XFS_SICK_AG_INDIRECT	(XFS_SICK_AG_INODES)
 #define XFS_SICK_INO_INDIRECT	(0)
 
 /* All health masks. */
-#define XFS_SICK_FS_ALL	(XFS_SICK_FS_PRIMARY | \
+#define XFS_SICK_FS_ALL		(XFS_SICK_FS_PRIMARY | \
 				 XFS_SICK_FS_SECONDARY | \
 				 XFS_SICK_FS_INDIRECT)
 
-#define XFS_SICK_RT_ALL	(XFS_SICK_RT_PRIMARY | \
-				 XFS_SICK_RT_SECONDARY | \
-				 XFS_SICK_RT_INDIRECT)
+#define XFS_SICK_RG_ALL		(XFS_SICK_RG_PRIMARY | \
+				 XFS_SICK_RG_SECONDARY | \
+				 XFS_SICK_RG_INDIRECT)
 
-#define XFS_SICK_AG_ALL	(XFS_SICK_AG_PRIMARY | \
+#define XFS_SICK_AG_ALL		(XFS_SICK_AG_PRIMARY | \
 				 XFS_SICK_AG_SECONDARY | \
 				 XFS_SICK_AG_INDIRECT)
 
@@ -195,11 +198,8 @@ void xfs_fs_mark_healthy(struct xfs_mount *mp, unsigned int mask);
 void xfs_fs_measure_sickness(struct xfs_mount *mp, unsigned int *sick,
 		unsigned int *checked);
 
-void xfs_rt_mark_sick(struct xfs_mount *mp, unsigned int mask);
-void xfs_rt_mark_corrupt(struct xfs_mount *mp, unsigned int mask);
-void xfs_rt_mark_healthy(struct xfs_mount *mp, unsigned int mask);
-void xfs_rt_measure_sickness(struct xfs_mount *mp, unsigned int *sick,
-		unsigned int *checked);
+void xfs_rgno_mark_sick(struct xfs_mount *mp, xfs_rgnumber_t rgno,
+		unsigned int mask);
 
 void xfs_agno_mark_sick(struct xfs_mount *mp, xfs_agnumber_t agno,
 		unsigned int mask);
@@ -244,10 +244,16 @@ xfs_group_has_sickness(
 	xfs_group_measure_sickness(xg, &sick, &checked);
 	return sick & mask;
 }
+
 #define xfs_ag_has_sickness(pag, mask) \
 	xfs_group_has_sickness(pag_group(pag), (mask))
 #define xfs_ag_is_healthy(pag) \
 	(!xfs_ag_has_sickness((pag), UINT_MAX))
+
+#define xfs_rtgroup_has_sickness(rtg, mask) \
+	xfs_group_has_sickness(rtg_group(rtg), (mask))
+#define xfs_rtgroup_is_healthy(rtg) \
+	(!xfs_rtgroup_has_sickness((rtg), UINT_MAX))
 
 static inline bool
 xfs_inode_has_sickness(struct xfs_inode *ip, unsigned int mask)
@@ -272,6 +278,8 @@ xfs_inode_is_healthy(struct xfs_inode *ip)
 
 void xfs_fsop_geom_health(struct xfs_mount *mp, struct xfs_fsop_geom *geo);
 void xfs_ag_geom_health(struct xfs_perag *pag, struct xfs_ag_geometry *ageo);
+void xfs_rtgroup_geom_health(struct xfs_rtgroup *rtg,
+		struct xfs_rtgroup_geometry *rgeo);
 void xfs_bulkstat_health(struct xfs_inode *ip, struct xfs_bulkstat *bs);
 
 #define xfs_metadata_is_sick(error) \

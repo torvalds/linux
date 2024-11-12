@@ -179,6 +179,9 @@ typedef struct xfs_sb {
 	xfs_rgnumber_t	sb_rgcount;	/* number of realtime groups */
 	xfs_rtxlen_t	sb_rgextents;	/* size of a realtime group in rtx */
 
+	uint8_t		sb_rgblklog;    /* rt group number shift */
+	uint8_t		sb_pad[7];	/* zeroes */
+
 	/* must be padded to 64 bit alignment */
 } xfs_sb_t;
 
@@ -265,8 +268,18 @@ struct xfs_dsb {
 	uuid_t		sb_meta_uuid;	/* metadata file system unique id */
 
 	__be64		sb_metadirino;	/* metadata directory tree root */
+	__be32		sb_rgcount;	/* # of realtime groups */
+	__be32		sb_rgextents;	/* size of rtgroup in rtx */
 
-	/* must be padded to 64 bit alignment */
+	__u8		sb_rgblklog;    /* rt group number shift */
+	__u8		sb_pad[7];	/* zeroes */
+
+	/*
+	 * The size of this structure must be padded to 64 bit alignment.
+	 *
+	 * NOTE: Don't forget to update secondary_sb_whack in xfs_repair when
+	 * adding new fields here.
+	 */
 };
 
 #define XFS_SB_CRC_OFF		offsetof(struct xfs_dsb, sb_crc)
@@ -702,19 +715,56 @@ struct xfs_agfl {
 
 /*
  * Realtime bitmap information is accessed by the word, which is currently
- * stored in host-endian format.
+ * stored in host-endian format.  Starting with the realtime groups feature,
+ * the words are stored in be32 ondisk.
  */
 union xfs_rtword_raw {
 	__u32		old;
+	__be32		rtg;
 };
 
 /*
  * Realtime summary counts are accessed by the word, which is currently
- * stored in host-endian format.
+ * stored in host-endian format.  Starting with the realtime groups feature,
+ * the words are stored in be32 ondisk.
  */
 union xfs_suminfo_raw {
 	__u32		old;
+	__be32		rtg;
 };
+
+/*
+ * Realtime allocation groups break the rt section into multiple pieces that
+ * could be locked independently.  Realtime block group numbers are 32-bit
+ * quantities.  Block numbers within a group are also 32-bit quantities, but
+ * the upper bit must never be set.  rtgroup 0 might have a superblock in it,
+ * so the minimum size of an rtgroup is 2 rtx.
+ */
+#define XFS_MAX_RGBLOCKS	((xfs_rgblock_t)(1U << 31) - 1)
+#define XFS_MIN_RGEXTENTS	((xfs_rtxlen_t)2)
+#define XFS_MAX_RGNUMBER	((xfs_rgnumber_t)(-1U))
+
+#define XFS_RTSB_MAGIC	0x46726F67	/* 'Frog' */
+
+/*
+ * Realtime superblock - on disk version.  Must be padded to 64 bit alignment.
+ * The first block of the realtime volume contains this superblock.
+ */
+struct xfs_rtsb {
+	__be32		rsb_magicnum;	/* magic number == XFS_RTSB_MAGIC */
+	__le32		rsb_crc;	/* superblock crc */
+
+	__be32		rsb_pad;	/* zero */
+	unsigned char	rsb_fname[XFSLABEL_MAX]; /* file system name */
+
+	uuid_t		rsb_uuid;	/* user-visible file system unique id */
+	uuid_t		rsb_meta_uuid;	/* metadata file system unique id */
+
+	/* must be padded to 64 bit alignment */
+};
+
+#define XFS_RTSB_CRC_OFF	offsetof(struct xfs_rtsb, rsb_crc)
+#define XFS_RTSB_DADDR		((xfs_daddr_t)0) /* daddr in rt section */
 
 /*
  * XFS Timestamps
@@ -1237,6 +1287,24 @@ static inline bool xfs_dinode_is_metadir(const struct xfs_dinode *dip)
 #define	XFS_MAX_RTEXTSIZE	(1024 * 1024 * 1024)	/* 1GB */
 #define	XFS_DFL_RTEXTSIZE	(64 * 1024)	        /* 64kB */
 #define	XFS_MIN_RTEXTSIZE	(4 * 1024)		/* 4kB */
+
+/*
+ * RT bit manipulation macros.
+ */
+#define XFS_RTBITMAP_MAGIC	0x424D505A	/* BMPZ */
+#define XFS_RTSUMMARY_MAGIC	0x53554D59	/* SUMY */
+
+struct xfs_rtbuf_blkinfo {
+	__be32		rt_magic;	/* validity check on block */
+	__be32		rt_crc;		/* CRC of block */
+	__be64		rt_owner;	/* inode that owns the block */
+	__be64		rt_blkno;	/* first block of the buffer */
+	__be64		rt_lsn;		/* sequence number of last write */
+	uuid_t		rt_uuid;	/* filesystem we belong to */
+};
+
+#define XFS_RTBUF_CRC_OFF \
+	offsetof(struct xfs_rtbuf_blkinfo, rt_crc)
 
 /*
  * Dquot and dquot block format definitions

@@ -27,6 +27,7 @@
 #include "xfs_ag.h"
 #include "xfs_rtbitmap.h"
 #include "xfs_exchrange.h"
+#include "xfs_rtgroup.h"
 
 /*
  * Physical superblock buffer manipulations. Shared with libxfs in userspace.
@@ -234,11 +235,37 @@ xfs_validate_sb_read(
 	return 0;
 }
 
-static uint64_t
-xfs_sb_calc_rbmblocks(
+/* Return the number of extents covered by a single rt bitmap file */
+static xfs_rtbxlen_t
+xfs_extents_per_rbm(
 	struct xfs_sb		*sbp)
 {
-	return howmany_64(sbp->sb_rextents, NBBY * sbp->sb_blocksize);
+	if (xfs_sb_is_v5(sbp) &&
+	    (sbp->sb_features_incompat & XFS_SB_FEAT_INCOMPAT_METADIR))
+		return sbp->sb_rgextents;
+	return sbp->sb_rextents;
+}
+
+/*
+ * Return the payload size of a single rt bitmap block (without the metadata
+ * header if any).
+ */
+static inline unsigned int
+xfs_rtbmblock_size(
+	struct xfs_sb		*sbp)
+{
+	if (xfs_sb_is_v5(sbp) &&
+	    (sbp->sb_features_incompat & XFS_SB_FEAT_INCOMPAT_METADIR))
+		return sbp->sb_blocksize - sizeof(struct xfs_rtbuf_blkinfo);
+	return sbp->sb_blocksize;
+}
+
+static uint64_t
+xfs_expected_rbmblocks(
+	struct xfs_sb		*sbp)
+{
+	return howmany_64(xfs_extents_per_rbm(sbp),
+			  NBBY * xfs_rtbmblock_size(sbp));
 }
 
 /* Validate the realtime geometry */
@@ -260,7 +287,7 @@ xfs_validate_rt_geometry(
 	if (sbp->sb_rextents == 0 ||
 	    sbp->sb_rextents != div_u64(sbp->sb_rblocks, sbp->sb_rextsize) ||
 	    sbp->sb_rextslog != xfs_compute_rextslog(sbp->sb_rextents) ||
-	    sbp->sb_rbmblocks != xfs_sb_calc_rbmblocks(sbp))
+	    sbp->sb_rbmblocks != xfs_expected_rbmblocks(sbp))
 		return false;
 
 	return true;
@@ -341,6 +368,78 @@ xfs_validate_sb_write(
 	return 0;
 }
 
+int
+xfs_compute_rgblklog(
+	xfs_rtxlen_t	rgextents,
+	xfs_rgblock_t	rextsize)
+{
+	uint64_t	rgblocks = (uint64_t)rgextents * rextsize;
+
+	return xfs_highbit64(rgblocks - 1) + 1;
+}
+
+static int
+xfs_validate_sb_rtgroups(
+	struct xfs_mount	*mp,
+	struct xfs_sb		*sbp)
+{
+	uint64_t		groups;
+	int			rgblklog;
+
+	if (sbp->sb_rextsize == 0) {
+		xfs_warn(mp,
+"Realtime extent size must not be zero.");
+		return -EINVAL;
+	}
+
+	if (sbp->sb_rgextents > XFS_MAX_RGBLOCKS / sbp->sb_rextsize) {
+		xfs_warn(mp,
+"Realtime group size (%u) must be less than %u rt extents.",
+				sbp->sb_rgextents,
+				XFS_MAX_RGBLOCKS / sbp->sb_rextsize);
+		return -EINVAL;
+	}
+
+	if (sbp->sb_rgextents < XFS_MIN_RGEXTENTS) {
+		xfs_warn(mp,
+"Realtime group size (%u) must be at least %u rt extents.",
+				sbp->sb_rgextents, XFS_MIN_RGEXTENTS);
+		return -EINVAL;
+	}
+
+	if (sbp->sb_rgcount > XFS_MAX_RGNUMBER) {
+		xfs_warn(mp,
+"Realtime groups (%u) must be less than %u.",
+				sbp->sb_rgcount, XFS_MAX_RGNUMBER);
+		return -EINVAL;
+	}
+
+	groups = howmany_64(sbp->sb_rextents, sbp->sb_rgextents);
+	if (groups != sbp->sb_rgcount) {
+		xfs_warn(mp,
+"Realtime groups (%u) do not cover the entire rt section; need (%llu) groups.",
+				sbp->sb_rgcount, groups);
+		return -EINVAL;
+	}
+
+	/* Exchange-range is required for fsr to work on realtime files */
+	if (!(sbp->sb_features_incompat & XFS_SB_FEAT_INCOMPAT_EXCHRANGE)) {
+		xfs_warn(mp,
+"Realtime groups feature requires exchange-range support.");
+		return -EINVAL;
+	}
+
+	rgblklog = xfs_compute_rgblklog(sbp->sb_rgextents, sbp->sb_rextsize);
+	if (sbp->sb_rgblklog != rgblklog) {
+		xfs_warn(mp,
+"Realtime group log (%d) does not match expected value (%d).",
+				sbp->sb_rgblklog, rgblklog);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 /* Check the validity of the SB. */
 STATIC int
 xfs_validate_sb_common(
@@ -352,6 +451,7 @@ xfs_validate_sb_common(
 	uint32_t		agcount = 0;
 	uint32_t		rem;
 	bool			has_dalign;
+	int			error;
 
 	if (!xfs_verify_magic(bp, dsb->sb_magicnum)) {
 		xfs_warn(mp,
@@ -414,6 +514,18 @@ xfs_validate_sb_common(
 				"Sparse inode alignment (%u) should be zero.",
 				sbp->sb_spino_align);
 			return -EINVAL;
+		}
+
+		if (sbp->sb_features_incompat & XFS_SB_FEAT_INCOMPAT_METADIR) {
+			if (memchr_inv(sbp->sb_pad, 0, sizeof(sbp->sb_pad))) {
+				xfs_warn(mp,
+"Metadir superblock padding fields must be zero.");
+				return -EINVAL;
+			}
+
+			error = xfs_validate_sb_rtgroups(mp, sbp);
+			if (error)
+				return error;
 		}
 	} else if (sbp->sb_qflags & (XFS_PQUOTA_ENFD | XFS_GQUOTA_ENFD |
 				XFS_PQUOTA_CHKD | XFS_GQUOTA_CHKD)) {
@@ -582,6 +694,14 @@ xfs_validate_sb_common(
 void
 xfs_sb_quota_from_disk(struct xfs_sb *sbp)
 {
+	if (xfs_sb_is_v5(sbp) &&
+	    (sbp->sb_features_incompat & XFS_SB_FEAT_INCOMPAT_METADIR)) {
+		sbp->sb_uquotino = NULLFSINO;
+		sbp->sb_gquotino = NULLFSINO;
+		sbp->sb_pquotino = NULLFSINO;
+		return;
+	}
+
 	/*
 	 * older mkfs doesn't initialize quota inodes to NULLFSINO. This
 	 * leads to in-core values having two different values for a quota
@@ -706,13 +826,19 @@ __xfs_sb_from_disk(
 	if (convert_xquota)
 		xfs_sb_quota_from_disk(to);
 
-	if (to->sb_features_incompat & XFS_SB_FEAT_INCOMPAT_METADIR)
+	if (to->sb_features_incompat & XFS_SB_FEAT_INCOMPAT_METADIR) {
 		to->sb_metadirino = be64_to_cpu(from->sb_metadirino);
-	else
+		to->sb_rgblklog = from->sb_rgblklog;
+		memcpy(to->sb_pad, from->sb_pad, sizeof(to->sb_pad));
+		to->sb_rgcount = be32_to_cpu(from->sb_rgcount);
+		to->sb_rgextents = be32_to_cpu(from->sb_rgextents);
+		to->sb_rbmino = NULLFSINO;
+		to->sb_rsumino = NULLFSINO;
+	} else {
 		to->sb_metadirino = NULLFSINO;
-
-	to->sb_rgcount = 1;
-	to->sb_rgextents = 0;
+		to->sb_rgcount = 1;
+		to->sb_rgextents = 0;
+	}
 }
 
 void
@@ -729,6 +855,14 @@ xfs_sb_quota_to_disk(
 	struct xfs_sb	*from)
 {
 	uint16_t	qflags = from->sb_qflags;
+
+	if (xfs_sb_is_v5(from) &&
+	    (from->sb_features_incompat & XFS_SB_FEAT_INCOMPAT_METADIR)) {
+		to->sb_uquotino = cpu_to_be64(0);
+		to->sb_gquotino = cpu_to_be64(0);
+		to->sb_pquotino = cpu_to_be64(0);
+		return;
+	}
 
 	to->sb_uquotino = cpu_to_be64(from->sb_uquotino);
 
@@ -861,8 +995,15 @@ xfs_sb_to_disk(
 	if (from->sb_features_incompat & XFS_SB_FEAT_INCOMPAT_META_UUID)
 		uuid_copy(&to->sb_meta_uuid, &from->sb_meta_uuid);
 
-	if (from->sb_features_incompat & XFS_SB_FEAT_INCOMPAT_METADIR)
+	if (from->sb_features_incompat & XFS_SB_FEAT_INCOMPAT_METADIR) {
 		to->sb_metadirino = cpu_to_be64(from->sb_metadirino);
+		to->sb_rgblklog = from->sb_rgblklog;
+		memset(to->sb_pad, 0, sizeof(to->sb_pad));
+		to->sb_rgcount = cpu_to_be32(from->sb_rgcount);
+		to->sb_rgextents = cpu_to_be32(from->sb_rgextents);
+		to->sb_rbmino = cpu_to_be64(0);
+		to->sb_rsumino = cpu_to_be64(0);
+	}
 }
 
 /*
@@ -992,8 +1133,9 @@ const struct xfs_buf_ops xfs_sb_quiet_buf_ops = {
 	.verify_write = xfs_sb_write_verify,
 };
 
+/* Compute cached rt geometry from the incore sb. */
 void
-xfs_mount_sb_set_rextsize(
+xfs_sb_mount_rextsize(
 	struct xfs_mount	*mp,
 	struct xfs_sb		*sbp)
 {
@@ -1002,13 +1144,32 @@ xfs_mount_sb_set_rextsize(
 	mp->m_rtxblklog = log2_if_power2(sbp->sb_rextsize);
 	mp->m_rtxblkmask = mask64_if_power2(sbp->sb_rextsize);
 
-	mp->m_rgblocks = 0;
-	mp->m_rgblklog = 0;
-	mp->m_rgblkmask = (uint64_t)-1;
+	if (xfs_sb_is_v5(sbp) &&
+	    (sbp->sb_features_incompat & XFS_SB_FEAT_INCOMPAT_METADIR)) {
+		rgs->blocks = sbp->sb_rgextents * sbp->sb_rextsize;
+		rgs->blklog = mp->m_sb.sb_rgblklog;
+		rgs->blkmask = xfs_mask32lo(mp->m_sb.sb_rgblklog);
+	} else {
+		rgs->blocks = 0;
+		rgs->blklog = 0;
+		rgs->blkmask = (uint64_t)-1;
+	}
+}
 
-	rgs->blocks = 0;
-	rgs->blklog = 0;
-	rgs->blkmask = (uint64_t)-1;
+/* Update incore sb rt extent size, then recompute the cached rt geometry. */
+void
+xfs_mount_sb_set_rextsize(
+	struct xfs_mount	*mp,
+	struct xfs_sb		*sbp,
+	xfs_agblock_t		rextsize)
+{
+	sbp->sb_rextsize = rextsize;
+	if (xfs_sb_is_v5(sbp) &&
+	    (sbp->sb_features_incompat & XFS_SB_FEAT_INCOMPAT_METADIR))
+		sbp->sb_rgblklog = xfs_compute_rgblklog(sbp->sb_rgextents,
+							rextsize);
+
+	xfs_sb_mount_rextsize(mp, sbp);
 }
 
 /*
@@ -1035,14 +1196,14 @@ xfs_sb_mount_common(
 	mp->m_sectbb_log = sbp->sb_sectlog - BBSHIFT;
 	mp->m_agno_log = xfs_highbit32(sbp->sb_agcount - 1) + 1;
 	mp->m_blockmask = sbp->sb_blocksize - 1;
-	mp->m_blockwsize = sbp->sb_blocksize >> XFS_WORDLOG;
-	mp->m_blockwmask = mp->m_blockwsize - 1;
+	mp->m_blockwsize = xfs_rtbmblock_size(sbp) >> XFS_WORDLOG;
+	mp->m_rtx_per_rbmblock = mp->m_blockwsize << XFS_NBWORDLOG;
 
 	ags->blocks = mp->m_sb.sb_agblocks;
 	ags->blklog = mp->m_sb.sb_agblklog;
 	ags->blkmask = xfs_mask32lo(mp->m_sb.sb_agblklog);
 
-	xfs_mount_sb_set_rextsize(mp, sbp);
+	xfs_sb_mount_rextsize(mp, sbp);
 
 	mp->m_alloc_mxr[0] = xfs_allocbt_maxrecs(mp, sbp->sb_blocksize, true);
 	mp->m_alloc_mxr[1] = xfs_allocbt_maxrecs(mp, sbp->sb_blocksize, false);
@@ -1089,11 +1250,6 @@ xfs_log_sb(
 	 * reservations that have been taken out percpu counters. If we have an
 	 * unclean shutdown, this will be corrected by log recovery rebuilding
 	 * the counters from the AGF block counts.
-	 *
-	 * Do not update sb_frextents here because it is not part of the lazy
-	 * sb counters, despite having a percpu counter. It is always kept
-	 * consistent with the ondisk rtbitmap by xfs_trans_apply_sb_deltas()
-	 * and hence we don't need have to update it here.
 	 */
 	if (xfs_has_lazysbcount(mp)) {
 		mp->m_sb.sb_icount = percpu_counter_sum_positive(&mp->m_icount);
@@ -1103,6 +1259,16 @@ xfs_log_sb(
 		mp->m_sb.sb_fdblocks =
 				percpu_counter_sum_positive(&mp->m_fdblocks);
 	}
+
+	/*
+	 * sb_frextents was added to the lazy sb counters when the rt groups
+	 * feature was introduced.  This counter can go negative due to the way
+	 * we handle nearly-lockless reservations, so we must use the _positive
+	 * variant here to avoid writing out nonsense frextents.
+	 */
+	if (xfs_has_rtgroups(mp))
+		mp->m_sb.sb_frextents =
+				percpu_counter_sum_positive(&mp->m_frextents);
 
 	xfs_sb_to_disk(bp->b_addr, &mp->m_sb);
 	xfs_trans_buf_set_type(tp, bp, XFS_BLFT_SB_BUF);
@@ -1214,10 +1380,12 @@ xfs_update_secondary_sbs(
  */
 int
 xfs_sync_sb_buf(
-	struct xfs_mount	*mp)
+	struct xfs_mount	*mp,
+	bool			update_rtsb)
 {
 	struct xfs_trans	*tp;
 	struct xfs_buf		*bp;
+	struct xfs_buf		*rtsb_bp = NULL;
 	int			error;
 
 	error = xfs_trans_alloc(mp, &M_RES(mp)->tr_sb, 0, 0, 0, &tp);
@@ -1227,6 +1395,11 @@ xfs_sync_sb_buf(
 	bp = xfs_trans_getsb(tp);
 	xfs_log_sb(tp);
 	xfs_trans_bhold(tp, bp);
+	if (update_rtsb) {
+		rtsb_bp = xfs_log_rtsb(tp, bp);
+		if (rtsb_bp)
+			xfs_trans_bhold(tp, rtsb_bp);
+	}
 	xfs_trans_set_sync(tp);
 	error = xfs_trans_commit(tp);
 	if (error)
@@ -1235,7 +1408,11 @@ xfs_sync_sb_buf(
 	 * write out the sb buffer to get the changes to disk
 	 */
 	error = xfs_bwrite(bp);
+	if (!error && rtsb_bp)
+		error = xfs_bwrite(rtsb_bp);
 out:
+	if (rtsb_bp)
+		xfs_buf_relse(rtsb_bp);
 	xfs_buf_relse(bp);
 	return error;
 }
@@ -1339,6 +1516,11 @@ xfs_fs_geometry(
 		return;
 
 	geo->version = XFS_FSOP_GEOM_VERSION_V5;
+
+	if (xfs_has_rtgroups(mp)) {
+		geo->rgcount = sbp->sb_rgcount;
+		geo->rgextents = sbp->sb_rgextents;
+	}
 }
 
 /* Read a secondary superblock. */

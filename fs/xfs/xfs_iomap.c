@@ -24,6 +24,7 @@
 #include "xfs_iomap.h"
 #include "xfs_trace.h"
 #include "xfs_quota.h"
+#include "xfs_rtgroup.h"
 #include "xfs_dquot_item.h"
 #include "xfs_dquot.h"
 #include "xfs_reflink.h"
@@ -115,7 +116,9 @@ xfs_bmbt_to_iomap(
 		iomap->addr = IOMAP_NULL_ADDR;
 		iomap->type = IOMAP_DELALLOC;
 	} else {
-		iomap->addr = BBTOB(xfs_fsb_to_db(ip, imap->br_startblock));
+		xfs_daddr_t	daddr = xfs_fsb_to_db(ip, imap->br_startblock);
+
+		iomap->addr = BBTOB(daddr);
 		if (mapping_flags & IOMAP_DAX)
 			iomap->addr += target->bt_dax_part_off;
 
@@ -124,6 +127,14 @@ xfs_bmbt_to_iomap(
 		else
 			iomap->type = IOMAP_MAPPED;
 
+		/*
+		 * Mark iomaps starting at the first sector of a RTG as merge
+		 * boundary so that each I/O completions is contained to a
+		 * single RTG.
+		 */
+		if (XFS_IS_REALTIME_INODE(ip) && xfs_has_rtgroups(mp) &&
+		    xfs_rtbno_is_group_start(mp, imap->br_startblock))
+			iomap->flags |= IOMAP_F_BOUNDARY;
 	}
 	iomap->offset = XFS_FSB_TO_B(mp, imap->br_startoff);
 	iomap->length = XFS_FSB_TO_B(mp, imap->br_blockcount);

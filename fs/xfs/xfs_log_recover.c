@@ -1818,6 +1818,8 @@ static const struct xlog_recover_item_ops *xlog_recover_item_ops[] = {
 	&xlog_attrd_item_ops,
 	&xlog_xmi_item_ops,
 	&xlog_xmd_item_ops,
+	&xlog_rtefi_item_ops,
+	&xlog_rtefd_item_ops,
 };
 
 static const struct xlog_recover_item_ops *
