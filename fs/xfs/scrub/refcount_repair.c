@@ -215,7 +215,7 @@ xrep_refc_rmap_shareable(
 		return false;
 
 	/* Metadata in files are never shareable */
-	if (xfs_internal_inum(mp, rmap->rm_owner))
+	if (xfs_is_sb_inum(mp, rmap->rm_owner))
 		return false;
 
 	/* Metadata and unwritten file blocks are not shareable. */

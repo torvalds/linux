@@ -95,6 +95,7 @@ struct xfs_attrlist_cursor_kern;
 struct xfs_extent_free_item;
 struct xfs_rmap_intent;
 struct xfs_refcount_intent;
+struct xfs_metadir_update;
 
 #define XFS_ATTR_FILTER_FLAGS \
 	{ XFS_ATTR_ROOT,	"ROOT" }, \
@@ -5355,6 +5356,107 @@ DEFINE_EVENT(xfs_getparents_class, name, \
 	TP_ARGS(ip, ppi, cur))
 DEFINE_XFS_GETPARENTS_EVENT(xfs_getparents_begin);
 DEFINE_XFS_GETPARENTS_EVENT(xfs_getparents_end);
+
+DECLARE_EVENT_CLASS(xfs_metadir_update_class,
+	TP_PROTO(const struct xfs_metadir_update *upd),
+	TP_ARGS(upd),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_ino_t, dp_ino)
+		__field(xfs_ino_t, ino)
+		__string(fname, upd->path)
+	),
+	TP_fast_assign(
+		__entry->dev = upd->dp->i_mount->m_super->s_dev;
+		__entry->dp_ino = upd->dp->i_ino;
+		__entry->ino = upd->ip ? upd->ip->i_ino : NULLFSINO;
+		__assign_str(fname);
+	),
+	TP_printk("dev %d:%d dp 0x%llx fname '%s' ino 0x%llx",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->dp_ino,
+		  __get_str(fname),
+		  __entry->ino)
+)
+
+#define DEFINE_METADIR_UPDATE_EVENT(name) \
+DEFINE_EVENT(xfs_metadir_update_class, name, \
+	TP_PROTO(const struct xfs_metadir_update *upd), \
+	TP_ARGS(upd))
+DEFINE_METADIR_UPDATE_EVENT(xfs_metadir_start_create);
+DEFINE_METADIR_UPDATE_EVENT(xfs_metadir_start_link);
+DEFINE_METADIR_UPDATE_EVENT(xfs_metadir_commit);
+DEFINE_METADIR_UPDATE_EVENT(xfs_metadir_cancel);
+DEFINE_METADIR_UPDATE_EVENT(xfs_metadir_try_create);
+DEFINE_METADIR_UPDATE_EVENT(xfs_metadir_create);
+DEFINE_METADIR_UPDATE_EVENT(xfs_metadir_link);
+
+DECLARE_EVENT_CLASS(xfs_metadir_update_error_class,
+	TP_PROTO(const struct xfs_metadir_update *upd, int error),
+	TP_ARGS(upd, error),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_ino_t, dp_ino)
+		__field(xfs_ino_t, ino)
+		__field(int, error)
+		__string(fname, upd->path)
+	),
+	TP_fast_assign(
+		__entry->dev = upd->dp->i_mount->m_super->s_dev;
+		__entry->dp_ino = upd->dp->i_ino;
+		__entry->ino = upd->ip ? upd->ip->i_ino : NULLFSINO;
+		__entry->error = error;
+		__assign_str(fname);
+	),
+	TP_printk("dev %d:%d dp 0x%llx fname '%s' ino 0x%llx error %d",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->dp_ino,
+		  __get_str(fname),
+		  __entry->ino,
+		  __entry->error)
+)
+
+#define DEFINE_METADIR_UPDATE_ERROR_EVENT(name) \
+DEFINE_EVENT(xfs_metadir_update_error_class, name, \
+	TP_PROTO(const struct xfs_metadir_update *upd, int error), \
+	TP_ARGS(upd, error))
+DEFINE_METADIR_UPDATE_ERROR_EVENT(xfs_metadir_teardown);
+
+DECLARE_EVENT_CLASS(xfs_metadir_class,
+	TP_PROTO(struct xfs_inode *dp, struct xfs_name *name,
+		 xfs_ino_t ino),
+	TP_ARGS(dp, name, ino),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_ino_t, dp_ino)
+		__field(xfs_ino_t, ino)
+		__field(int, ftype)
+		__field(int, namelen)
+		__dynamic_array(char, name, name->len)
+	),
+	TP_fast_assign(
+		__entry->dev = VFS_I(dp)->i_sb->s_dev;
+		__entry->dp_ino = dp->i_ino;
+		__entry->ino = ino,
+		__entry->ftype = name->type;
+		__entry->namelen = name->len;
+		memcpy(__get_str(name), name->name, name->len);
+	),
+	TP_printk("dev %d:%d dir 0x%llx type %s name '%.*s' ino 0x%llx",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->dp_ino,
+		  __print_symbolic(__entry->ftype, XFS_DIR3_FTYPE_STR),
+		  __entry->namelen,
+		  __get_str(name),
+		  __entry->ino)
+)
+
+#define DEFINE_METADIR_EVENT(name) \
+DEFINE_EVENT(xfs_metadir_class, name, \
+	TP_PROTO(struct xfs_inode *dp, struct xfs_name *name, \
+		 xfs_ino_t ino), \
+	TP_ARGS(dp, name, ino))
+DEFINE_METADIR_EVENT(xfs_metadir_lookup);
 
 #endif /* _TRACE_XFS_H */
 

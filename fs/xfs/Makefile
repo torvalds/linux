@@ -16,6 +16,7 @@ xfs-y				+= xfs_trace.o
 xfs-y				+= $(addprefix libxfs/, \
 				   xfs_group.o \
 				   xfs_ag.o \
+				   xfs_ag_resv.o \
 				   xfs_alloc.o \
 				   xfs_alloc_btree.o \
 				   xfs_attr.o \
@@ -43,7 +44,8 @@ xfs-y				+= $(addprefix libxfs/, \
 				   xfs_inode_buf.o \
 				   xfs_inode_util.o \
 				   xfs_log_rlimit.o \
-				   xfs_ag_resv.o \
+				   xfs_metadir.o \
+				   xfs_metafile.o \
 				   xfs_parent.o \
 				   xfs_rmap.o \
 				   xfs_rmap_btree.o \
@@ -172,6 +174,7 @@ xfs-y				+= $(addprefix scrub/, \
 				   inode.o \
 				   iscan.o \
 				   listxattr.o \
+				   metapath.o \
 				   nlinks.o \
 				   parent.o \
 				   readdir.o \
