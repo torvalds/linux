@@ -148,7 +148,6 @@ struct tdx_vp {
 	struct page **tdcx_pages;
 };
 
-
 static inline u64 mk_keyed_paddr(u16 hkid, struct page *page)
 {
 	u64 ret;
@@ -158,10 +157,16 @@ static inline u64 mk_keyed_paddr(u16 hkid, struct page *page)
 	ret |= (u64)hkid << boot_cpu_data.x86_phys_bits;
 
 	return ret;
+}
 
+static inline int pg_level_to_tdx_sept_level(enum pg_level level)
+{
+        WARN_ON_ONCE(level == PG_LEVEL_NONE);
+        return level - 1;
 }
 
 u64 tdh_mng_addcx(struct tdx_td *td, struct page *tdcs_page);
+u64 tdh_mem_sept_add(struct tdx_td *td, u64 gpa, int level, struct page *page, u64 *ext_err1, u64 *ext_err2);
 u64 tdh_vp_addcx(struct tdx_vp *vp, struct page *tdcx_page);
 u64 tdh_mng_key_config(struct tdx_td *td);
 u64 tdh_mng_create(struct tdx_td *td, u16 hkid);
