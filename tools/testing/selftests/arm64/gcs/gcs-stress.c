@@ -264,7 +264,7 @@ static void child_cleanup(struct child_data *child)
 			if (WIFSIGNALED(status)) {
 				child->exit_signal = WTERMSIG(status);
 				ksft_print_msg("%s: Exited due to signal %d\n",
-					       child->name);
+					       child->name, child->exit_signal);
 				fail = true;
 				child->exited = true;
 			}
