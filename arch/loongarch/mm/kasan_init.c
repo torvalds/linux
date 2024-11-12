@@ -238,7 +238,7 @@ static void __init kasan_map_populate(unsigned long start, unsigned long end,
 asmlinkage void __init kasan_early_init(void)
 {
 	BUILD_BUG_ON(!IS_ALIGNED(KASAN_SHADOW_START, PGDIR_SIZE));
-	BUILD_BUG_ON(!IS_ALIGNED(KASAN_SHADOW_END, PGDIR_SIZE));
+	BUILD_BUG_ON(!IS_ALIGNED(KASAN_SHADOW_END + 1, PGDIR_SIZE));
 }
 
 static inline void kasan_set_pgd(pgd_t *pgdp, pgd_t pgdval)
@@ -253,7 +253,7 @@ static void __init clear_pgds(unsigned long start, unsigned long end)
 	 * swapper_pg_dir. pgd_clear() can't be used
 	 * here because it's nop on 2,3-level pagetable setups
 	 */
-	for (; start < end; start += PGDIR_SIZE)
+	for (; start < end; start = pgd_addr_end(start, end))
 		kasan_set_pgd((pgd_t *)pgd_offset_k(start), __pgd(0));
 }
 
@@ -261,6 +261,17 @@ void __init kasan_init(void)
 {
 	u64 i;
 	phys_addr_t pa_start, pa_end;
+
+	/*
+	 * If PGDIR_SIZE is too large for cpu_vabits, KASAN_SHADOW_END will
+	 * overflow UINTPTR_MAX and then looks like a user space address.
+	 * For example, PGDIR_SIZE of CONFIG_4KB_4LEVEL is 2^39, which is too
+	 * large for Loongson-2K series whose cpu_vabits = 39.
+	 */
+	if (KASAN_SHADOW_END < vm_map_base) {
+		pr_warn("PGDIR_SIZE too large for cpu_vabits, KernelAddressSanitizer disabled.\n");
+		return;
+	}
 
 	/*
 	 * PGD was populated as invalid_pmd_table or invalid_pud_table
