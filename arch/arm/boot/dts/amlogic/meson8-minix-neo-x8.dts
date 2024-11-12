@@ -19,7 +19,7 @@
 		stdout-path = "serial0:115200n8";
 	};
 
-	memory {
+	memory@40000000 {
 		device_type = "memory";
 		reg = <0x40000000 0x80000000>;
 	};
@@ -93,5 +93,6 @@
 &ethmac {
 	status = "okay";
 	pinctrl-0 = <&eth_pins>;
-	pnictrl-names = "default";
+	pinctrl-names = "default";
+	phy-mode = "rmii";
 };
