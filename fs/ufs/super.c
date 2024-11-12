@@ -1229,11 +1229,7 @@ magic_found:
 	else
 		uspi->s_apbshift = uspi->s_bshift - 2;
 
-	uspi->s_2apbshift = uspi->s_apbshift * 2;
-	uspi->s_3apbshift = uspi->s_apbshift * 3;
 	uspi->s_apb = 1 << uspi->s_apbshift;
-	uspi->s_2apb = 1 << uspi->s_2apbshift;
-	uspi->s_3apb = 1 << uspi->s_3apbshift;
 	uspi->s_apbmask = uspi->s_apb - 1;
 	uspi->s_nspfshift = uspi->s_fshift - UFS_SECTOR_BITS;
 	uspi->s_nspb = uspi->s_nspf << uspi->s_fpbshift;
