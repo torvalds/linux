@@ -1573,14 +1573,10 @@ int hns_roce_init_qp_table(struct hns_roce_dev *hr_dev)
 	unsigned int reserved_from_bot;
 	unsigned int i;
 
-	qp_table->idx_table.spare_idx = kcalloc(hr_dev->caps.num_qps,
-					sizeof(u32), GFP_KERNEL);
-	if (!qp_table->idx_table.spare_idx)
-		return -ENOMEM;
-
 	mutex_init(&qp_table->scc_mutex);
 	mutex_init(&qp_table->bank_mutex);
 	xa_init(&hr_dev->qp_table_xa);
+	xa_init(&qp_table->dip_xa);
 
 	reserved_from_bot = hr_dev->caps.reserved_qps;
 
@@ -1605,7 +1601,7 @@ void hns_roce_cleanup_qp_table(struct hns_roce_dev *hr_dev)
 
 	for (i = 0; i < HNS_ROCE_QP_BANK_NUM; i++)
 		ida_destroy(&hr_dev->qp_table.bank[i].ida);
+	xa_destroy(&hr_dev->qp_table.dip_xa);
 	mutex_destroy(&hr_dev->qp_table.bank_mutex);
 	mutex_destroy(&hr_dev->qp_table.scc_mutex);
-	kfree(hr_dev->qp_table.idx_table.spare_idx);
 }

@@ -2553,20 +2553,19 @@ static void hns_roce_free_link_table(struct hns_roce_dev *hr_dev)
 	free_link_table_buf(hr_dev, &priv->ext_llm);
 }
 
-static void free_dip_list(struct hns_roce_dev *hr_dev)
+static void free_dip_entry(struct hns_roce_dev *hr_dev)
 {
 	struct hns_roce_dip *hr_dip;
-	struct hns_roce_dip *tmp;
-	unsigned long flags;
+	unsigned long idx;
 
-	spin_lock_irqsave(&hr_dev->dip_list_lock, flags);
+	xa_lock(&hr_dev->qp_table.dip_xa);
 
-	list_for_each_entry_safe(hr_dip, tmp, &hr_dev->dip_list, node) {
-		list_del(&hr_dip->node);
+	xa_for_each(&hr_dev->qp_table.dip_xa, idx, hr_dip) {
+		__xa_erase(&hr_dev->qp_table.dip_xa, hr_dip->dip_idx);
 		kfree(hr_dip);
 	}
 
-	spin_unlock_irqrestore(&hr_dev->dip_list_lock, flags);
+	xa_unlock(&hr_dev->qp_table.dip_xa);
 }
 
 static struct ib_pd *free_mr_init_pd(struct hns_roce_dev *hr_dev)
@@ -2974,7 +2973,7 @@ static void hns_roce_v2_exit(struct hns_roce_dev *hr_dev)
 		hns_roce_free_link_table(hr_dev);
 
 	if (hr_dev->pci_dev->revision == PCI_REVISION_ID_HIP09)
-		free_dip_list(hr_dev);
+		free_dip_entry(hr_dev);
 }
 
 static int hns_roce_mbox_post(struct hns_roce_dev *hr_dev,
@@ -4694,26 +4693,49 @@ static int modify_qp_rtr_to_rts(struct ib_qp *ibqp, int attr_mask,
 	return 0;
 }
 
+static int alloc_dip_entry(struct xarray *dip_xa, u32 qpn)
+{
+	struct hns_roce_dip *hr_dip;
+	int ret;
+
+	hr_dip = xa_load(dip_xa, qpn);
+	if (hr_dip)
+		return 0;
+
+	hr_dip = kzalloc(sizeof(*hr_dip), GFP_KERNEL);
+	if (!hr_dip)
+		return -ENOMEM;
+
+	ret = xa_err(xa_store(dip_xa, qpn, hr_dip, GFP_KERNEL));
+	if (ret)
+		kfree(hr_dip);
+
+	return ret;
+}
+
 static int get_dip_ctx_idx(struct ib_qp *ibqp, const struct ib_qp_attr *attr,
 			   u32 *dip_idx)
 {
 	const struct ib_global_route *grh = rdma_ah_read_grh(&attr->ah_attr);
 	struct hns_roce_dev *hr_dev = to_hr_dev(ibqp->device);
-	u32 *spare_idx = hr_dev->qp_table.idx_table.spare_idx;
-	u32 *head =  &hr_dev->qp_table.idx_table.head;
-	u32 *tail =  &hr_dev->qp_table.idx_table.tail;
+	struct xarray *dip_xa = &hr_dev->qp_table.dip_xa;
+	struct hns_roce_qp *hr_qp = to_hr_qp(ibqp);
 	struct hns_roce_dip *hr_dip;
-	unsigned long flags;
+	unsigned long idx;
 	int ret = 0;
 
-	spin_lock_irqsave(&hr_dev->dip_list_lock, flags);
+	ret = alloc_dip_entry(dip_xa, ibqp->qp_num);
+	if (ret)
+		return ret;
 
-	spare_idx[*tail] = ibqp->qp_num;
-	*tail = (*tail == hr_dev->caps.num_qps - 1) ? 0 : (*tail + 1);
+	xa_lock(dip_xa);
 
-	list_for_each_entry(hr_dip, &hr_dev->dip_list, node) {
-		if (!memcmp(grh->dgid.raw, hr_dip->dgid, GID_LEN_V2)) {
+	xa_for_each(dip_xa, idx, hr_dip) {
+		if (hr_dip->qp_cnt &&
+		    !memcmp(grh->dgid.raw, hr_dip->dgid, GID_LEN_V2)) {
 			*dip_idx = hr_dip->dip_idx;
+			hr_dip->qp_cnt++;
+			hr_qp->dip = hr_dip;
 			goto out;
 		}
 	}
@@ -4721,19 +4743,24 @@ static int get_dip_ctx_idx(struct ib_qp *ibqp, const struct ib_qp_attr *attr,
 	/* If no dgid is found, a new dip and a mapping between dgid and
 	 * dip_idx will be created.
 	 */
-	hr_dip = kzalloc(sizeof(*hr_dip), GFP_ATOMIC);
-	if (!hr_dip) {
-		ret = -ENOMEM;
-		goto out;
+	xa_for_each(dip_xa, idx, hr_dip) {
+		if (hr_dip->qp_cnt)
+			continue;
+
+		*dip_idx = idx;
+		memcpy(hr_dip->dgid, grh->dgid.raw, sizeof(grh->dgid.raw));
+		hr_dip->dip_idx = idx;
+		hr_dip->qp_cnt++;
+		hr_qp->dip = hr_dip;
+		break;
 	}
 
-	memcpy(hr_dip->dgid, grh->dgid.raw, sizeof(grh->dgid.raw));
-	hr_dip->dip_idx = *dip_idx = spare_idx[*head];
-	*head = (*head == hr_dev->caps.num_qps - 1) ? 0 : (*head + 1);
-	list_add_tail(&hr_dip->node, &hr_dev->dip_list);
+	/* This should never happen. */
+	if (WARN_ON_ONCE(!hr_qp->dip))
+		ret = -ENOSPC;
 
 out:
-	spin_unlock_irqrestore(&hr_dev->dip_list_lock, flags);
+	xa_unlock(dip_xa);
 	return ret;
 }
 
@@ -5587,6 +5614,20 @@ static int hns_roce_v2_destroy_qp_common(struct hns_roce_dev *hr_dev,
 	return ret;
 }
 
+static void put_dip_ctx_idx(struct hns_roce_dev *hr_dev,
+			    struct hns_roce_qp *hr_qp)
+{
+	struct hns_roce_dip *hr_dip = hr_qp->dip;
+
+	xa_lock(&hr_dev->qp_table.dip_xa);
+
+	hr_dip->qp_cnt--;
+	if (!hr_dip->qp_cnt)
+		memset(hr_dip->dgid, 0, GID_LEN_V2);
+
+	xa_unlock(&hr_dev->qp_table.dip_xa);
+}
+
 int hns_roce_v2_destroy_qp(struct ib_qp *ibqp, struct ib_udata *udata)
 {
 	struct hns_roce_dev *hr_dev = to_hr_dev(ibqp->device);
@@ -5599,6 +5640,9 @@ int hns_roce_v2_destroy_qp(struct ib_qp *ibqp, struct ib_udata *udata)
 	set_bit(HNS_ROCE_STOP_FLUSH_FLAG, &hr_qp->flush_flag);
 	spin_unlock_irqrestore(&hr_qp->flush_lock, flags);
 	flush_work(&hr_qp->flush_work.work);
+
+	if (hr_qp->cong_type == CONG_TYPE_DIP)
+		put_dip_ctx_idx(hr_dev, hr_qp);
 
 	ret = hns_roce_v2_destroy_qp_common(hr_dev, hr_qp, udata);
 	if (ret)

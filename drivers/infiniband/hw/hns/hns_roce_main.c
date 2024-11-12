@@ -1135,8 +1135,6 @@ int hns_roce_init(struct hns_roce_dev *hr_dev)
 
 	INIT_LIST_HEAD(&hr_dev->qp_list);
 	spin_lock_init(&hr_dev->qp_list_lock);
-	INIT_LIST_HEAD(&hr_dev->dip_list);
-	spin_lock_init(&hr_dev->dip_list_lock);
 
 	ret = hns_roce_register_device(hr_dev);
 	if (ret)
