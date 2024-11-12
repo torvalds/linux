@@ -413,6 +413,14 @@ config PINCTRL_SM8650
 	  Qualcomm Technologies Inc TLMM block found on the Qualcomm
 	  Technologies Inc SM8650 platform.
 
+config PINCTRL_SM8750
+	tristate "Qualcomm Technologies Inc SM8750 pin controller driver"
+	depends on ARM64 || COMPILE_TEST
+	help
+	  This is the pinctrl, pinmux, pinconf and gpiolib driver for the
+	  Qualcomm Technologies Inc TLMM block found on the Qualcomm
+	  Technologies Inc SM8750 platform.
+
 config PINCTRL_X1E80100
 	tristate "Qualcomm Technologies Inc X1E80100 pin controller driver"
 	depends on ARM64 || COMPILE_TEST
