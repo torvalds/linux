@@ -118,7 +118,8 @@ struct outstate {
 	FILE *fh;
 	bool newline;
 	bool first;
-	const char *prefix;
+	/* Lines are timestamped in --interval-print mode */
+	char timestamp[64];
 	int  nfields;
 	int  aggr_nr;
 	struct aggr_cpu_id id;
@@ -419,8 +420,8 @@ static inline void __new_line_std_csv(struct perf_stat_config *config,
 				      struct outstate *os)
 {
 	fputc('\n', os->fh);
-	if (os->prefix)
-		fputs(os->prefix, os->fh);
+	if (config->interval)
+		fputs(os->timestamp, os->fh);
 	aggr_printout(config, os, os->evsel, os->id, os->aggr_nr);
 }
 
@@ -523,8 +524,8 @@ static void new_line_json(struct perf_stat_config *config, void *ctx)
 
 	fputs("\n{", os->fh);
 	os->first = true;
-	if (os->prefix)
-		json_out(os, "%s", os->prefix);
+	if (config->interval)
+		json_out(os, "%s", os->timestamp);
 
 	aggr_printout(config, os, os->evsel, os->id, os->aggr_nr);
 }
@@ -1091,13 +1092,13 @@ static void print_counter_aggrdata(struct perf_stat_config *config,
 			os->first = true;
 			fputc('{', output);
 		}
-		if (os->prefix) {
+		if (config->interval) {
 			if (config->json_output)
-				json_out(os, "%s", os->prefix);
+				json_out(os, "%s", os->timestamp);
 			else
-				fprintf(output, "%s", os->prefix);
+				fprintf(output, "%s", os->timestamp);
 		} else if (config->summary && config->csv_output &&
-			   !config->no_csv_summary && !config->interval)
+			   !config->no_csv_summary)
 			fprintf(output, "%s%s", "summary", config->csv_sep);
 	}
 
@@ -1124,11 +1125,11 @@ static void print_metric_begin(struct perf_stat_config *config,
 	if (config->json_output)
 		fputc('{', config->output);
 
-	if (os->prefix) {
+	if (config->interval) {
 		if (config->json_output)
-			json_out(os, "%s", os->prefix);
+			json_out(os, "%s", os->timestamp);
 		else
-			fprintf(config->output, "%s", os->prefix);
+			fprintf(config->output, "%s", os->timestamp);
 	}
 	evsel = evlist__first(evlist);
 	id = config->aggr_map->map[aggr_idx];
@@ -1349,20 +1350,20 @@ static void print_metric_headers(struct perf_stat_config *config,
 		fputc('\n', config->output);
 }
 
-static void prepare_interval(struct perf_stat_config *config,
-			     char *prefix, size_t len, struct timespec *ts)
+static void prepare_timestamp(struct perf_stat_config *config,
+			      struct outstate *os, struct timespec *ts)
 {
 	if (config->iostat_run)
 		return;
 
 	if (config->json_output)
-		scnprintf(prefix, len, "\"interval\" : %lu.%09lu",
+		scnprintf(os->timestamp, sizeof(os->timestamp), "\"interval\" : %lu.%09lu",
 			  (unsigned long) ts->tv_sec, ts->tv_nsec);
 	else if (config->csv_output)
-		scnprintf(prefix, len, "%lu.%09lu%s",
+		scnprintf(os->timestamp, sizeof(os->timestamp), "%lu.%09lu%s",
 			  (unsigned long) ts->tv_sec, ts->tv_nsec, config->csv_sep);
 	else
-		scnprintf(prefix, len, "%6lu.%09lu ",
+		scnprintf(os->timestamp, sizeof(os->timestamp), "%6lu.%09lu ",
 			  (unsigned long) ts->tv_sec, ts->tv_nsec);
 }
 
@@ -1685,9 +1686,7 @@ void evlist__print_counters(struct evlist *evlist, struct perf_stat_config *conf
 			    int argc, const char **argv)
 {
 	bool metric_only = config->metric_only;
-	int interval = config->interval;
 	struct evsel *counter;
-	char buf[64];
 	struct outstate os = {
 		.fh = config->output,
 		.first = true,
@@ -1698,10 +1697,8 @@ void evlist__print_counters(struct evlist *evlist, struct perf_stat_config *conf
 	if (config->iostat_run)
 		evlist->selected = evlist__first(evlist);
 
-	if (interval) {
-		os.prefix = buf;
-		prepare_interval(config, buf, sizeof(buf), ts);
-	}
+	if (config->interval)
+		prepare_timestamp(config, &os, ts);
 
 	print_header(config, _target, evlist, argc, argv);
 
@@ -1720,7 +1717,7 @@ void evlist__print_counters(struct evlist *evlist, struct perf_stat_config *conf
 	case AGGR_THREAD:
 	case AGGR_GLOBAL:
 		if (config->iostat_run) {
-			iostat_print_counters(evlist, config, ts, buf,
+			iostat_print_counters(evlist, config, ts, os.timestamp,
 					      (iostat_print_counter_t)print_counter, &os);
 		} else if (config->cgroup_list) {
 			print_cgroup_counter(config, evlist, &os);
