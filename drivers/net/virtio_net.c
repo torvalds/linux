@@ -6168,15 +6168,6 @@ err_ctrl:
 	return -ENOMEM;
 }
 
-static void virtnet_rq_set_premapped(struct virtnet_info *vi)
-{
-	int i;
-
-	for (i = 0; i < vi->max_queue_pairs; i++)
-		/* error should never happen */
-		BUG_ON(virtqueue_set_dma_premapped(vi->rq[i].vq));
-}
-
 static int init_vqs(struct virtnet_info *vi)
 {
 	int ret;
@@ -6189,10 +6180,6 @@ static int init_vqs(struct virtnet_info *vi)
 	ret = virtnet_find_vqs(vi);
 	if (ret)
 		goto err_free;
-
-	/* disable for big mode */
-	if (!vi->big_packets || vi->mergeable_rx_bufs)
-		virtnet_rq_set_premapped(vi);
 
 	cpus_read_lock();
 	virtnet_set_affinity(vi);
