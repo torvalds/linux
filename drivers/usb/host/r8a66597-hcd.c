@@ -1336,7 +1336,7 @@ static void packet_read(struct r8a66597 *r8a66597, u16 pipenum)
 		buf = (void *)urb->transfer_buffer + urb->actual_length;
 		urb_len = urb->transfer_buffer_length - urb->actual_length;
 	}
-	bufsize = min(urb_len, (int) td->maxpacket);
+	bufsize = min_t(int, urb_len, td->maxpacket);
 	if (rcv_len <= bufsize) {
 		size = rcv_len;
 	} else {
