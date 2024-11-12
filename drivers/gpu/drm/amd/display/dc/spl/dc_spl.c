@@ -1040,12 +1040,10 @@ static bool spl_get_optimal_number_of_taps(
 			spl_scratch->scl_data.taps.h_taps_c = 4;
 
 		if (spl_is_yuv420(spl_in->basic_in.format)) {
-			if ((spl_scratch->scl_data.taps.h_taps <= 4) ||
-				(spl_scratch->scl_data.taps.h_taps_c <= 3)) {
+			if (spl_scratch->scl_data.taps.h_taps <= 4) {
 				*enable_easf_v = false;
 				*enable_easf_h = false;
-			} else if ((spl_scratch->scl_data.taps.v_taps <= 3) ||
-				(spl_scratch->scl_data.taps.v_taps_c <= 3)) {
+			} else if (spl_scratch->scl_data.taps.v_taps <= 3) {
 				*enable_easf_v = false;
 				*enable_easf_h = true;
 			} else {
