@@ -1,17 +1,21 @@
 // SPDX-License-Identifier: (GPL-2.0 OR MIT)
 /*
- * Copyright (C) 2023 Jisheng Zhang <jszhang@kernel.org>
+ * Copyright (C) 2024 Thomas Bonnefille <thomas.bonnefille@bootlin.com>
  */
 
 /dts-v1/;
 
-#include "cv1800b.dtsi"
+#include "sg2002.dtsi"
 
 / {
-	model = "Milk-V Duo";
-	compatible = "milkv,duo", "sophgo,cv1800b";
+	model = "LicheeRV Nano B";
+	compatible = "sipeed,licheerv-nano-b", "sipeed,licheerv-nano", "sophgo,sg2002";
 
 	aliases {
+		gpio0 = &gpio0;
+		gpio1 = &gpio1;
+		gpio2 = &gpio2;
+		gpio3 = &gpio3;
 		serial0 = &uart0;
 		serial1 = &uart1;
 		serial2 = &uart2;
@@ -21,17 +25,6 @@
 
 	chosen {
 		stdout-path = "serial0:115200n8";
-	};
-
-	reserved-memory {
-		#address-cells = <1>;
-		#size-cells = <1>;
-		ranges;
-
-		coprocessor_rtos: region@83f40000 {
-			reg = <0x83f40000 0xc0000>;
-			no-map;
-		};
 	};
 };
 
