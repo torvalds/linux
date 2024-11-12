@@ -155,6 +155,8 @@ static void scf_add_to_free_list(struct scf_check *scfcp)
 	struct llist_head *pool;
 	unsigned int cpu;
 
+	if (!scfcp)
+		return;
 	cpu = raw_smp_processor_id() % nthreads;
 	pool = &per_cpu(scf_free_pool, cpu);
 	llist_add(&scfcp->scf_node, pool);
