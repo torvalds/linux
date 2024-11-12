@@ -265,10 +265,10 @@ static void *run_test_task_tid(void *arg)
 
 	linfo.task.tid = 0;
 	linfo.task.pid = getpid();
-	/* This includes the parent thread, this thread,
+	/* This includes the parent thread, this thread, watchdog timer thread
 	 * and the do_nothing_wait thread
 	 */
-	test_task_common(&opts, 2, 1);
+	test_task_common(&opts, 3, 1);
 
 	test_task_common_nocheck(NULL, &num_unknown_tid, &num_known_tid);
 	ASSERT_GT(num_unknown_tid, 2, "check_num_unknown_tid");
@@ -297,7 +297,7 @@ static void test_task_pid(void)
 	opts.link_info = &linfo;
 	opts.link_info_len = sizeof(linfo);
 
-	test_task_common(&opts, 1, 1);
+	test_task_common(&opts, 2, 1);
 }
 
 static void test_task_pidfd(void)
@@ -315,7 +315,7 @@ static void test_task_pidfd(void)
 	opts.link_info = &linfo;
 	opts.link_info_len = sizeof(linfo);
 
-	test_task_common(&opts, 1, 1);
+	test_task_common(&opts, 2, 1);
 
 	close(pidfd);
 }
