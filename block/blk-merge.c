@@ -871,10 +871,9 @@ static struct request *attempt_merge(struct request_queue *q,
 		/* Don't merge requests with different write hints. */
 		if (req->bio->bi_write_hint != next->bio->bi_write_hint)
 			return NULL;
+		if (req->bio->bi_ioprio != next->bio->bi_ioprio)
+			return NULL;
 	}
-
-	if (req->ioprio != next->ioprio)
-		return NULL;
 
 	if (!blk_atomic_write_mergeable_rqs(req, next))
 		return NULL;
@@ -1007,10 +1006,9 @@ bool blk_rq_merge_ok(struct request *rq, struct bio *bio)
 		/* Don't merge requests with different write hints. */
 		if (rq->bio->bi_write_hint != bio->bi_write_hint)
 			return false;
+		if (rq->bio->bi_ioprio != bio->bi_ioprio)
+			return false;
 	}
-
-	if (rq->ioprio != bio_prio(bio))
-		return false;
 
 	if (blk_atomic_write_mergeable_rq_bio(rq, bio) == false)
 		return false;
