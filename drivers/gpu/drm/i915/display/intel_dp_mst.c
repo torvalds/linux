@@ -1113,7 +1113,7 @@ static void intel_mst_post_pll_disable_dp(struct intel_atomic_state *state,
 
 	if (intel_dp->active_mst_links == 0 &&
 	    dig_port->base.post_pll_disable)
-		dig_port->base.post_pll_disable(state, encoder, old_crtc_state, old_conn_state);
+		dig_port->base.post_pll_disable(state, &dig_port->base, old_crtc_state, old_conn_state);
 }
 
 static void intel_mst_pre_pll_enable_dp(struct intel_atomic_state *state,
