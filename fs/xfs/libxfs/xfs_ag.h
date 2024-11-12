@@ -34,7 +34,6 @@ struct xfs_perag {
 	xfs_agnumber_t	pag_agno;	/* AG this structure belongs to */
 	atomic_t	pag_ref;	/* passive reference count */
 	atomic_t	pag_active_ref;	/* active reference count */
-	wait_queue_head_t pag_active_wq;/* woken active_ref falls to zero */
 	unsigned long	pag_opstate;
 	uint8_t		pagf_bno_level;	/* # of levels in bno btree */
 	uint8_t		pagf_cnt_level;	/* # of levels in cnt btree */
@@ -55,7 +54,6 @@ struct xfs_perag {
 	xfs_agino_t	pagl_leftrec;
 	xfs_agino_t	pagl_rightrec;
 
-	int		pagb_count;	/* pagb slots in use */
 	uint8_t		pagf_refcount_level; /* recount btree height */
 
 	/* Blocks reserved for all kinds of metadata. */
@@ -144,8 +142,8 @@ __XFS_AG_OPSTATE(prefers_metadata, PREFERS_METADATA)
 __XFS_AG_OPSTATE(allows_inodes, ALLOWS_INODES)
 __XFS_AG_OPSTATE(agfl_needs_reset, AGFL_NEEDS_RESET)
 
-int xfs_initialize_perag(struct xfs_mount *mp, xfs_agnumber_t old_agcount,
-		xfs_agnumber_t agcount, xfs_rfsblock_t dcount,
+int xfs_initialize_perag(struct xfs_mount *mp, xfs_agnumber_t orig_agcount,
+		xfs_agnumber_t new_agcount, xfs_rfsblock_t dcount,
 		xfs_agnumber_t *maxagi);
 void xfs_free_perag_range(struct xfs_mount *mp, xfs_agnumber_t first_agno,
 		xfs_agnumber_t end_agno);
@@ -331,5 +329,29 @@ int xfs_ag_shrink_space(struct xfs_perag *pag, struct xfs_trans **tpp,
 int xfs_ag_extend_space(struct xfs_perag *pag, struct xfs_trans *tp,
 			xfs_extlen_t len);
 int xfs_ag_get_geometry(struct xfs_perag *pag, struct xfs_ag_geometry *ageo);
+
+static inline xfs_fsblock_t
+xfs_agbno_to_fsb(
+	struct xfs_perag	*pag,
+	xfs_agblock_t		agbno)
+{
+	return XFS_AGB_TO_FSB(pag->pag_mount, pag->pag_agno, agbno);
+}
+
+static inline xfs_daddr_t
+xfs_agbno_to_daddr(
+	struct xfs_perag	*pag,
+	xfs_agblock_t		agbno)
+{
+	return XFS_AGB_TO_DADDR(pag->pag_mount, pag->pag_agno, agbno);
+}
+
+static inline xfs_ino_t
+xfs_agino_to_ino(
+	struct xfs_perag	*pag,
+	xfs_agino_t		agino)
+{
+	return XFS_AGINO_TO_INO(pag->pag_mount, pag->pag_agno, agino);
+}
 
 #endif /* __LIBXFS_AG_H */

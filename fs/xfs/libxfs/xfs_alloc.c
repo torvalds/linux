@@ -1252,14 +1252,14 @@ xfs_alloc_ag_vextent_small(
 	if (fbno == NULLAGBLOCK)
 		goto out;
 
-	xfs_extent_busy_reuse(args->mp, args->pag, fbno, 1,
+	xfs_extent_busy_reuse(args->pag, fbno, 1,
 			      (args->datatype & XFS_ALLOC_NOBUSY));
 
 	if (args->datatype & XFS_ALLOC_USERDATA) {
 		struct xfs_buf	*bp;
 
 		error = xfs_trans_get_buf(args->tp, args->mp->m_ddev_targp,
-				XFS_AGB_TO_DADDR(args->mp, args->agno, fbno),
+				xfs_agbno_to_daddr(args->pag, fbno),
 				args->mp->m_bsize, 0, &bp);
 		if (error)
 			goto error;
@@ -2037,7 +2037,6 @@ int
 xfs_free_ag_extent(
 	struct xfs_trans		*tp,
 	struct xfs_buf			*agbp,
-	xfs_agnumber_t			agno,
 	xfs_agblock_t			bno,
 	xfs_extlen_t			len,
 	const struct xfs_owner_info	*oinfo,
@@ -2358,19 +2357,19 @@ xfs_free_ag_extent(
 	 * Update the freespace totals in the ag and superblock.
 	 */
 	error = xfs_alloc_update_counters(tp, agbp, len);
-	xfs_ag_resv_free_extent(agbp->b_pag, type, tp, len);
+	xfs_ag_resv_free_extent(pag, type, tp, len);
 	if (error)
 		goto error0;
 
 	XFS_STATS_INC(mp, xs_freex);
 	XFS_STATS_ADD(mp, xs_freeb, len);
 
-	trace_xfs_free_extent(mp, agno, bno, len, type, haveleft, haveright);
+	trace_xfs_free_extent(pag, bno, len, type, haveleft, haveright);
 
 	return 0;
 
  error0:
-	trace_xfs_free_extent(mp, agno, bno, len, type, -1, -1);
+	trace_xfs_free_extent(pag, bno, len, type, -1, -1);
 	if (bno_cur)
 		xfs_btree_del_cursor(bno_cur, XFS_BTREE_ERROR);
 	if (cnt_cur)
@@ -2934,9 +2933,8 @@ xfs_alloc_fix_freelist(
 		 * Deferring the free disconnects freeing up the AGFL slot from
 		 * freeing the block.
 		 */
-		error = xfs_free_extent_later(tp,
-				XFS_AGB_TO_FSB(mp, args->agno, bno), 1,
-				&targs.oinfo, XFS_AG_RESV_AGFL, 0);
+		error = xfs_free_extent_later(tp, xfs_agbno_to_fsb(pag, bno),
+				1, &targs.oinfo, XFS_AG_RESV_AGFL, 0);
 		if (error)
 			goto out_agbp_relse;
 	}
@@ -3360,7 +3358,7 @@ xfs_read_agf(
 	struct xfs_mount	*mp = pag->pag_mount;
 	int			error;
 
-	trace_xfs_read_agf(pag->pag_mount, pag->pag_agno);
+	trace_xfs_read_agf(pag);
 
 	error = xfs_trans_read_buf(mp, tp, mp->m_ddev_targp,
 			XFS_AG_DADDR(mp, pag->pag_agno, XFS_AGF_DADDR(mp)),
@@ -3391,7 +3389,7 @@ xfs_alloc_read_agf(
 	int			error;
 	int			allocbt_blks;
 
-	trace_xfs_alloc_read_agf(pag->pag_mount, pag->pag_agno);
+	trace_xfs_alloc_read_agf(pag);
 
 	/* We don't support trylock when freeing. */
 	ASSERT((flags & (XFS_ALLOC_FLAG_FREEING | XFS_ALLOC_FLAG_TRYLOCK)) !=
@@ -3595,7 +3593,7 @@ xfs_alloc_vextent_finish(
 		goto out_drop_perag;
 	}
 
-	args->fsbno = XFS_AGB_TO_FSB(mp, args->agno, args->agbno);
+	args->fsbno = xfs_agbno_to_fsb(args->pag, args->agbno);
 
 	ASSERT(args->len >= args->minlen);
 	ASSERT(args->len <= args->maxlen);
@@ -3616,7 +3614,7 @@ xfs_alloc_vextent_finish(
 		if (error)
 			goto out_drop_perag;
 
-		ASSERT(!xfs_extent_busy_search(mp, args->pag, args->agbno,
+		ASSERT(!xfs_extent_busy_search(args->pag, args->agbno,
 				args->len));
 	}
 
@@ -3647,7 +3645,6 @@ xfs_alloc_vextent_this_ag(
 	struct xfs_alloc_arg	*args,
 	xfs_agnumber_t		agno)
 {
-	struct xfs_mount	*mp = args->mp;
 	xfs_agnumber_t		minimum_agno;
 	uint32_t		alloc_flags = 0;
 	int			error;
@@ -3660,8 +3657,8 @@ xfs_alloc_vextent_this_ag(
 
 	trace_xfs_alloc_vextent_this_ag(args);
 
-	error = xfs_alloc_vextent_check_args(args, XFS_AGB_TO_FSB(mp, agno, 0),
-			&minimum_agno);
+	error = xfs_alloc_vextent_check_args(args,
+			xfs_agbno_to_fsb(args->pag, 0), &minimum_agno);
 	if (error) {
 		if (error == -ENOSPC)
 			return 0;
@@ -4010,8 +4007,7 @@ __xfs_free_extent(
 		goto err_release;
 	}
 
-	error = xfs_free_ag_extent(tp, agbp, pag->pag_agno, agbno, len, oinfo,
-			type);
+	error = xfs_free_ag_extent(tp, agbp, agbno, len, oinfo, type);
 	if (error)
 		goto err_release;
 

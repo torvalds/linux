@@ -20,7 +20,7 @@ struct xfs_alloc_arg;
 struct xfs_extent_busy {
 	struct rb_node	rb_node;	/* ag by-bno indexed search tree */
 	struct list_head list;		/* transaction busy extent list */
-	xfs_agnumber_t	agno;
+	struct xfs_perag *pag;
 	xfs_agblock_t	bno;
 	xfs_extlen_t	length;
 	unsigned int	flags;
@@ -33,7 +33,6 @@ struct xfs_extent_busy {
  * to discard completion.
  */
 struct xfs_busy_extents {
-	struct xfs_mount	*mount;
 	struct list_head	extent_list;
 	struct work_struct	endio_work;
 
@@ -54,16 +53,15 @@ xfs_extent_busy_insert_discard(struct xfs_perag *pag, xfs_agblock_t bno,
 	xfs_extlen_t len, struct list_head *busy_list);
 
 void
-xfs_extent_busy_clear(struct xfs_mount *mp, struct list_head *list,
-	bool do_discard);
+xfs_extent_busy_clear(struct list_head *list, bool do_discard);
 
 int
-xfs_extent_busy_search(struct xfs_mount *mp, struct xfs_perag *pag,
-	xfs_agblock_t bno, xfs_extlen_t len);
+xfs_extent_busy_search(struct xfs_perag *pag, xfs_agblock_t bno,
+		xfs_extlen_t len);
 
 void
-xfs_extent_busy_reuse(struct xfs_mount *mp, struct xfs_perag *pag,
-	xfs_agblock_t fbno, xfs_extlen_t flen, bool userdata);
+xfs_extent_busy_reuse(struct xfs_perag *pag, xfs_agblock_t fbno,
+		xfs_extlen_t flen, bool userdata);
 
 bool
 xfs_extent_busy_trim(struct xfs_alloc_arg *args, xfs_agblock_t *bno,

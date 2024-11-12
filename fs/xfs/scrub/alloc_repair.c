@@ -210,7 +210,7 @@ xrep_abt_stash(
 	if (error)
 		return error;
 
-	trace_xrep_abt_found(sc->mp, sc->sa.pag->pag_agno, &arec);
+	trace_xrep_abt_found(sc->sa.pag, &arec);
 
 	error = xfarray_append(ra->free_records, &arec);
 	if (error)
@@ -484,8 +484,8 @@ xrep_abt_reserve_space(
 		ASSERT(arec.ar_blockcount <= UINT_MAX);
 		len = min_t(unsigned int, arec.ar_blockcount, desired);
 
-		trace_xrep_newbt_alloc_ag_blocks(sc->mp, sc->sa.pag->pag_agno,
-				arec.ar_startblock, len, XFS_RMAP_OWN_AG);
+		trace_xrep_newbt_alloc_ag_blocks(sc->sa.pag, arec.ar_startblock,
+				len, XFS_RMAP_OWN_AG);
 
 		error = xrep_newbt_add_extent(&ra->new_bnobt, sc->sa.pag,
 				arec.ar_startblock, len);
@@ -554,8 +554,8 @@ xrep_abt_dispose_one(
 	if (free_aglen == 0)
 		return 0;
 
-	trace_xrep_newbt_free_blocks(sc->mp, resv->pag->pag_agno, free_agbno,
-			free_aglen, ra->new_bnobt.oinfo.oi_owner);
+	trace_xrep_newbt_free_blocks(resv->pag, free_agbno, free_aglen,
+			ra->new_bnobt.oinfo.oi_owner);
 
 	error = __xfs_free_extent(sc->tp, resv->pag, free_agbno, free_aglen,
 			&ra->new_bnobt.oinfo, XFS_AG_RESV_IGNORE, true);

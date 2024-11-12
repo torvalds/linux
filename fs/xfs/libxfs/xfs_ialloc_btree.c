@@ -120,7 +120,7 @@ __xfs_inobt_alloc_block(
 	args.resv = resv;
 
 	error = xfs_alloc_vextent_near_bno(&args,
-			XFS_AGB_TO_FSB(args.mp, args.pag->pag_agno, sbno));
+			xfs_agbno_to_fsb(args.pag, sbno));
 	if (error)
 		return error;
 

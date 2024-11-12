@@ -74,8 +74,7 @@ xfs_refcountbt_alloc_block(
 	args.resv = XFS_AG_RESV_METADATA;
 
 	error = xfs_alloc_vextent_near_bno(&args,
-			XFS_AGB_TO_FSB(args.mp, args.pag->pag_agno,
-					xfs_refc_block(args.mp)));
+			xfs_agbno_to_fsb(args.pag, xfs_refc_block(args.mp)));
 	if (error)
 		goto out_error;
 	if (args.fsbno == NULLFSBLOCK) {

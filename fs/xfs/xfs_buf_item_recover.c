@@ -724,9 +724,8 @@ xlog_recover_do_primary_sb_buffer(
 	}
 
 	/*
-	 * Growfs can also grow the last existing AG.  In this case we also need
-	 * to update the length in the in-core perag structure and values
-	 * depending on it.
+	 * If the last AG was grown or shrunk, we also need to update the
+	 * length in the in-core perag structure and values depending on it.
 	 */
 	error = xfs_update_last_ag_size(mp, orig_agcount);
 	if (error)

@@ -391,15 +391,11 @@ xfs_getfsmap_datadev_helper(
 	const struct xfs_rmap_irec	*rec,
 	void				*priv)
 {
-	struct xfs_mount		*mp = cur->bc_mp;
 	struct xfs_getfsmap_info	*info = priv;
-	xfs_fsblock_t			fsb;
-	xfs_daddr_t			rec_daddr;
 
-	fsb = XFS_AGB_TO_FSB(mp, cur->bc_ag.pag->pag_agno, rec->rm_startblock);
-	rec_daddr = XFS_FSB_TO_DADDR(mp, fsb);
-
-	return xfs_getfsmap_helper(cur->bc_tp, info, rec, rec_daddr, 0);
+	return xfs_getfsmap_helper(cur->bc_tp, info, rec,
+			xfs_agbno_to_daddr(cur->bc_ag.pag, rec->rm_startblock),
+			0);
 }
 
 /* Transform a bnobt irec into a fsmap */
@@ -409,13 +405,8 @@ xfs_getfsmap_datadev_bnobt_helper(
 	const struct xfs_alloc_rec_incore *rec,
 	void				*priv)
 {
-	struct xfs_mount		*mp = cur->bc_mp;
 	struct xfs_getfsmap_info	*info = priv;
 	struct xfs_rmap_irec		irec;
-	xfs_daddr_t			rec_daddr;
-
-	rec_daddr = XFS_AGB_TO_DADDR(mp, cur->bc_ag.pag->pag_agno,
-			rec->ar_startblock);
 
 	irec.rm_startblock = rec->ar_startblock;
 	irec.rm_blockcount = rec->ar_blockcount;
@@ -423,7 +414,9 @@ xfs_getfsmap_datadev_bnobt_helper(
 	irec.rm_offset = 0;
 	irec.rm_flags = 0;
 
-	return xfs_getfsmap_helper(cur->bc_tp, info, &irec, rec_daddr, 0);
+	return xfs_getfsmap_helper(cur->bc_tp, info, &irec,
+			xfs_agbno_to_daddr(cur->bc_ag.pag, rec->ar_startblock),
+			0);
 }
 
 /* Set rmap flags based on the getfsmap flags */
@@ -471,8 +464,7 @@ __xfs_getfsmap_datadev(
 	struct xfs_btree_cur		*bt_cur = NULL;
 	xfs_fsblock_t			start_fsb;
 	xfs_fsblock_t			end_fsb;
-	xfs_agnumber_t			start_ag;
-	xfs_agnumber_t			end_ag;
+	xfs_agnumber_t			start_ag, end_ag, ag;
 	uint64_t			eofs;
 	int				error = 0;
 
@@ -520,7 +512,8 @@ __xfs_getfsmap_datadev(
 	start_ag = XFS_FSB_TO_AGNO(mp, start_fsb);
 	end_ag = XFS_FSB_TO_AGNO(mp, end_fsb);
 
-	for_each_perag_range(mp, start_ag, end_ag, pag) {
+	ag = start_ag;
+	for_each_perag_range(mp, ag, end_ag, pag) {
 		/*
 		 * Set the AG high key from the fsmap high key if this
 		 * is the last AG that we're querying.

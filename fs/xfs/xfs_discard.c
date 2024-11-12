@@ -81,7 +81,7 @@ xfs_discard_endio_work(
 	struct xfs_busy_extents	*extents =
 		container_of(work, struct xfs_busy_extents, endio_work);
 
-	xfs_extent_busy_clear(extents->mount, &extents->extent_list, false);
+	xfs_extent_busy_clear(&extents->extent_list, false);
 	kfree(extents->owner);
 }
 
@@ -117,11 +117,10 @@ xfs_discard_extents(
 
 	blk_start_plug(&plug);
 	list_for_each_entry(busyp, &extents->extent_list, list) {
-		trace_xfs_discard_extent(mp, busyp->agno, busyp->bno,
-					 busyp->length);
+		trace_xfs_discard_extent(busyp->pag, busyp->bno, busyp->length);
 
 		error = __blkdev_issue_discard(mp->m_ddev_targp->bt_bdev,
-				XFS_AGB_TO_DADDR(mp, busyp->agno, busyp->bno),
+				xfs_agbno_to_daddr(busyp->pag, busyp->bno),
 				XFS_FSB_TO_BB(mp, busyp->length),
 				GFP_KERNEL, &bio);
 		if (error && error != -EOPNOTSUPP) {
@@ -239,11 +238,11 @@ xfs_trim_gather_extents(
 		 * overlapping ranges for now.
 		 */
 		if (fbno + flen < tcur->start) {
-			trace_xfs_discard_exclude(mp, pag->pag_agno, fbno, flen);
+			trace_xfs_discard_exclude(pag, fbno, flen);
 			goto next_extent;
 		}
 		if (fbno > tcur->end) {
-			trace_xfs_discard_exclude(mp, pag->pag_agno, fbno, flen);
+			trace_xfs_discard_exclude(pag, fbno, flen);
 			if (tcur->by_bno) {
 				tcur->count = 0;
 				break;
@@ -261,7 +260,7 @@ xfs_trim_gather_extents(
 
 		/* Too small?  Give up. */
 		if (flen < tcur->minlen) {
-			trace_xfs_discard_toosmall(mp, pag->pag_agno, fbno, flen);
+			trace_xfs_discard_toosmall(pag, fbno, flen);
 			if (tcur->by_bno)
 				goto next_extent;
 			tcur->count = 0;
@@ -272,8 +271,8 @@ xfs_trim_gather_extents(
 		 * If any blocks in the range are still busy, skip the
 		 * discard and try again the next time.
 		 */
-		if (xfs_extent_busy_search(mp, pag, fbno, flen)) {
-			trace_xfs_discard_busy(mp, pag->pag_agno, fbno, flen);
+		if (xfs_extent_busy_search(pag, fbno, flen)) {
+			trace_xfs_discard_busy(pag, fbno, flen);
 			goto next_extent;
 		}
 
@@ -301,7 +300,7 @@ next_extent:
 	 * we aren't going to issue a discard on them any more.
 	 */
 	if (error)
-		xfs_extent_busy_clear(mp, &extents->extent_list, false);
+		xfs_extent_busy_clear(&extents->extent_list, false);
 out_del_cursor:
 	xfs_btree_del_cursor(cur, error);
 out_trans_cancel:
@@ -347,7 +346,6 @@ xfs_trim_perag_extents(
 			break;
 		}
 
-		extents->mount = pag->pag_mount;
 		extents->owner = extents;
 		INIT_LIST_HEAD(&extents->extent_list);
 

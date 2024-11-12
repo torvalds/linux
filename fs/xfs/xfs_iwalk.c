@@ -100,7 +100,6 @@ xfs_iwalk_ichunk_ra(
 	struct xfs_inobt_rec_incore	*irec)
 {
 	struct xfs_ino_geometry		*igeo = M_IGEO(mp);
-	xfs_agnumber_t			agno = pag->pag_agno;
 	xfs_agblock_t			agbno;
 	struct blk_plug			plug;
 	int				i;	/* inode chunk index */
@@ -114,7 +113,7 @@ xfs_iwalk_ichunk_ra(
 		imask = xfs_inobt_maskn(i, igeo->inodes_per_cluster);
 		if (imask & ~irec->ir_free) {
 			xfs_buf_readahead(mp->m_ddev_targp,
-					XFS_AGB_TO_DADDR(mp, agno, agbno),
+					xfs_agbno_to_daddr(pag, agbno),
 					igeo->blocks_per_cluster * mp->m_bsize,
 					&xfs_inode_buf_ops);
 		}
@@ -177,14 +176,13 @@ xfs_iwalk_ag_recs(
 	struct xfs_mount	*mp = iwag->mp;
 	struct xfs_trans	*tp = iwag->tp;
 	struct xfs_perag	*pag = iwag->pag;
-	xfs_ino_t		ino;
 	unsigned int		i, j;
 	int			error;
 
 	for (i = 0; i < iwag->nr_recs; i++) {
 		struct xfs_inobt_rec_incore	*irec = &iwag->recs[i];
 
-		trace_xfs_iwalk_ag_rec(mp, pag->pag_agno, irec);
+		trace_xfs_iwalk_ag_rec(pag, irec);
 
 		if (xfs_pwork_want_abort(&iwag->pwork))
 			return 0;
@@ -208,9 +206,10 @@ xfs_iwalk_ag_recs(
 				continue;
 
 			/* Otherwise call our function. */
-			ino = XFS_AGINO_TO_INO(mp, pag->pag_agno,
-						irec->ir_startino + j);
-			error = iwag->iwalk_fn(mp, tp, ino, iwag->data);
+			error = iwag->iwalk_fn(mp, tp,
+					xfs_agino_to_ino(pag,
+						irec->ir_startino + j),
+					iwag->data);
 			if (error)
 				return error;
 		}
@@ -305,7 +304,7 @@ xfs_iwalk_ag_start(
 		return -EFSCORRUPTED;
 	}
 
-	iwag->lastino = XFS_AGINO_TO_INO(mp, pag->pag_agno,
+	iwag->lastino = xfs_agino_to_ino(pag,
 				irec->ir_startino + XFS_INODES_PER_CHUNK - 1);
 
 	/*
@@ -425,7 +424,7 @@ xfs_iwalk_ag(
 			break;
 
 		/* Make sure that we always move forward. */
-		rec_fsino = XFS_AGINO_TO_INO(mp, pag->pag_agno, irec->ir_startino);
+		rec_fsino = xfs_agino_to_ino(pag, irec->ir_startino);
 		if (iwag->lastino != NULLFSINO &&
 		    XFS_IS_CORRUPT(mp, iwag->lastino >= rec_fsino)) {
 			xfs_btree_mark_sick(cur);

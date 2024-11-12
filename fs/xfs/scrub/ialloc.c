@@ -303,7 +303,6 @@ xchk_iallocbt_check_cluster_ifree(
 	unsigned int			irec_ino,
 	struct xfs_dinode		*dip)
 {
-	struct xfs_mount		*mp = bs->cur->bc_mp;
 	xfs_ino_t			fsino;
 	xfs_agino_t			agino;
 	bool				irec_free;
@@ -319,7 +318,7 @@ xchk_iallocbt_check_cluster_ifree(
 	 * the record, compute which fs inode we're talking about.
 	 */
 	agino = irec->ir_startino + irec_ino;
-	fsino = XFS_AGINO_TO_INO(mp, bs->cur->bc_ag.pag->pag_agno, agino);
+	fsino = xfs_agino_to_ino(bs->cur->bc_ag.pag, agino);
 	irec_free = (irec->ir_free & XFS_INOBT_MASK(irec_ino));
 
 	if (be16_to_cpu(dip->di_magic) != XFS_DINODE_MAGIC ||
@@ -368,7 +367,6 @@ xchk_iallocbt_check_cluster(
 	struct xfs_mount		*mp = bs->cur->bc_mp;
 	struct xfs_buf			*cluster_bp;
 	unsigned int			nr_inodes;
-	xfs_agnumber_t			agno = bs->cur->bc_ag.pag->pag_agno;
 	xfs_agblock_t			agbno;
 	unsigned int			cluster_index;
 	uint16_t			cluster_mask = 0;
@@ -396,7 +394,7 @@ xchk_iallocbt_check_cluster(
 	 * ir_startino can be large enough to make im_boffset nonzero.
 	 */
 	ir_holemask = (irec->ir_holemask & cluster_mask);
-	imap.im_blkno = XFS_AGB_TO_DADDR(mp, agno, agbno);
+	imap.im_blkno = xfs_agbno_to_daddr(bs->cur->bc_ag.pag, agbno);
 	imap.im_len = XFS_FSB_TO_BB(mp, M_IGEO(mp)->blocks_per_cluster);
 	imap.im_boffset = XFS_INO_TO_OFFSET(mp, irec->ir_startino) <<
 			mp->m_sb.sb_inodelog;
@@ -407,7 +405,7 @@ xchk_iallocbt_check_cluster(
 		return 0;
 	}
 
-	trace_xchk_iallocbt_check_cluster(mp, agno, irec->ir_startino,
+	trace_xchk_iallocbt_check_cluster(bs->cur->bc_ag.pag, irec->ir_startino,
 			imap.im_blkno, imap.im_len, cluster_base, nr_inodes,
 			cluster_mask, ir_holemask,
 			XFS_INO_TO_OFFSET(mp, irec->ir_startino +

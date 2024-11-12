@@ -34,14 +34,14 @@ xfs_extent_busy_insert_list(
 
 	new = kzalloc(sizeof(struct xfs_extent_busy),
 			GFP_KERNEL | __GFP_NOFAIL);
-	new->agno = pag->pag_agno;
+	new->pag = xfs_perag_hold(pag);
 	new->bno = bno;
 	new->length = len;
 	INIT_LIST_HEAD(&new->list);
 	new->flags = flags;
 
 	/* trace before insert to be able to see failed inserts */
-	trace_xfs_extent_busy(pag->pag_mount, pag->pag_agno, bno, len);
+	trace_xfs_extent_busy(pag, bno, len);
 
 	spin_lock(&pag->pagb_lock);
 	rbp = &pag->pagb_tree.rb_node;
@@ -101,7 +101,6 @@ xfs_extent_busy_insert_discard(
  */
 int
 xfs_extent_busy_search(
-	struct xfs_mount	*mp,
 	struct xfs_perag	*pag,
 	xfs_agblock_t		bno,
 	xfs_extlen_t		len)
@@ -148,7 +147,6 @@ xfs_extent_busy_search(
  */
 STATIC bool
 xfs_extent_busy_update_extent(
-	struct xfs_mount	*mp,
 	struct xfs_perag	*pag,
 	struct xfs_extent_busy	*busyp,
 	xfs_agblock_t		fbno,
@@ -280,24 +278,22 @@ xfs_extent_busy_update_extent(
 		ASSERT(0);
 	}
 
-	trace_xfs_extent_busy_reuse(mp, pag->pag_agno, fbno, flen);
+	trace_xfs_extent_busy_reuse(pag, fbno, flen);
 	return true;
 
 out_force_log:
 	spin_unlock(&pag->pagb_lock);
-	xfs_log_force(mp, XFS_LOG_SYNC);
-	trace_xfs_extent_busy_force(mp, pag->pag_agno, fbno, flen);
+	xfs_log_force(pag->pag_mount, XFS_LOG_SYNC);
+	trace_xfs_extent_busy_force(pag, fbno, flen);
 	spin_lock(&pag->pagb_lock);
 	return false;
 }
-
 
 /*
  * For a given extent [fbno, flen], make sure we can reuse it safely.
  */
 void
 xfs_extent_busy_reuse(
-	struct xfs_mount	*mp,
 	struct xfs_perag	*pag,
 	xfs_agblock_t		fbno,
 	xfs_extlen_t		flen,
@@ -323,7 +319,7 @@ restart:
 			continue;
 		}
 
-		if (!xfs_extent_busy_update_extent(mp, pag, busyp, fbno, flen,
+		if (!xfs_extent_busy_update_extent(pag, busyp, fbno, flen,
 						  userdata))
 			goto restart;
 	}
@@ -500,8 +496,7 @@ xfs_extent_busy_trim(
 out:
 
 	if (fbno != *bno || flen != *len) {
-		trace_xfs_extent_busy_trim(args->mp, args->agno, *bno, *len,
-					  fbno, flen);
+		trace_xfs_extent_busy_trim(args->pag, *bno, *len, fbno, flen);
 		*bno = fbno;
 		*len = flen;
 		*busy_gen = args->pag->pagb_gen;
@@ -530,12 +525,12 @@ xfs_extent_busy_clear_one(
 			busyp->flags = XFS_EXTENT_BUSY_DISCARDED;
 			return false;
 		}
-		trace_xfs_extent_busy_clear(pag->pag_mount, busyp->agno,
-				busyp->bno, busyp->length);
+		trace_xfs_extent_busy_clear(pag, busyp->bno, busyp->length);
 		rb_erase(&busyp->rb_node, &pag->pagb_tree);
 	}
 
 	list_del_init(&busyp->list);
+	xfs_perag_put(busyp->pag);
 	kfree(busyp);
 	return true;
 }
@@ -547,7 +542,6 @@ xfs_extent_busy_clear_one(
  */
 void
 xfs_extent_busy_clear(
-	struct xfs_mount	*mp,
 	struct list_head	*list,
 	bool			do_discard)
 {
@@ -558,10 +552,9 @@ xfs_extent_busy_clear(
 		return;
 
 	do {
+		struct xfs_perag	*pag = xfs_perag_hold(busyp->pag);
 		bool			wakeup = false;
-		struct xfs_perag	*pag;
 
-		pag = xfs_perag_get(mp, busyp->agno);
 		spin_lock(&pag->pagb_lock);
 		do {
 			next = list_next_entry(busyp, list);
@@ -569,7 +562,7 @@ xfs_extent_busy_clear(
 				wakeup = true;
 			busyp = next;
 		} while (!list_entry_is_head(busyp, list, list) &&
-			 busyp->agno == pag->pag_agno);
+			 busyp->pag == pag);
 
 		if (wakeup) {
 			pag->pagb_gen++;
@@ -666,7 +659,7 @@ xfs_extent_busy_ag_cmp(
 		container_of(l2, struct xfs_extent_busy, list);
 	s32 diff;
 
-	diff = b1->agno - b2->agno;
+	diff = b1->pag->pag_agno - b2->pag->pag_agno;
 	if (!diff)
 		diff = b1->bno - b2->bno;
 	return diff;

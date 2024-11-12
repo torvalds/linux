@@ -263,7 +263,6 @@ xreap_agextent_binval(
 	struct xfs_scrub	*sc = rs->sc;
 	struct xfs_perag	*pag = sc->sa.pag;
 	struct xfs_mount	*mp = sc->mp;
-	xfs_agnumber_t		agno = sc->sa.pag->pag_agno;
 	xfs_agblock_t		agbno_next = agbno + *aglenp;
 	xfs_agblock_t		bno = agbno;
 
@@ -284,7 +283,7 @@ xreap_agextent_binval(
 	 */
 	while (bno < agbno_next) {
 		struct xrep_bufscan	scan = {
-			.daddr		= XFS_AGB_TO_DADDR(mp, agno, bno),
+			.daddr		= xfs_agbno_to_daddr(pag, bno),
 			.max_sectors	= xrep_bufscan_max_sectors(mp,
 							agbno_next - bno),
 			.daddr_step	= XFS_FSB_TO_BB(mp, 1),
@@ -391,7 +390,7 @@ xreap_agextent_iter(
 	xfs_fsblock_t		fsbno;
 	int			error = 0;
 
-	fsbno = XFS_AGB_TO_FSB(sc->mp, sc->sa.pag->pag_agno, agbno);
+	fsbno = xfs_agbno_to_fsb(sc->sa.pag, agbno);
 
 	/*
 	 * If there are other rmappings, this block is cross linked and must
@@ -780,7 +779,6 @@ xreap_bmapi_binval(
 	xfs_fileoff_t		off;
 	xfs_fileoff_t		max_off;
 	xfs_extlen_t		scan_blocks;
-	xfs_agnumber_t		agno = sc->sa.pag->pag_agno;
 	xfs_agblock_t		bno;
 	xfs_agblock_t		agbno;
 	xfs_agblock_t		agbno_next;
@@ -837,7 +835,7 @@ xreap_bmapi_binval(
 	 */
 	while (bno < agbno_next) {
 		struct xrep_bufscan	scan = {
-			.daddr		= XFS_AGB_TO_DADDR(mp, agno, bno),
+			.daddr		= xfs_agbno_to_daddr(pag, bno),
 			.max_sectors	= xrep_bufscan_max_sectors(mp,
 								scan_blocks),
 			.daddr_step	= XFS_FSB_TO_BB(mp, 1),
