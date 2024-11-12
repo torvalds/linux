@@ -64,7 +64,7 @@
 #define ABEOZ9_BIT_ALARM_MIN		GENMASK(6, 0)
 #define ABEOZ9_REG_ALARM_HOURS		0x12
 #define ABEOZ9_BIT_ALARM_HOURS_PM	BIT(5)
-#define ABEOZ9_BIT_ALARM_HOURS		GENMASK(4, 0)
+#define ABEOZ9_BIT_ALARM_HOURS		GENMASK(5, 0)
 #define ABEOZ9_REG_ALARM_DAYS		0x13
 #define ABEOZ9_BIT_ALARM_DAYS		GENMASK(5, 0)
 #define ABEOZ9_REG_ALARM_WEEKDAYS	0x14
@@ -231,8 +231,6 @@ static int abeoz9_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 	alarm->time.tm_sec = bcd2bin(FIELD_GET(ABEOZ9_BIT_ALARM_SEC, regs[0]));
 	alarm->time.tm_min = bcd2bin(FIELD_GET(ABEOZ9_BIT_ALARM_MIN, regs[1]));
 	alarm->time.tm_hour = bcd2bin(FIELD_GET(ABEOZ9_BIT_ALARM_HOURS, regs[2]));
-	if (FIELD_GET(ABEOZ9_BIT_ALARM_HOURS_PM, regs[2]))
-		alarm->time.tm_hour += 12;
 
 	alarm->time.tm_mday = bcd2bin(FIELD_GET(ABEOZ9_BIT_ALARM_DAYS, regs[3]));
 
