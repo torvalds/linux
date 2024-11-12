@@ -32,6 +32,9 @@
 bool enable_tdx __ro_after_init;
 module_param_named(tdx, enable_tdx, bool, 0444);
 
+#define TDX_SHARED_BIT_PWL_5 gpa_to_gfn(BIT_ULL(51))
+#define TDX_SHARED_BIT_PWL_4 gpa_to_gfn(BIT_ULL(47))
+
 static enum cpuhp_state tdx_cpuhp_state;
 
 static const struct tdx_sys_info *tdx_sysinfo;
@@ -493,6 +496,18 @@ void tdx_vcpu_free(struct kvm_vcpu *vcpu)
 	}
 
 	tdx->state = VCPU_TD_STATE_UNINITIALIZED;
+}
+
+
+void tdx_load_mmu_pgd(struct kvm_vcpu *vcpu, hpa_t root_hpa, int pgd_level)
+{
+	u64 shared_bit = (pgd_level == 5) ? TDX_SHARED_BIT_PWL_5 :
+			  TDX_SHARED_BIT_PWL_4;
+
+	if (KVM_BUG_ON(shared_bit != kvm_gfn_direct_bits(vcpu->kvm), vcpu->kvm))
+		return;
+
+	td_vmcs_write64(to_tdx(vcpu), SHARED_EPT_POINTER, root_hpa);
 }
 
 static int tdx_get_capabilities(struct kvm_tdx_cmd *cmd)
