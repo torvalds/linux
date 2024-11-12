@@ -19,6 +19,7 @@
 
 #include <net/sock.h>
 #include <net/dst.h>
+#include <net/inet_dscp.h>
 #include <net/ip.h>
 #include <net/route.h>
 #include <net/ipv6.h>
@@ -354,7 +355,7 @@ void xfrm_if_unregister_cb(void);
 
 struct xfrm_dst_lookup_params {
 	struct net *net;
-	int tos;
+	dscp_t dscp;
 	int oif;
 	xfrm_address_t *saddr;
 	xfrm_address_t *daddr;
