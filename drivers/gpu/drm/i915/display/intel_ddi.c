@@ -2919,6 +2919,24 @@ static void intel_ddi_pre_enable_hdmi(struct intel_atomic_state *state,
 				 crtc_state, conn_state);
 }
 
+/*
+ * Note: Also called from the ->pre_enable of the first active MST stream
+ * encoder on its primary encoder.
+ *
+ * When called from DP MST code:
+ *
+ * - conn_state will be NULL
+ *
+ * - encoder will be the primary encoder (i.e. mst->primary)
+ *
+ * - the main connector associated with this port won't be active or linked to a
+ *   crtc
+ *
+ * - crtc_state will be the state of the first stream to be activated on this
+ *   port, and it may not be the same stream that will be deactivated last, but
+ *   each stream should have a state that is identical when it comes to the DP
+ *   link parameteres
+ */
 static void intel_ddi_pre_enable(struct intel_atomic_state *state,
 				 struct intel_encoder *encoder,
 				 const struct intel_crtc_state *crtc_state,
@@ -2927,19 +2945,6 @@ static void intel_ddi_pre_enable(struct intel_atomic_state *state,
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	enum pipe pipe = crtc->pipe;
-
-	/*
-	 * When called from DP MST code:
-	 * - conn_state will be NULL
-	 * - encoder will be the main encoder (ie. mst->primary)
-	 * - the main connector associated with this port
-	 *   won't be active or linked to a crtc
-	 * - crtc_state will be the state of the first stream to
-	 *   be activated on this port, and it may not be the same
-	 *   stream that will be deactivated last, but each stream
-	 *   should have a state that is identical when it comes to
-	 *   the DP link parameteres
-	 */
 
 	drm_WARN_ON(&dev_priv->drm, crtc_state->has_pch_encoder);
 
@@ -3190,6 +3195,11 @@ static void intel_ddi_post_disable_hdmi_or_sst(struct intel_atomic_state *state,
 	}
 }
 
+/*
+ * Note: Also called from the ->post_disable of the last active MST stream
+ * encoder on its primary encoder. See also the comment for
+ * intel_ddi_pre_enable().
+ */
 static void intel_ddi_post_disable(struct intel_atomic_state *state,
 				   struct intel_encoder *encoder,
 				   const struct intel_crtc_state *old_crtc_state,
@@ -3220,6 +3230,11 @@ static void intel_ddi_post_disable(struct intel_atomic_state *state,
 					  old_conn_state);
 }
 
+/*
+ * Note: Also called from the ->post_pll_disable of the last active MST stream
+ * encoder on its primary encoder. See also the comment for
+ * intel_ddi_pre_enable().
+ */
 static void intel_ddi_post_pll_disable(struct intel_atomic_state *state,
 				       struct intel_encoder *encoder,
 				       const struct intel_crtc_state *old_crtc_state,
@@ -3557,6 +3572,11 @@ void intel_ddi_update_active_dpll(struct intel_atomic_state *state,
 		intel_update_active_dpll(state, pipe_crtc, encoder);
 }
 
+/*
+ * Note: Also called from the ->pre_pll_enable of the first active MST stream
+ * encoder on its primary encoder. See also the comment for
+ * intel_ddi_pre_enable().
+ */
 static void
 intel_ddi_pre_pll_enable(struct intel_atomic_state *state,
 			 struct intel_encoder *encoder,
@@ -3996,6 +4016,11 @@ static void intel_ddi_read_func_ctl(struct intel_encoder *encoder,
 	}
 }
 
+/*
+ * Note: Also called from the ->get_config of the MST stream encoders on their
+ * primary encoder, via the platform specific hooks here. See also the comment
+ * for intel_ddi_pre_enable().
+ */
 static void intel_ddi_get_config(struct intel_encoder *encoder,
 				 struct intel_crtc_state *pipe_config)
 {
