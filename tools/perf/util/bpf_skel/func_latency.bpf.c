@@ -41,6 +41,7 @@ int enabled = 0;
 const volatile int has_cpu = 0;
 const volatile int has_task = 0;
 const volatile int use_nsec = 0;
+const volatile unsigned int bucket_range;
 
 SEC("kprobe/func")
 int BPF_PROG(func_begin)
@@ -100,12 +101,25 @@ int BPF_PROG(func_end)
 		if (delta < 0)
 			return 0;
 
+		if (bucket_range != 0) {
+			delta /= cmp_base;
+			// Less than 1 unit (ms or ns), or, in the future,
+			// than the min latency desired.
+			key = 0;
+			if (delta > 0) { // 1st entry: [ 1 unit .. bucket_range units )
+				key = delta / bucket_range + 1;
+				if (key >= NUM_BUCKET)
+					key = NUM_BUCKET - 1;
+			}
+			goto do_lookup;
+		}
 		// calculate index using delta
 		for (key = 0; key < (NUM_BUCKET - 1); key++) {
 			if (delta < (cmp_base << key))
 				break;
 		}
 
+do_lookup:
 		hist = bpf_map_lookup_elem(&latency, &key);
 		if (!hist)
 			return 0;

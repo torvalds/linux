@@ -148,6 +148,9 @@ OPTIONS for 'perf ftrace latency'
 --use-nsec::
 	Use nano-second instead of micro-second as a base unit of the histogram.
 
+--bucket-range=::
+	Bucket range in ms or ns (according to -n/--use-nsec), default is log2() mode.
+
 
 OPTIONS for 'perf ftrace profile'
 ---------------------------------

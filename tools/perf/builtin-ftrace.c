@@ -777,9 +777,17 @@ static void make_histogram(struct perf_ftrace *ftrace, int buckets[],
 		if (ftrace->use_nsec)
 			num *= 1000;
 
-		i = log2(num);
-		if (i < 0)
+		if (!ftrace->bucket_range) {
+			i = log2(num);
+			if (i < 0)
+				i = 0;
+		} else {
+			// Less than 1 unit (ms or ns), or, in the future,
+			// than the min latency desired.
 			i = 0;
+			if (num > 0) // 1st entry: [ 1 unit .. bucket_range units ]
+				i = num / ftrace->bucket_range + 1;
+		}
 		if (i >= NUM_BUCKET)
 			i = NUM_BUCKET - 1;
 
@@ -815,28 +823,58 @@ static void display_histogram(struct perf_ftrace *ftrace, int buckets[])
 	       "  DURATION    ", "COUNT", bar_total, "GRAPH");
 
 	bar_len = buckets[0] * bar_total / total;
-	printf("  %4d - %-4d %s | %10d | %.*s%*s |\n",
+
+	printf("  %4d - %4d %s | %10d | %.*s%*s |\n",
 	       0, 1, use_nsec ? "ns" : "us", buckets[0], bar_len, bar, bar_total - bar_len, "");
 
 	for (i = 1; i < NUM_BUCKET - 1; i++) {
-		int start = (1 << (i - 1));
-		int stop = 1 << i;
+		int start, stop;
 		const char *unit = use_nsec ? "ns" : "us";
 
-		if (start >= 1024) {
-			start >>= 10;
-			stop >>= 10;
-			unit = use_nsec ? "us" : "ms";
+		if (!ftrace->bucket_range) {
+			start = (1 << (i - 1));
+			stop  = 1 << i;
+
+			if (start >= 1024) {
+				start >>= 10;
+				stop >>= 10;
+				unit = use_nsec ? "us" : "ms";
+			}
+		} else {
+			start = (i - 1) * ftrace->bucket_range + 1;
+			stop  = i * ftrace->bucket_range + 1;
+
+			if (start >= 1000) {
+				double dstart = start / 1000.0,
+				       dstop  = stop / 1000.0;
+				printf("  %4.2f - %-4.2f", dstart, dstop);
+				unit = use_nsec ? "us" : "ms";
+				goto print_bucket_info;
+			}
 		}
+
+		printf("  %4d - %4d", start, stop);
+print_bucket_info:
 		bar_len = buckets[i] * bar_total / total;
-		printf("  %4d - %-4d %s | %10d | %.*s%*s |\n",
-		       start, stop, unit, buckets[i], bar_len, bar,
+		printf(" %s | %10d | %.*s%*s |\n", unit, buckets[i], bar_len, bar,
 		       bar_total - bar_len, "");
 	}
 
 	bar_len = buckets[NUM_BUCKET - 1] * bar_total / total;
-	printf("  %4d - %-4s %s | %10d | %.*s%*s |\n",
-	       1, "...", use_nsec ? "ms" : " s", buckets[NUM_BUCKET - 1],
+	if (!ftrace->bucket_range) {
+		printf("  %4d - %-4s %s", 1, "...", use_nsec ? "ms" : "s ");
+	} else {
+		int upper_outlier = (NUM_BUCKET - 2) * ftrace->bucket_range;
+
+		if (upper_outlier >= 1000) {
+			double dstart = upper_outlier / 1000.0;
+
+			printf("  %4.2f - %-4s %s", dstart, "...", use_nsec ? "us" : "ms");
+		} else {
+			printf("  %4d - %4s %s", upper_outlier, "...", use_nsec ? "ns" : "us");
+		}
+	}
+	printf(" | %10d | %.*s%*s |\n", buckets[NUM_BUCKET - 1],
 	       bar_len, bar, bar_total - bar_len, "");
 
 }
@@ -1558,6 +1596,8 @@ int cmd_ftrace(int argc, const char **argv)
 #endif
 	OPT_BOOLEAN('n', "use-nsec", &ftrace.use_nsec,
 		    "Use nano-second histogram"),
+	OPT_UINTEGER(0, "bucket-range", &ftrace.bucket_range,
+		    "Bucket range in ms or ns (-n/--use-nsec), default is log2() mode"),
 	OPT_PARENT(common_options),
 	};
 	const struct option profile_options[] = {

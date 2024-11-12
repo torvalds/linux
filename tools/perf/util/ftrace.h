@@ -20,6 +20,7 @@ struct perf_ftrace {
 	unsigned long		percpu_buffer_size;
 	bool			inherit;
 	bool			use_nsec;
+	unsigned int		bucket_range;
 	int			graph_depth;
 	int			func_stack_trace;
 	int			func_irq_info;
