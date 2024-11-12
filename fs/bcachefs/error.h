@@ -55,26 +55,6 @@ int bch2_topology_error(struct bch_fs *);
 })
 
 /*
- * Later we might want to mark only the particular device inconsistent, not the
- * entire filesystem:
- */
-
-#define bch2_dev_inconsistent(ca, ...)					\
-do {									\
-	bch_err(ca, __VA_ARGS__);					\
-	bch2_inconsistent_error((ca)->fs);				\
-} while (0)
-
-#define bch2_dev_inconsistent_on(cond, ca, ...)				\
-({									\
-	bool _ret = unlikely(!!(cond));					\
-									\
-	if (_ret)							\
-		bch2_dev_inconsistent(ca, __VA_ARGS__);			\
-	_ret;								\
-})
-
-/*
  * When a transaction update discovers or is causing a fs inconsistency, it's
  * helpful to also dump the pending updates:
  */
