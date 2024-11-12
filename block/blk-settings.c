@@ -465,8 +465,6 @@ static unsigned int queue_limit_discard_alignment(
 	/* Why are these in bytes, not sectors? */
 	alignment = lim->discard_alignment >> SECTOR_SHIFT;
 	granularity = lim->discard_granularity >> SECTOR_SHIFT;
-	if (!granularity)
-		return 0;
 
 	/* Offset of the partition start in 'granularity' sectors */
 	offset = sector_div(sector, granularity);
