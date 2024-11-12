@@ -156,7 +156,6 @@ struct request {
 	struct blk_crypto_keyslot *crypt_keyslot;
 #endif
 
-	enum rw_hint write_hint;
 	unsigned short ioprio;
 
 	enum mq_rq_state state;
