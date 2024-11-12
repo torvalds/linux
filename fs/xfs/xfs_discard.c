@@ -480,7 +480,7 @@ xfs_discard_rtdev_extents(
 		trace_xfs_discard_rtextent(mp, busyp->bno, busyp->length);
 
 		error = __blkdev_issue_discard(bdev,
-				XFS_FSB_TO_BB(mp, busyp->bno),
+				xfs_rtb_to_daddr(mp, busyp->bno),
 				XFS_FSB_TO_BB(mp, busyp->length),
 				GFP_NOFS, &bio);
 		if (error)
@@ -612,22 +612,25 @@ xfs_trim_rtdev_extents(
 	xfs_rtblock_t		start_rtbno, end_rtbno;
 	xfs_rtxnum_t		start_rtx, end_rtx;
 	xfs_rgnumber_t		start_rgno, end_rgno;
+	xfs_daddr_t		daddr_offset;
 	int			last_error = 0, error;
 	struct xfs_rtgroup	*rtg = NULL;
 
 	/* Shift the start and end downwards to match the rt device. */
-	start_rtbno = xfs_daddr_to_rtb(mp, start);
-	if (start_rtbno > mp->m_sb.sb_dblocks)
-		start_rtbno -= mp->m_sb.sb_dblocks;
+	daddr_offset = XFS_FSB_TO_BB(mp, mp->m_sb.sb_dblocks);
+	if (start > daddr_offset)
+		start -= daddr_offset;
 	else
-		start_rtbno = 0;
+		start = 0;
+	start_rtbno = xfs_daddr_to_rtb(mp, start);
 	start_rtx = xfs_rtb_to_rtx(mp, start_rtbno);
 	start_rgno = xfs_rtb_to_rgno(mp, start_rtbno);
 
-	end_rtbno = xfs_daddr_to_rtb(mp, end);
-	if (end_rtbno <= mp->m_sb.sb_dblocks)
+	if (end <= daddr_offset)
 		return 0;
-	end_rtbno -= mp->m_sb.sb_dblocks;
+	else
+		end -= daddr_offset;
+	end_rtbno = xfs_daddr_to_rtb(mp, end);
 	end_rtx = xfs_rtb_to_rtx(mp, end_rtbno + mp->m_sb.sb_rextsize - 1);
 	end_rgno = xfs_rtb_to_rgno(mp, end_rtbno);
 
