@@ -913,7 +913,7 @@ static void lt9611uxc_remove(struct i2c_client *client)
 	of_node_put(lt9611uxc->dsi0_node);
 }
 
-static struct i2c_device_id lt9611uxc_id[] = {
+static const struct i2c_device_id lt9611uxc_id[] = {
 	{ "lontium,lt9611uxc", 0 },
 	{ /* sentinel */ }
 };

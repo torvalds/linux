@@ -732,7 +732,7 @@ static void sn65dsi83_remove(struct i2c_client *client)
 	drm_bridge_remove(&ctx->bridge);
 }
 
-static struct i2c_device_id sn65dsi83_id[] = {
+static const struct i2c_device_id sn65dsi83_id[] = {
 	{ "ti,sn65dsi83", MODEL_SN65DSI83 },
 	{ "ti,sn65dsi84", MODEL_SN65DSI84 },
 	{},
