@@ -76,11 +76,6 @@ struct en_rst_data {
 
 struct en_clk_soc_data {
 	const struct clk_ops pcie_ops;
-	struct {
-		const u16 *bank_ofs;
-		const u16 *idx_map;
-		u16 idx_map_nr;
-	} reset;
 	int (*hw_init)(struct platform_device *pdev,
 		       struct clk_hw_onecell_data *clk_data);
 };
@@ -595,32 +590,6 @@ static void en7581_register_clocks(struct device *dev, struct clk_hw_onecell_dat
 	clk_data->num = EN7523_NUM_CLOCKS;
 }
 
-static int en7581_clk_hw_init(struct platform_device *pdev,
-			      struct clk_hw_onecell_data *clk_data)
-{
-	void __iomem *np_base;
-	struct regmap *map;
-	u32 val;
-
-	map = syscon_regmap_lookup_by_compatible("airoha,en7581-chip-scu");
-	if (IS_ERR(map))
-		return PTR_ERR(map);
-
-	np_base = devm_platform_ioremap_resource(pdev, 0);
-	if (IS_ERR(np_base))
-		return PTR_ERR(np_base);
-
-	en7581_register_clocks(&pdev->dev, clk_data, map, np_base);
-
-	val = readl(np_base + REG_NP_SCU_SSTR);
-	val &= ~(REG_PCIE_XSI0_SEL_MASK | REG_PCIE_XSI1_SEL_MASK);
-	writel(val, np_base + REG_NP_SCU_SSTR);
-	val = readl(np_base + REG_NP_SCU_PCIC);
-	writel(val | 3, np_base + REG_NP_SCU_PCIC);
-
-	return 0;
-}
-
 static int en7523_reset_update(struct reset_controller_dev *rcdev,
 			       unsigned long id, bool assert)
 {
@@ -670,22 +639,17 @@ static int en7523_reset_xlate(struct reset_controller_dev *rcdev,
 	return rst_data->idx_map[reset_spec->args[0]];
 }
 
-static const struct reset_control_ops en7523_reset_ops = {
+static const struct reset_control_ops en7581_reset_ops = {
 	.assert = en7523_reset_assert,
 	.deassert = en7523_reset_deassert,
 	.status = en7523_reset_status,
 };
 
-static int en7523_reset_register(struct platform_device *pdev,
-				 const struct en_clk_soc_data *soc_data)
+static int en7581_reset_register(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct en_rst_data *rst_data;
 	void __iomem *base;
-
-	/* no reset lines available */
-	if (!soc_data->reset.idx_map_nr)
-		return 0;
 
 	base = devm_platform_ioremap_resource(pdev, 1);
 	if (IS_ERR(base))
@@ -695,19 +659,45 @@ static int en7523_reset_register(struct platform_device *pdev,
 	if (!rst_data)
 		return -ENOMEM;
 
-	rst_data->bank_ofs = soc_data->reset.bank_ofs;
-	rst_data->idx_map = soc_data->reset.idx_map;
+	rst_data->bank_ofs = en7581_rst_ofs;
+	rst_data->idx_map = en7581_rst_map;
 	rst_data->base = base;
 
-	rst_data->rcdev.nr_resets = soc_data->reset.idx_map_nr;
+	rst_data->rcdev.nr_resets = ARRAY_SIZE(en7581_rst_map);
 	rst_data->rcdev.of_xlate = en7523_reset_xlate;
-	rst_data->rcdev.ops = &en7523_reset_ops;
+	rst_data->rcdev.ops = &en7581_reset_ops;
 	rst_data->rcdev.of_node = dev->of_node;
 	rst_data->rcdev.of_reset_n_cells = 1;
 	rst_data->rcdev.owner = THIS_MODULE;
 	rst_data->rcdev.dev = dev;
 
 	return devm_reset_controller_register(dev, &rst_data->rcdev);
+}
+
+static int en7581_clk_hw_init(struct platform_device *pdev,
+			      struct clk_hw_onecell_data *clk_data)
+{
+	void __iomem *np_base;
+	struct regmap *map;
+	u32 val;
+
+	map = syscon_regmap_lookup_by_compatible("airoha,en7581-chip-scu");
+	if (IS_ERR(map))
+		return PTR_ERR(map);
+
+	np_base = devm_platform_ioremap_resource(pdev, 0);
+	if (IS_ERR(np_base))
+		return PTR_ERR(np_base);
+
+	en7581_register_clocks(&pdev->dev, clk_data, map, np_base);
+
+	val = readl(np_base + REG_NP_SCU_SSTR);
+	val &= ~(REG_PCIE_XSI0_SEL_MASK | REG_PCIE_XSI1_SEL_MASK);
+	writel(val, np_base + REG_NP_SCU_SSTR);
+	val = readl(np_base + REG_NP_SCU_PCIC);
+	writel(val | 3, np_base + REG_NP_SCU_PCIC);
+
+	return en7581_reset_register(pdev);
 }
 
 static int en7523_clk_probe(struct platform_device *pdev)
@@ -728,19 +718,7 @@ static int en7523_clk_probe(struct platform_device *pdev)
 	if (r)
 		return r;
 
-	r = of_clk_add_hw_provider(node, of_clk_hw_onecell_get, clk_data);
-	if (r)
-		return dev_err_probe(&pdev->dev, r, "Could not register clock provider: %s\n",
-				     pdev->name);
-
-	r = en7523_reset_register(pdev, soc_data);
-	if (r) {
-		of_clk_del_provider(node);
-		return dev_err_probe(&pdev->dev, r, "Could not register reset controller: %s\n",
-				     pdev->name);
-	}
-
-	return 0;
+	return of_clk_add_hw_provider(node, of_clk_hw_onecell_get, clk_data);
 }
 
 static const struct en_clk_soc_data en7523_data = {
@@ -757,11 +735,6 @@ static const struct en_clk_soc_data en7581_data = {
 		.is_enabled = en7581_pci_is_enabled,
 		.enable = en7581_pci_enable,
 		.disable = en7581_pci_disable,
-	},
-	.reset = {
-		.bank_ofs = en7581_rst_ofs,
-		.idx_map = en7581_rst_map,
-		.idx_map_nr = ARRAY_SIZE(en7581_rst_map),
 	},
 	.hw_init = en7581_clk_hw_init,
 };
