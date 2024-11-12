@@ -4,12 +4,19 @@
 #ifndef __SOUNDWIRE_H
 #define __SOUNDWIRE_H
 
+#include <linux/bitfield.h>
 #include <linux/bug.h>
-#include <linux/lockdep_types.h>
+#include <linux/completion.h>
+#include <linux/device.h>
 #include <linux/irq.h>
 #include <linux/irqdomain.h>
+#include <linux/lockdep_types.h>
 #include <linux/mod_devicetable.h>
-#include <linux/bitfield.h>
+#include <linux/mutex.h>
+#include <linux/types.h>
+
+struct dentry;
+struct fwnode_handle;
 
 struct sdw_bus;
 struct sdw_slave;
