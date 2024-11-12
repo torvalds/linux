@@ -353,16 +353,26 @@ xfs_quota_need_throttle(
 	xfs_fsblock_t		alloc_blocks)
 {
 	struct xfs_dquot	*dq = xfs_inode_dquot(ip, type);
+	struct xfs_dquot_res	*res;
+	struct xfs_dquot_pre	*pre;
 
 	if (!dq || !xfs_this_quota_on(ip->i_mount, type))
 		return false;
 
+	if (XFS_IS_REALTIME_INODE(ip)) {
+		res = &dq->q_rtb;
+		pre = &dq->q_rtb_prealloc;
+	} else {
+		res = &dq->q_blk;
+		pre = &dq->q_blk_prealloc;
+	}
+
 	/* no hi watermark, no throttle */
-	if (!dq->q_prealloc_hi_wmark)
+	if (!pre->q_prealloc_hi_wmark)
 		return false;
 
 	/* under the lo watermark, no throttle */
-	if (dq->q_blk.reserved + alloc_blocks < dq->q_prealloc_lo_wmark)
+	if (res->reserved + alloc_blocks < pre->q_prealloc_lo_wmark)
 		return false;
 
 	return true;
@@ -377,22 +387,35 @@ xfs_quota_calc_throttle(
 	int64_t			*qfreesp)
 {
 	struct xfs_dquot	*dq = xfs_inode_dquot(ip, type);
+	struct xfs_dquot_res	*res;
+	struct xfs_dquot_pre	*pre;
 	int64_t			freesp;
 	int			shift = 0;
 
+	if (!dq) {
+		res = NULL;
+		pre = NULL;
+	} else if (XFS_IS_REALTIME_INODE(ip)) {
+		res = &dq->q_rtb;
+		pre = &dq->q_rtb_prealloc;
+	} else {
+		res = &dq->q_blk;
+		pre = &dq->q_blk_prealloc;
+	}
+
 	/* no dq, or over hi wmark, squash the prealloc completely */
-	if (!dq || dq->q_blk.reserved >= dq->q_prealloc_hi_wmark) {
+	if (!res || res->reserved >= pre->q_prealloc_hi_wmark) {
 		*qblocks = 0;
 		*qfreesp = 0;
 		return;
 	}
 
-	freesp = dq->q_prealloc_hi_wmark - dq->q_blk.reserved;
-	if (freesp < dq->q_low_space[XFS_QLOWSP_5_PCNT]) {
+	freesp = pre->q_prealloc_hi_wmark - res->reserved;
+	if (freesp < pre->q_low_space[XFS_QLOWSP_5_PCNT]) {
 		shift = 2;
-		if (freesp < dq->q_low_space[XFS_QLOWSP_3_PCNT])
+		if (freesp < pre->q_low_space[XFS_QLOWSP_3_PCNT])
 			shift += 2;
-		if (freesp < dq->q_low_space[XFS_QLOWSP_1_PCNT])
+		if (freesp < pre->q_low_space[XFS_QLOWSP_1_PCNT])
 			shift += 2;
 	}
 
