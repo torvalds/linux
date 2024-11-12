@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
+#include <linux/cleanup.h>
 #include <linux/cpu.h>
 #include <asm/cpufeature.h>
 #include <linux/misc_cgroup.h>
@@ -10,6 +11,7 @@
 #include "tdx.h"
 #include "vmx.h"
 #include "mmu/spte.h"
+#include "common.h"
 
 #pragma GCC poison to_vmx
 
@@ -1606,6 +1608,145 @@ static int tdx_vcpu_init(struct kvm_vcpu *vcpu, struct kvm_tdx_cmd *cmd)
 	return 0;
 }
 
+struct tdx_gmem_post_populate_arg {
+	struct kvm_vcpu *vcpu;
+	__u32 flags;
+};
+
+static int tdx_gmem_post_populate(struct kvm *kvm, gfn_t gfn, kvm_pfn_t pfn,
+				  void __user *src, int order, void *_arg)
+{
+	u64 error_code = PFERR_GUEST_FINAL_MASK | PFERR_PRIVATE_ACCESS;
+	struct kvm_tdx *kvm_tdx = to_kvm_tdx(kvm);
+	struct tdx_gmem_post_populate_arg *arg = _arg;
+	struct kvm_vcpu *vcpu = arg->vcpu;
+	gpa_t gpa = gfn_to_gpa(gfn);
+	u8 level = PG_LEVEL_4K;
+	struct page *src_page;
+	int ret, i;
+	u64 err, entry, level_state;
+
+	/*
+	 * Get the source page if it has been faulted in. Return failure if the
+	 * source page has been swapped out or unmapped in primary memory.
+	 */
+	ret = get_user_pages_fast((unsigned long)src, 1, 0, &src_page);
+	if (ret < 0)
+		return ret;
+	if (ret != 1)
+		return -ENOMEM;
+
+	ret = kvm_tdp_map_page(vcpu, gpa, error_code, &level);
+	if (ret < 0)
+		goto out;
+
+	/*
+	 * The private mem cannot be zapped after kvm_tdp_map_page()
+	 * because all paths are covered by slots_lock and the
+	 * filemap invalidate lock.  Check that they are indeed enough.
+	 */
+	if (IS_ENABLED(CONFIG_KVM_PROVE_MMU)) {
+		scoped_guard(read_lock, &kvm->mmu_lock) {
+			if (KVM_BUG_ON(!kvm_tdp_mmu_gpa_is_mapped(vcpu, gpa), kvm)) {
+				ret = -EIO;
+				goto out;
+			}
+		}
+	}
+
+	ret = 0;
+	err = tdh_mem_page_add(&kvm_tdx->td, gpa, pfn_to_page(pfn),
+			       src_page, &entry, &level_state);
+	if (err) {
+		ret = unlikely(tdx_operand_busy(err)) ? -EBUSY : -EIO;
+		goto out;
+	}
+
+	if (arg->flags & KVM_TDX_MEASURE_MEMORY_REGION) {
+		for (i = 0; i < PAGE_SIZE; i += TDX_EXTENDMR_CHUNKSIZE) {
+			err = tdh_mr_extend(&kvm_tdx->td, gpa + i, &entry,
+					    &level_state);
+			if (err) {
+				ret = -EIO;
+				break;
+			}
+		}
+	}
+
+out:
+	put_page(src_page);
+	return ret;
+}
+
+static int tdx_vcpu_init_mem_region(struct kvm_vcpu *vcpu, struct kvm_tdx_cmd *cmd)
+{
+	struct vcpu_tdx *tdx = to_tdx(vcpu);
+	struct kvm *kvm = vcpu->kvm;
+	struct kvm_tdx *kvm_tdx = to_kvm_tdx(kvm);
+	struct kvm_tdx_init_mem_region region;
+	struct tdx_gmem_post_populate_arg arg;
+	long gmem_ret;
+	int ret;
+
+	if (tdx->state != VCPU_TD_STATE_INITIALIZED)
+		return -EINVAL;
+
+	guard(mutex)(&kvm->slots_lock);
+
+	/* Once TD is finalized, the initial guest memory is fixed. */
+	if (kvm_tdx->state == TD_STATE_RUNNABLE)
+		return -EINVAL;
+
+	if (cmd->flags & ~KVM_TDX_MEASURE_MEMORY_REGION)
+		return -EINVAL;
+
+	if (copy_from_user(&region, u64_to_user_ptr(cmd->data), sizeof(region)))
+		return -EFAULT;
+
+	if (!PAGE_ALIGNED(region.source_addr) || !PAGE_ALIGNED(region.gpa) ||
+	    !region.nr_pages ||
+	    region.gpa + (region.nr_pages << PAGE_SHIFT) <= region.gpa ||
+	    !vt_is_tdx_private_gpa(kvm, region.gpa) ||
+	    !vt_is_tdx_private_gpa(kvm, region.gpa + (region.nr_pages << PAGE_SHIFT) - 1))
+		return -EINVAL;
+
+	kvm_mmu_reload(vcpu);
+	ret = 0;
+	while (region.nr_pages) {
+		if (signal_pending(current)) {
+			ret = -EINTR;
+			break;
+		}
+
+		arg = (struct tdx_gmem_post_populate_arg) {
+			.vcpu = vcpu,
+			.flags = cmd->flags,
+		};
+		gmem_ret = kvm_gmem_populate(kvm, gpa_to_gfn(region.gpa),
+					     u64_to_user_ptr(region.source_addr),
+					     1, tdx_gmem_post_populate, &arg);
+		if (gmem_ret < 0) {
+			ret = gmem_ret;
+			break;
+		}
+
+		if (gmem_ret != 1) {
+			ret = -EIO;
+			break;
+		}
+
+		region.source_addr += PAGE_SIZE;
+		region.gpa += PAGE_SIZE;
+		region.nr_pages--;
+
+		cond_resched();
+	}
+
+	if (copy_to_user(u64_to_user_ptr(cmd->data), &region, sizeof(region)))
+		ret = -EFAULT;
+	return ret;
+}
+
 int tdx_vcpu_ioctl(struct kvm_vcpu *vcpu, void __user *argp)
 {
 	struct kvm_tdx *kvm_tdx = to_kvm_tdx(vcpu->kvm);
@@ -1624,6 +1765,9 @@ int tdx_vcpu_ioctl(struct kvm_vcpu *vcpu, void __user *argp)
 	switch (cmd.id) {
 	case KVM_TDX_INIT_VCPU:
 		ret = tdx_vcpu_init(vcpu, &cmd);
+		break;
+	case KVM_TDX_INIT_MEM_REGION:
+		ret = tdx_vcpu_init_mem_region(vcpu, &cmd);
 		break;
 	case KVM_TDX_GET_CPUID:
 		ret = tdx_vcpu_get_cpuid(vcpu, &cmd);
