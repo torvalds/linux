@@ -154,6 +154,12 @@ static DEFINE_MUTEX(tdx_lock);
 
 static atomic_t nr_configured_hkid;
 
+static bool tdx_operand_busy(u64 err)
+{
+	return (err & TDX_SEAMCALL_STATUS_MASK) == TDX_OPERAND_BUSY;
+}
+
+
 static inline void tdx_hkid_free(struct kvm_tdx *kvm_tdx)
 {
 	tdx_guest_keyid_free(kvm_tdx->hkid);
@@ -525,6 +531,160 @@ void tdx_load_mmu_pgd(struct kvm_vcpu *vcpu, hpa_t root_hpa, int pgd_level)
 	td_vmcs_write64(to_tdx(vcpu), SHARED_EPT_POINTER, root_hpa);
 }
 
+static void tdx_unpin(struct kvm *kvm, struct page *page)
+{
+	put_page(page);
+}
+
+static int tdx_mem_page_aug(struct kvm *kvm, gfn_t gfn,
+			    enum pg_level level, struct page *page)
+{
+	int tdx_level = pg_level_to_tdx_sept_level(level);
+	struct kvm_tdx *kvm_tdx = to_kvm_tdx(kvm);
+	gpa_t gpa = gfn_to_gpa(gfn);
+	u64 entry, level_state;
+	u64 err;
+
+	err = tdh_mem_page_aug(&kvm_tdx->td, gpa, tdx_level, page, &entry, &level_state);
+	if (unlikely(tdx_operand_busy(err))) {
+		tdx_unpin(kvm, page);
+		return -EBUSY;
+	}
+
+	if (KVM_BUG_ON(err, kvm)) {
+		pr_tdx_error_2(TDH_MEM_PAGE_AUG, err, entry, level_state);
+		tdx_unpin(kvm, page);
+		return -EIO;
+	}
+
+	return 0;
+}
+
+int tdx_sept_set_private_spte(struct kvm *kvm, gfn_t gfn,
+			      enum pg_level level, kvm_pfn_t pfn)
+{
+	struct kvm_tdx *kvm_tdx = to_kvm_tdx(kvm);
+	struct page *page = pfn_to_page(pfn);
+
+	/* TODO: handle large pages. */
+	if (KVM_BUG_ON(level != PG_LEVEL_4K, kvm))
+		return -EINVAL;
+
+	/*
+	 * Because guest_memfd doesn't support page migration with
+	 * a_ops->migrate_folio (yet), no callback is triggered for KVM on page
+	 * migration.  Until guest_memfd supports page migration, prevent page
+	 * migration.
+	 * TODO: Once guest_memfd introduces callback on page migration,
+	 * implement it and remove get_page/put_page().
+	 */
+	get_page(page);
+
+	if (likely(kvm_tdx->state == TD_STATE_RUNNABLE))
+		return tdx_mem_page_aug(kvm, gfn, level, page);
+
+	/*
+	 * TODO: KVM_TDX_INIT_MEM_REGION support to populate before finalize
+	 * comes here for the initial memory.
+	 */
+	return -EOPNOTSUPP;
+}
+
+static int tdx_sept_drop_private_spte(struct kvm *kvm, gfn_t gfn,
+				      enum pg_level level, struct page *page)
+{
+	int tdx_level = pg_level_to_tdx_sept_level(level);
+	struct kvm_tdx *kvm_tdx = to_kvm_tdx(kvm);
+	gpa_t gpa = gfn_to_gpa(gfn);
+	u64 err, entry, level_state;
+
+	/* TODO: handle large pages. */
+	if (KVM_BUG_ON(level != PG_LEVEL_4K, kvm))
+		return -EINVAL;
+
+	if (KVM_BUG_ON(!is_hkid_assigned(kvm_tdx), kvm))
+		return -EINVAL;
+
+	do {
+		/*
+		 * When zapping private page, write lock is held. So no race
+		 * condition with other vcpu sept operation.  Race only with
+		 * TDH.VP.ENTER.
+		 */
+		err = tdh_mem_page_remove(&kvm_tdx->td, gpa, tdx_level, &entry,
+					  &level_state);
+	} while (unlikely(tdx_operand_busy(err)));
+
+	if (unlikely(kvm_tdx->state != TD_STATE_RUNNABLE &&
+		     err == (TDX_EPT_WALK_FAILED | TDX_OPERAND_ID_RCX))) {
+		/*
+		 * This page was mapped with KVM_MAP_MEMORY, but
+		 * KVM_TDX_INIT_MEM_REGION is not issued yet.
+		 */
+		if (!is_last_spte(entry, level) || !(entry & VMX_EPT_RWX_MASK)) {
+			tdx_unpin(kvm, page);
+			return 0;
+		}
+	}
+
+	if (KVM_BUG_ON(err, kvm)) {
+		pr_tdx_error_2(TDH_MEM_PAGE_REMOVE, err, entry, level_state);
+		return -EIO;
+	}
+
+	err = tdh_phymem_page_wbinvd_hkid((u16)kvm_tdx->hkid, page);
+
+	if (KVM_BUG_ON(err, kvm)) {
+		pr_tdx_error(TDH_PHYMEM_PAGE_WBINVD, err);
+		return -EIO;
+	}
+	tdx_clear_page(page);
+	tdx_unpin(kvm, page);
+	return 0;
+}
+
+int tdx_sept_link_private_spt(struct kvm *kvm, gfn_t gfn,
+			      enum pg_level level, void *private_spt)
+{
+	int tdx_level = pg_level_to_tdx_sept_level(level);
+	gpa_t gpa = gfn_to_gpa(gfn);
+	struct page *page = virt_to_page(private_spt);
+	u64 err, entry, level_state;
+
+	err = tdh_mem_sept_add(&to_kvm_tdx(kvm)->td, gpa, tdx_level, page, &entry,
+			       &level_state);
+	if (unlikely(tdx_operand_busy(err)))
+		return -EBUSY;
+
+	if (KVM_BUG_ON(err, kvm)) {
+		pr_tdx_error_2(TDH_MEM_SEPT_ADD, err, entry, level_state);
+		return -EIO;
+	}
+
+	return 0;
+}
+
+static int tdx_sept_zap_private_spte(struct kvm *kvm, gfn_t gfn,
+				     enum pg_level level)
+{
+	int tdx_level = pg_level_to_tdx_sept_level(level);
+	struct kvm_tdx *kvm_tdx = to_kvm_tdx(kvm);
+	gpa_t gpa = gfn_to_gpa(gfn) & KVM_HPAGE_MASK(level);
+	u64 err, entry, level_state;
+
+	/* For now large page isn't supported yet. */
+	WARN_ON_ONCE(level != PG_LEVEL_4K);
+
+	err = tdh_mem_range_block(&kvm_tdx->td, gpa, tdx_level, &entry, &level_state);
+	if (unlikely(tdx_operand_busy(err)))
+		return -EBUSY;
+	if (KVM_BUG_ON(err, kvm)) {
+		pr_tdx_error_2(TDH_MEM_RANGE_BLOCK, err, entry, level_state);
+		return -EIO;
+	}
+	return 0;
+}
+
 /*
  * Ensure shared and private EPTs to be flushed on all vCPUs.
  * tdh_mem_track() is the only caller that increases TD epoch. An increase in
@@ -549,7 +709,7 @@ void tdx_load_mmu_pgd(struct kvm_vcpu *vcpu, hpa_t root_hpa, int pgd_level)
  * occurs certainly after TD epoch increment and before the next
  * tdh_mem_track().
  */
-static void __always_unused tdx_track(struct kvm *kvm)
+static void tdx_track(struct kvm *kvm)
 {
 	struct kvm_tdx *kvm_tdx = to_kvm_tdx(kvm);
 	u64 err;
@@ -562,12 +722,61 @@ static void __always_unused tdx_track(struct kvm *kvm)
 
 	do {
 		err = tdh_mem_track(&kvm_tdx->td);
-	} while (unlikely((err & TDX_SEAMCALL_STATUS_MASK) == TDX_OPERAND_BUSY));
+	} while (unlikely(tdx_operand_busy(err)));
 
 	if (KVM_BUG_ON(err, kvm))
 		pr_tdx_error(TDH_MEM_TRACK, err);
 
 	kvm_make_all_cpus_request(kvm, KVM_REQ_OUTSIDE_GUEST_MODE);
+}
+
+int tdx_sept_free_private_spt(struct kvm *kvm, gfn_t gfn,
+			      enum pg_level level, void *private_spt)
+{
+	struct kvm_tdx *kvm_tdx = to_kvm_tdx(kvm);
+
+	/*
+	 * free_external_spt() is only called after hkid is freed when TD is
+	 * tearing down.
+	 * KVM doesn't (yet) zap page table pages in mirror page table while
+	 * TD is active, though guest pages mapped in mirror page table could be
+	 * zapped during TD is active, e.g. for shared <-> private conversion
+	 * and slot move/deletion.
+	 */
+	if (KVM_BUG_ON(is_hkid_assigned(kvm_tdx), kvm))
+		return -EINVAL;
+
+	/*
+	 * The HKID assigned to this TD was already freed and cache was
+	 * already flushed. We don't have to flush again.
+	 */
+	return tdx_reclaim_page(virt_to_page(private_spt));
+}
+
+int tdx_sept_remove_private_spte(struct kvm *kvm, gfn_t gfn,
+				 enum pg_level level, kvm_pfn_t pfn)
+{
+	int ret;
+
+	/*
+	 * HKID is released after all private pages have been removed, and set
+	 * before any might be populated. Warn if zapping is attempted when
+	 * there can't be anything populated in the private EPT.
+	 */
+	if (KVM_BUG_ON(!is_hkid_assigned(to_kvm_tdx(kvm)), kvm))
+		return -EINVAL;
+
+	ret = tdx_sept_zap_private_spte(kvm, gfn, level);
+	if (ret)
+		return ret;
+
+	/*
+	 * TDX requires TLB tracking before dropping private page.  Do
+	 * it here, although it is also done later.
+	 */
+	tdx_track(kvm);
+
+	return tdx_sept_drop_private_spte(kvm, gfn, level, pfn_to_page(pfn));
 }
 
 static int tdx_get_capabilities(struct kvm_tdx_cmd *cmd)
