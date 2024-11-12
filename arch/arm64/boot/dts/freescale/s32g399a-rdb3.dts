@@ -40,6 +40,10 @@
 };
 
 &usdhc0 {
+	pinctrl-names = "default", "state_100mhz", "state_200mhz";
+	pinctrl-0 = <&pinctrl_usdhc0>;
+	pinctrl-1 = <&pinctrl_usdhc0_100mhz>;
+	pinctrl-2 = <&pinctrl_usdhc0_200mhz>;
 	bus-width = <8>;
 	disable-wp;
 	status = "okay";
