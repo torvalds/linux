@@ -712,11 +712,10 @@ void cleanup_srcu_struct(struct srcu_struct *ssp)
 }
 EXPORT_SYMBOL_GPL(cleanup_srcu_struct);
 
-#ifdef CONFIG_PROVE_RCU
 /*
  * Check for consistent reader flavor.
  */
-void srcu_check_read_flavor(struct srcu_struct *ssp, int read_flavor)
+void __srcu_check_read_flavor(struct srcu_struct *ssp, int read_flavor)
 {
 	int old_read_flavor;
 	struct srcu_data *sdp;
@@ -734,8 +733,7 @@ void srcu_check_read_flavor(struct srcu_struct *ssp, int read_flavor)
 	}
 	WARN_ONCE(old_read_flavor != read_flavor, "CPU %d old state %d new state %d\n", sdp->cpu, old_read_flavor, read_flavor);
 }
-EXPORT_SYMBOL_GPL(srcu_check_read_flavor);
-#endif /* CONFIG_PROVE_RCU */
+EXPORT_SYMBOL_GPL(__srcu_check_read_flavor);
 
 /*
  * Counts the new reader in the appropriate per-CPU element of the

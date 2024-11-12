@@ -248,4 +248,25 @@ static inline void __srcu_read_unlock_lite(struct srcu_struct *ssp, int idx)
 	RCU_LOCKDEP_WARN(!rcu_is_watching(), "RCU must be watching srcu_read_unlock_lite().");
 }
 
+void __srcu_check_read_flavor(struct srcu_struct *ssp, int read_flavor);
+
+// Record _lite() usage even for CONFIG_PROVE_RCU=n kernels.
+static inline void srcu_check_read_flavor_lite(struct srcu_struct *ssp)
+{
+	struct srcu_data *sdp = raw_cpu_ptr(ssp->sda);
+
+	if (likely(READ_ONCE(sdp->srcu_reader_flavor) & SRCU_READ_FLAVOR_LITE))
+		return;
+
+	// Note that the cmpxchg() in srcu_check_read_flavor() is fully ordered.
+	__srcu_check_read_flavor(ssp, SRCU_READ_FLAVOR_LITE);
+}
+
+// Record non-_lite() usage only for CONFIG_PROVE_RCU=y kernels.
+static inline void srcu_check_read_flavor(struct srcu_struct *ssp, int read_flavor)
+{
+	if (IS_ENABLED(CONFIG_PROVE_RCU))
+		__srcu_check_read_flavor(ssp, read_flavor);
+}
+
 #endif

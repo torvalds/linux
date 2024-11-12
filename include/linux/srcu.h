@@ -183,12 +183,6 @@ static inline int srcu_read_lock_held(const struct srcu_struct *ssp)
 
 #endif /* #else #ifdef CONFIG_DEBUG_LOCK_ALLOC */
 
-#if defined(CONFIG_PROVE_RCU) && defined(CONFIG_TREE_SRCU)
-void srcu_check_read_flavor(struct srcu_struct *ssp, int read_flavor);
-#else
-#define srcu_check_read_flavor(ssp, read_flavor) do { } while (0)
-#endif
-
 
 /**
  * srcu_dereference_check - fetch SRCU-protected pointer for later dereferencing
@@ -277,7 +271,7 @@ static inline int srcu_read_lock_lite(struct srcu_struct *ssp) __acquires(ssp)
 {
 	int retval;
 
-	srcu_check_read_flavor(ssp, SRCU_READ_FLAVOR_LITE);
+	srcu_check_read_flavor_lite(ssp);
 	retval = __srcu_read_lock_lite(ssp);
 	rcu_try_lock_acquire(&ssp->dep_map);
 	return retval;
