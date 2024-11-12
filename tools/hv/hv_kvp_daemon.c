@@ -725,7 +725,7 @@ static void kvp_get_ipconfig_info(char *if_name,
 	 * .
 	 */
 
-	sprintf(cmd, KVP_SCRIPTS_PATH "%s",  "hv_get_dns_info");
+	sprintf(cmd, KVP_SCRIPTS_PATH "%s %s", "hv_get_dns_info", if_name);
 
 	/*
 	 * Execute the command to gather DNS info.
