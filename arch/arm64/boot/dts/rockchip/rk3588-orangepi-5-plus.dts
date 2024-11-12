@@ -177,7 +177,7 @@
 		};
 	};
 
-	vcc3v3_pcie30: vcc3v3-pcie30-regulator {
+	vcc3v3_pcie30: regulator-vcc3v3-pcie30 {
 		compatible = "regulator-fixed";
 		enable-active-high;
 		gpios = <&gpio2 RK_PB6 GPIO_ACTIVE_HIGH>;
@@ -188,7 +188,7 @@
 		vin-supply = <&vcc5v0_sys>;
 	};
 
-	vcc3v3_pcie_eth: vcc3v3-pcie-eth-regulator {
+	vcc3v3_pcie_eth: regulator-vcc3v3-pcie-eth {
 		compatible = "regulator-fixed";
 		gpios = <&gpio3 RK_PB4 GPIO_ACTIVE_LOW>;
 		regulator-name = "vcc3v3_pcie_eth";
@@ -198,7 +198,7 @@
 		vin-supply = <&vcc5v0_sys>;
 	};
 
-	vcc3v3_wf: vcc3v3-wf-regulator {
+	vcc3v3_wf: regulator-vcc3v3-wf {
 		compatible = "regulator-fixed";
 		enable-active-high;
 		gpios = <&gpio2 RK_PC5 GPIO_ACTIVE_HIGH>;
@@ -209,7 +209,7 @@
 		vin-supply = <&vcc5v0_sys>;
 	};
 
-	vcc5v0_sys: vcc5v0-sys-regulator {
+	vcc5v0_sys: regulator-vcc5v0-sys {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc5v0_sys";
 		regulator-always-on;
@@ -218,7 +218,7 @@
 		regulator-max-microvolt = <5000000>;
 	};
 
-	vcc5v0_usb20: vcc5v0-usb20-regulator {
+	vcc5v0_usb20: regulator-vcc5v0-usb20 {
 		compatible = "regulator-fixed";
 		enable-active-high;
 		gpio = <&gpio3 RK_PB7 GPIO_ACTIVE_HIGH>;
@@ -273,6 +273,11 @@
 
 &cpu_l3 {
 	cpu-supply = <&vdd_cpu_lit_s0>;
+};
+
+&gpu {
+	mali-supply = <&vdd_gpu_s0>;
+	status = "okay";
 };
 
 &hdmi0 {

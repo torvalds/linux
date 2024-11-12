@@ -895,6 +895,11 @@ properties:
           - const: radxa,rock-5b
           - const: rockchip,rk3588
 
+      - description: Radxa ROCK 5C
+        items:
+          - const: radxa,rock-5c
+          - const: rockchip,rk3588s
+
       - description: Radxa ROCK S0
         items:
           - const: radxa,rock-s0
@@ -1103,6 +1108,11 @@ properties:
         items:
           - const: rockchip,rk3568-evb1-v10
           - const: rockchip,rk3568
+
+      - description: Sinovoip RK3308 Banana Pi P2 Pro
+        items:
+          - const: sinovoip,rk3308-bpi-p2pro
+          - const: rockchip,rk3308
 
       - description: Sinovoip RK3568 Banana Pi R2 Pro
         items:

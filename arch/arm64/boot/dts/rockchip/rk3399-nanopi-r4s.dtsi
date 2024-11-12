@@ -54,7 +54,7 @@
 		};
 	};
 
-	vdd_5v: vdd-5v {
+	vdd_5v: regulator-vdd-5v {
 		compatible = "regulator-fixed";
 		regulator-name = "vdd_5v";
 		regulator-always-on;

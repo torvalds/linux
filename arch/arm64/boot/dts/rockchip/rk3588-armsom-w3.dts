@@ -74,7 +74,7 @@
 		shutdown-gpios = <&gpio3 RK_PD5 GPIO_ACTIVE_HIGH>;
 	};
 
-	vcc3v3_pcie2x1l0: vcc3v3-pcie2x1l0-regulator {
+	vcc3v3_pcie2x1l0: regulator-vcc3v3-pcie2x1l0 {
 		compatible = "regulator-fixed";
 		enable-active-high;
 		gpios = <&gpio1 RK_PD2 GPIO_ACTIVE_HIGH>;
@@ -89,7 +89,7 @@
 		vin-supply = <&vcc5v0_sys>;
 	};
 
-	vcc3v3_pcie2x1l2: vcc3v3-pcie2x1l2-regulator {
+	vcc3v3_pcie2x1l2: regulator-vcc3v3-pcie2x1l2 {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc3v3_pcie2x1l2";
 		regulator-min-microvolt = <3300000>;
@@ -98,7 +98,7 @@
 		vin-supply = <&vcc_3v3_s3>;
 	};
 
-	vcc3v3_pcie30: vcc3v3-pcie30-regulator {
+	vcc3v3_pcie30: regulator-vcc3v3-pcie30 {
 		compatible = "regulator-fixed";
 		enable-active-high;
 		gpios = <&gpio1 RK_PA4 GPIO_ACTIVE_HIGH>;
@@ -111,7 +111,7 @@
 		vin-supply = <&vcc5v0_sys>;
 	};
 
-	vcc5v0_host: vcc5v0-host-regulator {
+	vcc5v0_host: regulator-vcc5v0-host {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc5v0_host";
 		regulator-boot-on;

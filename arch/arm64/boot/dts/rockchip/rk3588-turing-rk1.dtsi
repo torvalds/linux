@@ -33,7 +33,7 @@
 		#cooling-cells = <2>;
 	};
 
-	vcc3v3_pcie30: vcc3v3-pcie30-regulator {
+	vcc3v3_pcie30: regulator-vcc3v3-pcie30 {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc3v3_pcie30";
 		regulator-min-microvolt = <3300000>;
@@ -45,7 +45,7 @@
 		startup-delay-us = <5000>;
 	};
 
-	vcc5v0_sys: vcc5v0-sys-regulator {
+	vcc5v0_sys: regulator-vcc5v0-sys {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc5v0_sys";
 		regulator-always-on;
@@ -54,7 +54,7 @@
 		regulator-max-microvolt = <5000000>;
 	};
 
-	vcc_1v1_nldo_s3: vcc-1v1-nldo-s3-regulator {
+	vcc_1v1_nldo_s3: regulator-vcc-1v1-nldo-s3 {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc_1v1_nldo_s3";
 		regulator-always-on;

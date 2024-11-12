@@ -89,7 +89,7 @@
 		reset-gpios = <&gpio0 RK_PA2 GPIO_ACTIVE_LOW>; /* GPIO3_A4 */
 	};
 
-	vcc5v0_sys: vccsys {
+	vcc5v0_sys: regulator-vccsys {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc5v0_sys";
 		regulator-always-on;

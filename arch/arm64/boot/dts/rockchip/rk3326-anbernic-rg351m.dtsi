@@ -70,7 +70,7 @@
 		};
 	};
 
-	vccsys: vccsys {
+	vccsys: regulator-vccsys {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc3v8_sys";
 		regulator-always-on;

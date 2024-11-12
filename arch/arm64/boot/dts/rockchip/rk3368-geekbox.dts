@@ -68,7 +68,7 @@
 		};
 	};
 
-	vcc_sys: vcc-sys-regulator {
+	vcc_sys: regulator-vcc-sys {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc_sys";
 		regulator-min-microvolt = <5000000>;

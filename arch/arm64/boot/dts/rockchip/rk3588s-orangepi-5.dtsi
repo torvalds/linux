@@ -90,7 +90,7 @@
 		};
 	};
 
-	vbus_typec: vbus-typec-regulator {
+	vbus_typec: regulator-vbus-typec {
 		compatible = "regulator-fixed";
 		enable-active-high;
 		gpio = <&gpio3 RK_PC0 GPIO_ACTIVE_HIGH>;
@@ -102,7 +102,7 @@
 		vin-supply = <&vcc5v0_sys>;
 	};
 
-	vcc5v0_sys: vcc5v0-sys-regulator {
+	vcc5v0_sys: regulator-vcc5v0-sys {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc5v0_sys";
 		regulator-always-on;
@@ -111,7 +111,7 @@
 		regulator-max-microvolt = <5000000>;
 	};
 
-	vcc_3v3_sd_s0: vcc-3v3-sd-s0-regulator {
+	vcc_3v3_sd_s0: regulator-vcc-3v3-sd-s0 {
 		compatible = "regulator-fixed";
 		gpios = <&gpio4 RK_PB5 GPIO_ACTIVE_LOW>;
 		regulator-name = "vcc_3v3_sd_s0";
