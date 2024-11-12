@@ -733,6 +733,7 @@ bool cleanup_offline_cgwb(struct bdi_writeback *wb)
  */
 void wbc_attach_and_unlock_inode(struct writeback_control *wbc,
 				 struct inode *inode)
+	__releases(&inode->i_lock)
 {
 	if (!inode_cgwb_enabled(inode)) {
 		spin_unlock(&inode->i_lock);
