@@ -726,8 +726,8 @@ out:
 	return (done && !workload_exec_errno) ? 0 : -1;
 }
 
-static void make_histogram(int buckets[], char *buf, size_t len, char *linebuf,
-			   bool use_nsec)
+static void make_histogram(struct perf_ftrace *ftrace, int buckets[],
+			   char *buf, size_t len, char *linebuf)
 {
 	char *p, *q;
 	char *unit;
@@ -774,7 +774,7 @@ static void make_histogram(int buckets[], char *buf, size_t len, char *linebuf,
 		if (!unit || strncmp(unit, " us", 3))
 			goto next;
 
-		if (use_nsec)
+		if (ftrace->use_nsec)
 			num *= 1000;
 
 		i = log2(num);
@@ -794,8 +794,9 @@ next:
 	strcat(linebuf, p);
 }
 
-static void display_histogram(int buckets[], bool use_nsec)
+static void display_histogram(struct perf_ftrace *ftrace, int buckets[])
 {
+	bool use_nsec = ftrace->use_nsec;
 	int i;
 	int total = 0;
 	int bar_total = 46;  /* to fit in 80 column */
@@ -951,7 +952,7 @@ static int __cmd_latency(struct perf_ftrace *ftrace)
 			if (n < 0)
 				break;
 
-			make_histogram(buckets, buf, n, line, ftrace->use_nsec);
+			make_histogram(ftrace, buckets, buf, n, line);
 		}
 	}
 
@@ -968,12 +969,12 @@ static int __cmd_latency(struct perf_ftrace *ftrace)
 		int n = read(trace_fd, buf, sizeof(buf) - 1);
 		if (n <= 0)
 			break;
-		make_histogram(buckets, buf, n, line, ftrace->use_nsec);
+		make_histogram(ftrace, buckets, buf, n, line);
 	}
 
 	read_func_latency(ftrace, buckets);
 
-	display_histogram(buckets, ftrace->use_nsec);
+	display_histogram(ftrace, buckets);
 
 out:
 	close(trace_fd);
