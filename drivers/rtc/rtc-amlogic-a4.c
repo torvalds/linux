@@ -102,10 +102,8 @@ static int aml_rtc_read_time(struct device *dev, struct rtc_time *tm)
 	u32 time_sec;
 
 	/* if RTC disabled, read time failed */
-	if (!rtc->rtc_enabled) {
-		dev_err(dev, "RTC disabled, read time failed\n");
+	if (!rtc->rtc_enabled)
 		return -EINVAL;
-	}
 
 	regmap_read(rtc->map, RTC_REAL_TIME, &time_sec);
 	if (rtc->config->gray_stored)
@@ -145,10 +143,8 @@ static int aml_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 	time64_t alarm_sec;
 
 	/* if RTC disabled, set alarm failed */
-	if (!rtc->rtc_enabled) {
-		dev_err(dev, "RTC disabled, set alarm failed\n");
+	if (!rtc->rtc_enabled)
 		return -EINVAL;
-	}
 
 	regmap_update_bits(rtc->map, RTC_CTRL,
 			   RTC_ALRM0_EN, RTC_ALRM0_EN);
@@ -174,10 +170,8 @@ static int aml_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 	int alarm_mask;
 
 	/* if RTC disabled, read alarm failed */
-	if (!rtc->rtc_enabled) {
-		dev_err(dev, "RTC disabled, read alarm failed\n");
+	if (!rtc->rtc_enabled)
 		return -EINVAL;
-	}
 
 	regmap_read(rtc->map, RTC_ALARM0_REG, &alarm_sec);
 	if (rtc->config->gray_stored)
@@ -201,10 +195,8 @@ static int aml_rtc_read_offset(struct device *dev, long *offset)
 	int sign, match_counter, enable;
 
 	/* if RTC disabled, read offset failed */
-	if (!rtc->rtc_enabled) {
-		dev_err(dev, "RTC disabled, read offset failed\n");
+	if (!rtc->rtc_enabled)
 		return -EINVAL;
-	}
 
 	regmap_read(rtc->map, RTC_SEC_ADJUST_REG, &reg_val);
 	enable = FIELD_GET(RTC_ADJ_VALID, reg_val);
@@ -231,10 +223,8 @@ static int aml_rtc_set_offset(struct device *dev, long offset)
 	u32 reg_val;
 
 	/* if RTC disabled, set offset failed */
-	if (!rtc->rtc_enabled) {
-		dev_err(dev, "RTC disabled, set offset failed\n");
+	if (!rtc->rtc_enabled)
 		return -EINVAL;
-	}
 
 	if (offset) {
 		enable = 1;
