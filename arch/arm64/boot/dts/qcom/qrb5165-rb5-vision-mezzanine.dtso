@@ -4,8 +4,21 @@
  */
 
 /dts-v1/;
+/plugin/;
 
-#include "qrb5165-rb5.dts"
+#include <dt-bindings/clock/qcom,camcc-sm8250.h>
+#include <dt-bindings/gpio/gpio.h>
+
+/ {
+	reserved-memory {
+		linux,cma {
+			compatible = "shared-dma-pool";
+			size = <0x0 0x8000000>;
+			reusable;
+			linux,cma-default;
+		};
+	};
+};
 
 &camcc {
 	status = "okay";
@@ -33,6 +46,9 @@
 };
 
 &cci1_i2c0 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+
 	camera@1a {
 		compatible = "sony,imx577";
 		reg = <0x1a>;
@@ -52,7 +68,6 @@
 
 		port {
 			imx577_ep: endpoint {
-				clock-lanes = <1>;
 				link-frequencies = /bits/ 64 <600000000>;
 				data-lanes = <1 2 3 4>;
 				remote-endpoint = <&csiphy2_ep>;

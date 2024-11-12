@@ -1047,6 +1047,8 @@ patternProperties:
     description: Nokia
   "^nordic,.*":
     description: Nordic Semiconductor
+  "^nothing,.*":
+    description: Nothing Technology Limited
   "^novatek,.*":
     description: Novatek
   "^novtech,.*":
