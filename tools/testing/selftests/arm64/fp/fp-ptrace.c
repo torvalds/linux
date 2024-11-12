@@ -1078,20 +1078,18 @@ static void sve_write(pid_t child, struct test_config *config)
 
 static bool za_write_supported(struct test_config *config)
 {
-	if (config->svcr_expected & SVCR_SM) {
-		if (!(config->svcr_in & SVCR_SM))
+	if (config->sme_vl_in != config->sme_vl_expected) {
+		/* Changing the SME VL exits streaming mode. */
+		if (config->svcr_expected & SVCR_SM) {
 			return false;
-
-		/* Changing the SME VL exits streaming mode */
-		if (config->sme_vl_in != config->sme_vl_expected) {
+		}
+	} else {
+		/* Otherwise we can't change streaming mode */
+		if ((config->svcr_in & SVCR_SM) !=
+		    (config->svcr_expected & SVCR_SM)) {
 			return false;
 		}
 	}
-
-	/* Can't disable SM outside a VL change */
-	if ((config->svcr_in & SVCR_SM) &&
-	    !(config->svcr_expected & SVCR_SM))
-		return false;
 
 	return true;
 }
