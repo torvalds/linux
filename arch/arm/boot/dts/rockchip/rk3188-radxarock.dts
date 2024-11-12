@@ -78,7 +78,7 @@
 		pinctrl-0 = <&ir_recv_pin>;
 	};
 
-	vcc_otg: usb-otg-regulator {
+	vcc_otg: regulator-usb-otg {
 		compatible = "regulator-fixed";
 		enable-active-high;
 		gpio = <&gpio2 RK_PD7 GPIO_ACTIVE_HIGH>;
@@ -91,7 +91,7 @@
 		regulator-boot-on;
 	};
 
-	vcc_sd0: sdmmc-regulator {
+	vcc_sd0: regulator-sdmmc {
 		compatible = "regulator-fixed";
 		regulator-name = "sdmmc-supply";
 		regulator-min-microvolt = <3300000>;
@@ -103,7 +103,7 @@
 		vin-supply = <&vcc_io>;
 	};
 
-	vcc_host: usb-host-regulator {
+	vcc_host: regulator-usb-host {
 		compatible = "regulator-fixed";
 		enable-active-high;
 		gpio = <&gpio0 RK_PA3 GPIO_ACTIVE_HIGH>;
@@ -116,7 +116,7 @@
 		regulator-boot-on;
 	};
 
-	vsys: vsys-regulator {
+	vsys: regulator-vsys {
 		compatible = "regulator-fixed";
 		regulator-name = "vsys";
 		regulator-min-microvolt = <5000000>;
