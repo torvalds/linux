@@ -262,7 +262,7 @@ long hsmp_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 		 * Execute only set/configure commands
 		 */
 		if (hsmp_msg_desc_table[msg.msg_id].type != HSMP_SET)
-			return -EINVAL;
+			return -EPERM;
 		break;
 	case FMODE_READ:
 		/*
@@ -270,7 +270,7 @@ long hsmp_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 		 * Execute only get/monitor commands
 		 */
 		if (hsmp_msg_desc_table[msg.msg_id].type != HSMP_GET)
-			return -EINVAL;
+			return -EPERM;
 		break;
 	case FMODE_READ | FMODE_WRITE:
 		/*
@@ -279,7 +279,7 @@ long hsmp_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 		 */
 		break;
 	default:
-		return -EINVAL;
+		return -EPERM;
 	}
 
 	ret = hsmp_send_message(&msg);
