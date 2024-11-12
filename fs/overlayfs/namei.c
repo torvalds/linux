@@ -14,8 +14,6 @@
 #include <linux/exportfs.h>
 #include "overlayfs.h"
 
-#include "../internal.h"	/* for vfs_path_lookup */
-
 struct ovl_lookup_data {
 	struct super_block *sb;
 	const struct ovl_layer *layer;
