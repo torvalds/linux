@@ -289,7 +289,7 @@ static int dump_btf_type(const struct btf *btf, __u32 id,
 			} else {
 				if (btf_kflag(t))
 					printf("\n\t'%s' val=%lldLL", name,
-					       (unsigned long long)val);
+					       (long long)val);
 				else
 					printf("\n\t'%s' val=%lluULL", name,
 					       (unsigned long long)val);
