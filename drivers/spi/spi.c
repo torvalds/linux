@@ -984,9 +984,6 @@ static void spi_res_free(void *res)
 {
 	struct spi_res *sres = container_of(res, struct spi_res, data);
 
-	if (!res)
-		return;
-
 	WARN_ON(!list_empty(&sres->entry));
 	kfree(sres);
 }
