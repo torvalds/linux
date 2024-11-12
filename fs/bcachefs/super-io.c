@@ -42,7 +42,7 @@ static const struct bch2_metadata_version bch2_metadata_versions[] = {
 #undef x
 };
 
-void bch2_version_to_text(struct printbuf *out, unsigned v)
+void bch2_version_to_text(struct printbuf *out, enum bcachefs_metadata_version v)
 {
 	const char *str = "(unknown version)";
 
@@ -55,7 +55,7 @@ void bch2_version_to_text(struct printbuf *out, unsigned v)
 	prt_printf(out, "%u.%u: %s", BCH_VERSION_MAJOR(v), BCH_VERSION_MINOR(v), str);
 }
 
-unsigned bch2_latest_compatible_version(unsigned v)
+enum bcachefs_metadata_version bch2_latest_compatible_version(enum bcachefs_metadata_version v)
 {
 	if (!BCH_VERSION_MAJOR(v))
 		return v;
@@ -67,6 +67,16 @@ unsigned bch2_latest_compatible_version(unsigned v)
 			v = bch2_metadata_versions[i].version;
 
 	return v;
+}
+
+void bch2_set_version_incompat(struct bch_fs *c, enum bcachefs_metadata_version version)
+{
+	mutex_lock(&c->sb_lock);
+	SET_BCH_SB_VERSION_INCOMPAT(c->disk_sb.sb,
+		max(BCH_SB_VERSION_INCOMPAT(c->disk_sb.sb), version));
+	c->disk_sb.sb->features[0] |= cpu_to_le64(BCH_FEATURE_incompat_version_field);
+	bch2_write_super(c);
+	mutex_unlock(&c->sb_lock);
 }
 
 const char * const bch2_sb_fields[] = {
@@ -369,6 +379,12 @@ static int bch2_sb_validate(struct bch_sb_handle *disk_sb,
 		return -BCH_ERR_invalid_sb_features;
 	}
 
+	if (BCH_VERSION_MAJOR(le16_to_cpu(sb->version)) > BCH_VERSION_MAJOR(bcachefs_metadata_version_current) ||
+	    BCH_SB_VERSION_INCOMPAT(sb) > bcachefs_metadata_version_current) {
+		prt_printf(out, "Filesystem has incompatible version");
+		return -BCH_ERR_invalid_sb_features;
+	}
+
 	block_size = le16_to_cpu(sb->block_size);
 
 	if (block_size > PAGE_SECTORS) {
@@ -405,6 +421,21 @@ static int bch2_sb_validate(struct bch_sb_handle *disk_sb,
 		prt_printf(out, "Invalid time precision: %u (min 1, max %lu)",
 		       le32_to_cpu(sb->time_precision), NSEC_PER_SEC);
 		return -BCH_ERR_invalid_sb_time_precision;
+	}
+
+	/* old versions didn't know to downgrade this field */
+	if (BCH_SB_VERSION_INCOMPAT_ALLOWED(sb) > le16_to_cpu(sb->version))
+		SET_BCH_SB_VERSION_INCOMPAT_ALLOWED(sb, le16_to_cpu(sb->version));
+
+	if (BCH_SB_VERSION_INCOMPAT(sb) > BCH_SB_VERSION_INCOMPAT_ALLOWED(sb)) {
+		prt_printf(out, "Invalid version_incompat ");
+		bch2_version_to_text(out, BCH_SB_VERSION_INCOMPAT(sb));
+		prt_str(out, " > incompat_allowed ");
+		bch2_version_to_text(out, BCH_SB_VERSION_INCOMPAT_ALLOWED(sb));
+		if (flags & BCH_VALIDATE_write)
+			return -BCH_ERR_invalid_sb_version;
+		else
+			SET_BCH_SB_VERSION_INCOMPAT_ALLOWED(sb, BCH_SB_VERSION_INCOMPAT(sb));
 	}
 
 	if (!flags) {
@@ -520,6 +551,9 @@ static void bch2_sb_update(struct bch_fs *c)
 	c->sb.uuid		= src->uuid;
 	c->sb.user_uuid		= src->user_uuid;
 	c->sb.version		= le16_to_cpu(src->version);
+	c->sb.version_incompat	= BCH_SB_VERSION_INCOMPAT(src);
+	c->sb.version_incompat_allowed
+				= BCH_SB_VERSION_INCOMPAT_ALLOWED(src);
 	c->sb.version_min	= le16_to_cpu(src->version_min);
 	c->sb.version_upgrade_complete = BCH_SB_VERSION_UPGRADE_COMPLETE(src);
 	c->sb.nr_devices	= src->nr_devices;
@@ -1152,6 +1186,8 @@ bool bch2_check_version_downgrade(struct bch_fs *c)
 	 */
 	if (BCH_SB_VERSION_UPGRADE_COMPLETE(c->disk_sb.sb) > bcachefs_metadata_version_current)
 		SET_BCH_SB_VERSION_UPGRADE_COMPLETE(c->disk_sb.sb, bcachefs_metadata_version_current);
+	if (BCH_SB_VERSION_INCOMPAT_ALLOWED(c->disk_sb.sb) > bcachefs_metadata_version_current)
+		SET_BCH_SB_VERSION_INCOMPAT_ALLOWED(c->disk_sb.sb, bcachefs_metadata_version_current);
 	if (c->sb.version > bcachefs_metadata_version_current)
 		c->disk_sb.sb->version = cpu_to_le16(bcachefs_metadata_version_current);
 	if (c->sb.version_min > bcachefs_metadata_version_current)
@@ -1160,7 +1196,7 @@ bool bch2_check_version_downgrade(struct bch_fs *c)
 	return ret;
 }
 
-void bch2_sb_upgrade(struct bch_fs *c, unsigned new_version)
+void bch2_sb_upgrade(struct bch_fs *c, unsigned new_version, bool incompat)
 {
 	lockdep_assert_held(&c->sb_lock);
 
@@ -1170,6 +1206,10 @@ void bch2_sb_upgrade(struct bch_fs *c, unsigned new_version)
 
 	c->disk_sb.sb->version = cpu_to_le16(new_version);
 	c->disk_sb.sb->features[0] |= cpu_to_le64(BCH_SB_FEATURES_ALL);
+
+	if (incompat)
+		SET_BCH_SB_VERSION_INCOMPAT_ALLOWED(c->disk_sb.sb,
+			max(BCH_SB_VERSION_INCOMPAT_ALLOWED(c->disk_sb.sb), new_version));
 }
 
 static int bch2_sb_ext_validate(struct bch_sb *sb, struct bch_sb_field *f,
@@ -1332,6 +1372,14 @@ void bch2_sb_to_text(struct printbuf *out, struct bch_sb *sb,
 
 	prt_printf(out, "Version:\t");
 	bch2_version_to_text(out, le16_to_cpu(sb->version));
+	prt_newline(out);
+
+	prt_printf(out, "Incompatible features allowed:\t");
+	bch2_version_to_text(out, BCH_SB_VERSION_INCOMPAT_ALLOWED(sb));
+	prt_newline(out);
+
+	prt_printf(out, "Incompatible features in use:\t");
+	bch2_version_to_text(out, BCH_SB_VERSION_INCOMPAT(sb));
 	prt_newline(out);
 
 	prt_printf(out, "Version upgrade complete:\t");

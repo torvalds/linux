@@ -760,6 +760,8 @@ struct bch_fs {
 		__uuid_t	user_uuid;
 
 		u16		version;
+		u16		version_incompat;
+		u16		version_incompat_allowed;
 		u16		version_min;
 		u16		version_upgrade_complete;
 

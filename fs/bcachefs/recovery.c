@@ -612,6 +612,7 @@ static bool check_version_upgrade(struct bch_fs *c)
 					 bch2_latest_compatible_version(c->sb.version));
 	unsigned old_version = c->sb.version_upgrade_complete ?: c->sb.version;
 	unsigned new_version = 0;
+	bool ret = false;
 
 	if (old_version < bcachefs_metadata_required_upgrade_below) {
 		if (c->opts.version_upgrade == BCH_VERSION_UPGRADE_incompatible ||
@@ -667,14 +668,32 @@ static bool check_version_upgrade(struct bch_fs *c)
 		}
 
 		bch_info(c, "%s", buf.buf);
-
-		bch2_sb_upgrade(c, new_version);
-
 		printbuf_exit(&buf);
-		return true;
+
+		ret = true;
 	}
 
-	return false;
+	if (new_version > c->sb.version_incompat &&
+	    c->opts.version_upgrade == BCH_VERSION_UPGRADE_incompatible) {
+		struct printbuf buf = PRINTBUF;
+
+		prt_str(&buf, "Now allowing incompatible features up to ");
+		bch2_version_to_text(&buf, new_version);
+		prt_str(&buf, ", previously allowed up to ");
+		bch2_version_to_text(&buf, c->sb.version_incompat_allowed);
+		prt_newline(&buf);
+
+		bch_info(c, "%s", buf.buf);
+		printbuf_exit(&buf);
+
+		ret = true;
+	}
+
+	if (ret)
+		bch2_sb_upgrade(c, new_version,
+				c->opts.version_upgrade == BCH_VERSION_UPGRADE_incompatible);
+
+	return ret;
 }
 
 int bch2_fs_recovery(struct bch_fs *c)
@@ -1074,7 +1093,7 @@ int bch2_fs_initialize(struct bch_fs *c)
 	bch2_check_version_downgrade(c);
 
 	if (c->opts.version_upgrade != BCH_VERSION_UPGRADE_none) {
-		bch2_sb_upgrade(c, bcachefs_metadata_version_current);
+		bch2_sb_upgrade(c, bcachefs_metadata_version_current, false);
 		SET_BCH_SB_VERSION_UPGRADE_COMPLETE(c->disk_sb.sb, bcachefs_metadata_version_current);
 		bch2_write_super(c);
 	}

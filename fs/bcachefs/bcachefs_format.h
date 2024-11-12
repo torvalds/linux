@@ -845,6 +845,9 @@ LE64_BITMASK(BCH_SB_VERSION_UPGRADE_COMPLETE,
 					struct bch_sb, flags[5],  0, 16);
 LE64_BITMASK(BCH_SB_ALLOCATOR_STUCK_TIMEOUT,
 					struct bch_sb, flags[5], 16, 32);
+LE64_BITMASK(BCH_SB_VERSION_INCOMPAT,	struct bch_sb, flags[5], 32, 48);
+LE64_BITMASK(BCH_SB_VERSION_INCOMPAT_ALLOWED,
+					struct bch_sb, flags[5], 48, 64);
 
 static inline __u64 BCH_SB_COMPRESSION_TYPE(const struct bch_sb *sb)
 {
@@ -897,21 +900,22 @@ static inline void SET_BCH_SB_BACKGROUND_COMPRESSION_TYPE(struct bch_sb *sb, __u
 	x(new_varint,			15)	\
 	x(journal_no_flush,		16)	\
 	x(alloc_v2,			17)	\
-	x(extents_across_btree_nodes,	18)
+	x(extents_across_btree_nodes,	18)	\
+	x(incompat_version_field,	19)
 
 #define BCH_SB_FEATURES_ALWAYS				\
-	((1ULL << BCH_FEATURE_new_extent_overwrite)|	\
-	 (1ULL << BCH_FEATURE_extents_above_btree_updates)|\
-	 (1ULL << BCH_FEATURE_btree_updates_journalled)|\
-	 (1ULL << BCH_FEATURE_alloc_v2)|\
-	 (1ULL << BCH_FEATURE_extents_across_btree_nodes))
+	(BIT_ULL(BCH_FEATURE_new_extent_overwrite)|	\
+	 BIT_ULL(BCH_FEATURE_extents_above_btree_updates)|\
+	 BIT_ULL(BCH_FEATURE_btree_updates_journalled)|\
+	 BIT_ULL(BCH_FEATURE_alloc_v2)|\
+	 BIT_ULL(BCH_FEATURE_extents_across_btree_nodes))
 
 #define BCH_SB_FEATURES_ALL				\
 	(BCH_SB_FEATURES_ALWAYS|			\
-	 (1ULL << BCH_FEATURE_new_siphash)|		\
-	 (1ULL << BCH_FEATURE_btree_ptr_v2)|		\
-	 (1ULL << BCH_FEATURE_new_varint)|		\
-	 (1ULL << BCH_FEATURE_journal_no_flush))
+	 BIT_ULL(BCH_FEATURE_new_siphash)|		\
+	 BIT_ULL(BCH_FEATURE_btree_ptr_v2)|		\
+	 BIT_ULL(BCH_FEATURE_new_varint)|		\
+	 BIT_ULL(BCH_FEATURE_journal_no_flush))
 
 enum bch_sb_feature {
 #define x(f, n) BCH_FEATURE_##f,
