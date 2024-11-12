@@ -673,11 +673,6 @@ static void print_metric_only_json(struct perf_stat_config *config __maybe_unuse
 	json_out(os, "\"%s\" : \"%s\"", unit, vals);
 }
 
-static void new_line_metric(struct perf_stat_config *config __maybe_unused,
-			    void *ctx __maybe_unused)
-{
-}
-
 static void print_metric_header(struct perf_stat_config *config,
 				void *ctx,
 				enum metric_threshold_classify thresh __maybe_unused,
@@ -839,16 +834,16 @@ static void printout(struct perf_stat_config *config, struct outstate *os,
 
 	if (config->csv_output) {
 		pm = config->metric_only ? print_metric_only_csv : print_metric_csv;
-		nl = config->metric_only ? new_line_metric : new_line_csv;
+		nl = config->metric_only ? NULL : new_line_csv;
 		pmh = print_metricgroup_header_csv;
 		os->nfields = 4 + (counter->cgrp ? 1 : 0);
 	} else if (config->json_output) {
 		pm = config->metric_only ? print_metric_only_json : print_metric_json;
-		nl = config->metric_only ? new_line_metric : new_line_json;
+		nl = config->metric_only ? NULL : new_line_json;
 		pmh = print_metricgroup_header_json;
 	} else {
 		pm = config->metric_only ? print_metric_only : print_metric_std;
-		nl = config->metric_only ? new_line_metric : new_line_std;
+		nl = config->metric_only ? NULL : new_line_std;
 		pmh = print_metricgroup_header_std;
 	}
 
@@ -1319,7 +1314,7 @@ static void print_metric_headers(struct perf_stat_config *config,
 	struct perf_stat_output_ctx out = {
 		.ctx = &os,
 		.print_metric = print_metric_header,
-		.new_line = new_line_metric,
+		.new_line = NULL,
 		.force_header = true,
 	};
 
