@@ -151,6 +151,10 @@ OPTIONS for 'perf ftrace latency'
 --bucket-range=::
 	Bucket range in ms or ns (according to -n/--use-nsec), default is log2() mode.
 
+--min-latency=::
+	Minimum latency for the start of the first bucket, in ms or ns (according to
+	-n/--use-nsec).
+
 
 OPTIONS for 'perf ftrace profile'
 ---------------------------------
