@@ -940,10 +940,10 @@ static int zynqmp_ipi_probe(struct platform_device *pdev)
 	pdata->num_mboxes = num_mboxes;
 
 	mbox = pdata->ipi_mboxes;
-	mbox->setup_ipi_fn = ipi_fn;
-
 	for_each_available_child_of_node(np, nc) {
 		mbox->pdata = pdata;
+		mbox->setup_ipi_fn = ipi_fn;
+
 		ret = zynqmp_ipi_mbox_probe(mbox, nc);
 		if (ret) {
 			of_node_put(nc);
