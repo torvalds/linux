@@ -633,6 +633,12 @@ struct bpf_subprog_arg_info {
 	};
 };
 
+enum priv_stack_mode {
+	PRIV_STACK_UNKNOWN,
+	NO_PRIV_STACK,
+	PRIV_STACK_ADAPTIVE,
+};
+
 struct bpf_subprog_info {
 	/* 'start' has to be the first field otherwise find_subprog() won't work */
 	u32 start; /* insn idx of function entry point */
@@ -653,6 +659,7 @@ struct bpf_subprog_info {
 	/* true if bpf_fastcall stack region is used by functions that can't be inlined */
 	bool keep_fastcall_stack: 1;
 
+	enum priv_stack_mode priv_stack_mode;
 	u8 arg_cnt;
 	struct bpf_subprog_arg_info args[MAX_BPF_FUNC_REG_ARGS];
 };
