@@ -312,6 +312,8 @@ patternProperties:
     description: Colorful GRP, Shenzhen Xueyushi Technology Ltd.
   "^compulab,.*":
     description: CompuLab Ltd.
+  "^comvetia,.*":
+    description: ComVetia AG
   "^congatec,.*":
     description: congatec GmbH
   "^coolpi,.*":
