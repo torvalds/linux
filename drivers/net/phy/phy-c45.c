@@ -1523,20 +1523,17 @@ EXPORT_SYMBOL(genphy_c45_eee_is_active);
 int genphy_c45_ethtool_get_eee(struct phy_device *phydev,
 			       struct ethtool_keee *data)
 {
-	__ETHTOOL_DECLARE_LINK_MODE_MASK(adv) = {};
-	__ETHTOOL_DECLARE_LINK_MODE_MASK(lp) = {};
 	bool is_enabled;
 	int ret;
 
-	ret = genphy_c45_eee_is_active(phydev, adv, lp, &is_enabled);
+	ret = genphy_c45_eee_is_active(phydev, data->advertised,
+				       data->lp_advertised, &is_enabled);
 	if (ret < 0)
 		return ret;
 
 	data->eee_enabled = is_enabled;
 	data->eee_active = ret;
 	linkmode_copy(data->supported, phydev->supported_eee);
-	linkmode_copy(data->advertised, adv);
-	linkmode_copy(data->lp_advertised, lp);
 
 	return 0;
 }
