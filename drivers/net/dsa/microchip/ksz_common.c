@@ -411,6 +411,8 @@ static const struct ksz_dev_ops lan937x_dev_ops = {
 	.flush_dyn_mac_table = ksz9477_flush_dyn_mac_table,
 	.port_setup = lan937x_port_setup,
 	.set_ageing_time = lan937x_set_ageing_time,
+	.mdio_bus_preinit = lan937x_mdio_bus_preinit,
+	.create_phy_addr_map = lan937x_create_phy_addr_map,
 	.r_phy = lan937x_r_phy,
 	.w_phy = lan937x_w_phy,
 	.r_mib_cnt = ksz9477_r_mib_cnt,
@@ -1762,6 +1764,7 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.num_tx_queues = 8,
 		.num_ipms = 8,
 		.tc_cbs_supported = true,
+		.phy_side_mdio_supported = true,
 		.ops = &lan937x_dev_ops,
 		.phylink_mac_ops = &lan937x_phylink_mac_ops,
 		.mib_names = ksz9477_mib_names,
@@ -1790,6 +1793,7 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.num_tx_queues = 8,
 		.num_ipms = 8,
 		.tc_cbs_supported = true,
+		.phy_side_mdio_supported = true,
 		.ops = &lan937x_dev_ops,
 		.phylink_mac_ops = &lan937x_phylink_mac_ops,
 		.mib_names = ksz9477_mib_names,
@@ -1818,6 +1822,7 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.num_tx_queues = 8,
 		.num_ipms = 8,
 		.tc_cbs_supported = true,
+		.phy_side_mdio_supported = true,
 		.ops = &lan937x_dev_ops,
 		.phylink_mac_ops = &lan937x_phylink_mac_ops,
 		.mib_names = ksz9477_mib_names,
@@ -1850,6 +1855,7 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.num_tx_queues = 8,
 		.num_ipms = 8,
 		.tc_cbs_supported = true,
+		.phy_side_mdio_supported = true,
 		.ops = &lan937x_dev_ops,
 		.phylink_mac_ops = &lan937x_phylink_mac_ops,
 		.mib_names = ksz9477_mib_names,
@@ -1882,6 +1888,7 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.num_tx_queues = 8,
 		.num_ipms = 8,
 		.tc_cbs_supported = true,
+		.phy_side_mdio_supported = true,
 		.ops = &lan937x_dev_ops,
 		.phylink_mac_ops = &lan937x_phylink_mac_ops,
 		.mib_names = ksz9477_mib_names,
@@ -2236,16 +2243,100 @@ static int ksz_sw_mdio_write(struct mii_bus *bus, int addr, int regnum,
 	return dev->dev_ops->w_phy(dev, addr, regnum, val);
 }
 
+/**
+ * ksz_parent_mdio_read - Read data from a PHY register on the parent MDIO bus.
+ * @bus: MDIO bus structure.
+ * @addr: PHY address on the parent MDIO bus.
+ * @regnum: Register number to read.
+ *
+ * This function provides a direct read operation on the parent MDIO bus for
+ * accessing PHY registers. By bypassing SPI or I2C, it uses the parent MDIO bus
+ * to retrieve data from the PHY registers at the specified address and register
+ * number.
+ *
+ * Return: Value of the PHY register, or a negative error code on failure.
+ */
+static int ksz_parent_mdio_read(struct mii_bus *bus, int addr, int regnum)
+{
+	struct ksz_device *dev = bus->priv;
+
+	return mdiobus_read_nested(dev->parent_mdio_bus, addr, regnum);
+}
+
+/**
+ * ksz_parent_mdio_write - Write data to a PHY register on the parent MDIO bus.
+ * @bus: MDIO bus structure.
+ * @addr: PHY address on the parent MDIO bus.
+ * @regnum: Register number to write to.
+ * @val: Value to write to the PHY register.
+ *
+ * This function provides a direct write operation on the parent MDIO bus for
+ * accessing PHY registers. Bypassing SPI or I2C, it uses the parent MDIO bus
+ * to modify the PHY register values at the specified address.
+ *
+ * Return: 0 on success, or a negative error code on failure.
+ */
+static int ksz_parent_mdio_write(struct mii_bus *bus, int addr, int regnum,
+				 u16 val)
+{
+	struct ksz_device *dev = bus->priv;
+
+	return mdiobus_write_nested(dev->parent_mdio_bus, addr, regnum, val);
+}
+
+/**
+ * ksz_phy_addr_to_port - Map a PHY address to the corresponding switch port.
+ * @dev: Pointer to device structure.
+ * @addr: PHY address to map to a port.
+ *
+ * This function finds the corresponding switch port for a given PHY address by
+ * iterating over all user ports on the device. It checks if a port's PHY
+ * address in `phy_addr_map` matches the specified address and if the port
+ * contains an internal PHY. If a match is found, the index of the port is
+ * returned.
+ *
+ * Return: Port index on success, or -EINVAL if no matching port is found.
+ */
+static int ksz_phy_addr_to_port(struct ksz_device *dev, int addr)
+{
+	struct dsa_switch *ds = dev->ds;
+	struct dsa_port *dp;
+
+	dsa_switch_for_each_user_port(dp, ds) {
+		if (dev->info->internal_phy[dp->index] &&
+		    dev->phy_addr_map[dp->index] == addr)
+			return dp->index;
+	}
+
+	return -EINVAL;
+}
+
+/**
+ * ksz_irq_phy_setup - Configure IRQs for PHYs in the KSZ device.
+ * @dev: Pointer to the KSZ device structure.
+ *
+ * Sets up IRQs for each active PHY connected to the KSZ switch by mapping the
+ * appropriate IRQs for each PHY and assigning them to the `user_mii_bus` in
+ * the DSA switch structure. Each IRQ is mapped based on the port's IRQ domain.
+ *
+ * Return: 0 on success, or a negative error code on failure.
+ */
 static int ksz_irq_phy_setup(struct ksz_device *dev)
 {
 	struct dsa_switch *ds = dev->ds;
-	int phy;
+	int phy, port;
 	int irq;
 	int ret;
 
-	for (phy = 0; phy < KSZ_MAX_NUM_PORTS; phy++) {
+	for (phy = 0; phy < PHY_MAX_ADDR; phy++) {
 		if (BIT(phy) & ds->phys_mii_mask) {
-			irq = irq_find_mapping(dev->ports[phy].pirq.domain,
+			port = ksz_phy_addr_to_port(dev, phy);
+			if (port < 0) {
+				ret = port;
+				goto out;
+			}
+
+			irq = irq_find_mapping(dev->ports[port].pirq.domain,
 					       PORT_SRC_PHY_INT);
 			if (irq < 0) {
 				ret = irq;
@@ -2263,49 +2354,183 @@ out:
 	return ret;
 }
 
+/**
+ * ksz_irq_phy_free - Release IRQ mappings for PHYs in the KSZ device.
+ * @dev: Pointer to the KSZ device structure.
+ *
+ * Releases any IRQ mappings previously assigned to active PHYs in the KSZ
+ * switch by disposing of each mapped IRQ in the `user_mii_bus` structure.
+ */
 static void ksz_irq_phy_free(struct ksz_device *dev)
 {
 	struct dsa_switch *ds = dev->ds;
 	int phy;
 
-	for (phy = 0; phy < KSZ_MAX_NUM_PORTS; phy++)
+	for (phy = 0; phy < PHY_MAX_ADDR; phy++)
 		if (BIT(phy) & ds->phys_mii_mask)
 			irq_dispose_mapping(ds->user_mii_bus->irq[phy]);
 }
 
+/**
+ * ksz_parse_dt_phy_config - Parse and validate PHY configuration from DT
+ * @dev: pointer to the KSZ device structure
+ * @bus: pointer to the MII bus structure
+ * @mdio_np: pointer to the MDIO node in the device tree
+ *
+ * This function parses and validates PHY configurations for each user port
+ * defined in the device tree for a KSZ switch device. It verifies that the
+ * `phy-handle` properties are correctly set and that the internal PHYs match
+ * expected addresses and parent nodes. Sets up the PHY mask in the MII bus if
+ * all validations pass. Logs error messages for any mismatches or missing data.
+ *
+ * Return: 0 on success, or a negative error code on failure.
+ */
+static int ksz_parse_dt_phy_config(struct ksz_device *dev, struct mii_bus *bus,
+				   struct device_node *mdio_np)
+{
+	struct device_node *phy_node, *phy_parent_node;
+	bool phys_are_valid = true;
+	struct dsa_port *dp;
+	u32 phy_addr;
+	int ret;
+
+	dsa_switch_for_each_user_port(dp, dev->ds) {
+		if (!dev->info->internal_phy[dp->index])
+			continue;
+
+		phy_node = of_parse_phandle(dp->dn, "phy-handle", 0);
+		if (!phy_node) {
+			dev_err(dev->dev, "failed to parse phy-handle for port %d.\n",
+				dp->index);
+			phys_are_valid = false;
+			continue;
+		}
+
+		phy_parent_node = of_get_parent(phy_node);
+		if (!phy_parent_node) {
+			dev_err(dev->dev, "failed to get PHY-parent node for port %d\n",
+				dp->index);
+			phys_are_valid = false;
+		} else if (phy_parent_node != mdio_np) {
+			dev_err(dev->dev, "PHY-parent node mismatch for port %d, expected %pOF, got %pOF\n",
+				dp->index, mdio_np, phy_parent_node);
+			phys_are_valid = false;
+		} else {
+			ret = of_property_read_u32(phy_node, "reg", &phy_addr);
+			if (ret < 0) {
+				dev_err(dev->dev, "failed to read PHY address for port %d. Error %d\n",
+					dp->index, ret);
+				phys_are_valid = false;
+			} else if (phy_addr != dev->phy_addr_map[dp->index]) {
+				dev_err(dev->dev, "PHY address mismatch for port %d, expected 0x%x, got 0x%x\n",
+					dp->index, dev->phy_addr_map[dp->index],
+					phy_addr);
+				phys_are_valid = false;
+			} else {
+				bus->phy_mask |= BIT(phy_addr);
+			}
+		}
+
+		of_node_put(phy_node);
+		of_node_put(phy_parent_node);
+	}
+
+	if (!phys_are_valid)
+		return -EINVAL;
+
+	return 0;
+}
+
+/**
+ * ksz_mdio_register - Register and configure the MDIO bus for the KSZ device.
+ * @dev: Pointer to the KSZ device structure.
+ *
+ * This function sets up and registers an MDIO bus for the KSZ switch device,
+ * allowing access to its internal PHYs. If the device supports side MDIO,
+ * the function will configure the external MDIO controller specified by the
+ * "mdio-parent-bus" device tree property to directly manage internal PHYs.
+ * Otherwise, SPI or I2C access is set up for PHY access.
+ *
+ * Return: 0 on success, or a negative error code on failure.
+ */
 static int ksz_mdio_register(struct ksz_device *dev)
 {
+	struct device_node *parent_bus_node;
+	struct mii_bus *parent_bus = NULL;
 	struct dsa_switch *ds = dev->ds;
 	struct device_node *mdio_np;
 	struct mii_bus *bus;
-	int ret;
+	int ret, i;
 
 	mdio_np = of_get_child_by_name(dev->dev->of_node, "mdio");
 	if (!mdio_np)
 		return 0;
 
+	parent_bus_node = of_parse_phandle(mdio_np, "mdio-parent-bus", 0);
+	if (parent_bus_node && !dev->info->phy_side_mdio_supported) {
+		dev_err(dev->dev, "Side MDIO bus is not supported for this HW, ignoring 'mdio-parent-bus' property.\n");
+		ret = -EINVAL;
+
+		goto put_mdio_node;
+	} else if (parent_bus_node) {
+		parent_bus = of_mdio_find_bus(parent_bus_node);
+		if (!parent_bus) {
+			ret = -EPROBE_DEFER;
+
+			goto put_mdio_node;
+		}
+
+		dev->parent_mdio_bus = parent_bus;
+	}
+
 	bus = devm_mdiobus_alloc(ds->dev);
 	if (!bus) {
-		of_node_put(mdio_np);
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto put_mdio_node;
+	}
+
+	if (dev->dev_ops->mdio_bus_preinit) {
+		ret = dev->dev_ops->mdio_bus_preinit(dev, !!parent_bus);
+		if (ret)
+			goto put_mdio_node;
+	}
+
+	if (dev->dev_ops->create_phy_addr_map) {
+		ret = dev->dev_ops->create_phy_addr_map(dev, !!parent_bus);
+		if (ret)
+			goto put_mdio_node;
+	} else {
+		for (i = 0; i < dev->info->port_cnt; i++)
+			dev->phy_addr_map[i] = i;
 	}
 
 	bus->priv = dev;
-	bus->read = ksz_sw_mdio_read;
-	bus->write = ksz_sw_mdio_write;
-	bus->name = "ksz user smi";
-	snprintf(bus->id, MII_BUS_ID_SIZE, "SMI-%d", ds->index);
+	if (parent_bus) {
+		bus->read = ksz_parent_mdio_read;
+		bus->write = ksz_parent_mdio_write;
+		bus->name = "KSZ side MDIO";
+		snprintf(bus->id, MII_BUS_ID_SIZE, "ksz-side-mdio-%d",
+			 ds->index);
+	} else {
+		bus->read = ksz_sw_mdio_read;
+		bus->write = ksz_sw_mdio_write;
+		bus->name = "ksz user smi";
+		snprintf(bus->id, MII_BUS_ID_SIZE, "SMI-%d", ds->index);
+	}
+
+	ret = ksz_parse_dt_phy_config(dev, bus, mdio_np);
+	if (ret)
+		goto put_mdio_node;
+
+	ds->phys_mii_mask = bus->phy_mask;
 	bus->parent = ds->dev;
-	bus->phy_mask = ~ds->phys_mii_mask;
 
 	ds->user_mii_bus = bus;
 
 	if (dev->irq > 0) {
 		ret = ksz_irq_phy_setup(dev);
-		if (ret) {
-			of_node_put(mdio_np);
-			return ret;
-		}
+		if (ret)
+			goto put_mdio_node;
 	}
 
 	ret = devm_of_mdiobus_register(ds->dev, bus, mdio_np);
@@ -2316,7 +2541,9 @@ static int ksz_mdio_register(struct ksz_device *dev)
 			ksz_irq_phy_free(dev);
 	}
 
+put_mdio_node:
 	of_node_put(mdio_np);
+	of_node_put(parent_bus_node);
 
 	return ret;
 }
