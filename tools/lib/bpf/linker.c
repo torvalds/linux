@@ -20,6 +20,7 @@
 #include "btf.h"
 #include "libbpf_internal.h"
 #include "strset.h"
+#include "str_error.h"
 
 #define BTF_EXTERN_SEC ".extern"
 
@@ -306,7 +307,7 @@ static int init_output_elf(struct bpf_linker *linker, const char *file)
 	linker->fd = open(file, O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC, 0644);
 	if (linker->fd < 0) {
 		err = -errno;
-		pr_warn("failed to create '%s': %d\n", file, err);
+		pr_warn("failed to create '%s': %s\n", file, errstr(err));
 		return err;
 	}
 
@@ -560,7 +561,7 @@ static int linker_load_obj_file(struct bpf_linker *linker, const char *filename,
 	obj->fd = open(filename, O_RDONLY | O_CLOEXEC);
 	if (obj->fd < 0) {
 		err = -errno;
-		pr_warn("failed to open file '%s': %d\n", filename, err);
+		pr_warn("failed to open file '%s': %s\n", filename, errstr(err));
 		return err;
 	}
 	obj->elf = elf_begin(obj->fd, ELF_C_READ_MMAP, NULL);
@@ -670,7 +671,8 @@ static int linker_load_obj_file(struct bpf_linker *linker, const char *filename,
 				obj->btf = btf__new(data->d_buf, shdr->sh_size);
 				err = libbpf_get_error(obj->btf);
 				if (err) {
-					pr_warn("failed to parse .BTF from %s: %d\n", filename, err);
+					pr_warn("failed to parse .BTF from %s: %s\n",
+						filename, errstr(err));
 					return err;
 				}
 				sec->skipped = true;
@@ -680,7 +682,8 @@ static int linker_load_obj_file(struct bpf_linker *linker, const char *filename,
 				obj->btf_ext = btf_ext__new(data->d_buf, shdr->sh_size);
 				err = libbpf_get_error(obj->btf_ext);
 				if (err) {
-					pr_warn("failed to parse .BTF.ext from '%s': %d\n", filename, err);
+					pr_warn("failed to parse .BTF.ext from '%s': %s\n",
+						filename, errstr(err));
 					return err;
 				}
 				sec->skipped = true;
@@ -2774,14 +2777,14 @@ static int finalize_btf(struct bpf_linker *linker)
 
 	err = finalize_btf_ext(linker);
 	if (err) {
-		pr_warn(".BTF.ext generation failed: %d\n", err);
+		pr_warn(".BTF.ext generation failed: %s\n", errstr(err));
 		return err;
 	}
 
 	opts.btf_ext = linker->btf_ext;
 	err = btf__dedup(linker->btf, &opts);
 	if (err) {
-		pr_warn("BTF dedup failed: %d\n", err);
+		pr_warn("BTF dedup failed: %s\n", errstr(err));
 		return err;
 	}
 
@@ -2799,7 +2802,7 @@ static int finalize_btf(struct bpf_linker *linker)
 
 	err = emit_elf_data_sec(linker, BTF_ELF_SEC, 8, raw_data, raw_sz);
 	if (err) {
-		pr_warn("failed to write out .BTF ELF section: %d\n", err);
+		pr_warn("failed to write out .BTF ELF section: %s\n", errstr(err));
 		return err;
 	}
 
@@ -2811,7 +2814,7 @@ static int finalize_btf(struct bpf_linker *linker)
 
 		err = emit_elf_data_sec(linker, BTF_EXT_ELF_SEC, 8, raw_data, raw_sz);
 		if (err) {
-			pr_warn("failed to write out .BTF.ext ELF section: %d\n", err);
+			pr_warn("failed to write out .BTF.ext ELF section: %s\n", errstr(err));
 			return err;
 		}
 	}
@@ -2987,7 +2990,7 @@ static int finalize_btf_ext(struct bpf_linker *linker)
 	err = libbpf_get_error(linker->btf_ext);
 	if (err) {
 		linker->btf_ext = NULL;
-		pr_warn("failed to parse final .BTF.ext data: %d\n", err);
+		pr_warn("failed to parse final .BTF.ext data: %s\n", errstr(err));
 		goto out;
 	}
 
