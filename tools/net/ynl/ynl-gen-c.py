@@ -4,12 +4,15 @@
 import argparse
 import collections
 import filecmp
+import pathlib
 import os
 import re
 import shutil
+import sys
 import tempfile
 import yaml
 
+sys.path.append(pathlib.Path(__file__).resolve().parent.as_posix())
 from lib import SpecFamily, SpecAttrSet, SpecAttr, SpecOperation, SpecEnumSet, SpecEnumEntry
 
 
