@@ -26,6 +26,18 @@ struct meson_reset_adev {
 #define to_meson_reset_adev(_adev) \
 	container_of((_adev), struct meson_reset_adev, adev)
 
+static const struct meson_reset_param meson_a1_audio_param = {
+	.reset_ops	= &meson_reset_toggle_ops,
+	.reset_num	= 32,
+	.level_offset	= 0x28,
+};
+
+static const struct meson_reset_param meson_a1_audio_vad_param = {
+	.reset_ops	= &meson_reset_toggle_ops,
+	.reset_num	= 6,
+	.level_offset	= 0x8,
+};
+
 static const struct meson_reset_param meson_g12a_audio_param = {
 	.reset_ops	= &meson_reset_toggle_ops,
 	.reset_num	= 26,
@@ -40,6 +52,12 @@ static const struct meson_reset_param meson_sm1_audio_param = {
 
 static const struct auxiliary_device_id meson_reset_aux_ids[] = {
 	{
+		.name = "a1-audio-clkc.rst-a1",
+		.driver_data = (kernel_ulong_t)&meson_a1_audio_param,
+	}, {
+		.name = "a1-audio-clkc.rst-a1-vad",
+		.driver_data = (kernel_ulong_t)&meson_a1_audio_vad_param,
+	}, {
 		.name = "axg-audio-clkc.rst-g12a",
 		.driver_data = (kernel_ulong_t)&meson_g12a_audio_param,
 	}, {
