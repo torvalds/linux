@@ -7450,7 +7450,6 @@ static void alc287_alc1318_playback_pcm_hook(struct hda_pcm_stream *hinfo,
 				   struct snd_pcm_substream *substream,
 				   int action)
 {
-	alc_write_coef_idx(codec, 0x10, 0x8806); /* Change MLK to GPIO3 */
 	switch (action) {
 	case HDA_GEN_PCM_ACT_OPEN:
 		alc_write_coefex_idx(codec, 0x5a, 0x00, 0x954f); /* write gpio3 to high */
@@ -7464,7 +7463,6 @@ static void alc287_alc1318_playback_pcm_hook(struct hda_pcm_stream *hinfo,
 static void alc287_s4_power_gpio3_default(struct hda_codec *codec)
 {
 	if (is_s4_suspend(codec)) {
-		alc_write_coef_idx(codec, 0x10, 0x8806); /* Change MLK to GPIO3 */
 		alc_write_coefex_idx(codec, 0x5a, 0x00, 0x554f); /* write gpio3 as default value */
 	}
 }
@@ -7473,9 +7471,17 @@ static void alc287_fixup_lenovo_thinkpad_with_alc1318(struct hda_codec *codec,
 			       const struct hda_fixup *fix, int action)
 {
 	struct alc_spec *spec = codec->spec;
+	static const struct coef_fw coefs[] = {
+		WRITE_COEF(0x24, 0x0013), WRITE_COEF(0x25, 0x0000), WRITE_COEF(0x26, 0xC300),
+		WRITE_COEF(0x28, 0x0001), WRITE_COEF(0x29, 0xb023),
+		WRITE_COEF(0x24, 0x0013), WRITE_COEF(0x25, 0x0000), WRITE_COEF(0x26, 0xC301),
+		WRITE_COEF(0x28, 0x0001), WRITE_COEF(0x29, 0xb023),
+	};
 
 	if (action != HDA_FIXUP_ACT_PRE_PROBE)
 		return;
+	alc_update_coef_idx(codec, 0x10, 1<<11, 1<<11);
+	alc_process_coef_fw(codec, coefs);
 	spec->power_hook = alc287_s4_power_gpio3_default;
 	spec->gen.pcm_playback_hook = alc287_alc1318_playback_pcm_hook;
 }
