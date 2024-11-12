@@ -116,8 +116,25 @@ static void fbnic_get_ts_stats(struct net_device *netdev,
 	}
 }
 
+static void fbnic_get_regs(struct net_device *netdev,
+			   struct ethtool_regs *regs, void *data)
+{
+	struct fbnic_net *fbn = netdev_priv(netdev);
+
+	fbnic_csr_get_regs(fbn->fbd, data, &regs->version);
+}
+
+static int fbnic_get_regs_len(struct net_device *netdev)
+{
+	struct fbnic_net *fbn = netdev_priv(netdev);
+
+	return fbnic_csr_regs_len(fbn->fbd) * sizeof(u32);
+}
+
 static const struct ethtool_ops fbnic_ethtool_ops = {
 	.get_drvinfo		= fbnic_get_drvinfo,
+	.get_regs_len		= fbnic_get_regs_len,
+	.get_regs		= fbnic_get_regs,
 	.get_ts_info		= fbnic_get_ts_info,
 	.get_ts_stats		= fbnic_get_ts_stats,
 	.get_eth_mac_stats	= fbnic_get_eth_mac_stats,

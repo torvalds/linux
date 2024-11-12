@@ -665,6 +665,15 @@ enum {
 #define FBNIC_RPC_TCAM_MACDA_VALUE		CSR_GENMASK(15, 0)
 #define FBNIC_RPC_TCAM_MACDA_MASK		CSR_GENMASK(31, 16)
 
+#define FBNIC_RPC_TCAM_OUTER_IPSRC(m, n)\
+	(0x08c00 + 0x08 * (n) + (m))		/* 0x023000 + 32*n + 4*m */
+#define FBNIC_RPC_TCAM_OUTER_IPDST(m, n)\
+	(0x08c48 + 0x08 * (n) + (m))		/* 0x023120 + 32*n + 4*m */
+#define FBNIC_RPC_TCAM_IPSRC(m, n)\
+	(0x08c90 + 0x08 * (n) + (m))		/* 0x023240 + 32*n + 4*m */
+#define FBNIC_RPC_TCAM_IPDST(m, n)\
+	(0x08cd8 + 0x08 * (n) + (m))		/* 0x023360 + 32*n + 4*m */
+
 #define FBNIC_RPC_RSS_TBL(n, m) \
 	(0x08d20 + 0x100 * (n) + (m))		/* 0x023480 + 1024*n + 4*m */
 #define FBNIC_RPC_RSS_TBL_COUNT			2
@@ -682,6 +691,13 @@ enum {
 #define FBNIC_CSR_START_MASTER		0x0C400	/* CSR section delimiter */
 #define FBNIC_MASTER_SPARE_0		0x0C41B		/* 0x3106c */
 #define FBNIC_CSR_END_MASTER		0x0C452	/* CSR section delimiter */
+
+/* MAC PCS registers */
+#define FBNIC_CSR_START_PCS		0x10000 /* CSR section delimiter */
+#define FBNIC_CSR_END_PCS		0x10668 /* CSR section delimiter */
+
+#define FBNIC_CSR_START_RSFEC		0x10800 /* CSR section delimiter */
+#define FBNIC_CSR_END_RSFEC		0x108c8 /* CSR section delimiter */
 
 /* MAC MAC registers (ASIC only) */
 #define FBNIC_CSR_START_MAC_MAC		0x11000 /* CSR section delimiter */
