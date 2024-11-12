@@ -117,10 +117,12 @@ xfs_discard_extents(
 
 	blk_start_plug(&plug);
 	list_for_each_entry(busyp, &extents->extent_list, list) {
-		trace_xfs_discard_extent(busyp->pag, busyp->bno, busyp->length);
+		struct xfs_perag	*pag = to_perag(busyp->group);
+
+		trace_xfs_discard_extent(pag, busyp->bno, busyp->length);
 
 		error = __blkdev_issue_discard(mp->m_ddev_targp->bt_bdev,
-				xfs_agbno_to_daddr(busyp->pag, busyp->bno),
+				xfs_agbno_to_daddr(pag, busyp->bno),
 				XFS_FSB_TO_BB(mp, busyp->length),
 				GFP_KERNEL, &bio);
 		if (error && error != -EOPNOTSUPP) {
@@ -159,7 +161,7 @@ xfs_trim_gather_extents(
 	struct xfs_trim_cur	*tcur,
 	struct xfs_busy_extents	*extents)
 {
-	struct xfs_mount	*mp = pag->pag_mount;
+	struct xfs_mount	*mp = pag_mount(pag);
 	struct xfs_trans	*tp;
 	struct xfs_btree_cur	*cur;
 	struct xfs_buf		*agbp;
@@ -271,12 +273,12 @@ xfs_trim_gather_extents(
 		 * If any blocks in the range are still busy, skip the
 		 * discard and try again the next time.
 		 */
-		if (xfs_extent_busy_search(pag, fbno, flen)) {
+		if (xfs_extent_busy_search(pag_group(pag), fbno, flen)) {
 			trace_xfs_discard_busy(pag, fbno, flen);
 			goto next_extent;
 		}
 
-		xfs_extent_busy_insert_discard(pag, fbno, flen,
+		xfs_extent_busy_insert_discard(pag_group(pag), fbno, flen,
 				&extents->extent_list);
 next_extent:
 		if (tcur->by_bno)
@@ -365,7 +367,7 @@ xfs_trim_perag_extents(
 		 * list  after this function call, as it may have been freed by
 		 * the time control returns to us.
 		 */
-		error = xfs_discard_extents(pag->pag_mount, extents);
+		error = xfs_discard_extents(pag_mount(pag), extents);
 		if (error)
 			break;
 
@@ -387,8 +389,8 @@ xfs_trim_datadev_extents(
 {
 	xfs_agnumber_t		start_agno, end_agno;
 	xfs_agblock_t		start_agbno, end_agbno;
+	struct xfs_perag	*pag = NULL;
 	xfs_daddr_t		ddev_end;
-	struct xfs_perag	*pag;
 	int			last_error = 0, error;
 
 	ddev_end = min_t(xfs_daddr_t, end,
@@ -399,10 +401,10 @@ xfs_trim_datadev_extents(
 	end_agno = xfs_daddr_to_agno(mp, ddev_end);
 	end_agbno = xfs_daddr_to_agbno(mp, ddev_end);
 
-	for_each_perag_range(mp, start_agno, end_agno, pag) {
+	while ((pag = xfs_perag_next_range(mp, pag, start_agno, end_agno))) {
 		xfs_agblock_t	agend = pag->block_count;
 
-		if (start_agno == end_agno)
+		if (pag_agno(pag) == end_agno)
 			agend = end_agbno;
 		error = xfs_trim_perag_extents(pag, start_agbno, agend, minlen);
 		if (error)

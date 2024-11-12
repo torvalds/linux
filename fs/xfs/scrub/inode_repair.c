@@ -761,14 +761,13 @@ STATIC int
 xrep_dinode_count_rmaps(
 	struct xrep_inode	*ri)
 {
-	struct xfs_perag	*pag;
-	xfs_agnumber_t		agno;
+	struct xfs_perag	*pag = NULL;
 	int			error;
 
 	if (!xfs_has_rmapbt(ri->sc->mp) || xfs_has_realtime(ri->sc->mp))
 		return -EOPNOTSUPP;
 
-	for_each_perag(ri->sc->mp, agno, pag) {
+	while ((pag = xfs_perag_next(ri->sc->mp, pag))) {
 		error = xrep_dinode_count_ag_rmaps(ri, pag);
 		if (error) {
 			xfs_perag_rele(pag);

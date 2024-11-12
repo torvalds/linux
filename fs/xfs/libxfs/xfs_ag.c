@@ -30,85 +30,7 @@
 #include "xfs_trace.h"
 #include "xfs_inode.h"
 #include "xfs_icache.h"
-
-
-/*
- * Passive reference counting access wrappers to the perag structures.  If the
- * per-ag structure is to be freed, the freeing code is responsible for cleaning
- * up objects with passive references before freeing the structure. This is
- * things like cached buffers.
- */
-struct xfs_perag *
-xfs_perag_get(
-	struct xfs_mount	*mp,
-	xfs_agnumber_t		agno)
-{
-	struct xfs_perag	*pag;
-
-	rcu_read_lock();
-	pag = xa_load(&mp->m_perags, agno);
-	if (pag) {
-		trace_xfs_perag_get(pag, _RET_IP_);
-		ASSERT(atomic_read(&pag->pag_ref) >= 0);
-		atomic_inc(&pag->pag_ref);
-	}
-	rcu_read_unlock();
-	return pag;
-}
-
-/* Get a passive reference to the given perag. */
-struct xfs_perag *
-xfs_perag_hold(
-	struct xfs_perag	*pag)
-{
-	ASSERT(atomic_read(&pag->pag_ref) > 0 ||
-	       atomic_read(&pag->pag_active_ref) > 0);
-
-	trace_xfs_perag_hold(pag, _RET_IP_);
-	atomic_inc(&pag->pag_ref);
-	return pag;
-}
-
-void
-xfs_perag_put(
-	struct xfs_perag	*pag)
-{
-	trace_xfs_perag_put(pag, _RET_IP_);
-	ASSERT(atomic_read(&pag->pag_ref) > 0);
-	atomic_dec(&pag->pag_ref);
-}
-
-/*
- * Active references for perag structures. This is for short term access to the
- * per ag structures for walking trees or accessing state. If an AG is being
- * shrunk or is offline, then this will fail to find that AG and return NULL
- * instead.
- */
-struct xfs_perag *
-xfs_perag_grab(
-	struct xfs_mount	*mp,
-	xfs_agnumber_t		agno)
-{
-	struct xfs_perag	*pag;
-
-	rcu_read_lock();
-	pag = xa_load(&mp->m_perags, agno);
-	if (pag) {
-		trace_xfs_perag_grab(pag, _RET_IP_);
-		if (!atomic_inc_not_zero(&pag->pag_active_ref))
-			pag = NULL;
-	}
-	rcu_read_unlock();
-	return pag;
-}
-
-void
-xfs_perag_rele(
-	struct xfs_perag	*pag)
-{
-	trace_xfs_perag_rele(pag, _RET_IP_);
-	atomic_dec(&pag->pag_active_ref);
-}
+#include "xfs_group.h"
 
 /*
  * xfs_initialize_perag_data
@@ -183,6 +105,18 @@ out:
 	return error;
 }
 
+static void
+xfs_perag_uninit(
+	struct xfs_group	*xg)
+{
+#ifdef __KERNEL__
+	struct xfs_perag	*pag = to_perag(xg);
+
+	cancel_delayed_work_sync(&pag->pag_blockgc_work);
+	xfs_buf_cache_destroy(&pag->pag_bcache);
+#endif
+}
+
 /*
  * Free up the per-ag resources  within the specified AG range.
  */
@@ -195,22 +129,8 @@ xfs_free_perag_range(
 {
 	xfs_agnumber_t		agno;
 
-	for (agno = first_agno; agno < end_agno; agno++) {
-		struct xfs_perag	*pag = xa_erase(&mp->m_perags, agno);
-
-		ASSERT(pag);
-		XFS_IS_CORRUPT(pag->pag_mount, atomic_read(&pag->pag_ref) != 0);
-		xfs_defer_drain_free(&pag->pag_intents_drain);
-
-		cancel_delayed_work_sync(&pag->pag_blockgc_work);
-		xfs_buf_cache_destroy(&pag->pag_bcache);
-
-		/* drop the mount's active reference */
-		xfs_perag_rele(pag);
-		XFS_IS_CORRUPT(pag->pag_mount,
-				atomic_read(&pag->pag_active_ref) != 0);
-		kfree_rcu_mightsleep(pag);
-	}
+	for (agno = first_agno; agno < end_agno; agno++)
+		xfs_group_free(mp, agno, XG_TYPE_AG, xfs_perag_uninit);
 }
 
 /* Find the size of the AG, in blocks. */
@@ -310,19 +230,13 @@ xfs_perag_alloc(
 #ifdef __KERNEL__
 	/* Place kernel structure only init below this point. */
 	spin_lock_init(&pag->pag_ici_lock);
-	spin_lock_init(&pag->pagb_lock);
-	spin_lock_init(&pag->pag_state_lock);
 	INIT_DELAYED_WORK(&pag->pag_blockgc_work, xfs_blockgc_worker);
 	INIT_RADIX_TREE(&pag->pag_ici_root, GFP_ATOMIC);
-	xfs_defer_drain_init(&pag->pag_intents_drain);
-	init_waitqueue_head(&pag->pagb_wait);
-	pag->pagb_tree = RB_ROOT;
-	xfs_hooks_init(&pag->pag_rmap_update_hooks);
 #endif /* __KERNEL__ */
 
 	error = xfs_buf_cache_init(&pag->pag_bcache);
 	if (error)
-		goto out_defer_drain_free;
+		goto out_free_perag;
 
 	/*
 	 * Pre-calculated geometry
@@ -332,23 +246,15 @@ xfs_perag_alloc(
 	__xfs_agino_range(mp, pag->block_count, &pag->agino_min,
 			&pag->agino_max);
 
-	pag->pag_agno = index;
-	pag->pag_mount = mp;
-	/* Active ref owned by mount indicates AG is online. */
-	atomic_set(&pag->pag_active_ref, 1);
-
-	error = xa_insert(&mp->m_perags, index, pag, GFP_KERNEL);
-	if (error) {
-		WARN_ON_ONCE(error == -EBUSY);
+	error = xfs_group_insert(mp, pag_group(pag), index, XG_TYPE_AG);
+	if (error)
 		goto out_buf_cache_destroy;
-	}
 
 	return 0;
 
 out_buf_cache_destroy:
 	xfs_buf_cache_destroy(&pag->pag_bcache);
-out_defer_drain_free:
-	xfs_defer_drain_free(&pag->pag_intents_drain);
+out_free_perag:
 	kfree(pag);
 	return error;
 }
@@ -833,7 +739,7 @@ xfs_ag_shrink_space(
 	struct xfs_trans	**tpp,
 	xfs_extlen_t		delta)
 {
-	struct xfs_mount	*mp = pag->pag_mount;
+	struct xfs_mount	*mp = pag_mount(pag);
 	struct xfs_alloc_arg	args = {
 		.tp	= *tpp,
 		.mp	= mp,
@@ -850,7 +756,7 @@ xfs_ag_shrink_space(
 	xfs_agblock_t		aglen;
 	int			error, err2;
 
-	ASSERT(pag->pag_agno == mp->m_sb.sb_agcount - 1);
+	ASSERT(pag_agno(pag) == mp->m_sb.sb_agcount - 1);
 	error = xfs_ialloc_read_agi(pag, *tpp, 0, &agibp);
 	if (error)
 		return error;
@@ -947,8 +853,8 @@ xfs_ag_shrink_space(
 
 	/* Update perag geometry */
 	pag->block_count -= delta;
-	__xfs_agino_range(pag->pag_mount, pag->block_count, &pag->agino_min,
-				&pag->agino_max);
+	__xfs_agino_range(mp, pag->block_count, &pag->agino_min,
+			&pag->agino_max);
 
 	xfs_ialloc_log_agi(*tpp, agibp, XFS_AGI_LENGTH);
 	xfs_alloc_log_agf(*tpp, agfbp, XFS_AGF_LENGTH);
@@ -973,12 +879,13 @@ xfs_ag_extend_space(
 	struct xfs_trans	*tp,
 	xfs_extlen_t		len)
 {
+	struct xfs_mount	*mp = pag_mount(pag);
 	struct xfs_buf		*bp;
 	struct xfs_agi		*agi;
 	struct xfs_agf		*agf;
 	int			error;
 
-	ASSERT(pag->pag_agno == pag->pag_mount->m_sb.sb_agcount - 1);
+	ASSERT(pag_agno(pag) == mp->m_sb.sb_agcount - 1);
 
 	error = xfs_ialloc_read_agi(pag, tp, 0, &bp);
 	if (error)
@@ -1018,8 +925,8 @@ xfs_ag_extend_space(
 
 	/* Update perag geometry */
 	pag->block_count = be32_to_cpu(agf->agf_length);
-	__xfs_agino_range(pag->pag_mount, pag->block_count, &pag->agino_min,
-				&pag->agino_max);
+	__xfs_agino_range(mp, pag->block_count, &pag->agino_min,
+			&pag->agino_max);
 	return 0;
 }
 
@@ -1046,7 +953,7 @@ xfs_ag_get_geometry(
 
 	/* Fill out form. */
 	memset(ageo, 0, sizeof(*ageo));
-	ageo->ag_number = pag->pag_agno;
+	ageo->ag_number = pag_agno(pag);
 
 	agi = agi_bp->b_addr;
 	ageo->ag_icount = be32_to_cpu(agi->agi_count);

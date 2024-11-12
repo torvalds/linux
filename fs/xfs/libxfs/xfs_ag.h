@@ -7,6 +7,8 @@
 #ifndef __LIBXFS_AG_H
 #define __LIBXFS_AG_H 1
 
+#include "xfs_group.h"
+
 struct xfs_mount;
 struct xfs_trans;
 struct xfs_perag;
@@ -30,10 +32,7 @@ struct xfs_ag_resv {
  * performance of allocation group selection.
  */
 struct xfs_perag {
-	struct xfs_mount *pag_mount;	/* owner filesystem */
-	xfs_agnumber_t	pag_agno;	/* AG this structure belongs to */
-	atomic_t	pag_ref;	/* passive reference count */
-	atomic_t	pag_active_ref;	/* active reference count */
+	struct xfs_group pag_group;
 	unsigned long	pag_opstate;
 	uint8_t		pagf_bno_level;	/* # of levels in bno btree */
 	uint8_t		pagf_cnt_level;	/* # of levels in cnt btree */
@@ -70,13 +69,6 @@ struct xfs_perag {
 #ifdef __KERNEL__
 	/* -- kernel only structures below this line -- */
 
-	/*
-	 * Bitsets of per-ag metadata that have been checked and/or are sick.
-	 * Callers should hold pag_state_lock before accessing this field.
-	 */
-	uint16_t	pag_checked;
-	uint16_t	pag_sick;
-
 #ifdef CONFIG_XFS_ONLINE_REPAIR
 	/*
 	 * Alternate btree heights so that online repair won't trip the write
@@ -87,13 +79,6 @@ struct xfs_perag {
 	uint8_t		pagf_repair_refcount_level;
 	uint8_t		pagf_repair_rmap_level;
 #endif
-
-	spinlock_t	pag_state_lock;
-
-	spinlock_t	pagb_lock;	/* lock for pagb_tree */
-	struct rb_root	pagb_tree;	/* ordered tree of busy extents */
-	unsigned int	pagb_gen;	/* generation count for pagb_tree */
-	wait_queue_head_t pagb_wait;	/* woken when pagb_gen changes */
 
 	atomic_t        pagf_fstrms;    /* # of filestreams active in this AG */
 
@@ -106,20 +91,28 @@ struct xfs_perag {
 
 	/* background prealloc block trimming */
 	struct delayed_work	pag_blockgc_work;
-
-	/*
-	 * We use xfs_drain to track the number of deferred log intent items
-	 * that have been queued (but not yet processed) so that waiters (e.g.
-	 * scrub) will not lock resources when other threads are in the middle
-	 * of processing a chain of intent items only to find momentary
-	 * inconsistencies.
-	 */
-	struct xfs_defer_drain	pag_intents_drain;
-
-	/* Hook to feed rmapbt updates to an active online repair. */
-	struct xfs_hooks	pag_rmap_update_hooks;
 #endif /* __KERNEL__ */
 };
+
+static inline struct xfs_perag *to_perag(struct xfs_group *xg)
+{
+	return container_of(xg, struct xfs_perag, pag_group);
+}
+
+static inline struct xfs_group *pag_group(struct xfs_perag *pag)
+{
+	return &pag->pag_group;
+}
+
+static inline struct xfs_mount *pag_mount(const struct xfs_perag *pag)
+{
+	return pag->pag_group.xg_mount;
+}
+
+static inline xfs_agnumber_t pag_agno(const struct xfs_perag *pag)
+{
+	return pag->pag_group.xg_gno;
+}
 
 /*
  * Per-AG operational state. These are atomic flag bits.
@@ -151,13 +144,71 @@ int xfs_initialize_perag_data(struct xfs_mount *mp, xfs_agnumber_t agno);
 int xfs_update_last_ag_size(struct xfs_mount *mp, xfs_agnumber_t prev_agcount);
 
 /* Passive AG references */
-struct xfs_perag *xfs_perag_get(struct xfs_mount *mp, xfs_agnumber_t agno);
-struct xfs_perag *xfs_perag_hold(struct xfs_perag *pag);
-void xfs_perag_put(struct xfs_perag *pag);
+static inline struct xfs_perag *
+xfs_perag_get(
+	struct xfs_mount	*mp,
+	xfs_agnumber_t		agno)
+{
+	return to_perag(xfs_group_get(mp, agno, XG_TYPE_AG));
+}
+
+static inline struct xfs_perag *
+xfs_perag_hold(
+	struct xfs_perag	*pag)
+{
+	return to_perag(xfs_group_hold(pag_group(pag)));
+}
+
+static inline void
+xfs_perag_put(
+	struct xfs_perag	*pag)
+{
+	xfs_group_put(pag_group(pag));
+}
 
 /* Active AG references */
-struct xfs_perag *xfs_perag_grab(struct xfs_mount *, xfs_agnumber_t);
-void xfs_perag_rele(struct xfs_perag *pag);
+static inline struct xfs_perag *
+xfs_perag_grab(
+	struct xfs_mount	*mp,
+	xfs_agnumber_t		agno)
+{
+	return to_perag(xfs_group_grab(mp, agno, XG_TYPE_AG));
+}
+
+static inline void
+xfs_perag_rele(
+	struct xfs_perag	*pag)
+{
+	xfs_group_rele(pag_group(pag));
+}
+
+static inline struct xfs_perag *
+xfs_perag_next_range(
+	struct xfs_mount	*mp,
+	struct xfs_perag	*pag,
+	xfs_agnumber_t		start_agno,
+	xfs_agnumber_t		end_agno)
+{
+	return to_perag(xfs_group_next_range(mp, pag ? pag_group(pag) : NULL,
+			start_agno, end_agno, XG_TYPE_AG));
+}
+
+static inline struct xfs_perag *
+xfs_perag_next_from(
+	struct xfs_mount	*mp,
+	struct xfs_perag	*pag,
+	xfs_agnumber_t		start_agno)
+{
+	return xfs_perag_next_range(mp, pag, start_agno, mp->m_sb.sb_agcount - 1);
+}
+
+static inline struct xfs_perag *
+xfs_perag_next(
+	struct xfs_mount	*mp,
+	struct xfs_perag	*pag)
+{
+	return xfs_perag_next_from(mp, pag, 0);
+}
 
 /*
  * Per-ag geometry infomation and validation
@@ -224,40 +275,6 @@ xfs_ag_contains_log(struct xfs_mount *mp, xfs_agnumber_t agno)
 	       agno == XFS_FSB_TO_AGNO(mp, mp->m_sb.sb_logstart);
 }
 
-/*
- * Perag iteration APIs
- */
-static inline struct xfs_perag *
-xfs_perag_next(
-	struct xfs_perag	*pag,
-	xfs_agnumber_t		*agno,
-	xfs_agnumber_t		end_agno)
-{
-	struct xfs_mount	*mp = pag->pag_mount;
-
-	*agno = pag->pag_agno + 1;
-	xfs_perag_rele(pag);
-	while (*agno <= end_agno) {
-		pag = xfs_perag_grab(mp, *agno);
-		if (pag)
-			return pag;
-		(*agno)++;
-	}
-	return NULL;
-}
-
-#define for_each_perag_range(mp, agno, end_agno, pag) \
-	for ((pag) = xfs_perag_grab((mp), (agno)); \
-		(pag) != NULL; \
-		(pag) = xfs_perag_next((pag), &(agno), (end_agno)))
-
-#define for_each_perag_from(mp, agno, pag) \
-	for_each_perag_range((mp), (agno), (mp)->m_sb.sb_agcount - 1, (pag))
-
-#define for_each_perag(mp, agno, pag) \
-	(agno) = 0; \
-	for_each_perag_from((mp), (agno), (pag))
-
 static inline struct xfs_perag *
 xfs_perag_next_wrap(
 	struct xfs_perag	*pag,
@@ -266,9 +283,9 @@ xfs_perag_next_wrap(
 	xfs_agnumber_t		restart_agno,
 	xfs_agnumber_t		wrap_agno)
 {
-	struct xfs_mount	*mp = pag->pag_mount;
+	struct xfs_mount	*mp = pag_mount(pag);
 
-	*agno = pag->pag_agno + 1;
+	*agno = pag_agno(pag) + 1;
 	xfs_perag_rele(pag);
 	while (*agno != stop_agno) {
 		if (*agno >= wrap_agno) {
@@ -335,7 +352,7 @@ xfs_agbno_to_fsb(
 	struct xfs_perag	*pag,
 	xfs_agblock_t		agbno)
 {
-	return XFS_AGB_TO_FSB(pag->pag_mount, pag->pag_agno, agbno);
+	return XFS_AGB_TO_FSB(pag_mount(pag), pag_agno(pag), agbno);
 }
 
 static inline xfs_daddr_t
@@ -343,7 +360,7 @@ xfs_agbno_to_daddr(
 	struct xfs_perag	*pag,
 	xfs_agblock_t		agbno)
 {
-	return XFS_AGB_TO_DADDR(pag->pag_mount, pag->pag_agno, agbno);
+	return XFS_AGB_TO_DADDR(pag_mount(pag), pag_agno(pag), agbno);
 }
 
 static inline xfs_ino_t
@@ -351,7 +368,7 @@ xfs_agino_to_ino(
 	struct xfs_perag	*pag,
 	xfs_agino_t		agino)
 {
-	return XFS_AGINO_TO_INO(pag->pag_mount, pag->pag_agno, agino);
+	return XFS_AGINO_TO_INO(pag_mount(pag), pag_agno(pag), agino);
 }
 
 #endif /* __LIBXFS_AG_H */

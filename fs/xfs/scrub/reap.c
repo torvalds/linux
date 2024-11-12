@@ -137,7 +137,7 @@ xreap_put_freelist(
 			agfl_bp, agbno, 0);
 	if (error)
 		return error;
-	xfs_extent_busy_insert(sc->tp, sc->sa.pag, agbno, 1,
+	xfs_extent_busy_insert(sc->tp, pag_group(sc->sa.pag), agbno, 1,
 			XFS_EXTENT_BUSY_SKIP_DISCARD);
 
 	return 0;

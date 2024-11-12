@@ -212,6 +212,14 @@ enum xbtree_recpacking {
 	XBTREE_RECPACKING_FULL,
 };
 
+enum xfs_group_type {
+	XG_TYPE_AG,
+	XG_TYPE_MAX,
+} __packed;
+
+#define XG_TYPE_STRINGS \
+	{ XG_TYPE_AG,	"ag" }
+
 /*
  * Type verifier functions
  */

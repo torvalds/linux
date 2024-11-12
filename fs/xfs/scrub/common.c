@@ -513,7 +513,7 @@ xchk_perag_drain_and_lock(
 		 * Obviously, this should be slanted against scrub and in favor
 		 * of runtime threads.
 		 */
-		if (!xfs_perag_intent_busy(sa->pag))
+		if (!xfs_group_intent_busy(pag_group(sa->pag)))
 			return 0;
 
 		if (sa->agf_bp) {
@@ -528,7 +528,7 @@ xchk_perag_drain_and_lock(
 
 		if (!(sc->flags & XCHK_FSGATES_DRAIN))
 			return -ECHRNG;
-		error = xfs_perag_intent_drain(sa->pag);
+		error = xfs_group_intent_drain(pag_group(sa->pag));
 		if (error == -ERESTARTSYS)
 			error = -EINTR;
 	} while (!error);

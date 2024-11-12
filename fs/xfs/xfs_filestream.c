@@ -96,7 +96,7 @@ restart:
 			maxfree = pag->pagf_freeblks;
 			if (max_pag)
 				xfs_perag_rele(max_pag);
-			atomic_inc(&pag->pag_active_ref);
+			atomic_inc(&pag_group(pag)->xg_active_ref);
 			max_pag = pag;
 		}
 
@@ -222,7 +222,7 @@ xfs_filestream_lookup_association(
 	 * down immediately after we mark the lookup as done.
 	 */
 	pag = container_of(mru, struct xfs_fstrm_item, mru)->pag;
-	atomic_inc(&pag->pag_active_ref);
+	atomic_inc(&pag_group(pag)->xg_active_ref);
 	xfs_mru_cache_done(mp->m_filestream);
 
 	trace_xfs_filestream_lookup(pag, ap->ip->i_ino);
@@ -275,7 +275,7 @@ xfs_filestream_create_association(
 		struct xfs_fstrm_item *item =
 			container_of(mru, struct xfs_fstrm_item, mru);
 
-		agno = (item->pag->pag_agno + 1) % mp->m_sb.sb_agcount;
+		agno = (pag_agno(item->pag) + 1) % mp->m_sb.sb_agcount;
 		xfs_fstrm_free_func(mp, mru);
 	} else if (xfs_is_inode32(mp)) {
 		xfs_agnumber_t	 rotorstep = xfs_rotorstep;
@@ -314,7 +314,7 @@ xfs_filestream_create_association(
 	if (!item)
 		goto out_put_fstrms;
 
-	atomic_inc(&args->pag->pag_active_ref);
+	atomic_inc(&pag_group(args->pag)->xg_active_ref);
 	item->pag = args->pag;
 	error = xfs_mru_cache_insert(mp->m_filestream, pino, &item->mru);
 	if (error)

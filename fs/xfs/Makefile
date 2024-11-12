@@ -14,6 +14,7 @@ xfs-y				+= xfs_trace.o
 
 # build the libxfs code first
 xfs-y				+= $(addprefix libxfs/, \
+				   xfs_group.o \
 				   xfs_ag.o \
 				   xfs_alloc.o \
 				   xfs_alloc_btree.o \

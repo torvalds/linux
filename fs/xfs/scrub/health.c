@@ -160,13 +160,12 @@ STATIC void
 xchk_mark_all_healthy(
 	struct xfs_mount	*mp)
 {
-	struct xfs_perag	*pag;
-	xfs_agnumber_t		agno;
+	struct xfs_perag	*pag = NULL;
 
 	xfs_fs_mark_healthy(mp, XFS_SICK_FS_INDIRECT);
 	xfs_rt_mark_healthy(mp, XFS_SICK_RT_INDIRECT);
-	for_each_perag(mp, agno, pag)
-		xfs_ag_mark_healthy(pag, XFS_SICK_AG_INDIRECT);
+	while ((pag = xfs_perag_next(mp, pag)))
+		xfs_group_mark_healthy(pag_group(pag), XFS_SICK_AG_INDIRECT);
 }
 
 /*
@@ -207,9 +206,9 @@ xchk_update_health(
 	case XHG_AG:
 		pag = xfs_perag_get(sc->mp, sc->sm->sm_agno);
 		if (bad)
-			xfs_ag_mark_corrupt(pag, sc->sick_mask);
+			xfs_group_mark_corrupt(pag_group(pag), sc->sick_mask);
 		else
-			xfs_ag_mark_healthy(pag, sc->sick_mask);
+			xfs_group_mark_healthy(pag_group(pag), sc->sick_mask);
 		xfs_perag_put(pag);
 		break;
 	case XHG_INO:
@@ -277,7 +276,7 @@ xchk_ag_btree_del_cursor_if_sick(
 	    type_to_health_flag[sc->sm->sm_type].group == XHG_AG)
 		mask &= ~sc->sick_mask;
 
-	if (xfs_ag_has_sickness((*curp)->bc_ag.pag, mask)) {
+	if (xfs_group_has_sickness((*curp)->bc_group, mask)) {
 		sc->sm->sm_flags |= XFS_SCRUB_OFLAG_XFAIL;
 		xfs_btree_del_cursor(*curp, XFS_BTREE_NOERROR);
 		*curp = NULL;
@@ -294,9 +293,7 @@ xchk_health_record(
 	struct xfs_scrub	*sc)
 {
 	struct xfs_mount	*mp = sc->mp;
-	struct xfs_perag	*pag;
-	xfs_agnumber_t		agno;
-
+	struct xfs_perag	*pag = NULL;
 	unsigned int		sick;
 	unsigned int		checked;
 
@@ -308,8 +305,8 @@ xchk_health_record(
 	if (sick & XFS_SICK_RT_PRIMARY)
 		xchk_set_corrupt(sc);
 
-	for_each_perag(mp, agno, pag) {
-		xfs_ag_measure_sickness(pag, &sick, &checked);
+	while ((pag = xfs_perag_next(mp, pag))) {
+		xfs_group_measure_sickness(pag_group(pag), &sick, &checked);
 		if (sick & XFS_SICK_AG_PRIMARY)
 			xchk_set_corrupt(sc);
 	}

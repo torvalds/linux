@@ -74,10 +74,9 @@ xchk_fscount_warmup(
 	struct xfs_buf		*agi_bp = NULL;
 	struct xfs_buf		*agf_bp = NULL;
 	struct xfs_perag	*pag = NULL;
-	xfs_agnumber_t		agno;
 	int			error = 0;
 
-	for_each_perag(mp, agno, pag) {
+	while ((pag = xfs_perag_next(mp, pag))) {
 		if (xchk_should_terminate(sc, &error))
 			break;
 		if (xfs_perag_initialised_agi(pag) &&
@@ -295,9 +294,8 @@ xchk_fscount_aggregate_agcounts(
 	struct xchk_fscounters	*fsc)
 {
 	struct xfs_mount	*mp = sc->mp;
-	struct xfs_perag	*pag;
+	struct xfs_perag	*pag = NULL;
 	uint64_t		delayed;
-	xfs_agnumber_t		agno;
 	int			tries = 8;
 	int			error = 0;
 
@@ -306,7 +304,7 @@ retry:
 	fsc->ifree = 0;
 	fsc->fdblocks = 0;
 
-	for_each_perag(mp, agno, pag) {
+	while ((pag = xfs_perag_next(mp, pag))) {
 		if (xchk_should_terminate(sc, &error))
 			break;
 
@@ -327,7 +325,7 @@ retry:
 		if (xfs_has_lazysbcount(sc->mp)) {
 			fsc->fdblocks += pag->pagf_btreeblks;
 		} else {
-			error = xchk_fscount_btreeblks(sc, fsc, agno);
+			error = xchk_fscount_btreeblks(sc, fsc, pag_agno(pag));
 			if (error)
 				break;
 		}

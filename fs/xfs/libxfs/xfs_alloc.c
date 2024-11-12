@@ -275,7 +275,7 @@ xfs_alloc_complain_bad_rec(
 
 	xfs_warn(mp,
 		"%sbt record corruption in AG %d detected at %pS!",
-		cur->bc_ops->name, cur->bc_ag.pag->pag_agno, fa);
+		cur->bc_ops->name, cur->bc_group->xg_gno, fa);
 	xfs_warn(mp,
 		"start block 0x%x block count 0x%x", irec->ar_startblock,
 		irec->ar_blockcount);
@@ -303,7 +303,7 @@ xfs_alloc_get_rec(
 		return error;
 
 	xfs_alloc_btrec_to_irec(rec, &irec);
-	fa = xfs_alloc_check_irec(cur->bc_ag.pag, &irec);
+	fa = xfs_alloc_check_irec(to_perag(cur->bc_group), &irec);
 	if (fa)
 		return xfs_alloc_complain_bad_rec(cur, fa, &irec);
 
@@ -331,7 +331,8 @@ xfs_alloc_compute_aligned(
 	bool		busy;
 
 	/* Trim busy sections out of found extent */
-	busy = xfs_extent_busy_trim(args, &bno, &len, busy_gen);
+	busy = xfs_extent_busy_trim(pag_group(args->pag), args->minlen,
+			args->maxlen, &bno, &len, busy_gen);
 
 	/*
 	 * If we have a largish extent that happens to start before min_agbno,
@@ -539,7 +540,7 @@ static int
 xfs_alloc_fixup_longest(
 	struct xfs_btree_cur	*cnt_cur)
 {
-	struct xfs_perag	*pag = cnt_cur->bc_ag.pag;
+	struct xfs_perag	*pag = to_perag(cnt_cur->bc_group);
 	struct xfs_buf		*bp = cnt_cur->bc_ag.agbp;
 	struct xfs_agf		*agf = bp->b_addr;
 	xfs_extlen_t		longest = 0;
@@ -799,7 +800,7 @@ xfs_agfl_verify(
 	 * use it by using uncached buffers that don't have the perag attached
 	 * so we can detect and avoid this problem.
 	 */
-	if (bp->b_pag && be32_to_cpu(agfl->agfl_seqno) != bp->b_pag->pag_agno)
+	if (bp->b_pag && be32_to_cpu(agfl->agfl_seqno) != pag_agno((bp->b_pag)))
 		return __this_address;
 
 	for (i = 0; i < xfs_agfl_size(mp); i++) {
@@ -879,13 +880,12 @@ xfs_alloc_read_agfl(
 	struct xfs_trans	*tp,
 	struct xfs_buf		**bpp)
 {
-	struct xfs_mount	*mp = pag->pag_mount;
+	struct xfs_mount	*mp = pag_mount(pag);
 	struct xfs_buf		*bp;
 	int			error;
 
-	error = xfs_trans_read_buf(
-			mp, tp, mp->m_ddev_targp,
-			XFS_AG_DADDR(mp, pag->pag_agno, XFS_AGFL_DADDR(mp)),
+	error = xfs_trans_read_buf(mp, tp, mp->m_ddev_targp,
+			XFS_AG_DADDR(mp, pag_agno(pag), XFS_AGFL_DADDR(mp)),
 			XFS_FSS_TO_BB(mp, 1), 0, &bp, &xfs_agfl_buf_ops);
 	if (xfs_metadata_is_sick(error))
 		xfs_ag_mark_sick(pag, XFS_SICK_AG_AGFL);
@@ -1252,7 +1252,7 @@ xfs_alloc_ag_vextent_small(
 	if (fbno == NULLAGBLOCK)
 		goto out;
 
-	xfs_extent_busy_reuse(args->pag, fbno, 1,
+	xfs_extent_busy_reuse(pag_group(args->pag), fbno, 1,
 			      (args->datatype & XFS_ALLOC_NOBUSY));
 
 	if (args->datatype & XFS_ALLOC_USERDATA) {
@@ -1365,7 +1365,8 @@ xfs_alloc_ag_vextent_exact(
 	 */
 	tbno = fbno;
 	tlen = flen;
-	xfs_extent_busy_trim(args, &tbno, &tlen, &busy_gen);
+	xfs_extent_busy_trim(pag_group(args->pag), args->minlen, args->maxlen,
+			&tbno, &tlen, &busy_gen);
 
 	/*
 	 * Give up if the start of the extent is busy, or the freespace isn't
@@ -1758,8 +1759,9 @@ restart:
 			 * the allocation can be retried.
 			 */
 			trace_xfs_alloc_near_busy(args);
-			error = xfs_extent_busy_flush(args->tp, args->pag,
-					acur.busy_gen, alloc_flags);
+			error = xfs_extent_busy_flush(args->tp,
+					pag_group(args->pag), acur.busy_gen,
+					alloc_flags);
 			if (error)
 				goto out;
 
@@ -1874,8 +1876,9 @@ restart:
 			 * the allocation can be retried.
 			 */
 			trace_xfs_alloc_size_busy(args);
-			error = xfs_extent_busy_flush(args->tp, args->pag,
-					busy_gen, alloc_flags);
+			error = xfs_extent_busy_flush(args->tp,
+					pag_group(args->pag), busy_gen,
+					alloc_flags);
 			if (error)
 				goto error0;
 
@@ -1973,8 +1976,9 @@ restart:
 			 * the allocation can be retried.
 			 */
 			trace_xfs_alloc_size_busy(args);
-			error = xfs_extent_busy_flush(args->tp, args->pag,
-					busy_gen, alloc_flags);
+			error = xfs_extent_busy_flush(args->tp,
+					pag_group(args->pag), busy_gen,
+					alloc_flags);
 			if (error)
 				goto error0;
 
@@ -2428,7 +2432,7 @@ xfs_alloc_longest_free_extent(
 	 * reservations and AGFL rules in place, we can return this extent.
 	 */
 	if (pag->pagf_longest > delta)
-		return min_t(xfs_extlen_t, pag->pag_mount->m_ag_max_usable,
+		return min_t(xfs_extlen_t, pag_mount(pag)->m_ag_max_usable,
 				pag->pagf_longest - delta);
 
 	/* Otherwise, let the caller try for 1 block if there's space. */
@@ -2611,7 +2615,7 @@ xfs_agfl_reset(
 	xfs_warn(mp,
 	       "WARNING: Reset corrupted AGFL on AG %u. %d blocks leaked. "
 	       "Please unmount and run xfs_repair.",
-	         pag->pag_agno, pag->pagf_flcount);
+		pag_agno(pag), pag->pagf_flcount);
 
 	agf->agf_flfirst = 0;
 	agf->agf_fllast = cpu_to_be32(xfs_agfl_size(mp) - 1);
@@ -3186,7 +3190,7 @@ xfs_validate_ag_length(
 	 * use it by using uncached buffers that don't have the perag attached
 	 * so we can detect and avoid this problem.
 	 */
-	if (bp->b_pag && seqno != bp->b_pag->pag_agno)
+	if (bp->b_pag && seqno != pag_agno(bp->b_pag))
 		return __this_address;
 
 	/*
@@ -3355,13 +3359,13 @@ xfs_read_agf(
 	int			flags,
 	struct xfs_buf		**agfbpp)
 {
-	struct xfs_mount	*mp = pag->pag_mount;
+	struct xfs_mount	*mp = pag_mount(pag);
 	int			error;
 
 	trace_xfs_read_agf(pag);
 
 	error = xfs_trans_read_buf(mp, tp, mp->m_ddev_targp,
-			XFS_AG_DADDR(mp, pag->pag_agno, XFS_AGF_DADDR(mp)),
+			XFS_AG_DADDR(mp, pag_agno(pag), XFS_AGF_DADDR(mp)),
 			XFS_FSS_TO_BB(mp, 1), flags, agfbpp, &xfs_agf_buf_ops);
 	if (xfs_metadata_is_sick(error))
 		xfs_ag_mark_sick(pag, XFS_SICK_AG_AGF);
@@ -3384,6 +3388,7 @@ xfs_alloc_read_agf(
 	int			flags,
 	struct xfs_buf		**agfbpp)
 {
+	struct xfs_mount	*mp = pag_mount(pag);
 	struct xfs_buf		*agfbp;
 	struct xfs_agf		*agf;
 	int			error;
@@ -3410,7 +3415,7 @@ xfs_alloc_read_agf(
 		pag->pagf_cnt_level = be32_to_cpu(agf->agf_cnt_level);
 		pag->pagf_rmap_level = be32_to_cpu(agf->agf_rmap_level);
 		pag->pagf_refcount_level = be32_to_cpu(agf->agf_refcount_level);
-		if (xfs_agfl_needs_reset(pag->pag_mount, agf))
+		if (xfs_agfl_needs_reset(mp, agf))
 			set_bit(XFS_AGSTATE_AGFL_NEEDS_RESET, &pag->pag_opstate);
 		else
 			clear_bit(XFS_AGSTATE_AGFL_NEEDS_RESET, &pag->pag_opstate);
@@ -3423,16 +3428,15 @@ xfs_alloc_read_agf(
 		 * counter only tracks non-root blocks.
 		 */
 		allocbt_blks = pag->pagf_btreeblks;
-		if (xfs_has_rmapbt(pag->pag_mount))
+		if (xfs_has_rmapbt(mp))
 			allocbt_blks -= be32_to_cpu(agf->agf_rmap_blocks) - 1;
 		if (allocbt_blks > 0)
-			atomic64_add(allocbt_blks,
-					&pag->pag_mount->m_allocbt_blks);
+			atomic64_add(allocbt_blks, &mp->m_allocbt_blks);
 
 		set_bit(XFS_AGSTATE_AGF_INIT, &pag->pag_opstate);
 	}
 #ifdef DEBUG
-	else if (!xfs_is_shutdown(pag->pag_mount)) {
+	else if (!xfs_is_shutdown(mp)) {
 		ASSERT(pag->pagf_freeblks == be32_to_cpu(agf->agf_freeblks));
 		ASSERT(pag->pagf_btreeblks == be32_to_cpu(agf->agf_btreeblks));
 		ASSERT(pag->pagf_flcount == be32_to_cpu(agf->agf_flcount));
@@ -3614,8 +3618,8 @@ xfs_alloc_vextent_finish(
 		if (error)
 			goto out_drop_perag;
 
-		ASSERT(!xfs_extent_busy_search(args->pag, args->agbno,
-				args->len));
+		ASSERT(!xfs_extent_busy_search(pag_group(args->pag),
+				args->agbno, args->len));
 	}
 
 	xfs_ag_resv_alloc_extent(args->pag, args->resv, args);
@@ -3650,7 +3654,7 @@ xfs_alloc_vextent_this_ag(
 	int			error;
 
 	ASSERT(args->pag != NULL);
-	ASSERT(args->pag->pag_agno == agno);
+	ASSERT(pag_agno(args->pag) == agno);
 
 	args->agno = agno;
 	args->agbno = 0;
@@ -3863,7 +3867,7 @@ xfs_alloc_vextent_exact_bno(
 	int			error;
 
 	ASSERT(args->pag != NULL);
-	ASSERT(args->pag->pag_agno == XFS_FSB_TO_AGNO(mp, target));
+	ASSERT(pag_agno(args->pag) == XFS_FSB_TO_AGNO(mp, target));
 
 	args->agno = XFS_FSB_TO_AGNO(mp, target);
 	args->agbno = XFS_FSB_TO_AGBNO(mp, target);
@@ -3902,7 +3906,7 @@ xfs_alloc_vextent_near_bno(
 	int			error;
 
 	if (!needs_perag)
-		ASSERT(args->pag->pag_agno == XFS_FSB_TO_AGNO(mp, target));
+		ASSERT(pag_agno(args->pag) == XFS_FSB_TO_AGNO(mp, target));
 
 	args->agno = XFS_FSB_TO_AGNO(mp, target);
 	args->agbno = XFS_FSB_TO_AGBNO(mp, target);
@@ -3939,7 +3943,7 @@ xfs_free_extent_fix_freelist(
 	memset(&args, 0, sizeof(struct xfs_alloc_arg));
 	args.tp = tp;
 	args.mp = tp->t_mountp;
-	args.agno = pag->pag_agno;
+	args.agno = pag_agno(pag);
 	args.pag = pag;
 
 	/*
@@ -4013,7 +4017,7 @@ __xfs_free_extent(
 
 	if (skip_discard)
 		busy_flags |= XFS_EXTENT_BUSY_SKIP_DISCARD;
-	xfs_extent_busy_insert(tp, pag, agbno, len, busy_flags);
+	xfs_extent_busy_insert(tp, pag_group(pag), agbno, len, busy_flags);
 	return 0;
 
 err_release:
@@ -4038,7 +4042,7 @@ xfs_alloc_query_range_helper(
 	xfs_failaddr_t				fa;
 
 	xfs_alloc_btrec_to_irec(rec, &irec);
-	fa = xfs_alloc_check_irec(cur->bc_ag.pag, &irec);
+	fa = xfs_alloc_check_irec(to_perag(cur->bc_group), &irec);
 	if (fa)
 		return xfs_alloc_complain_bad_rec(cur, fa, &irec);
 

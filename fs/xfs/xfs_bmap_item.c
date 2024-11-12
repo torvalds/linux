@@ -334,7 +334,8 @@ xfs_bmap_update_get_group(
 	 * intent drops the intent count, ensuring that the intent count
 	 * remains nonzero across the transaction roll.
 	 */
-	bi->bi_pag = xfs_perag_intent_get(mp, bi->bi_bmap.br_startblock);
+	bi->bi_group = xfs_group_intent_get(mp, bi->bi_bmap.br_startblock,
+			XG_TYPE_AG);
 }
 
 /* Add this deferred BUI to the transaction. */
@@ -368,7 +369,7 @@ xfs_bmap_update_put_group(
 	if (xfs_ifork_is_realtime(bi->bi_owner, bi->bi_whichfork))
 		return;
 
-	xfs_perag_intent_put(bi->bi_pag);
+	xfs_group_intent_put(bi->bi_group);
 }
 
 /* Cancel a deferred bmap update. */

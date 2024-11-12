@@ -132,17 +132,16 @@ int
 xrep_setup_ag_allocbt(
 	struct xfs_scrub	*sc)
 {
+	struct xfs_group	*xg = pag_group(sc->sa.pag);
 	unsigned int		busy_gen;
 
 	/*
 	 * Make sure the busy extent list is clear because we can't put extents
 	 * on there twice.
 	 */
-	busy_gen = READ_ONCE(sc->sa.pag->pagb_gen);
-	if (xfs_extent_busy_list_empty(sc->sa.pag))
+	if (xfs_extent_busy_list_empty(xg, &busy_gen))
 		return 0;
-
-	return xfs_extent_busy_flush(sc->tp, sc->sa.pag, busy_gen, 0);
+	return xfs_extent_busy_flush(sc->tp, xg, busy_gen, 0);
 }
 
 /* Check for any obvious conflicts in the free extent. */
@@ -543,7 +542,7 @@ xrep_abt_dispose_one(
 
 	/* Add a deferred rmap for each extent we used. */
 	if (resv->used > 0)
-		xfs_rmap_alloc_extent(sc->tp, pag->pag_agno, resv->agbno,
+		xfs_rmap_alloc_extent(sc->tp, pag_agno(pag), resv->agbno,
 				resv->used, XFS_RMAP_OWN_AG);
 
 	/*
@@ -849,6 +848,7 @@ xrep_allocbt(
 {
 	struct xrep_abt		*ra;
 	struct xfs_mount	*mp = sc->mp;
+	unsigned int		busy_gen;
 	char			*descr;
 	int			error;
 
@@ -869,7 +869,7 @@ xrep_allocbt(
 	 * on there twice.  In theory we cleared this before we started, but
 	 * let's not risk the filesystem.
 	 */
-	if (!xfs_extent_busy_list_empty(sc->sa.pag)) {
+	if (!xfs_extent_busy_list_empty(pag_group(sc->sa.pag), &busy_gen)) {
 		error = -EDEADLOCK;
 		goto out_ra;
 	}

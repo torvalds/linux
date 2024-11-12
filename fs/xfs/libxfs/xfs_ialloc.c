@@ -142,7 +142,7 @@ xfs_inobt_complain_bad_rec(
 
 	xfs_warn(mp,
 		"%sbt record corruption in AG %d detected at %pS!",
-		cur->bc_ops->name, cur->bc_ag.pag->pag_agno, fa);
+		cur->bc_ops->name, cur->bc_group->xg_gno, fa);
 	xfs_warn(mp,
 "start inode 0x%x, count 0x%x, free 0x%x freemask 0x%llx, holemask 0x%x",
 		irec->ir_startino, irec->ir_count, irec->ir_freecount,
@@ -170,7 +170,7 @@ xfs_inobt_get_rec(
 		return error;
 
 	xfs_inobt_btrec_to_irec(mp, rec, irec);
-	fa = xfs_inobt_check_irec(cur->bc_ag.pag, irec);
+	fa = xfs_inobt_check_irec(to_perag(cur->bc_group), irec);
 	if (fa)
 		return xfs_inobt_complain_bad_rec(cur, fa, irec);
 
@@ -275,8 +275,10 @@ xfs_check_agi_freecount(
 			}
 		} while (i == 1);
 
-		if (!xfs_is_shutdown(cur->bc_mp))
-			ASSERT(freecount == cur->bc_ag.pag->pagi_freecount);
+		if (!xfs_is_shutdown(cur->bc_mp)) {
+			ASSERT(freecount ==
+				to_perag(cur->bc_group)->pagi_freecount);
+		}
 	}
 	return 0;
 }
@@ -551,7 +553,7 @@ xfs_inobt_insert_sprec(
 	struct xfs_buf			*agbp,
 	struct xfs_inobt_rec_incore	*nrec)	/* in/out: new/merged rec. */
 {
-	struct xfs_mount		*mp = pag->pag_mount;
+	struct xfs_mount		*mp = pag_mount(pag);
 	struct xfs_btree_cur		*cur;
 	int				error;
 	int				i;
@@ -645,7 +647,7 @@ xfs_finobt_insert_sprec(
 	struct xfs_buf			*agbp,
 	struct xfs_inobt_rec_incore	*nrec)	/* in/out: new rec. */
 {
-	struct xfs_mount		*mp = pag->pag_mount;
+	struct xfs_mount		*mp = pag_mount(pag);
 	struct xfs_btree_cur		*cur;
 	int				error;
 	int				i;
@@ -880,7 +882,7 @@ sparse_alloc:
 	 * rather than a linear progression to prevent the next generation
 	 * number from being easily guessable.
 	 */
-	error = xfs_ialloc_inode_init(args.mp, tp, NULL, newlen, pag->pag_agno,
+	error = xfs_ialloc_inode_init(args.mp, tp, NULL, newlen, pag_agno(pag),
 			args.agbno, args.len, get_random_u32());
 
 	if (error)
@@ -1071,7 +1073,7 @@ xfs_dialloc_check_ino(
 	if (error)
 		return -EAGAIN;
 
-	error = xfs_imap_to_bp(pag->pag_mount, tp, &imap, &bp);
+	error = xfs_imap_to_bp(pag_mount(pag), tp, &imap, &bp);
 	if (error)
 		return -EAGAIN;
 
@@ -1122,7 +1124,7 @@ xfs_dialloc_ag_inobt(
 	/*
 	 * If in the same AG as the parent, try to get near the parent.
 	 */
-	if (pagno == pag->pag_agno) {
+	if (pagno == pag_agno(pag)) {
 		int		doneleft;	/* done, to the left */
 		int		doneright;	/* done, to the right */
 
@@ -1599,7 +1601,7 @@ xfs_dialloc_ag(
 	 * parent. If so, find the closest available inode to the parent. If
 	 * not, consider the agi hint or find the first free inode in the AG.
 	 */
-	if (pag->pag_agno == pagno)
+	if (pag_agno(pag) == pagno)
 		error = xfs_dialloc_ag_finobt_near(pagino, &cur, &rec);
 	else
 		error = xfs_dialloc_ag_finobt_newino(agi, cur, &rec);
@@ -2053,7 +2055,7 @@ xfs_difree_inobt(
 	struct xfs_icluster		*xic,
 	struct xfs_inobt_rec_incore	*orec)
 {
-	struct xfs_mount		*mp = pag->pag_mount;
+	struct xfs_mount		*mp = pag_mount(pag);
 	struct xfs_agi			*agi = agbp->b_addr;
 	struct xfs_btree_cur		*cur;
 	struct xfs_inobt_rec_incore	rec;
@@ -2187,7 +2189,7 @@ xfs_difree_finobt(
 	xfs_agino_t			agino,
 	struct xfs_inobt_rec_incore	*ibtrec) /* inobt record */
 {
-	struct xfs_mount		*mp = pag->pag_mount;
+	struct xfs_mount		*mp = pag_mount(pag);
 	struct xfs_btree_cur		*cur;
 	struct xfs_inobt_rec_incore	rec;
 	int				offset = agino - ibtrec->ir_startino;
@@ -2310,9 +2312,9 @@ xfs_difree(
 	/*
 	 * Break up inode number into its components.
 	 */
-	if (pag->pag_agno != XFS_INO_TO_AGNO(mp, inode)) {
-		xfs_warn(mp, "%s: agno != pag->pag_agno (%d != %d).",
-			__func__, XFS_INO_TO_AGNO(mp, inode), pag->pag_agno);
+	if (pag_agno(pag) != XFS_INO_TO_AGNO(mp, inode)) {
+		xfs_warn(mp, "%s: agno != pag_agno(pag) (%d != %d).",
+			__func__, XFS_INO_TO_AGNO(mp, inode), pag_agno(pag));
 		ASSERT(0);
 		return -EINVAL;
 	}
@@ -2373,7 +2375,7 @@ xfs_imap_lookup(
 	xfs_agblock_t		*offset_agbno,
 	int			flags)
 {
-	struct xfs_mount	*mp = pag->pag_mount;
+	struct xfs_mount	*mp = pag_mount(pag);
 	struct xfs_inobt_rec_incore rec;
 	struct xfs_btree_cur	*cur;
 	struct xfs_buf		*agbp;
@@ -2384,7 +2386,7 @@ xfs_imap_lookup(
 	if (error) {
 		xfs_alert(mp,
 			"%s: xfs_ialloc_read_agi() returned error %d, agno %d",
-			__func__, error, pag->pag_agno);
+			__func__, error, pag_agno(pag));
 		return error;
 	}
 
@@ -2434,7 +2436,7 @@ xfs_imap(
 	struct xfs_imap		*imap,	/* location map structure */
 	uint			flags)	/* flags for inode btree lookup */
 {
-	struct xfs_mount	*mp = pag->pag_mount;
+	struct xfs_mount	*mp = pag_mount(pag);
 	xfs_agblock_t		agbno;	/* block number of inode in the alloc group */
 	xfs_agino_t		agino;	/* inode number within alloc group */
 	xfs_agblock_t		chunk_agbno;	/* first block in inode chunk */
@@ -2726,13 +2728,13 @@ xfs_read_agi(
 	xfs_buf_flags_t		flags,
 	struct xfs_buf		**agibpp)
 {
-	struct xfs_mount	*mp = pag->pag_mount;
+	struct xfs_mount	*mp = pag_mount(pag);
 	int			error;
 
 	trace_xfs_read_agi(pag);
 
 	error = xfs_trans_read_buf(mp, tp, mp->m_ddev_targp,
-			XFS_AG_DADDR(mp, pag->pag_agno, XFS_AGI_DADDR(mp)),
+			XFS_AG_DADDR(mp, pag_agno(pag), XFS_AGI_DADDR(mp)),
 			XFS_FSS_TO_BB(mp, 1), flags, agibpp, &xfs_agi_buf_ops);
 	if (xfs_metadata_is_sick(error))
 		xfs_ag_mark_sick(pag, XFS_SICK_AG_AGI);
@@ -2780,7 +2782,7 @@ xfs_ialloc_read_agi(
 	 * we are in the middle of a forced shutdown.
 	 */
 	ASSERT(pag->pagi_freecount == be32_to_cpu(agi->agi_freecount) ||
-		xfs_is_shutdown(pag->pag_mount));
+		xfs_is_shutdown(pag_mount(pag)));
 	if (agibpp)
 		*agibpp = agibp;
 	else
@@ -2880,7 +2882,7 @@ xfs_ialloc_count_inodes_rec(
 	xfs_failaddr_t			fa;
 
 	xfs_inobt_btrec_to_irec(cur->bc_mp, rec, &irec);
-	fa = xfs_inobt_check_irec(cur->bc_ag.pag, &irec);
+	fa = xfs_inobt_check_irec(to_perag(cur->bc_group), &irec);
 	if (fa)
 		return xfs_inobt_complain_bad_rec(cur, fa, &irec);
 
@@ -3119,13 +3121,13 @@ xfs_ialloc_check_shrink(
 	int			has;
 	int			error;
 
-	if (!xfs_has_sparseinodes(pag->pag_mount))
+	if (!xfs_has_sparseinodes(pag_mount(pag)))
 		return 0;
 
 	cur = xfs_inobt_init_cursor(pag, tp, agibp);
 
 	/* Look up the inobt record that would correspond to the new EOFS. */
-	agino = XFS_AGB_TO_AGINO(pag->pag_mount, new_length);
+	agino = XFS_AGB_TO_AGINO(pag_mount(pag), new_length);
 	error = xfs_inobt_lookup(cur, agino, XFS_LOOKUP_LE, &has);
 	if (error || !has)
 		goto out;

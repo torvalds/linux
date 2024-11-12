@@ -792,8 +792,8 @@ TRACE_EVENT(xchk_iallocbt_check_cluster,
 		__field(uint16_t, holemask)
 	),
 	TP_fast_assign(
-		__entry->dev = pag->pag_mount->m_super->s_dev;
-		__entry->agno = pag->pag_agno;
+		__entry->dev = pag_mount(pag)->m_super->s_dev;
+		__entry->agno = pag_agno(pag);
 		__entry->startino = startino;
 		__entry->map_daddr = map_daddr;
 		__entry->map_len = map_len;
@@ -936,8 +936,8 @@ TRACE_EVENT(xchk_refcount_incorrect,
 		__field(xfs_nlink_t, seen)
 	),
 	TP_fast_assign(
-		__entry->dev = pag->pag_mount->m_super->s_dev;
-		__entry->agno = pag->pag_agno;
+		__entry->dev = pag_mount(pag)->m_super->s_dev;
+		__entry->agno = pag_agno(pag);
 		__entry->domain = irec->rc_domain;
 		__entry->startblock = irec->rc_startblock;
 		__entry->blockcount = irec->rc_blockcount;
@@ -1929,8 +1929,8 @@ DECLARE_EVENT_CLASS(xrep_extent_class,
 		__field(xfs_extlen_t, len)
 	),
 	TP_fast_assign(
-		__entry->dev = pag->pag_mount->m_super->s_dev;
-		__entry->agno = pag->pag_agno;
+		__entry->dev = pag_mount(pag)->m_super->s_dev;
+		__entry->agno = pag_agno(pag);
 		__entry->agbno = agbno;
 		__entry->len = len;
 	),
@@ -1963,8 +1963,8 @@ DECLARE_EVENT_CLASS(xrep_reap_find_class,
 		__field(bool, crosslinked)
 	),
 	TP_fast_assign(
-		__entry->dev = pag->pag_mount->m_super->s_dev;
-		__entry->agno = pag->pag_agno;
+		__entry->dev = pag_mount(pag)->m_super->s_dev;
+		__entry->agno = pag_agno(pag);
 		__entry->agbno = agbno;
 		__entry->len = len;
 		__entry->crosslinked = crosslinked;
@@ -1997,8 +1997,8 @@ TRACE_EVENT(xrep_ibt_walk_rmap,
 		__field(unsigned int, flags)
 	),
 	TP_fast_assign(
-		__entry->dev = pag->pag_mount->m_super->s_dev;
-		__entry->agno = pag->pag_agno;
+		__entry->dev = pag_mount(pag)->m_super->s_dev;
+		__entry->agno = pag_agno(pag);
 		__entry->agbno = rec->rm_startblock;
 		__entry->len = rec->rm_blockcount;
 		__entry->owner = rec->rm_owner;
@@ -2026,8 +2026,8 @@ TRACE_EVENT(xrep_abt_found,
 		__field(xfs_extlen_t, blockcount)
 	),
 	TP_fast_assign(
-		__entry->dev = pag->pag_mount->m_super->s_dev;
-		__entry->agno = pag->pag_agno;
+		__entry->dev = pag_mount(pag)->m_super->s_dev;
+		__entry->agno = pag_agno(pag);
 		__entry->startblock = rec->ar_startblock;
 		__entry->blockcount = rec->ar_blockcount;
 	),
@@ -2052,8 +2052,8 @@ TRACE_EVENT(xrep_ibt_found,
 		__field(uint64_t, freemask)
 	),
 	TP_fast_assign(
-		__entry->dev = pag->pag_mount->m_super->s_dev;
-		__entry->agno = pag->pag_agno;
+		__entry->dev = pag_mount(pag)->m_super->s_dev;
+		__entry->agno = pag_agno(pag);
 		__entry->startino = rec->ir_startino;
 		__entry->holemask = rec->ir_holemask;
 		__entry->count = rec->ir_count;
@@ -2083,8 +2083,8 @@ TRACE_EVENT(xrep_refc_found,
 		__field(xfs_nlink_t, refcount)
 	),
 	TP_fast_assign(
-		__entry->dev = pag->pag_mount->m_super->s_dev;
-		__entry->agno = pag->pag_agno;
+		__entry->dev = pag_mount(pag)->m_super->s_dev;
+		__entry->agno = pag_agno(pag);
 		__entry->domain = rec->rc_domain;
 		__entry->startblock = rec->rc_startblock;
 		__entry->blockcount = rec->rc_blockcount;
@@ -2144,8 +2144,8 @@ TRACE_EVENT(xrep_rmap_found,
 		__field(unsigned int, flags)
 	),
 	TP_fast_assign(
-		__entry->dev = pag->pag_mount->m_super->s_dev;
-		__entry->agno = pag->pag_agno;
+		__entry->dev = pag_mount(pag)->m_super->s_dev;
+		__entry->agno = pag_agno(pag);
 		__entry->agbno = rec->rm_startblock;
 		__entry->len = rec->rm_blockcount;
 		__entry->owner = rec->rm_owner;
@@ -2174,8 +2174,8 @@ TRACE_EVENT(xrep_findroot_block,
 		__field(uint16_t, level)
 	),
 	TP_fast_assign(
-		__entry->dev = pag->pag_mount->m_super->s_dev;
-		__entry->agno = pag->pag_agno;
+		__entry->dev = pag_mount(pag)->m_super->s_dev;
+		__entry->agno = pag_agno(pag);
 		__entry->agbno = agbno;
 		__entry->magic = magic;
 		__entry->level = level;
@@ -2201,8 +2201,8 @@ TRACE_EVENT(xrep_calc_ag_resblks,
 		__field(xfs_agblock_t, usedlen)
 	),
 	TP_fast_assign(
-		__entry->dev = pag->pag_mount->m_super->s_dev;
-		__entry->agno = pag->pag_agno;
+		__entry->dev = pag_mount(pag)->m_super->s_dev;
+		__entry->agno = pag_agno(pag);
 		__entry->icount = icount;
 		__entry->aglen = aglen;
 		__entry->freelen = freelen;
@@ -2230,8 +2230,8 @@ TRACE_EVENT(xrep_calc_ag_resblks_btsize,
 		__field(xfs_agblock_t, refcbt_sz)
 	),
 	TP_fast_assign(
-		__entry->dev = pag->pag_mount->m_super->s_dev;
-		__entry->agno = pag->pag_agno;
+		__entry->dev = pag_mount(pag)->m_super->s_dev;
+		__entry->agno = pag_agno(pag);
 		__entry->bnobt_sz = bnobt_sz;
 		__entry->inobt_sz = inobt_sz;
 		__entry->rmapbt_sz = rmapbt_sz;
@@ -2282,8 +2282,8 @@ DECLARE_EVENT_CLASS(xrep_newbt_extent_class,
 		__field(int64_t, owner)
 	),
 	TP_fast_assign(
-		__entry->dev = pag->pag_mount->m_super->s_dev;
-		__entry->agno = pag->pag_agno;
+		__entry->dev = pag_mount(pag)->m_super->s_dev;
+		__entry->agno = pag_agno(pag);
 		__entry->agbno = agbno;
 		__entry->len = len;
 		__entry->owner = owner;
@@ -2597,8 +2597,8 @@ TRACE_EVENT(xrep_cow_free_staging,
 		__field(xfs_extlen_t, blockcount)
 	),
 	TP_fast_assign(
-		__entry->dev = pag->pag_mount->m_super->s_dev;
-		__entry->agno = pag->pag_agno;
+		__entry->dev = pag_mount(pag)->m_super->s_dev;
+		__entry->agno = pag_agno(pag);
 		__entry->agbno = agbno;
 		__entry->blockcount = blockcount;
 	),
@@ -2657,8 +2657,8 @@ TRACE_EVENT(xrep_rmap_live_update,
 		__field(unsigned int, flags)
 	),
 	TP_fast_assign(
-		__entry->dev = pag->pag_mount->m_super->s_dev;
-		__entry->agno = pag->pag_agno;
+		__entry->dev = pag_mount(pag)->m_super->s_dev;
+		__entry->agno = pag_agno(pag);
 		__entry->op = op;
 		__entry->agbno = p->startblock;
 		__entry->len = p->blockcount;
@@ -3317,9 +3317,9 @@ TRACE_EVENT(xrep_iunlink_visit,
 		__field(xfs_agino_t, next_agino)
 	),
 	TP_fast_assign(
-		__entry->dev = pag->pag_mount->m_super->s_dev;
-		__entry->agno = pag->pag_agno;
-		__entry->agino = XFS_INO_TO_AGINO(pag->pag_mount, ip->i_ino);
+		__entry->dev = pag_mount(pag)->m_super->s_dev;
+		__entry->agno = pag_agno(pag);
+		__entry->agino = XFS_INO_TO_AGINO(pag_mount(pag), ip->i_ino);
 		__entry->bucket = bucket;
 		__entry->bucket_agino = bucket_agino;
 		__entry->prev_agino = ip->i_prev_unlinked;
@@ -3405,8 +3405,8 @@ TRACE_EVENT(xrep_iunlink_walk_ondisk_bucket,
 		__field(xfs_agino_t, next_agino)
 	),
 	TP_fast_assign(
-		__entry->dev = pag->pag_mount->m_super->s_dev;
-		__entry->agno = pag->pag_agno;
+		__entry->dev = pag_mount(pag)->m_super->s_dev;
+		__entry->agno = pag_agno(pag);
 		__entry->bucket = bucket;
 		__entry->prev_agino = prev_agino;
 		__entry->next_agino = next_agino;
@@ -3431,8 +3431,8 @@ DECLARE_EVENT_CLASS(xrep_iunlink_resolve_class,
 		__field(xfs_agino_t, next_agino)
 	),
 	TP_fast_assign(
-		__entry->dev = pag->pag_mount->m_super->s_dev;
-		__entry->agno = pag->pag_agno;
+		__entry->dev = pag_mount(pag)->m_super->s_dev;
+		__entry->agno = pag_agno(pag);
 		__entry->bucket = bucket;
 		__entry->prev_agino = prev_agino;
 		__entry->next_agino = next_agino;
@@ -3518,8 +3518,8 @@ TRACE_EVENT(xrep_iunlink_add_to_bucket,
 		__field(xfs_agino_t, next_agino)
 	),
 	TP_fast_assign(
-		__entry->dev = pag->pag_mount->m_super->s_dev;
-		__entry->agno = pag->pag_agno;
+		__entry->dev = pag_mount(pag)->m_super->s_dev;
+		__entry->agno = pag_agno(pag);
 		__entry->bucket = bucket;
 		__entry->agino = agino;
 		__entry->next_agino = curr_head;
@@ -3544,8 +3544,8 @@ TRACE_EVENT(xrep_iunlink_commit_bucket,
 		__field(xfs_agino_t, agino)
 	),
 	TP_fast_assign(
-		__entry->dev = pag->pag_mount->m_super->s_dev;
-		__entry->agno = pag->pag_agno;
+		__entry->dev = pag_mount(pag)->m_super->s_dev;
+		__entry->agno = pag_agno(pag);
 		__entry->bucket = bucket;
 		__entry->old_agino = old_agino;
 		__entry->agino = agino;

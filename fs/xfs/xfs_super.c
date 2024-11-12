@@ -238,7 +238,7 @@ xfs_set_inode_alloc_perag(
 	xfs_ino_t		ino,
 	xfs_agnumber_t		max_metadata)
 {
-	if (!xfs_is_inode32(pag->pag_mount)) {
+	if (!xfs_is_inode32(pag_mount(pag))) {
 		set_bit(XFS_AGSTATE_ALLOWS_INODES, &pag->pag_opstate);
 		clear_bit(XFS_AGSTATE_PREFERS_METADATA, &pag->pag_opstate);
 		return false;
@@ -251,7 +251,7 @@ xfs_set_inode_alloc_perag(
 	}
 
 	set_bit(XFS_AGSTATE_ALLOWS_INODES, &pag->pag_opstate);
-	if (pag->pag_agno < max_metadata)
+	if (pag_agno(pag) < max_metadata)
 		set_bit(XFS_AGSTATE_PREFERS_METADATA, &pag->pag_opstate);
 	else
 		clear_bit(XFS_AGSTATE_PREFERS_METADATA, &pag->pag_opstate);
@@ -2011,17 +2011,20 @@ static const struct fs_context_operations xfs_context_ops = {
  * mount option parsing having already been performed as this can be called from
  * fsopen() before any parameters have been set.
  */
-static int xfs_init_fs_context(
+static int
+xfs_init_fs_context(
 	struct fs_context	*fc)
 {
 	struct xfs_mount	*mp;
+	int			i;
 
 	mp = kzalloc(sizeof(struct xfs_mount), GFP_KERNEL | __GFP_NOFAIL);
 	if (!mp)
 		return -ENOMEM;
 
 	spin_lock_init(&mp->m_sb_lock);
-	xa_init(&mp->m_perags);
+	for (i = 0; i < XG_TYPE_MAX; i++)
+		xa_init(&mp->m_groups[i].xa);
 	mutex_init(&mp->m_growlock);
 	INIT_WORK(&mp->m_flush_inodes_work, xfs_flush_inodes_worker);
 	INIT_DELAYED_WORK(&mp->m_reclaim_work, xfs_reclaim_worker);

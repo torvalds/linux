@@ -145,7 +145,8 @@ xrep_cow_mark_shared_staging(
 	xrep_cow_trim_refcount(xc, &rrec, rec);
 
 	return xrep_cow_mark_file_range(xc,
-			xfs_agbno_to_fsb(cur->bc_ag.pag, rrec.rc_startblock),
+			xfs_agbno_to_fsb(to_perag(cur->bc_group),
+				rrec.rc_startblock),
 			rrec.rc_blockcount);
 }
 
@@ -176,8 +177,9 @@ xrep_cow_mark_missing_staging(
 	if (xc->next_bno >= rrec.rc_startblock)
 		goto next;
 
+
 	error = xrep_cow_mark_file_range(xc,
-			xfs_agbno_to_fsb(cur->bc_ag.pag, xc->next_bno),
+			xfs_agbno_to_fsb(to_perag(cur->bc_group), xc->next_bno),
 			rrec.rc_startblock - xc->next_bno);
 	if (error)
 		return error;
@@ -220,7 +222,8 @@ xrep_cow_mark_missing_staging_rmap(
 	}
 
 	return xrep_cow_mark_file_range(xc,
-			xfs_agbno_to_fsb(cur->bc_ag.pag, rec_bno), rec_len);
+			xfs_agbno_to_fsb(to_perag(cur->bc_group), rec_bno),
+			rec_len);
 }
 
 /*

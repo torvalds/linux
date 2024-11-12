@@ -601,7 +601,8 @@ xchk_bmap_check_rmap(
 			xchk_fblock_set_corrupt(sc, sbcri->whichfork,
 					check_rec.rm_offset);
 		if (irec.br_startblock !=
-		    xfs_agbno_to_fsb(cur->bc_ag.pag, check_rec.rm_startblock))
+		    xfs_agbno_to_fsb(to_perag(cur->bc_group),
+				check_rec.rm_startblock))
 			xchk_fblock_set_corrupt(sc, sbcri->whichfork,
 					check_rec.rm_offset);
 		if (irec.br_blockcount > check_rec.rm_blockcount)
@@ -760,11 +761,10 @@ xchk_bmap_check_rmaps(
 	struct xfs_scrub	*sc,
 	int			whichfork)
 {
-	struct xfs_perag	*pag;
-	xfs_agnumber_t		agno;
+	struct xfs_perag	*pag = NULL;
 	int			error;
 
-	for_each_perag(sc->mp, agno, pag) {
+	while ((pag = xfs_perag_next(sc->mp, pag))) {
 		error = xchk_bmap_check_ag_rmaps(sc, whichfork, pag);
 		if (error ||
 		    (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)) {

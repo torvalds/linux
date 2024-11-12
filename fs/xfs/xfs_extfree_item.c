@@ -362,7 +362,7 @@ xfs_extent_free_diff_items(
 	struct xfs_extent_free_item	*ra = xefi_entry(a);
 	struct xfs_extent_free_item	*rb = xefi_entry(b);
 
-	return ra->xefi_pag->pag_agno - rb->xefi_pag->pag_agno;
+	return ra->xefi_group->xg_gno - rb->xefi_group->xg_gno;
 }
 
 /* Log a free extent to the intent item. */
@@ -447,7 +447,8 @@ xfs_extent_free_defer_add(
 
 	trace_xfs_extent_free_defer(mp, xefi);
 
-	xefi->xefi_pag = xfs_perag_intent_get(mp, xefi->xefi_startblock);
+	xefi->xefi_group = xfs_group_intent_get(mp, xefi->xefi_startblock,
+			XG_TYPE_AG);
 	if (xefi->xefi_agresv == XFS_AG_RESV_AGFL)
 		*dfpp = xfs_defer_add(tp, &xefi->xefi_list,
 				&xfs_agfl_free_defer_type);
@@ -463,7 +464,7 @@ xfs_extent_free_cancel_item(
 {
 	struct xfs_extent_free_item	*xefi = xefi_entry(item);
 
-	xfs_perag_intent_put(xefi->xefi_pag);
+	xfs_group_intent_put(xefi->xefi_group);
 	kmem_cache_free(xfs_extfree_item_cache, xefi);
 }
 
@@ -499,7 +500,7 @@ xfs_extent_free_finish_item(
 	 * in this EFI to the EFD so this works correctly.
 	 */
 	if (!(xefi->xefi_flags & XFS_EFI_CANCELLED))
-		error = __xfs_free_extent(tp, xefi->xefi_pag, agbno,
+		error = __xfs_free_extent(tp, to_perag(xefi->xefi_group), agbno,
 				xefi->xefi_blockcount, &oinfo, xefi->xefi_agresv,
 				xefi->xefi_flags & XFS_EFI_SKIP_DISCARD);
 	if (error == -EAGAIN) {
@@ -545,7 +546,7 @@ xfs_agfl_free_finish_item(
 
 	trace_xfs_agfl_free_deferred(mp, xefi);
 
-	error = xfs_alloc_read_agf(xefi->xefi_pag, tp, 0, &agbp);
+	error = xfs_alloc_read_agf(to_perag(xefi->xefi_group), tp, 0, &agbp);
 	if (!error)
 		error = xfs_free_ag_extent(tp, agbp, agbno, 1, &oinfo,
 				XFS_AG_RESV_AGFL);
@@ -578,7 +579,8 @@ xfs_efi_recover_work(
 	xefi->xefi_blockcount = extp->ext_len;
 	xefi->xefi_agresv = XFS_AG_RESV_NONE;
 	xefi->xefi_owner = XFS_RMAP_OWN_UNKNOWN;
-	xefi->xefi_pag = xfs_perag_intent_get(mp, extp->ext_start);
+	xefi->xefi_group = xfs_group_intent_get(mp, extp->ext_start,
+			XG_TYPE_AG);
 
 	xfs_defer_add_item(dfp, &xefi->xefi_list);
 }

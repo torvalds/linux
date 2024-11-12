@@ -216,7 +216,8 @@ int xchk_metadata_inode_forks(struct xfs_scrub *sc);
 #define xchk_xfile_ag_descr(sc, fmt, ...) \
 	kasprintf(XCHK_GFP_FLAGS, "XFS (%s): AG 0x%x " fmt, \
 			(sc)->mp->m_super->s_id, \
-			(sc)->sa.pag ? (sc)->sa.pag->pag_agno : (sc)->sm->sm_agno, \
+			(sc)->sa.pag ? \
+				pag_agno((sc)->sa.pag) : (sc)->sm->sm_agno, \
 			##__VA_ARGS__)
 #define xchk_xfile_ino_descr(sc, fmt, ...) \
 	kasprintf(XCHK_GFP_FLAGS, "XFS (%s): inode 0x%llx " fmt, \

@@ -19,14 +19,22 @@
 #include "xfs_log.h"
 #include "xfs_ag.h"
 
+struct xfs_extent_busy_tree {
+	spinlock_t		eb_lock;
+	struct rb_root		eb_tree;
+	unsigned int		eb_gen;
+	wait_queue_head_t	eb_wait;
+};
+
 static void
 xfs_extent_busy_insert_list(
-	struct xfs_perag	*pag,
+	struct xfs_group	*xg,
 	xfs_agblock_t		bno,
 	xfs_extlen_t		len,
 	unsigned int		flags,
 	struct list_head	*busy_list)
 {
+	struct xfs_extent_busy_tree *eb = xg->xg_busy_extents;
 	struct xfs_extent_busy	*new;
 	struct xfs_extent_busy	*busyp;
 	struct rb_node		**rbp;
@@ -34,17 +42,17 @@ xfs_extent_busy_insert_list(
 
 	new = kzalloc(sizeof(struct xfs_extent_busy),
 			GFP_KERNEL | __GFP_NOFAIL);
-	new->pag = xfs_perag_hold(pag);
+	new->group = xfs_group_hold(xg);
 	new->bno = bno;
 	new->length = len;
 	INIT_LIST_HEAD(&new->list);
 	new->flags = flags;
 
 	/* trace before insert to be able to see failed inserts */
-	trace_xfs_extent_busy(pag, bno, len);
+	trace_xfs_extent_busy(xg, bno, len);
 
-	spin_lock(&pag->pagb_lock);
-	rbp = &pag->pagb_tree.rb_node;
+	spin_lock(&eb->eb_lock);
+	rbp = &eb->eb_tree.rb_node;
 	while (*rbp) {
 		parent = *rbp;
 		busyp = rb_entry(parent, struct xfs_extent_busy, rb_node);
@@ -61,32 +69,32 @@ xfs_extent_busy_insert_list(
 	}
 
 	rb_link_node(&new->rb_node, parent, rbp);
-	rb_insert_color(&new->rb_node, &pag->pagb_tree);
+	rb_insert_color(&new->rb_node, &eb->eb_tree);
 
 	/* always process discard lists in fifo order */
 	list_add_tail(&new->list, busy_list);
-	spin_unlock(&pag->pagb_lock);
+	spin_unlock(&eb->eb_lock);
 }
 
 void
 xfs_extent_busy_insert(
 	struct xfs_trans	*tp,
-	struct xfs_perag	*pag,
+	struct xfs_group	*xg,
 	xfs_agblock_t		bno,
 	xfs_extlen_t		len,
 	unsigned int		flags)
 {
-	xfs_extent_busy_insert_list(pag, bno, len, flags, &tp->t_busy);
+	xfs_extent_busy_insert_list(xg, bno, len, flags, &tp->t_busy);
 }
 
 void
 xfs_extent_busy_insert_discard(
-	struct xfs_perag	*pag,
+	struct xfs_group	*xg,
 	xfs_agblock_t		bno,
 	xfs_extlen_t		len,
 	struct list_head	*busy_list)
 {
-	xfs_extent_busy_insert_list(pag, bno, len, XFS_EXTENT_BUSY_DISCARDED,
+	xfs_extent_busy_insert_list(xg, bno, len, XFS_EXTENT_BUSY_DISCARDED,
 			busy_list);
 }
 
@@ -101,17 +109,18 @@ xfs_extent_busy_insert_discard(
  */
 int
 xfs_extent_busy_search(
-	struct xfs_perag	*pag,
+	struct xfs_group	*xg,
 	xfs_agblock_t		bno,
 	xfs_extlen_t		len)
 {
+	struct xfs_extent_busy_tree *eb = xg->xg_busy_extents;
 	struct rb_node		*rbp;
 	struct xfs_extent_busy	*busyp;
 	int			match = 0;
 
 	/* find closest start bno overlap */
-	spin_lock(&pag->pagb_lock);
-	rbp = pag->pagb_tree.rb_node;
+	spin_lock(&eb->eb_lock);
+	rbp = eb->eb_tree.rb_node;
 	while (rbp) {
 		busyp = rb_entry(rbp, struct xfs_extent_busy, rb_node);
 		if (bno < busyp->bno) {
@@ -130,7 +139,7 @@ xfs_extent_busy_search(
 			break;
 		}
 	}
-	spin_unlock(&pag->pagb_lock);
+	spin_unlock(&eb->eb_lock);
 	return match;
 }
 
@@ -147,13 +156,15 @@ xfs_extent_busy_search(
  */
 STATIC bool
 xfs_extent_busy_update_extent(
-	struct xfs_perag	*pag,
+	struct xfs_group	*xg,
 	struct xfs_extent_busy	*busyp,
 	xfs_agblock_t		fbno,
 	xfs_extlen_t		flen,
-	bool			userdata) __releases(&pag->pagb_lock)
-					  __acquires(&pag->pagb_lock)
+	bool			userdata)
+		__releases(&eb->eb_lock)
+		__acquires(&eb->eb_lock)
 {
+	struct xfs_extent_busy_tree *eb = xg->xg_busy_extents;
 	xfs_agblock_t		fend = fbno + flen;
 	xfs_agblock_t		bbno = busyp->bno;
 	xfs_agblock_t		bend = bbno + busyp->length;
@@ -164,9 +175,9 @@ xfs_extent_busy_update_extent(
 	 * and retry.
 	 */
 	if (busyp->flags & XFS_EXTENT_BUSY_DISCARDED) {
-		spin_unlock(&pag->pagb_lock);
+		spin_unlock(&eb->eb_lock);
 		delay(1);
-		spin_lock(&pag->pagb_lock);
+		spin_lock(&eb->eb_lock);
 		return false;
 	}
 
@@ -239,7 +250,7 @@ xfs_extent_busy_update_extent(
 		 * tree root, because erasing the node can rearrange the
 		 * tree topology.
 		 */
-		rb_erase(&busyp->rb_node, &pag->pagb_tree);
+		rb_erase(&busyp->rb_node, &eb->eb_tree);
 		busyp->length = 0;
 		return false;
 	} else if (fend < bend) {
@@ -278,14 +289,14 @@ xfs_extent_busy_update_extent(
 		ASSERT(0);
 	}
 
-	trace_xfs_extent_busy_reuse(pag, fbno, flen);
+	trace_xfs_extent_busy_reuse(xg, fbno, flen);
 	return true;
 
 out_force_log:
-	spin_unlock(&pag->pagb_lock);
-	xfs_log_force(pag->pag_mount, XFS_LOG_SYNC);
-	trace_xfs_extent_busy_force(pag, fbno, flen);
-	spin_lock(&pag->pagb_lock);
+	spin_unlock(&eb->eb_lock);
+	xfs_log_force(xg->xg_mount, XFS_LOG_SYNC);
+	trace_xfs_extent_busy_force(xg, fbno, flen);
+	spin_lock(&eb->eb_lock);
 	return false;
 }
 
@@ -294,17 +305,18 @@ out_force_log:
  */
 void
 xfs_extent_busy_reuse(
-	struct xfs_perag	*pag,
+	struct xfs_group	*xg,
 	xfs_agblock_t		fbno,
 	xfs_extlen_t		flen,
 	bool			userdata)
 {
+	struct xfs_extent_busy_tree *eb = xg->xg_busy_extents;
 	struct rb_node		*rbp;
 
 	ASSERT(flen > 0);
-	spin_lock(&pag->pagb_lock);
+	spin_lock(&eb->eb_lock);
 restart:
-	rbp = pag->pagb_tree.rb_node;
+	rbp = eb->eb_tree.rb_node;
 	while (rbp) {
 		struct xfs_extent_busy *busyp =
 			rb_entry(rbp, struct xfs_extent_busy, rb_node);
@@ -319,11 +331,11 @@ restart:
 			continue;
 		}
 
-		if (!xfs_extent_busy_update_extent(pag, busyp, fbno, flen,
+		if (!xfs_extent_busy_update_extent(xg, busyp, fbno, flen,
 						  userdata))
 			goto restart;
 	}
-	spin_unlock(&pag->pagb_lock);
+	spin_unlock(&eb->eb_lock);
 }
 
 /*
@@ -332,7 +344,7 @@ restart:
  * args->minlen no suitable extent could be found, and the higher level
  * code needs to force out the log and retry the allocation.
  *
- * Return the current busy generation for the AG if the extent is busy. This
+ * Return the current busy generation for the group if the extent is busy. This
  * value can be used to wait for at least one of the currently busy extents
  * to be cleared. Note that the busy list is not guaranteed to be empty after
  * the gen is woken. The state of a specific extent must always be confirmed
@@ -340,11 +352,14 @@ restart:
  */
 bool
 xfs_extent_busy_trim(
-	struct xfs_alloc_arg	*args,
+	struct xfs_group	*xg,
+	xfs_extlen_t		minlen,
+	xfs_extlen_t		maxlen,
 	xfs_agblock_t		*bno,
 	xfs_extlen_t		*len,
 	unsigned		*busy_gen)
 {
+	struct xfs_extent_busy_tree *eb = xg->xg_busy_extents;
 	xfs_agblock_t		fbno;
 	xfs_extlen_t		flen;
 	struct rb_node		*rbp;
@@ -352,11 +367,11 @@ xfs_extent_busy_trim(
 
 	ASSERT(*len > 0);
 
-	spin_lock(&args->pag->pagb_lock);
+	spin_lock(&eb->eb_lock);
 	fbno = *bno;
 	flen = *len;
-	rbp = args->pag->pagb_tree.rb_node;
-	while (rbp && flen >= args->minlen) {
+	rbp = eb->eb_tree.rb_node;
+	while (rbp && flen >= minlen) {
 		struct xfs_extent_busy *busyp =
 			rb_entry(rbp, struct xfs_extent_busy, rb_node);
 		xfs_agblock_t	fend = fbno + flen;
@@ -477,13 +492,13 @@ xfs_extent_busy_trim(
 			 * good chance subsequent allocations will be
 			 * contiguous.
 			 */
-			if (bbno - fbno >= args->maxlen) {
+			if (bbno - fbno >= maxlen) {
 				/* left candidate fits perfect */
 				fend = bbno;
-			} else if (fend - bend >= args->maxlen * 4) {
+			} else if (fend - bend >= maxlen * 4) {
 				/* right candidate has enough free space */
 				fbno = bend;
-			} else if (bbno - fbno >= args->minlen) {
+			} else if (bbno - fbno >= minlen) {
 				/* left candidate fits minimum requirement */
 				fend = bbno;
 			} else {
@@ -496,13 +511,13 @@ xfs_extent_busy_trim(
 out:
 
 	if (fbno != *bno || flen != *len) {
-		trace_xfs_extent_busy_trim(args->pag, *bno, *len, fbno, flen);
+		trace_xfs_extent_busy_trim(xg, *bno, *len, fbno, flen);
 		*bno = fbno;
 		*len = flen;
-		*busy_gen = args->pag->pagb_gen;
+		*busy_gen = eb->eb_gen;
 		ret = true;
 	}
-	spin_unlock(&args->pag->pagb_lock);
+	spin_unlock(&eb->eb_lock);
 	return ret;
 fail:
 	/*
@@ -515,22 +530,24 @@ fail:
 
 static bool
 xfs_extent_busy_clear_one(
-	struct xfs_perag	*pag,
 	struct xfs_extent_busy	*busyp,
 	bool			do_discard)
 {
+	struct xfs_extent_busy_tree *eb = busyp->group->xg_busy_extents;
+
 	if (busyp->length) {
 		if (do_discard &&
 		    !(busyp->flags & XFS_EXTENT_BUSY_SKIP_DISCARD)) {
 			busyp->flags = XFS_EXTENT_BUSY_DISCARDED;
 			return false;
 		}
-		trace_xfs_extent_busy_clear(pag, busyp->bno, busyp->length);
-		rb_erase(&busyp->rb_node, &pag->pagb_tree);
+		trace_xfs_extent_busy_clear(busyp->group, busyp->bno,
+				busyp->length);
+		rb_erase(&busyp->rb_node, &eb->eb_tree);
 	}
 
 	list_del_init(&busyp->list);
-	xfs_perag_put(busyp->pag);
+	xfs_group_put(busyp->group);
 	kfree(busyp);
 	return true;
 }
@@ -552,29 +569,30 @@ xfs_extent_busy_clear(
 		return;
 
 	do {
-		struct xfs_perag	*pag = xfs_perag_hold(busyp->pag);
+		struct xfs_group	*xg = xfs_group_hold(busyp->group);
+		struct xfs_extent_busy_tree *eb = xg->xg_busy_extents;
 		bool			wakeup = false;
 
-		spin_lock(&pag->pagb_lock);
+		spin_lock(&eb->eb_lock);
 		do {
 			next = list_next_entry(busyp, list);
-			if (xfs_extent_busy_clear_one(pag, busyp, do_discard))
+			if (xfs_extent_busy_clear_one(busyp, do_discard))
 				wakeup = true;
 			busyp = next;
 		} while (!list_entry_is_head(busyp, list, list) &&
-			 busyp->pag == pag);
+			 busyp->group == xg);
 
 		if (wakeup) {
-			pag->pagb_gen++;
-			wake_up_all(&pag->pagb_wait);
+			eb->eb_gen++;
+			wake_up_all(&eb->eb_wait);
 		}
-		spin_unlock(&pag->pagb_lock);
-		xfs_perag_put(pag);
+		spin_unlock(&eb->eb_lock);
+		xfs_group_put(xg);
 	} while (!list_entry_is_head(busyp, list, list));
 }
 
 /*
- * Flush out all busy extents for this AG.
+ * Flush out all busy extents for this group.
  *
  * If the current transaction is holding busy extents, the caller may not want
  * to wait for committed busy extents to resolve. If we are being told just to
@@ -590,10 +608,11 @@ xfs_extent_busy_clear(
 int
 xfs_extent_busy_flush(
 	struct xfs_trans	*tp,
-	struct xfs_perag	*pag,
+	struct xfs_group	*xg,
 	unsigned		busy_gen,
 	uint32_t		alloc_flags)
 {
+	struct xfs_extent_busy_tree *eb = xg->xg_busy_extents;
 	DEFINE_WAIT		(wait);
 	int			error;
 
@@ -606,7 +625,7 @@ xfs_extent_busy_flush(
 		if (alloc_flags & XFS_ALLOC_FLAG_TRYFLUSH)
 			return 0;
 
-		if (busy_gen != READ_ONCE(pag->pagb_gen))
+		if (busy_gen != READ_ONCE(eb->eb_gen))
 			return 0;
 
 		if (alloc_flags & XFS_ALLOC_FLAG_FREEING)
@@ -615,37 +634,44 @@ xfs_extent_busy_flush(
 
 	/* Wait for committed busy extents to resolve. */
 	do {
-		prepare_to_wait(&pag->pagb_wait, &wait, TASK_KILLABLE);
-		if  (busy_gen != READ_ONCE(pag->pagb_gen))
+		prepare_to_wait(&eb->eb_wait, &wait, TASK_KILLABLE);
+		if  (busy_gen != READ_ONCE(eb->eb_gen))
 			break;
 		schedule();
 	} while (1);
 
-	finish_wait(&pag->pagb_wait, &wait);
+	finish_wait(&eb->eb_wait, &wait);
 	return 0;
+}
+
+static void
+xfs_extent_busy_wait_group(
+	struct xfs_group	*xg)
+{
+	DEFINE_WAIT		(wait);
+	struct xfs_extent_busy_tree *eb = xg->xg_busy_extents;
+
+	do {
+		prepare_to_wait(&eb->eb_wait, &wait, TASK_KILLABLE);
+		if  (RB_EMPTY_ROOT(&eb->eb_tree))
+			break;
+		schedule();
+	} while (1);
+	finish_wait(&eb->eb_wait, &wait);
 }
 
 void
 xfs_extent_busy_wait_all(
 	struct xfs_mount	*mp)
 {
-	struct xfs_perag	*pag;
-	DEFINE_WAIT		(wait);
-	xfs_agnumber_t		agno;
+	struct xfs_perag	*pag = NULL;
 
-	for_each_perag(mp, agno, pag) {
-		do {
-			prepare_to_wait(&pag->pagb_wait, &wait, TASK_KILLABLE);
-			if  (RB_EMPTY_ROOT(&pag->pagb_tree))
-				break;
-			schedule();
-		} while (1);
-		finish_wait(&pag->pagb_wait, &wait);
-	}
+	while ((pag = xfs_perag_next(mp, pag)))
+		xfs_extent_busy_wait_group(pag_group(pag));
 }
 
 /*
- * Callback for list_sort to sort busy extents by the AG they reside in.
+ * Callback for list_sort to sort busy extents by the group they reside in.
  */
 int
 xfs_extent_busy_ag_cmp(
@@ -659,21 +685,38 @@ xfs_extent_busy_ag_cmp(
 		container_of(l2, struct xfs_extent_busy, list);
 	s32 diff;
 
-	diff = b1->pag->pag_agno - b2->pag->pag_agno;
+	diff = b1->group->xg_gno - b2->group->xg_gno;
 	if (!diff)
 		diff = b1->bno - b2->bno;
 	return diff;
 }
 
-/* Are there any busy extents in this AG? */
+/* Are there any busy extents in this group? */
 bool
 xfs_extent_busy_list_empty(
-	struct xfs_perag	*pag)
+	struct xfs_group	*xg,
+	unsigned		*busy_gen)
 {
+	struct xfs_extent_busy_tree *eb = xg->xg_busy_extents;
 	bool			res;
 
-	spin_lock(&pag->pagb_lock);
-	res = RB_EMPTY_ROOT(&pag->pagb_tree);
-	spin_unlock(&pag->pagb_lock);
+	spin_lock(&eb->eb_lock);
+	res = RB_EMPTY_ROOT(&eb->eb_tree);
+	*busy_gen = READ_ONCE(eb->eb_gen);
+	spin_unlock(&eb->eb_lock);
 	return res;
+}
+
+struct xfs_extent_busy_tree *
+xfs_extent_busy_alloc(void)
+{
+	struct xfs_extent_busy_tree *eb;
+
+	eb = kzalloc(sizeof(*eb), GFP_KERNEL);
+	if (!eb)
+		return NULL;
+	spin_lock_init(&eb->eb_lock);
+	init_waitqueue_head(&eb->eb_wait);
+	eb->eb_tree = RB_ROOT;
+	return eb;
 }
