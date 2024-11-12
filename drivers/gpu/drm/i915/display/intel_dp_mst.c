@@ -1785,7 +1785,7 @@ static struct intel_dp_mst_encoder *
 intel_dp_create_fake_mst_encoder(struct intel_digital_port *dig_port, enum pipe pipe)
 {
 	struct intel_dp_mst_encoder *intel_mst;
-	struct intel_encoder *intel_encoder;
+	struct intel_encoder *encoder;
 	struct drm_device *dev = dig_port->base.base.dev;
 
 	intel_mst = kzalloc(sizeof(*intel_mst), GFP_KERNEL);
@@ -1794,16 +1794,16 @@ intel_dp_create_fake_mst_encoder(struct intel_digital_port *dig_port, enum pipe 
 		return NULL;
 
 	intel_mst->pipe = pipe;
-	intel_encoder = &intel_mst->base;
+	encoder = &intel_mst->base;
 	intel_mst->primary = dig_port;
 
-	drm_encoder_init(dev, &intel_encoder->base, &intel_dp_mst_enc_funcs,
+	drm_encoder_init(dev, &encoder->base, &intel_dp_mst_enc_funcs,
 			 DRM_MODE_ENCODER_DPMST, "DP-MST %c", pipe_name(pipe));
 
-	intel_encoder->type = INTEL_OUTPUT_DP_MST;
-	intel_encoder->power_domain = dig_port->base.power_domain;
-	intel_encoder->port = dig_port->base.port;
-	intel_encoder->cloneable = 0;
+	encoder->type = INTEL_OUTPUT_DP_MST;
+	encoder->power_domain = dig_port->base.power_domain;
+	encoder->port = dig_port->base.port;
+	encoder->cloneable = 0;
 	/*
 	 * This is wrong, but broken userspace uses the intersection
 	 * of possible_crtcs of all the encoders of a given connector
@@ -1812,22 +1812,22 @@ intel_dp_create_fake_mst_encoder(struct intel_digital_port *dig_port, enum pipe 
 	 * To keep such userspace functioning we must misconfigure
 	 * this to make sure the intersection is not empty :(
 	 */
-	intel_encoder->pipe_mask = ~0;
+	encoder->pipe_mask = ~0;
 
-	intel_encoder->compute_config = intel_dp_mst_compute_config;
-	intel_encoder->compute_config_late = intel_dp_mst_compute_config_late;
-	intel_encoder->disable = intel_mst_disable_dp;
-	intel_encoder->post_disable = intel_mst_post_disable_dp;
-	intel_encoder->post_pll_disable = intel_mst_post_pll_disable_dp;
-	intel_encoder->update_pipe = intel_ddi_update_pipe;
-	intel_encoder->pre_pll_enable = intel_mst_pre_pll_enable_dp;
-	intel_encoder->pre_enable = intel_mst_pre_enable_dp;
-	intel_encoder->enable = intel_mst_enable_dp;
-	intel_encoder->audio_enable = intel_audio_codec_enable;
-	intel_encoder->audio_disable = intel_audio_codec_disable;
-	intel_encoder->get_hw_state = intel_dp_mst_enc_get_hw_state;
-	intel_encoder->get_config = intel_dp_mst_enc_get_config;
-	intel_encoder->initial_fastset_check = intel_dp_mst_initial_fastset_check;
+	encoder->compute_config = intel_dp_mst_compute_config;
+	encoder->compute_config_late = intel_dp_mst_compute_config_late;
+	encoder->disable = intel_mst_disable_dp;
+	encoder->post_disable = intel_mst_post_disable_dp;
+	encoder->post_pll_disable = intel_mst_post_pll_disable_dp;
+	encoder->update_pipe = intel_ddi_update_pipe;
+	encoder->pre_pll_enable = intel_mst_pre_pll_enable_dp;
+	encoder->pre_enable = intel_mst_pre_enable_dp;
+	encoder->enable = intel_mst_enable_dp;
+	encoder->audio_enable = intel_audio_codec_enable;
+	encoder->audio_disable = intel_audio_codec_disable;
+	encoder->get_hw_state = intel_dp_mst_enc_get_hw_state;
+	encoder->get_config = intel_dp_mst_enc_get_config;
+	encoder->initial_fastset_check = intel_dp_mst_initial_fastset_check;
 
 	return intel_mst;
 
