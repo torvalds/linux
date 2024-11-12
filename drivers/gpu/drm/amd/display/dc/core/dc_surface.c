@@ -270,4 +270,50 @@ void dc_3dlut_func_retain(struct dc_3dlut *lut)
 	kref_get(&lut->refcount);
 }
 
+void dc_plane_force_update_for_panic(struct dc_plane_state *plane_state,
+				     bool clear_tiling)
+{
+	struct dc *dc;
+	int i;
 
+	if (!plane_state)
+		return;
+
+	dc = plane_state->ctx->dc;
+
+	if (!dc || !dc->current_state)
+		return;
+
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		struct pipe_ctx *pipe_ctx = &dc->current_state->res_ctx.pipe_ctx[i];
+
+		if (!pipe_ctx)
+			continue;
+
+		if (dc->ctx->dce_version >= DCE_VERSION_MAX) {
+			struct hubp *hubp = pipe_ctx->plane_res.hubp;
+			if (!hubp)
+				continue;
+			/* if framebuffer is tiled, disable tiling */
+			if (clear_tiling && hubp->funcs->hubp_clear_tiling)
+				hubp->funcs->hubp_clear_tiling(hubp);
+
+			/* force page flip to see the new content of the framebuffer */
+			hubp->funcs->hubp_program_surface_flip_and_addr(hubp,
+									&plane_state->address,
+									true);
+		} else {
+			struct mem_input *mi = pipe_ctx->plane_res.mi;
+			if (!mi)
+				continue;
+			/* if framebuffer is tiled, disable tiling */
+			if (clear_tiling && mi->funcs->mem_input_clear_tiling)
+				mi->funcs->mem_input_clear_tiling(mi);
+
+			/* force page flip to see the new content of the framebuffer */
+			mi->funcs->mem_input_program_surface_flip_and_addr(mi,
+									   &plane_state->address,
+									   true);
+		}
+	}
+}
