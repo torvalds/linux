@@ -858,6 +858,10 @@ int simple_util_init_aux_jacks(struct simple_util_priv *priv, char *prefix)
 }
 EXPORT_SYMBOL_GPL(simple_util_init_aux_jacks);
 
+static struct simple_util_dai dummy_util_dais = {
+	.name = "dummy_util_dais",
+};
+
 int simple_util_init_priv(struct simple_util_priv *priv,
 			  struct link_info *li)
 {
@@ -929,6 +933,7 @@ int simple_util_init_priv(struct simple_util_priv *priv,
 			dai_link[i].cpus	= &snd_soc_dummy_dlc;
 			dai_props[i].num.cpus	=
 			dai_link[i].num_cpus	= 1;
+			dai_props[i].cpu_dai	= &dummy_util_dais;
 		}
 
 		if (li->num[i].codecs) {
@@ -951,6 +956,7 @@ int simple_util_init_priv(struct simple_util_priv *priv,
 			dai_link[i].codecs	= &snd_soc_dummy_dlc;
 			dai_props[i].num.codecs	=
 			dai_link[i].num_codecs	= 1;
+			dai_props[i].codec_dai	= &dummy_util_dais;
 		}
 
 		if (li->num[i].platforms) {
