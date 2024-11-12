@@ -82,7 +82,7 @@ uint64_t sve_vl_out;
 uint64_t sme_vl_out;
 uint64_t svcr_in, svcr_expected, svcr_out;
 
-void load_and_save(int sve, int sme, int sme2, int fa64);
+void load_and_save(int flags);
 
 static bool got_alarm;
 
@@ -198,7 +198,7 @@ static int vl_expected(struct test_config *config)
 
 static void run_child(struct test_config *config)
 {
-	int ret;
+	int ret, flags;
 
 	/* Let the parent attach to us */
 	ret = ptrace(PTRACE_TRACEME, 0, 0, 0);
@@ -224,8 +224,17 @@ static void run_child(struct test_config *config)
 	}
 
 	/* Load values and wait for the parent */
-	load_and_save(sve_supported(), sme_supported(),
-		      sme2_supported(), fa64_supported());
+	flags = 0;
+	if (sve_supported())
+		flags |= HAVE_SVE;
+	if (sme_supported())
+		flags |= HAVE_SME;
+	if (sme2_supported())
+		flags |= HAVE_SME2;
+	if (fa64_supported())
+		flags |= HAVE_FA64;
+
+	load_and_save(flags);
 
 	exit(0);
 }
