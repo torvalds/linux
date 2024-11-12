@@ -742,6 +742,7 @@ TRUNNER_EXTRA_SOURCES := test_progs.c		\
 			 unpriv_helpers.c 	\
 			 netlink_helpers.c	\
 			 jit_disasm_helpers.c	\
+			 io_helpers.c		\
 			 test_loader.c		\
 			 xsk.c			\
 			 disasm.c		\
