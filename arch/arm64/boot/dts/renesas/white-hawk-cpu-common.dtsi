@@ -167,8 +167,7 @@
 				     "ethernet-phy-ieee802.3-c22";
 			rxc-skew-ps = <1500>;
 			reg = <0>;
-			interrupt-parent = <&gpio7>;
-			interrupts = <5 IRQ_TYPE_LEVEL_LOW>;
+			interrupts-extended = <&gpio7 5 IRQ_TYPE_LEVEL_LOW>;
 			reset-gpios = <&gpio7 10 GPIO_ACTIVE_LOW>;
 		};
 	};
@@ -216,8 +215,7 @@
 	io_expander_a: gpio@20 {
 		compatible = "onnn,pca9654";
 		reg = <0x20>;
-		interrupt-parent = <&gpio0>;
-		interrupts = <0 IRQ_TYPE_LEVEL_LOW>;
+		interrupts-extended = <&gpio0 0 IRQ_TYPE_LEVEL_LOW>;
 		gpio-controller;
 		#gpio-cells = <2>;
 		interrupt-controller;
@@ -246,8 +244,7 @@
 		clocks = <&sn65dsi86_refclk>;
 		clock-names = "refclk";
 
-		interrupt-parent = <&intc_ex>;
-		interrupts = <0 IRQ_TYPE_LEVEL_HIGH>;
+		interrupts-extended = <&intc_ex 0 IRQ_TYPE_LEVEL_HIGH>;
 
 		enable-gpios = <&gpio1 26 GPIO_ACTIVE_HIGH>;
 
@@ -302,7 +299,7 @@
 };
 
 &pciec0 {
-	reset-gpio = <&io_expander_a 0 GPIO_ACTIVE_LOW>;
+	reset-gpios = <&io_expander_a 0 GPIO_ACTIVE_LOW>;
 	status = "okay";
 };
 

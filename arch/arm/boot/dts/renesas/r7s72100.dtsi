@@ -36,7 +36,7 @@
 		clock-div = <3>;
 	};
 
-	bsc: bsc {
+	bsc: bus {
 		compatible = "simple-bus";
 		#address-cells = <1>;
 		#size-cells = <1>;
@@ -333,8 +333,6 @@
 				     <GIC_SPI 267 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&mstp8_clks R7S72100_CLK_MMCIF>;
 			power-domains = <&cpg_clocks>;
-			reg-io-width = <4>;
-			bus-width = <8>;
 			status = "disabled";
 		};
 
