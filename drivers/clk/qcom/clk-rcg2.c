@@ -2000,6 +2000,7 @@ static long clk_rcg2_crmc_list_rate(struct clk_hw *hw, unsigned int n,
 static struct clk_regmap_ops clk_rcg2_crmc_regmap_ops = {
 	.set_crm_rate = clk_rcg2_crmc_hw_set_rate,
 	.list_rate = clk_rcg2_crmc_list_rate,
+	.list_registers = clk_rcg2_list_registers,
 };
 
 static int clk_rcg2_crmc_init(struct clk_hw *hw)
@@ -2173,6 +2174,7 @@ unsigned long clk_rcg2_crmb_hw_set_bw(struct clk_hw *hw,
 static struct clk_regmap_ops clk_rcg2_crmb_regmap_ops = {
 	.set_crm_rate = clk_rcg2_crmb_hw_set_bw,
 	.list_rate = clk_rcg2_list_rate,
+	.list_registers = clk_rcg2_list_registers,
 };
 
 static int clk_rcg2_crmb_init(struct clk_hw *hw)
