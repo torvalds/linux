@@ -40,7 +40,6 @@
 STATIC int	xfs_qm_init_quotainos(struct xfs_mount *mp);
 STATIC int	xfs_qm_init_quotainfo(struct xfs_mount *mp);
 
-STATIC void	xfs_qm_destroy_quotainos(struct xfs_quotainfo *qi);
 STATIC void	xfs_qm_dqfree_one(struct xfs_dquot *dqp);
 /*
  * We use the batch lookup interface to iterate over the dquots as it
@@ -226,6 +225,24 @@ xfs_qm_unmount_rt(
 	xfs_rtgroup_rele(rtg);
 }
 
+STATIC void
+xfs_qm_destroy_quotainos(
+	struct xfs_quotainfo	*qi)
+{
+	if (qi->qi_uquotaip) {
+		xfs_irele(qi->qi_uquotaip);
+		qi->qi_uquotaip = NULL; /* paranoia */
+	}
+	if (qi->qi_gquotaip) {
+		xfs_irele(qi->qi_gquotaip);
+		qi->qi_gquotaip = NULL;
+	}
+	if (qi->qi_pquotaip) {
+		xfs_irele(qi->qi_pquotaip);
+		qi->qi_pquotaip = NULL;
+	}
+}
+
 /*
  * Called from the vfsops layer.
  */
@@ -250,20 +267,8 @@ xfs_qm_unmount_quotas(
 	/*
 	 * Release the quota inodes.
 	 */
-	if (mp->m_quotainfo) {
-		if (mp->m_quotainfo->qi_uquotaip) {
-			xfs_irele(mp->m_quotainfo->qi_uquotaip);
-			mp->m_quotainfo->qi_uquotaip = NULL;
-		}
-		if (mp->m_quotainfo->qi_gquotaip) {
-			xfs_irele(mp->m_quotainfo->qi_gquotaip);
-			mp->m_quotainfo->qi_gquotaip = NULL;
-		}
-		if (mp->m_quotainfo->qi_pquotaip) {
-			xfs_irele(mp->m_quotainfo->qi_pquotaip);
-			mp->m_quotainfo->qi_pquotaip = NULL;
-		}
-	}
+	if (mp->m_quotainfo)
+		xfs_qm_destroy_quotainos(mp->m_quotainfo);
 }
 
 STATIC int
@@ -640,6 +645,157 @@ xfs_qm_init_timelimits(
 	xfs_qm_dqdestroy(dqp);
 }
 
+static int
+xfs_qm_load_metadir_qinos(
+	struct xfs_mount	*mp,
+	struct xfs_quotainfo	*qi,
+	struct xfs_inode	**dpp)
+{
+	struct xfs_trans	*tp;
+	int			error;
+
+	error = xfs_trans_alloc_empty(mp, &tp);
+	if (error)
+		return error;
+
+	error = xfs_dqinode_load_parent(tp, dpp);
+	if (error == -ENOENT) {
+		/* no quota dir directory, but we'll create one later */
+		error = 0;
+		goto out_trans;
+	}
+	if (error)
+		goto out_trans;
+
+	if (XFS_IS_UQUOTA_ON(mp)) {
+		error = xfs_dqinode_load(tp, *dpp, XFS_DQTYPE_USER,
+				&qi->qi_uquotaip);
+		if (error && error != -ENOENT)
+			goto out_trans;
+	}
+
+	if (XFS_IS_GQUOTA_ON(mp)) {
+		error = xfs_dqinode_load(tp, *dpp, XFS_DQTYPE_GROUP,
+				&qi->qi_gquotaip);
+		if (error && error != -ENOENT)
+			goto out_trans;
+	}
+
+	if (XFS_IS_PQUOTA_ON(mp)) {
+		error = xfs_dqinode_load(tp, *dpp, XFS_DQTYPE_PROJ,
+				&qi->qi_pquotaip);
+		if (error && error != -ENOENT)
+			goto out_trans;
+	}
+
+	error = 0;
+out_trans:
+	xfs_trans_cancel(tp);
+	return error;
+}
+
+/* Create quota inodes in the metadata directory tree. */
+STATIC int
+xfs_qm_create_metadir_qinos(
+	struct xfs_mount	*mp,
+	struct xfs_quotainfo	*qi,
+	struct xfs_inode	**dpp)
+{
+	int			error;
+
+	if (!*dpp) {
+		error = xfs_dqinode_mkdir_parent(mp, dpp);
+		if (error && error != -EEXIST)
+			return error;
+	}
+
+	if (XFS_IS_UQUOTA_ON(mp) && !qi->qi_uquotaip) {
+		error = xfs_dqinode_metadir_create(*dpp, XFS_DQTYPE_USER,
+				&qi->qi_uquotaip);
+		if (error)
+			return error;
+	}
+
+	if (XFS_IS_GQUOTA_ON(mp) && !qi->qi_gquotaip) {
+		error = xfs_dqinode_metadir_create(*dpp, XFS_DQTYPE_GROUP,
+				&qi->qi_gquotaip);
+		if (error)
+			return error;
+	}
+
+	if (XFS_IS_PQUOTA_ON(mp) && !qi->qi_pquotaip) {
+		error = xfs_dqinode_metadir_create(*dpp, XFS_DQTYPE_PROJ,
+				&qi->qi_pquotaip);
+		if (error)
+			return error;
+	}
+
+	return 0;
+}
+
+/*
+ * Add QUOTABIT to sb_versionnum and initialize qflags in preparation for
+ * creating quota files on a metadir filesystem.
+ */
+STATIC int
+xfs_qm_prep_metadir_sb(
+	struct xfs_mount	*mp)
+{
+	struct xfs_trans	*tp;
+	int			error;
+
+	error = xfs_trans_alloc(mp, &M_RES(mp)->tr_sb, 0, 0, 0, &tp);
+	if (error)
+		return error;
+
+	spin_lock(&mp->m_sb_lock);
+
+	xfs_add_quota(mp);
+
+	/* qflags will get updated fully _after_ quotacheck */
+	mp->m_sb.sb_qflags = mp->m_qflags & XFS_ALL_QUOTA_ACCT;
+
+	spin_unlock(&mp->m_sb_lock);
+	xfs_log_sb(tp);
+
+	return xfs_trans_commit(tp);
+}
+
+/*
+ * Load existing quota inodes or create them.  Since this is a V5 filesystem,
+ * we don't have to deal with the grp/prjquota switcheroo thing from V4.
+ */
+STATIC int
+xfs_qm_init_metadir_qinos(
+	struct xfs_mount	*mp)
+{
+	struct xfs_quotainfo	*qi = mp->m_quotainfo;
+	struct xfs_inode	*dp = NULL;
+	int			error;
+
+	if (!xfs_has_quota(mp)) {
+		error = xfs_qm_prep_metadir_sb(mp);
+		if (error)
+			return error;
+	}
+
+	error = xfs_qm_load_metadir_qinos(mp, qi, &dp);
+	if (error)
+		goto out_err;
+
+	error = xfs_qm_create_metadir_qinos(mp, qi, &dp);
+	if (error)
+		goto out_err;
+
+	xfs_irele(dp);
+	return 0;
+out_err:
+	xfs_qm_destroy_quotainos(mp->m_quotainfo);
+	if (dp)
+		xfs_irele(dp);
+	return error;
+}
+
 /*
  * This initializes all the quota information that's kept in the
  * mount structure
@@ -664,7 +820,10 @@ xfs_qm_init_quotainfo(
 	 * See if quotainodes are setup, and if not, allocate them,
 	 * and change the superblock accordingly.
 	 */
-	error = xfs_qm_init_quotainos(mp);
+	if (xfs_has_metadir(mp))
+		error = xfs_qm_init_metadir_qinos(mp);
+	else
+		error = xfs_qm_init_quotainos(mp);
 	if (error)
 		goto out_free_lru;
 
@@ -1576,7 +1735,7 @@ xfs_qm_mount_quotas(
 	}
 
 	if (error) {
-		xfs_warn(mp, "Failed to initialize disk quotas.");
+		xfs_warn(mp, "Failed to initialize disk quotas, err %d.", error);
 		return;
 	}
 }
@@ -1595,31 +1754,26 @@ xfs_qm_qino_load(
 	xfs_dqtype_t		type,
 	struct xfs_inode	**ipp)
 {
-	xfs_ino_t		ino = NULLFSINO;
-	enum xfs_metafile_type	metafile_type = XFS_METAFILE_UNKNOWN;
+	struct xfs_trans	*tp;
+	struct xfs_inode	*dp = NULL;
+	int			error;
 
-	switch (type) {
-	case XFS_DQTYPE_USER:
-		ino = mp->m_sb.sb_uquotino;
-		metafile_type = XFS_METAFILE_USRQUOTA;
-		break;
-	case XFS_DQTYPE_GROUP:
-		ino = mp->m_sb.sb_gquotino;
-		metafile_type = XFS_METAFILE_GRPQUOTA;
-		break;
-	case XFS_DQTYPE_PROJ:
-		ino = mp->m_sb.sb_pquotino;
-		metafile_type = XFS_METAFILE_PRJQUOTA;
-		break;
-	default:
-		ASSERT(0);
-		return -EFSCORRUPTED;
+	error = xfs_trans_alloc_empty(mp, &tp);
+	if (error)
+		return error;
+
+	if (xfs_has_metadir(mp)) {
+		error = xfs_dqinode_load_parent(tp, &dp);
+		if (error)
+			goto out_cancel;
 	}
 
-	if (ino == NULLFSINO)
-		return -ENOENT;
-
-	return xfs_metafile_iget(mp, ino, metafile_type, ipp);
+	error = xfs_dqinode_load(tp, dp, type, ipp);
+	if (dp)
+		xfs_irele(dp);
+out_cancel:
+	xfs_trans_cancel(tp);
+	return error;
 }
 
 /*
@@ -1710,24 +1864,6 @@ error_rele:
 	if (pip)
 		xfs_irele(pip);
 	return error;
-}
-
-STATIC void
-xfs_qm_destroy_quotainos(
-	struct xfs_quotainfo	*qi)
-{
-	if (qi->qi_uquotaip) {
-		xfs_irele(qi->qi_uquotaip);
-		qi->qi_uquotaip = NULL; /* paranoia */
-	}
-	if (qi->qi_gquotaip) {
-		xfs_irele(qi->qi_gquotaip);
-		qi->qi_gquotaip = NULL;
-	}
-	if (qi->qi_pquotaip) {
-		xfs_irele(qi->qi_pquotaip);
-		qi->qi_pquotaip = NULL;
-	}
 }
 
 STATIC void

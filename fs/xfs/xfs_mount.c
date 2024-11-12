@@ -853,6 +853,13 @@ xfs_mountfs(
 		goto out_fail_wait;
 
 	/*
+	 * If we're resuming quota status, pick up the preliminary qflags from
+	 * the ondisk superblock so that we know if we should recover dquots.
+	 */
+	if (xfs_is_resuming_quotaon(mp))
+		xfs_qm_resume_quotaon(mp);
+
+	/*
 	 * Log's mount-time initialization. The first part of recovery can place
 	 * some items on the AIL, to be handled when recovery is finished or
 	 * cancelled.
@@ -864,6 +871,14 @@ xfs_mountfs(
 		xfs_warn(mp, "log mount failed");
 		goto out_inodegc_shrinker;
 	}
+
+	/*
+	 * If we're resuming quota status and recovered the log, re-sample the
+	 * qflags from the ondisk superblock now that we've recovered it, just
+	 * in case someone shut down enforcement just before a crash.
+	 */
+	if (xfs_clear_resuming_quotaon(mp) && xlog_recovery_needed(mp->m_log))
+		xfs_qm_resume_quotaon(mp);
 
 	/*
 	 * If logged xattrs are still enabled after log recovery finishes, then

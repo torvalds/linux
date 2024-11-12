@@ -165,6 +165,74 @@ out_put_rtg:
 # define xchk_setup_metapath_rtginode(...)	(-ENOENT)
 #endif /* CONFIG_XFS_RT */
 
+#ifdef CONFIG_XFS_QUOTA
+/* Scan the /quota directory itself. */
+static int
+xchk_setup_metapath_quotadir(
+	struct xfs_scrub	*sc)
+{
+	struct xfs_trans	*tp;
+	struct xfs_inode	*dp = NULL;
+	int			error;
+
+	error = xfs_trans_alloc_empty(sc->mp, &tp);
+	if (error)
+		return error;
+
+	error = xfs_dqinode_load_parent(tp, &dp);
+	xfs_trans_cancel(tp);
+	if (error)
+		return error;
+
+	error = xchk_setup_metapath_scan(sc, sc->mp->m_metadirip,
+			kasprintf(GFP_KERNEL, "quota"), dp);
+	xfs_irele(dp);
+	return error;
+}
+
+/* Scan a quota inode under the /quota directory. */
+static int
+xchk_setup_metapath_dqinode(
+	struct xfs_scrub	*sc,
+	xfs_dqtype_t		type)
+{
+	struct xfs_trans	*tp = NULL;
+	struct xfs_inode	*dp = NULL;
+	struct xfs_inode	*ip = NULL;
+	const char		*path;
+	int			error;
+
+	error = xfs_trans_alloc_empty(sc->mp, &tp);
+	if (error)
+		return error;
+
+	error = xfs_dqinode_load_parent(tp, &dp);
+	if (error)
+		goto out_cancel;
+
+	error = xfs_dqinode_load(tp, dp, type, &ip);
+	if (error)
+		goto out_dp;
+
+	xfs_trans_cancel(tp);
+	tp = NULL;
+
+	path = kasprintf(GFP_KERNEL, "%s", xfs_dqinode_path(type));
+	error = xchk_setup_metapath_scan(sc, dp, path, ip);
+
+	xfs_irele(ip);
+out_dp:
+	xfs_irele(dp);
+out_cancel:
+	if (tp)
+		xfs_trans_cancel(tp);
+	return error;
+}
+#else
+# define xchk_setup_metapath_quotadir(...)	(-ENOENT)
+# define xchk_setup_metapath_dqinode(...)	(-ENOENT)
+#endif /* CONFIG_XFS_QUOTA */
+
 int
 xchk_setup_metapath(
 	struct xfs_scrub	*sc)
@@ -186,6 +254,14 @@ xchk_setup_metapath(
 		return xchk_setup_metapath_rtginode(sc, XFS_RTGI_BITMAP);
 	case XFS_SCRUB_METAPATH_RTSUMMARY:
 		return xchk_setup_metapath_rtginode(sc, XFS_RTGI_SUMMARY);
+	case XFS_SCRUB_METAPATH_QUOTADIR:
+		return xchk_setup_metapath_quotadir(sc);
+	case XFS_SCRUB_METAPATH_USRQUOTA:
+		return xchk_setup_metapath_dqinode(sc, XFS_DQTYPE_USER);
+	case XFS_SCRUB_METAPATH_GRPQUOTA:
+		return xchk_setup_metapath_dqinode(sc, XFS_DQTYPE_GROUP);
+	case XFS_SCRUB_METAPATH_PRJQUOTA:
+		return xchk_setup_metapath_dqinode(sc, XFS_DQTYPE_PROJ);
 	default:
 		return -ENOENT;
 	}

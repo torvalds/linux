@@ -499,6 +499,8 @@ __XFS_HAS_FEAT(nouuid, NOUUID)
 #define XFS_OPSTATE_WARNED_PPTR		16
 /* Kernel has logged a warning about metadata dirs being used on this fs. */
 #define XFS_OPSTATE_WARNED_METADIR	17
+/* Filesystem should use qflags to determine quotaon status */
+#define XFS_OPSTATE_RESUMING_QUOTAON	18
 
 #define __XFS_IS_OPSTATE(name, NAME) \
 static inline bool xfs_is_ ## name (struct xfs_mount *mp) \
@@ -523,9 +525,24 @@ __XFS_IS_OPSTATE(inodegc_enabled, INODEGC_ENABLED)
 __XFS_IS_OPSTATE(blockgc_enabled, BLOCKGC_ENABLED)
 #ifdef CONFIG_XFS_QUOTA
 __XFS_IS_OPSTATE(quotacheck_running, QUOTACHECK_RUNNING)
+__XFS_IS_OPSTATE(resuming_quotaon, RESUMING_QUOTAON)
 #else
-# define xfs_is_quotacheck_running(mp)	(false)
-#endif
+static inline bool xfs_is_quotacheck_running(struct xfs_mount *mp)
+{
+	return false;
+}
+static inline bool xfs_is_resuming_quotaon(struct xfs_mount *mp)
+{
+	return false;
+}
+static inline void xfs_set_resuming_quotaon(struct xfs_mount *m)
+{
+}
+static inline bool xfs_clear_resuming_quotaon(struct xfs_mount *mp)
+{
+	return false;
+}
+#endif /* CONFIG_XFS_QUOTA */
 __XFS_IS_OPSTATE(done_with_log_incompat, UNSET_LOG_INCOMPAT)
 __XFS_IS_OPSTATE(using_logged_xattrs, USE_LARP)
 

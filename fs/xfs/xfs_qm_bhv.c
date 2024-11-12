@@ -135,3 +135,21 @@ xfs_qm_newmount(
 
 	return 0;
 }
+
+/*
+ * If the sysadmin didn't provide any quota mount options, restore the quota
+ * accounting and enforcement state from the ondisk superblock.  Only do this
+ * for metadir filesystems because this is a behavior change.
+ */
+void
+xfs_qm_resume_quotaon(
+	struct xfs_mount	*mp)
+{
+	if (!xfs_has_metadir(mp))
+		return;
+	if (xfs_has_norecovery(mp))
+		return;
+
+	mp->m_qflags = mp->m_sb.sb_qflags & (XFS_ALL_QUOTA_ACCT |
+					     XFS_ALL_QUOTA_ENFD);
+}

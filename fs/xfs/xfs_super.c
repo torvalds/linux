@@ -67,6 +67,9 @@ enum xfs_dax_mode {
 	XFS_DAX_NEVER = 2,
 };
 
+/* Were quota mount options provided?  Must use the upper 16 bits of qflags. */
+#define XFS_QFLAGS_MNTOPTS	(1U << 31)
+
 static void
 xfs_mount_set_dax_mode(
 	struct xfs_mount	*mp,
@@ -1264,6 +1267,8 @@ xfs_fs_parse_param(
 	int			size = 0;
 	int			opt;
 
+	BUILD_BUG_ON(XFS_QFLAGS_MNTOPTS & XFS_MOUNT_QUOTA_ALL);
+
 	opt = fs_parse(fc, xfs_fs_parameters, param, &result);
 	if (opt < 0)
 		return opt;
@@ -1341,32 +1346,39 @@ xfs_fs_parse_param(
 	case Opt_noquota:
 		parsing_mp->m_qflags &= ~XFS_ALL_QUOTA_ACCT;
 		parsing_mp->m_qflags &= ~XFS_ALL_QUOTA_ENFD;
+		parsing_mp->m_qflags |= XFS_QFLAGS_MNTOPTS;
 		return 0;
 	case Opt_quota:
 	case Opt_uquota:
 	case Opt_usrquota:
 		parsing_mp->m_qflags |= (XFS_UQUOTA_ACCT | XFS_UQUOTA_ENFD);
+		parsing_mp->m_qflags |= XFS_QFLAGS_MNTOPTS;
 		return 0;
 	case Opt_qnoenforce:
 	case Opt_uqnoenforce:
 		parsing_mp->m_qflags |= XFS_UQUOTA_ACCT;
 		parsing_mp->m_qflags &= ~XFS_UQUOTA_ENFD;
+		parsing_mp->m_qflags |= XFS_QFLAGS_MNTOPTS;
 		return 0;
 	case Opt_pquota:
 	case Opt_prjquota:
 		parsing_mp->m_qflags |= (XFS_PQUOTA_ACCT | XFS_PQUOTA_ENFD);
+		parsing_mp->m_qflags |= XFS_QFLAGS_MNTOPTS;
 		return 0;
 	case Opt_pqnoenforce:
 		parsing_mp->m_qflags |= XFS_PQUOTA_ACCT;
 		parsing_mp->m_qflags &= ~XFS_PQUOTA_ENFD;
+		parsing_mp->m_qflags |= XFS_QFLAGS_MNTOPTS;
 		return 0;
 	case Opt_gquota:
 	case Opt_grpquota:
 		parsing_mp->m_qflags |= (XFS_GQUOTA_ACCT | XFS_GQUOTA_ENFD);
+		parsing_mp->m_qflags |= XFS_QFLAGS_MNTOPTS;
 		return 0;
 	case Opt_gqnoenforce:
 		parsing_mp->m_qflags |= XFS_GQUOTA_ACCT;
 		parsing_mp->m_qflags &= ~XFS_GQUOTA_ENFD;
+		parsing_mp->m_qflags |= XFS_QFLAGS_MNTOPTS;
 		return 0;
 	case Opt_discard:
 		parsing_mp->m_features |= XFS_FEAT_DISCARD;
@@ -1433,7 +1445,8 @@ xfs_fs_validate_params(
 		return -EINVAL;
 	}
 
-	if (!IS_ENABLED(CONFIG_XFS_QUOTA) && mp->m_qflags != 0) {
+	if (!IS_ENABLED(CONFIG_XFS_QUOTA) &&
+	    (mp->m_qflags & ~XFS_QFLAGS_MNTOPTS)) {
 		xfs_warn(mp, "quota support not available in this kernel.");
 		return -EINVAL;
 	}
@@ -1768,6 +1781,14 @@ xfs_fs_fill_super(
 	if (xfs_has_parent(mp))
 		xfs_warn_experimental(mp, XFS_EXPERIMENTAL_PPTR);
 
+	/*
+	 * If no quota mount options were provided, maybe we'll try to pick
+	 * up the quota accounting and enforcement flags from the ondisk sb.
+	 */
+	if (!(mp->m_qflags & XFS_QFLAGS_MNTOPTS))
+		xfs_set_resuming_quotaon(mp);
+	mp->m_qflags &= ~XFS_QFLAGS_MNTOPTS;
+
 	error = xfs_mountfs(mp);
 	if (error)
 		goto out_filestream_unmount;
@@ -1953,6 +1974,8 @@ xfs_fs_reconfigure(
 	struct xfs_mount        *new_mp = fc->s_fs_info;
 	int			flags = fc->sb_flags;
 	int			error;
+
+	new_mp->m_qflags &= ~XFS_QFLAGS_MNTOPTS;
 
 	/* version 5 superblocks always support version counters. */
 	if (xfs_has_crc(mp))
