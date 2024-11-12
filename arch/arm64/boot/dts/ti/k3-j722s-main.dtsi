@@ -135,7 +135,7 @@
 		ranges;
 		status = "disabled";
 
-		usb1: usb@31200000{
+		usb1: usb@31200000 {
 			compatible = "cdns,usb3";
 			reg = <0x00 0x31200000 0x00 0x10000>,
 			      <0x00 0x31210000 0x00 0x10000>,

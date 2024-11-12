@@ -56,6 +56,7 @@ properties:
           - enum:
               - toradex,verdin-am62-nonwifi-dahlia # Verdin AM62 Module on Dahlia
               - toradex,verdin-am62-nonwifi-dev    # Verdin AM62 Module on Verdin Development Board
+              - toradex,verdin-am62-nonwifi-ivy    # Verdin AM62 Module on Ivy
               - toradex,verdin-am62-nonwifi-mallow # Verdin AM62 Module on Mallow
               - toradex,verdin-am62-nonwifi-yavia  # Verdin AM62 Module on Yavia
           - const: toradex,verdin-am62-nonwifi     # Verdin AM62 Module without Wi-Fi / BT
@@ -67,6 +68,7 @@ properties:
           - enum:
               - toradex,verdin-am62-wifi-dahlia # Verdin AM62 Wi-Fi / BT Module on Dahlia
               - toradex,verdin-am62-wifi-dev    # Verdin AM62 Wi-Fi / BT M. on Verdin Development B.
+              - toradex,verdin-am62-wifi-ivy    # Verdin AM62 Wi-Fi / BT Module on Ivy
               - toradex,verdin-am62-wifi-mallow # Verdin AM62 Wi-Fi / BT Module on Mallow
               - toradex,verdin-am62-wifi-yavia  # Verdin AM62 Wi-Fi / BT Module on Yavia
           - const: toradex,verdin-am62-wifi     # Verdin AM62 Wi-Fi / BT Module
@@ -143,6 +145,12 @@ properties:
               - beagle,am67a-beagley-ai
               - ti,j722s-evm
           - const: ti,j722s
+
+      - description: K3 J742S2 SoC
+        items:
+          - enum:
+              - ti,j742s2-evm
+          - const: ti,j742s2
 
       - description: K3 J784s4 SoC
         items:
