@@ -1760,11 +1760,6 @@ struct msm_gpu *a5xx_gpu_init(struct drm_device *dev)
 	unsigned int nr_rings;
 	int ret;
 
-	if (!pdev) {
-		DRM_DEV_ERROR(dev->dev, "No A5XX device is defined\n");
-		return ERR_PTR(-ENXIO);
-	}
-
 	a5xx_gpu = kzalloc(sizeof(*a5xx_gpu), GFP_KERNEL);
 	if (!a5xx_gpu)
 		return ERR_PTR(-ENOMEM);
