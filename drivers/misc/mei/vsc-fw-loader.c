@@ -334,7 +334,7 @@ static int vsc_identify_silicon(struct vsc_fw_loader *fw_loader)
 	sub_version = FIELD_GET(VSC_SUBSTEPPING_VERSION_MASK, ack->payload[0]);
 
 	if (version != VSC_MAINSTEPPING_VERSION_A) {
-		dev_err(fw_loader->dev, "maintstepping mismatch expected %d got %d\n",
+		dev_err(fw_loader->dev, "mainstepping mismatch expected %d got %d\n",
 			VSC_MAINSTEPPING_VERSION_A, version);
 		return -EINVAL;
 	}
