@@ -3,6 +3,7 @@
 #include <sys/time.h>
 #include <sys/resource.h>
 #include "test_send_signal_kern.skel.h"
+#include "io_helpers.h"
 
 static int sigusr1_received;
 
@@ -24,6 +25,7 @@ static void test_send_signal_common(struct perf_event_attr *attr,
 	int pipe_c2p[2], pipe_p2c[2];
 	int err = -1, pmu_fd = -1;
 	volatile int j = 0;
+	int retry_count;
 	char buf[256];
 	pid_t pid;
 	int old_prio;
@@ -163,21 +165,25 @@ static void test_send_signal_common(struct perf_event_attr *attr,
 	/* notify child that bpf program can send_signal now */
 	ASSERT_EQ(write(pipe_p2c[1], buf, 1), 1, "pipe_write");
 
-	/* For the remote test, the BPF program is triggered from this
-	 * process but the other process/thread is signaled.
-	 */
-	if (remote) {
-		if (!attr) {
-			for (int i = 0; i < 10; i++)
-				usleep(1);
-		} else {
-			for (int i = 0; i < 100000000; i++)
-				j /= i + 1;
+	for (retry_count = 0;;) {
+		/* For the remote test, the BPF program is triggered from this
+		 * process but the other process/thread is signaled.
+		 */
+		if (remote) {
+			if (!attr) {
+				for (int i = 0; i < 10; i++)
+					usleep(1);
+			} else {
+				for (int i = 0; i < 100000000; i++)
+					j /= i + 1;
+			}
 		}
+		/* wait for result */
+		err = read_with_timeout(pipe_c2p[0], buf, 1, 100);
+		if (err == -EAGAIN && retry_count++ < 10000)
+			continue;
+		break;
 	}
-
-	/* wait for result */
-	err = read(pipe_c2p[0], buf, 1);
 	if (!ASSERT_GE(err, 0, "reading pipe"))
 		goto disable_pmu;
 	if (!ASSERT_GT(err, 0, "reading pipe error: size 0")) {
