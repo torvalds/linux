@@ -1790,6 +1790,7 @@ static const struct drm_dp_mst_topology_cbs mst_cbs = {
 static struct intel_dp_mst_encoder *
 intel_dp_create_fake_mst_encoder(struct intel_digital_port *dig_port, enum pipe pipe)
 {
+	struct intel_encoder *primary_encoder = &dig_port->base;
 	struct intel_dp_mst_encoder *intel_mst;
 	struct intel_encoder *encoder;
 	struct drm_device *dev = dig_port->base.base.dev;
@@ -1807,8 +1808,8 @@ intel_dp_create_fake_mst_encoder(struct intel_digital_port *dig_port, enum pipe 
 			 DRM_MODE_ENCODER_DPMST, "DP-MST %c", pipe_name(pipe));
 
 	encoder->type = INTEL_OUTPUT_DP_MST;
-	encoder->power_domain = dig_port->base.power_domain;
-	encoder->port = dig_port->base.port;
+	encoder->power_domain = primary_encoder->power_domain;
+	encoder->port = primary_encoder->port;
 	encoder->cloneable = 0;
 	/*
 	 * This is wrong, but broken userspace uses the intersection
