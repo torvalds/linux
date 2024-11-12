@@ -576,7 +576,7 @@ static int smb_handle_negotiate(struct ksmbd_work *work)
 
 	ksmbd_debug(SMB, "Unsupported SMB1 protocol\n");
 
-	if (ksmbd_iov_pin_rsp(work, (void *)neg_rsp,
+	if (ksmbd_iov_pin_rsp(work, (void *)neg_rsp + 4,
 			      sizeof(struct smb_negotiate_rsp) - 4))
 		return -ENOMEM;
 
