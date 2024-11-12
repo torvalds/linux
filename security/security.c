@@ -4138,10 +4138,8 @@ int security_getselfattr(unsigned int attr, struct lsm_ctx __user *uctx,
 		if (base)
 			uctx = (struct lsm_ctx __user *)(base + total);
 		rc = scall->hl->hook.getselfattr(attr, uctx, &entrysize, flags);
-		if (rc == -EOPNOTSUPP) {
-			rc = 0;
+		if (rc == -EOPNOTSUPP)
 			continue;
-		}
 		if (rc == -E2BIG) {
 			rc = 0;
 			left = 0;
