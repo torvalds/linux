@@ -153,12 +153,6 @@ properties:
           - isil,isl29028
             # Intersil ISL29030 Ambient Light and Proximity Sensor
           - isil,isl29030
-            # Intersil ISL68137 Digital Output Configurable PWM Controller
-          - isil,isl68137
-            # Intersil ISL69260 PMBus Voltage Regulator
-          - isil,isl69260
-            # Intersil ISL69269 PMBus Voltage Regulator
-          - isil,isl69269
             # Intersil ISL76682 Ambient Light Sensor
           - isil,isl76682
             # JEDEC JESD300 (SPD5118) Hub and Serial Presence Detect
