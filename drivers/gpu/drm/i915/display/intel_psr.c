@@ -1892,7 +1892,7 @@ static void intel_psr_enable_source(struct intel_dp *intel_dp,
 
 	if (intel_dp->psr.sel_update_enabled) {
 		if (DISPLAY_VER(display) == 9)
-			intel_de_rmw(display, CHICKEN_TRANS(cpu_transcoder), 0,
+			intel_de_rmw(display, CHICKEN_TRANS(display, cpu_transcoder), 0,
 				     PSR2_VSC_ENABLE_PROG_HEADER |
 				     PSR2_ADD_VERTICAL_LINE_COUNT);
 
@@ -1904,7 +1904,7 @@ static void intel_psr_enable_source(struct intel_dp *intel_dp,
 		if (!intel_dp->psr.panel_replay_enabled &&
 		    (IS_DISPLAY_VERx100_STEP(display, 1400, STEP_A0, STEP_B0) ||
 		     IS_ALDERLAKE_P(dev_priv)))
-			intel_de_rmw(display, hsw_chicken_trans_reg(dev_priv, cpu_transcoder),
+			intel_de_rmw(display, CHICKEN_TRANS(display, cpu_transcoder),
 				     0, ADLP_1_BASED_X_GRANULARITY);
 
 		/* Wa_16012604467:adlp,mtl[a0,b0] */

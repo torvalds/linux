@@ -1326,8 +1326,8 @@ static void intel_mst_enable_dp(struct intel_atomic_state *state,
 	if (ret < 0)
 		intel_dp_queue_modeset_retry_for_link(state, primary_encoder, pipe_config);
 
-	if (DISPLAY_VER(dev_priv) >= 12)
-		intel_de_rmw(dev_priv, hsw_chicken_trans_reg(dev_priv, trans),
+	if (DISPLAY_VER(display) >= 12)
+		intel_de_rmw(display, CHICKEN_TRANS(display, trans),
 			     FECSTALL_DIS_DPTSTREAM_DPTTG,
 			     pipe_config->fec_enable ? FECSTALL_DIS_DPTSTREAM_DPTTG : 0);
 
