@@ -258,7 +258,86 @@ bool lockdep_rtnl_net_is_held(struct net *net)
 	return lockdep_rtnl_is_held() && lockdep_is_held(&net->rtnl_mutex);
 }
 EXPORT_SYMBOL(lockdep_rtnl_net_is_held);
+#else
+static int rtnl_net_cmp_locks(const struct net *net_a, const struct net *net_b)
+{
+	/* No need to swap */
+	return -1;
+}
 #endif
+
+struct rtnl_nets {
+	/* ->newlink() needs to freeze 3 netns at most;
+	 * 2 for the new device, 1 for its peer.
+	 */
+	struct net *net[3];
+	unsigned char len;
+};
+
+static void rtnl_nets_init(struct rtnl_nets *rtnl_nets)
+{
+	memset(rtnl_nets, 0, sizeof(*rtnl_nets));
+}
+
+static void rtnl_nets_destroy(struct rtnl_nets *rtnl_nets)
+{
+	int i;
+
+	for (i = 0; i < rtnl_nets->len; i++) {
+		put_net(rtnl_nets->net[i]);
+		rtnl_nets->net[i] = NULL;
+	}
+
+	rtnl_nets->len = 0;
+}
+
+/**
+ * rtnl_nets_add - Add netns to be locked before ->newlink().
+ *
+ * @rtnl_nets: rtnl_nets pointer passed to ->get_peer_net().
+ * @net: netns pointer with an extra refcnt held.
+ *
+ * The extra refcnt is released in rtnl_nets_destroy().
+ */
+static void rtnl_nets_add(struct rtnl_nets *rtnl_nets, struct net *net)
+{
+	int i;
+
+	DEBUG_NET_WARN_ON_ONCE(rtnl_nets->len == ARRAY_SIZE(rtnl_nets->net));
+
+	for (i = 0; i < rtnl_nets->len; i++) {
+		switch (rtnl_net_cmp_locks(rtnl_nets->net[i], net)) {
+		case 0:
+			put_net(net);
+			return;
+		case 1:
+			swap(rtnl_nets->net[i], net);
+		}
+	}
+
+	rtnl_nets->net[i] = net;
+	rtnl_nets->len++;
+}
+
+static void rtnl_nets_lock(struct rtnl_nets *rtnl_nets)
+{
+	int i;
+
+	rtnl_lock();
+
+	for (i = 0; i < rtnl_nets->len; i++)
+		__rtnl_net_lock(rtnl_nets->net[i]);
+}
+
+static void rtnl_nets_unlock(struct rtnl_nets *rtnl_nets)
+{
+	int i;
+
+	for (i = 0; i < rtnl_nets->len; i++)
+		__rtnl_net_unlock(rtnl_nets->net[i]);
+
+	rtnl_unlock();
+}
 
 static struct rtnl_link __rcu *__rcu *rtnl_msg_handlers[RTNL_FAMILY_MAX + 1];
 
@@ -466,6 +545,7 @@ void __rtnl_unregister_many(const struct rtnl_msg_handler *handlers, int n)
 }
 EXPORT_SYMBOL_GPL(__rtnl_unregister_many);
 
+static DEFINE_MUTEX(link_ops_mutex);
 static LIST_HEAD(link_ops);
 
 static struct rtnl_link_ops *rtnl_link_ops_get(const char *kind, int *srcu_index)
@@ -494,27 +574,20 @@ static void rtnl_link_ops_put(struct rtnl_link_ops *ops, int srcu_index)
 }
 
 /**
- * __rtnl_link_register - Register rtnl_link_ops with rtnetlink.
+ * rtnl_link_register - Register rtnl_link_ops with rtnetlink.
  * @ops: struct rtnl_link_ops * to register
- *
- * The caller must hold the rtnl_mutex. This function should be used
- * by drivers that create devices during module initialization. It
- * must be called before registering the devices.
  *
  * Returns 0 on success or a negative error code.
  */
-int __rtnl_link_register(struct rtnl_link_ops *ops)
+int rtnl_link_register(struct rtnl_link_ops *ops)
 {
 	struct rtnl_link_ops *tmp;
 	int err;
 
-	/* When RTNL is removed, add lock for link_ops. */
-	ASSERT_RTNL();
-
-	list_for_each_entry(tmp, &link_ops, list) {
-		if (!strcmp(ops->kind, tmp->kind))
-			return -EEXIST;
-	}
+	/* Sanity-check max sizes to avoid stack buffer overflow. */
+	if (WARN_ON(ops->maxtype > RTNL_MAX_TYPE ||
+		    ops->slave_maxtype > RTNL_SLAVE_MAX_TYPE))
+		return -EINVAL;
 
 	/* The check for alloc/setup is here because if ops
 	 * does not have that filled up, it is not possible
@@ -528,30 +601,19 @@ int __rtnl_link_register(struct rtnl_link_ops *ops)
 	if (err)
 		return err;
 
+	mutex_lock(&link_ops_mutex);
+
+	list_for_each_entry(tmp, &link_ops, list) {
+		if (!strcmp(ops->kind, tmp->kind)) {
+			err = -EEXIST;
+			goto unlock;
+		}
+	}
+
 	list_add_tail_rcu(&ops->list, &link_ops);
+unlock:
+	mutex_unlock(&link_ops_mutex);
 
-	return 0;
-}
-EXPORT_SYMBOL_GPL(__rtnl_link_register);
-
-/**
- * rtnl_link_register - Register rtnl_link_ops with rtnetlink.
- * @ops: struct rtnl_link_ops * to register
- *
- * Returns 0 on success or a negative error code.
- */
-int rtnl_link_register(struct rtnl_link_ops *ops)
-{
-	int err;
-
-	/* Sanity-check max sizes to avoid stack buffer overflow. */
-	if (WARN_ON(ops->maxtype > RTNL_MAX_TYPE ||
-		    ops->slave_maxtype > RTNL_SLAVE_MAX_TYPE))
-		return -EINVAL;
-
-	rtnl_lock();
-	err = __rtnl_link_register(ops);
-	rtnl_unlock();
 	return err;
 }
 EXPORT_SYMBOL_GPL(rtnl_link_register);
@@ -567,27 +629,6 @@ static void __rtnl_kill_links(struct net *net, struct rtnl_link_ops *ops)
 	}
 	unregister_netdevice_many(&list_kill);
 }
-
-/**
- * __rtnl_link_unregister - Unregister rtnl_link_ops from rtnetlink.
- * @ops: struct rtnl_link_ops * to unregister
- *
- * The caller must hold the rtnl_mutex and guarantee net_namespace_list
- * integrity (hold pernet_ops_rwsem for writing to close the race
- * with setup_net() and cleanup_net()).
- */
-void __rtnl_link_unregister(struct rtnl_link_ops *ops)
-{
-	struct net *net;
-
-	list_del_rcu(&ops->list);
-	synchronize_srcu(&ops->srcu);
-	cleanup_srcu_struct(&ops->srcu);
-
-	for_each_net(net)
-		__rtnl_kill_links(net, ops);
-}
-EXPORT_SYMBOL_GPL(__rtnl_link_unregister);
 
 /* Return with the rtnl_lock held when there are no network
  * devices unregistering in any network namespace.
@@ -617,10 +658,22 @@ static void rtnl_lock_unregistering_all(void)
  */
 void rtnl_link_unregister(struct rtnl_link_ops *ops)
 {
+	struct net *net;
+
+	mutex_lock(&link_ops_mutex);
+	list_del_rcu(&ops->list);
+	mutex_unlock(&link_ops_mutex);
+
+	synchronize_srcu(&ops->srcu);
+	cleanup_srcu_struct(&ops->srcu);
+
 	/* Close the race with setup_net() and cleanup_net() */
 	down_write(&pernet_ops_rwsem);
 	rtnl_lock_unregistering_all();
-	__rtnl_link_unregister(ops);
+
+	for_each_net(net)
+		__rtnl_kill_links(net, ops);
+
 	rtnl_unlock();
 	up_write(&pernet_ops_rwsem);
 }
@@ -2459,9 +2512,10 @@ int rtnl_nla_parse_ifinfomsg(struct nlattr **tb, const struct nlattr *nla_peer,
 }
 EXPORT_SYMBOL(rtnl_nla_parse_ifinfomsg);
 
-struct net *rtnl_link_get_net(struct net *src_net, struct nlattr *tb[])
+static struct net *rtnl_link_get_net_ifla(struct nlattr *tb[])
 {
-	struct net *net;
+	struct net *net = NULL;
+
 	/* Examine the link attributes and figure out which
 	 * network namespace we are talking about.
 	 */
@@ -2469,8 +2523,17 @@ struct net *rtnl_link_get_net(struct net *src_net, struct nlattr *tb[])
 		net = get_net_ns_by_pid(nla_get_u32(tb[IFLA_NET_NS_PID]));
 	else if (tb[IFLA_NET_NS_FD])
 		net = get_net_ns_by_fd(nla_get_u32(tb[IFLA_NET_NS_FD]));
-	else
+
+	return net;
+}
+
+struct net *rtnl_link_get_net(struct net *src_net, struct nlattr *tb[])
+{
+	struct net *net = rtnl_link_get_net_ifla(tb);
+
+	if (!net)
 		net = get_net(src_net);
+
 	return net;
 }
 EXPORT_SYMBOL(rtnl_link_get_net);
@@ -3316,6 +3379,7 @@ static int rtnl_setlink(struct sk_buff *skb, struct nlmsghdr *nlh,
 	struct net *net = sock_net(skb->sk);
 	struct nlattr *tb[IFLA_MAX+1];
 	struct net_device *dev = NULL;
+	struct rtnl_nets rtnl_nets;
 	struct net *tgt_net;
 	int err;
 
@@ -3334,6 +3398,12 @@ static int rtnl_setlink(struct sk_buff *skb, struct nlmsghdr *nlh,
 		goto errout;
 	}
 
+	rtnl_nets_init(&rtnl_nets);
+	rtnl_nets_add(&rtnl_nets, get_net(net));
+	rtnl_nets_add(&rtnl_nets, tgt_net);
+
+	rtnl_nets_lock(&rtnl_nets);
+
 	if (ifm->ifi_index > 0)
 		dev = __dev_get_by_index(net, ifm->ifi_index);
 	else if (tb[IFLA_IFNAME] || tb[IFLA_ALT_IFNAME])
@@ -3346,7 +3416,7 @@ static int rtnl_setlink(struct sk_buff *skb, struct nlmsghdr *nlh,
 	else if (!err)
 		err = -ENODEV;
 
-	put_net(tgt_net);
+	rtnl_nets_unlock(&rtnl_nets);
 errout:
 	return err;
 }
@@ -3431,6 +3501,8 @@ static int rtnl_dellink(struct sk_buff *skb, struct nlmsghdr *nlh,
 			return PTR_ERR(tgt_net);
 	}
 
+	rtnl_net_lock(tgt_net);
+
 	if (ifm->ifi_index > 0)
 		dev = __dev_get_by_index(tgt_net, ifm->ifi_index);
 	else if (tb[IFLA_IFNAME] || tb[IFLA_ALT_IFNAME])
@@ -3444,6 +3516,8 @@ static int rtnl_dellink(struct sk_buff *skb, struct nlmsghdr *nlh,
 		err = rtnl_group_dellink(tgt_net, nla_get_u32(tb[IFLA_GROUP]));
 	else
 		err = -EINVAL;
+
+	rtnl_net_unlock(tgt_net);
 
 	if (netnsid >= 0)
 		put_net(tgt_net);
@@ -3732,6 +3806,37 @@ out_unregister:
 	goto out;
 }
 
+static int rtnl_add_peer_net(struct rtnl_nets *rtnl_nets,
+			     const struct rtnl_link_ops *ops,
+			     struct nlattr *data[],
+			     struct netlink_ext_ack *extack)
+{
+	struct nlattr *tb[IFLA_MAX + 1];
+	struct net *net;
+	int err;
+
+	if (!data || !data[ops->peer_type])
+		return 0;
+
+	err = rtnl_nla_parse_ifinfomsg(tb, data[ops->peer_type], extack);
+	if (err < 0)
+		return err;
+
+	if (ops->validate) {
+		err = ops->validate(tb, NULL, extack);
+		if (err < 0)
+			return err;
+	}
+
+	net = rtnl_link_get_net_ifla(tb);
+	if (IS_ERR(net))
+		return PTR_ERR(net);
+	if (net)
+		rtnl_nets_add(rtnl_nets, net);
+
+	return 0;
+}
+
 static int __rtnl_newlink(struct sk_buff *skb, struct nlmsghdr *nlh,
 			  const struct rtnl_link_ops *ops,
 			  struct net *tgt_net, struct net *link_net,
@@ -3793,6 +3898,7 @@ static int rtnl_newlink(struct sk_buff *skb, struct nlmsghdr *nlh,
 	struct net *tgt_net, *link_net = NULL;
 	struct rtnl_link_ops *ops = NULL;
 	struct rtnl_newlink_tbs *tbs;
+	struct rtnl_nets rtnl_nets;
 	int ops_srcu_index;
 	int ret;
 
@@ -3828,13 +3934,13 @@ static int rtnl_newlink(struct sk_buff *skb, struct nlmsghdr *nlh,
 		ops = rtnl_link_ops_get(kind, &ops_srcu_index);
 #ifdef CONFIG_MODULES
 		if (!ops) {
-			__rtnl_unlock();
 			request_module("rtnl-link-%s", kind);
-			rtnl_lock();
 			ops = rtnl_link_ops_get(kind, &ops_srcu_index);
 		}
 #endif
 	}
+
+	rtnl_nets_init(&rtnl_nets);
 
 	if (ops) {
 		if (ops->maxtype > RTNL_MAX_TYPE) {
@@ -3857,13 +3963,21 @@ static int rtnl_newlink(struct sk_buff *skb, struct nlmsghdr *nlh,
 			if (ret < 0)
 				goto put_ops;
 		}
+
+		if (ops->peer_type) {
+			ret = rtnl_add_peer_net(&rtnl_nets, ops, data, extack);
+			if (ret < 0)
+				goto put_ops;
+		}
 	}
 
 	tgt_net = rtnl_link_get_net_capable(skb, sock_net(skb->sk), tb, CAP_NET_ADMIN);
 	if (IS_ERR(tgt_net)) {
 		ret = PTR_ERR(tgt_net);
-		goto put_ops;
+		goto put_net;
 	}
+
+	rtnl_nets_add(&rtnl_nets, tgt_net);
 
 	if (tb[IFLA_LINK_NETNSID]) {
 		int id = nla_get_s32(tb[IFLA_LINK_NETNSID]);
@@ -3875,18 +3989,20 @@ static int rtnl_newlink(struct sk_buff *skb, struct nlmsghdr *nlh,
 			goto put_net;
 		}
 
+		rtnl_nets_add(&rtnl_nets, link_net);
+
 		if (!netlink_ns_capable(skb, link_net->user_ns, CAP_NET_ADMIN)) {
 			ret = -EPERM;
 			goto put_net;
 		}
 	}
 
+	rtnl_nets_lock(&rtnl_nets);
 	ret = __rtnl_newlink(skb, nlh, ops, tgt_net, link_net, tbs, data, extack);
+	rtnl_nets_unlock(&rtnl_nets);
 
 put_net:
-	if (link_net)
-		put_net(link_net);
-	put_net(tgt_net);
+	rtnl_nets_destroy(&rtnl_nets);
 put_ops:
 	if (ops)
 		rtnl_link_ops_put(ops, ops_srcu_index);
@@ -6887,11 +7003,14 @@ static struct pernet_operations rtnetlink_net_ops = {
 };
 
 static const struct rtnl_msg_handler rtnetlink_rtnl_msg_handlers[] __initconst = {
-	{.msgtype = RTM_NEWLINK, .doit = rtnl_newlink},
-	{.msgtype = RTM_DELLINK, .doit = rtnl_dellink},
+	{.msgtype = RTM_NEWLINK, .doit = rtnl_newlink,
+	 .flags = RTNL_FLAG_DOIT_PERNET},
+	{.msgtype = RTM_DELLINK, .doit = rtnl_dellink,
+	 .flags = RTNL_FLAG_DOIT_PERNET_WIP},
 	{.msgtype = RTM_GETLINK, .doit = rtnl_getlink,
 	 .dumpit = rtnl_dump_ifinfo, .flags = RTNL_FLAG_DUMP_SPLIT_NLM_DONE},
-	{.msgtype = RTM_SETLINK, .doit = rtnl_setlink},
+	{.msgtype = RTM_SETLINK, .doit = rtnl_setlink,
+	 .flags = RTNL_FLAG_DOIT_PERNET_WIP},
 	{.msgtype = RTM_GETADDR, .dumpit = rtnl_dump_all},
 	{.msgtype = RTM_GETROUTE, .dumpit = rtnl_dump_all},
 	{.msgtype = RTM_GETNETCONF, .dumpit = rtnl_dump_all},

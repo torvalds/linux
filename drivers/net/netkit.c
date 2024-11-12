@@ -351,12 +351,7 @@ static int netkit_new_link(struct net *src_net, struct net_device *dev,
 		if (data[IFLA_NETKIT_PEER_INFO]) {
 			attr = data[IFLA_NETKIT_PEER_INFO];
 			ifmp = nla_data(attr);
-			err = rtnl_nla_parse_ifinfomsg(peer_tb, attr, extack);
-			if (err < 0)
-				return err;
-			err = netkit_validate(peer_tb, NULL, extack);
-			if (err < 0)
-				return err;
+			rtnl_nla_parse_ifinfomsg(peer_tb, attr, extack);
 			tbp = peer_tb;
 		}
 		if (data[IFLA_NETKIT_SCRUB])
@@ -391,9 +386,6 @@ static int netkit_new_link(struct net *src_net, struct net_device *dev,
 		return -EOPNOTSUPP;
 
 	net = rtnl_link_get_net(src_net, tbp);
-	if (IS_ERR(net))
-		return PTR_ERR(net);
-
 	peer = rtnl_create_link(net, ifname, ifname_assign_type,
 				&netkit_link_ops, tbp, extack);
 	if (IS_ERR(peer)) {
@@ -978,6 +970,7 @@ static struct rtnl_link_ops netkit_link_ops = {
 	.fill_info	= netkit_fill_info,
 	.policy		= netkit_policy,
 	.validate	= netkit_validate,
+	.peer_type	= IFLA_NETKIT_PEER_INFO,
 	.maxtype	= IFLA_NETKIT_MAX,
 };
 
