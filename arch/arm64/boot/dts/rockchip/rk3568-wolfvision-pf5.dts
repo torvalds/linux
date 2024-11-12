@@ -178,7 +178,7 @@
 		#clock-cells = <0>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pmic_int_l>;
-		rockchip,system-power-controller;
+		system-power-controller;
 		vcc1-supply = <&vcc5v_in>;
 		vcc2-supply = <&vcc5v_in>;
 		vcc3-supply = <&vcc5v_in>;

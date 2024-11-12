@@ -51,7 +51,7 @@
 			"Headphone Amp INR", "ROUT2",
 			"Headphones", "Headphone Amp OUTL",
 			"Headphones", "Headphone Amp OUTR";
-		simple-audio-card,hp-det-gpio = <&gpio2 RK_PA6 GPIO_ACTIVE_HIGH>;
+		simple-audio-card,hp-det-gpios = <&gpio2 RK_PA6 GPIO_ACTIVE_HIGH>;
 		simple-audio-card,aux-devs = <&headphones_amp>;
 		simple-audio-card,pin-switches = "Headphones";
 

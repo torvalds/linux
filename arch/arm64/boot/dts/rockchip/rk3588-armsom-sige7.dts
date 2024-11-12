@@ -23,7 +23,7 @@
 		compatible = "audio-graph-card";
 		dais = <&i2s0_8ch_p0>;
 		label = "rk3588-es8316";
-		hp-det-gpio = <&gpio1 RK_PD5 GPIO_ACTIVE_HIGH>;
+		hp-det-gpios = <&gpio1 RK_PD5 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&hp_detect>;
 		routing = "MIC2", "Mic Jack",
