@@ -7,8 +7,6 @@
  * This file provides a device implementation for HSMP interface
  */
 
-#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
-
 #include <asm/amd_hsmp.h>
 #include <asm/amd_nb.h>
 
@@ -25,6 +23,8 @@
 #define HSMP_STATUS_OK		0x01
 #define HSMP_ERR_INVALID_MSG	0xFE
 #define HSMP_ERR_INVALID_INPUT	0xFF
+#define HSMP_ERR_PREREQ_NOT_SATISFIED	0xFD
+#define HSMP_ERR_SMU_BUSY		0xFC
 
 /* Timeout in millsec */
 #define HSMP_MSG_TIMEOUT	100
@@ -61,7 +61,7 @@ static int __hsmp_send_message(struct hsmp_socket *sock, struct hsmp_message *ms
 	mbox_status = HSMP_STATUS_NOT_READY;
 	ret = sock->amd_hsmp_rdwr(sock, mbinfo->msg_resp_off, &mbox_status, HSMP_WR);
 	if (ret) {
-		pr_err("Error %d clearing mailbox status register\n", ret);
+		dev_err(sock->dev, "Error %d clearing mailbox status register\n", ret);
 		return ret;
 	}
 
@@ -71,7 +71,7 @@ static int __hsmp_send_message(struct hsmp_socket *sock, struct hsmp_message *ms
 		ret = sock->amd_hsmp_rdwr(sock, mbinfo->msg_arg_off + (index << 2),
 					  &msg->args[index], HSMP_WR);
 		if (ret) {
-			pr_err("Error %d writing message argument %d\n", ret, index);
+			dev_err(sock->dev, "Error %d writing message argument %d\n", ret, index);
 			return ret;
 		}
 		index++;
@@ -80,7 +80,7 @@ static int __hsmp_send_message(struct hsmp_socket *sock, struct hsmp_message *ms
 	/* Write the message ID which starts the operation */
 	ret = sock->amd_hsmp_rdwr(sock, mbinfo->msg_id_off, &msg->msg_id, HSMP_WR);
 	if (ret) {
-		pr_err("Error %d writing message ID %u\n", ret, msg->msg_id);
+		dev_err(sock->dev, "Error %d writing message ID %u\n", ret, msg->msg_id);
 		return ret;
 	}
 
@@ -97,7 +97,7 @@ static int __hsmp_send_message(struct hsmp_socket *sock, struct hsmp_message *ms
 	while (time_before(jiffies, timeout)) {
 		ret = sock->amd_hsmp_rdwr(sock, mbinfo->msg_resp_off, &mbox_status, HSMP_RD);
 		if (ret) {
-			pr_err("Error %d reading mailbox status\n", ret);
+			dev_err(sock->dev, "Error %d reading mailbox status\n", ret);
 			return ret;
 		}
 
@@ -110,14 +110,28 @@ static int __hsmp_send_message(struct hsmp_socket *sock, struct hsmp_message *ms
 	}
 
 	if (unlikely(mbox_status == HSMP_STATUS_NOT_READY)) {
+		dev_err(sock->dev, "Message ID 0x%X failure : SMU tmeout (status = 0x%X)\n",
+			msg->msg_id, mbox_status);
 		return -ETIMEDOUT;
 	} else if (unlikely(mbox_status == HSMP_ERR_INVALID_MSG)) {
+		dev_err(sock->dev, "Message ID 0x%X failure : Invalid message (status = 0x%X)\n",
+			msg->msg_id, mbox_status);
 		return -ENOMSG;
 	} else if (unlikely(mbox_status == HSMP_ERR_INVALID_INPUT)) {
+		dev_err(sock->dev, "Message ID 0x%X failure : Invalid arguments (status = 0x%X)\n",
+			msg->msg_id, mbox_status);
 		return -EINVAL;
+	} else if (unlikely(mbox_status == HSMP_ERR_PREREQ_NOT_SATISFIED)) {
+		dev_err(sock->dev, "Message ID 0x%X failure : Prerequisite not satisfied (status = 0x%X)\n",
+			msg->msg_id, mbox_status);
+		return -EREMOTEIO;
+	} else if (unlikely(mbox_status == HSMP_ERR_SMU_BUSY)) {
+		dev_err(sock->dev, "Message ID 0x%X failure : SMU BUSY (status = 0x%X)\n",
+			msg->msg_id, mbox_status);
+		return -EBUSY;
 	} else if (unlikely(mbox_status != HSMP_STATUS_OK)) {
-		pr_err("Message ID %u unknown failure (status = 0x%X)\n",
-		       msg->msg_id, mbox_status);
+		dev_err(sock->dev, "Message ID 0x%X unknown failure (status = 0x%X)\n",
+			msg->msg_id, mbox_status);
 		return -EIO;
 	}
 
@@ -133,8 +147,8 @@ static int __hsmp_send_message(struct hsmp_socket *sock, struct hsmp_message *ms
 		ret = sock->amd_hsmp_rdwr(sock, mbinfo->msg_arg_off + (index << 2),
 					  &msg->args[index], HSMP_RD);
 		if (ret) {
-			pr_err("Error %d reading response %u for message ID:%u\n",
-			       ret, index, msg->msg_id);
+			dev_err(sock->dev, "Error %d reading response %u for message ID:%u\n",
+				ret, index, msg->msg_id);
 			break;
 		}
 		index++;
