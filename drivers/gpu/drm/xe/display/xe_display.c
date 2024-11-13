@@ -439,10 +439,11 @@ static void __xe_display_pm_resume(struct xe_device *xe, bool runtime)
 		drm_mode_config_reset(&xe->drm);
 
 	intel_display_driver_init_hw(xe);
-	intel_hpd_init(xe);
 
 	if (!runtime && has_display(xe))
 		intel_display_driver_resume_access(xe);
+
+	intel_hpd_init(xe);
 
 	if (!runtime && has_display(xe)) {
 		intel_display_driver_resume(xe);
