@@ -219,8 +219,8 @@ void xe_display_register(struct xe_device *xe)
 		return;
 
 	intel_display_driver_register(xe);
-	intel_register_dsm_handler();
 	intel_power_domains_enable(xe);
+	intel_register_dsm_handler();
 }
 
 void xe_display_unregister(struct xe_device *xe)
