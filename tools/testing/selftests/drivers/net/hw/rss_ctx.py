@@ -215,7 +215,7 @@ def test_rss_queue_reconfigure(cfg, main_ctx=True):
         defer(ethtool, f"-X {cfg.ifname} default")
     else:
         other_key = 'noise'
-        flow = f"flow-type tcp{cfg.addr_ipver} dst-port {port} context {ctx_id}"
+        flow = f"flow-type tcp{cfg.addr_ipver} dst-ip {cfg.addr} dst-port {port} context {ctx_id}"
         ntuple = ethtool_create(cfg, "-N", flow)
         defer(ethtool, f"-N {cfg.ifname} delete {ntuple}")
 
@@ -429,7 +429,7 @@ def test_rss_context(cfg, ctx_cnt=1, create_with_cfg=None):
         ksft_eq(max(data['rss-indirection-table']), 2 + i * 2 + 1, "Unexpected context cfg: " + str(data))
 
         ports.append(rand_port())
-        flow = f"flow-type tcp{cfg.addr_ipver} dst-port {ports[i]} context {ctx_id}"
+        flow = f"flow-type tcp{cfg.addr_ipver} dst-ip {cfg.addr} dst-port {ports[i]} context {ctx_id}"
         ntuple = ethtool_create(cfg, "-N", flow)
         defer(ethtool, f"-N {cfg.ifname} delete {ntuple}")
 
@@ -516,7 +516,7 @@ def test_rss_context_out_of_order(cfg, ctx_cnt=4):
         ctx.append(defer(ethtool, f"-X {cfg.ifname} context {ctx_id} delete"))
 
         ports.append(rand_port())
-        flow = f"flow-type tcp{cfg.addr_ipver} dst-port {ports[i]} context {ctx_id}"
+        flow = f"flow-type tcp{cfg.addr_ipver} dst-ip {cfg.addr} dst-port {ports[i]} context {ctx_id}"
         ntuple_id = ethtool_create(cfg, "-N", flow)
         ntuple.append(defer(ethtool, f"-N {cfg.ifname} delete {ntuple_id}"))
 
@@ -569,7 +569,7 @@ def test_rss_context_overlap(cfg, other_ctx=0):
 
     port = rand_port()
     if other_ctx:
-        flow = f"flow-type tcp{cfg.addr_ipver} dst-port {port} context {other_ctx}"
+        flow = f"flow-type tcp{cfg.addr_ipver} dst-ip {cfg.addr} dst-port {port} context {other_ctx}"
         ntuple_id = ethtool_create(cfg, "-N", flow)
         ntuple = defer(ethtool, f"-N {cfg.ifname} delete {ntuple_id}")
 
@@ -587,7 +587,7 @@ def test_rss_context_overlap(cfg, other_ctx=0):
     # Now create a rule for context 1 and make sure traffic goes to a subset
     if other_ctx:
         ntuple.exec()
-    flow = f"flow-type tcp{cfg.addr_ipver} dst-port {port} context {ctx_id}"
+    flow = f"flow-type tcp{cfg.addr_ipver} dst-ip {cfg.addr} dst-port {port} context {ctx_id}"
     ntuple_id = ethtool_create(cfg, "-N", flow)
     defer(ethtool, f"-N {cfg.ifname} delete {ntuple_id}")
 
@@ -620,7 +620,7 @@ def test_delete_rss_context_busy(cfg):
 
     # utilize context from ntuple filter
     port = rand_port()
-    flow = f"flow-type tcp{cfg.addr_ipver} dst-port {port} context {ctx_id}"
+    flow = f"flow-type tcp{cfg.addr_ipver} dst-ip {cfg.addr} dst-port {port} context {ctx_id}"
     ntuple_id = ethtool_create(cfg, "-N", flow)
     defer(ethtool, f"-N {cfg.ifname} delete {ntuple_id}")
 
