@@ -447,6 +447,7 @@ static void kvm_vcpu_init(struct kvm_vcpu *vcpu, struct kvm *kvm, unsigned id)
 	vcpu->kvm = kvm;
 	vcpu->vcpu_id = id;
 	vcpu->pid = NULL;
+	rwlock_init(&vcpu->pid_lock);
 #ifndef __KVM_HAVE_ARCH_WQP
 	rcuwait_init(&vcpu->wait);
 #endif
@@ -474,7 +475,7 @@ static void kvm_vcpu_destroy(struct kvm_vcpu *vcpu)
 	 * the vcpu->pid pointer, and at destruction time all file descriptors
 	 * are already gone.
 	 */
-	put_pid(rcu_dereference_protected(vcpu->pid, 1));
+	put_pid(vcpu->pid);
 
 	free_page((unsigned long)vcpu->run);
 	kmem_cache_free(kvm_vcpu_cache, vcpu);
@@ -3770,17 +3771,19 @@ EXPORT_SYMBOL_GPL(kvm_vcpu_kick);
 
 int kvm_vcpu_yield_to(struct kvm_vcpu *target)
 {
-	struct pid *pid;
 	struct task_struct *task = NULL;
-	int ret = 0;
+	int ret;
 
-	rcu_read_lock();
-	pid = rcu_dereference(target->pid);
-	if (pid)
-		task = get_pid_task(pid, PIDTYPE_PID);
-	rcu_read_unlock();
+	if (!read_trylock(&target->pid_lock))
+		return 0;
+
+	if (target->pid)
+		task = get_pid_task(target->pid, PIDTYPE_PID);
+
+	read_unlock(&target->pid_lock);
+
 	if (!task)
-		return ret;
+		return 0;
 	ret = yield_to(task, 1);
 	put_task_struct(task);
 
@@ -3869,59 +3872,71 @@ bool __weak kvm_arch_dy_has_pending_interrupt(struct kvm_vcpu *vcpu)
 
 void kvm_vcpu_on_spin(struct kvm_vcpu *me, bool yield_to_kernel_mode)
 {
+	int nr_vcpus, start, i, idx, yielded;
 	struct kvm *kvm = me->kvm;
 	struct kvm_vcpu *vcpu;
-	int last_boosted_vcpu;
-	unsigned long i;
-	int yielded = 0;
 	int try = 3;
-	int pass;
 
-	last_boosted_vcpu = READ_ONCE(kvm->last_boosted_vcpu);
+	nr_vcpus = atomic_read(&kvm->online_vcpus);
+	if (nr_vcpus < 2)
+		return;
+
+	/* Pairs with the smp_wmb() in kvm_vm_ioctl_create_vcpu(). */
+	smp_rmb();
+
 	kvm_vcpu_set_in_spin_loop(me, true);
+
 	/*
-	 * We boost the priority of a VCPU that is runnable but not
-	 * currently running, because it got preempted by something
-	 * else and called schedule in __vcpu_run.  Hopefully that
-	 * VCPU is holding the lock that we need and will release it.
-	 * We approximate round-robin by starting at the last boosted VCPU.
+	 * The current vCPU ("me") is spinning in kernel mode, i.e. is likely
+	 * waiting for a resource to become available.  Attempt to yield to a
+	 * vCPU that is runnable, but not currently running, e.g. because the
+	 * vCPU was preempted by a higher priority task.  With luck, the vCPU
+	 * that was preempted is holding a lock or some other resource that the
+	 * current vCPU is waiting to acquire, and yielding to the other vCPU
+	 * will allow it to make forward progress and release the lock (or kick
+	 * the spinning vCPU, etc).
+	 *
+	 * Since KVM has no insight into what exactly the guest is doing,
+	 * approximate a round-robin selection by iterating over all vCPUs,
+	 * starting at the last boosted vCPU.  I.e. if N=kvm->last_boosted_vcpu,
+	 * iterate over vCPU[N+1]..vCPU[N-1], wrapping as needed.
+	 *
+	 * Note, this is inherently racy, e.g. if multiple vCPUs are spinning,
+	 * they may all try to yield to the same vCPU(s).  But as above, this
+	 * is all best effort due to KVM's lack of visibility into the guest.
 	 */
-	for (pass = 0; pass < 2 && !yielded && try; pass++) {
-		kvm_for_each_vcpu(i, vcpu, kvm) {
-			if (!pass && i <= last_boosted_vcpu) {
-				i = last_boosted_vcpu;
-				continue;
-			} else if (pass && i > last_boosted_vcpu)
-				break;
-			if (!READ_ONCE(vcpu->ready))
-				continue;
-			if (vcpu == me)
-				continue;
-			if (kvm_vcpu_is_blocking(vcpu) && !vcpu_dy_runnable(vcpu))
-				continue;
+	start = READ_ONCE(kvm->last_boosted_vcpu) + 1;
+	for (i = 0; i < nr_vcpus; i++) {
+		idx = (start + i) % nr_vcpus;
+		if (idx == me->vcpu_idx)
+			continue;
 
-			/*
-			 * Treat the target vCPU as being in-kernel if it has a
-			 * pending interrupt, as the vCPU trying to yield may
-			 * be spinning waiting on IPI delivery, i.e. the target
-			 * vCPU is in-kernel for the purposes of directed yield.
-			 */
-			if (READ_ONCE(vcpu->preempted) && yield_to_kernel_mode &&
-			    !kvm_arch_dy_has_pending_interrupt(vcpu) &&
-			    !kvm_arch_vcpu_preempted_in_kernel(vcpu))
-				continue;
-			if (!kvm_vcpu_eligible_for_directed_yield(vcpu))
-				continue;
+		vcpu = xa_load(&kvm->vcpu_array, idx);
+		if (!READ_ONCE(vcpu->ready))
+			continue;
+		if (kvm_vcpu_is_blocking(vcpu) && !vcpu_dy_runnable(vcpu))
+			continue;
 
-			yielded = kvm_vcpu_yield_to(vcpu);
-			if (yielded > 0) {
-				WRITE_ONCE(kvm->last_boosted_vcpu, i);
-				break;
-			} else if (yielded < 0) {
-				try--;
-				if (!try)
-					break;
-			}
+		/*
+		 * Treat the target vCPU as being in-kernel if it has a pending
+		 * interrupt, as the vCPU trying to yield may be spinning
+		 * waiting on IPI delivery, i.e. the target vCPU is in-kernel
+		 * for the purposes of directed yield.
+		 */
+		if (READ_ONCE(vcpu->preempted) && yield_to_kernel_mode &&
+		    !kvm_arch_dy_has_pending_interrupt(vcpu) &&
+		    !kvm_arch_vcpu_preempted_in_kernel(vcpu))
+			continue;
+
+		if (!kvm_vcpu_eligible_for_directed_yield(vcpu))
+			continue;
+
+		yielded = kvm_vcpu_yield_to(vcpu);
+		if (yielded > 0) {
+			WRITE_ONCE(kvm->last_boosted_vcpu, i);
+			break;
+		} else if (yielded < 0 && !--try) {
+			break;
 		}
 	}
 	kvm_vcpu_set_in_spin_loop(me, false);
@@ -4018,9 +4033,9 @@ static int vcpu_get_pid(void *data, u64 *val)
 {
 	struct kvm_vcpu *vcpu = data;
 
-	rcu_read_lock();
-	*val = pid_nr(rcu_dereference(vcpu->pid));
-	rcu_read_unlock();
+	read_lock(&vcpu->pid_lock);
+	*val = pid_nr(vcpu->pid);
+	read_unlock(&vcpu->pid_lock);
 	return 0;
 }
 
@@ -4306,7 +4321,14 @@ static long kvm_vcpu_ioctl(struct file *filp,
 		r = -EINVAL;
 		if (arg)
 			goto out;
-		oldpid = rcu_access_pointer(vcpu->pid);
+
+		/*
+		 * Note, vcpu->pid is primarily protected by vcpu->mutex. The
+		 * dedicated r/w lock allows other tasks, e.g. other vCPUs, to
+		 * read vcpu->pid while this vCPU is in KVM_RUN, e.g. to yield
+		 * directly to this vCPU
+		 */
+		oldpid = vcpu->pid;
 		if (unlikely(oldpid != task_pid(current))) {
 			/* The thread running this VCPU changed. */
 			struct pid *newpid;
@@ -4316,9 +4338,10 @@ static long kvm_vcpu_ioctl(struct file *filp,
 				break;
 
 			newpid = get_task_pid(current, PIDTYPE_PID);
-			rcu_assign_pointer(vcpu->pid, newpid);
-			if (oldpid)
-				synchronize_rcu();
+			write_lock(&vcpu->pid_lock);
+			vcpu->pid = newpid;
+			write_unlock(&vcpu->pid_lock);
+
 			put_pid(oldpid);
 		}
 		vcpu->wants_to_run = !READ_ONCE(vcpu->run->immediate_exit__unsafe);
