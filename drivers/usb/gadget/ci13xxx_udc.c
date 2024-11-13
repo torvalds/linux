@@ -3556,7 +3556,7 @@ static int ci13xxx_start(struct usb_gadget *gadget,
 
 	udc->gadget.ep0 = &udc->ep0in.ep;
 	/* bind gadget */
-	driver->driver.bus     = NULL;
+	driver->driver.bus = gadget->dev.bus;
 	udc->gadget.dev.driver = &driver->driver;
 
 	udc->driver = driver;
