@@ -9,6 +9,7 @@
 #include <asm/cacheflush.h>
 #include <asm/cpufeature.h>
 #include <asm/kvm_csr.h>
+#include <asm/kvm_eiointc.h>
 #include "trace.h"
 
 unsigned long vpid_mask;
@@ -370,6 +371,11 @@ static int kvm_loongarch_env_init(void)
 
 	/* Register LoongArch IPI interrupt controller interface. */
 	ret = kvm_loongarch_register_ipi_device();
+	if (ret)
+		return ret;
+
+	/* Register LoongArch EIOINTC interrupt controller interface. */
+	ret = kvm_loongarch_register_eiointc_device();
 
 	return ret;
 }

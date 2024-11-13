@@ -19,5 +19,6 @@ kvm-y += tlb.o
 kvm-y += vcpu.o
 kvm-y += vm.o
 kvm-y += intc/ipi.o
+kvm-y += intc/eiointc.o
 
 CFLAGS_exit.o	+= $(call cc-option,-Wno-override-init,)
