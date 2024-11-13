@@ -159,7 +159,6 @@ examples:
 
         pinctrl-0 = <&pinctrl_spi_ksz>;
         cs-gpios = <&pioC 25 0>;
-        id = <1>;
 
         ksz9477: switch@0 {
             compatible = "microchip,ksz9477";
