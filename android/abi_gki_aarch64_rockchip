@@ -3034,3 +3034,16 @@
   drm_edid_read_ddc
   drm_edid_raw
   drm_edid_connector_update
+
+# required by 8250_dw.ko
+  serial8250_em485_supported
+  serial8250_em485_start_tx
+  serial8250_em485_stop_tx
+  serial8250_em485_config
+  serial8250_do_set_divisor
+  serial8250_do_set_ldisc
+  serial8250_update_uartclk
+  serial8250_clear_and_reinit_fifos
+
+# required by pl2303.ko
+  tty_termios_hw_change
