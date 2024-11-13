@@ -40,8 +40,11 @@
 
 static void vcn_v5_0_1_set_unified_ring_funcs(struct amdgpu_device *adev);
 static void vcn_v5_0_1_set_irq_funcs(struct amdgpu_device *adev);
+static int vcn_v5_0_1_set_powergating_state_inst(struct amdgpu_ip_block *ip_block,
+						 enum amd_powergating_state state,
+						 int i);
 static int vcn_v5_0_1_set_powergating_state(struct amdgpu_ip_block *ip_block,
-		enum amd_powergating_state state);
+					    enum amd_powergating_state state);
 static void vcn_v5_0_1_unified_ring_set_wptr(struct amdgpu_ring *ring);
 
 /**
@@ -988,6 +991,27 @@ static int vcn_v5_0_1_set_clockgating_state(struct amdgpu_ip_block *ip_block,
 	return 0;
 }
 
+static int vcn_v5_0_1_set_powergating_state_inst(struct amdgpu_ip_block *ip_block,
+						 enum amd_powergating_state state,
+						 int i)
+{
+	struct amdgpu_device *adev = ip_block->adev;
+	int ret = 0;
+
+	if (state == adev->vcn.inst[i].cur_state)
+		return 0;
+
+	if (state == AMD_PG_STATE_GATE)
+		ret = vcn_v5_0_1_stop(adev, i);
+	else
+		ret = vcn_v5_0_1_start(adev, i);
+
+	if (!ret)
+		adev->vcn.inst[i].cur_state = state;
+
+	return ret;
+}
+
 /**
  * vcn_v5_0_1_set_powergating_state - set VCN block powergating state
  *
@@ -1002,18 +1026,8 @@ static int vcn_v5_0_1_set_powergating_state(struct amdgpu_ip_block *ip_block,
 	struct amdgpu_device *adev = ip_block->adev;
 	int ret = 0, i;
 
-	if (state == adev->vcn.cur_state)
-		return 0;
-
-	for (i = 0; i < adev->vcn.num_vcn_inst; ++i) {
-		if (state == AMD_PG_STATE_GATE)
-			ret = vcn_v5_0_1_stop(adev, i);
-		else
-			ret = vcn_v5_0_1_start(adev, i);
-	}
-
-	if (!ret)
-		adev->vcn.cur_state = state;
+	for (i = 0; i < adev->vcn.num_vcn_inst; ++i)
+		vcn_v5_0_1_set_powergating_state_inst(ip_block, state, i);
 
 	return ret;
 }

@@ -87,8 +87,11 @@ static const struct amdgpu_hwip_reg_entry vcn_reg_list_4_0_3[] = {
 static int vcn_v4_0_3_start_sriov(struct amdgpu_device *adev);
 static void vcn_v4_0_3_set_unified_ring_funcs(struct amdgpu_device *adev);
 static void vcn_v4_0_3_set_irq_funcs(struct amdgpu_device *adev);
+static int vcn_v4_0_3_set_powergating_state_inst(struct amdgpu_ip_block *ip_block,
+						 enum amd_powergating_state state,
+						 int i);
 static int vcn_v4_0_3_set_powergating_state(struct amdgpu_ip_block *ip_block,
-		enum amd_powergating_state state);
+					    enum amd_powergating_state state);
 static int vcn_v4_0_3_pause_dpg_mode(struct amdgpu_device *adev,
 		int inst_idx, struct dpg_pause_state *new_state);
 static void vcn_v4_0_3_unified_ring_set_wptr(struct amdgpu_ring *ring);
@@ -351,11 +354,12 @@ static int vcn_v4_0_3_hw_fini(struct amdgpu_ip_block *ip_block)
 	struct amdgpu_device *adev = ip_block->adev;
 	int i;
 
-	for (i = 0; i < adev->vcn.num_vcn_inst; ++i)
+	for (i = 0; i < adev->vcn.num_vcn_inst; ++i) {
 		cancel_delayed_work_sync(&adev->vcn.inst[i].idle_work);
 
-	if (adev->vcn.cur_state != AMD_PG_STATE_GATE)
-		vcn_v4_0_3_set_powergating_state(ip_block, AMD_PG_STATE_GATE);
+		if (adev->vcn.inst[i].cur_state != AMD_PG_STATE_GATE)
+			vcn_v4_0_3_set_powergating_state_inst(ip_block, AMD_PG_STATE_GATE, i);
+	}
 
 	return 0;
 }
@@ -1640,6 +1644,36 @@ static int vcn_v4_0_3_set_clockgating_state(struct amdgpu_ip_block *ip_block,
 	return 0;
 }
 
+static int vcn_v4_0_3_set_powergating_state_inst(struct amdgpu_ip_block *ip_block,
+						 enum amd_powergating_state state,
+						 int i)
+{
+	struct amdgpu_device *adev = ip_block->adev;
+	int ret = 0;
+
+	/* for SRIOV, guest should not control VCN Power-gating
+	 * MMSCH FW should control Power-gating and clock-gating
+	 * guest should avoid touching CGC and PG
+	 */
+	if (amdgpu_sriov_vf(adev)) {
+		adev->vcn.inst[i].cur_state = AMD_PG_STATE_UNGATE;
+		return 0;
+	}
+
+	if (state == adev->vcn.inst[i].cur_state)
+		return 0;
+
+	if (state == AMD_PG_STATE_GATE)
+		ret = vcn_v4_0_3_stop(adev, i);
+	else
+		ret = vcn_v4_0_3_start(adev, i);
+
+	if (!ret)
+		adev->vcn.inst[i].cur_state = state;
+
+	return ret;
+}
+
 /**
  * vcn_v4_0_3_set_powergating_state - set VCN block powergating state
  *
@@ -1649,32 +1683,13 @@ static int vcn_v4_0_3_set_clockgating_state(struct amdgpu_ip_block *ip_block,
  * Set VCN block powergating state
  */
 static int vcn_v4_0_3_set_powergating_state(struct amdgpu_ip_block *ip_block,
-					  enum amd_powergating_state state)
+					    enum amd_powergating_state state)
 {
 	struct amdgpu_device *adev = ip_block->adev;
 	int ret = 0, i;
 
-	/* for SRIOV, guest should not control VCN Power-gating
-	 * MMSCH FW should control Power-gating and clock-gating
-	 * guest should avoid touching CGC and PG
-	 */
-	if (amdgpu_sriov_vf(adev)) {
-		adev->vcn.cur_state = AMD_PG_STATE_UNGATE;
-		return 0;
-	}
-
-	if (state == adev->vcn.cur_state)
-		return 0;
-
-	for (i = 0; i < adev->vcn.num_vcn_inst; ++i) {
-		if (state == AMD_PG_STATE_GATE)
-			ret |= vcn_v4_0_3_stop(adev, i);
-		else
-			ret |= vcn_v4_0_3_start(adev, i);
-	}
-
-	if (!ret)
-		adev->vcn.cur_state = state;
+	for (i = 0; i < adev->vcn.num_vcn_inst; ++i)
+		vcn_v4_0_3_set_powergating_state_inst(ip_block, state, i);
 
 	return ret;
 }
