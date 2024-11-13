@@ -119,7 +119,6 @@ static inline unsigned int z_erofs_pclusterpages(struct z_erofs_pcluster *pcl)
 	return PAGE_ALIGN(pcl->pclustersize) >> PAGE_SHIFT;
 }
 
-#define MNGD_MAPPING(sbi)	((sbi)->managed_cache->i_mapping)
 static bool erofs_folio_is_managed(struct erofs_sb_info *sbi, struct folio *fo)
 {
 	return fo->mapping == MNGD_MAPPING(sbi);
