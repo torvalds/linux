@@ -3137,9 +3137,14 @@ bdw_get_pipe_misc_output_format(struct intel_crtc *crtc)
 	tmp = intel_de_read(dev_priv, PIPE_MISC(crtc->pipe));
 
 	if (tmp & PIPE_MISC_YUV420_ENABLE) {
-		/* We support 4:2:0 in full blend mode only */
-		drm_WARN_ON(&dev_priv->drm,
-			    (tmp & PIPE_MISC_YUV420_MODE_FULL_BLEND) == 0);
+		/*
+		 * We support 4:2:0 in full blend mode only.
+		 * For xe3_lpd+ this is implied in YUV420 Enable bit.
+		 * Ensure the same for prior platforms in YUV420 Mode bit.
+		 */
+		if (DISPLAY_VER(dev_priv) < 30)
+			drm_WARN_ON(&dev_priv->drm,
+				    (tmp & PIPE_MISC_YUV420_MODE_FULL_BLEND) == 0);
 
 		return INTEL_OUTPUT_FORMAT_YCBCR420;
 	} else if (tmp & PIPE_MISC_OUTPUT_COLORSPACE_YUV) {
@@ -3388,8 +3393,8 @@ static void bdw_set_pipe_misc(struct intel_dsb *dsb,
 		val |= PIPE_MISC_OUTPUT_COLORSPACE_YUV;
 
 	if (crtc_state->output_format == INTEL_OUTPUT_FORMAT_YCBCR420)
-		val |= PIPE_MISC_YUV420_ENABLE |
-			PIPE_MISC_YUV420_MODE_FULL_BLEND;
+		val |= DISPLAY_VER(display) >= 30 ? PIPE_MISC_YUV420_ENABLE :
+			PIPE_MISC_YUV420_ENABLE | PIPE_MISC_YUV420_MODE_FULL_BLEND;
 
 	if (DISPLAY_VER(dev_priv) >= 11 && is_hdr_mode(crtc_state))
 		val |= PIPE_MISC_HDR_MODE_PRECISION;
