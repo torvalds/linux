@@ -53,10 +53,12 @@
 #define SPRD_IEN_TX_EMPTY	BIT(1)
 #define SPRD_IEN_BREAK_DETECT	BIT(7)
 #define SPRD_IEN_TIMEOUT	BIT(13)
+#define SPRD_IEN_DATA_TIMEOUT	BIT(17)
 
 /* interrupt clear register */
 #define SPRD_ICLR		0x0014
 #define SPRD_ICLR_TIMEOUT	BIT(13)
+#define SPRD_ICLR_DATA_TIMEOUT	BIT(17)
 
 /* line control register */
 #define SPRD_LCR		0x0018
@@ -102,6 +104,7 @@
 #define SPRD_IMSR_TX_FIFO_EMPTY	BIT(1)
 #define SPRD_IMSR_BREAK_DETECT	BIT(7)
 #define SPRD_IMSR_TIMEOUT	BIT(13)
+#define SPRD_IMSR_DATA_TIMEOUT	BIT(17)
 #define SPRD_DEFAULT_SOURCE_CLK	26000000
 
 #define SPRD_RX_DMA_STEP	1
@@ -118,6 +121,12 @@ struct sprd_uart_dma {
 	bool enable;
 };
 
+struct sprd_uart_data {
+	unsigned int timeout_ien;
+	unsigned int timeout_iclr;
+	unsigned int timeout_imsr;
+};
+
 struct sprd_uart_port {
 	struct uart_port port;
 	char name[16];
@@ -126,6 +135,7 @@ struct sprd_uart_port {
 	struct sprd_uart_dma rx_dma;
 	dma_addr_t pos;
 	unsigned char *rx_buf_tail;
+	const struct sprd_uart_data *pdata;
 };
 
 static struct sprd_uart_port *sprd_port[UART_NR_MAX];
@@ -133,6 +143,18 @@ static int sprd_ports_num;
 
 static int sprd_start_dma_rx(struct uart_port *port);
 static int sprd_tx_dma_config(struct uart_port *port);
+
+static const struct sprd_uart_data sc9836_data = {
+	.timeout_ien = SPRD_IEN_TIMEOUT,
+	.timeout_iclr = SPRD_ICLR_TIMEOUT,
+	.timeout_imsr = SPRD_IMSR_TIMEOUT,
+};
+
+static const struct sprd_uart_data sc9632_data = {
+	.timeout_ien = SPRD_IEN_DATA_TIMEOUT,
+	.timeout_iclr = SPRD_ICLR_DATA_TIMEOUT,
+	.timeout_imsr = SPRD_IMSR_DATA_TIMEOUT,
+};
 
 static inline unsigned int serial_in(struct uart_port *port,
 				     unsigned int offset)
@@ -637,6 +659,8 @@ static irqreturn_t sprd_handle_irq(int irq, void *dev_id)
 {
 	struct uart_port *port = dev_id;
 	unsigned int ims;
+	struct sprd_uart_port *sp =
+		container_of(port, struct sprd_uart_port, port);
 
 	uart_port_lock(port);
 
@@ -647,14 +671,14 @@ static irqreturn_t sprd_handle_irq(int irq, void *dev_id)
 		return IRQ_NONE;
 	}
 
-	if (ims & SPRD_IMSR_TIMEOUT)
-		serial_out(port, SPRD_ICLR, SPRD_ICLR_TIMEOUT);
+	if (ims & sp->pdata->timeout_imsr)
+		serial_out(port, SPRD_ICLR, sp->pdata->timeout_iclr);
 
 	if (ims & SPRD_IMSR_BREAK_DETECT)
 		serial_out(port, SPRD_ICLR, SPRD_IMSR_BREAK_DETECT);
 
 	if (ims & (SPRD_IMSR_RX_FIFO_FULL | SPRD_IMSR_BREAK_DETECT |
-		   SPRD_IMSR_TIMEOUT))
+		   sp->pdata->timeout_imsr))
 		sprd_rx(port);
 
 	if (ims & SPRD_IMSR_TX_FIFO_EMPTY)
@@ -729,7 +753,7 @@ static int sprd_startup(struct uart_port *port)
 	/* enable interrupt */
 	uart_port_lock_irqsave(port, &flags);
 	ien = serial_in(port, SPRD_IEN);
-	ien |= SPRD_IEN_BREAK_DETECT | SPRD_IEN_TIMEOUT;
+	ien |= SPRD_IEN_BREAK_DETECT | sp->pdata->timeout_ien;
 	if (!sp->rx_dma.enable)
 		ien |= SPRD_IEN_RX_FULL;
 	serial_out(port, SPRD_IEN, ien);
@@ -1184,6 +1208,12 @@ static int sprd_probe(struct platform_device *pdev)
 
 	up->mapbase = res->start;
 
+	sport->pdata = of_device_get_match_data(&pdev->dev);
+	if (!sport->pdata) {
+		dev_err(&pdev->dev, "get match data failed!\n");
+		return -EINVAL;
+	}
+
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
 		return irq;
@@ -1248,7 +1278,8 @@ static int sprd_resume(struct device *dev)
 static SIMPLE_DEV_PM_OPS(sprd_pm_ops, sprd_suspend, sprd_resume);
 
 static const struct of_device_id serial_ids[] = {
-	{.compatible = "sprd,sc9836-uart",},
+	{.compatible = "sprd,sc9836-uart", .data = &sc9836_data},
+	{.compatible = "sprd,sc9632-uart", .data = &sc9632_data},
 	{}
 };
 MODULE_DEVICE_TABLE(of, serial_ids);
