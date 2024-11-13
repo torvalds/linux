@@ -241,6 +241,8 @@ int inode_init_always(struct super_block *sb, struct inode *inode)
 	inode->i_opflags = 0;
 	if (sb->s_xattr)
 		inode->i_opflags |= IOP_XATTR;
+	if (sb->s_type->fs_flags & FS_MGTIME)
+		inode->i_opflags |= IOP_MGTIME;
 	i_uid_write(inode, 0);
 	i_gid_write(inode, 0);
 	atomic_set(&inode->i_writecount, 0);

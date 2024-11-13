@@ -623,6 +623,7 @@ is_uncached_acl(struct posix_acl *acl)
 #define IOP_NOFOLLOW	0x0004
 #define IOP_XATTR	0x0008
 #define IOP_DEFAULT_READLINK	0x0010
+#define IOP_MGTIME	0x0020
 
 /*
  * Keep mostly read-only and often accessed (especially for
@@ -2581,7 +2582,7 @@ struct file_system_type {
  */
 static inline bool is_mgtime(const struct inode *inode)
 {
-	return inode->i_sb->s_type->fs_flags & FS_MGTIME;
+	return inode->i_opflags & IOP_MGTIME;
 }
 
 extern struct dentry *mount_bdev(struct file_system_type *fs_type,
