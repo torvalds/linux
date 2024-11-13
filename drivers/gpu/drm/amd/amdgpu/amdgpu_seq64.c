@@ -156,6 +156,7 @@ error:
  *
  * @adev: amdgpu_device pointer
  * @va: VA to access the seq in process address space
+ * @gpu_addr: GPU address to access the seq
  * @cpu_addr: CPU address to access the seq
  *
  * Alloc a 64 bit memory from seq64 pool.
