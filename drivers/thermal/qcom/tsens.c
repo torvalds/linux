@@ -1120,6 +1120,9 @@ static const struct of_device_id tsens_table[] = {
 		.compatible = "qcom,msm8916-tsens",
 		.data = &data_8916,
 	}, {
+		.compatible = "qcom,msm8937-tsens",
+		.data = &data_8937,
+	}, {
 		.compatible = "qcom,msm8939-tsens",
 		.data = &data_8939,
 	}, {
