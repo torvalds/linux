@@ -258,7 +258,7 @@ static inline void srcu_check_read_flavor_lite(struct srcu_struct *ssp)
 	if (likely(READ_ONCE(sdp->srcu_reader_flavor) & SRCU_READ_FLAVOR_LITE))
 		return;
 
-	// Note that the cmpxchg() in srcu_check_read_flavor() is fully ordered.
+	// Note that the cmpxchg() in __srcu_check_read_flavor() is fully ordered.
 	__srcu_check_read_flavor(ssp, SRCU_READ_FLAVOR_LITE);
 }
 
