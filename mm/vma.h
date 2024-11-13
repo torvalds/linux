@@ -59,6 +59,17 @@ enum vma_merge_state {
 	VMA_MERGE_SUCCESS,
 };
 
+enum vma_merge_flags {
+	VMG_FLAG_DEFAULT = 0,
+	/*
+	 * If we can expand, simply do so. We know there is nothing to merge to
+	 * the right. Does not reset state upon failure to merge. The VMA
+	 * iterator is assumed to be positioned at the previous VMA, rather than
+	 * at the gap.
+	 */
+	VMG_FLAG_JUST_EXPAND = 1 << 0,
+};
+
 /* Represents a VMA merge operation. */
 struct vma_merge_struct {
 	struct mm_struct *mm;
@@ -75,6 +86,7 @@ struct vma_merge_struct {
 	struct mempolicy *policy;
 	struct vm_userfaultfd_ctx uffd_ctx;
 	struct anon_vma_name *anon_name;
+	enum vma_merge_flags merge_flags;
 	enum vma_merge_state state;
 };
 
@@ -99,6 +111,7 @@ static inline pgoff_t vma_pgoff_offset(struct vm_area_struct *vma,
 		.flags = flags_,					\
 		.pgoff = pgoff_,					\
 		.state = VMA_MERGE_START,				\
+		.merge_flags = VMG_FLAG_DEFAULT,			\
 	}
 
 #define VMG_VMA_STATE(name, vmi_, prev_, vma_, start_, end_)	\
@@ -118,6 +131,7 @@ static inline pgoff_t vma_pgoff_offset(struct vm_area_struct *vma,
 		.uffd_ctx = vma_->vm_userfaultfd_ctx,		\
 		.anon_name = anon_vma_name(vma_),		\
 		.state = VMA_MERGE_START,			\
+		.merge_flags = VMG_FLAG_DEFAULT,		\
 	}
 
 #ifdef CONFIG_DEBUG_VM_MAPLE_TREE
@@ -241,15 +255,9 @@ static inline void vms_abort_munmap_vmas(struct vma_munmap_struct *vms,
 	 * failure method of leaving a gap where the MAP_FIXED mapping failed.
 	 */
 	mas_set_range(mas, vms->start, vms->end - 1);
-	if (unlikely(mas_store_gfp(mas, NULL, GFP_KERNEL))) {
-		pr_warn_once("%s: (%d) Unable to abort munmap() operation\n",
-			     current->comm, current->pid);
-		/* Leaving vmas detached and in-tree may hamper recovery */
-		reattach_vmas(mas_detach);
-	} else {
-		/* Clean up the insertion of the unfortunate gap */
-		vms_complete_munmap_vmas(vms, mas_detach);
-	}
+	mas_store_gfp(mas, NULL, GFP_KERNEL|__GFP_NOFAIL);
+	/* Clean up the insertion of the unfortunate gap */
+	vms_complete_munmap_vmas(vms, mas_detach);
 }
 
 int

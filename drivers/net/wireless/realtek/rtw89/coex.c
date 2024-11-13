@@ -6445,6 +6445,8 @@ static void _update_wl_info_v7(struct rtw89_dev *rtwdev, u8 rid)
 
 	/* todo DBCC related event */
 	rtw89_debug(rtwdev, RTW89_DBG_BTC, "[BTC] wl_info phy_now=%d\n", phy_now);
+	rtw89_debug(rtwdev, RTW89_DBG_BTC,
+		    "[BTC] rlink cnt_2g=%d cnt_5g=%d\n", cnt_2g, cnt_5g);
 
 	if (wl_rinfo->dbcc_en != rtwdev->dbcc_en) {
 		wl_rinfo->dbcc_chg = 1;
