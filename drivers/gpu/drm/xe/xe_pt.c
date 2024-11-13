@@ -136,6 +136,7 @@ err_kfree:
 	xe_pt_free(pt);
 	return ERR_PTR(err);
 }
+ALLOW_ERROR_INJECTION(xe_pt_create, ERRNO);
 
 /**
  * xe_pt_populate_empty() - Populate a page-table bo with scratch- or zero
@@ -1851,6 +1852,7 @@ int xe_pt_update_ops_prepare(struct xe_tile *tile, struct xe_vma_ops *vops)
 
 	return 0;
 }
+ALLOW_ERROR_INJECTION(xe_pt_update_ops_prepare, ERRNO);
 
 static void bind_op_commit(struct xe_vm *vm, struct xe_tile *tile,
 			   struct xe_vm_pgtable_update_ops *pt_update_ops,
@@ -2131,6 +2133,7 @@ kill_vm_tile1:
 
 	return ERR_PTR(err);
 }
+ALLOW_ERROR_INJECTION(xe_pt_update_ops_run, ERRNO);
 
 /**
  * xe_pt_update_ops_fini() - Finish PT update operations

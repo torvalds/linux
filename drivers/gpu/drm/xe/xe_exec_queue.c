@@ -240,6 +240,7 @@ struct xe_exec_queue *xe_exec_queue_create_bind(struct xe_device *xe,
 
 	return q;
 }
+ALLOW_ERROR_INJECTION(xe_exec_queue_create_bind, ERRNO);
 
 void xe_exec_queue_destroy(struct kref *ref)
 {
