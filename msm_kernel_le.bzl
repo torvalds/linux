@@ -124,7 +124,7 @@ def _define_kernel_build(
     out_list += aarch64_outs
 
     if target_arch == "arm":
-        out_list += ["zImage"]
+        out_list += ["zImage"] + ["module.lds"] + ["utsrelease.h"]
 
     # LE builds don't build compressed, so remove from list
     out_list.remove("Image.lz4")
