@@ -934,6 +934,13 @@ static void nvmet_execute_id_cs_indep(struct nvmet_req *req)
 		id->nsattr |= NVME_NS_ATTR_RO;
 	if (req->ns->bdev && !bdev_nonrot(req->ns->bdev))
 		id->nsfeat |= NVME_NS_ROTATIONAL;
+	/*
+	 * We need flush command to flush the file's metadata,
+	 * so report supporting vwc if backend is file, even
+	 * though buffered_io is disable.
+	 */
+	if (req->ns->bdev && !bdev_write_cache(req->ns->bdev))
+		id->nsfeat |= NVME_NS_VWC_NOT_PRESENT;
 
 	status = nvmet_copy_to_sgl(req, 0, id, sizeof(*id));
 	kfree(id);
