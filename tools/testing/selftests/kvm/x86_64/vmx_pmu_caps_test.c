@@ -207,6 +207,29 @@ KVM_ONE_VCPU_TEST(vmx_pmu_caps, lbr_perf_capabilities, guest_code)
 	TEST_ASSERT(!r, "Writing LBR_TOS should fail after disabling vPMU");
 }
 
+KVM_ONE_VCPU_TEST(vmx_pmu_caps, perf_capabilities_unsupported, guest_code)
+{
+	uint64_t val;
+	int i, r;
+
+	vcpu_set_msr(vcpu, MSR_IA32_PERF_CAPABILITIES, host_cap.capabilities);
+	val = vcpu_get_msr(vcpu, MSR_IA32_PERF_CAPABILITIES);
+	TEST_ASSERT_EQ(val, host_cap.capabilities);
+
+	vcpu_clear_cpuid_feature(vcpu, X86_FEATURE_PDCM);
+
+	val = vcpu_get_msr(vcpu, MSR_IA32_PERF_CAPABILITIES);
+	TEST_ASSERT_EQ(val, 0);
+
+	vcpu_set_msr(vcpu, MSR_IA32_PERF_CAPABILITIES, 0);
+
+	for (i = 0; i < 64; i++) {
+		r = _vcpu_set_msr(vcpu, MSR_IA32_PERF_CAPABILITIES, BIT_ULL(i));
+		TEST_ASSERT(!r, "Setting PERF_CAPABILITIES bit %d (= 0x%llx) should fail without PDCM",
+			    i, BIT_ULL(i));
+	}
+}
+
 int main(int argc, char *argv[])
 {
 	TEST_REQUIRE(kvm_is_pmu_enabled());
