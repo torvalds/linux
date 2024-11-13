@@ -2442,85 +2442,86 @@ static void enic_tx_hang_reset(struct work_struct *work)
 
 static int enic_set_intr_mode(struct enic *enic)
 {
-	unsigned int n = min_t(unsigned int, enic->rq_count, ENIC_RQ_MAX);
-	unsigned int m = min_t(unsigned int, enic->wq_count, ENIC_WQ_MAX);
 	unsigned int i;
+	int num_intr;
 
 	/* Set interrupt mode (INTx, MSI, MSI-X) depending
 	 * on system capabilities.
 	 *
-	 * Try MSI-X first
+	 * We need a minimum of 1 RQ, 1 WQ, and 2 CQs
 	 *
-	 * We need n RQs, m WQs, n+m CQs, and n+m+2 INTRs
-	 * (the second to last INTR is used for WQ/RQ errors)
-	 * (the last INTR is used for notifications)
 	 */
 
-	for (i = 0; i < enic->intr_avail; i++)
-		enic->msix_entry[i].entry = i;
-
-	/* Use multiple RQs if RSS is enabled
-	 */
-
-	if (ENIC_SETTING(enic, RSS) &&
-	    enic->config.intr_mode < 1 &&
-	    enic->rq_count >= n &&
-	    enic->wq_count >= m &&
-	    enic->cq_count >= n + m &&
-	    enic->intr_count >= n + m + 2) {
-
-		if (pci_enable_msix_range(enic->pdev, enic->msix_entry,
-					  n + m + 2, n + m + 2) > 0) {
-
-			enic->rq_count = n;
-			enic->wq_count = m;
-			enic->cq_count = n + m;
-			enic->intr_count = n + m + 2;
-
-			vnic_dev_set_intr_mode(enic->vdev,
-				VNIC_DEV_INTR_MODE_MSIX);
-
-			return 0;
-		}
+	if (enic->rq_avail < 1 || enic->wq_avail < 1 || enic->cq_avail < 2) {
+		dev_err(enic_get_dev(enic),
+			"Not enough resources available rq: %d wq: %d cq: %d\n",
+			enic->rq_avail, enic->wq_avail,
+			enic->cq_avail);
+		return -ENOSPC;
 	}
 
-	if (enic->config.intr_mode < 1 &&
-	    enic->rq_count >= 1 &&
-	    enic->wq_count >= m &&
-	    enic->cq_count >= 1 + m &&
-	    enic->intr_count >= 1 + m + 2) {
-		if (pci_enable_msix_range(enic->pdev, enic->msix_entry,
-					  1 + m + 2, 1 + m + 2) > 0) {
+	/* if RSS isn't set, then we can only use one RQ */
+	if (!ENIC_SETTING(enic, RSS))
+		enic->rq_avail = 1;
 
-			enic->rq_count = 1;
-			enic->wq_count = m;
-			enic->cq_count = 1 + m;
-			enic->intr_count = 1 + m + 2;
+	/* Try MSI-X first */
+	if (enic->config.intr_mode < 1 &&
+	    enic->intr_avail >= ENIC_MSIX_MIN_INTR) {
+		unsigned int max_queues;
+		unsigned int rq_default;
+		unsigned int rq_avail;
+		unsigned int wq_avail;
+
+		for (i = 0; i < enic->intr_avail; i++)
+			enic->msix_entry[i].entry = i;
+
+		num_intr = pci_enable_msix_range(enic->pdev, enic->msix_entry,
+						 ENIC_MSIX_MIN_INTR,
+						 enic->intr_avail);
+		if (num_intr > 0) {
+			wq_avail = min(enic->wq_avail, ENIC_WQ_MAX);
+			rq_default = netif_get_num_default_rss_queues();
+			rq_avail = min3(enic->rq_avail, ENIC_RQ_MAX, rq_default);
+			max_queues = min(enic->cq_avail,
+					 enic->intr_avail - ENIC_MSIX_RESERVED_INTR);
+
+			if (wq_avail + rq_avail <= max_queues) {
+				enic->rq_count = rq_avail;
+				enic->wq_count = wq_avail;
+			} else {
+				/* recalculate wq/rq count */
+				if (rq_avail < wq_avail) {
+					enic->rq_count = min(rq_avail, max_queues / 2);
+					enic->wq_count = max_queues - enic->rq_count;
+				} else {
+					enic->wq_count = min(wq_avail, max_queues / 2);
+					enic->rq_count = max_queues - enic->wq_count;
+				}
+			}
+			enic->cq_count = enic->rq_count + enic->wq_count;
+			enic->intr_count = enic->cq_count + ENIC_MSIX_RESERVED_INTR;
 
 			vnic_dev_set_intr_mode(enic->vdev,
-				VNIC_DEV_INTR_MODE_MSIX);
-
+					       VNIC_DEV_INTR_MODE_MSIX);
+			enic->intr_avail = num_intr;
 			return 0;
 		}
 	}
 
 	/* Next try MSI
 	 *
-	 * We need 1 RQ, 1 WQ, 2 CQs, and 1 INTR
+	 * We need 1 INTR
 	 */
 
 	if (enic->config.intr_mode < 2 &&
-	    enic->rq_count >= 1 &&
-	    enic->wq_count >= 1 &&
-	    enic->cq_count >= 2 &&
-	    enic->intr_count >= 1 &&
+	    enic->intr_avail >= 1 &&
 	    !pci_enable_msi(enic->pdev)) {
 
 		enic->rq_count = 1;
 		enic->wq_count = 1;
 		enic->cq_count = 2;
 		enic->intr_count = 1;
-
+		enic->intr_avail = 1;
 		vnic_dev_set_intr_mode(enic->vdev, VNIC_DEV_INTR_MODE_MSI);
 
 		return 0;
@@ -2528,23 +2529,20 @@ static int enic_set_intr_mode(struct enic *enic)
 
 	/* Next try INTx
 	 *
-	 * We need 1 RQ, 1 WQ, 2 CQs, and 3 INTRs
+	 * We need 3 INTRs
 	 * (the first INTR is used for WQ/RQ)
 	 * (the second INTR is used for WQ/RQ errors)
 	 * (the last INTR is used for notifications)
 	 */
 
 	if (enic->config.intr_mode < 3 &&
-	    enic->rq_count >= 1 &&
-	    enic->wq_count >= 1 &&
-	    enic->cq_count >= 2 &&
-	    enic->intr_count >= 3) {
+	    enic->intr_avail >= 3) {
 
 		enic->rq_count = 1;
 		enic->wq_count = 1;
 		enic->cq_count = 2;
 		enic->intr_count = 3;
-
+		enic->intr_avail = 3;
 		vnic_dev_set_intr_mode(enic->vdev, VNIC_DEV_INTR_MODE_INTX);
 
 		return 0;
@@ -2762,8 +2760,8 @@ static void enic_kdump_kernel_config(struct enic *enic)
 {
 	if (is_kdump_kernel()) {
 		dev_info(enic_get_dev(enic), "Running from within kdump kernel. Using minimal resources\n");
-		enic->rq_count = 1;
-		enic->wq_count = 1;
+		enic->rq_avail = 1;
+		enic->wq_avail = 1;
 		enic->config.rq_desc_count = ENIC_MIN_RQ_DESCS;
 		enic->config.wq_desc_count = ENIC_MIN_WQ_DESCS;
 		enic->config.mtu = min_t(u16, 1500, enic->config.mtu);
