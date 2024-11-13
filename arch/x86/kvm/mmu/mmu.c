@@ -179,7 +179,6 @@ struct kvm_shadow_walk_iterator {
 
 static struct kmem_cache *pte_list_desc_cache;
 struct kmem_cache *mmu_page_header_cache;
-static struct percpu_counter kvm_total_used_mmu_pages;
 
 static void mmu_spte_set(u64 *sptep, u64 spte);
 
@@ -485,11 +484,12 @@ static void mmu_spte_set(u64 *sptep, u64 new_spte)
 	__set_spte(sptep, new_spte);
 }
 
-/*
- * Update the SPTE (excluding the PFN), but do not track changes in its
- * accessed/dirty status.
+/* Rules for using mmu_spte_update:
+ * Update the state bits, it means the mapped pfn is not changed.
+ *
+ * Returns true if the TLB needs to be flushed
  */
-static u64 mmu_spte_update_no_track(u64 *sptep, u64 new_spte)
+static bool mmu_spte_update(u64 *sptep, u64 new_spte)
 {
 	u64 old_spte = *sptep;
 
@@ -498,7 +498,7 @@ static u64 mmu_spte_update_no_track(u64 *sptep, u64 new_spte)
 
 	if (!is_shadow_present_pte(old_spte)) {
 		mmu_spte_set(sptep, new_spte);
-		return old_spte;
+		return false;
 	}
 
 	if (!spte_has_volatile_bits(old_spte))
@@ -506,49 +506,10 @@ static u64 mmu_spte_update_no_track(u64 *sptep, u64 new_spte)
 	else
 		old_spte = __update_clear_spte_slow(sptep, new_spte);
 
-	WARN_ON_ONCE(spte_to_pfn(old_spte) != spte_to_pfn(new_spte));
+	WARN_ON_ONCE(!is_shadow_present_pte(old_spte) ||
+		     spte_to_pfn(old_spte) != spte_to_pfn(new_spte));
 
-	return old_spte;
-}
-
-/* Rules for using mmu_spte_update:
- * Update the state bits, it means the mapped pfn is not changed.
- *
- * Whenever an MMU-writable SPTE is overwritten with a read-only SPTE, remote
- * TLBs must be flushed. Otherwise rmap_write_protect will find a read-only
- * spte, even though the writable spte might be cached on a CPU's TLB.
- *
- * Returns true if the TLB needs to be flushed
- */
-static bool mmu_spte_update(u64 *sptep, u64 new_spte)
-{
-	bool flush = false;
-	u64 old_spte = mmu_spte_update_no_track(sptep, new_spte);
-
-	if (!is_shadow_present_pte(old_spte))
-		return false;
-
-	/*
-	 * For the spte updated out of mmu-lock is safe, since
-	 * we always atomically update it, see the comments in
-	 * spte_has_volatile_bits().
-	 */
-	if (is_mmu_writable_spte(old_spte) &&
-	      !is_writable_pte(new_spte))
-		flush = true;
-
-	/*
-	 * Flush TLB when accessed/dirty states are changed in the page tables,
-	 * to guarantee consistency between TLB and page tables.
-	 */
-
-	if (is_accessed_spte(old_spte) && !is_accessed_spte(new_spte))
-		flush = true;
-
-	if (is_dirty_spte(old_spte) && !is_dirty_spte(new_spte))
-		flush = true;
-
-	return flush;
+	return leaf_spte_change_needs_tlb_flush(old_spte, new_spte);
 }
 
 /*
@@ -1606,8 +1567,13 @@ static bool kvm_rmap_age_gfn_range(struct kvm *kvm,
 				clear_bit((ffs(shadow_accessed_mask) - 1),
 					(unsigned long *)sptep);
 			} else {
+				/*
+				 * WARN if mmu_spte_update() signals the need
+				 * for a TLB flush, as Access tracking a SPTE
+				 * should never trigger an _immediate_ flush.
+				 */
 				spte = mark_spte_for_access_track(spte);
-				mmu_spte_update_no_track(sptep, spte);
+				WARN_ON_ONCE(mmu_spte_update(sptep, spte));
 			}
 			young = true;
 		}
@@ -1655,27 +1621,15 @@ static void kvm_mmu_check_sptes_at_free(struct kvm_mmu_page *sp)
 #endif
 }
 
-/*
- * This value is the sum of all of the kvm instances's
- * kvm->arch.n_used_mmu_pages values.  We need a global,
- * aggregate version in order to make the slab shrinker
- * faster
- */
-static inline void kvm_mod_used_mmu_pages(struct kvm *kvm, long nr)
-{
-	kvm->arch.n_used_mmu_pages += nr;
-	percpu_counter_add(&kvm_total_used_mmu_pages, nr);
-}
-
 static void kvm_account_mmu_page(struct kvm *kvm, struct kvm_mmu_page *sp)
 {
-	kvm_mod_used_mmu_pages(kvm, +1);
+	kvm->arch.n_used_mmu_pages++;
 	kvm_account_pgtable_pages((void *)sp->spt, +1);
 }
 
 static void kvm_unaccount_mmu_page(struct kvm *kvm, struct kvm_mmu_page *sp)
 {
-	kvm_mod_used_mmu_pages(kvm, -1);
+	kvm->arch.n_used_mmu_pages--;
 	kvm_account_pgtable_pages((void *)sp->spt, -1);
 }
 
@@ -3147,13 +3101,12 @@ static int __kvm_mmu_max_mapping_level(struct kvm *kvm,
 }
 
 int kvm_mmu_max_mapping_level(struct kvm *kvm,
-			      const struct kvm_memory_slot *slot, gfn_t gfn,
-			      int max_level)
+			      const struct kvm_memory_slot *slot, gfn_t gfn)
 {
 	bool is_private = kvm_slot_can_be_private(slot) &&
 			  kvm_mem_is_private(kvm, gfn);
 
-	return __kvm_mmu_max_mapping_level(kvm, slot, gfn, max_level, is_private);
+	return __kvm_mmu_max_mapping_level(kvm, slot, gfn, PG_LEVEL_NUM, is_private);
 }
 
 void kvm_mmu_hugepage_adjust(struct kvm_vcpu *vcpu, struct kvm_page_fault *fault)
@@ -3373,7 +3326,7 @@ static bool page_fault_can_be_fast(struct kvm *kvm, struct kvm_page_fault *fault
 	 *    by setting the Writable bit, which can be done out of mmu_lock.
 	 */
 	if (!fault->present)
-		return !kvm_ad_enabled();
+		return !kvm_ad_enabled;
 
 	/*
 	 * Note, instruction fetches and writes are mutually exclusive, ignore
@@ -3508,8 +3461,9 @@ static int fast_page_fault(struct kvm_vcpu *vcpu, struct kvm_page_fault *fault)
 		 * uses A/D bits for non-nested MMUs.  Thus, if A/D bits are
 		 * enabled, the SPTE can't be an access-tracked SPTE.
 		 */
-		if (unlikely(!kvm_ad_enabled()) && is_access_track_spte(spte))
-			new_spte = restore_acc_track_spte(new_spte);
+		if (unlikely(!kvm_ad_enabled) && is_access_track_spte(spte))
+			new_spte = restore_acc_track_spte(new_spte) |
+				   shadow_accessed_mask;
 
 		/*
 		 * To keep things simple, only SPTEs that are MMU-writable can
@@ -5485,7 +5439,7 @@ kvm_calc_tdp_mmu_root_page_role(struct kvm_vcpu *vcpu,
 	role.efer_nx = true;
 	role.smm = cpu_role.base.smm;
 	role.guest_mode = cpu_role.base.guest_mode;
-	role.ad_disabled = !kvm_ad_enabled();
+	role.ad_disabled = !kvm_ad_enabled;
 	role.level = kvm_mmu_get_tdp_level(vcpu);
 	role.direct = true;
 	role.has_4_byte_gpte = false;
@@ -6413,7 +6367,10 @@ static void kvm_zap_obsolete_pages(struct kvm *kvm)
 {
 	struct kvm_mmu_page *sp, *node;
 	int nr_zapped, batch = 0;
+	LIST_HEAD(invalid_list);
 	bool unstable;
+
+	lockdep_assert_held(&kvm->slots_lock);
 
 restart:
 	list_for_each_entry_safe_reverse(sp, node,
@@ -6446,7 +6403,7 @@ restart:
 		}
 
 		unstable = __kvm_mmu_prepare_zap_page(kvm, sp,
-				&kvm->arch.zapped_obsolete_pages, &nr_zapped);
+				&invalid_list, &nr_zapped);
 		batch += nr_zapped;
 
 		if (unstable)
@@ -6462,7 +6419,7 @@ restart:
 	 * kvm_mmu_load()), and the reload in the caller ensure no vCPUs are
 	 * running with an obsolete MMU.
 	 */
-	kvm_mmu_commit_zap_page(kvm, &kvm->arch.zapped_obsolete_pages);
+	kvm_mmu_commit_zap_page(kvm, &invalid_list);
 }
 
 /*
@@ -6525,16 +6482,10 @@ static void kvm_mmu_zap_all_fast(struct kvm *kvm)
 		kvm_tdp_mmu_zap_invalidated_roots(kvm);
 }
 
-static bool kvm_has_zapped_obsolete_pages(struct kvm *kvm)
-{
-	return unlikely(!list_empty_careful(&kvm->arch.zapped_obsolete_pages));
-}
-
 void kvm_mmu_init_vm(struct kvm *kvm)
 {
 	kvm->arch.shadow_mmio_value = shadow_mmio_value;
 	INIT_LIST_HEAD(&kvm->arch.active_mmu_pages);
-	INIT_LIST_HEAD(&kvm->arch.zapped_obsolete_pages);
 	INIT_LIST_HEAD(&kvm->arch.possible_nx_huge_pages);
 	spin_lock_init(&kvm->arch.mmu_unsync_pages_lock);
 
@@ -6768,7 +6719,7 @@ static void shadow_mmu_split_huge_page(struct kvm *kvm,
 			continue;
 		}
 
-		spte = make_huge_page_split_spte(kvm, huge_spte, sp->role, index);
+		spte = make_small_spte(kvm, huge_spte, sp->role, index);
 		mmu_spte_set(sptep, spte);
 		__rmap_add(kvm, cache, slot, sptep, gfn, sp->role.access);
 	}
@@ -6951,8 +6902,7 @@ restart:
 		 * mapping if the indirect sp has level = 1.
 		 */
 		if (sp->role.direct &&
-		    sp->role.level < kvm_mmu_max_mapping_level(kvm, slot, sp->gfn,
-							       PG_LEVEL_NUM)) {
+		    sp->role.level < kvm_mmu_max_mapping_level(kvm, slot, sp->gfn)) {
 			kvm_zap_one_rmap_spte(kvm, rmap_head, sptep);
 
 			if (kvm_available_flush_remote_tlbs_range())
@@ -6980,8 +6930,8 @@ static void kvm_rmap_zap_collapsible_sptes(struct kvm *kvm,
 		kvm_flush_remote_tlbs_memslot(kvm, slot);
 }
 
-void kvm_mmu_zap_collapsible_sptes(struct kvm *kvm,
-				   const struct kvm_memory_slot *slot)
+void kvm_mmu_recover_huge_pages(struct kvm *kvm,
+				const struct kvm_memory_slot *slot)
 {
 	if (kvm_memslots_have_rmaps(kvm)) {
 		write_lock(&kvm->mmu_lock);
@@ -6991,7 +6941,7 @@ void kvm_mmu_zap_collapsible_sptes(struct kvm *kvm,
 
 	if (tdp_mmu_enabled) {
 		read_lock(&kvm->mmu_lock);
-		kvm_tdp_mmu_zap_collapsible_sptes(kvm, slot);
+		kvm_tdp_mmu_recover_huge_pages(kvm, slot);
 		read_unlock(&kvm->mmu_lock);
 	}
 }
@@ -7146,72 +7096,6 @@ void kvm_mmu_invalidate_mmio_sptes(struct kvm *kvm, u64 gen)
 	}
 }
 
-static unsigned long mmu_shrink_scan(struct shrinker *shrink,
-				     struct shrink_control *sc)
-{
-	struct kvm *kvm;
-	int nr_to_scan = sc->nr_to_scan;
-	unsigned long freed = 0;
-
-	mutex_lock(&kvm_lock);
-
-	list_for_each_entry(kvm, &vm_list, vm_list) {
-		int idx;
-
-		/*
-		 * Never scan more than sc->nr_to_scan VM instances.
-		 * Will not hit this condition practically since we do not try
-		 * to shrink more than one VM and it is very unlikely to see
-		 * !n_used_mmu_pages so many times.
-		 */
-		if (!nr_to_scan--)
-			break;
-		/*
-		 * n_used_mmu_pages is accessed without holding kvm->mmu_lock
-		 * here. We may skip a VM instance errorneosly, but we do not
-		 * want to shrink a VM that only started to populate its MMU
-		 * anyway.
-		 */
-		if (!kvm->arch.n_used_mmu_pages &&
-		    !kvm_has_zapped_obsolete_pages(kvm))
-			continue;
-
-		idx = srcu_read_lock(&kvm->srcu);
-		write_lock(&kvm->mmu_lock);
-
-		if (kvm_has_zapped_obsolete_pages(kvm)) {
-			kvm_mmu_commit_zap_page(kvm,
-			      &kvm->arch.zapped_obsolete_pages);
-			goto unlock;
-		}
-
-		freed = kvm_mmu_zap_oldest_mmu_pages(kvm, sc->nr_to_scan);
-
-unlock:
-		write_unlock(&kvm->mmu_lock);
-		srcu_read_unlock(&kvm->srcu, idx);
-
-		/*
-		 * unfair on small ones
-		 * per-vm shrinkers cry out
-		 * sadness comes quickly
-		 */
-		list_move_tail(&kvm->vm_list, &vm_list);
-		break;
-	}
-
-	mutex_unlock(&kvm_lock);
-	return freed;
-}
-
-static unsigned long mmu_shrink_count(struct shrinker *shrink,
-				      struct shrink_control *sc)
-{
-	return percpu_counter_read_positive(&kvm_total_used_mmu_pages);
-}
-
-static struct shrinker *mmu_shrinker;
-
 static void mmu_destroy_caches(void)
 {
 	kmem_cache_destroy(pte_list_desc_cache);
@@ -7338,23 +7222,8 @@ int kvm_mmu_vendor_module_init(void)
 	if (!mmu_page_header_cache)
 		goto out;
 
-	if (percpu_counter_init(&kvm_total_used_mmu_pages, 0, GFP_KERNEL))
-		goto out;
-
-	mmu_shrinker = shrinker_alloc(0, "x86-mmu");
-	if (!mmu_shrinker)
-		goto out_shrinker;
-
-	mmu_shrinker->count_objects = mmu_shrink_count;
-	mmu_shrinker->scan_objects = mmu_shrink_scan;
-	mmu_shrinker->seeks = DEFAULT_SEEKS * 10;
-
-	shrinker_register(mmu_shrinker);
-
 	return 0;
 
-out_shrinker:
-	percpu_counter_destroy(&kvm_total_used_mmu_pages);
 out:
 	mmu_destroy_caches();
 	return ret;
@@ -7371,8 +7240,6 @@ void kvm_mmu_destroy(struct kvm_vcpu *vcpu)
 void kvm_mmu_vendor_module_exit(void)
 {
 	mmu_destroy_caches();
-	percpu_counter_destroy(&kvm_total_used_mmu_pages);
-	shrinker_free(mmu_shrinker);
 }
 
 /*
