@@ -174,9 +174,11 @@ static int enetc_vf_probe(struct pci_dev *pdev,
 	si = pci_get_drvdata(pdev);
 	si->revision = ENETC_REV_1_0;
 	err = enetc_get_driver_data(si);
-	if (err)
-		return dev_err_probe(&pdev->dev, err,
-				     "Could not get VF driver data\n");
+	if (err) {
+		dev_err_probe(&pdev->dev, err,
+			      "Could not get VF driver data\n");
+		goto err_alloc_netdev;
+	}
 
 	enetc_get_si_caps(si);
 
