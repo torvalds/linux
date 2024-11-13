@@ -430,8 +430,11 @@ class JsonEvent:
   def to_c_string(self, metric: bool) -> str:
     """Representation of the event as a C struct initializer."""
 
+    def fix_comment(s: str) -> str:
+        return s.replace('*/', r'\*\/')
+
     s = self.build_c_string(metric)
-    return f'{{ { _bcs.offsets[s] } }}, /* {s} */\n'
+    return f'{{ { _bcs.offsets[s] } }}, /* {fix_comment(s)} */\n'
 
 
 @lru_cache(maxsize=None)
