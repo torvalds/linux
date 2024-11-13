@@ -711,6 +711,12 @@ int btrfs_check_zoned_mode(struct btrfs_fs_info *fs_info)
 			blk_stack_limits(lim, bdev_limits(device->bdev), 0);
 	}
 
+	ret = blk_validate_limits(lim);
+	if (ret) {
+		btrfs_err(fs_info, "zoned: failed to validate queue limits");
+		return ret;
+	}
+
 	/*
 	 * stripe_size is always aligned to BTRFS_STRIPE_LEN in
 	 * btrfs_create_chunk(). Since we want stripe_len == zone_size,
