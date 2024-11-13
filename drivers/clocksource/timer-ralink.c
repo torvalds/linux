@@ -1,7 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file "COPYING" in the main directory of this archive
- * for more details.
+ * Ralink System Tick Counter driver present on RT3352 and MT7620 SoCs.
  *
  * Copyright (C) 2013 by John Crispin <john@phrozen.org>
  */
@@ -15,8 +14,6 @@
 #include <linux/of.h>
 #include <linux/of_irq.h>
 #include <linux/of_address.h>
-
-#include <asm/mach-ralink/ralink_regs.h>
 
 #define SYSTICK_FREQ		(50 * 1000)
 
@@ -40,7 +37,7 @@ static int systick_set_oneshot(struct clock_event_device *evt);
 static int systick_shutdown(struct clock_event_device *evt);
 
 static int systick_next_event(unsigned long delta,
-				struct clock_event_device *evt)
+			      struct clock_event_device *evt)
 {
 	struct systick_device *sdev;
 	u32 count;
@@ -60,7 +57,7 @@ static void systick_event_handler(struct clock_event_device *dev)
 
 static irqreturn_t systick_interrupt(int irq, void *dev_id)
 {
-	struct clock_event_device *dev = (struct clock_event_device *) dev_id;
+	struct clock_event_device *dev = (struct clock_event_device *)dev_id;
 
 	dev->event_handler(dev);
 
