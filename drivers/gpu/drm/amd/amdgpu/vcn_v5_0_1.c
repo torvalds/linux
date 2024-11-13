@@ -206,8 +206,10 @@ static int vcn_v5_0_1_hw_init(struct amdgpu_ip_block *ip_block)
 static int vcn_v5_0_1_hw_fini(struct amdgpu_ip_block *ip_block)
 {
 	struct amdgpu_device *adev = ip_block->adev;
+	int i;
 
-	cancel_delayed_work_sync(&adev->vcn.idle_work);
+	for (i = 0; i < adev->vcn.num_vcn_inst; ++i)
+		cancel_delayed_work_sync(&adev->vcn.inst[i].idle_work);
 
 	return 0;
 }
