@@ -175,8 +175,8 @@ static int altera_jtaguart_startup(struct uart_port *port)
 	ret = request_irq(port->irq, altera_jtaguart_interrupt, 0,
 			DRV_NAME, port);
 	if (ret) {
-		dev_err(port->dev, "unable to attach Altera JTAG UART %d "
-		       "interrupt vector=%d\n", port->line, port->irq);
+		dev_err(port->dev, "unable to attach Altera JTAG UART %d interrupt vector=%d\n",
+			port->line, port->irq);
 		return ret;
 	}
 
