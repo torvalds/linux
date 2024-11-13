@@ -1393,30 +1393,6 @@ snd_pcm_sgbuf_get_chunk_size(struct snd_pcm_substream *substream,
 	return snd_sgbuf_get_chunk_size(snd_pcm_get_dma_buf(substream), ofs, size);
 }
 
-/**
- * snd_pcm_mmap_data_open - increase the mmap counter
- * @area: VMA
- *
- * PCM mmap callback should handle this counter properly
- */
-static inline void snd_pcm_mmap_data_open(struct vm_area_struct *area)
-{
-	struct snd_pcm_substream *substream = (struct snd_pcm_substream *)area->vm_private_data;
-	atomic_inc(&substream->mmap_count);
-}
-
-/**
- * snd_pcm_mmap_data_close - decrease the mmap counter
- * @area: VMA
- *
- * PCM mmap callback should handle this counter properly
- */
-static inline void snd_pcm_mmap_data_close(struct vm_area_struct *area)
-{
-	struct snd_pcm_substream *substream = (struct snd_pcm_substream *)area->vm_private_data;
-	atomic_dec(&substream->mmap_count);
-}
-
 int snd_pcm_lib_default_mmap(struct snd_pcm_substream *substream,
 			     struct vm_area_struct *area);
 /* mmap for io-memory area */
