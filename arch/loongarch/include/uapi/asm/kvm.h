@@ -132,4 +132,6 @@ struct kvm_iocsr_entry {
 #define KVM_IRQCHIP_NUM_PINS	64
 #define KVM_MAX_CORES		256
 
+#define KVM_DEV_LOONGARCH_IPI_GRP_REGS			0x40000001
+
 #endif /* __UAPI_ASM_LOONGARCH_KVM_H */
