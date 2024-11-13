@@ -1563,6 +1563,30 @@ static noinline void __init check_root_expand(struct maple_tree *mt)
 	mas_unlock(&mas);
 }
 
+static noinline void __init check_deficient_node(struct maple_tree *mt)
+{
+	MA_STATE(mas, mt, 0, 0);
+	int count;
+
+	mas_lock(&mas);
+	for (count = 0; count < 10; count++) {
+		mas_set(&mas, count);
+		mas_store_gfp(&mas, xa_mk_value(count), GFP_KERNEL);
+	}
+
+	for (count = 20; count < 39; count++) {
+		mas_set(&mas, count);
+		mas_store_gfp(&mas, xa_mk_value(count), GFP_KERNEL);
+	}
+
+	for (count = 10; count < 12; count++) {
+		mas_set(&mas, count);
+		mas_store_gfp(&mas, xa_mk_value(count), GFP_KERNEL);
+	}
+	mas_unlock(&mas);
+	mt_validate(mt);
+}
+
 static noinline void __init check_gap_combining(struct maple_tree *mt)
 {
 	struct maple_enode *mn1, *mn2;
@@ -3795,6 +3819,10 @@ static int __init maple_tree_seed(void)
 	mtree_destroy(&tree);
 	goto skip;
 #endif
+
+	mt_init_flags(&tree, MT_FLAGS_ALLOC_RANGE);
+	check_deficient_node(&tree);
+	mtree_destroy(&tree);
 
 	mt_init_flags(&tree, MT_FLAGS_ALLOC_RANGE);
 	check_store_null(&tree);
