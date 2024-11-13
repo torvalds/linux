@@ -43,7 +43,7 @@ static struct lkl_pci_dev *vfio_pci_add(const char *name, void *kernel_ram,
 					unsigned long ram_size)
 {
 	struct lkl_pci_dev *dev;
-	char path[128];
+	char path[128], link[128];
 	int segn, busn, devn, funcn;
 	int i;
 	int container_fd = 0, group_fd = 0;
@@ -77,12 +77,12 @@ static struct lkl_pci_dev *vfio_pci_add(const char *name, void *kernel_ram,
 		 "/sys/bus/pci/devices/%04x:%02x:%02x.%01x/iommu_group", segn,
 		 busn, devn, funcn);
 
-	i = readlink(path, path, sizeof(path));
+	i = readlink(path, link, sizeof(link));
 	if (i < 0)
 		goto error;
 
-	path[i] = '\0';
-	snprintf(path, sizeof(path), "/dev/vfio%s", strrchr(path, '/'));
+	link[i] = '\0';
+	snprintf(path, sizeof(path), "/dev/vfio%s", strrchr(link, '/'));
 
 	group_fd = open(path, O_RDWR);
 	if (group_fd < 0)
