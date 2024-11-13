@@ -48,6 +48,8 @@ struct kvm_vm_stat {
 	u64 hugepages;
 	u64 ipi_read_exits;
 	u64 ipi_write_exits;
+	u64 eiointc_read_exits;
+	u64 eiointc_write_exits;
 };
 
 struct kvm_vcpu_stat {

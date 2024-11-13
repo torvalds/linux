@@ -20,8 +20,37 @@
 #define EIOINTC_BASE			0x1400
 #define EIOINTC_SIZE			0x900
 
+#define EIOINTC_NODETYPE_START		0xa0
+#define EIOINTC_NODETYPE_END		0xbf
+#define EIOINTC_IPMAP_START		0xc0
+#define EIOINTC_IPMAP_END		0xc7
+#define EIOINTC_ENABLE_START		0x200
+#define EIOINTC_ENABLE_END		0x21f
+#define EIOINTC_BOUNCE_START		0x280
+#define EIOINTC_BOUNCE_END		0x29f
+#define EIOINTC_ISR_START		0x300
+#define EIOINTC_ISR_END			0x31f
+#define EIOINTC_COREISR_START		0x400
+#define EIOINTC_COREISR_END		0x41f
+#define EIOINTC_COREMAP_START		0x800
+#define EIOINTC_COREMAP_END		0x8ff
+
 #define EIOINTC_VIRT_BASE		(0x40000000)
 #define EIOINTC_VIRT_SIZE		(0x1000)
+
+#define EIOINTC_VIRT_FEATURES		(0x0)
+#define EIOINTC_HAS_VIRT_EXTENSION	(0)
+#define EIOINTC_HAS_ENABLE_OPTION	(1)
+#define EIOINTC_HAS_INT_ENCODE		(2)
+#define EIOINTC_HAS_CPU_ENCODE		(3)
+#define EIOINTC_VIRT_HAS_FEATURES	((1U << EIOINTC_HAS_VIRT_EXTENSION) \
+					| (1U << EIOINTC_HAS_ENABLE_OPTION) \
+					| (1U << EIOINTC_HAS_INT_ENCODE)    \
+					| (1U << EIOINTC_HAS_CPU_ENCODE))
+#define EIOINTC_VIRT_CONFIG		(0x4)
+#define EIOINTC_ENABLE			(1)
+#define EIOINTC_ENABLE_INT_ENCODE	(2)
+#define EIOINTC_ENABLE_CPU_ENCODE	(3)
 
 #define LOONGSON_IP_NUM			8
 
@@ -89,5 +118,6 @@ struct loongarch_eiointc {
 };
 
 int kvm_loongarch_register_eiointc_device(void);
+void eiointc_set_irq(struct loongarch_eiointc *s, int irq, int level);
 
 #endif /* __ASM_KVM_EIOINTC_H */
