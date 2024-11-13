@@ -1675,6 +1675,9 @@ static int kvm_get_feature_msr(struct kvm_vcpu *vcpu, u32 index, u64 *data,
 	case MSR_IA32_PERF_CAPABILITIES:
 		*data = kvm_caps.supported_perf_cap;
 		break;
+	case MSR_PLATFORM_INFO:
+		*data = MSR_PLATFORM_INFO_CPUID_FAULT;
+		break;
 	case MSR_IA32_UCODE_REV:
 		rdmsrl_safe(index, data);
 		break;
