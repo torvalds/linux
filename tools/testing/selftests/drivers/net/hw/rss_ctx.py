@@ -238,6 +238,32 @@ def test_rss_queue_reconfigure(cfg, main_ctx=True):
     else:
         raise Exception(f"Driver didn't prevent us from deactivating a used queue (context {ctx_id})")
 
+    if not main_ctx:
+        ethtool(f"-L {cfg.ifname} combined 4")
+        flow = f"flow-type tcp{cfg.addr_ipver} dst-ip {cfg.addr} dst-port {port} context {ctx_id} action 1"
+        try:
+            # this targets queue 4, which doesn't exist
+            ntuple2 = ethtool_create(cfg, "-N", flow)
+        except CmdExitFailure:
+            pass
+        else:
+            raise Exception(f"Driver didn't prevent us from targeting a nonexistent queue (context {ctx_id})")
+        # change the table to target queues 0 and 2
+        ethtool(f"-X {cfg.ifname} {ctx_ref} weight 1 0 1 0")
+        # ntuple rule therefore targets queues 1 and 3
+        ntuple2 = ethtool_create(cfg, "-N", flow)
+        # should replace existing filter
+        ksft_eq(ntuple, ntuple2)
+        _send_traffic_check(cfg, port, ctx_ref, { 'target': (1, 3),
+                                                  'noise' : (0, 2) })
+        # Setting queue count to 3 should fail, queue 3 is used
+        try:
+            ethtool(f"-L {cfg.ifname} combined 3")
+        except CmdExitFailure:
+            pass
+        else:
+            raise Exception(f"Driver didn't prevent us from deactivating a used queue (context {ctx_id})")
+
 
 def test_rss_resize(cfg):
     """Test resizing of the RSS table.
