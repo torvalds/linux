@@ -2448,30 +2448,11 @@ static int enic_set_intr_mode(struct enic *enic)
 	/* Set interrupt mode (INTx, MSI, MSI-X) depending
 	 * on system capabilities.
 	 *
-	 * We need a minimum of 1 RQ, 1 WQ, and 2 CQs
-	 *
+	 * Try MSI-X first
 	 */
 
-	if (enic->rq_avail < 1 || enic->wq_avail < 1 || enic->cq_avail < 2) {
-		dev_err(enic_get_dev(enic),
-			"Not enough resources available rq: %d wq: %d cq: %d\n",
-			enic->rq_avail, enic->wq_avail,
-			enic->cq_avail);
-		return -ENOSPC;
-	}
-
-	/* if RSS isn't set, then we can only use one RQ */
-	if (!ENIC_SETTING(enic, RSS))
-		enic->rq_avail = 1;
-
-	/* Try MSI-X first */
 	if (enic->config.intr_mode < 1 &&
 	    enic->intr_avail >= ENIC_MSIX_MIN_INTR) {
-		unsigned int max_queues;
-		unsigned int rq_default;
-		unsigned int rq_avail;
-		unsigned int wq_avail;
-
 		for (i = 0; i < enic->intr_avail; i++)
 			enic->msix_entry[i].entry = i;
 
@@ -2479,28 +2460,6 @@ static int enic_set_intr_mode(struct enic *enic)
 						 ENIC_MSIX_MIN_INTR,
 						 enic->intr_avail);
 		if (num_intr > 0) {
-			wq_avail = min(enic->wq_avail, ENIC_WQ_MAX);
-			rq_default = netif_get_num_default_rss_queues();
-			rq_avail = min3(enic->rq_avail, ENIC_RQ_MAX, rq_default);
-			max_queues = min(enic->cq_avail,
-					 enic->intr_avail - ENIC_MSIX_RESERVED_INTR);
-
-			if (wq_avail + rq_avail <= max_queues) {
-				enic->rq_count = rq_avail;
-				enic->wq_count = wq_avail;
-			} else {
-				/* recalculate wq/rq count */
-				if (rq_avail < wq_avail) {
-					enic->rq_count = min(rq_avail, max_queues / 2);
-					enic->wq_count = max_queues - enic->rq_count;
-				} else {
-					enic->wq_count = min(wq_avail, max_queues / 2);
-					enic->rq_count = max_queues - enic->wq_count;
-				}
-			}
-			enic->cq_count = enic->rq_count + enic->wq_count;
-			enic->intr_count = enic->cq_count + ENIC_MSIX_RESERVED_INTR;
-
 			vnic_dev_set_intr_mode(enic->vdev,
 					       VNIC_DEV_INTR_MODE_MSIX);
 			enic->intr_avail = num_intr;
@@ -2516,14 +2475,8 @@ static int enic_set_intr_mode(struct enic *enic)
 	if (enic->config.intr_mode < 2 &&
 	    enic->intr_avail >= 1 &&
 	    !pci_enable_msi(enic->pdev)) {
-
-		enic->rq_count = 1;
-		enic->wq_count = 1;
-		enic->cq_count = 2;
-		enic->intr_count = 1;
 		enic->intr_avail = 1;
 		vnic_dev_set_intr_mode(enic->vdev, VNIC_DEV_INTR_MODE_MSI);
-
 		return 0;
 	}
 
@@ -2537,14 +2490,8 @@ static int enic_set_intr_mode(struct enic *enic)
 
 	if (enic->config.intr_mode < 3 &&
 	    enic->intr_avail >= 3) {
-
-		enic->rq_count = 1;
-		enic->wq_count = 1;
-		enic->cq_count = 2;
-		enic->intr_count = 3;
 		enic->intr_avail = 3;
 		vnic_dev_set_intr_mode(enic->vdev, VNIC_DEV_INTR_MODE_INTX);
-
 		return 0;
 	}
 
@@ -2567,6 +2514,67 @@ static void enic_clear_intr_mode(struct enic *enic)
 	}
 
 	vnic_dev_set_intr_mode(enic->vdev, VNIC_DEV_INTR_MODE_UNKNOWN);
+}
+
+static int enic_adjust_resources(struct enic *enic)
+{
+	unsigned int max_queues;
+	unsigned int rq_default;
+	unsigned int rq_avail;
+	unsigned int wq_avail;
+
+	if (enic->rq_avail < 1 || enic->wq_avail < 1 || enic->cq_avail < 2) {
+		dev_err(enic_get_dev(enic),
+			"Not enough resources available rq: %d wq: %d cq: %d\n",
+			enic->rq_avail, enic->wq_avail,
+			enic->cq_avail);
+		return -ENOSPC;
+	}
+
+	/* if RSS isn't set, then we can only use one RQ */
+	if (!ENIC_SETTING(enic, RSS))
+		enic->rq_avail = 1;
+
+	switch (vnic_dev_get_intr_mode(enic->vdev)) {
+	case VNIC_DEV_INTR_MODE_INTX:
+	case VNIC_DEV_INTR_MODE_MSI:
+		enic->rq_count = 1;
+		enic->wq_count = 1;
+		enic->cq_count = 2;
+		enic->intr_count = enic->intr_avail;
+		break;
+	case VNIC_DEV_INTR_MODE_MSIX:
+		/* Adjust the number of wqs/rqs/cqs/interrupts that will be
+		 * used based on which resource is the most constrained
+		 */
+		wq_avail = min(enic->wq_avail, ENIC_WQ_MAX);
+		rq_default = netif_get_num_default_rss_queues();
+		rq_avail = min3(enic->rq_avail, ENIC_RQ_MAX, rq_default);
+		max_queues = min(enic->cq_avail,
+				 enic->intr_avail - ENIC_MSIX_RESERVED_INTR);
+		if (wq_avail + rq_avail <= max_queues) {
+			enic->rq_count = rq_avail;
+			enic->wq_count = wq_avail;
+		} else {
+			/* recalculate wq/rq count */
+			if (rq_avail < wq_avail) {
+				enic->rq_count = min(rq_avail, max_queues / 2);
+				enic->wq_count = max_queues - enic->rq_count;
+			} else {
+				enic->wq_count = min(wq_avail, max_queues / 2);
+				enic->rq_count = max_queues - enic->wq_count;
+			}
+		}
+		enic->cq_count = enic->rq_count + enic->wq_count;
+		enic->intr_count = enic->cq_count + ENIC_MSIX_RESERVED_INTR;
+
+		break;
+	default:
+		dev_err(enic_get_dev(enic), "Unknown interrupt mode\n");
+		return -EINVAL;
+	}
+
+	return 0;
 }
 
 static void enic_get_queue_stats_rx(struct net_device *dev, int idx,
@@ -2807,14 +2815,19 @@ static int enic_dev_init(struct enic *enic)
 	 */
 	enic_kdump_kernel_config(enic);
 
-	/* Set interrupt mode based on resource counts and system
-	 * capabilities
-	 */
+	/* Set interrupt mode based on system capabilities */
 
 	err = enic_set_intr_mode(enic);
 	if (err) {
 		dev_err(dev, "Failed to set intr mode based on resource "
 			"counts and system capabilities, aborting\n");
+		goto err_out_free_vnic_resources;
+	}
+
+	/* Adjust resource counts based on most constrained resources */
+	err = enic_adjust_resources(enic);
+	if (err) {
+		dev_err(dev, "Failed to adjust resources\n");
 		goto err_out_free_vnic_resources;
 	}
 
