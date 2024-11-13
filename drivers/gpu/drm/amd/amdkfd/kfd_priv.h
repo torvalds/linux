@@ -1003,6 +1003,9 @@ struct kfd_process {
 	struct semaphore runtime_enable_sema;
 	bool is_runtime_retry;
 	struct kfd_runtime_info runtime_info;
+
+	/* if gpu page fault sent to KFD */
+	bool gpu_page_fault;
 };
 
 #define KFD_PROCESS_TABLE_SIZE 5 /* bits: 32 entries */

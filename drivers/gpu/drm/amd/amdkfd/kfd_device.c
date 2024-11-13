@@ -1521,6 +1521,73 @@ bool kgd2kfd_compute_active(struct kfd_dev *kfd, uint32_t node_id)
 	return kfd_compute_active(node);
 }
 
+/**
+ * kgd2kfd_vmfault_fast_path() - KFD vm page fault interrupt handling fast path for gmc v9
+ * @adev: amdgpu device
+ * @entry: vm fault interrupt vector
+ * @retry_fault: if this is retry fault
+ *
+ * retry fault -
+ *    with CAM enabled, adev primary ring
+ *                           |  gmc_v9_0_process_interrupt()
+ *                      adev soft_ring
+ *                           |  gmc_v9_0_process_interrupt() worker failed to recover page fault
+ *                      KFD node ih_fifo
+ *                           |  KFD interrupt_wq worker
+ *                      kfd_signal_vm_fault_event
+ *
+ *    without CAM,      adev primary ring1
+ *                           |  gmc_v9_0_process_interrupt worker failed to recvoer page fault
+ *                      KFD node ih_fifo
+ *                           |  KFD interrupt_wq worker
+ *                      kfd_signal_vm_fault_event
+ *
+ * no-retry fault -
+ *                      adev primary ring
+ *                           |  gmc_v9_0_process_interrupt()
+ *                      KFD node ih_fifo
+ *                           |  KFD interrupt_wq worker
+ *                      kfd_signal_vm_fault_event
+ *
+ * fast path - After kfd_signal_vm_fault_event, gmc_v9_0_process_interrupt drop the page fault
+ *            of same process, don't copy interrupt to KFD node ih_fifo.
+ *            With gdb debugger enabled, need convert the retry fault to no-retry fault for
+ *            debugger, cannot use the fast path.
+ *
+ * Return:
+ *   true - use the fast path to handle this fault
+ *   false - use normal path to handle it
+ */
+bool kgd2kfd_vmfault_fast_path(struct amdgpu_device *adev, struct amdgpu_iv_entry *entry,
+			       bool retry_fault)
+{
+	struct kfd_process *p;
+	u32 cam_index;
+
+	if (entry->ih == &adev->irq.ih_soft || entry->ih == &adev->irq.ih1) {
+		p = kfd_lookup_process_by_pasid(entry->pasid);
+		if (!p)
+			return true;
+
+		if (p->gpu_page_fault && !p->debug_trap_enabled) {
+			if (retry_fault && adev->irq.retry_cam_enabled) {
+				cam_index = entry->src_data[2] & 0x3ff;
+				WDOORBELL32(adev->irq.retry_cam_doorbell_index, cam_index);
+			}
+
+			kfd_unref_process(p);
+			return true;
+		}
+
+		/*
+		 * This is the first page fault, set flag and then signal user space
+		 */
+		p->gpu_page_fault = true;
+		kfd_unref_process(p);
+	}
+	return false;
+}
+
 #if defined(CONFIG_DEBUG_FS)
 
 /* This function will send a package to HIQ to hang the HWS

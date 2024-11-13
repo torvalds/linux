@@ -623,6 +623,9 @@ static int gmc_v9_0_process_interrupt(struct amdgpu_device *adev,
 		}
 	}
 
+	if (kgd2kfd_vmfault_fast_path(adev, entry, retry_fault))
+		return 1;
+
 	if (!printk_ratelimit())
 		return 0;
 
