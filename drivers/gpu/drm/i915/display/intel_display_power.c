@@ -2232,9 +2232,11 @@ static void intel_power_domains_verify_state(struct drm_i915_private *i915)
 
 #endif
 
-void intel_display_power_suspend_late(struct drm_i915_private *i915)
+void intel_display_power_suspend_late(struct drm_i915_private *i915, bool s2idle)
 {
 	struct intel_display *display = &i915->display;
+
+	intel_power_domains_suspend(i915, s2idle);
 
 	if (DISPLAY_VER(i915) >= 11 || IS_GEMINILAKE(i915) ||
 	    IS_BROXTON(i915)) {
@@ -2263,6 +2265,8 @@ void intel_display_power_resume_early(struct drm_i915_private *i915)
 	/* Tweaked Wa_14010685332:cnp,icp,jsp,mcc,tgp,adp */
 	if (INTEL_PCH_TYPE(i915) >= PCH_CNP && INTEL_PCH_TYPE(i915) < PCH_DG1)
 		intel_de_rmw(i915, SOUTH_CHICKEN1, SBCLK_RUN_REFCLK_DIS, 0);
+
+	intel_power_domains_resume(i915);
 }
 
 void intel_display_power_suspend(struct drm_i915_private *i915)
