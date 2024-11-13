@@ -6727,6 +6727,15 @@
 	torture.verbose_sleep_duration= [KNL]
 			Duration of each verbose-printk() sleep in jiffies.
 
+	tpm.disable_pcr_integrity= [HW,TPM]
+			Do not protect PCR registers from unintended physical
+			access, or interposers in the bus by the means of
+			having an integrity protected session wrapped around
+			TPM2_PCR_Extend command. Consider this in a situation
+			where TPM is heavily utilized by IMA, thus protection
+			causing a major performance hit, and the space where
+			machines are deployed is by other means guarded.
+
 	tpm_suspend_pcr=[HW,TPM]
 			Format: integer pcr id
 			Specify that at suspend time, the tpm driver
