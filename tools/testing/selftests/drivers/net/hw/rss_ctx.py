@@ -633,6 +633,45 @@ def test_delete_rss_context_busy(cfg):
         pass
 
 
+def test_rss_ntuple_addition(cfg):
+    """
+    Test that the queue offset (ring_cookie) of an ntuple rule is added
+    to the queue number read from the indirection table.
+    """
+
+    require_ntuple(cfg)
+
+    queue_cnt = len(_get_rx_cnts(cfg))
+    if queue_cnt < 4:
+        try:
+            ksft_pr(f"Increasing queue count {queue_cnt} -> 4")
+            ethtool(f"-L {cfg.ifname} combined 4")
+            defer(ethtool, f"-L {cfg.ifname} combined {queue_cnt}")
+        except:
+            raise KsftSkipEx("Not enough queues for the test")
+
+    # Use queue 0 for normal traffic
+    ethtool(f"-X {cfg.ifname} equal 1")
+    defer(ethtool, f"-X {cfg.ifname} default")
+
+    # create additional rss context
+    ctx_id = ethtool_create(cfg, "-X", "context new equal 2")
+    defer(ethtool, f"-X {cfg.ifname} context {ctx_id} delete")
+
+    # utilize context from ntuple filter
+    port = rand_port()
+    flow = f"flow-type tcp{cfg.addr_ipver} dst-ip {cfg.addr} dst-port {port} context {ctx_id} action 2"
+    try:
+        ntuple_id = ethtool_create(cfg, "-N", flow)
+    except CmdExitFailure:
+        raise KsftSkipEx("Ntuple filter with RSS and nonzero action not supported")
+    defer(ethtool, f"-N {cfg.ifname} delete {ntuple_id}")
+
+    _send_traffic_check(cfg, port, f"context {ctx_id}", { 'target': (2, 3),
+                                                          'empty' : (1,),
+                                                          'noise' : (0,) })
+
+
 def main() -> None:
     with NetDrvEpEnv(__file__, nsim_test=False) as cfg:
         cfg.ethnl = EthtoolFamily()
@@ -644,7 +683,7 @@ def main() -> None:
                   test_rss_context_dump, test_rss_context_queue_reconfigure,
                   test_rss_context_overlap, test_rss_context_overlap2,
                   test_rss_context_out_of_order, test_rss_context4_create_with_cfg,
-                  test_delete_rss_context_busy],
+                  test_delete_rss_context_busy, test_rss_ntuple_addition],
                  args=(cfg, ))
     ksft_exit()
 
