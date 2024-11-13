@@ -221,9 +221,12 @@ void enic_init_vnic_resources(struct enic *enic)
 
 	switch (intr_mode) {
 	case VNIC_DEV_INTR_MODE_INTX:
+		error_interrupt_enable = 1;
+		error_interrupt_offset = ENIC_LEGACY_ERR_INTR;
+		break;
 	case VNIC_DEV_INTR_MODE_MSIX:
 		error_interrupt_enable = 1;
-		error_interrupt_offset = enic->intr_count - 2;
+		error_interrupt_offset = enic_msix_err_intr(enic);
 		break;
 	default:
 		error_interrupt_enable = 0;
@@ -249,15 +252,15 @@ void enic_init_vnic_resources(struct enic *enic)
 
 	/* Init CQ resources
 	 *
-	 * CQ[0 - n+m-1] point to INTR[0] for INTx, MSI
-	 * CQ[0 - n+m-1] point to INTR[0 - n+m-1] for MSI-X
+	 * All CQs point to INTR[0] for INTx, MSI
+	 * CQ[i] point to INTR[ENIC_MSIX_IO_INTR_BASE + i] for MSI-X
 	 */
 
 	for (i = 0; i < enic->cq_count; i++) {
 
 		switch (intr_mode) {
 		case VNIC_DEV_INTR_MODE_MSIX:
-			interrupt_offset = i;
+			interrupt_offset = ENIC_MSIX_IO_INTR_BASE + i;
 			break;
 		default:
 			interrupt_offset = 0;
