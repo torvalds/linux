@@ -15,6 +15,8 @@ UEI_DEFINE(uei);
 
 #define EXIT_CLEANLY() scx_bpf_exit(exit_point, "%d", exit_point)
 
+#define DSQ_ID 0
+
 s32 BPF_STRUCT_OPS(exit_select_cpu, struct task_struct *p,
 		   s32 prev_cpu, u64 wake_flags)
 {
@@ -31,7 +33,7 @@ void BPF_STRUCT_OPS(exit_enqueue, struct task_struct *p, u64 enq_flags)
 	if (exit_point == EXIT_ENQUEUE)
 		EXIT_CLEANLY();
 
-	scx_bpf_dispatch(p, SCX_DSQ_GLOBAL, SCX_SLICE_DFL, enq_flags);
+	scx_bpf_dispatch(p, DSQ_ID, SCX_SLICE_DFL, enq_flags);
 }
 
 void BPF_STRUCT_OPS(exit_dispatch, s32 cpu, struct task_struct *p)
@@ -39,7 +41,7 @@ void BPF_STRUCT_OPS(exit_dispatch, s32 cpu, struct task_struct *p)
 	if (exit_point == EXIT_DISPATCH)
 		EXIT_CLEANLY();
 
-	scx_bpf_consume(SCX_DSQ_GLOBAL);
+	scx_bpf_consume(DSQ_ID);
 }
 
 void BPF_STRUCT_OPS(exit_enable, struct task_struct *p)
@@ -67,18 +69,18 @@ s32 BPF_STRUCT_OPS_SLEEPABLE(exit_init)
 	if (exit_point == EXIT_INIT)
 		EXIT_CLEANLY();
 
-	return 0;
+	return scx_bpf_create_dsq(DSQ_ID, -1);
 }
 
 SEC(".struct_ops.link")
 struct sched_ext_ops exit_ops = {
-	.select_cpu		= exit_select_cpu,
-	.enqueue		= exit_enqueue,
-	.dispatch		= exit_dispatch,
-	.init_task		= exit_init_task,
-	.enable			= exit_enable,
-	.exit			= exit_exit,
-	.init			= exit_init,
+	.select_cpu		= (void *) exit_select_cpu,
+	.enqueue		= (void *) exit_enqueue,
+	.dispatch		= (void *) exit_dispatch,
+	.init_task		= (void *) exit_init_task,
+	.enable			= (void *) exit_enable,
+	.exit			= (void *) exit_exit,
+	.init			= (void *) exit_init,
 	.name			= "exit",
 	.timeout_ms		= 1000U,
 };

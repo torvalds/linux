@@ -862,7 +862,8 @@ static DEFINE_MUTEX(scx_ops_enable_mutex);
 DEFINE_STATIC_KEY_FALSE(__scx_ops_enabled);
 DEFINE_STATIC_PERCPU_RWSEM(scx_fork_rwsem);
 static atomic_t scx_ops_enable_state_var = ATOMIC_INIT(SCX_OPS_DISABLED);
-static atomic_t scx_ops_bypass_depth = ATOMIC_INIT(0);
+static int scx_ops_bypass_depth;
+static DEFINE_RAW_SPINLOCK(__scx_ops_bypass_lock);
 static bool scx_ops_init_task_enabled;
 static bool scx_switching_all;
 DEFINE_STATIC_KEY_FALSE(__scx_switched_all);
@@ -4256,14 +4257,14 @@ static const struct kset_uevent_ops scx_uevent_ops = {
  * Used by sched_fork() and __setscheduler_prio() to pick the matching
  * sched_class. dl/rt are already handled.
  */
-bool task_should_scx(struct task_struct *p)
+bool task_should_scx(int policy)
 {
 	if (!scx_enabled() ||
 	    unlikely(scx_ops_enable_state() == SCX_OPS_DISABLING))
 		return false;
 	if (READ_ONCE(scx_switching_all))
 		return true;
-	return p->policy == SCHED_EXT;
+	return policy == SCHED_EXT;
 }
 
 /**
@@ -4298,18 +4299,20 @@ bool task_should_scx(struct task_struct *p)
  */
 static void scx_ops_bypass(bool bypass)
 {
-	int depth, cpu;
+	int cpu;
+	unsigned long flags;
 
+	raw_spin_lock_irqsave(&__scx_ops_bypass_lock, flags);
 	if (bypass) {
-		depth = atomic_inc_return(&scx_ops_bypass_depth);
-		WARN_ON_ONCE(depth <= 0);
-		if (depth != 1)
-			return;
+		scx_ops_bypass_depth++;
+		WARN_ON_ONCE(scx_ops_bypass_depth <= 0);
+		if (scx_ops_bypass_depth != 1)
+			goto unlock;
 	} else {
-		depth = atomic_dec_return(&scx_ops_bypass_depth);
-		WARN_ON_ONCE(depth < 0);
-		if (depth != 0)
-			return;
+		scx_ops_bypass_depth--;
+		WARN_ON_ONCE(scx_ops_bypass_depth < 0);
+		if (scx_ops_bypass_depth != 0)
+			goto unlock;
 	}
 
 	/*
@@ -4326,7 +4329,7 @@ static void scx_ops_bypass(bool bypass)
 		struct rq_flags rf;
 		struct task_struct *p, *n;
 
-		rq_lock_irqsave(rq, &rf);
+		rq_lock(rq, &rf);
 
 		if (bypass) {
 			WARN_ON_ONCE(rq->scx.flags & SCX_RQ_BYPASSING);
@@ -4362,11 +4365,13 @@ static void scx_ops_bypass(bool bypass)
 			sched_enq_and_set_task(&ctx);
 		}
 
-		rq_unlock_irqrestore(rq, &rf);
+		rq_unlock(rq, &rf);
 
 		/* resched to restore ticks and idle state */
 		resched_cpu(cpu);
 	}
+unlock:
+	raw_spin_unlock_irqrestore(&__scx_ops_bypass_lock, flags);
 }
 
 static void free_exit_info(struct scx_exit_info *ei)
@@ -4489,11 +4494,16 @@ static void scx_ops_disable_workfn(struct kthread_work *work)
 	scx_task_iter_start(&sti);
 	while ((p = scx_task_iter_next_locked(&sti))) {
 		const struct sched_class *old_class = p->sched_class;
+		const struct sched_class *new_class =
+			__setscheduler_class(p->policy, p->prio);
 		struct sched_enq_and_set_ctx ctx;
+
+		if (old_class != new_class && p->se.sched_delayed)
+			dequeue_task(task_rq(p), p, DEQUEUE_SLEEP | DEQUEUE_DELAYED);
 
 		sched_deq_and_put_task(p, DEQUEUE_SAVE | DEQUEUE_MOVE, &ctx);
 
-		p->sched_class = __setscheduler_class(p, p->prio);
+		p->sched_class = new_class;
 		check_class_changing(task_rq(p), p, old_class);
 
 		sched_enq_and_set_task(&ctx);
@@ -5199,12 +5209,17 @@ static int scx_ops_enable(struct sched_ext_ops *ops, struct bpf_link *link)
 	scx_task_iter_start(&sti);
 	while ((p = scx_task_iter_next_locked(&sti))) {
 		const struct sched_class *old_class = p->sched_class;
+		const struct sched_class *new_class =
+			__setscheduler_class(p->policy, p->prio);
 		struct sched_enq_and_set_ctx ctx;
+
+		if (old_class != new_class && p->se.sched_delayed)
+			dequeue_task(task_rq(p), p, DEQUEUE_SLEEP | DEQUEUE_DELAYED);
 
 		sched_deq_and_put_task(p, DEQUEUE_SAVE | DEQUEUE_MOVE, &ctx);
 
 		p->scx.slice = SCX_SLICE_DFL;
-		p->sched_class = __setscheduler_class(p, p->prio);
+		p->sched_class = new_class;
 		check_class_changing(task_rq(p), p, old_class);
 
 		sched_enq_and_set_task(&ctx);

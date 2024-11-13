@@ -236,7 +236,7 @@ tcx_blank(int blank, struct fb_info *info)
 	return 0;
 }
 
-static struct sbus_mmap_map __tcx_mmap_map[TCX_MMAP_ENTRIES] = {
+static const struct sbus_mmap_map __tcx_mmap_map[TCX_MMAP_ENTRIES] = {
 	{
 		.voff	= TCX_RAM8BIT,
 		.size	= SBUS_MMAP_FBSIZE(1)

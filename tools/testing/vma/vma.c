@@ -1522,6 +1522,45 @@ static bool test_copy_vma(void)
 	return true;
 }
 
+static bool test_expand_only_mode(void)
+{
+	unsigned long flags = VM_READ | VM_WRITE | VM_MAYREAD | VM_MAYWRITE;
+	struct mm_struct mm = {};
+	VMA_ITERATOR(vmi, &mm, 0);
+	struct vm_area_struct *vma_prev, *vma;
+	VMG_STATE(vmg, &mm, &vmi, 0x5000, 0x9000, flags, 5);
+
+	/*
+	 * Place a VMA prior to the one we're expanding so we assert that we do
+	 * not erroneously try to traverse to the previous VMA even though we
+	 * have, through the use of VMG_FLAG_JUST_EXPAND, indicated we do not
+	 * need to do so.
+	 */
+	alloc_and_link_vma(&mm, 0, 0x2000, 0, flags);
+
+	/*
+	 * We will be positioned at the prev VMA, but looking to expand to
+	 * 0x9000.
+	 */
+	vma_iter_set(&vmi, 0x3000);
+	vma_prev = alloc_and_link_vma(&mm, 0x3000, 0x5000, 3, flags);
+	vmg.prev = vma_prev;
+	vmg.merge_flags = VMG_FLAG_JUST_EXPAND;
+
+	vma = vma_merge_new_range(&vmg);
+	ASSERT_NE(vma, NULL);
+	ASSERT_EQ(vma, vma_prev);
+	ASSERT_EQ(vmg.state, VMA_MERGE_SUCCESS);
+	ASSERT_EQ(vma->vm_start, 0x3000);
+	ASSERT_EQ(vma->vm_end, 0x9000);
+	ASSERT_EQ(vma->vm_pgoff, 3);
+	ASSERT_TRUE(vma_write_started(vma));
+	ASSERT_EQ(vma_iter_addr(&vmi), 0x3000);
+
+	cleanup_mm(&mm, &vmi);
+	return true;
+}
+
 int main(void)
 {
 	int num_tests = 0, num_fail = 0;
@@ -1553,6 +1592,7 @@ int main(void)
 	TEST(vmi_prealloc_fail);
 	TEST(merge_extend);
 	TEST(copy_vma);
+	TEST(expand_only_mode);
 
 #undef TEST
 
