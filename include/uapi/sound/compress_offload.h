@@ -139,6 +139,7 @@ struct snd_compr_metadata {
  * @output_fd: data output file descriptor (dma-buf)
  * @input_size: filled data in bytes (from caller, must not exceed fragment size)
  * @flags: see SND_COMPRESS_TFLG_* defines
+ * @reserved: reserved for future extension
  */
 struct snd_compr_task {
 	__u64 seqno;
@@ -169,6 +170,7 @@ enum snd_compr_state {
  * @output_size: filled data in bytes (from driver)
  * @output_flags: reserved for future (all zeros - from driver)
  * @state: actual task state (SND_COMPRESS_TASK_STATE_*)
+ * @reserved: reserved for future extension
  */
 struct snd_compr_task_status {
 	__u64 seqno;
