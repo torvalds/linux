@@ -985,8 +985,8 @@ static int update_mm_locked_vm(struct iopt_pages *pages, unsigned long npages,
 	return rc;
 }
 
-static int do_update_pinned(struct iopt_pages *pages, unsigned long npages,
-			    bool inc, struct pfn_reader_user *user)
+int iopt_pages_update_pinned(struct iopt_pages *pages, unsigned long npages,
+			     bool inc, struct pfn_reader_user *user)
 {
 	int rc = 0;
 
@@ -1020,8 +1020,8 @@ static void update_unpinned(struct iopt_pages *pages)
 		return;
 	if (pages->npinned == pages->last_npinned)
 		return;
-	do_update_pinned(pages, pages->last_npinned - pages->npinned, false,
-			 NULL);
+	iopt_pages_update_pinned(pages, pages->last_npinned - pages->npinned,
+				 false, NULL);
 }
 
 /*
@@ -1051,7 +1051,7 @@ static int pfn_reader_user_update_pinned(struct pfn_reader_user *user,
 		npages = pages->npinned - pages->last_npinned;
 		inc = true;
 	}
-	return do_update_pinned(pages, npages, inc, user);
+	return iopt_pages_update_pinned(pages, npages, inc, user);
 }
 
 /*

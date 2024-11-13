@@ -252,4 +252,9 @@ struct iopt_pages_access {
 	unsigned int users;
 };
 
+struct pfn_reader_user;
+
+int iopt_pages_update_pinned(struct iopt_pages *pages, unsigned long npages,
+			     bool inc, struct pfn_reader_user *user);
+
 #endif
