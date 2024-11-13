@@ -22,6 +22,12 @@
 #define BIT_MASK(nr) (1UL << ((nr) % __BITS_PER_LONG))
 #define BIT_WORD(nr) ((nr) / __BITS_PER_LONG)
 
+enum {
+	IOPT_PAGES_ACCOUNT_NONE = 0,
+	IOPT_PAGES_ACCOUNT_USER = 1,
+	IOPT_PAGES_ACCOUNT_MM = 2,
+};
+
 #define DIV_ROUND_UP(n, d) (((n) + (d) - 1) / (d))
 
 static inline void set_bit(unsigned int nr, unsigned long *addr)

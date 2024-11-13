@@ -2,6 +2,7 @@
 /* Copyright (c) 2021-2022, NVIDIA CORPORATION & AFFILIATES */
 #include <asm/unistd.h>
 #include <stdlib.h>
+#include <sys/capability.h>
 #include <sys/mman.h>
 #include <sys/eventfd.h>
 
@@ -135,6 +136,8 @@ TEST_F(iommufd, cmd_length)
 	TEST_LENGTH(iommu_ioas_map_file, IOMMU_IOAS_MAP_FILE, iova);
 	TEST_LENGTH(iommu_viommu_alloc, IOMMU_VIOMMU_ALLOC, out_viommu_id);
 	TEST_LENGTH(iommu_vdevice_alloc, IOMMU_VDEVICE_ALLOC, virt_id);
+	TEST_LENGTH(iommu_ioas_change_process, IOMMU_IOAS_CHANGE_PROCESS,
+		    __reserved);
 #undef TEST_LENGTH
 }
 
@@ -191,6 +194,144 @@ TEST_F(iommufd, global_options)
 	EXPECT_ERRNO(ENOENT, ioctl(self->fd, IOMMU_OPTION, &cmd));
 	cmd.op = IOMMU_OPTION_OP_SET;
 	EXPECT_ERRNO(ENOENT, ioctl(self->fd, IOMMU_OPTION, &cmd));
+}
+
+static void drop_cap_ipc_lock(struct __test_metadata *_metadata)
+{
+	cap_t caps;
+	cap_value_t cap_list[1] = { CAP_IPC_LOCK };
+
+	caps = cap_get_proc();
+	ASSERT_NE(caps, NULL);
+	ASSERT_NE(-1,
+		  cap_set_flag(caps, CAP_EFFECTIVE, 1, cap_list, CAP_CLEAR));
+	ASSERT_NE(-1, cap_set_proc(caps));
+	cap_free(caps);
+}
+
+static long get_proc_status_value(pid_t pid, const char *var)
+{
+	FILE *fp;
+	char buf[80], tag[80];
+	long val = -1;
+
+	snprintf(buf, sizeof(buf), "/proc/%d/status", pid);
+	fp = fopen(buf, "r");
+	if (!fp)
+		return val;
+
+	while (fgets(buf, sizeof(buf), fp))
+		if (fscanf(fp, "%s %ld\n", tag, &val) == 2 && !strcmp(tag, var))
+			break;
+
+	fclose(fp);
+	return val;
+}
+
+static long get_vm_pinned(pid_t pid)
+{
+	return get_proc_status_value(pid, "VmPin:");
+}
+
+static long get_vm_locked(pid_t pid)
+{
+	return get_proc_status_value(pid, "VmLck:");
+}
+
+FIXTURE(change_process)
+{
+	int fd;
+	uint32_t ioas_id;
+};
+
+FIXTURE_VARIANT(change_process)
+{
+	int accounting;
+};
+
+FIXTURE_SETUP(change_process)
+{
+	self->fd = open("/dev/iommu", O_RDWR);
+	ASSERT_NE(-1, self->fd);
+
+	drop_cap_ipc_lock(_metadata);
+	if (variant->accounting != IOPT_PAGES_ACCOUNT_NONE) {
+		struct iommu_option set_limit_cmd = {
+			.size = sizeof(set_limit_cmd),
+			.option_id = IOMMU_OPTION_RLIMIT_MODE,
+			.op = IOMMU_OPTION_OP_SET,
+			.val64 = (variant->accounting == IOPT_PAGES_ACCOUNT_MM),
+		};
+		ASSERT_EQ(0, ioctl(self->fd, IOMMU_OPTION, &set_limit_cmd));
+	}
+
+	test_ioctl_ioas_alloc(&self->ioas_id);
+	test_cmd_mock_domain(self->ioas_id, NULL, NULL, NULL);
+}
+
+FIXTURE_TEARDOWN(change_process)
+{
+	teardown_iommufd(self->fd, _metadata);
+}
+
+FIXTURE_VARIANT_ADD(change_process, account_none)
+{
+	.accounting = IOPT_PAGES_ACCOUNT_NONE,
+};
+
+FIXTURE_VARIANT_ADD(change_process, account_user)
+{
+	.accounting = IOPT_PAGES_ACCOUNT_USER,
+};
+
+FIXTURE_VARIANT_ADD(change_process, account_mm)
+{
+	.accounting = IOPT_PAGES_ACCOUNT_MM,
+};
+
+TEST_F(change_process, basic)
+{
+	pid_t parent = getpid();
+	pid_t child;
+	__u64 iova;
+	struct iommu_ioas_change_process cmd = {
+		.size = sizeof(cmd),
+	};
+
+	/* Expect failure if non-file maps exist */
+	test_ioctl_ioas_map(buffer, PAGE_SIZE, &iova);
+	EXPECT_ERRNO(EINVAL, ioctl(self->fd, IOMMU_IOAS_CHANGE_PROCESS, &cmd));
+	test_ioctl_ioas_unmap(iova, PAGE_SIZE);
+
+	/* Change process works in current process. */
+	test_ioctl_ioas_map_file(mfd, 0, PAGE_SIZE, &iova);
+	ASSERT_EQ(0, ioctl(self->fd, IOMMU_IOAS_CHANGE_PROCESS, &cmd));
+
+	/* Change process works in another process */
+	child = fork();
+	if (!child) {
+		int nlock = PAGE_SIZE / 1024;
+
+		/* Parent accounts for locked memory before */
+		ASSERT_EQ(nlock, get_vm_pinned(parent));
+		if (variant->accounting == IOPT_PAGES_ACCOUNT_MM)
+			ASSERT_EQ(nlock, get_vm_locked(parent));
+		ASSERT_EQ(0, get_vm_pinned(getpid()));
+		ASSERT_EQ(0, get_vm_locked(getpid()));
+
+		ASSERT_EQ(0, ioctl(self->fd, IOMMU_IOAS_CHANGE_PROCESS, &cmd));
+
+		/* Child accounts for locked memory after */
+		ASSERT_EQ(0, get_vm_pinned(parent));
+		ASSERT_EQ(0, get_vm_locked(parent));
+		ASSERT_EQ(nlock, get_vm_pinned(getpid()));
+		if (variant->accounting == IOPT_PAGES_ACCOUNT_MM)
+			ASSERT_EQ(nlock, get_vm_locked(getpid()));
+
+		exit(0);
+	}
+	ASSERT_NE(-1, child);
+	ASSERT_EQ(child, waitpid(child, NULL, 0));
 }
 
 FIXTURE(iommufd_ioas)
