@@ -313,7 +313,7 @@ void kvm_arch_disable_virtualization_cpu(void)
 
 static int kvm_loongarch_env_init(void)
 {
-	int cpu, order;
+	int cpu, order, ret;
 	void *addr;
 	struct kvm_context *context;
 
@@ -368,7 +368,10 @@ static int kvm_loongarch_env_init(void)
 
 	kvm_init_gcsr_flag();
 
-	return 0;
+	/* Register LoongArch IPI interrupt controller interface. */
+	ret = kvm_loongarch_register_ipi_device();
+
+	return ret;
 }
 
 static void kvm_loongarch_env_exit(void)

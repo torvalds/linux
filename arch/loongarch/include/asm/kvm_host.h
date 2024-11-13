@@ -18,6 +18,7 @@
 
 #include <asm/inst.h>
 #include <asm/kvm_mmu.h>
+#include <asm/kvm_ipi.h>
 #include <asm/loongarch.h>
 
 /* Loongarch KVM register ids */
@@ -117,6 +118,7 @@ struct kvm_arch {
 
 	s64 time_offset;
 	struct kvm_context __percpu *vmcs;
+	struct loongarch_ipi *ipi;
 };
 
 #define CSR_MAX_NUMS		0x800
@@ -221,6 +223,8 @@ struct kvm_vcpu_arch {
 	int last_sched_cpu;
 	/* mp state */
 	struct kvm_mp_state mp_state;
+	/* ipi state */
+	struct ipi_state ipi_state;
 	/* cpucfg */
 	u32 cpucfg[KVM_MAX_CPUCFG_REGS];
 
