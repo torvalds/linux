@@ -1294,8 +1294,7 @@ struct usb_device_driver {
 	unsigned int supports_autosuspend:1;
 	unsigned int generic_subclass:1;
 };
-#define	to_usb_device_driver(d) container_of(d, struct usb_device_driver, \
-		driver)
+#define	to_usb_device_driver(d) container_of_const(d, struct usb_device_driver, driver)
 
 /**
  * struct usb_class_driver - identifies a USB driver that wants to use the USB major number

@@ -850,7 +850,7 @@ const struct usb_device_id *usb_device_match_id(struct usb_device *udev,
 EXPORT_SYMBOL_GPL(usb_device_match_id);
 
 bool usb_driver_applicable(struct usb_device *udev,
-			   struct usb_device_driver *udrv)
+			   const struct usb_device_driver *udrv)
 {
 	if (udrv->id_table && udrv->match)
 		return usb_device_match_id(udev, udrv->id_table) != NULL &&
@@ -870,7 +870,7 @@ static int usb_device_match(struct device *dev, const struct device_driver *drv)
 	/* devices and interfaces are handled separately */
 	if (is_usb_device(dev)) {
 		struct usb_device *udev;
-		struct usb_device_driver *udrv;
+		const struct usb_device_driver *udrv;
 
 		/* interface drivers never match devices */
 		if (!is_usb_device_driver(drv))
