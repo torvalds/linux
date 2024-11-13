@@ -222,7 +222,7 @@ unsupported:
  * Check that the limits in lim are valid, initialize defaults for unset
  * values, and cap values based on others where needed.
  */
-static int blk_validate_limits(struct queue_limits *lim)
+int blk_validate_limits(struct queue_limits *lim)
 {
 	unsigned int max_hw_sectors;
 	unsigned int logical_block_sectors;
@@ -365,6 +365,7 @@ static int blk_validate_limits(struct queue_limits *lim)
 		return err;
 	return blk_validate_zoned_limits(lim);
 }
+EXPORT_SYMBOL_GPL(blk_validate_limits);
 
 /*
  * Set the default limits for a newly allocated queue.  @lim contains the

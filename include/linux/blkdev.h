@@ -948,6 +948,7 @@ queue_limits_start_update(struct request_queue *q)
 int queue_limits_commit_update(struct request_queue *q,
 		struct queue_limits *lim);
 int queue_limits_set(struct request_queue *q, struct queue_limits *lim);
+int blk_validate_limits(struct queue_limits *lim);
 
 /**
  * queue_limits_cancel_update - cancel an atomic update of queue limits
