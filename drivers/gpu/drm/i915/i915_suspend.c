@@ -26,7 +26,6 @@
 
 #include "display/intel_de.h"
 #include "display/intel_gmbus.h"
-#include "display/intel_vga.h"
 
 #include "i915_drv.h"
 #include "i915_reg.h"
@@ -118,7 +117,6 @@ void i915_save_display(struct drm_i915_private *dev_priv)
 
 void i915_restore_display(struct drm_i915_private *dev_priv)
 {
-	struct intel_display *display = &dev_priv->display;
 	struct pci_dev *pdev = to_pci_dev(dev_priv->drm.dev);
 
 	if (!HAS_DISPLAY(dev_priv))
@@ -134,8 +132,4 @@ void i915_restore_display(struct drm_i915_private *dev_priv)
 	if (GRAPHICS_VER(dev_priv) <= 4)
 		intel_de_write(dev_priv, DSPARB(dev_priv),
 			       dev_priv->regfile.saveDSPARB);
-
-	intel_vga_redisable(display);
-
-	intel_gmbus_reset(display);
 }
