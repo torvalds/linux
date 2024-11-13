@@ -676,6 +676,9 @@ int intel_display_driver_suspend(struct drm_i915_private *i915)
 			ret);
 	else
 		i915->display.restore.modeset_state = state;
+
+	intel_dp_mst_suspend(i915);
+
 	return ret;
 }
 
@@ -728,6 +731,9 @@ void intel_display_driver_resume(struct drm_i915_private *i915)
 
 	if (!HAS_DISPLAY(i915))
 		return;
+
+	/* MST sideband requires HPD interrupts enabled */
+	intel_dp_mst_resume(i915);
 
 	i915->display.restore.modeset_state = NULL;
 	if (state)

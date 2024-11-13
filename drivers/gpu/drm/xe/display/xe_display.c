@@ -334,9 +334,6 @@ static void __xe_display_pm_suspend(struct xe_device *xe, bool runtime)
 
 	xe_display_flush_cleanup_work(xe);
 
-	if (!runtime)
-		intel_dp_mst_suspend(xe);
-
 	intel_hpd_cancel_work(xe);
 
 	if (!runtime && has_display(xe)) {
@@ -446,10 +443,6 @@ static void __xe_display_pm_resume(struct xe_device *xe, bool runtime)
 
 	if (!runtime && has_display(xe))
 		intel_display_driver_resume_access(xe);
-
-	/* MST sideband requires HPD interrupts enabled */
-	if (!runtime)
-		intel_dp_mst_resume(xe);
 
 	if (!runtime && has_display(xe)) {
 		intel_display_driver_resume(xe);
