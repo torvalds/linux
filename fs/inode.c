@@ -746,7 +746,7 @@ static void evict(struct inode *inode)
 	 * ___wait_var_event() either sees the bit cleared or
 	 * waitqueue_active() check in wake_up_var() sees the waiter.
 	 */
-	smp_mb();
+	smp_mb__after_spinlock();
 	inode_wake_up_bit(inode, __I_NEW);
 	BUG_ON(inode->i_state != (I_FREEING | I_CLEAR));
 	spin_unlock(&inode->i_lock);
