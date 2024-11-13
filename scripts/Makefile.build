@@ -135,11 +135,6 @@ ifdef CONFIG_LTO_CLANG
 cmd_ld_single_m = $(if $(is-single-obj-m), ; $(LD) $(ld_flags) -r -o $(tmp-target) $@; mv $(tmp-target) $@)
 endif
 
-quiet_cmd_cc_o_c = CC $(quiet_modtag)  $@
-      cmd_cc_o_c = $(CC) $(c_flags) -c -o $@ $< \
-		$(cmd_ld_single_m) \
-		$(cmd_objtool)
-
 ifdef CONFIG_MODVERSIONS
 # When module versioning is enabled the following steps are executed:
 # o compile a <file>.o from <file>.c
@@ -321,9 +316,6 @@ cmd_cpp_s_S       = $(CPP) $(a_flags) -o $@ $<
 
 $(obj)/%.s: $(obj)/%.S FORCE
 	$(call if_changed_dep,cpp_s_S)
-
-quiet_cmd_as_o_S = AS $(quiet_modtag)  $@
-      cmd_as_o_S = $(CC) $(a_flags) -c -o $@ $< $(cmd_objtool)
 
 ifdef CONFIG_ASM_MODVERSIONS
 

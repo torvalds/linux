@@ -5,20 +5,12 @@ __default: vmlinux
 
 include include/config/auto.conf
 include $(srctree)/scripts/Kbuild.include
-
-# for c_flags
 include $(srctree)/scripts/Makefile.lib
 
 targets :=
 
-quiet_cmd_cc_o_c = CC      $@
-      cmd_cc_o_c = $(CC) $(c_flags) -c -o $@ $<
-
 %.o: %.c FORCE
 	$(call if_changed_dep,cc_o_c)
-
-quiet_cmd_as_o_S = AS      $@
-      cmd_as_o_S = $(CC) $(a_flags) -c -o $@ $<
 
 %.o: %.S FORCE
 	$(call if_changed_dep,as_o_S)
