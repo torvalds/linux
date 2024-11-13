@@ -35,6 +35,19 @@
 /* Kprobe tracer basic type is up to u64 */
 #define MAX_BASIC_TYPE_BITS	64
 
+bool is_known_C_lang(int lang)
+{
+	switch (lang) {
+	case DW_LANG_C89:
+	case DW_LANG_C:
+	case DW_LANG_C99:
+	case DW_LANG_C11:
+		return true;
+	default:
+		return false;
+	}
+}
+
 /*
  * Probe finder related functions
  */
@@ -1269,6 +1282,8 @@ static int add_probe_trace_event(Dwarf_Die *sc_die, struct probe_finder *pf)
 		ret = -ENOMEM;
 		goto end;
 	}
+
+	tev->lang = dwarf_srclang(dwarf_diecu(sc_die, &pf->cu_die, NULL, NULL));
 
 	pr_debug("Probe point found: %s+%lu\n", tev->point.symbol,
 		 tev->point.offset);
