@@ -35,6 +35,8 @@ MODULE_DESCRIPTION("InfiniBand CM");
 MODULE_LICENSE("Dual BSD/GPL");
 
 #define CM_DESTROY_ID_WAIT_TIMEOUT 10000 /* msecs */
+#define CM_DIRECT_RETRY_CTX ((void *) 1UL)
+
 static const char * const ibcm_rej_reason_strs[] = {
 	[IB_CM_REJ_NO_QP]			= "no QP",
 	[IB_CM_REJ_NO_EEC]			= "no EEC",
@@ -358,13 +360,20 @@ static void cm_free_priv_msg(struct ib_mad_send_buf *msg)
 	ib_free_send_mad(msg);
 }
 
-static struct ib_mad_send_buf *cm_alloc_response_msg_no_ah(struct cm_port *port,
-							   struct ib_mad_recv_wc *mad_recv_wc)
+static struct ib_mad_send_buf *
+cm_alloc_response_msg_no_ah(struct cm_port *port,
+			    struct ib_mad_recv_wc *mad_recv_wc,
+			    bool direct_retry)
 {
-	return ib_create_send_mad(port->mad_agent, 1, mad_recv_wc->wc->pkey_index,
-				  0, IB_MGMT_MAD_HDR, IB_MGMT_MAD_DATA,
-				  GFP_ATOMIC,
-				  IB_MGMT_BASE_VERSION);
+	struct ib_mad_send_buf *m;
+
+	m = ib_create_send_mad(port->mad_agent, 1, mad_recv_wc->wc->pkey_index,
+			       0, IB_MGMT_MAD_HDR, IB_MGMT_MAD_DATA,
+			       GFP_ATOMIC, IB_MGMT_BASE_VERSION);
+	if (!IS_ERR(m))
+		m->context[0] = direct_retry ? CM_DIRECT_RETRY_CTX : NULL;
+
+	return m;
 }
 
 static int cm_create_response_msg_ah(struct cm_port *port,
@@ -384,12 +393,13 @@ static int cm_create_response_msg_ah(struct cm_port *port,
 
 static int cm_alloc_response_msg(struct cm_port *port,
 				 struct ib_mad_recv_wc *mad_recv_wc,
+				 bool direct_retry,
 				 struct ib_mad_send_buf **msg)
 {
 	struct ib_mad_send_buf *m;
 	int ret;
 
-	m = cm_alloc_response_msg_no_ah(port, mad_recv_wc);
+	m = cm_alloc_response_msg_no_ah(port, mad_recv_wc, direct_retry);
 	if (IS_ERR(m))
 		return PTR_ERR(m);
 
@@ -1598,7 +1608,7 @@ static int cm_issue_rej(struct cm_port *port,
 	struct cm_rej_msg *rej_msg, *rcv_msg;
 	int ret;
 
-	ret = cm_alloc_response_msg(port, mad_recv_wc, &msg);
+	ret = cm_alloc_response_msg(port, mad_recv_wc, false, &msg);
 	if (ret)
 		return ret;
 
@@ -1951,7 +1961,7 @@ static void cm_dup_req_handler(struct cm_work *work,
 	}
 	spin_unlock_irq(&cm_id_priv->lock);
 
-	ret = cm_alloc_response_msg(work->port, work->mad_recv_wc, &msg);
+	ret = cm_alloc_response_msg(work->port, work->mad_recv_wc, true, &msg);
 	if (ret)
 		return;
 
@@ -2444,7 +2454,7 @@ static void cm_dup_rep_handler(struct cm_work *work)
 
 	atomic_long_inc(
 		&work->port->counters[CM_RECV_DUPLICATES][CM_REP_COUNTER]);
-	ret = cm_alloc_response_msg(work->port, work->mad_recv_wc, &msg);
+	ret = cm_alloc_response_msg(work->port, work->mad_recv_wc, true, &msg);
 	if (ret)
 		goto deref;
 
@@ -2791,7 +2801,7 @@ static int cm_issue_drep(struct cm_port *port,
 	struct cm_drep_msg *drep_msg;
 	int ret;
 
-	ret = cm_alloc_response_msg(port, mad_recv_wc, &msg);
+	ret = cm_alloc_response_msg(port, mad_recv_wc, true, &msg);
 	if (ret)
 		return ret;
 
@@ -2856,7 +2866,8 @@ static int cm_dreq_handler(struct cm_work *work)
 	case IB_CM_TIMEWAIT:
 		atomic_long_inc(&work->port->counters[CM_RECV_DUPLICATES]
 						     [CM_DREQ_COUNTER]);
-		msg = cm_alloc_response_msg_no_ah(work->port, work->mad_recv_wc);
+		msg = cm_alloc_response_msg_no_ah(work->port, work->mad_recv_wc,
+						  true);
 		if (IS_ERR(msg))
 			goto unlock;
 
@@ -3361,7 +3372,8 @@ static int cm_lap_handler(struct cm_work *work)
 	case IB_CM_MRA_LAP_SENT:
 		atomic_long_inc(&work->port->counters[CM_RECV_DUPLICATES]
 						     [CM_LAP_COUNTER]);
-		msg = cm_alloc_response_msg_no_ah(work->port, work->mad_recv_wc);
+		msg = cm_alloc_response_msg_no_ah(work->port, work->mad_recv_wc,
+						  true);
 		if (IS_ERR(msg))
 			goto unlock;
 
@@ -3826,7 +3838,7 @@ static void cm_send_handler(struct ib_mad_agent *mad_agent,
 			    struct ib_mad_send_wc *mad_send_wc)
 {
 	struct ib_mad_send_buf *msg = mad_send_wc->send_buf;
-	struct cm_id_private *cm_id_priv = msg->context[0];
+	struct cm_id_private *cm_id_priv;
 	enum ib_cm_state state =
 		(enum ib_cm_state)(unsigned long)msg->context[1];
 	struct cm_port *port;
@@ -3836,13 +3848,12 @@ static void cm_send_handler(struct ib_mad_agent *mad_agent,
 	attr_index = be16_to_cpu(((struct ib_mad_hdr *)
 				  msg->mad)->attr_id) - CM_ATTR_ID_OFFSET;
 
-	/*
-	 * If the send was in response to a received message (context[0] is not
-	 * set to a cm_id), and is not a REJ, then it is a send that was
-	 * manually retried.
-	 */
-	if (!cm_id_priv && (attr_index != CM_REJ_COUNTER))
+	if (msg->context[0] == CM_DIRECT_RETRY_CTX) {
 		msg->retries = 1;
+		cm_id_priv = NULL;
+	} else {
+		cm_id_priv = msg->context[0];
+	}
 
 	atomic_long_add(1 + msg->retries, &port->counters[CM_XMIT][attr_index]);
 	if (msg->retries)
