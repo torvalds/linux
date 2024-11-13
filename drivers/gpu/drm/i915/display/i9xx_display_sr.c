@@ -12,56 +12,59 @@
 
 static void i9xx_display_save_swf(struct drm_i915_private *i915)
 {
+	struct intel_display *display = &i915->display;
 	int i;
 
 	/* Scratch space */
 	if (GRAPHICS_VER(i915) == 2 && IS_MOBILE(i915)) {
 		for (i = 0; i < 7; i++) {
-			i915->regfile.saveSWF0[i] = intel_de_read(i915, SWF0(i915, i));
-			i915->regfile.saveSWF1[i] = intel_de_read(i915, SWF1(i915, i));
+			display->restore.saveSWF0[i] = intel_de_read(display, SWF0(i915, i));
+			display->restore.saveSWF1[i] = intel_de_read(display, SWF1(i915, i));
 		}
 		for (i = 0; i < 3; i++)
-			i915->regfile.saveSWF3[i] = intel_de_read(i915, SWF3(i915, i));
+			display->restore.saveSWF3[i] = intel_de_read(display, SWF3(i915, i));
 	} else if (GRAPHICS_VER(i915) == 2) {
 		for (i = 0; i < 7; i++)
-			i915->regfile.saveSWF1[i] = intel_de_read(i915, SWF1(i915, i));
+			display->restore.saveSWF1[i] = intel_de_read(display, SWF1(i915, i));
 	} else if (HAS_GMCH(i915)) {
 		for (i = 0; i < 16; i++) {
-			i915->regfile.saveSWF0[i] = intel_de_read(i915, SWF0(i915, i));
-			i915->regfile.saveSWF1[i] = intel_de_read(i915, SWF1(i915, i));
+			display->restore.saveSWF0[i] = intel_de_read(display, SWF0(i915, i));
+			display->restore.saveSWF1[i] = intel_de_read(display, SWF1(i915, i));
 		}
 		for (i = 0; i < 3; i++)
-			i915->regfile.saveSWF3[i] = intel_de_read(i915, SWF3(i915, i));
+			display->restore.saveSWF3[i] = intel_de_read(display, SWF3(i915, i));
 	}
 }
 
 static void i9xx_display_restore_swf(struct drm_i915_private *i915)
 {
+	struct intel_display *display = &i915->display;
 	int i;
 
 	/* Scratch space */
 	if (GRAPHICS_VER(i915) == 2 && IS_MOBILE(i915)) {
 		for (i = 0; i < 7; i++) {
-			intel_de_write(i915, SWF0(i915, i), i915->regfile.saveSWF0[i]);
-			intel_de_write(i915, SWF1(i915, i), i915->regfile.saveSWF1[i]);
+			intel_de_write(display, SWF0(i915, i), display->restore.saveSWF0[i]);
+			intel_de_write(display, SWF1(i915, i), display->restore.saveSWF1[i]);
 		}
 		for (i = 0; i < 3; i++)
-			intel_de_write(i915, SWF3(i915, i), i915->regfile.saveSWF3[i]);
+			intel_de_write(display, SWF3(i915, i), display->restore.saveSWF3[i]);
 	} else if (GRAPHICS_VER(i915) == 2) {
 		for (i = 0; i < 7; i++)
-			intel_de_write(i915, SWF1(i915, i), i915->regfile.saveSWF1[i]);
+			intel_de_write(display, SWF1(i915, i), display->restore.saveSWF1[i]);
 	} else if (HAS_GMCH(i915)) {
 		for (i = 0; i < 16; i++) {
-			intel_de_write(i915, SWF0(i915, i), i915->regfile.saveSWF0[i]);
-			intel_de_write(i915, SWF1(i915, i), i915->regfile.saveSWF1[i]);
+			intel_de_write(display, SWF0(i915, i), display->restore.saveSWF0[i]);
+			intel_de_write(display, SWF1(i915, i), display->restore.saveSWF1[i]);
 		}
 		for (i = 0; i < 3; i++)
-			intel_de_write(i915, SWF3(i915, i), i915->regfile.saveSWF3[i]);
+			intel_de_write(display, SWF3(i915, i), display->restore.saveSWF3[i]);
 	}
 }
 
 void i9xx_display_sr_save(struct drm_i915_private *i915)
 {
+	struct intel_display *display = &i915->display;
 	struct pci_dev *pdev = to_pci_dev(i915->drm.dev);
 
 	if (!HAS_DISPLAY(i915))
@@ -69,16 +72,17 @@ void i9xx_display_sr_save(struct drm_i915_private *i915)
 
 	/* Display arbitration control */
 	if (GRAPHICS_VER(i915) <= 4)
-		i915->regfile.saveDSPARB = intel_de_read(i915, DSPARB(i915));
+		display->restore.saveDSPARB = intel_de_read(display, DSPARB(i915));
 
 	if (GRAPHICS_VER(i915) == 4)
-		pci_read_config_word(pdev, GCDGMBUS, &i915->regfile.saveGCDGMBUS);
+		pci_read_config_word(pdev, GCDGMBUS, &display->restore.saveGCDGMBUS);
 
 	i9xx_display_save_swf(i915);
 }
 
 void i9xx_display_sr_restore(struct drm_i915_private *i915)
 {
+	struct intel_display *display = &i915->display;
 	struct pci_dev *pdev = to_pci_dev(i915->drm.dev);
 
 	if (!HAS_DISPLAY(i915))
@@ -87,9 +91,9 @@ void i9xx_display_sr_restore(struct drm_i915_private *i915)
 	i9xx_display_restore_swf(i915);
 
 	if (GRAPHICS_VER(i915) == 4)
-		pci_write_config_word(pdev, GCDGMBUS, i915->regfile.saveGCDGMBUS);
+		pci_write_config_word(pdev, GCDGMBUS, display->restore.saveGCDGMBUS);
 
 	/* Display arbitration */
 	if (GRAPHICS_VER(i915) <= 4)
-		intel_de_write(i915, DSPARB(i915), i915->regfile.saveDSPARB);
+		intel_de_write(display, DSPARB(i915), display->restore.saveDSPARB);
 }
