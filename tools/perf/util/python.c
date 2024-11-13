@@ -19,6 +19,7 @@
 #include "util/bpf-filter.h"
 #include "util/env.h"
 #include "util/kvm-stat.h"
+#include "util/stat.h"
 #include "util/kwork.h"
 #include "util/sample.h"
 #include "util/lock-contention.h"
@@ -1355,6 +1356,7 @@ error:
 
 unsigned int scripting_max_stack = PERF_MAX_STACK_DEPTH;
 
+#ifdef HAVE_KVM_STAT_SUPPORT
 bool kvm_entry_event(struct evsel *evsel __maybe_unused)
 {
 	return false;
@@ -1384,6 +1386,7 @@ void exit_event_decode_key(struct perf_kvm_stat *kvm __maybe_unused,
 			   char *decode __maybe_unused)
 {
 }
+#endif // HAVE_KVM_STAT_SUPPORT
 
 int find_scripts(char **scripts_array  __maybe_unused, char **scripts_path_array  __maybe_unused,
 		int num  __maybe_unused, int pathlen __maybe_unused)

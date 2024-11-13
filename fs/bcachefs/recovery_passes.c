@@ -221,6 +221,12 @@ int bch2_run_recovery_passes(struct bch_fs *c)
 {
 	int ret = 0;
 
+	/*
+	 * We can't allow set_may_go_rw to be excluded; that would cause us to
+	 * use the journal replay keys for updates where it's not expected.
+	 */
+	c->opts.recovery_passes_exclude &= ~BCH_RECOVERY_PASS_set_may_go_rw;
+
 	while (c->curr_recovery_pass < ARRAY_SIZE(recovery_pass_fns)) {
 		if (c->opts.recovery_pass_last &&
 		    c->curr_recovery_pass > c->opts.recovery_pass_last)

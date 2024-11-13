@@ -1233,7 +1233,7 @@ static int fill_legacy_mapping(struct snd_ump_endpoint *ump)
 
 	num = 0;
 	for (i = 0; i < SNDRV_UMP_MAX_GROUPS; i++)
-		if (group_maps & (1U << i))
+		if ((group_maps & (1U << i)) && ump->groups[i].valid)
 			ump->legacy_mapping[num++] = i;
 
 	return num;

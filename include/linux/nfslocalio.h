@@ -32,7 +32,8 @@ typedef struct {
 	struct auth_domain *dom; /* auth_domain for localio */
 } nfs_uuid_t;
 
-void nfs_uuid_begin(nfs_uuid_t *);
+void nfs_uuid_init(nfs_uuid_t *);
+bool nfs_uuid_begin(nfs_uuid_t *);
 void nfs_uuid_end(nfs_uuid_t *);
 void nfs_uuid_is_local(const uuid_t *, struct list_head *,
 		       struct net *, struct auth_domain *, struct module *);

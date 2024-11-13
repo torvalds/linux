@@ -1870,6 +1870,10 @@ __bch2_ec_stripe_head_get(struct btree_trans *trans,
 		}
 
 	h = ec_new_stripe_head_alloc(c, disk_label, algo, redundancy, watermark);
+	if (!h) {
+		h = ERR_PTR(-BCH_ERR_ENOMEM_stripe_head_alloc);
+		goto err;
+	}
 found:
 	if (h->rw_devs_change_count != c->rw_devs_change_count)
 		ec_stripe_head_devs_update(c, h);

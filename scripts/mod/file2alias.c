@@ -567,12 +567,12 @@ static int do_acpi_entry(const char *filename,
 			void *symval, char *alias)
 {
 	DEF_FIELD_ADDR(symval, acpi_device_id, id);
-	DEF_FIELD_ADDR(symval, acpi_device_id, cls);
-	DEF_FIELD_ADDR(symval, acpi_device_id, cls_msk);
+	DEF_FIELD(symval, acpi_device_id, cls);
+	DEF_FIELD(symval, acpi_device_id, cls_msk);
 
 	if (id && strlen((const char *)*id))
 		sprintf(alias, "acpi*:%s:*", *id);
-	else if (cls) {
+	else {
 		int i, byte_shift, cnt = 0;
 		unsigned int msk;
 
@@ -580,10 +580,10 @@ static int do_acpi_entry(const char *filename,
 		cnt = 6;
 		for (i = 1; i <= 3; i++) {
 			byte_shift = 8 * (3-i);
-			msk = (*cls_msk >> byte_shift) & 0xFF;
+			msk = (cls_msk >> byte_shift) & 0xFF;
 			if (msk)
 				sprintf(&alias[cnt], "%02x",
-					(*cls >> byte_shift) & 0xFF);
+					(cls >> byte_shift) & 0xFF);
 			else
 				sprintf(&alias[cnt], "??");
 			cnt += 2;
@@ -743,7 +743,7 @@ static void do_input(char *alias,
 	for (i = min / BITS_PER_LONG; i < max / BITS_PER_LONG + 1; i++)
 		arr[i] = TO_NATIVE(arr[i]);
 	for (i = min; i < max; i++)
-		if (arr[i / BITS_PER_LONG] & (1L << (i%BITS_PER_LONG)))
+		if (arr[i / BITS_PER_LONG] & (1ULL << (i%BITS_PER_LONG)))
 			sprintf(alias + strlen(alias), "%X,*", i);
 }
 
