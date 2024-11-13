@@ -357,11 +357,11 @@ struct dpm_clocks;
 
 struct amdgpu_xcp_metrics {
 	/* Utilization Instantaneous (%) */
-	u32 gfx_busy_inst[MAX_XCC];
-	u16 jpeg_busy[NUM_JPEG_ENG];
-	u16 vcn_busy[NUM_VCN];
+	uint32_t gfx_busy_inst[MAX_XCC];
+	uint16_t jpeg_busy[NUM_JPEG_ENG];
+	uint16_t vcn_busy[NUM_VCN];
 	/* Utilization Accumulated (%) */
-	u64 gfx_busy_acc[MAX_XCC];
+	uint64_t gfx_busy_acc[MAX_XCC];
 };
 
 struct amd_pm_funcs {
