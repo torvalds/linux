@@ -458,6 +458,7 @@ struct xlog {
 #define XLOG_IO_ERROR		2	/* log hit an I/O error, and being
 				   shutdown */
 #define XLOG_TAIL_WARN		3	/* log tail verify warning issued */
+#define XLOG_SHUTDOWN_STARTED	4	/* xlog_force_shutdown() exclusion */
 
 static inline bool
 xlog_recovery_needed(struct xlog *log)
