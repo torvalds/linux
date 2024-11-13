@@ -1,6 +1,6 @@
-load(":target_variants.bzl", "la_variants")
-load(":msm_kernel_la.bzl", "define_msm_la")
 load(":image_opts.bzl", "boot_image_opts")
+load(":msm_kernel_la.bzl", "define_msm_la")
+load(":target_variants.bzl", "la_variants")
 
 target_name = "seraph"
 
@@ -10,6 +10,7 @@ def define_seraph():
         # TODO: Need to add GKI modules
         "drivers/bus/mhi/devices/mhi_dev_uci.ko",
         "drivers/bus/mhi/host/mhi.ko",
+        "drivers/clk/qcom/camcc-seraph.ko",
         "drivers/clk/qcom/clk-dummy.ko",
         "drivers/clk/qcom/clk-qcom.ko",
         "drivers/clk/qcom/evacc-seraph.ko",
