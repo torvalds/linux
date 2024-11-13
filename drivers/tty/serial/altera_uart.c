@@ -307,8 +307,8 @@ static int altera_uart_startup(struct uart_port *port)
 		ret = request_irq(port->irq, altera_uart_interrupt, 0,
 				dev_name(port->dev), port);
 		if (ret) {
-			dev_err(port->dev, "unable to attach Altera UART %d "
-			       "interrupt vector=%d\n", port->line, port->irq);
+			dev_err(port->dev, "unable to attach Altera UART %d interrupt vector=%d\n",
+				port->line, port->irq);
 			return ret;
 		}
 	}
