@@ -1711,13 +1711,13 @@ static void sma1307_setting_loaded(struct sma1307_priv *sma1307, const char *fil
 {
 	const struct firmware *fw;
 	int *data, size, offset, num_mode;
+	int ret;
 
-	request_firmware(&fw, file, sma1307->dev);
+	ret = request_firmware(&fw, file, sma1307->dev);
 
-	if (!fw) {
-		dev_err(sma1307->dev, "%s: failed to read \"%s\"\n",
-			__func__, setting_file);
-		release_firmware(fw);
+	if (ret) {
+		dev_err(sma1307->dev, "%s: failed to read \"%s\": %pe\n",
+			__func__, setting_file, ERR_PTR(ret));
 		sma1307->set.status = false;
 		return;
 	} else if ((fw->size) < SMA1307_SETTING_HEADER_SIZE) {
