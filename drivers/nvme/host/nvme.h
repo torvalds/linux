@@ -1123,7 +1123,8 @@ static inline void nvme_start_request(struct request *rq)
 
 static inline bool nvme_ctrl_sgl_supported(struct nvme_ctrl *ctrl)
 {
-	return ctrl->sgls & ((1 << 0) | (1 << 1));
+	return ctrl->sgls & (NVME_CTRL_SGLS_BYTE_ALIGNED |
+			     NVME_CTRL_SGLS_DWORD_ALIGNED);
 }
 
 static inline bool nvme_ctrl_meta_sgl_supported(struct nvme_ctrl *ctrl)

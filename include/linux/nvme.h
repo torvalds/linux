@@ -389,7 +389,11 @@ enum {
 	NVME_CTRL_CTRATT_PREDICTABLE_LAT	= 1 << 5,
 	NVME_CTRL_CTRATT_NAMESPACE_GRANULARITY	= 1 << 7,
 	NVME_CTRL_CTRATT_UUID_LIST		= 1 << 9,
+	NVME_CTRL_SGLS_BYTE_ALIGNED             = 1,
+	NVME_CTRL_SGLS_DWORD_ALIGNED            = 2,
+	NVME_CTRL_SGLS_KSDBDS			= 1 << 2,
 	NVME_CTRL_SGLS_MSDS                     = 1 << 19,
+	NVME_CTRL_SGLS_SAOS                     = 1 << 20,
 };
 
 struct nvme_lbaf {
