@@ -445,6 +445,7 @@ static const struct of_device_id aml_rtc_device_id[] = {
 		.compatible = "amlogic,a5-rtc",
 		.data = &a5_rtc_config,
 	},
+	{ }
 };
 MODULE_DEVICE_TABLE(of, aml_rtc_device_id);
 
