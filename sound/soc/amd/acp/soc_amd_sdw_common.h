@@ -36,6 +36,8 @@
 #define ACP63_SW1_AUDIO0_TX	0
 #define ACP63_SW1_AUDIO0_RX	1
 
+#define ACP_DMIC_BE_ID		4
+
 struct amd_mc_ctx {
 	unsigned int acp_rev;
 	unsigned int max_sdw_links;
