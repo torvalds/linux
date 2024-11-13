@@ -555,6 +555,32 @@ void btrfs_delete_ref_head(const struct btrfs_fs_info *fs_info,
 		delayed_refs->num_heads_ready--;
 }
 
+struct btrfs_delayed_ref_node *btrfs_select_delayed_ref(struct btrfs_delayed_ref_head *head)
+{
+	struct btrfs_delayed_ref_node *ref;
+
+	lockdep_assert_held(&head->mutex);
+	lockdep_assert_held(&head->lock);
+
+	if (RB_EMPTY_ROOT(&head->ref_tree.rb_root))
+		return NULL;
+
+	/*
+	 * Select a delayed ref of type BTRFS_ADD_DELAYED_REF first.
+	 * This is to prevent a ref count from going down to zero, which deletes
+	 * the extent item from the extent tree, when there still are references
+	 * to add, which would fail because they would not find the extent item.
+	 */
+	if (!list_empty(&head->ref_add_list))
+		return list_first_entry(&head->ref_add_list,
+					struct btrfs_delayed_ref_node, add_list);
+
+	ref = rb_entry(rb_first_cached(&head->ref_tree),
+		       struct btrfs_delayed_ref_node, ref_node);
+	ASSERT(list_empty(&ref->add_list));
+	return ref;
+}
+
 /*
  * Helper to insert the ref_node to the tail or merge with tail.
  *

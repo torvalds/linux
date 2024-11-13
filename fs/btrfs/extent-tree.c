@@ -1803,30 +1803,6 @@ static int run_one_delayed_ref(struct btrfs_trans_handle *trans,
 	return ret;
 }
 
-static inline struct btrfs_delayed_ref_node *
-select_delayed_ref(struct btrfs_delayed_ref_head *head)
-{
-	struct btrfs_delayed_ref_node *ref;
-
-	if (RB_EMPTY_ROOT(&head->ref_tree.rb_root))
-		return NULL;
-
-	/*
-	 * Select a delayed ref of type BTRFS_ADD_DELAYED_REF first.
-	 * This is to prevent a ref count from going down to zero, which deletes
-	 * the extent item from the extent tree, when there still are references
-	 * to add, which would fail because they would not find the extent item.
-	 */
-	if (!list_empty(&head->ref_add_list))
-		return list_first_entry(&head->ref_add_list,
-				struct btrfs_delayed_ref_node, add_list);
-
-	ref = rb_entry(rb_first_cached(&head->ref_tree),
-		       struct btrfs_delayed_ref_node, ref_node);
-	ASSERT(list_empty(&ref->add_list));
-	return ref;
-}
-
 static struct btrfs_delayed_extent_op *cleanup_extent_op(
 				struct btrfs_delayed_ref_head *head)
 {
@@ -1959,7 +1935,7 @@ static int btrfs_run_delayed_refs_for_head(struct btrfs_trans_handle *trans,
 	lockdep_assert_held(&locked_ref->mutex);
 	lockdep_assert_held(&locked_ref->lock);
 
-	while ((ref = select_delayed_ref(locked_ref))) {
+	while ((ref = btrfs_select_delayed_ref(locked_ref))) {
 		if (ref->seq &&
 		    btrfs_check_delayed_seq(fs_info, ref->seq)) {
 			spin_unlock(&locked_ref->lock);
