@@ -200,6 +200,7 @@
   devm_clk_bulk_get
   devm_clk_bulk_get_all
   devm_clk_get
+  devm_clk_get_enabled
   devm_clk_get_optional
   devm_clk_hw_register
   devm_clk_register
@@ -252,6 +253,7 @@
   __devm_regmap_init_i2c
   __devm_regmap_init_mmio_clk
   devm_regulator_bulk_get
+  devm_regulator_bulk_get_enable
   devm_regulator_get
   devm_regulator_get_optional
   devm_regulator_register
@@ -1975,6 +1977,7 @@
   scsi_remove_device
   scsi_remove_host
   scsi_rescan_device
+  scsi_resume_device
   scsi_schedule_eh
   scsi_sense_desc_find
   scsi_set_sense_field_pointer
@@ -2118,6 +2121,7 @@
   devm_pci_remap_cfg_resource
   jiffies_to_usecs
   of_pci_get_max_link_speed
+  of_pci_get_slot_power_limit
   pci_host_probe
   pci_remove_root_bus
   pci_stop_root_bus

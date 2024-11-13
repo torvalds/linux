@@ -1421,6 +1421,10 @@ static void binder_cleanup_ref_olocked(struct binder_ref *ref)
 		binder_dequeue_work(ref->proc, &ref->death->work);
 		binder_stats_deleted(BINDER_STAT_DEATH);
 	}
+
+	if (ref->freeze)
+		binder_dequeue_work(ref->proc, &ref->freeze->work);
+
 	binder_stats_deleted(BINDER_STAT_REF);
 }
 
@@ -5813,6 +5817,7 @@ static bool binder_txns_pending_ilocked(struct binder_proc *proc)
 
 static void binder_add_freeze_work(struct binder_proc *proc, bool is_frozen)
 {
+	struct binder_node *prev = NULL;
 	struct rb_node *n;
 	struct binder_ref *ref;
 
@@ -5821,7 +5826,10 @@ static void binder_add_freeze_work(struct binder_proc *proc, bool is_frozen)
 		struct binder_node *node;
 
 		node = rb_entry(n, struct binder_node, rb_node);
+		binder_inc_node_tmpref_ilocked(node);
 		binder_inner_proc_unlock(proc);
+		if (prev)
+			binder_put_node(prev);
 		binder_node_lock(node);
 		hlist_for_each_entry(ref, &node->refs, node_entry) {
 			/*
@@ -5847,10 +5855,15 @@ static void binder_add_freeze_work(struct binder_proc *proc, bool is_frozen)
 			}
 			binder_inner_proc_unlock(ref->proc);
 		}
+		prev = node;
 		binder_node_unlock(node);
 		binder_inner_proc_lock(proc);
+		if (proc->is_dead)
+			break;
 	}
 	binder_inner_proc_unlock(proc);
+	if (prev)
+		binder_put_node(prev);
 }
 
 static int binder_ioctl_freeze(struct binder_freeze_info *info,
@@ -6669,6 +6682,9 @@ static void print_binder_work_ilocked(struct seq_file *m,
 		break;
 	case BINDER_WORK_CLEAR_DEATH_NOTIFICATION:
 		seq_printf(m, "%shas cleared death notification\n", prefix);
+		break;
+	case BINDER_WORK_FROZEN_BINDER:
+		seq_printf(m, "%shas frozen binder\n", prefix);
 		break;
 	default:
 		seq_printf(m, "%sunknown work: type %d\n", prefix, w->type);

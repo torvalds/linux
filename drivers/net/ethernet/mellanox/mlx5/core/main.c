@@ -1093,7 +1093,7 @@ static void mlx5_cleanup_once(struct mlx5_core_dev *dev)
 	mlx5_devcom_unregister_device(dev->priv.devcom);
 }
 
-static int mlx5_function_setup(struct mlx5_core_dev *dev, bool boot, u64 timeout)
+static int mlx5_function_enable(struct mlx5_core_dev *dev, bool boot, u64 timeout)
 {
 	int err;
 
@@ -1158,39 +1158,6 @@ static int mlx5_function_setup(struct mlx5_core_dev *dev, bool boot, u64 timeout
 		goto reclaim_boot_pages;
 	}
 
-	err = set_hca_ctrl(dev);
-	if (err) {
-		mlx5_core_err(dev, "set_hca_ctrl failed\n");
-		goto reclaim_boot_pages;
-	}
-
-	err = set_hca_cap(dev);
-	if (err) {
-		mlx5_core_err(dev, "set_hca_cap failed\n");
-		goto reclaim_boot_pages;
-	}
-
-	err = mlx5_satisfy_startup_pages(dev, 0);
-	if (err) {
-		mlx5_core_err(dev, "failed to allocate init pages\n");
-		goto reclaim_boot_pages;
-	}
-
-	err = mlx5_cmd_init_hca(dev, sw_owner_id);
-	if (err) {
-		mlx5_core_err(dev, "init hca failed\n");
-		goto reclaim_boot_pages;
-	}
-
-	mlx5_set_driver_version(dev);
-
-	err = mlx5_query_hca_caps(dev);
-	if (err) {
-		mlx5_core_err(dev, "query hca failed\n");
-		goto reclaim_boot_pages;
-	}
-	mlx5_start_health_fw_log_up(dev);
-
 	return 0;
 
 reclaim_boot_pages:
@@ -1206,7 +1173,55 @@ err_cmd_cleanup:
 	return err;
 }
 
-static int mlx5_function_teardown(struct mlx5_core_dev *dev, bool boot)
+static void mlx5_function_disable(struct mlx5_core_dev *dev, bool boot)
+{
+	mlx5_reclaim_startup_pages(dev);
+	mlx5_core_disable_hca(dev, 0);
+	mlx5_stop_health_poll(dev, boot);
+	mlx5_cmd_set_state(dev, MLX5_CMDIF_STATE_DOWN);
+	mlx5_cmd_cleanup(dev);
+}
+
+static int mlx5_function_open(struct mlx5_core_dev *dev)
+{
+	int err;
+
+	err = set_hca_ctrl(dev);
+	if (err) {
+		mlx5_core_err(dev, "set_hca_ctrl failed\n");
+		return err;
+	}
+
+	err = set_hca_cap(dev);
+	if (err) {
+		mlx5_core_err(dev, "set_hca_cap failed\n");
+		return err;
+	}
+
+	err = mlx5_satisfy_startup_pages(dev, 0);
+	if (err) {
+		mlx5_core_err(dev, "failed to allocate init pages\n");
+		return err;
+	}
+
+	err = mlx5_cmd_init_hca(dev, sw_owner_id);
+	if (err) {
+		mlx5_core_err(dev, "init hca failed\n");
+		return err;
+	}
+
+	mlx5_set_driver_version(dev);
+
+	err = mlx5_query_hca_caps(dev);
+	if (err) {
+		mlx5_core_err(dev, "query hca failed\n");
+		return err;
+	}
+	mlx5_start_health_fw_log_up(dev);
+	return 0;
+}
+
+static int mlx5_function_close(struct mlx5_core_dev *dev)
 {
 	int err;
 
@@ -1215,13 +1230,34 @@ static int mlx5_function_teardown(struct mlx5_core_dev *dev, bool boot)
 		mlx5_core_err(dev, "tear_down_hca failed, skip cleanup\n");
 		return err;
 	}
-	mlx5_reclaim_startup_pages(dev);
-	mlx5_core_disable_hca(dev, 0);
-	mlx5_stop_health_poll(dev, boot);
-	mlx5_cmd_set_state(dev, MLX5_CMDIF_STATE_DOWN);
-	mlx5_cmd_cleanup(dev);
 
 	return 0;
+}
+
+static int mlx5_function_setup(struct mlx5_core_dev *dev, bool boot, u64 timeout)
+{
+	int err;
+
+	err = mlx5_function_enable(dev, boot, timeout);
+	if (err)
+		return err;
+
+	err = mlx5_function_open(dev);
+	if (err)
+		mlx5_function_disable(dev, boot);
+	return err;
+}
+
+static int mlx5_function_teardown(struct mlx5_core_dev *dev, bool boot)
+{
+	int err = mlx5_function_close(dev);
+
+	if (!err)
+		mlx5_function_disable(dev, boot);
+	else
+		mlx5_stop_health_poll(dev, boot);
+
+	return err;
 }
 
 static int mlx5_load(struct mlx5_core_dev *dev)

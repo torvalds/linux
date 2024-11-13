@@ -1360,6 +1360,7 @@
   mbox_controller_unregister
   mbox_free_channel
   mbox_request_channel
+  mbox_request_channel_byname
   mbox_send_message
   memchr
   memchr_inv
@@ -2373,6 +2374,7 @@
   __traceiter_android_rvh_set_user_nice
   __traceiter_android_rvh_set_user_nice_locked
   __traceiter_android_rvh_tick_entry
+  __traceiter_android_rvh_try_to_wake_up_success
   __traceiter_android_rvh_typec_tcpci_get_vbus
   __traceiter_android_rvh_uclamp_eff_get
   __traceiter_android_rvh_ufs_complete_init
@@ -2401,6 +2403,7 @@
   __traceiter_android_vh_meminfo_proc_show
   __traceiter_android_vh_mm_compaction_begin
   __traceiter_android_vh_mm_compaction_end
+  __traceiter_android_vh_mm_kcompactd_cpu_online
   __traceiter_android_vh_prio_inheritance
   __traceiter_android_vh_prio_restore
   __traceiter_android_vh_resume_end
@@ -2429,6 +2432,7 @@
   __traceiter_android_vh_ufs_update_sysfs
   __traceiter_android_vh_usb_dev_resume
   __traceiter_android_vh_use_amu_fie
+  __traceiter_android_vh_vmscan_kswapd_done
   __traceiter_clock_set_rate
   __traceiter_cma_alloc_finish
   __traceiter_cma_alloc_start
@@ -2447,6 +2451,7 @@
   __traceiter_mmap_lock_start_locking
   __traceiter_mm_vmscan_direct_reclaim_begin
   __traceiter_mm_vmscan_direct_reclaim_end
+  __traceiter_mm_vmscan_kswapd_wake
   __traceiter_pelt_cfs_tp
   __traceiter_pelt_dl_tp
   __traceiter_pelt_irq_tp
@@ -2504,6 +2509,7 @@
   __tracepoint_android_rvh_set_user_nice
   __tracepoint_android_rvh_set_user_nice_locked
   __tracepoint_android_rvh_tick_entry
+  __tracepoint_android_rvh_try_to_wake_up_success
   __tracepoint_android_rvh_typec_tcpci_get_vbus
   __tracepoint_android_rvh_uclamp_eff_get
   __tracepoint_android_rvh_ufs_complete_init
@@ -2532,6 +2538,7 @@
   __tracepoint_android_vh_meminfo_proc_show
   __tracepoint_android_vh_mm_compaction_begin
   __tracepoint_android_vh_mm_compaction_end
+  __tracepoint_android_vh_mm_kcompactd_cpu_online
   __tracepoint_android_vh_prio_inheritance
   __tracepoint_android_vh_prio_restore
   __tracepoint_android_vh_resume_end
@@ -2560,6 +2567,7 @@
   __tracepoint_android_vh_ufs_update_sysfs
   __tracepoint_android_vh_usb_dev_resume
   __tracepoint_android_vh_use_amu_fie
+  __tracepoint_android_vh_vmscan_kswapd_done
   __tracepoint_clock_set_rate
   __tracepoint_cma_alloc_finish
   __tracepoint_cma_alloc_start
@@ -2578,6 +2586,7 @@
   __tracepoint_mmap_lock_start_locking
   __tracepoint_mm_vmscan_direct_reclaim_begin
   __tracepoint_mm_vmscan_direct_reclaim_end
+  __tracepoint_mm_vmscan_kswapd_wake
   __tracepoint_pelt_cfs_tp
   __tracepoint_pelt_dl_tp
   __tracepoint_pelt_irq_tp

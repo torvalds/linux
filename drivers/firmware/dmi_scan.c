@@ -102,6 +102,17 @@ static void dmi_decode_table(u8 *buf,
 		const struct dmi_header *dm = (const struct dmi_header *)data;
 
 		/*
+		 * If a short entry is found (less than 4 bytes), not only it
+		 * is invalid, but we cannot reliably locate the next entry.
+		 */
+		if (dm->length < sizeof(struct dmi_header)) {
+			pr_warn(FW_BUG
+				"Corrupted DMI table, offset %zd (only %d entries processed)\n",
+				data - buf, i);
+			break;
+		}
+
+		/*
 		 *  We want to know the total length (formatted area and
 		 *  strings) before decoding to make sure we won't run off the
 		 *  table in dmi_decode or dmi_string

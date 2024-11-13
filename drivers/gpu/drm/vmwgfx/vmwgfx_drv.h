@@ -62,6 +62,9 @@
 #define VMWGFX_MAX_DISPLAYS 16
 #define VMWGFX_CMD_BOUNCE_INIT_SIZE 32768
 
+#define VMWGFX_MIN_INITIAL_WIDTH 1280
+#define VMWGFX_MIN_INITIAL_HEIGHT 800
+
 #define VMWGFX_PCI_ID_SVGA2              0x0405
 #define VMWGFX_PCI_ID_SVGA3              0x0406
 
@@ -551,7 +554,6 @@ struct vmw_private {
 	 * Framebuffer info.
 	 */
 
-	void *fb_info;
 	enum vmw_display_unit_type active_display_unit;
 	struct vmw_legacy_display *ldu_priv;
 	struct vmw_overlay *overlay_priv;
@@ -609,8 +611,6 @@ struct vmw_private {
 	struct vmw_sw_context ctx;
 	struct mutex cmdbuf_mutex;
 	struct mutex binding_mutex;
-
-	bool enable_fb;
 
 	/**
 	 * PM management.
@@ -1178,35 +1178,6 @@ extern void vmw_generic_waiter_add(struct vmw_private *dev_priv, u32 flag,
 extern void vmw_generic_waiter_remove(struct vmw_private *dev_priv,
 				      u32 flag, int *waiter_count);
 
-
-/**
- * Kernel framebuffer - vmwgfx_fb.c
- */
-
-#ifdef CONFIG_DRM_FBDEV_EMULATION
-int vmw_fb_init(struct vmw_private *vmw_priv);
-int vmw_fb_close(struct vmw_private *dev_priv);
-int vmw_fb_off(struct vmw_private *vmw_priv);
-int vmw_fb_on(struct vmw_private *vmw_priv);
-#else
-static inline int vmw_fb_init(struct vmw_private *vmw_priv)
-{
-	return 0;
-}
-static inline int vmw_fb_close(struct vmw_private *dev_priv)
-{
-	return 0;
-}
-static inline int vmw_fb_off(struct vmw_private *vmw_priv)
-{
-	return 0;
-}
-static inline int vmw_fb_on(struct vmw_private *vmw_priv)
-{
-	return 0;
-}
-#endif
-
 /**
  * Kernel modesetting - vmwgfx_kms.c
  */
@@ -1223,9 +1194,6 @@ void vmw_kms_cursor_snoop(struct vmw_surface *srf,
 int vmw_kms_write_svga(struct vmw_private *vmw_priv,
 		       unsigned width, unsigned height, unsigned pitch,
 		       unsigned bpp, unsigned depth);
-bool vmw_kms_validate_mode_vram(struct vmw_private *dev_priv,
-				uint32_t pitch,
-				uint32_t height);
 int vmw_kms_present(struct vmw_private *dev_priv,
 		    struct drm_file *file_priv,
 		    struct vmw_framebuffer *vfb,
