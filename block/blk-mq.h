@@ -155,7 +155,7 @@ struct blk_mq_alloc_data {
 
 	/* allocate multiple requests/tags in one go */
 	unsigned int nr_tags;
-	struct request **cached_rq;
+	struct rq_list *cached_rqs;
 
 	/* input & output parameter */
 	struct blk_mq_ctx *ctx;
