@@ -16,18 +16,7 @@
 #include <linux/virtio_net.h>
 #include <linux/virtio_pci_admin.h>
 
-struct virtiovf_pci_core_device {
-	struct vfio_pci_core_device core_device;
-	u8 *bar0_virtual_buf;
-	/* synchronize access to the virtual buf */
-	struct mutex bar_mutex;
-	void __iomem *notify_addr;
-	u64 notify_offset;
-	__le32 pci_base_addr_0;
-	__le16 pci_cmd;
-	u8 bar0_virtual_buf_size;
-	u8 notify_bar;
-};
+#include "common.h"
 
 static int
 virtiovf_issue_legacy_rw_cmd(struct virtiovf_pci_core_device *virtvdev,
@@ -355,8 +344,8 @@ virtiovf_set_notify_addr(struct virtiovf_pci_core_device *virtvdev)
 
 static int virtiovf_pci_open_device(struct vfio_device *core_vdev)
 {
-	struct virtiovf_pci_core_device *virtvdev = container_of(
-		core_vdev, struct virtiovf_pci_core_device, core_device.vdev);
+	struct virtiovf_pci_core_device *virtvdev = container_of(core_vdev,
+			struct virtiovf_pci_core_device, core_device.vdev);
 	struct vfio_pci_core_device *vdev = &virtvdev->core_device;
 	int ret;
 
@@ -377,8 +366,18 @@ static int virtiovf_pci_open_device(struct vfio_device *core_vdev)
 		}
 	}
 
+	virtiovf_open_migration(virtvdev);
 	vfio_pci_core_finish_enable(vdev);
 	return 0;
+}
+
+static void virtiovf_pci_close_device(struct vfio_device *core_vdev)
+{
+	struct virtiovf_pci_core_device *virtvdev = container_of(core_vdev,
+			struct virtiovf_pci_core_device, core_device.vdev);
+
+	virtiovf_close_migration(virtvdev);
+	vfio_pci_core_close_device(core_vdev);
 }
 
 static int virtiovf_get_device_config_size(unsigned short device)
@@ -406,8 +405,8 @@ static int virtiovf_read_notify_info(struct virtiovf_pci_core_device *virtvdev)
 
 static int virtiovf_pci_init_device(struct vfio_device *core_vdev)
 {
-	struct virtiovf_pci_core_device *virtvdev = container_of(
-		core_vdev, struct virtiovf_pci_core_device, core_device.vdev);
+	struct virtiovf_pci_core_device *virtvdev = container_of(core_vdev,
+			struct virtiovf_pci_core_device, core_device.vdev);
 	struct pci_dev *pdev;
 	int ret;
 
@@ -416,6 +415,10 @@ static int virtiovf_pci_init_device(struct vfio_device *core_vdev)
 		return ret;
 
 	pdev = virtvdev->core_device.pdev;
+	/*
+	 * The vfio_device_ops.init() callback is set to virtiovf_pci_init_device()
+	 * only when legacy I/O is supported. Now, let's initialize it.
+	 */
 	ret = virtiovf_read_notify_info(virtvdev);
 	if (ret)
 		return ret;
@@ -433,19 +436,38 @@ static int virtiovf_pci_init_device(struct vfio_device *core_vdev)
 
 static void virtiovf_pci_core_release_dev(struct vfio_device *core_vdev)
 {
-	struct virtiovf_pci_core_device *virtvdev = container_of(
-		core_vdev, struct virtiovf_pci_core_device, core_device.vdev);
+	struct virtiovf_pci_core_device *virtvdev = container_of(core_vdev,
+			struct virtiovf_pci_core_device, core_device.vdev);
 
 	kfree(virtvdev->bar0_virtual_buf);
 	vfio_pci_core_release_dev(core_vdev);
 }
 
-static const struct vfio_device_ops virtiovf_vfio_pci_tran_ops = {
-	.name = "virtio-vfio-pci-trans",
+static const struct vfio_device_ops virtiovf_vfio_pci_lm_ops = {
+	.name = "virtio-vfio-pci-lm",
+	.init = vfio_pci_core_init_dev,
+	.release = virtiovf_pci_core_release_dev,
+	.open_device = virtiovf_pci_open_device,
+	.close_device = virtiovf_pci_close_device,
+	.ioctl = vfio_pci_core_ioctl,
+	.device_feature = vfio_pci_core_ioctl_feature,
+	.read = vfio_pci_core_read,
+	.write = vfio_pci_core_write,
+	.mmap = vfio_pci_core_mmap,
+	.request = vfio_pci_core_request,
+	.match = vfio_pci_core_match,
+	.bind_iommufd = vfio_iommufd_physical_bind,
+	.unbind_iommufd = vfio_iommufd_physical_unbind,
+	.attach_ioas = vfio_iommufd_physical_attach_ioas,
+	.detach_ioas = vfio_iommufd_physical_detach_ioas,
+};
+
+static const struct vfio_device_ops virtiovf_vfio_pci_tran_lm_ops = {
+	.name = "virtio-vfio-pci-trans-lm",
 	.init = virtiovf_pci_init_device,
 	.release = virtiovf_pci_core_release_dev,
 	.open_device = virtiovf_pci_open_device,
-	.close_device = vfio_pci_core_close_device,
+	.close_device = virtiovf_pci_close_device,
 	.ioctl = virtiovf_vfio_pci_core_ioctl,
 	.device_feature = vfio_pci_core_ioctl_feature,
 	.read = virtiovf_pci_core_read,
@@ -490,16 +512,27 @@ static int virtiovf_pci_probe(struct pci_dev *pdev,
 {
 	const struct vfio_device_ops *ops = &virtiovf_vfio_pci_ops;
 	struct virtiovf_pci_core_device *virtvdev;
+	bool sup_legacy_io = false;
+	bool sup_lm = false;
 	int ret;
 
-	if (pdev->is_virtfn && virtio_pci_admin_has_legacy_io(pdev) &&
-	    !virtiovf_bar0_exists(pdev))
-		ops = &virtiovf_vfio_pci_tran_ops;
+	if (pdev->is_virtfn) {
+		sup_legacy_io = virtio_pci_admin_has_legacy_io(pdev) &&
+				!virtiovf_bar0_exists(pdev);
+		sup_lm = virtio_pci_admin_has_dev_parts(pdev);
+		if (sup_legacy_io)
+			ops = &virtiovf_vfio_pci_tran_lm_ops;
+		else if (sup_lm)
+			ops = &virtiovf_vfio_pci_lm_ops;
+	}
 
 	virtvdev = vfio_alloc_device(virtiovf_pci_core_device, core_device.vdev,
 				     &pdev->dev, ops);
 	if (IS_ERR(virtvdev))
 		return PTR_ERR(virtvdev);
+
+	if (sup_lm)
+		virtiovf_set_migratable(virtvdev);
 
 	dev_set_drvdata(&pdev->dev, &virtvdev->core_device);
 	ret = vfio_pci_core_register_device(&virtvdev->core_device);
@@ -532,6 +565,7 @@ static void virtiovf_pci_aer_reset_done(struct pci_dev *pdev)
 	struct virtiovf_pci_core_device *virtvdev = dev_get_drvdata(&pdev->dev);
 
 	virtvdev->pci_cmd = 0;
+	virtiovf_migration_reset_done(pdev);
 }
 
 static const struct pci_error_handlers virtiovf_err_handlers = {
