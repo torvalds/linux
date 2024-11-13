@@ -371,6 +371,25 @@ static inline void btrfs_set_root_last_trans(struct btrfs_root *root, u64 transi
 }
 
 /*
+ * Return the generation this root started with.
+ *
+ * Every normal root that is created with root->root_key.offset set to it's
+ * originating generation.  If it is a snapshot it is the generation when the
+ * snapshot was created.
+ *
+ * However for TREE_RELOC roots root_key.offset is the objectid of the owning
+ * tree root.  Thankfully we copy the root item of the owning tree root, which
+ * has it's last_snapshot set to what we would have root_key.offset set to, so
+ * return that if this is a TREE_RELOC root.
+ */
+static inline u64 btrfs_root_origin_generation(const struct btrfs_root *root)
+{
+	if (btrfs_root_id(root) == BTRFS_TREE_RELOC_OBJECTID)
+		return btrfs_root_last_snapshot(&root->root_item);
+	return root->root_key.offset;
+}
+
+/*
  * Structure that conveys information about an extent that is going to replace
  * all the extents in a file range.
  */
