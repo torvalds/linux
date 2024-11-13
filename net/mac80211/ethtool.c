@@ -157,6 +157,10 @@ do_survey:
 	chanctx_conf = rcu_dereference(sdata->vif.bss_conf.chanctx_conf);
 	if (chanctx_conf)
 		channel = chanctx_conf->def.chan;
+	else if (local->open_count > 0 &&
+		 local->open_count == local->monitors &&
+		 sdata->vif.type == NL80211_IFTYPE_MONITOR)
+		channel = local->monitor_chanreq.oper.chan;
 	else
 		channel = NULL;
 	rcu_read_unlock();
