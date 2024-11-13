@@ -401,7 +401,7 @@ struct nvme_uring_cmd_pdu {
 static inline struct nvme_uring_cmd_pdu *nvme_uring_cmd_pdu(
 		struct io_uring_cmd *ioucmd)
 {
-	return (struct nvme_uring_cmd_pdu *)&ioucmd->pdu;
+	return io_uring_cmd_to_pdu(ioucmd, struct nvme_uring_cmd_pdu);
 }
 
 static void nvme_uring_task_cb(struct io_uring_cmd *ioucmd,
@@ -630,8 +630,6 @@ static int nvme_ns_uring_cmd(struct nvme_ns *ns, struct io_uring_cmd *ioucmd,
 {
 	struct nvme_ctrl *ctrl = ns->ctrl;
 	int ret;
-
-	BUILD_BUG_ON(sizeof(struct nvme_uring_cmd_pdu) > sizeof(ioucmd->pdu));
 
 	ret = nvme_uring_cmd_checks(issue_flags);
 	if (ret)

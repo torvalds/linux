@@ -141,6 +141,7 @@ struct nvme_dev {
 	struct nvme_ctrl ctrl;
 	u32 last_ps;
 	bool hmb;
+	struct sg_table *hmb_sgt;
 
 	mempool_t *iod_mempool;
 
@@ -153,6 +154,7 @@ struct nvme_dev {
 	/* host memory buffer support: */
 	u64 host_mem_size;
 	u32 nr_host_mem_descs;
+	u32 host_mem_descs_size;
 	dma_addr_t host_mem_descs_dma;
 	struct nvme_host_mem_buf_desc *host_mem_descs;
 	void **host_mem_desc_bufs;
@@ -1951,7 +1953,7 @@ static int nvme_set_host_mem(struct nvme_dev *dev, u32 bits)
 	return ret;
 }
 
-static void nvme_free_host_mem(struct nvme_dev *dev)
+static void nvme_free_host_mem_multi(struct nvme_dev *dev)
 {
 	int i;
 
@@ -1966,18 +1968,54 @@ static void nvme_free_host_mem(struct nvme_dev *dev)
 
 	kfree(dev->host_mem_desc_bufs);
 	dev->host_mem_desc_bufs = NULL;
-	dma_free_coherent(dev->dev,
-			dev->nr_host_mem_descs * sizeof(*dev->host_mem_descs),
+}
+
+static void nvme_free_host_mem(struct nvme_dev *dev)
+{
+	if (dev->hmb_sgt)
+		dma_free_noncontiguous(dev->dev, dev->host_mem_size,
+				dev->hmb_sgt, DMA_BIDIRECTIONAL);
+	else
+		nvme_free_host_mem_multi(dev);
+
+	dma_free_coherent(dev->dev, dev->host_mem_descs_size,
 			dev->host_mem_descs, dev->host_mem_descs_dma);
 	dev->host_mem_descs = NULL;
+	dev->host_mem_descs_size = 0;
 	dev->nr_host_mem_descs = 0;
 }
 
-static int __nvme_alloc_host_mem(struct nvme_dev *dev, u64 preferred,
+static int nvme_alloc_host_mem_single(struct nvme_dev *dev, u64 size)
+{
+	dev->hmb_sgt = dma_alloc_noncontiguous(dev->dev, size,
+				DMA_BIDIRECTIONAL, GFP_KERNEL, 0);
+	if (!dev->hmb_sgt)
+		return -ENOMEM;
+
+	dev->host_mem_descs = dma_alloc_coherent(dev->dev,
+			sizeof(*dev->host_mem_descs), &dev->host_mem_descs_dma,
+			GFP_KERNEL);
+	if (!dev->host_mem_descs) {
+		dma_free_noncontiguous(dev->dev, dev->host_mem_size,
+				dev->hmb_sgt, DMA_BIDIRECTIONAL);
+		dev->hmb_sgt = NULL;
+		return -ENOMEM;
+	}
+	dev->host_mem_size = size;
+	dev->host_mem_descs_size = sizeof(*dev->host_mem_descs);
+	dev->nr_host_mem_descs = 1;
+
+	dev->host_mem_descs[0].addr =
+		cpu_to_le64(dev->hmb_sgt->sgl->dma_address);
+	dev->host_mem_descs[0].size = cpu_to_le32(size / NVME_CTRL_PAGE_SIZE);
+	return 0;
+}
+
+static int nvme_alloc_host_mem_multi(struct nvme_dev *dev, u64 preferred,
 		u32 chunk_size)
 {
 	struct nvme_host_mem_buf_desc *descs;
-	u32 max_entries, len;
+	u32 max_entries, len, descs_size;
 	dma_addr_t descs_dma;
 	int i = 0;
 	void **bufs;
@@ -1990,8 +2028,9 @@ static int __nvme_alloc_host_mem(struct nvme_dev *dev, u64 preferred,
 	if (dev->ctrl.hmmaxd && dev->ctrl.hmmaxd < max_entries)
 		max_entries = dev->ctrl.hmmaxd;
 
-	descs = dma_alloc_coherent(dev->dev, max_entries * sizeof(*descs),
-				   &descs_dma, GFP_KERNEL);
+	descs_size = max_entries * sizeof(*descs);
+	descs = dma_alloc_coherent(dev->dev, descs_size, &descs_dma,
+			GFP_KERNEL);
 	if (!descs)
 		goto out;
 
@@ -2020,6 +2059,7 @@ static int __nvme_alloc_host_mem(struct nvme_dev *dev, u64 preferred,
 	dev->host_mem_size = size;
 	dev->host_mem_descs = descs;
 	dev->host_mem_descs_dma = descs_dma;
+	dev->host_mem_descs_size = descs_size;
 	dev->host_mem_desc_bufs = bufs;
 	return 0;
 
@@ -2034,8 +2074,7 @@ out_free_bufs:
 
 	kfree(bufs);
 out_free_descs:
-	dma_free_coherent(dev->dev, max_entries * sizeof(*descs), descs,
-			descs_dma);
+	dma_free_coherent(dev->dev, descs_size, descs, descs_dma);
 out:
 	dev->host_mem_descs = NULL;
 	return -ENOMEM;
@@ -2047,9 +2086,18 @@ static int nvme_alloc_host_mem(struct nvme_dev *dev, u64 min, u64 preferred)
 	u64 hmminds = max_t(u32, dev->ctrl.hmminds * 4096, PAGE_SIZE * 2);
 	u64 chunk_size;
 
+	/*
+	 * If there is an IOMMU that can merge pages, try a virtually
+	 * non-contiguous allocation for a single segment first.
+	 */
+	if (!(PAGE_SIZE & dma_get_merge_boundary(dev->dev))) {
+		if (!nvme_alloc_host_mem_single(dev, preferred))
+			return 0;
+	}
+
 	/* start big and work our way down */
 	for (chunk_size = min_chunk; chunk_size >= hmminds; chunk_size /= 2) {
-		if (!__nvme_alloc_host_mem(dev, preferred, chunk_size)) {
+		if (!nvme_alloc_host_mem_multi(dev, preferred, chunk_size)) {
 			if (!min || dev->host_mem_size >= min)
 				return 0;
 			nvme_free_host_mem(dev);
@@ -2097,8 +2145,10 @@ static int nvme_setup_host_mem(struct nvme_dev *dev)
 		}
 
 		dev_info(dev->ctrl.device,
-			"allocated %lld MiB host memory buffer.\n",
-			dev->host_mem_size >> ilog2(SZ_1M));
+			"allocated %lld MiB host memory buffer (%u segment%s).\n",
+			dev->host_mem_size >> ilog2(SZ_1M),
+			dev->nr_host_mem_descs,
+			str_plural(dev->nr_host_mem_descs));
 	}
 
 	ret = nvme_set_host_mem(dev, enable_bits);
