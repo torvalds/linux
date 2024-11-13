@@ -162,6 +162,17 @@ struct enic_rq_stats {
 	u64 desc_skip;			/* Rx pkt went into later buffer */
 };
 
+struct enic_wq {
+	spinlock_t lock;		/* spinlock for wq */
+	struct vnic_wq vwq;
+	struct enic_wq_stats stats;
+} ____cacheline_aligned;
+
+struct enic_rq {
+	struct vnic_rq vrq;
+	struct enic_rq_stats stats;
+} ____cacheline_aligned;
+
 /* Per-instance private data structure */
 struct enic {
 	struct net_device *netdev;
@@ -194,16 +205,13 @@ struct enic {
 	struct enic_port_profile *pp;
 
 	/* work queue cache line section */
-	____cacheline_aligned struct vnic_wq wq[ENIC_WQ_MAX];
-	spinlock_t wq_lock[ENIC_WQ_MAX];
-	struct enic_wq_stats wq_stats[ENIC_WQ_MAX];
+	____cacheline_aligned struct enic_wq wq[ENIC_WQ_MAX];
 	unsigned int wq_count;
 	u16 loop_enable;
 	u16 loop_tag;
 
 	/* receive queue cache line section */
-	____cacheline_aligned struct vnic_rq rq[ENIC_RQ_MAX];
-	struct enic_rq_stats rq_stats[ENIC_RQ_MAX];
+	____cacheline_aligned struct enic_rq rq[ENIC_RQ_MAX];
 	unsigned int rq_count;
 	struct vxlan_offload vxlan;
 	struct napi_struct napi[ENIC_RQ_MAX + ENIC_WQ_MAX];

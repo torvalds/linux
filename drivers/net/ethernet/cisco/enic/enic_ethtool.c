@@ -337,7 +337,7 @@ static void enic_get_ethtool_stats(struct net_device *netdev,
 	for (i = 0; i < NUM_ENIC_GEN_STATS; i++)
 		*(data++) = ((u64 *)&enic->gen_stats)[enic_gen_stats[i].index];
 	for (i = 0; i < enic->rq_count; i++) {
-		struct enic_rq_stats *rqstats = &enic->rq_stats[i];
+		struct enic_rq_stats *rqstats = &enic->rq[i].stats;
 		int index;
 
 		for (j = 0; j < NUM_ENIC_PER_RQ_STATS; j++) {
@@ -346,7 +346,7 @@ static void enic_get_ethtool_stats(struct net_device *netdev,
 		}
 	}
 	for (i = 0; i < enic->wq_count; i++) {
-		struct enic_wq_stats *wqstats = &enic->wq_stats[i];
+		struct enic_wq_stats *wqstats = &enic->wq[i].stats;
 		int index;
 
 		for (j = 0; j < NUM_ENIC_PER_WQ_STATS; j++) {
