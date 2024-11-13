@@ -3616,11 +3616,6 @@ static __cold int io_uring_create(unsigned entries, struct io_uring_params *p,
 	if (!(ctx->flags & IORING_SETUP_NO_SQARRAY))
 		static_branch_inc(&io_key_has_sqarray);
 
-	/* HYBRID_IOPOLL only valid with IOPOLL */
-	if ((ctx->flags & (IORING_SETUP_IOPOLL|IORING_SETUP_HYBRID_IOPOLL)) ==
-			IORING_SETUP_HYBRID_IOPOLL)
-		return -EINVAL;
-
 	if ((ctx->flags & IORING_SETUP_DEFER_TASKRUN) &&
 	    !(ctx->flags & IORING_SETUP_IOPOLL) &&
 	    !(ctx->flags & IORING_SETUP_SQPOLL))
@@ -3670,6 +3665,11 @@ static __cold int io_uring_create(unsigned entries, struct io_uring_params *p,
 			goto err;
 		ctx->notify_method = TWA_SIGNAL;
 	}
+
+	/* HYBRID_IOPOLL only valid with IOPOLL */
+	if ((ctx->flags & (IORING_SETUP_IOPOLL|IORING_SETUP_HYBRID_IOPOLL)) ==
+			IORING_SETUP_HYBRID_IOPOLL)
+		goto err;
 
 	/*
 	 * For DEFER_TASKRUN we require the completion task to be the same as the
