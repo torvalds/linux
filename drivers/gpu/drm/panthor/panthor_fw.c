@@ -91,26 +91,26 @@ enum panthor_fw_binary_entry_type {
 #define CSF_FW_BINARY_ENTRY_UPDATE					BIT(30)
 #define CSF_FW_BINARY_ENTRY_OPTIONAL					BIT(31)
 
-#define CSF_FW_BINARY_IFACE_ENTRY_RD_RD					BIT(0)
-#define CSF_FW_BINARY_IFACE_ENTRY_RD_WR					BIT(1)
-#define CSF_FW_BINARY_IFACE_ENTRY_RD_EX					BIT(2)
-#define CSF_FW_BINARY_IFACE_ENTRY_RD_CACHE_MODE_NONE			(0 << 3)
-#define CSF_FW_BINARY_IFACE_ENTRY_RD_CACHE_MODE_CACHED			(1 << 3)
-#define CSF_FW_BINARY_IFACE_ENTRY_RD_CACHE_MODE_UNCACHED_COHERENT	(2 << 3)
-#define CSF_FW_BINARY_IFACE_ENTRY_RD_CACHE_MODE_CACHED_COHERENT		(3 << 3)
-#define CSF_FW_BINARY_IFACE_ENTRY_RD_CACHE_MODE_MASK			GENMASK(4, 3)
-#define CSF_FW_BINARY_IFACE_ENTRY_RD_PROT				BIT(5)
-#define CSF_FW_BINARY_IFACE_ENTRY_RD_SHARED				BIT(30)
-#define CSF_FW_BINARY_IFACE_ENTRY_RD_ZERO				BIT(31)
+#define CSF_FW_BINARY_IFACE_ENTRY_RD					BIT(0)
+#define CSF_FW_BINARY_IFACE_ENTRY_WR					BIT(1)
+#define CSF_FW_BINARY_IFACE_ENTRY_EX					BIT(2)
+#define CSF_FW_BINARY_IFACE_ENTRY_CACHE_MODE_NONE			(0 << 3)
+#define CSF_FW_BINARY_IFACE_ENTRY_CACHE_MODE_CACHED			(1 << 3)
+#define CSF_FW_BINARY_IFACE_ENTRY_CACHE_MODE_UNCACHED_COHERENT		(2 << 3)
+#define CSF_FW_BINARY_IFACE_ENTRY_CACHE_MODE_CACHED_COHERENT		(3 << 3)
+#define CSF_FW_BINARY_IFACE_ENTRY_CACHE_MODE_MASK			GENMASK(4, 3)
+#define CSF_FW_BINARY_IFACE_ENTRY_PROT					BIT(5)
+#define CSF_FW_BINARY_IFACE_ENTRY_SHARED				BIT(30)
+#define CSF_FW_BINARY_IFACE_ENTRY_ZERO					BIT(31)
 
-#define CSF_FW_BINARY_IFACE_ENTRY_RD_SUPPORTED_FLAGS			\
-	(CSF_FW_BINARY_IFACE_ENTRY_RD_RD |				\
-	 CSF_FW_BINARY_IFACE_ENTRY_RD_WR |				\
-	 CSF_FW_BINARY_IFACE_ENTRY_RD_EX |				\
-	 CSF_FW_BINARY_IFACE_ENTRY_RD_CACHE_MODE_MASK |			\
-	 CSF_FW_BINARY_IFACE_ENTRY_RD_PROT |				\
-	 CSF_FW_BINARY_IFACE_ENTRY_RD_SHARED  |				\
-	 CSF_FW_BINARY_IFACE_ENTRY_RD_ZERO)
+#define CSF_FW_BINARY_IFACE_ENTRY_SUPPORTED_FLAGS			\
+	(CSF_FW_BINARY_IFACE_ENTRY_RD |					\
+	 CSF_FW_BINARY_IFACE_ENTRY_WR |					\
+	 CSF_FW_BINARY_IFACE_ENTRY_EX |					\
+	 CSF_FW_BINARY_IFACE_ENTRY_CACHE_MODE_MASK |			\
+	 CSF_FW_BINARY_IFACE_ENTRY_PROT |				\
+	 CSF_FW_BINARY_IFACE_ENTRY_SHARED  |				\
+	 CSF_FW_BINARY_IFACE_ENTRY_ZERO)
 
 /**
  * struct panthor_fw_binary_section_entry_hdr - Describes a section of FW binary
@@ -413,7 +413,7 @@ static void panthor_fw_init_section_mem(struct panthor_device *ptdev,
 	int ret;
 
 	if (!section->data.size &&
-	    !(section->flags & CSF_FW_BINARY_IFACE_ENTRY_RD_ZERO))
+	    !(section->flags & CSF_FW_BINARY_IFACE_ENTRY_ZERO))
 		return;
 
 	ret = panthor_kernel_bo_vmap(section->mem);
@@ -421,7 +421,7 @@ static void panthor_fw_init_section_mem(struct panthor_device *ptdev,
 		return;
 
 	memcpy(section->mem->kmap, section->data.buf, section->data.size);
-	if (section->flags & CSF_FW_BINARY_IFACE_ENTRY_RD_ZERO) {
+	if (section->flags & CSF_FW_BINARY_IFACE_ENTRY_ZERO) {
 		memset(section->mem->kmap + section->data.size, 0,
 		       panthor_kernel_bo_size(section->mem) - section->data.size);
 	}
@@ -535,20 +535,20 @@ static int panthor_fw_load_section_entry(struct panthor_device *ptdev,
 		return -EINVAL;
 	}
 
-	if (hdr.flags & ~CSF_FW_BINARY_IFACE_ENTRY_RD_SUPPORTED_FLAGS) {
+	if (hdr.flags & ~CSF_FW_BINARY_IFACE_ENTRY_SUPPORTED_FLAGS) {
 		drm_err(&ptdev->base, "Firmware contains interface with unsupported flags (0x%x)\n",
 			hdr.flags);
 		return -EINVAL;
 	}
 
-	if (hdr.flags & CSF_FW_BINARY_IFACE_ENTRY_RD_PROT) {
+	if (hdr.flags & CSF_FW_BINARY_IFACE_ENTRY_PROT) {
 		drm_warn(&ptdev->base,
 			 "Firmware protected mode entry not be supported, ignoring");
 		return 0;
 	}
 
 	if (hdr.va.start == CSF_MCU_SHARED_REGION_START &&
-	    !(hdr.flags & CSF_FW_BINARY_IFACE_ENTRY_RD_SHARED)) {
+	    !(hdr.flags & CSF_FW_BINARY_IFACE_ENTRY_SHARED)) {
 		drm_err(&ptdev->base,
 			"Interface at 0x%llx must be shared", CSF_MCU_SHARED_REGION_START);
 		return -EINVAL;
@@ -587,26 +587,26 @@ static int panthor_fw_load_section_entry(struct panthor_device *ptdev,
 
 	section_size = hdr.va.end - hdr.va.start;
 	if (section_size) {
-		u32 cache_mode = hdr.flags & CSF_FW_BINARY_IFACE_ENTRY_RD_CACHE_MODE_MASK;
+		u32 cache_mode = hdr.flags & CSF_FW_BINARY_IFACE_ENTRY_CACHE_MODE_MASK;
 		struct panthor_gem_object *bo;
 		u32 vm_map_flags = 0;
 		struct sg_table *sgt;
 		u64 va = hdr.va.start;
 
-		if (!(hdr.flags & CSF_FW_BINARY_IFACE_ENTRY_RD_WR))
+		if (!(hdr.flags & CSF_FW_BINARY_IFACE_ENTRY_WR))
 			vm_map_flags |= DRM_PANTHOR_VM_BIND_OP_MAP_READONLY;
 
-		if (!(hdr.flags & CSF_FW_BINARY_IFACE_ENTRY_RD_EX))
+		if (!(hdr.flags & CSF_FW_BINARY_IFACE_ENTRY_EX))
 			vm_map_flags |= DRM_PANTHOR_VM_BIND_OP_MAP_NOEXEC;
 
-		/* TODO: CSF_FW_BINARY_IFACE_ENTRY_RD_CACHE_MODE_*_COHERENT are mapped to
+		/* TODO: CSF_FW_BINARY_IFACE_ENTRY_CACHE_MODE_*_COHERENT are mapped to
 		 * non-cacheable for now. We might want to introduce a new
 		 * IOMMU_xxx flag (or abuse IOMMU_MMIO, which maps to device
 		 * memory and is currently not used by our driver) for
 		 * AS_MEMATTR_AARCH64_SHARED memory, so we can take benefit
 		 * of IO-coherent systems.
 		 */
-		if (cache_mode != CSF_FW_BINARY_IFACE_ENTRY_RD_CACHE_MODE_CACHED)
+		if (cache_mode != CSF_FW_BINARY_IFACE_ENTRY_CACHE_MODE_CACHED)
 			vm_map_flags |= DRM_PANTHOR_VM_BIND_OP_MAP_UNCACHED;
 
 		section->mem = panthor_kernel_bo_create(ptdev, panthor_fw_vm(ptdev),
@@ -619,7 +619,7 @@ static int panthor_fw_load_section_entry(struct panthor_device *ptdev,
 		if (drm_WARN_ON(&ptdev->base, section->mem->va_node.start != hdr.va.start))
 			return -EINVAL;
 
-		if (section->flags & CSF_FW_BINARY_IFACE_ENTRY_RD_SHARED) {
+		if (section->flags & CSF_FW_BINARY_IFACE_ENTRY_SHARED) {
 			ret = panthor_kernel_bo_vmap(section->mem);
 			if (ret)
 				return ret;
@@ -689,7 +689,7 @@ panthor_reload_fw_sections(struct panthor_device *ptdev, bool full_reload)
 	list_for_each_entry(section, &ptdev->fw->sections, node) {
 		struct sg_table *sgt;
 
-		if (!full_reload && !(section->flags & CSF_FW_BINARY_IFACE_ENTRY_RD_WR))
+		if (!full_reload && !(section->flags & CSF_FW_BINARY_IFACE_ENTRY_WR))
 			continue;
 
 		panthor_fw_init_section_mem(ptdev, section);
