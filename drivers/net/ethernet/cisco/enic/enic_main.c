@@ -2531,6 +2531,15 @@ static int enic_adjust_resources(struct enic *enic)
 		return -ENOSPC;
 	}
 
+	if (is_kdump_kernel()) {
+		dev_info(enic_get_dev(enic), "Running from within kdump kernel. Using minimal resources\n");
+		enic->rq_avail = 1;
+		enic->wq_avail = 1;
+		enic->config.rq_desc_count = ENIC_MIN_RQ_DESCS;
+		enic->config.wq_desc_count = ENIC_MIN_WQ_DESCS;
+		enic->config.mtu = min_t(u16, 1500, enic->config.mtu);
+	}
+
 	/* if RSS isn't set, then we can only use one RQ */
 	if (!ENIC_SETTING(enic, RSS))
 		enic->rq_avail = 1;
@@ -2764,18 +2773,6 @@ static void enic_dev_deinit(struct enic *enic)
 	enic_free_enic_resources(enic);
 }
 
-static void enic_kdump_kernel_config(struct enic *enic)
-{
-	if (is_kdump_kernel()) {
-		dev_info(enic_get_dev(enic), "Running from within kdump kernel. Using minimal resources\n");
-		enic->rq_avail = 1;
-		enic->wq_avail = 1;
-		enic->config.rq_desc_count = ENIC_MIN_RQ_DESCS;
-		enic->config.wq_desc_count = ENIC_MIN_WQ_DESCS;
-		enic->config.mtu = min_t(u16, 1500, enic->config.mtu);
-	}
-}
-
 static int enic_dev_init(struct enic *enic)
 {
 	struct device *dev = enic_get_dev(enic);
@@ -2810,10 +2807,6 @@ static int enic_dev_init(struct enic *enic)
 		dev_err(dev, "Failed to allocate enic resources\n");
 		return err;
 	}
-
-	/* modify resource count if we are in kdump_kernel
-	 */
-	enic_kdump_kernel_config(enic);
 
 	/* Set interrupt mode based on system capabilities */
 
