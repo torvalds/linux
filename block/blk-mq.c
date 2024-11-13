@@ -1392,7 +1392,7 @@ static void blk_add_rq_to_plug(struct blk_plug *plug, struct request *rq)
 	 */
 	if (!plug->has_elevator && (rq->rq_flags & RQF_SCHED_TAGS))
 		plug->has_elevator = true;
-	rq_list_add_head(&plug->mq_list, rq);
+	rq_list_add_tail(&plug->mq_list, rq);
 	plug->rq_count++;
 }
 
@@ -2844,7 +2844,7 @@ static void blk_mq_dispatch_plug_list(struct blk_plug *plug, bool from_sched)
 			rq_list_add_tail(&requeue_list, rq);
 			continue;
 		}
-		list_add(&rq->queuelist, &list);
+		list_add_tail(&rq->queuelist, &list);
 		depth++;
 	} while (!rq_list_empty(&plug->mq_list));
 

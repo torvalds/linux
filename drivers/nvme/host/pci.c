@@ -945,7 +945,7 @@ static void nvme_queue_rqs(struct rq_list *rqlist)
 		nvmeq = req->mq_hctx->driver_data;
 
 		if (nvme_prep_rq_batch(nvmeq, req))
-			rq_list_add_head(&submit_list, req); /* reverse order */
+			rq_list_add_tail(&submit_list, req);
 		else
 			rq_list_add_tail(&requeue_list, req);
 	}
