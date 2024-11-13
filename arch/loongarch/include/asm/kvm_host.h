@@ -20,6 +20,7 @@
 #include <asm/kvm_mmu.h>
 #include <asm/kvm_ipi.h>
 #include <asm/kvm_eiointc.h>
+#include <asm/kvm_pch_pic.h>
 #include <asm/loongarch.h>
 
 /* Loongarch KVM register ids */
@@ -125,6 +126,7 @@ struct kvm_arch {
 	struct kvm_context __percpu *vmcs;
 	struct loongarch_ipi *ipi;
 	struct loongarch_eiointc *eiointc;
+	struct loongarch_pch_pic *pch_pic;
 };
 
 #define CSR_MAX_NUMS		0x800
