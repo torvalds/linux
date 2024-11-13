@@ -1599,6 +1599,15 @@ config SXR_LSRCC_SERAPH
 	  Say Y if you want to support LSR devices and functionality of late
 	  state reprojection.
 
+config SXR_CAMCC_SERAPH
+	tristate "SERAPH Camera Clock Controller"
+	depends on SXR_GCC_SERAPH
+	help
+	  Support for the camera clock controller on Qualcomm Technologies, Inc
+	  SERAPH devices.
+	  Say Y if you want to support camera devices and functionality such as
+	  capturing pictures.
+
 endif
 
 config VIRTIO_CLK
