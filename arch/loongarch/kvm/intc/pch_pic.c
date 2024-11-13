@@ -314,16 +314,133 @@ static const struct kvm_io_device_ops kvm_pch_pic_ops = {
 	.write	= kvm_pch_pic_write,
 };
 
+static int kvm_pch_pic_init(struct kvm_device *dev, u64 addr)
+{
+	int ret;
+	struct kvm *kvm = dev->kvm;
+	struct kvm_io_device *device;
+	struct loongarch_pch_pic *s = dev->kvm->arch.pch_pic;
+
+	s->pch_pic_base = addr;
+	device = &s->device;
+	/* init device by pch pic writing and reading ops */
+	kvm_iodevice_init(device, &kvm_pch_pic_ops);
+	mutex_lock(&kvm->slots_lock);
+	/* register pch pic device */
+	ret = kvm_io_bus_register_dev(kvm, KVM_MMIO_BUS, addr, PCH_PIC_SIZE, device);
+	mutex_unlock(&kvm->slots_lock);
+
+	return (ret < 0) ? -EFAULT : 0;
+}
+
+/* used by user space to get or set pch pic registers */
+static int kvm_pch_pic_regs_access(struct kvm_device *dev,
+				struct kvm_device_attr *attr,
+				bool is_write)
+{
+	int addr, offset, len = 8, ret = 0;
+	void __user *data;
+	void *p = NULL;
+	struct loongarch_pch_pic *s;
+
+	s = dev->kvm->arch.pch_pic;
+	addr = attr->attr;
+	data = (void __user *)attr->addr;
+
+	/* get pointer to pch pic register by addr */
+	switch (addr) {
+	case PCH_PIC_MASK_START:
+		p = &s->mask;
+		break;
+	case PCH_PIC_HTMSI_EN_START:
+		p = &s->htmsi_en;
+		break;
+	case PCH_PIC_EDGE_START:
+		p = &s->edge;
+		break;
+	case PCH_PIC_AUTO_CTRL0_START:
+		p = &s->auto_ctrl0;
+		break;
+	case PCH_PIC_AUTO_CTRL1_START:
+		p = &s->auto_ctrl1;
+		break;
+	case PCH_PIC_ROUTE_ENTRY_START ... PCH_PIC_ROUTE_ENTRY_END:
+		offset = addr - PCH_PIC_ROUTE_ENTRY_START;
+		p = &s->route_entry[offset];
+		len = 1;
+		break;
+	case PCH_PIC_HTMSI_VEC_START ... PCH_PIC_HTMSI_VEC_END:
+		offset = addr - PCH_PIC_HTMSI_VEC_START;
+		p = &s->htmsi_vector[offset];
+		len = 1;
+		break;
+	case PCH_PIC_INT_IRR_START:
+		p = &s->irr;
+		break;
+	case PCH_PIC_INT_ISR_START:
+		p = &s->isr;
+		break;
+	case PCH_PIC_POLARITY_START:
+		p = &s->polarity;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	spin_lock(&s->lock);
+	/* write or read value according to is_write */
+	if (is_write) {
+		if (copy_from_user(p, data, len))
+			ret = -EFAULT;
+	} else {
+		if (copy_to_user(data, p, len))
+			ret = -EFAULT;
+	}
+	spin_unlock(&s->lock);
+
+	return ret;
+}
+
 static int kvm_pch_pic_get_attr(struct kvm_device *dev,
 				struct kvm_device_attr *attr)
 {
-	return 0;
+	switch (attr->group) {
+	case KVM_DEV_LOONGARCH_PCH_PIC_GRP_REGS:
+		return kvm_pch_pic_regs_access(dev, attr, false);
+	default:
+		return -EINVAL;
+	}
 }
 
 static int kvm_pch_pic_set_attr(struct kvm_device *dev,
 				struct kvm_device_attr *attr)
 {
-	return 0;
+	u64 addr;
+	void __user *uaddr = (void __user *)(long)attr->addr;
+
+	switch (attr->group) {
+	case KVM_DEV_LOONGARCH_PCH_PIC_GRP_CTRL:
+		switch (attr->attr) {
+		case KVM_DEV_LOONGARCH_PCH_PIC_CTRL_INIT:
+			if (copy_from_user(&addr, uaddr, sizeof(addr)))
+				return -EFAULT;
+
+			if (!dev->kvm->arch.pch_pic) {
+				kvm_err("%s: please create pch_pic irqchip first!\n", __func__);
+				return -ENODEV;
+			}
+
+			return kvm_pch_pic_init(dev, addr);
+		default:
+			kvm_err("%s: unknown group (%d) attr (%lld)\n", __func__, attr->group,
+					attr->attr);
+			return -EINVAL;
+		}
+	case KVM_DEV_LOONGARCH_PCH_PIC_GRP_REGS:
+		return kvm_pch_pic_regs_access(dev, attr, true);
+	default:
+		return -EINVAL;
+	}
 }
 
 static int kvm_pch_pic_create(struct kvm_device *dev, u32 type)
