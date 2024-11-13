@@ -238,7 +238,7 @@ static inline int k3_bgp_read_temp(struct k3_thermal_data *devdata,
 		K3_VTM_TS_STAT_DTEMP_MASK;
 	dtemp = vtm_get_best_value(s0, s1, s2);
 
-	if (dtemp < 0 || dtemp >= TABLE_SIZE)
+	if (dtemp >= TABLE_SIZE)
 		return -EINVAL;
 
 	*temp = derived_table[dtemp];
