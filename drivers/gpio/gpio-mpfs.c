@@ -12,6 +12,7 @@
 #include <linux/init.h>
 #include <linux/mod_devicetable.h>
 #include <linux/platform_device.h>
+#include <linux/property.h>
 #include <linux/regmap.h>
 #include <linux/spinlock.h>
 
@@ -30,11 +31,20 @@
 #define MPFS_GPIO_TYPE_INT_LEVEL_HIGH	0x00
 #define MPFS_GPIO_TYPE_INT_MASK		GENMASK(7, 5)
 #define MPFS_IRQ_REG			0x80
+
 #define MPFS_INP_REG			0x84
+#define COREGPIO_INP_REG		0x90
 #define MPFS_OUTP_REG			0x88
+#define COREGPIO_OUTP_REG		0xA0
+
+struct mpfs_gpio_reg_offsets {
+	u8 inp;
+	u8 outp;
+};
 
 struct mpfs_gpio_chip {
 	struct regmap *regs;
+	const struct mpfs_gpio_reg_offsets *offsets;
 	struct gpio_chip gc;
 };
 
@@ -60,7 +70,7 @@ static int mpfs_gpio_direction_output(struct gpio_chip *gc, unsigned int gpio_in
 
 	regmap_update_bits(mpfs_gpio->regs, MPFS_GPIO_CTRL(gpio_index),
 			   MPFS_GPIO_DIR_MASK, MPFS_GPIO_EN_IN);
-	regmap_update_bits(mpfs_gpio->regs, MPFS_OUTP_REG, BIT(gpio_index),
+	regmap_update_bits(mpfs_gpio->regs, mpfs_gpio->offsets->outp, BIT(gpio_index),
 			   value << gpio_index);
 
 	return 0;
@@ -84,9 +94,9 @@ static int mpfs_gpio_get(struct gpio_chip *gc, unsigned int gpio_index)
 	struct mpfs_gpio_chip *mpfs_gpio = gpiochip_get_data(gc);
 
 	if (mpfs_gpio_get_direction(gc, gpio_index) == GPIO_LINE_DIRECTION_OUT)
-		return regmap_test_bits(mpfs_gpio->regs, MPFS_OUTP_REG, BIT(gpio_index));
+		return regmap_test_bits(mpfs_gpio->regs, mpfs_gpio->offsets->outp, BIT(gpio_index));
 	else
-		return regmap_test_bits(mpfs_gpio->regs, MPFS_INP_REG, BIT(gpio_index));
+		return regmap_test_bits(mpfs_gpio->regs, mpfs_gpio->offsets->inp, BIT(gpio_index));
 }
 
 static void mpfs_gpio_set(struct gpio_chip *gc, unsigned int gpio_index, int value)
@@ -95,7 +105,7 @@ static void mpfs_gpio_set(struct gpio_chip *gc, unsigned int gpio_index, int val
 
 	mpfs_gpio_get(gc, gpio_index);
 
-	regmap_update_bits(mpfs_gpio->regs, MPFS_OUTP_REG, BIT(gpio_index),
+	regmap_update_bits(mpfs_gpio->regs, mpfs_gpio->offsets->outp, BIT(gpio_index),
 			   value << gpio_index);
 
 	mpfs_gpio_get(gc, gpio_index);
@@ -112,6 +122,8 @@ static int mpfs_gpio_probe(struct platform_device *pdev)
 	mpfs_gpio = devm_kzalloc(dev, sizeof(*mpfs_gpio), GFP_KERNEL);
 	if (!mpfs_gpio)
 		return -ENOMEM;
+
+	mpfs_gpio->offsets = device_get_match_data(&pdev->dev);
 
 	base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(base))
@@ -145,8 +157,24 @@ static int mpfs_gpio_probe(struct platform_device *pdev)
 	return devm_gpiochip_add_data(dev, &mpfs_gpio->gc, mpfs_gpio);
 }
 
+static const struct mpfs_gpio_reg_offsets mpfs_reg_offsets = {
+	.inp = MPFS_INP_REG,
+	.outp = MPFS_OUTP_REG,
+};
+
+static const struct mpfs_gpio_reg_offsets coregpio_reg_offsets = {
+	.inp = COREGPIO_INP_REG,
+	.outp = COREGPIO_OUTP_REG,
+};
+
 static const struct of_device_id mpfs_gpio_of_ids[] = {
-	{ .compatible = "microchip,mpfs-gpio", },
+	{
+		.compatible = "microchip,mpfs-gpio",
+		.data = &mpfs_reg_offsets,
+	}, {
+		.compatible = "microchip,coregpio-rtl-v3",
+		.data = &coregpio_reg_offsets,
+	},
 	{ /* end of list */ }
 };
 
