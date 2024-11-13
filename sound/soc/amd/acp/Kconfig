@@ -119,10 +119,17 @@ config SND_SOC_AMD_SOF_MACH
 	help
 	  This option enables SOF sound card support for ACP audio.
 
+config SND_SOC_AMD_SDW_MACH_COMMON
+	tristate
+	help
+	  This option enables common SoundWire Machine driver module for
+	  AMD platforms.
+
 config SND_SOC_AMD_SOF_SDW_MACH
 	tristate "AMD SOF Soundwire Machine Driver Support"
 	depends on X86 && PCI && ACPI
 	depends on SOUNDWIRE
+	select SND_SOC_AMD_SDW_MACH_COMMON
 	select SND_SOC_SDW_UTILS
 	select SND_SOC_DMIC
 	select SND_SOC_RT711_SDW

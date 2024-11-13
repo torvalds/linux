@@ -41,4 +41,6 @@ struct amd_mc_ctx {
 	unsigned int max_sdw_links;
 };
 
+int get_acp63_cpu_pin_id(u32 sdw_link_id, int be_id, int *cpu_pin_id, struct device *dev);
+
 #endif
