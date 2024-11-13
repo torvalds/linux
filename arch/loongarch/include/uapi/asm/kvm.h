@@ -8,6 +8,8 @@
 
 #include <linux/types.h>
 
+#define __KVM_HAVE_IRQ_LINE
+
 /*
  * KVM LoongArch specific structures and definitions.
  *

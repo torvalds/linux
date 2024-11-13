@@ -23,6 +23,8 @@
 #include <asm/kvm_pch_pic.h>
 #include <asm/loongarch.h>
 
+#define __KVM_HAVE_ARCH_INTC_INITIALIZED
+
 /* Loongarch KVM register ids */
 #define KVM_GET_IOC_CSR_IDX(id)		((id & KVM_CSR_IDX_MASK) >> LOONGARCH_REG_SHIFT)
 #define KVM_GET_IOC_CPUCFG_IDX(id)	((id & KVM_CPUCFG_IDX_MASK) >> LOONGARCH_REG_SHIFT)
