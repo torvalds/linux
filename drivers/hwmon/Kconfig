@@ -2297,6 +2297,7 @@ config SENSORS_TMP103
 config SENSORS_TMP108
 	tristate "Texas Instruments TMP108"
 	depends on I2C
+	depends on I3C || !I3C
 	select REGMAP_I2C
 	select REGMAP_I3C if I3C
 	help
