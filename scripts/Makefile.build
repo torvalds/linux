@@ -129,12 +129,6 @@ $(obj)/%.ll: $(obj)/%.c FORCE
 
 is-single-obj-m = $(and $(part-of-module),$(filter $@, $(obj-m)),y)
 
-# When a module consists of a single object, there is no reason to keep LLVM IR.
-# Make $(LD) covert LLVM IR to ELF here.
-ifdef CONFIG_LTO_CLANG
-cmd_ld_single_m = $(if $(is-single-obj-m), ; $(LD) $(ld_flags) -r -o $(tmp-target) $@; mv $(tmp-target) $@)
-endif
-
 ifdef CONFIG_MODVERSIONS
 # When module versioning is enabled the following steps are executed:
 # o compile a <file>.o from <file>.c
@@ -194,23 +188,6 @@ $(obj)/%.o: private objtool-enabled = $(if $(is-standard-object),$(if $(delay-ob
 ifneq ($(findstring 1, $(KBUILD_EXTRA_WARN)),)
 cmd_warn_shared_object = $(if $(word 2, $(modname-multi)),$(warning $(kbuild-file): $*.o is added to multiple modules: $(modname-multi)))
 endif
-
-define rule_cc_o_c
-	$(call cmd_and_fixdep,cc_o_c)
-	$(call cmd,checksrc)
-	$(call cmd,checkdoc)
-	$(call cmd,gen_objtooldep)
-	$(call cmd,gen_symversions_c)
-	$(call cmd,record_mcount)
-	$(call cmd,warn_shared_object)
-endef
-
-define rule_as_o_S
-	$(call cmd_and_fixdep,as_o_S)
-	$(call cmd,gen_objtooldep)
-	$(call cmd,gen_symversions_S)
-	$(call cmd,warn_shared_object)
-endef
 
 # Built-in and composite module parts
 $(obj)/%.o: $(obj)/%.c $(recordmcount_source) FORCE

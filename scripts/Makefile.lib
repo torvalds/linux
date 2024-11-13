@@ -302,13 +302,37 @@ endef
 # ===========================================================================
 # These are shared by some Makefile.* files.
 
+objtool-enabled := y
+
+ifdef CONFIG_LTO_CLANG
+# objtool cannot process LLVM IR. Make $(LD) covert LLVM IR to ELF here.
+cmd_ld_single = $(if $(objtool-enabled), ; $(LD) $(ld_flags) -r -o $(tmp-target) $@; mv $(tmp-target) $@)
+endif
+
 quiet_cmd_cc_o_c = CC $(quiet_modtag)  $@
       cmd_cc_o_c = $(CC) $(c_flags) -c -o $@ $< \
-		$(cmd_ld_single_m) \
+		$(cmd_ld_single) \
 		$(cmd_objtool)
+
+define rule_cc_o_c
+	$(call cmd_and_fixdep,cc_o_c)
+	$(call cmd,checksrc)
+	$(call cmd,checkdoc)
+	$(call cmd,gen_objtooldep)
+	$(call cmd,gen_symversions_c)
+	$(call cmd,record_mcount)
+	$(call cmd,warn_shared_object)
+endef
 
 quiet_cmd_as_o_S = AS $(quiet_modtag)  $@
       cmd_as_o_S = $(CC) $(a_flags) -c -o $@ $< $(cmd_objtool)
+
+define rule_as_o_S
+	$(call cmd_and_fixdep,as_o_S)
+	$(call cmd,gen_objtooldep)
+	$(call cmd,gen_symversions_S)
+	$(call cmd,warn_shared_object)
+endef
 
 # Copy a file
 # ===========================================================================

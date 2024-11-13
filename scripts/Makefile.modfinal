@@ -24,10 +24,10 @@ KCSAN_SANITIZE := n
 ccflags-remove-y := $(CC_FLAGS_CFI)
 
 %.mod.o: %.mod.c FORCE
-	$(call if_changed_dep,cc_o_c)
+	$(call if_changed_rule,cc_o_c)
 
 .module-common.o: $(srctree)/scripts/module-common.c FORCE
-	$(call if_changed_dep,cc_o_c)
+	$(call if_changed_rule,cc_o_c)
 
 quiet_cmd_ld_ko_o = LD [M]  $@
       cmd_ld_ko_o =							\
