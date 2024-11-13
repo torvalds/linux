@@ -165,6 +165,10 @@ void sdca_lookup_functions(struct sdw_slave *slave)
 	struct device *dev = &slave->dev;
 	struct acpi_device *adev = to_acpi_device_node(dev->fwnode);
 
+	if (!adev) {
+		dev_info(dev, "No matching ACPI device found, ignoring peripheral\n");
+		return;
+	}
 	acpi_dev_for_each_child(adev, find_sdca_function, &slave->sdca_data);
 }
 EXPORT_SYMBOL_NS(sdca_lookup_functions, SND_SOC_SDCA);
