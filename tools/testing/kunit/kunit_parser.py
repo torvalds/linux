@@ -574,7 +574,32 @@ def print_test_footer(test: Test, printer: Printer) -> None:
 	printer.print_with_timestamp(format_test_divider(message,
 		len(message) - printer.color_len()))
 
+def print_test(test: Test, failed_only: bool, printer: Printer) -> None:
+	"""
+	Prints Test object to given printer. For a child test, the result line is
+	printed. For a parent test, the test header, all child test results, and
+	the test footer are all printed. If failed_only is true, only failed/crashed
+	tests will be printed.
 
+	Parameters:
+	test - Test object to print
+	failed_only - True if only failed/crashed tests should be printed.
+	printer - Printer object to output results
+	"""
+	if test.name == "main":
+		printer.print_with_timestamp(DIVIDER)
+		for subtest in test.subtests:
+			print_test(subtest, failed_only, printer)
+		printer.print_with_timestamp(DIVIDER)
+	elif test.subtests != []:
+		if not failed_only or not test.ok_status():
+			print_test_header(test, printer)
+			for subtest in test.subtests:
+				print_test(subtest, failed_only, printer)
+			print_test_footer(test, printer)
+	else:
+		if not failed_only or not test.ok_status():
+			print_test_result(test, printer)
 
 def _summarize_failed_tests(test: Test) -> str:
 	"""Tries to summarize all the failing subtests in `test`."""

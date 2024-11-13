@@ -50,6 +50,7 @@ class KunitParseRequest:
 	raw_output: Optional[str]
 	json: Optional[str]
 	summary: bool
+	failed: bool
 
 @dataclass
 class KunitExecRequest(KunitParseRequest):
@@ -237,13 +238,15 @@ def parse_tests(request: KunitParseRequest, metadata: kunit_json.Metadata, input
 		return KunitResult(KunitStatus.SUCCESS, parse_time), fake_test
 
 	default_printer = stdout
-	if request.summary:
+	if request.summary or request.failed:
 		default_printer = null_printer
 
 	# Actually parse the test results.
 	test = kunit_parser.parse_run_tests(input_data, default_printer)
 	parse_time = time.time() - parse_start
 
+	if request.failed:
+		kunit_parser.print_test(test, request.failed, stdout)
 	kunit_parser.print_summary_line(test, stdout)
 
 	if request.json:
@@ -423,6 +426,10 @@ def add_parse_opts(parser: argparse.ArgumentParser) -> None:
 			    help='Prints only the summary line for parsed test results.'
 				'Does nothing if --raw_output is set.',
 			    action='store_true')
+	parser.add_argument('--failed',
+			    help='Prints only the failed parsed test results and summary line.'
+				'Does nothing if --raw_output is set.',
+			    action='store_true')
 
 
 def tree_from_args(cli_args: argparse.Namespace) -> kunit_kernel.LinuxSourceTree:
@@ -459,6 +466,7 @@ def run_handler(cli_args: argparse.Namespace) -> None:
 					raw_output=cli_args.raw_output,
 					json=cli_args.json,
 					summary=cli_args.summary,
+					failed=cli_args.failed,
 					timeout=cli_args.timeout,
 					filter_glob=cli_args.filter_glob,
 					filter=cli_args.filter,
@@ -507,6 +515,7 @@ def exec_handler(cli_args: argparse.Namespace) -> None:
 					build_dir=cli_args.build_dir,
 					json=cli_args.json,
 					summary=cli_args.summary,
+					failed=cli_args.failed,
 					timeout=cli_args.timeout,
 					filter_glob=cli_args.filter_glob,
 					filter=cli_args.filter,
@@ -532,7 +541,8 @@ def parse_handler(cli_args: argparse.Namespace) -> None:
 	# We know nothing about how the result was created!
 	metadata = kunit_json.Metadata()
 	request = KunitParseRequest(raw_output=cli_args.raw_output,
-					json=cli_args.json, summary=cli_args.summary)
+					json=cli_args.json, summary=cli_args.summary,
+					failed=cli_args.failed)
 	result, _ = parse_tests(request, metadata, kunit_output)
 	if result.status != KunitStatus.SUCCESS:
 		sys.exit(1)
