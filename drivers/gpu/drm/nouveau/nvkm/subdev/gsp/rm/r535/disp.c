@@ -852,10 +852,9 @@ r535_outp_dfp_get_info(struct nvkm_outp *outp)
 }
 
 static int
-r535_outp_detect(struct nvkm_outp *outp)
+r535_disp_get_connect_state(struct nvkm_disp *disp, unsigned display_id)
 {
 	NV0073_CTRL_SYSTEM_GET_CONNECT_STATE_PARAMS *ctrl;
-	struct nvkm_disp *disp = outp->disp;
 	int ret;
 
 	ctrl = nvkm_gsp_rm_ctrl_get(&disp->rm.objcom,
@@ -864,23 +863,29 @@ r535_outp_detect(struct nvkm_outp *outp)
 		return PTR_ERR(ctrl);
 
 	ctrl->subDeviceInstance = 0;
-	ctrl->displayMask = BIT(outp->index);
+	ctrl->displayMask = BIT(display_id);
 
 	ret = nvkm_gsp_rm_ctrl_push(&disp->rm.objcom, &ctrl, sizeof(*ctrl));
-	if (ret) {
-		nvkm_gsp_rm_ctrl_done(&disp->rm.objcom, ctrl);
-		return ret;
-	}
+	if (ret == 0 && (ctrl->displayMask & BIT(display_id)))
+		ret = 1;
 
-	if (ctrl->displayMask & BIT(outp->index)) {
+	nvkm_gsp_rm_ctrl_done(&disp->rm.objcom, ctrl);
+	return ret;
+}
+
+static int
+r535_outp_detect(struct nvkm_outp *outp)
+{
+	const struct nvkm_rm_api *rmapi = outp->disp->rm.objcom.client->gsp->rm->api;
+	int ret;
+
+	ret = rmapi->disp->get_connect_state(outp->disp, outp->index);
+	if (ret == 1) {
 		ret = r535_outp_dfp_get_info(outp);
 		if (ret == 0)
 			ret = 1;
-	} else {
-		ret = 0;
 	}
 
-	nvkm_gsp_rm_ctrl_done(&disp->rm.objcom, ctrl);
 	return ret;
 }
 
@@ -1752,6 +1757,7 @@ const struct nvkm_rm_api_disp
 r535_disp = {
 	.get_static_info = r535_disp_get_static_info,
 	.get_supported = r535_disp_get_supported,
+	.get_connect_state = r535_disp_get_connect_state,
 	.bl_ctrl = r535_bl_ctrl,
 	.dp = {
 		.set_indexed_link_rates = r535_dp_set_indexed_link_rates,
