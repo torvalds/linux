@@ -507,7 +507,7 @@ r535_fifo_runl_ctor(struct nvkm_fifo *fifo)
 		nvkm_gsp_rm_ctrl_done(&gsp->internal.device.subdevice, ctrl);
 	}
 
-	return r535_fifo_ectx_size(fifo);
+	return rm->api->fifo->ectx_size(fifo);
 }
 
 static void
@@ -540,4 +540,5 @@ r535_fifo_new(const struct nvkm_fifo_func *hw, struct nvkm_device *device,
 const struct nvkm_rm_api_fifo
 r535_fifo = {
 	.xlat_rm_engine_type = r535_fifo_xlat_rm_engine_type,
+	.ectx_size = r535_fifo_ectx_size,
 };

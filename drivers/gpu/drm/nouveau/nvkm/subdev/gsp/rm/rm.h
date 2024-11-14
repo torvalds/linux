@@ -89,6 +89,7 @@ struct nvkm_rm_api {
 	const struct nvkm_rm_api_fifo {
 		int (*xlat_rm_engine_type)(u32 rm_engine_type,
 					   enum nvkm_subdev_type *, int *nv2080_type);
+		int (*ectx_size)(struct nvkm_fifo *);
 	} *fifo;
 
 	const struct nvkm_rm_api_engine {
