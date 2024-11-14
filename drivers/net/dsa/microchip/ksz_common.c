@@ -1908,6 +1908,41 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.internal_phy	= {true, true, true, true,
 				   false, false, true, true},
 	},
+
+	[LAN9646] = {
+		.chip_id = LAN9646_CHIP_ID,
+		.dev_name = "LAN9646",
+		.num_vlans = 4096,
+		.num_alus = 4096,
+		.num_statics = 16,
+		.cpu_ports = 0x7F,	/* can be configured as cpu port */
+		.port_cnt = 7,		/* total physical port count */
+		.port_nirqs = 4,
+		.num_tx_queues = 4,
+		.num_ipms = 8,
+		.ops = &ksz9477_dev_ops,
+		.phylink_mac_ops = &ksz9477_phylink_mac_ops,
+		.phy_errata_9477 = true,
+		.mib_names = ksz9477_mib_names,
+		.mib_cnt = ARRAY_SIZE(ksz9477_mib_names),
+		.reg_mib_cnt = MIB_COUNTER_NUM,
+		.regs = ksz9477_regs,
+		.masks = ksz9477_masks,
+		.shifts = ksz9477_shifts,
+		.xmii_ctrl0 = ksz9477_xmii_ctrl0,
+		.xmii_ctrl1 = ksz9477_xmii_ctrl1,
+		.supports_mii	= {false, false, false, false,
+				   false, true, true},
+		.supports_rmii	= {false, false, false, false,
+				   false, true, true},
+		.supports_rgmii = {false, false, false, false,
+				   false, true, true},
+		.internal_phy	= {true, true, true, true,
+				   true, false, false},
+		.gbit_capable	= {true, true, true, true, true, true, true},
+		.wr_table = &ksz9477_register_set,
+		.rd_table = &ksz9477_register_set,
+	},
 };
 EXPORT_SYMBOL_GPL(ksz_switch_chips);
 
@@ -2970,6 +3005,7 @@ static u32 ksz_get_phy_flags(struct dsa_switch *ds, int port)
 	case KSZ9896_CHIP_ID:
 		/* KSZ9896C Errata DS80000757A Module 3 */
 	case KSZ9897_CHIP_ID:
+	case LAN9646_CHIP_ID:
 		/* KSZ9897R Errata DS80000758C Module 4 */
 		/* Energy Efficient Ethernet (EEE) feature select must be manually disabled
 		 *   The EEE feature is enabled by default, but it is not fully
@@ -3230,6 +3266,7 @@ static void ksz_port_teardown(struct dsa_switch *ds, int port)
 	case KSZ9893_CHIP_ID:
 	case KSZ9896_CHIP_ID:
 	case KSZ9897_CHIP_ID:
+	case LAN9646_CHIP_ID:
 		if (dsa_is_user_port(ds, port))
 			ksz9477_port_acl_free(dev, port);
 	}
@@ -3286,7 +3323,8 @@ static enum dsa_tag_protocol ksz_get_tag_protocol(struct dsa_switch *ds,
 	    dev->chip_id == KSZ9477_CHIP_ID ||
 	    dev->chip_id == KSZ9896_CHIP_ID ||
 	    dev->chip_id == KSZ9897_CHIP_ID ||
-	    dev->chip_id == KSZ9567_CHIP_ID)
+	    dev->chip_id == KSZ9567_CHIP_ID ||
+	    dev->chip_id == LAN9646_CHIP_ID)
 		proto = DSA_TAG_PROTO_KSZ9477;
 
 	if (is_lan937x(dev))
@@ -3405,6 +3443,7 @@ static int ksz_max_mtu(struct dsa_switch *ds, int port)
 	case LAN9372_CHIP_ID:
 	case LAN9373_CHIP_ID:
 	case LAN9374_CHIP_ID:
+	case LAN9646_CHIP_ID:
 		return KSZ9477_MAX_FRAME_SIZE - VLAN_ETH_HLEN - ETH_FCS_LEN;
 	}
 
@@ -3427,6 +3466,7 @@ static int ksz_validate_eee(struct dsa_switch *ds, int port)
 	case KSZ9893_CHIP_ID:
 	case KSZ9896_CHIP_ID:
 	case KSZ9897_CHIP_ID:
+	case LAN9646_CHIP_ID:
 		return 0;
 	}
 
@@ -3779,7 +3819,10 @@ static int ksz_switch_detect(struct ksz_device *dev)
 		case LAN9372_CHIP_ID:
 		case LAN9373_CHIP_ID:
 		case LAN9374_CHIP_ID:
-			dev->chip_id = id32;
+
+			/* LAN9646 does not have its own chip id. */
+			if (dev->chip_id != LAN9646_CHIP_ID)
+				dev->chip_id = id32;
 			break;
 		case KSZ9893_CHIP_ID:
 			ret = ksz_read8(dev, REG_CHIP_ID4,
@@ -3818,6 +3861,7 @@ static int ksz_cls_flower_add(struct dsa_switch *ds, int port,
 	case KSZ9893_CHIP_ID:
 	case KSZ9896_CHIP_ID:
 	case KSZ9897_CHIP_ID:
+	case LAN9646_CHIP_ID:
 		return ksz9477_cls_flower_add(ds, port, cls, ingress);
 	}
 
@@ -3838,6 +3882,7 @@ static int ksz_cls_flower_del(struct dsa_switch *ds, int port,
 	case KSZ9893_CHIP_ID:
 	case KSZ9896_CHIP_ID:
 	case KSZ9897_CHIP_ID:
+	case LAN9646_CHIP_ID:
 		return ksz9477_cls_flower_del(ds, port, cls, ingress);
 	}
 
@@ -4925,6 +4970,7 @@ static int ksz_parse_drive_strength(struct ksz_device *dev)
 	case KSZ9893_CHIP_ID:
 	case KSZ9896_CHIP_ID:
 	case KSZ9897_CHIP_ID:
+	case LAN9646_CHIP_ID:
 		return ksz9477_drive_strength_write(dev, of_props,
 						    ARRAY_SIZE(of_props));
 	default:
