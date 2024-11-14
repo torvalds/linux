@@ -2082,3 +2082,32 @@ void btrfs_reclaim_sweep(const struct btrfs_fs_info *fs_info)
 			do_reclaim_sweep(space_info, raid);
 	}
 }
+
+void btrfs_return_free_space(struct btrfs_space_info *space_info, u64 len)
+{
+	struct btrfs_fs_info *fs_info = space_info->fs_info;
+	struct btrfs_block_rsv *global_rsv = &fs_info->global_block_rsv;
+
+	lockdep_assert_held(&space_info->lock);
+
+	/* Prioritize the global reservation to receive the freed space. */
+	if (global_rsv->space_info != space_info)
+		goto grant;
+
+	spin_lock(&global_rsv->lock);
+	if (!global_rsv->full) {
+		u64 to_add = min(len, global_rsv->size - global_rsv->reserved);
+
+		global_rsv->reserved += to_add;
+		btrfs_space_info_update_bytes_may_use(fs_info, space_info, to_add);
+		if (global_rsv->reserved >= global_rsv->size)
+			global_rsv->full = 1;
+		len -= to_add;
+	}
+	spin_unlock(&global_rsv->lock);
+
+grant:
+	/* Add to any tickets we may have. */
+	if (len)
+		btrfs_try_granting_tickets(fs_info, space_info);
+}

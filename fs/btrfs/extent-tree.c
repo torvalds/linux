@@ -2700,15 +2700,15 @@ static int unpin_extent_range(struct btrfs_fs_info *fs_info,
 {
 	struct btrfs_block_group *cache = NULL;
 	struct btrfs_space_info *space_info;
-	struct btrfs_block_rsv *global_rsv = &fs_info->global_block_rsv;
 	struct btrfs_free_cluster *cluster = NULL;
-	u64 len;
 	u64 total_unpinned = 0;
 	u64 empty_cluster = 0;
 	bool readonly;
 	int ret = 0;
 
 	while (start <= end) {
+		u64 len;
+
 		readonly = false;
 		if (!cache ||
 		    start >= cache->start + cache->length) {
@@ -2766,25 +2766,8 @@ static int unpin_extent_range(struct btrfs_fs_info *fs_info,
 			readonly = true;
 		}
 		spin_unlock(&cache->lock);
-		if (!readonly && return_free_space &&
-		    global_rsv->space_info == space_info) {
-			spin_lock(&global_rsv->lock);
-			if (!global_rsv->full) {
-				u64 to_add = min(len, global_rsv->size -
-						      global_rsv->reserved);
-
-				global_rsv->reserved += to_add;
-				btrfs_space_info_update_bytes_may_use(fs_info,
-						space_info, to_add);
-				if (global_rsv->reserved >= global_rsv->size)
-					global_rsv->full = 1;
-				len -= to_add;
-			}
-			spin_unlock(&global_rsv->lock);
-		}
-		/* Add to any tickets we may have */
-		if (!readonly && return_free_space && len)
-			btrfs_try_granting_tickets(fs_info, space_info);
+		if (!readonly && return_free_space)
+			btrfs_return_free_space(space_info, len);
 		spin_unlock(&space_info->lock);
 	}
 
