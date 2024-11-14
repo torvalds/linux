@@ -1443,6 +1443,21 @@ r535_disp_init(struct nvkm_disp *disp)
 }
 
 static int
+r535_disp_get_supported(struct nvkm_disp *disp, unsigned long *pmask)
+{
+	NV0073_CTRL_SYSTEM_GET_SUPPORTED_PARAMS *ctrl;
+
+	ctrl = nvkm_gsp_rm_ctrl_rd(&disp->rm.objcom,
+				   NV0073_CTRL_CMD_SYSTEM_GET_SUPPORTED, sizeof(*ctrl));
+	if (IS_ERR(ctrl))
+		return PTR_ERR(ctrl);
+
+	*pmask = ctrl->displayMask;
+	nvkm_gsp_rm_ctrl_done(&disp->rm.objcom, ctrl);
+	return 0;
+}
+
+static int
 r535_disp_get_static_info(struct nvkm_disp *disp)
 {
 	NV2080_CTRL_INTERNAL_DISPLAY_GET_STATIC_INFO_PARAMS *ctrl;
@@ -1468,6 +1483,7 @@ r535_disp_oneinit(struct nvkm_disp *disp)
 	struct nvkm_gsp *gsp = device->gsp;
 	const struct nvkm_rm_api *rmapi = gsp->rm->api;
 	NV2080_CTRL_INTERNAL_DISPLAY_WRITE_INST_MEM_PARAMS *ctrl;
+	unsigned long mask;
 	int ret, i;
 
 	/* RAMIN. */
@@ -1634,25 +1650,14 @@ r535_disp_oneinit(struct nvkm_disp *disp)
 			return ret;
 	}
 
-	/* */
-	{
-		NV0073_CTRL_SYSTEM_GET_SUPPORTED_PARAMS *ctrl;
-		unsigned long mask;
-		int i;
+	ret = rmapi->disp->get_supported(disp, &mask);
+	if (ret)
+		return ret;
 
-		ctrl = nvkm_gsp_rm_ctrl_rd(&disp->rm.objcom,
-					   NV0073_CTRL_CMD_SYSTEM_GET_SUPPORTED, sizeof(*ctrl));
-		if (IS_ERR(ctrl))
-			return PTR_ERR(ctrl);
-
-		mask = ctrl->displayMask;
-		nvkm_gsp_rm_ctrl_done(&disp->rm.objcom, ctrl);
-
-		for_each_set_bit(i, &mask, 32) {
-			ret = r535_outp_new(disp, i);
-			if (ret)
-				return ret;
-		}
+	for_each_set_bit(i, &mask, 32) {
+		ret = r535_outp_new(disp, i);
+		if (ret)
+			return ret;
 	}
 
 	ret = nvkm_event_init(&r535_disp_event, &gsp->subdev, 3, 32, &disp->rm.event);
@@ -1746,6 +1751,7 @@ r535_disp_new(const struct nvkm_disp_func *hw, struct nvkm_device *device,
 const struct nvkm_rm_api_disp
 r535_disp = {
 	.get_static_info = r535_disp_get_static_info,
+	.get_supported = r535_disp_get_supported,
 	.bl_ctrl = r535_bl_ctrl,
 	.dp = {
 		.set_indexed_link_rates = r535_dp_set_indexed_link_rates,
