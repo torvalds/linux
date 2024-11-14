@@ -1003,6 +1003,7 @@ static const struct platform_data turbostat_pdata[] = {
 	{ INTEL_SAPPHIRERAPIDS_X, &spr_features },
 	{ INTEL_EMERALDRAPIDS_X, &spr_features },
 	{ INTEL_GRANITERAPIDS_X, &spr_features },
+	{ INTEL_GRANITERAPIDS_D, &spr_features },
 	{ INTEL_LAKEFIELD, &cnl_features },
 	{ INTEL_ALDERLAKE, &adl_features },
 	{ INTEL_ALDERLAKE_L, &adl_features },
