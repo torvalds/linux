@@ -197,7 +197,6 @@ static void dwc3_gadget_del_and_unmap_request(struct dwc3_ep *dep,
 
 	list_del(&req->list);
 	req->remaining = 0;
-	req->needs_extra_trb = false;
 	req->num_trbs = 0;
 
 	if (req->request.status == -EINPROGRESS)
@@ -1440,6 +1439,7 @@ static int dwc3_prepare_last_sg(struct dwc3_ep *dep,
 	unsigned int maxp = usb_endpoint_maxp(dep->endpoint.desc);
 	unsigned int rem = req->request.length % maxp;
 	unsigned int num_trbs = 1;
+	bool needs_extra_trb;
 
 	if (dwc3_needs_extra_trb(dep, req))
 		num_trbs++;
@@ -1447,15 +1447,15 @@ static int dwc3_prepare_last_sg(struct dwc3_ep *dep,
 	if (dwc3_calc_trbs_left(dep) < num_trbs)
 		return 0;
 
-	req->needs_extra_trb = num_trbs > 1;
+	needs_extra_trb = num_trbs > 1;
 
 	/* Prepare a normal TRB */
 	if (req->direction || req->request.length)
 		dwc3_prepare_one_trb(dep, req, entry_length,
-				req->needs_extra_trb, node, false, false);
+				needs_extra_trb, node, false, false);
 
 	/* Prepare extra TRBs for ZLP and MPS OUT transfer alignment */
-	if ((!req->direction && !req->request.length) || req->needs_extra_trb)
+	if ((!req->direction && !req->request.length) || needs_extra_trb)
 		dwc3_prepare_one_trb(dep, req,
 				req->direction ? 0 : maxp - rem,
 				false, 1, true, false);
