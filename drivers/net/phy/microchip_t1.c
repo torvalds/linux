@@ -2113,6 +2113,7 @@ static struct phy_driver microchip_t1_phy_driver[] = {
 		.handle_interrupt = lan887x_handle_interrupt,
 		.get_sqi	= lan887x_get_sqi,
 		.get_sqi_max	= lan87xx_get_sqi_max,
+		.set_loopback	= genphy_c45_loopback,
 	}
 };
 
