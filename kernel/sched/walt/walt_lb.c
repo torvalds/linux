@@ -1096,7 +1096,16 @@ static void walt_sched_newidle_balance(void *unused, struct rq *this_rq,
 				       struct rq_flags *rf, int *pulled_task,
 				       int *done)
 {
-	walt_newidle_balance(this_rq, rf, pulled_task, done, false);
+	/*
+	 * There is a task waiting to run. No need to search for one.
+	 * The task will be enqueued when switching to idle.
+	 * Also set done to 0, such that this_rq misfit status is updated by
+	 * newidle_balance()
+	 */
+	if (this_rq->ttwu_pending)
+		done = 0;
+	else
+		walt_newidle_balance(this_rq, rf, pulled_task, done, false);
 }
 
 void walt_lb_init(void)
