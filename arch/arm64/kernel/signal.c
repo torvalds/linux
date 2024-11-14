@@ -19,6 +19,7 @@
 #include <linux/ratelimit.h>
 #include <linux/rseq.h>
 #include <linux/syscalls.h>
+#include <linux/pkeys.h>
 
 #include <asm/daifflags.h>
 #include <asm/debug-monitors.h>
@@ -72,9 +73,61 @@ struct rt_sigframe_user_layout {
 	unsigned long end_offset;
 };
 
-#define BASE_SIGFRAME_SIZE round_up(sizeof(struct rt_sigframe), 16)
+/*
+ * Holds any EL0-controlled state that influences unprivileged memory accesses.
+ * This includes both accesses done in userspace and uaccess done in the kernel.
+ *
+ * This state needs to be carefully managed to ensure that it doesn't cause
+ * uaccess to fail when setting up the signal frame, and the signal handler
+ * itself also expects a well-defined state when entered.
+ */
+struct user_access_state {
+	u64 por_el0;
+};
+
 #define TERMINATOR_SIZE round_up(sizeof(struct _aarch64_ctx), 16)
 #define EXTRA_CONTEXT_SIZE round_up(sizeof(struct extra_context), 16)
+
+/*
+ * Save the user access state into ua_state and reset it to disable any
+ * restrictions.
+ */
+static void save_reset_user_access_state(struct user_access_state *ua_state)
+{
+	if (system_supports_poe()) {
+		u64 por_enable_all = 0;
+
+		for (int pkey = 0; pkey < arch_max_pkey(); pkey++)
+			por_enable_all |= POE_RXW << (pkey * POR_BITS_PER_PKEY);
+
+		ua_state->por_el0 = read_sysreg_s(SYS_POR_EL0);
+		write_sysreg_s(por_enable_all, SYS_POR_EL0);
+		/* Ensure that any subsequent uaccess observes the updated value */
+		isb();
+	}
+}
+
+/*
+ * Set the user access state for invoking the signal handler.
+ *
+ * No uaccess should be done after that function is called.
+ */
+static void set_handler_user_access_state(void)
+{
+	if (system_supports_poe())
+		write_sysreg_s(POR_EL0_INIT, SYS_POR_EL0);
+}
+
+/*
+ * Restore the user access state to the values saved in ua_state.
+ *
+ * No uaccess should be done after that function is called.
+ */
+static void restore_user_access_state(const struct user_access_state *ua_state)
+{
+	if (system_supports_poe())
+		write_sysreg_s(ua_state->por_el0, SYS_POR_EL0);
+}
 
 static void init_user_layout(struct rt_sigframe_user_layout *user)
 {
@@ -269,18 +322,20 @@ static int restore_fpmr_context(struct user_ctxs *user)
 	return err;
 }
 
-static int preserve_poe_context(struct poe_context __user *ctx)
+static int preserve_poe_context(struct poe_context __user *ctx,
+				const struct user_access_state *ua_state)
 {
 	int err = 0;
 
 	__put_user_error(POE_MAGIC, &ctx->head.magic, err);
 	__put_user_error(sizeof(*ctx), &ctx->head.size, err);
-	__put_user_error(read_sysreg_s(SYS_POR_EL0), &ctx->por_el0, err);
+	__put_user_error(ua_state->por_el0, &ctx->por_el0, err);
 
 	return err;
 }
 
-static int restore_poe_context(struct user_ctxs *user)
+static int restore_poe_context(struct user_ctxs *user,
+			       struct user_access_state *ua_state)
 {
 	u64 por_el0;
 	int err = 0;
@@ -290,7 +345,7 @@ static int restore_poe_context(struct user_ctxs *user)
 
 	__get_user_error(por_el0, &(user->poe->por_el0), err);
 	if (!err)
-		write_sysreg_s(por_el0, SYS_POR_EL0);
+		ua_state->por_el0 = por_el0;
 
 	return err;
 }
@@ -946,7 +1001,8 @@ invalid:
 }
 
 static int restore_sigframe(struct pt_regs *regs,
-			    struct rt_sigframe __user *sf)
+			    struct rt_sigframe __user *sf,
+			    struct user_access_state *ua_state)
 {
 	sigset_t set;
 	int i, err;
@@ -998,7 +1054,7 @@ static int restore_sigframe(struct pt_regs *regs,
 		err = restore_zt_context(&user);
 
 	if (err == 0 && system_supports_poe() && user.poe)
-		err = restore_poe_context(&user);
+		err = restore_poe_context(&user, ua_state);
 
 	return err;
 }
@@ -1059,6 +1115,7 @@ SYSCALL_DEFINE0(rt_sigreturn)
 {
 	struct pt_regs *regs = current_pt_regs();
 	struct rt_sigframe __user *frame;
+	struct user_access_state ua_state;
 
 	/* Always make any pending restarted system calls return -EINTR */
 	current->restart_block.fn = do_no_restart_syscall;
@@ -1075,7 +1132,7 @@ SYSCALL_DEFINE0(rt_sigreturn)
 	if (!access_ok(frame, sizeof (*frame)))
 		goto badframe;
 
-	if (restore_sigframe(regs, frame))
+	if (restore_sigframe(regs, frame, &ua_state))
 		goto badframe;
 
 	if (gcs_restore_signal())
@@ -1083,6 +1140,8 @@ SYSCALL_DEFINE0(rt_sigreturn)
 
 	if (restore_altstack(&frame->uc.uc_stack))
 		goto badframe;
+
+	restore_user_access_state(&ua_state);
 
 	return regs->regs[0];
 
@@ -1198,7 +1257,8 @@ static int setup_sigframe_layout(struct rt_sigframe_user_layout *user,
 }
 
 static int setup_sigframe(struct rt_sigframe_user_layout *user,
-			  struct pt_regs *regs, sigset_t *set)
+			  struct pt_regs *regs, sigset_t *set,
+			  const struct user_access_state *ua_state)
 {
 	int i, err = 0;
 	struct rt_sigframe __user *sf = user->sigframe;
@@ -1262,13 +1322,12 @@ static int setup_sigframe(struct rt_sigframe_user_layout *user,
 		err |= preserve_fpmr_context(fpmr_ctx);
 	}
 
-	if (system_supports_poe() && err == 0 && user->poe_offset) {
+	if (system_supports_poe() && err == 0) {
 		struct poe_context __user *poe_ctx =
 			apply_user_offset(user, user->poe_offset);
 
-		err |= preserve_poe_context(poe_ctx);
+		err |= preserve_poe_context(poe_ctx, ua_state);
 	}
-
 
 	/* ZA state if present */
 	if (system_supports_sme() && err == 0 && user->za_offset) {
@@ -1447,9 +1506,6 @@ static int setup_return(struct pt_regs *regs, struct ksignal *ksig,
 		sme_smstop();
 	}
 
-	if (system_supports_poe())
-		write_sysreg_s(POR_EL0_INIT, SYS_POR_EL0);
-
 	if (ksig->ka.sa.sa_flags & SA_RESTORER)
 		sigtramp = ksig->ka.sa.sa_restorer;
 	else
@@ -1465,6 +1521,7 @@ static int setup_rt_frame(int usig, struct ksignal *ksig, sigset_t *set,
 {
 	struct rt_sigframe_user_layout user;
 	struct rt_sigframe __user *frame;
+	struct user_access_state ua_state;
 	int err = 0;
 
 	fpsimd_signal_preserve_current_state();
@@ -1472,13 +1529,14 @@ static int setup_rt_frame(int usig, struct ksignal *ksig, sigset_t *set,
 	if (get_sigframe(&user, ksig, regs))
 		return 1;
 
+	save_reset_user_access_state(&ua_state);
 	frame = user.sigframe;
 
 	__put_user_error(0, &frame->uc.uc_flags, err);
 	__put_user_error(NULL, &frame->uc.uc_link, err);
 
 	err |= __save_altstack(&frame->uc.uc_stack, regs->sp);
-	err |= setup_sigframe(&user, regs, set);
+	err |= setup_sigframe(&user, regs, set, &ua_state);
 	if (err == 0) {
 		err = setup_return(regs, ksig, &user, usig);
 		if (ksig->ka.sa.sa_flags & SA_SIGINFO) {
@@ -1487,6 +1545,11 @@ static int setup_rt_frame(int usig, struct ksignal *ksig, sigset_t *set,
 			regs->regs[2] = (unsigned long)&frame->uc;
 		}
 	}
+
+	if (err == 0)
+		set_handler_user_access_state();
+	else
+		restore_user_access_state(&ua_state);
 
 	return err;
 }
