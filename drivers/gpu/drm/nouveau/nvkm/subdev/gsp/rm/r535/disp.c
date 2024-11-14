@@ -70,9 +70,9 @@ r535_chan_fini(struct nvkm_disp_chan *chan)
 }
 
 static int
-r535_chan_push(struct nvkm_disp_chan *chan)
+r535_disp_chan_set_pushbuf(struct nvkm_disp *disp, s32 oclass, int inst, struct nvkm_memory *memory)
 {
-	struct nvkm_gsp *gsp = chan->disp->engine.subdev.device->gsp;
+	struct nvkm_gsp *gsp = disp->rm.objcom.client->gsp;
 	NV2080_CTRL_INTERNAL_DISPLAY_CHANNEL_PUSHBUFFER_PARAMS *ctrl;
 
 	ctrl = nvkm_gsp_rm_ctrl_get(&gsp->internal.device.subdevice,
@@ -81,8 +81,8 @@ r535_chan_push(struct nvkm_disp_chan *chan)
 	if (IS_ERR(ctrl))
 		return PTR_ERR(ctrl);
 
-	if (chan->memory) {
-		switch (nvkm_memory_target(chan->memory)) {
+	if (memory) {
+		switch (nvkm_memory_target(memory)) {
 		case NVKM_MEM_TARGET_NCOH:
 			ctrl->addressSpace = ADDR_SYSMEM;
 			ctrl->cacheSnoop = 0;
@@ -99,13 +99,13 @@ r535_chan_push(struct nvkm_disp_chan *chan)
 			return -EINVAL;
 		}
 
-		ctrl->physicalAddr = nvkm_memory_addr(chan->memory);
-		ctrl->limit = nvkm_memory_size(chan->memory) - 1;
+		ctrl->physicalAddr = nvkm_memory_addr(memory);
+		ctrl->limit = nvkm_memory_size(memory) - 1;
 	}
 
-	ctrl->hclass = chan->object.oclass;
-	ctrl->channelInstance = chan->head;
-	ctrl->valid = ((chan->object.oclass & 0xff) != 0x7a) ? 1 : 0;
+	ctrl->hclass = oclass;
+	ctrl->channelInstance = inst;
+	ctrl->valid = ((oclass & 0xff) != 0x7a) ? 1 : 0;
 
 	return nvkm_gsp_rm_ctrl_wr(&gsp->internal.device.subdevice, ctrl);
 }
@@ -113,10 +113,11 @@ r535_chan_push(struct nvkm_disp_chan *chan)
 static int
 r535_curs_init(struct nvkm_disp_chan *chan)
 {
+	const struct nvkm_rm_api *rmapi = chan->disp->rm.objcom.client->gsp->rm->api;
 	NV50VAIO_CHANNELPIO_ALLOCATION_PARAMETERS *args;
 	int ret;
 
-	ret = r535_chan_push(chan);
+	ret = rmapi->disp->chan.set_pushbuf(chan->disp, chan->object.oclass, chan->head, NULL);
 	if (ret)
 		return ret;
 
@@ -166,10 +167,11 @@ r535_dmac_fini(struct nvkm_disp_chan *chan)
 static int
 r535_dmac_init(struct nvkm_disp_chan *chan)
 {
+	const struct nvkm_rm_api *rmapi = chan->disp->rm.objcom.client->gsp->rm->api;
 	NV50VAIO_CHANNELDMA_ALLOCATION_PARAMETERS *args;
 	int ret;
 
-	ret = r535_chan_push(chan);
+	ret = rmapi->disp->chan.set_pushbuf(chan->disp, chan->object.oclass, chan->head, chan->memory);
 	if (ret)
 		return ret;
 
@@ -1747,5 +1749,8 @@ r535_disp = {
 	.bl_ctrl = r535_bl_ctrl,
 	.dp = {
 		.set_indexed_link_rates = r535_dp_set_indexed_link_rates,
+	},
+	.chan = {
+		.set_pushbuf = r535_disp_chan_set_pushbuf,
 	}
 };

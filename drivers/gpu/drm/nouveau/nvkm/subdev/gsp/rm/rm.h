@@ -79,6 +79,11 @@ struct nvkm_rm_api {
 		struct {
 			int (*set_indexed_link_rates)(struct nvkm_outp *);
 		} dp;
+
+		struct {
+			int (*set_pushbuf)(struct nvkm_disp *, s32 oclass, int inst,
+					   struct nvkm_memory *);
+		} chan;
 	} *disp;
 
 	const struct nvkm_rm_api_engine {
