@@ -51,8 +51,7 @@ int amdgpu_dm_plane_fill_plane_buffer_attributes(struct amdgpu_device *adev,
 				 struct plane_size *plane_size,
 				 struct dc_plane_dcc_param *dcc,
 				 struct dc_plane_address *address,
-				 bool tmz_surface,
-				 bool force_disable_dcc);
+				 bool tmz_surface);
 
 int amdgpu_dm_plane_init(struct amdgpu_display_manager *dm,
 			 struct drm_plane *plane,
