@@ -185,7 +185,7 @@ static void tt_add_tz_work_fn(struct work_struct *work)
 int tt_add_tz(void)
 {
 	struct tt_thermal_zone *tt_zone __free(kfree);
-	struct tt_work *tt_work __free(kfree);
+	struct tt_work *tt_work __free(kfree) = NULL;
 	int ret;
 
 	tt_zone = kzalloc(sizeof(*tt_zone), GFP_KERNEL);
@@ -237,7 +237,7 @@ static void tt_zone_unregister_tz(struct tt_thermal_zone *tt_zone)
 
 int tt_del_tz(const char *arg)
 {
-	struct tt_work *tt_work __free(kfree);
+	struct tt_work *tt_work __free(kfree) = NULL;
 	struct tt_thermal_zone *tt_zone, *aux;
 	int ret;
 	int id;
@@ -336,8 +336,8 @@ static void tt_zone_add_trip_work_fn(struct work_struct *work)
 int tt_zone_add_trip(const char *arg)
 {
 	struct tt_thermal_zone *tt_zone __free(put_tt_zone) = NULL;
+	struct tt_trip *tt_trip __free(kfree) = NULL;
 	struct tt_work *tt_work __free(kfree);
-	struct tt_trip *tt_trip __free(kfree);
 	int id;
 
 	tt_work = kzalloc(sizeof(*tt_work), GFP_KERNEL);
@@ -392,7 +392,7 @@ static struct thermal_zone_device_ops tt_zone_ops = {
 
 static int tt_zone_register_tz(struct tt_thermal_zone *tt_zone)
 {
-	struct thermal_trip *trips __free(kfree);
+	struct thermal_trip *trips __free(kfree) = NULL;
 	struct thermal_zone_device *tz;
 	struct tt_trip *tt_trip;
 	int i;
