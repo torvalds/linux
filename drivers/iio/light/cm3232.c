@@ -89,6 +89,15 @@ static int cm3232_reg_init(struct cm3232_chip *chip)
 
 	chip->als_info = &cm3232_als_info_default;
 
+	/* Disable and reset device */
+	chip->regs_cmd = CM3232_CMD_ALS_DISABLE | CM3232_CMD_ALS_RESET;
+	ret = i2c_smbus_write_byte_data(client, CM3232_REG_ADDR_CMD,
+					chip->regs_cmd);
+	if (ret < 0) {
+		dev_err(&chip->client->dev, "Error writing reg_cmd\n");
+		return ret;
+	}
+
 	/* Identify device */
 	ret = i2c_smbus_read_word_data(client, CM3232_REG_ADDR_ID);
 	if (ret < 0) {
@@ -98,15 +107,6 @@ static int cm3232_reg_init(struct cm3232_chip *chip)
 
 	if ((ret & 0xFF) != chip->als_info->hw_id)
 		return -ENODEV;
-
-	/* Disable and reset device */
-	chip->regs_cmd = CM3232_CMD_ALS_DISABLE | CM3232_CMD_ALS_RESET;
-	ret = i2c_smbus_write_byte_data(client, CM3232_REG_ADDR_CMD,
-					chip->regs_cmd);
-	if (ret < 0) {
-		dev_err(&chip->client->dev, "Error writing reg_cmd\n");
-		return ret;
-	}
 
 	/* Register default value */
 	chip->regs_cmd = chip->als_info->regs_cmd_default;
