@@ -272,6 +272,7 @@ static void __bch2_fs_read_only(struct bch_fs *c)
 		clean_passes++;
 
 		if (bch2_btree_interior_updates_flush(c) ||
+		    bch2_btree_write_buffer_flush_going_ro(c) ||
 		    bch2_journal_flush_all_pins(&c->journal) ||
 		    bch2_btree_flush_all_writes(c) ||
 		    seq != atomic64_read(&c->journal.seq)) {

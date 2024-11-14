@@ -929,7 +929,7 @@ static void swap_range_alloc(struct swap_info_struct *si, unsigned long offset,
 		si->highest_bit = 0;
 		del_from_avail_list(si);
 
-		if (vm_swap_full())
+		if (si->cluster_info && vm_swap_full())
 			schedule_work(&si->reclaim_work);
 	}
 }

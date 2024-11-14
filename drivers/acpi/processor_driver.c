@@ -237,6 +237,9 @@ static struct notifier_block acpi_processor_notifier_block = {
 	.notifier_call = acpi_processor_notifier,
 };
 
+void __weak acpi_processor_init_invariance_cppc(void)
+{ }
+
 /*
  * We keep the driver loaded even when ACPI is not running.
  * This is needed for the powernow-k8 driver, that works even without
@@ -270,6 +273,12 @@ static int __init acpi_processor_driver_init(void)
 				  NULL, acpi_soft_cpu_dead);
 
 	acpi_processor_throttling_init();
+
+	/*
+	 * Frequency invariance calculations on AMD platforms can't be run until
+	 * after acpi_cppc_processor_probe() has been called for all online CPUs
+	 */
+	acpi_processor_init_invariance_cppc();
 	return 0;
 err:
 	driver_unregister(&acpi_processor_driver);

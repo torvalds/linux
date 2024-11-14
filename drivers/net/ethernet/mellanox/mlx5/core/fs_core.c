@@ -2105,13 +2105,22 @@ lookup_fte_locked(struct mlx5_flow_group *g,
 		fte_tmp = NULL;
 		goto out;
 	}
-	if (!fte_tmp->node.active) {
-		tree_put_node(&fte_tmp->node, false);
-		fte_tmp = NULL;
-		goto out;
-	}
 
 	nested_down_write_ref_node(&fte_tmp->node, FS_LOCK_CHILD);
+
+	if (!fte_tmp->node.active) {
+		up_write_ref_node(&fte_tmp->node, false);
+
+		if (take_write)
+			up_write_ref_node(&g->node, false);
+		else
+			up_read_ref_node(&g->node);
+
+		tree_put_node(&fte_tmp->node, false);
+
+		return NULL;
+	}
+
 out:
 	if (take_write)
 		up_write_ref_node(&g->node, false);

@@ -226,7 +226,7 @@ const struct bch_option bch2_opt_table[] = {
 #define OPT_UINT(_min, _max)	.type = BCH_OPT_UINT,			\
 				.min = _min, .max = _max
 #define OPT_STR(_choices)	.type = BCH_OPT_STR,			\
-				.min = 0, .max = ARRAY_SIZE(_choices),	\
+				.min = 0, .max = ARRAY_SIZE(_choices) - 1, \
 				.choices = _choices
 #define OPT_STR_NOLIMIT(_choices)	.type = BCH_OPT_STR,		\
 				.min = 0, .max = U64_MAX,		\
@@ -428,7 +428,7 @@ void bch2_opt_to_text(struct printbuf *out,
 			prt_printf(out, "%lli", v);
 		break;
 	case BCH_OPT_STR:
-		if (v < opt->min || v >= opt->max - 1)
+		if (v < opt->min || v >= opt->max)
 			prt_printf(out, "(invalid option %lli)", v);
 		else if (flags & OPT_SHOW_FULL_LIST)
 			prt_string_option(out, opt->choices, v);

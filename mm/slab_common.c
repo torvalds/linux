@@ -380,8 +380,11 @@ kmem_buckets *kmem_buckets_create(const char *name, slab_flags_t flags,
 				  unsigned int usersize,
 				  void (*ctor)(void *))
 {
+	unsigned long mask = 0;
+	unsigned int idx;
 	kmem_buckets *b;
-	int idx;
+
+	BUILD_BUG_ON(ARRAY_SIZE(kmalloc_caches[KMALLOC_NORMAL]) > BITS_PER_LONG);
 
 	/*
 	 * When the separate buckets API is not built in, just return
@@ -403,7 +406,7 @@ kmem_buckets *kmem_buckets_create(const char *name, slab_flags_t flags,
 	for (idx = 0; idx < ARRAY_SIZE(kmalloc_caches[KMALLOC_NORMAL]); idx++) {
 		char *short_size, *cache_name;
 		unsigned int cache_useroffset, cache_usersize;
-		unsigned int size;
+		unsigned int size, aligned_idx;
 
 		if (!kmalloc_caches[KMALLOC_NORMAL][idx])
 			continue;
@@ -416,10 +419,6 @@ kmem_buckets *kmem_buckets_create(const char *name, slab_flags_t flags,
 		if (WARN_ON(!short_size))
 			goto fail;
 
-		cache_name = kasprintf(GFP_KERNEL, "%s-%s", name, short_size + 1);
-		if (WARN_ON(!cache_name))
-			goto fail;
-
 		if (useroffset >= size) {
 			cache_useroffset = 0;
 			cache_usersize = 0;
@@ -427,18 +426,28 @@ kmem_buckets *kmem_buckets_create(const char *name, slab_flags_t flags,
 			cache_useroffset = useroffset;
 			cache_usersize = min(size - cache_useroffset, usersize);
 		}
-		(*b)[idx] = kmem_cache_create_usercopy(cache_name, size,
+
+		aligned_idx = __kmalloc_index(size, false);
+		if (!(*b)[aligned_idx]) {
+			cache_name = kasprintf(GFP_KERNEL, "%s-%s", name, short_size + 1);
+			if (WARN_ON(!cache_name))
+				goto fail;
+			(*b)[aligned_idx] = kmem_cache_create_usercopy(cache_name, size,
 					0, flags, cache_useroffset,
 					cache_usersize, ctor);
-		kfree(cache_name);
-		if (WARN_ON(!(*b)[idx]))
-			goto fail;
+			kfree(cache_name);
+			if (WARN_ON(!(*b)[aligned_idx]))
+				goto fail;
+			set_bit(aligned_idx, &mask);
+		}
+		if (idx != aligned_idx)
+			(*b)[idx] = (*b)[aligned_idx];
 	}
 
 	return b;
 
 fail:
-	for (idx = 0; idx < ARRAY_SIZE(kmalloc_caches[KMALLOC_NORMAL]); idx++)
+	for_each_set_bit(idx, &mask, ARRAY_SIZE(kmalloc_caches[KMALLOC_NORMAL]))
 		kmem_cache_destroy((*b)[idx]);
 	kmem_cache_free(kmem_buckets_cache, b);
 
