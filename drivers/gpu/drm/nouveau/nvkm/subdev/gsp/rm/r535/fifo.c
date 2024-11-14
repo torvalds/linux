@@ -19,11 +19,11 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  */
-#include "priv.h"
-#include "cgrp.h"
-#include "chan.h"
-#include "chid.h"
-#include "runl.h"
+#include <engine/fifo/priv.h>
+#include <engine/fifo/cgrp.h>
+#include <engine/fifo/chan.h>
+#include <engine/fifo/chid.h>
+#include <engine/fifo/runl.h>
 
 #include <core/gpuobj.h>
 #include <subdev/gsp.h>

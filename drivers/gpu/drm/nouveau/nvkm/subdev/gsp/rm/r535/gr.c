@@ -19,7 +19,7 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  */
-#include "gf100.h"
+#include <engine/gr/gf100.h>
 
 #include <core/memory.h>
 #include <subdev/gsp.h>

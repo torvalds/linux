@@ -5,5 +5,3 @@ nvkm-y += nvkm/engine/nvdec/tu102.o
 nvkm-y += nvkm/engine/nvdec/ga100.o
 nvkm-y += nvkm/engine/nvdec/ga102.o
 nvkm-y += nvkm/engine/nvdec/ad102.o
-
-nvkm-y += nvkm/engine/nvdec/r535.o

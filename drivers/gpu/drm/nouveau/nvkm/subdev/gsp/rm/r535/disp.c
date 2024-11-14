@@ -19,13 +19,13 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  */
-#include "priv.h"
-#include "chan.h"
-#include "conn.h"
-#include "dp.h"
-#include "head.h"
-#include "ior.h"
-#include "outp.h"
+#include <engine/disp/priv.h>
+#include <engine/disp/chan.h>
+#include <engine/disp/conn.h>
+#include <engine/disp/dp.h>
+#include <engine/disp/head.h>
+#include <engine/disp/ior.h>
+#include <engine/disp/outp.h>
 
 #include <core/ramht.h>
 #include <subdev/bios.h>

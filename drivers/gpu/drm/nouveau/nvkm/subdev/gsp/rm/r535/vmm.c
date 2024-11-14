@@ -19,7 +19,7 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  */
-#include "vmm.h"
+#include <subdev/mmu/vmm.h>
 
 #include <nvrm/nvtypes.h>
 #include <nvrm/535.113.01/common/sdk/nvidia/inc/class/cl90f1.h>
