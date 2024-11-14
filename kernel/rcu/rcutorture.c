@@ -273,6 +273,8 @@ struct rt_read_seg {
 	bool rt_preempted;
 	int rt_cpu;
 	int rt_end_cpu;
+	unsigned long rt_gp_seq;
+	unsigned long rt_gp_seq_end;
 };
 static int err_segs_recorded;
 static struct rt_read_seg err_segs[RCUTORTURE_RDR_MAX_SEGS];
@@ -407,6 +409,8 @@ struct rcu_torture_ops {
 	void (*gp_slow_register)(atomic_t *rgssp);
 	void (*gp_slow_unregister)(atomic_t *rgssp);
 	bool (*reader_blocked)(void);
+	unsigned long (*gather_gp_seqs)(void);
+	void (*format_gp_seqs)(unsigned long seqs, char *cp);
 	long cbflood_max;
 	int irq_capable;
 	int can_boost;
@@ -611,6 +615,8 @@ static struct rcu_torture_ops rcu_ops = {
 	.reader_blocked		= IS_ENABLED(CONFIG_RCU_TORTURE_TEST_LOG_CPU)
 				  ? has_rcu_reader_blocked
 				  : NULL,
+	.gather_gp_seqs		= rcutorture_gather_gp_seqs,
+	.format_gp_seqs		= rcutorture_format_gp_seqs,
 	.irq_capable		= 1,
 	.can_boost		= IS_ENABLED(CONFIG_RCU_BOOST),
 	.extendables		= RCUTORTURE_MAX_EXTEND,
@@ -656,6 +662,8 @@ static struct rcu_torture_ops rcu_busted_ops = {
 	.sync		= synchronize_rcu_busted,
 	.exp_sync	= synchronize_rcu_busted,
 	.call		= call_rcu_busted,
+	.gather_gp_seqs	= rcutorture_gather_gp_seqs,
+	.format_gp_seqs	= rcutorture_format_gp_seqs,
 	.irq_capable	= 1,
 	.extendables	= RCUTORTURE_MAX_EXTEND,
 	.name		= "busted"
@@ -1977,6 +1985,12 @@ static void rcutorture_one_extend(int *readstate, int newstate, bool insoftirq,
 			if (cur_ops->reader_blocked)
 				rtrsp[-1].rt_preempted = cur_ops->reader_blocked();
 		}
+	}
+	// Sample grace-period sequence number, as good a place as any.
+	if (IS_ENABLED(CONFIG_RCU_TORTURE_TEST_LOG_GP) && cur_ops->gather_gp_seqs) {
+		rtrsp->rt_gp_seq = cur_ops->gather_gp_seqs();
+		if (!first)
+			rtrsp[-1].rt_gp_seq_end = rtrsp->rt_gp_seq;
 	}
 
 	/*
@@ -3566,6 +3580,7 @@ rcu_torture_cleanup(void)
 	int flags = 0;
 	unsigned long gp_seq = 0;
 	int i;
+	int j;
 
 	if (torture_cleanup_begin()) {
 		if (cur_ops->cb_barrier != NULL) {
@@ -3660,6 +3675,25 @@ rcu_torture_cleanup(void)
 					pr_cont("->%-2d", err_segs[i].rt_end_cpu);
 				else
 					pr_cont(" ...");
+			}
+			if (IS_ENABLED(CONFIG_RCU_TORTURE_TEST_LOG_GP) &&
+			    cur_ops->gather_gp_seqs && cur_ops->format_gp_seqs) {
+				char buf1[16+1];
+				char buf2[16+1];
+				char sepchar = '-';
+
+				cur_ops->format_gp_seqs(err_segs[i].rt_gp_seq, buf1);
+				cur_ops->format_gp_seqs(err_segs[i].rt_gp_seq_end, buf2);
+				if (err_segs[i].rt_gp_seq == err_segs[i].rt_gp_seq_end) {
+					if (buf2[0]) {
+						for (j = 0; buf2[j]; j++)
+							buf2[j] = '.';
+						if (j)
+							buf2[j - 1] = ' ';
+					}
+					sepchar = ' ';
+				}
+				pr_cont(" %s%c%s", buf1, sepchar, buf2);
 			}
 			if (err_segs[i].rt_delay_ms != 0) {
 				pr_cont(" %s%ldms", firsttime ? "" : "+",

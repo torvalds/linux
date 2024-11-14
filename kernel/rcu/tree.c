@@ -538,6 +538,26 @@ void rcutorture_get_gp_data(int *flags, unsigned long *gp_seq)
 }
 EXPORT_SYMBOL_GPL(rcutorture_get_gp_data);
 
+/* Gather grace-period sequence numbers for rcutorture diagnostics. */
+unsigned long rcutorture_gather_gp_seqs(void)
+{
+	return ((READ_ONCE(rcu_state.gp_seq) & 0xff) << 16) |
+	       ((READ_ONCE(rcu_state.expedited_sequence) & 0xff) << 8) |
+	       (READ_ONCE(rcu_state.gp_seq_polled) & 0xff);
+}
+EXPORT_SYMBOL_GPL(rcutorture_gather_gp_seqs);
+
+/* Format grace-period sequence numbers for rcutorture diagnostics. */
+void rcutorture_format_gp_seqs(unsigned long seqs, char *cp)
+{
+	unsigned int egp = (seqs >> 8) & 0xff;
+	unsigned int ggp = (seqs >> 16) & 0xff;
+	unsigned int pgp = seqs & 0xff;
+
+	snprintf(cp, 16, "g%02x:e%02x:p%02x", ggp, egp, pgp);
+}
+EXPORT_SYMBOL_GPL(rcutorture_format_gp_seqs);
+
 #if defined(CONFIG_NO_HZ_FULL) && (!defined(CONFIG_GENERIC_ENTRY) || !defined(CONFIG_KVM_XFER_TO_GUEST_WORK))
 /*
  * An empty function that will trigger a reschedule on

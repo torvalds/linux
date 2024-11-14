@@ -257,6 +257,20 @@ void kvfree_call_rcu(struct rcu_head *head, void *ptr)
 EXPORT_SYMBOL_GPL(kvfree_call_rcu);
 #endif
 
+#if IS_ENABLED(CONFIG_RCU_TORTURE_TEST)
+unsigned long rcutorture_gather_gp_seqs(void)
+{
+	return READ_ONCE(rcu_ctrlblk.gp_seq) & 0xff;
+}
+EXPORT_SYMBOL_GPL(rcutorture_gather_gp_seqs);
+
+void rcutorture_format_gp_seqs(unsigned long seqs, char *cp)
+{
+	snprintf(cp, 8, "g%02lx", seqs & 0xff);
+}
+EXPORT_SYMBOL_GPL(rcutorture_format_gp_seqs);
+#endif
+
 void __init rcu_init(void)
 {
 	open_softirq(RCU_SOFTIRQ, rcu_process_callbacks);
