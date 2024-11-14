@@ -17,6 +17,7 @@
 #include <linux/of.h>
 #include <asm/acpi.h>
 #include <asm/alternative.h>
+#include <asm/bugs.h>
 #include <asm/cacheflush.h>
 #include <asm/cpufeature.h>
 #include <asm/hwcap.h>
@@ -824,6 +825,7 @@ static int has_thead_homogeneous_vlenb(void)
 static int __init riscv_fill_hwcap_from_ext_list(unsigned long *isa2hwcap)
 {
 	unsigned int cpu;
+	bool mitigated;
 
 	for_each_possible_cpu(cpu) {
 		unsigned long this_hwcap = 0;
@@ -874,7 +876,13 @@ static int __init riscv_fill_hwcap_from_ext_list(unsigned long *isa2hwcap)
 		riscv_fill_vendor_ext_list(cpu);
 	}
 
-	if (has_xtheadvector_no_alternatives() && has_thead_homogeneous_vlenb() < 0) {
+	/*
+	 * Execute ghostwrite mitigation immediately after detecting extensions
+	 * to disable xtheadvector if necessary.
+	 */
+	mitigated = ghostwrite_enable_mitigation();
+
+	if (!mitigated && has_xtheadvector_no_alternatives() && has_thead_homogeneous_vlenb() < 0) {
 		pr_warn("Unsupported heterogeneous vlenb detected, vector extension disabled.\n");
 		disable_xtheadvector();
 	}
