@@ -5780,12 +5780,11 @@ int snapshot_graphics(int idx)
 	case GFX_ACTMHz:
 	case SAM_MHz:
 	case SAM_ACTMHz:
-		if (gfx_info[idx].fp == NULL) {
+		if (gfx_info[idx].fp == NULL)
 			gfx_info[idx].fp = fopen_or_die(gfx_info[idx].path, "r");
-		} else {
+		else
 			rewind(gfx_info[idx].fp);
-			fflush(gfx_info[idx].fp);
-		}
+
 		retval = fscanf(gfx_info[idx].fp, "%d", &gfx_info[idx].val);
 		if (retval != 1)
 			err(1, "MHz");
