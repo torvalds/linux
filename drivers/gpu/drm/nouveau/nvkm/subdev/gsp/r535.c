@@ -33,20 +33,14 @@
 #include <nvfw/fw.h>
 
 #include <nvrm/nvtypes.h>
-#include <nvrm/535.113.01/common/sdk/nvidia/inc/class/cl0005.h>
-#include <nvrm/535.113.01/common/sdk/nvidia/inc/class/cl0080.h>
-#include <nvrm/535.113.01/common/sdk/nvidia/inc/class/cl2080.h>
-#include <nvrm/535.113.01/common/sdk/nvidia/inc/ctrl/ctrl2080/ctrl2080event.h>
 #include <nvrm/535.113.01/common/sdk/nvidia/inc/ctrl/ctrl2080/ctrl2080gpu.h>
 #include <nvrm/535.113.01/common/sdk/nvidia/inc/ctrl/ctrl2080/ctrl2080internal.h>
-#include <nvrm/535.113.01/common/sdk/nvidia/inc/nvos.h>
 #include <nvrm/535.113.01/common/shared/msgq/inc/msgq/msgq_priv.h>
 #include <nvrm/535.113.01/common/uproc/os/common/include/libos_init_args.h>
 #include <nvrm/535.113.01/nvidia/arch/nvalloc/common/inc/gsp/gsp_fw_sr_meta.h>
 #include <nvrm/535.113.01/nvidia/arch/nvalloc/common/inc/gsp/gsp_fw_wpr_meta.h>
 #include <nvrm/535.113.01/nvidia/arch/nvalloc/common/inc/rmRiscvUcode.h>
 #include <nvrm/535.113.01/nvidia/arch/nvalloc/common/inc/rmgspseq.h>
-#include <nvrm/535.113.01/nvidia/generated/g_allclasses.h>
 #include <nvrm/535.113.01/nvidia/generated/g_os_nvoc.h>
 #include <nvrm/535.113.01/nvidia/generated/g_rpc-structures.h>
 #include <nvrm/535.113.01/nvidia/inc/kernel/gpu/gsp/gsp_fw_heap.h>
@@ -61,130 +55,9 @@
 
 extern struct dentry *nouveau_debugfs_root;
 
-static void
-r535_gsp_event_dtor(struct nvkm_gsp_event *event)
-{
-	struct nvkm_gsp_device *device = event->device;
-	struct nvkm_gsp_client *client = device->object.client;
-	struct nvkm_gsp *gsp = client->gsp;
-
-	mutex_lock(&gsp->client_id.mutex);
-	if (event->func) {
-		list_del(&event->head);
-		event->func = NULL;
-	}
-	mutex_unlock(&gsp->client_id.mutex);
-
-	nvkm_gsp_rm_free(&event->object);
-	event->device = NULL;
-}
-
-static int
-r535_gsp_device_event_get(struct nvkm_gsp_event *event)
-{
-	struct nvkm_gsp_device *device = event->device;
-	NV2080_CTRL_EVENT_SET_NOTIFICATION_PARAMS *ctrl;
-
-	ctrl = nvkm_gsp_rm_ctrl_get(&device->subdevice,
-				    NV2080_CTRL_CMD_EVENT_SET_NOTIFICATION, sizeof(*ctrl));
-	if (IS_ERR(ctrl))
-		return PTR_ERR(ctrl);
-
-	ctrl->event = event->id;
-	ctrl->action = NV2080_CTRL_EVENT_SET_NOTIFICATION_ACTION_REPEAT;
-	return nvkm_gsp_rm_ctrl_wr(&device->subdevice, ctrl);
-}
-
-static int
-r535_gsp_device_event_ctor(struct nvkm_gsp_device *device, u32 handle, u32 id,
-			   nvkm_gsp_event_func func, struct nvkm_gsp_event *event)
-{
-	struct nvkm_gsp_client *client = device->object.client;
-	struct nvkm_gsp *gsp = client->gsp;
-	NV0005_ALLOC_PARAMETERS *args;
-	int ret;
-
-	args = nvkm_gsp_rm_alloc_get(&device->subdevice, handle,
-				     NV01_EVENT_KERNEL_CALLBACK_EX, sizeof(*args),
-				     &event->object);
-	if (IS_ERR(args))
-		return PTR_ERR(args);
-
-	args->hParentClient = client->object.handle;
-	args->hSrcResource = 0;
-	args->hClass = NV01_EVENT_KERNEL_CALLBACK_EX;
-	args->notifyIndex = NV01_EVENT_CLIENT_RM | id;
-	args->data = NULL;
-
-	ret = nvkm_gsp_rm_alloc_wr(&event->object, args);
-	if (ret)
-		return ret;
-
-	event->device = device;
-	event->id = id;
-
-	ret = r535_gsp_device_event_get(event);
-	if (ret) {
-		nvkm_gsp_event_dtor(event);
-		return ret;
-	}
-
-	mutex_lock(&gsp->client_id.mutex);
-	event->func = func;
-	list_add(&event->head, &client->events);
-	mutex_unlock(&gsp->client_id.mutex);
-	return 0;
-}
-
-static void
-r535_gsp_device_dtor(struct nvkm_gsp_device *device)
-{
-	nvkm_gsp_rm_free(&device->subdevice);
-	nvkm_gsp_rm_free(&device->object);
-}
-
-static int
-r535_gsp_subdevice_ctor(struct nvkm_gsp_device *device)
-{
-	NV2080_ALLOC_PARAMETERS *args;
-
-	return nvkm_gsp_rm_alloc(&device->object, 0x5d1d0000, NV20_SUBDEVICE_0, sizeof(*args),
-				 &device->subdevice);
-}
-
-static int
-r535_gsp_device_ctor(struct nvkm_gsp_client *client, struct nvkm_gsp_device *device)
-{
-	NV0080_ALLOC_PARAMETERS *args;
-	int ret;
-
-	args = nvkm_gsp_rm_alloc_get(&client->object, 0xde1d0000, NV01_DEVICE_0, sizeof(*args),
-				     &device->object);
-	if (IS_ERR(args))
-		return PTR_ERR(args);
-
-	args->hClientShare = client->object.handle;
-
-	ret = nvkm_gsp_rm_alloc_wr(&device->object, args);
-	if (ret)
-		return ret;
-
-	ret = r535_gsp_subdevice_ctor(device);
-	if (ret)
-		nvkm_gsp_rm_free(&device->object);
-
-	return ret;
-}
-
 const struct nvkm_gsp_rm
 r535_gsp_rm = {
 	.api = &r535_rm,
-
-	.device_ctor = r535_gsp_device_ctor,
-	.device_dtor = r535_gsp_device_dtor,
-
-	.event_ctor = r535_gsp_device_event_ctor,
-	.event_dtor = r535_gsp_event_dtor,
 };
 
 static void

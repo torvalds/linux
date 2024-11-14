@@ -211,13 +211,6 @@ struct nvkm_gsp {
 
 	const struct nvkm_gsp_rm {
 		const struct nvkm_rm_api *api;
-
-		int (*device_ctor)(struct nvkm_gsp_client *, struct nvkm_gsp_device *);
-		void (*device_dtor)(struct nvkm_gsp_device *);
-
-		int (*event_ctor)(struct nvkm_gsp_device *, u32 handle, u32 id,
-				  nvkm_gsp_event_func, struct nvkm_gsp_event *);
-		void (*event_dtor)(struct nvkm_gsp_event *);
 	} *rm;
 
 	struct {
@@ -435,14 +428,14 @@ nvkm_gsp_client_dtor(struct nvkm_gsp_client *client)
 static inline int
 nvkm_gsp_device_ctor(struct nvkm_gsp_client *client, struct nvkm_gsp_device *device)
 {
-	return client->gsp->rm->device_ctor(client, device);
+	return client->gsp->rm->api->device->ctor(client, device);
 }
 
 static inline void
 nvkm_gsp_device_dtor(struct nvkm_gsp_device *device)
 {
 	if (device->object.client)
-		device->object.client->gsp->rm->device_dtor(device);
+		device->object.client->gsp->rm->api->device->dtor(device);
 }
 
 static inline int
@@ -474,7 +467,9 @@ static inline int
 nvkm_gsp_device_event_ctor(struct nvkm_gsp_device *device, u32 handle, u32 id,
 			   nvkm_gsp_event_func func, struct nvkm_gsp_event *event)
 {
-	return device->object.client->gsp->rm->event_ctor(device, handle, id, func, event);
+	const struct nvkm_gsp_rm *rm = device->object.client->gsp->rm;
+
+	return rm->api->device->event.ctor(device, handle, id, func, event);
 }
 
 static inline void
@@ -483,7 +478,7 @@ nvkm_gsp_event_dtor(struct nvkm_gsp_event *event)
 	struct nvkm_gsp_device *device = event->device;
 
 	if (device)
-		device->object.client->gsp->rm->event_dtor(event);
+		device->object.client->gsp->rm->api->device->event.dtor(event);
 }
 
 int nvkm_gsp_intr_stall(struct nvkm_gsp *, enum nvkm_subdev_type, int);

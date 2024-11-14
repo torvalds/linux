@@ -32,6 +32,17 @@ struct nvkm_rm_api {
 		int (*ctor)(struct nvkm_gsp *, struct nvkm_gsp_client *);
 		void (*dtor)(struct nvkm_gsp_client *);
 	} *client;
+
+	const struct nvkm_rm_api_device {
+		int (*ctor)(struct nvkm_gsp_client *, struct nvkm_gsp_device *);
+		void (*dtor)(struct nvkm_gsp_device *);
+
+		struct {
+			int (*ctor)(struct nvkm_gsp_device *, u32 handle, u32 id,
+				    nvkm_gsp_event_func, struct nvkm_gsp_event *);
+			void (*dtor)(struct nvkm_gsp_event *);
+		} event;
+	} *device;
 };
 
 extern const struct nvkm_rm_api r535_rm;
@@ -39,4 +50,5 @@ extern const struct nvkm_rm_api_rpc r535_rpc;
 extern const struct nvkm_rm_api_ctrl r535_ctrl;
 extern const struct nvkm_rm_api_alloc r535_alloc;
 extern const struct nvkm_rm_api_client r535_client;
+extern const struct nvkm_rm_api_device r535_device;
 #endif

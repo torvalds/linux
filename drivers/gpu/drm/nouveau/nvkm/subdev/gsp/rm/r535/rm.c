@@ -10,4 +10,5 @@ r535_rm = {
 	.ctrl = &r535_ctrl,
 	.alloc = &r535_alloc,
 	.client = &r535_client,
+	.device = &r535_device,
 };
