@@ -43,6 +43,7 @@
 #include <asm/cpu_ops.h>
 #include <asm/kasan.h>
 #include <asm/numa.h>
+#include <asm/rsi.h>
 #include <asm/scs.h>
 #include <asm/sections.h>
 #include <asm/setup.h>
@@ -350,6 +351,8 @@ void __init __no_sanitize_address setup_arch(char **cmdline_p)
 		psci_dt_init();
 	else
 		psci_acpi_init();
+
+	arm64_rsi_init();
 
 	init_bootcpu_ops();
 	smp_init_cpus();

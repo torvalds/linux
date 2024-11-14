@@ -1649,6 +1649,8 @@ EndEnum
 UnsignedEnum	39:36	ETS
 	0b0000	NI
 	0b0001	IMP
+	0b0010	ETS2
+	0b0011	ETS3
 EndEnum
 UnsignedEnum	35:32	TWED
 	0b0000	NI
@@ -1689,6 +1691,8 @@ UnsignedEnum	3:0	HAFDBS
 	0b0000	NI
 	0b0001	AF
 	0b0010	DBM
+	0b0011	HAFT
+	0b0100	HDBSS
 EndEnum
 EndSysreg
 
