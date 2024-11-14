@@ -102,6 +102,7 @@ struct nvkm_rm_api {
 					   enum nvkm_subdev_type *, int *nv2080_type);
 		int (*ectx_size)(struct nvkm_fifo *);
 		unsigned rsvd_chids;
+		int (*rc_triggered)(void *priv, u32 fn, void *repv, u32 repc);
 		struct {
 			int (*alloc)(struct nvkm_gsp_device *, u32 handle,
 				     u32 nv2080_engine_type, u8 runq, bool priv, int chid,

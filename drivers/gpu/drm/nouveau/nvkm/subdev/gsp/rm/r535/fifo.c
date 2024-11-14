@@ -339,6 +339,39 @@ r535_runl = {
 	.allow = r535_runl_allow,
 };
 
+static void
+r535_fifo_rc_chid(struct nvkm_fifo *fifo, int chid)
+{
+	struct nvkm_chan *chan;
+	unsigned long flags;
+
+	chan = nvkm_chan_get_chid(&fifo->engine, chid, &flags);
+	if (!chan) {
+		nvkm_error(&fifo->engine.subdev, "rc: chid %d not found!\n", chid);
+		return;
+	}
+
+	nvkm_chan_error(chan, false);
+	nvkm_chan_put(&chan, flags);
+}
+
+static int
+r535_fifo_rc_triggered(void *priv, u32 fn, void *repv, u32 repc)
+{
+	rpc_rc_triggered_v17_02 *msg = repv;
+	struct nvkm_gsp *gsp = priv;
+
+	if (WARN_ON(repc < sizeof(*msg)))
+		return -EINVAL;
+
+	nvkm_error(&gsp->subdev, "rc: engn:%08x chid:%d type:%d scope:%d part:%d\n",
+		   msg->nv2080EngineType, msg->chid, msg->exceptType, msg->scope,
+		   msg->partitionAttributionId);
+
+	r535_fifo_rc_chid(gsp->subdev.device->fifo, msg->chid);
+	return 0;
+}
+
 static int
 r535_fifo_xlat_rm_engine_type(u32 rm, enum nvkm_subdev_type *ptype, int *p2080)
 {
@@ -558,6 +591,7 @@ const struct nvkm_rm_api_fifo
 r535_fifo = {
 	.xlat_rm_engine_type = r535_fifo_xlat_rm_engine_type,
 	.ectx_size = r535_fifo_ectx_size,
+	.rc_triggered = r535_fifo_rc_triggered,
 	.chan = {
 		.alloc = r535_chan_alloc,
 	},
