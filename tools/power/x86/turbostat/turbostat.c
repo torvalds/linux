@@ -5764,27 +5764,24 @@ int snapshot_proc_interrupts(void)
  */
 int snapshot_graphics(int idx)
 {
-	FILE *fp;
 	int retval;
+
+	if (gfx_info[idx].fp == NULL)
+		gfx_info[idx].fp = fopen_or_die(gfx_info[idx].path, "r");
+	else
+		rewind(gfx_info[idx].fp);
 
 	switch (idx) {
 	case GFX_rc6:
 	case SAM_mc6:
-		fp = fopen_or_die(gfx_info[idx].path, "r");
-		retval = fscanf(fp, "%lld", &gfx_info[idx].val_ull);
+		retval = fscanf(gfx_info[idx].fp, "%lld", &gfx_info[idx].val_ull);
 		if (retval != 1)
 			err(1, "rc6");
-		fclose(fp);
 		return 0;
 	case GFX_MHz:
 	case GFX_ACTMHz:
 	case SAM_MHz:
 	case SAM_ACTMHz:
-		if (gfx_info[idx].fp == NULL)
-			gfx_info[idx].fp = fopen_or_die(gfx_info[idx].path, "r");
-		else
-			rewind(gfx_info[idx].fp);
-
 		retval = fscanf(gfx_info[idx].fp, "%d", &gfx_info[idx].val);
 		if (retval != 1)
 			err(1, "MHz");
