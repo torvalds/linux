@@ -40,7 +40,7 @@ pci_epc_interface_string(enum pci_epc_interface_type type)
  * @map_pci_addr: RC PCI address used as the first address mapped (may be lower
  *                than @pci_addr)
  * @map_size: size of the controller memory needed for mapping the RC PCI address
- *            range @pci_addr..@pci_addr+@pci_size
+ *            range @map_pci_addr..@pci_addr+@pci_size
  * @phys_base: base physical address of the allocated EPC memory for mapping the
  *             RC PCI address range
  * @phys_addr: physical address at which @pci_addr is mapped
