@@ -896,12 +896,17 @@ static void xe_guc_exec_queue_lr_cleanup(struct work_struct *w)
 					 !exec_queue_pending_disable(q) ||
 					 xe_guc_read_stopped(guc), HZ * 5);
 		if (!ret) {
-			xe_gt_warn(q->gt, "Schedule disable failed to respond\n");
+			xe_gt_warn(q->gt, "Schedule disable failed to respond, guc_id=%d\n",
+				   q->guc->id);
+			xe_devcoredump(q, NULL);
 			xe_sched_submission_start(sched);
 			xe_gt_reset_async(q->gt);
 			return;
 		}
 	}
+
+	if (!exec_queue_killed(q) && !xe_lrc_ring_is_idle(q->lrc[0]))
+		xe_devcoredump(q, NULL);
 
 	xe_sched_submission_start(sched);
 }
