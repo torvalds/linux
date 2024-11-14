@@ -515,6 +515,60 @@ static const struct xfrm_mode *xfrm_get_mode(unsigned int encap, int family)
 	return NULL;
 }
 
+static const struct xfrm_mode_cbs  __rcu *xfrm_mode_cbs_map[XFRM_MODE_MAX];
+static DEFINE_SPINLOCK(xfrm_mode_cbs_map_lock);
+
+int xfrm_register_mode_cbs(u8 mode, const struct xfrm_mode_cbs *mode_cbs)
+{
+	if (mode >= XFRM_MODE_MAX)
+		return -EINVAL;
+
+	spin_lock_bh(&xfrm_mode_cbs_map_lock);
+	rcu_assign_pointer(xfrm_mode_cbs_map[mode], mode_cbs);
+	spin_unlock_bh(&xfrm_mode_cbs_map_lock);
+
+	return 0;
+}
+EXPORT_SYMBOL(xfrm_register_mode_cbs);
+
+void xfrm_unregister_mode_cbs(u8 mode)
+{
+	if (mode >= XFRM_MODE_MAX)
+		return;
+
+	spin_lock_bh(&xfrm_mode_cbs_map_lock);
+	RCU_INIT_POINTER(xfrm_mode_cbs_map[mode], NULL);
+	spin_unlock_bh(&xfrm_mode_cbs_map_lock);
+	synchronize_rcu();
+}
+EXPORT_SYMBOL(xfrm_unregister_mode_cbs);
+
+static const struct xfrm_mode_cbs *xfrm_get_mode_cbs(u8 mode)
+{
+	const struct xfrm_mode_cbs *cbs;
+	bool try_load = true;
+
+	if (mode >= XFRM_MODE_MAX)
+		return NULL;
+
+retry:
+	rcu_read_lock();
+
+	cbs = rcu_dereference(xfrm_mode_cbs_map[mode]);
+	if (cbs && !try_module_get(cbs->owner))
+		cbs = NULL;
+
+	rcu_read_unlock();
+
+	if (mode == XFRM_MODE_IPTFS && !cbs && try_load) {
+		request_module("xfrm-iptfs");
+		try_load = false;
+		goto retry;
+	}
+
+	return cbs;
+}
+
 void xfrm_state_free(struct xfrm_state *x)
 {
 	kmem_cache_free(xfrm_state_cache, x);
@@ -523,6 +577,8 @@ EXPORT_SYMBOL(xfrm_state_free);
 
 static void ___xfrm_state_destroy(struct xfrm_state *x)
 {
+	if (x->mode_cbs && x->mode_cbs->destroy_state)
+		x->mode_cbs->destroy_state(x);
 	hrtimer_cancel(&x->mtimer);
 	del_timer_sync(&x->rtimer);
 	kfree(x->aead);
@@ -682,6 +738,7 @@ struct xfrm_state *xfrm_state_alloc(struct net *net)
 		x->replay_maxdiff = 0;
 		x->pcpu_num = UINT_MAX;
 		spin_lock_init(&x->lock);
+		x->mode_data = NULL;
 	}
 	return x;
 }
@@ -1945,6 +2002,12 @@ static struct xfrm_state *xfrm_state_clone(struct xfrm_state *orig,
 	x->new_mapping_sport = 0;
 	x->dir = orig->dir;
 
+	x->mode_cbs = orig->mode_cbs;
+	if (x->mode_cbs && x->mode_cbs->clone_state) {
+		if (x->mode_cbs->clone_state(x, orig))
+			goto error;
+	}
+
 	return x;
 
  error:
@@ -2986,6 +3049,9 @@ u32 xfrm_state_mtu(struct xfrm_state *x, int mtu)
 	case XFRM_MODE_TUNNEL:
 		break;
 	default:
+		if (x->mode_cbs && x->mode_cbs->get_inner_mtu)
+			return x->mode_cbs->get_inner_mtu(x, mtu);
+
 		WARN_ON_ONCE(1);
 		break;
 	}
@@ -3086,6 +3152,12 @@ int __xfrm_init_state(struct xfrm_state *x, bool init_replay, bool offload,
 		}
 	}
 
+	x->mode_cbs = xfrm_get_mode_cbs(x->props.mode);
+	if (x->mode_cbs) {
+		if (x->mode_cbs->init_state)
+			err = x->mode_cbs->init_state(x);
+		module_put(x->mode_cbs->owner);
+	}
 error:
 	return err;
 }
