@@ -2,6 +2,7 @@
 /* Copyright(c) 2023  Realtek Corporation
  */
 
+#include "chan.h"
 #include "coex.h"
 #include "debug.h"
 #include "efuse.h"
@@ -397,9 +398,6 @@ static int rtw8922a_pwr_on_func(struct rtw89_dev *rtwdev)
 
 	rtw89_write32_set(rtwdev, R_BE_FEN_RST_ENABLE, B_BE_FEN_BB_IP_RSTN |
 						       B_BE_FEN_BBPLAT_RSTB);
-
-	if (!test_bit(RTW89_FLAG_PROBE_DONE, rtwdev->flags))
-		rtw89_efuse_read_fw_secure_be(rtwdev);
 
 	return 0;
 }
@@ -965,6 +963,42 @@ static const struct rtw8922a_bb_gain bb_gain_tia[TIA_GAIN_NUM] = {
 	  .gain_g_mask = 0x1FF, .gain_a_mask = 0x3FE00 },
 };
 
+static const struct rtw8922a_bb_gain bb_op1db_lna[LNA_GAIN_NUM] = {
+	{ .gain_g = {0x40ac, 0x44ac}, .gain_a = {0x4078, 0x4478},
+	  .gain_g_mask = 0xFF00, .gain_a_mask = 0xFF000000},
+	{ .gain_g = {0x40ac, 0x44ac}, .gain_a = {0x407c, 0x447c},
+	  .gain_g_mask = 0xFF0000, .gain_a_mask = 0xFF},
+	{ .gain_g = {0x40ac, 0x44ac}, .gain_a = {0x407c, 0x447c},
+	  .gain_g_mask = 0xFF000000, .gain_a_mask = 0xFF00},
+	{ .gain_g = {0x40b0, 0x44b0}, .gain_a = {0x407c, 0x447c},
+	  .gain_g_mask = 0xFF, .gain_a_mask = 0xFF0000},
+	{ .gain_g = {0x40b0, 0x44b0}, .gain_a = {0x407c, 0x447c},
+	  .gain_g_mask = 0xFF00, .gain_a_mask = 0xFF000000},
+	{ .gain_g = {0x40b0, 0x44b0}, .gain_a = {0x4080, 0x4480},
+	  .gain_g_mask = 0xFF0000, .gain_a_mask = 0xFF},
+	{ .gain_g = {0x40b0, 0x44b0}, .gain_a = {0x4080, 0x4480},
+	  .gain_g_mask = 0xFF000000, .gain_a_mask = 0xFF00},
+};
+
+static const struct rtw8922a_bb_gain bb_op1db_tia_lna[TIA_LNA_OP1DB_NUM] = {
+	{ .gain_g = {0x40b4, 0x44b4}, .gain_a = {0x4080, 0x4480},
+	  .gain_g_mask = 0xFF0000, .gain_a_mask = 0xFF000000},
+	{ .gain_g = {0x40b4, 0x44b4}, .gain_a = {0x4084, 0x4484},
+	  .gain_g_mask = 0xFF000000, .gain_a_mask = 0xFF},
+	{ .gain_g = {0x40b8, 0x44b8}, .gain_a = {0x4084, 0x4484},
+	  .gain_g_mask = 0xFF, .gain_a_mask = 0xFF00},
+	{ .gain_g = {0x40b8, 0x44b8}, .gain_a = {0x4084, 0x4484},
+	  .gain_g_mask = 0xFF00, .gain_a_mask = 0xFF0000},
+	{ .gain_g = {0x40b8, 0x44b8}, .gain_a = {0x4084, 0x4484},
+	  .gain_g_mask = 0xFF0000, .gain_a_mask = 0xFF000000},
+	{ .gain_g = {0x40b8, 0x44b8}, .gain_a = {0x4088, 0x4488},
+	  .gain_g_mask = 0xFF000000, .gain_a_mask = 0xFF},
+	{ .gain_g = {0x40bc, 0x44bc}, .gain_a = {0x4088, 0x4488},
+	  .gain_g_mask = 0xFF, .gain_a_mask = 0xFF00},
+	{ .gain_g = {0x40bc, 0x44bc}, .gain_a = {0x4088, 0x4488},
+	  .gain_g_mask = 0xFF00, .gain_a_mask = 0xFF0000},
+};
+
 struct rtw8922a_bb_gain_bypass {
 	u32 gain_g[BB_PATH_NUM_8922A];
 	u32 gain_a[BB_PATH_NUM_8922A];
@@ -1054,6 +1088,30 @@ static void rtw8922a_set_lna_tia_gain(struct rtw89_dev *rtwdev,
 			mask = bb_gain_tia[i].gain_a_mask;
 		}
 		val = gain->tia_gain[gain_band][bw_type][path][i];
+		rtw89_phy_write32_idx(rtwdev, reg, mask, val, phy_idx);
+	}
+
+	for (i = 0; i < LNA_GAIN_NUM; i++) {
+		if (chan->band_type == RTW89_BAND_2G) {
+			reg = bb_op1db_lna[i].gain_g[path];
+			mask = bb_op1db_lna[i].gain_g_mask;
+		} else {
+			reg = bb_op1db_lna[i].gain_a[path];
+			mask = bb_op1db_lna[i].gain_a_mask;
+		}
+		val = gain->lna_op1db[gain_band][bw_type][path][i];
+		rtw89_phy_write32_idx(rtwdev, reg, mask, val, phy_idx);
+	}
+
+	for (i = 0; i < TIA_LNA_OP1DB_NUM; i++) {
+		if (chan->band_type == RTW89_BAND_2G) {
+			reg = bb_op1db_tia_lna[i].gain_g[path];
+			mask = bb_op1db_tia_lna[i].gain_g_mask;
+		} else {
+			reg = bb_op1db_tia_lna[i].gain_a[path];
+			mask = bb_op1db_tia_lna[i].gain_a_mask;
+		}
+		val = gain->tia_lna_op1db[gain_band][bw_type][path][i];
 		rtw89_phy_write32_idx(rtwdev, reg, mask, val, phy_idx);
 	}
 }
@@ -1745,7 +1803,7 @@ static void rtw8922a_digital_pwr_comp(struct rtw89_dev *rtwdev,
 
 static int rtw8922a_ctrl_mlo(struct rtw89_dev *rtwdev, enum rtw89_mlo_dbcc_mode mode)
 {
-	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev, RTW89_CHANCTX_0);
+	const struct rtw89_chan *chan0, *chan1;
 
 	if (mode == MLO_1_PLUS_1_1RF || mode == DBCC_LEGACY) {
 		rtw89_phy_write32_mask(rtwdev, R_DBCC, B_DBCC_EN, 0x1);
@@ -1758,12 +1816,19 @@ static int rtw8922a_ctrl_mlo(struct rtw89_dev *rtwdev, enum rtw89_mlo_dbcc_mode 
 		return -EOPNOTSUPP;
 	}
 
-	if (mode == MLO_2_PLUS_0_1RF) {
-		rtw8922a_ctrl_afe_dac(rtwdev, chan->band_width, RF_PATH_A);
-		rtw8922a_ctrl_afe_dac(rtwdev, chan->band_width, RF_PATH_B);
+	if (mode == MLO_1_PLUS_1_1RF) {
+		chan0 = rtw89_mgnt_chan_get(rtwdev, 0);
+		chan1 = rtw89_mgnt_chan_get(rtwdev, 1);
+	} else if (mode == MLO_0_PLUS_2_1RF) {
+		chan1 = rtw89_mgnt_chan_get(rtwdev, 1);
+		chan0 = chan1;
 	} else {
-		rtw89_warn(rtwdev, "unsupported MLO mode %d\n", mode);
+		chan0 = rtw89_mgnt_chan_get(rtwdev, 0);
+		chan1 = chan0;
 	}
+
+	rtw8922a_ctrl_afe_dac(rtwdev, chan0->band_width, RF_PATH_A);
+	rtw8922a_ctrl_afe_dac(rtwdev, chan1->band_width, RF_PATH_B);
 
 	rtw89_phy_write32_mask(rtwdev, R_EMLSR, B_EMLSR_PARM, 0x6180);
 
@@ -2218,10 +2283,12 @@ static void rtw8922a_bb_cfg_txrx_path(struct rtw89_dev *rtwdev)
 static u8 rtw8922a_get_thermal(struct rtw89_dev *rtwdev, enum rtw89_rf_path rf_path)
 {
 	struct rtw89_power_trim_info *info = &rtwdev->pwr_trim;
+	struct rtw89_hal *hal = &rtwdev->hal;
 	int th;
 
-	/* read thermal only if debugging */
-	if (!rtw89_debug_is_enabled(rtwdev, RTW89_DBG_CFO | RTW89_DBG_RFK_TRACK))
+	/* read thermal only if debugging or thermal protection enabled */
+	if (!rtw89_debug_is_enabled(rtwdev, RTW89_DBG_CFO | RTW89_DBG_RFK_TRACK) &&
+	    !hal->thermal_prot_th)
 		return 80;
 
 	rtw89_write_rf(rtwdev, rf_path, RR_TM, RR_TM_TRI, 0x1);
@@ -2652,6 +2719,7 @@ const struct rtw89_chip_info rtw8922a_chip_info = {
 	.wde_qempty_acq_grpnum	= 4,
 	.wde_qempty_mgq_grpsel	= 4,
 	.rf_base_addr		= {0xe000, 0xf000},
+	.thermal_th		= {0xad, 0xb4},
 	.pwr_on_seq		= NULL,
 	.pwr_off_seq		= NULL,
 	.bb_table		= NULL,

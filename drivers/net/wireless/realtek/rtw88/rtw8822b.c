@@ -2072,12 +2072,6 @@ static const struct rtw_intf_phy_para_table phy_para_table_8822b = {
 	.n_gen2_para	= ARRAY_SIZE(pcie_gen2_param_8822b),
 };
 
-static const struct rtw_rfe_def rtw8822b_rfe_defs[] = {
-	[2] = RTW_DEF_RFE(8822b, 2, 2),
-	[3] = RTW_DEF_RFE(8822b, 3, 0),
-	[5] = RTW_DEF_RFE(8822b, 5, 5),
-};
-
 static const struct rtw_hw_reg rtw8822b_dig[] = {
 	[0] = { .addr = 0xc50, .mask = 0x7f },
 	[1] = { .addr = 0xe50, .mask = 0x7f },
@@ -2132,6 +2126,8 @@ static const struct rtw_prioq_addrs prioq_addrs_8822b = {
 };
 
 static const struct rtw_chip_ops rtw8822b_ops = {
+	.power_on		= rtw_power_on,
+	.power_off		= rtw_power_off,
 	.phy_set_param		= rtw8822b_phy_set_param,
 	.read_efuse		= rtw8822b_read_efuse,
 	.query_phy_status	= query_phy_status,
@@ -2430,7 +2426,7 @@ static const u8 rtw8822b_pwrtrk_2g_cck_a_p[RTW_PWR_TRK_TBL_SZ] = {
 	10, 11, 11, 12, 12, 13, 13, 14, 14, 15
 };
 
-static const struct rtw_pwr_track_tbl rtw8822b_rtw_pwr_track_tbl = {
+static const struct rtw_pwr_track_tbl rtw8822b_pwr_track_type0_tbl = {
 	.pwrtrk_5gb_n[RTW_PWR_TRK_5G_1] = rtw8822b_pwrtrk_5gb_n[RTW_PWR_TRK_5G_1],
 	.pwrtrk_5gb_n[RTW_PWR_TRK_5G_2] = rtw8822b_pwrtrk_5gb_n[RTW_PWR_TRK_5G_2],
 	.pwrtrk_5gb_n[RTW_PWR_TRK_5G_3] = rtw8822b_pwrtrk_5gb_n[RTW_PWR_TRK_5G_3],
@@ -2451,6 +2447,12 @@ static const struct rtw_pwr_track_tbl rtw8822b_rtw_pwr_track_tbl = {
 	.pwrtrk_2g_cckb_p = rtw8822b_pwrtrk_2g_cck_b_p,
 	.pwrtrk_2g_ccka_n = rtw8822b_pwrtrk_2g_cck_a_n,
 	.pwrtrk_2g_ccka_p = rtw8822b_pwrtrk_2g_cck_a_p,
+};
+
+static const struct rtw_rfe_def rtw8822b_rfe_defs[] = {
+	[2] = RTW_DEF_RFE(8822b, 2, 2, 0),
+	[3] = RTW_DEF_RFE(8822b, 3, 0, 0),
+	[5] = RTW_DEF_RFE(8822b, 5, 5, 0),
 };
 
 static const struct rtw_reg_domain coex_info_hw_regs_8822b[] = {
@@ -2509,6 +2511,9 @@ const struct rtw_chip_info rtw8822b_hw_spec = {
 	.page_size = TX_PAGE_SIZE,
 	.dig_min = 0x1c,
 	.usb_tx_agg_desc_num = 3,
+	.hw_feature_report = true,
+	.c2h_ra_report_size = 7,
+	.old_datarate_fb_limit = false,
 	.ht_supported = true,
 	.vht_supported = true,
 	.lps_deep_mode_supported = BIT(LPS_DEEP_MODE_LCLK),
@@ -2530,7 +2535,6 @@ const struct rtw_chip_info rtw8822b_hw_spec = {
 	.rf_tbl = {&rtw8822b_rf_a_tbl, &rtw8822b_rf_b_tbl},
 	.rfe_defs = rtw8822b_rfe_defs,
 	.rfe_defs_size = ARRAY_SIZE(rtw8822b_rfe_defs),
-	.pwr_track_tbl = &rtw8822b_rtw_pwr_track_tbl,
 	.iqk_threshold = 8,
 	.bfer_su_max_num = 2,
 	.bfer_mu_max_num = 1,

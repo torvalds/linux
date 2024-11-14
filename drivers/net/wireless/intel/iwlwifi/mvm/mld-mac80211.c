@@ -824,7 +824,7 @@ static bool iwl_mvm_mld_vif_have_valid_ap_sta(struct iwl_mvm_vif *mvmvif)
 	int i;
 
 	for_each_mvm_vif_valid_link(mvmvif, i) {
-		if (mvmvif->link[i]->ap_sta_id != IWL_MVM_INVALID_STA)
+		if (mvmvif->link[i]->ap_sta_id != IWL_INVALID_STA)
 			return true;
 	}
 
@@ -851,7 +851,7 @@ static void iwl_mvm_mld_vif_delete_all_stas(struct iwl_mvm *mvm,
 		if (ret)
 			IWL_ERR(mvm, "failed to remove AP station\n");
 
-		link->ap_sta_id = IWL_MVM_INVALID_STA;
+		link->ap_sta_id = IWL_INVALID_STA;
 	}
 }
 
@@ -1169,8 +1169,6 @@ iwl_mvm_mld_change_vif_links(struct ieee80211_hw *hw,
 	int err, i;
 
 	for (i = 0; i < IEEE80211_MLD_MAX_NUM_LINKS; i++) {
-		int r;
-
 		if (test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status))
 			break;
 
@@ -1182,14 +1180,8 @@ iwl_mvm_mld_change_vif_links(struct ieee80211_hw *hw,
 			goto free;
 		}
 
-		new_link[i]->bcast_sta.sta_id = IWL_MVM_INVALID_STA;
-		new_link[i]->mcast_sta.sta_id = IWL_MVM_INVALID_STA;
-		new_link[i]->ap_sta_id = IWL_MVM_INVALID_STA;
 		new_link[i]->fw_link_id = IWL_MVM_FW_LINK_ID_INVALID;
-
-		for (r = 0; r < NUM_IWL_MVM_SMPS_REQ; r++)
-			new_link[i]->smps_requests[r] =
-				IEEE80211_SMPS_AUTOMATIC;
+		iwl_mvm_init_link(new_link[i]);
 	}
 
 	mutex_lock(&mvm->mutex);

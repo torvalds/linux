@@ -261,6 +261,7 @@ struct rtw89_fw_hdr_section_info {
 	u8 redl;
 	const u8 *addr;
 	u32 len;
+	u32 len_override;
 	u32 dladdr;
 	u32 mssc;
 	u8 type;
@@ -275,6 +276,7 @@ struct rtw89_fw_bin_info {
 	u32 hdr_len;
 	bool dynamic_hdr_en;
 	u32 dynamic_hdr_len;
+	u8 idmem_share_mode;
 	bool dsp_checksum;
 	bool secure_section_exist;
 	struct rtw89_fw_hdr_section_info section_info[FWDL_SECTION_MAX_NUM];
@@ -563,6 +565,7 @@ struct rtw89_fw_hdr {
 #define FW_HDR_W6_SEC_NUM GENMASK(15, 8)
 #define FW_HDR_W7_PART_SIZE GENMASK(15, 0)
 #define FW_HDR_W7_DYN_HDR BIT(16)
+#define FW_HDR_W7_IDMEM_SHARE_MODE GENMASK(21, 18)
 #define FW_HDR_W7_CMD_VERSERION GENMASK(31, 24)
 
 struct rtw89_fw_hdr_section_v1 {
@@ -580,6 +583,7 @@ struct rtw89_fw_hdr_section_v1 {
 #define FWSECTION_HDR_V1_W1_REDL BIT(29)
 #define FWSECTION_HDR_V1_W2_MSSC GENMASK(7, 0)
 #define FORMATTED_MSSC 0xFF
+#define FORMATTED_MSSC_MASK GENMASK(7, 0)
 #define FWSECTION_HDR_V1_W2_BBMCU_IDX GENMASK(27, 24)
 
 struct rtw89_fw_hdr_v1 {
@@ -615,6 +619,7 @@ struct rtw89_fw_hdr_v1 {
 #define FW_HDR_V1_W6_DSP_CHKSUM BIT(24)
 #define FW_HDR_V1_W7_PART_SIZE GENMASK(15, 0)
 #define FW_HDR_V1_W7_DYN_HDR BIT(16)
+#define FW_HDR_V1_W7_IDMEM_SHARE_MODE GENMASK(21, 18)
 
 enum rtw89_fw_mss_pool_rmp_tbl_type {
 	MSS_POOL_RMP_TBL_BITMASK = 0x0,
@@ -3689,6 +3694,13 @@ struct rtw89_c2h_pkt_ofld_rsp {
 #define RTW89_C2H_PKT_OFLD_RSP_W2_PTK_OP GENMASK(10, 8)
 #define RTW89_C2H_PKT_OFLD_RSP_W2_PTK_LEN GENMASK(31, 16)
 
+struct rtw89_c2h_tx_duty_rpt {
+	struct rtw89_c2h_hdr c2h_hdr;
+	__le32 w2;
+} __packed;
+
+#define RTW89_C2H_TX_DUTY_RPT_W2_TIMER_ERR GENMASK(2, 0)
+
 struct rtw89_c2h_wow_aoac_report {
 	struct rtw89_c2h_hdr c2h_hdr;
 	u8 rpt_ver;
@@ -3712,6 +3724,15 @@ struct rtw89_c2h_wow_aoac_report {
 } __packed;
 
 #define RTW89_C2H_WOW_AOAC_RPT_REKEY_IDX BIT(0)
+
+struct rtw89_h2c_tx_duty {
+	__le32 w0;
+	__le32 w1;
+} __packed;
+
+#define RTW89_H2C_TX_DUTY_W0_PAUSE_INTVL_MASK GENMASK(15, 0)
+#define RTW89_H2C_TX_DUTY_W0_TX_INTVL_MASK GENMASK(31, 16)
+#define RTW89_H2C_TX_DUTY_W1_STOP BIT(0)
 
 struct rtw89_h2c_bcnfltr {
 	__le32 w0;
@@ -4071,6 +4092,7 @@ enum rtw89_fw_ofld_h2c_func {
 	H2C_FUNC_OFLD_CFG		= 0x14,
 	H2C_FUNC_ADD_SCANOFLD_CH	= 0x16,
 	H2C_FUNC_SCANOFLD		= 0x17,
+	H2C_FUNC_TX_DUTY		= 0x18,
 	H2C_FUNC_PKT_DROP		= 0x1b,
 	H2C_FUNC_CFG_BCNFLTR		= 0x1e,
 	H2C_FUNC_OFLD_RSSI		= 0x1f,
@@ -4506,6 +4528,7 @@ int rtw89_fw_h2c_macid_pause(struct rtw89_dev *rtwdev, u8 sh, u8 grp,
 int rtw89_fw_h2c_set_edca(struct rtw89_dev *rtwdev, struct rtw89_vif_link *rtwvif_link,
 			  u8 ac, u32 val);
 int rtw89_fw_h2c_set_ofld_cfg(struct rtw89_dev *rtwdev);
+int rtw89_fw_h2c_tx_duty(struct rtw89_dev *rtwdev, u8 lv);
 int rtw89_fw_h2c_set_bcn_fltr_cfg(struct rtw89_dev *rtwdev,
 				  struct rtw89_vif_link *rtwvif_link,
 				  bool connect);

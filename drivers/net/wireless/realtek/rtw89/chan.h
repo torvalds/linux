@@ -101,6 +101,14 @@ void rtw89_chanctx_track(struct rtw89_dev *rtwdev);
 void rtw89_chanctx_pause(struct rtw89_dev *rtwdev,
 			 enum rtw89_chanctx_pause_reasons rsn);
 void rtw89_chanctx_proceed(struct rtw89_dev *rtwdev);
+
+const struct rtw89_chan *__rtw89_mgnt_chan_get(struct rtw89_dev *rtwdev,
+					       const char *caller_message,
+					       u8 link_index);
+
+#define rtw89_mgnt_chan_get(rtwdev, link_index) \
+	__rtw89_mgnt_chan_get(rtwdev, __func__, link_index)
+
 int rtw89_chanctx_ops_add(struct rtw89_dev *rtwdev,
 			  struct ieee80211_chanctx_conf *ctx);
 void rtw89_chanctx_ops_remove(struct rtw89_dev *rtwdev,

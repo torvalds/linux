@@ -1162,6 +1162,7 @@ struct rtw89_tx_desc_info {
 	bool er_cap;
 	bool stbc;
 	bool ldpc;
+	bool upd_wlan_hdr;
 };
 
 struct rtw89_core_tx_request {
@@ -3427,6 +3428,8 @@ enum rtw89_roc_state {
 	RTW89_ROC_MGMT,
 };
 
+#define RTW89_ROC_BY_LINK_INDEX 0
+
 struct rtw89_roc {
 	struct ieee80211_channel chan;
 	struct delayed_work roc_work;
@@ -4244,6 +4247,7 @@ struct rtw89_chip_info {
 	u8 wde_qempty_acq_grpnum;
 	u8 wde_qempty_mgq_grpsel;
 	u32 rf_base_addr[2];
+	u8 thermal_th[2];
 	u8 support_macid_num;
 	u8 support_link_num;
 	u8 support_chanctx_num;
@@ -4512,11 +4516,14 @@ enum rtw89_fw_mss_dev_type {
 };
 
 struct rtw89_fw_secure {
-	bool secure_boot;
+	bool secure_boot: 1;
+	bool can_mss_v1: 1;
+	bool can_mss_v0: 1;
 	u32 sb_sel_mgn;
 	u8 mss_dev_type;
 	u8 mss_cust_idx;
 	u8 mss_key_num;
+	u8 mss_idx; /* v0 */
 };
 
 struct rtw89_fw_info {
@@ -4562,7 +4569,7 @@ enum rtw89_sar_subband {
 	RTW89_SAR_2GHZ_SUBBAND,
 	RTW89_SAR_5GHZ_SUBBAND_1_2, /* U-NII-1 and U-NII-2 */
 	RTW89_SAR_5GHZ_SUBBAND_2_E, /* U-NII-2-Extended */
-	RTW89_SAR_5GHZ_SUBBAND_3,   /* U-NII-3 */
+	RTW89_SAR_5GHZ_SUBBAND_3_4, /* U-NII-3 and U-NII-4 */
 	RTW89_SAR_6GHZ_SUBBAND_5_L, /* U-NII-5 lower part */
 	RTW89_SAR_6GHZ_SUBBAND_5_H, /* U-NII-5 higher part */
 	RTW89_SAR_6GHZ_SUBBAND_6,   /* U-NII-6 */
@@ -4624,13 +4631,23 @@ enum rtw89_chanctx_changes {
 };
 
 enum rtw89_entity_mode {
-	RTW89_ENTITY_MODE_SCC,
+	RTW89_ENTITY_MODE_SCC_OR_SMLD,
 	RTW89_ENTITY_MODE_MCC_PREPARE,
 	RTW89_ENTITY_MODE_MCC,
 
 	NUM_OF_RTW89_ENTITY_MODE,
 	RTW89_ENTITY_MODE_INVALID = -EINVAL,
 	RTW89_ENTITY_MODE_UNHANDLED = -ESRCH,
+};
+
+#define RTW89_MAX_INTERFACE_NUM 2
+
+/* only valid when running with chanctx_ops */
+struct rtw89_entity_mgnt {
+	struct list_head active_list;
+	struct rtw89_vif *active_roles[RTW89_MAX_INTERFACE_NUM];
+	enum rtw89_chanctx_idx chanctx_tbl[RTW89_MAX_INTERFACE_NUM]
+					  [__RTW89_MLD_MAX_LINK_NUM];
 };
 
 struct rtw89_chanctx {
@@ -4651,7 +4668,11 @@ struct rtw89_edcca_bak {
 
 enum rtw89_dm_type {
 	RTW89_DM_DYNAMIC_EDCCA,
+	RTW89_DM_THERMAL_PROTECT,
 };
+
+#define RTW89_THERMAL_PROT_LV_MAX 5
+#define RTW89_THERMAL_PROT_STEP 19 /* -19% for each level */
 
 struct rtw89_hal {
 	u32 rx_fltr;
@@ -4676,9 +4697,13 @@ struct rtw89_hal {
 	bool entity_active[RTW89_PHY_MAX];
 	bool entity_pause;
 	enum rtw89_entity_mode entity_mode;
+	struct rtw89_entity_mgnt entity_mgnt;
 
 	struct rtw89_edcca_bak edcca_bak;
 	u32 disabled_dm_bitmap; /* bitmap of enum rtw89_dm_type */
+
+	u8 thermal_prot_th;
+	u8 thermal_prot_lv; /* 0 ~ RTW89_THERMAL_PROT_LV_MAX */
 };
 
 #define RTW89_MAX_MAC_ID_NUM 128
@@ -4711,8 +4736,20 @@ enum rtw89_flags {
 
 enum rtw89_quirks {
 	RTW89_QUIRK_PCI_BER,
+	RTW89_QUIRK_THERMAL_PROT_120C,
+	RTW89_QUIRK_THERMAL_PROT_110C,
 
 	NUM_OF_RTW89_QUIRKS,
+};
+
+enum rtw89_custid {
+	RTW89_CUSTID_NONE,
+	RTW89_CUSTID_ACER,
+	RTW89_CUSTID_AMD,
+	RTW89_CUSTID_ASUS,
+	RTW89_CUSTID_DELL,
+	RTW89_CUSTID_HP,
+	RTW89_CUSTID_LENOVO,
 };
 
 enum rtw89_pkt_drop_sel {
@@ -4751,6 +4788,7 @@ DECLARE_EWMA(thermal, 4, 4);
 
 struct rtw89_phy_stat {
 	struct ewma_thermal avg_thermal[RF_PATH_MAX];
+	u8 last_thermal_max;
 	struct ewma_rssi bcn_rssi;
 	struct rtw89_pkt_stat cur_pkt_stat;
 	struct rtw89_pkt_stat last_pkt_stat;
@@ -4793,11 +4831,15 @@ enum rtw89_rfk_chs_nrs {
 	RTW89_RFK_CHS_NR = __RTW89_RFK_CHS_NR_V1,
 };
 
-struct rtw89_rfk_mcc_info {
+struct rtw89_rfk_mcc_info_data {
 	u8 ch[RTW89_RFK_CHS_NR];
 	u8 band[RTW89_RFK_CHS_NR];
 	u8 bw[RTW89_RFK_CHS_NR];
 	u8 table_idx;
+};
+
+struct rtw89_rfk_mcc_info {
+	struct rtw89_rfk_mcc_info_data data[2];
 };
 
 #define RTW89_IQK_CHS_NR 2
@@ -4904,6 +4946,7 @@ struct rtw89_agc_gaincode_set {
 
 #define IGI_RSSI_TH_NUM 5
 #define FA_TH_NUM 4
+#define TIA_LNA_OP1DB_NUM 8
 #define LNA_GAIN_NUM 7
 #define TIA_GAIN_NUM 2
 struct rtw89_dig_info {
@@ -5511,6 +5554,7 @@ struct rtw89_dev {
 	struct rtw89_efuse efuse;
 	struct rtw89_traffic_stats stats;
 	struct rtw89_rfe_data *rfe_data;
+	enum rtw89_custid custid;
 
 	/* ensures exclusive access from mac80211 callbacks */
 	struct mutex mutex;
@@ -5613,6 +5657,7 @@ struct rtw89_dev {
 struct rtw89_vif {
 	struct rtw89_dev *rtwdev;
 	struct list_head list;
+	struct list_head mgnt_entry;
 
 	u8 mac_addr[ETH_ALEN];
 	__be32 ip_addr;
@@ -6365,6 +6410,15 @@ const struct rtw89_chan_rcd *rtw89_chan_rcd_get(struct rtw89_dev *rtwdev,
 	struct rtw89_hal *hal = &rtwdev->hal;
 
 	return &hal->chanctx[idx].rcd;
+}
+
+static inline
+const struct rtw89_chan_rcd *rtw89_chan_rcd_get_by_chan(const struct rtw89_chan *chan)
+{
+	const struct rtw89_chanctx *chanctx =
+		container_of_const(chan, struct rtw89_chanctx, chan);
+
+	return &chanctx->rcd;
 }
 
 static inline

@@ -192,6 +192,8 @@ static int rtw89_ops_add_interface(struct ieee80211_hw *hw,
 	if (!rtw89_rtwvif_in_list(rtwdev, rtwvif))
 		list_add_tail(&rtwvif->list, &rtwdev->rtwvifs_list);
 
+	INIT_LIST_HEAD(&rtwvif->mgnt_entry);
+
 	ether_addr_copy(rtwvif->mac_addr, vif->addr);
 
 	rtwvif->offchan = false;
@@ -1375,6 +1377,7 @@ static void rtw89_ops_unassign_vif_chanctx(struct ieee80211_hw *hw,
 
 	rtwvif_link = rtwvif->links[link_conf->link_id];
 	if (unlikely(!rtwvif_link)) {
+		mutex_unlock(&rtwdev->mutex);
 		rtw89_err(rtwdev,
 			  "%s: rtwvif link (link_id %u) is not active\n",
 			  __func__, link_conf->link_id);

@@ -646,22 +646,44 @@ static void rtw89_regd_apply_policy_unii4(struct rtw89_dev *rtwdev,
 		sband->channels[i].flags |= IEEE80211_CHAN_DISABLED;
 }
 
-static void rtw89_regd_apply_policy_6ghz(struct rtw89_dev *rtwdev,
-					 struct wiphy *wiphy)
+static bool regd_is_6ghz_blocked(struct rtw89_dev *rtwdev)
 {
 	struct rtw89_regulatory_info *regulatory = &rtwdev->regulatory;
 	const struct rtw89_regd *regd = regulatory->regd;
-	struct ieee80211_supported_band *sband;
 	u8 index;
-	int i;
 
 	index = rtw89_regd_get_index(regd);
 	if (index != RTW89_REGD_MAX_COUNTRY_NUM &&
 	    !test_bit(index, regulatory->block_6ghz))
-		return;
+		return false;
 
 	rtw89_debug(rtwdev, RTW89_DBG_REGD, "%c%c 6 GHz is blocked by policy\n",
 		    regd->alpha2[0], regd->alpha2[1]);
+	return true;
+}
+
+static bool regd_is_6ghz_not_applicable(struct rtw89_dev *rtwdev)
+{
+	struct rtw89_regulatory_info *regulatory = &rtwdev->regulatory;
+	const struct rtw89_regd *regd = regulatory->regd;
+
+	if (regd->txpwr_regd[RTW89_BAND_6G] != RTW89_NA)
+		return false;
+
+	rtw89_debug(rtwdev, RTW89_DBG_REGD, "%c%c 6 GHz is N/A in regd map\n",
+		    regd->alpha2[0], regd->alpha2[1]);
+	return true;
+}
+
+static void rtw89_regd_apply_policy_6ghz(struct rtw89_dev *rtwdev,
+					 struct wiphy *wiphy)
+{
+	struct ieee80211_supported_band *sband;
+	int i;
+
+	if (!regd_is_6ghz_blocked(rtwdev) &&
+	    !regd_is_6ghz_not_applicable(rtwdev))
+		return;
 
 	sband = wiphy->bands[NL80211_BAND_6GHZ];
 	if (!sband)
