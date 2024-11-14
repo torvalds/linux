@@ -1441,10 +1441,30 @@ r535_disp_init(struct nvkm_disp *disp)
 }
 
 static int
+r535_disp_get_static_info(struct nvkm_disp *disp)
+{
+	NV2080_CTRL_INTERNAL_DISPLAY_GET_STATIC_INFO_PARAMS *ctrl;
+	struct nvkm_gsp *gsp = disp->rm.objcom.client->gsp;
+
+	ctrl = nvkm_gsp_rm_ctrl_rd(&gsp->internal.device.subdevice,
+				   NV2080_CTRL_CMD_INTERNAL_DISPLAY_GET_STATIC_INFO,
+				   sizeof(*ctrl));
+	if (IS_ERR(ctrl))
+		return PTR_ERR(ctrl);
+
+	disp->wndw.mask = ctrl->windowPresentMask;
+	disp->wndw.nr = fls(disp->wndw.mask);
+
+	nvkm_gsp_rm_ctrl_done(&gsp->internal.device.subdevice, ctrl);
+	return 0;
+}
+
+static int
 r535_disp_oneinit(struct nvkm_disp *disp)
 {
 	struct nvkm_device *device = disp->engine.subdev.device;
 	struct nvkm_gsp *gsp = device->gsp;
+	const struct nvkm_rm_api *rmapi = gsp->rm->api;
 	NV2080_CTRL_INTERNAL_DISPLAY_WRITE_INST_MEM_PARAMS *ctrl;
 	int ret, i;
 
@@ -1481,19 +1501,9 @@ r535_disp_oneinit(struct nvkm_disp *disp)
 	if (ret)
 		return ret;
 
-	{
-		NV2080_CTRL_INTERNAL_DISPLAY_GET_STATIC_INFO_PARAMS *ctrl;
-
-		ctrl = nvkm_gsp_rm_ctrl_rd(&gsp->internal.device.subdevice,
-					   NV2080_CTRL_CMD_INTERNAL_DISPLAY_GET_STATIC_INFO,
-					   sizeof(*ctrl));
-		if (IS_ERR(ctrl))
-			return PTR_ERR(ctrl);
-
-		disp->wndw.mask = ctrl->windowPresentMask;
-		disp->wndw.nr = fls(disp->wndw.mask);
-		nvkm_gsp_rm_ctrl_done(&gsp->internal.device.subdevice, ctrl);
-	}
+	ret = rmapi->disp->get_static_info(disp);
+	if (ret)
+		return ret;
 
 	/* */
 	{
@@ -1733,6 +1743,7 @@ r535_disp_new(const struct nvkm_disp_func *hw, struct nvkm_device *device,
 
 const struct nvkm_rm_api_disp
 r535_disp = {
+	.get_static_info = r535_disp_get_static_info,
 	.bl_ctrl = r535_bl_ctrl,
 	.dp = {
 		.set_indexed_link_rates = r535_dp_set_indexed_link_rates,

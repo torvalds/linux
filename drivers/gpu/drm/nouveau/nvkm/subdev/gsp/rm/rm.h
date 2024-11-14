@@ -72,6 +72,8 @@ struct nvkm_rm_api {
 	} *device;
 
 	const struct nvkm_rm_api_disp {
+		int (*get_static_info)(struct nvkm_disp *);
+
 		int (*bl_ctrl)(struct nvkm_disp *, unsigned display_id, bool set, int *val);
 
 		struct {
