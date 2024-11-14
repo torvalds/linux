@@ -442,3 +442,20 @@ kill_process()
 	# Suppress noise from killing the process.
 	{ kill $pid && wait $pid; } 2>/dev/null
 }
+
+ip_link_add()
+{
+	local name=$1; shift
+
+	ip link add name "$name" "$@"
+	defer ip link del dev "$name"
+}
+
+ip_link_master()
+{
+	local member=$1; shift
+	local master=$1; shift
+
+	ip link set dev "$member" master "$master"
+	defer ip link set dev "$member" nomaster
+}
