@@ -581,12 +581,24 @@ static int validate_change(struct cpuset *cur, struct cpuset *trial)
 
 	/*
 	 * We can't shrink if we won't have enough room for SCHED_DEADLINE
-	 * tasks.
+	 * tasks. This check is not done when scheduling is disabled as the
+	 * users should know what they are doing.
+	 *
+	 * For v1, effective_cpus == cpus_allowed & user_xcpus() returns
+	 * cpus_allowed.
+	 *
+	 * For v2, is_cpu_exclusive() & is_sched_load_balance() are true only
+	 * for non-isolated partition root. At this point, the target
+	 * effective_cpus isn't computed yet. user_xcpus() is the best
+	 * approximation.
+	 *
+	 * TBD: May need to precompute the real effective_cpus here in case
+	 * incorrect scheduling of SCHED_DEADLINE tasks in a partition
+	 * becomes an issue.
 	 */
 	ret = -EBUSY;
-	if (is_cpu_exclusive(cur) &&
-	    !cpuset_cpumask_can_shrink(cur->cpus_allowed,
-				       trial->cpus_allowed))
+	if (is_cpu_exclusive(cur) && is_sched_load_balance(cur) &&
+	    !cpuset_cpumask_can_shrink(cur->effective_cpus, user_xcpus(trial)))
 		goto out;
 
 	/*
