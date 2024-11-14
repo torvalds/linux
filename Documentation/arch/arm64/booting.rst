@@ -388,6 +388,9 @@ Before jumping into the kernel, the following conditions must be met:
 
     - HCRX_EL2.MSCEn (bit 11) must be initialised to 0b1.
 
+    - HCRX_EL2.MCE2 (bit 10) must be initialised to 0b1 and the hypervisor
+      must handle MOPS exceptions as described in :ref:`arm64_mops_hyp`.
+
   For CPUs with the Extended Translation Control Register feature (FEAT_TCR2):
 
   - If EL3 is present:

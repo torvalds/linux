@@ -440,6 +440,11 @@ void kernel_rewind_single_step(struct pt_regs *regs)
 	set_regs_spsr_ss(regs);
 }
 
+void kernel_fastforward_single_step(struct pt_regs *regs)
+{
+	clear_regs_spsr_ss(regs);
+}
+
 /* ptrace API */
 void user_enable_single_step(struct task_struct *task)
 {

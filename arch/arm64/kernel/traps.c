@@ -541,6 +541,13 @@ void do_el0_mops(struct pt_regs *regs, unsigned long esr)
 	user_fastforward_single_step(current);
 }
 
+void do_el1_mops(struct pt_regs *regs, unsigned long esr)
+{
+	arm64_mops_reset_regs(&regs->user_regs, esr);
+
+	kernel_fastforward_single_step(regs);
+}
+
 #define __user_cache_maint(insn, address, res)			\
 	if (address >= TASK_SIZE_MAX) {				\
 		res = -EFAULT;					\

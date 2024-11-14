@@ -2160,6 +2160,9 @@ config ARM64_EPAN
 	  if the cpu does not implement the feature.
 endmenu # "ARMv8.7 architectural features"
 
+config AS_HAS_MOPS
+	def_bool $(as-instr,.arch_extension mops)
+
 menu "ARMv8.9 architectural features"
 
 config ARM64_POE
