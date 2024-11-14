@@ -1793,29 +1793,24 @@ void xe_engine_snapshot_print(struct xe_hw_engine_snapshot *snapshot, struct drm
 }
 
 /**
- * xe_guc_capture_get_matching_and_lock - Matching GuC capture for the job.
- * @job: The job object.
+ * xe_guc_capture_get_matching_and_lock - Matching GuC capture for the queue.
+ * @q: The exec queue object
  *
- * Search within the capture outlist for the job, could be used for check if
- * GuC capture is ready for the job.
+ * Search within the capture outlist for the queue, could be used for check if
+ * GuC capture is ready for the queue.
  * If found, the locked boolean of the node will be flagged.
  *
  * Returns: found guc-capture node ptr else NULL
  */
 struct __guc_capture_parsed_output *
-xe_guc_capture_get_matching_and_lock(struct xe_sched_job *job)
+xe_guc_capture_get_matching_and_lock(struct xe_exec_queue *q)
 {
 	struct xe_hw_engine *hwe;
 	enum xe_hw_engine_id id;
-	struct xe_exec_queue *q;
 	struct xe_device *xe;
 	u16 guc_class = GUC_LAST_ENGINE_CLASS + 1;
 	struct xe_devcoredump_snapshot *ss;
 
-	if (!job)
-		return NULL;
-
-	q = job->q;
 	if (!q || !q->gt)
 		return NULL;
 
@@ -1827,7 +1822,7 @@ xe_guc_capture_get_matching_and_lock(struct xe_sched_job *job)
 	if (ss->matched_node && ss->matched_node->source == XE_ENGINE_CAPTURE_SOURCE_GUC)
 		return ss->matched_node;
 
-	/* Find hwe for the job */
+	/* Find hwe for the queue */
 	for_each_hw_engine(hwe, q->gt, id) {
 		if (hwe != q->hwe)
 			continue;
@@ -1859,17 +1854,16 @@ xe_guc_capture_get_matching_and_lock(struct xe_sched_job *job)
 }
 
 /**
- * xe_engine_snapshot_capture_for_job - Take snapshot of associated engine
- * @job: The job object
+ * xe_engine_snapshot_capture_for_queue - Take snapshot of associated engine
+ * @q: The exec queue object
  *
  * Take snapshot of associated HW Engine
  *
  * Returns: None.
  */
 void
-xe_engine_snapshot_capture_for_job(struct xe_sched_job *job)
+xe_engine_snapshot_capture_for_queue(struct xe_exec_queue *q)
 {
-	struct xe_exec_queue *q = job->q;
 	struct xe_device *xe = gt_to_xe(q->gt);
 	struct xe_devcoredump *coredump = &xe->devcoredump;
 	struct xe_hw_engine *hwe;
@@ -1887,11 +1881,12 @@ xe_engine_snapshot_capture_for_job(struct xe_sched_job *job)
 		}
 
 		if (!coredump->snapshot.hwe[id]) {
-			coredump->snapshot.hwe[id] = xe_hw_engine_snapshot_capture(hwe, job);
+			coredump->snapshot.hwe[id] =
+				xe_hw_engine_snapshot_capture(hwe, q);
 		} else {
 			struct __guc_capture_parsed_output *new;
 
-			new = xe_guc_capture_get_matching_and_lock(job);
+			new = xe_guc_capture_get_matching_and_lock(q);
 			if (new) {
 				struct xe_guc *guc =  &q->gt->uc.guc;
 

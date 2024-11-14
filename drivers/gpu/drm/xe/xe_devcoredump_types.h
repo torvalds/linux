@@ -80,8 +80,6 @@ struct xe_devcoredump {
 	bool captured;
 	/** @snapshot: Snapshot is captured at time of the first crash */
 	struct xe_devcoredump_snapshot snapshot;
-	/** @job: Point to the faulting job */
-	struct xe_sched_job *job;
 };
 
 #endif

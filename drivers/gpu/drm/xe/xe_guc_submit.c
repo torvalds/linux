@@ -1061,13 +1061,13 @@ guc_exec_queue_timedout_job(struct drm_sched_job *drm_job)
 	 * do manual capture first and decide later if we need to use it
 	 */
 	if (!exec_queue_killed(q) && !xe->devcoredump.captured &&
-	    !xe_guc_capture_get_matching_and_lock(job)) {
+	    !xe_guc_capture_get_matching_and_lock(q)) {
 		/* take force wake before engine register manual capture */
 		fw_ref = xe_force_wake_get(gt_to_fw(q->gt), XE_FORCEWAKE_ALL);
 		if (!xe_force_wake_ref_has_domain(fw_ref, XE_FORCEWAKE_ALL))
 			xe_gt_info(q->gt, "failed to get forcewake for coredump capture\n");
 
-		xe_engine_snapshot_capture_for_job(job);
+		xe_engine_snapshot_capture_for_queue(q);
 
 		xe_force_wake_put(gt_to_fw(q->gt), fw_ref);
 	}
