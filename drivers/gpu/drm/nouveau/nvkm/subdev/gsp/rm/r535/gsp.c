@@ -871,7 +871,7 @@ r535_gsp_acpi_info(struct nvkm_gsp *gsp, ACPI_METHOD_DATA *acpi)
 }
 
 static int
-r535_gsp_rpc_set_system_info(struct nvkm_gsp *gsp)
+r535_gsp_set_system_info(struct nvkm_gsp *gsp)
 {
 	struct nvkm_device *device = gsp->subdev.device;
 	struct nvkm_device_pci *pdev = container_of(device, typeof(*pdev), device);
@@ -2080,6 +2080,7 @@ int
 r535_gsp_oneinit(struct nvkm_gsp *gsp)
 {
 	struct nvkm_device *device = gsp->subdev.device;
+	const struct nvkm_rm_api *rmapi = gsp->rm->api;
 	const u8 *data;
 	u64 size;
 	int ret;
@@ -2134,7 +2135,7 @@ r535_gsp_oneinit(struct nvkm_gsp *gsp)
 	if (WARN_ON(ret))
 		return ret;
 
-	ret = r535_gsp_rpc_set_system_info(gsp);
+	ret = rmapi->gsp->set_system_info(gsp);
 	if (WARN_ON(ret))
 		return ret;
 
@@ -2146,3 +2147,8 @@ r535_gsp_oneinit(struct nvkm_gsp *gsp)
 	idr_init(&gsp->client_id.idr);
 	return 0;
 }
+
+const struct nvkm_rm_api_gsp
+r535_gsp = {
+	.set_system_info = r535_gsp_set_system_info,
+};

@@ -26,6 +26,10 @@ struct nvkm_rm_wpr {
 };
 
 struct nvkm_rm_api {
+	const struct nvkm_rm_api_gsp {
+		int (*set_system_info)(struct nvkm_gsp *);
+	} *gsp;
+
 	const struct nvkm_rm_api_rpc {
 		void *(*get)(struct nvkm_gsp *, u32 fn, u32 argc);
 		void *(*push)(struct nvkm_gsp *gsp, void *argv,
@@ -71,6 +75,7 @@ struct nvkm_rm_api {
 
 extern const struct nvkm_rm_impl r535_rm_tu102;
 extern const struct nvkm_rm_impl r535_rm_ga102;
+extern const struct nvkm_rm_api_gsp r535_gsp;
 extern const struct nvkm_rm_api_rpc r535_rpc;
 extern const struct nvkm_rm_api_ctrl r535_ctrl;
 extern const struct nvkm_rm_api_alloc r535_alloc;

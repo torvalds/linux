@@ -22,6 +22,7 @@ r535_wpr_libos3 = {
 
 static const struct nvkm_rm_api
 r535_api = {
+	.gsp = &r535_gsp,
 	.rpc = &r535_rpc,
 	.ctrl = &r535_ctrl,
 	.alloc = &r535_alloc,
