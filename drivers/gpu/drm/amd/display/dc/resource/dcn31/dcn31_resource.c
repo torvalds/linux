@@ -1720,6 +1720,12 @@ int dcn31_populate_dml_pipes_from_context(
 	return pipe_cnt;
 }
 
+unsigned int dcn31_get_det_buffer_size(
+	const struct dc_state *context)
+{
+	return context->bw_ctx.dml.ip.det_buffer_size_kbytes;
+}
+
 void dcn31_calculate_wm_and_dlg(
 		struct dc *dc, struct dc_state *context,
 		display_e2e_pipe_params_st *pipes,
@@ -1842,6 +1848,7 @@ static struct resource_funcs dcn31_res_pool_funcs = {
 	.update_bw_bounding_box = dcn31_update_bw_bounding_box,
 	.patch_unknown_plane_state = dcn20_patch_unknown_plane_state,
 	.get_panel_config_defaults = dcn31_get_panel_config_defaults,
+	.get_det_buffer_size = dcn31_get_det_buffer_size,
 };
 
 static struct clock_source *dcn30_clock_source_create(
