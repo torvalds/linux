@@ -303,6 +303,8 @@ static inline int udp_lib_hash(struct sock *sk)
 
 void udp_lib_unhash(struct sock *sk);
 void udp_lib_rehash(struct sock *sk, u16 new_hash, u16 new_hash4);
+u32 udp_ehashfn(const struct net *net, const __be32 laddr, const __u16 lport,
+		const __be32 faddr, const __be16 fport);
 
 static inline void udp_lib_close(struct sock *sk, long timeout)
 {

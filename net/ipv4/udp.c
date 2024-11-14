@@ -410,7 +410,6 @@ static int compute_score(struct sock *sk, const struct net *net,
 	return score;
 }
 
-INDIRECT_CALLABLE_SCOPE
 u32 udp_ehashfn(const struct net *net, const __be32 laddr, const __u16 lport,
 		const __be32 faddr, const __be16 fport)
 {
@@ -419,6 +418,7 @@ u32 udp_ehashfn(const struct net *net, const __be32 laddr, const __u16 lport,
 	return __inet_ehashfn(laddr, lport, faddr, fport,
 			      udp_ehash_secret + net_hash_mix(net));
 }
+EXPORT_SYMBOL(udp_ehashfn);
 
 /* called with rcu_read_lock() */
 static struct sock *udp4_lib_lookup2(const struct net *net,
