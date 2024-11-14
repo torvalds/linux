@@ -155,6 +155,11 @@ struct bnxt_re_pacing {
 #define BNXT_RE_GRC_FIFO_REG_BASE 0x2000
 
 #define BNXT_RE_MIN_MSIX		2
+#define BNXT_RE_MAX_MSIX		BNXT_MAX_ROCE_MSIX
+struct bnxt_re_nq_record {
+	struct bnxt_qplib_nq	nq[BNXT_RE_MAX_MSIX];
+	int			num_msix;
+};
 
 #define MAX_CQ_HASH_BITS		(16)
 #define MAX_SRQ_HASH_BITS		(16)
@@ -183,21 +188,17 @@ struct bnxt_re_dev {
 	unsigned int			version, major, minor;
 	struct bnxt_qplib_chip_ctx	*chip_ctx;
 	struct bnxt_en_dev		*en_dev;
-	int				num_msix;
 
 	int				id;
 
 	struct delayed_work		worker;
 	u8				cur_prio_map;
 
-	/* FP Notification Queue (CQ & SRQ) */
-	struct tasklet_struct		nq_task;
-
 	/* RCFW Channel */
 	struct bnxt_qplib_rcfw		rcfw;
 
-	/* NQ */
-	struct bnxt_qplib_nq		nq[BNXT_MAX_ROCE_MSIX];
+	/* NQ record */
+	struct bnxt_re_nq_record	*nqr;
 
 	/* Device Resources */
 	struct bnxt_qplib_dev_attr	dev_attr;

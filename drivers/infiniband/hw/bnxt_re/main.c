@@ -326,8 +326,8 @@ static void bnxt_re_stop_irq(void *handle)
 	rdev = en_info->rdev;
 	rcfw = &rdev->rcfw;
 
-	for (indx = BNXT_RE_NQ_IDX; indx < rdev->num_msix; indx++) {
-		nq = &rdev->nq[indx - 1];
+	for (indx = BNXT_RE_NQ_IDX; indx < rdev->nqr->num_msix; indx++) {
+		nq = &rdev->nqr->nq[indx - 1];
 		bnxt_qplib_nq_stop_irq(nq, false);
 	}
 
@@ -362,7 +362,7 @@ static void bnxt_re_start_irq(void *handle, struct bnxt_msix_entry *ent)
 	/* Vectors may change after restart, so update with new vectors
 	 * in device sctructure.
 	 */
-	for (indx = 0; indx < rdev->num_msix; indx++)
+	for (indx = 0; indx < rdev->nqr->num_msix; indx++)
 		rdev->en_dev->msix_entries[indx].vector = ent[indx].vector;
 
 	rc = bnxt_qplib_rcfw_start_irq(rcfw, msix_ent[BNXT_RE_AEQ_IDX].vector,
@@ -371,8 +371,8 @@ static void bnxt_re_start_irq(void *handle, struct bnxt_msix_entry *ent)
 		ibdev_warn(&rdev->ibdev, "Failed to reinit CREQ\n");
 		return;
 	}
-	for (indx = BNXT_RE_NQ_IDX ; indx < rdev->num_msix; indx++) {
-		nq = &rdev->nq[indx - 1];
+	for (indx = BNXT_RE_NQ_IDX ; indx < rdev->nqr->num_msix; indx++) {
+		nq = &rdev->nqr->nq[indx - 1];
 		rc = bnxt_qplib_nq_start_irq(nq, indx - 1,
 					     msix_ent[indx].vector, false);
 		if (rc) {
@@ -1206,7 +1206,7 @@ static int bnxt_re_register_ib(struct bnxt_re_dev *rdev)
 
 	addrconf_addr_eui48((u8 *)&ibdev->node_guid, rdev->netdev->dev_addr);
 
-	ibdev->num_comp_vectors	= rdev->num_msix - 1;
+	ibdev->num_comp_vectors	= rdev->nqr->num_msix - 1;
 	ibdev->dev.parent = &rdev->en_dev->pdev->dev;
 	ibdev->local_dma_lkey = BNXT_QPLIB_RSVD_LKEY;
 
@@ -1551,8 +1551,8 @@ static void bnxt_re_cleanup_res(struct bnxt_re_dev *rdev)
 {
 	int i;
 
-	for (i = 1; i < rdev->num_msix; i++)
-		bnxt_qplib_disable_nq(&rdev->nq[i - 1]);
+	for (i = 1; i < rdev->nqr->num_msix; i++)
+		bnxt_qplib_disable_nq(&rdev->nqr->nq[i - 1]);
 
 	if (rdev->qplib_res.rcfw)
 		bnxt_qplib_cleanup_res(&rdev->qplib_res);
@@ -1566,9 +1566,9 @@ static int bnxt_re_init_res(struct bnxt_re_dev *rdev)
 
 	bnxt_qplib_init_res(&rdev->qplib_res);
 
-	for (i = 1; i < rdev->num_msix ; i++) {
+	for (i = 1; i < rdev->nqr->num_msix ; i++) {
 		db_offt = rdev->en_dev->msix_entries[i].db_offset;
-		rc = bnxt_qplib_enable_nq(rdev->en_dev->pdev, &rdev->nq[i - 1],
+		rc = bnxt_qplib_enable_nq(rdev->en_dev->pdev, &rdev->nqr->nq[i - 1],
 					  i - 1, rdev->en_dev->msix_entries[i].vector,
 					  db_offt, &bnxt_re_cqn_handler,
 					  &bnxt_re_srqn_handler);
@@ -1582,20 +1582,22 @@ static int bnxt_re_init_res(struct bnxt_re_dev *rdev)
 	return 0;
 fail:
 	for (i = num_vec_enabled; i >= 0; i--)
-		bnxt_qplib_disable_nq(&rdev->nq[i]);
+		bnxt_qplib_disable_nq(&rdev->nqr->nq[i]);
 	return rc;
 }
 
 static void bnxt_re_free_nq_res(struct bnxt_re_dev *rdev)
 {
+	struct bnxt_qplib_nq *nq;
 	u8 type;
 	int i;
 
-	for (i = 0; i < rdev->num_msix - 1; i++) {
+	for (i = 0; i < rdev->nqr->num_msix - 1; i++) {
 		type = bnxt_qplib_get_ring_type(rdev->chip_ctx);
-		bnxt_re_net_ring_free(rdev, rdev->nq[i].ring_id, type);
-		bnxt_qplib_free_nq(&rdev->nq[i]);
-		rdev->nq[i].res = NULL;
+		nq = &rdev->nqr->nq[i];
+		bnxt_re_net_ring_free(rdev, nq->ring_id, type);
+		bnxt_qplib_free_nq(nq);
+		nq->res = NULL;
 	}
 }
 
@@ -1637,12 +1639,12 @@ static int bnxt_re_alloc_res(struct bnxt_re_dev *rdev)
 	if (rc)
 		goto dealloc_res;
 
-	for (i = 0; i < rdev->num_msix - 1; i++) {
+	for (i = 0; i < rdev->nqr->num_msix - 1; i++) {
 		struct bnxt_qplib_nq *nq;
 
-		nq = &rdev->nq[i];
+		nq = &rdev->nqr->nq[i];
 		nq->hwq.max_elements = BNXT_QPLIB_NQE_MAX_CNT;
-		rc = bnxt_qplib_alloc_nq(&rdev->qplib_res, &rdev->nq[i]);
+		rc = bnxt_qplib_alloc_nq(&rdev->qplib_res, nq);
 		if (rc) {
 			ibdev_err(&rdev->ibdev, "Alloc Failed NQ%d rc:%#x",
 				  i, rc);
@@ -1650,7 +1652,7 @@ static int bnxt_re_alloc_res(struct bnxt_re_dev *rdev)
 		}
 		type = bnxt_qplib_get_ring_type(rdev->chip_ctx);
 		rattr.dma_arr = nq->hwq.pbl[PBL_LVL_0].pg_map_arr;
-		rattr.pages = nq->hwq.pbl[rdev->nq[i].hwq.level].pg_count;
+		rattr.pages = nq->hwq.pbl[rdev->nqr->nq[i].hwq.level].pg_count;
 		rattr.type = type;
 		rattr.mode = RING_ALLOC_REQ_INT_MODE_MSIX;
 		rattr.depth = BNXT_QPLIB_NQE_MAX_CNT - 1;
@@ -1660,7 +1662,7 @@ static int bnxt_re_alloc_res(struct bnxt_re_dev *rdev)
 			ibdev_err(&rdev->ibdev,
 				  "Failed to allocate NQ fw id with rc = 0x%x",
 				  rc);
-			bnxt_qplib_free_nq(&rdev->nq[i]);
+			bnxt_qplib_free_nq(nq);
 			goto free_nq;
 		}
 		num_vec_created++;
@@ -1669,8 +1671,8 @@ static int bnxt_re_alloc_res(struct bnxt_re_dev *rdev)
 free_nq:
 	for (i = num_vec_created - 1; i >= 0; i--) {
 		type = bnxt_qplib_get_ring_type(rdev->chip_ctx);
-		bnxt_re_net_ring_free(rdev, rdev->nq[i].ring_id, type);
-		bnxt_qplib_free_nq(&rdev->nq[i]);
+		bnxt_re_net_ring_free(rdev, rdev->nqr->nq[i].ring_id, type);
+		bnxt_qplib_free_nq(&rdev->nqr->nq[i]);
 	}
 	bnxt_qplib_dealloc_dpi(&rdev->qplib_res,
 			       &rdev->dpi_privileged);
@@ -1865,6 +1867,21 @@ static int bnxt_re_ib_init(struct bnxt_re_dev *rdev)
 	return rc;
 }
 
+static int bnxt_re_alloc_nqr_mem(struct bnxt_re_dev *rdev)
+{
+	rdev->nqr = kzalloc(sizeof(*rdev->nqr), GFP_KERNEL);
+	if (!rdev->nqr)
+		return -ENOMEM;
+
+	return 0;
+}
+
+static void bnxt_re_free_nqr_mem(struct bnxt_re_dev *rdev)
+{
+	kfree(rdev->nqr);
+	rdev->nqr = NULL;
+}
+
 static void bnxt_re_dev_uninit(struct bnxt_re_dev *rdev, u8 op_type)
 {
 	u8 type;
@@ -1894,11 +1911,12 @@ static void bnxt_re_dev_uninit(struct bnxt_re_dev *rdev, u8 op_type)
 		bnxt_qplib_free_rcfw_channel(&rdev->rcfw);
 	}
 
-	rdev->num_msix = 0;
+	rdev->nqr->num_msix = 0;
 
 	if (rdev->pacing.dbr_pacing)
 		bnxt_re_deinitialize_dbr_pacing(rdev);
 
+	bnxt_re_free_nqr_mem(rdev);
 	bnxt_re_destroy_chip_ctx(rdev);
 	if (op_type == BNXT_RE_COMPLETE_REMOVE) {
 		if (test_and_clear_bit(BNXT_RE_FLAG_NETDEV_REGISTERED, &rdev->flags))
@@ -1946,7 +1964,6 @@ static int bnxt_re_dev_init(struct bnxt_re_dev *rdev, u8 op_type)
 	}
 	ibdev_dbg(&rdev->ibdev, "Got %d MSI-X vectors\n",
 		  rdev->en_dev->ulp_tbl->msix_requested);
-	rdev->num_msix = rdev->en_dev->ulp_tbl->msix_requested;
 
 	rc = bnxt_re_setup_chip_ctx(rdev);
 	if (rc) {
@@ -1955,6 +1972,15 @@ static int bnxt_re_dev_init(struct bnxt_re_dev *rdev, u8 op_type)
 		ibdev_err(&rdev->ibdev, "Failed to get chip context\n");
 		return -EINVAL;
 	}
+
+	rc = bnxt_re_alloc_nqr_mem(rdev);
+	if (rc) {
+		bnxt_re_destroy_chip_ctx(rdev);
+		bnxt_unregister_dev(rdev->en_dev);
+		clear_bit(BNXT_RE_FLAG_NETDEV_REGISTERED, &rdev->flags);
+		return rc;
+	}
+	rdev->nqr->num_msix = rdev->en_dev->ulp_tbl->msix_requested;
 
 	/* Check whether VF or PF */
 	bnxt_re_get_sriov_func_type(rdev);
