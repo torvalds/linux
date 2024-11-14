@@ -1285,16 +1285,6 @@ matchall_sink_create()
 	   action drop
 }
 
-tests_run()
-{
-	local current_test
-
-	for current_test in ${TESTS:-$ALL_TESTS}; do
-		in_defer_scope \
-			$current_test
-	done
-}
-
 cleanup()
 {
 	pre_cleanup
