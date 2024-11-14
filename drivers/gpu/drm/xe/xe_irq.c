@@ -192,7 +192,7 @@ void xe_irq_enable_hwe(struct xe_gt *gt)
 		if (xe_hw_engine_mask_per_class(gt, XE_ENGINE_CLASS_OTHER)) {
 			gsc_mask = irqs | GSC_ER_COMPLETE;
 			heci_mask = GSC_IRQ_INTF(1);
-		} else if (HAS_HECI_GSCFI(xe)) {
+		} else if (xe->info.has_heci_gscfi) {
 			gsc_mask = GSC_IRQ_INTF(1);
 		}
 
@@ -325,7 +325,7 @@ static void gt_irq_handler(struct xe_tile *tile,
 
 			if (class == XE_ENGINE_CLASS_OTHER) {
 				/* HECI GSCFI interrupts come from outside of GT */
-				if (HAS_HECI_GSCFI(xe) && instance == OTHER_GSC_INSTANCE)
+				if (xe->info.has_heci_gscfi && instance == OTHER_GSC_INSTANCE)
 					xe_heci_gsc_irq_handler(xe, intr_vec);
 				else
 					gt_other_irq_handler(engine_gt, instance, intr_vec);
@@ -459,7 +459,7 @@ static irqreturn_t dg1_irq_handler(int irq, void *arg)
 		 * the primary tile.
 		 */
 		if (id == 0) {
-			if (HAS_HECI_CSCFI(xe))
+			if (xe->info.has_heci_cscfi)
 				xe_heci_csc_irq_handler(xe, master_ctl);
 			xe_display_irq_handler(xe, master_ctl);
 			gu_misc_iir = gu_misc_irq_ack(xe, master_ctl);
@@ -508,7 +508,7 @@ static void gt_irq_reset(struct xe_tile *tile)
 
 	if ((tile->media_gt &&
 	     xe_hw_engine_mask_per_class(tile->media_gt, XE_ENGINE_CLASS_OTHER)) ||
-	    HAS_HECI_GSCFI(tile_to_xe(tile))) {
+	    tile_to_xe(tile)->info.has_heci_gscfi) {
 		xe_mmio_write32(mmio, GUNIT_GSC_INTR_ENABLE, 0);
 		xe_mmio_write32(mmio, GUNIT_GSC_INTR_MASK, ~0);
 		xe_mmio_write32(mmio, HECI2_RSVD_INTR_MASK, ~0);
