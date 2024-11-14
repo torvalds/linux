@@ -142,7 +142,7 @@ static const struct snd_soc_dai_driver stm32_adfsdm_dai = {
 			       SNDRV_PCM_FMTBIT_S32_LE,
 		    .rates = SNDRV_PCM_RATE_CONTINUOUS,
 		    .rate_min = 8000,
-		    .rate_max = 48000,
+		    .rate_max = 192000,
 		    },
 	.ops = &stm32_adfsdm_dai_ops,
 };
