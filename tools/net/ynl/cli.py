@@ -3,10 +3,13 @@
 
 import argparse
 import json
+import pathlib
 import pprint
+import sys
 import time
 import signal
 
+sys.path.append(pathlib.Path(__file__).resolve().parent.as_posix())
 from lib import YnlFamily, Netlink, NlError
 
 
