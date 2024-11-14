@@ -213,7 +213,7 @@ static int vid_cap_start_streaming(struct vb2_queue *vq, unsigned count)
 
 	dev->vid_cap_seq_count = 0;
 	dprintk(dev, 1, "%s\n", __func__);
-	for (i = 0; i < VIDEO_MAX_FRAME; i++)
+	for (i = 0; i < MAX_VID_CAP_BUFFERS; i++)
 		dev->must_blank[i] = tpg_g_perc_fill(&dev->tpg) < 100;
 	if (dev->start_streaming_error) {
 		dev->start_streaming_error = false;

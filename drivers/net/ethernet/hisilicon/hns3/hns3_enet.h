@@ -596,8 +596,6 @@ struct hns3_nic_priv {
 	struct hns3_enet_coalesce rx_coal;
 	u32 tx_copybreak;
 	u32 rx_copybreak;
-	u32 min_tx_copybreak;
-	u32 min_tx_spare_buf_size;
 };
 
 union l3_hdr_info {

@@ -1475,6 +1475,9 @@ int kvm_arch_vcpu_create(struct kvm_vcpu *vcpu)
 	/* Init */
 	vcpu->arch.last_sched_cpu = -1;
 
+	/* Init ipi_state lock */
+	spin_lock_init(&vcpu->arch.ipi_state.lock);
+
 	/*
 	 * Initialize guest register state to valid architectural reset state.
 	 */

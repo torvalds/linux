@@ -205,7 +205,8 @@ void nfs_local_probe(struct nfs_client *clp)
 		nfs_local_disable(clp);
 	}
 
-	nfs_uuid_begin(&clp->cl_uuid);
+	if (!nfs_uuid_begin(&clp->cl_uuid))
+		return;
 	if (nfs_server_uuid_is_local(clp))
 		nfs_local_enable(clp);
 	nfs_uuid_end(&clp->cl_uuid);

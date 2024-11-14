@@ -1174,8 +1174,9 @@ F:	Documentation/hid/amd-sfh*
 F:	drivers/hid/amd-sfh-hid/
 
 AMD SPI DRIVER
-M:	Sanjay R Mehta <sanju.mehta@amd.com>
-S:	Maintained
+M:	Raju Rangoju <Raju.Rangoju@amd.com>
+L:	linux-spi@vger.kernel.org
+S:	Supported
 F:	drivers/spi/spi-amd.c
 
 AMD XGBE DRIVER
@@ -2852,7 +2853,7 @@ F:	Documentation/devicetree/bindings/arm/qcom.yaml
 F:	Documentation/devicetree/bindings/bus/qcom*
 F:	Documentation/devicetree/bindings/cache/qcom,llcc.yaml
 F:	Documentation/devicetree/bindings/firmware/qcom,scm.yaml
-F:	Documentation/devicetree/bindings/reserved-memory/qcom
+F:	Documentation/devicetree/bindings/reserved-memory/qcom*
 F:	Documentation/devicetree/bindings/soc/qcom/
 F:	arch/arm/boot/dts/qcom/
 F:	arch/arm/configs/qcom_defconfig
@@ -3745,6 +3746,7 @@ F:	drivers/spi/spi-axi-spi-engine.c
 AXI PWM GENERATOR
 M:	Michael Hennerich <michael.hennerich@analog.com>
 M:	Nuno Sá <nuno.sa@analog.com>
+R:	Trevor Gamblin <tgamblin@baylibre.com>
 L:	linux-pwm@vger.kernel.org
 S:	Supported
 W:	https://ez.analog.com/linux-software-drivers
@@ -16082,7 +16084,6 @@ F:	drivers/net/wireless/
 
 NETWORKING [DSA]
 M:	Andrew Lunn <andrew@lunn.ch>
-M:	Florian Fainelli <f.fainelli@gmail.com>
 M:	Vladimir Oltean <olteanv@gmail.com>
 S:	Maintained
 F:	Documentation/devicetree/bindings/net/dsa/
@@ -19846,12 +19847,10 @@ L:	linux-riscv@lists.infradead.org
 S:	Maintained
 Q:	https://patchwork.kernel.org/project/linux-riscv/list/
 T:	git https://git.kernel.org/pub/scm/linux/kernel/git/conor/linux.git/
-F:	Documentation/devicetree/bindings/riscv/
-F:	arch/riscv/boot/dts/
-X:	arch/riscv/boot/dts/allwinner/
-X:	arch/riscv/boot/dts/renesas/
-X:	arch/riscv/boot/dts/sophgo/
-X:	arch/riscv/boot/dts/thead/
+F:	arch/riscv/boot/dts/canaan/
+F:	arch/riscv/boot/dts/microchip/
+F:	arch/riscv/boot/dts/sifive/
+F:	arch/riscv/boot/dts/starfive/
 
 RISC-V PMU DRIVERS
 M:	Atish Patra <atishp@atishpatra.org>
@@ -21617,6 +21616,15 @@ L:	sound-open-firmware@alsa-project.org (moderated for non-subscribers)
 S:	Supported
 W:	https://github.com/thesofproject/linux/
 F:	sound/soc/sof/
+
+SOUND - GENERIC SOUND CARD (Simple-Audio-Card, Audio-Graph-Card)
+M:	Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
+S:	Supported
+L:	linux-sound@vger.kernel.org
+F:	sound/soc/generic/
+F:	include/sound/simple_card*
+F:	Documentation/devicetree/bindings/sound/simple-card.yaml
+F:	Documentation/devicetree/bindings/sound/audio-graph*.yaml
 
 SOUNDWIRE SUBSYSTEM
 M:	Vinod Koul <vkoul@kernel.org>

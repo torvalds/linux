@@ -26,6 +26,8 @@
 #define MAX_INPUTS 16
 /* The maximum number of outputs */
 #define MAX_OUTPUTS 16
+/* The maximum number of video capture buffers */
+#define MAX_VID_CAP_BUFFERS 64
 /* The maximum up or down scaling factor is 4 */
 #define MAX_ZOOM  4
 /* The maximum image width/height are set to 4K DMT */
@@ -481,7 +483,7 @@ struct vivid_dev {
 	/* video capture */
 	struct tpg_data			tpg;
 	unsigned			ms_vid_cap;
-	bool				must_blank[VIDEO_MAX_FRAME];
+	bool				must_blank[MAX_VID_CAP_BUFFERS];
 
 	const struct vivid_fmt		*fmt_cap;
 	struct v4l2_fract		timeperframe_vid_cap;

@@ -671,10 +671,6 @@ static int pcc_data_alloc(int pcc_ss_id)
  *  )
  */
 
-#ifndef arch_init_invariance_cppc
-static inline void arch_init_invariance_cppc(void) { }
-#endif
-
 /**
  * acpi_cppc_processor_probe - Search for per CPU _CPC objects.
  * @pr: Ptr to acpi_processor containing this CPU's logical ID.
@@ -904,8 +900,6 @@ int acpi_cppc_processor_probe(struct acpi_processor *pr)
 		kobject_put(&cpc_ptr->kobj);
 		goto out_free;
 	}
-
-	arch_init_invariance_cppc();
 
 	kfree(output.pointer);
 	return 0;
