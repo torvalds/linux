@@ -25,6 +25,7 @@ struct xe_lrc_snapshot {
 	unsigned long lrc_size, lrc_offset;
 
 	u32 context_desc;
+	u32 ring_addr;
 	u32 indirect_context_desc;
 	u32 head;
 	struct {
