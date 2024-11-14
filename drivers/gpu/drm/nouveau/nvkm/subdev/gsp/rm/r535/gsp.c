@@ -165,35 +165,14 @@ r535_gsp_intr_get_table(struct nvkm_gsp *gsp)
 	return ret;
 }
 
-static int
-r535_gsp_rpc_get_gsp_static_info(struct nvkm_gsp *gsp)
+static void
+r535_gsp_get_static_info_fb(struct nvkm_gsp *gsp,
+			    const struct NV2080_CTRL_CMD_FB_GET_FB_REGION_INFO_PARAMS *info)
 {
-	GspStaticConfigInfo *rpc;
 	int last_usable = -1;
 
-	rpc = nvkm_gsp_rpc_rd(gsp, NV_VGPU_MSG_FUNCTION_GET_GSP_STATIC_INFO, sizeof(*rpc));
-	if (IS_ERR(rpc))
-		return PTR_ERR(rpc);
-
-	gsp->internal.client.object.client = &gsp->internal.client;
-	gsp->internal.client.object.parent = NULL;
-	gsp->internal.client.object.handle = rpc->hInternalClient;
-	gsp->internal.client.gsp = gsp;
-
-	gsp->internal.device.object.client = &gsp->internal.client;
-	gsp->internal.device.object.parent = &gsp->internal.client.object;
-	gsp->internal.device.object.handle = rpc->hInternalDevice;
-
-	gsp->internal.device.subdevice.client = &gsp->internal.client;
-	gsp->internal.device.subdevice.parent = &gsp->internal.device.object;
-	gsp->internal.device.subdevice.handle = rpc->hInternalSubdevice;
-
-	gsp->bar.rm_bar1_pdb = rpc->bar1PdeBase;
-	gsp->bar.rm_bar2_pdb = rpc->bar2PdeBase;
-
-	for (int i = 0; i < rpc->fbRegionInfoParams.numFBRegions; i++) {
-		NV2080_CTRL_CMD_FB_GET_FB_REGION_FB_REGION_INFO *reg =
-			&rpc->fbRegionInfoParams.fbRegion[i];
+	for (int i = 0; i < info->numFBRegions; i++) {
+		const NV2080_CTRL_CMD_FB_GET_FB_REGION_FB_REGION_INFO *reg = &info->fbRegion[i];
 
 		nvkm_debug(&gsp->subdev, "fb region %d: "
 			   "%016llx-%016llx rsvd:%016llx perf:%08x comp:%d iso:%d prot:%d\n", i,
@@ -215,10 +194,38 @@ r535_gsp_rpc_get_gsp_static_info(struct nvkm_gsp *gsp)
 	}
 
 	if (last_usable >= 0) {
-		u32 rsvd_base = rpc->fbRegionInfoParams.fbRegion[last_usable].limit + 1;
+		u32 rsvd_base = info->fbRegion[last_usable].limit + 1;
 
 		gsp->fb.rsvd_size = gsp->fb.heap.addr - rsvd_base;
 	}
+}
+
+static int
+r535_gsp_get_static_info(struct nvkm_gsp *gsp)
+{
+	GspStaticConfigInfo *rpc;
+
+	rpc = nvkm_gsp_rpc_rd(gsp, NV_VGPU_MSG_FUNCTION_GET_GSP_STATIC_INFO, sizeof(*rpc));
+	if (IS_ERR(rpc))
+		return PTR_ERR(rpc);
+
+	gsp->internal.client.object.client = &gsp->internal.client;
+	gsp->internal.client.object.parent = NULL;
+	gsp->internal.client.object.handle = rpc->hInternalClient;
+	gsp->internal.client.gsp = gsp;
+
+	gsp->internal.device.object.client = &gsp->internal.client;
+	gsp->internal.device.object.parent = &gsp->internal.client.object;
+	gsp->internal.device.object.handle = rpc->hInternalDevice;
+
+	gsp->internal.device.subdevice.client = &gsp->internal.client;
+	gsp->internal.device.subdevice.parent = &gsp->internal.device.object;
+	gsp->internal.device.subdevice.handle = rpc->hInternalSubdevice;
+
+	gsp->bar.rm_bar1_pdb = rpc->bar1PdeBase;
+	gsp->bar.rm_bar2_pdb = rpc->bar2PdeBase;
+
+	r535_gsp_get_static_info_fb(gsp, &rpc->fbRegionInfoParams);
 
 	for (int gpc = 0; gpc < ARRAY_SIZE(rpc->tpcInfo); gpc++) {
 		if (rpc->gpcInfo.gpcMask & BIT(gpc)) {
@@ -277,9 +284,10 @@ static int
 r535_gsp_postinit(struct nvkm_gsp *gsp)
 {
 	struct nvkm_device *device = gsp->subdev.device;
+	const struct nvkm_rm_api *rmapi = gsp->rm->api;
 	int ret;
 
-	ret = r535_gsp_rpc_get_gsp_static_info(gsp);
+	ret = rmapi->gsp->get_static_info(gsp);
 	if (WARN_ON(ret))
 		return ret;
 
@@ -2151,4 +2159,5 @@ r535_gsp_oneinit(struct nvkm_gsp *gsp)
 const struct nvkm_rm_api_gsp
 r535_gsp = {
 	.set_system_info = r535_gsp_set_system_info,
+	.get_static_info = r535_gsp_get_static_info,
 };
