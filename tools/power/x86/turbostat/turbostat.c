@@ -752,7 +752,7 @@ static const struct platform_features adl_features = {
 	.enable_tsc_tweak = 1,
 };
 
-static const struct platform_features arl_features = {
+static const struct platform_features lnl_features = {
 	.has_msr_misc_feature_control = 1,
 	.has_msr_misc_pwr_mgmt = 1,
 	.has_nhm_msrs = 1,
@@ -1014,7 +1014,7 @@ static const struct platform_data turbostat_pdata[] = {
 	{ INTEL_ARROWLAKE_H, &adl_features },
 	{ INTEL_ARROWLAKE_U, &adl_features },
 	{ INTEL_ARROWLAKE, &adl_features },
-	{ INTEL_LUNARLAKE_M, &arl_features },
+	{ INTEL_LUNARLAKE_M, &lnl_features },
 	{ INTEL_ATOM_SILVERMONT, &slv_features },
 	{ INTEL_ATOM_SILVERMONT_D, &slvd_features },
 	{ INTEL_ATOM_AIRMONT, &amt_features },
