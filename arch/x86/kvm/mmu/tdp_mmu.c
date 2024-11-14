@@ -440,6 +440,59 @@ static void handle_removed_pt(struct kvm *kvm, tdp_ptep_t pt, bool shared)
 	call_rcu(&sp->rcu_head, tdp_mmu_free_sp_rcu_callback);
 }
 
+static void *get_external_spt(gfn_t gfn, u64 new_spte, int level)
+{
+	if (is_shadow_present_pte(new_spte) && !is_last_spte(new_spte, level)) {
+		struct kvm_mmu_page *sp = spte_to_child_sp(new_spte);
+
+		WARN_ON_ONCE(sp->role.level + 1 != level);
+		WARN_ON_ONCE(sp->gfn != gfn);
+		return sp->external_spt;
+	}
+
+	return NULL;
+}
+
+static int __must_check set_external_spte_present(struct kvm *kvm, tdp_ptep_t sptep,
+						 gfn_t gfn, u64 old_spte,
+						 u64 new_spte, int level)
+{
+	bool was_present = is_shadow_present_pte(old_spte);
+	bool is_present = is_shadow_present_pte(new_spte);
+	bool is_leaf = is_present && is_last_spte(new_spte, level);
+	kvm_pfn_t new_pfn = spte_to_pfn(new_spte);
+	int ret = 0;
+
+	KVM_BUG_ON(was_present, kvm);
+
+	lockdep_assert_held(&kvm->mmu_lock);
+	/*
+	 * We need to lock out other updates to the SPTE until the external
+	 * page table has been modified. Use FROZEN_SPTE similar to
+	 * the zapping case.
+	 */
+	if (!try_cmpxchg64(rcu_dereference(sptep), &old_spte, FROZEN_SPTE))
+		return -EBUSY;
+
+	/*
+	 * Use different call to either set up middle level
+	 * external page table, or leaf.
+	 */
+	if (is_leaf) {
+		ret = static_call(kvm_x86_set_external_spte)(kvm, gfn, level, new_pfn);
+	} else {
+		void *external_spt = get_external_spt(gfn, new_spte, level);
+
+		KVM_BUG_ON(!external_spt, kvm);
+		ret = static_call(kvm_x86_link_external_spt)(kvm, gfn, level, external_spt);
+	}
+	if (ret)
+		__kvm_tdp_mmu_write_spte(sptep, old_spte);
+	else
+		__kvm_tdp_mmu_write_spte(sptep, new_spte);
+	return ret;
+}
+
 /**
  * handle_changed_spte - handle bookkeeping associated with an SPTE change
  * @kvm: kvm instance
@@ -540,11 +593,10 @@ static void handle_changed_spte(struct kvm *kvm, int as_id, gfn_t gfn,
 		handle_removed_pt(kvm, spte_to_child_pt(old_spte, level), shared);
 }
 
-static inline int __must_check __tdp_mmu_set_spte_atomic(struct tdp_iter *iter,
+static inline int __must_check __tdp_mmu_set_spte_atomic(struct kvm *kvm,
+							 struct tdp_iter *iter,
 							 u64 new_spte)
 {
-	u64 *sptep = rcu_dereference(iter->sptep);
-
 	/*
 	 * The caller is responsible for ensuring the old SPTE is not a FROZEN
 	 * SPTE.  KVM should never attempt to zap or manipulate a FROZEN SPTE,
@@ -553,15 +605,27 @@ static inline int __must_check __tdp_mmu_set_spte_atomic(struct tdp_iter *iter,
 	 */
 	WARN_ON_ONCE(iter->yielded || is_frozen_spte(iter->old_spte));
 
-	/*
-	 * Note, fast_pf_fix_direct_spte() can also modify TDP MMU SPTEs and
-	 * does not hold the mmu_lock.  On failure, i.e. if a different logical
-	 * CPU modified the SPTE, try_cmpxchg64() updates iter->old_spte with
-	 * the current value, so the caller operates on fresh data, e.g. if it
-	 * retries tdp_mmu_set_spte_atomic()
-	 */
-	if (!try_cmpxchg64(sptep, &iter->old_spte, new_spte))
-		return -EBUSY;
+	if (is_mirror_sptep(iter->sptep) && !is_frozen_spte(new_spte)) {
+		int ret;
+
+		ret = set_external_spte_present(kvm, iter->sptep, iter->gfn,
+						iter->old_spte, new_spte, iter->level);
+		if (ret)
+			return ret;
+	} else {
+		u64 *sptep = rcu_dereference(iter->sptep);
+
+		/*
+		 * Note, fast_pf_fix_direct_spte() can also modify TDP MMU SPTEs
+		 * and does not hold the mmu_lock.  On failure, i.e. if a
+		 * different logical CPU modified the SPTE, try_cmpxchg64()
+		 * updates iter->old_spte with the current value, so the caller
+		 * operates on fresh data, e.g. if it retries
+		 * tdp_mmu_set_spte_atomic()
+		 */
+		if (!try_cmpxchg64(sptep, &iter->old_spte, new_spte))
+			return -EBUSY;
+	}
 
 	return 0;
 }
@@ -591,7 +655,7 @@ static inline int __must_check tdp_mmu_set_spte_atomic(struct kvm *kvm,
 
 	lockdep_assert_held_read(&kvm->mmu_lock);
 
-	ret = __tdp_mmu_set_spte_atomic(iter, new_spte);
+	ret = __tdp_mmu_set_spte_atomic(kvm, iter, new_spte);
 	if (ret)
 		return ret;
 
@@ -631,6 +695,14 @@ static u64 tdp_mmu_set_spte(struct kvm *kvm, int as_id, tdp_ptep_t sptep,
 	old_spte = kvm_tdp_mmu_write_spte(sptep, old_spte, new_spte, level);
 
 	handle_changed_spte(kvm, as_id, gfn, old_spte, new_spte, level, false);
+
+	/*
+	 * Users that do non-atomic setting of PTEs don't operate on mirror
+	 * roots, so don't handle it and bug the VM if it's seen.
+	 */
+	if (is_mirror_sptep(sptep))
+		KVM_BUG_ON(is_shadow_present_pte(new_spte), kvm);
+
 	return old_spte;
 }
 
