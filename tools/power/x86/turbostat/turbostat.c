@@ -6476,8 +6476,14 @@ static void set_graphics_fp(char *path, int idx)
 		gfx_info[idx].fp = fopen_or_die(path, "r");
 }
 
+/* Enlarge this if there are /sys/class/drm/card2 ... */
+#define GFX_MAX_CARDS	2
+
 static void probe_graphics(void)
 {
+	char path[PATH_MAX];
+	int i;
+
 	/* Xe graphics sysfs knobs */
 	if (!access("/sys/class/drm/card0/device/tile0/gt0/gtidle/idle_residency_ms", R_OK)) {
 		FILE *fp;
@@ -6518,22 +6524,36 @@ static void probe_graphics(void)
 
 next:
 	/* New i915 graphics sysfs knobs */
-	if (!access("/sys/class/drm/card0/gt/gt0/rc6_residency_ms", R_OK)) {
-		set_graphics_fp("/sys/class/drm/card0/gt/gt0/rc6_residency_ms", GFX_rc6);
-
-		set_graphics_fp("/sys/class/drm/card0/gt/gt0/rps_cur_freq_mhz", GFX_MHz);
-
-		set_graphics_fp("/sys/class/drm/card0/gt/gt0/rps_act_freq_mhz", GFX_ACTMHz);
-
-		set_graphics_fp("/sys/class/drm/card0/gt/gt1/rc6_residency_ms", SAM_mc6);
-
-		set_graphics_fp("/sys/class/drm/card0/gt/gt1/rps_cur_freq_mhz", SAM_MHz);
-
-		set_graphics_fp("/sys/class/drm/card0/gt/gt1/rps_act_freq_mhz", SAM_ACTMHz);
-
-		goto end;
+	for (i = 0; i < GFX_MAX_CARDS; i++) {
+		snprintf(path, PATH_MAX, "/sys/class/drm/card%d/gt/gt0/rc6_residency_ms", i);
+		if (!access(path, R_OK))
+			break;
 	}
 
+	if (i == GFX_MAX_CARDS)
+		goto legacy_i915;
+
+	snprintf(path, PATH_MAX, "/sys/class/drm/card%d/gt/gt0/rc6_residency_ms", i);
+	set_graphics_fp(path, GFX_rc6);
+
+	snprintf(path, PATH_MAX, "/sys/class/drm/card%d/gt/gt0/rps_cur_freq_mhz", i);
+	set_graphics_fp(path, GFX_MHz);
+
+	snprintf(path, PATH_MAX, "/sys/class/drm/card%d/gt/gt0/rps_act_freq_mhz", i);
+	set_graphics_fp(path, GFX_ACTMHz);
+
+	snprintf(path, PATH_MAX, "/sys/class/drm/card%d/gt/gt1/rc6_residency_ms", i);
+	set_graphics_fp(path, SAM_mc6);
+
+	snprintf(path, PATH_MAX, "/sys/class/drm/card%d/gt/gt1/rps_cur_freq_mhz", i);
+	set_graphics_fp(path, SAM_MHz);
+
+	snprintf(path, PATH_MAX, "/sys/class/drm/card%d/gt/gt1/rps_act_freq_mhz", i);
+	set_graphics_fp(path, SAM_ACTMHz);
+
+	goto end;
+
+legacy_i915:
 	/* Fall back to traditional i915 graphics sysfs knobs */
 	set_graphics_fp("/sys/class/drm/card0/power/rc6_residency_ms", GFX_rc6);
 
