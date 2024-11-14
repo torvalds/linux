@@ -434,3 +434,11 @@ xfail_on_veth()
 		"$@"
 	fi
 }
+
+kill_process()
+{
+	local pid=$1; shift
+
+	# Suppress noise from killing the process.
+	{ kill $pid && wait $pid; } 2>/dev/null
+}
