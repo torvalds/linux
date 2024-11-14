@@ -177,7 +177,9 @@ struct statmount {
 	__u32 sb_source;	/* [str] Source string of the mount */
 	__u32 opt_num;		/* Number of fs options */
 	__u32 opt_array;	/* [str] Array of nul terminated fs options */
-	__u64 __spare2[47];
+	__u32 opt_sec_num;	/* Number of security options */
+	__u32 opt_sec_array;	/* [str] Array of nul terminated security options */
+	__u64 __spare2[46];
 	char str[];		/* Variable size part containing strings */
 };
 
@@ -214,6 +216,7 @@ struct mnt_id_req {
 #define STATMOUNT_FS_SUBTYPE		0x00000100U	/* Want/got fs_subtype */
 #define STATMOUNT_SB_SOURCE		0x00000200U	/* Want/got sb_source */
 #define STATMOUNT_OPT_ARRAY		0x00000400U	/* Want/got opt_... */
+#define STATMOUNT_OPT_SEC_ARRAY		0x00000800U	/* Want/got opt_sec... */
 
 /*
  * Special @mnt_id values that can be passed to listmount

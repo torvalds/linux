@@ -5072,13 +5072,30 @@ static int statmount_mnt_opts(struct kstatmount *s, struct seq_file *seq)
 	return 0;
 }
 
+static inline int statmount_opt_unescape(struct seq_file *seq, char *buf_start)
+{
+	char *buf_end, *opt_start, *opt_end;
+	int count = 0;
+
+	buf_end = seq->buf + seq->count;
+	*buf_end = '\0';
+	for (opt_start = buf_start + 1; opt_start < buf_end; opt_start = opt_end + 1) {
+		opt_end = strchrnul(opt_start, ',');
+		*opt_end = '\0';
+		buf_start += string_unescape(opt_start, buf_start, 0, UNESCAPE_OCTAL) + 1;
+		if (WARN_ON_ONCE(++count == INT_MAX))
+			return -EOVERFLOW;
+	}
+	seq->count = buf_start - 1 - seq->buf;
+	return count;
+}
+
 static int statmount_opt_array(struct kstatmount *s, struct seq_file *seq)
 {
 	struct vfsmount *mnt = s->mnt;
 	struct super_block *sb = mnt->mnt_sb;
 	size_t start = seq->count;
-	char *buf_start, *buf_end, *opt_start, *opt_end;
-	u32 count = 0;
+	char *buf_start;
 	int err;
 
 	if (!sb->s_op->show_options)
@@ -5095,17 +5112,39 @@ static int statmount_opt_array(struct kstatmount *s, struct seq_file *seq)
 	if (seq->count == start)
 		return 0;
 
-	buf_end = seq->buf + seq->count;
-	*buf_end = '\0';
-	for (opt_start = buf_start + 1; opt_start < buf_end; opt_start = opt_end + 1) {
-		opt_end = strchrnul(opt_start, ',');
-		*opt_end = '\0';
-		buf_start += string_unescape(opt_start, buf_start, 0, UNESCAPE_OCTAL) + 1;
-		if (WARN_ON_ONCE(++count == 0))
-			return -EOVERFLOW;
-	}
-	seq->count = buf_start - 1 - seq->buf;
-	s->sm.opt_num = count;
+	err = statmount_opt_unescape(seq, buf_start);
+	if (err < 0)
+		return err;
+
+	s->sm.opt_num = err;
+	return 0;
+}
+
+static int statmount_opt_sec_array(struct kstatmount *s, struct seq_file *seq)
+{
+	struct vfsmount *mnt = s->mnt;
+	struct super_block *sb = mnt->mnt_sb;
+	size_t start = seq->count;
+	char *buf_start;
+	int err;
+
+	buf_start = seq->buf + start;
+
+	err = security_sb_show_options(seq, sb);
+	if (!err)
+		return err;
+
+	if (unlikely(seq_has_overflowed(seq)))
+		return -EAGAIN;
+
+	if (seq->count == start)
+		return 0;
+
+	err = statmount_opt_unescape(seq, buf_start);
+	if (err < 0)
+		return err;
+
+	s->sm.opt_sec_num = err;
 	return 0;
 }
 
@@ -5137,6 +5176,10 @@ static int statmount_string(struct kstatmount *s, u64 flag)
 	case STATMOUNT_OPT_ARRAY:
 		sm->opt_array = start;
 		ret = statmount_opt_array(s, seq);
+		break;
+	case STATMOUNT_OPT_SEC_ARRAY:
+		sm->opt_sec_array = start;
+		ret = statmount_opt_sec_array(s, seq);
 		break;
 	case STATMOUNT_FS_SUBTYPE:
 		sm->fs_subtype = start;
@@ -5294,6 +5337,9 @@ static int do_statmount(struct kstatmount *s, u64 mnt_id, u64 mnt_ns_id,
 	if (!err && s->mask & STATMOUNT_OPT_ARRAY)
 		err = statmount_string(s, STATMOUNT_OPT_ARRAY);
 
+	if (!err && s->mask & STATMOUNT_OPT_SEC_ARRAY)
+		err = statmount_string(s, STATMOUNT_OPT_SEC_ARRAY);
+
 	if (!err && s->mask & STATMOUNT_FS_SUBTYPE)
 		err = statmount_string(s, STATMOUNT_FS_SUBTYPE);
 
@@ -5323,7 +5369,7 @@ static inline bool retry_statmount(const long ret, size_t *seq_size)
 #define STATMOUNT_STRING_REQ (STATMOUNT_MNT_ROOT | STATMOUNT_MNT_POINT | \
 			      STATMOUNT_FS_TYPE | STATMOUNT_MNT_OPTS | \
 			      STATMOUNT_FS_SUBTYPE | STATMOUNT_SB_SOURCE | \
-			      STATMOUNT_OPT_ARRAY)
+			      STATMOUNT_OPT_ARRAY | STATMOUNT_OPT_SEC_ARRAY)
 
 static int prepare_kstatmount(struct kstatmount *ks, struct mnt_id_req *kreq,
 			      struct statmount __user *buf, size_t bufsize,
