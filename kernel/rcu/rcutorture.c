@@ -121,7 +121,7 @@ torture_param(int, preempt_duration, 0, "Preemption duration (ms), zero to disab
 torture_param(int, preempt_interval, MSEC_PER_SEC, "Interval between preemptions (ms)");
 torture_param(int, read_exit_delay, 13, "Delay between read-then-exit episodes (s)");
 torture_param(int, read_exit_burst, 16, "# of read-then-exit bursts per episode, zero to disable");
-torture_param(int, reader_flavor, 0x1, "Reader flavors to use, one per bit.");
+torture_param(int, reader_flavor, SRCU_READ_FLAVOR_NORMAL, "Reader flavors to use, one per bit.");
 torture_param(int, shuffle_interval, 3, "Number of seconds between shuffles");
 torture_param(int, shutdown_secs, 0, "Shutdown time (s), <= zero to disable.");
 torture_param(int, stall_cpu, 0, "Stall duration (s), zero to disable.");
@@ -679,17 +679,17 @@ static int srcu_torture_read_lock(void)
 	int idx;
 	int ret = 0;
 
-	if ((reader_flavor & 0x1) || !(reader_flavor & 0x7)) {
+	if ((reader_flavor & SRCU_READ_FLAVOR_NORMAL) || !(reader_flavor & SRCU_READ_FLAVOR_ALL)) {
 		idx = srcu_read_lock(srcu_ctlp);
 		WARN_ON_ONCE(idx & ~0x1);
 		ret += idx;
 	}
-	if (reader_flavor & 0x2) {
+	if (reader_flavor & SRCU_READ_FLAVOR_NMI) {
 		idx = srcu_read_lock_nmisafe(srcu_ctlp);
 		WARN_ON_ONCE(idx & ~0x1);
 		ret += idx << 1;
 	}
-	if (reader_flavor & 0x4) {
+	if (reader_flavor & SRCU_READ_FLAVOR_LITE) {
 		idx = srcu_read_lock_lite(srcu_ctlp);
 		WARN_ON_ONCE(idx & ~0x1);
 		ret += idx << 2;
@@ -719,11 +719,11 @@ srcu_read_delay(struct torture_random_state *rrsp, struct rt_read_seg *rtrsp)
 static void srcu_torture_read_unlock(int idx)
 {
 	WARN_ON_ONCE((reader_flavor && (idx & ~reader_flavor)) || (!reader_flavor && (idx & ~0x1)));
-	if (reader_flavor & 0x4)
+	if (reader_flavor & SRCU_READ_FLAVOR_LITE)
 		srcu_read_unlock_lite(srcu_ctlp, (idx & 0x4) >> 2);
-	if (reader_flavor & 0x2)
+	if (reader_flavor & SRCU_READ_FLAVOR_NMI)
 		srcu_read_unlock_nmisafe(srcu_ctlp, (idx & 0x2) >> 1);
-	if ((reader_flavor & 0x1) || !(reader_flavor & 0x7))
+	if ((reader_flavor & SRCU_READ_FLAVOR_NORMAL) || !(reader_flavor & SRCU_READ_FLAVOR_ALL))
 		srcu_read_unlock(srcu_ctlp, idx & 0x1);
 }
 

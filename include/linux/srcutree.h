@@ -26,6 +26,7 @@ struct srcu_data {
 	atomic_long_t srcu_lock_count[2];	/* Locks per CPU. */
 	atomic_long_t srcu_unlock_count[2];	/* Unlocks per CPU. */
 	int srcu_reader_flavor;			/* Reader flavor for srcu_struct structure? */
+						/* Values: SRCU_READ_FLAVOR_.*  */
 
 	/* Update-side state. */
 	spinlock_t __private lock ____cacheline_internodealigned_in_smp;
@@ -42,11 +43,6 @@ struct srcu_data {
 	int cpu;
 	struct srcu_struct *ssp;
 };
-
-/* Values for ->srcu_reader_flavor. */
-#define SRCU_READ_FLAVOR_NORMAL	0x1		// srcu_read_lock().
-#define SRCU_READ_FLAVOR_NMI	0x2		// srcu_read_lock_nmisafe().
-#define SRCU_READ_FLAVOR_LITE	0x4		// srcu_read_lock_lite().
 
 /*
  * Node in SRCU combining tree, similar in function to rcu_data.
