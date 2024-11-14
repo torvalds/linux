@@ -252,47 +252,47 @@ r535_core = {
 };
 
 static int
-r535_sor_bl_set(struct nvkm_ior *sor, int lvl)
+r535_bl_ctrl(struct nvkm_disp *disp, unsigned display_id, bool set, int *pval)
 {
-	struct nvkm_disp *disp = sor->disp;
+	u32 cmd = set ? NV0073_CTRL_CMD_SPECIFIC_SET_BACKLIGHT_BRIGHTNESS :
+			NV0073_CTRL_CMD_SPECIFIC_GET_BACKLIGHT_BRIGHTNESS;
 	NV0073_CTRL_SPECIFIC_BACKLIGHT_BRIGHTNESS_PARAMS *ctrl;
+	int ret;
 
-	ctrl = nvkm_gsp_rm_ctrl_get(&disp->rm.objcom,
-				    NV0073_CTRL_CMD_SPECIFIC_SET_BACKLIGHT_BRIGHTNESS,
-				    sizeof(*ctrl));
+	ctrl = nvkm_gsp_rm_ctrl_get(&disp->rm.objcom, cmd, sizeof(*ctrl));
 	if (IS_ERR(ctrl))
 		return PTR_ERR(ctrl);
 
-	ctrl->displayId = BIT(sor->asy.outp->index);
-	ctrl->brightness = lvl;
+	ctrl->displayId = BIT(display_id);
+	ctrl->brightness = *pval;
 
-	return nvkm_gsp_rm_ctrl_wr(&disp->rm.objcom, ctrl);
+	ret = nvkm_gsp_rm_ctrl_push(&disp->rm.objcom, &ctrl, sizeof(*ctrl));
+	if (ret)
+		return ret;
+
+	*pval = ctrl->brightness;
+
+	nvkm_gsp_rm_ctrl_done(&disp->rm.objcom, ctrl);
+	return 0;
+}
+
+static int
+r535_sor_bl_set(struct nvkm_ior *sor, int lvl)
+{
+	struct nvkm_disp *disp = sor->disp;
+	const struct nvkm_rm_api *rmapi = disp->engine.subdev.device->gsp->rm->api;
+
+	return rmapi->disp->bl_ctrl(disp, sor->asy.outp->index, true, &lvl);
 }
 
 static int
 r535_sor_bl_get(struct nvkm_ior *sor)
 {
 	struct nvkm_disp *disp = sor->disp;
-	NV0073_CTRL_SPECIFIC_BACKLIGHT_BRIGHTNESS_PARAMS *ctrl;
-	int ret, lvl;
+	const struct nvkm_rm_api *rmapi = disp->engine.subdev.device->gsp->rm->api;
+	int lvl, ret = rmapi->disp->bl_ctrl(disp, sor->asy.outp->index, false, &lvl);
 
-	ctrl = nvkm_gsp_rm_ctrl_get(&disp->rm.objcom,
-				    NV0073_CTRL_CMD_SPECIFIC_GET_BACKLIGHT_BRIGHTNESS,
-				    sizeof(*ctrl));
-	if (IS_ERR(ctrl))
-		return PTR_ERR(ctrl);
-
-	ctrl->displayId = BIT(sor->asy.outp->index);
-
-	ret = nvkm_gsp_rm_ctrl_push(&disp->rm.objcom, &ctrl, sizeof(*ctrl));
-	if (ret) {
-		nvkm_gsp_rm_ctrl_done(&disp->rm.objcom, ctrl);
-		return ret;
-	}
-
-	lvl = ctrl->brightness;
-	nvkm_gsp_rm_ctrl_done(&disp->rm.objcom, ctrl);
-	return lvl;
+	return (ret == 0) ? lvl : ret;
 }
 
 static const struct nvkm_ior_func_bl
@@ -1722,3 +1722,8 @@ r535_disp_new(const struct nvkm_disp_func *hw, struct nvkm_device *device,
 	mutex_init(&(*pdisp)->super.mutex); //XXX
 	return ret;
 }
+
+const struct nvkm_rm_api_disp
+r535_disp = {
+	.bl_ctrl = r535_bl_ctrl,
+};
