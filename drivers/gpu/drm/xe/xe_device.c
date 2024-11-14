@@ -44,6 +44,7 @@
 #include "xe_memirq.h"
 #include "xe_mmio.h"
 #include "xe_module.h"
+#include "xe_oa.h"
 #include "xe_observation.h"
 #include "xe_pat.h"
 #include "xe_pcode.h"

@@ -16,7 +16,7 @@
 #include "xe_heci_gsc.h"
 #include "xe_lmtt_types.h"
 #include "xe_memirq_types.h"
-#include "xe_oa.h"
+#include "xe_oa_types.h"
 #include "xe_platform_types.h"
 #include "xe_pt_types.h"
 #include "xe_sriov_types.h"
