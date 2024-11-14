@@ -789,6 +789,30 @@ static void rtw_usb_dynamic_rx_agg_v1(struct rtw_dev *rtwdev, bool enable)
 	rtw_write16(rtwdev, REG_RXDMA_AGG_PG_TH, val16);
 }
 
+static void rtw_usb_dynamic_rx_agg_v2(struct rtw_dev *rtwdev, bool enable)
+{
+	struct rtw_usb *rtwusb = rtw_get_usb_priv(rtwdev);
+	u8 size, timeout;
+	u16 val16;
+
+	if (!enable) {
+		size = 0x0;
+		timeout = 0x1;
+	} else if (rtwusb->udev->speed == USB_SPEED_SUPER) {
+		size = 0x6;
+		timeout = 0x1a;
+	} else {
+		size = 0x5;
+		timeout = 0x20;
+	}
+
+	val16 = u16_encode_bits(size, BIT_RXDMA_AGG_PG_TH) |
+		u16_encode_bits(timeout, BIT_DMA_AGG_TO_V1);
+
+	rtw_write16(rtwdev, REG_RXDMA_AGG_PG_TH, val16);
+	rtw_write8_set(rtwdev, REG_TXDMA_PQ_MAP, BIT_RXDMA_AGG_EN);
+}
+
 static void rtw_usb_dynamic_rx_agg(struct rtw_dev *rtwdev, bool enable)
 {
 	switch (rtwdev->chip->id) {
@@ -796,6 +820,10 @@ static void rtw_usb_dynamic_rx_agg(struct rtw_dev *rtwdev, bool enable)
 	case RTW_CHIP_TYPE_8822B:
 	case RTW_CHIP_TYPE_8821C:
 		rtw_usb_dynamic_rx_agg_v1(rtwdev, enable);
+		break;
+	case RTW_CHIP_TYPE_8821A:
+	case RTW_CHIP_TYPE_8812A:
+		rtw_usb_dynamic_rx_agg_v2(rtwdev, enable);
 		break;
 	case RTW_CHIP_TYPE_8723D:
 		/* Doesn't like aggregation. */
