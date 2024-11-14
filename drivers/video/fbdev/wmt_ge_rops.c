@@ -159,7 +159,7 @@ static const struct of_device_id wmt_dt_ids[] = {
 
 static struct platform_driver wmt_ge_rops_driver = {
 	.probe		= wmt_ge_rops_probe,
-	.remove_new	= wmt_ge_rops_remove,
+	.remove		= wmt_ge_rops_remove,
 	.driver		= {
 		.name	= "wmt_ge_rops",
 		.of_match_table = wmt_dt_ids,

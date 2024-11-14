@@ -397,6 +397,16 @@ static void ggtt_invalidate_gt_tlb(struct xe_gt *gt)
 
 static void xe_ggtt_invalidate(struct xe_ggtt *ggtt)
 {
+	struct xe_device *xe = tile_to_xe(ggtt->tile);
+
+	/*
+	 * XXX: Barrier for GGTT pages. Unsure exactly why this required but
+	 * without this LNL is having issues with the GuC reading scratch page
+	 * vs. correct GGTT page. Not particularly a hot code path so blindly
+	 * do a mmio read here which results in GuC reading correct GGTT page.
+	 */
+	xe_mmio_read32(xe_root_mmio_gt(xe), VF_CAP_REG);
+
 	/* Each GT in a tile has its own TLB to cache GGTT lookups */
 	ggtt_invalidate_gt_tlb(ggtt->tile->primary_gt);
 	ggtt_invalidate_gt_tlb(ggtt->tile->media_gt);

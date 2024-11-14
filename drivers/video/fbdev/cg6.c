@@ -545,7 +545,7 @@ static int cg6_blank(int blank, struct fb_info *info)
 	return 0;
 }
 
-static struct sbus_mmap_map cg6_mmap_map[] = {
+static const struct sbus_mmap_map cg6_mmap_map[] = {
 	{
 		.voff	= CG6_FBC,
 		.poff	= CG6_FBC_OFFSET,
@@ -858,7 +858,7 @@ static struct platform_driver cg6_driver = {
 		.of_match_table = cg6_match,
 	},
 	.probe		= cg6_probe,
-	.remove_new	= cg6_remove,
+	.remove		= cg6_remove,
 };
 
 static int __init cg6_init(void)

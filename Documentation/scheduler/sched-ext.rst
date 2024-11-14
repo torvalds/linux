@@ -66,7 +66,7 @@ BPF scheduler and reverts all tasks back to CFS.
 .. code-block:: none
 
     # make -j16 -C tools/sched_ext
-    # tools/sched_ext/scx_simple
+    # tools/sched_ext/build/bin/scx_simple
     local=0 global=3
     local=5 global=24
     local=9 global=44

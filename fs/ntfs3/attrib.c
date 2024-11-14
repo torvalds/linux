@@ -976,15 +976,17 @@ int attr_data_get_block(struct ntfs_inode *ni, CLST vcn, CLST clen, CLST *lcn,
 		goto out;
 
 	/* Check for compressed frame. */
-	err = attr_is_frame_compressed(ni, attr, vcn >> NTFS_LZNT_CUNIT, &hint);
+	err = attr_is_frame_compressed(ni, attr_b, vcn >> NTFS_LZNT_CUNIT,
+				       &hint);
 	if (err)
 		goto out;
 
 	if (hint) {
 		/* if frame is compressed - don't touch it. */
 		*lcn = COMPRESSED_LCN;
-		*len = hint;
-		err = -EOPNOTSUPP;
+		/* length to the end of frame. */
+		*len = NTFS_LZNT_CLUSTERS - (vcn & (NTFS_LZNT_CLUSTERS - 1));
+		err = 0;
 		goto out;
 	}
 
@@ -1027,16 +1029,16 @@ int attr_data_get_block(struct ntfs_inode *ni, CLST vcn, CLST clen, CLST *lcn,
 
 		/* Check if 'vcn' and 'vcn0' in different attribute segments. */
 		if (vcn < svcn || evcn1 <= vcn) {
-			/* Load attribute for truncated vcn. */
-			attr = ni_find_attr(ni, attr_b, &le, ATTR_DATA, NULL, 0,
-					    &vcn, &mi);
-			if (!attr) {
+			struct ATTRIB *attr2;
+			/* Load runs for truncated vcn. */
+			attr2 = ni_find_attr(ni, attr_b, &le_b, ATTR_DATA, NULL,
+					     0, &vcn, &mi);
+			if (!attr2) {
 				err = -EINVAL;
 				goto out;
 			}
-			svcn = le64_to_cpu(attr->nres.svcn);
-			evcn1 = le64_to_cpu(attr->nres.evcn) + 1;
-			err = attr_load_runs(attr, ni, run, NULL);
+			evcn1 = le64_to_cpu(attr2->nres.evcn) + 1;
+			err = attr_load_runs(attr2, ni, run, NULL);
 			if (err)
 				goto out;
 		}
@@ -1517,6 +1519,9 @@ out:
 
 /*
  * attr_is_frame_compressed - Used to detect compressed frame.
+ *
+ * attr - base (primary) attribute segment.
+ * Only base segments contains valid 'attr->nres.c_unit'
  */
 int attr_is_frame_compressed(struct ntfs_inode *ni, struct ATTRIB *attr,
 			     CLST frame, CLST *clst_data)
@@ -2599,4 +2604,75 @@ int attr_force_nonresident(struct ntfs_inode *ni)
 	up_write(&ni->file.run_lock);
 
 	return err;
+}
+
+/*
+ * Change the compression of data attribute
+ */
+int attr_set_compress(struct ntfs_inode *ni, bool compr)
+{
+	struct ATTRIB *attr;
+	struct mft_inode *mi;
+
+	attr = ni_find_attr(ni, NULL, NULL, ATTR_DATA, NULL, 0, NULL, &mi);
+	if (!attr)
+		return -ENOENT;
+
+	if (is_attr_compressed(attr) == !!compr) {
+		/* Already required compressed state. */
+		return 0;
+	}
+
+	if (attr->non_res) {
+		u16 run_off;
+		u32 run_size;
+		char *run;
+
+		if (attr->nres.data_size) {
+			/*
+			 * There are rare cases when it possible to change
+			 * compress state without big changes.
+			 * TODO: Process these cases.
+			 */
+			return -EOPNOTSUPP;
+		}
+
+		run_off = le16_to_cpu(attr->nres.run_off);
+		run_size = le32_to_cpu(attr->size) - run_off;
+		run = Add2Ptr(attr, run_off);
+
+		if (!compr) {
+			/* remove field 'attr->nres.total_size'. */
+			memmove(run - 8, run, run_size);
+			run_off -= 8;
+		}
+
+		if (!mi_resize_attr(mi, attr, compr ? +8 : -8)) {
+			/*
+			 * Ignore rare case when there are no 8 bytes in record with attr.
+			 * TODO: split attribute.
+			 */
+			return -EOPNOTSUPP;
+		}
+
+		if (compr) {
+			/* Make a gap for 'attr->nres.total_size'. */
+			memmove(run + 8, run, run_size);
+			run_off += 8;
+			attr->nres.total_size = attr->nres.alloc_size;
+		}
+		attr->nres.run_off = cpu_to_le16(run_off);
+	}
+
+	/* Update data attribute flags. */
+	if (compr) {
+		attr->flags |= ATTR_FLAG_COMPRESSED;
+		attr->nres.c_unit = NTFS_LZNT_CUNIT;
+	} else {
+		attr->flags &= ~ATTR_FLAG_COMPRESSED;
+		attr->nres.c_unit = 0;
+	}
+	mi->dirty = true;
+
+	return 0;
 }

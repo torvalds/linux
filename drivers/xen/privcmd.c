@@ -850,15 +850,13 @@ out:
 static long privcmd_ioctl_pcidev_get_gsi(struct file *file, void __user *udata)
 {
 #if defined(CONFIG_XEN_ACPI)
-	int rc = -EINVAL;
+	int rc;
 	struct privcmd_pcidev_get_gsi kdata;
 
 	if (copy_from_user(&kdata, udata, sizeof(kdata)))
 		return -EFAULT;
 
-	if (IS_REACHABLE(CONFIG_XEN_PCIDEV_BACKEND))
-		rc = pcistub_get_gsi_from_sbdf(kdata.sbdf);
-
+	rc = xen_acpi_get_gsi_from_sbdf(kdata.sbdf);
 	if (rc < 0)
 		return rc;
 

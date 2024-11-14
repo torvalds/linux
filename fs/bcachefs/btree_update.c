@@ -668,7 +668,7 @@ int bch2_btree_insert(struct bch_fs *c, enum btree_id id, struct bkey_i *k,
 		      struct disk_reservation *disk_res, int flags,
 		      enum btree_iter_update_trigger_flags iter_flags)
 {
-	return bch2_trans_do(c, disk_res, NULL, flags,
+	return bch2_trans_commit_do(c, disk_res, NULL, flags,
 			     bch2_btree_insert_trans(trans, id, k, iter_flags));
 }
 
@@ -865,7 +865,7 @@ __bch2_fs_log_msg(struct bch_fs *c, unsigned commit_flags, const char *fmt,
 		memcpy(l->d, buf.buf, buf.pos);
 		c->journal.early_journal_entries.nr += jset_u64s(u64s);
 	} else {
-		ret = bch2_trans_do(c, NULL, NULL,
+		ret = bch2_trans_commit_do(c, NULL, NULL,
 			BCH_TRANS_COMMIT_lazy_rw|commit_flags,
 			__bch2_trans_log_msg(trans, &buf, u64s));
 	}

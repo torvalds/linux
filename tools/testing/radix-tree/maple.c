@@ -36317,6 +36317,28 @@ static inline int check_vma_modification(struct maple_tree *mt)
 	return 0;
 }
 
+/*
+ * test to check that bulk stores do not use wr_rebalance as the store
+ * type.
+ */
+static inline void check_bulk_rebalance(struct maple_tree *mt)
+{
+	MA_STATE(mas, mt, ULONG_MAX, ULONG_MAX);
+	int max = 10;
+
+	build_full_tree(mt, 0, 2);
+
+	/* erase every entry in the tree */
+	do {
+		/* set up bulk store mode */
+		mas_expected_entries(&mas, max);
+		mas_erase(&mas);
+		MT_BUG_ON(mt, mas.store_type == wr_rebalance);
+	} while (mas_prev(&mas, 0) != NULL);
+
+	mas_destroy(&mas);
+}
+
 void farmer_tests(void)
 {
 	struct maple_node *node;
@@ -36326,6 +36348,10 @@ void farmer_tests(void)
 
 	mt_init_flags(&tree, MT_FLAGS_ALLOC_RANGE | MT_FLAGS_LOCK_EXTERN | MT_FLAGS_USE_RCU);
 	check_vma_modification(&tree);
+	mtree_destroy(&tree);
+
+	mt_init(&tree);
+	check_bulk_rebalance(&tree);
 	mtree_destroy(&tree);
 
 	tree.ma_root = xa_mk_value(0);
@@ -36406,9 +36432,93 @@ void farmer_tests(void)
 	check_nomem(&tree);
 }
 
+static unsigned long get_last_index(struct ma_state *mas)
+{
+	struct maple_node *node = mas_mn(mas);
+	enum maple_type mt = mte_node_type(mas->node);
+	unsigned long *pivots = ma_pivots(node, mt);
+	unsigned long last_index = mas_data_end(mas);
+
+	BUG_ON(last_index == 0);
+
+	return pivots[last_index - 1] + 1;
+}
+
+/*
+ * Assert that we handle spanning stores that consume the entirety of the right
+ * leaf node correctly.
+ */
+static void test_spanning_store_regression(void)
+{
+	unsigned long from = 0, to = 0;
+	DEFINE_MTREE(tree);
+	MA_STATE(mas, &tree, 0, 0);
+
+	/*
+	 * Build a 3-level tree. We require a parent node below the root node
+	 * and 2 leaf nodes under it, so we can span the entirety of the right
+	 * hand node.
+	 */
+	build_full_tree(&tree, 0, 3);
+
+	/* Descend into position at depth 2. */
+	mas_reset(&mas);
+	mas_start(&mas);
+	mas_descend(&mas);
+	mas_descend(&mas);
+
+	/*
+	 * We need to establish a tree like the below.
+	 *
+	 * Then we can try a store in [from, to] which results in a spanned
+	 * store across nodes B and C, with the maple state at the time of the
+	 * write being such that only the subtree at A and below is considered.
+	 *
+	 * Height
+	 *  0                              Root Node
+	 *                                  /      \
+	 *                    pivot = to   /        \ pivot = ULONG_MAX
+	 *                                /          \
+	 *   1                       A [-----]       ...
+	 *                              /   \
+	 *                pivot = from /     \ pivot = to
+	 *                            /       \
+	 *   2 (LEAVES)          B [-----]  [-----] C
+	 *                                       ^--- Last pivot to.
+	 */
+	while (true) {
+		unsigned long tmp = get_last_index(&mas);
+
+		if (mas_next_sibling(&mas)) {
+			from = tmp;
+			to = mas.max;
+		} else {
+			break;
+		}
+	}
+
+	BUG_ON(from == 0 && to == 0);
+
+	/* Perform the store. */
+	mas_set_range(&mas, from, to);
+	mas_store_gfp(&mas, xa_mk_value(0xdead), GFP_KERNEL);
+
+	/* If the regression occurs, the validation will fail. */
+	mt_validate(&tree);
+
+	/* Cleanup. */
+	__mt_destroy(&tree);
+}
+
+static void regression_tests(void)
+{
+	test_spanning_store_regression();
+}
+
 void maple_tree_tests(void)
 {
 #if !defined(BENCH)
+	regression_tests();
 	farmer_tests();
 #endif
 	maple_tree_seed();

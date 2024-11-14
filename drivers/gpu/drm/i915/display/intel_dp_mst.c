@@ -89,25 +89,19 @@ static int intel_dp_mst_max_dpt_bpp(const struct intel_crtc_state *crtc_state,
 
 static int intel_dp_mst_bw_overhead(const struct intel_crtc_state *crtc_state,
 				    const struct intel_connector *connector,
-				    bool ssc, bool dsc, int bpp_x16)
+				    bool ssc, int dsc_slice_count, int bpp_x16)
 {
 	const struct drm_display_mode *adjusted_mode =
 		&crtc_state->hw.adjusted_mode;
 	unsigned long flags = DRM_DP_BW_OVERHEAD_MST;
-	int dsc_slice_count = 0;
 	int overhead;
 
 	flags |= intel_dp_is_uhbr(crtc_state) ? DRM_DP_BW_OVERHEAD_UHBR : 0;
 	flags |= ssc ? DRM_DP_BW_OVERHEAD_SSC_REF_CLK : 0;
 	flags |= crtc_state->fec_enable ? DRM_DP_BW_OVERHEAD_FEC : 0;
 
-	if (dsc) {
+	if (dsc_slice_count)
 		flags |= DRM_DP_BW_OVERHEAD_DSC;
-		dsc_slice_count = intel_dp_dsc_get_slice_count(connector,
-							       adjusted_mode->clock,
-							       adjusted_mode->hdisplay,
-							       crtc_state->joiner_pipes);
-	}
 
 	overhead = drm_dp_bw_overhead(crtc_state->lane_count,
 				      adjusted_mode->hdisplay,
@@ -153,6 +147,19 @@ static int intel_dp_mst_calc_pbn(int pixel_clock, int bpp_x16, int bw_overhead)
 	return DIV_ROUND_UP(effective_data_rate * 64, 54 * 1000);
 }
 
+static int intel_dp_mst_dsc_get_slice_count(const struct intel_connector *connector,
+					    const struct intel_crtc_state *crtc_state)
+{
+	const struct drm_display_mode *adjusted_mode =
+		&crtc_state->hw.adjusted_mode;
+	int num_joined_pipes = crtc_state->joiner_pipes;
+
+	return intel_dp_dsc_get_slice_count(connector,
+					    adjusted_mode->clock,
+					    adjusted_mode->hdisplay,
+					    num_joined_pipes);
+}
+
 static int intel_dp_mst_find_vcpi_slots_for_bpp(struct intel_encoder *encoder,
 						struct intel_crtc_state *crtc_state,
 						int max_bpp,
@@ -172,6 +179,7 @@ static int intel_dp_mst_find_vcpi_slots_for_bpp(struct intel_encoder *encoder,
 	const struct drm_display_mode *adjusted_mode =
 		&crtc_state->hw.adjusted_mode;
 	int bpp, slots = -EINVAL;
+	int dsc_slice_count = 0;
 	int max_dpt_bpp;
 	int ret = 0;
 
@@ -203,6 +211,15 @@ static int intel_dp_mst_find_vcpi_slots_for_bpp(struct intel_encoder *encoder,
 	drm_dbg_kms(&i915->drm, "Looking for slots in range min bpp %d max bpp %d\n",
 		    min_bpp, max_bpp);
 
+	if (dsc) {
+		dsc_slice_count = intel_dp_mst_dsc_get_slice_count(connector, crtc_state);
+		if (!dsc_slice_count) {
+			drm_dbg_kms(&i915->drm, "Can't get valid DSC slice count\n");
+
+			return -ENOSPC;
+		}
+	}
+
 	for (bpp = max_bpp; bpp >= min_bpp; bpp -= step) {
 		int local_bw_overhead;
 		int remote_bw_overhead;
@@ -216,9 +233,9 @@ static int intel_dp_mst_find_vcpi_slots_for_bpp(struct intel_encoder *encoder,
 					       intel_dp_output_bpp(crtc_state->output_format, bpp));
 
 		local_bw_overhead = intel_dp_mst_bw_overhead(crtc_state, connector,
-							     false, dsc, link_bpp_x16);
+							     false, dsc_slice_count, link_bpp_x16);
 		remote_bw_overhead = intel_dp_mst_bw_overhead(crtc_state, connector,
-							      true, dsc, link_bpp_x16);
+							      true, dsc_slice_count, link_bpp_x16);
 
 		intel_dp_mst_compute_m_n(crtc_state, connector,
 					 local_bw_overhead,
@@ -447,6 +464,9 @@ hblank_expansion_quirk_needs_dsc(const struct intel_connector *connector,
 		return false;
 
 	if (mode_hblank_period_ns(adjusted_mode) > hblank_limit)
+		return false;
+
+	if (!intel_dp_mst_dsc_get_slice_count(connector, crtc_state))
 		return false;
 
 	return true;
