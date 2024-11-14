@@ -15,7 +15,6 @@ void __generic_xchg_called_with_bad_pointer(void)
 unsigned long wrong_size_cmpxchg(volatile void *ptr)
 {
 	panic("%s shouldn't be executed\n", __func__);
-	return 0;
 }
 
 #ifdef CONFIG_PROC_FS

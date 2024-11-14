@@ -4,7 +4,8 @@
 #include <linux/swap.h>
 
 unsigned long memory_start, memory_end;
-static unsigned long _memory_start, mem_size;
+static void *_memory_start;
+static unsigned long mem_size;
 
 void *empty_zero_page;
 
@@ -16,12 +17,12 @@ void __init bootmem_init(unsigned long mem_sz)
 
 	if (lkl_ops->page_alloc) {
 		mem_size = PAGE_ALIGN(mem_size);
-		_memory_start = (unsigned long)lkl_ops->page_alloc(mem_size);
+		_memory_start = lkl_ops->page_alloc(mem_size);
 	} else {
-		_memory_start = (unsigned long)lkl_ops->mem_alloc(mem_size);
+		_memory_start = lkl_ops->mem_alloc(mem_size);
 	}
 
-	memory_start = _memory_start;
+	memory_start = (unsigned long)_memory_start;
 	BUG_ON(!memory_start);
 	memory_end = memory_start + mem_size;
 
@@ -36,12 +37,12 @@ void __init bootmem_init(unsigned long mem_sz)
 	 * Give all the memory to the bootmap allocator, tell it to put the
 	 * boot mem_map at the start of memory.
 	 */
-	max_low_pfn = virt_to_pfn(memory_end);
-	min_low_pfn = virt_to_pfn(memory_start);
+	max_low_pfn = virt_to_pfn((void *)memory_end);
+	min_low_pfn = virt_to_pfn((void *)memory_start);
 	memblock_add(memory_start, mem_size);
 
 	empty_zero_page = memblock_alloc(PAGE_SIZE, PAGE_SIZE);
-	memset((void *)empty_zero_page, 0, PAGE_SIZE);
+	memset(empty_zero_page, 0, PAGE_SIZE);
 
 	zones_max_pfn[ZONE_NORMAL] = max_low_pfn;
 	free_area_init(zones_max_pfn);
@@ -66,7 +67,7 @@ void free_initmem(void)
 void free_mem(void)
 {
 	if (lkl_ops->page_free)
-		lkl_ops->page_free((void *)_memory_start, mem_size);
+		lkl_ops->page_free(_memory_start, mem_size);
 	else
-		lkl_ops->mem_free((void *)_memory_start);
+		lkl_ops->mem_free(_memory_start);
 }
