@@ -5920,12 +5920,15 @@ static void prev_balance(struct rq *rq, struct task_struct *prev,
 
 #ifdef CONFIG_SCHED_CLASS_EXT
 	/*
-	 * SCX requires a balance() call before every pick_next_task() including
-	 * when waking up from SCHED_IDLE. If @start_class is below SCX, start
-	 * from SCX instead.
+	 * SCX requires a balance() call before every pick_task() including when
+	 * waking up from SCHED_IDLE. If @start_class is below SCX, start from
+	 * SCX instead. Also, set a flag to detect missing balance() call.
 	 */
-	if (scx_enabled() && sched_class_above(&ext_sched_class, start_class))
-		start_class = &ext_sched_class;
+	if (scx_enabled()) {
+		rq->scx.flags |= SCX_RQ_BAL_PENDING;
+		if (sched_class_above(&ext_sched_class, start_class))
+			start_class = &ext_sched_class;
+	}
 #endif
 
 	/*

@@ -3790,7 +3790,9 @@ next:
 		 * in the case it was underused, then consider it used and
 		 * don't add it back to split_queue.
 		 */
-		if (!did_split && !folio_test_partially_mapped(folio)) {
+		if (did_split) {
+			; /* folio already removed from list */
+		} else if (!folio_test_partially_mapped(folio)) {
 			list_del_init(&folio->_deferred_list);
 			removed++;
 		} else {
