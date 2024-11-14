@@ -601,12 +601,12 @@ static bool __input_process_payload(struct xfrm_state *x, u32 data,
 				    struct list_head *sublist)
 {
 	u8 hbytes[sizeof(struct ipv6hdr)];
-	struct sk_buff *first_skb, *next, *skb;
+	struct sk_buff *defer, *first_skb, *next, *skb;
 	const unsigned char *old_mac;
 	struct xfrm_iptfs_data *xtfs;
 	struct iphdr *iph;
 	struct net *net;
-	u32 remaining, iplen, iphlen, tail;
+	u32 first_iplen, iphlen, iplen, remaining, tail;
 	u32 capturelen;
 	u64 seq;
 
@@ -614,6 +614,7 @@ static bool __input_process_payload(struct xfrm_state *x, u32 data,
 	net = xs_net(x);
 	skb = skbseq->root_skb;
 	first_skb = NULL;
+	defer = NULL;
 
 	seq = __esp_seq(skb);
 
@@ -688,23 +689,92 @@ static bool __input_process_payload(struct xfrm_state *x, u32 data,
 			skb_prepare_seq_read(save, data, tail, skbseq);
 		}
 
-		if (!first_skb)
+		if (first_skb) {
+			skb = NULL;
+		} else {
 			first_skb = skb;
+			first_iplen = iplen;
 
-		capturelen = min(iplen, remaining);
-		skb = iptfs_pskb_extract_seq(iplen, skbseq, data, capturelen);
-		if (!skb) {
-			/* skip to next packet or done */
-			data += capturelen;
-			continue;
+			/* We are going to skip over `data` bytes to reach the
+			 * start of the IP header of `iphlen` len for `iplen`
+			 * inner packet.
+			 */
+
+			if (skb_has_frag_list(skb)) {
+				defer = skb;
+				skb = NULL;
+			} else if (data + iphlen <= skb_headlen(skb) &&
+				   /* make sure our header is 32-bit aligned? */
+				   /* ((uintptr_t)(skb->data + data) & 0x3) == 0 && */
+				   skb_tailroom(skb) + tail - data >= iplen) {
+				/* Reuse the received skb.
+				 *
+				 * We have enough headlen to pull past any
+				 * initial fragment data, leaving at least the
+				 * IP header in the linear buffer space.
+				 *
+				 * For linear buffer space we only require that
+				 * linear buffer space is large enough to
+				 * eventually hold the entire reassembled
+				 * packet (by including tailroom in the check).
+				 *
+				 * For non-linear tailroom is 0 and so we only
+				 * re-use if the entire packet is present
+				 * already.
+				 *
+				 * NOTE: there are many more options for
+				 * sharing, KISS for now. Also, this can produce
+				 * skb's with the IP header unaligned to 32
+				 * bits. If that ends up being a problem then a
+				 * check should be added to the conditional
+				 * above that the header lies on a 32-bit
+				 * boundary as well.
+				 */
+				skb_pull(skb, data);
+
+				/* our range just changed */
+				data = 0;
+				tail = skb->len;
+				remaining = skb->len;
+
+				skb->protocol = protocol;
+				skb_mac_header_rebuild(skb);
+				if (skb->mac_len)
+					eth_hdr(skb)->h_proto = skb->protocol;
+
+				/* all pointers could be changed now reset walk */
+				skb_abort_seq_read(skbseq);
+				skb_prepare_seq_read(skb, data, tail, skbseq);
+			} else {
+				/* We couldn't reuse the input skb so allocate a
+				 * new one.
+				 */
+				defer = skb;
+				skb = NULL;
+			}
+
+			/* Don't trim `first_skb` until the end as we are
+			 * walking that data now.
+			 */
 		}
 
-		skb->protocol = protocol;
-		if (old_mac) {
-			/* rebuild the mac header */
-			skb_set_mac_header(skb, -first_skb->mac_len);
-			memcpy(skb_mac_header(skb), old_mac, first_skb->mac_len);
-			eth_hdr(skb)->h_proto = skb->protocol;
+		capturelen = min(iplen, remaining);
+		if (!skb) {
+			skb = iptfs_pskb_extract_seq(iplen, skbseq, data,
+						     capturelen);
+			if (!skb) {
+				/* skip to next packet or done */
+				data += capturelen;
+				continue;
+			}
+
+			skb->protocol = protocol;
+			if (old_mac) {
+				/* rebuild the mac header */
+				skb_set_mac_header(skb, -first_skb->mac_len);
+				memcpy(skb_mac_header(skb), old_mac, first_skb->mac_len);
+				eth_hdr(skb)->h_proto = skb->protocol;
+			}
 		}
 
 		data += capturelen;
@@ -735,6 +805,16 @@ static bool __input_process_payload(struct xfrm_state *x, u32 data,
 		/* this should not happen from the above code */
 		XFRM_INC_STATS(net, LINUX_MIB_XFRMINIPTFSERROR);
 
+	if (first_skb && first_iplen && !defer && first_skb != xtfs->ra_newskb) {
+		/* first_skb is queued b/c !defer and not partial */
+		if (pskb_trim(first_skb, first_iplen)) {
+			/* error trimming */
+			list_del(&first_skb->list);
+			defer = first_skb;
+		}
+		first_skb->ip_summed = CHECKSUM_NONE;
+	}
+
 	/* Send the packets! */
 	list_for_each_entry_safe(skb, next, sublist, list) {
 		skb_list_del_init(skb);
@@ -742,7 +822,20 @@ static bool __input_process_payload(struct xfrm_state *x, u32 data,
 			kfree_skb(skb);
 	}
 done:
-	return false;
+	skb = skbseq->root_skb;
+	skb_abort_seq_read(skbseq);
+
+	if (defer) {
+		consume_skb(defer);
+	} else if (!first_skb) {
+		/* skb is the original passed in skb, but we didn't get far
+		 * enough to process it as the first_skb, if we had it would
+		 * either be save in ra_newskb, trimmed and sent on as an skb or
+		 * placed in defer to be freed.
+		 */
+		kfree_skb(skb);
+	}
+	return true;
 }
 
 /**
