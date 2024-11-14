@@ -250,7 +250,7 @@ r535_gr_ctor(struct nvkm_engn *engn, struct nvkm_vctx *vctx, struct nvkm_chan *c
 }
 
 static const struct nvkm_engn_func
-r535_gr = {
+r535_engn_gr = {
 	.nonstall = r535_engn_nonstall,
 	.ctor2 = r535_gr_ctor,
 };
@@ -468,7 +468,7 @@ r535_fifo_runl_ctor(struct nvkm_fifo *fifo)
 			engn = nvkm_runl_add(runl, nv2080, &r535_engn_ce, type, inst);
 			break;
 		case NVKM_ENGINE_GR:
-			engn = nvkm_runl_add(runl, nv2080, &r535_gr, type, inst);
+			engn = nvkm_runl_add(runl, nv2080, &r535_engn_gr, type, inst);
 			break;
 		case NVKM_ENGINE_NVDEC:
 		case NVKM_ENGINE_NVENC:

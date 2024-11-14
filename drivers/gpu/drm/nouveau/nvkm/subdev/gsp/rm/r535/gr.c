@@ -170,10 +170,106 @@ r535_gr_units(struct nvkm_gr *gr)
 	return (gsp->gr.tpcs << 8) | gsp->gr.gpcs;
 }
 
+static void
+r535_gr_get_ctxbuf_info(struct r535_gr *gr, int i,
+			struct NV2080_CTRL_INTERNAL_ENGINE_CONTEXT_BUFFER_INFO *info)
+{
+	struct nvkm_subdev *subdev = &gr->base.engine.subdev;
+	static const struct {
+		u32     id0; /* NV0080_CTRL_FIFO_GET_ENGINE_CONTEXT_PROPERTIES_ENGINE_ID */
+		u32     id1; /* NV2080_CTRL_GPU_PROMOTE_CTX_BUFFER_ID */
+		bool global;
+		bool   init;
+		bool     ro;
+	} map[] = {
+#define _A(n,N,G,I,R) { .id0 = NV0080_CTRL_FIFO_GET_ENGINE_CONTEXT_PROPERTIES_ENGINE_ID_##n, \
+		.id1 = NV2080_CTRL_GPU_PROMOTE_CTX_BUFFER_ID_##N, \
+		.global = (G), .init = (I), .ro = (R) }
+#define _B(N,G,I,R) _A(GRAPHICS_##N, N, (G), (I), (R))
+		/*                                       global   init     ro */
+		_A(           GRAPHICS,             MAIN, false,  true, false),
+		_B(                                PATCH, false,  true, false),
+		_A( GRAPHICS_BUNDLE_CB, BUFFER_BUNDLE_CB,  true, false, false),
+		_B(                             PAGEPOOL,  true, false, false),
+		_B(                         ATTRIBUTE_CB,  true, false, false),
+		_B(                        RTV_CB_GLOBAL,  true, false, false),
+		_B(                           FECS_EVENT,  true,  true, false),
+		_B(                      PRIV_ACCESS_MAP,  true,  true,  true),
+#undef _B
+#undef _A
+	};
+	u32 size = info->size;
+	u8 align, page;
+	int id;
+
+	for (id = 0; id < ARRAY_SIZE(map); id++) {
+		if (map[id].id0 == i)
+			break;
+	}
+
+	nvkm_debug(subdev, "%02x: size:0x%08x %s\n", i,
+		   size, (id < ARRAY_SIZE(map)) ? "*" : "");
+	if (id >= ARRAY_SIZE(map))
+		return;
+
+	if (map[id].id1 == NV2080_CTRL_GPU_PROMOTE_CTX_BUFFER_ID_MAIN)
+		size = ALIGN(size, 0x1000) + 64 * 0x1000; /* per-subctx headers */
+
+	if      (size >= 1 << 21) page = 21;
+	else if (size >= 1 << 16) page = 16;
+	else			  page = 12;
+
+	if (map[id].id1 == NV2080_CTRL_GPU_PROMOTE_CTX_BUFFER_ID_ATTRIBUTE_CB)
+		align = order_base_2(size);
+	else
+		align = page;
+
+	if (WARN_ON(gr->ctxbuf_nr == ARRAY_SIZE(gr->ctxbuf)))
+		return;
+
+	gr->ctxbuf[gr->ctxbuf_nr].bufferId = map[id].id1;
+	gr->ctxbuf[gr->ctxbuf_nr].size     = size;
+	gr->ctxbuf[gr->ctxbuf_nr].page     = page;
+	gr->ctxbuf[gr->ctxbuf_nr].align    = align;
+	gr->ctxbuf[gr->ctxbuf_nr].global   = map[id].global;
+	gr->ctxbuf[gr->ctxbuf_nr].init     = map[id].init;
+	gr->ctxbuf[gr->ctxbuf_nr].ro       = map[id].ro;
+	gr->ctxbuf_nr++;
+
+	if (map[id].id1 == NV2080_CTRL_GPU_PROMOTE_CTX_BUFFER_ID_PRIV_ACCESS_MAP) {
+		if (WARN_ON(gr->ctxbuf_nr == ARRAY_SIZE(gr->ctxbuf)))
+			return;
+
+		gr->ctxbuf[gr->ctxbuf_nr] = gr->ctxbuf[gr->ctxbuf_nr - 1];
+		gr->ctxbuf[gr->ctxbuf_nr].bufferId =
+			NV2080_CTRL_GPU_PROMOTE_CTX_BUFFER_ID_UNRESTRICTED_PRIV_ACCESS_MAP;
+		gr->ctxbuf_nr++;
+	}
+}
+
+static int
+r535_gr_get_ctxbufs_info(struct r535_gr *gr)
+{
+	NV2080_CTRL_INTERNAL_STATIC_GR_GET_CONTEXT_BUFFERS_INFO_PARAMS *info;
+	struct nvkm_subdev *subdev = &gr->base.engine.subdev;
+	struct nvkm_gsp *gsp = subdev->device->gsp;
+
+	info = nvkm_gsp_rm_ctrl_rd(&gsp->internal.device.subdevice,
+				   NV2080_CTRL_CMD_INTERNAL_STATIC_KGR_GET_CONTEXT_BUFFERS_INFO,
+				   sizeof(*info));
+	if (WARN_ON(IS_ERR(info)))
+		return PTR_ERR(info);
+
+	for (int i = 0; i < ARRAY_SIZE(info->engineContextBuffersInfo[0].engine); i++)
+		r535_gr_get_ctxbuf_info(gr, i, &info->engineContextBuffersInfo[0].engine[i]);
+
+	nvkm_gsp_rm_ctrl_done(&gsp->internal.device.subdevice, info);
+	return 0;
+}
+
 int
 r535_gr_oneinit(struct nvkm_gr *base)
 {
-	NV2080_CTRL_INTERNAL_STATIC_GR_GET_CONTEXT_BUFFERS_INFO_PARAMS *info;
 	struct r535_gr *gr = container_of(base, typeof(*gr), base);
 	struct nvkm_subdev *subdev = &gr->base.engine.subdev;
 	struct nvkm_device *device = subdev->device;
@@ -269,88 +365,9 @@ r535_gr_oneinit(struct nvkm_gr *base)
 	 *
 	 * Also build the information that'll be used to create channel contexts.
 	 */
-	info = nvkm_gsp_rm_ctrl_rd(&gsp->internal.device.subdevice,
-				   NV2080_CTRL_CMD_INTERNAL_STATIC_KGR_GET_CONTEXT_BUFFERS_INFO,
-				   sizeof(*info));
-	if (WARN_ON(IS_ERR(info))) {
-		ret = PTR_ERR(info);
+	ret = gsp->rm->api->gr->get_ctxbufs_info(gr);
+	if (ret)
 		goto done;
-	}
-
-	for (int i = 0; i < ARRAY_SIZE(info->engineContextBuffersInfo[0].engine); i++) {
-		static const struct {
-			u32     id0; /* NV0080_CTRL_FIFO_GET_ENGINE_CONTEXT_PROPERTIES_ENGINE_ID */
-			u32     id1; /* NV2080_CTRL_GPU_PROMOTE_CTX_BUFFER_ID */
-			bool global;
-			bool   init;
-			bool     ro;
-		} map[] = {
-#define _A(n,N,G,I,R) { .id0 = NV0080_CTRL_FIFO_GET_ENGINE_CONTEXT_PROPERTIES_ENGINE_ID_##n, \
-			.id1 = NV2080_CTRL_GPU_PROMOTE_CTX_BUFFER_ID_##N, \
-			.global = (G), .init = (I), .ro = (R) }
-#define _B(N,G,I,R) _A(GRAPHICS_##N, N, (G), (I), (R))
-			/*                                       global   init     ro */
-			_A(           GRAPHICS,             MAIN, false,  true, false),
-			_B(                                PATCH, false,  true, false),
-			_A( GRAPHICS_BUNDLE_CB, BUFFER_BUNDLE_CB,  true, false, false),
-			_B(                             PAGEPOOL,  true, false, false),
-			_B(                         ATTRIBUTE_CB,  true, false, false),
-			_B(                        RTV_CB_GLOBAL,  true, false, false),
-			_B(                           FECS_EVENT,  true,  true, false),
-			_B(                      PRIV_ACCESS_MAP,  true,  true,  true),
-#undef _B
-#undef _A
-		};
-		u32 size = info->engineContextBuffersInfo[0].engine[i].size;
-		u8 align, page;
-		int id;
-
-		for (id = 0; id < ARRAY_SIZE(map); id++) {
-			if (map[id].id0 == i)
-				break;
-		}
-
-		nvkm_debug(subdev, "%02x: size:0x%08x %s\n", i,
-			   size, (id < ARRAY_SIZE(map)) ? "*" : "");
-		if (id >= ARRAY_SIZE(map))
-			continue;
-
-		if (map[id].id1 == NV2080_CTRL_GPU_PROMOTE_CTX_BUFFER_ID_MAIN)
-			size = ALIGN(size, 0x1000) + 64 * 0x1000; /* per-subctx headers */
-
-		if      (size >= 1 << 21) page = 21;
-		else if (size >= 1 << 16) page = 16;
-		else			  page = 12;
-
-		if (map[id].id1 == NV2080_CTRL_GPU_PROMOTE_CTX_BUFFER_ID_ATTRIBUTE_CB)
-			align = order_base_2(size);
-		else
-			align = page;
-
-		if (WARN_ON(gr->ctxbuf_nr == ARRAY_SIZE(gr->ctxbuf)))
-			continue;
-
-		gr->ctxbuf[gr->ctxbuf_nr].bufferId = map[id].id1;
-		gr->ctxbuf[gr->ctxbuf_nr].size     = size;
-		gr->ctxbuf[gr->ctxbuf_nr].page     = page;
-		gr->ctxbuf[gr->ctxbuf_nr].align    = align;
-		gr->ctxbuf[gr->ctxbuf_nr].global   = map[id].global;
-		gr->ctxbuf[gr->ctxbuf_nr].init     = map[id].init;
-		gr->ctxbuf[gr->ctxbuf_nr].ro       = map[id].ro;
-		gr->ctxbuf_nr++;
-
-		if (map[id].id1 == NV2080_CTRL_GPU_PROMOTE_CTX_BUFFER_ID_PRIV_ACCESS_MAP) {
-			if (WARN_ON(gr->ctxbuf_nr == ARRAY_SIZE(gr->ctxbuf)))
-				continue;
-
-			gr->ctxbuf[gr->ctxbuf_nr] = gr->ctxbuf[gr->ctxbuf_nr - 1];
-			gr->ctxbuf[gr->ctxbuf_nr].bufferId =
-				NV2080_CTRL_GPU_PROMOTE_CTX_BUFFER_ID_UNRESTRICTED_PRIV_ACCESS_MAP;
-			gr->ctxbuf_nr++;
-		}
-	}
-
-	nvkm_gsp_rm_ctrl_done(&gsp->internal.device.subdevice, info);
 
 	/* Promote golden context to RM. */
 	ret = r535_gr_promote_ctx(gr, true, golden.vmm, gr->ctxbuf_mem, golden.vma, &golden.chan);
@@ -385,3 +402,8 @@ r535_gr_dtor(struct nvkm_gr *base)
 	kfree(gr->base.func);
 	return gr;
 }
+
+const struct nvkm_rm_api_gr
+r535_gr = {
+	.get_ctxbufs_info = r535_gr_get_ctxbufs_info,
+};

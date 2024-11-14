@@ -31,6 +31,7 @@ r535_api = {
 	.disp = &r535_disp,
 	.fifo = &r535_fifo,
 	.ce = &r535_ce,
+	.gr = &r535_gr,
 	.nvdec = &r535_nvdec,
 	.nvenc = &r535_nvenc,
 	.nvjpg = &r535_nvjpg,

@@ -7,6 +7,7 @@
 #define __NVKM_RM_H__
 #include "handles.h"
 struct nvkm_outp;
+struct r535_gr;
 
 struct nvkm_rm_impl {
 	const struct nvkm_rm_wpr *wpr;
@@ -96,6 +97,11 @@ struct nvkm_rm_api {
 		int (*alloc)(struct nvkm_gsp_object *chan, u32 handle, u32 class, int inst,
 			     struct nvkm_gsp_object *);
 	} *ce, *nvdec, *nvenc, *nvjpg, *ofa;
+
+	const struct nvkm_rm_api_gr {
+		int (*get_ctxbufs_info)(struct r535_gr *);
+	} *gr;
+
 };
 
 extern const struct nvkm_rm_impl r535_rm_tu102;
@@ -109,6 +115,7 @@ extern const struct nvkm_rm_api_device r535_device;
 extern const struct nvkm_rm_api_disp r535_disp;
 extern const struct nvkm_rm_api_fifo r535_fifo;
 extern const struct nvkm_rm_api_engine r535_ce;
+extern const struct nvkm_rm_api_gr r535_gr;
 void *r535_gr_dtor(struct nvkm_gr *);
 int r535_gr_oneinit(struct nvkm_gr *);
 u64 r535_gr_units(struct nvkm_gr *);
