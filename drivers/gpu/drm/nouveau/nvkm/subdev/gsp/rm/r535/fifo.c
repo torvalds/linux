@@ -427,13 +427,14 @@ r535_fifo_runl_ctor(struct nvkm_fifo *fifo)
 	struct nvkm_rm *rm = gsp->rm;
 	struct nvkm_runl *runl;
 	struct nvkm_engn *engn;
-	u32 cgids = 2048;
 	u32 chids = 2048;
+	u32 first = rm->api->fifo->rsvd_chids;
+	u32 count = chids - first;
 	int ret;
 	NV2080_CTRL_FIFO_GET_DEVICE_INFO_TABLE_PARAMS *ctrl;
 
-	if ((ret = nvkm_chid_new(&nvkm_chan_event, subdev, cgids, 0, cgids, &fifo->cgid)) ||
-	    (ret = nvkm_chid_new(&nvkm_chan_event, subdev, chids, 0, chids, &fifo->chid)))
+	if ((ret = nvkm_chid_new(&nvkm_chan_event, subdev, chids, first, count, &fifo->cgid)) ||
+	    (ret = nvkm_chid_new(&nvkm_chan_event, subdev, chids, first, count, &fifo->chid)))
 		return ret;
 
 	ctrl = nvkm_gsp_rm_ctrl_rd(&gsp->internal.device.subdevice,

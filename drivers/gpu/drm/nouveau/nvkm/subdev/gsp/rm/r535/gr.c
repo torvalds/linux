@@ -298,7 +298,8 @@ r535_gr_oneinit(struct nvkm_gr *base)
 	if (ret)
 		goto done;
 
-	ret = rm->api->fifo->chan.alloc(&golden.vmm->rm.device, NVKM_RM_CHAN(0), 1, 0, true, 0,
+	ret = rm->api->fifo->chan.alloc(&golden.vmm->rm.device, NVKM_RM_CHAN(0),
+					1, 0, true, rm->api->fifo->rsvd_chids,
 					nvkm_memory_addr(golden.inst),
 					nvkm_memory_addr(golden.inst) + 0x1000,
 					nvkm_memory_addr(golden.inst) + 0x2000,
