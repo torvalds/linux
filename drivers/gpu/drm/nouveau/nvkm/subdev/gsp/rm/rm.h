@@ -6,6 +6,7 @@
 #ifndef __NVKM_RM_H__
 #define __NVKM_RM_H__
 #include "handles.h"
+struct nvkm_outp;
 
 struct nvkm_rm_impl {
 	const struct nvkm_rm_wpr *wpr;
@@ -72,6 +73,10 @@ struct nvkm_rm_api {
 
 	const struct nvkm_rm_api_disp {
 		int (*bl_ctrl)(struct nvkm_disp *, unsigned display_id, bool set, int *val);
+
+		struct {
+			int (*set_indexed_link_rates)(struct nvkm_outp *);
+		} dp;
 	} *disp;
 
 	const struct nvkm_rm_api_engine {

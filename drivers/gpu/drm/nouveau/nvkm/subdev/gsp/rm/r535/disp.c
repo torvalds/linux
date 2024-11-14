@@ -1021,14 +1021,10 @@ r535_dp_train(struct nvkm_outp *outp, bool retrain)
 }
 
 static int
-r535_dp_rates(struct nvkm_outp *outp)
+r535_dp_set_indexed_link_rates(struct nvkm_outp *outp)
 {
 	NV0073_CTRL_CMD_DP_CONFIG_INDEXED_LINK_RATES_PARAMS *ctrl;
 	struct nvkm_disp *disp = outp->disp;
-
-	if (outp->conn->info.type != DCB_CONNECTOR_eDP ||
-	    !outp->dp.rates || outp->dp.rate[0].dpcd < 0)
-		return 0;
 
 	if (WARN_ON(outp->dp.rates > ARRAY_SIZE(ctrl->linkRateTbl)))
 		return -EINVAL;
@@ -1043,6 +1039,18 @@ r535_dp_rates(struct nvkm_outp *outp)
 		ctrl->linkRateTbl[outp->dp.rate[i].dpcd] = outp->dp.rate[i].rate * 10 / 200;
 
 	return nvkm_gsp_rm_ctrl_wr(&disp->rm.objcom, ctrl);
+}
+
+static int
+r535_dp_rates(struct nvkm_outp *outp)
+{
+	struct nvkm_rm *rm = outp->disp->rm.objcom.client->gsp->rm;
+
+	if (outp->conn->info.type != DCB_CONNECTOR_eDP ||
+	    !outp->dp.rates || outp->dp.rate[0].dpcd < 0)
+		return 0;
+
+	return rm->api->disp->dp.set_indexed_link_rates(outp);
 }
 
 static int
@@ -1726,4 +1734,7 @@ r535_disp_new(const struct nvkm_disp_func *hw, struct nvkm_device *device,
 const struct nvkm_rm_api_disp
 r535_disp = {
 	.bl_ctrl = r535_bl_ctrl,
+	.dp = {
+		.set_indexed_link_rates = r535_dp_set_indexed_link_rates,
+	}
 };
