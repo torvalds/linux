@@ -2544,6 +2544,8 @@ struct dc_power_profile {
 
 struct dc_power_profile dc_get_power_profile_for_dc_state(const struct dc_state *context);
 
+unsigned int dc_get_det_buffer_size_from_state(const struct dc_state *context);
+
 /* DSC Interfaces */
 #include "dc_dsc.h"
 
