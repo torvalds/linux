@@ -79,6 +79,10 @@ enum btrfs_reserve_flush_enum {
 	BTRFS_RESERVE_FLUSH_EMERGENCY,
 };
 
+/*
+ * Please be aware that the order of enum values will be the order of the reclaim
+ * process in btrfs_async_reclaim_metadata_space().
+ */
 enum btrfs_flush_state {
 	FLUSH_DELAYED_ITEMS_NR	= 1,
 	FLUSH_DELAYED_ITEMS	= 2,
@@ -91,6 +95,7 @@ enum btrfs_flush_state {
 	ALLOC_CHUNK_FORCE	= 9,
 	RUN_DELAYED_IPUTS	= 10,
 	COMMIT_TRANS		= 11,
+	RESET_ZONES		= 12,
 };
 
 struct btrfs_space_info {
