@@ -27,10 +27,8 @@
 #include <subdev/instmem.h>
 #include <subdev/mmu/vmm.h>
 
-#include <nvrm/nvtypes.h>
-#include <nvrm/535.113.01/nvidia/generated/g_rpc-structures.h>
-#include <nvrm/535.113.01/nvidia/kernel/inc/vgpu/rpc_global_enums.h>
-#include <nvrm/535.113.01/nvidia/kernel/inc/vgpu/rpc_headers.h>
+#include "nvrm/bar.h"
+#include "nvrm/rpcfn.h"
 
 static void
 r535_bar_flush(struct nvkm_bar *bar)

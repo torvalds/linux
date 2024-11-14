@@ -21,13 +21,8 @@
  */
 #include <rm/rm.h>
 
-#include <nvrm/nvtypes.h>
-#include <nvrm/535.113.01/common/sdk/nvidia/inc/class/cl0005.h>
-#include <nvrm/535.113.01/common/sdk/nvidia/inc/class/cl0080.h>
-#include <nvrm/535.113.01/common/sdk/nvidia/inc/class/cl2080.h>
-#include <nvrm/535.113.01/common/sdk/nvidia/inc/ctrl/ctrl2080/ctrl2080event.h>
-#include <nvrm/535.113.01/common/sdk/nvidia/inc/nvos.h>
-#include <nvrm/535.113.01/nvidia/generated/g_allclasses.h>
+#include "nvrm/device.h"
+#include "nvrm/event.h"
 
 static void
 r535_gsp_event_dtor(struct nvkm_gsp_event *event)

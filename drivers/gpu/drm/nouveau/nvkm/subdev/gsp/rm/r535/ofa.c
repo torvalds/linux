@@ -26,8 +26,7 @@
 #include <subdev/mmu.h>
 #include <engine/fifo.h>
 
-#include <nvrm/nvtypes.h>
-#include <nvrm/535.113.01/common/sdk/nvidia/inc/nvos.h>
+#include "nvrm/ofa.h"
 
 struct r535_ofa_obj {
 	struct nvkm_object object;

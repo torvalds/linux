@@ -21,9 +21,8 @@
  */
 #include <rm/rpc.h>
 
-#include <nvrm/nvtypes.h>
-#include <nvrm/535.113.01/nvidia/generated/g_rpc-structures.h>
-#include <nvrm/535.113.01/nvidia/kernel/inc/vgpu/rpc_global_enums.h>
+#include "nvrm/ctrl.h"
+#include "nvrm/rpcfn.h"
 
 static void
 r535_gsp_rpc_rm_ctrl_done(struct nvkm_gsp_object *object, void *params)

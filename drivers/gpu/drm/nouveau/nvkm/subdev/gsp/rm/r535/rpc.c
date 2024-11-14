@@ -21,8 +21,7 @@
  */
 #include <rm/rpc.h>
 
-#include <nvrm/nvtypes.h>
-#include <nvrm/535.113.01/nvidia/kernel/inc/vgpu/rpc_global_enums.h>
+#include "nvrm/rpcfn.h"
 
 #define GSP_MSG_MIN_SIZE GSP_PAGE_SIZE
 #define GSP_MSG_MAX_SIZE (GSP_MSG_MIN_SIZE * 16)

@@ -32,22 +32,11 @@
 
 #include <nvfw/fw.h>
 
-#include <nvrm/nvtypes.h>
-#include <nvrm/535.113.01/common/sdk/nvidia/inc/ctrl/ctrl2080/ctrl2080gpu.h>
-#include <nvrm/535.113.01/common/sdk/nvidia/inc/ctrl/ctrl2080/ctrl2080internal.h>
-#include <nvrm/535.113.01/common/shared/msgq/inc/msgq/msgq_priv.h>
-#include <nvrm/535.113.01/common/uproc/os/common/include/libos_init_args.h>
-#include <nvrm/535.113.01/nvidia/arch/nvalloc/common/inc/gsp/gsp_fw_sr_meta.h>
-#include <nvrm/535.113.01/nvidia/arch/nvalloc/common/inc/gsp/gsp_fw_wpr_meta.h>
-#include <nvrm/535.113.01/nvidia/arch/nvalloc/common/inc/rmRiscvUcode.h>
-#include <nvrm/535.113.01/nvidia/arch/nvalloc/common/inc/rmgspseq.h>
-#include <nvrm/535.113.01/nvidia/generated/g_os_nvoc.h>
-#include <nvrm/535.113.01/nvidia/generated/g_rpc-structures.h>
-#include <nvrm/535.113.01/nvidia/inc/kernel/gpu/gsp/gsp_fw_heap.h>
-#include <nvrm/535.113.01/nvidia/inc/kernel/gpu/gsp/gsp_init_args.h>
-#include <nvrm/535.113.01/nvidia/inc/kernel/gpu/gsp/gsp_static_config.h>
-#include <nvrm/535.113.01/nvidia/inc/kernel/gpu/intr/engine_idx.h>
-#include <nvrm/535.113.01/nvidia/kernel/inc/vgpu/rpc_global_enums.h>
+#include "nvrm/gsp.h"
+#include "nvrm/rpcfn.h"
+#include "nvrm/msgfn.h"
+#include "nvrm/event.h"
+#include "nvrm/fifo.h"
 
 #include <linux/acpi.h>
 #include <linux/ctype.h>

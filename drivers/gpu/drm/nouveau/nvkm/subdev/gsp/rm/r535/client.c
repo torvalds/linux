@@ -21,8 +21,7 @@
  */
 #include <rm/rm.h>
 
-#include <nvrm/nvtypes.h>
-#include <nvrm/535.113.01/common/sdk/nvidia/inc/class/cl0000.h>
+#include "nvrm/client.h"
 
 static void
 r535_gsp_client_dtor(struct nvkm_gsp_client *client)

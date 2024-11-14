@@ -25,8 +25,7 @@
 #include <subdev/gsp.h>
 #include <engine/fifo.h>
 
-#include <nvrm/nvtypes.h>
-#include <nvrm/535.113.01/common/sdk/nvidia/inc/nvos.h>
+#include "nvrm/nvjpg.h"
 
 struct r535_nvjpg_obj {
 	struct nvkm_object object;
