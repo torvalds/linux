@@ -212,12 +212,6 @@ struct nvkm_gsp {
 	const struct nvkm_gsp_rm {
 		const struct nvkm_rm_api *api;
 
-		void *(*rm_alloc_get)(struct nvkm_gsp_object *, u32 oclass, u32 argc);
-		void *(*rm_alloc_push)(struct nvkm_gsp_object *, void *argv);
-		void (*rm_alloc_done)(struct nvkm_gsp_object *, void *repv);
-
-		int (*rm_free)(struct nvkm_gsp_object *);
-
 		int (*client_ctor)(struct nvkm_gsp *, struct nvkm_gsp_client *);
 		void (*client_dtor)(struct nvkm_gsp_client *);
 
@@ -364,7 +358,7 @@ nvkm_gsp_rm_alloc_get(struct nvkm_gsp_object *parent, u32 handle, u32 oclass, u3
 	object->parent = parent;
 	object->handle = handle;
 
-	argv = gsp->rm->rm_alloc_get(object, oclass, argc);
+	argv = gsp->rm->api->alloc->get(object, oclass, argc);
 	if (IS_ERR_OR_NULL(argv)) {
 		object->client = NULL;
 		return argv;
@@ -376,7 +370,7 @@ nvkm_gsp_rm_alloc_get(struct nvkm_gsp_object *parent, u32 handle, u32 oclass, u3
 static inline void *
 nvkm_gsp_rm_alloc_push(struct nvkm_gsp_object *object, void *argv)
 {
-	void *repv = object->client->gsp->rm->rm_alloc_push(object, argv);
+	void *repv = object->client->gsp->rm->api->alloc->push(object, argv);
 
 	if (IS_ERR(repv))
 		object->client = NULL;
@@ -398,7 +392,7 @@ nvkm_gsp_rm_alloc_wr(struct nvkm_gsp_object *object, void *argv)
 static inline void
 nvkm_gsp_rm_alloc_done(struct nvkm_gsp_object *object, void *repv)
 {
-	object->client->gsp->rm->rm_alloc_done(object, repv);
+	object->client->gsp->rm->api->alloc->done(object, repv);
 }
 
 static inline int
@@ -416,8 +410,11 @@ nvkm_gsp_rm_alloc(struct nvkm_gsp_object *parent, u32 handle, u32 oclass, u32 ar
 static inline int
 nvkm_gsp_rm_free(struct nvkm_gsp_object *object)
 {
-	if (object->client)
-		return object->client->gsp->rm->rm_free(object);
+	if (object->client) {
+		int ret = object->client->gsp->rm->api->alloc->free(object);
+		object->client = NULL;
+		return ret;
+	}
 
 	return 0;
 }
