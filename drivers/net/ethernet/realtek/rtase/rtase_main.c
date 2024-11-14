@@ -2115,7 +2115,7 @@ static int rtase_init_one(struct pci_dev *pdev,
 	ret = rtase_alloc_interrupt(pdev, tp);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "unable to alloc MSIX/MSI\n");
-		goto err_out_1;
+		goto err_out_del_napi;
 	}
 
 	rtase_init_netdev_ops(dev);
@@ -2148,7 +2148,7 @@ static int rtase_init_one(struct pci_dev *pdev,
 					     GFP_KERNEL);
 	if (!tp->tally_vaddr) {
 		ret = -ENOMEM;
-		goto err_out;
+		goto err_out_free_dma;
 	}
 
 	rtase_tally_counter_clear(tp);
@@ -2159,13 +2159,13 @@ static int rtase_init_one(struct pci_dev *pdev,
 
 	ret = register_netdev(dev);
 	if (ret != 0)
-		goto err_out;
+		goto err_out_free_dma;
 
 	netdev_dbg(dev, "%pM, IRQ %d\n", dev->dev_addr, dev->irq);
 
 	return 0;
 
-err_out:
+err_out_free_dma:
 	if (tp->tally_vaddr) {
 		dma_free_coherent(&pdev->dev,
 				  sizeof(*tp->tally_vaddr),
@@ -2175,7 +2175,7 @@ err_out:
 		tp->tally_vaddr = NULL;
 	}
 
-err_out_1:
+err_out_del_napi:
 	for (i = 0; i < tp->int_nums; i++) {
 		ivec = &tp->int_vector[i];
 		netif_napi_del(&ivec->napi);
