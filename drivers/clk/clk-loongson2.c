@@ -306,7 +306,7 @@ static int loongson2_clk_probe(struct platform_device *pdev)
 		return PTR_ERR(clp->base);
 
 	spin_lock_init(&clp->clk_lock);
-	clp->clk_data.num = clks_num + 1;
+	clp->clk_data.num = clks_num;
 	clp->dev = dev;
 
 	for (i = 0; i < clks_num; i++) {
