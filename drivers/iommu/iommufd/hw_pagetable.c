@@ -227,7 +227,7 @@ iommufd_hwpt_nested_alloc(struct iommufd_ctx *ictx,
 	int rc;
 
 	if ((flags & ~IOMMU_HWPT_FAULT_ID_VALID) ||
-	    !user_data->len || !ops->domain_alloc_user)
+	    !user_data->len || !ops->domain_alloc_nested)
 		return ERR_PTR(-EOPNOTSUPP);
 	if (parent->auto_domain || !parent->nest_parent ||
 	    parent->common.domain->owner != ops)
@@ -242,9 +242,9 @@ iommufd_hwpt_nested_alloc(struct iommufd_ctx *ictx,
 	refcount_inc(&parent->common.obj.users);
 	hwpt_nested->parent = parent;
 
-	hwpt->domain = ops->domain_alloc_user(idev->dev,
-					      flags & ~IOMMU_HWPT_FAULT_ID_VALID,
-					      parent->common.domain, user_data);
+	hwpt->domain = ops->domain_alloc_nested(
+		idev->dev, parent->common.domain,
+		flags & ~IOMMU_HWPT_FAULT_ID_VALID, user_data);
 	if (IS_ERR(hwpt->domain)) {
 		rc = PTR_ERR(hwpt->domain);
 		hwpt->domain = NULL;

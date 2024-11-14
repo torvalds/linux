@@ -356,8 +356,8 @@ __mock_domain_alloc_nested(const struct iommu_user_data *user_data)
 }
 
 static struct iommu_domain *
-mock_domain_alloc_nested(struct iommu_domain *parent, u32 flags,
-			 const struct iommu_user_data *user_data)
+mock_domain_alloc_nested(struct device *dev, struct iommu_domain *parent,
+			 u32 flags, const struct iommu_user_data *user_data)
 {
 	struct mock_iommu_domain_nested *mock_nested;
 	struct mock_iommu_domain *mock_parent;
@@ -391,7 +391,7 @@ mock_domain_alloc_user(struct device *dev, u32 flags,
 	struct iommu_domain *domain;
 
 	if (parent)
-		return mock_domain_alloc_nested(parent, flags, user_data);
+		return ERR_PTR(-EOPNOTSUPP);
 
 	if (user_data)
 		return ERR_PTR(-EOPNOTSUPP);
@@ -719,6 +719,7 @@ static const struct iommu_ops mock_ops = {
 	.hw_info = mock_domain_hw_info,
 	.domain_alloc_paging = mock_domain_alloc_paging,
 	.domain_alloc_user = mock_domain_alloc_user,
+	.domain_alloc_nested = mock_domain_alloc_nested,
 	.capable = mock_domain_capable,
 	.device_group = generic_device_group,
 	.probe_device = mock_probe_device,

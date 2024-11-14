@@ -3340,12 +3340,8 @@ intel_iommu_domain_alloc_user(struct device *dev, u32 flags,
 	struct iommu_domain *domain;
 	bool first_stage;
 
-	/* Must be NESTING domain */
-	if (parent) {
-		if (!nested_supported(iommu) || flags)
-			return ERR_PTR(-EOPNOTSUPP);
-		return intel_nested_domain_alloc(parent, user_data);
-	}
+	if (parent)
+		return ERR_PTR(-EOPNOTSUPP);
 
 	if (flags &
 	    (~(IOMMU_HWPT_ALLOC_NEST_PARENT | IOMMU_HWPT_ALLOC_DIRTY_TRACKING
@@ -4475,6 +4471,7 @@ const struct iommu_ops intel_iommu_ops = {
 	.domain_alloc_user	= intel_iommu_domain_alloc_user,
 	.domain_alloc_sva	= intel_svm_domain_alloc,
 	.domain_alloc_paging	= intel_iommu_domain_alloc_paging,
+	.domain_alloc_nested	= intel_iommu_domain_alloc_nested,
 	.probe_device		= intel_iommu_probe_device,
 	.release_device		= intel_iommu_release_device,
 	.get_resv_regions	= intel_iommu_get_resv_regions,

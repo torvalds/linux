@@ -559,15 +559,13 @@ iommu_copy_struct_from_full_user_array(void *kdst, size_t kdst_entry_size,
  *                the caller iommu_domain_alloc() returns.
  * @domain_alloc_user: Allocate an iommu domain corresponding to the input
  *                     parameters as defined in include/uapi/linux/iommufd.h.
- *                     Upon success, if the @user_data is valid and the @parent
- *                     points to a kernel-managed domain, the new domain must be
- *                     IOMMU_DOMAIN_NESTED type; otherwise, the @parent must be
- *                     NULL while the @user_data can be optionally provided, the
+ *                     The @user_data can be optionally provided, the
  *                     new domain must support __IOMMU_DOMAIN_PAGING.
  *                     Upon failure, ERR_PTR must be returned.
  * @domain_alloc_paging: Allocate an iommu_domain that can be used for
  *                       UNMANAGED, DMA, and DMA_FQ domain types.
  * @domain_alloc_sva: Allocate an iommu_domain for Shared Virtual Addressing.
+ * @domain_alloc_nested: Allocate an iommu_domain for nested translation.
  * @probe_device: Add device to iommu driver handling
  * @release_device: Remove device from iommu driver handling
  * @probe_finalize: Do final setup work after the device is added to an IOMMU
@@ -622,6 +620,9 @@ struct iommu_ops {
 	struct iommu_domain *(*domain_alloc_paging)(struct device *dev);
 	struct iommu_domain *(*domain_alloc_sva)(struct device *dev,
 						 struct mm_struct *mm);
+	struct iommu_domain *(*domain_alloc_nested)(
+		struct device *dev, struct iommu_domain *parent, u32 flags,
+		const struct iommu_user_data *user_data);
 
 	struct iommu_device *(*probe_device)(struct device *dev);
 	void (*release_device)(struct device *dev);
