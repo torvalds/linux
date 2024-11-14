@@ -3081,10 +3081,9 @@ static int ep_queue(struct usb_ep *ep, struct usb_request *req,
 			err("Queue is busy. Large req is not allowed");
 			goto done;
 		}
-		if ((mEp->type != USB_ENDPOINT_XFER_BULK) ||
-				(mEp->dir != RX)) {
+		if (mEp->type != USB_ENDPOINT_XFER_BULK) {
 			retval = -EINVAL;
-			err("Larger req is supported only for Bulk OUT");
+			err("Larger req is supported only for Bulk Transfer");
 			goto done;
 		}
 		mEp->multi_req = true;
