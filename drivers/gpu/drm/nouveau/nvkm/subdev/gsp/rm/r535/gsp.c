@@ -1196,23 +1196,11 @@ r535_gsp_shared_init(struct nvkm_gsp *gsp)
 	return 0;
 }
 
-int
-r535_gsp_rmargs_init(struct nvkm_gsp *gsp, bool resume)
+static void
+r535_gsp_set_rmargs(struct nvkm_gsp *gsp, bool resume)
 {
-	GSP_ARGUMENTS_CACHED *args;
-	int ret;
+	GSP_ARGUMENTS_CACHED *args = gsp->rmargs.data;
 
-	if (!resume) {
-		ret = r535_gsp_shared_init(gsp);
-		if (ret)
-			return ret;
-
-		ret = nvkm_gsp_mem_ctor(gsp, 0x1000, &gsp->rmargs);
-		if (ret)
-			return ret;
-	}
-
-	args = gsp->rmargs.data;
 	args->messageQueueInitArguments.sharedMemPhysAddr = gsp->shm.mem.addr;
 	args->messageQueueInitArguments.pageTableEntryCount = gsp->shm.ptes.nr;
 	args->messageQueueInitArguments.cmdQueueOffset =
@@ -1229,7 +1217,24 @@ r535_gsp_rmargs_init(struct nvkm_gsp *gsp, bool resume)
 		args->srInitArguments.flags = 0;
 		args->srInitArguments.bInPMTransition = 1;
 	}
+}
 
+static int
+r535_gsp_rmargs_init(struct nvkm_gsp *gsp, bool resume)
+{
+	int ret;
+
+	if (!resume) {
+		ret = r535_gsp_shared_init(gsp);
+		if (ret)
+			return ret;
+
+		ret = nvkm_gsp_mem_ctor(gsp, 0x1000, &gsp->rmargs);
+		if (ret)
+			return ret;
+	}
+
+	gsp->rm->api->gsp->set_rmargs(gsp, resume);
 	return 0;
 }
 
@@ -2174,6 +2179,7 @@ r535_gsp_oneinit(struct nvkm_gsp *gsp)
 
 const struct nvkm_rm_api_gsp
 r535_gsp = {
+	.set_rmargs = r535_gsp_set_rmargs,
 	.set_system_info = r535_gsp_set_system_info,
 	.get_static_info = r535_gsp_get_static_info,
 	.xlat_mc_engine_idx = r535_gsp_xlat_mc_engine_idx,

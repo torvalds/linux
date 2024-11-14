@@ -183,7 +183,7 @@ tu102_gsp_init(struct nvkm_gsp *gsp)
 		mbox0 = lower_32_bits(gsp->wpr_meta.addr);
 		mbox1 = upper_32_bits(gsp->wpr_meta.addr);
 	} else {
-		r535_gsp_rmargs_init(gsp, true);
+		gsp->rm->api->gsp->set_rmargs(gsp, true);
 
 		mbox0 = lower_32_bits(gsp->sr.meta.addr);
 		mbox1 = upper_32_bits(gsp->sr.meta.addr);
