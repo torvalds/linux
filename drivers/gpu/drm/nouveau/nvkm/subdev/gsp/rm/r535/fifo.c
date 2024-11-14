@@ -324,56 +324,52 @@ r535_runl = {
 };
 
 static int
-r535_fifo_2080_type(enum nvkm_subdev_type type, int inst)
+r535_fifo_xlat_rm_engine_type(u32 rm, enum nvkm_subdev_type *ptype, int *p2080)
 {
-	switch (type) {
-	case NVKM_ENGINE_GR: return NV2080_ENGINE_TYPE_GR0;
-	case NVKM_ENGINE_CE: return NV2080_ENGINE_TYPE_COPY0 + inst;
-	case NVKM_ENGINE_SEC2: return NV2080_ENGINE_TYPE_SEC2;
-	case NVKM_ENGINE_NVDEC: return NV2080_ENGINE_TYPE_NVDEC0 + inst;
-	case NVKM_ENGINE_NVENC: return NV2080_ENGINE_TYPE_NVENC0 + inst;
-	case NVKM_ENGINE_NVJPG: return NV2080_ENGINE_TYPE_NVJPEG0 + inst;
-	case NVKM_ENGINE_OFA: return NV2080_ENGINE_TYPE_OFA;
-	case NVKM_ENGINE_SW: return NV2080_ENGINE_TYPE_SW;
-	default:
-		break;
-	}
+#define RM_ENGINE_TYPE(RM,NVKM,INST)              \
+	RM_ENGINE_TYPE_##RM:                      \
+		*ptype = NVKM_ENGINE_##NVKM;      \
+		*p2080 = NV2080_ENGINE_TYPE_##RM; \
+		return INST
 
-	WARN_ON(1);
-	return -EINVAL;
-}
-
-static int
-r535_fifo_engn_type(RM_ENGINE_TYPE rm, enum nvkm_subdev_type *ptype)
-{
 	switch (rm) {
-	case RM_ENGINE_TYPE_GR0:
-		*ptype = NVKM_ENGINE_GR;
-		return 0;
-	case RM_ENGINE_TYPE_COPY0...RM_ENGINE_TYPE_COPY9:
-		*ptype = NVKM_ENGINE_CE;
-		return rm - RM_ENGINE_TYPE_COPY0;
-	case RM_ENGINE_TYPE_NVDEC0...RM_ENGINE_TYPE_NVDEC7:
-		*ptype = NVKM_ENGINE_NVDEC;
-		return rm - RM_ENGINE_TYPE_NVDEC0;
-	case RM_ENGINE_TYPE_NVENC0...RM_ENGINE_TYPE_NVENC2:
-		*ptype = NVKM_ENGINE_NVENC;
-		return rm - RM_ENGINE_TYPE_NVENC0;
-	case RM_ENGINE_TYPE_SW:
-		*ptype = NVKM_ENGINE_SW;
-		return 0;
-	case RM_ENGINE_TYPE_SEC2:
-		*ptype = NVKM_ENGINE_SEC2;
-		return 0;
-	case RM_ENGINE_TYPE_NVJPEG0...RM_ENGINE_TYPE_NVJPEG7:
-		*ptype = NVKM_ENGINE_NVJPG;
-		return rm - RM_ENGINE_TYPE_NVJPEG0;
-	case RM_ENGINE_TYPE_OFA:
-		*ptype = NVKM_ENGINE_OFA;
-		return 0;
+	case RM_ENGINE_TYPE(    GR0,    GR, 0);
+	case RM_ENGINE_TYPE(  COPY0,    CE, 0);
+	case RM_ENGINE_TYPE(  COPY1,    CE, 1);
+	case RM_ENGINE_TYPE(  COPY2,    CE, 2);
+	case RM_ENGINE_TYPE(  COPY3,    CE, 3);
+	case RM_ENGINE_TYPE(  COPY4,    CE, 4);
+	case RM_ENGINE_TYPE(  COPY5,    CE, 5);
+	case RM_ENGINE_TYPE(  COPY6,    CE, 6);
+	case RM_ENGINE_TYPE(  COPY7,    CE, 7);
+	case RM_ENGINE_TYPE(  COPY8,    CE, 8);
+	case RM_ENGINE_TYPE(  COPY9,    CE, 9);
+	case RM_ENGINE_TYPE( NVDEC0, NVDEC, 0);
+	case RM_ENGINE_TYPE( NVDEC1, NVDEC, 1);
+	case RM_ENGINE_TYPE( NVDEC2, NVDEC, 2);
+	case RM_ENGINE_TYPE( NVDEC3, NVDEC, 3);
+	case RM_ENGINE_TYPE( NVDEC4, NVDEC, 4);
+	case RM_ENGINE_TYPE( NVDEC5, NVDEC, 5);
+	case RM_ENGINE_TYPE( NVDEC6, NVDEC, 6);
+	case RM_ENGINE_TYPE( NVDEC7, NVDEC, 7);
+	case RM_ENGINE_TYPE( NVENC0, NVENC, 0);
+	case RM_ENGINE_TYPE( NVENC1, NVENC, 1);
+	case RM_ENGINE_TYPE( NVENC2, NVENC, 2);
+	case RM_ENGINE_TYPE(NVJPEG0, NVJPG, 0);
+	case RM_ENGINE_TYPE(NVJPEG1, NVJPG, 1);
+	case RM_ENGINE_TYPE(NVJPEG2, NVJPG, 2);
+	case RM_ENGINE_TYPE(NVJPEG3, NVJPG, 3);
+	case RM_ENGINE_TYPE(NVJPEG4, NVJPG, 4);
+	case RM_ENGINE_TYPE(NVJPEG5, NVJPG, 5);
+	case RM_ENGINE_TYPE(NVJPEG6, NVJPG, 6);
+	case RM_ENGINE_TYPE(NVJPEG7, NVJPG, 7);
+	case RM_ENGINE_TYPE(     SW,    SW, 0);
+	case RM_ENGINE_TYPE(   SEC2,  SEC2, 0);
+	case RM_ENGINE_TYPE(    OFA,   OFA, 0);
 	default:
 		return -EINVAL;
 	}
+#undef RM_ENGINE_TYPE
 }
 
 static int
@@ -410,7 +406,9 @@ static int
 r535_fifo_runl_ctor(struct nvkm_fifo *fifo)
 {
 	struct nvkm_subdev *subdev = &fifo->engine.subdev;
-	struct nvkm_gsp *gsp = subdev->device->gsp;
+	struct nvkm_device *device = subdev->device;
+	struct nvkm_gsp *gsp = device->gsp;
+	struct nvkm_rm *rm = gsp->rm;
 	struct nvkm_runl *runl;
 	struct nvkm_engn *engn;
 	u32 cgids = 2048;
@@ -450,15 +448,9 @@ r535_fifo_runl_ctor(struct nvkm_fifo *fifo)
 		if (!runl)
 			continue;
 
-		inst = r535_fifo_engn_type(rmid, &type);
+		inst = rm->api->fifo->xlat_rm_engine_type(rmid, &type, &nv2080);
 		if (inst < 0) {
 			nvkm_warn(subdev, "RM_ENGINE_TYPE 0x%x\n", rmid);
-			nvkm_runl_del(runl);
-			continue;
-		}
-
-		nv2080 = r535_fifo_2080_type(type, inst);
-		if (nv2080 < 0) {
 			nvkm_runl_del(runl);
 			continue;
 		}
@@ -544,3 +536,8 @@ r535_fifo_new(const struct nvkm_fifo_func *hw, struct nvkm_device *device,
 
 	return nvkm_fifo_new_(rm, device, type, inst, pfifo);
 }
+
+const struct nvkm_rm_api_fifo
+r535_fifo = {
+	.xlat_rm_engine_type = r535_fifo_xlat_rm_engine_type,
+};
