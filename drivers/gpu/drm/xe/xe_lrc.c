@@ -1763,3 +1763,16 @@ u32 xe_lrc_update_timestamp(struct xe_lrc *lrc, u32 *old_ts)
 
 	return lrc->ctx_timestamp;
 }
+
+/**
+ * xe_lrc_ring_is_idle() - LRC is idle
+ * @lrc: Pointer to the lrc.
+ *
+ * Compare LRC ring head and tail to determine if idle.
+ *
+ * Return: True is ring is idle, False otherwise
+ */
+bool xe_lrc_ring_is_idle(struct xe_lrc *lrc)
+{
+	return xe_lrc_ring_head(lrc) == xe_lrc_ring_tail(lrc);
+}
