@@ -76,6 +76,28 @@ def test_autonegotiation(cfg: object, link_config: LinkConfig, time_delay: int) 
         time.sleep(time_delay)
         verify_autonegotiation(cfg, state, link_config)
 
+def test_network_speed(cfg: object, link_config: LinkConfig, time_delay: int) -> None:
+    _pre_test_checks(cfg, link_config)
+    common_link_modes = link_config.common_link_modes
+    if not common_link_modes:
+        KsftSkipEx("No common link modes exist")
+    speeds, duplex_modes = link_config.get_speed_duplex_values(common_link_modes)
+
+    if speeds and duplex_modes and len(speeds) == len(duplex_modes):
+        for idx in range(len(speeds)):
+            speed = speeds[idx]
+            duplex = duplex_modes[idx]
+            if not link_config.set_speed_and_duplex(speed, duplex):
+                raise KsftFailEx(f"Unable to set speed and duplex parameters for {cfg.ifname}")
+            time.sleep(time_delay)
+            if not link_config.verify_speed_and_duplex(speed, duplex):
+                raise KsftSkipEx(f"Error occurred while verifying speed and duplex states for interface {cfg.ifname}")
+    else:
+        if not speeds or not duplex_modes:
+            KsftSkipEx(f"No supported speeds or duplex modes found for interface {cfg.ifname}")
+        else:
+            KsftSkipEx("Mismatch in the number of speeds and duplex modes")
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Run basic link layer tests for NIC driver")
     parser.add_argument('--time-delay', type=int, default=8, help='Time taken to wait for transitions to happen(in seconds). Default is 8 seconds.')
