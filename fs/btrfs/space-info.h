@@ -229,10 +229,10 @@ static inline bool btrfs_mixed_space_info(const struct btrfs_space_info *space_i
  */
 #define DECLARE_SPACE_INFO_UPDATE(name, trace_name)			\
 static inline void							\
-btrfs_space_info_update_##name(struct btrfs_fs_info *fs_info,		\
-			       struct btrfs_space_info *sinfo,		\
+btrfs_space_info_update_##name(struct btrfs_space_info *sinfo,		\
 			       s64 bytes)				\
 {									\
+	struct btrfs_fs_info *fs_info = sinfo->fs_info;			\
 	const u64 abs_bytes = (bytes < 0) ? -bytes : bytes;		\
 	lockdep_assert_held(&sinfo->lock);				\
 	trace_update_##name(fs_info, sinfo, sinfo->name, bytes);	\
@@ -275,13 +275,12 @@ int btrfs_can_overcommit(struct btrfs_fs_info *fs_info,
 			 enum btrfs_reserve_flush_enum flush);
 
 static inline void btrfs_space_info_free_bytes_may_use(
-				struct btrfs_fs_info *fs_info,
 				struct btrfs_space_info *space_info,
 				u64 num_bytes)
 {
 	spin_lock(&space_info->lock);
-	btrfs_space_info_update_bytes_may_use(fs_info, space_info, -num_bytes);
-	btrfs_try_granting_tickets(fs_info, space_info);
+	btrfs_space_info_update_bytes_may_use(space_info, -num_bytes);
+	btrfs_try_granting_tickets(space_info->fs_info, space_info);
 	spin_unlock(&space_info->lock);
 }
 int btrfs_reserve_data_bytes(struct btrfs_fs_info *fs_info, u64 bytes,

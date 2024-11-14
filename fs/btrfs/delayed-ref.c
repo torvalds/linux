@@ -257,7 +257,7 @@ int btrfs_delayed_refs_rsv_refill(struct btrfs_fs_info *fs_info,
 	spin_unlock(&block_rsv->lock);
 
 	if (to_free > 0)
-		btrfs_space_info_free_bytes_may_use(fs_info, space_info, to_free);
+		btrfs_space_info_free_bytes_may_use(space_info, to_free);
 
 	if (refilled_bytes > 0)
 		trace_btrfs_space_reservation(fs_info, "delayed_refs_rsv", 0,
@@ -1311,8 +1311,7 @@ void btrfs_destroy_delayed_refs(struct btrfs_transaction *trans)
 				spin_lock(&bg->space_info->lock);
 				spin_lock(&bg->lock);
 				bg->pinned += head->num_bytes;
-				btrfs_space_info_update_bytes_pinned(fs_info,
-								     bg->space_info,
+				btrfs_space_info_update_bytes_pinned(bg->space_info,
 								     head->num_bytes);
 				bg->reserved -= head->num_bytes;
 				bg->space_info->bytes_reserved -= head->num_bytes;

@@ -316,7 +316,7 @@ void btrfs_add_bg_to_space_info(struct btrfs_fs_info *info,
 	found->bytes_used += block_group->used;
 	found->disk_used += block_group->used * factor;
 	found->bytes_readonly += block_group->bytes_super;
-	btrfs_space_info_update_bytes_zone_unusable(info, found, block_group->zone_unusable);
+	btrfs_space_info_update_bytes_zone_unusable(found, block_group->zone_unusable);
 	if (block_group->length > 0)
 		found->full = 0;
 	btrfs_try_granting_tickets(info, found);
@@ -489,9 +489,7 @@ again:
 		if ((used + ticket->bytes <= space_info->total_bytes) ||
 		    btrfs_can_overcommit(fs_info, space_info, ticket->bytes,
 					 flush)) {
-			btrfs_space_info_update_bytes_may_use(fs_info,
-							      space_info,
-							      ticket->bytes);
+			btrfs_space_info_update_bytes_may_use(space_info, ticket->bytes);
 			remove_ticket(space_info, ticket);
 			ticket->bytes = 0;
 			space_info->tickets_id++;
@@ -1690,8 +1688,7 @@ static int __reserve_bytes(struct btrfs_fs_info *fs_info,
 	if (!pending_tickets &&
 	    ((used + orig_bytes <= space_info->total_bytes) ||
 	     btrfs_can_overcommit(fs_info, space_info, orig_bytes, flush))) {
-		btrfs_space_info_update_bytes_may_use(fs_info, space_info,
-						      orig_bytes);
+		btrfs_space_info_update_bytes_may_use(space_info, orig_bytes);
 		ret = 0;
 	}
 
@@ -1703,8 +1700,7 @@ static int __reserve_bytes(struct btrfs_fs_info *fs_info,
 	if (ret && unlikely(flush == BTRFS_RESERVE_FLUSH_EMERGENCY)) {
 		used = btrfs_space_info_used(space_info, false);
 		if (used + orig_bytes <= space_info->total_bytes) {
-			btrfs_space_info_update_bytes_may_use(fs_info, space_info,
-							      orig_bytes);
+			btrfs_space_info_update_bytes_may_use(space_info, orig_bytes);
 			ret = 0;
 		}
 	}
@@ -2099,7 +2095,7 @@ void btrfs_return_free_space(struct btrfs_space_info *space_info, u64 len)
 		u64 to_add = min(len, global_rsv->size - global_rsv->reserved);
 
 		global_rsv->reserved += to_add;
-		btrfs_space_info_update_bytes_may_use(fs_info, space_info, to_add);
+		btrfs_space_info_update_bytes_may_use(space_info, to_add);
 		if (global_rsv->reserved >= global_rsv->size)
 			global_rsv->full = 1;
 		len -= to_add;

@@ -1223,7 +1223,7 @@ int btrfs_remove_block_group(struct btrfs_trans_handle *trans,
 	block_group->space_info->total_bytes -= block_group->length;
 	block_group->space_info->bytes_readonly -=
 		(block_group->length - block_group->zone_unusable);
-	btrfs_space_info_update_bytes_zone_unusable(fs_info, block_group->space_info,
+	btrfs_space_info_update_bytes_zone_unusable(block_group->space_info,
 						    -block_group->zone_unusable);
 	block_group->space_info->disk_total -= block_group->length * factor;
 
@@ -1396,8 +1396,7 @@ static int inc_block_group_ro(struct btrfs_block_group *cache, int force)
 		if (btrfs_is_zoned(cache->fs_info)) {
 			/* Migrate zone_unusable bytes to readonly */
 			sinfo->bytes_readonly += cache->zone_unusable;
-			btrfs_space_info_update_bytes_zone_unusable(cache->fs_info, sinfo,
-								    -cache->zone_unusable);
+			btrfs_space_info_update_bytes_zone_unusable(sinfo, -cache->zone_unusable);
 			cache->zone_unusable = 0;
 		}
 		cache->ro++;
@@ -1645,8 +1644,7 @@ void btrfs_delete_unused_bgs(struct btrfs_fs_info *fs_info)
 		spin_lock(&space_info->lock);
 		spin_lock(&block_group->lock);
 
-		btrfs_space_info_update_bytes_pinned(fs_info, space_info,
-						     -block_group->pinned);
+		btrfs_space_info_update_bytes_pinned(space_info, -block_group->pinned);
 		space_info->bytes_readonly += block_group->pinned;
 		block_group->pinned = 0;
 
@@ -3060,8 +3058,7 @@ void btrfs_dec_block_group_ro(struct btrfs_block_group *cache)
 				(cache->alloc_offset - cache->used - cache->pinned -
 				 cache->reserved) +
 				(cache->length - cache->zone_capacity);
-			btrfs_space_info_update_bytes_zone_unusable(cache->fs_info, sinfo,
-								    cache->zone_unusable);
+			btrfs_space_info_update_bytes_zone_unusable(sinfo, cache->zone_unusable);
 			sinfo->bytes_readonly -= cache->zone_unusable;
 		}
 		num_bytes = cache->length - cache->reserved -
@@ -3699,7 +3696,7 @@ int btrfs_update_block_group(struct btrfs_trans_handle *trans,
 		old_val -= num_bytes;
 		cache->used = old_val;
 		cache->pinned += num_bytes;
-		btrfs_space_info_update_bytes_pinned(info, space_info, num_bytes);
+		btrfs_space_info_update_bytes_pinned(space_info, num_bytes);
 		space_info->bytes_used -= num_bytes;
 		space_info->disk_used -= num_bytes * factor;
 		if (READ_ONCE(space_info->periodic_reclaim))
@@ -3781,8 +3778,7 @@ int btrfs_add_reserved_bytes(struct btrfs_block_group *cache,
 	space_info->bytes_reserved += num_bytes;
 	trace_btrfs_space_reservation(cache->fs_info, "space_info",
 				      space_info->flags, num_bytes, 1);
-	btrfs_space_info_update_bytes_may_use(cache->fs_info,
-					      space_info, -ram_bytes);
+	btrfs_space_info_update_bytes_may_use(space_info, -ram_bytes);
 	if (delalloc)
 		cache->delalloc_bytes += num_bytes;
 

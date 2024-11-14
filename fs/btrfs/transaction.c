@@ -795,8 +795,7 @@ alloc_fail:
 	if (num_bytes)
 		btrfs_block_rsv_release(fs_info, trans_rsv, num_bytes, NULL);
 	if (delayed_refs_bytes)
-		btrfs_space_info_free_bytes_may_use(fs_info, trans_rsv->space_info,
-						    delayed_refs_bytes);
+		btrfs_space_info_free_bytes_may_use(trans_rsv->space_info, delayed_refs_bytes);
 reserve_fail:
 	btrfs_qgroup_free_meta_prealloc(root, qgroup_reserved);
 	return ERR_PTR(ret);

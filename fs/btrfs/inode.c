@@ -1809,7 +1809,7 @@ static int fallback_to_cow(struct btrfs_inode *inode,
 			bytes = range_bytes;
 
 		spin_lock(&sinfo->lock);
-		btrfs_space_info_update_bytes_may_use(fs_info, sinfo, bytes);
+		btrfs_space_info_update_bytes_may_use(sinfo, bytes);
 		spin_unlock(&sinfo->lock);
 
 		if (count > 0)
