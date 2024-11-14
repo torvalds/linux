@@ -687,7 +687,7 @@ int rvu_rep_create(struct otx2_nic *priv, struct netlink_ext_ack *extack)
 		err = register_netdev(ndev);
 		if (err) {
 			NL_SET_ERR_MSG_MOD(extack,
-					   "PFVF reprentator registration failed");
+					   "PFVF representor registration failed");
 			free_netdev(ndev);
 			goto exit;
 		}
