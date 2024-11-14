@@ -436,8 +436,14 @@ struct basic_in	{
 	struct spl_rect clip_rect; // Clip rect
 	enum spl_rotation_angle rotation;  // Rotation
 	bool horizontal_mirror;  // Horizontal mirror
-	int mpc_combine_h; // MPC Horizontal Combine Factor (split_count)
-	int mpc_combine_v; // MPC Vertical Combine Factor (split_idx)
+	struct { // previous mpc_combine_h - split count
+		bool use_recout_width_aligned;
+		union {
+			int mpc_num_h_slices;
+			int mpc_recout_width_align;
+		} num_slices_recout_width;
+	} num_h_slices_recout_width_align;
+	int mpc_h_slice_index; // previous mpc_combine_v - split_idx
 	// Inputs for adaptive scaler - TODO
 	enum spl_transfer_func_type tf_type; /* Transfer function type */
 	enum spl_transfer_func_predefined tf_predefined_type; /* Transfer function predefined type */

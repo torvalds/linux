@@ -137,15 +137,32 @@ static struct spl_rect calculate_mpc_slice_in_timing_active(
 		struct spl_in *spl_in,
 		struct spl_rect *plane_clip_rec)
 {
-	int mpc_slice_count = spl_in->basic_in.mpc_combine_h;
-	int mpc_slice_idx = spl_in->basic_in.mpc_combine_v;
+	bool use_recout_width_aligned =
+		spl_in->basic_in.num_h_slices_recout_width_align.use_recout_width_aligned;
+	int mpc_slice_count =
+		spl_in->basic_in.num_h_slices_recout_width_align.num_slices_recout_width.mpc_num_h_slices;
+	int recout_width_align =
+		spl_in->basic_in.num_h_slices_recout_width_align.num_slices_recout_width.mpc_recout_width_align;
+	int mpc_slice_idx = spl_in->basic_in.mpc_h_slice_index;
 	int epimo = mpc_slice_count - plane_clip_rec->width % mpc_slice_count - 1;
 	struct spl_rect mpc_rec;
 
-	mpc_rec.width = plane_clip_rec->width / mpc_slice_count;
-	mpc_rec.x = plane_clip_rec->x + mpc_rec.width * mpc_slice_idx;
-	mpc_rec.height = plane_clip_rec->height;
-	mpc_rec.y = plane_clip_rec->y;
+	if (use_recout_width_aligned) {
+		mpc_rec.width = recout_width_align;
+		if ((mpc_rec.width * (mpc_slice_idx + 1)) > plane_clip_rec->width) {
+			mpc_rec.width = plane_clip_rec->width % recout_width_align;
+			mpc_rec.x = plane_clip_rec->x + recout_width_align * mpc_slice_idx;
+		} else
+			mpc_rec.x = plane_clip_rec->x + mpc_rec.width * mpc_slice_idx;
+		mpc_rec.height = plane_clip_rec->height;
+		mpc_rec.y = plane_clip_rec->y;
+
+	} else {
+		mpc_rec.width = plane_clip_rec->width / mpc_slice_count;
+		mpc_rec.x = plane_clip_rec->x + mpc_rec.width * mpc_slice_idx;
+		mpc_rec.height = plane_clip_rec->height;
+		mpc_rec.y = plane_clip_rec->y;
+	}
 	SPL_ASSERT(mpc_slice_count == 1 ||
 			spl_in->basic_out.view_format != SPL_VIEW_3D_SIDE_BY_SIDE ||
 			mpc_rec.width % 2 == 0);
@@ -678,7 +695,7 @@ static void spl_handle_3d_recout(struct spl_in *spl_in, struct spl_rect *recout)
 	 * since 3d is special and needs to calculate vp as if there is no recout offset
 	 * This may break with rotation, good thing we aren't mixing hw rotation and 3d
 	 */
-	if (spl_in->basic_in.mpc_combine_v) {
+	if (spl_in->basic_in.mpc_h_slice_index) {
 		SPL_ASSERT(spl_in->basic_in.rotation == SPL_ROTATION_ANGLE_0 ||
 			(spl_in->basic_out.view_format != SPL_VIEW_3D_TOP_AND_BOTTOM &&
 					spl_in->basic_out.view_format != SPL_VIEW_3D_SIDE_BY_SIDE));
