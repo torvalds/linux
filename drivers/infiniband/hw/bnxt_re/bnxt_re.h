@@ -159,6 +159,8 @@ struct bnxt_re_pacing {
 struct bnxt_re_nq_record {
 	struct bnxt_qplib_nq	nq[BNXT_RE_MAX_MSIX];
 	int			num_msix;
+	/* serialize NQ access */
+	struct mutex		load_lock;
 };
 
 #define MAX_CQ_HASH_BITS		(16)

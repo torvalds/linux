@@ -551,6 +551,7 @@ int bnxt_qplib_enable_nq(struct pci_dev *pdev, struct bnxt_qplib_nq *nq,
 	nq->pdev = pdev;
 	nq->cqn_handler = cqn_handler;
 	nq->srqn_handler = srqn_handler;
+	nq->load = 0;
 
 	/* Have a task to schedule CQ notifiers in post send case */
 	nq->cqn_wq  = create_singlethread_workqueue("bnxt_qplib_nq");

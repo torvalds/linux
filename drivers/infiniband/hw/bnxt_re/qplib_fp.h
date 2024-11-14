@@ -519,6 +519,7 @@ struct bnxt_qplib_nq {
 	struct tasklet_struct		nq_tasklet;
 	bool				requested;
 	int				budget;
+	u32				load;
 
 	cqn_handler_t			cqn_handler;
 	srqn_handler_t			srqn_handler;
