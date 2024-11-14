@@ -11,6 +11,7 @@ TEST_PROGS = \
 	hw_stats_l3.sh \
 	hw_stats_l3_gre.sh \
 	loopback.sh \
+	nic_link_layer.py \
 	pp_alloc_fail.py \
 	rss_ctx.py \
 	#
