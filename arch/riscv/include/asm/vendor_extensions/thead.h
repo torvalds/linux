@@ -13,4 +13,10 @@
 
 extern struct riscv_isa_vendor_ext_data_list riscv_isa_vendor_ext_list_thead;
 
+#ifdef CONFIG_RISCV_ISA_VENDOR_EXT_THEAD
+void disable_xtheadvector(void);
+#else
+static inline void disable_xtheadvector(void) { }
+#endif
+
 #endif
