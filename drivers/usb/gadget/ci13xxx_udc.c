@@ -59,6 +59,7 @@
 #include <linux/device.h>
 #include <linux/dmapool.h>
 #include <linux/dma-mapping.h>
+#include <linux/dma-map-ops.h>
 #include <linux/init.h>
 #include <linux/ratelimit.h>
 #include <linux/interrupt.h>
@@ -906,7 +907,7 @@ static DEVICE_ATTR_RO(device);
  *
  * Check "device.h" for details
  */
-static ssize_t driver_show(struct device *dev, struct device_attribute *attr,
+static ssize_t udcdriver_show(struct device *dev, struct device_attribute *attr,
 			   char *buf)
 {
 	struct ci13xxx *udc = container_of(dev, struct ci13xxx, gadget.dev);
@@ -930,7 +931,7 @@ static ssize_t driver_show(struct device *dev, struct device_attribute *attr,
 
 	return n;
 }
-static DEVICE_ATTR_RO(driver);
+static DEVICE_ATTR_RO(udcdriver);
 
 /* Maximum event message length */
 #define DBG_DATA_MSG   64UL
@@ -1707,7 +1708,7 @@ static int __maybe_unused dbg_create_files(struct device *dev)
 	retval = device_create_file(dev, &dev_attr_device);
 	if (retval)
 		goto done;
-	retval = device_create_file(dev, &dev_attr_driver);
+	retval = device_create_file(dev, &dev_attr_udcdriver);
 	if (retval)
 		goto rm_device;
 	retval = device_create_file(dev, &dev_attr_events);
@@ -1757,7 +1758,7 @@ rm_remote_wakeup:
  rm_events:
 	device_remove_file(dev, &dev_attr_events);
  rm_driver:
-	device_remove_file(dev, &dev_attr_driver);
+	device_remove_file(dev, &dev_attr_udcdriver);
  rm_device:
 	device_remove_file(dev, &dev_attr_device);
  done:
@@ -1780,7 +1781,7 @@ static int __maybe_unused dbg_remove_files(struct device *dev)
 	device_remove_file(dev, &dev_attr_port_test);
 	device_remove_file(dev, &dev_attr_inters);
 	device_remove_file(dev, &dev_attr_events);
-	device_remove_file(dev, &dev_attr_driver);
+	device_remove_file(dev, &dev_attr_udcdriver);
 	device_remove_file(dev, &dev_attr_device);
 	device_remove_file(dev, &dev_attr_wakeup);
 	return 0;
@@ -1883,8 +1884,13 @@ static int _hardware_enqueue(struct ci13xxx_ep *mEp, struct ci13xxx_req *mReq)
 		mReq->req.dma = dma_map_single(mEp->device, mReq->req.buf,
 					length, mEp->dir ? DMA_TO_DEVICE :
 					DMA_FROM_DEVICE);
-		if (mReq->req.dma == 0)
+
+		if (dma_mapping_error(mEp->device, mReq->req.dma)) {
+			dev_err(mEp->device, "%s: dma_mapping error.\n",
+					__func__);
+			mReq->req.dma = DMA_MAPPING_ERROR;
 			return -ENOMEM;
+		}
 
 		mReq->map = 1;
 	}
@@ -3716,6 +3722,7 @@ int udc_probe(struct ci13xxx_udc_driver *driver, struct device *dev,
 	struct ci13xxx *udc;
 	struct ci13xxx_platform_data *pdata;
 	int retval = 0, i, j;
+	static u64 ci13xxx_dma_mask = DMA_BIT_MASK(32);
 
 	trace("%pK, %pK, %pK", dev, regs, driver->name);
 
@@ -3736,6 +3743,8 @@ int udc_probe(struct ci13xxx_udc_driver *driver, struct device *dev,
 	udc->gadget.max_speed    = USB_SPEED_HIGH;
 	udc->gadget.is_otg       = 0;
 	udc->gadget.name         = driver->name;
+	udc->gadget.dev.dma_mask = &ci13xxx_dma_mask;
+	udc->gadget.dev.coherent_dma_mask = ci13xxx_dma_mask;
 
 	/* alloc resources */
 	udc->qh_pool = dma_pool_create("ci13xxx_qh", dev,
