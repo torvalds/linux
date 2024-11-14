@@ -27,10 +27,16 @@ struct nvkm_rm_api {
 
 		int (*free)(struct nvkm_gsp_object *);
 	} *alloc;
+
+	const struct nvkm_rm_api_client {
+		int (*ctor)(struct nvkm_gsp *, struct nvkm_gsp_client *);
+		void (*dtor)(struct nvkm_gsp_client *);
+	} *client;
 };
 
 extern const struct nvkm_rm_api r535_rm;
 extern const struct nvkm_rm_api_rpc r535_rpc;
 extern const struct nvkm_rm_api_ctrl r535_ctrl;
 extern const struct nvkm_rm_api_alloc r535_alloc;
+extern const struct nvkm_rm_api_client r535_client;
 #endif

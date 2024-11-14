@@ -9,4 +9,5 @@ r535_rm = {
 	.rpc = &r535_rpc,
 	.ctrl = &r535_ctrl,
 	.alloc = &r535_alloc,
+	.client = &r535_client,
 };

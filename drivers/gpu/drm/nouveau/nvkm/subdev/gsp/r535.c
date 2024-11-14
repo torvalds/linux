@@ -33,7 +33,6 @@
 #include <nvfw/fw.h>
 
 #include <nvrm/nvtypes.h>
-#include <nvrm/535.113.01/common/sdk/nvidia/inc/class/cl0000.h>
 #include <nvrm/535.113.01/common/sdk/nvidia/inc/class/cl0005.h>
 #include <nvrm/535.113.01/common/sdk/nvidia/inc/class/cl0080.h>
 #include <nvrm/535.113.01/common/sdk/nvidia/inc/class/cl2080.h>
@@ -177,61 +176,9 @@ r535_gsp_device_ctor(struct nvkm_gsp_client *client, struct nvkm_gsp_device *dev
 	return ret;
 }
 
-static void
-r535_gsp_client_dtor(struct nvkm_gsp_client *client)
-{
-	struct nvkm_gsp *gsp = client->gsp;
-
-	nvkm_gsp_rm_free(&client->object);
-
-	mutex_lock(&gsp->client_id.mutex);
-	idr_remove(&gsp->client_id.idr, client->object.handle & 0xffff);
-	mutex_unlock(&gsp->client_id.mutex);
-
-	client->gsp = NULL;
-}
-
-static int
-r535_gsp_client_ctor(struct nvkm_gsp *gsp, struct nvkm_gsp_client *client)
-{
-	NV0000_ALLOC_PARAMETERS *args;
-	int ret;
-
-	mutex_lock(&gsp->client_id.mutex);
-	ret = idr_alloc(&gsp->client_id.idr, client, 0, 0xffff + 1, GFP_KERNEL);
-	mutex_unlock(&gsp->client_id.mutex);
-	if (ret < 0)
-		return ret;
-
-	client->gsp = gsp;
-	client->object.client = client;
-	INIT_LIST_HEAD(&client->events);
-
-	args = nvkm_gsp_rm_alloc_get(&client->object, 0xc1d00000 | ret, NV01_ROOT, sizeof(*args),
-				     &client->object);
-	if (IS_ERR(args)) {
-		r535_gsp_client_dtor(client);
-		return ret;
-	}
-
-	args->hClient = client->object.handle;
-	args->processID = ~0;
-
-	ret = nvkm_gsp_rm_alloc_wr(&client->object, args);
-	if (ret) {
-		r535_gsp_client_dtor(client);
-		return ret;
-	}
-
-	return 0;
-}
-
 const struct nvkm_gsp_rm
 r535_gsp_rm = {
 	.api = &r535_rm,
-
-	.client_ctor = r535_gsp_client_ctor,
-	.client_dtor = r535_gsp_client_dtor,
 
 	.device_ctor = r535_gsp_device_ctor,
 	.device_dtor = r535_gsp_device_dtor,

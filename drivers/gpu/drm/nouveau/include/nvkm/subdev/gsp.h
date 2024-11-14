@@ -212,9 +212,6 @@ struct nvkm_gsp {
 	const struct nvkm_gsp_rm {
 		const struct nvkm_rm_api *api;
 
-		int (*client_ctor)(struct nvkm_gsp *, struct nvkm_gsp_client *);
-		void (*client_dtor)(struct nvkm_gsp_client *);
-
 		int (*device_ctor)(struct nvkm_gsp_client *, struct nvkm_gsp_device *);
 		void (*device_dtor)(struct nvkm_gsp_device *);
 
@@ -425,14 +422,14 @@ nvkm_gsp_client_ctor(struct nvkm_gsp *gsp, struct nvkm_gsp_client *client)
 	if (WARN_ON(!gsp->rm))
 		return -ENOSYS;
 
-	return gsp->rm->client_ctor(gsp, client);
+	return gsp->rm->api->client->ctor(gsp, client);
 }
 
 static inline void
 nvkm_gsp_client_dtor(struct nvkm_gsp_client *client)
 {
 	if (client->gsp)
-		client->gsp->rm->client_dtor(client);
+		client->gsp->rm->api->client->dtor(client);
 }
 
 static inline int
