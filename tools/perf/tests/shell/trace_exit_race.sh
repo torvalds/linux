@@ -11,11 +11,19 @@
 
 skip_if_no_perf_trace || exit 2
 
+if [ "$1" = "-v" ]; then
+	verbose="1"
+fi
+
+iter=10
+regexp=" +[0-9]+\.[0-9]+ +true/[0-9]+ syscalls:sys_enter_exit_group\(\)$"
+
 trace_shutdown_race() {
-	for _ in $(seq 10); do
+	for _ in $(seq $iter); do
 		perf trace -e syscalls:sys_enter_exit_group true 2>>$file
 	done
-	[ "$(grep -c -E ' +[0-9]+\.[0-9]+ +true/[0-9]+ syscalls:sys_enter_exit_group\(\)$' $file)" = "10" ]
+	result="$(grep -c -E "$regexp" $file)"
+	[ $result = $iter ]
 }
 
 
@@ -27,5 +35,17 @@ export PERF_CONFIG=/dev/null
 
 trace_shutdown_race
 err=$?
+
+if [ $err != 0 ] && [ "${verbose}" = "1" ]; then
+	lines_not_matching=$(mktemp /tmp/temporary_file.XXXXX)
+	if grep -v -E "$regexp" $file > $lines_not_matching ; then
+		echo "Lines not matching the expected regexp: '$regexp':"
+		cat $lines_not_matching
+	else
+		echo "Missing output, expected $iter but only got $result"
+	fi
+	rm -f $lines_not_matching
+fi
+
 rm -f ${file}
 exit $err
