@@ -2092,6 +2092,12 @@ r535_gsp_dtor(struct nvkm_gsp *gsp)
 	nvkm_gsp_mem_dtor(&gsp->logrm);
 }
 
+static void
+r535_gsp_drop_send_user_shared_data(struct nvkm_gsp *gsp)
+{
+	r535_gsp_msg_ntfy_add(gsp, NV_VGPU_MSG_EVENT_GSP_SEND_USER_SHARED_DATA, NULL, NULL);
+}
+
 int
 r535_gsp_oneinit(struct nvkm_gsp *gsp)
 {
@@ -2139,7 +2145,9 @@ r535_gsp_oneinit(struct nvkm_gsp *gsp)
 	r535_gsp_msg_ntfy_add(gsp, NV_VGPU_MSG_EVENT_OS_ERROR_LOG, r535_gsp_msg_os_error_log, gsp);
 	r535_gsp_msg_ntfy_add(gsp, NV_VGPU_MSG_EVENT_PERF_BRIDGELESS_INFO_UPDATE, NULL, NULL);
 	r535_gsp_msg_ntfy_add(gsp, NV_VGPU_MSG_EVENT_UCODE_LIBOS_PRINT, NULL, NULL);
-	r535_gsp_msg_ntfy_add(gsp, NV_VGPU_MSG_EVENT_GSP_SEND_USER_SHARED_DATA, NULL, NULL);
+	if (rmapi->gsp->drop_send_user_shared_data)
+		rmapi->gsp->drop_send_user_shared_data(gsp);
+
 	ret = r535_gsp_rm_boot_ctor(gsp);
 	if (ret)
 		return ret;
@@ -2169,4 +2177,5 @@ r535_gsp = {
 	.set_system_info = r535_gsp_set_system_info,
 	.get_static_info = r535_gsp_get_static_info,
 	.xlat_mc_engine_idx = r535_gsp_xlat_mc_engine_idx,
+	.drop_send_user_shared_data = r535_gsp_drop_send_user_shared_data,
 };
