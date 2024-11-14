@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (c) 2012-2014,2018-2021 The Linux Foundation. All rights reserved.
- * Copyright (c) 2022, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022,2024 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef _DT_BINDINGS_QCOM_SPMI_VADC_H
@@ -378,6 +378,65 @@
 #define ADC5_GEN3_VBAT_2S_MID_CHGR		0x9d
 
 #define ADC5_OFFSET_EXT2			0xf8
+
+/* ADC channels for PMIC5 Gen4 */
+
+#define ADC5_GEN4_VIRTUAL_CHAN(bus_id, sid, chan)	(bus_id << 13 | sid << 8 | chan)
+
+#define ADC5_GEN4_OFFSET_REF			0x00
+#define ADC5_GEN4_1P25VREF			0x01
+#define ADC5_GEN4_VREF_VADC			0x02
+#define ADC5_GEN4_DIE_TEMP			0x03
+
+#define ADC5_GEN4_AMUX1_THM			0x04
+#define ADC5_GEN4_AMUX2_THM			0x05
+#define ADC5_GEN4_AMUX3_THM			0x06
+#define ADC5_GEN4_AMUX4_THM			0x07
+#define ADC5_GEN4_AMUX5_THM			0x08
+#define ADC5_GEN4_AMUX6_THM			0x09
+#define ADC5_GEN4_AMUX1_GPIO			0x0a
+#define ADC5_GEN4_AMUX2_GPIO			0x0b
+#define ADC5_GEN4_AMUX3_GPIO			0x0c
+#define ADC5_GEN4_AMUX4_GPIO			0x0d
+
+/* 10k pull-up */
+#define ADC5_GEN4_AMUX1_THM_10K_PU		0x24
+#define ADC5_GEN4_AMUX2_THM_10K_PU		0x25
+#define ADC5_GEN4_AMUX3_THM_10K_PU		0x26
+#define ADC5_GEN4_AMUX4_THM_10K_PU		0x27
+#define ADC5_GEN4_AMUX5_THM_10K_PU		0x28
+#define ADC5_GEN4_AMUX6_THM_10K_PU		0x29
+#define ADC5_GEN4_AMUX1_GPIO_10K_PU		0x2a
+#define ADC5_GEN4_AMUX2_GPIO_10K_PU		0x2b
+#define ADC5_GEN4_AMUX3_GPIO_10K_PU		0x2c
+#define ADC5_GEN4_AMUX4_GPIO_10K_PU		0x2d
+
+/* 100k pull-up */
+#define ADC5_GEN4_AMUX1_THM_100K_PU		0x44
+#define ADC5_GEN4_AMUX2_THM_100K_PU		0x45
+#define ADC5_GEN4_AMUX3_THM_100K_PU		0x46
+#define ADC5_GEN4_AMUX4_THM_100K_PU		0x47
+#define ADC5_GEN4_AMUX5_THM_100K_PU		0x48
+#define ADC5_GEN4_AMUX6_THM_100K_PU		0x49
+#define ADC5_GEN4_AMUX1_GPIO_100K_PU		0x4a
+#define ADC5_GEN4_AMUX2_GPIO_100K_PU		0x4b
+#define ADC5_GEN4_AMUX3_GPIO_100K_PU		0x4c
+#define ADC5_GEN4_AMUX4_GPIO_100K_PU		0x4d
+
+/* 400k pull-up */
+#define ADC5_GEN4_AMUX1_THM_400K_PU		0x64
+#define ADC5_GEN4_AMUX2_THM_400K_PU		0x65
+#define ADC5_GEN4_AMUX3_THM_400K_PU		0x66
+#define ADC5_GEN4_AMUX4_THM_400K_PU		0x67
+#define ADC5_GEN4_AMUX5_THM_400K_PU		0x68
+#define ADC5_GEN4_AMUX6_THM_400K_PU		0x69
+#define ADC5_GEN4_AMUX1_GPIO_400K_PU		0x6a
+#define ADC5_GEN4_AMUX2_GPIO_400K_PU		0x6b
+#define ADC5_GEN4_AMUX3_GPIO_400K_PU		0x6c
+#define ADC5_GEN4_AMUX4_GPIO_400K_PU		0x6d
+
+/* 1/3 Divider */
+#define ADC5_GEN4_VPH_PWR			0x8e
 
 /* VADC scale function index */
 #define ADC_SCALE_DEFAULT				0
