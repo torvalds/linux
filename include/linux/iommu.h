@@ -557,13 +557,17 @@ iommu_copy_struct_from_full_user_array(void *kdst, size_t kdst_entry_size,
  * @domain_alloc: allocate and return an iommu domain if success. Otherwise
  *                NULL is returned. The domain is not fully initialized until
  *                the caller iommu_domain_alloc() returns.
- * @domain_alloc_user: Allocate an iommu domain corresponding to the input
- *                     parameters as defined in include/uapi/linux/iommufd.h.
- *                     The @user_data can be optionally provided, the
- *                     new domain must support __IOMMU_DOMAIN_PAGING.
- *                     Upon failure, ERR_PTR must be returned.
+ * @domain_alloc_paging_flags: Allocate an iommu domain corresponding to the
+ *                     input parameters as defined in
+ *                     include/uapi/linux/iommufd.h. The @user_data can be
+ *                     optionally provided, the new domain must support
+ *                     __IOMMU_DOMAIN_PAGING. Upon failure, ERR_PTR must be
+ *                     returned.
  * @domain_alloc_paging: Allocate an iommu_domain that can be used for
- *                       UNMANAGED, DMA, and DMA_FQ domain types.
+ *                       UNMANAGED, DMA, and DMA_FQ domain types. This is the
+ *                       same as invoking domain_alloc_paging_flags() with
+ *                       @flags=0, @user_data=NULL. A driver should implement
+ *                       only one of the two ops.
  * @domain_alloc_sva: Allocate an iommu_domain for Shared Virtual Addressing.
  * @domain_alloc_nested: Allocate an iommu_domain for nested translation.
  * @probe_device: Add device to iommu driver handling
@@ -614,8 +618,8 @@ struct iommu_ops {
 
 	/* Domain allocation and freeing by the iommu driver */
 	struct iommu_domain *(*domain_alloc)(unsigned iommu_domain_type);
-	struct iommu_domain *(*domain_alloc_user)(
-		struct device *dev, u32 flags, struct iommu_domain *parent,
+	struct iommu_domain *(*domain_alloc_paging_flags)(
+		struct device *dev, u32 flags,
 		const struct iommu_user_data *user_data);
 	struct iommu_domain *(*domain_alloc_paging)(struct device *dev);
 	struct iommu_domain *(*domain_alloc_sva)(struct device *dev,

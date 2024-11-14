@@ -379,9 +379,8 @@ mock_domain_alloc_nested(struct device *dev, struct iommu_domain *parent,
 }
 
 static struct iommu_domain *
-mock_domain_alloc_user(struct device *dev, u32 flags,
-		       struct iommu_domain *parent,
-		       const struct iommu_user_data *user_data)
+mock_domain_alloc_paging_flags(struct device *dev, u32 flags,
+			       const struct iommu_user_data *user_data)
 {
 	bool has_dirty_flag = flags & IOMMU_HWPT_ALLOC_DIRTY_TRACKING;
 	const u32 PAGING_FLAGS = IOMMU_HWPT_ALLOC_DIRTY_TRACKING |
@@ -389,9 +388,6 @@ mock_domain_alloc_user(struct device *dev, u32 flags,
 	bool no_dirty_ops = to_mock_dev(dev)->flags &
 			    MOCK_FLAGS_DEVICE_NO_DIRTY;
 	struct iommu_domain *domain;
-
-	if (parent)
-		return ERR_PTR(-EOPNOTSUPP);
 
 	if (user_data)
 		return ERR_PTR(-EOPNOTSUPP);
@@ -718,7 +714,7 @@ static const struct iommu_ops mock_ops = {
 	.pgsize_bitmap = MOCK_IO_PAGE_SIZE,
 	.hw_info = mock_domain_hw_info,
 	.domain_alloc_paging = mock_domain_alloc_paging,
-	.domain_alloc_user = mock_domain_alloc_user,
+	.domain_alloc_paging_flags = mock_domain_alloc_paging_flags,
 	.domain_alloc_nested = mock_domain_alloc_nested,
 	.capable = mock_domain_capable,
 	.device_group = generic_device_group,
