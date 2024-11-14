@@ -724,7 +724,7 @@ r535_outp_acquire(struct nvkm_outp *outp, bool hda)
 }
 
 static int
-r535_disp_head_displayid(struct nvkm_disp *disp, int head, u32 *displayid)
+r535_disp_get_active(struct nvkm_disp *disp, unsigned head, u32 *displayid)
 {
 	NV0073_CTRL_SYSTEM_GET_ACTIVE_PARAMS *ctrl;
 	int ret;
@@ -757,7 +757,9 @@ r535_outp_inherit(struct nvkm_outp *outp)
 	int ret;
 
 	list_for_each_entry(head, &disp->heads, head) {
-		ret = r535_disp_head_displayid(disp, head->id, &displayid);
+		const struct nvkm_rm_api *rmapi = disp->rm.objcom.client->gsp->rm->api;
+
+		ret = rmapi->disp->get_active(disp, head->id, &displayid);
 		if (WARN_ON(ret))
 			return NULL;
 
@@ -1758,6 +1760,7 @@ r535_disp = {
 	.get_static_info = r535_disp_get_static_info,
 	.get_supported = r535_disp_get_supported,
 	.get_connect_state = r535_disp_get_connect_state,
+	.get_active = r535_disp_get_active,
 	.bl_ctrl = r535_bl_ctrl,
 	.dp = {
 		.set_indexed_link_rates = r535_dp_set_indexed_link_rates,

@@ -82,6 +82,7 @@ struct nvkm_rm_api {
 		int (*get_static_info)(struct nvkm_disp *);
 		int (*get_supported)(struct nvkm_disp *, unsigned long *display_mask);
 		int (*get_connect_state)(struct nvkm_disp *, unsigned display_id);
+		int (*get_active)(struct nvkm_disp *, unsigned head, u32 *display_id);
 
 		int (*bl_ctrl)(struct nvkm_disp *, unsigned display_id, bool set, int *val);
 
