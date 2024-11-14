@@ -814,4 +814,12 @@ typedef struct GSP_MSG_QUEUE_ELEMENT
     NvU32 elemCount;                 // Number of message queue elements this message has.
     NV_DECLARE_ALIGNED(rpc_message_header_v rpc, 8);
 } GSP_MSG_QUEUE_ELEMENT;
+
+#define GSP_FW_HEAP_PARAM_OS_SIZE_LIBOS2                   (0 << 20)   // No FB heap usage
+#define GSP_FW_HEAP_PARAM_OS_SIZE_LIBOS3                  (20 << 20)
+
+#define GSP_FW_HEAP_PARAM_BASE_RM_SIZE_TU10X               (8 << 20)   // Turing thru Ada
+
+#define GSP_FW_HEAP_SIZE_OVERRIDE_LIBOS2_MIN_MB                (64u)
+#define GSP_FW_HEAP_SIZE_OVERRIDE_LIBOS3_BAREMETAL_MIN_MB      (84u)
 #endif

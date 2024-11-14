@@ -24,6 +24,8 @@
 #include <subdev/fb.h>
 #include <engine/sec2.h>
 
+#include <rm/r535/nvrm/gsp.h>
+
 #include <nvfw/flcn.h>
 #include <nvfw/fw.h>
 #include <nvfw/hs.h>
@@ -195,6 +197,69 @@ tu102_gsp_init(struct nvkm_gsp *gsp)
 	return r535_gsp_init(gsp);
 }
 
+static int
+tu102_gsp_wpr_meta_init(struct nvkm_gsp *gsp)
+{
+	GspFwWprMeta *meta;
+	int ret;
+
+	ret = nvkm_gsp_mem_ctor(gsp, sizeof(*meta), &gsp->wpr_meta);
+	if (ret)
+		return ret;
+
+	meta = gsp->wpr_meta.data;
+
+	meta->magic = GSP_FW_WPR_META_MAGIC;
+	meta->revision = GSP_FW_WPR_META_REVISION;
+
+	meta->sysmemAddrOfRadix3Elf = gsp->radix3.lvl0.addr;
+	meta->sizeOfRadix3Elf = gsp->fb.wpr2.elf.size;
+
+	meta->sysmemAddrOfBootloader = gsp->boot.fw.addr;
+	meta->sizeOfBootloader = gsp->boot.fw.size;
+	meta->bootloaderCodeOffset = gsp->boot.code_offset;
+	meta->bootloaderDataOffset = gsp->boot.data_offset;
+	meta->bootloaderManifestOffset = gsp->boot.manifest_offset;
+
+	meta->sysmemAddrOfSignature = gsp->sig.addr;
+	meta->sizeOfSignature = gsp->sig.size;
+
+	meta->gspFwRsvdStart = gsp->fb.heap.addr;
+	meta->nonWprHeapOffset = gsp->fb.heap.addr;
+	meta->nonWprHeapSize = gsp->fb.heap.size;
+	meta->gspFwWprStart = gsp->fb.wpr2.addr;
+	meta->gspFwHeapOffset = gsp->fb.wpr2.heap.addr;
+	meta->gspFwHeapSize = gsp->fb.wpr2.heap.size;
+	meta->gspFwOffset = gsp->fb.wpr2.elf.addr;
+	meta->bootBinOffset = gsp->fb.wpr2.boot.addr;
+	meta->frtsOffset = gsp->fb.wpr2.frts.addr;
+	meta->frtsSize = gsp->fb.wpr2.frts.size;
+	meta->gspFwWprEnd = ALIGN_DOWN(gsp->fb.bios.vga_workspace.addr, 0x20000);
+	meta->fbSize = gsp->fb.size;
+	meta->vgaWorkspaceOffset = gsp->fb.bios.vga_workspace.addr;
+	meta->vgaWorkspaceSize = gsp->fb.bios.vga_workspace.size;
+	meta->bootCount = 0;
+	meta->partitionRpcAddr = 0;
+	meta->partitionRpcRequestOffset = 0;
+	meta->partitionRpcReplyOffset = 0;
+	meta->verified = 0;
+	return 0;
+}
+
+static u64
+tu102_gsp_wpr_heap_size(struct nvkm_gsp *gsp)
+{
+	u32 fb_size_gb = DIV_ROUND_UP_ULL(gsp->fb.size, 1 << 30);
+	u64 heap_size;
+
+	heap_size = gsp->rm->wpr->os_carveout_size +
+		    gsp->rm->wpr->base_size +
+		    ALIGN(GSP_FW_HEAP_PARAM_SIZE_PER_GB_FB * fb_size_gb, 1 << 20) +
+		    ALIGN(GSP_FW_HEAP_PARAM_CLIENT_ALLOC_SIZE, 1 << 20);
+
+	return max(heap_size, gsp->rm->wpr->heap_size_min);
+}
+
 static u64
 tu102_gsp_vga_workspace_addr(struct nvkm_gsp *gsp, u64 fb_size)
 {
@@ -241,6 +306,35 @@ tu102_gsp_oneinit(struct nvkm_gsp *gsp)
 	if (ret)
 		return ret;
 
+	/* Calculate FB layout. */
+	gsp->fb.wpr2.frts.size = 0x100000;
+	gsp->fb.wpr2.frts.addr = ALIGN_DOWN(gsp->fb.bios.addr, 0x20000) - gsp->fb.wpr2.frts.size;
+
+	gsp->fb.wpr2.boot.size = gsp->boot.fw.size;
+	gsp->fb.wpr2.boot.addr = ALIGN_DOWN(gsp->fb.wpr2.frts.addr - gsp->fb.wpr2.boot.size, 0x1000);
+
+	gsp->fb.wpr2.elf.size = gsp->fw.len;
+	gsp->fb.wpr2.elf.addr = ALIGN_DOWN(gsp->fb.wpr2.boot.addr - gsp->fb.wpr2.elf.size, 0x10000);
+
+	gsp->fb.wpr2.heap.size = tu102_gsp_wpr_heap_size(gsp);
+
+	gsp->fb.wpr2.heap.addr = ALIGN_DOWN(gsp->fb.wpr2.elf.addr - gsp->fb.wpr2.heap.size, 0x100000);
+	gsp->fb.wpr2.heap.size = ALIGN_DOWN(gsp->fb.wpr2.elf.addr - gsp->fb.wpr2.heap.addr, 0x100000);
+
+	gsp->fb.wpr2.addr = ALIGN_DOWN(gsp->fb.wpr2.heap.addr - sizeof(GspFwWprMeta), 0x100000);
+	gsp->fb.wpr2.size = gsp->fb.wpr2.frts.addr + gsp->fb.wpr2.frts.size - gsp->fb.wpr2.addr;
+
+	gsp->fb.heap.size = 0x100000;
+	gsp->fb.heap.addr = gsp->fb.wpr2.addr - gsp->fb.heap.size;
+
+	ret = tu102_gsp_wpr_meta_init(gsp);
+	if (ret)
+		return ret;
+
+	ret = nvkm_gsp_fwsec_frts(gsp);
+	if (WARN_ON(ret))
+		return ret;
+
 	/* Reset GSP into RISC-V mode. */
 	ret = gsp->func->reset(gsp);
 	if (ret)
@@ -273,9 +367,6 @@ tu102_gsp = {
 	.fwsec = &tu102_gsp_fwsec,
 
 	.sig_section = ".fwsignature_tu10x",
-
-	.wpr_heap.base_size = 8 << 20,
-	.wpr_heap.min_size = 64 << 20,
 
 	.booter.ctor = tu102_gsp_booter_ctor,
 

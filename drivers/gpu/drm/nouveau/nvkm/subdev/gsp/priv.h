@@ -37,12 +37,6 @@ struct nvkm_gsp_func {
 	char *sig_section;
 
 	struct {
-		u32 os_carveout_size;
-		u32 base_size;
-		u64 min_size;
-	} wpr_heap;
-
-	struct {
 		int (*ctor)(struct nvkm_gsp *, const char *name, const struct firmware *,
 			    struct nvkm_falcon *, struct nvkm_falcon_fw *);
 	} booter;

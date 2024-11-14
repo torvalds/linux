@@ -28,10 +28,6 @@ ad102_gsp = {
 
 	.sig_section = ".fwsignature_ad10x",
 
-	.wpr_heap.os_carveout_size = 20 << 20,
-	.wpr_heap.base_size = 8 << 20,
-	.wpr_heap.min_size = 84 << 20,
-
 	.booter.ctor = ga102_gsp_booter_ctor,
 
 	.dtor = r535_gsp_dtor,

@@ -45,9 +45,6 @@ ga100_gsp = {
 
 	.sig_section = ".fwsignature_ga100",
 
-	.wpr_heap.base_size = 8 << 20,
-	.wpr_heap.min_size = 64 << 20,
-
 	.booter.ctor = tu102_gsp_booter_ctor,
 
 	.dtor = r535_gsp_dtor,

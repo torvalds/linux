@@ -8,13 +8,21 @@
 #include "handles.h"
 
 struct nvkm_rm_impl {
+	const struct nvkm_rm_wpr *wpr;
 	const struct nvkm_rm_api *api;
 };
 
 struct nvkm_rm {
 	struct nvkm_device *device;
 	const struct nvkm_rm_gpu *gpu;
+	const struct nvkm_rm_wpr *wpr;
 	const struct nvkm_rm_api *api;
+};
+
+struct nvkm_rm_wpr {
+	u32 os_carveout_size;
+	u32 base_size;
+	u64 heap_size_min;
 };
 
 struct nvkm_rm_api {

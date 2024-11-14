@@ -17,6 +17,9 @@ struct nvkm_gsp_mem {
 	dma_addr_t addr;
 };
 
+int nvkm_gsp_mem_ctor(struct nvkm_gsp *, size_t size, struct nvkm_gsp_mem *);
+void nvkm_gsp_mem_dtor(struct nvkm_gsp_mem *);
+
 struct nvkm_gsp_radix3 {
 	struct nvkm_gsp_mem lvl0;
 	struct nvkm_gsp_mem lvl1;

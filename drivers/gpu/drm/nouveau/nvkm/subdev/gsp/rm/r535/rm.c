@@ -4,6 +4,22 @@
  */
 #include <rm/rm.h>
 
+#include "nvrm/gsp.h"
+
+static const struct nvkm_rm_wpr
+r535_wpr_libos2 = {
+	.os_carveout_size = GSP_FW_HEAP_PARAM_OS_SIZE_LIBOS2,
+	.base_size = GSP_FW_HEAP_PARAM_BASE_RM_SIZE_TU10X,
+	.heap_size_min = GSP_FW_HEAP_SIZE_OVERRIDE_LIBOS2_MIN_MB,
+};
+
+static const struct nvkm_rm_wpr
+r535_wpr_libos3 = {
+	.os_carveout_size = GSP_FW_HEAP_PARAM_OS_SIZE_LIBOS3,
+	.base_size = GSP_FW_HEAP_PARAM_BASE_RM_SIZE_TU10X,
+	.heap_size_min = GSP_FW_HEAP_SIZE_OVERRIDE_LIBOS3_BAREMETAL_MIN_MB,
+};
+
 static const struct nvkm_rm_api
 r535_api = {
 	.rpc = &r535_rpc,
@@ -20,10 +36,12 @@ r535_api = {
 
 const struct nvkm_rm_impl
 r535_rm_tu102 = {
+	.wpr = &r535_wpr_libos2,
 	.api = &r535_api,
 };
 
 const struct nvkm_rm_impl
 r535_rm_ga102 = {
+	.wpr = &r535_wpr_libos3,
 	.api = &r535_api,
 };

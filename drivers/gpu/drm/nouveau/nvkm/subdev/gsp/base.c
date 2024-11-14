@@ -148,6 +148,7 @@ nvkm_gsp_new_(const struct nvkm_gsp_fwif *fwif, struct nvkm_device *device,
 
 		gsp->rm->device = device;
 		gsp->rm->gpu = fwif->func->rm.gpu;
+		gsp->rm->wpr = fwif->rm->wpr;
 		gsp->rm->api = fwif->rm->api;
 	}
 
