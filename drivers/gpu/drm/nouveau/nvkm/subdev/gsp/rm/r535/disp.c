@@ -1160,6 +1160,49 @@ r535_dp = {
 };
 
 static int
+r535_dp_get_caps(struct nvkm_disp *disp, int *plink_bw, bool *pmst, bool *pwm)
+{
+	NV0073_CTRL_CMD_DP_GET_CAPS_PARAMS *ctrl;
+	int ret;
+
+	ctrl = nvkm_gsp_rm_ctrl_get(&disp->rm.objcom,
+				    NV0073_CTRL_CMD_DP_GET_CAPS, sizeof(*ctrl));
+	if (IS_ERR(ctrl))
+		return PTR_ERR(ctrl);
+
+	ctrl->sorIndex = ~0;
+
+	ret = nvkm_gsp_rm_ctrl_push(&disp->rm.objcom, &ctrl, sizeof(*ctrl));
+	if (ret) {
+		nvkm_gsp_rm_ctrl_done(&disp->rm.objcom, ctrl);
+		return ret;
+	}
+
+	switch (NVVAL_GET(ctrl->maxLinkRate, NV0073_CTRL_CMD, DP_GET_CAPS, MAX_LINK_RATE)) {
+	case NV0073_CTRL_CMD_DP_GET_CAPS_MAX_LINK_RATE_1_62:
+		*plink_bw = 0x06;
+		break;
+	case NV0073_CTRL_CMD_DP_GET_CAPS_MAX_LINK_RATE_2_70:
+		*plink_bw = 0x0a;
+		break;
+	case NV0073_CTRL_CMD_DP_GET_CAPS_MAX_LINK_RATE_5_40:
+		*plink_bw = 0x14;
+		break;
+	case NV0073_CTRL_CMD_DP_GET_CAPS_MAX_LINK_RATE_8_10:
+		*plink_bw = 0x1e;
+		break;
+	default:
+		*plink_bw = 0x00;
+		break;
+	}
+
+	*pmst = ctrl->bIsMultistreamSupported;
+	*pwm = ctrl->bHasIncreasedWatermarkLimits;
+	nvkm_gsp_rm_ctrl_done(&disp->rm.objcom, ctrl);
+	return 0;
+}
+
+static int
 r535_tmds_edid_get(struct nvkm_outp *outp, u8 *data, u16 *psize)
 {
 	NV0073_CTRL_SPECIFIC_GET_EDID_V2_PARAMS *ctrl;
@@ -1203,6 +1246,7 @@ r535_tmds = {
 static int
 r535_outp_new(struct nvkm_disp *disp, u32 id)
 {
+	const struct nvkm_rm_api *rmapi = disp->rm.objcom.client->gsp->rm->api;
 	NV0073_CTRL_SPECIFIC_OR_GET_INFO_PARAMS *ctrl;
 	enum nvkm_ior_proto proto;
 	struct dcb_output dcbE = {};
@@ -1287,43 +1331,11 @@ r535_outp_new(struct nvkm_disp *disp, u32 id)
 		if (ret)
 			return ret;
 	} else {
-		NV0073_CTRL_CMD_DP_GET_CAPS_PARAMS *ctrl;
 		bool mst, wm;
 
-		ctrl = nvkm_gsp_rm_ctrl_get(&disp->rm.objcom,
-					    NV0073_CTRL_CMD_DP_GET_CAPS, sizeof(*ctrl));
-		if (IS_ERR(ctrl))
-			return PTR_ERR(ctrl);
-
-		ctrl->sorIndex = ~0;
-
-		ret = nvkm_gsp_rm_ctrl_push(&disp->rm.objcom, &ctrl, sizeof(*ctrl));
-		if (ret) {
-			nvkm_gsp_rm_ctrl_done(&disp->rm.objcom, ctrl);
+		ret = rmapi->disp->dp.get_caps(disp, &dcbE.dpconf.link_bw, &mst, &wm);
+		if (ret)
 			return ret;
-		}
-
-		switch (NVVAL_GET(ctrl->maxLinkRate, NV0073_CTRL_CMD, DP_GET_CAPS, MAX_LINK_RATE)) {
-		case NV0073_CTRL_CMD_DP_GET_CAPS_MAX_LINK_RATE_1_62:
-			dcbE.dpconf.link_bw = 0x06;
-			break;
-		case NV0073_CTRL_CMD_DP_GET_CAPS_MAX_LINK_RATE_2_70:
-			dcbE.dpconf.link_bw = 0x0a;
-			break;
-		case NV0073_CTRL_CMD_DP_GET_CAPS_MAX_LINK_RATE_5_40:
-			dcbE.dpconf.link_bw = 0x14;
-			break;
-		case NV0073_CTRL_CMD_DP_GET_CAPS_MAX_LINK_RATE_8_10:
-			dcbE.dpconf.link_bw = 0x1e;
-			break;
-		default:
-			dcbE.dpconf.link_bw = 0x00;
-			break;
-		}
-
-		mst = ctrl->bIsMultistreamSupported;
-		wm = ctrl->bHasIncreasedWatermarkLimits;
-		nvkm_gsp_rm_ctrl_done(&disp->rm.objcom, ctrl);
 
 		if (WARN_ON(!dcbE.dpconf.link_bw))
 			return -EINVAL;
@@ -1763,6 +1775,7 @@ r535_disp = {
 	.get_active = r535_disp_get_active,
 	.bl_ctrl = r535_bl_ctrl,
 	.dp = {
+		.get_caps = r535_dp_get_caps,
 		.set_indexed_link_rates = r535_dp_set_indexed_link_rates,
 	},
 	.chan = {
