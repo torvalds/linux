@@ -397,3 +397,5 @@ struct iommufd_viommu *arm_vsmmu_alloc(struct device *dev,
 
 	return &vsmmu->core;
 }
+
+MODULE_IMPORT_NS(IOMMUFD);
