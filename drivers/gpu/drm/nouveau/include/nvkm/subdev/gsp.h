@@ -210,10 +210,7 @@ struct nvkm_gsp {
 	} gr;
 
 	const struct nvkm_gsp_rm {
-		void *(*rpc_get)(struct nvkm_gsp *, u32 fn, u32 argc);
-		void *(*rpc_push)(struct nvkm_gsp *gsp, void *argv,
-				  enum nvkm_gsp_rpc_reply_policy policy, u32 repc);
-		void (*rpc_done)(struct nvkm_gsp *gsp, void *repv);
+		const struct nvkm_rm_api *api;
 
 		void *(*rm_ctrl_get)(struct nvkm_gsp_object *, u32 cmd, u32 argc);
 		int (*rm_ctrl_push)(struct nvkm_gsp_object *, void **argv, u32 repc);
@@ -272,17 +269,19 @@ nvkm_gsp_rm(struct nvkm_gsp *gsp)
 	return gsp && (gsp->fws.rm || gsp->fw.img);
 }
 
+#include <rm/rm.h>
+
 static inline void *
 nvkm_gsp_rpc_get(struct nvkm_gsp *gsp, u32 fn, u32 argc)
 {
-	return gsp->rm->rpc_get(gsp, fn, argc);
+	return gsp->rm->api->rpc->get(gsp, fn, argc);
 }
 
 static inline void *
 nvkm_gsp_rpc_push(struct nvkm_gsp *gsp, void *argv,
 		  enum nvkm_gsp_rpc_reply_policy policy, u32 repc)
 {
-	return gsp->rm->rpc_push(gsp, argv, policy, repc);
+	return gsp->rm->api->rpc->push(gsp, argv, policy, repc);
 }
 
 static inline void *
@@ -311,7 +310,7 @@ nvkm_gsp_rpc_wr(struct nvkm_gsp *gsp, void *argv,
 static inline void
 nvkm_gsp_rpc_done(struct nvkm_gsp *gsp, void *repv)
 {
-	gsp->rm->rpc_done(gsp, repv);
+	gsp->rm->api->rpc->done(gsp, repv);
 }
 
 static inline void *

@@ -1,0 +1,5 @@
+# SPDX-License-Identifier: MIT
+#
+# Copyright (c) 2025, NVIDIA CORPORATION. All rights reserved.
+
+include $(src)/nvkm/subdev/gsp/rm/r535/Kbuild
