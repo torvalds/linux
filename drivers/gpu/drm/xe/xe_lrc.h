@@ -28,6 +28,7 @@ struct xe_lrc_snapshot {
 	u32 ring_addr;
 	u32 indirect_context_desc;
 	u32 head;
+	u32 start;
 	struct {
 		u32 internal;
 		u32 memory;
