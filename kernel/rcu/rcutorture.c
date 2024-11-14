@@ -464,10 +464,8 @@ rcu_read_delay(struct torture_random_state *rrsp, struct rt_read_seg *rtrsp)
 		rtrsp->rt_delay_us = shortdelay_us;
 	}
 	if (!preempt_count() &&
-	    !(torture_random(rrsp) % (nrealreaders * 500))) {
+	    !(torture_random(rrsp) % (nrealreaders * 500)))
 		torture_preempt_schedule();  /* QS only if preemptible. */
-		rtrsp->rt_preempted = true;
-	}
 }
 
 static void rcu_torture_read_unlock(int idx)
@@ -1961,8 +1959,11 @@ static void rcutorture_one_extend(int *readstate, int newstate, bool insoftirq,
 	if (IS_ENABLED(CONFIG_RCU_TORTURE_TEST_LOG_CPU)) {
 		int cpu = raw_smp_processor_id();
 		rtrsp->rt_cpu = cpu;
-		if (!first)
+		if (!first) {
 			rtrsp[-1].rt_end_cpu = cpu;
+			if (cur_ops->reader_blocked)
+				rtrsp[-1].rt_preempted = cur_ops->reader_blocked();
+		}
 	}
 
 	/*
