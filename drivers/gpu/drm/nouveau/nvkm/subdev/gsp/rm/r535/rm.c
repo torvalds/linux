@@ -7,4 +7,5 @@
 const struct nvkm_rm_api
 r535_rm = {
 	.rpc = &r535_rpc,
+	.ctrl = &r535_ctrl,
 };

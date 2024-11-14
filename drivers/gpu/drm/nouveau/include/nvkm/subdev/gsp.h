@@ -212,10 +212,6 @@ struct nvkm_gsp {
 	const struct nvkm_gsp_rm {
 		const struct nvkm_rm_api *api;
 
-		void *(*rm_ctrl_get)(struct nvkm_gsp_object *, u32 cmd, u32 argc);
-		int (*rm_ctrl_push)(struct nvkm_gsp_object *, void **argv, u32 repc);
-		void (*rm_ctrl_done)(struct nvkm_gsp_object *, void *repv);
-
 		void *(*rm_alloc_get)(struct nvkm_gsp_object *, u32 oclass, u32 argc);
 		void *(*rm_alloc_push)(struct nvkm_gsp_object *, void *argv);
 		void (*rm_alloc_done)(struct nvkm_gsp_object *, void *repv);
@@ -316,13 +312,13 @@ nvkm_gsp_rpc_done(struct nvkm_gsp *gsp, void *repv)
 static inline void *
 nvkm_gsp_rm_ctrl_get(struct nvkm_gsp_object *object, u32 cmd, u32 argc)
 {
-	return object->client->gsp->rm->rm_ctrl_get(object, cmd, argc);
+	return object->client->gsp->rm->api->ctrl->get(object, cmd, argc);
 }
 
 static inline int
 nvkm_gsp_rm_ctrl_push(struct nvkm_gsp_object *object, void *argv, u32 repc)
 {
-	return object->client->gsp->rm->rm_ctrl_push(object, argv, repc);
+	return object->client->gsp->rm->api->ctrl->push(object, argv, repc);
 }
 
 static inline void *
@@ -353,7 +349,7 @@ nvkm_gsp_rm_ctrl_wr(struct nvkm_gsp_object *object, void *argv)
 static inline void
 nvkm_gsp_rm_ctrl_done(struct nvkm_gsp_object *object, void *repv)
 {
-	object->client->gsp->rm->rm_ctrl_done(object, repv);
+	object->client->gsp->rm->api->ctrl->done(object, repv);
 }
 
 static inline void *

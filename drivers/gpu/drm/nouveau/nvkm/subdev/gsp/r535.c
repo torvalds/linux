@@ -20,6 +20,7 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 #include <rm/rpc.h>
+
 #include "priv.h"
 
 #include <core/pci.h>
@@ -304,74 +305,9 @@ r535_gsp_rpc_rm_alloc_get(struct nvkm_gsp_object *object, u32 oclass,
 	return rpc->params;
 }
 
-static void
-r535_gsp_rpc_rm_ctrl_done(struct nvkm_gsp_object *object, void *params)
-{
-	rpc_gsp_rm_control_v03_00 *rpc = to_payload_hdr(params, rpc);
-
-	if (!params)
-		return;
-	nvkm_gsp_rpc_done(object->client->gsp, rpc);
-}
-
-static int
-r535_gsp_rpc_rm_ctrl_push(struct nvkm_gsp_object *object, void **params, u32 repc)
-{
-	rpc_gsp_rm_control_v03_00 *rpc = to_payload_hdr((*params), rpc);
-	struct nvkm_gsp *gsp = object->client->gsp;
-	int ret = 0;
-
-	rpc = nvkm_gsp_rpc_push(gsp, rpc, NVKM_GSP_RPC_REPLY_RECV, repc);
-	if (IS_ERR_OR_NULL(rpc)) {
-		*params = NULL;
-		return PTR_ERR(rpc);
-	}
-
-	if (rpc->status) {
-		ret = r535_rpc_status_to_errno(rpc->status);
-		if (ret != -EAGAIN && ret != -EBUSY)
-			nvkm_error(&gsp->subdev, "cli:0x%08x obj:0x%08x ctrl cmd:0x%08x failed: 0x%08x\n",
-				   object->client->object.handle, object->handle, rpc->cmd, rpc->status);
-	}
-
-	if (repc)
-		*params = rpc->params;
-	else
-		nvkm_gsp_rpc_done(gsp, rpc);
-
-	return ret;
-}
-
-static void *
-r535_gsp_rpc_rm_ctrl_get(struct nvkm_gsp_object *object, u32 cmd, u32 params_size)
-{
-	struct nvkm_gsp_client *client = object->client;
-	struct nvkm_gsp *gsp = client->gsp;
-	rpc_gsp_rm_control_v03_00 *rpc;
-
-	nvkm_debug(&gsp->subdev, "cli:0x%08x obj:0x%08x ctrl cmd:0x%08x params_size:%d\n",
-		   client->object.handle, object->handle, cmd, params_size);
-
-	rpc = nvkm_gsp_rpc_get(gsp, NV_VGPU_MSG_FUNCTION_GSP_RM_CONTROL,
-			       sizeof(*rpc) + params_size);
-	if (IS_ERR(rpc))
-		return rpc;
-
-	rpc->hClient    = client->object.handle;
-	rpc->hObject    = object->handle;
-	rpc->cmd	= cmd;
-	rpc->status     = 0;
-	rpc->paramsSize = params_size;
-	return rpc->params;
-}
-
 const struct nvkm_gsp_rm
 r535_gsp_rm = {
 	.api = &r535_rm,
-
-	.rm_ctrl_get = r535_gsp_rpc_rm_ctrl_get,
-	.rm_ctrl_push = r535_gsp_rpc_rm_ctrl_push,
-	.rm_ctrl_done = r535_gsp_rpc_rm_ctrl_done,
 
 	.rm_alloc_get = r535_gsp_rpc_rm_alloc_get,
 	.rm_alloc_push = r535_gsp_rpc_rm_alloc_push,

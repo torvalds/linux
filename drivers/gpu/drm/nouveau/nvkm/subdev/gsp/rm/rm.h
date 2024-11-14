@@ -13,8 +13,15 @@ struct nvkm_rm_api {
 			      enum nvkm_gsp_rpc_reply_policy policy, u32 repc);
 		void (*done)(struct nvkm_gsp *gsp, void *repv);
 	} *rpc;
+
+	const struct nvkm_rm_api_ctrl {
+		void *(*get)(struct nvkm_gsp_object *, u32 cmd, u32 params_size);
+		int (*push)(struct nvkm_gsp_object *, void **params, u32 repc);
+		void (*done)(struct nvkm_gsp_object *, void *params);
+	} *ctrl;
 };
 
 extern const struct nvkm_rm_api r535_rm;
 extern const struct nvkm_rm_api_rpc r535_rpc;
+extern const struct nvkm_rm_api_ctrl r535_ctrl;
 #endif
