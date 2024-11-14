@@ -675,6 +675,8 @@ static struct sk_buff *xsk_build_skb(struct xdp_sock *xs,
 		len = desc->len;
 
 		if (!skb) {
+			first_frag = true;
+
 			hr = max(NET_SKB_PAD, L1_CACHE_ALIGN(dev->needed_headroom));
 			tr = dev->needed_tailroom;
 			skb = sock_alloc_send_skb(&xs->sk, hr + len + tr, 1, &err);
@@ -685,12 +687,8 @@ static struct sk_buff *xsk_build_skb(struct xdp_sock *xs,
 			skb_put(skb, len);
 
 			err = skb_store_bits(skb, 0, buffer, len);
-			if (unlikely(err)) {
-				kfree_skb(skb);
+			if (unlikely(err))
 				goto free_err;
-			}
-
-			first_frag = true;
 		} else {
 			int nr_frags = skb_shinfo(skb)->nr_frags;
 			struct page *page;
@@ -758,6 +756,9 @@ static struct sk_buff *xsk_build_skb(struct xdp_sock *xs,
 	return skb;
 
 free_err:
+	if (first_frag && skb)
+		kfree_skb(skb);
+
 	if (err == -EOVERFLOW) {
 		/* Drop the packet */
 		xsk_set_destructor_arg(xs->skb);
