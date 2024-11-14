@@ -760,6 +760,7 @@ static void flush_tlb_func(void *info)
 		/* Can only happen on remote CPUs */
 		if (f->mm && f->mm != loaded_mm) {
 			cpumask_clear_cpu(raw_smp_processor_id(), mm_cpumask(f->mm));
+			trace_tlb_flush(TLB_REMOTE_WRONG_CPU, 0);
 			return;
 		}
 	}
