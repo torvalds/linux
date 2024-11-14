@@ -391,19 +391,19 @@ nfsd_file_put(struct nfsd_file *nf)
 }
 
 /**
- * nfsd_file_put_local - put the reference to nfsd_file and local nfsd_serv
- * @nf: nfsd_file of which to put the references
+ * nfsd_file_put_local - put nfsd_file reference and arm nfsd_serv_put in caller
+ * @nf: nfsd_file of which to put the reference
  *
- * First put the reference of the nfsd_file and then put the
- * reference to the associated nn->nfsd_serv.
+ * First save the associated net to return to caller, then put
+ * the reference of the nfsd_file.
  */
-void
-nfsd_file_put_local(struct nfsd_file *nf) __must_hold(rcu)
+struct net *
+nfsd_file_put_local(struct nfsd_file *nf)
 {
 	struct net *net = nf->nf_net;
 
 	nfsd_file_put(nf);
-	nfsd_serv_put(net);
+	return net;
 }
 
 /**
