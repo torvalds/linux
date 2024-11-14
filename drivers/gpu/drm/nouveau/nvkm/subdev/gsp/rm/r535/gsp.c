@@ -86,10 +86,52 @@ r535_gsp_intr(struct nvkm_inth *inth)
 	return IRQ_HANDLED;
 }
 
+static bool
+r535_gsp_xlat_mc_engine_idx(u32 mc_engine_idx, enum nvkm_subdev_type *ptype, int *pinst)
+{
+	switch (mc_engine_idx) {
+	case MC_ENGINE_IDX_GSP:
+		*ptype = NVKM_SUBDEV_GSP;
+		*pinst = 0;
+		return true;
+	case MC_ENGINE_IDX_DISP:
+		*ptype = NVKM_ENGINE_DISP;
+		*pinst = 0;
+		return true;
+	case MC_ENGINE_IDX_CE0 ... MC_ENGINE_IDX_CE9:
+		*ptype = NVKM_ENGINE_CE;
+		*pinst = mc_engine_idx - MC_ENGINE_IDX_CE0;
+		return true;
+	case MC_ENGINE_IDX_GR0:
+		*ptype = NVKM_ENGINE_GR;
+		*pinst = 0;
+		return true;
+	case MC_ENGINE_IDX_NVDEC0 ... MC_ENGINE_IDX_NVDEC7:
+		*ptype = NVKM_ENGINE_NVDEC;
+		*pinst = mc_engine_idx - MC_ENGINE_IDX_NVDEC0;
+		return true;
+	case MC_ENGINE_IDX_MSENC ... MC_ENGINE_IDX_MSENC2:
+		*ptype = NVKM_ENGINE_NVENC;
+		*pinst = mc_engine_idx - MC_ENGINE_IDX_MSENC;
+		return true;
+	case MC_ENGINE_IDX_NVJPEG0 ... MC_ENGINE_IDX_NVJPEG7:
+		*ptype = NVKM_ENGINE_NVJPG;
+		*pinst = mc_engine_idx - MC_ENGINE_IDX_NVJPEG0;
+		return true;
+	case MC_ENGINE_IDX_OFA0:
+		*ptype = NVKM_ENGINE_OFA;
+		*pinst = 0;
+		return true;
+	default:
+		return false;
+	}
+}
+
 static int
 r535_gsp_intr_get_table(struct nvkm_gsp *gsp)
 {
 	NV2080_CTRL_INTERNAL_INTR_GET_KERNEL_TABLE_PARAMS *ctrl;
+	const struct nvkm_rm_api *rmapi = gsp->rm->api;
 	int ret = 0;
 
 	ctrl = nvkm_gsp_rm_ctrl_get(&gsp->internal.device.subdevice,
@@ -112,42 +154,8 @@ r535_gsp_intr_get_table(struct nvkm_gsp *gsp)
 			   ctrl->table[i].engineIdx, ctrl->table[i].pmcIntrMask,
 			   ctrl->table[i].vectorStall, ctrl->table[i].vectorNonStall);
 
-		switch (ctrl->table[i].engineIdx) {
-		case MC_ENGINE_IDX_GSP:
-			type = NVKM_SUBDEV_GSP;
-			inst = 0;
-			break;
-		case MC_ENGINE_IDX_DISP:
-			type = NVKM_ENGINE_DISP;
-			inst = 0;
-			break;
-		case MC_ENGINE_IDX_CE0 ... MC_ENGINE_IDX_CE9:
-			type = NVKM_ENGINE_CE;
-			inst = ctrl->table[i].engineIdx - MC_ENGINE_IDX_CE0;
-			break;
-		case MC_ENGINE_IDX_GR0:
-			type = NVKM_ENGINE_GR;
-			inst = 0;
-			break;
-		case MC_ENGINE_IDX_NVDEC0 ... MC_ENGINE_IDX_NVDEC7:
-			type = NVKM_ENGINE_NVDEC;
-			inst = ctrl->table[i].engineIdx - MC_ENGINE_IDX_NVDEC0;
-			break;
-		case MC_ENGINE_IDX_MSENC ... MC_ENGINE_IDX_MSENC2:
-			type = NVKM_ENGINE_NVENC;
-			inst = ctrl->table[i].engineIdx - MC_ENGINE_IDX_MSENC;
-			break;
-		case MC_ENGINE_IDX_NVJPEG0 ... MC_ENGINE_IDX_NVJPEG7:
-			type = NVKM_ENGINE_NVJPG;
-			inst = ctrl->table[i].engineIdx - MC_ENGINE_IDX_NVJPEG0;
-			break;
-		case MC_ENGINE_IDX_OFA0:
-			type = NVKM_ENGINE_OFA;
-			inst = 0;
-			break;
-		default:
+		if (!rmapi->gsp->xlat_mc_engine_idx(ctrl->table[i].engineIdx, &type, &inst))
 			continue;
-		}
 
 		if (WARN_ON(gsp->intr_nr == ARRAY_SIZE(gsp->intr))) {
 			ret = -ENOSPC;
@@ -2160,4 +2168,5 @@ const struct nvkm_rm_api_gsp
 r535_gsp = {
 	.set_system_info = r535_gsp_set_system_info,
 	.get_static_info = r535_gsp_get_static_info,
+	.xlat_mc_engine_idx = r535_gsp_xlat_mc_engine_idx,
 };
