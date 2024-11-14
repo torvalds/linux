@@ -315,6 +315,10 @@
 	};
 };
 
+&cpsw_mac_syscon {
+	bootph-all;
+};
+
 &wkup_uart0 {
 	/* WKUP UART0 is used by DM firmware */
 	bootph-pre-ram;
