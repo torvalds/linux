@@ -376,7 +376,6 @@ enum gfx_sysfs_idx {
 };
 
 struct gfx_sysfs_info {
-	const char *path;
 	FILE *fp;
 	unsigned int val;
 	unsigned long long val_ull;
@@ -5766,10 +5765,7 @@ int snapshot_graphics(int idx)
 {
 	int retval;
 
-	if (gfx_info[idx].fp == NULL)
-		gfx_info[idx].fp = fopen_or_die(gfx_info[idx].path, "r");
-	else
-		rewind(gfx_info[idx].fp);
+	rewind(gfx_info[idx].fp);
 
 	switch (idx) {
 	case GFX_rc6:
@@ -6474,6 +6470,12 @@ static void probe_intel_uncore_frequency(void)
 		probe_intel_uncore_frequency_legacy();
 }
 
+static void set_graphics_fp(char *path, int idx)
+{
+	if (!access(path, R_OK))
+		gfx_info[idx].fp = fopen_or_die(path, "r");
+}
+
 static void probe_graphics(void)
 {
 	/* Xe graphics sysfs knobs */
@@ -6481,7 +6483,6 @@ static void probe_graphics(void)
 		FILE *fp;
 		char buf[8];
 		bool gt0_is_gt;
-		int idx;
 
 		fp = fopen("/sys/class/drm/card0/device/tile0/gt0/gtidle/name", "r");
 		if (!fp)
@@ -6500,28 +6501,17 @@ static void probe_graphics(void)
 		else
 			goto next;
 
-		idx = gt0_is_gt ? GFX_rc6 : SAM_mc6;
-		gfx_info[idx].path = "/sys/class/drm/card0/device/tile0/gt0/gtidle/idle_residency_ms";
+		set_graphics_fp("/sys/class/drm/card0/device/tile0/gt0/gtidle/idle_residency_ms", gt0_is_gt ? GFX_rc6 : SAM_mc6);
 
-		idx = gt0_is_gt ? GFX_MHz : SAM_MHz;
-		if (!access("/sys/class/drm/card0/device/tile0/gt0/freq0/cur_freq", R_OK))
-			gfx_info[idx].path = "/sys/class/drm/card0/device/tile0/gt0/freq0/cur_freq";
+		set_graphics_fp("/sys/class/drm/card0/device/tile0/gt0/freq0/cur_freq", gt0_is_gt ? GFX_MHz : SAM_MHz);
 
-		idx = gt0_is_gt ? GFX_ACTMHz : SAM_ACTMHz;
-		if (!access("/sys/class/drm/card0/device/tile0/gt0/freq0/act_freq", R_OK))
-			gfx_info[idx].path = "/sys/class/drm/card0/device/tile0/gt0/freq0/act_freq";
+		set_graphics_fp("/sys/class/drm/card0/device/tile0/gt0/freq0/act_freq", gt0_is_gt ? GFX_ACTMHz : SAM_ACTMHz);
 
-		idx = gt0_is_gt ? SAM_mc6 : GFX_rc6;
-		if (!access("/sys/class/drm/card0/device/tile0/gt1/gtidle/idle_residency_ms", R_OK))
-			gfx_info[idx].path = "/sys/class/drm/card0/device/tile0/gt1/gtidle/idle_residency_ms";
+		set_graphics_fp("/sys/class/drm/card0/device/tile0/gt1/gtidle/idle_residency_ms", gt0_is_gt ? SAM_mc6 : GFX_rc6);
 
-		idx = gt0_is_gt ? SAM_MHz : GFX_MHz;
-		if (!access("/sys/class/drm/card0/device/tile0/gt1/freq0/cur_freq", R_OK))
-			gfx_info[idx].path = "/sys/class/drm/card0/device/tile0/gt1/freq0/cur_freq";
+		set_graphics_fp("/sys/class/drm/card0/device/tile0/gt1/freq0/cur_freq", gt0_is_gt ? SAM_MHz : GFX_MHz);
 
-		idx = gt0_is_gt ? SAM_ACTMHz : GFX_ACTMHz;
-		if (!access("/sys/class/drm/card0/device/tile0/gt1/freq0/act_freq", R_OK))
-			gfx_info[idx].path = "/sys/class/drm/card0/device/tile0/gt1/freq0/act_freq";
+		set_graphics_fp("/sys/class/drm/card0/device/tile0/gt1/freq0/act_freq", gt0_is_gt ? SAM_ACTMHz : GFX_ACTMHz);
 
 		goto end;
 	}
@@ -6529,52 +6519,44 @@ static void probe_graphics(void)
 next:
 	/* New i915 graphics sysfs knobs */
 	if (!access("/sys/class/drm/card0/gt/gt0/rc6_residency_ms", R_OK)) {
-		gfx_info[GFX_rc6].path = "/sys/class/drm/card0/gt/gt0/rc6_residency_ms";
+		set_graphics_fp("/sys/class/drm/card0/gt/gt0/rc6_residency_ms", GFX_rc6);
 
-		if (!access("/sys/class/drm/card0/gt/gt0/rps_cur_freq_mhz", R_OK))
-			gfx_info[GFX_MHz].path = "/sys/class/drm/card0/gt/gt0/rps_cur_freq_mhz";
+		set_graphics_fp("/sys/class/drm/card0/gt/gt0/rps_cur_freq_mhz", GFX_MHz);
 
-		if (!access("/sys/class/drm/card0/gt/gt0/rps_act_freq_mhz", R_OK))
-			gfx_info[GFX_ACTMHz].path = "/sys/class/drm/card0/gt/gt0/rps_act_freq_mhz";
+		set_graphics_fp("/sys/class/drm/card0/gt/gt0/rps_act_freq_mhz", GFX_ACTMHz);
 
-		if (!access("/sys/class/drm/card0/gt/gt1/rc6_residency_ms", R_OK))
-			gfx_info[SAM_mc6].path = "/sys/class/drm/card0/gt/gt1/rc6_residency_ms";
+		set_graphics_fp("/sys/class/drm/card0/gt/gt1/rc6_residency_ms", SAM_mc6);
 
-		if (!access("/sys/class/drm/card0/gt/gt1/rps_cur_freq_mhz", R_OK))
-			gfx_info[SAM_MHz].path = "/sys/class/drm/card0/gt/gt1/rps_cur_freq_mhz";
+		set_graphics_fp("/sys/class/drm/card0/gt/gt1/rps_cur_freq_mhz", SAM_MHz);
 
-		if (!access("/sys/class/drm/card0/gt/gt1/rps_act_freq_mhz", R_OK))
-			gfx_info[SAM_ACTMHz].path = "/sys/class/drm/card0/gt/gt1/rps_act_freq_mhz";
+		set_graphics_fp("/sys/class/drm/card0/gt/gt1/rps_act_freq_mhz", SAM_ACTMHz);
 
 		goto end;
 	}
 
 	/* Fall back to traditional i915 graphics sysfs knobs */
-	if (!access("/sys/class/drm/card0/power/rc6_residency_ms", R_OK))
-		gfx_info[GFX_rc6].path = "/sys/class/drm/card0/power/rc6_residency_ms";
+	set_graphics_fp("/sys/class/drm/card0/power/rc6_residency_ms", GFX_rc6);
 
-	if (!access("/sys/class/drm/card0/gt_cur_freq_mhz", R_OK))
-		gfx_info[GFX_MHz].path = "/sys/class/drm/card0/gt_cur_freq_mhz";
-	else if (!access("/sys/class/graphics/fb0/device/drm/card0/gt_cur_freq_mhz", R_OK))
-		gfx_info[GFX_MHz].path = "/sys/class/graphics/fb0/device/drm/card0/gt_cur_freq_mhz";
+	set_graphics_fp("/sys/class/drm/card0/gt_cur_freq_mhz", GFX_MHz);
+	if (!gfx_info[GFX_MHz].fp)
+		set_graphics_fp("/sys/class/graphics/fb0/device/drm/card0/gt_cur_freq_mhz", GFX_MHz);
 
-	if (!access("/sys/class/drm/card0/gt_act_freq_mhz", R_OK))
-		gfx_info[GFX_ACTMHz].path = "/sys/class/drm/card0/gt_act_freq_mhz";
-	else if (!access("/sys/class/graphics/fb0/device/drm/card0/gt_act_freq_mhz", R_OK))
-		gfx_info[GFX_ACTMHz].path = "/sys/class/graphics/fb0/device/drm/card0/gt_act_freq_mhz";
+	set_graphics_fp("/sys/class/drm/card0/gt_act_freq_mhz", GFX_ACTMHz);
+	if (!gfx_info[GFX_ACTMHz].fp)
+		set_graphics_fp("/sys/class/graphics/fb0/device/drm/card0/gt_act_freq_mhz", GFX_ACTMHz);
 
 end:
-	if (gfx_info[GFX_rc6].path)
+	if (gfx_info[GFX_rc6].fp)
 		BIC_PRESENT(BIC_GFX_rc6);
-	if (gfx_info[GFX_MHz].path)
+	if (gfx_info[GFX_MHz].fp)
 		BIC_PRESENT(BIC_GFXMHz);
-	if (gfx_info[GFX_ACTMHz].path)
+	if (gfx_info[GFX_ACTMHz].fp)
 		BIC_PRESENT(BIC_GFXACTMHz);
-	if (gfx_info[SAM_mc6].path)
+	if (gfx_info[SAM_mc6].fp)
 		BIC_PRESENT(BIC_SAM_mc6);
-	if (gfx_info[SAM_MHz].path)
+	if (gfx_info[SAM_MHz].fp)
 		BIC_PRESENT(BIC_SAMMHz);
-	if (gfx_info[SAM_ACTMHz].path)
+	if (gfx_info[SAM_ACTMHz].fp)
 		BIC_PRESENT(BIC_SAMACTMHz);
 }
 
