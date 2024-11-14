@@ -165,26 +165,34 @@ r535_dmac_fini(struct nvkm_disp_chan *chan)
 }
 
 static int
+r535_dmac_alloc(struct nvkm_disp *disp, u32 oclass, int inst, u32 put_offset,
+		struct nvkm_gsp_object *dmac)
+{
+	NV50VAIO_CHANNELDMA_ALLOCATION_PARAMETERS *args;
+
+	args = nvkm_gsp_rm_alloc_get(&disp->rm.object, (oclass << 16) | inst, oclass,
+				     sizeof(*args), dmac);
+	if (IS_ERR(args))
+		return PTR_ERR(args);
+
+	args->channelInstance = inst;
+	args->offset = put_offset;
+
+	return nvkm_gsp_rm_alloc_wr(dmac, args);
+}
+
+static int
 r535_dmac_init(struct nvkm_disp_chan *chan)
 {
 	const struct nvkm_rm_api *rmapi = chan->disp->rm.objcom.client->gsp->rm->api;
-	NV50VAIO_CHANNELDMA_ALLOCATION_PARAMETERS *args;
 	int ret;
 
 	ret = rmapi->disp->chan.set_pushbuf(chan->disp, chan->object.oclass, chan->head, chan->memory);
 	if (ret)
 		return ret;
 
-	args = nvkm_gsp_rm_alloc_get(&chan->disp->rm.object,
-				     (chan->object.oclass << 16) | chan->head,
-				     chan->object.oclass, sizeof(*args), &chan->rm.object);
-	if (IS_ERR(args))
-		return PTR_ERR(args);
-
-	args->channelInstance = chan->head;
-	args->offset = chan->suspend_put;
-
-	return nvkm_gsp_rm_alloc_wr(&chan->rm.object, args);
+	return rmapi->disp->chan.dmac_alloc(chan->disp, chan->object.oclass, chan->head,
+					    chan->suspend_put, &chan->rm.object);
 }
 
 static int
@@ -1780,5 +1788,6 @@ r535_disp = {
 	},
 	.chan = {
 		.set_pushbuf = r535_disp_chan_set_pushbuf,
+		.dmac_alloc = r535_dmac_alloc,
 	}
 };

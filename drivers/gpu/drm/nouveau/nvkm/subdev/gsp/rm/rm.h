@@ -94,6 +94,8 @@ struct nvkm_rm_api {
 		struct {
 			int (*set_pushbuf)(struct nvkm_disp *, s32 oclass, int inst,
 					   struct nvkm_memory *);
+			int (*dmac_alloc)(struct nvkm_disp *, u32 oclass, int inst, u32 put_offset,
+					  struct nvkm_gsp_object *);
 		} chan;
 	} *disp;
 
