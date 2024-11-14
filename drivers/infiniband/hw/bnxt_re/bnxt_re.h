@@ -157,6 +157,7 @@ struct bnxt_re_pacing {
 #define BNXT_RE_MIN_MSIX		2
 #define BNXT_RE_MAX_MSIX		BNXT_MAX_ROCE_MSIX
 struct bnxt_re_nq_record {
+	struct bnxt_msix_entry	msix_entries[BNXT_RE_MAX_MSIX];
 	struct bnxt_qplib_nq	nq[BNXT_RE_MAX_MSIX];
 	int			num_msix;
 	/* serialize NQ access */
