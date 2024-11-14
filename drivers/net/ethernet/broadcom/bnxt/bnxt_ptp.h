@@ -182,4 +182,15 @@ static inline u64 bnxt_timecounter_cyc2time(struct bnxt_ptp_cfg *ptp, u64 ts)
 
 	return ns;
 }
+
+static inline u64 bnxt_extend_cycles_32b_to_48b(struct bnxt_ptp_cfg *ptp, u32 ts)
+{
+	u64 time, cycles;
+
+	time = (u64)READ_ONCE(ptp->old_time) << BNXT_HI_TIMER_SHIFT;
+	cycles = (time & BNXT_HI_TIMER_MASK) | ts;
+	if (ts < (time & BNXT_LO_TIMER_MASK))
+		cycles += BNXT_LO_TIMER_MASK + 1;
+	return cycles;
+}
 #endif

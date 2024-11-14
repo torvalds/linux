@@ -112,6 +112,28 @@ static int bnxt_refclk_read(struct bnxt *bp, struct ptp_system_timestamp *sts,
 	return rc;
 }
 
+static int bnxt_refclk_read_low(struct bnxt *bp, struct ptp_system_timestamp *sts,
+				u32 *low)
+{
+	struct bnxt_ptp_cfg *ptp = bp->ptp_cfg;
+	unsigned long flags;
+
+	/* We have to serialize reg access and FW reset */
+	read_seqlock_excl_irqsave(&ptp->ptp_lock, flags);
+
+	if (test_bit(BNXT_STATE_IN_FW_RESET, &bp->state)) {
+		read_sequnlock_excl_irqrestore(&ptp->ptp_lock, flags);
+		return -EIO;
+	}
+
+	ptp_read_system_prets(sts);
+	*low = readl(bp->bar0 + ptp->refclk_mapped_regs[0]);
+	ptp_read_system_postts(sts);
+
+	read_sequnlock_excl_irqrestore(&ptp->ptp_lock, flags);
+	return 0;
+}
+
 static void bnxt_ptp_get_current_time(struct bnxt *bp)
 {
 	struct bnxt_ptp_cfg *ptp = bp->ptp_cfg;
@@ -163,12 +185,14 @@ static int bnxt_ptp_gettimex(struct ptp_clock_info *ptp_info,
 	struct bnxt_ptp_cfg *ptp = container_of(ptp_info, struct bnxt_ptp_cfg,
 						ptp_info);
 	u64 ns, cycles;
+	u32 low;
 	int rc;
 
-	rc = bnxt_refclk_read(ptp->bp, sts, &cycles);
+	rc = bnxt_refclk_read_low(ptp->bp, sts, &low);
 	if (rc)
 		return rc;
 
+	cycles = bnxt_extend_cycles_32b_to_48b(ptp, low);
 	ns = bnxt_timecounter_cyc2time(ptp, cycles);
 	*ts = ns_to_timespec64(ns);
 
@@ -801,15 +825,11 @@ void bnxt_get_tx_ts_p5(struct bnxt *bp, struct sk_buff *skb, u16 prod)
 int bnxt_get_rx_ts_p5(struct bnxt *bp, u64 *ts, u32 pkt_ts)
 {
 	struct bnxt_ptp_cfg *ptp = bp->ptp_cfg;
-	u64 time;
 
 	if (!ptp)
 		return -ENODEV;
 
-	time = (u64)READ_ONCE(ptp->old_time) << BNXT_HI_TIMER_SHIFT;
-	*ts = (time & BNXT_HI_TIMER_MASK) | pkt_ts;
-	if (pkt_ts < (time & BNXT_LO_TIMER_MASK))
-		*ts += BNXT_LO_TIMER_MASK + 1;
+	*ts = bnxt_extend_cycles_32b_to_48b(ptp, pkt_ts);
 
 	return 0;
 }
