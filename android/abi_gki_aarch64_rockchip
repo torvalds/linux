@@ -2461,6 +2461,7 @@
   devm_of_phy_get_by_index
   driver_find_device
   drm_aperture_remove_conflicting_framebuffers
+  drm_atomic_add_encoder_bridges
   drm_atomic_commit
   drm_atomic_get_plane_state
   drm_atomic_helper_check
