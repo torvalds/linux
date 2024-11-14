@@ -1255,16 +1255,6 @@ radeon_dvi_detect(struct drm_connector *connector, bool force)
 			goto exit;
 		}
 	}
-
-	if (dret && radeon_connector->hpd.hpd != RADEON_HPD_NONE &&
-	    !radeon_hpd_sense(rdev, radeon_connector->hpd.hpd) &&
-	    connector->connector_type == DRM_MODE_CONNECTOR_HDMIA) {
-		DRM_DEBUG_KMS("EDID is readable when HPD disconnected\n");
-		schedule_delayed_work(&rdev->hotplug_work, msecs_to_jiffies(1000));
-		ret = connector_status_disconnected;
-		goto exit;
-	}
-
 	if (dret) {
 		radeon_connector->detected_by_load = false;
 		radeon_connector_free_edid(connector);
