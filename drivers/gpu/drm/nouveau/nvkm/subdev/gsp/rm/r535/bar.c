@@ -33,6 +33,14 @@
 static void
 r535_bar_flush(struct nvkm_bar *bar)
 {
+	/* Use NV_PFLUSH in resume path - needed on R570 to flush writes before
+	 * BAR2 page tables have been restored.
+	 */
+	if (unlikely(!bar->bar2)) {
+		g84_bar_flush(bar);
+		return;
+	}
+
 	ioread32_native(bar->flushBAR2);
 }
 

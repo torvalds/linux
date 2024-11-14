@@ -34,6 +34,7 @@ struct nvkm_rm_api {
 		int (*get_static_info)(struct nvkm_gsp *);
 		bool (*xlat_mc_engine_idx)(u32 mc_engine_idx, enum nvkm_subdev_type *, int *inst);
 		void (*drop_send_user_shared_data)(struct nvkm_gsp *);
+		void (*drop_post_nocat_record)(struct nvkm_gsp *);
 		u32 (*sr_data_size)(struct nvkm_gsp *);
 	} *gsp;
 
@@ -121,21 +122,39 @@ struct nvkm_rm_api {
 
 	const struct nvkm_rm_api_gr {
 		int (*get_ctxbufs_info)(struct r535_gr *);
+		struct {
+			int (*init)(struct r535_gr *);
+			void (*fini)(struct r535_gr *);
+		} scrubber;
 	} *gr;
-
 };
 
 extern const struct nvkm_rm_impl r535_rm_tu102;
 extern const struct nvkm_rm_impl r535_rm_ga102;
 extern const struct nvkm_rm_api_gsp r535_gsp;
+typedef struct DOD_METHOD_DATA DOD_METHOD_DATA;
+typedef struct JT_METHOD_DATA JT_METHOD_DATA;
+typedef struct CAPS_METHOD_DATA CAPS_METHOD_DATA;
+void r535_gsp_acpi_dod(acpi_handle, DOD_METHOD_DATA *);
+void r535_gsp_acpi_jt(acpi_handle, JT_METHOD_DATA *);
+void r535_gsp_acpi_caps(acpi_handle, CAPS_METHOD_DATA *);
+struct NV2080_CTRL_CMD_FB_GET_FB_REGION_INFO_PARAMS;
+void r535_gsp_get_static_info_fb(struct nvkm_gsp *,
+				 const struct NV2080_CTRL_CMD_FB_GET_FB_REGION_INFO_PARAMS *);
 extern const struct nvkm_rm_api_rpc r535_rpc;
 extern const struct nvkm_rm_api_ctrl r535_ctrl;
 extern const struct nvkm_rm_api_alloc r535_alloc;
 extern const struct nvkm_rm_api_client r535_client;
+void r535_gsp_client_dtor(struct nvkm_gsp_client *);
 extern const struct nvkm_rm_api_device r535_device;
+int r535_mmu_vaspace_new(struct nvkm_vmm *, u32 handle);
 extern const struct nvkm_rm_api_fbsr r535_fbsr;
+void r535_fbsr_resume(struct nvkm_gsp *);
+int r535_fbsr_memlist(struct nvkm_gsp_device *, u32 handle, enum nvkm_memory_target,
+		      u64 phys, u64 size, struct sg_table *, struct nvkm_gsp_object *);
 extern const struct nvkm_rm_api_disp r535_disp;
 extern const struct nvkm_rm_api_fifo r535_fifo;
+void r535_fifo_rc_chid(struct nvkm_fifo *, int chid);
 extern const struct nvkm_rm_api_engine r535_ce;
 extern const struct nvkm_rm_api_gr r535_gr;
 void *r535_gr_dtor(struct nvkm_gr *);
@@ -143,8 +162,23 @@ int r535_gr_oneinit(struct nvkm_gr *);
 u64 r535_gr_units(struct nvkm_gr *);
 int r535_gr_chan_new(struct nvkm_gr *, struct nvkm_chan *, const struct nvkm_oclass *,
 		     struct nvkm_object **);
+int r535_gr_promote_ctx(struct r535_gr *, bool golden, struct nvkm_vmm *,
+			struct nvkm_memory **pctxbuf_mem, struct nvkm_vma **pctxbuf_vma,
+			struct nvkm_gsp_object *chan);
 extern const struct nvkm_rm_api_engine r535_nvdec;
 extern const struct nvkm_rm_api_engine r535_nvenc;
 extern const struct nvkm_rm_api_engine r535_nvjpg;
 extern const struct nvkm_rm_api_engine r535_ofa;
+
+extern const struct nvkm_rm_impl r570_rm_tu102;
+extern const struct nvkm_rm_impl r570_rm_ga102;
+extern const struct nvkm_rm_api_gsp r570_gsp;
+extern const struct nvkm_rm_api_client r570_client;
+extern const struct nvkm_rm_api_fbsr r570_fbsr;
+extern const struct nvkm_rm_api_disp r570_disp;
+extern const struct nvkm_rm_api_fifo r570_fifo;
+extern const struct nvkm_rm_api_gr r570_gr;
+int r570_gr_gpc_mask(struct nvkm_gsp *, u32 *mask);
+int r570_gr_tpc_mask(struct nvkm_gsp *, int gpc, u32 *mask);
+extern const struct nvkm_rm_api_engine r570_ofa;
 #endif

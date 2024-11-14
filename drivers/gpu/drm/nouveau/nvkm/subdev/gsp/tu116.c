@@ -41,6 +41,7 @@ tu116_gsp = {
 
 static struct nvkm_gsp_fwif
 tu116_gsps[] = {
+	{  1, tu102_gsp_load, &tu116_gsp, &r570_rm_tu102, "570.144" },
 	{  0, tu102_gsp_load, &tu116_gsp, &r535_rm_tu102, "535.113.01" },
 	{ -1, gv100_gsp_nofw, &gv100_gsp },
 	{}
@@ -55,3 +56,6 @@ tu116_gsp_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
 
 NVKM_GSP_FIRMWARE_BOOTER(tu116, 535.113.01);
 NVKM_GSP_FIRMWARE_BOOTER(tu117, 535.113.01);
+
+NVKM_GSP_FIRMWARE_BOOTER(tu116, 570.144);
+NVKM_GSP_FIRMWARE_BOOTER(tu117, 570.144);

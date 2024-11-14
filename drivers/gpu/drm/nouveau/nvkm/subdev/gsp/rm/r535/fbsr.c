@@ -48,9 +48,9 @@ struct fbsr {
 	u64 sys_offset;
 };
 
-static int
-fbsr_memlist(struct nvkm_gsp_device *device, u32 handle, enum nvkm_memory_target aper,
-	     u64 phys, u64 size, struct sg_table *sgt, struct nvkm_gsp_object *object)
+int
+r535_fbsr_memlist(struct nvkm_gsp_device *device, u32 handle, enum nvkm_memory_target aper,
+		  u64 phys, u64 size, struct sg_table *sgt, struct nvkm_gsp_object *object)
 {
 	struct nvkm_gsp_client *client = device->object.client;
 	struct nvkm_gsp *gsp = client->gsp;
@@ -117,8 +117,8 @@ fbsr_send(struct fbsr *fbsr, struct fbsr_item *item)
 	struct nvkm_gsp_object memlist;
 	int ret;
 
-	ret = fbsr_memlist(&fbsr->device, fbsr->hmemory, NVKM_MEM_TARGET_VRAM,
-			   item->addr, item->size, NULL, &memlist);
+	ret = r535_fbsr_memlist(&fbsr->device, fbsr->hmemory, NVKM_MEM_TARGET_VRAM,
+				item->addr, item->size, NULL, &memlist);
 	if (ret)
 		return ret;
 
@@ -155,8 +155,8 @@ fbsr_init(struct fbsr *fbsr, struct sg_table *sgt, u64 items_size)
 	struct nvkm_gsp_object memlist;
 	int ret;
 
-	ret = fbsr_memlist(&fbsr->device, fbsr->hmemory, NVKM_MEM_TARGET_HOST,
-			   0, fbsr->size, sgt, &memlist);
+	ret = r535_fbsr_memlist(&fbsr->device, fbsr->hmemory, NVKM_MEM_TARGET_HOST,
+				0, fbsr->size, sgt, &memlist);
 	if (ret)
 		return ret;
 
@@ -200,7 +200,7 @@ fbsr_inst(struct fbsr *fbsr, const char *type, struct nvkm_memory *memory)
 	return fbsr_vram(fbsr, type, nvkm_memory_addr(memory), nvkm_memory_size(memory));
 }
 
-static void
+void
 r535_fbsr_resume(struct nvkm_gsp *gsp)
 {
 	/* RM has restored VRAM contents already, so just need to free the sysmem buffer. */

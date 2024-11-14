@@ -58,6 +58,7 @@ ga100_gsp = {
 
 static struct nvkm_gsp_fwif
 ga100_gsps[] = {
+	{  1, tu102_gsp_load, &ga100_gsp, &r570_rm_tu102, "570.144" },
 	{  0, tu102_gsp_load, &ga100_gsp, &r535_rm_tu102, "535.113.01" },
 	{ -1, gv100_gsp_nofw, &gv100_gsp },
 	{}
@@ -71,3 +72,4 @@ ga100_gsp_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
 }
 
 NVKM_GSP_FIRMWARE_BOOTER(ga100, 535.113.01);
+NVKM_GSP_FIRMWARE_BOOTER(ga100, 570.144);

@@ -173,7 +173,7 @@ r535_gsp_intr_get_table(struct nvkm_gsp *gsp)
 	return ret;
 }
 
-static void
+void
 r535_gsp_get_static_info_fb(struct nvkm_gsp *gsp,
 			    const struct NV2080_CTRL_CMD_FB_GET_FB_REGION_INFO_PARAMS *info)
 {
@@ -708,7 +708,7 @@ fail:
 }
 
 #if defined(CONFIG_ACPI) && defined(CONFIG_X86)
-static void
+void
 r535_gsp_acpi_caps(acpi_handle handle, CAPS_METHOD_DATA *caps)
 {
 	const guid_t NVOP_DSM_GUID =
@@ -742,7 +742,7 @@ r535_gsp_acpi_caps(acpi_handle handle, CAPS_METHOD_DATA *caps)
 	kfree(argv4.buffer.pointer);
 }
 
-static void
+void
 r535_gsp_acpi_jt(acpi_handle handle, JT_METHOD_DATA *jt)
 {
 	const guid_t JT_DSM_GUID =
@@ -834,7 +834,7 @@ r535_gsp_acpi_mux(acpi_handle handle, DOD_METHOD_DATA *dod, MUX_METHOD_DATA *mux
 	}
 }
 
-static void
+void
 r535_gsp_acpi_dod(acpi_handle handle, DOD_METHOD_DATA *dod)
 {
 	acpi_status status;
@@ -2142,6 +2142,8 @@ r535_gsp_oneinit(struct nvkm_gsp *gsp)
 	r535_gsp_msg_ntfy_add(gsp, NV_VGPU_MSG_EVENT_UCODE_LIBOS_PRINT, NULL, NULL);
 	if (rmapi->gsp->drop_send_user_shared_data)
 		rmapi->gsp->drop_send_user_shared_data(gsp);
+	if (rmapi->gsp->drop_post_nocat_record)
+		rmapi->gsp->drop_post_nocat_record(gsp);
 
 	ret = r535_gsp_rm_boot_ctor(gsp);
 	if (ret)

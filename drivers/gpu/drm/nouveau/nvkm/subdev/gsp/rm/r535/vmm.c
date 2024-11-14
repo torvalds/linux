@@ -23,8 +23,8 @@
 
 #include "nvrm/vmm.h"
 
-static int
-r535_mmu_promote_vmm(struct nvkm_vmm *vmm)
+int
+r535_mmu_vaspace_new(struct nvkm_vmm *vmm, u32 handle)
 {
 	NV_VASPACE_ALLOCATION_PARAMETERS *args;
 	int ret;
@@ -34,7 +34,7 @@ r535_mmu_promote_vmm(struct nvkm_vmm *vmm)
 	if (ret)
 		return ret;
 
-	args = nvkm_gsp_rm_alloc_get(&vmm->rm.device.object, NVKM_RM_VASPACE, FERMI_VASPACE_A,
+	args = nvkm_gsp_rm_alloc_get(&vmm->rm.device.object, handle, FERMI_VASPACE_A,
 				     sizeof(*args), &vmm->rm.object);
 	if (IS_ERR(args))
 		return PTR_ERR(args);
@@ -84,6 +84,12 @@ r535_mmu_promote_vmm(struct nvkm_vmm *vmm)
 	}
 
 	return ret;
+}
+
+static int
+r535_mmu_promote_vmm(struct nvkm_vmm *vmm)
+{
+	return r535_mmu_vaspace_new(vmm, NVKM_RM_VASPACE);
 }
 
 static void

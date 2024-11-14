@@ -339,7 +339,7 @@ r535_runl = {
 	.allow = r535_runl_allow,
 };
 
-static void
+void
 r535_fifo_rc_chid(struct nvkm_fifo *fifo, int chid)
 {
 	struct nvkm_chan *chan;

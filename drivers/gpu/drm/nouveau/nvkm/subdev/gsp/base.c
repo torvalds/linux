@@ -142,6 +142,8 @@ nvkm_gsp_new_(const struct nvkm_gsp_fwif *fwif, struct nvkm_device *device,
 	gsp->func = fwif->func;
 
 	if (fwif->rm) {
+		nvkm_info(&gsp->subdev, "RM version: %s\n", fwif->ver);
+
 		gsp->rm = kzalloc(sizeof(*gsp->rm), GFP_KERNEL);
 		if (!gsp->rm)
 			return -ENOMEM;

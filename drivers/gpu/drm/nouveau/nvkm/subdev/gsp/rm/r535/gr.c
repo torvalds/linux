@@ -32,6 +32,7 @@
 #include <nvhw/drf.h>
 
 #include "nvrm/gr.h"
+#include "nvrm/vmm.h"
 
 #define r535_gr(p) container_of((p), struct r535_gr, base)
 
@@ -55,7 +56,7 @@ r535_gr_chan = {
 	.dtor = r535_gr_chan_dtor,
 };
 
-static int
+int
 r535_gr_promote_ctx(struct r535_gr *gr, bool golden, struct nvkm_vmm *vmm,
 		    struct nvkm_memory **pmem, struct nvkm_vma **pvma,
 		    struct nvkm_gsp_object *chan)
@@ -170,7 +171,7 @@ r535_gr_units(struct nvkm_gr *gr)
 	return (gsp->gr.tpcs << 8) | gsp->gr.gpcs;
 }
 
-static void
+void
 r535_gr_get_ctxbuf_info(struct r535_gr *gr, int i,
 			struct NV2080_CTRL_INTERNAL_ENGINE_CONTEXT_BUFFER_INFO *info)
 {

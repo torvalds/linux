@@ -16,6 +16,34 @@ nvkm_rm_gr_obj_ctor(const struct nvkm_oclass *oclass, void *argv, u32 argc,
 	return nvkm_rm_engine_obj_new(&chan->chan->rm.object, chan->chan->id, oclass, pobject);
 }
 
+static int
+nvkm_rm_gr_fini(struct nvkm_gr *base, bool suspend)
+{
+	struct nvkm_rm *rm = base->engine.subdev.device->gsp->rm;
+	struct r535_gr *gr = container_of(base, typeof(*gr), base);
+
+	if (rm->api->gr->scrubber.fini)
+		rm->api->gr->scrubber.fini(gr);
+
+	return 0;
+}
+
+static int
+nvkm_rm_gr_init(struct nvkm_gr *base)
+{
+	struct nvkm_rm *rm = base->engine.subdev.device->gsp->rm;
+	struct r535_gr *gr = container_of(base, typeof(*gr), base);
+	int ret;
+
+	if (rm->api->gr->scrubber.init) {
+		ret = rm->api->gr->scrubber.init(gr);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
 int
 nvkm_rm_gr_new(struct nvkm_rm *rm)
 {
@@ -34,6 +62,8 @@ nvkm_rm_gr_new(struct nvkm_rm *rm)
 
 	func->dtor = r535_gr_dtor;
 	func->oneinit = r535_gr_oneinit;
+	func->init = nvkm_rm_gr_init;
+	func->fini = nvkm_rm_gr_fini;
 	func->units = r535_gr_units;
 	func->chan_new = r535_gr_chan_new;
 
@@ -51,6 +81,7 @@ nvkm_rm_gr_new(struct nvkm_rm *rm)
 	}
 
 	nvkm_gr_ctor(func, rm->device, NVKM_ENGINE_GR, 0, true, &gr->base);
+	gr->scrubber.chid = -1;
 	rm->device->gr = &gr->base;
 	return 0;
 }
