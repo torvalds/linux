@@ -171,6 +171,21 @@ static inline int fsnotify_file_area_perm(struct file *file, int perm_mask,
 }
 
 /*
+ * fsnotify_truncate_perm - permission hook before file truncate
+ */
+static inline int fsnotify_truncate_perm(const struct path *path, loff_t length)
+{
+	struct inode *inode = d_inode(path->dentry);
+
+	if (!(inode->i_sb->s_iflags & SB_I_ALLOW_HSM) ||
+	    !fsnotify_sb_has_priority_watchers(inode->i_sb,
+					       FSNOTIFY_PRIO_PRE_CONTENT))
+		return 0;
+
+	return fsnotify_pre_content(path, &length, 0);
+}
+
+/*
  * fsnotify_file_perm - permission hook before file access (unknown range)
  */
 static inline int fsnotify_file_perm(struct file *file, int perm_mask)
@@ -204,6 +219,11 @@ static inline void file_set_fsnotify_mode(struct file *file)
 
 static inline int fsnotify_file_area_perm(struct file *file, int perm_mask,
 					  const loff_t *ppos, size_t count)
+{
+	return 0;
+}
+
+static inline int fsnotify_truncate_perm(const struct path *path, loff_t length)
 {
 	return 0;
 }
