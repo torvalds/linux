@@ -75,6 +75,12 @@ struct io_hash_table {
 	unsigned		hash_bits;
 };
 
+struct io_mapped_region {
+	struct page		**pages;
+	void			*vmap_ptr;
+	size_t			nr_pages;
+};
+
 /*
  * Arbitrary limit, can be raised if need be
  */

@@ -12,6 +12,7 @@
 
 #include "memmap.h"
 #include "kbuf.h"
+#include "rsrc.h"
 
 static void *io_mem_alloc_compound(struct page **pages, int nr_pages,
 				   size_t size, gfp_t gfp)
@@ -192,6 +193,72 @@ void *__io_uaddr_map(struct page ***pages, unsigned short *npages,
 
 	io_pages_free(&page_array, nr_pages);
 	return ERR_PTR(-ENOMEM);
+}
+
+void io_free_region(struct io_ring_ctx *ctx, struct io_mapped_region *mr)
+{
+	if (mr->pages) {
+		unpin_user_pages(mr->pages, mr->nr_pages);
+		kvfree(mr->pages);
+	}
+	if (mr->vmap_ptr)
+		vunmap(mr->vmap_ptr);
+	if (mr->nr_pages && ctx->user)
+		__io_unaccount_mem(ctx->user, mr->nr_pages);
+
+	memset(mr, 0, sizeof(*mr));
+}
+
+int io_create_region(struct io_ring_ctx *ctx, struct io_mapped_region *mr,
+		     struct io_uring_region_desc *reg)
+{
+	int pages_accounted = 0;
+	struct page **pages;
+	int nr_pages, ret;
+	void *vptr;
+	u64 end;
+
+	if (WARN_ON_ONCE(mr->pages || mr->vmap_ptr || mr->nr_pages))
+		return -EFAULT;
+	if (memchr_inv(&reg->__resv, 0, sizeof(reg->__resv)))
+		return -EINVAL;
+	if (reg->flags != IORING_MEM_REGION_TYPE_USER)
+		return -EINVAL;
+	if (!reg->user_addr)
+		return -EFAULT;
+	if (!reg->size || reg->mmap_offset || reg->id)
+		return -EINVAL;
+	if ((reg->size >> PAGE_SHIFT) > INT_MAX)
+		return E2BIG;
+	if ((reg->user_addr | reg->size) & ~PAGE_MASK)
+		return -EINVAL;
+	if (check_add_overflow(reg->user_addr, reg->size, &end))
+		return -EOVERFLOW;
+
+	pages = io_pin_pages(reg->user_addr, reg->size, &nr_pages);
+	if (IS_ERR(pages))
+		return PTR_ERR(pages);
+
+	if (ctx->user) {
+		ret = __io_account_mem(ctx->user, nr_pages);
+		if (ret)
+			goto out_free;
+		pages_accounted = nr_pages;
+	}
+
+	vptr = vmap(pages, nr_pages, VM_MAP, PAGE_KERNEL);
+	if (!vptr)
+		goto out_free;
+
+	mr->pages = pages;
+	mr->vmap_ptr = vptr;
+	mr->nr_pages = nr_pages;
+	return 0;
+out_free:
+	if (pages_accounted)
+		__io_unaccount_mem(ctx->user, pages_accounted);
+	io_pages_free(&pages, nr_pages);
+	return ret;
 }
 
 static void *io_uring_validate_mmap_request(struct file *file, loff_t pgoff,
