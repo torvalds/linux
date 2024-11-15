@@ -588,7 +588,16 @@ static int io_register_mem_region(struct io_ring_ctx *ctx, void __user *uarg)
 
 	if (memchr_inv(&reg.__resv, 0, sizeof(reg.__resv)))
 		return -EINVAL;
-	if (reg.flags)
+	if (reg.flags & ~IORING_MEM_REGION_REG_WAIT_ARG)
+		return -EINVAL;
+
+	/*
+	 * This ensures there are no waiters. Waiters are unlocked and it's
+	 * hard to synchronise with them, especially if we need to initialise
+	 * the region.
+	 */
+	if ((reg.flags & IORING_MEM_REGION_REG_WAIT_ARG) &&
+	    !(ctx->flags & IORING_SETUP_R_DISABLED))
 		return -EINVAL;
 
 	ret = io_create_region(ctx, &ctx->param_region, &rd);
@@ -597,6 +606,11 @@ static int io_register_mem_region(struct io_ring_ctx *ctx, void __user *uarg)
 	if (copy_to_user(rd_uptr, &rd, sizeof(rd))) {
 		io_free_region(ctx, &ctx->param_region);
 		return -EFAULT;
+	}
+
+	if (reg.flags & IORING_MEM_REGION_REG_WAIT_ARG) {
+		ctx->cq_wait_arg = io_region_get_ptr(&ctx->param_region);
+		ctx->cq_wait_size = rd.size;
 	}
 	return 0;
 }
