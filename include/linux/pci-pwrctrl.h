@@ -3,8 +3,8 @@
  * Copyright (C) 2024 Linaro Ltd.
  */
 
-#ifndef __PCI_PWRCTL_H__
-#define __PCI_PWRCTL_H__
+#ifndef __PCI_PWRCTRL_H__
+#define __PCI_PWRCTRL_H__
 
 #include <linux/notifier.h>
 #include <linux/workqueue.h>
@@ -29,14 +29,14 @@ struct device_link;
  */
 
 /**
- * struct pci_pwrctl - PCI device power control context.
+ * struct pci_pwrctrl - PCI device power control context.
  * @dev: Address of the power controlling device.
  *
  * An object of this type must be allocated by the PCI power control device and
- * passed to the pwrctl subsystem to trigger a bus rescan and setup a device
+ * passed to the pwrctrl subsystem to trigger a bus rescan and setup a device
  * link with the device once it's up.
  */
-struct pci_pwrctl {
+struct pci_pwrctrl {
 	struct device *dev;
 
 	/* Private: don't use. */
@@ -45,10 +45,10 @@ struct pci_pwrctl {
 	struct work_struct work;
 };
 
-void pci_pwrctl_init(struct pci_pwrctl *pwrctl, struct device *dev);
-int pci_pwrctl_device_set_ready(struct pci_pwrctl *pwrctl);
-void pci_pwrctl_device_unset_ready(struct pci_pwrctl *pwrctl);
-int devm_pci_pwrctl_device_set_ready(struct device *dev,
-				     struct pci_pwrctl *pwrctl);
+void pci_pwrctrl_init(struct pci_pwrctrl *pwrctrl, struct device *dev);
+int pci_pwrctrl_device_set_ready(struct pci_pwrctrl *pwrctrl);
+void pci_pwrctrl_device_unset_ready(struct pci_pwrctrl *pwrctrl);
+int devm_pci_pwrctrl_device_set_ready(struct device *dev,
+				     struct pci_pwrctrl *pwrctrl);
 
-#endif /* __PCI_PWRCTL_H__ */
+#endif /* __PCI_PWRCTRL_H__ */

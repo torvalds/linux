@@ -11,13 +11,13 @@
 #include <linux/property.h>
 #include <linux/slab.h>
 
-static int pci_pwrctl_notify(struct notifier_block *nb, unsigned long action,
-			     void *data)
+static int pci_pwrctrl_notify(struct notifier_block *nb, unsigned long action,
+			      void *data)
 {
-	struct pci_pwrctl *pwrctl = container_of(nb, struct pci_pwrctl, nb);
+	struct pci_pwrctrl *pwrctrl = container_of(nb, struct pci_pwrctrl, nb);
 	struct device *dev = data;
 
-	if (dev_fwnode(dev) != dev_fwnode(pwrctl->dev))
+	if (dev_fwnode(dev) != dev_fwnode(pwrctrl->dev))
 		return NOTIFY_DONE;
 
 	switch (action) {
@@ -40,31 +40,32 @@ static int pci_pwrctl_notify(struct notifier_block *nb, unsigned long action,
 
 static void rescan_work_func(struct work_struct *work)
 {
-	struct pci_pwrctl *pwrctl = container_of(work, struct pci_pwrctl, work);
+	struct pci_pwrctrl *pwrctrl = container_of(work,
+						   struct pci_pwrctrl, work);
 
 	pci_lock_rescan_remove();
-	pci_rescan_bus(to_pci_dev(pwrctl->dev->parent)->bus);
+	pci_rescan_bus(to_pci_dev(pwrctrl->dev->parent)->bus);
 	pci_unlock_rescan_remove();
 }
 
 /**
- * pci_pwrctl_init() - Initialize the PCI power control context struct
+ * pci_pwrctrl_init() - Initialize the PCI power control context struct
  *
- * @pwrctl: PCI power control data
+ * @pwrctrl: PCI power control data
  * @dev: Parent device
  */
-void pci_pwrctl_init(struct pci_pwrctl *pwrctl, struct device *dev)
+void pci_pwrctrl_init(struct pci_pwrctrl *pwrctrl, struct device *dev)
 {
-	pwrctl->dev = dev;
-	INIT_WORK(&pwrctl->work, rescan_work_func);
+	pwrctrl->dev = dev;
+	INIT_WORK(&pwrctrl->work, rescan_work_func);
 }
-EXPORT_SYMBOL_GPL(pci_pwrctl_init);
+EXPORT_SYMBOL_GPL(pci_pwrctrl_init);
 
 /**
- * pci_pwrctl_device_set_ready() - Notify the pwrctl subsystem that the PCI
+ * pci_pwrctrl_device_set_ready() - Notify the pwrctrl subsystem that the PCI
  * device is powered-up and ready to be detected.
  *
- * @pwrctl: PCI power control data.
+ * @pwrctrl: PCI power control data.
  *
  * Returns:
  * 0 on success, negative error number on error.
@@ -74,31 +75,31 @@ EXPORT_SYMBOL_GPL(pci_pwrctl_init);
  * that the bus rescan was successfully started. The device will get bound to
  * its PCI driver asynchronously.
  */
-int pci_pwrctl_device_set_ready(struct pci_pwrctl *pwrctl)
+int pci_pwrctrl_device_set_ready(struct pci_pwrctrl *pwrctrl)
 {
 	int ret;
 
-	if (!pwrctl->dev)
+	if (!pwrctrl->dev)
 		return -ENODEV;
 
-	pwrctl->nb.notifier_call = pci_pwrctl_notify;
-	ret = bus_register_notifier(&pci_bus_type, &pwrctl->nb);
+	pwrctrl->nb.notifier_call = pci_pwrctrl_notify;
+	ret = bus_register_notifier(&pci_bus_type, &pwrctrl->nb);
 	if (ret)
 		return ret;
 
-	schedule_work(&pwrctl->work);
+	schedule_work(&pwrctrl->work);
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(pci_pwrctl_device_set_ready);
+EXPORT_SYMBOL_GPL(pci_pwrctrl_device_set_ready);
 
 /**
- * pci_pwrctl_device_unset_ready() - Notify the pwrctl subsystem that the PCI
+ * pci_pwrctrl_device_unset_ready() - Notify the pwrctrl subsystem that the PCI
  * device is about to be powered-down.
  *
- * @pwrctl: PCI power control data.
+ * @pwrctrl: PCI power control data.
  */
-void pci_pwrctl_device_unset_ready(struct pci_pwrctl *pwrctl)
+void pci_pwrctrl_device_unset_ready(struct pci_pwrctrl *pwrctrl)
 {
 	/*
 	 * We don't have to delete the link here. Typically, this function
@@ -106,41 +107,41 @@ void pci_pwrctl_device_unset_ready(struct pci_pwrctl *pwrctl)
 	 * it is being detached then the child PCI device must have already
 	 * been unbound too or the device core wouldn't let us unbind.
 	 */
-	bus_unregister_notifier(&pci_bus_type, &pwrctl->nb);
+	bus_unregister_notifier(&pci_bus_type, &pwrctrl->nb);
 }
-EXPORT_SYMBOL_GPL(pci_pwrctl_device_unset_ready);
+EXPORT_SYMBOL_GPL(pci_pwrctrl_device_unset_ready);
 
-static void devm_pci_pwrctl_device_unset_ready(void *data)
+static void devm_pci_pwrctrl_device_unset_ready(void *data)
 {
-	struct pci_pwrctl *pwrctl = data;
+	struct pci_pwrctrl *pwrctrl = data;
 
-	pci_pwrctl_device_unset_ready(pwrctl);
+	pci_pwrctrl_device_unset_ready(pwrctrl);
 }
 
 /**
- * devm_pci_pwrctl_device_set_ready - Managed variant of
- * pci_pwrctl_device_set_ready().
+ * devm_pci_pwrctrl_device_set_ready - Managed variant of
+ * pci_pwrctrl_device_set_ready().
  *
- * @dev: Device managing this pwrctl provider.
- * @pwrctl: PCI power control data.
+ * @dev: Device managing this pwrctrl provider.
+ * @pwrctrl: PCI power control data.
  *
  * Returns:
  * 0 on success, negative error number on error.
  */
-int devm_pci_pwrctl_device_set_ready(struct device *dev,
-				     struct pci_pwrctl *pwrctl)
+int devm_pci_pwrctrl_device_set_ready(struct device *dev,
+				      struct pci_pwrctrl *pwrctrl)
 {
 	int ret;
 
-	ret = pci_pwrctl_device_set_ready(pwrctl);
+	ret = pci_pwrctrl_device_set_ready(pwrctrl);
 	if (ret)
 		return ret;
 
 	return devm_add_action_or_reset(dev,
-					devm_pci_pwrctl_device_unset_ready,
-					pwrctl);
+					devm_pci_pwrctrl_device_unset_ready,
+					pwrctrl);
 }
-EXPORT_SYMBOL_GPL(devm_pci_pwrctl_device_set_ready);
+EXPORT_SYMBOL_GPL(devm_pci_pwrctrl_device_set_ready);
 
 MODULE_AUTHOR("Bartosz Golaszewski <bartosz.golaszewski@linaro.org>");
 MODULE_DESCRIPTION("PCI Device Power Control core driver");

@@ -17,7 +17,7 @@ static void pci_free_resources(struct pci_dev *dev)
 	}
 }
 
-static void pci_pwrctl_unregister(struct device *dev)
+static void pci_pwrctrl_unregister(struct device *dev)
 {
 	struct platform_device *pdev;
 
@@ -34,7 +34,7 @@ static void pci_stop_dev(struct pci_dev *dev)
 	pci_pme_active(dev, false);
 
 	if (pci_dev_is_added(dev)) {
-		pci_pwrctl_unregister(&dev->dev);
+		pci_pwrctrl_unregister(&dev->dev);
 		device_release_driver(&dev->dev);
 		pci_proc_detach_device(dev);
 		pci_remove_sysfs_dev_files(dev);
