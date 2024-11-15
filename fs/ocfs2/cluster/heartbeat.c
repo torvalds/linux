@@ -3,6 +3,7 @@
  * Copyright (C) 2004, 2005 Oracle.  All rights reserved.
  */
 
+#include "linux/kstrtox.h"
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/jiffies.h>
@@ -1778,8 +1779,8 @@ static ssize_t o2hb_region_dev_store(struct config_item *item,
 	if (o2nm_this_node() == O2NM_MAX_NODES)
 		return -EINVAL;
 
-	fd = simple_strtol(p, &p, 0);
-	if (!p || (*p && (*p != '\n')))
+	ret = kstrtol(p, 0, &fd);
+	if (ret < 0)
 		return -EINVAL;
 
 	if (fd < 0 || fd >= INT_MAX)
