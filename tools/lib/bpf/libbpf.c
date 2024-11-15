@@ -12006,6 +12006,8 @@ bpf_program__attach_uprobe_multi(const struct bpf_program *prog,
 	ref_ctr_offsets = OPTS_GET(opts, ref_ctr_offsets, NULL);
 	cookies = OPTS_GET(opts, cookies, NULL);
 	cnt = OPTS_GET(opts, cnt, 0);
+	retprobe = OPTS_GET(opts, retprobe, false);
+	session  = OPTS_GET(opts, session, false);
 
 	/*
 	 * User can specify 2 mutually exclusive set of inputs:
@@ -12034,6 +12036,9 @@ bpf_program__attach_uprobe_multi(const struct bpf_program *prog,
 			return libbpf_err_ptr(-EINVAL);
 	}
 
+	if (retprobe && session)
+		return libbpf_err_ptr(-EINVAL);
+
 	if (func_pattern) {
 		if (!strchr(path, '/')) {
 			err = resolve_full_path(path, full_path, sizeof(full_path));
@@ -12056,12 +12061,6 @@ bpf_program__attach_uprobe_multi(const struct bpf_program *prog,
 			return libbpf_err_ptr(err);
 		offsets = resolved_offsets;
 	}
-
-	retprobe = OPTS_GET(opts, retprobe, false);
-	session  = OPTS_GET(opts, session, false);
-
-	if (retprobe && session)
-		return libbpf_err_ptr(-EINVAL);
 
 	attach_type = session ? BPF_TRACE_UPROBE_SESSION : BPF_TRACE_UPROBE_MULTI;
 
