@@ -278,13 +278,8 @@ static int _ieee80211_change_mac(struct ieee80211_sub_if_data *sdata,
 	ret = eth_mac_addr(sdata->dev, sa);
 
 	if (ret == 0) {
-		if (check_dup) {
-			memcpy(sdata->vif.addr, sa->sa_data, ETH_ALEN);
-			ether_addr_copy(sdata->vif.bss_conf.addr, sdata->vif.addr);
-		} else {
-			memset(sdata->vif.addr, 0, ETH_ALEN);
-			memset(sdata->vif.bss_conf.addr, 0, ETH_ALEN);
-		}
+		memcpy(sdata->vif.addr, sa->sa_data, ETH_ALEN);
+		ether_addr_copy(sdata->vif.bss_conf.addr, sdata->vif.addr);
 	}
 
 	/* Regardless of eth_mac_addr() return we still want to add the
@@ -1323,6 +1318,8 @@ int ieee80211_do_open(struct wireless_dev *wdev, bool coming_up)
 		}
 	}
 
+	sdata->vif.addr_valid = sdata->vif.type != NL80211_IFTYPE_MONITOR ||
+				(sdata->u.mntr.flags & MONITOR_FLAG_ACTIVE);
 	switch (sdata->vif.type) {
 	case NL80211_IFTYPE_AP_VLAN:
 		/* no need to tell driver, but set carrier and chanctx */
