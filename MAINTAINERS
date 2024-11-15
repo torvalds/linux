@@ -20988,6 +20988,7 @@ M:	Jan Karcher <jaka@linux.ibm.com>
 R:	D. Wythe <alibuda@linux.alibaba.com>
 R:	Tony Lu <tonylu@linux.alibaba.com>
 R:	Wen Gu <guwen@linux.alibaba.com>
+L:	linux-rdma@vger.kernel.org
 L:	linux-s390@vger.kernel.org
 S:	Supported
 F:	net/smc/
