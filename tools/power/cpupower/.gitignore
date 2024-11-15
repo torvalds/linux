@@ -27,3 +27,6 @@ debug/i386/intel_gsic
 debug/i386/powernow-k8-decode
 debug/x86_64/centrino-decode
 debug/x86_64/powernow-k8-decode
+
+# Clang's compilation database file
+compile_commands.json
