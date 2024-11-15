@@ -1,8 +1,8 @@
-Linux kernel
+Linux kernel 6.12-rc8
 ============
 
 There are several guides for kernel developers and users. These guides can
-be rendered in several formats, such as  HTML and PDF. Please read
+be rendered in several formats, such as  HTML and PDF. Please be sure to read
 Documentation/admin-guide/README.rst first.
 
 To build the documentation, use ``make htmldocs`` or
@@ -16,3 +16,5 @@ Several of them use the reStructuredText markup notation.
 Please read the Documentation/process/changes.rst file, as it contains the
 requirements for building and running the kernel, and information about
 the problems which may result from upgrading your kernel.
+
+This release candidate software might have issues with your computer hardware. So be careful not to compile this release candidate kernel on your computer.
