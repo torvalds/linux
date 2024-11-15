@@ -8765,21 +8765,14 @@ static int bnxt_backing_store_cfg_v2(struct bnxt *bp, u32 ena)
 	return 0;
 }
 
-void bnxt_free_ctx_mem(struct bnxt *bp)
+static void bnxt_free_one_ctx_mem(struct bnxt *bp,
+				  struct bnxt_ctx_mem_type *ctxm)
 {
-	struct bnxt_ctx_mem_info *ctx = bp->ctx;
-	u16 type;
+	struct bnxt_ctx_pg_info *ctx_pg;
+	int i, n = 1;
 
-	if (!ctx)
-		return;
-
-	for (type = 0; type < BNXT_CTX_V2_MAX; type++) {
-		struct bnxt_ctx_mem_type *ctxm = &ctx->ctx_arr[type];
-		struct bnxt_ctx_pg_info *ctx_pg = ctxm->pg_info;
-		int i, n = 1;
-
-		if (!ctx_pg)
-			continue;
+	ctx_pg = ctxm->pg_info;
+	if (ctx_pg) {
 		if (ctxm->instance_bmap)
 			n = hweight32(ctxm->instance_bmap);
 		for (i = 0; i < n; i++)
@@ -8789,6 +8782,18 @@ void bnxt_free_ctx_mem(struct bnxt *bp)
 		ctxm->pg_info = NULL;
 		ctxm->mem_valid = 0;
 	}
+}
+
+void bnxt_free_ctx_mem(struct bnxt *bp)
+{
+	struct bnxt_ctx_mem_info *ctx = bp->ctx;
+	u16 type;
+
+	if (!ctx)
+		return;
+
+	for (type = 0; type < BNXT_CTX_V2_MAX; type++)
+		bnxt_free_one_ctx_mem(bp, &ctx->ctx_arr[type]);
 
 	ctx->flags &= ~BNXT_CTX_FLAG_INITED;
 	kfree(ctx);
