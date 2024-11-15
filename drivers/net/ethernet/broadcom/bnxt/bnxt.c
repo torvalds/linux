@@ -245,6 +245,21 @@ static const u16 bnxt_async_events_arr[] = {
 	ASYNC_EVENT_CMPL_EVENT_ID_PPS_TIMESTAMP,
 	ASYNC_EVENT_CMPL_EVENT_ID_ERROR_REPORT,
 	ASYNC_EVENT_CMPL_EVENT_ID_PHC_UPDATE,
+	ASYNC_EVENT_CMPL_EVENT_ID_DBG_BUF_PRODUCER,
+};
+
+const u16 bnxt_bstore_to_trace[] = {
+	[BNXT_CTX_SRT]		= DBG_LOG_BUFFER_FLUSH_REQ_TYPE_SRT_TRACE,
+	[BNXT_CTX_SRT2]		= DBG_LOG_BUFFER_FLUSH_REQ_TYPE_SRT2_TRACE,
+	[BNXT_CTX_CRT]		= DBG_LOG_BUFFER_FLUSH_REQ_TYPE_CRT_TRACE,
+	[BNXT_CTX_CRT2]		= DBG_LOG_BUFFER_FLUSH_REQ_TYPE_CRT2_TRACE,
+	[BNXT_CTX_RIGP0]	= DBG_LOG_BUFFER_FLUSH_REQ_TYPE_RIGP0_TRACE,
+	[BNXT_CTX_L2HWRM]	= DBG_LOG_BUFFER_FLUSH_REQ_TYPE_L2_HWRM_TRACE,
+	[BNXT_CTX_REHWRM]	= DBG_LOG_BUFFER_FLUSH_REQ_TYPE_ROCE_HWRM_TRACE,
+	[BNXT_CTX_CA0]		= DBG_LOG_BUFFER_FLUSH_REQ_TYPE_CA0_TRACE,
+	[BNXT_CTX_CA1]		= DBG_LOG_BUFFER_FLUSH_REQ_TYPE_CA1_TRACE,
+	[BNXT_CTX_CA2]		= DBG_LOG_BUFFER_FLUSH_REQ_TYPE_CA2_TRACE,
+	[BNXT_CTX_RIGP1]	= DBG_LOG_BUFFER_FLUSH_REQ_TYPE_RIGP1_TRACE,
 };
 
 static struct workqueue_struct *bnxt_pf_wq;
@@ -2470,6 +2485,50 @@ bool bnxt_bs_trace_avail(struct bnxt *bp, u16 type)
 		 (flags & BNXT_CTX_MEM_FW_BIN_TRACE));
 }
 
+static void bnxt_bs_trace_init(struct bnxt *bp, struct bnxt_ctx_mem_type *ctxm)
+{
+	u32 mem_size, pages, rem_bytes, magic_byte_offset;
+	u16 trace_type = bnxt_bstore_to_trace[ctxm->type];
+	struct bnxt_ctx_pg_info *ctx_pg = ctxm->pg_info;
+	struct bnxt_ring_mem_info *rmem, *rmem_pg_tbl;
+	struct bnxt_bs_trace_info *bs_trace;
+	int last_pg;
+
+	if (ctxm->instance_bmap && ctxm->instance_bmap > 1)
+		return;
+
+	mem_size = ctxm->max_entries * ctxm->entry_size;
+	rem_bytes = mem_size % BNXT_PAGE_SIZE;
+	pages = DIV_ROUND_UP(mem_size, BNXT_PAGE_SIZE);
+
+	last_pg = (pages - 1) & (MAX_CTX_PAGES - 1);
+	magic_byte_offset = (rem_bytes ? rem_bytes : BNXT_PAGE_SIZE) - 1;
+
+	rmem = &ctx_pg[0].ring_mem;
+	bs_trace = &bp->bs_trace[trace_type];
+	bs_trace->ctx_type = ctxm->type;
+	bs_trace->trace_type = trace_type;
+	if (pages > MAX_CTX_PAGES) {
+		int last_pg_dir = rmem->nr_pages - 1;
+
+		rmem_pg_tbl = &ctx_pg[0].ctx_pg_tbl[last_pg_dir]->ring_mem;
+		bs_trace->magic_byte = rmem_pg_tbl->pg_arr[last_pg];
+	} else {
+		bs_trace->magic_byte = rmem->pg_arr[last_pg];
+	}
+	bs_trace->magic_byte += magic_byte_offset;
+	*bs_trace->magic_byte = BNXT_TRACE_BUF_MAGIC_BYTE;
+}
+
+#define BNXT_EVENT_BUF_PRODUCER_TYPE(data1)				\
+	(((data1) & ASYNC_EVENT_CMPL_DBG_BUF_PRODUCER_EVENT_DATA1_TYPE_MASK) >>\
+	 ASYNC_EVENT_CMPL_DBG_BUF_PRODUCER_EVENT_DATA1_TYPE_SFT)
+
+#define BNXT_EVENT_BUF_PRODUCER_OFFSET(data2)				\
+	(((data2) &							\
+	  ASYNC_EVENT_CMPL_DBG_BUF_PRODUCER_EVENT_DATA2_CURR_OFF_MASK) >>\
+	 ASYNC_EVENT_CMPL_DBG_BUF_PRODUCER_EVENT_DATA2_CURR_OFF_SFT)
+
 #define BNXT_EVENT_THERMAL_CURRENT_TEMP(data2)				\
 	((data2) &							\
 	  ASYNC_EVENT_CMPL_ERROR_REPORT_THERMAL_EVENT_DATA2_CURRENT_TEMP_MASK)
@@ -2784,6 +2843,13 @@ static int bnxt_async_event_process(struct bnxt *bp,
 		u16 seq_id = le32_to_cpu(cmpl->event_data2) & 0xffff;
 
 		hwrm_update_token(bp, seq_id, BNXT_HWRM_DEFERRED);
+		goto async_event_process_exit;
+	}
+	case ASYNC_EVENT_CMPL_EVENT_ID_DBG_BUF_PRODUCER: {
+		u16 type = (u16)BNXT_EVENT_BUF_PRODUCER_TYPE(data1);
+		u32 offset =  BNXT_EVENT_BUF_PRODUCER_OFFSET(data2);
+
+		bnxt_bs_trace_check_wrap(&bp->bs_trace[type], offset);
 		goto async_event_process_exit;
 	}
 	default:
@@ -8769,6 +8835,7 @@ static int bnxt_backing_store_cfg_v2(struct bnxt *bp, u32 ena)
 					    type);
 				continue;
 			}
+			bnxt_bs_trace_init(bp, ctxm);
 			last_type = type;
 		}
 	}

@@ -2112,6 +2112,26 @@ enum board_idx {
 	NETXTREME_E_P7_VF,
 };
 
+#define BNXT_TRACE_BUF_MAGIC_BYTE ((u8)0xbc)
+#define BNXT_TRACE_MAX 11
+
+struct bnxt_bs_trace_info {
+	u8 *magic_byte;
+	u32 last_offset;
+	u8 wrapped:1;
+	u16 ctx_type;
+	u16 trace_type;
+};
+
+static inline void bnxt_bs_trace_check_wrap(struct bnxt_bs_trace_info *bs_trace,
+					    u32 offset)
+{
+	if (!bs_trace->wrapped &&
+	    *bs_trace->magic_byte != BNXT_TRACE_BUF_MAGIC_BYTE)
+		bs_trace->wrapped = 1;
+	bs_trace->last_offset = offset;
+}
+
 struct bnxt {
 	void __iomem		*bar0;
 	void __iomem		*bar1;
@@ -2668,6 +2688,7 @@ struct bnxt {
 
 	struct bnxt_ctx_pg_info	*fw_crash_mem;
 	u32			fw_crash_len;
+	struct bnxt_bs_trace_info bs_trace[BNXT_TRACE_MAX];
 };
 
 #define BNXT_NUM_RX_RING_STATS			8
@@ -2803,6 +2824,7 @@ static inline bool bnxt_sriov_cfg(struct bnxt *bp)
 #endif
 }
 
+extern const u16 bnxt_bstore_to_trace[];
 extern const u16 bnxt_lhint_arr[];
 
 int bnxt_alloc_rx_data(struct bnxt *bp, struct bnxt_rx_ring_info *rxr,
