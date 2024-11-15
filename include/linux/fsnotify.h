@@ -144,12 +144,29 @@ static inline int fsnotify_file_area_perm(struct file *file, int perm_mask,
 	 */
 	lockdep_assert_once(file_write_not_started(file));
 
-	if (!(perm_mask & MAY_READ))
+	if (!(perm_mask & (MAY_READ | MAY_WRITE | MAY_ACCESS)))
 		return 0;
 
 	if (likely(!FMODE_FSNOTIFY_PERM(file->f_mode)))
 		return 0;
 
+	/*
+	 * read()/write() and other types of access generate pre-content events.
+	 */
+	if (unlikely(FMODE_FSNOTIFY_HSM(file->f_mode))) {
+		int ret = fsnotify_path(&file->f_path, FS_PRE_ACCESS);
+
+		if (ret)
+			return ret;
+	}
+
+	if (!(perm_mask & MAY_READ))
+		return 0;
+
+	/*
+	 * read() also generates the legacy FS_ACCESS_PERM event, so content
+	 * scanners can inspect the content filled by pre-content event.
+	 */
 	return fsnotify_path(&file->f_path, FS_ACCESS_PERM);
 }
 
