@@ -12405,7 +12405,7 @@ F:	fs/smb/common/
 F:	fs/smb/server/
 
 KERNEL UNIT TESTING FRAMEWORK (KUnit)
-M:	Brendan Higgins <brendanhiggins@google.com>
+M:	Brendan Higgins <brendan.higgins@linux.dev>
 M:	David Gow <davidgow@google.com>
 R:	Rae Moar <rmoar@google.com>
 L:	linux-kselftest@vger.kernel.org
