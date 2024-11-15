@@ -136,6 +136,7 @@ enum ath12k_dbg_htt_ext_stats_type {
 	ATH12K_DBG_HTT_EXT_STATS_PDEV_CCA_STATS		= 19,
 	ATH12K_DBG_HTT_EXT_STATS_PDEV_OBSS_PD_STATS	= 23,
 	ATH12K_DBG_HTT_EXT_STATS_DLPAGER_STATS		= 36,
+	ATH12K_DBG_HTT_EXT_PHY_COUNTERS_AND_PHY_STATS	= 37,
 	ATH12K_DBG_HTT_EXT_STATS_SOC_ERROR		= 45,
 	ATH12K_DBG_HTT_EXT_STATS_PDEV_SCHED_ALGO	= 49,
 	ATH12K_DBG_HTT_EXT_STATS_MANDATORY_MUOFDMA	= 51,
@@ -196,6 +197,10 @@ enum ath12k_dbg_htt_tlv_tag {
 	HTT_STATS_TX_SELFGEN_AC_SCHED_STATUS_STATS_TAG	= 111,
 	HTT_STATS_TX_SELFGEN_AX_SCHED_STATUS_STATS_TAG	= 112,
 	HTT_STATS_DLPAGER_STATS_TAG			= 120,
+	HTT_STATS_PHY_COUNTERS_TAG			= 121,
+	HTT_STATS_PHY_STATS_TAG				= 122,
+	HTT_STATS_PHY_RESET_COUNTERS_TAG		= 123,
+	HTT_STATS_PHY_RESET_STATS_TAG			= 124,
 	HTT_STATS_MU_PPDU_DIST_TAG			= 129,
 	HTT_STATS_TX_PDEV_MUMIMO_GRP_STATS_TAG		= 130,
 	HTT_STATS_TX_PDEV_RATE_STATS_BE_OFDMA_TAG	= 135,
@@ -203,6 +208,7 @@ enum ath12k_dbg_htt_tlv_tag {
 	HTT_STATS_TX_SELFGEN_BE_STATS_TAG		= 138,
 	HTT_STATS_TX_SELFGEN_BE_SCHED_STATUS_STATS_TAG	= 139,
 	HTT_STATS_DMAC_RESET_STATS_TAG			= 155,
+	HTT_STATS_PHY_TPC_STATS_TAG			= 157,
 	HTT_STATS_PDEV_SCHED_ALGO_OFDMA_STATS_TAG	= 165,
 
 	HTT_STATS_MAX_TAG,
@@ -1083,6 +1089,98 @@ struct ath12k_htt_dl_pager_stats_tlv {
 	__le32 info1;
 	__le32 info2;
 	struct ath12k_htt_pgs_info pgs_info[ATH12K_NUM_PG_LOCK_STATE][ATH12K_PAGER_MAX];
+} __packed;
+
+#define ATH12K_HTT_STATS_MAX_CHAINS		8
+#define ATH12K_HTT_MAX_RX_PKT_CNT		8
+#define ATH12K_HTT_MAX_RX_PKT_CRC_PASS_CNT	8
+#define ATH12K_HTT_MAX_PER_BLK_ERR_CNT		20
+#define ATH12K_HTT_MAX_RX_OTA_ERR_CNT		14
+#define ATH12K_HTT_MAX_CH_PWR_INFO_SIZE		16
+
+struct ath12k_htt_phy_stats_tlv {
+	a_sle32 nf_chain[ATH12K_HTT_STATS_MAX_CHAINS];
+	__le32 false_radar_cnt;
+	__le32 radar_cs_cnt;
+	a_sle32 ani_level;
+	__le32 fw_run_time;
+	a_sle32 runtime_nf_chain[ATH12K_HTT_STATS_MAX_CHAINS];
+} __packed;
+
+struct ath12k_htt_phy_counters_tlv {
+	__le32 rx_ofdma_timing_err_cnt;
+	__le32 rx_cck_fail_cnt;
+	__le32 mactx_abort_cnt;
+	__le32 macrx_abort_cnt;
+	__le32 phytx_abort_cnt;
+	__le32 phyrx_abort_cnt;
+	__le32 phyrx_defer_abort_cnt;
+	__le32 rx_gain_adj_lstf_event_cnt;
+	__le32 rx_gain_adj_non_legacy_cnt;
+	__le32 rx_pkt_cnt[ATH12K_HTT_MAX_RX_PKT_CNT];
+	__le32 rx_pkt_crc_pass_cnt[ATH12K_HTT_MAX_RX_PKT_CRC_PASS_CNT];
+	__le32 per_blk_err_cnt[ATH12K_HTT_MAX_PER_BLK_ERR_CNT];
+	__le32 rx_ota_err_cnt[ATH12K_HTT_MAX_RX_OTA_ERR_CNT];
+} __packed;
+
+struct ath12k_htt_phy_reset_stats_tlv {
+	__le32 pdev_id;
+	__le32 chan_mhz;
+	__le32 chan_band_center_freq1;
+	__le32 chan_band_center_freq2;
+	__le32 chan_phy_mode;
+	__le32 chan_flags;
+	__le32 chan_num;
+	__le32 reset_cause;
+	__le32 prev_reset_cause;
+	__le32 phy_warm_reset_src;
+	__le32 rx_gain_tbl_mode;
+	__le32 xbar_val;
+	__le32 force_calibration;
+	__le32 phyrf_mode;
+	__le32 phy_homechan;
+	__le32 phy_tx_ch_mask;
+	__le32 phy_rx_ch_mask;
+	__le32 phybb_ini_mask;
+	__le32 phyrf_ini_mask;
+	__le32 phy_dfs_en_mask;
+	__le32 phy_sscan_en_mask;
+	__le32 phy_synth_sel_mask;
+	__le32 phy_adfs_freq;
+	__le32 cck_fir_settings;
+	__le32 phy_dyn_pri_chan;
+	__le32 cca_thresh;
+	__le32 dyn_cca_status;
+	__le32 rxdesense_thresh_hw;
+	__le32 rxdesense_thresh_sw;
+} __packed;
+
+struct ath12k_htt_phy_reset_counters_tlv {
+	__le32 pdev_id;
+	__le32 cf_active_low_fail_cnt;
+	__le32 cf_active_low_pass_cnt;
+	__le32 phy_off_through_vreg_cnt;
+	__le32 force_calibration_cnt;
+	__le32 rf_mode_switch_phy_off_cnt;
+	__le32 temperature_recal_cnt;
+} __packed;
+
+struct ath12k_htt_phy_tpc_stats_tlv {
+	__le32 pdev_id;
+	__le32 tx_power_scale;
+	__le32 tx_power_scale_db;
+	__le32 min_negative_tx_power;
+	__le32 reg_ctl_domain;
+	__le32 max_reg_allowed_power[ATH12K_HTT_STATS_MAX_CHAINS];
+	__le32 max_reg_allowed_power_6ghz[ATH12K_HTT_STATS_MAX_CHAINS];
+	__le32 twice_max_rd_power;
+	__le32 max_tx_power;
+	__le32 home_max_tx_power;
+	__le32 psd_power;
+	__le32 eirp_power;
+	__le32 power_type_6ghz;
+	__le32 sub_band_cfreq[ATH12K_HTT_MAX_CH_PWR_INFO_SIZE];
+	__le32 sub_band_txpower[ATH12K_HTT_MAX_CH_PWR_INFO_SIZE];
 } __packed;
 
 struct ath12k_htt_dmac_reset_stats_tlv {
