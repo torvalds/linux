@@ -290,26 +290,6 @@ static struct open_bucket *try_alloc_bucket(struct btree_trans *trans, struct bc
 	if (ret)
 		return NULL;
 
-	if (unlikely(c->curr_recovery_pass <= BCH_RECOVERY_PASS_check_extents_to_backpointers)) {
-		struct bch_backpointer bp;
-		struct bpos bp_pos = POS_MIN;
-
-		ret = bch2_get_next_backpointer(trans, ca, POS(ca->dev_idx, b), -1,
-						&bp_pos, &bp,
-						BTREE_ITER_nopreserve);
-		if (ret)
-			return ERR_PTR(ret);
-
-		if (!bkey_eq(bp_pos, POS_MAX)) {
-			/*
-			 * Bucket may have data in it - we don't call
-			 * bch2_trans_inconsistent() because fsck hasn't
-			 * finished yet
-			 */
-			return NULL;
-		}
-	}
-
 	return __try_alloc_bucket(c, ca, b, gen, watermark, s, cl);
 }
 
