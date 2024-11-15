@@ -174,7 +174,7 @@ static void append_script(int dir_fd, const char *name, char *desc,
 	char filename[PATH_MAX], link[128];
 	struct test_suite *test_suite, **result_tmp;
 	struct test_case *tests;
-	size_t len;
+	ssize_t len;
 	char *exclusive;
 
 	snprintf(link, sizeof(link), "/proc/%d/fd/%d", getpid(), dir_fd);
