@@ -31,6 +31,19 @@ separate entry.
 Statistics
 ----------
 
+RPC (Rx parser)
+~~~~~~~~~~~~~~~
+
+ - ``rpc_unkn_etype``: frames containing unknown EtherType
+ - ``rpc_unkn_ext_hdr``: frames containing unknown IPv6 extension header
+ - ``rpc_ipv4_frag``: frames containing IPv4 fragment
+ - ``rpc_ipv6_frag``: frames containing IPv6 fragment
+ - ``rpc_ipv4_esp``: frames with IPv4 ESP encapsulation
+ - ``rpc_ipv6_esp``: frames with IPv6 ESP encapsulation
+ - ``rpc_tcp_opt_err``: frames which encountered TCP option parsing error
+ - ``rpc_out_of_hdr_err``: frames where header was larger than parsable region
+ - ``ovr_size_err``: oversized frames
+
 PCIe
 ~~~~
 

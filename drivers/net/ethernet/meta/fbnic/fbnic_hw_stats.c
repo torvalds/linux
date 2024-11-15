@@ -3,6 +3,27 @@
 
 #include "fbnic.h"
 
+static void fbnic_hw_stat_rst32(struct fbnic_dev *fbd, u32 reg,
+				struct fbnic_stat_counter *stat)
+{
+	/* We do not touch the "value" field here.
+	 * It gets zeroed out on fbd structure allocation.
+	 * After that we want it to grow continuously
+	 * through device resets and power state changes.
+	 */
+	stat->u.old_reg_value_32 = rd32(fbd, reg);
+}
+
+static void fbnic_hw_stat_rd32(struct fbnic_dev *fbd, u32 reg,
+			       struct fbnic_stat_counter *stat)
+{
+	u32 new_reg_value;
+
+	new_reg_value = rd32(fbd, reg);
+	stat->value += new_reg_value - stat->u.old_reg_value_32;
+	stat->u.old_reg_value_32 = new_reg_value;
+}
+
 u64 fbnic_stat_rd64(struct fbnic_dev *fbd, u32 reg, u32 offset)
 {
 	u32 prev_upper, upper, lower, diff;
@@ -47,6 +68,53 @@ static void fbnic_hw_stat_rd64(struct fbnic_dev *fbd, u32 reg, s32 offset,
 	new_reg_value = fbnic_stat_rd64(fbd, reg, offset);
 	stat->value += new_reg_value - stat->u.old_reg_value_64;
 	stat->u.old_reg_value_64 = new_reg_value;
+}
+
+static void fbnic_reset_rpc_stats(struct fbnic_dev *fbd,
+				  struct fbnic_rpc_stats *rpc)
+{
+	fbnic_hw_stat_rst32(fbd,
+			    FBNIC_RPC_CNTR_UNKN_ETYPE,
+			    &rpc->unkn_etype);
+	fbnic_hw_stat_rst32(fbd,
+			    FBNIC_RPC_CNTR_UNKN_EXT_HDR,
+			    &rpc->unkn_ext_hdr);
+	fbnic_hw_stat_rst32(fbd, FBNIC_RPC_CNTR_IPV4_FRAG, &rpc->ipv4_frag);
+	fbnic_hw_stat_rst32(fbd, FBNIC_RPC_CNTR_IPV6_FRAG, &rpc->ipv6_frag);
+	fbnic_hw_stat_rst32(fbd, FBNIC_RPC_CNTR_IPV4_ESP, &rpc->ipv4_esp);
+	fbnic_hw_stat_rst32(fbd, FBNIC_RPC_CNTR_IPV6_ESP, &rpc->ipv6_esp);
+	fbnic_hw_stat_rst32(fbd, FBNIC_RPC_CNTR_TCP_OPT_ERR, &rpc->tcp_opt_err);
+	fbnic_hw_stat_rst32(fbd,
+			    FBNIC_RPC_CNTR_OUT_OF_HDR_ERR,
+			    &rpc->out_of_hdr_err);
+	fbnic_hw_stat_rst32(fbd,
+			    FBNIC_RPC_CNTR_OVR_SIZE_ERR,
+			    &rpc->ovr_size_err);
+}
+
+static void fbnic_get_rpc_stats32(struct fbnic_dev *fbd,
+				  struct fbnic_rpc_stats *rpc)
+{
+	fbnic_hw_stat_rd32(fbd,
+			   FBNIC_RPC_CNTR_UNKN_ETYPE,
+			   &rpc->unkn_etype);
+	fbnic_hw_stat_rd32(fbd,
+			   FBNIC_RPC_CNTR_UNKN_EXT_HDR,
+			   &rpc->unkn_ext_hdr);
+
+	fbnic_hw_stat_rd32(fbd, FBNIC_RPC_CNTR_IPV4_FRAG, &rpc->ipv4_frag);
+	fbnic_hw_stat_rd32(fbd, FBNIC_RPC_CNTR_IPV6_FRAG, &rpc->ipv6_frag);
+
+	fbnic_hw_stat_rd32(fbd, FBNIC_RPC_CNTR_IPV4_ESP, &rpc->ipv4_esp);
+	fbnic_hw_stat_rd32(fbd, FBNIC_RPC_CNTR_IPV6_ESP, &rpc->ipv6_esp);
+
+	fbnic_hw_stat_rd32(fbd, FBNIC_RPC_CNTR_TCP_OPT_ERR, &rpc->tcp_opt_err);
+	fbnic_hw_stat_rd32(fbd,
+			   FBNIC_RPC_CNTR_OUT_OF_HDR_ERR,
+			   &rpc->out_of_hdr_err);
+	fbnic_hw_stat_rd32(fbd,
+			   FBNIC_RPC_CNTR_OVR_SIZE_ERR,
+			   &rpc->ovr_size_err);
 }
 
 static void fbnic_reset_pcie_stats_asic(struct fbnic_dev *fbd,
@@ -135,10 +203,18 @@ static void fbnic_get_pcie_stats_asic64(struct fbnic_dev *fbd,
 
 void fbnic_reset_hw_stats(struct fbnic_dev *fbd)
 {
+	fbnic_reset_rpc_stats(fbd, &fbd->hw_stats.rpc);
 	fbnic_reset_pcie_stats_asic(fbd, &fbd->hw_stats.pcie);
+}
+
+void fbnic_get_hw_stats32(struct fbnic_dev *fbd)
+{
+	fbnic_get_rpc_stats32(fbd, &fbd->hw_stats.rpc);
 }
 
 void fbnic_get_hw_stats(struct fbnic_dev *fbd)
 {
+	fbnic_get_hw_stats32(fbd);
+
 	fbnic_get_pcie_stats_asic64(fbd, &fbd->hw_stats.pcie);
 }
