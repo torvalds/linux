@@ -1912,8 +1912,12 @@ static void msm_pinctrl_hibernation_resume(void)
 	struct gpio_chip *chip = &pctrl->chip;
 	void __iomem *tile_addr = NULL;
 
-	if (likely(!pctrl->hibernation) || !pctrl->gpio_regs || !pctrl->msm_tile_regs)
+	if (likely(!pctrl->hibernation) || !pctrl->gpio_regs)
 		return;
+
+	if (soc->ntiles && !pctrl->msm_tile_regs)
+		return;
+
 	for (i = 0; i < soc->ntiles; i++) {
 		if (soc->tiles)
 			tile_addr = pctrl->regs[i] + soc->dir_conn_addr[i];
