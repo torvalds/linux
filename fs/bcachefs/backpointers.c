@@ -199,6 +199,22 @@ err:
 	return ret;
 }
 
+static int bch2_backpointer_del(struct btree_trans *trans, struct bpos pos)
+{
+	return likely(!bch2_backpointers_no_use_write_buffer)
+	       ? bch2_btree_delete_at_buffered(trans, BTREE_ID_backpointers, pos)
+	       : bch2_btree_delete(trans, BTREE_ID_backpointers, pos, 0);
+}
+
+static int bch2_backpointers_maybe_flush(struct btree_trans *trans,
+					 struct bkey_s_c visiting_k,
+					 struct bkey_buf *last_flushed)
+{
+	return likely(!bch2_backpointers_no_use_write_buffer)
+		? bch2_btree_write_buffer_maybe_flush(trans, visiting_k, last_flushed)
+		: 0;
+}
+
 static void backpointer_target_not_found(struct btree_trans *trans,
 					 struct bkey_s_c_backpointer bp,
 					 struct bkey_s_c target_k)
@@ -300,9 +316,12 @@ err:
 	return b;
 }
 
-static int bch2_check_btree_backpointer(struct btree_trans *trans, struct btree_iter *bp_iter,
-					struct bkey_s_c k)
+static int bch2_check_backpointer_has_valid_bucket(struct btree_trans *trans, struct bkey_s_c k,
+						   struct bkey_buf *last_flushed)
 {
+	if (k.k->type != KEY_TYPE_backpointer)
+		return 0;
+
 	struct bch_fs *c = trans->c;
 	struct btree_iter alloc_iter = { NULL };
 	struct bkey_s_c alloc_k;
@@ -311,10 +330,14 @@ static int bch2_check_btree_backpointer(struct btree_trans *trans, struct btree_
 
 	struct bpos bucket;
 	if (!bp_pos_to_bucket_nodev_noerror(c, k.k->p, &bucket)) {
+		ret = bch2_backpointers_maybe_flush(trans, k, last_flushed);
+		if (ret)
+			goto out;
+
 		if (fsck_err(trans, backpointer_to_missing_device,
 			     "backpointer for missing device:\n%s",
 			     (bch2_bkey_val_to_text(&buf, c, k), buf.buf)))
-			ret = bch2_btree_delete_at(trans, bp_iter, 0);
+			ret = bch2_backpointer_del(trans, k.k->p);
 		goto out;
 	}
 
@@ -323,13 +346,16 @@ static int bch2_check_btree_backpointer(struct btree_trans *trans, struct btree_
 	if (ret)
 		goto out;
 
-	if (fsck_err_on(alloc_k.k->type != KEY_TYPE_alloc_v4,
-			trans, backpointer_to_missing_alloc,
-			"backpointer for nonexistent alloc key: %llu:%llu:0\n%s",
-			alloc_iter.pos.inode, alloc_iter.pos.offset,
-			(bch2_bkey_val_to_text(&buf, c, k), buf.buf))) {
-		ret = bch2_btree_delete_at(trans, bp_iter, 0);
-		goto out;
+	if (alloc_k.k->type != KEY_TYPE_alloc_v4) {
+		ret = bch2_backpointers_maybe_flush(trans, k, last_flushed);
+		if (ret)
+			goto out;
+
+		if (fsck_err(trans, backpointer_to_missing_alloc,
+			     "backpointer for nonexistent alloc key: %llu:%llu:0\n%s",
+			     alloc_iter.pos.inode, alloc_iter.pos.offset,
+			     (bch2_bkey_val_to_text(&buf, c, k), buf.buf)))
+			ret = bch2_backpointer_del(trans, k.k->p);
 	}
 out:
 fsck_err:
@@ -341,11 +367,17 @@ fsck_err:
 /* verify that every backpointer has a corresponding alloc key */
 int bch2_check_btree_backpointers(struct bch_fs *c)
 {
+	struct bkey_buf last_flushed;
+	bch2_bkey_buf_init(&last_flushed);
+	bkey_init(&last_flushed.k->k);
+
 	int ret = bch2_trans_run(c,
 		for_each_btree_key_commit(trans, iter,
 			BTREE_ID_backpointers, POS_MIN, 0, k,
 			NULL, NULL, BCH_TRANS_COMMIT_no_enospc,
-		  bch2_check_btree_backpointer(trans, &iter, k)));
+		  bch2_check_backpointer_has_valid_bucket(trans, k, &last_flushed)));
+
+	bch2_bkey_buf_exit(&last_flushed, c);
 	bch_err_fn(c, ret);
 	return ret;
 }
@@ -874,7 +906,7 @@ static int check_one_backpointer(struct btree_trans *trans,
 		return ret;
 
 	if (!k.k) {
-		ret = bch2_btree_write_buffer_maybe_flush(trans, bp.s_c, last_flushed);
+		ret = bch2_backpointers_maybe_flush(trans, bp.s_c, last_flushed);
 		if (ret)
 			goto out;
 
@@ -882,7 +914,7 @@ static int check_one_backpointer(struct btree_trans *trans,
 			     "backpointer for missing %s\n  %s",
 			     bp.v->level ? "btree node" : "extent",
 			     (bch2_bkey_val_to_text(&buf, c, bp.s_c), buf.buf))) {
-			ret = bch2_btree_delete_at_buffered(trans, BTREE_ID_backpointers, bp.k->p);
+			ret = bch2_backpointer_del(trans, bp.k->p);
 			goto out;
 		}
 	}
