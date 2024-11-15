@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0
+/* Copyright (c) Meta Platforms, Inc. and affiliates. */
+
 #include "fbnic.h"
 
 u64 fbnic_stat_rd64(struct fbnic_dev *fbd, u32 reg, u32 offset)
