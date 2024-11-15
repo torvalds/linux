@@ -46,7 +46,7 @@ static inline struct bpos bp_pos_to_bucket(const struct bch_dev *ca, struct bpos
 static inline bool bp_pos_to_bucket_nodev_noerror(struct bch_fs *c, struct bpos bp_pos, struct bpos *bucket)
 {
 	rcu_read_lock();
-	struct bch_dev *ca = bch2_dev_rcu(c, bp_pos.inode);
+	struct bch_dev *ca = bch2_dev_rcu_noerror(c, bp_pos.inode);
 	if (ca)
 		*bucket = bp_pos_to_bucket(ca, bp_pos);
 	rcu_read_unlock();
