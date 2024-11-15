@@ -33,13 +33,6 @@ static struct swap_cgroup_ctrl swap_cgroup_ctrl[MAX_SWAPFILES];
  *
  * TODO: we can push these buffers out to HIGHMEM.
  */
-
-static struct swap_cgroup *__lookup_swap_cgroup(struct swap_cgroup_ctrl *ctrl,
-						pgoff_t offset)
-{
-	return &ctrl->map[offset];
-}
-
 static struct swap_cgroup *lookup_swap_cgroup(swp_entry_t ent,
 					struct swap_cgroup_ctrl **ctrlp)
 {
@@ -49,7 +42,7 @@ static struct swap_cgroup *lookup_swap_cgroup(swp_entry_t ent,
 	ctrl = &swap_cgroup_ctrl[swp_type(ent)];
 	if (ctrlp)
 		*ctrlp = ctrl;
-	return __lookup_swap_cgroup(ctrl, offset);
+	return &ctrl->map[offset];
 }
 
 /**
@@ -104,16 +97,9 @@ unsigned short swap_cgroup_record(swp_entry_t ent, unsigned short id,
 
 	spin_lock_irqsave(&ctrl->lock, flags);
 	old = sc->id;
-	for (;;) {
+	for (; offset < end; offset++, sc++) {
 		VM_BUG_ON(sc->id != old);
 		sc->id = id;
-		offset++;
-		if (offset == end)
-			break;
-		if (offset % SC_PER_PAGE)
-			sc++;
-		else
-			sc = __lookup_swap_cgroup(ctrl, offset);
 	}
 	spin_unlock_irqrestore(&ctrl->lock, flags);
 
