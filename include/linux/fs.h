@@ -173,13 +173,20 @@ typedef int (dio_iodone_t)(struct kiocb *iocb, loff_t offset,
 
 #define	FMODE_NOREUSE		((__force fmode_t)(1 << 23))
 
-/* FMODE_* bit 24 */
-
 /* File is embedded in backing_file object */
-#define FMODE_BACKING		((__force fmode_t)(1 << 25))
+#define FMODE_BACKING		((__force fmode_t)(1 << 24))
 
-/* File was opened by fanotify and shouldn't generate fanotify events */
-#define FMODE_NONOTIFY		((__force fmode_t)(1 << 26))
+/*
+ * Together with FMODE_NONOTIFY_PERM defines which fsnotify events shouldn't be
+ * generated (see below)
+ */
+#define FMODE_NONOTIFY		((__force fmode_t)(1 << 25))
+
+/*
+ * Together with FMODE_NONOTIFY defines which fsnotify events shouldn't be
+ * generated (see below)
+ */
+#define FMODE_NONOTIFY_PERM	((__force fmode_t)(1 << 26))
 
 /* File is capable of returning -EAGAIN if I/O will block */
 #define FMODE_NOWAIT		((__force fmode_t)(1 << 27))
@@ -189,6 +196,32 @@ typedef int (dio_iodone_t)(struct kiocb *iocb, loff_t offset,
 
 /* File does not contribute to nr_files count */
 #define FMODE_NOACCOUNT		((__force fmode_t)(1 << 29))
+
+/*
+ * The two FMODE_NONOTIFY* define which fsnotify events should not be generated
+ * for a file. These are the possible values of (f->f_mode &
+ * FMODE_FSNOTIFY_MASK) and their meaning:
+ *
+ * FMODE_NONOTIFY - suppress all (incl. non-permission) events.
+ * FMODE_NONOTIFY_PERM - suppress permission (incl. pre-content) events.
+ * FMODE_NONOTIFY | FMODE_NONOTIFY_PERM - suppress only pre-content events.
+ */
+#define FMODE_FSNOTIFY_MASK \
+	(FMODE_NONOTIFY | FMODE_NONOTIFY_PERM)
+
+#define FMODE_FSNOTIFY_NONE(mode) \
+	((mode & FMODE_FSNOTIFY_MASK) == FMODE_NONOTIFY)
+#ifdef CONFIG_FANOTIFY_ACCESS_PERMISSIONS
+#define FMODE_FSNOTIFY_PERM(mode) \
+	((mode & FMODE_FSNOTIFY_MASK) == 0 || \
+	 (mode & FMODE_FSNOTIFY_MASK) == (FMODE_NONOTIFY | FMODE_NONOTIFY_PERM))
+#define FMODE_FSNOTIFY_HSM(mode) \
+	((mode & FMODE_FSNOTIFY_MASK) == 0)
+#else
+#define FMODE_FSNOTIFY_PERM(mode)	0
+#define FMODE_FSNOTIFY_HSM(mode)	0
+#endif
+
 
 /*
  * Attribute flags.  These should be or-ed together to figure out what
