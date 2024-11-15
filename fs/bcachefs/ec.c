@@ -1365,8 +1365,9 @@ static int ec_stripe_update_bucket(struct btree_trans *trans, struct ec_stripe_b
 
 	struct bpos bucket_pos = PTR_BUCKET_POS(ca, &ptr);
 
-	ret = for_each_btree_key_commit(trans, bp_iter, BTREE_ID_backpointers,
-			bucket_pos_to_bp(ca, bucket_pos, 0), 0, bp_k,
+	ret = for_each_btree_key_max_commit(trans, bp_iter, BTREE_ID_backpointers,
+			bucket_pos_to_bp_start(ca, bucket_pos),
+			bucket_pos_to_bp_end(ca, bucket_pos), 0, bp_k,
 			NULL, NULL,
 			BCH_TRANS_COMMIT_no_check_rw|
 			BCH_TRANS_COMMIT_no_enospc, ({

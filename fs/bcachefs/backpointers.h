@@ -80,6 +80,16 @@ static inline struct bpos bucket_pos_to_bp(const struct bch_dev *ca,
 	return ret;
 }
 
+static inline struct bpos bucket_pos_to_bp_start(const struct bch_dev *ca, struct bpos bucket)
+{
+	return bucket_pos_to_bp(ca, bucket, 0);
+}
+
+static inline struct bpos bucket_pos_to_bp_end(const struct bch_dev *ca, struct bpos bucket)
+{
+	return bpos_nosnap_predecessor(bucket_pos_to_bp(ca, bpos_nosnap_successor(bucket), 0));
+}
+
 int bch2_bucket_backpointer_mod_nowritebuffer(struct btree_trans *, struct bch_dev *,
 				struct bpos bucket, struct bch_backpointer, struct bkey_s_c, bool);
 

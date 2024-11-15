@@ -691,7 +691,7 @@ int bch2_evacuate_bucket(struct moving_context *ctxt,
 	bch2_trans_begin(trans);
 
 	bch2_trans_iter_init(trans, &bp_iter, BTREE_ID_backpointers,
-			     bucket_pos_to_bp(ca, bucket, 0), 0);
+			     bucket_pos_to_bp_start(ca, bucket), 0);
 
 	bch_err_msg(c, ret, "looking up alloc key");
 	if (ret)
@@ -715,8 +715,7 @@ int bch2_evacuate_bucket(struct moving_context *ctxt,
 		if (ret)
 			goto err;
 
-		if (!k.k ||
-		    bkey_ge(k.k->p, bucket_pos_to_bp(ca, bpos_nosnap_successor(bucket), 0)))
+		if (!k.k || bkey_gt(k.k->p, bucket_pos_to_bp_end(ca, bucket)))
 			break;
 
 		if (k.k->type != KEY_TYPE_backpointer)
