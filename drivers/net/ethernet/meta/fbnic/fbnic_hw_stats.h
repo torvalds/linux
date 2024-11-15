@@ -1,6 +1,9 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /* Copyright (c) Meta Platforms, Inc. and affiliates. */
 
+#ifndef _FBNIC_HW_STATS_H_
+#define _FBNIC_HW_STATS_H_
+
 #include <linux/ethtool.h>
 
 #include "fbnic_csr.h"
@@ -41,3 +44,5 @@ struct fbnic_hw_stats {
 u64 fbnic_stat_rd64(struct fbnic_dev *fbd, u32 reg, u32 offset);
 
 void fbnic_get_hw_stats(struct fbnic_dev *fbd);
+
+#endif /* _FBNIC_HW_STATS_H_ */
