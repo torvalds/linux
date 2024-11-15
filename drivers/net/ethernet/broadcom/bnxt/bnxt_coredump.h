@@ -68,6 +68,8 @@ struct bnxt_coredump_record {
 	__le16 rsvd3[313];
 };
 
+#define BNXT_VER_GET_COMP_ID	2
+
 #define BNXT_CRASH_DUMP_LEN	(8 << 20)
 
 #define COREDUMP_LIST_BUF_LEN		2048
@@ -118,6 +120,11 @@ struct hwrm_dbg_cmn_output {
 #define BNXT_DBG_CR_DUMP_MDM_CFG_DDR	\
 	DBG_CRASHDUMP_MEDIUM_CFG_REQ_TYPE_DDR
 
+void bnxt_fill_coredump_seg_hdr(struct bnxt *bp,
+				struct bnxt_coredump_segment_hdr *seg_hdr,
+				struct coredump_segment_record *seg_rec,
+				u32 seg_len, int status, u32 duration,
+				u32 instance, u32 comp_id, u32 seg_id);
 int bnxt_get_coredump(struct bnxt *bp, u16 dump_type, void *buf, u32 *dump_len);
 int bnxt_hwrm_get_dump_len(struct bnxt *bp, u16 dump_type, u32 *dump_len);
 u32 bnxt_get_coredump_length(struct bnxt *bp, u16 dump_type);

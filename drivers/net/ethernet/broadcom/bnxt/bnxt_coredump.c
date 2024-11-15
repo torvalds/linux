@@ -165,11 +165,12 @@ static int bnxt_hwrm_dbg_coredump_retrieve(struct bnxt *bp, u16 component_id,
 	return rc;
 }
 
-static void
+void
 bnxt_fill_coredump_seg_hdr(struct bnxt *bp,
 			   struct bnxt_coredump_segment_hdr *seg_hdr,
 			   struct coredump_segment_record *seg_rec, u32 seg_len,
-			   int status, u32 duration, u32 instance)
+			   int status, u32 duration, u32 instance, u32 comp_id,
+			   u32 seg_id)
 {
 	memset(seg_hdr, 0, sizeof(*seg_hdr));
 	memcpy(seg_hdr->signature, "sEgM", 4);
@@ -180,11 +181,8 @@ bnxt_fill_coredump_seg_hdr(struct bnxt *bp,
 		seg_hdr->high_version = seg_rec->version_hi;
 		seg_hdr->flags = cpu_to_le32(seg_rec->compress_flags);
 	} else {
-		/* For hwrm_ver_get response Component id = 2
-		 * and Segment id = 0
-		 */
-		seg_hdr->component_id = cpu_to_le32(2);
-		seg_hdr->segment_id = 0;
+		seg_hdr->component_id = cpu_to_le32(comp_id);
+		seg_hdr->segment_id = cpu_to_le32(seg_id);
 	}
 	seg_hdr->function_id = cpu_to_le16(bp->pdev->devfn);
 	seg_hdr->length = cpu_to_le32(seg_len);
@@ -287,11 +285,13 @@ static int __bnxt_get_coredump(struct bnxt *bp, void *buf, u32 *dump_len)
 	start_utc = sys_tz.tz_minuteswest * 60;
 	seg_hdr_len = sizeof(seg_hdr);
 
-	/* First segment should be hwrm_ver_get response */
+	/* First segment should be hwrm_ver_get response.
+	 * For hwrm_ver_get response Component id = 2 and Segment id = 0.
+	 */
 	*dump_len = seg_hdr_len + ver_get_resp_len;
 	if (buf) {
 		bnxt_fill_coredump_seg_hdr(bp, &seg_hdr, NULL, ver_get_resp_len,
-					   0, 0, 0);
+					   0, 0, 0, BNXT_VER_GET_COMP_ID, 0);
 		memcpy(buf + offset, &seg_hdr, seg_hdr_len);
 		offset += seg_hdr_len;
 		memcpy(buf + offset, &bp->ver_resp, ver_get_resp_len);
@@ -346,7 +346,7 @@ next_seg:
 		end = jiffies;
 		duration = jiffies_to_msecs(end - start);
 		bnxt_fill_coredump_seg_hdr(bp, &seg_hdr, seg_record, seg_len,
-					   rc, duration, 0);
+					   rc, duration, 0, 0, 0);
 
 		if (buf) {
 			/* Write segment header into the buffer */
