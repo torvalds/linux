@@ -555,6 +555,9 @@ struct bch_dev {
 	u8			*oldest_gen;
 	unsigned long		*buckets_nouse;
 
+	unsigned long		*bucket_backpointer_mismatches;
+	unsigned long		*bucket_backpointer_empty;
+
 	struct bch_dev_usage __percpu	*usage;
 
 	/* Allocator: */
