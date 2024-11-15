@@ -1241,16 +1241,22 @@ find_format_and_si(struct list_head *fmt_list_head, snd_pcm_format_t format,
 static void close_endpoints(struct snd_usb_audio *chip,
 			    struct snd_usb_substream *subs)
 {
+	mutex_lock(&chip->mutex);
 	if (subs->data_endpoint) {
 		subs->data_endpoint->sync_source = NULL;
+		mutex_unlock(&chip->mutex);
 		snd_usb_endpoint_close(chip, subs->data_endpoint);
+		mutex_lock(&chip->mutex);
 		subs->data_endpoint = NULL;
 	}
 
 	if (subs->sync_endpoint) {
+		mutex_unlock(&chip->mutex);
 		snd_usb_endpoint_close(chip, subs->sync_endpoint);
+		mutex_lock(&chip->mutex);
 		subs->sync_endpoint = NULL;
 	}
+	mutex_unlock(&chip->mutex);
 }
 
 static int configure_endpoints(struct snd_usb_audio *chip,
