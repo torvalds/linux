@@ -1443,6 +1443,9 @@ xfs_dax_read_fault(
 
 	trace_xfs_read_fault(ip, order);
 
+	ret = filemap_fsnotify_fault(vmf);
+	if (unlikely(ret))
+		return ret;
 	xfs_ilock(ip, XFS_MMAPLOCK_SHARED);
 	ret = xfs_dax_fault_locked(vmf, order, false);
 	xfs_iunlock(ip, XFS_MMAPLOCK_SHARED);
@@ -1471,6 +1474,16 @@ xfs_write_fault(
 	vm_fault_t		ret;
 
 	trace_xfs_write_fault(ip, order);
+	/*
+	 * Usually we get here from ->page_mkwrite callback but in case of DAX
+	 * we will get here also for ordinary write fault. Handle HSM
+	 * notifications for that case.
+	 */
+	if (IS_DAX(inode)) {
+		ret = filemap_fsnotify_fault(vmf);
+		if (unlikely(ret))
+			return ret;
+	}
 
 	sb_start_pagefault(inode->i_sb);
 	file_update_time(vmf->vma->vm_file);
