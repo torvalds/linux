@@ -538,6 +538,20 @@ static int ethtool_get_rxnfc_rule_count(struct net_device *dev)
 	return info.rule_cnt;
 }
 
+/* Max offset for one RSS context */
+static u32 ethtool_get_rss_ctx_max_channel(struct ethtool_rxfh_context *ctx)
+{
+	u32 max_ring = 0;
+	u32 i, *tbl;
+
+	if (WARN_ON_ONCE(!ctx))
+		return 0;
+	tbl = ethtool_rxfh_context_indir(ctx);
+	for (i = 0; i < ctx->indir_size; i++)
+		max_ring = max(max_ring, tbl[i]);
+	return max_ring;
+}
+
 static int ethtool_get_max_rxnfc_channel(struct net_device *dev, u64 *max)
 {
 	const struct ethtool_ops *ops = dev->ethtool_ops;
@@ -574,10 +588,18 @@ static int ethtool_get_max_rxnfc_channel(struct net_device *dev, u64 *max)
 
 		if (rule_info.fs.ring_cookie != RX_CLS_FLOW_DISC &&
 		    rule_info.fs.ring_cookie != RX_CLS_FLOW_WAKE &&
-		    !(rule_info.flow_type & FLOW_RSS) &&
-		    !ethtool_get_flow_spec_ring_vf(rule_info.fs.ring_cookie))
-			max_ring =
-				max_t(u64, max_ring, rule_info.fs.ring_cookie);
+		    !ethtool_get_flow_spec_ring_vf(rule_info.fs.ring_cookie)) {
+			u64 ring = rule_info.fs.ring_cookie;
+
+			if (rule_info.flow_type & FLOW_RSS) {
+				struct ethtool_rxfh_context *ctx;
+
+				ctx = xa_load(&dev->ethtool->rss_ctx,
+					      rule_info.rss_context);
+				ring += ethtool_get_rss_ctx_max_channel(ctx);
+			}
+			max_ring = max_t(u64, max_ring, ring);
+		}
 	}
 
 	kvfree(info);
@@ -589,6 +611,7 @@ err_free_info:
 	return err;
 }
 
+/* Max offset across all of a device's RSS contexts */
 static u32 ethtool_get_max_rss_ctx_channel(struct net_device *dev)
 {
 	struct ethtool_rxfh_context *ctx;
@@ -596,13 +619,8 @@ static u32 ethtool_get_max_rss_ctx_channel(struct net_device *dev)
 	u32 max_ring = 0;
 
 	mutex_lock(&dev->ethtool->rss_lock);
-	xa_for_each(&dev->ethtool->rss_ctx, context, ctx) {
-		u32 i, *tbl;
-
-		tbl = ethtool_rxfh_context_indir(ctx);
-		for (i = 0; i < ctx->indir_size; i++)
-			max_ring = max(max_ring, tbl[i]);
-	}
+	xa_for_each(&dev->ethtool->rss_ctx, context, ctx)
+		max_ring = max(max_ring, ethtool_get_rss_ctx_max_channel(ctx));
 	mutex_unlock(&dev->ethtool->rss_lock);
 
 	return max_ring;
@@ -611,7 +629,7 @@ static u32 ethtool_get_max_rss_ctx_channel(struct net_device *dev)
 static u32 ethtool_get_max_rxfh_channel(struct net_device *dev)
 {
 	struct ethtool_rxfh_param rxfh = {};
-	u32 dev_size, current_max;
+	u32 dev_size, current_max = 0;
 	int ret;
 
 	/* While we do track whether RSS context has an indirection
