@@ -22,6 +22,7 @@
 #include <linux/bitfield.h>
 #include <linux/xarray.h>
 #include <linux/perf_event.h>
+#include <linux/pci.h>
 
 #include <asm/cacheflush.h>
 #include <asm/iommu.h>
@@ -653,8 +654,6 @@ struct dmar_domain {
 		struct {
 			/* parent page table which the user domain is nested on */
 			struct dmar_domain *s2_domain;
-			/* user page table pointer (in GPA) */
-			unsigned long s1_pgtbl;
 			/* page table attributes */
 			struct iommu_hwpt_vtd_s1 s1_cfg;
 			/* link to parent domain siblings */
@@ -720,7 +719,7 @@ struct intel_iommu {
 	int		msagaw; /* max sagaw of this iommu */
 	unsigned int	irq, pr_irq, perf_irq;
 	u16		segment;     /* PCI segment# */
-	unsigned char 	name[13];    /* Device Name */
+	unsigned char	name[16];    /* Device Name */
 
 #ifdef CONFIG_INTEL_IOMMU
 	unsigned long 	*domain_ids; /* bitmap of domains */
@@ -730,12 +729,10 @@ struct intel_iommu {
 
 	struct iommu_flush flush;
 #endif
-#ifdef CONFIG_INTEL_IOMMU_SVM
 	struct page_req_dsc *prq;
 	unsigned char prq_name[16];    /* Name for PRQ interrupt */
 	unsigned long prq_seq_number;
 	struct completion prq_complete;
-#endif
 	struct iopf_queue *iopf_queue;
 	unsigned char iopfq_name[16];
 	/* Synchronization between fault report and iommu device release. */
@@ -810,6 +807,13 @@ static inline struct dmar_domain *to_dmar_domain(struct iommu_domain *dom)
 	return container_of(dom, struct dmar_domain, domain);
 }
 
+/*
+ * Domain ID reserved for pasid entries programmed for first-level
+ * only and pass-through transfer modes.
+ */
+#define FLPT_DEFAULT_DID		1
+#define NUM_RESERVED_DID		2
+
 /* Retrieve the domain ID which has allocated to the domain */
 static inline u16
 domain_id_iommu(struct dmar_domain *domain, struct intel_iommu *iommu)
@@ -818,6 +822,21 @@ domain_id_iommu(struct dmar_domain *domain, struct intel_iommu *iommu)
 			xa_load(&domain->iommu_array, iommu->seq_id);
 
 	return info->did;
+}
+
+static inline u16
+iommu_domain_did(struct iommu_domain *domain, struct intel_iommu *iommu)
+{
+	if (domain->type == IOMMU_DOMAIN_SVA ||
+	    domain->type == IOMMU_DOMAIN_IDENTITY)
+		return FLPT_DEFAULT_DID;
+	return domain_id_iommu(to_dmar_domain(domain), iommu);
+}
+
+static inline bool dev_is_real_dma_subdevice(struct device *dev)
+{
+	return dev && dev_is_pci(dev) &&
+	       pci_real_dma_dev(to_pci_dev(dev)) != to_pci_dev(dev);
 }
 
 /*
@@ -1230,9 +1249,18 @@ void __iommu_flush_iotlb(struct intel_iommu *iommu, u16 did, u64 addr,
 int domain_attach_iommu(struct dmar_domain *domain, struct intel_iommu *iommu);
 void domain_detach_iommu(struct dmar_domain *domain, struct intel_iommu *iommu);
 void device_block_translation(struct device *dev);
-int prepare_domain_attach_device(struct iommu_domain *domain,
-				 struct device *dev);
-void domain_update_iommu_cap(struct dmar_domain *domain);
+int paging_domain_compatible(struct iommu_domain *domain, struct device *dev);
+
+struct dev_pasid_info *
+domain_add_dev_pasid(struct iommu_domain *domain,
+		     struct device *dev, ioasid_t pasid);
+void domain_remove_dev_pasid(struct iommu_domain *domain,
+			     struct device *dev, ioasid_t pasid);
+
+int __domain_setup_first_level(struct intel_iommu *iommu,
+			       struct device *dev, ioasid_t pasid,
+			       u16 did, pgd_t *pgd, int flags,
+			       struct iommu_domain *old);
 
 int dmar_ir_support(void);
 
@@ -1278,18 +1306,18 @@ void intel_context_flush_present(struct device_domain_info *info,
 				 struct context_entry *context,
 				 u16 did, bool affect_domains);
 
+int intel_iommu_enable_prq(struct intel_iommu *iommu);
+int intel_iommu_finish_prq(struct intel_iommu *iommu);
+void intel_iommu_page_response(struct device *dev, struct iopf_fault *evt,
+			       struct iommu_page_response *msg);
+void intel_iommu_drain_pasid_prq(struct device *dev, u32 pasid);
+
 #ifdef CONFIG_INTEL_IOMMU_SVM
 void intel_svm_check(struct intel_iommu *iommu);
-int intel_svm_enable_prq(struct intel_iommu *iommu);
-int intel_svm_finish_prq(struct intel_iommu *iommu);
-void intel_svm_page_response(struct device *dev, struct iopf_fault *evt,
-			     struct iommu_page_response *msg);
 struct iommu_domain *intel_svm_domain_alloc(struct device *dev,
 					    struct mm_struct *mm);
-void intel_drain_pasid_prq(struct device *dev, u32 pasid);
 #else
 static inline void intel_svm_check(struct intel_iommu *iommu) {}
-static inline void intel_drain_pasid_prq(struct device *dev, u32 pasid) {}
 static inline struct iommu_domain *intel_svm_domain_alloc(struct device *dev,
 							  struct mm_struct *mm)
 {
