@@ -2,7 +2,9 @@
 #include "bcachefs.h"
 #include "checksum.h"
 #include "compress.h"
+#include "error.h"
 #include "extents.h"
+#include "opts.h"
 #include "super-io.h"
 
 #include <linux/lz4.h>
@@ -178,7 +180,16 @@ static int __bio_uncompress(struct bch_fs *c, struct bio *src,
 
 	enum bch_compression_opts opt = bch2_compression_type_to_opt(crc.compression_type);
 	mempool_t *workspace_pool = &c->compress_workspace[opt];
-	BUG_ON(!mempool_initialized(workspace_pool));
+	if (unlikely(!mempool_initialized(workspace_pool))) {
+		if (fsck_err(c, compression_type_not_marked_in_sb,
+			     "compression type %s set but not marked in superblock",
+			     __bch2_compression_types[crc.compression_type]))
+			ret = bch2_check_set_has_compressed_data(c, opt);
+		else
+			ret = -BCH_ERR_compression_workspace_not_initialized;
+		if (ret)
+			goto out;
+	}
 
 	src_data = bio_map_or_bounce(c, src, READ);
 
@@ -234,6 +245,7 @@ static int __bio_uncompress(struct bch_fs *c, struct bio *src,
 		BUG();
 	}
 	ret = 0;
+fsck_err:
 out:
 	bio_unmap_or_unbounce(c, src_data);
 	return ret;
@@ -420,7 +432,17 @@ static unsigned __bio_compress(struct bch_fs *c,
 	BUG_ON(compression.type >= BCH_COMPRESSION_OPT_NR);
 
 	mempool_t *workspace_pool = &c->compress_workspace[compression.type];
-	BUG_ON(!mempool_initialized(workspace_pool));
+	if (unlikely(!mempool_initialized(workspace_pool))) {
+		if (fsck_err(c, compression_opt_not_marked_in_sb,
+			     "compression opt %s set but not marked in superblock",
+			     bch2_compression_opts[compression.type])) {
+			ret = bch2_check_set_has_compressed_data(c, compression.type);
+			if (ret) /* memory allocation failure, don't compress */
+				return 0;
+		} else {
+			return 0;
+		}
+	}
 
 	/* If it's only one block, don't bother trying to compress: */
 	if (src->bi_iter.bi_size <= c->opts.block_size)
@@ -501,6 +523,9 @@ out:
 	return ret;
 err:
 	ret = BCH_COMPRESSION_TYPE_incompressible;
+	goto out;
+fsck_err:
+	ret = 0;
 	goto out;
 }
 

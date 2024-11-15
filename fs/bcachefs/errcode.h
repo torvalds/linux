@@ -54,6 +54,7 @@
 	x(ENOMEM,			ENOMEM_compression_bounce_read_init)	\
 	x(ENOMEM,			ENOMEM_compression_bounce_write_init)	\
 	x(ENOMEM,			ENOMEM_compression_workspace_init)	\
+	x(EIO,				compression_workspace_not_initialized)	\
 	x(ENOMEM,			ENOMEM_bucket_gens)			\
 	x(ENOMEM,			ENOMEM_buckets_nouse)			\
 	x(ENOMEM,			ENOMEM_usage_init)			\

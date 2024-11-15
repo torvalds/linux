@@ -305,7 +305,9 @@ enum bch_fsck_flags {
 	x(accounting_key_replicas_devs_unsorted,		280,	FSCK_AUTOFIX)	\
 	x(accounting_key_version_0,				282,	FSCK_AUTOFIX)	\
 	x(logged_op_but_clean,					283,	FSCK_AUTOFIX)	\
-	x(MAX,							295,	0)
+	x(compression_opt_not_marked_in_sb,			295,	FSCK_AUTOFIX)	\
+	x(compression_type_not_marked_in_sb,			296,	FSCK_AUTOFIX)	\
+	x(MAX,							297,	0)
 
 enum bch_sb_error_id {
 #define x(t, n, ...) BCH_FSCK_ERR_##t = n,
