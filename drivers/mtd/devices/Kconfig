@@ -191,6 +191,19 @@ config MTD_POWERNV_FLASH
 	  platforms from Linux. This device abstracts away the
 	  firmware interface for flash access.
 
+config MTD_MSM_QPIC_NAND
+	tristate "MSM QPIC NAND Device Support"
+	depends on MTD && (ARCH_QCOM || ARCH_MSM) && !MTD_MSM_NAND
+	select CRC16
+	select BITREVERSE
+	select MTD_NAND_IDS
+	default n
+	help
+	 Support for NAND controller in Qualcomm Technologies, Inc.
+	 Parallel Interface controller (QPIC). This new controller
+	 supports BAM mode and BCH error correction mechanism. Based on the
+	 device capabilities either 4 bit or 8 bit BCH ECC will be used.
+
 comment "Disk-On-Chip Device Drivers"
 
 config MTD_DOCG3
