@@ -5036,6 +5036,10 @@ static int statmount_mnt_opts(struct kstatmount *s, struct seq_file *seq)
 	if (sb->s_op->show_options) {
 		size_t start = seq->count;
 
+		err = security_sb_show_options(seq, sb);
+		if (err)
+			return err;
+
 		err = sb->s_op->show_options(seq, mnt->mnt_root);
 		if (err)
 			return err;
