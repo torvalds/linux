@@ -16,11 +16,11 @@ if [ "$1" = "-v" ]; then
 fi
 
 iter=10
-regexp=" +[0-9]+\.[0-9]+ +true/[0-9]+ syscalls:sys_enter_exit_group\(\)$"
+regexp=" +[0-9]+\.[0-9]+ [0-9]+ syscalls:sys_enter_exit_group\(\)$"
 
 trace_shutdown_race() {
 	for _ in $(seq $iter); do
-		perf trace -e syscalls:sys_enter_exit_group true 2>>$file
+		perf trace --no-comm -e syscalls:sys_enter_exit_group true 2>>$file
 	done
 	result="$(grep -c -E "$regexp" $file)"
 	[ $result = $iter ]
