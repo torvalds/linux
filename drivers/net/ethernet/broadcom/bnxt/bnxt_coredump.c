@@ -15,6 +15,18 @@
 #include "bnxt_hwrm.h"
 #include "bnxt_coredump.h"
 
+static const u16 bnxt_bstore_to_seg_id[] = {
+	[BNXT_CTX_QP]			= BNXT_CTX_MEM_SEG_QP,
+	[BNXT_CTX_SRQ]			= BNXT_CTX_MEM_SEG_SRQ,
+	[BNXT_CTX_CQ]			= BNXT_CTX_MEM_SEG_CQ,
+	[BNXT_CTX_VNIC]			= BNXT_CTX_MEM_SEG_VNIC,
+	[BNXT_CTX_STAT]			= BNXT_CTX_MEM_SEG_STAT,
+	[BNXT_CTX_STQM]			= BNXT_CTX_MEM_SEG_STQM,
+	[BNXT_CTX_FTQM]			= BNXT_CTX_MEM_SEG_FTQM,
+	[BNXT_CTX_MRAV]			= BNXT_CTX_MEM_SEG_MRAV,
+	[BNXT_CTX_TIM]			= BNXT_CTX_MEM_SEG_TIM,
+};
+
 static int bnxt_hwrm_dbg_dma_data(struct bnxt *bp, void *msg,
 				  struct bnxt_hwrm_dbg_dma_info *info)
 {
@@ -267,7 +279,47 @@ bnxt_fill_coredump_record(struct bnxt *bp, struct bnxt_coredump_record *record,
 	record->ioctl_high_version = 0;
 }
 
-static int __bnxt_get_coredump(struct bnxt *bp, void *buf, u32 *dump_len)
+static u32 bnxt_get_ctx_coredump(struct bnxt *bp, void *buf, u32 offset,
+				 u32 *segs)
+{
+	struct bnxt_coredump_segment_hdr seg_hdr;
+	struct bnxt_ctx_mem_info *ctx = bp->ctx;
+	u32 comp_id = BNXT_DRV_COMP_ID;
+	void *data = NULL;
+	size_t len = 0;
+	u16 type;
+
+	*segs = 0;
+	if (!ctx)
+		return 0;
+
+	if (buf)
+		buf += offset;
+	for (type = 0 ; type <= BNXT_CTX_TIM; type++) {
+		struct bnxt_ctx_mem_type *ctxm = &ctx->ctx_arr[type];
+		u32 seg_id = bnxt_bstore_to_seg_id[type];
+		size_t seg_len;
+
+		if (!ctxm->entry_size || !ctxm->pg_info || !seg_id)
+			continue;
+
+		if (buf)
+			data = buf + BNXT_SEG_HDR_LEN;
+		seg_len = bnxt_copy_ctx_mem(bp, ctxm, data, 0);
+		if (buf) {
+			bnxt_fill_coredump_seg_hdr(bp, &seg_hdr, NULL, seg_len,
+						   0, 0, 0, comp_id, seg_id);
+			memcpy(buf, &seg_hdr, BNXT_SEG_HDR_LEN);
+			buf += BNXT_SEG_HDR_LEN + seg_len;
+		}
+		len += BNXT_SEG_HDR_LEN + seg_len;
+		*segs += 1;
+	}
+	return len;
+}
+
+static int __bnxt_get_coredump(struct bnxt *bp, u16 dump_type, void *buf,
+			       u32 *dump_len)
 {
 	u32 ver_get_resp_len = sizeof(struct hwrm_ver_get_output);
 	u32 offset = 0, seg_hdr_len, seg_record_len, buf_len = 0;
@@ -298,6 +350,18 @@ static int __bnxt_get_coredump(struct bnxt *bp, void *buf, u32 *dump_len)
 		offset += ver_get_resp_len;
 	}
 
+	if (dump_type == BNXT_DUMP_DRIVER) {
+		u32 drv_len, segs = 0;
+
+		drv_len = bnxt_get_ctx_coredump(bp, buf, offset, &segs);
+		*dump_len += drv_len;
+		offset += drv_len;
+		if (buf)
+			coredump.total_segs += segs;
+		goto err;
+	}
+
+	seg_record_len = sizeof(*seg_record);
 	rc = bnxt_hwrm_dbg_coredump_list(bp, &coredump);
 	if (rc) {
 		netdev_err(bp->dev, "Failed to get coredump segment list\n");
@@ -442,7 +506,7 @@ int bnxt_get_coredump(struct bnxt *bp, u16 dump_type, void *buf, u32 *dump_len)
 		else
 			return -EOPNOTSUPP;
 	} else {
-		return __bnxt_get_coredump(bp, buf, dump_len);
+		return __bnxt_get_coredump(bp, dump_type, buf, dump_len);
 	}
 }
 
@@ -512,9 +576,12 @@ u32 bnxt_get_coredump_length(struct bnxt *bp, u16 dump_type)
 		return bp->fw_crash_len;
 	}
 
-	if (bnxt_hwrm_get_dump_len(bp, dump_type, &len)) {
-		if (dump_type != BNXT_DUMP_CRASH)
-			__bnxt_get_coredump(bp, NULL, &len);
+	if (dump_type != BNXT_DUMP_DRIVER) {
+		if (!bnxt_hwrm_get_dump_len(bp, dump_type, &len))
+			return len;
 	}
+	if (dump_type != BNXT_DUMP_CRASH)
+		__bnxt_get_coredump(bp, dump_type, NULL, &len);
+
 	return len;
 }
