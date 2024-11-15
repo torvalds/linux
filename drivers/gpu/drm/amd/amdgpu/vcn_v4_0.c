@@ -129,8 +129,9 @@ static int vcn_v4_0_early_init(struct amdgpu_ip_block *ip_block)
 		}
 	}
 
-	/* re-use enc ring as unified ring */
-	adev->vcn.num_enc_rings = 1;
+	for (i = 0; i < adev->vcn.num_vcn_inst; ++i)
+		/* re-use enc ring as unified ring */
+		adev->vcn.inst[i].num_enc_rings = 1;
 
 	vcn_v4_0_set_unified_ring_funcs(adev);
 	vcn_v4_0_set_irq_funcs(adev);
@@ -214,7 +215,8 @@ static int vcn_v4_0_sw_init(struct amdgpu_ip_block *ip_block)
 		ring = &adev->vcn.inst[i].ring_enc[0];
 		ring->use_doorbell = true;
 		if (amdgpu_sriov_vf(adev))
-			ring->doorbell_index = (adev->doorbell_index.vcn.vcn_ring0_1 << 1) + i * (adev->vcn.num_enc_rings + 1) + 1;
+			ring->doorbell_index = (adev->doorbell_index.vcn.vcn_ring0_1 << 1) + i *
+				(adev->vcn.inst[i].num_enc_rings + 1) + 1;
 		else
 			ring->doorbell_index = (adev->doorbell_index.vcn.vcn_ring0_1 << 1) + 2 + 8 * i;
 		ring->vm_hub = AMDGPU_MMHUB0(0);
@@ -226,6 +228,9 @@ static int vcn_v4_0_sw_init(struct amdgpu_ip_block *ip_block)
 			return r;
 
 		vcn_v4_0_fw_shared_init(adev, i);
+
+		if (adev->pg_flags & AMD_PG_SUPPORT_VCN_DPG)
+			adev->vcn.inst[i].pause_dpg_mode = vcn_v4_0_pause_dpg_mode;
 	}
 
 	/* TODO: Add queue reset mask when FW fully supports it */
@@ -238,8 +243,6 @@ static int vcn_v4_0_sw_init(struct amdgpu_ip_block *ip_block)
 			return r;
 	}
 
-	if (adev->pg_flags & AMD_PG_SUPPORT_VCN_DPG)
-		adev->vcn.pause_dpg_mode = vcn_v4_0_pause_dpg_mode;
 
 	r = amdgpu_vcn_ras_sw_init(adev);
 	if (r)
@@ -1111,7 +1114,7 @@ static int vcn_v4_0_start(struct amdgpu_device *adev, int i)
 	fw_shared = adev->vcn.inst[i].fw_shared.cpu_addr;
 
 	if (adev->pg_flags & AMD_PG_SUPPORT_VCN_DPG)
-		return vcn_v4_0_start_dpg_mode(adev, i, adev->vcn.indirect_sram);
+		return vcn_v4_0_start_dpg_mode(adev, i, adev->vcn.inst[i].indirect_sram);
 
 	/* disable VCN power gating */
 	vcn_v4_0_disable_static_power_gating(adev, i);
@@ -2174,10 +2177,10 @@ static void vcn_v4_0_set_irq_funcs(struct amdgpu_device *adev)
 		if (adev->vcn.harvest_config & (1 << i))
 			continue;
 
-		adev->vcn.inst[i].irq.num_types = adev->vcn.num_enc_rings + 1;
+		adev->vcn.inst[i].irq.num_types = adev->vcn.inst[i].num_enc_rings + 1;
 		adev->vcn.inst[i].irq.funcs = &vcn_v4_0_irq_funcs;
 
-		adev->vcn.inst[i].ras_poison_irq.num_types = adev->vcn.num_enc_rings + 1;
+		adev->vcn.inst[i].ras_poison_irq.num_types = adev->vcn.inst[i].num_enc_rings + 1;
 		adev->vcn.inst[i].ras_poison_irq.funcs = &vcn_v4_0_ras_irq_funcs;
 	}
 }

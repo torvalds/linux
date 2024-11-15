@@ -105,7 +105,7 @@ static int vcn_v1_0_early_init(struct amdgpu_ip_block *ip_block)
 {
 	struct amdgpu_device *adev = ip_block->adev;
 
-	adev->vcn.num_enc_rings = 2;
+	adev->vcn.inst[0].num_enc_rings = 2;
 
 	vcn_v1_0_set_dec_ring_funcs(adev);
 	vcn_v1_0_set_enc_ring_funcs(adev);
@@ -138,7 +138,7 @@ static int vcn_v1_0_sw_init(struct amdgpu_ip_block *ip_block)
 		return r;
 
 	/* VCN ENC TRAP */
-	for (i = 0; i < adev->vcn.num_enc_rings; ++i) {
+	for (i = 0; i < adev->vcn.inst[0].num_enc_rings; ++i) {
 		r = amdgpu_irq_add_id(adev, SOC15_IH_CLIENTID_VCN, i + VCN_1_0__SRCID__UVD_ENC_GENERAL_PURPOSE,
 					&adev->vcn.inst->irq);
 		if (r)
@@ -166,18 +166,18 @@ static int vcn_v1_0_sw_init(struct amdgpu_ip_block *ip_block)
 	if (r)
 		return r;
 
-	adev->vcn.internal.scratch9 = adev->vcn.inst->external.scratch9 =
+	adev->vcn.inst[0].internal.scratch9 = adev->vcn.inst->external.scratch9 =
 		SOC15_REG_OFFSET(UVD, 0, mmUVD_SCRATCH9);
-	adev->vcn.internal.data0 = adev->vcn.inst->external.data0 =
+	adev->vcn.inst[0].internal.data0 = adev->vcn.inst->external.data0 =
 		SOC15_REG_OFFSET(UVD, 0, mmUVD_GPCOM_VCPU_DATA0);
-	adev->vcn.internal.data1 = adev->vcn.inst->external.data1 =
+	adev->vcn.inst[0].internal.data1 = adev->vcn.inst->external.data1 =
 		SOC15_REG_OFFSET(UVD, 0, mmUVD_GPCOM_VCPU_DATA1);
-	adev->vcn.internal.cmd = adev->vcn.inst->external.cmd =
+	adev->vcn.inst[0].internal.cmd = adev->vcn.inst->external.cmd =
 		SOC15_REG_OFFSET(UVD, 0, mmUVD_GPCOM_VCPU_CMD);
-	adev->vcn.internal.nop = adev->vcn.inst->external.nop =
+	adev->vcn.inst[0].internal.nop = adev->vcn.inst->external.nop =
 		SOC15_REG_OFFSET(UVD, 0, mmUVD_NO_OP);
 
-	for (i = 0; i < adev->vcn.num_enc_rings; ++i) {
+	for (i = 0; i < adev->vcn.inst[0].num_enc_rings; ++i) {
 		enum amdgpu_ring_priority_level hw_prio = amdgpu_vcn_get_enc_ring_prio(i);
 
 		ring = &adev->vcn.inst->ring_enc[i];
@@ -189,7 +189,7 @@ static int vcn_v1_0_sw_init(struct amdgpu_ip_block *ip_block)
 			return r;
 	}
 
-	adev->vcn.pause_dpg_mode = vcn_v1_0_pause_dpg_mode;
+	adev->vcn.inst[0].pause_dpg_mode = vcn_v1_0_pause_dpg_mode;
 
 	if (amdgpu_vcnfw_log) {
 		volatile struct amdgpu_fw_shared *fw_shared = adev->vcn.inst->fw_shared.cpu_addr;
@@ -253,7 +253,7 @@ static int vcn_v1_0_hw_init(struct amdgpu_ip_block *ip_block)
 	if (r)
 		return r;
 
-	for (i = 0; i < adev->vcn.num_enc_rings; ++i) {
+	for (i = 0; i < adev->vcn.inst[0].num_enc_rings; ++i) {
 		ring = &adev->vcn.inst->ring_enc[i];
 		r = amdgpu_ring_test_helper(ring);
 		if (r)
@@ -1833,7 +1833,7 @@ static void vcn_v1_0_idle_work_handler(struct work_struct *work)
 	struct amdgpu_device *adev = vcn_inst->adev;
 	unsigned int fences = 0, i;
 
-	for (i = 0; i < adev->vcn.num_enc_rings; ++i)
+	for (i = 0; i < adev->vcn.inst[0].num_enc_rings; ++i)
 		fences += amdgpu_fence_count_emitted(&adev->vcn.inst->ring_enc[i]);
 
 	if (adev->pg_flags & AMD_PG_SUPPORT_VCN_DPG) {
@@ -1849,7 +1849,7 @@ static void vcn_v1_0_idle_work_handler(struct work_struct *work)
 		else
 			new_state.jpeg = VCN_DPG_STATE__UNPAUSE;
 
-		adev->vcn.pause_dpg_mode(adev, 0, &new_state);
+		adev->vcn.inst[0].pause_dpg_mode(adev, 0, &new_state);
 	}
 
 	fences += amdgpu_fence_count_emitted(adev->jpeg.inst->ring_dec);
@@ -1872,7 +1872,7 @@ static void vcn_v1_0_ring_begin_use(struct amdgpu_ring *ring)
 	struct	amdgpu_device *adev = ring->adev;
 	bool set_clocks = !cancel_delayed_work_sync(&adev->vcn.inst[0].idle_work);
 
-	mutex_lock(&adev->vcn.vcn1_jpeg1_workaround);
+	mutex_lock(&adev->vcn.inst[0].vcn1_jpeg1_workaround);
 
 	if (amdgpu_fence_wait_empty(ring->adev->jpeg.inst->ring_dec))
 		DRM_ERROR("VCN dec: jpeg dec ring may not be empty\n");
@@ -1898,7 +1898,7 @@ void vcn_v1_0_set_pg_for_begin_use(struct amdgpu_ring *ring, bool set_clocks)
 		struct dpg_pause_state new_state;
 		unsigned int fences = 0, i;
 
-		for (i = 0; i < adev->vcn.num_enc_rings; ++i)
+		for (i = 0; i < adev->vcn.inst[0].num_enc_rings; ++i)
 			fences += amdgpu_fence_count_emitted(&adev->vcn.inst->ring_enc[i]);
 
 		if (fences)
@@ -1916,14 +1916,14 @@ void vcn_v1_0_set_pg_for_begin_use(struct amdgpu_ring *ring, bool set_clocks)
 		else if (ring->funcs->type == AMDGPU_RING_TYPE_VCN_JPEG)
 			new_state.jpeg = VCN_DPG_STATE__PAUSE;
 
-		adev->vcn.pause_dpg_mode(adev, 0, &new_state);
+		adev->vcn.inst[0].pause_dpg_mode(adev, 0, &new_state);
 	}
 }
 
 void vcn_v1_0_ring_end_use(struct amdgpu_ring *ring)
 {
 	schedule_delayed_work(&ring->adev->vcn.inst[0].idle_work, VCN_IDLE_TIMEOUT);
-	mutex_unlock(&ring->adev->vcn.vcn1_jpeg1_workaround);
+	mutex_unlock(&ring->adev->vcn.inst[0].vcn1_jpeg1_workaround);
 }
 
 static void vcn_v1_0_print_ip_state(struct amdgpu_ip_block *ip_block, struct drm_printer *p)
@@ -2057,11 +2057,11 @@ static int vcn_v1_0_ring_patch_cs_in_place(struct amdgpu_cs_parser *p,
 		uint32_t reg = amdgpu_ib_get_value(ib, i);
 		uint32_t val = amdgpu_ib_get_value(ib, i + 1);
 
-		if (reg == PACKET0(p->adev->vcn.internal.data0, 0)) {
+		if (reg == PACKET0(p->adev->vcn.inst[0].internal.data0, 0)) {
 			msg_lo = val;
-		} else if (reg == PACKET0(p->adev->vcn.internal.data1, 0)) {
+		} else if (reg == PACKET0(p->adev->vcn.inst[0].internal.data1, 0)) {
 			msg_hi = val;
-		} else if (reg == PACKET0(p->adev->vcn.internal.cmd, 0)) {
+		} else if (reg == PACKET0(p->adev->vcn.inst[0].internal.cmd, 0)) {
 			r = vcn_v1_0_validate_bo(p, job,
 						 ((u64)msg_hi) << 32 | msg_lo);
 			if (r)
@@ -2146,7 +2146,7 @@ static void vcn_v1_0_set_enc_ring_funcs(struct amdgpu_device *adev)
 {
 	int i;
 
-	for (i = 0; i < adev->vcn.num_enc_rings; ++i)
+	for (i = 0; i < adev->vcn.inst[0].num_enc_rings; ++i)
 		adev->vcn.inst->ring_enc[i].funcs = &vcn_v1_0_enc_ring_vm_funcs;
 }
 
@@ -2157,7 +2157,7 @@ static const struct amdgpu_irq_src_funcs vcn_v1_0_irq_funcs = {
 
 static void vcn_v1_0_set_irq_funcs(struct amdgpu_device *adev)
 {
-	adev->vcn.inst->irq.num_types = adev->vcn.num_enc_rings + 2;
+	adev->vcn.inst->irq.num_types = adev->vcn.inst[0].num_enc_rings + 2;
 	adev->vcn.inst->irq.funcs = &vcn_v1_0_irq_funcs;
 }
 

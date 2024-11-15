@@ -322,6 +322,15 @@ struct amdgpu_vcn_inst {
 	struct mutex		vcn_pg_lock;
 	enum amd_powergating_state cur_state;
 	struct delayed_work	idle_work;
+	unsigned		fw_version;
+	unsigned		num_enc_rings;
+	bool			indirect_sram;
+	struct amdgpu_vcn_reg	 internal;
+	struct mutex		vcn1_jpeg1_workaround;
+	int (*pause_dpg_mode)(struct amdgpu_device *adev,
+			      int inst_idx,
+			      struct dpg_pause_state *new_state);
+	bool using_unified_queue;
 };
 
 struct amdgpu_vcn_ras {
@@ -330,24 +339,16 @@ struct amdgpu_vcn_ras {
 
 struct amdgpu_vcn {
 	unsigned		fw_version;
-	unsigned		num_enc_rings;
-	bool			indirect_sram;
-
 	uint8_t	num_vcn_inst;
 	struct amdgpu_vcn_inst	 inst[AMDGPU_MAX_VCN_INSTANCES];
-	struct amdgpu_vcn_reg	 internal;
-	struct mutex		vcn1_jpeg1_workaround;
 
 	unsigned	harvest_config;
-	int (*pause_dpg_mode)(struct amdgpu_device *adev,
-		int inst_idx, struct dpg_pause_state *new_state);
 
 	struct ras_common_if    *ras_if;
 	struct amdgpu_vcn_ras   *ras;
 
 	uint16_t inst_mask;
 	uint8_t	num_inst_per_aid;
-	bool using_unified_queue;
 
 	/* IP reg dump */
 	uint32_t		*ip_dump;

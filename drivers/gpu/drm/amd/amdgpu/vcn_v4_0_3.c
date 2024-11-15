@@ -114,9 +114,11 @@ static inline bool vcn_v4_0_3_normalizn_reqd(struct amdgpu_device *adev)
 static int vcn_v4_0_3_early_init(struct amdgpu_ip_block *ip_block)
 {
 	struct amdgpu_device *adev = ip_block->adev;
+	int i;
 
-	/* re-use enc ring as unified ring */
-	adev->vcn.num_enc_rings = 1;
+	for (i = 0; i < adev->vcn.num_vcn_inst; ++i)
+		/* re-use enc ring as unified ring */
+		adev->vcn.inst[i].num_enc_rings = 1;
 
 	vcn_v4_0_3_set_unified_ring_funcs(adev);
 	vcn_v4_0_3_set_irq_funcs(adev);
@@ -194,6 +196,9 @@ static int vcn_v4_0_3_sw_init(struct amdgpu_ip_block *ip_block)
 			return r;
 
 		vcn_v4_0_3_fw_shared_init(adev, i);
+
+		if (adev->pg_flags & AMD_PG_SUPPORT_VCN_DPG)
+			adev->vcn.inst[i].pause_dpg_mode = vcn_v4_0_3_pause_dpg_mode;
 	}
 
 	/* TODO: Add queue reset mask when FW fully supports it */
@@ -205,9 +210,6 @@ static int vcn_v4_0_3_sw_init(struct amdgpu_ip_block *ip_block)
 		if (r)
 			return r;
 	}
-
-	if (adev->pg_flags & AMD_PG_SUPPORT_VCN_DPG)
-		adev->vcn.pause_dpg_mode = vcn_v4_0_3_pause_dpg_mode;
 
 	if (amdgpu_ras_is_supported(adev, AMDGPU_RAS_BLOCK__VCN)) {
 		r = amdgpu_vcn_ras_sw_init(adev);
@@ -1135,7 +1137,7 @@ static int vcn_v4_0_3_start(struct amdgpu_device *adev, int i)
 	uint32_t tmp;
 
 	if (adev->pg_flags & AMD_PG_SUPPORT_VCN_DPG)
-		return vcn_v4_0_3_start_dpg_mode(adev, i, adev->vcn.indirect_sram);
+		return vcn_v4_0_3_start_dpg_mode(adev, i, adev->vcn.inst[i].indirect_sram);
 
 	vcn_inst = GET_INST(VCN, i);
 	/* set VCN status busy */
