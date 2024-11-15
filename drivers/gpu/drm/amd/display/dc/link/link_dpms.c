@@ -1974,8 +1974,8 @@ static void enable_link_hdmi(struct pipe_ctx *pipe_ctx)
 
 	if (dc_is_hdmi_signal(pipe_ctx->stream->signal)) {
 		unsigned short masked_chip_caps = pipe_ctx->stream->link->chip_caps &
-				EXT_DISPLAY_PATH_CAPS__EXT_CHIP_MASK;
-		if (masked_chip_caps == EXT_DISPLAY_PATH_CAPS__HDMI20_TISN65DP159RSBT) {
+				AMD_EXT_DISPLAY_PATH_CAPS__EXT_CHIP_MASK;
+		if (masked_chip_caps == AMD_EXT_DISPLAY_PATH_CAPS__HDMI20_TISN65DP159RSBT) {
 			/* DP159, Retimer settings */
 			eng_id = pipe_ctx->stream_res.stream_enc->id;
 
@@ -1986,7 +1986,7 @@ static void enable_link_hdmi(struct pipe_ctx *pipe_ctx)
 				write_i2c_default_retimer_setting(pipe_ctx,
 						is_vga_mode, is_over_340mhz);
 			}
-		} else if (masked_chip_caps == EXT_DISPLAY_PATH_CAPS__HDMI20_PI3EQX1204) {
+		} else if (masked_chip_caps == AMD_EXT_DISPLAY_PATH_CAPS__HDMI20_PI3EQX1204) {
 			/* PI3EQX1204, Redriver settings */
 			write_i2c_redriver_setting(pipe_ctx, is_over_340mhz);
 		}
@@ -2042,7 +2042,7 @@ static enum dc_status enable_link_dp(struct dc_state *state,
 	int lt_attempts = LINK_TRAINING_ATTEMPTS;
 
 	// Increase retry count if attempting DP1.x on FIXED_VS link
-	if ((link->chip_caps & EXT_DISPLAY_PATH_CAPS__DP_FIXED_VS_EN) &&
+	if (((link->chip_caps & AMD_EXT_DISPLAY_PATH_CAPS__EXT_CHIP_MASK) == AMD_EXT_DISPLAY_PATH_CAPS__DP_FIXED_VS_EN) &&
 			link_dp_get_encoding_format(link_settings) == DP_8b_10b_ENCODING)
 		lt_attempts = 10;
 
@@ -2394,13 +2394,13 @@ void link_set_dpms_off(struct pipe_ctx *pipe_ctx)
 		enum engine_id eng_id = pipe_ctx->stream_res.stream_enc->id;
 
 		unsigned short masked_chip_caps = link->chip_caps &
-				EXT_DISPLAY_PATH_CAPS__EXT_CHIP_MASK;
+				AMD_EXT_DISPLAY_PATH_CAPS__EXT_CHIP_MASK;
 		//Need to inform that sink is going to use legacy HDMI mode.
 		write_scdc_data(
 			link->ddc,
 			165000,//vbios only handles 165Mhz.
 			false);
-		if (masked_chip_caps == EXT_DISPLAY_PATH_CAPS__HDMI20_TISN65DP159RSBT) {
+		if (masked_chip_caps == AMD_EXT_DISPLAY_PATH_CAPS__HDMI20_TISN65DP159RSBT) {
 			/* DP159, Retimer settings */
 			if (get_ext_hdmi_settings(pipe_ctx, eng_id, &settings))
 				write_i2c_retimer_setting(pipe_ctx,
@@ -2408,7 +2408,7 @@ void link_set_dpms_off(struct pipe_ctx *pipe_ctx)
 			else
 				write_i2c_default_retimer_setting(pipe_ctx,
 						false, false);
-		} else if (masked_chip_caps == EXT_DISPLAY_PATH_CAPS__HDMI20_PI3EQX1204) {
+		} else if (masked_chip_caps == AMD_EXT_DISPLAY_PATH_CAPS__HDMI20_PI3EQX1204) {
 			/* PI3EQX1204, Redriver settings */
 			write_i2c_redriver_setting(pipe_ctx, false);
 		}

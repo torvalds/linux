@@ -699,7 +699,7 @@ static bool construct_phy(struct dc_link *link,
 						  link->chip_caps);
 				}
 
-				if (link->chip_caps & EXT_DISPLAY_PATH_CAPS__DP_FIXED_VS_EN) {
+				if ((link->chip_caps & AMD_EXT_DISPLAY_PATH_CAPS__EXT_CHIP_MASK) == AMD_EXT_DISPLAY_PATH_CAPS__DP_FIXED_VS_EN) {
 					link->bios_forced_drive_settings.VOLTAGE_SWING =
 						(bios->integrated_info->ext_disp_conn_info.fixdpvoltageswing & 0x3);
 					link->bios_forced_drive_settings.PRE_EMPHASIS =
