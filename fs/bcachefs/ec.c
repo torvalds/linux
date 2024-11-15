@@ -1265,7 +1265,8 @@ static int ec_stripe_update_extent(struct btree_trans *trans,
 				   struct bch_dev *ca,
 				   struct bpos bucket, u8 gen,
 				   struct ec_stripe_buf *s,
-				   struct bkey_s_c_backpointer bp)
+				   struct bkey_s_c_backpointer bp,
+				   struct bkey_buf *last_flushed)
 {
 	struct bch_stripe *v = &bkey_i_to_stripe(&s->key)->v;
 	struct bch_fs *c = trans->c;
@@ -1282,7 +1283,7 @@ static int ec_stripe_update_extent(struct btree_trans *trans,
 		struct btree_iter node_iter;
 		struct btree *b;
 
-		b = bch2_backpointer_get_node(trans, bp, &node_iter);
+		b = bch2_backpointer_get_node(trans, bp, &node_iter, last_flushed);
 		bch2_trans_iter_exit(trans, &node_iter);
 
 		if (!b)
@@ -1296,7 +1297,7 @@ static int ec_stripe_update_extent(struct btree_trans *trans,
 		return -EIO;
 	}
 
-	k = bch2_backpointer_get_key(trans, bp, &iter, BTREE_ITER_intent);
+	k = bch2_backpointer_get_key(trans, bp, &iter, BTREE_ITER_intent, last_flushed);
 	ret = bkey_err(k);
 	if (ret)
 		return ret;
@@ -1363,6 +1364,10 @@ static int ec_stripe_update_bucket(struct btree_trans *trans, struct ec_stripe_b
 
 	struct bpos bucket_pos = PTR_BUCKET_POS(ca, &ptr);
 
+	struct bkey_buf last_flushed;
+	bch2_bkey_buf_init(&last_flushed);
+	bkey_init(&last_flushed.k->k);
+
 	ret = for_each_btree_key_max_commit(trans, bp_iter, BTREE_ID_backpointers,
 			bucket_pos_to_bp_start(ca, bucket_pos),
 			bucket_pos_to_bp_end(ca, bucket_pos), 0, bp_k,
@@ -1376,9 +1381,10 @@ static int ec_stripe_update_bucket(struct btree_trans *trans, struct ec_stripe_b
 			continue;
 
 		ec_stripe_update_extent(trans, ca, bucket_pos, ptr.gen, s,
-					bkey_s_c_to_backpointer(bp_k));
+					bkey_s_c_to_backpointer(bp_k), &last_flushed);
 	}));
 
+	bch2_bkey_buf_exit(&last_flushed, c);
 	bch2_dev_put(ca);
 	return ret;
 }

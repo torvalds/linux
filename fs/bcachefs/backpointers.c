@@ -218,7 +218,8 @@ static void backpointer_target_not_found(struct btree_trans *trans,
 struct bkey_s_c bch2_backpointer_get_key(struct btree_trans *trans,
 					 struct bkey_s_c_backpointer bp,
 					 struct btree_iter *iter,
-					 unsigned iter_flags)
+					 unsigned iter_flags,
+					 struct bkey_buf *last_flushed)
 {
 	struct bch_fs *c = trans->c;
 
@@ -245,7 +246,7 @@ struct bkey_s_c bch2_backpointer_get_key(struct btree_trans *trans,
 		backpointer_target_not_found(trans, bp, k);
 		return bkey_s_c_null;
 	} else {
-		struct btree *b = bch2_backpointer_get_node(trans, bp, iter);
+		struct btree *b = bch2_backpointer_get_node(trans, bp, iter, last_flushed);
 
 		if (IS_ERR_OR_NULL(b)) {
 			bch2_trans_iter_exit(trans, iter);
@@ -257,7 +258,8 @@ struct bkey_s_c bch2_backpointer_get_key(struct btree_trans *trans,
 
 struct btree *bch2_backpointer_get_node(struct btree_trans *trans,
 					struct bkey_s_c_backpointer bp,
-					struct btree_iter *iter)
+					struct btree_iter *iter,
+					struct bkey_buf *last_flushed)
 {
 	struct bch_fs *c = trans->c;
 
@@ -486,7 +488,7 @@ check_existing_bp:
 	struct bkey_s_c_backpointer other_bp = bkey_s_c_to_backpointer(bp_k);
 
 	struct bkey_s_c other_extent =
-		bch2_backpointer_get_key(trans, other_bp, &other_extent_iter, 0);
+		bch2_backpointer_get_key(trans, other_bp, &other_extent_iter, 0, &s->last_flushed);
 	ret = bkey_err(other_extent);
 	if (ret == -BCH_ERR_backpointer_to_overwritten_btree_node)
 		ret = 0;
@@ -866,7 +868,7 @@ static int check_one_backpointer(struct btree_trans *trans,
 		return 0;
 
 	struct btree_iter iter;
-	struct bkey_s_c k = bch2_backpointer_get_key(trans, bp, &iter, 0);
+	struct bkey_s_c k = bch2_backpointer_get_key(trans, bp, &iter, 0, last_flushed);
 	int ret = bkey_err(k);
 	if (ret == -BCH_ERR_backpointer_to_overwritten_btree_node)
 		return 0;

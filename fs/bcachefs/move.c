@@ -677,6 +677,7 @@ int bch2_evacuate_bucket(struct moving_context *ctxt,
 	struct bkey_s_c k;
 	struct data_update_opts data_opts;
 	unsigned sectors_moved = 0;
+	struct bkey_buf last_flushed;
 	int ret = 0;
 
 	struct bch_dev *ca = bch2_dev_tryget(c, bucket.inode);
@@ -685,6 +686,8 @@ int bch2_evacuate_bucket(struct moving_context *ctxt,
 
 	trace_bucket_evacuate(c, &bucket);
 
+	bch2_bkey_buf_init(&last_flushed);
+	bkey_init(&last_flushed.k->k);
 	bch2_bkey_buf_init(&sk);
 
 	/*
@@ -726,7 +729,7 @@ int bch2_evacuate_bucket(struct moving_context *ctxt,
 		struct bkey_s_c_backpointer bp = bkey_s_c_to_backpointer(k);
 
 		if (!bp.v->level) {
-			k = bch2_backpointer_get_key(trans, bp, &iter, 0);
+			k = bch2_backpointer_get_key(trans, bp, &iter, 0, &last_flushed);
 			ret = bkey_err(k);
 			if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
 				continue;
@@ -784,7 +787,7 @@ int bch2_evacuate_bucket(struct moving_context *ctxt,
 		} else {
 			struct btree *b;
 
-			b = bch2_backpointer_get_node(trans, bp, &iter);
+			b = bch2_backpointer_get_node(trans, bp, &iter, &last_flushed);
 			ret = PTR_ERR_OR_ZERO(b);
 			if (ret == -BCH_ERR_backpointer_to_overwritten_btree_node)
 				goto next;
@@ -822,6 +825,7 @@ err:
 	bch2_trans_iter_exit(trans, &bp_iter);
 	bch2_dev_put(ca);
 	bch2_bkey_buf_exit(&sk, c);
+	bch2_bkey_buf_exit(&last_flushed, c);
 	return ret;
 }
 
