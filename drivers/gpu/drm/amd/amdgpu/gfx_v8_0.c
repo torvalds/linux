@@ -4304,9 +4304,7 @@ static void gfx_v8_0_kiq_setting(struct amdgpu_ring *ring)
 	tmp = RREG32(mmRLC_CP_SCHEDULERS);
 	tmp &= 0xffffff00;
 	tmp |= (ring->me << 5) | (ring->pipe << 3) | (ring->queue);
-	WREG32(mmRLC_CP_SCHEDULERS, tmp);
-	tmp |= 0x80;
-	WREG32(mmRLC_CP_SCHEDULERS, tmp);
+	WREG32(mmRLC_CP_SCHEDULERS, tmp | 0x80);
 }
 
 static int gfx_v8_0_kiq_kcq_enable(struct amdgpu_device *adev)
