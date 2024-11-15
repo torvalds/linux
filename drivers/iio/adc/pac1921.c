@@ -12,6 +12,7 @@
 #include <linux/iio/iio.h>
 #include <linux/iio/trigger_consumer.h>
 #include <linux/iio/triggered_buffer.h>
+#include <linux/limits.h>
 #include <linux/regmap.h>
 #include <linux/units.h>
 
@@ -66,6 +67,14 @@ enum pac1921_mxsl {
 #define PAC1921_DEFAULT_DV_GAIN		0 /* 2^(value): 1x gain (HW default) */
 #define PAC1921_DEFAULT_DI_GAIN		0 /* 2^(value): 1x gain (HW default) */
 #define PAC1921_DEFAULT_NUM_SAMPLES	0 /* 2^(value): 1 sample (HW default) */
+
+#define PAC1921_ACPI_GET_uOHMS_VALS             0
+#define PAC1921_ACPI_GET_LABEL			1
+
+/* f7bb9932-86ee-4516-a236-7a7a742e55cb */
+static const guid_t pac1921_guid =
+			GUID_INIT(0xf7bb9932, 0x86ee, 0x4516, 0xa2,
+				  0x36, 0x7a, 0x7a, 0x74, 0x2e, 0x55, 0xcb);
 
 /*
  * Pre-computed scale factors for BUS voltage
@@ -782,7 +791,7 @@ static ssize_t pac1921_write_shunt_resistor(struct iio_dev *indio_dev,
 					    const char *buf, size_t len)
 {
 	struct pac1921_priv *priv = iio_priv(indio_dev);
-	u64 rshunt_uohm;
+	u32 rshunt_uohm;
 	int val, val_fract;
 	int ret;
 
@@ -793,9 +802,16 @@ static ssize_t pac1921_write_shunt_resistor(struct iio_dev *indio_dev,
 	if (ret)
 		return ret;
 
-	rshunt_uohm = val * MICRO + val_fract;
-	if (rshunt_uohm == 0 || rshunt_uohm > INT_MAX)
+	/*
+	 * This check validates the shunt is not zero and does not surpass
+	 * INT_MAX. The check is done before calculating in order to avoid
+	 * val * MICRO overflowing.
+	 */
+	if ((!val && !val_fract) || val > INT_MAX / MICRO ||
+	    (val == INT_MAX / MICRO && val_fract > INT_MAX % MICRO))
 		return -EINVAL;
+
+	rshunt_uohm = val * MICRO + val_fract;
 
 	guard(mutex)(&priv->lock);
 
@@ -1151,6 +1167,61 @@ static void pac1921_regulator_disable(void *data)
 	regulator_disable(regulator);
 }
 
+/*
+ * Documentation related to the ACPI device definition
+ * https://ww1.microchip.com/downloads/aemDocuments/documents/OTH/ApplicationNotes/ApplicationNotes/PAC193X-Integration-Notes-for-Microsoft-Windows-10-and-Windows-11-Driver-Support-DS00002534.pdf
+ */
+static int pac1921_match_acpi_device(struct iio_dev *indio_dev)
+{
+	acpi_handle handle;
+	union acpi_object *status;
+	char *label;
+	struct pac1921_priv *priv = iio_priv(indio_dev);
+	struct device *dev = &priv->client->dev;
+
+	handle = ACPI_HANDLE(dev);
+
+	status = acpi_evaluate_dsm(handle, &pac1921_guid, 1,
+				   PAC1921_ACPI_GET_uOHMS_VALS, NULL);
+	if (!status)
+		return dev_err_probe(dev, -EINVAL,
+				     "Could not read shunt from ACPI table\n");
+
+	priv->rshunt_uohm = status->package.elements[0].integer.value;
+	ACPI_FREE(status);
+
+	status = acpi_evaluate_dsm(handle, &pac1921_guid, 1,
+				   PAC1921_ACPI_GET_LABEL, NULL);
+	if (!status)
+		return dev_err_probe(dev, -EINVAL,
+				     "Could not read label from ACPI table\n");
+
+	label = devm_kstrdup(dev, status->package.elements[0].string.pointer,
+			     GFP_KERNEL);
+	if (!label)
+		return -ENOMEM;
+
+	indio_dev->label = label;
+	ACPI_FREE(status);
+
+	return 0;
+}
+
+static int pac1921_parse_of_fw(struct iio_dev *indio_dev)
+{
+	int ret;
+	struct pac1921_priv *priv = iio_priv(indio_dev);
+	struct device *dev = &priv->client->dev;
+
+	ret = device_property_read_u32(dev, "shunt-resistor-micro-ohms",
+				       &priv->rshunt_uohm);
+	if (ret)
+		return dev_err_probe(dev, ret,
+				     "Cannot read shunt resistor property\n");
+
+	return 0;
+}
+
 static int pac1921_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
@@ -1179,11 +1250,14 @@ static int pac1921_probe(struct i2c_client *client)
 	priv->di_gain = PAC1921_DEFAULT_DI_GAIN;
 	priv->n_samples = PAC1921_DEFAULT_NUM_SAMPLES;
 
-	ret = device_property_read_u32(dev, "shunt-resistor-micro-ohms",
-				       &priv->rshunt_uohm);
+	if (is_acpi_device_node(dev->fwnode))
+		ret = pac1921_match_acpi_device(indio_dev);
+	else
+		ret = pac1921_parse_of_fw(indio_dev);
 	if (ret)
 		return dev_err_probe(dev, ret,
-				     "Cannot read shunt resistor property\n");
+				     "Parameter parsing error\n");
+
 	if (priv->rshunt_uohm == 0 || priv->rshunt_uohm > INT_MAX)
 		return dev_err_probe(dev, -EINVAL,
 				     "Invalid shunt resistor: %u\n",
@@ -1246,11 +1320,18 @@ static const struct of_device_id pac1921_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, pac1921_of_match);
 
+static const struct acpi_device_id pac1921_acpi_match[] = {
+	{ "MCHP1921" },
+	{ }
+};
+MODULE_DEVICE_TABLE(acpi, pac1921_acpi_match);
+
 static struct i2c_driver pac1921_driver = {
 	.driver	 = {
 		.name = "pac1921",
 		.pm = pm_sleep_ptr(&pac1921_pm_ops),
 		.of_match_table = pac1921_of_match,
+		.acpi_match_table = pac1921_acpi_match,
 	},
 	.probe = pac1921_probe,
 	.id_table = pac1921_id,
