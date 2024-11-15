@@ -150,7 +150,9 @@ int range_tree_clear(struct range_tree *rt, u32 start, u32 len)
 			range_it_insert(rn, rt);
 
 			/* Add a range */
+			migrate_disable();
 			new_rn = bpf_mem_alloc(&bpf_global_ma, sizeof(struct range_node));
+			migrate_enable();
 			if (!new_rn)
 				return -ENOMEM;
 			new_rn->rn_start = last + 1;
@@ -170,7 +172,9 @@ int range_tree_clear(struct range_tree *rt, u32 start, u32 len)
 		} else {
 			/* in the middle of the clearing range */
 			range_it_remove(rn, rt);
+			migrate_disable();
 			bpf_mem_free(&bpf_global_ma, rn);
+			migrate_enable();
 		}
 	}
 	return 0;
@@ -223,7 +227,9 @@ int range_tree_set(struct range_tree *rt, u32 start, u32 len)
 		range_it_remove(right, rt);
 		left->rn_last = right->rn_last;
 		range_it_insert(left, rt);
+		migrate_disable();
 		bpf_mem_free(&bpf_global_ma, right);
+		migrate_enable();
 	} else if (left) {
 		/* Combine with the left range */
 		range_it_remove(left, rt);
@@ -235,7 +241,9 @@ int range_tree_set(struct range_tree *rt, u32 start, u32 len)
 		right->rn_start = start;
 		range_it_insert(right, rt);
 	} else {
+		migrate_disable();
 		left = bpf_mem_alloc(&bpf_global_ma, sizeof(struct range_node));
+		migrate_enable();
 		if (!left)
 			return -ENOMEM;
 		left->rn_start = start;
@@ -251,7 +259,9 @@ void range_tree_destroy(struct range_tree *rt)
 
 	while ((rn = range_it_iter_first(rt, 0, -1U))) {
 		range_it_remove(rn, rt);
+		migrate_disable();
 		bpf_mem_free(&bpf_global_ma, rn);
+		migrate_enable();
 	}
 }
 
