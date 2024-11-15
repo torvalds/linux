@@ -631,6 +631,8 @@ static void hisi_zip_hw_error_enable(struct hisi_qm *qm)
 
 	/* enable ZIP hw error interrupts */
 	writel(0, qm->io_base + HZIP_CORE_INT_MASK_REG);
+
+	hisi_dae_hw_error_enable(qm);
 }
 
 static void hisi_zip_hw_error_disable(struct hisi_qm *qm)
@@ -643,6 +645,8 @@ static void hisi_zip_hw_error_disable(struct hisi_qm *qm)
 	writel(ce | nfe | HZIP_CORE_INT_RAS_FE_ENB_MASK, qm->io_base + HZIP_CORE_INT_MASK_REG);
 
 	hisi_zip_master_ooo_ctrl(qm, false);
+
+	hisi_dae_hw_error_disable(qm);
 }
 
 static inline struct hisi_qm *file_to_qm(struct ctrl_debug_file *file)
@@ -1129,6 +1133,8 @@ static void hisi_zip_open_axi_master_ooo(struct hisi_qm *qm)
 
 	writel(val | HZIP_AXI_SHUTDOWN_ENABLE,
 	       qm->io_base + HZIP_SOFT_CTRL_ZIP_CONTROL);
+
+	hisi_dae_open_axi_master_ooo(qm);
 }
 
 static void hisi_zip_close_axi_master_ooo(struct hisi_qm *qm)
@@ -1147,8 +1153,11 @@ static void hisi_zip_close_axi_master_ooo(struct hisi_qm *qm)
 
 static enum acc_err_result hisi_zip_get_err_result(struct hisi_qm *qm)
 {
+	enum acc_err_result zip_result = ACC_ERR_NONE;
+	enum acc_err_result dae_result;
 	u32 err_status;
 
+	/* Get device hardware new error status */
 	err_status = hisi_zip_get_hw_err_status(qm);
 	if (err_status) {
 		if (err_status & qm->err_info.ecc_2bits_mask)
@@ -1159,11 +1168,32 @@ static enum acc_err_result hisi_zip_get_err_result(struct hisi_qm *qm)
 			/* Disable the same error reporting until device is recovered. */
 			hisi_zip_disable_error_report(qm, err_status);
 			return ACC_ERR_NEED_RESET;
+		} else {
+			hisi_zip_clear_hw_err_status(qm, err_status);
 		}
-		hisi_zip_clear_hw_err_status(qm, err_status);
 	}
 
-	return ACC_ERR_RECOVERED;
+	dae_result = hisi_dae_get_err_result(qm);
+
+	return (zip_result == ACC_ERR_NEED_RESET ||
+		dae_result == ACC_ERR_NEED_RESET) ?
+		ACC_ERR_NEED_RESET : ACC_ERR_RECOVERED;
+}
+
+static bool hisi_zip_dev_is_abnormal(struct hisi_qm *qm)
+{
+	u32 err_status;
+
+	err_status = hisi_zip_get_hw_err_status(qm);
+	if (err_status & qm->err_info.dev_shutdown_mask)
+		return true;
+
+	return hisi_dae_dev_is_abnormal(qm);
+}
+
+static int hisi_zip_set_priv_status(struct hisi_qm *qm)
+{
+	return hisi_dae_close_axi_master_ooo(qm);
 }
 
 static void hisi_zip_err_info_init(struct hisi_qm *qm)
@@ -1200,6 +1230,8 @@ static const struct hisi_qm_err_ini hisi_zip_err_ini = {
 	.show_last_dfx_regs	= hisi_zip_show_last_dfx_regs,
 	.err_info_init		= hisi_zip_err_info_init,
 	.get_err_result		= hisi_zip_get_err_result,
+	.set_priv_status	= hisi_zip_set_priv_status,
+	.dev_is_abnormal	= hisi_zip_dev_is_abnormal,
 };
 
 static int hisi_zip_pf_probe_init(struct hisi_zip *hisi_zip)

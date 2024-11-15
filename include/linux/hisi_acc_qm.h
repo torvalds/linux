@@ -269,6 +269,8 @@ struct hisi_qm_err_ini {
 	void (*show_last_dfx_regs)(struct hisi_qm *qm);
 	void (*err_info_init)(struct hisi_qm *qm);
 	enum acc_err_result (*get_err_result)(struct hisi_qm *qm);
+	bool (*dev_is_abnormal)(struct hisi_qm *qm);
+	int (*set_priv_status)(struct hisi_qm *qm);
 };
 
 struct hisi_qm_cap_info {
