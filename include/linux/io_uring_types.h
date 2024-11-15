@@ -330,14 +330,6 @@ struct io_ring_ctx {
 		atomic_t		cq_wait_nr;
 		atomic_t		cq_timeouts;
 		struct wait_queue_head	cq_wait;
-
-		/*
-		 * If registered with IORING_REGISTER_CQWAIT_REG, a single
-		 * page holds N entries, mapped in cq_wait_arg. cq_wait_index
-		 * is the maximum allowable index.
-		 */
-		struct io_uring_reg_wait	*cq_wait_arg;
-		unsigned char			cq_wait_index;
 	} ____cacheline_aligned_in_smp;
 
 	/* timeouts */
@@ -431,8 +423,6 @@ struct io_ring_ctx {
 	unsigned short			n_sqe_pages;
 	struct page			**ring_pages;
 	struct page			**sqe_pages;
-
-	struct page			**cq_wait_page;
 };
 
 struct io_tw_state {

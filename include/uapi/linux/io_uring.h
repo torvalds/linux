@@ -627,9 +627,6 @@ enum io_uring_register_op {
 	/* resize CQ ring */
 	IORING_REGISTER_RESIZE_RINGS		= 33,
 
-	/* register fixed io_uring_reg_wait arguments */
-	IORING_REGISTER_CQWAIT_REG		= 34,
-
 	/* this goes last */
 	IORING_REGISTER_LAST,
 

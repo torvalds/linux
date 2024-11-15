@@ -570,82 +570,6 @@ out:
 	return ret;
 }
 
-void io_unregister_cqwait_reg(struct io_ring_ctx *ctx)
-{
-	unsigned short npages = 1;
-
-	if (!ctx->cq_wait_page)
-		return;
-
-	io_pages_unmap(ctx->cq_wait_arg, &ctx->cq_wait_page, &npages, true);
-	ctx->cq_wait_arg = NULL;
-	if (ctx->user)
-		__io_unaccount_mem(ctx->user, 1);
-}
-
-/*
- * Register a page holding N entries of struct io_uring_reg_wait, which can
- * be used via io_uring_enter(2) if IORING_GETEVENTS_EXT_ARG_REG is set.
- * If that is set with IORING_GETEVENTS_EXT_ARG, then instead of passing
- * in a pointer for a struct io_uring_getevents_arg, an index into this
- * registered array is passed, avoiding two (arg + timeout) copies per
- * invocation.
- */
-static int io_register_cqwait_reg(struct io_ring_ctx *ctx, void __user *uarg)
-{
-	struct io_uring_cqwait_reg_arg arg;
-	struct io_uring_reg_wait *reg;
-	struct page **pages;
-	unsigned long len;
-	int nr_pages, poff;
-	int ret;
-
-	if (ctx->cq_wait_page || ctx->cq_wait_arg)
-		return -EBUSY;
-	if (copy_from_user(&arg, uarg, sizeof(arg)))
-		return -EFAULT;
-	if (!arg.nr_entries || arg.flags)
-		return -EINVAL;
-	if (arg.struct_size != sizeof(*reg))
-		return -EINVAL;
-	if (check_mul_overflow(arg.struct_size, arg.nr_entries, &len))
-		return -EOVERFLOW;
-	if (len > PAGE_SIZE)
-		return -EINVAL;
-	/* offset + len must fit within a page, and must be reg_wait aligned */
-	poff = arg.user_addr & ~PAGE_MASK;
-	if (len + poff > PAGE_SIZE)
-		return -EINVAL;
-	if (poff % arg.struct_size)
-		return -EINVAL;
-
-	pages = io_pin_pages(arg.user_addr, len, &nr_pages);
-	if (IS_ERR(pages))
-		return PTR_ERR(pages);
-	ret = -EINVAL;
-	if (nr_pages != 1)
-		goto out_free;
-	if (ctx->user) {
-		ret = __io_account_mem(ctx->user, 1);
-		if (ret)
-			goto out_free;
-	}
-
-	reg = vmap(pages, 1, VM_MAP, PAGE_KERNEL);
-	if (reg) {
-		ctx->cq_wait_index = arg.nr_entries - 1;
-		WRITE_ONCE(ctx->cq_wait_page, pages);
-		WRITE_ONCE(ctx->cq_wait_arg, (void *) reg + poff);
-		return 0;
-	}
-	ret = -ENOMEM;
-	if (ctx->user)
-		__io_unaccount_mem(ctx->user, 1);
-out_free:
-	io_pages_free(&pages, nr_pages);
-	return ret;
-}
-
 static int __io_uring_register(struct io_ring_ctx *ctx, unsigned opcode,
 			       void __user *arg, unsigned nr_args)
 	__releases(ctx->uring_lock)
@@ -839,12 +763,6 @@ static int __io_uring_register(struct io_ring_ctx *ctx, unsigned opcode,
 		if (!arg || nr_args != 1)
 			break;
 		ret = io_register_resize_rings(ctx, arg);
-		break;
-	case IORING_REGISTER_CQWAIT_REG:
-		ret = -EINVAL;
-		if (!arg || nr_args != 1)
-			break;
-		ret = io_register_cqwait_reg(ctx, arg);
 		break;
 	default:
 		ret = -EINVAL;

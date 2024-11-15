@@ -2709,7 +2709,6 @@ static __cold void io_ring_ctx_free(struct io_ring_ctx *ctx)
 	io_alloc_cache_free(&ctx->msg_cache, io_msg_cache_free);
 	io_futex_cache_free(ctx);
 	io_destroy_buffers(ctx);
-	io_unregister_cqwait_reg(ctx);
 	mutex_unlock(&ctx->uring_lock);
 	if (ctx->sq_creds)
 		put_cred(ctx->sq_creds);
@@ -3195,15 +3194,6 @@ void __io_uring_cancel(bool cancel_all)
 static struct io_uring_reg_wait *io_get_ext_arg_reg(struct io_ring_ctx *ctx,
 			const struct io_uring_getevents_arg __user *uarg)
 {
-	struct io_uring_reg_wait *arg = READ_ONCE(ctx->cq_wait_arg);
-
-	if (arg) {
-		unsigned int index = (unsigned int) (uintptr_t) uarg;
-
-		if (index <= ctx->cq_wait_index)
-			return arg + index;
-	}
-
 	return ERR_PTR(-EFAULT);
 }
 
