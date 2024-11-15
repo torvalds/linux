@@ -66,6 +66,7 @@ static int do_test(enum tool_pmu_event ev, bool with_pmu)
 	}
 
 out:
+	parse_events_error__exit(&err);
 	evlist__delete(evlist);
 	return ret;
 }

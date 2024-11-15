@@ -194,6 +194,7 @@ static int do_test(size_t i, bool with_pmu, bool with_alias)
 	}
 
 out:
+	parse_events_error__exit(&err);
 	evlist__delete(evlist);
 	return ret;
 }
