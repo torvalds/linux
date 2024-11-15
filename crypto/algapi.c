@@ -407,6 +407,7 @@ EXPORT_SYMBOL_GPL(crypto_remove_final);
 int crypto_register_alg(struct crypto_alg *alg)
 {
 	struct crypto_larval *larval;
+	bool test_started = false;
 	LIST_HEAD(algs_to_put);
 	int err;
 
@@ -418,17 +419,19 @@ int crypto_register_alg(struct crypto_alg *alg)
 	down_write(&crypto_alg_sem);
 	larval = __crypto_register_alg(alg, &algs_to_put);
 	if (!IS_ERR_OR_NULL(larval)) {
-		bool test_started = crypto_boot_test_finished();
-
+		test_started = crypto_boot_test_finished();
 		larval->test_started = test_started;
-		if (test_started)
-			crypto_schedule_test(larval);
 	}
 	up_write(&crypto_alg_sem);
 
 	if (IS_ERR(larval))
 		return PTR_ERR(larval);
-	crypto_remove_final(&algs_to_put);
+
+	if (test_started)
+		crypto_schedule_test(larval);
+	else
+		crypto_remove_final(&algs_to_put);
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(crypto_register_alg);
@@ -642,10 +645,8 @@ int crypto_register_instance(struct crypto_template *tmpl,
 	larval = __crypto_register_alg(&inst->alg, &algs_to_put);
 	if (IS_ERR(larval))
 		goto unlock;
-	else if (larval) {
+	else if (larval)
 		larval->test_started = true;
-		crypto_schedule_test(larval);
-	}
 
 	hlist_add_head(&inst->list, &tmpl->instances);
 	inst->tmpl = tmpl;
@@ -655,7 +656,12 @@ unlock:
 
 	if (IS_ERR(larval))
 		return PTR_ERR(larval);
-	crypto_remove_final(&algs_to_put);
+
+	if (larval)
+		crypto_schedule_test(larval);
+	else
+		crypto_remove_final(&algs_to_put);
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(crypto_register_instance);
@@ -1040,7 +1046,6 @@ static void __init crypto_start_tests(void)
 
 			l->test_started = true;
 			larval = l;
-			crypto_schedule_test(larval);
 			break;
 		}
 
@@ -1048,6 +1053,8 @@ static void __init crypto_start_tests(void)
 
 		if (!larval)
 			break;
+
+		crypto_schedule_test(larval);
 	}
 }
 
