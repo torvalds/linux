@@ -7130,6 +7130,6 @@
 
 	ermac=	[KNL] Sets mac address at boot up for early ethernet.
 
-	board=	[KNL] Sets Board type of device at boot up for phy detection.
+	dwmac_qcom_eth.board=	[KNL] Sets Board type of device at boot up for phy detection.
 
-	enet=	[KNL] Sets the PHY type on device at boot up for phy detection.
+	dwmac_qcom_eth.enet=	[KNL] Sets the PHY type on device at boot up for phy detection.
