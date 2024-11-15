@@ -68,6 +68,14 @@ struct bnxt_coredump_record {
 	__le16 rsvd3[313];
 };
 
+struct bnxt_driver_segment_record {
+	__le32 max_entries;
+	__le32 entry_size;
+	__le32 offset;
+	__u8 wrapped:1;
+	__u8 unused[3];
+};
+
 #define BNXT_VER_GET_COMP_ID	2
 #define BNXT_DRV_COMP_ID	0xd
 
@@ -83,12 +91,25 @@ struct bnxt_coredump_record {
 #define BNXT_CTX_MEM_SEG_MRAV	(BNXT_CTX_MEM_SEG_ID_START + BNXT_CTX_MRAV)
 #define BNXT_CTX_MEM_SEG_TIM	(BNXT_CTX_MEM_SEG_ID_START + BNXT_CTX_TIM)
 
+#define BNXT_CTX_MEM_SEG_SRT	0x1
+#define BNXT_CTX_MEM_SEG_SRT2	0x2
+#define BNXT_CTX_MEM_SEG_CRT	0x3
+#define BNXT_CTX_MEM_SEG_CRT2	0x4
+#define BNXT_CTX_MEM_SEG_RIGP0	0x5
+#define BNXT_CTX_MEM_SEG_L2HWRM	0x6
+#define BNXT_CTX_MEM_SEG_REHWRM	0x7
+#define BNXT_CTX_MEM_SEG_CA0	0x8
+#define BNXT_CTX_MEM_SEG_CA1	0x9
+#define BNXT_CTX_MEM_SEG_CA2	0xa
+#define BNXT_CTX_MEM_SEG_RIGP1	0xb
+
 #define BNXT_CRASH_DUMP_LEN	(8 << 20)
 
 #define COREDUMP_LIST_BUF_LEN		2048
 #define COREDUMP_RETRIEVE_BUF_LEN	4096
 
 #define BNXT_SEG_HDR_LEN	sizeof(struct bnxt_coredump_segment_hdr)
+#define BNXT_SEG_RCD_LEN	sizeof(struct bnxt_driver_segment_record)
 
 struct bnxt_coredump {
 	void		*data;

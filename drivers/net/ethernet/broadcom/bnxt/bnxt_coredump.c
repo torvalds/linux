@@ -25,7 +25,39 @@ static const u16 bnxt_bstore_to_seg_id[] = {
 	[BNXT_CTX_FTQM]			= BNXT_CTX_MEM_SEG_FTQM,
 	[BNXT_CTX_MRAV]			= BNXT_CTX_MEM_SEG_MRAV,
 	[BNXT_CTX_TIM]			= BNXT_CTX_MEM_SEG_TIM,
+	[BNXT_CTX_SRT]			= BNXT_CTX_MEM_SEG_SRT,
+	[BNXT_CTX_SRT2]			= BNXT_CTX_MEM_SEG_SRT2,
+	[BNXT_CTX_CRT]			= BNXT_CTX_MEM_SEG_CRT,
+	[BNXT_CTX_CRT2]			= BNXT_CTX_MEM_SEG_CRT2,
+	[BNXT_CTX_RIGP0]		= BNXT_CTX_MEM_SEG_RIGP0,
+	[BNXT_CTX_L2HWRM]		= BNXT_CTX_MEM_SEG_L2HWRM,
+	[BNXT_CTX_REHWRM]		= BNXT_CTX_MEM_SEG_REHWRM,
+	[BNXT_CTX_CA0]			= BNXT_CTX_MEM_SEG_CA0,
+	[BNXT_CTX_CA1]			= BNXT_CTX_MEM_SEG_CA1,
+	[BNXT_CTX_CA2]			= BNXT_CTX_MEM_SEG_CA2,
+	[BNXT_CTX_RIGP1]		= BNXT_CTX_MEM_SEG_RIGP1,
 };
+
+static int bnxt_dbg_hwrm_log_buffer_flush(struct bnxt *bp, u16 type, u32 flags,
+					  u32 *offset)
+{
+	struct hwrm_dbg_log_buffer_flush_output *resp;
+	struct hwrm_dbg_log_buffer_flush_input *req;
+	int rc;
+
+	rc = hwrm_req_init(bp, req, HWRM_DBG_LOG_BUFFER_FLUSH);
+	if (rc)
+		return rc;
+
+	req->flags = cpu_to_le32(flags);
+	req->type = cpu_to_le16(type);
+	resp = hwrm_req_hold(bp, req);
+	rc = hwrm_req_send(bp, req);
+	if (!rc)
+		*offset = le32_to_cpu(resp->current_buffer_offset);
+	hwrm_req_drop(bp, req);
+	return rc;
+}
 
 static int bnxt_hwrm_dbg_dma_data(struct bnxt *bp, void *msg,
 				  struct bnxt_hwrm_dbg_dma_info *info)
@@ -279,9 +311,29 @@ bnxt_fill_coredump_record(struct bnxt *bp, struct bnxt_coredump_record *record,
 	record->ioctl_high_version = 0;
 }
 
+static void bnxt_fill_drv_seg_record(struct bnxt *bp,
+				     struct bnxt_driver_segment_record *record,
+				     struct bnxt_ctx_mem_type *ctxm, u16 type)
+{
+	struct bnxt_bs_trace_info *bs_trace = &bp->bs_trace[type];
+	u32 offset = 0;
+	int rc = 0;
+
+	rc = bnxt_dbg_hwrm_log_buffer_flush(bp, type, 0, &offset);
+	if (rc)
+		return;
+
+	bnxt_bs_trace_check_wrap(bs_trace, offset);
+	record->max_entries = cpu_to_le32(ctxm->max_entries);
+	record->entry_size = cpu_to_le32(ctxm->entry_size);
+	record->offset = cpu_to_le32(bs_trace->last_offset);
+	record->wrapped = bs_trace->wrapped;
+}
+
 static u32 bnxt_get_ctx_coredump(struct bnxt *bp, void *buf, u32 offset,
 				 u32 *segs)
 {
+	struct bnxt_driver_segment_record record = {};
 	struct bnxt_coredump_segment_hdr seg_hdr;
 	struct bnxt_ctx_mem_info *ctx = bp->ctx;
 	u32 comp_id = BNXT_DRV_COMP_ID;
@@ -295,22 +347,33 @@ static u32 bnxt_get_ctx_coredump(struct bnxt *bp, void *buf, u32 offset,
 
 	if (buf)
 		buf += offset;
-	for (type = 0 ; type <= BNXT_CTX_TIM; type++) {
+	for (type = 0 ; type <= BNXT_CTX_RIGP1; type++) {
 		struct bnxt_ctx_mem_type *ctxm = &ctx->ctx_arr[type];
+		bool trace = bnxt_bs_trace_avail(bp, type);
 		u32 seg_id = bnxt_bstore_to_seg_id[type];
-		size_t seg_len;
+		size_t seg_len, extra_hlen = 0;
 
-		if (!ctxm->entry_size || !ctxm->pg_info || !seg_id)
+		if (!ctxm->mem_valid || !seg_id)
 			continue;
 
+		if (trace)
+			extra_hlen = BNXT_SEG_RCD_LEN;
 		if (buf)
-			data = buf + BNXT_SEG_HDR_LEN;
-		seg_len = bnxt_copy_ctx_mem(bp, ctxm, data, 0);
+			data = buf + BNXT_SEG_HDR_LEN + extra_hlen;
+		seg_len = bnxt_copy_ctx_mem(bp, ctxm, data, 0) + extra_hlen;
 		if (buf) {
 			bnxt_fill_coredump_seg_hdr(bp, &seg_hdr, NULL, seg_len,
 						   0, 0, 0, comp_id, seg_id);
 			memcpy(buf, &seg_hdr, BNXT_SEG_HDR_LEN);
-			buf += BNXT_SEG_HDR_LEN + seg_len;
+			buf += BNXT_SEG_HDR_LEN;
+			if (trace) {
+				u16 trace_type = bnxt_bstore_to_trace[type];
+
+				bnxt_fill_drv_seg_record(bp, &record, ctxm,
+							 trace_type);
+				memcpy(buf, &record, BNXT_SEG_RCD_LEN);
+			}
+			buf += seg_len;
 		}
 		len += BNXT_SEG_HDR_LEN + seg_len;
 		*segs += 1;
