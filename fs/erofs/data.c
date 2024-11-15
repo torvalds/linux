@@ -405,22 +405,9 @@ static ssize_t erofs_file_read_iter(struct kiocb *iocb, struct iov_iter *to)
 	if (IS_DAX(inode))
 		return dax_iomap_rw(iocb, to, &erofs_iomap_ops);
 #endif
-	if (iocb->ki_flags & IOCB_DIRECT) {
-		struct block_device *bdev = inode->i_sb->s_bdev;
-		unsigned int blksize_mask;
-
-		if (bdev)
-			blksize_mask = bdev_logical_block_size(bdev) - 1;
-		else
-			blksize_mask = i_blocksize(inode) - 1;
-
-		if ((iocb->ki_pos | iov_iter_count(to) |
-		     iov_iter_alignment(to)) & blksize_mask)
-			return -EINVAL;
-
+	if ((iocb->ki_flags & IOCB_DIRECT) && inode->i_sb->s_bdev)
 		return iomap_dio_rw(iocb, to, &erofs_iomap_ops,
 				    NULL, 0, NULL, 0);
-	}
 	return filemap_read(iocb, to, 0);
 }
 
