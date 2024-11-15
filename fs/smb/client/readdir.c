@@ -241,30 +241,27 @@ cifs_posix_to_fattr(struct cifs_fattr *fattr, struct smb2_posix_info *info,
 	fattr->cf_nlink = le32_to_cpu(info->HardLinks);
 	fattr->cf_cifsattrs = le32_to_cpu(info->DosAttributes);
 
-	/*
-	 * Since we set the inode type below we need to mask off
-	 * to avoid strange results if bits set above.
-	 * XXX: why not make server&client use the type bits?
-	 */
-	fattr->cf_mode = le32_to_cpu(info->Mode) & ~S_IFMT;
+	if (fattr->cf_cifsattrs & ATTR_REPARSE)
+		fattr->cf_cifstag = le32_to_cpu(info->ReparseTag);
+
+	/* The Mode field in the response can now include the file type as well */
+	fattr->cf_mode = wire_mode_to_posix(le32_to_cpu(info->Mode));
+	fattr->cf_dtype = S_DT(le32_to_cpu(info->Mode));
+
+	switch (fattr->cf_mode & S_IFMT) {
+	case S_IFLNK:
+	case S_IFBLK:
+	case S_IFCHR:
+		fattr->cf_flags |= CIFS_FATTR_NEED_REVAL;
+		break;
+	default:
+		break;
+	}
 
 	cifs_dbg(FYI, "posix fattr: dev %d, reparse %d, mode %o\n",
 		 le32_to_cpu(info->DeviceId),
 		 le32_to_cpu(info->ReparseTag),
 		 le32_to_cpu(info->Mode));
-
-	if (fattr->cf_cifsattrs & ATTR_DIRECTORY) {
-		fattr->cf_mode |= S_IFDIR;
-		fattr->cf_dtype = DT_DIR;
-	} else {
-		/*
-		 * mark anything that is not a dir as regular
-		 * file. special files should have the REPARSE
-		 * attribute and will be marked as needing revaluation
-		 */
-		fattr->cf_mode |= S_IFREG;
-		fattr->cf_dtype = DT_REG;
-	}
 
 	sid_to_id(cifs_sb, &parsed.owner, fattr, SIDOWNER);
 	sid_to_id(cifs_sb, &parsed.group, fattr, SIDGROUP);
