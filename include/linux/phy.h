@@ -721,15 +721,14 @@ struct phy_device {
 	/* used for eee validation and configuration*/
 	__ETHTOOL_DECLARE_LINK_MODE_MASK(supported_eee);
 	__ETHTOOL_DECLARE_LINK_MODE_MASK(advertising_eee);
+	/* Energy efficient ethernet modes which should be prohibited */
+	__ETHTOOL_DECLARE_LINK_MODE_MASK(eee_broken_modes);
 	bool eee_enabled;
+	bool enable_tx_lpi;
+	struct eee_config eee_cfg;
 
 	/* Host supported PHY interface types. Should be ignored if empty. */
 	DECLARE_PHY_INTERFACE_MASK(host_interfaces);
-
-	/* Energy efficient ethernet modes which should be prohibited */
-	u32 eee_broken_modes;
-	bool enable_tx_lpi;
-	struct eee_config eee_cfg;
 
 #ifdef CONFIG_LED_TRIGGER_PHY
 	struct phy_led_trigger *phy_led_triggers;
@@ -1263,6 +1262,16 @@ void of_set_phy_supported(struct phy_device *phydev);
 void of_set_phy_eee_broken(struct phy_device *phydev);
 void of_set_phy_timing_role(struct phy_device *phydev);
 int phy_speed_down_core(struct phy_device *phydev);
+
+/**
+ * phy_set_eee_broken - Mark an EEE mode as broken so that it isn't advertised.
+ * @phydev: The phy_device struct
+ * @link_mode: The broken EEE mode
+ */
+static inline void phy_set_eee_broken(struct phy_device *phydev, u32 link_mode)
+{
+	linkmode_set_bit(link_mode, phydev->eee_broken_modes);
+}
 
 /**
  * phy_is_started - Convenience function to check whether PHY is started

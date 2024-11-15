@@ -388,28 +388,25 @@ void of_set_phy_supported(struct phy_device *phydev)
 void of_set_phy_eee_broken(struct phy_device *phydev)
 {
 	struct device_node *node = phydev->mdio.dev.of_node;
-	u32 broken = 0;
+	unsigned long *modes = phydev->eee_broken_modes;
 
-	if (!IS_ENABLED(CONFIG_OF_MDIO))
+	if (!IS_ENABLED(CONFIG_OF_MDIO) || !node)
 		return;
 
-	if (!node)
-		return;
+	linkmode_zero(modes);
 
 	if (of_property_read_bool(node, "eee-broken-100tx"))
-		broken |= MDIO_EEE_100TX;
+		linkmode_set_bit(ETHTOOL_LINK_MODE_100baseT_Full_BIT, modes);
 	if (of_property_read_bool(node, "eee-broken-1000t"))
-		broken |= MDIO_EEE_1000T;
+		linkmode_set_bit(ETHTOOL_LINK_MODE_1000baseT_Full_BIT, modes);
 	if (of_property_read_bool(node, "eee-broken-10gt"))
-		broken |= MDIO_EEE_10GT;
+		linkmode_set_bit(ETHTOOL_LINK_MODE_10000baseT_Full_BIT, modes);
 	if (of_property_read_bool(node, "eee-broken-1000kx"))
-		broken |= MDIO_EEE_1000KX;
+		linkmode_set_bit(ETHTOOL_LINK_MODE_1000baseKX_Full_BIT, modes);
 	if (of_property_read_bool(node, "eee-broken-10gkx4"))
-		broken |= MDIO_EEE_10GKX4;
+		linkmode_set_bit(ETHTOOL_LINK_MODE_10000baseKX4_Full_BIT, modes);
 	if (of_property_read_bool(node, "eee-broken-10gkr"))
-		broken |= MDIO_EEE_10GKR;
-
-	phydev->eee_broken_modes = broken;
+		linkmode_set_bit(ETHTOOL_LINK_MODE_10000baseKR_Full_BIT, modes);
 }
 
 /**
