@@ -1280,8 +1280,9 @@
 		#gpio-cells = <2>;
 
 		gpio-line-names =
-			"", "", "", "", "", "", "", "",
-			"", "", "", "", "", "", "power-config-full-load", "";
+			"", "", "", "", "", "", "P10_DCM0_PRES", "P10_DCM1_PRES",
+			"", "", "", "", "PRESENT_VRM_DCM0_N", "PRESENT_VRM_DCM1_N",
+			"power-config-full-load", "";
 	};
 
 	pca_pres2: pca9552@61 {
