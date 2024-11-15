@@ -2033,12 +2033,6 @@ static int bnxt_re_suspend(struct auxiliary_device *adev, pm_message_t state)
 	rdev = en_info->rdev;
 	en_dev = en_info->en_dev;
 	mutex_lock(&bnxt_re_mutex);
-	/* L2 driver may invoke this callback during device error/crash or device
-	 * reset. Current RoCE driver doesn't recover the device in case of
-	 * error. Handle the error by dispatching fatal events to all qps
-	 * ie. by calling bnxt_re_dev_stop and release the MSIx vectors as
-	 * L2 driver want to modify the MSIx table.
-	 */
 
 	ibdev_info(&rdev->ibdev, "Handle device suspend call");
 	/* Check the current device state from bnxt_en_dev and move the
@@ -2046,17 +2040,12 @@ static int bnxt_re_suspend(struct auxiliary_device *adev, pm_message_t state)
 	 * This prevents more commands to HW during clean-up,
 	 * in case the device is already in error.
 	 */
-	if (test_bit(BNXT_STATE_FW_FATAL_COND, &rdev->en_dev->en_state))
+	if (test_bit(BNXT_STATE_FW_FATAL_COND, &rdev->en_dev->en_state)) {
 		set_bit(ERR_DEVICE_DETACHED, &rdev->rcfw.cmdq.flags);
-
-	bnxt_re_dev_stop(rdev);
-	bnxt_re_stop_irq(adev);
-	/* Move the device states to detached and  avoid sending any more
-	 * commands to HW
-	 */
-	set_bit(BNXT_RE_FLAG_ERR_DEVICE_DETACHED, &rdev->flags);
-	set_bit(ERR_DEVICE_DETACHED, &rdev->rcfw.cmdq.flags);
-	wake_up_all(&rdev->rcfw.cmdq.waitq);
+		set_bit(BNXT_RE_FLAG_ERR_DEVICE_DETACHED, &rdev->flags);
+		wake_up_all(&rdev->rcfw.cmdq.waitq);
+		bnxt_re_dev_stop(rdev);
+	}
 
 	if (rdev->pacing.dbr_pacing)
 		bnxt_re_set_pacing_dev_state(rdev);
@@ -2075,13 +2064,6 @@ static int bnxt_re_resume(struct auxiliary_device *adev)
 	struct bnxt_re_dev *rdev;
 
 	mutex_lock(&bnxt_re_mutex);
-	/* L2 driver may invoke this callback during device recovery, resume.
-	 * reset. Current RoCE driver doesn't recover the device in case of
-	 * error. Handle the error by dispatching fatal events to all qps
-	 * ie. by calling bnxt_re_dev_stop and release the MSIx vectors as
-	 * L2 driver want to modify the MSIx table.
-	 */
-
 	bnxt_re_add_device(adev, BNXT_RE_POST_RECOVERY_INIT);
 	rdev = en_info->rdev;
 	ibdev_info(&rdev->ibdev, "Device resume completed");
