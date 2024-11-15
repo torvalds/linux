@@ -478,6 +478,8 @@ struct pipe_ctx {
 	/* subvp_index: only valid if the pipe is a SUBVP_MAIN*/
 	uint8_t subvp_index;
 	struct pixel_rate_divider pixel_rate_divider;
+	/* pixels borrowed from hblank to hactive */
+	uint8_t hblank_borrow;
 };
 
 /* Data used for dynamic link encoder assignment.

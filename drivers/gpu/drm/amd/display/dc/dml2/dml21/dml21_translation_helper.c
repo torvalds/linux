@@ -445,6 +445,21 @@ static void populate_dml21_timing_config_from_stream_state(struct dml2_timing_cf
 	timing->vblank_nom = timing->v_total - timing->v_active;
 }
 
+/**
+ * adjust_dml21_hblank_timing_config_from_pipe_ctx - Adjusts the horizontal blanking timing configuration
+ *                                                   based on the pipe context.
+ * @timing: Pointer to the dml2_timing_cfg structure to be adjusted.
+ * @pipe: Pointer to the pipe_ctx structure containing the horizontal blanking borrow value.
+ *
+ * This function modifies the horizontal active and blank end timings by adding and subtracting
+ * the horizontal blanking borrow value from the pipe context, respectively.
+ */
+static void adjust_dml21_hblank_timing_config_from_pipe_ctx(struct dml2_timing_cfg *timing, struct pipe_ctx *pipe)
+{
+	timing->h_active += pipe->hblank_borrow;
+	timing->h_blank_end -= pipe->hblank_borrow;
+}
+
 static void populate_dml21_output_config_from_stream_state(struct dml2_link_output_cfg *output,
 		struct dc_stream_state *stream, const struct pipe_ctx *pipe)
 {
@@ -732,6 +747,7 @@ static const struct scaler_data *get_scaler_data_for_plane(
 			temp_pipe->plane_state = pipe->plane_state;
 			temp_pipe->plane_res.scl_data.taps = pipe->plane_res.scl_data.taps;
 			temp_pipe->stream_res = pipe->stream_res;
+			temp_pipe->hblank_borrow = pipe->hblank_borrow;
 			dml_ctx->config.callbacks.build_scaling_params(temp_pipe);
 			break;
 		}
@@ -996,6 +1012,7 @@ bool dml21_map_dc_state_into_dml_display_cfg(const struct dc *in_dc, struct dc_s
 
 		ASSERT(disp_cfg_stream_location >= 0 && disp_cfg_stream_location <= __DML2_WRAPPER_MAX_STREAMS_PLANES__);
 		populate_dml21_timing_config_from_stream_state(&dml_dispcfg->stream_descriptors[disp_cfg_stream_location].timing, context->streams[stream_index], dml_ctx);
+		adjust_dml21_hblank_timing_config_from_pipe_ctx(&dml_dispcfg->stream_descriptors[disp_cfg_stream_location].timing, &context->res_ctx.pipe_ctx[stream_index]);
 		populate_dml21_output_config_from_stream_state(&dml_dispcfg->stream_descriptors[disp_cfg_stream_location].output, context->streams[stream_index], &context->res_ctx.pipe_ctx[stream_index]);
 		populate_dml21_stream_overrides_from_stream_state(&dml_dispcfg->stream_descriptors[disp_cfg_stream_location], context->streams[stream_index]);
 
@@ -1134,12 +1151,12 @@ void dml21_populate_pipe_ctx_dlg_params(struct dml2_context *dml_ctx, struct dc_
 	struct dc_crtc_timing *timing = &pipe_ctx->stream->timing;
 	union dml2_global_sync_programming *global_sync = &stream_programming->global_sync;
 
-	hactive = timing->h_addressable + timing->h_border_left + timing->h_border_right;
+	hactive = timing->h_addressable + timing->h_border_left + timing->h_border_right + pipe_ctx->hblank_borrow;
 	vactive = timing->v_addressable + timing->v_border_bottom + timing->v_border_top;
 	hblank_start = pipe_ctx->stream->timing.h_total - pipe_ctx->stream->timing.h_front_porch;
 	vblank_start = pipe_ctx->stream->timing.v_total - pipe_ctx->stream->timing.v_front_porch;
 
-	hblank_end = hblank_start - timing->h_addressable - timing->h_border_left - timing->h_border_right;
+	hblank_end = hblank_start - timing->h_addressable - timing->h_border_left - timing->h_border_right - pipe_ctx->hblank_borrow;
 	vblank_end = vblank_start - timing->v_addressable - timing->v_border_top - timing->v_border_bottom;
 
 	if (dml_ctx->config.svp_pstate.callbacks.get_pipe_subvp_type(context, pipe_ctx) == SUBVP_PHANTOM) {
