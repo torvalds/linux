@@ -3128,6 +3128,7 @@
   sock_common_recvmsg
   sock_common_setsockopt
   __sock_create
+  sock_create
   sock_create_kern
   sock_diag_register
   sock_diag_save_cookie
