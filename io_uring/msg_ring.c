@@ -333,7 +333,6 @@ done:
 int io_uring_sync_msg_ring(struct io_uring_sqe *sqe)
 {
 	struct io_msg io_msg = { };
-	struct fd f;
 	int ret;
 
 	ret = __io_msg_ring_prep(&io_msg, sqe);
@@ -347,16 +346,13 @@ int io_uring_sync_msg_ring(struct io_uring_sqe *sqe)
 	if (io_msg.cmd != IORING_MSG_DATA)
 		return -EINVAL;
 
-	ret = -EBADF;
-	f = fdget(sqe->fd);
-	if (fd_file(f)) {
-		ret = -EBADFD;
-		if (io_is_uring_fops(fd_file(f)))
-			ret = __io_msg_ring_data(fd_file(f)->private_data,
-						 &io_msg, IO_URING_F_UNLOCKED);
-		fdput(f);
-	}
-	return ret;
+	CLASS(fd, f)(sqe->fd);
+	if (fd_empty(f))
+		return -EBADF;
+	if (!io_is_uring_fops(fd_file(f)))
+		return -EBADFD;
+	return  __io_msg_ring_data(fd_file(f)->private_data,
+				   &io_msg, IO_URING_F_UNLOCKED);
 }
 
 void io_msg_cache_free(const void *entry)
