@@ -97,6 +97,8 @@
 /* page number for queue file region */
 #define QM_DOORBELL_PAGE_NR		1
 
+#define QM_DEV_ALG_MAX_LEN		256
+
 /* uacce mode of the driver */
 #define UACCE_MODE_NOUACCE		0 /* don't use uacce */
 #define UACCE_MODE_SVA			1 /* use uacce sva mode */
@@ -156,6 +158,7 @@ enum qm_cap_bits {
 	QM_SUPPORT_MB_COMMAND,
 	QM_SUPPORT_SVA_PREFETCH,
 	QM_SUPPORT_RPM,
+	QM_SUPPORT_DAE,
 };
 
 struct qm_dev_alg {

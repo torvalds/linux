@@ -582,7 +582,7 @@ static int hisi_zip_set_user_domain_and_cache(struct hisi_qm *qm)
 
 	hisi_zip_enable_clock_gate(qm);
 
-	return 0;
+	return hisi_dae_set_user_domain(qm);
 }
 
 static void hisi_zip_master_ooo_ctrl(struct hisi_qm *qm, bool enable)
@@ -1301,17 +1301,24 @@ static int hisi_zip_qm_init(struct hisi_qm *qm, struct pci_dev *pdev)
 	ret = zip_pre_store_cap_reg(qm);
 	if (ret) {
 		pci_err(qm->pdev, "Failed to pre-store capability registers!\n");
-		hisi_qm_uninit(qm);
-		return ret;
+		goto err_qm_uninit;
 	}
 
 	alg_msk = qm->cap_tables.dev_cap_table[ZIP_ALG_BITMAP].cap_val;
 	ret = hisi_qm_set_algs(qm, alg_msk, zip_dev_algs, ARRAY_SIZE(zip_dev_algs));
 	if (ret) {
 		pci_err(qm->pdev, "Failed to set zip algs!\n");
-		hisi_qm_uninit(qm);
+		goto err_qm_uninit;
 	}
 
+	ret = hisi_dae_set_alg(qm);
+	if (ret)
+		goto err_qm_uninit;
+
+	return 0;
+
+err_qm_uninit:
+	hisi_qm_uninit(qm);
 	return ret;
 }
 

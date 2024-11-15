@@ -119,6 +119,7 @@
 #define QM_SQC_VFT_BASE_MASK_V2		GENMASK(15, 0)
 #define QM_SQC_VFT_NUM_SHIFT_V2		45
 #define QM_SQC_VFT_NUM_MASK_V2		GENMASK(9, 0)
+#define QM_MAX_QC_TYPE                  2
 
 #define QM_ABNORMAL_INT_SOURCE		0x100000
 #define QM_ABNORMAL_INT_MASK		0x100004
@@ -234,8 +235,6 @@
 #define QM_QOS_MAX_CIR_U		6
 #define QM_AUTOSUSPEND_DELAY		3000
 
-#define QM_DEV_ALG_MAX_LEN		256
-
  /* abnormal status value for stopping queue */
 #define QM_STOP_QUEUE_FAIL		1
 #define	QM_DUMP_SQC_FAIL		3
@@ -333,6 +332,7 @@ static const struct hisi_qm_cap_info qm_cap_info_comm[] = {
 	{QM_SUPPORT_STOP_FUNC,     0x3100, 0, BIT(10), 0x0, 0x0, 0x1},
 	{QM_SUPPORT_MB_COMMAND,   0x3100, 0, BIT(11), 0x0, 0x0, 0x1},
 	{QM_SUPPORT_SVA_PREFETCH, 0x3100, 0, BIT(14), 0x0, 0x0, 0x1},
+	{QM_SUPPORT_DAE,          0x3100, 0, BIT(15), 0x0, 0x0, 0x0},
 };
 
 static const struct hisi_qm_cap_info qm_cap_info_pf[] = {
@@ -855,10 +855,10 @@ int hisi_qm_set_algs(struct hisi_qm *qm, u64 alg_msk, const struct qm_dev_alg *d
 			strcat(algs, dev_algs[i].alg);
 
 	ptr = strrchr(algs, '\n');
-	if (ptr) {
+	if (ptr)
 		*ptr = '\0';
-		qm->uacce->algs = algs;
-	}
+
+	qm->uacce->algs = algs;
 
 	return 0;
 }
@@ -2475,7 +2475,7 @@ static long hisi_qm_uacce_ioctl(struct uacce_queue *q, unsigned int cmd,
 				   sizeof(struct hisi_qp_ctx)))
 			return -EFAULT;
 
-		if (qp_ctx.qc_type != 0 && qp_ctx.qc_type != 1)
+		if (qp_ctx.qc_type > QM_MAX_QC_TYPE)
 			return -EINVAL;
 
 		qm_set_sqctype(q, qp_ctx.qc_type);
