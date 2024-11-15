@@ -8684,6 +8684,8 @@ static int bnxt_setup_ctxm_pg_tbls(struct bnxt *bp,
 		rc = bnxt_alloc_ctx_pg_tbls(bp, &ctx_pg[i], mem_size, pg_lvl,
 					    ctxm->init_value ? ctxm : NULL);
 	}
+	if (!rc)
+		ctxm->mem_valid = 1;
 	return rc;
 }
 
@@ -8754,6 +8756,8 @@ static int bnxt_backing_store_cfg_v2(struct bnxt *bp, u32 ena)
 	for (type = 0 ; type < BNXT_CTX_V2_MAX; type++) {
 		ctxm = &ctx->ctx_arr[type];
 
+		if (!ctxm->mem_valid)
+			continue;
 		rc = bnxt_hwrm_func_backing_store_cfg_v2(bp, ctxm, ctxm->last);
 		if (rc)
 			return rc;
@@ -8783,6 +8787,7 @@ void bnxt_free_ctx_mem(struct bnxt *bp)
 
 		kfree(ctx_pg);
 		ctxm->pg_info = NULL;
+		ctxm->mem_valid = 0;
 	}
 
 	ctx->flags &= ~BNXT_CTX_FLAG_INITED;

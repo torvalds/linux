@@ -1889,6 +1889,7 @@ struct bnxt_ctx_mem_type {
 	u32	max_entries;
 	u32	min_entries;
 	u8	last:1;
+	u8	mem_valid:1;
 	u8	split_entry_cnt;
 #define BNXT_MAX_SPLIT_ENTRY	4
 	union {
