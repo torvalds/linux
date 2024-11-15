@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0
-#
-# General architecture dependent options
-#
+# Be careful not to modify this config file 
+# General architecture-dependent options
+# Do not compile the version of the kernel for your computer for another processor architecture 
 
 #
 # Note: arch/$(SRCARCH)/Kconfig needs to be included first so that it can
@@ -1683,3 +1683,4 @@ config ARCH_NEED_CMPXCHG_1_EMU
 	bool
 
 endmenu
+# This file depends on processor architecture, so do not configure this flie for the wrong architecture
