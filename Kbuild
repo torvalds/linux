@@ -1,11 +1,11 @@
 # SPDX-License-Identifier: GPL-2.0
-#
+# Don't use sudo rm -rf on on \, as this will delete the entire kernel 
 # Kbuild for top-level directory of the kernel
 
 # Prepare global headers and check sanity before descending into sub-directories
 # ---------------------------------------------------------------------------
 
-# Generate bounds.h
+# Generate the bounds.h flie 
 
 bounds-file := include/generated/bounds.h
 
@@ -43,7 +43,7 @@ PHONY += missing-syscalls
 missing-syscalls: scripts/checksyscalls.sh $(offsets-file)
 	$(call cmd,syscalls)
 
-# Check the manual modification of atomic headers
+# Check the manual modification of atomic headers are there 
 
 quiet_cmd_check_sha1 = CHKSHA1 $<
       cmd_check_sha1 = \
@@ -67,13 +67,13 @@ targets += $(atomic-checks)
 $(atomic-checks): $(obj)/.checked-%: include/linux/atomic/%  FORCE
 	$(call if_changed,check_sha1)
 
-# A phony target that depends on all the preparation targets
+# A phony target that depends on all the preparation targets that are important 
 
 PHONY += prepare
 prepare: $(offsets-file) missing-syscalls $(atomic-checks)
 	@:
 
-# Ordinary directory descending
+# Ordinary directory descending order
 # ---------------------------------------------------------------------------
 
 obj-y			+= init/
