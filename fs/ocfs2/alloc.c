@@ -566,7 +566,7 @@ static void ocfs2_adjust_rightmost_records(handle_t *handle,
 					   struct ocfs2_path *path,
 					   struct ocfs2_extent_rec *insert_rec);
 /*
- * Reset the actual path elements so that we can re-use the structure
+ * Reset the actual path elements so that we can reuse the structure
  * to build another path. Generally, this involves freeing the buffer
  * heads.
  */
@@ -1182,7 +1182,7 @@ static int ocfs2_add_branch(handle_t *handle,
 
 	/*
 	 * If there is a gap before the root end and the real end
-	 * of the righmost leaf block, we need to remove the gap
+	 * of the rightmost leaf block, we need to remove the gap
 	 * between new_cpos and root_end first so that the tree
 	 * is consistent after we add a new branch(it will start
 	 * from new_cpos).
@@ -1238,7 +1238,7 @@ static int ocfs2_add_branch(handle_t *handle,
 
 	/* Note: new_eb_bhs[new_blocks - 1] is the guy which will be
 	 * linked with the rest of the tree.
-	 * conversly, new_eb_bhs[0] is the new bottommost leaf.
+	 * conversely, new_eb_bhs[0] is the new bottommost leaf.
 	 *
 	 * when we leave the loop, new_last_eb_blk will point to the
 	 * newest leaf, and next_blkno will point to the topmost extent
@@ -3712,7 +3712,7 @@ static int ocfs2_try_to_merge_extent(handle_t *handle,
 		 * update split_index here.
 		 *
 		 * When the split_index is zero, we need to merge it to the
-		 * prevoius extent block. It is more efficient and easier
+		 * previous extent block. It is more efficient and easier
 		 * if we do merge_right first and merge_left later.
 		 */
 		ret = ocfs2_merge_rec_right(path, handle, et, split_rec,
@@ -4517,7 +4517,7 @@ static void ocfs2_figure_contig_type(struct ocfs2_extent_tree *et,
 }
 
 /*
- * This should only be called against the righmost leaf extent list.
+ * This should only be called against the rightmost leaf extent list.
  *
  * ocfs2_figure_appending_type() will figure out whether we'll have to
  * insert at the tail of the rightmost leaf.

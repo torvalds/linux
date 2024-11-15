@@ -29,7 +29,7 @@
  * just calling printk() so that this can eventually make its way through
  * relayfs along with the debugging messages.  Everything else gets KERN_DEBUG.
  * The inline tests and macro dance give GCC the opportunity to quite cleverly
- * only emit the appropriage printk() when the caller passes in a constant
+ * only emit the appropriate printk() when the caller passes in a constant
  * mask, as is almost always the case.
  *
  * All this bitmask nonsense is managed from the files under

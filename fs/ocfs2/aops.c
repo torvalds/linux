@@ -305,7 +305,7 @@ static int ocfs2_read_folio(struct file *file, struct folio *folio)
 	}
 
 	/*
-	 * i_size might have just been updated as we grabed the meta lock.  We
+	 * i_size might have just been updated as we grabbed the meta lock.  We
 	 * might now be discovering a truncate that hit on another node.
 	 * block_read_full_folio->get_block freaks out if it is asked to read
 	 * beyond the end of a file, so we check here.  Callers

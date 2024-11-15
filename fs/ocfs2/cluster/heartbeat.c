@@ -1020,7 +1020,7 @@ fire_callbacks:
 	if (list_empty(&slot->ds_live_item))
 		goto out;
 
-	/* live nodes only go dead after enough consequtive missed
+	/* live nodes only go dead after enough consecutive missed
 	 * samples..  reset the missed counter whenever we see
 	 * activity */
 	if (slot->ds_equal_samples >= o2hb_dead_threshold || gen_changed) {
