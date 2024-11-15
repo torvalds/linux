@@ -134,16 +134,13 @@ def _define_kernel_build(
     out_list.remove("Image.lz4")
     out_list.remove("Image.gz")
 
-    module_implicit_outs_list = None
-
     if target.split("_")[0] == "pineapple-le":
-        module_implicit_outs_list = get_gki_modules_list("arm64")
+        in_tree_module_list = in_tree_module_list + get_gki_modules_list("arm64")
 
     kernel_build(
         name = target,
         arch = target_arch,
         module_outs = in_tree_module_list,
-        module_implicit_outs = module_implicit_outs_list,
         outs = out_list,
         build_config = ":{}_build_config".format(target),
         dtstree = dtstree,
