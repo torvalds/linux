@@ -39,6 +39,7 @@ properties:
           - const: qcom,sm6350-gpi-dma
       - items:
           - enum:
+              - qcom,qcs615-gpi-dma
               - qcom,sdm670-gpi-dma
               - qcom,sm6125-gpi-dma
               - qcom,sm8150-gpi-dma
