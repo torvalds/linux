@@ -75,6 +75,9 @@ MODULE_PARM_DESC(scale_type, "Type of test (rcu, srcu, refcnt, rwsem, rwlock.");
 torture_param(int, verbose, 0, "Enable verbose debugging printk()s");
 torture_param(int, verbose_batched, 0, "Batch verbose debugging printk()s");
 
+// Number of seconds to extend warm-up and cool-down for multiple guest OSes
+torture_param(long, guest_os_delay, 0,
+	      "Number of seconds to extend warm-up/cool-down for multiple guest OSes.");
 // Wait until there are multiple CPUs before starting test.
 torture_param(int, holdoff, IS_BUILTIN(CONFIG_RCU_REF_SCALE_TEST) ? 10 : 0,
 	      "Holdoff time before test start (s)");
@@ -210,6 +213,36 @@ static const struct ref_scale_ops srcu_ops = {
 	.readsection	= srcu_ref_scale_read_section,
 	.delaysection	= srcu_ref_scale_delay_section,
 	.name		= "srcu"
+};
+
+static void srcu_lite_ref_scale_read_section(const int nloops)
+{
+	int i;
+	int idx;
+
+	for (i = nloops; i >= 0; i--) {
+		idx = srcu_read_lock_lite(srcu_ctlp);
+		srcu_read_unlock_lite(srcu_ctlp, idx);
+	}
+}
+
+static void srcu_lite_ref_scale_delay_section(const int nloops, const int udl, const int ndl)
+{
+	int i;
+	int idx;
+
+	for (i = nloops; i >= 0; i--) {
+		idx = srcu_read_lock_lite(srcu_ctlp);
+		un_delay(udl, ndl);
+		srcu_read_unlock_lite(srcu_ctlp, idx);
+	}
+}
+
+static const struct ref_scale_ops srcu_lite_ops = {
+	.init		= rcu_sync_scale_init,
+	.readsection	= srcu_lite_ref_scale_read_section,
+	.delaysection	= srcu_lite_ref_scale_delay_section,
+	.name		= "srcu-lite"
 };
 
 #ifdef CONFIG_TASKS_RCU
@@ -801,6 +834,18 @@ static void rcu_scale_one_reader(void)
 		cur_ops->delaysection(loops, readdelay / 1000, readdelay % 1000);
 }
 
+// Warm up cache, or, if needed run a series of rcu_scale_one_reader()
+// to allow multiple rcuscale guest OSes to collect mutually valid data.
+static void rcu_scale_warm_cool(void)
+{
+	unsigned long jdone = jiffies + (guest_os_delay > 0 ? guest_os_delay * HZ : -1);
+
+	do {
+		rcu_scale_one_reader();
+		cond_resched();
+	} while (time_before(jiffies, jdone));
+}
+
 // Reader kthread.  Repeatedly does empty RCU read-side
 // critical section, minimizing update-side interference.
 static int
@@ -829,7 +874,7 @@ repeat:
 		goto end;
 
 	// Make sure that the CPU is affinitized appropriately during testing.
-	WARN_ON_ONCE(raw_smp_processor_id() != me);
+	WARN_ON_ONCE(raw_smp_processor_id() != me % nr_cpu_ids);
 
 	WRITE_ONCE(rt->start_reader, 0);
 	if (!atomic_dec_return(&n_started))
@@ -957,6 +1002,7 @@ static int main_func(void *arg)
 		schedule_timeout_uninterruptible(1);
 
 	// Start exp readers up per experiment
+	rcu_scale_warm_cool();
 	for (exp = 0; exp < nruns && !torture_must_stop(); exp++) {
 		if (torture_must_stop())
 			goto end;
@@ -987,6 +1033,7 @@ static int main_func(void *arg)
 
 		result_avg[exp] = div_u64(1000 * process_durations(nreaders), nreaders * loops);
 	}
+	rcu_scale_warm_cool();
 
 	// Print the average of all experiments
 	SCALEOUT("END OF TEST. Calculating average duration per loop (nanoseconds)...\n");
@@ -1082,9 +1129,10 @@ ref_scale_init(void)
 	long i;
 	int firsterr = 0;
 	static const struct ref_scale_ops *scale_ops[] = {
-		&rcu_ops, &srcu_ops, RCU_TRACE_OPS RCU_TASKS_OPS &refcnt_ops, &rwlock_ops,
-		&rwsem_ops, &lock_ops, &lock_irq_ops, &acqrel_ops, &clock_ops, &jiffies_ops,
-		&typesafe_ref_ops, &typesafe_lock_ops, &typesafe_seqlock_ops,
+		&rcu_ops, &srcu_ops, &srcu_lite_ops, RCU_TRACE_OPS RCU_TASKS_OPS
+		&refcnt_ops, &rwlock_ops, &rwsem_ops, &lock_ops, &lock_irq_ops, &acqrel_ops,
+		&clock_ops, &jiffies_ops, &typesafe_ref_ops, &typesafe_lock_ops,
+		&typesafe_seqlock_ops,
 	};
 
 	if (!torture_init_begin(scale_type, verbose))
