@@ -262,7 +262,8 @@ err:
 		bio_free_pages(&(*rbio)->bio);
 	kfree(*rbio);
 	*rbio = NULL;
-	kfree(op);
+	/* We may have added to the rhashtable and thus need rcu freeing: */
+	kfree_rcu(op, rcu);
 	bch2_write_ref_put(c, BCH_WRITE_REF_promote);
 	return ERR_PTR(ret);
 }
@@ -802,16 +803,15 @@ static noinline void read_from_stale_dirty_pointer(struct btree_trans *trans,
 			     PTR_BUCKET_POS(ca, &ptr),
 			     BTREE_ITER_cached);
 
-	u8 *gen = bucket_gen(ca, iter.pos.offset);
-	if (gen) {
-
+	int gen = bucket_gen_get(ca, iter.pos.offset);
+	if (gen >= 0) {
 		prt_printf(&buf, "Attempting to read from stale dirty pointer:\n");
 		printbuf_indent_add(&buf, 2);
 
 		bch2_bkey_val_to_text(&buf, c, k);
 		prt_newline(&buf);
 
-		prt_printf(&buf, "memory gen: %u", *gen);
+		prt_printf(&buf, "memory gen: %u", gen);
 
 		ret = lockrestart_do(trans, bkey_err(k = bch2_btree_iter_peek_slot(&iter)));
 		if (!ret) {

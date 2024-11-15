@@ -204,13 +204,21 @@ static bool is_folio_zero_filled(struct folio *folio)
 
 static void swap_zeromap_folio_set(struct folio *folio)
 {
+	struct obj_cgroup *objcg = get_obj_cgroup_from_folio(folio);
 	struct swap_info_struct *sis = swp_swap_info(folio->swap);
+	int nr_pages = folio_nr_pages(folio);
 	swp_entry_t entry;
 	unsigned int i;
 
 	for (i = 0; i < folio_nr_pages(folio); i++) {
 		entry = page_swap_entry(folio_page(folio, i));
 		set_bit(swp_offset(entry), sis->zeromap);
+	}
+
+	count_vm_events(SWPOUT_ZERO, nr_pages);
+	if (objcg) {
+		count_objcg_events(objcg, SWPOUT_ZERO, nr_pages);
+		obj_cgroup_put(objcg);
 	}
 }
 
@@ -503,6 +511,7 @@ static void sio_read_complete(struct kiocb *iocb, long ret)
 static bool swap_read_folio_zeromap(struct folio *folio)
 {
 	int nr_pages = folio_nr_pages(folio);
+	struct obj_cgroup *objcg;
 	bool is_zeromap;
 
 	/*
@@ -516,6 +525,13 @@ static bool swap_read_folio_zeromap(struct folio *folio)
 
 	if (!is_zeromap)
 		return false;
+
+	objcg = get_obj_cgroup_from_folio(folio);
+	count_vm_events(SWPIN_ZERO, nr_pages);
+	if (objcg) {
+		count_objcg_events(objcg, SWPIN_ZERO, nr_pages);
+		obj_cgroup_put(objcg);
+	}
 
 	folio_zero_range(folio, 0, folio_size(folio));
 	folio_mark_uptodate(folio);
@@ -570,7 +586,7 @@ static void swap_read_folio_bdev_sync(struct folio *folio,
 	 * attempt to access it in the page fault retry time check.
 	 */
 	get_task_struct(current);
-	count_vm_event(PSWPIN);
+	count_vm_events(PSWPIN, folio_nr_pages(folio));
 	submit_bio_wait(&bio);
 	__end_swap_bio_read(&bio);
 	put_task_struct(current);
@@ -585,7 +601,7 @@ static void swap_read_folio_bdev_async(struct folio *folio,
 	bio->bi_iter.bi_sector = swap_folio_sector(folio);
 	bio->bi_end_io = end_swap_bio_read;
 	bio_add_folio_nofail(bio, folio, folio_size(folio), 0);
-	count_vm_event(PSWPIN);
+	count_vm_events(PSWPIN, folio_nr_pages(folio));
 	submit_bio(bio);
 }
 

@@ -1760,6 +1760,10 @@ static int sock_map_link_update_prog(struct bpf_link *link,
 		ret = -EINVAL;
 		goto out;
 	}
+	if (!sockmap_link->map) {
+		ret = -ENOLINK;
+		goto out;
+	}
 
 	ret = sock_map_prog_link_lookup(sockmap_link->map, &pprog, &plink,
 					sockmap_link->attach_type);

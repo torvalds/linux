@@ -4711,7 +4711,7 @@ int sched_fork(unsigned long clone_flags, struct task_struct *p)
 	if (rt_prio(p->prio)) {
 		p->sched_class = &rt_sched_class;
 #ifdef CONFIG_SCHED_CLASS_EXT
-	} else if (task_should_scx(p)) {
+	} else if (task_should_scx(p->policy)) {
 		p->sched_class = &ext_sched_class;
 #endif
 	} else {
@@ -5920,12 +5920,15 @@ static void prev_balance(struct rq *rq, struct task_struct *prev,
 
 #ifdef CONFIG_SCHED_CLASS_EXT
 	/*
-	 * SCX requires a balance() call before every pick_next_task() including
-	 * when waking up from SCHED_IDLE. If @start_class is below SCX, start
-	 * from SCX instead.
+	 * SCX requires a balance() call before every pick_task() including when
+	 * waking up from SCHED_IDLE. If @start_class is below SCX, start from
+	 * SCX instead. Also, set a flag to detect missing balance() call.
 	 */
-	if (scx_enabled() && sched_class_above(&ext_sched_class, start_class))
-		start_class = &ext_sched_class;
+	if (scx_enabled()) {
+		rq->scx.flags |= SCX_RQ_BAL_PENDING;
+		if (sched_class_above(&ext_sched_class, start_class))
+			start_class = &ext_sched_class;
+	}
 #endif
 
 	/*
@@ -7025,7 +7028,7 @@ int default_wake_function(wait_queue_entry_t *curr, unsigned mode, int wake_flag
 }
 EXPORT_SYMBOL(default_wake_function);
 
-const struct sched_class *__setscheduler_class(struct task_struct *p, int prio)
+const struct sched_class *__setscheduler_class(int policy, int prio)
 {
 	if (dl_prio(prio))
 		return &dl_sched_class;
@@ -7034,7 +7037,7 @@ const struct sched_class *__setscheduler_class(struct task_struct *p, int prio)
 		return &rt_sched_class;
 
 #ifdef CONFIG_SCHED_CLASS_EXT
-	if (task_should_scx(p))
+	if (task_should_scx(policy))
 		return &ext_sched_class;
 #endif
 
@@ -7142,7 +7145,7 @@ void rt_mutex_setprio(struct task_struct *p, struct task_struct *pi_task)
 		queue_flag &= ~DEQUEUE_MOVE;
 
 	prev_class = p->sched_class;
-	next_class = __setscheduler_class(p, prio);
+	next_class = __setscheduler_class(p->policy, prio);
 
 	if (prev_class != next_class && p->se.sched_delayed)
 		dequeue_task(rq, p, DEQUEUE_SLEEP | DEQUEUE_DELAYED | DEQUEUE_NOCLOCK);

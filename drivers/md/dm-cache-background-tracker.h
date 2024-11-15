@@ -26,6 +26,14 @@
  * protected with a spinlock.
  */
 
+struct bt_work {
+	struct list_head list;
+	struct rb_node node;
+	struct policy_work work;
+};
+
+extern struct kmem_cache *btracker_work_cache;
+
 struct background_work;
 struct background_tracker;
 

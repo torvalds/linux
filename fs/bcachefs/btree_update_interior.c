@@ -237,10 +237,6 @@ static void __btree_node_free(struct btree_trans *trans, struct btree *b)
 	BUG_ON(b->will_make_reachable);
 
 	clear_btree_node_noevict(b);
-
-	mutex_lock(&c->btree_cache.lock);
-	list_move(&b->list, &c->btree_cache.freeable);
-	mutex_unlock(&c->btree_cache.lock);
 }
 
 static void bch2_btree_node_free_inmem(struct btree_trans *trans,
@@ -252,11 +248,11 @@ static void bch2_btree_node_free_inmem(struct btree_trans *trans,
 
 	bch2_btree_node_lock_write_nofail(trans, path, &b->c);
 
+	__btree_node_free(trans, b);
+
 	mutex_lock(&c->btree_cache.lock);
 	bch2_btree_node_hash_remove(&c->btree_cache, b);
 	mutex_unlock(&c->btree_cache.lock);
-
-	__btree_node_free(trans, b);
 
 	six_unlock_write(&b->c.lock);
 	mark_btree_node_locked_noreset(path, level, BTREE_NODE_INTENT_LOCKED);
@@ -289,7 +285,7 @@ static void bch2_btree_node_free_never_used(struct btree_update *as,
 	clear_btree_node_need_write(b);
 
 	mutex_lock(&c->btree_cache.lock);
-	bch2_btree_node_hash_remove(&c->btree_cache, b);
+	__bch2_btree_node_hash_remove(&c->btree_cache, b);
 	mutex_unlock(&c->btree_cache.lock);
 
 	BUG_ON(p->nr >= ARRAY_SIZE(p->b));
@@ -521,8 +517,7 @@ static void bch2_btree_reserve_put(struct btree_update *as, struct btree_trans *
 			btree_node_lock_nopath_nofail(trans, &b->c, SIX_LOCK_intent);
 			btree_node_lock_nopath_nofail(trans, &b->c, SIX_LOCK_write);
 			__btree_node_free(trans, b);
-			six_unlock_write(&b->c.lock);
-			six_unlock_intent(&b->c.lock);
+			bch2_btree_node_to_freelist(c, b);
 		}
 	}
 }
@@ -1434,6 +1429,15 @@ bch2_btree_insert_keys_interior(struct btree_update *as,
 	}
 }
 
+static bool key_deleted_in_insert(struct keylist *insert_keys, struct bpos pos)
+{
+	if (insert_keys)
+		for_each_keylist_key(insert_keys, k)
+			if (bkey_deleted(&k->k) && bpos_eq(k->k.p, pos))
+				return true;
+	return false;
+}
+
 /*
  * Move keys from n1 (original replacement node, now lower node) to n2 (higher
  * node)
@@ -1441,7 +1445,8 @@ bch2_btree_insert_keys_interior(struct btree_update *as,
 static void __btree_split_node(struct btree_update *as,
 			       struct btree_trans *trans,
 			       struct btree *b,
-			       struct btree *n[2])
+			       struct btree *n[2],
+			       struct keylist *insert_keys)
 {
 	struct bkey_packed *k;
 	struct bpos n1_pos = POS_MIN;
@@ -1476,7 +1481,8 @@ static void __btree_split_node(struct btree_update *as,
 		if (b->c.level &&
 		    u64s < n1_u64s &&
 		    u64s + k->u64s >= n1_u64s &&
-		    bch2_key_deleted_in_journal(trans, b->c.btree_id, b->c.level, uk.p))
+		    (bch2_key_deleted_in_journal(trans, b->c.btree_id, b->c.level, uk.p) ||
+		     key_deleted_in_insert(insert_keys, uk.p)))
 			n1_u64s += k->u64s;
 
 		i = u64s >= n1_u64s;
@@ -1603,7 +1609,7 @@ static int btree_split(struct btree_update *as, struct btree_trans *trans,
 		n[0] = n1 = bch2_btree_node_alloc(as, trans, b->c.level);
 		n[1] = n2 = bch2_btree_node_alloc(as, trans, b->c.level);
 
-		__btree_split_node(as, trans, b, n);
+		__btree_split_node(as, trans, b, n, keys);
 
 		if (keys) {
 			btree_split_insert_keys(as, trans, path, n1, keys);
@@ -2392,7 +2398,8 @@ static int __bch2_btree_node_update_key(struct btree_trans *trans,
 	if (new_hash) {
 		mutex_lock(&c->btree_cache.lock);
 		bch2_btree_node_hash_remove(&c->btree_cache, new_hash);
-		bch2_btree_node_hash_remove(&c->btree_cache, b);
+
+		__bch2_btree_node_hash_remove(&c->btree_cache, b);
 
 		bkey_copy(&b->key, new_key);
 		ret = __bch2_btree_node_hash_insert(&c->btree_cache, b);

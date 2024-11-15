@@ -1300,11 +1300,8 @@ retry:
 						 bucket_to_u64(i->b),
 						 BUCKET_NOCOW_LOCK_UPDATE);
 
-			rcu_read_lock();
-			u8 *gen = bucket_gen(ca, i->b.offset);
-			stale = !gen ? -1 : gen_after(*gen, i->gen);
-			rcu_read_unlock();
-
+			int gen = bucket_gen_get(ca, i->b.offset);
+			stale = gen < 0 ? gen : gen_after(gen, i->gen);
 			if (unlikely(stale)) {
 				stale_at = i;
 				goto err_bucket_stale;

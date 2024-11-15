@@ -19,6 +19,7 @@ log.txt
 msg_oob
 msg_zerocopy
 ncdevmem
+netlink-dumps
 nettest
 psock_fanout
 psock_snd
