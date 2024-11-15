@@ -1267,11 +1267,10 @@ static int ec_stripe_update_extent(struct btree_trans *trans,
 				   struct bch_dev *ca,
 				   struct bpos bucket, u8 gen,
 				   struct ec_stripe_buf *s,
-				   struct bpos *bp_pos)
+				   struct bkey_s_c_backpointer bp)
 {
 	struct bch_stripe *v = &bkey_i_to_stripe(&s->key)->v;
 	struct bch_fs *c = trans->c;
-	struct bch_backpointer bp;
 	struct btree_iter iter;
 	struct bkey_s_c k;
 	const struct bch_extent_ptr *ptr_c;
@@ -1280,33 +1279,26 @@ static int ec_stripe_update_extent(struct btree_trans *trans,
 	struct bkey_i *n;
 	int ret, dev, block;
 
-	ret = bch2_get_next_backpointer(trans, ca, bucket, gen,
-				bp_pos, &bp, BTREE_ITER_cached);
-	if (ret)
-		return ret;
-	if (bpos_eq(*bp_pos, SPOS_MAX))
-		return 0;
-
-	if (bp.level) {
+	if (bp.v->level) {
 		struct printbuf buf = PRINTBUF;
 		struct btree_iter node_iter;
 		struct btree *b;
 
-		b = bch2_backpointer_get_node(trans, &node_iter, *bp_pos, bp);
+		b = bch2_backpointer_get_node(trans, bp, &node_iter);
 		bch2_trans_iter_exit(trans, &node_iter);
 
 		if (!b)
 			return 0;
 
 		prt_printf(&buf, "found btree node in erasure coded bucket: b=%px\n", b);
-		bch2_backpointer_to_text(&buf, &bp);
+		bch2_backpointer_to_text(&buf, bp.v);
 
 		bch2_fs_inconsistent(c, "%s", buf.buf);
 		printbuf_exit(&buf);
 		return -EIO;
 	}
 
-	k = bch2_backpointer_get_key(trans, &iter, *bp_pos, bp, BTREE_ITER_intent);
+	k = bch2_backpointer_get_key(trans, bp, &iter, BTREE_ITER_intent);
 	ret = bkey_err(k);
 	if (ret)
 		return ret;
@@ -1365,7 +1357,6 @@ static int ec_stripe_update_bucket(struct btree_trans *trans, struct ec_stripe_b
 	struct bch_fs *c = trans->c;
 	struct bch_stripe *v = &bkey_i_to_stripe(&s->key)->v;
 	struct bch_extent_ptr ptr = v->ptrs[block];
-	struct bpos bp_pos = POS_MIN;
 	int ret = 0;
 
 	struct bch_dev *ca = bch2_dev_tryget(c, ptr.dev);
@@ -1374,18 +1365,20 @@ static int ec_stripe_update_bucket(struct btree_trans *trans, struct ec_stripe_b
 
 	struct bpos bucket_pos = PTR_BUCKET_POS(ca, &ptr);
 
-	while (1) {
-		ret = commit_do(trans, NULL, NULL,
-				BCH_TRANS_COMMIT_no_check_rw|
-				BCH_TRANS_COMMIT_no_enospc,
-			ec_stripe_update_extent(trans, ca, bucket_pos, ptr.gen, s, &bp_pos));
-		if (ret)
-			break;
-		if (bkey_eq(bp_pos, POS_MAX))
+	ret = for_each_btree_key_commit(trans, bp_iter, BTREE_ID_backpointers,
+			bucket_pos_to_bp(ca, bucket_pos, 0), 0, bp_k,
+			NULL, NULL,
+			BCH_TRANS_COMMIT_no_check_rw|
+			BCH_TRANS_COMMIT_no_enospc, ({
+		if (bkey_ge(bp_k.k->p, bucket_pos_to_bp(ca, bpos_nosnap_successor(bucket_pos), 0)))
 			break;
 
-		bp_pos = bpos_nosnap_successor(bp_pos);
-	}
+		if (bp_k.k->type != KEY_TYPE_backpointer)
+			continue;
+
+		ec_stripe_update_extent(trans, ca, bucket_pos, ptr.gen, s,
+					bkey_s_c_to_backpointer(bp_k));
+	}));
 
 	bch2_dev_put(ca);
 	return ret;

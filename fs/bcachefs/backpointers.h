@@ -165,13 +165,10 @@ static inline void bch2_extent_ptr_to_bp(struct bch_fs *c, struct bch_dev *ca,
 	__bch2_extent_ptr_to_bp(c, ca, btree_id, level, k, p, entry, bucket_pos, bp, sectors);
 }
 
-int bch2_get_next_backpointer(struct btree_trans *, struct bch_dev *ca, struct bpos, int,
-			      struct bpos *, struct bch_backpointer *, unsigned);
-struct bkey_s_c bch2_backpointer_get_key(struct btree_trans *, struct btree_iter *,
-					 struct bpos, struct bch_backpointer,
-					 unsigned);
-struct btree *bch2_backpointer_get_node(struct btree_trans *, struct btree_iter *,
-					struct bpos, struct bch_backpointer);
+struct bkey_s_c bch2_backpointer_get_key(struct btree_trans *, struct bkey_s_c_backpointer,
+					 struct btree_iter *, unsigned);
+struct btree *bch2_backpointer_get_node(struct btree_trans *, struct bkey_s_c_backpointer,
+					struct btree_iter *);
 
 int bch2_check_btree_backpointers(struct bch_fs *);
 int bch2_check_extents_to_backpointers(struct bch_fs *);

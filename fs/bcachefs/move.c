@@ -670,16 +670,12 @@ int bch2_evacuate_bucket(struct moving_context *ctxt,
 	struct bch_fs *c = trans->c;
 	bool is_kthread = current->flags & PF_KTHREAD;
 	struct bch_io_opts io_opts = bch2_opts_to_inode_opts(c->opts);
-	struct btree_iter iter;
+	struct btree_iter iter = {}, bp_iter = {};
 	struct bkey_buf sk;
-	struct bch_backpointer bp;
-	struct bch_alloc_v4 a_convert;
-	const struct bch_alloc_v4 *a;
 	struct bkey_s_c k;
 	struct data_update_opts data_opts;
 	unsigned dirty_sectors, bucket_size;
 	u64 fragmentation;
-	struct bpos bp_pos = POS_MIN;
 	int ret = 0;
 
 	struct bch_dev *ca = bch2_dev_tryget(c, bucket.inode);
@@ -695,20 +691,12 @@ int bch2_evacuate_bucket(struct moving_context *ctxt,
 	 */
 	bch2_trans_begin(trans);
 
-	bch2_trans_iter_init(trans, &iter, BTREE_ID_alloc,
-			     bucket, BTREE_ITER_cached);
-	ret = lockrestart_do(trans,
-			bkey_err(k = bch2_btree_iter_peek_slot(&iter)));
-	bch2_trans_iter_exit(trans, &iter);
+	bch2_trans_iter_init(trans, &bp_iter, BTREE_ID_backpointers,
+			     bucket_pos_to_bp(ca, bucket, 0), 0);
 
 	bch_err_msg(c, ret, "looking up alloc key");
 	if (ret)
 		goto err;
-
-	a = bch2_alloc_to_v4(k, &a_convert);
-	dirty_sectors = bch2_bucket_sectors_dirty(*a);
-	bucket_size = ca->mi.bucket_size;
-	fragmentation = alloc_lru_idx_fragmentation(*a, ca);
 
 	ret = bch2_btree_write_buffer_tryflush(trans);
 	bch_err_msg(c, ret, "flushing btree write buffer");
@@ -721,18 +709,24 @@ int bch2_evacuate_bucket(struct moving_context *ctxt,
 
 		bch2_trans_begin(trans);
 
-		ret = bch2_get_next_backpointer(trans, ca, bucket, gen,
-						&bp_pos, &bp,
-						BTREE_ITER_cached);
+		k = bch2_btree_iter_peek(&bp_iter);
+		ret = bkey_err(k);
 		if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
 			continue;
 		if (ret)
 			goto err;
-		if (bkey_eq(bp_pos, POS_MAX))
+
+		if (!k.k ||
+		    bkey_ge(k.k->p, bucket_pos_to_bp(ca, bpos_nosnap_successor(bucket), 0)))
 			break;
 
-		if (!bp.level) {
-			k = bch2_backpointer_get_key(trans, &iter, bp_pos, bp, 0);
+		if (k.k->type != KEY_TYPE_backpointer)
+			goto next;
+
+		struct bkey_s_c_backpointer bp = bkey_s_c_to_backpointer(k);
+
+		if (!bp.v->level) {
+			k = bch2_backpointer_get_key(trans, bp, &iter, 0);
 			ret = bkey_err(k);
 			if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
 				continue;
@@ -785,7 +779,7 @@ int bch2_evacuate_bucket(struct moving_context *ctxt,
 		} else {
 			struct btree *b;
 
-			b = bch2_backpointer_get_node(trans, &iter, bp_pos, bp);
+			b = bch2_backpointer_get_node(trans, bp, &iter);
 			ret = PTR_ERR_OR_ZERO(b);
 			if (ret == -BCH_ERR_backpointer_to_overwritten_btree_node)
 				continue;
@@ -814,11 +808,12 @@ int bch2_evacuate_bucket(struct moving_context *ctxt,
 			}
 		}
 next:
-		bp_pos = bpos_nosnap_successor(bp_pos);
+		bch2_btree_iter_advance(&bp_iter);
 	}
 
 	trace_evacuate_bucket(c, &bucket, dirty_sectors, bucket_size, fragmentation, ret);
 err:
+	bch2_trans_iter_exit(trans, &bp_iter);
 	bch2_dev_put(ca);
 	bch2_bkey_buf_exit(&sk, c);
 	return ret;
