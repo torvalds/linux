@@ -106,7 +106,10 @@ struct attribute_group {
 					    const struct bin_attribute *,
 					    int);
 	struct attribute	**attrs;
-	struct bin_attribute	**bin_attrs;
+	union {
+		struct bin_attribute		**bin_attrs;
+		const struct bin_attribute	*const *bin_attrs_new;
+	};
 };
 
 #define SYSFS_PREALLOC		010000
