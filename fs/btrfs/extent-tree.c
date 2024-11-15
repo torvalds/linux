@@ -2446,7 +2446,7 @@ int btrfs_cross_ref_exist(struct btrfs_root *root, u64 objectid, u64 offset,
 			goto out;
 
 		ret = check_delayed_ref(root, path, objectid, offset, bytenr);
-	} while (ret == -EAGAIN);
+	} while (ret == -EAGAIN && !path->nowait);
 
 out:
 	btrfs_release_path(path);
