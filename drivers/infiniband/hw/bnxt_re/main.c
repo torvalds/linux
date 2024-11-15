@@ -2204,11 +2204,10 @@ static void bnxt_re_setup_cc(struct bnxt_re_dev *rdev, bool enable)
 
 	if (enable) {
 		cc_param.enable  = 1;
-		cc_param.cc_mode = CMDQ_MODIFY_ROCE_CC_CC_MODE_PROBABILISTIC_CC_MODE;
+		cc_param.tos_ecn = 1;
 	}
 
-	cc_param.mask = (CMDQ_MODIFY_ROCE_CC_MODIFY_MASK_CC_MODE |
-			 CMDQ_MODIFY_ROCE_CC_MODIFY_MASK_ENABLE_CC |
+	cc_param.mask = (CMDQ_MODIFY_ROCE_CC_MODIFY_MASK_ENABLE_CC |
 			 CMDQ_MODIFY_ROCE_CC_MODIFY_MASK_TOS_ECN);
 
 	if (bnxt_qplib_modify_cc(&rdev->qplib_res, &cc_param))
