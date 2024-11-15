@@ -1287,7 +1287,7 @@ static int fanotify_group_init_error_pool(struct fsnotify_group *group)
 }
 
 static int fanotify_may_update_existing_mark(struct fsnotify_mark *fsn_mark,
-					      unsigned int fan_flags)
+					     __u32 mask, unsigned int fan_flags)
 {
 	/*
 	 * Non evictable mark cannot be downgraded to evictable mark.
@@ -1312,6 +1312,11 @@ static int fanotify_may_update_existing_mark(struct fsnotify_mark *fsn_mark,
 	if (fan_flags & FAN_MARK_IGNORE &&
 	    !(fan_flags & FAN_MARK_IGNORED_SURV_MODIFY) &&
 	    fsn_mark->flags & FSNOTIFY_MARK_FLAG_IGNORED_SURV_MODIFY)
+		return -EEXIST;
+
+	/* For now pre-content events are not generated for directories */
+	mask |= fsn_mark->mask;
+	if (mask & FANOTIFY_PRE_CONTENT_EVENTS && mask & FAN_ONDIR)
 		return -EEXIST;
 
 	return 0;
@@ -1340,7 +1345,7 @@ static int fanotify_add_mark(struct fsnotify_group *group,
 	/*
 	 * Check if requested mark flags conflict with an existing mark flags.
 	 */
-	ret = fanotify_may_update_existing_mark(fsn_mark, fan_flags);
+	ret = fanotify_may_update_existing_mark(fsn_mark, mask, fan_flags);
 	if (ret)
 		goto out;
 
@@ -1640,10 +1645,22 @@ static int fanotify_events_supported(struct fsnotify_group *group,
 				     unsigned int flags)
 {
 	unsigned int mark_type = flags & FANOTIFY_MARK_TYPE_BITS;
+	bool is_dir = d_is_dir(path->dentry);
 	/* Strict validation of events in non-dir inode mask with v5.17+ APIs */
 	bool strict_dir_events = FAN_GROUP_FLAG(group, FAN_REPORT_TARGET_FID) ||
 				 (mask & FAN_RENAME) ||
 				 (flags & FAN_MARK_IGNORE);
+
+	/*
+	 * Filesystems need to opt-into pre-content evnets (a.k.a HSM)
+	 * and they are only supported on regular files and directories.
+	 */
+	if (mask & FANOTIFY_PRE_CONTENT_EVENTS) {
+		if (!(path->mnt->mnt_sb->s_iflags & SB_I_ALLOW_HSM))
+			return -EOPNOTSUPP;
+		if (!is_dir && !d_is_reg(path->dentry))
+			return -EINVAL;
+	}
 
 	/*
 	 * Some filesystems such as 'proc' acquire unusual locks when opening
@@ -1677,7 +1694,7 @@ static int fanotify_events_supported(struct fsnotify_group *group,
 	 * but because we always allowed it, error only when using new APIs.
 	 */
 	if (strict_dir_events && mark_type == FAN_MARK_INODE &&
-	    !d_is_dir(path->dentry) && (mask & FANOTIFY_DIRONLY_EVENT_BITS))
+	    !is_dir && (mask & FANOTIFY_DIRONLY_EVENT_BITS))
 		return -ENOTDIR;
 
 	return 0;
@@ -1778,10 +1795,14 @@ static int do_fanotify_mark(int fanotify_fd, unsigned int flags, __u64 mask,
 		return -EPERM;
 
 	/*
-	 * Permission events require minimum priority FAN_CLASS_CONTENT.
+	 * Permission events are not allowed for FAN_CLASS_NOTIF.
+	 * Pre-content permission events are not allowed for FAN_CLASS_CONTENT.
 	 */
 	if (mask & FANOTIFY_PERM_EVENTS &&
-	    group->priority < FSNOTIFY_PRIO_CONTENT)
+	    group->priority == FSNOTIFY_PRIO_NORMAL)
+		return -EINVAL;
+	else if (mask & FANOTIFY_PRE_CONTENT_EVENTS &&
+		 group->priority == FSNOTIFY_PRIO_CONTENT)
 		return -EINVAL;
 
 	if (mask & FAN_FS_ERROR &&
@@ -1814,6 +1835,10 @@ static int do_fanotify_mark(int fanotify_fd, unsigned int flags, __u64 mask,
 	 * useful and was not implemented.
 	 */
 	if (mask & FAN_RENAME && !(fid_mode & FAN_REPORT_NAME))
+		return -EINVAL;
+
+	/* Pre-content events are not currently generated for directories. */
+	if (mask & FANOTIFY_PRE_CONTENT_EVENTS && mask & FAN_ONDIR)
 		return -EINVAL;
 
 	if (mark_cmd == FAN_MARK_FLUSH) {
