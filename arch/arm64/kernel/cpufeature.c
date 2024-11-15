@@ -1004,17 +1004,16 @@ static void init_cpu_ftr_reg(u32 sys_reg, u64 new)
 				/* Override was valid */
 				ftr_new = tmp;
 				str = "forced";
-			} else if (ftr_ovr == tmp) {
+			} else {
 				/* Override was the safe value */
 				str = "already set";
 			}
 
-			if (str)
-				pr_warn("%s[%d:%d]: %s to %llx\n",
-					reg->name,
-					ftrp->shift + ftrp->width - 1,
-					ftrp->shift, str,
-					tmp & (BIT(ftrp->width) - 1));
+			pr_warn("%s[%d:%d]: %s to %llx\n",
+				reg->name,
+				ftrp->shift + ftrp->width - 1,
+				ftrp->shift, str,
+				tmp & (BIT(ftrp->width) - 1));
 		} else if ((ftr_mask & reg->override->val) == ftr_mask) {
 			reg->override->val &= ~ftr_mask;
 			pr_warn("%s[%d:%d]: impossible override, ignored\n",
