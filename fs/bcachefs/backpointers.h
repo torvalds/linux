@@ -19,13 +19,12 @@ static inline u64 swab40(u64 x)
 }
 
 int bch2_backpointer_validate(struct bch_fs *, struct bkey_s_c k, enum bch_validate_flags);
-void bch2_backpointer_to_text(struct printbuf *, const struct bch_backpointer *);
-void bch2_backpointer_k_to_text(struct printbuf *, struct bch_fs *, struct bkey_s_c);
+void bch2_backpointer_to_text(struct printbuf *, struct bch_fs *, struct bkey_s_c);
 void bch2_backpointer_swab(struct bkey_s);
 
 #define bch2_bkey_ops_backpointer ((struct bkey_ops) {	\
 	.key_validate	= bch2_backpointer_validate,	\
-	.val_to_text	= bch2_backpointer_k_to_text,	\
+	.val_to_text	= bch2_backpointer_to_text,	\
 	.swab		= bch2_backpointer_swab,	\
 	.min_val_size	= 32,				\
 })
@@ -51,12 +50,6 @@ static inline bool bp_pos_to_bucket_nodev_noerror(struct bch_fs *c, struct bpos 
 		*bucket = bp_pos_to_bucket(ca, bp_pos);
 	rcu_read_unlock();
 	return ca != NULL;
-}
-
-static inline bool bp_pos_to_bucket_nodev(struct bch_fs *c, struct bpos bp_pos, struct bpos *bucket)
-{
-	return !bch2_fs_inconsistent_on(!bp_pos_to_bucket_nodev_noerror(c, bp_pos, bucket),
-					c, "backpointer for missing device %llu", bp_pos.inode);
 }
 
 static inline struct bpos bucket_pos_to_bp_noerror(const struct bch_dev *ca,
@@ -90,31 +83,25 @@ static inline struct bpos bucket_pos_to_bp_end(const struct bch_dev *ca, struct 
 	return bpos_nosnap_predecessor(bucket_pos_to_bp(ca, bpos_nosnap_successor(bucket), 0));
 }
 
-int bch2_bucket_backpointer_mod_nowritebuffer(struct btree_trans *, struct bch_dev *,
-				struct bpos bucket, struct bch_backpointer, struct bkey_s_c, bool);
+int bch2_bucket_backpointer_mod_nowritebuffer(struct btree_trans *,
+				struct bkey_s_c,
+				struct bkey_i_backpointer *,
+				bool);
 
 static inline int bch2_bucket_backpointer_mod(struct btree_trans *trans,
-				struct bch_dev *ca,
-				struct bpos bucket,
-				struct bch_backpointer bp,
 				struct bkey_s_c orig_k,
+				struct bkey_i_backpointer *bp,
 				bool insert)
 {
 	if (unlikely(bch2_backpointers_no_use_write_buffer))
-		return bch2_bucket_backpointer_mod_nowritebuffer(trans, ca, bucket, bp, orig_k, insert);
-
-	struct bkey_i_backpointer bp_k;
-
-	bkey_backpointer_init(&bp_k.k_i);
-	bp_k.k.p = bucket_pos_to_bp(ca, bucket, bp.bucket_offset);
-	bp_k.v = bp;
+		return bch2_bucket_backpointer_mod_nowritebuffer(trans, orig_k, bp, insert);
 
 	if (!insert) {
-		bp_k.k.type = KEY_TYPE_deleted;
-		set_bkey_val_u64s(&bp_k.k, 0);
+		bp->k.type = KEY_TYPE_deleted;
+		set_bkey_val_u64s(&bp->k, 0);
 	}
 
-	return bch2_trans_update_buffered(trans, BTREE_ID_backpointers, &bp_k.k_i);
+	return bch2_trans_update_buffered(trans, BTREE_ID_backpointers, &bp->k_i);
 }
 
 static inline enum bch_data_type bch2_bkey_ptr_data_type(struct bkey_s_c k,
@@ -148,17 +135,21 @@ static inline void __bch2_extent_ptr_to_bp(struct bch_fs *c, struct bch_dev *ca,
 			   enum btree_id btree_id, unsigned level,
 			   struct bkey_s_c k, struct extent_ptr_decoded p,
 			   const union bch_extent_entry *entry,
-			   struct bpos *bucket_pos, struct bch_backpointer *bp,
+			   struct bpos *bucket, struct bkey_i_backpointer *bp,
 			   u64 sectors)
 {
 	u32 bucket_offset;
-	*bucket_pos = PTR_BUCKET_POS_OFFSET(ca, &p.ptr, &bucket_offset);
-	*bp = (struct bch_backpointer) {
+	*bucket = PTR_BUCKET_POS_OFFSET(ca, &p.ptr, &bucket_offset);
+
+	u64 bp_bucket_offset = ((u64) bucket_offset << MAX_EXTENT_COMPRESS_RATIO_SHIFT) + p.crc.offset;
+
+	bkey_backpointer_init(&bp->k_i);
+	bp->k.p = bucket_pos_to_bp(ca, *bucket, bp_bucket_offset);
+	bp->v	= (struct bch_backpointer) {
 		.btree_id	= btree_id,
 		.level		= level,
 		.data_type	= bch2_bkey_ptr_data_type(k, p, entry),
-		.bucket_offset	= ((u64) bucket_offset << MAX_EXTENT_COMPRESS_RATIO_SHIFT) +
-			p.crc.offset,
+		.bucket_offset	= bp_bucket_offset,
 		.bucket_len	= sectors,
 		.pos		= k.k->p,
 	};
@@ -168,7 +159,7 @@ static inline void bch2_extent_ptr_to_bp(struct bch_fs *c, struct bch_dev *ca,
 			   enum btree_id btree_id, unsigned level,
 			   struct bkey_s_c k, struct extent_ptr_decoded p,
 			   const union bch_extent_entry *entry,
-			   struct bpos *bucket_pos, struct bch_backpointer *bp)
+			   struct bpos *bucket_pos, struct bkey_i_backpointer *bp)
 {
 	u64 sectors = ptr_disk_sectors(level ? btree_sectors(c) : k.k->size, p);
 

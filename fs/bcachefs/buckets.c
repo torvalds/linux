@@ -585,18 +585,18 @@ static int bch2_trigger_pointer(struct btree_trans *trans,
 	}
 
 	struct bpos bucket;
-	struct bch_backpointer bp;
+	struct bkey_i_backpointer bp;
 	__bch2_extent_ptr_to_bp(trans->c, ca, btree_id, level, k, p, entry, &bucket, &bp, abs_sectors);
 
 	if (flags & BTREE_TRIGGER_transactional) {
 		struct bkey_i_alloc_v4 *a = bch2_trans_start_alloc_update(trans, bucket, 0);
 		ret = PTR_ERR_OR_ZERO(a) ?:
-			__mark_pointer(trans, ca, k, &p, *sectors, bp.data_type, &a->v);
+			__mark_pointer(trans, ca, k, &p, *sectors, bp.v.data_type, &a->v);
 		if (ret)
 			goto err;
 
 		if (!p.ptr.cached) {
-			ret = bch2_bucket_backpointer_mod(trans, ca, bucket, bp, k, insert);
+			ret = bch2_bucket_backpointer_mod(trans, k, &bp, insert);
 			if (ret)
 				goto err;
 		}
@@ -614,7 +614,7 @@ static int bch2_trigger_pointer(struct btree_trans *trans,
 
 		bucket_lock(g);
 		struct bch_alloc_v4 old = bucket_m_to_alloc(*g), new = old;
-		ret = __mark_pointer(trans, ca, k, &p, *sectors, bp.data_type, &new);
+		ret = __mark_pointer(trans, ca, k, &p, *sectors, bp.v.data_type, &new);
 		alloc_to_bucket(g, new);
 		bucket_unlock(g);
 err_unlock:

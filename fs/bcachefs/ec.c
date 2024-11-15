@@ -1291,7 +1291,7 @@ static int ec_stripe_update_extent(struct btree_trans *trans,
 			return 0;
 
 		prt_printf(&buf, "found btree node in erasure coded bucket: b=%px\n", b);
-		bch2_backpointer_to_text(&buf, bp.v);
+		bch2_bkey_val_to_text(&buf, c, bp.s_c);
 
 		bch2_fs_inconsistent(c, "%s", buf.buf);
 		printbuf_exit(&buf);
