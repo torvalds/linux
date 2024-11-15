@@ -393,9 +393,9 @@ static struct dentry *ceph_get_parent(struct dentry *child)
 			}
 			dir = snapdir;
 		}
-		/* If directory has already been deleted, futher get_parent
+		/* If directory has already been deleted, further get_parent
 		 * will fail. Do not mark snapdir dentry as disconnected,
-		 * this prevent exportfs from doing futher get_parent. */
+		 * this prevents exportfs from doing further get_parent. */
 		if (unlinked)
 			dn = d_obtain_root(dir);
 		else

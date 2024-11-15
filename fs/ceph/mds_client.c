@@ -827,7 +827,7 @@ static void destroy_reply_info(struct ceph_mds_reply_info_parsed *info)
  * And the worst case is that for the none async openc request it will
  * successfully open the file if the CDentry hasn't been unlinked yet,
  * but later the previous delayed async unlink request will remove the
- * CDenty. That means the just created file is possiblly deleted later
+ * CDentry. That means the just created file is possibly deleted later
  * by accident.
  *
  * We need to wait for the inflight async unlink requests to finish
@@ -3261,7 +3261,7 @@ static int __prepare_send_request(struct ceph_mds_session *session,
 				     &session->s_features);
 
 	/*
-	 * Avoid inifinite retrying after overflow. The client will
+	 * Avoid infinite retrying after overflow. The client will
 	 * increase the retry count and if the MDS is old version,
 	 * so we limit to retry at most 256 times.
 	 */
@@ -3514,7 +3514,7 @@ static void __do_request(struct ceph_mds_client *mdsc,
 
 	/*
 	 * For async create we will choose the auth MDS of frag in parent
-	 * directory to send the request and ususally this works fine, but
+	 * directory to send the request and usually this works fine, but
 	 * if the migrated the dirtory to another MDS before it could handle
 	 * it the request will be forwarded.
 	 *
@@ -4025,7 +4025,7 @@ static void handle_forward(struct ceph_mds_client *mdsc,
 		__unregister_request(mdsc, req);
 	} else if (fwd_seq <= req->r_num_fwd || (uint32_t)fwd_seq >= U32_MAX) {
 		/*
-		 * Avoid inifinite retrying after overflow.
+		 * Avoid infinite retrying after overflow.
 		 *
 		 * The MDS will increase the fwd count and in client side
 		 * if the num_fwd is less than the one saved in request
@@ -5730,7 +5730,7 @@ int ceph_mds_check_access(struct ceph_mds_client *mdsc, char *tpath, int mask)
 		if (err < 0) {
 			return err;
 		} else if (err > 0) {
-			/* always follow the last auth caps' permision */
+			/* always follow the last auth caps' permission */
 			root_squash_perms = true;
 			rw_perms_s = NULL;
 			if ((mask & MAY_WRITE) && s->writeable &&

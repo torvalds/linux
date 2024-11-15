@@ -2799,7 +2799,7 @@ void ceph_take_cap_refs(struct ceph_inode_info *ci, int got,
  * requested from the MDS.
  *
  * Returns 0 if caps were not able to be acquired (yet), 1 if succeed,
- * or a negative error code. There are 3 speical error codes:
+ * or a negative error code. There are 3 special error codes:
  *  -EAGAIN:  need to sleep but non-blocking is specified
  *  -EFBIG:   ask caller to call check_max_size() and try again.
  *  -EUCLEAN: ask caller to call ceph_renew_caps() and try again.
