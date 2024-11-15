@@ -304,6 +304,72 @@ error_put_f1:
 	return err;
 }
 
+static int unwrap_merge_order(void *arg)
+{
+	struct dma_fence *fence, *f1, *f2, *a1, *a2, *c1, *c2;
+	struct dma_fence_unwrap iter;
+	int err = 0;
+
+	f1 = mock_fence();
+	if (!f1)
+		return -ENOMEM;
+
+	dma_fence_enable_sw_signaling(f1);
+
+	f2 = mock_fence();
+	if (!f2) {
+		dma_fence_put(f1);
+		return -ENOMEM;
+	}
+
+	dma_fence_enable_sw_signaling(f2);
+
+	a1 = mock_array(2, f1, f2);
+	if (!a1)
+		return -ENOMEM;
+
+	c1 = mock_chain(NULL, dma_fence_get(f1));
+	if (!c1)
+		goto error_put_a1;
+
+	c2 = mock_chain(c1, dma_fence_get(f2));
+	if (!c2)
+		goto error_put_a1;
+
+	/*
+	 * The fences in the chain are the same as in a1 but in oposite order,
+	 * the dma_fence_merge() function should be able to handle that.
+	 */
+	a2 = dma_fence_unwrap_merge(a1, c2);
+
+	dma_fence_unwrap_for_each(fence, &iter, a2) {
+		if (fence == f1) {
+			f1 = NULL;
+			if (!f2)
+				pr_err("Unexpected order!\n");
+		} else if (fence == f2) {
+			f2 = NULL;
+			if (f1)
+				pr_err("Unexpected order!\n");
+		} else {
+			pr_err("Unexpected fence!\n");
+			err = -EINVAL;
+		}
+	}
+
+	if (f1 || f2) {
+		pr_err("Not all fences seen!\n");
+		err = -EINVAL;
+	}
+
+	dma_fence_put(a2);
+	return err;
+
+error_put_a1:
+	dma_fence_put(a1);
+	return -ENOMEM;
+}
+
 static int unwrap_merge_complex(void *arg)
 {
 	struct dma_fence *fence, *f1, *f2, *f3, *f4, *f5;
@@ -327,7 +393,7 @@ static int unwrap_merge_complex(void *arg)
 		goto error_put_f2;
 
 	/* The resulting array has the fences in reverse */
-	f4 = dma_fence_unwrap_merge(f2, f1);
+	f4 = mock_array(2, dma_fence_get(f2), dma_fence_get(f1));
 	if (!f4)
 		goto error_put_f3;
 
@@ -375,6 +441,7 @@ int dma_fence_unwrap(void)
 		SUBTEST(unwrap_chain),
 		SUBTEST(unwrap_chain_array),
 		SUBTEST(unwrap_merge),
+		SUBTEST(unwrap_merge_order),
 		SUBTEST(unwrap_merge_complex),
 	};
 
