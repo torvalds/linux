@@ -211,7 +211,7 @@ void ethtool_rxfh_context_lost(struct net_device *dev, u32 context_id);
  * fields, but they are allowed to overwrite them (will be ignored).
  */
 struct ethtool_link_ksettings {
-	struct ethtool_link_settings_hdr base;
+	struct ethtool_link_settings base;
 	struct {
 		__ETHTOOL_DECLARE_LINK_MODE_MASK(supported);
 		__ETHTOOL_DECLARE_LINK_MODE_MASK(advertising);

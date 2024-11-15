@@ -2780,7 +2780,7 @@ u32 bnxt_fw_to_ethtool_speed(u16 fw_link_speed)
 static void bnxt_get_default_speeds(struct ethtool_link_ksettings *lk_ksettings,
 				    struct bnxt_link_info *link_info)
 {
-	struct ethtool_link_settings_hdr *base = &lk_ksettings->base;
+	struct ethtool_link_settings *base = &lk_ksettings->base;
 
 	if (link_info->link_state == BNXT_LINK_STATE_UP) {
 		base->speed = bnxt_fw_to_ethtool_speed(link_info->link_speed);
@@ -2799,7 +2799,7 @@ static void bnxt_get_default_speeds(struct ethtool_link_ksettings *lk_ksettings,
 static int bnxt_get_link_ksettings(struct net_device *dev,
 				   struct ethtool_link_ksettings *lk_ksettings)
 {
-	struct ethtool_link_settings_hdr *base = &lk_ksettings->base;
+	struct ethtool_link_settings *base = &lk_ksettings->base;
 	enum ethtool_link_mode_bit_indices link_mode;
 	struct bnxt *bp = netdev_priv(dev);
 	struct bnxt_link_info *link_info;
@@ -3022,9 +3022,9 @@ u16 bnxt_get_fw_auto_link_speeds(const unsigned long *mode)
 static int bnxt_set_link_ksettings(struct net_device *dev,
 			   const struct ethtool_link_ksettings *lk_ksettings)
 {
-	const struct ethtool_link_settings_hdr *base = &lk_ksettings->base;
 	struct bnxt *bp = netdev_priv(dev);
 	struct bnxt_link_info *link_info = &bp->link_info;
+	const struct ethtool_link_settings *base = &lk_ksettings->base;
 	bool set_pause = false;
 	u32 speed, lanes = 0;
 	int rc = 0;

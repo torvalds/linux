@@ -8,9 +8,9 @@ struct linkinfo_req_info {
 };
 
 struct linkinfo_reply_data {
-	struct ethnl_reply_data			base;
-	struct ethtool_link_ksettings		ksettings;
-	struct ethtool_link_settings_hdr	*lsettings;
+	struct ethnl_reply_data		base;
+	struct ethtool_link_ksettings	ksettings;
+	struct ethtool_link_settings	*lsettings;
 };
 
 #define LINKINFO_REPDATA(__reply_base) \
@@ -98,7 +98,7 @@ static int
 ethnl_set_linkinfo(struct ethnl_req_info *req_info, struct genl_info *info)
 {
 	struct ethtool_link_ksettings ksettings = {};
-	struct ethtool_link_settings_hdr *lsettings;
+	struct ethtool_link_settings *lsettings;
 	struct net_device *dev = req_info->dev;
 	struct nlattr **tb = info->attrs;
 	bool mod = false;
