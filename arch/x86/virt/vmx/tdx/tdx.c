@@ -1462,6 +1462,20 @@ void __init tdx_init(void)
 	check_tdx_erratum();
 }
 
+const struct tdx_sys_info *tdx_get_sysinfo(void)
+{
+	const struct tdx_sys_info *p = NULL;
+
+	/* Make sure all fields in @tdx_sysinfo have been populated */
+	mutex_lock(&tdx_module_lock);
+	if (tdx_module_status == TDX_MODULE_INITIALIZED)
+		p = (const struct tdx_sys_info *)&tdx_sysinfo;
+	mutex_unlock(&tdx_module_lock);
+
+	return p;
+}
+EXPORT_SYMBOL_GPL(tdx_get_sysinfo);
+
 int tdx_guest_keyid_alloc(void)
 {
 	return ida_alloc_range(&tdx_guest_keyid_pool, tdx_guest_keyid_start,

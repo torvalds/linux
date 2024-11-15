@@ -3,7 +3,6 @@
 #define _X86_VIRT_TDX_H
 
 #include <linux/bits.h>
-#include "tdx_global_metadata.h"
 
 /*
  * This file contains both macros and data structures defined by the TDX

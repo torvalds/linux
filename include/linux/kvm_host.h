@@ -2284,6 +2284,7 @@ static inline bool kvm_check_request(int req, struct kvm_vcpu *vcpu)
 }
 
 #ifdef CONFIG_KVM_GENERIC_HARDWARE_ENABLING
+extern bool enable_virt_at_load;
 extern bool kvm_rebooting;
 #endif
 

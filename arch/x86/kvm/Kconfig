@@ -128,6 +128,16 @@ config X86_SGX_KVM
 
 	  If unsure, say N.
 
+config KVM_INTEL_TDX
+	bool "Intel Trust Domain Extensions (TDX) support"
+	default y
+	depends on INTEL_TDX_HOST
+	help
+	  Provides support for launching Intel Trust Domain Extensions (TDX)
+	  confidential VMs on Intel processors.
+
+	  If unsure, say N.
+
 config KVM_AMD
 	tristate "KVM for AMD processors support"
 	depends on KVM && (CPU_SUP_AMD || CPU_SUP_HYGON)
