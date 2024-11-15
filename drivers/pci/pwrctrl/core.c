@@ -7,7 +7,7 @@
 #include <linux/export.h>
 #include <linux/kernel.h>
 #include <linux/pci.h>
-#include <linux/pci-pwrctl.h>
+#include <linux/pci-pwrctrl.h>
 #include <linux/property.h>
 #include <linux/slab.h>
 

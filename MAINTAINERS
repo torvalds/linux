@@ -17910,8 +17910,8 @@ M:	Bartosz Golaszewski <brgl@bgdev.pl>
 L:	linux-pci@vger.kernel.org
 S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/pci/pci.git
-F:	drivers/pci/pwrctl/*
-F:	include/linux/pci-pwrctl.h
+F:	drivers/pci/pwrctrl/*
+F:	include/linux/pci-pwrctrl.h
 
 PCI SUBSYSTEM
 M:	Bjorn Helgaas <bhelgaas@google.com>
