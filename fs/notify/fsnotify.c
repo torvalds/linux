@@ -203,6 +203,24 @@ static inline bool fsnotify_object_watched(struct inode *inode, __u32 mnt_mask,
 	return mask & marks_mask & ALL_FSNOTIFY_EVENTS;
 }
 
+/* Report pre-content event with optional range info */
+int fsnotify_pre_content(const struct path *path, const loff_t *ppos,
+			 size_t count)
+{
+	struct file_range range;
+
+	/* Report page aligned range only when pos is known */
+	if (!ppos)
+		return fsnotify_path(path, FS_PRE_ACCESS);
+
+	range.path = path;
+	range.pos = PAGE_ALIGN_DOWN(*ppos);
+	range.count = PAGE_ALIGN(*ppos + count) - range.pos;
+
+	return fsnotify_parent(path->dentry, FS_PRE_ACCESS, &range,
+			       FSNOTIFY_EVENT_FILE_RANGE);
+}
+
 /*
  * Notify this dentry's parent about a child's events with child name info
  * if parent is watching or if inode/sb/mount are interested in events with
