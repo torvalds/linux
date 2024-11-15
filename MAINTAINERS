@@ -16068,7 +16068,9 @@ F:	include/uapi/linux/if_*
 F:	include/uapi/linux/netdev*
 F:	tools/testing/selftests/drivers/net/
 X:	Documentation/devicetree/bindings/net/bluetooth/
+X:	Documentation/devicetree/bindings/net/can/
 X:	Documentation/devicetree/bindings/net/wireless/
+X:	drivers/net/can/
 X:	drivers/net/wireless/
 
 NETWORKING DRIVERS (WIRELESS)
@@ -16157,6 +16159,7 @@ X:	include/net/mac80211.h
 X:	include/net/wext.h
 X:	net/9p/
 X:	net/bluetooth/
+X:	net/can/
 X:	net/mac80211/
 X:	net/rfkill/
 X:	net/wireless/
