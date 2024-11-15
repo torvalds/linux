@@ -570,6 +570,37 @@ out:
 	return ret;
 }
 
+static int io_register_mem_region(struct io_ring_ctx *ctx, void __user *uarg)
+{
+	struct io_uring_mem_region_reg __user *reg_uptr = uarg;
+	struct io_uring_mem_region_reg reg;
+	struct io_uring_region_desc __user *rd_uptr;
+	struct io_uring_region_desc rd;
+	int ret;
+
+	if (io_region_is_set(&ctx->param_region))
+		return -EBUSY;
+	if (copy_from_user(&reg, reg_uptr, sizeof(reg)))
+		return -EFAULT;
+	rd_uptr = u64_to_user_ptr(reg.region_uptr);
+	if (copy_from_user(&rd, rd_uptr, sizeof(rd)))
+		return -EFAULT;
+
+	if (memchr_inv(&reg.__resv, 0, sizeof(reg.__resv)))
+		return -EINVAL;
+	if (reg.flags)
+		return -EINVAL;
+
+	ret = io_create_region(ctx, &ctx->param_region, &rd);
+	if (ret)
+		return ret;
+	if (copy_to_user(rd_uptr, &rd, sizeof(rd))) {
+		io_free_region(ctx, &ctx->param_region);
+		return -EFAULT;
+	}
+	return 0;
+}
+
 static int __io_uring_register(struct io_ring_ctx *ctx, unsigned opcode,
 			       void __user *arg, unsigned nr_args)
 	__releases(ctx->uring_lock)
@@ -763,6 +794,12 @@ static int __io_uring_register(struct io_ring_ctx *ctx, unsigned opcode,
 		if (!arg || nr_args != 1)
 			break;
 		ret = io_register_resize_rings(ctx, arg);
+		break;
+	case IORING_REGISTER_MEM_REGION:
+		ret = -EINVAL;
+		if (!arg || nr_args != 1)
+			break;
+		ret = io_register_mem_region(ctx, arg);
 		break;
 	default:
 		ret = -EINVAL;
