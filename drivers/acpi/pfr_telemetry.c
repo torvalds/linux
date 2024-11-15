@@ -272,9 +272,6 @@ static long pfrt_log_ioctl(struct file *file, unsigned int cmd, unsigned long ar
 
 	case PFRT_LOG_IOC_GET_INFO:
 		info.log_level = get_pfrt_log_level(pfrt_log_dev);
-		if (ret < 0)
-			return ret;
-
 		info.log_type = pfrt_log_dev->info.log_type;
 		info.log_revid = pfrt_log_dev->info.log_revid;
 		if (copy_to_user(p, &info, sizeof(info)))
