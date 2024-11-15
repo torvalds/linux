@@ -153,19 +153,13 @@ static u64 rapl_timer_ms;
 static struct perf_msr *rapl_msrs;
 
 /*
- * Helper functions to get the correct topology macros according to the
+ * Helper function to get the correct topology id according to the
  * RAPL PMU scope.
  */
 static inline unsigned int get_rapl_pmu_idx(int cpu)
 {
 	return rapl_pmu_is_pkg_scope() ? topology_logical_package_id(cpu) :
 					 topology_logical_die_id(cpu);
-}
-
-static inline const struct cpumask *get_rapl_pmu_cpumask(int cpu)
-{
-	return rapl_pmu_is_pkg_scope() ? topology_core_cpumask(cpu) :
-					 topology_die_cpumask(cpu);
 }
 
 static inline struct rapl_pmu *cpu_to_rapl_pmu(unsigned int cpu)
