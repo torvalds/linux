@@ -3,6 +3,7 @@
 #include <linux/bpf.h>
 #include <linux/btf.h>
 #include <linux/err.h>
+#include "linux/filter.h"
 #include <linux/btf_ids.h>
 #include <linux/vmalloc.h>
 #include <linux/pagemap.h>
@@ -98,6 +99,9 @@ static struct bpf_map *arena_map_alloc(union bpf_attr *attr)
 	struct bpf_arena *arena;
 	u64 vm_range;
 	int err = -ENOMEM;
+
+	if (!bpf_jit_supports_arena())
+		return ERR_PTR(-EOPNOTSUPP);
 
 	if (attr->key_size || attr->value_size || attr->max_entries == 0 ||
 	    /* BPF_F_MMAPABLE must be set */
