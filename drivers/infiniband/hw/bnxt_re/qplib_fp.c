@@ -1318,6 +1318,7 @@ int bnxt_qplib_modify_qp(struct bnxt_qplib_res *res, struct bnxt_qplib_qp *qp)
 	struct creq_modify_qp_resp resp = {};
 	struct bnxt_qplib_cmdqmsg msg = {};
 	struct cmdq_modify_qp req = {};
+	u16 vlan_pcp_vlan_dei_vlan_id;
 	u32 temp32[4];
 	u32 bmask;
 	int rc;
@@ -1414,7 +1415,16 @@ int bnxt_qplib_modify_qp(struct bnxt_qplib_res *res, struct bnxt_qplib_qp *qp)
 	if (bmask & CMDQ_MODIFY_QP_MODIFY_MASK_DEST_QP_ID)
 		req.dest_qp_id = cpu_to_le32(qp->dest_qpn);
 
-	req.vlan_pcp_vlan_dei_vlan_id = cpu_to_le16(qp->vlan_id);
+	if (bmask & CMDQ_MODIFY_QP_MODIFY_MASK_VLAN_ID) {
+		vlan_pcp_vlan_dei_vlan_id =
+			((res->sgid_tbl.tbl[qp->ah.sgid_index].vlan_id <<
+			  CMDQ_MODIFY_QP_VLAN_ID_SFT) &
+			 CMDQ_MODIFY_QP_VLAN_ID_MASK);
+		vlan_pcp_vlan_dei_vlan_id |=
+			((qp->ah.sl << CMDQ_MODIFY_QP_VLAN_PCP_SFT) &
+			 CMDQ_MODIFY_QP_VLAN_PCP_MASK);
+		req.vlan_pcp_vlan_dei_vlan_id = cpu_to_le16(vlan_pcp_vlan_dei_vlan_id);
+	}
 
 	bnxt_qplib_fill_cmdqmsg(&msg, &req, &resp, NULL, sizeof(req),  sizeof(resp), 0);
 	rc = bnxt_qplib_rcfw_send_message(rcfw, &msg);
