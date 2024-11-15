@@ -19,6 +19,7 @@
 struct fbnic_dev {
 	struct device *dev;
 	struct net_device *netdev;
+	struct dentry *dbg_fbd;
 	struct device *hwmon;
 
 	u32 __iomem *uc_addr0;
@@ -155,6 +156,11 @@ int fbnic_alloc_irqs(struct fbnic_dev *fbd);
 
 void fbnic_get_fw_ver_commit_str(struct fbnic_dev *fbd, char *fw_version,
 				 const size_t str_sz);
+
+void fbnic_dbg_fbd_init(struct fbnic_dev *fbd);
+void fbnic_dbg_fbd_exit(struct fbnic_dev *fbd);
+void fbnic_dbg_init(void);
+void fbnic_dbg_exit(void);
 
 void fbnic_csr_get_regs(struct fbnic_dev *fbd, u32 *data, u32 *regs_version);
 int fbnic_csr_regs_len(struct fbnic_dev *fbd);

@@ -288,6 +288,7 @@ static int fbnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 
 	fbnic_devlink_register(fbd);
+	fbnic_dbg_fbd_init(fbd);
 
 	fbnic_hwmon_register(fbd);
 
@@ -355,6 +356,7 @@ static void fbnic_remove(struct pci_dev *pdev)
 	}
 
 	fbnic_hwmon_unregister(fbd);
+	fbnic_dbg_fbd_exit(fbd);
 	fbnic_devlink_unregister(fbd);
 	fbnic_fw_disable_mbx(fbd);
 	fbnic_free_irqs(fbd);
@@ -552,9 +554,13 @@ static int __init fbnic_init_module(void)
 {
 	int err;
 
+	fbnic_dbg_init();
+
 	err = pci_register_driver(&fbnic_driver);
-	if (err)
+	if (err) {
+		fbnic_dbg_exit();
 		goto out;
+	}
 
 	pr_info(DRV_SUMMARY " (%s)", fbnic_driver.name);
 out:
@@ -570,5 +576,7 @@ module_init(fbnic_init_module);
 static void __exit fbnic_exit_module(void)
 {
 	pci_unregister_driver(&fbnic_driver);
+
+	fbnic_dbg_exit();
 }
 module_exit(fbnic_exit_module);
