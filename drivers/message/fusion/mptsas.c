@@ -5377,7 +5377,7 @@ static void mptsas_remove(struct pci_dev *pdev)
 	mptscsih_remove(pdev);
 }
 
-static struct pci_device_id mptsas_pci_table[] = {
+static const struct pci_device_id mptsas_pci_table[] = {
 	{ PCI_VENDOR_ID_LSI_LOGIC, MPI_MANUFACTPAGE_DEVID_SAS1064,
 		PCI_ANY_ID, PCI_ANY_ID },
 	{ PCI_VENDOR_ID_LSI_LOGIC, MPI_MANUFACTPAGE_DEVID_SAS1068,
