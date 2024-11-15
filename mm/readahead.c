@@ -128,6 +128,7 @@
 #include <linux/blk-cgroup.h>
 #include <linux/fadvise.h>
 #include <linux/sched/mm.h>
+#include <linux/fsnotify.h>
 
 #include "internal.h"
 
@@ -550,6 +551,15 @@ void page_cache_sync_ra(struct readahead_control *ractl,
 	pgoff_t prev_index, miss;
 
 	/*
+	 * If we have pre-content watches we need to disable readahead to make
+	 * sure that we don't find 0 filled pages in cache that we never emitted
+	 * events for. Filesystems supporting HSM must make sure to not call
+	 * this function with ractl->file unset for files handled by HSM.
+	 */
+	if (ractl->file && unlikely(FMODE_FSNOTIFY_HSM(ractl->file->f_mode)))
+		return;
+
+	/*
 	 * Even if readahead is disabled, issue this request as readahead
 	 * as we'll need it to satisfy the requested range. The forced
 	 * readahead will do the right thing and limit the read to just the
@@ -625,6 +635,10 @@ void page_cache_async_ra(struct readahead_control *ractl,
 
 	/* no readahead */
 	if (!ra->ra_pages)
+		return;
+
+	/* See the comment in page_cache_sync_ra. */
+	if (ractl->file && unlikely(FMODE_FSNOTIFY_HSM(ractl->file->f_mode)))
 		return;
 
 	/*
