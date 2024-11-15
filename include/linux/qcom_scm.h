@@ -145,6 +145,8 @@ static inline void qcom_scm_populate_mem_map_info(
 extern bool qcom_scm_is_available(void);
 extern void *qcom_get_scm_device(void);
 
+extern int qcom_scm_set_warm_boot_addr_mc(void *entry, u32 aff0, u32 aff1,
+					  u32 aff2, u32 flags);
 extern int qcom_scm_set_cold_boot_addr(void *entry, const cpumask_t *cpus);
 extern int qcom_scm_set_warm_boot_addr(void *entry, const cpumask_t *cpus);
 extern void qcom_scm_cpu_power_down(u32 flags);
