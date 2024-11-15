@@ -983,7 +983,6 @@ struct bch_fs {
 
 	mempool_t		compression_bounce[2];
 	mempool_t		compress_workspace[BCH_COMPRESSION_OPT_NR];
-	mempool_t		decompress_workspace;
 	size_t			zstd_workspace_size;
 
 	struct crypto_shash	*sha256;

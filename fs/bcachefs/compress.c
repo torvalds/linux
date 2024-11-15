@@ -9,6 +9,24 @@
 #include <linux/zlib.h>
 #include <linux/zstd.h>
 
+static inline enum bch_compression_opts bch2_compression_type_to_opt(enum bch_compression_type type)
+{
+	switch (type) {
+	case BCH_COMPRESSION_TYPE_none:
+	case BCH_COMPRESSION_TYPE_incompressible:
+		return BCH_COMPRESSION_OPT_none;
+	case BCH_COMPRESSION_TYPE_lz4_old:
+	case BCH_COMPRESSION_TYPE_lz4:
+		return BCH_COMPRESSION_OPT_lz4;
+	case BCH_COMPRESSION_TYPE_gzip:
+		return BCH_COMPRESSION_OPT_gzip;
+	case BCH_COMPRESSION_TYPE_zstd:
+		return BCH_COMPRESSION_OPT_zstd;
+	default:
+		BUG();
+	}
+}
+
 /* Bounce buffer: */
 struct bbuf {
 	void		*b;
@@ -158,6 +176,10 @@ static int __bio_uncompress(struct bch_fs *c, struct bio *src,
 	void *workspace;
 	int ret;
 
+	enum bch_compression_opts opt = bch2_compression_type_to_opt(crc.compression_type);
+	mempool_t *workspace_pool = &c->compress_workspace[opt];
+	BUG_ON(!mempool_initialized(workspace_pool));
+
 	src_data = bio_map_or_bounce(c, src, READ);
 
 	switch (crc.compression_type) {
@@ -176,13 +198,13 @@ static int __bio_uncompress(struct bch_fs *c, struct bio *src,
 			.avail_out	= dst_len,
 		};
 
-		workspace = mempool_alloc(&c->decompress_workspace, GFP_NOFS);
+		workspace = mempool_alloc(workspace_pool, GFP_NOFS);
 
 		zlib_set_workspace(&strm, workspace);
 		zlib_inflateInit2(&strm, -MAX_WBITS);
 		ret = zlib_inflate(&strm, Z_FINISH);
 
-		mempool_free(workspace, &c->decompress_workspace);
+		mempool_free(workspace, workspace_pool);
 
 		if (ret != Z_STREAM_END)
 			goto err;
@@ -195,14 +217,14 @@ static int __bio_uncompress(struct bch_fs *c, struct bio *src,
 		if (real_src_len > src_len - 4)
 			goto err;
 
-		workspace = mempool_alloc(&c->decompress_workspace, GFP_NOFS);
+		workspace = mempool_alloc(workspace_pool, GFP_NOFS);
 		ctx = zstd_init_dctx(workspace, zstd_dctx_workspace_bound());
 
 		ret = zstd_decompress_dctx(ctx,
 				dst_data,	dst_len,
 				src_data.b + 4, real_src_len);
 
-		mempool_free(workspace, &c->decompress_workspace);
+		mempool_free(workspace, workspace_pool);
 
 		if (ret != dst_len)
 			goto err;
@@ -562,7 +584,6 @@ void bch2_fs_compress_exit(struct bch_fs *c)
 {
 	unsigned i;
 
-	mempool_exit(&c->decompress_workspace);
 	for (i = 0; i < ARRAY_SIZE(c->compress_workspace); i++)
 		mempool_exit(&c->compress_workspace[i]);
 	mempool_exit(&c->compression_bounce[WRITE]);
@@ -571,7 +592,6 @@ void bch2_fs_compress_exit(struct bch_fs *c)
 
 static int __bch2_fs_compress_init(struct bch_fs *c, u64 features)
 {
-	size_t decompress_workspace_size = 0;
 	ZSTD_parameters params = zstd_get_params(zstd_max_clevel(),
 						 c->opts.encoded_extent_max);
 
@@ -581,17 +601,15 @@ static int __bch2_fs_compress_init(struct bch_fs *c, u64 features)
 		unsigned			feature;
 		enum bch_compression_opts	type;
 		size_t				compress_workspace;
-		size_t				decompress_workspace;
 	} compression_types[] = {
 		{ BCH_FEATURE_lz4, BCH_COMPRESSION_OPT_lz4,
-			max_t(size_t, LZ4_MEM_COMPRESS, LZ4HC_MEM_COMPRESS),
-			0 },
+			max_t(size_t, LZ4_MEM_COMPRESS, LZ4HC_MEM_COMPRESS) },
 		{ BCH_FEATURE_gzip, BCH_COMPRESSION_OPT_gzip,
-			zlib_deflate_workspacesize(MAX_WBITS, DEF_MEM_LEVEL),
-			zlib_inflate_workspacesize(), },
+			max(zlib_deflate_workspacesize(MAX_WBITS, DEF_MEM_LEVEL),
+			    zlib_inflate_workspacesize()) },
 		{ BCH_FEATURE_zstd, BCH_COMPRESSION_OPT_zstd,
-			c->zstd_workspace_size,
-			zstd_dctx_workspace_bound() },
+			max(c->zstd_workspace_size,
+			    zstd_dctx_workspace_bound()) },
 	}, *i;
 	bool have_compressed = false;
 
@@ -616,9 +634,6 @@ static int __bch2_fs_compress_init(struct bch_fs *c, u64 features)
 	for (i = compression_types;
 	     i < compression_types + ARRAY_SIZE(compression_types);
 	     i++) {
-		decompress_workspace_size =
-			max(decompress_workspace_size, i->decompress_workspace);
-
 		if (!(features & (1 << i->feature)))
 			continue;
 
@@ -630,11 +645,6 @@ static int __bch2_fs_compress_init(struct bch_fs *c, u64 features)
 				1, i->compress_workspace))
 			return -BCH_ERR_ENOMEM_compression_workspace_init;
 	}
-
-	if (!mempool_initialized(&c->decompress_workspace) &&
-	    mempool_init_kvmalloc_pool(&c->decompress_workspace,
-				       1, decompress_workspace_size))
-		return -BCH_ERR_ENOMEM_decompression_workspace_init;
 
 	return 0;
 }
