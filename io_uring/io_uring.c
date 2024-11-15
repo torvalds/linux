@@ -3214,12 +3214,8 @@ static int io_validate_ext_arg(struct io_ring_ctx *ctx, unsigned flags,
 
 	if (!(flags & IORING_ENTER_EXT_ARG))
 		return 0;
-
-	if (flags & IORING_ENTER_EXT_ARG_REG) {
-		if (argsz != sizeof(struct io_uring_reg_wait))
-			return -EINVAL;
-		return PTR_ERR(io_get_ext_arg_reg(ctx, argp));
-	}
+	if (flags & IORING_ENTER_EXT_ARG_REG)
+		return -EINVAL;
 	if (argsz != sizeof(arg))
 		return -EINVAL;
 	if (copy_from_user(&arg, argp, sizeof(arg)))
