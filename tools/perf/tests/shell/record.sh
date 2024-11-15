@@ -231,7 +231,8 @@ test_cgroup() {
 
 test_leader_sampling() {
   echo "Basic leader sampling test"
-  if ! perf record -o "${perfdata}" -e "{branches,branches}:Su" perf test -w brstack 2> /dev/null
+  if ! perf record -o "${perfdata}" -e "{instructions,instructions}:Su" -- \
+    perf test -w brstack 2> /dev/null
   then
     echo "Leader sampling [Failed record]"
     err=1
@@ -241,16 +242,16 @@ test_leader_sampling() {
   perf script -i "${perfdata}" > $script_output
   while IFS= read -r line
   do
-    # Check if the two branches counts are equal in each record
-    branches=$(echo $line | awk '{for(i=1;i<=NF;i++) if($i=="branches:") print $(i-1)}')
-    if [ $(($index%2)) -ne 0 ] && [ ${branches}x != ${prev_branches}x ]
+    # Check if the two instruction counts are equal in each record
+    instructions=$(echo $line | awk '{for(i=1;i<=NF;i++) if($i=="instructions:") print $(i-1)}')
+    if [ $(($index%2)) -ne 0 ] && [ ${instructions}x != ${prev_instructions}x ]
     then
-      echo "Leader sampling [Failed inconsistent branches count]"
+      echo "Leader sampling [Failed inconsistent instructions count]"
       err=1
       return
     fi
     index=$(($index+1))
-    prev_branches=$branches
+    prev_instructions=$instructions
   done < $script_output
   echo "Basic leader sampling test [Success]"
 }
