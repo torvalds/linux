@@ -322,7 +322,6 @@ fsck_err:
 void bch2_alloc_v4_swab(struct bkey_s k)
 {
 	struct bch_alloc_v4 *a = bkey_s_to_alloc_v4(k).v;
-	struct bch_backpointer *bp, *bps;
 
 	a->journal_seq		= swab64(a->journal_seq);
 	a->flags		= swab32(a->flags);
@@ -333,13 +332,6 @@ void bch2_alloc_v4_swab(struct bkey_s k)
 	a->stripe		= swab32(a->stripe);
 	a->nr_external_backpointers = swab32(a->nr_external_backpointers);
 	a->stripe_sectors	= swab32(a->stripe_sectors);
-
-	bps = alloc_v4_backpointers(a);
-	for (bp = bps; bp < bps + BCH_ALLOC_V4_NR_BACKPOINTERS(a); bp++) {
-		bp->bucket_offset	= swab40(bp->bucket_offset);
-		bp->bucket_len		= swab32(bp->bucket_len);
-		bch2_bpos_swab(&bp->pos);
-	}
 }
 
 void bch2_alloc_to_text(struct printbuf *out, struct bch_fs *c, struct bkey_s_c k)
