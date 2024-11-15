@@ -129,6 +129,7 @@ struct rapl_pmu {
 struct rapl_pmus {
 	struct pmu		pmu;
 	unsigned int		nr_rapl_pmu;
+	unsigned int		cntr_mask;
 	struct rapl_pmu		*rapl_pmu[] __counted_by(nr_rapl_pmu);
 };
 
@@ -148,7 +149,6 @@ struct rapl_model {
  /* 1/2^hw_unit Joule */
 static int rapl_pkg_hw_unit[NR_RAPL_PKG_DOMAINS] __read_mostly;
 static struct rapl_pmus *rapl_pmus_pkg;
-static unsigned int rapl_pkg_cntr_mask;
 static u64 rapl_timer_ms;
 static struct rapl_model *rapl_model;
 
@@ -364,7 +364,7 @@ static int rapl_pmu_event_init(struct perf_event *event)
 	bit = cfg - 1;
 
 	/* check event supported */
-	if (!(rapl_pkg_cntr_mask & (1 << bit)))
+	if (!(rapl_pmus_pkg->cntr_mask & (1 << bit)))
 		return -EINVAL;
 
 	/* unsupported modes and filters */
@@ -592,10 +592,10 @@ static void __init rapl_advertise(void)
 	int i;
 
 	pr_info("API unit is 2^-32 Joules, %d fixed counters, %llu ms ovfl timer\n",
-		hweight32(rapl_pkg_cntr_mask), rapl_timer_ms);
+		hweight32(rapl_pmus_pkg->cntr_mask), rapl_timer_ms);
 
 	for (i = 0; i < NR_RAPL_PKG_DOMAINS; i++) {
-		if (rapl_pkg_cntr_mask & (1 << i)) {
+		if (rapl_pmus_pkg->cntr_mask & (1 << i)) {
 			pr_info("hw unit of domain %s 2^-%d Joules\n",
 				rapl_pkg_domain_names[i], rapl_pkg_hw_unit[i]);
 		}
@@ -810,9 +810,6 @@ static int __init rapl_pmu_init(void)
 
 	rapl_model = (struct rapl_model *) id->driver_data;
 
-	rapl_pkg_cntr_mask = perf_msr_probe(rapl_model->rapl_pkg_msrs, PERF_RAPL_PKG_EVENTS_MAX,
-					false, (void *) &rapl_model->pkg_events);
-
 	ret = rapl_check_hw_unit();
 	if (ret)
 		return ret;
@@ -820,6 +817,10 @@ static int __init rapl_pmu_init(void)
 	ret = init_rapl_pmus(&rapl_pmus_pkg, rapl_pkg_pmu_scope);
 	if (ret)
 		return ret;
+
+	rapl_pmus_pkg->cntr_mask = perf_msr_probe(rapl_model->rapl_pkg_msrs,
+						  PERF_RAPL_PKG_EVENTS_MAX, false,
+						  (void *) &rapl_model->pkg_events);
 
 	ret = perf_pmu_register(&rapl_pmus_pkg->pmu, "power", -1);
 	if (ret)
