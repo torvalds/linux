@@ -436,6 +436,10 @@ static void nfsd_shutdown_net(struct net *net)
 
 	if (!nn->nfsd_net_up)
 		return;
+
+	percpu_ref_kill_and_confirm(&nn->nfsd_serv_ref, nfsd_serv_done);
+	wait_for_completion(&nn->nfsd_serv_confirm_done);
+
 	nfsd_export_flush(net);
 	nfs4_state_shutdown_net(net);
 	nfsd_reply_cache_shutdown(nn);
@@ -444,7 +448,10 @@ static void nfsd_shutdown_net(struct net *net)
 		lockd_down(net);
 		nn->lockd_up = false;
 	}
+
+	wait_for_completion(&nn->nfsd_serv_free_done);
 	percpu_ref_exit(&nn->nfsd_serv_ref);
+
 	nn->nfsd_net_up = false;
 	nfsd_shutdown_generic();
 }
@@ -525,11 +532,6 @@ void nfsd_destroy_serv(struct net *net)
 	struct svc_serv *serv = nn->nfsd_serv;
 
 	lockdep_assert_held(&nfsd_mutex);
-
-	percpu_ref_kill_and_confirm(&nn->nfsd_serv_ref, nfsd_serv_done);
-	wait_for_completion(&nn->nfsd_serv_confirm_done);
-	wait_for_completion(&nn->nfsd_serv_free_done);
-	/* percpu_ref_exit is called in nfsd_shutdown_net */
 
 	spin_lock(&nfsd_notifier_lock);
 	nn->nfsd_serv = NULL;
