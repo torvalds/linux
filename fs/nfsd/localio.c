@@ -25,8 +25,8 @@
 #include "cache.h"
 
 static const struct nfsd_localio_operations nfsd_localio_ops = {
-	.nfsd_serv_try_get  = nfsd_serv_try_get,
-	.nfsd_serv_put  = nfsd_serv_put,
+	.nfsd_net_try_get  = nfsd_net_try_get,
+	.nfsd_net_put  = nfsd_net_put,
 	.nfsd_open_local_fh = nfsd_open_local_fh,
 	.nfsd_file_put_local = nfsd_file_put_local,
 	.nfsd_file_get = nfsd_file_get,

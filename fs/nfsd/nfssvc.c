@@ -214,32 +214,32 @@ int nfsd_minorversion(struct nfsd_net *nn, u32 minorversion, enum vers_op change
 	return 0;
 }
 
-bool nfsd_serv_try_get(struct net *net) __must_hold(rcu)
+bool nfsd_net_try_get(struct net *net) __must_hold(rcu)
 {
 	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
 
-	return (nn && percpu_ref_tryget_live(&nn->nfsd_serv_ref));
+	return (nn && percpu_ref_tryget_live(&nn->nfsd_net_ref));
 }
 
-void nfsd_serv_put(struct net *net) __must_hold(rcu)
+void nfsd_net_put(struct net *net) __must_hold(rcu)
 {
 	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
 
-	percpu_ref_put(&nn->nfsd_serv_ref);
+	percpu_ref_put(&nn->nfsd_net_ref);
 }
 
-static void nfsd_serv_done(struct percpu_ref *ref)
+static void nfsd_net_done(struct percpu_ref *ref)
 {
-	struct nfsd_net *nn = container_of(ref, struct nfsd_net, nfsd_serv_ref);
+	struct nfsd_net *nn = container_of(ref, struct nfsd_net, nfsd_net_ref);
 
-	complete(&nn->nfsd_serv_confirm_done);
+	complete(&nn->nfsd_net_confirm_done);
 }
 
-static void nfsd_serv_free(struct percpu_ref *ref)
+static void nfsd_net_free(struct percpu_ref *ref)
 {
-	struct nfsd_net *nn = container_of(ref, struct nfsd_net, nfsd_serv_ref);
+	struct nfsd_net *nn = container_of(ref, struct nfsd_net, nfsd_net_ref);
 
-	complete(&nn->nfsd_serv_free_done);
+	complete(&nn->nfsd_net_free_done);
 }
 
 /*
@@ -437,8 +437,8 @@ static void nfsd_shutdown_net(struct net *net)
 	if (!nn->nfsd_net_up)
 		return;
 
-	percpu_ref_kill_and_confirm(&nn->nfsd_serv_ref, nfsd_serv_done);
-	wait_for_completion(&nn->nfsd_serv_confirm_done);
+	percpu_ref_kill_and_confirm(&nn->nfsd_net_ref, nfsd_net_done);
+	wait_for_completion(&nn->nfsd_net_confirm_done);
 
 	nfsd_export_flush(net);
 	nfs4_state_shutdown_net(net);
@@ -449,8 +449,8 @@ static void nfsd_shutdown_net(struct net *net)
 		nn->lockd_up = false;
 	}
 
-	wait_for_completion(&nn->nfsd_serv_free_done);
-	percpu_ref_exit(&nn->nfsd_serv_ref);
+	wait_for_completion(&nn->nfsd_net_free_done);
+	percpu_ref_exit(&nn->nfsd_net_ref);
 
 	nn->nfsd_net_up = false;
 	nfsd_shutdown_generic();
@@ -654,12 +654,12 @@ int nfsd_create_serv(struct net *net)
 	if (nn->nfsd_serv)
 		return 0;
 
-	error = percpu_ref_init(&nn->nfsd_serv_ref, nfsd_serv_free,
+	error = percpu_ref_init(&nn->nfsd_net_ref, nfsd_net_free,
 				0, GFP_KERNEL);
 	if (error)
 		return error;
-	init_completion(&nn->nfsd_serv_free_done);
-	init_completion(&nn->nfsd_serv_confirm_done);
+	init_completion(&nn->nfsd_net_free_done);
+	init_completion(&nn->nfsd_net_confirm_done);
 
 	if (nfsd_max_blksize == 0)
 		nfsd_max_blksize = nfsd_get_default_max_blksize();

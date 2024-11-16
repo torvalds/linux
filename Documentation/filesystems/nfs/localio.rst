@@ -218,64 +218,30 @@ NFS Client and Server Interlock
 ===============================
 
 LOCALIO provides the nfs_uuid_t object and associated interfaces to
-allow proper network namespace (net-ns) and NFSD object refcounting:
+allow proper network namespace (net-ns) and NFSD object refcounting.
 
-    We don't want to keep a long-term counted reference on each NFSD's
-    net-ns in the client because that prevents a server container from
-    completely shutting down.
-
-    So we avoid taking a reference at all and rely on the per-cpu
-    reference to the server (detailed below) being sufficient to keep
-    the net-ns active. This involves allowing the NFSD's net-ns exit
-    code to iterate all active clients and clear their ->net pointers
-    (which are needed to find the per-cpu-refcount for the nfsd_serv).
-
-    Details:
-
-     - Embed nfs_uuid_t in nfs_client. nfs_uuid_t provides a list_head
-       that can be used to find the client. It does add the 16-byte
-       uuid_t to nfs_client so it is bigger than needed (given that
-       uuid_t is only used during the initial NFS client and server
-       LOCALIO handshake to determine if they are local to each other).
-       If that is really a problem we can find a fix.
-
-     - When the nfs server confirms that the uuid_t is local, it moves
-       the nfs_uuid_t onto a per-net-ns list in NFSD's nfsd_net.
-
-     - When each server's net-ns is shutting down - in a "pre_exit"
-       handler, all these nfs_uuid_t have their ->net cleared. There is
-       an rcu_synchronize() call between pre_exit() handlers and exit()
-       handlers so any caller that sees nfs_uuid_t ->net as not NULL can
-       safely manage the per-cpu-refcount for nfsd_serv.
-
-     - The client's nfs_uuid_t is passed to nfsd_open_local_fh() so it
-       can safely dereference ->net in a private rcu_read_lock() section
-       to allow safe access to the associated nfsd_net and nfsd_serv.
-
-So LOCALIO required the introduction and use of NFSD's percpu_ref to
-interlock nfsd_destroy_serv() and nfsd_open_local_fh(), to ensure each
-nn->nfsd_serv is not destroyed while in use by nfsd_open_local_fh(), and
+LOCALIO required the introduction and use of NFSD's percpu nfsd_net_ref
+to interlock nfsd_shutdown_net() and nfsd_open_local_fh(), to ensure
+each net-ns is not destroyed while in use by nfsd_open_local_fh(), and
 warrants a more detailed explanation:
 
-    nfsd_open_local_fh() uses nfsd_serv_try_get() before opening its
+    nfsd_open_local_fh() uses nfsd_net_try_get() before opening its
     nfsd_file handle and then the caller (NFS client) must drop the
-    reference for the nfsd_file and associated nn->nfsd_serv using
-    nfs_file_put_local() once it has completed its IO.
+    reference for the nfsd_file and associated net-ns using
+    nfsd_file_put_local() once it has completed its IO.
 
     This interlock working relies heavily on nfsd_open_local_fh() being
     afforded the ability to safely deal with the possibility that the
     NFSD's net-ns (and nfsd_net by association) may have been destroyed
-    by nfsd_destroy_serv() via nfsd_shutdown_net() -- which is only
-    possible given the nfs_uuid_t ->net pointer managemenet detailed
-    above.
+    by nfsd_destroy_serv() via nfsd_shutdown_net().
 
-All told, this elaborate interlock of the NFS client and server has been
-verified to fix an easy to hit crash that would occur if an NFSD
-instance running in a container, with a LOCALIO client mounted, is
-shutdown. Upon restart of the container and associated NFSD the client
-would go on to crash due to NULL pointer dereference that occurred due
-to the LOCALIO client's attempting to nfsd_open_local_fh(), using
-nn->nfsd_serv, without having a proper reference on nn->nfsd_serv.
+This interlock of the NFS client and server has been verified to fix an
+easy to hit crash that would occur if an NFSD instance running in a
+container, with a LOCALIO client mounted, is shutdown. Upon restart of
+the container and associated NFSD, the client would go on to crash due
+to NULL pointer dereference that occurred due to the LOCALIO client's
+attempting to nfsd_open_local_fh() without having a proper reference on
+NFSD's net-ns.
 
 NFS Client issues IO instead of Server
 ======================================
@@ -308,16 +274,19 @@ fs/nfs/localio.c:nfs_local_commit().
 
 With normal NFS that makes use of RPC to issue IO to the server, if an
 application uses O_DIRECT the NFS client will bypass the pagecache but
-the NFS server will not. Because the NFS server's use of buffered IO
-affords applications to be less precise with their alignment when
-issuing IO to the NFS client. LOCALIO can be configured to use O_DIRECT
-semantics by setting the 'localio_O_DIRECT_semantics' nfs module
+the NFS server will not. The NFS server's use of buffered IO affords
+applications to be less precise with their alignment when issuing IO to
+the NFS client. But if all applications properly align their IO, LOCALIO
+can be configured to use end-to-end O_DIRECT semantics from the NFS
+client to the underlying local filesystem, that it is sharing with
+the NFS server, by setting the 'localio_O_DIRECT_semantics' nfs module
 parameter to Y, e.g.:
 
-  echo Y > /sys/module/nfs/parameters/localio_O_DIRECT_semantics
+    echo Y > /sys/module/nfs/parameters/localio_O_DIRECT_semantics
 
-Once enabled, it will cause LOCALIO to use O_DIRECT semantics (this may
-cause IO to fail if applications do not properly align their IO).
+Once enabled, it will cause LOCALIO to use end-to-end O_DIRECT semantics
+(but again, this may cause IO to fail if applications do not properly
+align their IO).
 
 Security
 ========

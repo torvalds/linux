@@ -159,6 +159,10 @@ static void nfs_uuid_add_file(nfs_uuid_t *nfs_uuid, struct nfs_file_localio *nfl
 	spin_unlock(&nfs_uuid_lock);
 }
 
+/*
+ * Caller is responsible for calling nfsd_net_put and
+ * nfsd_file_put (via nfs_to_nfsd_file_put_local).
+ */
 struct nfsd_file *nfs_open_local_fh(nfs_uuid_t *uuid,
 		   struct rpc_clnt *rpc_clnt, const struct cred *cred,
 		   const struct nfs_fh *nfs_fh, struct nfs_file_localio *nfl,
@@ -171,7 +175,7 @@ struct nfsd_file *nfs_open_local_fh(nfs_uuid_t *uuid,
 	 * Not running in nfsd context, so must safely get reference on nfsd_serv.
 	 * But the server may already be shutting down, if so disallow new localio.
 	 * uuid->net is NOT a counted reference, but rcu_read_lock() ensures that
-	 * if uuid->net is not NULL, then calling nfsd_serv_try_get() is safe
+	 * if uuid->net is not NULL, then calling nfsd_net_try_get() is safe
 	 * and if it succeeds we will have an implied reference to the net.
 	 *
 	 * Otherwise NFS may not have ref on NFSD and therefore cannot safely
@@ -179,12 +183,12 @@ struct nfsd_file *nfs_open_local_fh(nfs_uuid_t *uuid,
 	 */
 	rcu_read_lock();
 	net = rcu_dereference(uuid->net);
-	if (!net || !nfs_to->nfsd_serv_try_get(net)) {
+	if (!net || !nfs_to->nfsd_net_try_get(net)) {
 		rcu_read_unlock();
 		return ERR_PTR(-ENXIO);
 	}
 	rcu_read_unlock();
-	/* We have an implied reference to net thanks to nfsd_serv_try_get */
+	/* We have an implied reference to net thanks to nfsd_net_try_get */
 	localio = nfs_to->nfsd_open_local_fh(net, uuid->dom, rpc_clnt,
 					     cred, nfs_fh, fmode);
 	if (IS_ERR(localio))

@@ -52,8 +52,8 @@ nfsd_open_local_fh(struct net *, struct auth_domain *, struct rpc_clnt *,
 void nfs_close_local_fh(struct nfs_file_localio *);
 
 struct nfsd_localio_operations {
-	bool (*nfsd_serv_try_get)(struct net *);
-	void (*nfsd_serv_put)(struct net *);
+	bool (*nfsd_net_try_get)(struct net *);
+	void (*nfsd_net_put)(struct net *);
 	struct nfsd_file *(*nfsd_open_local_fh)(struct net *,
 						struct auth_domain *,
 						struct rpc_clnt *,
@@ -77,12 +77,12 @@ struct nfsd_file *nfs_open_local_fh(nfs_uuid_t *,
 static inline void nfs_to_nfsd_net_put(struct net *net)
 {
 	/*
-	 * Once reference to nfsd_serv is dropped, NFSD could be
-	 * unloaded, so ensure safe return from nfsd_file_put_local()
-	 * by always taking RCU.
+	 * Once reference to net (and associated nfsd_serv) is dropped, NFSD
+	 * could be unloaded, so ensure safe return from nfsd_net_put() by
+	 * always taking RCU.
 	 */
 	rcu_read_lock();
-	nfs_to->nfsd_serv_put(net);
+	nfs_to->nfsd_net_put(net);
 	rcu_read_unlock();
 }
 
