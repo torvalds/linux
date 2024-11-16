@@ -170,7 +170,7 @@ enum rtase_registers {
 	RTASE_INT_MITI_TX = 0x0A00,
 	RTASE_INT_MITI_RX = 0x0A80,
 
-	RTASE_VLAN_ENTRY_0     = 0xAC80,
+	RTASE_VLAN_ENTRY_0 = 0xAC80,
 };
 
 enum rtase_desc_status_bit {
