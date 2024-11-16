@@ -43,6 +43,7 @@ void nfs_uuid_init(nfs_uuid_t *nfs_uuid)
 	INIT_LIST_HEAD(&nfs_uuid->list);
 	INIT_LIST_HEAD(&nfs_uuid->files);
 	spin_lock_init(&nfs_uuid->lock);
+	nfs_uuid->nfs3_localio_probe_count = 0;
 }
 EXPORT_SYMBOL_GPL(nfs_uuid_init);
 

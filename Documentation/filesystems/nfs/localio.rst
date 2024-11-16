@@ -291,7 +291,7 @@ align their IO).
 Security
 ========
 
-Localio is only supported when UNIX-style authentication (AUTH_UNIX, aka
+LOCALIO is only supported when UNIX-style authentication (AUTH_UNIX, aka
 AUTH_SYS) is used.
 
 Care is taken to ensure the same NFS security mechanisms are used
@@ -305,6 +305,24 @@ the server's per-namespace nfsd_net struct. With traditional NFS, the
 client is afforded this same level of access (albeit in terms of the NFS
 protocol via SUNRPC). No other namespaces (user, mount, etc) have been
 altered or purposely extended from the server to the client.
+
+Module Parameters
+=================
+
+/sys/module/nfs/parameters/localio_enabled (bool)
+controls if LOCALIO is enabled, defaults to Y. If client and server are
+local but 'localio_enabled' is set to N then LOCALIO will not be used.
+
+/sys/module/nfs/parameters/localio_O_DIRECT_semantics (bool)
+controls if O_DIRECT extends down to the underlying filesystem, defaults
+to N. Application IO must be logical blocksize aligned, otherwise
+O_DIRECT will fail.
+
+/sys/module/nfsv3/parameters/nfs3_localio_probe_throttle (uint)
+controls if NFSv3 read and write IOs will trigger (re)enabling of
+LOCALIO every N (nfs3_localio_probe_throttle) IOs, defaults to 0
+(disabled). Must be power-of-2, admin keeps all the pieces if they
+misconfigure (too low a value or non-power-of-2).
 
 Testing
 =======

@@ -27,7 +27,8 @@ struct nfs_file_localio;
  */
 typedef struct {
 	uuid_t uuid;
-	/* sadly this struct is just over a cacheline, avoid bouncing */
+	unsigned nfs3_localio_probe_count;
+	/* this struct is over a cacheline, avoid bouncing */
 	spinlock_t ____cacheline_aligned lock;
 	struct list_head list;
 	spinlock_t *list_lock; /* nn->local_clients_lock */
