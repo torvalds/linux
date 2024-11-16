@@ -87,6 +87,7 @@ static const u32 slic_base[] = { 100000000, 3125000 };
 static const u32 npu_base[] = { 333000000, 400000000, 500000000 };
 /* EN7581 */
 static const u32 emi7581_base[] = { 540000000, 480000000, 400000000, 300000000 };
+static const u32 bus7581_base[] = { 600000000, 540000000 };
 static const u32 npu7581_base[] = { 800000000, 750000000, 720000000, 600000000 };
 static const u32 crypto_base[] = { 540000000, 480000000 };
 
@@ -222,8 +223,8 @@ static const struct en_clk_desc en7581_base_clks[] = {
 		.base_reg = REG_BUS_CLK_DIV_SEL,
 		.base_bits = 1,
 		.base_shift = 8,
-		.base_values = bus_base,
-		.n_base_values = ARRAY_SIZE(bus_base),
+		.base_values = bus7581_base,
+		.n_base_values = ARRAY_SIZE(bus7581_base),
 
 		.div_bits = 3,
 		.div_shift = 0,
