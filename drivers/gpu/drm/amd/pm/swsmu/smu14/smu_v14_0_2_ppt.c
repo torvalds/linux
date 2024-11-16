@@ -1817,11 +1817,12 @@ static int smu_v14_0_2_set_power_profile_mode(struct smu_context *smu,
 	if (workload_type < 0)
 		return -EINVAL;
 
-	ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_SetWorkloadMask,
-										  smu->workload_mask, NULL);
-
+	ret = smu_cmn_send_smc_msg_with_param(smu,
+					       SMU_MSG_SetWorkloadMask,
+					       1 << workload_type,
+					       NULL);
 	if (!ret)
-		smu_cmn_assign_power_profile(smu);
+		smu->workload_mask = 1 << workload_type;
 
 	return ret;
 }
