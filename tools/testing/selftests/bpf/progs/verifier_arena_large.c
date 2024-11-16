@@ -87,7 +87,7 @@ __noinline int alloc_pages(int page_cnt, int pages_atonce, bool first_pass,
 					   NUMA_NO_NODE, 0);
 		if (!pg)
 			return step;
-		pg_idx = (pg - base) / PAGE_SIZE;
+		pg_idx = (unsigned long) (pg - base) / PAGE_SIZE;
 		if (first_pass) {
 			/* Pages must be allocated sequentially */
 			if (pg_idx != i)
