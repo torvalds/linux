@@ -6,10 +6,6 @@
 #ifndef __LINUX_NFSLOCALIO_H
 #define __LINUX_NFSLOCALIO_H
 
-
-/* nfsd_file structure is purposely kept opaque to NFS client */
-struct nfsd_file;
-
 #if IS_ENABLED(CONFIG_NFS_LOCALIO)
 
 #include <linux/module.h>
@@ -21,6 +17,7 @@ struct nfsd_file;
 #include <net/net_namespace.h>
 
 struct nfs_client;
+struct nfs_file_localio;
 
 /*
  * Useful to allow a client to negotiate if localio
@@ -52,6 +49,7 @@ extern struct nfsd_file *
 nfsd_open_local_fh(struct net *, struct auth_domain *, struct rpc_clnt *,
 		   const struct cred *, const struct nfs_fh *,
 		   const fmode_t) __must_hold(rcu);
+void nfs_close_local_fh(struct nfs_file_localio *);
 
 struct nfsd_localio_operations {
 	bool (*nfsd_serv_try_get)(struct net *);
@@ -73,7 +71,8 @@ extern const struct nfsd_localio_operations *nfs_to;
 
 struct nfsd_file *nfs_open_local_fh(nfs_uuid_t *,
 		   struct rpc_clnt *, const struct cred *,
-		   const struct nfs_fh *, const fmode_t);
+		   const struct nfs_fh *, struct nfs_file_localio *,
+		   const fmode_t);
 
 static inline void nfs_to_nfsd_net_put(struct net *net)
 {
@@ -100,12 +99,15 @@ static inline void nfs_to_nfsd_file_put_local(struct nfsd_file *localio)
 }
 
 #else   /* CONFIG_NFS_LOCALIO */
+
+struct nfs_file_localio;
+static inline void nfs_close_local_fh(struct nfs_file_localio *nfl)
+{
+}
 static inline void nfsd_localio_ops_init(void)
 {
 }
-static inline void nfs_to_nfsd_file_put_local(struct nfsd_file *localio)
-{
-}
+
 #endif  /* CONFIG_NFS_LOCALIO */
 
 #endif  /* __LINUX_NFSLOCALIO_H */

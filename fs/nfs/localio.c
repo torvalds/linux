@@ -211,27 +211,33 @@ void nfs_local_probe(struct nfs_client *clp)
 }
 EXPORT_SYMBOL_GPL(nfs_local_probe);
 
+static inline struct nfsd_file *nfs_local_file_get(struct nfsd_file *nf)
+{
+	return nfs_to->nfsd_file_get(nf);
+}
+
+static inline void nfs_local_file_put(struct nfsd_file *nf)
+{
+	nfs_to->nfsd_file_put(nf);
+}
+
 /*
- * nfs_local_open_fh - open a local filehandle in terms of nfsd_file
+ * __nfs_local_open_fh - open a local filehandle in terms of nfsd_file.
  *
- * Returns a pointer to a struct nfsd_file or NULL
+ * Returns a pointer to a struct nfsd_file or ERR_PTR.
+ * Caller must release returned nfsd_file with nfs_to_nfsd_file_put_local().
  */
-struct nfsd_file *
-nfs_local_open_fh(struct nfs_client *clp, const struct cred *cred,
-		  struct nfs_fh *fh, const fmode_t mode)
+static struct nfsd_file *
+__nfs_local_open_fh(struct nfs_client *clp, const struct cred *cred,
+		    struct nfs_fh *fh, struct nfs_file_localio *nfl,
+		    const fmode_t mode)
 {
 	struct nfsd_file *localio;
-	int status;
-
-	if (!nfs_server_is_local(clp))
-		return NULL;
-	if (mode & ~(FMODE_READ | FMODE_WRITE))
-		return NULL;
 
 	localio = nfs_open_local_fh(&clp->cl_uuid, clp->cl_rpcclient,
-				    cred, fh, mode);
+				    cred, fh, nfl, mode);
 	if (IS_ERR(localio)) {
-		status = PTR_ERR(localio);
+		int status = PTR_ERR(localio);
 		trace_nfs_local_open_fh(fh, mode, status);
 		switch (status) {
 		case -ENOMEM:
@@ -240,9 +246,58 @@ nfs_local_open_fh(struct nfs_client *clp, const struct cred *cred,
 			/* Revalidate localio, will disable if unsupported */
 			nfs_local_probe(clp);
 		}
-		return NULL;
 	}
 	return localio;
+}
+
+/*
+ * nfs_local_open_fh - open a local filehandle in terms of nfsd_file.
+ * First checking if the open nfsd_file is already cached, otherwise
+ * must __nfs_local_open_fh and insert the nfsd_file in nfs_file_localio.
+ *
+ * Returns a pointer to a struct nfsd_file or NULL.
+ */
+struct nfsd_file *
+nfs_local_open_fh(struct nfs_client *clp, const struct cred *cred,
+		  struct nfs_fh *fh, struct nfs_file_localio *nfl,
+		  const fmode_t mode)
+{
+	struct nfsd_file *nf, *new, __rcu **pnf;
+
+	if (!nfs_server_is_local(clp))
+		return NULL;
+	if (mode & ~(FMODE_READ | FMODE_WRITE))
+		return NULL;
+
+	if (mode & FMODE_WRITE)
+		pnf = &nfl->rw_file;
+	else
+		pnf = &nfl->ro_file;
+
+	new = NULL;
+	rcu_read_lock();
+	nf = rcu_dereference(*pnf);
+	if (!nf) {
+		rcu_read_unlock();
+		new = __nfs_local_open_fh(clp, cred, fh, nfl, mode);
+		if (IS_ERR(new))
+			return NULL;
+		/* try to swap in the pointer */
+		spin_lock(&clp->cl_uuid.lock);
+		nf = rcu_dereference_protected(*pnf, 1);
+		if (!nf) {
+			nf = new;
+			new = NULL;
+			rcu_assign_pointer(*pnf, nf);
+		}
+		spin_unlock(&clp->cl_uuid.lock);
+		rcu_read_lock();
+	}
+	nf = nfs_local_file_get(nf);
+	rcu_read_unlock();
+	if (new)
+		nfs_to_nfsd_file_put_local(new);
+	return nf;
 }
 EXPORT_SYMBOL_GPL(nfs_local_open_fh);
 
@@ -347,7 +402,7 @@ nfs_local_pgio_release(struct nfs_local_kiocb *iocb)
 {
 	struct nfs_pgio_header *hdr = iocb->hdr;
 
-	nfs_to_nfsd_file_put_local(iocb->localio);
+	nfs_local_file_put(iocb->localio);
 	nfs_local_iocb_free(iocb);
 	nfs_local_hdr_release(hdr, hdr->task.tk_ops);
 }
@@ -694,7 +749,7 @@ int nfs_local_doio(struct nfs_client *clp, struct nfsd_file *localio,
 	if (status != 0) {
 		if (status == -EAGAIN)
 			nfs_local_disable(clp);
-		nfs_to_nfsd_file_put_local(localio);
+		nfs_local_file_put(localio);
 		hdr->task.tk_status = status;
 		nfs_local_hdr_release(hdr, call_ops);
 	}
@@ -745,7 +800,7 @@ nfs_local_release_commit_data(struct nfsd_file *localio,
 		struct nfs_commit_data *data,
 		const struct rpc_call_ops *call_ops)
 {
-	nfs_to_nfsd_file_put_local(localio);
+	nfs_local_file_put(localio);
 	call_ops->rpc_call_done(&data->task, data);
 	call_ops->rpc_release(data);
 }

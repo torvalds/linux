@@ -9,7 +9,7 @@
 #include <linux/nfslocalio.h>
 #include <linux/nfs3.h>
 #include <linux/nfs4.h>
-#include <linux/nfs_fs_sb.h>
+#include <linux/nfs_fs.h>
 #include <net/netns/generic.h>
 
 MODULE_LICENSE("GPL");
@@ -151,9 +151,18 @@ void nfs_localio_invalidate_clients(struct list_head *cl_uuid_list)
 }
 EXPORT_SYMBOL_GPL(nfs_localio_invalidate_clients);
 
+static void nfs_uuid_add_file(nfs_uuid_t *nfs_uuid, struct nfs_file_localio *nfl)
+{
+	spin_lock(&nfs_uuid_lock);
+	if (!nfl->nfs_uuid)
+		rcu_assign_pointer(nfl->nfs_uuid, nfs_uuid);
+	spin_unlock(&nfs_uuid_lock);
+}
+
 struct nfsd_file *nfs_open_local_fh(nfs_uuid_t *uuid,
 		   struct rpc_clnt *rpc_clnt, const struct cred *cred,
-		   const struct nfs_fh *nfs_fh, const fmode_t fmode)
+		   const struct nfs_fh *nfs_fh, struct nfs_file_localio *nfl,
+		   const fmode_t fmode)
 {
 	struct net *net;
 	struct nfsd_file *localio;
@@ -180,10 +189,49 @@ struct nfsd_file *nfs_open_local_fh(nfs_uuid_t *uuid,
 					     cred, nfs_fh, fmode);
 	if (IS_ERR(localio))
 		nfs_to_nfsd_net_put(net);
+	else
+		nfs_uuid_add_file(uuid, nfl);
 
 	return localio;
 }
 EXPORT_SYMBOL_GPL(nfs_open_local_fh);
+
+void nfs_close_local_fh(struct nfs_file_localio *nfl)
+{
+	struct nfsd_file *ro_nf = NULL;
+	struct nfsd_file *rw_nf = NULL;
+	nfs_uuid_t *nfs_uuid;
+
+	rcu_read_lock();
+	nfs_uuid = rcu_dereference(nfl->nfs_uuid);
+	if (!nfs_uuid) {
+		/* regular (non-LOCALIO) NFS will hammer this */
+		rcu_read_unlock();
+		return;
+	}
+
+	ro_nf = rcu_access_pointer(nfl->ro_file);
+	rw_nf = rcu_access_pointer(nfl->rw_file);
+	if (ro_nf || rw_nf) {
+		spin_lock(&nfs_uuid_lock);
+		if (ro_nf)
+			ro_nf = rcu_dereference_protected(xchg(&nfl->ro_file, NULL), 1);
+		if (rw_nf)
+			rw_nf = rcu_dereference_protected(xchg(&nfl->rw_file, NULL), 1);
+
+		rcu_assign_pointer(nfl->nfs_uuid, NULL);
+		spin_unlock(&nfs_uuid_lock);
+		rcu_read_unlock();
+
+		if (ro_nf)
+			nfs_to_nfsd_file_put_local(ro_nf);
+		if (rw_nf)
+			nfs_to_nfsd_file_put_local(rw_nf);
+		return;
+	}
+	rcu_read_unlock();
+}
+EXPORT_SYMBOL_GPL(nfs_close_local_fh);
 
 /*
  * The NFS LOCALIO code needs to call into NFSD using various symbols,
