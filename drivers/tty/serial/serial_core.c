@@ -3292,11 +3292,11 @@ EXPORT_SYMBOL(uart_match_port);
 /**
  * uart_handle_dcd_change - handle a change of carrier detect state
  * @uport: uart_port structure for the open port
- * @active: new carrier detect status
+ * @status: new carrier detect status, nonzero if active
  *
  * Caller must hold uport->lock.
  */
-void uart_handle_dcd_change(struct uart_port *uport, bool active)
+void uart_handle_dcd_change(struct uart_port *uport, unsigned int status)
 {
 	struct tty_port *port = &uport->state->port;
 	struct tty_struct *tty = port->tty;
@@ -3308,7 +3308,7 @@ void uart_handle_dcd_change(struct uart_port *uport, bool active)
 		ld = tty_ldisc_ref(tty);
 		if (ld) {
 			if (ld->ops->dcd_change)
-				ld->ops->dcd_change(tty, active);
+				ld->ops->dcd_change(tty, status);
 			tty_ldisc_deref(ld);
 		}
 	}
@@ -3316,7 +3316,7 @@ void uart_handle_dcd_change(struct uart_port *uport, bool active)
 	uport->icount.dcd++;
 
 	if (uart_dcd_enabled(uport)) {
-		if (active)
+		if (status)
 			wake_up_interruptible(&port->open_wait);
 		else if (tty)
 			tty_hangup(tty);
