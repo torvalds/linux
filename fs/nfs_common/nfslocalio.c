@@ -15,11 +15,11 @@
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("NFS localio protocol bypass support");
 
-static DEFINE_SPINLOCK(nfs_uuid_lock);
+static DEFINE_SPINLOCK(nfs_uuids_lock);
 
 /*
  * Global list of nfs_uuid_t instances
- * that is protected by nfs_uuid_lock.
+ * that is protected by nfs_uuids_lock.
  */
 static LIST_HEAD(nfs_uuids);
 
@@ -34,15 +34,15 @@ EXPORT_SYMBOL_GPL(nfs_uuid_init);
 
 bool nfs_uuid_begin(nfs_uuid_t *nfs_uuid)
 {
-	spin_lock(&nfs_uuid_lock);
+	spin_lock(&nfs_uuids_lock);
 	/* Is this nfs_uuid already in use? */
 	if (!list_empty(&nfs_uuid->list)) {
-		spin_unlock(&nfs_uuid_lock);
+		spin_unlock(&nfs_uuids_lock);
 		return false;
 	}
 	uuid_gen(&nfs_uuid->uuid);
 	list_add_tail(&nfs_uuid->list, &nfs_uuids);
-	spin_unlock(&nfs_uuid_lock);
+	spin_unlock(&nfs_uuids_lock);
 
 	return true;
 }
@@ -51,10 +51,10 @@ EXPORT_SYMBOL_GPL(nfs_uuid_begin);
 void nfs_uuid_end(nfs_uuid_t *nfs_uuid)
 {
 	if (nfs_uuid->net == NULL) {
-		spin_lock(&nfs_uuid_lock);
+		spin_lock(&nfs_uuids_lock);
 		if (nfs_uuid->net == NULL)
 			list_del_init(&nfs_uuid->list);
-		spin_unlock(&nfs_uuid_lock);
+		spin_unlock(&nfs_uuids_lock);
 	}
 }
 EXPORT_SYMBOL_GPL(nfs_uuid_end);
@@ -78,7 +78,7 @@ void nfs_uuid_is_local(const uuid_t *uuid, struct list_head *list,
 {
 	nfs_uuid_t *nfs_uuid;
 
-	spin_lock(&nfs_uuid_lock);
+	spin_lock(&nfs_uuids_lock);
 	nfs_uuid = nfs_uuid_lookup_locked(uuid);
 	if (nfs_uuid) {
 		kref_get(&dom->ref);
@@ -94,7 +94,7 @@ void nfs_uuid_is_local(const uuid_t *uuid, struct list_head *list,
 		__module_get(mod);
 		nfsd_mod = mod;
 	}
-	spin_unlock(&nfs_uuid_lock);
+	spin_unlock(&nfs_uuids_lock);
 }
 EXPORT_SYMBOL_GPL(nfs_uuid_is_local);
 
@@ -128,9 +128,9 @@ void nfs_localio_disable_client(struct nfs_client *clp)
 
 	spin_lock(&nfs_uuid->lock);
 	if (test_and_clear_bit(NFS_CS_LOCAL_IO, &clp->cl_flags)) {
-		spin_lock(&nfs_uuid_lock);
+		spin_lock(&nfs_uuids_lock);
 		nfs_uuid_put_locked(nfs_uuid);
-		spin_unlock(&nfs_uuid_lock);
+		spin_unlock(&nfs_uuids_lock);
 	}
 	spin_unlock(&nfs_uuid->lock);
 }
@@ -140,23 +140,23 @@ void nfs_localio_invalidate_clients(struct list_head *cl_uuid_list)
 {
 	nfs_uuid_t *nfs_uuid, *tmp;
 
-	spin_lock(&nfs_uuid_lock);
+	spin_lock(&nfs_uuids_lock);
 	list_for_each_entry_safe(nfs_uuid, tmp, cl_uuid_list, list) {
 		struct nfs_client *clp =
 			container_of(nfs_uuid, struct nfs_client, cl_uuid);
 
 		nfs_localio_disable_client(clp);
 	}
-	spin_unlock(&nfs_uuid_lock);
+	spin_unlock(&nfs_uuids_lock);
 }
 EXPORT_SYMBOL_GPL(nfs_localio_invalidate_clients);
 
 static void nfs_uuid_add_file(nfs_uuid_t *nfs_uuid, struct nfs_file_localio *nfl)
 {
-	spin_lock(&nfs_uuid_lock);
+	spin_lock(&nfs_uuids_lock);
 	if (!nfl->nfs_uuid)
 		rcu_assign_pointer(nfl->nfs_uuid, nfs_uuid);
-	spin_unlock(&nfs_uuid_lock);
+	spin_unlock(&nfs_uuids_lock);
 }
 
 /*
@@ -217,14 +217,14 @@ void nfs_close_local_fh(struct nfs_file_localio *nfl)
 	ro_nf = rcu_access_pointer(nfl->ro_file);
 	rw_nf = rcu_access_pointer(nfl->rw_file);
 	if (ro_nf || rw_nf) {
-		spin_lock(&nfs_uuid_lock);
+		spin_lock(&nfs_uuids_lock);
 		if (ro_nf)
 			ro_nf = rcu_dereference_protected(xchg(&nfl->ro_file, NULL), 1);
 		if (rw_nf)
 			rw_nf = rcu_dereference_protected(xchg(&nfl->rw_file, NULL), 1);
 
 		rcu_assign_pointer(nfl->nfs_uuid, NULL);
-		spin_unlock(&nfs_uuid_lock);
+		spin_unlock(&nfs_uuids_lock);
 		rcu_read_unlock();
 
 		if (ro_nf)
