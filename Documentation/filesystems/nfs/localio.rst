@@ -306,6 +306,19 @@ is issuing IO to the underlying local filesystem that it is sharing with
 the NFS server. See: fs/nfs/localio.c:nfs_local_doio() and
 fs/nfs/localio.c:nfs_local_commit().
 
+With normal NFS that makes use of RPC to issue IO to the server, if an
+application uses O_DIRECT the NFS client will bypass the pagecache but
+the NFS server will not. Because the NFS server's use of buffered IO
+affords applications to be less precise with their alignment when
+issuing IO to the NFS client. LOCALIO can be configured to use O_DIRECT
+semantics by setting the 'localio_O_DIRECT_semantics' nfs module
+parameter to Y, e.g.:
+
+  echo Y > /sys/module/nfs/parameters/localio_O_DIRECT_semantics
+
+Once enabled, it will cause LOCALIO to use O_DIRECT semantics (this may
+cause IO to fail if applications do not properly align their IO).
+
 Security
 ========
 
