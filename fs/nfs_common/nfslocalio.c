@@ -37,7 +37,7 @@ static LIST_HEAD(nfs_uuids);
 
 void nfs_uuid_init(nfs_uuid_t *nfs_uuid)
 {
-	nfs_uuid->net = NULL;
+	RCU_INIT_POINTER(nfs_uuid->net, NULL);
 	nfs_uuid->dom = NULL;
 	nfs_uuid->list_lock = NULL;
 	INIT_LIST_HEAD(&nfs_uuid->list);
@@ -49,7 +49,7 @@ EXPORT_SYMBOL_GPL(nfs_uuid_init);
 bool nfs_uuid_begin(nfs_uuid_t *nfs_uuid)
 {
 	spin_lock(&nfs_uuid->lock);
-	if (nfs_uuid->net) {
+	if (rcu_access_pointer(nfs_uuid->net)) {
 		/* This nfs_uuid is already in use */
 		spin_unlock(&nfs_uuid->lock);
 		return false;
@@ -74,9 +74,9 @@ EXPORT_SYMBOL_GPL(nfs_uuid_begin);
 
 void nfs_uuid_end(nfs_uuid_t *nfs_uuid)
 {
-	if (nfs_uuid->net == NULL) {
+	if (!rcu_access_pointer(nfs_uuid->net)) {
 		spin_lock(&nfs_uuid->lock);
-		if (nfs_uuid->net == NULL) {
+		if (!rcu_access_pointer(nfs_uuid->net)) {
 			/* Not local, remove from nfs_uuids */
 			spin_lock(&nfs_uuids_lock);
 			list_del_init(&nfs_uuid->list);
@@ -139,12 +139,8 @@ EXPORT_SYMBOL_GPL(nfs_uuid_is_local);
 
 void nfs_localio_enable_client(struct nfs_client *clp)
 {
-	nfs_uuid_t *nfs_uuid = &clp->cl_uuid;
-
-	spin_lock(&nfs_uuid->lock);
-	set_bit(NFS_CS_LOCAL_IO, &clp->cl_flags);
+	/* nfs_uuid_is_local() does the actual enablement */
 	trace_nfs_localio_enable_client(clp);
-	spin_unlock(&nfs_uuid->lock);
 }
 EXPORT_SYMBOL_GPL(nfs_localio_enable_client);
 
@@ -152,15 +148,15 @@ EXPORT_SYMBOL_GPL(nfs_localio_enable_client);
  * Cleanup the nfs_uuid_t embedded in an nfs_client.
  * This is the long-form of nfs_uuid_init().
  */
-static void nfs_uuid_put(nfs_uuid_t *nfs_uuid)
+static bool nfs_uuid_put(nfs_uuid_t *nfs_uuid)
 {
 	LIST_HEAD(local_files);
 	struct nfs_file_localio *nfl, *tmp;
 
 	spin_lock(&nfs_uuid->lock);
-	if (unlikely(!nfs_uuid->net)) {
+	if (unlikely(!rcu_access_pointer(nfs_uuid->net))) {
 		spin_unlock(&nfs_uuid->lock);
-		return;
+		return false;
 	}
 	RCU_INIT_POINTER(nfs_uuid->net, NULL);
 
@@ -192,22 +188,14 @@ static void nfs_uuid_put(nfs_uuid_t *nfs_uuid)
 
 	module_put(nfsd_mod);
 	spin_unlock(&nfs_uuid->lock);
+
+	return true;
 }
 
 void nfs_localio_disable_client(struct nfs_client *clp)
 {
-	nfs_uuid_t *nfs_uuid = NULL;
-
-	spin_lock(&clp->cl_uuid.lock); /* aka &nfs_uuid->lock */
-	if (test_and_clear_bit(NFS_CS_LOCAL_IO, &clp->cl_flags)) {
-		/* &clp->cl_uuid is always not NULL, using as bool here */
-		nfs_uuid = &clp->cl_uuid;
+	if (nfs_uuid_put(&clp->cl_uuid))
 		trace_nfs_localio_disable_client(clp);
-	}
-	spin_unlock(&clp->cl_uuid.lock);
-
-	if (nfs_uuid)
-		nfs_uuid_put(nfs_uuid);
 }
 EXPORT_SYMBOL_GPL(nfs_localio_disable_client);
 

@@ -111,6 +111,10 @@ static inline void nfs_close_local_fh(struct nfs_file_localio *nfl)
 static inline void nfsd_localio_ops_init(void)
 {
 }
+struct nfs_client;
+static inline void nfs_localio_disable_client(struct nfs_client *clp)
+{
+}
 
 #endif  /* CONFIG_NFS_LOCALIO */
 

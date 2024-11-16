@@ -38,7 +38,7 @@
 #include <linux/sunrpc/bc_xprt.h>
 #include <linux/nsproxy.h>
 #include <linux/pid_namespace.h>
-
+#include <linux/nfslocalio.h>
 
 #include "nfs4_fs.h"
 #include "callback.h"
@@ -243,7 +243,7 @@ static void pnfs_init_server(struct nfs_server *server)
  */
 void nfs_free_client(struct nfs_client *clp)
 {
-	nfs_local_disable(clp);
+	nfs_localio_disable_client(clp);
 
 	/* -EIO all pending I/O */
 	if (!IS_ERR(clp->cl_rpcclient))

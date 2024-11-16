@@ -56,7 +56,7 @@ MODULE_PARM_DESC(localio_O_DIRECT_semantics,
 
 static inline bool nfs_client_is_local(const struct nfs_client *clp)
 {
-	return !!test_bit(NFS_CS_LOCAL_IO, &clp->cl_flags);
+	return !!rcu_access_pointer(clp->cl_uuid.net);
 }
 
 bool nfs_server_is_local(const struct nfs_client *clp)
@@ -122,24 +122,6 @@ const struct rpc_program nfslocalio_program = {
 };
 
 /*
- * nfs_local_enable - enable local i/o for an nfs_client
- */
-static void nfs_local_enable(struct nfs_client *clp)
-{
-	trace_nfs_local_enable(clp);
-	nfs_localio_enable_client(clp);
-}
-
-/*
- * nfs_local_disable - disable local i/o for an nfs_client
- */
-void nfs_local_disable(struct nfs_client *clp)
-{
-	trace_nfs_local_disable(clp);
-	nfs_localio_disable_client(clp);
-}
-
-/*
  * nfs_init_localioclient - Initialise an NFS localio client connection
  */
 static struct rpc_clnt *nfs_init_localioclient(struct nfs_client *clp)
@@ -194,19 +176,19 @@ void nfs_local_probe(struct nfs_client *clp)
 	/* Disallow localio if disabled via sysfs or AUTH_SYS isn't used */
 	if (!localio_enabled ||
 	    clp->cl_rpcclient->cl_auth->au_flavor != RPC_AUTH_UNIX) {
-		nfs_local_disable(clp);
+		nfs_localio_disable_client(clp);
 		return;
 	}
 
 	if (nfs_client_is_local(clp)) {
 		/* If already enabled, disable and re-enable */
-		nfs_local_disable(clp);
+		nfs_localio_disable_client(clp);
 	}
 
 	if (!nfs_uuid_begin(&clp->cl_uuid))
 		return;
 	if (nfs_server_uuid_is_local(clp))
-		nfs_local_enable(clp);
+		nfs_localio_enable_client(clp);
 	nfs_uuid_end(&clp->cl_uuid);
 }
 EXPORT_SYMBOL_GPL(nfs_local_probe);
@@ -748,7 +730,7 @@ int nfs_local_doio(struct nfs_client *clp, struct nfsd_file *localio,
 
 	if (status != 0) {
 		if (status == -EAGAIN)
-			nfs_local_disable(clp);
+			nfs_localio_disable_client(clp);
 		nfs_local_file_put(localio);
 		hdr->task.tk_status = status;
 		nfs_local_hdr_release(hdr, call_ops);
