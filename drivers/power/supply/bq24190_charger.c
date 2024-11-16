@@ -152,6 +152,7 @@
 #define BQ24296_REG_VPRS_PN_MASK		(BIT(7) | BIT(6) | BIT(5))
 #define BQ24296_REG_VPRS_PN_SHIFT		5
 #define BQ24296_REG_VPRS_PN_24296		0x1
+#define BQ24296_REG_VPRS_PN_24297		0x3
 #define BQ24190_REG_VPRS_TS_PROFILE_MASK	BIT(2)
 #define BQ24190_REG_VPRS_TS_PROFILE_SHIFT	2
 #define BQ24190_REG_VPRS_DEV_REG_MASK		(BIT(1) | BIT(0))
@@ -208,6 +209,7 @@ enum bq24190_chip {
 	BQ24192i,
 	BQ24196,
 	BQ24296,
+	BQ24297,
 };
 
 /*
@@ -1898,6 +1900,7 @@ static int bq24296_check_chip(struct bq24190_dev_info *bdi)
 
 	switch (v) {
 	case BQ24296_REG_VPRS_PN_24296:
+	case BQ24296_REG_VPRS_PN_24297:
 		break;
 	default:
 		dev_err(bdi->dev, "Error unknown model: 0x%02x\n", v);
@@ -2024,6 +2027,17 @@ static const struct bq24190_chip_info bq24190_chip_info_tbl[] = {
 		.set_otg_vbus = bq24190_set_otg_vbus,
 	},
 	[BQ24296] = {
+		.ichg_array_size = BQ24296_CCC_ICHG_VALUES_LEN,
+#ifdef CONFIG_REGULATOR
+		.vbus_desc = &bq24296_vbus_desc,
+#endif
+		.check_chip = bq24296_check_chip,
+		.set_chg_config = bq24296_battery_set_chg_config,
+		.ntc_fault_mask = BQ24296_REG_F_NTC_FAULT_MASK,
+		.get_ntc_status = bq24296_charger_get_ntc_status,
+		.set_otg_vbus = bq24296_set_otg_vbus,
+	},
+	[BQ24297] = {
 		.ichg_array_size = BQ24296_CCC_ICHG_VALUES_LEN,
 #ifdef CONFIG_REGULATOR
 		.vbus_desc = &bq24296_vbus_desc,
@@ -2290,6 +2304,7 @@ static const struct i2c_device_id bq24190_i2c_ids[] = {
 	{ "bq24192i", (kernel_ulong_t)&bq24190_chip_info_tbl[BQ24192i] },
 	{ "bq24196", (kernel_ulong_t)&bq24190_chip_info_tbl[BQ24196] },
 	{ "bq24296", (kernel_ulong_t)&bq24190_chip_info_tbl[BQ24296] },
+	{ "bq24297", (kernel_ulong_t)&bq24190_chip_info_tbl[BQ24297] },
 	{ },
 };
 MODULE_DEVICE_TABLE(i2c, bq24190_i2c_ids);
@@ -2300,6 +2315,7 @@ static const struct of_device_id bq24190_of_match[] = {
 	{ .compatible = "ti,bq24192i", .data = &bq24190_chip_info_tbl[BQ24192i] },
 	{ .compatible = "ti,bq24196", .data = &bq24190_chip_info_tbl[BQ24196] },
 	{ .compatible = "ti,bq24296", .data = &bq24190_chip_info_tbl[BQ24296] },
+	{ .compatible = "ti,bq24297", .data = &bq24190_chip_info_tbl[BQ24297] },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, bq24190_of_match);
