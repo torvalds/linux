@@ -278,16 +278,16 @@ repeat:
 	if (nr < fdt->max_fds)
 		return 0;
 
-	/* Can we expand? */
-	if (nr >= sysctl_nr_open)
-		return -EMFILE;
-
 	if (unlikely(files->resize_in_progress)) {
 		spin_unlock(&files->file_lock);
 		wait_event(files->resize_wait, !files->resize_in_progress);
 		spin_lock(&files->file_lock);
 		goto repeat;
 	}
+
+	/* Can we expand? */
+	if (unlikely(nr >= sysctl_nr_open))
+		return -EMFILE;
 
 	/* All good, so we try */
 	files->resize_in_progress = true;
