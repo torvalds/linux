@@ -116,6 +116,7 @@ static __be32 localio_proc_uuid_is_local(struct svc_rqst *rqstp)
 	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
 
 	nfs_uuid_is_local(&argp->uuid, &nn->local_clients,
+			  &nn->local_clients_lock,
 			  net, rqstp->rq_client, THIS_MODULE);
 
 	return rpc_success;

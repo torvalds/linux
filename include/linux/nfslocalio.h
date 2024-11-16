@@ -30,19 +30,23 @@ typedef struct {
 	/* sadly this struct is just over a cacheline, avoid bouncing */
 	spinlock_t ____cacheline_aligned lock;
 	struct list_head list;
+	spinlock_t *list_lock; /* nn->local_clients_lock */
 	struct net __rcu *net; /* nfsd's network namespace */
 	struct auth_domain *dom; /* auth_domain for localio */
+	/* Local files to close when net is shut down or exports change */
+	struct list_head files;
 } nfs_uuid_t;
 
 void nfs_uuid_init(nfs_uuid_t *);
 bool nfs_uuid_begin(nfs_uuid_t *);
 void nfs_uuid_end(nfs_uuid_t *);
-void nfs_uuid_is_local(const uuid_t *, struct list_head *,
+void nfs_uuid_is_local(const uuid_t *, struct list_head *, spinlock_t *,
 		       struct net *, struct auth_domain *, struct module *);
 
 void nfs_localio_enable_client(struct nfs_client *clp);
 void nfs_localio_disable_client(struct nfs_client *clp);
-void nfs_localio_invalidate_clients(struct list_head *list);
+void nfs_localio_invalidate_clients(struct list_head *nn_local_clients,
+				    spinlock_t *nn_local_clients_lock);
 
 /* localio needs to map filehandle -> struct nfsd_file */
 extern struct nfsd_file *

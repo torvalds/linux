@@ -220,6 +220,7 @@ struct nfsd_net {
 
 #if IS_ENABLED(CONFIG_NFS_LOCALIO)
 	/* Local clients to be invalidated when net is shut down */
+	spinlock_t              local_clients_lock;
 	struct list_head	local_clients;
 #endif
 };

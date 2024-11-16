@@ -2259,6 +2259,7 @@ static __net_init int nfsd_net_init(struct net *net)
 	seqlock_init(&nn->writeverf_lock);
 	nfsd_proc_stat_init(net);
 #if IS_ENABLED(CONFIG_NFS_LOCALIO)
+	spin_lock_init(&nn->local_clients_lock);
 	INIT_LIST_HEAD(&nn->local_clients);
 #endif
 	return 0;
@@ -2283,7 +2284,8 @@ static __net_exit void nfsd_net_pre_exit(struct net *net)
 {
 	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
 
-	nfs_localio_invalidate_clients(&nn->local_clients);
+	nfs_localio_invalidate_clients(&nn->local_clients,
+				       &nn->local_clients_lock);
 }
 #endif
 

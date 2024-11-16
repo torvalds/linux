@@ -23,26 +23,48 @@ static DEFINE_SPINLOCK(nfs_uuids_lock);
  */
 static LIST_HEAD(nfs_uuids);
 
+/*
+ * Lock ordering:
+ * 1: nfs_uuid->lock
+ * 2: nfs_uuids_lock
+ * 3: nfs_uuid->list_lock (aka nn->local_clients_lock)
+ *
+ * May skip locks in select cases, but never hold multiple
+ * locks out of order.
+ */
+
 void nfs_uuid_init(nfs_uuid_t *nfs_uuid)
 {
 	nfs_uuid->net = NULL;
 	nfs_uuid->dom = NULL;
+	nfs_uuid->list_lock = NULL;
 	INIT_LIST_HEAD(&nfs_uuid->list);
+	INIT_LIST_HEAD(&nfs_uuid->files);
 	spin_lock_init(&nfs_uuid->lock);
 }
 EXPORT_SYMBOL_GPL(nfs_uuid_init);
 
 bool nfs_uuid_begin(nfs_uuid_t *nfs_uuid)
 {
-	spin_lock(&nfs_uuids_lock);
-	/* Is this nfs_uuid already in use? */
-	if (!list_empty(&nfs_uuid->list)) {
-		spin_unlock(&nfs_uuids_lock);
+	spin_lock(&nfs_uuid->lock);
+	if (nfs_uuid->net) {
+		/* This nfs_uuid is already in use */
+		spin_unlock(&nfs_uuid->lock);
 		return false;
 	}
-	uuid_gen(&nfs_uuid->uuid);
+
+	spin_lock(&nfs_uuids_lock);
+	if (!list_empty(&nfs_uuid->list)) {
+		/* This nfs_uuid is already in use */
+		spin_unlock(&nfs_uuids_lock);
+		spin_unlock(&nfs_uuid->lock);
+		return false;
+	}
 	list_add_tail(&nfs_uuid->list, &nfs_uuids);
 	spin_unlock(&nfs_uuids_lock);
+
+	uuid_gen(&nfs_uuid->uuid);
+	spin_unlock(&nfs_uuid->lock);
 
 	return true;
 }
@@ -51,11 +73,15 @@ EXPORT_SYMBOL_GPL(nfs_uuid_begin);
 void nfs_uuid_end(nfs_uuid_t *nfs_uuid)
 {
 	if (nfs_uuid->net == NULL) {
-		spin_lock(&nfs_uuids_lock);
-		if (nfs_uuid->net == NULL)
+		spin_lock(&nfs_uuid->lock);
+		if (nfs_uuid->net == NULL) {
+			/* Not local, remove from nfs_uuids */
+			spin_lock(&nfs_uuids_lock);
 			list_del_init(&nfs_uuid->list);
-		spin_unlock(&nfs_uuids_lock);
-	}
+			spin_unlock(&nfs_uuids_lock);
+		}
+		spin_unlock(&nfs_uuid->lock);
+        }
 }
 EXPORT_SYMBOL_GPL(nfs_uuid_end);
 
@@ -73,28 +99,39 @@ static nfs_uuid_t * nfs_uuid_lookup_locked(const uuid_t *uuid)
 static struct module *nfsd_mod;
 
 void nfs_uuid_is_local(const uuid_t *uuid, struct list_head *list,
-		       struct net *net, struct auth_domain *dom,
-		       struct module *mod)
+		       spinlock_t *list_lock, struct net *net,
+		       struct auth_domain *dom, struct module *mod)
 {
 	nfs_uuid_t *nfs_uuid;
 
 	spin_lock(&nfs_uuids_lock);
 	nfs_uuid = nfs_uuid_lookup_locked(uuid);
-	if (nfs_uuid) {
-		kref_get(&dom->ref);
-		nfs_uuid->dom = dom;
-		/*
-		 * We don't hold a ref on the net, but instead put
-		 * ourselves on a list so the net pointer can be
-		 * invalidated.
-		 */
-		list_move(&nfs_uuid->list, list);
-		rcu_assign_pointer(nfs_uuid->net, net);
-
-		__module_get(mod);
-		nfsd_mod = mod;
+	if (!nfs_uuid) {
+		spin_unlock(&nfs_uuids_lock);
+		return;
 	}
+
+	/*
+	 * We don't hold a ref on the net, but instead put
+	 * ourselves on @list (nn->local_clients) so the net
+	 * pointer can be invalidated.
+	 */
+	spin_lock(list_lock); /* list_lock is nn->local_clients_lock */
+	list_move(&nfs_uuid->list, list);
+	spin_unlock(list_lock);
+
 	spin_unlock(&nfs_uuids_lock);
+	/* Once nfs_uuid is parented to @list, avoid global nfs_uuids_lock */
+	spin_lock(&nfs_uuid->lock);
+
+	__module_get(mod);
+	nfsd_mod = mod;
+
+	nfs_uuid->list_lock = list_lock;
+	kref_get(&dom->ref);
+	nfs_uuid->dom = dom;
+	rcu_assign_pointer(nfs_uuid->net, net);
+	spin_unlock(&nfs_uuid->lock);
 }
 EXPORT_SYMBOL_GPL(nfs_uuid_is_local);
 
@@ -108,55 +145,96 @@ void nfs_localio_enable_client(struct nfs_client *clp)
 }
 EXPORT_SYMBOL_GPL(nfs_localio_enable_client);
 
-static void nfs_uuid_put_locked(nfs_uuid_t *nfs_uuid)
+/*
+ * Cleanup the nfs_uuid_t embedded in an nfs_client.
+ * This is the long-form of nfs_uuid_init().
+ */
+static void nfs_uuid_put(nfs_uuid_t *nfs_uuid)
 {
-	if (!nfs_uuid->net)
+	LIST_HEAD(local_files);
+	struct nfs_file_localio *nfl, *tmp;
+
+	spin_lock(&nfs_uuid->lock);
+	if (unlikely(!nfs_uuid->net)) {
+		spin_unlock(&nfs_uuid->lock);
 		return;
-	module_put(nfsd_mod);
+	}
 	RCU_INIT_POINTER(nfs_uuid->net, NULL);
 
 	if (nfs_uuid->dom) {
 		auth_domain_put(nfs_uuid->dom);
 		nfs_uuid->dom = NULL;
 	}
-	list_del_init(&nfs_uuid->list);
+
+	list_splice_init(&nfs_uuid->files, &local_files);
+	spin_unlock(&nfs_uuid->lock);
+
+	/* Walk list of files and ensure their last references dropped */
+	list_for_each_entry_safe(nfl, tmp, &local_files, list) {
+		nfs_close_local_fh(nfl);
+		cond_resched();
+	}
+
+	spin_lock(&nfs_uuid->lock);
+	BUG_ON(!list_empty(&nfs_uuid->files));
+
+	/* Remove client from nn->local_clients */
+	if (nfs_uuid->list_lock) {
+		spin_lock(nfs_uuid->list_lock);
+		BUG_ON(list_empty(&nfs_uuid->list));
+		list_del_init(&nfs_uuid->list);
+		spin_unlock(nfs_uuid->list_lock);
+		nfs_uuid->list_lock = NULL;
+	}
+
+	module_put(nfsd_mod);
+	spin_unlock(&nfs_uuid->lock);
 }
 
 void nfs_localio_disable_client(struct nfs_client *clp)
 {
-	nfs_uuid_t *nfs_uuid = &clp->cl_uuid;
+	nfs_uuid_t *nfs_uuid = NULL;
 
-	spin_lock(&nfs_uuid->lock);
+	spin_lock(&clp->cl_uuid.lock); /* aka &nfs_uuid->lock */
 	if (test_and_clear_bit(NFS_CS_LOCAL_IO, &clp->cl_flags)) {
-		spin_lock(&nfs_uuids_lock);
-		nfs_uuid_put_locked(nfs_uuid);
-		spin_unlock(&nfs_uuids_lock);
+		/* &clp->cl_uuid is always not NULL, using as bool here */
+		nfs_uuid = &clp->cl_uuid;
 	}
-	spin_unlock(&nfs_uuid->lock);
+	spin_unlock(&clp->cl_uuid.lock);
+
+	if (nfs_uuid)
+		nfs_uuid_put(nfs_uuid);
 }
 EXPORT_SYMBOL_GPL(nfs_localio_disable_client);
 
-void nfs_localio_invalidate_clients(struct list_head *cl_uuid_list)
+void nfs_localio_invalidate_clients(struct list_head *nn_local_clients,
+				    spinlock_t *nn_local_clients_lock)
 {
+	LIST_HEAD(local_clients);
 	nfs_uuid_t *nfs_uuid, *tmp;
+	struct nfs_client *clp;
 
-	spin_lock(&nfs_uuids_lock);
-	list_for_each_entry_safe(nfs_uuid, tmp, cl_uuid_list, list) {
-		struct nfs_client *clp =
-			container_of(nfs_uuid, struct nfs_client, cl_uuid);
-
+	spin_lock(nn_local_clients_lock);
+	list_splice_init(nn_local_clients, &local_clients);
+	spin_unlock(nn_local_clients_lock);
+	list_for_each_entry_safe(nfs_uuid, tmp, &local_clients, list) {
+		if (WARN_ON(nfs_uuid->list_lock != nn_local_clients_lock))
+			break;
+		clp = container_of(nfs_uuid, struct nfs_client, cl_uuid);
 		nfs_localio_disable_client(clp);
 	}
-	spin_unlock(&nfs_uuids_lock);
 }
 EXPORT_SYMBOL_GPL(nfs_localio_invalidate_clients);
 
 static void nfs_uuid_add_file(nfs_uuid_t *nfs_uuid, struct nfs_file_localio *nfl)
 {
-	spin_lock(&nfs_uuids_lock);
-	if (!nfl->nfs_uuid)
+	/* Add nfl to nfs_uuid->files if it isn't already */
+	spin_lock(&nfs_uuid->lock);
+	if (list_empty(&nfl->list)) {
 		rcu_assign_pointer(nfl->nfs_uuid, nfs_uuid);
-	spin_unlock(&nfs_uuids_lock);
+		list_add_tail(&nfl->list, &nfs_uuid->files);
+	}
+	spin_unlock(&nfs_uuid->lock);
 }
 
 /*
@@ -217,14 +295,16 @@ void nfs_close_local_fh(struct nfs_file_localio *nfl)
 	ro_nf = rcu_access_pointer(nfl->ro_file);
 	rw_nf = rcu_access_pointer(nfl->rw_file);
 	if (ro_nf || rw_nf) {
-		spin_lock(&nfs_uuids_lock);
+		spin_lock(&nfs_uuid->lock);
 		if (ro_nf)
 			ro_nf = rcu_dereference_protected(xchg(&nfl->ro_file, NULL), 1);
 		if (rw_nf)
 			rw_nf = rcu_dereference_protected(xchg(&nfl->rw_file, NULL), 1);
 
-		rcu_assign_pointer(nfl->nfs_uuid, NULL);
-		spin_unlock(&nfs_uuids_lock);
+		/* Remove nfl from nfs_uuid->files list */
+		RCU_INIT_POINTER(nfl->nfs_uuid, NULL);
+		list_del_init(&nfl->list);
+		spin_unlock(&nfs_uuid->lock);
 		rcu_read_unlock();
 
 		if (ro_nf)
