@@ -17707,8 +17707,10 @@ void nl80211_common_reg_change_event(enum nl80211_commands cmd_id,
 
 	genlmsg_end(msg, hdr);
 
+	rcu_read_lock();
 	genlmsg_multicast_allns(&nl80211_fam, msg, 0,
-				NL80211_MCGRP_REGULATORY);
+				NL80211_MCGRP_REGULATORY, GFP_ATOMIC);
+	rcu_read_unlock();
 
 	return;
 
@@ -18335,8 +18337,10 @@ void nl80211_send_beacon_hint_event(struct wiphy *wiphy,
 
 	genlmsg_end(msg, hdr);
 
+	rcu_read_lock();
 	genlmsg_multicast_allns(&nl80211_fam, msg, 0,
-				NL80211_MCGRP_REGULATORY);
+				NL80211_MCGRP_REGULATORY, GFP_ATOMIC);
+	rcu_read_unlock();
 
 	return;
 
