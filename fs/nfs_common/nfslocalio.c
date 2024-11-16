@@ -12,6 +12,8 @@
 #include <linux/nfs_fs.h>
 #include <net/netns/generic.h>
 
+#include "localio_trace.h"
+
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("NFS localio protocol bypass support");
 
@@ -141,6 +143,7 @@ void nfs_localio_enable_client(struct nfs_client *clp)
 
 	spin_lock(&nfs_uuid->lock);
 	set_bit(NFS_CS_LOCAL_IO, &clp->cl_flags);
+	trace_nfs_localio_enable_client(clp);
 	spin_unlock(&nfs_uuid->lock);
 }
 EXPORT_SYMBOL_GPL(nfs_localio_enable_client);
@@ -199,6 +202,7 @@ void nfs_localio_disable_client(struct nfs_client *clp)
 	if (test_and_clear_bit(NFS_CS_LOCAL_IO, &clp->cl_flags)) {
 		/* &clp->cl_uuid is always not NULL, using as bool here */
 		nfs_uuid = &clp->cl_uuid;
+		trace_nfs_localio_disable_client(clp);
 	}
 	spin_unlock(&clp->cl_uuid.lock);
 
