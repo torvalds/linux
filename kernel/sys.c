@@ -1763,11 +1763,11 @@ SYSCALL_DEFINE2(setrlimit, unsigned int, resource, struct rlimit __user *, rlim)
  * given child after it's reaped, or none so this sample is before reaping.
  *
  * Locking:
- * We need to take the siglock for CHILDEREN, SELF and BOTH
+ * We need to take the siglock for CHILDREN, SELF and BOTH
  * for  the cases current multithreaded, non-current single threaded
  * non-current multithreaded.  Thread traversal is now safe with
  * the siglock held.
- * Strictly speaking, we donot need to take the siglock if we are current and
+ * Strictly speaking, we do not need to take the siglock if we are current and
  * single threaded,  as no one else can take our signal_struct away, no one
  * else can  reap the  children to update signal->c* counters, and no one else
  * can race with the signal-> fields. If we do not take any lock, the
