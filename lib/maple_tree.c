@@ -4882,13 +4882,12 @@ static inline bool mas_anode_descend(struct ma_state *mas, unsigned long size)
 				found = true;
 				goto done;
 			}
-			if (mas->index <= pivot) {
-				mas->node = mas_slot(mas, slots, offset);
-				mas->min = min;
-				mas->max = pivot;
-				offset = 0;
-				break;
-			}
+
+			mas->node = mas_slot(mas, slots, offset);
+			mas->min = min;
+			mas->max = pivot;
+			offset = 0;
+			break;
 		}
 next_slot:
 		min = pivot + 1;
