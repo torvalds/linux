@@ -131,6 +131,7 @@ struct nfs_client {
 	struct timespec64	cl_nfssvc_boot;
 	seqlock_t		cl_boot_lock;
 	nfs_uuid_t		cl_uuid;
+	struct work_struct	cl_local_probe_work;
 #endif /* CONFIG_NFS_LOCALIO */
 };
 
