@@ -6,6 +6,7 @@
 #ifndef __LINUX_NFSLOCALIO_H
 #define __LINUX_NFSLOCALIO_H
 
+
 /* nfsd_file structure is purposely kept opaque to NFS client */
 struct nfsd_file;
 
@@ -19,6 +20,8 @@ struct nfsd_file;
 #include <linux/nfs.h>
 #include <net/net_namespace.h>
 
+struct nfs_client;
+
 /*
  * Useful to allow a client to negotiate if localio
  * possible with its server.
@@ -27,6 +30,8 @@ struct nfsd_file;
  */
 typedef struct {
 	uuid_t uuid;
+	/* sadly this struct is just over a cacheline, avoid bouncing */
+	spinlock_t ____cacheline_aligned lock;
 	struct list_head list;
 	struct net __rcu *net; /* nfsd's network namespace */
 	struct auth_domain *dom; /* auth_domain for localio */
@@ -38,7 +43,8 @@ void nfs_uuid_end(nfs_uuid_t *);
 void nfs_uuid_is_local(const uuid_t *, struct list_head *,
 		       struct net *, struct auth_domain *, struct module *);
 
-void nfs_localio_disable_client(nfs_uuid_t *nfs_uuid);
+void nfs_localio_enable_client(struct nfs_client *clp);
+void nfs_localio_disable_client(struct nfs_client *clp);
 void nfs_localio_invalidate_clients(struct list_head *list);
 
 /* localio needs to map filehandle -> struct nfsd_file */

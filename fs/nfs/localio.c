@@ -126,10 +126,8 @@ const struct rpc_program nfslocalio_program = {
  */
 static void nfs_local_enable(struct nfs_client *clp)
 {
-	spin_lock(&clp->cl_localio_lock);
-	set_bit(NFS_CS_LOCAL_IO, &clp->cl_flags);
 	trace_nfs_local_enable(clp);
-	spin_unlock(&clp->cl_localio_lock);
+	nfs_localio_enable_client(clp);
 }
 
 /*
@@ -137,12 +135,8 @@ static void nfs_local_enable(struct nfs_client *clp)
  */
 void nfs_local_disable(struct nfs_client *clp)
 {
-	spin_lock(&clp->cl_localio_lock);
-	if (test_and_clear_bit(NFS_CS_LOCAL_IO, &clp->cl_flags)) {
-		trace_nfs_local_disable(clp);
-		nfs_localio_disable_client(&clp->cl_uuid);
-	}
-	spin_unlock(&clp->cl_localio_lock);
+	trace_nfs_local_disable(clp);
+	nfs_localio_disable_client(clp);
 }
 
 /*
@@ -184,7 +178,7 @@ static bool nfs_server_uuid_is_local(struct nfs_client *clp)
 	rpc_shutdown_client(rpcclient_localio);
 
 	/* Server is only local if it initialized required struct members */
-	if (status || !clp->cl_uuid.net || !clp->cl_uuid.dom)
+	if (status || !rcu_access_pointer(clp->cl_uuid.net) || !clp->cl_uuid.dom)
 		return false;
 
 	return true;

@@ -7,6 +7,9 @@
 #include <linux/module.h>
 #include <linux/list.h>
 #include <linux/nfslocalio.h>
+#include <linux/nfs3.h>
+#include <linux/nfs4.h>
+#include <linux/nfs_fs_sb.h>
 #include <net/netns/generic.h>
 
 MODULE_LICENSE("GPL");
@@ -25,6 +28,7 @@ void nfs_uuid_init(nfs_uuid_t *nfs_uuid)
 	nfs_uuid->net = NULL;
 	nfs_uuid->dom = NULL;
 	INIT_LIST_HEAD(&nfs_uuid->list);
+	spin_lock_init(&nfs_uuid->lock);
 }
 EXPORT_SYMBOL_GPL(nfs_uuid_init);
 
@@ -94,12 +98,23 @@ void nfs_uuid_is_local(const uuid_t *uuid, struct list_head *list,
 }
 EXPORT_SYMBOL_GPL(nfs_uuid_is_local);
 
+void nfs_localio_enable_client(struct nfs_client *clp)
+{
+	nfs_uuid_t *nfs_uuid = &clp->cl_uuid;
+
+	spin_lock(&nfs_uuid->lock);
+	set_bit(NFS_CS_LOCAL_IO, &clp->cl_flags);
+	spin_unlock(&nfs_uuid->lock);
+}
+EXPORT_SYMBOL_GPL(nfs_localio_enable_client);
+
 static void nfs_uuid_put_locked(nfs_uuid_t *nfs_uuid)
 {
-	if (nfs_uuid->net) {
-		module_put(nfsd_mod);
-		nfs_uuid->net = NULL;
-	}
+	if (!nfs_uuid->net)
+		return;
+	module_put(nfsd_mod);
+	RCU_INIT_POINTER(nfs_uuid->net, NULL);
+
 	if (nfs_uuid->dom) {
 		auth_domain_put(nfs_uuid->dom);
 		nfs_uuid->dom = NULL;
@@ -107,26 +122,34 @@ static void nfs_uuid_put_locked(nfs_uuid_t *nfs_uuid)
 	list_del_init(&nfs_uuid->list);
 }
 
-void nfs_localio_invalidate_clients(struct list_head *list)
+void nfs_localio_disable_client(struct nfs_client *clp)
 {
-	nfs_uuid_t *nfs_uuid, *tmp;
+	nfs_uuid_t *nfs_uuid = &clp->cl_uuid;
 
-	spin_lock(&nfs_uuid_lock);
-	list_for_each_entry_safe(nfs_uuid, tmp, list, list)
-		nfs_uuid_put_locked(nfs_uuid);
-	spin_unlock(&nfs_uuid_lock);
-}
-EXPORT_SYMBOL_GPL(nfs_localio_invalidate_clients);
-
-void nfs_localio_disable_client(nfs_uuid_t *nfs_uuid)
-{
-	if (nfs_uuid->net) {
+	spin_lock(&nfs_uuid->lock);
+	if (test_and_clear_bit(NFS_CS_LOCAL_IO, &clp->cl_flags)) {
 		spin_lock(&nfs_uuid_lock);
 		nfs_uuid_put_locked(nfs_uuid);
 		spin_unlock(&nfs_uuid_lock);
 	}
+	spin_unlock(&nfs_uuid->lock);
 }
 EXPORT_SYMBOL_GPL(nfs_localio_disable_client);
+
+void nfs_localio_invalidate_clients(struct list_head *cl_uuid_list)
+{
+	nfs_uuid_t *nfs_uuid, *tmp;
+
+	spin_lock(&nfs_uuid_lock);
+	list_for_each_entry_safe(nfs_uuid, tmp, cl_uuid_list, list) {
+		struct nfs_client *clp =
+			container_of(nfs_uuid, struct nfs_client, cl_uuid);
+
+		nfs_localio_disable_client(clp);
+	}
+	spin_unlock(&nfs_uuid_lock);
+}
+EXPORT_SYMBOL_GPL(nfs_localio_invalidate_clients);
 
 struct nfsd_file *nfs_open_local_fh(nfs_uuid_t *uuid,
 		   struct rpc_clnt *rpc_clnt, const struct cred *cred,
