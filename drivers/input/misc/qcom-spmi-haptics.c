@@ -360,7 +360,11 @@ static int spmi_haptics_write_play_rate(struct spmi_haptics *haptics, u16 play_r
  */
 static int spmi_haptics_set_auto_res(struct spmi_haptics *haptics, bool enable)
 {
-	u8 val;
+	u8 val = 0;
+
+	if (haptics->actuator_type == HAP_TYPE_ERM)
+		return spmi_haptics_write(haptics, haptics->base + HAP_LRA_AUTO_RES_REG,
+					  &val, 1);
 
 	// LRAs are the only type to support auto res
 	if (haptics->actuator_type != HAP_TYPE_LRA)
@@ -817,11 +821,10 @@ static int spmi_haptics_probe(struct platform_device *pdev)
 		goto register_fail;
 	}
 
-	// We only support LRAs for now
 	haptics->actuator_type = HAP_TYPE_LRA;
 	ret = of_property_read_u32(node, "qcom,actuator-type", &val);
 	if (!ret) {
-		if (val != HAP_TYPE_LRA) {
+		if (val != HAP_TYPE_ERM && val != HAP_TYPE_LRA) {
 			dev_err(&pdev->dev, "qcom,actuator-type (%d) isn't supported\n", val);
 			ret = -EINVAL;
 			goto register_fail;
@@ -829,11 +832,10 @@ static int spmi_haptics_probe(struct platform_device *pdev)
 		haptics->actuator_type = val;
 	}
 
-	// Only buffer mode is currently supported
 	haptics->play_mode = HAP_PLAY_BUFFER;
 	ret = of_property_read_u32(node, "qcom,play-mode", &val);
 	if (!ret) {
-		if (val != HAP_PLAY_BUFFER) {
+		if (val != HAP_PLAY_BUFFER && val != HAP_PLAY_DIRECT) {
 			dev_err(&pdev->dev, "qcom,play-mode (%d) isn't supported\n", val);
 			ret = -EINVAL;
 			goto register_fail;
