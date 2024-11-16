@@ -689,7 +689,7 @@ static void dw_pcie_ep_init_non_sticky_registers(struct dw_pcie *pci)
 		 * for 1 MB BAR size only.
 		 */
 		for (i = 0; i < nbars; i++, offset += PCI_REBAR_CTRL)
-			dw_pcie_writel_dbi(pci, offset + PCI_REBAR_CAP, 0x0);
+			dw_pcie_writel_dbi(pci, offset + PCI_REBAR_CAP, BIT(4));
 	}
 
 	dw_pcie_setup(pci);
