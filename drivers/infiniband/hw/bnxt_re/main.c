@@ -300,9 +300,6 @@ static void bnxt_re_shutdown(struct auxiliary_device *adev)
 	struct bnxt_re_en_dev_info *en_info = auxiliary_get_drvdata(adev);
 	struct bnxt_re_dev *rdev;
 
-	if (!en_info)
-		return;
-
 	rdev = en_info->rdev;
 	ib_unregister_device(&rdev->ibdev);
 	bnxt_re_dev_uninit(rdev, BNXT_RE_COMPLETE_REMOVE);
@@ -315,9 +312,6 @@ static void bnxt_re_stop_irq(void *handle)
 	struct bnxt_re_dev *rdev;
 	struct bnxt_qplib_nq *nq;
 	int indx;
-
-	if (!en_info)
-		return;
 
 	rdev = en_info->rdev;
 	rcfw = &rdev->rcfw;
@@ -338,9 +332,6 @@ static void bnxt_re_start_irq(void *handle, struct bnxt_msix_entry *ent)
 	struct bnxt_re_dev *rdev;
 	struct bnxt_qplib_nq *nq;
 	int indx, rc;
-
-	if (!en_info)
-		return;
 
 	rdev = en_info->rdev;
 	msix_ent = rdev->en_dev->msix_entries;
@@ -1991,10 +1982,6 @@ static void bnxt_re_remove(struct auxiliary_device *adev)
 	struct bnxt_re_dev *rdev;
 
 	mutex_lock(&bnxt_re_mutex);
-	if (!en_info) {
-		mutex_unlock(&bnxt_re_mutex);
-		return;
-	}
 	rdev = en_info->rdev;
 
 	if (rdev)
@@ -2025,7 +2012,15 @@ static int bnxt_re_probe(struct auxiliary_device *adev,
 	auxiliary_set_drvdata(adev, en_info);
 
 	rc = bnxt_re_add_device(adev, BNXT_RE_COMPLETE_INIT);
+	if (rc)
+		goto err;
 	mutex_unlock(&bnxt_re_mutex);
+	return 0;
+
+err:
+	mutex_unlock(&bnxt_re_mutex);
+	kfree(en_info);
+
 	return rc;
 }
 
@@ -2034,9 +2029,6 @@ static int bnxt_re_suspend(struct auxiliary_device *adev, pm_message_t state)
 	struct bnxt_re_en_dev_info *en_info = auxiliary_get_drvdata(adev);
 	struct bnxt_en_dev *en_dev;
 	struct bnxt_re_dev *rdev;
-
-	if (!en_info)
-		return 0;
 
 	rdev = en_info->rdev;
 	en_dev = en_info->en_dev;
@@ -2081,9 +2073,6 @@ static int bnxt_re_resume(struct auxiliary_device *adev)
 {
 	struct bnxt_re_en_dev_info *en_info = auxiliary_get_drvdata(adev);
 	struct bnxt_re_dev *rdev;
-
-	if (!en_info)
-		return 0;
 
 	mutex_lock(&bnxt_re_mutex);
 	/* L2 driver may invoke this callback during device recovery, resume.
