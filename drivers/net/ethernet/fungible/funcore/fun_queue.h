@@ -163,7 +163,6 @@ static inline void fun_set_cq_callback(struct fun_queue *funq, cq_callback_t cb,
 }
 
 int fun_create_rq(struct fun_queue *funq);
-int fun_create_queue(struct fun_queue *funq);
 
 void fun_free_irq(struct fun_queue *funq);
 int fun_request_irq(struct fun_queue *funq, const char *devname,
