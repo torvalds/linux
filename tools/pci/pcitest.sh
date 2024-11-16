@@ -11,6 +11,7 @@ do
 	pcitest -b $bar
 	bar=`expr $bar + 1`
 done
+pcitest -C
 echo
 
 echo "Interrupt tests"

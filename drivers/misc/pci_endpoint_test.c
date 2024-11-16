@@ -325,6 +325,91 @@ static bool pci_endpoint_test_bar(struct pci_endpoint_test *test,
 	return true;
 }
 
+static u32 bar_test_pattern_with_offset(enum pci_barno barno, int offset)
+{
+	u32 val;
+
+	/* Keep the BAR pattern in the top byte. */
+	val = bar_test_pattern[barno] & 0xff000000;
+	/* Store the (partial) offset in the remaining bytes. */
+	val |= offset & 0x00ffffff;
+
+	return val;
+}
+
+static bool pci_endpoint_test_bars_write_bar(struct pci_endpoint_test *test,
+					     enum pci_barno barno)
+{
+	struct pci_dev *pdev = test->pdev;
+	int j, size;
+
+	size = pci_resource_len(pdev, barno);
+
+	if (barno == test->test_reg_bar)
+		size = 0x4;
+
+	for (j = 0; j < size; j += 4)
+		writel_relaxed(bar_test_pattern_with_offset(barno, j),
+			       test->bar[barno] + j);
+
+	return true;
+}
+
+static bool pci_endpoint_test_bars_read_bar(struct pci_endpoint_test *test,
+					    enum pci_barno barno)
+{
+	struct pci_dev *pdev = test->pdev;
+	struct device *dev = &pdev->dev;
+	int j, size;
+	u32 val;
+
+	size = pci_resource_len(pdev, barno);
+
+	if (barno == test->test_reg_bar)
+		size = 0x4;
+
+	for (j = 0; j < size; j += 4) {
+		u32 expected = bar_test_pattern_with_offset(barno, j);
+
+		val = readl_relaxed(test->bar[barno] + j);
+		if (val != expected) {
+			dev_err(dev,
+				"BAR%d incorrect data at offset: %#x, got: %#x expected: %#x\n",
+				barno, j, val, expected);
+			return false;
+		}
+	}
+
+	return true;
+}
+
+static bool pci_endpoint_test_bars(struct pci_endpoint_test *test)
+{
+	enum pci_barno bar;
+	bool ret;
+
+	/* Write all BARs in order (without reading). */
+	for (bar = 0; bar < PCI_STD_NUM_BARS; bar++)
+		if (test->bar[bar])
+			pci_endpoint_test_bars_write_bar(test, bar);
+
+	/*
+	 * Read all BARs in order (without writing).
+	 * If there is an address translation issue on the EP, writing one BAR
+	 * might have overwritten another BAR. Ensure that this is not the case.
+	 * (Reading back the BAR directly after writing can not detect this.)
+	 */
+	for (bar = 0; bar < PCI_STD_NUM_BARS; bar++) {
+		if (test->bar[bar]) {
+			ret = pci_endpoint_test_bars_read_bar(test, bar);
+			if (!ret)
+				return ret;
+		}
+	}
+
+	return true;
+}
+
 static bool pci_endpoint_test_intx_irq(struct pci_endpoint_test *test)
 {
 	u32 val;
@@ -770,6 +855,9 @@ static long pci_endpoint_test_ioctl(struct file *file, unsigned int cmd,
 		if (is_am654_pci_dev(pdev) && bar == BAR_0)
 			goto ret;
 		ret = pci_endpoint_test_bar(test, bar);
+		break;
+	case PCITEST_BARS:
+		ret = pci_endpoint_test_bars(test);
 		break;
 	case PCITEST_INTX_IRQ:
 		ret = pci_endpoint_test_intx_irq(test);

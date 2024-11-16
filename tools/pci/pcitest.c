@@ -22,6 +22,7 @@ static char *irq[] = { "LEGACY", "MSI", "MSI-X" };
 struct pci_test {
 	char		*device;
 	char		barnum;
+	bool		consecutive_bar_test;
 	bool		legacyirq;
 	unsigned int	msinum;
 	unsigned int	msixnum;
@@ -51,6 +52,15 @@ static int run_test(struct pci_test *test)
 	if (test->barnum >= 0 && test->barnum <= 5) {
 		ret = ioctl(fd, PCITEST_BAR, test->barnum);
 		fprintf(stdout, "BAR%d:\t\t", test->barnum);
+		if (ret < 0)
+			fprintf(stdout, "TEST FAILED\n");
+		else
+			fprintf(stdout, "%s\n", result[ret]);
+	}
+
+	if (test->consecutive_bar_test) {
+		ret = ioctl(fd, PCITEST_BARS);
+		fprintf(stdout, "Consecutive BAR test:\t\t");
 		if (ret < 0)
 			fprintf(stdout, "TEST FAILED\n");
 		else
@@ -172,7 +182,7 @@ int main(int argc, char **argv)
 	/* set default endpoint device */
 	test->device = "/dev/pci-endpoint-test.0";
 
-	while ((c = getopt(argc, argv, "D:b:m:x:i:deIlhrwcs:")) != EOF)
+	while ((c = getopt(argc, argv, "D:b:Cm:x:i:deIlhrwcs:")) != EOF)
 	switch (c) {
 	case 'D':
 		test->device = optarg;
@@ -181,6 +191,9 @@ int main(int argc, char **argv)
 		test->barnum = atoi(optarg);
 		if (test->barnum < 0 || test->barnum > 5)
 			goto usage;
+		continue;
+	case 'C':
+		test->consecutive_bar_test = true;
 		continue;
 	case 'l':
 		test->legacyirq = true;
@@ -230,6 +243,7 @@ usage:
 			"Options:\n"
 			"\t-D <dev>		PCI endpoint test device {default: /dev/pci-endpoint-test.0}\n"
 			"\t-b <bar num>		BAR test (bar number between 0..5)\n"
+			"\t-C			Consecutive BAR test\n"
 			"\t-m <msi num>		MSI test (msi number between 1..32)\n"
 			"\t-x <msix num>	\tMSI-X test (msix number between 1..2048)\n"
 			"\t-i <irq type>	\tSet IRQ type (0 - Legacy, 1 - MSI, 2 - MSI-X)\n"
