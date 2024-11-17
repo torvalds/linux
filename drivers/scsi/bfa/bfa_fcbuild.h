@@ -139,8 +139,6 @@ u16        fc_plogi_build(struct fchs_s *fchs, void *pld, u32 d_id,
 
 enum fc_parse_status fc_plogi_parse(struct fchs_s *fchs);
 
-enum fc_parse_status fc_abts_rsp_parse(struct fchs_s *buf, int len);
-
 u16        fc_rspnid_build(struct fchs_s *fchs, void *pld, u32 s_id,
 				u16 ox_id, u8 *name);
 u16	fc_rsnn_nn_build(struct fchs_s *fchs, void *pld, u32 s_id,
@@ -173,9 +171,6 @@ u16        fc_plogi_acc_build(struct fchs_s *fchs, void *pld, u32 d_id,
 u16        fc_adisc_build(struct fchs_s *fchs, struct fc_adisc_s *adisc,
 			u32 d_id, u32 s_id, __be16 ox_id, wwn_t port_name,
 			       wwn_t node_name);
-
-enum fc_parse_status fc_adisc_parse(struct fchs_s *fchs, void *pld,
-			u32 host_dap, wwn_t node_name, wwn_t port_name);
 
 enum fc_parse_status fc_adisc_rsp_parse(struct fc_adisc_s *adisc, int len,
 				 wwn_t port_name, wwn_t node_name);
@@ -230,14 +225,6 @@ void		fc_get_fc4type_bitmask(u8 fc4_type, u8 *bit_mask);
 void		fc_els_req_build(struct fchs_s *fchs, u32 d_id, u32 s_id,
 					 __be16 ox_id);
 
-enum fc_parse_status	fc_plogi_rsp_parse(struct fchs_s *fchs, int len,
-					wwn_t port_name);
-
-enum fc_parse_status	fc_prli_parse(struct fc_prli_s *prli);
-
-enum fc_parse_status	fc_pdisc_parse(struct fchs_s *fchs, wwn_t node_name,
-					wwn_t port_name);
-
 u16 fc_ba_acc_build(struct fchs_s *fchs, struct fc_ba_acc_s *ba_acc, u32 d_id,
 		u32 s_id, __be16 ox_id, u16 rx_id);
 
@@ -246,12 +233,8 @@ int fc_logout_params_pages(struct fchs_s *fc_frame, u8 els_code);
 u16 fc_prlo_acc_build(struct fchs_s *fchs, struct fc_prlo_acc_s *prlo_acc,
 		u32 d_id, u32 s_id, __be16 ox_id, int num_pages);
 
-u16 fc_pdisc_rsp_parse(struct fchs_s *fchs, int len, wwn_t port_name);
-
 u16 fc_tprlo_build(struct fchs_s *fchs, u32 d_id, u32 s_id,
 		u16 ox_id, int num_pages, enum fc_tprlo_type tprlo_type,
 		u32 tpr_id);
-
-u16 fc_ct_rsp_parse(struct ct_hdr_s *cthdr);
 
 #endif

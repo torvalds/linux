@@ -260,40 +260,6 @@ fc_plogi_acc_build(struct fchs_s *fchs, void *pld, u32 d_id, u32 s_id,
 }
 
 enum fc_parse_status
-fc_plogi_rsp_parse(struct fchs_s *fchs, int len, wwn_t port_name)
-{
-	struct fc_els_cmd_s *els_cmd = (struct fc_els_cmd_s *) (fchs + 1);
-	struct fc_logi_s *plogi;
-	struct fc_ls_rjt_s *ls_rjt;
-
-	switch (els_cmd->els_code) {
-	case FC_ELS_LS_RJT:
-		ls_rjt = (struct fc_ls_rjt_s *) (fchs + 1);
-		if (ls_rjt->reason_code == FC_LS_RJT_RSN_LOGICAL_BUSY)
-			return FC_PARSE_BUSY;
-		else
-			return FC_PARSE_FAILURE;
-	case FC_ELS_ACC:
-		plogi = (struct fc_logi_s *) (fchs + 1);
-		if (len < sizeof(struct fc_logi_s))
-			return FC_PARSE_FAILURE;
-
-		if (!wwn_is_equal(plogi->port_name, port_name))
-			return FC_PARSE_FAILURE;
-
-		if (!plogi->class3.class_valid)
-			return FC_PARSE_FAILURE;
-
-		if (be16_to_cpu(plogi->class3.rxsz) < (FC_MIN_PDUSZ))
-			return FC_PARSE_FAILURE;
-
-		return FC_PARSE_OK;
-	default:
-		return FC_PARSE_FAILURE;
-	}
-}
-
-enum fc_parse_status
 fc_plogi_parse(struct fchs_s *fchs)
 {
 	struct fc_logi_s *plogi = (struct fc_logi_s *) (fchs + 1);
@@ -360,21 +326,6 @@ fc_prli_rsp_parse(struct fc_prli_s *prli, int len)
 		return FC_PARSE_FAILURE;
 
 	if (prli->parampage.servparams.target != 1)
-		return FC_PARSE_FAILURE;
-
-	return FC_PARSE_OK;
-}
-
-enum fc_parse_status
-fc_prli_parse(struct fc_prli_s *prli)
-{
-	if (prli->parampage.type != FC_TYPE_FCP)
-		return FC_PARSE_FAILURE;
-
-	if (!prli->parampage.imagepair)
-		return FC_PARSE_FAILURE;
-
-	if (!prli->parampage.servparams.initiator)
 		return FC_PARSE_FAILURE;
 
 	return FC_PARSE_OK;
@@ -448,55 +399,6 @@ fc_adisc_rsp_parse(struct fc_adisc_s *adisc, int len, wwn_t port_name,
 		return FC_PARSE_FAILURE;
 
 	return FC_PARSE_OK;
-}
-
-enum fc_parse_status
-fc_adisc_parse(struct fchs_s *fchs, void *pld, u32 host_dap, wwn_t node_name,
-	       wwn_t port_name)
-{
-	struct fc_adisc_s *adisc = (struct fc_adisc_s *) pld;
-
-	if (adisc->els_cmd.els_code != FC_ELS_ACC)
-		return FC_PARSE_FAILURE;
-
-	if ((adisc->nport_id == (host_dap))
-	    && wwn_is_equal(adisc->orig_port_name, port_name)
-	    && wwn_is_equal(adisc->orig_node_name, node_name))
-		return FC_PARSE_OK;
-
-	return FC_PARSE_FAILURE;
-}
-
-enum fc_parse_status
-fc_pdisc_parse(struct fchs_s *fchs, wwn_t node_name, wwn_t port_name)
-{
-	struct fc_logi_s *pdisc = (struct fc_logi_s *) (fchs + 1);
-
-	if (pdisc->class3.class_valid != 1)
-		return FC_PARSE_FAILURE;
-
-	if ((be16_to_cpu(pdisc->class3.rxsz) <
-		(FC_MIN_PDUSZ - sizeof(struct fchs_s)))
-	    || (pdisc->class3.rxsz == 0))
-		return FC_PARSE_FAILURE;
-
-	if (!wwn_is_equal(pdisc->port_name, port_name))
-		return FC_PARSE_FAILURE;
-
-	if (!wwn_is_equal(pdisc->node_name, node_name))
-		return FC_PARSE_FAILURE;
-
-	return FC_PARSE_OK;
-}
-
-enum fc_parse_status
-fc_abts_rsp_parse(struct fchs_s *fchs, int len)
-{
-	if ((fchs->cat_info == FC_CAT_BA_ACC)
-	    || (fchs->cat_info == FC_CAT_BA_RJT))
-		return FC_PARSE_OK;
-
-	return FC_PARSE_FAILURE;
 }
 
 u16
@@ -666,29 +568,6 @@ fc_rpsc_acc_build(struct fchs_s *fchs, struct fc_rpsc_acc_s *rpsc_acc,
 	return sizeof(struct fc_rpsc_acc_s);
 }
 
-u16
-fc_pdisc_rsp_parse(struct fchs_s *fchs, int len, wwn_t port_name)
-{
-	struct fc_logi_s *pdisc = (struct fc_logi_s *) (fchs + 1);
-
-	if (len < sizeof(struct fc_logi_s))
-		return FC_PARSE_LEN_INVAL;
-
-	if (pdisc->els_cmd.els_code != FC_ELS_ACC)
-		return FC_PARSE_ACC_INVAL;
-
-	if (!wwn_is_equal(pdisc->port_name, port_name))
-		return FC_PARSE_PWWN_NOT_EQUAL;
-
-	if (!pdisc->class3.class_valid)
-		return FC_PARSE_NWWN_NOT_EQUAL;
-
-	if (be16_to_cpu(pdisc->class3.rxsz) < (FC_MIN_PDUSZ))
-		return FC_PARSE_RXSZ_INVAL;
-
-	return FC_PARSE_OK;
-}
-
 static void
 fc_gs_cthdr_build(struct ct_hdr_s *cthdr, u32 s_id, u16 cmd_code)
 {
@@ -750,19 +629,6 @@ fc_gpnid_build(struct fchs_s *fchs, void *pyld, u32 s_id, u16 ox_id,
 	memset(gpnid, 0, sizeof(fcgs_gpnid_req_t));
 	gpnid->dap = port_id;
 	return sizeof(fcgs_gpnid_req_t) + sizeof(struct ct_hdr_s);
-}
-
-u16
-fc_ct_rsp_parse(struct ct_hdr_s *cthdr)
-{
-	if (be16_to_cpu(cthdr->cmd_rsp_code) != CT_RSP_ACCEPT) {
-		if (cthdr->reason_code == CT_RSN_LOGICAL_BUSY)
-			return FC_PARSE_BUSY;
-		else
-			return FC_PARSE_FAILURE;
-	}
-
-	return FC_PARSE_OK;
 }
 
 u16
