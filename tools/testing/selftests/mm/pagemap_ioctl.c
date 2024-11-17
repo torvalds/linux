@@ -1405,9 +1405,9 @@ static void transact_test(int page_size)
 	memset(mem, 0, 0x1000 * nthreads * pages_per_thread);
 
 	count = get_dirty_pages_reset(mem, nthreads * pages_per_thread, 1, page_size);
-	ksft_test_result(count > 0, "%s count %d\n", __func__, count);
+	ksft_test_result(count > 0, "%s count %u\n", __func__, count);
 	count = get_dirty_pages_reset(mem, nthreads * pages_per_thread, 1, page_size);
-	ksft_test_result(count == 0, "%s count %d\n", __func__, count);
+	ksft_test_result(count == 0, "%s count %u\n", __func__, count);
 
 	finish = 0;
 	for (i = 0; i < nthreads; ++i)
@@ -1429,7 +1429,7 @@ static void transact_test(int page_size)
 			ksft_exit_fail_msg("pthread_barrier_wait\n");
 
 		if (count > nthreads * access_per_thread)
-			ksft_exit_fail_msg("Too big count %d expected %d, iter %d\n",
+			ksft_exit_fail_msg("Too big count %u expected %u, iter %u\n",
 					   count, nthreads * access_per_thread, i);
 
 		c = get_dirty_pages_reset(mem, nthreads * pages_per_thread, 1, page_size);
@@ -1454,7 +1454,7 @@ static void transact_test(int page_size)
 			 * access and application gets page fault again for the same write.
 			 */
 			if (count < nthreads * access_per_thread) {
-				ksft_test_result_fail("Lost update, iter %d, %d vs %d.\n", i, count,
+				ksft_test_result_fail("Lost update, iter %u, %u vs %u.\n", i, count,
 						      nthreads * access_per_thread);
 				return;
 			}
@@ -1467,7 +1467,7 @@ static void transact_test(int page_size)
 	finish = 1;
 	pthread_barrier_wait(&end_barrier);
 
-	ksft_test_result_pass("%s Extra pages %u (%.1lf%%), extra thread faults %d.\n", __func__,
+	ksft_test_result_pass("%s Extra pages %u (%.1lf%%), extra thread faults %u.\n", __func__,
 			      extra_pages,
 			      100.0 * extra_pages / (iter_count * nthreads * access_per_thread),
 			      extra_thread_faults);
