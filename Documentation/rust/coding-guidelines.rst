@@ -296,9 +296,7 @@ may happen in several situations, e.g.:
 It also increases the visibility of the remaining ``allow``\ s and reduces the
 chance of misapplying one.
 
-Thus prefer ``except`` over ``allow`` unless:
-
-- The lint attribute is intended to be temporary, e.g. while developing.
+Thus prefer ``expect`` over ``allow`` unless:
 
 - Conditional compilation triggers the warning in some cases but not others.
 
