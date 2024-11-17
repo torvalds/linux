@@ -216,6 +216,7 @@ static inline int bch2_extent_update_i_size_sectors(struct btree_trans *trans,
 			      SPOS(0,
 				   extent_iter->pos.inode,
 				   extent_iter->snapshot),
+			      BTREE_ITER_intent|
 			      BTREE_ITER_cached);
 	int ret = bkey_err(k);
 	if (unlikely(ret))
