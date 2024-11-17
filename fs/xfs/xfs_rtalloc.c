@@ -1266,7 +1266,8 @@ xfs_rt_check_size(
 		return -EFBIG;
 	}
 
-	error = xfs_buf_read_uncached(mp->m_rtdev_targp, daddr,
+	error = xfs_buf_read_uncached(mp->m_rtdev_targp,
+			XFS_FSB_TO_BB(mp, mp->m_sb.sb_rtstart) + daddr,
 			XFS_FSB_TO_BB(mp, 1), 0, &bp, NULL);
 	if (error)
 		xfs_warn(mp, "cannot read last RT device sector (%lld)",

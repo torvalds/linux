@@ -308,6 +308,10 @@ xfs_growfs_data(
 	if (!mutex_trylock(&mp->m_growlock))
 		return -EWOULDBLOCK;
 
+	/* we can't grow the data section when an internal RT section exists */
+	if (in->newblocks != mp->m_sb.sb_dblocks && mp->m_sb.sb_rtstart)
+		return -EINVAL;
+
 	/* update imaxpct separately to the physical grow of the filesystem */
 	if (in->imaxpct != mp->m_sb.sb_imax_pct) {
 		error = xfs_growfs_imaxpct(mp, in->imaxpct);

@@ -533,7 +533,15 @@ xfs_setup_devices(
 		if (error)
 			return error;
 	}
-	if (mp->m_rtdev_targp) {
+
+	if (mp->m_sb.sb_rtstart) {
+		if (mp->m_rtdev_targp) {
+			xfs_warn(mp,
+		"can't use internal and external rtdev at the same time");
+			return -EINVAL;
+		}
+		mp->m_rtdev_targp = mp->m_ddev_targp;
+	} else if (mp->m_rtname) {
 		error = xfs_setsize_buftarg(mp->m_rtdev_targp,
 					    mp->m_sb.sb_sectsize);
 		if (error)
@@ -757,7 +765,7 @@ xfs_mount_free(
 {
 	if (mp->m_logdev_targp && mp->m_logdev_targp != mp->m_ddev_targp)
 		xfs_free_buftarg(mp->m_logdev_targp);
-	if (mp->m_rtdev_targp)
+	if (mp->m_rtdev_targp && mp->m_rtdev_targp != mp->m_ddev_targp)
 		xfs_free_buftarg(mp->m_rtdev_targp);
 	if (mp->m_ddev_targp)
 		xfs_free_buftarg(mp->m_ddev_targp);
