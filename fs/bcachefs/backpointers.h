@@ -158,7 +158,7 @@ static inline void __bch2_extent_ptr_to_bp(struct bch_fs *c, struct bch_dev *ca,
 		.btree_id	= btree_id,
 		.level		= level,
 		.data_type	= bch2_bkey_ptr_data_type(k, p, entry),
-		.bucket_offset	= bp_bucket_offset,
+		.bucket_gen	= p.ptr.gen,
 		.bucket_len	= sectors,
 		.pos		= k.k->p,
 	};

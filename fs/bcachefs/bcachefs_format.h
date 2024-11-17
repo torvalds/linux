@@ -463,7 +463,8 @@ struct bch_backpointer {
 	__u8			btree_id;
 	__u8			level;
 	__u8			data_type;
-	__u64			bucket_offset:40;
+	__u8			bucket_gen;
+	__u32			pad;
 	__u32			bucket_len;
 	struct bpos		pos;
 } __packed __aligned(8);
@@ -677,7 +678,8 @@ struct bch_sb_field_ext {
 	x(disk_accounting_v3,		BCH_VERSION(1, 10))		\
 	x(disk_accounting_inum,		BCH_VERSION(1, 11))		\
 	x(rebalance_work_acct_fix,	BCH_VERSION(1, 12))		\
-	x(inode_has_child_snapshots,	BCH_VERSION(1, 13))
+	x(inode_has_child_snapshots,	BCH_VERSION(1, 13))		\
+	x(backpointer_bucket_gen,	BCH_VERSION(1, 14))
 
 enum bcachefs_metadata_version {
 	bcachefs_metadata_version_min = 9,
