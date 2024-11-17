@@ -2384,15 +2384,16 @@ static irqreturn_t airoha_irq_handler(int irq, void *data)
 
 	for (i = 0; i < ARRAY_SIZE(irq_status_regs); i++) {
 		struct gpio_irq_chip *girq = &pinctrl->gpiochip.chip.irq;
-		u32 status;
+		u32 regmap;
+		unsigned long status;
 		int irq;
 
 		if (regmap_read(pinctrl->regmap, pinctrl->gpiochip.status[i],
-				&status))
+				&regmap))
 			continue;
 
-		for_each_set_bit(irq, (unsigned long *)&status,
-				 AIROHA_PIN_BANK_SIZE) {
+		status = regmap;
+		for_each_set_bit(irq, &status, AIROHA_PIN_BANK_SIZE) {
 			u32 offset = irq + i * AIROHA_PIN_BANK_SIZE;
 
 			generic_handle_irq(irq_find_mapping(girq->domain,
