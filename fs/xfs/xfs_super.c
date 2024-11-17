@@ -110,7 +110,7 @@ enum {
 	Opt_filestreams, Opt_quota, Opt_noquota, Opt_usrquota, Opt_grpquota,
 	Opt_prjquota, Opt_uquota, Opt_gquota, Opt_pquota,
 	Opt_uqnoenforce, Opt_gqnoenforce, Opt_pqnoenforce, Opt_qnoenforce,
-	Opt_discard, Opt_nodiscard, Opt_dax, Opt_dax_enum,
+	Opt_discard, Opt_nodiscard, Opt_dax, Opt_dax_enum, Opt_max_open_zones,
 };
 
 static const struct fs_parameter_spec xfs_fs_parameters[] = {
@@ -155,6 +155,7 @@ static const struct fs_parameter_spec xfs_fs_parameters[] = {
 	fsparam_flag("nodiscard",	Opt_nodiscard),
 	fsparam_flag("dax",		Opt_dax),
 	fsparam_enum("dax",		Opt_dax_enum, dax_param_enums),
+	fsparam_u32("max_open_zones",	Opt_max_open_zones),
 	{}
 };
 
@@ -233,6 +234,9 @@ xfs_fs_show_options(
 
 	if (!(mp->m_qflags & XFS_ALL_QUOTA_ACCT))
 		seq_puts(m, ",noquota");
+
+	if (mp->m_max_open_zones)
+		seq_printf(m, ",max_open_zones=%u", mp->m_max_open_zones);
 
 	return 0;
 }
@@ -1081,6 +1085,14 @@ xfs_finish_flags(
 		return -EINVAL;
 	}
 
+	if (!xfs_has_zoned(mp)) {
+		if (mp->m_max_open_zones) {
+			xfs_warn(mp,
+"max_open_zones mount option only supported on zoned file systems.");
+			return -EINVAL;
+		}
+	}
+
 	return 0;
 }
 
@@ -1462,6 +1474,9 @@ xfs_fs_parse_param(
 	case Opt_noattr2:
 		xfs_fs_warn_deprecated(fc, param, XFS_FEAT_NOATTR2, true);
 		parsing_mp->m_features |= XFS_FEAT_NOATTR2;
+		return 0;
+	case Opt_max_open_zones:
+		parsing_mp->m_max_open_zones = result.uint_32;
 		return 0;
 	default:
 		xfs_warn(parsing_mp, "unknown mount option [%s].", param->key);
