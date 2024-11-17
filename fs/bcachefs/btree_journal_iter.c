@@ -172,9 +172,8 @@ static void journal_iter_verify(struct journal_iter *iter)
 	if (iter->idx < keys->size) {
 		struct journal_key *k = keys->data + iter->idx;
 
-		int cmp = cmp_int(k->btree_id,	iter->btree_id) ?:
-			  cmp_int(k->level,	iter->level);
-		BUG_ON(cmp < 0);
+		int cmp = __journal_key_btree_cmp(iter->btree_id, iter->level, k);
+		BUG_ON(cmp > 0);
 	}
 }
 
@@ -365,9 +364,8 @@ static struct bkey_s_c bch2_journal_iter_peek(struct journal_iter *iter)
 	while (iter->idx < iter->keys->size) {
 		struct journal_key *k = iter->keys->data + iter->idx;
 
-		int cmp = cmp_int(k->btree_id,	iter->btree_id) ?:
-			  cmp_int(k->level,	iter->level);
-		if (cmp > 0)
+		int cmp = __journal_key_btree_cmp(iter->btree_id, iter->level, k);
+		if (cmp < 0)
 			break;
 		BUG_ON(cmp);
 
