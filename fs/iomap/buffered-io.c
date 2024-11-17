@@ -1061,23 +1061,6 @@ int iomap_file_buffered_write_punch_delalloc(struct inode *inode,
 }
 EXPORT_SYMBOL_GPL(iomap_file_buffered_write_punch_delalloc);
 
-bool iomap_want_unshare_iter(const struct iomap_iter *iter)
-{
-	/*
-	 * Don't bother with blocks that are not shared to start with; or
-	 * mappings that cannot be shared, such as inline data, delalloc
-	 * reservations, holes or unwritten extents.
-	 *
-	 * Note that we use srcmap directly instead of iomap_iter_srcmap as
-	 * unsharing requires providing a separate source map, and the presence
-	 * of one is a good indicator that unsharing is needed, unlike
-	 * IOMAP_F_SHARED which can be set for any data that goes into the COW
-	 * fork for XFS.
-	 */
-	return (iter->iomap.flags & IOMAP_F_SHARED) &&
-		iter->srcmap.type == IOMAP_MAPPED;
-}
-
 static loff_t iomap_unshare_iter(struct iomap_iter *iter)
 {
 	loff_t pos = iter->pos;
