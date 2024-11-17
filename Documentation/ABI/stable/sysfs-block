@@ -594,6 +594,9 @@ Description:
 		[RW] Maximum number of kilobytes to read-ahead for filesystems
 		on this block device.
 
+		For MADV_HUGEPAGE, the readahead size may exceed this setting
+		since its granularity is based on the hugepage size.
+
 
 What:		/sys/block/<disk>/queue/rotational
 Date:		January 2009
