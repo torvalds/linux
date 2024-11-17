@@ -527,16 +527,6 @@ void bch2_btree_and_journal_iter_init_node_iter(struct btree_trans *trans,
 
 /* sort and dedup all keys in the journal: */
 
-void bch2_journal_entries_free(struct bch_fs *c)
-{
-	struct journal_replay **i;
-	struct genradix_iter iter;
-
-	genradix_for_each(&c->journal_entries, iter, i)
-		kvfree(*i);
-	genradix_free(&c->journal_entries);
-}
-
 /*
  * When keys compare equal, oldest compares first:
  */
@@ -569,7 +559,12 @@ void bch2_journal_keys_put(struct bch_fs *c)
 	keys->data = NULL;
 	keys->nr = keys->gap = keys->size = 0;
 
-	bch2_journal_entries_free(c);
+	struct journal_replay **i;
+	struct genradix_iter iter;
+
+	genradix_for_each(&c->journal_entries, iter, i)
+		kvfree(*i);
+	genradix_free(&c->journal_entries);
 }
 
 static void __journal_keys_sort(struct journal_keys *keys)
