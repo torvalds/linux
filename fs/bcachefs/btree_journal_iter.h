@@ -26,6 +26,7 @@ struct btree_and_journal_iter {
 	struct bpos		pos;
 	bool			at_end;
 	bool			prefetch;
+	bool			fail_if_too_many_whiteouts;
 };
 
 static inline int __journal_key_btree_cmp(enum btree_id	l_btree_id,

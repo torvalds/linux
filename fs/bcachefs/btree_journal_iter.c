@@ -426,6 +426,7 @@ static void btree_and_journal_iter_prefetch(struct btree_and_journal_iter *_iter
 		: (level > 1 ? 1 : 16);
 
 	iter.prefetch = false;
+	iter.fail_if_too_many_whiteouts = true;
 	bch2_bkey_buf_init(&tmp);
 
 	while (nr--) {
@@ -444,11 +445,17 @@ static void btree_and_journal_iter_prefetch(struct btree_and_journal_iter *_iter
 struct bkey_s_c bch2_btree_and_journal_iter_peek(struct btree_and_journal_iter *iter)
 {
 	struct bkey_s_c btree_k, journal_k = bkey_s_c_null, ret;
+	size_t iters = 0;
 
 	if (iter->prefetch && iter->journal.level)
 		btree_and_journal_iter_prefetch(iter);
 again:
 	if (iter->at_end)
+		return bkey_s_c_null;
+
+	iters++;
+
+	if (iters > 20 && iter->fail_if_too_many_whiteouts)
 		return bkey_s_c_null;
 
 	while ((btree_k = bch2_journal_iter_peek_btree(iter)).k &&

@@ -825,6 +825,8 @@ static int btree_path_prefetch_j(struct btree_trans *trans, struct btree_path *p
 
 	bch2_bkey_buf_init(&tmp);
 
+	jiter->fail_if_too_many_whiteouts = true;
+
 	while (nr-- && !ret) {
 		if (!bch2_btree_node_relock(trans, path, path->level))
 			break;
