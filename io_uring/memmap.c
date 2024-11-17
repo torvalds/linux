@@ -247,8 +247,10 @@ int io_create_region(struct io_ring_ctx *ctx, struct io_mapped_region *mr,
 	}
 
 	vptr = vmap(pages, nr_pages, VM_MAP, PAGE_KERNEL);
-	if (!vptr)
+	if (!vptr) {
+		ret = -ENOMEM;
 		goto out_free;
+	}
 
 	mr->pages = pages;
 	mr->vmap_ptr = vptr;
