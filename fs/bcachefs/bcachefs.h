@@ -205,6 +205,7 @@
 #include <linux/zstd.h>
 
 #include "bcachefs_format.h"
+#include "btree_journal_iter_types.h"
 #include "disk_accounting_types.h"
 #include "errcode.h"
 #include "fifo.h"
@@ -656,28 +657,6 @@ struct journal_seq_blacklist_table {
 		u64		end;
 		bool		dirty;
 	}			entries[];
-};
-
-struct journal_keys {
-	/* must match layout in darray_types.h */
-	size_t			nr, size;
-	struct journal_key {
-		u64		journal_seq;
-		u32		journal_offset;
-		enum btree_id	btree_id:8;
-		unsigned	level:8;
-		bool		allocated;
-		bool		overwritten;
-		struct bkey_i	*k;
-	}			*data;
-	/*
-	 * Gap buffer: instead of all the empty space in the array being at the
-	 * end of the buffer - from @nr to @size - the empty space is at @gap.
-	 * This means that sequential insertions are O(n) instead of O(n^2).
-	 */
-	size_t			gap;
-	atomic_t		ref;
-	bool			initial_ref_held;
 };
 
 struct btree_trans_buf {
