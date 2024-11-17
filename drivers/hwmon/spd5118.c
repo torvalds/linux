@@ -621,7 +621,8 @@ static int spd5118_i2c_init(struct i2c_client *client)
 	 * If the device type registers return 0, it is possible that the chip
 	 * has a non-zero page selected and takes the specification literally,
 	 * i.e. disables access to volatile registers besides the page register
-	 * if the page is not 0. Try to identify such chips.
+	 * if the page is not 0. The Renesas/ITD SPD5118 Hub Controller is known
+	 * to show this behavior. Try to identify such chips.
 	 */
 	if (!regval) {
 		/* Vendor ID registers must also be 0 */
