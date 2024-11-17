@@ -42,6 +42,14 @@ static inline struct bpos bp_pos_to_bucket(const struct bch_dev *ca, struct bpos
 	return POS(bp_pos.inode, sector_to_bucket(ca, bucket_sector));
 }
 
+static inline struct bpos bp_pos_to_bucket_and_offset(const struct bch_dev *ca, struct bpos bp_pos,
+						      u32 *bucket_offset)
+{
+	u64 bucket_sector = bp_pos.offset >> MAX_EXTENT_COMPRESS_RATIO_SHIFT;
+
+	return POS(bp_pos.inode, sector_to_bucket_and_offset(ca, bucket_sector, bucket_offset));
+}
+
 static inline bool bp_pos_to_bucket_nodev_noerror(struct bch_fs *c, struct bpos bp_pos, struct bpos *bucket)
 {
 	rcu_read_lock();

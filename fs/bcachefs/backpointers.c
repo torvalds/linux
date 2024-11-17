@@ -54,21 +54,20 @@ void bch2_backpointer_to_text(struct printbuf *out, struct bch_fs *c, struct bke
 	struct bkey_s_c_backpointer bp = bkey_s_c_to_backpointer(k);
 
 	rcu_read_lock();
-	struct bch_dev *ca = bch2_dev_rcu_noerror(c, k.k->p.inode);
+	struct bch_dev *ca = bch2_dev_rcu_noerror(c, bp.k->p.inode);
 	if (ca) {
-		struct bpos bucket = bp_pos_to_bucket(ca, k.k->p);
+		u32 bucket_offset;
+		struct bpos bucket = bp_pos_to_bucket_and_offset(ca, bp.k->p, &bucket_offset);
 		rcu_read_unlock();
-		prt_str(out, "bucket=");
-		bch2_bpos_to_text(out, bucket);
-		prt_str(out, " ");
+		prt_printf(out, "bucket=%llu:%llu:%u", bucket.inode, bucket.offset, bucket_offset);
 	} else {
 		rcu_read_unlock();
+		prt_printf(out, "sector=%llu:%llu", bp.k->p.inode, bp.k->p.offset >> MAX_EXTENT_COMPRESS_RATIO_SHIFT);
 	}
 
 	bch2_btree_id_level_to_text(out, bp.v->btree_id, bp.v->level);
-	prt_printf(out, " offset=%llu:%u len=%u pos=",
-		   (u64) (bp.v->bucket_offset >> MAX_EXTENT_COMPRESS_RATIO_SHIFT),
-		   (u32) bp.v->bucket_offset & ~(~0U << MAX_EXTENT_COMPRESS_RATIO_SHIFT),
+	prt_printf(out, " suboffset=%u len=%u pos=",
+		   (u32) bp.k->p.offset & ~(~0U << MAX_EXTENT_COMPRESS_RATIO_SHIFT),
 		   bp.v->bucket_len);
 	bch2_bpos_to_text(out, bp.v->pos);
 }
