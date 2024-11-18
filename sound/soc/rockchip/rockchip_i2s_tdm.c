@@ -514,33 +514,6 @@ static void rockchip_i2s_tdm_xfer_resume(struct snd_pcm_substream *substream,
 			   I2S_XFER_RXS_START);
 }
 
-static int rockchip_i2s_ch_to_io(unsigned int ch, bool substream_capture)
-{
-	if (substream_capture) {
-		switch (ch) {
-		case I2S_CHN_4:
-			return I2S_IO_6CH_OUT_4CH_IN;
-		case I2S_CHN_6:
-			return I2S_IO_4CH_OUT_6CH_IN;
-		case I2S_CHN_8:
-			return I2S_IO_2CH_OUT_8CH_IN;
-		default:
-			return I2S_IO_8CH_OUT_2CH_IN;
-		}
-	} else {
-		switch (ch) {
-		case I2S_CHN_4:
-			return I2S_IO_4CH_OUT_6CH_IN;
-		case I2S_CHN_6:
-			return I2S_IO_6CH_OUT_4CH_IN;
-		case I2S_CHN_8:
-			return I2S_IO_8CH_OUT_2CH_IN;
-		default:
-			return I2S_IO_2CH_OUT_8CH_IN;
-		}
-	}
-}
-
 static int rockchip_i2s_io_multiplex(struct snd_pcm_substream *substream,
 				     struct snd_soc_dai *dai)
 {
@@ -577,7 +550,6 @@ static int rockchip_i2s_io_multiplex(struct snd_pcm_substream *substream,
 			return -EINVAL;
 		}
 
-		rockchip_i2s_ch_to_io(val, true);
 	} else {
 		struct snd_pcm_str *capture_str =
 			&substream->pcm->streams[SNDRV_PCM_STREAM_CAPTURE];
