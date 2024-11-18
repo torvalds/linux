@@ -178,9 +178,26 @@ static void blk_validate_atomic_write_limits(struct queue_limits *lim)
 	if (!lim->atomic_write_hw_max)
 		goto unsupported;
 
+	if (WARN_ON_ONCE(!is_power_of_2(lim->atomic_write_hw_unit_min)))
+		goto unsupported;
+
+	if (WARN_ON_ONCE(!is_power_of_2(lim->atomic_write_hw_unit_max)))
+		goto unsupported;
+
+	if (WARN_ON_ONCE(lim->atomic_write_hw_unit_min >
+			 lim->atomic_write_hw_unit_max))
+		goto unsupported;
+
+	if (WARN_ON_ONCE(lim->atomic_write_hw_unit_max >
+			 lim->atomic_write_hw_max))
+		goto unsupported;
+
 	boundary_sectors = lim->atomic_write_hw_boundary >> SECTOR_SHIFT;
 
 	if (boundary_sectors) {
+		if (WARN_ON_ONCE(lim->atomic_write_hw_max >
+				 lim->atomic_write_hw_boundary))
+			goto unsupported;
 		/*
 		 * A feature of boundary support is that it disallows bios to
 		 * be merged which would result in a merged request which
