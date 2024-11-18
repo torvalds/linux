@@ -83,6 +83,8 @@
 	x(ENOMEM,			ENOMEM_fs_other_alloc)			\
 	x(ENOMEM,			ENOMEM_dev_alloc)			\
 	x(ENOMEM,			ENOMEM_disk_accounting)			\
+	x(ENOMEM,			ENOMEM_stripe_head_alloc)		\
+	x(ENOMEM,                       ENOMEM_journal_read_bucket)             \
 	x(ENOSPC,			ENOSPC_disk_reservation)		\
 	x(ENOSPC,			ENOSPC_bucket_alloc)			\
 	x(ENOSPC,			ENOSPC_disk_label_add)			\
@@ -222,6 +224,7 @@
 	x(BCH_ERR_invalid_sb_layout,	invalid_sb_layout_type)			\
 	x(BCH_ERR_invalid_sb_layout,	invalid_sb_layout_nr_superblocks)	\
 	x(BCH_ERR_invalid_sb_layout,	invalid_sb_layout_superblocks_overlap)	\
+	x(BCH_ERR_invalid_sb_layout,    invalid_sb_layout_sb_max_size_bits)     \
 	x(BCH_ERR_invalid_sb,		invalid_sb_members_missing)		\
 	x(BCH_ERR_invalid_sb,		invalid_sb_members)			\
 	x(BCH_ERR_invalid_sb,		invalid_sb_disk_groups)			\

@@ -145,6 +145,13 @@ static irqreturn_t mtk_ethdr_irq_handler(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
+u32 mtk_ethdr_get_blend_modes(struct device *dev)
+{
+	return BIT(DRM_MODE_BLEND_PREMULTI) |
+	       BIT(DRM_MODE_BLEND_COVERAGE) |
+	       BIT(DRM_MODE_BLEND_PIXEL_NONE);
+}
+
 void mtk_ethdr_layer_config(struct device *dev, unsigned int idx,
 			    struct mtk_plane_state *state,
 			    struct cmdq_pkt *cmdq_pkt)

@@ -524,7 +524,7 @@ err_release_lock:
 void __i2c_dw_disable(struct dw_i2c_dev *dev)
 {
 	struct i2c_timings *t = &dev->timings;
-	unsigned int raw_intr_stats;
+	unsigned int raw_intr_stats, ic_stats;
 	unsigned int enable;
 	int timeout = 100;
 	bool abort_needed;
@@ -532,9 +532,11 @@ void __i2c_dw_disable(struct dw_i2c_dev *dev)
 	int ret;
 
 	regmap_read(dev->map, DW_IC_RAW_INTR_STAT, &raw_intr_stats);
+	regmap_read(dev->map, DW_IC_STATUS, &ic_stats);
 	regmap_read(dev->map, DW_IC_ENABLE, &enable);
 
-	abort_needed = raw_intr_stats & DW_IC_INTR_MST_ON_HOLD;
+	abort_needed = (raw_intr_stats & DW_IC_INTR_MST_ON_HOLD) ||
+			(ic_stats & DW_IC_STATUS_MASTER_HOLD_TX_FIFO_EMPTY);
 	if (abort_needed) {
 		if (!(enable & DW_IC_ENABLE_ENABLE)) {
 			regmap_write(dev->map, DW_IC_ENABLE, DW_IC_ENABLE_ENABLE);

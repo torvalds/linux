@@ -50,7 +50,7 @@
 	snd_soc_runtime_get_dai_fmt()
 
 	sample driver
-		linux/sound/soc/sh/rcar/core.c
+		linux/sound/soc/renesas/rcar/core.c
 		linux/sound/soc/codecs/ak4613.c
 		linux/sound/soc/codecs/pcm3168a.c
 		linux/sound/soc/soc-utils.c
@@ -270,16 +270,19 @@ static enum graph_type __graph_get_type(struct device_node *lnk)
 
 	if (of_node_name_eq(np, GRAPH_NODENAME_MULTI)) {
 		ret = GRAPH_MULTI;
+		fw_devlink_purge_absent_suppliers(&np->fwnode);
 		goto out_put;
 	}
 
 	if (of_node_name_eq(np, GRAPH_NODENAME_DPCM)) {
 		ret = GRAPH_DPCM;
+		fw_devlink_purge_absent_suppliers(&np->fwnode);
 		goto out_put;
 	}
 
 	if (of_node_name_eq(np, GRAPH_NODENAME_C2C)) {
 		ret = GRAPH_C2C;
+		fw_devlink_purge_absent_suppliers(&np->fwnode);
 		goto out_put;
 	}
 

@@ -128,7 +128,7 @@ static int mtk_dai_pcm_configure(struct snd_pcm_substream *substream,
 	unsigned int lrck_inv;
 	unsigned int bck_inv;
 	unsigned int fmt;
-	unsigned int bit_width = dai->sample_bits;
+	unsigned int bit_width = dai->symmetric_sample_bits;
 	unsigned int val = 0;
 	unsigned int mask = 0;
 	int fs = 0;

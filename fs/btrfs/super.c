@@ -340,6 +340,15 @@ static int btrfs_parse_param(struct fs_context *fc, struct fs_parameter *param)
 		fallthrough;
 	case Opt_compress:
 	case Opt_compress_type:
+		/*
+		 * Provide the same semantics as older kernels that don't use fs
+		 * context, specifying the "compress" option clears
+		 * "force-compress" without the need to pass
+		 * "compress-force=[no|none]" before specifying "compress".
+		 */
+		if (opt != Opt_compress_force && opt != Opt_compress_force_type)
+			btrfs_clear_opt(ctx->mount_opt, FORCE_COMPRESS);
+
 		if (opt == Opt_compress || opt == Opt_compress_force) {
 			ctx->compress_type = BTRFS_COMPRESS_ZLIB;
 			ctx->compress_level = BTRFS_ZLIB_DEFAULT_LEVEL;
@@ -1498,8 +1507,7 @@ static int btrfs_reconfigure(struct fs_context *fc)
 	sync_filesystem(sb);
 	set_bit(BTRFS_FS_STATE_REMOUNTING, &fs_info->fs_state);
 
-	if (!mount_reconfigure &&
-	    !btrfs_check_options(fs_info, &ctx->mount_opt, fc->sb_flags))
+	if (!btrfs_check_options(fs_info, &ctx->mount_opt, fc->sb_flags))
 		return -EINVAL;
 
 	ret = btrfs_check_features(fs_info, !(fc->sb_flags & SB_RDONLY));
@@ -1971,25 +1979,10 @@ error:
  *     fsconfig(FSCONFIG_SET_FLAG, "ro"). This option is seen by the filesystem
  *     in fc->sb_flags.
  *
- * This disambiguation has rather positive consequences.  Mounting a subvolume
- * ro will not also turn the superblock ro. Only the mount for the subvolume
- * will become ro.
- *
- * So, if the superblock creation request comes from the new mount API the
- * caller must have explicitly done:
- *
- *      fsconfig(FSCONFIG_SET_FLAG, "ro")
- *      fsmount/mount_setattr(MOUNT_ATTR_RDONLY)
- *
- * IOW, at some point the caller must have explicitly turned the whole
- * superblock ro and we shouldn't just undo it like we did for the old mount
- * API. In any case, it lets us avoid the hack in the new mount API.
- *
- * Consequently, the remounting hack must only be used for requests originating
- * from the old mount API and should be marked for full deprecation so it can be
- * turned off in a couple of years.
- *
- * The new mount API has no reason to support this hack.
+ * But, currently the util-linux mount command already utilizes the new mount
+ * API and is still setting fsconfig(FSCONFIG_SET_FLAG, "ro") no matter if it's
+ * btrfs or not, setting the whole super block RO.  To make per-subvolume mounting
+ * work with different options work we need to keep backward compatibility.
  */
 static struct vfsmount *btrfs_reconfigure_for_mount(struct fs_context *fc)
 {
@@ -2011,7 +2004,7 @@ static struct vfsmount *btrfs_reconfigure_for_mount(struct fs_context *fc)
 	if (IS_ERR(mnt))
 		return mnt;
 
-	if (!fc->oldapi || !ro2rw)
+	if (!ro2rw)
 		return mnt;
 
 	/* We need to convert to rw, call reconfigure. */

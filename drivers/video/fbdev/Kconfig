@@ -1236,7 +1236,6 @@ config FB_3DFX_I2C
 config FB_VOODOO1
 	tristate "3Dfx Voodoo Graphics (sst1) support"
 	depends on FB && PCI
-	depends on FB_DEVICE
 	select FB_IOMEM_HELPERS
 	help
 	  Say Y here if you have a 3Dfx Voodoo Graphics (Voodoo1/sst1) or
@@ -1374,6 +1373,7 @@ config FB_VT8500
 config FB_WM8505
 	bool "Wondermedia WM8xxx-series frame buffer support"
 	depends on (FB = y) && HAS_IOMEM && (ARCH_VT8500 || COMPILE_TEST)
+	select FB_IOMEM_FOPS
 	select FB_SYS_FILLRECT if (!FB_WMT_GE_ROPS)
 	select FB_SYS_COPYAREA if (!FB_WMT_GE_ROPS)
 	select FB_SYS_IMAGEBLIT
@@ -1659,19 +1659,6 @@ config FB_SH7760
 	  color operation, with depths ranging from 1 bpp to 8 bpp monochrome
 	  and 8, 15 or 16 bpp color; 90 degrees clockwise display rotation for
 	  panels <= 320 pixel horizontal resolution.
-
-config FB_DA8XX
-	tristate "DA8xx/OMAP-L1xx/AM335x Framebuffer support"
-	depends on FB && HAVE_CLK && HAS_IOMEM
-	depends on ARCH_DAVINCI_DA8XX || SOC_AM33XX || COMPILE_TEST
-	select FB_CFB_REV_PIXELS_IN_BYTE
-	select FB_IOMEM_HELPERS
-	select FB_MODE_HELPERS
-	select VIDEOMODE_HELPERS
-	help
-	  This is the frame buffer device driver for the TI LCD controller
-	  found on DA8xx/OMAP-L1xx/AM335x SoCs.
-	  If unsure, say N.
 
 config FB_VIRTUAL
 	tristate "Virtual Frame Buffer support (ONLY FOR TESTING!)"

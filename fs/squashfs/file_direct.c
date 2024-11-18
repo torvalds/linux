@@ -30,7 +30,8 @@ int squashfs_readpage_block(struct page *target_page, u64 block, int bsize,
 	int mask = (1 << (msblk->block_log - PAGE_SHIFT)) - 1;
 	loff_t start_index = folio->index & ~mask;
 	loff_t end_index = start_index | mask;
-	int i, n, pages, bytes, res = -ENOMEM;
+	loff_t index;
+	int i, pages, bytes, res = -ENOMEM;
 	struct page **page, *last_page;
 	struct squashfs_page_actor *actor;
 	void *pageaddr;
@@ -45,9 +46,9 @@ int squashfs_readpage_block(struct page *target_page, u64 block, int bsize,
 		return res;
 
 	/* Try to grab all the pages covered by the Squashfs block */
-	for (i = 0, n = start_index; n <= end_index; n++) {
-		page[i] = (n == folio->index) ? target_page :
-			grab_cache_page_nowait(target_page->mapping, n);
+	for (i = 0, index = start_index; index <= end_index; index++) {
+		page[i] = (index == folio->index) ? target_page :
+			grab_cache_page_nowait(target_page->mapping, index);
 
 		if (page[i] == NULL)
 			continue;

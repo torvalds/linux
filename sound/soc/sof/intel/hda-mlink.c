@@ -481,6 +481,24 @@ int hdac_bus_eml_get_count(struct hdac_bus *bus, bool alt, int elid)
 }
 EXPORT_SYMBOL_NS(hdac_bus_eml_get_count, SND_SOC_SOF_HDA_MLINK);
 
+void hdac_bus_eml_enable_interrupt_unlocked(struct hdac_bus *bus, bool alt, int elid, bool enable)
+{
+	struct hdac_ext2_link *h2link;
+	struct hdac_ext_link *hlink;
+
+	h2link = find_ext2_link(bus, alt, elid);
+	if (!h2link)
+		return;
+
+	if (!h2link->intc)
+		return;
+
+	hlink = &h2link->hext_link;
+
+	hdaml_link_enable_interrupt(hlink->ml_addr + AZX_REG_ML_LCTL, enable);
+}
+EXPORT_SYMBOL_NS(hdac_bus_eml_enable_interrupt_unlocked, SND_SOC_SOF_HDA_MLINK);
+
 void hdac_bus_eml_enable_interrupt(struct hdac_bus *bus, bool alt, int elid, bool enable)
 {
 	struct hdac_ext2_link *h2link;

@@ -1174,8 +1174,9 @@ F:	Documentation/hid/amd-sfh*
 F:	drivers/hid/amd-sfh-hid/
 
 AMD SPI DRIVER
-M:	Sanjay R Mehta <sanju.mehta@amd.com>
-S:	Maintained
+M:	Raju Rangoju <Raju.Rangoju@amd.com>
+L:	linux-spi@vger.kernel.org
+S:	Supported
 F:	drivers/spi/spi-amd.c
 
 AMD XGBE DRIVER
@@ -1514,6 +1515,7 @@ L:	linux-sound@vger.kernel.org
 S:	Supported
 W:	http://wiki.analog.com/
 W:	https://ez.analog.com/linux-software-drivers
+F:	Documentation/devicetree/bindings/sound/adi,*
 F:	sound/soc/codecs/ad1*
 F:	sound/soc/codecs/ad7*
 F:	sound/soc/codecs/adau*
@@ -2125,9 +2127,11 @@ L:	asahi@lists.linux.dev
 L:	linux-sound@vger.kernel.org
 S:	Maintained
 F:	Documentation/devicetree/bindings/sound/adi,ssm3515.yaml
+F:	Documentation/devicetree/bindings/sound/cirrus,cs42l84.yaml
 F:	Documentation/devicetree/bindings/sound/apple,*
 F:	sound/soc/apple/*
 F:	sound/soc/codecs/cs42l83-i2c.c
+F:	sound/soc/codecs/cs42l84.*
 F:	sound/soc/codecs/ssm3515.c
 
 ARM/APPLE MACHINE SUPPORT
@@ -2852,7 +2856,7 @@ F:	Documentation/devicetree/bindings/arm/qcom.yaml
 F:	Documentation/devicetree/bindings/bus/qcom*
 F:	Documentation/devicetree/bindings/cache/qcom,llcc.yaml
 F:	Documentation/devicetree/bindings/firmware/qcom,scm.yaml
-F:	Documentation/devicetree/bindings/reserved-memory/qcom
+F:	Documentation/devicetree/bindings/reserved-memory/qcom*
 F:	Documentation/devicetree/bindings/soc/qcom/
 F:	arch/arm/boot/dts/qcom/
 F:	arch/arm/configs/qcom_defconfig
@@ -3745,6 +3749,7 @@ F:	drivers/spi/spi-axi-spi-engine.c
 AXI PWM GENERATOR
 M:	Michael Hennerich <michael.hennerich@analog.com>
 M:	Nuno Sá <nuno.sa@analog.com>
+R:	Trevor Gamblin <tgamblin@baylibre.com>
 L:	linux-pwm@vger.kernel.org
 S:	Supported
 W:	https://ez.analog.com/linux-software-drivers
@@ -9723,6 +9728,7 @@ F:	include/dt-bindings/gpio/
 F:	include/linux/gpio.h
 F:	include/linux/gpio/
 F:	include/linux/of_gpio.h
+K:	(devm_)?gpio_(request|free|direction|get|set)
 
 GPIO UAPI
 M:	Bartosz Golaszewski <brgl@bgdev.pl>
@@ -14140,6 +14146,15 @@ S:	Maintained
 T:	git git://linuxtv.org/media_tree.git
 F:	drivers/media/platform/nxp/imx-pxp.[ch]
 
+MEDIA DRIVERS FOR ASCOT2E
+M:	Abylay Ospan <aospan@amazon.com>
+L:	linux-media@vger.kernel.org
+S:	Supported
+W:	https://linuxtv.org
+W:	http://netup.tv/
+T:	git git://linuxtv.org/media_tree.git
+F:	drivers/media/dvb-frontends/ascot2e*
+
 MEDIA DRIVERS FOR CXD2099AR CI CONTROLLERS
 M:	Jasmin Jessich <jasmin@anw.at>
 L:	linux-media@vger.kernel.org
@@ -14147,6 +14162,15 @@ S:	Maintained
 W:	https://linuxtv.org
 T:	git git://linuxtv.org/media_tree.git
 F:	drivers/media/dvb-frontends/cxd2099*
+
+MEDIA DRIVERS FOR CXD2841ER
+M:	Abylay Ospan <aospan@amazon.com>
+L:	linux-media@vger.kernel.org
+S:	Supported
+W:	https://linuxtv.org
+W:	http://netup.tv/
+T:	git git://linuxtv.org/media_tree.git
+F:	drivers/media/dvb-frontends/cxd2841er*
 
 MEDIA DRIVERS FOR CXD2880
 M:	Yasunari Takiguchi <Yasunari.Takiguchi@sony.com>
@@ -14192,12 +14216,48 @@ F:	drivers/media/platform/nxp/imx-mipi-csis.c
 F:	drivers/media/platform/nxp/imx7-media-csi.c
 F:	drivers/media/platform/nxp/imx8mq-mipi-csi2.c
 
+MEDIA DRIVERS FOR HELENE
+M:	Abylay Ospan <aospan@amazon.com>
+L:	linux-media@vger.kernel.org
+S:	Supported
+W:	https://linuxtv.org
+W:	http://netup.tv/
+T:	git git://linuxtv.org/media_tree.git
+F:	drivers/media/dvb-frontends/helene*
+
+MEDIA DRIVERS FOR HORUS3A
+M:	Abylay Ospan <aospan@amazon.com>
+L:	linux-media@vger.kernel.org
+S:	Supported
+W:	https://linuxtv.org
+W:	http://netup.tv/
+T:	git git://linuxtv.org/media_tree.git
+F:	drivers/media/dvb-frontends/horus3a*
+
+MEDIA DRIVERS FOR LNBH25
+M:	Abylay Ospan <aospan@amazon.com>
+L:	linux-media@vger.kernel.org
+S:	Supported
+W:	https://linuxtv.org
+W:	http://netup.tv/
+T:	git git://linuxtv.org/media_tree.git
+F:	drivers/media/dvb-frontends/lnbh25*
+
 MEDIA DRIVERS FOR MXL5XX TUNER DEMODULATORS
 L:	linux-media@vger.kernel.org
 S:	Orphan
 W:	https://linuxtv.org
 T:	git git://linuxtv.org/media_tree.git
 F:	drivers/media/dvb-frontends/mxl5xx*
+
+MEDIA DRIVERS FOR NETUP PCI UNIVERSAL DVB devices
+M:	Abylay Ospan <aospan@amazon.com>
+L:	linux-media@vger.kernel.org
+S:	Supported
+W:	https://linuxtv.org
+W:	http://netup.tv/
+T:	git git://linuxtv.org/media_tree.git
+F:	drivers/media/pci/netup_unidvb/*
 
 MEDIA DRIVERS FOR NVIDIA TEGRA - VDE
 M:	Dmitry Osipenko <digetx@gmail.com>
@@ -16027,7 +16087,6 @@ F:	drivers/net/wireless/
 
 NETWORKING [DSA]
 M:	Andrew Lunn <andrew@lunn.ch>
-M:	Florian Fainelli <f.fainelli@gmail.com>
 M:	Vladimir Oltean <olteanv@gmail.com>
 S:	Maintained
 F:	Documentation/devicetree/bindings/net/dsa/
@@ -16045,6 +16104,7 @@ M:	"David S. Miller" <davem@davemloft.net>
 M:	Eric Dumazet <edumazet@google.com>
 M:	Jakub Kicinski <kuba@kernel.org>
 M:	Paolo Abeni <pabeni@redhat.com>
+R:	Simon Horman <horms@kernel.org>
 L:	netdev@vger.kernel.org
 S:	Maintained
 P:	Documentation/process/maintainer-netdev.rst
@@ -16087,6 +16147,7 @@ F:	include/uapi/linux/rtnetlink.h
 F:	lib/net_utils.c
 F:	lib/random32.c
 F:	net/
+F:	samples/pktgen/
 F:	tools/net/
 F:	tools/testing/selftests/net/
 X:	Documentation/networking/mac80211-injection.rst
@@ -19546,6 +19607,17 @@ S:	Maintained
 F:	Documentation/devicetree/bindings/sound/renesas,idt821034.yaml
 F:	sound/soc/codecs/idt821034.c
 
+RENESAS R-CAR & FSI AUDIO (ASoC) DRIVERS
+M:	Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
+L:	linux-sound@vger.kernel.org
+L:	linux-renesas-soc@vger.kernel.org
+S:	Supported
+F:	Documentation/devicetree/bindings/sound/renesas,rsnd.*
+F:	Documentation/devicetree/bindings/sound/renesas,fsi.yaml
+F:	sound/soc/renesas/rcar/
+F:	sound/soc/renesas/fsi.c
+F:	include/sound/sh_fsi.h
+
 RENESAS R-CAR GEN3 & RZ/N1 NAND CONTROLLER DRIVER
 M:	Miquel Raynal <miquel.raynal@bootlin.com>
 L:	linux-mtd@lists.infradead.org
@@ -19585,6 +19657,15 @@ L:	linux-renesas-soc@vger.kernel.org
 S:	Supported
 F:	Documentation/devicetree/bindings/i2c/renesas,riic.yaml
 F:	drivers/i2c/busses/i2c-riic.c
+
+RENESAS RZ AUDIO (ASoC) DRIVER
+M:	Biju Das <biju.das.jz@bp.renesas.com>
+M:	Lad Prabhakar <prabhakar.mahadev-lad.rj@bp.renesas.com>
+L:	linux-sound@vger.kernel.org
+L:	linux-renesas-soc@vger.kernel.org
+S:	Supported
+F:	Documentation/devicetree/bindings/sound/renesas,rz-ssi.yaml
+F:	sound/soc/renesas/rz-ssi.c
 
 RENESAS RZ/G2L A/D DRIVER
 M:	Lad Prabhakar <prabhakar.mahadev-lad.rj@bp.renesas.com>
@@ -19789,12 +19870,10 @@ L:	linux-riscv@lists.infradead.org
 S:	Maintained
 Q:	https://patchwork.kernel.org/project/linux-riscv/list/
 T:	git https://git.kernel.org/pub/scm/linux/kernel/git/conor/linux.git/
-F:	Documentation/devicetree/bindings/riscv/
-F:	arch/riscv/boot/dts/
-X:	arch/riscv/boot/dts/allwinner/
-X:	arch/riscv/boot/dts/renesas/
-X:	arch/riscv/boot/dts/sophgo/
-X:	arch/riscv/boot/dts/thead/
+F:	arch/riscv/boot/dts/canaan/
+F:	arch/riscv/boot/dts/microchip/
+F:	arch/riscv/boot/dts/sifive/
+F:	arch/riscv/boot/dts/starfive/
 
 RISC-V PMU DRIVERS
 M:	Atish Patra <atishp@atishpatra.org>
@@ -21560,6 +21639,15 @@ L:	sound-open-firmware@alsa-project.org (moderated for non-subscribers)
 S:	Supported
 W:	https://github.com/thesofproject/linux/
 F:	sound/soc/sof/
+
+SOUND - GENERIC SOUND CARD (Simple-Audio-Card, Audio-Graph-Card)
+M:	Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
+S:	Supported
+L:	linux-sound@vger.kernel.org
+F:	sound/soc/generic/
+F:	include/sound/simple_card*
+F:	Documentation/devicetree/bindings/sound/simple-card.yaml
+F:	Documentation/devicetree/bindings/sound/audio-graph*.yaml
 
 SOUNDWIRE SUBSYSTEM
 M:	Vinod Koul <vkoul@kernel.org>

@@ -3908,6 +3908,16 @@ static int platform_profile_setup(struct asus_wmi *asus)
 	if (!asus->throttle_thermal_policy_dev)
 		return 0;
 
+	/*
+	 * We need to set the default thermal profile during probe or otherwise
+	 * the system will often remain in silent mode, causing low performance.
+	 */
+	err = throttle_thermal_policy_set_default(asus);
+	if (err < 0) {
+		pr_warn("Failed to set default thermal profile\n");
+		return err;
+	}
+
 	dev_info(dev, "Using throttle_thermal_policy for platform_profile support\n");
 
 	asus->platform_profile_handler.profile_get = asus_wmi_platform_profile_get;

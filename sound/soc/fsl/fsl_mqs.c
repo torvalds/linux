@@ -6,6 +6,7 @@
 // Copyright 2019 NXP
 
 #include <linux/clk.h>
+#include <linux/firmware/imx/sm.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/mfd/syscon.h>
@@ -73,6 +74,29 @@ struct fsl_mqs {
 
 #define FSL_MQS_RATES	(SNDRV_PCM_RATE_44100 | SNDRV_PCM_RATE_48000)
 #define FSL_MQS_FORMATS	SNDRV_PCM_FMTBIT_S16_LE
+
+static int fsl_mqs_sm_read(void *context, unsigned int reg, unsigned int *val)
+{
+	struct fsl_mqs *mqs_priv = context;
+	int num = 1;
+
+	if (IS_ENABLED(CONFIG_IMX_SCMI_MISC_DRV) &&
+	    mqs_priv->soc->ctrl_off == reg)
+		return scmi_imx_misc_ctrl_get(SCMI_IMX_CTRL_MQS1_SETTINGS, &num, val);
+
+	return -EINVAL;
+};
+
+static int fsl_mqs_sm_write(void *context, unsigned int reg, unsigned int val)
+{
+	struct fsl_mqs *mqs_priv = context;
+
+	if (IS_ENABLED(CONFIG_IMX_SCMI_MISC_DRV) &&
+	    mqs_priv->soc->ctrl_off == reg)
+		return scmi_imx_misc_ctrl_set(SCMI_IMX_CTRL_MQS1_SETTINGS, val);
+
+	return -EINVAL;
+};
 
 static int fsl_mqs_hw_params(struct snd_pcm_substream *substream,
 			     struct snd_pcm_hw_params *params,
@@ -188,6 +212,13 @@ static const struct regmap_config fsl_mqs_regmap_config = {
 	.cache_type = REGCACHE_NONE,
 };
 
+static const struct regmap_config fsl_mqs_sm_regmap = {
+	.reg_bits = 32,
+	.val_bits = 32,
+	.reg_read = fsl_mqs_sm_read,
+	.reg_write = fsl_mqs_sm_write,
+};
+
 static int fsl_mqs_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
@@ -217,6 +248,16 @@ static int fsl_mqs_probe(struct platform_device *pdev)
 		of_node_put(gpr_np);
 		if (IS_ERR(mqs_priv->regmap)) {
 			dev_err(&pdev->dev, "failed to get gpr regmap\n");
+			return PTR_ERR(mqs_priv->regmap);
+		}
+	} else if (mqs_priv->soc->type == TYPE_REG_SM) {
+		mqs_priv->regmap = devm_regmap_init(&pdev->dev,
+						    NULL,
+						    mqs_priv,
+						    &fsl_mqs_sm_regmap);
+		if (IS_ERR(mqs_priv->regmap)) {
+			dev_err(&pdev->dev, "failed to init regmap: %ld\n",
+				PTR_ERR(mqs_priv->regmap));
 			return PTR_ERR(mqs_priv->regmap);
 		}
 	} else {

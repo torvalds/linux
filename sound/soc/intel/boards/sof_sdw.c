@@ -484,7 +484,23 @@ static const struct dmi_system_id sof_sdw_quirk_table[] = {
 		.callback = sof_sdw_quirk_cb,
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc"),
+			DMI_EXACT_MATCH(DMI_PRODUCT_SKU, "0CF6")
+		},
+		.driver_data = (void *)(SOC_SDW_CODEC_SPKR),
+	},
+	{
+		.callback = sof_sdw_quirk_cb,
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc"),
 			DMI_EXACT_MATCH(DMI_PRODUCT_SKU, "0CF9")
+		},
+		.driver_data = (void *)(SOC_SDW_CODEC_SPKR),
+	},
+	{
+		.callback = sof_sdw_quirk_cb,
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc"),
+			DMI_EXACT_MATCH(DMI_PRODUCT_SKU, "0CFA")
 		},
 		.driver_data = (void *)(SOC_SDW_CODEC_SPKR),
 	},
@@ -576,9 +592,58 @@ static const struct dmi_system_id sof_sdw_quirk_table[] = {
 		.callback = sof_sdw_quirk_cb,
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc"),
+			DMI_EXACT_MATCH(DMI_PRODUCT_SKU, "0D36")
+		},
+		.driver_data = (void *)(SOC_SDW_CODEC_SPKR),
+	},
+	{
+		.callback = sof_sdw_quirk_cb,
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc"),
 			DMI_EXACT_MATCH(DMI_PRODUCT_SKU, "0CF8")
 		},
 		.driver_data = (void *)(SOC_SDW_CODEC_SPKR),
+	},
+	{
+		.callback = sof_sdw_quirk_cb,
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_EXACT_MATCH(DMI_PRODUCT_SKU, "3838")
+		},
+		.driver_data = (void *)(SOC_SDW_SIDECAR_AMPS),
+	},
+	{
+		.callback = sof_sdw_quirk_cb,
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_EXACT_MATCH(DMI_PRODUCT_SKU, "3832")
+		},
+		.driver_data = (void *)(SOC_SDW_SIDECAR_AMPS),
+	},
+	{
+		.callback = sof_sdw_quirk_cb,
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_EXACT_MATCH(DMI_PRODUCT_SKU, "380E")
+		},
+		.driver_data = (void *)(SOC_SDW_SIDECAR_AMPS),
+	},
+	{
+		.callback = sof_sdw_quirk_cb,
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_EXACT_MATCH(DMI_PRODUCT_SKU, "233C")
+		},
+		/* Note this quirk excludes the CODEC mic */
+		.driver_data = (void *)(SOC_SDW_CODEC_MIC),
+	},
+	{
+		.callback = sof_sdw_quirk_cb,
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_EXACT_MATCH(DMI_PRODUCT_SKU, "233B")
+		},
+		.driver_data = (void *)(SOC_SDW_SIDECAR_AMPS),
 	},
 
 	/* ArrowLake devices */
@@ -594,9 +659,57 @@ static const struct dmi_system_id sof_sdw_quirk_table[] = {
 		.callback = sof_sdw_quirk_cb,
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc"),
+			DMI_EXACT_MATCH(DMI_PRODUCT_SKU, "0CF1")
+		},
+		.driver_data = (void *)(SOC_SDW_CODEC_SPKR),
+	},
+	{
+		.callback = sof_sdw_quirk_cb,
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc"),
 			DMI_EXACT_MATCH(DMI_PRODUCT_SKU, "0CF7")
 		},
 		.driver_data = (void *)(SOC_SDW_CODEC_SPKR),
+	},
+	{
+		.callback = sof_sdw_quirk_cb,
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc"),
+			DMI_EXACT_MATCH(DMI_PRODUCT_SKU, "0CF0")
+		},
+		.driver_data = (void *)(SOC_SDW_CODEC_SPKR),
+	},
+	{
+		.callback = sof_sdw_quirk_cb,
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc"),
+			DMI_EXACT_MATCH(DMI_PRODUCT_SKU, "0CF3")
+		},
+		.driver_data = (void *)(SOC_SDW_CODEC_SPKR),
+	},
+	{
+		.callback = sof_sdw_quirk_cb,
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc"),
+			DMI_EXACT_MATCH(DMI_PRODUCT_SKU, "0CF4")
+		},
+		.driver_data = (void *)(SOC_SDW_CODEC_SPKR),
+	},
+	{
+		.callback = sof_sdw_quirk_cb,
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc"),
+			DMI_EXACT_MATCH(DMI_PRODUCT_SKU, "0CF5")
+		},
+		.driver_data = (void *)(SOC_SDW_CODEC_SPKR),
+	},
+	/* Pantherlake devices*/
+	{
+		.callback = sof_sdw_quirk_cb,
+		.matches = {
+			DMI_MATCH(DMI_PRODUCT_FAMILY, "Intel_ptlrvp"),
+		},
+		.driver_data = (void *)(SOC_SDW_PCH_DMIC),
 	},
 	{}
 };
@@ -733,7 +846,7 @@ static int create_sdw_dailink(struct snd_soc_card *card,
 		asoc_sdw_init_dai_link(dev, *dai_links, be_id, name, playback, capture,
 				       cpus, num_cpus, platform_component,
 				       ARRAY_SIZE(platform_component), codecs, num_codecs,
-				       asoc_sdw_rtd_init, &sdw_ops);
+				       1, asoc_sdw_rtd_init, &sdw_ops);
 
 		/*
 		 * SoundWire DAILINKs use 'stream' functions and Bank Switch operations
@@ -810,7 +923,7 @@ static int create_ssp_dailinks(struct snd_soc_card *card,
 						    playback, capture, cpu_dai_name,
 						    platform_component->name,
 						    ARRAY_SIZE(platform_component), codec_name,
-						    ssp_info->dais[0].dai_name, NULL,
+						    ssp_info->dais[0].dai_name, 1, NULL,
 						    ssp_info->ops);
 		if (ret)
 			return ret;
@@ -835,7 +948,7 @@ static int create_dmic_dailinks(struct snd_soc_card *card,
 					    0, 1, // DMIC only supports capture
 					    "DMIC01 Pin", platform_component->name,
 					    ARRAY_SIZE(platform_component),
-					    "dmic-codec", "dmic-hifi",
+					    "dmic-codec", "dmic-hifi", 1,
 					    asoc_sdw_dmic_init, NULL);
 	if (ret)
 		return ret;
@@ -846,7 +959,7 @@ static int create_dmic_dailinks(struct snd_soc_card *card,
 					    0, 1, // DMIC only supports capture
 					    "DMIC16k Pin", platform_component->name,
 					    ARRAY_SIZE(platform_component),
-					    "dmic-codec", "dmic-hifi",
+					    "dmic-codec", "dmic-hifi", 1,
 					    /* don't call asoc_sdw_dmic_init() twice */
 					    NULL, NULL);
 	if (ret)
@@ -890,7 +1003,7 @@ static int create_hdmi_dailinks(struct snd_soc_card *card,
 						    1, 0, // HDMI only supports playback
 						    cpu_dai_name, platform_component->name,
 						    ARRAY_SIZE(platform_component),
-						    codec_name, codec_dai_name,
+						    codec_name, codec_dai_name, 1,
 						    i == 0 ? sof_sdw_hdmi_init : NULL, NULL);
 		if (ret)
 			return ret;
@@ -918,7 +1031,7 @@ static int create_bt_dailinks(struct snd_soc_card *card,
 					    1, 1, cpu_dai_name, platform_component->name,
 					    ARRAY_SIZE(platform_component),
 					    snd_soc_dummy_dlc.name, snd_soc_dummy_dlc.dai_name,
-					    NULL, NULL);
+					    1, NULL, NULL);
 	if (ret)
 		return ret;
 

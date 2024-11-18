@@ -5,7 +5,7 @@
  */
 
 #include <linux/module.h>
-#include <linux/rculist.h>
+#include <linux/list.h>
 #include <linux/nfslocalio.h>
 #include <net/netns/generic.h>
 
@@ -20,15 +20,27 @@ static DEFINE_SPINLOCK(nfs_uuid_lock);
  */
 static LIST_HEAD(nfs_uuids);
 
-void nfs_uuid_begin(nfs_uuid_t *nfs_uuid)
+void nfs_uuid_init(nfs_uuid_t *nfs_uuid)
 {
 	nfs_uuid->net = NULL;
 	nfs_uuid->dom = NULL;
-	uuid_gen(&nfs_uuid->uuid);
+	INIT_LIST_HEAD(&nfs_uuid->list);
+}
+EXPORT_SYMBOL_GPL(nfs_uuid_init);
 
+bool nfs_uuid_begin(nfs_uuid_t *nfs_uuid)
+{
 	spin_lock(&nfs_uuid_lock);
-	list_add_tail_rcu(&nfs_uuid->list, &nfs_uuids);
+	/* Is this nfs_uuid already in use? */
+	if (!list_empty(&nfs_uuid->list)) {
+		spin_unlock(&nfs_uuid_lock);
+		return false;
+	}
+	uuid_gen(&nfs_uuid->uuid);
+	list_add_tail(&nfs_uuid->list, &nfs_uuids);
 	spin_unlock(&nfs_uuid_lock);
+
+	return true;
 }
 EXPORT_SYMBOL_GPL(nfs_uuid_begin);
 
@@ -36,7 +48,8 @@ void nfs_uuid_end(nfs_uuid_t *nfs_uuid)
 {
 	if (nfs_uuid->net == NULL) {
 		spin_lock(&nfs_uuid_lock);
-		list_del_init(&nfs_uuid->list);
+		if (nfs_uuid->net == NULL)
+			list_del_init(&nfs_uuid->list);
 		spin_unlock(&nfs_uuid_lock);
 	}
 }

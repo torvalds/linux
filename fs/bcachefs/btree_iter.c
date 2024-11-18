@@ -882,6 +882,18 @@ static noinline int btree_node_iter_and_journal_peek(struct btree_trans *trans,
 	__bch2_btree_and_journal_iter_init_node_iter(trans, &jiter, l->b, l->iter, path->pos);
 
 	k = bch2_btree_and_journal_iter_peek(&jiter);
+	if (!k.k) {
+		struct printbuf buf = PRINTBUF;
+
+		prt_str(&buf, "node not found at pos ");
+		bch2_bpos_to_text(&buf, path->pos);
+		prt_str(&buf, " at btree ");
+		bch2_btree_pos_to_text(&buf, c, l->b);
+
+		ret = bch2_fs_topology_error(c, "%s", buf.buf);
+		printbuf_exit(&buf);
+		goto err;
+	}
 
 	bch2_bkey_buf_reassemble(out, c, k);
 
@@ -889,6 +901,7 @@ static noinline int btree_node_iter_and_journal_peek(struct btree_trans *trans,
 	    c->opts.btree_node_prefetch)
 		ret = btree_path_prefetch_j(trans, path, &jiter);
 
+err:
 	bch2_btree_and_journal_iter_exit(&jiter);
 	return ret;
 }

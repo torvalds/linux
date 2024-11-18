@@ -236,7 +236,8 @@ static int __bch2_data_update_index_update(struct btree_trans *trans,
 			if (((1U << i) & m->data_opts.rewrite_ptrs) &&
 			    (ptr = bch2_extent_has_ptr(old, p, bkey_i_to_s(insert))) &&
 			    !ptr->cached) {
-				bch2_extent_ptr_set_cached(bkey_i_to_s(insert), ptr);
+				bch2_extent_ptr_set_cached(c, &m->op.opts,
+							   bkey_i_to_s(insert), ptr);
 				rewrites_found |= 1U << i;
 			}
 			i++;
@@ -284,7 +285,8 @@ restart_drop_extra_replicas:
 			    durability - ptr_durability >= m->op.opts.data_replicas) {
 				durability -= ptr_durability;
 
-				bch2_extent_ptr_set_cached(bkey_i_to_s(insert), &entry->ptr);
+				bch2_extent_ptr_set_cached(c, &m->op.opts,
+							   bkey_i_to_s(insert), &entry->ptr);
 				goto restart_drop_extra_replicas;
 			}
 		}
@@ -295,7 +297,7 @@ restart_drop_extra_replicas:
 			bch2_extent_ptr_decoded_append(insert, &p);
 
 		bch2_bkey_narrow_crcs(insert, (struct bch_extent_crc_unpacked) { 0 });
-		bch2_extent_normalize(c, bkey_i_to_s(insert));
+		bch2_extent_normalize_by_opts(c, &m->op.opts, bkey_i_to_s(insert));
 
 		ret = bch2_sum_sector_overwrites(trans, &iter, insert,
 						 &should_check_enospc,
@@ -558,7 +560,8 @@ void bch2_data_update_to_text(struct printbuf *out, struct data_update *m)
 int bch2_extent_drop_ptrs(struct btree_trans *trans,
 			  struct btree_iter *iter,
 			  struct bkey_s_c k,
-			  struct data_update_opts data_opts)
+			  struct bch_io_opts *io_opts,
+			  struct data_update_opts *data_opts)
 {
 	struct bch_fs *c = trans->c;
 	struct bkey_i *n;
@@ -569,11 +572,11 @@ int bch2_extent_drop_ptrs(struct btree_trans *trans,
 	if (ret)
 		return ret;
 
-	while (data_opts.kill_ptrs) {
-		unsigned i = 0, drop = __fls(data_opts.kill_ptrs);
+	while (data_opts->kill_ptrs) {
+		unsigned i = 0, drop = __fls(data_opts->kill_ptrs);
 
 		bch2_bkey_drop_ptrs_noerror(bkey_i_to_s(n), ptr, i++ == drop);
-		data_opts.kill_ptrs ^= 1U << drop;
+		data_opts->kill_ptrs ^= 1U << drop;
 	}
 
 	/*
@@ -581,7 +584,7 @@ int bch2_extent_drop_ptrs(struct btree_trans *trans,
 	 * will do the appropriate thing with it (turning it into a
 	 * KEY_TYPE_error key, or just a discard if it was a cached extent)
 	 */
-	bch2_extent_normalize(c, bkey_i_to_s(n));
+	bch2_extent_normalize_by_opts(c, io_opts, bkey_i_to_s(n));
 
 	/*
 	 * Since we're not inserting through an extent iterator
@@ -720,7 +723,7 @@ int bch2_data_update_init(struct btree_trans *trans,
 		m->data_opts.rewrite_ptrs = 0;
 		/* if iter == NULL, it's just a promote */
 		if (iter)
-			ret = bch2_extent_drop_ptrs(trans, iter, k, m->data_opts);
+			ret = bch2_extent_drop_ptrs(trans, iter, k, &io_opts, &m->data_opts);
 		goto out;
 	}
 
