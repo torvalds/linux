@@ -8374,7 +8374,8 @@ static void manage_dm_interrupts(struct amdgpu_device *adev,
 		if (amdgpu_ip_version(adev, DCE_HWIP, 0) <
 		    IP_VERSION(3, 5, 0) ||
 		    acrtc_state->stream->link->psr_settings.psr_version <
-		    DC_PSR_VERSION_UNSUPPORTED) {
+		    DC_PSR_VERSION_UNSUPPORTED ||
+		    !(adev->flags & AMD_IS_APU)) {
 			timing = &acrtc_state->stream->timing;
 
 			/* at least 2 frames */

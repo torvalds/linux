@@ -88,7 +88,7 @@
 
 /* ABI version */
 #define SND_SOC_TPLG_ABI_VERSION	0x5	/* current version */
-#define SND_SOC_TPLG_ABI_VERSION_MIN	0x4	/* oldest version supported */
+#define SND_SOC_TPLG_ABI_VERSION_MIN	0x5	/* oldest version supported */
 
 /* Max size of TLV data */
 #define SND_SOC_TPLG_TLV_SIZE		32

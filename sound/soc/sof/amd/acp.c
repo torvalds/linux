@@ -329,7 +329,9 @@ int configure_and_run_sha_dma(struct acp_dev_data *adata, void *image_addr,
 					    fw_qualifier, fw_qualifier & DSP_FW_RUN_ENABLE,
 					    ACP_REG_POLL_INTERVAL, ACP_DMA_COMPLETE_TIMEOUT_US);
 	if (ret < 0) {
-		dev_err(sdev->dev, "PSP validation failed\n");
+		val = snd_sof_dsp_read(sdev, ACP_DSP_BAR, ACP_SHA_PSP_ACK);
+		dev_err(sdev->dev, "PSP validation failed: fw_qualifier = %#x, ACP_SHA_PSP_ACK = %#x\n",
+			fw_qualifier, val);
 		return ret;
 	}
 

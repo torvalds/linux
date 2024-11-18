@@ -352,7 +352,6 @@ static const struct usb_device_id rtl8192d_usb_ids[] = {
 	{RTL_USB_DEVICE(USB_VENDOR_ID_REALTEK, 0x8194, rtl92du_hal_cfg)},
 	{RTL_USB_DEVICE(USB_VENDOR_ID_REALTEK, 0x8111, rtl92du_hal_cfg)},
 	{RTL_USB_DEVICE(USB_VENDOR_ID_REALTEK, 0x0193, rtl92du_hal_cfg)},
-	{RTL_USB_DEVICE(USB_VENDOR_ID_REALTEK, 0x8171, rtl92du_hal_cfg)},
 	{RTL_USB_DEVICE(USB_VENDOR_ID_REALTEK, 0xe194, rtl92du_hal_cfg)},
 	{RTL_USB_DEVICE(0x2019, 0xab2c, rtl92du_hal_cfg)},
 	{RTL_USB_DEVICE(0x2019, 0xab2d, rtl92du_hal_cfg)},

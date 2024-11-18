@@ -1395,6 +1395,17 @@ static int hclgevf_notify_roce_client(struct hclgevf_dev *hdev,
 	return ret;
 }
 
+static void hclgevf_set_reset_pending(struct hclgevf_dev *hdev,
+				      enum hnae3_reset_type reset_type)
+{
+	/* When an incorrect reset type is executed, the get_reset_level
+	 * function generates the HNAE3_NONE_RESET flag. As a result, this
+	 * type do not need to pending.
+	 */
+	if (reset_type != HNAE3_NONE_RESET)
+		set_bit(reset_type, &hdev->reset_pending);
+}
+
 static int hclgevf_reset_wait(struct hclgevf_dev *hdev)
 {
 #define HCLGEVF_RESET_WAIT_US	20000
@@ -1544,7 +1555,7 @@ static void hclgevf_reset_err_handle(struct hclgevf_dev *hdev)
 		hdev->rst_stats.rst_fail_cnt);
 
 	if (hdev->rst_stats.rst_fail_cnt < HCLGEVF_RESET_MAX_FAIL_CNT)
-		set_bit(hdev->reset_type, &hdev->reset_pending);
+		hclgevf_set_reset_pending(hdev, hdev->reset_type);
 
 	if (hclgevf_is_reset_pending(hdev)) {
 		set_bit(HCLGEVF_RESET_PENDING, &hdev->reset_state);
@@ -1664,6 +1675,8 @@ static enum hnae3_reset_type hclgevf_get_reset_level(unsigned long *addr)
 		clear_bit(HNAE3_FLR_RESET, addr);
 	}
 
+	clear_bit(HNAE3_NONE_RESET, addr);
+
 	return rst_level;
 }
 
@@ -1673,13 +1686,14 @@ static void hclgevf_reset_event(struct pci_dev *pdev,
 	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(pdev);
 	struct hclgevf_dev *hdev = ae_dev->priv;
 
-	dev_info(&hdev->pdev->dev, "received reset request from VF enet\n");
-
 	if (hdev->default_reset_request)
 		hdev->reset_level =
 			hclgevf_get_reset_level(&hdev->default_reset_request);
 	else
 		hdev->reset_level = HNAE3_VF_FUNC_RESET;
+
+	dev_info(&hdev->pdev->dev, "received reset request from VF enet, reset level is %d\n",
+		 hdev->reset_level);
 
 	/* reset of this VF requested */
 	set_bit(HCLGEVF_RESET_REQUESTED, &hdev->reset_state);
@@ -1691,8 +1705,20 @@ static void hclgevf_reset_event(struct pci_dev *pdev,
 static void hclgevf_set_def_reset_request(struct hnae3_ae_dev *ae_dev,
 					  enum hnae3_reset_type rst_type)
 {
+#define HCLGEVF_SUPPORT_RESET_TYPE \
+	(BIT(HNAE3_VF_RESET) | BIT(HNAE3_VF_FUNC_RESET) | \
+	BIT(HNAE3_VF_PF_FUNC_RESET) | BIT(HNAE3_VF_FULL_RESET) | \
+	BIT(HNAE3_FLR_RESET) | BIT(HNAE3_VF_EXP_RESET))
+
 	struct hclgevf_dev *hdev = ae_dev->priv;
 
+	if (!(BIT(rst_type) & HCLGEVF_SUPPORT_RESET_TYPE)) {
+		/* To prevent reset triggered by hclge_reset_event */
+		set_bit(HNAE3_NONE_RESET, &hdev->default_reset_request);
+		dev_info(&hdev->pdev->dev, "unsupported reset type %d\n",
+			 rst_type);
+		return;
+	}
 	set_bit(rst_type, &hdev->default_reset_request);
 }
 
@@ -1849,14 +1875,14 @@ static void hclgevf_reset_service_task(struct hclgevf_dev *hdev)
 		 */
 		if (hdev->reset_attempts > HCLGEVF_MAX_RESET_ATTEMPTS_CNT) {
 			/* prepare for full reset of stack + pcie interface */
-			set_bit(HNAE3_VF_FULL_RESET, &hdev->reset_pending);
+			hclgevf_set_reset_pending(hdev, HNAE3_VF_FULL_RESET);
 
 			/* "defer" schedule the reset task again */
 			set_bit(HCLGEVF_RESET_PENDING, &hdev->reset_state);
 		} else {
 			hdev->reset_attempts++;
 
-			set_bit(hdev->reset_level, &hdev->reset_pending);
+			hclgevf_set_reset_pending(hdev, hdev->reset_level);
 			set_bit(HCLGEVF_RESET_PENDING, &hdev->reset_state);
 		}
 		hclgevf_reset_task_schedule(hdev);
@@ -1979,7 +2005,7 @@ static enum hclgevf_evt_cause hclgevf_check_evt_cause(struct hclgevf_dev *hdev,
 		rst_ing_reg = hclgevf_read_dev(&hdev->hw, HCLGEVF_RST_ING);
 		dev_info(&hdev->pdev->dev,
 			 "receive reset interrupt 0x%x!\n", rst_ing_reg);
-		set_bit(HNAE3_VF_RESET, &hdev->reset_pending);
+		hclgevf_set_reset_pending(hdev, HNAE3_VF_RESET);
 		set_bit(HCLGEVF_RESET_PENDING, &hdev->reset_state);
 		set_bit(HCLGE_COMM_STATE_CMD_DISABLE, &hdev->hw.hw.comm_state);
 		*clearval = ~(1U << HCLGEVF_VECTOR0_RST_INT_B);
@@ -2289,6 +2315,7 @@ static void hclgevf_state_init(struct hclgevf_dev *hdev)
 	clear_bit(HCLGEVF_STATE_RST_FAIL, &hdev->state);
 
 	INIT_DELAYED_WORK(&hdev->service_task, hclgevf_service_task);
+	timer_setup(&hdev->reset_timer, hclgevf_reset_timer, 0);
 
 	mutex_init(&hdev->mbx_resp.mbx_mutex);
 	sema_init(&hdev->reset_sem, 1);
@@ -2988,7 +3015,6 @@ static int hclgevf_init_hdev(struct hclgevf_dev *hdev)
 		 HCLGEVF_DRIVER_NAME);
 
 	hclgevf_task_schedule(hdev, round_jiffies_relative(HZ));
-	timer_setup(&hdev->reset_timer, hclgevf_reset_timer, 0);
 
 	return 0;
 

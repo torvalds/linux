@@ -11,6 +11,9 @@
 #ifndef __NR_getpgid
 #define __NR_getpgid 132
 #endif
+#ifndef __NR_capget
+#define __NR_capget 184
+#endif
 #ifndef __NR_gettid
 #define __NR_gettid 224
 #endif

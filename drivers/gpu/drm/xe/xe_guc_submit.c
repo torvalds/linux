@@ -916,11 +916,21 @@ static void xe_guc_exec_queue_lr_cleanup(struct work_struct *w)
 static bool check_timeout(struct xe_exec_queue *q, struct xe_sched_job *job)
 {
 	struct xe_gt *gt = guc_to_gt(exec_queue_to_guc(q));
-	u32 ctx_timestamp = xe_lrc_ctx_timestamp(q->lrc[0]);
-	u32 ctx_job_timestamp = xe_lrc_ctx_job_timestamp(q->lrc[0]);
+	u32 ctx_timestamp, ctx_job_timestamp;
 	u32 timeout_ms = q->sched_props.job_timeout_ms;
 	u32 diff;
 	u64 running_time_ms;
+
+	if (!xe_sched_job_started(job)) {
+		xe_gt_warn(gt, "Check job timeout: seqno=%u, lrc_seqno=%u, guc_id=%d, not started",
+			   xe_sched_job_seqno(job), xe_sched_job_lrc_seqno(job),
+			   q->guc->id);
+
+		return xe_sched_invalidate_job(job, 2);
+	}
+
+	ctx_timestamp = xe_lrc_ctx_timestamp(q->lrc[0]);
+	ctx_job_timestamp = xe_lrc_ctx_job_timestamp(q->lrc[0]);
 
 	/*
 	 * Counter wraps at ~223s at the usual 19.2MHz, be paranoid catch
@@ -1048,10 +1058,6 @@ guc_exec_queue_timedout_job(struct drm_sched_job *drm_job)
 	skip_timeout_check = exec_queue_reset(q) ||
 		exec_queue_killed_or_banned_or_wedged(q) ||
 		exec_queue_destroyed(q);
-
-	/* Job hasn't started, can't be timed out */
-	if (!skip_timeout_check && !xe_sched_job_started(job))
-		goto rearm;
 
 	/*
 	 * XXX: Sampling timeout doesn't work in wedged mode as we have to
@@ -1726,8 +1732,13 @@ void xe_guc_submit_stop(struct xe_guc *guc)
 
 	mutex_lock(&guc->submission_state.lock);
 
-	xa_for_each(&guc->submission_state.exec_queue_lookup, index, q)
+	xa_for_each(&guc->submission_state.exec_queue_lookup, index, q) {
+		/* Prevent redundant attempts to stop parallel queues */
+		if (q->guc->id != index)
+			continue;
+
 		guc_exec_queue_stop(guc, q);
+	}
 
 	mutex_unlock(&guc->submission_state.lock);
 
@@ -1765,8 +1776,13 @@ int xe_guc_submit_start(struct xe_guc *guc)
 
 	mutex_lock(&guc->submission_state.lock);
 	atomic_dec(&guc->submission_state.stopped);
-	xa_for_each(&guc->submission_state.exec_queue_lookup, index, q)
+	xa_for_each(&guc->submission_state.exec_queue_lookup, index, q) {
+		/* Prevent redundant attempts to start parallel queues */
+		if (q->guc->id != index)
+			continue;
+
 		guc_exec_queue_start(q);
+	}
 	mutex_unlock(&guc->submission_state.lock);
 
 	wake_up_all(&guc->ct.wq);

@@ -917,6 +917,7 @@ struct vm_area_struct *vma_merge_new_range(struct vma_merge_struct *vmg)
 	pgoff_t pgoff = vmg->pgoff;
 	pgoff_t pglen = PHYS_PFN(end - start);
 	bool can_merge_left, can_merge_right;
+	bool just_expand = vmg->merge_flags & VMG_FLAG_JUST_EXPAND;
 
 	mmap_assert_write_locked(vmg->mm);
 	VM_WARN_ON(vmg->vma);
@@ -930,7 +931,7 @@ struct vm_area_struct *vma_merge_new_range(struct vma_merge_struct *vmg)
 		return NULL;
 
 	can_merge_left = can_vma_merge_left(vmg);
-	can_merge_right = can_vma_merge_right(vmg, can_merge_left);
+	can_merge_right = !just_expand && can_vma_merge_right(vmg, can_merge_left);
 
 	/* If we can merge with the next VMA, adjust vmg accordingly. */
 	if (can_merge_right) {
@@ -953,7 +954,11 @@ struct vm_area_struct *vma_merge_new_range(struct vma_merge_struct *vmg)
 		if (can_merge_right && !can_merge_remove_vma(next))
 			vmg->end = end;
 
-		vma_prev(vmg->vmi); /* Equivalent to going to the previous range */
+		/* In expand-only case we are already positioned at prev. */
+		if (!just_expand) {
+			/* Equivalent to going to the previous range. */
+			vma_prev(vmg->vmi);
+		}
 	}
 
 	/*
@@ -967,12 +972,14 @@ struct vm_area_struct *vma_merge_new_range(struct vma_merge_struct *vmg)
 	}
 
 	/* If expansion failed, reset state. Allows us to retry merge later. */
-	vmg->vma = NULL;
-	vmg->start = start;
-	vmg->end = end;
-	vmg->pgoff = pgoff;
-	if (vmg->vma == prev)
-		vma_iter_set(vmg->vmi, start);
+	if (!just_expand) {
+		vmg->vma = NULL;
+		vmg->start = start;
+		vmg->end = end;
+		vmg->pgoff = pgoff;
+		if (vmg->vma == prev)
+			vma_iter_set(vmg->vmi, start);
+	}
 
 	return NULL;
 }
