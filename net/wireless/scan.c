@@ -3050,6 +3050,10 @@ cfg80211_parse_ml_elem_sta_data(struct wiphy *wiphy,
 		freq = ieee80211_channel_to_freq_khz(ap_info->channel, band);
 		data.channel = ieee80211_get_channel_khz(wiphy, freq);
 
+		/* Skip if RNR element specifies an unsupported channel */
+		if (!data.channel)
+			continue;
+
 		/* Skip if BSS entry generated from MBSSID or DIRECT source
 		 * frame data available already.
 		 */

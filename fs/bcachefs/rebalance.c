@@ -70,7 +70,9 @@ err:
 
 int bch2_set_rebalance_needs_scan(struct bch_fs *c, u64 inum)
 {
-	int ret = bch2_trans_do(c, NULL, NULL, BCH_TRANS_COMMIT_no_enospc|BCH_TRANS_COMMIT_lazy_rw,
+	int ret = bch2_trans_commit_do(c, NULL, NULL,
+				       BCH_TRANS_COMMIT_no_enospc|
+				       BCH_TRANS_COMMIT_lazy_rw,
 			    __bch2_set_rebalance_needs_scan(trans, inum));
 	rebalance_wakeup(c);
 	return ret;

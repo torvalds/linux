@@ -22,6 +22,7 @@ FILES=(
   "include/vdso/bits.h"
   "include/linux/const.h"
   "include/vdso/const.h"
+  "include/vdso/unaligned.h"
   "include/linux/hash.h"
   "include/linux/list-sort.h"
   "include/uapi/linux/hw_breakpoint.h"

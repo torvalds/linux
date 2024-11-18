@@ -63,7 +63,7 @@ const char * const bch2_compression_opts[] = {
 	NULL
 };
 
-const char * const bch2_str_hash_types[] = {
+const char * const __bch2_str_hash_types[] = {
 	BCH_STR_HASH_TYPES()
 	NULL
 };
@@ -115,6 +115,7 @@ PRT_STR_OPT_BOUNDSCHECKED(fs_usage_type,	enum bch_fs_usage_type);
 PRT_STR_OPT_BOUNDSCHECKED(data_type,		enum bch_data_type);
 PRT_STR_OPT_BOUNDSCHECKED(csum_type,		enum bch_csum_type);
 PRT_STR_OPT_BOUNDSCHECKED(compression_type,	enum bch_compression_type);
+PRT_STR_OPT_BOUNDSCHECKED(str_hash_type,	enum bch_str_hash_type);
 
 static int bch2_opt_fix_errors_parse(struct bch_fs *c, const char *val, u64 *res,
 				     struct printbuf *err)
@@ -225,7 +226,7 @@ const struct bch_option bch2_opt_table[] = {
 #define OPT_UINT(_min, _max)	.type = BCH_OPT_UINT,			\
 				.min = _min, .max = _max
 #define OPT_STR(_choices)	.type = BCH_OPT_STR,			\
-				.min = 0, .max = ARRAY_SIZE(_choices),	\
+				.min = 0, .max = ARRAY_SIZE(_choices) - 1, \
 				.choices = _choices
 #define OPT_STR_NOLIMIT(_choices)	.type = BCH_OPT_STR,		\
 				.min = 0, .max = U64_MAX,		\
@@ -427,7 +428,7 @@ void bch2_opt_to_text(struct printbuf *out,
 			prt_printf(out, "%lli", v);
 		break;
 	case BCH_OPT_STR:
-		if (v < opt->min || v >= opt->max - 1)
+		if (v < opt->min || v >= opt->max)
 			prt_printf(out, "(invalid option %lli)", v);
 		else if (flags & OPT_SHOW_FULL_LIST)
 			prt_string_option(out, opt->choices, v);
@@ -596,6 +597,9 @@ int bch2_parse_mount_opts(struct bch_fs *c, struct bch_opts *opts,
 	copied_opts_start = copied_opts;
 
 	while ((opt = strsep(&copied_opts, ",")) != NULL) {
+		if (!*opt)
+			continue;
+
 		name	= strsep(&opt, "=");
 		val	= opt;
 

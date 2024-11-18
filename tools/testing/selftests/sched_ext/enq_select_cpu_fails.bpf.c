@@ -36,8 +36,8 @@ void BPF_STRUCT_OPS(enq_select_cpu_fails_enqueue, struct task_struct *p,
 
 SEC(".struct_ops.link")
 struct sched_ext_ops enq_select_cpu_fails_ops = {
-	.select_cpu		= enq_select_cpu_fails_select_cpu,
-	.enqueue		= enq_select_cpu_fails_enqueue,
+	.select_cpu		= (void *) enq_select_cpu_fails_select_cpu,
+	.enqueue		= (void *) enq_select_cpu_fails_enqueue,
 	.name			= "enq_select_cpu_fails",
 	.timeout_ms		= 1000U,
 };

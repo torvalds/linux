@@ -1012,6 +1012,8 @@ reread:
 			nr_bvecs = buf_pages(buf->data, sectors_read << 9);
 
 			bio = bio_kmalloc(nr_bvecs, GFP_KERNEL);
+			if (!bio)
+				return -BCH_ERR_ENOMEM_journal_read_bucket;
 			bio_init(bio, ca->disk_sb.bdev, bio->bi_inline_vecs, nr_bvecs, REQ_OP_READ);
 
 			bio->bi_iter.bi_sector = offset;

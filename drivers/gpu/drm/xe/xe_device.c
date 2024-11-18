@@ -87,10 +87,6 @@ static int xe_file_open(struct drm_device *dev, struct drm_file *file)
 	mutex_init(&xef->exec_queue.lock);
 	xa_init_flags(&xef->exec_queue.xa, XA_FLAGS_ALLOC1);
 
-	spin_lock(&xe->clients.lock);
-	xe->clients.count++;
-	spin_unlock(&xe->clients.lock);
-
 	file->driver_priv = xef;
 	kref_init(&xef->refcount);
 
@@ -107,16 +103,11 @@ static int xe_file_open(struct drm_device *dev, struct drm_file *file)
 static void xe_file_destroy(struct kref *ref)
 {
 	struct xe_file *xef = container_of(ref, struct xe_file, refcount);
-	struct xe_device *xe = xef->xe;
 
 	xa_destroy(&xef->exec_queue.xa);
 	mutex_destroy(&xef->exec_queue.lock);
 	xa_destroy(&xef->vm.xa);
 	mutex_destroy(&xef->vm.lock);
-
-	spin_lock(&xe->clients.lock);
-	xe->clients.count--;
-	spin_unlock(&xe->clients.lock);
 
 	xe_drm_client_put(xef->client);
 	kfree(xef->process_name);
@@ -333,7 +324,6 @@ struct xe_device *xe_device_create(struct pci_dev *pdev,
 	xe->info.force_execlist = xe_modparam.force_execlist;
 
 	spin_lock_init(&xe->irq.lock);
-	spin_lock_init(&xe->clients.lock);
 
 	init_waitqueue_head(&xe->ufence_wq);
 
@@ -890,7 +880,7 @@ void xe_device_l2_flush(struct xe_device *xe)
 	spin_lock(&gt->global_invl_lock);
 	xe_mmio_write32(gt, XE2_GLOBAL_INVAL, 0x1);
 
-	if (xe_mmio_wait32(gt, XE2_GLOBAL_INVAL, 0x1, 0x0, 150, NULL, true))
+	if (xe_mmio_wait32(gt, XE2_GLOBAL_INVAL, 0x1, 0x0, 500, NULL, true))
 		xe_gt_err_once(gt, "Global invalidation timeout\n");
 	spin_unlock(&gt->global_invl_lock);
 

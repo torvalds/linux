@@ -186,7 +186,7 @@ static void try_read_btree_node(struct find_btree_nodes *f, struct bch_dev *ca,
 		.ptrs[0].type	= 1 << BCH_EXTENT_ENTRY_ptr,
 		.ptrs[0].offset	= offset,
 		.ptrs[0].dev	= ca->dev_idx,
-		.ptrs[0].gen	= *bucket_gen(ca, sector_to_bucket(ca, offset)),
+		.ptrs[0].gen	= bucket_gen_get(ca, sector_to_bucket(ca, offset)),
 	};
 	rcu_read_unlock();
 

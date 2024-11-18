@@ -231,6 +231,11 @@ static void ovl_file_modified(struct file *file)
 	ovl_copyattr(file_inode(file));
 }
 
+static void ovl_file_end_write(struct file *file, loff_t pos, ssize_t ret)
+{
+	ovl_file_modified(file);
+}
+
 static void ovl_file_accessed(struct file *file)
 {
 	struct inode *inode, *upperinode;
@@ -294,7 +299,7 @@ static ssize_t ovl_write_iter(struct kiocb *iocb, struct iov_iter *iter)
 	struct backing_file_ctx ctx = {
 		.cred = ovl_creds(inode->i_sb),
 		.user_file = file,
-		.end_write = ovl_file_modified,
+		.end_write = ovl_file_end_write,
 	};
 
 	if (!iov_iter_count(iter))
@@ -364,7 +369,7 @@ static ssize_t ovl_splice_write(struct pipe_inode_info *pipe, struct file *out,
 	struct backing_file_ctx ctx = {
 		.cred = ovl_creds(inode->i_sb),
 		.user_file = out,
-		.end_write = ovl_file_modified,
+		.end_write = ovl_file_end_write,
 	};
 
 	inode_lock(inode);

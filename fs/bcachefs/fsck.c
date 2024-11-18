@@ -929,35 +929,138 @@ static int get_visible_inodes(struct btree_trans *trans,
 	return ret;
 }
 
-static int hash_redo_key(struct btree_trans *trans,
-			 const struct bch_hash_desc desc,
-			 struct bch_hash_info *hash_info,
-			 struct btree_iter *k_iter, struct bkey_s_c k)
+static int dirent_has_target(struct btree_trans *trans, struct bkey_s_c_dirent d)
 {
-	struct bkey_i *delete;
-	struct bkey_i *tmp;
+	if (d.v->d_type == DT_SUBVOL) {
+		u32 snap;
+		u64 inum;
+		int ret = subvol_lookup(trans, le32_to_cpu(d.v->d_child_subvol), &snap, &inum);
+		if (ret && !bch2_err_matches(ret, ENOENT))
+			return ret;
+		return !ret;
+	} else {
+		struct btree_iter iter;
+		struct bkey_s_c k = bch2_bkey_get_iter(trans, &iter, BTREE_ID_inodes,
+				SPOS(0, le64_to_cpu(d.v->d_inum), d.k->p.snapshot), 0);
+		int ret = bkey_err(k);
+		if (ret)
+			return ret;
 
-	delete = bch2_trans_kmalloc(trans, sizeof(*delete));
-	if (IS_ERR(delete))
-		return PTR_ERR(delete);
+		ret = bkey_is_inode(k.k);
+		bch2_trans_iter_exit(trans, &iter);
+		return ret;
+	}
+}
 
-	tmp = bch2_bkey_make_mut_noupdate(trans, k);
-	if (IS_ERR(tmp))
-		return PTR_ERR(tmp);
+/*
+ * Prefer to delete the first one, since that will be the one at the wrong
+ * offset:
+ * return value: 0 -> delete k1, 1 -> delete k2
+ */
+static int hash_pick_winner(struct btree_trans *trans,
+			    const struct bch_hash_desc desc,
+			    struct bch_hash_info *hash_info,
+			    struct bkey_s_c k1,
+			    struct bkey_s_c k2)
+{
+	if (bkey_val_bytes(k1.k) == bkey_val_bytes(k2.k) &&
+	    !memcmp(k1.v, k2.v, bkey_val_bytes(k1.k)))
+		return 0;
 
-	bkey_init(&delete->k);
-	delete->k.p = k_iter->pos;
-	return  bch2_btree_iter_traverse(k_iter) ?:
-		bch2_trans_update(trans, k_iter, delete, 0) ?:
-		bch2_hash_set_in_snapshot(trans, desc, hash_info,
-				       (subvol_inum) { 0, k.k->p.inode },
-				       k.k->p.snapshot, tmp,
-				       STR_HASH_must_create|
-				       BTREE_UPDATE_internal_snapshot_node) ?:
-		bch2_trans_commit(trans, NULL, NULL, BCH_TRANS_COMMIT_no_enospc);
+	switch (desc.btree_id) {
+	case BTREE_ID_dirents: {
+		int ret = dirent_has_target(trans, bkey_s_c_to_dirent(k1));
+		if (ret < 0)
+			return ret;
+		if (!ret)
+			return 0;
+
+		ret = dirent_has_target(trans, bkey_s_c_to_dirent(k2));
+		if (ret < 0)
+			return ret;
+		if (!ret)
+			return 1;
+		return 2;
+	}
+	default:
+		return 0;
+	}
+}
+
+static int fsck_update_backpointers(struct btree_trans *trans,
+				    struct snapshots_seen *s,
+				    const struct bch_hash_desc desc,
+				    struct bch_hash_info *hash_info,
+				    struct bkey_i *new)
+{
+	if (new->k.type != KEY_TYPE_dirent)
+		return 0;
+
+	struct bkey_i_dirent *d = bkey_i_to_dirent(new);
+	struct inode_walker target = inode_walker_init();
+	int ret = 0;
+
+	if (d->v.d_type == DT_SUBVOL) {
+		BUG();
+	} else {
+		ret = get_visible_inodes(trans, &target, s, le64_to_cpu(d->v.d_inum));
+		if (ret)
+			goto err;
+
+		darray_for_each(target.inodes, i) {
+			i->inode.bi_dir_offset = d->k.p.offset;
+			ret = __bch2_fsck_write_inode(trans, &i->inode);
+			if (ret)
+				goto err;
+		}
+	}
+err:
+	inode_walker_exit(&target);
+	return ret;
+}
+
+static int fsck_rename_dirent(struct btree_trans *trans,
+			      struct snapshots_seen *s,
+			      const struct bch_hash_desc desc,
+			      struct bch_hash_info *hash_info,
+			      struct bkey_s_c_dirent old)
+{
+	struct qstr old_name = bch2_dirent_get_name(old);
+	struct bkey_i_dirent *new = bch2_trans_kmalloc(trans, bkey_bytes(old.k) + 32);
+	int ret = PTR_ERR_OR_ZERO(new);
+	if (ret)
+		return ret;
+
+	bkey_dirent_init(&new->k_i);
+	dirent_copy_target(new, old);
+	new->k.p = old.k->p;
+
+	for (unsigned i = 0; i < 1000; i++) {
+		unsigned len = sprintf(new->v.d_name, "%.*s.fsck_renamed-%u",
+				       old_name.len, old_name.name, i);
+		unsigned u64s = BKEY_U64s + dirent_val_u64s(len);
+
+		if (u64s > U8_MAX)
+			return -EINVAL;
+
+		new->k.u64s = u64s;
+
+		ret = bch2_hash_set_in_snapshot(trans, bch2_dirent_hash_desc, hash_info,
+						(subvol_inum) { 0, old.k->p.inode },
+						old.k->p.snapshot, &new->k_i,
+						BTREE_UPDATE_internal_snapshot_node);
+		if (!bch2_err_matches(ret, EEXIST))
+			break;
+	}
+
+	if (ret)
+		return ret;
+
+	return fsck_update_backpointers(trans, s, desc, hash_info, &new->k_i);
 }
 
 static int hash_check_key(struct btree_trans *trans,
+			  struct snapshots_seen *s,
 			  const struct bch_hash_desc desc,
 			  struct bch_hash_info *hash_info,
 			  struct btree_iter *k_iter, struct bkey_s_c hash_k)
@@ -986,16 +1089,9 @@ static int hash_check_key(struct btree_trans *trans,
 		if (bkey_eq(k.k->p, hash_k.k->p))
 			break;
 
-		if (fsck_err_on(k.k->type == desc.key_type &&
-				!desc.cmp_bkey(k, hash_k),
-				trans, hash_table_key_duplicate,
-				"duplicate hash table keys:\n%s",
-				(printbuf_reset(&buf),
-				 bch2_bkey_val_to_text(&buf, c, hash_k),
-				 buf.buf))) {
-			ret = bch2_hash_delete_at(trans, desc, hash_info, k_iter, 0) ?: 1;
-			break;
-		}
+		if (k.k->type == desc.key_type &&
+		    !desc.cmp_bkey(k, hash_k))
+			goto duplicate_entries;
 
 		if (bkey_deleted(k.k)) {
 			bch2_trans_iter_exit(trans, &iter);
@@ -1008,17 +1104,65 @@ out:
 	return ret;
 bad_hash:
 	if (fsck_err(trans, hash_table_key_wrong_offset,
-		     "hash table key at wrong offset: btree %s inode %llu offset %llu, hashed to %llu\n%s",
+		     "hash table key at wrong offset: btree %s inode %llu offset %llu, hashed to %llu\n  %s",
 		     bch2_btree_id_str(desc.btree_id), hash_k.k->p.inode, hash_k.k->p.offset, hash,
 		     (printbuf_reset(&buf),
 		      bch2_bkey_val_to_text(&buf, c, hash_k), buf.buf))) {
-		ret = hash_redo_key(trans, desc, hash_info, k_iter, hash_k);
-		bch_err_fn(c, ret);
+		struct bkey_i *new = bch2_bkey_make_mut_noupdate(trans, hash_k);
+		if (IS_ERR(new))
+			return PTR_ERR(new);
+
+		k = bch2_hash_set_or_get_in_snapshot(trans, &iter, desc, hash_info,
+				       (subvol_inum) { 0, hash_k.k->p.inode },
+				       hash_k.k->p.snapshot, new,
+				       STR_HASH_must_create|
+				       BTREE_ITER_with_updates|
+				       BTREE_UPDATE_internal_snapshot_node);
+		ret = bkey_err(k);
 		if (ret)
-			return ret;
-		ret = -BCH_ERR_transaction_restart_nested;
+			goto out;
+		if (k.k)
+			goto duplicate_entries;
+
+		ret =   bch2_hash_delete_at(trans, desc, hash_info, k_iter,
+					    BTREE_UPDATE_internal_snapshot_node) ?:
+			fsck_update_backpointers(trans, s, desc, hash_info, new) ?:
+			bch2_trans_commit(trans, NULL, NULL, BCH_TRANS_COMMIT_no_enospc) ?:
+			-BCH_ERR_transaction_restart_nested;
+		goto out;
 	}
 fsck_err:
+	goto out;
+duplicate_entries:
+	ret = hash_pick_winner(trans, desc, hash_info, hash_k, k);
+	if (ret < 0)
+		goto out;
+
+	if (!fsck_err(trans, hash_table_key_duplicate,
+		      "duplicate hash table keys%s:\n%s",
+		      ret != 2 ? "" : ", both point to valid inodes",
+		      (printbuf_reset(&buf),
+		       bch2_bkey_val_to_text(&buf, c, hash_k),
+		       prt_newline(&buf),
+		       bch2_bkey_val_to_text(&buf, c, k),
+		       buf.buf)))
+		goto out;
+
+	switch (ret) {
+	case 0:
+		ret = bch2_hash_delete_at(trans, desc, hash_info, k_iter, 0);
+		break;
+	case 1:
+		ret = bch2_hash_delete_at(trans, desc, hash_info, &iter, 0);
+		break;
+	case 2:
+		ret = fsck_rename_dirent(trans, s, desc, hash_info, bkey_s_c_to_dirent(hash_k)) ?:
+			bch2_hash_delete_at(trans, desc, hash_info, k_iter, 0);
+		goto out;
+	}
+
+	ret = bch2_trans_commit(trans, NULL, NULL, 0) ?:
+		-BCH_ERR_transaction_restart_nested;
 	goto out;
 }
 
@@ -1096,10 +1240,36 @@ fsck_err:
 	return ret;
 }
 
+static int get_snapshot_root_inode(struct btree_trans *trans,
+				   struct bch_inode_unpacked *root,
+				   u64 inum)
+{
+	struct btree_iter iter;
+	struct bkey_s_c k;
+	int ret = 0;
+
+	for_each_btree_key_reverse_norestart(trans, iter, BTREE_ID_inodes,
+					     SPOS(0, inum, U32_MAX),
+					     BTREE_ITER_all_snapshots, k, ret) {
+		if (k.k->p.offset != inum)
+			break;
+		if (bkey_is_inode(k.k))
+			goto found_root;
+	}
+	if (ret)
+		goto err;
+	BUG();
+found_root:
+	BUG_ON(bch2_inode_unpack(k, root));
+err:
+	bch2_trans_iter_exit(trans, &iter);
+	return ret;
+}
+
 static int check_inode(struct btree_trans *trans,
 		       struct btree_iter *iter,
 		       struct bkey_s_c k,
-		       struct bch_inode_unpacked *prev,
+		       struct bch_inode_unpacked *snapshot_root,
 		       struct snapshots_seen *s)
 {
 	struct bch_fs *c = trans->c;
@@ -1123,16 +1293,19 @@ static int check_inode(struct btree_trans *trans,
 
 	BUG_ON(bch2_inode_unpack(k, &u));
 
-	if (prev->bi_inum != u.bi_inum)
-		*prev = u;
+	if (snapshot_root->bi_inum != u.bi_inum) {
+		ret = get_snapshot_root_inode(trans, snapshot_root, u.bi_inum);
+		if (ret)
+			goto err;
+	}
 
-	if (fsck_err_on(prev->bi_hash_seed	!= u.bi_hash_seed ||
-			inode_d_type(prev)	!= inode_d_type(&u),
+	if (fsck_err_on(u.bi_hash_seed		!= snapshot_root->bi_hash_seed ||
+			INODE_STR_HASH(&u)	!= INODE_STR_HASH(snapshot_root),
 			trans, inode_snapshot_mismatch,
 			"inodes in different snapshots don't match")) {
-		bch_err(c, "repair not implemented yet");
-		ret = -BCH_ERR_fsck_repair_unimplemented;
-		goto err_noprint;
+		u.bi_hash_seed = snapshot_root->bi_hash_seed;
+		SET_INODE_STR_HASH(&u, INODE_STR_HASH(snapshot_root));
+		do_update = true;
 	}
 
 	if (u.bi_dir || u.bi_dir_offset) {
@@ -1285,7 +1458,7 @@ err_noprint:
 
 int bch2_check_inodes(struct bch_fs *c)
 {
-	struct bch_inode_unpacked prev = { 0 };
+	struct bch_inode_unpacked snapshot_root = {};
 	struct snapshots_seen s;
 
 	snapshots_seen_init(&s);
@@ -1295,7 +1468,7 @@ int bch2_check_inodes(struct bch_fs *c)
 				POS_MIN,
 				BTREE_ITER_prefetch|BTREE_ITER_all_snapshots, k,
 				NULL, NULL, BCH_TRANS_COMMIT_no_enospc,
-			check_inode(trans, &iter, k, &prev, &s)));
+			check_inode(trans, &iter, k, &snapshot_root, &s)));
 
 	snapshots_seen_exit(&s);
 	bch_err_fn(c, ret);
@@ -2307,7 +2480,7 @@ static int check_dirent(struct btree_trans *trans, struct btree_iter *iter,
 		*hash_info = bch2_hash_info_init(c, &i->inode);
 	dir->first_this_inode = false;
 
-	ret = hash_check_key(trans, bch2_dirent_hash_desc, hash_info, iter, k);
+	ret = hash_check_key(trans, s, bch2_dirent_hash_desc, hash_info, iter, k);
 	if (ret < 0)
 		goto err;
 	if (ret) {
@@ -2421,7 +2594,7 @@ static int check_xattr(struct btree_trans *trans, struct btree_iter *iter,
 		*hash_info = bch2_hash_info_init(c, &i->inode);
 	inode->first_this_inode = false;
 
-	ret = hash_check_key(trans, bch2_xattr_hash_desc, hash_info, iter, k);
+	ret = hash_check_key(trans, NULL, bch2_xattr_hash_desc, hash_info, iter, k);
 	bch_err_fn(c, ret);
 	return ret;
 }
@@ -2509,7 +2682,7 @@ fsck_err:
 /* Get root directory, create if it doesn't exist: */
 int bch2_check_root(struct bch_fs *c)
 {
-	int ret = bch2_trans_do(c, NULL, NULL, BCH_TRANS_COMMIT_no_enospc,
+	int ret = bch2_trans_commit_do(c, NULL, NULL, BCH_TRANS_COMMIT_no_enospc,
 		check_root_trans(trans));
 	bch_err_fn(c, ret);
 	return ret;
