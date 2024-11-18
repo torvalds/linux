@@ -6,6 +6,16 @@
 #ifndef _AMDXDNA_CTX_H_
 #define _AMDXDNA_CTX_H_
 
+/* Exec buffer command header format */
+#define AMDXDNA_CMD_STATE		GENMASK(3, 0)
+#define AMDXDNA_CMD_EXTRA_CU_MASK	GENMASK(11, 10)
+#define AMDXDNA_CMD_COUNT		GENMASK(22, 12)
+#define AMDXDNA_CMD_OPCODE		GENMASK(27, 23)
+struct amdxdna_cmd {
+	u32 header;
+	u32 data[];
+};
+
 struct amdxdna_hwctx {
 	struct amdxdna_client		*client;
 	struct amdxdna_hwctx_priv	*priv;

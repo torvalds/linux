@@ -5,7 +5,10 @@
 
 #include <drm/amdxdna_accel.h>
 #include <drm/drm_device.h>
+#include <drm/drm_gem.h>
+#include <drm/drm_gem_shmem_helper.h>
 #include <drm/drm_print.h>
+#include <linux/bitfield.h>
 #include <linux/errno.h>
 #include <linux/pci.h>
 #include <linux/types.h>
@@ -13,6 +16,7 @@
 #include "aie2_msg_priv.h"
 #include "aie2_pci.h"
 #include "amdxdna_ctx.h"
+#include "amdxdna_gem.h"
 #include "amdxdna_mailbox.h"
 #include "amdxdna_mailbox_helper.h"
 #include "amdxdna_pci_drv.h"
@@ -280,5 +284,81 @@ int aie2_destroy_context(struct amdxdna_dev_hdl *ndev, struct amdxdna_hwctx *hwc
 	hwctx->priv->mbox_chann = NULL;
 	hwctx->fw_ctx_id = -1;
 
+	return ret;
+}
+
+int aie2_map_host_buf(struct amdxdna_dev_hdl *ndev, u32 context_id, u64 addr, u64 size)
+{
+	DECLARE_AIE2_MSG(map_host_buffer, MSG_OP_MAP_HOST_BUFFER);
+	struct amdxdna_dev *xdna = ndev->xdna;
+	int ret;
+
+	req.context_id = context_id;
+	req.buf_addr = addr;
+	req.buf_size = size;
+	ret = aie2_send_mgmt_msg_wait(ndev, &msg);
+	if (ret)
+		return ret;
+
+	XDNA_DBG(xdna, "fw ctx %d map host buf addr 0x%llx size 0x%llx",
+		 context_id, addr, size);
+
+	return 0;
+}
+
+int aie2_config_cu(struct amdxdna_hwctx *hwctx)
+{
+	struct mailbox_channel *chann = hwctx->priv->mbox_chann;
+	struct amdxdna_dev *xdna = hwctx->client->xdna;
+	u32 shift = xdna->dev_info->dev_mem_buf_shift;
+	DECLARE_AIE2_MSG(config_cu, MSG_OP_CONFIG_CU);
+	struct drm_gem_object *gobj;
+	struct amdxdna_gem_obj *abo;
+	int ret, i;
+
+	if (!chann)
+		return -ENODEV;
+
+	if (hwctx->cus->num_cus > MAX_NUM_CUS) {
+		XDNA_DBG(xdna, "Exceed maximum CU %d", MAX_NUM_CUS);
+		return -EINVAL;
+	}
+
+	for (i = 0; i < hwctx->cus->num_cus; i++) {
+		struct amdxdna_cu_config *cu = &hwctx->cus->cu_configs[i];
+
+		gobj = drm_gem_object_lookup(hwctx->client->filp, cu->cu_bo);
+		if (!gobj) {
+			XDNA_ERR(xdna, "Lookup GEM object failed");
+			return -EINVAL;
+		}
+		abo = to_xdna_obj(gobj);
+
+		if (abo->type != AMDXDNA_BO_DEV) {
+			drm_gem_object_put(gobj);
+			XDNA_ERR(xdna, "Invalid BO type");
+			return -EINVAL;
+		}
+
+		req.cfgs[i] = FIELD_PREP(AIE2_MSG_CFG_CU_PDI_ADDR,
+					 abo->mem.dev_addr >> shift);
+		req.cfgs[i] |= FIELD_PREP(AIE2_MSG_CFG_CU_FUNC, cu->cu_func);
+		XDNA_DBG(xdna, "CU %d full addr 0x%llx, cfg 0x%x", i,
+			 abo->mem.dev_addr, req.cfgs[i]);
+		drm_gem_object_put(gobj);
+	}
+	req.num_cus = hwctx->cus->num_cus;
+
+	ret = xdna_send_msg_wait(xdna, chann, &msg);
+	if (ret == -ETIME)
+		aie2_destroy_context(xdna->dev_handle, hwctx);
+
+	if (resp.status == AIE2_STATUS_SUCCESS) {
+		XDNA_DBG(xdna, "Configure %d CUs, ret %d", req.num_cus, ret);
+		return 0;
+	}
+
+	XDNA_ERR(xdna, "Command opcode 0x%x failed, status 0x%x ret %d",
+		 msg.opcode, resp.status, ret);
 	return ret;
 }

@@ -5,12 +5,15 @@
 
 #include <drm/amdxdna_accel.h>
 #include <drm/drm_device.h>
+#include <drm/drm_gem.h>
+#include <drm/drm_gem_shmem_helper.h>
 #include <drm/drm_print.h>
 #include <linux/types.h>
 
 #include "aie2_pci.h"
 #include "aie2_solver.h"
 #include "amdxdna_ctx.h"
+#include "amdxdna_gem.h"
 #include "amdxdna_mailbox.h"
 #include "amdxdna_pci_drv.h"
 
@@ -128,6 +131,7 @@ int aie2_hwctx_init(struct amdxdna_hwctx *hwctx)
 	struct amdxdna_client *client = hwctx->client;
 	struct amdxdna_dev *xdna = client->xdna;
 	struct amdxdna_hwctx_priv *priv;
+	struct amdxdna_gem_obj *heap;
 	int ret;
 
 	priv = kzalloc(sizeof(*hwctx->priv), GFP_KERNEL);
@@ -135,10 +139,28 @@ int aie2_hwctx_init(struct amdxdna_hwctx *hwctx)
 		return -ENOMEM;
 	hwctx->priv = priv;
 
+	mutex_lock(&client->mm_lock);
+	heap = client->dev_heap;
+	if (!heap) {
+		XDNA_ERR(xdna, "The client dev heap object not exist");
+		mutex_unlock(&client->mm_lock);
+		ret = -ENOENT;
+		goto free_priv;
+	}
+	drm_gem_object_get(to_gobj(heap));
+	mutex_unlock(&client->mm_lock);
+	priv->heap = heap;
+
+	ret = amdxdna_gem_pin(heap);
+	if (ret) {
+		XDNA_ERR(xdna, "Dev heap pin failed, ret %d", ret);
+		goto put_heap;
+	}
+
 	ret = aie2_hwctx_col_list(hwctx);
 	if (ret) {
 		XDNA_ERR(xdna, "Create col list failed, ret %d", ret);
-		goto free_priv;
+		goto unpin;
 	}
 
 	ret = aie2_alloc_resource(hwctx);
@@ -147,14 +169,26 @@ int aie2_hwctx_init(struct amdxdna_hwctx *hwctx)
 		goto free_col_list;
 	}
 
+	ret = aie2_map_host_buf(xdna->dev_handle, hwctx->fw_ctx_id,
+				heap->mem.userptr, heap->mem.size);
+	if (ret) {
+		XDNA_ERR(xdna, "Map host buffer failed, ret %d", ret);
+		goto release_resource;
+	}
 	hwctx->status = HWCTX_STAT_INIT;
 
 	XDNA_DBG(xdna, "hwctx %s init completed", hwctx->name);
 
 	return 0;
 
+release_resource:
+	aie2_release_resource(hwctx);
 free_col_list:
 	kfree(hwctx->col_list);
+unpin:
+	amdxdna_gem_unpin(heap);
+put_heap:
+	drm_gem_object_put(to_gobj(heap));
 free_priv:
 	kfree(priv);
 	return ret;
@@ -164,9 +198,57 @@ void aie2_hwctx_fini(struct amdxdna_hwctx *hwctx)
 {
 	aie2_release_resource(hwctx);
 
+	amdxdna_gem_unpin(hwctx->priv->heap);
+	drm_gem_object_put(to_gobj(hwctx->priv->heap));
+
 	kfree(hwctx->col_list);
 	kfree(hwctx->priv);
 	kfree(hwctx->cus);
+}
+
+static int aie2_hwctx_cu_config(struct amdxdna_hwctx *hwctx, void *buf, u32 size)
+{
+	struct amdxdna_hwctx_param_config_cu *config = buf;
+	struct amdxdna_dev *xdna = hwctx->client->xdna;
+	u32 total_size;
+	int ret;
+
+	XDNA_DBG(xdna, "Config %d CU to %s", config->num_cus, hwctx->name);
+	if (hwctx->status != HWCTX_STAT_INIT) {
+		XDNA_ERR(xdna, "Not support re-config CU");
+		return -EINVAL;
+	}
+
+	if (!config->num_cus) {
+		XDNA_ERR(xdna, "Number of CU is zero");
+		return -EINVAL;
+	}
+
+	total_size = struct_size(config, cu_configs, config->num_cus);
+	if (total_size > size) {
+		XDNA_ERR(xdna, "CU config larger than size");
+		return -EINVAL;
+	}
+
+	hwctx->cus = kmemdup(config, total_size, GFP_KERNEL);
+	if (!hwctx->cus)
+		return -ENOMEM;
+
+	ret = aie2_config_cu(hwctx);
+	if (ret) {
+		XDNA_ERR(xdna, "Config CU to firmware failed, ret %d", ret);
+		goto free_cus;
+	}
+
+	wmb(); /* To avoid locking in command submit when check status */
+	hwctx->status = HWCTX_STAT_READY;
+
+	return 0;
+
+free_cus:
+	kfree(hwctx->cus);
+	hwctx->cus = NULL;
+	return ret;
 }
 
 int aie2_hwctx_config(struct amdxdna_hwctx *hwctx, u32 type, u64 value, void *buf, u32 size)
@@ -176,6 +258,7 @@ int aie2_hwctx_config(struct amdxdna_hwctx *hwctx, u32 type, u64 value, void *bu
 	drm_WARN_ON(&xdna->ddev, !mutex_is_locked(&xdna->dev_lock));
 	switch (type) {
 	case DRM_AMDXDNA_HWCTX_CONFIG_CU:
+		return aie2_hwctx_cu_config(hwctx, buf, size);
 	case DRM_AMDXDNA_HWCTX_ASSIGN_DBG_BUF:
 	case DRM_AMDXDNA_HWCTX_REMOVE_DBG_BUF:
 		return -EOPNOTSUPP;

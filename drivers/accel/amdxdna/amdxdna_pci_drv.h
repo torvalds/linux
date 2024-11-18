@@ -18,6 +18,7 @@
 extern const struct drm_driver amdxdna_drm_drv;
 
 struct amdxdna_dev;
+struct amdxdna_gem_obj;
 struct amdxdna_hwctx;
 
 /*
@@ -29,6 +30,7 @@ struct amdxdna_dev_ops {
 	int (*hwctx_init)(struct amdxdna_hwctx *hwctx);
 	void (*hwctx_fini)(struct amdxdna_hwctx *hwctx);
 	int (*hwctx_config)(struct amdxdna_hwctx *hwctx, u32 type, u64 value, void *buf, u32 size);
+	void (*hmm_invalidate)(struct amdxdna_gem_obj *abo, unsigned long cur_seq);
 };
 
 /*
@@ -89,6 +91,10 @@ struct amdxdna_client {
 	struct idr			hwctx_idr;
 	struct amdxdna_dev		*xdna;
 	struct drm_file			*filp;
+
+	struct mutex			mm_lock; /* protect memory related */
+	struct amdxdna_gem_obj		*dev_heap;
+
 	struct iommu_sva		*sva;
 	int				pasid;
 };

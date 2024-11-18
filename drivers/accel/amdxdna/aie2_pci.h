@@ -119,6 +119,7 @@ struct rt_config {
 };
 
 struct amdxdna_hwctx_priv {
+	struct amdxdna_gem_obj		*heap;
 	void				*mbox_chann;
 };
 
@@ -196,6 +197,8 @@ int aie2_query_firmware_version(struct amdxdna_dev_hdl *ndev,
 				struct amdxdna_fw_ver *fw_ver);
 int aie2_create_context(struct amdxdna_dev_hdl *ndev, struct amdxdna_hwctx *hwctx);
 int aie2_destroy_context(struct amdxdna_dev_hdl *ndev, struct amdxdna_hwctx *hwctx);
+int aie2_map_host_buf(struct amdxdna_dev_hdl *ndev, u32 context_id, u64 addr, u64 size);
+int aie2_config_cu(struct amdxdna_hwctx *hwctx);
 
 /* aie2_hwctx.c */
 int aie2_hwctx_init(struct amdxdna_hwctx *hwctx);

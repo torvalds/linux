@@ -13,7 +13,9 @@
 extern "C" {
 #endif
 
+#define AMDXDNA_INVALID_ADDR		(~0UL)
 #define AMDXDNA_INVALID_CTX_HANDLE	0
+#define AMDXDNA_INVALID_BO_HANDLE	0
 
 enum amdxdna_device_type {
 	AMDXDNA_DEV_TYPE_UNKNOWN = -1,
@@ -24,6 +26,9 @@ enum amdxdna_drm_ioctl_id {
 	DRM_AMDXDNA_CREATE_HWCTX,
 	DRM_AMDXDNA_DESTROY_HWCTX,
 	DRM_AMDXDNA_CONFIG_HWCTX,
+	DRM_AMDXDNA_CREATE_BO,
+	DRM_AMDXDNA_GET_BO_INFO,
+	DRM_AMDXDNA_SYNC_BO,
 };
 
 /**
@@ -136,6 +141,66 @@ struct amdxdna_drm_config_hwctx {
 	__u32 pad;
 };
 
+enum amdxdna_bo_type {
+	AMDXDNA_BO_INVALID = 0,
+	AMDXDNA_BO_SHMEM,
+	AMDXDNA_BO_DEV_HEAP,
+	AMDXDNA_BO_DEV,
+	AMDXDNA_BO_CMD,
+};
+
+/**
+ * struct amdxdna_drm_create_bo - Create a buffer object.
+ * @flags: Buffer flags. MBZ.
+ * @vaddr: User VA of buffer if applied. MBZ.
+ * @size: Size in bytes.
+ * @type: Buffer type.
+ * @handle: Returned DRM buffer object handle.
+ */
+struct amdxdna_drm_create_bo {
+	__u64	flags;
+	__u64	vaddr;
+	__u64	size;
+	__u32	type;
+	__u32	handle;
+};
+
+/**
+ * struct amdxdna_drm_get_bo_info - Get buffer object information.
+ * @ext: MBZ.
+ * @ext_flags: MBZ.
+ * @handle: DRM buffer object handle.
+ * @pad: Structure padding.
+ * @map_offset: Returned DRM fake offset for mmap().
+ * @vaddr: Returned user VA of buffer. 0 in case user needs mmap().
+ * @xdna_addr: Returned XDNA device virtual address.
+ */
+struct amdxdna_drm_get_bo_info {
+	__u64 ext;
+	__u64 ext_flags;
+	__u32 handle;
+	__u32 pad;
+	__u64 map_offset;
+	__u64 vaddr;
+	__u64 xdna_addr;
+};
+
+/**
+ * struct amdxdna_drm_sync_bo - Sync buffer object.
+ * @handle: Buffer object handle.
+ * @direction: Direction of sync, can be from device or to device.
+ * @offset: Offset in the buffer to sync.
+ * @size: Size in bytes.
+ */
+struct amdxdna_drm_sync_bo {
+	__u32 handle;
+#define SYNC_DIRECT_TO_DEVICE	0U
+#define SYNC_DIRECT_FROM_DEVICE	1U
+	__u32 direction;
+	__u64 offset;
+	__u64 size;
+};
+
 #define DRM_IOCTL_AMDXDNA_CREATE_HWCTX \
 	DRM_IOWR(DRM_COMMAND_BASE + DRM_AMDXDNA_CREATE_HWCTX, \
 		 struct amdxdna_drm_create_hwctx)
@@ -147,6 +212,18 @@ struct amdxdna_drm_config_hwctx {
 #define DRM_IOCTL_AMDXDNA_CONFIG_HWCTX \
 	DRM_IOWR(DRM_COMMAND_BASE + DRM_AMDXDNA_CONFIG_HWCTX, \
 		 struct amdxdna_drm_config_hwctx)
+
+#define DRM_IOCTL_AMDXDNA_CREATE_BO \
+	DRM_IOWR(DRM_COMMAND_BASE + DRM_AMDXDNA_CREATE_BO, \
+		 struct amdxdna_drm_create_bo)
+
+#define DRM_IOCTL_AMDXDNA_GET_BO_INFO \
+	DRM_IOWR(DRM_COMMAND_BASE + DRM_AMDXDNA_GET_BO_INFO, \
+		 struct amdxdna_drm_get_bo_info)
+
+#define DRM_IOCTL_AMDXDNA_SYNC_BO \
+	DRM_IOWR(DRM_COMMAND_BASE + DRM_AMDXDNA_SYNC_BO, \
+		 struct amdxdna_drm_sync_bo)
 
 #if defined(__cplusplus)
 } /* extern c end */
