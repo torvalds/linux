@@ -99,16 +99,16 @@ void nilfs_forget_buffer(struct buffer_head *bh)
  */
 void nilfs_copy_buffer(struct buffer_head *dbh, struct buffer_head *sbh)
 {
-	void *kaddr0, *kaddr1;
+	void *saddr, *daddr;
 	unsigned long bits;
-	struct page *spage = sbh->b_page, *dpage = dbh->b_page;
+	struct folio *sfolio = sbh->b_folio, *dfolio = dbh->b_folio;
 	struct buffer_head *bh;
 
-	kaddr0 = kmap_local_page(spage);
-	kaddr1 = kmap_local_page(dpage);
-	memcpy(kaddr1 + bh_offset(dbh), kaddr0 + bh_offset(sbh), sbh->b_size);
-	kunmap_local(kaddr1);
-	kunmap_local(kaddr0);
+	saddr = kmap_local_folio(sfolio, bh_offset(sbh));
+	daddr = kmap_local_folio(dfolio, bh_offset(dbh));
+	memcpy(daddr, saddr, sbh->b_size);
+	kunmap_local(daddr);
+	kunmap_local(saddr);
 
 	dbh->b_state = sbh->b_state & NILFS_BUFFER_INHERENT_BITS;
 	dbh->b_blocknr = sbh->b_blocknr;
@@ -122,13 +122,13 @@ void nilfs_copy_buffer(struct buffer_head *dbh, struct buffer_head *sbh)
 		unlock_buffer(bh);
 	}
 	if (bits & BIT(BH_Uptodate))
-		SetPageUptodate(dpage);
+		folio_mark_uptodate(dfolio);
 	else
-		ClearPageUptodate(dpage);
+		folio_clear_uptodate(dfolio);
 	if (bits & BIT(BH_Mapped))
-		SetPageMappedToDisk(dpage);
+		folio_set_mappedtodisk(dfolio);
 	else
-		ClearPageMappedToDisk(dpage);
+		folio_clear_mappedtodisk(dfolio);
 }
 
 /**

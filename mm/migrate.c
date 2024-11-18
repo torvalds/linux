@@ -473,7 +473,7 @@ static int folio_expected_refs(struct address_space *mapping,
  * The number of remaining references must be:
  * 1 for anonymous folios without a mapping
  * 2 for folios with a mapping
- * 3 for folios with a mapping and PagePrivate/PagePrivate2 set.
+ * 3 for folios with a mapping and the private flag set.
  */
 static int __folio_migrate_mapping(struct address_space *mapping,
 		struct folio *newfolio, struct folio *folio, int expected_count)
@@ -787,7 +787,7 @@ static int __migrate_folio(struct address_space *mapping, struct folio *dst,
  * @mode: How to migrate the page.
  *
  * Common logic to directly migrate a single LRU folio suitable for
- * folios that do not use PagePrivate/PagePrivate2.
+ * folios that do not have private data.
  *
  * Folios are locked upon entry and exit.
  */

@@ -1513,7 +1513,7 @@ static noinline int cow_file_range(struct btrfs_inode *inode,
 		 * (which the caller expects to stay locked), don't clear any
 		 * dirty bits and don't set any writeback bits
 		 *
-		 * Do set the Ordered (Private2) bit so we know this page was
+		 * Do set the Ordered flag so we know this page was
 		 * properly setup for writepage.
 		 */
 		page_ops = (keep_locked ? 0 : PAGE_UNLOCK);
@@ -7294,7 +7294,7 @@ static void btrfs_invalidate_folio(struct folio *folio, size_t offset,
 	 *
 	 * But already submitted bio can still be finished on this folio.
 	 * Furthermore, endio function won't skip folio which has Ordered
-	 * (Private2) already cleared, so it's possible for endio and
+	 * already cleared, so it's possible for endio and
 	 * invalidate_folio to do the same ordered extent accounting twice
 	 * on one folio.
 	 *
@@ -7360,7 +7360,7 @@ static void btrfs_invalidate_folio(struct folio *folio, size_t offset,
 		range_len = range_end + 1 - cur;
 		if (!btrfs_folio_test_ordered(fs_info, folio, cur, range_len)) {
 			/*
-			 * If Ordered (Private2) is cleared, it means endio has
+			 * If Ordered is cleared, it means endio has
 			 * already been executed for the range.
 			 * We can't delete the extent states as
 			 * btrfs_finish_ordered_io() may still use some of them.
@@ -7433,7 +7433,7 @@ next:
 	}
 	/*
 	 * We have iterated through all ordered extents of the page, the page
-	 * should not have Ordered (Private2) anymore, or the above iteration
+	 * should not have Ordered anymore, or the above iteration
 	 * did something wrong.
 	 */
 	ASSERT(!folio_test_ordered(folio));

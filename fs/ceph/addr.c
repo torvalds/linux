@@ -1054,7 +1054,9 @@ get_more_pages:
 		if (!nr_folios && !locked_pages)
 			break;
 		for (i = 0; i < nr_folios && locked_pages < max_pages; i++) {
-			page = &fbatch.folios[i]->page;
+			struct folio *folio = fbatch.folios[i];
+
+			page = &folio->page;
 			doutc(cl, "? %p idx %lu\n", page, page->index);
 			if (locked_pages == 0)
 				lock_page(page);  /* first page */
@@ -1081,8 +1083,6 @@ get_more_pages:
 				continue;
 			}
 			if (page_offset(page) >= ceph_wbc.i_size) {
-				struct folio *folio = page_folio(page);
-
 				doutc(cl, "folio at %lu beyond eof %llu\n",
 				      folio->index, ceph_wbc.i_size);
 				if ((ceph_wbc.size_stable ||
@@ -1098,16 +1098,16 @@ get_more_pages:
 				unlock_page(page);
 				break;
 			}
-			if (PageWriteback(page) ||
-			    PagePrivate2(page) /* [DEPRECATED] */) {
+			if (folio_test_writeback(folio) ||
+			    folio_test_private_2(folio) /* [DEPRECATED] */) {
 				if (wbc->sync_mode == WB_SYNC_NONE) {
-					doutc(cl, "%p under writeback\n", page);
-					unlock_page(page);
+					doutc(cl, "%p under writeback\n", folio);
+					folio_unlock(folio);
 					continue;
 				}
-				doutc(cl, "waiting on writeback %p\n", page);
-				wait_on_page_writeback(page);
-				folio_wait_private_2(page_folio(page)); /* [DEPRECATED] */
+				doutc(cl, "waiting on writeback %p\n", folio);
+				folio_wait_writeback(folio);
+				folio_wait_private_2(folio); /* [DEPRECATED] */
 			}
 
 			if (!clear_page_dirty_for_io(page)) {

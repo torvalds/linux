@@ -166,7 +166,6 @@ static void truncate_cleanup_folio(struct folio *folio)
 	 * Hence dirty accounting check is placed after invalidation.
 	 */
 	folio_cancel_dirty(folio);
-	folio_clear_mappedtodisk(folio);
 }
 
 int truncate_inode_folio(struct address_space *mapping, struct folio *folio)

@@ -1649,6 +1649,7 @@ void block_invalidate_folio(struct folio *folio, size_t offset, size_t length)
 	if (length == folio_size(folio))
 		filemap_release_folio(folio, 0);
 out:
+	folio_clear_mappedtodisk(folio);
 	return;
 }
 EXPORT_SYMBOL(block_invalidate_folio);
