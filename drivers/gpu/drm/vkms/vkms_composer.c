@@ -29,8 +29,8 @@ static u16 pre_mul_blend_channel(u16 src, u16 dst, u16 alpha)
  * @x_start: The start offset
  * @pixel_count: The number of pixels to blend
  *
- * The pixels [0;@pixel_count) in stage_buffer are blended at [@x_start;@x_start+@pixel_count) in
- * output_buffer.
+ * The pixels [@x_start;@x_start+@pixel_count) in stage_buffer are blended at
+ * [@x_start;@x_start+@pixel_count) in output_buffer.
  *
  * The current DRM assumption is that pixel color values have been already
  * pre-multiplied with the alpha channel values. See more
@@ -41,7 +41,7 @@ static void pre_mul_alpha_blend(const struct line_buffer *stage_buffer,
 				struct line_buffer *output_buffer, int x_start, int pixel_count)
 {
 	struct pixel_argb_u16 *out = &output_buffer->pixels[x_start];
-	const struct pixel_argb_u16 *in = stage_buffer->pixels;
+	const struct pixel_argb_u16 *in = &stage_buffer->pixels[x_start];
 
 	for (int i = 0; i < pixel_count; i++) {
 		out[i].a = (u16)0xffff;
@@ -51,33 +51,6 @@ static void pre_mul_alpha_blend(const struct line_buffer *stage_buffer,
 	}
 }
 
-static int get_y_pos(struct vkms_frame_info *frame_info, int y)
-{
-	if (frame_info->rotation & DRM_MODE_REFLECT_Y)
-		return drm_rect_height(&frame_info->rotated) - y - 1;
-
-	switch (frame_info->rotation & DRM_MODE_ROTATE_MASK) {
-	case DRM_MODE_ROTATE_90:
-		return frame_info->rotated.x2 - y - 1;
-	case DRM_MODE_ROTATE_270:
-		return y + frame_info->rotated.x1;
-	default:
-		return y;
-	}
-}
-
-static bool check_limit(struct vkms_frame_info *frame_info, int pos)
-{
-	if (drm_rotation_90_or_270(frame_info->rotation)) {
-		if (pos >= 0 && pos < drm_rect_width(&frame_info->rotated))
-			return true;
-	} else {
-		if (pos >= frame_info->rotated.y1 && pos < frame_info->rotated.y2)
-			return true;
-	}
-
-	return false;
-}
 
 static void fill_background(const struct pixel_argb_u16 *background_color,
 			    struct line_buffer *output_buffer)
@@ -204,6 +177,182 @@ static enum pixel_read_direction direction_for_rotation(unsigned int rotation)
 }
 
 /**
+ * clamp_line_coordinates() - Compute and clamp the coordinate to read and write during the blend
+ * process.
+ *
+ * @direction: direction of the reading
+ * @current_plane: current plane blended
+ * @src_line: source line of the reading. Only the top-left coordinate is used. This rectangle
+ * must be rotated and have a shape of 1*pixel_count if @direction is vertical and a shape of
+ * pixel_count*1 if @direction is horizontal.
+ * @src_x_start: x start coordinate for the line reading
+ * @src_y_start: y start coordinate for the line reading
+ * @dst_x_start: x coordinate to blend the read line
+ * @pixel_count: number of pixels to blend
+ *
+ * This function is mainly a safety net to avoid reading outside the source buffer. As the
+ * userspace should never ask to read outside the source plane, all the cases covered here should
+ * be dead code.
+ */
+static void clamp_line_coordinates(enum pixel_read_direction direction,
+				   const struct vkms_plane_state *current_plane,
+				   const struct drm_rect *src_line, int *src_x_start,
+				   int *src_y_start, int *dst_x_start, int *pixel_count)
+{
+	/* By default the start points are correct */
+	*src_x_start = src_line->x1;
+	*src_y_start = src_line->y1;
+	*dst_x_start = current_plane->frame_info->dst.x1;
+
+	/* Get the correct number of pixel to blend, it depends of the direction */
+	switch (direction) {
+	case READ_LEFT_TO_RIGHT:
+	case READ_RIGHT_TO_LEFT:
+		*pixel_count = drm_rect_width(src_line);
+		break;
+	case READ_BOTTOM_TO_TOP:
+	case READ_TOP_TO_BOTTOM:
+		*pixel_count = drm_rect_height(src_line);
+		break;
+	}
+
+	/*
+	 * Clamp the coordinates to avoid reading outside the buffer
+	 *
+	 * This is mainly a security check to avoid reading outside the buffer, the userspace
+	 * should never request to read outside the source buffer.
+	 */
+	switch (direction) {
+	case READ_LEFT_TO_RIGHT:
+	case READ_RIGHT_TO_LEFT:
+		if (*src_x_start < 0) {
+			*pixel_count += *src_x_start;
+			*dst_x_start -= *src_x_start;
+			*src_x_start = 0;
+		}
+		if (*src_x_start + *pixel_count > current_plane->frame_info->fb->width)
+			*pixel_count = max(0, (int)current_plane->frame_info->fb->width -
+				*src_x_start);
+		break;
+	case READ_BOTTOM_TO_TOP:
+	case READ_TOP_TO_BOTTOM:
+		if (*src_y_start < 0) {
+			*pixel_count += *src_y_start;
+			*dst_x_start -= *src_y_start;
+			*src_y_start = 0;
+		}
+		if (*src_y_start + *pixel_count > current_plane->frame_info->fb->height)
+			*pixel_count = max(0, (int)current_plane->frame_info->fb->height -
+				*src_y_start);
+		break;
+	}
+}
+
+/**
+ * blend_line() - Blend a line from a plane to the output buffer
+ *
+ * @current_plane: current plane to work on
+ * @y: line to write in the output buffer
+ * @crtc_x_limit: width of the output buffer
+ * @stage_buffer: temporary buffer to convert the pixel line from the source buffer
+ * @output_buffer: buffer to blend the read line into.
+ */
+static void blend_line(struct vkms_plane_state *current_plane, int y,
+		       int crtc_x_limit, struct line_buffer *stage_buffer,
+		       struct line_buffer *output_buffer)
+{
+	int src_x_start, src_y_start, dst_x_start, pixel_count;
+	struct drm_rect dst_line, tmp_src, src_line;
+
+	/* Avoid rendering useless lines */
+	if (y < current_plane->frame_info->dst.y1 ||
+	    y >= current_plane->frame_info->dst.y2)
+		return;
+
+	/*
+	 * dst_line is the line to copy. The initial coordinates are inside the
+	 * destination framebuffer, and then drm_rect_* helpers are used to
+	 * compute the correct position into the source framebuffer.
+	 */
+	dst_line = DRM_RECT_INIT(current_plane->frame_info->dst.x1, y,
+				 drm_rect_width(&current_plane->frame_info->dst),
+				 1);
+
+	drm_rect_fp_to_int(&tmp_src, &current_plane->frame_info->src);
+
+	/*
+	 * [1]: Clamping src_line to the crtc_x_limit to avoid writing outside of
+	 * the destination buffer
+	 */
+	dst_line.x1 = max_t(int, dst_line.x1, 0);
+	dst_line.x2 = min_t(int, dst_line.x2, crtc_x_limit);
+	/* The destination is completely outside of the crtc. */
+	if (dst_line.x2 <= dst_line.x1)
+		return;
+
+	src_line = dst_line;
+
+	/*
+	 * Transform the coordinate x/y from the crtc to coordinates into
+	 * coordinates for the src buffer.
+	 *
+	 * - Cancel the offset of the dst buffer.
+	 * - Invert the rotation. This assumes that
+	 *   dst = drm_rect_rotate(src, rotation) (dst and src have the
+	 *   same size, but can be rotated).
+	 * - Apply the offset of the source rectangle to the coordinate.
+	 */
+	drm_rect_translate(&src_line, -current_plane->frame_info->dst.x1,
+			   -current_plane->frame_info->dst.y1);
+	drm_rect_rotate_inv(&src_line, drm_rect_width(&tmp_src),
+			    drm_rect_height(&tmp_src),
+			    current_plane->frame_info->rotation);
+	drm_rect_translate(&src_line, tmp_src.x1, tmp_src.y1);
+
+	/* Get the correct reading direction in the source buffer. */
+
+	enum pixel_read_direction direction =
+		direction_for_rotation(current_plane->frame_info->rotation);
+
+	/* [2]: Compute and clamp the number of pixel to read */
+	clamp_line_coordinates(direction, current_plane, &src_line, &src_x_start, &src_y_start,
+			       &dst_x_start, &pixel_count);
+
+	if (pixel_count <= 0) {
+		/* Nothing to read, so avoid multiple function calls */
+		return;
+	}
+
+	/*
+	 * Modify the starting point to take in account the rotation
+	 *
+	 * src_line is the top-left corner, so when reading READ_RIGHT_TO_LEFT or
+	 * READ_BOTTOM_TO_TOP, it must be changed to the top-right/bottom-left
+	 * corner.
+	 */
+	if (direction == READ_RIGHT_TO_LEFT) {
+		// src_x_start is now the right point
+		src_x_start += pixel_count - 1;
+	} else if (direction == READ_BOTTOM_TO_TOP) {
+		// src_y_start is now the bottom point
+		src_y_start += pixel_count - 1;
+	}
+
+	/*
+	 * Perform the conversion and the blending
+	 *
+	 * Here we know that the read line (x_start, y_start, pixel_count) is
+	 * inside the source buffer [2] and we don't write outside the stage
+	 * buffer [1].
+	 */
+	current_plane->pixel_read_line(current_plane, src_x_start, src_y_start, direction,
+				       pixel_count, &stage_buffer->pixels[dst_x_start]);
+
+	pre_mul_alpha_blend(stage_buffer, output_buffer,
+			    dst_x_start, pixel_count);
+}
+
+/**
  * blend - blend the pixels from all planes and compute crc
  * @wb: The writeback frame buffer metadata
  * @crtc_state: The crtc state
@@ -223,34 +372,25 @@ static void blend(struct vkms_writeback_job *wb,
 {
 	struct vkms_plane_state **plane = crtc_state->active_planes;
 	u32 n_active_planes = crtc_state->num_active_planes;
-	int y_pos, x_dst, pixel_count;
 
 	const struct pixel_argb_u16 background_color = { .a = 0xffff };
 
-	size_t crtc_y_limit = crtc_state->base.mode.vdisplay;
+	int crtc_y_limit = crtc_state->base.mode.vdisplay;
+	int crtc_x_limit = crtc_state->base.mode.hdisplay;
 
 	/*
 	 * The planes are composed line-by-line to avoid heavy memory usage. It is a necessary
 	 * complexity to avoid poor blending performance.
 	 *
-	 * The function vkms_compose_row() is used to read a line, pixel-by-pixel, into the staging
-	 * buffer.
+	 * The function pixel_read_line callback is used to read a line, using an efficient
+	 * algorithm for a specific format, into the staging buffer.
 	 */
-	for (size_t y = 0; y < crtc_y_limit; y++) {
+	for (int y = 0; y < crtc_y_limit; y++) {
 		fill_background(&background_color, output_buffer);
 
 		/* The active planes are composed associatively in z-order. */
 		for (size_t i = 0; i < n_active_planes; i++) {
-			x_dst = plane[i]->frame_info->dst.x1;
-			pixel_count = min_t(int, drm_rect_width(&plane[i]->frame_info->dst),
-					    (int)stage_buffer->n_pixels);
-			y_pos = get_y_pos(plane[i]->frame_info, y);
-
-			if (!check_limit(plane[i]->frame_info, y_pos))
-				continue;
-
-			vkms_compose_row(stage_buffer, plane[i], y_pos);
-			pre_mul_alpha_blend(stage_buffer, output_buffer, x_dst, pixel_count);
+			blend_line(plane[i], y, crtc_x_limit, stage_buffer, output_buffer);
 		}
 
 		apply_lut(crtc_state, output_buffer);
@@ -258,7 +398,7 @@ static void blend(struct vkms_writeback_job *wb,
 		*crc32 = crc32_le(*crc32, (void *)output_buffer->pixels, row_size);
 
 		if (wb)
-			vkms_writeback_row(wb, output_buffer, y_pos);
+			vkms_writeback_row(wb, output_buffer, y);
 	}
 }
 
@@ -269,7 +409,7 @@ static int check_format_funcs(struct vkms_crtc_state *crtc_state,
 	u32 n_active_planes = crtc_state->num_active_planes;
 
 	for (size_t i = 0; i < n_active_planes; i++)
-		if (!planes[i]->pixel_read)
+		if (!planes[i]->pixel_read_line)
 			return -1;
 
 	if (active_wb && !active_wb->pixel_write)
