@@ -250,6 +250,13 @@ static int blk_validate_limits(struct queue_limits *lim)
 		lim->io_min = lim->physical_block_size;
 
 	/*
+	 * The optimal I/O size may not be aligned to physical block size
+	 * (because it may be limited by dma engines which have no clue about
+	 * block size of the disks attached to them), so we round it down here.
+	 */
+	lim->io_opt = round_down(lim->io_opt, lim->physical_block_size);
+
+	/*
 	 * max_hw_sectors has a somewhat weird default for historical reason,
 	 * but driver really should set their own instead of relying on this
 	 * value.
