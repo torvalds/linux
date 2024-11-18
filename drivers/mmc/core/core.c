@@ -19,7 +19,6 @@
 #include <linux/scatterlist.h>
 #include <linux/log2.h>
 #include <linux/pm_runtime.h>
-#include <linux/pm_wakeup.h>
 #include <linux/suspend.h>
 #include <linux/fault-inject.h>
 #include <linux/random.h>
