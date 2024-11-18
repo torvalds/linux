@@ -59,6 +59,10 @@ int bch2_backpointer_validate(struct bch_fs *c, struct bkey_s_c k,
 			 "backpointer level bad: %u >= %u",
 			 bp.v->level, BTREE_MAX_DEPTH);
 
+	bkey_fsck_err_on(bp.k->p.inode == BCH_SB_MEMBER_INVALID,
+			 c, backpointer_dev_bad,
+			 "backpointer for BCH_SB_MEMBER_INVALID");
+
 	rcu_read_lock();
 	struct bch_dev *ca = bch2_dev_rcu_noerror(c, bp.k->p.inode);
 	if (!ca) {

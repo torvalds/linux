@@ -138,6 +138,7 @@ enum bch_fsck_flags {
 	x(discarding_bucket_not_in_need_discard_btree,		291,	0)		\
 	x(backpointer_bucket_offset_wrong,			125,	0)		\
 	x(backpointer_level_bad,				294,	0)		\
+	x(backpointer_dev_bad,					297,	0)		\
 	x(backpointer_to_missing_device,			126,	0)		\
 	x(backpointer_to_missing_alloc,				127,	0)		\
 	x(backpointer_to_missing_ptr,				128,	0)		\
@@ -307,7 +308,7 @@ enum bch_fsck_flags {
 	x(logged_op_but_clean,					283,	FSCK_AUTOFIX)	\
 	x(compression_opt_not_marked_in_sb,			295,	FSCK_AUTOFIX)	\
 	x(compression_type_not_marked_in_sb,			296,	FSCK_AUTOFIX)	\
-	x(MAX,							297,	0)
+	x(MAX,							298,	0)
 
 enum bch_sb_error_id {
 #define x(t, n, ...) BCH_FSCK_ERR_##t = n,
