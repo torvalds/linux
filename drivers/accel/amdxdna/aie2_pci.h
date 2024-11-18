@@ -77,6 +77,7 @@ enum psp_reg_idx {
 };
 
 struct amdxdna_fw_ver;
+struct amdxdna_hwctx;
 
 struct psp_config {
 	const void	*fw_buf;
@@ -115,6 +116,10 @@ struct clock_entry {
 struct rt_config {
 	u32	type;
 	u32	value;
+};
+
+struct amdxdna_hwctx_priv {
+	void				*mbox_chann;
 };
 
 struct amdxdna_dev_hdl {
@@ -189,4 +194,12 @@ int aie2_query_aie_version(struct amdxdna_dev_hdl *ndev, struct aie_version *ver
 int aie2_query_aie_metadata(struct amdxdna_dev_hdl *ndev, struct aie_metadata *metadata);
 int aie2_query_firmware_version(struct amdxdna_dev_hdl *ndev,
 				struct amdxdna_fw_ver *fw_ver);
+int aie2_create_context(struct amdxdna_dev_hdl *ndev, struct amdxdna_hwctx *hwctx);
+int aie2_destroy_context(struct amdxdna_dev_hdl *ndev, struct amdxdna_hwctx *hwctx);
+
+/* aie2_hwctx.c */
+int aie2_hwctx_init(struct amdxdna_hwctx *hwctx);
+void aie2_hwctx_fini(struct amdxdna_hwctx *hwctx);
+int aie2_hwctx_config(struct amdxdna_hwctx *hwctx, u32 type, u64 value, void *buf, u32 size);
+
 #endif /* _AIE2_PCI_H_ */

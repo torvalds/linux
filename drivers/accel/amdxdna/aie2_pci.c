@@ -3,6 +3,7 @@
  * Copyright (C) 2023-2024, Advanced Micro Devices, Inc.
  */
 
+#include <drm/amdxdna_accel.h>
 #include <drm/drm_device.h>
 #include <drm/drm_managed.h>
 #include <drm/drm_print.h>
@@ -15,6 +16,7 @@
 #include "aie2_msg_priv.h"
 #include "aie2_pci.h"
 #include "aie2_solver.h"
+#include "amdxdna_ctx.h"
 #include "amdxdna_mailbox.h"
 #include "amdxdna_pci_drv.h"
 
@@ -209,6 +211,43 @@ static void aie2_mgmt_fw_fini(struct amdxdna_dev_hdl *ndev)
 		XDNA_ERR(ndev->xdna, "Suspend_fw failed");
 	XDNA_DBG(ndev->xdna, "Firmware suspended");
 }
+
+static int aie2_xrs_load(void *cb_arg, struct xrs_action_load *action)
+{
+	struct amdxdna_hwctx *hwctx = cb_arg;
+	struct amdxdna_dev *xdna;
+	int ret;
+
+	xdna = hwctx->client->xdna;
+
+	hwctx->start_col = action->part.start_col;
+	hwctx->num_col = action->part.ncols;
+	ret = aie2_create_context(xdna->dev_handle, hwctx);
+	if (ret)
+		XDNA_ERR(xdna, "create context failed, ret %d", ret);
+
+	return ret;
+}
+
+static int aie2_xrs_unload(void *cb_arg)
+{
+	struct amdxdna_hwctx *hwctx = cb_arg;
+	struct amdxdna_dev *xdna;
+	int ret;
+
+	xdna = hwctx->client->xdna;
+
+	ret = aie2_destroy_context(xdna->dev_handle, hwctx);
+	if (ret)
+		XDNA_ERR(xdna, "destroy context failed, ret %d", ret);
+
+	return ret;
+}
+
+static struct xrs_action_ops aie2_xrs_actions = {
+	.load = aie2_xrs_load,
+	.unload = aie2_xrs_unload,
+};
 
 static void aie2_hw_stop(struct amdxdna_dev *xdna)
 {
@@ -417,6 +456,7 @@ static int aie2_init(struct amdxdna_dev *xdna)
 	xrs_cfg.clk_list.cu_clk_list[2] = 1000;
 	xrs_cfg.sys_eff_factor = 1;
 	xrs_cfg.ddev = &xdna->ddev;
+	xrs_cfg.actions = &aie2_xrs_actions;
 	xrs_cfg.total_col = ndev->total_col;
 
 	xdna->xrs_hdl = xrsm_init(&xrs_cfg);
@@ -453,4 +493,7 @@ static void aie2_fini(struct amdxdna_dev *xdna)
 const struct amdxdna_dev_ops aie2_ops = {
 	.init           = aie2_init,
 	.fini           = aie2_fini,
+	.hwctx_init     = aie2_hwctx_init,
+	.hwctx_fini     = aie2_hwctx_fini,
+	.hwctx_config   = aie2_hwctx_config,
 };

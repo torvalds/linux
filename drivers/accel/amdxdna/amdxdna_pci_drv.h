@@ -18,6 +18,7 @@
 extern const struct drm_driver amdxdna_drm_drv;
 
 struct amdxdna_dev;
+struct amdxdna_hwctx;
 
 /*
  * struct amdxdna_dev_ops - Device hardware operation callbacks
@@ -25,6 +26,9 @@ struct amdxdna_dev;
 struct amdxdna_dev_ops {
 	int (*init)(struct amdxdna_dev *xdna);
 	void (*fini)(struct amdxdna_dev *xdna);
+	int (*hwctx_init)(struct amdxdna_hwctx *hwctx);
+	void (*hwctx_fini)(struct amdxdna_hwctx *hwctx);
+	int (*hwctx_config)(struct amdxdna_hwctx *hwctx, u32 type, u64 value, void *buf, u32 size);
 };
 
 /*
@@ -61,6 +65,7 @@ struct amdxdna_dev {
 	void				*xrs_hdl;
 
 	struct mutex			dev_lock; /* per device lock */
+	struct list_head		client_list;
 	struct amdxdna_fw_ver		fw_ver;
 };
 
@@ -71,6 +76,21 @@ struct amdxdna_device_id {
 	unsigned short device;
 	u8 revision;
 	const struct amdxdna_dev_info *dev_info;
+};
+
+/*
+ * struct amdxdna_client - amdxdna client
+ * A per fd data structure for managing context and other user process stuffs.
+ */
+struct amdxdna_client {
+	struct list_head		node;
+	pid_t				pid;
+	struct mutex			hwctx_lock; /* protect hwctx */
+	struct idr			hwctx_idr;
+	struct amdxdna_dev		*xdna;
+	struct drm_file			*filp;
+	struct iommu_sva		*sva;
+	int				pasid;
 };
 
 /* Add device info below */

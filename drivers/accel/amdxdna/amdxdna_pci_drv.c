@@ -3,13 +3,16 @@
  * Copyright (C) 2022-2024, Advanced Micro Devices, Inc.
  */
 
+#include <drm/amdxdna_accel.h>
 #include <drm/drm_accel.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_gem.h>
 #include <drm/drm_ioctl.h>
 #include <drm/drm_managed.h>
+#include <linux/iommu.h>
 #include <linux/pci.h>
 
+#include "amdxdna_ctx.h"
 #include "amdxdna_pci_drv.h"
 
 /*
@@ -33,7 +36,108 @@ static const struct amdxdna_device_id amdxdna_ids[] = {
 	{0}
 };
 
-DEFINE_DRM_ACCEL_FOPS(amdxdna_fops);
+static int amdxdna_drm_open(struct drm_device *ddev, struct drm_file *filp)
+{
+	struct amdxdna_dev *xdna = to_xdna_dev(ddev);
+	struct amdxdna_client *client;
+	int ret;
+
+	client = kzalloc(sizeof(*client), GFP_KERNEL);
+	if (!client)
+		return -ENOMEM;
+
+	client->pid = pid_nr(filp->pid);
+	client->xdna = xdna;
+
+	client->sva = iommu_sva_bind_device(xdna->ddev.dev, current->mm);
+	if (IS_ERR(client->sva)) {
+		ret = PTR_ERR(client->sva);
+		XDNA_ERR(xdna, "SVA bind device failed, ret %d", ret);
+		goto failed;
+	}
+	client->pasid = iommu_sva_get_pasid(client->sva);
+	if (client->pasid == IOMMU_PASID_INVALID) {
+		XDNA_ERR(xdna, "SVA get pasid failed");
+		ret = -ENODEV;
+		goto unbind_sva;
+	}
+	mutex_init(&client->hwctx_lock);
+	idr_init_base(&client->hwctx_idr, AMDXDNA_INVALID_CTX_HANDLE + 1);
+
+	mutex_lock(&xdna->dev_lock);
+	list_add_tail(&client->node, &xdna->client_list);
+	mutex_unlock(&xdna->dev_lock);
+
+	filp->driver_priv = client;
+	client->filp = filp;
+
+	XDNA_DBG(xdna, "pid %d opened", client->pid);
+	return 0;
+
+unbind_sva:
+	iommu_sva_unbind_device(client->sva);
+failed:
+	kfree(client);
+
+	return ret;
+}
+
+static void amdxdna_drm_close(struct drm_device *ddev, struct drm_file *filp)
+{
+	struct amdxdna_client *client = filp->driver_priv;
+	struct amdxdna_dev *xdna = to_xdna_dev(ddev);
+
+	XDNA_DBG(xdna, "closing pid %d", client->pid);
+
+	idr_destroy(&client->hwctx_idr);
+	mutex_destroy(&client->hwctx_lock);
+
+	iommu_sva_unbind_device(client->sva);
+
+	XDNA_DBG(xdna, "pid %d closed", client->pid);
+	kfree(client);
+}
+
+static int amdxdna_flush(struct file *f, fl_owner_t id)
+{
+	struct drm_file *filp = f->private_data;
+	struct amdxdna_client *client = filp->driver_priv;
+	struct amdxdna_dev *xdna = client->xdna;
+	int idx;
+
+	XDNA_DBG(xdna, "PID %d flushing...", client->pid);
+	if (!drm_dev_enter(&xdna->ddev, &idx))
+		return 0;
+
+	mutex_lock(&xdna->dev_lock);
+	list_del_init(&client->node);
+	mutex_unlock(&xdna->dev_lock);
+	amdxdna_hwctx_remove_all(client);
+
+	drm_dev_exit(idx);
+	return 0;
+}
+
+static const struct drm_ioctl_desc amdxdna_drm_ioctls[] = {
+	/* Context */
+	DRM_IOCTL_DEF_DRV(AMDXDNA_CREATE_HWCTX, amdxdna_drm_create_hwctx_ioctl, 0),
+	DRM_IOCTL_DEF_DRV(AMDXDNA_DESTROY_HWCTX, amdxdna_drm_destroy_hwctx_ioctl, 0),
+	DRM_IOCTL_DEF_DRV(AMDXDNA_CONFIG_HWCTX, amdxdna_drm_config_hwctx_ioctl, 0),
+};
+
+static const struct file_operations amdxdna_fops = {
+	.owner		= THIS_MODULE,
+	.open		= accel_open,
+	.release	= drm_release,
+	.flush		= amdxdna_flush,
+	.unlocked_ioctl	= drm_ioctl,
+	.compat_ioctl	= drm_compat_ioctl,
+	.poll		= drm_poll,
+	.read		= drm_read,
+	.llseek		= noop_llseek,
+	.mmap		= drm_gem_mmap,
+	.fop_flags	= FOP_UNSIGNED_OFFSET,
+};
 
 const struct drm_driver amdxdna_drm_drv = {
 	.driver_features = DRIVER_GEM | DRIVER_COMPUTE_ACCEL |
@@ -41,6 +145,10 @@ const struct drm_driver amdxdna_drm_drv = {
 	.fops = &amdxdna_fops,
 	.name = "amdxdna_accel_driver",
 	.desc = "AMD XDNA DRM implementation",
+	.open = amdxdna_drm_open,
+	.postclose = amdxdna_drm_close,
+	.ioctls = amdxdna_drm_ioctls,
+	.num_ioctls = ARRAY_SIZE(amdxdna_drm_ioctls),
 };
 
 static const struct amdxdna_dev_info *
@@ -70,6 +178,7 @@ static int amdxdna_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		return -ENODEV;
 
 	drmm_mutex_init(&xdna->ddev, &xdna->dev_lock);
+	INIT_LIST_HEAD(&xdna->client_list);
 	pci_set_drvdata(pdev, xdna);
 
 	mutex_lock(&xdna->dev_lock);
@@ -106,11 +215,25 @@ failed_dev_fini:
 static void amdxdna_remove(struct pci_dev *pdev)
 {
 	struct amdxdna_dev *xdna = pci_get_drvdata(pdev);
+	struct amdxdna_client *client;
 
 	drm_dev_unplug(&xdna->ddev);
 	amdxdna_sysfs_fini(xdna);
 
 	mutex_lock(&xdna->dev_lock);
+	client = list_first_entry_or_null(&xdna->client_list,
+					  struct amdxdna_client, node);
+	while (client) {
+		list_del_init(&client->node);
+		mutex_unlock(&xdna->dev_lock);
+
+		amdxdna_hwctx_remove_all(client);
+
+		mutex_lock(&xdna->dev_lock);
+		client = list_first_entry_or_null(&xdna->client_list,
+						  struct amdxdna_client, node);
+	}
+
 	xdna->dev_info->ops->fini(xdna);
 	mutex_unlock(&xdna->dev_lock);
 }
