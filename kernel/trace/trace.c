@@ -10621,10 +10621,10 @@ __init static void enable_instances(void)
 		 * cannot be deleted by user space, so keep the reference
 		 * to it.
 		 */
-		if (start)
+		if (start) {
 			tr->flags |= TRACE_ARRAY_FL_BOOT;
-		else
-			trace_array_put(tr);
+			tr->ref++;
+		}
 
 		while ((tok = strsep(&curr_str, ","))) {
 			early_enable_events(tr, tok, true);

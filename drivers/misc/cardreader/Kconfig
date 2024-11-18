@@ -16,7 +16,8 @@ config MISC_RTSX_PCI
 	select MFD_CORE
 	help
 	  This supports for Realtek PCI-Express card reader including rts5209,
-	  rts5227, rts522A, rts5229, rts5249, rts524A, rts525A, rtl8411, rts5260.
+	  rts5227, rts5228, rts522A, rts5229, rts5249, rts524A, rts525A, rtl8411,
+	  rts5260, rts5261, rts5264.
 	  Realtek card readers support access to many types of memory cards,
 	  such as Memory Stick, Memory Stick Pro, Secure Digital and
 	  MultiMediaCard.

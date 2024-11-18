@@ -2239,10 +2239,8 @@ static void async_btree_node_rewrite_work(struct work_struct *work)
 	struct async_btree_rewrite *a =
 		container_of(work, struct async_btree_rewrite, work);
 	struct bch_fs *c = a->c;
-	int ret;
 
-	ret = bch2_trans_do(c, NULL, NULL, 0,
-		      async_btree_node_rewrite_trans(trans, a));
+	int ret = bch2_trans_do(c, async_btree_node_rewrite_trans(trans, a));
 	bch_err_fn_ratelimited(c, ret);
 	bch2_write_ref_put(c, BCH_WRITE_REF_node_rewrite);
 	kfree(a);

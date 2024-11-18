@@ -340,6 +340,15 @@ static int btrfs_parse_param(struct fs_context *fc, struct fs_parameter *param)
 		fallthrough;
 	case Opt_compress:
 	case Opt_compress_type:
+		/*
+		 * Provide the same semantics as older kernels that don't use fs
+		 * context, specifying the "compress" option clears
+		 * "force-compress" without the need to pass
+		 * "compress-force=[no|none]" before specifying "compress".
+		 */
+		if (opt != Opt_compress_force && opt != Opt_compress_force_type)
+			btrfs_clear_opt(ctx->mount_opt, FORCE_COMPRESS);
+
 		if (opt == Opt_compress || opt == Opt_compress_force) {
 			ctx->compress_type = BTRFS_COMPRESS_ZLIB;
 			ctx->compress_level = BTRFS_ZLIB_DEFAULT_LEVEL;
@@ -1498,8 +1507,7 @@ static int btrfs_reconfigure(struct fs_context *fc)
 	sync_filesystem(sb);
 	set_bit(BTRFS_FS_STATE_REMOUNTING, &fs_info->fs_state);
 
-	if (!mount_reconfigure &&
-	    !btrfs_check_options(fs_info, &ctx->mount_opt, fc->sb_flags))
+	if (!btrfs_check_options(fs_info, &ctx->mount_opt, fc->sb_flags))
 		return -EINVAL;
 
 	ret = btrfs_check_features(fs_info, !(fc->sb_flags & SB_RDONLY));

@@ -684,7 +684,7 @@ struct open_bucket *bch2_bucket_alloc(struct bch_fs *c, struct bch_dev *ca,
 	struct bch_dev_usage usage;
 	struct open_bucket *ob;
 
-	bch2_trans_do(c, NULL, NULL, 0,
+	bch2_trans_do(c,
 		      PTR_ERR_OR_ZERO(ob = bch2_bucket_alloc_trans(trans, ca, watermark,
 							data_type, cl, false, &usage)));
 	return ob;

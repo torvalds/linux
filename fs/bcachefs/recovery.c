@@ -287,7 +287,8 @@ int bch2_journal_replay(struct bch_fs *c)
 				BCH_TRANS_COMMIT_no_enospc|
 				BCH_TRANS_COMMIT_journal_reclaim|
 				BCH_TRANS_COMMIT_skip_accounting_apply|
-				BCH_TRANS_COMMIT_no_journal_res,
+				BCH_TRANS_COMMIT_no_journal_res|
+				BCH_WATERMARK_reclaim,
 			     bch2_journal_replay_accounting_key(trans, k));
 		if (bch2_fs_fatal_err_on(ret, c, "error replaying accounting; %s", bch2_err_str(ret)))
 			goto err;
@@ -1090,7 +1091,7 @@ int bch2_fs_initialize(struct bch_fs *c)
 
 	bch2_inode_init_early(c, &lostfound_inode);
 
-	ret = bch2_trans_do(c, NULL, NULL, 0,
+	ret = bch2_trans_commit_do(c, NULL, NULL, 0,
 		bch2_create_trans(trans,
 				  BCACHEFS_ROOT_SUBVOL_INUM,
 				  &root_inode, &lostfound_inode,

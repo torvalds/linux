@@ -256,6 +256,20 @@ static inline const struct iomap *iomap_iter_srcmap(const struct iomap_iter *i)
 	return &i->iomap;
 }
 
+/*
+ * Return the file offset for the first unchanged block after a short write.
+ *
+ * If nothing was written, round @pos down to point at the first block in
+ * the range, else round up to include the partially written block.
+ */
+static inline loff_t iomap_last_written_block(struct inode *inode, loff_t pos,
+		ssize_t written)
+{
+	if (unlikely(!written))
+		return round_down(pos, i_blocksize(inode));
+	return round_up(pos + written, i_blocksize(inode));
+}
+
 ssize_t iomap_file_buffered_write(struct kiocb *iocb, struct iov_iter *from,
 		const struct iomap_ops *ops, void *private);
 int iomap_read_folio(struct folio *folio, const struct iomap_ops *ops);
@@ -276,9 +290,9 @@ vm_fault_t iomap_page_mkwrite(struct vm_fault *vmf,
 
 typedef void (*iomap_punch_t)(struct inode *inode, loff_t offset, loff_t length,
 		struct iomap *iomap);
-void iomap_file_buffered_write_punch_delalloc(struct inode *inode, loff_t pos,
-		loff_t length, ssize_t written, unsigned flag,
-		struct iomap *iomap, iomap_punch_t punch);
+void iomap_write_delalloc_release(struct inode *inode, loff_t start_byte,
+		loff_t end_byte, unsigned flags, struct iomap *iomap,
+		iomap_punch_t punch);
 
 int iomap_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 		u64 start, u64 len, const struct iomap_ops *ops);

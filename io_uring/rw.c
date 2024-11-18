@@ -807,7 +807,7 @@ static int io_rw_init_file(struct io_kiocb *req, fmode_t mode, int rw_type)
 	 * reliably. If not, or it IOCB_NOWAIT is set, don't retry.
 	 */
 	if (kiocb->ki_flags & IOCB_NOWAIT ||
-	    ((file->f_flags & O_NONBLOCK && (req->flags & REQ_F_SUPPORT_NOWAIT))))
+	    ((file->f_flags & O_NONBLOCK && !(req->flags & REQ_F_SUPPORT_NOWAIT))))
 		req->flags |= REQ_F_NOWAIT;
 
 	if (ctx->flags & IORING_SETUP_IOPOLL) {

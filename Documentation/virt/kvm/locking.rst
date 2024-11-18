@@ -136,7 +136,7 @@ For direct sp, we can easily avoid it since the spte of direct sp is fixed
 to gfn.  For indirect sp, we disabled fast page fault for simplicity.
 
 A solution for indirect sp could be to pin the gfn, for example via
-kvm_vcpu_gfn_to_pfn_atomic, before the cmpxchg.  After the pinning:
+gfn_to_pfn_memslot_atomic, before the cmpxchg.  After the pinning:
 
 - We have held the refcount of pfn; that means the pfn can not be freed and
   be reused for another gfn.

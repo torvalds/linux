@@ -838,7 +838,7 @@ config CFI_CLANG
 config CFI_ICALL_NORMALIZE_INTEGERS
 	bool "Normalize CFI tags for integers"
 	depends on CFI_CLANG
-	depends on HAVE_CFI_ICALL_NORMALIZE_INTEGERS
+	depends on HAVE_CFI_ICALL_NORMALIZE_INTEGERS_CLANG
 	help
 	  This option normalizes the CFI tags for integer types so that all
 	  integer types of the same size and signedness receive the same CFI
@@ -851,21 +851,19 @@ config CFI_ICALL_NORMALIZE_INTEGERS
 
 	  This option is necessary for using CFI with Rust. If unsure, say N.
 
-config HAVE_CFI_ICALL_NORMALIZE_INTEGERS
-	def_bool !GCOV_KERNEL && !KASAN
-	depends on CFI_CLANG
+config HAVE_CFI_ICALL_NORMALIZE_INTEGERS_CLANG
+	def_bool y
 	depends on $(cc-option,-fsanitize=kcfi -fsanitize-cfi-icall-experimental-normalize-integers)
-	help
-	  Is CFI_ICALL_NORMALIZE_INTEGERS supported with the set of compilers
-	  currently in use?
+	# With GCOV/KASAN we need this fix: https://github.com/llvm/llvm-project/pull/104826
+	depends on CLANG_VERSION >= 190000 || (!GCOV_KERNEL && !KASAN_GENERIC && !KASAN_SW_TAGS)
 
-	  This option defaults to false if GCOV or KASAN is enabled, as there is
-	  an LLVM bug that makes normalized integers tags incompatible with
-	  KASAN and GCOV. Kconfig currently does not have the infrastructure to
-	  detect whether your rustc compiler contains the fix for this bug, so
-	  it is assumed that it doesn't. If your compiler has the fix, you can
-	  explicitly enable this option in your config file. The Kconfig logic
-	  needed to detect this will be added in a future kernel release.
+config HAVE_CFI_ICALL_NORMALIZE_INTEGERS_RUSTC
+	def_bool y
+	depends on HAVE_CFI_ICALL_NORMALIZE_INTEGERS_CLANG
+	depends on RUSTC_VERSION >= 107900
+	# With GCOV/KASAN we need this fix: https://github.com/rust-lang/rust/pull/129373
+	depends on (RUSTC_LLVM_VERSION >= 190000 && RUSTC_VERSION >= 108200) || \
+		(!GCOV_KERNEL && !KASAN_GENERIC && !KASAN_SW_TAGS)
 
 config CFI_PERMISSIVE
 	bool "Use CFI in permissive mode"

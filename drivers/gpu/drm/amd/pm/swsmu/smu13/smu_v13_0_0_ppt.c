@@ -2555,18 +2555,16 @@ static int smu_v13_0_0_set_power_profile_mode(struct smu_context *smu,
 	workload_mask = 1 << workload_type;
 
 	/* Add optimizations for SMU13.0.0/10.  Reuse the power saving profile */
-	if (smu->power_profile_mode == PP_SMC_POWER_PROFILE_COMPUTE) {
-		if ((amdgpu_ip_version(smu->adev, MP1_HWIP, 0) == IP_VERSION(13, 0, 0) &&
-			((smu->adev->pm.fw_version == 0x004e6601) ||
-			(smu->adev->pm.fw_version >= 0x004e7300))) ||
-			(amdgpu_ip_version(smu->adev, MP1_HWIP, 0) == IP_VERSION(13, 0, 10) &&
-			 smu->adev->pm.fw_version >= 0x00504500)) {
-			workload_type = smu_cmn_to_asic_specific_index(smu,
-								CMN2ASIC_MAPPING_WORKLOAD,
-								PP_SMC_POWER_PROFILE_POWERSAVING);
-			if (workload_type >= 0)
-				workload_mask |= 1 << workload_type;
-		}
+	if ((amdgpu_ip_version(smu->adev, MP1_HWIP, 0) == IP_VERSION(13, 0, 0) &&
+	     ((smu->adev->pm.fw_version == 0x004e6601) ||
+	      (smu->adev->pm.fw_version >= 0x004e7300))) ||
+	    (amdgpu_ip_version(smu->adev, MP1_HWIP, 0) == IP_VERSION(13, 0, 10) &&
+	     smu->adev->pm.fw_version >= 0x00504500)) {
+		workload_type = smu_cmn_to_asic_specific_index(smu,
+							       CMN2ASIC_MAPPING_WORKLOAD,
+							       PP_SMC_POWER_PROFILE_POWERSAVING);
+		if (workload_type >= 0)
+			workload_mask |= 1 << workload_type;
 	}
 
 	ret = smu_cmn_send_smc_msg_with_param(smu,

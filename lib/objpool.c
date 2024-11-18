@@ -76,7 +76,7 @@ objpool_init_percpu_slots(struct objpool_head *pool, int nr_objs,
 		 * mimimal size of vmalloc is one page since vmalloc would
 		 * always align the requested size to page size
 		 */
-		if (pool->gfp & GFP_ATOMIC)
+		if ((pool->gfp & GFP_ATOMIC) == GFP_ATOMIC)
 			slot = kmalloc_node(size, pool->gfp, cpu_to_node(i));
 		else
 			slot = __vmalloc_node(size, sizeof(void *), pool->gfp,

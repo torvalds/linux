@@ -1030,10 +1030,13 @@ guc_exec_queue_timedout_job(struct drm_sched_job *drm_job)
 
 	/*
 	 * TDR has fired before free job worker. Common if exec queue
-	 * immediately closed after last fence signaled.
+	 * immediately closed after last fence signaled. Add back to pending
+	 * list so job can be freed and kick scheduler ensuring free job is not
+	 * lost.
 	 */
 	if (test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &job->fence->flags)) {
-		guc_exec_queue_free_job(drm_job);
+		xe_sched_add_pending_job(sched, job);
+		xe_sched_submission_start(sched);
 
 		return DRM_GPU_SCHED_STAT_NOMINAL;
 	}

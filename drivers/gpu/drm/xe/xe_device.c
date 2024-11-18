@@ -980,12 +980,12 @@ void xe_device_declare_wedged(struct xe_device *xe)
 		return;
 	}
 
+	xe_pm_runtime_get_noresume(xe);
+
 	if (drmm_add_action_or_reset(&xe->drm, xe_device_wedged_fini, xe)) {
 		drm_err(&xe->drm, "Failed to register xe_device_wedged_fini clean-up. Although device is wedged.\n");
 		return;
 	}
-
-	xe_pm_runtime_get_noresume(xe);
 
 	if (!atomic_xchg(&xe->wedged.flag, 1)) {
 		xe->needs_flr_on_fini = true;

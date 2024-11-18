@@ -243,13 +243,19 @@ static bool mergeable_maps(const struct extent_map *prev, const struct extent_ma
 /*
  * Handle the on-disk data extents merge for @prev and @next.
  *
+ * @prev:    left extent to merge
+ * @next:    right extent to merge
+ * @merged:  the extent we will not discard after the merge; updated with new values
+ *
+ * After this, one of the two extents is the new merged extent and the other is
+ * removed from the tree and likely freed. Note that @merged is one of @prev/@next
+ * so there is const/non-const aliasing occurring here.
+ *
  * Only touches disk_bytenr/disk_num_bytes/offset/ram_bytes.
  * For now only uncompressed regular extent can be merged.
- *
- * @prev and @next will be both updated to point to the new merged range.
- * Thus one of them should be removed by the caller.
  */
-static void merge_ondisk_extents(struct extent_map *prev, struct extent_map *next)
+static void merge_ondisk_extents(const struct extent_map *prev, const struct extent_map *next,
+				 struct extent_map *merged)
 {
 	u64 new_disk_bytenr;
 	u64 new_disk_num_bytes;
@@ -284,15 +290,10 @@ static void merge_ondisk_extents(struct extent_map *prev, struct extent_map *nex
 			     new_disk_bytenr;
 	new_offset = prev->disk_bytenr + prev->offset - new_disk_bytenr;
 
-	prev->disk_bytenr = new_disk_bytenr;
-	prev->disk_num_bytes = new_disk_num_bytes;
-	prev->ram_bytes = new_disk_num_bytes;
-	prev->offset = new_offset;
-
-	next->disk_bytenr = new_disk_bytenr;
-	next->disk_num_bytes = new_disk_num_bytes;
-	next->ram_bytes = new_disk_num_bytes;
-	next->offset = new_offset;
+	merged->disk_bytenr = new_disk_bytenr;
+	merged->disk_num_bytes = new_disk_num_bytes;
+	merged->ram_bytes = new_disk_num_bytes;
+	merged->offset = new_offset;
 }
 
 static void dump_extent_map(struct btrfs_fs_info *fs_info, const char *prefix,
@@ -361,7 +362,7 @@ static void try_merge_map(struct btrfs_inode *inode, struct extent_map *em)
 			em->generation = max(em->generation, merge->generation);
 
 			if (em->disk_bytenr < EXTENT_MAP_LAST_BYTE)
-				merge_ondisk_extents(merge, em);
+				merge_ondisk_extents(merge, em, em);
 			em->flags |= EXTENT_FLAG_MERGED;
 
 			validate_extent_map(fs_info, em);
@@ -378,7 +379,7 @@ static void try_merge_map(struct btrfs_inode *inode, struct extent_map *em)
 	if (rb && can_merge_extent_map(merge) && mergeable_maps(em, merge)) {
 		em->len += merge->len;
 		if (em->disk_bytenr < EXTENT_MAP_LAST_BYTE)
-			merge_ondisk_extents(em, merge);
+			merge_ondisk_extents(em, merge, em);
 		validate_extent_map(fs_info, em);
 		rb_erase(&merge->rb_node, &tree->root);
 		RB_CLEAR_NODE(&merge->rb_node);

@@ -710,24 +710,6 @@ static int z_erofs_attach_page(struct z_erofs_decompress_frontend *fe,
 	return ret;
 }
 
-static void z_erofs_try_to_claim_pcluster(struct z_erofs_decompress_frontend *f)
-{
-	struct z_erofs_pcluster *pcl = f->pcl;
-	z_erofs_next_pcluster_t *owned_head = &f->owned_head;
-
-	/* type 1, nil pcluster (this pcluster doesn't belong to any chain.) */
-	if (cmpxchg(&pcl->next, Z_EROFS_PCLUSTER_NIL,
-		    *owned_head) == Z_EROFS_PCLUSTER_NIL) {
-		*owned_head = &pcl->next;
-		/* so we can attach this pcluster to our submission chain. */
-		f->mode = Z_EROFS_PCLUSTER_FOLLOWED;
-		return;
-	}
-
-	/* type 2, it belongs to an ongoing chain */
-	f->mode = Z_EROFS_PCLUSTER_INFLIGHT;
-}
-
 static int z_erofs_register_pcluster(struct z_erofs_decompress_frontend *fe)
 {
 	struct erofs_map_blocks *map = &fe->map;
@@ -803,7 +785,6 @@ static int z_erofs_pcluster_begin(struct z_erofs_decompress_frontend *fe)
 	int ret;
 
 	DBG_BUGON(fe->pcl);
-
 	/* must be Z_EROFS_PCLUSTER_TAIL or pointed to previous pcluster */
 	DBG_BUGON(fe->owned_head == Z_EROFS_PCLUSTER_NIL);
 
@@ -823,7 +804,15 @@ static int z_erofs_pcluster_begin(struct z_erofs_decompress_frontend *fe)
 
 	if (ret == -EEXIST) {
 		mutex_lock(&fe->pcl->lock);
-		z_erofs_try_to_claim_pcluster(fe);
+		/* check if this pcluster hasn't been linked into any chain. */
+		if (cmpxchg(&fe->pcl->next, Z_EROFS_PCLUSTER_NIL,
+			    fe->owned_head) == Z_EROFS_PCLUSTER_NIL) {
+			/* .. so it can be attached to our submission chain */
+			fe->owned_head = &fe->pcl->next;
+			fe->mode = Z_EROFS_PCLUSTER_FOLLOWED;
+		} else {	/* otherwise, it belongs to an inflight chain */
+			fe->mode = Z_EROFS_PCLUSTER_INFLIGHT;
+		}
 	} else if (ret) {
 		return ret;
 	}
