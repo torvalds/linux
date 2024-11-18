@@ -97,13 +97,22 @@ static unsigned long get_counter_data(struct perf_event *event)
 
 	switch (config) {
 	case L1_TO_L2_CS_LAT:
-		data = kvmhv_get_l1_to_l2_cs_time();
+		if (event->attach_state & PERF_ATTACH_TASK)
+			data = kvmhv_get_l1_to_l2_cs_time_vcpu();
+		else
+			data = kvmhv_get_l1_to_l2_cs_time();
 		break;
 	case L2_TO_L1_CS_LAT:
-		data = kvmhv_get_l2_to_l1_cs_time();
+		if (event->attach_state & PERF_ATTACH_TASK)
+			data = kvmhv_get_l2_to_l1_cs_time_vcpu();
+		else
+			data = kvmhv_get_l2_to_l1_cs_time();
 		break;
 	case L2_RUNTIME_AGG:
-		data = kvmhv_get_l2_runtime_agg();
+		if (event->attach_state & PERF_ATTACH_TASK)
+			data = kvmhv_get_l2_runtime_agg_vcpu();
+		else
+			data = kvmhv_get_l2_runtime_agg();
 		break;
 	default:
 		data = 0;

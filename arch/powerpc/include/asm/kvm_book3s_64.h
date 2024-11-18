@@ -691,6 +691,9 @@ void kvmhv_set_l2_counters_status(int cpu, bool status);
 u64 kvmhv_get_l1_to_l2_cs_time(void);
 u64 kvmhv_get_l2_to_l1_cs_time(void);
 u64 kvmhv_get_l2_runtime_agg(void);
+u64 kvmhv_get_l1_to_l2_cs_time_vcpu(void);
+u64 kvmhv_get_l2_to_l1_cs_time_vcpu(void);
+u64 kvmhv_get_l2_runtime_agg_vcpu(void);
 
 #endif /* CONFIG_KVM_BOOK3S_HV_POSSIBLE */
 

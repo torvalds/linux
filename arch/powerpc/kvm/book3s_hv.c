@@ -4190,6 +4190,51 @@ u64 kvmhv_get_l2_runtime_agg(void)
 }
 EXPORT_SYMBOL(kvmhv_get_l2_runtime_agg);
 
+u64 kvmhv_get_l1_to_l2_cs_time_vcpu(void)
+{
+	struct kvm_vcpu *vcpu;
+	struct kvm_vcpu_arch *arch;
+
+	vcpu = local_paca->kvm_hstate.kvm_vcpu;
+	if (vcpu) {
+		arch = &vcpu->arch;
+		return arch->l1_to_l2_cs;
+	} else {
+		return 0;
+	}
+}
+EXPORT_SYMBOL(kvmhv_get_l1_to_l2_cs_time_vcpu);
+
+u64 kvmhv_get_l2_to_l1_cs_time_vcpu(void)
+{
+	struct kvm_vcpu *vcpu;
+	struct kvm_vcpu_arch *arch;
+
+	vcpu = local_paca->kvm_hstate.kvm_vcpu;
+	if (vcpu) {
+		arch = &vcpu->arch;
+		return arch->l2_to_l1_cs;
+	} else {
+		return 0;
+	}
+}
+EXPORT_SYMBOL(kvmhv_get_l2_to_l1_cs_time_vcpu);
+
+u64 kvmhv_get_l2_runtime_agg_vcpu(void)
+{
+	struct kvm_vcpu *vcpu;
+	struct kvm_vcpu_arch *arch;
+
+	vcpu = local_paca->kvm_hstate.kvm_vcpu;
+	if (vcpu) {
+		arch = &vcpu->arch;
+		return arch->l2_runtime_agg;
+	} else {
+		return 0;
+	}
+}
+EXPORT_SYMBOL(kvmhv_get_l2_runtime_agg_vcpu);
+
 #else
 int kvmhv_get_l2_counters_status(void)
 {
