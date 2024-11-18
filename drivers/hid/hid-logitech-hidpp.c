@@ -2498,7 +2498,7 @@ static void hidpp_ff_work_handler(struct work_struct *w)
 			/* regular effect destroyed */
 			data->effect_ids[wd->params[0]-1] = -1;
 		else if (wd->effect_id >= HIDPP_FF_EFFECTID_AUTOCENTER)
-			/* autocenter spring destoyed */
+			/* autocenter spring destroyed */
 			data->slot_autocenter = 0;
 		break;
 	case HIDPP_FF_SET_GLOBAL_GAINS:
@@ -3271,13 +3271,13 @@ static int m560_raw_event(struct hid_device *hdev, u8 *data, int size)
 					 120);
 		}
 
-		v = hid_snto32(hid_field_extract(hdev, data+3, 0, 12), 12);
+		v = sign_extend32(hid_field_extract(hdev, data + 3, 0, 12), 11);
 		input_report_rel(hidpp->input, REL_X, v);
 
-		v = hid_snto32(hid_field_extract(hdev, data+3, 12, 12), 12);
+		v = sign_extend32(hid_field_extract(hdev, data + 3, 12, 12), 11);
 		input_report_rel(hidpp->input, REL_Y, v);
 
-		v = hid_snto32(data[6], 8);
+		v = sign_extend32(data[6], 7);
 		if (v != 0)
 			hidpp_scroll_counter_handle_scroll(hidpp->input,
 					&hidpp->vertical_wheel_counter, v);
