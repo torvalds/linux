@@ -59,3 +59,7 @@
  __traceiter_android_vh_dc_send_copy
  __tracepoint_android_vh_dc_receive
  __traceiter_android_vh_dc_receive
+ __tracepoint_android_vh_slab_alloc_node
+ __traceiter_android_vh_slab_alloc_node
+ __tracepoint_android_vh_slab_free
+ __traceiter_android_vh_slab_free
