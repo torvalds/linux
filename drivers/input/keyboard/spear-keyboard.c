@@ -20,7 +20,6 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
-#include <linux/pm_wakeup.h>
 #include <linux/slab.h>
 #include <linux/types.h>
 #include <linux/platform_data/keyboard-spear.h>
