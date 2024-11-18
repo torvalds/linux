@@ -246,7 +246,6 @@ int open_namespace(struct ns_common *ns);
  * fs/stat.c:
  */
 
-int getname_statx_lookup_flags(int flags);
 int do_statx(int dfd, struct filename *filename, unsigned int flags,
 	     unsigned int mask, struct statx __user *buffer);
 int do_statx_fd(int fd, unsigned int flags, unsigned int mask,
