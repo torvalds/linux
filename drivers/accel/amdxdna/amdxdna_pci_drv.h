@@ -20,6 +20,7 @@ extern const struct drm_driver amdxdna_drm_drv;
 struct amdxdna_dev;
 struct amdxdna_gem_obj;
 struct amdxdna_hwctx;
+struct amdxdna_sched_job;
 
 /*
  * struct amdxdna_dev_ops - Device hardware operation callbacks
@@ -31,6 +32,7 @@ struct amdxdna_dev_ops {
 	void (*hwctx_fini)(struct amdxdna_hwctx *hwctx);
 	int (*hwctx_config)(struct amdxdna_hwctx *hwctx, u32 type, u64 value, void *buf, u32 size);
 	void (*hmm_invalidate)(struct amdxdna_gem_obj *abo, unsigned long cur_seq);
+	int (*cmd_submit)(struct amdxdna_hwctx *hwctx, struct amdxdna_sched_job *job, u64 *seq);
 };
 
 /*
@@ -69,6 +71,7 @@ struct amdxdna_dev {
 	struct mutex			dev_lock; /* per device lock */
 	struct list_head		client_list;
 	struct amdxdna_fw_ver		fw_ver;
+	struct rw_semaphore		notifier_lock; /* for mmu notifier*/
 };
 
 /*
@@ -88,6 +91,8 @@ struct amdxdna_client {
 	struct list_head		node;
 	pid_t				pid;
 	struct mutex			hwctx_lock; /* protect hwctx */
+	/* do NOT wait this srcu when hwctx_lock is held */
+	struct srcu_struct		hwctx_srcu;
 	struct idr			hwctx_idr;
 	struct amdxdna_dev		*xdna;
 	struct drm_file			*filp;

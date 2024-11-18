@@ -7,16 +7,64 @@
 #include <drm/drm_device.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_file.h>
+#include <drm/drm_gem.h>
+#include <drm/drm_gem_shmem_helper.h>
 #include <drm/drm_print.h>
+#include <drm/gpu_scheduler.h>
+#include <trace/events/amdxdna.h>
 
 #include "amdxdna_ctx.h"
+#include "amdxdna_gem.h"
 #include "amdxdna_pci_drv.h"
 
 #define MAX_HWCTX_ID		255
+#define MAX_ARG_COUNT		4095
 
-static void amdxdna_hwctx_destroy(struct amdxdna_hwctx *hwctx)
+struct amdxdna_fence {
+	struct dma_fence	base;
+	spinlock_t		lock; /* for base */
+	struct amdxdna_hwctx	*hwctx;
+};
+
+static const char *amdxdna_fence_get_driver_name(struct dma_fence *fence)
+{
+	return KBUILD_MODNAME;
+}
+
+static const char *amdxdna_fence_get_timeline_name(struct dma_fence *fence)
+{
+	struct amdxdna_fence *xdna_fence;
+
+	xdna_fence = container_of(fence, struct amdxdna_fence, base);
+
+	return xdna_fence->hwctx->name;
+}
+
+static const struct dma_fence_ops fence_ops = {
+	.get_driver_name = amdxdna_fence_get_driver_name,
+	.get_timeline_name = amdxdna_fence_get_timeline_name,
+};
+
+static struct dma_fence *amdxdna_fence_create(struct amdxdna_hwctx *hwctx)
+{
+	struct amdxdna_fence *fence;
+
+	fence = kzalloc(sizeof(*fence), GFP_KERNEL);
+	if (!fence)
+		return NULL;
+
+	fence->hwctx = hwctx;
+	spin_lock_init(&fence->lock);
+	dma_fence_init(&fence->base, &fence_ops, &fence->lock, hwctx->id, 0);
+	return &fence->base;
+}
+
+static void amdxdna_hwctx_destroy_rcu(struct amdxdna_hwctx *hwctx,
+				      struct srcu_struct *ss)
 {
 	struct amdxdna_dev *xdna = hwctx->client->xdna;
+
+	synchronize_srcu(ss);
 
 	/* At this point, user is not able to submit new commands */
 	mutex_lock(&xdna->dev_lock);
@@ -25,6 +73,46 @@ static void amdxdna_hwctx_destroy(struct amdxdna_hwctx *hwctx)
 
 	kfree(hwctx->name);
 	kfree(hwctx);
+}
+
+void *amdxdna_cmd_get_payload(struct amdxdna_gem_obj *abo, u32 *size)
+{
+	struct amdxdna_cmd *cmd = abo->mem.kva;
+	u32 num_masks, count;
+
+	if (amdxdna_cmd_get_op(abo) == ERT_CMD_CHAIN)
+		num_masks = 0;
+	else
+		num_masks = 1 + FIELD_GET(AMDXDNA_CMD_EXTRA_CU_MASK, cmd->header);
+
+	if (size) {
+		count = FIELD_GET(AMDXDNA_CMD_COUNT, cmd->header);
+		if (unlikely(count <= num_masks)) {
+			*size = 0;
+			return NULL;
+		}
+		*size = (count - num_masks) * sizeof(u32);
+	}
+	return &cmd->data[num_masks];
+}
+
+int amdxdna_cmd_get_cu_idx(struct amdxdna_gem_obj *abo)
+{
+	struct amdxdna_cmd *cmd = abo->mem.kva;
+	u32 num_masks, i;
+	u32 *cu_mask;
+
+	if (amdxdna_cmd_get_op(abo) == ERT_CMD_CHAIN)
+		return -1;
+
+	num_masks = 1 + FIELD_GET(AMDXDNA_CMD_EXTRA_CU_MASK, cmd->header);
+	cu_mask = cmd->data;
+	for (i = 0; i < num_masks; i++) {
+		if (cu_mask[i])
+			return ffs(cu_mask[i]) - 1;
+	}
+
+	return -1;
 }
 
 /*
@@ -43,7 +131,7 @@ void amdxdna_hwctx_remove_all(struct amdxdna_client *client)
 			 client->pid, hwctx->id);
 		idr_remove(&client->hwctx_idr, hwctx->id);
 		mutex_unlock(&client->hwctx_lock);
-		amdxdna_hwctx_destroy(hwctx);
+		amdxdna_hwctx_destroy_rcu(hwctx, &client->hwctx_srcu);
 		mutex_lock(&client->hwctx_lock);
 	}
 	mutex_unlock(&client->hwctx_lock);
@@ -135,6 +223,12 @@ int amdxdna_drm_destroy_hwctx_ioctl(struct drm_device *dev, void *data, struct d
 	if (!drm_dev_enter(dev, &idx))
 		return -ENODEV;
 
+	/*
+	 * Use hwctx_lock to achieve exclusion with other hwctx writers,
+	 * SRCU to synchronize with exec/wait command ioctls.
+	 *
+	 * The pushed jobs are handled by DRM scheduler during destroy.
+	 */
 	mutex_lock(&client->hwctx_lock);
 	hwctx = idr_find(&client->hwctx_idr, args->handle);
 	if (!hwctx) {
@@ -147,7 +241,7 @@ int amdxdna_drm_destroy_hwctx_ioctl(struct drm_device *dev, void *data, struct d
 	idr_remove(&client->hwctx_idr, hwctx->id);
 	mutex_unlock(&client->hwctx_lock);
 
-	amdxdna_hwctx_destroy(hwctx);
+	amdxdna_hwctx_destroy_rcu(hwctx, &client->hwctx_srcu);
 
 	XDNA_DBG(xdna, "PID %d destroyed HW context %d", client->pid, args->handle);
 out:
@@ -161,10 +255,10 @@ int amdxdna_drm_config_hwctx_ioctl(struct drm_device *dev, void *data, struct dr
 	struct amdxdna_drm_config_hwctx *args = data;
 	struct amdxdna_dev *xdna = to_xdna_dev(dev);
 	struct amdxdna_hwctx *hwctx;
+	int ret, idx;
 	u32 buf_size;
 	void *buf;
 	u64 val;
-	int ret;
 
 	if (!xdna->dev_info->ops->hwctx_config)
 		return -EOPNOTSUPP;
@@ -203,17 +297,231 @@ int amdxdna_drm_config_hwctx_ioctl(struct drm_device *dev, void *data, struct dr
 	}
 
 	mutex_lock(&xdna->dev_lock);
+	idx = srcu_read_lock(&client->hwctx_srcu);
 	hwctx = idr_find(&client->hwctx_idr, args->handle);
 	if (!hwctx) {
 		XDNA_DBG(xdna, "PID %d failed to get hwctx %d", client->pid, args->handle);
 		ret = -EINVAL;
-		goto unlock;
+		goto unlock_srcu;
 	}
 
 	ret = xdna->dev_info->ops->hwctx_config(hwctx, args->param_type, val, buf, buf_size);
 
-unlock:
+unlock_srcu:
+	srcu_read_unlock(&client->hwctx_srcu, idx);
 	mutex_unlock(&xdna->dev_lock);
 	kfree(buf);
 	return ret;
+}
+
+static void
+amdxdna_arg_bos_put(struct amdxdna_sched_job *job)
+{
+	int i;
+
+	for (i = 0; i < job->bo_cnt; i++) {
+		if (!job->bos[i])
+			break;
+		drm_gem_object_put(job->bos[i]);
+	}
+}
+
+static int
+amdxdna_arg_bos_lookup(struct amdxdna_client *client,
+		       struct amdxdna_sched_job *job,
+		       u32 *bo_hdls, u32 bo_cnt)
+{
+	struct drm_gem_object *gobj;
+	int i, ret;
+
+	job->bo_cnt = bo_cnt;
+	for (i = 0; i < job->bo_cnt; i++) {
+		struct amdxdna_gem_obj *abo;
+
+		gobj = drm_gem_object_lookup(client->filp, bo_hdls[i]);
+		if (!gobj) {
+			ret = -ENOENT;
+			goto put_shmem_bo;
+		}
+		abo = to_xdna_obj(gobj);
+
+		mutex_lock(&abo->lock);
+		if (abo->pinned) {
+			mutex_unlock(&abo->lock);
+			job->bos[i] = gobj;
+			continue;
+		}
+
+		ret = amdxdna_gem_pin_nolock(abo);
+		if (ret) {
+			mutex_unlock(&abo->lock);
+			drm_gem_object_put(gobj);
+			goto put_shmem_bo;
+		}
+		abo->pinned = true;
+		mutex_unlock(&abo->lock);
+
+		job->bos[i] = gobj;
+	}
+
+	return 0;
+
+put_shmem_bo:
+	amdxdna_arg_bos_put(job);
+	return ret;
+}
+
+void amdxdna_sched_job_cleanup(struct amdxdna_sched_job *job)
+{
+	trace_amdxdna_debug_point(job->hwctx->name, job->seq, "job release");
+	amdxdna_arg_bos_put(job);
+	amdxdna_gem_put_obj(job->cmd_bo);
+}
+
+int amdxdna_cmd_submit(struct amdxdna_client *client,
+		       u32 cmd_bo_hdl, u32 *arg_bo_hdls, u32 arg_bo_cnt,
+		       u32 hwctx_hdl, u64 *seq)
+{
+	struct amdxdna_dev *xdna = client->xdna;
+	struct amdxdna_sched_job *job;
+	struct amdxdna_hwctx *hwctx;
+	int ret, idx;
+
+	XDNA_DBG(xdna, "Command BO hdl %d, Arg BO count %d", cmd_bo_hdl, arg_bo_cnt);
+	job = kzalloc(struct_size(job, bos, arg_bo_cnt), GFP_KERNEL);
+	if (!job)
+		return -ENOMEM;
+
+	if (cmd_bo_hdl != AMDXDNA_INVALID_BO_HANDLE) {
+		job->cmd_bo = amdxdna_gem_get_obj(client, cmd_bo_hdl, AMDXDNA_BO_CMD);
+		if (!job->cmd_bo) {
+			XDNA_ERR(xdna, "Failed to get cmd bo from %d", cmd_bo_hdl);
+			ret = -EINVAL;
+			goto free_job;
+		}
+	} else {
+		job->cmd_bo = NULL;
+	}
+
+	ret = amdxdna_arg_bos_lookup(client, job, arg_bo_hdls, arg_bo_cnt);
+	if (ret) {
+		XDNA_ERR(xdna, "Argument BOs lookup failed, ret %d", ret);
+		goto cmd_put;
+	}
+
+	idx = srcu_read_lock(&client->hwctx_srcu);
+	hwctx = idr_find(&client->hwctx_idr, hwctx_hdl);
+	if (!hwctx) {
+		XDNA_DBG(xdna, "PID %d failed to get hwctx %d",
+			 client->pid, hwctx_hdl);
+		ret = -EINVAL;
+		goto unlock_srcu;
+	}
+
+	if (hwctx->status != HWCTX_STAT_READY) {
+		XDNA_ERR(xdna, "HW Context is not ready");
+		ret = -EINVAL;
+		goto unlock_srcu;
+	}
+
+	job->hwctx = hwctx;
+	job->mm = current->mm;
+
+	job->fence = amdxdna_fence_create(hwctx);
+	if (!job->fence) {
+		XDNA_ERR(xdna, "Failed to create fence");
+		ret = -ENOMEM;
+		goto unlock_srcu;
+	}
+	kref_init(&job->refcnt);
+
+	ret = xdna->dev_info->ops->cmd_submit(hwctx, job, seq);
+	if (ret)
+		goto put_fence;
+
+	/*
+	 * The amdxdna_hwctx_destroy_rcu() will release hwctx and associated
+	 * resource after synchronize_srcu(). The submitted jobs should be
+	 * handled by the queue, for example DRM scheduler, in device layer.
+	 * For here we can unlock SRCU.
+	 */
+	srcu_read_unlock(&client->hwctx_srcu, idx);
+	trace_amdxdna_debug_point(hwctx->name, *seq, "job pushed");
+
+	return 0;
+
+put_fence:
+	dma_fence_put(job->fence);
+unlock_srcu:
+	srcu_read_unlock(&client->hwctx_srcu, idx);
+	amdxdna_arg_bos_put(job);
+cmd_put:
+	amdxdna_gem_put_obj(job->cmd_bo);
+free_job:
+	kfree(job);
+	return ret;
+}
+
+/*
+ * The submit command ioctl submits a command to firmware. One firmware command
+ * may contain multiple command BOs for processing as a whole.
+ * The command sequence number is returned which can be used for wait command ioctl.
+ */
+static int amdxdna_drm_submit_execbuf(struct amdxdna_client *client,
+				      struct amdxdna_drm_exec_cmd *args)
+{
+	struct amdxdna_dev *xdna = client->xdna;
+	u32 *arg_bo_hdls;
+	u32 cmd_bo_hdl;
+	int ret;
+
+	if (!args->arg_count || args->arg_count > MAX_ARG_COUNT) {
+		XDNA_ERR(xdna, "Invalid arg bo count %d", args->arg_count);
+		return -EINVAL;
+	}
+
+	/* Only support single command for now. */
+	if (args->cmd_count != 1) {
+		XDNA_ERR(xdna, "Invalid cmd bo count %d", args->cmd_count);
+		return -EINVAL;
+	}
+
+	cmd_bo_hdl = (u32)args->cmd_handles;
+	arg_bo_hdls = kcalloc(args->arg_count, sizeof(u32), GFP_KERNEL);
+	if (!arg_bo_hdls)
+		return -ENOMEM;
+	ret = copy_from_user(arg_bo_hdls, u64_to_user_ptr(args->args),
+			     args->arg_count * sizeof(u32));
+	if (ret) {
+		ret = -EFAULT;
+		goto free_cmd_bo_hdls;
+	}
+
+	ret = amdxdna_cmd_submit(client, cmd_bo_hdl, arg_bo_hdls,
+				 args->arg_count, args->hwctx, &args->seq);
+	if (ret)
+		XDNA_DBG(xdna, "Submit cmds failed, ret %d", ret);
+
+free_cmd_bo_hdls:
+	kfree(arg_bo_hdls);
+	if (!ret)
+		XDNA_DBG(xdna, "Pushed cmd %lld to scheduler", args->seq);
+	return ret;
+}
+
+int amdxdna_drm_submit_cmd_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
+{
+	struct amdxdna_client *client = filp->driver_priv;
+	struct amdxdna_drm_exec_cmd *args = data;
+
+	if (args->ext || args->ext_flags)
+		return -EINVAL;
+
+	switch (args->type) {
+	case AMDXDNA_CMD_SUBMIT_EXEC_BUF:
+		return amdxdna_drm_submit_execbuf(client, args);
+	}
+
+	XDNA_ERR(client->xdna, "Invalid command type %d", args->type);
+	return -EINVAL;
 }

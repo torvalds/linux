@@ -3,9 +3,14 @@
  * Copyright (C) 2023-2024, Advanced Micro Devices, Inc.
  */
 
+#include <drm/amdxdna_accel.h>
 #include <drm/drm_device.h>
+#include <drm/drm_gem_shmem_helper.h>
 #include <drm/drm_print.h>
+#include <drm/gpu_scheduler.h>
+#include <linux/types.h>
 
+#include "amdxdna_gem.h"
 #include "amdxdna_pci_drv.h"
 
 static ssize_t vbnv_show(struct device *dev, struct device_attribute *attr, char *buf)

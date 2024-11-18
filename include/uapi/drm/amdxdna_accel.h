@@ -13,9 +13,11 @@
 extern "C" {
 #endif
 
+#define AMDXDNA_INVALID_CMD_HANDLE	(~0UL)
 #define AMDXDNA_INVALID_ADDR		(~0UL)
 #define AMDXDNA_INVALID_CTX_HANDLE	0
 #define AMDXDNA_INVALID_BO_HANDLE	0
+#define AMDXDNA_INVALID_FENCE_HANDLE	0
 
 enum amdxdna_device_type {
 	AMDXDNA_DEV_TYPE_UNKNOWN = -1,
@@ -29,6 +31,7 @@ enum amdxdna_drm_ioctl_id {
 	DRM_AMDXDNA_CREATE_BO,
 	DRM_AMDXDNA_GET_BO_INFO,
 	DRM_AMDXDNA_SYNC_BO,
+	DRM_AMDXDNA_EXEC_CMD,
 };
 
 /**
@@ -201,6 +204,37 @@ struct amdxdna_drm_sync_bo {
 	__u64 size;
 };
 
+enum amdxdna_cmd_type {
+	AMDXDNA_CMD_SUBMIT_EXEC_BUF = 0,
+	AMDXDNA_CMD_SUBMIT_DEPENDENCY,
+	AMDXDNA_CMD_SUBMIT_SIGNAL,
+};
+
+/**
+ * struct amdxdna_drm_exec_cmd - Execute command.
+ * @ext: MBZ.
+ * @ext_flags: MBZ.
+ * @hwctx: Hardware context handle.
+ * @type: One of command type in enum amdxdna_cmd_type.
+ * @cmd_handles: Array of command handles or the command handle itself
+ *               in case of just one.
+ * @args: Array of arguments for all command handles.
+ * @cmd_count: Number of command handles in the cmd_handles array.
+ * @arg_count: Number of arguments in the args array.
+ * @seq: Returned sequence number for this command.
+ */
+struct amdxdna_drm_exec_cmd {
+	__u64 ext;
+	__u64 ext_flags;
+	__u32 hwctx;
+	__u32 type;
+	__u64 cmd_handles;
+	__u64 args;
+	__u32 cmd_count;
+	__u32 arg_count;
+	__u64 seq;
+};
+
 #define DRM_IOCTL_AMDXDNA_CREATE_HWCTX \
 	DRM_IOWR(DRM_COMMAND_BASE + DRM_AMDXDNA_CREATE_HWCTX, \
 		 struct amdxdna_drm_create_hwctx)
@@ -224,6 +258,10 @@ struct amdxdna_drm_sync_bo {
 #define DRM_IOCTL_AMDXDNA_SYNC_BO \
 	DRM_IOWR(DRM_COMMAND_BASE + DRM_AMDXDNA_SYNC_BO, \
 		 struct amdxdna_drm_sync_bo)
+
+#define DRM_IOCTL_AMDXDNA_EXEC_CMD \
+	DRM_IOWR(DRM_COMMAND_BASE + DRM_AMDXDNA_EXEC_CMD, \
+		 struct amdxdna_drm_exec_cmd)
 
 #if defined(__cplusplus)
 } /* extern c end */

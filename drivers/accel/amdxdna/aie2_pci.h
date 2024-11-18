@@ -6,6 +6,8 @@
 #ifndef _AIE2_PCI_H_
 #define _AIE2_PCI_H_
 
+#include <linux/semaphore.h>
+
 #include "amdxdna_mailbox.h"
 
 #define AIE2_INTERVAL	20000	/* us */
@@ -76,8 +78,10 @@ enum psp_reg_idx {
 	PSP_MAX_REGS /* Keep this at the end */
 };
 
+struct amdxdna_client;
 struct amdxdna_fw_ver;
 struct amdxdna_hwctx;
+struct amdxdna_sched_job;
 
 struct psp_config {
 	const void	*fw_buf;
@@ -118,9 +122,31 @@ struct rt_config {
 	u32	value;
 };
 
+/*
+ * Define the maximum number of pending commands in a hardware context.
+ * Must be power of 2!
+ */
+#define HWCTX_MAX_CMDS		4
+#define get_job_idx(seq) ((seq) & (HWCTX_MAX_CMDS - 1))
 struct amdxdna_hwctx_priv {
 	struct amdxdna_gem_obj		*heap;
 	void				*mbox_chann;
+
+	struct drm_gpu_scheduler	sched;
+	struct drm_sched_entity		entity;
+
+	struct mutex			io_lock; /* protect seq and cmd order */
+	struct wait_queue_head		job_free_wq;
+	u32				num_pending;
+	u64				seq;
+	struct semaphore		job_sem;
+	bool				job_done;
+
+	/* Completed job counter */
+	u64				completed;
+
+	struct amdxdna_gem_obj		*cmd_buf[HWCTX_MAX_CMDS];
+	struct drm_syncobj		*syncobj;
 };
 
 struct amdxdna_dev_hdl {
@@ -199,10 +225,23 @@ int aie2_create_context(struct amdxdna_dev_hdl *ndev, struct amdxdna_hwctx *hwct
 int aie2_destroy_context(struct amdxdna_dev_hdl *ndev, struct amdxdna_hwctx *hwctx);
 int aie2_map_host_buf(struct amdxdna_dev_hdl *ndev, u32 context_id, u64 addr, u64 size);
 int aie2_config_cu(struct amdxdna_hwctx *hwctx);
+int aie2_execbuf(struct amdxdna_hwctx *hwctx, struct amdxdna_sched_job *job,
+		 int (*notify_cb)(void *, const u32 *, size_t));
+int aie2_cmdlist_single_execbuf(struct amdxdna_hwctx *hwctx,
+				struct amdxdna_sched_job *job,
+				int (*notify_cb)(void *, const u32 *, size_t));
+int aie2_cmdlist_multi_execbuf(struct amdxdna_hwctx *hwctx,
+			       struct amdxdna_sched_job *job,
+			       int (*notify_cb)(void *, const u32 *, size_t));
+int aie2_sync_bo(struct amdxdna_hwctx *hwctx, struct amdxdna_sched_job *job,
+		 int (*notify_cb)(void *, const u32 *, size_t));
 
 /* aie2_hwctx.c */
 int aie2_hwctx_init(struct amdxdna_hwctx *hwctx);
 void aie2_hwctx_fini(struct amdxdna_hwctx *hwctx);
 int aie2_hwctx_config(struct amdxdna_hwctx *hwctx, u32 type, u64 value, void *buf, u32 size);
+int aie2_cmd_submit(struct amdxdna_hwctx *hwctx, struct amdxdna_sched_job *job, u64 *seq);
+void aie2_hmm_invalidate(struct amdxdna_gem_obj *abo, unsigned long cur_seq);
+void aie2_restart_ctx(struct amdxdna_client *client);
 
 #endif /* _AIE2_PCI_H_ */

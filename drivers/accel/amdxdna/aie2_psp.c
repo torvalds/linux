@@ -4,8 +4,10 @@
  */
 
 #include <drm/drm_device.h>
+#include <drm/drm_gem_shmem_helper.h>
 #include <drm/drm_managed.h>
 #include <drm/drm_print.h>
+#include <drm/gpu_scheduler.h>
 #include <linux/bitfield.h>
 #include <linux/iopoll.h>
 

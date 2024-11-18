@@ -10,6 +10,7 @@
 #include <drm/drm_gem_shmem_helper.h>
 #include <drm/drm_ioctl.h>
 #include <drm/drm_managed.h>
+#include <drm/gpu_scheduler.h>
 #include <linux/iommu.h>
 #include <linux/pci.h>
 
@@ -64,6 +65,7 @@ static int amdxdna_drm_open(struct drm_device *ddev, struct drm_file *filp)
 		goto unbind_sva;
 	}
 	mutex_init(&client->hwctx_lock);
+	init_srcu_struct(&client->hwctx_srcu);
 	idr_init_base(&client->hwctx_idr, AMDXDNA_INVALID_CTX_HANDLE + 1);
 	mutex_init(&client->mm_lock);
 
@@ -93,6 +95,7 @@ static void amdxdna_drm_close(struct drm_device *ddev, struct drm_file *filp)
 	XDNA_DBG(xdna, "closing pid %d", client->pid);
 
 	idr_destroy(&client->hwctx_idr);
+	cleanup_srcu_struct(&client->hwctx_srcu);
 	mutex_destroy(&client->hwctx_lock);
 	mutex_destroy(&client->mm_lock);
 	if (client->dev_heap)
@@ -133,6 +136,8 @@ static const struct drm_ioctl_desc amdxdna_drm_ioctls[] = {
 	DRM_IOCTL_DEF_DRV(AMDXDNA_CREATE_BO, amdxdna_drm_create_bo_ioctl, 0),
 	DRM_IOCTL_DEF_DRV(AMDXDNA_GET_BO_INFO, amdxdna_drm_get_bo_info_ioctl, 0),
 	DRM_IOCTL_DEF_DRV(AMDXDNA_SYNC_BO, amdxdna_drm_sync_bo_ioctl, 0),
+	/* Execution */
+	DRM_IOCTL_DEF_DRV(AMDXDNA_EXEC_CMD, amdxdna_drm_submit_cmd_ioctl, 0),
 };
 
 static const struct file_operations amdxdna_fops = {
@@ -190,8 +195,15 @@ static int amdxdna_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		return -ENODEV;
 
 	drmm_mutex_init(&xdna->ddev, &xdna->dev_lock);
+	init_rwsem(&xdna->notifier_lock);
 	INIT_LIST_HEAD(&xdna->client_list);
 	pci_set_drvdata(pdev, xdna);
+
+	if (IS_ENABLED(CONFIG_LOCKDEP)) {
+		fs_reclaim_acquire(GFP_KERNEL);
+		might_lock(&xdna->notifier_lock);
+		fs_reclaim_release(GFP_KERNEL);
+	}
 
 	mutex_lock(&xdna->dev_lock);
 	ret = xdna->dev_info->ops->init(xdna);
