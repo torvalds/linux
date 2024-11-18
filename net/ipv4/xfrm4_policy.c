@@ -14,6 +14,7 @@
 #include <linux/inetdevice.h>
 #include <net/dst.h>
 #include <net/xfrm.h>
+#include <net/inet_dscp.h>
 #include <net/ip.h>
 #include <net/l3mdev.h>
 
@@ -24,7 +25,7 @@ static struct dst_entry *__xfrm4_dst_lookup(struct flowi4 *fl4,
 
 	memset(fl4, 0, sizeof(*fl4));
 	fl4->daddr = params->daddr->a4;
-	fl4->flowi4_tos = params->tos;
+	fl4->flowi4_tos = inet_dscp_to_dsfield(params->dscp);
 	fl4->flowi4_l3mdev = l3mdev_master_ifindex_by_index(params->net,
 							    params->oif);
 	fl4->flowi4_mark = params->mark;
