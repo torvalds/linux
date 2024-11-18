@@ -1337,11 +1337,11 @@ static void boot_delay_msec(int level)
 {
 	unsigned long long k;
 	unsigned long timeout;
+	bool suppress = !is_printk_force_console() &&
+			suppress_message_printing(level);
 
-	if ((boot_delay == 0 || system_state >= SYSTEM_RUNNING)
-		|| suppress_message_printing(level)) {
+	if ((boot_delay == 0 || system_state >= SYSTEM_RUNNING) || suppress)
 		return;
-	}
 
 	k = (unsigned long long)loops_per_msec * boot_delay;
 
@@ -2291,12 +2291,18 @@ int vprintk_store(int facility, int level,
 	if (dev_info)
 		flags |= LOG_NEWLINE;
 
+	if (is_printk_force_console())
+		flags |= LOG_FORCE_CON;
+
 	if (flags & LOG_CONT) {
 		prb_rec_init_wr(&r, reserve_size);
 		if (prb_reserve_in_last(&e, prb, &r, caller_id, PRINTKRB_RECORD_MAX)) {
 			text_len = printk_sprint(&r.text_buf[r.info->text_len], reserve_size,
 						 facility, &flags, fmt, args);
 			r.info->text_len += text_len;
+
+			if (flags & LOG_FORCE_CON)
+				r.info->flags |= LOG_FORCE_CON;
 
 			if (flags & LOG_NEWLINE) {
 				r.info->flags |= LOG_NEWLINE;
@@ -2965,6 +2971,7 @@ bool printk_get_next_message(struct printk_message *pmsg, u64 seq,
 	struct printk_info info;
 	struct printk_record r;
 	size_t len = 0;
+	bool force_con;
 
 	/*
 	 * Formatting extended messages requires a separate buffer, so use the
@@ -2983,9 +2990,13 @@ bool printk_get_next_message(struct printk_message *pmsg, u64 seq,
 
 	pmsg->seq = r.info->seq;
 	pmsg->dropped = r.info->seq - seq;
+	force_con = r.info->flags & LOG_FORCE_CON;
 
-	/* Skip record that has level above the console loglevel. */
-	if (may_suppress && suppress_message_printing(r.info->level))
+	/*
+	 * Skip records that are not forced to be printed on consoles and that
+	 * has level above the console loglevel.
+	 */
+	if (!force_con && may_suppress && suppress_message_printing(r.info->level))
 		goto out;
 
 	if (is_extended) {
