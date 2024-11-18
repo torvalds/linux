@@ -407,14 +407,16 @@ static void uart_shutdown(struct tty_struct *tty, struct uart_state *state)
 		/*
 		 * Turn off DTR and RTS early.
 		 */
-		if (uport && uart_console(uport) && tty) {
-			uport->cons->cflag = tty->termios.c_cflag;
-			uport->cons->ispeed = tty->termios.c_ispeed;
-			uport->cons->ospeed = tty->termios.c_ospeed;
-		}
+		if (uport) {
+			if (uart_console(uport) && tty) {
+				uport->cons->cflag = tty->termios.c_cflag;
+				uport->cons->ispeed = tty->termios.c_ispeed;
+				uport->cons->ospeed = tty->termios.c_ospeed;
+			}
 
-		if (!tty || C_HUPCL(tty))
-			uart_port_dtr_rts(uport, false);
+			if (!tty || C_HUPCL(tty))
+				uart_port_dtr_rts(uport, false);
+		}
 
 		uart_port_shutdown(port);
 	}
@@ -1102,21 +1104,19 @@ static int uart_tiocmget(struct tty_struct *tty)
 	struct uart_state *state = tty->driver_data;
 	struct tty_port *port = &state->port;
 	struct uart_port *uport;
-	int result = -EIO;
+	int result;
 
-	mutex_lock(&port->mutex);
+	guard(mutex)(&port->mutex);
+
 	uport = uart_port_check(state);
-	if (!uport)
-		goto out;
+	if (!uport || tty_io_error(tty))
+		return -EIO;
 
-	if (!tty_io_error(tty)) {
-		uart_port_lock_irq(uport);
-		result = uport->mctrl;
-		result |= uport->ops->get_mctrl(uport);
-		uart_port_unlock_irq(uport);
-	}
-out:
-	mutex_unlock(&port->mutex);
+	uart_port_lock_irq(uport);
+	result = uport->mctrl;
+	result |= uport->ops->get_mctrl(uport);
+	uart_port_unlock_irq(uport);
+
 	return result;
 }
 
@@ -1126,20 +1126,16 @@ uart_tiocmset(struct tty_struct *tty, unsigned int set, unsigned int clear)
 	struct uart_state *state = tty->driver_data;
 	struct tty_port *port = &state->port;
 	struct uart_port *uport;
-	int ret = -EIO;
 
-	mutex_lock(&port->mutex);
+	guard(mutex)(&port->mutex);
+
 	uport = uart_port_check(state);
-	if (!uport)
-		goto out;
+	if (!uport || tty_io_error(tty))
+		return -EIO;
 
-	if (!tty_io_error(tty)) {
-		uart_update_mctrl(uport, set, clear);
-		ret = 0;
-	}
-out:
-	mutex_unlock(&port->mutex);
-	return ret;
+	uart_update_mctrl(uport, set, clear);
+
+	return 0;
 }
 
 static int uart_break_ctl(struct tty_struct *tty, int break_state)
@@ -1147,19 +1143,17 @@ static int uart_break_ctl(struct tty_struct *tty, int break_state)
 	struct uart_state *state = tty->driver_data;
 	struct tty_port *port = &state->port;
 	struct uart_port *uport;
-	int ret = -EIO;
 
-	mutex_lock(&port->mutex);
+	guard(mutex)(&port->mutex);
+
 	uport = uart_port_check(state);
 	if (!uport)
-		goto out;
+		return -EIO;
 
 	if (uport->type != PORT_UNKNOWN && uport->ops->break_ctl)
 		uport->ops->break_ctl(uport, break_state);
-	ret = 0;
-out:
-	mutex_unlock(&port->mutex);
-	return ret;
+
+	return 0;
 }
 
 static int uart_do_autoconfig(struct tty_struct *tty, struct uart_state *state)
@@ -1176,17 +1170,14 @@ static int uart_do_autoconfig(struct tty_struct *tty, struct uart_state *state)
 	 * changing, and hence any extra opens of the port while
 	 * we're auto-configuring.
 	 */
-	if (mutex_lock_interruptible(&port->mutex))
-		return -ERESTARTSYS;
+	scoped_cond_guard(mutex_intr, return -ERESTARTSYS, &port->mutex) {
+		uport = uart_port_check(state);
+		if (!uport)
+			return -EIO;
 
-	uport = uart_port_check(state);
-	if (!uport) {
-		ret = -EIO;
-		goto out;
-	}
+		if (tty_port_users(port) != 1)
+			return -EBUSY;
 
-	ret = -EBUSY;
-	if (tty_port_users(port) == 1) {
 		uart_shutdown(tty, state);
 
 		/*
@@ -1207,14 +1198,15 @@ static int uart_do_autoconfig(struct tty_struct *tty, struct uart_state *state)
 		uport->ops->config_port(uport, flags);
 
 		ret = uart_startup(tty, state, true);
-		if (ret == 0)
-			tty_port_set_initialized(port, true);
+		if (ret < 0)
+			return ret;
 		if (ret > 0)
-			ret = 0;
+			return 0;
+
+		tty_port_set_initialized(port, true);
 	}
-out:
-	mutex_unlock(&port->mutex);
-	return ret;
+
+	return 0;
 }
 
 static void uart_enable_ms(struct uart_port *uport)
@@ -1709,10 +1701,11 @@ static void uart_set_termios(struct tty_struct *tty,
 	unsigned int iflag_mask = IGNBRK|BRKINT|IGNPAR|PARMRK|INPCK;
 	bool sw_changed = false;
 
-	mutex_lock(&state->port.mutex);
+	guard(mutex)(&state->port.mutex);
+
 	uport = uart_port_check(state);
 	if (!uport)
-		goto out;
+		return;
 
 	/*
 	 * Drivers doing software flow control also need to know
@@ -1735,9 +1728,8 @@ static void uart_set_termios(struct tty_struct *tty,
 	    tty->termios.c_ospeed == old_termios->c_ospeed &&
 	    tty->termios.c_ispeed == old_termios->c_ispeed &&
 	    ((tty->termios.c_iflag ^ old_termios->c_iflag) & iflag_mask) == 0 &&
-	    !sw_changed) {
-		goto out;
-	}
+	    !sw_changed)
+		return;
 
 	uart_change_line_settings(tty, state, old_termios);
 	/* reload cflag from termios; port driver may have overridden flags */
@@ -1754,8 +1746,6 @@ static void uart_set_termios(struct tty_struct *tty,
 			mask |= TIOCM_RTS;
 		uart_set_mctrl(uport, mask);
 	}
-out:
-	mutex_unlock(&state->port.mutex);
 }
 
 /*
@@ -2049,10 +2039,11 @@ static void uart_line_info(struct seq_file *m, struct uart_driver *drv, int i)
 	unsigned int status;
 	int mmio;
 
-	mutex_lock(&port->mutex);
+	guard(mutex)(&port->mutex);
+
 	uport = uart_port_check(state);
 	if (!uport)
-		goto out;
+		return;
 
 	mmio = uport->iotype >= UPIO_MEM;
 	seq_printf(m, "%d: uart:%s %s%08llX irq:%d",
@@ -2064,7 +2055,7 @@ static void uart_line_info(struct seq_file *m, struct uart_driver *drv, int i)
 
 	if (uport->type == PORT_UNKNOWN) {
 		seq_putc(m, '\n');
-		goto out;
+		return;
 	}
 
 	if (capable(CAP_SYS_ADMIN)) {
@@ -2115,8 +2106,6 @@ static void uart_line_info(struct seq_file *m, struct uart_driver *drv, int i)
 	seq_putc(m, '\n');
 #undef STATBIT
 #undef INFOBIT
-out:
-	mutex_unlock(&port->mutex);
 }
 
 static int uart_proc_show(struct seq_file *m, void *v)
@@ -2393,13 +2382,12 @@ int uart_suspend_port(struct uart_driver *drv, struct uart_port *uport)
 	struct device *tty_dev;
 	struct uart_match match = {uport, drv};
 
-	mutex_lock(&port->mutex);
+	guard(mutex)(&port->mutex);
 
 	tty_dev = device_find_child(&uport->port_dev->dev, &match, serial_match_port);
 	if (tty_dev && device_may_wakeup(tty_dev)) {
 		enable_irq_wake(uport->irq);
 		put_device(tty_dev);
-		mutex_unlock(&port->mutex);
 		return 0;
 	}
 	put_device(tty_dev);
@@ -2417,7 +2405,7 @@ int uart_suspend_port(struct uart_driver *drv, struct uart_port *uport)
 			uart_port_unlock_irq(uport);
 		}
 		device_set_awake_path(uport->dev);
-		goto unlock;
+		return 0;
 	}
 
 	uport->suspended = 1;
@@ -2460,8 +2448,6 @@ int uart_suspend_port(struct uart_driver *drv, struct uart_port *uport)
 		console_stop(uport->cons);
 
 	uart_change_pm(state, UART_PM_STATE_OFF);
-unlock:
-	mutex_unlock(&port->mutex);
 
 	return 0;
 }
@@ -2475,14 +2461,13 @@ int uart_resume_port(struct uart_driver *drv, struct uart_port *uport)
 	struct uart_match match = {uport, drv};
 	struct ktermios termios;
 
-	mutex_lock(&port->mutex);
+	guard(mutex)(&port->mutex);
 
 	tty_dev = device_find_child(&uport->port_dev->dev, &match, serial_match_port);
 	if (!uport->suspended && device_may_wakeup(tty_dev)) {
 		if (irqd_is_wakeup_set(irq_get_irq_data((uport->irq))))
 			disable_irq_wake(uport->irq);
 		put_device(tty_dev);
-		mutex_unlock(&port->mutex);
 		return 0;
 	}
 	put_device(tty_dev);
@@ -2554,8 +2539,6 @@ int uart_resume_port(struct uart_driver *drv, struct uart_port *uport)
 
 		tty_port_set_suspended(port, false);
 	}
-
-	mutex_unlock(&port->mutex);
 
 	return 0;
 }
@@ -2696,14 +2679,13 @@ static int uart_poll_init(struct tty_driver *driver, int line, char *options)
 	int ret = 0;
 
 	tport = &state->port;
-	mutex_lock(&tport->mutex);
+
+	guard(mutex)(&tport->mutex);
 
 	port = uart_port_check(state);
 	if (!port || port->type == PORT_UNKNOWN ||
-	    !(port->ops->poll_get_char && port->ops->poll_put_char)) {
-		ret = -1;
-		goto out;
-	}
+	    !(port->ops->poll_get_char && port->ops->poll_put_char))
+		return -1;
 
 	pm_state = state->pm_state;
 	uart_change_pm(state, UART_PM_STATE_ON);
@@ -2723,10 +2705,10 @@ static int uart_poll_init(struct tty_driver *driver, int line, char *options)
 		ret = uart_set_options(port, NULL, baud, parity, bits, flow);
 		console_list_unlock();
 	}
-out:
+
 	if (ret)
 		uart_change_pm(state, pm_state);
-	mutex_unlock(&tport->mutex);
+
 	return ret;
 }
 

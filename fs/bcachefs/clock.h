@@ -20,15 +20,6 @@ static inline void bch2_increment_clock(struct bch_fs *c, u64 sectors,
 
 void bch2_io_clock_schedule_timeout(struct io_clock *, u64);
 
-#define bch2_kthread_wait_event_ioclock_timeout(condition, clock, timeout)\
-({									\
-	long __ret = timeout;						\
-	might_sleep();							\
-	if (!___wait_cond_timeout(condition))				\
-		__ret = __wait_event_timeout(wq, condition, timeout);	\
-	__ret;								\
-})
-
 void bch2_io_timers_to_text(struct printbuf *, struct io_clock *);
 
 void bch2_io_clock_exit(struct io_clock *);

@@ -14,6 +14,7 @@
 #include "spark.h"
 #include "hashmap.h"
 #include "disasm.h"
+#include "branch.h"
 
 struct hist_browser_timer;
 struct hist_entry;
@@ -30,6 +31,7 @@ struct annotated_data_type;
 #define ANNOTATION__CYCLES_WIDTH 6
 #define ANNOTATION__MINMAX_CYCLES_WIDTH 19
 #define ANNOTATION__AVG_IPC_WIDTH 36
+#define ANNOTATION__BR_CNTR_WIDTH 30
 #define ANNOTATION_DUMMY_LEN	256
 
 struct annotation_options {
@@ -43,6 +45,7 @@ struct annotation_options {
 	     show_nr_jumps,
 	     show_minmax_cycle,
 	     show_asm_raw,
+	     show_br_cntr,
 	     annotate_src,
 	     full_addr;
 	u8   offset_level;
@@ -103,6 +106,10 @@ struct annotation_line {
 	char			*fileloc;
 	char			*path;
 	struct cycles_info	*cycles;
+	int			 num_aggr;
+	int			 br_cntr_nr;
+	u64			*br_cntr;
+	struct evsel		*evsel;
 	int			 jump_sources;
 	u32			 idx;
 	int			 idx_asm;
@@ -113,7 +120,10 @@ struct annotation_line {
 struct disasm_line {
 	struct ins		 ins;
 	struct ins_operands	 ops;
-
+	union {
+		u8 bytes[4];
+		u32 raw_insn;
+	} raw;
 	/* This needs to be at the end. */
 	struct annotation_line	 al;
 };
@@ -285,6 +295,9 @@ struct annotated_source {
 struct annotation_line *annotated_source__get_line(struct annotated_source *src,
 						   s64 offset);
 
+/* A branch counter once saturated */
+#define ANNOTATION__BR_CNTR_SATURATED_FLAG	(1ULL << 63)
+
 /**
  * struct annotated_branch - basic block and IPC information for a symbol.
  *
@@ -294,6 +307,7 @@ struct annotation_line *annotated_source__get_line(struct annotated_source *src,
  * @cover_insn: Number of distinct, actually executed instructions.
  * @cycles_hist: Array of cyc_hist for each instruction.
  * @max_coverage: Maximum number of covered basic block (used for block-range).
+ * @br_cntr: Array of the occurrences of events (branch counters) during a block.
  *
  * This struct is used by two different codes when the sample has branch stack
  * and cycles information.  annotation__compute_ipc() calculates average IPC
@@ -310,6 +324,7 @@ struct annotated_branch {
 	unsigned int		cover_insn;
 	struct cyc_hist		*cycles_hist;
 	u64			max_coverage;
+	u64			*br_cntr;
 };
 
 struct LOCKABLE annotation {
@@ -336,12 +351,17 @@ static inline int annotation__cycles_width(struct annotation *notes)
 
 static inline int annotation__pcnt_width(struct annotation *notes)
 {
-	return (symbol_conf.show_total_period ? 12 : 7) * notes->src->nr_events;
+	return (symbol_conf.show_total_period ? 12 : 8) * notes->src->nr_events;
 }
 
 static inline bool annotation_line__filter(struct annotation_line *al)
 {
 	return annotate_opts.hide_src_code && al->offset == -1;
+}
+
+static inline u8 annotation__br_cntr_width(void)
+{
+	return annotate_opts.show_br_cntr ? ANNOTATION__BR_CNTR_WIDTH : 0;
 }
 
 void annotation__update_column_widths(struct annotation *notes);
@@ -380,7 +400,9 @@ struct annotated_branch *annotation__get_branch(struct annotation *notes);
 
 int addr_map_symbol__account_cycles(struct addr_map_symbol *ams,
 				    struct addr_map_symbol *start,
-				    unsigned cycles);
+				    unsigned cycles,
+				    struct evsel *evsel,
+				    u64 br_cntr);
 
 int hist_entry__inc_addr_samples(struct hist_entry *he, struct perf_sample *sample,
 				 struct evsel *evsel, u64 addr);
@@ -540,4 +562,9 @@ struct annotated_basic_block {
 int annotate_get_basic_blocks(struct symbol *sym, s64 src, s64 dst,
 			      struct list_head *head);
 
+void debuginfo_cache__delete(void);
+
+int annotation_br_cntr_entry(char **str, int br_cntr_nr, u64 *br_cntr,
+			     int num_aggr, struct evsel *evsel);
+int annotation_br_cntr_abbr_list(char **str, struct evsel *evsel, bool header);
 #endif	/* __PERF_ANNOTATE_H */

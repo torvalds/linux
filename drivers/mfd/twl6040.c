@@ -620,7 +620,7 @@ static const struct regmap_irq twl6040_irqs[] = {
 	{ .reg_offset = 0, .mask = TWL6040_READYINT, },
 };
 
-static struct regmap_irq_chip twl6040_irq_chip = {
+static const struct regmap_irq_chip twl6040_irq_chip = {
 	.name = "twl6040",
 	.irqs = twl6040_irqs,
 	.num_irqs = ARRAY_SIZE(twl6040_irqs),

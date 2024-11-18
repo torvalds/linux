@@ -485,7 +485,6 @@ struct cxgbi_device {
 	unsigned char nmtus;
 	unsigned char nports;
 	struct pci_dev *pdev;
-	struct dentry *debugfs_root;
 	struct iscsi_transport *itp;
 	struct module *owner;
 
@@ -499,7 +498,6 @@ struct cxgbi_device {
 	unsigned int rxq_idx_cntr;
 	struct cxgbi_ports_map pmap;
 
-	void (*dev_ddp_cleanup)(struct cxgbi_device *);
 	struct cxgbi_ppm* (*cdev2ppm)(struct cxgbi_device *);
 	int (*csk_ddp_set_map)(struct cxgbi_ppm *, struct cxgbi_sock *,
 			       struct cxgbi_task_tag_info *);
@@ -512,7 +510,6 @@ struct cxgbi_device {
 				   unsigned int, int);
 
 	void (*csk_release_offload_resources)(struct cxgbi_sock *);
-	int (*csk_rx_pdu_ready)(struct cxgbi_sock *, struct sk_buff *);
 	u32 (*csk_send_rx_credits)(struct cxgbi_sock *, u32);
 	int (*csk_push_tx_frames)(struct cxgbi_sock *, int);
 	void (*csk_send_abort_req)(struct cxgbi_sock *);

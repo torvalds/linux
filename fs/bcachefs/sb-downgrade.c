@@ -312,8 +312,7 @@ static void bch2_sb_downgrade_to_text(struct printbuf *out, struct bch_sb *sb,
 			if (!first)
 				prt_char(out, ',');
 			first = false;
-			unsigned e = le16_to_cpu(i->errors[j]);
-			prt_str(out, e < BCH_SB_ERR_MAX ? bch2_sb_error_strs[e] : "(unknown)");
+			bch2_sb_error_id_to_text(out, le16_to_cpu(i->errors[j]));
 		}
 		prt_newline(out);
 	}
@@ -353,7 +352,9 @@ int bch2_sb_downgrade_update(struct bch_fs *c)
 		for (unsigned i = 0; i < src->nr_errors; i++)
 			dst->errors[i] = cpu_to_le16(src->errors[i]);
 
-		downgrade_table_extra(c, &table);
+		ret = downgrade_table_extra(c, &table);
+		if (ret)
+			goto out;
 
 		if (!dst->recovery_passes[0] &&
 		    !dst->recovery_passes[1] &&
@@ -399,7 +400,7 @@ void bch2_sb_set_downgrade(struct bch_fs *c, unsigned new_minor, unsigned old_mi
 
 			for (unsigned j = 0; j < le16_to_cpu(i->nr_errors); j++) {
 				unsigned e = le16_to_cpu(i->errors[j]);
-				if (e < BCH_SB_ERR_MAX)
+				if (e < BCH_FSCK_ERR_MAX)
 					__set_bit(e, c->sb.errors_silent);
 				if (e < sizeof(ext->errors_silent) * 8)
 					__set_bit_le64(e, ext->errors_silent);

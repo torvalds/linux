@@ -1166,7 +1166,7 @@ static int nt35510_probe(struct mipi_dsi_device *dsi)
 			bl->props.brightness = nt->conf->wrdisbv;
 		else
 			bl->props.brightness = 255;
-		bl->props.power = FB_BLANK_POWERDOWN;
+		bl->props.power = BACKLIGHT_POWER_OFF;
 		nt->panel.backlight = bl;
 	}
 

@@ -660,9 +660,10 @@ static void err_print_params(struct drm_i915_error_state_buf *m,
 			     const struct i915_params *params)
 {
 	struct drm_printer p = i915_error_printer(m);
+	struct intel_display *display = &m->i915->display;
 
 	i915_params_dump(params, &p);
-	intel_display_params_dump(m->i915, &p);
+	intel_display_params_dump(display, &p);
 }
 
 static void err_print_pciid(struct drm_i915_error_state_buf *m,

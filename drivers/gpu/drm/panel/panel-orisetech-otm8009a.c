@@ -389,7 +389,7 @@ static int otm8009a_backlight_update_status(struct backlight_device *bd)
 		return -ENXIO;
 	}
 
-	if (bd->props.power <= FB_BLANK_NORMAL) {
+	if (bd->props.power <= BACKLIGHT_POWER_REDUCED) {
 		/* Power on the backlight with the requested brightness
 		 * Note We can not use mipi_dsi_dcs_set_display_brightness()
 		 * as otm8009a driver support only 8-bit brightness (1 param).
@@ -465,7 +465,7 @@ static int otm8009a_probe(struct mipi_dsi_device *dsi)
 
 	ctx->bl_dev->props.max_brightness = OTM8009A_BACKLIGHT_MAX;
 	ctx->bl_dev->props.brightness = OTM8009A_BACKLIGHT_DEFAULT;
-	ctx->bl_dev->props.power = FB_BLANK_POWERDOWN;
+	ctx->bl_dev->props.power = BACKLIGHT_POWER_OFF;
 	ctx->bl_dev->props.type = BACKLIGHT_RAW;
 
 	drm_panel_add(&ctx->panel);

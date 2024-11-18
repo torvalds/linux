@@ -17,6 +17,15 @@ config CPU_MITIGATIONS
 	def_bool y
 endif
 
+#
+# Selected by architectures that need custom DMA operations for e.g. legacy
+# IOMMUs not handled by dma-iommu.  Drivers must never select this symbol.
+#
+config ARCH_HAS_DMA_OPS
+	depends on HAS_DMA
+	select DMA_OPS_HELPERS
+	bool
+
 menu "General architecture-dependent options"
 
 config ARCH_HAS_SUBPAGE_FAULTS
@@ -825,6 +834,38 @@ config CFI_CLANG
 	  found from Clang's documentation:
 
 	    https://clang.llvm.org/docs/ControlFlowIntegrity.html
+
+config CFI_ICALL_NORMALIZE_INTEGERS
+	bool "Normalize CFI tags for integers"
+	depends on CFI_CLANG
+	depends on HAVE_CFI_ICALL_NORMALIZE_INTEGERS
+	help
+	  This option normalizes the CFI tags for integer types so that all
+	  integer types of the same size and signedness receive the same CFI
+	  tag.
+
+	  The option is separate from CONFIG_RUST because it affects the ABI.
+	  When working with build systems that care about the ABI, it is
+	  convenient to be able to turn on this flag first, before Rust is
+	  turned on.
+
+	  This option is necessary for using CFI with Rust. If unsure, say N.
+
+config HAVE_CFI_ICALL_NORMALIZE_INTEGERS
+	def_bool !GCOV_KERNEL && !KASAN
+	depends on CFI_CLANG
+	depends on $(cc-option,-fsanitize=kcfi -fsanitize-cfi-icall-experimental-normalize-integers)
+	help
+	  Is CFI_ICALL_NORMALIZE_INTEGERS supported with the set of compilers
+	  currently in use?
+
+	  This option defaults to false if GCOV or KASAN is enabled, as there is
+	  an LLVM bug that makes normalized integers tags incompatible with
+	  KASAN and GCOV. Kconfig currently does not have the infrastructure to
+	  detect whether your rustc compiler contains the fix for this bug, so
+	  it is assumed that it doesn't. If your compiler has the fix, you can
+	  explicitly enable this option in your config file. The Kconfig logic
+	  needed to detect this will be added in a future kernel release.
 
 config CFI_PERMISSIVE
 	bool "Use CFI in permissive mode"

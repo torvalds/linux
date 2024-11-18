@@ -95,7 +95,7 @@ class Validator:
                       indent=4)
 
     def get_results(self, idx: int = 0):
-        return self.results[idx]
+        return self.results.get(idx)
 
     def get_bounds(self, lb, ub, error, alias={}, ridx: int = 0) -> list:
         """
@@ -173,7 +173,10 @@ class Validator:
         pcnt = 0
         tcnt = 0
         rerun = list()
-        for name, val in self.get_results().items():
+        results = self.get_results()
+        if not results:
+            return
+        for name, val in results.items():
             if val < 0:
                 negmetric[name] = val
                 rerun.append(name)
@@ -532,6 +535,9 @@ class Validator:
         '''
         if not self.collectlist:
             self.parse_perf_metrics()
+        if not self.metrics:
+            print("No metric found for testing")
+            return 0
         self.create_rules()
         for i in range(0, len(self.workloads)):
             self.wlidx = i

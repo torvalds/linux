@@ -2058,7 +2058,7 @@ static int ceph_d_delete(const struct dentry *dentry)
 		return 0;
 	if (ceph_snap(d_inode(dentry)) != CEPH_NOSNAP)
 		return 0;
-	/* vaild lease? */
+	/* valid lease? */
 	di = ceph_dentry(dentry);
 	if (di) {
 		if (__dentry_lease_is_valid(di))

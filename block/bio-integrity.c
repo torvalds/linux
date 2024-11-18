@@ -367,7 +367,6 @@ free_bvec:
 		kfree(bvec);
 	return ret;
 }
-EXPORT_SYMBOL_GPL(bio_integrity_map_user);
 
 /**
  * bio_integrity_prep - Prepare bio for integrity I/O

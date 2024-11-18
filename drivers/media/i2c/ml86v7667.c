@@ -424,8 +424,8 @@ static void ml86v7667_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id ml86v7667_id[] = {
-	{DRV_NAME, 0},
-	{},
+	{ DRV_NAME },
+	{}
 };
 MODULE_DEVICE_TABLE(i2c, ml86v7667_id);
 

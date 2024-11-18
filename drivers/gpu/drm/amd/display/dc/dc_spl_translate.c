@@ -42,26 +42,26 @@ static void populate_spltaps_from_taps(struct spl_taps *spl_scaling_quality,
 static void populate_taps_from_spltaps(struct scaling_taps *scaling_quality,
 		const struct spl_taps *spl_scaling_quality)
 {
-	scaling_quality->h_taps_c = spl_scaling_quality->h_taps_c;
-	scaling_quality->h_taps = spl_scaling_quality->h_taps;
-	scaling_quality->v_taps_c = spl_scaling_quality->v_taps_c;
-	scaling_quality->v_taps = spl_scaling_quality->v_taps;
+	scaling_quality->h_taps_c = spl_scaling_quality->h_taps_c + 1;
+	scaling_quality->h_taps = spl_scaling_quality->h_taps + 1;
+	scaling_quality->v_taps_c = spl_scaling_quality->v_taps_c + 1;
+	scaling_quality->v_taps = spl_scaling_quality->v_taps + 1;
 }
 static void populate_ratios_from_splratios(struct scaling_ratios *ratios,
-		const struct spl_ratios *spl_ratios)
+		const struct ratio *spl_ratios)
 {
-	ratios->horz = spl_ratios->horz;
-	ratios->vert = spl_ratios->vert;
-	ratios->horz_c = spl_ratios->horz_c;
-	ratios->vert_c = spl_ratios->vert_c;
+	ratios->horz = dc_fixpt_from_ux_dy(spl_ratios->h_scale_ratio >> 5, 3, 19);
+	ratios->vert = dc_fixpt_from_ux_dy(spl_ratios->v_scale_ratio >> 5, 3, 19);
+	ratios->horz_c = dc_fixpt_from_ux_dy(spl_ratios->h_scale_ratio_c >> 5, 3, 19);
+	ratios->vert_c = dc_fixpt_from_ux_dy(spl_ratios->v_scale_ratio_c >> 5, 3, 19);
 }
 static void populate_inits_from_splinits(struct scl_inits *inits,
-		const struct spl_inits *spl_inits)
+		const struct init *spl_inits)
 {
-	inits->h = spl_inits->h;
-	inits->v = spl_inits->v;
-	inits->h_c = spl_inits->h_c;
-	inits->v_c = spl_inits->v_c;
+	inits->h = dc_fixpt_from_int_dy(spl_inits->h_filter_init_int, spl_inits->h_filter_init_frac >> 5, 0, 19);
+	inits->v = dc_fixpt_from_int_dy(spl_inits->v_filter_init_int, spl_inits->v_filter_init_frac >> 5, 0, 19);
+	inits->h_c = dc_fixpt_from_int_dy(spl_inits->h_filter_init_int_c, spl_inits->h_filter_init_frac_c >> 5, 0, 19);
+	inits->v_c = dc_fixpt_from_int_dy(spl_inits->v_filter_init_int_c, spl_inits->v_filter_init_frac_c >> 5, 0, 19);
 }
 /// @brief Translate SPL input parameters from pipe context
 /// @param pipe_ctx
@@ -128,6 +128,7 @@ void translate_SPL_in_params_from_pipe_ctx(struct pipe_ctx *pipe_ctx, struct spl
 	spl_in->basic_out.always_scale = pipe_ctx->stream->ctx->dc->debug.always_scale;
 	// Make spl input basic output info alpha_en field point to plane res scl_data lb_params alpha_en
 	spl_in->basic_out.alpha_en = pipe_ctx->plane_res.scl_data.lb_params.alpha_en;
+	spl_in->basic_out.use_two_pixels_per_container = pipe_ctx->stream_res.tg->funcs->is_two_pixels_per_container(&stream->timing);
 	// Make spl input basic input info scaling quality field point to plane state scaling_quality
 	populate_spltaps_from_taps(&spl_in->scaling_quality, &plane_state->scaling_quality);
 	// Translate edge adaptive scaler preference
@@ -138,24 +139,36 @@ void translate_SPL_in_params_from_pipe_ctx(struct pipe_ctx *pipe_ctx, struct spl
 	else if (pipe_ctx->stream->ctx->dc->debug.force_easf == 2)
 		spl_in->disable_easf = true;
 	/* Translate adaptive sharpening preference */
-	if (pipe_ctx->stream->ctx->dc->debug.force_sharpness > 0) {
-		spl_in->adaptive_sharpness.enable = (pipe_ctx->stream->ctx->dc->debug.force_sharpness > 1) ? true : false;
-		if (pipe_ctx->stream->ctx->dc->debug.force_sharpness == 2)
-			spl_in->adaptive_sharpness.sharpness = SHARPNESS_LOW;
-		else if (pipe_ctx->stream->ctx->dc->debug.force_sharpness == 3)
-			spl_in->adaptive_sharpness.sharpness = SHARPNESS_MID;
-		else if (pipe_ctx->stream->ctx->dc->debug.force_sharpness >= 4)
-			spl_in->adaptive_sharpness.sharpness = SHARPNESS_HIGH;
-	} else {
-		spl_in->adaptive_sharpness.enable = plane_state->adaptive_sharpness_en;
-		if (plane_state->sharpnessX1000 == 0)
+	unsigned int sharpness_setting = pipe_ctx->stream->ctx->dc->debug.force_sharpness;
+	unsigned int force_sharpness_level = pipe_ctx->stream->ctx->dc->debug.force_sharpness_level;
+	if (sharpness_setting == SHARPNESS_HW_OFF)
+		spl_in->adaptive_sharpness.enable = false;
+	else if (sharpness_setting == SHARPNESS_ZERO) {
+		spl_in->adaptive_sharpness.enable = true;
+		spl_in->adaptive_sharpness.sharpness_level = 0;
+	} else if (sharpness_setting == SHARPNESS_CUSTOM) {
+		spl_in->adaptive_sharpness.sharpness_range.sdr_rgb_min = 0;
+		spl_in->adaptive_sharpness.sharpness_range.sdr_rgb_max = 1750;
+		spl_in->adaptive_sharpness.sharpness_range.sdr_rgb_mid = 750;
+		spl_in->adaptive_sharpness.sharpness_range.sdr_yuv_min = 0;
+		spl_in->adaptive_sharpness.sharpness_range.sdr_yuv_max = 3500;
+		spl_in->adaptive_sharpness.sharpness_range.sdr_yuv_mid = 1500;
+		spl_in->adaptive_sharpness.sharpness_range.hdr_rgb_min = 0;
+		spl_in->adaptive_sharpness.sharpness_range.hdr_rgb_max = 2750;
+		spl_in->adaptive_sharpness.sharpness_range.hdr_rgb_mid = 1500;
+
+		if (force_sharpness_level > 0) {
+			if (force_sharpness_level > 10)
+				force_sharpness_level = 10;
+			spl_in->adaptive_sharpness.enable = true;
+			spl_in->adaptive_sharpness.sharpness_level = force_sharpness_level;
+		} else if (!plane_state->adaptive_sharpness_en) {
 			spl_in->adaptive_sharpness.enable = false;
-		else if (plane_state->sharpnessX1000 < 999)
-			spl_in->adaptive_sharpness.sharpness = SHARPNESS_LOW;
-		else if (plane_state->sharpnessX1000 < 1999)
-			spl_in->adaptive_sharpness.sharpness = SHARPNESS_MID;
-		else // Any other value is high sharpness
-			spl_in->adaptive_sharpness.sharpness = SHARPNESS_HIGH;
+			spl_in->adaptive_sharpness.sharpness_level = 0;
+		} else {
+			spl_in->adaptive_sharpness.enable = true;
+			spl_in->adaptive_sharpness.sharpness_level = plane_state->sharpness_level;
+		}
 	}
 	// Translate linear light scaling preference
 	if (pipe_ctx->stream->ctx->dc->debug.force_lls > 0)
@@ -171,6 +184,19 @@ void translate_SPL_in_params_from_pipe_ctx(struct pipe_ctx *pipe_ctx, struct spl
 	spl_in->basic_in.tf_type = (enum spl_transfer_func_type) plane_state->in_transfer_func.type;
 	spl_in->basic_in.tf_predefined_type = (enum spl_transfer_func_predefined) plane_state->in_transfer_func.tf;
 
+	spl_in->h_active = pipe_ctx->plane_res.scl_data.h_active;
+	spl_in->v_active = pipe_ctx->plane_res.scl_data.v_active;
+
+	spl_in->debug.sharpen_policy = (enum sharpen_policy)pipe_ctx->stream->ctx->dc->debug.sharpen_policy;
+	spl_in->debug.scale_to_sharpness_policy =
+		(enum scale_to_sharpness_policy)pipe_ctx->stream->ctx->dc->debug.scale_to_sharpness_policy;
+
+	/* Check if it is stream is in fullscreen and if its HDR.
+	 * Use this to determine sharpness levels
+	 */
+	spl_in->is_fullscreen = dm_helpers_is_fullscreen(pipe_ctx->stream->ctx, pipe_ctx->stream);
+	spl_in->is_hdr_on = dm_helpers_is_hdr_on(pipe_ctx->stream->ctx, pipe_ctx->stream);
+	spl_in->sdr_white_level_nits = plane_state->sdr_white_level_nits;
 }
 
 /// @brief Translate SPL output parameters to pipe context
@@ -179,15 +205,15 @@ void translate_SPL_in_params_from_pipe_ctx(struct pipe_ctx *pipe_ctx, struct spl
 void translate_SPL_out_params_to_pipe_ctx(struct pipe_ctx *pipe_ctx, struct spl_out *spl_out)
 {
 	// Make scaler data recout point to spl output field recout
-	populate_rect_from_splrect(&pipe_ctx->plane_res.scl_data.recout, &spl_out->scl_data.recout);
+	populate_rect_from_splrect(&pipe_ctx->plane_res.scl_data.recout, &spl_out->dscl_prog_data->recout);
 	// Make scaler data ratios point to spl output field ratios
-	populate_ratios_from_splratios(&pipe_ctx->plane_res.scl_data.ratios, &spl_out->scl_data.ratios);
+	populate_ratios_from_splratios(&pipe_ctx->plane_res.scl_data.ratios, &spl_out->dscl_prog_data->ratios);
 	// Make scaler data viewport point to spl output field viewport
-	populate_rect_from_splrect(&pipe_ctx->plane_res.scl_data.viewport, &spl_out->scl_data.viewport);
+	populate_rect_from_splrect(&pipe_ctx->plane_res.scl_data.viewport, &spl_out->dscl_prog_data->viewport);
 	// Make scaler data viewport_c point to spl output field viewport_c
-	populate_rect_from_splrect(&pipe_ctx->plane_res.scl_data.viewport_c, &spl_out->scl_data.viewport_c);
+	populate_rect_from_splrect(&pipe_ctx->plane_res.scl_data.viewport_c, &spl_out->dscl_prog_data->viewport_c);
 	// Make scaler data taps point to spl output field scaling taps
-	populate_taps_from_spltaps(&pipe_ctx->plane_res.scl_data.taps, &spl_out->scl_data.taps);
+	populate_taps_from_spltaps(&pipe_ctx->plane_res.scl_data.taps, &spl_out->dscl_prog_data->taps);
 	// Make scaler data init point to spl output field init
-	populate_inits_from_splinits(&pipe_ctx->plane_res.scl_data.inits, &spl_out->scl_data.inits);
+	populate_inits_from_splinits(&pipe_ctx->plane_res.scl_data.inits, &spl_out->dscl_prog_data->init);
 }

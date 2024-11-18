@@ -155,7 +155,7 @@ static const struct clk_parent_data mmcc_pxo_dsi1_dsi2_byte[] = {
 	{ .fw_name = "dsi2pllbyte", .name = "dsi2pllbyte" },
 };
 
-static struct freq_tbl clk_tbl_cam[] = {
+static const struct freq_tbl clk_tbl_cam[] = {
 	{   6000000, P_PLL8, 4, 1, 16 },
 	{   8000000, P_PLL8, 4, 1, 12 },
 	{  12000000, P_PLL8, 4, 1,  8 },
@@ -323,7 +323,7 @@ static struct clk_branch camclk2_clk = {
 
 };
 
-static struct freq_tbl clk_tbl_csi[] = {
+static const struct freq_tbl clk_tbl_csi[] = {
 	{  27000000, P_PXO,  1, 0, 0 },
 	{  85330000, P_PLL8, 1, 2, 9 },
 	{ 177780000, P_PLL2, 1, 2, 9 },
@@ -715,7 +715,7 @@ static struct clk_pix_rdi csi_rdi2_clk = {
 	},
 };
 
-static struct freq_tbl clk_tbl_csiphytimer[] = {
+static const struct freq_tbl clk_tbl_csiphytimer[] = {
 	{  85330000, P_PLL8, 1, 2, 9 },
 	{ 177780000, P_PLL2, 1, 2, 9 },
 	{ }
@@ -808,7 +808,7 @@ static struct clk_branch csiphy2_timer_clk = {
 	},
 };
 
-static struct freq_tbl clk_tbl_gfx2d[] = {
+static const struct freq_tbl clk_tbl_gfx2d[] = {
 	F_MN( 27000000, P_PXO,  1,  0),
 	F_MN( 48000000, P_PLL8, 1,  8),
 	F_MN( 54857000, P_PLL8, 1,  7),
@@ -948,7 +948,7 @@ static struct clk_branch gfx2d1_clk = {
 	},
 };
 
-static struct freq_tbl clk_tbl_gfx3d[] = {
+static const struct freq_tbl clk_tbl_gfx3d[] = {
 	F_MN( 27000000, P_PXO,  1,  0),
 	F_MN( 48000000, P_PLL8, 1,  8),
 	F_MN( 54857000, P_PLL8, 1,  7),
@@ -968,7 +968,7 @@ static struct freq_tbl clk_tbl_gfx3d[] = {
 	{ }
 };
 
-static struct freq_tbl clk_tbl_gfx3d_8064[] = {
+static const struct freq_tbl clk_tbl_gfx3d_8064[] = {
 	F_MN( 27000000, P_PXO,   0,  0),
 	F_MN( 48000000, P_PLL8,  1,  8),
 	F_MN( 54857000, P_PLL8,  1,  7),
@@ -1058,7 +1058,7 @@ static struct clk_branch gfx3d_clk = {
 	},
 };
 
-static struct freq_tbl clk_tbl_vcap[] = {
+static const struct freq_tbl clk_tbl_vcap[] = {
 	F_MN( 27000000, P_PXO,  0,  0),
 	F_MN( 54860000, P_PLL8, 1,  7),
 	F_MN( 64000000, P_PLL8, 1,  6),
@@ -1149,7 +1149,7 @@ static struct clk_branch vcap_npl_clk = {
 	},
 };
 
-static struct freq_tbl clk_tbl_ijpeg[] = {
+static const struct freq_tbl clk_tbl_ijpeg[] = {
 	{  27000000, P_PXO,  1, 0,  0 },
 	{  36570000, P_PLL8, 1, 2, 21 },
 	{  54860000, P_PLL8, 7, 0,  0 },
@@ -1214,7 +1214,7 @@ static struct clk_branch ijpeg_clk = {
 	},
 };
 
-static struct freq_tbl clk_tbl_jpegd[] = {
+static const struct freq_tbl clk_tbl_jpegd[] = {
 	{  64000000, P_PLL8, 6 },
 	{  76800000, P_PLL8, 5 },
 	{  96000000, P_PLL8, 4 },
@@ -1264,7 +1264,7 @@ static struct clk_branch jpegd_clk = {
 	},
 };
 
-static struct freq_tbl clk_tbl_mdp[] = {
+static const struct freq_tbl clk_tbl_mdp[] = {
 	{   9600000, P_PLL8, 1, 1, 40 },
 	{  13710000, P_PLL8, 1, 1, 28 },
 	{  27000000, P_PXO,  1, 0,  0 },
@@ -1381,7 +1381,7 @@ static struct clk_branch mdp_vsync_clk = {
 	},
 };
 
-static struct freq_tbl clk_tbl_rot[] = {
+static const struct freq_tbl clk_tbl_rot[] = {
 	{  27000000, P_PXO,   1 },
 	{  29540000, P_PLL8, 13 },
 	{  32000000, P_PLL8, 12 },
@@ -1461,7 +1461,7 @@ static const struct clk_parent_data mmcc_pxo_hdmi[] = {
 	{ .fw_name = "hdmipll", .name = "hdmi_pll" },
 };
 
-static struct freq_tbl clk_tbl_tv[] = {
+static const struct freq_tbl clk_tbl_tv[] = {
 	{  .src = P_HDMI_PLL, .pre_div = 1 },
 	{ }
 };
@@ -1624,7 +1624,7 @@ static struct clk_branch hdmi_app_clk = {
 	},
 };
 
-static struct freq_tbl clk_tbl_vcodec[] = {
+static const struct freq_tbl clk_tbl_vcodec[] = {
 	F_MN( 27000000, P_PXO,  1,  0),
 	F_MN( 32000000, P_PLL8, 1, 12),
 	F_MN( 48000000, P_PLL8, 1,  8),
@@ -1699,7 +1699,7 @@ static struct clk_branch vcodec_clk = {
 	},
 };
 
-static struct freq_tbl clk_tbl_vpe[] = {
+static const struct freq_tbl clk_tbl_vpe[] = {
 	{  27000000, P_PXO,   1 },
 	{  34909000, P_PLL8, 11 },
 	{  38400000, P_PLL8, 10 },
@@ -1752,7 +1752,7 @@ static struct clk_branch vpe_clk = {
 	},
 };
 
-static struct freq_tbl clk_tbl_vfe[] = {
+static const struct freq_tbl clk_tbl_vfe[] = {
 	{  13960000, P_PLL8,  1, 2, 55 },
 	{  27000000, P_PXO,   1, 0,  0 },
 	{  36570000, P_PLL8,  1, 2, 21 },

@@ -715,7 +715,9 @@ int elv_iosched_load_module(struct gendisk *disk, const char *buf,
 
 	strscpy(elevator_name, buf, sizeof(elevator_name));
 
-	return request_module("%s-iosched", strstrip(elevator_name));
+	request_module("%s-iosched", strstrip(elevator_name));
+
+	return 0;
 }
 
 ssize_t elv_iosched_store(struct gendisk *disk, const char *buf,

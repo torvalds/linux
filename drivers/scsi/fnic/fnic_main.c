@@ -830,7 +830,6 @@ static int fnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		spin_lock_init(&fnic->vlans_lock);
 		INIT_WORK(&fnic->fip_frame_work, fnic_handle_fip_frame);
 		INIT_WORK(&fnic->event_work, fnic_handle_event);
-		INIT_WORK(&fnic->flush_work, fnic_flush_tx);
 		skb_queue_head_init(&fnic->fip_frame_queue);
 		INIT_LIST_HEAD(&fnic->evlist);
 		INIT_LIST_HEAD(&fnic->vlans);
@@ -948,6 +947,7 @@ static int fnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	INIT_WORK(&fnic->link_work, fnic_handle_link);
 	INIT_WORK(&fnic->frame_work, fnic_handle_frame);
+	INIT_WORK(&fnic->flush_work, fnic_flush_tx);
 	skb_queue_head_init(&fnic->frame_queue);
 	skb_queue_head_init(&fnic->tx_queue);
 
@@ -1161,14 +1161,16 @@ static int __init fnic_init_module(void)
 		goto err_create_fnic_ioreq_slab;
 	}
 
-	fnic_event_queue = create_singlethread_workqueue("fnic_event_wq");
+	fnic_event_queue =
+		alloc_ordered_workqueue("%s", WQ_MEM_RECLAIM, "fnic_event_wq");
 	if (!fnic_event_queue) {
 		printk(KERN_ERR PFX "fnic work queue create failed\n");
 		err = -ENOMEM;
 		goto err_create_fnic_workq;
 	}
 
-	fnic_fip_queue = create_singlethread_workqueue("fnic_fip_q");
+	fnic_fip_queue =
+		alloc_ordered_workqueue("%s", WQ_MEM_RECLAIM, "fnic_fip_q");
 	if (!fnic_fip_queue) {
 		printk(KERN_ERR PFX "fnic FIP work queue create failed\n");
 		err = -ENOMEM;

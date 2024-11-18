@@ -405,7 +405,7 @@ static long f_dupfd_query(int fd, struct file *filp)
 	 * overkill, but given our lockless file pointer lookup, the
 	 * alternatives are complicated.
 	 */
-	return f.file == filp;
+	return fd_file(f) == filp;
 }
 
 /* Let the caller figure out whether a given file was just created. */
@@ -573,17 +573,17 @@ SYSCALL_DEFINE3(fcntl, unsigned int, fd, unsigned int, cmd, unsigned long, arg)
 	struct fd f = fdget_raw(fd);
 	long err = -EBADF;
 
-	if (!f.file)
+	if (!fd_file(f))
 		goto out;
 
-	if (unlikely(f.file->f_mode & FMODE_PATH)) {
+	if (unlikely(fd_file(f)->f_mode & FMODE_PATH)) {
 		if (!check_fcntl_cmd(cmd))
 			goto out1;
 	}
 
-	err = security_file_fcntl(f.file, cmd, arg);
+	err = security_file_fcntl(fd_file(f), cmd, arg);
 	if (!err)
-		err = do_fcntl(fd, cmd, arg, f.file);
+		err = do_fcntl(fd, cmd, arg, fd_file(f));
 
 out1:
  	fdput(f);
@@ -600,15 +600,15 @@ SYSCALL_DEFINE3(fcntl64, unsigned int, fd, unsigned int, cmd,
 	struct flock64 flock;
 	long err = -EBADF;
 
-	if (!f.file)
+	if (!fd_file(f))
 		goto out;
 
-	if (unlikely(f.file->f_mode & FMODE_PATH)) {
+	if (unlikely(fd_file(f)->f_mode & FMODE_PATH)) {
 		if (!check_fcntl_cmd(cmd))
 			goto out1;
 	}
 
-	err = security_file_fcntl(f.file, cmd, arg);
+	err = security_file_fcntl(fd_file(f), cmd, arg);
 	if (err)
 		goto out1;
 	
@@ -618,7 +618,7 @@ SYSCALL_DEFINE3(fcntl64, unsigned int, fd, unsigned int, cmd,
 		err = -EFAULT;
 		if (copy_from_user(&flock, argp, sizeof(flock)))
 			break;
-		err = fcntl_getlk64(f.file, cmd, &flock);
+		err = fcntl_getlk64(fd_file(f), cmd, &flock);
 		if (!err && copy_to_user(argp, &flock, sizeof(flock)))
 			err = -EFAULT;
 		break;
@@ -629,10 +629,10 @@ SYSCALL_DEFINE3(fcntl64, unsigned int, fd, unsigned int, cmd,
 		err = -EFAULT;
 		if (copy_from_user(&flock, argp, sizeof(flock)))
 			break;
-		err = fcntl_setlk64(fd, f.file, cmd, &flock);
+		err = fcntl_setlk64(fd, fd_file(f), cmd, &flock);
 		break;
 	default:
-		err = do_fcntl(fd, cmd, arg, f.file);
+		err = do_fcntl(fd, cmd, arg, fd_file(f));
 		break;
 	}
 out1:
@@ -737,15 +737,15 @@ static long do_compat_fcntl64(unsigned int fd, unsigned int cmd,
 	struct flock flock;
 	long err = -EBADF;
 
-	if (!f.file)
+	if (!fd_file(f))
 		return err;
 
-	if (unlikely(f.file->f_mode & FMODE_PATH)) {
+	if (unlikely(fd_file(f)->f_mode & FMODE_PATH)) {
 		if (!check_fcntl_cmd(cmd))
 			goto out_put;
 	}
 
-	err = security_file_fcntl(f.file, cmd, arg);
+	err = security_file_fcntl(fd_file(f), cmd, arg);
 	if (err)
 		goto out_put;
 
@@ -754,7 +754,7 @@ static long do_compat_fcntl64(unsigned int fd, unsigned int cmd,
 		err = get_compat_flock(&flock, compat_ptr(arg));
 		if (err)
 			break;
-		err = fcntl_getlk(f.file, convert_fcntl_cmd(cmd), &flock);
+		err = fcntl_getlk(fd_file(f), convert_fcntl_cmd(cmd), &flock);
 		if (err)
 			break;
 		err = fixup_compat_flock(&flock);
@@ -766,7 +766,7 @@ static long do_compat_fcntl64(unsigned int fd, unsigned int cmd,
 		err = get_compat_flock64(&flock, compat_ptr(arg));
 		if (err)
 			break;
-		err = fcntl_getlk(f.file, convert_fcntl_cmd(cmd), &flock);
+		err = fcntl_getlk(fd_file(f), convert_fcntl_cmd(cmd), &flock);
 		if (!err)
 			err = put_compat_flock64(&flock, compat_ptr(arg));
 		break;
@@ -775,7 +775,7 @@ static long do_compat_fcntl64(unsigned int fd, unsigned int cmd,
 		err = get_compat_flock(&flock, compat_ptr(arg));
 		if (err)
 			break;
-		err = fcntl_setlk(fd, f.file, convert_fcntl_cmd(cmd), &flock);
+		err = fcntl_setlk(fd, fd_file(f), convert_fcntl_cmd(cmd), &flock);
 		break;
 	case F_SETLK64:
 	case F_SETLKW64:
@@ -784,10 +784,10 @@ static long do_compat_fcntl64(unsigned int fd, unsigned int cmd,
 		err = get_compat_flock64(&flock, compat_ptr(arg));
 		if (err)
 			break;
-		err = fcntl_setlk(fd, f.file, convert_fcntl_cmd(cmd), &flock);
+		err = fcntl_setlk(fd, fd_file(f), convert_fcntl_cmd(cmd), &flock);
 		break;
 	default:
-		err = do_fcntl(fd, cmd, arg, f.file);
+		err = do_fcntl(fd, cmd, arg, fd_file(f));
 		break;
 	}
 out_put:

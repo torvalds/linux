@@ -2,7 +2,6 @@
 //
 // Copyright 2024 Advanced Micro Devices, Inc.
 
-
 #include "dml2_top_optimization.h"
 #include "dml2_internal_shared_types.h"
 #include "dml_top_mcache.h"
@@ -220,7 +219,6 @@ bool dml2_top_optimization_perform_optimization_phase_1(struct dml2_optimization
 	copy_display_configuration_with_meta(&l->cur_candidate_display_cfg, params->display_config);
 	highest_state = l->cur_candidate_display_cfg.stage1.min_clk_index_for_latency;
 	lowest_state = 0;
-	cur_state = 0;
 
 	while (highest_state > lowest_state) {
 		cur_state = (highest_state + lowest_state) / 2;

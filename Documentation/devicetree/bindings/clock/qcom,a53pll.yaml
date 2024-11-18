@@ -21,6 +21,7 @@ properties:
       - qcom,ipq6018-a53pll
       - qcom,ipq8074-a53pll
       - qcom,ipq9574-a73pll
+      - qcom,msm8226-a7pll
       - qcom,msm8916-a53pll
       - qcom,msm8939-a53pll
 
@@ -39,6 +40,9 @@ properties:
       - const: xo
 
   operating-points-v2: true
+
+  opp-table:
+    type: object
 
 required:
   - compatible

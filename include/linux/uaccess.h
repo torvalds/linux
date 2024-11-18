@@ -33,6 +33,13 @@
 })
 #endif
 
+#ifdef masked_user_access_begin
+ #define can_do_masked_user_access() 1
+#else
+ #define can_do_masked_user_access() 0
+ #define masked_user_access_begin(src) NULL
+#endif
+
 /*
  * Architectures should provide two primitives (raw_copy_{to,from}_user())
  * and get rid of their private instances of copy_{to,from}_user() and

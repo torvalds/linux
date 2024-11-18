@@ -2,33 +2,25 @@
 #ifndef _BCACHEFS_BTREE_KEY_CACHE_TYPES_H
 #define _BCACHEFS_BTREE_KEY_CACHE_TYPES_H
 
-struct btree_key_cache_freelist {
-	struct bkey_cached	*objs[16];
-	unsigned		nr;
-};
+#include "rcu_pending.h"
 
 struct btree_key_cache {
-	struct mutex		lock;
 	struct rhashtable	table;
 	bool			table_init_done;
 
-	struct list_head	freed_pcpu;
-	size_t			nr_freed_pcpu;
-	struct list_head	freed_nonpcpu;
-	size_t			nr_freed_nonpcpu;
-
 	struct shrinker		*shrink;
 	unsigned		shrink_iter;
-	struct btree_key_cache_freelist __percpu *pcpu_freed;
 
-	atomic_long_t		nr_freed;
+	/* 0: non pcpu reader locks, 1: pcpu reader locks */
+	struct rcu_pending	pending[2];
+	size_t __percpu		*nr_pending;
+
 	atomic_long_t		nr_keys;
 	atomic_long_t		nr_dirty;
 
 	/* shrinker stats */
 	unsigned long		requested_to_free;
 	unsigned long		freed;
-	unsigned long		moved_to_freelist;
 	unsigned long		skipped_dirty;
 	unsigned long		skipped_accessed;
 	unsigned long		skipped_lock_fail;

@@ -7,7 +7,7 @@
  *	Can Guo <quic_cang@quicinc.com>
  */
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <linux/dma-mapping.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>

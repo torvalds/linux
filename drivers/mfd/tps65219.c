@@ -159,7 +159,7 @@ static struct regmap_irq_sub_irq_map tps65219_sub_irq_offsets[] = {
 #define TPS65219_REGMAP_IRQ_REG(int_name, register_position) \
 	REGMAP_IRQ_REG(int_name, register_position, int_name##_MASK)
 
-static struct regmap_irq tps65219_irqs[] = {
+static const struct regmap_irq tps65219_irqs[] = {
 	TPS65219_REGMAP_IRQ_REG(TPS65219_INT_LDO3_SCG, TPS65219_REG_INT_LDO_3_4_POS),
 	TPS65219_REGMAP_IRQ_REG(TPS65219_INT_LDO3_OC, TPS65219_REG_INT_LDO_3_4_POS),
 	TPS65219_REGMAP_IRQ_REG(TPS65219_INT_LDO3_UV, TPS65219_REG_INT_LDO_3_4_POS),
@@ -211,7 +211,7 @@ static struct regmap_irq tps65219_irqs[] = {
 	TPS65219_REGMAP_IRQ_REG(TPS65219_INT_PB_RISING_EDGE_DETECT, TPS65219_REG_INT_PB_POS),
 };
 
-static struct regmap_irq_chip tps65219_irq_chip = {
+static const struct regmap_irq_chip tps65219_irq_chip = {
 	.name = "tps65219_irq",
 	.main_status = TPS65219_REG_INT_SOURCE,
 	.num_main_regs = 1,

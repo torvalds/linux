@@ -26,13 +26,17 @@
 static void __fatal_error(const char *test, const char *name, const char *what)
 {
 	char buf[64];
+	char *ret_str = NULL;
 
-	strerror_r(errno, buf, sizeof(buf));
+	ret_str = strerror_r(errno, buf, sizeof(buf));
 
-	if (name && strlen(name))
-		ksft_exit_fail_msg("%s %s %s %s\n", test, name, what, buf);
+	if (name && strlen(name) && ret_str)
+		ksft_exit_fail_msg("%s %s %s %s\n", test, name, what, ret_str);
+	else if (ret_str)
+		ksft_exit_fail_msg("%s %s %s\n", test, what, ret_str);
 	else
-		ksft_exit_fail_msg("%s %s %s\n", test, what, buf);
+		ksft_exit_fail_msg("%s %s\n", test, what);
+
 }
 
 #define fatal_error(name, what)	__fatal_error(__func__, name, what)

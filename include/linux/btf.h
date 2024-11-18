@@ -580,6 +580,7 @@ bool btf_is_prog_ctx_type(struct bpf_verifier_log *log, const struct btf *btf,
 int get_kern_ctx_btf_id(struct bpf_verifier_log *log, enum bpf_prog_type prog_type);
 bool btf_types_are_same(const struct btf *btf1, u32 id1,
 			const struct btf *btf2, u32 id2);
+int btf_check_iter_arg(struct btf *btf, const struct btf_type *func, int arg_idx);
 #else
 static inline const struct btf_type *btf_type_by_id(const struct btf *btf,
 						    u32 type_id)
@@ -653,6 +654,10 @@ static inline bool btf_types_are_same(const struct btf *btf1, u32 id1,
 				      const struct btf *btf2, u32 id2)
 {
 	return false;
+}
+static inline int btf_check_iter_arg(struct btf *btf, const struct btf_type *func, int arg_idx)
+{
+	return -EOPNOTSUPP;
 }
 #endif
 

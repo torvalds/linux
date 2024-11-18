@@ -913,11 +913,11 @@ size_t events_stats__fprintf(struct events_stats *stats, FILE *fp)
 			continue;
 
 		if (i && total) {
-			ret += fprintf(fp, "%16s events: %10d  (%4.1f%%)\n",
+			ret += fprintf(fp, "%20s events: %10d  (%4.1f%%)\n",
 				       name, stats->nr_events[i],
 				       100.0 * stats->nr_events[i] / total);
 		} else {
-			ret += fprintf(fp, "%16s events: %10d\n",
+			ret += fprintf(fp, "%20s events: %10d\n",
 				       name, stats->nr_events[i]);
 		}
 	}

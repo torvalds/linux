@@ -177,12 +177,12 @@ static int max1241_probe(struct spi_device *spi)
 
 static const struct spi_device_id max1241_id[] = {
 	{ "max1241", max1241 },
-	{}
+	{ }
 };
 
 static const struct of_device_id max1241_dt_ids[] = {
 	{ .compatible = "maxim,max1241" },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(of, max1241_dt_ids);
 

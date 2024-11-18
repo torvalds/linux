@@ -226,14 +226,14 @@ static int ti_adc_probe(struct spi_device *spi)
 static const struct of_device_id ti_adc_dt_ids[] = {
 	{ .compatible = "ti,adc141s626", },
 	{ .compatible = "ti,adc161s626", },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(of, ti_adc_dt_ids);
 
 static const struct spi_device_id ti_adc_id[] = {
-	{"adc141s626", TI_ADC141S626},
-	{"adc161s626", TI_ADC161S626},
-	{},
+	{ "adc141s626", TI_ADC141S626 },
+	{ "adc161s626", TI_ADC161S626 },
+	{ }
 };
 MODULE_DEVICE_TABLE(spi, ti_adc_id);
 

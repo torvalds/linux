@@ -32,7 +32,7 @@
 #include <linux/migrate.h>
 #include <linux/sched/mm.h>
 #include <linux/iomap.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <linux/fsverity.h>
 #include "misc.h"
 #include "ctree.h"
@@ -3111,6 +3111,11 @@ int btrfs_finish_one_ordered(struct btrfs_ordered_extent *ordered_extent)
 		ret = btrfs_update_inode_fallback(trans, inode);
 		if (ret) /* -ENOMEM or corruption */
 			btrfs_abort_transaction(trans, ret);
+
+		ret = btrfs_insert_raid_extent(trans, ordered_extent);
+		if (ret)
+			btrfs_abort_transaction(trans, ret);
+
 		goto out;
 	}
 

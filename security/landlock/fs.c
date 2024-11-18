@@ -1639,6 +1639,29 @@ static int hook_file_ioctl_compat(struct file *file, unsigned int cmd,
 	return -EACCES;
 }
 
+static void hook_file_set_fowner(struct file *file)
+{
+	struct landlock_ruleset *new_dom, *prev_dom;
+
+	/*
+	 * Lock already held by __f_setown(), see commit 26f204380a3c ("fs: Fix
+	 * file_set_fowner LSM hook inconsistencies").
+	 */
+	lockdep_assert_held(&file_f_owner(file)->lock);
+	new_dom = landlock_get_current_domain();
+	landlock_get_ruleset(new_dom);
+	prev_dom = landlock_file(file)->fown_domain;
+	landlock_file(file)->fown_domain = new_dom;
+
+	/* Called in an RCU read-side critical section. */
+	landlock_put_ruleset_deferred(prev_dom);
+}
+
+static void hook_file_free_security(struct file *file)
+{
+	landlock_put_ruleset_deferred(landlock_file(file)->fown_domain);
+}
+
 static struct security_hook_list landlock_hooks[] __ro_after_init = {
 	LSM_HOOK_INIT(inode_free_security_rcu, hook_inode_free_security_rcu),
 
@@ -1663,6 +1686,8 @@ static struct security_hook_list landlock_hooks[] __ro_after_init = {
 	LSM_HOOK_INIT(file_truncate, hook_file_truncate),
 	LSM_HOOK_INIT(file_ioctl, hook_file_ioctl),
 	LSM_HOOK_INIT(file_ioctl_compat, hook_file_ioctl_compat),
+	LSM_HOOK_INIT(file_set_fowner, hook_file_set_fowner),
+	LSM_HOOK_INIT(file_free_security, hook_file_free_security),
 };
 
 __init void landlock_add_fs_hooks(void)

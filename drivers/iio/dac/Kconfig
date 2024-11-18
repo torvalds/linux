@@ -371,6 +371,17 @@ config LTC2632
 	  To compile this driver as a module, choose M here: the
 	  module will be called ltc2632.
 
+config LTC2664
+	tristate "Analog Devices LTC2664 and LTC2672 DAC SPI driver"
+	depends on SPI
+	select REGMAP
+	help
+	  Say yes here to build support for Analog Devices
+	  LTC2664 and LTC2672 converters (DAC).
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ltc2664.
+
 config M62332
 	tristate "Mitsubishi M62332 DAC driver"
 	depends on I2C

@@ -36,6 +36,12 @@ properties:
     minItems: 1
     maxItems: 2
 
+  interrupts:
+    maxItems: 1
+    description: Pre-timeout interrupt from the watchdog.
+
+  wakeup-source: true
+
 required:
   - compatible
   - reg

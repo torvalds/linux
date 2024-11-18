@@ -331,29 +331,23 @@ static inline void set_pte(pte_t *ptep, pte_t pteval)
 		 * Make sure the buddy is global too (if it's !none,
 		 * it better already be global)
 		 */
+		if (pte_none(ptep_get(buddy))) {
 #ifdef CONFIG_SMP
-		/*
-		 * For SMP, multiple CPUs can race, so we need to do
-		 * this atomically.
-		 */
-		unsigned long page_global = _PAGE_GLOBAL;
-		unsigned long tmp;
+			/*
+			 * For SMP, multiple CPUs can race, so we need
+			 * to do this atomically.
+			 */
+			__asm__ __volatile__(
+			__AMOR "$zero, %[global], %[buddy] \n"
+			: [buddy] "+ZB" (buddy->pte)
+			: [global] "r" (_PAGE_GLOBAL)
+			: "memory");
 
-		__asm__ __volatile__ (
-		"1:"	__LL	"%[tmp], %[buddy]		\n"
-		"	bnez	%[tmp], 2f			\n"
-		"	 or	%[tmp], %[tmp], %[global]	\n"
-			__SC	"%[tmp], %[buddy]		\n"
-		"	beqz	%[tmp], 1b			\n"
-		"	nop					\n"
-		"2:						\n"
-		__WEAK_LLSC_MB
-		: [buddy] "+m" (buddy->pte), [tmp] "=&r" (tmp)
-		: [global] "r" (page_global));
+			DBAR(0b11000); /* o_wrw = 0b11000 */
 #else /* !CONFIG_SMP */
-		if (pte_none(ptep_get(buddy)))
 			WRITE_ONCE(*buddy, __pte(pte_val(ptep_get(buddy)) | _PAGE_GLOBAL));
 #endif /* CONFIG_SMP */
+		}
 	}
 }
 

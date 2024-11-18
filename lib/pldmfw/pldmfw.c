@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Copyright (C) 2018-2019, Intel Corporation. */
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <linux/crc32.h>
 #include <linux/device.h>
 #include <linux/firmware.h>

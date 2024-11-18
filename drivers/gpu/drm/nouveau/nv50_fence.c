@@ -35,7 +35,7 @@
 static int
 nv50_fence_context_new(struct nouveau_channel *chan)
 {
-	struct nv10_fence_priv *priv = chan->drm->fence;
+	struct nv10_fence_priv *priv = chan->cli->drm->fence;
 	struct nv10_fence_chan *fctx;
 	struct ttm_resource *reg = priv->bo->bo.resource;
 	u32 start = reg->start * PAGE_SIZE;
@@ -92,7 +92,7 @@ nv50_fence_create(struct nouveau_drm *drm)
 				nouveau_bo_unpin(priv->bo);
 		}
 		if (ret)
-			nouveau_bo_ref(NULL, &priv->bo);
+			nouveau_bo_fini(priv->bo);
 	}
 
 	if (ret) {

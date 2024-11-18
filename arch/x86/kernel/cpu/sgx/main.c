@@ -903,10 +903,10 @@ int sgx_set_attribute(unsigned long *allowed_attributes,
 {
 	struct fd f = fdget(attribute_fd);
 
-	if (!f.file)
+	if (!fd_file(f))
 		return -EINVAL;
 
-	if (f.file->f_op != &sgx_provision_fops) {
+	if (fd_file(f)->f_op != &sgx_provision_fops) {
 		fdput(f);
 		return -EINVAL;
 	}

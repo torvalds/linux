@@ -377,7 +377,7 @@ static void hi3798cv200_crg_remove(struct platform_device *pdev)
 
 static struct platform_driver hi3798cv200_crg_driver = {
 	.probe          = hi3798cv200_crg_probe,
-	.remove_new	= hi3798cv200_crg_remove,
+	.remove		= hi3798cv200_crg_remove,
 	.driver         = {
 		.name   = "hi3798cv200-crg",
 		.of_match_table = hi3798cv200_crg_match_table,

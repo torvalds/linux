@@ -11,7 +11,7 @@
 #include <linux/regmap.h>
 #include <linux/acpi.h>
 #include <acpi/acpi_bus.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <linux/efi.h>
 
 #include <net/bluetooth/bluetooth.h>

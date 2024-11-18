@@ -128,10 +128,6 @@
 # define unlikely(x)		__builtin_expect(!!(x), 0)
 #endif
 
-#ifndef __init
-# define __init
-#endif
-
 #include <linux/types.h>
 
 /*

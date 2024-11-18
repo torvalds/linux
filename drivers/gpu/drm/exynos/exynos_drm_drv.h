@@ -254,10 +254,6 @@ static inline int exynos_drm_check_fimc_device(struct device *dev)
 }
 #endif
 
-int exynos_atomic_commit(struct drm_device *dev, struct drm_atomic_state *state,
-			 bool nonblock);
-
-
 extern struct platform_driver fimd_driver;
 extern struct platform_driver exynos5433_decon_driver;
 extern struct platform_driver decon_driver;

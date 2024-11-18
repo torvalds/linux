@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * BU27034 ROHM Ambient Light Sensor
+ * BU27034ANUC ROHM Ambient Light Sensor
  *
  * Copyright (c) 2023, ROHM Semiconductor.
- * https://fscdn.rohm.com/en/products/databook/datasheet/ic/sensor/light/bu27034nuc-e.pdf
  */
 
 #include <linux/bitfield.h>
@@ -30,17 +29,15 @@
 
 #define BU27034_REG_MODE_CONTROL2	0x42
 #define BU27034_MASK_D01_GAIN		GENMASK(7, 3)
-#define BU27034_MASK_D2_GAIN_HI		GENMASK(7, 6)
-#define BU27034_MASK_D2_GAIN_LO		GENMASK(2, 0)
 
 #define BU27034_REG_MODE_CONTROL3	0x43
 #define BU27034_REG_MODE_CONTROL4	0x44
 #define BU27034_MASK_MEAS_EN		BIT(0)
 #define BU27034_MASK_VALID		BIT(7)
+#define BU27034_NUM_HW_DATA_CHANS	2
 #define BU27034_REG_DATA0_LO		0x50
 #define BU27034_REG_DATA1_LO		0x52
-#define BU27034_REG_DATA2_LO		0x54
-#define BU27034_REG_DATA2_HI		0x55
+#define BU27034_REG_DATA1_HI		0x53
 #define BU27034_REG_MANUFACTURER_ID	0x92
 #define BU27034_REG_MAX BU27034_REG_MANUFACTURER_ID
 
@@ -88,58 +85,48 @@ enum {
 	BU27034_CHAN_ALS,
 	BU27034_CHAN_DATA0,
 	BU27034_CHAN_DATA1,
-	BU27034_CHAN_DATA2,
 	BU27034_NUM_CHANS
 };
 
 static const unsigned long bu27034_scan_masks[] = {
-	GENMASK(BU27034_CHAN_DATA2, BU27034_CHAN_ALS), 0
+	GENMASK(BU27034_CHAN_DATA1, BU27034_CHAN_DATA0),
+	GENMASK(BU27034_CHAN_DATA1, BU27034_CHAN_ALS), 0
 };
 
 /*
- * Available scales with gain 1x - 4096x, timings 55, 100, 200, 400 mS
+ * Available scales with gain 1x - 1024x, timings 55, 100, 200, 400 mS
  * Time impacts to gain: 1x, 2x, 4x, 8x.
  *
- * => Max total gain is HWGAIN * gain by integration time (8 * 4096) = 32768
+ * => Max total gain is HWGAIN * gain by integration time (8 * 1024) = 8192
+ * if 1x gain is scale 1, scale for 2x gain is 0.5, 4x => 0.25,
+ * ... 8192x => 0.0001220703125 => 122070.3125 nanos
  *
- * Using NANO precision for scale we must use scale 64x corresponding gain 1x
- * to avoid precision loss. (32x would result scale 976 562.5(nanos).
+ * Using NANO precision for scale, we must use scale 16x corresponding gain 1x
+ * to avoid precision loss. (8x would result scale 976 562.5(nanos).
  */
-#define BU27034_SCALE_1X	64
+#define BU27034_SCALE_1X	16
 
 /* See the data sheet for the "Gain Setting" table */
 #define BU27034_GSEL_1X		0x00 /* 00000 */
 #define BU27034_GSEL_4X		0x08 /* 01000 */
-#define BU27034_GSEL_16X	0x0a /* 01010 */
 #define BU27034_GSEL_32X	0x0b /* 01011 */
-#define BU27034_GSEL_64X	0x0c /* 01100 */
 #define BU27034_GSEL_256X	0x18 /* 11000 */
 #define BU27034_GSEL_512X	0x19 /* 11001 */
 #define BU27034_GSEL_1024X	0x1a /* 11010 */
-#define BU27034_GSEL_2048X	0x1b /* 11011 */
-#define BU27034_GSEL_4096X	0x1c /* 11100 */
 
 /* Available gain settings */
 static const struct iio_gain_sel_pair bu27034_gains[] = {
 	GAIN_SCALE_GAIN(1, BU27034_GSEL_1X),
 	GAIN_SCALE_GAIN(4, BU27034_GSEL_4X),
-	GAIN_SCALE_GAIN(16, BU27034_GSEL_16X),
 	GAIN_SCALE_GAIN(32, BU27034_GSEL_32X),
-	GAIN_SCALE_GAIN(64, BU27034_GSEL_64X),
 	GAIN_SCALE_GAIN(256, BU27034_GSEL_256X),
 	GAIN_SCALE_GAIN(512, BU27034_GSEL_512X),
 	GAIN_SCALE_GAIN(1024, BU27034_GSEL_1024X),
-	GAIN_SCALE_GAIN(2048, BU27034_GSEL_2048X),
-	GAIN_SCALE_GAIN(4096, BU27034_GSEL_4096X),
 };
 
 /*
- * The IC has 5 modes for sampling time. 5 mS mode is exceptional as it limits
- * the data collection to data0-channel only and cuts the supported range to
- * 10 bit. It is not supported by the driver.
- *
- * "normal" modes are 55, 100, 200 and 400 mS modes - which do have direct
- * multiplying impact to the register values (similar to gain).
+ * Measurement modes are 55, 100, 200 and 400 mS modes - which do have direct
+ * multiplying impact to the data register values (similar to gain).
  *
  * This means that if meas-mode is changed for example from 400 => 200,
  * the scale is doubled. Eg, time impact to total gain is x1, x2, x4, x8.
@@ -156,13 +143,13 @@ static const struct iio_itime_sel_mul bu27034_itimes[] = {
 	GAIN_SCALE_ITIME_US(55000, BU27034_MEAS_MODE_55MS, 1),
 };
 
-#define BU27034_CHAN_DATA(_name, _ch2)					\
+#define BU27034_CHAN_DATA(_name)					\
 {									\
 	.type = IIO_INTENSITY,						\
 	.channel = BU27034_CHAN_##_name,				\
-	.channel2 = (_ch2),						\
 	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |			\
-			      BIT(IIO_CHAN_INFO_SCALE),			\
+			      BIT(IIO_CHAN_INFO_SCALE) |		\
+			      BIT(IIO_CHAN_INFO_HARDWAREGAIN),		\
 	.info_mask_separate_available = BIT(IIO_CHAN_INFO_SCALE),	\
 	.info_mask_shared_by_all = BIT(IIO_CHAN_INFO_INT_TIME),		\
 	.info_mask_shared_by_all_available =				\
@@ -195,13 +182,12 @@ static const struct iio_chan_spec bu27034_channels[] = {
 	/*
 	 * The BU27034 DATA0 and DATA1 channels are both on the visible light
 	 * area (mostly). The data0 sensitivity peaks at 500nm, DATA1 at 600nm.
-	 * These wave lengths are pretty much on the border of colours making
-	 * these a poor candidates for R/G/B standardization. Hence they're both
-	 * marked as clear channels
+	 * These wave lengths are cyan(ish) and orange(ish), making these
+	 * sub-optiomal candidates for R/G/B standardization. Hence the
+	 * colour modifier is omitted.
 	 */
-	BU27034_CHAN_DATA(DATA0, IIO_MOD_LIGHT_CLEAR),
-	BU27034_CHAN_DATA(DATA1, IIO_MOD_LIGHT_CLEAR),
-	BU27034_CHAN_DATA(DATA2, IIO_MOD_LIGHT_IR),
+	BU27034_CHAN_DATA(DATA0),
+	BU27034_CHAN_DATA(DATA1),
 	IIO_CHAN_SOFT_TIMESTAMP(4),
 };
 
@@ -215,10 +201,10 @@ struct bu27034_data {
 	struct mutex mutex;
 	struct iio_gts gts;
 	struct task_struct *task;
-	__le16 raw[3];
+	__le16 raw[BU27034_NUM_HW_DATA_CHANS];
 	struct {
 		u32 mlux;
-		__le16 channels[3];
+		__le16 channels[BU27034_NUM_HW_DATA_CHANS];
 		s64 ts __aligned(8);
 	} scan;
 };
@@ -232,7 +218,7 @@ static const struct regmap_range bu27034_volatile_ranges[] = {
 		.range_max = BU27034_REG_MODE_CONTROL4,
 	}, {
 		.range_min = BU27034_REG_DATA0_LO,
-		.range_max = BU27034_REG_DATA2_HI,
+		.range_max = BU27034_REG_DATA1_HI,
 	},
 };
 
@@ -244,7 +230,7 @@ static const struct regmap_access_table bu27034_volatile_regs = {
 static const struct regmap_range bu27034_read_only_ranges[] = {
 	{
 		.range_min = BU27034_REG_DATA0_LO,
-		.range_max = BU27034_REG_DATA2_HI,
+		.range_max = BU27034_REG_DATA1_HI,
 	}, {
 		.range_min = BU27034_REG_MANUFACTURER_ID,
 		.range_max = BU27034_REG_MANUFACTURER_ID,
@@ -273,41 +259,17 @@ struct bu27034_gain_check {
 
 static int bu27034_get_gain_sel(struct bu27034_data *data, int chan)
 {
+	int reg[] = {
+		[BU27034_CHAN_DATA0] = BU27034_REG_MODE_CONTROL2,
+		[BU27034_CHAN_DATA1] = BU27034_REG_MODE_CONTROL3,
+	};
 	int ret, val;
 
-	switch (chan) {
-	case BU27034_CHAN_DATA0:
-	case BU27034_CHAN_DATA1:
-	{
-		int reg[] = {
-			[BU27034_CHAN_DATA0] = BU27034_REG_MODE_CONTROL2,
-			[BU27034_CHAN_DATA1] = BU27034_REG_MODE_CONTROL3,
-		};
-		ret = regmap_read(data->regmap, reg[chan], &val);
-		if (ret)
-			return ret;
+	ret = regmap_read(data->regmap, reg[chan], &val);
+	if (ret)
+		return ret;
 
-		return FIELD_GET(BU27034_MASK_D01_GAIN, val);
-	}
-	case BU27034_CHAN_DATA2:
-	{
-		int d2_lo_bits = fls(BU27034_MASK_D2_GAIN_LO);
-
-		ret = regmap_read(data->regmap, BU27034_REG_MODE_CONTROL2, &val);
-		if (ret)
-			return ret;
-
-		/*
-		 * The data2 channel gain is composed by 5 non continuous bits
-		 * [7:6], [2:0]. Thus when we combine the 5-bit 'selector'
-		 * from register value we must right shift the high bits by 3.
-		 */
-		return FIELD_GET(BU27034_MASK_D2_GAIN_HI, val) << d2_lo_bits |
-		       FIELD_GET(BU27034_MASK_D2_GAIN_LO, val);
-	}
-	default:
-		return -EINVAL;
-	}
+	return FIELD_GET(BU27034_MASK_D01_GAIN, val);
 }
 
 static int bu27034_get_gain(struct bu27034_data *data, int chan, int *gain)
@@ -390,43 +352,8 @@ static int bu27034_write_gain_sel(struct bu27034_data *data, int chan, int sel)
 	};
 	int mask, val;
 
-	if (chan != BU27034_CHAN_DATA0 && chan != BU27034_CHAN_DATA1)
-		return -EINVAL;
-
 	val = FIELD_PREP(BU27034_MASK_D01_GAIN, sel);
-
 	mask = BU27034_MASK_D01_GAIN;
-
-	if (chan == BU27034_CHAN_DATA0) {
-		/*
-		 * We keep the same gain for channel 2 as we set for channel 0
-		 * We can't allow them to be individually controlled because
-		 * setting one will impact also the other. Also, if we don't
-		 * always update both gains we may result unsupported bit
-		 * combinations.
-		 *
-		 * This is not nice but this is yet another place where the
-		 * user space must be prepared to surprizes. Namely, see chan 2
-		 * gain changed when chan 0 gain is changed.
-		 *
-		 * This is not fatal for most users though. I don't expect the
-		 * channel 2 to be used in any generic cases - the intensity
-		 * values provided by the sensor for IR area are not openly
-		 * documented. Also, channel 2 is not used for visible light.
-		 *
-		 * So, if there is application which is written to utilize the
-		 * channel 2 - then it is probably specifically targeted to this
-		 * sensor and knows how to utilize those values. It is safe to
-		 * hope such user can also cope with the gain changes.
-		 */
-		mask |=  BU27034_MASK_D2_GAIN_LO;
-
-		/*
-		 * The D2 gain bits are directly the lowest bits of selector.
-		 * Just do add those bits to the value
-		 */
-		val |= sel & BU27034_MASK_D2_GAIN_LO;
-	}
 
 	return regmap_update_bits(data->regmap, reg[chan], mask, val);
 }
@@ -434,13 +361,6 @@ static int bu27034_write_gain_sel(struct bu27034_data *data, int chan, int sel)
 static int bu27034_set_gain(struct bu27034_data *data, int chan, int gain)
 {
 	int ret;
-
-	/*
-	 * We don't allow setting channel 2 gain as it messes up the
-	 * gain for channel 0 - which shares the high bits
-	 */
-	if (chan != BU27034_CHAN_DATA0 && chan != BU27034_CHAN_DATA1)
-		return -EINVAL;
 
 	ret = iio_gts_find_sel_by_gain(&data->gts, gain);
 	if (ret < 0)
@@ -565,9 +485,6 @@ static int bu27034_set_scale(struct bu27034_data *data, int chan,
 	int ret, time_sel, gain_sel, i;
 	bool found = false;
 
-	if (chan == BU27034_CHAN_DATA2)
-		return -EINVAL;
-
 	if (chan == BU27034_CHAN_ALS) {
 		if (val == 0 && val2 == 1000000)
 			return 0;
@@ -592,9 +509,7 @@ static int bu27034_set_scale(struct bu27034_data *data, int chan,
 
 		/*
 		 * Populate information for the other channel which should also
-		 * maintain the scale. (Due to the HW limitations the chan2
-		 * gets the same gain as chan0, so we only need to explicitly
-		 * set the chan 0 and 1).
+		 * maintain the scale.
 		 */
 		if (chan == BU27034_CHAN_DATA0)
 			gain.chan = BU27034_CHAN_DATA1;
@@ -608,7 +523,7 @@ static int bu27034_set_scale(struct bu27034_data *data, int chan,
 		/*
 		 * Iterate through all the times to see if we find one which
 		 * can support requested scale for requested channel, while
-		 * maintaining the scale for other channels
+		 * maintaining the scale for the other channel
 		 */
 		for (i = 0; i < data->gts.num_itime; i++) {
 			new_time_sel = data->gts.itime_table[i].sel;
@@ -623,7 +538,7 @@ static int bu27034_set_scale(struct bu27034_data *data, int chan,
 			if (ret)
 				continue;
 
-			/* Can the other channel(s) maintain scale? */
+			/* Can the other channel maintain scale? */
 			ret = iio_gts_find_new_gain_sel_by_old_gain_time(
 				&data->gts, gain.old_gain, time_sel,
 				new_time_sel, &gain.new_gain);
@@ -635,7 +550,7 @@ static int bu27034_set_scale(struct bu27034_data *data, int chan,
 		}
 		if (!found) {
 			dev_dbg(data->dev,
-				"Can't set scale maintaining other channels\n");
+				"Can't set scale maintaining other channel\n");
 			ret = -EINVAL;
 
 			goto unlock_out;
@@ -659,102 +574,21 @@ unlock_out:
 }
 
 /*
- * for (D1/D0 < 0.87):
- * lx = 0.004521097 * D1 - 0.002663996 * D0 +
- *	0.00012213 * D1 * D1 / D0
+ * for (D1/D0 < 1.5):
+ *    lx = (0.001193 * D0 + (-0.0000747) * D1) * ((D1/D0 – 1.5) * (0.25) + 1)
  *
- * =>	115.7400832 * ch1 / gain1 / mt -
- *	68.1982976 * ch0 / gain0 / mt +
- *	0.00012213 * 25600 * (ch1 / gain1 / mt) * 25600 *
- *	(ch1 /gain1 / mt) / (25600 * ch0 / gain0 / mt)
+ *    => -0.000745625 * D0 + 0.0002515625 * D1 + -0.000018675 * D1 * D1 / D0
  *
- * A =	0.00012213 * 25600 * (ch1 /gain1 / mt) * 25600 *
- *	(ch1 /gain1 / mt) / (25600 * ch0 / gain0 / mt)
- * =>	0.00012213 * 25600 * (ch1 /gain1 / mt) *
- *	(ch1 /gain1 / mt) / (ch0 / gain0 / mt)
- * =>	0.00012213 * 25600 * (ch1 / gain1) * (ch1 /gain1 / mt) /
- *	(ch0 / gain0)
- * =>	0.00012213 * 25600 * (ch1 / gain1) * (ch1 /gain1 / mt) *
- *	gain0 / ch0
- * =>	3.126528 * ch1 * ch1 * gain0 / gain1 / gain1 / mt /ch0
+ *    => (6.44 * ch1 / gain1 + 19.088 * ch0 / gain0 -
+ *       0.47808 * ch1 * ch1 * gain0 / gain1 / gain1 / ch0) /
+ *       mt
  *
- * lx = (115.7400832 * ch1 / gain1 - 68.1982976 * ch0 / gain0) /
- *	mt + A
- * =>	(115.7400832 * ch1 / gain1 - 68.1982976 * ch0 / gain0) /
- *	mt + 3.126528 * ch1 * ch1 * gain0 / gain1 / gain1 / mt /
- *	ch0
+ * Else
+ *    lx = 0.001193 * D0 - 0.0000747 * D1
  *
- * =>	(115.7400832 * ch1 / gain1 - 68.1982976 * ch0 / gain0 +
- *	  3.126528 * ch1 * ch1 * gain0 / gain1 / gain1 / ch0) /
- *	  mt
- *
- * For (0.87 <= D1/D0 < 1.00)
- * lx = (0.001331* D0 + 0.0000354 * D1) * ((D1/D0 – 0.87) * (0.385) + 1)
- * =>	(0.001331 * 256 * 100 * ch0 / gain0 / mt + 0.0000354 * 256 *
- *	100 * ch1 / gain1 / mt) * ((D1/D0 -  0.87) * (0.385) + 1)
- * =>	(34.0736 * ch0 / gain0 / mt + 0.90624 * ch1 / gain1 / mt) *
- *	((D1/D0 -  0.87) * (0.385) + 1)
- * =>	(34.0736 * ch0 / gain0 / mt + 0.90624 * ch1 / gain1 / mt) *
- *	(0.385 * D1/D0 - 0.66505)
- * =>	(34.0736 * ch0 / gain0 / mt + 0.90624 * ch1 / gain1 / mt) *
- *	(0.385 * 256 * 100 * ch1 / gain1 / mt / (256 * 100 * ch0 / gain0 / mt) - 0.66505)
- * =>	(34.0736 * ch0 / gain0 / mt + 0.90624 * ch1 / gain1 / mt) *
- *	(9856 * ch1 / gain1 / mt / (25600 * ch0 / gain0 / mt) + 0.66505)
- * =>	13.118336 * ch1 / (gain1 * mt)
- *	+ 22.66064768 * ch0 / (gain0 * mt)
- *	+ 8931.90144 * ch1 * ch1 * gain0 /
- *	  (25600 * ch0 * gain1 * gain1 * mt)
- *	+ 0.602694912 * ch1 / (gain1 * mt)
- *
- * =>	[0.3489024 * ch1 * ch1 * gain0 / (ch0 * gain1 * gain1)
- *	 + 22.66064768 * ch0 / gain0
- *	 + 13.721030912 * ch1 / gain1
- *	] / mt
- *
- * For (D1/D0 >= 1.00)
- *
- * lx	= (0.001331* D0 + 0.0000354 * D1) * ((D1/D0 – 2.0) * (-0.05) + 1)
- *	=> (0.001331* D0 + 0.0000354 * D1) * (-0.05D1/D0 + 1.1)
- *	=> (0.001331 * 256 * 100 * ch0 / gain0 / mt + 0.0000354 * 256 *
- *	   100 * ch1 / gain1 / mt) * (-0.05D1/D0 + 1.1)
- *	=> (34.0736 * ch0 / gain0 / mt + 0.90624 * ch1 / gain1 / mt) *
- *	   (-0.05 * 256 * 100 * ch1 / gain1 / mt / (256 * 100 * ch0 / gain0 / mt) + 1.1)
- *	=> (34.0736 * ch0 / gain0 / mt + 0.90624 * ch1 / gain1 / mt) *
- *	   (-1280 * ch1 / (gain1 * mt * 25600 * ch0 / gain0 / mt) + 1.1)
- *	=> (34.0736 * ch0 * -1280 * ch1 * gain0 * mt /( gain0 * mt * gain1 * mt * 25600 * ch0)
- *	    + 34.0736 * 1.1 * ch0 / (gain0 * mt)
- *	    + 0.90624 * ch1 * -1280 * ch1 *gain0 * mt / (gain1 * mt *gain1 * mt * 25600 * ch0)
- *	    + 1.1 * 0.90624 * ch1 / (gain1 * mt)
- *	=> -43614.208 * ch1 / (gain1 * mt * 25600)
- *	    + 37.48096  ch0 / (gain0 * mt)
- *	    - 1159.9872 * ch1 * ch1 * gain0 / (gain1 * gain1 * mt * 25600 * ch0)
- *	    + 0.996864 ch1 / (gain1 * mt)
- *	=> [
- *		- 0.045312 * ch1 * ch1 * gain0 / (gain1 * gain1 * ch0)
- *		- 0.706816 * ch1 / gain1
- *		+ 37.48096  ch0 /gain0
- *	   ] * mt
- *
- *
- * So, the first case (D1/D0 < 0.87) can be computed to a form:
- *
- * lx = (3.126528 * ch1 * ch1 * gain0 / (ch0 * gain1 * gain1) +
- *	 115.7400832 * ch1 / gain1 +
- *	-68.1982976 * ch0 / gain0
- *	 / mt
- *
- * Second case (0.87 <= D1/D0 < 1.00) goes to form:
- *
- *	=> [0.3489024 * ch1 * ch1 * gain0 / (ch0 * gain1 * gain1) +
- *	    13.721030912 * ch1 / gain1 +
- *	    22.66064768 * ch0 / gain0
- *	   ] / mt
- *
- * Third case (D1/D0 >= 1.00) goes to form:
- *	=> [-0.045312 * ch1 * ch1 * gain0 / (ch0 * gain1 * gain1) +
- *	    -0.706816 * ch1 / gain1 +
- *	    37.48096  ch0 /(gain0
- *	   ] / mt
+ *    => (1.91232 * ch1 / gain1 + 30.5408 * ch0 / gain0 +
+ *        [0 * ch1 * ch1 * gain0 / gain1 / gain1 / ch0] ) /
+ *        mt
  *
  * This can be unified to format:
  * lx = [
@@ -764,19 +598,14 @@ unlock_out:
  *	] / mt
  *
  * For case 1:
- * A = 3.126528,
- * B = 115.7400832
- * C = -68.1982976
+ * A = -0.47808,
+ * B = 6.44,
+ * C = 19.088
  *
  * For case 2:
- * A = 0.3489024
- * B = 13.721030912
- * C = 22.66064768
- *
- * For case 3:
- * A = -0.045312
- * B = -0.706816
- * C = 37.48096
+ * A = 0
+ * B = 1.91232
+ * C = 30.5408
  */
 
 struct bu27034_lx_coeff {
@@ -881,21 +710,16 @@ static int bu27034_fixp_calc_lx(unsigned int ch0, unsigned int ch1,
 {
 	static const struct bu27034_lx_coeff coeff[] = {
 		{
-			.A = 31265280,		/* 3.126528 */
-			.B = 1157400832,	/*115.7400832 */
-			.C = 681982976,		/* -68.1982976 */
-			.is_neg = {false, false, true},
+			.A = 4780800,		/* -0.47808 */
+			.B = 64400000,		/* 6.44 */
+			.C = 190880000,		/* 19.088 */
+			.is_neg = { true, false, false },
 		}, {
-			.A = 3489024,		/* 0.3489024 */
-			.B = 137210309,		/* 13.721030912 */
-			.C = 226606476,		/* 22.66064768 */
+			.A = 0,			/* 0 */
+			.B = 19123200,		/* 1.91232 */
+			.C = 305408000,		/* 30.5408 */
 			/* All terms positive */
-		}, {
-			.A = 453120,		/* -0.045312 */
-			.B = 7068160,		/* -0.706816 */
-			.C = 374809600,		/* 37.48096 */
-			.is_neg = {true, true, false},
-		}
+		},
 	};
 	const struct bu27034_lx_coeff *c = &coeff[coeff_idx];
 	u64 res = 0, terms[3];
@@ -967,7 +791,6 @@ static int bu27034_read_result(struct bu27034_data *data, int chan, int *res)
 	int reg[] = {
 		[BU27034_CHAN_DATA0] = BU27034_REG_DATA0_LO,
 		[BU27034_CHAN_DATA1] = BU27034_REG_DATA1_LO,
-		[BU27034_CHAN_DATA2] = BU27034_REG_DATA2_LO,
 	};
 	int valid, ret;
 	__le16 val;
@@ -1034,7 +857,7 @@ static int bu27034_get_single_result(struct bu27034_data *data, int chan,
 {
 	int ret;
 
-	if (chan < BU27034_CHAN_DATA0 || chan > BU27034_CHAN_DATA2)
+	if (chan < BU27034_CHAN_DATA0 || chan > BU27034_CHAN_DATA1)
 		return -EINVAL;
 
 	ret = bu27034_meas_set(data, true);
@@ -1059,12 +882,10 @@ static int bu27034_get_single_result(struct bu27034_data *data, int chan,
  * D1 = data1/ch1_gain/meas_time_ms * 25600
  *
  * Then:
- * if (D1/D0 < 0.87)
- *	lx = (0.001331 * D0 + 0.0000354 * D1) * ((D1 / D0 - 0.87) * 3.45 + 1)
- * else if (D1/D0 < 1)
- *	lx = (0.001331 * D0 + 0.0000354 * D1) * ((D1 / D0 - 0.87) * 0.385 + 1)
- * else
- *	lx = (0.001331 * D0 + 0.0000354 * D1) * ((D1 / D0 - 2) * -0.05 + 1)
+ * If (D1/D0 < 1.5)
+ *    lx = (0.001193 * D0 + (-0.0000747) * D1) * ((D1 / D0 – 1.5) * 0.25 + 1)
+ * Else
+ *    lx = (0.001193 * D0 + (-0.0000747) * D1)
  *
  * We use it here. Users who have for example some colored lens
  * need to modify the calculation but I hope this gives a starting point for
@@ -1115,12 +936,10 @@ static int bu27034_calc_mlux(struct bu27034_data *data, __le16 *res, int *val)
 		d1_d0_ratio_scaled /= ch0 * gain1;
 	}
 
-	if (d1_d0_ratio_scaled < 87)
+	if (d1_d0_ratio_scaled < 150)
 		ret = bu27034_fixp_calc_lx(ch0, ch1, gain0, gain1, meastime, 0);
-	else if (d1_d0_ratio_scaled < 100)
-		ret = bu27034_fixp_calc_lx(ch0, ch1, gain0, gain1, meastime, 1);
 	else
-		ret = bu27034_fixp_calc_lx(ch0, ch1, gain0, gain1, meastime, 2);
+		ret = bu27034_fixp_calc_lx(ch0, ch1, gain0, gain1, meastime, 1);
 
 	if (ret < 0)
 		return ret;
@@ -1133,7 +952,7 @@ static int bu27034_calc_mlux(struct bu27034_data *data, __le16 *res, int *val)
 
 static int bu27034_get_mlux(struct bu27034_data *data, int chan, int *val)
 {
-	__le16 res[3];
+	__le16 res[BU27034_NUM_HW_DATA_CHANS];
 	int ret;
 
 	ret = bu27034_meas_set(data, true);
@@ -1170,6 +989,13 @@ static int bu27034_read_raw(struct iio_dev *idev,
 			return *val2;
 
 		return IIO_VAL_INT_PLUS_MICRO;
+
+	case IIO_CHAN_INFO_HARDWAREGAIN:
+		ret = bu27034_get_gain(data, chan->channel, val);
+		if (ret)
+			return ret;
+
+		return IIO_VAL_INT;
 
 	case IIO_CHAN_INFO_SCALE:
 		return bu27034_get_scale(data, chan->channel, val, val2);
@@ -1215,12 +1041,17 @@ static int bu27034_write_raw_get_fmt(struct iio_dev *indio_dev,
 				     struct iio_chan_spec const *chan,
 				     long mask)
 {
+	struct bu27034_data *data = iio_priv(indio_dev);
 
 	switch (mask) {
 	case IIO_CHAN_INFO_SCALE:
 		return IIO_VAL_INT_PLUS_NANO;
 	case IIO_CHAN_INFO_INT_TIME:
 		return IIO_VAL_INT_PLUS_MICRO;
+	case IIO_CHAN_INFO_HARDWAREGAIN:
+		dev_dbg(data->dev,
+			"HARDWAREGAIN is read-only, use scale to set\n");
+		return -EINVAL;
 	default:
 		return -EINVAL;
 	}
@@ -1501,7 +1332,7 @@ static int bu27034_probe(struct i2c_client *i2c)
 }
 
 static const struct of_device_id bu27034_of_match[] = {
-	{ .compatible = "rohm,bu27034" },
+	{ .compatible = "rohm,bu27034anuc" },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, bu27034_of_match);

@@ -464,7 +464,7 @@ static int gm12u320_set_ecomode(struct gm12u320_device *gm12u320)
  * Note this assumes this driver is only ever used with the Acer C120, if we
  * add support for other devices the vendor and model should be parameterized.
  */
-static struct edid gm12u320_edid = {
+static const struct edid gm12u320_edid = {
 	.header		= { 0x00, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00 },
 	.mfg_id		= { 0x04, 0x72 },	/* "ACR" */
 	.prod_code	= { 0x20, 0xc1 },	/* C120h */
@@ -523,8 +523,15 @@ static struct edid gm12u320_edid = {
 
 static int gm12u320_conn_get_modes(struct drm_connector *connector)
 {
-	drm_connector_update_edid_property(connector, &gm12u320_edid);
-	return drm_add_edid_modes(connector, &gm12u320_edid);
+	const struct drm_edid *drm_edid;
+	int count;
+
+	drm_edid = drm_edid_alloc(&gm12u320_edid, sizeof(gm12u320_edid));
+	drm_edid_connector_update(connector, drm_edid);
+	count = drm_edid_connector_add_modes(connector);
+	drm_edid_free(drm_edid);
+
+	return count;
 }
 
 static const struct drm_connector_helper_funcs gm12u320_conn_helper_funcs = {

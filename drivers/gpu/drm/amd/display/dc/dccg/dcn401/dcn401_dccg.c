@@ -730,35 +730,35 @@ void dccg401_init(struct dccg *dccg)
 	}
 }
 
-static void dccg401_set_dto_dscclk(struct dccg *dccg, uint32_t inst, bool enable)
+static void dccg401_set_dto_dscclk(struct dccg *dccg, uint32_t inst)
 {
 	struct dcn_dccg *dccg_dcn = TO_DCN_DCCG(dccg);
-	uint32_t phase = enable ? 1 : 0;
 
 	switch (inst) {
 	case 0:
-		REG_UPDATE_2(DSCCLK_DTO_CTRL, DSCCLK0_EN, 1, DSCCLK0_DTO_DB_EN, 1);
 		REG_UPDATE_2(DSCCLK0_DTO_PARAM,
-				DSCCLK0_DTO_PHASE, phase,
+				DSCCLK0_DTO_PHASE, 1,
 				DSCCLK0_DTO_MODULO, 1);
+		REG_UPDATE(DSCCLK_DTO_CTRL, DSCCLK0_EN, 1);
+
 		break;
 	case 1:
-		REG_UPDATE_2(DSCCLK_DTO_CTRL, DSCCLK1_EN, 1, DSCCLK1_DTO_DB_EN, 1);
 		REG_UPDATE_2(DSCCLK1_DTO_PARAM,
-				DSCCLK1_DTO_PHASE, phase,
+				DSCCLK1_DTO_PHASE, 1,
 				DSCCLK1_DTO_MODULO, 1);
+		REG_UPDATE(DSCCLK_DTO_CTRL, DSCCLK1_EN, 1);
 		break;
 	case 2:
-		REG_UPDATE_2(DSCCLK_DTO_CTRL, DSCCLK2_EN, 1, DSCCLK2_DTO_DB_EN, 1);
 		REG_UPDATE_2(DSCCLK2_DTO_PARAM,
-				DSCCLK2_DTO_PHASE, phase,
+				DSCCLK2_DTO_PHASE, 1,
 				DSCCLK2_DTO_MODULO, 1);
+		REG_UPDATE(DSCCLK_DTO_CTRL, DSCCLK2_EN, 1);
 		break;
 	case 3:
-		REG_UPDATE_2(DSCCLK_DTO_CTRL, DSCCLK3_EN, 1, DSCCLK3_DTO_DB_EN, 1);
 		REG_UPDATE_2(DSCCLK3_DTO_PARAM,
-				DSCCLK3_DTO_PHASE, phase,
+				DSCCLK3_DTO_PHASE, 1,
 				DSCCLK3_DTO_MODULO, 1);
+		REG_UPDATE(DSCCLK_DTO_CTRL, DSCCLK3_EN, 1);
 		break;
 	default:
 		BREAK_TO_DEBUGGER();
@@ -774,15 +774,27 @@ static void dccg401_set_ref_dscclk(struct dccg *dccg,
 	switch (dsc_inst) {
 	case 0:
 		REG_UPDATE(DSCCLK_DTO_CTRL, DSCCLK0_EN, 0);
+		REG_UPDATE_2(DSCCLK0_DTO_PARAM,
+				DSCCLK0_DTO_PHASE, 0,
+				DSCCLK0_DTO_MODULO, 0);
 		break;
 	case 1:
 		REG_UPDATE(DSCCLK_DTO_CTRL, DSCCLK1_EN, 0);
+		REG_UPDATE_2(DSCCLK1_DTO_PARAM,
+				DSCCLK1_DTO_PHASE, 0,
+				DSCCLK1_DTO_MODULO, 0);
 		break;
 	case 2:
 		REG_UPDATE(DSCCLK_DTO_CTRL, DSCCLK2_EN, 0);
+		REG_UPDATE_2(DSCCLK2_DTO_PARAM,
+				DSCCLK2_DTO_PHASE, 0,
+				DSCCLK2_DTO_MODULO, 0);
 		break;
 	case 3:
 		REG_UPDATE(DSCCLK_DTO_CTRL, DSCCLK3_EN, 0);
+		REG_UPDATE_2(DSCCLK3_DTO_PARAM,
+				DSCCLK3_DTO_PHASE, 0,
+				DSCCLK3_DTO_MODULO, 0);
 		break;
 	default:
 		return;

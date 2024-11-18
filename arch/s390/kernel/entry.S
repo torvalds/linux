@@ -264,7 +264,7 @@ EXPORT_SYMBOL(sie_exit)
  */
 
 SYM_CODE_START(system_call)
-	STMG_LC	%r8,%r15,__LC_SAVE_AREA_SYNC
+	STMG_LC	%r8,%r15,__LC_SAVE_AREA
 	GET_LC	%r13
 	stpt	__LC_SYS_ENTER_TIMER(%r13)
 	BPOFF
@@ -287,7 +287,7 @@ SYM_CODE_START(system_call)
 	xgr	%r10,%r10
 	xgr	%r11,%r11
 	la	%r2,STACK_FRAME_OVERHEAD(%r15)	# pointer to pt_regs
-	mvc	__PT_R8(64,%r2),__LC_SAVE_AREA_SYNC(%r13)
+	mvc	__PT_R8(64,%r2),__LC_SAVE_AREA(%r13)
 	MBEAR	%r2,%r13
 	lgr	%r3,%r14
 	brasl	%r14,__do_syscall
@@ -323,7 +323,7 @@ SYM_CODE_END(ret_from_fork)
  */
 
 SYM_CODE_START(pgm_check_handler)
-	STMG_LC	%r8,%r15,__LC_SAVE_AREA_SYNC
+	STMG_LC	%r8,%r15,__LC_SAVE_AREA
 	GET_LC	%r13
 	stpt	__LC_SYS_ENTER_TIMER(%r13)
 	BPOFF
@@ -338,16 +338,16 @@ SYM_CODE_START(pgm_check_handler)
 	jnz	2f			# -> enabled, can't be a double fault
 	tm	__LC_PGM_ILC+3(%r13),0x80	# check for per exception
 	jnz	.Lpgm_svcper		# -> single stepped svc
-2:	CHECK_STACK __LC_SAVE_AREA_SYNC,%r13
+2:	CHECK_STACK __LC_SAVE_AREA,%r13
 	aghi	%r15,-(STACK_FRAME_OVERHEAD + __PT_SIZE)
 	# CHECK_VMAP_STACK branches to stack_overflow or 4f
-	CHECK_VMAP_STACK __LC_SAVE_AREA_SYNC,%r13,4f
+	CHECK_VMAP_STACK __LC_SAVE_AREA,%r13,4f
 3:	lg	%r15,__LC_KERNEL_STACK(%r13)
 4:	la	%r11,STACK_FRAME_OVERHEAD(%r15)
 	xc	__PT_FLAGS(8,%r11),__PT_FLAGS(%r11)
 	xc	__SF_BACKCHAIN(8,%r15),__SF_BACKCHAIN(%r15)
 	stmg	%r0,%r7,__PT_R0(%r11)
-	mvc	__PT_R8(64,%r11),__LC_SAVE_AREA_SYNC(%r13)
+	mvc	__PT_R8(64,%r11),__LC_SAVE_AREA(%r13)
 	mvc	__PT_LAST_BREAK(8,%r11),__LC_PGM_LAST_BREAK(%r13)
 	stctg	%c1,%c1,__PT_CR1(%r11)
 #if IS_ENABLED(CONFIG_KVM)
@@ -398,7 +398,7 @@ SYM_CODE_END(pgm_check_handler)
  */
 .macro INT_HANDLER name,lc_old_psw,handler
 SYM_CODE_START(\name)
-	STMG_LC	%r8,%r15,__LC_SAVE_AREA_ASYNC
+	STMG_LC	%r8,%r15,__LC_SAVE_AREA
 	GET_LC	%r13
 	stckf	__LC_INT_CLOCK(%r13)
 	stpt	__LC_SYS_ENTER_TIMER(%r13)
@@ -414,7 +414,7 @@ SYM_CODE_START(\name)
 	BPENTER	__SF_SIE_FLAGS(%r15),_TIF_ISOLATE_BP_GUEST
 	SIEEXIT __SF_SIE_CONTROL(%r15),%r13
 #endif
-0:	CHECK_STACK __LC_SAVE_AREA_ASYNC,%r13
+0:	CHECK_STACK __LC_SAVE_AREA,%r13
 	aghi	%r15,-(STACK_FRAME_OVERHEAD + __PT_SIZE)
 	j	2f
 1:	lctlg	%c1,%c1,__LC_KERNEL_ASCE(%r13)
@@ -432,7 +432,7 @@ SYM_CODE_START(\name)
 	xgr	%r7,%r7
 	xgr	%r10,%r10
 	xc	__PT_FLAGS(8,%r11),__PT_FLAGS(%r11)
-	mvc	__PT_R8(64,%r11),__LC_SAVE_AREA_ASYNC(%r13)
+	mvc	__PT_R8(64,%r11),__LC_SAVE_AREA(%r13)
 	MBEAR	%r11,%r13
 	stmg	%r8,%r9,__PT_PSW(%r11)
 	lgr	%r2,%r11		# pass pointer to pt_regs
@@ -598,6 +598,24 @@ SYM_CODE_START(restart_int_handler)
 	brc	2,2b
 3:	j	3b
 SYM_CODE_END(restart_int_handler)
+
+	__INIT
+SYM_CODE_START(early_pgm_check_handler)
+	STMG_LC %r8,%r15,__LC_SAVE_AREA
+	GET_LC	%r13
+	aghi	%r15,-(STACK_FRAME_OVERHEAD+__PT_SIZE)
+	la	%r11,STACK_FRAME_OVERHEAD(%r15)
+	xc	__SF_BACKCHAIN(8,%r15),__SF_BACKCHAIN(%r15)
+	stmg	%r0,%r7,__PT_R0(%r11)
+	mvc	__PT_PSW(16,%r11),__LC_PGM_OLD_PSW(%r13)
+	mvc	__PT_R8(64,%r11),__LC_SAVE_AREA(%r13)
+	lgr	%r2,%r11
+	brasl	%r14,__do_early_pgm_check
+	mvc	__LC_RETURN_PSW(16,%r13),STACK_FRAME_OVERHEAD+__PT_PSW(%r15)
+	lmg	%r0,%r15,STACK_FRAME_OVERHEAD+__PT_R0(%r15)
+	LPSWEY	__LC_RETURN_PSW,__LC_RETURN_LPSWE
+SYM_CODE_END(early_pgm_check_handler)
+	__FINIT
 
 	.section .kprobes.text, "ax"
 

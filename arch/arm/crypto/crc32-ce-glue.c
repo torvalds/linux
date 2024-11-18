@@ -18,7 +18,7 @@
 #include <asm/hwcap.h>
 #include <asm/neon.h>
 #include <asm/simd.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #define PMULL_MIN_LEN		64L	/* minimum size of buffer
 					 * for crc32_pmull_le_16 */

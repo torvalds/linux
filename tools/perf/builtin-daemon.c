@@ -1434,7 +1434,7 @@ static int __cmd_signal(struct daemon *daemon, struct option parent_options[],
 	}
 
 	memset(&cmd, 0, sizeof(cmd));
-	cmd.signal.cmd = CMD_SIGNAL,
+	cmd.signal.cmd = CMD_SIGNAL;
 	cmd.signal.sig = SIGUSR2;
 	strncpy(cmd.signal.name, name, sizeof(cmd.signal.name) - 1);
 

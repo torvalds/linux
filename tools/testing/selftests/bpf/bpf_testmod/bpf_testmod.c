@@ -17,6 +17,7 @@
 #include <linux/in.h>
 #include <linux/in6.h>
 #include <linux/un.h>
+#include <linux/filter.h>
 #include <net/sock.h>
 #include <linux/namei.h>
 #include "bpf_testmod.h"
@@ -141,13 +142,12 @@ bpf_testmod_test_mod_kfunc(int i)
 
 __bpf_kfunc int bpf_iter_testmod_seq_new(struct bpf_iter_testmod_seq *it, s64 value, int cnt)
 {
-	if (cnt < 0) {
-		it->cnt = 0;
+	it->cnt = cnt;
+
+	if (cnt < 0)
 		return -EINVAL;
-	}
 
 	it->value = value;
-	it->cnt = cnt;
 
 	return 0;
 }
@@ -162,6 +162,14 @@ __bpf_kfunc s64 *bpf_iter_testmod_seq_next(struct bpf_iter_testmod_seq* it)
 	return &it->value;
 }
 
+__bpf_kfunc s64 bpf_iter_testmod_seq_value(int val, struct bpf_iter_testmod_seq* it__iter)
+{
+	if (it__iter->cnt < 0)
+		return 0;
+
+	return val + it__iter->value;
+}
+
 __bpf_kfunc void bpf_iter_testmod_seq_destroy(struct bpf_iter_testmod_seq *it)
 {
 	it->cnt = 0;
@@ -173,6 +181,36 @@ __bpf_kfunc void bpf_kfunc_common_test(void)
 
 __bpf_kfunc void bpf_kfunc_dynptr_test(struct bpf_dynptr *ptr,
 				       struct bpf_dynptr *ptr__nullable)
+{
+}
+
+__bpf_kfunc struct sk_buff *bpf_kfunc_nested_acquire_nonzero_offset_test(struct sk_buff_head *ptr)
+{
+	return NULL;
+}
+
+__bpf_kfunc struct sk_buff *bpf_kfunc_nested_acquire_zero_offset_test(struct sock_common *ptr)
+{
+	return NULL;
+}
+
+__bpf_kfunc void bpf_kfunc_nested_release_test(struct sk_buff *ptr)
+{
+}
+
+__bpf_kfunc void bpf_kfunc_trusted_vma_test(struct vm_area_struct *ptr)
+{
+}
+
+__bpf_kfunc void bpf_kfunc_trusted_task_test(struct task_struct *ptr)
+{
+}
+
+__bpf_kfunc void bpf_kfunc_trusted_num_test(int *ptr)
+{
+}
+
+__bpf_kfunc void bpf_kfunc_rcu_task_test(struct task_struct *ptr)
 {
 }
 
@@ -534,8 +572,16 @@ BTF_KFUNCS_START(bpf_testmod_common_kfunc_ids)
 BTF_ID_FLAGS(func, bpf_iter_testmod_seq_new, KF_ITER_NEW)
 BTF_ID_FLAGS(func, bpf_iter_testmod_seq_next, KF_ITER_NEXT | KF_RET_NULL)
 BTF_ID_FLAGS(func, bpf_iter_testmod_seq_destroy, KF_ITER_DESTROY)
+BTF_ID_FLAGS(func, bpf_iter_testmod_seq_value)
 BTF_ID_FLAGS(func, bpf_kfunc_common_test)
 BTF_ID_FLAGS(func, bpf_kfunc_dynptr_test)
+BTF_ID_FLAGS(func, bpf_kfunc_nested_acquire_nonzero_offset_test, KF_ACQUIRE)
+BTF_ID_FLAGS(func, bpf_kfunc_nested_acquire_zero_offset_test, KF_ACQUIRE)
+BTF_ID_FLAGS(func, bpf_kfunc_nested_release_test, KF_RELEASE)
+BTF_ID_FLAGS(func, bpf_kfunc_trusted_vma_test, KF_TRUSTED_ARGS)
+BTF_ID_FLAGS(func, bpf_kfunc_trusted_task_test, KF_TRUSTED_ARGS)
+BTF_ID_FLAGS(func, bpf_kfunc_trusted_num_test, KF_TRUSTED_ARGS)
+BTF_ID_FLAGS(func, bpf_kfunc_rcu_task_test, KF_RCU)
 BTF_ID_FLAGS(func, bpf_testmod_ctx_create, KF_ACQUIRE | KF_RET_NULL)
 BTF_ID_FLAGS(func, bpf_testmod_ctx_release, KF_RELEASE)
 BTF_KFUNCS_END(bpf_testmod_common_kfunc_ids)
@@ -923,6 +969,51 @@ out:
 	return err;
 }
 
+static DEFINE_MUTEX(st_ops_mutex);
+static struct bpf_testmod_st_ops *st_ops;
+
+__bpf_kfunc int bpf_kfunc_st_ops_test_prologue(struct st_ops_args *args)
+{
+	int ret = -1;
+
+	mutex_lock(&st_ops_mutex);
+	if (st_ops && st_ops->test_prologue)
+		ret = st_ops->test_prologue(args);
+	mutex_unlock(&st_ops_mutex);
+
+	return ret;
+}
+
+__bpf_kfunc int bpf_kfunc_st_ops_test_epilogue(struct st_ops_args *args)
+{
+	int ret = -1;
+
+	mutex_lock(&st_ops_mutex);
+	if (st_ops && st_ops->test_epilogue)
+		ret = st_ops->test_epilogue(args);
+	mutex_unlock(&st_ops_mutex);
+
+	return ret;
+}
+
+__bpf_kfunc int bpf_kfunc_st_ops_test_pro_epilogue(struct st_ops_args *args)
+{
+	int ret = -1;
+
+	mutex_lock(&st_ops_mutex);
+	if (st_ops && st_ops->test_pro_epilogue)
+		ret = st_ops->test_pro_epilogue(args);
+	mutex_unlock(&st_ops_mutex);
+
+	return ret;
+}
+
+__bpf_kfunc int bpf_kfunc_st_ops_inc10(struct st_ops_args *args)
+{
+	args->a += 10;
+	return args->a;
+}
+
 BTF_KFUNCS_START(bpf_testmod_check_kfunc_ids)
 BTF_ID_FLAGS(func, bpf_testmod_test_mod_kfunc)
 BTF_ID_FLAGS(func, bpf_kfunc_call_test1)
@@ -959,6 +1050,10 @@ BTF_ID_FLAGS(func, bpf_kfunc_call_kernel_sendmsg, KF_SLEEPABLE)
 BTF_ID_FLAGS(func, bpf_kfunc_call_sock_sendmsg, KF_SLEEPABLE)
 BTF_ID_FLAGS(func, bpf_kfunc_call_kernel_getsockname, KF_SLEEPABLE)
 BTF_ID_FLAGS(func, bpf_kfunc_call_kernel_getpeername, KF_SLEEPABLE)
+BTF_ID_FLAGS(func, bpf_kfunc_st_ops_test_prologue, KF_TRUSTED_ARGS | KF_SLEEPABLE)
+BTF_ID_FLAGS(func, bpf_kfunc_st_ops_test_epilogue, KF_TRUSTED_ARGS | KF_SLEEPABLE)
+BTF_ID_FLAGS(func, bpf_kfunc_st_ops_test_pro_epilogue, KF_TRUSTED_ARGS | KF_SLEEPABLE)
+BTF_ID_FLAGS(func, bpf_kfunc_st_ops_inc10, KF_TRUSTED_ARGS)
 BTF_KFUNCS_END(bpf_testmod_check_kfunc_ids)
 
 static int bpf_testmod_ops_init(struct btf *btf)
@@ -1027,6 +1122,11 @@ static void bpf_testmod_test_2(int a, int b)
 {
 }
 
+static int bpf_testmod_tramp(int value)
+{
+	return 0;
+}
+
 static int bpf_testmod_ops__test_maybe_null(int dummy,
 					    struct task_struct *task__nullable)
 {
@@ -1073,6 +1173,144 @@ struct bpf_struct_ops bpf_testmod_ops2 = {
 	.owner = THIS_MODULE,
 };
 
+static int bpf_test_mod_st_ops__test_prologue(struct st_ops_args *args)
+{
+	return 0;
+}
+
+static int bpf_test_mod_st_ops__test_epilogue(struct st_ops_args *args)
+{
+	return 0;
+}
+
+static int bpf_test_mod_st_ops__test_pro_epilogue(struct st_ops_args *args)
+{
+	return 0;
+}
+
+static int st_ops_gen_prologue(struct bpf_insn *insn_buf, bool direct_write,
+			       const struct bpf_prog *prog)
+{
+	struct bpf_insn *insn = insn_buf;
+
+	if (strcmp(prog->aux->attach_func_name, "test_prologue") &&
+	    strcmp(prog->aux->attach_func_name, "test_pro_epilogue"))
+		return 0;
+
+	/* r6 = r1[0]; // r6 will be "struct st_ops *args". r1 is "u64 *ctx".
+	 * r7 = r6->a;
+	 * r7 += 1000;
+	 * r6->a = r7;
+	 */
+	*insn++ = BPF_LDX_MEM(BPF_DW, BPF_REG_6, BPF_REG_1, 0);
+	*insn++ = BPF_LDX_MEM(BPF_DW, BPF_REG_7, BPF_REG_6, offsetof(struct st_ops_args, a));
+	*insn++ = BPF_ALU64_IMM(BPF_ADD, BPF_REG_7, 1000);
+	*insn++ = BPF_STX_MEM(BPF_DW, BPF_REG_6, BPF_REG_7, offsetof(struct st_ops_args, a));
+	*insn++ = prog->insnsi[0];
+
+	return insn - insn_buf;
+}
+
+static int st_ops_gen_epilogue(struct bpf_insn *insn_buf, const struct bpf_prog *prog,
+			       s16 ctx_stack_off)
+{
+	struct bpf_insn *insn = insn_buf;
+
+	if (strcmp(prog->aux->attach_func_name, "test_epilogue") &&
+	    strcmp(prog->aux->attach_func_name, "test_pro_epilogue"))
+		return 0;
+
+	/* r1 = stack[ctx_stack_off]; // r1 will be "u64 *ctx"
+	 * r1 = r1[0]; // r1 will be "struct st_ops *args"
+	 * r6 = r1->a;
+	 * r6 += 10000;
+	 * r1->a = r6;
+	 * r0 = r6;
+	 * r0 *= 2;
+	 * BPF_EXIT;
+	 */
+	*insn++ = BPF_LDX_MEM(BPF_DW, BPF_REG_1, BPF_REG_FP, ctx_stack_off);
+	*insn++ = BPF_LDX_MEM(BPF_DW, BPF_REG_1, BPF_REG_1, 0);
+	*insn++ = BPF_LDX_MEM(BPF_DW, BPF_REG_6, BPF_REG_1, offsetof(struct st_ops_args, a));
+	*insn++ = BPF_ALU64_IMM(BPF_ADD, BPF_REG_6, 10000);
+	*insn++ = BPF_STX_MEM(BPF_DW, BPF_REG_1, BPF_REG_6, offsetof(struct st_ops_args, a));
+	*insn++ = BPF_MOV64_REG(BPF_REG_0, BPF_REG_6);
+	*insn++ = BPF_ALU64_IMM(BPF_MUL, BPF_REG_0, 2);
+	*insn++ = BPF_EXIT_INSN();
+
+	return insn - insn_buf;
+}
+
+static int st_ops_btf_struct_access(struct bpf_verifier_log *log,
+				    const struct bpf_reg_state *reg,
+				    int off, int size)
+{
+	if (off < 0 || off + size > sizeof(struct st_ops_args))
+		return -EACCES;
+	return 0;
+}
+
+static const struct bpf_verifier_ops st_ops_verifier_ops = {
+	.is_valid_access = bpf_testmod_ops_is_valid_access,
+	.btf_struct_access = st_ops_btf_struct_access,
+	.gen_prologue = st_ops_gen_prologue,
+	.gen_epilogue = st_ops_gen_epilogue,
+	.get_func_proto = bpf_base_func_proto,
+};
+
+static struct bpf_testmod_st_ops st_ops_cfi_stubs = {
+	.test_prologue = bpf_test_mod_st_ops__test_prologue,
+	.test_epilogue = bpf_test_mod_st_ops__test_epilogue,
+	.test_pro_epilogue = bpf_test_mod_st_ops__test_pro_epilogue,
+};
+
+static int st_ops_reg(void *kdata, struct bpf_link *link)
+{
+	int err = 0;
+
+	mutex_lock(&st_ops_mutex);
+	if (st_ops) {
+		pr_err("st_ops has already been registered\n");
+		err = -EEXIST;
+		goto unlock;
+	}
+	st_ops = kdata;
+
+unlock:
+	mutex_unlock(&st_ops_mutex);
+	return err;
+}
+
+static void st_ops_unreg(void *kdata, struct bpf_link *link)
+{
+	mutex_lock(&st_ops_mutex);
+	st_ops = NULL;
+	mutex_unlock(&st_ops_mutex);
+}
+
+static int st_ops_init(struct btf *btf)
+{
+	return 0;
+}
+
+static int st_ops_init_member(const struct btf_type *t,
+			      const struct btf_member *member,
+			      void *kdata, const void *udata)
+{
+	return 0;
+}
+
+static struct bpf_struct_ops testmod_st_ops = {
+	.verifier_ops = &st_ops_verifier_ops,
+	.init = st_ops_init,
+	.init_member = st_ops_init_member,
+	.reg = st_ops_reg,
+	.unreg = st_ops_unreg,
+	.cfi_stubs = &st_ops_cfi_stubs,
+	.name = "bpf_testmod_st_ops",
+	.owner = THIS_MODULE,
+};
+
 extern int bpf_fentry_test1(int a);
 
 static int bpf_testmod_init(void)
@@ -1083,14 +1321,17 @@ static int bpf_testmod_init(void)
 			.kfunc_btf_id	= bpf_testmod_dtor_ids[1]
 		},
 	};
+	void **tramp;
 	int ret;
 
 	ret = register_btf_kfunc_id_set(BPF_PROG_TYPE_UNSPEC, &bpf_testmod_common_kfunc_set);
 	ret = ret ?: register_btf_kfunc_id_set(BPF_PROG_TYPE_SCHED_CLS, &bpf_testmod_kfunc_set);
 	ret = ret ?: register_btf_kfunc_id_set(BPF_PROG_TYPE_TRACING, &bpf_testmod_kfunc_set);
 	ret = ret ?: register_btf_kfunc_id_set(BPF_PROG_TYPE_SYSCALL, &bpf_testmod_kfunc_set);
+	ret = ret ?: register_btf_kfunc_id_set(BPF_PROG_TYPE_STRUCT_OPS, &bpf_testmod_kfunc_set);
 	ret = ret ?: register_bpf_struct_ops(&bpf_bpf_testmod_ops, bpf_testmod_ops);
 	ret = ret ?: register_bpf_struct_ops(&bpf_testmod_ops2, bpf_testmod_ops2);
+	ret = ret ?: register_bpf_struct_ops(&testmod_st_ops, bpf_testmod_st_ops);
 	ret = ret ?: register_btf_id_dtor_kfuncs(bpf_testmod_dtors,
 						 ARRAY_SIZE(bpf_testmod_dtors),
 						 THIS_MODULE);
@@ -1106,6 +1347,14 @@ static int bpf_testmod_init(void)
 	ret = register_bpf_testmod_uprobe();
 	if (ret < 0)
 		return ret;
+
+	/* Ensure nothing is between tramp_1..tramp_40 */
+	BUILD_BUG_ON(offsetof(struct bpf_testmod_ops, tramp_1) + 40 * sizeof(long) !=
+		     offsetofend(struct bpf_testmod_ops, tramp_40));
+	tramp = (void **)&__bpf_testmod_ops.tramp_1;
+	while (tramp <= (void **)&__bpf_testmod_ops.tramp_40)
+		*tramp++ = bpf_testmod_tramp;
+
 	return 0;
 }
 

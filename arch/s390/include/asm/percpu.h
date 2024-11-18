@@ -4,6 +4,7 @@
 
 #include <linux/preempt.h>
 #include <asm/cmpxchg.h>
+#include <asm/march.h>
 
 /*
  * s390 uses its own implementation for per cpu data, the offset of
@@ -50,7 +51,7 @@
 #define this_cpu_or_1(pcp, val)		arch_this_cpu_to_op_simple(pcp, val, |)
 #define this_cpu_or_2(pcp, val)		arch_this_cpu_to_op_simple(pcp, val, |)
 
-#ifndef CONFIG_HAVE_MARCH_Z196_FEATURES
+#ifndef MARCH_HAS_Z196_FEATURES
 
 #define this_cpu_add_4(pcp, val)	arch_this_cpu_to_op_simple(pcp, val, +)
 #define this_cpu_add_8(pcp, val)	arch_this_cpu_to_op_simple(pcp, val, +)
@@ -61,7 +62,7 @@
 #define this_cpu_or_4(pcp, val)		arch_this_cpu_to_op_simple(pcp, val, |)
 #define this_cpu_or_8(pcp, val)		arch_this_cpu_to_op_simple(pcp, val, |)
 
-#else /* CONFIG_HAVE_MARCH_Z196_FEATURES */
+#else /* MARCH_HAS_Z196_FEATURES */
 
 #define arch_this_cpu_add(pcp, val, op1, op2, szcast)			\
 {									\
@@ -129,7 +130,7 @@
 #define this_cpu_or_4(pcp, val)		arch_this_cpu_to_op(pcp, val, "lao")
 #define this_cpu_or_8(pcp, val)		arch_this_cpu_to_op(pcp, val, "laog")
 
-#endif /* CONFIG_HAVE_MARCH_Z196_FEATURES */
+#endif /* MARCH_HAS_Z196_FEATURES */
 
 #define arch_this_cpu_cmpxchg(pcp, oval, nval)				\
 ({									\

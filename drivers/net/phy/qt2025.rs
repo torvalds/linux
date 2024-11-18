@@ -15,7 +15,7 @@ use kernel::firmware::Firmware;
 use kernel::net::phy::{
     self,
     reg::{Mmd, C45},
-    DeviceId, Driver,
+    Driver,
 };
 use kernel::prelude::*;
 use kernel::sizes::{SZ_16K, SZ_8K};
@@ -23,7 +23,7 @@ use kernel::sizes::{SZ_16K, SZ_8K};
 kernel::module_phy_driver! {
     drivers: [PhyQT2025],
     device_table: [
-        DeviceId::new_with_driver::<PhyQT2025>(),
+        phy::DeviceId::new_with_driver::<PhyQT2025>(),
     ],
     name: "qt2025_phy",
     author: "FUJITA Tomonori <fujita.tomonori@gmail.com>",

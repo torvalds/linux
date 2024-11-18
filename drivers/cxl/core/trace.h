@@ -8,7 +8,7 @@
 
 #include <linux/tracepoint.h>
 #include <linux/pci.h>
-#include <asm-generic/unaligned.h>
+#include <linux/unaligned.h>
 
 #include <cxl.h>
 #include <cxlmem.h>

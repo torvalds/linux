@@ -541,5 +541,7 @@ const struct kfd2kgd_calls gc_9_4_3_kfd2kgd = {
 			kgd_gfx_v9_4_3_set_wave_launch_trap_override,
 	.set_wave_launch_mode = kgd_aldebaran_set_wave_launch_mode,
 	.set_address_watch = kgd_gfx_v9_4_3_set_address_watch,
-	.clear_address_watch = kgd_gfx_v9_4_3_clear_address_watch
+	.clear_address_watch = kgd_gfx_v9_4_3_clear_address_watch,
+	.hqd_get_pq_addr = kgd_gfx_v9_hqd_get_pq_addr,
+	.hqd_reset = kgd_gfx_v9_hqd_reset
 };

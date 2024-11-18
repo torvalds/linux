@@ -6,7 +6,7 @@
 #include <kunit/test.h>
 #include <kunit/visibility.h>
 
-#include "tests/xe_mocs_test.h"
+#include "tests/xe_kunit_helpers.h"
 #include "tests/xe_pci_test.h"
 #include "tests/xe_test.h"
 
@@ -23,7 +23,7 @@ struct live_mocs {
 static int live_mocs_init(struct live_mocs *arg, struct xe_gt *gt)
 {
 	unsigned int flags;
-	struct kunit *test = xe_cur_kunit();
+	struct kunit *test = kunit_get_current_test();
 
 	memset(arg, 0, sizeof(*arg));
 
@@ -41,7 +41,7 @@ static int live_mocs_init(struct live_mocs *arg, struct xe_gt *gt)
 static void read_l3cc_table(struct xe_gt *gt,
 			    const struct xe_mocs_info *info)
 {
-	struct kunit *test = xe_cur_kunit();
+	struct kunit *test = kunit_get_current_test();
 	u32 l3cc, l3cc_expected;
 	unsigned int i;
 	u32 reg_val;
@@ -78,7 +78,7 @@ static void read_l3cc_table(struct xe_gt *gt,
 static void read_mocs_table(struct xe_gt *gt,
 			    const struct xe_mocs_info *info)
 {
-	struct kunit *test = xe_cur_kunit();
+	struct kunit *test = kunit_get_current_test();
 	u32 mocs, mocs_expected;
 	unsigned int i;
 	u32 reg_val;
@@ -134,11 +134,15 @@ static int mocs_kernel_test_run_device(struct xe_device *xe)
 	return 0;
 }
 
-void xe_live_mocs_kernel_kunit(struct kunit *test)
+static void xe_live_mocs_kernel_kunit(struct kunit *test)
 {
-	xe_call_for_each_device(mocs_kernel_test_run_device);
+	struct xe_device *xe = test->priv;
+
+	if (IS_SRIOV_VF(xe))
+		kunit_skip(test, "this test is N/A for VF");
+
+	mocs_kernel_test_run_device(xe);
 }
-EXPORT_SYMBOL_IF_KUNIT(xe_live_mocs_kernel_kunit);
 
 static int mocs_reset_test_run_device(struct xe_device *xe)
 {
@@ -148,7 +152,7 @@ static int mocs_reset_test_run_device(struct xe_device *xe)
 	struct xe_gt *gt;
 	unsigned int flags;
 	int id;
-	struct kunit *test = xe_cur_kunit();
+	struct kunit *test = kunit_get_current_test();
 
 	xe_pm_runtime_get(xe);
 
@@ -175,8 +179,26 @@ static int mocs_reset_test_run_device(struct xe_device *xe)
 	return 0;
 }
 
-void xe_live_mocs_reset_kunit(struct kunit *test)
+static void xe_live_mocs_reset_kunit(struct kunit *test)
 {
-	xe_call_for_each_device(mocs_reset_test_run_device);
+	struct xe_device *xe = test->priv;
+
+	if (IS_SRIOV_VF(xe))
+		kunit_skip(test, "this test is N/A for VF");
+
+	mocs_reset_test_run_device(xe);
 }
-EXPORT_SYMBOL_IF_KUNIT(xe_live_mocs_reset_kunit);
+
+static struct kunit_case xe_mocs_tests[] = {
+	KUNIT_CASE_PARAM(xe_live_mocs_kernel_kunit, xe_pci_live_device_gen_param),
+	KUNIT_CASE_PARAM(xe_live_mocs_reset_kunit, xe_pci_live_device_gen_param),
+	{}
+};
+
+VISIBLE_IF_KUNIT
+struct kunit_suite xe_mocs_test_suite = {
+	.name = "xe_mocs",
+	.test_cases = xe_mocs_tests,
+	.init = xe_kunit_helper_xe_device_live_test_init,
+};
+EXPORT_SYMBOL_IF_KUNIT(xe_mocs_test_suite);

@@ -7,6 +7,7 @@
 #include <drm/intel/i915_hdcp_interface.h>
 
 #include "i915_drv.h"
+#include "intel_display_types.h"
 #include "intel_hdcp_gsc_message.h"
 
 int
@@ -15,17 +16,19 @@ intel_hdcp_gsc_initiate_session(struct device *dev, struct hdcp_port_data *data,
 {
 	struct wired_cmd_initiate_hdcp2_session_in session_init_in = {};
 	struct wired_cmd_initiate_hdcp2_session_out session_init_out = {};
+	struct intel_display *display;
 	struct drm_i915_private *i915;
 	ssize_t byte;
 
 	if (!dev || !data || !ake_data)
 		return -EINVAL;
 
-	i915 = kdev_to_i915(dev);
-	if (!i915) {
+	display = to_intel_display(dev);
+	if (!display) {
 		dev_err(dev, "DRM not initialized, aborting HDCP.\n");
 		return -ENODEV;
 	}
+	i915 = to_i915(display->drm);
 
 	session_init_in.header.api_version = HDCP_API_VERSION;
 	session_init_in.header.command_id = WIRED_INITIATE_HDCP2_SESSION;
@@ -72,17 +75,19 @@ intel_hdcp_gsc_verify_receiver_cert_prepare_km(struct device *dev,
 {
 	struct wired_cmd_verify_receiver_cert_in verify_rxcert_in = {};
 	struct wired_cmd_verify_receiver_cert_out verify_rxcert_out = {};
+	struct intel_display *display;
 	struct drm_i915_private *i915;
 	ssize_t byte;
 
 	if (!dev || !data || !rx_cert || !km_stored || !ek_pub_km || !msg_sz)
 		return -EINVAL;
 
-	i915 = kdev_to_i915(dev);
-	if (!i915) {
+	display = to_intel_display(dev);
+	if (!display) {
 		dev_err(dev, "DRM not initialized, aborting HDCP.\n");
 		return -ENODEV;
 	}
+	i915 = to_i915(display->drm);
 
 	verify_rxcert_in.header.api_version = HDCP_API_VERSION;
 	verify_rxcert_in.header.command_id = WIRED_VERIFY_RECEIVER_CERT;
@@ -135,17 +140,19 @@ intel_hdcp_gsc_verify_hprime(struct device *dev, struct hdcp_port_data *data,
 {
 	struct wired_cmd_ake_send_hprime_in send_hprime_in = {};
 	struct wired_cmd_ake_send_hprime_out send_hprime_out = {};
+	struct intel_display *display;
 	struct drm_i915_private *i915;
 	ssize_t byte;
 
 	if (!dev || !data || !rx_hprime)
 		return -EINVAL;
 
-	i915 = kdev_to_i915(dev);
-	if (!i915) {
+	display = to_intel_display(dev);
+	if (!display) {
 		dev_err(dev, "DRM not initialized, aborting HDCP.\n");
 		return -ENODEV;
 	}
+	i915 = to_i915(display->drm);
 
 	send_hprime_in.header.api_version = HDCP_API_VERSION;
 	send_hprime_in.header.command_id = WIRED_AKE_SEND_HPRIME;
@@ -183,17 +190,19 @@ intel_hdcp_gsc_store_pairing_info(struct device *dev, struct hdcp_port_data *dat
 {
 	struct wired_cmd_ake_send_pairing_info_in pairing_info_in = {};
 	struct wired_cmd_ake_send_pairing_info_out pairing_info_out = {};
+	struct intel_display *display;
 	struct drm_i915_private *i915;
 	ssize_t byte;
 
 	if (!dev || !data || !pairing_info)
 		return -EINVAL;
 
-	i915 = kdev_to_i915(dev);
-	if (!i915) {
+	display = to_intel_display(dev);
+	if (!display) {
 		dev_err(dev, "DRM not initialized, aborting HDCP.\n");
 		return -ENODEV;
 	}
+	i915 = to_i915(display->drm);
 
 	pairing_info_in.header.api_version = HDCP_API_VERSION;
 	pairing_info_in.header.command_id = WIRED_AKE_SEND_PAIRING_INFO;
@@ -234,17 +243,19 @@ intel_hdcp_gsc_initiate_locality_check(struct device *dev,
 {
 	struct wired_cmd_init_locality_check_in lc_init_in = {};
 	struct wired_cmd_init_locality_check_out lc_init_out = {};
+	struct intel_display *display;
 	struct drm_i915_private *i915;
 	ssize_t byte;
 
 	if (!dev || !data || !lc_init_data)
 		return -EINVAL;
 
-	i915 = kdev_to_i915(dev);
-	if (!i915) {
+	display = to_intel_display(dev);
+	if (!display) {
 		dev_err(dev, "DRM not initialized, aborting HDCP.\n");
 		return -ENODEV;
 	}
+	i915 = to_i915(display->drm);
 
 	lc_init_in.header.api_version = HDCP_API_VERSION;
 	lc_init_in.header.command_id = WIRED_INIT_LOCALITY_CHECK;
@@ -280,17 +291,19 @@ intel_hdcp_gsc_verify_lprime(struct device *dev, struct hdcp_port_data *data,
 {
 	struct wired_cmd_validate_locality_in verify_lprime_in = {};
 	struct wired_cmd_validate_locality_out verify_lprime_out = {};
+	struct intel_display *display;
 	struct drm_i915_private *i915;
 	ssize_t byte;
 
 	if (!dev || !data || !rx_lprime)
 		return -EINVAL;
 
-	i915 = kdev_to_i915(dev);
-	if (!i915) {
+	display = to_intel_display(dev);
+	if (!display) {
 		dev_err(dev, "DRM not initialized, aborting HDCP.\n");
 		return -ENODEV;
 	}
+	i915 = to_i915(display->drm);
 
 	verify_lprime_in.header.api_version = HDCP_API_VERSION;
 	verify_lprime_in.header.command_id = WIRED_VALIDATE_LOCALITY;
@@ -330,17 +343,19 @@ int intel_hdcp_gsc_get_session_key(struct device *dev,
 {
 	struct wired_cmd_get_session_key_in get_skey_in = {};
 	struct wired_cmd_get_session_key_out get_skey_out = {};
+	struct intel_display *display;
 	struct drm_i915_private *i915;
 	ssize_t byte;
 
 	if (!dev || !data || !ske_data)
 		return -EINVAL;
 
-	i915 = kdev_to_i915(dev);
-	if (!i915) {
+	display = to_intel_display(dev);
+	if (!display) {
 		dev_err(dev, "DRM not initialized, aborting HDCP.\n");
 		return -ENODEV;
 	}
+	i915 = to_i915(display->drm);
 
 	get_skey_in.header.api_version = HDCP_API_VERSION;
 	get_skey_in.header.command_id = WIRED_GET_SESSION_KEY;
@@ -382,17 +397,19 @@ intel_hdcp_gsc_repeater_check_flow_prepare_ack(struct device *dev,
 {
 	struct wired_cmd_verify_repeater_in verify_repeater_in = {};
 	struct wired_cmd_verify_repeater_out verify_repeater_out = {};
+	struct intel_display *display;
 	struct drm_i915_private *i915;
 	ssize_t byte;
 
 	if (!dev || !rep_topology || !rep_send_ack || !data)
 		return -EINVAL;
 
-	i915 = kdev_to_i915(dev);
-	if (!i915) {
+	display = to_intel_display(dev);
+	if (!display) {
 		dev_err(dev, "DRM not initialized, aborting HDCP.\n");
 		return -ENODEV;
 	}
+	i915 = to_i915(display->drm);
 
 	verify_repeater_in.header.api_version = HDCP_API_VERSION;
 	verify_repeater_in.header.command_id = WIRED_VERIFY_REPEATER;
@@ -442,6 +459,7 @@ int intel_hdcp_gsc_verify_mprime(struct device *dev,
 {
 	struct wired_cmd_repeater_auth_stream_req_in *verify_mprime_in;
 	struct wired_cmd_repeater_auth_stream_req_out verify_mprime_out = {};
+	struct intel_display *display;
 	struct drm_i915_private *i915;
 	ssize_t byte;
 	size_t cmd_size;
@@ -449,11 +467,12 @@ int intel_hdcp_gsc_verify_mprime(struct device *dev,
 	if (!dev || !stream_ready || !data)
 		return -EINVAL;
 
-	i915 = kdev_to_i915(dev);
-	if (!i915) {
+	display = to_intel_display(dev);
+	if (!display) {
 		dev_err(dev, "DRM not initialized, aborting HDCP.\n");
 		return -ENODEV;
 	}
+	i915 = to_i915(display->drm);
 
 	cmd_size = struct_size(verify_mprime_in, streams, data->k);
 	if (cmd_size == SIZE_MAX)
@@ -504,17 +523,19 @@ int intel_hdcp_gsc_enable_authentication(struct device *dev,
 {
 	struct wired_cmd_enable_auth_in enable_auth_in = {};
 	struct wired_cmd_enable_auth_out enable_auth_out = {};
+	struct intel_display *display;
 	struct drm_i915_private *i915;
 	ssize_t byte;
 
 	if (!dev || !data)
 		return -EINVAL;
 
-	i915 = kdev_to_i915(dev);
-	if (!i915) {
+	display = to_intel_display(dev);
+	if (!display) {
 		dev_err(dev, "DRM not initialized, aborting HDCP.\n");
 		return -ENODEV;
 	}
+	i915 = to_i915(display->drm);
 
 	enable_auth_in.header.api_version = HDCP_API_VERSION;
 	enable_auth_in.header.command_id = WIRED_ENABLE_AUTH;
@@ -549,17 +570,19 @@ intel_hdcp_gsc_close_session(struct device *dev, struct hdcp_port_data *data)
 {
 	struct wired_cmd_close_session_in session_close_in = {};
 	struct wired_cmd_close_session_out session_close_out = {};
+	struct intel_display *display;
 	struct drm_i915_private *i915;
 	ssize_t byte;
 
 	if (!dev || !data)
 		return -EINVAL;
 
-	i915 = kdev_to_i915(dev);
-	if (!i915) {
+	display = to_intel_display(dev);
+	if (!display) {
 		dev_err(dev, "DRM not initialized, aborting HDCP.\n");
 		return -ENODEV;
 	}
+	i915 = to_i915(display->drm);
 
 	session_close_in.header.api_version = HDCP_API_VERSION;
 	session_close_in.header.command_id = WIRED_CLOSE_SESSION;

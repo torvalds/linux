@@ -2886,7 +2886,6 @@ static ssize_t reset_all_on_write(struct file *filp, const char __user *buf,
 static const struct file_operations fops_reset_counts = {
 	.owner = THIS_MODULE,
 	.open = simple_open,
-	.llseek = no_llseek,
 	.write = reset_all_on_write,
 };
 

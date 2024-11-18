@@ -22,20 +22,6 @@
 #define PM_PFRAME_BITS		55
 #define PM_PFRAME_MASK		~((1UL << PM_PFRAME_BITS) - 1)
 
-/*
- * For ia64 architecture, Linux kernel reserves Region number 4 for hugepages.
- * That means the addresses starting with 0x800000... will need to be
- * specified.  Specifying a fixed address is not required on ppc64, i386
- * or x86_64.
- */
-#ifdef __ia64__
-#define MAP_ADDR		(void *)(0x8000000000000000UL)
-#define MAP_FLAGS		(MAP_PRIVATE | MAP_ANONYMOUS | MAP_HUGETLB | MAP_FIXED)
-#else
-#define MAP_ADDR		NULL
-#define MAP_FLAGS		(MAP_PRIVATE | MAP_ANONYMOUS | MAP_HUGETLB)
-#endif
-
 static size_t pagesize;
 static size_t maplength;
 
@@ -113,7 +99,8 @@ int main(int argc, char **argv)
 		exit(1);
 	}
 
-	addr = mmap(MAP_ADDR, maplength, PROT_READ | PROT_WRITE, MAP_FLAGS, -1, 0);
+	addr = mmap(NULL, maplength, PROT_READ | PROT_WRITE,
+			MAP_PRIVATE | MAP_ANONYMOUS | MAP_HUGETLB, -1, 0);
 	if (addr == MAP_FAILED) {
 		perror("mmap");
 		exit(1);

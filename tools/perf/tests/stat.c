@@ -21,7 +21,7 @@ static bool has_term(struct perf_record_stat_config *config,
 	return false;
 }
 
-static int process_stat_config_event(struct perf_tool *tool __maybe_unused,
+static int process_stat_config_event(const struct perf_tool *tool __maybe_unused,
 				     union perf_event *event,
 				     struct perf_sample *sample __maybe_unused,
 				     struct machine *machine __maybe_unused)
@@ -62,7 +62,7 @@ static int test__synthesize_stat_config(struct test_suite *test __maybe_unused,
 	return 0;
 }
 
-static int process_stat_event(struct perf_tool *tool __maybe_unused,
+static int process_stat_event(const struct perf_tool *tool __maybe_unused,
 			      union perf_event *event,
 			      struct perf_sample *sample __maybe_unused,
 			      struct machine *machine __maybe_unused)
@@ -93,7 +93,7 @@ static int test__synthesize_stat(struct test_suite *test __maybe_unused, int sub
 	return 0;
 }
 
-static int process_stat_round_event(struct perf_tool *tool __maybe_unused,
+static int process_stat_round_event(const struct perf_tool *tool __maybe_unused,
 				    union perf_event *event,
 				    struct perf_sample *sample __maybe_unused,
 				    struct machine *machine __maybe_unused)

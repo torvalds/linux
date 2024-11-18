@@ -71,7 +71,7 @@ properties:
       - qcom,sdx65-system-noc
       - qcom,sm8150-aggre1-noc
       - qcom,sm8150-aggre2-noc
-      - qcom,sm8150-camnoc-noc
+      - qcom,sm8150-camnoc-virt
       - qcom,sm8150-compute-noc
       - qcom,sm8150-config-noc
       - qcom,sm8150-dc-noc
@@ -113,6 +113,9 @@ allOf:
         properties:
           compatible:
             enum:
+              - qcom,sc8180x-camnoc-virt
+              - qcom,sc8180x-mc-virt
+              - qcom,sc8180x-qup-virt
               - qcom,sdx65-mc-virt
               - qcom,sm8250-qup-virt
     then:

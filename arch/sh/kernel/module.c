@@ -18,7 +18,7 @@
 #include <linux/fs.h>
 #include <linux/string.h>
 #include <linux/kernel.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <asm/dwarf.h>
 
 int apply_relocate_add(Elf32_Shdr *sechdrs,

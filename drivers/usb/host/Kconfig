@@ -40,11 +40,11 @@ config USB_XHCI_DBGCAP
 config USB_XHCI_PCI
 	tristate
 	depends on USB_PCI
-	depends on USB_XHCI_PCI_RENESAS || !USB_XHCI_PCI_RENESAS
 	default y
 
 config USB_XHCI_PCI_RENESAS
 	tristate "Support for additional Renesas xHCI controller with firmware"
+	depends on USB_XHCI_PCI
 	help
 	  Say 'Y' to enable the support for the Renesas xHCI controller with
 	  firmware. Make sure you have the firmware for the device and

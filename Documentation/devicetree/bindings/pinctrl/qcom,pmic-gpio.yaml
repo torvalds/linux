@@ -425,6 +425,7 @@ patternProperties:
         additionalProperties: false
 
   "-hog(-[0-9]+)?$":
+    type: object
     required:
       - gpio-hog
 

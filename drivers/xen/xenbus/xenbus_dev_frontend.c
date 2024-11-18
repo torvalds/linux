@@ -700,7 +700,6 @@ const struct file_operations xen_xenbus_fops = {
 	.open = xenbus_file_open,
 	.release = xenbus_file_release,
 	.poll = xenbus_file_poll,
-	.llseek = no_llseek,
 };
 EXPORT_SYMBOL_GPL(xen_xenbus_fops);
 

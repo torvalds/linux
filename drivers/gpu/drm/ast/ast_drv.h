@@ -147,18 +147,19 @@ static inline struct ast_plane *to_ast_plane(struct drm_plane *plane)
 }
 
 /*
- * BMC
+ * Connector
  */
 
-struct ast_bmc_connector {
+struct ast_connector {
 	struct drm_connector base;
-	struct drm_connector *physical_connector;
+
+	enum drm_connector_status physical_status;
 };
 
-static inline struct ast_bmc_connector *
-to_ast_bmc_connector(struct drm_connector *connector)
+static inline struct ast_connector *
+to_ast_connector(struct drm_connector *connector)
 {
-	return container_of(connector, struct ast_bmc_connector, base);
+	return container_of(connector, struct ast_connector, base);
 }
 
 /*
@@ -192,24 +193,20 @@ struct ast_device {
 	struct {
 		struct {
 			struct drm_encoder encoder;
-			struct drm_connector connector;
+			struct ast_connector connector;
 		} vga;
 		struct {
 			struct drm_encoder encoder;
-			struct drm_connector connector;
+			struct ast_connector connector;
 		} sil164;
 		struct {
 			struct drm_encoder encoder;
-			struct drm_connector connector;
+			struct ast_connector connector;
 		} dp501;
 		struct {
 			struct drm_encoder encoder;
-			struct drm_connector connector;
+			struct ast_connector connector;
 		} astdp;
-		struct {
-			struct drm_encoder encoder;
-			struct ast_bmc_connector bmc_connector;
-		} bmc;
 	} output;
 
 	bool support_wide_screen;
@@ -460,21 +457,17 @@ void ast_post_gpu(struct drm_device *dev);
 u32 ast_mindwm(struct ast_device *ast, u32 r);
 void ast_moutdwm(struct ast_device *ast, u32 r, u32 v);
 void ast_patch_ahb_2500(void __iomem *regs);
+
+int ast_vga_output_init(struct ast_device *ast);
+int ast_sil164_output_init(struct ast_device *ast);
+
 /* ast dp501 */
-void ast_set_dp501_video_output(struct drm_device *dev, u8 mode);
 bool ast_backup_fw(struct drm_device *dev, u8 *addr, u32 size);
-bool ast_dp501_is_connected(struct ast_device *ast);
-bool ast_dp501_read_edid(struct drm_device *dev, u8 *ediddata);
-u8 ast_get_dp501_max_clk(struct drm_device *dev);
 void ast_init_3rdtx(struct drm_device *dev);
+int ast_dp501_output_init(struct ast_device *ast);
 
 /* aspeed DP */
-bool ast_astdp_is_connected(struct ast_device *ast);
-int ast_astdp_read_edid(struct drm_device *dev, u8 *ediddata);
-void ast_dp_launch(struct drm_device *dev);
-bool ast_dp_power_is_on(struct ast_device *ast);
-void ast_dp_power_on_off(struct drm_device *dev, bool no);
-void ast_dp_set_on_off(struct drm_device *dev, bool no);
-void ast_dp_set_mode(struct drm_crtc *crtc, struct ast_vbios_mode_info *vbios_mode);
+int ast_dp_launch(struct ast_device *ast);
+int ast_astdp_output_init(struct ast_device *ast);
 
 #endif

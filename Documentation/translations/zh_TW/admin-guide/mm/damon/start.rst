@@ -15,7 +15,7 @@
 
 本文通過演示DAMON的默認用戶空間工具，簡要地介紹瞭如何使用DAMON。請注意，爲了簡潔
 起見，本文檔只描述了它的部分功能。更多細節請參考該工具的使用文檔。
-`doc <https://github.com/awslabs/damo/blob/next/USAGE.md>`_ .
+`doc <https://github.com/damonitor/damo/blob/next/USAGE.md>`_ .
 
 
 前提條件
@@ -31,7 +31,7 @@
 ------------
 
 在演示中，我們將使用DAMON的默認用戶空間工具，稱爲DAMON Operator（DAMO）。它可以在
-https://github.com/awslabs/damo找到。下面的例子假設DAMO在你的$PATH上。當然，但
+https://github.com/damonitor/damo找到。下面的例子假設DAMO在你的$PATH上。當然，但
 這並不是強制性的。
 
 因爲DAMO使用了DAMON的sysfs接口（詳情請參考:doc:`usage`），你應該確保

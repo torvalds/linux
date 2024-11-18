@@ -363,10 +363,7 @@ static irqreturn_t hx711_trigger(int irq, void *p)
 
 	memset(hx711_data->buffer, 0, sizeof(hx711_data->buffer));
 
-	for (i = 0; i < indio_dev->masklength; i++) {
-		if (!test_bit(i, indio_dev->active_scan_mask))
-			continue;
-
+	iio_for_each_active_channel(indio_dev, i) {
 		hx711_data->buffer[j] = hx711_reset_read(hx711_data,
 					indio_dev->channels[i].channel);
 		j++;
@@ -555,7 +552,7 @@ static int hx711_probe(struct platform_device *pdev)
 
 static const struct of_device_id of_hx711_match[] = {
 	{ .compatible = "avia,hx711", },
-	{},
+	{ }
 };
 
 MODULE_DEVICE_TABLE(of, of_hx711_match);

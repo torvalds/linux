@@ -13,7 +13,7 @@
 #ifndef _IPR_H
 #define _IPR_H
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <linux/types.h>
 #include <linux/completion.h>
 #include <linux/list.h>
@@ -1030,7 +1030,7 @@ struct ipr_hostrcb_fabric_desc {
 #define IPR_PATH_FAILED			0x03
 
 	__be16 num_entries;
-	struct ipr_hostrcb_config_element elem[1];
+	struct ipr_hostrcb_config_element elem[];
 }__attribute__((packed, aligned (4)));
 
 struct ipr_hostrcb64_fabric_desc {
@@ -1044,7 +1044,7 @@ struct ipr_hostrcb64_fabric_desc {
 	u8 res_path[8];
 	u8 reserved3[6];
 	__be16 num_entries;
-	struct ipr_hostrcb64_config_element elem[1];
+	struct ipr_hostrcb64_config_element elem[];
 }__attribute__((packed, aligned (8)));
 
 #define for_each_hrrq(hrrq, ioa_cfg) \

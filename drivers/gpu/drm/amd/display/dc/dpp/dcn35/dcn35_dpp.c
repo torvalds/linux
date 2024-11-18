@@ -59,6 +59,31 @@ void dpp35_dppclk_control(
 				DISPCLK_R_GATE_DISABLE, 0);
 }
 
+void dpp35_program_bias_and_scale_fcnv(
+	struct dpp *dpp_base,
+	struct dc_bias_and_scale *params)
+{
+	struct dcn20_dpp *dpp = TO_DCN20_DPP(dpp_base);
+
+	if (!params->bias_and_scale_valid) {
+		REG_SET(FCNV_FP_BIAS_R, 0, FCNV_FP_BIAS_R, 0);
+		REG_SET(FCNV_FP_BIAS_G, 0, FCNV_FP_BIAS_G, 0);
+		REG_SET(FCNV_FP_BIAS_B, 0, FCNV_FP_BIAS_B, 0);
+
+		REG_SET(FCNV_FP_SCALE_R, 0, FCNV_FP_SCALE_R, 0x1F000);
+		REG_SET(FCNV_FP_SCALE_G, 0, FCNV_FP_SCALE_G, 0x1F000);
+		REG_SET(FCNV_FP_SCALE_B, 0, FCNV_FP_SCALE_B, 0x1F000);
+	} else {
+		REG_SET(FCNV_FP_BIAS_R, 0, FCNV_FP_BIAS_R, params->bias_red);
+		REG_SET(FCNV_FP_BIAS_G, 0, FCNV_FP_BIAS_G, params->bias_green);
+		REG_SET(FCNV_FP_BIAS_B, 0, FCNV_FP_BIAS_B, params->bias_blue);
+
+		REG_SET(FCNV_FP_SCALE_R, 0, FCNV_FP_SCALE_R, params->scale_red);
+		REG_SET(FCNV_FP_SCALE_G, 0, FCNV_FP_SCALE_G, params->scale_green);
+		REG_SET(FCNV_FP_SCALE_B, 0, FCNV_FP_SCALE_B, params->scale_blue);
+	}
+}
+
 static struct dpp_funcs dcn35_dpp_funcs = {
 	.dpp_program_gamcor_lut		= dpp3_program_gamcor_lut,
 	.dpp_read_state				= dpp30_read_state,
@@ -81,7 +106,7 @@ static struct dpp_funcs dcn35_dpp_funcs = {
 	.dpp_program_shaper_lut		= NULL, // CM SHAPER block is removed in DCN3.2 DPP, (it is in MPCC, programmable before or after BLND)
 	.dpp_program_3dlut			= NULL, // CM 3DLUT block is removed in DCN3.2 DPP, (it is in MPCC, programmable before or after BLND)
 
-	.dpp_program_bias_and_scale	= NULL,
+	.dpp_program_bias_and_scale	= dpp35_program_bias_and_scale_fcnv,
 	.dpp_cnv_set_alpha_keyer	= dpp2_cnv_set_alpha_keyer,
 	.set_cursor_attributes		= dpp3_set_cursor_attributes,
 	.set_cursor_position		= dpp1_set_cursor_position,

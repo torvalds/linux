@@ -28,12 +28,6 @@
 #define CEIL_SHIFT(a, b)     (((a) + (1 << (b)) - 1) >> (b))
 #define CEIL_SHIFT_MUL(a, b) (CEIL_SHIFT(a, b) << (b))
 
-#if !defined(PIPE_GENERATION)
-
-#define ceil_div(a, b)		(CEIL_DIV(a, b))
-
-#endif /* !defined(PIPE_GENERATION) */
-
 /*
  * For SP and ISP, SDK provides the definition of OP_std_modadd.
  * We need it only for host

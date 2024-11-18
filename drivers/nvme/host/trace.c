@@ -4,7 +4,7 @@
  * Copyright (c) 2018 Johannes Thumshirn, SUSE Linux GmbH
  */
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include "trace.h"
 
 static const char *nvme_trace_delete_sq(struct trace_seq *p, u8 *cdw10)

@@ -30,6 +30,7 @@
 #include <linux/rcupdate.h>
 #include <linux/sched/task.h>
 #include <linux/sort.h>
+#include <linux/jiffies.h>
 
 static void bch2_discard_one_bucket_fast(struct bch_dev *, u64);
 
@@ -331,7 +332,6 @@ void bch2_alloc_v4_swab(struct bkey_s k)
 	a->io_time[1]		= swab64(a->io_time[1]);
 	a->stripe		= swab32(a->stripe);
 	a->nr_external_backpointers = swab32(a->nr_external_backpointers);
-	a->fragmentation_lru	= swab64(a->fragmentation_lru);
 	a->stripe_sectors	= swab32(a->stripe_sectors);
 
 	bps = alloc_v4_backpointers(a);
@@ -346,6 +346,7 @@ void bch2_alloc_to_text(struct printbuf *out, struct bch_fs *c, struct bkey_s_c 
 {
 	struct bch_alloc_v4 _a;
 	const struct bch_alloc_v4 *a = bch2_alloc_to_v4(k, &_a);
+	struct bch_dev *ca = c ? bch2_dev_bucket_tryget_noerror(c, k.k->p) : NULL;
 
 	prt_newline(out);
 	printbuf_indent_add(out, 2);
@@ -363,9 +364,13 @@ void bch2_alloc_to_text(struct printbuf *out, struct bch_fs *c, struct bkey_s_c 
 	prt_printf(out, "stripe_redundancy %u\n",	a->stripe_redundancy);
 	prt_printf(out, "io_time[READ]     %llu\n",	a->io_time[READ]);
 	prt_printf(out, "io_time[WRITE]    %llu\n",	a->io_time[WRITE]);
-	prt_printf(out, "fragmentation     %llu\n",	a->fragmentation_lru);
+
+	if (ca)
+		prt_printf(out, "fragmentation     %llu\n",	alloc_lru_idx_fragmentation(*a, ca));
 	prt_printf(out, "bp_start          %llu\n", BCH_ALLOC_V4_BACKPOINTERS_START(a));
 	printbuf_indent_sub(out, 2);
+
+	bch2_dev_put(ca);
 }
 
 void __bch2_alloc_to_v4(struct bkey_s_c k, struct bch_alloc_v4 *out)
@@ -881,12 +886,13 @@ int bch2_trigger_alloc(struct btree_trans *trans,
 				goto err;
 		}
 
-		new_a->fragmentation_lru = alloc_lru_idx_fragmentation(*new_a, ca);
-		if (old_a->fragmentation_lru != new_a->fragmentation_lru) {
+		old_lru = alloc_lru_idx_fragmentation(*old_a, ca);
+		new_lru = alloc_lru_idx_fragmentation(*new_a, ca);
+		if (old_lru != new_lru) {
 			ret = bch2_lru_change(trans,
 					BCH_LRU_FRAGMENTATION_START,
 					bucket_to_u64(new.k->p),
-					old_a->fragmentation_lru, new_a->fragmentation_lru);
+					old_lru, new_lru);
 			if (ret)
 				goto err;
 		}
@@ -1628,18 +1634,22 @@ static int bch2_check_alloc_to_lru_ref(struct btree_trans *trans,
 	if (ret)
 		return ret;
 
+	struct bch_dev *ca = bch2_dev_tryget_noerror(c, alloc_k.k->p.inode);
+	if (!ca)
+		return 0;
+
 	a = bch2_alloc_to_v4(alloc_k, &a_convert);
 
-	if (a->fragmentation_lru) {
+	u64 lru_idx = alloc_lru_idx_fragmentation(*a, ca);
+	if (lru_idx) {
 		ret = bch2_lru_check_set(trans, BCH_LRU_FRAGMENTATION_START,
-					 a->fragmentation_lru,
-					 alloc_k, last_flushed);
+					 lru_idx, alloc_k, last_flushed);
 		if (ret)
-			return ret;
+			goto err;
 	}
 
 	if (a->data_type != BCH_DATA_cached)
-		return 0;
+		goto err;
 
 	if (fsck_err_on(!a->io_time[READ],
 			trans, alloc_key_cached_but_read_time_zero,
@@ -1668,6 +1678,7 @@ static int bch2_check_alloc_to_lru_ref(struct btree_trans *trans,
 		goto err;
 err:
 fsck_err:
+	bch2_dev_put(ca);
 	printbuf_exit(&buf);
 	return ret;
 }
@@ -2183,7 +2194,7 @@ int bch2_dev_freespace_init(struct bch_fs *c, struct bch_dev *ca,
 	 * freespace/need_discard/need_gc_gens btrees as needed:
 	 */
 	while (1) {
-		if (last_updated + HZ * 10 < jiffies) {
+		if (time_after(jiffies, last_updated + HZ * 10)) {
 			bch_info(ca, "%s: currently at %llu/%llu",
 				 __func__, iter.pos.offset, ca->mi.nbuckets);
 			last_updated = jiffies;
@@ -2295,6 +2306,36 @@ int bch2_fs_freespace_init(struct bch_fs *c)
 	}
 
 	return 0;
+}
+
+/* device removal */
+
+int bch2_dev_remove_alloc(struct bch_fs *c, struct bch_dev *ca)
+{
+	struct bpos start	= POS(ca->dev_idx, 0);
+	struct bpos end		= POS(ca->dev_idx, U64_MAX);
+	int ret;
+
+	/*
+	 * We clear the LRU and need_discard btrees first so that we don't race
+	 * with bch2_do_invalidates() and bch2_do_discards()
+	 */
+	ret =   bch2_dev_remove_stripes(c, ca->dev_idx) ?:
+		bch2_btree_delete_range(c, BTREE_ID_lru, start, end,
+					BTREE_TRIGGER_norun, NULL) ?:
+		bch2_btree_delete_range(c, BTREE_ID_need_discard, start, end,
+					BTREE_TRIGGER_norun, NULL) ?:
+		bch2_btree_delete_range(c, BTREE_ID_freespace, start, end,
+					BTREE_TRIGGER_norun, NULL) ?:
+		bch2_btree_delete_range(c, BTREE_ID_backpointers, start, end,
+					BTREE_TRIGGER_norun, NULL) ?:
+		bch2_btree_delete_range(c, BTREE_ID_bucket_gens, start, end,
+					BTREE_TRIGGER_norun, NULL) ?:
+		bch2_btree_delete_range(c, BTREE_ID_alloc, start, end,
+					BTREE_TRIGGER_norun, NULL) ?:
+		bch2_dev_usage_remove(c, ca->dev_idx);
+	bch_err_msg(ca, ret, "removing dev alloc info");
+	return ret;
 }
 
 /* Bucket IO clocks: */
@@ -2432,12 +2473,14 @@ static bool bch2_dev_has_open_write_point(struct bch_fs *c, struct bch_dev *ca)
 /* device goes ro: */
 void bch2_dev_allocator_remove(struct bch_fs *c, struct bch_dev *ca)
 {
-	unsigned i;
+	lockdep_assert_held(&c->state_lock);
 
 	/* First, remove device from allocation groups: */
 
-	for (i = 0; i < ARRAY_SIZE(c->rw_devs); i++)
+	for (unsigned i = 0; i < ARRAY_SIZE(c->rw_devs); i++)
 		clear_bit(ca->dev_idx, c->rw_devs[i].d);
+
+	c->rw_devs_change_count++;
 
 	/*
 	 * Capacity is calculated based off of devices in allocation groups:
@@ -2467,11 +2510,13 @@ void bch2_dev_allocator_remove(struct bch_fs *c, struct bch_dev *ca)
 /* device goes rw: */
 void bch2_dev_allocator_add(struct bch_fs *c, struct bch_dev *ca)
 {
-	unsigned i;
+	lockdep_assert_held(&c->state_lock);
 
-	for (i = 0; i < ARRAY_SIZE(c->rw_devs); i++)
+	for (unsigned i = 0; i < ARRAY_SIZE(c->rw_devs); i++)
 		if (ca->mi.data_allowed & (1 << i))
 			set_bit(ca->dev_idx, c->rw_devs[i].d);
+
+	c->rw_devs_change_count++;
 }
 
 void bch2_dev_allocator_background_exit(struct bch_dev *ca)

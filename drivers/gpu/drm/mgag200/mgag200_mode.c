@@ -22,6 +22,7 @@
 #include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_panic.h>
 #include <drm/drm_print.h>
+#include <drm/drm_vblank.h>
 
 #include "mgag200_ddc.h"
 #include "mgag200_drv.h"
@@ -201,26 +202,39 @@ void mgag200_init_registers(struct mga_device *mdev)
 	WREG8(MGA_MISC_OUT, misc);
 }
 
-void mgag200_set_mode_regs(struct mga_device *mdev, const struct drm_display_mode *mode)
+void mgag200_set_mode_regs(struct mga_device *mdev, const struct drm_display_mode *mode,
+			   bool set_vidrst)
 {
-	const struct mgag200_device_info *info = mdev->info;
-	unsigned int hdisplay, hsyncstart, hsyncend, htotal;
-	unsigned int vdisplay, vsyncstart, vsyncend, vtotal;
+	unsigned int hdispend, hsyncstr, hsyncend, htotal, hblkstr, hblkend;
+	unsigned int vdispend, vsyncstr, vsyncend, vtotal, vblkstr, vblkend;
+	unsigned int linecomp;
 	u8 misc, crtcext1, crtcext2, crtcext5;
 
-	hdisplay = mode->hdisplay / 8 - 1;
-	hsyncstart = mode->hsync_start / 8 - 1;
-	hsyncend = mode->hsync_end / 8 - 1;
-	htotal = mode->htotal / 8 - 1;
-
+	hdispend = mode->crtc_hdisplay / 8 - 1;
+	hsyncstr = mode->crtc_hsync_start / 8 - 1;
+	hsyncend = mode->crtc_hsync_end / 8 - 1;
+	htotal = mode->crtc_htotal / 8 - 1;
 	/* Work around hardware quirk */
 	if ((htotal & 0x07) == 0x06 || (htotal & 0x07) == 0x04)
 		htotal++;
+	hblkstr = mode->crtc_hblank_start / 8 - 1;
+	hblkend = htotal;
 
-	vdisplay = mode->vdisplay - 1;
-	vsyncstart = mode->vsync_start - 1;
-	vsyncend = mode->vsync_end - 1;
-	vtotal = mode->vtotal - 2;
+	vdispend = mode->crtc_vdisplay - 1;
+	vsyncstr = mode->crtc_vsync_start - 1;
+	vsyncend = mode->crtc_vsync_end - 1;
+	vtotal = mode->crtc_vtotal - 2;
+	vblkstr = mode->crtc_vblank_start;
+	vblkend = vtotal + 1;
+
+	/*
+	 * There's no VBLANK interrupt on Matrox chipsets, so we use
+	 * the VLINE interrupt instead. It triggers when the current
+	 * <linecomp> has been reached. For VBLANK, this is the first
+	 * non-visible line at the bottom of the screen. Therefore,
+	 * keep <linecomp> in sync with <vblkstr>.
+	 */
+	linecomp = vblkstr;
 
 	misc = RREG8(MGA_MISC_IN);
 
@@ -235,45 +249,45 @@ void mgag200_set_mode_regs(struct mga_device *mdev, const struct drm_display_mod
 		misc &= ~MGAREG_MISC_VSYNCPOL;
 
 	crtcext1 = (((htotal - 4) & 0x100) >> 8) |
-		   ((hdisplay & 0x100) >> 7) |
-		   ((hsyncstart & 0x100) >> 6) |
-		    (htotal & 0x40);
-	if (info->has_vidrst)
+		   ((hblkstr & 0x100) >> 7) |
+		   ((hsyncstr & 0x100) >> 6) |
+		    (hblkend & 0x40);
+	if (set_vidrst)
 		crtcext1 |= MGAREG_CRTCEXT1_VRSTEN |
 			    MGAREG_CRTCEXT1_HRSTEN;
 
 	crtcext2 = ((vtotal & 0xc00) >> 10) |
-		   ((vdisplay & 0x400) >> 8) |
-		   ((vdisplay & 0xc00) >> 7) |
-		   ((vsyncstart & 0xc00) >> 5) |
-		   ((vdisplay & 0x400) >> 3);
+		   ((vdispend & 0x400) >> 8) |
+		   ((vblkstr & 0xc00) >> 7) |
+		   ((vsyncstr & 0xc00) >> 5) |
+		   ((linecomp & 0x400) >> 3);
 	crtcext5 = 0x00;
 
-	WREG_CRT(0, htotal - 4);
-	WREG_CRT(1, hdisplay);
-	WREG_CRT(2, hdisplay);
-	WREG_CRT(3, (htotal & 0x1F) | 0x80);
-	WREG_CRT(4, hsyncstart);
-	WREG_CRT(5, ((htotal & 0x20) << 2) | (hsyncend & 0x1F));
-	WREG_CRT(6, vtotal & 0xFF);
-	WREG_CRT(7, ((vtotal & 0x100) >> 8) |
-		 ((vdisplay & 0x100) >> 7) |
-		 ((vsyncstart & 0x100) >> 6) |
-		 ((vdisplay & 0x100) >> 5) |
-		 ((vdisplay & 0x100) >> 4) | /* linecomp */
-		 ((vtotal & 0x200) >> 4) |
-		 ((vdisplay & 0x200) >> 3) |
-		 ((vsyncstart & 0x200) >> 2));
-	WREG_CRT(9, ((vdisplay & 0x200) >> 4) |
-		 ((vdisplay & 0x200) >> 3));
-	WREG_CRT(16, vsyncstart & 0xFF);
-	WREG_CRT(17, (vsyncend & 0x0F) | 0x20);
-	WREG_CRT(18, vdisplay & 0xFF);
-	WREG_CRT(20, 0);
-	WREG_CRT(21, vdisplay & 0xFF);
-	WREG_CRT(22, (vtotal + 1) & 0xFF);
-	WREG_CRT(23, 0xc3);
-	WREG_CRT(24, vdisplay & 0xFF);
+	WREG_CRT(0x00, htotal - 4);
+	WREG_CRT(0x01, hdispend);
+	WREG_CRT(0x02, hblkstr);
+	WREG_CRT(0x03, (hblkend & 0x1f) | 0x80);
+	WREG_CRT(0x04, hsyncstr);
+	WREG_CRT(0x05, ((hblkend & 0x20) << 2) | (hsyncend & 0x1f));
+	WREG_CRT(0x06, vtotal & 0xff);
+	WREG_CRT(0x07, ((vtotal & 0x100) >> 8) |
+		       ((vdispend & 0x100) >> 7) |
+		       ((vsyncstr & 0x100) >> 6) |
+		       ((vblkstr & 0x100) >> 5) |
+		       ((linecomp & 0x100) >> 4) |
+		       ((vtotal & 0x200) >> 4) |
+		       ((vdispend & 0x200) >> 3) |
+		       ((vsyncstr & 0x200) >> 2));
+	WREG_CRT(0x09, ((vblkstr & 0x200) >> 4) |
+		       ((linecomp & 0x200) >> 3));
+	WREG_CRT(0x10, vsyncstr & 0xff);
+	WREG_CRT(0x11, (vsyncend & 0x0f) | 0x20);
+	WREG_CRT(0x12, vdispend & 0xff);
+	WREG_CRT(0x14, 0);
+	WREG_CRT(0x15, vblkstr & 0xff);
+	WREG_CRT(0x16, vblkend & 0xff);
+	WREG_CRT(0x17, 0xc3);
+	WREG_CRT(0x18, linecomp & 0xff);
 
 	WREG_ECRT(0x01, crtcext1);
 	WREG_ECRT(0x02, crtcext2);
@@ -631,6 +645,8 @@ void mgag200_crtc_helper_atomic_flush(struct drm_crtc *crtc, struct drm_atomic_s
 	struct mgag200_crtc_state *mgag200_crtc_state = to_mgag200_crtc_state(crtc_state);
 	struct drm_device *dev = crtc->dev;
 	struct mga_device *mdev = to_mga_device(dev);
+	struct drm_pending_vblank_event *event;
+	unsigned long flags;
 
 	if (crtc_state->enable && crtc_state->color_mgmt_changed) {
 		const struct drm_format_info *format = mgag200_crtc_state->format;
@@ -639,6 +655,18 @@ void mgag200_crtc_helper_atomic_flush(struct drm_crtc *crtc, struct drm_atomic_s
 			mgag200_crtc_set_gamma(mdev, format, crtc_state->gamma_lut->data);
 		else
 			mgag200_crtc_set_gamma_linear(mdev, format);
+	}
+
+	event = crtc->state->event;
+	if (event) {
+		crtc->state->event = NULL;
+
+		spin_lock_irqsave(&dev->event_lock, flags);
+		if (drm_crtc_vblank_get(crtc) != 0)
+			drm_crtc_send_vblank_event(crtc, event);
+		else
+			drm_crtc_arm_vblank_event(crtc, event);
+		spin_unlock_irqrestore(&dev->event_lock, flags);
 	}
 }
 
@@ -652,11 +680,8 @@ void mgag200_crtc_helper_atomic_enable(struct drm_crtc *crtc, struct drm_atomic_
 	struct mgag200_crtc_state *mgag200_crtc_state = to_mgag200_crtc_state(crtc_state);
 	const struct drm_format_info *format = mgag200_crtc_state->format;
 
-	if (funcs->disable_vidrst)
-		funcs->disable_vidrst(mdev);
-
 	mgag200_set_format_regs(mdev, format);
-	mgag200_set_mode_regs(mdev, adjusted_mode);
+	mgag200_set_mode_regs(mdev, adjusted_mode, mgag200_crtc_state->set_vidrst);
 
 	if (funcs->pixpllc_atomic_update)
 		funcs->pixpllc_atomic_update(crtc, old_state);
@@ -668,22 +693,41 @@ void mgag200_crtc_helper_atomic_enable(struct drm_crtc *crtc, struct drm_atomic_
 
 	mgag200_enable_display(mdev);
 
-	if (funcs->enable_vidrst)
-		funcs->enable_vidrst(mdev);
+	drm_crtc_vblank_on(crtc);
 }
 
 void mgag200_crtc_helper_atomic_disable(struct drm_crtc *crtc, struct drm_atomic_state *old_state)
 {
 	struct mga_device *mdev = to_mga_device(crtc->dev);
-	const struct mgag200_device_funcs *funcs = mdev->funcs;
 
-	if (funcs->disable_vidrst)
-		funcs->disable_vidrst(mdev);
+	drm_crtc_vblank_off(crtc);
 
 	mgag200_disable_display(mdev);
+}
 
-	if (funcs->enable_vidrst)
-		funcs->enable_vidrst(mdev);
+bool mgag200_crtc_helper_get_scanout_position(struct drm_crtc *crtc, bool in_vblank_irq,
+					      int *vpos, int *hpos,
+					      ktime_t *stime, ktime_t *etime,
+					      const struct drm_display_mode *mode)
+{
+	struct mga_device *mdev = to_mga_device(crtc->dev);
+	u32 vcount;
+
+	if (stime)
+		*stime = ktime_get();
+
+	if (vpos) {
+		vcount = RREG32(MGAREG_VCOUNT);
+		*vpos = vcount & GENMASK(11, 0);
+	}
+
+	if (hpos)
+		*hpos = mode->htotal >> 1; // near middle of scanline on average
+
+	if (etime)
+		*etime = ktime_get();
+
+	return true;
 }
 
 void mgag200_crtc_reset(struct drm_crtc *crtc)
@@ -717,6 +761,7 @@ struct drm_crtc_state *mgag200_crtc_atomic_duplicate_state(struct drm_crtc *crtc
 	new_mgag200_crtc_state->format = mgag200_crtc_state->format;
 	memcpy(&new_mgag200_crtc_state->pixpllc, &mgag200_crtc_state->pixpllc,
 	       sizeof(new_mgag200_crtc_state->pixpllc));
+	new_mgag200_crtc_state->set_vidrst = mgag200_crtc_state->set_vidrst;
 
 	return &new_mgag200_crtc_state->base;
 }
@@ -727,6 +772,30 @@ void mgag200_crtc_atomic_destroy_state(struct drm_crtc *crtc, struct drm_crtc_st
 
 	__drm_atomic_helper_crtc_destroy_state(&mgag200_crtc_state->base);
 	kfree(mgag200_crtc_state);
+}
+
+int mgag200_crtc_enable_vblank(struct drm_crtc *crtc)
+{
+	struct mga_device *mdev = to_mga_device(crtc->dev);
+	u32 ien;
+
+	WREG32(MGAREG_ICLEAR, MGAREG_ICLEAR_VLINEICLR);
+
+	ien = RREG32(MGAREG_IEN);
+	ien |= MGAREG_IEN_VLINEIEN;
+	WREG32(MGAREG_IEN, ien);
+
+	return 0;
+}
+
+void mgag200_crtc_disable_vblank(struct drm_crtc *crtc)
+{
+	struct mga_device *mdev = to_mga_device(crtc->dev);
+	u32 ien;
+
+	ien = RREG32(MGAREG_IEN);
+	ien &= ~(MGAREG_IEN_VLINEIEN);
+	WREG32(MGAREG_IEN, ien);
 }
 
 /*

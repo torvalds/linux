@@ -2,7 +2,7 @@
 //
 // Copyright 2024 Advanced Micro Devices, Inc.
 
-#include "dc_spl_types.h"
+#include "spl_debug.h"
 #include "dc_spl_scl_filters.h"
 //=========================================
 // <num_taps>    = 2
@@ -1318,97 +1318,97 @@ static const uint16_t filter_8tap_64p_183[264] = {
 		0x3FD4, 0x3F84, 0x0214, 0x0694, 0x0694, 0x0214, 0x3F84, 0x3FD4
 };
 
-const uint16_t *spl_get_filter_3tap_16p(struct fixed31_32 ratio)
+const uint16_t *spl_get_filter_3tap_16p(struct spl_fixed31_32 ratio)
 {
-	if (ratio.value < dc_fixpt_one.value)
+	if (ratio.value < spl_fixpt_one.value)
 		return filter_3tap_16p_upscale;
-	else if (ratio.value < dc_fixpt_from_fraction(4, 3).value)
+	else if (ratio.value < spl_fixpt_from_fraction(4, 3).value)
 		return filter_3tap_16p_116;
-	else if (ratio.value < dc_fixpt_from_fraction(5, 3).value)
+	else if (ratio.value < spl_fixpt_from_fraction(5, 3).value)
 		return filter_3tap_16p_149;
 	else
 		return filter_3tap_16p_183;
 }
 
-const uint16_t *spl_get_filter_3tap_64p(struct fixed31_32 ratio)
+const uint16_t *spl_get_filter_3tap_64p(struct spl_fixed31_32 ratio)
 {
-	if (ratio.value < dc_fixpt_one.value)
+	if (ratio.value < spl_fixpt_one.value)
 		return filter_3tap_64p_upscale;
-	else if (ratio.value < dc_fixpt_from_fraction(4, 3).value)
+	else if (ratio.value < spl_fixpt_from_fraction(4, 3).value)
 		return filter_3tap_64p_116;
-	else if (ratio.value < dc_fixpt_from_fraction(5, 3).value)
+	else if (ratio.value < spl_fixpt_from_fraction(5, 3).value)
 		return filter_3tap_64p_149;
 	else
 		return filter_3tap_64p_183;
 }
 
-const uint16_t *spl_get_filter_4tap_16p(struct fixed31_32 ratio)
+const uint16_t *spl_get_filter_4tap_16p(struct spl_fixed31_32 ratio)
 {
-	if (ratio.value < dc_fixpt_one.value)
+	if (ratio.value < spl_fixpt_one.value)
 		return filter_4tap_16p_upscale;
-	else if (ratio.value < dc_fixpt_from_fraction(4, 3).value)
+	else if (ratio.value < spl_fixpt_from_fraction(4, 3).value)
 		return filter_4tap_16p_116;
-	else if (ratio.value < dc_fixpt_from_fraction(5, 3).value)
+	else if (ratio.value < spl_fixpt_from_fraction(5, 3).value)
 		return filter_4tap_16p_149;
 	else
 		return filter_4tap_16p_183;
 }
 
-const uint16_t *spl_get_filter_4tap_64p(struct fixed31_32 ratio)
+const uint16_t *spl_get_filter_4tap_64p(struct spl_fixed31_32 ratio)
 {
-	if (ratio.value < dc_fixpt_one.value)
+	if (ratio.value < spl_fixpt_one.value)
 		return filter_4tap_64p_upscale;
-	else if (ratio.value < dc_fixpt_from_fraction(4, 3).value)
+	else if (ratio.value < spl_fixpt_from_fraction(4, 3).value)
 		return filter_4tap_64p_116;
-	else if (ratio.value < dc_fixpt_from_fraction(5, 3).value)
+	else if (ratio.value < spl_fixpt_from_fraction(5, 3).value)
 		return filter_4tap_64p_149;
 	else
 		return filter_4tap_64p_183;
 }
 
-const uint16_t *spl_get_filter_5tap_64p(struct fixed31_32 ratio)
+const uint16_t *spl_get_filter_5tap_64p(struct spl_fixed31_32 ratio)
 {
-	if (ratio.value < dc_fixpt_one.value)
+	if (ratio.value < spl_fixpt_one.value)
 		return filter_5tap_64p_upscale;
-	else if (ratio.value < dc_fixpt_from_fraction(4, 3).value)
+	else if (ratio.value < spl_fixpt_from_fraction(4, 3).value)
 		return filter_5tap_64p_116;
-	else if (ratio.value < dc_fixpt_from_fraction(5, 3).value)
+	else if (ratio.value < spl_fixpt_from_fraction(5, 3).value)
 		return filter_5tap_64p_149;
 	else
 		return filter_5tap_64p_183;
 }
 
-const uint16_t *spl_get_filter_6tap_64p(struct fixed31_32 ratio)
+const uint16_t *spl_get_filter_6tap_64p(struct spl_fixed31_32 ratio)
 {
-	if (ratio.value < dc_fixpt_one.value)
+	if (ratio.value < spl_fixpt_one.value)
 		return filter_6tap_64p_upscale;
-	else if (ratio.value < dc_fixpt_from_fraction(4, 3).value)
+	else if (ratio.value < spl_fixpt_from_fraction(4, 3).value)
 		return filter_6tap_64p_116;
-	else if (ratio.value < dc_fixpt_from_fraction(5, 3).value)
+	else if (ratio.value < spl_fixpt_from_fraction(5, 3).value)
 		return filter_6tap_64p_149;
 	else
 		return filter_6tap_64p_183;
 }
 
-const uint16_t *spl_get_filter_7tap_64p(struct fixed31_32 ratio)
+const uint16_t *spl_get_filter_7tap_64p(struct spl_fixed31_32 ratio)
 {
-	if (ratio.value < dc_fixpt_one.value)
+	if (ratio.value < spl_fixpt_one.value)
 		return filter_7tap_64p_upscale;
-	else if (ratio.value < dc_fixpt_from_fraction(4, 3).value)
+	else if (ratio.value < spl_fixpt_from_fraction(4, 3).value)
 		return filter_7tap_64p_116;
-	else if (ratio.value < dc_fixpt_from_fraction(5, 3).value)
+	else if (ratio.value < spl_fixpt_from_fraction(5, 3).value)
 		return filter_7tap_64p_149;
 	else
 		return filter_7tap_64p_183;
 }
 
-const uint16_t *spl_get_filter_8tap_64p(struct fixed31_32 ratio)
+const uint16_t *spl_get_filter_8tap_64p(struct spl_fixed31_32 ratio)
 {
-	if (ratio.value < dc_fixpt_one.value)
+	if (ratio.value < spl_fixpt_one.value)
 		return filter_8tap_64p_upscale;
-	else if (ratio.value < dc_fixpt_from_fraction(4, 3).value)
+	else if (ratio.value < spl_fixpt_from_fraction(4, 3).value)
 		return filter_8tap_64p_116;
-	else if (ratio.value < dc_fixpt_from_fraction(5, 3).value)
+	else if (ratio.value < spl_fixpt_from_fraction(5, 3).value)
 		return filter_8tap_64p_149;
 	else
 		return filter_8tap_64p_183;
@@ -1423,3 +1423,29 @@ const uint16_t *spl_get_filter_2tap_64p(void)
 {
 	return filter_2tap_64p;
 }
+
+const uint16_t *spl_dscl_get_filter_coeffs_64p(int taps, struct spl_fixed31_32 ratio)
+{
+	if (taps == 8)
+		return spl_get_filter_8tap_64p(ratio);
+	else if (taps == 7)
+		return spl_get_filter_7tap_64p(ratio);
+	else if (taps == 6)
+		return spl_get_filter_6tap_64p(ratio);
+	else if (taps == 5)
+		return spl_get_filter_5tap_64p(ratio);
+	else if (taps == 4)
+		return spl_get_filter_4tap_64p(ratio);
+	else if (taps == 3)
+		return spl_get_filter_3tap_64p(ratio);
+	else if (taps == 2)
+		return spl_get_filter_2tap_64p();
+	else if (taps == 1)
+		return NULL;
+	else {
+		/* should never happen, bug */
+		SPL_BREAK_TO_DEBUGGER();
+		return NULL;
+	}
+}
+

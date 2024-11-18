@@ -28,6 +28,9 @@
 #define __DC_LINK_DP_TRAINING_DPIA_H__
 #include "link_dp_training.h"
 
+/* The approximate time (us) it takes to transmit 9 USB4 DP clock sync packets. */
+#define DPIA_CLK_SYNC_DELAY 16000
+
 /* Train DP tunneling link for USB4 DPIA display endpoint.
  * DPIA equivalent of dc_link_dp_perfrorm_link_training.
  * Aborts link training upon detection of sink unplug.
@@ -37,5 +40,21 @@ enum link_training_result dpia_perform_link_training(
 	const struct link_resource *link_res,
 	const struct dc_link_settings *link_setting,
 	bool skip_video_pattern);
+
+void dpia_training_abort(
+		struct dc_link *link,
+		struct link_training_settings *lt_settings,
+		uint32_t hop);
+
+uint32_t dpia_get_eq_aux_rd_interval(
+		const struct dc_link *link,
+		const struct link_training_settings *lt_settings,
+		uint32_t hop);
+
+void dpia_set_tps_notification(
+		struct dc_link *link,
+		const struct link_training_settings *lt_settings,
+		uint8_t pattern,
+		uint32_t offset);
 
 #endif /* __DC_LINK_DP_TRAINING_DPIA_H__ */

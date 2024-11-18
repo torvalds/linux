@@ -115,7 +115,6 @@ static struct fsnotify_group *__fsnotify_alloc_group(
 				const struct fsnotify_ops *ops,
 				int flags, gfp_t gfp)
 {
-	static struct lock_class_key nofs_marks_lock;
 	struct fsnotify_group *group;
 
 	group = kzalloc(sizeof(struct fsnotify_group), gfp);
@@ -136,16 +135,6 @@ static struct fsnotify_group *__fsnotify_alloc_group(
 
 	group->ops = ops;
 	group->flags = flags;
-	/*
-	 * For most backends, eviction of inode with a mark is not expected,
-	 * because marks hold a refcount on the inode against eviction.
-	 *
-	 * Use a different lockdep class for groups that support evictable
-	 * inode marks, because with evictable marks, mark_mutex is NOT
-	 * fs-reclaim safe - the mutex is taken when evicting inodes.
-	 */
-	if (flags & FSNOTIFY_GROUP_NOFS)
-		lockdep_set_class(&group->mark_mutex, &nofs_marks_lock);
 
 	return group;
 }

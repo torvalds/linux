@@ -274,7 +274,7 @@ static int handle_encls_ecreate(struct kvm_vcpu *vcpu)
 	 * simultaneously set SGX_ATTR_PROVISIONKEY to bypass the check to
 	 * enforce restriction of access to the PROVISIONKEY.
 	 */
-	contents = (struct sgx_secs *)__get_free_page(GFP_KERNEL_ACCOUNT);
+	contents = (struct sgx_secs *)__get_free_page(GFP_KERNEL);
 	if (!contents)
 		return -ENOMEM;
 

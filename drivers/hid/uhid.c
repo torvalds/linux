@@ -803,7 +803,6 @@ static const struct file_operations uhid_fops = {
 	.read		= uhid_char_read,
 	.write		= uhid_char_write,
 	.poll		= uhid_char_poll,
-	.llseek		= no_llseek,
 };
 
 static struct miscdevice uhid_misc = {

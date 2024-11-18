@@ -70,6 +70,11 @@
     "BriefDescription": "The processor's L1 data cache was reloaded from the source specified in MMCR3[30:42]. If MMCR1[16|17] is 0 (default), this count includes only lines that were reloaded to satisfy a demand miss. If MMCR1[16|17] is 1, this count includes both demand misses and prefetch reloads."
   },
   {
+    "EventCode": "0x3F04A",
+    "EventName": "PM_LSU_ST5_FIN",
+    "BriefDescription": "LSU Finished an internal operation in ST2 port."
+  },
+  {
     "EventCode": "0x3C054",
     "EventName": "PM_DERAT_MISS_16M",
     "BriefDescription": "Data ERAT Miss (Data TLB Access) page size 16M. When MMCR1[16]=0 this event counts only DERAT reloads for demand misses. When MMCR1[16]=1 this event includes demand misses and prefetches."
@@ -108,5 +113,30 @@
     "EventCode": "0x4C05A",
     "EventName": "PM_DTLB_MISS_1G",
     "BriefDescription": "Data TLB reload (after a miss) page size 1G. Implies radix translation was used. When MMCR1[16]=0 this event counts only for demand misses. When MMCR1[16]=1 this event includes demand misses and prefetches."
+  },
+  {
+    "EventCode": "0x000000F880",
+    "EventName": "PM_SNOOP_TLBIE_CYC",
+    "BriefDescription": "Cycles in which TLBIE snoops are executed in the LSU."
+  },
+  {
+    "EventCode": "0x000000F084",
+    "EventName": "PM_SNOOP_TLBIE_CACHE_WALK_CYC",
+    "BriefDescription": "TLBIE snoop cycles in which the data cache is being walked."
+  },
+  {
+    "EventCode": "0x000000F884",
+    "EventName": "PM_SNOOP_TLBIE_WAIT_ST_CYC",
+    "BriefDescription": "TLBIE snoop cycles in which older stores are still draining."
+  },
+  {
+    "EventCode": "0x000000F088",
+    "EventName": "PM_SNOOP_TLBIE_WAIT_LD_CYC",
+    "BriefDescription": "TLBIE snoop cycles in which older loads are still draining."
+  },
+  {
+    "EventCode": "0x000000F08C",
+    "EventName": "PM_SNOOP_TLBIE_WAIT_MMU_CYC",
+    "BriefDescription": "TLBIE snoop cycles in which the Load-Store unit is waiting for the MMU to finish invalidation."
   }
 ]

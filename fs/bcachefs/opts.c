@@ -230,6 +230,8 @@ const struct bch_option bch2_opt_table[] = {
 #define OPT_STR_NOLIMIT(_choices)	.type = BCH_OPT_STR,		\
 				.min = 0, .max = U64_MAX,		\
 				.choices = _choices
+#define OPT_BITFIELD(_choices)	.type = BCH_OPT_BITFIELD,		\
+				.choices = _choices
 #define OPT_FN(_fn)		.type = BCH_OPT_FN, .fn	= _fn
 
 #define x(_name, _bits, _flags, _type, _sb_opt, _default, _hint, _help)	\
@@ -376,6 +378,13 @@ int bch2_opt_parse(struct bch_fs *c,
 
 		*res = ret;
 		break;
+	case BCH_OPT_BITFIELD: {
+		s64 v = bch2_read_flag_list(val, opt->choices);
+		if (v < 0)
+			return v;
+		*res = v;
+		break;
+	}
 	case BCH_OPT_FN:
 		ret = opt->fn.parse(c, val, res, err);
 
@@ -423,11 +432,40 @@ void bch2_opt_to_text(struct printbuf *out,
 		else
 			prt_str(out, opt->choices[v]);
 		break;
+	case BCH_OPT_BITFIELD:
+		prt_bitflags(out, opt->choices, v);
+		break;
 	case BCH_OPT_FN:
 		opt->fn.to_text(out, c, sb, v);
 		break;
 	default:
 		BUG();
+	}
+}
+
+void bch2_opts_to_text(struct printbuf *out,
+		       struct bch_opts opts,
+		       struct bch_fs *c, struct bch_sb *sb,
+		       unsigned show_mask, unsigned hide_mask,
+		       unsigned flags)
+{
+	bool first = true;
+
+	for (enum bch_opt_id i = 0; i < bch2_opts_nr; i++) {
+		const struct bch_option *opt = &bch2_opt_table[i];
+
+		if ((opt->flags & hide_mask) || !(opt->flags & show_mask))
+			continue;
+
+		u64 v = bch2_opt_get_by_id(&opts, i);
+		if (v == bch2_opt_get_by_id(&bch2_opts_default, i))
+			continue;
+
+		if (!first)
+			prt_char(out, ',');
+		first = false;
+
+		bch2_opt_to_text(out, c, sb, opt, v, flags);
 	}
 }
 
@@ -608,10 +646,20 @@ int bch2_opts_from_sb(struct bch_opts *opts, struct bch_sb *sb)
 	return 0;
 }
 
-void __bch2_opt_set_sb(struct bch_sb *sb, const struct bch_option *opt, u64 v)
+struct bch_dev_sb_opt_set {
+	void			(*set_sb)(struct bch_member *, u64);
+};
+
+static const struct bch_dev_sb_opt_set bch2_dev_sb_opt_setters [] = {
+#define x(n, set)	[Opt_##n] = { .set_sb = SET_##set },
+	BCH_DEV_OPT_SETTERS()
+#undef x
+};
+
+void __bch2_opt_set_sb(struct bch_sb *sb, int dev_idx,
+		       const struct bch_option *opt, u64 v)
 {
-	if (opt->set_sb == SET_BCH2_NO_SB_OPT)
-		return;
+	enum bch_opt_id id = opt - bch2_opt_table;
 
 	if (opt->flags & OPT_SB_FIELD_SECTORS)
 		v >>= 9;
@@ -619,16 +667,35 @@ void __bch2_opt_set_sb(struct bch_sb *sb, const struct bch_option *opt, u64 v)
 	if (opt->flags & OPT_SB_FIELD_ILOG2)
 		v = ilog2(v);
 
-	opt->set_sb(sb, v);
+	if (opt->flags & OPT_SB_FIELD_ONE_BIAS)
+		v++;
+
+	if (opt->flags & OPT_FS) {
+		if (opt->set_sb != SET_BCH2_NO_SB_OPT)
+			opt->set_sb(sb, v);
+	}
+
+	if ((opt->flags & OPT_DEVICE) && dev_idx >= 0) {
+		if (WARN(!bch2_member_exists(sb, dev_idx),
+			 "tried to set device option %s on nonexistent device %i",
+			 opt->attr.name, dev_idx))
+			return;
+
+		struct bch_member *m = bch2_members_v2_get_mut(sb, dev_idx);
+
+		const struct bch_dev_sb_opt_set *set = bch2_dev_sb_opt_setters + id;
+		if (set->set_sb)
+			set->set_sb(m, v);
+		else
+			pr_err("option %s cannot be set via opt_set_sb()", opt->attr.name);
+	}
 }
 
-void bch2_opt_set_sb(struct bch_fs *c, const struct bch_option *opt, u64 v)
+void bch2_opt_set_sb(struct bch_fs *c, struct bch_dev *ca,
+		     const struct bch_option *opt, u64 v)
 {
-	if (opt->set_sb == SET_BCH2_NO_SB_OPT)
-		return;
-
 	mutex_lock(&c->sb_lock);
-	__bch2_opt_set_sb(c->disk_sb.sb, opt, v);
+	__bch2_opt_set_sb(c->disk_sb.sb, ca ? ca->dev_idx : -1, opt, v);
 	bch2_write_super(c);
 	mutex_unlock(&c->sb_lock);
 }

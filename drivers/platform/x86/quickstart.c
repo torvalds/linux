@@ -26,7 +26,7 @@
 #include <linux/sysfs.h>
 #include <linux/types.h>
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #define DRIVER_NAME	"quickstart"
 

@@ -886,33 +886,33 @@ xfs_ioc_swapext(
 
 	/* Pull information for the target fd */
 	f = fdget((int)sxp->sx_fdtarget);
-	if (!f.file) {
+	if (!fd_file(f)) {
 		error = -EINVAL;
 		goto out;
 	}
 
-	if (!(f.file->f_mode & FMODE_WRITE) ||
-	    !(f.file->f_mode & FMODE_READ) ||
-	    (f.file->f_flags & O_APPEND)) {
+	if (!(fd_file(f)->f_mode & FMODE_WRITE) ||
+	    !(fd_file(f)->f_mode & FMODE_READ) ||
+	    (fd_file(f)->f_flags & O_APPEND)) {
 		error = -EBADF;
 		goto out_put_file;
 	}
 
 	tmp = fdget((int)sxp->sx_fdtmp);
-	if (!tmp.file) {
+	if (!fd_file(tmp)) {
 		error = -EINVAL;
 		goto out_put_file;
 	}
 
-	if (!(tmp.file->f_mode & FMODE_WRITE) ||
-	    !(tmp.file->f_mode & FMODE_READ) ||
-	    (tmp.file->f_flags & O_APPEND)) {
+	if (!(fd_file(tmp)->f_mode & FMODE_WRITE) ||
+	    !(fd_file(tmp)->f_mode & FMODE_READ) ||
+	    (fd_file(tmp)->f_flags & O_APPEND)) {
 		error = -EBADF;
 		goto out_put_tmp_file;
 	}
 
-	if (IS_SWAPFILE(file_inode(f.file)) ||
-	    IS_SWAPFILE(file_inode(tmp.file))) {
+	if (IS_SWAPFILE(file_inode(fd_file(f))) ||
+	    IS_SWAPFILE(file_inode(fd_file(tmp)))) {
 		error = -EINVAL;
 		goto out_put_tmp_file;
 	}
@@ -922,14 +922,14 @@ xfs_ioc_swapext(
 	 * before we cast and access them as XFS structures as we have no
 	 * control over what the user passes us here.
 	 */
-	if (f.file->f_op != &xfs_file_operations ||
-	    tmp.file->f_op != &xfs_file_operations) {
+	if (fd_file(f)->f_op != &xfs_file_operations ||
+	    fd_file(tmp)->f_op != &xfs_file_operations) {
 		error = -EINVAL;
 		goto out_put_tmp_file;
 	}
 
-	ip = XFS_I(file_inode(f.file));
-	tip = XFS_I(file_inode(tmp.file));
+	ip = XFS_I(file_inode(fd_file(f)));
+	tip = XFS_I(file_inode(fd_file(tmp)));
 
 	if (ip->i_mount != tip->i_mount) {
 		error = -EINVAL;

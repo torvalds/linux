@@ -42,6 +42,13 @@ properties:
   "#pwm-cells":
     const: 3
 
+patternProperties:
+  "-hog(-[0-9]+)?$":
+    type: object
+
+    required:
+      - gpio-hog
+
 required:
   - compatible
   - reg

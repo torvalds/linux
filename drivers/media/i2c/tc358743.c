@@ -2197,7 +2197,7 @@ static void tc358743_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id tc358743_id[] = {
-	{"tc358743", 0},
+	{ "tc358743" },
 	{}
 };
 

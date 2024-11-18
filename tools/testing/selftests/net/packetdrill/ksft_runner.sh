@@ -30,12 +30,17 @@ if [ -z "$(which packetdrill)" ]; then
 	exit "$KSFT_SKIP"
 fi
 
+declare -a optargs
+if [[ -n "${KSFT_MACHINE_SLOW}" ]]; then
+	optargs+=('--tolerance_usecs=14000')
+fi
+
 ktap_print_header
 ktap_set_plan 2
 
-unshare -n packetdrill ${ipv4_args[@]} $(basename $script) > /dev/null \
+unshare -n packetdrill ${ipv4_args[@]} ${optargs[@]} $(basename $script) > /dev/null \
 	&& ktap_test_pass "ipv4" || ktap_test_fail "ipv4"
-unshare -n packetdrill ${ipv6_args[@]} $(basename $script) > /dev/null \
+unshare -n packetdrill ${ipv6_args[@]} ${optargs[@]} $(basename $script) > /dev/null \
 	&& ktap_test_pass "ipv6" || ktap_test_fail "ipv6"
 
 ktap_finished

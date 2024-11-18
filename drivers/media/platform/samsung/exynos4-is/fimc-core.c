@@ -822,7 +822,7 @@ err:
 static int fimc_m2m_suspend(struct fimc_dev *fimc)
 {
 	unsigned long flags;
-	int timeout;
+	long time_left;
 
 	spin_lock_irqsave(&fimc->slock, flags);
 	if (!fimc_m2m_pending(fimc)) {
@@ -833,12 +833,12 @@ static int fimc_m2m_suspend(struct fimc_dev *fimc)
 	set_bit(ST_M2M_SUSPENDING, &fimc->state);
 	spin_unlock_irqrestore(&fimc->slock, flags);
 
-	timeout = wait_event_timeout(fimc->irq_queue,
-			     test_bit(ST_M2M_SUSPENDED, &fimc->state),
-			     FIMC_SHUTDOWN_TIMEOUT);
+	time_left = wait_event_timeout(fimc->irq_queue,
+				       test_bit(ST_M2M_SUSPENDED, &fimc->state),
+				       FIMC_SHUTDOWN_TIMEOUT);
 
 	clear_bit(ST_M2M_SUSPENDING, &fimc->state);
-	return timeout == 0 ? -EAGAIN : 0;
+	return time_left == 0 ? -EAGAIN : 0;
 }
 
 static int fimc_m2m_resume(struct fimc_dev *fimc)

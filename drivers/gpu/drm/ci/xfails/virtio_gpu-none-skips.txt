@@ -7,9 +7,9 @@ kms_flip@flip-vs-suspend.*
 
 # Skip driver specific tests
 ^amdgpu.*
-msm_.*
+^msm.*
 nouveau_.*
-panfrost_.*
+^panfrost.*
 ^v3d.*
 ^vc4.*
 ^vmwgfx*
@@ -18,6 +18,7 @@ panfrost_.*
 gem_.*
 i915_.*
 xe_.*
+tools_test.*
 
 # Currently fails and causes coverage loss for other tests
 # since core_getversion also fails.

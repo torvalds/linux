@@ -71,7 +71,7 @@
 #include <scsi/scsi_cmnd.h>
 #include <scsi/scsi_ioctl.h>
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #define DRIVER_NAME	"pktcdvd"
 
@@ -2835,7 +2835,6 @@ static const struct file_operations pkt_ctl_fops = {
 	.compat_ioctl	= pkt_ctl_compat_ioctl,
 #endif
 	.owner		= THIS_MODULE,
-	.llseek		= no_llseek,
 };
 
 static struct miscdevice pkt_misc = {

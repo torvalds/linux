@@ -6,7 +6,7 @@
 
 struct accounting_mem_entry {
 	struct bpos				pos;
-	struct bversion				version;
+	struct bversion				bversion;
 	unsigned				nr_counters;
 	u64 __percpu				*v[2];
 };

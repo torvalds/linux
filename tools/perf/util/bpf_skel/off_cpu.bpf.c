@@ -85,10 +85,11 @@ struct task_struct___old {
 } __attribute__((preserve_access_index));
 
 int enabled = 0;
-int has_cpu = 0;
-int has_task = 0;
-int has_cgroup = 0;
-int uses_tgid = 0;
+
+const volatile int has_cpu = 0;
+const volatile int has_task = 0;
+const volatile int has_cgroup = 0;
+const volatile int uses_tgid = 0;
 
 const volatile bool has_prev_state = false;
 const volatile bool needs_cgroup = false;

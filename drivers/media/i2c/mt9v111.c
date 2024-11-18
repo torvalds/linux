@@ -1263,8 +1263,9 @@ static void mt9v111_remove(struct i2c_client *client)
 
 static const struct of_device_id mt9v111_of_match[] = {
 	{ .compatible = "aptina,mt9v111", },
-	{ /* sentinel */ },
+	{ /* sentinel */ }
 };
+MODULE_DEVICE_TABLE(of, mt9v111_of_match);
 
 static struct i2c_driver mt9v111_driver = {
 	.driver = {

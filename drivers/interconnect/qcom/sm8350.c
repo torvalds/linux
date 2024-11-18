@@ -628,60 +628,6 @@ static struct qcom_icc_node xm_gic = {
 	.links = { SM8350_SLAVE_SNOC_GEM_NOC_GC },
 };
 
-static struct qcom_icc_node qnm_mnoc_hf_disp = {
-	.name = "qnm_mnoc_hf_disp",
-	.id = SM8350_MASTER_MNOC_HF_MEM_NOC_DISP,
-	.channels = 2,
-	.buswidth = 32,
-	.num_links = 1,
-	.links = { SM8350_SLAVE_LLCC_DISP },
-};
-
-static struct qcom_icc_node qnm_mnoc_sf_disp = {
-	.name = "qnm_mnoc_sf_disp",
-	.id = SM8350_MASTER_MNOC_SF_MEM_NOC_DISP,
-	.channels = 2,
-	.buswidth = 32,
-	.num_links = 1,
-	.links = { SM8350_SLAVE_LLCC_DISP },
-};
-
-static struct qcom_icc_node llcc_mc_disp = {
-	.name = "llcc_mc_disp",
-	.id = SM8350_MASTER_LLCC_DISP,
-	.channels = 4,
-	.buswidth = 4,
-	.num_links = 1,
-	.links = { SM8350_SLAVE_EBI1_DISP },
-};
-
-static struct qcom_icc_node qxm_mdp0_disp = {
-	.name = "qxm_mdp0_disp",
-	.id = SM8350_MASTER_MDP0_DISP,
-	.channels = 1,
-	.buswidth = 32,
-	.num_links = 1,
-	.links = { SM8350_SLAVE_MNOC_HF_MEM_NOC_DISP },
-};
-
-static struct qcom_icc_node qxm_mdp1_disp = {
-	.name = "qxm_mdp1_disp",
-	.id = SM8350_MASTER_MDP1_DISP,
-	.channels = 1,
-	.buswidth = 32,
-	.num_links = 1,
-	.links = { SM8350_SLAVE_MNOC_HF_MEM_NOC_DISP },
-};
-
-static struct qcom_icc_node qxm_rot_disp = {
-	.name = "qxm_rot_disp",
-	.id = SM8350_MASTER_ROTATOR_DISP,
-	.channels = 1,
-	.buswidth = 32,
-	.num_links = 1,
-	.links = { SM8350_SLAVE_MNOC_SF_MEM_NOC_DISP },
-};
-
 static struct qcom_icc_node qns_a1noc_snoc = {
 	.name = "qns_a1noc_snoc",
 	.id = SM8350_SLAVE_A1NOC_SNOC,
@@ -1320,40 +1266,6 @@ static struct qcom_icc_node srvc_snoc = {
 	.buswidth = 4,
 };
 
-static struct qcom_icc_node qns_llcc_disp = {
-	.name = "qns_llcc_disp",
-	.id = SM8350_SLAVE_LLCC_DISP,
-	.channels = 4,
-	.buswidth = 16,
-	.num_links = 1,
-	.links = { SM8350_MASTER_LLCC_DISP },
-};
-
-static struct qcom_icc_node ebi_disp = {
-	.name = "ebi_disp",
-	.id = SM8350_SLAVE_EBI1_DISP,
-	.channels = 4,
-	.buswidth = 4,
-};
-
-static struct qcom_icc_node qns_mem_noc_hf_disp = {
-	.name = "qns_mem_noc_hf_disp",
-	.id = SM8350_SLAVE_MNOC_HF_MEM_NOC_DISP,
-	.channels = 2,
-	.buswidth = 32,
-	.num_links = 1,
-	.links = { SM8350_MASTER_MNOC_HF_MEM_NOC_DISP },
-};
-
-static struct qcom_icc_node qns_mem_noc_sf_disp = {
-	.name = "qns_mem_noc_sf_disp",
-	.id = SM8350_SLAVE_MNOC_SF_MEM_NOC_DISP,
-	.channels = 2,
-	.buswidth = 32,
-	.num_links = 1,
-	.links = { SM8350_MASTER_MNOC_SF_MEM_NOC_DISP },
-};
-
 static struct qcom_icc_bcm bcm_acv = {
 	.name = "ACV",
 	.enable_mask = BIT(3),
@@ -1583,55 +1495,6 @@ static struct qcom_icc_bcm bcm_sn14 = {
 	.nodes = { &qns_pcie_mem_noc },
 };
 
-static struct qcom_icc_bcm bcm_acv_disp = {
-	.name = "ACV",
-	.keepalive = false,
-	.num_nodes = 1,
-	.nodes = { &ebi_disp },
-};
-
-static struct qcom_icc_bcm bcm_mc0_disp = {
-	.name = "MC0",
-	.keepalive = false,
-	.num_nodes = 1,
-	.nodes = { &ebi_disp },
-};
-
-static struct qcom_icc_bcm bcm_mm0_disp = {
-	.name = "MM0",
-	.keepalive = false,
-	.num_nodes = 1,
-	.nodes = { &qns_mem_noc_hf_disp },
-};
-
-static struct qcom_icc_bcm bcm_mm1_disp = {
-	.name = "MM1",
-	.keepalive = false,
-	.num_nodes = 2,
-	.nodes = { &qxm_mdp0_disp, &qxm_mdp1_disp },
-};
-
-static struct qcom_icc_bcm bcm_mm4_disp = {
-	.name = "MM4",
-	.keepalive = false,
-	.num_nodes = 1,
-	.nodes = { &qns_mem_noc_sf_disp },
-};
-
-static struct qcom_icc_bcm bcm_mm5_disp = {
-	.name = "MM5",
-	.keepalive = false,
-	.num_nodes = 1,
-	.nodes = { &qxm_rot_disp },
-};
-
-static struct qcom_icc_bcm bcm_sh0_disp = {
-	.name = "SH0",
-	.keepalive = false,
-	.num_nodes = 1,
-	.nodes = { &qns_llcc_disp },
-};
-
 static struct qcom_icc_bcm * const aggre1_noc_bcms[] = {
 };
 
@@ -1785,7 +1648,6 @@ static struct qcom_icc_bcm * const gem_noc_bcms[] = {
 	&bcm_sh2,
 	&bcm_sh3,
 	&bcm_sh4,
-	&bcm_sh0_disp,
 };
 
 static struct qcom_icc_node * const gem_noc_nodes[] = {
@@ -1808,9 +1670,6 @@ static struct qcom_icc_node * const gem_noc_nodes[] = {
 	[SLAVE_SERVICE_GEM_NOC_1] = &srvc_even_gemnoc,
 	[SLAVE_SERVICE_GEM_NOC_2] = &srvc_odd_gemnoc,
 	[SLAVE_SERVICE_GEM_NOC] = &srvc_sys_gemnoc,
-	[MASTER_MNOC_HF_MEM_NOC_DISP] = &qnm_mnoc_hf_disp,
-	[MASTER_MNOC_SF_MEM_NOC_DISP] = &qnm_mnoc_sf_disp,
-	[SLAVE_LLCC_DISP] = &qns_llcc_disp,
 };
 
 static const struct qcom_icc_desc sm8350_gem_noc = {
@@ -1843,15 +1702,11 @@ static const struct qcom_icc_desc sm8350_lpass_ag_noc = {
 static struct qcom_icc_bcm * const mc_virt_bcms[] = {
 	&bcm_acv,
 	&bcm_mc0,
-	&bcm_acv_disp,
-	&bcm_mc0_disp,
 };
 
 static struct qcom_icc_node * const mc_virt_nodes[] = {
 	[MASTER_LLCC] = &llcc_mc,
 	[SLAVE_EBI1] = &ebi,
-	[MASTER_LLCC_DISP] = &llcc_mc_disp,
-	[SLAVE_EBI1_DISP] = &ebi_disp,
 };
 
 static const struct qcom_icc_desc sm8350_mc_virt = {
@@ -1866,10 +1721,6 @@ static struct qcom_icc_bcm * const mmss_noc_bcms[] = {
 	&bcm_mm1,
 	&bcm_mm4,
 	&bcm_mm5,
-	&bcm_mm0_disp,
-	&bcm_mm1_disp,
-	&bcm_mm4_disp,
-	&bcm_mm5_disp,
 };
 
 static struct qcom_icc_node * const mmss_noc_nodes[] = {
@@ -1886,11 +1737,6 @@ static struct qcom_icc_node * const mmss_noc_nodes[] = {
 	[SLAVE_MNOC_HF_MEM_NOC] = &qns_mem_noc_hf,
 	[SLAVE_MNOC_SF_MEM_NOC] = &qns_mem_noc_sf,
 	[SLAVE_SERVICE_MNOC] = &srvc_mnoc,
-	[MASTER_MDP0_DISP] = &qxm_mdp0_disp,
-	[MASTER_MDP1_DISP] = &qxm_mdp1_disp,
-	[MASTER_ROTATOR_DISP] = &qxm_rot_disp,
-	[SLAVE_MNOC_HF_MEM_NOC_DISP] = &qns_mem_noc_hf_disp,
-	[SLAVE_MNOC_SF_MEM_NOC_DISP] = &qns_mem_noc_sf_disp,
 };
 
 static const struct qcom_icc_desc sm8350_mmss_noc = {
@@ -1965,6 +1811,7 @@ static struct platform_driver qnoc_driver = {
 	.driver = {
 		.name = "qnoc-sm8350",
 		.of_match_table = qnoc_of_match,
+		.sync_state = icc_sync_state,
 	},
 };
 module_platform_driver(qnoc_driver);

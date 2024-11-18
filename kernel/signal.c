@@ -2888,8 +2888,6 @@ relock:
 		current->flags |= PF_SIGNALED;
 
 		if (sig_kernel_coredump(signr)) {
-			int ret;
-
 			if (print_fatal_signals)
 				print_fatal_signal(signr);
 			proc_coredump_connector(current);
@@ -2901,24 +2899,7 @@ relock:
 			 * first and our do_group_exit call below will use
 			 * that value and ignore the one we pass it.
 			 */
-			ret = do_coredump(&ksig->info);
-			if (ret)
-				coredump_report_failure("coredump has not been created, error %d",
-					ret);
-			else if (!IS_ENABLED(CONFIG_COREDUMP)) {
-				/*
-				 * Coredumps are not available, can't fail collecting
-				 * the coredump.
-				 *
-				 * Leave a note though that the coredump is going to be
-				 * not created. This is not an error or a warning as disabling
-				 * support in the kernel for coredumps isn't commonplace, and
-				 * the user must've built the kernel with the custom config so
-				 * let them know all works as desired.
-				 */
-				coredump_report("no coredump collected as "
-					"that is disabled in the kernel configuration");
-			}
+			do_coredump(&ksig->info);
 		}
 
 		/*
@@ -3941,11 +3922,11 @@ SYSCALL_DEFINE4(pidfd_send_signal, int, pidfd, int, sig,
 		return -EINVAL;
 
 	f = fdget(pidfd);
-	if (!f.file)
+	if (!fd_file(f))
 		return -EBADF;
 
 	/* Is this a pidfd? */
-	pid = pidfd_to_pid(f.file);
+	pid = pidfd_to_pid(fd_file(f));
 	if (IS_ERR(pid)) {
 		ret = PTR_ERR(pid);
 		goto err;
@@ -3958,7 +3939,7 @@ SYSCALL_DEFINE4(pidfd_send_signal, int, pidfd, int, sig,
 	switch (flags) {
 	case 0:
 		/* Infer scope from the type of pidfd. */
-		if (f.file->f_flags & PIDFD_THREAD)
+		if (fd_file(f)->f_flags & PIDFD_THREAD)
 			type = PIDTYPE_PID;
 		else
 			type = PIDTYPE_TGID;

@@ -974,28 +974,32 @@ static const struct drm_bridge_funcs sti_hdmi_bridge_funcs = {
 
 static int sti_hdmi_connector_get_modes(struct drm_connector *connector)
 {
+	const struct drm_display_info *info = &connector->display_info;
 	struct sti_hdmi_connector *hdmi_connector
 		= to_sti_hdmi_connector(connector);
 	struct sti_hdmi *hdmi = hdmi_connector->hdmi;
-	struct edid *edid;
+	const struct drm_edid *drm_edid;
 	int count;
 
 	DRM_DEBUG_DRIVER("\n");
 
-	edid = drm_get_edid(connector, hdmi->ddc_adapt);
-	if (!edid)
+	drm_edid = drm_edid_read(connector);
+
+	drm_edid_connector_update(connector, drm_edid);
+
+	cec_notifier_set_phys_addr(hdmi->notifier,
+				   connector->display_info.source_physical_address);
+
+	if (!drm_edid)
 		goto fail;
 
-	cec_notifier_set_phys_addr_from_edid(hdmi->notifier, edid);
-
-	count = drm_add_edid_modes(connector, edid);
-	drm_connector_update_edid_property(connector, edid);
+	count = drm_edid_connector_add_modes(connector);
 
 	DRM_DEBUG_KMS("%s : %dx%d cm\n",
-		      (connector->display_info.is_hdmi ? "hdmi monitor" : "dvi monitor"),
-		      edid->width_cm, edid->height_cm);
+		      info->is_hdmi ? "hdmi monitor" : "dvi monitor",
+		      info->width_mm / 10, info->height_mm / 10);
 
-	kfree(edid);
+	drm_edid_free(drm_edid);
 	return count;
 
 fail:
@@ -1485,7 +1489,6 @@ static void sti_hdmi_remove(struct platform_device *pdev)
 struct platform_driver sti_hdmi_driver = {
 	.driver = {
 		.name = "sti-hdmi",
-		.owner = THIS_MODULE,
 		.of_match_table = hdmi_of_match,
 	},
 	.probe = sti_hdmi_probe,

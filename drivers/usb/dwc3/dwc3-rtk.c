@@ -6,6 +6,7 @@
  *
  */
 
+#include <linux/cleanup.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
@@ -173,22 +174,19 @@ static const char *const speed_names[] = {
 
 static enum usb_device_speed __get_dwc3_maximum_speed(struct device_node *np)
 {
-	struct device_node *dwc3_np;
 	const char *maximum_speed;
 	int ret;
 
-	dwc3_np = of_get_compatible_child(np, "snps,dwc3");
+	struct device_node *dwc3_np __free(device_node) = of_get_compatible_child(np,
+										  "snps,dwc3");
 	if (!dwc3_np)
 		return USB_SPEED_UNKNOWN;
 
 	ret = of_property_read_string(dwc3_np, "maximum-speed", &maximum_speed);
 	if (ret < 0)
-		goto out;
+		return USB_SPEED_UNKNOWN;
 
 	ret = match_string(speed_names, ARRAY_SIZE(speed_names), maximum_speed);
-
-out:
-	of_node_put(dwc3_np);
 
 	return (ret < 0) ? USB_SPEED_UNKNOWN : ret;
 }
@@ -276,7 +274,6 @@ static int dwc3_rtk_probe_dwc3_core(struct dwc3_rtk *rtk)
 	struct device_node *node = dev->of_node;
 	struct platform_device *dwc3_pdev;
 	struct device *dwc3_dev;
-	struct device_node *dwc3_node;
 	enum usb_dr_mode dr_mode;
 	int ret = 0;
 
@@ -290,7 +287,8 @@ static int dwc3_rtk_probe_dwc3_core(struct dwc3_rtk *rtk)
 		return ret;
 	}
 
-	dwc3_node = of_get_compatible_child(node, "snps,dwc3");
+	struct device_node *dwc3_node __free(device_node) = of_get_compatible_child(node,
+										    "snps,dwc3");
 	if (!dwc3_node) {
 		dev_err(dev, "failed to find dwc3 core node\n");
 		ret = -ENODEV;
@@ -301,7 +299,7 @@ static int dwc3_rtk_probe_dwc3_core(struct dwc3_rtk *rtk)
 	if (!dwc3_pdev) {
 		dev_err(dev, "failed to find dwc3 core platform_device\n");
 		ret = -ENODEV;
-		goto err_node_put;
+		goto depopulate;
 	}
 
 	dwc3_dev = &dwc3_pdev->dev;
@@ -343,14 +341,11 @@ static int dwc3_rtk_probe_dwc3_core(struct dwc3_rtk *rtk)
 	switch_usb2_role(rtk, rtk->cur_role);
 
 	platform_device_put(dwc3_pdev);
-	of_node_put(dwc3_node);
 
 	return 0;
 
 err_pdev_put:
 	platform_device_put(dwc3_pdev);
-err_node_put:
-	of_node_put(dwc3_node);
 depopulate:
 	of_platform_depopulate(dev);
 
@@ -363,30 +358,18 @@ static int dwc3_rtk_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct resource *res;
 	void __iomem *regs;
-	int ret = 0;
 
 	rtk = devm_kzalloc(dev, sizeof(*rtk), GFP_KERNEL);
-	if (!rtk) {
-		ret = -ENOMEM;
-		goto out;
-	}
+	if (!rtk)
+		return -ENOMEM;
 
 	platform_set_drvdata(pdev, rtk);
 
 	rtk->dev = dev;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(dev, "missing memory resource\n");
-		ret = -ENODEV;
-		goto out;
-	}
-
-	regs = devm_ioremap_resource(dev, res);
-	if (IS_ERR(regs)) {
-		ret = PTR_ERR(regs);
-		goto out;
-	}
+	regs = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
+	if (IS_ERR(regs))
+		return PTR_ERR(regs);
 
 	rtk->regs = regs;
 	rtk->regs_size = resource_size(res);
@@ -394,16 +377,11 @@ static int dwc3_rtk_probe(struct platform_device *pdev)
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 	if (res) {
 		rtk->pm_base = devm_ioremap_resource(dev, res);
-		if (IS_ERR(rtk->pm_base)) {
-			ret = PTR_ERR(rtk->pm_base);
-			goto out;
-		}
+		if (IS_ERR(rtk->pm_base))
+			return PTR_ERR(rtk->pm_base);
 	}
 
-	ret = dwc3_rtk_probe_dwc3_core(rtk);
-
-out:
-	return ret;
+	return dwc3_rtk_probe_dwc3_core(rtk);
 }
 
 static void dwc3_rtk_remove(struct platform_device *pdev)

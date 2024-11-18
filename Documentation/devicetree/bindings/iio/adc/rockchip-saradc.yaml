@@ -17,6 +17,9 @@ properties:
       - const: rockchip,rk3399-saradc
       - const: rockchip,rk3588-saradc
       - items:
+          - const: rockchip,rk3576-saradc
+          - const: rockchip,rk3588-saradc
+      - items:
           - enum:
               - rockchip,px30-saradc
               - rockchip,rk3308-saradc

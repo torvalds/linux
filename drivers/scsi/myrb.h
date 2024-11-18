@@ -712,7 +712,6 @@ struct myrb_hba {
 	struct Scsi_Host *host;
 
 	struct workqueue_struct *work_q;
-	char work_q_name[20];
 	struct delayed_work monitor_work;
 	unsigned long primary_monitor_time;
 	unsigned long secondary_monitor_time;

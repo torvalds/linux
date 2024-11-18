@@ -18,12 +18,15 @@ properties:
           - asahi-kasei,ak09911
           - asahi-kasei,ak09912
           - asahi-kasei,ak09916
+      - items:
+          # ak09918 is register compatible with ak09912.
+          - const: asahi-kasei,ak09918
+          - const: asahi-kasei,ak09912
       - enum:
           - ak8975
           - ak8963
           - ak09911
           - ak09912
-          - ak09916
         deprecated: true
 
   reg:

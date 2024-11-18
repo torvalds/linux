@@ -131,7 +131,6 @@ int xudma_navss_psil_unpair(struct udma_dev *ud, u32 src_thread,
 struct udma_dev *of_xudma_dev_get(struct device_node *np, const char *property);
 struct device *xudma_get_device(struct udma_dev *ud);
 struct k3_ringacc *xudma_get_ringacc(struct udma_dev *ud);
-void xudma_dev_put(struct udma_dev *ud);
 u32 xudma_dev_get_psil_base(struct udma_dev *ud);
 struct udma_tisci_rm *xudma_dev_get_tisci_rm(struct udma_dev *ud);
 

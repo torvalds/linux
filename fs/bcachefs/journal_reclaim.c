@@ -641,6 +641,7 @@ static u64 journal_seq_to_flush(struct journal *j)
 static int __bch2_journal_reclaim(struct journal *j, bool direct, bool kicked)
 {
 	struct bch_fs *c = container_of(j, struct bch_fs, journal);
+	struct btree_cache *bc = &c->btree_cache;
 	bool kthread = (current->flags & PF_KTHREAD) != 0;
 	u64 seq_to_flush;
 	size_t min_nr, min_key_cache, nr_flushed;
@@ -681,7 +682,8 @@ static int __bch2_journal_reclaim(struct journal *j, bool direct, bool kicked)
 		if (j->watermark != BCH_WATERMARK_stripe)
 			min_nr = 1;
 
-		if (atomic_read(&c->btree_cache.dirty) * 2 > c->btree_cache.used)
+		size_t btree_cache_live = bc->live[0].nr + bc->live[1].nr;
+		if (atomic_long_read(&bc->nr_dirty) * 2 > btree_cache_live)
 			min_nr = 1;
 
 		min_key_cache = min(bch2_nr_btree_keys_need_flush(c), (size_t) 128);
@@ -689,8 +691,7 @@ static int __bch2_journal_reclaim(struct journal *j, bool direct, bool kicked)
 		trace_and_count(c, journal_reclaim_start, c,
 				direct, kicked,
 				min_nr, min_key_cache,
-				atomic_read(&c->btree_cache.dirty),
-				c->btree_cache.used,
+				atomic_long_read(&bc->nr_dirty), btree_cache_live,
 				atomic_long_read(&c->btree_key_cache.nr_dirty),
 				atomic_long_read(&c->btree_key_cache.nr_keys));
 

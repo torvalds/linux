@@ -418,7 +418,7 @@ The rules for correspondence between registers / stack slots are as follows:
   linked to the registers and stack slots of the parent state with the same
   indices.
 
-* For the outer stack frames, only caller saved registers (r6-r9) and stack
+* For the outer stack frames, only callee saved registers (r6-r9) and stack
   slots are linked to the registers and stack slots of the parent state with the
   same indices.
 

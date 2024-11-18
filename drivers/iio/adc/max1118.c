@@ -174,8 +174,7 @@ static irqreturn_t max1118_trigger_handler(int irq, void *p)
 
 	mutex_lock(&adc->lock);
 
-	for_each_set_bit(scan_index, indio_dev->active_scan_mask,
-			indio_dev->masklength) {
+	iio_for_each_active_channel(indio_dev, scan_index) {
 		const struct iio_chan_spec *scan_chan =
 				&indio_dev->channels[scan_index];
 		int ret = max1118_read(indio_dev, scan_chan->channel);
@@ -261,7 +260,7 @@ static const struct spi_device_id max1118_id[] = {
 	{ "max1117", max1117 },
 	{ "max1118", max1118 },
 	{ "max1119", max1119 },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(spi, max1118_id);
 
@@ -269,7 +268,7 @@ static const struct of_device_id max1118_dt_ids[] = {
 	{ .compatible = "maxim,max1117" },
 	{ .compatible = "maxim,max1118" },
 	{ .compatible = "maxim,max1119" },
-	{},
+	{ }
 };
 MODULE_DEVICE_TABLE(of, max1118_dt_ids);
 

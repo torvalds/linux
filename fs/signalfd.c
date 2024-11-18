@@ -289,10 +289,10 @@ static int do_signalfd4(int ufd, sigset_t *mask, int flags)
 		fd_install(ufd, file);
 	} else {
 		struct fd f = fdget(ufd);
-		if (!f.file)
+		if (!fd_file(f))
 			return -EBADF;
-		ctx = f.file->private_data;
-		if (f.file->f_op != &signalfd_fops) {
+		ctx = fd_file(f)->private_data;
+		if (fd_file(f)->f_op != &signalfd_fops) {
 			fdput(f);
 			return -EINVAL;
 		}

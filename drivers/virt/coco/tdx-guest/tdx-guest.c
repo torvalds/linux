@@ -285,7 +285,6 @@ static long tdx_guest_ioctl(struct file *file, unsigned int cmd,
 static const struct file_operations tdx_guest_fops = {
 	.owner = THIS_MODULE,
 	.unlocked_ioctl = tdx_guest_ioctl,
-	.llseek = no_llseek,
 };
 
 static struct miscdevice tdx_misc_dev = {

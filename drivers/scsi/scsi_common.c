@@ -9,7 +9,7 @@
 #include <linux/errno.h>
 #include <linux/module.h>
 #include <uapi/linux/pr.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <scsi/scsi_common.h>
 
 MODULE_DESCRIPTION("SCSI functions used by both the initiator and the target code");

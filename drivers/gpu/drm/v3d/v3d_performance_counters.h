@@ -19,11 +19,17 @@ struct v3d_perf_counter_desc {
 	char description[256];
 };
 
+struct v3d_perfmon_info {
+	/*
+	 * Different revisions of V3D have different total number of
+	 * performance counters.
+	 */
+	unsigned int max_counters;
 
-#define V3D_V42_NUM_PERFCOUNTERS (87)
-#define V3D_V71_NUM_PERFCOUNTERS (93)
-
-/* Maximum number of performance counters supported by any version of V3D */
-#define V3D_MAX_COUNTERS (93)
+	/*
+	 * Array of counters valid for the platform.
+	 */
+	const struct v3d_perf_counter_desc *counters;
+};
 
 #endif

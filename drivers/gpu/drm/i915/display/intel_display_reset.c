@@ -83,7 +83,8 @@ void intel_display_reset_prepare(struct drm_i915_private *dev_priv)
 
 void intel_display_reset_finish(struct drm_i915_private *i915)
 {
-	struct drm_modeset_acquire_ctx *ctx = &i915->display.restore.reset_ctx;
+	struct intel_display *display = &i915->display;
+	struct drm_modeset_acquire_ctx *ctx = &display->restore.reset_ctx;
 	struct drm_atomic_state *state;
 	int ret;
 
@@ -94,7 +95,7 @@ void intel_display_reset_finish(struct drm_i915_private *i915)
 	if (!test_bit(I915_RESET_MODESET, &to_gt(i915)->reset.flags))
 		return;
 
-	state = fetch_and_zero(&i915->display.restore.modeset_state);
+	state = fetch_and_zero(&display->restore.modeset_state);
 	if (!state)
 		goto unlock;
 
@@ -112,7 +113,7 @@ void intel_display_reset_finish(struct drm_i915_private *i915)
 		 * The display has been reset as well,
 		 * so need a full re-initialization.
 		 */
-		intel_pps_unlock_regs_wa(i915);
+		intel_pps_unlock_regs_wa(display);
 		intel_display_driver_init_hw(i915);
 		intel_clock_gating_init(i915);
 		intel_hpd_init(i915);

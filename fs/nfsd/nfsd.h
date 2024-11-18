@@ -23,9 +23,7 @@
 
 #include <uapi/linux/nfsd/debug.h>
 
-#include "netns.h"
 #include "export.h"
-#include "stats.h"
 
 #undef ifdebug
 #ifdef CONFIG_SUNRPC_DEBUG
@@ -37,7 +35,14 @@
 /*
  * nfsd version
  */
+#define NFSD_MINVERS			2
+#define	NFSD_MAXVERS			4
 #define NFSD_SUPPORTED_MINOR_VERSION	2
+bool nfsd_support_version(int vers);
+
+#include "netns.h"
+#include "stats.h"
+
 /*
  * Maximum blocksizes supported by daemon under various circumstances.
  */
@@ -80,7 +85,7 @@ struct nfsd_genl_rqstp {
 	u32			rq_opnum[NFSD_MAX_OPS_PER_COMPOUND];
 };
 
-extern struct svc_program	nfsd_program;
+extern struct svc_program	nfsd_programs[];
 extern const struct svc_version	nfsd_version2, nfsd_version3, nfsd_version4;
 extern struct mutex		nfsd_mutex;
 extern spinlock_t		nfsd_drc_lock;
@@ -111,11 +116,9 @@ int		nfsd_nrthreads(struct net *);
 int		nfsd_nrpools(struct net *);
 int		nfsd_get_nrthreads(int n, int *, struct net *);
 int		nfsd_set_nrthreads(int n, int *, struct net *);
-int		nfsd_pool_stats_open(struct inode *, struct file *);
-int		nfsd_pool_stats_release(struct inode *, struct file *);
 void		nfsd_shutdown_threads(struct net *net);
 
-bool		i_am_nfsd(void);
+struct svc_rqst *nfsd_current_rqst(void);
 
 struct nfsdfs_client {
 	struct kref cl_ref;
@@ -143,6 +146,10 @@ extern const struct svc_version nfsd_acl_version3;
 #endif
 #endif
 
+#if IS_ENABLED(CONFIG_NFS_LOCALIO)
+extern const struct svc_version localio_version1;
+#endif
+
 struct nfsd_net;
 
 enum vers_op {NFSD_SET, NFSD_CLEAR, NFSD_TEST, NFSD_AVAIL };
@@ -156,7 +163,7 @@ extern int nfsd_max_blksize;
 
 static inline int nfsd_v4client(struct svc_rqst *rq)
 {
-	return rq->rq_prog == NFS_PROGRAM && rq->rq_vers == 4;
+	return rq && rq->rq_prog == NFS_PROGRAM && rq->rq_vers == 4;
 }
 static inline struct user_namespace *
 nfsd_user_namespace(const struct svc_rqst *rqstp)
@@ -327,17 +334,36 @@ void		nfsd_lockd_shutdown(void);
 #define nfserr_xattr2big		cpu_to_be32(NFS4ERR_XATTR2BIG)
 #define nfserr_noxattr			cpu_to_be32(NFS4ERR_NOXATTR)
 
-/* error codes for internal use */
+/*
+ * Error codes for internal use.  We use enum to choose numbers that are
+ * not already assigned, then covert to be32 resulting in a number that
+ * cannot conflict with any existing be32 nfserr value.
+ */
+enum {
+	NFSERR_DROPIT = NFS4ERR_FIRST_FREE,
 /* if a request fails due to kmalloc failure, it gets dropped.
  *  Client should resend eventually
  */
-#define	nfserr_dropit		cpu_to_be32(30000)
+#define	nfserr_dropit		cpu_to_be32(NFSERR_DROPIT)
+
 /* end-of-file indicator in readdir */
-#define	nfserr_eof		cpu_to_be32(30001)
+	NFSERR_EOF,
+#define	nfserr_eof		cpu_to_be32(NFSERR_EOF)
+
 /* replay detected */
-#define	nfserr_replay_me	cpu_to_be32(11001)
+	NFSERR_REPLAY_ME,
+#define	nfserr_replay_me	cpu_to_be32(NFSERR_REPLAY_ME)
+
 /* nfs41 replay detected */
-#define	nfserr_replay_cache	cpu_to_be32(11002)
+	NFSERR_REPLAY_CACHE,
+#define	nfserr_replay_cache	cpu_to_be32(NFSERR_REPLAY_CACHE)
+
+/* symlink found where dir expected - handled differently to
+ * other symlink found errors by NFSv3.
+ */
+	NFSERR_SYMLINK_NOT_DIR,
+#define	nfserr_symlink_not_dir	cpu_to_be32(NFSERR_SYMLINK_NOT_DIR)
+};
 
 /* Check for dir entries '.' and '..' */
 #define isdotent(n, l)	(l < 3 && n[0] == '.' && (l == 1 || n[1] == '.'))

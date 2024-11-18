@@ -1006,17 +1006,17 @@ static int fanotify_find_path(int dfd, const char __user *filename,
 		struct fd f = fdget(dfd);
 
 		ret = -EBADF;
-		if (!f.file)
+		if (!fd_file(f))
 			goto out;
 
 		ret = -ENOTDIR;
 		if ((flags & FAN_MARK_ONLYDIR) &&
-		    !(S_ISDIR(file_inode(f.file)->i_mode))) {
+		    !(S_ISDIR(file_inode(fd_file(f))->i_mode))) {
 			fdput(f);
 			goto out;
 		}
 
-		*path = f.file->f_path;
+		*path = fd_file(f)->f_path;
 		path_get(path);
 		fdput(f);
 	} else {
@@ -1480,7 +1480,7 @@ SYSCALL_DEFINE2(fanotify_init, unsigned int, flags, unsigned int, event_f_flags)
 
 	/* fsnotify_alloc_group takes a ref.  Dropped in fanotify_release */
 	group = fsnotify_alloc_group(&fanotify_fsnotify_ops,
-				     FSNOTIFY_GROUP_USER | FSNOTIFY_GROUP_NOFS);
+				     FSNOTIFY_GROUP_USER);
 	if (IS_ERR(group)) {
 		return PTR_ERR(group);
 	}
@@ -1753,14 +1753,14 @@ static int do_fanotify_mark(int fanotify_fd, unsigned int flags, __u64 mask,
 	}
 
 	f = fdget(fanotify_fd);
-	if (unlikely(!f.file))
+	if (unlikely(!fd_file(f)))
 		return -EBADF;
 
 	/* verify that this is indeed an fanotify instance */
 	ret = -EINVAL;
-	if (unlikely(f.file->f_op != &fanotify_fops))
+	if (unlikely(fd_file(f)->f_op != &fanotify_fops))
 		goto fput_and_out;
-	group = f.file->private_data;
+	group = fd_file(f)->private_data;
 
 	/*
 	 * An unprivileged user is not allowed to setup mount nor filesystem

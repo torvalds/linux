@@ -3,7 +3,7 @@
 #include <linux/efi.h>
 #include <linux/pe.h>
 #include <asm/efi.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include "efistub.h"
 

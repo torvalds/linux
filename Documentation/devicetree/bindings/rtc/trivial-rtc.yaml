@@ -38,12 +38,13 @@ properties:
       - dallas,ds1672
       # Extremely Accurate I²C RTC with Integrated Crystal and SRAM
       - dallas,ds3232
+      # SD2405AL Real-Time Clock
+      - dfrobot,sd2405al
       # EM Microelectronic EM3027 RTC
       - emmicro,em3027
       # I2C-BUS INTERFACE REAL TIME CLOCK MODULE
       - epson,rx8010
       # I2C-BUS INTERFACE REAL TIME CLOCK MODULE
-      - epson,rx8025
       - epson,rx8035
       # I2C-BUS INTERFACE REAL TIME CLOCK MODULE with Battery Backed RAM
       - epson,rx8111
@@ -52,10 +53,6 @@ properties:
       - epson,rx8581
       # Android Goldfish Real-time Clock
       - google,goldfish-rtc
-      # Intersil ISL1208 Low Power RTC with Battery Backed SRAM
-      - isil,isl1208
-      # Intersil ISL1218 Low Power RTC with Battery Backed SRAM
-      - isil,isl1218
       # Mvebu Real-time Clock
       - marvell,orion-rtc
       # Maxim DS1742/DS1743 Real-time Clock
@@ -68,8 +65,6 @@ properties:
       - microcrystal,rv8523
       # NXP LPC32xx SoC Real-time Clock
       - nxp,lpc3220-rtc
-      # Real-time Clock Module
-      - pericom,pt7c4338
       # I2C bus SERIAL INTERFACE REAL-TIME CLOCK IC
       - ricoh,r2025sd
       # I2C bus SERIAL INTERFACE REAL-TIME CLOCK IC

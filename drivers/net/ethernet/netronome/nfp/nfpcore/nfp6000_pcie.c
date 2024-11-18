@@ -15,7 +15,7 @@
  * abstraction builds upon this BAR interface.
  */
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/kref.h>

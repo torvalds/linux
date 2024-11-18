@@ -73,9 +73,10 @@ examples:
       reg-names = "data", "dir", "intr";
       gpio-controller;
       #gpio-cells = <2>;
-        interrupt-controller;
-        interrupt-parent = <&vic1>;
-        interrupts = <27>;
+      interrupt-controller;
+      #interrupt-cells = <2>;
+      interrupt-parent = <&vic1>;
+      interrupts = <27>;
     };
 
     gpio@80840004 {
@@ -87,6 +88,7 @@ examples:
       gpio-controller;
       #gpio-cells = <2>;
       interrupt-controller;
+      #interrupt-cells = <2>;
       interrupt-parent = <&vic1>;
       interrupts = <27>;
     };
@@ -127,6 +129,7 @@ examples:
       gpio-controller;
       #gpio-cells = <2>;
       interrupt-controller;
+      #interrupt-cells = <2>;
       interrupts-extended = <&vic0 19>, <&vic0 20>,
                             <&vic0 21>, <&vic0 22>,
                             <&vic1 15>, <&vic1 16>,

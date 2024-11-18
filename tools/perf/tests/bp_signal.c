@@ -26,6 +26,7 @@
 #include "tests.h"
 #include "debug.h"
 #include "event.h"
+#include "parse-events.h"
 #include "perf-sys.h"
 #include "cloexec.h"
 
@@ -111,7 +112,7 @@ static int __event(bool is_x, void *addr, int sig)
 	pe.config = 0;
 	pe.bp_type = is_x ? HW_BREAKPOINT_X : HW_BREAKPOINT_W;
 	pe.bp_addr = (unsigned long) addr;
-	pe.bp_len = sizeof(long);
+	pe.bp_len = is_x ? default_breakpoint_len() : sizeof(long);
 
 	pe.sample_period = 1;
 	pe.sample_type = PERF_SAMPLE_IP;

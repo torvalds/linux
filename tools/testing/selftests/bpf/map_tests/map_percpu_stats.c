@@ -17,6 +17,7 @@
 #define MAX_ENTRIES_HASH_OF_MAPS	64
 #define N_THREADS			8
 #define MAX_MAP_KEY_SIZE		4
+#define PCPU_MIN_UNIT_SIZE		32768
 
 static void map_info(int map_fd, struct bpf_map_info *info)
 {
@@ -456,6 +457,22 @@ static void map_percpu_stats_hash_of_maps(void)
 	printf("test_%s:PASS\n", __func__);
 }
 
+static void map_percpu_stats_map_value_size(void)
+{
+	int fd;
+	int value_sz = PCPU_MIN_UNIT_SIZE + 1;
+	struct bpf_map_create_opts opts = { .sz = sizeof(opts) };
+	enum bpf_map_type map_types[] = { BPF_MAP_TYPE_PERCPU_ARRAY,
+					  BPF_MAP_TYPE_PERCPU_HASH,
+					  BPF_MAP_TYPE_LRU_PERCPU_HASH };
+	for (int i = 0; i < ARRAY_SIZE(map_types); i++) {
+		fd = bpf_map_create(map_types[i], NULL, sizeof(__u32), value_sz, 1, &opts);
+		CHECK(fd < 0 && errno != E2BIG, "percpu map value size",
+			"error: %s\n", strerror(errno));
+	}
+	printf("test_%s:PASS\n", __func__);
+}
+
 void test_map_percpu_stats(void)
 {
 	map_percpu_stats_hash();
@@ -467,4 +484,5 @@ void test_map_percpu_stats(void)
 	map_percpu_stats_percpu_lru_hash();
 	map_percpu_stats_percpu_lru_hash_no_common();
 	map_percpu_stats_hash_of_maps();
+	map_percpu_stats_map_value_size();
 }

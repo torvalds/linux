@@ -292,7 +292,7 @@ static struct platform_driver via_gpio_driver = {
 		.name = "viafb-gpio",
 	},
 	.probe = viafb_gpio_probe,
-	.remove_new = viafb_gpio_remove,
+	.remove = viafb_gpio_remove,
 };
 
 int viafb_gpio_init(void)

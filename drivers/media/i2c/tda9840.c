@@ -182,7 +182,7 @@ static void tda9840_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id tda9840_id[] = {
-	{ "tda9840", 0 },
+	{ "tda9840" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, tda9840_id);

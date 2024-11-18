@@ -27,6 +27,7 @@
 
 #include <drm/display/drm_dsc_helper.h>
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_fixed.h>
 #include <drm/drm_mipi_dsi.h>
 
 #include "i915_reg.h"
@@ -330,7 +331,7 @@ static int afe_clk(struct intel_encoder *encoder,
 	int bpp;
 
 	if (crtc_state->dsc.compression_enable)
-		bpp = to_bpp_int(crtc_state->dsc.compressed_bpp_x16);
+		bpp = fxp_q4_to_int(crtc_state->dsc.compressed_bpp_x16);
 	else
 		bpp = mipi_dsi_pixel_format_to_bpp(intel_dsi->pixel_format);
 
@@ -863,7 +864,7 @@ gen11_dsi_set_transcoder_timings(struct intel_encoder *encoder,
 	 * compressed and non-compressed bpp.
 	 */
 	if (crtc_state->dsc.compression_enable) {
-		mul = to_bpp_int(crtc_state->dsc.compressed_bpp_x16);
+		mul = fxp_q4_to_int(crtc_state->dsc.compressed_bpp_x16);
 		div = mipi_dsi_pixel_format_to_bpp(intel_dsi->pixel_format);
 	}
 
@@ -887,7 +888,7 @@ gen11_dsi_set_transcoder_timings(struct intel_encoder *encoder,
 		int bpp, line_time_us, byte_clk_period_ns;
 
 		if (crtc_state->dsc.compression_enable)
-			bpp = to_bpp_int(crtc_state->dsc.compressed_bpp_x16);
+			bpp = fxp_q4_to_int(crtc_state->dsc.compressed_bpp_x16);
 		else
 			bpp = mipi_dsi_pixel_format_to_bpp(intel_dsi->pixel_format);
 
@@ -1470,7 +1471,7 @@ static void gen11_dsi_get_timings(struct intel_encoder *encoder,
 					&pipe_config->hw.adjusted_mode;
 
 	if (pipe_config->dsc.compressed_bpp_x16) {
-		int div = to_bpp_int(pipe_config->dsc.compressed_bpp_x16);
+		int div = fxp_q4_to_int(pipe_config->dsc.compressed_bpp_x16);
 		int mul = mipi_dsi_pixel_format_to_bpp(intel_dsi->pixel_format);
 
 		adjusted_mode->crtc_htotal =
@@ -1944,6 +1945,7 @@ static void icl_dsi_add_properties(struct intel_connector *connector)
 void icl_dsi_init(struct drm_i915_private *dev_priv,
 		  const struct intel_bios_encoder_data *devdata)
 {
+	struct intel_display *display = &dev_priv->display;
 	struct intel_dsi *intel_dsi;
 	struct intel_encoder *encoder;
 	struct intel_connector *intel_connector;
@@ -2007,7 +2009,7 @@ void icl_dsi_init(struct drm_i915_private *dev_priv,
 
 	intel_dsi->panel_power_off_time = ktime_get_boottime();
 
-	intel_bios_init_panel_late(dev_priv, &intel_connector->panel, encoder->devdata, NULL);
+	intel_bios_init_panel_late(display, &intel_connector->panel, encoder->devdata, NULL);
 
 	mutex_lock(&dev_priv->drm.mode_config.mutex);
 	intel_panel_add_vbt_lfp_fixed_mode(intel_connector);

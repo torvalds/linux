@@ -307,7 +307,7 @@ static int ufs_rename(struct mnt_idmap *idmap, struct inode *old_dir,
 		if (old_dir != new_dir)
 			ufs_set_link(old_inode, dir_de, dir_folio, new_dir, 0);
 		else
-			folio_release_kmap(dir_folio, new_dir);
+			folio_release_kmap(dir_folio, dir_de);
 		inode_dec_link_count(old_dir);
 	}
 	return 0;

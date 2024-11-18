@@ -188,7 +188,7 @@ static void ht_iot_peer_determine(struct rtllib_device *ieee)
 }
 
 static u8 ht_iot_act_is_mgnt_use_cck_6m(struct rtllib_device *ieee,
-				 struct rtllib_network *network)
+					struct rtllib_network *network)
 {
 	u8	retValue = 0;
 
@@ -559,7 +559,7 @@ void ht_initialize_bss_desc(struct bss_ht *bss_ht)
 }
 
 void ht_reset_self_and_save_peer_setting(struct rtllib_device *ieee,
-				   struct rtllib_network *pNetwork)
+				   struct rtllib_network *network)
 {
 	struct rt_hi_throughput *ht_info = ieee->ht_info;
 	u8	bIOTAction = 0;
@@ -567,32 +567,32 @@ void ht_reset_self_and_save_peer_setting(struct rtllib_device *ieee,
 	/* unmark enable_ht flag here is the same reason why unmarked in
 	 * function rtllib_softmac_new_net. WB 2008.09.10
 	 */
-	if (pNetwork->bssht.bd_support_ht) {
+	if (network->bssht.bd_support_ht) {
 		ht_info->current_ht_support = true;
-		ht_info->peer_ht_spec_ver = pNetwork->bssht.bd_ht_spec_ver;
+		ht_info->peer_ht_spec_ver = network->bssht.bd_ht_spec_ver;
 
-		if (pNetwork->bssht.bd_ht_cap_len > 0 &&
-		    pNetwork->bssht.bd_ht_cap_len <= sizeof(ht_info->peer_ht_cap_buf))
+		if (network->bssht.bd_ht_cap_len > 0 &&
+		    network->bssht.bd_ht_cap_len <= sizeof(ht_info->peer_ht_cap_buf))
 			memcpy(ht_info->peer_ht_cap_buf,
-			       pNetwork->bssht.bd_ht_cap_buf,
-			       pNetwork->bssht.bd_ht_cap_len);
+			       network->bssht.bd_ht_cap_buf,
+			       network->bssht.bd_ht_cap_len);
 
-		if (pNetwork->bssht.bd_ht_info_len > 0 &&
-		    pNetwork->bssht.bd_ht_info_len <=
+		if (network->bssht.bd_ht_info_len > 0 &&
+		    network->bssht.bd_ht_info_len <=
 		    sizeof(ht_info->peer_ht_info_buf))
 			memcpy(ht_info->peer_ht_info_buf,
-			       pNetwork->bssht.bd_ht_info_buf,
-			       pNetwork->bssht.bd_ht_info_len);
+			       network->bssht.bd_ht_info_buf,
+			       network->bssht.bd_ht_info_len);
 
 		ht_info->current_rt2rt_aggregation =
-			 pNetwork->bssht.bd_rt2rt_aggregation;
+			 network->bssht.bd_rt2rt_aggregation;
 		ht_info->current_rt2rt_long_slot_time =
-			 pNetwork->bssht.bd_rt2rt_long_slot_time;
+			 network->bssht.bd_rt2rt_long_slot_time;
 
 		ht_iot_peer_determine(ieee);
 
 		ht_info->iot_action = 0;
-		bIOTAction = ht_iot_act_is_mgnt_use_cck_6m(ieee, pNetwork);
+		bIOTAction = ht_iot_act_is_mgnt_use_cck_6m(ieee, network);
 		if (bIOTAction)
 			ht_info->iot_action |= HT_IOT_ACT_MGNT_USE_CCK_6M;
 		bIOTAction = ht_iot_act_is_ccd_fsync(ieee);
@@ -609,23 +609,23 @@ void ht_reset_self_and_save_peer_setting(struct rtllib_device *ieee,
 }
 
 void HT_update_self_and_peer_setting(struct rtllib_device *ieee,
-				     struct rtllib_network *pNetwork)
+				     struct rtllib_network *network)
 {
 	struct rt_hi_throughput *ht_info = ieee->ht_info;
 	struct ht_info_ele *pPeerHTInfo =
-		 (struct ht_info_ele *)pNetwork->bssht.bd_ht_info_buf;
+		 (struct ht_info_ele *)network->bssht.bd_ht_info_buf;
 
 	if (ht_info->current_ht_support) {
-		if (pNetwork->bssht.bd_ht_info_len != 0)
+		if (network->bssht.bd_ht_info_len != 0)
 			ht_info->current_op_mode = pPeerHTInfo->opt_mode;
 	}
 }
 EXPORT_SYMBOL(HT_update_self_and_peer_setting);
 
-u8 ht_c_check(struct rtllib_device *ieee, u8 *pFrame)
+u8 ht_c_check(struct rtllib_device *ieee, u8 *frame)
 {
 	if (ieee->ht_info->current_ht_support) {
-		if ((is_qos_data_frame(pFrame) && frame_order(pFrame)) == 1) {
+		if ((is_qos_data_frame(frame) && frame_order(frame)) == 1) {
 			netdev_dbg(ieee->dev, "HT CONTROL FILED EXIST!!\n");
 			return true;
 		}

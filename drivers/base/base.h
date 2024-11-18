@@ -145,7 +145,7 @@ void auxiliary_bus_init(void);
 static inline void auxiliary_bus_init(void) { }
 #endif
 
-struct kobject *virtual_device_parent(struct device *dev);
+struct kobject *virtual_device_parent(void);
 
 int bus_add_device(struct device *dev);
 void bus_probe_device(struct device *dev);

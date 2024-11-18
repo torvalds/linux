@@ -217,13 +217,13 @@ struct bkey {
 #if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
 	__u8		pad[1];
 
-	struct bversion	version;
+	struct bversion	bversion;
 	__u32		size;		/* extent size, in sectors */
 	struct bpos	p;
 #elif __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
 	struct bpos	p;
 	__u32		size;		/* extent size, in sectors */
-	struct bversion	version;
+	struct bversion	bversion;
 
 	__u8		pad[1];
 #endif
@@ -328,8 +328,8 @@ enum bch_bkey_fields {
 		bkey_format_field(OFFSET,	p.offset),		\
 		bkey_format_field(SNAPSHOT,	p.snapshot),		\
 		bkey_format_field(SIZE,		size),			\
-		bkey_format_field(VERSION_HI,	version.hi),		\
-		bkey_format_field(VERSION_LO,	version.lo),		\
+		bkey_format_field(VERSION_HI,	bversion.hi),		\
+		bkey_format_field(VERSION_LO,	bversion.lo),		\
 	},								\
 })
 
@@ -795,6 +795,8 @@ LE64_BITMASK(BCH_SB_HAS_ERRORS,		struct bch_sb, flags[0], 60, 61);
 LE64_BITMASK(BCH_SB_HAS_TOPOLOGY_ERRORS,struct bch_sb, flags[0], 61, 62);
 
 LE64_BITMASK(BCH_SB_BIG_ENDIAN,		struct bch_sb, flags[0], 62, 63);
+LE64_BITMASK(BCH_SB_PROMOTE_WHOLE_EXTENTS,
+					struct bch_sb, flags[0], 63, 64);
 
 LE64_BITMASK(BCH_SB_STR_HASH_TYPE,	struct bch_sb, flags[1],  0,  4);
 LE64_BITMASK(BCH_SB_COMPRESSION_TYPE_LO,struct bch_sb, flags[1],  4,  8);

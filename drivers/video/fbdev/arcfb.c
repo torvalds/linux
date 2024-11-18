@@ -548,7 +548,7 @@ static void arcfb_remove(struct platform_device *dev)
 
 static struct platform_driver arcfb_driver = {
 	.probe	= arcfb_probe,
-	.remove_new = arcfb_remove,
+	.remove	= arcfb_remove,
 	.driver	= {
 		.name	= "arcfb",
 	},

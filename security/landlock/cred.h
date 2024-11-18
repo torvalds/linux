@@ -26,7 +26,7 @@ landlock_cred(const struct cred *cred)
 	return cred->security + landlock_blob_sizes.lbs_cred;
 }
 
-static inline const struct landlock_ruleset *landlock_get_current_domain(void)
+static inline struct landlock_ruleset *landlock_get_current_domain(void)
 {
 	return landlock_cred(current_cred())->domain;
 }

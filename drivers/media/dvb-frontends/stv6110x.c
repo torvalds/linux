@@ -470,7 +470,7 @@ const struct stv6110x_devctl *stv6110x_attach(struct dvb_frontend *fe,
 EXPORT_SYMBOL_GPL(stv6110x_attach);
 
 static const struct i2c_device_id stv6110x_id_table[] = {
-	{"stv6110x", 0},
+	{ "stv6110x" },
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, stv6110x_id_table);

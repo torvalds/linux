@@ -158,7 +158,7 @@ static void clk_mt2701_aud_remove(struct platform_device *pdev)
 
 static struct platform_driver clk_mt2701_aud_drv = {
 	.probe = clk_mt2701_aud_probe,
-	.remove_new = clk_mt2701_aud_remove,
+	.remove = clk_mt2701_aud_remove,
 	.driver = {
 		.name = "clk-mt2701-aud",
 		.of_match_table = of_match_clk_mt2701_aud,

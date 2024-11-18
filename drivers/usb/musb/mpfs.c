@@ -49,30 +49,6 @@ static const struct musb_hdrc_config mpfs_musb_hdrc_config = {
 	.ram_bits = MPFS_MUSB_RAM_BITS,
 };
 
-static irqreturn_t mpfs_musb_interrupt(int irq, void *__hci)
-{
-	unsigned long flags;
-	irqreturn_t ret = IRQ_NONE;
-	struct musb *musb = __hci;
-
-	spin_lock_irqsave(&musb->lock, flags);
-
-	musb->int_usb = musb_readb(musb->mregs, MUSB_INTRUSB);
-	musb->int_tx = musb_readw(musb->mregs, MUSB_INTRTX);
-	musb->int_rx = musb_readw(musb->mregs, MUSB_INTRRX);
-
-	if (musb->int_usb || musb->int_tx || musb->int_rx) {
-		musb_writeb(musb->mregs, MUSB_INTRUSB, musb->int_usb);
-		musb_writew(musb->mregs, MUSB_INTRTX, musb->int_tx);
-		musb_writew(musb->mregs, MUSB_INTRRX, musb->int_rx);
-		ret = musb_interrupt(musb);
-	}
-
-	spin_unlock_irqrestore(&musb->lock, flags);
-
-	return ret;
-}
-
 static void mpfs_musb_set_vbus(struct musb *musb, int is_on)
 {
 	u8 devctl;
@@ -111,6 +87,129 @@ static void mpfs_musb_set_vbus(struct musb *musb, int is_on)
 		musb_readb(musb->mregs, MUSB_DEVCTL));
 }
 
+#define	POLL_SECONDS	2
+
+static void otg_timer(struct timer_list *t)
+{
+	struct musb		*musb = from_timer(musb, t, dev_timer);
+	void __iomem		*mregs = musb->mregs;
+	u8			devctl;
+	unsigned long		flags;
+
+	/*
+	 * We poll because PolarFire SoC won't expose several OTG-critical
+	 * status change events (from the transceiver) otherwise.
+	 */
+	devctl = musb_readb(mregs, MUSB_DEVCTL);
+	dev_dbg(musb->controller, "Poll devctl %02x (%s)\n", devctl,
+		usb_otg_state_string(musb->xceiv->otg->state));
+
+	spin_lock_irqsave(&musb->lock, flags);
+	switch (musb->xceiv->otg->state) {
+	case OTG_STATE_A_WAIT_BCON:
+		devctl &= ~MUSB_DEVCTL_SESSION;
+		musb_writeb(musb->mregs, MUSB_DEVCTL, devctl);
+
+		devctl = musb_readb(musb->mregs, MUSB_DEVCTL);
+		if (devctl & MUSB_DEVCTL_BDEVICE) {
+			musb->xceiv->otg->state = OTG_STATE_B_IDLE;
+			MUSB_DEV_MODE(musb);
+			mod_timer(&musb->dev_timer, jiffies + POLL_SECONDS * HZ);
+		} else {
+			musb->xceiv->otg->state = OTG_STATE_A_IDLE;
+			MUSB_HST_MODE(musb);
+		}
+		break;
+	case OTG_STATE_A_WAIT_VFALL:
+		if (devctl & MUSB_DEVCTL_VBUS) {
+			mod_timer(&musb->dev_timer, jiffies + POLL_SECONDS * HZ);
+			break;
+		}
+		musb->xceiv->otg->state = OTG_STATE_A_WAIT_VRISE;
+		break;
+	case OTG_STATE_B_IDLE:
+		/*
+		 * There's no ID-changed IRQ, so we have no good way to tell
+		 * when to switch to the A-Default state machine (by setting
+		 * the DEVCTL.Session bit).
+		 *
+		 * Workaround:  whenever we're in B_IDLE, try setting the
+		 * session flag every few seconds.  If it works, ID was
+		 * grounded and we're now in the A-Default state machine.
+		 *
+		 * NOTE: setting the session flag is _supposed_ to trigger
+		 * SRP but clearly it doesn't.
+		 */
+		musb_writeb(mregs, MUSB_DEVCTL, devctl | MUSB_DEVCTL_SESSION);
+		devctl = musb_readb(mregs, MUSB_DEVCTL);
+		if (devctl & MUSB_DEVCTL_BDEVICE)
+			mod_timer(&musb->dev_timer, jiffies + POLL_SECONDS * HZ);
+		else
+			musb->xceiv->otg->state = OTG_STATE_A_IDLE;
+		break;
+	default:
+		break;
+	}
+	spin_unlock_irqrestore(&musb->lock, flags);
+}
+
+static void __maybe_unused mpfs_musb_try_idle(struct musb *musb, unsigned long timeout)
+{
+	static unsigned long last_timer;
+
+	if (timeout == 0)
+		timeout = jiffies + msecs_to_jiffies(3);
+
+	/* Never idle if active, or when VBUS timeout is not set as host */
+	if (musb->is_active || (musb->a_wait_bcon == 0 &&
+				musb->xceiv->otg->state == OTG_STATE_A_WAIT_BCON)) {
+		dev_dbg(musb->controller, "%s active, deleting timer\n",
+			usb_otg_state_string(musb->xceiv->otg->state));
+		del_timer(&musb->dev_timer);
+		last_timer = jiffies;
+		return;
+	}
+
+	if (time_after(last_timer, timeout) && timer_pending(&musb->dev_timer)) {
+		dev_dbg(musb->controller, "Longer idle timer already pending, ignoring...\n");
+		return;
+	}
+	last_timer = timeout;
+
+	dev_dbg(musb->controller, "%s inactive, starting idle timer for %u ms\n",
+		usb_otg_state_string(musb->xceiv->otg->state),
+		jiffies_to_msecs(timeout - jiffies));
+	mod_timer(&musb->dev_timer, timeout);
+}
+
+static irqreturn_t mpfs_musb_interrupt(int irq, void *__hci)
+{
+	unsigned long flags;
+	irqreturn_t ret = IRQ_NONE;
+	struct musb *musb = __hci;
+
+	spin_lock_irqsave(&musb->lock, flags);
+
+	musb->int_usb = musb_readb(musb->mregs, MUSB_INTRUSB);
+	musb->int_tx = musb_readw(musb->mregs, MUSB_INTRTX);
+	musb->int_rx = musb_readw(musb->mregs, MUSB_INTRRX);
+
+	if (musb->int_usb || musb->int_tx || musb->int_rx) {
+		musb_writeb(musb->mregs, MUSB_INTRUSB, musb->int_usb);
+		musb_writew(musb->mregs, MUSB_INTRTX, musb->int_tx);
+		musb_writew(musb->mregs, MUSB_INTRRX, musb->int_rx);
+		ret = musb_interrupt(musb);
+	}
+
+	/* Poll for ID change */
+	if (musb->xceiv->otg->state == OTG_STATE_B_IDLE)
+		mod_timer(&musb->dev_timer, jiffies + POLL_SECONDS * HZ);
+
+	spin_unlock_irqrestore(&musb->lock, flags);
+
+	return ret;
+}
+
 static int mpfs_musb_init(struct musb *musb)
 {
 	struct device *dev = musb->controller;
@@ -121,6 +220,8 @@ static int mpfs_musb_init(struct musb *musb)
 		return PTR_ERR(musb->xceiv);
 	}
 
+	timer_setup(&musb->dev_timer, otg_timer, 0);
+
 	musb->dyn_fifo = true;
 	musb->isr = mpfs_musb_interrupt;
 
@@ -129,13 +230,24 @@ static int mpfs_musb_init(struct musb *musb)
 	return 0;
 }
 
+static int mpfs_musb_exit(struct musb *musb)
+{
+	del_timer_sync(&musb->dev_timer);
+
+	return 0;
+}
+
 static const struct musb_platform_ops mpfs_ops = {
 	.quirks		= MUSB_DMA_INVENTRA,
 	.init		= mpfs_musb_init,
+	.exit		= mpfs_musb_exit,
 	.fifo_mode	= 2,
 #ifdef CONFIG_USB_INVENTRA_DMA
 	.dma_init	= musbhs_dma_controller_create,
 	.dma_exit	= musbhs_dma_controller_destroy,
+#endif
+#ifndef CONFIG_USB_MUSB_HOST
+	.try_idle	= mpfs_musb_try_idle,
 #endif
 	.set_vbus	= mpfs_musb_set_vbus
 };

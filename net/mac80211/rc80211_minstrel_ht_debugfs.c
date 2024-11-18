@@ -187,7 +187,6 @@ static const struct file_operations minstrel_ht_stat_fops = {
 	.open = minstrel_ht_stats_open,
 	.read = minstrel_stats_read,
 	.release = minstrel_stats_release,
-	.llseek = no_llseek,
 };
 
 static char *
@@ -323,7 +322,6 @@ static const struct file_operations minstrel_ht_stat_csv_fops = {
 	.open = minstrel_ht_stats_csv_open,
 	.read = minstrel_stats_read,
 	.release = minstrel_stats_release,
-	.llseek = no_llseek,
 };
 
 void

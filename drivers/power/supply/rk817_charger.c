@@ -8,7 +8,7 @@
  *	    Chris Morgan <macromorgan@hotmail.com>
  */
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <linux/devm-helpers.h>
 #include <linux/mfd/rk808.h>
 #include <linux/irq.h>

@@ -299,11 +299,11 @@ SYM_CODE_END(startup_normal)
 # the save area and does disabled wait with a faulty address.
 #
 SYM_CODE_START_LOCAL(startup_pgm_check_handler)
-	stmg	%r8,%r15,__LC_SAVE_AREA_SYNC
+	stmg	%r8,%r15,__LC_SAVE_AREA
 	la	%r8,4095
 	stctg	%c0,%c15,__LC_CREGS_SAVE_AREA-4095(%r8)
 	stmg	%r0,%r7,__LC_GPREGS_SAVE_AREA-4095(%r8)
-	mvc	__LC_GPREGS_SAVE_AREA-4095+64(64,%r8),__LC_SAVE_AREA_SYNC
+	mvc	__LC_GPREGS_SAVE_AREA-4095+64(64,%r8),__LC_SAVE_AREA
 	mvc	__LC_PSW_SAVE_AREA-4095(16,%r8),__LC_PGM_OLD_PSW
 	mvc	__LC_RETURN_PSW(16),__LC_PGM_OLD_PSW
 	ni	__LC_RETURN_PSW,0xfc	# remove IO and EX bits

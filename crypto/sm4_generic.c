@@ -14,7 +14,7 @@
 #include <linux/types.h>
 #include <linux/errno.h>
 #include <asm/byteorder.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 /**
  * sm4_setkey - Set the SM4 key.

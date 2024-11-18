@@ -435,15 +435,18 @@ void __show_mem(unsigned int filter, nodemask_t *nodemask, int max_zone_idx)
 				struct codetag *ct = tags[i].ct;
 				struct alloc_tag *tag = ct_to_alloc_tag(ct);
 				struct alloc_tag_counters counter = alloc_tag_read(tag);
+				char bytes[10];
+
+				string_get_size(counter.bytes, 1, STRING_UNITS_2, bytes, sizeof(bytes));
 
 				/* Same as alloc_tag_to_text() but w/o intermediate buffer */
 				if (ct->modname)
-					pr_notice("%12lli %8llu %s:%u [%s] func:%s\n",
-						  counter.bytes, counter.calls, ct->filename,
+					pr_notice("%12s %8llu %s:%u [%s] func:%s\n",
+						  bytes, counter.calls, ct->filename,
 						  ct->lineno, ct->modname, ct->function);
 				else
-					pr_notice("%12lli %8llu %s:%u func:%s\n",
-						  counter.bytes, counter.calls, ct->filename,
+					pr_notice("%12s %8llu %s:%u func:%s\n",
+						  bytes, counter.calls, ct->filename,
 						  ct->lineno, ct->function);
 			}
 		}

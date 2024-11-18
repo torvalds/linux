@@ -15,10 +15,7 @@
 
 # include working environment
 . ../common/init.sh
-. ./settings.sh
 
-# shellcheck disable=SC2034 # the variable is later used after the working environment is included
-THIS_TEST_NAME=`basename $0 .sh`
 TEST_RESULT=0
 
 # shellcheck source=lib/probe_vfs_getname.sh

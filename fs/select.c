@@ -529,10 +529,10 @@ static noinline_for_stack int do_select(int n, fd_set_bits *fds, struct timespec
 					continue;
 				mask = EPOLLNVAL;
 				f = fdget(i);
-				if (f.file) {
+				if (fd_file(f)) {
 					wait_key_set(wait, in, out, bit,
 						     busy_flag);
-					mask = vfs_poll(f.file, wait);
+					mask = vfs_poll(fd_file(f), wait);
 
 					fdput(f);
 				}
@@ -777,7 +777,9 @@ static inline int get_sigset_argpack(struct sigset_argpack *to,
 {
 	// the path is hot enough for overhead of copy_from_user() to matter
 	if (from) {
-		if (!user_read_access_begin(from, sizeof(*from)))
+		if (can_do_masked_user_access())
+			from = masked_user_access_begin(from);
+		else if (!user_read_access_begin(from, sizeof(*from)))
 			return -EFAULT;
 		unsafe_get_user(to->p, &from->p, Efault);
 		unsafe_get_user(to->size, &from->size, Efault);
@@ -861,13 +863,13 @@ static inline __poll_t do_pollfd(struct pollfd *pollfd, poll_table *pwait,
 		goto out;
 	mask = EPOLLNVAL;
 	f = fdget(fd);
-	if (!f.file)
+	if (!fd_file(f))
 		goto out;
 
 	/* userland u16 ->events contains POLL... bitmap */
 	filter = demangle_poll(pollfd->events) | EPOLLERR | EPOLLHUP;
 	pwait->_key = filter | busy_flag;
-	mask = vfs_poll(f.file, pwait);
+	mask = vfs_poll(fd_file(f), pwait);
 	if (mask & busy_flag)
 		*can_busy_poll = true;
 	mask &= filter;		/* Mask out unneeded events. */

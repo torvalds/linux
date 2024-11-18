@@ -72,7 +72,7 @@ static int adxl367_write(void *context, const void *val_buf, size_t val_size)
 	return spi_sync(st->spi, &st->reg_write_msg);
 }
 
-static struct regmap_bus adxl367_spi_regmap_bus = {
+static const struct regmap_bus adxl367_spi_regmap_bus = {
 	.read = adxl367_read,
 	.write = adxl367_write,
 };

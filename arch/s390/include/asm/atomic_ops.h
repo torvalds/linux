@@ -9,6 +9,7 @@
 #define __ARCH_S390_ATOMIC_OPS__
 
 #include <linux/limits.h>
+#include <asm/march.h>
 
 static __always_inline int __atomic_read(const atomic_t *v)
 {
@@ -56,7 +57,7 @@ static __always_inline void __atomic64_set(atomic64_t *v, s64 i)
 	}
 }
 
-#ifdef CONFIG_HAVE_MARCH_Z196_FEATURES
+#ifdef MARCH_HAS_Z196_FEATURES
 
 #define __ATOMIC_OP(op_name, op_type, op_string, op_barrier)		\
 static __always_inline op_type op_name(op_type val, op_type *ptr)	\
@@ -107,7 +108,7 @@ __ATOMIC_CONST_OPS(__atomic64_add_const, long, "agsi")
 #undef __ATOMIC_CONST_OPS
 #undef __ATOMIC_CONST_OP
 
-#else /* CONFIG_HAVE_MARCH_Z196_FEATURES */
+#else /* MARCH_HAS_Z196_FEATURES */
 
 #define __ATOMIC_OP(op_name, op_string)					\
 static __always_inline int op_name(int val, int *ptr)			\
@@ -166,7 +167,7 @@ __ATOMIC64_OPS(__atomic64_xor, "xgr")
 #define __atomic64_add_const(val, ptr)		__atomic64_add(val, ptr)
 #define __atomic64_add_const_barrier(val, ptr)	__atomic64_add(val, ptr)
 
-#endif /* CONFIG_HAVE_MARCH_Z196_FEATURES */
+#endif /* MARCH_HAS_Z196_FEATURES */
 
 static __always_inline int __atomic_cmpxchg(int *ptr, int old, int new)
 {

@@ -299,7 +299,7 @@ static int axp288_adc_probe(struct platform_device *pdev)
 
 static const struct platform_device_id axp288_adc_id_table[] = {
 	{ .name = "axp288_adc" },
-	{},
+	{ }
 };
 
 static struct platform_driver axp288_adc_driver = {

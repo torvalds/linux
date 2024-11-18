@@ -11,11 +11,14 @@ maintainers:
 
 properties:
   compatible:
-    enum:
-      - fsl,ls1021a-qdma
-      - fsl,ls1028a-qdma
-      - fsl,ls1043a-qdma
-      - fsl,ls1046a-qdma
+    oneOf:
+      - const: fsl,ls1021a-qdma
+      - items:
+          - enum:
+              - fsl,ls1028a-qdma
+              - fsl,ls1043a-qdma
+              - fsl,ls1046a-qdma
+          - const: fsl,ls1021a-qdma
 
   reg:
     items:

@@ -9,18 +9,36 @@
 
 #ifdef CONFIG_XIP_KERNEL
 .macro XIP_FIXUP_OFFSET reg
-        REG_L t0, _xip_fixup
+	/* Fix-up address in Flash into address in RAM early during boot before
+	 * MMU is up. Because generated code "thinks" data is in Flash, but it
+	 * is actually in RAM (actually data is also in Flash, but Flash is
+	 * read-only, thus we need to use the data residing in RAM).
+	 *
+	 * The start of data in Flash is _sdata and the start of data in RAM is
+	 * CONFIG_PHYS_RAM_BASE. So this fix-up essentially does this:
+	 * reg += CONFIG_PHYS_RAM_BASE - _start
+	 */
+	li t0, CONFIG_PHYS_RAM_BASE
         add \reg, \reg, t0
+	la t0, _sdata
+	sub \reg, \reg, t0
 .endm
 .macro XIP_FIXUP_FLASH_OFFSET reg
+	/* In linker script, at the transition from read-only section to
+	 * writable section, the VMA is increased while LMA remains the same.
+	 * (See in linker script how _sdata, __data_loc and LOAD_OFFSET is
+	 * changed)
+	 *
+	 * Consequently, early during boot before MMU is up, the generated code
+	 * reads the "writable" section at wrong addresses, because VMA is used
+	 * by compiler to generate code, but the data is located in Flash using
+	 * LMA.
+	 */
+	la t0, _sdata
+	sub \reg, \reg, t0
 	la t0, __data_loc
-	REG_L t1, _xip_phys_offset
-	sub \reg, \reg, t1
 	add \reg, \reg, t0
 .endm
-
-_xip_fixup: .dword CONFIG_PHYS_RAM_BASE - CONFIG_XIP_PHYS_ADDR - XIP_OFFSET
-_xip_phys_offset: .dword CONFIG_XIP_PHYS_ADDR + XIP_OFFSET
 #else
 .macro XIP_FIXUP_OFFSET reg
 .endm

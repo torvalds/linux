@@ -64,6 +64,13 @@ struct tp_module {
 bool trace_module_has_bad_taint(struct module *mod);
 extern int register_tracepoint_module_notifier(struct notifier_block *nb);
 extern int unregister_tracepoint_module_notifier(struct notifier_block *nb);
+void for_each_module_tracepoint(void (*fct)(struct tracepoint *,
+					struct module *, void *),
+				void *priv);
+void for_each_tracepoint_in_module(struct module *,
+				   void (*fct)(struct tracepoint *,
+					struct module *, void *),
+				   void *priv);
 #else
 static inline bool trace_module_has_bad_taint(struct module *mod)
 {
@@ -78,6 +85,19 @@ static inline
 int unregister_tracepoint_module_notifier(struct notifier_block *nb)
 {
 	return 0;
+}
+static inline
+void for_each_module_tracepoint(void (*fct)(struct tracepoint *,
+					struct module *, void *),
+				void *priv)
+{
+}
+static inline
+void for_each_tracepoint_in_module(struct module *mod,
+				   void (*fct)(struct tracepoint *,
+					struct module *, void *),
+				   void *priv)
+{
 }
 #endif /* CONFIG_MODULES */
 

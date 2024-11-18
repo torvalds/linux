@@ -513,6 +513,8 @@ int bch2_check_topology(struct bch_fs *c)
 	struct bpos pulled_from_scan = POS_MIN;
 	int ret = 0;
 
+	bch2_trans_srcu_unlock(trans);
+
 	for (unsigned i = 0; i < btree_id_nr_alive(c) && !ret; i++) {
 		struct btree_root *r = bch2_btree_id_root(c, i);
 		bool reconstructed_root = false;
@@ -549,9 +551,8 @@ reconstruct_root:
 		six_unlock_read(&b->c.lock);
 
 		if (ret == DROP_THIS_NODE) {
-			bch2_btree_node_hash_remove(&c->btree_cache, b);
 			mutex_lock(&c->btree_cache.lock);
-			list_move(&b->list, &c->btree_cache.freeable);
+			bch2_btree_node_hash_remove(&c->btree_cache, b);
 			mutex_unlock(&c->btree_cache.lock);
 
 			r->b = NULL;
@@ -600,15 +601,15 @@ static int bch2_gc_mark_key(struct btree_trans *trans, enum btree_id btree_id,
 
 	if (initial) {
 		BUG_ON(bch2_journal_seq_verify &&
-		       k.k->version.lo > atomic64_read(&c->journal.seq));
+		       k.k->bversion.lo > atomic64_read(&c->journal.seq));
 
 		if (fsck_err_on(btree_id != BTREE_ID_accounting &&
-				k.k->version.lo > atomic64_read(&c->key_version),
+				k.k->bversion.lo > atomic64_read(&c->key_version),
 				trans, bkey_version_in_future,
 				"key version number higher than recorded %llu\n  %s",
 				atomic64_read(&c->key_version),
 				(bch2_bkey_val_to_text(&buf, c, k), buf.buf)))
-			atomic64_set(&c->key_version, k.k->version.lo);
+			atomic64_set(&c->key_version, k.k->bversion.lo);
 	}
 
 	if (mustfix_fsck_err_on(level && !bch2_dev_btree_bitmap_marked(c, k),
@@ -753,10 +754,8 @@ static void bch2_gc_free(struct bch_fs *c)
 	genradix_free(&c->reflink_gc_table);
 	genradix_free(&c->gc_stripes);
 
-	for_each_member_device(c, ca) {
-		kvfree(rcu_dereference_protected(ca->buckets_gc, 1));
-		ca->buckets_gc = NULL;
-	}
+	for_each_member_device(c, ca)
+		genradix_free(&ca->buckets_gc);
 }
 
 static int bch2_gc_start(struct bch_fs *c)
@@ -829,8 +828,6 @@ static int bch2_alloc_write_key(struct btree_trans *trans,
 			return ret;
 	}
 
-	gc.fragmentation_lru = alloc_lru_idx_fragmentation(gc, ca);
-
 	if (fsck_err_on(new.data_type != gc.data_type,
 			trans, alloc_key_data_type_wrong,
 			"bucket %llu:%llu gen %u has wrong data_type"
@@ -858,7 +855,6 @@ static int bch2_alloc_write_key(struct btree_trans *trans,
 	copy_bucket_field(alloc_key_cached_sectors_wrong,	cached_sectors);
 	copy_bucket_field(alloc_key_stripe_wrong,		stripe);
 	copy_bucket_field(alloc_key_stripe_redundancy_wrong,	stripe_redundancy);
-	copy_bucket_field(alloc_key_fragmentation_lru_wrong,	fragmentation_lru);
 #undef copy_bucket_field
 
 	if (!bch2_alloc_v4_cmp(*old, new))
@@ -910,20 +906,12 @@ static int bch2_gc_alloc_start(struct bch_fs *c)
 	int ret = 0;
 
 	for_each_member_device(c, ca) {
-		struct bucket_array *buckets = kvmalloc(sizeof(struct bucket_array) +
-				ca->mi.nbuckets * sizeof(struct bucket),
-				GFP_KERNEL|__GFP_ZERO);
-		if (!buckets) {
+		ret = genradix_prealloc(&ca->buckets_gc, ca->mi.nbuckets, GFP_KERNEL);
+		if (ret) {
 			bch2_dev_put(ca);
 			ret = -BCH_ERR_ENOMEM_gc_alloc_start;
 			break;
 		}
-
-		buckets->first_bucket	= ca->mi.first_bucket;
-		buckets->nbuckets	= ca->mi.nbuckets;
-		buckets->nbuckets_minus_first =
-			buckets->nbuckets - buckets->first_bucket;
-		rcu_assign_pointer(ca->buckets_gc, buckets);
 	}
 
 	bch_err_fn(c, ret);

@@ -78,7 +78,6 @@ static const struct hw_sequencer_funcs dcn10_funcs = {
 	.get_clock = dcn10_get_clock,
 	.get_vupdate_offset_from_vsync = dcn10_get_vupdate_offset_from_vsync,
 	.calc_vupdate_position = dcn10_calc_vupdate_position,
-	.power_down = dce110_power_down,
 	.set_backlight_level = dce110_set_backlight_level,
 	.set_abm_immediate_disable = dce110_set_abm_immediate_disable,
 	.set_pipe = dce110_set_pipe,
@@ -92,7 +91,6 @@ static const struct hw_sequencer_funcs dcn10_funcs = {
 
 static const struct hwseq_private_funcs dcn10_private_funcs = {
 	.init_pipes = dcn10_init_pipes,
-	.update_plane_addr = dcn10_update_plane_addr,
 	.plane_atomic_disconnect = dcn10_plane_atomic_disconnect,
 	.program_pipe = dcn10_program_pipe,
 	.update_mpcc = dcn10_update_mpcc,

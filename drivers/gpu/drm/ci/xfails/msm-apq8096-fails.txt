@@ -5,4 +5,3 @@ device_reset@unbind-reset-rebind,Fail
 dumb_buffer@invalid-bpp,Fail
 kms_3d,Fail
 kms_lease@lease-uevent,Fail
-tools_test@tools_test,Fail

@@ -8,6 +8,8 @@
 #include <errno.h>
 #include <string.h>
 #include <limits.h>
+
+#include <xalloc.h>
 #include "modpost.h"
 
 /*
@@ -305,7 +307,7 @@ static int parse_source_files(const char *objfile, struct md4_ctx *md)
 	const char *base;
 	int dirlen, ret = 0, check_files = 0;
 
-	cmd = NOFAIL(malloc(strlen(objfile) + sizeof("..cmd")));
+	cmd = xmalloc(strlen(objfile) + sizeof("..cmd"));
 
 	base = strrchr(objfile, '/');
 	if (base) {
@@ -316,7 +318,7 @@ static int parse_source_files(const char *objfile, struct md4_ctx *md)
 		dirlen = 0;
 		sprintf(cmd, ".%s.cmd", objfile);
 	}
-	dir = NOFAIL(malloc(dirlen + 1));
+	dir = xmalloc(dirlen + 1);
 	strncpy(dir, objfile, dirlen);
 	dir[dirlen] = '\0';
 

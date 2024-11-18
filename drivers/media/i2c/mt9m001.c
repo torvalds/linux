@@ -854,7 +854,7 @@ static void mt9m001_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id mt9m001_id[] = {
-	{ "mt9m001", 0 },
+	{ "mt9m001" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, mt9m001_id);

@@ -1,0 +1,150 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/input/touchscreen/adi,ad7879.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Analog Devices AD7879(-1)/AD7889(-1) touchscreen interface (SPI/I2C)
+
+maintainers:
+  - Frank Li <Frank.Li@nxp.com>
+
+properties:
+  compatible:
+    description: |
+      for SPI slave, use "adi,ad7879"
+      for I2C slave, use "adi,ad7879-1"
+    enum:
+      - adi,ad7879
+      - adi,ad7879-1
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  touchscreen-max-pressure:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: maximum reported pressure
+
+  adi,resistance-plate-x:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: total resistance of X-plate (for pressure calculation)
+
+  touchscreen-swapped-x-y:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description: X and Y axis are swapped (boolean)
+
+  adi,first-conversion-delay:
+    $ref: /schemas/types.yaml#/definitions/uint8
+    default: 0
+    minimum: 0
+    maximum: 15
+    description: |
+      0-12: In 128us steps (starting with 128us)
+      13  : 2.560ms
+      14  : 3.584ms
+      15  : 4.096ms
+      This property has to be a '/bits/ 8' value
+
+  adi,acquisition-time:
+    $ref: /schemas/types.yaml#/definitions/uint8
+    default: 0
+    enum: [0, 1, 2, 3]
+    description: |
+      0: 2us
+      1: 4us
+      2: 8us
+      3: 16us
+      This property has to be a '/bits/ 8' value
+
+  adi,median-filter-size:
+    $ref: /schemas/types.yaml#/definitions/uint8
+    default: 0
+    enum: [0, 1, 2, 3]
+    description: |
+      0: disabled
+      1: 4 measurements
+      2: 8 measurements
+      3: 16 measurements
+      This property has to be a '/bits/ 8' value
+
+  adi,averaging:
+    $ref: /schemas/types.yaml#/definitions/uint8
+    default: 0
+    enum: [0, 1, 2, 3]
+    description: |
+      0: 2 middle values (1 if median disabled)
+      1: 4 middle values
+      2: 8 middle values
+      3: 16 values
+      This property has to be a '/bits/ 8' value
+
+  adi,conversion-interval:
+    $ref: /schemas/types.yaml#/definitions/uint8
+    default: 0
+    description: |
+      0    : convert one time only
+      1-255: 515us + val * 35us (up to 9.440ms)
+      This property has to be a '/bits/ 8' value
+
+  gpio-controller: true
+
+  "#gpio-cells":
+    const: 1
+
+required:
+  - compatible
+  - reg
+
+allOf:
+  - $ref: /schemas/spi/spi-peripheral-props.yaml
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        touchscreen0@2c {
+            compatible = "adi,ad7879-1";
+            reg = <0x2c>;
+            interrupt-parent = <&gpio1>;
+            interrupts = <13 IRQ_TYPE_EDGE_FALLING>;
+            touchscreen-max-pressure = <4096>;
+            adi,resistance-plate-x = <120>;
+            adi,first-conversion-delay = /bits/ 8 <3>;
+            adi,acquisition-time = /bits/ 8 <1>;
+            adi,median-filter-size = /bits/ 8 <2>;
+            adi,averaging = /bits/ 8 <1>;
+            adi,conversion-interval = /bits/ 8 <255>;
+        };
+    };
+
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+    spi {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        touchscreen1@1 {
+            compatible = "adi,ad7879";
+            reg = <1>;
+            spi-max-frequency = <5000000>;
+            gpio-controller;
+            #gpio-cells = <1>;
+            interrupt-parent = <&gpio1>;
+            interrupts = <13 IRQ_TYPE_EDGE_FALLING>;
+            touchscreen-max-pressure = <4096>;
+            adi,resistance-plate-x = <120>;
+            adi,first-conversion-delay = /bits/ 8 <3>;
+            adi,acquisition-time = /bits/ 8 <1>;
+            adi,median-filter-size = /bits/ 8 <2>;
+            adi,averaging = /bits/ 8 <1>;
+            adi,conversion-interval = /bits/ 8 <255>;
+        };
+    };

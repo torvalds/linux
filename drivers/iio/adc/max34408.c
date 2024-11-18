@@ -250,14 +250,14 @@ static const struct of_device_id max34408_of_match[] = {
 		.compatible = "maxim,max34409",
 		.data = &max34409_model_data,
 	},
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(of, max34408_of_match);
 
 static const struct i2c_device_id max34408_id[] = {
 	{ "max34408", (kernel_ulong_t)&max34408_model_data },
 	{ "max34409", (kernel_ulong_t)&max34409_model_data },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, max34408_id);
 

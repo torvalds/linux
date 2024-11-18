@@ -456,6 +456,8 @@ int drmm_mode_config_init(struct drm_device *dev)
 		if (ret == -EDEADLK)
 			ret = drm_modeset_backoff(&modeset_ctx);
 
+		might_fault();
+
 		ww_acquire_init(&resv_ctx, &reservation_ww_class);
 		ret = dma_resv_lock(&resv, &resv_ctx);
 		if (ret == -EDEADLK)

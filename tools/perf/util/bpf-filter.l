@@ -9,8 +9,11 @@
 #include "bpf-filter.h"
 #include "bpf-filter-bison.h"
 
+extern int perf_bpf_filter_needs_path;
+
 static int sample(enum perf_bpf_filter_term term)
 {
+	perf_bpf_filter_needs_path = 0;
 	perf_bpf_filter_lval.sample.term = term;
 	perf_bpf_filter_lval.sample.part = 0;
 	return BFT_SAMPLE;
@@ -18,9 +21,18 @@ static int sample(enum perf_bpf_filter_term term)
 
 static int sample_part(enum perf_bpf_filter_term term, int part)
 {
+	perf_bpf_filter_needs_path = 0;
 	perf_bpf_filter_lval.sample.term = term;
 	perf_bpf_filter_lval.sample.part = part;
 	return BFT_SAMPLE;
+}
+
+static int sample_path(enum perf_bpf_filter_term term)
+{
+	perf_bpf_filter_needs_path = 1;
+	perf_bpf_filter_lval.sample.term = term;
+	perf_bpf_filter_lval.sample.part = 0;
+	return BFT_SAMPLE_PATH;
 }
 
 static int operator(enum perf_bpf_filter_op op)
@@ -48,10 +60,15 @@ static int constant(int val)
 	return BFT_NUM;
 }
 
-static int error(const char *str)
+static int path_or_error(void)
 {
-	printf("perf_bpf_filter: Unexpected filter %s: %s\n", str, perf_bpf_filter_text);
-	return BFT_ERROR;
+	if (!perf_bpf_filter_needs_path) {
+		printf("perf_bpf_filter: Error: Unexpected item: %s\n",
+			perf_bpf_filter_text);
+		return BFT_ERROR;
+	}
+	perf_bpf_filter_lval.path = perf_bpf_filter_text;
+	return BFT_PATH;
 }
 
 %}
@@ -59,6 +76,7 @@ static int error(const char *str)
 num_dec		[0-9]+
 num_hex		0[Xx][0-9a-fA-F]+
 space		[ \t]+
+path		[^ \t\n]+
 ident		[_a-zA-Z][_a-zA-Z0-9]+
 
 %%
@@ -97,6 +115,7 @@ mem_blk		{ return sample_part(PBF_TERM_DATA_SRC, 7); }
 mem_hops	{ return sample_part(PBF_TERM_DATA_SRC, 8); }
 uid		{ return sample(PBF_TERM_UID); }
 gid		{ return sample(PBF_TERM_GID); }
+cgroup		{ return sample_path(PBF_TERM_CGROUP); }
 
 "=="		{ return operator(PBF_OP_EQ); }
 "!="		{ return operator(PBF_OP_NEQ); }
@@ -155,7 +174,6 @@ hops3		{ return constant(PERF_MEM_HOPS_3); }
 ","		{ return ','; }
 "||"		{ return BFT_LOGICAL_OR; }
 
-{ident}		{ return error("ident"); }
-.		{ return error("input"); }
+{path}		{ return path_or_error(); }
 
 %%

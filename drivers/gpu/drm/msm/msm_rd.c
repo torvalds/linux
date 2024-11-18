@@ -227,7 +227,6 @@ static const struct file_operations rd_debugfs_fops = {
 	.owner = THIS_MODULE,
 	.open = rd_open,
 	.read = rd_read,
-	.llseek = no_llseek,
 	.release = rd_release,
 };
 

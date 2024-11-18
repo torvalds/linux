@@ -41,10 +41,9 @@ config TXGBE
 	tristate "Wangxun(R) 10GbE PCI Express adapters support"
 	depends on PCI
 	depends on COMMON_CLK
+	depends on I2C_DESIGNWARE_PLATFORM
 	select MARVELL_10G_PHY
 	select REGMAP
-	select I2C
-	select I2C_DESIGNWARE_PLATFORM
 	select PHYLINK
 	select HWMON if TXGBE=y
 	select SFP

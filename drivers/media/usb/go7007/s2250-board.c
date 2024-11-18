@@ -611,7 +611,7 @@ static void s2250_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id s2250_id[] = {
-	{ "s2250", 0 },
+	{ "s2250" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, s2250_id);

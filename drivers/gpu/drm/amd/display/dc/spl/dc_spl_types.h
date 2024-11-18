@@ -2,30 +2,15 @@
 //
 // Copyright 2024 Advanced Micro Devices, Inc.
 
-#include "os_types.h"
-#include "dc_hw_types.h"
-#ifndef ASSERT
-#define ASSERT(_bool) (void *)0
-#endif
-#include "include/fixed31_32.h"	// fixed31_32 and related functions
 #ifndef __DC_SPL_TYPES_H__
 #define __DC_SPL_TYPES_H__
 
-enum lb_memory_config {
-	/* Enable all 3 pieces of memory */
-	LB_MEMORY_CONFIG_0 = 0,
-
-	/* Enable only the first piece of memory */
-	LB_MEMORY_CONFIG_1 = 1,
-
-	/* Enable only the second piece of memory */
-	LB_MEMORY_CONFIG_2 = 2,
-
-	/* Only applicable in 4:2:0 mode, enable all 3 pieces of memory and the
-	 * last piece of chroma memory used for the luma storage
-	 */
-	LB_MEMORY_CONFIG_3 = 3
-};
+#include "spl_os_types.h"   // swap
+#ifndef SPL_ASSERT
+#define SPL_ASSERT(_bool) ((void *)0)
+#endif
+#include "spl_fixpt31_32.h"	// fixed31_32 and related functions
+#include "spl_custom_float.h" // custom float and related functions
 
 struct spl_size {
 	uint32_t width;
@@ -39,16 +24,16 @@ struct spl_rect	{
 };
 
 struct spl_ratios {
-	struct fixed31_32 horz;
-	struct fixed31_32 vert;
-	struct fixed31_32 horz_c;
-	struct fixed31_32 vert_c;
+	struct spl_fixed31_32 horz;
+	struct spl_fixed31_32 vert;
+	struct spl_fixed31_32 horz_c;
+	struct spl_fixed31_32 vert_c;
 };
 struct spl_inits {
-	struct fixed31_32 h;
-	struct fixed31_32 h_c;
-	struct fixed31_32 v;
-	struct fixed31_32 v_c;
+	struct spl_fixed31_32 h;
+	struct spl_fixed31_32 h_c;
+	struct spl_fixed31_32 v;
+	struct spl_fixed31_32 v_c;
 };
 
 struct spl_taps	{
@@ -81,11 +66,29 @@ enum spl_pixel_format {
 	SPL_PIXEL_FORMAT_420BPP10,
 	/*end of pixel format definition*/
 	SPL_PIXEL_FORMAT_INVALID,
+	SPL_PIXEL_FORMAT_422BPP8,
+	SPL_PIXEL_FORMAT_422BPP10,
 	SPL_PIXEL_FORMAT_GRPH_BEGIN = SPL_PIXEL_FORMAT_INDEX8,
 	SPL_PIXEL_FORMAT_GRPH_END = SPL_PIXEL_FORMAT_FP16,
 	SPL_PIXEL_FORMAT_VIDEO_BEGIN = SPL_PIXEL_FORMAT_420BPP8,
 	SPL_PIXEL_FORMAT_VIDEO_END = SPL_PIXEL_FORMAT_420BPP10,
 	SPL_PIXEL_FORMAT_UNKNOWN
+};
+
+enum lb_memory_config {
+	/* Enable all 3 pieces of memory */
+	LB_MEMORY_CONFIG_0 = 0,
+
+	/* Enable only the first piece of memory */
+	LB_MEMORY_CONFIG_1 = 1,
+
+	/* Enable only the second piece of memory */
+	LB_MEMORY_CONFIG_2 = 2,
+
+	/* Only applicable in 4:2:0 mode, enable all 3 pieces of memory and the
+	 * last piece of chroma memory used for the luma storage
+	 */
+	LB_MEMORY_CONFIG_3 = 3
 };
 
 /* Rotation angle */
@@ -120,6 +123,13 @@ enum spl_color_space {
 	SPL_COLOR_SPACE_YCBCR709_BLACK,
 };
 
+enum chroma_cositing {
+	CHROMA_COSITING_NONE,
+	CHROMA_COSITING_LEFT,
+	CHROMA_COSITING_TOPLEFT,
+	CHROMA_COSITING_COUNT
+};
+
 // Scratch space for calculating scaler params
 struct spl_scaler_data {
 	int h_active;
@@ -129,6 +139,7 @@ struct spl_scaler_data {
 	struct spl_rect viewport_c;
 	struct spl_rect recout;
 	struct spl_ratios ratios;
+	struct spl_ratios recip_ratios;
 	struct spl_inits inits;
 };
 
@@ -396,13 +407,19 @@ struct dscl_prog_data {
 	/* blur and scale filter */
 	const uint16_t *filter_blur_scale_v;
 	const uint16_t *filter_blur_scale_h;
+	int sharpness_level; /* Track sharpness level */
+};
+
+/* SPL input and output definitions */
+// SPL scratch struct
+struct spl_scratch {
+	// Pack all SPL outputs in scl_data
+	struct spl_scaler_data scl_data;
 };
 
 /* SPL input and output definitions */
 // SPL outputs struct
 struct spl_out	{
-	// Pack all SPL outputs in scl_data
-	struct spl_scaler_data scl_data;
 	// Pack all output need to program hw registers
 	struct dscl_prog_data *dscl_prog_data;
 };
@@ -444,19 +461,42 @@ struct basic_out {
 	bool alpha_en;
 	bool use_two_pixels_per_container;
 };
-enum explicit_sharpness	{
-	SHARPNESS_LOW = 0,
-	SHARPNESS_MID,
-	SHARPNESS_HIGH
+enum sharpness_setting	{
+	SHARPNESS_HW_OFF = 0,
+	SHARPNESS_ZERO,
+	SHARPNESS_CUSTOM
 };
-struct adaptive_sharpness	{
+struct spl_sharpness_range {
+	int sdr_rgb_min;
+	int sdr_rgb_max;
+	int sdr_rgb_mid;
+	int sdr_yuv_min;
+	int sdr_yuv_max;
+	int sdr_yuv_mid;
+	int hdr_rgb_min;
+	int hdr_rgb_max;
+	int hdr_rgb_mid;
+};
+struct adaptive_sharpness {
 	bool enable;
-	enum explicit_sharpness sharpness;
+	int sharpness_level;
+	struct spl_sharpness_range sharpness_range;
 };
 enum linear_light_scaling	{	// convert it in translation logic
 	LLS_PREF_DONT_CARE = 0,
 	LLS_PREF_YES,
 	LLS_PREF_NO
+};
+enum sharpen_policy {
+	SHARPEN_ALWAYS = 0,
+	SHARPEN_YUV = 1,
+	SHARPEN_RGB_FULLSCREEN_YUV = 2,
+	SHARPEN_FULLSCREEN_ALL = 3
+};
+enum scale_to_sharpness_policy {
+	NO_SCALE_TO_SHARPNESS_ADJ = 0,
+	SCALE_TO_SHARPNESS_ADJ_YUV = 1,
+	SCALE_TO_SHARPNESS_ADJ_ALL = 2
 };
 struct spl_funcs	{
 	void (*spl_calc_lb_num_partitions)
@@ -470,6 +510,8 @@ struct spl_funcs	{
 struct spl_debug {
 	int visual_confirm_base_offset;
 	int visual_confirm_dpp_offset;
+	enum sharpen_policy sharpen_policy;
+	enum scale_to_sharpness_policy scale_to_sharpness_policy;
 };
 
 struct spl_in	{
@@ -485,6 +527,11 @@ struct spl_in	{
 	bool prefer_easf;
 	bool disable_easf;
 	struct spl_debug debug;
+	bool is_fullscreen;
+	bool is_hdr_on;
+	int h_active;
+	int v_active;
+	int sdr_white_level_nits;
 };
 // end of SPL inputs
 

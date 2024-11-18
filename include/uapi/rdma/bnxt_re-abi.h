@@ -66,6 +66,7 @@ enum bnxt_re_wqe_mode {
 
 enum {
 	BNXT_RE_COMP_MASK_REQ_UCNTX_POW2_SUPPORT = 0x01,
+	BNXT_RE_COMP_MASK_REQ_UCNTX_VAR_WQE_SUPPORT = 0x02,
 };
 
 struct bnxt_re_uctx_req {
@@ -118,10 +119,16 @@ struct bnxt_re_resize_cq_req {
 	__aligned_u64 cq_va;
 };
 
+enum bnxt_re_qp_mask {
+	BNXT_RE_QP_REQ_MASK_VAR_WQE_SQ_SLOTS = 0x1,
+};
+
 struct bnxt_re_qp_req {
 	__aligned_u64 qpsva;
 	__aligned_u64 qprva;
 	__aligned_u64 qp_handle;
+	__aligned_u64 comp_mask;
+	__u32 sq_slots;
 };
 
 struct bnxt_re_qp_resp {
@@ -134,8 +141,14 @@ struct bnxt_re_srq_req {
 	__aligned_u64 srq_handle;
 };
 
+enum bnxt_re_srq_mask {
+	BNXT_RE_SRQ_TOGGLE_PAGE_SUPPORT = 0x1,
+};
+
 struct bnxt_re_srq_resp {
 	__u32 srqid;
+	__u32 rsvd; /* padding */
+	__aligned_u64 comp_mask;
 };
 
 enum bnxt_re_shpg_offt {

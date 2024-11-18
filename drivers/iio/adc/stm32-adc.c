@@ -1261,7 +1261,7 @@ static int stm32_adc_conf_scan_seq(struct iio_dev *indio_dev,
 	stm32_adc_writel(adc, adc->cfg->regs->smpr[0], adc->smpr_val[0]);
 	stm32_adc_writel(adc, adc->cfg->regs->smpr[1], adc->smpr_val[1]);
 
-	for_each_set_bit(bit, scan_mask, indio_dev->masklength) {
+	for_each_set_bit(bit, scan_mask, iio_get_masklength(indio_dev)) {
 		chan = indio_dev->channels + bit;
 		/*
 		 * Assign one channel per SQ entry in regular
@@ -1619,7 +1619,7 @@ static int stm32_adc_update_scan_mode(struct iio_dev *indio_dev,
 	if (ret < 0)
 		return ret;
 
-	adc->num_conv = bitmap_weight(scan_mask, indio_dev->masklength);
+	adc->num_conv = bitmap_weight(scan_mask, iio_get_masklength(indio_dev));
 
 	ret = stm32_adc_conf_scan_seq(indio_dev, scan_mask);
 	pm_runtime_mark_last_busy(dev);
@@ -2638,7 +2638,7 @@ static const struct of_device_id stm32_adc_of_match[] = {
 	{ .compatible = "st,stm32h7-adc", .data = (void *)&stm32h7_adc_cfg },
 	{ .compatible = "st,stm32mp1-adc", .data = (void *)&stm32mp1_adc_cfg },
 	{ .compatible = "st,stm32mp13-adc", .data = (void *)&stm32mp13_adc_cfg },
-	{},
+	{ }
 };
 MODULE_DEVICE_TABLE(of, stm32_adc_of_match);
 

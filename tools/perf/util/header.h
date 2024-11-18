@@ -61,14 +61,28 @@ struct perf_file_section {
 	u64 size;
 };
 
+/**
+ * struct perf_file_header: Header representation on disk.
+ */
 struct perf_file_header {
+	/** @magic: Holds "PERFILE2". */
 	u64				magic;
+	/** @size: Size of this header - sizeof(struct perf_file_header). */
 	u64				size;
+	/**
+	 * @attr_size: Size of attrs entries - sizeof(struct perf_event_attr) +
+	 * sizeof(struct perf_file_section).
+	 */
 	u64				attr_size;
+	/** @attrs: Offset and size of file section holding attributes. */
 	struct perf_file_section	attrs;
+	/** @data: Offset and size of file section holding regular event data. */
 	struct perf_file_section	data;
-	/* event_types is ignored */
+	/** @event_types: Ignored. */
 	struct perf_file_section	event_types;
+	/**
+	 * @adds_features: Bitmap of features. The features are immediately after the data section.
+	 */
 	DECLARE_BITMAP(adds_features, HEADER_FEAT_BITS);
 };
 
@@ -117,7 +131,7 @@ union perf_event;
 
 extern const char perf_version_string[];
 
-int perf_session__read_header(struct perf_session *session, int repipe_fd);
+int perf_session__read_header(struct perf_session *session);
 int perf_session__write_header(struct perf_session *session,
 			       struct evlist *evlist,
 			       int fd, bool at_exit);
@@ -136,7 +150,8 @@ struct feat_copier {
 int perf_session__inject_header(struct perf_session *session,
 				struct evlist *evlist,
 				int fd,
-				struct feat_copier *fc);
+				struct feat_copier *fc,
+				bool write_attrs_after_data);
 
 size_t perf_session__data_offset(const struct evlist *evlist);
 
@@ -156,9 +171,9 @@ int perf_header__fprintf_info(struct perf_session *s, FILE *fp, bool full);
 
 int perf_event__process_feature(struct perf_session *session,
 				union perf_event *event);
-int perf_event__process_attr(struct perf_tool *tool, union perf_event *event,
+int perf_event__process_attr(const struct perf_tool *tool, union perf_event *event,
 			     struct evlist **pevlist);
-int perf_event__process_event_update(struct perf_tool *tool,
+int perf_event__process_event_update(const struct perf_tool *tool,
 				     union perf_event *event,
 				     struct evlist **pevlist);
 size_t perf_event__fprintf_event_update(union perf_event *event, FILE *fp);

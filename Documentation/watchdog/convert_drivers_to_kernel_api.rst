@@ -75,7 +75,6 @@ Example conversion::
 
   -static const struct file_operations s3c2410wdt_fops = {
   -       .owner          = THIS_MODULE,
-  -       .llseek         = no_llseek,
   -       .write          = s3c2410wdt_write,
   -       .unlocked_ioctl = s3c2410wdt_ioctl,
   -       .open           = s3c2410wdt_open,

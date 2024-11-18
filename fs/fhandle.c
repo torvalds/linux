@@ -140,9 +140,9 @@ static int get_path_from_fd(int fd, struct path *root)
 		spin_unlock(&fs->lock);
 	} else {
 		struct fd f = fdget(fd);
-		if (!f.file)
+		if (!fd_file(f))
 			return -EBADF;
-		*root = f.file->f_path;
+		*root = fd_file(f)->f_path;
 		path_get(root);
 		fdput(f);
 	}
