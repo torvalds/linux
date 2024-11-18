@@ -326,10 +326,13 @@ int perf_env__read_cpu_topology_map(struct perf_env *env)
 
 	for (idx = 0; idx < nr_cpus; ++idx) {
 		struct perf_cpu cpu = { .cpu = idx };
+		int core_id   = cpu__get_core_id(cpu);
+		int socket_id = cpu__get_socket_id(cpu);
+		int die_id    = cpu__get_die_id(cpu);
 
-		env->cpu[idx].core_id	= cpu__get_core_id(cpu);
-		env->cpu[idx].socket_id	= cpu__get_socket_id(cpu);
-		env->cpu[idx].die_id	= cpu__get_die_id(cpu);
+		env->cpu[idx].core_id	= core_id >= 0 ? core_id : -1;
+		env->cpu[idx].socket_id	= socket_id >= 0 ? socket_id : -1;
+		env->cpu[idx].die_id	= die_id >= 0 ? die_id : -1;
 	}
 
 	env->nr_cpus_avail = nr_cpus;
