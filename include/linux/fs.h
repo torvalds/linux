@@ -45,6 +45,7 @@
 #include <linux/slab.h>
 #include <linux/maple_tree.h>
 #include <linux/rw_hint.h>
+#include <linux/file_ref.h>
 
 #include <asm/byteorder.h>
 #include <uapi/linux/fs.h>
@@ -1006,7 +1007,7 @@ static inline int ra_has_index(struct file_ra_state *ra, pgoff_t index)
 
 /**
  * struct file - Represents a file
- * @f_count: reference count
+ * @f_ref: reference count
  * @f_lock: Protects f_ep, f_flags. Must not be taken from IRQ context.
  * @f_mode: FMODE_* flags often used in hotpaths
  * @f_op: file operations
@@ -1031,7 +1032,7 @@ static inline int ra_has_index(struct file_ra_state *ra, pgoff_t index)
  * @f_freeptr: Pointer used by SLAB_TYPESAFE_BY_RCU file cache (don't touch.)
  */
 struct file {
-	atomic_long_t			f_count;
+	file_ref_t			f_ref;
 	spinlock_t			f_lock;
 	fmode_t				f_mode;
 	const struct file_operations	*f_op;
@@ -1079,15 +1080,14 @@ struct file_handle {
 
 static inline struct file *get_file(struct file *f)
 {
-	long prior = atomic_long_fetch_inc_relaxed(&f->f_count);
-	WARN_ONCE(!prior, "struct file::f_count incremented from zero; use-after-free condition present!\n");
+	file_ref_inc(&f->f_ref);
 	return f;
 }
 
 struct file *get_file_rcu(struct file __rcu **f);
 struct file *get_file_active(struct file **f);
 
-#define file_count(x)	atomic_long_read(&(x)->f_count)
+#define file_count(f)	file_ref_read(&(f)->f_ref)
 
 #define	MAX_NON_LFS	((1UL<<31) - 1)
 
