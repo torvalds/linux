@@ -158,11 +158,6 @@ static umode_t hwmon_is_visible(const struct hwmon_ops *ops,
 
 /* Thermal zone handling */
 
-/*
- * The complex conditional is necessary to avoid a cyclic dependency
- * between hwmon and thermal_sys modules.
- */
-#ifdef CONFIG_THERMAL_OF
 static int hwmon_thermal_get_temp(struct thermal_zone_device *tz, int *temp)
 {
 	struct hwmon_thermal_data *tdata = thermal_zone_device_priv(tz);
@@ -268,6 +263,9 @@ static int hwmon_thermal_register_sensors(struct device *dev)
 	void *drvdata = dev_get_drvdata(dev);
 	int i;
 
+	if (!IS_ENABLED(CONFIG_THERMAL_OF))
+		return 0;
+
 	for (i = 1; info[i]; i++) {
 		int j;
 
@@ -296,6 +294,9 @@ static void hwmon_thermal_notify(struct device *dev, int index)
 	struct hwmon_device *hwdev = to_hwmon_device(dev);
 	struct hwmon_thermal_data *tzdata;
 
+	if (!IS_ENABLED(CONFIG_THERMAL_OF))
+		return;
+
 	list_for_each_entry(tzdata, &hwdev->tzdata, node) {
 		if (tzdata->index == index) {
 			thermal_zone_device_update(tzdata->tzd,
@@ -303,16 +304,6 @@ static void hwmon_thermal_notify(struct device *dev, int index)
 		}
 	}
 }
-
-#else
-static int hwmon_thermal_register_sensors(struct device *dev)
-{
-	return 0;
-}
-
-static void hwmon_thermal_notify(struct device *dev, int index) { }
-
-#endif /* IS_REACHABLE(CONFIG_THERMAL) && ... */
 
 static int hwmon_attr_base(enum hwmon_sensor_types type)
 {
