@@ -352,8 +352,8 @@ int bch2_check_btree_backpointers(struct bch_fs *c)
 }
 
 struct extents_to_bp_state {
-	struct bpos	bucket_start;
-	struct bpos	bucket_end;
+	struct bpos	bp_start;
+	struct bpos	bp_end;
 	struct bkey_buf last_flushed;
 };
 
@@ -445,29 +445,16 @@ static int check_bp_exists(struct btree_trans *trans,
 			   struct bkey_s_c orig_k)
 {
 	struct bch_fs *c = trans->c;
-	struct btree_iter bp_iter = {};
 	struct btree_iter other_extent_iter = {};
 	struct printbuf buf = PRINTBUF;
-	struct bkey_s_c bp_k;
-	int ret = 0;
 
-	struct bch_dev *ca = bch2_dev_tryget_noerror(c, bp->k.p.inode);
-	if (!ca) {
-		prt_printf(&buf, "extent for nonexistent device %llu\n", bp->k.p.inode);
-		bch2_bkey_val_to_text(&buf, c, orig_k);
-		bch_err(c, "%s", buf.buf);
-		ret = -BCH_ERR_fsck_repair_unimplemented;
-		goto err;
-	}
+	if (bpos_lt(bp->k.p, s->bp_start) ||
+	    bpos_gt(bp->k.p, s->bp_end))
+		return 0;
 
-	struct bpos bucket = bp_pos_to_bucket(ca, bp->k.p);
-
-	if (bpos_lt(bucket, s->bucket_start) ||
-	    bpos_gt(bucket, s->bucket_end))
-		goto out;
-
-	bp_k = bch2_bkey_get_iter(trans, &bp_iter, BTREE_ID_backpointers, bp->k.p, 0);
-	ret = bkey_err(bp_k);
+	struct btree_iter bp_iter;
+	struct bkey_s_c bp_k = bch2_bkey_get_iter(trans, &bp_iter, BTREE_ID_backpointers, bp->k.p, 0);
+	int ret = bkey_err(bp_k);
 	if (ret)
 		goto err;
 
@@ -484,7 +471,6 @@ err:
 fsck_err:
 	bch2_trans_iter_exit(trans, &other_extent_iter);
 	bch2_trans_iter_exit(trans, &bp_iter);
-	bch2_dev_put(ca);
 	printbuf_exit(&buf);
 	return ret;
 check_existing_bp:
@@ -514,12 +500,13 @@ check_existing_bp:
 		bch_err(c, "%s", buf.buf);
 
 		if (other_extent.k->size <= orig_k.k->size) {
-			ret = drop_dev_and_update(trans, other_bp.v->btree_id, other_extent, bucket.inode);
+			ret = drop_dev_and_update(trans, other_bp.v->btree_id,
+						  other_extent, bp->k.p.inode);
 			if (ret)
 				goto err;
 			goto out;
 		} else {
-			ret = drop_dev_and_update(trans, bp->v.btree_id, orig_k, bucket.inode);
+			ret = drop_dev_and_update(trans, bp->v.btree_id, orig_k, bp->k.p.inode);
 			if (ret)
 				goto err;
 			goto missing;
@@ -529,7 +516,7 @@ check_existing_bp:
 	ret = check_extent_checksum(trans,
 				    other_bp.v->btree_id, other_extent,
 				    bp->v.btree_id, orig_k,
-				    bucket.inode);
+				    bp->k.p.inode);
 	if (ret < 0)
 		goto err;
 	if (ret) {
@@ -538,7 +525,7 @@ check_existing_bp:
 	}
 
 	ret = check_extent_checksum(trans, bp->v.btree_id, orig_k,
-				    other_bp.v->btree_id, other_extent, bucket.inode);
+				    other_bp.v->btree_id, other_extent, bp->k.p.inode);
 	if (ret < 0)
 		goto err;
 	if (ret) {
@@ -547,7 +534,7 @@ check_existing_bp:
 	}
 
 	printbuf_reset(&buf);
-	prt_printf(&buf, "duplicate extents pointing to same space on dev %llu\n  ", bucket.inode);
+	prt_printf(&buf, "duplicate extents pointing to same space on dev %llu\n  ", bp->k.p.inode);
 	bch2_bkey_val_to_text(&buf, c, orig_k);
 	prt_str(&buf, "\n  ");
 	bch2_bkey_val_to_text(&buf, c, other_extent);
@@ -811,7 +798,7 @@ static int bch2_check_extents_to_backpointers_pass(struct btree_trans *trans,
 int bch2_check_extents_to_backpointers(struct bch_fs *c)
 {
 	struct btree_trans *trans = bch2_trans_get(c);
-	struct extents_to_bp_state s = { .bucket_start = POS_MIN };
+	struct extents_to_bp_state s = { .bp_start = POS_MIN };
 	int ret;
 
 	bch2_bkey_buf_init(&s.last_flushed);
@@ -822,35 +809,35 @@ int bch2_check_extents_to_backpointers(struct bch_fs *c)
 		ret = bch2_get_btree_in_memory_pos(trans,
 				BIT_ULL(BTREE_ID_backpointers),
 				BIT_ULL(BTREE_ID_backpointers),
-				BBPOS(BTREE_ID_backpointers, s.bucket_start), &end);
+				BBPOS(BTREE_ID_backpointers, s.bp_start), &end);
 		if (ret)
 			break;
 
-		s.bucket_end = end.pos;
+		s.bp_end = end.pos;
 
-		if ( bpos_eq(s.bucket_start, POS_MIN) &&
-		    !bpos_eq(s.bucket_end, SPOS_MAX))
+		if ( bpos_eq(s.bp_start, POS_MIN) &&
+		    !bpos_eq(s.bp_end, SPOS_MAX))
 			bch_verbose(c, "%s(): alloc info does not fit in ram, running in multiple passes with %zu nodes per pass",
 				    __func__, btree_nodes_fit_in_ram(c));
 
-		if (!bpos_eq(s.bucket_start, POS_MIN) ||
-		    !bpos_eq(s.bucket_end, SPOS_MAX)) {
+		if (!bpos_eq(s.bp_start, POS_MIN) ||
+		    !bpos_eq(s.bp_end, SPOS_MAX)) {
 			struct printbuf buf = PRINTBUF;
 
 			prt_str(&buf, "check_extents_to_backpointers(): ");
-			bch2_bpos_to_text(&buf, s.bucket_start);
+			bch2_bpos_to_text(&buf, s.bp_start);
 			prt_str(&buf, "-");
-			bch2_bpos_to_text(&buf, s.bucket_end);
+			bch2_bpos_to_text(&buf, s.bp_end);
 
 			bch_verbose(c, "%s", buf.buf);
 			printbuf_exit(&buf);
 		}
 
 		ret = bch2_check_extents_to_backpointers_pass(trans, &s);
-		if (ret || bpos_eq(s.bucket_end, SPOS_MAX))
+		if (ret || bpos_eq(s.bp_end, SPOS_MAX))
 			break;
 
-		s.bucket_start = bpos_successor(s.bucket_end);
+		s.bp_start = bpos_successor(s.bp_end);
 	}
 	bch2_trans_put(trans);
 	bch2_bkey_buf_exit(&s.last_flushed, c);
