@@ -275,6 +275,9 @@ static int imx_audmix_probe(struct platform_device *pdev)
 		/* Add AUDMIX Backend */
 		be_name = devm_kasprintf(&pdev->dev, GFP_KERNEL,
 					 "audmix-%d", i);
+		if (!be_name)
+			return -ENOMEM;
+
 		priv->dai[num_dai + i].cpus	= &dlc[1];
 		priv->dai[num_dai + i].codecs	= &snd_soc_dummy_dlc;
 
