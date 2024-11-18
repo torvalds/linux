@@ -10,6 +10,8 @@
 #
 #
 
+set -e
+
 usage() {
 	echo "Usage: $0 [--no-local] [srctree]" >&2
 	exit 1
@@ -34,7 +36,9 @@ try_tag() {
 	tag="$1"
 
 	# Is $tag an annotated tag?
-	[ "$(git cat-file -t "$tag" 2> /dev/null)" = tag ] || return 1
+	if [ "$(git cat-file -t "$tag" 2> /dev/null)" != tag ]; then
+		 return
+	fi
 
 	# Is it an ancestor of HEAD, and if so, how many commits are in $tag..HEAD?
 	# shellcheck disable=SC2046 # word splitting is the point here
@@ -43,12 +47,12 @@ try_tag() {
 	# $1 is 0 if and only if $tag is an ancestor of HEAD. Use
 	# string comparison, because $1 is empty if the 'git rev-list'
 	# command somehow failed.
-	[ "$1" = 0 ] || return 1
+	if [ "$1" != 0 ]; then
+		return
+	fi
 
 	# $2 is the number of commits in the range $tag..HEAD, possibly 0.
 	count="$2"
-
-	return 0
 }
 
 scm_version()
