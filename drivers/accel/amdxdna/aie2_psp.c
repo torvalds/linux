@@ -10,6 +10,8 @@
 #include <linux/iopoll.h>
 
 #include "aie2_pci.h"
+#include "amdxdna_mailbox.h"
+#include "amdxdna_pci_drv.h"
 
 #define PSP_STATUS_READY	BIT(31)
 

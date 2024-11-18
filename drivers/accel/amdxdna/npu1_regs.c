@@ -8,6 +8,7 @@
 #include <linux/sizes.h>
 
 #include "aie2_pci.h"
+#include "amdxdna_mailbox.h"
 #include "amdxdna_pci_drv.h"
 
 /* Address definition from NPU1 docs */

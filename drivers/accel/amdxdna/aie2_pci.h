@@ -6,6 +6,8 @@
 #ifndef _AIE2_PCI_H_
 #define _AIE2_PCI_H_
 
+#include "amdxdna_mailbox.h"
+
 #define AIE2_INTERVAL	20000	/* us */
 #define AIE2_TIMEOUT	1000000	/* us */
 
@@ -31,6 +33,17 @@
 ({ \
 	typeof(ndev) _ndev = ndev; \
 	((_ndev)->sram_base + SRAM_REG_OFF((_ndev), (idx))); \
+})
+
+#define CHAN_SLOT_SZ SZ_8K
+#define CHANN_INDEX(ndev, rbuf_off) \
+	(((rbuf_off) - SRAM_REG_OFF((ndev), MBOX_CHANN_OFF)) / CHAN_SLOT_SZ)
+
+#define MBOX_SIZE(ndev) \
+({ \
+	typeof(ndev) _ndev = (ndev); \
+	((_ndev)->priv->mbox_size) ? (_ndev)->priv->mbox_size : \
+	pci_resource_len(NDEV2PDEV(_ndev), (_ndev)->xdna->dev_info->mbox_bar); \
 })
 
 #define SMU_MPNPUCLK_FREQ_MAX(ndev) ((ndev)->priv->smu_mpnpuclk_freq_max)
@@ -63,10 +76,35 @@ enum psp_reg_idx {
 	PSP_MAX_REGS /* Keep this at the end */
 };
 
+struct amdxdna_fw_ver;
+
 struct psp_config {
 	const void	*fw_buf;
 	u32		fw_size;
 	void __iomem	*psp_regs[PSP_MAX_REGS];
+};
+
+struct aie_version {
+	u16 major;
+	u16 minor;
+};
+
+struct aie_tile_metadata {
+	u16 row_count;
+	u16 row_start;
+	u16 dma_channel_count;
+	u16 lock_count;
+	u16 event_reg_count;
+};
+
+struct aie_metadata {
+	u32 size;
+	u16 cols;
+	u16 rows;
+	struct aie_version version;
+	struct aie_tile_metadata core;
+	struct aie_tile_metadata mem;
+	struct aie_tile_metadata shim;
 };
 
 struct clock_entry {
@@ -84,9 +122,22 @@ struct amdxdna_dev_hdl {
 	const struct amdxdna_dev_priv	*priv;
 	void			__iomem *sram_base;
 	void			__iomem *smu_base;
+	void			__iomem *mbox_base;
 	struct psp_device		*psp_hdl;
+
+	struct xdna_mailbox_chann_res	mgmt_x2i;
+	struct xdna_mailbox_chann_res	mgmt_i2x;
+	u32				mgmt_chan_idx;
+
+	u32				total_col;
+	struct aie_version		version;
+	struct aie_metadata		metadata;
 	struct clock_entry		mp_npu_clock;
 	struct clock_entry		h_clock;
+
+	/* Mailbox and the management channel */
+	struct mailbox			*mbox;
+	struct mailbox_channel		*mgmt_chann;
 };
 
 #define DEFINE_BAR_OFFSET(reg_name, bar, reg_addr) \
@@ -127,4 +178,15 @@ struct psp_device *aie2m_psp_create(struct drm_device *ddev, struct psp_config *
 int aie2_psp_start(struct psp_device *psp);
 void aie2_psp_stop(struct psp_device *psp);
 
+/* aie2_message.c */
+int aie2_suspend_fw(struct amdxdna_dev_hdl *ndev);
+int aie2_resume_fw(struct amdxdna_dev_hdl *ndev);
+int aie2_set_runtime_cfg(struct amdxdna_dev_hdl *ndev, u32 type, u64 value);
+int aie2_get_runtime_cfg(struct amdxdna_dev_hdl *ndev, u32 type, u64 *value);
+int aie2_check_protocol_version(struct amdxdna_dev_hdl *ndev);
+int aie2_assign_mgmt_pasid(struct amdxdna_dev_hdl *ndev, u16 pasid);
+int aie2_query_aie_version(struct amdxdna_dev_hdl *ndev, struct aie_version *version);
+int aie2_query_aie_metadata(struct amdxdna_dev_hdl *ndev, struct aie_metadata *metadata);
+int aie2_query_firmware_version(struct amdxdna_dev_hdl *ndev,
+				struct amdxdna_fw_ver *fw_ver);
 #endif /* _AIE2_PCI_H_ */

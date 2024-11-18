@@ -8,6 +8,7 @@
 #include <linux/sizes.h>
 
 #include "aie2_pci.h"
+#include "amdxdna_mailbox.h"
 #include "amdxdna_pci_drv.h"
 
 /* NPU Public Registers on MpNPUAxiXbar (refer to Diag npu_registers.h) */

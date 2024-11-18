@@ -47,12 +47,20 @@ struct amdxdna_dev_info {
 	const struct amdxdna_dev_ops	*ops;
 };
 
+struct amdxdna_fw_ver {
+	u32 major;
+	u32 minor;
+	u32 sub;
+	u32 build;
+};
+
 struct amdxdna_dev {
 	struct drm_device		ddev;
 	struct amdxdna_dev_hdl		*dev_handle;
 	const struct amdxdna_dev_info	*dev_info;
 
 	struct mutex			dev_lock; /* per device lock */
+	struct amdxdna_fw_ver		fw_ver;
 };
 
 /*
