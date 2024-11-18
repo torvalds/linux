@@ -4,11 +4,24 @@
 Debugging advice for Linux Kernel developers
 ============================================
 
+general guides
+--------------
+
 .. toctree::
    :maxdepth: 1
 
    driver_development_debugging_guide
    userspace_debugging_guide
+
+.. only::  subproject and html
+
+subsystem specific guides
+-------------------------
+
+.. toctree::
+   :maxdepth: 1
+
+   media_specific_debugging_guide
 
 .. only::  subproject and html
 
