@@ -1727,6 +1727,16 @@ static struct drm_connector *intel_dp_add_mst_connector(struct drm_dp_mst_topolo
 
 	intel_dp_init_modeset_retry_work(intel_connector);
 
+	/*
+	 * TODO: The following drm_connector specific initialization belongs
+	 * to DRM core, however it happens atm too late in
+	 * drm_connector_init(). That function will also expose the connector
+	 * to in-kernel users, so it can't be called until the connector is
+	 * sufficiently initialized; init the device pointer used by the
+	 * following DSC setup, until a fix moving this to DRM core.
+	 */
+	intel_connector->base.dev = mgr->dev;
+
 	intel_connector->dp.dsc_decompression_aux = drm_dp_mst_dsc_aux_for_port(port);
 	intel_dp_mst_read_decompression_port_dsc_caps(intel_dp, intel_connector);
 	intel_connector->dp.dsc_hblank_expansion_quirk =
