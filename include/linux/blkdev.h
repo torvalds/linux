@@ -333,6 +333,10 @@ typedef unsigned int __bitwise blk_features_t;
 #define BLK_FEAT_RAID_PARTIAL_STRIPES_EXPENSIVE \
 	((__force blk_features_t)(1u << 15))
 
+/* stacked device can/does support atomic writes */
+#define BLK_FEAT_ATOMIC_WRITES_STACKED \
+	((__force blk_features_t)(1u << 16))
+
 /*
  * Flags automatically inherited when stacking limits.
  */
