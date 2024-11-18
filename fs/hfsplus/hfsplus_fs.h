@@ -21,6 +21,7 @@
 #include <linux/mutex.h>
 #include <linux/buffer_head.h>
 #include <linux/blkdev.h>
+#include <linux/fs_context.h>
 #include "hfsplus_raw.h"
 
 #define DBG_BNODE_REFS	0x00000001
@@ -496,8 +497,7 @@ long hfsplus_ioctl(struct file *filp, unsigned int cmd, unsigned long arg);
 
 /* options.c */
 void hfsplus_fill_defaults(struct hfsplus_sb_info *opts);
-int hfsplus_parse_options_remount(char *input, int *force);
-int hfsplus_parse_options(char *input, struct hfsplus_sb_info *sbi);
+int hfsplus_parse_param(struct fs_context *fc, struct fs_parameter *param);
 int hfsplus_show_options(struct seq_file *seq, struct dentry *root);
 
 /* part_tbl.c */
