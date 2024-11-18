@@ -4427,6 +4427,24 @@ struct dmub_rb_cmd_abm_set_pipe {
 };
 
 /**
+ * Type of backlight control method to be used by ABM module
+ */
+enum dmub_backlight_control_type {
+	/**
+	 * PWM Backlight control
+	 */
+	DMU_BACKLIGHT_CONTROL_PWM = 0,
+	/**
+	 * VESA Aux-based backlight control
+	 */
+	DMU_BACKLIGHT_CONTROL_VESA_AUX = 1,
+	/**
+	 * AMD DPCD Aux-based backlight control
+	 */
+	DMU_BACKLIGHT_CONTROL_AMD_AUX = 2,
+};
+
+/**
  * Data passed from driver to FW in a DMUB_CMD__ABM_SET_BACKLIGHT command.
  */
 struct dmub_cmd_abm_set_backlight_data {
@@ -4453,17 +4471,22 @@ struct dmub_cmd_abm_set_backlight_data {
 	uint8_t panel_mask;
 
 	/**
+	 * AUX HW Instance.
+	 */
+	uint8_t aux_inst;
+
+	/**
+	 * Explicit padding to 4 byte boundary.
+	 */
+	uint8_t pad[1];
+
+	/**
 	 * Backlight control type.
 	 * Value 0 is PWM backlight control.
 	 * Value 1 is VAUX backlight control.
 	 * Value 2 is AMD DPCD AUX backlight control.
 	 */
-	uint8_t backlight_control_type;
-
-	/**
-	 * AUX HW instance.
-	 */
-	uint8_t aux_inst;
+	enum dmub_backlight_control_type backlight_control_type;
 
 	/**
 	 * Minimum luminance in nits.

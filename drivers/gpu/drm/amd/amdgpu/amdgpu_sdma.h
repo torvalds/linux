@@ -116,6 +116,7 @@ struct amdgpu_sdma {
 	struct ras_common_if	*ras_if;
 	struct amdgpu_sdma_ras	*ras;
 	uint32_t		*ip_dump;
+	uint32_t 		supported_reset;
 };
 
 /*
@@ -176,4 +177,6 @@ void amdgpu_sdma_destroy_inst_ctx(struct amdgpu_device *adev,
         bool duplicate);
 int amdgpu_sdma_ras_sw_init(struct amdgpu_device *adev);
 void amdgpu_debugfs_sdma_sched_mask_init(struct amdgpu_device *adev);
+int amdgpu_sdma_sysfs_reset_mask_init(struct amdgpu_device *adev);
+void amdgpu_sdma_sysfs_reset_mask_fini(struct amdgpu_device *adev);
 #endif
