@@ -2310,9 +2310,9 @@ ath12k_htt_print_tx_pdev_mumimo_grp_stats_tlv(const void *tag_buf, u16 tag_len,
 	len += print_array_to_buf(buf, len, "ul_mumimo_grp_best_grp_size",
 				  htt_stats_buf->ul_mumimo_grp_best_grp_size,
 				  ATH12K_HTT_STATS_NUM_MAX_MUMIMO_SZ, "\n");
-	len += print_array_to_buf_index(buf, len, "ul_mumimo_grp_best_num_usrs = ", 1,
-					htt_stats_buf->ul_mumimo_grp_best_usrs,
-					ATH12K_HTT_TX_NUM_AX_MUMIMO_USER_STATS, "\n");
+	len += print_array_to_buf(buf, len, "ul_mumimo_grp_best_num_usrs = ",
+				  htt_stats_buf->ul_mumimo_grp_best_usrs,
+				  ATH12K_HTT_TX_NUM_AX_MUMIMO_USER_STATS, "\n");
 	len += print_array_to_buf(buf, len,
 				  "ul_mumimo_grp_tputs_observed (per bin = 300 mbps)",
 				  htt_stats_buf->ul_mumimo_grp_tputs,
