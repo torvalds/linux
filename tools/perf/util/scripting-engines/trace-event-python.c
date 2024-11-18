@@ -949,7 +949,7 @@ static void python_process_tracepoint(struct perf_sample *sample,
 				      struct addr_location *al,
 				      struct addr_location *addr_al)
 {
-	struct tep_event *event = evsel->tp_format;
+	struct tep_event *event;
 	PyObject *handler, *context, *t, *obj = NULL, *callchain;
 	PyObject *dict = NULL, *all_entries_dict = NULL;
 	static char handler_name[256];
@@ -966,6 +966,7 @@ static void python_process_tracepoint(struct perf_sample *sample,
 
 	bitmap_zero(events_defined, TRACE_EVENT_TYPE_MAX);
 
+	event = evsel__tp_format(evsel);
 	if (!event) {
 		snprintf(handler_name, sizeof(handler_name),
 			 "ug! no event found for type %" PRIu64, (u64)evsel->core.attr.config);

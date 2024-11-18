@@ -571,6 +571,7 @@ struct evsel *evsel__newtp_idx(const char *sys, const char *name, int idx, bool 
 			evsel->tp_format = trace_event__tp_format(sys, name);
 			if (IS_ERR(evsel->tp_format)) {
 				err = PTR_ERR(evsel->tp_format);
+				evsel->tp_format = NULL;
 				goto out_free;
 			}
 			attr.config = evsel->tp_format->id;
@@ -3218,12 +3219,16 @@ u16 evsel__id_hdr_size(const struct evsel *evsel)
 #ifdef HAVE_LIBTRACEEVENT
 struct tep_format_field *evsel__field(struct evsel *evsel, const char *name)
 {
-	return tep_find_field(evsel->tp_format, name);
+	struct tep_event *tp_format = evsel__tp_format(evsel);
+
+	return tp_format ? tep_find_field(tp_format, name) : NULL;
 }
 
 struct tep_format_field *evsel__common_field(struct evsel *evsel, const char *name)
 {
-	return tep_find_common_field(evsel->tp_format, name);
+	struct tep_event *tp_format = evsel__tp_format(evsel);
+
+	return tp_format ? tep_find_common_field(tp_format, name) : NULL;
 }
 
 void *evsel__rawptr(struct evsel *evsel, struct perf_sample *sample, const char *name)

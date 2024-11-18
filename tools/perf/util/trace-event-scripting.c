@@ -28,12 +28,14 @@ void scripting_context__update(struct scripting_context *c,
 			       struct addr_location *al,
 			       struct addr_location *addr_al)
 {
-	c->event_data = sample->raw_data;
-	c->pevent = NULL;
 #ifdef HAVE_LIBTRACEEVENT
-	if (evsel->tp_format)
-		c->pevent = evsel->tp_format->tep;
+	const struct tep_event *tp_format = evsel__tp_format(evsel);
+
+	c->pevent = tp_format ? tp_format->tep : NULL;
+#else
+	c->pevent = NULL;
 #endif
+	c->event_data = sample->raw_data;
 	c->event = event;
 	c->sample = sample;
 	c->evsel = evsel;

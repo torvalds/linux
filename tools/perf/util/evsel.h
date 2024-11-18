@@ -257,6 +257,11 @@ static inline struct evsel *evsel__newtp(const char *sys, const char *name)
 {
 	return evsel__newtp_idx(sys, name, 0, true);
 }
+
+static inline struct tep_event *evsel__tp_format(struct evsel *evsel)
+{
+	return evsel->tp_format;
+}
 #endif
 
 #ifdef HAVE_LIBTRACEEVENT
