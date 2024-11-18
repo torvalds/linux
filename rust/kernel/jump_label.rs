@@ -26,7 +26,7 @@ macro_rules! static_branch_unlikely {
 
         #[cfg(not(CONFIG_JUMP_LABEL))]
         {
-            $crate::bindings::static_key_count(_key) > 0
+            $crate::bindings::static_key_count(_key.cast_mut()) > 0
         }
 
         #[cfg(CONFIG_JUMP_LABEL)]
