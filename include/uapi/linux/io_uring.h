@@ -874,20 +874,6 @@ enum {
 };
 
 /*
- * Argument for IORING_REGISTER_CQWAIT_REG, registering a region of
- * struct io_uring_reg_wait that can be indexed when io_uring_enter(2) is
- * called rather than pass in a wait argument structure separately.
- */
-struct io_uring_cqwait_reg_arg {
-	__u32		flags;
-	__u32		struct_size;
-	__u32		nr_entries;
-	__u32		pad;
-	__u64		user_addr;
-	__u64		pad2[3];
-};
-
-/*
  * Argument for io_uring_enter(2) with
  * IORING_GETEVENTS | IORING_ENTER_EXT_ARG_REG set, where the actual argument
  * is an index into a previously registered fixed wait region described by
