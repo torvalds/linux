@@ -1,0 +1,5 @@
+- Replace idr with xa
+- Add import and export BO support
+- Add debugfs support
+- Add debug BO support
+- Improve power management

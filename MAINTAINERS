@@ -1178,6 +1178,16 @@ M:	Sanjay R Mehta <sanju.mehta@amd.com>
 S:	Maintained
 F:	drivers/spi/spi-amd.c
 
+AMD XDNA DRIVER
+M:	Min Ma <min.ma@amd.com>
+M:	Lizhi Hou <lizhi.hou@amd.com>
+L:	dri-devel@lists.freedesktop.org
+S:	Supported
+T:	git https://gitlab.freedesktop.org/drm/misc/kernel.git
+F:	Documentation/accel/amdxdna/
+F:	drivers/accel/amdxdna/
+F:	include/uapi/drm/amdxdna_accel.h
+
 AMD XGBE DRIVER
 M:	"Shyam Sundar S K" <Shyam-sundar.S-k@amd.com>
 L:	netdev@vger.kernel.org
