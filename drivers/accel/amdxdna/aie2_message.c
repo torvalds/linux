@@ -308,6 +308,71 @@ int aie2_map_host_buf(struct amdxdna_dev_hdl *ndev, u32 context_id, u64 addr, u6
 	return 0;
 }
 
+int aie2_query_status(struct amdxdna_dev_hdl *ndev, char __user *buf,
+		      u32 size, u32 *cols_filled)
+{
+	DECLARE_AIE2_MSG(aie_column_info, MSG_OP_QUERY_COL_STATUS);
+	struct amdxdna_dev *xdna = ndev->xdna;
+	struct amdxdna_client *client;
+	struct amdxdna_hwctx *hwctx;
+	dma_addr_t dma_addr;
+	u32 aie_bitmap = 0;
+	u8 *buff_addr;
+	int next = 0;
+	int ret, idx;
+
+	buff_addr = dma_alloc_noncoherent(xdna->ddev.dev, size, &dma_addr,
+					  DMA_FROM_DEVICE, GFP_KERNEL);
+	if (!buff_addr)
+		return -ENOMEM;
+
+	/* Go through each hardware context and mark the AIE columns that are active */
+	list_for_each_entry(client, &xdna->client_list, node) {
+		idx = srcu_read_lock(&client->hwctx_srcu);
+		idr_for_each_entry_continue(&client->hwctx_idr, hwctx, next)
+			aie_bitmap |= amdxdna_hwctx_col_map(hwctx);
+		srcu_read_unlock(&client->hwctx_srcu, idx);
+	}
+
+	*cols_filled = 0;
+	req.dump_buff_addr = dma_addr;
+	req.dump_buff_size = size;
+	req.num_cols = hweight32(aie_bitmap);
+	req.aie_bitmap = aie_bitmap;
+
+	drm_clflush_virt_range(buff_addr, size); /* device can access */
+	ret = aie2_send_mgmt_msg_wait(ndev, &msg);
+	if (ret) {
+		XDNA_ERR(xdna, "Error during NPU query, status %d", ret);
+		goto fail;
+	}
+
+	if (resp.status != AIE2_STATUS_SUCCESS) {
+		XDNA_ERR(xdna, "Query NPU status failed, status 0x%x", resp.status);
+		ret = -EINVAL;
+		goto fail;
+	}
+	XDNA_DBG(xdna, "Query NPU status completed");
+
+	if (size < resp.size) {
+		ret = -EINVAL;
+		XDNA_ERR(xdna, "Bad buffer size. Available: %u. Needs: %u", size, resp.size);
+		goto fail;
+	}
+
+	if (copy_to_user(buf, buff_addr, resp.size)) {
+		ret = -EFAULT;
+		XDNA_ERR(xdna, "Failed to copy NPU status to user space");
+		goto fail;
+	}
+
+	*cols_filled = aie_bitmap;
+
+fail:
+	dma_free_noncoherent(xdna->ddev.dev, size, buff_addr, dma_addr, DMA_FROM_DEVICE);
+	return ret;
+}
+
 int aie2_register_asyn_event_msg(struct amdxdna_dev_hdl *ndev, dma_addr_t addr, u32 size,
 				 void *handle, int (*cb)(void*, const u32 *, size_t))
 {
