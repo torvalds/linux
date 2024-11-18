@@ -38,7 +38,7 @@ static unsigned long sbusfb_mmapsize(long size, unsigned long fbsize)
 	return fbsize * (-size);
 }
 
-int sbusfb_mmap_helper(struct sbus_mmap_map *map,
+int sbusfb_mmap_helper(const struct sbus_mmap_map *map,
 		       unsigned long physbase,
 		       unsigned long fbsize,
 		       unsigned long iospace,

@@ -322,6 +322,7 @@ static netdev_tx_t bcmasp_xmit(struct sk_buff *skb, struct net_device *dev)
 			}
 			/* Rewind so we do not have a hole */
 			spb_index = intf->tx_spb_index;
+			dev_kfree_skb(skb);
 			return NETDEV_TX_OK;
 		}
 

@@ -536,11 +536,16 @@ static int amd_pstate_verify(struct cpufreq_policy_data *policy)
 
 static int amd_pstate_update_min_max_limit(struct cpufreq_policy *policy)
 {
-	u32 max_limit_perf, min_limit_perf, lowest_perf;
+	u32 max_limit_perf, min_limit_perf, lowest_perf, max_perf;
 	struct amd_cpudata *cpudata = policy->driver_data;
 
-	max_limit_perf = div_u64(policy->max * cpudata->highest_perf, cpudata->max_freq);
-	min_limit_perf = div_u64(policy->min * cpudata->highest_perf, cpudata->max_freq);
+	if (cpudata->boost_supported && !policy->boost_enabled)
+		max_perf = READ_ONCE(cpudata->nominal_perf);
+	else
+		max_perf = READ_ONCE(cpudata->highest_perf);
+
+	max_limit_perf = div_u64(policy->max * max_perf, policy->cpuinfo.max_freq);
+	min_limit_perf = div_u64(policy->min * max_perf, policy->cpuinfo.max_freq);
 
 	lowest_perf = READ_ONCE(cpudata->lowest_perf);
 	if (min_limit_perf < lowest_perf)
@@ -1201,11 +1206,21 @@ static int amd_pstate_register_driver(int mode)
 		return -EINVAL;
 
 	cppc_state = mode;
+
+	ret = amd_pstate_enable(true);
+	if (ret) {
+		pr_err("failed to enable cppc during amd-pstate driver registration, return %d\n",
+		       ret);
+		amd_pstate_driver_cleanup();
+		return ret;
+	}
+
 	ret = cpufreq_register_driver(current_pstate_driver);
 	if (ret) {
 		amd_pstate_driver_cleanup();
 		return ret;
 	}
+
 	return 0;
 }
 
@@ -1496,10 +1511,13 @@ static int amd_pstate_epp_update_limit(struct cpufreq_policy *policy)
 	u64 value;
 	s16 epp;
 
-	max_perf = READ_ONCE(cpudata->highest_perf);
+	if (cpudata->boost_supported && !policy->boost_enabled)
+		max_perf = READ_ONCE(cpudata->nominal_perf);
+	else
+		max_perf = READ_ONCE(cpudata->highest_perf);
 	min_perf = READ_ONCE(cpudata->lowest_perf);
-	max_limit_perf = div_u64(policy->max * cpudata->highest_perf, cpudata->max_freq);
-	min_limit_perf = div_u64(policy->min * cpudata->highest_perf, cpudata->max_freq);
+	max_limit_perf = div_u64(policy->max * max_perf, policy->cpuinfo.max_freq);
+	min_limit_perf = div_u64(policy->min * max_perf, policy->cpuinfo.max_freq);
 
 	if (min_limit_perf < min_perf)
 		min_limit_perf = min_perf;

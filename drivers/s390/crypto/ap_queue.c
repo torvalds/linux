@@ -22,6 +22,11 @@ static void __ap_flush_queue(struct ap_queue *aq);
  * some AP queue helper functions
  */
 
+static inline bool ap_q_supported_in_se(struct ap_queue *aq)
+{
+	return aq->card->hwinfo.ep11 || aq->card->hwinfo.accel;
+}
+
 static inline bool ap_q_supports_bind(struct ap_queue *aq)
 {
 	return aq->card->hwinfo.ep11 || aq->card->hwinfo.accel;
@@ -1104,18 +1109,19 @@ static void ap_queue_device_release(struct device *dev)
 	kfree(aq);
 }
 
-struct ap_queue *ap_queue_create(ap_qid_t qid, int device_type)
+struct ap_queue *ap_queue_create(ap_qid_t qid, struct ap_card *ac)
 {
 	struct ap_queue *aq;
 
 	aq = kzalloc(sizeof(*aq), GFP_KERNEL);
 	if (!aq)
 		return NULL;
+	aq->card = ac;
 	aq->ap_dev.device.release = ap_queue_device_release;
 	aq->ap_dev.device.type = &ap_queue_type;
-	aq->ap_dev.device_type = device_type;
-	// add optional SE secure binding attributes group
-	if (ap_sb_available() && is_prot_virt_guest())
+	aq->ap_dev.device_type = ac->ap_dev.device_type;
+	/* in SE environment add bind/associate attributes group */
+	if (ap_is_se_guest() && ap_q_supported_in_se(aq))
 		aq->ap_dev.device.groups = ap_queue_dev_sb_attr_groups;
 	aq->qid = qid;
 	spin_lock_init(&aq->lock);
@@ -1196,10 +1202,16 @@ bool ap_queue_usable(struct ap_queue *aq)
 	}
 
 	/* SE guest's queues additionally need to be bound */
-	if (ap_q_needs_bind(aq) &&
-	    !(aq->se_bstate == AP_BS_Q_USABLE ||
-	      aq->se_bstate == AP_BS_Q_USABLE_NO_SECURE_KEY))
-		rc = false;
+	if (ap_is_se_guest()) {
+		if (!ap_q_supported_in_se(aq)) {
+			rc = false;
+			goto unlock_and_out;
+		}
+		if (ap_q_needs_bind(aq) &&
+		    !(aq->se_bstate == AP_BS_Q_USABLE ||
+		      aq->se_bstate == AP_BS_Q_USABLE_NO_SECURE_KEY))
+			rc = false;
+	}
 
 unlock_and_out:
 	spin_unlock_bh(&aq->lock);

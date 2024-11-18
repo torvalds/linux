@@ -338,7 +338,7 @@ static int leo_blank(int blank, struct fb_info *info)
 	return 0;
 }
 
-static struct sbus_mmap_map leo_mmap_map[] = {
+static const struct sbus_mmap_map leo_mmap_map[] = {
 	{
 		.voff	= LEO_SS0_MAP,
 		.poff	= LEO_OFF_SS0,
@@ -657,7 +657,7 @@ static struct platform_driver leo_driver = {
 		.of_match_table = leo_match,
 	},
 	.probe		= leo_probe,
-	.remove_new	= leo_remove,
+	.remove		= leo_remove,
 };
 
 static int __init leo_init(void)

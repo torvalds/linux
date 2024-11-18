@@ -306,6 +306,11 @@ void v3d_perfmon_open_file(struct v3d_file_priv *v3d_priv)
 static int v3d_perfmon_idr_del(int id, void *elem, void *data)
 {
 	struct v3d_perfmon *perfmon = elem;
+	struct v3d_dev *v3d = (struct v3d_dev *)data;
+
+	/* If the active perfmon is being destroyed, stop it first */
+	if (perfmon == v3d->active_perfmon)
+		v3d_perfmon_stop(v3d, perfmon, false);
 
 	v3d_perfmon_put(perfmon);
 
@@ -314,8 +319,10 @@ static int v3d_perfmon_idr_del(int id, void *elem, void *data)
 
 void v3d_perfmon_close_file(struct v3d_file_priv *v3d_priv)
 {
+	struct v3d_dev *v3d = v3d_priv->v3d;
+
 	mutex_lock(&v3d_priv->perfmon.lock);
-	idr_for_each(&v3d_priv->perfmon.idr, v3d_perfmon_idr_del, NULL);
+	idr_for_each(&v3d_priv->perfmon.idr, v3d_perfmon_idr_del, v3d);
 	idr_destroy(&v3d_priv->perfmon.idr);
 	mutex_unlock(&v3d_priv->perfmon.lock);
 	mutex_destroy(&v3d_priv->perfmon.lock);

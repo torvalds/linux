@@ -190,7 +190,7 @@ MODULE_DEVICE_TABLE(of, i2c_arbitrator_of_match);
 
 static struct platform_driver i2c_arbitrator_driver = {
 	.probe	= i2c_arbitrator_probe,
-	.remove_new = i2c_arbitrator_remove,
+	.remove = i2c_arbitrator_remove,
 	.driver	= {
 		.name	= "i2c-arb-gpio-challenge",
 		.of_match_table = i2c_arbitrator_of_match,

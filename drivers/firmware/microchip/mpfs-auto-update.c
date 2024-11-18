@@ -76,14 +76,11 @@
 #define AUTO_UPDATE_INFO_SIZE		SZ_1M
 #define AUTO_UPDATE_BITSTREAM_BASE	(AUTO_UPDATE_DIRECTORY_SIZE + AUTO_UPDATE_INFO_SIZE)
 
-#define AUTO_UPDATE_TIMEOUT_MS		60000
-
 struct mpfs_auto_update_priv {
 	struct mpfs_sys_controller *sys_controller;
 	struct device *dev;
 	struct mtd_info *flash;
 	struct fw_upload *fw_uploader;
-	struct completion programming_complete;
 	size_t size_per_bitstream;
 	bool cancel_request;
 };
@@ -156,19 +153,6 @@ static void mpfs_auto_update_cancel(struct fw_upload *fw_uploader)
 
 static enum fw_upload_err mpfs_auto_update_poll_complete(struct fw_upload *fw_uploader)
 {
-	struct mpfs_auto_update_priv *priv = fw_uploader->dd_handle;
-	int ret;
-
-	/*
-	 * There is no meaningful way to get the status of the programming while
-	 * it is in progress, so attempting anything other than waiting for it
-	 * to complete would be misplaced.
-	 */
-	ret = wait_for_completion_timeout(&priv->programming_complete,
-					  msecs_to_jiffies(AUTO_UPDATE_TIMEOUT_MS));
-	if (!ret)
-		return FW_UPLOAD_ERR_TIMEOUT;
-
 	return FW_UPLOAD_ERR_NONE;
 }
 
@@ -349,33 +333,23 @@ static enum fw_upload_err mpfs_auto_update_write(struct fw_upload *fw_uploader, 
 						 u32 offset, u32 size, u32 *written)
 {
 	struct mpfs_auto_update_priv *priv = fw_uploader->dd_handle;
-	enum fw_upload_err err = FW_UPLOAD_ERR_NONE;
 	int ret;
 
-	reinit_completion(&priv->programming_complete);
-
 	ret = mpfs_auto_update_write_bitstream(fw_uploader, data, offset, size, written);
-	if (ret) {
-		err = FW_UPLOAD_ERR_RW_ERROR;
-		goto out;
-	}
+	if (ret)
+		return FW_UPLOAD_ERR_RW_ERROR;
 
-	if (priv->cancel_request) {
-		err = FW_UPLOAD_ERR_CANCELED;
-		goto out;
-	}
+	if (priv->cancel_request)
+		return FW_UPLOAD_ERR_CANCELED;
 
 	if (mpfs_auto_update_is_bitstream_info(data, size))
-		goto out;
+		return FW_UPLOAD_ERR_NONE;
 
 	ret = mpfs_auto_update_verify_image(fw_uploader);
 	if (ret)
-		err = FW_UPLOAD_ERR_FW_INVALID;
+		return FW_UPLOAD_ERR_FW_INVALID;
 
-out:
-	complete(&priv->programming_complete);
-
-	return err;
+	return FW_UPLOAD_ERR_NONE;
 }
 
 static const struct fw_upload_ops mpfs_auto_update_ops = {
@@ -460,8 +434,6 @@ static int mpfs_auto_update_probe(struct platform_device *pdev)
 	if (ret)
 		return dev_err_probe(dev, ret,
 				     "The current bitstream does not support auto-update\n");
-
-	init_completion(&priv->programming_complete);
 
 	fw_uploader = firmware_upload_register(THIS_MODULE, dev, "mpfs-auto-update",
 					       &mpfs_auto_update_ops, priv);

@@ -14,8 +14,11 @@ import sys
 import atexit
 from pwd import getpwuid
 from os import stat
-from lib.py import ip
 
+# Allow utils module to be imported from different directory
+this_dir = os.path.dirname(os.path.realpath(__file__))
+sys.path.append(os.path.join(this_dir, "../"))
+from lib.py.utils import ip
 
 libc = ctypes.cdll.LoadLibrary('libc.so.6')
 setns = libc.setns

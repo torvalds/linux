@@ -986,6 +986,15 @@ static bool rcu_tasks_is_holdout(struct task_struct *t)
 		return false;
 
 	/*
+	 * t->on_rq && !t->se.sched_delayed *could* be considered sleeping but
+	 * since it is a spurious state (it will transition into the
+	 * traditional blocked state or get woken up without outside
+	 * dependencies), not considering it such should only affect timing.
+	 *
+	 * Be conservative for now and not include it.
+	 */
+
+	/*
 	 * Idle tasks (or idle injection) within the idle loop are RCU-tasks
 	 * quiescent states. But CPU boot code performed by the idle task
 	 * isn't a quiescent state.

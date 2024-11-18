@@ -536,7 +536,7 @@ static struct platform_driver rzv2m_i2c_driver = {
 		.pm = pm_sleep_ptr(&rzv2m_i2c_pm_ops),
 	},
 	.probe	= rzv2m_i2c_probe,
-	.remove_new = rzv2m_i2c_remove,
+	.remove = rzv2m_i2c_remove,
 };
 module_platform_driver(rzv2m_i2c_driver);
 

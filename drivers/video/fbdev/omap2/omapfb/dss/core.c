@@ -185,10 +185,10 @@ static void omap_dss_shutdown(struct platform_device *pdev)
 }
 
 static struct platform_driver omap_dss_driver = {
-	.remove_new     = omap_dss_remove,
+	.remove		= omap_dss_remove,
 	.shutdown	= omap_dss_shutdown,
-	.driver         = {
-		.name   = "omapdss",
+	.driver		= {
+		.name	= "omapdss",
 	},
 };
 

@@ -1359,21 +1359,47 @@ static void destroy_delegation(struct nfs4_delegation *dp)
 		destroy_unhashed_deleg(dp);
 }
 
+/**
+ * revoke_delegation - perform nfs4 delegation structure cleanup
+ * @dp: pointer to the delegation
+ *
+ * This function assumes that it's called either from the administrative
+ * interface (nfsd4_revoke_states()) that's revoking a specific delegation
+ * stateid or it's called from a laundromat thread (nfsd4_landromat()) that
+ * determined that this specific state has expired and needs to be revoked
+ * (both mark state with the appropriate stid sc_status mode). It is also
+ * assumed that a reference was taken on the @dp state.
+ *
+ * If this function finds that the @dp state is SC_STATUS_FREED it means
+ * that a FREE_STATEID operation for this stateid has been processed and
+ * we can proceed to removing it from recalled list. However, if @dp state
+ * isn't marked SC_STATUS_FREED, it means we need place it on the cl_revoked
+ * list and wait for the FREE_STATEID to arrive from the client. At the same
+ * time, we need to mark it as SC_STATUS_FREEABLE to indicate to the
+ * nfsd4_free_stateid() function that this stateid has already been added
+ * to the cl_revoked list and that nfsd4_free_stateid() is now responsible
+ * for removing it from the list. Inspection of where the delegation state
+ * in the revocation process is protected by the clp->cl_lock.
+ */
 static void revoke_delegation(struct nfs4_delegation *dp)
 {
 	struct nfs4_client *clp = dp->dl_stid.sc_client;
 
 	WARN_ON(!list_empty(&dp->dl_recall_lru));
+	WARN_ON_ONCE(!(dp->dl_stid.sc_status &
+		     (SC_STATUS_REVOKED | SC_STATUS_ADMIN_REVOKED)));
 
 	trace_nfsd_stid_revoke(&dp->dl_stid);
 
-	if (dp->dl_stid.sc_status &
-	    (SC_STATUS_REVOKED | SC_STATUS_ADMIN_REVOKED)) {
-		spin_lock(&clp->cl_lock);
-		refcount_inc(&dp->dl_stid.sc_count);
-		list_add(&dp->dl_recall_lru, &clp->cl_revoked);
-		spin_unlock(&clp->cl_lock);
+	spin_lock(&clp->cl_lock);
+	if (dp->dl_stid.sc_status & SC_STATUS_FREED) {
+		list_del_init(&dp->dl_recall_lru);
+		goto out;
 	}
+	list_add(&dp->dl_recall_lru, &clp->cl_revoked);
+	dp->dl_stid.sc_status |= SC_STATUS_FREEABLE;
+out:
+	spin_unlock(&clp->cl_lock);
 	destroy_unhashed_deleg(dp);
 }
 
@@ -1780,6 +1806,7 @@ void nfsd4_revoke_states(struct net *net, struct super_block *sb)
 					mutex_unlock(&stp->st_mutex);
 					break;
 				case SC_TYPE_DELEG:
+					refcount_inc(&stid->sc_count);
 					dp = delegstateid(stid);
 					spin_lock(&state_lock);
 					if (!unhash_delegation_locked(
@@ -6545,6 +6572,7 @@ nfs4_laundromat(struct nfsd_net *nn)
 		dp = list_entry (pos, struct nfs4_delegation, dl_recall_lru);
 		if (!state_expired(&lt, dp->dl_time))
 			break;
+		refcount_inc(&dp->dl_stid.sc_count);
 		unhash_delegation_locked(dp, SC_STATUS_REVOKED);
 		list_add(&dp->dl_recall_lru, &reaplist);
 	}
@@ -7154,9 +7182,12 @@ nfsd4_free_stateid(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	switch (s->sc_type) {
 	case SC_TYPE_DELEG:
 		if (s->sc_status & SC_STATUS_REVOKED) {
+			s->sc_status |= SC_STATUS_CLOSED;
 			spin_unlock(&s->sc_lock);
 			dp = delegstateid(s);
-			list_del_init(&dp->dl_recall_lru);
+			if (s->sc_status & SC_STATUS_FREEABLE)
+				list_del_init(&dp->dl_recall_lru);
+			s->sc_status |= SC_STATUS_FREED;
 			spin_unlock(&cl->cl_lock);
 			nfs4_put_stid(s);
 			ret = nfs_ok;
@@ -7486,7 +7517,9 @@ nfsd4_delegreturn(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	if ((status = fh_verify(rqstp, &cstate->current_fh, S_IFREG, 0)))
 		return status;
 
-	status = nfsd4_lookup_stateid(cstate, stateid, SC_TYPE_DELEG, 0, &s, nn);
+	status = nfsd4_lookup_stateid(cstate, stateid, SC_TYPE_DELEG,
+				      SC_STATUS_REVOKED | SC_STATUS_FREEABLE,
+				      &s, nn);
 	if (status)
 		goto out;
 	dp = delegstateid(s);
@@ -8683,7 +8716,7 @@ nfs4_state_shutdown_net(struct net *net)
 	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
 
 	shrinker_free(nn->nfsd_client_shrinker);
-	cancel_work(&nn->nfsd_shrinker_work);
+	cancel_work_sync(&nn->nfsd_shrinker_work);
 	cancel_delayed_work_sync(&nn->laundromat_work);
 	locks_end_grace(&nn->nfsd4_manager);
 

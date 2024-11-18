@@ -978,31 +978,54 @@ bch2_extent_has_ptr(struct bkey_s_c k1, struct extent_ptr_decoded p1, struct bke
 	return NULL;
 }
 
-void bch2_extent_ptr_set_cached(struct bkey_s k, struct bch_extent_ptr *ptr)
+static bool want_cached_ptr(struct bch_fs *c, struct bch_io_opts *opts,
+			    struct bch_extent_ptr *ptr)
+{
+	if (!opts->promote_target ||
+	    !bch2_dev_in_target(c, ptr->dev, opts->promote_target))
+		return false;
+
+	struct bch_dev *ca = bch2_dev_rcu_noerror(c, ptr->dev);
+
+	return ca && bch2_dev_is_readable(ca) && !dev_ptr_stale_rcu(ca, ptr);
+}
+
+void bch2_extent_ptr_set_cached(struct bch_fs *c,
+				struct bch_io_opts *opts,
+				struct bkey_s k,
+				struct bch_extent_ptr *ptr)
 {
 	struct bkey_ptrs ptrs = bch2_bkey_ptrs(k);
 	union bch_extent_entry *entry;
-	union bch_extent_entry *ec = NULL;
+	struct extent_ptr_decoded p;
 
-	bkey_extent_entry_for_each(ptrs, entry) {
-		if (&entry->ptr == ptr) {
-			ptr->cached = true;
-			if (ec)
-				extent_entry_drop(k, ec);
-			return;
-		}
-
-		if (extent_entry_is_stripe_ptr(entry))
-			ec = entry;
-		else if (extent_entry_is_ptr(entry))
-			ec = NULL;
+	rcu_read_lock();
+	if (!want_cached_ptr(c, opts, ptr)) {
+		bch2_bkey_drop_ptr_noerror(k, ptr);
+		goto out;
 	}
 
+	/*
+	 * Stripes can't contain cached data, for - reasons.
+	 *
+	 * Possibly something we can fix in the future?
+	 */
+	bkey_for_each_ptr_decode(k.k, ptrs, p, entry)
+		if (&entry->ptr == ptr) {
+			if (p.has_ec)
+				bch2_bkey_drop_ptr_noerror(k, ptr);
+			else
+				ptr->cached = true;
+			goto out;
+		}
+
 	BUG();
+out:
+	rcu_read_unlock();
 }
 
 /*
- * bch_extent_normalize - clean up an extent, dropping stale pointers etc.
+ * bch2_extent_normalize - clean up an extent, dropping stale pointers etc.
  *
  * Returns true if @k should be dropped entirely
  *
@@ -1016,8 +1039,39 @@ bool bch2_extent_normalize(struct bch_fs *c, struct bkey_s k)
 	rcu_read_lock();
 	bch2_bkey_drop_ptrs(k, ptr,
 		ptr->cached &&
-		(ca = bch2_dev_rcu(c, ptr->dev)) &&
-		dev_ptr_stale_rcu(ca, ptr) > 0);
+		(!(ca = bch2_dev_rcu(c, ptr->dev)) ||
+		 dev_ptr_stale_rcu(ca, ptr) > 0));
+	rcu_read_unlock();
+
+	return bkey_deleted(k.k);
+}
+
+/*
+ * bch2_extent_normalize_by_opts - clean up an extent, dropping stale pointers etc.
+ *
+ * Like bch2_extent_normalize(), but also only keeps a single cached pointer on
+ * the promote target.
+ */
+bool bch2_extent_normalize_by_opts(struct bch_fs *c,
+				   struct bch_io_opts *opts,
+				   struct bkey_s k)
+{
+	struct bkey_ptrs ptrs;
+	bool have_cached_ptr;
+
+	rcu_read_lock();
+restart_drop_ptrs:
+	ptrs = bch2_bkey_ptrs(k);
+	have_cached_ptr = false;
+
+	bkey_for_each_ptr(ptrs, ptr)
+		if (ptr->cached) {
+			if (have_cached_ptr || !want_cached_ptr(c, opts, ptr)) {
+				bch2_bkey_drop_ptr(k, ptr);
+				goto restart_drop_ptrs;
+			}
+			have_cached_ptr = true;
+		}
 	rcu_read_unlock();
 
 	return bkey_deleted(k.k);

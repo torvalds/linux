@@ -18,6 +18,7 @@ TEST_PROGS += hid-usb_crash.sh
 TEST_PROGS += hid-wacom.sh
 
 TEST_FILES := run-hid-tools-tests.sh
+TEST_FILES += tests
 
 CXX ?= $(CROSS_COMPILE)g++
 
