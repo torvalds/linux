@@ -267,7 +267,7 @@ struct xattr_name {
 	char name[XATTR_NAME_MAX + 1];
 };
 
-struct xattr_ctx {
+struct kernel_xattr_ctx {
 	/* Value of attribute */
 	union {
 		const void __user *cvalue;
@@ -280,14 +280,15 @@ struct xattr_ctx {
 	unsigned int flags;
 };
 
+ssize_t file_getxattr(struct file *file, struct kernel_xattr_ctx *ctx);
+ssize_t filename_getxattr(int dfd, struct filename *filename,
+			  unsigned int lookup_flags, struct kernel_xattr_ctx *ctx);
+int file_setxattr(struct file *file, struct kernel_xattr_ctx *ctx);
+int filename_setxattr(int dfd, struct filename *filename,
+		      unsigned int lookup_flags, struct kernel_xattr_ctx *ctx);
+int setxattr_copy(const char __user *name, struct kernel_xattr_ctx *ctx);
+int import_xattr_name(struct xattr_name *kname, const char __user *name);
 
-ssize_t do_getxattr(struct mnt_idmap *idmap,
-		    struct dentry *d,
-		    struct xattr_ctx *ctx);
-
-int setxattr_copy(const char __user *name, struct xattr_ctx *ctx);
-int do_setxattr(struct mnt_idmap *idmap, struct dentry *dentry,
-		struct xattr_ctx *ctx);
 int may_write_xattr(struct mnt_idmap *idmap, struct inode *inode);
 
 #ifdef CONFIG_FS_POSIX_ACL
