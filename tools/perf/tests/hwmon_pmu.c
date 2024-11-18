@@ -173,7 +173,8 @@ static int do_test(size_t i, bool with_pmu, bool with_alias)
 	}
 
 	evlist__for_each_entry(evlist, evsel) {
-		if (!perf_pmu__is_hwmon(evsel->pmu))
+		if (!evsel->pmu || !evsel->pmu->name ||
+		    strcmp(evsel->pmu->name, "hwmon_a_test_hwmon_pmu"))
 			continue;
 
 		if (evsel->core.attr.config != (u64)test_events[i].config) {
