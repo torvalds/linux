@@ -1308,9 +1308,9 @@ static noinline int __btrfs_ioctl_snap_create(struct file *file,
 		ret = btrfs_mksubvol(&file->f_path, idmap, name,
 				     namelen, NULL, readonly, inherit);
 	} else {
-		struct fd src = fdget(fd);
+		CLASS(fd, src)(fd);
 		struct inode *src_inode;
-		if (!fd_file(src)) {
+		if (fd_empty(src)) {
 			ret = -EINVAL;
 			goto out_drop_write;
 		}
@@ -1341,7 +1341,6 @@ static noinline int __btrfs_ioctl_snap_create(struct file *file,
 					       BTRFS_I(src_inode)->root,
 					       readonly, inherit);
 		}
-		fdput(src);
 	}
 out_drop_write:
 	mnt_drop_write_file(file);

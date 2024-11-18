@@ -3909,7 +3909,6 @@ SYSCALL_DEFINE4(pidfd_send_signal, int, pidfd, int, sig,
 		siginfo_t __user *, info, unsigned int, flags)
 {
 	int ret;
-	struct fd f;
 	struct pid *pid;
 	kernel_siginfo_t kinfo;
 	enum pid_type type;
@@ -3922,20 +3921,17 @@ SYSCALL_DEFINE4(pidfd_send_signal, int, pidfd, int, sig,
 	if (hweight32(flags & PIDFD_SEND_SIGNAL_FLAGS) > 1)
 		return -EINVAL;
 
-	f = fdget(pidfd);
-	if (!fd_file(f))
+	CLASS(fd, f)(pidfd);
+	if (fd_empty(f))
 		return -EBADF;
 
 	/* Is this a pidfd? */
 	pid = pidfd_to_pid(fd_file(f));
-	if (IS_ERR(pid)) {
-		ret = PTR_ERR(pid);
-		goto err;
-	}
+	if (IS_ERR(pid))
+		return PTR_ERR(pid);
 
-	ret = -EINVAL;
 	if (!access_pidfd_pidns(pid))
-		goto err;
+		return -EINVAL;
 
 	switch (flags) {
 	case 0:
@@ -3959,28 +3955,23 @@ SYSCALL_DEFINE4(pidfd_send_signal, int, pidfd, int, sig,
 	if (info) {
 		ret = copy_siginfo_from_user_any(&kinfo, info);
 		if (unlikely(ret))
-			goto err;
+			return ret;
 
-		ret = -EINVAL;
 		if (unlikely(sig != kinfo.si_signo))
-			goto err;
+			return -EINVAL;
 
 		/* Only allow sending arbitrary signals to yourself. */
-		ret = -EPERM;
 		if ((task_pid(current) != pid || type > PIDTYPE_TGID) &&
 		    (kinfo.si_code >= 0 || kinfo.si_code == SI_TKILL))
-			goto err;
+			return -EPERM;
 	} else {
 		prepare_kill_siginfo(sig, &kinfo, type);
 	}
 
 	if (type == PIDTYPE_PGID)
-		ret = kill_pgrp_info(sig, &kinfo, pid);
+		return kill_pgrp_info(sig, &kinfo, pid);
 	else
-		ret = kill_pid_info_type(sig, &kinfo, pid, type);
-err:
-	fdput(f);
-	return ret;
+		return kill_pid_info_type(sig, &kinfo, pid, type);
 }
 
 static int
