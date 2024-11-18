@@ -73,26 +73,14 @@ static bool extent_matches_bp(struct bch_fs *c,
 	const union bch_extent_entry *entry;
 	struct extent_ptr_decoded p;
 
-	rcu_read_lock();
 	bkey_for_each_ptr_decode(k.k, ptrs, p, entry) {
-		struct bpos bucket2;
 		struct bkey_i_backpointer bp2;
+		bch2_extent_ptr_to_bp(c, btree_id, level, k, p, entry, &bp2);
 
-		if (p.ptr.cached)
-			continue;
-
-		struct bch_dev *ca = bch2_dev_rcu(c, p.ptr.dev);
-		if (!ca)
-			continue;
-
-		bch2_extent_ptr_to_bp(c, ca, btree_id, level, k, p, entry, &bucket2, &bp2);
 		if (bpos_eq(bp.k->p, bp2.k.p) &&
-		    !memcmp(bp.v, &bp2.v, sizeof(bp2.v))) {
-			rcu_read_unlock();
+		    !memcmp(bp.v, &bp2.v, sizeof(bp2.v)))
 			return true;
-		}
 	}
-	rcu_read_unlock();
 
 	return false;
 }
@@ -586,21 +574,15 @@ static int check_extent_to_backpointers(struct btree_trans *trans,
 
 	ptrs = bch2_bkey_ptrs_c(k);
 	bkey_for_each_ptr_decode(k.k, ptrs, p, entry) {
-		struct bpos bucket_pos;
 		struct bkey_i_backpointer bp;
 
 		if (p.ptr.cached)
 			continue;
 
-		rcu_read_lock();
-		struct bch_dev *ca = bch2_dev_rcu_noerror(c, p.ptr.dev);
-		if (ca)
-			bch2_extent_ptr_to_bp(c, ca, btree, level, k, p, entry, &bucket_pos, &bp);
-		rcu_read_unlock();
-
-		if (!ca)
+		if (p.ptr.dev == BCH_SB_MEMBER_INVALID)
 			continue;
 
+		bch2_extent_ptr_to_bp(c, btree, level, k, p, entry, &bp);
 		ret = check_bp_exists(trans, s, &bp, k);
 		if (ret)
 			return ret;
