@@ -2620,6 +2620,8 @@ ssize_t filemap_read(struct kiocb *iocb, struct iov_iter *iter,
 	loff_t isize, end_offset;
 	loff_t last_pos = ra->prev_pos;
 
+	if (unlikely(iocb->ki_pos < 0))
+		return -EINVAL;
 	if (unlikely(iocb->ki_pos >= inode->i_sb->s_maxbytes))
 		return 0;
 	if (unlikely(!iov_iter_count(iter)))

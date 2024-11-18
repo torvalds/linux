@@ -819,7 +819,7 @@ static void evict(struct inode *inode)
 	 * ___wait_var_event() either sees the bit cleared or
 	 * waitqueue_active() check in wake_up_var() sees the waiter.
 	 */
-	smp_mb();
+	smp_mb__after_spinlock();
 	inode_wake_up_bit(inode, __I_NEW);
 	BUG_ON(inode->i_state != (I_FREEING | I_CLEAR));
 	spin_unlock(&inode->i_lock);
@@ -1312,16 +1312,15 @@ EXPORT_SYMBOL(unlock_two_nondirectories);
  * @data:	opaque data pointer to pass to @test and @set
  *
  * Search for the inode specified by @hashval and @data in the inode cache,
- * and if present it is return it with an increased reference count. This is
- * a variant of iget5_locked() for callers that don't want to fail on memory
- * allocation of inode.
+ * and if present return it with an increased reference count. This is a
+ * variant of iget5_locked() that doesn't allocate an inode.
  *
- * If the inode is not in cache, insert the pre-allocated inode to cache and
+ * If the inode is not present in the cache, insert the pre-allocated inode and
  * return it locked, hashed, and with the I_NEW flag set. The file system gets
  * to fill it in before unlocking it via unlock_new_inode().
  *
- * Note both @test and @set are called with the inode_hash_lock held, so can't
- * sleep.
+ * Note that both @test and @set are called with the inode_hash_lock held, so
+ * they can't sleep.
  */
 struct inode *inode_insert5(struct inode *inode, unsigned long hashval,
 			    int (*test)(struct inode *, void *),
@@ -1385,16 +1384,16 @@ EXPORT_SYMBOL(inode_insert5);
  * @data:	opaque data pointer to pass to @test and @set
  *
  * Search for the inode specified by @hashval and @data in the inode cache,
- * and if present it is return it with an increased reference count. This is
- * a generalized version of iget_locked() for file systems where the inode
+ * and if present return it with an increased reference count. This is a
+ * generalized version of iget_locked() for file systems where the inode
  * number is not sufficient for unique identification of an inode.
  *
- * If the inode is not in cache, allocate a new inode and return it locked,
- * hashed, and with the I_NEW flag set. The file system gets to fill it in
- * before unlocking it via unlock_new_inode().
+ * If the inode is not present in the cache, allocate and insert a new inode
+ * and return it locked, hashed, and with the I_NEW flag set. The file system
+ * gets to fill it in before unlocking it via unlock_new_inode().
  *
- * Note both @test and @set are called with the inode_hash_lock held, so can't
- * sleep.
+ * Note that both @test and @set are called with the inode_hash_lock held, so
+ * they can't sleep.
  */
 struct inode *iget5_locked(struct super_block *sb, unsigned long hashval,
 		int (*test)(struct inode *, void *),
@@ -2912,7 +2911,7 @@ EXPORT_SYMBOL(inode_set_ctime_deleg);
  * @inode:	inode to check
  * @vfsgid:	the new/current vfsgid of @inode
  *
- * Check wether @vfsgid is in the caller's group list or if the caller is
+ * Check whether @vfsgid is in the caller's group list or if the caller is
  * privileged with CAP_FSETID over @inode. This can be used to determine
  * whether the setgid bit can be kept or must be dropped.
  *
