@@ -126,7 +126,7 @@ typedef struct {
 struct devtable {
 	const char *device_id; /* name of table, __mod_<name>__*_device_table. */
 	unsigned long id_size;
-	int (*do_entry)(const char *filename, void *symval, char *alias);
+	int (*do_entry)(struct module *mod, void *symval, char *alias);
 };
 
 /* Size of alias provided to do_entry functions */
@@ -452,7 +452,7 @@ static void do_of_table(void *symval, unsigned long size,
 }
 
 /* Looks like: hid:bNvNpN */
-static int do_hid_entry(const char *filename,
+static int do_hid_entry(struct module *mod,
 			     void *symval, char *alias)
 {
 	DEF_FIELD(symval, hid_device_id, bus);
@@ -470,7 +470,7 @@ static int do_hid_entry(const char *filename,
 }
 
 /* Looks like: ieee1394:venNmoNspNverN */
-static int do_ieee1394_entry(const char *filename,
+static int do_ieee1394_entry(struct module *mod,
 			     void *symval, char *alias)
 {
 	DEF_FIELD(symval, ieee1394_device_id, match_flags);
@@ -494,7 +494,7 @@ static int do_ieee1394_entry(const char *filename,
 }
 
 /* Looks like: pci:vNdNsvNsdNbcNscNiN or <prefix>_pci:vNdNsvNsdNbcNscNiN. */
-static int do_pci_entry(const char *filename,
+static int do_pci_entry(struct module *mod,
 			void *symval, char *alias)
 {
 	/* Class field can be divided into these three. */
@@ -538,7 +538,7 @@ static int do_pci_entry(const char *filename,
 	    || (subclass_mask != 0 && subclass_mask != 0xFF)
 	    || (interface_mask != 0 && interface_mask != 0xFF)) {
 		warn("Can't handle masks in %s:%04X\n",
-		     filename, class_mask);
+		     mod->name, class_mask);
 		return 0;
 	}
 
@@ -550,7 +550,7 @@ static int do_pci_entry(const char *filename,
 }
 
 /* looks like: "ccw:tNmNdtNdmN" */
-static int do_ccw_entry(const char *filename,
+static int do_ccw_entry(struct module *mod,
 			void *symval, char *alias)
 {
 	DEF_FIELD(symval, ccw_device_id, match_flags);
@@ -573,7 +573,7 @@ static int do_ccw_entry(const char *filename,
 }
 
 /* looks like: "ap:tN" */
-static int do_ap_entry(const char *filename,
+static int do_ap_entry(struct module *mod,
 		       void *symval, char *alias)
 {
 	DEF_FIELD(symval, ap_device_id, dev_type);
@@ -583,7 +583,7 @@ static int do_ap_entry(const char *filename,
 }
 
 /* looks like: "css:tN" */
-static int do_css_entry(const char *filename,
+static int do_css_entry(struct module *mod,
 			void *symval, char *alias)
 {
 	DEF_FIELD(symval, css_device_id, type);
@@ -593,7 +593,7 @@ static int do_css_entry(const char *filename,
 }
 
 /* Looks like: "serio:tyNprNidNexN" */
-static int do_serio_entry(const char *filename,
+static int do_serio_entry(struct module *mod,
 			  void *symval, char *alias)
 {
 	DEF_FIELD(symval, serio_device_id, type);
@@ -618,7 +618,7 @@ static int do_serio_entry(const char *filename,
  *       or _CLS. Also, bb, ss, and pp can be substituted with ??
  *       as don't care byte.
  */
-static int do_acpi_entry(const char *filename,
+static int do_acpi_entry(struct module *mod,
 			void *symval, char *alias)
 {
 	DEF_FIELD_ADDR(symval, acpi_device_id, id);
@@ -705,7 +705,7 @@ static void do_pnp_card_entries(void *symval, unsigned long size,
 }
 
 /* Looks like: pcmcia:mNcNfNfnNpfnNvaNvbNvcNvdN. */
-static int do_pcmcia_entry(const char *filename,
+static int do_pcmcia_entry(struct module *mod,
 			   void *symval, char *alias)
 {
 	unsigned int i;
@@ -741,7 +741,7 @@ static int do_pcmcia_entry(const char *filename,
 	return 1;
 }
 
-static int do_vio_entry(const char *filename, void *symval,
+static int do_vio_entry(struct module *mod, void *symval,
 		char *alias)
 {
 	char *tmp;
@@ -773,7 +773,7 @@ static void do_input(char *alias,
 }
 
 /* input:b0v0p0e0-eXkXrXaXmXlXsXfXwX where X is comma-separated %02X. */
-static int do_input_entry(const char *filename, void *symval,
+static int do_input_entry(struct module *mod, void *symval,
 			  char *alias)
 {
 	DEF_FIELD(symval, input_device_id, flags);
@@ -830,7 +830,7 @@ static int do_input_entry(const char *filename, void *symval,
 	return 1;
 }
 
-static int do_eisa_entry(const char *filename, void *symval,
+static int do_eisa_entry(struct module *mod, void *symval,
 		char *alias)
 {
 	DEF_FIELD_ADDR(symval, eisa_device_id, sig);
@@ -839,7 +839,7 @@ static int do_eisa_entry(const char *filename, void *symval,
 }
 
 /* Looks like: parisc:tNhvNrevNsvN */
-static int do_parisc_entry(const char *filename, void *symval,
+static int do_parisc_entry(struct module *mod, void *symval,
 		char *alias)
 {
 	DEF_FIELD(symval, parisc_device_id, hw_type);
@@ -858,7 +858,7 @@ static int do_parisc_entry(const char *filename, void *symval,
 }
 
 /* Looks like: sdio:cNvNdN. */
-static int do_sdio_entry(const char *filename,
+static int do_sdio_entry(struct module *mod,
 			void *symval, char *alias)
 {
 	DEF_FIELD(symval, sdio_device_id, class);
@@ -874,7 +874,7 @@ static int do_sdio_entry(const char *filename,
 }
 
 /* Looks like: ssb:vNidNrevN. */
-static int do_ssb_entry(const char *filename,
+static int do_ssb_entry(struct module *mod,
 			void *symval, char *alias)
 {
 	DEF_FIELD(symval, ssb_device_id, vendor);
@@ -890,7 +890,7 @@ static int do_ssb_entry(const char *filename,
 }
 
 /* Looks like: bcma:mNidNrevNclN. */
-static int do_bcma_entry(const char *filename,
+static int do_bcma_entry(struct module *mod,
 			 void *symval, char *alias)
 {
 	DEF_FIELD(symval, bcma_device_id, manuf);
@@ -908,7 +908,7 @@ static int do_bcma_entry(const char *filename,
 }
 
 /* Looks like: virtio:dNvN */
-static int do_virtio_entry(const char *filename, void *symval,
+static int do_virtio_entry(struct module *mod, void *symval,
 			   char *alias)
 {
 	DEF_FIELD(symval, virtio_device_id, device);
@@ -928,7 +928,7 @@ static int do_virtio_entry(const char *filename, void *symval,
  * in the name.
  */
 
-static int do_vmbus_entry(const char *filename, void *symval,
+static int do_vmbus_entry(struct module *mod, void *symval,
 			  char *alias)
 {
 	int i;
@@ -945,7 +945,7 @@ static int do_vmbus_entry(const char *filename, void *symval,
 }
 
 /* Looks like: rpmsg:S */
-static int do_rpmsg_entry(const char *filename, void *symval,
+static int do_rpmsg_entry(struct module *mod, void *symval,
 			  char *alias)
 {
 	DEF_FIELD_ADDR(symval, rpmsg_device_id, name);
@@ -955,7 +955,7 @@ static int do_rpmsg_entry(const char *filename, void *symval,
 }
 
 /* Looks like: i2c:S */
-static int do_i2c_entry(const char *filename, void *symval,
+static int do_i2c_entry(struct module *mod, void *symval,
 			char *alias)
 {
 	DEF_FIELD_ADDR(symval, i2c_device_id, name);
@@ -964,7 +964,7 @@ static int do_i2c_entry(const char *filename, void *symval,
 	return 1;
 }
 
-static int do_i3c_entry(const char *filename, void *symval,
+static int do_i3c_entry(struct module *mod, void *symval,
 			char *alias)
 {
 	DEF_FIELD(symval, i3c_device_id, match_flags);
@@ -982,7 +982,7 @@ static int do_i3c_entry(const char *filename, void *symval,
 	return 1;
 }
 
-static int do_slim_entry(const char *filename, void *symval, char *alias)
+static int do_slim_entry(struct module *mod, void *symval, char *alias)
 {
 	DEF_FIELD(symval, slim_device_id, manf_id);
 	DEF_FIELD(symval, slim_device_id, prod_code);
@@ -993,7 +993,7 @@ static int do_slim_entry(const char *filename, void *symval, char *alias)
 }
 
 /* Looks like: spi:S */
-static int do_spi_entry(const char *filename, void *symval,
+static int do_spi_entry(struct module *mod, void *symval,
 			char *alias)
 {
 	DEF_FIELD_ADDR(symval, spi_device_id, name);
@@ -1034,7 +1034,7 @@ static void dmi_ascii_filter(char *d, const char *s)
 }
 
 
-static int do_dmi_entry(const char *filename, void *symval,
+static int do_dmi_entry(struct module *mod, void *symval,
 			char *alias)
 {
 	int i, j;
@@ -1058,7 +1058,7 @@ static int do_dmi_entry(const char *filename, void *symval,
 	return 1;
 }
 
-static int do_platform_entry(const char *filename,
+static int do_platform_entry(struct module *mod,
 			     void *symval, char *alias)
 {
 	DEF_FIELD_ADDR(symval, platform_device_id, name);
@@ -1066,7 +1066,7 @@ static int do_platform_entry(const char *filename,
 	return 1;
 }
 
-static int do_mdio_entry(const char *filename,
+static int do_mdio_entry(struct module *mod,
 			 void *symval, char *alias)
 {
 	int i;
@@ -1091,7 +1091,7 @@ static int do_mdio_entry(const char *filename,
 }
 
 /* Looks like: zorro:iN. */
-static int do_zorro_entry(const char *filename, void *symval,
+static int do_zorro_entry(struct module *mod, void *symval,
 			  char *alias)
 {
 	DEF_FIELD(symval, zorro_device_id, id);
@@ -1101,7 +1101,7 @@ static int do_zorro_entry(const char *filename, void *symval,
 }
 
 /* looks like: "pnp:dD" */
-static int do_isapnp_entry(const char *filename,
+static int do_isapnp_entry(struct module *mod,
 			   void *symval, char *alias)
 {
 	DEF_FIELD(symval, isapnp_device_id, vendor);
@@ -1116,7 +1116,7 @@ static int do_isapnp_entry(const char *filename,
 }
 
 /* Looks like: "ipack:fNvNdN". */
-static int do_ipack_entry(const char *filename,
+static int do_ipack_entry(struct module *mod,
 			  void *symval, char *alias)
 {
 	DEF_FIELD(symval, ipack_device_id, format);
@@ -1178,7 +1178,7 @@ static void append_nibble_mask(char **outp,
  * N is exactly 8 digits, where each is an upper-case hex digit, or
  *	a ? or [] pattern matching exactly one digit.
  */
-static int do_amba_entry(const char *filename,
+static int do_amba_entry(struct module *mod,
 			 void *symval, char *alias)
 {
 	unsigned int digit;
@@ -1188,7 +1188,7 @@ static int do_amba_entry(const char *filename,
 
 	if ((id & mask) != id)
 		fatal("%s: Masked-off bit(s) of AMBA device ID are non-zero: id=0x%08X, mask=0x%08X.  Please fix this driver.\n",
-		      filename, id, mask);
+		      mod->name, id, mask);
 
 	p += sprintf(alias, "amba:d");
 	for (digit = 0; digit < 8; digit++)
@@ -1205,7 +1205,7 @@ static int do_amba_entry(const char *filename,
  * N is exactly 2 digits, where each is an upper-case hex digit, or
  *	a ? or [] pattern matching exactly one digit.
  */
-static int do_mips_cdmm_entry(const char *filename,
+static int do_mips_cdmm_entry(struct module *mod,
 			      void *symval, char *alias)
 {
 	DEF_FIELD(symval, mips_cdmm_device_id, type);
@@ -1220,7 +1220,7 @@ static int do_mips_cdmm_entry(const char *filename,
  * complicated.
  */
 
-static int do_x86cpu_entry(const char *filename, void *symval,
+static int do_x86cpu_entry(struct module *mod, void *symval,
 			   char *alias)
 {
 	DEF_FIELD(symval, x86_cpu_id, feature);
@@ -1239,7 +1239,7 @@ static int do_x86cpu_entry(const char *filename, void *symval,
 }
 
 /* LOOKS like cpu:type:*:feature:*FEAT* */
-static int do_cpu_entry(const char *filename, void *symval, char *alias)
+static int do_cpu_entry(struct module *mod, void *symval, char *alias)
 {
 	DEF_FIELD(symval, cpu_feature, feature);
 
@@ -1248,7 +1248,7 @@ static int do_cpu_entry(const char *filename, void *symval, char *alias)
 }
 
 /* Looks like: mei:S:uuid:N:* */
-static int do_mei_entry(const char *filename, void *symval,
+static int do_mei_entry(struct module *mod, void *symval,
 			char *alias)
 {
 	DEF_FIELD_ADDR(symval, mei_cl_device_id, name);
@@ -1266,7 +1266,7 @@ static int do_mei_entry(const char *filename, void *symval,
 }
 
 /* Looks like: rapidio:vNdNavNadN */
-static int do_rio_entry(const char *filename,
+static int do_rio_entry(struct module *mod,
 			void *symval, char *alias)
 {
 	DEF_FIELD(symval, rio_device_id, did);
@@ -1285,7 +1285,7 @@ static int do_rio_entry(const char *filename,
 }
 
 /* Looks like: ulpi:vNpN */
-static int do_ulpi_entry(const char *filename, void *symval,
+static int do_ulpi_entry(struct module *mod, void *symval,
 			 char *alias)
 {
 	DEF_FIELD(symval, ulpi_device_id, vendor);
@@ -1297,7 +1297,7 @@ static int do_ulpi_entry(const char *filename, void *symval,
 }
 
 /* Looks like: hdaudio:vNrNaN */
-static int do_hda_entry(const char *filename, void *symval, char *alias)
+static int do_hda_entry(struct module *mod, void *symval, char *alias)
 {
 	DEF_FIELD(symval, hda_device_id, vendor_id);
 	DEF_FIELD(symval, hda_device_id, rev_id);
@@ -1313,7 +1313,7 @@ static int do_hda_entry(const char *filename, void *symval, char *alias)
 }
 
 /* Looks like: sdw:mNpNvNcN */
-static int do_sdw_entry(const char *filename, void *symval, char *alias)
+static int do_sdw_entry(struct module *mod, void *symval, char *alias)
 {
 	DEF_FIELD(symval, sdw_device_id, mfg_id);
 	DEF_FIELD(symval, sdw_device_id, part_id);
@@ -1331,7 +1331,7 @@ static int do_sdw_entry(const char *filename, void *symval, char *alias)
 }
 
 /* Looks like: fsl-mc:vNdN */
-static int do_fsl_mc_entry(const char *filename, void *symval,
+static int do_fsl_mc_entry(struct module *mod, void *symval,
 			   char *alias)
 {
 	DEF_FIELD(symval, fsl_mc_device_id, vendor);
@@ -1342,7 +1342,7 @@ static int do_fsl_mc_entry(const char *filename, void *symval,
 }
 
 /* Looks like: tbsvc:kSpNvNrN */
-static int do_tbsvc_entry(const char *filename, void *symval, char *alias)
+static int do_tbsvc_entry(struct module *mod, void *symval, char *alias)
 {
 	DEF_FIELD(symval, tb_service_id, match_flags);
 	DEF_FIELD_ADDR(symval, tb_service_id, protocol_key);
@@ -1366,7 +1366,7 @@ static int do_tbsvc_entry(const char *filename, void *symval, char *alias)
 }
 
 /* Looks like: typec:idNmN */
-static int do_typec_entry(const char *filename, void *symval, char *alias)
+static int do_typec_entry(struct module *mod, void *symval, char *alias)
 {
 	DEF_FIELD(symval, typec_device_id, svid);
 	DEF_FIELD(symval, typec_device_id, mode);
@@ -1378,7 +1378,7 @@ static int do_typec_entry(const char *filename, void *symval, char *alias)
 }
 
 /* Looks like: tee:uuid */
-static int do_tee_entry(const char *filename, void *symval, char *alias)
+static int do_tee_entry(struct module *mod, void *symval, char *alias)
 {
 	DEF_FIELD_ADDR(symval, tee_client_device_id, uuid);
 
@@ -1393,28 +1393,28 @@ static int do_tee_entry(const char *filename, void *symval, char *alias)
 }
 
 /* Looks like: wmi:guid */
-static int do_wmi_entry(const char *filename, void *symval, char *alias)
+static int do_wmi_entry(struct module *mod, void *symval, char *alias)
 {
 	int len;
 	DEF_FIELD_ADDR(symval, wmi_device_id, guid_string);
 
 	if (strlen(*guid_string) != UUID_STRING_LEN) {
 		warn("Invalid WMI device id 'wmi:%s' in '%s'\n",
-				*guid_string, filename);
+				*guid_string, mod->name);
 		return 0;
 	}
 
 	len = snprintf(alias, ALIAS_SIZE, WMI_MODULE_PREFIX "%s", *guid_string);
 	if (len < 0 || len >= ALIAS_SIZE) {
 		warn("Could not generate all MODULE_ALIAS's in '%s'\n",
-				filename);
+				mod->name);
 		return 0;
 	}
 	return 1;
 }
 
 /* Looks like: mhi:S */
-static int do_mhi_entry(const char *filename, void *symval, char *alias)
+static int do_mhi_entry(struct module *mod, void *symval, char *alias)
 {
 	DEF_FIELD_ADDR(symval, mhi_device_id, chan);
 	sprintf(alias, MHI_DEVICE_MODALIAS_FMT, *chan);
@@ -1422,7 +1422,7 @@ static int do_mhi_entry(const char *filename, void *symval, char *alias)
 }
 
 /* Looks like: mhi_ep:S */
-static int do_mhi_ep_entry(const char *filename, void *symval, char *alias)
+static int do_mhi_ep_entry(struct module *mod, void *symval, char *alias)
 {
 	DEF_FIELD_ADDR(symval, mhi_device_id, chan);
 	sprintf(alias, MHI_EP_DEVICE_MODALIAS_FMT, *chan);
@@ -1431,7 +1431,7 @@ static int do_mhi_ep_entry(const char *filename, void *symval, char *alias)
 }
 
 /* Looks like: ishtp:{guid} */
-static int do_ishtp_entry(const char *filename, void *symval, char *alias)
+static int do_ishtp_entry(struct module *mod, void *symval, char *alias)
 {
 	DEF_FIELD_ADDR(symval, ishtp_device_id, guid);
 
@@ -1442,7 +1442,7 @@ static int do_ishtp_entry(const char *filename, void *symval, char *alias)
 	return 1;
 }
 
-static int do_auxiliary_entry(const char *filename, void *symval, char *alias)
+static int do_auxiliary_entry(struct module *mod, void *symval, char *alias)
 {
 	DEF_FIELD_ADDR(symval, auxiliary_device_id, name);
 	sprintf(alias, AUXILIARY_MODULE_PREFIX "%s", *name);
@@ -1455,7 +1455,7 @@ static int do_auxiliary_entry(const char *filename, void *symval, char *alias)
  *
  * N is exactly 2 digits, where each is an upper-case hex digit.
  */
-static int do_ssam_entry(const char *filename, void *symval, char *alias)
+static int do_ssam_entry(struct module *mod, void *symval, char *alias)
 {
 	DEF_FIELD(symval, ssam_device_id, match_flags);
 	DEF_FIELD(symval, ssam_device_id, domain);
@@ -1473,7 +1473,7 @@ static int do_ssam_entry(const char *filename, void *symval, char *alias)
 }
 
 /* Looks like: dfl:tNfN */
-static int do_dfl_entry(const char *filename, void *symval, char *alias)
+static int do_dfl_entry(struct module *mod, void *symval, char *alias)
 {
 	DEF_FIELD(symval, dfl_device_id, type);
 	DEF_FIELD(symval, dfl_device_id, feature_id);
@@ -1485,7 +1485,7 @@ static int do_dfl_entry(const char *filename, void *symval, char *alias)
 }
 
 /* Looks like: cdx:vNdN */
-static int do_cdx_entry(const char *filename, void *symval,
+static int do_cdx_entry(struct module *mod, void *symval,
 			char *alias)
 {
 	DEF_FIELD(symval, cdx_device_id, vendor);
@@ -1518,7 +1518,7 @@ static int do_cdx_entry(const char *filename, void *symval,
 	return 1;
 }
 
-static int do_vchiq_entry(const char *filename, void *symval, char *alias)
+static int do_vchiq_entry(struct module *mod, void *symval, char *alias)
 {
 	DEF_FIELD_ADDR(symval, vchiq_device_id, name);
 	sprintf(alias, "vchiq:%s", *name);
@@ -1527,7 +1527,7 @@ static int do_vchiq_entry(const char *filename, void *symval, char *alias)
 }
 
 /* Looks like: coreboot:tN */
-static int do_coreboot_entry(const char *filename, void *symval, char *alias)
+static int do_coreboot_entry(struct module *mod, void *symval, char *alias)
 {
 	DEF_FIELD(symval, coreboot_device_id, tag);
 	sprintf(alias, "coreboot:t%08X", tag);
@@ -1547,7 +1547,7 @@ static bool sym_is(const char *name, unsigned namelen, const char *symbol)
 static void do_table(void *symval, unsigned long size,
 		     unsigned long id_size,
 		     const char *device_id,
-		     int (*do_entry)(const char *filename, void *symval, char *alias),
+		     int (*do_entry)(struct module *mod, void *symval, char *alias),
 		     struct module *mod)
 {
 	unsigned int i;
@@ -1558,7 +1558,7 @@ static void do_table(void *symval, unsigned long size,
 	size -= id_size;
 
 	for (i = 0; i < size; i += id_size) {
-		if (do_entry(mod->name, symval+i, alias)) {
+		if (do_entry(mod, symval+i, alias)) {
 			module_alias_printf(mod, false, "%s", alias);
 		}
 	}
