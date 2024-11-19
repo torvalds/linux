@@ -20,7 +20,7 @@ void rodata_test(void)
 
 	/* test 1: read the value */
 	/* If this test fails, some previous testrun has clobbered the state */
-	if (!rodata_test_data) {
+	if (!READ_ONCE(rodata_test_data)) {
 		pr_err("test 1 fails (start data)\n");
 		return;
 	}
@@ -33,7 +33,7 @@ void rodata_test(void)
 	}
 
 	/* test 3: check the value hasn't changed */
-	if (rodata_test_data == zero) {
+	if (READ_ONCE(rodata_test_data) == zero) {
 		pr_err("test data was changed\n");
 		return;
 	}
