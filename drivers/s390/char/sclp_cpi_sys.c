@@ -223,7 +223,7 @@ static ssize_t system_name_show(struct kobject *kobj,
 	int rc;
 
 	mutex_lock(&sclp_cpi_mutex);
-	rc = snprintf(page, PAGE_SIZE, "%s\n", system_name);
+	rc = sysfs_emit(page, "%s\n", system_name);
 	mutex_unlock(&sclp_cpi_mutex);
 	return rc;
 }
@@ -255,7 +255,7 @@ static ssize_t sysplex_name_show(struct kobject *kobj,
 	int rc;
 
 	mutex_lock(&sclp_cpi_mutex);
-	rc = snprintf(page, PAGE_SIZE, "%s\n", sysplex_name);
+	rc = sysfs_emit(page, "%s\n", sysplex_name);
 	mutex_unlock(&sclp_cpi_mutex);
 	return rc;
 }
@@ -287,7 +287,7 @@ static ssize_t system_type_show(struct kobject *kobj,
 	int rc;
 
 	mutex_lock(&sclp_cpi_mutex);
-	rc = snprintf(page, PAGE_SIZE, "%s\n", system_type);
+	rc = sysfs_emit(page, "%s\n", system_type);
 	mutex_unlock(&sclp_cpi_mutex);
 	return rc;
 }
@@ -321,7 +321,7 @@ static ssize_t system_level_show(struct kobject *kobj,
 	mutex_lock(&sclp_cpi_mutex);
 	level = system_level;
 	mutex_unlock(&sclp_cpi_mutex);
-	return snprintf(page, PAGE_SIZE, "%#018llx\n", level);
+	return sysfs_emit(page, "%#018llx\n", level);
 }
 
 static ssize_t system_level_store(struct kobject *kobj,

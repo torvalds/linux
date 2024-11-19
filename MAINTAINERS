@@ -20224,6 +20224,16 @@ L:	linux-s390@vger.kernel.org
 S:	Supported
 F:	drivers/s390/cio/
 
+S390 CRYPTO MODULES, PRNG DRIVER, ARCH RANDOM
+M:	Harald Freudenberger <freude@linux.ibm.com>
+M:	Holger Dengler <dengler@linux.ibm.com>
+L:	linux-crypto@vger.kernel.org
+L:	linux-s390@vger.kernel.org
+S:	Supported
+F:	arch/s390/crypto/
+F:	arch/s390/include/asm/archrandom.h
+F:	arch/s390/include/asm/cpacf.h
+
 S390 DASD DRIVER
 M:	Stefan Haberland <sth@linux.ibm.com>
 M:	Jan Hoeppner <hoeppner@linux.ibm.com>
@@ -20232,6 +20242,14 @@ S:	Supported
 F:	block/partitions/ibm.c
 F:	drivers/s390/block/dasd*
 F:	include/linux/dasd_mod.h
+
+S390 HWRANDOM TRNG DRIVER
+M:	Harald Freudenberger <freude@linux.ibm.com>
+M:	Holger Dengler <dengler@linux.ibm.com>
+L:	linux-crypto@vger.kernel.org
+L:	linux-s390@vger.kernel.org
+S:	Supported
+F:	drivers/char/hw_random/s390-trng.c
 
 S390 IOMMU (PCI)
 M:	Niklas Schnelle <schnelle@linux.ibm.com>
@@ -20314,10 +20332,16 @@ F:	arch/s390/kvm/pci*
 F:	drivers/vfio/pci/vfio_pci_zdev.c
 F:	include/uapi/linux/vfio_zdev.h
 
-S390 ZCRYPT DRIVER
+S390 ZCRYPT AND PKEY DRIVER AND AP BUS
 M:	Harald Freudenberger <freude@linux.ibm.com>
+M:	Holger Dengler <dengler@linux.ibm.com>
 L:	linux-s390@vger.kernel.org
 S:	Supported
+F:	arch/s390/include/asm/ap.h
+F:	arch/s390/include/asm/pkey.h
+F:	arch/s390/include/asm/trace/zcrypt.h
+F:	arch/s390/include/uapi/asm/pkey.h
+F:	arch/s390/include/uapi/asm/zcrypt.h
 F:	drivers/s390/crypto/
 
 S390 ZFCP DRIVER

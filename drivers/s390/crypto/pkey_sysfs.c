@@ -10,7 +10,6 @@
 
 #include <linux/sysfs.h>
 
-#include "zcrypt_api.h"
 #include "zcrypt_ccamisc.h"
 #include "zcrypt_ep11misc.h"
 
