@@ -178,10 +178,11 @@ Writing an unsupported mode will result in an invalid parameter error.
   available on the F71858FG / F8000 if the fan channel is in RPM mode.
 
 * 2: Normal auto mode
-  You can define a number of temperature/fan speed trip points, which % the
-  fan should run at at this temp and which temp a fan should follow using the
-  standard sysfs interface. The number and type of trip points is chip
-  depended, see which files are available in sysfs.
+  You can define a number of temperature/fan speed trip points that specify
+  the percentage at which the fan should run at each temperature, and which
+  temperature sensor a fan should follow, using the standard sysfs interface.
+  The number and type of trip points are chip dependent - see the available
+  files in sysfs.
   Fan/PWM channel 3 of the F8000 is always in this mode!
 
 * 3: Thermostat mode (Only available on the F8000 when in duty cycle mode)
