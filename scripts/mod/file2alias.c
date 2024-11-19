@@ -10,6 +10,12 @@
  * of the GNU General Public License, incorporated herein by reference.
  */
 
+#include <stdarg.h>
+#include <stdio.h>
+
+#include "list.h"
+#include "xalloc.h"
+
 #include "modpost.h"
 #include "devicetable-offsets.h"
 
@@ -30,6 +36,58 @@ typedef Elf64_Addr	kernel_ulong_t;
 
 #include <ctype.h>
 #include <stdbool.h>
+
+/**
+ * module_alias_printf - add auto-generated MODULE_ALIAS()
+ *
+ * @mod: module
+ * @append_wildcard: append '*' for future extension if not exist yet
+ * @fmt: printf(3)-like format
+ */
+static void __attribute__((format (printf, 3, 4)))
+module_alias_printf(struct module *mod, bool append_wildcard,
+		    const char *fmt, ...)
+{
+	struct module_alias *new;
+	size_t len;
+	int n;
+	va_list ap;
+
+	/* Determine required size. */
+	va_start(ap, fmt);
+	n = vsnprintf(NULL, 0, fmt, ap);
+	va_end(ap);
+
+	if (n < 0) {
+		error("vsnprintf failed\n");
+		return;
+	}
+
+	len = n + 1;	/* extra byte for '\0' */
+
+	if (append_wildcard)
+		len++;	/* extra byte for '*' */
+
+	new = xmalloc(sizeof(*new) + len);
+
+	/* Now, really print it to the allocated buffer */
+	va_start(ap, fmt);
+	n = vsnprintf(new->str, len, fmt, ap);
+	va_end(ap);
+
+	if (n < 0) {
+		error("vsnprintf failed\n");
+		free(new);
+		return;
+	}
+
+	if (append_wildcard && (n == 0 || new->str[n - 1] != '*')) {
+		new->str[n] = '*';
+		new->str[n + 1] = '\0';
+	}
+
+	list_add_tail(&new->node, &mod->aliases);
+}
 
 typedef uint32_t	__u32;
 typedef uint16_t	__u16;
@@ -229,9 +287,7 @@ static void do_usb_entry(void *symval,
 	ADD(alias, "in", match_flags&USB_DEVICE_ID_MATCH_INT_NUMBER,
 	    bInterfaceNumber);
 
-	add_wildcard(alias);
-	buf_printf(&mod->dev_table_buf,
-		   "MODULE_ALIAS(\"%s\");\n", alias);
+	module_alias_printf(mod, true, "%s", alias);
 }
 
 /* Handles increment/decrement of BCD formatted integers */
@@ -375,10 +431,8 @@ static void do_of_entry_multi(void *symval, struct module *mod)
 		if (isspace(*tmp))
 			*tmp = '_';
 
-	buf_printf(&mod->dev_table_buf, "MODULE_ALIAS(\"%s\");\n", alias);
-	strcat(alias, "C");
-	add_wildcard(alias);
-	buf_printf(&mod->dev_table_buf, "MODULE_ALIAS(\"%s\");\n", alias);
+	module_alias_printf(mod, false, "%s", alias);
+	module_alias_printf(mod, false, "%sC*", alias);
 }
 
 static void do_of_table(void *symval, unsigned long size,
@@ -608,14 +662,12 @@ static void do_pnp_device_entry(void *symval, unsigned long size,
 		char acpi_id[sizeof(*id)];
 		int j;
 
-		buf_printf(&mod->dev_table_buf,
-			   "MODULE_ALIAS(\"pnp:d%s*\");\n", *id);
+		module_alias_printf(mod, false, "pnp:d%s*", *id);
 
 		/* fix broken pnp bus lowercasing */
 		for (j = 0; j < sizeof(acpi_id); j++)
 			acpi_id[j] = toupper((*id)[j]);
-		buf_printf(&mod->dev_table_buf,
-			   "MODULE_ALIAS(\"acpi*:%s:*\");\n", acpi_id);
+		module_alias_printf(mod, false, "acpi*:%s:*", acpi_id);
 	}
 }
 
@@ -666,14 +718,12 @@ static void do_pnp_card_entries(void *symval, unsigned long size,
 				char acpi_id[PNP_ID_LEN];
 				int k;
 
-				buf_printf(&mod->dev_table_buf,
-					   "MODULE_ALIAS(\"pnp:d%s*\");\n", id);
+				module_alias_printf(mod, false, "pnp:d%s*", id);
 
 				/* fix broken pnp bus lowercasing */
 				for (k = 0; k < sizeof(acpi_id); k++)
 					acpi_id[k] = toupper(id[k]);
-				buf_printf(&mod->dev_table_buf,
-					   "MODULE_ALIAS(\"acpi*:%s:*\");\n", acpi_id);
+				module_alias_printf(mod, false, "acpi*:%s:*", acpi_id);
 			}
 		}
 	}
@@ -1534,8 +1584,7 @@ static void do_table(void *symval, unsigned long size,
 
 	for (i = 0; i < size; i += id_size) {
 		if (do_entry(mod->name, symval+i, alias)) {
-			buf_printf(&mod->dev_table_buf,
-				   "MODULE_ALIAS(\"%s\");\n", alias);
+			module_alias_printf(mod, false, "%s", alias);
 		}
 	}
 }
@@ -1659,12 +1708,4 @@ void handle_moddevtable(struct module *mod, struct elf_info *info,
 		}
 	}
 	free(zeros);
-}
-
-/* Now add out buffered information to the generated C source */
-void add_moddevtable(struct buffer *buf, struct module *mod)
-{
-	buf_printf(buf, "\n");
-	buf_write(buf, mod->dev_table_buf.p, mod->dev_table_buf.pos);
-	free(mod->dev_table_buf.p);
 }

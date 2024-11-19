@@ -176,6 +176,7 @@ static struct module *new_module(const char *name, size_t namelen)
 	INIT_LIST_HEAD(&mod->unresolved_symbols);
 	INIT_LIST_HEAD(&mod->missing_namespaces);
 	INIT_LIST_HEAD(&mod->imported_namespaces);
+	INIT_LIST_HEAD(&mod->aliases);
 
 	memcpy(mod->name, name, namelen);
 	mod->name[namelen] = '\0';
@@ -1966,6 +1967,7 @@ static void write_vmlinux_export_c_file(struct module *mod)
 static void write_mod_c_file(struct module *mod)
 {
 	struct buffer buf = { };
+	struct module_alias *alias, *next;
 	char fname[PATH_MAX];
 	int ret;
 
@@ -1973,7 +1975,14 @@ static void write_mod_c_file(struct module *mod)
 	add_exported_symbols(&buf, mod);
 	add_versions(&buf, mod);
 	add_depends(&buf, mod);
-	add_moddevtable(&buf, mod);
+
+	buf_printf(&buf, "\n");
+	list_for_each_entry_safe(alias, next, &mod->aliases, node) {
+		buf_printf(&buf, "MODULE_ALIAS(\"%s\");\n", alias->str);
+		list_del(&alias->node);
+		free(alias);
+	}
+
 	add_srcversion(&buf, mod);
 
 	ret = snprintf(fname, sizeof(fname), "%s.mod.c", mod->name);
