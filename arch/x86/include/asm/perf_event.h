@@ -422,7 +422,9 @@ static inline bool is_topdown_idx(int idx)
  */
 
 struct pebs_basic {
-	u64 format_size;
+	u64 format_group:32,
+	    retire_latency:16,
+	    format_size:16;
 	u64 ip;
 	u64 applicable_counters;
 	u64 tsc;
@@ -431,7 +433,17 @@ struct pebs_basic {
 struct pebs_meminfo {
 	u64 address;
 	u64 aux;
-	u64 latency;
+	union {
+		/* pre Alder Lake */
+		u64 mem_latency;
+		/* Alder Lake and later */
+		struct {
+			u64 instr_latency:16;
+			u64 pad2:16;
+			u64 cache_latency:16;
+			u64 pad3:16;
+		};
+	};
 	u64 tsx_tuning;
 };
 
