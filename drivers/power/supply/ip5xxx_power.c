@@ -270,6 +270,19 @@ static int ip5xxx_battery_get_status(struct ip5xxx *ip5xxx, int *val)
 	unsigned int rval;
 	int ret;
 
+	if (!ip5xxx->regs.charger.status) {
+		// Fall-back to Charging Ended bit
+		ret = ip5xxx_read(ip5xxx, ip5xxx->regs.charger.chg_end, &rval);
+		if (ret)
+			return ret;
+
+		if (rval == ip5xxx->chg_end_inverted)
+			*val = POWER_SUPPLY_STATUS_CHARGING;
+		else
+			*val = POWER_SUPPLY_STATUS_NOT_CHARGING;
+		return 0;
+	}
+
 	ret = ip5xxx_read(ip5xxx, ip5xxx->regs.charger.status, &rval);
 	if (ret)
 		return ret;
