@@ -2425,8 +2425,12 @@ static void intel_pmu_drain_pebs_nhm(struct pt_regs *iregs, struct perf_sample_d
 static void intel_pmu_drain_pebs_icl(struct pt_regs *iregs, struct perf_sample_data *data)
 {
 	short counts[INTEL_PMC_IDX_FIXED + MAX_FIXED_PEBS_EVENTS] = {};
+	void *last[INTEL_PMC_IDX_FIXED + MAX_FIXED_PEBS_EVENTS];
 	struct cpu_hw_events *cpuc = this_cpu_ptr(&cpu_hw_events);
 	struct debug_store *ds = cpuc->ds;
+	struct x86_perf_regs perf_regs;
+	struct pt_regs *regs = &perf_regs.regs;
+	struct pebs_basic *basic;
 	struct perf_event *event;
 	void *base, *at, *top;
 	int bit;
@@ -2448,30 +2452,41 @@ static void intel_pmu_drain_pebs_icl(struct pt_regs *iregs, struct perf_sample_d
 		return;
 	}
 
-	for (at = base; at < top; at += cpuc->pebs_record_size) {
+	if (!iregs)
+		iregs = &dummy_iregs;
+
+	/* Process all but the last event for each counter. */
+	for (at = base; at < top; at += basic->format_size) {
 		u64 pebs_status;
 
-		pebs_status = get_pebs_status(at) & cpuc->pebs_enabled;
-		pebs_status &= mask;
+		basic = at;
+		if (basic->format_size != cpuc->pebs_record_size)
+			continue;
 
-		for_each_set_bit(bit, (unsigned long *)&pebs_status, X86_PMC_IDX_MAX)
-			counts[bit]++;
+		pebs_status = basic->applicable_counters & cpuc->pebs_enabled & mask;
+		for_each_set_bit(bit, (unsigned long *)&pebs_status, X86_PMC_IDX_MAX) {
+			event = cpuc->events[bit];
+
+			if (WARN_ON_ONCE(!event) ||
+			    WARN_ON_ONCE(!event->attr.precise_ip))
+				continue;
+
+			if (counts[bit]++) {
+				__intel_pmu_pebs_event(event, iregs, regs, data, last[bit],
+						       setup_pebs_adaptive_sample_data);
+			}
+			last[bit] = at;
+		}
 	}
 
 	for_each_set_bit(bit, (unsigned long *)&mask, X86_PMC_IDX_MAX) {
-		if (counts[bit] == 0)
+		if (!counts[bit])
 			continue;
 
 		event = cpuc->events[bit];
-		if (WARN_ON_ONCE(!event))
-			continue;
 
-		if (WARN_ON_ONCE(!event->attr.precise_ip))
-			continue;
-
-		__intel_pmu_pebs_events(event, iregs, data, base,
-					top, bit, counts[bit],
-					setup_pebs_adaptive_sample_data);
+		__intel_pmu_pebs_last_event(event, iregs, regs, data, last[bit],
+					    counts[bit], setup_pebs_adaptive_sample_data);
 	}
 }
 
