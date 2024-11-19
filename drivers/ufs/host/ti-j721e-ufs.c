@@ -83,7 +83,7 @@ MODULE_DEVICE_TABLE(of, ti_j721e_ufs_of_match);
 
 static struct platform_driver ti_j721e_ufs_driver = {
 	.probe	= ti_j721e_ufs_probe,
-	.remove_new = ti_j721e_ufs_remove,
+	.remove = ti_j721e_ufs_remove,
 	.driver	= {
 		.name   = "ti-j721e-ufs",
 		.of_match_table = ti_j721e_ufs_of_match,
