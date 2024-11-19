@@ -8103,7 +8103,8 @@ S:	Maintained
 F:	drivers/edac/e7xxx_edac.c
 
 EDAC-FSL_DDR
-M:	York Sun <york.sun@nxp.com>
+R:	Frank Li <Frank.Li@nxp.com>
+L:	imx@lists.linux.dev
 L:	linux-edac@vger.kernel.org
 S:	Maintained
 F:	drivers/edac/fsl_ddr_edac.*
