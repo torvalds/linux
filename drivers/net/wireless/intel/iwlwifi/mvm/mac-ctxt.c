@@ -1972,7 +1972,7 @@ void iwl_mvm_channel_switch_error_notif(struct iwl_mvm *mvm,
 	if (csa_err_mask & (CS_ERR_COUNT_ERROR |
 			    CS_ERR_LONG_DELAY_AFTER_CS |
 			    CS_ERR_TX_BLOCK_TIMER_EXPIRED))
-		ieee80211_channel_switch_disconnect(vif, true);
+		ieee80211_channel_switch_disconnect(vif);
 	rcu_read_unlock();
 }
 

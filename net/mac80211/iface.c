@@ -2374,18 +2374,14 @@ void ieee80211_vif_block_queues_csa(struct ieee80211_sub_if_data *sdata)
 	if (ieee80211_hw_check(&local->hw, HANDLES_QUIET_CSA))
 		return;
 
-	ieee80211_stop_vif_queues(local, sdata,
-				  IEEE80211_QUEUE_STOP_REASON_CSA);
-	sdata->csa_blocked_queues = true;
+	ieee80211_stop_vif_queues_norefcount(local, sdata,
+					     IEEE80211_QUEUE_STOP_REASON_CSA);
 }
 
 void ieee80211_vif_unblock_queues_csa(struct ieee80211_sub_if_data *sdata)
 {
 	struct ieee80211_local *local = sdata->local;
 
-	if (sdata->csa_blocked_queues) {
-		ieee80211_wake_vif_queues(local, sdata,
-					  IEEE80211_QUEUE_STOP_REASON_CSA);
-		sdata->csa_blocked_queues = false;
-	}
+	ieee80211_wake_vif_queues_norefcount(local, sdata,
+					     IEEE80211_QUEUE_STOP_REASON_CSA);
 }
