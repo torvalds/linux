@@ -504,7 +504,7 @@ static int qede_get_link_ksettings(struct net_device *dev,
 				   struct ethtool_link_ksettings *cmd)
 {
 	typeof(cmd->link_modes) *link_modes = &cmd->link_modes;
-	struct ethtool_link_settings_hdr *base = &cmd->base;
+	struct ethtool_link_settings *base = &cmd->base;
 	struct qede_dev *edev = netdev_priv(dev);
 	struct qed_link_output current_link;
 
@@ -537,7 +537,7 @@ static int qede_get_link_ksettings(struct net_device *dev,
 static int qede_set_link_ksettings(struct net_device *dev,
 				   const struct ethtool_link_ksettings *cmd)
 {
-	const struct ethtool_link_settings_hdr *base = &cmd->base;
+	const struct ethtool_link_settings *base = &cmd->base;
 	const struct ethtool_forced_speed_map *map;
 	struct qede_dev *edev = netdev_priv(dev);
 	struct qed_link_output current_link;

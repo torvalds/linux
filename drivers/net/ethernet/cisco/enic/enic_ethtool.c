@@ -129,8 +129,8 @@ static void enic_intr_coal_set_rx(struct enic *enic, u32 timer)
 static int enic_get_ksettings(struct net_device *netdev,
 			      struct ethtool_link_ksettings *ecmd)
 {
-	struct ethtool_link_settings_hdr *base = &ecmd->base;
 	struct enic *enic = netdev_priv(netdev);
+	struct ethtool_link_settings *base = &ecmd->base;
 
 	ethtool_link_ksettings_add_link_mode(ecmd, supported,
 					     10000baseT_Full);

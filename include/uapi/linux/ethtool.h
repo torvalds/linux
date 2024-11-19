@@ -2511,30 +2511,34 @@ enum ethtool_reset_flags {
  *	autonegotiation; 0 if unknown or not applicable.  Read-only.
  */
 struct ethtool_link_settings {
-	/* New members MUST be added within the __struct_group() macro below. */
-	__struct_group(ethtool_link_settings_hdr, hdr, /* no attrs */,
-		__u32	cmd;
-		__u32	speed;
-		__u8	duplex;
-		__u8	port;
-		__u8	phy_address;
-		__u8	autoneg;
-		__u8	mdio_support;
-		__u8	eth_tp_mdix;
-		__u8	eth_tp_mdix_ctrl;
-		__s8	link_mode_masks_nwords;
-		__u8	transceiver;
-		__u8	master_slave_cfg;
-		__u8	master_slave_state;
-		__u8	rate_matching;
-		__u32	reserved[7];
-	);
+	__u32	cmd;
+	__u32	speed;
+	__u8	duplex;
+	__u8	port;
+	__u8	phy_address;
+	__u8	autoneg;
+	__u8	mdio_support;
+	__u8	eth_tp_mdix;
+	__u8	eth_tp_mdix_ctrl;
+	__s8	link_mode_masks_nwords;
+	__u8	transceiver;
+	__u8	master_slave_cfg;
+	__u8	master_slave_state;
+	__u8	rate_matching;
+	__u32	reserved[7];
+#ifndef __KERNEL__
+	/* Linux builds with -Wflex-array-member-not-at-end but does
+	 * not use the "link_mode_masks" member. Leave it defined for
+	 * userspace for now, and when userspace wants to start using
+	 * -Wfamnae, we'll need a new solution.
+	 */
 	__u32	link_mode_masks[];
 	/* layout of link_mode_masks fields:
 	 * __u32 map_supported[link_mode_masks_nwords];
 	 * __u32 map_advertising[link_mode_masks_nwords];
 	 * __u32 map_lp_advertising[link_mode_masks_nwords];
 	 */
+#endif
 };
 
 /**
