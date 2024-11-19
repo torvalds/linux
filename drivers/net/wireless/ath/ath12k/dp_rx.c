@@ -3912,7 +3912,7 @@ void ath12k_dp_rx_process_reo_status(struct ath12k_base *ab)
 	ath12k_hal_srng_access_begin(ab, srng);
 
 	while ((hdr = ath12k_hal_srng_dst_get_next_entry(ab, srng))) {
-		tag = u64_get_bits(hdr->tl, HAL_SRNG_TLV_HDR_TAG);
+		tag = le64_get_bits(hdr->tl, HAL_SRNG_TLV_HDR_TAG);
 
 		switch (tag) {
 		case HAL_REO_GET_QUEUE_STATS_STATUS:

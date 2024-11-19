@@ -581,7 +581,7 @@ struct hal_tlv_hdr {
 #define HAL_TLV_64_HDR_LEN		GENMASK(21, 10)
 
 struct hal_tlv_64_hdr {
-	u64 tl;
+	__le64 tl;
 	u8 value[];
 } __packed;
 
