@@ -1656,8 +1656,7 @@ static u32 stripe_length(const struct scrub_stripe *stripe)
 		   stripe->bg->start + stripe->bg->length - stripe->logical);
 }
 
-static void scrub_submit_extent_sector_read(struct scrub_ctx *sctx,
-					    struct scrub_stripe *stripe)
+static void scrub_submit_extent_sector_read(struct scrub_stripe *stripe)
 {
 	struct btrfs_fs_info *fs_info = stripe->bg->fs_info;
 	struct btrfs_bio *bbio = NULL;
@@ -1704,8 +1703,18 @@ static void scrub_submit_extent_sector_read(struct scrub_ctx *sctx,
 					      &stripe_len, &bioc, &io_stripe, &mirror);
 			btrfs_put_bioc(bioc);
 			if (err < 0) {
-				set_bit(i, &stripe->io_error_bitmap);
-				set_bit(i, &stripe->error_bitmap);
+				if (err != -ENODATA) {
+					/*
+					 * Earlier btrfs_get_raid_extent_offset()
+					 * returned -ENODATA, which means there's
+					 * no entry for the corresponding range
+					 * in the stripe tree.  But if it's in
+					 * the extent tree, then it's a preallocated
+					 * extent and not an error.
+					 */
+					set_bit(i, &stripe->io_error_bitmap);
+					set_bit(i, &stripe->error_bitmap);
+				}
 				continue;
 			}
 
@@ -1743,7 +1752,7 @@ static void scrub_submit_initial_read(struct scrub_ctx *sctx,
 	ASSERT(test_bit(SCRUB_STRIPE_FLAG_INITIALIZED, &stripe->state));
 
 	if (btrfs_need_stripe_tree_update(fs_info, stripe->bg->flags)) {
-		scrub_submit_extent_sector_read(sctx, stripe);
+		scrub_submit_extent_sector_read(stripe);
 		return;
 	}
 
@@ -1954,7 +1963,7 @@ static int scrub_raid56_parity_stripe(struct scrub_ctx *sctx,
 	ASSERT(sctx->raid56_data_stripes);
 
 	/*
-	 * For data stripe search, we cannot re-use the same extent/csum paths,
+	 * For data stripe search, we cannot reuse the same extent/csum paths,
 	 * as the data stripe bytenr may be smaller than previous extent.  Thus
 	 * we have to use our own extent/csum paths.
 	 */
@@ -2103,7 +2112,6 @@ out:
  */
 static int scrub_simple_mirror(struct scrub_ctx *sctx,
 			       struct btrfs_block_group *bg,
-			       struct btrfs_chunk_map *map,
 			       u64 logical_start, u64 logical_length,
 			       struct btrfs_device *device,
 			       u64 physical, int mirror_num)
@@ -2222,7 +2230,7 @@ static int scrub_simple_stripe(struct scrub_ctx *sctx,
 		 * just RAID1, so we can reuse scrub_simple_mirror() to scrub
 		 * this stripe.
 		 */
-		ret = scrub_simple_mirror(sctx, bg, map, cur_logical,
+		ret = scrub_simple_mirror(sctx, bg, cur_logical,
 					  BTRFS_STRIPE_LEN, device, cur_physical,
 					  mirror_num);
 		if (ret)
@@ -2256,7 +2264,6 @@ static noinline_for_stack int scrub_stripe(struct scrub_ctx *sctx,
 	/* Offset inside the chunk */
 	u64 offset;
 	u64 stripe_logical;
-	int stop_loop = 0;
 
 	/* Extent_path should be released by now. */
 	ASSERT(sctx->extent_path.nodes[0] == NULL);
@@ -2307,7 +2314,7 @@ static noinline_for_stack int scrub_stripe(struct scrub_ctx *sctx,
 		 * Only @physical and @mirror_num needs to calculated using
 		 * @stripe_index.
 		 */
-		ret = scrub_simple_mirror(sctx, bg, map, bg->start, bg->length,
+		ret = scrub_simple_mirror(sctx, bg, bg->start, bg->length,
 				scrub_dev, map->stripes[stripe_index].physical,
 				stripe_index + 1);
 		offset = 0;
@@ -2362,7 +2369,7 @@ static noinline_for_stack int scrub_stripe(struct scrub_ctx *sctx,
 		 * We can reuse scrub_simple_mirror() here, as the repair part
 		 * is still based on @mirror_num.
 		 */
-		ret = scrub_simple_mirror(sctx, bg, map, logical, BTRFS_STRIPE_LEN,
+		ret = scrub_simple_mirror(sctx, bg, logical, BTRFS_STRIPE_LEN,
 					  scrub_dev, physical, 1);
 		if (ret < 0)
 			goto out;
@@ -2370,14 +2377,8 @@ next:
 		logical += increment;
 		physical += BTRFS_STRIPE_LEN;
 		spin_lock(&sctx->stat_lock);
-		if (stop_loop)
-			sctx->stat.last_physical =
-				map->stripes[stripe_index].physical + dev_stripe_len;
-		else
-			sctx->stat.last_physical = physical;
+		sctx->stat.last_physical = physical;
 		spin_unlock(&sctx->stat_lock);
-		if (stop_loop)
-			break;
 	}
 out:
 	ret2 = flush_scrub_stripes(sctx);
