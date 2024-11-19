@@ -112,8 +112,6 @@ static struct target target = {
 	.uid	= UINT_MAX,
 };
 
-#define METRIC_ONLY_LEN 20
-
 static volatile sig_atomic_t	child_pid			= -1;
 static int			detailed_run			=  0;
 static bool			transaction_run;
@@ -150,21 +148,6 @@ static struct perf_stat		perf_stat;
 #define STAT_RECORD		perf_stat.record
 
 static volatile sig_atomic_t done = 0;
-
-static struct perf_stat_config stat_config = {
-	.aggr_mode		= AGGR_GLOBAL,
-	.aggr_level		= MAX_CACHE_LVL + 1,
-	.scale			= true,
-	.unit_width		= 4, /* strlen("unit") */
-	.run_count		= 1,
-	.metric_only_len	= METRIC_ONLY_LEN,
-	.walltime_nsecs_stats	= &walltime_nsecs_stats,
-	.ru_stats		= &ru_stats,
-	.big_num		= true,
-	.ctl_fd			= -1,
-	.ctl_fd_ack		= -1,
-	.iostat_run		= false,
-};
 
 /* Options set from the command line. */
 struct opt_aggr_mode {
@@ -1069,16 +1052,6 @@ static void sig_atexit(void)
 
 	signal(signr, SIG_DFL);
 	kill(getpid(), signr);
-}
-
-void perf_stat__set_big_num(int set)
-{
-	stat_config.big_num = (set != 0);
-}
-
-void perf_stat__set_no_csv_summary(int set)
-{
-	stat_config.no_csv_summary = (set != 0);
 }
 
 static int stat__set_big_num(const struct option *opt __maybe_unused,
