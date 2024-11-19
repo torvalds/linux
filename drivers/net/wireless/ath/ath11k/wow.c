@@ -148,8 +148,10 @@ static int ath11k_wow_cleanup(struct ath11k *ar)
  * 802.11: |4B|dest mac(6B)| 6B |src mac(6B)|  8B  |type(2B)|  body...  |
  *         +--+------------+----+-----------+---------------+-----------+
  */
-static void ath11k_wow_convert_8023_to_80211(struct cfg80211_pkt_pattern *new,
-					     const struct cfg80211_pkt_pattern *old)
+/* clang stack usage explodes if this is inlined */
+static noinline_for_stack
+void ath11k_wow_convert_8023_to_80211(struct cfg80211_pkt_pattern *new,
+				      const struct cfg80211_pkt_pattern *old)
 {
 	u8 hdr_8023_pattern[ETH_HLEN] = {};
 	u8 hdr_8023_bit_mask[ETH_HLEN] = {};
