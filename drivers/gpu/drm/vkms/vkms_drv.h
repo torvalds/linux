@@ -212,21 +212,17 @@ int vkms_crtc_init(struct drm_device *dev, struct drm_crtc *crtc,
  * vkms_output_init() - Initialize all sub-components needed for a VKMS device.
  *
  * @vkmsdev: VKMS device to initialize
- * @index: CRTC which can be attached to the planes. The caller must ensure that
- *	   @index is positive and less or equals to 31.
  */
-int vkms_output_init(struct vkms_device *vkmsdev, int index);
+int vkms_output_init(struct vkms_device *vkmsdev);
 
 /**
  * vkms_plane_init() - Initialize a plane
  *
  * @vkmsdev: VKMS device containing the plane
  * @type: type of plane to initialize
- * @index: CRTC which can be attached to the plane. The caller must ensure that
- *	   @index is positive and less or equals to 31.
  */
 struct vkms_plane *vkms_plane_init(struct vkms_device *vkmsdev,
-				   enum drm_plane_type type, int index);
+				   enum drm_plane_type type);
 
 /* CRC Support */
 const char *const *vkms_get_crc_sources(struct drm_crtc *crtc,
