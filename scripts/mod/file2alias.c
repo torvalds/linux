@@ -1503,8 +1503,8 @@ void handle_moddevtable(struct module *mod, struct elf_info *info,
 {
 	void *symval;
 	char *zeros = NULL;
-	const char *name, *identifier;
-	unsigned int namelen;
+	const char *type, *name;
+	size_t typelen;
 
 	/* We're looking for a section relative symbol */
 	if (!sym->st_shndx || get_secindex(info, sym) >= info->num_sections)
@@ -1514,19 +1514,19 @@ void handle_moddevtable(struct module *mod, struct elf_info *info,
 	if (ELF_ST_TYPE(sym->st_info) != STT_OBJECT)
 		return;
 
-	/* All our symbols are of form __mod_<name>__<identifier>_device_table. */
+	/* All our symbols are of form __mod_<type>__<name>_device_table. */
 	if (!strstarts(symname, "__mod_"))
 		return;
-	name = symname + strlen("__mod_");
-	namelen = strlen(name);
-	if (namelen < strlen("_device_table"))
+	type = symname + strlen("__mod_");
+	typelen = strlen(type);
+	if (typelen < strlen("_device_table"))
 		return;
-	if (strcmp(name + namelen - strlen("_device_table"), "_device_table"))
+	if (strcmp(type + typelen - strlen("_device_table"), "_device_table"))
 		return;
-	identifier = strstr(name, "__");
-	if (!identifier)
+	name = strstr(type, "__");
+	if (!name)
 		return;
-	namelen = identifier - name;
+	typelen = name - type;
 
 	/* Handle all-NULL symbols allocated into .bss */
 	if (info->sechdrs[get_secindex(info, sym)].sh_type & SHT_NOBITS) {
@@ -1539,7 +1539,7 @@ void handle_moddevtable(struct module *mod, struct elf_info *info,
 	for (int i = 0; i < ARRAY_SIZE(devtable); i++) {
 		const struct devtable *p = &devtable[i];
 
-		if (sym_is(name, namelen, p->device_id)) {
+		if (sym_is(type, typelen, p->device_id)) {
 			do_table(symval, sym->st_size, p->id_size,
 				 p->device_id, p->do_entry, mod);
 			break;
