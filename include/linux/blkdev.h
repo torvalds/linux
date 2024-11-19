@@ -1275,7 +1275,7 @@ static inline unsigned int queue_io_opt(const struct request_queue *q)
 	return q->limits.io_opt;
 }
 
-static inline int bdev_io_opt(struct block_device *bdev)
+static inline unsigned int bdev_io_opt(struct block_device *bdev)
 {
 	return queue_io_opt(bdev_get_queue(bdev));
 }
