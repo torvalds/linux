@@ -113,6 +113,7 @@ struct ip5xxx {
 	u8 chg_end_inverted;
 };
 
+#define REG_FIELD_UNSUPPORTED { .lsb = 1 }
 /* Register fields layout. Unsupported registers marked as { .lsb = 1 } */
 struct ip5xxx_regfield_config {
 	const struct reg_field charger_enable;
@@ -728,6 +729,49 @@ static struct ip5xxx_regfield_config ip51xx_fields = {
 	.boost_undervolt_uv_per_bit = 100000,
 };
 
+static struct ip5xxx_regfield_config ip5306_fields = {
+	.charger_enable = REG_FIELD(0x00, 4, 4),
+	.charger_const_volt_sel = REG_FIELD(0x22, 0, 1),
+	.charger_const_curr_sel = REG_FIELD(0x24, 0, 4),
+	.charger_status = REG_FIELD_UNSUPPORTED, // other bits...
+	.charger_chg_end = REG_FIELD(0x71, 3, 3),
+	.charger_timeout = REG_FIELD_UNSUPPORTED,
+	.charger_vin_overvolt = REG_FIELD_UNSUPPORTED,
+	.boost_enable = REG_FIELD(0x00, 5, 5),
+	.boost_llshdn_enable = REG_FIELD_UNSUPPORTED,
+	.boost_llshdn_i_limit = REG_FIELD_UNSUPPORTED,
+	.boost_load_powerup_en = REG_FIELD(0x00, 2, 2),
+	.boost_vin_pullout_en = REG_FIELD(0x01, 2, 2),
+	.boost_undervolt_limit = REG_FIELD(0x21, 2, 4),
+	.boost_light_load_status = REG_FIELD(0x72, 2, 2),
+	.battery_ntc_dis = REG_FIELD_UNSUPPORTED,
+	.battery_type = REG_FIELD(0x22, 2, 3),
+	.battery_vset_en = REG_FIELD_UNSUPPORTED,
+	.battery_adc_volt_low = REG_FIELD_UNSUPPORTED,
+	.battery_adc_volt_high = REG_FIELD_UNSUPPORTED,
+	.battery_adc_curr_low = REG_FIELD_UNSUPPORTED,
+	.battery_adc_curr_high = REG_FIELD_UNSUPPORTED,
+	.battery_adc_ovolt_low = REG_FIELD_UNSUPPORTED,
+	.battery_adc_ovolt_high = REG_FIELD_UNSUPPORTED,
+	.btn_shdn_enable = REG_FIELD(0x00, 0, 0),
+	.btn_wled_mode = REG_FIELD(0x01, 6, 6),
+	.btn_shdn_mode = REG_FIELD(0x01, 7, 7),
+	.btn_long_press_time = REG_FIELD(0x02, 4, 4), // +1s
+	.btn_pressed = REG_FIELD_UNSUPPORTED,
+	/* TODO: double press */
+	.btn_long_pressed = REG_FIELD(0x77, 1, 1),
+	.btn_short_pressed = REG_FIELD(0x77, 0, 0),
+	.wled_enable = REG_FIELD_UNSUPPORTED,
+	.wled_detect_en = REG_FIELD_UNSUPPORTED,
+	.wled_present = REG_FIELD_UNSUPPORTED,
+
+	.vbat_max = 4400000,
+	.boost_undervolt_setpoint = 4450000,
+	.boost_undervolt_uv_per_bit = 50000,
+	.const_curr_setpoint = 50000,
+	.chg_end_inverted = 1,
+};
+
 #define ip5xxx_setup_reg(_field, _reg) \
 			do { \
 				if (likely(cfg->_field.lsb <= cfg->_field.msb)) { \
@@ -823,6 +867,7 @@ static const struct of_device_id ip5xxx_power_of_match[] = {
 	{ .compatible = "injoinic,ip5109", .data = &ip51xx_fields },
 	{ .compatible = "injoinic,ip5207", .data = &ip51xx_fields },
 	{ .compatible = "injoinic,ip5209", .data = &ip51xx_fields },
+	{ .compatible = "injoinic,ip5306", .data = &ip5306_fields },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, ip5xxx_power_of_match);
