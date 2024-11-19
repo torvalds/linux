@@ -1468,7 +1468,7 @@ blk_lim_dma_alignment_and_pad(struct queue_limits *lim)
 	return lim->dma_alignment | lim->dma_pad_mask;
 }
 
-static inline int blk_rq_aligned(struct request_queue *q, unsigned long addr,
+static inline bool blk_rq_aligned(struct request_queue *q, unsigned long addr,
 				 unsigned int len)
 {
 	unsigned int alignment = blk_lim_dma_alignment_and_pad(&q->limits);
