@@ -175,10 +175,10 @@ bool __sched __rt_mutex_futex_unlock(struct rt_mutex_base *lock,
 	}
 
 	/*
-	 * We've already deboosted, mark_wakeup_next_waiter() will
-	 * retain preempt_disabled when we drop the wait_lock, to
-	 * avoid inversion prior to the wakeup.  preempt_disable()
-	 * therein pairs with rt_mutex_postunlock().
+	 * mark_wakeup_next_waiter() deboosts and retains preemption
+	 * disabled when dropping the wait_lock, to avoid inversion prior
+	 * to the wakeup.  preempt_disable() therein pairs with the
+	 * preempt_enable() in rt_mutex_postunlock().
 	 */
 	mark_wakeup_next_waiter(wqh, lock);
 
