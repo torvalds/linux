@@ -864,9 +864,6 @@ static struct request *attempt_merge(struct request_queue *q,
 	if (req_op(req) != req_op(next))
 		return NULL;
 
-	if (rq_data_dir(req) != rq_data_dir(next))
-		return NULL;
-
 	if (req->bio && next->bio) {
 		/* Don't merge requests with different write hints. */
 		if (req->bio->bi_write_hint != next->bio->bi_write_hint)
@@ -984,10 +981,6 @@ bool blk_rq_merge_ok(struct request *rq, struct bio *bio)
 		return false;
 
 	if (req_op(rq) != bio_op(bio))
-		return false;
-
-	/* different data direction or already started, don't merge */
-	if (bio_data_dir(bio) != rq_data_dir(rq))
 		return false;
 
 	/* don't merge across cgroup boundaries */
