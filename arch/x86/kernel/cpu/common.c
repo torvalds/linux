@@ -1841,6 +1841,8 @@ static void identify_cpu(struct cpuinfo_x86 *c)
 	if (this_cpu->c_init)
 		this_cpu->c_init(c);
 
+	bus_lock_init();
+
 	/* Disable the PN if appropriate */
 	squash_the_stupid_serial_number(c);
 

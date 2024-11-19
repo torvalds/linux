@@ -2429,6 +2429,14 @@ config CFI_AUTO_DEFAULT
 
 source "kernel/livepatch/Kconfig"
 
+config X86_BUS_LOCK_DETECT
+	bool "Split Lock Detect and Bus Lock Detect support"
+	depends on CPU_SUP_INTEL || CPU_SUP_AMD
+	default y
+	help
+	  Enable Split Lock Detect and Bus Lock Detect functionalities.
+	  See <file:Documentation/arch/x86/buslock.rst> for more information.
+
 endmenu
 
 config CC_HAS_NAMED_AS
