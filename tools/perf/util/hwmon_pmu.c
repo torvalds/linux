@@ -274,7 +274,7 @@ static int hwmon_pmu__read_events(struct hwmon_pmu *pmu)
 		int number;
 		enum hwmon_item item;
 		bool alarm;
-		union hwmon_pmu_event_key key = {};
+		union hwmon_pmu_event_key key = { .type_and_num = 0 };
 		struct hwmon_pmu_event_value *value;
 
 		if (ent->d_type != DT_REG)
@@ -560,7 +560,7 @@ bool hwmon_pmu__have_event(struct perf_pmu *pmu, const char *name)
 	struct hwmon_pmu *hwm = container_of(pmu, struct hwmon_pmu, pmu);
 	enum hwmon_type type;
 	int number;
-	union hwmon_pmu_event_key key = {};
+	union hwmon_pmu_event_key key = { .type_and_num = 0 };
 	struct hashmap_entry *cur;
 	size_t bkt;
 
@@ -623,10 +623,11 @@ static int hwmon_pmu__config_term(const struct hwmon_pmu *hwm,
 					return -EINVAL;
 			} else {
 				union hwmon_pmu_event_key key = {
-					.type = type,
-					.num = number,
+					.type_and_num = 0,
 				};
 
+				key.type = type;
+				key.num = number;
 				attr->config = key.type_and_num;
 			}
 			return 0;
