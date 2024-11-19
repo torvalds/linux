@@ -74,6 +74,9 @@ tasks_stop(struct seq_file *f, void *v)
 {
 	struct rpc_clnt *clnt = f->private;
 	spin_unlock(&clnt->cl_lock);
+	seq_printf(f, "clnt[%pISpc] RPC tasks[%d]\n",
+		   (struct sockaddr *)&clnt->cl_xprt->addr,
+		   atomic_read(&clnt->cl_task_count));
 }
 
 static const struct seq_operations tasks_seq_operations = {

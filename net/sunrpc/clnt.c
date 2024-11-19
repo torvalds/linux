@@ -3327,8 +3327,11 @@ bool rpc_clnt_xprt_switch_has_addr(struct rpc_clnt *clnt,
 EXPORT_SYMBOL_GPL(rpc_clnt_xprt_switch_has_addr);
 
 #if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
-static void rpc_show_header(void)
+static void rpc_show_header(struct rpc_clnt *clnt)
 {
+	printk(KERN_INFO "clnt[%pISpc] RPC tasks[%d]\n",
+	       (struct sockaddr *)&clnt->cl_xprt->addr,
+	       atomic_read(&clnt->cl_task_count));
 	printk(KERN_INFO "-pid- flgs status -client- --rqstp- "
 		"-timeout ---ops--\n");
 }
@@ -3360,7 +3363,7 @@ void rpc_show_tasks(struct net *net)
 		spin_lock(&clnt->cl_lock);
 		list_for_each_entry(task, &clnt->cl_tasks, tk_task) {
 			if (!header) {
-				rpc_show_header();
+				rpc_show_header(clnt);
 				header++;
 			}
 			rpc_show_task(clnt, task);
