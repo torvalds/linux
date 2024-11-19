@@ -67,6 +67,8 @@
 
 #define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
 
+#define strstarts(str, prefix) (strncmp(str, prefix, strlen(prefix)) == 0)
+
 struct buffer {
 	char *p;
 	int pos;

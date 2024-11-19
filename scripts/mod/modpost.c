@@ -341,8 +341,6 @@ static const char *sec_name(const struct elf_info *info, unsigned int secindex)
 	return sech_name(info, &info->sechdrs[secindex]);
 }
 
-#define strstarts(str, prefix) (strncmp(str, prefix, strlen(prefix)) == 0)
-
 static struct symbol *sym_add_exported(const char *name, struct module *mod,
 				       bool gpl_only, const char *namespace)
 {

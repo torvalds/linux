@@ -1515,7 +1515,7 @@ void handle_moddevtable(struct module *mod, struct elf_info *info,
 		return;
 
 	/* All our symbols are of form __mod_<name>__<identifier>_device_table. */
-	if (strncmp(symname, "__mod_", strlen("__mod_")))
+	if (!strstarts(symname, "__mod_"))
 		return;
 	name = symname + strlen("__mod_");
 	namelen = strlen(name);
