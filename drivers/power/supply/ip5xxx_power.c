@@ -96,6 +96,20 @@ struct ip5xxx {
 			struct regmap_field *present;
 		} wled;
 	} regs;
+
+	/* Maximum supported battery voltage (via regs.battery.type) */
+	int vbat_max;
+	/* Scaling constants for regs.boost.undervolt_limit */
+	struct {
+		int setpoint;
+		int microvolts_per_bit;
+	} boost_undervolt;
+	/* Scaling constants for regs.charger.const_curr_sel */
+	struct {
+		int setpoint;
+	} const_curr;
+	/* Whether regs.charger.chg_end is inverted */
+	u8 chg_end_inverted;
 };
 
 /* Register fields layout. Unsupported registers marked as { .lsb = 1 } */
@@ -133,6 +147,12 @@ struct ip5xxx_regfield_config {
 	const struct reg_field wled_enable;
 	const struct reg_field wled_detect_en;
 	const struct reg_field wled_present;
+
+	int vbat_max;
+	int boost_undervolt_setpoint;
+	int boost_undervolt_uv_per_bit;
+	int const_curr_setpoint;
+	u8  chg_end_inverted;
 };
 
 /*
@@ -328,6 +348,9 @@ static int ip5xxx_battery_get_voltage_max(struct ip5xxx *ip5xxx, int *val)
 	if (ret)
 		return ret;
 
+	if (*val > ip5xxx->vbat_max)
+		return -EINVAL;
+
 	/*
 	 * It is not clear what this will return if
 	 * IP5XXX_CHG_CTL4_BAT_TYPE_SEL_EN is not set...
@@ -422,7 +445,7 @@ static int ip5xxx_battery_get_property(struct power_supply *psy,
 		if (ret)
 			return ret;
 
-		val->intval = 100000 * rval;
+		val->intval = ip5xxx->const_curr.setpoint + 100000 * rval;
 		return 0;
 
 	case POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT_MAX:
@@ -515,7 +538,7 @@ static int ip5xxx_battery_set_property(struct power_supply *psy,
 		return ip5xxx_battery_set_voltage_max(ip5xxx, val->intval);
 
 	case POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT:
-		rval = val->intval / 100000;
+		rval = (val->intval - ip5xxx->const_curr.setpoint) / 100000;
 		return ip5xxx_write(ip5xxx, ip5xxx->regs.charger.const_curr_sel, rval);
 
 	case POWER_SUPPLY_PROP_CONSTANT_CHARGE_VOLTAGE:
@@ -581,7 +604,8 @@ static int ip5xxx_boost_get_property(struct power_supply *psy,
 		if (ret)
 			return ret;
 
-		val->intval = 4530000 + 100000 * rval;
+		val->intval = ip5xxx->boost_undervolt.setpoint +
+			      ip5xxx->boost_undervolt.microvolts_per_bit * rval;
 		return 0;
 
 	default:
@@ -606,7 +630,8 @@ static int ip5xxx_boost_set_property(struct power_supply *psy,
 		return ip5xxx_write(ip5xxx, ip5xxx->regs.boost.enable, !!val->intval);
 
 	case POWER_SUPPLY_PROP_VOLTAGE_MIN_DESIGN:
-		rval = (val->intval - 4530000) / 100000;
+		rval = (val->intval - ip5xxx->boost_undervolt.setpoint) /
+			ip5xxx->boost_undervolt.microvolts_per_bit;
 		return ip5xxx_write(ip5xxx, ip5xxx->regs.boost.undervolt_limit, rval);
 
 	default:
@@ -670,6 +695,10 @@ static struct ip5xxx_regfield_config ip51xx_fields = {
 	.wled_enable = REG_FIELD(0x01, 3, 3),
 	.wled_detect_en = REG_FIELD(0x01, 4, 4),
 	.wled_present = REG_FIELD(0x72, 7, 7),
+
+	.vbat_max = 4350000,
+	.boost_undervolt_setpoint = 4530000,
+	.boost_undervolt_uv_per_bit = 100000,
 };
 
 #define ip5xxx_setup_reg(_field, _reg) \
@@ -718,6 +747,12 @@ static void ip5xxx_setup_regs(struct device *dev, struct ip5xxx *ip5xxx,
 	ip5xxx_setup_reg(wled_enable, wled.enable);
 	ip5xxx_setup_reg(wled_detect_en, wled.detect_en);
 	ip5xxx_setup_reg(wled_present, wled.present);
+
+	ip5xxx->vbat_max = cfg->vbat_max;
+	ip5xxx->boost_undervolt.setpoint = cfg->boost_undervolt_setpoint;
+	ip5xxx->boost_undervolt.microvolts_per_bit = cfg->boost_undervolt_uv_per_bit;
+	ip5xxx->const_curr.setpoint = cfg->const_curr_setpoint;
+	ip5xxx->chg_end_inverted = cfg->chg_end_inverted;
 }
 
 static int ip5xxx_power_probe(struct i2c_client *client)
