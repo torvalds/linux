@@ -10,6 +10,7 @@
 #define IP5XXX_BAT_TYPE_4_2V			0x0
 #define IP5XXX_BAT_TYPE_4_3V			0x1
 #define IP5XXX_BAT_TYPE_4_35V			0x2
+#define IP5XXX_BAT_TYPE_4_4V			0x3
 #define IP5XXX_CHG_STAT_IDLE			0x0
 #define IP5XXX_CHG_STAT_TRICKLE		0x1
 #define IP5XXX_CHG_STAT_CONST_VOLT		0x2
@@ -365,6 +366,9 @@ static int ip5xxx_battery_get_voltage_max(struct ip5xxx *ip5xxx, int *val)
 	case IP5XXX_BAT_TYPE_4_35V:
 		*val = 4350000;
 		break;
+	case IP5XXX_BAT_TYPE_4_4V:
+		*val = 4400000;
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -491,6 +495,9 @@ static int ip5xxx_battery_set_voltage_max(struct ip5xxx *ip5xxx, int val)
 		break;
 	case 4350000:
 		rval = IP5XXX_BAT_TYPE_4_35V;
+		break;
+	case 4400000:
+		rval = IP5XXX_BAT_TYPE_4_4V;
 		break;
 	default:
 		return -EINVAL;
