@@ -155,8 +155,6 @@ static int do_test(size_t i, bool with_pmu, bool with_alias)
 	parse_events_error__init(&err);
 	ret = parse_events(evlist, str, &err);
 	if (ret) {
-		evlist__delete(evlist);
-
 		pr_debug("FAILED %s:%d failed to parse event '%s', err %d\n",
 			 __FILE__, __LINE__, str, ret);
 		parse_events_error__print(&err, str);
