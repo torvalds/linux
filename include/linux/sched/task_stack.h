@@ -34,7 +34,7 @@ static __always_inline unsigned long *end_of_stack(const struct task_struct *tas
 #endif
 }
 
-#elif !defined(__HAVE_THREAD_FUNCTIONS)
+#else
 
 #define task_stack_page(task)	((void *)(task)->stack)
 
