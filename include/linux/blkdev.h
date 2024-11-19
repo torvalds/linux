@@ -1462,7 +1462,8 @@ static inline bool bdev_iter_is_aligned(struct block_device *bdev,
 				   bdev_logical_block_size(bdev) - 1);
 }
 
-static inline int blk_lim_dma_alignment_and_pad(struct queue_limits *lim)
+static inline unsigned int
+blk_lim_dma_alignment_and_pad(struct queue_limits *lim)
 {
 	return lim->dma_alignment | lim->dma_pad_mask;
 }
