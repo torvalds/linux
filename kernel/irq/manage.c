@@ -1182,13 +1182,28 @@ out_unlock:
 }
 
 /*
+ * Interrupts explicitly requested as threaded interrupts want to be
+ * preemptible - many of them need to sleep and wait for slow busses to
+ * complete.
+ */
+static irqreturn_t irq_thread_fn(struct irq_desc *desc,	struct irqaction *action)
+{
+	irqreturn_t ret = action->thread_fn(action->irq, action->dev_id);
+
+	if (ret == IRQ_HANDLED)
+		atomic_inc(&desc->threads_handled);
+
+	irq_finalize_oneshot(desc, action);
+	return ret;
+}
+
+/*
  * Interrupts which are not explicitly requested as threaded
  * interrupts rely on the implicit bh/preempt disable of the hard irq
  * context. So we need to disable bh here to avoid deadlocks and other
  * side effects.
  */
-static irqreturn_t
-irq_forced_thread_fn(struct irq_desc *desc, struct irqaction *action)
+static irqreturn_t irq_forced_thread_fn(struct irq_desc *desc, struct irqaction *action)
 {
 	irqreturn_t ret;
 
@@ -1203,24 +1218,6 @@ irq_forced_thread_fn(struct irq_desc *desc, struct irqaction *action)
 	if (!IS_ENABLED(CONFIG_PREEMPT_RT))
 		local_irq_enable();
 	local_bh_enable();
-	return ret;
-}
-
-/*
- * Interrupts explicitly requested as threaded interrupts want to be
- * preemptible - many of them need to sleep and wait for slow busses to
- * complete.
- */
-static irqreturn_t irq_thread_fn(struct irq_desc *desc,
-		struct irqaction *action)
-{
-	irqreturn_t ret;
-
-	ret = action->thread_fn(action->irq, action->dev_id);
-	if (ret == IRQ_HANDLED)
-		atomic_inc(&desc->threads_handled);
-
-	irq_finalize_oneshot(desc, action);
 	return ret;
 }
 
