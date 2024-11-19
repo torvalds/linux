@@ -779,13 +779,13 @@ static inline void bdev_clear_flag(struct block_device *bdev, unsigned flag)
 	atomic_andnot(flag, &bdev->__bd_flags);
 }
 
-static inline int get_disk_ro(struct gendisk *disk)
+static inline bool get_disk_ro(struct gendisk *disk)
 {
 	return bdev_test_flag(disk->part0, BD_READ_ONLY) ||
 		test_bit(GD_READ_ONLY, &disk->state);
 }
 
-static inline int bdev_read_only(struct block_device *bdev)
+static inline bool bdev_read_only(struct block_device *bdev)
 {
 	return bdev_test_flag(bdev, BD_READ_ONLY) || get_disk_ro(bdev->bd_disk);
 }
