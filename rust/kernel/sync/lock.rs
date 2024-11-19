@@ -96,6 +96,7 @@ pub unsafe trait Backend {
 ///
 /// Exposes one of the kernel locking primitives. Which one is exposed depends on the lock
 /// [`Backend`] specified as the generic parameter `B`.
+#[repr(C)]
 #[pin_data]
 pub struct Lock<T: ?Sized, B: Backend> {
     /// The kernel lock object.
@@ -131,6 +132,28 @@ impl<T, B: Backend> Lock<T, B> {
                 B::init(slot, name.as_char_ptr(), key.as_ptr())
             }),
         })
+    }
+}
+
+impl<B: Backend> Lock<(), B> {
+    /// Constructs a [`Lock`] from a raw pointer.
+    ///
+    /// This can be useful for interacting with a lock which was initialised outside of Rust.
+    ///
+    /// # Safety
+    ///
+    /// The caller promises that `ptr` points to a valid initialised instance of [`State`] during
+    /// the whole lifetime of `'a`.
+    ///
+    /// [`State`]: Backend::State
+    pub unsafe fn from_raw<'a>(ptr: *mut B::State) -> &'a Self {
+        // SAFETY:
+        // - By the safety contract `ptr` must point to a valid initialised instance of `B::State`
+        // - Since the lock data type is `()` which is a ZST, `state` is the only non-ZST member of
+        //   the struct
+        // - Combined with `#[repr(C)]`, this guarantees `Self` has an equivalent data layout to
+        //   `B::State`.
+        unsafe { &*ptr.cast() }
     }
 }
 
