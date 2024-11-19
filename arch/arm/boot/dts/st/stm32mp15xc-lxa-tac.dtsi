@@ -16,12 +16,20 @@
 
 / {
 	aliases {
+		can0 = &m_can1;
+		can1 = &m_can2;
 		ethernet0 = &ethernet0;
 		ethernet1 = &port_uplink;
 		ethernet2 = &port_dut;
+		i2c0 = &i2c1;
+		i2c1 = &i2c4;
+		i2c2 = &i2c5;
 		mmc1 = &sdmmc2;
 		serial0 = &uart4;
 		serial1 = &usart3;
+		spi0 = &spi2;
+		spi1 = &spi4;
+		spi2 = &spi5;
 	};
 
 	chosen {
