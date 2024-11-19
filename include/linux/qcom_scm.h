@@ -169,6 +169,8 @@ extern int qcom_scm_pas_shutdown_retry(u32 peripheral);
 extern bool qcom_scm_pas_supported(u32 peripheral);
 
 extern int qcom_scm_get_sec_dump_state(u32 *dump_state);
+extern int qcom_scm_get_llcc_missrate(phys_addr_t in_buf, size_t in_buf_size,
+				phys_addr_t out_buf, size_t out_buf_size);
 extern int qcom_scm_assign_dump_table_region(bool is_assign, phys_addr_t  addr, size_t size);
 
 extern int qcom_scm_tz_blsp_modify_owner(int food, u64 subsystem, int *out);

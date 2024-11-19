@@ -1013,6 +1013,34 @@ int qcom_scm_get_sec_dump_state(u32 *dump_state)
 }
 EXPORT_SYMBOL(qcom_scm_get_sec_dump_state);
 
+int __qcom_scm_get_llcc_missrate(struct device *dev, phys_addr_t in_buf,
+	size_t in_buf_size, phys_addr_t out_buf, size_t out_buf_size)
+{
+	int ret;
+	struct qcom_scm_desc desc = {
+		.svc = QCOM_SCM_SVC_MISSRATE,
+		.cmd = QCOM_SCM_GET_LLCC_MISSRATE_STATS_ID,
+		.owner = ARM_SMCCC_OWNER_SIP,
+		.arginfo = QCOM_SCM_ARGS(4, QCOM_SCM_RW, QCOM_SCM_VAL, QCOM_SCM_RW, QCOM_SCM_VAL),
+	};
+
+	desc.args[0] = in_buf;
+	desc.args[1] = in_buf_size;
+	desc.args[2] = out_buf;
+	desc.args[3] = out_buf_size;
+	ret = qcom_scm_call(dev, &desc, NULL);
+
+	return ret;
+}
+
+int qcom_scm_get_llcc_missrate(phys_addr_t in_buf,
+	size_t in_buf_size, phys_addr_t out_buf, size_t out_buf_size)
+{
+	return __qcom_scm_get_llcc_missrate(__scm ? __scm->dev : NULL, in_buf,
+			in_buf_size, out_buf, out_buf_size);
+}
+EXPORT_SYMBOL_GPL(qcom_scm_get_llcc_missrate);
+
 int qcom_scm_assign_dump_table_region(bool is_assign, phys_addr_t addr, size_t size)
 {
 	struct qcom_scm_desc desc = {
