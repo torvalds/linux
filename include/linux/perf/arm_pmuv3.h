@@ -257,6 +257,7 @@
 #define ARMV8_PMU_USERENR_SW	(1 << 1) /* PMSWINC can be written at EL0 */
 #define ARMV8_PMU_USERENR_CR	(1 << 2) /* Cycle counter can be read at EL0 */
 #define ARMV8_PMU_USERENR_ER	(1 << 3) /* Event counter can be read at EL0 */
+#define ARMV8_PMU_USERENR_UEN	(1 << 4) /* Fine grained per counter access at EL0 */
 /* Mask for writable bits */
 #define ARMV8_PMU_USERENR_MASK	(ARMV8_PMU_USERENR_EN | ARMV8_PMU_USERENR_SW | \
 				 ARMV8_PMU_USERENR_CR | ARMV8_PMU_USERENR_ER)

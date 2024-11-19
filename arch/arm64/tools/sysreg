@@ -1238,6 +1238,7 @@ UnsignedEnum	11:8	PMUVer
 	0b0110	V3P5
 	0b0111	V3P7
 	0b1000	V3P8
+	0b1001	V3P9
 	0b1111	IMP_DEF
 EndEnum
 UnsignedEnum	7:4	TraceVer
@@ -1648,6 +1649,8 @@ EndEnum
 UnsignedEnum	39:36	ETS
 	0b0000	NI
 	0b0001	IMP
+	0b0010	ETS2
+	0b0011	ETS3
 EndEnum
 UnsignedEnum	35:32	TWED
 	0b0000	NI
@@ -1688,6 +1691,8 @@ UnsignedEnum	3:0	HAFDBS
 	0b0000	NI
 	0b0001	AF
 	0b0010	DBM
+	0b0011	HAFT
+	0b0100	HDBSS
 EndEnum
 EndSysreg
 
@@ -2176,6 +2181,13 @@ Res0	7:6
 Field	5	F
 Field	4	P
 Field	3:0	ALIGN
+EndSysreg
+
+Sysreg	PMUACR_EL1	3	0	9	14	4
+Res0	63:33
+Field	32	F0
+Field	31	C
+Field	30:0	P
 EndSysreg
 
 Sysreg	PMSELR_EL0	3	3	9	12	5

@@ -152,6 +152,11 @@ static inline void write_pmuserenr(u32 val)
 	write_sysreg(val, pmuserenr_el0);
 }
 
+static inline void write_pmuacr(u64 val)
+{
+	write_sysreg_s(val, SYS_PMUACR_EL1);
+}
+
 static inline u64 read_pmceid0(void)
 {
 	return read_sysreg(pmceid0_el0);
@@ -176,6 +181,11 @@ static inline bool is_pmuv3p4(int pmuver)
 static inline bool is_pmuv3p5(int pmuver)
 {
 	return pmuver >= ID_AA64DFR0_EL1_PMUVer_V3P5;
+}
+
+static inline bool is_pmuv3p9(int pmuver)
+{
+	return pmuver >= ID_AA64DFR0_EL1_PMUVer_V3P9;
 }
 
 #endif
