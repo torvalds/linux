@@ -1,5 +1,5 @@
 PAGE_FRAG_TEST_DIR := $(realpath $(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
-KDIR ?= $(abspath $(PAGE_FRAG_TEST_DIR)/../../../../..)
+KDIR ?= /lib/modules/$(shell uname -r)/build
 
 ifeq ($(V),1)
 Q =
