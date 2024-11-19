@@ -8,6 +8,7 @@
 obj-$(CONFIG_FBNIC) += fbnic.o
 
 fbnic-y := fbnic_csr.o \
+	   fbnic_debugfs.o \
 	   fbnic_devlink.o \
 	   fbnic_ethtool.o \
 	   fbnic_fw.o \
