@@ -511,7 +511,7 @@ static int imx_sata_enable(struct ahci_host_priv *hpriv)
 
 	if (imxpriv->type == AHCI_IMX6Q || imxpriv->type == AHCI_IMX6QP) {
 		/*
-		 * set PHY Paremeters, two steps to configure the GPR13,
+		 * set PHY Parameters, two steps to configure the GPR13,
 		 * one write for rest of parameters, mask of first write
 		 * is 0x07ffffff, and the other one write for setting
 		 * the mpll_clk_en.
@@ -1027,7 +1027,7 @@ static SIMPLE_DEV_PM_OPS(ahci_imx_pm_ops, imx_ahci_suspend, imx_ahci_resume);
 
 static struct platform_driver imx_ahci_driver = {
 	.probe = imx_ahci_probe,
-	.remove_new = ata_platform_remove_one,
+	.remove = ata_platform_remove_one,
 	.driver = {
 		.name = DRV_NAME,
 		.of_match_table = imx_ahci_of_match,

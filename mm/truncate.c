@@ -166,7 +166,6 @@ static void truncate_cleanup_folio(struct folio *folio)
 	 * Hence dirty accounting check is placed after invalidation.
 	 */
 	folio_cancel_dirty(folio);
-	folio_clear_mappedtodisk(folio);
 }
 
 int truncate_inode_folio(struct address_space *mapping, struct folio *folio)
@@ -797,6 +796,21 @@ void pagecache_isize_extended(struct inode *inode, loff_t from, loff_t to)
 	 */
 	if (folio_mkclean(folio))
 		folio_mark_dirty(folio);
+
+	/*
+	 * The post-eof range of the folio must be zeroed before it is exposed
+	 * to the file. Writeback normally does this, but since i_size has been
+	 * increased we handle it here.
+	 */
+	if (folio_test_dirty(folio)) {
+		unsigned int offset, end;
+
+		offset = from - folio_pos(folio);
+		end = min_t(unsigned int, to - folio_pos(folio),
+			    folio_size(folio));
+		folio_zero_segment(folio, offset, end);
+	}
+
 	folio_unlock(folio);
 	folio_put(folio);
 }

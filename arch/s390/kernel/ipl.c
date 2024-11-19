@@ -209,7 +209,7 @@ static ssize_t sys_##_prefix##_##_name##_show(struct kobject *kobj,	\
 		struct kobj_attribute *attr,				\
 		char *page)						\
 {									\
-	return scnprintf(page, PAGE_SIZE, _format, ##args);		\
+	return sysfs_emit(page, _format, ##args);			\
 }
 
 #define IPL_ATTR_CCW_STORE_FN(_prefix, _name, _ipl_blk)			\
@@ -372,7 +372,7 @@ EXPORT_SYMBOL_GPL(ipl_info);
 static ssize_t ipl_type_show(struct kobject *kobj, struct kobj_attribute *attr,
 			     char *page)
 {
-	return sprintf(page, "%s\n", ipl_type_str(ipl_info.type));
+	return sysfs_emit(page, "%s\n", ipl_type_str(ipl_info.type));
 }
 
 static struct kobj_attribute sys_ipl_type_attr = __ATTR_RO(ipl_type);
@@ -380,7 +380,7 @@ static struct kobj_attribute sys_ipl_type_attr = __ATTR_RO(ipl_type);
 static ssize_t ipl_secure_show(struct kobject *kobj,
 			       struct kobj_attribute *attr, char *page)
 {
-	return sprintf(page, "%i\n", !!ipl_secure_flag);
+	return sysfs_emit(page, "%i\n", !!ipl_secure_flag);
 }
 
 static struct kobj_attribute sys_ipl_secure_attr =
@@ -389,7 +389,7 @@ static struct kobj_attribute sys_ipl_secure_attr =
 static ssize_t ipl_has_secure_show(struct kobject *kobj,
 				   struct kobj_attribute *attr, char *page)
 {
-	return sprintf(page, "%i\n", !!sclp.has_sipl);
+	return sysfs_emit(page, "%i\n", !!sclp.has_sipl);
 }
 
 static struct kobj_attribute sys_ipl_has_secure_attr =
@@ -402,7 +402,7 @@ static ssize_t ipl_vm_parm_show(struct kobject *kobj,
 
 	if (ipl_block_valid && (ipl_block.pb0_hdr.pbt == IPL_PBT_CCW))
 		ipl_block_get_ascii_vmparm(parm, sizeof(parm), &ipl_block);
-	return sprintf(page, "%s\n", parm);
+	return sysfs_emit(page, "%s\n", parm);
 }
 
 static struct kobj_attribute sys_ipl_vm_parm_attr =
@@ -413,18 +413,18 @@ static ssize_t sys_ipl_device_show(struct kobject *kobj,
 {
 	switch (ipl_info.type) {
 	case IPL_TYPE_CCW:
-		return sprintf(page, "0.%x.%04x\n", ipl_block.ccw.ssid,
-			       ipl_block.ccw.devno);
+		return sysfs_emit(page, "0.%x.%04x\n", ipl_block.ccw.ssid,
+				  ipl_block.ccw.devno);
 	case IPL_TYPE_ECKD:
 	case IPL_TYPE_ECKD_DUMP:
-		return sprintf(page, "0.%x.%04x\n", ipl_block.eckd.ssid,
-			       ipl_block.eckd.devno);
+		return sysfs_emit(page, "0.%x.%04x\n", ipl_block.eckd.ssid,
+				  ipl_block.eckd.devno);
 	case IPL_TYPE_FCP:
 	case IPL_TYPE_FCP_DUMP:
-		return sprintf(page, "0.0.%04x\n", ipl_block.fcp.devno);
+		return sysfs_emit(page, "0.0.%04x\n", ipl_block.fcp.devno);
 	case IPL_TYPE_NVME:
 	case IPL_TYPE_NVME_DUMP:
-		return sprintf(page, "%08ux\n", ipl_block.nvme.fid);
+		return sysfs_emit(page, "%08ux\n", ipl_block.nvme.fid);
 	default:
 		return 0;
 	}
@@ -503,12 +503,12 @@ static ssize_t eckd_##_name##_br_chr_show(struct kobject *kobj,		\
 	if (!ipb->br_chr.cyl &&						\
 	    !ipb->br_chr.head &&					\
 	    !ipb->br_chr.record)					\
-		return sprintf(buf, "auto\n");				\
+		return sysfs_emit(buf, "auto\n");			\
 									\
-	return sprintf(buf, "0x%x,0x%x,0x%x\n",				\
-			ipb->br_chr.cyl,				\
-			ipb->br_chr.head,				\
-			ipb->br_chr.record);				\
+	return sysfs_emit(buf, "0x%x,0x%x,0x%x\n",			\
+			  ipb->br_chr.cyl,				\
+			  ipb->br_chr.head,				\
+			  ipb->br_chr.record);				\
 }
 
 #define IPL_ATTR_BR_CHR_STORE_FN(_name, _ipb)				\
@@ -573,11 +573,11 @@ static ssize_t ipl_ccw_loadparm_show(struct kobject *kobj,
 	char loadparm[LOADPARM_LEN + 1] = {};
 
 	if (!sclp_ipl_info.is_valid)
-		return sprintf(page, "#unknown#\n");
+		return sysfs_emit(page, "#unknown#\n");
 	memcpy(loadparm, &sclp_ipl_info.loadparm, LOADPARM_LEN);
 	EBCASC(loadparm, LOADPARM_LEN);
 	strim(loadparm);
-	return sprintf(page, "%s\n", loadparm);
+	return sysfs_emit(page, "%s\n", loadparm);
 }
 
 static struct kobj_attribute sys_ipl_ccw_loadparm_attr =
@@ -731,7 +731,7 @@ static ssize_t reipl_generic_vmparm_show(struct ipl_parameter_block *ipb,
 	char vmparm[DIAG308_VMPARM_SIZE + 1] = {};
 
 	ipl_block_get_ascii_vmparm(vmparm, sizeof(vmparm), ipb);
-	return sprintf(page, "%s\n", vmparm);
+	return sysfs_emit(page, "%s\n", vmparm);
 }
 
 static ssize_t reipl_generic_vmparm_store(struct ipl_parameter_block *ipb,
@@ -839,7 +839,7 @@ static ssize_t reipl_generic_loadparm_show(struct ipl_parameter_block *ipb,
 	char buf[LOADPARM_LEN + 1];
 
 	reipl_get_ascii_loadparm(buf, ipb);
-	return sprintf(page, "%s\n", buf);
+	return sysfs_emit(page, "%s\n", buf);
 }
 
 static ssize_t reipl_generic_loadparm_store(struct ipl_parameter_block *ipb,
@@ -895,7 +895,7 @@ DEFINE_GENERIC_LOADPARM(eckd);
 static ssize_t reipl_fcp_clear_show(struct kobject *kobj,
 				    struct kobj_attribute *attr, char *page)
 {
-	return sprintf(page, "%u\n", reipl_fcp_clear);
+	return sysfs_emit(page, "%u\n", reipl_fcp_clear);
 }
 
 static ssize_t reipl_fcp_clear_store(struct kobject *kobj,
@@ -963,7 +963,7 @@ static struct attribute_group reipl_nvme_attr_group = {
 static ssize_t reipl_nvme_clear_show(struct kobject *kobj,
 				     struct kobj_attribute *attr, char *page)
 {
-	return sprintf(page, "%u\n", reipl_nvme_clear);
+	return sysfs_emit(page, "%u\n", reipl_nvme_clear);
 }
 
 static ssize_t reipl_nvme_clear_store(struct kobject *kobj,
@@ -984,7 +984,7 @@ DEFINE_IPL_CCW_ATTR_RW(reipl_ccw, device, reipl_block_ccw->ccw);
 static ssize_t reipl_ccw_clear_show(struct kobject *kobj,
 				    struct kobj_attribute *attr, char *page)
 {
-	return sprintf(page, "%u\n", reipl_ccw_clear);
+	return sysfs_emit(page, "%u\n", reipl_ccw_clear);
 }
 
 static ssize_t reipl_ccw_clear_store(struct kobject *kobj,
@@ -1056,7 +1056,7 @@ static struct attribute_group reipl_eckd_attr_group = {
 static ssize_t reipl_eckd_clear_show(struct kobject *kobj,
 				     struct kobj_attribute *attr, char *page)
 {
-	return sprintf(page, "%u\n", reipl_eckd_clear);
+	return sysfs_emit(page, "%u\n", reipl_eckd_clear);
 }
 
 static ssize_t reipl_eckd_clear_store(struct kobject *kobj,
@@ -1086,7 +1086,7 @@ static ssize_t reipl_nss_name_show(struct kobject *kobj,
 	char nss_name[NSS_NAME_SIZE + 1] = {};
 
 	reipl_get_ascii_nss_name(nss_name, reipl_block_nss);
-	return sprintf(page, "%s\n", nss_name);
+	return sysfs_emit(page, "%s\n", nss_name);
 }
 
 static ssize_t reipl_nss_name_store(struct kobject *kobj,
@@ -1171,7 +1171,7 @@ static int reipl_set_type(enum ipl_type type)
 static ssize_t reipl_type_show(struct kobject *kobj,
 			       struct kobj_attribute *attr, char *page)
 {
-	return sprintf(page, "%s\n", ipl_type_str(reipl_type));
+	return sysfs_emit(page, "%s\n", ipl_type_str(reipl_type));
 }
 
 static ssize_t reipl_type_store(struct kobject *kobj,
@@ -1692,7 +1692,7 @@ static int dump_set_type(enum dump_type type)
 static ssize_t dump_type_show(struct kobject *kobj,
 			      struct kobj_attribute *attr, char *page)
 {
-	return sprintf(page, "%s\n", dump_type_str(dump_type));
+	return sysfs_emit(page, "%s\n", dump_type_str(dump_type));
 }
 
 static ssize_t dump_type_store(struct kobject *kobj,
@@ -1716,6 +1716,24 @@ static ssize_t dump_type_store(struct kobject *kobj,
 
 static struct kobj_attribute dump_type_attr =
 	__ATTR(dump_type, 0644, dump_type_show, dump_type_store);
+
+static ssize_t dump_area_size_show(struct kobject *kobj,
+				   struct kobj_attribute *attr, char *page)
+{
+	return sysfs_emit(page, "%lu\n", sclp.hsa_size);
+}
+
+static struct kobj_attribute dump_area_size_attr = __ATTR_RO(dump_area_size);
+
+static struct attribute *dump_attrs[] = {
+	&dump_type_attr.attr,
+	&dump_area_size_attr.attr,
+	NULL,
+};
+
+static struct attribute_group dump_attr_group = {
+	.attrs = dump_attrs,
+};
 
 static struct kset *dump_kset;
 
@@ -1853,7 +1871,7 @@ static int __init dump_init(void)
 	dump_kset = kset_create_and_add("dump", NULL, firmware_kobj);
 	if (!dump_kset)
 		return -ENOMEM;
-	rc = sysfs_create_file(&dump_kset->kobj, &dump_type_attr.attr);
+	rc = sysfs_create_group(&dump_kset->kobj, &dump_attr_group);
 	if (rc) {
 		kset_unregister(dump_kset);
 		return rc;
@@ -2034,7 +2052,7 @@ static struct shutdown_trigger on_reboot_trigger = {ON_REIPL_STR,
 static ssize_t on_reboot_show(struct kobject *kobj,
 			      struct kobj_attribute *attr, char *page)
 {
-	return sprintf(page, "%s\n", on_reboot_trigger.action->name);
+	return sysfs_emit(page, "%s\n", on_reboot_trigger.action->name);
 }
 
 static ssize_t on_reboot_store(struct kobject *kobj,
@@ -2060,7 +2078,7 @@ static struct shutdown_trigger on_panic_trigger = {ON_PANIC_STR, &stop_action};
 static ssize_t on_panic_show(struct kobject *kobj,
 			     struct kobj_attribute *attr, char *page)
 {
-	return sprintf(page, "%s\n", on_panic_trigger.action->name);
+	return sysfs_emit(page, "%s\n", on_panic_trigger.action->name);
 }
 
 static ssize_t on_panic_store(struct kobject *kobj,
@@ -2086,7 +2104,7 @@ static struct shutdown_trigger on_restart_trigger = {ON_RESTART_STR,
 static ssize_t on_restart_show(struct kobject *kobj,
 			       struct kobj_attribute *attr, char *page)
 {
-	return sprintf(page, "%s\n", on_restart_trigger.action->name);
+	return sysfs_emit(page, "%s\n", on_restart_trigger.action->name);
 }
 
 static ssize_t on_restart_store(struct kobject *kobj,
@@ -2122,7 +2140,7 @@ static struct shutdown_trigger on_halt_trigger = {ON_HALT_STR, &stop_action};
 static ssize_t on_halt_show(struct kobject *kobj,
 			    struct kobj_attribute *attr, char *page)
 {
-	return sprintf(page, "%s\n", on_halt_trigger.action->name);
+	return sysfs_emit(page, "%s\n", on_halt_trigger.action->name);
 }
 
 static ssize_t on_halt_store(struct kobject *kobj,
@@ -2148,7 +2166,7 @@ static struct shutdown_trigger on_poff_trigger = {ON_POFF_STR, &stop_action};
 static ssize_t on_poff_show(struct kobject *kobj,
 			    struct kobj_attribute *attr, char *page)
 {
-	return sprintf(page, "%s\n", on_poff_trigger.action->name);
+	return sysfs_emit(page, "%s\n", on_poff_trigger.action->name);
 }
 
 static ssize_t on_poff_store(struct kobject *kobj,

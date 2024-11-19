@@ -340,6 +340,7 @@ static void __zpci_event_availability(struct zpci_ccdf_avail *ccdf)
 			zdev = zpci_create_device(ccdf->fid, ccdf->fh, ZPCI_FN_STATE_CONFIGURED);
 			if (IS_ERR(zdev))
 				break;
+			zpci_add_device(zdev);
 		} else {
 			/* the configuration request may be stale */
 			if (zdev->state != ZPCI_FN_STATE_STANDBY)
@@ -349,10 +350,14 @@ static void __zpci_event_availability(struct zpci_ccdf_avail *ccdf)
 		zpci_scan_configured_device(zdev, ccdf->fh);
 		break;
 	case 0x0302: /* Reserved -> Standby */
-		if (!zdev)
-			zpci_create_device(ccdf->fid, ccdf->fh, ZPCI_FN_STATE_STANDBY);
-		else
+		if (!zdev) {
+			zdev = zpci_create_device(ccdf->fid, ccdf->fh, ZPCI_FN_STATE_STANDBY);
+			if (IS_ERR(zdev))
+				break;
+			zpci_add_device(zdev);
+		} else {
 			zpci_update_fh(zdev, ccdf->fh);
+		}
 		break;
 	case 0x0303: /* Deconfiguration requested */
 		if (zdev) {
@@ -381,7 +386,7 @@ static void __zpci_event_availability(struct zpci_ccdf_avail *ccdf)
 		break;
 	case 0x0306: /* 0x308 or 0x302 for multiple devices */
 		zpci_remove_reserved_devices();
-		clp_scan_pci_devices();
+		zpci_scan_devices();
 		break;
 	case 0x0308: /* Standby -> Reserved */
 		if (!zdev)

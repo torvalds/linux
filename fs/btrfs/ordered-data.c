@@ -346,10 +346,10 @@ static bool can_finish_ordered_extent(struct btrfs_ordered_extent *ordered,
 		ASSERT(file_offset + len <= folio_pos(folio) + folio_size(folio));
 
 		/*
-		 * Ordered (Private2) bit indicates whether we still have
+		 * Ordered flag indicates whether we still have
 		 * pending io unfinished for the ordered extent.
 		 *
-		 * If there's no such bit, we need to skip to next range.
+		 * If it's not set, we need to skip to next range.
 		 */
 		if (!btrfs_folio_test_ordered(fs_info, folio, file_offset, len))
 			return false;

@@ -10,6 +10,7 @@
 
 #include <linux/const.h>
 #include <asm/types.h>
+#include <asm/asm.h>
 
 #define _PAGE_SHIFT	CONFIG_PAGE_SHIFT
 #define _PAGE_SIZE	(_AC(1, UL) << _PAGE_SHIFT)
@@ -148,11 +149,12 @@ static inline int page_reset_referenced(unsigned long addr)
 	int cc;
 
 	asm volatile(
-		"	rrbe	0,%1\n"
-		"	ipm	%0\n"
-		"	srl	%0,28\n"
-		: "=d" (cc) : "a" (addr) : "cc");
-	return cc;
+		"	rrbe	0,%[addr]\n"
+		CC_IPM(cc)
+		: CC_OUT(cc, cc)
+		: [addr] "a" (addr)
+		: CC_CLOBBER);
+	return CC_TRANSFORM(cc);
 }
 
 /* Bits int the storage key */

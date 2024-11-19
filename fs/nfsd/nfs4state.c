@@ -8001,9 +8001,6 @@ nfsd4_lock(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	fp = lock_stp->st_stid.sc_file;
 	switch (lock->lk_type) {
 		case NFS4_READW_LT:
-			if (nfsd4_has_session(cstate) ||
-			    exportfs_lock_op_is_async(sb->s_export_op))
-				flags |= FL_SLEEP;
 			fallthrough;
 		case NFS4_READ_LT:
 			spin_lock(&fp->fi_lock);
@@ -8014,9 +8011,6 @@ nfsd4_lock(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 			type = F_RDLCK;
 			break;
 		case NFS4_WRITEW_LT:
-			if (nfsd4_has_session(cstate) ||
-			    exportfs_lock_op_is_async(sb->s_export_op))
-				flags |= FL_SLEEP;
 			fallthrough;
 		case NFS4_WRITE_LT:
 			spin_lock(&fp->fi_lock);
@@ -8036,15 +8030,10 @@ nfsd4_lock(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 		goto out;
 	}
 
-	/*
-	 * Most filesystems with their own ->lock operations will block
-	 * the nfsd thread waiting to acquire the lock.  That leads to
-	 * deadlocks (we don't want every nfsd thread tied up waiting
-	 * for file locks), so don't attempt blocking lock notifications
-	 * on those filesystems:
-	 */
-	if (!exportfs_lock_op_is_async(sb->s_export_op))
-		flags &= ~FL_SLEEP;
+	if (lock->lk_type & (NFS4_READW_LT | NFS4_WRITEW_LT) &&
+		nfsd4_has_session(cstate) &&
+		locks_can_async_lock(nf->nf_file->f_op))
+			flags |= FL_SLEEP;
 
 	nbl = find_or_allocate_block(lock_sop, &fp->fi_fhandle, nn);
 	if (!nbl) {

@@ -222,17 +222,6 @@ SYM_FUNC_START(__sie64a)
 	lctlg	%c1,%c1,__LC_KERNEL_ASCE(%r14)	# load primary asce
 	lg	%r14,__LC_CURRENT(%r14)
 	mvi	__TI_sie(%r14),0
-# some program checks are suppressing. C code (e.g. do_protection_exception)
-# will rewind the PSW by the ILC, which is often 4 bytes in case of SIE. There
-# are some corner cases (e.g. runtime instrumentation) where ILC is unpredictable.
-# Other instructions between __sie64a and .Lsie_done should not cause program
-# interrupts. So lets use 3 nops as a landing pad for all possible rewinds.
-.Lrewind_pad6:
-	nopr	7
-.Lrewind_pad4:
-	nopr	7
-.Lrewind_pad2:
-	nopr	7
 SYM_INNER_LABEL(sie_exit, SYM_L_GLOBAL)
 	lg	%r14,__SF_SIE_SAVEAREA(%r15)	# load guest register save area
 	stmg	%r0,%r13,0(%r14)		# save guest gprs 0-13
@@ -244,15 +233,6 @@ SYM_INNER_LABEL(sie_exit, SYM_L_GLOBAL)
 	lmg	%r6,%r14,__SF_GPRS(%r15)	# restore kernel registers
 	lg	%r2,__SF_SIE_REASON(%r15)	# return exit reason code
 	BR_EX	%r14
-.Lsie_fault:
-	lghi	%r14,-EFAULT
-	stg	%r14,__SF_SIE_REASON(%r15)	# set exit reason code
-	j	sie_exit
-
-	EX_TABLE(.Lrewind_pad6,.Lsie_fault)
-	EX_TABLE(.Lrewind_pad4,.Lsie_fault)
-	EX_TABLE(.Lrewind_pad2,.Lsie_fault)
-	EX_TABLE(sie_exit,.Lsie_fault)
 SYM_FUNC_END(__sie64a)
 EXPORT_SYMBOL(__sie64a)
 EXPORT_SYMBOL(sie_exit)
@@ -327,13 +307,21 @@ SYM_CODE_START(pgm_check_handler)
 	GET_LC	%r13
 	stpt	__LC_SYS_ENTER_TIMER(%r13)
 	BPOFF
-	lgr	%r10,%r15
 	lmg	%r8,%r9,__LC_PGM_OLD_PSW(%r13)
+	xgr	%r10,%r10
 	tmhh	%r8,0x0001		# coming from user space?
 	jno	.Lpgm_skip_asce
 	lctlg	%c1,%c1,__LC_KERNEL_ASCE(%r13)
 	j	3f			# -> fault in user space
 .Lpgm_skip_asce:
+#if IS_ENABLED(CONFIG_KVM)
+	lg	%r11,__LC_CURRENT(%r13)
+	tm	__TI_sie(%r11),0xff
+	jz	1f
+	BPENTER	__SF_SIE_FLAGS(%r15),_TIF_ISOLATE_BP_GUEST
+	SIEEXIT __SF_SIE_CONTROL(%r15),%r13
+	lghi	%r10,_PIF_GUEST_FAULT
+#endif
 1:	tmhh	%r8,0x4000		# PER bit set in old PSW ?
 	jnz	2f			# -> enabled, can't be a double fault
 	tm	__LC_PGM_ILC+3(%r13),0x80	# check for per exception
@@ -344,21 +332,12 @@ SYM_CODE_START(pgm_check_handler)
 	CHECK_VMAP_STACK __LC_SAVE_AREA,%r13,4f
 3:	lg	%r15,__LC_KERNEL_STACK(%r13)
 4:	la	%r11,STACK_FRAME_OVERHEAD(%r15)
-	xc	__PT_FLAGS(8,%r11),__PT_FLAGS(%r11)
+	stg	%r10,__PT_FLAGS(%r11)
 	xc	__SF_BACKCHAIN(8,%r15),__SF_BACKCHAIN(%r15)
 	stmg	%r0,%r7,__PT_R0(%r11)
 	mvc	__PT_R8(64,%r11),__LC_SAVE_AREA(%r13)
 	mvc	__PT_LAST_BREAK(8,%r11),__LC_PGM_LAST_BREAK(%r13)
-	stctg	%c1,%c1,__PT_CR1(%r11)
-#if IS_ENABLED(CONFIG_KVM)
-	ltg	%r12,__LC_GMAP(%r13)
-	jz	5f
-	clc	__GMAP_ASCE(8,%r12), __PT_CR1(%r11)
-	jne	5f
-	BPENTER	__SF_SIE_FLAGS(%r10),_TIF_ISOLATE_BP_GUEST
-	SIEEXIT __SF_SIE_CONTROL(%r10),%r13
-#endif
-5:	stmg	%r8,%r9,__PT_PSW(%r11)
+	stmg	%r8,%r9,__PT_PSW(%r11)
 	# clear user controlled registers to prevent speculative use
 	xgr	%r0,%r0
 	xgr	%r1,%r1
@@ -367,6 +346,7 @@ SYM_CODE_START(pgm_check_handler)
 	xgr	%r5,%r5
 	xgr	%r6,%r6
 	xgr	%r7,%r7
+	xgr	%r12,%r12
 	lgr	%r2,%r11
 	brasl	%r14,__do_pgm_check
 	tmhh	%r8,0x0001		# returning to user space?

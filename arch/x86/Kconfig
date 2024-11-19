@@ -1954,6 +1954,7 @@ config X86_USER_SHADOW_STACK
 	depends on AS_WRUSS
 	depends on X86_64
 	select ARCH_USES_HIGH_VMA_FLAGS
+	select ARCH_HAS_USER_SHADOW_STACK
 	select X86_CET
 	help
 	  Shadow stack protection is a hardware feature that detects function
@@ -2083,6 +2084,9 @@ config ARCH_SUPPORTS_KEXEC_JUMP
 
 config ARCH_SUPPORTS_CRASH_DUMP
 	def_bool X86_64 || (X86_32 && HIGHMEM)
+
+config ARCH_DEFAULT_CRASH_DUMP
+	def_bool y
 
 config ARCH_SUPPORTS_CRASH_HOTPLUG
 	def_bool y

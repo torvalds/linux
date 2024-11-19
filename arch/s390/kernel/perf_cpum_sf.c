@@ -404,7 +404,7 @@ static void sfb_init_allocs(unsigned long num, struct hw_perf_event *hwc)
 
 static void deallocate_buffers(struct cpu_hw_sf *cpuhw)
 {
-	if (cpuhw->sfb.sdbt)
+	if (sf_buffer_available(cpuhw))
 		free_sampling_buffer(&cpuhw->sfb);
 }
 
@@ -559,16 +559,15 @@ static void setup_pmc_cpu(void *flags)
 {
 	struct cpu_hw_sf *cpuhw = this_cpu_ptr(&cpu_hw_sf);
 
+	sf_disable();
 	switch (*((int *)flags)) {
 	case PMC_INIT:
 		memset(cpuhw, 0, sizeof(*cpuhw));
 		qsi(&cpuhw->qsi);
 		cpuhw->flags |= PMU_F_RESERVED;
-		sf_disable();
 		break;
 	case PMC_RELEASE:
 		cpuhw->flags &= ~PMU_F_RESERVED;
-		sf_disable();
 		deallocate_buffers(cpuhw);
 		break;
 	}
@@ -759,7 +758,6 @@ static int __hw_perf_event_init(struct perf_event *event)
 		reserve_pmc_hardware();
 		refcount_set(&num_events, 1);
 	}
-	mutex_unlock(&pmc_reserve_mutex);
 	event->destroy = hw_perf_event_destroy;
 
 	/* Access per-CPU sampling information (query sampling info) */
@@ -818,7 +816,7 @@ static int __hw_perf_event_init(struct perf_event *event)
 
 	/* Use AUX buffer. No need to allocate it by ourself */
 	if (attr->config == PERF_EVENT_CPUM_SF_DIAG)
-		return 0;
+		goto out;
 
 	/* Allocate the per-CPU sampling buffer using the CPU information
 	 * from the event.  If the event is not pinned to a particular
@@ -848,6 +846,7 @@ static int __hw_perf_event_init(struct perf_event *event)
 		if (is_default_overflow_handler(event))
 			event->overflow_handler = cpumsf_output_event_pid;
 out:
+	mutex_unlock(&pmc_reserve_mutex);
 	return err;
 }
 
@@ -910,10 +909,14 @@ static void cpumsf_pmu_enable(struct pmu *pmu)
 	struct hw_perf_event *hwc;
 	int err;
 
-	if (cpuhw->flags & PMU_F_ENABLED)
-		return;
-
-	if (cpuhw->flags & PMU_F_ERR_MASK)
+	/*
+	 * Event must be
+	 * - added/started on this CPU (PMU_F_IN_USE set)
+	 * - and CPU must be available (PMU_F_RESERVED set)
+	 * - and not already enabled (PMU_F_ENABLED not set)
+	 * - and not in error condition (PMU_F_ERR_MASK not set)
+	 */
+	if (cpuhw->flags != (PMU_F_IN_USE | PMU_F_RESERVED))
 		return;
 
 	/* Check whether to extent the sampling buffer.
@@ -927,33 +930,27 @@ static void cpumsf_pmu_enable(struct pmu *pmu)
 	 * facility, but it can be fully re-enabled using sampling controls that
 	 * have been saved in cpumsf_pmu_disable().
 	 */
-	if (cpuhw->event) {
-		hwc = &cpuhw->event->hw;
-		if (!(SAMPL_DIAG_MODE(hwc))) {
-			/*
-			 * Account number of overflow-designated
-			 * buffer extents
-			 */
-			sfb_account_overflows(cpuhw, hwc);
-			extend_sampling_buffer(&cpuhw->sfb, hwc);
-		}
-		/* Rate may be adjusted with ioctl() */
-		cpuhw->lsctl.interval = SAMPL_RATE(hwc);
+	hwc = &cpuhw->event->hw;
+	if (!(SAMPL_DIAG_MODE(hwc))) {
+		/*
+		 * Account number of overflow-designated buffer extents
+		 */
+		sfb_account_overflows(cpuhw, hwc);
+		extend_sampling_buffer(&cpuhw->sfb, hwc);
 	}
+	/* Rate may be adjusted with ioctl() */
+	cpuhw->lsctl.interval = SAMPL_RATE(hwc);
 
 	/* (Re)enable the PMU and sampling facility */
-	cpuhw->flags |= PMU_F_ENABLED;
-	barrier();
-
 	err = lsctl(&cpuhw->lsctl);
 	if (err) {
-		cpuhw->flags &= ~PMU_F_ENABLED;
 		pr_err("Loading sampling controls failed: op 1 err %i\n", err);
 		return;
 	}
 
 	/* Load current program parameter */
 	lpp(&get_lowcore()->lpp);
+	cpuhw->flags |= PMU_F_ENABLED;
 }
 
 static void cpumsf_pmu_disable(struct pmu *pmu)
@@ -1191,8 +1188,8 @@ static void hw_collect_samples(struct perf_event *event, unsigned long *sdbt,
 static void hw_perf_event_update(struct perf_event *event, int flush_all)
 {
 	unsigned long long event_overflow, sampl_overflow, num_sdb;
-	union hws_trailer_header old, prev, new;
 	struct hw_perf_event *hwc = &event->hw;
+	union hws_trailer_header prev, new;
 	struct hws_trailer_entry *te;
 	unsigned long *sdbt, sdb;
 	int done;
@@ -1236,13 +1233,11 @@ static void hw_perf_event_update(struct perf_event *event, int flush_all)
 		/* Reset trailer (using compare-double-and-swap) */
 		prev.val = READ_ONCE_ALIGNED_128(te->header.val);
 		do {
-			old.val = prev.val;
 			new.val = prev.val;
 			new.f = 0;
 			new.a = 1;
 			new.overflow = 0;
-			prev.val = cmpxchg128(&te->header.val, old.val, new.val);
-		} while (prev.val != old.val);
+		} while (!try_cmpxchg128(&te->header.val, &prev.val, new.val));
 
 		/* Advance to next sample-data-block */
 		sdbt++;
@@ -1408,16 +1403,15 @@ static int aux_output_begin(struct perf_output_handle *handle,
 static bool aux_set_alert(struct aux_buffer *aux, unsigned long alert_index,
 			  unsigned long long *overflow)
 {
-	union hws_trailer_header old, prev, new;
+	union hws_trailer_header prev, new;
 	struct hws_trailer_entry *te;
 
 	te = aux_sdb_trailer(aux, alert_index);
 	prev.val = READ_ONCE_ALIGNED_128(te->header.val);
 	do {
-		old.val = prev.val;
 		new.val = prev.val;
-		*overflow = old.overflow;
-		if (old.f) {
+		*overflow = prev.overflow;
+		if (prev.f) {
 			/*
 			 * SDB is already set by hardware.
 			 * Abort and try to set somewhere
@@ -1427,8 +1421,7 @@ static bool aux_set_alert(struct aux_buffer *aux, unsigned long alert_index,
 		}
 		new.a = 1;
 		new.overflow = 0;
-		prev.val = cmpxchg128(&te->header.val, old.val, new.val);
-	} while (prev.val != old.val);
+	} while (!try_cmpxchg128(&te->header.val, &prev.val, new.val));
 	return true;
 }
 
@@ -1457,7 +1450,7 @@ static bool aux_set_alert(struct aux_buffer *aux, unsigned long alert_index,
 static bool aux_reset_buffer(struct aux_buffer *aux, unsigned long range,
 			     unsigned long long *overflow)
 {
-	union hws_trailer_header old, prev, new;
+	union hws_trailer_header prev, new;
 	unsigned long i, range_scan, idx;
 	unsigned long long orig_overflow;
 	struct hws_trailer_entry *te;
@@ -1489,17 +1482,15 @@ static bool aux_reset_buffer(struct aux_buffer *aux, unsigned long range,
 		te = aux_sdb_trailer(aux, idx);
 		prev.val = READ_ONCE_ALIGNED_128(te->header.val);
 		do {
-			old.val = prev.val;
 			new.val = prev.val;
-			orig_overflow = old.overflow;
+			orig_overflow = prev.overflow;
 			new.f = 0;
 			new.overflow = 0;
 			if (idx == aux->alert_mark)
 				new.a = 1;
 			else
 				new.a = 0;
-			prev.val = cmpxchg128(&te->header.val, old.val, new.val);
-		} while (prev.val != old.val);
+		} while (!try_cmpxchg128(&te->header.val, &prev.val, new.val));
 		*overflow += orig_overflow;
 	}
 
@@ -1780,7 +1771,9 @@ static void cpumsf_pmu_stop(struct perf_event *event, int flags)
 	event->hw.state |= PERF_HES_STOPPED;
 
 	if ((flags & PERF_EF_UPDATE) && !(event->hw.state & PERF_HES_UPTODATE)) {
-		hw_perf_event_update(event, 1);
+		/* CPU hotplug off removes SDBs. No samples to extract. */
+		if (cpuhw->flags & PMU_F_RESERVED)
+			hw_perf_event_update(event, 1);
 		event->hw.state |= PERF_HES_UPTODATE;
 	}
 	perf_pmu_enable(event->pmu);
@@ -1795,7 +1788,7 @@ static int cpumsf_pmu_add(struct perf_event *event, int flags)
 	if (cpuhw->flags & PMU_F_IN_USE)
 		return -EAGAIN;
 
-	if (!SAMPL_DIAG_MODE(&event->hw) && !cpuhw->sfb.sdbt)
+	if (!SAMPL_DIAG_MODE(&event->hw) && !sf_buffer_available(cpuhw))
 		return -EINVAL;
 
 	perf_pmu_disable(event->pmu);
@@ -1957,13 +1950,12 @@ static void cpumf_measurement_alert(struct ext_code ext_code,
 
 	/* Program alert request */
 	if (alert & CPU_MF_INT_SF_PRA) {
-		if (cpuhw->flags & PMU_F_IN_USE)
+		if (cpuhw->flags & PMU_F_IN_USE) {
 			if (SAMPL_DIAG_MODE(&cpuhw->event->hw))
 				hw_collect_aux(cpuhw);
 			else
 				hw_perf_event_update(cpuhw->event, 0);
-		else
-			WARN_ON_ONCE(!(cpuhw->flags & PMU_F_IN_USE));
+		}
 	}
 
 	/* Report measurement alerts only for non-PRA codes */
@@ -1984,7 +1976,7 @@ static void cpumf_measurement_alert(struct ext_code ext_code,
 
 	/* Invalid sampling buffer entry */
 	if (alert & (CPU_MF_INT_SF_IAE|CPU_MF_INT_SF_ISE)) {
-		pr_err("A sampling buffer entry is incorrect (alert=0x%x)\n",
+		pr_err("A sampling buffer entry is incorrect (alert=%#x)\n",
 		       alert);
 		cpuhw->flags |= PMU_F_ERR_IBE;
 		sf_disable();

@@ -91,6 +91,11 @@ static int do_one_sme_vl(struct tdescr *td, siginfo_t *si, ucontext_t *uc,
 		return 1;
 	}
 
+	if (get_svcr() != 0) {
+		fprintf(stderr, "Unexpected SVCR %lx\n", get_svcr());
+		return 1;
+	}
+
 	return 0;
 }
 

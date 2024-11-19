@@ -1165,11 +1165,16 @@ static struct sock *netlink_getsockbyportid(struct sock *ssk, u32 portid)
 	return sock;
 }
 
-struct sock *netlink_getsockbyfilp(struct file *filp)
+struct sock *netlink_getsockbyfd(int fd)
 {
-	struct inode *inode = file_inode(filp);
+	CLASS(fd, f)(fd);
+	struct inode *inode;
 	struct sock *sock;
 
+	if (fd_empty(f))
+		return ERR_PTR(-EBADF);
+
+	inode = file_inode(fd_file(f));
 	if (!S_ISSOCK(inode->i_mode))
 		return ERR_PTR(-ENOTSOCK);
 

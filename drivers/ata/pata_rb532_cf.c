@@ -164,7 +164,7 @@ static void rb532_pata_driver_remove(struct platform_device *pdev)
 
 static struct platform_driver rb532_pata_platform_driver = {
 	.probe		= rb532_pata_driver_probe,
-	.remove_new	= rb532_pata_driver_remove,
+	.remove		= rb532_pata_driver_remove,
 	.driver	 = {
 		.name   = DRV_NAME,
 	},

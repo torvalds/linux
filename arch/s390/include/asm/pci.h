@@ -107,9 +107,10 @@ struct zpci_bus {
 	struct list_head	resources;
 	struct list_head	bus_next;
 	struct resource		bus_resource;
-	int			pchid;
+	int			topo;		/* TID if topo_is_tid, PCHID otherwise */
 	int			domain_nr;
-	bool			multifunction;
+	u8			multifunction	: 1;
+	u8			topo_is_tid	: 1;
 	enum pci_bus_speed	max_bus_speed;
 };
 
@@ -130,9 +131,12 @@ struct zpci_dev {
 	u16		vfn;		/* virtual function number */
 	u16		pchid;		/* physical channel ID */
 	u16		maxstbl;	/* Maximum store block size */
+	u16		rid;		/* RID as supplied by firmware */
+	u16		tid;		/* Topology for which RID is valid */
 	u8		pfgid;		/* function group ID */
 	u8		pft;		/* pci function type */
 	u8		port;
+	u8		fidparm;
 	u8		dtsm;		/* Supported DT mask */
 	u8		rid_available	: 1;
 	u8		has_hp_slot	: 1;
@@ -140,7 +144,8 @@ struct zpci_dev {
 	u8		is_physfn	: 1;
 	u8		util_str_avail	: 1;
 	u8		irqs_registered	: 1;
-	u8		reserved	: 2;
+	u8		tid_avail	: 1;
+	u8		reserved	: 1;
 	unsigned int	devfn;		/* DEVFN part of the RID*/
 
 	u8 pfip[CLP_PFIP_NR_SEGMENTS];	/* pci function internal path */
@@ -210,12 +215,14 @@ extern struct airq_iv *zpci_aif_sbv;
 ----------------------------------------------------------------------------- */
 /* Base stuff */
 struct zpci_dev *zpci_create_device(u32 fid, u32 fh, enum zpci_state state);
+int zpci_add_device(struct zpci_dev *zdev);
 int zpci_enable_device(struct zpci_dev *);
 int zpci_disable_device(struct zpci_dev *);
 int zpci_scan_configured_device(struct zpci_dev *zdev, u32 fh);
 int zpci_deconfigure_device(struct zpci_dev *zdev);
 void zpci_device_reserved(struct zpci_dev *zdev);
 bool zpci_is_device_configured(struct zpci_dev *zdev);
+int zpci_scan_devices(void);
 
 int zpci_hot_reset_device(struct zpci_dev *zdev);
 int zpci_register_ioat(struct zpci_dev *, u8, u64, u64, u64, u8 *);
@@ -225,7 +232,7 @@ void zpci_update_fh(struct zpci_dev *zdev, u32 fh);
 
 /* CLP */
 int clp_setup_writeback_mio(void);
-int clp_scan_pci_devices(void);
+int clp_scan_pci_devices(struct list_head *scan_list);
 int clp_query_pci_fn(struct zpci_dev *zdev);
 int clp_enable_fh(struct zpci_dev *zdev, u32 *fh, u8 nr_dma_as);
 int clp_disable_fh(struct zpci_dev *zdev, u32 *fh);

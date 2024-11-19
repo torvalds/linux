@@ -3362,7 +3362,7 @@ static int cache_iterate_devices(struct dm_target *ti,
 static void disable_passdown_if_not_supported(struct cache *cache)
 {
 	struct block_device *origin_bdev = cache->origin_dev->bdev;
-	struct queue_limits *origin_limits = &bdev_get_queue(origin_bdev)->limits;
+	struct queue_limits *origin_limits = bdev_limits(origin_bdev);
 	const char *reason = NULL;
 
 	if (!cache->features.discard_passdown)
@@ -3384,7 +3384,7 @@ static void disable_passdown_if_not_supported(struct cache *cache)
 static void set_discard_limits(struct cache *cache, struct queue_limits *limits)
 {
 	struct block_device *origin_bdev = cache->origin_dev->bdev;
-	struct queue_limits *origin_limits = &bdev_get_queue(origin_bdev)->limits;
+	struct queue_limits *origin_limits = bdev_limits(origin_bdev);
 
 	if (!cache->features.discard_passdown) {
 		/* No passdown is done so setting own virtual limits */

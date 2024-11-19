@@ -38,13 +38,13 @@
 
 typedef struct file_private_info {
 	loff_t offset;			/* offset of last read in file */
-	int    act_area;		/* number of last formated area */
+	int    act_area;		/* number of last formatted area */
 	int    act_page;		/* act page in given area */
-	int    act_entry;		/* last formated entry (offset */
+	int    act_entry;		/* last formatted entry (offset */
 					/* relative to beginning of last */
-					/* formated page) */
+					/* formatted page) */
 	size_t act_entry_offset;	/* up to this offset we copied */
-					/* in last read the last formated */
+					/* in last read the last formatted */
 					/* entry to userland */
 	char   temp_buf[2048];		/* buffer for output */
 	debug_info_t *debug_info_org;	/* original debug information */
@@ -63,7 +63,7 @@ typedef struct {
 	long args[];
 } debug_sprintf_entry_t;
 
-/* internal function prototyes */
+/* internal function prototypes */
 
 static int debug_init(void);
 static ssize_t debug_output(struct file *file, char __user *user_buf,
@@ -380,7 +380,7 @@ static void debug_info_put(debug_info_t *db_info)
 
 /*
  * debug_format_entry:
- * - format one debug entry and return size of formated data
+ * - format one debug entry and return size of formatted data
  */
 static int debug_format_entry(file_private_info_t *p_info)
 {
@@ -449,7 +449,7 @@ out:
 /*
  * debug_output:
  * - called for user read()
- * - copies formated debug entries to the user buffer
+ * - copies formatted debug entries to the user buffer
  */
 static ssize_t debug_output(struct file *file,		/* file descriptor */
 			    char __user *user_buf,	/* user buffer */
@@ -523,7 +523,7 @@ static ssize_t debug_input(struct file *file, const char __user *user_buf,
 /*
  * debug_open:
  * - called for user open()
- * - copies formated output to private_data area of the file
+ * - copies formatted output to private_data area of the file
  *   handle
  */
 static int debug_open(struct inode *inode, struct file *file)
@@ -1513,7 +1513,7 @@ int debug_dflt_header_fn(debug_info_t *id, struct debug_view *view,
 EXPORT_SYMBOL(debug_dflt_header_fn);
 
 /*
- * prints debug data sprintf-formated:
+ * prints debug data sprintf-formatted:
  * debug_sprinf_event/exception calls must be used together with this view
  */
 

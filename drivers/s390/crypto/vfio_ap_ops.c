@@ -1521,18 +1521,13 @@ static ssize_t control_domains_show(struct device *dev,
 				    char *buf)
 {
 	unsigned long id;
-	int nchars = 0;
-	int n;
-	char *bufpos = buf;
 	struct ap_matrix_mdev *matrix_mdev = dev_get_drvdata(dev);
 	unsigned long max_domid = matrix_mdev->matrix.adm_max;
+	int nchars = 0;
 
 	mutex_lock(&matrix_dev->mdevs_lock);
-	for_each_set_bit_inv(id, matrix_mdev->matrix.adm, max_domid + 1) {
-		n = sprintf(bufpos, "%04lx\n", id);
-		bufpos += n;
-		nchars += n;
-	}
+	for_each_set_bit_inv(id, matrix_mdev->matrix.adm, max_domid + 1)
+		nchars += sysfs_emit_at(buf, nchars, "%04lx\n", id);
 	mutex_unlock(&matrix_dev->mdevs_lock);
 
 	return nchars;
@@ -1541,7 +1536,6 @@ static DEVICE_ATTR_RO(control_domains);
 
 static ssize_t vfio_ap_mdev_matrix_show(struct ap_matrix *matrix, char *buf)
 {
-	char *bufpos = buf;
 	unsigned long apid;
 	unsigned long apqi;
 	unsigned long apid1;
@@ -1549,33 +1543,21 @@ static ssize_t vfio_ap_mdev_matrix_show(struct ap_matrix *matrix, char *buf)
 	unsigned long napm_bits = matrix->apm_max + 1;
 	unsigned long naqm_bits = matrix->aqm_max + 1;
 	int nchars = 0;
-	int n;
 
 	apid1 = find_first_bit_inv(matrix->apm, napm_bits);
 	apqi1 = find_first_bit_inv(matrix->aqm, naqm_bits);
 
 	if ((apid1 < napm_bits) && (apqi1 < naqm_bits)) {
 		for_each_set_bit_inv(apid, matrix->apm, napm_bits) {
-			for_each_set_bit_inv(apqi, matrix->aqm,
-					     naqm_bits) {
-				n = sprintf(bufpos, "%02lx.%04lx\n", apid,
-					    apqi);
-				bufpos += n;
-				nchars += n;
-			}
+			for_each_set_bit_inv(apqi, matrix->aqm, naqm_bits)
+				nchars += sysfs_emit_at(buf, nchars, "%02lx.%04lx\n", apid, apqi);
 		}
 	} else if (apid1 < napm_bits) {
-		for_each_set_bit_inv(apid, matrix->apm, napm_bits) {
-			n = sprintf(bufpos, "%02lx.\n", apid);
-			bufpos += n;
-			nchars += n;
-		}
+		for_each_set_bit_inv(apid, matrix->apm, napm_bits)
+			nchars += sysfs_emit_at(buf, nchars, "%02lx.\n", apid);
 	} else if (apqi1 < naqm_bits) {
-		for_each_set_bit_inv(apqi, matrix->aqm, naqm_bits) {
-			n = sprintf(bufpos, ".%04lx\n", apqi);
-			bufpos += n;
-			nchars += n;
-		}
+		for_each_set_bit_inv(apqi, matrix->aqm, naqm_bits)
+			nchars += sysfs_emit_at(buf, nchars, ".%04lx\n", apqi);
 	}
 
 	return nchars;
@@ -2263,14 +2245,11 @@ static ssize_t status_show(struct device *dev,
 		if (matrix_mdev->kvm &&
 		    test_bit_inv(apid, matrix_mdev->shadow_apcb.apm) &&
 		    test_bit_inv(apqi, matrix_mdev->shadow_apcb.aqm))
-			nchars = scnprintf(buf, PAGE_SIZE, "%s\n",
-					   AP_QUEUE_IN_USE);
+			nchars = sysfs_emit(buf, "%s\n", AP_QUEUE_IN_USE);
 		else
-			nchars = scnprintf(buf, PAGE_SIZE, "%s\n",
-					   AP_QUEUE_ASSIGNED);
+			nchars = sysfs_emit(buf, "%s\n", AP_QUEUE_ASSIGNED);
 	} else {
-		nchars = scnprintf(buf, PAGE_SIZE, "%s\n",
-				   AP_QUEUE_UNASSIGNED);
+		nchars = sysfs_emit(buf, "%s\n", AP_QUEUE_UNASSIGNED);
 	}
 
 	mutex_unlock(&matrix_dev->mdevs_lock);

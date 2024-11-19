@@ -37,6 +37,7 @@ enum io_uring_cmd_flags {
 	/* set when uring wants to cancel a previously issued command */
 	IO_URING_F_CANCEL		= (1 << 11),
 	IO_URING_F_COMPAT		= (1 << 12),
+	IO_URING_F_TASK_DEAD		= (1 << 13),
 };
 
 struct io_wq_work_node {
@@ -55,25 +56,30 @@ struct io_wq_work {
 	int cancel_seq;
 };
 
-struct io_fixed_file {
-	/* file * with additional FFS_* flags */
-	unsigned long file_ptr;
+struct io_rsrc_data {
+	unsigned int			nr;
+	struct io_rsrc_node		**nodes;
 };
 
 struct io_file_table {
-	struct io_fixed_file *files;
+	struct io_rsrc_data data;
 	unsigned long *bitmap;
 	unsigned int alloc_hint;
 };
 
 struct io_hash_bucket {
-	spinlock_t		lock;
 	struct hlist_head	list;
 } ____cacheline_aligned_in_smp;
 
 struct io_hash_table {
 	struct io_hash_bucket	*hbs;
 	unsigned		hash_bits;
+};
+
+struct io_mapped_region {
+	struct page		**pages;
+	void			*vmap_ptr;
+	size_t			nr_pages;
 };
 
 /*
@@ -85,6 +91,7 @@ struct io_uring_task {
 	/* submission side */
 	int				cached_refs;
 	const struct io_ring_ctx 	*last;
+	struct task_struct		*task;
 	struct io_wq			*io_wq;
 	struct file			*registered_rings[IO_RINGFD_REG_MAX];
 
@@ -270,7 +277,6 @@ struct io_ring_ctx {
 		 * Fixed resources fast path, should be accessed only under
 		 * uring_lock, and updated through io_uring_register(2)
 		 */
-		struct io_rsrc_node	*rsrc_node;
 		atomic_t		cancel_seq;
 
 		/*
@@ -283,15 +289,13 @@ struct io_ring_ctx {
 		struct io_wq_work_list	iopoll_list;
 
 		struct io_file_table	file_table;
-		struct io_mapped_ubuf	**user_bufs;
-		unsigned		nr_user_files;
-		unsigned		nr_user_bufs;
+		struct io_rsrc_data	buf_table;
 
 		struct io_submit_state	submit_state;
 
 		struct xarray		io_bl_xa;
 
-		struct io_hash_table	cancel_table_locked;
+		struct io_hash_table	cancel_table;
 		struct io_alloc_cache	apoll_cache;
 		struct io_alloc_cache	netmsg_cache;
 		struct io_alloc_cache	rw_cache;
@@ -302,6 +306,11 @@ struct io_ring_ctx {
 		 * ->uring_cmd() by io_uring_cmd_insert_cancelable()
 		 */
 		struct hlist_head	cancelable_uring_cmd;
+		/*
+		 * For Hybrid IOPOLL, runtime in hybrid polling, without
+		 * scheduling time
+		 */
+		u64					hybrid_poll_time;
 	} ____cacheline_aligned_in_smp;
 
 	struct {
@@ -316,6 +325,9 @@ struct io_ring_ctx {
 		unsigned		cq_entries;
 		struct io_ev_fd	__rcu	*io_ev_fd;
 		unsigned		cq_extra;
+
+		void			*cq_wait_arg;
+		size_t			cq_wait_size;
 	} ____cacheline_aligned_in_smp;
 
 	/*
@@ -342,7 +354,6 @@ struct io_ring_ctx {
 
 	struct list_head	io_buffers_comp;
 	struct list_head	cq_overflow_list;
-	struct io_hash_table	cancel_table;
 
 	struct hlist_head	waitid_list;
 
@@ -365,16 +376,6 @@ struct io_ring_ctx {
 	/* Keep this last, we don't need it for the fast path */
 	struct wait_queue_head		poll_wq;
 	struct io_restriction		restrictions;
-
-	/* slow path rsrc auxilary data, used by update/register */
-	struct io_rsrc_data		*file_data;
-	struct io_rsrc_data		*buf_data;
-
-	/* protected by ->uring_lock */
-	struct list_head		rsrc_ref_list;
-	struct io_alloc_cache		rsrc_node_cache;
-	struct wait_queue_head		rsrc_quiesce_wq;
-	unsigned			rsrc_quiesce;
 
 	u32			pers_next;
 	struct xarray		personalities;
@@ -409,13 +410,20 @@ struct io_ring_ctx {
 	/* napi busy poll default timeout */
 	ktime_t			napi_busy_poll_dt;
 	bool			napi_prefer_busy_poll;
-	bool			napi_enabled;
+	u8			napi_track_mode;
 
 	DECLARE_HASHTABLE(napi_ht, 4);
 #endif
 
 	/* protected by ->completion_lock */
 	unsigned			evfd_last_cq_tail;
+
+	/*
+	 * Protection for resize vs mmap races - both the mmap and resize
+	 * side will need to grab this lock, to prevent either side from
+	 * being run concurrently with the other.
+	 */
+	struct mutex			resize_lock;
 
 	/*
 	 * If IORING_SETUP_NO_MMAP is used, then the below holds
@@ -425,6 +433,9 @@ struct io_ring_ctx {
 	unsigned short			n_sqe_pages;
 	struct page			**ring_pages;
 	struct page			**sqe_pages;
+
+	/* used for optimised request parameter and wait argument passing  */
+	struct io_mapped_region		param_region;
 };
 
 struct io_tw_state {
@@ -447,6 +458,7 @@ enum {
 	REQ_F_LINK_TIMEOUT_BIT,
 	REQ_F_NEED_CLEANUP_BIT,
 	REQ_F_POLLED_BIT,
+	REQ_F_HYBRID_IOPOLL_STATE_BIT,
 	REQ_F_BUFFER_SELECTED_BIT,
 	REQ_F_BUFFER_RING_BIT,
 	REQ_F_REISSUE_BIT,
@@ -459,7 +471,6 @@ enum {
 	REQ_F_DOUBLE_POLL_BIT,
 	REQ_F_APOLL_MULTISHOT_BIT,
 	REQ_F_CLEAR_POLLIN_BIT,
-	REQ_F_HASH_LOCKED_BIT,
 	/* keep async read/write and isreg together and in order */
 	REQ_F_SUPPORT_NOWAIT_BIT,
 	REQ_F_ISREG_BIT,
@@ -468,6 +479,7 @@ enum {
 	REQ_F_BL_EMPTY_BIT,
 	REQ_F_BL_NO_RECYCLE_BIT,
 	REQ_F_BUFFERS_COMMIT_BIT,
+	REQ_F_BUF_NODE_BIT,
 
 	/* not a real bit, just to check we're not overflowing the space */
 	__REQ_F_LAST_BIT,
@@ -506,6 +518,8 @@ enum {
 	REQ_F_NEED_CLEANUP	= IO_REQ_FLAG(REQ_F_NEED_CLEANUP_BIT),
 	/* already went through poll handler */
 	REQ_F_POLLED		= IO_REQ_FLAG(REQ_F_POLLED_BIT),
+	/* every req only blocks once in hybrid poll */
+	REQ_F_IOPOLL_STATE        = IO_REQ_FLAG(REQ_F_HYBRID_IOPOLL_STATE_BIT),
 	/* buffer already selected */
 	REQ_F_BUFFER_SELECTED	= IO_REQ_FLAG(REQ_F_BUFFER_SELECTED_BIT),
 	/* buffer selected from ring, needs commit */
@@ -534,8 +548,6 @@ enum {
 	REQ_F_APOLL_MULTISHOT	= IO_REQ_FLAG(REQ_F_APOLL_MULTISHOT_BIT),
 	/* recvmsg special flag, clear EPOLLIN */
 	REQ_F_CLEAR_POLLIN	= IO_REQ_FLAG(REQ_F_CLEAR_POLLIN_BIT),
-	/* hashed into ->cancel_hash_locked, protected by ->uring_lock */
-	REQ_F_HASH_LOCKED	= IO_REQ_FLAG(REQ_F_HASH_LOCKED_BIT),
 	/* don't use lazy poll wake for this request */
 	REQ_F_POLL_NO_LAZY	= IO_REQ_FLAG(REQ_F_POLL_NO_LAZY_BIT),
 	/* file is pollable */
@@ -546,6 +558,8 @@ enum {
 	REQ_F_BL_NO_RECYCLE	= IO_REQ_FLAG(REQ_F_BL_NO_RECYCLE_BIT),
 	/* buffer ring head needs incrementing on put */
 	REQ_F_BUFFERS_COMMIT	= IO_REQ_FLAG(REQ_F_BUFFERS_COMMIT_BIT),
+	/* buf node is valid */
+	REQ_F_BUF_NODE		= IO_REQ_FLAG(REQ_F_BUF_NODE_BIT),
 };
 
 typedef void (*io_req_tw_func_t)(struct io_kiocb *req, struct io_tw_state *ts);
@@ -615,12 +629,9 @@ struct io_kiocb {
 	struct io_cqe			cqe;
 
 	struct io_ring_ctx		*ctx;
-	struct task_struct		*task;
+	struct io_uring_task		*tctx;
 
 	union {
-		/* store used ubuf, so we can prevent reloading */
-		struct io_mapped_ubuf	*imu;
-
 		/* stores selected buf, valid IFF REQ_F_BUFFER_SELECTED is set */
 		struct io_buffer	*kbuf;
 
@@ -629,6 +640,8 @@ struct io_kiocb {
 		 * REQ_F_BUFFER_RING is set.
 		 */
 		struct io_buffer_list	*buf_list;
+
+		struct io_rsrc_node	*buf_node;
 	};
 
 	union {
@@ -638,13 +651,20 @@ struct io_kiocb {
 		__poll_t apoll_events;
 	};
 
-	struct io_rsrc_node		*rsrc_node;
+	struct io_rsrc_node		*file_node;
 
 	atomic_t			refs;
 	bool				cancel_seq_set;
 	struct io_task_work		io_task_work;
-	/* for polled requests, i.e. IORING_OP_POLL_ADD and async armed poll */
-	struct hlist_node		hash_node;
+	union {
+		/*
+		 * for polled requests, i.e. IORING_OP_POLL_ADD and async armed
+		 * poll
+		 */
+		struct hlist_node	hash_node;
+		/* For IOPOLL setup queues, with hybrid polling */
+		u64                     iopoll_start;
+	};
 	/* internal polling, see IORING_FEAT_FAST_POLL */
 	struct async_poll		*apoll;
 	/* opcode allocated if it needs to store data for async defer */
@@ -666,5 +686,10 @@ struct io_overflow_cqe {
 	struct list_head list;
 	struct io_uring_cqe cqe;
 };
+
+static inline bool io_ctx_cqe32(struct io_ring_ctx *ctx)
+{
+	return ctx->flags & IORING_SETUP_CQE32;
+}
 
 #endif

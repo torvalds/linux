@@ -41,7 +41,6 @@ int btrfs_tree_mod_log_insert_key(const struct extent_buffer *eb, int slot,
 				  enum btrfs_mod_log_op op);
 int btrfs_tree_mod_log_free_eb(struct extent_buffer *eb);
 struct extent_buffer *btrfs_tree_mod_log_rewind(struct btrfs_fs_info *fs_info,
-						struct btrfs_path *path,
 						struct extent_buffer *eb,
 						u64 time_seq);
 struct extent_buffer *btrfs_get_old_root(struct btrfs_root *root, u64 time_seq);

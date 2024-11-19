@@ -2662,7 +2662,7 @@ static struct platform_driver arm_cmn_driver = {
 		.acpi_match_table = ACPI_PTR(arm_cmn_acpi_match),
 	},
 	.probe = arm_cmn_probe,
-	.remove_new = arm_cmn_remove,
+	.remove = arm_cmn_remove,
 };
 
 static int __init arm_cmn_init(void)
