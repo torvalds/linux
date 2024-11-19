@@ -315,20 +315,14 @@ TRACE_EVENT(io_uring_fail_link,
  * io_uring_complete - called when completing an SQE
  *
  * @ctx:		pointer to a ring context structure
- * @req:		pointer to a submitted request
- * @user_data:		user data associated with the request
- * @res:		result of the request
- * @cflags:		completion flags
- * @extra1:		extra 64-bit data for CQE32
- * @extra2:		extra 64-bit data for CQE32
- *
+ * @req:		(optional) pointer to a submitted request
+ * @cqe:		pointer to the filled in CQE being posted
  */
 TRACE_EVENT(io_uring_complete,
 
-	TP_PROTO(void *ctx, void *req, u64 user_data, int res, unsigned cflags,
-		 u64 extra1, u64 extra2),
+TP_PROTO(struct io_ring_ctx *ctx, void *req, struct io_uring_cqe *cqe),
 
-	TP_ARGS(ctx, req, user_data, res, cflags, extra1, extra2),
+	TP_ARGS(ctx, req, cqe),
 
 	TP_STRUCT__entry (
 		__field(  void *,	ctx		)
@@ -343,11 +337,11 @@ TRACE_EVENT(io_uring_complete,
 	TP_fast_assign(
 		__entry->ctx		= ctx;
 		__entry->req		= req;
-		__entry->user_data	= user_data;
-		__entry->res		= res;
-		__entry->cflags		= cflags;
-		__entry->extra1		= extra1;
-		__entry->extra2		= extra2;
+		__entry->user_data	= cqe->user_data;
+		__entry->res		= cqe->res;
+		__entry->cflags		= cqe->flags;
+		__entry->extra1		= io_ctx_cqe32(ctx) ? cqe->big_cqe[0] : 0;
+		__entry->extra2		= io_ctx_cqe32(ctx) ? cqe->big_cqe[1] : 0;
 	),
 
 	TP_printk("ring %p, req %p, user_data 0x%llx, result %d, cflags 0x%x "

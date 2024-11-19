@@ -12,6 +12,7 @@
 
 #include "memmap.h"
 #include "kbuf.h"
+#include "rsrc.h"
 
 static void *io_mem_alloc_compound(struct page **pages, int nr_pages,
 				   size_t size, gfp_t gfp)
@@ -140,6 +141,8 @@ struct page **io_pin_pages(unsigned long uaddr, unsigned long len, int *npages)
 	nr_pages = end - start;
 	if (WARN_ON_ONCE(!nr_pages))
 		return ERR_PTR(-EINVAL);
+	if (WARN_ON_ONCE(nr_pages > INT_MAX))
+		return ERR_PTR(-EOVERFLOW);
 
 	pages = kvmalloc_array(nr_pages, sizeof(struct page *), GFP_KERNEL);
 	if (!pages)
@@ -192,6 +195,74 @@ void *__io_uaddr_map(struct page ***pages, unsigned short *npages,
 	return ERR_PTR(-ENOMEM);
 }
 
+void io_free_region(struct io_ring_ctx *ctx, struct io_mapped_region *mr)
+{
+	if (mr->pages) {
+		unpin_user_pages(mr->pages, mr->nr_pages);
+		kvfree(mr->pages);
+	}
+	if (mr->vmap_ptr)
+		vunmap(mr->vmap_ptr);
+	if (mr->nr_pages && ctx->user)
+		__io_unaccount_mem(ctx->user, mr->nr_pages);
+
+	memset(mr, 0, sizeof(*mr));
+}
+
+int io_create_region(struct io_ring_ctx *ctx, struct io_mapped_region *mr,
+		     struct io_uring_region_desc *reg)
+{
+	int pages_accounted = 0;
+	struct page **pages;
+	int nr_pages, ret;
+	void *vptr;
+	u64 end;
+
+	if (WARN_ON_ONCE(mr->pages || mr->vmap_ptr || mr->nr_pages))
+		return -EFAULT;
+	if (memchr_inv(&reg->__resv, 0, sizeof(reg->__resv)))
+		return -EINVAL;
+	if (reg->flags != IORING_MEM_REGION_TYPE_USER)
+		return -EINVAL;
+	if (!reg->user_addr)
+		return -EFAULT;
+	if (!reg->size || reg->mmap_offset || reg->id)
+		return -EINVAL;
+	if ((reg->size >> PAGE_SHIFT) > INT_MAX)
+		return E2BIG;
+	if ((reg->user_addr | reg->size) & ~PAGE_MASK)
+		return -EINVAL;
+	if (check_add_overflow(reg->user_addr, reg->size, &end))
+		return -EOVERFLOW;
+
+	pages = io_pin_pages(reg->user_addr, reg->size, &nr_pages);
+	if (IS_ERR(pages))
+		return PTR_ERR(pages);
+
+	if (ctx->user) {
+		ret = __io_account_mem(ctx->user, nr_pages);
+		if (ret)
+			goto out_free;
+		pages_accounted = nr_pages;
+	}
+
+	vptr = vmap(pages, nr_pages, VM_MAP, PAGE_KERNEL);
+	if (!vptr) {
+		ret = -ENOMEM;
+		goto out_free;
+	}
+
+	mr->pages = pages;
+	mr->vmap_ptr = vptr;
+	mr->nr_pages = nr_pages;
+	return 0;
+out_free:
+	if (pages_accounted)
+		__io_unaccount_mem(ctx->user, pages_accounted);
+	io_pages_free(&pages, nr_pages);
+	return ret;
+}
+
 static void *io_uring_validate_mmap_request(struct file *file, loff_t pgoff,
 					    size_t sz)
 {
@@ -204,11 +275,15 @@ static void *io_uring_validate_mmap_request(struct file *file, loff_t pgoff,
 		/* Don't allow mmap if the ring was setup without it */
 		if (ctx->flags & IORING_SETUP_NO_MMAP)
 			return ERR_PTR(-EINVAL);
+		if (!ctx->rings)
+			return ERR_PTR(-EFAULT);
 		return ctx->rings;
 	case IORING_OFF_SQES:
 		/* Don't allow mmap if the ring was setup without it */
 		if (ctx->flags & IORING_SETUP_NO_MMAP)
 			return ERR_PTR(-EINVAL);
+		if (!ctx->sq_sqes)
+			return ERR_PTR(-EFAULT);
 		return ctx->sq_sqes;
 	case IORING_OFF_PBUF_RING: {
 		struct io_buffer_list *bl;
@@ -247,6 +322,8 @@ __cold int io_uring_mmap(struct file *file, struct vm_area_struct *vma)
 	unsigned int npages;
 	void *ptr;
 
+	guard(mutex)(&ctx->resize_lock);
+
 	ptr = io_uring_validate_mmap_request(file, vma->vm_pgoff, sz);
 	if (IS_ERR(ptr))
 		return PTR_ERR(ptr);
@@ -270,6 +347,7 @@ unsigned long io_uring_get_unmapped_area(struct file *filp, unsigned long addr,
 					 unsigned long len, unsigned long pgoff,
 					 unsigned long flags)
 {
+	struct io_ring_ctx *ctx = filp->private_data;
 	void *ptr;
 
 	/*
@@ -279,6 +357,8 @@ unsigned long io_uring_get_unmapped_area(struct file *filp, unsigned long addr,
 	 */
 	if (addr)
 		return -EINVAL;
+
+	guard(mutex)(&ctx->resize_lock);
 
 	ptr = io_uring_validate_mmap_request(filp, pgoff, len);
 	if (IS_ERR(ptr))
@@ -325,7 +405,10 @@ unsigned long io_uring_get_unmapped_area(struct file *file, unsigned long addr,
 					 unsigned long len, unsigned long pgoff,
 					 unsigned long flags)
 {
+	struct io_ring_ctx *ctx = file->private_data;
 	void *ptr;
+
+	guard(mutex)(&ctx->resize_lock);
 
 	ptr = io_uring_validate_mmap_request(file, pgoff, len);
 	if (IS_ERR(ptr))

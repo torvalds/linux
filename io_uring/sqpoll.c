@@ -40,6 +40,7 @@ void io_sq_thread_unpark(struct io_sq_data *sqd)
 	if (atomic_dec_return(&sqd->park_pending))
 		set_bit(IO_SQ_THREAD_SHOULD_PARK, &sqd->state);
 	mutex_unlock(&sqd->lock);
+	wake_up(&sqd->wait);
 }
 
 void io_sq_thread_park(struct io_sq_data *sqd)
@@ -207,7 +208,7 @@ static bool io_sqd_handle_event(struct io_sq_data *sqd)
 		mutex_unlock(&sqd->lock);
 		if (signal_pending(current))
 			did_sig = get_signal(&ksig);
-		cond_resched();
+		wait_event(sqd->wait, !atomic_read(&sqd->park_pending));
 		mutex_lock(&sqd->lock);
 		sqd->sq_cpu = raw_smp_processor_id();
 	}

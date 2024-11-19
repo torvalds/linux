@@ -65,6 +65,12 @@ static inline bool io_should_wake(struct io_wait_queue *iowq)
 	return dist >= 0 || atomic_read(&ctx->cq_timeouts) != iowq->nr_timeouts;
 }
 
+#define IORING_MAX_ENTRIES	32768
+#define IORING_MAX_CQ_ENTRIES	(2 * IORING_MAX_ENTRIES)
+
+unsigned long rings_size(unsigned int flags, unsigned int sq_entries,
+			 unsigned int cq_entries, size_t *sq_offset);
+int io_uring_fill_params(unsigned entries, struct io_uring_params *p);
 bool io_cqe_cache_refill(struct io_ring_ctx *ctx, bool overflow);
 int io_run_task_work_sig(struct io_ring_ctx *ctx);
 void io_req_defer_failed(struct io_kiocb *req, s32 res);
@@ -109,7 +115,7 @@ void io_queue_next(struct io_kiocb *req);
 void io_task_refs_refill(struct io_uring_task *tctx);
 bool __io_alloc_req_refill(struct io_ring_ctx *ctx);
 
-bool io_match_task_safe(struct io_kiocb *head, struct task_struct *task,
+bool io_match_task_safe(struct io_kiocb *head, struct io_uring_task *tctx,
 			bool cancel_all);
 
 void io_activate_pollwq(struct io_ring_ctx *ctx);
@@ -130,7 +136,7 @@ static inline void io_lockdep_assert_cq_locked(struct io_ring_ctx *ctx)
 		 * Not from an SQE, as those cannot be submitted, but via
 		 * updating tagged resources.
 		 */
-		if (ctx->submitter_task->flags & PF_EXITING)
+		if (percpu_ref_is_dying(&ctx->refs))
 			lockdep_assert(current_work());
 		else
 			lockdep_assert(current == ctx->submitter_task);
@@ -189,16 +195,15 @@ static __always_inline bool io_fill_cqe_req(struct io_ring_ctx *ctx,
 	if (unlikely(!io_get_cqe(ctx, &cqe)))
 		return false;
 
-	if (trace_io_uring_complete_enabled())
-		trace_io_uring_complete(req->ctx, req, req->cqe.user_data,
-					req->cqe.res, req->cqe.flags,
-					req->big_cqe.extra1, req->big_cqe.extra2);
 
 	memcpy(cqe, &req->cqe, sizeof(*cqe));
 	if (ctx->flags & IORING_SETUP_CQE32) {
 		memcpy(cqe->big_cqe, &req->big_cqe, sizeof(*cqe));
 		memset(&req->big_cqe, 0, sizeof(req->big_cqe));
 	}
+
+	if (trace_io_uring_complete_enabled())
+		trace_io_uring_complete(req->ctx, req, cqe);
 	return true;
 }
 
@@ -419,6 +424,19 @@ static inline bool io_allowed_run_tw(struct io_ring_ctx *ctx)
 {
 	return likely(!(ctx->flags & IORING_SETUP_DEFER_TASKRUN) ||
 		      ctx->submitter_task == current);
+}
+
+/*
+ * Terminate the request if either of these conditions are true:
+ *
+ * 1) It's being executed by the original task, but that task is marked
+ *    with PF_EXITING as it's exiting.
+ * 2) PF_KTHREAD is set, in which case the invoker of the task_work is
+ *    our fallback task_work.
+ */
+static inline bool io_should_terminate_tw(void)
+{
+	return current->flags & (PF_KTHREAD | PF_EXITING);
 }
 
 static inline void io_req_queue_tw_complete(struct io_kiocb *req, s32 res)
