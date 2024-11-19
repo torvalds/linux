@@ -8,7 +8,7 @@
 #include "eyeq6h.dtsi"
 
 / {
-	compatible = "mobileye,eyeq6-epm6", "mobileye,eyeq6";
+	compatible = "mobileye,eyeq6h-epm6", "mobileye,eyeq6h";
 	model = "Mobile EyeQ6H MP6 Evaluation board";
 
 	chosen {
