@@ -5434,8 +5434,6 @@ void bfq_put_cooperator(struct bfq_queue *bfqq)
 		bfq_put_queue(__bfqq);
 		__bfqq = next;
 	}
-
-	bfq_release_process_ref(bfqq->bfqd, bfqq);
 }
 
 static void bfq_exit_bfqq(struct bfq_data *bfqd, struct bfq_queue *bfqq)
@@ -5448,6 +5446,8 @@ static void bfq_exit_bfqq(struct bfq_data *bfqd, struct bfq_queue *bfqq)
 	bfq_log_bfqq(bfqd, bfqq, "exit_bfqq: %p, %d", bfqq, bfqq->ref);
 
 	bfq_put_cooperator(bfqq);
+
+	bfq_release_process_ref(bfqd, bfqq);
 }
 
 static void bfq_exit_icq_bfqq(struct bfq_io_cq *bic, bool is_sync,
@@ -6734,6 +6734,8 @@ bfq_split_bfqq(struct bfq_io_cq *bic, struct bfq_queue *bfqq)
 	bic_set_bfqq(bic, NULL, true, bfqq->actuator_idx);
 
 	bfq_put_cooperator(bfqq);
+
+	bfq_release_process_ref(bfqq->bfqd, bfqq);
 	return NULL;
 }
 
