@@ -531,3 +531,22 @@ INIT_PER_CPU(irq_stack_backing_store);
 #endif
 
 #endif /* CONFIG_X86_64 */
+
+/*
+ * The symbols below are referenced using relative relocations in the
+ * respective ELF notes. This produces build time constants that the
+ * linker will never mark as relocatable. (Using just ABSOLUTE() is not
+ * sufficient for that).
+ */
+#ifdef CONFIG_XEN
+#ifdef CONFIG_XEN_PV
+xen_elfnote_entry_value =
+	ABSOLUTE(xen_elfnote_entry) + ABSOLUTE(startup_xen);
+#endif
+xen_elfnote_hypercall_page_value =
+	ABSOLUTE(xen_elfnote_hypercall_page) + ABSOLUTE(hypercall_page);
+#endif
+#ifdef CONFIG_PVH
+xen_elfnote_phys32_entry_value =
+	ABSOLUTE(xen_elfnote_phys32_entry) + ABSOLUTE(pvh_start_xen - LOAD_OFFSET);
+#endif
