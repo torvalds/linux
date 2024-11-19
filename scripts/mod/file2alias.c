@@ -651,34 +651,24 @@ static void do_pnp_device_entry(void *symval, unsigned long size,
 }
 
 /* looks like: "pnp:dD" for every device of the card */
-static void do_pnp_card_entries(void *symval, unsigned long size,
-				struct module *mod)
+static void do_pnp_card_entry(struct module *mod, void *symval)
 {
-	const unsigned long id_size = SIZE_pnp_card_device_id;
-	const unsigned int count = (size / id_size)-1;
-	unsigned int i;
+	DEF_FIELD_ADDR(symval, pnp_card_device_id, devs);
 
-	device_id_check(mod->name, "pnp", size, id_size, symval);
+	for (unsigned int i = 0; i < PNP_MAX_DEVICES; i++) {
+		const char *id = (char *)(*devs)[i].id;
+		char acpi_id[PNP_ID_LEN];
 
-	for (i = 0; i < count; i++) {
-		unsigned int j;
-		DEF_FIELD_ADDR(symval + i * id_size, pnp_card_device_id, devs);
+		if (!id[0])
+			break;
 
-		for (j = 0; j < PNP_MAX_DEVICES; j++) {
-			const char *id = (char *)(*devs)[j].id;
-			char acpi_id[PNP_ID_LEN];
+		/* fix broken pnp bus lowercasing */
+		for (unsigned int j = 0; j < sizeof(acpi_id); j++)
+			acpi_id[j] = toupper(id[j]);
 
-			if (!id[0])
-				break;
-
-			/* add an individual alias for every device entry */
-			module_alias_printf(mod, false, "pnp:d%s*", id);
-
-			/* fix broken pnp bus lowercasing */
-			for (int k = 0; k < sizeof(acpi_id); k++)
-				acpi_id[k] = toupper(id[k]);
-			module_alias_printf(mod, false, "acpi*:%s:*", acpi_id);
-		}
+		/* add an individual alias for every device entry */
+		module_alias_printf(mod, false, "pnp:d%s*", id);
+		module_alias_printf(mod, false, "acpi*:%s:*", acpi_id);
 	}
 }
 
@@ -1541,6 +1531,7 @@ static const struct devtable devtable[] = {
 	{"cdx", SIZE_cdx_device_id, do_cdx_entry},
 	{"vchiq", SIZE_vchiq_device_id, do_vchiq_entry},
 	{"coreboot", SIZE_coreboot_device_id, do_coreboot_entry},
+	{"pnp_card", SIZE_pnp_card_device_id, do_pnp_card_entry},
 };
 
 /* Create MODULE_ALIAS() statements.
@@ -1591,8 +1582,6 @@ void handle_moddevtable(struct module *mod, struct elf_info *info,
 		do_of_table(symval, sym->st_size, mod);
 	else if (sym_is(name, namelen, "pnp"))
 		do_pnp_device_entry(symval, sym->st_size, mod);
-	else if (sym_is(name, namelen, "pnp_card"))
-		do_pnp_card_entries(symval, sym->st_size, mod);
 	else {
 		int i;
 
