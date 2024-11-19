@@ -109,7 +109,7 @@ static int xe_ttm_vram_mgr_new(struct ttm_resource_manager *man,
 		goto error_unlock;
 	}
 
-	if (place->fpfn + (size >> PAGE_SHIFT) != place->lpfn &&
+	if (place->fpfn + (size >> PAGE_SHIFT) != lpfn &&
 	    place->flags & TTM_PL_FLAG_CONTIGUOUS) {
 		size = roundup_pow_of_two(size);
 		min_page_size = size;
