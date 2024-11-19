@@ -176,40 +176,6 @@ static inline void add_guid(char *str, guid_t guid)
 		guid.b[12], guid.b[13], guid.b[14], guid.b[15]);
 }
 
-/**
- * Check that sizeof(device_id type) are consistent with size of section
- * in .o file. If in-consistent then userspace and kernel does not agree
- * on actual size which is a bug.
- * Also verify that the final entry in the table is all zeros.
- * Ignore both checks if build host differ from target host and size differs.
- **/
-static void device_id_check(const char *modname, const char *device_id,
-			    unsigned long size, unsigned long id_size,
-			    void *symval)
-{
-	int i;
-
-	if (size % id_size || size < id_size) {
-		fatal("%s: sizeof(struct %s_device_id)=%lu is not a modulo of the size of section __mod_device_table__%s__<identifier>=%lu.\n"
-		      "Fix definition of struct %s_device_id in mod_devicetable.h\n",
-		      modname, device_id, id_size, device_id, size, device_id);
-	}
-	/* Verify last one is a terminator */
-	for (i = 0; i < id_size; i++ ) {
-		if (*(uint8_t*)(symval+size-id_size+i)) {
-			fprintf(stderr,
-				"%s: struct %s_device_id is %lu bytes.  The last of %lu is:\n",
-				modname, device_id, id_size, size / id_size);
-			for (i = 0; i < id_size; i++ )
-				fprintf(stderr,"0x%02x ",
-					*(uint8_t*)(symval+size-id_size+i) );
-			fprintf(stderr,"\n");
-			fatal("%s: struct %s_device_id is not terminated with a NULL entry!\n",
-			      modname, device_id);
-		}
-	}
-}
-
 /* USB is special because the bcdDevice can be matched against a numeric range */
 /* Looks like "usb:vNpNdNdcNdscNdpNicNiscNipNinN" */
 static void do_usb_entry(void *symval,
@@ -1420,7 +1386,7 @@ static bool sym_is(const char *name, unsigned namelen, const char *symbol)
 	return memcmp(name, symbol, namelen) == 0;
 }
 
-static void do_table(void *symval, unsigned long size,
+static void do_table(const char *name, void *symval, unsigned long size,
 		     unsigned long id_size,
 		     const char *device_id,
 		     void (*do_entry)(struct module *mod, void *symval),
@@ -1428,7 +1394,21 @@ static void do_table(void *symval, unsigned long size,
 {
 	unsigned int i;
 
-	device_id_check(mod->name, device_id, size, id_size, symval);
+	if (size % id_size || size < id_size) {
+		error("%s: type mismatch between %s[] and MODULE_DEVICE_TABLE(%s, ...)\n",
+		      mod->name, name, device_id);
+		return;
+	}
+
+	/* Verify the last entry is a terminator */
+	for (i = size - id_size; i < size; i++) {
+		if (*(uint8_t *)(symval + i)) {
+			error("%s: %s[] is not terminated with a NULL entry\n",
+			      mod->name, name);
+			return;
+		}
+	}
+
 	/* Leave last one: it's the terminator. */
 	size -= id_size;
 
@@ -1524,6 +1504,7 @@ void handle_moddevtable(struct module *mod, struct elf_info *info,
 	if (!name)
 		return;
 	typelen = name - type;
+	name += strlen("__");
 
 	/* Handle all-NULL symbols allocated into .bss */
 	if (info->sechdrs[get_secindex(info, sym)].sh_type & SHT_NOBITS) {
@@ -1537,7 +1518,7 @@ void handle_moddevtable(struct module *mod, struct elf_info *info,
 		const struct devtable *p = &devtable[i];
 
 		if (sym_is(type, typelen, p->device_id)) {
-			do_table(symval, sym->st_size, p->id_size,
+			do_table(name, symval, sym->st_size, p->id_size,
 				 p->device_id, p->do_entry, mod);
 			break;
 		}
