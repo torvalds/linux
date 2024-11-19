@@ -570,7 +570,7 @@ static int do_acpi_entry(const char *filename,
 	DEF_FIELD(symval, acpi_device_id, cls);
 	DEF_FIELD(symval, acpi_device_id, cls_msk);
 
-	if (id && strlen((const char *)*id))
+	if ((*id)[0])
 		sprintf(alias, "acpi*:%s:*", *id);
 	else {
 		int i, byte_shift, cnt = 0;
