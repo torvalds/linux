@@ -383,16 +383,18 @@ int disk_scan_partitions(struct gendisk *disk, blk_mode_t mode)
 }
 
 /**
- * device_add_disk - add disk information to kernel list
+ * add_disk_fwnode - add disk information to kernel list with fwnode
  * @parent: parent device for the disk
  * @disk: per-device partitioning information
  * @groups: Additional per-device sysfs groups
+ * @fwnode: attached disk fwnode
  *
  * This function registers the partitioning information in @disk
- * with the kernel.
+ * with the kernel. Also attach a fwnode to the disk device.
  */
-int __must_check device_add_disk(struct device *parent, struct gendisk *disk,
-				 const struct attribute_group **groups)
+int __must_check add_disk_fwnode(struct device *parent, struct gendisk *disk,
+				 const struct attribute_group **groups,
+				 struct fwnode_handle *fwnode)
 
 {
 	struct device *ddev = disk_to_dev(disk);
@@ -452,6 +454,8 @@ int __must_check device_add_disk(struct device *parent, struct gendisk *disk,
 	ddev->parent = parent;
 	ddev->groups = groups;
 	dev_set_name(ddev, "%s", disk->disk_name);
+	if (fwnode)
+		device_set_node(ddev, fwnode);
 	if (!(disk->flags & GENHD_FL_HIDDEN))
 		ddev->devt = MKDEV(disk->major, disk->first_minor);
 	ret = device_add(ddev);
@@ -553,6 +557,22 @@ out_exit_elevator:
 		elevator_exit(disk->queue);
 	return ret;
 }
+EXPORT_SYMBOL_GPL(add_disk_fwnode);
+
+/**
+ * device_add_disk - add disk information to kernel list
+ * @parent: parent device for the disk
+ * @disk: per-device partitioning information
+ * @groups: Additional per-device sysfs groups
+ *
+ * This function registers the partitioning information in @disk
+ * with the kernel.
+ */
+int __must_check device_add_disk(struct device *parent, struct gendisk *disk,
+				 const struct attribute_group **groups)
+{
+	return add_disk_fwnode(parent, disk, groups, NULL);
+}
 EXPORT_SYMBOL(device_add_disk);
 
 static void blk_report_disk_dead(struct gendisk *disk, bool surprise)
@@ -581,13 +601,13 @@ static void blk_report_disk_dead(struct gendisk *disk, bool surprise)
 	rcu_read_unlock();
 }
 
-static void __blk_mark_disk_dead(struct gendisk *disk)
+static bool __blk_mark_disk_dead(struct gendisk *disk)
 {
 	/*
 	 * Fail any new I/O.
 	 */
 	if (test_and_set_bit(GD_DEAD, &disk->state))
-		return;
+		return false;
 
 	if (test_bit(GD_OWNS_QUEUE, &disk->state))
 		blk_queue_flag_set(QUEUE_FLAG_DYING, disk->queue);
@@ -600,7 +620,7 @@ static void __blk_mark_disk_dead(struct gendisk *disk)
 	/*
 	 * Prevent new I/O from crossing bio_queue_enter().
 	 */
-	blk_queue_start_drain(disk->queue);
+	return blk_queue_start_drain(disk->queue);
 }
 
 /**
@@ -641,6 +661,7 @@ void del_gendisk(struct gendisk *disk)
 	struct request_queue *q = disk->queue;
 	struct block_device *part;
 	unsigned long idx;
+	bool start_drain, queue_dying;
 
 	might_sleep();
 
@@ -668,7 +689,10 @@ void del_gendisk(struct gendisk *disk)
 	 * Drop all partitions now that the disk is marked dead.
 	 */
 	mutex_lock(&disk->open_mutex);
-	__blk_mark_disk_dead(disk);
+	start_drain = __blk_mark_disk_dead(disk);
+	queue_dying = blk_queue_dying(q);
+	if (start_drain)
+		blk_freeze_acquire_lock(q, true, queue_dying);
 	xa_for_each_start(&disk->part_tbl, idx, part, 1)
 		drop_partition(part);
 	mutex_unlock(&disk->open_mutex);
@@ -725,6 +749,9 @@ void del_gendisk(struct gendisk *disk)
 		if (queue_is_mq(q))
 			blk_mq_exit_queue(q);
 	}
+
+	if (start_drain)
+		blk_unfreeze_release_lock(q, true, queue_dying);
 }
 EXPORT_SYMBOL(del_gendisk);
 
@@ -756,7 +783,7 @@ static ssize_t disk_badblocks_show(struct device *dev,
 	struct gendisk *disk = dev_to_disk(dev);
 
 	if (!disk->bb)
-		return sprintf(page, "\n");
+		return sysfs_emit(page, "\n");
 
 	return badblocks_show(disk->bb, page, 0);
 }
@@ -904,7 +931,7 @@ static ssize_t disk_range_show(struct device *dev,
 {
 	struct gendisk *disk = dev_to_disk(dev);
 
-	return sprintf(buf, "%d\n", disk->minors);
+	return sysfs_emit(buf, "%d\n", disk->minors);
 }
 
 static ssize_t disk_ext_range_show(struct device *dev,
@@ -912,7 +939,7 @@ static ssize_t disk_ext_range_show(struct device *dev,
 {
 	struct gendisk *disk = dev_to_disk(dev);
 
-	return sprintf(buf, "%d\n",
+	return sysfs_emit(buf, "%d\n",
 		(disk->flags & GENHD_FL_NO_PART) ? 1 : DISK_MAX_PARTS);
 }
 
@@ -921,7 +948,7 @@ static ssize_t disk_removable_show(struct device *dev,
 {
 	struct gendisk *disk = dev_to_disk(dev);
 
-	return sprintf(buf, "%d\n",
+	return sysfs_emit(buf, "%d\n",
 		       (disk->flags & GENHD_FL_REMOVABLE ? 1 : 0));
 }
 
@@ -930,7 +957,7 @@ static ssize_t disk_hidden_show(struct device *dev,
 {
 	struct gendisk *disk = dev_to_disk(dev);
 
-	return sprintf(buf, "%d\n",
+	return sysfs_emit(buf, "%d\n",
 		       (disk->flags & GENHD_FL_HIDDEN ? 1 : 0));
 }
 
@@ -939,13 +966,13 @@ static ssize_t disk_ro_show(struct device *dev,
 {
 	struct gendisk *disk = dev_to_disk(dev);
 
-	return sprintf(buf, "%d\n", get_disk_ro(disk) ? 1 : 0);
+	return sysfs_emit(buf, "%d\n", get_disk_ro(disk) ? 1 : 0);
 }
 
 ssize_t part_size_show(struct device *dev,
 		       struct device_attribute *attr, char *buf)
 {
-	return sprintf(buf, "%llu\n", bdev_nr_sectors(dev_to_bdev(dev)));
+	return sysfs_emit(buf, "%llu\n", bdev_nr_sectors(dev_to_bdev(dev)));
 }
 
 ssize_t part_stat_show(struct device *dev,
@@ -962,7 +989,7 @@ ssize_t part_stat_show(struct device *dev,
 		part_stat_unlock();
 	}
 	part_stat_read_all(bdev, &stat);
-	return sprintf(buf,
+	return sysfs_emit(buf,
 		"%8lu %8lu %8llu %8u "
 		"%8lu %8lu %8llu %8u "
 		"%8u %8u %8u "
@@ -1004,14 +1031,14 @@ ssize_t part_inflight_show(struct device *dev, struct device_attribute *attr,
 	else
 		part_in_flight_rw(bdev, inflight);
 
-	return sprintf(buf, "%8u %8u\n", inflight[0], inflight[1]);
+	return sysfs_emit(buf, "%8u %8u\n", inflight[0], inflight[1]);
 }
 
 static ssize_t disk_capability_show(struct device *dev,
 				    struct device_attribute *attr, char *buf)
 {
 	dev_warn_once(dev, "the capability attribute has been deprecated.\n");
-	return sprintf(buf, "0\n");
+	return sysfs_emit(buf, "0\n");
 }
 
 static ssize_t disk_alignment_offset_show(struct device *dev,
@@ -1020,7 +1047,7 @@ static ssize_t disk_alignment_offset_show(struct device *dev,
 {
 	struct gendisk *disk = dev_to_disk(dev);
 
-	return sprintf(buf, "%d\n", bdev_alignment_offset(disk->part0));
+	return sysfs_emit(buf, "%d\n", bdev_alignment_offset(disk->part0));
 }
 
 static ssize_t disk_discard_alignment_show(struct device *dev,
@@ -1029,7 +1056,7 @@ static ssize_t disk_discard_alignment_show(struct device *dev,
 {
 	struct gendisk *disk = dev_to_disk(dev);
 
-	return sprintf(buf, "%d\n", bdev_alignment_offset(disk->part0));
+	return sysfs_emit(buf, "%d\n", bdev_alignment_offset(disk->part0));
 }
 
 static ssize_t diskseq_show(struct device *dev,
@@ -1037,13 +1064,13 @@ static ssize_t diskseq_show(struct device *dev,
 {
 	struct gendisk *disk = dev_to_disk(dev);
 
-	return sprintf(buf, "%llu\n", disk->diskseq);
+	return sysfs_emit(buf, "%llu\n", disk->diskseq);
 }
 
 static ssize_t partscan_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
-	return sprintf(buf, "%u\n", disk_has_partscan(dev_to_disk(dev)));
+	return sysfs_emit(buf, "%u\n", disk_has_partscan(dev_to_disk(dev)));
 }
 
 static DEVICE_ATTR(range, 0444, disk_range_show, NULL);
@@ -1065,7 +1092,7 @@ static DEVICE_ATTR(partscan, 0444, partscan_show, NULL);
 ssize_t part_fail_show(struct device *dev,
 		       struct device_attribute *attr, char *buf)
 {
-	return sprintf(buf, "%d\n",
+	return sysfs_emit(buf, "%d\n",
 		       bdev_test_flag(dev_to_bdev(dev), BD_MAKE_IT_FAIL));
 }
 
@@ -1264,40 +1291,35 @@ static int diskstats_show(struct seq_file *seqf, void *v)
 			part_stat_unlock();
 		}
 		part_stat_read_all(hd, &stat);
-		seq_printf(seqf, "%4d %7d %pg "
-			   "%lu %lu %lu %u "
-			   "%lu %lu %lu %u "
-			   "%u %u %u "
-			   "%lu %lu %lu %u "
-			   "%lu %u"
-			   "\n",
-			   MAJOR(hd->bd_dev), MINOR(hd->bd_dev), hd,
-			   stat.ios[STAT_READ],
-			   stat.merges[STAT_READ],
-			   stat.sectors[STAT_READ],
-			   (unsigned int)div_u64(stat.nsecs[STAT_READ],
-							NSEC_PER_MSEC),
-			   stat.ios[STAT_WRITE],
-			   stat.merges[STAT_WRITE],
-			   stat.sectors[STAT_WRITE],
-			   (unsigned int)div_u64(stat.nsecs[STAT_WRITE],
-							NSEC_PER_MSEC),
-			   inflight,
-			   jiffies_to_msecs(stat.io_ticks),
-			   (unsigned int)div_u64(stat.nsecs[STAT_READ] +
-						 stat.nsecs[STAT_WRITE] +
-						 stat.nsecs[STAT_DISCARD] +
-						 stat.nsecs[STAT_FLUSH],
-							NSEC_PER_MSEC),
-			   stat.ios[STAT_DISCARD],
-			   stat.merges[STAT_DISCARD],
-			   stat.sectors[STAT_DISCARD],
-			   (unsigned int)div_u64(stat.nsecs[STAT_DISCARD],
-						 NSEC_PER_MSEC),
-			   stat.ios[STAT_FLUSH],
-			   (unsigned int)div_u64(stat.nsecs[STAT_FLUSH],
-						 NSEC_PER_MSEC)
-			);
+		seq_put_decimal_ull_width(seqf, "",  MAJOR(hd->bd_dev), 4);
+		seq_put_decimal_ull_width(seqf, " ", MINOR(hd->bd_dev), 7);
+		seq_printf(seqf, " %pg", hd);
+		seq_put_decimal_ull(seqf, " ", stat.ios[STAT_READ]);
+		seq_put_decimal_ull(seqf, " ", stat.merges[STAT_READ]);
+		seq_put_decimal_ull(seqf, " ", stat.sectors[STAT_READ]);
+		seq_put_decimal_ull(seqf, " ", (unsigned int)div_u64(stat.nsecs[STAT_READ],
+								     NSEC_PER_MSEC));
+		seq_put_decimal_ull(seqf, " ", stat.ios[STAT_WRITE]);
+		seq_put_decimal_ull(seqf, " ", stat.merges[STAT_WRITE]);
+		seq_put_decimal_ull(seqf, " ", stat.sectors[STAT_WRITE]);
+		seq_put_decimal_ull(seqf, " ", (unsigned int)div_u64(stat.nsecs[STAT_WRITE],
+								     NSEC_PER_MSEC));
+		seq_put_decimal_ull(seqf, " ", inflight);
+		seq_put_decimal_ull(seqf, " ", jiffies_to_msecs(stat.io_ticks));
+		seq_put_decimal_ull(seqf, " ", (unsigned int)div_u64(stat.nsecs[STAT_READ] +
+								     stat.nsecs[STAT_WRITE] +
+								     stat.nsecs[STAT_DISCARD] +
+								     stat.nsecs[STAT_FLUSH],
+								     NSEC_PER_MSEC));
+		seq_put_decimal_ull(seqf, " ", stat.ios[STAT_DISCARD]);
+		seq_put_decimal_ull(seqf, " ", stat.merges[STAT_DISCARD]);
+		seq_put_decimal_ull(seqf, " ", stat.sectors[STAT_DISCARD]);
+		seq_put_decimal_ull(seqf, " ", (unsigned int)div_u64(stat.nsecs[STAT_DISCARD],
+								     NSEC_PER_MSEC));
+		seq_put_decimal_ull(seqf, " ", stat.ios[STAT_FLUSH]);
+		seq_put_decimal_ull(seqf, " ", (unsigned int)div_u64(stat.nsecs[STAT_FLUSH],
+								     NSEC_PER_MSEC));
+		seq_putc(seqf, '\n');
 	}
 	rcu_read_unlock();
 

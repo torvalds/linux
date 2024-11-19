@@ -21393,11 +21393,11 @@ F:	include/linux/property.h
 
 SOFTWARE RAID (Multiple Disks) SUPPORT
 M:	Song Liu <song@kernel.org>
-R:	Yu Kuai <yukuai3@huawei.com>
+M:	Yu Kuai <yukuai3@huawei.com>
 L:	linux-raid@vger.kernel.org
 S:	Supported
 Q:	https://patchwork.kernel.org/project/linux-raid/list/
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/song/md.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mdraid/linux.git
 F:	drivers/md/Kconfig
 F:	drivers/md/Makefile
 F:	drivers/md/md*

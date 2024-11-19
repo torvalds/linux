@@ -424,6 +424,13 @@ Description:
 		[RW] This file is used to control (on/off) the iostats
 		accounting of the disk.
 
+What:		/sys/block/<disk>/queue/iostats_passthrough
+Date:		October 2024
+Contact:	linux-block@vger.kernel.org
+Description:
+		[RW] This file is used to control (on/off) the iostats
+		accounting of the disk for passthrough commands.
+
 
 What:		/sys/block/<disk>/queue/logical_block_size
 Date:		May 2009
