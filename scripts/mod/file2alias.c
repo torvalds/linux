@@ -627,27 +627,16 @@ static void do_acpi_entry(struct module *mod, void *symval)
 }
 
 /* looks like: "pnp:dD" */
-static void do_pnp_device_entry(void *symval, unsigned long size,
-				struct module *mod)
+static void do_pnp_device_entry(struct module *mod, void *symval)
 {
-	const unsigned long id_size = SIZE_pnp_device_id;
-	const unsigned int count = (size / id_size)-1;
-	unsigned int i;
+	DEF_FIELD_ADDR(symval, pnp_device_id, id);
+	char acpi_id[sizeof(*id)];
 
-	device_id_check(mod->name, "pnp", size, id_size, symval);
-
-	for (i = 0; i < count; i++) {
-		DEF_FIELD_ADDR(symval + i*id_size, pnp_device_id, id);
-		char acpi_id[sizeof(*id)];
-		int j;
-
-		module_alias_printf(mod, false, "pnp:d%s*", *id);
-
-		/* fix broken pnp bus lowercasing */
-		for (j = 0; j < sizeof(acpi_id); j++)
-			acpi_id[j] = toupper((*id)[j]);
-		module_alias_printf(mod, false, "acpi*:%s:*", acpi_id);
-	}
+	/* fix broken pnp bus lowercasing */
+	for (unsigned int i = 0; i < sizeof(acpi_id); i++)
+		acpi_id[i] = toupper((*id)[i]);
+	module_alias_printf(mod, false, "pnp:d%s*", *id);
+	module_alias_printf(mod, false, "acpi*:%s:*", acpi_id);
 }
 
 /* looks like: "pnp:dD" for every device of the card */
@@ -1531,6 +1520,7 @@ static const struct devtable devtable[] = {
 	{"cdx", SIZE_cdx_device_id, do_cdx_entry},
 	{"vchiq", SIZE_vchiq_device_id, do_vchiq_entry},
 	{"coreboot", SIZE_coreboot_device_id, do_coreboot_entry},
+	{"pnp", SIZE_pnp_device_id, do_pnp_device_entry},
 	{"pnp_card", SIZE_pnp_card_device_id, do_pnp_card_entry},
 };
 
@@ -1580,8 +1570,6 @@ void handle_moddevtable(struct module *mod, struct elf_info *info,
 		do_usb_table(symval, sym->st_size, mod);
 	else if (sym_is(name, namelen, "of"))
 		do_of_table(symval, sym->st_size, mod);
-	else if (sym_is(name, namelen, "pnp"))
-		do_pnp_device_entry(symval, sym->st_size, mod);
 	else {
 		int i;
 
