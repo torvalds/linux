@@ -392,8 +392,9 @@ static int ext4_dio_write_end_io(struct kiocb *iocb, ssize_t size,
 	 */
 	if (pos + size <= READ_ONCE(EXT4_I(inode)->i_disksize) &&
 	    pos + size <= i_size_read(inode))
-		return size;
-	return ext4_handle_inode_extension(inode, pos, size, size);
+		return 0;
+	error = ext4_handle_inode_extension(inode, pos, size, size);
+	return error < 0 ? error : 0;
 }
 
 static const struct iomap_dio_ops ext4_dio_write_ops = {
@@ -564,12 +565,9 @@ static ssize_t ext4_dio_write_iter(struct kiocb *iocb, struct iov_iter *from)
 		}
 
 		ret = ext4_orphan_add(handle, inode);
-		if (ret) {
-			ext4_journal_stop(handle);
-			goto out;
-		}
-
 		ext4_journal_stop(handle);
+		if (ret)
+			goto out;
 	}
 
 	if (ilock_shared && !unwritten)
