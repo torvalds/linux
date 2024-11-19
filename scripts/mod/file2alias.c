@@ -398,7 +398,7 @@ static void do_usb_table(void *symval, unsigned long size,
 		do_usb_entry_multi(symval + i, mod);
 }
 
-static void do_of_entry_multi(void *symval, struct module *mod)
+static void do_of_entry(struct module *mod, void *symval)
 {
 	char alias[500];
 	int len;
@@ -422,21 +422,6 @@ static void do_of_entry_multi(void *symval, struct module *mod)
 
 	module_alias_printf(mod, false, "%s", alias);
 	module_alias_printf(mod, false, "%sC*", alias);
-}
-
-static void do_of_table(void *symval, unsigned long size,
-			struct module *mod)
-{
-	unsigned int i;
-	const unsigned long id_size = SIZE_of_device_id;
-
-	device_id_check(mod->name, "of", size, id_size, symval);
-
-	/* Leave last one: it's the terminator. */
-	size -= id_size;
-
-	for (i = 0; i < size; i += id_size)
-		do_of_entry_multi(symval + i, mod);
 }
 
 /* Looks like: hid:bNvNpN */
@@ -1520,6 +1505,7 @@ static const struct devtable devtable[] = {
 	{"cdx", SIZE_cdx_device_id, do_cdx_entry},
 	{"vchiq", SIZE_vchiq_device_id, do_vchiq_entry},
 	{"coreboot", SIZE_coreboot_device_id, do_coreboot_entry},
+	{"of", SIZE_of_device_id, do_of_entry},
 	{"pnp", SIZE_pnp_device_id, do_pnp_device_entry},
 	{"pnp_card", SIZE_pnp_card_device_id, do_pnp_card_entry},
 };
@@ -1568,8 +1554,6 @@ void handle_moddevtable(struct module *mod, struct elf_info *info,
 	/* First handle the "special" cases */
 	if (sym_is(name, namelen, "usb"))
 		do_usb_table(symval, sym->st_size, mod);
-	else if (sym_is(name, namelen, "of"))
-		do_of_table(symval, sym->st_size, mod);
 	else {
 		int i;
 
