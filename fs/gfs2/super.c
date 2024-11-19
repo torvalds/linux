@@ -1503,10 +1503,13 @@ static void gfs2_evict_inode(struct inode *inode)
 	    !test_bit(SDF_KILL, &sdp->sd_flags)) {
 		struct gfs2_glock *io_gl = ip->i_iopen_gh.gh_gl;
 
-		gfs2_glock_hold(io_gl);
-		if (!gfs2_queue_verify_delete(io_gl, true))
-			gfs2_glock_put(io_gl);
-		goto out;
+		if (io_gl) {
+			gfs2_glock_hold(io_gl);
+			if (!gfs2_queue_verify_delete(io_gl, true))
+				gfs2_glock_put(io_gl);
+			goto out;
+		}
+		behavior = EVICT_SHOULD_DELETE;
 	}
 	if (behavior == EVICT_SHOULD_DELETE)
 		ret = evict_unlinked_inode(inode);
