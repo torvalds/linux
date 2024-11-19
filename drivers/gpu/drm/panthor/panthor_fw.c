@@ -1133,6 +1133,7 @@ int panthor_fw_post_reset(struct panthor_device *ptdev)
 		 * This is not needed on a slow reset because FW sections are
 		 * re-initialized.
 		 */
+		struct panthor_fw_global_iface *glb_iface = panthor_fw_get_glb_iface(ptdev);
 		panthor_fw_update_reqs(glb_iface, req, 0, GLB_HALT);
 
 		ret = panthor_fw_start(ptdev);
