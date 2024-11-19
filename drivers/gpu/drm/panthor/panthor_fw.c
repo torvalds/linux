@@ -1098,17 +1098,11 @@ void panthor_fw_pre_reset(struct panthor_device *ptdev, bool on_hang)
 		panthor_fw_update_reqs(glb_iface, req, GLB_HALT, GLB_HALT);
 		gpu_write(ptdev, CSF_DOORBELL(CSF_GLB_DOORBELL_ID), 1);
 		if (!readl_poll_timeout(ptdev->iomem + MCU_STATUS, status,
-					status == MCU_STATUS_HALT, 10, 100000) &&
-		    glb_iface->output->halt_status == PANTHOR_FW_HALT_OK) {
+					status == MCU_STATUS_HALT, 10, 100000)) {
 			ptdev->fw->fast_reset = true;
 		} else {
 			drm_warn(&ptdev->base, "Failed to cleanly suspend MCU");
 		}
-
-		/* The FW detects 0 -> 1 transitions. Make sure we reset
-		 * the HALT bit before the FW is rebooted.
-		 */
-		panthor_fw_update_reqs(glb_iface, req, 0, GLB_HALT);
 	}
 
 	panthor_job_irq_suspend(&ptdev->fw->irq);
@@ -1134,6 +1128,13 @@ int panthor_fw_post_reset(struct panthor_device *ptdev)
 	 * the FW sections. If it fails, go for a full reset.
 	 */
 	if (ptdev->fw->fast_reset) {
+		/* The FW detects 0 -> 1 transitions. Make sure we reset
+		 * the HALT bit before the FW is rebooted.
+		 * This is not needed on a slow reset because FW sections are
+		 * re-initialized.
+		 */
+		panthor_fw_update_reqs(glb_iface, req, 0, GLB_HALT);
+
 		ret = panthor_fw_start(ptdev);
 		if (!ret)
 			goto out;
