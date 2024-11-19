@@ -67,7 +67,7 @@ test_ftrace_latency() {
 
 test_ftrace_profile() {
     echo "perf ftrace profile test"
-    perf ftrace profile sleep 0.1 > "${output}"
+    perf ftrace profile -m 16M sleep 0.1 > "${output}"
     grep ^# "${output}"
     grep sleep "${output}"
     grep schedule "${output}"
