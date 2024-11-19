@@ -138,19 +138,12 @@ struct devtable {
 #define DEF_FIELD(m, devid, f) \
 	typeof(((struct devid *)0)->f) f = TO_NATIVE(*(typeof(f) *)((m) + OFF_##devid##_##f))
 
-/* Define a variable v that holds the address of field f of struct devid
- * based at address m.  Due to the way typeof works, for a field of type
- * T[N] the variable has type T(*)[N], _not_ T*.
- */
-#define DEF_FIELD_ADDR_VAR(m, devid, f, v) \
-	typeof(((struct devid *)0)->f) *v = ((m) + OFF_##devid##_##f)
-
 /* Define a variable f that holds the address of field f of struct devid
  * based at address m.  Due to the way typeof works, for a field of type
  * T[N] the variable has type T(*)[N], _not_ T*.
  */
 #define DEF_FIELD_ADDR(m, devid, f) \
-	DEF_FIELD_ADDR_VAR(m, devid, f, f)
+	typeof(((struct devid *)0)->f) *f = ((m) + OFF_##devid##_##f)
 
 #define ADD(str, sep, cond, field)                              \
 do {                                                            \
