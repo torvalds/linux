@@ -10,7 +10,7 @@ char _license[] SEC("license") = "GPL";
 #define EBUSY 16
 #endif
 
-extern bool CONFIG_PREEMPT __kconfig __weak;
+extern bool CONFIG_PREEMPTION __kconfig __weak;
 int nr_get_errs = 0;
 int nr_del_errs = 0;
 
@@ -29,7 +29,7 @@ int BPF_PROG(socket_post_create, struct socket *sock, int family, int type,
 	int ret, zero = 0;
 	int *value;
 
-	if (!CONFIG_PREEMPT)
+	if (!CONFIG_PREEMPTION)
 		return 0;
 
 	task = bpf_get_current_task_btf();
