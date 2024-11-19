@@ -147,6 +147,8 @@ properties:
           - injoinic,ip5207
             # Injoinic IP5209 2.4A Power Bank IC with I2C
           - injoinic,ip5209
+            # Injoinic IP5306 2.1A Power Bank IC with I2C option
+          - injoinic,ip5306
             # Inspur Power System power supply unit version 1
           - inspur,ipsps1
             # Intersil ISL29028 Ambient Light and Proximity Sensor
