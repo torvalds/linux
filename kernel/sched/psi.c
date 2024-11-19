@@ -551,6 +551,8 @@ static u64 update_triggers(struct psi_group *group, u64 now)
 		if (now < t->last_event_time + t->win.size)
 			continue;
 
+		trace_android_vh_psi_event(t);
+
 		/* Generate an event */
 		if (cmpxchg(&t->event, 0, 1) == 0)
 			wake_up_interruptible(&t->event_wait);
@@ -558,6 +560,8 @@ static u64 update_triggers(struct psi_group *group, u64 now)
 		/* Reset threshold breach flag once event got generated */
 		t->pending_event = false;
 	}
+
+	trace_android_vh_psi_group(group);
 
 	if (update_total)
 		memcpy(group->polling_total, total,
