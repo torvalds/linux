@@ -510,13 +510,14 @@ static int vcn_v3_0_resume(struct amdgpu_ip_block *ip_block)
 /**
  * vcn_v3_0_mc_resume - memory controller programming
  *
- * @adev: amdgpu_device pointer
- * @inst: instance number
+ * @vinst: VCN instance
  *
  * Let the VCN memory controller know it's offsets
  */
-static void vcn_v3_0_mc_resume(struct amdgpu_device *adev, int inst)
+static void vcn_v3_0_mc_resume(struct amdgpu_vcn_inst *vinst)
 {
+	struct amdgpu_device *adev = vinst->adev;
+	int inst = vinst->inst;
 	uint32_t size = AMDGPU_GPU_PAGE_ALIGN(adev->vcn.inst[inst].fw->size + 4);
 	uint32_t offset;
 
@@ -565,8 +566,11 @@ static void vcn_v3_0_mc_resume(struct amdgpu_device *adev, int inst)
 		AMDGPU_GPU_PAGE_ALIGN(sizeof(struct amdgpu_fw_shared)));
 }
 
-static void vcn_v3_0_mc_resume_dpg_mode(struct amdgpu_device *adev, int inst_idx, bool indirect)
+static void vcn_v3_0_mc_resume_dpg_mode(struct amdgpu_vcn_inst *vinst,
+					bool indirect)
 {
+	struct amdgpu_device *adev = vinst->adev;
+	int inst_idx = vinst->inst;
 	uint32_t size = AMDGPU_GPU_PAGE_ALIGN(adev->vcn.inst[inst_idx].fw->size + 4);
 	uint32_t offset;
 
@@ -661,8 +665,10 @@ static void vcn_v3_0_mc_resume_dpg_mode(struct amdgpu_device *adev, int inst_idx
 		UVD, inst_idx, mmUVD_GFX10_ADDR_CONFIG), adev->gfx.config.gb_addr_config, 0, indirect);
 }
 
-static void vcn_v3_0_disable_static_power_gating(struct amdgpu_device *adev, int inst)
+static void vcn_v3_0_disable_static_power_gating(struct amdgpu_vcn_inst *vinst)
 {
+	struct amdgpu_device *adev = vinst->adev;
+	int inst = vinst->inst;
 	uint32_t data = 0;
 
 	if (adev->pg_flags & AMD_PG_SUPPORT_VCN) {
@@ -712,8 +718,10 @@ static void vcn_v3_0_disable_static_power_gating(struct amdgpu_device *adev, int
 	WREG32_SOC15(VCN, inst, mmUVD_POWER_STATUS, data);
 }
 
-static void vcn_v3_0_enable_static_power_gating(struct amdgpu_device *adev, int inst)
+static void vcn_v3_0_enable_static_power_gating(struct amdgpu_vcn_inst *vinst)
 {
+	struct amdgpu_device *adev = vinst->adev;
+	int inst = vinst->inst;
 	uint32_t data;
 
 	if (adev->pg_flags & AMD_PG_SUPPORT_VCN) {
@@ -765,8 +773,10 @@ static void vcn_v3_0_enable_static_power_gating(struct amdgpu_device *adev, int 
  *
  * Disable clock gating for VCN block
  */
-static void vcn_v3_0_disable_clock_gating(struct amdgpu_device *adev, int inst)
+static void vcn_v3_0_disable_clock_gating(struct amdgpu_vcn_inst *vinst)
 {
+	struct amdgpu_device *adev = vinst->adev;
+	int inst = vinst->inst;
 	uint32_t data;
 
 	/* VCN disable CGC */
@@ -893,9 +903,12 @@ static void vcn_v3_0_disable_clock_gating(struct amdgpu_device *adev, int inst)
 	WREG32_SOC15(VCN, inst, mmUVD_SUVD_CGC_CTRL, data);
 }
 
-static void vcn_v3_0_clock_gating_dpg_mode(struct amdgpu_device *adev,
-		uint8_t sram_sel, int inst_idx, uint8_t indirect)
+static void vcn_v3_0_clock_gating_dpg_mode(struct amdgpu_vcn_inst *vinst,
+					   uint8_t sram_sel,
+					   uint8_t indirect)
 {
+	struct amdgpu_device *adev = vinst->adev;
+	int inst_idx = vinst->inst;
 	uint32_t reg_data = 0;
 
 	/* enable sw clock gating control */
@@ -949,8 +962,10 @@ static void vcn_v3_0_clock_gating_dpg_mode(struct amdgpu_device *adev,
  *
  * Enable clock gating for VCN block
  */
-static void vcn_v3_0_enable_clock_gating(struct amdgpu_device *adev, int inst)
+static void vcn_v3_0_enable_clock_gating(struct amdgpu_vcn_inst *vinst)
 {
+	struct amdgpu_device *adev = vinst->adev;
+	int inst = vinst->inst;
 	uint32_t data;
 
 	/* enable VCN CGC */
@@ -1009,8 +1024,10 @@ static void vcn_v3_0_enable_clock_gating(struct amdgpu_device *adev, int inst)
 	WREG32_SOC15(VCN, inst, mmUVD_SUVD_CGC_CTRL, data);
 }
 
-static int vcn_v3_0_start_dpg_mode(struct amdgpu_device *adev, int inst_idx, bool indirect)
+static int vcn_v3_0_start_dpg_mode(struct amdgpu_vcn_inst *vinst, bool indirect)
 {
+	struct amdgpu_device *adev = vinst->adev;
+	int inst_idx = vinst->inst;
 	volatile struct amdgpu_fw_shared *fw_shared = adev->vcn.inst[inst_idx].fw_shared.cpu_addr;
 	struct amdgpu_ring *ring;
 	uint32_t rb_bufsz, tmp;
@@ -1028,7 +1045,7 @@ static int vcn_v3_0_start_dpg_mode(struct amdgpu_device *adev, int inst_idx, boo
 		adev->vcn.inst[inst_idx].dpg_sram_curr_addr = (uint32_t *)adev->vcn.inst[inst_idx].dpg_sram_cpu_addr;
 
 	/* enable clock gating */
-	vcn_v3_0_clock_gating_dpg_mode(adev, 0, inst_idx, indirect);
+	vcn_v3_0_clock_gating_dpg_mode(vinst, 0, indirect);
 
 	/* enable VCPU clock */
 	tmp = (0xFF << UVD_VCPU_CNTL__PRB_TIMEOUT_VAL__SHIFT);
@@ -1077,7 +1094,7 @@ static int vcn_v3_0_start_dpg_mode(struct amdgpu_device *adev, int inst_idx, boo
 		 (0x1 << UVD_MPC_SET_MUX__SET_1__SHIFT) |
 		 (0x2 << UVD_MPC_SET_MUX__SET_2__SHIFT)), 0, indirect);
 
-	vcn_v3_0_mc_resume_dpg_mode(adev, inst_idx, indirect);
+	vcn_v3_0_mc_resume_dpg_mode(vinst, indirect);
 
 	WREG32_SOC15_DPG_MODE(inst_idx, SOC15_DPG_MODE_OFFSET(
 		VCN, inst_idx, mmUVD_REG_XX_MASK), 0x10, 0, indirect);
@@ -1161,8 +1178,10 @@ static int vcn_v3_0_start_dpg_mode(struct amdgpu_device *adev, int inst_idx, boo
 	return 0;
 }
 
-static int vcn_v3_0_start(struct amdgpu_device *adev, int i)
+static int vcn_v3_0_start(struct amdgpu_vcn_inst *vinst)
 {
+	struct amdgpu_device *adev = vinst->adev;
+	int i = vinst->inst;
 	volatile struct amdgpu_fw_shared *fw_shared;
 	struct amdgpu_ring *ring;
 	uint32_t rb_bufsz, tmp;
@@ -1175,17 +1194,17 @@ static int vcn_v3_0_start(struct amdgpu_device *adev, int i)
 		amdgpu_dpm_enable_vcn(adev, true, i);
 
 	if (adev->pg_flags & AMD_PG_SUPPORT_VCN_DPG)
-		return vcn_v3_0_start_dpg_mode(adev, i, adev->vcn.inst[i].indirect_sram);
+		return vcn_v3_0_start_dpg_mode(vinst, vinst->indirect_sram);
 
 	/* disable VCN power gating */
-	vcn_v3_0_disable_static_power_gating(adev, i);
+	vcn_v3_0_disable_static_power_gating(vinst);
 
 	/* set VCN status busy */
 	tmp = RREG32_SOC15(VCN, i, mmUVD_STATUS) | UVD_STATUS__UVD_BUSY;
 	WREG32_SOC15(VCN, i, mmUVD_STATUS, tmp);
 
 	/* SW clock gating */
-	vcn_v3_0_disable_clock_gating(adev, i);
+	vcn_v3_0_disable_clock_gating(vinst);
 
 	/* enable VCPU clock */
 	WREG32_P(SOC15_REG_OFFSET(VCN, i, mmUVD_VCPU_CNTL),
@@ -1238,7 +1257,7 @@ static int vcn_v3_0_start(struct amdgpu_device *adev, int i)
 		      (0x1 << UVD_MPC_SET_MUX__SET_1__SHIFT) |
 		      (0x2 << UVD_MPC_SET_MUX__SET_2__SHIFT)));
 
-	vcn_v3_0_mc_resume(adev, i);
+	vcn_v3_0_mc_resume(vinst);
 
 	/* VCN global tiling registers */
 	WREG32_SOC15(VCN, i, mmUVD_GFX10_ADDR_CONFIG,
@@ -1555,8 +1574,10 @@ static int vcn_v3_0_start_sriov(struct amdgpu_device *adev)
 	return 0;
 }
 
-static int vcn_v3_0_stop_dpg_mode(struct amdgpu_device *adev, int inst_idx)
+static int vcn_v3_0_stop_dpg_mode(struct amdgpu_vcn_inst *vinst)
 {
+	struct amdgpu_device *adev = vinst->adev;
+	int inst_idx = vinst->inst;
 	struct dpg_pause_state state = {.fw_based = VCN_DPG_STATE__UNPAUSE};
 	uint32_t tmp;
 
@@ -1586,8 +1607,10 @@ static int vcn_v3_0_stop_dpg_mode(struct amdgpu_device *adev, int inst_idx)
 	return 0;
 }
 
-static int vcn_v3_0_stop(struct amdgpu_device *adev, int i)
+static int vcn_v3_0_stop(struct amdgpu_vcn_inst *vinst)
 {
+	struct amdgpu_device *adev = vinst->adev;
+	int i = vinst->inst;
 	uint32_t tmp;
 	int r = 0;
 
@@ -1595,7 +1618,7 @@ static int vcn_v3_0_stop(struct amdgpu_device *adev, int i)
 		return 0;
 
 	if (adev->pg_flags & AMD_PG_SUPPORT_VCN_DPG) {
-		r = vcn_v3_0_stop_dpg_mode(adev, i);
+		r = vcn_v3_0_stop_dpg_mode(vinst);
 		goto done;
 	}
 
@@ -1648,10 +1671,10 @@ static int vcn_v3_0_stop(struct amdgpu_device *adev, int i)
 	WREG32_SOC15(VCN, i, mmUVD_STATUS, 0);
 
 	/* apply HW clock gating */
-	vcn_v3_0_enable_clock_gating(adev, i);
+	vcn_v3_0_enable_clock_gating(vinst);
 
 	/* enable VCN power gating */
-	vcn_v3_0_enable_static_power_gating(adev, i);
+	vcn_v3_0_enable_static_power_gating(vinst);
 
 done:
 	if (adev->pm.dpm_enabled)
@@ -2162,15 +2185,16 @@ static int vcn_v3_0_set_clockgating_state(struct amdgpu_ip_block *ip_block,
 	int i;
 
 	for (i = 0; i < adev->vcn.num_vcn_inst; ++i) {
+		struct amdgpu_vcn_inst *vinst = &adev->vcn.inst[i];
 		if (adev->vcn.harvest_config & (1 << i))
 			continue;
 
 		if (enable) {
 			if (RREG32_SOC15(VCN, i, mmUVD_STATUS) != UVD_STATUS__IDLE)
 				return -EBUSY;
-			vcn_v3_0_enable_clock_gating(adev, i);
+			vcn_v3_0_enable_clock_gating(vinst);
 		} else {
-			vcn_v3_0_disable_clock_gating(adev, i);
+			vcn_v3_0_disable_clock_gating(vinst);
 		}
 	}
 
@@ -2182,6 +2206,7 @@ static int vcn_v3_0_set_powergating_state_inst(struct amdgpu_ip_block *ip_block,
 					       int i)
 {
 	struct amdgpu_device *adev = ip_block->adev;
+	struct amdgpu_vcn_inst *vinst = &adev->vcn.inst[i];
 	int ret = 0;
 
 	/* for SRIOV, guest should not control VCN Power-gating
@@ -2197,9 +2222,9 @@ static int vcn_v3_0_set_powergating_state_inst(struct amdgpu_ip_block *ip_block,
 		return 0;
 
 	if (state == AMD_PG_STATE_GATE)
-		ret = vcn_v3_0_stop(adev, i);
+		ret = vcn_v3_0_stop(vinst);
 	else
-		ret = vcn_v3_0_start(adev, i);
+		ret = vcn_v3_0_start(vinst);
 
 	if (!ret)
 		adev->vcn.inst[i].cur_state = state;
