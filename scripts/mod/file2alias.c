@@ -48,7 +48,7 @@ static void __attribute__((format (printf, 3, 4)))
 module_alias_printf(struct module *mod, bool append_wildcard,
 		    const char *fmt, ...)
 {
-	struct module_alias *new;
+	struct module_alias *new, *als;
 	size_t len;
 	int n;
 	va_list ap;
@@ -84,6 +84,14 @@ module_alias_printf(struct module *mod, bool append_wildcard,
 	if (append_wildcard && (n == 0 || new->str[n - 1] != '*')) {
 		new->str[n] = '*';
 		new->str[n + 1] = '\0';
+	}
+
+	/* avoid duplication */
+	list_for_each_entry(als, &mod->aliases, node) {
+		if (!strcmp(als->str, new->str)) {
+			free(new);
+			return;
+		}
 	}
 
 	list_add_tail(&new->node, &mod->aliases);
@@ -687,44 +695,18 @@ static void do_pnp_card_entries(void *symval, unsigned long size,
 
 		for (j = 0; j < PNP_MAX_DEVICES; j++) {
 			const char *id = (char *)(*devs)[j].id;
-			int i2, j2;
-			int dup = 0;
+			char acpi_id[PNP_ID_LEN];
 
 			if (!id[0])
 				break;
 
-			/* find duplicate, already added value */
-			for (i2 = 0; i2 < i && !dup; i2++) {
-				DEF_FIELD_ADDR_VAR(symval + i2 * id_size,
-						   pnp_card_device_id,
-						   devs, devs_dup);
-
-				for (j2 = 0; j2 < PNP_MAX_DEVICES; j2++) {
-					const char *id2 =
-						(char *)(*devs_dup)[j2].id;
-
-					if (!id2[0])
-						break;
-
-					if (!strcmp(id, id2)) {
-						dup = 1;
-						break;
-					}
-				}
-			}
-
 			/* add an individual alias for every device entry */
-			if (!dup) {
-				char acpi_id[PNP_ID_LEN];
-				int k;
+			module_alias_printf(mod, false, "pnp:d%s*", id);
 
-				module_alias_printf(mod, false, "pnp:d%s*", id);
-
-				/* fix broken pnp bus lowercasing */
-				for (k = 0; k < sizeof(acpi_id); k++)
-					acpi_id[k] = toupper(id[k]);
-				module_alias_printf(mod, false, "acpi*:%s:*", acpi_id);
-			}
+			/* fix broken pnp bus lowercasing */
+			for (int k = 0; k < sizeof(acpi_id); k++)
+				acpi_id[k] = toupper(id[k]);
+			module_alias_printf(mod, false, "acpi*:%s:*", acpi_id);
 		}
 	}
 }
