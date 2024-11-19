@@ -122,7 +122,6 @@ typedef struct {
  * we handle those differences explicitly below */
 #include "../../include/linux/mod_devicetable.h"
 
-/* This array collects all instances that use the generic do_table */
 struct devtable {
 	const char *device_id; /* name of table, __mod_<name>__*_device_table. */
 	unsigned long id_size;
@@ -318,7 +317,7 @@ static unsigned int incbcd(unsigned int *bcd,
 	return init;
 }
 
-static void do_usb_entry_multi(void *symval, struct module *mod)
+static void do_usb_entry_multi(struct module *mod, void *symval)
 {
 	unsigned int devlo, devhi;
 	unsigned char chi, clo, max;
@@ -381,21 +380,6 @@ static void do_usb_entry_multi(void *symval, struct module *mod)
 					    sizeof(bcdDevice_lo) * 2),
 				     ndigits, 0x0, chi, max, mod);
 	}
-}
-
-static void do_usb_table(void *symval, unsigned long size,
-			 struct module *mod)
-{
-	unsigned int i;
-	const unsigned long id_size = SIZE_usb_device_id;
-
-	device_id_check(mod->name, "usb", size, id_size, symval);
-
-	/* Leave last one: it's the terminator. */
-	size -= id_size;
-
-	for (i = 0; i < size; i += id_size)
-		do_usb_entry_multi(symval + i, mod);
 }
 
 static void do_of_entry(struct module *mod, void *symval)
@@ -1506,6 +1490,7 @@ static const struct devtable devtable[] = {
 	{"vchiq", SIZE_vchiq_device_id, do_vchiq_entry},
 	{"coreboot", SIZE_coreboot_device_id, do_coreboot_entry},
 	{"of", SIZE_of_device_id, do_of_entry},
+	{"usb", SIZE_usb_device_id, do_usb_entry_multi},
 	{"pnp", SIZE_pnp_device_id, do_pnp_device_entry},
 	{"pnp_card", SIZE_pnp_card_device_id, do_pnp_card_entry},
 };
@@ -1551,21 +1536,15 @@ void handle_moddevtable(struct module *mod, struct elf_info *info,
 		symval = sym_get_data(info, sym);
 	}
 
-	/* First handle the "special" cases */
-	if (sym_is(name, namelen, "usb"))
-		do_usb_table(symval, sym->st_size, mod);
-	else {
-		int i;
+	for (int i = 0; i < ARRAY_SIZE(devtable); i++) {
+		const struct devtable *p = &devtable[i];
 
-		for (i = 0; i < ARRAY_SIZE(devtable); i++) {
-			const struct devtable *p = &devtable[i];
-
-			if (sym_is(name, namelen, p->device_id)) {
-				do_table(symval, sym->st_size, p->id_size,
-					 p->device_id, p->do_entry, mod);
-				break;
-			}
+		if (sym_is(name, namelen, p->device_id)) {
+			do_table(symval, sym->st_size, p->id_size,
+				 p->device_id, p->do_entry, mod);
+			break;
 		}
 	}
+
 	free(zeros);
 }
