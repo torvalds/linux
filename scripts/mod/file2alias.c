@@ -123,7 +123,7 @@ typedef struct {
 #include "../../include/linux/mod_devicetable.h"
 
 struct devtable {
-	const char *device_id; /* name of table, __mod_<name>__*_device_table. */
+	const char *device_id;
 	unsigned long id_size;
 	void (*do_entry)(struct module *mod, void *symval);
 };
@@ -190,7 +190,7 @@ static void device_id_check(const char *modname, const char *device_id,
 	int i;
 
 	if (size % id_size || size < id_size) {
-		fatal("%s: sizeof(struct %s_device_id)=%lu is not a modulo of the size of section __mod_%s__<identifier>_device_table=%lu.\n"
+		fatal("%s: sizeof(struct %s_device_id)=%lu is not a modulo of the size of section __mod_device_table__%s__<identifier>=%lu.\n"
 		      "Fix definition of struct %s_device_id in mod_devicetable.h\n",
 		      modname, device_id, id_size, device_id, size, device_id);
 	}
@@ -1505,6 +1505,7 @@ void handle_moddevtable(struct module *mod, struct elf_info *info,
 	char *zeros = NULL;
 	const char *type, *name;
 	size_t typelen;
+	static const char *prefix = "__mod_device_table__";
 
 	/* We're looking for a section relative symbol */
 	if (!sym->st_shndx || get_secindex(info, sym) >= info->num_sections)
@@ -1514,15 +1515,11 @@ void handle_moddevtable(struct module *mod, struct elf_info *info,
 	if (ELF_ST_TYPE(sym->st_info) != STT_OBJECT)
 		return;
 
-	/* All our symbols are of form __mod_<type>__<name>_device_table. */
-	if (!strstarts(symname, "__mod_"))
+	/* All our symbols are of form __mod_device_table__<type>__<name>. */
+	if (!strstarts(symname, prefix))
 		return;
-	type = symname + strlen("__mod_");
-	typelen = strlen(type);
-	if (typelen < strlen("_device_table"))
-		return;
-	if (strcmp(type + typelen - strlen("_device_table"), "_device_table"))
-		return;
+	type = symname + strlen(prefix);
+
 	name = strstr(type, "__");
 	if (!name)
 		return;
