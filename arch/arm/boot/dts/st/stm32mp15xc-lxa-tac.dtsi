@@ -379,10 +379,6 @@ baseboard_eeprom: &sip_eeprom {
 	};
 };
 
-&rtc {
-	status = "okay";
-};
-
 &sdmmc2 {
 	pinctrl-names = "default", "opendrain", "sleep";
 	pinctrl-0 = <&sdmmc2_b4_pins_a &sdmmc2_d47_pins_b>;
