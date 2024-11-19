@@ -864,14 +864,10 @@ static struct request *attempt_merge(struct request_queue *q,
 	if (req_op(req) != req_op(next))
 		return NULL;
 
-	if (req->bio && next->bio) {
-		/* Don't merge requests with different write hints. */
-		if (req->bio->bi_write_hint != next->bio->bi_write_hint)
-			return NULL;
-		if (req->bio->bi_ioprio != next->bio->bi_ioprio)
-			return NULL;
-	}
-
+	if (req->bio->bi_write_hint != next->bio->bi_write_hint)
+		return NULL;
+	if (req->bio->bi_ioprio != next->bio->bi_ioprio)
+		return NULL;
 	if (!blk_atomic_write_mergeable_rqs(req, next))
 		return NULL;
 
@@ -983,26 +979,16 @@ bool blk_rq_merge_ok(struct request *rq, struct bio *bio)
 	if (req_op(rq) != bio_op(bio))
 		return false;
 
-	/* don't merge across cgroup boundaries */
 	if (!blk_cgroup_mergeable(rq, bio))
 		return false;
-
-	/* only merge integrity protected bio into ditto rq */
 	if (blk_integrity_merge_bio(rq->q, rq, bio) == false)
 		return false;
-
-	/* Only merge if the crypt contexts are compatible */
 	if (!bio_crypt_rq_ctx_compatible(rq, bio))
 		return false;
-
-	if (rq->bio) {
-		/* Don't merge requests with different write hints. */
-		if (rq->bio->bi_write_hint != bio->bi_write_hint)
-			return false;
-		if (rq->bio->bi_ioprio != bio->bi_ioprio)
-			return false;
-	}
-
+	if (rq->bio->bi_write_hint != bio->bi_write_hint)
+		return false;
+	if (rq->bio->bi_ioprio != bio->bi_ioprio)
+		return false;
 	if (blk_atomic_write_mergeable_rq_bio(rq, bio) == false)
 		return false;
 
