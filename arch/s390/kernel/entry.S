@@ -450,8 +450,12 @@ SYM_CODE_START(\name)
 SYM_CODE_END(\name)
 .endm
 
+	.section .irqentry.text, "ax"
+
 INT_HANDLER ext_int_handler,__LC_EXT_OLD_PSW,do_ext_irq
 INT_HANDLER io_int_handler,__LC_IO_OLD_PSW,do_io_irq
+
+	.section .kprobes.text, "ax"
 
 /*
  * Machine check handler routines
