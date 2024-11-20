@@ -177,6 +177,8 @@ void amdgpu_eviction_fence_destroy(struct amdgpu_eviction_fence_mgr *evf_mgr)
 	if (!ev_fence)
 		return;
 
+	dma_fence_wait(&ev_fence->base, false);
+
 	/* Last unref of ev_fence */
 	dma_fence_put(&evf_mgr->ev_fence->base);
 }
