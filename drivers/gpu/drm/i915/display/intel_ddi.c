@@ -2211,8 +2211,8 @@ i915_reg_t dp_tp_ctl_reg(struct intel_encoder *encoder,
 		return DP_TP_CTL(encoder->port);
 }
 
-i915_reg_t dp_tp_status_reg(struct intel_encoder *encoder,
-			    const struct intel_crtc_state *crtc_state)
+static i915_reg_t dp_tp_status_reg(struct intel_encoder *encoder,
+				   const struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 
@@ -2221,6 +2221,25 @@ i915_reg_t dp_tp_status_reg(struct intel_encoder *encoder,
 					tgl_dp_tp_transcoder(crtc_state));
 	else
 		return DP_TP_STATUS(encoder->port);
+}
+
+void intel_ddi_clear_act_sent(struct intel_encoder *encoder,
+			      const struct intel_crtc_state *crtc_state)
+{
+	struct intel_display *display = to_intel_display(encoder);
+
+	intel_de_write(display, dp_tp_status_reg(encoder, crtc_state),
+		       DP_TP_STATUS_ACT_SENT);
+}
+
+void intel_ddi_wait_for_act_sent(struct intel_encoder *encoder,
+				 const struct intel_crtc_state *crtc_state)
+{
+	struct intel_display *display = to_intel_display(encoder);
+
+	if (intel_de_wait_for_set(display, dp_tp_status_reg(encoder, crtc_state),
+				  DP_TP_STATUS_ACT_SENT, 1))
+		drm_err(display->drm, "Timed out waiting for ACT sent\n");
 }
 
 static void intel_dp_sink_set_msa_timing_par_ignore_state(struct intel_dp *intel_dp,

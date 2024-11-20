@@ -966,28 +966,6 @@ mst_connector_atomic_check(struct drm_connector *connector,
 						intel_connector->port);
 }
 
-static void clear_act_sent(struct intel_encoder *encoder,
-			   const struct intel_crtc_state *crtc_state)
-{
-	struct intel_display *display = to_intel_display(encoder);
-
-	intel_de_write(display, dp_tp_status_reg(encoder, crtc_state),
-		       DP_TP_STATUS_ACT_SENT);
-}
-
-static void wait_for_act_sent(struct intel_encoder *encoder,
-			      const struct intel_crtc_state *crtc_state)
-{
-	struct intel_display *display = to_intel_display(encoder);
-	struct intel_dp *intel_dp = to_primary_dp(encoder);
-
-	if (intel_de_wait_for_set(display, dp_tp_status_reg(encoder, crtc_state),
-				  DP_TP_STATUS_ACT_SENT, 1))
-		drm_err(display->drm, "Timed out waiting for ACT sent\n");
-
-	drm_dp_check_act_status(&intel_dp->mst_mgr);
-}
-
 static void mst_stream_disable(struct intel_atomic_state *state,
 			       struct intel_encoder *encoder,
 			       const struct intel_crtc_state *old_crtc_state,
@@ -1049,13 +1027,14 @@ static void mst_stream_post_disable(struct intel_atomic_state *state,
 
 	drm_dp_remove_payload_part1(&intel_dp->mst_mgr, new_mst_state, new_payload);
 
-	clear_act_sent(encoder, old_crtc_state);
+	intel_ddi_clear_act_sent(encoder, old_crtc_state);
 
 	intel_de_rmw(display,
 		     TRANS_DDI_FUNC_CTL(display, old_crtc_state->cpu_transcoder),
 		     TRANS_DDI_DP_VC_PAYLOAD_ALLOC, 0);
 
-	wait_for_act_sent(encoder, old_crtc_state);
+	intel_ddi_wait_for_act_sent(encoder, old_crtc_state);
+	drm_dp_check_act_status(&intel_dp->mst_mgr);
 
 	drm_dp_remove_payload_part2(&intel_dp->mst_mgr, new_mst_state,
 				    old_payload, new_payload);
@@ -1299,7 +1278,7 @@ static void mst_stream_enable(struct intel_atomic_state *state,
 
 	intel_ddi_enable_transcoder_func(encoder, pipe_config);
 
-	clear_act_sent(encoder, pipe_config);
+	intel_ddi_clear_act_sent(encoder, pipe_config);
 
 	intel_de_rmw(display, TRANS_DDI_FUNC_CTL(display, trans), 0,
 		     TRANS_DDI_DP_VC_PAYLOAD_ALLOC);
@@ -1307,7 +1286,8 @@ static void mst_stream_enable(struct intel_atomic_state *state,
 	drm_dbg_kms(display->drm, "active links %d\n",
 		    intel_dp->active_mst_links);
 
-	wait_for_act_sent(encoder, pipe_config);
+	intel_ddi_wait_for_act_sent(encoder, pipe_config);
+	drm_dp_check_act_status(&intel_dp->mst_mgr);
 
 	if (first_mst_stream)
 		intel_ddi_wait_for_fec_status(encoder, pipe_config, true);
