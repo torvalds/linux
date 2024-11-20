@@ -1481,7 +1481,7 @@ void bdw_disable_vblank(struct drm_crtc *_crtc)
 		schedule_work(&display->irq.vblank_dc_work);
 }
 
-void vlv_display_irq_reset(struct drm_i915_private *dev_priv)
+static void _vlv_display_irq_reset(struct drm_i915_private *dev_priv)
 {
 	struct intel_uncore *uncore = &dev_priv->uncore;
 
@@ -1497,6 +1497,12 @@ void vlv_display_irq_reset(struct drm_i915_private *dev_priv)
 
 	gen2_irq_reset(uncore, VLV_IRQ_REGS);
 	dev_priv->irq_mask = ~0u;
+}
+
+void vlv_display_irq_reset(struct drm_i915_private *dev_priv)
+{
+	if (dev_priv->display.irq.display_irqs_enabled)
+		_vlv_display_irq_reset(dev_priv);
 }
 
 void i9xx_display_irq_reset(struct drm_i915_private *i915)
@@ -1517,6 +1523,9 @@ void vlv_display_irq_postinstall(struct drm_i915_private *dev_priv)
 	u32 pipestat_mask;
 	u32 enable_mask;
 	enum pipe pipe;
+
+	if (!dev_priv->display.irq.display_irqs_enabled)
+		return;
 
 	pipestat_mask = PIPE_CRC_DONE_INTERRUPT_STATUS;
 
@@ -1696,7 +1705,7 @@ void valleyview_enable_display_irqs(struct drm_i915_private *dev_priv)
 	dev_priv->display.irq.display_irqs_enabled = true;
 
 	if (intel_irqs_enabled(dev_priv)) {
-		vlv_display_irq_reset(dev_priv);
+		_vlv_display_irq_reset(dev_priv);
 		vlv_display_irq_postinstall(dev_priv);
 	}
 }
@@ -1711,7 +1720,7 @@ void valleyview_disable_display_irqs(struct drm_i915_private *dev_priv)
 	dev_priv->display.irq.display_irqs_enabled = false;
 
 	if (intel_irqs_enabled(dev_priv))
-		vlv_display_irq_reset(dev_priv);
+		_vlv_display_irq_reset(dev_priv);
 }
 
 void ilk_de_irq_postinstall(struct drm_i915_private *i915)
