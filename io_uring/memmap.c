@@ -229,7 +229,7 @@ int io_create_region(struct io_ring_ctx *ctx, struct io_mapped_region *mr,
 	if (!reg->size || reg->mmap_offset || reg->id)
 		return -EINVAL;
 	if ((reg->size >> PAGE_SHIFT) > INT_MAX)
-		return E2BIG;
+		return -E2BIG;
 	if ((reg->user_addr | reg->size) & ~PAGE_MASK)
 		return -EINVAL;
 	if (check_add_overflow(reg->user_addr, reg->size, &end))
