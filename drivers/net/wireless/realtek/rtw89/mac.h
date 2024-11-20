@@ -426,6 +426,12 @@ enum rtw89_mac_c2h_wow_func {
 	NUM_OF_RTW89_MAC_C2H_FUNC_WOW,
 };
 
+enum rtw89_mac_c2h_ap_func {
+	RTW89_MAC_C2H_FUNC_PWR_INT_NOTIFY = 0,
+
+	NUM_OF_RTW89_MAC_C2H_FUNC_AP,
+};
+
 enum rtw89_mac_c2h_class {
 	RTW89_MAC_C2H_CLASS_INFO = 0x0,
 	RTW89_MAC_C2H_CLASS_OFLD = 0x1,
@@ -434,6 +440,7 @@ enum rtw89_mac_c2h_class {
 	RTW89_MAC_C2H_CLASS_MCC = 0x4,
 	RTW89_MAC_C2H_CLASS_FWDBG = 0x5,
 	RTW89_MAC_C2H_CLASS_MRC = 0xe,
+	RTW89_MAC_C2H_CLASS_AP = 0x18,
 	RTW89_MAC_C2H_CLASS_MAX,
 };
 

@@ -5364,6 +5364,39 @@ rtw89_mac_c2h_mrc_status_rpt(struct rtw89_dev *rtwdev, struct sk_buff *c2h, u32 
 	rtw89_complete_cond(wait, cond, &data);
 }
 
+static void
+rtw89_mac_c2h_pwr_int_notify(struct rtw89_dev *rtwdev, struct sk_buff *skb, u32 len)
+{
+	const struct rtw89_c2h_pwr_int_notify *c2h;
+	struct rtw89_sta_link *rtwsta_link;
+	struct ieee80211_sta *sta;
+	struct rtw89_sta *rtwsta;
+	u16 macid;
+	bool ps;
+
+	c2h = (const struct rtw89_c2h_pwr_int_notify *)skb->data;
+	macid = le32_get_bits(c2h->w2, RTW89_C2H_PWR_INT_NOTIFY_W2_MACID);
+	ps = le32_get_bits(c2h->w2, RTW89_C2H_PWR_INT_NOTIFY_W2_PWR_STATUS);
+
+	rcu_read_lock();
+
+	rtwsta_link = rtw89_assoc_link_rcu_dereference(rtwdev, macid);
+	if (unlikely(!rtwsta_link))
+		goto out;
+
+	rtwsta = rtwsta_link->rtwsta;
+	if (ps)
+		set_bit(RTW89_REMOTE_STA_IN_PS, rtwsta->flags);
+	else
+		clear_bit(RTW89_REMOTE_STA_IN_PS, rtwsta->flags);
+
+	sta = rtwsta_to_sta(rtwsta);
+	ieee80211_sta_ps_transition(sta, ps);
+
+out:
+	rcu_read_unlock();
+}
+
 static
 void (* const rtw89_mac_c2h_ofld_handler[])(struct rtw89_dev *rtwdev,
 					    struct sk_buff *c2h, u32 len) = {
@@ -5407,6 +5440,12 @@ static
 void (* const rtw89_mac_c2h_wow_handler[])(struct rtw89_dev *rtwdev,
 					   struct sk_buff *c2h, u32 len) = {
 	[RTW89_MAC_C2H_FUNC_AOAC_REPORT] = rtw89_mac_c2h_wow_aoac_rpt,
+};
+
+static
+void (* const rtw89_mac_c2h_ap_handler[])(struct rtw89_dev *rtwdev,
+					  struct sk_buff *c2h, u32 len) = {
+	[RTW89_MAC_C2H_FUNC_PWR_INT_NOTIFY] = rtw89_mac_c2h_pwr_int_notify,
 };
 
 static void rtw89_mac_c2h_scanofld_rsp_atomic(struct rtw89_dev *rtwdev,
@@ -5463,6 +5502,13 @@ bool rtw89_mac_c2h_chk_atomic(struct rtw89_dev *rtwdev, struct sk_buff *c2h,
 		return true;
 	case RTW89_MAC_C2H_CLASS_WOW:
 		return true;
+	case RTW89_MAC_C2H_CLASS_AP:
+		switch (func) {
+		default:
+			return false;
+		case RTW89_MAC_C2H_FUNC_PWR_INT_NOTIFY:
+			return true;
+		}
 	}
 }
 
@@ -5492,6 +5538,10 @@ void rtw89_mac_c2h_handle(struct rtw89_dev *rtwdev, struct sk_buff *skb,
 	case RTW89_MAC_C2H_CLASS_WOW:
 		if (func < NUM_OF_RTW89_MAC_C2H_FUNC_WOW)
 			handler = rtw89_mac_c2h_wow_handler[func];
+		break;
+	case RTW89_MAC_C2H_CLASS_AP:
+		if (func < NUM_OF_RTW89_MAC_C2H_FUNC_AP)
+			handler = rtw89_mac_c2h_ap_handler[func];
 		break;
 	case RTW89_MAC_C2H_CLASS_FWDBG:
 		return;

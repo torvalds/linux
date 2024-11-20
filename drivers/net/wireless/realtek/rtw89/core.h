@@ -4452,6 +4452,7 @@ enum rtw89_fw_feature {
 	RTW89_FW_FEATURE_RFK_PRE_NOTIFY_V0,
 	RTW89_FW_FEATURE_RFK_RXDCK_V0,
 	RTW89_FW_FEATURE_NO_WOW_CPU_IO_RX,
+	RTW89_FW_FEATURE_NOTIFY_AP_INFO,
 };
 
 struct rtw89_fw_suit {
@@ -5596,6 +5597,9 @@ struct rtw89_dev {
 	struct rtw89_rfe_data *rfe_data;
 	enum rtw89_custid custid;
 
+	struct rtw89_sta_link __rcu *assoc_link_on_macid[RTW89_MAX_MAC_ID_NUM];
+	refcount_t refcount_ap_info;
+
 	/* ensures exclusive access from mac80211 callbacks */
 	struct mutex mutex;
 	struct list_head rtwvifs_list;
@@ -5730,9 +5734,17 @@ static inline bool rtw89_vif_assign_link_is_valid(struct rtw89_vif_link **rtwvif
 	for (link_id = 0; link_id < IEEE80211_MLD_MAX_NUM_LINKS; link_id++) \
 		if (rtw89_vif_assign_link_is_valid(&(rtwvif_link), rtwvif, link_id))
 
+enum rtw89_sta_flags {
+	RTW89_REMOTE_STA_IN_PS,
+
+	NUM_OF_RTW89_STA_FLAGS,
+};
+
 struct rtw89_sta {
 	struct rtw89_dev *rtwdev;
 	struct rtw89_vif *rtwvif;
+
+	DECLARE_BITMAP(flags, NUM_OF_RTW89_STA_FLAGS);
 
 	bool disassoc;
 
@@ -5809,6 +5821,31 @@ u8 rtw89_sta_link_inst_get_index(struct rtw89_sta_link *rtwsta_link)
 	struct rtw89_sta *rtwsta = rtwsta_link->rtwsta;
 
 	return rtwsta_link - rtwsta->links_inst;
+}
+
+static inline void rtw89_assoc_link_set(struct rtw89_sta_link *rtwsta_link)
+{
+	struct rtw89_sta *rtwsta = rtwsta_link->rtwsta;
+	struct rtw89_dev *rtwdev = rtwsta->rtwdev;
+
+	rcu_assign_pointer(rtwdev->assoc_link_on_macid[rtwsta_link->mac_id],
+			   rtwsta_link);
+}
+
+static inline void rtw89_assoc_link_clr(struct rtw89_sta_link *rtwsta_link)
+{
+	struct rtw89_sta *rtwsta = rtwsta_link->rtwsta;
+	struct rtw89_dev *rtwdev = rtwsta->rtwdev;
+
+	rcu_assign_pointer(rtwdev->assoc_link_on_macid[rtwsta_link->mac_id],
+			   NULL);
+	synchronize_rcu();
+}
+
+static inline struct rtw89_sta_link *
+rtw89_assoc_link_rcu_dereference(struct rtw89_dev *rtwdev, u8 macid)
+{
+	return rcu_dereference(rtwdev->assoc_link_on_macid[macid]);
 }
 
 static inline int rtw89_hci_tx_write(struct rtw89_dev *rtwdev,

@@ -3466,6 +3466,12 @@ struct rtw89_h2c_wow_aoac {
 	__le32 w0;
 } __packed;
 
+struct rtw89_h2c_ap_info {
+	__le32 w0;
+} __packed;
+
+#define RTW89_H2C_AP_INFO_W0_PWR_INT_EN BIT(0)
+
 #define RTW89_C2H_HEADER_LEN 8
 
 struct rtw89_c2h_hdr {
@@ -3724,6 +3730,14 @@ struct rtw89_c2h_wow_aoac_report {
 } __packed;
 
 #define RTW89_C2H_WOW_AOAC_RPT_REKEY_IDX BIT(0)
+
+struct rtw89_c2h_pwr_int_notify {
+	struct rtw89_c2h_hdr hdr;
+	__le32 w2;
+} __packed;
+
+#define RTW89_C2H_PWR_INT_NOTIFY_W2_MACID GENMASK(15, 0)
+#define RTW89_C2H_PWR_INT_NOTIFY_W2_PWR_STATUS BIT(16)
 
 struct rtw89_h2c_tx_duty {
 	__le32 w0;
@@ -4167,6 +4181,10 @@ enum rtw89_mrc_h2c_func {
 
 #define RTW89_MRC_WAIT_COND_REQ_TSF \
 	RTW89_MRC_WAIT_COND(0 /* don't care */, H2C_FUNC_MRC_REQ_TSF)
+
+/* CLASS 36 - AP */
+#define H2C_CL_AP			0x24
+#define H2C_FUNC_AP_INFO 0x0
 
 #define H2C_CAT_OUTSRC			0x2
 
@@ -4697,6 +4715,7 @@ int rtw89_fw_h2c_mrc_sync(struct rtw89_dev *rtwdev,
 			  const struct rtw89_fw_mrc_sync_arg *arg);
 int rtw89_fw_h2c_mrc_upd_duration(struct rtw89_dev *rtwdev,
 				  const struct rtw89_fw_mrc_upd_duration_arg *arg);
+int rtw89_fw_h2c_ap_info_refcount(struct rtw89_dev *rtwdev, bool en);
 
 static inline void rtw89_fw_h2c_init_ba_cam(struct rtw89_dev *rtwdev)
 {

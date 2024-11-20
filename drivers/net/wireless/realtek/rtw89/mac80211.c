@@ -775,6 +775,7 @@ static int rtw89_ops_start_ap(struct ieee80211_hw *hw,
 	struct rtw89_vif *rtwvif = vif_to_rtwvif(vif);
 	struct rtw89_vif_link *rtwvif_link;
 	const struct rtw89_chan *chan;
+	int ret = 0;
 
 	mutex_lock(&rtwdev->mutex);
 
@@ -783,6 +784,7 @@ static int rtw89_ops_start_ap(struct ieee80211_hw *hw,
 		rtw89_err(rtwdev,
 			  "%s: rtwvif link (link_id %u) is not active\n",
 			  __func__, link_conf->link_id);
+		ret = -ENOLINK;
 		goto out;
 	}
 
@@ -804,12 +806,18 @@ static int rtw89_ops_start_ap(struct ieee80211_hw *hw,
 	rtw89_fw_h2c_cam(rtwdev, rtwvif_link, NULL, NULL);
 	rtw89_chip_rfk_channel(rtwdev, rtwvif_link);
 
+	if (RTW89_CHK_FW_FEATURE(NOTIFY_AP_INFO, &rtwdev->fw)) {
+		ret = rtw89_fw_h2c_ap_info_refcount(rtwdev, true);
+		if (ret)
+			goto out;
+	}
+
 	rtw89_queue_chanctx_work(rtwdev);
 
 out:
 	mutex_unlock(&rtwdev->mutex);
 
-	return 0;
+	return ret;
 }
 
 static
@@ -829,6 +837,9 @@ void rtw89_ops_stop_ap(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			  __func__, link_conf->link_id);
 		goto out;
 	}
+
+	if (RTW89_CHK_FW_FEATURE(NOTIFY_AP_INFO, &rtwdev->fw))
+		rtw89_fw_h2c_ap_info_refcount(rtwdev, false);
 
 	rtw89_mac_stop_ap(rtwdev, rtwvif_link);
 	rtw89_chip_h2c_assoc_cmac_tbl(rtwdev, rtwvif_link, NULL);

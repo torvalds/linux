@@ -2749,6 +2749,41 @@ static void rtw89_core_flush_ppdu_rx_queue(struct rtw89_dev *rtwdev,
 	}
 }
 
+static
+void rtw89_core_rx_pkt_hdl(struct rtw89_dev *rtwdev, const struct sk_buff *skb,
+			   const struct rtw89_rx_desc_info *desc)
+{
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
+	struct rtw89_sta_link *rtwsta_link;
+	struct ieee80211_sta *sta;
+	struct rtw89_sta *rtwsta;
+	u8 macid = desc->mac_id;
+
+	if (!refcount_read(&rtwdev->refcount_ap_info))
+		return;
+
+	rcu_read_lock();
+
+	rtwsta_link = rtw89_assoc_link_rcu_dereference(rtwdev, macid);
+	if (!rtwsta_link)
+		goto out;
+
+	rtwsta = rtwsta_link->rtwsta;
+	if (!test_bit(RTW89_REMOTE_STA_IN_PS, rtwsta->flags))
+		goto out;
+
+	sta = rtwsta_to_sta(rtwsta);
+	if (ieee80211_is_pspoll(hdr->frame_control))
+		ieee80211_sta_pspoll(sta);
+	else if (ieee80211_has_pm(hdr->frame_control) &&
+		 (ieee80211_is_data_qos(hdr->frame_control) ||
+		  ieee80211_is_qos_nullfunc(hdr->frame_control)))
+		ieee80211_sta_uapsd_trigger(sta, ieee80211_get_tid(hdr));
+
+out:
+	rcu_read_unlock();
+}
+
 void rtw89_core_rx(struct rtw89_dev *rtwdev,
 		   struct rtw89_rx_desc_info *desc_info,
 		   struct sk_buff *skb)
@@ -2771,6 +2806,7 @@ void rtw89_core_rx(struct rtw89_dev *rtwdev,
 	rx_status = IEEE80211_SKB_RXCB(skb);
 	memset(rx_status, 0, sizeof(*rx_status));
 	rtw89_core_update_rx_status(rtwdev, desc_info, rx_status);
+	rtw89_core_rx_pkt_hdl(rtwdev, skb, desc_info);
 	if (desc_info->long_rxdesc &&
 	    BIT(desc_info->frame_type) & PPDU_FILTER_BITMAP)
 		skb_queue_tail(&ppdu_sts->rx_queue[band], skb);
@@ -3748,6 +3784,8 @@ int rtw89_core_sta_link_disassoc(struct rtw89_dev *rtwdev,
 {
 	const struct ieee80211_vif *vif = rtwvif_link_to_vif(rtwvif_link);
 
+	rtw89_assoc_link_clr(rtwsta_link);
+
 	if (vif->type == NL80211_IFTYPE_STATION)
 		rtw89_fw_h2c_set_bcn_fltr_cfg(rtwdev, rtwvif_link, false);
 
@@ -3883,6 +3921,7 @@ int rtw89_core_sta_link_assoc(struct rtw89_dev *rtwdev,
 		rtw89_fw_h2c_set_bcn_fltr_cfg(rtwdev, rtwvif_link, true);
 	}
 
+	rtw89_assoc_link_set(rtwsta_link);
 	return ret;
 }
 
@@ -5149,6 +5188,9 @@ static int rtw89_core_register_hw(struct rtw89_dev *rtwdev)
 
 	if (RTW89_CHK_FW_FEATURE(BEACON_FILTER, &rtwdev->fw))
 		ieee80211_hw_set(hw, CONNECTION_MONITOR);
+
+	if (RTW89_CHK_FW_FEATURE(NOTIFY_AP_INFO, &rtwdev->fw))
+		ieee80211_hw_set(hw, AP_LINK_PS);
 
 	hw->wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION) |
 				     BIT(NL80211_IFTYPE_AP) |
