@@ -39,7 +39,7 @@ pub use static_branch_unlikely;
 #[cfg(CONFIG_JUMP_LABEL)]
 const _: &str = include!(concat!(
     env!("OBJTREE"),
-    "/rust/kernel/arch_static_branch_asm.rs"
+    "/rust/kernel/generated_arch_static_branch_asm.rs"
 ));
 
 #[macro_export]
@@ -48,7 +48,7 @@ const _: &str = include!(concat!(
 macro_rules! arch_static_branch {
     ($key:path, $keytyp:ty, $field:ident, $branch:expr) => {'my_label: {
         $crate::asm!(
-            include!(concat!(env!("OBJTREE"), "/rust/kernel/arch_static_branch_asm.rs"));
+            include!(concat!(env!("OBJTREE"), "/rust/kernel/generated_arch_static_branch_asm.rs"));
             l_yes = label {
                 break 'my_label true;
             },
