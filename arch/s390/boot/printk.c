@@ -94,7 +94,11 @@ void boot_printk(const char *fmt, ...)
 			*p++ = *fmt;
 			continue;
 		}
-		pad = isdigit(*++fmt) ? simple_strtol(fmt, (char **)&fmt, 10) : 0;
+		if (*++fmt == '%') {
+			*p++ = '%';
+			continue;
+		}
+		pad = isdigit(*fmt) ? simple_strtol(fmt, (char **)&fmt, 10) : 0;
 		switch (*fmt) {
 		case 's':
 			p = buf + strlcat(buf, va_arg(args, char *), sizeof(buf));
