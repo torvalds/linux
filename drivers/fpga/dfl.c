@@ -734,7 +734,6 @@ static void dfl_fpga_cdev_add_port_data(struct dfl_fpga_cdev *cdev,
 {
 	mutex_lock(&cdev->lock);
 	list_add(&fdata->node, &cdev->port_dev_list);
-	get_device(&fdata->dev->dev);
 	mutex_unlock(&cdev->lock);
 }
 
@@ -1645,7 +1644,6 @@ void dfl_fpga_feature_devs_remove(struct dfl_fpga_cdev *cdev)
 			platform_device_put(port_dev);
 
 		list_del(&fdata->node);
-		put_device(&port_dev->dev);
 	}
 	mutex_unlock(&cdev->lock);
 
@@ -1677,7 +1675,7 @@ __dfl_fpga_cdev_find_port_data(struct dfl_fpga_cdev *cdev, void *data,
 	struct dfl_feature_dev_data *fdata;
 
 	list_for_each_entry(fdata, &cdev->port_dev_list, node) {
-		if (match(fdata, data) && get_device(&fdata->dev->dev))
+		if (match(fdata, data))
 			return fdata;
 	}
 
@@ -1728,19 +1726,17 @@ int dfl_fpga_cdev_release_port(struct dfl_fpga_cdev *cdev, int port_id)
 
 	if (!device_is_registered(&fdata->dev->dev)) {
 		ret = -EBUSY;
-		goto put_dev_exit;
+		goto unlock_exit;
 	}
 
 	mutex_lock(&fdata->lock);
 	ret = dfl_feature_dev_use_begin(fdata, true);
 	mutex_unlock(&fdata->lock);
 	if (ret)
-		goto put_dev_exit;
+		goto unlock_exit;
 
 	platform_device_del(fdata->dev);
 	cdev->released_port_num++;
-put_dev_exit:
-	put_device(&fdata->dev->dev);
 unlock_exit:
 	mutex_unlock(&cdev->lock);
 	return ret;
@@ -1771,20 +1767,18 @@ int dfl_fpga_cdev_assign_port(struct dfl_fpga_cdev *cdev, int port_id)
 
 	if (device_is_registered(&fdata->dev->dev)) {
 		ret = -EBUSY;
-		goto put_dev_exit;
+		goto unlock_exit;
 	}
 
 	ret = platform_device_add(fdata->dev);
 	if (ret)
-		goto put_dev_exit;
+		goto unlock_exit;
 
 	mutex_lock(&fdata->lock);
 	dfl_feature_dev_use_end(fdata);
 	mutex_unlock(&fdata->lock);
 
 	cdev->released_port_num--;
-put_dev_exit:
-	put_device(&fdata->dev->dev);
 unlock_exit:
 	mutex_unlock(&cdev->lock);
 	return ret;
