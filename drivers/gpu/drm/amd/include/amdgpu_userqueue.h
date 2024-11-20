@@ -27,6 +27,9 @@
 
 #define AMDGPU_MAX_USERQ_COUNT 512
 
+#define to_ev_fence(f) container_of(f, struct amdgpu_eviction_fence, base)
+#define uq_mgr_to_fpriv(u) container_of(u, struct amdgpu_fpriv, userq_mgr)
+
 struct amdgpu_mqd_prop;
 
 struct amdgpu_userq_obj {
@@ -50,6 +53,7 @@ struct amdgpu_usermode_queue {
 	struct amdgpu_userq_obj wptr_obj;
 	struct xarray		fence_drv_xa;
 	struct amdgpu_userq_fence_driver *fence_drv;
+	struct dma_fence	*last_fence;
 };
 
 struct amdgpu_userq_funcs {
@@ -69,6 +73,7 @@ struct amdgpu_userq_mgr {
 	struct idr			userq_idr;
 	struct mutex			userq_mutex;
 	struct amdgpu_device		*adev;
+	int num_userqs;
 };
 
 int amdgpu_userq_ioctl(struct drm_device *dev, void *data, struct drm_file *filp);
@@ -83,4 +88,8 @@ int amdgpu_userqueue_create_object(struct amdgpu_userq_mgr *uq_mgr,
 
 void amdgpu_userqueue_destroy_object(struct amdgpu_userq_mgr *uq_mgr,
 				     struct amdgpu_userq_obj *userq_obj);
+
+void amdgpu_userqueue_suspend(struct amdgpu_userq_mgr *uq_mgr);
+
+int amdgpu_userqueue_active(struct amdgpu_userq_mgr *uq_mgr);
 #endif

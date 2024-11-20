@@ -37,6 +37,7 @@ struct amdgpu_eviction_fence_mgr {
 	atomic_t		ev_fence_seq;
 	spinlock_t		ev_fence_lock;
 	struct amdgpu_eviction_fence *ev_fence;
+	struct delayed_work	suspend_work;
 };
 
 /* Eviction fence helper functions */
@@ -60,4 +61,7 @@ amdgpu_eviction_fence_init(struct amdgpu_eviction_fence_mgr *evf_mgr);
 void
 amdgpu_eviction_fence_signal(struct amdgpu_eviction_fence_mgr *evf_mgr);
 
+int
+amdgpu_eviction_fence_replace_fence(struct amdgpu_eviction_fence_mgr *evf_mgr,
+				    struct drm_exec *exec);
 #endif

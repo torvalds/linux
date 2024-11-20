@@ -60,11 +60,37 @@ amdgpu_userqueue_cleanup(struct amdgpu_userq_mgr *uq_mgr,
 {
 	struct amdgpu_device *adev = uq_mgr->adev;
 	const struct amdgpu_userq_funcs *uq_funcs = adev->userq_funcs[queue->queue_type];
+	struct dma_fence *f = queue->last_fence;
+	int ret;
+
+	if (f && !dma_fence_is_signaled(f)) {
+		ret = dma_fence_wait_timeout(f, true, msecs_to_jiffies(100));
+		if (ret <= 0) {
+			DRM_ERROR("Timed out waiting for fence f=%p\n", f);
+			return;
+		}
+	}
 
 	uq_funcs->mqd_destroy(uq_mgr, queue);
 	amdgpu_userq_fence_driver_free(queue);
 	idr_remove(&uq_mgr->userq_idr, queue_id);
 	kfree(queue);
+}
+
+int
+amdgpu_userqueue_active(struct amdgpu_userq_mgr *uq_mgr)
+{
+	struct amdgpu_usermode_queue *queue;
+	int queue_id;
+	int ret = 0;
+
+	mutex_lock(&uq_mgr->userq_mutex);
+	/* Resume all the queues for this process */
+	idr_for_each_entry(&uq_mgr->userq_idr, queue, queue_id)
+		ret += queue->queue_active;
+
+	mutex_unlock(&uq_mgr->userq_mutex);
+	return ret;
 }
 
 #ifdef CONFIG_DRM_AMDGPU_NAVI3X_USERQ
@@ -202,6 +228,7 @@ amdgpu_userqueue_destroy(struct drm_file *filp, int queue_id)
 	amdgpu_bo_unpin(queue->db_obj.obj);
 	amdgpu_bo_unref(&queue->db_obj.obj);
 	amdgpu_userqueue_cleanup(uq_mgr, queue, queue_id);
+	uq_mgr->num_userqs--;
 	mutex_unlock(&uq_mgr->userq_mutex);
 	return 0;
 }
@@ -277,6 +304,7 @@ amdgpu_userqueue_create(struct drm_file *filp, union drm_amdgpu_userq *args)
 		goto unlock;
 	}
 	args->out.queue_id = qid;
+	uq_mgr->num_userqs++;
 
 unlock:
 	mutex_unlock(&uq_mgr->userq_mutex);
@@ -317,11 +345,93 @@ int amdgpu_userq_ioctl(struct drm_device *dev, void *data,
 }
 #endif
 
+static int
+amdgpu_userqueue_suspend_all(struct amdgpu_userq_mgr *uq_mgr)
+{
+	struct amdgpu_device *adev = uq_mgr->adev;
+	const struct amdgpu_userq_funcs *userq_funcs;
+	struct amdgpu_usermode_queue *queue;
+	int queue_id;
+	int ret = 0;
+
+	userq_funcs = adev->userq_funcs[AMDGPU_HW_IP_GFX];
+
+	/* Try to suspend all the queues in this process ctx */
+	idr_for_each_entry(&uq_mgr->userq_idr, queue, queue_id)
+		ret += userq_funcs->suspend(uq_mgr, queue);
+
+	if (ret)
+		DRM_ERROR("Couldn't suspend all the queues\n");
+	return ret;
+}
+
+static int
+amdgpu_userqueue_wait_for_signal(struct amdgpu_userq_mgr *uq_mgr)
+{
+	struct amdgpu_usermode_queue *queue;
+	int queue_id, ret;
+
+	idr_for_each_entry(&uq_mgr->userq_idr, queue, queue_id) {
+		struct dma_fence *f = queue->last_fence;
+
+		if (!f || dma_fence_is_signaled(f))
+			continue;
+		ret = dma_fence_wait_timeout(f, true, msecs_to_jiffies(100));
+		if (ret <= 0) {
+			DRM_ERROR("Timed out waiting for fence f=%p\n", f);
+			return -ETIMEDOUT;
+		}
+	}
+
+	return 0;
+}
+
+void
+amdgpu_userqueue_suspend(struct amdgpu_userq_mgr *uq_mgr)
+{
+	int ret;
+	struct amdgpu_fpriv *fpriv = uq_mgr_to_fpriv(uq_mgr);
+	struct amdgpu_eviction_fence_mgr *evf_mgr = &fpriv->evf_mgr;
+
+	mutex_lock(&uq_mgr->userq_mutex);
+
+	/* Wait for any pending userqueue fence to signal */
+	ret = amdgpu_userqueue_wait_for_signal(uq_mgr);
+	if (ret) {
+		DRM_ERROR("Not suspending userqueue, timeout waiting for work\n");
+		goto unlock;
+	}
+
+	ret = amdgpu_userqueue_suspend_all(uq_mgr);
+	if (ret) {
+		DRM_ERROR("Failed to evict userqueue\n");
+		goto unlock;
+	}
+
+	/* Signal current eviction fence */
+	amdgpu_eviction_fence_signal(evf_mgr);
+
+	/* Cleanup old eviction fence entry */
+	amdgpu_eviction_fence_destroy(evf_mgr);
+
+unlock:
+	mutex_unlock(&uq_mgr->userq_mutex);
+}
+
 int amdgpu_userq_mgr_init(struct amdgpu_userq_mgr *userq_mgr, struct amdgpu_device *adev)
 {
+	struct amdgpu_fpriv *fpriv;
+
 	mutex_init(&userq_mgr->userq_mutex);
 	idr_init_base(&userq_mgr->userq_idr, 1);
 	userq_mgr->adev = adev;
+	userq_mgr->num_userqs = 0;
+
+	fpriv = uq_mgr_to_fpriv(userq_mgr);
+	if (!fpriv->evf_mgr.ev_fence) {
+		DRM_ERROR("Eviction fence not initialized yet\n");
+		return -EINVAL;
+	}
 
 	return 0;
 }
