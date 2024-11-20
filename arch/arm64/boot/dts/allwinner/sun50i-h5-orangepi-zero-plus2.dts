@@ -79,6 +79,7 @@
 
 &mmc0 {
 	vmmc-supply = <&reg_vcc3v3>;
+	disable-wp;
 	bus-width = <4>;
 	cd-gpios = <&pio 5 6 GPIO_ACTIVE_LOW>;
 	status = "okay";

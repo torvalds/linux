@@ -84,7 +84,7 @@
 		};
 	};
 
-	vcc12v_dcin: vcc12v-dcin {
+	vcc12v_dcin: regulator-vcc12v-dcin {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc12v_dcin";
 		regulator-min-microvolt = <12000000>;
@@ -93,7 +93,7 @@
 		regulator-boot-on;
 	};
 
-	vcc5v0_sys: vcc5v0-sys {
+	vcc5v0_sys: regulator-vcc5v0-sys {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc5v0_sys";
 		regulator-min-microvolt = <5000000>;
@@ -103,7 +103,7 @@
 		vin-supply = <&vcc12v_dcin>;
 	};
 
-	vccio_sdio: vcc_1v8: vcc-1v8 {
+	vccio_sdio: vcc_1v8: regulator-vcc-1v8 {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc_1v8";
 		regulator-min-microvolt = <1800000>;
@@ -113,7 +113,7 @@
 		vin-supply = <&vcc_io>;
 	};
 
-	vcc_ddr: vcc-ddr {
+	vcc_ddr: regulator-vcc-ddr {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc_ddr";
 		regulator-min-microvolt = <1500000>;
@@ -123,7 +123,7 @@
 		vin-supply = <&vcc5v0_sys>;
 	};
 
-	vcc_io: vcc-io {
+	vcc_io: regulator-vcc-io {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc_io";
 		regulator-min-microvolt = <3300000>;
@@ -133,7 +133,7 @@
 		vin-supply = <&vcc5v0_sys>;
 	};
 
-	vccio_flash: vccio-flash {
+	vccio_flash: regulator-vccio-flash {
 		compatible = "regulator-fixed";
 		regulator-name = "vccio_flash";
 		regulator-min-microvolt = <3300000>;
@@ -143,7 +143,7 @@
 		vin-supply = <&vcc_io>;
 	};
 
-	vcc5v0_host: vcc5v0-host {
+	vcc5v0_host: regulator-vcc5v0-host {
 		compatible = "regulator-fixed";
 		gpio = <&gpio0 RK_PC5 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
@@ -153,7 +153,7 @@
 		vin-supply = <&vcc5v0_sys>;
 	};
 
-	vdd_core: vdd-core {
+	vdd_core: regulator-vdd-core {
 		compatible = "pwm-regulator";
 		pwms = <&pwm0 0 5000 1>;
 		regulator-name = "vdd_core";
@@ -165,7 +165,7 @@
 		pwm-supply = <&vcc5v0_sys>;
 	};
 
-	vdd_log: vdd-log {
+	vdd_log: regulator-vdd-log {
 		compatible = "regulator-fixed";
 		regulator-name = "vdd_log";
 		regulator-min-microvolt = <1050000>;
@@ -175,7 +175,7 @@
 		vin-supply = <&vcc5v0_sys>;
 	};
 
-	vdd_1v0: vdd-1v0 {
+	vdd_1v0: regulator-vdd-1v0 {
 		compatible = "regulator-fixed";
 		regulator-name = "vdd_1v0";
 		regulator-min-microvolt = <1000000>;

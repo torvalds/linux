@@ -104,6 +104,16 @@
 	pinctrl-0 = <&pinctrl_i2c2>;
 	status = "okay";
 
+	accelerometer@19 {
+		compatible = "st,lis2de12";
+		reg = <0x19>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_accel>;
+		interrupt-parent = <&gpio5>;
+		interrupts = <8 IRQ_TYPE_LEVEL_LOW>;
+		st,drdy-int-pin = <1>;
+	};
+
 	eeprom@52 {
 		compatible = "atmel,24c32";
 		reg = <0x52>;
@@ -201,6 +211,12 @@
 			MX8MP_IOMUXC_SAI1_RXD3__GPIO4_IO05	0x40000040 /* GPIOC */
 			MX8MP_IOMUXC_SAI2_TXD0__GPIO4_IO26	0x40000106 /* PCI_USBSEL */
 			MX8MP_IOMUXC_SAI3_RXFS__GPIO4_IO28	0x40000106 /* PCI_WDIS# */
+		>;
+	};
+
+	pinctrl_accel: accelgrp {
+		fsl,pins = <
+			MX8MP_IOMUXC_ECSPI1_MISO__GPIO5_IO08	0x159
 		>;
 	};
 

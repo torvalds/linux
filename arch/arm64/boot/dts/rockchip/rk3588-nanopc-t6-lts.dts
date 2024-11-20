@@ -15,7 +15,7 @@
 	compatible = "friendlyarm,nanopc-t6-lts", "rockchip,rk3588";
 
 	/* provide power for on-board USB 2.0 hub */
-	vcc5v0_usb20_host: vcc5v0-usb20-host-regulator {
+	vcc5v0_usb20_host: regulator-vcc5v0-usb20-host {
 		compatible = "regulator-fixed";
 		enable-active-high;
 		gpio = <&gpio1 RK_PA4 GPIO_ACTIVE_HIGH>;

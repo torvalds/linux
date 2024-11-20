@@ -7,7 +7,7 @@
 	model = "Rockchip RK3288 EVB ACT8846";
 	compatible = "rockchip,rk3288-evb-act8846", "rockchip,rk3288";
 
-	vcc_lcd: vcc-lcd {
+	vcc_lcd: regulator-vcc-lcd {
 		compatible = "regulator-fixed";
 		enable-active-high;
 		gpio = <&gpio7 RK_PA3 GPIO_ACTIVE_HIGH>;
@@ -17,7 +17,7 @@
 		vin-supply = <&vcc_io>;
 	};
 
-	vcc_wl: vcc-wl {
+	vcc_wl: regulator-vcc-wl {
 		compatible = "regulator-fixed";
 		enable-active-high;
 		gpio = <&gpio7 RK_PB1 GPIO_ACTIVE_HIGH>;

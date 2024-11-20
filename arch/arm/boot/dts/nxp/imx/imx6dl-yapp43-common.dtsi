@@ -500,7 +500,7 @@
 		>;
 	};
 
-	pinctrl_usbh1_vbus: usbh1-vbus {
+	pinctrl_usbh1_vbus: usbh1-vbusgrp {
 		fsl,pins = <
 			MX6QDL_PAD_ENET_TXD1__GPIO1_IO29	0x98
 		>;
@@ -513,7 +513,7 @@
 		>;
 	};
 
-	pinctrl_usbotg_vbus: usbotg-vbus {
+	pinctrl_usbotg_vbus: usbotg-vbusgrp {
 		fsl,pins = <
 			MX6QDL_PAD_EIM_D22__GPIO3_IO22	0x98
 		>;

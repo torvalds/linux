@@ -220,7 +220,7 @@
 	i2c-gpio-0 {
 		status = "okay";
 
-		24c512@50 {
+		eeprom@50 {
 			compatible = "atmel,24c512";
 			reg = <0x50>;
 			vcc-supply = <&reg_3v3>;
