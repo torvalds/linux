@@ -3916,22 +3916,21 @@ static void intel_ddi_read_func_ctl(struct intel_encoder *encoder,
 	struct intel_crtc *crtc = to_intel_crtc(pipe_config->uapi.crtc);
 	enum transcoder cpu_transcoder = pipe_config->cpu_transcoder;
 	struct intel_digital_port *dig_port = enc_to_dig_port(encoder);
-	u32 temp, flags = 0;
+	u32 ddi_func_ctl, flags = 0;
 
-	temp = intel_de_read(dev_priv,
-			     TRANS_DDI_FUNC_CTL(dev_priv, cpu_transcoder));
-	if (temp & TRANS_DDI_PHSYNC)
+	ddi_func_ctl = intel_de_read(dev_priv, TRANS_DDI_FUNC_CTL(dev_priv, cpu_transcoder));
+	if (ddi_func_ctl & TRANS_DDI_PHSYNC)
 		flags |= DRM_MODE_FLAG_PHSYNC;
 	else
 		flags |= DRM_MODE_FLAG_NHSYNC;
-	if (temp & TRANS_DDI_PVSYNC)
+	if (ddi_func_ctl & TRANS_DDI_PVSYNC)
 		flags |= DRM_MODE_FLAG_PVSYNC;
 	else
 		flags |= DRM_MODE_FLAG_NVSYNC;
 
 	pipe_config->hw.adjusted_mode.flags |= flags;
 
-	switch (temp & TRANS_DDI_BPC_MASK) {
+	switch (ddi_func_ctl & TRANS_DDI_BPC_MASK) {
 	case TRANS_DDI_BPC_6:
 		pipe_config->pipe_bpp = 18;
 		break;
@@ -3948,7 +3947,7 @@ static void intel_ddi_read_func_ctl(struct intel_encoder *encoder,
 		break;
 	}
 
-	switch (temp & TRANS_DDI_MODE_SELECT_MASK) {
+	switch (ddi_func_ctl & TRANS_DDI_MODE_SELECT_MASK) {
 	case TRANS_DDI_MODE_SELECT_HDMI:
 		pipe_config->has_hdmi_sink = true;
 
@@ -3958,16 +3957,16 @@ static void intel_ddi_read_func_ctl(struct intel_encoder *encoder,
 		if (pipe_config->infoframes.enable)
 			pipe_config->has_infoframe = true;
 
-		if (temp & TRANS_DDI_HDMI_SCRAMBLING)
+		if (ddi_func_ctl & TRANS_DDI_HDMI_SCRAMBLING)
 			pipe_config->hdmi_scrambling = true;
-		if (temp & TRANS_DDI_HIGH_TMDS_CHAR_RATE)
+		if (ddi_func_ctl & TRANS_DDI_HIGH_TMDS_CHAR_RATE)
 			pipe_config->hdmi_high_tmds_clock_ratio = true;
 		fallthrough;
 	case TRANS_DDI_MODE_SELECT_DVI:
 		pipe_config->output_types |= BIT(INTEL_OUTPUT_HDMI);
 		if (DISPLAY_VER(dev_priv) >= 14)
 			pipe_config->lane_count =
-				((temp & DDI_PORT_WIDTH_MASK) >> DDI_PORT_WIDTH_SHIFT) + 1;
+				((ddi_func_ctl & DDI_PORT_WIDTH_MASK) >> DDI_PORT_WIDTH_SHIFT) + 1;
 		else
 			pipe_config->lane_count = 4;
 		break;
@@ -3977,7 +3976,7 @@ static void intel_ddi_read_func_ctl(struct intel_encoder *encoder,
 		else
 			pipe_config->output_types |= BIT(INTEL_OUTPUT_DP);
 		pipe_config->lane_count =
-			((temp & DDI_PORT_WIDTH_MASK) >> DDI_PORT_WIDTH_SHIFT) + 1;
+			((ddi_func_ctl & DDI_PORT_WIDTH_MASK) >> DDI_PORT_WIDTH_SHIFT) + 1;
 
 		intel_cpu_transcoder_get_m1_n1(crtc, cpu_transcoder,
 					       &pipe_config->dp_m_n);
@@ -4013,11 +4012,11 @@ static void intel_ddi_read_func_ctl(struct intel_encoder *encoder,
 	case TRANS_DDI_MODE_SELECT_DP_MST:
 		pipe_config->output_types |= BIT(INTEL_OUTPUT_DP_MST);
 		pipe_config->lane_count =
-			((temp & DDI_PORT_WIDTH_MASK) >> DDI_PORT_WIDTH_SHIFT) + 1;
+			((ddi_func_ctl & DDI_PORT_WIDTH_MASK) >> DDI_PORT_WIDTH_SHIFT) + 1;
 
 		if (DISPLAY_VER(dev_priv) >= 12)
 			pipe_config->mst_master_transcoder =
-					REG_FIELD_GET(TRANS_DDI_MST_TRANSPORT_SELECT_MASK, temp);
+				REG_FIELD_GET(TRANS_DDI_MST_TRANSPORT_SELECT_MASK, ddi_func_ctl);
 
 		intel_cpu_transcoder_get_m1_n1(crtc, cpu_transcoder,
 					       &pipe_config->dp_m_n);
