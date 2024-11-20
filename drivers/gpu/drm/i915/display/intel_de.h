@@ -7,9 +7,9 @@
 #define __INTEL_DE_H__
 
 #include "i915_drv.h"
-#include "i915_trace.h"
 #include "intel_dsb.h"
 #include "intel_uncore.h"
+#include "intel_uncore_trace.h"
 
 static inline struct intel_uncore *__to_uncore(struct intel_display *display)
 {
