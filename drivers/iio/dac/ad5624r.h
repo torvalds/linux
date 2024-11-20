@@ -41,7 +41,7 @@ struct ad5624r_chip_info {
 };
 
 /**
- * struct ad5446_state - driver instance specific data
+ * struct ad5624r_state - driver instance specific data
  * @indio_dev:		the industrial I/O device
  * @us:			spi_device
  * @chip_info:		chip model specific constants, available modes etc
