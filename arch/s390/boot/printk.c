@@ -174,7 +174,7 @@ static void boot_console_earlyprintk(const char *buf)
 	 (lenmod == 'z') ? va_arg(args, typemod long) :			\
 			   va_arg(args, typemod int))
 
-void boot_printk(const char *fmt, ...)
+int boot_printk(const char *fmt, ...)
 {
 	char buf[1024] = { 0 };
 	char *end = buf + sizeof(buf) - 1; /* make sure buf is 0 terminated */
@@ -248,4 +248,5 @@ out:
 		boot_rb_add(buf, len);
 		boot_console_earlyprintk(buf);
 	}
+	return len;
 }
