@@ -22,34 +22,34 @@
 struct fme_br_priv {
 	struct dfl_fme_br_pdata *pdata;
 	struct dfl_fpga_port_ops *port_ops;
-	struct platform_device *port_pdev;
+	struct dfl_feature_platform_data *port_pdata;
 };
 
 static int fme_bridge_enable_set(struct fpga_bridge *bridge, bool enable)
 {
+	struct dfl_feature_platform_data *port_pdata;
 	struct fme_br_priv *priv = bridge->priv;
-	struct platform_device *port_pdev;
 	struct dfl_fpga_port_ops *ops;
 
-	if (!priv->port_pdev) {
-		port_pdev = dfl_fpga_cdev_find_port(priv->pdata->cdev,
-						    &priv->pdata->port_id,
-						    dfl_fpga_check_port_id);
-		if (!port_pdev)
+	if (!priv->port_pdata) {
+		port_pdata = dfl_fpga_cdev_find_port_data(priv->pdata->cdev,
+							  &priv->pdata->port_id,
+							  dfl_fpga_check_port_id);
+		if (!port_pdata)
 			return -ENODEV;
 
-		priv->port_pdev = port_pdev;
+		priv->port_pdata = port_pdata;
 	}
 
-	if (priv->port_pdev && !priv->port_ops) {
-		ops = dfl_fpga_port_ops_get(priv->port_pdev);
+	if (priv->port_pdata && !priv->port_ops) {
+		ops = dfl_fpga_port_ops_get(priv->port_pdata);
 		if (!ops || !ops->enable_set)
 			return -ENOENT;
 
 		priv->port_ops = ops;
 	}
 
-	return priv->port_ops->enable_set(priv->port_pdev, enable);
+	return priv->port_ops->enable_set(priv->port_pdata, enable);
 }
 
 static const struct fpga_bridge_ops fme_bridge_ops = {
@@ -85,8 +85,8 @@ static void fme_br_remove(struct platform_device *pdev)
 
 	fpga_bridge_unregister(br);
 
-	if (priv->port_pdev)
-		put_device(&priv->port_pdev->dev);
+	if (priv->port_pdata)
+		put_device(&priv->port_pdata->dev->dev);
 	if (priv->port_ops)
 		dfl_fpga_port_ops_put(priv->port_ops);
 }

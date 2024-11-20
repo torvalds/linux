@@ -28,10 +28,11 @@
 static ssize_t ports_num_show(struct device *dev,
 			      struct device_attribute *attr, char *buf)
 {
+	struct dfl_feature_platform_data *pdata = dev_get_platdata(dev);
 	void __iomem *base;
 	u64 v;
 
-	base = dfl_get_feature_ioaddr_by_id(dev, FME_FEATURE_ID_HEADER);
+	base = dfl_get_feature_ioaddr_by_id(pdata, FME_FEATURE_ID_HEADER);
 
 	v = readq(base + FME_HDR_CAP);
 
@@ -47,10 +48,11 @@ static DEVICE_ATTR_RO(ports_num);
 static ssize_t bitstream_id_show(struct device *dev,
 				 struct device_attribute *attr, char *buf)
 {
+	struct dfl_feature_platform_data *pdata = dev_get_platdata(dev);
 	void __iomem *base;
 	u64 v;
 
-	base = dfl_get_feature_ioaddr_by_id(dev, FME_FEATURE_ID_HEADER);
+	base = dfl_get_feature_ioaddr_by_id(pdata, FME_FEATURE_ID_HEADER);
 
 	v = readq(base + FME_HDR_BITSTREAM_ID);
 
@@ -65,10 +67,11 @@ static DEVICE_ATTR_RO(bitstream_id);
 static ssize_t bitstream_metadata_show(struct device *dev,
 				       struct device_attribute *attr, char *buf)
 {
+	struct dfl_feature_platform_data *pdata = dev_get_platdata(dev);
 	void __iomem *base;
 	u64 v;
 
-	base = dfl_get_feature_ioaddr_by_id(dev, FME_FEATURE_ID_HEADER);
+	base = dfl_get_feature_ioaddr_by_id(pdata, FME_FEATURE_ID_HEADER);
 
 	v = readq(base + FME_HDR_BITSTREAM_MD);
 
@@ -79,10 +82,11 @@ static DEVICE_ATTR_RO(bitstream_metadata);
 static ssize_t cache_size_show(struct device *dev,
 			       struct device_attribute *attr, char *buf)
 {
+	struct dfl_feature_platform_data *pdata = dev_get_platdata(dev);
 	void __iomem *base;
 	u64 v;
 
-	base = dfl_get_feature_ioaddr_by_id(dev, FME_FEATURE_ID_HEADER);
+	base = dfl_get_feature_ioaddr_by_id(pdata, FME_FEATURE_ID_HEADER);
 
 	v = readq(base + FME_HDR_CAP);
 
@@ -94,10 +98,11 @@ static DEVICE_ATTR_RO(cache_size);
 static ssize_t fabric_version_show(struct device *dev,
 				   struct device_attribute *attr, char *buf)
 {
+	struct dfl_feature_platform_data *pdata = dev_get_platdata(dev);
 	void __iomem *base;
 	u64 v;
 
-	base = dfl_get_feature_ioaddr_by_id(dev, FME_FEATURE_ID_HEADER);
+	base = dfl_get_feature_ioaddr_by_id(pdata, FME_FEATURE_ID_HEADER);
 
 	v = readq(base + FME_HDR_CAP);
 
@@ -109,10 +114,11 @@ static DEVICE_ATTR_RO(fabric_version);
 static ssize_t socket_id_show(struct device *dev,
 			      struct device_attribute *attr, char *buf)
 {
+	struct dfl_feature_platform_data *pdata = dev_get_platdata(dev);
 	void __iomem *base;
 	u64 v;
 
-	base = dfl_get_feature_ioaddr_by_id(dev, FME_FEATURE_ID_HEADER);
+	base = dfl_get_feature_ioaddr_by_id(pdata, FME_FEATURE_ID_HEADER);
 
 	v = readq(base + FME_HDR_CAP);
 

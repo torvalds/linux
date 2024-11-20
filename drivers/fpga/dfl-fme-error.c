@@ -46,7 +46,7 @@ static ssize_t pcie0_errors_show(struct device *dev,
 	void __iomem *base;
 	u64 value;
 
-	base = dfl_get_feature_ioaddr_by_id(dev, FME_FEATURE_ID_GLOBAL_ERR);
+	base = dfl_get_feature_ioaddr_by_id(pdata, FME_FEATURE_ID_GLOBAL_ERR);
 
 	mutex_lock(&pdata->lock);
 	value = readq(base + PCIE0_ERROR);
@@ -67,7 +67,7 @@ static ssize_t pcie0_errors_store(struct device *dev,
 	if (kstrtou64(buf, 0, &val))
 		return -EINVAL;
 
-	base = dfl_get_feature_ioaddr_by_id(dev, FME_FEATURE_ID_GLOBAL_ERR);
+	base = dfl_get_feature_ioaddr_by_id(pdata, FME_FEATURE_ID_GLOBAL_ERR);
 
 	mutex_lock(&pdata->lock);
 	writeq(GENMASK_ULL(63, 0), base + PCIE0_ERROR_MASK);
@@ -91,7 +91,7 @@ static ssize_t pcie1_errors_show(struct device *dev,
 	void __iomem *base;
 	u64 value;
 
-	base = dfl_get_feature_ioaddr_by_id(dev, FME_FEATURE_ID_GLOBAL_ERR);
+	base = dfl_get_feature_ioaddr_by_id(pdata, FME_FEATURE_ID_GLOBAL_ERR);
 
 	mutex_lock(&pdata->lock);
 	value = readq(base + PCIE1_ERROR);
@@ -112,7 +112,7 @@ static ssize_t pcie1_errors_store(struct device *dev,
 	if (kstrtou64(buf, 0, &val))
 		return -EINVAL;
 
-	base = dfl_get_feature_ioaddr_by_id(dev, FME_FEATURE_ID_GLOBAL_ERR);
+	base = dfl_get_feature_ioaddr_by_id(pdata, FME_FEATURE_ID_GLOBAL_ERR);
 
 	mutex_lock(&pdata->lock);
 	writeq(GENMASK_ULL(63, 0), base + PCIE1_ERROR_MASK);
@@ -132,9 +132,10 @@ static DEVICE_ATTR_RW(pcie1_errors);
 static ssize_t nonfatal_errors_show(struct device *dev,
 				    struct device_attribute *attr, char *buf)
 {
+	struct dfl_feature_platform_data *pdata = dev_get_platdata(dev);
 	void __iomem *base;
 
-	base = dfl_get_feature_ioaddr_by_id(dev, FME_FEATURE_ID_GLOBAL_ERR);
+	base = dfl_get_feature_ioaddr_by_id(pdata, FME_FEATURE_ID_GLOBAL_ERR);
 
 	return sprintf(buf, "0x%llx\n",
 		       (unsigned long long)readq(base + RAS_NONFAT_ERROR));
@@ -144,9 +145,10 @@ static DEVICE_ATTR_RO(nonfatal_errors);
 static ssize_t catfatal_errors_show(struct device *dev,
 				    struct device_attribute *attr, char *buf)
 {
+	struct dfl_feature_platform_data *pdata = dev_get_platdata(dev);
 	void __iomem *base;
 
-	base = dfl_get_feature_ioaddr_by_id(dev, FME_FEATURE_ID_GLOBAL_ERR);
+	base = dfl_get_feature_ioaddr_by_id(pdata, FME_FEATURE_ID_GLOBAL_ERR);
 
 	return sprintf(buf, "0x%llx\n",
 		       (unsigned long long)readq(base + RAS_CATFAT_ERROR));
@@ -160,7 +162,7 @@ static ssize_t inject_errors_show(struct device *dev,
 	void __iomem *base;
 	u64 v;
 
-	base = dfl_get_feature_ioaddr_by_id(dev, FME_FEATURE_ID_GLOBAL_ERR);
+	base = dfl_get_feature_ioaddr_by_id(pdata, FME_FEATURE_ID_GLOBAL_ERR);
 
 	mutex_lock(&pdata->lock);
 	v = readq(base + RAS_ERROR_INJECT);
@@ -185,7 +187,7 @@ static ssize_t inject_errors_store(struct device *dev,
 	if (inject_error & ~INJECT_ERROR_MASK)
 		return -EINVAL;
 
-	base = dfl_get_feature_ioaddr_by_id(dev, FME_FEATURE_ID_GLOBAL_ERR);
+	base = dfl_get_feature_ioaddr_by_id(pdata, FME_FEATURE_ID_GLOBAL_ERR);
 
 	mutex_lock(&pdata->lock);
 	v = readq(base + RAS_ERROR_INJECT);
@@ -205,7 +207,7 @@ static ssize_t fme_errors_show(struct device *dev,
 	void __iomem *base;
 	u64 value;
 
-	base = dfl_get_feature_ioaddr_by_id(dev, FME_FEATURE_ID_GLOBAL_ERR);
+	base = dfl_get_feature_ioaddr_by_id(pdata, FME_FEATURE_ID_GLOBAL_ERR);
 
 	mutex_lock(&pdata->lock);
 	value = readq(base + FME_ERROR);
@@ -226,7 +228,7 @@ static ssize_t fme_errors_store(struct device *dev,
 	if (kstrtou64(buf, 0, &val))
 		return -EINVAL;
 
-	base = dfl_get_feature_ioaddr_by_id(dev, FME_FEATURE_ID_GLOBAL_ERR);
+	base = dfl_get_feature_ioaddr_by_id(pdata, FME_FEATURE_ID_GLOBAL_ERR);
 
 	mutex_lock(&pdata->lock);
 	writeq(GENMASK_ULL(63, 0), base + FME_ERROR_MASK);
@@ -252,7 +254,7 @@ static ssize_t first_error_show(struct device *dev,
 	void __iomem *base;
 	u64 value;
 
-	base = dfl_get_feature_ioaddr_by_id(dev, FME_FEATURE_ID_GLOBAL_ERR);
+	base = dfl_get_feature_ioaddr_by_id(pdata, FME_FEATURE_ID_GLOBAL_ERR);
 
 	mutex_lock(&pdata->lock);
 	value = readq(base + FME_FIRST_ERROR);
@@ -269,7 +271,7 @@ static ssize_t next_error_show(struct device *dev,
 	void __iomem *base;
 	u64 value;
 
-	base = dfl_get_feature_ioaddr_by_id(dev, FME_FEATURE_ID_GLOBAL_ERR);
+	base = dfl_get_feature_ioaddr_by_id(pdata, FME_FEATURE_ID_GLOBAL_ERR);
 
 	mutex_lock(&pdata->lock);
 	value = readq(base + FME_NEXT_ERROR);
@@ -294,13 +296,15 @@ static struct attribute *fme_global_err_attrs[] = {
 static umode_t fme_global_err_attrs_visible(struct kobject *kobj,
 					    struct attribute *attr, int n)
 {
+	struct dfl_feature_platform_data *pdata;
 	struct device *dev = kobj_to_dev(kobj);
 
+	pdata = dev_get_platdata(dev);
 	/*
 	 * sysfs entries are visible only if related private feature is
 	 * enumerated.
 	 */
-	if (!dfl_get_feature_by_id(dev, FME_FEATURE_ID_GLOBAL_ERR))
+	if (!dfl_get_feature_by_id(pdata, FME_FEATURE_ID_GLOBAL_ERR))
 		return 0;
 
 	return attr->mode;
@@ -317,7 +321,7 @@ static void fme_err_mask(struct device *dev, bool mask)
 	struct dfl_feature_platform_data *pdata = dev_get_platdata(dev);
 	void __iomem *base;
 
-	base = dfl_get_feature_ioaddr_by_id(dev, FME_FEATURE_ID_GLOBAL_ERR);
+	base = dfl_get_feature_ioaddr_by_id(pdata, FME_FEATURE_ID_GLOBAL_ERR);
 
 	mutex_lock(&pdata->lock);
 

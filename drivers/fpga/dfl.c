@@ -156,12 +156,12 @@ static LIST_HEAD(dfl_port_ops_list);
 
 /**
  * dfl_fpga_port_ops_get - get matched port ops from the global list
- * @pdev: platform device to match with associated port ops.
+ * @pdata: platform data to match with associated port ops.
  * Return: matched port ops on success, NULL otherwise.
  *
  * Please note that must dfl_fpga_port_ops_put after use the port_ops.
  */
-struct dfl_fpga_port_ops *dfl_fpga_port_ops_get(struct platform_device *pdev)
+struct dfl_fpga_port_ops *dfl_fpga_port_ops_get(struct dfl_feature_platform_data *pdata)
 {
 	struct dfl_fpga_port_ops *ops = NULL;
 
@@ -171,7 +171,7 @@ struct dfl_fpga_port_ops *dfl_fpga_port_ops_get(struct platform_device *pdev)
 
 	list_for_each_entry(ops, &dfl_port_ops_list, node) {
 		/* match port_ops using the name of platform device */
-		if (!strcmp(pdev->name, ops->name)) {
+		if (!strcmp(pdata->dev->name, ops->name)) {
 			if (!try_module_get(ops->owner))
 				ops = NULL;
 			goto done;
@@ -222,24 +222,23 @@ EXPORT_SYMBOL_GPL(dfl_fpga_port_ops_del);
 
 /**
  * dfl_fpga_check_port_id - check the port id
- * @pdev: port platform device.
+ * @pdata: port platform data.
  * @pport_id: port id to compare.
  *
  * Return: 1 if port device matches with given port id, otherwise 0.
  */
-int dfl_fpga_check_port_id(struct platform_device *pdev, void *pport_id)
+int dfl_fpga_check_port_id(struct dfl_feature_platform_data *pdata, void *pport_id)
 {
-	struct dfl_feature_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	struct dfl_fpga_port_ops *port_ops;
 
 	if (pdata->id != FEATURE_DEV_ID_UNUSED)
 		return pdata->id == *(int *)pport_id;
 
-	port_ops = dfl_fpga_port_ops_get(pdev);
+	port_ops = dfl_fpga_port_ops_get(pdata);
 	if (!port_ops || !port_ops->get_id)
 		return 0;
 
-	pdata->id = port_ops->get_id(pdev);
+	pdata->id = port_ops->get_id(pdata);
 	dfl_fpga_port_ops_put(port_ops);
 
 	return pdata->id == *(int *)pport_id;
@@ -741,11 +740,9 @@ struct dfl_feature_info {
 	u64 params[];
 };
 
-static void dfl_fpga_cdev_add_port_dev(struct dfl_fpga_cdev *cdev,
-				       struct platform_device *port)
+static void dfl_fpga_cdev_add_port_data(struct dfl_fpga_cdev *cdev,
+					struct dfl_feature_platform_data *pdata)
 {
-	struct dfl_feature_platform_data *pdata = dev_get_platdata(&port->dev);
-
 	mutex_lock(&cdev->lock);
 	list_add(&pdata->node, &cdev->port_dev_list);
 	get_device(&pdata->dev->dev);
@@ -865,8 +862,8 @@ static int build_info_commit_dev(struct build_feature_devs_info *binfo)
 	ret = platform_device_add(binfo->feature_dev);
 	if (!ret) {
 		if (type == PORT_ID)
-			dfl_fpga_cdev_add_port_dev(binfo->cdev,
-						   binfo->feature_dev);
+			dfl_fpga_cdev_add_port_data(binfo->cdev,
+						    pdata);
 		else
 			binfo->cdev->fme_dev =
 					get_device(&binfo->feature_dev->dev);
@@ -1641,7 +1638,7 @@ void dfl_fpga_feature_devs_remove(struct dfl_fpga_cdev *cdev)
 EXPORT_SYMBOL_GPL(dfl_fpga_feature_devs_remove);
 
 /**
- * __dfl_fpga_cdev_find_port - find a port under given container device
+ * __dfl_fpga_cdev_find_port_data - find a port under given container device
  *
  * @cdev: container device
  * @data: data passed to match function
@@ -1654,23 +1651,20 @@ EXPORT_SYMBOL_GPL(dfl_fpga_feature_devs_remove);
  *
  * NOTE: you will need to drop the device reference with put_device() after use.
  */
-struct platform_device *
-__dfl_fpga_cdev_find_port(struct dfl_fpga_cdev *cdev, void *data,
-			  int (*match)(struct platform_device *, void *))
+struct dfl_feature_platform_data *
+__dfl_fpga_cdev_find_port_data(struct dfl_fpga_cdev *cdev, void *data,
+			       int (*match)(struct dfl_feature_platform_data *, void *))
 {
 	struct dfl_feature_platform_data *pdata;
-	struct platform_device *port_dev;
 
 	list_for_each_entry(pdata, &cdev->port_dev_list, node) {
-		port_dev = pdata->dev;
-
-		if (match(port_dev, data) && get_device(&port_dev->dev))
-			return port_dev;
+		if (match(pdata, data) && get_device(&pdata->dev->dev))
+			return pdata;
 	}
 
 	return NULL;
 }
-EXPORT_SYMBOL_GPL(__dfl_fpga_cdev_find_port);
+EXPORT_SYMBOL_GPL(__dfl_fpga_cdev_find_port_data);
 
 static int __init dfl_fpga_init(void)
 {
@@ -1705,21 +1699,18 @@ static int __init dfl_fpga_init(void)
 int dfl_fpga_cdev_release_port(struct dfl_fpga_cdev *cdev, int port_id)
 {
 	struct dfl_feature_platform_data *pdata;
-	struct platform_device *port_pdev;
 	int ret = -ENODEV;
 
 	mutex_lock(&cdev->lock);
-	port_pdev = __dfl_fpga_cdev_find_port(cdev, &port_id,
-					      dfl_fpga_check_port_id);
-	if (!port_pdev)
+	pdata = __dfl_fpga_cdev_find_port_data(cdev, &port_id,
+					       dfl_fpga_check_port_id);
+	if (!pdata)
 		goto unlock_exit;
 
-	if (!device_is_registered(&port_pdev->dev)) {
+	if (!device_is_registered(&pdata->dev->dev)) {
 		ret = -EBUSY;
 		goto put_dev_exit;
 	}
-
-	pdata = dev_get_platdata(&port_pdev->dev);
 
 	mutex_lock(&pdata->lock);
 	ret = dfl_feature_dev_use_begin(pdata, true);
@@ -1727,10 +1718,10 @@ int dfl_fpga_cdev_release_port(struct dfl_fpga_cdev *cdev, int port_id)
 	if (ret)
 		goto put_dev_exit;
 
-	platform_device_del(port_pdev);
+	platform_device_del(pdata->dev);
 	cdev->released_port_num++;
 put_dev_exit:
-	put_device(&port_pdev->dev);
+	put_device(&pdata->dev->dev);
 unlock_exit:
 	mutex_unlock(&cdev->lock);
 	return ret;
@@ -1751,25 +1742,22 @@ EXPORT_SYMBOL_GPL(dfl_fpga_cdev_release_port);
 int dfl_fpga_cdev_assign_port(struct dfl_fpga_cdev *cdev, int port_id)
 {
 	struct dfl_feature_platform_data *pdata;
-	struct platform_device *port_pdev;
 	int ret = -ENODEV;
 
 	mutex_lock(&cdev->lock);
-	port_pdev = __dfl_fpga_cdev_find_port(cdev, &port_id,
-					      dfl_fpga_check_port_id);
-	if (!port_pdev)
+	pdata = __dfl_fpga_cdev_find_port_data(cdev, &port_id,
+					       dfl_fpga_check_port_id);
+	if (!pdata)
 		goto unlock_exit;
 
-	if (device_is_registered(&port_pdev->dev)) {
+	if (device_is_registered(&pdata->dev->dev)) {
 		ret = -EBUSY;
 		goto put_dev_exit;
 	}
 
-	ret = platform_device_add(port_pdev);
+	ret = platform_device_add(pdata->dev);
 	if (ret)
 		goto put_dev_exit;
-
-	pdata = dev_get_platdata(&port_pdev->dev);
 
 	mutex_lock(&pdata->lock);
 	dfl_feature_dev_use_end(pdata);
@@ -1777,7 +1765,7 @@ int dfl_fpga_cdev_assign_port(struct dfl_fpga_cdev *cdev, int port_id)
 
 	cdev->released_port_num--;
 put_dev_exit:
-	put_device(&port_pdev->dev);
+	put_device(&pdata->dev->dev);
 unlock_exit:
 	mutex_unlock(&cdev->lock);
 	return ret;
@@ -1787,10 +1775,11 @@ EXPORT_SYMBOL_GPL(dfl_fpga_cdev_assign_port);
 static void config_port_access_mode(struct device *fme_dev, int port_id,
 				    bool is_vf)
 {
+	struct dfl_feature_platform_data *pdata = dev_get_platdata(fme_dev);
 	void __iomem *base;
 	u64 v;
 
-	base = dfl_get_feature_ioaddr_by_id(fme_dev, FME_FEATURE_ID_HEADER);
+	base = dfl_get_feature_ioaddr_by_id(pdata, FME_FEATURE_ID_HEADER);
 
 	v = readq(base + FME_HDR_PORT_OFST(port_id));
 

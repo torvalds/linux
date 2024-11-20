@@ -26,7 +26,7 @@
 
 /**
  * __afu_port_enable - enable a port by clear reset
- * @pdev: port platform device.
+ * @pdata: feature device platform data
  *
  * Enable Port by clear the port soft reset bit, which is set by default.
  * The AFU is unable to respond to any MMIO access while in reset.
@@ -35,9 +35,8 @@
  *
  * The caller needs to hold lock for protection.
  */
-int __afu_port_enable(struct platform_device *pdev)
+int __afu_port_enable(struct dfl_feature_platform_data *pdata)
 {
-	struct dfl_feature_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	void __iomem *base;
 	u64 v;
 
@@ -46,7 +45,7 @@ int __afu_port_enable(struct platform_device *pdev)
 	if (--pdata->disable_count != 0)
 		return 0;
 
-	base = dfl_get_feature_ioaddr_by_id(&pdev->dev, PORT_FEATURE_ID_HEADER);
+	base = dfl_get_feature_ioaddr_by_id(pdata, PORT_FEATURE_ID_HEADER);
 
 	/* Clear port soft reset */
 	v = readq(base + PORT_HDR_CTRL);
@@ -70,22 +69,21 @@ int __afu_port_enable(struct platform_device *pdev)
 
 /**
  * __afu_port_disable - disable a port by hold reset
- * @pdev: port platform device.
+ * @pdata: feature device platform data
  *
  * Disable Port by setting the port soft reset bit, it puts the port into reset.
  *
  * The caller needs to hold lock for protection.
  */
-int __afu_port_disable(struct platform_device *pdev)
+int __afu_port_disable(struct dfl_feature_platform_data *pdata)
 {
-	struct dfl_feature_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	void __iomem *base;
 	u64 v;
 
 	if (pdata->disable_count++ != 0)
 		return 0;
 
-	base = dfl_get_feature_ioaddr_by_id(&pdev->dev, PORT_FEATURE_ID_HEADER);
+	base = dfl_get_feature_ioaddr_by_id(pdata, PORT_FEATURE_ID_HEADER);
 
 	/* Set port soft reset */
 	v = readq(base + PORT_HDR_CTRL);
@@ -120,15 +118,15 @@ int __afu_port_disable(struct platform_device *pdev)
  * (disabled). Any attempts on MMIO access to AFU while in reset, will
  * result errors reported via port error reporting sub feature (if present).
  */
-static int __port_reset(struct platform_device *pdev)
+static int __port_reset(struct dfl_feature_platform_data *pdata)
 {
 	int ret;
 
-	ret = __afu_port_disable(pdev);
+	ret = __afu_port_disable(pdata);
 	if (ret)
 		return ret;
 
-	return __afu_port_enable(pdev);
+	return __afu_port_enable(pdata);
 }
 
 static int port_reset(struct platform_device *pdev)
@@ -137,17 +135,17 @@ static int port_reset(struct platform_device *pdev)
 	int ret;
 
 	mutex_lock(&pdata->lock);
-	ret = __port_reset(pdev);
+	ret = __port_reset(pdata);
 	mutex_unlock(&pdata->lock);
 
 	return ret;
 }
 
-static int port_get_id(struct platform_device *pdev)
+static int port_get_id(struct dfl_feature_platform_data *pdata)
 {
 	void __iomem *base;
 
-	base = dfl_get_feature_ioaddr_by_id(&pdev->dev, PORT_FEATURE_ID_HEADER);
+	base = dfl_get_feature_ioaddr_by_id(pdata, PORT_FEATURE_ID_HEADER);
 
 	return FIELD_GET(PORT_CAP_PORT_NUM, readq(base + PORT_HDR_CAP));
 }
@@ -155,7 +153,8 @@ static int port_get_id(struct platform_device *pdev)
 static ssize_t
 id_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
-	int id = port_get_id(to_platform_device(dev));
+	struct dfl_feature_platform_data *pdata = dev_get_platdata(dev);
+	int id = port_get_id(pdata);
 
 	return scnprintf(buf, PAGE_SIZE, "%d\n", id);
 }
@@ -168,7 +167,7 @@ ltr_show(struct device *dev, struct device_attribute *attr, char *buf)
 	void __iomem *base;
 	u64 v;
 
-	base = dfl_get_feature_ioaddr_by_id(dev, PORT_FEATURE_ID_HEADER);
+	base = dfl_get_feature_ioaddr_by_id(pdata, PORT_FEATURE_ID_HEADER);
 
 	mutex_lock(&pdata->lock);
 	v = readq(base + PORT_HDR_CTRL);
@@ -189,7 +188,7 @@ ltr_store(struct device *dev, struct device_attribute *attr,
 	if (kstrtobool(buf, &ltr))
 		return -EINVAL;
 
-	base = dfl_get_feature_ioaddr_by_id(dev, PORT_FEATURE_ID_HEADER);
+	base = dfl_get_feature_ioaddr_by_id(pdata, PORT_FEATURE_ID_HEADER);
 
 	mutex_lock(&pdata->lock);
 	v = readq(base + PORT_HDR_CTRL);
@@ -209,7 +208,7 @@ ap1_event_show(struct device *dev, struct device_attribute *attr, char *buf)
 	void __iomem *base;
 	u64 v;
 
-	base = dfl_get_feature_ioaddr_by_id(dev, PORT_FEATURE_ID_HEADER);
+	base = dfl_get_feature_ioaddr_by_id(pdata, PORT_FEATURE_ID_HEADER);
 
 	mutex_lock(&pdata->lock);
 	v = readq(base + PORT_HDR_STS);
@@ -229,7 +228,7 @@ ap1_event_store(struct device *dev, struct device_attribute *attr,
 	if (kstrtobool(buf, &clear) || !clear)
 		return -EINVAL;
 
-	base = dfl_get_feature_ioaddr_by_id(dev, PORT_FEATURE_ID_HEADER);
+	base = dfl_get_feature_ioaddr_by_id(pdata, PORT_FEATURE_ID_HEADER);
 
 	mutex_lock(&pdata->lock);
 	writeq(PORT_STS_AP1_EVT, base + PORT_HDR_STS);
@@ -247,7 +246,7 @@ ap2_event_show(struct device *dev, struct device_attribute *attr,
 	void __iomem *base;
 	u64 v;
 
-	base = dfl_get_feature_ioaddr_by_id(dev, PORT_FEATURE_ID_HEADER);
+	base = dfl_get_feature_ioaddr_by_id(pdata, PORT_FEATURE_ID_HEADER);
 
 	mutex_lock(&pdata->lock);
 	v = readq(base + PORT_HDR_STS);
@@ -267,7 +266,7 @@ ap2_event_store(struct device *dev, struct device_attribute *attr,
 	if (kstrtobool(buf, &clear) || !clear)
 		return -EINVAL;
 
-	base = dfl_get_feature_ioaddr_by_id(dev, PORT_FEATURE_ID_HEADER);
+	base = dfl_get_feature_ioaddr_by_id(pdata, PORT_FEATURE_ID_HEADER);
 
 	mutex_lock(&pdata->lock);
 	writeq(PORT_STS_AP2_EVT, base + PORT_HDR_STS);
@@ -284,7 +283,7 @@ power_state_show(struct device *dev, struct device_attribute *attr, char *buf)
 	void __iomem *base;
 	u64 v;
 
-	base = dfl_get_feature_ioaddr_by_id(dev, PORT_FEATURE_ID_HEADER);
+	base = dfl_get_feature_ioaddr_by_id(pdata, PORT_FEATURE_ID_HEADER);
 
 	mutex_lock(&pdata->lock);
 	v = readq(base + PORT_HDR_STS);
@@ -305,7 +304,7 @@ userclk_freqcmd_store(struct device *dev, struct device_attribute *attr,
 	if (kstrtou64(buf, 0, &userclk_freq_cmd))
 		return -EINVAL;
 
-	base = dfl_get_feature_ioaddr_by_id(dev, PORT_FEATURE_ID_HEADER);
+	base = dfl_get_feature_ioaddr_by_id(pdata, PORT_FEATURE_ID_HEADER);
 
 	mutex_lock(&pdata->lock);
 	writeq(userclk_freq_cmd, base + PORT_HDR_USRCLK_CMD0);
@@ -326,7 +325,7 @@ userclk_freqcntrcmd_store(struct device *dev, struct device_attribute *attr,
 	if (kstrtou64(buf, 0, &userclk_freqcntr_cmd))
 		return -EINVAL;
 
-	base = dfl_get_feature_ioaddr_by_id(dev, PORT_FEATURE_ID_HEADER);
+	base = dfl_get_feature_ioaddr_by_id(pdata, PORT_FEATURE_ID_HEADER);
 
 	mutex_lock(&pdata->lock);
 	writeq(userclk_freqcntr_cmd, base + PORT_HDR_USRCLK_CMD1);
@@ -344,7 +343,7 @@ userclk_freqsts_show(struct device *dev, struct device_attribute *attr,
 	u64 userclk_freqsts;
 	void __iomem *base;
 
-	base = dfl_get_feature_ioaddr_by_id(dev, PORT_FEATURE_ID_HEADER);
+	base = dfl_get_feature_ioaddr_by_id(pdata, PORT_FEATURE_ID_HEADER);
 
 	mutex_lock(&pdata->lock);
 	userclk_freqsts = readq(base + PORT_HDR_USRCLK_STS0);
@@ -362,7 +361,7 @@ userclk_freqcntrsts_show(struct device *dev, struct device_attribute *attr,
 	u64 userclk_freqcntrsts;
 	void __iomem *base;
 
-	base = dfl_get_feature_ioaddr_by_id(dev, PORT_FEATURE_ID_HEADER);
+	base = dfl_get_feature_ioaddr_by_id(pdata, PORT_FEATURE_ID_HEADER);
 
 	mutex_lock(&pdata->lock);
 	userclk_freqcntrsts = readq(base + PORT_HDR_USRCLK_STS1);
@@ -389,11 +388,13 @@ static struct attribute *port_hdr_attrs[] = {
 static umode_t port_hdr_attrs_visible(struct kobject *kobj,
 				      struct attribute *attr, int n)
 {
+	struct dfl_feature_platform_data *pdata;
 	struct device *dev = kobj_to_dev(kobj);
 	umode_t mode = attr->mode;
 	void __iomem *base;
 
-	base = dfl_get_feature_ioaddr_by_id(dev, PORT_FEATURE_ID_HEADER);
+	pdata = dev_get_platdata(dev);
+	base = dfl_get_feature_ioaddr_by_id(pdata, PORT_FEATURE_ID_HEADER);
 
 	if (dfl_feature_revision(base) > 0) {
 		/*
@@ -462,7 +463,7 @@ afu_id_show(struct device *dev, struct device_attribute *attr, char *buf)
 	void __iomem *base;
 	u64 guidl, guidh;
 
-	base = dfl_get_feature_ioaddr_by_id(dev, PORT_FEATURE_ID_AFU);
+	base = dfl_get_feature_ioaddr_by_id(pdata, PORT_FEATURE_ID_AFU);
 
 	mutex_lock(&pdata->lock);
 	if (pdata->disable_count) {
@@ -486,13 +487,15 @@ static struct attribute *port_afu_attrs[] = {
 static umode_t port_afu_attrs_visible(struct kobject *kobj,
 				      struct attribute *attr, int n)
 {
+	struct dfl_feature_platform_data *pdata;
 	struct device *dev = kobj_to_dev(kobj);
 
+	pdata = dev_get_platdata(dev);
 	/*
 	 * sysfs entries are visible only if related private feature is
 	 * enumerated.
 	 */
-	if (!dfl_get_feature_by_id(dev, PORT_FEATURE_ID_AFU))
+	if (!dfl_get_feature_by_id(pdata, PORT_FEATURE_ID_AFU))
 		return 0;
 
 	return attr->mode;
@@ -506,9 +509,10 @@ static const struct attribute_group port_afu_group = {
 static int port_afu_init(struct platform_device *pdev,
 			 struct dfl_feature *feature)
 {
+	struct dfl_feature_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	struct resource *res = &pdev->resource[feature->resource_index];
 
-	return afu_mmio_region_add(dev_get_platdata(&pdev->dev),
+	return afu_mmio_region_add(pdata,
 				   DFL_PORT_REGION_INDEX_AFU,
 				   resource_size(res), res->start,
 				   DFL_PORT_REGION_MMAP | DFL_PORT_REGION_READ |
@@ -527,9 +531,10 @@ static const struct dfl_feature_ops port_afu_ops = {
 static int port_stp_init(struct platform_device *pdev,
 			 struct dfl_feature *feature)
 {
+	struct dfl_feature_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	struct resource *res = &pdev->resource[feature->resource_index];
 
-	return afu_mmio_region_add(dev_get_platdata(&pdev->dev),
+	return afu_mmio_region_add(pdata,
 				   DFL_PORT_REGION_INDEX_STP,
 				   resource_size(res), res->start,
 				   DFL_PORT_REGION_MMAP | DFL_PORT_REGION_READ |
@@ -630,7 +635,7 @@ static int afu_release(struct inode *inode, struct file *filp)
 		dfl_fpga_dev_for_each_feature(pdata, feature)
 			dfl_fpga_set_irq_triggers(feature, 0,
 						  feature->nr_irqs, NULL);
-		__port_reset(pdev);
+		__port_reset(pdata);
 		afu_dma_region_destroy(pdata);
 	}
 	mutex_unlock(&pdata->lock);
@@ -878,16 +883,15 @@ static int afu_dev_destroy(struct platform_device *pdev)
 	return 0;
 }
 
-static int port_enable_set(struct platform_device *pdev, bool enable)
+static int port_enable_set(struct dfl_feature_platform_data *pdata, bool enable)
 {
-	struct dfl_feature_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	int ret;
 
 	mutex_lock(&pdata->lock);
 	if (enable)
-		ret = __afu_port_enable(pdev);
+		ret = __afu_port_enable(pdata);
 	else
-		ret = __afu_port_disable(pdev);
+		ret = __afu_port_disable(pdata);
 	mutex_unlock(&pdata->lock);
 
 	return ret;
