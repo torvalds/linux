@@ -858,16 +858,6 @@ binfo_create_feature_dev_data(struct build_feature_devs_info *binfo)
 	return fdata;
 }
 
-static int
-build_info_create_dev(struct build_feature_devs_info *binfo)
-{
-	binfo->feature_num = 0;
-
-	INIT_LIST_HEAD(&binfo->sub_features);
-
-	return 0;
-}
-
 /*
  * register current feature device, it is called when we need to switch to
  * another feature parsing or we have parsed all features on given device
@@ -1326,11 +1316,8 @@ static int parse_feature_fiu(struct build_feature_devs_info *binfo,
 		return -EINVAL;
 
 	binfo->type = type;
-
-	/* create platform device for dfl feature dev */
-	ret = build_info_create_dev(binfo);
-	if (ret)
-		return ret;
+	binfo->feature_num = 0;
+	INIT_LIST_HEAD(&binfo->sub_features);
 
 	ret = create_feature_instance(binfo, 0, 0, 0);
 	if (ret)
