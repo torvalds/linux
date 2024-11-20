@@ -8,11 +8,12 @@
 #ifndef __INTEL_DISPLAY_CONVERSION__
 #define __INTEL_DISPLAY_CONVERSION__
 
+struct drm_device;
 struct drm_i915_private;
 struct intel_display;
 
 struct intel_display *__i915_to_display(struct drm_i915_private *i915);
-
+struct intel_display *__drm_to_display(struct drm_device *drm);
 /*
  * Transitional macro to optionally convert struct drm_i915_private * to struct
  * intel_display *, also accepting the latter.
