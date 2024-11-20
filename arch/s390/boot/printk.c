@@ -80,6 +80,13 @@ static noinline char *strsym(void *ip)
 	return buf;
 }
 
+#define va_arg_len_type(args, lenmod, typemod)				\
+	((lenmod == 'l') ? va_arg(args, typemod long) :			\
+	 (lenmod == 'h') ? (typemod short)va_arg(args, typemod int) :	\
+	 (lenmod == 'H') ? (typemod char)va_arg(args, typemod int) :	\
+	 (lenmod == 'z') ? va_arg(args, typemod long) :			\
+			   va_arg(args, typemod int))
+
 void boot_printk(const char *fmt, ...)
 {
 	char buf[1024] = { 0 };
@@ -87,6 +94,7 @@ void boot_printk(const char *fmt, ...)
 	unsigned long pad;
 	char *p = buf;
 	va_list args;
+	char lenmod;
 
 	va_start(args, fmt);
 	for (; p < end && *fmt; fmt++) {
@@ -99,24 +107,26 @@ void boot_printk(const char *fmt, ...)
 			continue;
 		}
 		pad = isdigit(*fmt) ? simple_strtol(fmt, (char **)&fmt, 10) : 0;
+		lenmod = (*fmt == 'h' || *fmt == 'l' || *fmt == 'z') ? *fmt++ : 0;
+		if (lenmod == 'h' && *fmt == 'h') {
+			lenmod = 'H';
+			fmt++;
+		}
 		switch (*fmt) {
 		case 's':
+			if (lenmod)
+				goto out;
 			p = buf + strlcat(buf, va_arg(args, char *), sizeof(buf));
 			break;
 		case 'p':
-			if (*++fmt != 'S')
+			if (*++fmt != 'S' || lenmod)
 				goto out;
 			p = buf + strlcat(buf, strsym(va_arg(args, void *)), sizeof(buf));
 			break;
-		case 'l':
-			if (*++fmt != 'x' || end - p <= max(sizeof(long) * 2, pad))
-				goto out;
-			p = as_hex(p, va_arg(args, unsigned long), pad);
-			break;
 		case 'x':
-			if (end - p <= max(sizeof(int) * 2, pad))
+			if (end - p <= max(sizeof(long) * 2, pad))
 				goto out;
-			p = as_hex(p, va_arg(args, unsigned int), pad);
+			p = as_hex(p, va_arg_len_type(args, lenmod, unsigned), pad);
 			break;
 		default:
 			goto out;
