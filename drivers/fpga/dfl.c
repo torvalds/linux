@@ -119,17 +119,6 @@ static void dfl_id_free(enum dfl_id_type type, int id)
 	mutex_unlock(&dfl_id_mutex);
 }
 
-static enum dfl_id_type feature_dev_id_type(struct platform_device *pdev)
-{
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(dfl_devs); i++)
-		if (!strcmp(dfl_devs[i].name, pdev->name))
-			return i;
-
-	return DFL_ID_MAX;
-}
-
 static enum dfl_id_type dfh_id_to_type(u16 id)
 {
 	int i;
@@ -379,7 +368,7 @@ dfl_dev_add(struct dfl_feature_platform_data *pdata,
 	if (ret)
 		goto put_dev;
 
-	ddev->type = feature_dev_id_type(pdev);
+	ddev->type = pdata->type;
 	ddev->feature_id = feature->id;
 	ddev->revision = feature->revision;
 	ddev->dfh_version = feature->dfh_version;
@@ -693,6 +682,7 @@ EXPORT_SYMBOL_GPL(dfl_fpga_dev_ops_unregister);
  * @irq_table: Linux IRQ numbers for all irqs, indexed by local irq index of
  *	       this device.
  * @feature_dev: current feature device.
+ * @type: the current FIU type.
  * @ioaddr: header register region address of current FIU in enumeration.
  * @start: register resource start of current FIU.
  * @len: max register resource length of current FIU.
@@ -706,6 +696,7 @@ struct build_feature_devs_info {
 	int *irq_table;
 
 	struct platform_device *feature_dev;
+	enum dfl_id_type type;
 	void __iomem *ioaddr;
 	resource_size_t start;
 	resource_size_t len;
@@ -754,11 +745,10 @@ binfo_create_feature_dev_data(struct build_feature_devs_info *binfo)
 {
 	struct platform_device *fdev = binfo->feature_dev;
 	struct dfl_feature_platform_data *pdata;
+	enum dfl_id_type type = binfo->type;
 	struct dfl_feature_info *finfo, *p;
-	enum dfl_id_type type;
 	int index = 0, res_idx = 0;
 
-	type = feature_dev_id_type(fdev);
 	if (WARN_ON_ONCE(type >= DFL_ID_MAX))
 		return ERR_PTR(-EINVAL);
 
@@ -773,6 +763,7 @@ binfo_create_feature_dev_data(struct build_feature_devs_info *binfo)
 		return ERR_PTR(-ENOMEM);
 
 	pdata->dev = fdev;
+	pdata->type = type;
 	pdata->num = binfo->feature_num;
 	pdata->dfl_cdev = binfo->cdev;
 	pdata->id = FEATURE_DEV_ID_UNUSED;
@@ -859,13 +850,10 @@ binfo_create_feature_dev_data(struct build_feature_devs_info *binfo)
 }
 
 static int
-build_info_create_dev(struct build_feature_devs_info *binfo,
-		      enum dfl_id_type type)
+build_info_create_dev(struct build_feature_devs_info *binfo)
 {
+	enum dfl_id_type type = binfo->type;
 	struct platform_device *fdev;
-
-	if (type >= DFL_ID_MAX)
-		return -EINVAL;
 
 	/*
 	 * we use -ENODEV as the initialization indicator which indicates
@@ -903,7 +891,7 @@ static int build_info_commit_dev(struct build_feature_devs_info *binfo)
 	if (ret)
 		return ret;
 
-	if (feature_dev_id_type(binfo->feature_dev) == PORT_ID)
+	if (binfo->type == PORT_ID)
 		dfl_fpga_cdev_add_port_data(binfo->cdev, pdata);
 	else
 		binfo->cdev->fme_dev = get_device(&binfo->feature_dev->dev);
@@ -917,6 +905,9 @@ static int build_info_commit_dev(struct build_feature_devs_info *binfo)
 	 */
 	binfo->feature_dev = NULL;
 
+	/* reset the binfo for next FIU */
+	binfo->type = DFL_ID_MAX;
+
 	return 0;
 }
 
@@ -929,8 +920,7 @@ static void build_info_free(struct build_feature_devs_info *binfo)
 	 * build_info_create_dev()
 	 */
 	if (binfo->feature_dev && binfo->feature_dev->id >= 0) {
-		dfl_id_free(feature_dev_id_type(binfo->feature_dev),
-			    binfo->feature_dev->id);
+		dfl_id_free(binfo->type, binfo->feature_dev->id);
 
 		list_for_each_entry_safe(finfo, p, &binfo->sub_features, node) {
 			list_del(&finfo->node);
@@ -1028,7 +1018,7 @@ static int parse_feature_irqs(struct build_feature_devs_info *binfo,
 		 * Instead, features with interrupt functionality provide
 		 * the information in feature specific registers.
 		 */
-		type = feature_dev_id_type(binfo->feature_dev);
+		type = binfo->type;
 		if (type == PORT_ID) {
 			switch (fid) {
 			case PORT_FEATURE_ID_UINT:
@@ -1230,7 +1220,7 @@ static int parse_feature_afu(struct build_feature_devs_info *binfo,
 		return -EINVAL;
 	}
 
-	switch (feature_dev_id_type(binfo->feature_dev)) {
+	switch (binfo->type) {
 	case PORT_ID:
 		return parse_feature_port_afu(binfo, ofst);
 	default:
@@ -1276,6 +1266,7 @@ static void build_info_complete(struct build_feature_devs_info *binfo)
 static int parse_feature_fiu(struct build_feature_devs_info *binfo,
 			     resource_size_t ofst)
 {
+	enum dfl_id_type type;
 	int ret = 0;
 	u32 offset;
 	u16 id;
@@ -1297,8 +1288,14 @@ static int parse_feature_fiu(struct build_feature_devs_info *binfo,
 	v = readq(binfo->ioaddr + DFH);
 	id = FIELD_GET(DFH_ID, v);
 
+	type = dfh_id_to_type(id);
+	if (type >= DFL_ID_MAX)
+		return -EINVAL;
+
+	binfo->type = type;
+
 	/* create platform device for dfl feature dev */
-	ret = build_info_create_dev(binfo, dfh_id_to_type(id));
+	ret = build_info_create_dev(binfo);
 	if (ret)
 		return ret;
 
@@ -1518,13 +1515,13 @@ EXPORT_SYMBOL_GPL(dfl_fpga_enum_info_add_irq);
 
 static int remove_feature_dev(struct device *dev, void *data)
 {
+	struct dfl_feature_platform_data *pdata = dev_get_platdata(dev);
 	struct platform_device *pdev = to_platform_device(dev);
-	enum dfl_id_type type = feature_dev_id_type(pdev);
 	int id = pdev->id;
 
 	platform_device_unregister(pdev);
 
-	dfl_id_free(type, id);
+	dfl_id_free(pdata->type, id);
 
 	return 0;
 }
@@ -1576,6 +1573,7 @@ dfl_fpga_feature_devs_enumerate(struct dfl_fpga_enum_info *info)
 		goto unregister_region_exit;
 	}
 
+	binfo->type = DFL_ID_MAX;
 	binfo->dev = info->dev;
 	binfo->cdev = cdev;
 
@@ -1628,8 +1626,7 @@ void dfl_fpga_feature_devs_remove(struct dfl_fpga_cdev *cdev)
 
 		/* remove released ports */
 		if (!device_is_registered(&port_dev->dev)) {
-			dfl_id_free(feature_dev_id_type(port_dev),
-				    port_dev->id);
+			dfl_id_free(pdata->type, port_dev->id);
 			platform_device_put(port_dev);
 		}
 

@@ -17,6 +17,7 @@
 #include <linux/bitfield.h>
 #include <linux/cdev.h>
 #include <linux/delay.h>
+#include <linux/dfl.h>
 #include <linux/eventfd.h>
 #include <linux/fs.h>
 #include <linux/interrupt.h>
@@ -308,6 +309,7 @@ struct dfl_feature {
  * @lock: mutex to protect platform data.
  * @cdev: cdev of feature dev.
  * @dev: ptr to platform device linked with this platform data.
+ * @type: type of DFL FIU for the feature dev. See enum dfl_id_type.
  * @dfl_cdev: ptr to container device.
  * @id: id used for this feature device.
  * @disable_count: count for port disable.
@@ -322,6 +324,7 @@ struct dfl_feature_platform_data {
 	struct mutex lock;
 	struct cdev cdev;
 	struct platform_device *dev;
+	enum dfl_id_type type;
 	struct dfl_fpga_cdev *dfl_cdev;
 	int id;
 	unsigned int disable_count;
