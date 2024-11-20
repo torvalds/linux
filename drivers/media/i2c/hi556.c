@@ -644,7 +644,7 @@ struct hi556 {
 	/* Current mode */
 	const struct hi556_mode *cur_mode;
 
-	/* To serialize asynchronus callbacks */
+	/* To serialize asynchronous callbacks */
 	struct mutex mutex;
 
 	/* True if the device has been identified */

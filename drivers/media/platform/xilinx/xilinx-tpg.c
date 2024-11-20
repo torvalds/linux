@@ -912,7 +912,7 @@ static struct platform_driver xtpg_driver = {
 		.of_match_table	= xtpg_of_id_table,
 	},
 	.probe			= xtpg_probe,
-	.remove_new		= xtpg_remove,
+	.remove			= xtpg_remove,
 };
 
 module_platform_driver(xtpg_driver);
