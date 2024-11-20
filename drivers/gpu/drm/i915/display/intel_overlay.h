@@ -18,6 +18,7 @@ struct intel_overlay_snapshot;
 
 #ifdef I915
 void intel_overlay_setup(struct intel_display *display);
+bool intel_overlay_available(struct intel_display *display);
 void intel_overlay_cleanup(struct intel_display *display);
 int intel_overlay_switch_off(struct intel_overlay *overlay);
 int intel_overlay_put_image_ioctl(struct drm_device *dev, void *data,
@@ -28,6 +29,10 @@ void intel_overlay_reset(struct intel_display *display);
 #else
 static inline void intel_overlay_setup(struct intel_display *display)
 {
+}
+static inline bool intel_overlay_available(struct intel_display *display)
+{
+	return false;
 }
 static inline void intel_overlay_cleanup(struct intel_display *display)
 {

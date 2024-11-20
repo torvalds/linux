@@ -1438,6 +1438,11 @@ out_free:
 	kfree(overlay);
 }
 
+bool intel_overlay_available(struct intel_display *display)
+{
+	return display->overlay;
+}
+
 void intel_overlay_cleanup(struct intel_display *display)
 {
 	struct intel_overlay *overlay;
