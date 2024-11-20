@@ -60,7 +60,8 @@ int __afu_port_enable(struct platform_device *pdev)
 	if (readq_poll_timeout(base + PORT_HDR_CTRL, v,
 			       !(v & PORT_CTRL_SFTRST_ACK),
 			       RST_POLL_INVL, RST_POLL_TIMEOUT)) {
-		dev_err(&pdev->dev, "timeout, failure to enable device\n");
+		dev_err(pdata->dfl_cdev->parent,
+			"timeout, failure to enable device\n");
 		return -ETIMEDOUT;
 	}
 
@@ -99,7 +100,8 @@ int __afu_port_disable(struct platform_device *pdev)
 	if (readq_poll_timeout(base + PORT_HDR_CTRL, v,
 			       v & PORT_CTRL_SFTRST_ACK,
 			       RST_POLL_INVL, RST_POLL_TIMEOUT)) {
-		dev_err(&pdev->dev, "timeout, failure to disable device\n");
+		dev_err(pdata->dfl_cdev->parent,
+			"timeout, failure to disable device\n");
 		return -ETIMEDOUT;
 	}
 
