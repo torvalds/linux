@@ -2171,4 +2171,13 @@ enum nvme_pr_release_action {
 	NVME_PR_RELEASE_ACT_CLEAR		= 1,
 };
 
+enum nvme_pr_change_ptpl {
+	NVME_PR_CPTPL_NO_CHANGE			= 0,
+	NVME_PR_CPTPL_RESV			= 1 << 30,
+	NVME_PR_CPTPL_CLEARED			= 2 << 30,
+	NVME_PR_CPTPL_PERSIST			= 3 << 30,
+};
+
+#define NVME_PR_IGNORE_KEY (1 << 3)
+
 #endif /* _LINUX_NVME_H */
