@@ -180,7 +180,10 @@ static void stop_streaming(struct vb2_queue *vq)
 
 	xdma_disable_user_irq(mgbdev->xdev, irq);
 	cancel_work_sync(&voutdev->dma_work);
+
 	mgb4_mask_reg(&mgbdev->video, voutdev->config->regs.config, 0x2, 0x0);
+	mgb4_write_reg(&mgbdev->video, voutdev->config->regs.padding, 0);
+
 	return_all_buffers(voutdev, VB2_BUF_STATE_ERROR);
 }
 
@@ -196,6 +199,7 @@ static int start_streaming(struct vb2_queue *vq, unsigned int count)
 	int rv;
 	u32 addr;
 
+	mgb4_write_reg(video, config->regs.padding, voutdev->padding);
 	mgb4_mask_reg(video, config->regs.config, 0x2, 0x2);
 
 	addr = mgb4_read_reg(video, config->regs.address);
@@ -359,7 +363,6 @@ static int vidioc_s_fmt(struct file *file, void *priv, struct v4l2_format *f)
 
 	voutdev->padding = (f->fmt.pix.bytesperline - (f->fmt.pix.width
 			    * pixelsize)) / pixelsize;
-	mgb4_write_reg(video, voutdev->config->regs.padding, voutdev->padding);
 
 	return 0;
 }
