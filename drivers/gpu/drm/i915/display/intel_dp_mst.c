@@ -179,16 +179,15 @@ static int intel_dp_mst_dsc_get_slice_count(const struct intel_connector *connec
 					    num_joined_pipes);
 }
 
-static int mst_stream_find_vcpi_slots_for_bpp(struct intel_encoder *encoder,
+static int mst_stream_find_vcpi_slots_for_bpp(struct intel_dp *intel_dp,
 					      struct intel_crtc_state *crtc_state,
 					      int max_bpp, int min_bpp,
 					      struct link_config_limits *limits,
 					      struct drm_connector_state *conn_state,
 					      int step, bool dsc)
 {
-	struct intel_display *display = to_intel_display(encoder);
+	struct intel_display *display = to_intel_display(intel_dp);
 	struct drm_atomic_state *state = crtc_state->uapi.state;
-	struct intel_dp *intel_dp = to_primary_dp(encoder);
 	struct drm_dp_mst_topology_state *mst_state;
 	struct intel_connector *connector =
 		to_intel_connector(conn_state->connector);
@@ -331,7 +330,7 @@ static int mst_stream_find_vcpi_slots_for_bpp(struct intel_encoder *encoder,
 	return slots;
 }
 
-static int mst_stream_compute_link_config(struct intel_encoder *encoder,
+static int mst_stream_compute_link_config(struct intel_dp *intel_dp,
 					  struct intel_crtc_state *crtc_state,
 					  struct drm_connector_state *conn_state,
 					  struct link_config_limits *limits)
@@ -342,7 +341,7 @@ static int mst_stream_compute_link_config(struct intel_encoder *encoder,
 	 * FIXME: allocate the BW according to link_bpp, which in the case of
 	 * YUV420 is only half of the pipe bpp value.
 	 */
-	slots = mst_stream_find_vcpi_slots_for_bpp(encoder, crtc_state,
+	slots = mst_stream_find_vcpi_slots_for_bpp(intel_dp, crtc_state,
 						   fxp_q4_to_int(limits->link.max_bpp_x16),
 						   fxp_q4_to_int(limits->link.min_bpp_x16),
 						   limits,
@@ -354,12 +353,12 @@ static int mst_stream_compute_link_config(struct intel_encoder *encoder,
 	return 0;
 }
 
-static int mst_stream_dsc_compute_link_config(struct intel_encoder *encoder,
+static int mst_stream_dsc_compute_link_config(struct intel_dp *intel_dp,
 					      struct intel_crtc_state *crtc_state,
 					      struct drm_connector_state *conn_state,
 					      struct link_config_limits *limits)
 {
-	struct intel_display *display = to_intel_display(encoder);
+	struct intel_display *display = to_intel_display(intel_dp);
 	struct intel_connector *connector = to_intel_connector(conn_state->connector);
 	struct drm_i915_private *i915 = to_i915(connector->base.dev);
 	int slots = -EINVAL;
@@ -424,7 +423,7 @@ static int mst_stream_dsc_compute_link_config(struct intel_encoder *encoder,
 	min_compressed_bpp = intel_dp_dsc_nearest_valid_bpp(i915, min_compressed_bpp,
 							    crtc_state->pipe_bpp);
 
-	slots = mst_stream_find_vcpi_slots_for_bpp(encoder, crtc_state, max_compressed_bpp,
+	slots = mst_stream_find_vcpi_slots_for_bpp(intel_dp, crtc_state, max_compressed_bpp,
 						   min_compressed_bpp, limits,
 						   conn_state, 1, true);
 
@@ -434,12 +433,11 @@ static int mst_stream_dsc_compute_link_config(struct intel_encoder *encoder,
 	return 0;
 }
 
-static int mst_stream_update_slots(struct intel_encoder *encoder,
+static int mst_stream_update_slots(struct intel_dp *intel_dp,
 				   struct intel_crtc_state *crtc_state,
 				   struct drm_connector_state *conn_state)
 {
-	struct intel_display *display = to_intel_display(encoder);
-	struct intel_dp *intel_dp = to_primary_dp(encoder);
+	struct intel_display *display = to_intel_display(intel_dp);
 	struct drm_dp_mst_topology_mgr *mgr = &intel_dp->mst_mgr;
 	struct drm_dp_mst_topology_state *topology_state;
 	u8 link_coding_cap = intel_dp_is_uhbr(crtc_state) ?
@@ -632,7 +630,7 @@ static int mst_stream_compute_config(struct intel_encoder *encoder,
 						  pipe_config, false, &limits);
 
 	if (!dsc_needed) {
-		ret = mst_stream_compute_link_config(encoder, pipe_config,
+		ret = mst_stream_compute_link_config(intel_dp, pipe_config,
 						     conn_state, &limits);
 
 		if (ret == -EDEADLK)
@@ -668,7 +666,7 @@ static int mst_stream_compute_config(struct intel_encoder *encoder,
 		 */
 		drm_dbg_kms(display->drm, "Trying to find VCPI slots in DSC mode\n");
 
-		ret = mst_stream_dsc_compute_link_config(encoder, pipe_config,
+		ret = mst_stream_dsc_compute_link_config(intel_dp, pipe_config,
 							 conn_state, &limits);
 		if (ret < 0)
 			return ret;
@@ -681,7 +679,7 @@ static int mst_stream_compute_config(struct intel_encoder *encoder,
 	if (ret)
 		return ret;
 
-	ret = mst_stream_update_slots(encoder, pipe_config, conn_state);
+	ret = mst_stream_update_slots(intel_dp, pipe_config, conn_state);
 	if (ret)
 		return ret;
 
