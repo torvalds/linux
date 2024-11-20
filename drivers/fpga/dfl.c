@@ -752,13 +752,7 @@ binfo_create_feature_dev_data(struct build_feature_devs_info *binfo)
 	if (WARN_ON_ONCE(type >= DFL_ID_MAX))
 		return ERR_PTR(-EINVAL);
 
-	/*
-	 * we do not need to care for the memory which is associated with
-	 * the platform device. After calling platform_device_unregister(),
-	 * it will be automatically freed by device's release() callback,
-	 * platform_device_release().
-	 */
-	fdata = kzalloc(struct_size(fdata, features, binfo->feature_num), GFP_KERNEL);
+	fdata = devm_kzalloc(binfo->dev, struct_size(fdata, features, binfo->feature_num), GFP_KERNEL);
 	if (!fdata)
 		return ERR_PTR(-ENOMEM);
 
@@ -778,8 +772,6 @@ binfo_create_feature_dev_data(struct build_feature_devs_info *binfo)
 	 * and it should always be 0 for fme device.
 	 */
 	WARN_ON(fdata->disable_count);
-
-	fdev->dev.platform_data = fdata;
 
 	/* each sub feature has one MMIO resource */
 	fdev->num_resources = binfo->feature_num;
@@ -882,11 +874,17 @@ build_info_create_dev(struct build_feature_devs_info *binfo)
  */
 static int feature_dev_register(struct dfl_feature_dev_data *fdata)
 {
+	struct dfl_feature_platform_data pdata = {};
 	struct platform_device *fdev = fdata->dev;
 	int ret;
 
 	fdev->dev.parent = &fdata->dfl_cdev->region->dev;
 	fdev->dev.devt = dfl_get_devt(dfl_devs[fdata->type].devt_type, fdev->id);
+
+	pdata.fdata = fdata;
+	ret = platform_device_add_data(fdev, &pdata, sizeof(pdata));
+	if (ret)
+		return ret;
 
 	ret = platform_device_add(fdev);
 	if (ret)
