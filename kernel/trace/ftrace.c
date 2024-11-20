@@ -5080,6 +5080,9 @@ ftrace_mod_callback(struct trace_array *tr, struct ftrace_hash *hash,
 	char *func;
 	int ret;
 
+	if (!tr)
+		return -ENODEV;
+
 	/* match_records() modifies func, and we need the original */
 	func = kstrdup(func_orig, GFP_KERNEL);
 	if (!func)
