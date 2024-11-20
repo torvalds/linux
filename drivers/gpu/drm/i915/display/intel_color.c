@@ -1368,19 +1368,29 @@ static void ilk_load_lut_8(const struct intel_crtc_state *crtc_state,
 	lut = blob->data;
 
 	/*
-	 * DSB fails to correctly load the legacy LUT
-	 * unless we either write each entry twice,
-	 * or use non-posted writes
+	 * DSB fails to correctly load the legacy LUT unless
+	 * we either write each entry twice when using posted
+	 * writes, or we use non-posted writes.
+	 *
+	 * If palette anti-collision is active during LUT
+	 * register writes:
+	 * - posted writes simply get dropped and thus the LUT
+	 *   contents may not be correctly updated
+	 * - non-posted writes are blocked and thus the LUT
+	 *   contents are always correct, but simultaneous CPU
+	 *   MMIO access will start to fail
+	 *
+	 * Choose the lesser of two evils and use posted writes.
+	 * Using posted writes is also faster, even when having
+	 * to write each register twice.
 	 */
-	if (crtc_state->dsb_color_vblank)
-		intel_dsb_nonpost_start(crtc_state->dsb_color_vblank);
-
-	for (i = 0; i < 256; i++)
+	for (i = 0; i < 256; i++) {
 		ilk_lut_write(crtc_state, LGC_PALETTE(pipe, i),
 			      i9xx_lut_8(&lut[i]));
-
-	if (crtc_state->dsb_color_vblank)
-		intel_dsb_nonpost_end(crtc_state->dsb_color_vblank);
+		if (crtc_state->dsb_color_vblank)
+			ilk_lut_write(crtc_state, LGC_PALETTE(pipe, i),
+				      i9xx_lut_8(&lut[i]));
+	}
 }
 
 static void ilk_load_lut_10(const struct intel_crtc_state *crtc_state,
