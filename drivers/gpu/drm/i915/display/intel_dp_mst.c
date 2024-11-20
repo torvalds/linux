@@ -1615,9 +1615,9 @@ static bool mst_connector_get_hw_state(struct intel_connector *connector)
 	return encoder->get_hw_state(encoder, &pipe);
 }
 
-static int intel_dp_mst_add_properties(struct intel_dp *intel_dp,
-				       struct drm_connector *connector,
-				       const char *pathprop)
+static int mst_topology_add_connector_properties(struct intel_dp *intel_dp,
+						 struct drm_connector *connector,
+						 const char *pathprop)
 {
 	struct intel_display *display = to_intel_display(intel_dp);
 
@@ -1703,9 +1703,10 @@ static bool detect_dsc_hblank_expansion_quirk(const struct intel_connector *conn
 	return true;
 }
 
-static struct drm_connector *intel_dp_add_mst_connector(struct drm_dp_mst_topology_mgr *mgr,
-							struct drm_dp_mst_port *port,
-							const char *pathprop)
+static struct drm_connector *
+mst_topology_add_connector(struct drm_dp_mst_topology_mgr *mgr,
+			   struct drm_dp_mst_port *port,
+			   const char *pathprop)
 {
 	struct intel_dp *intel_dp = container_of(mgr, struct intel_dp, mst_mgr);
 	struct intel_display *display = to_intel_display(intel_dp);
@@ -1762,7 +1763,7 @@ static struct drm_connector *intel_dp_add_mst_connector(struct drm_dp_mst_topolo
 			goto err;
 	}
 
-	ret = intel_dp_mst_add_properties(intel_dp, connector, pathprop);
+	ret = mst_topology_add_connector_properties(intel_dp, connector, pathprop);
 	if (ret)
 		goto err;
 
@@ -1779,16 +1780,16 @@ err:
 }
 
 static void
-intel_dp_mst_poll_hpd_irq(struct drm_dp_mst_topology_mgr *mgr)
+mst_topology_poll_hpd_irq(struct drm_dp_mst_topology_mgr *mgr)
 {
 	struct intel_dp *intel_dp = container_of(mgr, struct intel_dp, mst_mgr);
 
 	intel_hpd_trigger_irq(dp_to_dig_port(intel_dp));
 }
 
-static const struct drm_dp_mst_topology_cbs mst_cbs = {
-	.add_connector = intel_dp_add_mst_connector,
-	.poll_hpd_irq = intel_dp_mst_poll_hpd_irq,
+static const struct drm_dp_mst_topology_cbs mst_topology_cbs = {
+	.add_connector = mst_topology_add_connector,
+	.poll_hpd_irq = mst_topology_poll_hpd_irq,
 };
 
 /* Create a fake encoder for an individual MST stream */
@@ -1881,7 +1882,7 @@ intel_dp_mst_encoder_init(struct intel_digital_port *dig_port, int conn_base_id)
 	if (DISPLAY_VER(display) < 11 && port == PORT_E)
 		return 0;
 
-	intel_dp->mst_mgr.cbs = &mst_cbs;
+	intel_dp->mst_mgr.cbs = &mst_topology_cbs;
 
 	/* create encoders */
 	mst_stream_encoders_create(dig_port);
