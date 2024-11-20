@@ -189,7 +189,7 @@ unsafe extern "C" fn fops_open<T: MiscDevice>(
     };
 
     // SAFETY: The open call of a file owns the private data.
-    unsafe { (*file).private_data = ptr.into_foreign().cast_mut() };
+    unsafe { (*file).private_data = ptr.into_foreign() };
 
     0
 }
