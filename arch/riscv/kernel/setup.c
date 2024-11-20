@@ -227,7 +227,7 @@ static void __init init_resources(void)
 static void __init parse_dtb(void)
 {
 	/* Early scan of device tree from init memory */
-	if (early_init_dt_scan(dtb_early_va)) {
+	if (early_init_dt_scan(dtb_early_va, __pa(dtb_early_va))) {
 		const char *name = of_flat_dt_get_machine_name();
 
 		if (name) {

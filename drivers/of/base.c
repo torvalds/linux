@@ -87,15 +87,25 @@ static bool __of_node_is_type(const struct device_node *np, const char *type)
 	return np && match && type && !strcmp(match, type);
 }
 
+#define EXCLUDED_DEFAULT_CELLS_PLATFORMS ( \
+	IS_ENABLED(CONFIG_SPARC) \
+)
+
 int of_bus_n_addr_cells(struct device_node *np)
 {
 	u32 cells;
 
-	for (; np; np = np->parent)
+	for (; np; np = np->parent) {
 		if (!of_property_read_u32(np, "#address-cells", &cells))
 			return cells;
-
-	/* No #address-cells property for the root node */
+		/*
+		 * Default root value and walking parent nodes for "#address-cells"
+		 * is deprecated. Any platforms which hit this warning should
+		 * be added to the excluded list.
+		 */
+		WARN_ONCE(!EXCLUDED_DEFAULT_CELLS_PLATFORMS,
+			  "Missing '#address-cells' in %pOF\n", np);
+	}
 	return OF_ROOT_NODE_ADDR_CELLS_DEFAULT;
 }
 
@@ -112,11 +122,17 @@ int of_bus_n_size_cells(struct device_node *np)
 {
 	u32 cells;
 
-	for (; np; np = np->parent)
+	for (; np; np = np->parent) {
 		if (!of_property_read_u32(np, "#size-cells", &cells))
 			return cells;
-
-	/* No #size-cells property for the root node */
+		/*
+		 * Default root value and walking parent nodes for "#size-cells"
+		 * is deprecated. Any platforms which hit this warning should
+		 * be added to the excluded list.
+		 */
+		WARN_ONCE(!EXCLUDED_DEFAULT_CELLS_PLATFORMS,
+			  "Missing '#size-cells' in %pOF\n", np);
+	}
 	return OF_ROOT_NODE_SIZE_CELLS_DEFAULT;
 }
 
@@ -270,7 +286,7 @@ EXPORT_SYMBOL(of_find_all_nodes);
 const void *__of_get_property(const struct device_node *np,
 			      const char *name, int *lenp)
 {
-	struct property *pp = __of_find_property(np, name, lenp);
+	const struct property *pp = __of_find_property(np, name, lenp);
 
 	return pp ? pp->value : NULL;
 }
@@ -282,7 +298,7 @@ const void *__of_get_property(const struct device_node *np,
 const void *of_get_property(const struct device_node *np, const char *name,
 			    int *lenp)
 {
-	struct property *pp = of_find_property(np, name, lenp);
+	const struct property *pp = of_find_property(np, name, lenp);
 
 	return pp ? pp->value : NULL;
 }
@@ -321,7 +337,7 @@ EXPORT_SYMBOL(of_get_property);
 static int __of_device_is_compatible(const struct device_node *device,
 				     const char *compat, const char *type, const char *name)
 {
-	struct property *prop;
+	const struct property *prop;
 	const char *cp;
 	int index = 0, score = 0;
 
@@ -771,7 +787,7 @@ struct device_node *of_get_child_by_name(const struct device_node *node,
 }
 EXPORT_SYMBOL(of_get_child_by_name);
 
-struct device_node *__of_find_node_by_path(struct device_node *parent,
+struct device_node *__of_find_node_by_path(const struct device_node *parent,
 						const char *path)
 {
 	struct device_node *child;
@@ -828,7 +844,7 @@ struct device_node *__of_find_node_by_full_path(struct device_node *node,
 struct device_node *of_find_node_opts_by_path(const char *path, const char **opts)
 {
 	struct device_node *np = NULL;
-	struct property *pp;
+	const struct property *pp;
 	unsigned long flags;
 	const char *separator = strchr(path, ':');
 
@@ -974,7 +990,7 @@ struct device_node *of_find_node_with_property(struct device_node *from,
 	const char *prop_name)
 {
 	struct device_node *np;
-	struct property *pp;
+	const struct property *pp;
 	unsigned long flags;
 
 	raw_spin_lock_irqsave(&devtree_lock, flags);
@@ -1769,7 +1785,7 @@ static void of_alias_add(struct alias_prop *ap, struct device_node *np,
  */
 void of_alias_scan(void * (*dt_alloc)(u64 size, u64 align))
 {
-	struct property *pp;
+	const struct property *pp;
 
 	of_aliases = of_find_node_by_path("/aliases");
 	of_chosen = of_find_node_by_path("/chosen");
@@ -1840,7 +1856,7 @@ void of_alias_scan(void * (*dt_alloc)(u64 size, u64 align))
  *
  * Return: The alias id if found.
  */
-int of_alias_get_id(struct device_node *np, const char *stem)
+int of_alias_get_id(const struct device_node *np, const char *stem)
 {
 	struct alias_prop *app;
 	int id = -ENODEV;
@@ -1898,7 +1914,7 @@ EXPORT_SYMBOL_GPL(of_alias_get_highest_id);
  *
  * Return: TRUE if console successfully setup. Otherwise return FALSE.
  */
-bool of_console_check(struct device_node *dn, char *name, int index)
+bool of_console_check(const struct device_node *dn, char *name, int index)
 {
 	if (!dn || dn != of_stdout || console_set_on_cmdline)
 		return false;
@@ -1986,7 +2002,7 @@ int of_find_last_cache_level(unsigned int cpu)
  *
  * Return: 0 on success or a standard error code on failure.
  */
-int of_map_id(struct device_node *np, u32 id,
+int of_map_id(const struct device_node *np, u32 id,
 	       const char *map_name, const char *map_mask_name,
 	       struct device_node **target, u32 *id_out)
 {
