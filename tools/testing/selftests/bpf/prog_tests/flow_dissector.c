@@ -79,7 +79,6 @@ struct test {
 
 #define VLAN_HLEN	4
 
-static __u32 duration;
 struct test tests[] = {
 	{
 		.name = "ipv4",
@@ -511,7 +510,7 @@ static void run_tests_skb_less(int tap_fd, struct bpf_map *keys)
 	int i, err, keys_fd;
 
 	keys_fd = bpf_map__fd(keys);
-	if (CHECK(keys_fd < 0, "bpf_map__fd", "err %d\n", keys_fd))
+	if (!ASSERT_OK_FD(keys_fd, "bpf_map__fd"))
 		return;
 
 	for (i = 0; i < ARRAY_SIZE(tests); i++) {
@@ -530,14 +529,16 @@ static void run_tests_skb_less(int tap_fd, struct bpf_map *keys)
 			continue;
 
 		err = tx_tap(tap_fd, &tests[i].pkt, sizeof(tests[i].pkt));
-		CHECK(err < 0, "tx_tap", "err %d errno %d\n", err, errno);
+		if (!ASSERT_EQ(err, sizeof(tests[i].pkt), "tx_tap"))
+			continue;
 
 		/* check the stored flow_keys only if BPF_OK expected */
 		if (tests[i].retval != BPF_OK)
 			continue;
 
 		err = bpf_map_lookup_elem(keys_fd, &key, &flow_keys);
-		ASSERT_OK(err, "bpf_map_lookup_elem");
+		if (!ASSERT_OK(err, "bpf_map_lookup_elem"))
+			continue;
 
 		ASSERT_MEMEQ(&flow_keys, &tests[i].keys,
 			     sizeof(struct bpf_flow_keys),
@@ -553,17 +554,17 @@ static void test_skb_less_prog_attach(struct bpf_flow *skel, int tap_fd)
 	int err, prog_fd;
 
 	prog_fd = bpf_program__fd(skel->progs._dissect);
-	if (CHECK(prog_fd < 0, "bpf_program__fd", "err %d\n", prog_fd))
+	if (!ASSERT_OK_FD(prog_fd, "bpf_program__fd"))
 		return;
 
 	err = bpf_prog_attach(prog_fd, 0, BPF_FLOW_DISSECTOR, 0);
-	if (CHECK(err, "bpf_prog_attach", "err %d errno %d\n", err, errno))
+	if (!ASSERT_OK(err, "bpf_prog_attach"))
 		return;
 
 	run_tests_skb_less(tap_fd, skel->maps.last_dissection);
 
 	err = bpf_prog_detach2(prog_fd, 0, BPF_FLOW_DISSECTOR);
-	CHECK(err, "bpf_prog_detach2", "err %d errno %d\n", err, errno);
+	ASSERT_OK(err, "bpf_prog_detach2");
 }
 
 static void test_skb_less_link_create(struct bpf_flow *skel, int tap_fd)
@@ -572,7 +573,7 @@ static void test_skb_less_link_create(struct bpf_flow *skel, int tap_fd)
 	int err, net_fd;
 
 	net_fd = open("/proc/self/ns/net", O_RDONLY);
-	if (CHECK(net_fd < 0, "open(/proc/self/ns/net)", "err %d\n", errno))
+	if (!ASSERT_OK_FD(net_fd, "open(/proc/self/ns/net"))
 		return;
 
 	link = bpf_program__attach_netns(skel->progs._dissect, net_fd);
@@ -582,7 +583,7 @@ static void test_skb_less_link_create(struct bpf_flow *skel, int tap_fd)
 	run_tests_skb_less(tap_fd, skel->maps.last_dissection);
 
 	err = bpf_link__destroy(link);
-	CHECK(err, "bpf_link__destroy", "err %d\n", err);
+	ASSERT_OK(err, "bpf_link__destroy");
 out_close:
 	close(net_fd);
 }
@@ -593,18 +594,18 @@ void test_flow_dissector(void)
 	struct bpf_flow *skel;
 
 	skel = bpf_flow__open_and_load();
-	if (CHECK(!skel, "skel", "failed to open/load skeleton\n"))
+	if (!ASSERT_OK_PTR(skel, "open/load skeleton"))
 		return;
 
 	prog_fd = bpf_program__fd(skel->progs._dissect);
-	if (CHECK(prog_fd < 0, "bpf_program__fd", "err %d\n", prog_fd))
-		goto out_destroy_skel;
+	if (!ASSERT_OK_FD(prog_fd, "bpf_program__fd"))
+		return;
 	keys_fd = bpf_map__fd(skel->maps.last_dissection);
-	if (CHECK(keys_fd < 0, "bpf_map__fd", "err %d\n", keys_fd))
-		goto out_destroy_skel;
+	if (!ASSERT_OK_FD(keys_fd, "bpf_map__fd"))
+		return;
 	err = init_prog_array(skel->obj, skel->maps.jmp_table);
-	if (CHECK(err, "init_prog_array", "err %d\n", err))
-		goto out_destroy_skel;
+	if (!ASSERT_OK(err, "init_prog_array"))
+		return;
 
 	for (i = 0; i < ARRAY_SIZE(tests); i++) {
 		struct bpf_flow_keys flow_keys;
@@ -634,17 +635,17 @@ void test_flow_dissector(void)
 			     sizeof(struct bpf_flow_keys),
 			     "returned flow keys");
 	}
-
 	/* Do the same tests but for skb-less flow dissector.
 	 * We use a known path in the net/tun driver that calls
 	 * eth_get_headlen and we manually export bpf_flow_keys
 	 * via BPF map in this case.
 	 */
-
 	tap_fd = create_tap("tap0");
-	CHECK(tap_fd < 0, "create_tap", "tap_fd %d errno %d\n", tap_fd, errno);
+	if (!ASSERT_OK_FD(tap_fd, "create_tap"))
+		goto out_destroy_skel;
 	err = ifup("tap0");
-	CHECK(err, "ifup", "err %d errno %d\n", err, errno);
+	if (!ASSERT_OK(err, "ifup"))
+		goto out_destroy_skel;
 
 	/* Test direct prog attachment */
 	test_skb_less_prog_attach(skel, tap_fd);
