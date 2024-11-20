@@ -61,8 +61,8 @@ Work items:
 
 - Change all consumer drivers that #include <linux/of_gpio.h> to
   #include <linux/gpio/consumer.h> and stop doing custom parsing of the
-  GPIO lines from the device tree. This can be tricky and often ivolves
-  changing boardfiles, etc.
+  GPIO lines from the device tree. This can be tricky and often involves
+  changing board files, etc.
 
 - Pull semantics for legacy device tree (OF) GPIO lookups into
   gpiolib-of.c: in some cases subsystems are doing custom flags and

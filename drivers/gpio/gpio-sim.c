@@ -520,15 +520,12 @@ static int gpio_sim_add_bank(struct fwnode_handle *swnode, struct device *dev)
 static int gpio_sim_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct fwnode_handle *swnode;
 	int ret;
 
-	device_for_each_child_node(dev, swnode) {
+	device_for_each_child_node_scoped(dev, swnode) {
 		ret = gpio_sim_add_bank(swnode, dev);
-		if (ret) {
-			fwnode_handle_put(swnode);
+		if (ret)
 			return ret;
-		}
 	}
 
 	return 0;
