@@ -63,6 +63,19 @@ struct dvlan_ipv6_pkt {
 	struct tcphdr tcp;
 } __packed;
 
+struct gre_base_hdr {
+	__be16 flags;
+	__be16 protocol;
+} gre_base_hdr;
+
+struct gre_minimal_pkt {
+	struct ethhdr eth;
+	struct iphdr iph;
+	struct gre_base_hdr gre_hdr;
+	struct iphdr iph_inner;
+	struct tcphdr tcp;
+} __packed;
+
 struct test {
 	const char *name;
 	union {
@@ -72,6 +85,7 @@ struct test {
 		struct ipv6_pkt ipv6;
 		struct ipv6_frag_pkt ipv6_frag;
 		struct dvlan_ipv6_pkt dvlan_ipv6;
+		struct gre_minimal_pkt gre_minimal;
 	} pkt;
 	struct bpf_flow_keys keys;
 	__u32 flags;
@@ -416,6 +430,68 @@ struct test tests[] = {
 			.tcp.dest = 9090,
 		},
 		.retval = BPF_FLOW_DISSECTOR_CONTINUE,
+	},
+	{
+		.name = "ip-gre",
+		.pkt.gre_minimal = {
+			.eth.h_proto = __bpf_constant_htons(ETH_P_IP),
+			.iph.ihl = 5,
+			.iph.protocol = IPPROTO_GRE,
+			.iph.tot_len = __bpf_constant_htons(MAGIC_BYTES),
+			.gre_hdr = {
+				.flags = 0,
+				.protocol = __bpf_constant_htons(ETH_P_IP),
+			},
+			.iph_inner.ihl = 5,
+			.iph_inner.protocol = IPPROTO_TCP,
+			.iph_inner.tot_len =
+				__bpf_constant_htons(MAGIC_BYTES -
+				sizeof(struct iphdr)),
+			.tcp.doff = 5,
+			.tcp.source = 80,
+			.tcp.dest = 8080,
+		},
+		.keys = {
+			.nhoff = ETH_HLEN,
+			.thoff = ETH_HLEN + sizeof(struct iphdr) * 2 +
+				 sizeof(struct gre_base_hdr),
+			.addr_proto = ETH_P_IP,
+			.ip_proto = IPPROTO_TCP,
+			.n_proto = __bpf_constant_htons(ETH_P_IP),
+			.is_encap = true,
+			.sport = 80,
+			.dport = 8080,
+		},
+		.retval = BPF_OK,
+	},
+	{
+		.name = "ip-gre-no-encap",
+		.pkt.ipip = {
+			.eth.h_proto = __bpf_constant_htons(ETH_P_IP),
+			.iph.ihl = 5,
+			.iph.protocol = IPPROTO_GRE,
+			.iph.tot_len = __bpf_constant_htons(MAGIC_BYTES),
+			.iph_inner.ihl = 5,
+			.iph_inner.protocol = IPPROTO_TCP,
+			.iph_inner.tot_len =
+				__bpf_constant_htons(MAGIC_BYTES -
+				sizeof(struct iphdr)),
+			.tcp.doff = 5,
+			.tcp.source = 80,
+			.tcp.dest = 8080,
+		},
+		.keys = {
+			.flags = BPF_FLOW_DISSECTOR_F_STOP_AT_ENCAP,
+			.nhoff = ETH_HLEN,
+			.thoff = ETH_HLEN + sizeof(struct iphdr)
+				 + sizeof(struct gre_base_hdr),
+			.addr_proto = ETH_P_IP,
+			.ip_proto = IPPROTO_GRE,
+			.n_proto = __bpf_constant_htons(ETH_P_IP),
+			.is_encap = true,
+		},
+		.flags = BPF_FLOW_DISSECTOR_F_STOP_AT_ENCAP,
+		.retval = BPF_OK,
 	},
 };
 
