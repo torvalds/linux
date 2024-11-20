@@ -149,12 +149,6 @@ struct scmi_debug_info {
  *		   base protocol
  * @active_protocols: IDR storing device_nodes for protocols actually defined
  *		      in the DT and confirmed as implemented by fw.
- * @atomic_threshold: Optional system wide DT-configured threshold, expressed
- *		      in microseconds, for atomic operations.
- *		      Only SCMI synchronous commands reported by the platform
- *		      to have an execution latency lesser-equal to the threshold
- *		      should be considered for atomic mode operation: such
- *		      decision is finally left up to the SCMI drivers.
  * @notify_priv: Pointer to private data structure specific to notifications.
  * @node: List head
  * @users: Number of users of this instance
@@ -180,7 +174,6 @@ struct scmi_info {
 	struct mutex protocols_mtx;
 	u8 *protocols_imp;
 	struct idr active_protocols;
-	unsigned int atomic_threshold;
 	void *notify_priv;
 	struct list_head node;
 	int users;
@@ -2445,7 +2438,7 @@ static bool scmi_is_transport_atomic(const struct scmi_handle *handle,
 	ret = info->desc->atomic_enabled &&
 		is_transport_polling_capable(info->desc);
 	if (ret && atomic_threshold)
-		*atomic_threshold = info->atomic_threshold;
+		*atomic_threshold = info->desc->atomic_threshold;
 
 	return ret;
 }
@@ -2645,6 +2638,7 @@ static int scmi_chan_setup(struct scmi_info *info, struct device_node *of_node,
 
 	cinfo->is_p2a = !tx;
 	cinfo->rx_timeout_ms = info->desc->max_rx_timeout_ms;
+	cinfo->max_msg_size = info->desc->max_msg_size;
 
 	/* Create a unique name for this transport device */
 	snprintf(name, 32, "__scmi_transport_device_%s_%02X",
@@ -2958,7 +2952,7 @@ static struct scmi_debug_info *scmi_debugfs_common_setup(struct scmi_info *info)
 			   (char **)&dbg->name);
 
 	debugfs_create_u32("atomic_threshold_us", 0400, top_dentry,
-			   &info->atomic_threshold);
+			   (u32 *)&info->desc->atomic_threshold);
 
 	debugfs_create_str("type", 0400, trans, (char **)&dbg->type);
 
@@ -3053,8 +3047,27 @@ static const struct scmi_desc *scmi_transport_setup(struct device *dev)
 	if (ret && ret != -EINVAL)
 		dev_err(dev, "Malformed arm,max-rx-timeout-ms DT property.\n");
 
-	dev_info(dev, "SCMI max-rx-timeout: %dms\n",
-		 trans->desc->max_rx_timeout_ms);
+	ret = of_property_read_u32(dev->of_node, "arm,max-msg-size",
+				   &trans->desc->max_msg_size);
+	if (ret && ret != -EINVAL)
+		dev_err(dev, "Malformed arm,max-msg-size DT property.\n");
+
+	ret = of_property_read_u32(dev->of_node, "arm,max-msg",
+				   &trans->desc->max_msg);
+	if (ret && ret != -EINVAL)
+		dev_err(dev, "Malformed arm,max-msg DT property.\n");
+
+	dev_info(dev,
+		 "SCMI max-rx-timeout: %dms / max-msg-size: %dbytes / max-msg: %d\n",
+		 trans->desc->max_rx_timeout_ms, trans->desc->max_msg_size,
+		 trans->desc->max_msg);
+
+	/* System wide atomic threshold for atomic ops .. if any */
+	if (!of_property_read_u32(dev->of_node, "atomic-threshold-us",
+				  &trans->desc->atomic_threshold))
+		dev_info(dev,
+			 "SCMI System wide atomic threshold set to %u us\n",
+			 trans->desc->atomic_threshold);
 
 	return trans->desc;
 }
@@ -3105,13 +3118,6 @@ static int scmi_probe(struct platform_device *pdev)
 	handle->devm_protocol_acquire = scmi_devm_protocol_acquire;
 	handle->devm_protocol_get = scmi_devm_protocol_get;
 	handle->devm_protocol_put = scmi_devm_protocol_put;
-
-	/* System wide atomic threshold for atomic ops .. if any */
-	if (!of_property_read_u32(np, "atomic-threshold-us",
-				  &info->atomic_threshold))
-		dev_info(dev,
-			 "SCMI System wide atomic threshold set to %d us\n",
-			 info->atomic_threshold);
 	handle->is_transport_atomic = scmi_is_transport_atomic;
 
 	/* Setup all channels described in the DT at first */

@@ -2815,6 +2815,7 @@ F:	arch/arm64/boot/dts/qcom/sdm845-cheza*
 
 ARM/QUALCOMM MAILING LIST
 L:	linux-arm-msm@vger.kernel.org
+C:	irc://irc.oftc.net/linux-msm
 F:	Documentation/devicetree/bindings/*/qcom*
 F:	Documentation/devicetree/bindings/soc/qcom/
 F:	arch/arm/boot/dts/qcom/
@@ -2856,6 +2857,7 @@ M:	Bjorn Andersson <andersson@kernel.org>
 M:	Konrad Dybcio <konradybcio@kernel.org>
 L:	linux-arm-msm@vger.kernel.org
 S:	Maintained
+C:	irc://irc.oftc.net/linux-msm
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/qcom/linux.git
 F:	Documentation/devicetree/bindings/arm/qcom-soc.yaml
 F:	Documentation/devicetree/bindings/arm/qcom.yaml
@@ -15176,6 +15178,12 @@ S:	Maintained
 F:	Documentation/devicetree/bindings/interrupt-controller/microchip,lan966x-oic.yaml
 F:	drivers/irqchip/irq-lan966x-oic.c
 
+MICROCHIP LAN966X PCI DRIVER
+M:	Herve Codina <herve.codina@bootlin.com>
+S:	Maintained
+F:	drivers/misc/lan966x_pci.c
+F:	drivers/misc/lan966x_pci.dtso
+
 MICROCHIP LCDFB DRIVER
 M:	Nicolas Ferre <nicolas.ferre@microchip.com>
 L:	linux-fbdev@vger.kernel.org
@@ -18287,6 +18295,7 @@ PIN CONTROLLER - QUALCOMM
 M:	Bjorn Andersson <andersson@kernel.org>
 L:	linux-arm-msm@vger.kernel.org
 S:	Maintained
+C:	irc://irc.oftc.net/linux-msm
 F:	Documentation/devicetree/bindings/pinctrl/qcom,*
 F:	drivers/pinctrl/qcom/
 

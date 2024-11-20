@@ -20,8 +20,12 @@ description: |
 properties:
   compatible:
     enum:
+      - qcom,qcs615-llcc
+      - qcom,qcs8300-llcc
       - qcom,qdu1000-llcc
       - qcom,sa8775p-llcc
+      - qcom,sar1130p-llcc
+      - qcom,sar2130p-llcc
       - qcom,sc7180-llcc
       - qcom,sc7280-llcc
       - qcom,sc8180x-llcc
@@ -67,6 +71,33 @@ allOf:
         compatible:
           contains:
             enum:
+              - qcom,sar1130p-llcc
+              - qcom,sar2130p-llcc
+    then:
+      properties:
+        reg:
+          items:
+            - description: LLCC0 base register region
+            - description: LLCC1 base register region
+            - description: LLCC broadcast OR register region
+            - description: LLCC broadcast AND register region
+            - description: LLCC scratchpad broadcast OR register region
+            - description: LLCC scratchpad broadcast AND register region
+        reg-names:
+          items:
+            - const: llcc0_base
+            - const: llcc1_base
+            - const: llcc_broadcast_base
+            - const: llcc_broadcast_and_base
+            - const: llcc_scratchpad_broadcast_base
+            - const: llcc_scratchpad_broadcast_and_base
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - qcom,qcs615-llcc
               - qcom,sc7180-llcc
               - qcom,sm6350-llcc
     then:
@@ -197,6 +228,7 @@ allOf:
         compatible:
           contains:
             enum:
+              - qcom,qcs8300-llcc
               - qcom,sdm845-llcc
               - qcom,sm8150-llcc
               - qcom,sm8250-llcc
