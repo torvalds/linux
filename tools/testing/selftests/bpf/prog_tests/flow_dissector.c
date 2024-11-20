@@ -8,6 +8,7 @@
 #include "bpf_flow.skel.h"
 
 #define FLOW_CONTINUE_SADDR 0x7f00007f /* 127.0.0.127 */
+#define TEST_NAME_MAX_LEN	64
 
 #ifndef IP_MF
 #define IP_MF 0x2000
@@ -505,8 +506,10 @@ static int init_prog_array(struct bpf_object *obj, struct bpf_map *prog_array)
 	return 0;
 }
 
-static void run_tests_skb_less(int tap_fd, struct bpf_map *keys)
+static void run_tests_skb_less(int tap_fd, struct bpf_map *keys,
+			       char *test_suffix)
 {
+	char test_name[TEST_NAME_MAX_LEN];
 	int i, err, keys_fd;
 
 	keys_fd = bpf_map__fd(keys);
@@ -520,6 +523,10 @@ static void run_tests_skb_less(int tap_fd, struct bpf_map *keys)
 		struct bpf_flow_keys flow_keys = {};
 		__u32 key = (__u32)(tests[i].keys.sport) << 16 |
 			    tests[i].keys.dport;
+		snprintf(test_name, TEST_NAME_MAX_LEN, "%s-%s", tests[i].name,
+			 test_suffix);
+		if (!test__start_subtest(test_name))
+			continue;
 
 		/* For skb-less case we can't pass input flags; run
 		 * only the tests that have a matching set of flags.
@@ -582,7 +589,8 @@ void test_flow_dissector_skb_less_direct_attach(void)
 	if (!ASSERT_OK(err, "ifup"))
 		goto out_close_tap;
 
-	run_tests_skb_less(tap_fd, skel->maps.last_dissection);
+	run_tests_skb_less(tap_fd, skel->maps.last_dissection,
+			   "non-skb-direct-attach");
 
 	err = bpf_prog_detach2(prog_fd, 0, BPF_FLOW_DISSECTOR);
 	ASSERT_OK(err, "bpf_prog_detach2");
@@ -629,7 +637,8 @@ void test_flow_dissector_skb_less_indirect_attach(void)
 	if (!ASSERT_OK_PTR(link, "attach_netns"))
 		goto out_close_tap;
 
-	run_tests_skb_less(tap_fd, skel->maps.last_dissection);
+	run_tests_skb_less(tap_fd, skel->maps.last_dissection,
+			   "non-skb-indirect-attach");
 
 	err = bpf_link__destroy(link);
 	ASSERT_OK(err, "bpf_link__destroy");
@@ -646,6 +655,7 @@ out_clean_ns:
 
 void test_flow_dissector_skb(void)
 {
+	char test_name[TEST_NAME_MAX_LEN];
 	struct bpf_flow *skel;
 	int i, err, prog_fd;
 
@@ -669,6 +679,10 @@ void test_flow_dissector_skb(void)
 			.data_out = &flow_keys,
 		);
 		static struct bpf_flow_keys ctx = {};
+
+		snprintf(test_name, TEST_NAME_MAX_LEN, "%s-skb", tests[i].name);
+		if (!test__start_subtest(test_name))
+			continue;
 
 		if (tests[i].flags) {
 			topts.ctx_in = &ctx;
