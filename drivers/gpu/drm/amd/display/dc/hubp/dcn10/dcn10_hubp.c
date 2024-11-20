@@ -140,7 +140,7 @@ void hubp1_vready_workaround(struct hubp *hubp,
 
 void hubp1_program_tiling(
 	struct hubp *hubp,
-	const union dc_tiling_info *info,
+	const struct dc_tiling_info *info,
 	const enum surface_pixel_format pixel_format)
 {
 	struct dcn10_hubp *hubp1 = TO_DCN10_HUBP(hubp);
@@ -549,7 +549,7 @@ void hubp1_dcc_control(struct hubp *hubp, bool enable,
 void hubp1_program_surface_config(
 	struct hubp *hubp,
 	enum surface_pixel_format format,
-	union dc_tiling_info *tiling_info,
+	struct dc_tiling_info *tiling_info,
 	struct plane_size *plane_size,
 	enum dc_rotation_angle rotation,
 	struct dc_plane_dcc_param *dcc,

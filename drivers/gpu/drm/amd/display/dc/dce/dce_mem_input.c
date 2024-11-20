@@ -98,7 +98,7 @@ static enum mi_bits_per_pixel get_mi_bpp(
 }
 
 static enum mi_tiling_format get_mi_tiling(
-		union dc_tiling_info *tiling_info)
+		struct dc_tiling_info *tiling_info)
 {
 	switch (tiling_info->gfx8.array_mode) {
 	case DC_ARRAY_1D_TILED_THIN1:
@@ -133,7 +133,7 @@ static bool is_vert_scan(enum dc_rotation_angle rotation)
 static void dce_mi_program_pte_vm(
 		struct mem_input *mi,
 		enum surface_pixel_format format,
-		union dc_tiling_info *tiling_info,
+		struct dc_tiling_info *tiling_info,
 		enum dc_rotation_angle rotation)
 {
 	struct dce_mem_input *dce_mi = TO_DCE_MEM_INPUT(mi);
@@ -430,7 +430,7 @@ static void dce120_mi_program_display_marks(struct mem_input *mi,
 }
 
 static void program_tiling(
-	struct dce_mem_input *dce_mi, const union dc_tiling_info *info)
+	struct dce_mem_input *dce_mi, const struct dc_tiling_info *info)
 {
 	if (dce_mi->masks->GRPH_SW_MODE) { /* GFX9 */
 		REG_UPDATE_6(GRPH_CONTROL,
@@ -650,7 +650,7 @@ static void dce_mi_clear_tiling(
 static void dce_mi_program_surface_config(
 	struct mem_input *mi,
 	enum surface_pixel_format format,
-	union dc_tiling_info *tiling_info,
+	struct dc_tiling_info *tiling_info,
 	struct plane_size *plane_size,
 	enum dc_rotation_angle rotation,
 	struct dc_plane_dcc_param *dcc,
@@ -670,7 +670,7 @@ static void dce_mi_program_surface_config(
 static void dce60_mi_program_surface_config(
 	struct mem_input *mi,
 	enum surface_pixel_format format,
-	union dc_tiling_info *tiling_info,
+	struct dc_tiling_info *tiling_info,
 	struct plane_size *plane_size,
 	enum dc_rotation_angle rotation, /* not used in DCE6 */
 	struct dc_plane_dcc_param *dcc,

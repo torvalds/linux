@@ -65,7 +65,7 @@ void hubp35_program_pixel_format(
 void hubp35_program_surface_config(
 	struct hubp *hubp,
 	enum surface_pixel_format format,
-	union dc_tiling_info *tiling_info,
+	struct dc_tiling_info *tiling_info,
 	struct plane_size *plane_size,
 	enum dc_rotation_angle rotation,
 	struct dc_plane_dcc_param *dcc,

@@ -1306,7 +1306,7 @@ struct dc_plane_state {
 	struct rect clip_rect;
 
 	struct plane_size plane_size;
-	union dc_tiling_info tiling_info;
+	struct dc_tiling_info tiling_info;
 
 	struct dc_plane_dcc_param dcc;
 
@@ -1377,7 +1377,7 @@ struct dc_plane_state {
 
 struct dc_plane_info {
 	struct plane_size plane_size;
-	union dc_tiling_info tiling_info;
+	struct dc_tiling_info tiling_info;
 	struct dc_plane_dcc_param dcc;
 	enum surface_pixel_format format;
 	enum dc_rotation_angle rotation;

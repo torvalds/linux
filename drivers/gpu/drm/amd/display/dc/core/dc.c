@@ -2555,7 +2555,7 @@ static enum surface_update_type get_plane_info_update_type(const struct dc *dc, 
 
 
 	if (memcmp(&u->plane_info->tiling_info, &u->surface->tiling_info,
-			sizeof(union dc_tiling_info)) != 0) {
+			sizeof(struct dc_tiling_info)) != 0) {
 		update_flags->bits.swizzle_change = 1;
 		elevate_update_type(&update_type, UPDATE_TYPE_MED);
 
