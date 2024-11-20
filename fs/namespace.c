@@ -5116,7 +5116,7 @@ static int statmount_opt_sec_array(struct kstatmount *s, struct seq_file *seq)
 	int err;
 
 	err = security_sb_show_options(seq, sb);
-	if (!err)
+	if (err)
 		return err;
 
 	err = statmount_opt_process(seq, start);
