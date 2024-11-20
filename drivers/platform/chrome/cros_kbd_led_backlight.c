@@ -229,7 +229,7 @@ static int keyboard_led_probe(struct platform_device *pdev)
 {
 	const struct keyboard_led_drvdata *drvdata;
 	struct keyboard_led *keyboard_led;
-	int error;
+	int err;
 
 	if (keyboard_led_is_mfd_device(pdev))
 		drvdata = &keyboard_led_drvdata_ec_pwm_mfd;
@@ -244,9 +244,9 @@ static int keyboard_led_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, keyboard_led);
 
 	if (drvdata->init) {
-		error = drvdata->init(pdev);
-		if (error)
-			return error;
+		err = drvdata->init(pdev);
+		if (err)
+			return err;
 	}
 
 	keyboard_led->cdev.name = "chromeos::kbd_backlight";
@@ -256,13 +256,10 @@ static int keyboard_led_probe(struct platform_device *pdev)
 	keyboard_led->cdev.brightness_set_blocking = drvdata->brightness_set_blocking;
 	keyboard_led->cdev.brightness_get = drvdata->brightness_get;
 
-	error = devm_led_classdev_register(&pdev->dev, &keyboard_led->cdev);
-	if (error == -EEXIST) /* Already bound via other mechanism */
+	err = devm_led_classdev_register(&pdev->dev, &keyboard_led->cdev);
+	if (err == -EEXIST) /* Already bound via other mechanism */
 		return -ENODEV;
-	if (error)
-		return error;
-
-	return 0;
+	return err;
 }
 
 #ifdef CONFIG_ACPI
