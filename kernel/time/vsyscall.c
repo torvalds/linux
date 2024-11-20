@@ -119,7 +119,7 @@ void update_vsyscall(struct timekeeper *tk)
 	if (clock_mode != VDSO_CLOCKMODE_NONE)
 		update_vdso_data(vdata, tk);
 
-	__arch_update_vsyscall(vdata, tk);
+	__arch_update_vsyscall(vdata);
 
 	vdso_write_end(vdata);
 

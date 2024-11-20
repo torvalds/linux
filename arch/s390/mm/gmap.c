@@ -900,7 +900,7 @@ static inline unsigned long *gmap_table_walk(struct gmap *gmap,
 		if (*table & _REGION_ENTRY_INVALID)
 			return NULL;
 		table = __va(*table & _SEGMENT_ENTRY_ORIGIN);
-		table += (gaddr & _PAGE_INDEX) >> _PAGE_SHIFT;
+		table += (gaddr & _PAGE_INDEX) >> PAGE_SHIFT;
 	}
 	return table;
 }
@@ -1366,7 +1366,7 @@ static void gmap_unshadow_page(struct gmap *sg, unsigned long raddr)
 	table = gmap_table_walk(sg, raddr, 0); /* get page table pointer */
 	if (!table || *table & _PAGE_INVALID)
 		return;
-	gmap_call_notifier(sg, raddr, raddr + _PAGE_SIZE - 1);
+	gmap_call_notifier(sg, raddr, raddr + PAGE_SIZE - 1);
 	ptep_unshadow_pte(sg->mm, raddr, (pte_t *) table);
 }
 
@@ -1384,7 +1384,7 @@ static void __gmap_unshadow_pgt(struct gmap *sg, unsigned long raddr,
 	int i;
 
 	BUG_ON(!gmap_is_shadow(sg));
-	for (i = 0; i < _PAGE_ENTRIES; i++, raddr += _PAGE_SIZE)
+	for (i = 0; i < _PAGE_ENTRIES; i++, raddr += PAGE_SIZE)
 		pgt[i] = _PAGE_INVALID;
 }
 

@@ -128,7 +128,7 @@ static void dump_pagetable(unsigned long asce, unsigned long address)
 			goto out;
 		table = __va(entry & _SEGMENT_ENTRY_ORIGIN);
 	}
-	table += (address & _PAGE_INDEX) >> _PAGE_SHIFT;
+	table += (address & _PAGE_INDEX) >> PAGE_SHIFT;
 	if (get_kernel_nofault(entry, table))
 		goto bad;
 	pr_cont("P:%016lx ", entry);

@@ -16,7 +16,6 @@
 #include <linux/user.h>
 #include <linux/elf.h>
 #include <linux/security.h>
-#include <linux/memblock.h>
 #include <linux/syscalls.h>
 #include <linux/time_namespace.h>
 #include <vdso/datapage.h>
@@ -349,25 +348,6 @@ static struct page ** __init vdso_setup_pages(void *start, void *end)
 static int __init vdso_init(void)
 {
 #ifdef CONFIG_PPC64
-	/*
-	 * Fill up the "systemcfg" stuff for backward compatibility
-	 */
-	strcpy((char *)vdso_data->eye_catcher, "SYSTEMCFG:PPC64");
-	vdso_data->version.major = SYSTEMCFG_MAJOR;
-	vdso_data->version.minor = SYSTEMCFG_MINOR;
-	vdso_data->processor = mfspr(SPRN_PVR);
-	/*
-	 * Fake the old platform number for pSeries and add
-	 * in LPAR bit if necessary
-	 */
-	vdso_data->platform = 0x100;
-	if (firmware_has_feature(FW_FEATURE_LPAR))
-		vdso_data->platform |= 1;
-	vdso_data->physicalMemorySize = memblock_phys_mem_size();
-	vdso_data->dcache_size = ppc64_caches.l1d.size;
-	vdso_data->dcache_line_size = ppc64_caches.l1d.line_size;
-	vdso_data->icache_size = ppc64_caches.l1i.size;
-	vdso_data->icache_line_size = ppc64_caches.l1i.line_size;
 	vdso_data->dcache_block_size = ppc64_caches.l1d.block_size;
 	vdso_data->icache_block_size = ppc64_caches.l1i.block_size;
 	vdso_data->dcache_log_block_size = ppc64_caches.l1d.log_block_size;

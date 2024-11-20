@@ -12,14 +12,8 @@
 #include <asm/types.h>
 #include <asm/asm.h>
 
-#define _PAGE_SHIFT	CONFIG_PAGE_SHIFT
-#define _PAGE_SIZE	(_AC(1, UL) << _PAGE_SHIFT)
-#define _PAGE_MASK	(~(_PAGE_SIZE - 1))
+#include <vdso/page.h>
 
-/* PAGE_SHIFT determines the page size */
-#define PAGE_SHIFT	_PAGE_SHIFT
-#define PAGE_SIZE	_PAGE_SIZE
-#define PAGE_MASK	_PAGE_MASK
 #define PAGE_DEFAULT_ACC	_AC(0, UL)
 /* storage-protection override */
 #define PAGE_SPO_ACC		9

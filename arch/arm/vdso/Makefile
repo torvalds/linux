@@ -5,7 +5,7 @@ include $(srctree)/lib/vdso/Makefile
 
 hostprogs := vdsomunge
 
-obj-vdso := vgettimeofday.o datapage.o note.o
+obj-vdso := vgettimeofday.o note.o
 
 # Build rules
 targets := $(obj-vdso) vdso.so vdso.so.dbg vdso.so.raw vdso.lds
