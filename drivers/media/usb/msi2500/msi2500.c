@@ -1219,8 +1219,8 @@ static int msi2500_probe(struct usb_interface *intf,
 		goto err_free_mem;
 	}
 
-	/* SPI master adapter */
-	ctlr = spi_alloc_master(dev->dev, 0);
+	/* SPI host adapter */
+	ctlr = spi_alloc_host(dev->dev, 0);
 	if (ctlr == NULL) {
 		ret = -ENOMEM;
 		goto err_unregister_v4l2_dev;

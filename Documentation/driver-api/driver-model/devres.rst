@@ -462,8 +462,8 @@ SLAVE DMA ENGINE
   devm_acpi_dma_controller_free()
 
 SPI
-  devm_spi_alloc_master()
-  devm_spi_alloc_slave()
+  devm_spi_alloc_host()
+  devm_spi_alloc_target()
   devm_spi_optimize_message()
   devm_spi_register_controller()
   devm_spi_register_host()
