@@ -71,7 +71,7 @@ static void mvebu_pic_print_chip(struct irq_data *d, struct seq_file *p)
 {
 	struct mvebu_pic *pic = irq_data_get_irq_chip_data(d);
 
-	seq_printf(p, dev_name(&pic->pdev->dev));
+	seq_puts(p, dev_name(&pic->pdev->dev));
 }
 
 static const struct irq_chip mvebu_pic_chip = {

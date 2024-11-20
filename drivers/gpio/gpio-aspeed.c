@@ -1102,7 +1102,7 @@ static void aspeed_gpio_irq_print_chip(struct irq_data *d, struct seq_file *p)
 	if (rc)
 		return;
 
-	seq_printf(p, dev_name(gpio->dev));
+	seq_puts(p, dev_name(gpio->dev));
 }
 
 static const struct irq_chip aspeed_gpio_irq_chip = {
