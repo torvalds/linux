@@ -8587,15 +8587,22 @@ tracing_read_dyn_info(struct file *filp, char __user *ubuf,
 	char *buf;
 	int r;
 
-	/* 256 should be plenty to hold the amount needed */
-	buf = kmalloc(256, GFP_KERNEL);
+	/* 512 should be plenty to hold the amount needed */
+#define DYN_INFO_BUF_SIZE	512
+
+	buf = kmalloc(DYN_INFO_BUF_SIZE, GFP_KERNEL);
 	if (!buf)
 		return -ENOMEM;
 
-	r = scnprintf(buf, 256, "%ld pages:%ld groups: %ld\n",
+	r = scnprintf(buf, DYN_INFO_BUF_SIZE,
+		      "%ld pages:%ld groups: %ld\n"
+		      "ftrace boot update time = %llu (ns)\n"
+		      "ftrace module total update time = %llu (ns)\n",
 		      ftrace_update_tot_cnt,
 		      ftrace_number_of_pages,
-		      ftrace_number_of_groups);
+		      ftrace_number_of_groups,
+		      ftrace_update_time,
+		      ftrace_total_mod_time);
 
 	ret = simple_read_from_buffer(ubuf, cnt, ppos, buf, r);
 	kfree(buf);

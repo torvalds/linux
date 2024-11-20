@@ -421,7 +421,7 @@ int __init ftrace_dyn_arch_init(void)
 void ftrace_graph_func(unsigned long ip, unsigned long parent_ip,
 		       struct ftrace_ops *op, struct ftrace_regs *fregs)
 {
-	unsigned long sp = fregs->regs.gpr[1];
+	unsigned long sp = arch_ftrace_regs(fregs)->regs.gpr[1];
 	int bit;
 
 	if (unlikely(ftrace_graph_is_dead()))
@@ -439,6 +439,6 @@ void ftrace_graph_func(unsigned long ip, unsigned long parent_ip,
 
 	ftrace_test_recursion_unlock(bit);
 out:
-	fregs->regs.link = parent_ip;
+	arch_ftrace_regs(fregs)->regs.link = parent_ip;
 }
 #endif /* CONFIG_FUNCTION_GRAPH_TRACER */
