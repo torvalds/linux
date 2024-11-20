@@ -14,6 +14,7 @@ typedef __u16 __sum16;
 #include <linux/sockios.h>
 #include <linux/err.h>
 #include <netinet/tcp.h>
+#include <netinet/udp.h>
 #include <bpf/bpf_endian.h>
 #include <net/if.h>
 
@@ -191,6 +192,47 @@ static inline __sum16 csum_ipv6_magic(const struct in6_addr *saddr,
 	s = (s & 0xffffffff) + (s >> 32);
 
 	return csum_fold((__u32)s);
+}
+
+/**
+ * build_udp_v4_csum - compute UDP checksum for UDP over IPv4
+ *
+ * Compute the checksum to embed in UDP header, composed of the sum of IP
+ * pseudo-header checksum, UDP header checksum and UDP data checksum
+ * @iph IP header
+ * @udph UDP header, which must be immediately followed by UDP data
+ *
+ * Returns the total checksum
+ */
+
+static inline __sum16 build_udp_v4_csum(const struct iphdr *iph,
+					const struct udphdr *udph)
+{
+	unsigned long sum;
+
+	sum = csum_partial(udph, ntohs(udph->len), 0);
+	return csum_tcpudp_magic(iph->saddr, iph->daddr, ntohs(udph->len),
+				 IPPROTO_UDP, sum);
+}
+
+/**
+ * build_udp_v6_csum - compute UDP checksum for UDP over IPv6
+ *
+ * Compute the checksum to embed in UDP header, composed of the sum of IPv6
+ * pseudo-header checksum, UDP header checksum and UDP data checksum
+ * @ip6h IPv6 header
+ * @udph UDP header, which must be immediately followed by UDP data
+ *
+ * Returns the total checksum
+ */
+static inline __sum16 build_udp_v6_csum(const struct ipv6hdr *ip6h,
+					const struct udphdr *udph)
+{
+	unsigned long sum;
+
+	sum = csum_partial(udph, ntohs(udph->len), 0);
+	return csum_ipv6_magic(&ip6h->saddr, &ip6h->daddr, ntohs(udph->len),
+			       IPPROTO_UDP, sum);
 }
 
 struct tmonitor_ctx;
