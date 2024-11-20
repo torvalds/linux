@@ -491,7 +491,7 @@ static int rockchip_sfc_exec_mem_op(struct spi_mem *mem, const struct spi_mem_op
 	u32 len = op->data.nbytes;
 	int ret;
 
-	if (unlikely(mem->spi->max_speed_hz != sfc->frequency)) {
+	if (unlikely(mem->spi->max_speed_hz != sfc->frequency) && !has_acpi_companion(sfc->dev)) {
 		ret = clk_set_rate(sfc->clk, mem->spi->max_speed_hz);
 		if (ret)
 			return ret;
@@ -579,15 +579,23 @@ static int rockchip_sfc_probe(struct platform_device *pdev)
 	if (IS_ERR(sfc->regbase))
 		return PTR_ERR(sfc->regbase);
 
-	sfc->clk = devm_clk_get(&pdev->dev, "clk_sfc");
+	if (!has_acpi_companion(&pdev->dev))
+		sfc->clk = devm_clk_get(&pdev->dev, "clk_sfc");
 	if (IS_ERR(sfc->clk))
 		return dev_err_probe(&pdev->dev, PTR_ERR(sfc->clk),
 				     "Failed to get sfc interface clk\n");
 
-	sfc->hclk = devm_clk_get(&pdev->dev, "hclk_sfc");
+	if (!has_acpi_companion(&pdev->dev))
+		sfc->hclk = devm_clk_get(&pdev->dev, "hclk_sfc");
 	if (IS_ERR(sfc->hclk))
 		return dev_err_probe(&pdev->dev, PTR_ERR(sfc->hclk),
 				     "Failed to get sfc ahb clk\n");
+
+	if (has_acpi_companion(&pdev->dev)) {
+		ret = device_property_read_u32(&pdev->dev, "clock-frequency", &sfc->frequency);
+		if (ret)
+			return dev_err_probe(&pdev->dev, ret, "Failed to find clock-frequency\n");
+	}
 
 	sfc->use_dma = !of_property_read_bool(sfc->dev->of_node, "rockchip,sfc-no-dma");
 
