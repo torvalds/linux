@@ -105,6 +105,30 @@ static __u16 csum_fold(__u32 csum)
 	return (__u16)~csum;
 }
 
+static __wsum csum_partial(const void *buf, int len, __wsum sum)
+{
+	__u16 *p = (__u16 *)buf;
+	int num_u16 = len >> 1;
+	int i;
+
+	for (i = 0; i < num_u16; i++)
+		sum += p[i];
+
+	return sum;
+}
+
+static inline __sum16 build_ip_csum(struct iphdr *iph)
+{
+	__u32 sum = 0;
+	__u16 *p;
+
+	iph->check = 0;
+	p = (void *)iph;
+	sum = csum_partial(p, iph->ihl << 2, 0);
+
+	return csum_fold(sum);
+}
+
 static inline __sum16 csum_tcpudp_magic(__be32 saddr, __be32 daddr,
 					__u32 len, __u8 proto,
 					__wsum csum)
