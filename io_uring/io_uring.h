@@ -349,7 +349,7 @@ static inline int io_run_task_work(void)
 
 static inline bool io_local_work_pending(struct io_ring_ctx *ctx)
 {
-	return !llist_empty(&ctx->work_llist);
+	return !llist_empty(&ctx->work_llist) || !llist_empty(&ctx->retry_llist);
 }
 
 static inline bool io_task_work_pending(struct io_ring_ctx *ctx)
