@@ -453,7 +453,14 @@ struct intel_display {
 	} ips;
 
 	struct {
-		bool display_irqs_enabled;
+		/*
+		 * Most platforms treat the display irq block as an always-on
+		 * power domain. vlv/chv can disable it at runtime and need
+		 * special care to avoid writing any of the display block
+		 * registers outside of the power domain. We defer setting up
+		 * the display irqs in this case to the runtime pm.
+		 */
+		bool vlv_display_irqs_enabled;
 
 		/* For i915gm/i945gm vblank irq workaround */
 		u8 vblank_enabled;
