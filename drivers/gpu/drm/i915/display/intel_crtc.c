@@ -12,6 +12,7 @@
 #include <drm/drm_vblank.h>
 #include <drm/drm_vblank_work.h>
 
+#include "i915_drv.h"
 #include "i915_vgpu.h"
 #include "i9xx_plane.h"
 #include "icl_dsi.h"
