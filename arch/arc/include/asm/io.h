@@ -42,9 +42,6 @@ static inline void ioport_unmap(void __iomem *addr)
 #define iowrite16be(v,p)	({ __iowmb(); __raw_writew((__force u16)cpu_to_be16(v), p); })
 #define iowrite32be(v,p)	({ __iowmb(); __raw_writel((__force u32)cpu_to_be32(v), p); })
 
-/* Change struct page to physical address */
-#define page_to_phys(page)		(page_to_pfn(page) << PAGE_SHIFT)
-
 #define __raw_readb __raw_readb
 static inline u8 __raw_readb(const volatile void __iomem *addr)
 {

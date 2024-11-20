@@ -130,17 +130,6 @@ static __always_inline u64 __raw_readq(const volatile void __iomem *addr)
 #define PCI_IOBASE		((void __iomem *)PCI_IO_START)
 
 /*
- * String version of I/O memory access operations.
- */
-extern void __memcpy_fromio(void *, const volatile void __iomem *, size_t);
-extern void __memcpy_toio(volatile void __iomem *, const void *, size_t);
-extern void __memset_io(volatile void __iomem *, int, size_t);
-
-#define memset_io(c,v,l)	__memset_io((c),(v),(l))
-#define memcpy_fromio(a,c,l)	__memcpy_fromio((a),(c),(l))
-#define memcpy_toio(c,a,l)	__memcpy_toio((c),(a),(l))
-
-/*
  * The ARM64 iowrite implementation is intended to support drivers that want to
  * use write combining. For instance PCI drivers using write combining with a 64
  * byte __iowrite64_copy() expect to get a 64 byte MemWr TLP on the PCIe bus.
