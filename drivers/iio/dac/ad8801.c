@@ -136,26 +136,18 @@ static int ad8801_probe(struct spi_device *spi)
 		state->vrefl_mv = ret / 1000;
 	}
 
-	spi_set_drvdata(spi, indio_dev);
 	indio_dev->info = &ad8801_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = ad8801_channels;
 	indio_dev->num_channels = ARRAY_SIZE(ad8801_channels);
 	indio_dev->name = id->name;
 
-	ret = iio_device_register(indio_dev);
+	ret = devm_iio_device_register(&spi->dev, indio_dev);
 	if (ret)
 		return dev_err_probe(&spi->dev, ret,
 				     "Failed to register iio device\n");
 
 	return 0;
-}
-
-static void ad8801_remove(struct spi_device *spi)
-{
-	struct iio_dev *indio_dev = spi_get_drvdata(spi);
-
-	iio_device_unregister(indio_dev);
 }
 
 static const struct spi_device_id ad8801_ids[] = {
@@ -170,7 +162,6 @@ static struct spi_driver ad8801_driver = {
 		.name	= "ad8801",
 	},
 	.probe		= ad8801_probe,
-	.remove		= ad8801_remove,
 	.id_table	= ad8801_ids,
 };
 module_spi_driver(ad8801_driver);
