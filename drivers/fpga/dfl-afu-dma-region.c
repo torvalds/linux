@@ -301,6 +301,7 @@ afu_dma_region_find_iova(struct dfl_feature_platform_data *pdata, u64 iova)
 int afu_dma_map_region(struct dfl_feature_platform_data *pdata,
 		       u64 user_addr, u64 length, u64 *iova)
 {
+	struct device *dev = &pdata->dev->dev;
 	struct dfl_afu_dma_region *region;
 	int ret;
 
@@ -325,13 +326,13 @@ int afu_dma_map_region(struct dfl_feature_platform_data *pdata,
 	/* Pin the user memory region */
 	ret = afu_dma_pin_pages(pdata, region);
 	if (ret) {
-		dev_err(&pdata->dev->dev, "failed to pin memory region\n");
+		dev_err(dev, "failed to pin memory region\n");
 		goto free_region;
 	}
 
 	/* Only accept continuous pages, return error else */
 	if (!afu_dma_check_continuous_pages(region)) {
-		dev_err(&pdata->dev->dev, "pages are not continuous\n");
+		dev_err(dev, "pages are not continuous\n");
 		ret = -EINVAL;
 		goto unpin_pages;
 	}
@@ -342,7 +343,7 @@ int afu_dma_map_region(struct dfl_feature_platform_data *pdata,
 				    region->length,
 				    DMA_BIDIRECTIONAL);
 	if (dma_mapping_error(dfl_fpga_pdata_to_parent(pdata), region->iova)) {
-		dev_err(&pdata->dev->dev, "failed to map for dma\n");
+		dev_err(dev, "failed to map for dma\n");
 		ret = -EFAULT;
 		goto unpin_pages;
 	}
@@ -353,7 +354,7 @@ int afu_dma_map_region(struct dfl_feature_platform_data *pdata,
 	ret = afu_dma_region_add(pdata, region);
 	mutex_unlock(&pdata->lock);
 	if (ret) {
-		dev_err(&pdata->dev->dev, "failed to add dma region\n");
+		dev_err(dev, "failed to add dma region\n");
 		goto unmap_dma;
 	}
 
