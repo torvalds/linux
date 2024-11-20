@@ -1198,6 +1198,7 @@ void intel_gt_reset(struct intel_gt *gt,
 		    intel_engine_mask_t stalled_mask,
 		    const char *reason)
 {
+	struct intel_display *display = &gt->i915->display;
 	intel_engine_mask_t awake;
 	int ret;
 
@@ -1243,7 +1244,7 @@ void intel_gt_reset(struct intel_gt *gt,
 	if (INTEL_INFO(gt->i915)->gpu_reset_clobbers_display)
 		intel_irq_resume(gt->i915);
 
-	intel_overlay_reset(gt->i915);
+	intel_overlay_reset(display);
 
 	/* sanitize uC after engine reset */
 	if (!intel_uc_uses_guc_submission(&gt->uc))

@@ -518,7 +518,7 @@ int intel_display_driver_probe(struct drm_i915_private *i915)
 	if (ret)
 		drm_dbg_kms(&i915->drm, "Initial modeset failed, %d\n", ret);
 
-	intel_overlay_setup(i915);
+	intel_overlay_setup(display);
 
 	/* Only enable hotplug handling once the fbdev is fully set up. */
 	intel_hpd_init(i915);
@@ -607,7 +607,7 @@ void intel_display_driver_remove_noirq(struct drm_i915_private *i915)
 
 	intel_dp_tunnel_mgr_cleanup(display);
 
-	intel_overlay_cleanup(i915);
+	intel_overlay_cleanup(display);
 
 	intel_gmbus_teardown(display);
 
