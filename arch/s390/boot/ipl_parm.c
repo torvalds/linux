@@ -317,6 +317,8 @@ void parse_boot_command_line(void)
 			boot_earlyprintk = true;
 		if (!strcmp(param, "debug"))
 			boot_console_loglevel = CONSOLE_LOGLEVEL_DEBUG;
+		if (!strcmp(param, "bootdebug"))
+			bootdebug = true;
 		if (!strcmp(param, "quiet"))
 			boot_console_loglevel = CONSOLE_LOGLEVEL_QUIET;
 		if (!strcmp(param, "ignore_loglevel"))

@@ -50,6 +50,7 @@ decompressor_handled_param(facilities);
 decompressor_handled_param(nokaslr);
 decompressor_handled_param(cmma);
 decompressor_handled_param(relocate_lowcore);
+decompressor_handled_param(bootdebug);
 #if IS_ENABLED(CONFIG_KVM)
 decompressor_handled_param(prot_virt);
 #endif

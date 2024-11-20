@@ -17,6 +17,7 @@ bool boot_ignore_loglevel;
 char __bootdata(boot_rb)[PAGE_SIZE * 2];
 bool __bootdata(boot_earlyprintk);
 size_t __bootdata(boot_rb_off);
+bool __bootdata(bootdebug);
 
 static void boot_rb_add(const char *str, size_t len)
 {
@@ -167,6 +168,9 @@ static void boot_console_earlyprintk(const char *buf)
 
 	/* always print emergency messages */
 	if (level > LOGLEVEL_EMERG && !boot_earlyprintk)
+		return;
+	/* print debug messages only when bootdebug is enabled */
+	if (level == LOGLEVEL_DEBUG && !bootdebug)
 		return;
 	if (boot_ignore_loglevel || level < boot_console_loglevel)
 		sclp_early_printk(printk_skip_level(buf));
