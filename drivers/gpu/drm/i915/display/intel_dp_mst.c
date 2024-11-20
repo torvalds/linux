@@ -888,8 +888,8 @@ static int mst_stream_compute_config_late(struct intel_encoder *encoder,
  * recomputation of the corresponding CRTC states.
  */
 static int
-intel_dp_mst_atomic_topology_check(struct intel_connector *connector,
-				   struct intel_atomic_state *state)
+mst_connector_atomic_topology_check(struct intel_connector *connector,
+				    struct intel_atomic_state *state)
 {
 	struct intel_display *display = to_intel_display(connector);
 	struct drm_connector_list_iter connector_list_iter;
@@ -937,8 +937,8 @@ intel_dp_mst_atomic_topology_check(struct intel_connector *connector,
 }
 
 static int
-intel_dp_mst_atomic_check(struct drm_connector *connector,
-			  struct drm_atomic_state *_state)
+mst_connector_atomic_check(struct drm_connector *connector,
+			   struct drm_atomic_state *_state)
 {
 	struct intel_atomic_state *state = to_intel_atomic_state(_state);
 	struct intel_connector *intel_connector =
@@ -949,7 +949,7 @@ intel_dp_mst_atomic_check(struct drm_connector *connector,
 	if (ret)
 		return ret;
 
-	ret = intel_dp_mst_atomic_topology_check(intel_connector, state);
+	ret = mst_connector_atomic_topology_check(intel_connector, state);
 	if (ret)
 		return ret;
 
@@ -1363,7 +1363,7 @@ static bool mst_stream_initial_fastset_check(struct intel_encoder *encoder,
 	return intel_dp_initial_fastset_check(primary_encoder, crtc_state);
 }
 
-static int intel_dp_mst_get_ddc_modes(struct drm_connector *connector)
+static int mst_connector_get_ddc_modes(struct drm_connector *connector)
 {
 	struct intel_connector *intel_connector = to_intel_connector(connector);
 	struct drm_i915_private *i915 = to_i915(intel_connector->base.dev);
@@ -1387,7 +1387,7 @@ static int intel_dp_mst_get_ddc_modes(struct drm_connector *connector)
 }
 
 static int
-intel_dp_mst_connector_late_register(struct drm_connector *connector)
+mst_connector_late_register(struct drm_connector *connector)
 {
 	struct intel_connector *intel_connector = to_intel_connector(connector);
 	int ret;
@@ -1406,7 +1406,7 @@ intel_dp_mst_connector_late_register(struct drm_connector *connector)
 }
 
 static void
-intel_dp_mst_connector_early_unregister(struct drm_connector *connector)
+mst_connector_early_unregister(struct drm_connector *connector)
 {
 	struct intel_connector *intel_connector = to_intel_connector(connector);
 
@@ -1415,27 +1415,27 @@ intel_dp_mst_connector_early_unregister(struct drm_connector *connector)
 					      intel_connector->port);
 }
 
-static const struct drm_connector_funcs intel_dp_mst_connector_funcs = {
+static const struct drm_connector_funcs mst_connector_funcs = {
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.atomic_get_property = intel_digital_connector_atomic_get_property,
 	.atomic_set_property = intel_digital_connector_atomic_set_property,
-	.late_register = intel_dp_mst_connector_late_register,
-	.early_unregister = intel_dp_mst_connector_early_unregister,
+	.late_register = mst_connector_late_register,
+	.early_unregister = mst_connector_early_unregister,
 	.destroy = intel_connector_destroy,
 	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
 	.atomic_duplicate_state = intel_digital_connector_duplicate_state,
 };
 
-static int intel_dp_mst_get_modes(struct drm_connector *connector)
+static int mst_connector_get_modes(struct drm_connector *connector)
 {
-	return intel_dp_mst_get_ddc_modes(connector);
+	return mst_connector_get_ddc_modes(connector);
 }
 
 static int
-intel_dp_mst_mode_valid_ctx(struct drm_connector *connector,
-			    struct drm_display_mode *mode,
-			    struct drm_modeset_acquire_ctx *ctx,
-			    enum drm_mode_status *status)
+mst_connector_mode_valid_ctx(struct drm_connector *connector,
+			     struct drm_display_mode *mode,
+			     struct drm_modeset_acquire_ctx *ctx,
+			     enum drm_mode_status *status)
 {
 	struct intel_display *display = to_intel_display(connector->dev);
 	struct drm_i915_private *dev_priv = to_i915(connector->dev);
@@ -1546,8 +1546,9 @@ intel_dp_mst_mode_valid_ctx(struct drm_connector *connector,
 	return 0;
 }
 
-static struct drm_encoder *intel_mst_atomic_best_encoder(struct drm_connector *connector,
-							 struct drm_atomic_state *state)
+static struct drm_encoder *
+mst_connector_atomic_best_encoder(struct drm_connector *connector,
+				  struct drm_atomic_state *state)
 {
 	struct drm_connector_state *connector_state = drm_atomic_get_new_connector_state(state,
 											 connector);
@@ -1559,8 +1560,8 @@ static struct drm_encoder *intel_mst_atomic_best_encoder(struct drm_connector *c
 }
 
 static int
-intel_dp_mst_detect(struct drm_connector *connector,
-		    struct drm_modeset_acquire_ctx *ctx, bool force)
+mst_connector_detect_ctx(struct drm_connector *connector,
+			 struct drm_modeset_acquire_ctx *ctx, bool force)
 {
 	struct intel_display *display = to_intel_display(connector->dev);
 	struct drm_i915_private *i915 = to_i915(connector->dev);
@@ -1582,12 +1583,12 @@ intel_dp_mst_detect(struct drm_connector *connector,
 				      intel_connector->port);
 }
 
-static const struct drm_connector_helper_funcs intel_dp_mst_connector_helper_funcs = {
-	.get_modes = intel_dp_mst_get_modes,
-	.mode_valid_ctx = intel_dp_mst_mode_valid_ctx,
-	.atomic_best_encoder = intel_mst_atomic_best_encoder,
-	.atomic_check = intel_dp_mst_atomic_check,
-	.detect_ctx = intel_dp_mst_detect,
+static const struct drm_connector_helper_funcs mst_connector_helper_funcs = {
+	.get_modes = mst_connector_get_modes,
+	.mode_valid_ctx = mst_connector_mode_valid_ctx,
+	.atomic_best_encoder = mst_connector_atomic_best_encoder,
+	.atomic_check = mst_connector_atomic_check,
+	.detect_ctx = mst_connector_detect_ctx,
 };
 
 static void mst_stream_encoder_destroy(struct drm_encoder *encoder)
@@ -1602,7 +1603,7 @@ static const struct drm_encoder_funcs mst_stream_encoder_funcs = {
 	.destroy = mst_stream_encoder_destroy,
 };
 
-static bool intel_dp_mst_get_hw_state(struct intel_connector *connector)
+static bool mst_connector_get_hw_state(struct intel_connector *connector)
 {
 	if (intel_attached_encoder(connector) && connector->base.state->crtc) {
 		enum pipe pipe;
@@ -1717,7 +1718,7 @@ static struct drm_connector *intel_dp_add_mst_connector(struct drm_dp_mst_topolo
 	if (!intel_connector)
 		return NULL;
 
-	intel_connector->get_hw_state = intel_dp_mst_get_hw_state;
+	intel_connector->get_hw_state = mst_connector_get_hw_state;
 	intel_connector->sync_state = intel_dp_connector_sync_state;
 	intel_connector->mst_port = intel_dp;
 	intel_connector->port = port;
@@ -1741,7 +1742,7 @@ static struct drm_connector *intel_dp_add_mst_connector(struct drm_dp_mst_topolo
 		detect_dsc_hblank_expansion_quirk(intel_connector);
 
 	connector = &intel_connector->base;
-	ret = drm_connector_init(display->drm, connector, &intel_dp_mst_connector_funcs,
+	ret = drm_connector_init(display->drm, connector, &mst_connector_funcs,
 				 DRM_MODE_CONNECTOR_DisplayPort);
 	if (ret) {
 		drm_dp_mst_put_port_malloc(port);
@@ -1749,7 +1750,7 @@ static struct drm_connector *intel_dp_add_mst_connector(struct drm_dp_mst_topolo
 		return NULL;
 	}
 
-	drm_connector_helper_add(connector, &intel_dp_mst_connector_helper_funcs);
+	drm_connector_helper_add(connector, &mst_connector_helper_funcs);
 
 	for_each_pipe(display, pipe) {
 		struct drm_encoder *enc =
