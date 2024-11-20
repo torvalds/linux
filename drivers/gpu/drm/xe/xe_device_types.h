@@ -294,14 +294,24 @@ struct xe_device {
 		/** @info.va_bits: Maximum bits of a virtual address */
 		u8 va_bits;
 
-		/** @info.is_dgfx: is discrete device */
-		u8 is_dgfx:1;
-		/** @info.has_asid: Has address space ID */
-		u8 has_asid:1;
+		/*
+		 * Keep all flags below alphabetically sorted
+		 */
+
 		/** @info.force_execlist: Forced execlist submission */
 		u8 force_execlist:1;
+		/** @info.has_asid: Has address space ID */
+		u8 has_asid:1;
+		/** @info.has_atomic_enable_pte_bit: Device has atomic enable PTE bit */
+		u8 has_atomic_enable_pte_bit:1;
+		/** @info.has_device_atomics_on_smem: Supports device atomics on SMEM */
+		u8 has_device_atomics_on_smem:1;
 		/** @info.has_flat_ccs: Whether flat CCS metadata is used */
 		u8 has_flat_ccs:1;
+		/** @info.has_heci_cscfi: device has heci cscfi */
+		u8 has_heci_cscfi:1;
+		/** @info.has_heci_gscfi: device has heci gscfi */
+		u8 has_heci_gscfi:1;
 		/** @info.has_llc: Device has a shared CPU+GPU last level cache */
 		u8 has_llc:1;
 		/** @info.has_mmio_ext: Device has extra MMIO address range */
@@ -312,6 +322,8 @@ struct xe_device {
 		u8 has_sriov:1;
 		/** @info.has_usm: Device has unified shared memory support */
 		u8 has_usm:1;
+		/** @info.is_dgfx: is discrete device */
+		u8 is_dgfx:1;
 		/**
 		 * @info.probe_display: Probe display hardware.  If set to
 		 * false, the driver will behave as if there is no display
@@ -321,20 +333,12 @@ struct xe_device {
 		 * state the firmware or bootloader left it in.
 		 */
 		u8 probe_display:1;
+		/** @info.skip_guc_pc: Skip GuC based PM feature init */
+		u8 skip_guc_pc:1;
 		/** @info.skip_mtcfg: skip Multi-Tile configuration from MTCFG register */
 		u8 skip_mtcfg:1;
 		/** @info.skip_pcode: skip access to PCODE uC */
 		u8 skip_pcode:1;
-		/** @info.has_heci_gscfi: device has heci gscfi */
-		u8 has_heci_gscfi:1;
-		/** @info.has_heci_cscfi: device has heci cscfi */
-		u8 has_heci_cscfi:1;
-		/** @info.skip_guc_pc: Skip GuC based PM feature init */
-		u8 skip_guc_pc:1;
-		/** @info.has_atomic_enable_pte_bit: Device has atomic enable PTE bit */
-		u8 has_atomic_enable_pte_bit:1;
-		/** @info.has_device_atomics_on_smem: Supports device atomics on SMEM */
-		u8 has_device_atomics_on_smem:1;
 	} info;
 
 	/** @irq: device interrupt state */
