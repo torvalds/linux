@@ -16,6 +16,7 @@ extern unsigned long early_ipl_comp_list_addr;
 extern unsigned long early_ipl_comp_list_size;
 
 extern char boot_rb[PAGE_SIZE * 2];
+extern bool boot_earlyprintk;
 extern size_t boot_rb_off;
 
 #define boot_rb_foreach(cb)							\

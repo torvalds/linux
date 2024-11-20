@@ -5,6 +5,7 @@
 #include <linux/ctype.h>
 #include <asm/stacktrace.h>
 #include <asm/boot_data.h>
+#include <asm/sections.h>
 #include <asm/lowcore.h>
 #include <asm/setup.h>
 #include <asm/sclp.h>
@@ -13,8 +14,9 @@
 
 int boot_console_loglevel = CONFIG_CONSOLE_LOGLEVEL_DEFAULT;
 bool boot_ignore_loglevel;
-char boot_rb[PAGE_SIZE * 2];
-size_t boot_rb_off;
+char __bootdata(boot_rb)[PAGE_SIZE * 2];
+bool __bootdata(boot_earlyprintk);
+size_t __bootdata(boot_rb_off);
 
 static void boot_rb_add(const char *str, size_t len)
 {
@@ -163,6 +165,9 @@ static void boot_console_earlyprintk(const char *buf)
 {
 	int level = printk_loglevel(buf);
 
+	/* always print emergency messages */
+	if (level > LOGLEVEL_EMERG && !boot_earlyprintk)
+		return;
 	if (boot_ignore_loglevel || level < boot_console_loglevel)
 		sclp_early_printk(printk_skip_level(buf));
 }

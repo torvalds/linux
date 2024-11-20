@@ -157,6 +157,10 @@ u64 __bootdata_preserved(stfle_fac_list[16]);
 EXPORT_SYMBOL(stfle_fac_list);
 struct oldmem_data __bootdata_preserved(oldmem_data);
 
+char __bootdata(boot_rb)[PAGE_SIZE * 2];
+bool __bootdata(boot_earlyprintk);
+size_t __bootdata(boot_rb_off);
+
 unsigned long __bootdata_preserved(VMALLOC_START);
 EXPORT_SYMBOL(VMALLOC_START);
 
@@ -878,6 +882,17 @@ static void __init log_component_list(void)
 }
 
 /*
+ * Print avoiding interpretation of % in buf
+ */
+static void __init print_rb_entry(char *buf)
+{
+	char fmt[] = KERN_SOH "0boot: %s";
+
+	fmt[1] = printk_get_level(buf);
+	printk(fmt, printk_skip_level(buf));
+}
+
+/*
  * Setup function called from init/main.c just after the banner
  * was printed.
  */
@@ -896,6 +911,9 @@ void __init setup_arch(char **cmdline_p)
 		pr_info("Linux is running natively in 64-bit mode\n");
 	else
 		pr_info("Linux is running as a guest in 64-bit mode\n");
+	/* Print decompressor messages if not already printed */
+	if (!boot_earlyprintk)
+		boot_rb_foreach(print_rb_entry);
 
 	if (have_relocated_lowcore())
 		pr_info("Lowcore relocated to 0x%px\n", get_lowcore());
