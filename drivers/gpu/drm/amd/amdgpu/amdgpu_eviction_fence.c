@@ -117,6 +117,10 @@ amdgpu_eviction_fence_suspend_worker(struct work_struct *work)
 	/* Signal old eviction fence */
 	amdgpu_eviction_fence_signal(evf_mgr);
 
+	/* Do not replace eviction fence is fd is getting closed */
+	if (evf_mgr->fd_closing)
+		return;
+
 	/* Prepare the objects to replace eviction fence */
 	drm_exec_init(&exec, DRM_EXEC_IGNORE_DUPLICATES, 0);
 	drm_exec_until_all_locked(&exec) {
@@ -198,6 +202,9 @@ amdgpu_eviction_fence_create(struct amdgpu_eviction_fence_mgr *evf_mgr)
 void amdgpu_eviction_fence_destroy(struct amdgpu_eviction_fence_mgr *evf_mgr)
 {
 	struct amdgpu_eviction_fence *ev_fence;
+
+	/* Wait for any pending work to execute */
+	flush_delayed_work(&evf_mgr->suspend_work);
 
 	spin_lock(&evf_mgr->ev_fence_lock);
 	ev_fence = evf_mgr->ev_fence;

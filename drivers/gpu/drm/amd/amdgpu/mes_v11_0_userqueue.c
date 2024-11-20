@@ -139,6 +139,7 @@ static int mes_v11_0_userq_map(struct amdgpu_userq_mgr *uq_mgr,
 		return r;
 	}
 
+	queue->queue_active = true;
 	DRM_DEBUG_DRIVER("Queue (doorbell:%d) mapped successfully\n", userq_props->doorbell_index);
 	return 0;
 }
@@ -160,6 +161,7 @@ static void mes_v11_0_userq_unmap(struct amdgpu_userq_mgr *uq_mgr,
 	amdgpu_mes_unlock(&adev->mes);
 	if (r)
 		DRM_ERROR("Failed to unmap queue in HW, err (%d)\n", r);
+	queue->queue_active = false;
 }
 
 static int mes_v11_0_userq_create_ctx_space(struct amdgpu_userq_mgr *uq_mgr,
@@ -331,7 +333,6 @@ static int mes_v11_0_userq_mqd_create(struct amdgpu_userq_mgr *uq_mgr,
 		goto free_ctx;
 	}
 
-	queue->queue_active = true;
 	return 0;
 
 free_ctx:
@@ -350,12 +351,12 @@ static void
 mes_v11_0_userq_mqd_destroy(struct amdgpu_userq_mgr *uq_mgr,
 			    struct amdgpu_usermode_queue *queue)
 {
-	mes_v11_0_userq_unmap(uq_mgr, queue);
-	amdgpu_bo_unref(&queue->wptr_obj.obj);
+	if (queue->queue_active)
+		mes_v11_0_userq_unmap(uq_mgr, queue);
+
 	amdgpu_userqueue_destroy_object(uq_mgr, &queue->fw_obj);
 	kfree(queue->userq_prop);
 	amdgpu_userqueue_destroy_object(uq_mgr, &queue->mqd);
-	queue->queue_active = false;
 }
 
 static int mes_v11_0_userq_suspend(struct amdgpu_userq_mgr *uq_mgr,
