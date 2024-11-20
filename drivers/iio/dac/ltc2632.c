@@ -317,7 +317,6 @@ static int ltc2632_probe(struct spi_device *spi)
 
 	st = iio_priv(indio_dev);
 
-	spi_set_drvdata(spi, indio_dev);
 	st->spi_dev = spi;
 
 	chip_info = (struct ltc2632_chip_info *)
@@ -351,14 +350,7 @@ static int ltc2632_probe(struct spi_device *spi)
 	indio_dev->channels = chip_info->channels;
 	indio_dev->num_channels = chip_info->num_channels;
 
-	return iio_device_register(indio_dev);
-}
-
-static void ltc2632_remove(struct spi_device *spi)
-{
-	struct iio_dev *indio_dev = spi_get_drvdata(spi);
-
-	iio_device_unregister(indio_dev);
+	return devm_iio_device_register(&spi->dev, indio_dev);
 }
 
 static const struct spi_device_id ltc2632_id[] = {
@@ -450,7 +442,6 @@ static struct spi_driver ltc2632_driver = {
 		.of_match_table = ltc2632_of_match,
 	},
 	.probe		= ltc2632_probe,
-	.remove		= ltc2632_remove,
 	.id_table	= ltc2632_id,
 };
 module_spi_driver(ltc2632_driver);
