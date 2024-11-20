@@ -129,6 +129,21 @@ static inline __sum16 build_ip_csum(struct iphdr *iph)
 	return csum_fold(sum);
 }
 
+/**
+ * csum_tcpudp_magic - compute IP pseudo-header checksum
+ *
+ * Compute the IPv4 pseudo header checksum. The helper can take a
+ * accumulated sum from the transport layer to accumulate it and directly
+ * return the transport layer
+ *
+ * @saddr: IP source address
+ * @daddr: IP dest address
+ * @len: IP data size
+ * @proto: transport layer protocol
+ * @csum: The accumulated partial sum to add to the computation
+ *
+ * Returns the folded sum
+ */
 static inline __sum16 csum_tcpudp_magic(__be32 saddr, __be32 daddr,
 					__u32 len, __u8 proto,
 					__wsum csum)
@@ -144,6 +159,21 @@ static inline __sum16 csum_tcpudp_magic(__be32 saddr, __be32 daddr,
 	return csum_fold((__u32)s);
 }
 
+/**
+ * csum_ipv6_magic - compute IPv6 pseudo-header checksum
+ *
+ * Compute the ipv6 pseudo header checksum. The helper can take a
+ * accumulated sum from the transport layer to accumulate it and directly
+ * return the transport layer
+ *
+ * @saddr: IPv6 source address
+ * @daddr: IPv6 dest address
+ * @len: IPv6 data size
+ * @proto: transport layer protocol
+ * @csum: The accumulated partial sum to add to the computation
+ *
+ * Returns the folded sum
+ */
 static inline __sum16 csum_ipv6_magic(const struct in6_addr *saddr,
 				      const struct in6_addr *daddr,
 					__u32 len, __u8 proto,
