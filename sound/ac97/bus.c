@@ -180,7 +180,7 @@ static int ac97_bus_reset(struct ac97_controller *ac97_ctrl)
 
 /**
  * snd_ac97_codec_driver_register - register an AC97 codec driver
- * @dev: AC97 driver codec to register
+ * @drv: AC97 driver codec to register
  *
  * Register an AC97 codec driver to the ac97 bus driver, aka. the AC97 digital
  * controller.
@@ -196,7 +196,7 @@ EXPORT_SYMBOL_GPL(snd_ac97_codec_driver_register);
 
 /**
  * snd_ac97_codec_driver_unregister - unregister an AC97 codec driver
- * @dev: AC97 codec driver to unregister
+ * @drv: AC97 codec driver to unregister
  *
  * Unregister a previously registered ac97 codec driver.
  */
@@ -338,6 +338,7 @@ static int ac97_add_adapter(struct ac97_controller *ac97_ctrl)
  * @dev: the device providing the ac97 DC function
  * @slots_available: mask of the ac97 codecs that can be scanned and probed
  *                   bit0 => codec 0, bit1 => codec 1 ... bit 3 => codec 3
+ * @codecs_pdata: codec platform data
  *
  * Register a digital controller which can control up to 4 ac97 codecs. This is
  * the controller side of the AC97 AC-link, while the slave side are the codecs.
