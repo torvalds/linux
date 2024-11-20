@@ -256,15 +256,6 @@ static bool intel_dsb_prev_ins_is_write(struct intel_dsb *dsb,
 	return prev_opcode == opcode && prev_reg == i915_mmio_reg_offset(reg);
 }
 
-static bool intel_dsb_prev_ins_is_mmio_write(struct intel_dsb *dsb, i915_reg_t reg)
-{
-	/* only full byte-enables can be converted to indexed writes */
-	return intel_dsb_prev_ins_is_write(dsb,
-					   DSB_OPCODE_MMIO_WRITE << DSB_OPCODE_SHIFT |
-					   DSB_BYTE_EN << DSB_BYTE_EN_SHIFT,
-					   reg);
-}
-
 static bool intel_dsb_prev_ins_is_indexed_write(struct intel_dsb *dsb, i915_reg_t reg)
 {
 	return intel_dsb_prev_ins_is_write(dsb,
@@ -273,7 +264,7 @@ static bool intel_dsb_prev_ins_is_indexed_write(struct intel_dsb *dsb, i915_reg_
 }
 
 /**
- * intel_dsb_reg_write_indexed() - Emit register wriite to the DSB context
+ * intel_dsb_reg_write_indexed() - Emit indexed register write to the DSB context
  * @dsb: DSB context
  * @reg: register address.
  * @val: value.
@@ -304,44 +295,23 @@ void intel_dsb_reg_write_indexed(struct intel_dsb *dsb,
 	 * we are writing odd no of dwords, Zeros will be added in the end for
 	 * padding.
 	 */
-	if (!intel_dsb_prev_ins_is_mmio_write(dsb, reg) &&
-	    !intel_dsb_prev_ins_is_indexed_write(dsb, reg)) {
-		intel_dsb_emit(dsb, val,
-			       (DSB_OPCODE_MMIO_WRITE << DSB_OPCODE_SHIFT) |
-			       (DSB_BYTE_EN << DSB_BYTE_EN_SHIFT) |
+	if (!intel_dsb_prev_ins_is_indexed_write(dsb, reg))
+		intel_dsb_emit(dsb, 0, /* count */
+			       (DSB_OPCODE_INDEXED_WRITE << DSB_OPCODE_SHIFT) |
 			       i915_mmio_reg_offset(reg));
-	} else {
-		if (!assert_dsb_has_room(dsb))
-			return;
 
-		/* convert to indexed write? */
-		if (intel_dsb_prev_ins_is_mmio_write(dsb, reg)) {
-			u32 prev_val = dsb->ins[0];
+	if (!assert_dsb_has_room(dsb))
+		return;
 
-			dsb->ins[0] = 1; /* count */
-			dsb->ins[1] = (DSB_OPCODE_INDEXED_WRITE << DSB_OPCODE_SHIFT) |
-				i915_mmio_reg_offset(reg);
+	/* Update the count */
+	dsb->ins[0]++;
+	intel_dsb_buffer_write(&dsb->dsb_buf, dsb->ins_start_offset + 0,
+			       dsb->ins[0]);
 
-			intel_dsb_buffer_write(&dsb->dsb_buf, dsb->ins_start_offset + 0,
-					       dsb->ins[0]);
-			intel_dsb_buffer_write(&dsb->dsb_buf, dsb->ins_start_offset + 1,
-					       dsb->ins[1]);
-			intel_dsb_buffer_write(&dsb->dsb_buf, dsb->ins_start_offset + 2,
-					       prev_val);
-
-			dsb->free_pos++;
-		}
-
-		intel_dsb_buffer_write(&dsb->dsb_buf, dsb->free_pos++, val);
-		/* Update the count */
-		dsb->ins[0]++;
-		intel_dsb_buffer_write(&dsb->dsb_buf, dsb->ins_start_offset + 0,
-				       dsb->ins[0]);
-
-		/* if number of data words is odd, then the last dword should be 0.*/
-		if (dsb->free_pos & 0x1)
-			intel_dsb_buffer_write(&dsb->dsb_buf, dsb->free_pos, 0);
-	}
+	intel_dsb_buffer_write(&dsb->dsb_buf, dsb->free_pos++, val);
+	/* if number of data words is odd, then the last dword should be 0.*/
+	if (dsb->free_pos & 0x1)
+		intel_dsb_buffer_write(&dsb->dsb_buf, dsb->free_pos, 0);
 }
 
 void intel_dsb_reg_write(struct intel_dsb *dsb,
