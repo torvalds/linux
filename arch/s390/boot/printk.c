@@ -13,6 +13,20 @@
 
 int boot_console_loglevel = CONFIG_CONSOLE_LOGLEVEL_DEFAULT;
 bool boot_ignore_loglevel;
+char boot_rb[PAGE_SIZE * 2];
+size_t boot_rb_off;
+
+static void boot_rb_add(const char *str, size_t len)
+{
+	/* leave double '\0' in the end */
+	size_t avail = sizeof(boot_rb) - boot_rb_off - 1;
+
+	/* store strings separated by '\0' */
+	if (len + 1 > avail)
+		boot_rb_off = 0;
+	strcpy(boot_rb + boot_rb_off, str);
+	boot_rb_off += len + 1;
+}
 
 const char hex_asc[] = "0123456789abcdef";
 
@@ -229,5 +243,9 @@ void boot_printk(const char *fmt, ...)
 	}
 out:
 	va_end(args);
-	boot_console_earlyprintk(buf);
+	len = strlen(buf);
+	if (len) {
+		boot_rb_add(buf, len);
+		boot_console_earlyprintk(buf);
+	}
 }
