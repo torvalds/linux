@@ -133,7 +133,6 @@ TEST_PROGS := test_kmod.sh \
 	test_tunnel.sh \
 	test_lwt_seg6local.sh \
 	test_lirc_mode2.sh \
-	test_flow_dissector.sh \
 	test_xdp_vlan_mode_generic.sh \
 	test_xdp_vlan_mode_native.sh \
 	test_lwt_ip_encap.sh \
@@ -161,7 +160,6 @@ TEST_GEN_PROGS_EXTENDED = \
 	flow_dissector_load \
 	runqslower \
 	test_cpp \
-	test_flow_dissector \
 	test_lirc_mode2_user \
 	veristat \
 	xdp_features \
