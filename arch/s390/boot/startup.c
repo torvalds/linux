@@ -42,7 +42,8 @@ struct machine_info machine;
 
 void error(char *x)
 {
-	boot_printk("\n\n%s\n\n -- System halted", x);
+	boot_emerg("%s\n", x);
+	boot_emerg(" -- System halted\n");
 	disabled_wait();
 }
 
@@ -305,7 +306,7 @@ static unsigned long setup_kernel_memory_layout(unsigned long kernel_size)
 		kernel_start = round_down(kernel_end - kernel_size, THREAD_SIZE);
 	} else if (vmax < __NO_KASLR_END_KERNEL || vsize > __NO_KASLR_END_KERNEL) {
 		kernel_start = round_down(vmax - kernel_size, THREAD_SIZE);
-		boot_printk("The kernel base address is forced to %lx\n", kernel_start);
+		boot_debug("The kernel base address is forced to %lx\n", kernel_start);
 	} else {
 		kernel_start = __NO_KASLR_START_KERNEL;
 	}
