@@ -8,6 +8,7 @@
 
 #ifndef __ASSEMBLY__
 
+#include <linux/printk.h>
 #include <asm/physmem_info.h>
 
 struct machine_info {
@@ -76,7 +77,18 @@ void print_stacktrace(unsigned long sp);
 void error(char *m);
 int get_random(unsigned long limit, unsigned long *value);
 
+#define boot_emerg(fmt, ...)	boot_printk(KERN_EMERG fmt, ##__VA_ARGS__)
+#define boot_alert(fmt, ...)	boot_printk(KERN_ALERT fmt, ##__VA_ARGS__)
+#define boot_crit(fmt, ...)	boot_printk(KERN_CRIT fmt, ##__VA_ARGS__)
+#define boot_err(fmt, ...)	boot_printk(KERN_ERR fmt, ##__VA_ARGS__)
+#define boot_warn(fmt, ...)	boot_printk(KERN_WARNING fmt, ##__VA_ARGS__)
+#define boot_notice(fmt, ...)	boot_printk(KERN_NOTICE fmt, ##__VA_ARGS__)
+#define boot_info(fmt, ...)	boot_printk(KERN_INFO fmt, ##__VA_ARGS__)
+#define boot_debug(fmt, ...)	boot_printk(KERN_DEBUG fmt, ##__VA_ARGS__)
+
 extern struct machine_info machine;
+extern int boot_console_loglevel;
+extern bool boot_ignore_loglevel;
 
 /* Symbols defined by linker scripts */
 extern const char kernel_version[];

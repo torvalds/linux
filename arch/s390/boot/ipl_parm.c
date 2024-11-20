@@ -313,5 +313,16 @@ void parse_boot_command_line(void)
 #endif
 		if (!strcmp(param, "relocate_lowcore") && test_facility(193))
 			relocate_lowcore = 1;
+		if (!strcmp(param, "debug"))
+			boot_console_loglevel = CONSOLE_LOGLEVEL_DEBUG;
+		if (!strcmp(param, "quiet"))
+			boot_console_loglevel = CONSOLE_LOGLEVEL_QUIET;
+		if (!strcmp(param, "ignore_loglevel"))
+			boot_ignore_loglevel = true;
+		if (!strcmp(param, "loglevel")) {
+			boot_console_loglevel = simple_strtoull(val, NULL, 10);
+			if (boot_console_loglevel < CONSOLE_LOGLEVEL_MIN)
+				boot_console_loglevel = CONSOLE_LOGLEVEL_MIN;
+		}
 	}
 }

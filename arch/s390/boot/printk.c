@@ -11,6 +11,9 @@
 #include <asm/uv.h>
 #include "boot.h"
 
+int boot_console_loglevel = CONFIG_CONSOLE_LOGLEVEL_DEFAULT;
+bool boot_ignore_loglevel;
+
 const char hex_asc[] = "0123456789abcdef";
 
 static char *as_hex(char *dst, unsigned long val, int pad)
@@ -131,6 +134,25 @@ static noinline char *strsym(char *buf, void *ip)
 	return buf;
 }
 
+static inline int printk_loglevel(const char *buf)
+{
+	if (buf[0] == KERN_SOH_ASCII && buf[1]) {
+		switch (buf[1]) {
+		case '0' ... '7':
+			return buf[1] - '0';
+		}
+	}
+	return MESSAGE_LOGLEVEL_DEFAULT;
+}
+
+static void boot_console_earlyprintk(const char *buf)
+{
+	int level = printk_loglevel(buf);
+
+	if (boot_ignore_loglevel || level < boot_console_loglevel)
+		sclp_early_printk(printk_skip_level(buf));
+}
+
 #define va_arg_len_type(args, lenmod, typemod)				\
 	((lenmod == 'l') ? va_arg(args, typemod long) :			\
 	 (lenmod == 'h') ? (typemod short)va_arg(args, typemod int) :	\
@@ -149,6 +171,11 @@ void boot_printk(const char *fmt, ...)
 	char lenmod;
 	ssize_t len;
 	int pad;
+
+	if (!printk_get_level(fmt)) {
+		*p++ = KERN_SOH_ASCII;
+		*p++ = '0' + MESSAGE_LOGLEVEL_DEFAULT;
+	}
 
 	va_start(args, fmt);
 	for (; p < end && *fmt; fmt++) {
@@ -202,5 +229,5 @@ void boot_printk(const char *fmt, ...)
 	}
 out:
 	va_end(args);
-	sclp_early_printk(buf);
+	boot_console_earlyprintk(buf);
 }
