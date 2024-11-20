@@ -681,7 +681,6 @@ EXPORT_SYMBOL_GPL(dfl_fpga_dev_ops_unregister);
  * @nr_irqs: number of irqs for all feature devices.
  * @irq_table: Linux IRQ numbers for all irqs, indexed by local irq index of
  *	       this device.
- * @feature_dev: current feature device.
  * @type: the current FIU type.
  * @ioaddr: header register region address of current FIU in enumeration.
  * @start: register resource start of current FIU.
@@ -695,7 +694,6 @@ struct build_feature_devs_info {
 	unsigned int nr_irqs;
 	int *irq_table;
 
-	struct platform_device *feature_dev;
 	enum dfl_id_type type;
 	void __iomem *ioaddr;
 	resource_size_t start;
@@ -750,7 +748,6 @@ static void dfl_id_free_action(void *arg)
 static struct dfl_feature_dev_data *
 binfo_create_feature_dev_data(struct build_feature_devs_info *binfo)
 {
-	struct platform_device *fdev = binfo->feature_dev;
 	enum dfl_id_type type = binfo->type;
 	struct dfl_feature_info *finfo, *p;
 	struct dfl_feature_dev_data *fdata;
@@ -773,7 +770,6 @@ binfo_create_feature_dev_data(struct build_feature_devs_info *binfo)
 	if (!fdata->resources)
 		return ERR_PTR(-ENOMEM);
 
-	fdata->dev = fdev;
 	fdata->type = type;
 
 	fdata->pdev_id = dfl_id_alloc(type, binfo->dev);
@@ -783,8 +779,6 @@ binfo_create_feature_dev_data(struct build_feature_devs_info *binfo)
 	ret = devm_add_action_or_reset(binfo->dev, dfl_id_free_action, fdata);
 	if (ret)
 		return ERR_PTR(ret);
-
-	fdev->id = fdata->pdev_id;
 
 	fdata->pdev_name = dfl_devs[type].name;
 	fdata->num = binfo->feature_num;
@@ -809,7 +803,6 @@ binfo_create_feature_dev_data(struct build_feature_devs_info *binfo)
 		unsigned int i;
 
 		/* save resource information for each feature */
-		feature->dev = fdev;
 		feature->id = finfo->fid;
 		feature->revision = finfo->revision;
 		feature->dfh_version = finfo->dfh_version;
@@ -868,18 +861,6 @@ binfo_create_feature_dev_data(struct build_feature_devs_info *binfo)
 static int
 build_info_create_dev(struct build_feature_devs_info *binfo)
 {
-	enum dfl_id_type type = binfo->type;
-	struct platform_device *fdev;
-
-	/*
-	 * we use -ENODEV as the initialization indicator which indicates
-	 * whether the id need to be reclaimed
-	 */
-	fdev = platform_device_alloc(dfl_devs[type].name, -ENODEV);
-	if (!fdev)
-		return -ENOMEM;
-
-	binfo->feature_dev = fdev;
 	binfo->feature_num = 0;
 
 	INIT_LIST_HEAD(&binfo->sub_features);
@@ -895,32 +876,59 @@ build_info_create_dev(struct build_feature_devs_info *binfo)
 static int feature_dev_register(struct dfl_feature_dev_data *fdata)
 {
 	struct dfl_feature_platform_data pdata = {};
-	struct platform_device *fdev = fdata->dev;
+	struct platform_device *fdev;
+	struct dfl_feature *feature;
 	int ret;
+
+	fdev = platform_device_alloc(fdata->pdev_name, fdata->pdev_id);
+	if (!fdev)
+		return -ENOMEM;
+
+	fdata->dev = fdev;
 
 	fdev->dev.parent = &fdata->dfl_cdev->region->dev;
 	fdev->dev.devt = dfl_get_devt(dfl_devs[fdata->type].devt_type, fdev->id);
 
+	dfl_fpga_dev_for_each_feature(fdata, feature)
+		feature->dev = fdev;
+
 	ret = platform_device_add_resources(fdev, fdata->resources,
 					    fdata->resource_num);
 	if (ret)
-		return ret;
+		goto err_put_dev;
 
 	pdata.fdata = fdata;
 	ret = platform_device_add_data(fdev, &pdata, sizeof(pdata));
 	if (ret)
-		return ret;
+		goto err_put_dev;
 
 	ret = platform_device_add(fdev);
 	if (ret)
-		return ret;
+		goto err_put_dev;
 
 	return 0;
+
+err_put_dev:
+	platform_device_put(fdev);
+
+	fdata->dev = NULL;
+
+	dfl_fpga_dev_for_each_feature(fdata, feature)
+		feature->dev = NULL;
+
+	return ret;
 }
 
 static void feature_dev_unregister(struct dfl_feature_dev_data *fdata)
 {
+	struct dfl_feature *feature;
+
 	platform_device_unregister(fdata->dev);
+
+	fdata->dev = NULL;
+
+	dfl_fpga_dev_for_each_feature(fdata, feature)
+		feature->dev = NULL;
 }
 
 static int build_info_commit_dev(struct build_feature_devs_info *binfo)
@@ -939,16 +947,7 @@ static int build_info_commit_dev(struct build_feature_devs_info *binfo)
 	if (binfo->type == PORT_ID)
 		dfl_fpga_cdev_add_port_data(binfo->cdev, fdata);
 	else
-		binfo->cdev->fme_dev = get_device(&binfo->feature_dev->dev);
-
-	/*
-	 * reset it to avoid build_info_free() freeing their resource.
-	 *
-	 * The resource of successfully registered feature devices
-	 * will be freed by platform_device_unregister(). See the
-	 * comments in build_info_create_dev().
-	 */
-	binfo->feature_dev = NULL;
+		binfo->cdev->fme_dev = get_device(&fdata->dev->dev);
 
 	/* reset the binfo for next FIU */
 	binfo->type = DFL_ID_MAX;
@@ -964,8 +963,6 @@ static void build_info_free(struct build_feature_devs_info *binfo)
 		list_del(&finfo->node);
 		kfree(finfo);
 	}
-
-	platform_device_put(binfo->feature_dev);
 
 	devm_kfree(binfo->dev, binfo);
 }
@@ -1247,7 +1244,7 @@ static int parse_feature_port_afu(struct build_feature_devs_info *binfo,
 	return create_feature_instance(binfo, ofst, size, FEATURE_ID_AFU);
 }
 
-#define is_feature_dev_detected(binfo) (!!(binfo)->feature_dev)
+#define is_feature_dev_detected(binfo) ((binfo)->type != DFL_ID_MAX)
 
 static int parse_feature_afu(struct build_feature_devs_info *binfo,
 			     resource_size_t ofst)
@@ -1261,8 +1258,7 @@ static int parse_feature_afu(struct build_feature_devs_info *binfo,
 	case PORT_ID:
 		return parse_feature_port_afu(binfo, ofst);
 	default:
-		dev_info(binfo->dev, "AFU belonging to FIU %s is not supported yet.\n",
-			 binfo->feature_dev->name);
+		dev_info(binfo->dev, "AFU belonging to FIU is not supported yet.\n");
 	}
 
 	return 0;
