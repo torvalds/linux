@@ -7,6 +7,7 @@
 
 #include "bpf_flow.skel.h"
 
+#define TEST_NS	"flow_dissector_ns"
 #define FLOW_CONTINUE_SADDR 0x7f00007f /* 127.0.0.127 */
 #define TEST_NAME_MAX_LEN	64
 
@@ -494,6 +495,67 @@ struct test tests[] = {
 		.retval = BPF_OK,
 	},
 };
+
+void serial_test_flow_dissector_namespace(void)
+{
+	struct bpf_flow *skel;
+	struct nstoken *ns;
+	int err, prog_fd;
+
+	skel = bpf_flow__open_and_load();
+	if (!ASSERT_OK_PTR(skel, "open/load skeleton"))
+		return;
+
+	prog_fd = bpf_program__fd(skel->progs._dissect);
+	if (!ASSERT_OK_FD(prog_fd, "get dissector fd"))
+		goto out_destroy_skel;
+
+	/* We must be able to attach a flow dissector to root namespace */
+	err = bpf_prog_attach(prog_fd, 0, BPF_FLOW_DISSECTOR, 0);
+	if (!ASSERT_OK(err, "attach on root namespace ok"))
+		goto out_destroy_skel;
+
+	err = make_netns(TEST_NS);
+	if (!ASSERT_OK(err, "create non-root net namespace"))
+		goto out_destroy_skel;
+
+	/* We must not be able to additionally attach a flow dissector to a
+	 * non-root net namespace
+	 */
+	ns = open_netns(TEST_NS);
+	if (!ASSERT_OK_PTR(ns, "enter non-root net namespace"))
+		goto out_clean_ns;
+
+	err = bpf_prog_attach(prog_fd, 0, BPF_FLOW_DISSECTOR, 0);
+	close_netns(ns);
+	ASSERT_ERR(err, "refuse new flow dissector in non-root net namespace");
+	ASSERT_EQ(errno, EEXIST, "refused because of already attached prog");
+
+	/* If no flow dissector is attached to the root namespace, we must
+	 * be able to attach one to a non-root net namespace
+	 */
+	bpf_prog_detach2(prog_fd, 0, BPF_FLOW_DISSECTOR);
+	ns = open_netns(TEST_NS);
+	ASSERT_OK_PTR(ns, "enter non-root net namespace");
+	err = bpf_prog_attach(prog_fd, 0, BPF_FLOW_DISSECTOR, 0);
+	close_netns(ns);
+	ASSERT_OK(err, "accept new flow dissector in non-root net namespace");
+
+	/* If a flow dissector is attached to non-root net namespace, attaching
+	 * a flow dissector to root namespace must fail
+	 */
+	err = bpf_prog_attach(prog_fd, 0, BPF_FLOW_DISSECTOR, 0);
+	ASSERT_ERR(err, "refuse new flow dissector on root namespace");
+	ASSERT_EQ(errno, EEXIST, "refused because of already attached prog");
+
+	ns = open_netns(TEST_NS);
+	bpf_prog_detach2(prog_fd, 0, BPF_FLOW_DISSECTOR);
+	close_netns(ns);
+out_clean_ns:
+	remove_netns(TEST_NS);
+out_destroy_skel:
+	bpf_flow__destroy(skel);
+}
 
 static int create_tap(const char *ifname)
 {
