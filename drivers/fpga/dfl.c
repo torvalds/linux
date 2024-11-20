@@ -872,10 +872,32 @@ build_info_create_dev(struct build_feature_devs_info *binfo)
 	if (fdev->id < 0)
 		return fdev->id;
 
-	fdev->dev.parent = &binfo->cdev->region->dev;
-	fdev->dev.devt = dfl_get_devt(dfl_devs[type].devt_type, fdev->id);
+	return 0;
+}
+
+/*
+ * register current feature device, it is called when we need to switch to
+ * another feature parsing or we have parsed all features on given device
+ * feature list.
+ */
+static int feature_dev_register(struct dfl_feature_dev_data *fdata)
+{
+	struct platform_device *fdev = fdata->dev;
+	int ret;
+
+	fdev->dev.parent = &fdata->dfl_cdev->region->dev;
+	fdev->dev.devt = dfl_get_devt(dfl_devs[fdata->type].devt_type, fdev->id);
+
+	ret = platform_device_add(fdev);
+	if (ret)
+		return ret;
 
 	return 0;
+}
+
+static void feature_dev_unregister(struct dfl_feature_dev_data *fdata)
+{
+	platform_device_unregister(fdata->dev);
 }
 
 static int build_info_commit_dev(struct build_feature_devs_info *binfo)
@@ -887,7 +909,7 @@ static int build_info_commit_dev(struct build_feature_devs_info *binfo)
 	if (IS_ERR(fdata))
 		return PTR_ERR(fdata);
 
-	ret = platform_device_add(binfo->feature_dev);
+	ret = feature_dev_register(fdata);
 	if (ret)
 		return ret;
 
@@ -1519,7 +1541,7 @@ static int remove_feature_dev(struct device *dev, void *data)
 	struct platform_device *pdev = to_platform_device(dev);
 	int id = pdev->id;
 
-	platform_device_unregister(pdev);
+	feature_dev_unregister(fdata);
 
 	dfl_id_free(fdata->type, id);
 
