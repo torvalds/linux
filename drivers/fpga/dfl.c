@@ -749,22 +749,18 @@ static void dfl_fpga_cdev_add_port_data(struct dfl_fpga_cdev *cdev,
 	mutex_unlock(&cdev->lock);
 }
 
-/*
- * register current feature device, it is called when we need to switch to
- * another feature parsing or we have parsed all features on given device
- * feature list.
- */
-static int build_info_commit_dev(struct build_feature_devs_info *binfo)
+static struct dfl_feature_platform_data *
+binfo_create_feature_dev_data(struct build_feature_devs_info *binfo)
 {
 	struct platform_device *fdev = binfo->feature_dev;
 	struct dfl_feature_platform_data *pdata;
 	struct dfl_feature_info *finfo, *p;
 	enum dfl_id_type type;
-	int ret, index = 0, res_idx = 0;
+	int index = 0, res_idx = 0;
 
 	type = feature_dev_id_type(fdev);
 	if (WARN_ON_ONCE(type >= DFL_ID_MAX))
-		return -EINVAL;
+		return ERR_PTR(-EINVAL);
 
 	/*
 	 * we do not need to care for the memory which is associated with
@@ -774,7 +770,7 @@ static int build_info_commit_dev(struct build_feature_devs_info *binfo)
 	 */
 	pdata = kzalloc(struct_size(pdata, features, binfo->feature_num), GFP_KERNEL);
 	if (!pdata)
-		return -ENOMEM;
+		return ERR_PTR(-ENOMEM);
 
 	pdata->dev = fdev;
 	pdata->num = binfo->feature_num;
@@ -799,7 +795,7 @@ static int build_info_commit_dev(struct build_feature_devs_info *binfo)
 	fdev->resource = kcalloc(binfo->feature_num, sizeof(*fdev->resource),
 				 GFP_KERNEL);
 	if (!fdev->resource)
-		return -ENOMEM;
+		return ERR_PTR(-ENOMEM);
 
 	/* fill features and resource information for feature dev */
 	list_for_each_entry_safe(finfo, p, &binfo->sub_features, node) {
@@ -818,7 +814,7 @@ static int build_info_commit_dev(struct build_feature_devs_info *binfo)
 						       finfo->params, finfo->param_size,
 						       GFP_KERNEL);
 			if (!feature->params)
-				return -ENOMEM;
+				return ERR_PTR(-ENOMEM);
 
 			feature->param_size = finfo->param_size;
 		}
@@ -835,7 +831,7 @@ static int build_info_commit_dev(struct build_feature_devs_info *binfo)
 				devm_ioremap_resource(binfo->dev,
 						      &finfo->mmio_res);
 			if (IS_ERR(feature->ioaddr))
-				return PTR_ERR(feature->ioaddr);
+				return ERR_CAST(feature->ioaddr);
 		} else {
 			feature->resource_index = res_idx;
 			fdev->resource[res_idx++] = finfo->mmio_res;
@@ -845,7 +841,7 @@ static int build_info_commit_dev(struct build_feature_devs_info *binfo)
 			ctx = devm_kcalloc(binfo->dev, finfo->nr_irqs,
 					   sizeof(*ctx), GFP_KERNEL);
 			if (!ctx)
-				return -ENOMEM;
+				return ERR_PTR(-ENOMEM);
 
 			for (i = 0; i < finfo->nr_irqs; i++)
 				ctx[i].irq =
@@ -859,25 +855,7 @@ static int build_info_commit_dev(struct build_feature_devs_info *binfo)
 		kfree(finfo);
 	}
 
-	ret = platform_device_add(binfo->feature_dev);
-	if (!ret) {
-		if (type == PORT_ID)
-			dfl_fpga_cdev_add_port_data(binfo->cdev,
-						    pdata);
-		else
-			binfo->cdev->fme_dev =
-					get_device(&binfo->feature_dev->dev);
-		/*
-		 * reset it to avoid build_info_free() freeing their resource.
-		 *
-		 * The resource of successfully registered feature devices
-		 * will be freed by platform_device_unregister(). See the
-		 * comments in build_info_create_dev().
-		 */
-		binfo->feature_dev = NULL;
-	}
-
-	return ret;
+	return pdata;
 }
 
 static int
@@ -908,6 +886,36 @@ build_info_create_dev(struct build_feature_devs_info *binfo,
 
 	fdev->dev.parent = &binfo->cdev->region->dev;
 	fdev->dev.devt = dfl_get_devt(dfl_devs[type].devt_type, fdev->id);
+
+	return 0;
+}
+
+static int build_info_commit_dev(struct build_feature_devs_info *binfo)
+{
+	struct dfl_feature_platform_data *pdata;
+	int ret;
+
+	pdata = binfo_create_feature_dev_data(binfo);
+	if (IS_ERR(pdata))
+		return PTR_ERR(pdata);
+
+	ret = platform_device_add(binfo->feature_dev);
+	if (ret)
+		return ret;
+
+	if (feature_dev_id_type(binfo->feature_dev) == PORT_ID)
+		dfl_fpga_cdev_add_port_data(binfo->cdev, pdata);
+	else
+		binfo->cdev->fme_dev = get_device(&binfo->feature_dev->dev);
+
+	/*
+	 * reset it to avoid build_info_free() freeing their resource.
+	 *
+	 * The resource of successfully registered feature devices
+	 * will be freed by platform_device_unregister(). See the
+	 * comments in build_info_create_dev().
+	 */
+	binfo->feature_dev = NULL;
 
 	return 0;
 }
