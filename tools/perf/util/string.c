@@ -254,11 +254,20 @@ char *strpbrk_esc(char *str, const char *stopset)
 
 	do {
 		ptr = strpbrk(str, stopset);
-		if (ptr == str ||
-		    (ptr == str + 1 && *(ptr - 1) != '\\'))
+		if (!ptr) {
+			/* stopset not in str. */
 			break;
+		}
+		if (ptr == str) {
+			/* stopset character is first in str. */
+			break;
+		}
+		if (ptr == str + 1 && str[0] != '\\') {
+			/* stopset chacter is second and wasn't preceded by a '\'. */
+			break;
+		}
 		str = ptr + 1;
-	} while (ptr && *(ptr - 1) == '\\' && *(ptr - 2) != '\\');
+	} while (ptr[-1] == '\\' && ptr[-2] != '\\');
 
 	return ptr;
 }
