@@ -1630,21 +1630,10 @@ EXPORT_SYMBOL_GPL(dfl_fpga_feature_devs_enumerate);
  */
 void dfl_fpga_feature_devs_remove(struct dfl_fpga_cdev *cdev)
 {
-	struct dfl_feature_dev_data *fdata, *ptmp;
-
 	mutex_lock(&cdev->lock);
 	if (cdev->fme_dev)
 		put_device(cdev->fme_dev);
 
-	list_for_each_entry_safe(fdata, ptmp, &cdev->port_dev_list, node) {
-		struct platform_device *port_dev = fdata->dev;
-
-		/* remove released ports */
-		if (!device_is_registered(&port_dev->dev))
-			platform_device_put(port_dev);
-
-		list_del(&fdata->node);
-	}
 	mutex_unlock(&cdev->lock);
 
 	remove_feature_devs(cdev);
@@ -1724,7 +1713,7 @@ int dfl_fpga_cdev_release_port(struct dfl_fpga_cdev *cdev, int port_id)
 	if (!fdata)
 		goto unlock_exit;
 
-	if (!device_is_registered(&fdata->dev->dev)) {
+	if (!fdata->dev) {
 		ret = -EBUSY;
 		goto unlock_exit;
 	}
@@ -1735,7 +1724,7 @@ int dfl_fpga_cdev_release_port(struct dfl_fpga_cdev *cdev, int port_id)
 	if (ret)
 		goto unlock_exit;
 
-	platform_device_del(fdata->dev);
+	feature_dev_unregister(fdata);
 	cdev->released_port_num++;
 unlock_exit:
 	mutex_unlock(&cdev->lock);
@@ -1765,12 +1754,12 @@ int dfl_fpga_cdev_assign_port(struct dfl_fpga_cdev *cdev, int port_id)
 	if (!fdata)
 		goto unlock_exit;
 
-	if (device_is_registered(&fdata->dev->dev)) {
+	if (fdata->dev) {
 		ret = -EBUSY;
 		goto unlock_exit;
 	}
 
-	ret = platform_device_add(fdata->dev);
+	ret = feature_dev_register(fdata);
 	if (ret)
 		goto unlock_exit;
 
@@ -1820,7 +1809,7 @@ void dfl_fpga_cdev_config_ports_pf(struct dfl_fpga_cdev *cdev)
 
 	mutex_lock(&cdev->lock);
 	list_for_each_entry(fdata, &cdev->port_dev_list, node) {
-		if (device_is_registered(&fdata->dev->dev))
+		if (fdata->dev)
 			continue;
 
 		config_port_pf_mode(cdev->fme_dev, fdata->id);
@@ -1857,7 +1846,7 @@ int dfl_fpga_cdev_config_ports_vf(struct dfl_fpga_cdev *cdev, int num_vfs)
 	}
 
 	list_for_each_entry(fdata, &cdev->port_dev_list, node) {
-		if (device_is_registered(&fdata->dev->dev))
+		if (fdata->dev)
 			continue;
 
 		config_port_vf_mode(cdev->fme_dev, fdata->id);
