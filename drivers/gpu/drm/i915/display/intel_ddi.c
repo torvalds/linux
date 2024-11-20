@@ -723,7 +723,7 @@ bool intel_ddi_connector_get_hw_state(struct intel_connector *intel_connector)
 	enum transcoder cpu_transcoder;
 	intel_wakeref_t wakeref;
 	enum pipe pipe = 0;
-	u32 tmp;
+	u32 ddi_mode;
 	bool ret;
 
 	wakeref = intel_display_power_get_if_enabled(dev_priv,
@@ -741,38 +741,26 @@ bool intel_ddi_connector_get_hw_state(struct intel_connector *intel_connector)
 	else
 		cpu_transcoder = (enum transcoder) pipe;
 
-	tmp = intel_de_read(dev_priv,
-			    TRANS_DDI_FUNC_CTL(dev_priv, cpu_transcoder));
+	ddi_mode = intel_de_read(dev_priv, TRANS_DDI_FUNC_CTL(dev_priv, cpu_transcoder)) &
+		TRANS_DDI_MODE_SELECT_MASK;
 
-	switch (tmp & TRANS_DDI_MODE_SELECT_MASK) {
-	case TRANS_DDI_MODE_SELECT_HDMI:
-	case TRANS_DDI_MODE_SELECT_DVI:
+	if (ddi_mode == TRANS_DDI_MODE_SELECT_HDMI ||
+	    ddi_mode == TRANS_DDI_MODE_SELECT_DVI) {
 		ret = type == DRM_MODE_CONNECTOR_HDMIA;
-		break;
-
-	case TRANS_DDI_MODE_SELECT_DP_SST:
+	} else if (ddi_mode == TRANS_DDI_MODE_SELECT_FDI_OR_128B132B && !HAS_DP20(display)) {
+		ret = type == DRM_MODE_CONNECTOR_VGA;
+	} else if (ddi_mode == TRANS_DDI_MODE_SELECT_DP_SST) {
 		ret = type == DRM_MODE_CONNECTOR_eDP ||
-		      type == DRM_MODE_CONNECTOR_DisplayPort;
-		break;
-
-	case TRANS_DDI_MODE_SELECT_DP_MST:
-		/* if the transcoder is in MST state then
-		 * connector isn't connected */
+			type == DRM_MODE_CONNECTOR_DisplayPort;
+	} else if (ddi_mode == TRANS_DDI_MODE_SELECT_DP_MST ||
+		   (ddi_mode == TRANS_DDI_MODE_SELECT_FDI_OR_128B132B && HAS_DP20(display))) {
+		/*
+		 * If the transcoder is in MST state then connector isn't
+		 * connected.
+		 */
 		ret = false;
-		break;
-
-	case TRANS_DDI_MODE_SELECT_FDI_OR_128B132B:
-		if (HAS_DP20(display))
-			/* 128b/132b */
-			ret = false;
-		else
-			/* FDI */
-			ret = type == DRM_MODE_CONNECTOR_VGA;
-		break;
-
-	default:
+	} else {
 		ret = false;
-		break;
 	}
 
 out:
