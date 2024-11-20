@@ -752,8 +752,13 @@ binfo_create_feature_dev_data(struct build_feature_devs_info *binfo)
 	if (WARN_ON_ONCE(type >= DFL_ID_MAX))
 		return ERR_PTR(-EINVAL);
 
-	fdata = devm_kzalloc(binfo->dev, struct_size(fdata, features, binfo->feature_num), GFP_KERNEL);
+	fdata = devm_kzalloc(binfo->dev, sizeof(*fdata), GFP_KERNEL);
 	if (!fdata)
+		return ERR_PTR(-ENOMEM);
+
+	fdata->features = devm_kcalloc(binfo->dev, binfo->feature_num,
+				       sizeof(*fdata->features), GFP_KERNEL);
+	if (!fdata->features)
 		return ERR_PTR(-ENOMEM);
 
 	fdata->dev = fdev;

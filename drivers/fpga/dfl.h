@@ -330,7 +330,7 @@ struct dfl_feature_dev_data {
 	int open_count;
 	void *private;
 	int num;
-	struct dfl_feature features[];
+	struct dfl_feature *features;
 };
 
 /**
