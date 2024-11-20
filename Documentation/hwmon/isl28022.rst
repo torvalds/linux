@@ -48,6 +48,7 @@ The following attributes are supported. All attributes are read-only.
 
 ======================= =======================================================
 in0_input		bus voltage (milli Volt)
+in1_input		shunt voltage (milli Volt)
 
 curr1_input		current (milli Ampere)
 power1_input		power (micro Watt)
