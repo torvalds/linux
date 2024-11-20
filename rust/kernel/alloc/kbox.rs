@@ -356,13 +356,13 @@ where
     type Borrowed<'a> = &'a T;
 
     fn into_foreign(self) -> *const crate::ffi::c_void {
-        Box::into_raw(self) as _
+        Box::into_raw(self).cast()
     }
 
     unsafe fn from_foreign(ptr: *const crate::ffi::c_void) -> Self {
         // SAFETY: The safety requirements of this function ensure that `ptr` comes from a previous
         // call to `Self::into_foreign`.
-        unsafe { Box::from_raw(ptr as _) }
+        unsafe { Box::from_raw(ptr.cast_mut().cast()) }
     }
 
     unsafe fn borrow<'a>(ptr: *const crate::ffi::c_void) -> &'a T {
@@ -380,13 +380,13 @@ where
 
     fn into_foreign(self) -> *const crate::ffi::c_void {
         // SAFETY: We are still treating the box as pinned.
-        Box::into_raw(unsafe { Pin::into_inner_unchecked(self) }) as _
+        Box::into_raw(unsafe { Pin::into_inner_unchecked(self) }).cast()
     }
 
     unsafe fn from_foreign(ptr: *const crate::ffi::c_void) -> Self {
         // SAFETY: The safety requirements of this function ensure that `ptr` comes from a previous
         // call to `Self::into_foreign`.
-        unsafe { Pin::new_unchecked(Box::from_raw(ptr as _)) }
+        unsafe { Pin::new_unchecked(Box::from_raw(ptr.cast_mut().cast())) }
     }
 
     unsafe fn borrow<'a>(ptr: *const crate::ffi::c_void) -> Pin<&'a T> {
