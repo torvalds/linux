@@ -273,16 +273,20 @@ static bool intel_dsb_prev_ins_is_indexed_write(struct intel_dsb *dsb, i915_reg_
 }
 
 /**
- * intel_dsb_reg_write() - Emit register wriite to the DSB context
+ * intel_dsb_reg_write_indexed() - Emit register wriite to the DSB context
  * @dsb: DSB context
  * @reg: register address.
  * @val: value.
  *
  * This function is used for writing register-value pair in command
  * buffer of DSB.
+ *
+ * Note that indexed writes are slower than normal MMIO writes
+ * for a small number (less than 5 or so) of writes to the same
+ * register.
  */
-void intel_dsb_reg_write(struct intel_dsb *dsb,
-			 i915_reg_t reg, u32 val)
+void intel_dsb_reg_write_indexed(struct intel_dsb *dsb,
+				 i915_reg_t reg, u32 val)
 {
 	/*
 	 * For example the buffer will look like below for 3 dwords for auto
@@ -338,6 +342,15 @@ void intel_dsb_reg_write(struct intel_dsb *dsb,
 		if (dsb->free_pos & 0x1)
 			intel_dsb_buffer_write(&dsb->dsb_buf, dsb->free_pos, 0);
 	}
+}
+
+void intel_dsb_reg_write(struct intel_dsb *dsb,
+			 i915_reg_t reg, u32 val)
+{
+	intel_dsb_emit(dsb, val,
+		       (DSB_OPCODE_MMIO_WRITE << DSB_OPCODE_SHIFT) |
+		       (DSB_BYTE_EN << DSB_BYTE_EN_SHIFT) |
+		       i915_mmio_reg_offset(reg));
 }
 
 static u32 intel_dsb_mask_to_byte_en(u32 mask)
