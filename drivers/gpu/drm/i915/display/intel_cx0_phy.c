@@ -5,6 +5,8 @@
 
 #include <linux/log2.h>
 #include <linux/math64.h>
+
+#include "i915_drv.h"
 #include "i915_reg.h"
 #include "intel_cx0_phy.h"
 #include "intel_cx0_phy_regs.h"

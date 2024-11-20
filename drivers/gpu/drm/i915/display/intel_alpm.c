@@ -5,6 +5,7 @@
 
 #include <linux/debugfs.h>
 
+#include "i915_drv.h"
 #include "intel_alpm.h"
 #include "intel_crtc.h"
 #include "intel_de.h"

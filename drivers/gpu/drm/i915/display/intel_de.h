@@ -6,14 +6,16 @@
 #ifndef __INTEL_DE_H__
 #define __INTEL_DE_H__
 
-#include "i915_drv.h"
+#include "intel_display_conversion.h"
+#include "intel_display_core.h"
+#include "intel_dmc_wl.h"
 #include "intel_dsb.h"
 #include "intel_uncore.h"
 #include "intel_uncore_trace.h"
 
 static inline struct intel_uncore *__to_uncore(struct intel_display *display)
 {
-	return &to_i915(display->drm)->uncore;
+	return to_intel_uncore(display->drm);
 }
 
 static inline u32

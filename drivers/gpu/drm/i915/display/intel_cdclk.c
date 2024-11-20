@@ -29,6 +29,7 @@
 #include "soc/intel_dram.h"
 
 #include "hsw_ips.h"
+#include "i915_drv.h"
 #include "i915_reg.h"
 #include "intel_atomic.h"
 #include "intel_atomic_plane.h"

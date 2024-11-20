@@ -37,6 +37,11 @@
 #define FORCEWAKE_ACK_TIMEOUT_MS 50
 #define GT_FIFO_TIMEOUT_MS	 10
 
+struct intel_uncore *to_intel_uncore(struct drm_device *drm)
+{
+	return &to_i915(drm)->uncore;
+}
+
 #define __raw_posting_read(...) ((void)__raw_uncore_read32(__VA_ARGS__))
 
 static void
