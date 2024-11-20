@@ -899,8 +899,8 @@ static void spl_get_taps_non_adaptive_scaler(
 
 	if (in_taps->v_taps == 0) {
 		if (spl_fixpt_ceil(spl_scratch->scl_data.ratios.vert) > 1)
-			spl_scratch->scl_data.taps.v_taps = spl_min(spl_fixpt_ceil(spl_fixpt_mul_int(
-				spl_scratch->scl_data.ratios.vert, 2)), 8);
+			spl_scratch->scl_data.taps.v_taps = spl_min(2 * spl_fixpt_ceil(
+				spl_scratch->scl_data.ratios.vert), 8);
 		else
 			spl_scratch->scl_data.taps.v_taps = 4;
 	} else
@@ -908,8 +908,8 @@ static void spl_get_taps_non_adaptive_scaler(
 
 	if (in_taps->v_taps_c == 0) {
 		if (spl_fixpt_ceil(spl_scratch->scl_data.ratios.vert_c) > 1)
-			spl_scratch->scl_data.taps.v_taps_c = spl_min(spl_fixpt_ceil(spl_fixpt_mul_int(
-				spl_scratch->scl_data.ratios.vert_c, 2)), 8);
+			spl_scratch->scl_data.taps.v_taps_c = spl_min(2 * spl_fixpt_ceil(
+				spl_scratch->scl_data.ratios.vert_c), 8);
 		else
 			spl_scratch->scl_data.taps.v_taps_c = 4;
 	} else
