@@ -38,6 +38,7 @@ struct amdgpu_eviction_fence_mgr {
 	spinlock_t		ev_fence_lock;
 	struct amdgpu_eviction_fence *ev_fence;
 	struct delayed_work	suspend_work;
+	uint8_t fd_closing;
 };
 
 /* Eviction fence helper functions */

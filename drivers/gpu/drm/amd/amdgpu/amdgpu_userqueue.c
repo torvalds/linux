@@ -22,6 +22,7 @@
  *
  */
 
+#include <drm/drm_exec.h>
 #include "amdgpu.h"
 #include "amdgpu_vm.h"
 #include "amdgpu_userqueue.h"
@@ -216,6 +217,7 @@ amdgpu_userqueue_destroy(struct drm_file *filp, int queue_id)
 	struct amdgpu_userq_mgr *uq_mgr = &fpriv->userq_mgr;
 	struct amdgpu_usermode_queue *queue;
 
+	cancel_delayed_work(&uq_mgr->resume_work);
 	mutex_lock(&uq_mgr->userq_mutex);
 
 	queue = amdgpu_userqueue_find(uq_mgr, queue_id);
@@ -228,7 +230,6 @@ amdgpu_userqueue_destroy(struct drm_file *filp, int queue_id)
 	amdgpu_bo_unpin(queue->db_obj.obj);
 	amdgpu_bo_unref(&queue->db_obj.obj);
 	amdgpu_userqueue_cleanup(uq_mgr, queue, queue_id);
-	uq_mgr->num_userqs--;
 	mutex_unlock(&uq_mgr->userq_mutex);
 	return 0;
 }
@@ -304,10 +305,18 @@ amdgpu_userqueue_create(struct drm_file *filp, union drm_amdgpu_userq *args)
 		goto unlock;
 	}
 	args->out.queue_id = qid;
-	uq_mgr->num_userqs++;
 
 unlock:
 	mutex_unlock(&uq_mgr->userq_mutex);
+	if (!r) {
+		/*
+		* There could be a situation that we are creating a new queue while
+		* the other queues under this UQ_mgr are suspended. So if there is any
+		* resume work pending, wait for it to get done.
+		*/
+		flush_delayed_work(&uq_mgr->resume_work);
+	}
+
 	return r;
 }
 
@@ -344,6 +353,161 @@ int amdgpu_userq_ioctl(struct drm_device *dev, void *data,
 	return 0;
 }
 #endif
+
+static int
+amdgpu_userqueue_resume_all(struct amdgpu_userq_mgr *uq_mgr)
+{
+	struct amdgpu_device *adev = uq_mgr->adev;
+	const struct amdgpu_userq_funcs *userq_funcs;
+	struct amdgpu_usermode_queue *queue;
+	int queue_id;
+	int ret = 0;
+
+	userq_funcs = adev->userq_funcs[AMDGPU_HW_IP_GFX];
+
+	/* Resume all the queues for this process */
+	idr_for_each_entry(&uq_mgr->userq_idr, queue, queue_id)
+		ret = userq_funcs->resume(uq_mgr, queue);
+
+	if (ret)
+		DRM_ERROR("Failed to resume all the queue\n");
+	return ret;
+}
+
+static int
+amdgpu_userqueue_validate_vm_bo(void *_unused, struct amdgpu_bo *bo)
+{
+	struct ttm_operation_ctx ctx = { false, false };
+	int ret;
+
+	amdgpu_bo_placement_from_domain(bo, bo->allowed_domains);
+
+	ret = ttm_bo_validate(&bo->tbo, &bo->placement, &ctx);
+	if (ret)
+		DRM_ERROR("Fail to validate\n");
+
+	return ret;
+}
+
+static int
+amdgpu_userqueue_validate_bos(struct amdgpu_userq_mgr *uq_mgr)
+{
+	struct amdgpu_fpriv *fpriv = uq_mgr_to_fpriv(uq_mgr);
+	struct amdgpu_vm *vm = &fpriv->vm;
+	struct amdgpu_device *adev = uq_mgr->adev;
+	struct amdgpu_bo_va *bo_va;
+	struct ww_acquire_ctx *ticket;
+	struct drm_exec exec;
+	struct amdgpu_bo *bo;
+	struct dma_resv *resv;
+	bool clear, unlock;
+	int ret = 0;
+
+	drm_exec_init(&exec, DRM_EXEC_IGNORE_DUPLICATES | DRM_EXEC_INTERRUPTIBLE_WAIT, 0);
+	drm_exec_until_all_locked(&exec) {
+		ret = amdgpu_vm_lock_pd(vm, &exec, 2);
+		drm_exec_retry_on_contention(&exec);
+		if (unlikely(ret)) {
+			DRM_ERROR("Failed to lock PD\n");
+			goto unlock_all;
+		}
+
+		/* Lock the done list */
+		list_for_each_entry(bo_va, &vm->done, base.vm_status) {
+			bo = bo_va->base.bo;
+			if (!bo)
+				continue;
+
+			ret = drm_exec_lock_obj(&exec, &bo->tbo.base);
+			drm_exec_retry_on_contention(&exec);
+			if (unlikely(ret))
+				goto unlock_all;
+		}
+	}
+
+	spin_lock(&vm->status_lock);
+	while (!list_empty(&vm->moved)) {
+		bo_va = list_first_entry(&vm->moved, struct amdgpu_bo_va,
+					 base.vm_status);
+		spin_unlock(&vm->status_lock);
+
+		/* Per VM BOs never need to bo cleared in the page tables */
+		ret = amdgpu_vm_bo_update(adev, bo_va, false);
+		if (ret)
+			goto unlock_all;
+		spin_lock(&vm->status_lock);
+	}
+
+	ticket = &exec.ticket;
+	while (!list_empty(&vm->invalidated)) {
+		bo_va = list_first_entry(&vm->invalidated, struct amdgpu_bo_va,
+					 base.vm_status);
+		resv = bo_va->base.bo->tbo.base.resv;
+		spin_unlock(&vm->status_lock);
+
+		bo = bo_va->base.bo;
+		ret = amdgpu_userqueue_validate_vm_bo(NULL, bo);
+		if (ret) {
+			DRM_ERROR("Failed to validate BO\n");
+			goto unlock_all;
+		}
+
+		/* Try to reserve the BO to avoid clearing its ptes */
+		if (!adev->debug_vm && dma_resv_trylock(resv)) {
+			clear = false;
+			unlock = true;
+		/* The caller is already holding the reservation lock */
+		} else if (ticket && dma_resv_locking_ctx(resv) == ticket) {
+			clear = false;
+			unlock = false;
+		/* Somebody else is using the BO right now */
+		} else {
+			clear = true;
+			unlock = false;
+		}
+
+		ret = amdgpu_vm_bo_update(adev, bo_va, clear);
+
+		if (unlock)
+			dma_resv_unlock(resv);
+		if (ret)
+			goto unlock_all;
+
+		spin_lock(&vm->status_lock);
+	}
+	spin_unlock(&vm->status_lock);
+
+	ret = amdgpu_eviction_fence_replace_fence(&fpriv->evf_mgr, &exec);
+	if (ret)
+		DRM_ERROR("Failed to replace eviction fence\n");
+
+unlock_all:
+	drm_exec_fini(&exec);
+	return ret;
+}
+
+static void amdgpu_userqueue_resume_worker(struct work_struct *work)
+{
+	struct amdgpu_userq_mgr *uq_mgr = work_to_uq_mgr(work, resume_work.work);
+	int ret;
+
+	mutex_lock(&uq_mgr->userq_mutex);
+
+	ret = amdgpu_userqueue_validate_bos(uq_mgr);
+	if (ret) {
+		DRM_ERROR("Failed to validate BOs to restore\n");
+		goto unlock;
+	}
+
+	ret = amdgpu_userqueue_resume_all(uq_mgr);
+	if (ret) {
+		DRM_ERROR("Failed to resume all queues\n");
+		goto unlock;
+	}
+
+unlock:
+	mutex_unlock(&uq_mgr->userq_mutex);
+}
 
 static int
 amdgpu_userqueue_suspend_all(struct amdgpu_userq_mgr *uq_mgr)
@@ -393,6 +557,7 @@ amdgpu_userqueue_suspend(struct amdgpu_userq_mgr *uq_mgr)
 	struct amdgpu_fpriv *fpriv = uq_mgr_to_fpriv(uq_mgr);
 	struct amdgpu_eviction_fence_mgr *evf_mgr = &fpriv->evf_mgr;
 
+
 	mutex_lock(&uq_mgr->userq_mutex);
 
 	/* Wait for any pending userqueue fence to signal */
@@ -411,8 +576,14 @@ amdgpu_userqueue_suspend(struct amdgpu_userq_mgr *uq_mgr)
 	/* Signal current eviction fence */
 	amdgpu_eviction_fence_signal(evf_mgr);
 
-	/* Cleanup old eviction fence entry */
-	amdgpu_eviction_fence_destroy(evf_mgr);
+	if (evf_mgr->fd_closing) {
+		mutex_unlock(&uq_mgr->userq_mutex);
+		cancel_delayed_work(&uq_mgr->resume_work);
+		return;
+	}
+
+	/* Schedule a resume work */
+	schedule_delayed_work(&uq_mgr->resume_work, 0);
 
 unlock:
 	mutex_unlock(&uq_mgr->userq_mutex);
@@ -425,7 +596,6 @@ int amdgpu_userq_mgr_init(struct amdgpu_userq_mgr *userq_mgr, struct amdgpu_devi
 	mutex_init(&userq_mgr->userq_mutex);
 	idr_init_base(&userq_mgr->userq_idr, 1);
 	userq_mgr->adev = adev;
-	userq_mgr->num_userqs = 0;
 
 	fpriv = uq_mgr_to_fpriv(userq_mgr);
 	if (!fpriv->evf_mgr.ev_fence) {
@@ -433,6 +603,7 @@ int amdgpu_userq_mgr_init(struct amdgpu_userq_mgr *userq_mgr, struct amdgpu_devi
 		return -EINVAL;
 	}
 
+	INIT_DELAYED_WORK(&userq_mgr->resume_work, amdgpu_userqueue_resume_worker);
 	return 0;
 }
 
@@ -440,6 +611,8 @@ void amdgpu_userq_mgr_fini(struct amdgpu_userq_mgr *userq_mgr)
 {
 	uint32_t queue_id;
 	struct amdgpu_usermode_queue *queue;
+
+	cancel_delayed_work(&userq_mgr->resume_work);
 
 	idr_for_each_entry(&userq_mgr->userq_idr, queue, queue_id)
 		amdgpu_userqueue_cleanup(userq_mgr, queue, queue_id);
