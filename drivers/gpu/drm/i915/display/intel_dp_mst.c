@@ -1605,13 +1605,14 @@ static const struct drm_encoder_funcs mst_stream_encoder_funcs = {
 
 static bool mst_connector_get_hw_state(struct intel_connector *connector)
 {
-	if (intel_attached_encoder(connector) && connector->base.state->crtc) {
-		enum pipe pipe;
-		if (!intel_attached_encoder(connector)->get_hw_state(intel_attached_encoder(connector), &pipe))
-			return false;
-		return true;
-	}
-	return false;
+	/* This is the MST stream encoder set in ->pre_enable, if any */
+	struct intel_encoder *encoder = intel_attached_encoder(connector);
+	enum pipe pipe;
+
+	if (!encoder || !connector->base.state->crtc)
+		return false;
+
+	return encoder->get_hw_state(encoder, &pipe);
 }
 
 static int intel_dp_mst_add_properties(struct intel_dp *intel_dp,
