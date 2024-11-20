@@ -70,14 +70,91 @@ r535_chan_ramfc_clear(struct nvkm_chan *chan)
 #define CHID_PER_USERD 8
 
 static int
+r535_chan_alloc(struct nvkm_gsp_device *device, u32 handle, u32 nv2080_engine_type, u8 runq,
+		bool priv, int chid, u64 inst_addr, u64 userd_addr, u64 mthdbuf_addr,
+		struct nvkm_vmm *vmm, u64 gpfifo_offset, u32 gpfifo_length,
+		struct nvkm_gsp_object *chan)
+{
+	struct nvkm_gsp *gsp = device->object.client->gsp;
+	struct nvkm_fifo *fifo = gsp->subdev.device->fifo;
+	const int userd_p = chid / CHID_PER_USERD;
+	const int userd_i = chid % CHID_PER_USERD;
+	NV_CHANNELGPFIFO_ALLOCATION_PARAMETERS *args;
+
+	args = nvkm_gsp_rm_alloc_get(&device->object, handle,
+				     fifo->func->chan.user.oclass, sizeof(*args), chan);
+	if (WARN_ON(IS_ERR(args)))
+		return PTR_ERR(args);
+
+	args->gpFifoOffset = gpfifo_offset;
+	args->gpFifoEntries = gpfifo_length / 8;
+
+	args->flags  = NVDEF(NVOS04, FLAGS, CHANNEL_TYPE, PHYSICAL);
+	args->flags |= NVDEF(NVOS04, FLAGS, VPR, FALSE);
+	args->flags |= NVDEF(NVOS04, FLAGS, CHANNEL_SKIP_MAP_REFCOUNTING, FALSE);
+	args->flags |= NVVAL(NVOS04, FLAGS, GROUP_CHANNEL_RUNQUEUE, runq);
+	if (!priv)
+		args->flags |= NVDEF(NVOS04, FLAGS, PRIVILEGED_CHANNEL, FALSE);
+	else
+		args->flags |= NVDEF(NVOS04, FLAGS, PRIVILEGED_CHANNEL, TRUE);
+	args->flags |= NVDEF(NVOS04, FLAGS, DELAY_CHANNEL_SCHEDULING, FALSE);
+	args->flags |= NVDEF(NVOS04, FLAGS, CHANNEL_DENY_PHYSICAL_MODE_CE, FALSE);
+
+	args->flags |= NVVAL(NVOS04, FLAGS, CHANNEL_USERD_INDEX_VALUE, userd_i);
+	args->flags |= NVDEF(NVOS04, FLAGS, CHANNEL_USERD_INDEX_FIXED, FALSE);
+	args->flags |= NVVAL(NVOS04, FLAGS, CHANNEL_USERD_INDEX_PAGE_VALUE, userd_p);
+	args->flags |= NVDEF(NVOS04, FLAGS, CHANNEL_USERD_INDEX_PAGE_FIXED, TRUE);
+
+	args->flags |= NVDEF(NVOS04, FLAGS, CHANNEL_DENY_AUTH_LEVEL_PRIV, FALSE);
+	args->flags |= NVDEF(NVOS04, FLAGS, CHANNEL_SKIP_SCRUBBER, FALSE);
+	args->flags |= NVDEF(NVOS04, FLAGS, CHANNEL_CLIENT_MAP_FIFO, FALSE);
+	args->flags |= NVDEF(NVOS04, FLAGS, SET_EVICT_LAST_CE_PREFETCH_CHANNEL, FALSE);
+	args->flags |= NVDEF(NVOS04, FLAGS, CHANNEL_VGPU_PLUGIN_CONTEXT, FALSE);
+	args->flags |= NVDEF(NVOS04, FLAGS, CHANNEL_PBDMA_ACQUIRE_TIMEOUT, FALSE);
+	args->flags |= NVDEF(NVOS04, FLAGS, GROUP_CHANNEL_THREAD, DEFAULT);
+	args->flags |= NVDEF(NVOS04, FLAGS, MAP_CHANNEL, FALSE);
+	args->flags |= NVDEF(NVOS04, FLAGS, SKIP_CTXBUFFER_ALLOC, FALSE);
+
+	args->hVASpace = vmm->rm.object.handle;
+	args->engineType = nv2080_engine_type;
+
+	args->instanceMem.base = inst_addr;
+	args->instanceMem.size = fifo->func->chan.func->inst->size;
+	args->instanceMem.addressSpace = 2;
+	args->instanceMem.cacheAttrib = 1;
+
+	args->userdMem.base = userd_addr;
+	args->userdMem.size = fifo->func->chan.func->userd->size;
+	args->userdMem.addressSpace = 2;
+	args->userdMem.cacheAttrib = 1;
+
+	args->ramfcMem.base = inst_addr;
+	args->ramfcMem.size = 0x200;
+	args->ramfcMem.addressSpace = 2;
+	args->ramfcMem.cacheAttrib = 1;
+
+	args->mthdbufMem.base = mthdbuf_addr;
+	args->mthdbufMem.size = fifo->rm.mthdbuf_size;
+	args->mthdbufMem.addressSpace = 1;
+	args->mthdbufMem.cacheAttrib = 0;
+
+	if (!priv)
+		args->internalFlags = NVDEF(NV_KERNELCHANNEL, ALLOC_INTERNALFLAGS, PRIVILEGE, USER);
+	else
+		args->internalFlags = NVDEF(NV_KERNELCHANNEL, ALLOC_INTERNALFLAGS, PRIVILEGE, ADMIN);
+	args->internalFlags |= NVDEF(NV_KERNELCHANNEL, ALLOC_INTERNALFLAGS, ERROR_NOTIFIER_TYPE, NONE);
+	args->internalFlags |= NVDEF(NV_KERNELCHANNEL, ALLOC_INTERNALFLAGS, ECC_ERROR_NOTIFIER_TYPE, NONE);
+
+	return nvkm_gsp_rm_alloc_wr(chan, args);
+}
+
+static int
 r535_chan_ramfc_write(struct nvkm_chan *chan, u64 offset, u64 length, u32 devm, bool priv)
 {
 	struct nvkm_fifo *fifo = chan->cgrp->runl->fifo;
 	struct nvkm_engn *engn;
 	struct nvkm_device *device = fifo->engine.subdev.device;
-	NV_CHANNELGPFIFO_ALLOCATION_PARAMETERS *args;
-	const int userd_p = chan->id / CHID_PER_USERD;
-	const int userd_i = chan->id % CHID_PER_USERD;
+	const struct nvkm_rm_api *rmapi = device->gsp->rm->api;
 	u32 eT = ~0;
 	int ret;
 
@@ -101,72 +178,11 @@ r535_chan_ramfc_write(struct nvkm_chan *chan, u64 offset, u64 length, u32 devm, 
 	if (!chan->rm.mthdbuf.ptr)
 		return -ENOMEM;
 
-	args = nvkm_gsp_rm_alloc_get(&chan->vmm->rm.device.object, NVKM_RM_CHAN(chan->id),
-				     fifo->func->chan.user.oclass, sizeof(*args),
-				     &chan->rm.object);
-	if (WARN_ON(IS_ERR(args)))
-		return PTR_ERR(args);
-
-	args->gpFifoOffset = offset;
-	args->gpFifoEntries = length / 8;
-
-	args->flags  = NVDEF(NVOS04, FLAGS, CHANNEL_TYPE, PHYSICAL);
-	args->flags |= NVDEF(NVOS04, FLAGS, VPR, FALSE);
-	args->flags |= NVDEF(NVOS04, FLAGS, CHANNEL_SKIP_MAP_REFCOUNTING, FALSE);
-	args->flags |= NVVAL(NVOS04, FLAGS, GROUP_CHANNEL_RUNQUEUE, chan->runq);
-	if (!priv)
-		args->flags |= NVDEF(NVOS04, FLAGS, PRIVILEGED_CHANNEL, FALSE);
-	else
-		args->flags |= NVDEF(NVOS04, FLAGS, PRIVILEGED_CHANNEL, TRUE);
-	args->flags |= NVDEF(NVOS04, FLAGS, DELAY_CHANNEL_SCHEDULING, FALSE);
-	args->flags |= NVDEF(NVOS04, FLAGS, CHANNEL_DENY_PHYSICAL_MODE_CE, FALSE);
-
-	args->flags |= NVVAL(NVOS04, FLAGS, CHANNEL_USERD_INDEX_VALUE, userd_i);
-	args->flags |= NVDEF(NVOS04, FLAGS, CHANNEL_USERD_INDEX_FIXED, FALSE);
-	args->flags |= NVVAL(NVOS04, FLAGS, CHANNEL_USERD_INDEX_PAGE_VALUE, userd_p);
-	args->flags |= NVDEF(NVOS04, FLAGS, CHANNEL_USERD_INDEX_PAGE_FIXED, TRUE);
-
-	args->flags |= NVDEF(NVOS04, FLAGS, CHANNEL_DENY_AUTH_LEVEL_PRIV, FALSE);
-	args->flags |= NVDEF(NVOS04, FLAGS, CHANNEL_SKIP_SCRUBBER, FALSE);
-	args->flags |= NVDEF(NVOS04, FLAGS, CHANNEL_CLIENT_MAP_FIFO, FALSE);
-	args->flags |= NVDEF(NVOS04, FLAGS, SET_EVICT_LAST_CE_PREFETCH_CHANNEL, FALSE);
-	args->flags |= NVDEF(NVOS04, FLAGS, CHANNEL_VGPU_PLUGIN_CONTEXT, FALSE);
-	args->flags |= NVDEF(NVOS04, FLAGS, CHANNEL_PBDMA_ACQUIRE_TIMEOUT, FALSE);
-	args->flags |= NVDEF(NVOS04, FLAGS, GROUP_CHANNEL_THREAD, DEFAULT);
-	args->flags |= NVDEF(NVOS04, FLAGS, MAP_CHANNEL, FALSE);
-	args->flags |= NVDEF(NVOS04, FLAGS, SKIP_CTXBUFFER_ALLOC, FALSE);
-
-	args->hVASpace = chan->vmm->rm.object.handle;
-	args->engineType = eT;
-
-	args->instanceMem.base = chan->inst->addr;
-	args->instanceMem.size = chan->inst->size;
-	args->instanceMem.addressSpace = 2;
-	args->instanceMem.cacheAttrib = 1;
-
-	args->userdMem.base = nvkm_memory_addr(chan->userd.mem) + chan->userd.base;
-	args->userdMem.size = fifo->func->chan.func->userd->size;
-	args->userdMem.addressSpace = 2;
-	args->userdMem.cacheAttrib = 1;
-
-	args->ramfcMem.base = chan->inst->addr + 0;
-	args->ramfcMem.size = 0x200;
-	args->ramfcMem.addressSpace = 2;
-	args->ramfcMem.cacheAttrib = 1;
-
-	args->mthdbufMem.base = chan->rm.mthdbuf.addr;
-	args->mthdbufMem.size = fifo->rm.mthdbuf_size;
-	args->mthdbufMem.addressSpace = 1;
-	args->mthdbufMem.cacheAttrib = 0;
-
-	if (!priv)
-		args->internalFlags = NVDEF(NV_KERNELCHANNEL, ALLOC_INTERNALFLAGS, PRIVILEGE, USER);
-	else
-		args->internalFlags = NVDEF(NV_KERNELCHANNEL, ALLOC_INTERNALFLAGS, PRIVILEGE, ADMIN);
-	args->internalFlags |= NVDEF(NV_KERNELCHANNEL, ALLOC_INTERNALFLAGS, ERROR_NOTIFIER_TYPE, NONE);
-	args->internalFlags |= NVDEF(NV_KERNELCHANNEL, ALLOC_INTERNALFLAGS, ECC_ERROR_NOTIFIER_TYPE, NONE);
-
-	ret = nvkm_gsp_rm_alloc_wr(&chan->rm.object, args);
+	ret = rmapi->fifo->chan.alloc(&chan->vmm->rm.device, NVKM_RM_CHAN(chan->id),
+				      eT, chan->runq, priv, chan->id, chan->inst->addr,
+				      nvkm_memory_addr(chan->userd.mem) + chan->userd.base,
+				      chan->rm.mthdbuf.addr, chan->vmm, offset, length,
+				      &chan->rm.object);
 	if (ret)
 		return ret;
 
@@ -541,4 +557,7 @@ const struct nvkm_rm_api_fifo
 r535_fifo = {
 	.xlat_rm_engine_type = r535_fifo_xlat_rm_engine_type,
 	.ectx_size = r535_fifo_ectx_size,
+	.chan = {
+		.alloc = r535_chan_alloc,
+	},
 };

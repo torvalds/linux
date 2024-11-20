@@ -298,74 +298,20 @@ r535_gr_oneinit(struct nvkm_gr *base)
 	if (ret)
 		goto done;
 
-	{
-		NV_CHANNELGPFIFO_ALLOCATION_PARAMETERS *args;
-
-		args = nvkm_gsp_rm_alloc_get(&golden.vmm->rm.device.object, NVKM_RM_CHAN(0),
-					     device->fifo->func->chan.user.oclass,
-					     sizeof(*args), &golden.chan);
-		if (IS_ERR(args)) {
-			ret = PTR_ERR(args);
-			goto done;
-		}
-
-		args->gpFifoOffset = 0;
-		args->gpFifoEntries = 0x1000 / 8;
-		args->flags =
-			NVDEF(NVOS04, FLAGS, CHANNEL_TYPE, PHYSICAL) |
-			NVDEF(NVOS04, FLAGS, VPR, FALSE) |
-			NVDEF(NVOS04, FLAGS, CHANNEL_SKIP_MAP_REFCOUNTING, FALSE) |
-			NVVAL(NVOS04, FLAGS, GROUP_CHANNEL_RUNQUEUE, 0) |
-			NVDEF(NVOS04, FLAGS, PRIVILEGED_CHANNEL, TRUE) |
-			NVDEF(NVOS04, FLAGS, DELAY_CHANNEL_SCHEDULING, FALSE) |
-			NVDEF(NVOS04, FLAGS, CHANNEL_DENY_PHYSICAL_MODE_CE, FALSE) |
-			NVVAL(NVOS04, FLAGS, CHANNEL_USERD_INDEX_VALUE, 0) |
-			NVDEF(NVOS04, FLAGS, CHANNEL_USERD_INDEX_FIXED, FALSE) |
-			NVVAL(NVOS04, FLAGS, CHANNEL_USERD_INDEX_PAGE_VALUE, 0) |
-			NVDEF(NVOS04, FLAGS, CHANNEL_USERD_INDEX_PAGE_FIXED, TRUE) |
-			NVDEF(NVOS04, FLAGS, CHANNEL_DENY_AUTH_LEVEL_PRIV, FALSE) |
-			NVDEF(NVOS04, FLAGS, CHANNEL_SKIP_SCRUBBER, FALSE) |
-			NVDEF(NVOS04, FLAGS, CHANNEL_CLIENT_MAP_FIFO, FALSE) |
-			NVDEF(NVOS04, FLAGS, SET_EVICT_LAST_CE_PREFETCH_CHANNEL, FALSE) |
-			NVDEF(NVOS04, FLAGS, CHANNEL_VGPU_PLUGIN_CONTEXT, FALSE) |
-			NVDEF(NVOS04, FLAGS, CHANNEL_PBDMA_ACQUIRE_TIMEOUT, FALSE) |
-			NVDEF(NVOS04, FLAGS, GROUP_CHANNEL_THREAD, DEFAULT) |
-			NVDEF(NVOS04, FLAGS, MAP_CHANNEL, FALSE) |
-			NVDEF(NVOS04, FLAGS, SKIP_CTXBUFFER_ALLOC, FALSE);
-		args->hVASpace = golden.vmm->rm.object.handle;
-		args->engineType = 1;
-		args->instanceMem.base = nvkm_memory_addr(golden.inst);
-		args->instanceMem.size = 0x1000;
-		args->instanceMem.addressSpace = 2;
-		args->instanceMem.cacheAttrib = 1;
-		args->ramfcMem.base = nvkm_memory_addr(golden.inst);
-		args->ramfcMem.size = 0x200;
-		args->ramfcMem.addressSpace = 2;
-		args->ramfcMem.cacheAttrib = 1;
-		args->userdMem.base = nvkm_memory_addr(golden.inst) + 0x1000;
-		args->userdMem.size = 0x200;
-		args->userdMem.addressSpace = 2;
-		args->userdMem.cacheAttrib = 1;
-		args->mthdbufMem.base = nvkm_memory_addr(golden.inst) + 0x2000;
-		args->mthdbufMem.size = 0x5000;
-		args->mthdbufMem.addressSpace = 2;
-		args->mthdbufMem.cacheAttrib = 1;
-		args->internalFlags =
-			NVDEF(NV_KERNELCHANNEL, ALLOC_INTERNALFLAGS, PRIVILEGE, ADMIN) |
-			NVDEF(NV_KERNELCHANNEL, ALLOC_INTERNALFLAGS, ERROR_NOTIFIER_TYPE, NONE) |
-			NVDEF(NV_KERNELCHANNEL, ALLOC_INTERNALFLAGS, ECC_ERROR_NOTIFIER_TYPE, NONE);
-
-		ret = nvkm_gsp_rm_alloc_wr(&golden.chan, args);
-		if (ret)
-			goto done;
-	}
+	ret = rm->api->fifo->chan.alloc(&golden.vmm->rm.device, NVKM_RM_CHAN(0), 1, 0, true, 0,
+					nvkm_memory_addr(golden.inst),
+					nvkm_memory_addr(golden.inst) + 0x1000,
+					nvkm_memory_addr(golden.inst) + 0x2000,
+					golden.vmm, 0, 0x1000, &golden.chan);
+	if (ret)
+		goto done;
 
 	/* Fetch context buffer info from RM and allocate each of them here to use
 	 * during golden context init (or later as a global context buffer).
 	 *
 	 * Also build the information that'll be used to create channel contexts.
 	 */
-	ret = gsp->rm->api->gr->get_ctxbufs_info(gr);
+	ret = rm->api->gr->get_ctxbufs_info(gr);
 	if (ret)
 		goto done;
 

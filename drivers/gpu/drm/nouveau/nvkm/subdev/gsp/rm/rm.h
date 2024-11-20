@@ -101,6 +101,13 @@ struct nvkm_rm_api {
 		int (*xlat_rm_engine_type)(u32 rm_engine_type,
 					   enum nvkm_subdev_type *, int *nv2080_type);
 		int (*ectx_size)(struct nvkm_fifo *);
+		struct {
+			int (*alloc)(struct nvkm_gsp_device *, u32 handle,
+				     u32 nv2080_engine_type, u8 runq, bool priv, int chid,
+				     u64 inst_addr, u64 userd_addr, u64 mthdbuf_addr,
+				     struct nvkm_vmm *, u64 gpfifo_offset, u32 gpfifo_length,
+				     struct nvkm_gsp_object *);
+		} chan;
 	} *fifo;
 
 	const struct nvkm_rm_api_engine {
