@@ -12670,7 +12670,7 @@ F:	samples/kfifo/
 
 KGDB / KDB /debug_core
 M:	Jason Wessel <jason.wessel@windriver.com>
-M:	Daniel Thompson <daniel.thompson@linaro.org>
+M:	Daniel Thompson <danielt@kernel.org>
 R:	Douglas Anderson <dianders@chromium.org>
 L:	kgdb-bugreport@lists.sourceforge.net
 S:	Maintained
