@@ -160,7 +160,7 @@ struct dfl_fpga_port_ops *dfl_fpga_port_ops_get(struct dfl_feature_dev_data *fda
 
 	list_for_each_entry(ops, &dfl_port_ops_list, node) {
 		/* match port_ops using the name of platform device */
-		if (!strcmp(fdata->dev->name, ops->name)) {
+		if (!strcmp(fdata->pdev_name, ops->name)) {
 			if (!try_module_get(ops->owner))
 				ops = NULL;
 			goto done;
@@ -768,6 +768,7 @@ binfo_create_feature_dev_data(struct build_feature_devs_info *binfo)
 
 	fdata->dev = fdev;
 	fdata->type = type;
+	fdata->pdev_name = dfl_devs[type].name;
 	fdata->num = binfo->feature_num;
 	fdata->dfl_cdev = binfo->cdev;
 	fdata->id = FEATURE_DEV_ID_UNUSED;
