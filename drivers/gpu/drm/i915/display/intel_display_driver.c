@@ -472,7 +472,7 @@ int intel_display_driver_probe_nogem(struct drm_i915_private *i915)
 	intel_acpi_assign_connector_fwnodes(display);
 	drm_modeset_unlock_all(dev);
 
-	intel_initial_plane_config(i915);
+	intel_initial_plane_config(display);
 
 	/*
 	 * Make sure hardware watermarks really match the state we read out.

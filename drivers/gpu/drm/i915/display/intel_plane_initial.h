@@ -6,8 +6,8 @@
 #ifndef __INTEL_PLANE_INITIAL_H__
 #define __INTEL_PLANE_INITIAL_H__
 
-struct drm_i915_private;
+struct intel_display;
 
-void intel_initial_plane_config(struct drm_i915_private *i915);
+void intel_initial_plane_config(struct intel_display *display);
 
 #endif
