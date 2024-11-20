@@ -296,7 +296,7 @@ static void picolcd_fb_destroy(struct fb_info *info)
 	/* make sure no work is deferred */
 	fb_deferred_io_cleanup(info);
 
-	/* No thridparty should ever unregister our framebuffer! */
+	/* No thirdparty should ever unregister our framebuffer! */
 	WARN_ON(fbdata->picolcd != NULL);
 
 	vfree((u8 *)info->fix.smem_start);

@@ -84,9 +84,13 @@ struct hid_bpf_ops {
 	struct hid_device *hdev;
 };
 
+#define BIT(n) (1U << n)
+
 #ifndef BPF_F_BEFORE
-#define BPF_F_BEFORE (1U << 3)
+#define BPF_F_BEFORE BIT(3)
 #endif
+
+#define HID_QUIRK_IGNORE_SPECIAL_DRIVER		BIT(22)
 
 /* following are kfuncs exported by HID for HID-BPF */
 extern __u8 *hid_bpf_get_data(struct hid_bpf_ctx *ctx,
