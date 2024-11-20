@@ -1339,7 +1339,6 @@ static int takedown_cpu(unsigned int cpu)
 	cpuhp_bp_sync_dead(cpu);
 
 	lockdep_cleanup_dead_cpu(cpu, idle_thread_get(cpu));
-	tick_cleanup_dead_cpu(cpu);
 
 	/*
 	 * Callbacks must be re-integrated right away to the RCU state machine.

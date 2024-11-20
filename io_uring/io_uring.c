@@ -2408,13 +2408,14 @@ static int io_cqring_schedule_timeout(struct io_wait_queue *iowq,
 {
 	ktime_t timeout;
 
-	hrtimer_init_on_stack(&iowq->t, clock_id, HRTIMER_MODE_ABS);
 	if (iowq->min_timeout) {
 		timeout = ktime_add_ns(iowq->min_timeout, start_time);
-		iowq->t.function = io_cqring_min_timer_wakeup;
+		hrtimer_setup_on_stack(&iowq->t, io_cqring_min_timer_wakeup, clock_id,
+				       HRTIMER_MODE_ABS);
 	} else {
 		timeout = iowq->timeout;
-		iowq->t.function = io_cqring_timer_wakeup;
+		hrtimer_setup_on_stack(&iowq->t, io_cqring_timer_wakeup, clock_id,
+				       HRTIMER_MODE_ABS);
 	}
 
 	hrtimer_set_expires_range_ns(&iowq->t, timeout, 0);
