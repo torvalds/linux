@@ -317,6 +317,8 @@ struct dfl_feature {
  * @num: number for sub features.
  * @private: ptr to feature dev private data.
  * @features: sub features for the feature dev.
+ * @resource_num: number of resources for the feature dev.
+ * @resources: resources for the feature dev.
  */
 struct dfl_feature_dev_data {
 	struct list_head node;
@@ -331,6 +333,8 @@ struct dfl_feature_dev_data {
 	void *private;
 	int num;
 	struct dfl_feature *features;
+	int resource_num;
+	struct resource *resources;
 };
 
 /**

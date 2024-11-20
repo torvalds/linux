@@ -761,6 +761,11 @@ binfo_create_feature_dev_data(struct build_feature_devs_info *binfo)
 	if (!fdata->features)
 		return ERR_PTR(-ENOMEM);
 
+	fdata->resources = devm_kcalloc(binfo->dev, binfo->feature_num,
+					sizeof(*fdata->resources), GFP_KERNEL);
+	if (!fdata->resources)
+		return ERR_PTR(-ENOMEM);
+
 	fdata->dev = fdev;
 	fdata->type = type;
 	fdata->num = binfo->feature_num;
@@ -777,13 +782,6 @@ binfo_create_feature_dev_data(struct build_feature_devs_info *binfo)
 	 * and it should always be 0 for fme device.
 	 */
 	WARN_ON(fdata->disable_count);
-
-	/* each sub feature has one MMIO resource */
-	fdev->num_resources = binfo->feature_num;
-	fdev->resource = kcalloc(binfo->feature_num, sizeof(*fdev->resource),
-				 GFP_KERNEL);
-	if (!fdev->resource)
-		return ERR_PTR(-ENOMEM);
 
 	/* fill features and resource information for feature dev */
 	list_for_each_entry_safe(finfo, p, &binfo->sub_features, node) {
@@ -822,7 +820,7 @@ binfo_create_feature_dev_data(struct build_feature_devs_info *binfo)
 				return ERR_CAST(feature->ioaddr);
 		} else {
 			feature->resource_index = res_idx;
-			fdev->resource[res_idx++] = finfo->mmio_res;
+			fdata->resources[res_idx++] = finfo->mmio_res;
 		}
 
 		if (finfo->nr_irqs) {
@@ -842,6 +840,8 @@ binfo_create_feature_dev_data(struct build_feature_devs_info *binfo)
 		list_del(&finfo->node);
 		kfree(finfo);
 	}
+
+	fdata->resource_num = res_idx;
 
 	return fdata;
 }
@@ -885,6 +885,11 @@ static int feature_dev_register(struct dfl_feature_dev_data *fdata)
 
 	fdev->dev.parent = &fdata->dfl_cdev->region->dev;
 	fdev->dev.devt = dfl_get_devt(dfl_devs[fdata->type].devt_type, fdev->id);
+
+	ret = platform_device_add_resources(fdev, fdata->resources,
+					    fdata->resource_num);
+	if (ret)
+		return ret;
 
 	pdata.fdata = fdata;
 	ret = platform_device_add_data(fdev, &pdata, sizeof(pdata));
