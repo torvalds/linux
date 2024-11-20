@@ -509,6 +509,7 @@ static int __rtw89_ops_sta_add(struct rtw89_dev *rtwdev,
 		rtw89_core_txq_init(rtwdev, sta->txq[i]);
 
 	skb_queue_head_init(&rtwsta->roc_queue);
+	bitmap_zero(rtwsta->pairwise_sec_cam_map, RTW89_MAX_SEC_CAM_NUM);
 
 	rtwsta_link = rtw89_sta_set_link(rtwsta, sta->deflink.link_id);
 	if (!rtwsta_link) {
@@ -1656,6 +1657,7 @@ static int __rtw89_ops_set_sta_links(struct rtw89_dev *rtwdev,
 	struct rtw89_vif_link *rtwvif_link;
 	struct rtw89_sta_link *rtwsta_link;
 	unsigned int link_id;
+	u8 sec_cam_idx;
 	int ret;
 
 	for_each_set_bit(link_id, &set_links, IEEE80211_MLD_MAX_NUM_LINKS) {
@@ -1682,6 +1684,20 @@ static int __rtw89_ops_set_sta_links(struct rtw89_dev *rtwdev,
 		}
 
 		__rtw89_ops_bss_link_assoc(rtwdev, rtwvif_link);
+
+		for_each_set_bit(sec_cam_idx, rtwsta->pairwise_sec_cam_map,
+				 RTW89_MAX_SEC_CAM_NUM) {
+			ret = rtw89_cam_attach_link_sec_cam(rtwdev,
+							    rtwvif_link,
+							    rtwsta_link,
+							    sec_cam_idx);
+			if (ret) {
+				rtw89_err(rtwdev,
+					  "%s: failed to apply pairwise key (link id %u)\n",
+					  __func__, link_id);
+				return ret;
+			}
+		}
 	}
 
 	return 0;
