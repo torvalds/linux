@@ -7,7 +7,7 @@
 #include <linux/if_link.h>
 #include <linux/ipv6.h>
 #include <linux/in6.h>
-#include <linux/udp.h>
+#include <netinet/udp.h>
 #include <bpf/bpf_endian.h>
 #include <uapi/linux/netdev.h>
 #include "test_xdp_do_redirect.skel.h"
