@@ -13,33 +13,6 @@
 #define IP_MF 0x2000
 #endif
 
-#define CHECK_FLOW_KEYS(desc, got, expected)				\
-	_CHECK(memcmp(&got, &expected, sizeof(got)) != 0,		\
-	      desc,							\
-	      topts.duration,						\
-	      "nhoff=%u/%u "						\
-	      "thoff=%u/%u "						\
-	      "addr_proto=0x%x/0x%x "					\
-	      "is_frag=%u/%u "						\
-	      "is_first_frag=%u/%u "					\
-	      "is_encap=%u/%u "						\
-	      "ip_proto=0x%x/0x%x "					\
-	      "n_proto=0x%x/0x%x "					\
-	      "flow_label=0x%x/0x%x "					\
-	      "sport=%u/%u "						\
-	      "dport=%u/%u\n",						\
-	      got.nhoff, expected.nhoff,				\
-	      got.thoff, expected.thoff,				\
-	      got.addr_proto, expected.addr_proto,			\
-	      got.is_frag, expected.is_frag,				\
-	      got.is_first_frag, expected.is_first_frag,		\
-	      got.is_encap, expected.is_encap,				\
-	      got.ip_proto, expected.ip_proto,				\
-	      got.n_proto, expected.n_proto,				\
-	      got.flow_label, expected.flow_label,			\
-	      got.sport, expected.sport,				\
-	      got.dport, expected.dport)
-
 struct ipv4_pkt {
 	struct ethhdr eth;
 	struct iphdr iph;
@@ -545,7 +518,6 @@ static void run_tests_skb_less(int tap_fd, struct bpf_map *keys)
 		/* Keep in sync with 'flags' from eth_get_headlen. */
 		__u32 eth_get_headlen_flags =
 			BPF_FLOW_DISSECTOR_F_PARSE_1ST_FRAG;
-		LIBBPF_OPTS(bpf_test_run_opts, topts);
 		struct bpf_flow_keys flow_keys = {};
 		__u32 key = (__u32)(tests[i].keys.sport) << 16 |
 			    tests[i].keys.dport;
@@ -567,7 +539,9 @@ static void run_tests_skb_less(int tap_fd, struct bpf_map *keys)
 		err = bpf_map_lookup_elem(keys_fd, &key, &flow_keys);
 		ASSERT_OK(err, "bpf_map_lookup_elem");
 
-		CHECK_FLOW_KEYS(tests[i].name, flow_keys, tests[i].keys);
+		ASSERT_MEMEQ(&flow_keys, &tests[i].keys,
+			     sizeof(struct bpf_flow_keys),
+			     "returned flow keys");
 
 		err = bpf_map_delete_elem(keys_fd, &key);
 		ASSERT_OK(err, "bpf_map_delete_elem");
@@ -656,7 +630,9 @@ void test_flow_dissector(void)
 			continue;
 		ASSERT_EQ(topts.data_size_out, sizeof(flow_keys),
 			  "test_run data_size_out");
-		CHECK_FLOW_KEYS(tests[i].name, flow_keys, tests[i].keys);
+		ASSERT_MEMEQ(&flow_keys, &tests[i].keys,
+			     sizeof(struct bpf_flow_keys),
+			     "returned flow keys");
 	}
 
 	/* Do the same tests but for skb-less flow dissector.
