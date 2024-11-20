@@ -37,6 +37,8 @@ void print_pgm_check_info(void)
 	unsigned long *gpregs = (unsigned long *)get_lowcore()->gpregs_save_area;
 	struct psw_bits *psw = &psw_bits(get_lowcore()->psw_save_area);
 
+	if (bootdebug)
+		boot_rb_dump();
 	boot_emerg("Linux version %s\n", kernel_version);
 	if (!is_prot_virt_guest() && early_command_line[0])
 		boot_emerg("Kernel command line: %s\n", early_command_line);

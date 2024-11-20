@@ -32,6 +32,24 @@ static void boot_rb_add(const char *str, size_t len)
 	boot_rb_off += len + 1;
 }
 
+static void print_rb_entry(const char *str)
+{
+	sclp_early_printk(printk_skip_level(str));
+}
+
+static bool debug_messages_printed(void)
+{
+	return boot_earlyprintk && (boot_ignore_loglevel || boot_console_loglevel > LOGLEVEL_DEBUG);
+}
+
+void boot_rb_dump(void)
+{
+	if (debug_messages_printed())
+		return;
+	sclp_early_printk("Boot messages ring buffer:\n");
+	boot_rb_foreach(print_rb_entry);
+}
+
 const char hex_asc[] = "0123456789abcdef";
 
 static char *as_hex(char *dst, unsigned long val, int pad)
