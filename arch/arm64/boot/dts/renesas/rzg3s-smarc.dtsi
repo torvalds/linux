@@ -75,6 +75,19 @@
 	clock-frequency = <1000000>;
 };
 
+&i2c1 {
+	status = "okay";
+
+	clock-frequency = <400000>;
+
+	power-monitor@44 {
+		compatible = "renesas,isl28022";
+		reg = <0x44>;
+		shunt-resistor-micro-ohms = <8000>;
+		renesas,average-samples = <32>;
+	};
+};
+
 &pinctrl {
 	key-1-gpio-hog {
 		gpio-hog;
