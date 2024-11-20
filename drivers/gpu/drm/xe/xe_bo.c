@@ -1140,6 +1140,8 @@ static void xe_ttm_bo_destroy(struct ttm_buffer_object *ttm_bo)
 {
 	struct xe_bo *bo = ttm_to_xe_bo(ttm_bo);
 	struct xe_device *xe = ttm_to_xe_device(ttm_bo->bdev);
+	struct xe_tile *tile;
+	u8 id;
 
 	if (bo->ttm.base.import_attach)
 		drm_prime_gem_destroy(&bo->ttm.base, NULL);
@@ -1147,8 +1149,9 @@ static void xe_ttm_bo_destroy(struct ttm_buffer_object *ttm_bo)
 
 	xe_assert(xe, list_empty(&ttm_bo->base.gpuva.list));
 
-	if (bo->ggtt_node && bo->ggtt_node->base.size)
-		xe_ggtt_remove_bo(bo->tile->mem.ggtt, bo);
+	for_each_tile(tile, xe, id)
+		if (bo->ggtt_node[id] && bo->ggtt_node[id]->base.size)
+			xe_ggtt_remove_bo(tile->mem.ggtt, bo);
 
 #ifdef CONFIG_PROC_FS
 	if (bo->client)
@@ -1318,6 +1321,10 @@ struct xe_bo *___xe_bo_create_locked(struct xe_device *xe, struct xe_bo *bo,
 		xe_bo_free(bo);
 		return ERR_PTR(-EINVAL);
 	}
+
+	/* XE_BO_FLAG_GGTTx requires XE_BO_FLAG_GGTT also be set */
+	if ((flags & XE_BO_FLAG_GGTT_ALL) && !(flags & XE_BO_FLAG_GGTT))
+		return ERR_PTR(-EINVAL);
 
 	if (flags & (XE_BO_FLAG_VRAM_MASK | XE_BO_FLAG_STOLEN) &&
 	    !(flags & XE_BO_FLAG_IGNORE_MIN_PAGE_SIZE) &&
@@ -1509,19 +1516,29 @@ __xe_bo_create_locked(struct xe_device *xe,
 	bo->vm = vm;
 
 	if (bo->flags & XE_BO_FLAG_GGTT) {
-		if (!tile && flags & XE_BO_FLAG_STOLEN)
-			tile = xe_device_get_root_tile(xe);
+		struct xe_tile *t;
+		u8 id;
 
-		xe_assert(xe, tile);
+		if (!(bo->flags & XE_BO_FLAG_GGTT_ALL)) {
+			if (!tile && flags & XE_BO_FLAG_STOLEN)
+				tile = xe_device_get_root_tile(xe);
 
-		if (flags & XE_BO_FLAG_FIXED_PLACEMENT) {
-			err = xe_ggtt_insert_bo_at(tile->mem.ggtt, bo,
-						   start + bo->size, U64_MAX);
-		} else {
-			err = xe_ggtt_insert_bo(tile->mem.ggtt, bo);
+			xe_assert(xe, tile);
 		}
-		if (err)
-			goto err_unlock_put_bo;
+
+		for_each_tile(t, xe, id) {
+			if (t != tile && !(bo->flags & XE_BO_FLAG_GGTTx(t)))
+				continue;
+
+			if (flags & XE_BO_FLAG_FIXED_PLACEMENT) {
+				err = xe_ggtt_insert_bo_at(t->mem.ggtt, bo,
+							   start + bo->size, U64_MAX);
+			} else {
+				err = xe_ggtt_insert_bo(t->mem.ggtt, bo);
+			}
+			if (err)
+				goto err_unlock_put_bo;
+		}
 	}
 
 	return bo;
@@ -2379,14 +2396,18 @@ void xe_bo_put_commit(struct llist_head *deferred)
 
 void xe_bo_put(struct xe_bo *bo)
 {
+	struct xe_tile *tile;
+	u8 id;
+
 	might_sleep();
 	if (bo) {
 #ifdef CONFIG_PROC_FS
 		if (bo->client)
 			might_lock(&bo->client->bos_lock);
 #endif
-		if (bo->ggtt_node && bo->ggtt_node->ggtt)
-			might_lock(&bo->ggtt_node->ggtt->lock);
+		for_each_tile(tile, xe_bo_device(bo), id)
+			if (bo->ggtt_node[id] && bo->ggtt_node[id]->ggtt)
+				might_lock(&bo->ggtt_node[id]->ggtt->lock);
 		drm_gem_object_put(&bo->ttm.base);
 	}
 }

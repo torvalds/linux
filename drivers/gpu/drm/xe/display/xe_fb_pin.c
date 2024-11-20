@@ -161,7 +161,7 @@ static int __xe_pin_fb_vma_dpt(const struct intel_framebuffer *fb,
 	}
 
 	vma->dpt = dpt;
-	vma->node = dpt->ggtt_node;
+	vma->node = dpt->ggtt_node[tile0->id];
 	return 0;
 }
 
@@ -213,8 +213,8 @@ static int __xe_pin_fb_vma_ggtt(const struct intel_framebuffer *fb,
 	if (xe_bo_is_vram(bo) && ggtt->flags & XE_GGTT_FLAGS_64K)
 		align = max_t(u32, align, SZ_64K);
 
-	if (bo->ggtt_node && view->type == I915_GTT_VIEW_NORMAL) {
-		vma->node = bo->ggtt_node;
+	if (bo->ggtt_node[ggtt->tile->id] && view->type == I915_GTT_VIEW_NORMAL) {
+		vma->node = bo->ggtt_node[ggtt->tile->id];
 	} else if (view->type == I915_GTT_VIEW_NORMAL) {
 		u32 x, size = bo->ttm.base.size;
 
@@ -345,10 +345,12 @@ err:
 
 static void __xe_unpin_fb_vma(struct i915_vma *vma)
 {
+	u8 tile_id = vma->node->ggtt->tile->id;
+
 	if (vma->dpt)
 		xe_bo_unpin_map_no_vm(vma->dpt);
-	else if (!xe_ggtt_node_allocated(vma->bo->ggtt_node) ||
-		 vma->bo->ggtt_node->base.start != vma->node->base.start)
+	else if (!xe_ggtt_node_allocated(vma->bo->ggtt_node[tile_id]) ||
+		 vma->bo->ggtt_node[tile_id]->base.start != vma->node->base.start)
 		xe_ggtt_node_remove(vma->node, false);
 
 	ttm_bo_reserve(&vma->bo->ttm, false, false, NULL);
