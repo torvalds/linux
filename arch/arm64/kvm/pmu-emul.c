@@ -274,12 +274,23 @@ void kvm_pmu_vcpu_destroy(struct kvm_vcpu *vcpu)
 	irq_work_sync(&vcpu->arch.pmu.overflow_work);
 }
 
-bool kvm_pmu_counter_is_hyp(struct kvm_vcpu *vcpu, unsigned int idx)
+static u64 kvm_pmu_hyp_counter_mask(struct kvm_vcpu *vcpu)
 {
-	unsigned int hpmn;
+	unsigned int hpmn, n;
 
-	if (!vcpu_has_nv(vcpu) || idx == ARMV8_PMU_CYCLE_IDX)
-		return false;
+	if (!vcpu_has_nv(vcpu))
+		return 0;
+
+	hpmn = SYS_FIELD_GET(MDCR_EL2, HPMN, __vcpu_sys_reg(vcpu, MDCR_EL2));
+	n = vcpu->kvm->arch.pmcr_n;
+
+	/*
+	 * Programming HPMN to a value greater than PMCR_EL0.N is
+	 * CONSTRAINED UNPREDICTABLE. Make the implementation choice that an
+	 * UNKNOWN number of counters (in our case, zero) are reserved for EL2.
+	 */
+	if (hpmn >= n)
+		return 0;
 
 	/*
 	 * Programming HPMN=0 is CONSTRAINED UNPREDICTABLE if FEAT_HPMN0 isn't
@@ -288,20 +299,22 @@ bool kvm_pmu_counter_is_hyp(struct kvm_vcpu *vcpu, unsigned int idx)
 	 * implementation choice that all counters are included in the second
 	 * range reserved for EL2/EL3.
 	 */
-	hpmn = SYS_FIELD_GET(MDCR_EL2, HPMN, __vcpu_sys_reg(vcpu, MDCR_EL2));
-	return idx >= hpmn;
+	return GENMASK(n - 1, hpmn);
+}
+
+bool kvm_pmu_counter_is_hyp(struct kvm_vcpu *vcpu, unsigned int idx)
+{
+	return kvm_pmu_hyp_counter_mask(vcpu) & BIT(idx);
 }
 
 u64 kvm_pmu_accessible_counter_mask(struct kvm_vcpu *vcpu)
 {
 	u64 mask = kvm_pmu_implemented_counter_mask(vcpu);
-	u64 hpmn;
 
 	if (!vcpu_has_nv(vcpu) || vcpu_is_el2(vcpu))
 		return mask;
 
-	hpmn = SYS_FIELD_GET(MDCR_EL2, HPMN, __vcpu_sys_reg(vcpu, MDCR_EL2));
-	return mask & ~GENMASK(vcpu->kvm->arch.pmcr_n - 1, hpmn);
+	return mask & ~kvm_pmu_hyp_counter_mask(vcpu);
 }
 
 u64 kvm_pmu_implemented_counter_mask(struct kvm_vcpu *vcpu)
@@ -375,14 +388,30 @@ void kvm_pmu_disable_counter_mask(struct kvm_vcpu *vcpu, u64 val)
 	}
 }
 
-static u64 kvm_pmu_overflow_status(struct kvm_vcpu *vcpu)
+/*
+ * Returns the PMU overflow state, which is true if there exists an event
+ * counter where the values of the global enable control, PMOVSSET_EL0[n], and
+ * PMINTENSET_EL1[n] are all 1.
+ */
+static bool kvm_pmu_overflow_status(struct kvm_vcpu *vcpu)
 {
-	u64 reg = 0;
+	u64 reg = __vcpu_sys_reg(vcpu, PMOVSSET_EL0);
 
-	if ((kvm_vcpu_read_pmcr(vcpu) & ARMV8_PMU_PMCR_E)) {
-		reg = __vcpu_sys_reg(vcpu, PMOVSSET_EL0);
-		reg &= __vcpu_sys_reg(vcpu, PMINTENSET_EL1);
-	}
+	reg &= __vcpu_sys_reg(vcpu, PMINTENSET_EL1);
+
+	/*
+	 * PMCR_EL0.E is the global enable control for event counters available
+	 * to EL0 and EL1.
+	 */
+	if (!(kvm_vcpu_read_pmcr(vcpu) & ARMV8_PMU_PMCR_E))
+		reg &= kvm_pmu_hyp_counter_mask(vcpu);
+
+	/*
+	 * Otherwise, MDCR_EL2.HPME is the global enable control for event
+	 * counters reserved for EL2.
+	 */
+	if (!(vcpu_read_sys_reg(vcpu, MDCR_EL2) & MDCR_EL2_HPME))
+		reg &= ~kvm_pmu_hyp_counter_mask(vcpu);
 
 	return reg;
 }
@@ -395,7 +424,7 @@ static void kvm_pmu_update_state(struct kvm_vcpu *vcpu)
 	if (!kvm_vcpu_has_pmu(vcpu))
 		return;
 
-	overflow = !!kvm_pmu_overflow_status(vcpu);
+	overflow = kvm_pmu_overflow_status(vcpu);
 	if (pmu->irq_level == overflow)
 		return;
 
