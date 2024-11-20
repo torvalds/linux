@@ -88,7 +88,8 @@ struct hsmp_msg_desc {
  *
  * Not supported messages would return -ENOMSG.
  */
-static const struct hsmp_msg_desc hsmp_msg_desc_table[] = {
+static const struct hsmp_msg_desc hsmp_msg_desc_table[]
+				__attribute__((unused)) = {
 	/* RESERVED */
 	{0, 0, HSMP_RSVD},
 

@@ -1163,7 +1163,7 @@ static void telemetry_pltdrv_remove(struct platform_device *pdev)
 
 static struct platform_driver telemetry_soc_driver = {
 	.probe		= telemetry_pltdrv_probe,
-	.remove_new	= telemetry_pltdrv_remove,
+	.remove		= telemetry_pltdrv_remove,
 	.driver		= {
 		.name	= DRIVER_NAME,
 	},

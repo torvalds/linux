@@ -2309,7 +2309,7 @@ MODULE_DEVICE_TABLE(acpi, ideapad_device_ids);
 
 static struct platform_driver ideapad_acpi_driver = {
 	.probe = ideapad_acpi_add,
-	.remove_new = ideapad_acpi_remove,
+	.remove = ideapad_acpi_remove,
 	.driver = {
 		.name   = "ideapad_acpi",
 		.pm     = &ideapad_pm,
