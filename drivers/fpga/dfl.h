@@ -309,6 +309,7 @@ struct dfl_feature {
  * @lock: mutex to protect feature dev data.
  * @dev: ptr to the feature's platform device linked with this structure.
  * @type: type of DFL FIU for the feature dev. See enum dfl_id_type.
+ * @pdev_id: platform device id for the feature dev.
  * @pdev_name: platform device name for the feature dev.
  * @dfl_cdev: ptr to container device.
  * @id: id used for the feature device.
@@ -326,6 +327,7 @@ struct dfl_feature_dev_data {
 	struct mutex lock;
 	struct platform_device *dev;
 	enum dfl_id_type type;
+	int pdev_id;
 	const char *pdev_name;
 	struct dfl_fpga_cdev *dfl_cdev;
 	int id;
