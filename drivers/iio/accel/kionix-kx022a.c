@@ -1121,10 +1121,15 @@ static int kx022a_chip_init(struct kx022a_data *data)
 		return ret;
 
 	/*
-	 * I've seen I2C read failures if we poll too fast after the sensor
-	 * reset. Slight delay gives I2C block the time to recover.
+	 * According to the power-on procedure documents, there is (at least)
+	 * 2ms delay required after the software reset. This should be same for
+	 * all, KX022ACR-Z, KX132-1211, KX132ACR-LBZ and KX134ACR-LBZ.
+	 *
+	 * https://fscdn.rohm.com/kionix/en/document/AN010_KX022ACR-Z_Power-on_Procedure_E.pdf
+	 * https://fscdn.rohm.com/kionix/en/document/TN027-Power-On-Procedure.pdf
+	 * https://fscdn.rohm.com/kionix/en/document/AN011_KX134ACR-LBZ_Power-on_Procedure_E.pdf
 	 */
-	msleep(1);
+	msleep(2);
 
 	ret = regmap_read_poll_timeout(data->regmap, data->chip_info->cntl2, val,
 				       !(val & KX022A_MASK_SRST),
