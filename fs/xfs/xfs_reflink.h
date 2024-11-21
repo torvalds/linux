@@ -25,7 +25,7 @@ xfs_can_free_cowblocks(struct xfs_inode *ip)
 	return true;
 }
 
-extern int xfs_reflink_trim_around_shared(struct xfs_inode *ip,
+int xfs_reflink_trim_around_shared(struct xfs_inode *ip,
 		struct xfs_bmbt_irec *irec, bool *shared);
 int xfs_bmap_trim_cow(struct xfs_inode *ip, struct xfs_bmbt_irec *imap,
 		bool *shared);
