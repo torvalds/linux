@@ -285,6 +285,13 @@ xfs_rtrmap_check_meta_irec(
 		if (irec->rm_blockcount != mp->m_sb.sb_rextsize)
 			return __this_address;
 		return NULL;
+	case XFS_RMAP_OWN_COW:
+		if (!xfs_has_rtreflink(mp))
+			return __this_address;
+		if (!xfs_verify_rgbext(rtg, irec->rm_startblock,
+					    irec->rm_blockcount))
+			return __this_address;
+		return NULL;
 	default:
 		return __this_address;
 	}
