@@ -16,15 +16,18 @@
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <bpf/btf.h>
+#include <time.h>
 #include "json_writer.h"
 
 #include "network_helpers.h"
 
+/* backtrace() and backtrace_symbols_fd() are glibc specific,
+ * use header file when glibc is available and provide stub
+ * implementations when another libc implementation is used.
+ */
 #ifdef __GLIBC__
 #include <execinfo.h> /* backtrace */
-#endif
-
-/* Default backtrace funcs if missing at link */
+#else
 __weak int backtrace(void **buffer, int size)
 {
 	return 0;
@@ -34,6 +37,7 @@ __weak void backtrace_symbols_fd(void *const *buffer, int size, int fd)
 {
 	dprintf(fd, "<backtrace not supported>\n");
 }
+#endif /*__GLIBC__ */
 
 int env_verbosity = 0;
 
@@ -174,6 +178,88 @@ int usleep(useconds_t usec)
 	};
 
 	return syscall(__NR_nanosleep, &ts, NULL);
+}
+
+/* Watchdog timer is started by watchdog_start() and stopped by watchdog_stop().
+ * If timer is active for longer than env.secs_till_notify,
+ * it prints the name of the current test to the stderr.
+ * If timer is active for longer than env.secs_till_kill,
+ * it kills the thread executing the test by sending a SIGSEGV signal to it.
+ */
+static void watchdog_timer_func(union sigval sigval)
+{
+	struct itimerspec timeout = {};
+	char test_name[256];
+	int err;
+
+	if (env.subtest_state)
+		snprintf(test_name, sizeof(test_name), "%s/%s",
+			 env.test->test_name, env.subtest_state->name);
+	else
+		snprintf(test_name, sizeof(test_name), "%s",
+			 env.test->test_name);
+
+	switch (env.watchdog_state) {
+	case WD_NOTIFY:
+		fprintf(env.stderr_saved, "WATCHDOG: test case %s executes for %d seconds...\n",
+			test_name, env.secs_till_notify);
+		timeout.it_value.tv_sec = env.secs_till_kill - env.secs_till_notify;
+		env.watchdog_state = WD_KILL;
+		err = timer_settime(env.watchdog, 0, &timeout, NULL);
+		if (err)
+			fprintf(env.stderr_saved, "Failed to arm watchdog timer\n");
+		break;
+	case WD_KILL:
+		fprintf(env.stderr_saved,
+			"WATCHDOG: test case %s executes for %d seconds, terminating with SIGSEGV\n",
+			test_name, env.secs_till_kill);
+		pthread_kill(env.main_thread, SIGSEGV);
+		break;
+	}
+}
+
+static void watchdog_start(void)
+{
+	struct itimerspec timeout = {};
+	int err;
+
+	if (env.secs_till_kill == 0)
+		return;
+	if (env.secs_till_notify > 0) {
+		env.watchdog_state = WD_NOTIFY;
+		timeout.it_value.tv_sec = env.secs_till_notify;
+	} else {
+		env.watchdog_state = WD_KILL;
+		timeout.it_value.tv_sec = env.secs_till_kill;
+	}
+	err = timer_settime(env.watchdog, 0, &timeout, NULL);
+	if (err)
+		fprintf(env.stderr_saved, "Failed to start watchdog timer\n");
+}
+
+static void watchdog_stop(void)
+{
+	struct itimerspec timeout = {};
+	int err;
+
+	env.watchdog_state = WD_NOTIFY;
+	err = timer_settime(env.watchdog, 0, &timeout, NULL);
+	if (err)
+		fprintf(env.stderr_saved, "Failed to stop watchdog timer\n");
+}
+
+static void watchdog_init(void)
+{
+	struct sigevent watchdog_sev = {
+		.sigev_notify = SIGEV_THREAD,
+		.sigev_notify_function = watchdog_timer_func,
+	};
+	int err;
+
+	env.main_thread = pthread_self();
+	err = timer_create(CLOCK_MONOTONIC, &watchdog_sev, &env.watchdog);
+	if (err)
+		fprintf(stderr, "Failed to initialize watchdog timer\n");
 }
 
 static bool should_run(struct test_selector *sel, int num, const char *name)
@@ -512,6 +598,7 @@ bool test__start_subtest(const char *subtest_name)
 
 	env.subtest_state = subtest_state;
 	stdio_hijack_init(&subtest_state->log_buf, &subtest_state->log_cnt);
+	watchdog_start();
 
 	return true;
 }
@@ -777,6 +864,7 @@ enum ARG_KEYS {
 	ARG_DEBUG = -1,
 	ARG_JSON_SUMMARY = 'J',
 	ARG_TRAFFIC_MONITOR = 'm',
+	ARG_WATCHDOG_TIMEOUT = 'w',
 };
 
 static const struct argp_option opts[] = {
@@ -807,6 +895,8 @@ static const struct argp_option opts[] = {
 	{ "traffic-monitor", ARG_TRAFFIC_MONITOR, "NAMES", 0,
 	  "Monitor network traffic of tests with name matching the pattern (supports '*' wildcard)." },
 #endif
+	{ "watchdog-timeout", ARG_WATCHDOG_TIMEOUT, "SECONDS", 0,
+	  "Kill the process if tests are not making progress for specified number of seconds." },
 	{},
 };
 
@@ -868,6 +958,7 @@ static int libbpf_print_fn(enum libbpf_print_level level,
 
 		va_copy(args2, args);
 		vfprintf(libbpf_capture_stream, format, args2);
+		va_end(args2);
 	}
 
 	if (env.verbosity < VERBOSE_VERY && level == LIBBPF_DEBUG)
@@ -1031,6 +1122,16 @@ static error_t parse_arg(int key, char *arg, struct argp_state *state)
 					      true);
 		break;
 #endif
+	case ARG_WATCHDOG_TIMEOUT:
+		env->secs_till_kill = atoi(arg);
+		if (env->secs_till_kill < 0) {
+			fprintf(stderr, "Invalid watchdog timeout: %s.\n", arg);
+			return -EINVAL;
+		}
+		if (env->secs_till_kill < env->secs_till_notify) {
+			env->secs_till_notify = 0;
+		}
+		break;
 	default:
 		return ARGP_ERR_UNKNOWN;
 	}
@@ -1259,10 +1360,12 @@ static void run_one_test(int test_num)
 
 	stdio_hijack(&state->log_buf, &state->log_cnt);
 
+	watchdog_start();
 	if (test->run_test)
 		test->run_test();
 	else if (test->run_serial_test)
 		test->run_serial_test();
+	watchdog_stop();
 
 	/* ensure last sub-test is finalized properly */
 	if (env.subtest_state)
@@ -1703,6 +1806,7 @@ out:
 static int worker_main(int sock)
 {
 	save_netns();
+	watchdog_init();
 
 	while (true) {
 		/* receive command */
@@ -1812,6 +1916,8 @@ int main(int argc, char **argv)
 
 	sigaction(SIGSEGV, &sigact, NULL);
 
+	env.secs_till_notify = 10;
+	env.secs_till_kill = 120;
 	err = argp_parse(&argp, argc, argv, 0, NULL, &env);
 	if (err)
 		return err;
@@ -1819,6 +1925,8 @@ int main(int argc, char **argv)
 	err = cd_flavor_subdir(argv[0]);
 	if (err)
 		return err;
+
+	watchdog_init();
 
 	/* Use libbpf 1.0 API mode */
 	libbpf_set_strict_mode(LIBBPF_STRICT_ALL);
