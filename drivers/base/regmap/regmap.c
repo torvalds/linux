@@ -759,12 +759,11 @@ struct regmap *__regmap_init(struct device *dev,
 
 	map->reg_base = config->reg_base;
 
-	map->format.reg_bytes = DIV_ROUND_UP(config->reg_bits, 8);
+	map->format.reg_bytes = BITS_TO_BYTES(config->reg_bits);
 	map->format.pad_bytes = config->pad_bits / 8;
 	map->format.reg_shift = config->reg_shift;
-	map->format.val_bytes = DIV_ROUND_UP(config->val_bits, 8);
-	map->format.buf_size = DIV_ROUND_UP(config->reg_bits +
-			config->val_bits + config->pad_bits, 8);
+	map->format.val_bytes = BITS_TO_BYTES(config->val_bits);
+	map->format.buf_size = BITS_TO_BYTES(config->reg_bits + config->val_bits + config->pad_bits);
 	map->reg_shift = config->pad_bits % 8;
 	if (config->reg_stride)
 		map->reg_stride = config->reg_stride;
