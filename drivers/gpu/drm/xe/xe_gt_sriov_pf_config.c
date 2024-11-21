@@ -1545,8 +1545,6 @@ static u64 pf_query_max_lmem(struct xe_gt *gt)
 
 #ifdef CONFIG_DRM_XE_DEBUG_SRIOV
 #define MAX_FAIR_LMEM	SZ_128M	/* XXX: make it small for the driver bringup */
-#else
-#define MAX_FAIR_LMEM	SZ_2G	/* XXX: known issue with allocating BO over 2GiB */
 #endif
 
 static u64 pf_estimate_fair_lmem(struct xe_gt *gt, unsigned int num_vfs)
