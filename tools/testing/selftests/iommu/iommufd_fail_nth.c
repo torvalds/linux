@@ -47,6 +47,9 @@ static __attribute__((constructor)) void setup_buffer(void)
 
 	buffer = mmap(0, BUFFER_SIZE, PROT_READ | PROT_WRITE,
 		      MAP_SHARED | MAP_ANONYMOUS, -1, 0);
+
+	mfd_buffer = memfd_mmap(BUFFER_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED,
+				&mfd);
 }
 
 /*
@@ -331,6 +334,42 @@ TEST_FAIL_NTH(basic_fail_nth, map_domain)
 	return 0;
 }
 
+/* iopt_area_fill_domains() and iopt_area_fill_domain() */
+TEST_FAIL_NTH(basic_fail_nth, map_file_domain)
+{
+	uint32_t ioas_id;
+	__u32 stdev_id;
+	__u32 hwpt_id;
+	__u64 iova;
+
+	self->fd = open("/dev/iommu", O_RDWR);
+	if (self->fd == -1)
+		return -1;
+
+	if (_test_ioctl_ioas_alloc(self->fd, &ioas_id))
+		return -1;
+
+	if (_test_ioctl_set_temp_memory_limit(self->fd, 32))
+		return -1;
+
+	fail_nth_enable();
+
+	if (_test_cmd_mock_domain(self->fd, ioas_id, &stdev_id, &hwpt_id, NULL))
+		return -1;
+
+	if (_test_ioctl_ioas_map_file(self->fd, ioas_id, mfd, 0, 262144, &iova,
+				      IOMMU_IOAS_MAP_WRITEABLE |
+					      IOMMU_IOAS_MAP_READABLE))
+		return -1;
+
+	if (_test_ioctl_destroy(self->fd, stdev_id))
+		return -1;
+
+	if (_test_cmd_mock_domain(self->fd, ioas_id, &stdev_id, &hwpt_id, NULL))
+		return -1;
+	return 0;
+}
+
 TEST_FAIL_NTH(basic_fail_nth, map_two_domains)
 {
 	uint32_t ioas_id;
@@ -582,6 +621,8 @@ TEST_FAIL_NTH(basic_fail_nth, device)
 	uint32_t stdev_id;
 	uint32_t idev_id;
 	uint32_t hwpt_id;
+	uint32_t viommu_id;
+	uint32_t vdev_id;
 	__u64 iova;
 
 	self->fd = open("/dev/iommu", O_RDWR);
@@ -624,6 +665,19 @@ TEST_FAIL_NTH(basic_fail_nth, device)
 
 	if (_test_cmd_mock_domain_replace(self->fd, stdev_id, hwpt_id, NULL))
 		return -1;
+
+	if (_test_cmd_hwpt_alloc(self->fd, idev_id, ioas_id, 0,
+				 IOMMU_HWPT_ALLOC_NEST_PARENT, &hwpt_id,
+				 IOMMU_HWPT_DATA_NONE, 0, 0))
+		return -1;
+
+	if (_test_cmd_viommu_alloc(self->fd, idev_id, hwpt_id,
+				   IOMMU_VIOMMU_TYPE_SELFTEST, 0, &viommu_id))
+		return -1;
+
+	if (_test_cmd_vdevice_alloc(self->fd, viommu_id, idev_id, 0, &vdev_id))
+		return -1;
+
 	return 0;
 }
 
