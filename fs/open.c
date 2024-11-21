@@ -929,6 +929,10 @@ static int do_dentry_open(struct file *f,
 	if (error)
 		goto cleanup_all;
 
+	error = fsnotify_open_perm(f);
+	if (error)
+		goto cleanup_all;
+
 	error = break_lease(file_inode(f), f->f_flags);
 	if (error)
 		goto cleanup_all;
