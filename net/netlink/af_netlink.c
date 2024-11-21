@@ -2269,7 +2269,7 @@ static int netlink_dump(struct sock *sk, bool lock_taken)
 		goto errout_skb;
 
 	/* NLMSG_GOODSIZE is small to avoid high order allocations being
-	 * required, but it makes sense to _attempt_ a 16K bytes allocation
+	 * required, but it makes sense to _attempt_ a 32KiB allocation
 	 * to reduce number of system calls on dump operations, if user
 	 * ever provided a big enough buffer.
 	 */
@@ -2291,7 +2291,7 @@ static int netlink_dump(struct sock *sk, bool lock_taken)
 		goto errout_skb;
 
 	/* Trim skb to allocated size. User is expected to provide buffer as
-	 * large as max(min_dump_alloc, 16KiB (mac_recvmsg_len capped at
+	 * large as max(min_dump_alloc, 32KiB (max_recvmsg_len capped at
 	 * netlink_recvmsg())). dump will pack as many smaller messages as
 	 * could fit within the allocated skb. skb is typically allocated
 	 * with larger space than required (could be as much as near 2x the
@@ -2925,12 +2925,8 @@ static int __init netlink_proto_init(void)
 
 	for (i = 0; i < MAX_LINKS; i++) {
 		if (rhashtable_init(&nl_table[i].hash,
-				    &netlink_rhashtable_params) < 0) {
-			while (--i > 0)
-				rhashtable_destroy(&nl_table[i].hash);
-			kfree(nl_table);
+				    &netlink_rhashtable_params) < 0)
 			goto panic;
-		}
 	}
 
 	netlink_add_usersock_entry();

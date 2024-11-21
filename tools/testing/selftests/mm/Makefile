@@ -36,6 +36,17 @@ MAKEFLAGS += --no-builtin-rules
 CFLAGS = -Wall -I $(top_srcdir) $(EXTRA_CFLAGS) $(KHDR_INCLUDES) $(TOOLS_INCLUDES)
 LDLIBS = -lrt -lpthread -lm
 
+KDIR ?= /lib/modules/$(shell uname -r)/build
+ifneq (,$(wildcard $(KDIR)/Module.symvers))
+ifneq (,$(wildcard $(KDIR)/include/linux/page_frag_cache.h))
+TEST_GEN_MODS_DIR := page_frag
+else
+PAGE_FRAG_WARNING = "missing page_frag_cache.h, please use a newer kernel"
+endif
+else
+PAGE_FRAG_WARNING = "missing Module.symvers, please have the kernel built first"
+endif
+
 TEST_GEN_FILES = cow
 TEST_GEN_FILES += compaction_test
 TEST_GEN_FILES += gup_longterm
@@ -126,6 +137,7 @@ TEST_FILES += test_hmm.sh
 TEST_FILES += va_high_addr_switch.sh
 TEST_FILES += charge_reserved_hugetlb.sh
 TEST_FILES += hugetlb_reparenting_test.sh
+TEST_FILES += test_page_frag.sh
 
 # required by charge_reserved_hugetlb.sh
 TEST_FILES += write_hugetlb_memory.sh
@@ -209,5 +221,14 @@ all: warn_missing_liburing
 warn_missing_liburing:
 	@echo ; \
 	echo "Warning: missing liburing support. Some tests will be skipped." ; \
+	echo
+endif
+
+ifneq ($(PAGE_FRAG_WARNING),)
+all: warn_missing_page_frag
+
+warn_missing_page_frag:
+	@echo ; \
+	echo "Warning: $(PAGE_FRAG_WARNING). page_frag test will be skipped." ; \
 	echo
 endif

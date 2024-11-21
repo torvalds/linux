@@ -208,7 +208,7 @@ static struct platform_driver iproc_mdio_driver = {
 #endif
 	},
 	.probe = iproc_mdio_probe,
-	.remove_new = iproc_mdio_remove,
+	.remove = iproc_mdio_remove,
 };
 
 module_platform_driver(iproc_mdio_driver);

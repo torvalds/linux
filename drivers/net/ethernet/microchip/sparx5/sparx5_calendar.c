@@ -15,9 +15,6 @@
 #define SPX5_CALBITS_PER_PORT          3   /* Bit per port in calendar register */
 
 /* DSM calendar information */
-#define SPX5_DSM_CAL_LEN               64
-#define SPX5_DSM_CAL_EMPTY             0xFFFF
-#define SPX5_DSM_CAL_MAX_DEVS_PER_TAXI 13
 #define SPX5_DSM_CAL_TAXIS             8
 #define SPX5_DSM_CAL_BW_LOSS           553
 
@@ -35,19 +32,6 @@ static u32 sparx5_taxi_ports[SPX5_DSM_CAL_TAXIS][SPX5_DSM_CAL_MAX_DEVS_PER_TAXI]
 	{62, 51, 52, 53, 99, 99, 99, 99, 99, 99, 99, 99, 99},
 	{56, 63, 54, 55, 99, 99, 99, 99, 99, 99, 99, 99, 99},
 	{64, 99, 99, 99, 99, 99, 99, 99, 99, 99, 99, 99, 99},
-};
-
-struct sparx5_calendar_data {
-	u32 schedule[SPX5_DSM_CAL_LEN];
-	u32 avg_dist[SPX5_DSM_CAL_MAX_DEVS_PER_TAXI];
-	u32 taxi_ports[SPX5_DSM_CAL_MAX_DEVS_PER_TAXI];
-	u32 taxi_speeds[SPX5_DSM_CAL_MAX_DEVS_PER_TAXI];
-	u32 dev_slots[SPX5_DSM_CAL_MAX_DEVS_PER_TAXI];
-	u32 new_slots[SPX5_DSM_CAL_LEN];
-	u32 temp_sched[SPX5_DSM_CAL_LEN];
-	u32 indices[SPX5_DSM_CAL_LEN];
-	u32 short_list[SPX5_DSM_CAL_LEN];
-	u32 long_list[SPX5_DSM_CAL_LEN];
 };
 
 static u32 sparx5_target_bandwidth(struct sparx5 *sparx5)
@@ -68,27 +52,32 @@ static u32 sparx5_target_bandwidth(struct sparx5 *sparx5)
 	case SPX5_TARGET_CT_7558:
 	case SPX5_TARGET_CT_7558TSN:
 		return 201000;
+	case SPX5_TARGET_CT_LAN9691VAO:
+		return 46000;
+	case SPX5_TARGET_CT_LAN9694RED:
+	case SPX5_TARGET_CT_LAN9694TSN:
+	case SPX5_TARGET_CT_LAN9694:
+		return 68000;
+	case SPX5_TARGET_CT_LAN9696RED:
+	case SPX5_TARGET_CT_LAN9696TSN:
+	case SPX5_TARGET_CT_LAN9692VAO:
+	case SPX5_TARGET_CT_LAN9696:
+		return 88000;
+	case SPX5_TARGET_CT_LAN9698RED:
+	case SPX5_TARGET_CT_LAN9698TSN:
+	case SPX5_TARGET_CT_LAN9693VAO:
+	case SPX5_TARGET_CT_LAN9698:
+		return 101000;
 	default:
 		return 0;
 	}
 }
 
-/* This is used in calendar configuration */
-enum sparx5_cal_bw {
-	SPX5_CAL_SPEED_NONE = 0,
-	SPX5_CAL_SPEED_1G   = 1,
-	SPX5_CAL_SPEED_2G5  = 2,
-	SPX5_CAL_SPEED_5G   = 3,
-	SPX5_CAL_SPEED_10G  = 4,
-	SPX5_CAL_SPEED_25G  = 5,
-	SPX5_CAL_SPEED_0G5  = 6,
-	SPX5_CAL_SPEED_12G5 = 7
-};
-
 static u32 sparx5_clk_to_bandwidth(enum sparx5_core_clockfreq cclock)
 {
 	switch (cclock) {
 	case SPX5_CORE_CLOCK_250MHZ: return 83000; /* 250000 / 3 */
+	case SPX5_CORE_CLOCK_328MHZ: return 109375; /* 328000 / 3 */
 	case SPX5_CORE_CLOCK_500MHZ: return 166000; /* 500000 / 3 */
 	case SPX5_CORE_CLOCK_625MHZ: return  208000; /* 625000 / 3 */
 	default: return 0;
@@ -96,7 +85,7 @@ static u32 sparx5_clk_to_bandwidth(enum sparx5_core_clockfreq cclock)
 	return 0;
 }
 
-static u32 sparx5_cal_speed_to_value(enum sparx5_cal_bw speed)
+u32 sparx5_cal_speed_to_value(enum sparx5_cal_bw speed)
 {
 	switch (speed) {
 	case SPX5_CAL_SPEED_1G:   return 1000;
@@ -109,6 +98,7 @@ static u32 sparx5_cal_speed_to_value(enum sparx5_cal_bw speed)
 	default: return 0;
 	}
 }
+EXPORT_SYMBOL_GPL(sparx5_cal_speed_to_value);
 
 static u32 sparx5_bandwidth_to_calendar(u32 bw)
 {
@@ -126,23 +116,28 @@ static u32 sparx5_bandwidth_to_calendar(u32 bw)
 	}
 }
 
-static enum sparx5_cal_bw sparx5_get_port_cal_speed(struct sparx5 *sparx5,
-						    u32 portno)
+enum sparx5_cal_bw sparx5_get_port_cal_speed(struct sparx5 *sparx5, u32 portno)
 {
 	struct sparx5_port *port;
 
-	if (portno >= SPX5_PORTS) {
+	if (portno >= sparx5->data->consts->n_ports) {
 		/* Internal ports */
-		if (portno == SPX5_PORT_CPU_0 || portno == SPX5_PORT_CPU_1) {
+		if (portno ==
+			    sparx5_get_internal_port(sparx5, SPX5_PORT_CPU_0) ||
+		    portno ==
+			    sparx5_get_internal_port(sparx5, SPX5_PORT_CPU_1)) {
 			/* Equals 1.25G */
 			return SPX5_CAL_SPEED_2G5;
-		} else if (portno == SPX5_PORT_VD0) {
+		} else if (portno ==
+			   sparx5_get_internal_port(sparx5, SPX5_PORT_VD0)) {
 			/* IPMC only idle BW */
 			return SPX5_CAL_SPEED_NONE;
-		} else if (portno == SPX5_PORT_VD1) {
+		} else if (portno ==
+			   sparx5_get_internal_port(sparx5, SPX5_PORT_VD1)) {
 			/* OAM only idle BW */
 			return SPX5_CAL_SPEED_NONE;
-		} else if (portno == SPX5_PORT_VD2) {
+		} else if (portno ==
+			   sparx5_get_internal_port(sparx5, SPX5_PORT_VD2)) {
 			/* IPinIP gets only idle BW */
 			return SPX5_CAL_SPEED_NONE;
 		}
@@ -155,10 +150,12 @@ static enum sparx5_cal_bw sparx5_get_port_cal_speed(struct sparx5 *sparx5,
 		return SPX5_CAL_SPEED_NONE;
 	return sparx5_bandwidth_to_calendar(port->conf.bandwidth);
 }
+EXPORT_SYMBOL_GPL(sparx5_get_port_cal_speed);
 
 /* Auto configure the QSYS calendar based on port configuration */
 int sparx5_config_auto_calendar(struct sparx5 *sparx5)
 {
+	const struct sparx5_consts *consts = sparx5->data->consts;
 	u32 cal[7], value, idx, portno;
 	u32 max_core_bw;
 	u32 total_bw = 0, used_port_bw = 0;
@@ -174,7 +171,7 @@ int sparx5_config_auto_calendar(struct sparx5 *sparx5)
 	}
 
 	/* Setup the calendar with the bandwidth to each port */
-	for (portno = 0; portno < SPX5_PORTS_ALL; portno++) {
+	for (portno = 0; portno < consts->n_ports_all; portno++) {
 		u64 reg, offset, this_bw;
 
 		spd = sparx5_get_port_cal_speed(sparx5, portno);
@@ -182,7 +179,7 @@ int sparx5_config_auto_calendar(struct sparx5 *sparx5)
 			continue;
 
 		this_bw = sparx5_cal_speed_to_value(spd);
-		if (portno < SPX5_PORTS)
+		if (portno < consts->n_ports)
 			used_port_bw += this_bw;
 		else
 			/* Internal ports are granted half the value */
@@ -208,12 +205,13 @@ int sparx5_config_auto_calendar(struct sparx5 *sparx5)
 	}
 
 	/* Halt the calendar while changing it */
-	spx5_rmw(QSYS_CAL_CTRL_CAL_MODE_SET(10),
-		 QSYS_CAL_CTRL_CAL_MODE,
-		 sparx5, QSYS_CAL_CTRL);
+	if (is_sparx5(sparx5))
+		spx5_rmw(QSYS_CAL_CTRL_CAL_MODE_SET(10),
+			 QSYS_CAL_CTRL_CAL_MODE,
+			 sparx5, QSYS_CAL_CTRL);
 
 	/* Assign port bandwidth to auto calendar */
-	for (idx = 0; idx < ARRAY_SIZE(cal); idx++)
+	for (idx = 0; idx < consts->n_auto_cals; idx++)
 		spx5_wr(cal[idx], sparx5, QSYS_CAL_AUTO(idx));
 
 	/* Increase grant rate of all ports to account for
@@ -278,8 +276,8 @@ static u32 sparx5_dsm_cp_cal(u32 *sched)
 	return SPX5_DSM_CAL_EMPTY;
 }
 
-static int sparx5_dsm_calendar_calc(struct sparx5 *sparx5, u32 taxi,
-				    struct sparx5_calendar_data *data)
+int sparx5_dsm_calendar_calc(struct sparx5 *sparx5, u32 taxi,
+			     struct sparx5_calendar_data *data)
 {
 	bool slow_mode;
 	u32 gcd, idx, sum, min, factor;
@@ -304,7 +302,7 @@ static int sparx5_dsm_calendar_calc(struct sparx5 *sparx5, u32 taxi,
 	for (idx = 0; idx < SPX5_DSM_CAL_MAX_DEVS_PER_TAXI; idx++) {
 		u32 portno = data->taxi_ports[idx];
 
-		if (portno < SPX5_TAXI_PORT_MAX) {
+		if (portno < sparx5->data->consts->n_ports_all) {
 			data->taxi_speeds[idx] = sparx5_cal_speed_to_value
 				(sparx5_get_port_cal_speed(sparx5, portno));
 		} else {
@@ -533,12 +531,23 @@ check_err:
 static int sparx5_dsm_calendar_update(struct sparx5 *sparx5, u32 taxi,
 				      struct sparx5_calendar_data *data)
 {
-	u32 idx;
-	u32 cal_len = sparx5_dsm_cal_len(data->schedule), len;
+	u32 cal_len = sparx5_dsm_cal_len(data->schedule), len, idx;
 
-	spx5_wr(DSM_TAXI_CAL_CFG_CAL_PGM_ENA_SET(1),
-		sparx5,
-		DSM_TAXI_CAL_CFG(taxi));
+	if (!is_sparx5(sparx5)) {
+		u32 val, act;
+
+		val = spx5_rd(sparx5, DSM_TAXI_CAL_CFG(taxi));
+		act = DSM_TAXI_CAL_CFG_CAL_SEL_STAT_GET(val);
+
+		spx5_rmw(DSM_TAXI_CAL_CFG_CAL_PGM_SEL_SET(!act),
+			 DSM_TAXI_CAL_CFG_CAL_PGM_SEL,
+			 sparx5, DSM_TAXI_CAL_CFG(taxi));
+	}
+
+	spx5_rmw(DSM_TAXI_CAL_CFG_CAL_PGM_ENA_SET(1),
+		 DSM_TAXI_CAL_CFG_CAL_PGM_ENA,
+		 sparx5,
+		 DSM_TAXI_CAL_CFG(taxi));
 	for (idx = 0; idx < cal_len; idx++) {
 		spx5_rmw(DSM_TAXI_CAL_CFG_CAL_IDX_SET(idx),
 			 DSM_TAXI_CAL_CFG_CAL_IDX,
@@ -549,13 +558,21 @@ static int sparx5_dsm_calendar_update(struct sparx5 *sparx5, u32 taxi,
 			 sparx5,
 			 DSM_TAXI_CAL_CFG(taxi));
 	}
-	spx5_wr(DSM_TAXI_CAL_CFG_CAL_PGM_ENA_SET(0),
-		sparx5,
-		DSM_TAXI_CAL_CFG(taxi));
+	spx5_rmw(DSM_TAXI_CAL_CFG_CAL_PGM_ENA_SET(0),
+		 DSM_TAXI_CAL_CFG_CAL_PGM_ENA,
+		 sparx5,
+		 DSM_TAXI_CAL_CFG(taxi));
 	len = DSM_TAXI_CAL_CFG_CAL_CUR_LEN_GET(spx5_rd(sparx5,
 						       DSM_TAXI_CAL_CFG(taxi)));
 	if (len != cal_len - 1)
 		goto update_err;
+
+	if (!is_sparx5(sparx5)) {
+		spx5_rmw(DSM_TAXI_CAL_CFG_CAL_SWITCH_SET(1),
+			 DSM_TAXI_CAL_CFG_CAL_SWITCH,
+			 sparx5, DSM_TAXI_CAL_CFG(taxi));
+	}
+
 	return 0;
 update_err:
 	dev_err(sparx5->dev, "Incorrect calendar length: %u\n", len);
@@ -565,6 +582,7 @@ update_err:
 /* Configure the DSM calendar based on port configuration */
 int sparx5_config_dsm_calendar(struct sparx5 *sparx5)
 {
+	const struct sparx5_ops *ops = sparx5->data->ops;
 	int taxi;
 	struct sparx5_calendar_data *data;
 	int err = 0;
@@ -573,8 +591,8 @@ int sparx5_config_dsm_calendar(struct sparx5 *sparx5)
 	if (!data)
 		return -ENOMEM;
 
-	for (taxi = 0; taxi < SPX5_DSM_CAL_TAXIS; ++taxi) {
-		err = sparx5_dsm_calendar_calc(sparx5, taxi, data);
+	for (taxi = 0; taxi < sparx5->data->consts->n_dsm_cal_taxis; ++taxi) {
+		err = ops->dsm_calendar_calc(sparx5, taxi, data);
 		if (err) {
 			dev_err(sparx5->dev, "DSM calendar calculation failed\n");
 			goto cal_out;

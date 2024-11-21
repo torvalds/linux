@@ -1579,7 +1579,7 @@ MODULE_DEVICE_TABLE(of, pxa168_eth_of_match);
 
 static struct platform_driver pxa168_eth_driver = {
 	.probe = pxa168_eth_probe,
-	.remove_new = pxa168_eth_remove,
+	.remove = pxa168_eth_remove,
 	.shutdown = pxa168_eth_shutdown,
 	.resume = pxa168_eth_resume,
 	.suspend = pxa168_eth_suspend,

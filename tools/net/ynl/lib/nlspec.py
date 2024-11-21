@@ -131,6 +131,9 @@ class SpecEnumSet(SpecElement):
     def has_doc(self):
         if 'doc' in self.yaml:
             return True
+        return self.has_entry_doc()
+
+    def has_entry_doc(self):
         for entry in self.entries.values():
             if entry.has_doc():
                 return True

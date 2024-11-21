@@ -848,9 +848,7 @@ impl DeviceMask {
 ///     }
 /// };
 ///
-/// #[cfg(MODULE)]
-/// #[no_mangle]
-/// static __mod_mdio__phydev_device_table: [::kernel::bindings::mdio_device_id; 2] = [
+/// const _DEVICE_TABLE: [::kernel::bindings::mdio_device_id; 2] = [
 ///     ::kernel::bindings::mdio_device_id {
 ///         phy_id: 0x00000001,
 ///         phy_id_mask: 0xffffffff,
@@ -860,6 +858,9 @@ impl DeviceMask {
 ///         phy_id_mask: 0,
 ///     },
 /// ];
+/// #[cfg(MODULE)]
+/// #[no_mangle]
+/// static __mod_mdio__phydev_device_table: [::kernel::bindings::mdio_device_id; 2] = _DEVICE_TABLE;
 /// ```
 #[macro_export]
 macro_rules! module_phy_driver {
@@ -871,9 +872,7 @@ macro_rules! module_phy_driver {
 
     (@device_table [$($dev:expr),+]) => {
         // SAFETY: C will not read off the end of this constant since the last element is zero.
-        #[cfg(MODULE)]
-        #[no_mangle]
-        static __mod_mdio__phydev_device_table: [$crate::bindings::mdio_device_id;
+        const _DEVICE_TABLE: [$crate::bindings::mdio_device_id;
             $crate::module_phy_driver!(@count_devices $($dev),+) + 1] = [
             $($dev.mdio_device_id()),+,
             $crate::bindings::mdio_device_id {
@@ -881,6 +880,11 @@ macro_rules! module_phy_driver {
                 phy_id_mask: 0
             }
         ];
+
+        #[cfg(MODULE)]
+        #[no_mangle]
+        static __mod_mdio__phydev_device_table: [$crate::bindings::mdio_device_id;
+            $crate::module_phy_driver!(@count_devices $($dev),+) + 1] = _DEVICE_TABLE;
     };
 
     (drivers: [$($driver:ident),+ $(,)?], device_table: [$($dev:expr),+ $(,)?], $($f:tt)*) => {

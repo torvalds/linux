@@ -305,7 +305,7 @@ static void ll_device_woke_up(struct hci_uart *hu)
 	hci_uart_tx_wakeup(hu);
 }
 
-/* Enqueue frame for transmittion (padding, crc, etc) */
+/* Enqueue frame for transmission (padding, crc, etc) */
 /* may be called from two simultaneous tasklets */
 static int ll_enqueue(struct hci_uart *hu, struct sk_buff *skb)
 {

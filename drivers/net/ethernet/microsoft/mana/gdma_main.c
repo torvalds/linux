@@ -1,12 +1,15 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /* Copyright (c) 2021, Microsoft Corporation. */
 
+#include <linux/debugfs.h>
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/utsname.h>
 #include <linux/version.h>
 
 #include <net/mana/mana.h>
+
+struct dentry *mana_debugfs_root;
 
 static u32 mana_gd_r32(struct gdma_context *g, u64 offset)
 {
@@ -1516,6 +1519,12 @@ static int mana_gd_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	gc->bar0_va = bar0_va;
 	gc->dev = &pdev->dev;
 
+	if (gc->is_pf)
+		gc->mana_pci_debugfs = debugfs_create_dir("0", mana_debugfs_root);
+	else
+		gc->mana_pci_debugfs = debugfs_create_dir(pci_slot_name(pdev->slot),
+							  mana_debugfs_root);
+
 	err = mana_gd_setup(pdev);
 	if (err)
 		goto unmap_bar;
@@ -1529,6 +1538,13 @@ static int mana_gd_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 cleanup_gd:
 	mana_gd_cleanup(pdev);
 unmap_bar:
+	/*
+	 * at this point we know that the other debugfs child dir/files
+	 * are either not yet created or are already cleaned up.
+	 * The pci debugfs folder clean-up now, will only be cleaning up
+	 * adapter-MTU file and apc->mana_pci_debugfs folder.
+	 */
+	debugfs_remove_recursive(gc->mana_pci_debugfs);
 	pci_iounmap(pdev, bar0_va);
 free_gc:
 	pci_set_drvdata(pdev, NULL);
@@ -1548,6 +1564,8 @@ static void mana_gd_remove(struct pci_dev *pdev)
 	mana_remove(&gc->mana, false);
 
 	mana_gd_cleanup(pdev);
+
+	debugfs_remove_recursive(gc->mana_pci_debugfs);
 
 	pci_iounmap(pdev, gc->bar0_va);
 
@@ -1600,6 +1618,8 @@ static void mana_gd_shutdown(struct pci_dev *pdev)
 
 	mana_gd_cleanup(pdev);
 
+	debugfs_remove_recursive(gc->mana_pci_debugfs);
+
 	pci_disable_device(pdev);
 }
 
@@ -1619,7 +1639,28 @@ static struct pci_driver mana_driver = {
 	.shutdown	= mana_gd_shutdown,
 };
 
-module_pci_driver(mana_driver);
+static int __init mana_driver_init(void)
+{
+	int err;
+
+	mana_debugfs_root = debugfs_create_dir("mana", NULL);
+
+	err = pci_register_driver(&mana_driver);
+	if (err)
+		debugfs_remove(mana_debugfs_root);
+
+	return err;
+}
+
+static void __exit mana_driver_exit(void)
+{
+	debugfs_remove(mana_debugfs_root);
+
+	pci_unregister_driver(&mana_driver);
+}
+
+module_init(mana_driver_init);
+module_exit(mana_driver_exit);
 
 MODULE_DEVICE_TABLE(pci, mana_id_table);
 

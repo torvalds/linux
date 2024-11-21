@@ -3597,7 +3597,8 @@ static int iwl_mvm_int_mlo_scan_start(struct iwl_mvm *mvm,
 	IWL_DEBUG_SCAN(mvm, "Starting Internal MLO scan: n_channels=%zu\n",
 		       n_channels);
 
-	if (!vif->cfg.assoc || !ieee80211_vif_is_mld(vif))
+	if (!vif->cfg.assoc || !ieee80211_vif_is_mld(vif) ||
+	    hweight16(vif->valid_links) == 1)
 		return -EINVAL;
 
 	size = struct_size(req, channels, n_channels);
