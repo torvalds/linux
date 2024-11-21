@@ -286,11 +286,11 @@ static inline int is_module_addr(void *addr)
 #define _REGION3_ENTRY_DIRTY	0x2000	/* SW region dirty bit */
 #define _REGION3_ENTRY_YOUNG	0x1000	/* SW region young bit */
 #define _REGION3_ENTRY_LARGE	0x0400	/* RTTE-format control, large page  */
-#define _REGION3_ENTRY_WRITE	0x0002	/* SW region write bit */
-#define _REGION3_ENTRY_READ	0x0001	/* SW region read bit */
+#define _REGION3_ENTRY_WRITE	0x8000	/* SW region write bit */
+#define _REGION3_ENTRY_READ	0x4000	/* SW region read bit */
 
 #ifdef CONFIG_MEM_SOFT_DIRTY
-#define _REGION3_ENTRY_SOFT_DIRTY 0x4000 /* SW region soft dirty bit */
+#define _REGION3_ENTRY_SOFT_DIRTY 0x0002 /* SW region soft dirty bit */
 #else
 #define _REGION3_ENTRY_SOFT_DIRTY 0x0000 /* SW region soft dirty bit */
 #endif
@@ -313,12 +313,13 @@ static inline int is_module_addr(void *addr)
 
 #define _SEGMENT_ENTRY_DIRTY	0x2000	/* SW segment dirty bit */
 #define _SEGMENT_ENTRY_YOUNG	0x1000	/* SW segment young bit */
+
 #define _SEGMENT_ENTRY_LARGE	0x0400	/* STE-format control, large page */
-#define _SEGMENT_ENTRY_WRITE	0x0002	/* SW segment write bit */
-#define _SEGMENT_ENTRY_READ	0x0001	/* SW segment read bit */
+#define _SEGMENT_ENTRY_WRITE	0x8000	/* SW segment write bit */
+#define _SEGMENT_ENTRY_READ	0x4000	/* SW segment read bit */
 
 #ifdef CONFIG_MEM_SOFT_DIRTY
-#define _SEGMENT_ENTRY_SOFT_DIRTY 0x4000 /* SW segment soft dirty bit */
+#define _SEGMENT_ENTRY_SOFT_DIRTY 0x0002 /* SW segment soft dirty bit */
 #else
 #define _SEGMENT_ENTRY_SOFT_DIRTY 0x0000 /* SW segment soft dirty bit */
 #endif
