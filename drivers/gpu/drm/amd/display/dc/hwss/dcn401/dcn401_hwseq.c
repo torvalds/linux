@@ -506,7 +506,7 @@ void dcn401_populate_mcm_luts(struct dc *dc,
 	dcn401_get_mcm_lut_xable_from_pipe_ctx(dc, pipe_ctx, &shaper_xable, &lut3d_xable, &lut1d_xable);
 
 	/* 1D LUT */
-	if (mcm_luts.lut1d_func && lut3d_xable != MCM_LUT_DISABLE) {
+	if (mcm_luts.lut1d_func) {
 		memset(&m_lut_params, 0, sizeof(m_lut_params));
 		if (mcm_luts.lut1d_func->type == TF_TYPE_HWPWL)
 			m_lut_params.pwl = &mcm_luts.lut1d_func->pwl;
@@ -521,7 +521,7 @@ void dcn401_populate_mcm_luts(struct dc *dc,
 				mpc->funcs->populate_lut(mpc, MCM_LUT_1DLUT, m_lut_params, lut_bank_a, mpcc_id);
 		}
 		if (mpc->funcs->program_lut_mode)
-			mpc->funcs->program_lut_mode(mpc, MCM_LUT_1DLUT, lut1d_xable, lut_bank_a, mpcc_id);
+			mpc->funcs->program_lut_mode(mpc, MCM_LUT_1DLUT, lut1d_xable && m_lut_params.pwl, lut_bank_a, mpcc_id);
 	}
 
 	/* Shaper */
@@ -669,10 +669,16 @@ bool dcn401_set_mcm_luts(struct pipe_ctx *pipe_ctx,
 {
 	struct dpp *dpp_base = pipe_ctx->plane_res.dpp;
 	int mpcc_id = pipe_ctx->plane_res.hubp->inst;
-	struct mpc *mpc = pipe_ctx->stream_res.opp->ctx->dc->res_pool->mpc;
+	struct dc *dc = pipe_ctx->stream_res.opp->ctx->dc;
+	struct mpc *mpc = dc->res_pool->mpc;
 	bool result;
 	const struct pwl_params *lut_params = NULL;
 	bool rval;
+
+	if (plane_state->mcm_luts.lut3d_data.lut3d_src == DC_CM2_TRANSFER_FUNC_SOURCE_VIDMEM) {
+		dcn401_populate_mcm_luts(dc, pipe_ctx, plane_state->mcm_luts, plane_state->lut_bank_a);
+		return true;
+	}
 
 	mpc->funcs->set_movable_cm_location(mpc, MPCC_MOVABLE_CM_LOCATION_BEFORE, mpcc_id);
 	pipe_ctx->plane_state->mcm_location = MPCC_MOVABLE_CM_LOCATION_BEFORE;
@@ -844,6 +850,13 @@ enum dc_status dcn401_enable_stream_timing(
 				odm_slice_width, last_odm_slice_width);
 	}
 
+	/* set DTBCLK_P */
+	if (dc->res_pool->dccg->funcs->set_dtbclk_p_src) {
+		if (dc_is_dp_signal(stream->signal) || dc_is_virtual_signal(stream->signal)) {
+			dc->res_pool->dccg->funcs->set_dtbclk_p_src(dc->res_pool->dccg, DPREFCLK, pipe_ctx->stream_res.tg->inst);
+		}
+	}
+
 	/* HW program guide assume display already disable
 	 * by unplug sequence. OTG assume stop.
 	 */
@@ -1004,8 +1017,6 @@ void dcn401_enable_stream(struct pipe_ctx *pipe_ctx)
 
 			dccg->funcs->enable_symclk32_se(dccg, dp_hpo_inst, phyd32clk);
 		} else {
-			/* need to set DTBCLK_P source to DPREFCLK for DP8B10B */
-			dccg->funcs->set_dtbclk_p_src(dccg, DPREFCLK, tg->inst);
 			dccg->funcs->enable_symclk_se(dccg, stream_enc->stream_enc_inst,
 					link_enc->transmitter - TRANSMITTER_UNIPHY_A);
 		}
@@ -1063,7 +1074,6 @@ static bool dcn401_can_pipe_disable_cursor(struct pipe_ctx *pipe_ctx)
 		r2 = test_pipe->plane_res.scl_data.recout;
 		r2_r = r2.x + r2.width;
 		r2_b = r2.y + r2.height;
-		split_pipe = test_pipe;
 
 		/**
 		 * There is another half plane on same layer because of
@@ -1095,6 +1105,58 @@ void adjust_hotspot_between_slices_for_2x_magnify(uint32_t cursor_width, struct 
 		pos_cpy->x_hotspot /= 2;
 		pos_cpy->x_hotspot += 2;
 	}
+}
+
+static void disable_link_output_symclk_on_tx_off(struct dc_link *link, enum dp_link_encoding link_encoding)
+{
+	struct dc *dc = link->ctx->dc;
+	struct pipe_ctx *pipe_ctx = NULL;
+	uint8_t i;
+
+	for (i = 0; i < MAX_PIPES; i++) {
+		pipe_ctx = &dc->current_state->res_ctx.pipe_ctx[i];
+		if (pipe_ctx->stream && pipe_ctx->stream->link == link && pipe_ctx->top_pipe == NULL) {
+			pipe_ctx->clock_source->funcs->program_pix_clk(
+					pipe_ctx->clock_source,
+					&pipe_ctx->stream_res.pix_clk_params,
+					link_encoding,
+					&pipe_ctx->pll_settings);
+			break;
+		}
+	}
+}
+
+void dcn401_disable_link_output(struct dc_link *link,
+		const struct link_resource *link_res,
+		enum signal_type signal)
+{
+	struct dc *dc = link->ctx->dc;
+	const struct link_hwss *link_hwss = get_link_hwss(link, link_res);
+	struct dmcu *dmcu = dc->res_pool->dmcu;
+
+	if (signal == SIGNAL_TYPE_EDP &&
+			link->dc->hwss.edp_backlight_control &&
+			!link->skip_implict_edp_power_control)
+		link->dc->hwss.edp_backlight_control(link, false);
+	else if (dmcu != NULL && dmcu->funcs->lock_phy)
+		dmcu->funcs->lock_phy(dmcu);
+
+	if (dc_is_tmds_signal(signal) && link->phy_state.symclk_ref_cnts.otg > 0) {
+		disable_link_output_symclk_on_tx_off(link, DP_UNKNOWN_ENCODING);
+		link->phy_state.symclk_state = SYMCLK_ON_TX_OFF;
+	} else {
+		link_hwss->disable_link_output(link, link_res, signal);
+		link->phy_state.symclk_state = SYMCLK_OFF_TX_OFF;
+	}
+
+	if (signal == SIGNAL_TYPE_EDP &&
+			link->dc->hwss.edp_backlight_control &&
+			!link->skip_implict_edp_power_control)
+		link->dc->hwss.edp_power_control(link, false);
+	else if (dmcu != NULL && dmcu->funcs->lock_phy)
+		dmcu->funcs->unlock_phy(dmcu);
+
+	dc->link_srv->dp_trace_source_sequence(link, DPCD_SOURCE_SEQ_AFTER_DISABLE_LINK_PHY);
 }
 
 void dcn401_set_cursor_position(struct pipe_ctx *pipe_ctx)
@@ -1492,6 +1554,11 @@ void dcn401_optimize_bandwidth(
 						pipe_ctx->dlg_regs.min_dst_y_next_start);
 		}
 	}
+
+	/* update timeout thresholds */
+	if (hubbub->funcs->program_timeout_thresholds) {
+		hubbub->funcs->program_timeout_thresholds(hubbub, &context->bw_ctx.bw.dcn.arb_regs);
+	}
 }
 
 void dcn401_fams2_global_control_lock(struct dc *dc,
@@ -1669,7 +1736,7 @@ void dcn401_hardware_release(struct dc *dc)
 	}
 }
 
-void dcn401_wait_for_det_buffer_update(struct dc *dc, struct dc_state *context, struct pipe_ctx *otg_master)
+void dcn401_wait_for_det_buffer_update_under_otg_master(struct dc *dc, struct dc_state *context, struct pipe_ctx *otg_master)
 {
 	struct pipe_ctx *opp_heads[MAX_PIPES];
 	struct pipe_ctx *dpp_pipes[MAX_PIPES];
@@ -1695,6 +1762,9 @@ void dcn401_wait_for_det_buffer_update(struct dc *dc, struct dc_state *context, 
 						hubbub->funcs->wait_for_det_update)
 						hubbub->funcs->wait_for_det_update(hubbub, dpp_pipe->plane_res.hubp->inst);
 			}
+		} else {
+			if (hubbub && opp_heads[slice_idx]->plane_res.hubp && hubbub->funcs->wait_for_det_update)
+				hubbub->funcs->wait_for_det_update(hubbub, opp_heads[slice_idx]->plane_res.hubp->inst);
 		}
 	}
 }
@@ -1705,7 +1775,6 @@ void dcn401_interdependent_update_lock(struct dc *dc,
 	unsigned int i = 0;
 	struct pipe_ctx *pipe = NULL;
 	struct timing_generator *tg = NULL;
-	bool pipe_unlocked[MAX_PIPES] = {0};
 
 	if (lock) {
 		for (i = 0; i < dc->res_pool->pipe_count; i++) {
@@ -1719,45 +1788,88 @@ void dcn401_interdependent_update_lock(struct dc *dc,
 			dc->hwss.pipe_control_lock(dc, pipe, true);
 		}
 	} else {
-		/* Unlock pipes based on the change in DET allocation instead of pipe index
-		 * Prevents over allocation of DET during unlock process
-		 * e.g. 2 pipe config with different streams with a max of 20 DET segments
-		 *	Before:								After:
-		 *		- Pipe0: 10 DET segments			- Pipe0: 12 DET segments
-		 *		- Pipe1: 10 DET segments			- Pipe1: 8 DET segments
-		 * If Pipe0 gets updated first, 22 DET segments will be allocated
-		 */
+		/* Need to free DET being used first and have pipe update, then unlock the remaining pipes*/
 		for (i = 0; i < dc->res_pool->pipe_count; i++) {
 			pipe = &context->res_ctx.pipe_ctx[i];
 			tg = pipe->stream_res.tg;
-			int current_pipe_idx = i;
 
 			if (!resource_is_pipe_type(pipe, OTG_MASTER) ||
 					!tg->funcs->is_tg_enabled(tg) ||
 					dc_state_get_pipe_subvp_type(context, pipe) == SUBVP_PHANTOM) {
-				pipe_unlocked[i] = true;
 				continue;
 			}
 
-			// If the same stream exists in old context, ensure the OTG_MASTER pipes for the same stream get compared
-			struct pipe_ctx *old_otg_master = resource_get_otg_master_for_stream(&dc->current_state->res_ctx, pipe->stream);
-
-			if (old_otg_master)
-				current_pipe_idx = old_otg_master->pipe_idx;
-			if (resource_calculate_det_for_stream(context, pipe) <
-					resource_calculate_det_for_stream(dc->current_state, &dc->current_state->res_ctx.pipe_ctx[current_pipe_idx])) {
+			if (dc->scratch.pipes_to_unlock_first[i]) {
+				struct pipe_ctx *old_pipe = &dc->current_state->res_ctx.pipe_ctx[i];
 				dc->hwss.pipe_control_lock(dc, pipe, false);
-				pipe_unlocked[i] = true;
-				dcn401_wait_for_det_buffer_update(dc, context, pipe);
+				/* Assumes pipe of the same index in current_state is also an OTG_MASTER pipe*/
+				dcn401_wait_for_det_buffer_update_under_otg_master(dc, dc->current_state, old_pipe);
 			}
 		}
 
+		/* Unlocking the rest of the pipes */
 		for (i = 0; i < dc->res_pool->pipe_count; i++) {
-			if (pipe_unlocked[i])
+			if (dc->scratch.pipes_to_unlock_first[i])
 				continue;
+
 			pipe = &context->res_ctx.pipe_ctx[i];
+			tg = pipe->stream_res.tg;
+			if (!resource_is_pipe_type(pipe, OTG_MASTER) ||
+					!tg->funcs->is_tg_enabled(tg) ||
+					dc_state_get_pipe_subvp_type(context, pipe) == SUBVP_PHANTOM) {
+				continue;
+			}
+
 			dc->hwss.pipe_control_lock(dc, pipe, false);
 		}
+	}
+}
+
+void dcn401_perform_3dlut_wa_unlock(struct pipe_ctx *pipe_ctx)
+{
+	/* If 3DLUT FL is enabled and 3DLUT is in use, follow the workaround sequence for pipe unlock to make sure that
+	 * HUBP will properly fetch 3DLUT contents after unlock.
+	 *
+	 * This is meant to work around a known HW issue where VREADY will cancel the pending 3DLUT_ENABLE signal regardless
+	 * of whether OTG lock is currently being held or not.
+	 */
+	struct pipe_ctx *wa_pipes[MAX_PIPES] = { NULL };
+	struct pipe_ctx *odm_pipe, *mpc_pipe;
+	int i, wa_pipe_ct = 0;
+
+	for (odm_pipe = pipe_ctx; odm_pipe != NULL; odm_pipe = odm_pipe->next_odm_pipe) {
+		for (mpc_pipe = odm_pipe; mpc_pipe != NULL; mpc_pipe = mpc_pipe->bottom_pipe) {
+			if (mpc_pipe->plane_state && mpc_pipe->plane_state->mcm_luts.lut3d_data.lut3d_src
+						== DC_CM2_TRANSFER_FUNC_SOURCE_VIDMEM
+					&& mpc_pipe->plane_state->mcm_shaper_3dlut_setting
+						== DC_CM2_SHAPER_3DLUT_SETTING_ENABLE_SHAPER_3DLUT) {
+				wa_pipes[wa_pipe_ct++] = mpc_pipe;
+			}
+		}
+	}
+
+	if (wa_pipe_ct > 0) {
+		if (pipe_ctx->stream_res.tg->funcs->set_vupdate_keepout)
+			pipe_ctx->stream_res.tg->funcs->set_vupdate_keepout(pipe_ctx->stream_res.tg, true);
+
+		for (i = 0; i < wa_pipe_ct; ++i) {
+			if (wa_pipes[i]->plane_res.hubp->funcs->hubp_enable_3dlut_fl)
+				wa_pipes[i]->plane_res.hubp->funcs->hubp_enable_3dlut_fl(wa_pipes[i]->plane_res.hubp, true);
+		}
+
+		pipe_ctx->stream_res.tg->funcs->unlock(pipe_ctx->stream_res.tg);
+		if (pipe_ctx->stream_res.tg->funcs->wait_update_lock_status)
+			pipe_ctx->stream_res.tg->funcs->wait_update_lock_status(pipe_ctx->stream_res.tg, false);
+
+		for (i = 0; i < wa_pipe_ct; ++i) {
+			if (wa_pipes[i]->plane_res.hubp->funcs->hubp_enable_3dlut_fl)
+				wa_pipes[i]->plane_res.hubp->funcs->hubp_enable_3dlut_fl(wa_pipes[i]->plane_res.hubp, true);
+		}
+
+		if (pipe_ctx->stream_res.tg->funcs->set_vupdate_keepout)
+			pipe_ctx->stream_res.tg->funcs->set_vupdate_keepout(pipe_ctx->stream_res.tg, false);
+	} else {
+		pipe_ctx->stream_res.tg->funcs->unlock(pipe_ctx->stream_res.tg);
 	}
 }
 
@@ -1769,4 +1881,126 @@ void dcn401_program_outstanding_updates(struct dc *dc,
 	/* update compbuf if required */
 	if (hubbub->funcs->program_compbuf_segments)
 		hubbub->funcs->program_compbuf_segments(hubbub, context->bw_ctx.bw.dcn.arb_regs.compbuf_size, true);
+}
+
+void dcn401_reset_back_end_for_pipe(
+		struct dc *dc,
+		struct pipe_ctx *pipe_ctx,
+		struct dc_state *context)
+{
+	struct dc_link *link = pipe_ctx->stream->link;
+	const struct link_hwss *link_hwss = get_link_hwss(link, &pipe_ctx->link_res);
+
+	DC_LOGGER_INIT(dc->ctx->logger);
+	if (pipe_ctx->stream_res.stream_enc == NULL) {
+		pipe_ctx->stream = NULL;
+		return;
+	}
+
+	/* DPMS may already disable or */
+	/* dpms_off status is incorrect due to fastboot
+	 * feature. When system resume from S4 with second
+	 * screen only, the dpms_off would be true but
+	 * VBIOS lit up eDP, so check link status too.
+	 */
+	if (!pipe_ctx->stream->dpms_off || link->link_status.link_active)
+		dc->link_srv->set_dpms_off(pipe_ctx);
+	else if (pipe_ctx->stream_res.audio)
+		dc->hwss.disable_audio_stream(pipe_ctx);
+
+	/* free acquired resources */
+	if (pipe_ctx->stream_res.audio) {
+		/*disable az_endpoint*/
+		pipe_ctx->stream_res.audio->funcs->az_disable(pipe_ctx->stream_res.audio);
+
+		/*free audio*/
+		if (dc->caps.dynamic_audio == true) {
+			/*we have to dynamic arbitrate the audio endpoints*/
+			/*we free the resource, need reset is_audio_acquired*/
+			update_audio_usage(&dc->current_state->res_ctx, dc->res_pool,
+					pipe_ctx->stream_res.audio, false);
+			pipe_ctx->stream_res.audio = NULL;
+		}
+	}
+
+	/* by upper caller loop, parent pipe: pipe0, will be reset last.
+	 * back end share by all pipes and will be disable only when disable
+	 * parent pipe.
+	 */
+	if (pipe_ctx->top_pipe == NULL) {
+
+		dc->hwss.set_abm_immediate_disable(pipe_ctx);
+
+		pipe_ctx->stream_res.tg->funcs->disable_crtc(pipe_ctx->stream_res.tg);
+
+		pipe_ctx->stream_res.tg->funcs->enable_optc_clock(pipe_ctx->stream_res.tg, false);
+		if (pipe_ctx->stream_res.tg->funcs->set_odm_bypass)
+			pipe_ctx->stream_res.tg->funcs->set_odm_bypass(
+					pipe_ctx->stream_res.tg, &pipe_ctx->stream->timing);
+
+		if (pipe_ctx->stream_res.tg->funcs->set_drr)
+			pipe_ctx->stream_res.tg->funcs->set_drr(
+					pipe_ctx->stream_res.tg, NULL);
+		/* TODO - convert symclk_ref_cnts for otg to a bit map to solve
+		 * the case where the same symclk is shared across multiple otg
+		 * instances
+		 */
+		if (dc_is_hdmi_tmds_signal(pipe_ctx->stream->signal))
+			link->phy_state.symclk_ref_cnts.otg = 0;
+		if (link->phy_state.symclk_state == SYMCLK_ON_TX_OFF) {
+			link_hwss->disable_link_output(link,
+					&pipe_ctx->link_res, pipe_ctx->stream->signal);
+			link->phy_state.symclk_state = SYMCLK_OFF_TX_OFF;
+		}
+
+		/* reset DTBCLK_P */
+		if (dc->res_pool->dccg->funcs->set_dtbclk_p_src)
+			dc->res_pool->dccg->funcs->set_dtbclk_p_src(dc->res_pool->dccg, REFCLK, pipe_ctx->stream_res.tg->inst);
+	}
+
+/*
+ * In case of a dangling plane, setting this to NULL unconditionally
+ * causes failures during reset hw ctx where, if stream is NULL,
+ * it is expected that the pipe_ctx pointers to pipes and plane are NULL.
+ */
+	pipe_ctx->stream = NULL;
+	pipe_ctx->top_pipe = NULL;
+	pipe_ctx->bottom_pipe = NULL;
+	pipe_ctx->next_odm_pipe = NULL;
+	pipe_ctx->prev_odm_pipe = NULL;
+	DC_LOG_DEBUG("Reset back end for pipe %d, tg:%d\n",
+					pipe_ctx->pipe_idx, pipe_ctx->stream_res.tg->inst);
+}
+
+void dcn401_reset_hw_ctx_wrap(
+		struct dc *dc,
+		struct dc_state *context)
+{
+	int i;
+	struct dce_hwseq *hws = dc->hwseq;
+
+	/* Reset Back End*/
+	for (i = dc->res_pool->pipe_count - 1; i >= 0 ; i--) {
+		struct pipe_ctx *pipe_ctx_old =
+			&dc->current_state->res_ctx.pipe_ctx[i];
+		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
+
+		if (!pipe_ctx_old->stream)
+			continue;
+
+		if (pipe_ctx_old->top_pipe || pipe_ctx_old->prev_odm_pipe)
+			continue;
+
+		if (!pipe_ctx->stream ||
+				pipe_need_reprogram(pipe_ctx_old, pipe_ctx)) {
+			struct clock_source *old_clk = pipe_ctx_old->clock_source;
+
+			if (hws->funcs.reset_back_end_for_pipe)
+				hws->funcs.reset_back_end_for_pipe(dc, pipe_ctx_old, dc->current_state);
+			if (hws->funcs.enable_stream_gating)
+				hws->funcs.enable_stream_gating(dc, pipe_ctx_old);
+			if (old_clk)
+				old_clk->funcs->cs_power_down(old_clk);
+		}
+	}
 }

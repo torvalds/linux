@@ -105,6 +105,7 @@ static bool vc4_crtc_get_scanout_position(struct drm_crtc *crtc,
 	struct vc4_hvs *hvs = vc4->hvs;
 	struct vc4_crtc *vc4_crtc = to_vc4_crtc(crtc);
 	struct vc4_crtc_state *vc4_crtc_state = to_vc4_crtc_state(crtc->state);
+	unsigned int channel = vc4_crtc_state->assigned_channel;
 	unsigned int cob_size;
 	u32 val;
 	int fifo_lines;
@@ -121,7 +122,7 @@ static bool vc4_crtc_get_scanout_position(struct drm_crtc *crtc,
 	 * Read vertical scanline which is currently composed for our
 	 * pixelvalve by the HVS, and also the scaler status.
 	 */
-	val = HVS_READ(SCALER_DISPSTATX(vc4_crtc_state->assigned_channel));
+	val = HVS_READ(SCALER_DISPSTATX(channel));
 
 	/* Get optional system timestamp after query. */
 	if (etime)
@@ -137,11 +138,11 @@ static bool vc4_crtc_get_scanout_position(struct drm_crtc *crtc,
 		*vpos /= 2;
 
 		/* Use hpos to correct for field offset in interlaced mode. */
-		if (vc4_hvs_get_fifo_frame_count(hvs, vc4_crtc_state->assigned_channel) % 2)
+		if (vc4_hvs_get_fifo_frame_count(hvs, channel) % 2)
 			*hpos += mode->crtc_htotal / 2;
 	}
 
-	cob_size = vc4_crtc_get_cob_allocation(vc4, vc4_crtc_state->assigned_channel);
+	cob_size = vc4_crtc_get_cob_allocation(vc4, channel);
 	/* This is the offset we need for translating hvs -> pv scanout pos. */
 	fifo_lines = cob_size / mode->crtc_hdisplay;
 
@@ -263,7 +264,7 @@ static u32 vc4_get_fifo_full_level(struct vc4_crtc *vc4_crtc, u32 format)
 		 * Removing 1 from the FIFO full level however
 		 * seems to completely remove that issue.
 		 */
-		if (!vc4->is_vc5)
+		if (vc4->gen == VC4_GEN_4)
 			return fifo_len_bytes - 3 * HVS_FIFO_LATENCY_PIX - 1;
 
 		return fifo_len_bytes - 3 * HVS_FIFO_LATENCY_PIX;
@@ -428,7 +429,7 @@ static void vc4_crtc_config_pv(struct drm_crtc *crtc, struct drm_encoder *encode
 	if (is_dsi)
 		CRTC_WRITE(PV_HACT_ACT, mode->hdisplay * pixel_rep);
 
-	if (vc4->is_vc5)
+	if (vc4->gen == VC4_GEN_5)
 		CRTC_WRITE(PV_MUX_CFG,
 			   VC4_SET_FIELD(PV_MUX_CFG_RGB_PIXEL_MUX_MODE_NO_SWAP,
 					 PV_MUX_CFG_RGB_PIXEL_MUX_MODE));
@@ -735,10 +736,17 @@ int vc4_crtc_atomic_check(struct drm_crtc *crtc,
 		if (conn_state->crtc != crtc)
 			continue;
 
-		vc4_state->margins.left = conn_state->tv.margins.left;
-		vc4_state->margins.right = conn_state->tv.margins.right;
-		vc4_state->margins.top = conn_state->tv.margins.top;
-		vc4_state->margins.bottom = conn_state->tv.margins.bottom;
+		if (memcmp(&vc4_state->margins, &conn_state->tv.margins,
+			   sizeof(vc4_state->margins))) {
+			memcpy(&vc4_state->margins, &conn_state->tv.margins,
+			       sizeof(vc4_state->margins));
+
+			/*
+			 * Need to force the dlist entries for all planes to be
+			 * updated so that the dest rectangles are changed.
+			 */
+			crtc_state->zpos_changed = true;
+		}
 		break;
 	}
 
@@ -913,7 +921,7 @@ static int vc4_async_set_fence_cb(struct drm_device *dev,
 	struct dma_fence *fence;
 	int ret;
 
-	if (!vc4->is_vc5) {
+	if (vc4->gen == VC4_GEN_4) {
 		struct vc4_bo *bo = to_vc4_bo(&dma_bo->base);
 
 		return vc4_queue_seqno_cb(dev, &flip_state->cb.seqno, bo->seqno,
@@ -1000,7 +1008,7 @@ static int vc4_async_page_flip(struct drm_crtc *crtc,
 	struct vc4_bo *bo = to_vc4_bo(&dma_bo->base);
 	int ret;
 
-	if (WARN_ON_ONCE(vc4->is_vc5))
+	if (WARN_ON_ONCE(vc4->gen > VC4_GEN_4))
 		return -ENODEV;
 
 	/*
@@ -1043,7 +1051,7 @@ int vc4_page_flip(struct drm_crtc *crtc,
 		struct drm_device *dev = crtc->dev;
 		struct vc4_dev *vc4 = to_vc4_dev(dev);
 
-		if (vc4->is_vc5)
+		if (vc4->gen > VC4_GEN_4)
 			return vc5_async_page_flip(crtc, fb, event, flags);
 		else
 			return vc4_async_page_flip(crtc, fb, event, flags);
@@ -1338,9 +1346,8 @@ int __vc4_crtc_init(struct drm_device *drm,
 
 	drm_crtc_helper_add(crtc, crtc_helper_funcs);
 
-	if (!vc4->is_vc5) {
+	if (vc4->gen == VC4_GEN_4) {
 		drm_mode_crtc_set_gamma_size(crtc, ARRAY_SIZE(vc4_crtc->lut_r));
-
 		drm_crtc_enable_color_mgmt(crtc, 0, false, crtc->gamma_size);
 
 		/* We support CTM, but only for one CRTC at a time. It's therefore

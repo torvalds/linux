@@ -1635,8 +1635,8 @@ static void ti_sn_pwm_unregister(void)
 }
 
 #else
-static inline int ti_sn_pwm_pin_request(struct ti_sn65dsi86 *pdata) { return 0; }
-static inline void ti_sn_pwm_pin_release(struct ti_sn65dsi86 *pdata) {}
+static inline int __maybe_unused ti_sn_pwm_pin_request(struct ti_sn65dsi86 *pdata) { return 0; }
+static inline void __maybe_unused ti_sn_pwm_pin_release(struct ti_sn65dsi86 *pdata) {}
 
 static inline int ti_sn_pwm_register(void) { return 0; }
 static inline void ti_sn_pwm_unregister(void) {}

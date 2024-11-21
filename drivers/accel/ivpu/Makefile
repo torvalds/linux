@@ -16,8 +16,14 @@ intel_vpu-y := \
 	ivpu_mmu_context.o \
 	ivpu_ms.o \
 	ivpu_pm.o \
-	ivpu_sysfs.o
+	ivpu_sysfs.o \
+	ivpu_trace_points.o
 
 intel_vpu-$(CONFIG_DEBUG_FS) += ivpu_debugfs.o
+intel_vpu-$(CONFIG_DEV_COREDUMP) += ivpu_coredump.o
 
 obj-$(CONFIG_DRM_ACCEL_IVPU) += intel_vpu.o
+
+subdir-ccflags-$(CONFIG_DRM_ACCEL_IVPU_DEBUG) += -DDEBUG
+
+CFLAGS_ivpu_trace_points.o = -I$(src)

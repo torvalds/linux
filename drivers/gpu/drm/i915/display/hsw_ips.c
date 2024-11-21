@@ -3,6 +3,8 @@
  * Copyright © 2022 Intel Corporation
  */
 
+#include <linux/debugfs.h>
+
 #include "hsw_ips.h"
 #include "i915_drv.h"
 #include "i915_reg.h"
@@ -13,6 +15,7 @@
 
 static void hsw_ips_enable(const struct intel_crtc_state *crtc_state)
 {
+	struct intel_display *display = to_intel_display(crtc_state);
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
 	u32 val;
@@ -25,16 +28,16 @@ static void hsw_ips_enable(const struct intel_crtc_state *crtc_state)
 	 * This function is called from post_plane_update, which is run after
 	 * a vblank wait.
 	 */
-	drm_WARN_ON(&i915->drm,
+	drm_WARN_ON(display->drm,
 		    !(crtc_state->active_planes & ~BIT(PLANE_CURSOR)));
 
 	val = IPS_ENABLE;
 
-	if (i915->display.ips.false_color)
+	if (display->ips.false_color)
 		val |= IPS_FALSE_COLOR;
 
 	if (IS_BROADWELL(i915)) {
-		drm_WARN_ON(&i915->drm,
+		drm_WARN_ON(display->drm,
 			    snb_pcode_write(&i915->uncore, DISPLAY_IPS_CONTROL,
 					    val | IPS_PCODE_CONTROL));
 		/*
@@ -44,7 +47,7 @@ static void hsw_ips_enable(const struct intel_crtc_state *crtc_state)
 		 * so we need to just enable it and continue on.
 		 */
 	} else {
-		intel_de_write(i915, IPS_CTL, val);
+		intel_de_write(display, IPS_CTL, val);
 		/*
 		 * The bit only becomes 1 in the next vblank, so this wait here
 		 * is essentially intel_wait_for_vblank. If we don't have this
@@ -52,14 +55,15 @@ static void hsw_ips_enable(const struct intel_crtc_state *crtc_state)
 		 * the HW state readout code will complain that the expected
 		 * IPS_CTL value is not the one we read.
 		 */
-		if (intel_de_wait_for_set(i915, IPS_CTL, IPS_ENABLE, 50))
-			drm_err(&i915->drm,
+		if (intel_de_wait_for_set(display, IPS_CTL, IPS_ENABLE, 50))
+			drm_err(display->drm,
 				"Timed out waiting for IPS enable\n");
 	}
 }
 
 bool hsw_ips_disable(const struct intel_crtc_state *crtc_state)
 {
+	struct intel_display *display = to_intel_display(crtc_state);
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
 	bool need_vblank_wait = false;
@@ -68,19 +72,19 @@ bool hsw_ips_disable(const struct intel_crtc_state *crtc_state)
 		return need_vblank_wait;
 
 	if (IS_BROADWELL(i915)) {
-		drm_WARN_ON(&i915->drm,
+		drm_WARN_ON(display->drm,
 			    snb_pcode_write(&i915->uncore, DISPLAY_IPS_CONTROL, 0));
 		/*
 		 * Wait for PCODE to finish disabling IPS. The BSpec specified
 		 * 42ms timeout value leads to occasional timeouts so use 100ms
 		 * instead.
 		 */
-		if (intel_de_wait_for_clear(i915, IPS_CTL, IPS_ENABLE, 100))
-			drm_err(&i915->drm,
+		if (intel_de_wait_for_clear(display, IPS_CTL, IPS_ENABLE, 100))
+			drm_err(display->drm,
 				"Timed out waiting for IPS disable\n");
 	} else {
-		intel_de_write(i915, IPS_CTL, 0);
-		intel_de_posting_read(i915, IPS_CTL);
+		intel_de_write(display, IPS_CTL, 0);
+		intel_de_posting_read(display, IPS_CTL);
 	}
 
 	/* We need to wait for a vblank before we can disable the plane. */
@@ -186,6 +190,7 @@ bool hsw_crtc_supports_ips(struct intel_crtc *crtc)
 
 bool hsw_crtc_state_ips_capable(const struct intel_crtc_state *crtc_state)
 {
+	struct intel_display *display = to_intel_display(crtc_state);
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
 
@@ -193,7 +198,7 @@ bool hsw_crtc_state_ips_capable(const struct intel_crtc_state *crtc_state)
 	if (!hsw_crtc_supports_ips(crtc))
 		return false;
 
-	if (!i915->display.params.enable_ips)
+	if (!display->params.enable_ips)
 		return false;
 
 	if (crtc_state->pipe_bpp > 24)
@@ -207,7 +212,7 @@ bool hsw_crtc_state_ips_capable(const struct intel_crtc_state *crtc_state)
 	 * Should measure whether using a lower cdclk w/o IPS
 	 */
 	if (IS_BROADWELL(i915) &&
-	    crtc_state->pixel_rate > i915->display.cdclk.max_cdclk_freq * 95 / 100)
+	    crtc_state->pixel_rate > display->cdclk.max_cdclk_freq * 95 / 100)
 		return false;
 
 	return true;
@@ -257,6 +262,7 @@ int hsw_ips_compute_config(struct intel_atomic_state *state,
 
 void hsw_ips_get_config(struct intel_crtc_state *crtc_state)
 {
+	struct intel_display *display = to_intel_display(crtc_state);
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
 
@@ -264,7 +270,7 @@ void hsw_ips_get_config(struct intel_crtc_state *crtc_state)
 		return;
 
 	if (IS_HASWELL(i915)) {
-		crtc_state->ips_enabled = intel_de_read(i915, IPS_CTL) & IPS_ENABLE;
+		crtc_state->ips_enabled = intel_de_read(display, IPS_CTL) & IPS_ENABLE;
 	} else {
 		/*
 		 * We cannot readout IPS state on broadwell, set to
@@ -278,9 +284,9 @@ void hsw_ips_get_config(struct intel_crtc_state *crtc_state)
 static int hsw_ips_debugfs_false_color_get(void *data, u64 *val)
 {
 	struct intel_crtc *crtc = data;
-	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
+	struct intel_display *display = to_intel_display(crtc);
 
-	*val = i915->display.ips.false_color;
+	*val = display->ips.false_color;
 
 	return 0;
 }
@@ -288,7 +294,7 @@ static int hsw_ips_debugfs_false_color_get(void *data, u64 *val)
 static int hsw_ips_debugfs_false_color_set(void *data, u64 val)
 {
 	struct intel_crtc *crtc = data;
-	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
+	struct intel_display *display = to_intel_display(crtc);
 	struct intel_crtc_state *crtc_state;
 	int ret;
 
@@ -296,7 +302,7 @@ static int hsw_ips_debugfs_false_color_set(void *data, u64 val)
 	if (ret)
 		return ret;
 
-	i915->display.ips.false_color = val;
+	display->ips.false_color = val;
 
 	crtc_state = to_intel_crtc_state(crtc->base.state);
 
@@ -323,18 +329,19 @@ DEFINE_DEBUGFS_ATTRIBUTE(hsw_ips_debugfs_false_color_fops,
 static int hsw_ips_debugfs_status_show(struct seq_file *m, void *unused)
 {
 	struct intel_crtc *crtc = m->private;
+	struct intel_display *display = to_intel_display(crtc);
 	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
 	intel_wakeref_t wakeref;
 
 	wakeref = intel_runtime_pm_get(&i915->runtime_pm);
 
 	seq_printf(m, "Enabled by kernel parameter: %s\n",
-		   str_yes_no(i915->display.params.enable_ips));
+		   str_yes_no(display->params.enable_ips));
 
-	if (DISPLAY_VER(i915) >= 8) {
+	if (DISPLAY_VER(display) >= 8) {
 		seq_puts(m, "Currently: unknown\n");
 	} else {
-		if (intel_de_read(i915, IPS_CTL) & IPS_ENABLE)
+		if (intel_de_read(display, IPS_CTL) & IPS_ENABLE)
 			seq_puts(m, "Currently: enabled\n");
 		else
 			seq_puts(m, "Currently: disabled\n");

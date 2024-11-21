@@ -533,7 +533,6 @@ static const struct dc_debug_options debug_defaults_drv = {
 		.sanity_checks = true,
 		.disable_dmcu = false,
 		.force_abm_enable = false,
-		.timing_trace = false,
 		.clock_trace = true,
 
 		/* raven smu dones't allow 0 disp clk,
@@ -558,18 +557,6 @@ static const struct dc_debug_options debug_defaults_drv = {
 		.underflow_assert_delay_us = 0xFFFFFFFF,
 		.enable_legacy_fast_update = true,
 		.using_dml2 = false,
-};
-
-static const struct dc_debug_options debug_defaults_diags = {
-		.disable_dmcu = false,
-		.force_abm_enable = false,
-		.timing_trace = true,
-		.clock_trace = true,
-		.disable_stutter = true,
-		.disable_pplib_clock_request = true,
-		.disable_pplib_wm_range = true,
-		.underflow_assert_delay_us = 0xFFFFFFFF,
-		.enable_legacy_fast_update = true,
 };
 
 static void dcn10_dpp_destroy(struct dpp **dpp)
@@ -751,7 +738,7 @@ static struct link_encoder *dcn10_link_encoder_create(
 		kzalloc(sizeof(struct dcn10_link_encoder), GFP_KERNEL);
 	int link_regs_id;
 
-	if (!enc10)
+	if (!enc10 || enc_init_data->hpd_source >= ARRAY_SIZE(link_enc_hpd_regs))
 		return NULL;
 
 	link_regs_id =
@@ -1400,8 +1387,6 @@ static bool dcn10_resource_construct(
 
 	if (dc->ctx->dce_environment == DCE_ENV_PRODUCTION_DRV)
 		dc->debug = debug_defaults_drv;
-	else
-		dc->debug = debug_defaults_diags;
 
 	/*************************************************
 	 *  Create resources                             *

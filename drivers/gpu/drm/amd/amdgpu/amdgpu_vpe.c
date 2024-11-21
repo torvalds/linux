@@ -295,9 +295,9 @@ int amdgpu_vpe_ring_fini(struct amdgpu_vpe *vpe)
 	return 0;
 }
 
-static int vpe_early_init(void *handle)
+static int vpe_early_init(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	struct amdgpu_vpe *vpe = &adev->vpe;
 
 	switch (amdgpu_ip_version(adev, VPE_HWIP, 0)) {
@@ -356,9 +356,9 @@ static int vpe_common_init(struct amdgpu_vpe *vpe)
 	return 0;
 }
 
-static int vpe_sw_init(void *handle)
+static int vpe_sw_init(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	struct amdgpu_vpe *vpe = &adev->vpe;
 	int ret;
 
@@ -377,18 +377,26 @@ static int vpe_sw_init(void *handle)
 	ret = vpe_init_microcode(vpe);
 	if (ret)
 		goto out;
+
+	/* TODO: Add queue reset mask when FW fully supports it */
+	adev->vpe.supported_reset =
+		 amdgpu_get_soft_full_reset_mask(&adev->vpe.ring);
+	ret = amdgpu_vpe_sysfs_reset_mask_init(adev);
+	if (ret)
+		goto out;
 out:
 	return ret;
 }
 
-static int vpe_sw_fini(void *handle)
+static int vpe_sw_fini(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	struct amdgpu_vpe *vpe = &adev->vpe;
 
 	release_firmware(vpe->fw);
 	vpe->fw = NULL;
 
+	amdgpu_vpe_sysfs_reset_mask_fini(adev);
 	vpe_ring_fini(vpe);
 
 	amdgpu_bo_free_kernel(&adev->vpe.cmdbuf_obj,
@@ -398,9 +406,9 @@ static int vpe_sw_fini(void *handle)
 	return 0;
 }
 
-static int vpe_hw_init(void *handle)
+static int vpe_hw_init(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	struct amdgpu_vpe *vpe = &adev->vpe;
 	int ret;
 
@@ -421,9 +429,9 @@ static int vpe_hw_init(void *handle)
 	return 0;
 }
 
-static int vpe_hw_fini(void *handle)
+static int vpe_hw_fini(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	struct amdgpu_vpe *vpe = &adev->vpe;
 
 	vpe_ring_stop(vpe);
@@ -434,20 +442,18 @@ static int vpe_hw_fini(void *handle)
 	return 0;
 }
 
-static int vpe_suspend(void *handle)
+static int vpe_suspend(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	cancel_delayed_work_sync(&adev->vpe.idle_work);
 
-	return vpe_hw_fini(adev);
+	return vpe_hw_fini(ip_block);
 }
 
-static int vpe_resume(void *handle)
+static int vpe_resume(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-
-	return vpe_hw_init(adev);
+	return vpe_hw_init(ip_block);
 }
 
 static void vpe_ring_insert_nop(struct amdgpu_ring *ring, uint32_t count)
@@ -867,6 +873,41 @@ static void vpe_ring_end_use(struct amdgpu_ring *ring)
 	schedule_delayed_work(&adev->vpe.idle_work, VPE_IDLE_TIMEOUT);
 }
 
+static ssize_t amdgpu_get_vpe_reset_mask(struct device *dev,
+						struct device_attribute *attr,
+						char *buf)
+{
+	struct drm_device *ddev = dev_get_drvdata(dev);
+	struct amdgpu_device *adev = drm_to_adev(ddev);
+
+	if (!adev)
+		return -ENODEV;
+
+	return amdgpu_show_reset_mask(buf, adev->vpe.supported_reset);
+}
+
+static DEVICE_ATTR(vpe_reset_mask, 0444,
+		   amdgpu_get_vpe_reset_mask, NULL);
+
+int amdgpu_vpe_sysfs_reset_mask_init(struct amdgpu_device *adev)
+{
+	int r = 0;
+
+	if (adev->vpe.num_instances) {
+		r = device_create_file(adev->dev, &dev_attr_vpe_reset_mask);
+		if (r)
+			return r;
+	}
+
+	return r;
+}
+
+void amdgpu_vpe_sysfs_reset_mask_fini(struct amdgpu_device *adev)
+{
+	if (adev->vpe.num_instances)
+		device_remove_file(adev->dev, &dev_attr_vpe_reset_mask);
+}
+
 static const struct amdgpu_ring_funcs vpe_ring_funcs = {
 	.type = AMDGPU_RING_TYPE_VPE,
 	.align_mask = 0xf,
@@ -908,14 +949,12 @@ static void vpe_set_ring_funcs(struct amdgpu_device *adev)
 const struct amd_ip_funcs vpe_ip_funcs = {
 	.name = "vpe_v6_1",
 	.early_init = vpe_early_init,
-	.late_init = NULL,
 	.sw_init = vpe_sw_init,
 	.sw_fini = vpe_sw_fini,
 	.hw_init = vpe_hw_init,
 	.hw_fini = vpe_hw_fini,
 	.suspend = vpe_suspend,
 	.resume = vpe_resume,
-	.soft_reset = NULL,
 	.set_clockgating_state = vpe_set_clockgating_state,
 	.set_powergating_state = vpe_set_powergating_state,
 };
