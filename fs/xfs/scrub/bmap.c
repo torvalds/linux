@@ -21,6 +21,8 @@
 #include "xfs_rmap_btree.h"
 #include "xfs_rtgroup.h"
 #include "xfs_health.h"
+#include "xfs_rtalloc.h"
+#include "xfs_rtrmap_btree.h"
 #include "scrub/scrub.h"
 #include "scrub/common.h"
 #include "scrub/btree.h"
@@ -641,8 +643,7 @@ xchk_bmap_check_rmap(
 			xchk_fblock_set_corrupt(sc, sbcri->whichfork,
 					check_rec.rm_offset);
 		if (irec.br_startblock !=
-		    xfs_agbno_to_fsb(to_perag(cur->bc_group),
-				check_rec.rm_startblock))
+		    xfs_gbno_to_fsb(cur->bc_group, check_rec.rm_startblock))
 			xchk_fblock_set_corrupt(sc, sbcri->whichfork,
 					check_rec.rm_offset);
 		if (irec.br_blockcount > check_rec.rm_blockcount)
@@ -693,6 +694,30 @@ xchk_bmap_check_ag_rmaps(
 
 	xfs_btree_del_cursor(cur, error);
 	xfs_trans_brelse(sc->tp, agf);
+	return error;
+}
+
+/* Make sure each rt rmap has a corresponding bmbt entry. */
+STATIC int
+xchk_bmap_check_rt_rmaps(
+	struct xfs_scrub		*sc,
+	struct xfs_rtgroup		*rtg)
+{
+	struct xchk_bmap_check_rmap_info sbcri;
+	struct xfs_btree_cur		*cur;
+	int				error;
+
+	xfs_rtgroup_lock(rtg, XFS_RTGLOCK_RMAP);
+	cur = xfs_rtrmapbt_init_cursor(sc->tp, rtg);
+
+	sbcri.sc = sc;
+	sbcri.whichfork = XFS_DATA_FORK;
+	error = xfs_rmap_query_all(cur, xchk_bmap_check_rmap, &sbcri);
+	if (error == -ECANCELED)
+		error = 0;
+
+	xfs_btree_del_cursor(cur, error);
+	xfs_rtgroup_unlock(rtg, XFS_RTGLOCK_RMAP);
 	return error;
 }
 
@@ -750,10 +775,6 @@ xchk_bmap_check_empty_datafork(
 {
 	struct xfs_ifork	*ifp = &ip->i_df;
 
-	/* Don't support realtime rmap checks yet. */
-	if (XFS_IS_REALTIME_INODE(ip))
-		return false;
-
 	/*
 	 * If the dinode repair found a bad data fork, it will reset the fork
 	 * to extents format with zero records and wait for the this scrubber
@@ -803,6 +824,21 @@ xchk_bmap_check_rmaps(
 {
 	struct xfs_perag	*pag = NULL;
 	int			error;
+
+	if (xfs_ifork_is_realtime(sc->ip, whichfork)) {
+		struct xfs_rtgroup	*rtg = NULL;
+
+		while ((rtg = xfs_rtgroup_next(sc->mp, rtg))) {
+			error = xchk_bmap_check_rt_rmaps(sc, rtg);
+			if (error ||
+			    (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)) {
+				xfs_rtgroup_rele(rtg);
+				return error;
+			}
+		}
+
+		return 0;
+	}
 
 	while ((pag = xfs_perag_next(sc->mp, pag))) {
 		error = xchk_bmap_check_ag_rmaps(sc, whichfork, pag);
