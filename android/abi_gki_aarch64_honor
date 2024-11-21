@@ -63,3 +63,5 @@
  __traceiter_android_vh_slab_alloc_node
  __tracepoint_android_vh_slab_free
  __traceiter_android_vh_slab_free
+ __traceiter_android_rvh_hw_protection_shutdown
+ __tracepoint_android_rvh_hw_protection_shutdown
