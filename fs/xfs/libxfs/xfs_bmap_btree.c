@@ -516,6 +516,22 @@ xfs_bmbt_keys_contiguous(
 				 be64_to_cpu(key2->bmbt.br_startoff));
 }
 
+static inline void
+xfs_bmbt_move_ptrs(
+	struct xfs_mount	*mp,
+	struct xfs_btree_block	*broot,
+	short			old_size,
+	size_t			new_size,
+	unsigned int		numrecs)
+{
+	void			*dptr;
+	void			*sptr;
+
+	sptr = xfs_bmap_broot_ptr_addr(mp, broot, 1, old_size);
+	dptr = xfs_bmap_broot_ptr_addr(mp, broot, 1, new_size);
+	memmove(dptr, sptr, numrecs * sizeof(xfs_bmbt_ptr_t));
+}
+
 /*
  * Reallocate the space for if_broot based on the number of records.  Move the
  * records and pointers in if_broot to fit the new size.  When shrinking this
@@ -541,8 +557,7 @@ xfs_bmap_broot_realloc(
 {
 	struct xfs_mount	*mp = ip->i_mount;
 	struct xfs_ifork	*ifp = xfs_ifork_ptr(ip, whichfork);
-	char			*np;
-	char			*op;
+	struct xfs_btree_block	*broot;
 	unsigned int		new_size;
 	unsigned int		old_size = ifp->if_broot_bytes;
 
@@ -577,15 +592,11 @@ xfs_bmap_broot_realloc(
 		 * they are kept butted up against the btree block header.
 		 */
 		old_numrecs = xfs_bmbt_maxrecs(mp, old_size, false);
-		xfs_broot_realloc(ifp, new_size);
-		op = (char *)xfs_bmap_broot_ptr_addr(mp, ifp->if_broot, 1,
-						     old_size);
-		np = (char *)xfs_bmap_broot_ptr_addr(mp, ifp->if_broot, 1,
-						     (int)new_size);
-		ASSERT(xfs_bmap_bmdr_space(ifp->if_broot) <=
+		broot = xfs_broot_realloc(ifp, new_size);
+		ASSERT(xfs_bmap_bmdr_space(broot) <=
 			xfs_inode_fork_size(ip, whichfork));
-		memmove(np, op, old_numrecs * (uint)sizeof(xfs_fsblock_t));
-		return ifp->if_broot;
+		xfs_bmbt_move_ptrs(mp, broot, old_size, new_size, old_numrecs);
+		return broot;
 	}
 
 	/*
@@ -599,15 +610,11 @@ xfs_bmap_broot_realloc(
 	 * not butted up against the btree block header, then reallocating
 	 * broot.
 	 */
-	op = (char *)xfs_bmap_broot_ptr_addr(mp, ifp->if_broot, 1, old_size);
-	np = (char *)xfs_bmap_broot_ptr_addr(mp, ifp->if_broot, 1,
-					     (int)new_size);
-	memmove(np, op, new_numrecs * (uint)sizeof(xfs_fsblock_t));
-
-	xfs_broot_realloc(ifp, new_size);
-	ASSERT(xfs_bmap_bmdr_space(ifp->if_broot) <=
+	xfs_bmbt_move_ptrs(mp, ifp->if_broot, old_size, new_size, new_numrecs);
+	broot = xfs_broot_realloc(ifp, new_size);
+	ASSERT(xfs_bmap_bmdr_space(broot) <=
 	       xfs_inode_fork_size(ip, whichfork));
-	return ifp->if_broot;
+	return broot;
 }
 
 static struct xfs_btree_block *
