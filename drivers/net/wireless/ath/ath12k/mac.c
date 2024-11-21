@@ -8309,19 +8309,32 @@ ath12k_mac_change_chanctx_cnt_iter(void *data, u8 *mac,
 {
 	struct ath12k_vif *ahvif = ath12k_vif_to_ahvif(vif);
 	struct ath12k_mac_change_chanctx_arg *arg = data;
+	struct ieee80211_bss_conf *link_conf;
 	struct ath12k_link_vif *arvif;
+	unsigned long links_map;
+	u8 link_id;
 
 	lockdep_assert_wiphy(ahvif->ah->hw->wiphy);
 
-	arvif = &ahvif->deflink;
+	links_map = ahvif->links_map;
+	for_each_set_bit(link_id, &links_map, IEEE80211_MLD_MAX_NUM_LINKS) {
+		arvif = wiphy_dereference(ahvif->ah->hw->wiphy, ahvif->link[link_id]);
+		if (WARN_ON(!arvif))
+			continue;
 
-	if (arvif->ar != arg->ar)
-		return;
+		if (arvif->ar != arg->ar)
+			continue;
 
-	if (rcu_access_pointer(vif->bss_conf.chanctx_conf) != arg->ctx)
-		return;
+		link_conf = wiphy_dereference(ahvif->ah->hw->wiphy,
+					      vif->link_conf[link_id]);
+		if (WARN_ON(!link_conf))
+			continue;
 
-	arg->n_vifs++;
+		if (rcu_access_pointer(link_conf->chanctx_conf) != arg->ctx)
+			continue;
+
+		arg->n_vifs++;
+	}
 }
 
 static void
@@ -8330,27 +8343,41 @@ ath12k_mac_change_chanctx_fill_iter(void *data, u8 *mac,
 {
 	struct ath12k_vif *ahvif = ath12k_vif_to_ahvif(vif);
 	struct ath12k_mac_change_chanctx_arg *arg = data;
+	struct ieee80211_bss_conf *link_conf;
 	struct ieee80211_chanctx_conf *ctx;
 	struct ath12k_link_vif *arvif;
+	unsigned long links_map;
+	u8 link_id;
 
 	lockdep_assert_wiphy(ahvif->ah->hw->wiphy);
 
-	arvif = &ahvif->deflink;
+	links_map = ahvif->links_map;
+	for_each_set_bit(link_id, &links_map, IEEE80211_MLD_MAX_NUM_LINKS) {
+		arvif = wiphy_dereference(ahvif->ah->hw->wiphy, ahvif->link[link_id]);
+		if (WARN_ON(!arvif))
+			continue;
 
-	if (arvif->ar != arg->ar)
-		return;
+		if (arvif->ar != arg->ar)
+			continue;
 
-	ctx = rcu_access_pointer(vif->bss_conf.chanctx_conf);
-	if (ctx != arg->ctx)
-		return;
+		link_conf = wiphy_dereference(ahvif->ah->hw->wiphy,
+					      vif->link_conf[arvif->link_id]);
+		if (WARN_ON(!link_conf))
+			continue;
 
-	if (WARN_ON(arg->next_vif == arg->n_vifs))
-		return;
+		ctx = rcu_access_pointer(link_conf->chanctx_conf);
+		if (ctx != arg->ctx)
+			continue;
 
-	arg->vifs[arg->next_vif].vif = vif;
-	arg->vifs[arg->next_vif].old_ctx = ctx;
-	arg->vifs[arg->next_vif].new_ctx = ctx;
-	arg->next_vif++;
+		if (WARN_ON(arg->next_vif == arg->n_vifs))
+			return;
+
+		arg->vifs[arg->next_vif].vif = vif;
+		arg->vifs[arg->next_vif].old_ctx = ctx;
+		arg->vifs[arg->next_vif].new_ctx = ctx;
+		arg->vifs[arg->next_vif].link_conf = link_conf;
+		arg->next_vif++;
+	}
 }
 
 static u32 ath12k_mac_nlwidth_to_wmiwidth(enum nl80211_chan_width width)
@@ -8410,10 +8437,12 @@ ath12k_mac_update_vif_chan(struct ath12k *ar,
 			   int n_vifs)
 {
 	struct ath12k_wmi_vdev_up_params params = {};
+	struct ieee80211_bss_conf *link_conf;
 	struct ath12k_base *ab = ar->ab;
 	struct ath12k_link_vif *arvif;
 	struct ieee80211_vif *vif;
 	struct ath12k_vif *ahvif;
+	u8 link_id;
 	int ret;
 	int i;
 	bool monitor_vif = false;
@@ -8423,7 +8452,10 @@ ath12k_mac_update_vif_chan(struct ath12k *ar,
 	for (i = 0; i < n_vifs; i++) {
 		vif = vifs[i].vif;
 		ahvif = ath12k_vif_to_ahvif(vif);
-		arvif = &ahvif->deflink;
+		link_conf = vifs[i].link_conf;
+		link_id = link_conf->link_id;
+		arvif = wiphy_dereference(ath12k_ar_to_hw(ar)->wiphy,
+					  ahvif->link[link_id]);
 
 		if (vif->type == NL80211_IFTYPE_MONITOR)
 			monitor_vif = true;
@@ -8476,13 +8508,13 @@ ath12k_mac_update_vif_chan(struct ath12k *ar,
 		params.aid = ahvif->aid;
 		params.bssid = arvif->bssid;
 		if (vif->mbssid_tx_vif) {
-			struct ath12k_vif *ahvif =
+			struct ath12k_vif *tx_ahvif =
 				ath12k_vif_to_ahvif(vif->mbssid_tx_vif);
-			struct ath12k_link_vif *arvif = &ahvif->deflink;
+			struct ath12k_link_vif *tx_arvif = &tx_ahvif->deflink;
 
-			params.tx_bssid = arvif->bssid;
-			params.nontx_profile_idx = vif->bss_conf.bssid_index;
-			params.nontx_profile_cnt = 1 << vif->bss_conf.bssid_indicator;
+			params.tx_bssid = tx_arvif->bssid;
+			params.nontx_profile_idx = link_conf->bssid_index;
+			params.nontx_profile_cnt = 1 << link_conf->bssid_indicator;
 		}
 		ret = ath12k_wmi_vdev_up(arvif->ar, &params);
 		if (ret) {
