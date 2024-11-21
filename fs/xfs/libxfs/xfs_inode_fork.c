@@ -269,6 +269,9 @@ xfs_iformat_data_fork(
 			return xfs_iformat_btree(ip, dip, XFS_DATA_FORK);
 		case XFS_DINODE_FMT_META_BTREE:
 			switch (ip->i_metatype) {
+			case XFS_METAFILE_RTRMAP:
+				ASSERT(0); /* to be implemented later */
+				return -EFSCORRUPTED;
 			default:
 				break;
 			}
@@ -614,6 +617,9 @@ xfs_iflush_fork(
 			break;
 
 		switch (ip->i_metatype) {
+		case XFS_METAFILE_RTRMAP:
+			ASSERT(0); /* to be implemented later */
+			break;
 		default:
 			ASSERT(0);
 			break;
