@@ -233,6 +233,13 @@
 			msi-controller;
 		};
 
+		watchdog@f410000 {
+			compatible = "qcom,apss-wdt-ipq5424", "qcom,kpss-wdt";
+			reg = <0 0x0f410000 0 0x1000>;
+			interrupts = <GIC_SPI 0 IRQ_TYPE_EDGE_RISING>;
+			clocks = <&sleep_clk>;
+		};
+
 		timer@f420000 {
 			compatible = "arm,armv7-timer-mem";
 			reg = <0 0xf420000 0 0x1000>;
