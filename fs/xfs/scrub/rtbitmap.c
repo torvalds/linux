@@ -105,6 +105,8 @@ xchk_rtbitmap_xref(
 		return;
 
 	xchk_xref_has_no_rt_owner(sc, rgbno, blockcount);
+	xchk_xref_is_not_rt_shared(sc, rgbno, blockcount);
+	xchk_xref_is_not_rt_cow_staging(sc, rgbno, blockcount);
 
 	if (rtb->next_free_rgbno < rgbno)
 		xchk_xref_has_rt_owner(sc, rtb->next_free_rgbno,
