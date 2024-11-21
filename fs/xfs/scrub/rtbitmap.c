@@ -20,9 +20,11 @@
 #include "xfs_sb.h"
 #include "xfs_rmap.h"
 #include "xfs_rtrmap_btree.h"
+#include "xfs_exchmaps.h"
 #include "scrub/scrub.h"
 #include "scrub/common.h"
 #include "scrub/repair.h"
+#include "scrub/tempexch.h"
 #include "scrub/rtbitmap.h"
 #include "scrub/btree.h"
 
@@ -38,7 +40,8 @@ xchk_setup_rtbitmap(
 	if (xchk_need_intent_drain(sc))
 		xchk_fsgates_enable(sc, XCHK_FSGATES_DRAIN);
 
-	rtb = kzalloc(sizeof(struct xchk_rtbitmap), XCHK_GFP_FLAGS);
+	rtb = kzalloc(struct_size(rtb, words, xchk_rtbitmap_wordcnt(sc)),
+			XCHK_GFP_FLAGS);
 	if (!rtb)
 		return -ENOMEM;
 	sc->buf = rtb;
