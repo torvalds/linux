@@ -62,6 +62,7 @@ xrep_attempt(
 	trace_xrep_attempt(XFS_I(file_inode(sc->file)), sc->sm, error);
 
 	xchk_ag_btcur_free(&sc->sa);
+	xchk_rtgroup_btcur_free(&sc->sr);
 
 	/* Repair whatever's broken. */
 	ASSERT(sc->ops->repair);
