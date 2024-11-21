@@ -8623,6 +8623,14 @@ static int ufshcd_add_lus(struct ufs_hba *hba)
 		ufshcd_init_clk_scaling_sysfs(hba);
 	}
 
+	/*
+	 * The RTC update code accesses the hba->ufs_device_wlun->sdev_gendev
+	 * pointer and hence must only be started after the WLUN pointer has
+	 * been initialized by ufshcd_scsi_add_wlus().
+	 */
+	schedule_delayed_work(&hba->ufs_rtc_update_work,
+			      msecs_to_jiffies(UFS_RTC_UPDATE_INTERVAL_MS));
+
 	ufs_bsg_probe(hba);
 	scsi_scan_host(hba->host);
 
@@ -8717,8 +8725,6 @@ static int ufshcd_post_device_init(struct ufs_hba *hba)
 	ufshcd_force_reset_auto_bkops(hba);
 
 	ufshcd_set_timestamp_attr(hba);
-	schedule_delayed_work(&hba->ufs_rtc_update_work,
-			      msecs_to_jiffies(UFS_RTC_UPDATE_INTERVAL_MS));
 
 	if (!hba->max_pwr_info.is_valid)
 		return 0;
