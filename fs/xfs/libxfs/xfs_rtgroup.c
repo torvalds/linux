@@ -380,6 +380,7 @@ static const struct xfs_rtginode_ops xfs_rtginode_ops[XFS_RTGI_MAX] = {
 	[XFS_RTGI_REFCOUNT] = {
 		.name		= "refcount",
 		.metafile_type	= XFS_METAFILE_RTREFCOUNT,
+		.sick		= XFS_SICK_RG_REFCNTBT,
 		.fmt_mask	= 1U << XFS_DINODE_FMT_META_BTREE,
 		/* same comment about growfs and rmap inodes applies here */
 		.enabled	= xfs_has_reflink,

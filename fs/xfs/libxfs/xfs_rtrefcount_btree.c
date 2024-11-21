@@ -27,6 +27,7 @@
 #include "xfs_rtgroup.h"
 #include "xfs_rtbitmap.h"
 #include "xfs_metafile.h"
+#include "xfs_health.h"
 
 static struct kmem_cache	*xfs_rtrefcountbt_cur_cache;
 
@@ -374,6 +375,7 @@ const struct xfs_btree_ops xfs_rtrefcountbt_ops = {
 
 	.lru_refs		= XFS_REFC_BTREE_REF,
 	.statoff		= XFS_STATS_CALC_INDEX(xs_rtrefcbt_2),
+	.sick_mask		= XFS_SICK_RG_REFCNTBT,
 
 	.dup_cursor		= xfs_rtrefcountbt_dup_cursor,
 	.alloc_block		= xfs_btree_alloc_metafile_block,
@@ -640,16 +642,20 @@ xfs_iformat_rtrefcount(
 	 * volume to the filesystem, so we cannot use the rtrefcount predicate
 	 * here.
 	 */
-	if (!xfs_has_reflink(ip->i_mount))
+	if (!xfs_has_reflink(ip->i_mount)) {
+		xfs_inode_mark_sick(ip, XFS_SICK_INO_CORE);
 		return -EFSCORRUPTED;
+	}
 
 	dsize = XFS_DFORK_SIZE(dip, mp, XFS_DATA_FORK);
 	numrecs = be16_to_cpu(dfp->bb_numrecs);
 	level = be16_to_cpu(dfp->bb_level);
 
 	if (level > mp->m_rtrefc_maxlevels ||
-	    xfs_rtrefcount_droot_space_calc(level, numrecs) > dsize)
+	    xfs_rtrefcount_droot_space_calc(level, numrecs) > dsize) {
+		xfs_inode_mark_sick(ip, XFS_SICK_INO_CORE);
 		return -EFSCORRUPTED;
+	}
 
 	broot = xfs_broot_alloc(xfs_ifork_ptr(ip, XFS_DATA_FORK),
 			xfs_rtrefcount_broot_space_calc(mp, level, numrecs));
