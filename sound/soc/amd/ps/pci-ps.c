@@ -302,8 +302,7 @@ static struct snd_soc_acpi_mach *acp63_sdw_machine_select(struct device *dev)
 			link = mach->links;
 			for (i = 0; i < acp_data->info.count && link->num_adr; link++, i++) {
 				if (!snd_soc_acpi_sdw_link_slaves_found(dev, link,
-									acp_data->sdw->ids,
-									acp_data->sdw->num_slaves))
+									acp_data->sdw->peripherals))
 					break;
 			}
 			if (i == acp_data->info.count || !link->num_adr)
@@ -599,6 +598,7 @@ static int snd_acp63_probe(struct pci_dev *pci,
 		dev_err(&pci->dev, "ACP platform devices creation failed\n");
 		goto de_init;
 	}
+	adata->machines = snd_soc_acpi_amd_acp63_sdw_machines;
 	ret = acp63_machine_register(&pci->dev);
 	if (ret) {
 		dev_err(&pci->dev, "ACP machine register failed\n");

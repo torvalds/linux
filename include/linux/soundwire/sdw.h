@@ -10,6 +10,7 @@
 #include <linux/irqdomain.h>
 #include <linux/mod_devicetable.h>
 #include <linux/bitfield.h>
+#include <sound/sdca.h>
 
 struct sdw_bus;
 struct sdw_slave;
@@ -488,9 +489,9 @@ struct sdw_slave_id {
 	__u8 sdw_version:4;
 };
 
-struct sdw_extended_slave_id {
-	int link_id;
-	struct sdw_slave_id id;
+struct sdw_peripherals {
+	int num_peripherals;
+	struct sdw_slave *array[];
 };
 
 /*
@@ -663,6 +664,7 @@ struct sdw_slave_ops {
  * @is_mockup_device: status flag used to squelch errors in the command/control
  * protocol for SoundWire mockup devices
  * @sdw_dev_lock: mutex used to protect callbacks/remove races
+ * @sdca_data: structure containing all device data for SDCA helpers
  */
 struct sdw_slave {
 	struct sdw_slave_id id;
@@ -686,6 +688,7 @@ struct sdw_slave {
 	bool first_interrupt_done;
 	bool is_mockup_device;
 	struct mutex sdw_dev_lock; /* protect callbacks/remove races */
+	struct sdca_device_data sdca_data;
 };
 
 #define dev_to_sdw_dev(_dev) container_of(_dev, struct sdw_slave, dev)

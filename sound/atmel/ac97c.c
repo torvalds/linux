@@ -861,7 +861,7 @@ static void atmel_ac97c_remove(struct platform_device *pdev)
 
 static struct platform_driver atmel_ac97c_driver = {
 	.probe		= atmel_ac97c_probe,
-	.remove_new	= atmel_ac97c_remove,
+	.remove		= atmel_ac97c_remove,
 	.driver		= {
 		.name	= "atmel_ac97c",
 		.pm	= ATMEL_AC97C_PM_OPS,
