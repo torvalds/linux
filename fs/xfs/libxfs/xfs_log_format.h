@@ -252,6 +252,8 @@ typedef struct xfs_trans_header {
 #define	XFS_LI_EFD_RT		0x124b	/* realtime extent free done */
 #define	XFS_LI_RUI_RT		0x124c	/* realtime rmap update intent */
 #define	XFS_LI_RUD_RT		0x124d	/* realtime rmap update done */
+#define	XFS_LI_CUI_RT		0x124e	/* realtime refcount update intent */
+#define	XFS_LI_CUD_RT		0x124f	/* realtime refcount update done */
 
 #define XFS_LI_TYPE_DESC \
 	{ XFS_LI_EFI,		"XFS_LI_EFI" }, \
@@ -275,7 +277,9 @@ typedef struct xfs_trans_header {
 	{ XFS_LI_EFI_RT,	"XFS_LI_EFI_RT" }, \
 	{ XFS_LI_EFD_RT,	"XFS_LI_EFD_RT" }, \
 	{ XFS_LI_RUI_RT,	"XFS_LI_RUI_RT" }, \
-	{ XFS_LI_RUD_RT,	"XFS_LI_RUD_RT" }
+	{ XFS_LI_RUD_RT,	"XFS_LI_RUD_RT" }, \
+	{ XFS_LI_CUI_RT,	"XFS_LI_CUI_RT" }, \
+	{ XFS_LI_CUD_RT,	"XFS_LI_CUD_RT" }
 
 /*
  * Inode Log Item Format definitions.

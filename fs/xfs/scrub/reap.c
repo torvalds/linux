@@ -419,7 +419,8 @@ xreap_agextent_iter(
 			 * records from the refcountbt, which will remove the
 			 * rmap record as well.
 			 */
-			xfs_refcount_free_cow_extent(sc->tp, fsbno, *aglenp);
+			xfs_refcount_free_cow_extent(sc->tp, false, fsbno,
+					*aglenp);
 			return 0;
 		}
 
@@ -451,7 +452,7 @@ xreap_agextent_iter(
 	if (rs->oinfo == &XFS_RMAP_OINFO_COW) {
 		ASSERT(rs->resv == XFS_AG_RESV_NONE);
 
-		xfs_refcount_free_cow_extent(sc->tp, fsbno, *aglenp);
+		xfs_refcount_free_cow_extent(sc->tp, false, fsbno, *aglenp);
 		error = xfs_free_extent_later(sc->tp, fsbno, *aglenp, NULL,
 				rs->resv, XFS_FREE_EXTENT_SKIP_DISCARD);
 		if (error)
