@@ -28,6 +28,10 @@
 #include "kfd_kernel_queue.h"
 #include "kfd_priv.h"
 
+#define OVER_SUBSCRIPTION_PROCESS_COUNT (1 << 0)
+#define OVER_SUBSCRIPTION_COMPUTE_QUEUE_COUNT (1 << 1)
+#define OVER_SUBSCRIPTION_GWS_QUEUE_COUNT (1 << 2)
+
 static inline void inc_wptr(unsigned int *wptr, unsigned int increment_bytes,
 				unsigned int buffer_size_bytes)
 {
@@ -40,7 +44,7 @@ static inline void inc_wptr(unsigned int *wptr, unsigned int increment_bytes,
 
 static void pm_calc_rlib_size(struct packet_manager *pm,
 				unsigned int *rlib_size,
-				bool *over_subscription)
+				int *over_subscription)
 {
 	unsigned int process_count, queue_count, compute_queue_count, gws_queue_count;
 	unsigned int map_queue_size;
@@ -58,17 +62,20 @@ static void pm_calc_rlib_size(struct packet_manager *pm,
 	 * hws_max_conc_proc has been done in
 	 * kgd2kfd_device_init().
 	 */
-	*over_subscription = false;
+	*over_subscription = 0;
 
 	if (node->max_proc_per_quantum > 1)
 		max_proc_per_quantum = node->max_proc_per_quantum;
 
-	if ((process_count > max_proc_per_quantum) ||
-	    compute_queue_count > get_cp_queues_num(pm->dqm) ||
-	    gws_queue_count > 1) {
-		*over_subscription = true;
+	if (process_count > max_proc_per_quantum)
+		*over_subscription |= OVER_SUBSCRIPTION_PROCESS_COUNT;
+	if (compute_queue_count > get_cp_queues_num(pm->dqm))
+		*over_subscription |= OVER_SUBSCRIPTION_COMPUTE_QUEUE_COUNT;
+	if (gws_queue_count > 1)
+		*over_subscription |= OVER_SUBSCRIPTION_GWS_QUEUE_COUNT;
+
+	if (*over_subscription)
 		dev_dbg(dev, "Over subscribed runlist\n");
-	}
 
 	map_queue_size = pm->pmf->map_queues_size;
 	/* calculate run list ib allocation size */
@@ -89,7 +96,7 @@ static int pm_allocate_runlist_ib(struct packet_manager *pm,
 				unsigned int **rl_buffer,
 				uint64_t *rl_gpu_buffer,
 				unsigned int *rl_buffer_size,
-				bool *is_over_subscription)
+				int *is_over_subscription)
 {
 	struct kfd_node *node = pm->dqm->dev;
 	struct device *dev = node->adev->dev;
@@ -134,7 +141,7 @@ static int pm_create_runlist_ib(struct packet_manager *pm,
 	struct qcm_process_device *qpd;
 	struct queue *q;
 	struct kernel_queue *kq;
-	bool is_over_subscription;
+	int is_over_subscription;
 
 	rl_wptr = retval = processes_mapped = 0;
 
@@ -213,15 +220,20 @@ static int pm_create_runlist_ib(struct packet_manager *pm,
 
 	if (is_over_subscription) {
 		if (!pm->is_over_subscription)
-			dev_warn(
-				dev,
-				"Runlist is getting oversubscribed. Expect reduced ROCm performance.\n");
+			dev_warn(dev, "Runlist is getting oversubscribed due to%s%s%s. Expect reduced ROCm performance.\n",
+				 is_over_subscription & OVER_SUBSCRIPTION_PROCESS_COUNT ?
+				 " too many processes." : "",
+				 is_over_subscription & OVER_SUBSCRIPTION_COMPUTE_QUEUE_COUNT ?
+				 " too many queues." : "",
+				 is_over_subscription & OVER_SUBSCRIPTION_GWS_QUEUE_COUNT ?
+				 " multiple processes using cooperative launch." : "");
+
 		retval = pm->pmf->runlist(pm, &rl_buffer[rl_wptr],
 					*rl_gpu_addr,
 					alloc_size_bytes / sizeof(uint32_t),
 					true);
 	}
-	pm->is_over_subscription = is_over_subscription;
+	pm->is_over_subscription = !!is_over_subscription;
 
 	for (i = 0; i < alloc_size_bytes / sizeof(uint32_t); i++)
 		pr_debug("0x%2X ", rl_buffer[i]);
