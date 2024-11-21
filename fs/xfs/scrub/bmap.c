@@ -324,10 +324,15 @@ xchk_bmap_rt_iextent_xref(
 			irec->br_startoff, &error))
 		return;
 
-	xchk_rtgroup_lock(&info->sc->sr, XCHK_RTGLOCK_ALL);
+	error = xchk_rtgroup_lock(info->sc, &info->sc->sr, XCHK_RTGLOCK_ALL);
+	if (!xchk_fblock_process_error(info->sc, info->whichfork,
+			irec->br_startoff, &error))
+		goto out_free;
+
 	xchk_xref_is_used_rt_space(info->sc, irec->br_startblock,
 			irec->br_blockcount);
 
+out_free:
 	xchk_rtgroup_free(info->sc, &info->sc->sr);
 }
 

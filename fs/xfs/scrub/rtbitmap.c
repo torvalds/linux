@@ -30,6 +30,9 @@ xchk_setup_rtbitmap(
 	struct xchk_rtbitmap	*rtb;
 	int			error;
 
+	if (xchk_need_intent_drain(sc))
+		xchk_fsgates_enable(sc, XCHK_FSGATES_DRAIN);
+
 	rtb = kzalloc(sizeof(struct xchk_rtbitmap), XCHK_GFP_FLAGS);
 	if (!rtb)
 		return -ENOMEM;
@@ -57,12 +60,15 @@ xchk_setup_rtbitmap(
 	if (error)
 		return error;
 
+	error = xchk_rtgroup_lock(sc, &sc->sr, XCHK_RTGLOCK_ALL);
+	if (error)
+		return error;
+
 	/*
 	 * Now that we've locked the rtbitmap, we can't race with growfsrt
 	 * trying to expand the bitmap or change the size of the rt volume.
 	 * Hence it is safe to compute and check the geometry values.
 	 */
-	xchk_rtgroup_lock(&sc->sr, XFS_RTGLOCK_BITMAP);
 	if (mp->m_sb.sb_rblocks) {
 		rtb->rextents = xfs_blen_to_rtbxlen(mp, mp->m_sb.sb_rblocks);
 		rtb->rextslog = xfs_compute_rextslog(rtb->rextents);

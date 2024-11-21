@@ -89,6 +89,10 @@ xchk_setup_rtsummary(
 	if (error)
 		return error;
 
+	error = xchk_rtgroup_lock(sc, &sc->sr, XFS_RTGLOCK_BITMAP);
+	if (error)
+		return error;
+
 	/*
 	 * Now that we've locked the rtbitmap and rtsummary, we can't race with
 	 * growfsrt trying to expand the summary or change the size of the rt
@@ -99,7 +103,6 @@ xchk_setup_rtsummary(
 	 * exclusively here.  If we ever start caring about running concurrent
 	 * fsmap with scrub this could be changed.
 	 */
-	xchk_rtgroup_lock(&sc->sr, XFS_RTGLOCK_BITMAP);
 	if (mp->m_sb.sb_rblocks) {
 		rts->rextents = xfs_blen_to_rtbxlen(mp, mp->m_sb.sb_rblocks);
 		rts->rbmblocks = xfs_rtbitmap_blockcount(mp);

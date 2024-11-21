@@ -719,13 +719,79 @@ xchk_rtgroup_init(
 	return 0;
 }
 
-void
+/* Lock all the rt group metadata inode ILOCKs and wait for intents. */
+int
 xchk_rtgroup_lock(
+	struct xfs_scrub	*sc,
 	struct xchk_rt		*sr,
 	unsigned int		rtglock_flags)
 {
-	xfs_rtgroup_lock(sr->rtg, rtglock_flags);
+	int			error = 0;
+
+	ASSERT(sr->rtg != NULL);
+
+	/*
+	 * If we're /only/ locking the rtbitmap in shared mode, then we're
+	 * obviously not trying to compare records in two metadata inodes.
+	 * There's no need to drain intents here because the caller (most
+	 * likely the rgsuper scanner) doesn't need that level of consistency.
+	 */
+	if (rtglock_flags == XFS_RTGLOCK_BITMAP_SHARED) {
+		xfs_rtgroup_lock(sr->rtg, rtglock_flags);
+		sr->rtlock_flags = rtglock_flags;
+		return 0;
+	}
+
+	do {
+		if (xchk_should_terminate(sc, &error))
+			return error;
+
+		xfs_rtgroup_lock(sr->rtg, rtglock_flags);
+
+		/*
+		 * If we've grabbed a non-metadata file for scrubbing, we
+		 * assume that holding its ILOCK will suffice to coordinate
+		 * with any rt intent chains involving this inode.
+		 */
+		if (sc->ip && !xfs_is_internal_inode(sc->ip))
+			break;
+
+		/*
+		 * Decide if the rt group is quiet enough for all metadata to
+		 * be consistent with each other.  Regular file IO doesn't get
+		 * to lock all the rt inodes at the same time, which means that
+		 * there could be other threads in the middle of processing a
+		 * chain of deferred ops.
+		 *
+		 * We just locked all the metadata inodes for this rt group;
+		 * now take a look to see if there are any intents in progress.
+		 * If there are, drop the rt group inode locks and wait for the
+		 * intents to drain.  Since we hold the rt group inode locks
+		 * for the duration of the scrub, this is the only time we have
+		 * to sample the intents counter; any threads increasing it
+		 * after this point can't possibly be in the middle of a chain
+		 * of rt metadata updates.
+		 *
+		 * Obviously, this should be slanted against scrub and in favor
+		 * of runtime threads.
+		 */
+		if (!xfs_group_intent_busy(rtg_group(sr->rtg)))
+			break;
+
+		xfs_rtgroup_unlock(sr->rtg, rtglock_flags);
+
+		if (!(sc->flags & XCHK_FSGATES_DRAIN))
+			return -ECHRNG;
+		error = xfs_group_intent_drain(rtg_group(sr->rtg));
+		if (error) {
+			if (error == -ERESTARTSYS)
+				error = -EINTR;
+			return error;
+		}
+	} while (1);
+
 	sr->rtlock_flags = rtglock_flags;
+	return 0;
 }
 
 /*
@@ -1379,7 +1445,7 @@ xchk_fsgates_enable(
 	trace_xchk_fsgates_enable(sc, scrub_fsgates);
 
 	if (scrub_fsgates & XCHK_FSGATES_DRAIN)
-		xfs_drain_wait_enable();
+		xfs_defer_drain_wait_enable();
 
 	if (scrub_fsgates & XCHK_FSGATES_QUOTA)
 		xfs_dqtrx_hook_enable();

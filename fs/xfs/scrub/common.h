@@ -141,12 +141,13 @@ xchk_rtgroup_init_existing(
 	return error == -ENOENT ? -EFSCORRUPTED : error;
 }
 
-void xchk_rtgroup_lock(struct xchk_rt *sr, unsigned int rtglock_flags);
+int xchk_rtgroup_lock(struct xfs_scrub *sc, struct xchk_rt *sr,
+		unsigned int rtglock_flags);
 void xchk_rtgroup_free(struct xfs_scrub *sc, struct xchk_rt *sr);
 #else
 # define xchk_rtgroup_init(sc, rgno, sr)		(-EFSCORRUPTED)
 # define xchk_rtgroup_init_existing(sc, rgno, sr)	(-EFSCORRUPTED)
-# define xchk_rtgroup_lock(sc, lockflags)		do { } while (0)
+# define xchk_rtgroup_lock(sc, sr, lockflags)		(-EFSCORRUPTED)
 # define xchk_rtgroup_free(sc, sr)			do { } while (0)
 #endif /* CONFIG_XFS_RT */
 
