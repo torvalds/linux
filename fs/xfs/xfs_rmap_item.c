@@ -351,10 +351,10 @@ xfs_rmap_defer_add(
 {
 	struct xfs_mount	*mp = tp->t_mountp;
 
-	trace_xfs_rmap_defer(mp, ri);
-
 	ri->ri_group = xfs_group_intent_get(mp, ri->ri_bmap.br_startblock,
 			XG_TYPE_AG);
+
+	trace_xfs_rmap_defer(mp, ri);
 	xfs_defer_add(tp, &ri->ri_list, &xfs_rmap_update_defer_type);
 }
 
