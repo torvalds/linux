@@ -103,11 +103,8 @@ static int sam9x60_frac_pll_set(struct sam9x60_pll_core *core)
 	    (cmul == frac->mul && cfrac == frac->frac))
 		goto unlock;
 
-	/* Recommended value for PMC_PLL_ACR */
-	if (core->characteristics->upll)
-		val = AT91_PMC_PLL_ACR_DEFAULT_UPLL;
-	else
-		val = AT91_PMC_PLL_ACR_DEFAULT_PLLA;
+	/* Load recommended value for PMC_PLL_ACR */
+	val = core->characteristics->acr;
 	regmap_write(regmap, AT91_PMC_PLL_ACR, val);
 
 	regmap_write(regmap, AT91_PMC_PLL_CTRL1,
