@@ -23,6 +23,7 @@
 #include "xfs_icache.h"
 #include "xfs_bmap_btree.h"
 #include "xfs_rtrmap_btree.h"
+#include "xfs_rtrefcount_btree.h"
 
 STATIC void
 xlog_recover_inode_ra_pass2(
@@ -285,6 +286,9 @@ xlog_recover_inode_dbroot(
 		switch (be16_to_cpu(dip->di_metatype)) {
 		case XFS_METAFILE_RTRMAP:
 			xfs_rtrmapbt_to_disk(mp, src, len, dfork, dsize);
+			return 0;
+		case XFS_METAFILE_RTREFCOUNT:
+			xfs_rtrefcountbt_to_disk(mp, src, len, dfork, dsize);
 			return 0;
 		default:
 			ASSERT(0);
