@@ -2054,12 +2054,13 @@ xfs_refcount_recover_extent(
 /* Find and remove leftover CoW reservations. */
 int
 xfs_refcount_recover_cow_leftovers(
-	struct xfs_mount		*mp,
-	struct xfs_perag		*pag)
+	struct xfs_group		*xg)
 {
+	struct xfs_mount		*mp = xg->xg_mount;
+	bool				isrt = xg->xg_type == XG_TYPE_RTG;
 	struct xfs_trans		*tp;
 	struct xfs_btree_cur		*cur;
-	struct xfs_buf			*agbp;
+	struct xfs_buf			*agbp = NULL;
 	struct xfs_refcount_recovery	*rr, *n;
 	struct list_head		debris;
 	union xfs_btree_irec		low = {
@@ -2072,10 +2073,19 @@ xfs_refcount_recover_cow_leftovers(
 	xfs_fsblock_t			fsb;
 	int				error;
 
-	/* reflink filesystems mustn't have AGs larger than 2^31-1 blocks */
+	/* reflink filesystems must not have groups larger than 2^31-1 blocks */
+	BUILD_BUG_ON(XFS_MAX_RGBLOCKS >= XFS_REFC_COWFLAG);
 	BUILD_BUG_ON(XFS_MAX_CRC_AG_BLOCKS >= XFS_REFC_COWFLAG);
-	if (mp->m_sb.sb_agblocks > XFS_MAX_CRC_AG_BLOCKS)
-		return -EOPNOTSUPP;
+
+	if (isrt) {
+		if (!xfs_has_rtgroups(mp))
+			return 0;
+		if (xfs_group_max_blocks(xg) >= XFS_MAX_RGBLOCKS)
+			return -EOPNOTSUPP;
+	} else {
+		if (xfs_group_max_blocks(xg) > XFS_MAX_CRC_AG_BLOCKS)
+			return -EOPNOTSUPP;
+	}
 
 	INIT_LIST_HEAD(&debris);
 
@@ -2093,16 +2103,24 @@ xfs_refcount_recover_cow_leftovers(
 	if (error)
 		return error;
 
-	error = xfs_alloc_read_agf(pag, tp, 0, &agbp);
-	if (error)
-		goto out_trans;
-	cur = xfs_refcountbt_init_cursor(mp, tp, agbp, pag);
+	if (isrt) {
+		xfs_rtgroup_lock(to_rtg(xg), XFS_RTGLOCK_REFCOUNT);
+		cur = xfs_rtrefcountbt_init_cursor(tp, to_rtg(xg));
+	} else {
+		error = xfs_alloc_read_agf(to_perag(xg), tp, 0, &agbp);
+		if (error)
+			goto out_trans;
+		cur = xfs_refcountbt_init_cursor(mp, tp, agbp, to_perag(xg));
+	}
 
 	/* Find all the leftover CoW staging extents. */
 	error = xfs_btree_query_range(cur, &low, &high,
 			xfs_refcount_recover_extent, &debris);
 	xfs_btree_del_cursor(cur, error);
-	xfs_trans_brelse(tp, agbp);
+	if (agbp)
+		xfs_trans_brelse(tp, agbp);
+	else
+		xfs_rtgroup_unlock(to_rtg(xg), XFS_RTGLOCK_REFCOUNT);
 	xfs_trans_cancel(tp);
 	if (error)
 		goto out_free;
@@ -2115,14 +2133,15 @@ xfs_refcount_recover_cow_leftovers(
 			goto out_free;
 
 		/* Free the orphan record */
-		fsb = xfs_agbno_to_fsb(pag, rr->rr_rrec.rc_startblock);
-		xfs_refcount_free_cow_extent(tp, false, fsb,
+		fsb = xfs_gbno_to_fsb(xg, rr->rr_rrec.rc_startblock);
+		xfs_refcount_free_cow_extent(tp, isrt, fsb,
 				rr->rr_rrec.rc_blockcount);
 
 		/* Free the block. */
 		error = xfs_free_extent_later(tp, fsb,
 				rr->rr_rrec.rc_blockcount, NULL,
-				XFS_AG_RESV_NONE, 0);
+				XFS_AG_RESV_NONE,
+				isrt ? XFS_FREE_EXTENT_REALTIME : 0);
 		if (error)
 			goto out_trans;
 

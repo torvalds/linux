@@ -983,20 +983,29 @@ xfs_reflink_recover_cow(
 	struct xfs_mount	*mp)
 {
 	struct xfs_perag	*pag = NULL;
+	struct xfs_rtgroup	*rtg = NULL;
 	int			error = 0;
 
 	if (!xfs_has_reflink(mp))
 		return 0;
 
 	while ((pag = xfs_perag_next(mp, pag))) {
-		error = xfs_refcount_recover_cow_leftovers(mp, pag);
+		error = xfs_refcount_recover_cow_leftovers(pag_group(pag));
 		if (error) {
 			xfs_perag_rele(pag);
-			break;
+			return error;
 		}
 	}
 
-	return error;
+	while ((rtg = xfs_rtgroup_next(mp, rtg))) {
+		error = xfs_refcount_recover_cow_leftovers(rtg_group(rtg));
+		if (error) {
+			xfs_rtgroup_rele(rtg);
+			return error;
+		}
+	}
+
+	return 0;
 }
 
 /*
