@@ -423,12 +423,10 @@ xfs_broot_realloc(
 }
 
 /*
- * Reallocate the space for if_broot based on the number of records
- * being added or deleted as indicated in rec_diff.  Move the records
- * and pointers in if_broot to fit the new size.  When shrinking this
- * will eliminate holes between the records and pointers created by
- * the caller.  When growing this will create holes to be filled in
- * by the caller.
+ * Reallocate the space for if_broot based on the number of records.  Move the
+ * records and pointers in if_broot to fit the new size.  When shrinking this
+ * will eliminate holes between the records and pointers created by the caller.
+ * When growing this will create holes to be filled in by the caller.
  *
  * The caller must not request to add more records than would fit in
  * the on-disk inode root.  If the if_broot is currently NULL, then
@@ -437,40 +435,47 @@ xfs_broot_realloc(
  * it can go to zero.
  *
  * ip -- the inode whose if_broot area is changing
- * ext_diff -- the change in the number of records, positive or negative,
- *	 requested for the if_broot array.
+ * whichfork -- which inode fork to change
+ * new_numrecs -- the new number of records requested for the if_broot array
+ *
+ * Returns the incore btree root block.
  */
-void
+struct xfs_btree_block *
 xfs_iroot_realloc(
 	struct xfs_inode	*ip,
-	int			rec_diff,
-	int			whichfork)
+	int			whichfork,
+	unsigned int		new_numrecs)
 {
 	struct xfs_mount	*mp = ip->i_mount;
 	struct xfs_ifork	*ifp = xfs_ifork_ptr(ip, whichfork);
 	char			*np;
 	char			*op;
-	size_t			new_size;
-	short			old_size = ifp->if_broot_bytes;
-	int			cur_max;
-	int			new_max;
+	unsigned int		new_size;
+	unsigned int		old_size = ifp->if_broot_bytes;
 
 	/*
-	 * Handle the degenerate case quietly.
+	 * Block mapping btrees do not support storing zero records; if this
+	 * happens, the fork is being changed to FMT_EXTENTS.  Free the broot
+	 * and get out.
 	 */
-	if (rec_diff == 0)
-		return;
+	if (new_numrecs == 0)
+		return xfs_broot_realloc(ifp, 0);
 
-	if (rec_diff > 0) {
+	new_size = xfs_bmap_broot_space_calc(mp, new_numrecs);
+
+	/* Handle the nop case quietly. */
+	if (new_size == old_size)
+		return ifp->if_broot;
+
+	if (new_size > old_size) {
+		unsigned int	old_numrecs;
+
 		/*
 		 * If there wasn't any memory allocated before, just
 		 * allocate it now and get out.
 		 */
-		if (old_size == 0) {
-			new_size = xfs_bmap_broot_space_calc(mp, rec_diff);
-			xfs_broot_realloc(ifp, new_size);
-			return;
-		}
+		if (old_size == 0)
+			return xfs_broot_realloc(ifp, new_size);
 
 		/*
 		 * If there is already an existing if_broot, then we need
@@ -478,10 +483,7 @@ xfs_iroot_realloc(
 		 * location.  The records don't change location because
 		 * they are kept butted up against the btree block header.
 		 */
-		cur_max = xfs_bmbt_maxrecs(mp, old_size, false);
-		new_max = cur_max + rec_diff;
-		new_size = xfs_bmap_broot_space_calc(mp, new_max);
-
+		old_numrecs = xfs_bmbt_maxrecs(mp, old_size, false);
 		xfs_broot_realloc(ifp, new_size);
 		op = (char *)xfs_bmap_broot_ptr_addr(mp, ifp->if_broot, 1,
 						     old_size);
@@ -489,27 +491,15 @@ xfs_iroot_realloc(
 						     (int)new_size);
 		ASSERT(xfs_bmap_bmdr_space(ifp->if_broot) <=
 			xfs_inode_fork_size(ip, whichfork));
-		memmove(np, op, cur_max * (uint)sizeof(xfs_fsblock_t));
-		return;
+		memmove(np, op, old_numrecs * (uint)sizeof(xfs_fsblock_t));
+		return ifp->if_broot;
 	}
 
 	/*
-	 * rec_diff is less than 0.  In this case, we are shrinking the
-	 * if_broot buffer.  It must already exist.  If we go to zero
-	 * records, just get rid of the root and clear the status bit.
+	 * We're reducing, but not totally eliminating, numrecs.  In this case,
+	 * we are shrinking the if_broot buffer, so it must already exist.
 	 */
-	ASSERT(ifp->if_broot != NULL && old_size > 0);
-	cur_max = xfs_bmbt_maxrecs(mp, old_size, false);
-	new_max = cur_max + rec_diff;
-	ASSERT(new_max >= 0);
-	if (new_max > 0)
-		new_size = xfs_bmap_broot_space_calc(mp, new_max);
-	else
-		new_size = 0;
-	if (new_size == 0) {
-		xfs_broot_realloc(ifp, 0);
-		return;
-	}
+	ASSERT(ifp->if_broot != NULL && old_size > 0 && new_size > 0);
 
 	/*
 	 * Shrink the btree root by moving the bmbt pointers, since they are
@@ -519,11 +509,12 @@ xfs_iroot_realloc(
 	op = (char *)xfs_bmap_broot_ptr_addr(mp, ifp->if_broot, 1, old_size);
 	np = (char *)xfs_bmap_broot_ptr_addr(mp, ifp->if_broot, 1,
 					     (int)new_size);
-	memmove(np, op, new_max * (uint)sizeof(xfs_fsblock_t));
+	memmove(np, op, new_numrecs * (uint)sizeof(xfs_fsblock_t));
 
 	xfs_broot_realloc(ifp, new_size);
 	ASSERT(xfs_bmap_bmdr_space(ifp->if_broot) <=
 	       xfs_inode_fork_size(ip, whichfork));
+	return ifp->if_broot;
 }
 
 
