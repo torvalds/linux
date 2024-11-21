@@ -30,6 +30,7 @@
 #include "xfs_health.h"
 #include "xfs_buf_mem.h"
 #include "xfs_btree_mem.h"
+#include "xfs_rtrmap_btree.h"
 
 /*
  * Btree magic numbers.
@@ -5527,6 +5528,9 @@ xfs_btree_init_cur_caches(void)
 	error = xfs_refcountbt_init_cur_cache();
 	if (error)
 		goto err;
+	error = xfs_rtrmapbt_init_cur_cache();
+	if (error)
+		goto err;
 
 	return 0;
 err:
@@ -5543,6 +5547,7 @@ xfs_btree_destroy_cur_caches(void)
 	xfs_bmbt_destroy_cur_cache();
 	xfs_rmapbt_destroy_cur_cache();
 	xfs_refcountbt_destroy_cur_cache();
+	xfs_rtrmapbt_destroy_cur_cache();
 }
 
 /* Move the btree cursor before the first record. */
