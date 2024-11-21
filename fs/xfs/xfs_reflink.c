@@ -30,6 +30,9 @@
 #include "xfs_ag.h"
 #include "xfs_ag_resv.h"
 #include "xfs_health.h"
+#include "xfs_rtrefcount_btree.h"
+#include "xfs_rtalloc.h"
+#include "xfs_rtgroup.h"
 
 /*
  * Copy on Write of Shared Blocks
@@ -164,6 +167,53 @@ out:
 }
 
 /*
+ * Given a file mapping for the rt device, find the lowest-numbered run of
+ * shared blocks within that mapping and return it in shared_offset/shared_len.
+ * The offset is relative to the start of irec.
+ *
+ * If find_end_of_shared is true, return the longest contiguous extent of shared
+ * blocks.  If there are no shared extents, shared_offset and shared_len will be
+ * set to 0;
+ */
+static int
+xfs_reflink_find_rtshared(
+	struct xfs_mount	*mp,
+	struct xfs_trans	*tp,
+	const struct xfs_bmbt_irec *irec,
+	xfs_extlen_t		*shared_offset,
+	xfs_extlen_t		*shared_len,
+	bool			find_end_of_shared)
+{
+	struct xfs_rtgroup	*rtg;
+	struct xfs_btree_cur	*cur;
+	xfs_rgblock_t		orig_bno;
+	xfs_agblock_t		found_bno;
+	int			error;
+
+	BUILD_BUG_ON(NULLRGBLOCK != NULLAGBLOCK);
+
+	/*
+	 * Note: this uses the not quite correct xfs_agblock_t type because
+	 * xfs_refcount_find_shared is shared between the RT and data device
+	 * refcount code.
+	 */
+	orig_bno = xfs_rtb_to_rgbno(mp, irec->br_startblock);
+	rtg = xfs_rtgroup_get(mp, xfs_rtb_to_rgno(mp, irec->br_startblock));
+
+	xfs_rtgroup_lock(rtg, XFS_RTGLOCK_REFCOUNT);
+	cur = xfs_rtrefcountbt_init_cursor(tp, rtg);
+	error = xfs_refcount_find_shared(cur, orig_bno, irec->br_blockcount,
+			&found_bno, shared_len, find_end_of_shared);
+	xfs_btree_del_cursor(cur, error);
+	xfs_rtgroup_unlock(rtg, XFS_RTGLOCK_REFCOUNT);
+	xfs_rtgroup_put(rtg);
+
+	if (!error && *shared_len)
+		*shared_offset = found_bno - orig_bno;
+	return error;
+}
+
+/*
  * Trim the mapping to the next block where there's a change in the
  * shared/unshared status.  More specifically, this means that we
  * find the lowest-numbered extent of shared blocks that coincides with
@@ -191,8 +241,12 @@ xfs_reflink_trim_around_shared(
 
 	trace_xfs_reflink_trim_around_shared(ip, irec);
 
-	error = xfs_reflink_find_shared(mp, NULL, irec, &shared_offset,
-			&shared_len, true);
+	if (XFS_IS_REALTIME_INODE(ip))
+		error = xfs_reflink_find_rtshared(mp, NULL, irec,
+				&shared_offset, &shared_len, true);
+	else
+		error = xfs_reflink_find_shared(mp, NULL, irec,
+				&shared_offset, &shared_len, true);
 	if (error)
 		return error;
 
@@ -1554,8 +1608,12 @@ xfs_reflink_inode_has_shared_extents(
 		    got.br_state != XFS_EXT_NORM)
 			goto next;
 
-		error = xfs_reflink_find_shared(mp, tp, &got, &shared_offset,
-				&shared_len, false);
+		if (XFS_IS_REALTIME_INODE(ip))
+			error = xfs_reflink_find_rtshared(mp, tp, &got,
+					&shared_offset, &shared_len, false);
+		else
+			error = xfs_reflink_find_shared(mp, tp, &got,
+					&shared_offset, &shared_len, false);
 		if (error)
 			return error;
 
