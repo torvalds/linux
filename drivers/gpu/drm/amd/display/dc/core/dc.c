@@ -6056,7 +6056,7 @@ void dc_query_current_properties(struct dc *dc, struct dc_current_properties *pr
 	bool subvp_sw_cursor_req = false;
 
 	for (i = 0; i < dc->current_state->stream_count; i++) {
-		if (check_subvp_sw_cursor_fallback_req(dc, dc->current_state->streams[i])) {
+		if (check_subvp_sw_cursor_fallback_req(dc, dc->current_state->streams[i]) && !dc->current_state->streams[i]->hw_cursor_req) {
 			subvp_sw_cursor_req = true;
 			break;
 		}
