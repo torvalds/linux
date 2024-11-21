@@ -78,6 +78,7 @@ def define_niobe():
         "drivers/mailbox/msm_qmp.ko",
         "drivers/mailbox/qcom-ipcc.ko",
         "drivers/mfd/qcom-spmi-pmic.ko",
+        "drivers/misc/kxrctrl/aphost.ko",
         "drivers/mmc/host/cqhci.ko",
         "drivers/mmc/host/sdhci-msm.ko",
         "drivers/nvme/host/sdexpress.ko",
