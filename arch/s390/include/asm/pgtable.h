@@ -277,7 +277,8 @@ static inline int is_module_addr(void *addr)
 #define _REGION1_ENTRY_EMPTY	(_REGION_ENTRY_TYPE_R1 | _REGION_ENTRY_INVALID)
 #define _REGION2_ENTRY		(_REGION_ENTRY_TYPE_R2 | _REGION_ENTRY_LENGTH)
 #define _REGION2_ENTRY_EMPTY	(_REGION_ENTRY_TYPE_R2 | _REGION_ENTRY_INVALID)
-#define _REGION3_ENTRY		(_REGION_ENTRY_TYPE_R3 | _REGION_ENTRY_LENGTH)
+#define _REGION3_ENTRY		(_REGION_ENTRY_TYPE_R3 | _REGION_ENTRY_LENGTH | \
+				 _REGION3_ENTRY_PRESENT)
 #define _REGION3_ENTRY_EMPTY	(_REGION_ENTRY_TYPE_R3 | _REGION_ENTRY_INVALID)
 
 #define _REGION3_ENTRY_HARDWARE_BITS		0xfffffffffffff6ffUL
@@ -297,6 +298,14 @@ static inline int is_module_addr(void *addr)
 
 #define _REGION_ENTRY_BITS	 0xfffffffffffff22fUL
 
+/*
+ * SW region present bit. For non-leaf region-third-table entries, bits 62-63
+ * indicate the TABLE LENGTH and both must be set to 1. But such entries
+ * would always be considered as present, so it is safe to use bit 63 as
+ * PRESENT bit for PUD.
+ */
+#define _REGION3_ENTRY_PRESENT	0x0001
+
 /* Bits in the segment table entry */
 #define _SEGMENT_ENTRY_BITS			0xfffffffffffffe3fUL
 #define _SEGMENT_ENTRY_HARDWARE_BITS		0xfffffffffffffe3cUL
@@ -308,7 +317,7 @@ static inline int is_module_addr(void *addr)
 #define _SEGMENT_ENTRY_INVALID	0x20	/* invalid segment table entry	    */
 #define _SEGMENT_ENTRY_TYPE_MASK 0x0c	/* segment table type mask	    */
 
-#define _SEGMENT_ENTRY		(0)
+#define _SEGMENT_ENTRY		(_SEGMENT_ENTRY_PRESENT)
 #define _SEGMENT_ENTRY_EMPTY	(_SEGMENT_ENTRY_INVALID)
 
 #define _SEGMENT_ENTRY_DIRTY	0x2000	/* SW segment dirty bit */
@@ -323,6 +332,8 @@ static inline int is_module_addr(void *addr)
 #else
 #define _SEGMENT_ENTRY_SOFT_DIRTY 0x0000 /* SW segment soft dirty bit */
 #endif
+
+#define _SEGMENT_ENTRY_PRESENT	0x0001	/* SW segment present bit */
 
 #define _CRST_ENTRIES	2048	/* number of region/segment table entries */
 #define _PAGE_ENTRIES	256	/* number of page table entries	*/
@@ -455,17 +466,22 @@ static inline int is_module_addr(void *addr)
 /*
  * Segment entry (large page) protection definitions.
  */
-#define SEGMENT_NONE	__pgprot(_SEGMENT_ENTRY_INVALID | \
+#define SEGMENT_NONE	__pgprot(_SEGMENT_ENTRY_PRESENT | \
+				 _SEGMENT_ENTRY_INVALID | \
 				 _SEGMENT_ENTRY_PROTECT)
-#define SEGMENT_RO	__pgprot(_SEGMENT_ENTRY_PROTECT | \
+#define SEGMENT_RO	__pgprot(_SEGMENT_ENTRY_PRESENT | \
+				 _SEGMENT_ENTRY_PROTECT | \
 				 _SEGMENT_ENTRY_READ | \
 				 _SEGMENT_ENTRY_NOEXEC)
-#define SEGMENT_RX	__pgprot(_SEGMENT_ENTRY_PROTECT | \
+#define SEGMENT_RX	__pgprot(_SEGMENT_ENTRY_PRESENT | \
+				 _SEGMENT_ENTRY_PROTECT | \
 				 _SEGMENT_ENTRY_READ)
-#define SEGMENT_RW	__pgprot(_SEGMENT_ENTRY_READ | \
+#define SEGMENT_RW	__pgprot(_SEGMENT_ENTRY_PRESENT | \
+				 _SEGMENT_ENTRY_READ | \
 				 _SEGMENT_ENTRY_WRITE | \
 				 _SEGMENT_ENTRY_NOEXEC)
-#define SEGMENT_RWX	__pgprot(_SEGMENT_ENTRY_READ | \
+#define SEGMENT_RWX	__pgprot(_SEGMENT_ENTRY_PRESENT | \
+				 _SEGMENT_ENTRY_READ | \
 				 _SEGMENT_ENTRY_WRITE)
 #define SEGMENT_KERNEL	__pgprot(_SEGMENT_ENTRY |	\
 				 _SEGMENT_ENTRY_LARGE |	\
@@ -492,6 +508,7 @@ static inline int is_module_addr(void *addr)
  */
 
 #define REGION3_KERNEL	__pgprot(_REGION_ENTRY_TYPE_R3 | \
+				 _REGION3_ENTRY_PRESENT | \
 				 _REGION3_ENTRY_LARGE |	 \
 				 _REGION3_ENTRY_READ |	 \
 				 _REGION3_ENTRY_WRITE |	 \
@@ -499,12 +516,14 @@ static inline int is_module_addr(void *addr)
 				 _REGION3_ENTRY_DIRTY | \
 				 _REGION_ENTRY_NOEXEC)
 #define REGION3_KERNEL_RO __pgprot(_REGION_ENTRY_TYPE_R3 | \
+				   _REGION3_ENTRY_PRESENT | \
 				   _REGION3_ENTRY_LARGE |  \
 				   _REGION3_ENTRY_READ |   \
 				   _REGION3_ENTRY_YOUNG |  \
 				   _REGION_ENTRY_PROTECT | \
 				   _REGION_ENTRY_NOEXEC)
 #define REGION3_KERNEL_EXEC __pgprot(_REGION_ENTRY_TYPE_R3 | \
+				 _REGION3_ENTRY_PRESENT | \
 				 _REGION3_ENTRY_LARGE |	 \
 				 _REGION3_ENTRY_READ |	 \
 				 _REGION3_ENTRY_WRITE |	 \
@@ -747,7 +766,7 @@ static inline int pud_present(pud_t pud)
 {
 	if (pud_folded(pud))
 		return 1;
-	return (pud_val(pud) & _REGION_ENTRY_ORIGIN) != 0UL;
+	return (pud_val(pud) & _REGION3_ENTRY_PRESENT) != 0;
 }
 
 static inline int pud_none(pud_t pud)
@@ -762,13 +781,18 @@ static inline bool pud_leaf(pud_t pud)
 {
 	if ((pud_val(pud) & _REGION_ENTRY_TYPE_MASK) != _REGION_ENTRY_TYPE_R3)
 		return 0;
-	return !!(pud_val(pud) & _REGION3_ENTRY_LARGE);
+	return (pud_present(pud) && (pud_val(pud) & _REGION3_ENTRY_LARGE) != 0);
+}
+
+static inline int pmd_present(pmd_t pmd)
+{
+	return (pmd_val(pmd) & _SEGMENT_ENTRY_PRESENT) != 0;
 }
 
 #define pmd_leaf pmd_leaf
 static inline bool pmd_leaf(pmd_t pmd)
 {
-	return (pmd_val(pmd) & _SEGMENT_ENTRY_LARGE) != 0;
+	return (pmd_present(pmd) && (pmd_val(pmd) & _SEGMENT_ENTRY_LARGE) != 0);
 }
 
 static inline int pmd_bad(pmd_t pmd)
@@ -798,11 +822,6 @@ static inline int p4d_bad(p4d_t p4d)
 	if (type < _REGION_ENTRY_TYPE_R2)
 		return 0;
 	return (p4d_val(p4d) & ~_REGION_ENTRY_BITS) != 0;
-}
-
-static inline int pmd_present(pmd_t pmd)
-{
-	return pmd_val(pmd) != _SEGMENT_ENTRY_EMPTY;
 }
 
 static inline int pmd_none(pmd_t pmd)
@@ -1852,7 +1871,7 @@ static inline pmd_t pmdp_collapse_flush(struct vm_area_struct *vma,
 
 static inline int pmd_trans_huge(pmd_t pmd)
 {
-	return pmd_val(pmd) & _SEGMENT_ENTRY_LARGE;
+	return pmd_leaf(pmd);
 }
 
 #define has_transparent_hugepage has_transparent_hugepage

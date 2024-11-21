@@ -48,6 +48,7 @@ static inline unsigned long __pte_to_rste(pte_t pte)
 	 */
 	if (pte_present(pte)) {
 		rste = pte_val(pte) & PAGE_MASK;
+		rste |= _SEGMENT_ENTRY_PRESENT;
 		rste |= move_set_bit(pte_val(pte), _PAGE_READ,
 				     _SEGMENT_ENTRY_READ);
 		rste |= move_set_bit(pte_val(pte), _PAGE_WRITE,
@@ -223,11 +224,10 @@ pte_t *huge_pte_offset(struct mm_struct *mm,
 		p4dp = p4d_offset(pgdp, addr);
 		if (p4d_present(*p4dp)) {
 			pudp = pud_offset(p4dp, addr);
-			if (pud_present(*pudp)) {
-				if (pud_leaf(*pudp))
-					return (pte_t *) pudp;
+			if (sz == PUD_SIZE)
+				return (pte_t *)pudp;
+			if (pud_present(*pudp))
 				pmdp = pmd_offset(pudp, addr);
-			}
 		}
 	}
 	return (pte_t *) pmdp;
