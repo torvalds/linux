@@ -132,6 +132,32 @@ xfs_rtgroup_next(
 	return xfs_rtgroup_next_range(mp, rtg, 0, mp->m_sb.sb_rgcount - 1);
 }
 
+static inline bool
+xfs_verify_rgbno(
+	struct xfs_rtgroup	*rtg,
+	xfs_rgblock_t		rgbno)
+{
+	ASSERT(xfs_has_rtgroups(rtg_mount(rtg)));
+
+	return xfs_verify_gbno(rtg_group(rtg), rgbno);
+}
+
+/*
+ * Check that [@rgbno,@len] is a valid extent range in @rtg.
+ *
+ * Must only be used for RTG-enabled file systems.
+ */
+static inline bool
+xfs_verify_rgbext(
+	struct xfs_rtgroup	*rtg,
+	xfs_rgblock_t		rgbno,
+	xfs_extlen_t		len)
+{
+	ASSERT(xfs_has_rtgroups(rtg_mount(rtg)));
+
+	return xfs_verify_gbext(rtg_group(rtg), rgbno, len);
+}
+
 static inline xfs_rtblock_t
 xfs_rgbno_to_rtb(
 	struct xfs_rtgroup	*rtg,

@@ -25,6 +25,7 @@
 #include "xfs_ag.h"
 #include "xfs_health.h"
 #include "xfs_rmap_item.h"
+#include "xfs_rtgroup.h"
 
 struct kmem_cache	*xfs_rmap_intent_cache;
 
@@ -264,11 +265,69 @@ xfs_rmap_check_irec(
 	return NULL;
 }
 
+static xfs_failaddr_t
+xfs_rtrmap_check_meta_irec(
+	struct xfs_rtgroup		*rtg,
+	const struct xfs_rmap_irec	*irec)
+{
+	struct xfs_mount		*mp = rtg_mount(rtg);
+
+	if (irec->rm_offset != 0)
+		return __this_address;
+	if (irec->rm_flags & XFS_RMAP_UNWRITTEN)
+		return __this_address;
+
+	switch (irec->rm_owner) {
+	case XFS_RMAP_OWN_FS:
+		if (irec->rm_startblock != 0)
+			return __this_address;
+		if (irec->rm_blockcount != mp->m_sb.sb_rextsize)
+			return __this_address;
+		return NULL;
+	default:
+		return __this_address;
+	}
+
+	return NULL;
+}
+
+static xfs_failaddr_t
+xfs_rtrmap_check_inode_irec(
+	struct xfs_rtgroup		*rtg,
+	const struct xfs_rmap_irec	*irec)
+{
+	struct xfs_mount		*mp = rtg_mount(rtg);
+
+	if (!xfs_verify_ino(mp, irec->rm_owner))
+		return __this_address;
+	if (!xfs_verify_rgbext(rtg, irec->rm_startblock, irec->rm_blockcount))
+		return __this_address;
+	if (!xfs_verify_fileext(mp, irec->rm_offset, irec->rm_blockcount))
+		return __this_address;
+	return NULL;
+}
+
+xfs_failaddr_t
+xfs_rtrmap_check_irec(
+	struct xfs_rtgroup		*rtg,
+	const struct xfs_rmap_irec	*irec)
+{
+	if (irec->rm_blockcount == 0)
+		return __this_address;
+	if (irec->rm_flags & (XFS_RMAP_BMBT_BLOCK | XFS_RMAP_ATTR_FORK))
+		return __this_address;
+	if (XFS_RMAP_NON_INODE_OWNER(irec->rm_owner))
+		return xfs_rtrmap_check_meta_irec(rtg, irec);
+	return xfs_rtrmap_check_inode_irec(rtg, irec);
+}
+
 static inline xfs_failaddr_t
 xfs_rmap_check_btrec(
 	struct xfs_btree_cur		*cur,
 	const struct xfs_rmap_irec	*irec)
 {
+	if (xfs_btree_is_rtrmap(cur->bc_ops))
+		return xfs_rtrmap_check_irec(to_rtg(cur->bc_group), irec);
 	return xfs_rmap_check_irec(to_perag(cur->bc_group), irec);
 }
 
@@ -283,6 +342,10 @@ xfs_rmap_complain_bad_rec(
 	if (xfs_btree_is_mem_rmap(cur->bc_ops))
 		xfs_warn(mp,
  "In-Memory Reverse Mapping BTree record corruption detected at %pS!", fa);
+	else if (xfs_btree_is_rtrmap(cur->bc_ops))
+		xfs_warn(mp,
+ "RT Reverse Mapping BTree record corruption in rtgroup %u detected at %pS!",
+				cur->bc_group->xg_gno, fa);
 	else
 		xfs_warn(mp,
  "Reverse Mapping BTree record corruption in AG %d detected at %pS!",
