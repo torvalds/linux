@@ -888,6 +888,25 @@ xrep_dinode_bad_bmbt_fork(
 	return false;
 }
 
+/* Check a metadata-btree fork. */
+STATIC bool
+xrep_dinode_bad_metabt_fork(
+	struct xfs_scrub	*sc,
+	struct xfs_dinode	*dip,
+	unsigned int		dfork_size,
+	int			whichfork)
+{
+	if (whichfork != XFS_DATA_FORK)
+		return true;
+
+	switch (be16_to_cpu(dip->di_metatype)) {
+	default:
+		return true;
+	}
+
+	return false;
+}
+
 /*
  * Check the data fork for things that will fail the ifork verifiers or the
  * ifork formatters.
@@ -965,6 +984,11 @@ xrep_dinode_check_dfork(
 		break;
 	case XFS_DINODE_FMT_BTREE:
 		if (xrep_dinode_bad_bmbt_fork(sc, dip, dfork_size,
+				XFS_DATA_FORK))
+			return true;
+		break;
+	case XFS_DINODE_FMT_META_BTREE:
+		if (xrep_dinode_bad_metabt_fork(sc, dip, dfork_size,
 				XFS_DATA_FORK))
 			return true;
 		break;
@@ -1085,6 +1109,11 @@ xrep_dinode_check_afork(
 		break;
 	case XFS_DINODE_FMT_BTREE:
 		if (xrep_dinode_bad_bmbt_fork(sc, dip, afork_size,
+					XFS_ATTR_FORK))
+			return true;
+		break;
+	case XFS_DINODE_FMT_META_BTREE:
+		if (xrep_dinode_bad_metabt_fork(sc, dip, afork_size,
 					XFS_ATTR_FORK))
 			return true;
 		break;
@@ -1240,6 +1269,13 @@ xrep_dinode_ensure_forkoff(
 		/* Must have space for btree header and key/pointers. */
 		bmdr = XFS_DFORK_PTR(dip, XFS_DATA_FORK);
 		dfork_min = xfs_bmap_broot_space(sc->mp, bmdr);
+		break;
+	case XFS_DINODE_FMT_META_BTREE:
+		switch (be16_to_cpu(dip->di_metatype)) {
+		default:
+			dfork_min = 0;
+			break;
+		}
 		break;
 	default:
 		dfork_min = 0;

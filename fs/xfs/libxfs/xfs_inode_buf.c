@@ -441,6 +441,16 @@ xfs_dinode_verify_fork(
 		if (di_nextents > max_extents)
 			return __this_address;
 		break;
+	case XFS_DINODE_FMT_META_BTREE:
+		if (!xfs_has_metadir(mp))
+			return __this_address;
+		if (!(dip->di_flags2 & cpu_to_be64(XFS_DIFLAG2_METADATA)))
+			return __this_address;
+		switch (be16_to_cpu(dip->di_metatype)) {
+		default:
+			return __this_address;
+		}
+		break;
 	default:
 		return __this_address;
 	}
@@ -460,6 +470,10 @@ xfs_dinode_verify_forkoff(
 		if (dip->di_forkoff != (roundup(sizeof(xfs_dev_t), 8) >> 3))
 			return __this_address;
 		break;
+	case XFS_DINODE_FMT_META_BTREE:
+		if (!xfs_has_metadir(mp) || !xfs_has_parent(mp))
+			return __this_address;
+		fallthrough;
 	case XFS_DINODE_FMT_LOCAL:	/* fall through ... */
 	case XFS_DINODE_FMT_EXTENTS:    /* fall through ... */
 	case XFS_DINODE_FMT_BTREE:
@@ -637,9 +651,6 @@ xfs_dinode_verify(
 	if (mode && nextents + naextents > nblocks)
 		return __this_address;
 
-	if (nextents + naextents == 0 && nblocks != 0)
-		return __this_address;
-
 	if (S_ISDIR(mode) && nextents > mp->m_dir_geo->max_extents)
 		return __this_address;
 
@@ -741,6 +752,12 @@ xfs_dinode_verify(
 		fa = xfs_dinode_verify_metadir(mp, dip, mode, flags, flags2);
 		if (fa)
 			return fa;
+	}
+
+	/* metadata inodes containing btrees always have zero extent count */
+	if (XFS_DFORK_FORMAT(dip, XFS_DATA_FORK) != XFS_DINODE_FMT_META_BTREE) {
+		if (nextents + naextents == 0 && nblocks != 0)
+			return __this_address;
 	}
 
 	return NULL;

@@ -499,6 +499,14 @@ xrep_rmap_scan_iext(
 	return xrep_rmap_stash_accumulated(rf);
 }
 
+static int
+xrep_rmap_scan_meta_btree(
+	struct xrep_rmap_ifork	*rf,
+	struct xfs_inode	*ip)
+{
+	return -EFSCORRUPTED; /* XXX placeholder */
+}
+
 /* Find all the extents from a given AG in an inode fork. */
 STATIC int
 xrep_rmap_scan_ifork(
@@ -512,14 +520,14 @@ xrep_rmap_scan_ifork(
 		.whichfork	= whichfork,
 	};
 	struct xfs_ifork	*ifp = xfs_ifork_ptr(ip, whichfork);
+	bool			mappings_done;
 	int			error = 0;
 
 	if (!ifp)
 		return 0;
 
-	if (ifp->if_format == XFS_DINODE_FMT_BTREE) {
-		bool		mappings_done;
-
+	switch (ifp->if_format) {
+	case XFS_DINODE_FMT_BTREE:
 		/*
 		 * Scan the bmap btree for data device mappings.  This includes
 		 * the btree blocks themselves, even if this is a realtime
@@ -528,15 +536,18 @@ xrep_rmap_scan_ifork(
 		error = xrep_rmap_scan_bmbt(&rf, ip, &mappings_done);
 		if (error || mappings_done)
 			return error;
-	} else if (ifp->if_format != XFS_DINODE_FMT_EXTENTS) {
-		return 0;
+		fallthrough;
+	case XFS_DINODE_FMT_EXTENTS:
+		/* Scan incore extent cache if this isn't a realtime file. */
+		if (xfs_ifork_is_realtime(ip, whichfork))
+			return 0;
+
+		return xrep_rmap_scan_iext(&rf, ifp);
+	case XFS_DINODE_FMT_META_BTREE:
+		return xrep_rmap_scan_meta_btree(&rf, ip);
 	}
 
-	/* Scan incore extent cache if this isn't a realtime file. */
-	if (xfs_ifork_is_realtime(ip, whichfork))
-		return 0;
-
-	return xrep_rmap_scan_iext(&rf, ifp);
+	return 0;
 }
 
 /*

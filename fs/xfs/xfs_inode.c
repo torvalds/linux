@@ -2382,7 +2382,16 @@ xfs_iflush(
 			__func__, ip->i_ino, be16_to_cpu(dip->di_magic), dip);
 		goto flush_out;
 	}
-	if (S_ISREG(VFS_I(ip)->i_mode)) {
+	if (ip->i_df.if_format == XFS_DINODE_FMT_META_BTREE) {
+		if (!S_ISREG(VFS_I(ip)->i_mode) ||
+		    !(ip->i_diflags2 & XFS_DIFLAG2_METADATA)) {
+			xfs_alert_tag(mp, XFS_PTAG_IFLUSH,
+				"%s: Bad %s meta btree inode %Lu, ptr "PTR_FMT,
+				__func__, xfs_metafile_type_str(ip->i_metatype),
+				ip->i_ino, ip);
+			goto flush_out;
+		}
+	} else if (S_ISREG(VFS_I(ip)->i_mode)) {
 		if (XFS_TEST_ERROR(
 		    ip->i_df.if_format != XFS_DINODE_FMT_EXTENTS &&
 		    ip->i_df.if_format != XFS_DINODE_FMT_BTREE,
@@ -2419,6 +2428,14 @@ xfs_iflush(
 		xfs_alert_tag(mp, XFS_PTAG_IFLUSH,
 			"%s: bad inode %llu, forkoff 0x%x, ptr "PTR_FMT,
 			__func__, ip->i_ino, ip->i_forkoff, ip);
+		goto flush_out;
+	}
+
+	if (xfs_inode_has_attr_fork(ip) &&
+	    ip->i_af.if_format == XFS_DINODE_FMT_META_BTREE) {
+		xfs_alert_tag(mp, XFS_PTAG_IFLUSH,
+			"%s: meta btree in inode %Lu attr fork, ptr "PTR_FMT,
+			__func__, ip->i_ino, ip);
 		goto flush_out;
 	}
 
