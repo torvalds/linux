@@ -1,0 +1,733 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+/*
+ * Copyright (c) 2020-2024 Oracle.  All Rights Reserved.
+ * Author: Darrick J. Wong <djwong@kernel.org>
+ */
+#include "xfs.h"
+#include "xfs_fs.h"
+#include "xfs_shared.h"
+#include "xfs_format.h"
+#include "xfs_trans_resv.h"
+#include "xfs_mount.h"
+#include "xfs_defer.h"
+#include "xfs_btree.h"
+#include "xfs_btree_staging.h"
+#include "xfs_bit.h"
+#include "xfs_log_format.h"
+#include "xfs_trans.h"
+#include "xfs_sb.h"
+#include "xfs_alloc.h"
+#include "xfs_rmap.h"
+#include "xfs_rmap_btree.h"
+#include "xfs_rtrmap_btree.h"
+#include "xfs_inode.h"
+#include "xfs_icache.h"
+#include "xfs_bmap.h"
+#include "xfs_bmap_btree.h"
+#include "xfs_quota.h"
+#include "xfs_rtalloc.h"
+#include "xfs_ag.h"
+#include "xfs_rtgroup.h"
+#include "scrub/xfs_scrub.h"
+#include "scrub/scrub.h"
+#include "scrub/common.h"
+#include "scrub/btree.h"
+#include "scrub/trace.h"
+#include "scrub/repair.h"
+#include "scrub/bitmap.h"
+#include "scrub/fsb_bitmap.h"
+#include "scrub/xfile.h"
+#include "scrub/xfarray.h"
+#include "scrub/iscan.h"
+#include "scrub/newbt.h"
+#include "scrub/reap.h"
+
+/*
+ * Realtime Reverse Mapping Btree Repair
+ * =====================================
+ *
+ * This isn't quite as difficult as repairing the rmap btree on the data
+ * device, since we only store the data fork extents of realtime files on the
+ * realtime device.  We still have to freeze the filesystem and stop the
+ * background threads like we do for the rmap repair, but we only have to scan
+ * realtime inodes.
+ *
+ * Collecting entries for the new realtime rmap btree is easy -- all we have
+ * to do is generate rtrmap entries from the data fork mappings of all realtime
+ * files in the filesystem.  We then scan the rmap btrees of the data device
+ * looking for extents belonging to the old btree and note them in a bitmap.
+ *
+ * To rebuild the realtime rmap btree, we bulk-load the collected mappings into
+ * a new btree cursor and atomically swap that into the realtime inode.  Then
+ * we can free the blocks from the old btree.
+ *
+ * We use the 'xrep_rtrmap' prefix for all the rmap functions.
+ */
+
+/*
+ * Packed rmap record.  The UNWRITTEN flags are hidden in the upper bits of
+ * offset, just like the on-disk record.
+ */
+struct xrep_rtrmap_extent {
+	xfs_rgblock_t	startblock;
+	xfs_extlen_t	blockcount;
+	uint64_t	owner;
+	uint64_t	offset;
+} __packed;
+
+/* Context for collecting rmaps */
+struct xrep_rtrmap {
+	/* new rtrmapbt information */
+	struct xrep_newbt	new_btree;
+
+	/* rmap records generated from primary metadata */
+	struct xfarray		*rtrmap_records;
+
+	struct xfs_scrub	*sc;
+
+	/* bitmap of old rtrmapbt blocks */
+	struct xfsb_bitmap	old_rtrmapbt_blocks;
+
+	/* inode scan cursor */
+	struct xchk_iscan	iscan;
+
+	/* get_records()'s position in the free space record array. */
+	xfarray_idx_t		array_cur;
+};
+
+/* Set us up to repair rt reverse mapping btrees. */
+int
+xrep_setup_rtrmapbt(
+	struct xfs_scrub	*sc)
+{
+	struct xrep_rtrmap	*rr;
+
+	rr = kzalloc(sizeof(struct xrep_rtrmap), XCHK_GFP_FLAGS);
+	if (!rr)
+		return -ENOMEM;
+
+	rr->sc = sc;
+	sc->buf = rr;
+	return 0;
+}
+
+/* Make sure there's nothing funny about this mapping. */
+STATIC int
+xrep_rtrmap_check_mapping(
+	struct xfs_scrub	*sc,
+	const struct xfs_rmap_irec *rec)
+{
+	if (xfs_rtrmap_check_irec(sc->sr.rtg, rec) != NULL)
+		return -EFSCORRUPTED;
+
+	/* Make sure this isn't free space. */
+	return xrep_require_rtext_inuse(sc, rec->rm_startblock,
+			rec->rm_blockcount);
+}
+
+/* Store a reverse-mapping record. */
+static inline int
+xrep_rtrmap_stash(
+	struct xrep_rtrmap	*rr,
+	xfs_rgblock_t		startblock,
+	xfs_extlen_t		blockcount,
+	uint64_t		owner,
+	uint64_t		offset,
+	unsigned int		flags)
+{
+	struct xrep_rtrmap_extent	rre = {
+		.startblock	= startblock,
+		.blockcount	= blockcount,
+		.owner		= owner,
+	};
+	struct xfs_rmap_irec	rmap = {
+		.rm_startblock	= startblock,
+		.rm_blockcount	= blockcount,
+		.rm_owner	= owner,
+		.rm_offset	= offset,
+		.rm_flags	= flags,
+	};
+	struct xfs_scrub	*sc = rr->sc;
+	int			error = 0;
+
+	if (xchk_should_terminate(sc, &error))
+		return error;
+
+	trace_xrep_rtrmap_found(sc->mp, &rmap);
+
+	rre.offset = xfs_rmap_irec_offset_pack(&rmap);
+	return xfarray_append(rr->rtrmap_records, &rre);
+}
+
+/* Finding all file and bmbt extents. */
+
+/* Context for accumulating rmaps for an inode fork. */
+struct xrep_rtrmap_ifork {
+	/*
+	 * Accumulate rmap data here to turn multiple adjacent bmaps into a
+	 * single rmap.
+	 */
+	struct xfs_rmap_irec	accum;
+
+	struct xrep_rtrmap	*rr;
+};
+
+/* Stash an rmap that we accumulated while walking an inode fork. */
+STATIC int
+xrep_rtrmap_stash_accumulated(
+	struct xrep_rtrmap_ifork	*rf)
+{
+	if (rf->accum.rm_blockcount == 0)
+		return 0;
+
+	return xrep_rtrmap_stash(rf->rr, rf->accum.rm_startblock,
+			rf->accum.rm_blockcount, rf->accum.rm_owner,
+			rf->accum.rm_offset, rf->accum.rm_flags);
+}
+
+/* Accumulate a bmbt record. */
+STATIC int
+xrep_rtrmap_visit_bmbt(
+	struct xfs_btree_cur	*cur,
+	struct xfs_bmbt_irec	*rec,
+	void			*priv)
+{
+	struct xrep_rtrmap_ifork *rf = priv;
+	struct xfs_rmap_irec	*accum = &rf->accum;
+	struct xfs_mount	*mp = rf->rr->sc->mp;
+	xfs_rgblock_t		rgbno;
+	unsigned int		rmap_flags = 0;
+	int			error;
+
+	if (xfs_rtb_to_rgno(mp, rec->br_startblock) !=
+	    rtg_rgno(rf->rr->sc->sr.rtg))
+		return 0;
+
+	if (rec->br_state == XFS_EXT_UNWRITTEN)
+		rmap_flags |= XFS_RMAP_UNWRITTEN;
+
+	/* If this bmap is adjacent to the previous one, just add it. */
+	rgbno = xfs_rtb_to_rgbno(mp, rec->br_startblock);
+	if (accum->rm_blockcount > 0 &&
+	    rec->br_startoff == accum->rm_offset + accum->rm_blockcount &&
+	    rgbno == accum->rm_startblock + accum->rm_blockcount &&
+	    rmap_flags == accum->rm_flags) {
+		accum->rm_blockcount += rec->br_blockcount;
+		return 0;
+	}
+
+	/* Otherwise stash the old rmap and start accumulating a new one. */
+	error = xrep_rtrmap_stash_accumulated(rf);
+	if (error)
+		return error;
+
+	accum->rm_startblock = rgbno;
+	accum->rm_blockcount = rec->br_blockcount;
+	accum->rm_offset = rec->br_startoff;
+	accum->rm_flags = rmap_flags;
+	return 0;
+}
+
+/*
+ * Iterate the block mapping btree to collect rmap records for anything in this
+ * fork that maps to the rt volume.  Sets @mappings_done to true if we've
+ * scanned the block mappings in this fork.
+ */
+STATIC int
+xrep_rtrmap_scan_bmbt(
+	struct xrep_rtrmap_ifork *rf,
+	struct xfs_inode	*ip,
+	bool			*mappings_done)
+{
+	struct xrep_rtrmap	*rr = rf->rr;
+	struct xfs_btree_cur	*cur;
+	struct xfs_ifork	*ifp = xfs_ifork_ptr(ip, XFS_DATA_FORK);
+	int			error = 0;
+
+	*mappings_done = false;
+
+	/*
+	 * If the incore extent cache is already loaded, we'll just use the
+	 * incore extent scanner to record mappings.  Don't bother walking the
+	 * ondisk extent tree.
+	 */
+	if (!xfs_need_iread_extents(ifp))
+		return 0;
+
+	/* Accumulate all the mappings in the bmap btree. */
+	cur = xfs_bmbt_init_cursor(rr->sc->mp, rr->sc->tp, ip, XFS_DATA_FORK);
+	error = xfs_bmap_query_all(cur, xrep_rtrmap_visit_bmbt, rf);
+	xfs_btree_del_cursor(cur, error);
+	if (error)
+		return error;
+
+	/* Stash any remaining accumulated rmaps and exit. */
+	*mappings_done = true;
+	return xrep_rtrmap_stash_accumulated(rf);
+}
+
+/*
+ * Iterate the in-core extent cache to collect rmap records for anything in
+ * this fork that matches the AG.
+ */
+STATIC int
+xrep_rtrmap_scan_iext(
+	struct xrep_rtrmap_ifork *rf,
+	struct xfs_ifork	*ifp)
+{
+	struct xfs_bmbt_irec	rec;
+	struct xfs_iext_cursor	icur;
+	int			error;
+
+	for_each_xfs_iext(ifp, &icur, &rec) {
+		if (isnullstartblock(rec.br_startblock))
+			continue;
+		error = xrep_rtrmap_visit_bmbt(NULL, &rec, rf);
+		if (error)
+			return error;
+	}
+
+	return xrep_rtrmap_stash_accumulated(rf);
+}
+
+/* Find all the extents on the realtime device mapped by an inode fork. */
+STATIC int
+xrep_rtrmap_scan_dfork(
+	struct xrep_rtrmap	*rr,
+	struct xfs_inode	*ip)
+{
+	struct xrep_rtrmap_ifork rf = {
+		.accum		= { .rm_owner = ip->i_ino, },
+		.rr		= rr,
+	};
+	struct xfs_ifork	*ifp = xfs_ifork_ptr(ip, XFS_DATA_FORK);
+	int			error = 0;
+
+	if (ifp->if_format == XFS_DINODE_FMT_BTREE) {
+		bool		mappings_done;
+
+		/*
+		 * Scan the bmbt for mappings.  If the incore extent tree is
+		 * loaded, we want to scan the cached mappings since that's
+		 * faster when the extent counts are very high.
+		 */
+		error = xrep_rtrmap_scan_bmbt(&rf, ip, &mappings_done);
+		if (error || mappings_done)
+			return error;
+	} else if (ifp->if_format != XFS_DINODE_FMT_EXTENTS) {
+		/* realtime data forks should only be extents or btree */
+		return -EFSCORRUPTED;
+	}
+
+	/* Scan incore extent cache. */
+	return xrep_rtrmap_scan_iext(&rf, ifp);
+}
+
+/* Record reverse mappings for a file. */
+STATIC int
+xrep_rtrmap_scan_inode(
+	struct xrep_rtrmap	*rr,
+	struct xfs_inode	*ip)
+{
+	unsigned int		lock_mode;
+	int			error = 0;
+
+	/* Skip the rt rmap btree inode. */
+	if (rr->sc->ip == ip)
+		return 0;
+
+	lock_mode = xfs_ilock_data_map_shared(ip);
+
+	/* Check the data fork if it's on the realtime device. */
+	if (XFS_IS_REALTIME_INODE(ip)) {
+		error = xrep_rtrmap_scan_dfork(rr, ip);
+		if (error)
+			goto out_unlock;
+	}
+
+	xchk_iscan_mark_visited(&rr->iscan, ip);
+out_unlock:
+	xfs_iunlock(ip, lock_mode);
+	return error;
+}
+
+/* Record extents that belong to the realtime rmap inode. */
+STATIC int
+xrep_rtrmap_walk_rmap(
+	struct xfs_btree_cur		*cur,
+	const struct xfs_rmap_irec	*rec,
+	void				*priv)
+{
+	struct xrep_rtrmap		*rr = priv;
+	int				error = 0;
+
+	if (xchk_should_terminate(rr->sc, &error))
+		return error;
+
+	/* Skip extents which are not owned by this inode and fork. */
+	if (rec->rm_owner != rr->sc->ip->i_ino)
+		return 0;
+
+	error = xrep_check_ino_btree_mapping(rr->sc, rec);
+	if (error)
+		return error;
+
+	return xfsb_bitmap_set(&rr->old_rtrmapbt_blocks,
+			xfs_gbno_to_fsb(cur->bc_group, rec->rm_startblock),
+			rec->rm_blockcount);
+}
+
+/* Scan one AG for reverse mappings for the realtime rmap btree. */
+STATIC int
+xrep_rtrmap_scan_ag(
+	struct xrep_rtrmap	*rr,
+	struct xfs_perag	*pag)
+{
+	struct xfs_scrub	*sc = rr->sc;
+	int			error;
+
+	error = xrep_ag_init(sc, pag, &sc->sa);
+	if (error)
+		return error;
+
+	error = xfs_rmap_query_all(sc->sa.rmap_cur, xrep_rtrmap_walk_rmap, rr);
+	xchk_ag_free(sc, &sc->sa);
+	return error;
+}
+
+/* Generate all the reverse-mappings for the realtime device. */
+STATIC int
+xrep_rtrmap_find_rmaps(
+	struct xrep_rtrmap	*rr)
+{
+	struct xfs_scrub	*sc = rr->sc;
+	struct xfs_perag	*pag = NULL;
+	struct xfs_inode	*ip;
+	int			error;
+
+	/* Generate rmaps for the realtime superblock */
+	if (xfs_has_rtsb(sc->mp) && rtg_rgno(rr->sc->sr.rtg) == 0) {
+		error = xrep_rtrmap_stash(rr, 0, sc->mp->m_sb.sb_rextsize,
+				XFS_RMAP_OWN_FS, 0, 0);
+		if (error)
+			return error;
+	}
+
+	/*
+	 * Set up for a potentially lengthy filesystem scan by reducing our
+	 * transaction resource usage for the duration.  Specifically:
+	 *
+	 * Unlock the realtime metadata inodes and cancel the transaction to
+	 * release the log grant space while we scan the filesystem.
+	 *
+	 * Create a new empty transaction to eliminate the possibility of the
+	 * inode scan deadlocking on cyclical metadata.
+	 *
+	 * We pass the empty transaction to the file scanning function to avoid
+	 * repeatedly cycling empty transactions.  This can be done even though
+	 * we take the IOLOCK to quiesce the file because empty transactions
+	 * do not take sb_internal.
+	 */
+	xchk_trans_cancel(sc);
+	xchk_rtgroup_unlock(&sc->sr);
+	error = xchk_trans_alloc_empty(sc);
+	if (error)
+		return error;
+
+	while ((error = xchk_iscan_iter(&rr->iscan, &ip)) == 1) {
+		error = xrep_rtrmap_scan_inode(rr, ip);
+		xchk_irele(sc, ip);
+		if (error)
+			break;
+
+		if (xchk_should_terminate(sc, &error))
+			break;
+	}
+	xchk_iscan_iter_finish(&rr->iscan);
+	if (error)
+		return error;
+
+	/*
+	 * Switch out for a real transaction and lock the RT metadata in
+	 * preparation for building a new tree.
+	 */
+	xchk_trans_cancel(sc);
+	error = xchk_setup_rt(sc);
+	if (error)
+		return error;
+	error = xchk_rtgroup_lock(sc, &sc->sr, XCHK_RTGLOCK_ALL);
+	if (error)
+		return error;
+
+	/* Scan for old rtrmap blocks. */
+	while ((pag = xfs_perag_next(sc->mp, pag))) {
+		error = xrep_rtrmap_scan_ag(rr, pag);
+		if (error) {
+			xfs_perag_rele(pag);
+			return error;
+		}
+	}
+
+	return 0;
+}
+
+/* Building the new rtrmap btree. */
+
+/* Retrieve rtrmapbt data for bulk load. */
+STATIC int
+xrep_rtrmap_get_records(
+	struct xfs_btree_cur		*cur,
+	unsigned int			idx,
+	struct xfs_btree_block		*block,
+	unsigned int			nr_wanted,
+	void				*priv)
+{
+	struct xrep_rtrmap_extent	rec;
+	struct xfs_rmap_irec		*irec = &cur->bc_rec.r;
+	struct xrep_rtrmap		*rr = priv;
+	union xfs_btree_rec		*block_rec;
+	unsigned int			loaded;
+	int				error;
+
+	for (loaded = 0; loaded < nr_wanted; loaded++, idx++) {
+		error = xfarray_load_next(rr->rtrmap_records, &rr->array_cur,
+				&rec);
+		if (error)
+			return error;
+
+		irec->rm_startblock = rec.startblock;
+		irec->rm_blockcount = rec.blockcount;
+		irec->rm_owner = rec.owner;
+
+		if (xfs_rmap_irec_offset_unpack(rec.offset, irec) != NULL)
+			return -EFSCORRUPTED;
+
+		error = xrep_rtrmap_check_mapping(rr->sc, irec);
+		if (error)
+			return error;
+
+		block_rec = xfs_btree_rec_addr(cur, idx, block);
+		cur->bc_ops->init_rec_from_cur(cur, block_rec);
+	}
+
+	return loaded;
+}
+
+/* Feed one of the new btree blocks to the bulk loader. */
+STATIC int
+xrep_rtrmap_claim_block(
+	struct xfs_btree_cur	*cur,
+	union xfs_btree_ptr	*ptr,
+	void			*priv)
+{
+	struct xrep_rtrmap	*rr = priv;
+
+	return xrep_newbt_claim_block(cur, &rr->new_btree, ptr);
+}
+
+/* Figure out how much space we need to create the incore btree root block. */
+STATIC size_t
+xrep_rtrmap_iroot_size(
+	struct xfs_btree_cur	*cur,
+	unsigned int		level,
+	unsigned int		nr_this_level,
+	void			*priv)
+{
+	return xfs_rtrmap_broot_space_calc(cur->bc_mp, level, nr_this_level);
+}
+
+/*
+ * Use the collected rmap information to stage a new rmap btree.  If this is
+ * successful we'll return with the new btree root information logged to the
+ * repair transaction but not yet committed.  This implements section (III)
+ * above.
+ */
+STATIC int
+xrep_rtrmap_build_new_tree(
+	struct xrep_rtrmap	*rr)
+{
+	struct xfs_scrub	*sc = rr->sc;
+	struct xfs_rtgroup	*rtg = sc->sr.rtg;
+	struct xfs_btree_cur	*rmap_cur;
+	uint64_t		nr_records;
+	int			error;
+
+	/*
+	 * Prepare to construct the new btree by reserving disk space for the
+	 * new btree and setting up all the accounting information we'll need
+	 * to root the new btree while it's under construction and before we
+	 * attach it to the realtime rmapbt inode.
+	 */
+	error = xrep_newbt_init_metadir_inode(&rr->new_btree, sc);
+	if (error)
+		return error;
+
+	rr->new_btree.bload.get_records = xrep_rtrmap_get_records;
+	rr->new_btree.bload.claim_block = xrep_rtrmap_claim_block;
+	rr->new_btree.bload.iroot_size = xrep_rtrmap_iroot_size;
+
+	rmap_cur = xfs_rtrmapbt_init_cursor(NULL, rtg);
+	xfs_btree_stage_ifakeroot(rmap_cur, &rr->new_btree.ifake);
+
+	nr_records = xfarray_length(rr->rtrmap_records);
+
+	/* Compute how many blocks we'll need for the rmaps collected. */
+	error = xfs_btree_bload_compute_geometry(rmap_cur,
+			&rr->new_btree.bload, nr_records);
+	if (error)
+		goto err_cur;
+
+	/* Last chance to abort before we start committing fixes. */
+	if (xchk_should_terminate(sc, &error))
+		goto err_cur;
+
+	/*
+	 * Guess how many blocks we're going to need to rebuild an entire
+	 * rtrmapbt from the number of extents we found, and pump up our
+	 * transaction to have sufficient block reservation.  We're allowed
+	 * to exceed quota to repair inconsistent metadata, though this is
+	 * unlikely.
+	 */
+	error = xfs_trans_reserve_more_inode(sc->tp, rtg_rmap(rtg),
+			rr->new_btree.bload.nr_blocks, 0, true);
+	if (error)
+		goto err_cur;
+
+	/* Reserve the space we'll need for the new btree. */
+	error = xrep_newbt_alloc_blocks(&rr->new_btree,
+			rr->new_btree.bload.nr_blocks);
+	if (error)
+		goto err_cur;
+
+	/* Add all observed rmap records. */
+	rr->new_btree.ifake.if_fork->if_format = XFS_DINODE_FMT_META_BTREE;
+	rr->array_cur = XFARRAY_CURSOR_INIT;
+	error = xfs_btree_bload(rmap_cur, &rr->new_btree.bload, rr);
+	if (error)
+		goto err_cur;
+
+	/*
+	 * Install the new rtrmap btree in the inode.  After this point the old
+	 * btree is no longer accessible, the new tree is live, and we can
+	 * delete the cursor.
+	 */
+	xfs_rtrmapbt_commit_staged_btree(rmap_cur, sc->tp);
+	xrep_inode_set_nblocks(rr->sc, rr->new_btree.ifake.if_blocks);
+	xfs_btree_del_cursor(rmap_cur, 0);
+
+	/* Dispose of any unused blocks and the accounting information. */
+	error = xrep_newbt_commit(&rr->new_btree);
+	if (error)
+		return error;
+
+	return xrep_roll_trans(sc);
+
+err_cur:
+	xfs_btree_del_cursor(rmap_cur, error);
+	xrep_newbt_cancel(&rr->new_btree);
+	return error;
+}
+
+/* Reaping the old btree. */
+
+/* Reap the old rtrmapbt blocks. */
+STATIC int
+xrep_rtrmap_remove_old_tree(
+	struct xrep_rtrmap	*rr)
+{
+	int			error;
+
+	/*
+	 * Free all the extents that were allocated to the former rtrmapbt and
+	 * aren't cross-linked with something else.
+	 */
+	error = xrep_reap_metadir_fsblocks(rr->sc, &rr->old_rtrmapbt_blocks);
+	if (error)
+		return error;
+
+	/*
+	 * Ensure the proper reservation for the rtrmap inode so that we don't
+	 * fail to expand the new btree.
+	 */
+	return xrep_reset_metafile_resv(rr->sc);
+}
+
+/* Set up the filesystem scan components. */
+STATIC int
+xrep_rtrmap_setup_scan(
+	struct xrep_rtrmap	*rr)
+{
+	struct xfs_scrub	*sc = rr->sc;
+	char			*descr;
+	int			error;
+
+	xfsb_bitmap_init(&rr->old_rtrmapbt_blocks);
+
+	/* Set up some storage */
+	descr = xchk_xfile_rtgroup_descr(sc, "reverse mapping records");
+	error = xfarray_create(descr, 0, sizeof(struct xrep_rtrmap_extent),
+			&rr->rtrmap_records);
+	kfree(descr);
+	if (error)
+		goto out_bitmap;
+
+	/* Retry iget every tenth of a second for up to 30 seconds. */
+	xchk_iscan_start(sc, 30000, 100, &rr->iscan);
+	return 0;
+
+out_bitmap:
+	xfsb_bitmap_destroy(&rr->old_rtrmapbt_blocks);
+	return error;
+}
+
+/* Tear down scan components. */
+STATIC void
+xrep_rtrmap_teardown(
+	struct xrep_rtrmap	*rr)
+{
+	xchk_iscan_teardown(&rr->iscan);
+	xfarray_destroy(rr->rtrmap_records);
+	xfsb_bitmap_destroy(&rr->old_rtrmapbt_blocks);
+}
+
+/* Repair the realtime rmap btree. */
+int
+xrep_rtrmapbt(
+	struct xfs_scrub	*sc)
+{
+	struct xrep_rtrmap	*rr = sc->buf;
+	int			error;
+
+	/* Functionality is not yet complete. */
+	return xrep_notsupported(sc);
+
+	/* Make sure any problems with the fork are fixed. */
+	error = xrep_metadata_inode_forks(sc);
+	if (error)
+		return error;
+
+	error = xrep_rtrmap_setup_scan(rr);
+	if (error)
+		return error;
+
+	/* Collect rmaps for realtime files. */
+	error = xrep_rtrmap_find_rmaps(rr);
+	if (error)
+		goto out_records;
+
+	xfs_trans_ijoin(sc->tp, sc->ip, 0);
+
+	/* Rebuild the rtrmap information. */
+	error = xrep_rtrmap_build_new_tree(rr);
+	if (error)
+		goto out_records;
+
+	/* Kill the old tree. */
+	error = xrep_rtrmap_remove_old_tree(rr);
+	if (error)
+		goto out_records;
+
+out_records:
+	xrep_rtrmap_teardown(rr);
+	return error;
+}

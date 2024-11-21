@@ -147,12 +147,14 @@ xchk_rtgroup_init_existing(
 
 int xchk_rtgroup_lock(struct xfs_scrub *sc, struct xchk_rt *sr,
 		unsigned int rtglock_flags);
+void xchk_rtgroup_unlock(struct xchk_rt *sr);
 void xchk_rtgroup_btcur_free(struct xchk_rt *sr);
 void xchk_rtgroup_free(struct xfs_scrub *sc, struct xchk_rt *sr);
 #else
 # define xchk_rtgroup_init(sc, rgno, sr)		(-EFSCORRUPTED)
 # define xchk_rtgroup_init_existing(sc, rgno, sr)	(-EFSCORRUPTED)
 # define xchk_rtgroup_lock(sc, sr, lockflags)		(-EFSCORRUPTED)
+# define xchk_rtgroup_unlock(sr)			do { } while (0)
 # define xchk_rtgroup_btcur_free(sr)			do { } while (0)
 # define xchk_rtgroup_free(sc, sr)			do { } while (0)
 #endif /* CONFIG_XFS_RT */
