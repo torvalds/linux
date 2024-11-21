@@ -33,7 +33,7 @@
 
 #include "i2c-designware-core.h"
 
-static char *abort_sources[] = {
+static const char *const abort_sources[] = {
 	[ABRT_7B_ADDR_NOACK] =
 		"slave address not acknowledged (7bit mode)",
 	[ABRT_10ADDR1_NOACK] =
@@ -127,6 +127,8 @@ static int dw_reg_write_word(void *context, unsigned int reg, unsigned int val)
  * Autodetects needed register access mode and creates the regmap with
  * corresponding read/write callbacks. This must be called before doing any
  * other register access.
+ *
+ * Return: 0 on success, or negative errno otherwise.
  */
 int i2c_dw_init_regmap(struct dw_i2c_dev *dev)
 {
@@ -174,7 +176,7 @@ int i2c_dw_init_regmap(struct dw_i2c_dev *dev)
 	/*
 	 * Note we'll check the return value of the regmap IO accessors only
 	 * at the probe stage. The rest of the code won't do this because
-	 * basically we have MMIO-based regmap so non of the read/write methods
+	 * basically we have MMIO-based regmap, so none of the read/write methods
 	 * can fail.
 	 */
 	dev->map = devm_regmap_init(dev->dev, NULL, dev, &map_cfg);
@@ -336,7 +338,7 @@ static u32 i2c_dw_acpi_round_bus_speed(struct device *device)
 
 	acpi_speed = i2c_acpi_find_bus_speed(device);
 	/*
-	 * Some DSTDs use a non standard speed, round down to the lowest
+	 * Some DSDTs use a non standard speed, round down to the lowest
 	 * standard speed.
 	 */
 	for (i = 0; i < ARRAY_SIZE(supported_speeds); i++) {
@@ -407,47 +409,26 @@ static u32 i2c_dw_read_scl_reg(struct dw_i2c_dev *dev, u32 reg)
 }
 
 u32 i2c_dw_scl_hcnt(struct dw_i2c_dev *dev, unsigned int reg, u32 ic_clk,
-		    u32 tSYMBOL, u32 tf, int cond, int offset)
+		    u32 tSYMBOL, u32 tf, int offset)
 {
 	if (!ic_clk)
 		return i2c_dw_read_scl_reg(dev, reg);
 
 	/*
-	 * DesignWare I2C core doesn't seem to have solid strategy to meet
-	 * the tHD;STA timing spec.  Configuring _HCNT based on tHIGH spec
-	 * will result in violation of the tHD;STA spec.
+	 * Conditional expression:
+	 *
+	 *   IC_[FS]S_SCL_HCNT + 3 >= IC_CLK * (tHD;STA + tf)
+	 *
+	 * This is just experimental rule; the tHD;STA period turned
+	 * out to be proportinal to (_HCNT + 3).  With this setting,
+	 * we could meet both tHIGH and tHD;STA timing specs.
+	 *
+	 * If unsure, you'd better to take this alternative.
+	 *
+	 * The reason why we need to take into account "tf" here,
+	 * is the same as described in i2c_dw_scl_lcnt().
 	 */
-	if (cond)
-		/*
-		 * Conditional expression:
-		 *
-		 *   IC_[FS]S_SCL_HCNT + (1+4+3) >= IC_CLK * tHIGH
-		 *
-		 * This is based on the DW manuals, and represents an ideal
-		 * configuration.  The resulting I2C bus speed will be
-		 * faster than any of the others.
-		 *
-		 * If your hardware is free from tHD;STA issue, try this one.
-		 */
-		return DIV_ROUND_CLOSEST_ULL((u64)ic_clk * tSYMBOL, MICRO) -
-		       8 + offset;
-	else
-		/*
-		 * Conditional expression:
-		 *
-		 *   IC_[FS]S_SCL_HCNT + 3 >= IC_CLK * (tHD;STA + tf)
-		 *
-		 * This is just experimental rule; the tHD;STA period turned
-		 * out to be proportinal to (_HCNT + 3).  With this setting,
-		 * we could meet both tHIGH and tHD;STA timing specs.
-		 *
-		 * If unsure, you'd better to take this alternative.
-		 *
-		 * The reason why we need to take into account "tf" here,
-		 * is the same as described in i2c_dw_scl_lcnt().
-		 */
-		return DIV_ROUND_CLOSEST_ULL((u64)ic_clk * (tSYMBOL + tf), MICRO) -
-		       3 + offset;
+	return DIV_ROUND_CLOSEST_ULL((u64)ic_clk * (tSYMBOL + tf), MICRO) - 3 + offset;
 }
 
 u32 i2c_dw_scl_lcnt(struct dw_i2c_dev *dev, unsigned int reg, u32 ic_clk,
@@ -467,8 +448,7 @@ u32 i2c_dw_scl_lcnt(struct dw_i2c_dev *dev, unsigned int reg, u32 ic_clk,
 	 * account the fall time of SCL signal (tf).  Default tf value
 	 * should be 0.3 us, for safety.
 	 */
-	return DIV_ROUND_CLOSEST_ULL((u64)ic_clk * (tLOW + tf), MICRO) -
-	       1 + offset;
+	return DIV_ROUND_CLOSEST_ULL((u64)ic_clk * (tLOW + tf), MICRO) - 1 + offset;
 }
 
 int i2c_dw_set_sda_hold(struct dw_i2c_dev *dev)
@@ -571,7 +551,7 @@ void __i2c_dw_disable(struct dw_i2c_dev *dev)
 
 		/*
 		 * Wait 10 times the signaling period of the highest I2C
-		 * transfer supported by the driver (for 400KHz this is
+		 * transfer supported by the driver (for 400kHz this is
 		 * 25us) as described in the DesignWare I2C databook.
 		 */
 		usleep_range(25, 250);
@@ -678,10 +658,10 @@ int i2c_dw_handle_tx_abort(struct dw_i2c_dev *dev)
 
 	if (abort_source & DW_IC_TX_ARB_LOST)
 		return -EAGAIN;
-	else if (abort_source & DW_IC_TX_ABRT_GCALL_READ)
+	if (abort_source & DW_IC_TX_ABRT_GCALL_READ)
 		return -EINVAL; /* wrong msgs[] data */
-	else
-		return -EIO;
+
+	return -EIO;
 }
 
 int i2c_dw_set_fifo_size(struct dw_i2c_dev *dev)

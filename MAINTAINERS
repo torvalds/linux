@@ -1115,6 +1115,12 @@ L:	linux-i2c@vger.kernel.org
 S:	Maintained
 F:	drivers/i2c/busses/i2c-amd-mp2*
 
+AMD ASF I2C DRIVER
+M:	Shyam Sundar S K <shyam-sundar.s-k@amd.com>
+L:	linux-i2c@vger.kernel.org
+S:	Supported
+F:	drivers/i2c/busses/i2c-amd-asf-plat.c
+
 AMD PDS CORE DRIVER
 M:	Shannon Nelson <shannon.nelson@amd.com>
 M:	Brett Creeley <brett.creeley@amd.com>
@@ -10750,14 +10756,12 @@ F:	Documentation/i2c/busses/i2c-viapro.rst
 F:	drivers/i2c/busses/i2c-ali1535.c
 F:	drivers/i2c/busses/i2c-ali1563.c
 F:	drivers/i2c/busses/i2c-ali15x3.c
-F:	drivers/i2c/busses/i2c-amd756-s4882.c
 F:	drivers/i2c/busses/i2c-amd756.c
 F:	drivers/i2c/busses/i2c-amd8111.c
 F:	drivers/i2c/busses/i2c-i801.c
 F:	drivers/i2c/busses/i2c-isch.c
-F:	drivers/i2c/busses/i2c-nforce2-s4985.c
 F:	drivers/i2c/busses/i2c-nforce2.c
-F:	drivers/i2c/busses/i2c-piix4.c
+F:	drivers/i2c/busses/i2c-piix4.*
 F:	drivers/i2c/busses/i2c-sis5595.c
 F:	drivers/i2c/busses/i2c-sis630.c
 F:	drivers/i2c/busses/i2c-sis96x.c
@@ -20217,6 +20221,13 @@ L:	linux-wireless@vger.kernel.org
 S:	Maintained
 T:	git https://github.com/pkshih/rtw.git
 F:	drivers/net/wireless/realtek/rtl8xxxu/
+
+RTL9300 I2C DRIVER (rtl9300-i2c)
+M:	Chris Packham <chris.packham@alliedtelesis.co.nz>
+L:	linux-i2c@vger.kernel.org
+S:	Maintained
+F:	Documentation/devicetree/bindings/i2c/realtek,rtl9301-i2c.yaml
+F:	drivers/i2c/busses/i2c-rtl9300.c
 
 RTRS TRANSPORT DRIVERS
 M:	Md. Haris Iqbal <haris.iqbal@ionos.com>
