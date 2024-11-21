@@ -213,6 +213,22 @@ struct xfs_btree_ops {
 			       const union xfs_btree_key *key1,
 			       const union xfs_btree_key *key2,
 			       const union xfs_btree_key *mask);
+
+	/*
+	 * Reallocate the space for if_broot to fit the number of records.
+	 * Move the records and pointers in if_broot to fit the new size.  When
+	 * shrinking this will eliminate holes between the records and pointers
+	 * created by the caller.  When growing this will create holes to be
+	 * filled in by the caller.
+	 *
+	 * The caller must not request to add more records than would fit in
+	 * the on-disk inode root.  If the if_broot is currently NULL, then if
+	 * we are adding records, one will be allocated.  The caller must also
+	 * not request that the number of records go below zero, although it
+	 * can go to zero.
+	 */
+	struct xfs_btree_block *(*broot_realloc)(struct xfs_btree_cur *cur,
+				unsigned int new_numrecs);
 };
 
 /* btree geometry flags */

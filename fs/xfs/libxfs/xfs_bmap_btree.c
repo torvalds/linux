@@ -516,6 +516,109 @@ xfs_bmbt_keys_contiguous(
 				 be64_to_cpu(key2->bmbt.br_startoff));
 }
 
+/*
+ * Reallocate the space for if_broot based on the number of records.  Move the
+ * records and pointers in if_broot to fit the new size.  When shrinking this
+ * will eliminate holes between the records and pointers created by the caller.
+ * When growing this will create holes to be filled in by the caller.
+ *
+ * The caller must not request to add more records than would fit in the
+ * on-disk inode root.  If the if_broot is currently NULL, then if we are
+ * adding records, one will be allocated.  The caller must also not request
+ * that the number of records go below zero, although it can go to zero.
+ *
+ * ip -- the inode whose if_broot area is changing
+ * whichfork -- which inode fork to change
+ * new_numrecs -- the new number of records requested for the if_broot array
+ *
+ * Returns the incore btree root block.
+ */
+struct xfs_btree_block *
+xfs_bmap_broot_realloc(
+	struct xfs_inode	*ip,
+	int			whichfork,
+	unsigned int		new_numrecs)
+{
+	struct xfs_mount	*mp = ip->i_mount;
+	struct xfs_ifork	*ifp = xfs_ifork_ptr(ip, whichfork);
+	char			*np;
+	char			*op;
+	unsigned int		new_size;
+	unsigned int		old_size = ifp->if_broot_bytes;
+
+	/*
+	 * Block mapping btrees do not support storing zero records; if this
+	 * happens, the fork is being changed to FMT_EXTENTS.  Free the broot
+	 * and get out.
+	 */
+	if (new_numrecs == 0)
+		return xfs_broot_realloc(ifp, 0);
+
+	new_size = xfs_bmap_broot_space_calc(mp, new_numrecs);
+
+	/* Handle the nop case quietly. */
+	if (new_size == old_size)
+		return ifp->if_broot;
+
+	if (new_size > old_size) {
+		unsigned int	old_numrecs;
+
+		/*
+		 * If there wasn't any memory allocated before, just
+		 * allocate it now and get out.
+		 */
+		if (old_size == 0)
+			return xfs_broot_realloc(ifp, new_size);
+
+		/*
+		 * If there is already an existing if_broot, then we need
+		 * to realloc() it and shift the pointers to their new
+		 * location.  The records don't change location because
+		 * they are kept butted up against the btree block header.
+		 */
+		old_numrecs = xfs_bmbt_maxrecs(mp, old_size, false);
+		xfs_broot_realloc(ifp, new_size);
+		op = (char *)xfs_bmap_broot_ptr_addr(mp, ifp->if_broot, 1,
+						     old_size);
+		np = (char *)xfs_bmap_broot_ptr_addr(mp, ifp->if_broot, 1,
+						     (int)new_size);
+		ASSERT(xfs_bmap_bmdr_space(ifp->if_broot) <=
+			xfs_inode_fork_size(ip, whichfork));
+		memmove(np, op, old_numrecs * (uint)sizeof(xfs_fsblock_t));
+		return ifp->if_broot;
+	}
+
+	/*
+	 * We're reducing, but not totally eliminating, numrecs.  In this case,
+	 * we are shrinking the if_broot buffer, so it must already exist.
+	 */
+	ASSERT(ifp->if_broot != NULL && old_size > 0 && new_size > 0);
+
+	/*
+	 * Shrink the btree root by moving the bmbt pointers, since they are
+	 * not butted up against the btree block header, then reallocating
+	 * broot.
+	 */
+	op = (char *)xfs_bmap_broot_ptr_addr(mp, ifp->if_broot, 1, old_size);
+	np = (char *)xfs_bmap_broot_ptr_addr(mp, ifp->if_broot, 1,
+					     (int)new_size);
+	memmove(np, op, new_numrecs * (uint)sizeof(xfs_fsblock_t));
+
+	xfs_broot_realloc(ifp, new_size);
+	ASSERT(xfs_bmap_bmdr_space(ifp->if_broot) <=
+	       xfs_inode_fork_size(ip, whichfork));
+	return ifp->if_broot;
+}
+
+static struct xfs_btree_block *
+xfs_bmbt_broot_realloc(
+	struct xfs_btree_cur	*cur,
+	unsigned int		new_numrecs)
+{
+	return xfs_bmap_broot_realloc(cur->bc_ino.ip, cur->bc_ino.whichfork,
+			new_numrecs);
+}
+
 const struct xfs_btree_ops xfs_bmbt_ops = {
 	.name			= "bmap",
 	.type			= XFS_BTREE_TYPE_INODE,
@@ -543,6 +646,7 @@ const struct xfs_btree_ops xfs_bmbt_ops = {
 	.keys_inorder		= xfs_bmbt_keys_inorder,
 	.recs_inorder		= xfs_bmbt_recs_inorder,
 	.keys_contiguous	= xfs_bmbt_keys_contiguous,
+	.broot_realloc		= xfs_bmbt_broot_realloc,
 };
 
 /*
