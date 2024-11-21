@@ -832,9 +832,10 @@ struct xfs_scrub_vec_head {
 #define XFS_SCRUB_METAPATH_GRPQUOTA	(6)  /* group quota */
 #define XFS_SCRUB_METAPATH_PRJQUOTA	(7)  /* project quota */
 #define XFS_SCRUB_METAPATH_RTRMAPBT	(8)  /* realtime reverse mapping */
+#define XFS_SCRUB_METAPATH_RTREFCOUNTBT	(9)  /* realtime refcount */
 
 /* Number of metapath sm_ino values */
-#define XFS_SCRUB_METAPATH_NR		(9)
+#define XFS_SCRUB_METAPATH_NR		(10)
 
 /*
  * ioctl limits
