@@ -197,13 +197,13 @@ bool parse_hwmon_filename(const char *filename,
 		}
 	}
 	if (fn_item == NULL || fn_type[0] == '\0' || (item != NULL && fn_item[0] == '\0')) {
-		pr_debug("hwmon_pmu: not a hwmon file '%s'\n", filename);
+		pr_debug3("hwmon_pmu: not a hwmon file '%s'\n", filename);
 		return false;
 	}
 	elem = bsearch(&fn_type, hwmon_type_strs + 1, ARRAY_SIZE(hwmon_type_strs) - 1,
 		       sizeof(hwmon_type_strs[0]), hwmon_strcmp);
 	if (!elem) {
-		pr_debug("hwmon_pmu: not a hwmon type '%s' in file name '%s'\n",
+		pr_debug3("hwmon_pmu: not a hwmon type '%s' in file name '%s'\n",
 			 fn_type, filename);
 		return false;
 	}
@@ -223,7 +223,7 @@ bool parse_hwmon_filename(const char *filename,
 	elem = bsearch(fn_item, hwmon_item_strs + 1, ARRAY_SIZE(hwmon_item_strs) - 1,
 		       sizeof(hwmon_item_strs[0]), hwmon_strcmp);
 	if (!elem) {
-		pr_debug("hwmon_pmu: not a hwmon item '%s' in file name '%s'\n",
+		pr_debug3("hwmon_pmu: not a hwmon item '%s' in file name '%s'\n",
 			 fn_item, filename);
 		return false;
 	}
@@ -281,7 +281,7 @@ static int hwmon_pmu__read_events(struct hwmon_pmu *pmu)
 			continue;
 
 		if (!parse_hwmon_filename(ent->d_name, &type, &number, &item, &alarm)) {
-			pr_debug("Not a hwmon file '%s'\n", ent->d_name);
+			pr_debug3("Not a hwmon file '%s'\n", ent->d_name);
 			continue;
 		}
 		key.num = number;
@@ -653,10 +653,14 @@ int hwmon_pmu__config_terms(const struct perf_pmu *pmu,
 			    struct parse_events_terms *terms,
 			    struct parse_events_error *err)
 {
-	const struct hwmon_pmu *hwm = container_of(pmu, struct hwmon_pmu, pmu);
+	struct hwmon_pmu *hwm = container_of(pmu, struct hwmon_pmu, pmu);
 	struct parse_events_term *term;
+	int ret;
 
-	assert(pmu->sysfs_aliases_loaded);
+	ret = hwmon_pmu__read_events(hwm);
+	if (ret)
+		return ret;
+
 	list_for_each_entry(term, &terms->terms, list) {
 		if (hwmon_pmu__config_term(hwm, attr, term, err))
 			return -EINVAL;

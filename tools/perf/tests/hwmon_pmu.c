@@ -41,6 +41,7 @@ static int test_pmu_put(const char *dir, struct perf_pmu *hwm)
 	if (ret)
 		pr_err("Failure to \"%s\"\n", buf);
 
+	list_del(&hwm->list);
 	perf_pmu__delete(hwm);
 	return ret;
 }
@@ -147,7 +148,7 @@ static int do_test(size_t i, bool with_pmu, bool with_alias)
 	}
 
 	if (with_pmu)
-		snprintf(str, sizeof(str), "/%s/", test_event);
+		snprintf(str, sizeof(str), "hwmon_a_test_hwmon_pmu/%s/", test_event);
 	else
 		strlcpy(str, test_event, sizeof(str));
 
@@ -231,7 +232,7 @@ static int test__hwmon_pmu_without_pmu(struct test_suite *test __maybe_unused,
 static int test__hwmon_pmu_with_pmu(struct test_suite *test __maybe_unused,
 				   int subtest __maybe_unused)
 {
-	return test__hwmon_pmu(/*with_pmu=*/false);
+	return test__hwmon_pmu(/*with_pmu=*/true);
 }
 
 static int test__parse_hwmon_filename(struct test_suite *test __maybe_unused,
