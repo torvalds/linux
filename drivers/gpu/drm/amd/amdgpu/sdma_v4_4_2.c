@@ -764,6 +764,7 @@ static void sdma_v4_4_2_gfx_resume(struct amdgpu_device *adev, unsigned int i, b
  *
  * @adev: amdgpu_device pointer
  * @i: instance to resume
+ * @restore: boolean to say restore needed or not
  *
  * Set up the page DMA ring buffers and enable them.
  * Returns 0 for success, error for failure.
@@ -928,6 +929,7 @@ static int sdma_v4_4_2_inst_load_microcode(struct amdgpu_device *adev,
  *
  * @adev: amdgpu_device pointer
  * @inst_mask: mask of dma engine instances to be enabled
+ * @restore: boolean to say restore needed or not
  *
  * Set up the DMA engines and enable them.
  * Returns 0 for success, error for failure.
