@@ -33,6 +33,7 @@
 #include "xfs_attr.h"
 #include "xfs_attr_remote.h"
 #include "xfs_defer.h"
+#include "xfs_metafile.h"
 #include "scrub/scrub.h"
 #include "scrub/common.h"
 #include "scrub/trace.h"
@@ -390,6 +391,8 @@ xreap_agextent_iter(
 	xfs_fsblock_t		fsbno;
 	int			error = 0;
 
+	ASSERT(rs->resv != XFS_AG_RESV_METAFILE);
+
 	fsbno = xfs_agbno_to_fsb(sc->sa.pag, agbno);
 
 	/*
@@ -664,6 +667,44 @@ xrep_reap_fsblocks(
 
 	ASSERT(xfs_has_rmapbt(sc->mp));
 	ASSERT(sc->ip != NULL);
+
+	error = xfsb_bitmap_walk(bitmap, xreap_fsmeta_extent, &rs);
+	if (error)
+		return error;
+
+	if (xreap_dirty(&rs))
+		return xrep_defer_finish(sc);
+
+	return 0;
+}
+
+/*
+ * Dispose of every block of an old metadata btree that used to be rooted in a
+ * metadata directory file.
+ */
+int
+xrep_reap_metadir_fsblocks(
+	struct xfs_scrub		*sc,
+	struct xfsb_bitmap		*bitmap)
+{
+	/*
+	 * Reap old metadir btree blocks with XFS_AG_RESV_NONE because the old
+	 * blocks are no longer mapped by the inode, and inode metadata space
+	 * reservations can only account freed space to the i_nblocks.
+	 */
+	struct xfs_owner_info		oinfo;
+	struct xreap_state		rs = {
+		.sc			= sc,
+		.oinfo			= &oinfo,
+		.resv			= XFS_AG_RESV_NONE,
+	};
+	int				error;
+
+	ASSERT(xfs_has_rmapbt(sc->mp));
+	ASSERT(sc->ip != NULL);
+	ASSERT(xfs_is_metadir_inode(sc->ip));
+
+	xfs_rmap_ino_bmbt_owner(&oinfo, sc->ip->i_ino, XFS_DATA_FORK);
 
 	error = xfsb_bitmap_walk(bitmap, xreap_fsmeta_extent, &rs);
 	if (error)

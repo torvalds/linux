@@ -14,6 +14,8 @@ int xrep_reap_agblocks(struct xfs_scrub *sc, struct xagb_bitmap *bitmap,
 int xrep_reap_fsblocks(struct xfs_scrub *sc, struct xfsb_bitmap *bitmap,
 		const struct xfs_owner_info *oinfo);
 int xrep_reap_ifork(struct xfs_scrub *sc, struct xfs_inode *ip, int whichfork);
+int xrep_reap_metadir_fsblocks(struct xfs_scrub *sc,
+		struct xfsb_bitmap *bitmap);
 
 /* Buffer cache scan context. */
 struct xrep_bufscan {
