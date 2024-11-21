@@ -1517,6 +1517,14 @@ static void tdx_clflush_page(struct page *page)
 	clflush_cache_range(page_to_virt(page), PAGE_SIZE);
 }
 
+noinstr u64 tdh_vp_enter(struct tdx_vp *td, struct tdx_module_args *args)
+{
+	args->rcx = tdx_tdvpr_pa(td);
+
+	return __seamcall_saved_ret(TDH_VP_ENTER, args);
+}
+EXPORT_SYMBOL_GPL(tdh_vp_enter);
+
 u64 tdh_mng_addcx(struct tdx_td *td, struct page *tdcs_page)
 {
 	struct tdx_module_args args = {

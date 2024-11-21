@@ -14,6 +14,7 @@
 /*
  * TDX module SEAMCALL leaf functions
  */
+#define TDH_VP_ENTER			0
 #define TDH_MNG_ADDCX			1
 #define TDH_MEM_PAGE_ADD		2
 #define TDH_MEM_SEPT_ADD		3
