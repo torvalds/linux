@@ -1891,7 +1891,7 @@ static int cadence_nand_read_buf(struct cdns_nand_ctrl *cdns_ctrl,
 
 		int len_in_words = (data_dma_width == 4) ? len >> 2 : len >> 3;
 
-		/* read alingment data */
+		/* read alignment data */
 		if (data_dma_width == 4)
 			ioread32_rep(cdns_ctrl->io.virt, buf, len_in_words);
 #ifdef CONFIG_64BIT

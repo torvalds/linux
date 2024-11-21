@@ -649,7 +649,7 @@ static int mxic_spi_transfer_one(struct spi_controller *host,
 /* ECC wrapper */
 static int mxic_spi_mem_ecc_init_ctx(struct nand_device *nand)
 {
-	struct nand_ecc_engine_ops *ops = mxic_ecc_get_pipelined_ops();
+	const struct nand_ecc_engine_ops *ops = mxic_ecc_get_pipelined_ops();
 	struct mxic_spi *mxic = nand->ecc.engine->priv;
 
 	mxic->ecc.use_pipelined_conf = true;
@@ -659,7 +659,7 @@ static int mxic_spi_mem_ecc_init_ctx(struct nand_device *nand)
 
 static void mxic_spi_mem_ecc_cleanup_ctx(struct nand_device *nand)
 {
-	struct nand_ecc_engine_ops *ops = mxic_ecc_get_pipelined_ops();
+	const struct nand_ecc_engine_ops *ops = mxic_ecc_get_pipelined_ops();
 	struct mxic_spi *mxic = nand->ecc.engine->priv;
 
 	mxic->ecc.use_pipelined_conf = false;
@@ -670,7 +670,7 @@ static void mxic_spi_mem_ecc_cleanup_ctx(struct nand_device *nand)
 static int mxic_spi_mem_ecc_prepare_io_req(struct nand_device *nand,
 					   struct nand_page_io_req *req)
 {
-	struct nand_ecc_engine_ops *ops = mxic_ecc_get_pipelined_ops();
+	const struct nand_ecc_engine_ops *ops = mxic_ecc_get_pipelined_ops();
 
 	return ops->prepare_io_req(nand, req);
 }
@@ -678,12 +678,12 @@ static int mxic_spi_mem_ecc_prepare_io_req(struct nand_device *nand,
 static int mxic_spi_mem_ecc_finish_io_req(struct nand_device *nand,
 					  struct nand_page_io_req *req)
 {
-	struct nand_ecc_engine_ops *ops = mxic_ecc_get_pipelined_ops();
+	const struct nand_ecc_engine_ops *ops = mxic_ecc_get_pipelined_ops();
 
 	return ops->finish_io_req(nand, req);
 }
 
-static struct nand_ecc_engine_ops mxic_spi_mem_ecc_engine_pipelined_ops = {
+static const struct nand_ecc_engine_ops mxic_spi_mem_ecc_engine_pipelined_ops = {
 	.init_ctx = mxic_spi_mem_ecc_init_ctx,
 	.cleanup_ctx = mxic_spi_mem_ecc_cleanup_ctx,
 	.prepare_io_req = mxic_spi_mem_ecc_prepare_io_req,
