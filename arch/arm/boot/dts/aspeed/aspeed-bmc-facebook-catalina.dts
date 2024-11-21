@@ -452,12 +452,12 @@
 			power-monitor@42 {
 				compatible = "lltc,ltc4287";
 				reg = <0x42>;
-				shunt-resistor-micro-ohms = <200>;
+				shunt-resistor-micro-ohms = <100>;
 			};
 			power-monitor@43 {
 				compatible = "lltc,ltc4287";
 				reg = <0x43>;
-				shunt-resistor-micro-ohms = <200>;
+				shunt-resistor-micro-ohms = <100>;
 			};
 		};
 		i2c1mux0ch5: i2c@5 {
