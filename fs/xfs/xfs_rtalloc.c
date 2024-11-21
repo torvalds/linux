@@ -1282,11 +1282,15 @@ xfs_growfs_rt(
 	    XFS_FSB_TO_B(mp, in->extsize) < XFS_MIN_RTEXTSIZE)
 		goto out_unlock;
 
-	/* Unsupported realtime features. */
+	/* Check for features supported only on rtgroups filesystems. */
 	error = -EOPNOTSUPP;
-	if (xfs_has_quota(mp) && !xfs_has_rtgroups(mp))
-		goto out_unlock;
-	if (xfs_has_rmapbt(mp) || xfs_has_reflink(mp))
+	if (!xfs_has_rtgroups(mp)) {
+		if (xfs_has_rmapbt(mp))
+			goto out_unlock;
+		if (xfs_has_quota(mp))
+			goto out_unlock;
+	}
+	if (xfs_has_reflink(mp))
 		goto out_unlock;
 
 	error = xfs_sb_validate_fsb_count(&mp->m_sb, in->newblocks);
