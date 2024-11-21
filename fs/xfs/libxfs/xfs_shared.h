@@ -57,6 +57,7 @@ extern const struct xfs_btree_ops xfs_refcountbt_ops;
 extern const struct xfs_btree_ops xfs_rmapbt_ops;
 extern const struct xfs_btree_ops xfs_rmapbt_mem_ops;
 extern const struct xfs_btree_ops xfs_rtrmapbt_ops;
+extern const struct xfs_btree_ops xfs_rtrmapbt_mem_ops;
 
 static inline bool xfs_btree_is_bno(const struct xfs_btree_ops *ops)
 {
@@ -98,8 +99,14 @@ static inline bool xfs_btree_is_mem_rmap(const struct xfs_btree_ops *ops)
 {
 	return ops == &xfs_rmapbt_mem_ops;
 }
+
+static inline bool xfs_btree_is_mem_rtrmap(const struct xfs_btree_ops *ops)
+{
+	return ops == &xfs_rtrmapbt_mem_ops;
+}
 #else
 # define xfs_btree_is_mem_rmap(...)	(false)
+# define xfs_btree_is_mem_rtrmap(...)	(false)
 #endif
 
 static inline bool xfs_btree_is_rtrmap(const struct xfs_btree_ops *ops)
