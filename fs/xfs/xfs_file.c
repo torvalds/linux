@@ -1356,15 +1356,22 @@ xfs_file_release(
 	 * blocks.  This avoids open/read/close workloads from removing EOF
 	 * blocks that other writers depend upon to reduce fragmentation.
 	 *
+	 * Inodes on the zoned RT device never have preallocations, so skip
+	 * taking the locks below.
+	 */
+	if (!inode->i_nlink ||
+	    !(file->f_mode & FMODE_WRITE) ||
+	    (ip->i_diflags & XFS_DIFLAG_APPEND) ||
+	    xfs_is_zoned_inode(ip))
+		return 0;
+
+	/*
 	 * If we can't get the iolock just skip truncating the blocks past EOF
 	 * because we could deadlock with the mmap_lock otherwise. We'll get
 	 * another chance to drop them once the last reference to the inode is
 	 * dropped, so we'll never leak blocks permanently.
 	 */
-	if (inode->i_nlink &&
-	    (file->f_mode & FMODE_WRITE) &&
-	    !(ip->i_diflags & XFS_DIFLAG_APPEND) &&
-	    !xfs_iflags_test(ip, XFS_EOFBLOCKS_RELEASED) &&
+	if (!xfs_iflags_test(ip, XFS_EOFBLOCKS_RELEASED) &&
 	    xfs_ilock_nowait(ip, XFS_IOLOCK_EXCL)) {
 		if (xfs_can_free_eofblocks(ip) &&
 		    !xfs_iflags_test_and_set(ip, XFS_EOFBLOCKS_RELEASED))
