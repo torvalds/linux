@@ -456,6 +456,11 @@ xfs_dinode_verify_fork(
 			if (!xfs_has_rmapbt(mp))
 				return __this_address;
 			break;
+		case XFS_METAFILE_RTREFCOUNT:
+			/* same comment about growfs and rmap inodes applies */
+			if (!xfs_has_reflink(mp))
+				return __this_address;
+			break;
 		default:
 			return __this_address;
 		}

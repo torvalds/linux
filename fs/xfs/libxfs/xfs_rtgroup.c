@@ -367,6 +367,13 @@ static const struct xfs_rtginode_ops xfs_rtginode_ops[XFS_RTGI_MAX] = {
 		.enabled	= xfs_has_rmapbt,
 		.create		= xfs_rtrmapbt_create,
 	},
+	[XFS_RTGI_REFCOUNT] = {
+		.name		= "refcount",
+		.metafile_type	= XFS_METAFILE_RTREFCOUNT,
+		.fmt_mask	= 1U << XFS_DINODE_FMT_META_BTREE,
+		/* same comment about growfs and rmap inodes applies here */
+		.enabled	= xfs_has_reflink,
+	},
 };
 
 /* Return the shortname of this rtgroup inode. */

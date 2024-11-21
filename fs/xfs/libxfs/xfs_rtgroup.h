@@ -15,6 +15,7 @@ enum xfs_rtg_inodes {
 	XFS_RTGI_BITMAP,	/* allocation bitmap */
 	XFS_RTGI_SUMMARY,	/* allocation summary */
 	XFS_RTGI_RMAP,		/* rmap btree inode */
+	XFS_RTGI_REFCOUNT,	/* refcount btree inode */
 
 	XFS_RTGI_MAX,
 };
@@ -78,6 +79,11 @@ static inline struct xfs_inode *rtg_summary(const struct xfs_rtgroup *rtg)
 static inline struct xfs_inode *rtg_rmap(const struct xfs_rtgroup *rtg)
 {
 	return rtg->rtg_inodes[XFS_RTGI_RMAP];
+}
+
+static inline struct xfs_inode *rtg_refcount(const struct xfs_rtgroup *rtg)
+{
+	return rtg->rtg_inodes[XFS_RTGI_REFCOUNT];
 }
 
 /* Passive rtgroup references */
