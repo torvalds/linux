@@ -374,23 +374,6 @@ static int pm8001_task_prep_ssp(struct pm8001_hba_info *pm8001_ha,
 	return PM8001_CHIP_DISP->ssp_io_req(pm8001_ha, ccb);
 }
 
- /* Find the local port id that's attached to this device */
-static int sas_find_local_port_id(struct domain_device *dev)
-{
-	struct domain_device *pdev = dev->parent;
-
-	/* Directly attached device */
-	if (!pdev)
-		return dev->port->id;
-	while (pdev) {
-		struct domain_device *pdev_p = pdev->parent;
-		if (!pdev_p)
-			return pdev->port->id;
-		pdev = pdev->parent;
-	}
-	return 0;
-}
-
 #define DEV_IS_GONE(pm8001_dev)	\
 	((!pm8001_dev || (pm8001_dev->dev_type == SAS_PHY_UNUSED)))
 
@@ -463,10 +446,10 @@ int pm8001_queue_command(struct sas_task *task, gfp_t gfp_flags)
 	spin_lock_irqsave(&pm8001_ha->lock, flags);
 
 	pm8001_dev = dev->lldd_dev;
-	port = &pm8001_ha->port[sas_find_local_port_id(dev)];
+	port = pm8001_ha->phy[pm8001_dev->attached_phy].port;
 
 	if (!internal_abort &&
-	    (DEV_IS_GONE(pm8001_dev) || !port->port_attached)) {
+	    (DEV_IS_GONE(pm8001_dev) || !port || !port->port_attached)) {
 		ts->resp = SAS_TASK_UNDELIVERED;
 		ts->stat = SAS_PHY_DOWN;
 		if (sas_protocol_ata(task_proto)) {
