@@ -1822,3 +1822,28 @@ out:
 	trace_xfs_reflink_unshare_error(ip, error, _RET_IP_);
 	return error;
 }
+
+/*
+ * Can we use reflink with this realtime extent size?  Note that we don't check
+ * for rblocks > 0 here because this can be called as part of attaching a new
+ * rt section.
+ */
+bool
+xfs_reflink_supports_rextsize(
+	struct xfs_mount	*mp,
+	unsigned int		rextsize)
+{
+	/* reflink on the realtime device requires rtgroups */
+	if (!xfs_has_rtgroups(mp))
+	       return false;
+
+	/*
+	 * Reflink doesn't support rt extent size larger than a single fsblock
+	 * because we would have to perform CoW-around for unaligned write
+	 * requests to guarantee that we always remap entire rt extents.
+	 */
+	if (rextsize != 1)
+		return false;
+
+	return true;
+}

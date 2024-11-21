@@ -32,6 +32,7 @@
 #include "xfs_error.h"
 #include "xfs_trace.h"
 #include "xfs_rtrefcount_btree.h"
+#include "xfs_reflink.h"
 
 /*
  * Return whether there are any free extents in the size range given
@@ -1292,8 +1293,10 @@ xfs_growfs_rt(
 			goto out_unlock;
 		if (xfs_has_quota(mp))
 			goto out_unlock;
-	}
-	if (xfs_has_reflink(mp))
+		if (xfs_has_reflink(mp))
+			goto out_unlock;
+	} else if (xfs_has_reflink(mp) &&
+		   !xfs_reflink_supports_rextsize(mp, in->extsize))
 		goto out_unlock;
 
 	error = xfs_sb_validate_fsb_count(&mp->m_sb, in->newblocks);
