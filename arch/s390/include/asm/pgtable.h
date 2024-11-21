@@ -286,6 +286,7 @@ static inline int is_module_addr(void *addr)
 #define _REGION3_ENTRY_ORIGIN_LARGE ~0x7fffffffUL /* large page address	     */
 #define _REGION3_ENTRY_DIRTY	0x2000	/* SW region dirty bit */
 #define _REGION3_ENTRY_YOUNG	0x1000	/* SW region young bit */
+#define _REGION3_ENTRY_COMM	0x0010	/* Common-Region, marks swap entry */
 #define _REGION3_ENTRY_LARGE	0x0400	/* RTTE-format control, large page  */
 #define _REGION3_ENTRY_WRITE	0x8000	/* SW region write bit */
 #define _REGION3_ENTRY_READ	0x4000	/* SW region read bit */
@@ -323,6 +324,7 @@ static inline int is_module_addr(void *addr)
 #define _SEGMENT_ENTRY_DIRTY	0x2000	/* SW segment dirty bit */
 #define _SEGMENT_ENTRY_YOUNG	0x1000	/* SW segment young bit */
 
+#define _SEGMENT_ENTRY_COMM	0x0010	/* Common-Segment, marks swap entry */
 #define _SEGMENT_ENTRY_LARGE	0x0400	/* STE-format control, large page */
 #define _SEGMENT_ENTRY_WRITE	0x8000	/* SW segment write bit */
 #define _SEGMENT_ENTRY_READ	0x4000	/* SW segment read bit */
@@ -334,6 +336,10 @@ static inline int is_module_addr(void *addr)
 #endif
 
 #define _SEGMENT_ENTRY_PRESENT	0x0001	/* SW segment present bit */
+
+/* Common bits in region and segment table entries, for swap entries */
+#define _RST_ENTRY_COMM		0x0010	/* Common-Region/Segment, marks swap entry */
+#define _RST_ENTRY_INVALID	0x0020	/* invalid region/segment table entry */
 
 #define _CRST_ENTRIES	2048	/* number of region/segment table entries */
 #define _PAGE_ENTRIES	256	/* number of page table entries	*/
@@ -1930,6 +1936,53 @@ static inline swp_entry_t __swp_entry(unsigned long type, unsigned long offset)
 
 #define __pte_to_swp_entry(pte)	((swp_entry_t) { pte_val(pte) })
 #define __swp_entry_to_pte(x)	((pte_t) { (x).val })
+
+/*
+ * 64 bit swap entry format for REGION3 and SEGMENT table entries (RSTE)
+ * Bits 59 and 63 are used to indicate the swap entry. Bit 58 marks the rste
+ * as invalid.
+ * A swap entry is indicated by bit pattern (rste & 0x011) == 0x010
+ * |			  offset			|Xtype |11TT|S0|
+ * |0000000000111111111122222222223333333333444444444455|555555|5566|66|
+ * |0123456789012345678901234567890123456789012345678901|234567|8901|23|
+ *
+ * Bits 0-51 store the offset.
+ * Bits 53-57 store the type.
+ * Bit 62 (S) is used for softdirty tracking.
+ * Bits 60-61 (TT) indicate the table type: 0x01 for REGION3 and 0x00 for SEGMENT.
+ * Bit 52 (X) is unused.
+ */
+
+#define __SWP_OFFSET_MASK_RSTE	((1UL << 52) - 1)
+#define __SWP_OFFSET_SHIFT_RSTE	12
+#define __SWP_TYPE_MASK_RSTE		((1UL << 5) - 1)
+#define __SWP_TYPE_SHIFT_RSTE	6
+
+/*
+ * TT bits set to 0x00 == SEGMENT. For REGION3 entries, caller must add R3
+ * bits 0x01. See also __set_huge_pte_at().
+ */
+static inline unsigned long mk_swap_rste(unsigned long type, unsigned long offset)
+{
+	unsigned long rste;
+
+	rste = _RST_ENTRY_INVALID | _RST_ENTRY_COMM;
+	rste |= (offset & __SWP_OFFSET_MASK_RSTE) << __SWP_OFFSET_SHIFT_RSTE;
+	rste |= (type & __SWP_TYPE_MASK_RSTE) << __SWP_TYPE_SHIFT_RSTE;
+	return rste;
+}
+
+static inline unsigned long __swp_type_rste(swp_entry_t entry)
+{
+	return (entry.val >> __SWP_TYPE_SHIFT_RSTE) & __SWP_TYPE_MASK_RSTE;
+}
+
+static inline unsigned long __swp_offset_rste(swp_entry_t entry)
+{
+	return (entry.val >> __SWP_OFFSET_SHIFT_RSTE) & __SWP_OFFSET_MASK_RSTE;
+}
+
+#define __rste_to_swp_entry(rste)	((swp_entry_t) { rste })
 
 extern int vmem_add_mapping(unsigned long start, unsigned long size);
 extern void vmem_remove_mapping(unsigned long start, unsigned long size);
