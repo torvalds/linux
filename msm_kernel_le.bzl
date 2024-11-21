@@ -308,6 +308,7 @@ def define_msm_le(
 
     define_dtc_dist(target, msm_target, variant)
     if msm_target == "pineapple-le":
+        define_extras(target)
         return
     gen_allyes_files(le_target, target)
 
