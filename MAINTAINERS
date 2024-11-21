@@ -19605,11 +19605,6 @@ F:	Documentation/devicetree/bindings/regmap/
 F:	drivers/base/regmap/
 F:	include/linux/regmap.h
 
-REISERFS FILE SYSTEM
-L:	reiserfs-devel@vger.kernel.org
-S:	Obsolete
-F:	fs/reiserfs/
-
 REMOTE PROCESSOR (REMOTEPROC) SUBSYSTEM
 M:	Bjorn Andersson <andersson@kernel.org>
 M:	Mathieu Poirier <mathieu.poirier@linaro.org>
