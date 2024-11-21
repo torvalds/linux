@@ -17,6 +17,7 @@
 #include "xfs_rtgroup.h"
 #include "xfs_metafile.h"
 #include "xfs_rtrefcount_btree.h"
+#include "xfs_rtalloc.h"
 #include "scrub/scrub.h"
 #include "scrub/common.h"
 #include "scrub/btree.h"
@@ -348,8 +349,14 @@ struct xchk_rtrefcbt_records {
 	/* Previous refcount record. */
 	struct xfs_refcount_irec	prev_rec;
 
+	/* The next rtgroup block where we aren't expecting shared extents. */
+	xfs_rgblock_t			next_unshared_rgbno;
+
 	/* Number of CoW blocks we expect. */
 	xfs_extlen_t			cow_blocks;
+
+	/* Was the last record a shared or CoW staging extent? */
+	enum xfs_refc_domain		prev_domain;
 };
 
 static inline bool
@@ -390,6 +397,53 @@ xchk_rtrefcountbt_check_mergeable(
 	memcpy(&rrc->prev_rec, irec, sizeof(struct xfs_refcount_irec));
 }
 
+STATIC int
+xchk_rtrefcountbt_rmap_check_gap(
+	struct xfs_btree_cur		*cur,
+	const struct xfs_rmap_irec	*rec,
+	void				*priv)
+{
+	xfs_rgblock_t			*next_bno = priv;
+
+	if (*next_bno != NULLRGBLOCK && rec->rm_startblock < *next_bno)
+		return -ECANCELED;
+
+	*next_bno = rec->rm_startblock + rec->rm_blockcount;
+	return 0;
+}
+
+/*
+ * Make sure that a gap in the reference count records does not correspond to
+ * overlapping records (i.e. shared extents) in the reverse mappings.
+ */
+static inline void
+xchk_rtrefcountbt_xref_gaps(
+	struct xfs_scrub	*sc,
+	struct xchk_rtrefcbt_records *rrc,
+	xfs_rtblock_t		bno)
+{
+	struct xfs_rmap_irec	low;
+	struct xfs_rmap_irec	high;
+	xfs_rgblock_t		next_bno = NULLRGBLOCK;
+	int			error;
+
+	if (bno <= rrc->next_unshared_rgbno || !sc->sr.rmap_cur ||
+            xchk_skip_xref(sc->sm))
+		return;
+
+	memset(&low, 0, sizeof(low));
+	low.rm_startblock = rrc->next_unshared_rgbno;
+	memset(&high, 0xFF, sizeof(high));
+	high.rm_startblock = bno - 1;
+
+	error = xfs_rmap_query_range(sc->sr.rmap_cur, &low, &high,
+			xchk_rtrefcountbt_rmap_check_gap, &next_bno);
+	if (error == -ECANCELED)
+		xchk_btree_xref_set_corrupt(sc, sc->sr.rmap_cur, 0);
+	else
+		xchk_should_check_xref(sc, &error, &sc->sr.rmap_cur);
+}
+
 /* Scrub a rtrefcountbt record. */
 STATIC int
 xchk_rtrefcountbt_rec(
@@ -419,8 +473,25 @@ xchk_rtrefcountbt_rec(
 	if (irec.rc_domain == XFS_REFC_DOMAIN_COW)
 		rrc->cow_blocks += irec.rc_blockcount;
 
+	/* Shared records always come before CoW records. */
+	if (irec.rc_domain == XFS_REFC_DOMAIN_SHARED &&
+	    rrc->prev_domain == XFS_REFC_DOMAIN_COW)
+		xchk_btree_set_corrupt(bs->sc, bs->cur, 0);
+	rrc->prev_domain = irec.rc_domain;
+
 	xchk_rtrefcountbt_check_mergeable(bs, rrc, &irec);
 	xchk_rtrefcountbt_xref(bs->sc, &irec);
+
+	/*
+	 * If this is a record for a shared extent, check that all blocks
+	 * between the previous record and this one have at most one reverse
+	 * mapping.
+	 */
+	if (irec.rc_domain == XFS_REFC_DOMAIN_SHARED) {
+		xchk_rtrefcountbt_xref_gaps(bs->sc, rrc, irec.rc_startblock);
+		rrc->next_unshared_rgbno = irec.rc_startblock +
+					   irec.rc_blockcount;
+	}
 
 	return 0;
 }
@@ -466,7 +537,9 @@ xchk_rtrefcountbt(
 {
 	struct xfs_owner_info	btree_oinfo;
 	struct xchk_rtrefcbt_records rrc = {
-		.cow_blocks	= 0,
+		.cow_blocks		= 0,
+		.next_unshared_rgbno	= 0,
+		.prev_domain		= XFS_REFC_DOMAIN_SHARED,
 	};
 	int			error;
 
@@ -480,6 +553,12 @@ xchk_rtrefcountbt(
 			&btree_oinfo, &rrc);
 	if (error || (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT))
 		return error;
+
+	/*
+	 * Check that all blocks between the last refcount > 1 record and the
+	 * end of the rt volume have at most one reverse mapping.
+	 */
+	xchk_rtrefcountbt_xref_gaps(sc, &rrc, sc->mp->m_sb.sb_rblocks);
 
 	xchk_refcount_xref_rmap(sc, &btree_oinfo, rrc.cow_blocks);
 
