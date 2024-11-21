@@ -650,6 +650,15 @@ xfs_agbtree_compute_maxlevels(
 	mp->m_agbtree_maxlevels = max(levels, mp->m_refc_maxlevels);
 }
 
+/* Compute maximum possible height for realtime btree types for this fs. */
+static inline void
+xfs_rtbtree_compute_maxlevels(
+	struct xfs_mount	*mp)
+{
+	/* This will be filled in later. */
+	mp->m_rtbtree_maxlevels = 0;
+}
+
 /*
  * This function does the following on an initial mount of a file system:
  *	- reads the superblock from disk and init the mount struct
@@ -721,6 +730,7 @@ xfs_mountfs(
 	xfs_refcountbt_compute_maxlevels(mp);
 
 	xfs_agbtree_compute_maxlevels(mp);
+	xfs_rtbtree_compute_maxlevels(mp);
 
 	/*
 	 * Check if sb_agblocks is aligned at stripe boundary.  If sb_agblocks
