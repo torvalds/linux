@@ -2021,7 +2021,10 @@ xfs_rtallocate_align(
 	if (*noalign) {
 		align = mp->m_sb.sb_rextsize;
 	} else {
-		align = xfs_get_extsz_hint(ap->ip);
+		if (ap->flags & XFS_BMAPI_COWFORK)
+			align = xfs_get_cowextsz_hint(ap->ip);
+		else
+			align = xfs_get_extsz_hint(ap->ip);
 		if (!align)
 			align = 1;
 		if (align == mp->m_sb.sb_rextsize)
