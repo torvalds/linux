@@ -1383,6 +1383,22 @@ use_minimal_wm0_only(const struct intel_crtc_state *crtc_state,
 	       plane->async_flip;
 }
 
+unsigned int
+skl_plane_relative_data_rate(const struct intel_crtc_state *crtc_state,
+			     struct intel_plane *plane, int width, int height,
+			     int cpp)
+{
+	/*
+	 * We calculate extra ddb based on ratio plane rate/total data rate
+	 * in case, in some cases we should not allocate extra ddb for the plane,
+	 * so do not count its data rate, if this is the case.
+	 */
+	if (use_minimal_wm0_only(crtc_state, plane))
+		return 0;
+
+	return width * height * cpp;
+}
+
 static u64
 skl_total_relative_data_rate(const struct intel_crtc_state *crtc_state)
 {
