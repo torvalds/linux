@@ -33,6 +33,7 @@
 #include "xfs_ag.h"
 #include "xfs_rtrmap_btree.h"
 #include "xfs_rtgroup.h"
+#include "xfs_rtrefcount_btree.h"
 #include "scrub/xfs_scrub.h"
 #include "scrub/scrub.h"
 #include "scrub/common.h"
@@ -519,6 +520,9 @@ xrep_rmap_scan_meta_btree(
 	case XFS_METAFILE_RTRMAP:
 		type = XFS_RTGI_RMAP;
 		break;
+	case XFS_METAFILE_RTREFCOUNT:
+		type = XFS_RTGI_REFCOUNT;
+		break;
 	default:
 		ASSERT(0);
 		return -EFSCORRUPTED;
@@ -544,6 +548,9 @@ found:
 	switch (ip->i_metatype) {
 	case XFS_METAFILE_RTRMAP:
 		cur = xfs_rtrmapbt_init_cursor(sc->tp, rtg);
+		break;
+	case XFS_METAFILE_RTREFCOUNT:
+		cur = xfs_rtrefcountbt_init_cursor(sc->tp, rtg);
 		break;
 	default:
 		ASSERT(0);
