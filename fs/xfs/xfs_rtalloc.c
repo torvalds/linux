@@ -989,9 +989,11 @@ xfs_growfs_rt_bmblock(
 		goto out_free;
 
 	/*
-	 * Ensure the mount RT feature flag is now set.
+	 * Ensure the mount RT feature flag is now set, and compute new
+	 * maxlevels for rt btrees.
 	 */
 	mp->m_features |= XFS_FEAT_REALTIME;
+	xfs_rtrmapbt_compute_maxlevels(mp);
 
 	kfree(nmp);
 	return 0;
@@ -1159,29 +1161,37 @@ out_rele:
 	return error;
 }
 
-static int
+int
 xfs_growfs_check_rtgeom(
 	const struct xfs_mount	*mp,
+	xfs_rfsblock_t		dblocks,
 	xfs_rfsblock_t		rblocks,
 	xfs_extlen_t		rextsize)
 {
+	xfs_extlen_t		min_logfsbs;
 	struct xfs_mount	*nmp;
-	int			error = 0;
 
 	nmp = xfs_growfs_rt_alloc_fake_mount(mp, rblocks, rextsize);
 	if (!nmp)
 		return -ENOMEM;
+	nmp->m_sb.sb_dblocks = dblocks;
+
+	xfs_rtrmapbt_compute_maxlevels(nmp);
+	xfs_trans_resv_calc(nmp, M_RES(nmp));
 
 	/*
 	 * New summary size can't be more than half the size of the log.  This
 	 * prevents us from getting a log overflow, since we'll log basically
 	 * the whole summary file at once.
 	 */
-	if (nmp->m_rsumblocks > (mp->m_sb.sb_logblocks >> 1))
-		error = -EINVAL;
+	min_logfsbs = min_t(xfs_extlen_t, xfs_log_calc_minimum_size(nmp),
+			nmp->m_rsumblocks * 2);
 
 	kfree(nmp);
-	return error;
+
+	if (min_logfsbs > mp->m_sb.sb_logblocks)
+		return -EINVAL;
+	return 0;
 }
 
 /*
@@ -1300,7 +1310,8 @@ xfs_growfs_rt(
 		goto out_unlock;
 
 	/* Make sure the new fs size won't cause problems with the log. */
-	error = xfs_growfs_check_rtgeom(mp, in->newblocks, in->extsize);
+	error = xfs_growfs_check_rtgeom(mp, mp->m_sb.sb_dblocks, in->newblocks,
+			in->extsize);
 	if (error)
 		goto out_unlock;
 
