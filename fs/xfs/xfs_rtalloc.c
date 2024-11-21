@@ -594,7 +594,7 @@ xfs_rtalloc_sumlevel(
  * specified.  If we don't get maxlen then use prod to trim
  * the length, if given.  The lengths are all in rtextents.
  */
-STATIC int
+static int
 xfs_rtallocate_extent_size(
 	struct xfs_rtalloc_args	*args,
 	xfs_rtxlen_t		minlen,	/* minimum length to allocate */
@@ -1958,7 +1958,7 @@ out_unlock:
 	goto out_release;
 }
 
-static int
+int
 xfs_rtallocate_rtgs(
 	struct xfs_trans	*tp,
 	xfs_fsblock_t		bno_hint,
