@@ -373,14 +373,14 @@ EXPORT_SYMBOL(amdgpu_bo_create_kernel);
  * 0 on success, negative error code otherwise.
  */
 int amdgpu_bo_create_isp_user(struct amdgpu_device *adev,
-			   struct dma_buf *dbuf, u32 domain, struct amdgpu_bo **bo,
+			   struct dma_buf *dma_buf, u32 domain, struct amdgpu_bo **bo,
 			   u64 *gpu_addr)
 
 {
 	struct drm_gem_object *gem_obj;
 	int r;
 
-	gem_obj = amdgpu_gem_prime_import(&adev->ddev, dbuf);
+	gem_obj = amdgpu_gem_prime_import(&adev->ddev, dma_buf);
 	*bo = gem_to_amdgpu_bo(gem_obj);
 	if (!(*bo)) {
 		dev_err(adev->dev, "failed to get valid isp user bo\n");
