@@ -233,7 +233,7 @@ struct xfs_btree_ops {
 
 /* btree geometry flags */
 #define XFS_BTGEO_OVERLAPPING		(1U << 0) /* overlapping intervals */
-
+#define XFS_BTGEO_IROOT_RECORDS		(1U << 1) /* iroot can store records */
 
 union xfs_btree_irec {
 	struct xfs_alloc_rec_incore	a;
