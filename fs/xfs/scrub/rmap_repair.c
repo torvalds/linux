@@ -1614,7 +1614,7 @@ xrep_rmapbt_live_update(
 	if (!xrep_rmapbt_want_live_update(&rr->iscan, &p->oinfo))
 		goto out_unlock;
 
-	trace_xrep_rmap_live_update(rr->sc->sa.pag, action, p);
+	trace_xrep_rmap_live_update(pag_group(rr->sc->sa.pag), action, p);
 
 	error = xrep_trans_alloc_hook_dummy(mp, &txcookie, &tp);
 	if (error)
