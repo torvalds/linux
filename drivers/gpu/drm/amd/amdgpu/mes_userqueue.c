@@ -223,7 +223,7 @@ static int mes_userq_detect_and_reset(struct amdgpu_device *adev,
 
 	amdgpu_mes_lock(&adev->mes);
 	r = amdgpu_mes_detect_and_reset_hung_queues(adev, queue_type, false,
-						    &hung_db_num, db_array);
+						    &hung_db_num, db_array, 0);
 	amdgpu_mes_unlock(&adev->mes);
 	if (r) {
 		dev_err(adev->dev, "Failed to detect and reset queues, err (%d)\n", r);
