@@ -41,6 +41,11 @@ void ath12k_dp_peer_cleanup(struct ath12k *ar, int vdev_id, const u8 *addr)
 		return;
 	}
 
+	if (!peer->primary_link) {
+		spin_unlock_bh(&ab->base_lock);
+		return;
+	}
+
 	ath12k_dp_rx_peer_tid_cleanup(ar, peer);
 	crypto_free_shash(peer->tfm_mmic);
 	peer->dp_setup_done = false;

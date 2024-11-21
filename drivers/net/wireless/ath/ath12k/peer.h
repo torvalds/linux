@@ -51,6 +51,14 @@ struct ath12k_peer {
 	bool dp_setup_done;
 
 	u16 ml_id;
+
+	/* any other ML info common for all partners can be added
+	 * here and would be same for all partner peers.
+	 */
+	u8 ml_addr[ETH_ALEN];
+
+	/* To ensure only certain work related to dp is done once */
+	bool primary_link;
 };
 
 struct ath12k_ml_peer {

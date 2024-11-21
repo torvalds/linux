@@ -940,6 +940,11 @@ int ath12k_dp_rx_peer_tid_setup(struct ath12k *ar, const u8 *peer_mac, int vdev_
 		return -ENOENT;
 	}
 
+	if (!peer->primary_link) {
+		spin_unlock_bh(&ab->base_lock);
+		return 0;
+	}
+
 	if (ab->hw_params->reoq_lut_support && !dp->reoq_lut.vaddr) {
 		spin_unlock_bh(&ab->base_lock);
 		ath12k_warn(ab, "reo qref table is not setup\n");
@@ -2779,6 +2784,11 @@ int ath12k_dp_rx_peer_frag_setup(struct ath12k *ar, const u8 *peer_mac, int vdev
 		crypto_free_shash(tfm);
 		ath12k_warn(ab, "failed to find the peer to set up fragment info\n");
 		return -ENOENT;
+	}
+
+	if (!peer->primary_link) {
+		spin_unlock_bh(&ab->base_lock);
+		return 0;
 	}
 
 	for (i = 0; i <= IEEE80211_NUM_TIDS; i++) {
