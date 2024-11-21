@@ -22,6 +22,7 @@
 #include "xfs_log_recover.h"
 #include "xfs_icache.h"
 #include "xfs_bmap_btree.h"
+#include "xfs_rtrmap_btree.h"
 
 STATIC void
 xlog_recover_inode_ra_pass2(
@@ -282,6 +283,9 @@ xlog_recover_inode_dbroot(
 		break;
 	case XFS_DINODE_FMT_META_BTREE:
 		switch (be16_to_cpu(dip->di_metatype)) {
+		case XFS_METAFILE_RTRMAP:
+			xfs_rtrmapbt_to_disk(mp, src, len, dfork, dsize);
+			return 0;
 		default:
 			ASSERT(0);
 			return -EFSCORRUPTED;
