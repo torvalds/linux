@@ -510,7 +510,11 @@ struct ath12k_sta {
 	struct ath12k_link_sta __rcu *link[IEEE80211_MLD_MAX_NUM_LINKS];
 	/* indicates bitmap of link sta created in FW */
 	u16 links_map;
+	u8 assoc_link_id;
 	u16 ml_peer_id;
+	u8 num_peer;
+
+	enum ieee80211_sta_state state;
 };
 
 #define ATH12K_MIN_5G_FREQ 4150

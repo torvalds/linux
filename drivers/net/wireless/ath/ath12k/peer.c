@@ -264,8 +264,9 @@ int ath12k_wait_for_peer_delete_done(struct ath12k *ar, u32 vdev_id,
 	return 0;
 }
 
-int ath12k_peer_delete(struct ath12k *ar, u32 vdev_id, u8 *addr)
+static int ath12k_peer_delete_send(struct ath12k *ar, u32 vdev_id, const u8 *addr)
 {
+	struct ath12k_base *ab = ar->ab;
 	int ret;
 
 	lockdep_assert_wiphy(ath12k_ar_to_hw(ar)->wiphy);
@@ -274,11 +275,24 @@ int ath12k_peer_delete(struct ath12k *ar, u32 vdev_id, u8 *addr)
 
 	ret = ath12k_wmi_send_peer_delete_cmd(ar, addr, vdev_id);
 	if (ret) {
-		ath12k_warn(ar->ab,
+		ath12k_warn(ab,
 			    "failed to delete peer vdev_id %d addr %pM ret %d\n",
 			    vdev_id, addr, ret);
 		return ret;
 	}
+
+	return 0;
+}
+
+int ath12k_peer_delete(struct ath12k *ar, u32 vdev_id, u8 *addr)
+{
+	int ret;
+
+	lockdep_assert_wiphy(ath12k_ar_to_hw(ar)->wiphy);
+
+	ret = ath12k_peer_delete_send(ar, vdev_id, addr);
+	if (ret)
+		return ret;
 
 	ret = ath12k_wait_for_peer_delete_done(ar, vdev_id, addr);
 	if (ret)
@@ -455,4 +469,69 @@ int ath12k_peer_ml_delete(struct ath12k_hw *ah, struct ieee80211_sta *sta)
 	kfree(ml_peer);
 
 	return 0;
+}
+
+int ath12k_peer_mlo_link_peers_delete(struct ath12k_vif *ahvif, struct ath12k_sta *ahsta)
+{
+	struct ieee80211_sta *sta = ath12k_ahsta_to_sta(ahsta);
+	struct ath12k_hw *ah = ahvif->ah;
+	struct ath12k_link_vif *arvif;
+	struct ath12k_link_sta *arsta;
+	unsigned long links;
+	struct ath12k *ar;
+	int ret, err_ret = 0;
+	u8 link_id;
+
+	lockdep_assert_wiphy(ah->hw->wiphy);
+
+	if (!sta->mlo)
+		return -EINVAL;
+
+	/* FW expects delete of all link peers at once before waiting for reception
+	 * of peer unmap or delete responses
+	 */
+	links = ahsta->links_map;
+	for_each_set_bit(link_id, &links, IEEE80211_MLD_MAX_NUM_LINKS) {
+		arvif = wiphy_dereference(ah->hw->wiphy, ahvif->link[link_id]);
+		arsta = wiphy_dereference(ah->hw->wiphy, ahsta->link[link_id]);
+		if (!arvif || !arsta)
+			continue;
+
+		ar = arvif->ar;
+		if (!ar)
+			continue;
+
+		ath12k_dp_peer_cleanup(ar, arvif->vdev_id, arsta->addr);
+
+		ret = ath12k_peer_delete_send(ar, arvif->vdev_id, arsta->addr);
+		if (ret) {
+			ath12k_warn(ar->ab,
+				    "failed to delete peer vdev_id %d addr %pM ret %d\n",
+				    arvif->vdev_id, arsta->addr, ret);
+			err_ret = ret;
+			continue;
+		}
+	}
+
+	/* Ensure all link peers are deleted and unmapped */
+	links = ahsta->links_map;
+	for_each_set_bit(link_id, &links, IEEE80211_MLD_MAX_NUM_LINKS) {
+		arvif = wiphy_dereference(ah->hw->wiphy, ahvif->link[link_id]);
+		arsta = wiphy_dereference(ah->hw->wiphy, ahsta->link[link_id]);
+		if (!arvif || !arsta)
+			continue;
+
+		ar = arvif->ar;
+		if (!ar)
+			continue;
+
+		ret = ath12k_wait_for_peer_delete_done(ar, arvif->vdev_id, arsta->addr);
+		if (ret) {
+			err_ret = ret;
+			continue;
+		}
+		ar->num_peers--;
+	}
+
+	return err_ret;
 }
