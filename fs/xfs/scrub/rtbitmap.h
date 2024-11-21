@@ -7,10 +7,15 @@
 #define __XFS_SCRUB_RTBITMAP_H__
 
 struct xchk_rtbitmap {
+	struct xfs_scrub	*sc;
+
 	uint64_t		rextents;
 	uint64_t		rbmblocks;
 	unsigned int		rextslog;
 	unsigned int		resblks;
+
+	/* The next free rt group block number that we expect to see. */
+	xfs_rgblock_t		next_free_rgbno;
 };
 
 #ifdef CONFIG_XFS_ONLINE_REPAIR

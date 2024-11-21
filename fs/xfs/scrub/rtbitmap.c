@@ -9,17 +9,22 @@
 #include "xfs_format.h"
 #include "xfs_trans_resv.h"
 #include "xfs_mount.h"
+#include "xfs_btree.h"
 #include "xfs_log_format.h"
 #include "xfs_trans.h"
 #include "xfs_rtbitmap.h"
 #include "xfs_inode.h"
 #include "xfs_bmap.h"
 #include "xfs_bit.h"
+#include "xfs_rtgroup.h"
 #include "xfs_sb.h"
+#include "xfs_rmap.h"
+#include "xfs_rtrmap_btree.h"
 #include "scrub/scrub.h"
 #include "scrub/common.h"
 #include "scrub/repair.h"
 #include "scrub/rtbitmap.h"
+#include "scrub/btree.h"
 
 /* Set us up with the realtime metadata locked. */
 int
@@ -37,6 +42,7 @@ xchk_setup_rtbitmap(
 	if (!rtb)
 		return -ENOMEM;
 	sc->buf = rtb;
+	rtb->sc = sc;
 
 	error = xchk_rtgroup_init(sc, sc->sm->sm_agno, &sc->sr);
 	if (error)
@@ -78,7 +84,30 @@ xchk_setup_rtbitmap(
 	return 0;
 }
 
-/* Realtime bitmap. */
+/* Per-rtgroup bitmap contents. */
+
+/* Cross-reference rtbitmap entries with other metadata. */
+STATIC void
+xchk_rtbitmap_xref(
+	struct xchk_rtbitmap	*rtb,
+	xfs_rtblock_t		startblock,
+	xfs_rtblock_t		blockcount)
+{
+	struct xfs_scrub	*sc = rtb->sc;
+	xfs_rgblock_t		rgbno = xfs_rtb_to_rgbno(sc->mp, startblock);
+
+	if (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
+		return;
+	if (!sc->sr.rmap_cur)
+		return;
+
+	xchk_xref_has_no_rt_owner(sc, rgbno, blockcount);
+
+	if (rtb->next_free_rgbno < rgbno)
+		xchk_xref_has_rt_owner(sc, rtb->next_free_rgbno,
+				rgbno - rtb->next_free_rgbno);
+	rtb->next_free_rgbno = rgbno + blockcount;
+}
 
 /* Scrub a free extent record from the realtime bitmap. */
 STATIC int
@@ -88,7 +117,8 @@ xchk_rtbitmap_rec(
 	const struct xfs_rtalloc_rec *rec,
 	void			*priv)
 {
-	struct xfs_scrub	*sc = priv;
+	struct xchk_rtbitmap	*rtb = priv;
+	struct xfs_scrub	*sc = rtb->sc;
 	xfs_rtblock_t		startblock;
 	xfs_filblks_t		blockcount;
 
@@ -97,6 +127,12 @@ xchk_rtbitmap_rec(
 
 	if (!xfs_verify_rtbext(rtg_mount(rtg), startblock, blockcount))
 		xchk_fblock_set_corrupt(sc, XFS_DATA_FORK, 0);
+
+	xchk_rtbitmap_xref(rtb, startblock, blockcount);
+
+	if (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
+		return -ECANCELED;
+
 	return 0;
 }
 
@@ -144,7 +180,7 @@ xchk_rtbitmap_check_extents(
 	return error;
 }
 
-/* Scrub the realtime bitmap. */
+/* Scrub this group's realtime bitmap. */
 int
 xchk_rtbitmap(
 	struct xfs_scrub	*sc)
@@ -153,6 +189,7 @@ xchk_rtbitmap(
 	struct xfs_rtgroup	*rtg = sc->sr.rtg;
 	struct xfs_inode	*rbmip = rtg_bitmap(rtg);
 	struct xchk_rtbitmap	*rtb = sc->buf;
+	xfs_rgblock_t		last_rgbno;
 	int			error;
 
 	/* Is sb_rextents correct? */
@@ -205,10 +242,20 @@ xchk_rtbitmap(
 	if (error || (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT))
 		return error;
 
-	error = xfs_rtalloc_query_all(rtg, sc->tp, xchk_rtbitmap_rec, sc);
+	rtb->next_free_rgbno = 0;
+	error = xfs_rtalloc_query_all(rtg, sc->tp, xchk_rtbitmap_rec, rtb);
 	if (!xchk_fblock_process_error(sc, XFS_DATA_FORK, 0, &error))
 		return error;
 
+	/*
+	 * Check that the are rmappings for all rt extents between the end of
+	 * the last free extent we saw and the last possible extent in the rt
+	 * group.
+	 */
+	last_rgbno = rtg->rtg_extents * mp->m_sb.sb_rextsize - 1;
+	if (rtb->next_free_rgbno < last_rgbno)
+		xchk_xref_has_rt_owner(sc, rtb->next_free_rgbno,
+				last_rgbno - rtb->next_free_rgbno);
 	return 0;
 }
 
