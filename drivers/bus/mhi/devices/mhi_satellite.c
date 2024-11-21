@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-// Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+// Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
 
 #include <linux/device.h>
 #include <linux/dma-direction.h>
@@ -1047,9 +1047,6 @@ static void mhi_sat_dev_remove(struct mhi_device *mhi_dev)
 					       DMA_ATTR_SKIP_CPU_SYNC);
 		}
 
-		dma_unmap_single_attrs(parent_dev, buf->dma_addr,
-				       buf->len, DMA_BIDIRECTIONAL,
-				       DMA_ATTR_SKIP_CPU_SYNC);
 		list_del(&buf->node);
 		kfree(buf);
 	}
