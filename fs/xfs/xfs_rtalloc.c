@@ -31,6 +31,7 @@
 #include "xfs_rtgroup.h"
 #include "xfs_error.h"
 #include "xfs_trace.h"
+#include "xfs_rtrefcount_btree.h"
 
 /*
  * Return whether there are any free extents in the size range given
@@ -1545,6 +1546,11 @@ xfs_rt_resv_init(
 
 		ask = xfs_rtrmapbt_calc_reserves(mp);
 		err2 = xfs_metafile_resv_init(rtg_rmap(rtg), ask);
+		if (err2 && !error)
+			error = err2;
+
+		ask = xfs_rtrefcountbt_calc_reserves(mp);
+		err2 = xfs_metafile_resv_init(rtg_refcount(rtg), ask);
 		if (err2 && !error)
 			error = err2;
 	}
