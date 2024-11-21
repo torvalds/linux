@@ -7,8 +7,10 @@
 #include "xfs_fs.h"
 #include "xfs_shared.h"
 #include "xfs_format.h"
+#include "xfs_log_format.h"
 #include "xfs_trans_resv.h"
 #include "xfs_mount.h"
+#include "xfs_trans.h"
 #include "xfs_btree.h"
 #include "xfs_rmap.h"
 #include "xfs_refcount.h"
@@ -21,6 +23,7 @@
 #include "scrub/scrub.h"
 #include "scrub/common.h"
 #include "scrub/btree.h"
+#include "scrub/repair.h"
 
 /* Set us up with the realtime refcount metadata locked. */
 int
@@ -31,6 +34,12 @@ xchk_setup_rtrefcountbt(
 
 	if (xchk_need_intent_drain(sc))
 		xchk_fsgates_enable(sc, XCHK_FSGATES_DRAIN);
+
+	if (xchk_could_repair(sc)) {
+		error = xrep_setup_rtrefcountbt(sc);
+		if (error)
+			return error;
+	}
 
 	error = xchk_rtgroup_init(sc, sc->sm->sm_agno, &sc->sr);
 	if (error)

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Copyright (C) 2018-2023 Oracle.  All Rights Reserved.
+ * Copyright (c) 2021-2024 Oracle.  All Rights Reserved.
  * Author: Darrick J. Wong <djwong@kernel.org>
  */
 #include "xfs.h"
@@ -12,7 +12,6 @@
 #include "xfs_defer.h"
 #include "xfs_btree.h"
 #include "xfs_btree_staging.h"
-#include "xfs_inode.h"
 #include "xfs_bit.h"
 #include "xfs_log_format.h"
 #include "xfs_trans.h"
@@ -21,11 +20,17 @@
 #include "xfs_ialloc.h"
 #include "xfs_rmap.h"
 #include "xfs_rmap_btree.h"
+#include "xfs_rtrmap_btree.h"
 #include "xfs_refcount.h"
-#include "xfs_refcount_btree.h"
+#include "xfs_rtrefcount_btree.h"
 #include "xfs_error.h"
-#include "xfs_ag.h"
 #include "xfs_health.h"
+#include "xfs_inode.h"
+#include "xfs_quota.h"
+#include "xfs_rtalloc.h"
+#include "xfs_ag.h"
+#include "xfs_rtgroup.h"
+#include "xfs_rtbitmap.h"
 #include "scrub/xfs_scrub.h"
 #include "scrub/scrub.h"
 #include "scrub/common.h"
@@ -33,7 +38,7 @@
 #include "scrub/trace.h"
 #include "scrub/repair.h"
 #include "scrub/bitmap.h"
-#include "scrub/agb_bitmap.h"
+#include "scrub/fsb_bitmap.h"
 #include "scrub/xfile.h"
 #include "scrub/xfarray.h"
 #include "scrub/newbt.h"
@@ -72,7 +77,7 @@
  * Given an array of rmaps sorted by physical block number, a starting
  * physical block (sp), a bag to hold rmaps that cover sp, and the next
  * physical block where the level changes (np), we can reconstruct the
- * refcount btree as follows:
+ * rt refcount btree as follows:
  *
  * While there are still unprocessed rmaps in the array,
  *  - Set sp to the physical block (pblk) of the next unprocessed rmap.
@@ -95,11 +100,11 @@
  *       and (startblock + len of each rmap in the bag).
  *
  * Like all the other repairers, we make a list of all the refcount
- * records we need, then reinitialize the refcount btree root and
+ * records we need, then reinitialize the rt refcount btree root and
  * insert all the records.
  */
 
-struct xrep_refc {
+struct xrep_rtrefc {
 	/* refcount extents */
 	struct xfarray		*refcount_records;
 
@@ -107,20 +112,20 @@ struct xrep_refc {
 	struct xrep_newbt	new_btree;
 
 	/* old refcountbt blocks */
-	struct xagb_bitmap	old_refcountbt_blocks;
+	struct xfsb_bitmap	old_rtrefcountbt_blocks;
 
 	struct xfs_scrub	*sc;
 
-	/* get_records()'s position in the refcount record array. */
+	/* get_records()'s position in the rt refcount record array. */
 	xfarray_idx_t		array_cur;
 
 	/* # of refcountbt blocks */
-	xfs_extlen_t		btblocks;
+	xfs_filblks_t		btblocks;
 };
 
 /* Set us up to repair refcount btrees. */
 int
-xrep_setup_ag_refcountbt(
+xrep_setup_rtrefcountbt(
 	struct xfs_scrub	*sc)
 {
 	char			*descr;
@@ -134,109 +139,92 @@ xrep_setup_ag_refcountbt(
 
 /* Check for any obvious conflicts with this shared/CoW staging extent. */
 STATIC int
-xrep_refc_check_ext(
+xrep_rtrefc_check_ext(
 	struct xfs_scrub		*sc,
 	const struct xfs_refcount_irec	*rec)
 {
-	enum xbtree_recpacking		outcome;
-	int				error;
+	xfs_rgblock_t			last;
 
-	if (xfs_refcount_check_irec(sc->sa.pag, rec) != NULL)
+	if (xfs_rtrefcount_check_irec(sc->sr.rtg, rec) != NULL)
 		return -EFSCORRUPTED;
 
-	/* Make sure this isn't free space. */
-	error = xfs_alloc_has_records(sc->sa.bno_cur, rec->rc_startblock,
-			rec->rc_blockcount, &outcome);
-	if (error)
-		return error;
-	if (outcome != XBTREE_RECPACKING_EMPTY)
+	if (xfs_rgbno_to_rtxoff(sc->mp, rec->rc_startblock) != 0)
 		return -EFSCORRUPTED;
 
-	/* Must not be an inode chunk. */
-	error = xfs_ialloc_has_inodes_at_extent(sc->sa.ino_cur,
-			rec->rc_startblock, rec->rc_blockcount, &outcome);
-	if (error)
-		return error;
-	if (outcome != XBTREE_RECPACKING_EMPTY)
+	last = rec->rc_startblock + rec->rc_blockcount - 1;
+	if (xfs_rgbno_to_rtxoff(sc->mp, last) != sc->mp->m_sb.sb_rextsize - 1)
 		return -EFSCORRUPTED;
 
-	return 0;
+	/* Make sure this isn't free space or misaligned. */
+	return xrep_require_rtext_inuse(sc, rec->rc_startblock,
+			rec->rc_blockcount);
 }
 
 /* Record a reference count extent. */
 STATIC int
-xrep_refc_stash(
-	struct xrep_refc		*rr,
+xrep_rtrefc_stash(
+	struct xrep_rtrefc		*rr,
 	enum xfs_refc_domain		domain,
-	xfs_agblock_t			agbno,
+	xfs_rgblock_t			bno,
 	xfs_extlen_t			len,
 	uint64_t			refcount)
 {
 	struct xfs_refcount_irec	irec = {
-		.rc_startblock		= agbno,
+		.rc_startblock		= bno,
 		.rc_blockcount		= len,
+		.rc_refcount		= refcount,
 		.rc_domain		= domain,
 	};
-	struct xfs_scrub		*sc = rr->sc;
 	int				error = 0;
 
-	if (xchk_should_terminate(sc, &error))
+	if (xchk_should_terminate(rr->sc, &error))
 		return error;
 
 	irec.rc_refcount = min_t(uint64_t, XFS_REFC_REFCOUNT_MAX, refcount);
 
-	error = xrep_refc_check_ext(rr->sc, &irec);
+	error = xrep_rtrefc_check_ext(rr->sc, &irec);
 	if (error)
 		return error;
 
-	trace_xrep_refc_found(pag_group(sc->sa.pag), &irec);
+	trace_xrep_refc_found(rtg_group(rr->sc->sr.rtg), &irec);
 
 	return xfarray_append(rr->refcount_records, &irec);
 }
 
 /* Record a CoW staging extent. */
 STATIC int
-xrep_refc_stash_cow(
-	struct xrep_refc		*rr,
-	xfs_agblock_t			agbno,
+xrep_rtrefc_stash_cow(
+	struct xrep_rtrefc		*rr,
+	xfs_rgblock_t			bno,
 	xfs_extlen_t			len)
 {
-	return xrep_refc_stash(rr, XFS_REFC_DOMAIN_COW, agbno, len, 1);
+	return xrep_rtrefc_stash(rr, XFS_REFC_DOMAIN_COW, bno, len, 1);
 }
 
 /* Decide if an rmap could describe a shared extent. */
 static inline bool
-xrep_refc_rmap_shareable(
-	struct xfs_mount		*mp,
+xrep_rtrefc_rmap_shareable(
 	const struct xfs_rmap_irec	*rmap)
 {
-	/* AG metadata are never sharable */
+	/* rt metadata are never sharable */
 	if (XFS_RMAP_NON_INODE_OWNER(rmap->rm_owner))
 		return false;
 
-	/* Metadata in files are never shareable */
-	if (xfs_is_sb_inum(mp, rmap->rm_owner))
-		return false;
-
-	/* Metadata and unwritten file blocks are not shareable. */
-	if (rmap->rm_flags & (XFS_RMAP_ATTR_FORK | XFS_RMAP_BMBT_BLOCK |
-			      XFS_RMAP_UNWRITTEN))
+	/* Unwritten file blocks are not shareable. */
+	if (rmap->rm_flags & XFS_RMAP_UNWRITTEN)
 		return false;
 
 	return true;
 }
 
-/*
- * Walk along the reverse mapping records until we find one that could describe
- * a shared extent.
- */
+/* Grab the next (abbreviated) rmap record from the rmapbt. */
 STATIC int
-xrep_refc_walk_rmaps(
-	struct xrep_refc	*rr,
+xrep_rtrefc_walk_rmaps(
+	struct xrep_rtrefc	*rr,
 	struct xfs_rmap_irec	*rmap,
 	bool			*have_rec)
 {
-	struct xfs_btree_cur	*cur = rr->sc->sa.rmap_cur;
+	struct xfs_btree_cur	*cur = rr->sc->sr.rmap_cur;
 	struct xfs_mount	*mp = cur->bc_mp;
 	int			have_gt;
 	int			error = 0;
@@ -268,27 +256,24 @@ xrep_refc_walk_rmaps(
 		}
 
 		if (rmap->rm_owner == XFS_RMAP_OWN_COW) {
-			error = xrep_refc_stash_cow(rr, rmap->rm_startblock,
+			error = xrep_rtrefc_stash_cow(rr, rmap->rm_startblock,
 					rmap->rm_blockcount);
 			if (error)
 				return error;
-		} else if (rmap->rm_owner == XFS_RMAP_OWN_REFC) {
-			/* refcountbt block, dump it when we're done. */
-			rr->btblocks += rmap->rm_blockcount;
-			error = xagb_bitmap_set(&rr->old_refcountbt_blocks,
-					rmap->rm_startblock,
-					rmap->rm_blockcount);
-			if (error)
-				return error;
+		} else if (xfs_is_sb_inum(mp, rmap->rm_owner) ||
+			   (rmap->rm_flags & (XFS_RMAP_ATTR_FORK |
+					      XFS_RMAP_BMBT_BLOCK))) {
+			xfs_btree_mark_sick(cur);
+			return -EFSCORRUPTED;
 		}
-	} while (!xrep_refc_rmap_shareable(mp, rmap));
+	} while (!xrep_rtrefc_rmap_shareable(rmap));
 
 	*have_rec = true;
 	return 0;
 }
 
 static inline uint32_t
-xrep_refc_encode_startblock(
+xrep_rtrefc_encode_startblock(
 	const struct xfs_refcount_irec	*irec)
 {
 	uint32_t			start;
@@ -300,9 +285,12 @@ xrep_refc_encode_startblock(
 	return start;
 }
 
-/* Sort in the same order as the ondisk records. */
+/*
+ * Compare two refcount records.  We want to sort in order of increasing block
+ * number.
+ */
 static int
-xrep_refc_extent_cmp(
+xrep_rtrefc_extent_cmp(
 	const void			*a,
 	const void			*b)
 {
@@ -310,8 +298,8 @@ xrep_refc_extent_cmp(
 	const struct xfs_refcount_irec	*bp = b;
 	uint32_t			sa, sb;
 
-	sa = xrep_refc_encode_startblock(ap);
-	sb = xrep_refc_encode_startblock(bp);
+	sa = xrep_rtrefc_encode_startblock(ap);
+	sb = xrep_rtrefc_encode_startblock(bp);
 
 	if (sa > sb)
 		return 1;
@@ -325,16 +313,16 @@ xrep_refc_extent_cmp(
  * the wrong order.  Make sure the records do not overlap in physical space.
  */
 STATIC int
-xrep_refc_sort_records(
-	struct xrep_refc		*rr)
+xrep_rtrefc_sort_records(
+	struct xrep_rtrefc		*rr)
 {
 	struct xfs_refcount_irec	irec;
 	xfarray_idx_t			cur;
 	enum xfs_refc_domain		dom = XFS_REFC_DOMAIN_SHARED;
-	xfs_agblock_t			next_agbno = 0;
+	xfs_rgblock_t			next_rgbno = 0;
 	int				error;
 
-	error = xfarray_sort(rr->refcount_records, xrep_refc_extent_cmp,
+	error = xfarray_sort(rr->refcount_records, xrep_rtrefc_extent_cmp,
 			XFARRAY_SORT_KILLABLE);
 	if (error)
 		return error;
@@ -350,18 +338,44 @@ xrep_refc_sort_records(
 		if (dom == XFS_REFC_DOMAIN_SHARED &&
 		    irec.rc_domain == XFS_REFC_DOMAIN_COW) {
 			dom = irec.rc_domain;
-			next_agbno = 0;
+			next_rgbno = 0;
 		}
 
 		if (dom != irec.rc_domain)
 			return -EFSCORRUPTED;
-		if (irec.rc_startblock < next_agbno)
+		if (irec.rc_startblock < next_rgbno)
 			return -EFSCORRUPTED;
 
-		next_agbno = irec.rc_startblock + irec.rc_blockcount;
+		next_rgbno = irec.rc_startblock + irec.rc_blockcount;
 	}
 
 	return error;
+}
+
+/* Record extents that belong to the realtime refcount inode. */
+STATIC int
+xrep_rtrefc_walk_rmap(
+	struct xfs_btree_cur		*cur,
+	const struct xfs_rmap_irec	*rec,
+	void				*priv)
+{
+	struct xrep_rtrefc		*rr = priv;
+	int				error = 0;
+
+	if (xchk_should_terminate(rr->sc, &error))
+		return error;
+
+	/* Skip extents which are not owned by this inode and fork. */
+	if (rec->rm_owner != rr->sc->ip->i_ino)
+		return 0;
+
+	error = xrep_check_ino_btree_mapping(rr->sc, rec);
+	if (error)
+		return error;
+
+	return xfsb_bitmap_set(&rr->old_rtrefcountbt_blocks,
+			xfs_gbno_to_fsb(cur->bc_group, rec->rm_startblock),
+			rec->rm_blockcount);
 }
 
 /*
@@ -371,10 +385,10 @@ xrep_refc_sort_records(
  * satisfying the startblock constraint.
  */
 static int
-xrep_refc_push_rmaps_at(
-	struct xrep_refc	*rr,
+xrep_rtrefc_push_rmaps_at(
+	struct xrep_rtrefc	*rr,
 	struct rcbag		*rcstack,
-	xfs_agblock_t		bno,
+	xfs_rgblock_t		bno,
 	struct xfs_rmap_irec	*rmap,
 	bool			*have)
 {
@@ -387,64 +401,92 @@ xrep_refc_push_rmaps_at(
 		if (error)
 			return error;
 
-		error = xrep_refc_walk_rmaps(rr, rmap, have);
+		error = xrep_rtrefc_walk_rmaps(rr, rmap, have);
 		if (error)
 			return error;
 	}
 
-	error = xfs_btree_decrement(sc->sa.rmap_cur, 0, &have_gt);
+	error = xfs_btree_decrement(sc->sr.rmap_cur, 0, &have_gt);
 	if (error)
 		return error;
 	if (XFS_IS_CORRUPT(sc->mp, !have_gt)) {
-		xfs_btree_mark_sick(sc->sa.rmap_cur);
+		xfs_btree_mark_sick(sc->sr.rmap_cur);
 		return -EFSCORRUPTED;
 	}
 
 	return 0;
 }
 
+/* Scan one AG for reverse mappings for the realtime refcount btree. */
+STATIC int
+xrep_rtrefc_scan_ag(
+	struct xrep_rtrefc	*rr,
+	struct xfs_perag	*pag)
+{
+	struct xfs_scrub	*sc = rr->sc;
+	int			error;
+
+	error = xrep_ag_init(sc, pag, &sc->sa);
+	if (error)
+		return error;
+
+	error = xfs_rmap_query_all(sc->sa.rmap_cur, xrep_rtrefc_walk_rmap, rr);
+	xchk_ag_free(sc, &sc->sa);
+	return error;
+}
+
 /* Iterate all the rmap records to generate reference count data. */
 STATIC int
-xrep_refc_find_refcounts(
-	struct xrep_refc	*rr)
+xrep_rtrefc_find_refcounts(
+	struct xrep_rtrefc	*rr)
 {
 	struct xfs_scrub	*sc = rr->sc;
 	struct rcbag		*rcstack;
+	struct xfs_perag	*pag = NULL;
 	uint64_t		old_stack_height;
-	xfs_agblock_t		sbno;
-	xfs_agblock_t		cbno;
-	xfs_agblock_t		nbno;
+	xfs_rgblock_t		sbno;
+	xfs_rgblock_t		cbno;
+	xfs_rgblock_t		nbno;
 	bool			have;
 	int			error;
 
-	xrep_ag_btcur_init(sc, &sc->sa);
+	/* Scan for old rtrefc btree blocks. */
+	while ((pag = xfs_perag_next(sc->mp, pag))) {
+		error = xrep_rtrefc_scan_ag(rr, pag);
+		if (error) {
+			xfs_perag_rele(pag);
+			return error;
+		}
+	}
+
+	xrep_rtgroup_btcur_init(sc, &sc->sr);
 
 	/*
 	 * Set up a bag to store all the rmap records that we're tracking to
-	 * generate a reference count record.  If the size of the bag exceeds
+	 * generate a reference count record.  If this exceeds
 	 * XFS_REFC_REFCOUNT_MAX, we clamp rc_refcount.
 	 */
 	error = rcbag_init(sc->mp, sc->xmbtp, &rcstack);
 	if (error)
 		goto out_cur;
 
-	/* Start the rmapbt cursor to the left of all records. */
-	error = xfs_btree_goto_left_edge(sc->sa.rmap_cur);
+	/* Start the rtrmapbt cursor to the left of all records. */
+	error = xfs_btree_goto_left_edge(sc->sr.rmap_cur);
 	if (error)
 		goto out_bag;
 
 	/* Process reverse mappings into refcount data. */
-	while (xfs_btree_has_more_records(sc->sa.rmap_cur)) {
+	while (xfs_btree_has_more_records(sc->sr.rmap_cur)) {
 		struct xfs_rmap_irec	rmap;
 
 		/* Push all rmaps with pblk == sbno onto the stack */
-		error = xrep_refc_walk_rmaps(rr, &rmap, &have);
+		error = xrep_rtrefc_walk_rmaps(rr, &rmap, &have);
 		if (error)
 			goto out_bag;
 		if (!have)
 			break;
 		sbno = cbno = rmap.rm_startblock;
-		error = xrep_refc_push_rmaps_at(rr, rcstack, sbno, &rmap,
+		error = xrep_rtrefc_push_rmaps_at(rr, rcstack, sbno, &rmap,
 				&have);
 		if (error)
 			goto out_bag;
@@ -465,11 +507,11 @@ xrep_refc_find_refcounts(
 				goto out_bag;
 
 			/* Push array items that start at nbno */
-			error = xrep_refc_walk_rmaps(rr, &rmap, &have);
+			error = xrep_rtrefc_walk_rmaps(rr, &rmap, &have);
 			if (error)
 				goto out_bag;
 			if (have) {
-				error = xrep_refc_push_rmaps_at(rr, rcstack,
+				error = xrep_rtrefc_push_rmaps_at(rr, rcstack,
 						nbno, &rmap, &have);
 				if (error)
 					goto out_bag;
@@ -479,7 +521,7 @@ xrep_refc_find_refcounts(
 			ASSERT(nbno > cbno);
 			if (rcbag_count(rcstack) != old_stack_height) {
 				if (old_stack_height > 1) {
-					error = xrep_refc_stash(rr,
+					error = xrep_rtrefc_stash(rr,
 							XFS_REFC_DOMAIN_SHARED,
 							cbno, nbno - cbno,
 							old_stack_height);
@@ -509,28 +551,27 @@ xrep_refc_find_refcounts(
 out_bag:
 	rcbag_free(&rcstack);
 out_cur:
-	xchk_ag_btcur_free(&sc->sa);
+	xchk_rtgroup_btcur_free(&sc->sr);
 	return error;
 }
 
 /* Retrieve refcountbt data for bulk load. */
 STATIC int
-xrep_refc_get_records(
+xrep_rtrefc_get_records(
 	struct xfs_btree_cur		*cur,
 	unsigned int			idx,
 	struct xfs_btree_block		*block,
 	unsigned int			nr_wanted,
 	void				*priv)
 {
-	struct xfs_refcount_irec	*irec = &cur->bc_rec.rc;
-	struct xrep_refc		*rr = priv;
+	struct xrep_rtrefc		*rr = priv;
 	union xfs_btree_rec		*block_rec;
 	unsigned int			loaded;
 	int				error;
 
 	for (loaded = 0; loaded < nr_wanted; loaded++, idx++) {
 		error = xfarray_load(rr->refcount_records, rr->array_cur++,
-				irec);
+				&cur->bc_rec.rc);
 		if (error)
 			return error;
 
@@ -543,56 +584,43 @@ xrep_refc_get_records(
 
 /* Feed one of the new btree blocks to the bulk loader. */
 STATIC int
-xrep_refc_claim_block(
+xrep_rtrefc_claim_block(
 	struct xfs_btree_cur	*cur,
 	union xfs_btree_ptr	*ptr,
 	void			*priv)
 {
-	struct xrep_refc        *rr = priv;
+	struct xrep_rtrefc	*rr = priv;
 
 	return xrep_newbt_claim_block(cur, &rr->new_btree, ptr);
 }
 
-/* Update the AGF counters. */
-STATIC int
-xrep_refc_reset_counters(
-	struct xrep_refc	*rr)
+/* Figure out how much space we need to create the incore btree root block. */
+STATIC size_t
+xrep_rtrefc_iroot_size(
+	struct xfs_btree_cur	*cur,
+	unsigned int		level,
+	unsigned int		nr_this_level,
+	void			*priv)
 {
-	struct xfs_scrub	*sc = rr->sc;
-	struct xfs_perag	*pag = sc->sa.pag;
-
-	/*
-	 * After we commit the new btree to disk, it is possible that the
-	 * process to reap the old btree blocks will race with the AIL trying
-	 * to checkpoint the old btree blocks into the filesystem.  If the new
-	 * tree is shorter than the old one, the refcountbt write verifier will
-	 * fail and the AIL will shut down the filesystem.
-	 *
-	 * To avoid this, save the old incore btree height values as the alt
-	 * height values before re-initializing the perag info from the updated
-	 * AGF to capture all the new values.
-	 */
-	pag->pagf_repair_refcount_level = pag->pagf_refcount_level;
-
-	/* Reinitialize with the values we just logged. */
-	return xrep_reinit_pagf(sc);
+	return xfs_rtrefcount_broot_space_calc(cur->bc_mp, level,
+			nr_this_level);
 }
 
 /*
- * Use the collected refcount information to stage a new refcount btree.  If
+ * Use the collected refcount information to stage a new rt refcount btree.  If
  * this is successful we'll return with the new btree root information logged
  * to the repair transaction but not yet committed.
  */
 STATIC int
-xrep_refc_build_new_tree(
-	struct xrep_refc	*rr)
+xrep_rtrefc_build_new_tree(
+	struct xrep_rtrefc	*rr)
 {
 	struct xfs_scrub	*sc = rr->sc;
+	struct xfs_rtgroup	*rtg = sc->sr.rtg;
 	struct xfs_btree_cur	*refc_cur;
-	struct xfs_perag	*pag = sc->sa.pag;
 	int			error;
 
-	error = xrep_refc_sort_records(rr);
+	error = xrep_rtrefc_sort_records(rr);
 	if (error)
 		return error;
 
@@ -600,19 +628,21 @@ xrep_refc_build_new_tree(
 	 * Prepare to construct the new btree by reserving disk space for the
 	 * new btree and setting up all the accounting information we'll need
 	 * to root the new btree while it's under construction and before we
-	 * attach it to the AG header.
+	 * attach it to the realtime refcount inode.
 	 */
-	xrep_newbt_init_ag(&rr->new_btree, sc, &XFS_RMAP_OINFO_REFC,
-			xfs_agbno_to_fsb(pag, xfs_refc_block(sc->mp)),
-			XFS_AG_RESV_METADATA);
-	rr->new_btree.bload.get_records = xrep_refc_get_records;
-	rr->new_btree.bload.claim_block = xrep_refc_claim_block;
+	error = xrep_newbt_init_metadir_inode(&rr->new_btree, sc);
+	if (error)
+		return error;
+
+	rr->new_btree.bload.get_records = xrep_rtrefc_get_records;
+	rr->new_btree.bload.claim_block = xrep_rtrefc_claim_block;
+	rr->new_btree.bload.iroot_size = xrep_rtrefc_iroot_size;
+
+	refc_cur = xfs_rtrefcountbt_init_cursor(NULL, rtg);
+	xfs_btree_stage_ifakeroot(refc_cur, &rr->new_btree.ifake);
 
 	/* Compute how many blocks we'll need. */
-	refc_cur = xfs_refcountbt_init_cursor(sc->mp, NULL, NULL, pag);
-	xfs_btree_stage_afakeroot(refc_cur, &rr->new_btree.afake);
-	error = xfs_btree_bload_compute_geometry(refc_cur,
-			&rr->new_btree.bload,
+	error = xfs_btree_bload_compute_geometry(refc_cur, &rr->new_btree.bload,
 			xfarray_length(rr->refcount_records));
 	if (error)
 		goto err_cur;
@@ -621,50 +651,48 @@ xrep_refc_build_new_tree(
 	if (xchk_should_terminate(sc, &error))
 		goto err_cur;
 
+	/*
+	 * Guess how many blocks we're going to need to rebuild an entire
+	 * rtrefcountbt from the number of extents we found, and pump up our
+	 * transaction to have sufficient block reservation.  We're allowed
+	 * to exceed quota to repair inconsistent metadata, though this is
+	 * unlikely.
+	 */
+	error = xfs_trans_reserve_more_inode(sc->tp, rtg_refcount(rtg),
+			rr->new_btree.bload.nr_blocks, 0, true);
+	if (error)
+		goto err_cur;
+
 	/* Reserve the space we'll need for the new btree. */
 	error = xrep_newbt_alloc_blocks(&rr->new_btree,
 			rr->new_btree.bload.nr_blocks);
 	if (error)
 		goto err_cur;
 
-	/*
-	 * Due to btree slack factors, it's possible for a new btree to be one
-	 * level taller than the old btree.  Update the incore btree height so
-	 * that we don't trip the verifiers when writing the new btree blocks
-	 * to disk.
-	 */
-	pag->pagf_repair_refcount_level = rr->new_btree.bload.btree_height;
-
 	/* Add all observed refcount records. */
+	rr->new_btree.ifake.if_fork->if_format = XFS_DINODE_FMT_META_BTREE;
 	rr->array_cur = XFARRAY_CURSOR_INIT;
 	error = xfs_btree_bload(refc_cur, &rr->new_btree.bload, rr);
 	if (error)
-		goto err_level;
+		goto err_cur;
 
 	/*
-	 * Install the new btree in the AG header.  After this point the old
-	 * btree is no longer accessible and the new tree is live.
+	 * Install the new rtrefc btree in the inode.  After this point the old
+	 * btree is no longer accessible, the new tree is live, and we can
+	 * delete the cursor.
 	 */
-	xfs_refcountbt_commit_staged_btree(refc_cur, sc->tp, sc->sa.agf_bp);
+	xfs_rtrefcountbt_commit_staged_btree(refc_cur, sc->tp);
+	xrep_inode_set_nblocks(rr->sc, rr->new_btree.ifake.if_blocks);
 	xfs_btree_del_cursor(refc_cur, 0);
-
-	/* Reset the AGF counters now that we've changed the btree shape. */
-	error = xrep_refc_reset_counters(rr);
-	if (error)
-		goto err_newbt;
 
 	/* Dispose of any unused blocks and the accounting information. */
 	error = xrep_newbt_commit(&rr->new_btree);
 	if (error)
 		return error;
 
-	return xrep_roll_ag_trans(sc);
-
-err_level:
-	pag->pagf_repair_refcount_level = 0;
+	return xrep_roll_trans(sc);
 err_cur:
 	xfs_btree_del_cursor(refc_cur, error);
-err_newbt:
 	xrep_newbt_cancel(&rr->new_btree);
 	return error;
 }
@@ -674,51 +702,54 @@ err_newbt:
  * old blocks and free them.
  */
 STATIC int
-xrep_refc_remove_old_tree(
-	struct xrep_refc	*rr)
+xrep_rtrefc_remove_old_tree(
+	struct xrep_rtrefc	*rr)
 {
-	struct xfs_scrub	*sc = rr->sc;
-	struct xfs_perag	*pag = sc->sa.pag;
 	int			error;
 
-	/* Free the old refcountbt blocks if they're not in use. */
-	error = xrep_reap_agblocks(sc, &rr->old_refcountbt_blocks,
-			&XFS_RMAP_OINFO_REFC, XFS_AG_RESV_METADATA);
+	/*
+	 * Free all the extents that were allocated to the former rtrefcountbt
+	 * and aren't cross-linked with something else.
+	 */
+	error = xrep_reap_metadir_fsblocks(rr->sc,
+			&rr->old_rtrefcountbt_blocks);
 	if (error)
 		return error;
 
 	/*
-	 * Now that we've zapped all the old refcountbt blocks we can turn off
-	 * the alternate height mechanism and reset the per-AG space
-	 * reservations.
+	 * Ensure the proper reservation for the rtrefcount inode so that we
+	 * don't fail to expand the btree.
 	 */
-	pag->pagf_repair_refcount_level = 0;
-	sc->flags |= XREP_RESET_PERAG_RESV;
-	return 0;
+	return xrep_reset_metafile_resv(rr->sc);
 }
 
-/* Rebuild the refcount btree. */
+/* Rebuild the rt refcount btree. */
 int
-xrep_refcountbt(
+xrep_rtrefcountbt(
 	struct xfs_scrub	*sc)
 {
-	struct xrep_refc	*rr;
+	struct xrep_rtrefc	*rr;
 	struct xfs_mount	*mp = sc->mp;
 	char			*descr;
 	int			error;
 
 	/* We require the rmapbt to rebuild anything. */
-	if (!xfs_has_rmapbt(mp))
+	if (!xfs_has_rtrmapbt(mp))
 		return -EOPNOTSUPP;
 
-	rr = kzalloc(sizeof(struct xrep_refc), XCHK_GFP_FLAGS);
+	/* Make sure any problems with the fork are fixed. */
+	error = xrep_metadata_inode_forks(sc);
+	if (error)
+		return error;
+
+	rr = kzalloc(sizeof(struct xrep_rtrefc), XCHK_GFP_FLAGS);
 	if (!rr)
 		return -ENOMEM;
 	rr->sc = sc;
 
-	/* Set up enough storage to handle one refcount record per block. */
+	/* Set up enough storage to handle one refcount record per rt extent. */
 	descr = xchk_xfile_ag_descr(sc, "reference count records");
-	error = xfarray_create(descr, mp->m_sb.sb_agblocks,
+	error = xfarray_create(descr, mp->m_sb.sb_rextents,
 			sizeof(struct xfs_refcount_irec),
 			&rr->refcount_records);
 	kfree(descr);
@@ -726,23 +757,25 @@ xrep_refcountbt(
 		goto out_rr;
 
 	/* Collect all reference counts. */
-	xagb_bitmap_init(&rr->old_refcountbt_blocks);
-	error = xrep_refc_find_refcounts(rr);
+	xfsb_bitmap_init(&rr->old_rtrefcountbt_blocks);
+	error = xrep_rtrefc_find_refcounts(rr);
 	if (error)
 		goto out_bitmap;
 
+	xfs_trans_ijoin(sc->tp, sc->ip, 0);
+
 	/* Rebuild the refcount information. */
-	error = xrep_refc_build_new_tree(rr);
+	error = xrep_rtrefc_build_new_tree(rr);
 	if (error)
 		goto out_bitmap;
 
 	/* Kill the old tree. */
-	error = xrep_refc_remove_old_tree(rr);
+	error = xrep_rtrefc_remove_old_tree(rr);
 	if (error)
 		goto out_bitmap;
 
 out_bitmap:
-	xagb_bitmap_destroy(&rr->old_refcountbt_blocks);
+	xfsb_bitmap_destroy(&rr->old_rtrefcountbt_blocks);
 	xfarray_destroy(rr->refcount_records);
 out_rr:
 	kfree(rr);
