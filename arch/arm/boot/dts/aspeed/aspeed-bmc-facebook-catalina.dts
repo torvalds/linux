@@ -533,8 +533,6 @@
 		reg = <0x20>;
 		gpio-controller;
 		#gpio-cells = <2>;
-		interrupt-parent = <&gpio0>;
-		interrupts = <ASPEED_GPIO(B, 4) IRQ_TYPE_LEVEL_LOW>;
 	};
 
 	// Module 1 IOEXP
@@ -543,8 +541,6 @@
 		reg = <0x21>;
 		gpio-controller;
 		#gpio-cells = <2>;
-		interrupt-parent = <&gpio0>;
-		interrupts = <ASPEED_GPIO(B, 4) IRQ_TYPE_LEVEL_LOW>;
 	};
 
 	// HMC IOEXP
@@ -553,8 +549,6 @@
 		reg = <0x27>;
 		gpio-controller;
 		#gpio-cells = <2>;
-		interrupt-parent = <&gpio0>;
-		interrupts = <ASPEED_GPIO(B, 4) IRQ_TYPE_LEVEL_LOW>;
 	};
 
 	// Module 0 EEPROM
