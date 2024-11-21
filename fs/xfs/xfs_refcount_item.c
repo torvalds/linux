@@ -440,6 +440,7 @@ xfs_refcount_update_abort_intent(
 static inline bool
 xfs_cui_validate_phys(
 	struct xfs_mount		*mp,
+	bool				isrt,
 	struct xfs_phys_extent		*pmap)
 {
 	if (!xfs_has_reflink(mp))
@@ -458,6 +459,9 @@ xfs_cui_validate_phys(
 		return false;
 	}
 
+	if (isrt)
+		return xfs_verify_rtbext(mp, pmap->pe_startblock, pmap->pe_len);
+
 	return xfs_verify_fsbext(mp, pmap->pe_startblock, pmap->pe_len);
 }
 
@@ -465,6 +469,7 @@ static inline void
 xfs_cui_recover_work(
 	struct xfs_mount		*mp,
 	struct xfs_defer_pending	*dfp,
+	bool				isrt,
 	struct xfs_phys_extent		*pmap)
 {
 	struct xfs_refcount_intent	*ri;
@@ -475,7 +480,8 @@ xfs_cui_recover_work(
 	ri->ri_startblock = pmap->pe_startblock;
 	ri->ri_blockcount = pmap->pe_len;
 	ri->ri_group = xfs_group_intent_get(mp, pmap->pe_startblock,
-			XG_TYPE_AG);
+			isrt ? XG_TYPE_RTG : XG_TYPE_AG);
+	ri->ri_realtime = isrt;
 
 	xfs_defer_add_item(dfp, &ri->ri_list);
 }
@@ -494,6 +500,7 @@ xfs_refcount_recover_work(
 	struct xfs_cui_log_item		*cuip = CUI_ITEM(lip);
 	struct xfs_trans		*tp;
 	struct xfs_mount		*mp = lip->li_log->l_mp;
+	bool				isrt = xfs_cui_item_isrt(lip);
 	int				i;
 	int				error = 0;
 
@@ -503,7 +510,7 @@ xfs_refcount_recover_work(
 	 * just toss the CUI.
 	 */
 	for (i = 0; i < cuip->cui_format.cui_nextents; i++) {
-		if (!xfs_cui_validate_phys(mp,
+		if (!xfs_cui_validate_phys(mp, isrt,
 					&cuip->cui_format.cui_extents[i])) {
 			XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW, mp,
 					&cuip->cui_format,
@@ -511,7 +518,8 @@ xfs_refcount_recover_work(
 			return -EFSCORRUPTED;
 		}
 
-		xfs_cui_recover_work(mp, dfp, &cuip->cui_format.cui_extents[i]);
+		xfs_cui_recover_work(mp, dfp, isrt,
+				&cuip->cui_format.cui_extents[i]);
 	}
 
 	/*
