@@ -480,7 +480,7 @@ u32 rpm_get_lmac_fifo_len(void *rpmd, int lmac_id)
 	u8 num_lmacs;
 	u32 fifo_len;
 
-	fifo_len = rpm->mac_ops->fifo_len;
+	fifo_len = rpm->fifo_len;
 	num_lmacs = rpm->mac_ops->get_nr_lmacs(rpm);
 
 	switch (num_lmacs) {
@@ -533,9 +533,9 @@ u32 rpm2_get_lmac_fifo_len(void *rpmd, int lmac_id)
 	 */
 	max_lmac = (rpm_read(rpm, 0, CGX_CONST) >> 24) & 0xFF;
 	if (max_lmac > 4)
-		fifo_len = rpm->mac_ops->fifo_len / 2;
+		fifo_len = rpm->fifo_len / 2;
 	else
-		fifo_len = rpm->mac_ops->fifo_len;
+		fifo_len = rpm->fifo_len;
 
 	if (lmac_id < 4) {
 		num_lmacs = hweight8(lmac_info & 0xF);
