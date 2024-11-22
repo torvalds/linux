@@ -233,7 +233,6 @@ def define_pineapple_le():
         "drivers/thermal/qcom/cpu_voltage_cooling.ko",
         "drivers/thermal/qcom/ddr_cdev.ko",
         "drivers/thermal/qcom/gpu_dump_skip_cdev.ko",
-        "drivers/thermal/qcom/max31760_fan.ko",
         "drivers/thermal/qcom/msm_lmh_dcvs.ko",
         "drivers/thermal/qcom/qcom-spmi-temp-alarm.ko",
         "drivers/thermal/qcom/qcom_tsens.ko",
