@@ -79,8 +79,6 @@ MODULE_LICENSE("Dual BSD/GPL");
 /* globals */
 static DEFINE_MUTEX(bnxt_re_mutex);
 
-static int bnxt_re_netdev_event(struct notifier_block *notifier,
-				unsigned long event, void *ptr);
 static int bnxt_re_hwrm_qcaps(struct bnxt_re_dev *rdev);
 
 static int bnxt_re_hwrm_qcfg(struct bnxt_re_dev *rdev, u32 *db_len,
@@ -824,17 +822,6 @@ static void bnxt_re_disassociate_ucontext(struct ib_ucontext *ibcontext)
 }
 
 /* Device */
-
-static struct bnxt_re_dev *bnxt_re_from_netdev(struct net_device *netdev)
-{
-	struct ib_device *ibdev =
-		ib_device_get_by_netdev(netdev, RDMA_DRIVER_BNXT_RE);
-	if (!ibdev)
-		return NULL;
-
-	return container_of(ibdev, struct bnxt_re_dev, ibdev);
-}
-
 static ssize_t hw_rev_show(struct device *device, struct device_attribute *attr,
 			   char *buf)
 {
@@ -2178,20 +2165,10 @@ static int bnxt_re_add_device(struct auxiliary_device *adev, u8 op_type)
 		goto re_dev_uninit;
 	}
 
-	rdev->nb.notifier_call = bnxt_re_netdev_event;
-	rc = register_netdevice_notifier(&rdev->nb);
-	if (rc) {
-		rdev->nb.notifier_call = NULL;
-		pr_err("%s: Cannot register to netdevice_notifier",
-		       ROCE_DRV_MODULE_NAME);
-		goto re_dev_unreg;
-	}
 	bnxt_re_setup_cc(rdev, true);
 
 	return 0;
 
-re_dev_unreg:
-	ib_unregister_device(&rdev->ibdev);
 re_dev_uninit:
 	bnxt_re_update_en_info_rdev(NULL, en_info, adev);
 	bnxt_re_dev_uninit(rdev, BNXT_RE_COMPLETE_REMOVE);
@@ -2199,54 +2176,6 @@ re_dev_dealloc:
 	ib_dealloc_device(&rdev->ibdev);
 exit:
 	return rc;
-}
-
-/*
- * "Notifier chain callback can be invoked for the same chain from
- * different CPUs at the same time".
- *
- * For cases when the netdev is already present, our call to the
- * register_netdevice_notifier() will actually get the rtnl_lock()
- * before sending NETDEV_REGISTER and (if up) NETDEV_UP
- * events.
- *
- * But for cases when the netdev is not already present, the notifier
- * chain is subjected to be invoked from different CPUs simultaneously.
- *
- * This is protected by the netdev_mutex.
- */
-static int bnxt_re_netdev_event(struct notifier_block *notifier,
-				unsigned long event, void *ptr)
-{
-	struct net_device *real_dev, *netdev = netdev_notifier_info_to_dev(ptr);
-	struct bnxt_re_dev *rdev;
-
-	real_dev = rdma_vlan_dev_real_dev(netdev);
-	if (!real_dev)
-		real_dev = netdev;
-
-	if (real_dev != netdev)
-		return NOTIFY_DONE;
-
-	rdev = bnxt_re_from_netdev(real_dev);
-	if (!rdev)
-		return NOTIFY_DONE;
-
-	switch (event) {
-	case NETDEV_UP:
-	case NETDEV_DOWN:
-	case NETDEV_CHANGE:
-		bnxt_re_dispatch_event(&rdev->ibdev, NULL, 1,
-					netif_carrier_ok(real_dev) ?
-					IB_EVENT_PORT_ACTIVE :
-					IB_EVENT_PORT_ERR);
-		break;
-	default:
-		break;
-	}
-	ib_device_put(&rdev->ibdev);
-
-	return NOTIFY_DONE;
 }
 
 #define BNXT_ADEV_NAME "bnxt_en"
