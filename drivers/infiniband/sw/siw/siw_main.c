@@ -380,16 +380,6 @@ static int siw_netdev_event(struct notifier_block *nb, unsigned long event,
 	sdev = to_siw_dev(base_dev);
 
 	switch (event) {
-	case NETDEV_UP:
-		sdev->state = IB_PORT_ACTIVE;
-		siw_port_event(sdev, 1, IB_EVENT_PORT_ACTIVE);
-		break;
-
-	case NETDEV_DOWN:
-		sdev->state = IB_PORT_DOWN;
-		siw_port_event(sdev, 1, IB_EVENT_PORT_ERR);
-		break;
-
 	case NETDEV_REGISTER:
 		/*
 		 * Device registration now handled only by
@@ -410,7 +400,6 @@ static int siw_netdev_event(struct notifier_block *nb, unsigned long event,
 	 * Todo: Below netdev events are currently not handled.
 	 */
 	case NETDEV_CHANGEMTU:
-	case NETDEV_CHANGE:
 		break;
 
 	default:
@@ -442,11 +431,6 @@ static int siw_newlink(const char *basedev_name, struct net_device *netdev)
 	sdev = siw_device_create(netdev);
 	if (sdev) {
 		dev_dbg(&netdev->dev, "siw: new device\n");
-
-		if (netif_running(netdev) && netif_carrier_ok(netdev))
-			sdev->state = IB_PORT_ACTIVE;
-		else
-			sdev->state = IB_PORT_DOWN;
 
 		ib_mark_name_assigned_by_user(&sdev->base_dev);
 		rv = siw_device_register(sdev, basedev_name);
