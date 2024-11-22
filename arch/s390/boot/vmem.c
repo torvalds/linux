@@ -264,7 +264,17 @@ static unsigned long _pa(unsigned long addr, unsigned long size, enum populate_m
 
 static bool large_allowed(enum populate_mode mode)
 {
-	return (mode == POPULATE_DIRECT) || (mode == POPULATE_IDENTITY) || (mode == POPULATE_KERNEL);
+	switch (mode) {
+	case POPULATE_DIRECT:
+	case POPULATE_IDENTITY:
+	case POPULATE_KERNEL:
+#ifdef CONFIG_KASAN
+	case POPULATE_KASAN_MAP_SHADOW:
+#endif
+		return true;
+	default:
+		return false;
+	}
 }
 
 static bool can_large_pud(pud_t *pu_dir, unsigned long addr, unsigned long end,
