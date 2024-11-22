@@ -242,6 +242,9 @@ static int mlx5_netdev_event(struct notifier_block *this,
 	case NETDEV_DOWN: {
 		struct net_device *upper = NULL;
 
+		if (!netif_is_lag_master(ndev) && !netif_is_lag_port(ndev))
+			return NOTIFY_DONE;
+
 		if (mlx5_lag_is_roce(mdev) || mlx5_lag_is_sriov(mdev)) {
 			struct net_device *lag_ndev;
 
