@@ -726,6 +726,39 @@ static void idxd_cleanup(struct idxd_device *idxd)
 }
 
 /*
+ * Attach IDXD device to IDXD driver.
+ */
+static int idxd_bind(struct device_driver *drv, const char *buf)
+{
+	const struct bus_type *bus = drv->bus;
+	struct device *dev;
+	int err = -ENODEV;
+
+	dev = bus_find_device_by_name(bus, NULL, buf);
+	if (dev)
+		err = device_driver_attach(drv, dev);
+
+	put_device(dev);
+
+	return err;
+}
+
+/*
+ * Detach IDXD device from driver.
+ */
+static void idxd_unbind(struct device_driver *drv, const char *buf)
+{
+	const struct bus_type *bus = drv->bus;
+	struct device *dev;
+
+	dev = bus_find_device_by_name(bus, NULL, buf);
+	if (dev && dev->driver == drv)
+		device_release_driver(dev);
+
+	put_device(dev);
+}
+
+/*
  * Probe idxd PCI device.
  * If idxd is not given, need to allocate idxd and set up its data.
  *
