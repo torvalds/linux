@@ -1238,7 +1238,8 @@ void cfg80211_sched_scan_results_wk(struct work_struct *work)
 	rdev = container_of(work, struct cfg80211_registered_device,
 			   sched_scan_res_wk);
 
-	wiphy_lock(&rdev->wiphy);
+	guard(wiphy)(&rdev->wiphy);
+
 	list_for_each_entry_safe(req, tmp, &rdev->sched_scan_req_list, list) {
 		if (req->report_results) {
 			req->report_results = false;
@@ -1253,7 +1254,6 @@ void cfg80211_sched_scan_results_wk(struct work_struct *work)
 						NL80211_CMD_SCHED_SCAN_RESULTS);
 		}
 	}
-	wiphy_unlock(&rdev->wiphy);
 }
 
 void cfg80211_sched_scan_results(struct wiphy *wiphy, u64 reqid)
@@ -1288,9 +1288,9 @@ EXPORT_SYMBOL(cfg80211_sched_scan_stopped_locked);
 
 void cfg80211_sched_scan_stopped(struct wiphy *wiphy, u64 reqid)
 {
-	wiphy_lock(wiphy);
+	guard(wiphy)(wiphy);
+
 	cfg80211_sched_scan_stopped_locked(wiphy, reqid);
-	wiphy_unlock(wiphy);
 }
 EXPORT_SYMBOL(cfg80211_sched_scan_stopped);
 
@@ -3565,10 +3565,8 @@ int cfg80211_wext_siwscan(struct net_device *dev,
 	/* translate "Scan for SSID" request */
 	if (wreq) {
 		if (wrqu->data.flags & IW_SCAN_THIS_ESSID) {
-			if (wreq->essid_len > IEEE80211_MAX_SSID_LEN) {
-				err = -EINVAL;
-				goto out;
-			}
+			if (wreq->essid_len > IEEE80211_MAX_SSID_LEN)
+				return -EINVAL;
 			memcpy(creq->ssids[0].ssid, wreq->essid, wreq->essid_len);
 			creq->ssids[0].ssid_len = wreq->essid_len;
 		}
@@ -3584,20 +3582,20 @@ int cfg80211_wext_siwscan(struct net_device *dev,
 
 	eth_broadcast_addr(creq->bssid);
 
-	wiphy_lock(&rdev->wiphy);
-
-	rdev->scan_req = creq;
-	err = rdev_scan(rdev, creq);
-	if (err) {
-		rdev->scan_req = NULL;
-		/* creq will be freed below */
-	} else {
-		nl80211_send_scan_start(rdev, dev->ieee80211_ptr);
-		/* creq now owned by driver */
-		creq = NULL;
-		dev_hold(dev);
+	scoped_guard(wiphy, &rdev->wiphy) {
+		rdev->scan_req = creq;
+		err = rdev_scan(rdev, creq);
+		if (err) {
+			rdev->scan_req = NULL;
+			/* creq will be freed below */
+		} else {
+			nl80211_send_scan_start(rdev, dev->ieee80211_ptr);
+			/* creq now owned by driver */
+			creq = NULL;
+			dev_hold(dev);
+		}
 	}
-	wiphy_unlock(&rdev->wiphy);
+
  out:
 	kfree(creq);
 	return err;

@@ -6031,6 +6031,10 @@ static inline void wiphy_unlock(struct wiphy *wiphy)
 	mutex_unlock(&wiphy->mtx);
 }
 
+DEFINE_GUARD(wiphy, struct wiphy *,
+	     mutex_lock(&_T->mtx),
+	     mutex_unlock(&_T->mtx))
+
 struct wiphy_work;
 typedef void (*wiphy_work_func_t)(struct wiphy *, struct wiphy_work *);
 
