@@ -758,6 +758,231 @@ static void idxd_unbind(struct device_driver *drv, const char *buf)
 	put_device(dev);
 }
 
+#define idxd_free_saved_configs(saved_configs, count)	\
+	do {						\
+		int i;					\
+							\
+		for (i = 0; i < (count); i++)		\
+			kfree(saved_configs[i]);	\
+	} while (0)
+
+static void idxd_free_saved(struct idxd_group **saved_groups,
+			    struct idxd_engine **saved_engines,
+			    struct idxd_wq **saved_wqs,
+			    struct idxd_device *idxd)
+{
+	if (saved_groups)
+		idxd_free_saved_configs(saved_groups, idxd->max_groups);
+	if (saved_engines)
+		idxd_free_saved_configs(saved_engines, idxd->max_engines);
+	if (saved_wqs)
+		idxd_free_saved_configs(saved_wqs, idxd->max_wqs);
+}
+
+/*
+ * Save IDXD device configurations including engines, groups, wqs etc.
+ * The saved configurations can be restored when needed.
+ */
+static int idxd_device_config_save(struct idxd_device *idxd,
+				   struct idxd_saved_states *idxd_saved)
+{
+	struct device *dev = &idxd->pdev->dev;
+	int i;
+
+	memcpy(&idxd_saved->saved_idxd, idxd, sizeof(*idxd));
+
+	if (idxd->evl) {
+		memcpy(&idxd_saved->saved_evl, idxd->evl,
+		       sizeof(struct idxd_evl));
+	}
+
+	struct idxd_group **saved_groups __free(kfree) =
+			kcalloc_node(idxd->max_groups,
+				     sizeof(struct idxd_group *),
+				     GFP_KERNEL, dev_to_node(dev));
+	if (!saved_groups)
+		return -ENOMEM;
+
+	for (i = 0; i < idxd->max_groups; i++) {
+		struct idxd_group *saved_group __free(kfree) =
+			kzalloc_node(sizeof(*saved_group), GFP_KERNEL,
+				     dev_to_node(dev));
+
+		if (!saved_group) {
+			/* Free saved groups */
+			idxd_free_saved(saved_groups, NULL, NULL, idxd);
+
+			return -ENOMEM;
+		}
+
+		memcpy(saved_group, idxd->groups[i], sizeof(*saved_group));
+		saved_groups[i] = no_free_ptr(saved_group);
+	}
+
+	struct idxd_engine **saved_engines =
+			kcalloc_node(idxd->max_engines,
+				     sizeof(struct idxd_engine *),
+				     GFP_KERNEL, dev_to_node(dev));
+	if (!saved_engines) {
+		/* Free saved groups */
+		idxd_free_saved(saved_groups, NULL, NULL, idxd);
+
+		return -ENOMEM;
+	}
+	for (i = 0; i < idxd->max_engines; i++) {
+		struct idxd_engine *saved_engine __free(kfree) =
+				kzalloc_node(sizeof(*saved_engine), GFP_KERNEL,
+					     dev_to_node(dev));
+		if (!saved_engine) {
+			/* Free saved groups and engines */
+			idxd_free_saved(saved_groups, saved_engines, NULL,
+					idxd);
+
+			return -ENOMEM;
+		}
+
+		memcpy(saved_engine, idxd->engines[i], sizeof(*saved_engine));
+		saved_engines[i] = no_free_ptr(saved_engine);
+	}
+
+	unsigned long *saved_wq_enable_map __free(bitmap) =
+			bitmap_zalloc_node(idxd->max_wqs, GFP_KERNEL,
+					   dev_to_node(dev));
+	if (!saved_wq_enable_map) {
+		/* Free saved groups and engines */
+		idxd_free_saved(saved_groups, saved_engines, NULL, idxd);
+
+		return -ENOMEM;
+	}
+
+	bitmap_copy(saved_wq_enable_map, idxd->wq_enable_map, idxd->max_wqs);
+
+	struct idxd_wq **saved_wqs __free(kfree) =
+			kcalloc_node(idxd->max_wqs, sizeof(struct idxd_wq *),
+				     GFP_KERNEL, dev_to_node(dev));
+	if (!saved_wqs) {
+		/* Free saved groups and engines */
+		idxd_free_saved(saved_groups, saved_engines, NULL, idxd);
+
+		return -ENOMEM;
+	}
+
+	for (i = 0; i < idxd->max_wqs; i++) {
+		struct idxd_wq *saved_wq __free(kfree) =
+			kzalloc_node(sizeof(*saved_wq), GFP_KERNEL,
+				     dev_to_node(dev));
+		struct idxd_wq *wq;
+
+		if (!saved_wq) {
+			/* Free saved groups, engines, and wqs */
+			idxd_free_saved(saved_groups, saved_engines, saved_wqs,
+					idxd);
+
+			return -ENOMEM;
+		}
+
+		if (!test_bit(i, saved_wq_enable_map))
+			continue;
+
+		wq = idxd->wqs[i];
+		mutex_lock(&wq->wq_lock);
+		memcpy(saved_wq, wq, sizeof(*saved_wq));
+		saved_wqs[i] = no_free_ptr(saved_wq);
+		mutex_unlock(&wq->wq_lock);
+	}
+
+	/* Save configurations */
+	idxd_saved->saved_groups = no_free_ptr(saved_groups);
+	idxd_saved->saved_engines = no_free_ptr(saved_engines);
+	idxd_saved->saved_wq_enable_map = no_free_ptr(saved_wq_enable_map);
+	idxd_saved->saved_wqs = no_free_ptr(saved_wqs);
+
+	return 0;
+}
+
+/*
+ * Restore IDXD device configurations including engines, groups, wqs etc
+ * that were saved before.
+ */
+static void idxd_device_config_restore(struct idxd_device *idxd,
+				       struct idxd_saved_states *idxd_saved)
+{
+	struct idxd_evl *saved_evl = &idxd_saved->saved_evl;
+	int i;
+
+	idxd->rdbuf_limit = idxd_saved->saved_idxd.rdbuf_limit;
+
+	if (saved_evl)
+		idxd->evl->size = saved_evl->size;
+
+	for (i = 0; i < idxd->max_groups; i++) {
+		struct idxd_group *saved_group, *group;
+
+		saved_group = idxd_saved->saved_groups[i];
+		group = idxd->groups[i];
+
+		group->rdbufs_allowed = saved_group->rdbufs_allowed;
+		group->rdbufs_reserved = saved_group->rdbufs_reserved;
+		group->tc_a = saved_group->tc_a;
+		group->tc_b = saved_group->tc_b;
+		group->use_rdbuf_limit = saved_group->use_rdbuf_limit;
+
+		kfree(saved_group);
+	}
+	kfree(idxd_saved->saved_groups);
+
+	for (i = 0; i < idxd->max_engines; i++) {
+		struct idxd_engine *saved_engine, *engine;
+
+		saved_engine = idxd_saved->saved_engines[i];
+		engine = idxd->engines[i];
+
+		engine->group = saved_engine->group;
+
+		kfree(saved_engine);
+	}
+	kfree(idxd_saved->saved_engines);
+
+	bitmap_copy(idxd->wq_enable_map, idxd_saved->saved_wq_enable_map,
+		    idxd->max_wqs);
+	bitmap_free(idxd_saved->saved_wq_enable_map);
+
+	for (i = 0; i < idxd->max_wqs; i++) {
+		struct idxd_wq *saved_wq, *wq;
+		size_t len;
+
+		if (!test_bit(i, idxd->wq_enable_map))
+			continue;
+
+		saved_wq = idxd_saved->saved_wqs[i];
+		wq = idxd->wqs[i];
+
+		mutex_lock(&wq->wq_lock);
+
+		wq->group = saved_wq->group;
+		wq->flags = saved_wq->flags;
+		wq->threshold = saved_wq->threshold;
+		wq->size = saved_wq->size;
+		wq->priority = saved_wq->priority;
+		wq->type = saved_wq->type;
+		len = strlen(saved_wq->name) + 1;
+		strscpy(wq->name, saved_wq->name, len);
+		wq->max_xfer_bytes = saved_wq->max_xfer_bytes;
+		wq->max_batch_size = saved_wq->max_batch_size;
+		wq->enqcmds_retries = saved_wq->enqcmds_retries;
+		wq->descs = saved_wq->descs;
+		wq->idxd_chan = saved_wq->idxd_chan;
+		len = strlen(saved_wq->driver_name) + 1;
+		strscpy(wq->driver_name, saved_wq->driver_name, len);
+
+		mutex_unlock(&wq->wq_lock);
+
+		kfree(saved_wq);
+	}
+
+	kfree(idxd_saved->saved_wqs);
+}
+
 /*
  * Probe idxd PCI device.
  * If idxd is not given, need to allocate idxd and set up its data.

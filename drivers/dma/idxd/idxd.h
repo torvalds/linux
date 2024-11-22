@@ -374,6 +374,17 @@ struct idxd_device {
 	struct dentry *dbgfs_evl_file;
 
 	bool user_submission_safe;
+
+	struct idxd_saved_states *idxd_saved;
+};
+
+struct idxd_saved_states {
+	struct idxd_device saved_idxd;
+	struct idxd_evl saved_evl;
+	struct idxd_engine **saved_engines;
+	struct idxd_wq **saved_wqs;
+	struct idxd_group **saved_groups;
+	unsigned long *saved_wq_enable_map;
 };
 
 static inline unsigned int evl_ent_size(struct idxd_device *idxd)
