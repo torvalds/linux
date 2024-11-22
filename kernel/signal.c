@@ -1959,14 +1959,15 @@ static void posixtimer_queue_sigqueue(struct sigqueue *q, struct task_struct *t,
  *
  * Where type is not PIDTYPE_PID, signals must be delivered to the
  * process. In this case, prefer to deliver to current if it is in
- * the same thread group as the target process, which avoids
- * unnecessarily waking up a potentially idle task.
+ * the same thread group as the target process and its sighand is
+ * stable, which avoids unnecessarily waking up a potentially idle task.
  */
 static inline struct task_struct *posixtimer_get_target(struct k_itimer *tmr)
 {
 	struct task_struct *t = pid_task(tmr->it_pid, tmr->it_pid_type);
 
-	if (t && tmr->it_pid_type != PIDTYPE_PID && same_thread_group(t, current))
+	if (t && tmr->it_pid_type != PIDTYPE_PID &&
+	    same_thread_group(t, current) && !current->exit_state)
 		t = current;
 	return t;
 }
