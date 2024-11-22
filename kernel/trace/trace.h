@@ -1440,10 +1440,6 @@ struct trace_subsystem_dir {
 	int				nr_events;
 };
 
-extern int call_filter_check_discard(struct trace_event_call *call, void *rec,
-				     struct trace_buffer *buffer,
-				     struct ring_buffer_event *event);
-
 void trace_buffer_unlock_commit_regs(struct trace_array *tr,
 				     struct trace_buffer *buffer,
 				     struct ring_buffer_event *event,
@@ -2186,5 +2182,12 @@ static inline int rv_init_interface(void)
 	return 0;
 }
 #endif
+
+/*
+ * This is used only to distinguish
+ * function address from trampoline code.
+ * So this value has no meaning.
+ */
+#define FTRACE_TRAMPOLINE_MARKER  ((unsigned long) INT_MAX)
 
 #endif /* _LINUX_KERNEL_TRACE_H */
