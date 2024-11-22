@@ -15231,6 +15231,13 @@ static int bnxt_queue_start(struct net_device *dev, void *qmem, int idx)
 
 	for (i = 0; i <= BNXT_VNIC_NTUPLE; i++) {
 		vnic = &bp->vnic_info[i];
+
+		rc = bnxt_hwrm_vnic_set_rss_p5(bp, vnic, true);
+		if (rc) {
+			netdev_err(bp->dev, "hwrm vnic %d set rss failure rc: %d\n",
+				   vnic->vnic_id, rc);
+			return rc;
+		}
 		vnic->mru = bp->dev->mtu + ETH_HLEN + VLAN_HLEN;
 		bnxt_hwrm_vnic_update(bp, vnic,
 				      VNIC_UPDATE_REQ_ENABLES_MRU_VALID);
