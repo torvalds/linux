@@ -917,7 +917,6 @@ void hugetlb_cgroup_migrate(struct folio *old_folio, struct folio *new_folio)
 	set_hugetlb_cgroup_rsvd(new_folio, h_cg_rsvd);
 	list_move(&new_folio->lru, &h->hugepage_activelist);
 	spin_unlock_irq(&hugetlb_lock);
-	return;
 }
 
 static struct cftype hugetlb_files[] = {
