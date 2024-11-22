@@ -112,6 +112,11 @@ struct mac_ops *get_mac_ops(void *cgxd)
 	return ((struct cgx *)cgxd)->mac_ops;
 }
 
+u32 cgx_get_fifo_len(void *cgxd)
+{
+	return ((struct cgx *)cgxd)->fifo_len;
+}
+
 void cgx_write(struct cgx *cgx, u64 lmac, u64 offset, u64 val)
 {
 	writeq(val, cgx->reg_base + (lmac << cgx->mac_ops->lmac_offset) +
@@ -501,7 +506,7 @@ static u32 cgx_get_lmac_fifo_len(void *cgxd, int lmac_id)
 	u8 num_lmacs;
 	u32 fifo_len;
 
-	fifo_len = cgx->mac_ops->fifo_len;
+	fifo_len = cgx->fifo_len;
 	num_lmacs = cgx->mac_ops->get_nr_lmacs(cgx);
 
 	switch (num_lmacs) {
@@ -1764,7 +1769,7 @@ static void cgx_populate_features(struct cgx *cgx)
 	u64 cfg;
 
 	cfg = cgx_read(cgx, 0, CGX_CONST);
-	cgx->mac_ops->fifo_len = FIELD_GET(CGX_CONST_RXFIFO_SIZE, cfg);
+	cgx->fifo_len = FIELD_GET(CGX_CONST_RXFIFO_SIZE, cfg);
 	cgx->max_lmac_per_mac = FIELD_GET(CGX_CONST_MAX_LMACS, cfg);
 
 	if (is_dev_rpm(cgx))

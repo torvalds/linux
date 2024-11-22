@@ -923,13 +923,12 @@ int rvu_mbox_handler_cgx_features_get(struct rvu *rvu,
 
 u32 rvu_cgx_get_fifolen(struct rvu *rvu)
 {
-	struct mac_ops *mac_ops;
-	u32 fifo_len;
+	void *cgxd = rvu_first_cgx_pdata(rvu);
 
-	mac_ops = get_mac_ops(rvu_first_cgx_pdata(rvu));
-	fifo_len = mac_ops ? mac_ops->fifo_len : 0;
+	if (!cgxd)
+		return 0;
 
-	return fifo_len;
+	return cgx_get_fifo_len(cgxd);
 }
 
 u32 rvu_cgx_get_lmac_fifolen(struct rvu *rvu, int cgx, int lmac)

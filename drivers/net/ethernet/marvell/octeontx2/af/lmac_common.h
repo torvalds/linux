@@ -72,7 +72,6 @@ struct mac_ops {
 	u8			irq_offset;
 	u8			int_ena_bit;
 	u8			lmac_fwi;
-	u32			fifo_len;
 	bool			non_contiguous_serdes_lane;
 	/* RPM & CGX differs in number of Receive/transmit stats */
 	u8			rx_stats_cnt;
@@ -142,6 +141,10 @@ struct cgx {
 	u8			lmac_count;
 	/* number of LMACs per MAC could be 4 or 8 */
 	u8			max_lmac_per_mac;
+	/* length of fifo varies depending on the number
+	 * of LMACS
+	 */
+	u32			fifo_len;
 #define MAX_LMAC_COUNT		8
 	struct lmac             *lmac_idmap[MAX_LMAC_COUNT];
 	struct			work_struct cgx_cmd_work;
