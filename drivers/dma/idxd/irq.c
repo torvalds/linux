@@ -383,6 +383,20 @@ static void process_evl_entries(struct idxd_device *idxd)
 	mutex_unlock(&evl->lock);
 }
 
+static void idxd_device_flr(struct work_struct *work)
+{
+	struct idxd_device *idxd = container_of(work, struct idxd_device, work);
+	int rc;
+
+	/*
+	 * IDXD device requires a Function Level Reset (FLR).
+	 * pci_reset_function() will reset the device with FLR.
+	 */
+	rc = pci_reset_function(idxd->pdev);
+	if (rc)
+		dev_err(&idxd->pdev->dev, "FLR failed\n");
+}
+
 static irqreturn_t idxd_halt(struct idxd_device *idxd)
 {
 	union gensts_reg gensts;
@@ -398,15 +412,23 @@ static irqreturn_t idxd_halt(struct idxd_device *idxd)
 			 */
 			INIT_WORK(&idxd->work, idxd_device_reinit);
 			queue_work(idxd->wq, &idxd->work);
+		} else if (gensts.reset_type == IDXD_DEVICE_RESET_FLR) {
+			idxd->state = IDXD_DEV_HALTED;
+			idxd_mask_error_interrupts(idxd);
+			dev_dbg(&idxd->pdev->dev,
+				"idxd halted, doing FLR. After FLR, configs are restored\n");
+			INIT_WORK(&idxd->work, idxd_device_flr);
+			queue_work(idxd->wq, &idxd->work);
+
 		} else {
 			idxd->state = IDXD_DEV_HALTED;
 			idxd_wqs_quiesce(idxd);
 			idxd_wqs_unmap_portal(idxd);
 			idxd_device_clear_state(idxd);
 			dev_err(&idxd->pdev->dev,
-				"idxd halted, need %s.\n",
-				gensts.reset_type == IDXD_DEVICE_RESET_FLR ?
-				"FLR" : "system reset");
+				"idxd halted, need system reset");
+
+			return -ENXIO;
 		}
 	}
 

@@ -983,6 +983,118 @@ static void idxd_device_config_restore(struct idxd_device *idxd,
 	kfree(idxd_saved->saved_wqs);
 }
 
+static void idxd_reset_prepare(struct pci_dev *pdev)
+{
+	struct idxd_device *idxd = pci_get_drvdata(pdev);
+	struct device *dev = &idxd->pdev->dev;
+	const char *idxd_name;
+	int rc;
+
+	dev = &idxd->pdev->dev;
+	idxd_name = dev_name(idxd_confdev(idxd));
+
+	struct idxd_saved_states *idxd_saved __free(kfree) =
+			kzalloc_node(sizeof(*idxd_saved), GFP_KERNEL,
+				     dev_to_node(&pdev->dev));
+	if (!idxd_saved) {
+		dev_err(dev, "HALT: no memory\n");
+
+		return;
+	}
+
+	/* Save IDXD configurations. */
+	rc = idxd_device_config_save(idxd, idxd_saved);
+	if (rc < 0) {
+		dev_err(dev, "HALT: cannot save %s configs\n", idxd_name);
+
+		return;
+	}
+
+	idxd->idxd_saved = no_free_ptr(idxd_saved);
+
+	/* Save PCI device state. */
+	pci_save_state(idxd->pdev);
+}
+
+static void idxd_reset_done(struct pci_dev *pdev)
+{
+	struct idxd_device *idxd = pci_get_drvdata(pdev);
+	const char *idxd_name;
+	struct device *dev;
+	int rc, i;
+
+	if (!idxd->idxd_saved)
+		return;
+
+	dev = &idxd->pdev->dev;
+	idxd_name = dev_name(idxd_confdev(idxd));
+
+	/* Restore PCI device state. */
+	pci_restore_state(idxd->pdev);
+
+	/* Unbind idxd device from driver. */
+	idxd_unbind(&idxd_drv.drv, idxd_name);
+
+	/*
+	 * Probe PCI device without allocating or changing
+	 * idxd software data which keeps the same as before FLR.
+	 */
+	idxd_pci_probe_alloc(idxd, NULL, NULL);
+
+	/* Restore IDXD configurations. */
+	idxd_device_config_restore(idxd, idxd->idxd_saved);
+
+	/* Re-configure IDXD device if allowed. */
+	if (test_bit(IDXD_FLAG_CONFIGURABLE, &idxd->flags)) {
+		rc = idxd_device_config(idxd);
+		if (rc < 0) {
+			dev_err(dev, "HALT: %s config fails\n", idxd_name);
+			goto out;
+		}
+	}
+
+	/* Bind IDXD device to driver. */
+	rc = idxd_bind(&idxd_drv.drv, idxd_name);
+	if (rc < 0) {
+		dev_err(dev, "HALT: binding %s to driver fails\n", idxd_name);
+		goto out;
+	}
+
+	/* Bind enabled wq in the IDXD device to driver. */
+	for (i = 0; i < idxd->max_wqs; i++) {
+		if (test_bit(i, idxd->wq_enable_map)) {
+			struct idxd_wq *wq = idxd->wqs[i];
+			char wq_name[32];
+
+			wq->state = IDXD_WQ_DISABLED;
+			sprintf(wq_name, "wq%d.%d", idxd->id, wq->id);
+			/*
+			 * Bind to user driver depending on wq type.
+			 *
+			 * Currently only support user type WQ. Will support
+			 * kernel type WQ in the future.
+			 */
+			if (wq->type == IDXD_WQT_USER)
+				rc = idxd_bind(&idxd_user_drv.drv, wq_name);
+			else
+				rc = -EINVAL;
+			if (rc < 0) {
+				clear_bit(i, idxd->wq_enable_map);
+				dev_err(dev,
+					"HALT: unable to re-enable wq %s\n",
+					dev_name(wq_confdev(wq)));
+			}
+		}
+	}
+out:
+	kfree(idxd->idxd_saved);
+}
+
+static const struct pci_error_handlers idxd_error_handler = {
+	.reset_prepare	= idxd_reset_prepare,
+	.reset_done	= idxd_reset_done,
+};
+
 /*
  * Probe idxd PCI device.
  * If idxd is not given, need to allocate idxd and set up its data.
@@ -1054,6 +1166,16 @@ int idxd_pci_probe_alloc(struct idxd_device *idxd, struct pci_dev *pdev,
 		rc = idxd_device_init_debugfs(idxd);
 		if (rc)
 			dev_warn(dev, "IDXD debugfs failed to setup\n");
+	}
+
+	if (!alloc_idxd) {
+		/* Release interrupts in the IDXD device. */
+		idxd_cleanup_interrupts(idxd);
+
+		/* Re-enable interrupts in the IDXD device. */
+		rc = idxd_setup_interrupts(idxd);
+		if (rc)
+			dev_warn(dev, "IDXD interrupts failed to setup\n");
 	}
 
 	dev_info(&pdev->dev, "Intel(R) Accelerator Device (v%x)\n",
@@ -1146,6 +1268,7 @@ static struct pci_driver idxd_pci_driver = {
 	.probe		= idxd_pci_probe,
 	.remove		= idxd_remove,
 	.shutdown	= idxd_shutdown,
+	.err_handler	= &idxd_error_handler,
 };
 
 static int __init idxd_init_module(void)
