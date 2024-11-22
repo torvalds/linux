@@ -35,7 +35,7 @@ static int send_datagram(void)
 	if (!ASSERT_OK_FD(sock, "create socket"))
 		return sock;
 
-	if (!ASSERT_OK(connect(sock, &addr, sizeof(addr)), "connect")) {
+	if (!ASSERT_OK(connect(sock, (struct sockaddr *)&addr, sizeof(addr)), "connect")) {
 		close(sock);
 		return -1;
 	}

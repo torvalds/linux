@@ -4926,6 +4926,8 @@ static void *gpiolib_seq_start(struct seq_file *s, loff_t *pos)
 		return NULL;
 
 	s->private = priv;
+	if (*pos > 0)
+		priv->newline = true;
 	priv->idx = srcu_read_lock(&gpio_devices_srcu);
 
 	list_for_each_entry_srcu(gdev, &gpio_devices, list,
@@ -4969,7 +4971,7 @@ static int gpiolib_seq_show(struct seq_file *s, void *v)
 
 	gc = srcu_dereference(gdev->chip, &gdev->srcu);
 	if (!gc) {
-		seq_printf(s, "%s%s: (dangling chip)",
+		seq_printf(s, "%s%s: (dangling chip)\n",
 			   priv->newline ? "\n" : "",
 			   dev_name(&gdev->dev));
 		return 0;

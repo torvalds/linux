@@ -29,8 +29,8 @@ bool BPF_STRUCT_OPS(maybe_null_success_yield, struct task_struct *from,
 
 SEC(".struct_ops.link")
 struct sched_ext_ops maybe_null_success = {
-	.dispatch               = maybe_null_success_dispatch,
-	.yield			= maybe_null_success_yield,
-	.enable			= maybe_null_running,
+	.dispatch               = (void *) maybe_null_success_dispatch,
+	.yield			= (void *) maybe_null_success_yield,
+	.enable			= (void *) maybe_null_running,
 	.name			= "minimal",
 };

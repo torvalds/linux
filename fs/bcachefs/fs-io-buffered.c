@@ -856,6 +856,12 @@ static int __bch2_buffered_write(struct bch_inode_info *inode,
 				folios_trunc(&fs, fi);
 				end = min(end, folio_end_pos(darray_last(fs)));
 			} else {
+				if (!folio_test_uptodate(f)) {
+					ret = bch2_read_single_folio(f, mapping);
+					if (ret)
+						goto out;
+				}
+
 				folios_trunc(&fs, fi + 1);
 				end = f_pos + f_reserved;
 			}

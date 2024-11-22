@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/iio/dac/adi,ad5696.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Analog Devices AD5696 and similar multi-channel DACs
+title: Analog Devices AD5696 and similar I2C multi-channel DACs
 
 maintainers:
   - Michael Auchter <michael.auchter@ni.com>
@@ -16,6 +16,7 @@ properties:
   compatible:
     enum:
       - adi,ad5311r
+      - adi,ad5337r
       - adi,ad5338r
       - adi,ad5671r
       - adi,ad5675r

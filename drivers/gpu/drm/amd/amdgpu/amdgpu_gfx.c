@@ -1635,11 +1635,9 @@ int amdgpu_gfx_sysfs_isolation_shader_init(struct amdgpu_device *adev)
 {
 	int r;
 
-	if (!amdgpu_sriov_vf(adev)) {
-		r = device_create_file(adev->dev, &dev_attr_enforce_isolation);
-		if (r)
-			return r;
-	}
+	r = device_create_file(adev->dev, &dev_attr_enforce_isolation);
+	if (r)
+		return r;
 
 	r = device_create_file(adev->dev, &dev_attr_run_cleaner_shader);
 	if (r)
@@ -1650,8 +1648,7 @@ int amdgpu_gfx_sysfs_isolation_shader_init(struct amdgpu_device *adev)
 
 void amdgpu_gfx_sysfs_isolation_shader_fini(struct amdgpu_device *adev)
 {
-	if (!amdgpu_sriov_vf(adev))
-		device_remove_file(adev->dev, &dev_attr_enforce_isolation);
+	device_remove_file(adev->dev, &dev_attr_enforce_isolation);
 	device_remove_file(adev->dev, &dev_attr_run_cleaner_shader);
 }
 
