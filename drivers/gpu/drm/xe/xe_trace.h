@@ -284,6 +284,7 @@ DECLARE_EVENT_CLASS(xe_sched_msg,
 			     __string(dev, __dev_name_eq(((struct xe_exec_queue *)msg->private_data)))
 			     __field(u32, opcode)
 			     __field(u16, guc_id)
+			     __field(u8, gt_id)
 			     ),
 
 		    TP_fast_assign(
@@ -291,9 +292,11 @@ DECLARE_EVENT_CLASS(xe_sched_msg,
 			   __entry->opcode = msg->opcode;
 			   __entry->guc_id =
 			   ((struct xe_exec_queue *)msg->private_data)->guc->id;
+			   __entry->gt_id =
+			   ((struct xe_exec_queue *)msg->private_data)->gt->info.id;
 			   ),
 
-		    TP_printk("dev=%s, guc_id=%d, opcode=%u", __get_str(dev), __entry->guc_id,
+		    TP_printk("dev=%s, gt=%u guc_id=%d, opcode=%u", __get_str(dev), __entry->gt_id, __entry->guc_id,
 			      __entry->opcode)
 );
 
