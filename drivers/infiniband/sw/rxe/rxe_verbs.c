@@ -55,6 +55,7 @@ static int rxe_query_port(struct ib_device *ibdev,
 	ret = ib_get_eth_speed(ibdev, port_num, &attr->active_speed,
 			       &attr->active_width);
 
+	attr->state = ib_get_curr_port_state(rxe->ndev);
 	if (attr->state == IB_PORT_ACTIVE)
 		attr->phys_state = IB_PORT_PHYS_STATE_LINK_UP;
 	else if (dev_get_flags(rxe->ndev) & IFF_UP)
