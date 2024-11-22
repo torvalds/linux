@@ -438,9 +438,11 @@ struct mclock_latency_table {
 };
 
 enum smu_reset_mode {
-    SMU_RESET_MODE_0,
-    SMU_RESET_MODE_1,
-    SMU_RESET_MODE_2,
+	SMU_RESET_MODE_0,
+	SMU_RESET_MODE_1,
+	SMU_RESET_MODE_2,
+	SMU_RESET_MODE_3,
+	SMU_RESET_MODE_4,
 };
 
 enum smu_baco_state {
@@ -1228,10 +1230,16 @@ struct pptable_funcs {
 	 * @mode1_reset_is_support: Check if GPU supports mode1 reset.
 	 */
 	bool (*mode1_reset_is_support)(struct smu_context *smu);
+
 	/**
 	 * @mode2_reset_is_support: Check if GPU supports mode2 reset.
 	 */
 	bool (*mode2_reset_is_support)(struct smu_context *smu);
+
+	/**
+	 * @link_reset_is_support: Check if GPU supports link reset.
+	 */
+	bool (*link_reset_is_support)(struct smu_context *smu);
 
 	/**
 	 * @mode1_reset: Perform mode1 reset.
@@ -1249,6 +1257,13 @@ struct pptable_funcs {
 	int (*mode2_reset)(struct smu_context *smu);
 	/* for gfx feature enablement after mode2 reset */
 	int (*enable_gfx_features)(struct smu_context *smu);
+
+	/**
+	 * @link_reset: Perform link reset.
+	 *
+	 * The gfx device driver reset
+	 */
+	int (*link_reset)(struct smu_context *smu);
 
 	/**
 	 * @get_dpm_ultimate_freq: Get the hard frequency range of a clock
@@ -1601,7 +1616,9 @@ int smu_get_power_limit(void *handle,
 
 bool smu_mode1_reset_is_support(struct smu_context *smu);
 bool smu_mode2_reset_is_support(struct smu_context *smu);
+bool smu_link_reset_is_support(struct smu_context *smu);
 int smu_mode1_reset(struct smu_context *smu);
+int smu_link_reset(struct smu_context *smu);
 
 extern const struct amd_ip_funcs smu_ip_funcs;
 

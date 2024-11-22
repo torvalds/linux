@@ -2844,6 +2844,15 @@ static int smu_v13_0_6_mode1_reset(struct smu_context *smu)
 	return ret;
 }
 
+static int smu_v13_0_6_link_reset(struct smu_context *smu)
+{
+	int ret = 0;
+
+	ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_GfxDeviceDriverReset,
+					      SMU_RESET_MODE_4, NULL);
+	return ret;
+}
+
 static bool smu_v13_0_6_is_mode1_reset_supported(struct smu_context *smu)
 {
 	return true;
@@ -2852,6 +2861,17 @@ static bool smu_v13_0_6_is_mode1_reset_supported(struct smu_context *smu)
 static bool smu_v13_0_6_is_mode2_reset_supported(struct smu_context *smu)
 {
 	return true;
+}
+
+static inline bool smu_v13_0_6_is_link_reset_supported(struct smu_context *smu)
+{
+	struct amdgpu_device *adev = smu->adev;
+	int var = (adev->pdev->device & 0xF);
+
+	if (var == 0x1)
+		return true;
+
+	return false;
 }
 
 static int smu_v13_0_6_smu_send_hbm_bad_page_num(struct smu_context *smu,
@@ -3587,8 +3607,10 @@ static const struct pptable_funcs smu_v13_0_6_ppt_funcs = {
 	.get_thermal_temperature_range = smu_v13_0_6_get_thermal_temperature_range,
 	.mode1_reset_is_support = smu_v13_0_6_is_mode1_reset_supported,
 	.mode2_reset_is_support = smu_v13_0_6_is_mode2_reset_supported,
+	.link_reset_is_support = smu_v13_0_6_is_link_reset_supported,
 	.mode1_reset = smu_v13_0_6_mode1_reset,
 	.mode2_reset = smu_v13_0_6_mode2_reset,
+	.link_reset = smu_v13_0_6_link_reset,
 	.wait_for_event = smu_v13_0_wait_for_event,
 	.i2c_init = smu_v13_0_6_i2c_control_init,
 	.i2c_fini = smu_v13_0_6_i2c_control_fini,

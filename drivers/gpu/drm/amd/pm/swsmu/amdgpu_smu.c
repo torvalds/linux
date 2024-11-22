@@ -3412,6 +3412,19 @@ bool smu_mode2_reset_is_support(struct smu_context *smu)
 	return ret;
 }
 
+bool smu_link_reset_is_support(struct smu_context *smu)
+{
+	bool ret = false;
+
+	if (!smu->pm_enabled)
+		return false;
+
+	if (smu->ppt_funcs && smu->ppt_funcs->link_reset_is_support)
+		ret = smu->ppt_funcs->link_reset_is_support(smu);
+
+	return ret;
+}
+
 int smu_mode1_reset(struct smu_context *smu)
 {
 	int ret = 0;
@@ -3438,6 +3451,19 @@ static int smu_mode2_reset(void *handle)
 
 	if (ret)
 		dev_err(smu->adev->dev, "Mode2 reset failed!\n");
+
+	return ret;
+}
+
+int smu_link_reset(struct smu_context *smu)
+{
+	int ret = 0;
+
+	if (!smu->pm_enabled)
+		return -EOPNOTSUPP;
+
+	if (smu->ppt_funcs->link_reset)
+		ret = smu->ppt_funcs->link_reset(smu);
 
 	return ret;
 }
