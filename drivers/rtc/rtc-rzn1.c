@@ -75,19 +75,6 @@ static void rzn1_rtc_get_time_snapshot(struct rzn1_rtc *rtc, struct rtc_time *tm
 	tm->tm_year = readl(rtc->base + RZN1_RTC_YEARC);
 }
 
-static unsigned int rzn1_rtc_tm_to_wday(struct rtc_time *tm)
-{
-	time64_t time;
-	unsigned int days;
-	u32 secs;
-
-	time = rtc_tm_to_time64(tm);
-	days = div_s64_rem(time, 86400, &secs);
-
-	/* day of the week, 1970-01-01 was a Thursday */
-	return (days + 4) % 7;
-}
-
 static int rzn1_rtc_read_time(struct device *dev, struct rtc_time *tm)
 {
 	struct rzn1_rtc *rtc = dev_get_drvdata(dev);
@@ -109,7 +96,6 @@ static int rzn1_rtc_read_time(struct device *dev, struct rtc_time *tm)
 	tm->tm_sec = bcd2bin(tm->tm_sec);
 	tm->tm_min = bcd2bin(tm->tm_min);
 	tm->tm_hour = bcd2bin(tm->tm_hour);
-	tm->tm_wday = bcd2bin(tm->tm_wday);
 	tm->tm_mday = bcd2bin(tm->tm_mday);
 	tm->tm_mon = bcd2bin(tm->tm_mon) - 1;
 	tm->tm_year = bcd2bin(tm->tm_year) + 100;
@@ -126,7 +112,6 @@ static int rzn1_rtc_set_time(struct device *dev, struct rtc_time *tm)
 	tm->tm_sec = bin2bcd(tm->tm_sec);
 	tm->tm_min = bin2bcd(tm->tm_min);
 	tm->tm_hour = bin2bcd(tm->tm_hour);
-	tm->tm_wday = bin2bcd(rzn1_rtc_tm_to_wday(tm));
 	tm->tm_mday = bin2bcd(tm->tm_mday);
 	tm->tm_mon = bin2bcd(tm->tm_mon + 1);
 	tm->tm_year = bin2bcd(tm->tm_year - 100);
