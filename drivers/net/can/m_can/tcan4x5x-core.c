@@ -279,6 +279,14 @@ static int tcan4x5x_init(struct m_can_classdev *cdev)
 	return ret;
 }
 
+static int tcan4x5x_deinit(struct m_can_classdev *cdev)
+{
+	struct tcan4x5x_priv *tcan4x5x = cdev_to_priv(cdev);
+
+	return regmap_update_bits(tcan4x5x->regmap, TCAN4X5X_CONFIG,
+				  TCAN4X5X_MODE_SEL_MASK, TCAN4X5X_MODE_STANDBY);
+};
+
 static int tcan4x5x_disable_wake(struct m_can_classdev *cdev)
 {
 	struct tcan4x5x_priv *tcan4x5x = cdev_to_priv(cdev);
@@ -376,6 +384,7 @@ static int tcan4x5x_get_gpios(struct m_can_classdev *cdev,
 
 static const struct m_can_ops tcan4x5x_ops = {
 	.init = tcan4x5x_init,
+	.deinit = tcan4x5x_deinit,
 	.read_reg = tcan4x5x_read_reg,
 	.write_reg = tcan4x5x_write_reg,
 	.write_fifo = tcan4x5x_write_fifo,
