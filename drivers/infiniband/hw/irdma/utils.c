@@ -320,9 +320,6 @@ int irdma_netdevice_event(struct notifier_block *notifier, unsigned long event,
 	case NETDEV_DOWN:
 		iwdev->iw_status = 0;
 		fallthrough;
-	case NETDEV_UP:
-		irdma_port_ibevent(iwdev);
-		break;
 	default:
 		break;
 	}
