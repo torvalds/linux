@@ -1725,7 +1725,8 @@ static int bch2_discard_one_bucket(struct btree_trans *trans,
 				   struct bch_dev *ca,
 				   struct btree_iter *need_discard_iter,
 				   struct bpos *discard_pos_done,
-				   struct discard_buckets_state *s)
+				   struct discard_buckets_state *s,
+				   bool fastpath)
 {
 	struct bch_fs *c = trans->c;
 	struct bpos pos = need_discard_iter->pos;
@@ -1782,10 +1783,12 @@ static int bch2_discard_one_bucket(struct btree_trans *trans,
 		goto out;
 	}
 
-	if (discard_in_flight_add(ca, iter.pos.offset, true))
-		goto out;
+	if (!fastpath) {
+		if (discard_in_flight_add(ca, iter.pos.offset, true))
+			goto out;
 
-	discard_locked = true;
+		discard_locked = true;
+	}
 
 	if (!bkey_eq(*discard_pos_done, iter.pos) &&
 	    ca->mi.discard && !c->opts.nochanges) {
@@ -1799,6 +1802,7 @@ static int bch2_discard_one_bucket(struct btree_trans *trans,
 				     ca->mi.bucket_size,
 				     GFP_KERNEL);
 		*discard_pos_done = iter.pos;
+		s->discarded++;
 
 		ret = bch2_trans_relock_notrace(trans);
 		if (ret)
@@ -1819,12 +1823,12 @@ commit:
 		goto out;
 
 	count_event(c, bucket_discard);
-	s->discarded++;
 out:
 fsck_err:
 	if (discard_locked)
 		discard_in_flight_remove(ca, iter.pos.offset);
-	s->seen++;
+	if (!ret)
+		s->seen++;
 	bch2_trans_iter_exit(trans, &iter);
 	printbuf_exit(&buf);
 	return ret;
@@ -1848,7 +1852,7 @@ static void bch2_do_discards_work(struct work_struct *work)
 				   BTREE_ID_need_discard,
 				   POS(ca->dev_idx, 0),
 				   POS(ca->dev_idx, U64_MAX), 0, k,
-			bch2_discard_one_bucket(trans, ca, &iter, &discard_pos_done, &s)));
+			bch2_discard_one_bucket(trans, ca, &iter, &discard_pos_done, &s, false)));
 
 	trace_discard_buckets(c, s.seen, s.open, s.need_journal_commit, s.discarded,
 			      bch2_err_str(ret));
@@ -1881,27 +1885,31 @@ void bch2_do_discards(struct bch_fs *c)
 		bch2_dev_do_discards(ca);
 }
 
-static int bch2_clear_bucket_needs_discard(struct btree_trans *trans, struct bpos bucket)
+static int bch2_do_discards_fast_one(struct btree_trans *trans,
+				     struct bch_dev *ca,
+				     u64 bucket,
+				     struct bpos *discard_pos_done,
+				     struct discard_buckets_state *s)
 {
-	struct btree_iter iter;
-	bch2_trans_iter_init(trans, &iter, BTREE_ID_alloc, bucket, BTREE_ITER_intent);
-	struct bkey_s_c k = bch2_btree_iter_peek_slot(&iter);
-	int ret = bkey_err(k);
+	struct btree_iter need_discard_iter;
+	struct bkey_s_c discard_k = bch2_bkey_get_iter(trans, &need_discard_iter,
+					BTREE_ID_need_discard, POS(ca->dev_idx, bucket), 0);
+	int ret = bkey_err(discard_k);
 	if (ret)
-		goto err;
+		return ret;
 
-	struct bkey_i_alloc_v4 *a = bch2_alloc_to_v4_mut(trans, k);
-	ret = PTR_ERR_OR_ZERO(a);
-	if (ret)
-		goto err;
+	if (log_fsck_err_on(discard_k.k->type != KEY_TYPE_set,
+			    trans, discarding_bucket_not_in_need_discard_btree,
+			    "attempting to discard bucket %u:%llu not in need_discard btree",
+			    ca->dev_idx, bucket)) {
+		/* log it in the superblock and continue: */
+		goto out;
+	}
 
-	BUG_ON(a->v.dirty_sectors);
-	SET_BCH_ALLOC_V4_NEED_DISCARD(&a->v, false);
-	alloc_data_type_set(&a->v, a->v.data_type);
-
-	ret = bch2_trans_update(trans, &iter, &a->k_i, 0);
-err:
-	bch2_trans_iter_exit(trans, &iter);
+	ret = bch2_discard_one_bucket(trans, ca, &need_discard_iter, discard_pos_done, s, true);
+out:
+fsck_err:
+	bch2_trans_iter_exit(trans, &need_discard_iter);
 	return ret;
 }
 
@@ -1909,6 +1917,10 @@ static void bch2_do_discards_fast_work(struct work_struct *work)
 {
 	struct bch_dev *ca = container_of(work, struct bch_dev, discard_fast_work);
 	struct bch_fs *c = ca->fs;
+	struct discard_buckets_state s = {};
+	struct bpos discard_pos_done = POS_MAX;
+	struct btree_trans *trans = bch2_trans_get(c);
+	int ret = 0;
 
 	while (1) {
 		bool got_bucket = false;
@@ -1929,16 +1941,8 @@ static void bch2_do_discards_fast_work(struct work_struct *work)
 		if (!got_bucket)
 			break;
 
-		if (ca->mi.discard && !c->opts.nochanges)
-			blkdev_issue_discard(ca->disk_sb.bdev,
-					     bucket_to_sector(ca, bucket),
-					     ca->mi.bucket_size,
-					     GFP_KERNEL);
-
-		int ret = bch2_trans_commit_do(c, NULL, NULL,
-			BCH_WATERMARK_btree|
-			BCH_TRANS_COMMIT_no_enospc,
-			bch2_clear_bucket_needs_discard(trans, POS(ca->dev_idx, bucket)));
+		ret = lockrestart_do(trans,
+			bch2_do_discards_fast_one(trans, ca, bucket, &discard_pos_done, &s));
 		bch_err_fn(c, ret);
 
 		discard_in_flight_remove(ca, bucket);
@@ -1947,6 +1951,9 @@ static void bch2_do_discards_fast_work(struct work_struct *work)
 			break;
 	}
 
+	trace_discard_buckets(c, s.seen, s.open, s.need_journal_commit, s.discarded, bch2_err_str(ret));
+
+	bch2_trans_put(trans);
 	percpu_ref_put(&ca->io_ref);
 	bch2_write_ref_put(c, BCH_WRITE_REF_discard_fast);
 }
