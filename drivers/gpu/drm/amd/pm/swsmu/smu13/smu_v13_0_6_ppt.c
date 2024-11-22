@@ -119,6 +119,21 @@ static inline bool smu_v13_0_6_is_other_end_count_available(struct smu_context *
 	}
 }
 
+static inline bool smu_v13_0_6_is_blw_host_limit_available(struct smu_context *smu)
+{
+	if (smu->adev->flags & AMD_IS_APU)
+		return smu->smc_fw_version >= 0x04556F00;
+
+	switch (amdgpu_ip_version(smu->adev, MP1_HWIP, 0)) {
+	case IP_VERSION(13, 0, 6):
+		return smu->smc_fw_version >= 0x557900;
+	case IP_VERSION(13, 0, 14):
+		return smu->smc_fw_version >= 0x05551000;
+	default:
+		return false;
+	}
+}
+
 struct mca_bank_ipid {
 	enum amdgpu_mca_ip ip;
 	uint16_t hwid;
@@ -2358,6 +2373,9 @@ static ssize_t smu_v13_0_6_get_gpu_metrics(struct smu_context *smu, void **table
 	gpu_metrics->average_umc_activity =
 		SMUQ10_ROUND(GET_METRIC_FIELD(DramBandwidthUtilization, flag));
 
+	gpu_metrics->mem_max_bandwidth =
+		SMUQ10_ROUND(GET_METRIC_FIELD(MaxDramBandwidth, flag));
+
 	gpu_metrics->curr_socket_power =
 		SMUQ10_ROUND(GET_METRIC_FIELD(SocketPower, flag));
 	/* Energy counter reported in 15.259uJ (2^-16) units */
@@ -2496,6 +2514,11 @@ static ssize_t smu_v13_0_6_get_gpu_metrics(struct smu_context *smu, void **table
 					SMUQ10_ROUND(metrics_x->GfxBusy[inst]);
 				gpu_metrics->xcp_stats[i].gfx_busy_acc[idx] =
 					SMUQ10_ROUND(metrics_x->GfxBusyAcc[inst]);
+
+				if (smu_v13_0_6_is_blw_host_limit_available(smu))
+					gpu_metrics->xcp_stats[i].gfx_below_host_limit_acc[idx] =
+						SMUQ10_ROUND(metrics_x->GfxclkBelowHostLimitAcc
+								[inst]);
 				idx++;
 			}
 		}
