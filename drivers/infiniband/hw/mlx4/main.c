@@ -2341,37 +2341,38 @@ static void mlx4_ib_scan_netdev(struct mlx4_ib_dev *ibdev,
 
 	iboe->netdevs[dev->dev_port] = event != NETDEV_UNREGISTER ? dev : NULL;
 
-	if (event == NETDEV_UP || event == NETDEV_DOWN) {
-		enum ib_port_state port_state;
-		struct ib_event ibev = { };
-
-		if (ib_get_cached_port_state(&ibdev->ib_dev, dev->dev_port + 1,
-					     &port_state))
-			goto iboe_out;
-
-		if (event == NETDEV_UP &&
-		    (port_state != IB_PORT_ACTIVE ||
-		     iboe->last_port_state[dev->dev_port] != IB_PORT_DOWN))
-			goto iboe_out;
-		if (event == NETDEV_DOWN &&
-		    (port_state != IB_PORT_DOWN ||
-		     iboe->last_port_state[dev->dev_port] != IB_PORT_ACTIVE))
-			goto iboe_out;
-		iboe->last_port_state[dev->dev_port] = port_state;
-
-		ibev.device = &ibdev->ib_dev;
-		ibev.element.port_num = dev->dev_port + 1;
-		ibev.event = event == NETDEV_UP ? IB_EVENT_PORT_ACTIVE :
-						  IB_EVENT_PORT_ERR;
-		ib_dispatch_event(&ibev);
-	}
-
-iboe_out:
 	spin_unlock_bh(&iboe->lock);
 
-	if (event == NETDEV_CHANGEADDR || event == NETDEV_REGISTER ||
-	    event == NETDEV_UP || event == NETDEV_CHANGE)
+	if (event == NETDEV_CHANGEADDR || event == NETDEV_REGISTER)
 		mlx4_ib_update_qps(ibdev, dev, dev->dev_port + 1);
+}
+
+static void mlx4_ib_port_event(struct ib_device *ibdev, struct net_device *ndev,
+			       unsigned long event)
+{
+	struct mlx4_ib_dev *mlx4_ibdev =
+		container_of(ibdev, struct mlx4_ib_dev, ib_dev);
+	struct mlx4_ib_iboe *iboe = &mlx4_ibdev->iboe;
+
+	if (!net_eq(dev_net(ndev), &init_net))
+		return;
+
+	ASSERT_RTNL();
+
+	if (ndev->dev.parent != mlx4_ibdev->ib_dev.dev.parent)
+		return;
+
+	spin_lock_bh(&iboe->lock);
+
+	iboe->netdevs[ndev->dev_port] = event != NETDEV_UNREGISTER ? ndev : NULL;
+
+	if (event == NETDEV_UP || event == NETDEV_DOWN)
+		ib_dispatch_port_state_event(&mlx4_ibdev->ib_dev, ndev);
+
+	spin_unlock_bh(&iboe->lock);
+
+	if (event == NETDEV_UP || event == NETDEV_CHANGE)
+		mlx4_ib_update_qps(mlx4_ibdev, ndev, ndev->dev_port + 1);
 }
 
 static int mlx4_ib_netdev_event(struct notifier_block *this,
@@ -2569,6 +2570,7 @@ static const struct ib_device_ops mlx4_ib_dev_ops = {
 	.req_notify_cq = mlx4_ib_arm_cq,
 	.rereg_user_mr = mlx4_ib_rereg_user_mr,
 	.resize_cq = mlx4_ib_resize_cq,
+	.report_port_event = mlx4_ib_port_event,
 
 	INIT_RDMA_OBJ_SIZE(ib_ah, mlx4_ib_ah, ibah),
 	INIT_RDMA_OBJ_SIZE(ib_cq, mlx4_ib_cq, ibcq),
