@@ -40,7 +40,7 @@ static u8 *rci2_base;
 static u32 rci2_table_len;
 unsigned long rci2_table_phys __ro_after_init = EFI_INVALID_TABLE_ADDR;
 
-static BIN_ATTR_SIMPLE_ADMIN_RO(rci2);
+static __ro_after_init BIN_ATTR_SIMPLE_ADMIN_RO(rci2);
 
 static u16 checksum(void)
 {
