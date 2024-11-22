@@ -83,6 +83,11 @@ properties:
 
       - const: renesas,scif-r9a09g057       # RZ/V2H(P)
 
+      - items:
+          - enum:
+              - renesas,scif-r9a09g047      # RZ/G3E
+          - const: renesas,scif-r9a09g057   # RZ/V2H fallback
+
   reg:
     maxItems: 1
 
