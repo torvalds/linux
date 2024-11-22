@@ -114,50 +114,43 @@ void kfd_interrupt_exit(struct kfd_node *node)
  */
 bool enqueue_ih_ring_entry(struct kfd_node *node, const void *ih_ring_entry)
 {
-	int count;
-
-	count = kfifo_in(&node->ih_fifo, ih_ring_entry,
-				node->kfd->device_info.ih_ring_entry_size);
-	if (count != node->kfd->device_info.ih_ring_entry_size) {
+	if (kfifo_is_full(&node->ih_fifo)) {
 		dev_dbg_ratelimited(node->adev->dev,
-			"Interrupt ring overflow, dropping interrupt %d\n",
-			count);
+				    "Interrupt ring overflow, dropping interrupt\n");
 		return false;
 	}
 
+	kfifo_in(&node->ih_fifo, ih_ring_entry, node->kfd->device_info.ih_ring_entry_size);
 	return true;
 }
 
 /*
  * Assumption: single reader/writer. This function is not re-entrant
  */
-static bool dequeue_ih_ring_entry(struct kfd_node *node, void *ih_ring_entry)
+static bool dequeue_ih_ring_entry(struct kfd_node *node, u32 **ih_ring_entry)
 {
 	int count;
 
-	count = kfifo_out(&node->ih_fifo, ih_ring_entry,
-				node->kfd->device_info.ih_ring_entry_size);
+	if (kfifo_is_empty(&node->ih_fifo))
+		return false;
 
-	WARN_ON(count && count != node->kfd->device_info.ih_ring_entry_size);
-
+	count = kfifo_out_linear_ptr(&node->ih_fifo, ih_ring_entry,
+				     node->kfd->device_info.ih_ring_entry_size);
+	WARN_ON(count != node->kfd->device_info.ih_ring_entry_size);
 	return count == node->kfd->device_info.ih_ring_entry_size;
 }
 
 static void interrupt_wq(struct work_struct *work)
 {
-	struct kfd_node *dev = container_of(work, struct kfd_node,
-						interrupt_work);
-	uint32_t ih_ring_entry[KFD_MAX_RING_ENTRY_SIZE];
+	struct kfd_node *dev = container_of(work, struct kfd_node, interrupt_work);
+	uint32_t *ih_ring_entry;
 	unsigned long start_jiffies = jiffies;
 
-	if (dev->kfd->device_info.ih_ring_entry_size > sizeof(ih_ring_entry)) {
-		dev_err_once(dev->adev->dev, "Ring entry too small\n");
-		return;
-	}
-
-	while (dequeue_ih_ring_entry(dev, ih_ring_entry)) {
+	while (dequeue_ih_ring_entry(dev, &ih_ring_entry)) {
 		dev->kfd->device_info.event_interrupt_class->interrupt_wq(dev,
 								ih_ring_entry);
+		kfifo_skip_count(&dev->ih_fifo, dev->kfd->device_info.ih_ring_entry_size);
+
 		if (time_is_before_jiffies(start_jiffies + HZ)) {
 			/* If we spent more than a second processing signals,
 			 * reschedule the worker to avoid soft-lockup warnings
