@@ -1264,18 +1264,9 @@ void __init unflatten_and_copy_device_tree(void)
 }
 
 #ifdef CONFIG_SYSFS
-static ssize_t of_fdt_raw_read(struct file *filp, struct kobject *kobj,
-			       struct bin_attribute *bin_attr,
-			       char *buf, loff_t off, size_t count)
-{
-	memcpy(buf, initial_boot_params + off, count);
-	return count;
-}
-
 static int __init of_fdt_raw_init(void)
 {
-	static struct bin_attribute of_fdt_raw_attr =
-		__BIN_ATTR(fdt, S_IRUSR, of_fdt_raw_read, NULL, 0);
+	static __ro_after_init BIN_ATTR_SIMPLE_ADMIN_RO(fdt);
 
 	if (!initial_boot_params)
 		return 0;
@@ -1285,8 +1276,9 @@ static int __init of_fdt_raw_init(void)
 		pr_warn("not creating '/sys/firmware/fdt': CRC check failed\n");
 		return 0;
 	}
-	of_fdt_raw_attr.size = fdt_totalsize(initial_boot_params);
-	return sysfs_create_bin_file(firmware_kobj, &of_fdt_raw_attr);
+	bin_attr_fdt.private = initial_boot_params;
+	bin_attr_fdt.size = fdt_totalsize(initial_boot_params);
+	return sysfs_create_bin_file(firmware_kobj, &bin_attr_fdt);
 }
 late_initcall(of_fdt_raw_init);
 #endif
