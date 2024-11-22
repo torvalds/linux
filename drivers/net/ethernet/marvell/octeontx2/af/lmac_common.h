@@ -132,6 +132,8 @@ struct mac_ops {
 	int			(*get_fec_stats)(void *cgxd, int lmac_id,
 						 struct cgx_fec_stats_rsp *rsp);
 	int			(*mac_stats_reset)(void *cgxd, int lmac_id);
+	void                    (*mac_x2p_reset)(void *cgxd, bool enable);
+	int			(*mac_enadis_rx)(void *cgxd, int lmac_id, bool enable);
 };
 
 struct cgx {

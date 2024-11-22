@@ -39,6 +39,8 @@ static struct mac_ops		rpm_mac_ops   = {
 	.mac_get_pfc_frm_cfg   =        rpm_lmac_get_pfc_frm_cfg,
 	.mac_reset   =			rpm_lmac_reset,
 	.mac_stats_reset		 =	  rpm_stats_reset,
+	.mac_x2p_reset                   =        rpm_x2p_reset,
+	.mac_enadis_rx			 =        rpm_enadis_rx,
 };
 
 static struct mac_ops		rpm2_mac_ops   = {
@@ -72,6 +74,8 @@ static struct mac_ops		rpm2_mac_ops   = {
 	.mac_get_pfc_frm_cfg   =        rpm_lmac_get_pfc_frm_cfg,
 	.mac_reset   =			rpm_lmac_reset,
 	.mac_stats_reset	    =	rpm_stats_reset,
+	.mac_x2p_reset              =   rpm_x2p_reset,
+	.mac_enadis_rx		    =   rpm_enadis_rx,
 };
 
 bool is_dev_rpm2(void *rpmd)
@@ -766,5 +770,43 @@ int rpm_lmac_reset(void *rpmd, int lmac_id, u8 pf_req_flr)
 	if (pf_req_flr)
 		rpm_lmac_internal_loopback(rpm, lmac_id, false);
 
+	return 0;
+}
+
+void rpm_x2p_reset(void *rpmd, bool enable)
+{
+	rpm_t *rpm = rpmd;
+	int lmac_id;
+	u64 cfg;
+
+	if (enable) {
+		for_each_set_bit(lmac_id, &rpm->lmac_bmap, rpm->max_lmac_per_mac)
+			rpm->mac_ops->mac_enadis_rx(rpm, lmac_id, false);
+
+		usleep_range(1000, 2000);
+
+		cfg = rpm_read(rpm, 0, RPMX_CMR_GLOBAL_CFG);
+		rpm_write(rpm, 0, RPMX_CMR_GLOBAL_CFG, cfg | RPM_NIX0_RESET);
+	} else {
+		cfg = rpm_read(rpm, 0, RPMX_CMR_GLOBAL_CFG);
+		cfg &= ~RPM_NIX0_RESET;
+		rpm_write(rpm, 0, RPMX_CMR_GLOBAL_CFG, cfg);
+	}
+}
+
+int rpm_enadis_rx(void *rpmd, int lmac_id, bool enable)
+{
+	rpm_t *rpm = rpmd;
+	u64 cfg;
+
+	if (!is_lmac_valid(rpm, lmac_id))
+		return -ENODEV;
+
+	cfg = rpm_read(rpm, lmac_id, RPMX_MTI_MAC100X_COMMAND_CONFIG);
+	if (enable)
+		cfg |= RPM_RX_EN;
+	else
+		cfg &= ~RPM_RX_EN;
+	rpm_write(rpm, lmac_id, RPMX_MTI_MAC100X_COMMAND_CONFIG, cfg);
 	return 0;
 }
