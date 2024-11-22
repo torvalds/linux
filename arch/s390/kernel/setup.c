@@ -160,6 +160,7 @@ struct oldmem_data __bootdata_preserved(oldmem_data);
 char __bootdata(boot_rb)[PAGE_SIZE * 2];
 bool __bootdata(boot_earlyprintk);
 size_t __bootdata(boot_rb_off);
+char __bootdata(bootdebug_filter)[128];
 bool __bootdata(bootdebug);
 
 unsigned long __bootdata_preserved(VMALLOC_START);
@@ -886,16 +887,17 @@ static void __init log_component_list(void)
  * Print avoiding interpretation of % in buf and taking bootdebug option
  * into consideration.
  */
-static void __init print_rb_entry(char *buf)
+static void __init print_rb_entry(const char *buf)
 {
 	char fmt[] = KERN_SOH "0boot: %s";
 	int level = printk_get_level(buf);
 
-	if (level == KERN_DEBUG[1] && !bootdebug)
+	buf = printk_skip_level(buf);
+	if (level == KERN_DEBUG[1] && (!bootdebug || !bootdebug_filter_match(buf)))
 		return;
 
 	fmt[1] = level;
-	printk(fmt, printk_skip_level(buf));
+	printk(fmt, buf);
 }
 
 /*

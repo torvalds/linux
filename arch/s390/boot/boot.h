@@ -77,14 +77,18 @@ void print_stacktrace(unsigned long sp);
 void error(char *m);
 int get_random(unsigned long limit, unsigned long *value);
 
-#define boot_emerg(fmt, ...)	boot_printk(KERN_EMERG fmt, ##__VA_ARGS__)
-#define boot_alert(fmt, ...)	boot_printk(KERN_ALERT fmt, ##__VA_ARGS__)
-#define boot_crit(fmt, ...)	boot_printk(KERN_CRIT fmt, ##__VA_ARGS__)
-#define boot_err(fmt, ...)	boot_printk(KERN_ERR fmt, ##__VA_ARGS__)
-#define boot_warn(fmt, ...)	boot_printk(KERN_WARNING fmt, ##__VA_ARGS__)
-#define boot_notice(fmt, ...)	boot_printk(KERN_NOTICE fmt, ##__VA_ARGS__)
-#define boot_info(fmt, ...)	boot_printk(KERN_INFO fmt, ##__VA_ARGS__)
-#define boot_debug(fmt, ...)	boot_printk(KERN_DEBUG fmt, ##__VA_ARGS__)
+#ifndef boot_fmt
+#define boot_fmt(fmt)	fmt
+#endif
+
+#define boot_emerg(fmt, ...)	boot_printk(KERN_EMERG boot_fmt(fmt), ##__VA_ARGS__)
+#define boot_alert(fmt, ...)	boot_printk(KERN_ALERT boot_fmt(fmt), ##__VA_ARGS__)
+#define boot_crit(fmt, ...)	boot_printk(KERN_CRIT boot_fmt(fmt), ##__VA_ARGS__)
+#define boot_err(fmt, ...)	boot_printk(KERN_ERR boot_fmt(fmt), ##__VA_ARGS__)
+#define boot_warn(fmt, ...)	boot_printk(KERN_WARNING boot_fmt(fmt), ##__VA_ARGS__)
+#define boot_notice(fmt, ...)	boot_printk(KERN_NOTICE boot_fmt(fmt), ##__VA_ARGS__)
+#define boot_info(fmt, ...)	boot_printk(KERN_INFO boot_fmt(fmt), ##__VA_ARGS__)
+#define boot_debug(fmt, ...)	boot_printk(KERN_DEBUG boot_fmt(fmt), ##__VA_ARGS__)
 
 extern struct machine_info machine;
 extern int boot_console_loglevel;

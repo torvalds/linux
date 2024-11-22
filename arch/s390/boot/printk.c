@@ -17,6 +17,7 @@ bool boot_ignore_loglevel;
 char __bootdata(boot_rb)[PAGE_SIZE * 2];
 bool __bootdata(boot_earlyprintk);
 size_t __bootdata(boot_rb_off);
+char __bootdata(bootdebug_filter)[128];
 bool __bootdata(bootdebug);
 
 static void boot_rb_add(const char *str, size_t len)
@@ -169,11 +170,12 @@ static void boot_console_earlyprintk(const char *buf)
 	/* always print emergency messages */
 	if (level > LOGLEVEL_EMERG && !boot_earlyprintk)
 		return;
+	buf = printk_skip_level(buf);
 	/* print debug messages only when bootdebug is enabled */
-	if (level == LOGLEVEL_DEBUG && !bootdebug)
+	if (level == LOGLEVEL_DEBUG && (!bootdebug || !bootdebug_filter_match(buf)))
 		return;
 	if (boot_ignore_loglevel || level < boot_console_loglevel)
-		sclp_early_printk(printk_skip_level(buf));
+		sclp_early_printk(buf);
 }
 
 #define va_arg_len_type(args, lenmod, typemod)				\
