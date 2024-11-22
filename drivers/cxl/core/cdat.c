@@ -247,8 +247,8 @@ static void update_perf_entry(struct device *dev, struct dsmas_entry *dent,
 	dpa_perf->dpa_range = dent->dpa_range;
 	dpa_perf->qos_class = dent->qos_class;
 	dev_dbg(dev,
-		"DSMAS: dpa: %#llx qos: %d read_bw: %d write_bw %d read_lat: %d write_lat: %d\n",
-		dent->dpa_range.start, dpa_perf->qos_class,
+		"DSMAS: dpa: %pra qos: %d read_bw: %d write_bw %d read_lat: %d write_lat: %d\n",
+		&dent->dpa_range, dpa_perf->qos_class,
 		dent->coord[ACCESS_COORDINATE_CPU].read_bandwidth,
 		dent->coord[ACCESS_COORDINATE_CPU].write_bandwidth,
 		dent->coord[ACCESS_COORDINATE_CPU].read_latency,
@@ -279,8 +279,8 @@ static void cxl_memdev_set_qos_class(struct cxl_dev_state *cxlds,
 			 range_contains(&pmem_range, &dent->dpa_range))
 			update_perf_entry(dev, dent, &mds->pmem_perf);
 		else
-			dev_dbg(dev, "no partition for dsmas dpa: %#llx\n",
-				dent->dpa_range.start);
+			dev_dbg(dev, "no partition for dsmas dpa: %pra\n",
+				&dent->dpa_range);
 	}
 }
 
