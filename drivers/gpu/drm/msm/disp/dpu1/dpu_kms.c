@@ -1024,6 +1024,14 @@ static void dpu_kms_mdp_snapshot(struct msm_disp_state *disp_state, struct msm_k
 		msm_disp_snapshot_add_block(disp_state, cat->cdm->len,
 					    dpu_kms->mmio + cat->cdm->base, cat->cdm->name);
 
+	for (i = 0; i < dpu_kms->catalog->vbif_count; i++) {
+		const struct dpu_vbif_cfg *vbif = &dpu_kms->catalog->vbif[i];
+
+		msm_disp_snapshot_add_block(disp_state, vbif->len,
+					    dpu_kms->vbif[vbif->id] + vbif->base,
+					    vbif->name);
+	}
+
 	pm_runtime_put_sync(&dpu_kms->pdev->dev);
 }
 
