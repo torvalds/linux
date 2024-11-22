@@ -197,10 +197,10 @@ xfs_rtgroup_lock(
 		 * Lock both realtime free space metadata inodes for a freespace
 		 * update.
 		 */
-		xfs_ilock(rtg->rtg_inodes[XFS_RTGI_BITMAP], XFS_ILOCK_EXCL);
-		xfs_ilock(rtg->rtg_inodes[XFS_RTGI_SUMMARY], XFS_ILOCK_EXCL);
+		xfs_ilock(rtg_bitmap(rtg), XFS_ILOCK_EXCL);
+		xfs_ilock(rtg_summary(rtg), XFS_ILOCK_EXCL);
 	} else if (rtglock_flags & XFS_RTGLOCK_BITMAP_SHARED) {
-		xfs_ilock(rtg->rtg_inodes[XFS_RTGI_BITMAP], XFS_ILOCK_SHARED);
+		xfs_ilock(rtg_bitmap(rtg), XFS_ILOCK_SHARED);
 	}
 }
 
@@ -215,10 +215,10 @@ xfs_rtgroup_unlock(
 	       !(rtglock_flags & XFS_RTGLOCK_BITMAP));
 
 	if (rtglock_flags & XFS_RTGLOCK_BITMAP) {
-		xfs_iunlock(rtg->rtg_inodes[XFS_RTGI_SUMMARY], XFS_ILOCK_EXCL);
-		xfs_iunlock(rtg->rtg_inodes[XFS_RTGI_BITMAP], XFS_ILOCK_EXCL);
+		xfs_iunlock(rtg_summary(rtg), XFS_ILOCK_EXCL);
+		xfs_iunlock(rtg_bitmap(rtg), XFS_ILOCK_EXCL);
 	} else if (rtglock_flags & XFS_RTGLOCK_BITMAP_SHARED) {
-		xfs_iunlock(rtg->rtg_inodes[XFS_RTGI_BITMAP], XFS_ILOCK_SHARED);
+		xfs_iunlock(rtg_bitmap(rtg), XFS_ILOCK_SHARED);
 	}
 }
 
@@ -236,10 +236,8 @@ xfs_rtgroup_trans_join(
 	ASSERT(!(rtglock_flags & XFS_RTGLOCK_BITMAP_SHARED));
 
 	if (rtglock_flags & XFS_RTGLOCK_BITMAP) {
-		xfs_trans_ijoin(tp, rtg->rtg_inodes[XFS_RTGI_BITMAP],
-				XFS_ILOCK_EXCL);
-		xfs_trans_ijoin(tp, rtg->rtg_inodes[XFS_RTGI_SUMMARY],
-				XFS_ILOCK_EXCL);
+		xfs_trans_ijoin(tp, rtg_bitmap(rtg), XFS_ILOCK_EXCL);
+		xfs_trans_ijoin(tp, rtg_summary(rtg), XFS_ILOCK_EXCL);
 	}
 }
 

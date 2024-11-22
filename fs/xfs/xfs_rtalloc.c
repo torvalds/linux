@@ -856,8 +856,8 @@ xfs_growfs_rt_bmblock(
 	xfs_fileoff_t		bmbno)
 {
 	struct xfs_mount	*mp = rtg_mount(rtg);
-	struct xfs_inode	*rbmip = rtg->rtg_inodes[XFS_RTGI_BITMAP];
-	struct xfs_inode	*rsumip = rtg->rtg_inodes[XFS_RTGI_SUMMARY];
+	struct xfs_inode	*rbmip = rtg_bitmap(rtg);
+	struct xfs_inode	*rsumip = rtg_summary(rtg);
 	struct xfs_rtalloc_args	args = {
 		.mp		= mp,
 		.rtg		= rtg,
@@ -1041,8 +1041,8 @@ xfs_growfs_rt_alloc_blocks(
 	xfs_extlen_t		*nrbmblocks)
 {
 	struct xfs_mount	*mp = rtg_mount(rtg);
-	struct xfs_inode	*rbmip = rtg->rtg_inodes[XFS_RTGI_BITMAP];
-	struct xfs_inode	*rsumip = rtg->rtg_inodes[XFS_RTGI_SUMMARY];
+	struct xfs_inode	*rbmip = rtg_bitmap(rtg);
+	struct xfs_inode	*rsumip = rtg_summary(rtg);
 	xfs_extlen_t		orbmblocks = 0;
 	xfs_extlen_t		orsumblocks = 0;
 	struct xfs_mount	*nmp;
@@ -1622,7 +1622,7 @@ xfs_rtpick_extent(
 	xfs_rtxlen_t		len)		/* allocation length (rtextents) */
 {
 	struct xfs_mount	*mp = rtg_mount(rtg);
-	struct xfs_inode	*rbmip = rtg->rtg_inodes[XFS_RTGI_BITMAP];
+	struct xfs_inode	*rbmip = rtg_bitmap(rtg);
 	xfs_rtxnum_t		b = 0;		/* result rtext */
 	int			log2;		/* log of sequence number */
 	uint64_t		resid;		/* residual after log removed */
