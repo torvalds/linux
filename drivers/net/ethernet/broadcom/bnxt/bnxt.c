@@ -15999,6 +15999,7 @@ static void bnxt_shutdown(struct pci_dev *pdev)
 	if (netif_running(dev))
 		dev_close(dev);
 
+	bnxt_ptp_clear(bp);
 	bnxt_clear_int_mode(bp);
 	pci_disable_device(pdev);
 
@@ -16026,6 +16027,7 @@ static int bnxt_suspend(struct device *device)
 		rc = bnxt_close(dev);
 	}
 	bnxt_hwrm_func_drv_unrgtr(bp);
+	bnxt_ptp_clear(bp);
 	pci_disable_device(bp->pdev);
 	bnxt_free_ctx_mem(bp);
 	rtnl_unlock();
@@ -16069,6 +16071,10 @@ static int bnxt_resume(struct device *device)
 	if (bp->fw_crash_mem)
 		bnxt_hwrm_crash_dump_mem_cfg(bp);
 
+	if (bnxt_ptp_init(bp)) {
+		kfree(bp->ptp_cfg);
+		bp->ptp_cfg = NULL;
+	}
 	bnxt_get_wol_settings(bp);
 	if (netif_running(dev)) {
 		rc = bnxt_open(dev);
