@@ -2279,6 +2279,33 @@ struct net_device *ib_device_get_netdev(struct ib_device *ib_dev,
 EXPORT_SYMBOL(ib_device_get_netdev);
 
 /**
+ * ib_query_netdev_port - Query the port number of a net_device
+ * associated with an ibdev
+ * @ibdev: IB device
+ * @ndev: Network device
+ * @port: IB port the net_device is connected to
+ */
+int ib_query_netdev_port(struct ib_device *ibdev, struct net_device *ndev,
+			 u32 *port)
+{
+	struct net_device *ib_ndev;
+	u32 port_num;
+
+	rdma_for_each_port(ibdev, port_num) {
+		ib_ndev = ib_device_get_netdev(ibdev, port_num);
+		if (ndev == ib_ndev) {
+			*port = port_num;
+			dev_put(ib_ndev);
+			return 0;
+		}
+		dev_put(ib_ndev);
+	}
+
+	return -ENOENT;
+}
+EXPORT_SYMBOL(ib_query_netdev_port);
+
+/**
  * ib_device_get_by_netdev - Find an IB device associated with a netdev
  * @ndev: netdev to locate
  * @driver_id: The driver ID that must match (RDMA_DRIVER_UNKNOWN matches all)
@@ -2841,7 +2868,6 @@ static int ib_netdevice_event(struct notifier_block *this,
 			      unsigned long event, void *ptr)
 {
 	struct net_device *ndev = netdev_notifier_info_to_dev(ptr);
-	struct net_device *ib_ndev;
 	struct ib_device *ibdev;
 	u32 port;
 
@@ -2851,13 +2877,12 @@ static int ib_netdevice_event(struct notifier_block *this,
 		if (!ibdev)
 			return NOTIFY_DONE;
 
-		rdma_for_each_port(ibdev, port) {
-			ib_ndev = ib_device_get_netdev(ibdev, port);
-			if (ndev == ib_ndev)
-				rdma_nl_notify_event(ibdev, port,
-						     RDMA_NETDEV_RENAME_EVENT);
-			dev_put(ib_ndev);
+		if (ib_query_netdev_port(ibdev, ndev, &port)) {
+			ib_device_put(ibdev);
+			break;
 		}
+
+		rdma_nl_notify_event(ibdev, port, RDMA_NETDEV_RENAME_EVENT);
 		ib_device_put(ibdev);
 		break;
 	default:
