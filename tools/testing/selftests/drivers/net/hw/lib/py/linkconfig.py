@@ -218,5 +218,5 @@ class LinkConfig:
         json_data = process[0]
         """Check if the field exist in the json data"""
         if field not in json_data:
-            raise KsftSkipEx(f"Field {field} does not exist in the output of interface {json_data["ifname"]}")
+            raise KsftSkipEx(f'Field {field} does not exist in the output of interface {json_data["ifname"]}')
         return json_data[field]
