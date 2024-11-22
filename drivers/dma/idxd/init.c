@@ -725,67 +725,84 @@ static void idxd_cleanup(struct idxd_device *idxd)
 		idxd_disable_sva(idxd->pdev);
 }
 
-static int idxd_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
+/*
+ * Probe idxd PCI device.
+ * If idxd is not given, need to allocate idxd and set up its data.
+ *
+ * If idxd is given, idxd was allocated and setup already. Just need to
+ * configure device without re-allocating and re-configuring idxd data.
+ * This is useful for recovering from FLR.
+ */
+int idxd_pci_probe_alloc(struct idxd_device *idxd, struct pci_dev *pdev,
+			 const struct pci_device_id *id)
 {
-	struct device *dev = &pdev->dev;
-	struct idxd_device *idxd;
-	struct idxd_driver_data *data = (struct idxd_driver_data *)id->driver_data;
+	bool alloc_idxd = idxd ? false : true;
+	struct idxd_driver_data *data;
+	struct device *dev;
 	int rc;
 
+	pdev = idxd ? idxd->pdev : pdev;
+	dev = &pdev->dev;
+	data = id ? (struct idxd_driver_data *)id->driver_data : NULL;
 	rc = pci_enable_device(pdev);
 	if (rc)
 		return rc;
 
-	dev_dbg(dev, "Alloc IDXD context\n");
-	idxd = idxd_alloc(pdev, data);
-	if (!idxd) {
-		rc = -ENOMEM;
-		goto err_idxd_alloc;
-	}
+	if (alloc_idxd) {
+		dev_dbg(dev, "Alloc IDXD context\n");
+		idxd = idxd_alloc(pdev, data);
+		if (!idxd) {
+			rc = -ENOMEM;
+			goto err_idxd_alloc;
+		}
 
-	dev_dbg(dev, "Mapping BARs\n");
-	idxd->reg_base = pci_iomap(pdev, IDXD_MMIO_BAR, 0);
-	if (!idxd->reg_base) {
-		rc = -ENOMEM;
-		goto err_iomap;
-	}
+		dev_dbg(dev, "Mapping BARs\n");
+		idxd->reg_base = pci_iomap(pdev, IDXD_MMIO_BAR, 0);
+		if (!idxd->reg_base) {
+			rc = -ENOMEM;
+			goto err_iomap;
+		}
 
-	dev_dbg(dev, "Set DMA masks\n");
-	rc = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
-	if (rc)
-		goto err;
+		dev_dbg(dev, "Set DMA masks\n");
+		rc = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
+		if (rc)
+			goto err;
+	}
 
 	dev_dbg(dev, "Set PCI master\n");
 	pci_set_master(pdev);
 	pci_set_drvdata(pdev, idxd);
 
-	idxd->hw.version = ioread32(idxd->reg_base + IDXD_VER_OFFSET);
-	rc = idxd_probe(idxd);
-	if (rc) {
-		dev_err(dev, "Intel(R) IDXD DMA Engine init failed\n");
-		goto err;
-	}
+	if (alloc_idxd) {
+		idxd->hw.version = ioread32(idxd->reg_base + IDXD_VER_OFFSET);
+		rc = idxd_probe(idxd);
+		if (rc) {
+			dev_err(dev, "Intel(R) IDXD DMA Engine init failed\n");
+			goto err;
+		}
 
-	if (data->load_device_defaults) {
-		rc = data->load_device_defaults(idxd);
+		if (data->load_device_defaults) {
+			rc = data->load_device_defaults(idxd);
+			if (rc)
+				dev_warn(dev, "IDXD loading device defaults failed\n");
+		}
+
+		rc = idxd_register_devices(idxd);
+		if (rc) {
+			dev_err(dev, "IDXD sysfs setup failed\n");
+			goto err_dev_register;
+		}
+
+		rc = idxd_device_init_debugfs(idxd);
 		if (rc)
-			dev_warn(dev, "IDXD loading device defaults failed\n");
+			dev_warn(dev, "IDXD debugfs failed to setup\n");
 	}
-
-	rc = idxd_register_devices(idxd);
-	if (rc) {
-		dev_err(dev, "IDXD sysfs setup failed\n");
-		goto err_dev_register;
-	}
-
-	rc = idxd_device_init_debugfs(idxd);
-	if (rc)
-		dev_warn(dev, "IDXD debugfs failed to setup\n");
 
 	dev_info(&pdev->dev, "Intel(R) Accelerator Device (v%x)\n",
 		 idxd->hw.version);
 
-	idxd->user_submission_safe = data->user_submission_safe;
+	if (data)
+		idxd->user_submission_safe = data->user_submission_safe;
 
 	return 0;
 
@@ -798,6 +815,11 @@ static int idxd_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
  err_idxd_alloc:
 	pci_disable_device(pdev);
 	return rc;
+}
+
+static int idxd_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
+{
+	return idxd_pci_probe_alloc(NULL, pdev, id);
 }
 
 void idxd_wqs_quiesce(struct idxd_device *idxd)
