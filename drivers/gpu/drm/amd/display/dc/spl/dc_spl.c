@@ -563,6 +563,24 @@ static bool spl_is_rgb8(enum spl_pixel_format format)
 	return false;
 }
 
+static bool spl_is_video_format(enum spl_pixel_format format)
+{
+	if (format >= SPL_PIXEL_FORMAT_VIDEO_BEGIN
+			&& format <= SPL_PIXEL_FORMAT_VIDEO_END)
+		return true;
+	else
+		return false;
+}
+
+static bool spl_is_subsampled_format(enum spl_pixel_format format)
+{
+	if (format >= SPL_PIXEL_FORMAT_SUBSAMPLED_BEGIN
+			&& format <= SPL_PIXEL_FORMAT_SUBSAMPLED_END)
+		return true;
+	else
+		return false;
+}
+
 /*Calculate inits and viewport */
 static void spl_calculate_inits_and_viewports(struct spl_in *spl_in,
 		struct spl_scratch *spl_scratch)
@@ -607,7 +625,7 @@ static void spl_calculate_inits_and_viewports(struct spl_in *spl_in,
 		spl_swap(flip_vert_scan_dir, flip_horz_scan_dir);
 	}
 
-	if (spl_is_yuv420(spl_in->basic_in.format)) {
+	if (spl_is_subsampled_format(spl_in->basic_in.format)) {
 		/* this gives the direction of the cositing (negative will move
 		 * left, right otherwise)
 		 */
@@ -715,24 +733,6 @@ static void spl_clamp_viewport(struct spl_rect *viewport)
 		viewport->width = MIN_VIEWPORT_SIZE;
 }
 
-static bool spl_dscl_is_420_format(enum spl_pixel_format format)
-{
-	if (format == SPL_PIXEL_FORMAT_420BPP8 ||
-			format == SPL_PIXEL_FORMAT_420BPP10)
-		return true;
-	else
-		return false;
-}
-
-static bool spl_dscl_is_video_format(enum spl_pixel_format format)
-{
-	if (format >= SPL_PIXEL_FORMAT_VIDEO_BEGIN
-			&& format <= SPL_PIXEL_FORMAT_VIDEO_END)
-		return true;
-	else
-		return false;
-}
-
 static enum scl_mode spl_get_dscl_mode(const struct spl_in *spl_in,
 				const struct spl_scaler_data *data,
 				bool enable_isharp, bool enable_easf)
@@ -749,8 +749,8 @@ static enum scl_mode spl_get_dscl_mode(const struct spl_in *spl_in,
 			&& !enable_isharp)
 		return SCL_MODE_SCALING_444_BYPASS;
 
-	if (!spl_dscl_is_420_format(pixel_format)) {
-		if (spl_dscl_is_video_format(pixel_format))
+	if (!spl_is_subsampled_format(pixel_format)) {
+		if (spl_is_video_format(pixel_format))
 			return SCL_MODE_SCALING_444_YCBCR_ENABLE;
 		else
 			return SCL_MODE_SCALING_444_RGB_ENABLE;
@@ -773,7 +773,7 @@ static bool spl_choose_lls_policy(enum spl_pixel_format format,
 	enum spl_transfer_func_predefined tf_predefined_type,
 	enum linear_light_scaling *lls_pref)
 {
-	if (spl_is_yuv420(format)) {
+	if (spl_is_video_format(format)) {
 		*lls_pref = LLS_PREF_NO;
 		if ((tf_type == SPL_TF_TYPE_PREDEFINED) ||
 			(tf_type == SPL_TF_TYPE_DISTRIBUTED_POINTS))
@@ -832,7 +832,7 @@ static bool enable_easf(struct spl_in *spl_in, struct spl_scratch *spl_scratch)
 /* Check if video is in fullscreen mode */
 static bool spl_is_video_fullscreen(struct spl_in *spl_in)
 {
-	if (spl_is_yuv420(spl_in->basic_in.format) && spl_in->is_fullscreen)
+	if (spl_is_video_format(spl_in->basic_in.format) && spl_in->is_fullscreen)
 		return true;
 	return false;
 }
@@ -863,10 +863,10 @@ static bool spl_get_isharp_en(struct spl_in *spl_in,
 	 * Apply sharpness to RGB and YUV (NV12/P010)
 	 *  surfaces based on policy setting
 	 */
-	if (!spl_is_yuv420(spl_in->basic_in.format) &&
+	if (!spl_is_video_format(spl_in->basic_in.format) &&
 		(spl_in->sharpen_policy == SHARPEN_YUV))
 		return enable_isharp;
-	else if ((spl_is_yuv420(spl_in->basic_in.format) && !fullscreen) &&
+	else if ((spl_is_video_format(spl_in->basic_in.format) && !fullscreen) &&
 		(spl_in->sharpen_policy == SHARPEN_RGB_FULLSCREEN_YUV))
 		return enable_isharp;
 	else if (!spl_in->is_fullscreen &&
@@ -949,7 +949,7 @@ static bool spl_get_optimal_number_of_taps(
 	int min_taps_y, min_taps_c;
 	enum lb_memory_config lb_config;
 	bool skip_easf = false;
-	bool is_ycbcr = spl_dscl_is_video_format(spl_in->basic_in.format);
+	bool is_subsampled = spl_is_subsampled_format(spl_in->basic_in.format);
 
 	if (spl_scratch->scl_data.viewport.width > spl_scratch->scl_data.h_active &&
 		max_downscale_src_width != 0 &&
@@ -981,7 +981,7 @@ static bool spl_get_optimal_number_of_taps(
 	if (skip_easf)
 		spl_get_taps_non_adaptive_scaler(spl_scratch, in_taps);
 	else {
-		if (spl_is_yuv420(spl_in->basic_in.format)) {
+		if (spl_is_video_format(spl_in->basic_in.format)) {
 			spl_scratch->scl_data.taps.h_taps = 6;
 			spl_scratch->scl_data.taps.v_taps = 6;
 			spl_scratch->scl_data.taps.h_taps_c = 4;
@@ -999,8 +999,7 @@ static bool spl_get_optimal_number_of_taps(
 	min_taps_c = spl_fixpt_ceil(spl_scratch->scl_data.ratios.vert_c);
 
 	/* Use LB_MEMORY_CONFIG_3 for 4:2:0 */
-	if ((spl_in->basic_in.format == SPL_PIXEL_FORMAT_420BPP8)
-		|| (spl_in->basic_in.format == SPL_PIXEL_FORMAT_420BPP10))
+	if (spl_is_yuv420(spl_in->basic_in.format))
 		lb_config = LB_MEMORY_CONFIG_3;
 	else
 		lb_config = LB_MEMORY_CONFIG_0;
@@ -1056,7 +1055,7 @@ static bool spl_get_optimal_number_of_taps(
 		if (spl_scratch->scl_data.taps.h_taps_c == 5)
 			spl_scratch->scl_data.taps.h_taps_c = 4;
 
-		if (spl_is_yuv420(spl_in->basic_in.format)) {
+		if (spl_is_video_format(spl_in->basic_in.format)) {
 			if (spl_scratch->scl_data.taps.h_taps <= 4) {
 				*enable_easf_v = false;
 				*enable_easf_h = false;
@@ -1101,10 +1100,10 @@ static bool spl_get_optimal_number_of_taps(
 			spl_scratch->scl_data.taps.h_taps = 1;
 			spl_scratch->scl_data.taps.v_taps = 1;
 
-			if (IDENTITY_RATIO(spl_scratch->scl_data.ratios.horz_c) && !is_ycbcr)
+			if (IDENTITY_RATIO(spl_scratch->scl_data.ratios.horz_c) && !is_subsampled)
 				spl_scratch->scl_data.taps.h_taps_c = 1;
 
-			if (IDENTITY_RATIO(spl_scratch->scl_data.ratios.vert_c) && !is_ycbcr)
+			if (IDENTITY_RATIO(spl_scratch->scl_data.ratios.vert_c) && !is_subsampled)
 				spl_scratch->scl_data.taps.v_taps_c = 1;
 
 			*enable_easf_v = false;
@@ -1118,11 +1117,11 @@ static bool spl_get_optimal_number_of_taps(
 				(IDENTITY_RATIO(spl_scratch->scl_data.ratios.vert)))
 				spl_scratch->scl_data.taps.v_taps = 1;
 
-			if ((!*enable_easf_h) && !is_ycbcr &&
+			if ((!*enable_easf_h) && !is_subsampled &&
 				(IDENTITY_RATIO(spl_scratch->scl_data.ratios.horz_c)))
 				spl_scratch->scl_data.taps.h_taps_c = 1;
 
-			if ((!*enable_easf_v) && !is_ycbcr &&
+			if ((!*enable_easf_v) && !is_subsampled &&
 				(IDENTITY_RATIO(spl_scratch->scl_data.ratios.vert_c)))
 				spl_scratch->scl_data.taps.v_taps_c = 1;
 		}
@@ -1133,7 +1132,7 @@ static bool spl_get_optimal_number_of_taps(
 static void spl_set_black_color_data(enum spl_pixel_format format,
 			struct scl_black_color *scl_black_color)
 {
-	bool ycbcr = spl_dscl_is_video_format(format);
+	bool ycbcr = spl_is_video_format(format);
 	if (ycbcr)	{
 		scl_black_color->offset_rgb_y = BLACK_OFFSET_RGB_Y;
 		scl_black_color->offset_rgb_cbcr = BLACK_OFFSET_CBCR;
@@ -1600,7 +1599,7 @@ static void spl_set_easf_data(struct spl_scratch *spl_scratch, struct spl_out *s
 			0x0;	// fp1.5.10, C3 coefficient
 	}
 
-	if (spl_is_yuv420(format)) { /* TODO: 0 = RGB, 1 = YUV */
+	if (spl_is_video_format(format)) { /* TODO: 0 = RGB, 1 = YUV */
 		dscl_prog_data->easf_matrix_mode = 1;
 		/*
 		 * 2-bit, BF3 chroma mode correction calculation mode
