@@ -396,14 +396,10 @@ int erdma_query_port(struct ib_device *ibdev, u32 port,
 	ib_get_eth_speed(ibdev, port, &attr->active_speed, &attr->active_width);
 	attr->max_mtu = ib_mtu_int_to_enum(ndev->mtu);
 	attr->active_mtu = ib_mtu_int_to_enum(ndev->mtu);
-	if (netif_running(ndev) && netif_carrier_ok(ndev))
-		dev->state = IB_PORT_ACTIVE;
-	else
-		dev->state = IB_PORT_DOWN;
-	attr->state = dev->state;
+	attr->state = ib_get_curr_port_state(ndev);
 
 out:
-	if (dev->state == IB_PORT_ACTIVE)
+	if (attr->state == IB_PORT_ACTIVE)
 		attr->phys_state = IB_PORT_PHYS_STATE_LINK_UP;
 	else
 		attr->phys_state = IB_PORT_PHYS_STATE_DISABLED;

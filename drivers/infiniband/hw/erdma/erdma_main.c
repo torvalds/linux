@@ -26,14 +26,6 @@ static int erdma_netdev_event(struct notifier_block *nb, unsigned long event,
 		goto done;
 
 	switch (event) {
-	case NETDEV_UP:
-		dev->state = IB_PORT_ACTIVE;
-		erdma_port_event(dev, IB_EVENT_PORT_ACTIVE);
-		break;
-	case NETDEV_DOWN:
-		dev->state = IB_PORT_DOWN;
-		erdma_port_event(dev, IB_EVENT_PORT_ERR);
-		break;
 	case NETDEV_CHANGEMTU:
 		if (dev->mtu != netdev->mtu) {
 			erdma_set_mtu(dev, netdev->mtu);

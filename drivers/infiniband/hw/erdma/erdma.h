@@ -195,8 +195,6 @@ struct erdma_dev {
 	u8 __iomem *func_bar;
 
 	struct erdma_devattr attrs;
-	/* physical port state (only one port per device) */
-	enum ib_port_state state;
 	u32 mtu;
 
 	/* cmdq and aeq use the same msix vector */
