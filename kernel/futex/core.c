@@ -451,28 +451,6 @@ struct futex_q *futex_top_waiter(struct futex_hash_bucket *hb, union futex_key *
 	return NULL;
 }
 
-int futex_cmpxchg_value_locked(u32 *curval, u32 __user *uaddr, u32 uval, u32 newval)
-{
-	int ret;
-
-	pagefault_disable();
-	ret = futex_atomic_cmpxchg_inatomic(curval, uaddr, uval, newval);
-	pagefault_enable();
-
-	return ret;
-}
-
-int futex_get_value_locked(u32 *dest, u32 __user *from)
-{
-	int ret;
-
-	pagefault_disable();
-	ret = __get_user(*dest, from);
-	pagefault_enable();
-
-	return ret ? -EFAULT : 0;
-}
-
 /**
  * wait_for_owner_exiting - Block until the owner has exited
  * @ret: owner's current futex lock status
