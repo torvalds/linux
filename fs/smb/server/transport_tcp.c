@@ -521,6 +521,8 @@ static int ksmbd_netdev_event(struct notifier_block *nb, unsigned long event,
 				found = 1;
 				if (iface->state != IFACE_STATE_DOWN)
 					break;
+				ksmbd_debug(CONN, "netdev-up event: netdev(%s) is going up\n",
+					    iface->name);
 				ret = create_socket(iface);
 				if (ret)
 					return NOTIFY_OK;
@@ -531,6 +533,8 @@ static int ksmbd_netdev_event(struct notifier_block *nb, unsigned long event,
 			iface = alloc_iface(kstrdup(netdev->name, KSMBD_DEFAULT_GFP));
 			if (!iface)
 				return NOTIFY_OK;
+			ksmbd_debug(CONN, "netdev-up event: netdev(%s) is going up\n",
+				    iface->name);
 			ret = create_socket(iface);
 			if (ret)
 				break;
@@ -540,6 +544,8 @@ static int ksmbd_netdev_event(struct notifier_block *nb, unsigned long event,
 		list_for_each_entry(iface, &iface_list, entry) {
 			if (!strcmp(iface->name, netdev->name) &&
 			    iface->state == IFACE_STATE_CONFIGURED) {
+				ksmbd_debug(CONN, "netdev-down event: netdev(%s) is going down\n",
+						iface->name);
 				tcp_stop_kthread(iface->ksmbd_kthread);
 				iface->ksmbd_kthread = NULL;
 				mutex_lock(&iface->sock_release_lock);
