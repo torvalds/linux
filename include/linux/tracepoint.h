@@ -210,9 +210,6 @@ static inline struct tracepoint *tracepoint_ptr_deref(tracepoint_ptr_t *p)
 #endif /* CONFIG_HAVE_STATIC_CALL */
 
 /*
- * it_func[0] is never NULL because there is at least one element in the array
- * when the array itself is non NULL.
- *
  * With @syscall=0, the tracepoint callback array dereference is
  * protected by disabling preemption.
  * With @syscall=1, the tracepoint callback array dereference is
@@ -316,6 +313,9 @@ static inline struct tracepoint *tracepoint_ptr_deref(tracepoint_ptr_t *p)
  * We have no guarantee that gcc and the linker won't up-align the tracepoint
  * structures, so we create an array of pointers that will be used for iteration
  * on the tracepoints.
+ *
+ * it_func[0] is never NULL because there is at least one element in the array
+ * when the array itself is non NULL.
  */
 #define __DEFINE_TRACE_EXT(_name, _ext, proto, args)			\
 	static const char __tpstrtab_##_name[]				\
