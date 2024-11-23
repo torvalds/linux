@@ -35,7 +35,7 @@ pub trait Operations: Sized {
     /// Called by the kernel to poll the device for completed requests. Only
     /// used for poll queues.
     fn poll() -> bool {
-        crate::build_error(crate::error::VTABLE_DEFAULT_ERROR)
+        crate::build_error!(crate::error::VTABLE_DEFAULT_ERROR)
     }
 }
 
