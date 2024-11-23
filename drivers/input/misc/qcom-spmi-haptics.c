@@ -159,6 +159,7 @@ enum hap_play_control {
  * @actuator_type: The type of actuator in use.
  * @wave_shape: The shape of the waves to use (sine or square).
  * @play_mode: The play mode to use (direct, buffer, pwm, audio).
+ * @auto_res_mode: The auto resonance mode (none, zxd, qwd, max_qwd, zxd_eop)
  * @magnitude: The strength we should be playing at.
  * @vmax: Max voltage to use when playing.
  * @current_limit: The current limit for this hardware (400mA or 800mA).
@@ -184,6 +185,7 @@ struct spmi_haptics {
 	u8 actuator_type;
 	u8 wave_shape;
 	u8 play_mode;
+	u8 auto_res_mode;
 	int magnitude;
 	u32 vmax;
 	u32 current_limit;
@@ -536,7 +538,7 @@ static int spmi_haptics_init(struct spmi_haptics *haptics)
 	 * This is greatly simplified.
 	 */
 	val = FIELD_PREP(LRA_RES_CAL_MASK, ilog2(32 / HAP_RES_CAL_PERIOD_MIN)) |
-	      FIELD_PREP(LRA_AUTO_RES_MODE_MASK, HAP_AUTO_RES_ZXD_EOP) |
+	      FIELD_PREP(LRA_AUTO_RES_MODE_MASK, haptics->auto_res_mode) |
 	      FIELD_PREP(LRA_HIGH_Z_MASK, 1);
 
 	mask = LRA_AUTO_RES_MODE_MASK | LRA_HIGH_Z_MASK | LRA_RES_CAL_MASK;
@@ -841,6 +843,15 @@ static int spmi_haptics_probe(struct platform_device *pdev)
 			goto register_fail;
 		}
 		haptics->play_mode = val;
+	}
+
+	haptics->auto_res_mode = HAP_AUTO_RES_ZXD_EOP;
+	ret = of_property_read_u32(node, "qcom,auto-res-mode", &val);
+	if (!ret) {
+		haptics->auto_res_mode = val;
+	} else if (ret != -EINVAL) {
+		dev_err(haptics->dev, "Unable to read auto res mode ret=%d\n", ret);
+		goto register_fail;
 	}
 
 	ret = of_property_read_u32(node, "qcom,wave-play-rate-us", &val);
