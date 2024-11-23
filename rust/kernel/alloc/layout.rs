@@ -45,7 +45,7 @@ impl<T> ArrayLayout<T> {
     /// When `len * size_of::<T>()` overflows or when `len * size_of::<T>() > isize::MAX`.
     pub const fn new(len: usize) -> Result<Self, LayoutError> {
         match len.checked_mul(core::mem::size_of::<T>()) {
-            Some(len) if len <= ISIZE_MAX => {
+            Some(size) if size <= ISIZE_MAX => {
                 // INVARIANT: We checked above that `len * size_of::<T>() <= isize::MAX`.
                 Ok(Self {
                     len,
