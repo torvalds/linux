@@ -59,6 +59,16 @@ static struct cached_fid *find_or_create_cached_dir(struct cached_fids *cfids,
 	list_add(&cfid->entry, &cfids->entries);
 	cfid->on_list = true;
 	kref_get(&cfid->refcount);
+	/*
+	 * Set @cfid->has_lease to true during construction so that the lease
+	 * reference can be put in cached_dir_lease_break() due to a potential
+	 * lease break right after the request is sent or while @cfid is still
+	 * being cached, or if a reconnection is triggered during construction.
+	 * Concurrent processes won't be to use it yet due to @cfid->time being
+	 * zero.
+	 */
+	cfid->has_lease = true;
+
 	spin_unlock(&cfids->cfid_list_lock);
 	return cfid;
 }
@@ -176,12 +186,12 @@ replay_again:
 		return -ENOENT;
 	}
 	/*
-	 * Return cached fid if it has a lease.  Otherwise, it is either a new
-	 * entry or laundromat worker removed it from @cfids->entries.  Caller
-	 * will put last reference if the latter.
+	 * Return cached fid if it is valid (has a lease and has a time).
+	 * Otherwise, it is either a new entry or laundromat worker removed it
+	 * from @cfids->entries.  Caller will put last reference if the latter.
 	 */
 	spin_lock(&cfids->cfid_list_lock);
-	if (cfid->has_lease) {
+	if (cfid->has_lease && cfid->time) {
 		spin_unlock(&cfids->cfid_list_lock);
 		*ret_cfid = cfid;
 		kfree(utf16_path);
@@ -267,15 +277,6 @@ replay_again:
 
 	smb2_set_related(&rqst[1]);
 
-	/*
-	 * Set @cfid->has_lease to true before sending out compounded request so
-	 * its lease reference can be put in cached_dir_lease_break() due to a
-	 * potential lease break right after the request is sent or while @cfid
-	 * is still being cached.  Concurrent processes won't be to use it yet
-	 * due to @cfid->time being zero.
-	 */
-	cfid->has_lease = true;
-
 	if (retries) {
 		smb2_set_replay(server, &rqst[0]);
 		smb2_set_replay(server, &rqst[1]);
@@ -347,6 +348,7 @@ oshr_free:
 	SMB2_query_info_free(&rqst[1]);
 	free_rsp_buf(resp_buftype[0], rsp_iov[0].iov_base);
 	free_rsp_buf(resp_buftype[1], rsp_iov[1].iov_base);
+out:
 	if (rc) {
 		spin_lock(&cfids->cfid_list_lock);
 		if (cfid->on_list) {
@@ -358,23 +360,14 @@ oshr_free:
 			/*
 			 * We are guaranteed to have two references at this
 			 * point. One for the caller and one for a potential
-			 * lease. Release the Lease-ref so that the directory
-			 * will be closed when the caller closes the cached
-			 * handle.
+			 * lease. Release one here, and the second below.
 			 */
 			cfid->has_lease = false;
-			spin_unlock(&cfids->cfid_list_lock);
 			kref_put(&cfid->refcount, smb2_close_cached_fid);
-			goto out;
 		}
 		spin_unlock(&cfids->cfid_list_lock);
-	}
-out:
-	if (rc) {
-		if (cfid->is_open)
-			SMB2_close(0, cfid->tcon, cfid->fid.persistent_fid,
-				   cfid->fid.volatile_fid);
-		free_cached_dir(cfid);
+
+		kref_put(&cfid->refcount, smb2_close_cached_fid);
 	} else {
 		*ret_cfid = cfid;
 		atomic_inc(&tcon->num_remote_opens);
@@ -401,7 +394,7 @@ int open_cached_dir_by_dentry(struct cifs_tcon *tcon,
 	spin_lock(&cfids->cfid_list_lock);
 	list_for_each_entry(cfid, &cfids->entries, entry) {
 		if (dentry && cfid->dentry == dentry) {
-			cifs_dbg(FYI, "found a cached root file handle by dentry\n");
+			cifs_dbg(FYI, "found a cached file handle by dentry\n");
 			kref_get(&cfid->refcount);
 			*ret_cfid = cfid;
 			spin_unlock(&cfids->cfid_list_lock);
@@ -512,25 +505,24 @@ void invalidate_all_cached_dirs(struct cifs_tcon *tcon)
 		cfids->num_entries--;
 		cfid->is_open = false;
 		cfid->on_list = false;
-		/* To prevent race with smb2_cached_lease_break() */
-		kref_get(&cfid->refcount);
+		if (cfid->has_lease) {
+			/*
+			 * The lease was never cancelled from the server,
+			 * so steal that reference.
+			 */
+			cfid->has_lease = false;
+		} else
+			kref_get(&cfid->refcount);
 	}
 	spin_unlock(&cfids->cfid_list_lock);
 
 	list_for_each_entry_safe(cfid, q, &entry, entry) {
 		list_del(&cfid->entry);
 		cancel_work_sync(&cfid->lease_break);
-		if (cfid->has_lease) {
-			/*
-			 * We lease was never cancelled from the server so we
-			 * need to drop the reference.
-			 */
-			spin_lock(&cfids->cfid_list_lock);
-			cfid->has_lease = false;
-			spin_unlock(&cfids->cfid_list_lock);
-			kref_put(&cfid->refcount, smb2_close_cached_fid);
-		}
-		/* Drop the extra reference opened above*/
+		/*
+		 * Drop the ref-count from above, either the lease-ref (if there
+		 * was one) or the extra one acquired.
+		 */
 		kref_put(&cfid->refcount, smb2_close_cached_fid);
 	}
 }
@@ -541,9 +533,6 @@ smb2_cached_lease_break(struct work_struct *work)
 	struct cached_fid *cfid = container_of(work,
 				struct cached_fid, lease_break);
 
-	spin_lock(&cfid->cfids->cfid_list_lock);
-	cfid->has_lease = false;
-	spin_unlock(&cfid->cfids->cfid_list_lock);
 	kref_put(&cfid->refcount, smb2_close_cached_fid);
 }
 
@@ -561,6 +550,7 @@ int cached_dir_lease_break(struct cifs_tcon *tcon, __u8 lease_key[16])
 		    !memcmp(lease_key,
 			    cfid->fid.lease_key,
 			    SMB2_LEASE_KEY_SIZE)) {
+			cfid->has_lease = false;
 			cfid->time = 0;
 			/*
 			 * We found a lease remove it from the list
@@ -638,8 +628,14 @@ static void cfids_laundromat_worker(struct work_struct *work)
 			cfid->on_list = false;
 			list_move(&cfid->entry, &entry);
 			cfids->num_entries--;
-			/* To prevent race with smb2_cached_lease_break() */
-			kref_get(&cfid->refcount);
+			if (cfid->has_lease) {
+				/*
+				 * Our lease has not yet been cancelled from the
+				 * server. Steal that reference.
+				 */
+				cfid->has_lease = false;
+			} else
+				kref_get(&cfid->refcount);
 		}
 	}
 	spin_unlock(&cfids->cfid_list_lock);
@@ -651,17 +647,10 @@ static void cfids_laundromat_worker(struct work_struct *work)
 		 * with it.
 		 */
 		cancel_work_sync(&cfid->lease_break);
-		if (cfid->has_lease) {
-			/*
-			 * Our lease has not yet been cancelled from the server
-			 * so we need to drop the reference.
-			 */
-			spin_lock(&cfids->cfid_list_lock);
-			cfid->has_lease = false;
-			spin_unlock(&cfids->cfid_list_lock);
-			kref_put(&cfid->refcount, smb2_close_cached_fid);
-		}
-		/* Drop the extra reference opened above */
+		/*
+		 * Drop the ref-count from above, either the lease-ref (if there
+		 * was one) or the extra one acquired.
+		 */
 		kref_put(&cfid->refcount, smb2_close_cached_fid);
 	}
 	queue_delayed_work(cifsiod_wq, &cfids->laundromat_work,
