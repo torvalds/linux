@@ -157,15 +157,17 @@ int open_cached_dir(unsigned int xid, struct cifs_tcon *tcon,
 	const char *npath;
 	int retries = 0, cur_sleep = 1;
 
-	if (tcon == NULL || tcon->cfids == NULL || tcon->nohandlecache ||
-	    is_smb1_server(tcon->ses->server) || (dir_cache_timeout == 0))
+	if (cifs_sb->root == NULL)
+		return -ENOENT;
+
+	if (tcon == NULL)
 		return -EOPNOTSUPP;
 
 	ses = tcon->ses;
 	cfids = tcon->cfids;
 
-	if (cifs_sb->root == NULL)
-		return -ENOENT;
+	if (cfids == NULL)
+		return -EOPNOTSUPP;
 
 replay_again:
 	/* reinitialize for possible replay */
