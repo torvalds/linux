@@ -39,12 +39,13 @@ impl fmt::Display for BStr {
     /// ```
     /// # use kernel::{fmt, b_str, str::{BStr, CString}};
     /// let ascii = b_str!("Hello, BStr!");
-    /// let s = CString::try_from_fmt(fmt!("{}", ascii)).unwrap();
+    /// let s = CString::try_from_fmt(fmt!("{}", ascii))?;
     /// assert_eq!(s.as_bytes(), "Hello, BStr!".as_bytes());
     ///
     /// let non_ascii = b_str!("🦀");
-    /// let s = CString::try_from_fmt(fmt!("{}", non_ascii)).unwrap();
+    /// let s = CString::try_from_fmt(fmt!("{}", non_ascii))?;
     /// assert_eq!(s.as_bytes(), "\\xf0\\x9f\\xa6\\x80".as_bytes());
+    /// # Ok::<(), kernel::error::Error>(())
     /// ```
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         for &b in &self.0 {
@@ -70,12 +71,13 @@ impl fmt::Debug for BStr {
     /// # use kernel::{fmt, b_str, str::{BStr, CString}};
     /// // Embedded double quotes are escaped.
     /// let ascii = b_str!("Hello, \"BStr\"!");
-    /// let s = CString::try_from_fmt(fmt!("{:?}", ascii)).unwrap();
+    /// let s = CString::try_from_fmt(fmt!("{:?}", ascii))?;
     /// assert_eq!(s.as_bytes(), "\"Hello, \\\"BStr\\\"!\"".as_bytes());
     ///
     /// let non_ascii = b_str!("😺");
-    /// let s = CString::try_from_fmt(fmt!("{:?}", non_ascii)).unwrap();
+    /// let s = CString::try_from_fmt(fmt!("{:?}", non_ascii))?;
     /// assert_eq!(s.as_bytes(), "\"\\xf0\\x9f\\x98\\xba\"".as_bytes());
+    /// # Ok::<(), kernel::error::Error>(())
     /// ```
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_char('"')?;
@@ -273,8 +275,9 @@ impl CStr {
     ///
     /// ```
     /// # use kernel::str::CStr;
-    /// let cstr = CStr::from_bytes_with_nul(b"foo\0").unwrap();
+    /// let cstr = CStr::from_bytes_with_nul(b"foo\0")?;
     /// assert_eq!(cstr.to_str(), Ok("foo"));
+    /// # Ok::<(), kernel::error::Error>(())
     /// ```
     #[inline]
     pub fn to_str(&self) -> Result<&str, core::str::Utf8Error> {
@@ -384,12 +387,13 @@ impl fmt::Display for CStr {
     /// # use kernel::str::CStr;
     /// # use kernel::str::CString;
     /// let penguin = c_str!("🐧");
-    /// let s = CString::try_from_fmt(fmt!("{}", penguin)).unwrap();
+    /// let s = CString::try_from_fmt(fmt!("{}", penguin))?;
     /// assert_eq!(s.as_bytes_with_nul(), "\\xf0\\x9f\\x90\\xa7\0".as_bytes());
     ///
     /// let ascii = c_str!("so \"cool\"");
-    /// let s = CString::try_from_fmt(fmt!("{}", ascii)).unwrap();
+    /// let s = CString::try_from_fmt(fmt!("{}", ascii))?;
     /// assert_eq!(s.as_bytes_with_nul(), "so \"cool\"\0".as_bytes());
+    /// # Ok::<(), kernel::error::Error>(())
     /// ```
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         for &c in self.as_bytes() {
@@ -413,13 +417,14 @@ impl fmt::Debug for CStr {
     /// # use kernel::str::CStr;
     /// # use kernel::str::CString;
     /// let penguin = c_str!("🐧");
-    /// let s = CString::try_from_fmt(fmt!("{:?}", penguin)).unwrap();
+    /// let s = CString::try_from_fmt(fmt!("{:?}", penguin))?;
     /// assert_eq!(s.as_bytes_with_nul(), "\"\\xf0\\x9f\\x90\\xa7\"\0".as_bytes());
     ///
     /// // Embedded double quotes are escaped.
     /// let ascii = c_str!("so \"cool\"");
-    /// let s = CString::try_from_fmt(fmt!("{:?}", ascii)).unwrap();
+    /// let s = CString::try_from_fmt(fmt!("{:?}", ascii))?;
     /// assert_eq!(s.as_bytes_with_nul(), "\"so \\\"cool\\\"\"\0".as_bytes());
+    /// # Ok::<(), kernel::error::Error>(())
     /// ```
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str("\"")?;
@@ -801,16 +806,17 @@ impl fmt::Write for Formatter {
 /// ```
 /// use kernel::{str::CString, fmt};
 ///
-/// let s = CString::try_from_fmt(fmt!("{}{}{}", "abc", 10, 20)).unwrap();
+/// let s = CString::try_from_fmt(fmt!("{}{}{}", "abc", 10, 20))?;
 /// assert_eq!(s.as_bytes_with_nul(), "abc1020\0".as_bytes());
 ///
 /// let tmp = "testing";
-/// let s = CString::try_from_fmt(fmt!("{tmp}{}", 123)).unwrap();
+/// let s = CString::try_from_fmt(fmt!("{tmp}{}", 123))?;
 /// assert_eq!(s.as_bytes_with_nul(), "testing123\0".as_bytes());
 ///
 /// // This fails because it has an embedded `NUL` byte.
 /// let s = CString::try_from_fmt(fmt!("a\0b{}", 123));
 /// assert_eq!(s.is_ok(), false);
+/// # Ok::<(), kernel::error::Error>(())
 /// ```
 pub struct CString {
     buf: KVec<u8>,
