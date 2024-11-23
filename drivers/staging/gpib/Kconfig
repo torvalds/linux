@@ -62,6 +62,7 @@ config GPIB_CEC_PCI
 config GPIB_NI_PCI_ISA
 	tristate "NI PCI/ISA compatible boards"
 	depends on ISA_BUS || PCI || PCMCIA
+	depends on HAS_IOPORT
 	select GPIB_COMMON
 	select GPIB_NEC7210
 	help
