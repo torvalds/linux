@@ -285,7 +285,8 @@ static inline void bch2_journal_buf_put(struct journal *j, unsigned idx, u64 seq
 		spin_lock(&j->lock);
 		bch2_journal_buf_put_final(j, seq);
 		spin_unlock(&j->lock);
-	}
+	} else if (unlikely(s.cur_entry_offset == JOURNAL_ENTRY_BLOCKED_VAL))
+		wake_up(&j->wait);
 }
 
 /*

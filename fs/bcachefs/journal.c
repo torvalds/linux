@@ -217,6 +217,12 @@ void bch2_journal_buf_put_final(struct journal *j, u64 seq)
 	if (__bch2_journal_pin_put(j, seq))
 		bch2_journal_reclaim_fast(j);
 	bch2_journal_do_writes(j);
+
+	/*
+	 * for __bch2_next_write_buffer_flush_journal_buf(), when quiescing an
+	 * open journal entry
+	 */
+	wake_up(&j->wait);
 }
 
 /*
@@ -250,6 +256,9 @@ static void __journal_entry_close(struct journal *j, unsigned closed_val, bool t
 
 	if (!__journal_entry_is_open(old))
 		return;
+
+	if (old.cur_entry_offset == JOURNAL_ENTRY_BLOCKED_VAL)
+		old.cur_entry_offset = j->cur_entry_offset_if_blocked;
 
 	/* Close out old buffer: */
 	buf->data->u64s		= cpu_to_le32(old.cur_entry_offset);
@@ -868,16 +877,44 @@ int bch2_journal_meta(struct journal *j)
 void bch2_journal_unblock(struct journal *j)
 {
 	spin_lock(&j->lock);
-	j->blocked--;
+	if (!--j->blocked &&
+	    j->cur_entry_offset_if_blocked < JOURNAL_ENTRY_CLOSED_VAL &&
+	    j->reservations.cur_entry_offset == JOURNAL_ENTRY_BLOCKED_VAL) {
+		union journal_res_state old, new;
+
+		old.v = atomic64_read(&j->reservations.counter);
+		do {
+			new.v = old.v;
+			new.cur_entry_offset = j->cur_entry_offset_if_blocked;
+		} while (!atomic64_try_cmpxchg(&j->reservations.counter, &old.v, new.v));
+	}
 	spin_unlock(&j->lock);
 
 	journal_wake(j);
 }
 
+static void __bch2_journal_block(struct journal *j)
+{
+	if (!j->blocked++) {
+		union journal_res_state old, new;
+
+		old.v = atomic64_read(&j->reservations.counter);
+		do {
+			j->cur_entry_offset_if_blocked = old.cur_entry_offset;
+
+			if (j->cur_entry_offset_if_blocked >= JOURNAL_ENTRY_CLOSED_VAL)
+				break;
+
+			new.v = old.v;
+			new.cur_entry_offset = JOURNAL_ENTRY_BLOCKED_VAL;
+		} while (!atomic64_try_cmpxchg(&j->reservations.counter, &old.v, new.v));
+	}
+}
+
 void bch2_journal_block(struct journal *j)
 {
 	spin_lock(&j->lock);
-	j->blocked++;
+	__bch2_journal_block(j);
 	spin_unlock(&j->lock);
 
 	journal_quiesce(j);
@@ -1480,6 +1517,9 @@ void __bch2_journal_debug_to_text(struct printbuf *out, struct journal *j)
 		break;
 	case JOURNAL_ENTRY_CLOSED_VAL:
 		prt_printf(out, "closed\n");
+		break;
+	case JOURNAL_ENTRY_BLOCKED_VAL:
+		prt_printf(out, "blocked\n");
 		break;
 	default:
 		prt_printf(out, "%u/%u\n", s.cur_entry_offset, j->cur_entry_u64s);

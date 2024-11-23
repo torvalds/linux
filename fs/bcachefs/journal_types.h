@@ -112,6 +112,7 @@ union journal_res_state {
  */
 #define JOURNAL_ENTRY_OFFSET_MAX	((1U << 20) - 1)
 
+#define JOURNAL_ENTRY_BLOCKED_VAL	(JOURNAL_ENTRY_OFFSET_MAX - 2)
 #define JOURNAL_ENTRY_CLOSED_VAL	(JOURNAL_ENTRY_OFFSET_MAX - 1)
 #define JOURNAL_ENTRY_ERROR_VAL		(JOURNAL_ENTRY_OFFSET_MAX)
 
@@ -193,6 +194,7 @@ struct journal {
 	 * insufficient devices:
 	 */
 	enum journal_errors	cur_entry_error;
+	unsigned		cur_entry_offset_if_blocked;
 
 	unsigned		buf_size_want;
 	/*
