@@ -68,6 +68,9 @@ cmd_link_vmlinux =							\
 targets += vmlinux
 vmlinux: scripts/link-vmlinux.sh vmlinux.o $(KBUILD_LDS) FORCE
 	+$(call if_changed_dep,link_vmlinux)
+ifdef CONFIG_DEBUG_INFO_BTF
+vmlinux: $(RESOLVE_BTFIDS)
+endif
 
 # module.builtin.ranges
 # ---------------------------------------------------------------------------
