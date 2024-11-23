@@ -50,35 +50,4 @@ required:
   - '#size-cells'
 
 additionalProperties: false
-
-examples:
-  - |
-    #include <dt-bindings/leds/common.h>
-
-    pmic {
-      #address-cells = <1>;
-      #size-cells = <0>;
-
-      led-controller@200 {
-        compatible = "sprd,sc2731-bltc";
-        reg = <0x200>;
-        #address-cells = <1>;
-        #size-cells = <0>;
-
-        led@0 {
-          reg = <0x0>;
-          color = <LED_COLOR_ID_RED>;
-        };
-
-        led@1 {
-          reg = <0x1>;
-          color = <LED_COLOR_ID_GREEN>;
-        };
-
-        led@2 {
-          reg = <0x2>;
-          color = <LED_COLOR_ID_BLUE>;
-        };
-      };
-    };
 ...
