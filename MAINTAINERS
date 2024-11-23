@@ -9056,6 +9056,7 @@ F:	drivers/net/ethernet/freescale/gianfar*
 
 FREESCALE GPMI NAND DRIVER
 M:	Han Xu <han.xu@nxp.com>
+L:	imx@lists.linux.dev
 L:	linux-mtd@lists.infradead.org
 S:	Maintained
 F:	drivers/mtd/nand/raw/gpmi-nand/*
