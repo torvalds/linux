@@ -1,0 +1,24 @@
+What:           /sys/bus/event_source/devices/vpa_pmu/format
+Date:           November 2024
+Contact:        Linux on PowerPC Developer List <linuxppc-dev@lists.ozlabs.org>
+Description:    Read-only. Attribute group to describe the magic bits
+                that go into perf_event_attr.config for a particular pmu.
+                (See ABI/testing/sysfs-bus-event_source-devices-format).
+
+                Each attribute under this group defines a bit range of the
+                perf_event_attr.config. Supported attribute are listed
+                below::
+			event = "config:0-31" - event ID
+
+		For example::
+
+		  l1_to_l2_lat = "event=0x1"
+
+What:           /sys/bus/event_source/devices/vpa_pmu/events
+Date:           November 2024
+Contact:        Linux on PowerPC Developer List <linuxppc-dev@lists.ozlabs.org>
+Description:	Read-only. Attribute group to describe performance monitoring
+                events for the Virtual Processor Area events. Each attribute
+		in this group describes a single performance monitoring event
+		supported by vpa_pmu. The name of the file is the name of
+		the event (See ABI/testing/sysfs-bus-event_source-devices-events).

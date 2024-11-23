@@ -93,8 +93,8 @@ given platform based on the content of the device-tree. Thus, you
 should:
 
         a) add your platform support as a _boolean_ option in
-        arch/powerpc/Kconfig, following the example of PPC_PSERIES,
-        PPC_PMAC and PPC_MAPLE. The latter is probably a good
+        arch/powerpc/Kconfig, following the example of PPC_PSERIES
+        and PPC_PMAC. The latter is probably a good
         example of a board support to start from.
 
         b) create your main platform file as
