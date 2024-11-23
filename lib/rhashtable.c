@@ -665,7 +665,7 @@ EXPORT_SYMBOL_GPL(rhashtable_insert_slow);
  * structure outside the hash table.
  *
  * This function may be called from any process context, including
- * non-preemptable context, but cannot be called from softirq or
+ * non-preemptible context, but cannot be called from softirq or
  * hardirq context.
  *
  * You must call rhashtable_walk_exit after this function returns.
