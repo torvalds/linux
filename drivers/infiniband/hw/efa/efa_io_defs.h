@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-2-Clause */
 /*
- * Copyright 2018-2023 Amazon.com, Inc. or its affiliates. All rights reserved.
+ * Copyright 2018-2024 Amazon.com, Inc. or its affiliates. All rights reserved.
  */
 
 #ifndef _EFA_IO_H_
@@ -10,6 +10,7 @@
 #define EFA_IO_TX_DESC_NUM_RDMA_BUFS         1
 #define EFA_IO_TX_DESC_INLINE_MAX_SIZE       32
 #define EFA_IO_TX_DESC_IMM_DATA_SIZE         4
+#define EFA_IO_TX_DESC_INLINE_PBL_SIZE       1
 
 enum efa_io_queue_type {
 	/* send queue (of a QP) */
@@ -25,6 +26,10 @@ enum efa_io_send_op_type {
 	EFA_IO_RDMA_READ                            = 1,
 	/* RDMA write */
 	EFA_IO_RDMA_WRITE                           = 2,
+	/* Fast MR registration */
+	EFA_IO_FAST_REG                             = 3,
+	/* Fast MR invalidation */
+	EFA_IO_FAST_INV                             = 4,
 };
 
 enum efa_io_comp_status {
@@ -34,15 +39,15 @@ enum efa_io_comp_status {
 	EFA_IO_COMP_STATUS_FLUSHED                  = 1,
 	/* Internal QP error */
 	EFA_IO_COMP_STATUS_LOCAL_ERROR_QP_INTERNAL_ERROR = 2,
-	/* Bad operation type */
-	EFA_IO_COMP_STATUS_LOCAL_ERROR_INVALID_OP_TYPE = 3,
+	/* Unsupported operation */
+	EFA_IO_COMP_STATUS_LOCAL_ERROR_UNSUPPORTED_OP = 3,
 	/* Bad AH */
 	EFA_IO_COMP_STATUS_LOCAL_ERROR_INVALID_AH   = 4,
 	/* LKEY not registered or does not match IOVA */
 	EFA_IO_COMP_STATUS_LOCAL_ERROR_INVALID_LKEY = 5,
 	/* Message too long */
 	EFA_IO_COMP_STATUS_LOCAL_ERROR_BAD_LENGTH   = 6,
-	/* Destination ENI is down or does not run EFA */
+	/* RKEY not registered or does not match remote IOVA */
 	EFA_IO_COMP_STATUS_REMOTE_ERROR_BAD_ADDRESS = 7,
 	/* Connection was reset by remote side */
 	EFA_IO_COMP_STATUS_REMOTE_ERROR_ABORT       = 8,
@@ -54,8 +59,17 @@ enum efa_io_comp_status {
 	EFA_IO_COMP_STATUS_REMOTE_ERROR_BAD_LENGTH  = 11,
 	/* Unexpected status returned by responder */
 	EFA_IO_COMP_STATUS_REMOTE_ERROR_BAD_STATUS  = 12,
-	/* Unresponsive remote - detected locally */
+	/* Unresponsive remote - was previously responsive */
 	EFA_IO_COMP_STATUS_LOCAL_ERROR_UNRESP_REMOTE = 13,
+	/* No valid AH at remote side (required for RDMA operations) */
+	EFA_IO_COMP_STATUS_REMOTE_ERROR_UNKNOWN_PEER = 14,
+	/* Unreachable remote - never received a response */
+	EFA_IO_COMP_STATUS_LOCAL_ERROR_UNREACH_REMOTE = 15,
+};
+
+enum efa_io_frwr_pbl_mode {
+	EFA_IO_FRWR_INLINE_PBL                      = 0,
+	EFA_IO_FRWR_DIRECT_PBL                      = 1,
 };
 
 struct efa_io_tx_meta_desc {
@@ -95,13 +109,13 @@ struct efa_io_tx_meta_desc {
 
 	/*
 	 * If inline_msg bit is set, length of inline message in bytes,
-	 *    otherwise length of SGL (number of buffers).
+	 * otherwise length of SGL (number of buffers).
 	 */
 	u16 length;
 
 	/*
-	 * immediate data: if has_imm is set, then this field is included
-	 *    within Tx message and reported in remote Rx completion.
+	 * immediate data: if has_imm is set, then this field is included within
+	 * Tx message and reported in remote Rx completion.
 	 */
 	u32 immediate_data;
 
@@ -158,6 +172,63 @@ struct efa_io_rdma_req {
 	struct efa_io_tx_buf_desc local_mem[1];
 };
 
+struct efa_io_fast_mr_reg_req {
+	/* Updated local key of the MR after lkey/rkey increment */
+	u32 lkey;
+
+	/*
+	 * permissions
+	 * 0 : local_write_enable - Local write permissions:
+	 *    must be set for RQ buffers and buffers posted for
+	 *    RDMA Read requests
+	 * 1 : remote_write_enable - Remote write
+	 *    permissions: must be set to enable RDMA write to
+	 *    the region
+	 * 2 : remote_read_enable - Remote read permissions:
+	 *    must be set to enable RDMA read from the region
+	 * 7:3 : reserved2 - MBZ
+	 */
+	u8 permissions;
+
+	/*
+	 * control flags
+	 * 4:0 : phys_page_size_shift - page size is (1 <<
+	 *    phys_page_size_shift)
+	 * 6:5 : pbl_mode - enum efa_io_frwr_pbl_mode
+	 * 7 : reserved - MBZ
+	 */
+	u8 flags;
+
+	/* MBZ */
+	u8 reserved[2];
+
+	/* IO Virtual Address associated with this MR */
+	u64 iova;
+
+	/* Memory region length, in bytes */
+	u64 mr_length;
+
+	/* Physical Buffer List, each element is page-aligned. */
+	union {
+		/*
+		 * Inline array of physical page addresses (optimization
+		 * for short region activation).
+		 */
+		u64 inline_array[1];
+
+		/* points to PBL (Currently only direct) */
+		u64 dma_addr;
+	} pbl;
+};
+
+struct efa_io_fast_mr_inv_req {
+	/* Local key of the MR to invalidate */
+	u32 lkey;
+
+	/* MBZ */
+	u8 reserved[28];
+};
+
 /*
  * Tx WQE, composed of tx meta descriptors followed by either tx buffer
  * descriptors or inline data
@@ -174,6 +245,12 @@ struct efa_io_tx_wqe {
 
 		/* RDMA local and remote memory addresses */
 		struct efa_io_rdma_req rdma_req;
+
+		/* Fast registration */
+		struct efa_io_fast_mr_reg_req reg_mr_req;
+
+		/* Fast invalidation */
+		struct efa_io_fast_mr_inv_req inv_mr_req;
 	} data;
 };
 
@@ -208,7 +285,7 @@ struct efa_io_rx_desc {
 struct efa_io_cdesc_common {
 	/*
 	 * verbs-generated request ID, as provided in the completed tx or rx
-	 *    descriptor.
+	 * descriptor.
 	 */
 	u16 req_id;
 
@@ -221,7 +298,8 @@ struct efa_io_cdesc_common {
 	 * 3 : has_imm - indicates that immediate data is
 	 *    present - for RX completions only
 	 * 6:4 : op_type - enum efa_io_send_op_type
-	 * 7 : reserved31 - MBZ
+	 * 7 : unsolicited - indicates that there is no
+	 *    matching request - for RDMA with imm. RX only
 	 */
 	u8 flags;
 
@@ -291,6 +369,13 @@ struct efa_io_rx_cdesc_ex {
 /* tx_buf_desc */
 #define EFA_IO_TX_BUF_DESC_LKEY_MASK                        GENMASK(23, 0)
 
+/* fast_mr_reg_req */
+#define EFA_IO_FAST_MR_REG_REQ_LOCAL_WRITE_ENABLE_MASK      BIT(0)
+#define EFA_IO_FAST_MR_REG_REQ_REMOTE_WRITE_ENABLE_MASK     BIT(1)
+#define EFA_IO_FAST_MR_REG_REQ_REMOTE_READ_ENABLE_MASK      BIT(2)
+#define EFA_IO_FAST_MR_REG_REQ_PHYS_PAGE_SIZE_SHIFT_MASK    GENMASK(4, 0)
+#define EFA_IO_FAST_MR_REG_REQ_PBL_MODE_MASK                GENMASK(6, 5)
+
 /* rx_desc */
 #define EFA_IO_RX_DESC_LKEY_MASK                            GENMASK(23, 0)
 #define EFA_IO_RX_DESC_FIRST_MASK                           BIT(30)
@@ -301,5 +386,6 @@ struct efa_io_rx_cdesc_ex {
 #define EFA_IO_CDESC_COMMON_Q_TYPE_MASK                     GENMASK(2, 1)
 #define EFA_IO_CDESC_COMMON_HAS_IMM_MASK                    BIT(3)
 #define EFA_IO_CDESC_COMMON_OP_TYPE_MASK                    GENMASK(6, 4)
+#define EFA_IO_CDESC_COMMON_UNSOLICITED_MASK                BIT(7)
 
 #endif /* _EFA_IO_H_ */
