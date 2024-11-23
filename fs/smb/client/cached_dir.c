@@ -391,7 +391,7 @@ int open_cached_dir_by_dentry(struct cifs_tcon *tcon,
 	struct cached_fids *cfids = tcon->cfids;
 
 	if (cfids == NULL)
-		return -ENOENT;
+		return -EOPNOTSUPP;
 
 	spin_lock(&cfids->cfid_list_lock);
 	list_for_each_entry(cfid, &cfids->entries, entry) {
