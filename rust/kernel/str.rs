@@ -522,6 +522,7 @@ macro_rules! c_str {
 }
 
 #[cfg(test)]
+#[expect(clippy::items_after_test_module)]
 mod tests {
     use super::*;
 
@@ -547,7 +548,7 @@ mod tests {
         })
     }
 
-    const ALL_ASCII_CHARS: &'static str =
+    const ALL_ASCII_CHARS: &str =
         "\\x01\\x02\\x03\\x04\\x05\\x06\\x07\\x08\\x09\\x0a\\x0b\\x0c\\x0d\\x0e\\x0f\
         \\x10\\x11\\x12\\x13\\x14\\x15\\x16\\x17\\x18\\x19\\x1a\\x1b\\x1c\\x1d\\x1e\\x1f \
         !\"#$%&'()*+,-./0123456789:;<=>?@\
@@ -581,6 +582,7 @@ mod tests {
     fn test_cstr_as_str_unchecked() {
         let good_bytes = b"\xf0\x9f\x90\xA7\0";
         let checked_cstr = CStr::from_bytes_with_nul(good_bytes).unwrap();
+        // SAFETY: The contents come from a string literal which contains valid UTF-8.
         let unchecked_str = unsafe { checked_cstr.as_str_unchecked() };
         assert_eq!(unchecked_str, "🐧");
     }
