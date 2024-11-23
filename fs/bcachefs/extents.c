@@ -89,6 +89,14 @@ static inline bool ptr_better(struct bch_fs *c,
 		u64 l1 = dev_latency(c, p1.ptr.dev);
 		u64 l2 = dev_latency(c, p2.ptr.dev);
 
+		/*
+		 * Square the latencies, to bias more in favor of the faster
+		 * device - we never want to stop issuing reads to the slower
+		 * device altogether, so that we can update our latency numbers:
+		 */
+		l1 *= l1;
+		l2 *= l2;
+
 		/* Pick at random, biased in favor of the faster device: */
 
 		return bch2_rand_range(l1 + l2) > l1;
