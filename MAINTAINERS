@@ -18641,7 +18641,6 @@ F:	include/linux/proc_fs.h
 F:	tools/testing/selftests/proc/
 
 PROC SYSCTL
-M:	Luis Chamberlain <mcgrof@kernel.org>
 M:	Kees Cook <kees@kernel.org>
 M:	Joel Granados <joel.granados@kernel.org>
 L:	linux-kernel@vger.kernel.org
