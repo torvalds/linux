@@ -36,7 +36,7 @@
 #define FOLD_NAME	"CaseFolding.txt"
 #define NORM_NAME	"NormalizationCorrections.txt"
 #define TEST_NAME	"NormalizationTest.txt"
-#define UTF8_NAME	"utf8data.h"
+#define UTF8_NAME	"utf8data.c"
 
 const char	*age_name  = AGE_NAME;
 const char	*ccc_name  = CCC_NAME;
@@ -3269,7 +3269,7 @@ static void write_file(void)
 	}
 	fprintf(file, "};\n");
 	fprintf(file, "\n");
-	fprintf(file, "struct utf8data_table utf8_data_table = {\n");
+	fprintf(file, "const struct utf8data_table utf8_data_table = {\n");
 	fprintf(file, "\t.utf8agetab = utf8agetab,\n");
 	fprintf(file, "\t.utf8agetab_size = ARRAY_SIZE(utf8agetab),\n");
 	fprintf(file, "\n");

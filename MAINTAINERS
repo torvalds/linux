@@ -23925,6 +23925,7 @@ UNICODE SUBSYSTEM
 M:	Gabriel Krisman Bertazi <krisman@kernel.org>
 L:	linux-fsdevel@vger.kernel.org
 S:	Supported
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/krisman/unicode.git
 F:	fs/unicode/
 
 UNIFDEF
