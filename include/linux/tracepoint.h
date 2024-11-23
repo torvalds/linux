@@ -218,8 +218,6 @@ static inline struct tracepoint *tracepoint_ptr_deref(tracepoint_ptr_t *p)
  */
 #define __DO_TRACE(name, args, cond, syscall)				\
 	do {								\
-		int __maybe_unused __idx = 0;				\
-									\
 		if (!(cond))						\
 			return;						\
 									\
