@@ -20,7 +20,7 @@
 #include <asm/assembly.h>
 #include <asm/sections.h>
 #include <asm/ftrace.h>
-#include <asm/patch.h>
+#include <asm/text-patching.h>
 
 #define __hot __section(".text.hot")
 

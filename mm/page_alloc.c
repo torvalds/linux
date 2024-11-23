@@ -5377,7 +5377,7 @@ void __ref build_all_zonelists(pg_data_t *pgdat)
 
 	pr_info("Built %u zonelists, mobility grouping %s.  Total pages: %ld\n",
 		nr_online_nodes,
-		page_group_by_mobility_disabled ? "off" : "on",
+		str_off_on(page_group_by_mobility_disabled),
 		vm_total_pages);
 #ifdef CONFIG_NUMA
 	pr_info("Policy zone: %s\n", zone_names[policy_zone]);

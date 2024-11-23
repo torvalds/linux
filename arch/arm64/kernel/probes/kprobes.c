@@ -27,7 +27,7 @@
 #include <asm/debug-monitors.h>
 #include <asm/insn.h>
 #include <asm/irq.h>
-#include <asm/patching.h>
+#include <asm/text-patching.h>
 #include <asm/ptrace.h>
 #include <asm/sections.h>
 #include <asm/system_misc.h>

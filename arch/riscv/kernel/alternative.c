@@ -18,7 +18,7 @@
 #include <asm/sbi.h>
 #include <asm/csr.h>
 #include <asm/insn.h>
-#include <asm/patch.h>
+#include <asm/text-patching.h>
 
 struct cpu_manufacturer_info_t {
 	unsigned long vendor_id;

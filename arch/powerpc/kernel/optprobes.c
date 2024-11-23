@@ -13,7 +13,7 @@
 #include <asm/kprobes.h>
 #include <asm/ptrace.h>
 #include <asm/cacheflush.h>
-#include <asm/code-patching.h>
+#include <asm/text-patching.h>
 #include <asm/sstep.h>
 #include <asm/ppc-opcode.h>
 #include <asm/inst.h>

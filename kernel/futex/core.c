@@ -399,7 +399,7 @@ again:
 
 		key->both.offset |= FUT_OFF_INODE; /* inode-based key */
 		key->shared.i_seq = get_inode_sequence_number(inode);
-		key->shared.pgoff = folio->index + folio_page_idx(folio, page);
+		key->shared.pgoff = page_pgoff(folio, page);
 		rcu_read_unlock();
 	}
 

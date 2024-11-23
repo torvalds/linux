@@ -12,6 +12,7 @@
 #include <linux/mm.h>
 #include <linux/mm_inline.h>
 #include <linux/pagemap.h>
+#include <linux/pagewalk.h>
 #include <linux/rmap.h>
 #include <linux/swap.h>
 #include <linux/swapops.h>
@@ -841,7 +842,7 @@ static inline bool free_area_empty(struct free_area *area, int migratetype)
 }
 
 /* mm/util.c */
-struct anon_vma *folio_anon_vma(struct folio *folio);
+struct anon_vma *folio_anon_vma(const struct folio *folio);
 
 #ifdef CONFIG_MMU
 void unmap_mapping_folio(struct folio *folio);
@@ -959,7 +960,7 @@ extern pmd_t maybe_pmd_mkwrite(pmd_t pmd, struct vm_area_struct *vma);
  * If any page in this range is mapped by this VMA, return the first address
  * where any of these pages appear.  Otherwise, return -EFAULT.
  */
-static inline unsigned long vma_address(struct vm_area_struct *vma,
+static inline unsigned long vma_address(const struct vm_area_struct *vma,
 		pgoff_t pgoff, unsigned long nr_pages)
 {
 	unsigned long address;
@@ -1117,10 +1118,11 @@ void ClearPageHWPoisonTakenOff(struct page *page);
 bool take_page_off_buddy(struct page *page);
 bool put_page_back_buddy(struct page *page);
 struct task_struct *task_early_kill(struct task_struct *tsk, int force_early);
-void add_to_kill_ksm(struct task_struct *tsk, struct page *p,
+void add_to_kill_ksm(struct task_struct *tsk, const struct page *p,
 		     struct vm_area_struct *vma, struct list_head *to_kill,
 		     unsigned long ksm_addr);
-unsigned long page_mapped_in_vma(struct page *page, struct vm_area_struct *vma);
+unsigned long page_mapped_in_vma(const struct page *page,
+		struct vm_area_struct *vma);
 
 #else
 static inline void unmap_poisoned_folio(struct folio *folio, enum ttu_flags ttu)
@@ -1234,6 +1236,7 @@ size_t splice_folio_into_pipe(struct pipe_inode_info *pipe,
 void __init vmalloc_init(void);
 int __must_check vmap_pages_range_noflush(unsigned long addr, unsigned long end,
                 pgprot_t prot, struct page **pages, unsigned int page_shift);
+unsigned int get_vm_area_page_order(struct vm_struct *vm);
 #else
 static inline void vmalloc_init(void)
 {
@@ -1262,6 +1265,12 @@ int numa_migrate_check(struct folio *folio, struct vm_fault *vmf,
 void free_zone_device_folio(struct folio *folio);
 int migrate_device_coherent_folio(struct folio *folio);
 
+struct vm_struct *__get_vm_area_node(unsigned long size,
+				     unsigned long align, unsigned long shift,
+				     unsigned long flags, unsigned long start,
+				     unsigned long end, int node, gfp_t gfp_mask,
+				     const void *caller);
+
 /*
  * mm/gup.c
  */
@@ -1275,6 +1284,34 @@ void touch_pud(struct vm_area_struct *vma, unsigned long addr,
 	       pud_t *pud, bool write);
 void touch_pmd(struct vm_area_struct *vma, unsigned long addr,
 	       pmd_t *pmd, bool write);
+
+static inline bool alloc_zeroed(void)
+{
+	return static_branch_maybe(CONFIG_INIT_ON_ALLOC_DEFAULT_ON,
+			&init_on_alloc);
+}
+
+/*
+ * Parses a string with mem suffixes into its order. Useful to parse kernel
+ * parameters.
+ */
+static inline int get_order_from_str(const char *size_str,
+				     unsigned long valid_orders)
+{
+	unsigned long size;
+	char *endptr;
+	int order;
+
+	size = memparse(size_str, &endptr);
+
+	if (!is_power_of_2(size))
+		return -EINVAL;
+	order = get_order(size);
+	if (BIT(order) & ~valid_orders)
+		return -EINVAL;
+
+	return order;
+}
 
 enum {
 	/* mark page accessed */
@@ -1356,7 +1393,7 @@ static inline bool gup_must_unshare(struct vm_area_struct *vma,
 		smp_rmb();
 
 	/*
-	 * Note that PageKsm() pages cannot be exclusive, and consequently,
+	 * Note that KSM pages cannot be exclusive, and consequently,
 	 * cannot get pinned.
 	 */
 	return !PageAnonExclusive(page);
@@ -1487,5 +1524,10 @@ static inline void accept_page(struct page *page)
 {
 }
 #endif /* CONFIG_UNACCEPTED_MEMORY */
+
+/* pagewalk.c */
+int walk_page_range_mm(struct mm_struct *mm, unsigned long start,
+		unsigned long end, const struct mm_walk_ops *ops,
+		void *private);
 
 #endif	/* __MM_INTERNAL_H */

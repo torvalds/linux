@@ -18,7 +18,7 @@
 #include <linux/bpf.h>
 
 #include <asm/kprobes.h>
-#include <asm/code-patching.h>
+#include <asm/text-patching.h>
 
 #include "bpf_jit.h"
 

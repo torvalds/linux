@@ -32,6 +32,8 @@ struct list_lru_one {
 	struct list_head	list;
 	/* may become negative during memcg reparenting */
 	long			nr_items;
+	/* protects all fields above */
+	spinlock_t		lock;
 };
 
 struct list_lru_memcg {
@@ -41,11 +43,9 @@ struct list_lru_memcg {
 };
 
 struct list_lru_node {
-	/* protects all lists on the node, including per cgroup */
-	spinlock_t		lock;
 	/* global list, used for the root cgroup in cgroup aware lrus */
 	struct list_lru_one	lru;
-	long			nr_items;
+	atomic_long_t		nr_items;
 } ____cacheline_aligned_in_smp;
 
 struct list_lru {
@@ -56,16 +56,28 @@ struct list_lru {
 	bool			memcg_aware;
 	struct xarray		xa;
 #endif
+#ifdef CONFIG_LOCKDEP
+	struct lock_class_key	*key;
+#endif
 };
 
 void list_lru_destroy(struct list_lru *lru);
 int __list_lru_init(struct list_lru *lru, bool memcg_aware,
-		    struct lock_class_key *key, struct shrinker *shrinker);
+		    struct shrinker *shrinker);
 
 #define list_lru_init(lru)				\
-	__list_lru_init((lru), false, NULL, NULL)
+	__list_lru_init((lru), false, NULL)
 #define list_lru_init_memcg(lru, shrinker)		\
-	__list_lru_init((lru), true, NULL, shrinker)
+	__list_lru_init((lru), true, shrinker)
+
+static inline int list_lru_init_memcg_key(struct list_lru *lru, struct shrinker *shrinker,
+					  struct lock_class_key *key)
+{
+#ifdef CONFIG_LOCKDEP
+	lru->key = key;
+#endif
+	return list_lru_init_memcg(lru, shrinker);
+}
 
 int memcg_list_lru_alloc(struct mem_cgroup *memcg, struct list_lru *lru,
 			 gfp_t gfp);
@@ -172,7 +184,7 @@ void list_lru_isolate_move(struct list_lru_one *list, struct list_head *item,
 			   struct list_head *head);
 
 typedef enum lru_status (*list_lru_walk_cb)(struct list_head *item,
-		struct list_lru_one *list, spinlock_t *lock, void *cb_arg);
+		struct list_lru_one *list, void *cb_arg);
 
 /**
  * list_lru_walk_one: walk a @lru, isolating and disposing freeable items.
