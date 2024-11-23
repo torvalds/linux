@@ -210,31 +210,6 @@ static inline struct tracepoint *tracepoint_ptr_deref(tracepoint_ptr_t *p)
 #endif /* CONFIG_HAVE_STATIC_CALL */
 
 /*
- * With @syscall=0, the tracepoint callback array dereference is
- * protected by disabling preemption.
- * With @syscall=1, the tracepoint callback array dereference is
- * protected by Tasks Trace RCU, which allows probes to handle page
- * faults.
- */
-#define __DO_TRACE(name, args, cond, syscall)				\
-	do {								\
-		if (!(cond))						\
-			return;						\
-									\
-		if (syscall)						\
-			rcu_read_lock_trace();				\
-		else							\
-			preempt_disable_notrace();			\
-									\
-		__DO_TRACE_CALL(name, TP_ARGS(args));			\
-									\
-		if (syscall)						\
-			rcu_read_unlock_trace();			\
-		else							\
-			preempt_enable_notrace();			\
-	} while (0)
-
-/*
  * Make sure the alignment of the structure in the __tracepoints section will
  * not add unwanted padding between the beginning of the section and the
  * structure. Force alignment to the same alignment as the section start.
@@ -282,10 +257,12 @@ static inline struct tracepoint *tracepoint_ptr_deref(tracepoint_ptr_t *p)
 	__DECLARE_TRACE_COMMON(name, PARAMS(proto), PARAMS(args), cond, PARAMS(data_proto)) \
 	static inline void trace_##name(proto)				\
 	{								\
-		if (static_branch_unlikely(&__tracepoint_##name.key))	\
-			__DO_TRACE(name,				\
-				TP_ARGS(args),				\
-				TP_CONDITION(cond), 0);			\
+		if (static_branch_unlikely(&__tracepoint_##name.key)) { \
+			if (cond) {					\
+				scoped_guard(preempt_notrace)		\
+					__DO_TRACE_CALL(name, TP_ARGS(args)); \
+			}						\
+		}							\
 		if (IS_ENABLED(CONFIG_LOCKDEP) && (cond)) {		\
 			WARN_ONCE(!rcu_is_watching(),			\
 				  "RCU not watching for tracepoint");	\
@@ -297,10 +274,12 @@ static inline struct tracepoint *tracepoint_ptr_deref(tracepoint_ptr_t *p)
 	static inline void trace_##name(proto)				\
 	{								\
 		might_fault();						\
-		if (static_branch_unlikely(&__tracepoint_##name.key))	\
-			__DO_TRACE(name,				\
-				TP_ARGS(args),				\
-				TP_CONDITION(cond), 1);			\
+		if (static_branch_unlikely(&__tracepoint_##name.key)) {	\
+			if (cond) {					\
+				scoped_guard(rcu_tasks_trace)		\
+					__DO_TRACE_CALL(name, TP_ARGS(args)); \
+			}						\
+		}							\
 		if (IS_ENABLED(CONFIG_LOCKDEP) && (cond)) {		\
 			WARN_ONCE(!rcu_is_watching(),			\
 				  "RCU not watching for tracepoint");	\
