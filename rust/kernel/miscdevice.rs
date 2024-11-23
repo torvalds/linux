@@ -116,7 +116,7 @@ pub trait MiscDevice {
         _cmd: u32,
         _arg: usize,
     ) -> Result<isize> {
-        kernel::build_error!(VTABLE_DEFAULT_ERROR)
+        build_error!(VTABLE_DEFAULT_ERROR)
     }
 
     /// Handler for ioctls.
@@ -132,7 +132,7 @@ pub trait MiscDevice {
         _cmd: u32,
         _arg: usize,
     ) -> Result<isize> {
-        kernel::build_error!(VTABLE_DEFAULT_ERROR)
+        build_error!(VTABLE_DEFAULT_ERROR)
     }
 }
 

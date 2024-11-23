@@ -14,7 +14,6 @@ pub use build_error::build_error;
 /// # Examples
 ///
 /// ```
-/// # use kernel::build_error;
 /// #[inline]
 /// fn foo(a: usize) -> usize {
 ///     a.checked_add(1).unwrap_or_else(|| build_error!("overflow"))
