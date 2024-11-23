@@ -116,10 +116,8 @@
 
 #define HAP_TEST2_REG			0xE3
 
-
 #define HAP_VMAX_MIN_MV			116
 #define HAP_VMAX_MAX_MV			3596
-#define HAP_VMAX_MAX_MV_STRONG		3596
 
 #define HAP_WAVE_PLAY_RATE_MIN_US	0
 #define HAP_WAVE_PLAY_RATE_MAX_US	20475
@@ -299,10 +297,24 @@ static int spmi_haptics_module_enable(struct spmi_haptics *haptics, bool enable)
 	return spmi_haptics_write(haptics, haptics->base + HAP_EN_CTL_REG, &val, 1);
 }
 
-static int spmi_haptics_write_vmax(struct spmi_haptics *haptics)
+/**
+ * spmi_haptics_write_vmax - Configure the vmax setting for haptics
+ * @haptics: pointer to haptics struct
+ * @vmax_mv: vmax voltage in millivolts
+ *
+ * The input voltage is clamped within the supported range (HAP_VMAX_MIN_MV to
+ * HAP_VMAX_MAX_MV) and converted to the appropriate register value. If vmax_mv
+ * is zero, the vmax value stored in the haptics structure is used.
+ *
+ * Returns: 0 on success, < 0 on error
+ */
+static int spmi_haptics_write_vmax(struct spmi_haptics *haptics, u32 vmax_mv)
 {
 	u8 val = 0;
-	u32 vmax_mv = haptics->vmax;
+
+	if (!vmax_mv) {
+		vmax_mv = haptics->vmax;
+	}
 
 	vmax_mv = clamp_t(u32, vmax_mv, HAP_VMAX_MIN_MV, HAP_VMAX_MAX_MV);
 
@@ -551,7 +563,7 @@ static int spmi_haptics_init(struct spmi_haptics *haptics)
 	if (ret < 0)
 		return ret;
 
-	ret = spmi_haptics_write_vmax(haptics);
+	ret = spmi_haptics_write_vmax(haptics, 0);
 	if (ret < 0)
 		return ret;
 
@@ -747,11 +759,14 @@ static void spmi_haptics_close(struct input_dev *dev)
  * @dev: input device pointer
  * @data: data of effect
  * @effect: effect to play
+ * Returns: 0 on success, < 0 on error
  */
 static int spmi_haptics_play_effect(struct input_dev *dev, void *data,
 					struct ff_effect *effect)
 {
+	int ret = 0;
 	struct spmi_haptics *haptics = input_get_drvdata(dev);
+	u32 vmax_mv;
 
 	dev_dbg(haptics->dev, "%s: Rumbling with strong: %d and weak: %d", __func__,
 		effect->u.rumble.strong_magnitude, effect->u.rumble.weak_magnitude);
@@ -767,13 +782,15 @@ static int spmi_haptics_play_effect(struct input_dev *dev, void *data,
 
 	atomic_set(&haptics->active, 1);
 
-	haptics->vmax = ((HAP_VMAX_MAX_MV - HAP_VMAX_MIN_MV) * haptics->magnitude) / 100 +
+	vmax_mv = ((haptics->vmax - HAP_VMAX_MIN_MV) * haptics->magnitude) / 100 +
 					HAP_VMAX_MIN_MV;
 
 	dev_dbg(haptics->dev, "%s: magnitude: %d, vmax: %d", __func__,
-		haptics->magnitude, haptics->vmax);
+		haptics->magnitude, vmax_mv);
 
-	spmi_haptics_write_vmax(haptics);
+	ret = spmi_haptics_write_vmax(haptics, vmax_mv);
+	if (ret < 0)
+		return ret;
 
 end:
 	schedule_work(&haptics->work);
@@ -843,6 +860,15 @@ static int spmi_haptics_probe(struct platform_device *pdev)
 			goto register_fail;
 		}
 		haptics->play_mode = val;
+	}
+
+	haptics->vmax = HAP_VMAX_MAX_MV;
+	ret = of_property_read_u32(node, "qcom,vmax-millivolt", &val);
+	if (!ret) {
+		haptics->vmax = val;
+	} else if (ret != -EINVAL) {
+		dev_err(haptics->dev, "Unable to read vmax ret=%d\n", ret);
+		goto register_fail;
 	}
 
 	haptics->auto_res_mode = HAP_AUTO_RES_ZXD_EOP;
