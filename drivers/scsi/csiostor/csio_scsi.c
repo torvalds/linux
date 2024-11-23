@@ -800,7 +800,7 @@ csio_scsis_io_active(struct csio_ioreq *req, enum csio_scsi_ev evt)
 			rn = req->rnode;
 			/*
 			 * FW says remote device is lost, but rnode
-			 * doesnt reflect it.
+			 * doesn't reflect it.
 			 */
 			if (csio_scsi_itnexus_loss_error(req->wr_status) &&
 						csio_is_rnode_ready(rn)) {
