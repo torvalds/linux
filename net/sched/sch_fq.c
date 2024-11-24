@@ -331,6 +331,12 @@ static bool fq_fastpath_check(const struct Qdisc *sch, struct sk_buff *skb,
 		 */
 		if (q->internal.qlen >= 8)
 			return false;
+
+		/* Ordering invariants fall apart if some delayed flows
+		 * are ready but we haven't serviced them, yet.
+		 */
+		if (q->time_next_delayed_flow <= now)
+			return false;
 	}
 
 	sk = skb->sk;
