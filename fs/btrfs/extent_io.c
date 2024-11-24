@@ -1335,7 +1335,7 @@ static int submit_one_sector(struct btrfs_inode *inode,
 
 	em = btrfs_get_extent(inode, NULL, filepos, sectorsize);
 	if (IS_ERR(em))
-		return PTR_ERR_OR_ZERO(em);
+		return PTR_ERR(em);
 
 	extent_offset = filepos - em->start;
 	em_end = extent_map_end(em);
