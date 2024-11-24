@@ -72,8 +72,6 @@ int main(int argc, char *argv[])
 	}
 
 done:
-	vcpu_set_msr(vcpu, MSR_PLATFORM_INFO, msr_platform_info);
-
 	kvm_vm_free(vm);
 
 	return 0;
