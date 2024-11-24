@@ -1,0 +1,48 @@
+// SPDX-License-Identifier: (GPL-2.0 OR MIT)
+/*
+ * Copyright 2024 Google LLC
+ */
+/dts-v1/;
+#include "mt8188-geralt-ciri.dtsi"
+
+/ {
+	model = "Google Ciri sku7 board (rev4)";
+	compatible = "google,ciri-sku7", "google,ciri", "mediatek,mt8188";
+};
+
+&dsi_panel {
+	compatible = "ivo,t109nw41", "himax,hx83102";
+};
+
+&i2c0 {
+	/delete-node/ amplifier@38;
+	/delete-node/ amplifier@39;
+
+	tas2563: amplifier@4f {
+		compatible = "ti,tas2563", "ti,tas2781";
+		reg = <0x4f>, <0x4c>; /* left / right channel */
+		reset-gpios = <&pio 118 GPIO_ACTIVE_HIGH>;
+		#sound-dai-cells = <0>;
+	};
+};
+
+&sound {
+	compatible = "mediatek,mt8188-rt5682s";
+	model = "mt8188_tas2563_5682";
+
+	audio-routing =
+		"ETDM1_OUT", "ETDM_SPK_PIN",
+		"ETDM2_OUT", "ETDM_HP_PIN",
+		"ETDM1_IN", "ETDM_SPK_PIN",
+		"ETDM2_IN", "ETDM_HP_PIN",
+		"ADDA Capture", "MTKAIF_PIN",
+		"Headphone Jack", "HPOL",
+		"Headphone Jack", "HPOR",
+		"IN1P", "Headset Mic";
+
+	dai-link-1 {
+		codec {
+			sound-dai = <&tas2563>;
+		};
+	};
+};
