@@ -108,6 +108,11 @@ static void ipmr_expire_process(struct timer_list *t);
 				lockdep_rtnl_is_held() || \
 				list_empty(&net->ipv6.mr6_tables))
 
+static bool ip6mr_can_free_table(struct net *net)
+{
+	return !check_net(net) || !net->ipv6.mr6_rules_ops;
+}
+
 static struct mr_table *ip6mr_mr_table_iter(struct net *net,
 					    struct mr_table *mrt)
 {
@@ -291,6 +296,11 @@ EXPORT_SYMBOL(ip6mr_rule_default);
 #define ip6mr_for_each_table(mrt, net) \
 	for (mrt = net->ipv6.mrt6; mrt; mrt = NULL)
 
+static bool ip6mr_can_free_table(struct net *net)
+{
+	return !check_net(net);
+}
+
 static struct mr_table *ip6mr_mr_table_iter(struct net *net,
 					    struct mr_table *mrt)
 {
@@ -392,6 +402,10 @@ static struct mr_table *ip6mr_new_table(struct net *net, u32 id)
 
 static void ip6mr_free_table(struct mr_table *mrt)
 {
+	struct net *net = read_pnet(&mrt->net);
+
+	DEBUG_NET_WARN_ON_ONCE(!ip6mr_can_free_table(net));
+
 	timer_shutdown_sync(&mrt->ipmr_expire_timer);
 	mroute_clean_tables(mrt, MRT6_FLUSH_MIFS | MRT6_FLUSH_MIFS_STATIC |
 				 MRT6_FLUSH_MFC | MRT6_FLUSH_MFC_STATIC);
