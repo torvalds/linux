@@ -40,7 +40,7 @@ void print_pgm_check_info(void)
 	boot_emerg("Linux version %s\n", kernel_version);
 	if (!is_prot_virt_guest() && early_command_line[0])
 		boot_emerg("Kernel command line: %s\n", early_command_line);
-	boot_emerg("Kernel fault: interruption code %04x ilc:%x\n",
+	boot_emerg("Kernel fault: interruption code %04x ilc:%d\n",
 		   get_lowcore()->pgm_code, get_lowcore()->pgm_ilc >> 1);
 	if (kaslr_enabled()) {
 		boot_emerg("Kernel random base: %lx\n", __kaslr_offset);

@@ -244,20 +244,20 @@ static void die_oom(unsigned long size, unsigned long align, unsigned long min, 
 	boot_emerg("Linux version %s\n", kernel_version);
 	if (!is_prot_virt_guest() && early_command_line[0])
 		boot_emerg("Kernel command line: %s\n", early_command_line);
-	boot_emerg("Out of memory allocating %lx bytes %lx aligned in range %lx:%lx\n",
+	boot_emerg("Out of memory allocating %lu bytes 0x%lx aligned in range %lx:%lx\n",
 		   size, align, min, max);
 	boot_emerg("Reserved memory ranges:\n");
 	for_each_physmem_reserved_range(t, range, &start, &end) {
 		boot_emerg("%016lx %016lx %s\n", start, end, get_rr_type_name(t));
 		total_reserved_mem += end - start;
 	}
-	boot_emerg("Usable online memory ranges (info source: %s [%x]):\n",
+	boot_emerg("Usable online memory ranges (info source: %s [%d]):\n",
 		   get_physmem_info_source(), physmem_info.info_source);
 	for_each_physmem_usable_range(i, &start, &end) {
 		boot_emerg("%016lx %016lx\n", start, end);
 		total_mem += end - start;
 	}
-	boot_emerg("Usable online memory total: %lx Reserved: %lx Free: %lx\n",
+	boot_emerg("Usable online memory total: %lu Reserved: %lu Free: %lu\n",
 		   total_mem, total_reserved_mem,
 		   total_mem > total_reserved_mem ? total_mem - total_reserved_mem : 0);
 	print_stacktrace(current_frame_address());
