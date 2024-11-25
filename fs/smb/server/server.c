@@ -276,8 +276,12 @@ static void handle_ksmbd_work(struct work_struct *wk)
 	 * disconnection. waitqueue_active is safe because it
 	 * uses atomic operation for condition.
 	 */
+	atomic_inc(&conn->refcnt);
 	if (!atomic_dec_return(&conn->r_count) && waitqueue_active(&conn->r_count_q))
 		wake_up(&conn->r_count_q);
+
+	if (atomic_dec_and_test(&conn->refcnt))
+		kfree(conn);
 }
 
 /**
