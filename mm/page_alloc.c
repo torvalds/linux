@@ -4750,10 +4750,8 @@ struct page *__alloc_pages_noprof(gfp_t gfp, unsigned int order,
 
 	/* First allocation attempt */
 	page = get_page_from_freelist(alloc_gfp, order, alloc_flags, &ac);
-	if (likely(page)) {
-		set_page_refcounted(page);
+	if (likely(page))
 		goto out;
-	}
 
 	alloc_gfp = gfp;
 	ac.spread_dirty_pages = false;
@@ -4765,15 +4763,15 @@ struct page *__alloc_pages_noprof(gfp_t gfp, unsigned int order,
 	ac.nodemask = nodemask;
 
 	page = __alloc_pages_slowpath(alloc_gfp, order, &ac);
-	if (page)
-		set_page_refcounted(page);
 
 out:
 	if (memcg_kmem_online() && (gfp & __GFP_ACCOUNT) && page &&
 	    unlikely(__memcg_kmem_charge_page(page, gfp, order) != 0)) {
-		__free_pages(page, order);
+		free_frozen_pages(page, order);
 		page = NULL;
 	}
+	if (page)
+		set_page_refcounted(page);
 
 	trace_mm_page_alloc(page, order, alloc_gfp, ac.migratetype);
 	kmsan_alloc_page(page, order, alloc_gfp);
