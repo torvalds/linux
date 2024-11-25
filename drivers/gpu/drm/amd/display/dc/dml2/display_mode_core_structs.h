@@ -28,6 +28,7 @@
 #define __DISPLAY_MODE_CORE_STRUCT_H__
 
 #include "display_mode_lib_defines.h"
+#include "dml_top_display_cfg_types.h"
 
 enum dml_project_id {
 	dml_project_invalid = 0,
@@ -49,7 +50,9 @@ enum dml_use_mall_for_pstate_change_mode {
 	dml_use_mall_pstate_change_disable = 0,
 	dml_use_mall_pstate_change_full_frame = 1,
 	dml_use_mall_pstate_change_sub_viewport = 2,
-	dml_use_mall_pstate_change_phantom_pipe = 3
+	dml_use_mall_pstate_change_phantom_pipe = 3,
+	dml_use_mall_pstate_change_phantom_pipe_no_data_return = 4,
+	dml_use_mall_pstate_change_imall = 5
 };
 enum dml_use_mall_for_static_screen_mode {
 	dml_use_mall_static_screen_disable = 0,
@@ -171,7 +174,11 @@ enum dml_swizzle_mode {
 	dml_sw_256kb_z_x = 28,
 	dml_sw_256kb_s_x = 29,
 	dml_sw_256kb_d_x = 30,
-	dml_sw_256kb_r_x = 31
+	dml_sw_256kb_r_x = 31,
+	dml_sw_256b_2d = 32,
+	dml_sw_4kb_2d = 33,
+	dml_sw_64kb_2d = 34,
+	dml_sw_256kb_2d = 35
 };
 enum dml_lb_depth {
 	dml_lb_6 = 0,
@@ -223,24 +230,28 @@ enum dml_mpc_use_policy {
 	dml_mpc_disabled = 0,
 	dml_mpc_as_possible = 1,
 	dml_mpc_as_needed_for_voltage = 2,
-	dml_mpc_as_needed_for_pstate_and_voltage = 3
+	dml_mpc_as_needed_for_pstate_and_voltage = 3,
+	dml_mpc_as_needed = 4,
+	dml_mpc_2to1 = 5
 };
 enum dml_odm_use_policy {
 	dml_odm_use_policy_bypass = 0,
 	dml_odm_use_policy_combine_as_needed = 1,
 	dml_odm_use_policy_combine_2to1 = 2,
-	dml_odm_use_policy_combine_4to1 = 3,
-	dml_odm_use_policy_split_1to2 = 4,
-	dml_odm_use_policy_mso_1to2 = 5,
-	dml_odm_use_policy_mso_1to4 = 6
+	dml_odm_use_policy_combine_3to1 = 3,
+	dml_odm_use_policy_combine_4to1 = 4,
+	dml_odm_use_policy_split_1to2 = 5,
+	dml_odm_use_policy_mso_1to2 = 6,
+	dml_odm_use_policy_mso_1to4 = 7
 };
 enum dml_odm_mode {
 	dml_odm_mode_bypass = 0,
 	dml_odm_mode_combine_2to1 = 1,
-	dml_odm_mode_combine_4to1 = 2,
-	dml_odm_mode_split_1to2 = 3,
-	dml_odm_mode_mso_1to2 = 4,
-	dml_odm_mode_mso_1to4 = 5
+	dml_odm_mode_combine_3to1 = 2,
+	dml_odm_mode_combine_4to1 = 3,
+	dml_odm_mode_split_1to2 = 4,
+	dml_odm_mode_mso_1to2 = 5,
+	dml_odm_mode_mso_1to4 = 6
 };
 enum dml_writeback_configuration {
 	dml_whole_buffer_for_single_stream_no_interleave = 0,
@@ -289,6 +300,17 @@ struct soc_state_bounding_box_st {
 	dml_float_t fclk_change_latency_us;
 	dml_float_t usr_retraining_latency_us;
 	dml_bool_t use_ideal_dram_bw_strobe;
+	dml_float_t g6_temp_read_blackout_us;
+
+	struct {
+		dml_uint_t urgent_ramp_uclk_cycles;
+		dml_uint_t trip_to_memory_uclk_cycles;
+		dml_uint_t meta_trip_to_memory_uclk_cycles;
+		dml_uint_t maximum_latency_when_urgent_uclk_cycles;
+		dml_uint_t average_latency_when_urgent_uclk_cycles;
+		dml_uint_t maximum_latency_when_non_urgent_uclk_cycles;
+		dml_uint_t average_latency_when_non_urgent_uclk_cycles;
+	}  dml_dcn401_uclk_dpm_dependent_soc_qos_params;
 };
 
 struct soc_bounding_box_st {
@@ -297,7 +319,7 @@ struct soc_bounding_box_st {
 	dml_float_t pcierefclk_mhz;
 	dml_float_t refclk_mhz;
 	dml_float_t amclk_mhz;
-	dml_float_t max_outstanding_reqs;
+	dml_uint_t max_outstanding_reqs;
 	dml_float_t pct_ideal_sdp_bw_after_urgent;
 	dml_float_t pct_ideal_fabric_bw_after_urgent;
 	dml_float_t pct_ideal_dram_bw_after_urgent_pixel_only;
@@ -308,6 +330,16 @@ struct soc_bounding_box_st {
 	dml_float_t max_avg_fabric_bw_use_normal_percent;
 	dml_float_t max_avg_dram_bw_use_normal_percent;
 	dml_float_t max_avg_dram_bw_use_normal_strobe_percent;
+
+	dml_float_t svp_prefetch_pct_ideal_sdp_bw_after_urgent;
+	dml_float_t svp_prefetch_pct_ideal_fabric_bw_after_urgent;
+	dml_float_t svp_prefetch_pct_ideal_dram_bw_after_urgent_pixel_only;
+	dml_float_t svp_prefetch_pct_ideal_dram_bw_after_urgent_pixel_and_vm;
+	dml_float_t svp_prefetch_pct_ideal_dram_bw_after_urgent_vm_only;
+	dml_float_t svp_prefetch_max_avg_sdp_bw_use_normal_percent;
+	dml_float_t svp_prefetch_max_avg_fabric_bw_use_normal_percent;
+	dml_float_t svp_prefetch_max_avg_dram_bw_use_normal_percent;
+
 	dml_uint_t round_trip_ping_latency_dcfclk_cycles;
 	dml_uint_t urgent_out_of_order_return_per_channel_pixel_only_bytes;
 	dml_uint_t urgent_out_of_order_return_per_channel_pixel_and_vm_bytes;
@@ -324,6 +356,26 @@ struct soc_bounding_box_st {
 	dml_uint_t mall_allocated_for_dcn_mbytes;
 	dml_float_t dispclk_dppclk_vco_speed_mhz;
 	dml_bool_t do_urgent_latency_adjustment;
+
+	dml_uint_t mem_word_bytes;
+	dml_uint_t num_dcc_mcaches;
+	dml_uint_t mcache_size_bytes;
+	dml_uint_t mcache_line_size_bytes;
+
+	struct {
+		dml_bool_t UseNewDCN401SOCParameters;
+		dml_uint_t df_qos_response_time_fclk_cycles;
+		dml_uint_t max_round_trip_to_furthest_cs_fclk_cycles;
+		dml_uint_t mall_overhead_fclk_cycles;
+		dml_uint_t meta_trip_adder_fclk_cycles;
+		dml_uint_t average_transport_distance_fclk_cycles;
+		dml_float_t umc_urgent_ramp_latency_margin;
+		dml_float_t umc_max_latency_margin;
+		dml_float_t umc_average_latency_margin;
+		dml_float_t fabric_max_transport_latency_margin;
+		dml_float_t fabric_average_transport_latency_margin;
+	}  dml_dcn401_soc_qos_params;
+
 };
 
 struct ip_params_st {
@@ -515,6 +567,10 @@ struct dml_plane_cfg_st {
 	dml_uint_t CursorWidth[__DML_NUM_PLANES__];
 	dml_uint_t CursorBPP[__DML_NUM_PLANES__];
 
+	dml_bool_t setup_for_tdlut[__DML_NUM_PLANES__];
+	enum dml2_tdlut_addressing_mode tdlut_addressing_mode[__DML_NUM_PLANES__];
+	enum dml2_tdlut_width_mode tdlut_width_mode[__DML_NUM_PLANES__];
+
 	enum dml_use_mall_for_static_screen_mode UseMALLForStaticScreen[__DML_NUM_PLANES__];
 	enum dml_use_mall_for_pstate_change_mode UseMALLForPStateChange[__DML_NUM_PLANES__];
 
@@ -604,6 +660,17 @@ struct dml_hw_resource_st {
 	dml_float_t DLGRefClkFreqMHz; /// <brief DLG Global Reference timer
 };
 
+/// @brief To control the clk usage for model programming
+struct dml_clk_cfg_st {
+	enum dml_clk_cfg_policy dcfclk_option; ///< brief Use for mode_program; user can select between use the min require clk req as calculated by DML or use the test-specific freq
+	enum dml_clk_cfg_policy dispclk_option; ///< brief Use for mode_program; user can select between use the min require clk req as calculated by DML or use the test-specific freq
+	enum dml_clk_cfg_policy dppclk_option[__DML_NUM_PLANES__];
+
+	dml_float_t dcfclk_mhz;
+	dml_float_t dispclk_mhz;
+	dml_float_t dppclk_mhz[__DML_NUM_PLANES__];
+}; // dml_clk_cfg_st
+
 /// @brief DML display configuration.
 ///        Describe how to display a surface in multi-plane setup and output to different output and writeback using the specified timgin
 struct dml_display_cfg_st {
@@ -616,18 +683,8 @@ struct dml_display_cfg_st {
 	unsigned int num_timings;
 
 	struct dml_hw_resource_st hw; //< brief for mode programming
+	struct dml_clk_cfg_st clk_overrides;   //< brief for mode programming clk override
 }; // dml_display_cfg_st
-
-/// @brief To control the clk usage for model programming
-struct dml_clk_cfg_st {
-	enum dml_clk_cfg_policy dcfclk_option; ///< brief Use for mode_program; user can select between use the min require clk req as calculated by DML or use the test-specific freq
-	enum dml_clk_cfg_policy dispclk_option; ///< brief Use for mode_program; user can select between use the min require clk req as calculated by DML or use the test-specific freq
-	enum dml_clk_cfg_policy dppclk_option[__DML_NUM_PLANES__];
-
-	dml_float_t dcfclk_freq_mhz;
-	dml_float_t dispclk_freq_mhz;
-	dml_float_t dppclk_freq_mhz[__DML_NUM_PLANES__];
-}; // dml_clk_cfg_st
 
 /// @brief DML mode evaluation and programming policy
 /// Those knobs that affect mode support and mode programming

@@ -201,7 +201,7 @@ struct dml2_core_internal_watermarks {
 	double Z8StutterExitWatermark;
 	double Z8StutterEnterPlusExitWatermark;
 	double USRRetrainingWatermark;
-	double g6_temp_read_watermark_us;
+	double temp_read_or_ppt_watermark_us;
 };
 
 struct dml2_core_internal_mode_support_info {
@@ -252,8 +252,8 @@ struct dml2_core_internal_mode_support_info {
 
 	bool PTEBufferSizeNotExceeded;
 	bool DCCMetaBufferSizeNotExceeded;
-	enum dml2_dram_clock_change_support DRAMClockChangeSupport[DML2_MAX_PLANES];
-	enum dml2_fclock_change_support FCLKChangeSupport[DML2_MAX_PLANES];
+	enum dml2_pstate_change_support DRAMClockChangeSupport[DML2_MAX_PLANES];
+	enum dml2_pstate_change_support FCLKChangeSupport[DML2_MAX_PLANES];
 	bool global_dram_clock_change_supported;
 	bool global_fclk_change_supported;
 	bool USRRetrainingSupport;
@@ -318,12 +318,15 @@ struct dml2_core_internal_mode_support_info {
 	bool avg_bandwidth_support_ok[dml2_core_internal_soc_state_max][dml2_core_internal_bw_max];
 
 	double max_urgent_latency_us;
+	double max_non_urgent_latency_us;
 	double avg_non_urgent_latency_us;
 	double avg_urgent_latency_us;
+	double df_response_time_us;
 
 	bool incorrect_imall_usage;
 
 	bool g6_temp_read_support;
+	bool temp_read_or_ppt_support;
 
 	struct dml2_core_internal_watermarks watermarks;
 };
@@ -378,8 +381,8 @@ struct dml2_core_internal_mode_support {
 	unsigned int DETBufferSizeC[DML2_MAX_PLANES];
 	unsigned int SwathHeightY[DML2_MAX_PLANES];
 	unsigned int SwathHeightC[DML2_MAX_PLANES];
-	unsigned int SwathWidthY[DML2_MAX_PLANES];
-	unsigned int SwathWidthC[DML2_MAX_PLANES];
+	unsigned int SwathWidthY[DML2_MAX_PLANES]; // per-pipe
+	unsigned int SwathWidthC[DML2_MAX_PLANES]; // per-pipe
 
 	// ----------------------------------
 	// Intermediates/Informational
@@ -476,9 +479,9 @@ struct dml2_core_internal_mode_support {
 
 	// Bandwidth Related Info
 	double BandwidthAvailableForImmediateFlip;
-	double SurfaceReadBandwidthLuma[DML2_MAX_PLANES]; // no dcc overhead, for the plane
-	double SurfaceReadBandwidthChroma[DML2_MAX_PLANES];
-	double WriteBandwidth[DML2_MAX_PLANES];
+	double vactive_sw_bw_l[DML2_MAX_PLANES]; // no dcc overhead, for the plane
+	double vactive_sw_bw_c[DML2_MAX_PLANES];
+	double WriteBandwidth[DML2_MAX_PLANES][DML2_MAX_WRITEBACK];
 	double RequiredPrefetchPixelDataBWLuma[DML2_MAX_PLANES];
 	double RequiredPrefetchPixelDataBWChroma[DML2_MAX_PLANES];
 	double cursor_bw[DML2_MAX_PLANES];
@@ -539,7 +542,7 @@ struct dml2_core_internal_mode_program {
 	unsigned int qos_param_index; // to access the uclk dependent dpm table
 	unsigned int active_min_uclk_dpm_index; // to access the min_clk table
 	double FabricClock; /// <brief Basically just the clock freq at the min (or given) state
-	double DCFCLK; /// <brief Basically just the clock freq at the min (or given) state and max combine setting
+	//double DCFCLK; /// <brief Basically just the clock freq at the min (or given) state and max combine setting
 	double dram_bw_mbps;
 	double uclk_freq_mhz;
 	unsigned int NoOfDPP[DML2_MAX_PLANES];
@@ -562,14 +565,14 @@ struct dml2_core_internal_mode_program {
 	double BytePerPixelInDETC[DML2_MAX_PLANES];
 	unsigned int BytePerPixelY[DML2_MAX_PLANES];
 	unsigned int BytePerPixelC[DML2_MAX_PLANES];
-	unsigned int SwathWidthY[DML2_MAX_PLANES];
-	unsigned int SwathWidthC[DML2_MAX_PLANES];
+	unsigned int SwathWidthY[DML2_MAX_PLANES]; // per-pipe
+	unsigned int SwathWidthC[DML2_MAX_PLANES]; // per-pipe
 	unsigned int req_per_swath_ub_l[DML2_MAX_PLANES];
 	unsigned int req_per_swath_ub_c[DML2_MAX_PLANES];
 	unsigned int SwathWidthSingleDPPY[DML2_MAX_PLANES];
 	unsigned int SwathWidthSingleDPPC[DML2_MAX_PLANES];
-	double SurfaceReadBandwidthLuma[DML2_MAX_PLANES];
-	double SurfaceReadBandwidthChroma[DML2_MAX_PLANES];
+	double vactive_sw_bw_l[DML2_MAX_PLANES];
+	double vactive_sw_bw_c[DML2_MAX_PLANES];
 	double excess_vactive_fill_bw_l[DML2_MAX_PLANES];
 	double excess_vactive_fill_bw_c[DML2_MAX_PLANES];
 
@@ -797,8 +800,9 @@ struct dml2_core_internal_mode_program {
 	double MaxActiveFCLKChangeLatencySupported;
 	bool USRRetrainingSupport;
 	bool g6_temp_read_support;
-	enum dml2_fclock_change_support FCLKChangeSupport[DML2_MAX_PLANES];
-	enum dml2_dram_clock_change_support DRAMClockChangeSupport[DML2_MAX_PLANES];
+	bool temp_read_or_ppt_support;
+	enum dml2_pstate_change_support FCLKChangeSupport[DML2_MAX_PLANES];
+	enum dml2_pstate_change_support DRAMClockChangeSupport[DML2_MAX_PLANES];
 	bool global_dram_clock_change_supported;
 	bool global_fclk_change_supported;
 	double MaxActiveDRAMClockChangeLatencySupported[DML2_MAX_PLANES];
@@ -846,6 +850,8 @@ struct dml2_core_internal_mode_program {
 	bool mall_comb_mcache_l[DML2_MAX_PLANES];
 	bool mall_comb_mcache_c[DML2_MAX_PLANES];
 	bool lc_comb_mcache[DML2_MAX_PLANES];
+
+	double impacted_prefetch_margin_us[DML2_MAX_PLANES];
 };
 
 struct dml2_core_internal_SOCParametersList {
@@ -862,6 +868,7 @@ struct dml2_core_internal_SOCParametersList {
 	double USRRetrainingLatency;
 	double SMNLatency;
 	double g6_temp_read_blackout_us;
+	double temp_read_or_ppt_blackout_us;
 	double max_urgent_latency_us;
 	double df_response_time_us;
 	enum dml2_qos_param_type qos_type;
@@ -961,6 +968,17 @@ struct dml2_core_calcs_mode_support_locals {
 
 	unsigned int pstate_bytes_required_l[DML2_MAX_PLANES];
 	unsigned int pstate_bytes_required_c[DML2_MAX_PLANES];
+
+	double prefetch_sw_bytes[DML2_MAX_PLANES];
+	double Tpre_rounded[DML2_MAX_PLANES];
+	double Tpre_oto[DML2_MAX_PLANES];
+	bool recalc_prefetch_schedule;
+	bool recalc_prefetch_done;
+	double impacted_dst_y_pre[DML2_MAX_PLANES];
+	double line_times[DML2_MAX_PLANES];
+	enum dml2_source_format_class pixel_format[DML2_MAX_PLANES];
+	unsigned int lb_source_lines_l[DML2_MAX_PLANES];
+	unsigned int lb_source_lines_c[DML2_MAX_PLANES];
 };
 
 struct dml2_core_calcs_mode_programming_locals {
@@ -1041,6 +1059,16 @@ struct dml2_core_calcs_mode_programming_locals {
 
 	unsigned int pstate_bytes_required_l[DML2_MAX_PLANES];
 	unsigned int pstate_bytes_required_c[DML2_MAX_PLANES];
+
+	double prefetch_sw_bytes[DML2_MAX_PLANES];
+	double Tpre_rounded[DML2_MAX_PLANES];
+	double Tpre_oto[DML2_MAX_PLANES];
+	bool recalc_prefetch_schedule;
+	double impacted_dst_y_pre[DML2_MAX_PLANES];
+	double line_times[DML2_MAX_PLANES];
+	enum dml2_source_format_class pixel_format[DML2_MAX_PLANES];
+	unsigned int lb_source_lines_l[DML2_MAX_PLANES];
+	unsigned int lb_source_lines_c[DML2_MAX_PLANES];
 };
 
 struct dml2_core_calcs_CalculateWatermarksMALLUseAndDRAMSpeedChangeSupport_locals {
@@ -1048,6 +1076,7 @@ struct dml2_core_calcs_CalculateWatermarksMALLUseAndDRAMSpeedChangeSupport_local
 	double ActiveFCLKChangeLatencyMargin[DML2_MAX_PLANES];
 	double USRRetrainingLatencyMargin[DML2_MAX_PLANES];
 	double g6_temp_read_latency_margin[DML2_MAX_PLANES];
+	double temp_read_or_ppt_latency_margin[DML2_MAX_PLANES];
 
 	double EffectiveLBLatencyHidingY;
 	double EffectiveLBLatencyHidingC;
@@ -1185,17 +1214,14 @@ struct dml2_core_calcs_CalculatePrefetchSchedule_locals {
 	double LineTime;
 	double dst_y_prefetch_equ;
 	double prefetch_bw_oto;
+	double per_pipe_vactive_sw_bw;
 	double Tvm_oto;
 	double Tr0_oto;
-	double Tvm_no_trip_oto;
-	double Tr0_no_trip_oto;
 	double Tvm_oto_lines;
 	double Tr0_oto_lines;
 	double dst_y_prefetch_oto;
 	double TimeForFetchingVM;
 	double TimeForFetchingRowInVBlank;
-	double dst_y_per_vm_no_trip_vblank;
-	double dst_y_per_row_no_trip_vblank;
 	double LinesToRequestPrefetchPixelData;
 	unsigned int HostVMDynamicLevelsTrips;
 	double trip_to_mem;
@@ -1203,15 +1229,12 @@ struct dml2_core_calcs_CalculatePrefetchSchedule_locals {
 	double Tr0_trips_rounded;
 	double max_Tsw;
 	double Lsw_oto;
-	double Lsw_equ;
-	double Tpre_rounded;
 	double prefetch_bw_equ;
 	double Tvm_equ;
 	double Tr0_equ;
 	double Tdmbf;
 	double Tdmec;
 	double Tdmsks;
-	double prefetch_sw_bytes;
 	double total_row_bytes;
 	double prefetch_bw_pr;
 	double bytes_pp;
@@ -1225,6 +1248,7 @@ struct dml2_core_calcs_CalculatePrefetchSchedule_locals {
 	double prefetch_bw2;
 	double prefetch_bw3;
 	double prefetch_bw4;
+	double dst_y_prefetch_equ_impacted;
 
 	double TWait_p;
 	unsigned int cursor_prefetch_bytes;
@@ -1545,17 +1569,18 @@ struct dml2_core_calcs_CalculateWatermarksMALLUseAndDRAMSpeedChangeSupport_param
 
 	// Output
 	struct dml2_core_internal_watermarks *Watermark;
-	enum dml2_dram_clock_change_support *DRAMClockChangeSupport;
+	enum dml2_pstate_change_support *DRAMClockChangeSupport;
 	bool *global_dram_clock_change_supported;
 	double *MaxActiveDRAMClockChangeLatencySupported;
 	unsigned int *SubViewportLinesNeededInMALL;
-	enum dml2_fclock_change_support *FCLKChangeSupport;
+	enum dml2_pstate_change_support *FCLKChangeSupport;
 	bool *global_fclk_change_supported;
 	double *MaxActiveFCLKChangeLatencySupported;
 	bool *USRRetrainingSupport;
 	double *VActiveLatencyHidingMargin;
 	double *VActiveLatencyHidingUs;
 	bool *g6_temp_read_support;
+	bool *temp_read_or_ppt_support;
 };
 
 
@@ -1727,8 +1752,8 @@ struct dml2_core_calcs_CalculatePrefetchSchedule_params {
 	double PrefetchSourceLinesC;
 	unsigned int VInitPreFillC;
 	unsigned int MaxNumSwathC;
-	unsigned int swath_width_luma_ub;
-	unsigned int swath_width_chroma_ub;
+	unsigned int swath_width_luma_ub;  // per-pipe
+	unsigned int swath_width_chroma_ub; // per-pipe
 	unsigned int SwathHeightY;
 	unsigned int SwathHeightC;
 	double TWait;
@@ -1750,6 +1775,10 @@ struct dml2_core_calcs_CalculatePrefetchSchedule_params {
 	unsigned int meta_row_bytes;
 	double mall_prefetch_sdp_overhead_factor;
 
+	double impacted_dst_y_pre;
+	double vactive_sw_bw_l; // per surface bw
+	double vactive_sw_bw_c; // per surface bw
+
 	// output
 	unsigned int *DSTXAfterScaler;
 	unsigned int *DSTYAfterScaler;
@@ -1767,6 +1796,8 @@ struct dml2_core_calcs_CalculatePrefetchSchedule_params {
 	double *Tdmdl_vm;
 	double *Tdmdl;
 	double *TSetup;
+	double *Tpre_rounded;
+	double *Tpre_oto;
 	double *Tvm_trips;
 	double *Tr0_trips;
 	double *Tvm_trips_flip;
@@ -1777,6 +1808,47 @@ struct dml2_core_calcs_CalculatePrefetchSchedule_params {
 	unsigned int *VUpdateWidthPix;
 	unsigned int *VReadyOffsetPix;
 	double *prefetch_cursor_bw;
+	double *prefetch_sw_bytes;
+};
+
+struct dml2_core_calcs_CheckGlobalPrefetchAdmissibility_params {
+	unsigned int num_active_planes;
+	enum dml2_source_format_class *pixel_format;
+	unsigned int rob_buffer_size_kbytes;
+	unsigned int compressed_buffer_size_kbytes;
+	unsigned int chunk_bytes_l; // same for all planes
+	unsigned int chunk_bytes_c;
+	unsigned int *detile_buffer_size_bytes_l;
+	unsigned int *detile_buffer_size_bytes_c;
+	unsigned int *full_swath_bytes_l;
+	unsigned int *full_swath_bytes_c;
+	unsigned int *lb_source_lines_l;
+	unsigned int *lb_source_lines_c;
+	unsigned int *swath_height_l;
+	unsigned int *swath_height_c;
+	double *prefetch_sw_bytes;
+	double *Tpre_rounded;
+	double *Tpre_oto;
+	double estimated_dcfclk_mhz;
+	double estimated_urg_bandwidth_required_mbps;
+	double *line_time;
+	double *dst_y_prefetch;
+
+	// output
+	bool *recalc_prefetch_schedule;
+	double *impacted_dst_y_pre;
+};
+
+struct dml2_core_calcs_CheckGlobalPrefetchAdmissibility_locals {
+	unsigned int max_Trpd_dcfclk_cycles;
+	unsigned int burst_bytes_to_fill_det;
+	double time_to_fill_det_us;
+	unsigned int accumulated_return_path_dcfclk_cycles[DML2_MAX_PLANES];
+	bool prefetch_global_check_passed;
+	unsigned int src_swath_bytes_l[DML2_MAX_PLANES];
+	unsigned int src_swath_bytes_c[DML2_MAX_PLANES];
+	unsigned int src_detile_buf_size_bytes_l[DML2_MAX_PLANES];
+	unsigned int src_detile_buf_size_bytes_c[DML2_MAX_PLANES];
 };
 
 struct dml2_core_calcs_calculate_mcache_row_bytes_params {
@@ -2004,6 +2076,7 @@ struct dml2_core_internal_scratch {
 	struct dml2_core_calcs_CalculateWatermarksMALLUseAndDRAMSpeedChangeSupport_locals CalculateWatermarksMALLUseAndDRAMSpeedChangeSupport_locals;
 	struct dml2_core_calcs_CalculateVMRowAndSwath_locals CalculateVMRowAndSwath_locals;
 	struct dml2_core_calcs_CalculatePrefetchSchedule_locals CalculatePrefetchSchedule_locals;
+	struct dml2_core_calcs_CheckGlobalPrefetchAdmissibility_locals CheckGlobalPrefetchAdmissibility_locals;
 	struct dml2_core_shared_CalculateSwathAndDETConfiguration_locals CalculateSwathAndDETConfiguration_locals;
 	struct dml2_core_shared_TruncToValidBPP_locals TruncToValidBPP_locals;
 	struct dml2_core_shared_CalculateDETBufferSize_locals CalculateDETBufferSize_locals;
@@ -2019,6 +2092,7 @@ struct dml2_core_internal_scratch {
 	struct dml2_core_calcs_CalculateSwathAndDETConfiguration_params CalculateSwathAndDETConfiguration_params;
 	struct dml2_core_calcs_CalculateStutterEfficiency_params CalculateStutterEfficiency_params;
 	struct dml2_core_calcs_CalculatePrefetchSchedule_params CalculatePrefetchSchedule_params;
+	struct dml2_core_calcs_CheckGlobalPrefetchAdmissibility_params CheckGlobalPrefetchAdmissibility_params;
 	struct dml2_core_calcs_calculate_mcache_setting_params calculate_mcache_setting_params;
 	struct dml2_core_calcs_calculate_tdlut_setting_params calculate_tdlut_setting_params;
 	struct dml2_core_shared_calculate_vm_and_row_bytes_params calculate_vm_and_row_bytes_params;
@@ -2038,7 +2112,6 @@ struct dml2_core_internal_display_mode_lib {
 	// Used to hold input; intermediate and output of the calculations
 	struct dml2_core_internal_mode_support ms; // struct for mode support
 	struct dml2_core_internal_mode_program mp; // struct for mode programming
-
 	// Available overridable calculators for core_shared.
 	// if null, core_shared will use default calculators.
 	struct dml2_core_shared_calculation_funcs funcs;
@@ -2051,7 +2124,6 @@ struct dml2_core_calcs_mode_support_ex {
 	const struct dml2_display_cfg *in_display_cfg;
 	const struct dml2_mcg_min_clock_table *min_clk_table;
 	int min_clk_index;
-
 	//unsigned int in_state_index;
 	struct dml2_core_internal_mode_support_info *out_evaluation_info;
 };
@@ -2064,7 +2136,6 @@ struct dml2_core_calcs_mode_programming_ex {
 	const struct dml2_mcg_min_clock_table *min_clk_table;
 	const struct core_display_cfg_support_info *cfg_support_info;
 	int min_clk_index;
-
 	struct dml2_display_cfg_programming *programming;
 
 };

@@ -8318,7 +8318,7 @@ void dml_core_mode_programming(struct display_mode_lib_st *mode_lib, const struc
 	if (clk_cfg->dcfclk_option != dml_use_override_freq)
 		locals->Dcfclk = mode_lib->ms.DCFCLK;
 	else
-		locals->Dcfclk = clk_cfg->dcfclk_freq_mhz;
+		locals->Dcfclk = clk_cfg->dcfclk_mhz;
 
 #ifdef __DML_VBA_DEBUG__
 	dml_print_dml_policy(&mode_lib->ms.policy);
@@ -8371,7 +8371,7 @@ void dml_core_mode_programming(struct display_mode_lib_st *mode_lib, const struc
 	if (clk_cfg->dispclk_option == dml_use_required_freq)
 		locals->Dispclk = locals->Dispclk_calculated;
 	else if (clk_cfg->dispclk_option == dml_use_override_freq)
-		locals->Dispclk = clk_cfg->dispclk_freq_mhz;
+		locals->Dispclk = clk_cfg->dispclk_mhz;
 	else
 		locals->Dispclk = mode_lib->ms.state.dispclk_mhz;
 #ifdef __DML_VBA_DEBUG__
@@ -8412,7 +8412,7 @@ void dml_core_mode_programming(struct display_mode_lib_st *mode_lib, const struc
 		if (clk_cfg->dppclk_option[k] == dml_use_required_freq)
 			locals->Dppclk[k] = locals->Dppclk_calculated[k];
 		else if (clk_cfg->dppclk_option[k] == dml_use_override_freq)
-			locals->Dppclk[k] = clk_cfg->dppclk_freq_mhz[k];
+			locals->Dppclk[k] = clk_cfg->dppclk_mhz[k];
 		else
 			locals->Dppclk[k] = mode_lib->ms.state.dppclk_mhz;
 #ifdef __DML_VBA_DEBUG__

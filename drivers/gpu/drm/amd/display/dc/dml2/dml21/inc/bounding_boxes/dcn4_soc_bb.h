@@ -344,6 +344,7 @@ static const struct dml2_ip_capabilities dml2_dcn401_max_ip_caps = {
 	.config_return_buffer_segment_size_in_kbytes = 64,
 	.meta_fifo_size_in_kentries = 22,
 	.compressed_buffer_segment_size_in_kbytes = 64,
+	.cursor_buffer_size = 24,
 	.max_flip_time_us = 80,
 	.max_flip_time_lines = 32,
 	.hostvm_mode = 0,
