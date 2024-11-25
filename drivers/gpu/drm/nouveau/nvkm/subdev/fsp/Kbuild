@@ -4,3 +4,4 @@
 
 nvkm-y += nvkm/subdev/fsp/base.o
 nvkm-y += nvkm/subdev/fsp/gh100.o
+nvkm-y += nvkm/subdev/fsp/gb100.o

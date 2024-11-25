@@ -9,5 +9,6 @@ nvkm-y += nvkm/subdev/gsp/ga100.o
 nvkm-y += nvkm/subdev/gsp/ga102.o
 nvkm-y += nvkm/subdev/gsp/gh100.o
 nvkm-y += nvkm/subdev/gsp/ad102.o
+nvkm-y += nvkm/subdev/gsp/gb100.o
 
 include $(src)/nvkm/subdev/gsp/rm/Kbuild

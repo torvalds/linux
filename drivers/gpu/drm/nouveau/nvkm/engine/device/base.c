@@ -2802,6 +2802,36 @@ nv197_chipset = {
 	.sec2     = { 0x00000001, ga102_sec2_new },
 };
 
+static const struct nvkm_device_chip
+nv1a0_chipset = {
+	.name = "GB100",
+	.bar      = { 0x00000001, tu102_bar_new },
+	.fb       = { 0x00000001, gb100_fb_new },
+	.fsp      = { 0x00000001, gb100_fsp_new },
+	.gsp      = { 0x00000001, gb100_gsp_new },
+	.imem     = { 0x00000001, gh100_instmem_new },
+	.mmu      = { 0x00000001, gh100_mmu_new },
+	.pci      = { 0x00000001, gh100_pci_new },
+	.timer    = { 0x00000001, gk20a_timer_new },
+	.vfn      = { 0x00000001, ga100_vfn_new },
+	.fifo     = { 0x00000001, ga102_fifo_new },
+};
+
+static const struct nvkm_device_chip
+nv1a2_chipset = {
+	.name = "GB102",
+	.bar      = { 0x00000001, tu102_bar_new },
+	.fb       = { 0x00000001, gb100_fb_new },
+	.fsp      = { 0x00000001, gb100_fsp_new },
+	.gsp      = { 0x00000001, gb100_gsp_new },
+	.imem     = { 0x00000001, gh100_instmem_new },
+	.mmu      = { 0x00000001, gh100_mmu_new },
+	.pci      = { 0x00000001, gh100_pci_new },
+	.timer    = { 0x00000001, gk20a_timer_new },
+	.vfn      = { 0x00000001, ga100_vfn_new },
+	.fifo     = { 0x00000001, ga102_fifo_new },
+};
+
 struct nvkm_subdev *
 nvkm_device_subdev(struct nvkm_device *device, int type, int inst)
 {
@@ -3119,6 +3149,7 @@ nvkm_device_ctor(const struct nvkm_device_func *func,
 		case 0x170: device->card_type = GA100; break;
 		case 0x180: device->card_type = GH100; break;
 		case 0x190: device->card_type = AD100; break;
+		case 0x1a0: device->card_type = GB10x; break;
 		default:
 			break;
 		}
@@ -3227,6 +3258,8 @@ nvkm_device_ctor(const struct nvkm_device_func *func,
 	case 0x194: device->chip = &nv194_chipset; break;
 	case 0x196: device->chip = &nv196_chipset; break;
 	case 0x197: device->chip = &nv197_chipset; break;
+	case 0x1a0: device->chip = &nv1a0_chipset; break;
+	case 0x1a2: device->chip = &nv1a2_chipset; break;
 	default:
 		if (nvkm_boolopt(device->cfgopt, "NvEnableUnsupportedChipsets", false)) {
 			switch (device->chipset) {

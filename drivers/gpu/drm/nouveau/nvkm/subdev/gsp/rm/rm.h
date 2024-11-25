@@ -26,6 +26,7 @@ struct nvkm_rm_wpr {
 	u32 base_size;
 	u64 heap_size_min;
 	u32 heap_size_non_wpr;
+	u32 rsvd_size_pmu;
 	bool offset_set_by_acr;
 };
 
@@ -176,6 +177,7 @@ extern const struct nvkm_rm_api_engine r535_ofa;
 extern const struct nvkm_rm_impl r570_rm_tu102;
 extern const struct nvkm_rm_impl r570_rm_ga102;
 extern const struct nvkm_rm_impl r570_rm_gh100;
+extern const struct nvkm_rm_impl r570_rm_gb10x;
 extern const struct nvkm_rm_api_gsp r570_gsp;
 extern const struct nvkm_rm_api_client r570_client;
 extern const struct nvkm_rm_api_fbsr r570_fbsr;

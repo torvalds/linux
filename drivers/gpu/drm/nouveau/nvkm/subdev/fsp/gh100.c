@@ -237,7 +237,7 @@ gh100_fsp_boot_gsp_fmc(struct nvkm_fsp *fsp, u64 args_addr, u32 rsvd_size, bool 
 	return gh100_fsp_send_sync(fsp, NVDM_TYPE_COT, (const u8 *)&msg, sizeof(msg));
 }
 
-static int
+int
 gh100_fsp_wait_secure_boot(struct nvkm_fsp *fsp)
 {
 	struct nvkm_device *device = fsp->subdev.device;

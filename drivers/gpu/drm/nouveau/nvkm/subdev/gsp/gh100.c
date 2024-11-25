@@ -16,7 +16,7 @@
 #include <nvhw/ref/gh100/dev_falcon_v4.h>
 #include <nvhw/ref/gh100/dev_riscv_pri.h>
 
-static int
+int
 gh100_gsp_fini(struct nvkm_gsp *gsp, bool suspend)
 {
 	struct nvkm_falcon *falcon = &gsp->falcon;
@@ -65,7 +65,7 @@ gh100_gsp_lockdown_released(struct nvkm_gsp *gsp, u32 *mbox0)
 	return !NVVAL_GET(data, NV_PFALCON, FALCON_HWCFG2, RISCV_BR_PRIV_LOCKDOWN);
 }
 
-static int
+int
 gh100_gsp_init(struct nvkm_gsp *gsp)
 {
 	struct nvkm_subdev *subdev = &gsp->subdev;
@@ -74,6 +74,7 @@ gh100_gsp_init(struct nvkm_gsp *gsp)
 	struct nvkm_gsp_mem *meta;
 	GSP_FMC_BOOT_PARAMS *args;
 	int ret, time = 4000;
+	u32 rsvd_size;
 	u32 mbox0;
 
 	if (!resume) {
@@ -97,7 +98,11 @@ gh100_gsp_init(struct nvkm_gsp *gsp)
 	args->gspRmParams.target = GSP_DMA_TARGET_NONCOHERENT_SYSTEM;
 	args->gspRmParams.bootArgsOffset = gsp->libos.addr;
 
-	ret = nvkm_fsp_boot_gsp_fmc(device->fsp, gsp->fmc.args.addr, gsp->fb.heap.size, resume,
+	rsvd_size = gsp->fb.heap.size;
+	if (gsp->rm->wpr->rsvd_size_pmu)
+		rsvd_size = ALIGN(rsvd_size + gsp->rm->wpr->rsvd_size_pmu, 0x200000);
+
+	ret = nvkm_fsp_boot_gsp_fmc(device->fsp, gsp->fmc.args.addr, rsvd_size, resume,
 				    gsp->fmc.fw.addr, gsp->fmc.hash, gsp->fmc.pkey, gsp->fmc.sig);
 	if (ret)
 		return ret;
@@ -157,7 +162,7 @@ gh100_gsp_wpr_meta_init(struct nvkm_gsp *gsp)
 	meta->gspFwHeapSize = tu102_gsp_wpr_heap_size(gsp);
 	meta->frtsSize = 0x100000;
 	meta->vgaWorkspaceSize = gsp->fb.bios.vga_workspace.size;
-	meta->pmuReservedSize = 0;
+	meta->pmuReservedSize = gsp->rm->wpr->rsvd_size_pmu;
 	return 0;
 }
 
@@ -254,7 +259,7 @@ elf_section(const void *elf, const char *name, unsigned int *len)
 	return NULL;
 }
 
-static int
+int
 gh100_gsp_oneinit(struct nvkm_gsp *gsp)
 {
 	struct nvkm_subdev *subdev = &gsp->subdev;
@@ -319,7 +324,7 @@ gh100_gsp = {
 	.rm.gpu = &gh100_gpu,
 };
 
-static int
+int
 gh100_gsp_load(struct nvkm_gsp *gsp, int ver, const struct nvkm_gsp_fwif *fwif)
 {
 	int ret;

@@ -48,6 +48,7 @@ struct nvkm_device {
 		GA100    = 0x170,
 		GH100    = 0x180,
 		AD100    = 0x190,
+		GB10x    = 0x1a0,
 	} card_type;
 	u32 chipset;
 	u8  chiprev;

@@ -29,6 +29,16 @@ r570_wpr_libos3_gh100 = {
 	.offset_set_by_acr = true,
 };
 
+static const struct nvkm_rm_wpr
+r570_wpr_libos3_gb10x = {
+	.os_carveout_size = GSP_FW_HEAP_PARAM_OS_SIZE_LIBOS3_BAREMETAL,
+	.base_size = GSP_FW_HEAP_PARAM_BASE_RM_SIZE_GH100,
+	.heap_size_min = GSP_FW_HEAP_SIZE_OVERRIDE_LIBOS3_BAREMETAL_MIN_MB,
+	.heap_size_non_wpr = 0x200000,
+	.rsvd_size_pmu = ALIGN(0x0800000 + 0x1000000 + 0x0001000, 0x20000),
+	.offset_set_by_acr = true,
+};
+
 static const struct nvkm_rm_api
 r570_api = {
 	.gsp = &r570_gsp,
@@ -63,5 +73,11 @@ r570_rm_ga102 = {
 const struct nvkm_rm_impl
 r570_rm_gh100 = {
 	.wpr = &r570_wpr_libos3_gh100,
+	.api = &r570_api,
+};
+
+const struct nvkm_rm_impl
+r570_rm_gb10x = {
+	.wpr = &r570_wpr_libos3_gb10x,
 	.api = &r570_api,
 };

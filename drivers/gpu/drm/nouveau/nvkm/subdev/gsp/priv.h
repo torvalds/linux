@@ -26,6 +26,8 @@ int gv100_gsp_nofw(struct nvkm_gsp *, int, const struct nvkm_gsp_fwif *);
 int tu102_gsp_load(struct nvkm_gsp *, int, const struct nvkm_gsp_fwif *);
 int tu102_gsp_load_rm(struct nvkm_gsp *, const struct nvkm_gsp_fwif *);
 
+int gh100_gsp_load(struct nvkm_gsp *, int, const struct nvkm_gsp_fwif *);
+
 #define NVKM_GSP_FIRMWARE_BOOTER(chip,vers)                      \
 MODULE_FIRMWARE("nvidia/"#chip"/gsp/booter_load-"#vers".bin");   \
 MODULE_FIRMWARE("nvidia/"#chip"/gsp/booter_unload-"#vers".bin"); \
@@ -74,6 +76,10 @@ extern const struct nvkm_falcon_fw_func ga102_gsp_fwsec;
 int ga102_gsp_booter_ctor(struct nvkm_gsp *, const char *, const struct firmware *,
 			  struct nvkm_falcon *, struct nvkm_falcon_fw *);
 int ga102_gsp_reset(struct nvkm_gsp *);
+
+int gh100_gsp_oneinit(struct nvkm_gsp *);
+int gh100_gsp_init(struct nvkm_gsp *);
+int gh100_gsp_fini(struct nvkm_gsp *, bool suspend);
 
 void r535_gsp_dtor(struct nvkm_gsp *);
 int r535_gsp_oneinit(struct nvkm_gsp *);
