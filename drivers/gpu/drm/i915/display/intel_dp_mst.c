@@ -53,6 +53,38 @@
 #include "intel_vdsc.h"
 #include "skl_scaler.h"
 
+/*
+ * DP MST (DisplayPort Multi-Stream Transport)
+ *
+ * MST support on the source depends on the platform and port. DP initialization
+ * sets up MST for each MST capable encoder. This will become the primary
+ * encoder for the port.
+ *
+ * MST initialization of each primary encoder creates MST stream encoders, one
+ * per pipe, and initializes the MST topology manager. The MST stream encoders
+ * are sometimes called "fake encoders", because they're virtual, not
+ * physical. Thus there are (number of MST capable ports) x (number of pipes)
+ * MST stream encoders in total.
+ *
+ * Decision to use MST for a sink happens at detect on the connector attached to
+ * the primary encoder, and this will not change while the sink is connected. We
+ * always use MST when possible, including for SST sinks with sideband messaging
+ * support.
+ *
+ * The connectors for the MST streams are added and removed dynamically by the
+ * topology manager. Their connection status is also determined by the topology
+ * manager.
+ *
+ * On hardware, each transcoder may be associated with a single DDI
+ * port. Multiple transcoders may be associated with the same DDI port only if
+ * the port is in MST mode.
+ *
+ * On TGL+, all the transcoders streaming on the same DDI port will indicate a
+ * primary transcoder; the TGL_DP_TP_CTL and TGL_DP_TP_STATUS registers are
+ * relevant only on the primary transcoder. Prior to that, they are port
+ * registers.
+ */
+
 /* From fake MST stream encoder to primary encoder */
 static struct intel_encoder *to_primary_encoder(struct intel_encoder *encoder)
 {
