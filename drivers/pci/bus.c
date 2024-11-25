@@ -358,7 +358,7 @@ void pci_bus_add_device(struct pci_dev *dev)
 	if (retval < 0 && retval != -EPROBE_DEFER)
 		pci_warn(dev, "device attach failed (%d)\n", retval);
 
-	pci_dev_assign_added(dev, true);
+	pci_dev_assign_added(dev);
 
 	if (dev_of_node(&dev->dev) && pci_is_bridge(dev)) {
 		retval = of_platform_populate(dev_of_node(&dev->dev), NULL, NULL,
@@ -399,41 +399,23 @@ void pci_bus_add_devices(const struct pci_bus *bus)
 }
 EXPORT_SYMBOL(pci_bus_add_devices);
 
-static void __pci_walk_bus(struct pci_bus *top, int (*cb)(struct pci_dev *, void *),
-			   void *userdata, bool locked)
+static int __pci_walk_bus(struct pci_bus *top, int (*cb)(struct pci_dev *, void *),
+			  void *userdata)
 {
 	struct pci_dev *dev;
-	struct pci_bus *bus;
-	struct list_head *next;
-	int retval;
+	int ret = 0;
 
-	bus = top;
-	if (!locked)
-		down_read(&pci_bus_sem);
-	next = top->devices.next;
-	for (;;) {
-		if (next == &bus->devices) {
-			/* end of this bus, go up or finish */
-			if (bus == top)
-				break;
-			next = bus->self->bus_list.next;
-			bus = bus->self->bus;
-			continue;
-		}
-		dev = list_entry(next, struct pci_dev, bus_list);
-		if (dev->subordinate) {
-			/* this is a pci-pci bridge, do its devices next */
-			next = dev->subordinate->devices.next;
-			bus = dev->subordinate;
-		} else
-			next = dev->bus_list.next;
-
-		retval = cb(dev, userdata);
-		if (retval)
+	list_for_each_entry(dev, &top->devices, bus_list) {
+		ret = cb(dev, userdata);
+		if (ret)
 			break;
+		if (dev->subordinate) {
+			ret = __pci_walk_bus(dev->subordinate, cb, userdata);
+			if (ret)
+				break;
+		}
 	}
-	if (!locked)
-		up_read(&pci_bus_sem);
+	return ret;
 }
 
 /**
@@ -451,7 +433,9 @@ static void __pci_walk_bus(struct pci_bus *top, int (*cb)(struct pci_dev *, void
  */
 void pci_walk_bus(struct pci_bus *top, int (*cb)(struct pci_dev *, void *), void *userdata)
 {
-	__pci_walk_bus(top, cb, userdata, false);
+	down_read(&pci_bus_sem);
+	__pci_walk_bus(top, cb, userdata);
+	up_read(&pci_bus_sem);
 }
 EXPORT_SYMBOL_GPL(pci_walk_bus);
 
@@ -459,9 +443,8 @@ void pci_walk_bus_locked(struct pci_bus *top, int (*cb)(struct pci_dev *, void *
 {
 	lockdep_assert_held(&pci_bus_sem);
 
-	__pci_walk_bus(top, cb, userdata, true);
+	__pci_walk_bus(top, cb, userdata);
 }
-EXPORT_SYMBOL_GPL(pci_walk_bus_locked);
 
 struct pci_bus *pci_bus_get(struct pci_bus *bus)
 {
