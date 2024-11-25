@@ -141,7 +141,7 @@ enum bch_fsck_flags {
 	x(backpointer_dev_bad,					297,	0)		\
 	x(backpointer_to_missing_device,			126,	0)		\
 	x(backpointer_to_missing_alloc,				127,	0)		\
-	x(backpointer_to_missing_ptr,				128,	0)		\
+	x(backpointer_to_missing_ptr,				128,	FSCK_AUTOFIX)	\
 	x(lru_entry_at_time_0,					129,	FSCK_AUTOFIX)	\
 	x(lru_entry_to_invalid_bucket,				130,	FSCK_AUTOFIX)	\
 	x(lru_entry_bad,					131,	FSCK_AUTOFIX)	\
