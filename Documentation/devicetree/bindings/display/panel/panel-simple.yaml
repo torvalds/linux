@@ -206,6 +206,8 @@ properties:
       - mitsubishi,aa070mc01-ca1
         # Mitsubishi AA084XE01 8.4" XGA TFT LCD panel
       - mitsubishi,aa084xe01
+        # Multi-Inno Technology Co.,Ltd MI0700A2T-30 7" 800x480 TFT Resistive Touch Module
+      - multi-inno,mi0700a2t-30
         # Multi-Inno Technology Co.,Ltd MI0700S4T-6 7" 800x480 TFT Resistive Touch Module
       - multi-inno,mi0700s4t-6
         # Multi-Inno Technology Co.,Ltd MI0800FT-9 8" 800x600 TFT Resistive Touch Module
