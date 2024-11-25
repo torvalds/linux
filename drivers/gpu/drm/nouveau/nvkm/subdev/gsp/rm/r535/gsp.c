@@ -2073,6 +2073,12 @@ r535_gsp_dtor(struct nvkm_gsp *gsp)
 	nvkm_falcon_fw_dtor(&gsp->booter.unload);
 	nvkm_falcon_fw_dtor(&gsp->booter.load);
 
+	nvkm_gsp_mem_dtor(&gsp->fmc.args);
+	kfree(gsp->fmc.sig);
+	kfree(gsp->fmc.pkey);
+	kfree(gsp->fmc.hash);
+	nvkm_gsp_mem_dtor(&gsp->fmc.fw);
+
 	mutex_destroy(&gsp->msgq.mutex);
 	mutex_destroy(&gsp->cmdq.mutex);
 

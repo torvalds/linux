@@ -22,12 +22,19 @@ int nvkm_gsp_load_fw(struct nvkm_gsp *, const char *name, const char *ver,
 void nvkm_gsp_dtor_fws(struct nvkm_gsp *);
 
 int gv100_gsp_nofw(struct nvkm_gsp *, int, const struct nvkm_gsp_fwif *);
+
 int tu102_gsp_load(struct nvkm_gsp *, int, const struct nvkm_gsp_fwif *);
+int tu102_gsp_load_rm(struct nvkm_gsp *, const struct nvkm_gsp_fwif *);
 
 #define NVKM_GSP_FIRMWARE_BOOTER(chip,vers)                      \
 MODULE_FIRMWARE("nvidia/"#chip"/gsp/booter_load-"#vers".bin");   \
 MODULE_FIRMWARE("nvidia/"#chip"/gsp/booter_unload-"#vers".bin"); \
 MODULE_FIRMWARE("nvidia/"#chip"/gsp/bootloader-"#vers".bin");    \
+MODULE_FIRMWARE("nvidia/"#chip"/gsp/gsp-"#vers".bin")
+
+#define NVKM_GSP_FIRMWARE_FMC(chip,vers)                      \
+MODULE_FIRMWARE("nvidia/"#chip"/gsp/fmc-"#vers".bin");        \
+MODULE_FIRMWARE("nvidia/"#chip"/gsp/bootloader-"#vers".bin"); \
 MODULE_FIRMWARE("nvidia/"#chip"/gsp/gsp-"#vers".bin")
 
 struct nvkm_gsp_func {
@@ -60,6 +67,7 @@ int tu102_gsp_oneinit(struct nvkm_gsp *);
 int tu102_gsp_init(struct nvkm_gsp *);
 int tu102_gsp_fini(struct nvkm_gsp *, bool suspend);
 int tu102_gsp_reset(struct nvkm_gsp *);
+u64 tu102_gsp_wpr_heap_size(struct nvkm_gsp *);
 
 extern const struct nvkm_falcon_func ga102_gsp_flcn;
 extern const struct nvkm_falcon_fw_func ga102_gsp_fwsec;

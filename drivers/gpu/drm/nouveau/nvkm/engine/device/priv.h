@@ -11,6 +11,7 @@
 #include <subdev/devinit.h>
 #include <subdev/fault.h>
 #include <subdev/fb.h>
+#include <subdev/fsp.h>
 #include <subdev/fuse.h>
 #include <subdev/gpio.h>
 #include <subdev/gsp.h>

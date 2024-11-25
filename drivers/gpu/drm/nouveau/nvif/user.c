@@ -41,6 +41,7 @@ nvif_user_ctor(struct nvif_device *device, const char *name)
 		int version;
 		const struct nvif_user_func *func;
 	} users[] = {
+		{ HOPPER_USERMODE_A, -1, &nvif_userc361 },
 		{ AMPERE_USERMODE_A, -1, &nvif_userc361 },
 		{ TURING_USERMODE_A, -1, &nvif_userc361 },
 		{  VOLTA_USERMODE_A, -1, &nvif_userc361 },

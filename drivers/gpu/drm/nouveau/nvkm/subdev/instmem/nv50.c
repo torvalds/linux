@@ -353,7 +353,7 @@ nv50_instobj_func = {
 	.map = nv50_instobj_map,
 };
 
-static int
+int
 nv50_instobj_wrap(struct nvkm_instmem *base,
 		  struct nvkm_memory *memory, struct nvkm_memory **pmemory)
 {
@@ -373,7 +373,7 @@ nv50_instobj_wrap(struct nvkm_instmem *base,
 	return 0;
 }
 
-static int
+int
 nv50_instobj_new(struct nvkm_instmem *imem, u32 size, u32 align, bool zero,
 		 struct nvkm_memory **pmemory)
 {
@@ -400,7 +400,7 @@ nv50_instmem_set_bar0_window_addr(struct nvkm_device *device, u64 addr)
 	nvkm_wr32(device, 0x001700, addr >> 16);
 }
 
-static void
+void
 nv50_instmem_fini(struct nvkm_instmem *base)
 {
 	nv50_instmem(base)->addr = ~0ULL;

@@ -2682,6 +2682,22 @@ nv177_chipset = {
 };
 
 static const struct nvkm_device_chip
+nv180_chipset = {
+	.name = "GH100",
+	.bar      = { 0x00000001, tu102_bar_new },
+	.fault    = { 0x00000001, tu102_fault_new },
+	.fb       = { 0x00000001, gh100_fb_new },
+	.fsp      = { 0x00000001, gh100_fsp_new },
+	.gsp      = { 0x00000001, gh100_gsp_new },
+	.imem     = { 0x00000001, gh100_instmem_new },
+	.mmu      = { 0x00000001, gh100_mmu_new },
+	.pci      = { 0x00000001, gh100_pci_new },
+	.timer    = { 0x00000001, gk20a_timer_new },
+	.vfn      = { 0x00000001, ga100_vfn_new },
+	.fifo     = { 0x00000001, ga102_fifo_new },
+};
+
+static const struct nvkm_device_chip
 nv192_chipset = {
 	.name = "AD102",
 	.bar      = { 0x00000001, tu102_bar_new },
@@ -3101,6 +3117,7 @@ nvkm_device_ctor(const struct nvkm_device_func *func,
 		case 0x140: device->card_type = GV100; break;
 		case 0x160: device->card_type = TU100; break;
 		case 0x170: device->card_type = GA100; break;
+		case 0x180: device->card_type = GH100; break;
 		case 0x190: device->card_type = AD100; break;
 		default:
 			break;
@@ -3204,6 +3221,7 @@ nvkm_device_ctor(const struct nvkm_device_func *func,
 	case 0x174: device->chip = &nv174_chipset; break;
 	case 0x176: device->chip = &nv176_chipset; break;
 	case 0x177: device->chip = &nv177_chipset; break;
+	case 0x180: device->chip = &nv180_chipset; break;
 	case 0x192: device->chip = &nv192_chipset; break;
 	case 0x193: device->chip = &nv193_chipset; break;
 	case 0x194: device->chip = &nv194_chipset; break;

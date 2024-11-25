@@ -62,4 +62,5 @@ extern const struct nvkm_rm_gpu tu1xx_gpu;
 extern const struct nvkm_rm_gpu ga100_gpu;
 extern const struct nvkm_rm_gpu ga1xx_gpu;
 extern const struct nvkm_rm_gpu ad10x_gpu;
+extern const struct nvkm_rm_gpu gh100_gpu;
 #endif

@@ -46,6 +46,7 @@ struct nvkm_device {
 		GV100    = 0x140,
 		TU100    = 0x160,
 		GA100    = 0x170,
+		GH100    = 0x180,
 		AD100    = 0x190,
 	} card_type;
 	u32 chipset;
@@ -130,6 +131,9 @@ struct nvkm_device *nvkm_device_find(u64 name);
 	nvkm_wr32(_device, _addr, (_temp & ~(m)) | (v));                       \
 	_temp;                                                                 \
 })
+
+#define NVKM_RD32_(p,o,dr) nvkm_rd32((p), (o) + (dr))
+#define NVKM_RD32(p,A...) DRF_RV(NVKM_RD32_, (p), 0, ##A)
 
 void nvkm_device_del(struct nvkm_device **);
 

@@ -246,7 +246,7 @@ tu102_gsp_wpr_meta_init(struct nvkm_gsp *gsp)
 	return 0;
 }
 
-static u64
+u64
 tu102_gsp_wpr_heap_size(struct nvkm_gsp *gsp)
 {
 	u32 fb_size_gb = DIV_ROUND_UP_ULL(gsp->fb.size, 1 << 30);
@@ -379,7 +379,7 @@ tu102_gsp = {
 	.rm.gpu = &tu1xx_gpu,
 };
 
-static int
+int
 tu102_gsp_load_rm(struct nvkm_gsp *gsp, const struct nvkm_gsp_fwif *fwif)
 {
 	struct nvkm_subdev *subdev = &gsp->subdev;

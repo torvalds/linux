@@ -68,6 +68,9 @@ struct nvkm_gsp {
 			const struct firmware *load;
 			const struct firmware *unload;
 		} booter;
+
+		const struct firmware *fmc;
+
 		const struct firmware *bl;
 		const struct firmware *rm;
 	} fws;
@@ -112,6 +115,15 @@ struct nvkm_gsp {
 		struct nvkm_falcon_fw load;
 		struct nvkm_falcon_fw unload;
 	} booter;
+
+	struct {
+		struct nvkm_gsp_mem fw;
+		u8 *hash;
+		u8 *pkey;
+		u8 *sig;
+
+		struct nvkm_gsp_mem args;
+	} fmc;
 
 	struct {
 		struct nvkm_gsp_mem fw;
@@ -478,5 +490,6 @@ int tu102_gsp_new(struct nvkm_device *, enum nvkm_subdev_type, int, struct nvkm_
 int tu116_gsp_new(struct nvkm_device *, enum nvkm_subdev_type, int, struct nvkm_gsp **);
 int ga100_gsp_new(struct nvkm_device *, enum nvkm_subdev_type, int, struct nvkm_gsp **);
 int ga102_gsp_new(struct nvkm_device *, enum nvkm_subdev_type, int, struct nvkm_gsp **);
+int gh100_gsp_new(struct nvkm_device *, enum nvkm_subdev_type, int, struct nvkm_gsp **);
 int ad102_gsp_new(struct nvkm_device *, enum nvkm_subdev_type, int, struct nvkm_gsp **);
 #endif

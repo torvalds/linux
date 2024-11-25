@@ -83,6 +83,8 @@ nvkm_gsp_oneinit(struct nvkm_subdev *subdev)
 void
 nvkm_gsp_dtor_fws(struct nvkm_gsp *gsp)
 {
+	nvkm_firmware_put(gsp->fws.fmc);
+	gsp->fws.fmc = NULL;
 	nvkm_firmware_put(gsp->fws.bl);
 	gsp->fws.bl = NULL;
 	nvkm_firmware_put(gsp->fws.booter.unload);

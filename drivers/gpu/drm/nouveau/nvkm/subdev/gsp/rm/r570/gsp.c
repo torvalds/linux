@@ -26,8 +26,10 @@ r570_gsp_sr_data_size(struct nvkm_gsp *gsp)
 static void
 r570_gsp_drop_post_nocat_record(struct nvkm_gsp *gsp)
 {
-	if (gsp->subdev.debug < NV_DBG_DEBUG)
+	if (gsp->subdev.debug < NV_DBG_DEBUG) {
 		r535_gsp_msg_ntfy_add(gsp, NV_VGPU_MSG_EVENT_GSP_POST_NOCAT_RECORD, NULL, NULL);
+		r535_gsp_msg_ntfy_add(gsp, NV_VGPU_MSG_EVENT_GSP_LOCKDOWN_NOTICE, NULL, NULL);
+	}
 }
 
 static bool
@@ -101,6 +103,13 @@ r570_gsp_get_static_info(struct nvkm_gsp *gsp)
 	gsp->bar.rm_bar2_pdb = rpc->bar2PdeBase;
 
 	r535_gsp_get_static_info_fb(gsp, &rpc->fbRegionInfoParams);
+
+	if (gsp->rm->wpr->offset_set_by_acr) {
+		GspFwWprMeta *meta = gsp->wpr_meta.data;
+
+		meta->nonWprHeapOffset = rpc->fwWprLayoutOffset.nonWprHeapOffset;
+		meta->frtsOffset = rpc->fwWprLayoutOffset.frtsOffset;
+	}
 
 	nvkm_gsp_rpc_done(gsp, rpc);
 
