@@ -1,3 +1,7 @@
+## Inheriting configs from ACK
+. "${ROOT_DIR}"/msm-kernel/build.config.common
+. "${ROOT_DIR}"/msm-kernel/build.config.aarch64
+
 ################################################################################
 ## Variant setup
 MSM_ARCH=pineapple_le
@@ -5,6 +9,10 @@ VARIANTS=(perf_defconfig debug_defconfig)
 [ -z "${VARIANT}" ] && VARIANT=debug_defconfig
 
 BUILD_BOOT_IMG=1
+PAGE_SIZE=4096
+
+## Inheriting MSM configs
+. "${KERNEL_DIR}"/build.config.msm.common
 
 # Common MSM configuration for building non-GKI-based kernels
 DEFCONFIG="generic_le_defconfig"
