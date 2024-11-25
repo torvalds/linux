@@ -1045,39 +1045,51 @@ int bch2_btree_node_read_done(struct bch_fs *c, struct bch_dev *ca,
 
 	while (b->written < (ptr_written ?: btree_sectors(c))) {
 		unsigned sectors;
-		struct nonce nonce;
 		bool first = !b->written;
-		bool csum_bad;
 
-		if (!b->written) {
+		if (first) {
+			bne = NULL;
 			i = &b->data->keys;
+		} else {
+			bne = write_block(b);
+			i = &bne->keys;
 
-			btree_err_on(!bch2_checksum_type_valid(c, BSET_CSUM_TYPE(i)),
-				     -BCH_ERR_btree_node_read_err_want_retry,
-				     c, ca, b, i, NULL,
-				     bset_unknown_csum,
-				     "unknown checksum type %llu", BSET_CSUM_TYPE(i));
+			if (i->seq != b->data->keys.seq)
+				break;
+		}
 
-			nonce = btree_nonce(i, b->written << 9);
+		struct nonce nonce = btree_nonce(i, b->written << 9);
+		bool good_csum_type = bch2_checksum_type_valid(c, BSET_CSUM_TYPE(i));
 
-			struct bch_csum csum = csum_vstruct(c, BSET_CSUM_TYPE(i), nonce, b->data);
-			csum_bad = bch2_crc_cmp(b->data->csum, csum);
-			if (csum_bad)
-				bch2_io_error(ca, BCH_MEMBER_ERROR_checksum);
+		btree_err_on(!good_csum_type,
+			     bch2_csum_type_is_encryption(BSET_CSUM_TYPE(i))
+			     ? -BCH_ERR_btree_node_read_err_must_retry
+			     : -BCH_ERR_btree_node_read_err_want_retry,
+			     c, ca, b, i, NULL,
+			     bset_unknown_csum,
+			     "unknown checksum type %llu", BSET_CSUM_TYPE(i));
 
-			btree_err_on(csum_bad,
-				     -BCH_ERR_btree_node_read_err_want_retry,
-				     c, ca, b, i, NULL,
-				     bset_bad_csum,
-				     "%s",
-				     (printbuf_reset(&buf),
-				      bch2_csum_err_msg(&buf, BSET_CSUM_TYPE(i), b->data->csum, csum),
-				      buf.buf));
+		if (first) {
+			if (good_csum_type) {
+				struct bch_csum csum = csum_vstruct(c, BSET_CSUM_TYPE(i), nonce, b->data);
+				bool csum_bad = bch2_crc_cmp(b->data->csum, csum);
+				if (csum_bad)
+					bch2_io_error(ca, BCH_MEMBER_ERROR_checksum);
 
-			ret = bset_encrypt(c, i, b->written << 9);
-			if (bch2_fs_fatal_err_on(ret, c,
-					"decrypting btree node: %s", bch2_err_str(ret)))
-				goto fsck_err;
+				btree_err_on(csum_bad,
+					     -BCH_ERR_btree_node_read_err_want_retry,
+					     c, ca, b, i, NULL,
+					     bset_bad_csum,
+					     "%s",
+					     (printbuf_reset(&buf),
+					      bch2_csum_err_msg(&buf, BSET_CSUM_TYPE(i), b->data->csum, csum),
+					      buf.buf));
+
+				ret = bset_encrypt(c, i, b->written << 9);
+				if (bch2_fs_fatal_err_on(ret, c,
+							 "decrypting btree node: %s", bch2_err_str(ret)))
+					goto fsck_err;
+			}
 
 			btree_err_on(btree_node_type_is_extents(btree_node_type(b)) &&
 				     !BTREE_NODE_NEW_EXTENT_OVERWRITE(b->data),
@@ -1088,37 +1100,26 @@ int bch2_btree_node_read_done(struct bch_fs *c, struct bch_dev *ca,
 
 			sectors = vstruct_sectors(b->data, c->block_bits);
 		} else {
-			bne = write_block(b);
-			i = &bne->keys;
+			if (good_csum_type) {
+				struct bch_csum csum = csum_vstruct(c, BSET_CSUM_TYPE(i), nonce, bne);
+				bool csum_bad = bch2_crc_cmp(bne->csum, csum);
+				if (ca && csum_bad)
+					bch2_io_error(ca, BCH_MEMBER_ERROR_checksum);
 
-			if (i->seq != b->data->keys.seq)
-				break;
+				btree_err_on(csum_bad,
+					     -BCH_ERR_btree_node_read_err_want_retry,
+					     c, ca, b, i, NULL,
+					     bset_bad_csum,
+					     "%s",
+					     (printbuf_reset(&buf),
+					      bch2_csum_err_msg(&buf, BSET_CSUM_TYPE(i), bne->csum, csum),
+					      buf.buf));
 
-			btree_err_on(!bch2_checksum_type_valid(c, BSET_CSUM_TYPE(i)),
-				     -BCH_ERR_btree_node_read_err_want_retry,
-				     c, ca, b, i, NULL,
-				     bset_unknown_csum,
-				     "unknown checksum type %llu", BSET_CSUM_TYPE(i));
-
-			nonce = btree_nonce(i, b->written << 9);
-			struct bch_csum csum = csum_vstruct(c, BSET_CSUM_TYPE(i), nonce, bne);
-			csum_bad = bch2_crc_cmp(bne->csum, csum);
-			if (ca && csum_bad)
-				bch2_io_error(ca, BCH_MEMBER_ERROR_checksum);
-
-			btree_err_on(csum_bad,
-				     -BCH_ERR_btree_node_read_err_want_retry,
-				     c, ca, b, i, NULL,
-				     bset_bad_csum,
-				     "%s",
-				     (printbuf_reset(&buf),
-				      bch2_csum_err_msg(&buf, BSET_CSUM_TYPE(i), bne->csum, csum),
-				      buf.buf));
-
-			ret = bset_encrypt(c, i, b->written << 9);
-			if (bch2_fs_fatal_err_on(ret, c,
-					"decrypting btree node: %s", bch2_err_str(ret)))
-				goto fsck_err;
+				ret = bset_encrypt(c, i, b->written << 9);
+				if (bch2_fs_fatal_err_on(ret, c,
+						"decrypting btree node: %s", bch2_err_str(ret)))
+					goto fsck_err;
+			}
 
 			sectors = vstruct_sectors(bne, c->block_bits);
 		}
