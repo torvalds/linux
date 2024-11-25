@@ -155,8 +155,6 @@ extern struct cred *prepare_creds(void);
 extern struct cred *prepare_exec_creds(void);
 extern int commit_creds(struct cred *);
 extern void abort_creds(struct cred *);
-extern const struct cred *override_creds(const struct cred *);
-extern void revert_creds(const struct cred *);
 extern struct cred *prepare_kernel_cred(struct task_struct *);
 extern int set_security_override(struct cred *, u32);
 extern int set_security_override_from_ctx(struct cred *, const char *);
@@ -172,11 +170,6 @@ static inline bool cap_ambient_invariant_ok(const struct cred *cred)
 					  cred->cap_inheritable));
 }
 
-/*
- * Override creds without bumping reference count. Caller must ensure
- * reference remains valid or has taken reference. Almost always not the
- * interface you want. Use override_creds()/revert_creds() instead.
- */
 static inline const struct cred *override_creds_light(const struct cred *override_cred)
 {
 	const struct cred *old = current->cred;
