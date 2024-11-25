@@ -69,6 +69,8 @@ impl kernel::Module for RustPrint {
 
         arc_print()?;
 
+        trace::trace_rust_sample_loaded(42);
+
         Ok(RustPrint)
     }
 }
@@ -76,5 +78,21 @@ impl kernel::Module for RustPrint {
 impl Drop for RustPrint {
     fn drop(&mut self) {
         pr_info!("Rust printing macros sample (exit)\n");
+    }
+}
+
+mod trace {
+    use core::ffi::c_int;
+
+    kernel::declare_trace! {
+        /// # Safety
+        ///
+        /// Always safe to call.
+        unsafe fn rust_sample_loaded(magic: c_int);
+    }
+
+    pub(crate) fn trace_rust_sample_loaded(magic: i32) {
+        // SAFETY: Always safe to call.
+        unsafe { rust_sample_loaded(magic as c_int) }
     }
 }
