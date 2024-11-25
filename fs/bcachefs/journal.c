@@ -1002,19 +1002,17 @@ static int __bch2_set_nr_journal_buckets(struct bch_dev *ca, unsigned nr,
 	}
 
 	for (nr_got = 0; nr_got < nr_want; nr_got++) {
-		if (new_fs) {
-			bu[nr_got] = bch2_bucket_alloc_new_fs(ca);
-			if (bu[nr_got] < 0) {
-				ret = -BCH_ERR_ENOSPC_bucket_alloc;
-				break;
-			}
-		} else {
-			ob[nr_got] = bch2_bucket_alloc(c, ca, BCH_WATERMARK_normal,
-						       BCH_DATA_journal, cl);
-			ret = PTR_ERR_OR_ZERO(ob[nr_got]);
-			if (ret)
-				break;
+		enum bch_watermark watermark = new_fs
+			? BCH_WATERMARK_btree
+			: BCH_WATERMARK_normal;
 
+		ob[nr_got] = bch2_bucket_alloc(c, ca, watermark,
+					       BCH_DATA_journal, cl);
+		ret = PTR_ERR_OR_ZERO(ob[nr_got]);
+		if (ret)
+			break;
+
+		if (!new_fs) {
 			ret = bch2_trans_run(c,
 				bch2_trans_mark_metadata_bucket(trans, ca,
 						ob[nr_got]->bucket, BCH_DATA_journal,
@@ -1024,9 +1022,9 @@ static int __bch2_set_nr_journal_buckets(struct bch_dev *ca, unsigned nr,
 				bch_err_msg(c, ret, "marking new journal buckets");
 				break;
 			}
-
-			bu[nr_got] = ob[nr_got]->bucket;
 		}
+
+		bu[nr_got] = ob[nr_got]->bucket;
 	}
 
 	if (!nr_got)
@@ -1066,8 +1064,7 @@ static int __bch2_set_nr_journal_buckets(struct bch_dev *ca, unsigned nr,
 	if (ret)
 		goto err_unblock;
 
-	if (!new_fs)
-		bch2_write_super(c);
+	bch2_write_super(c);
 
 	/* Commit: */
 	if (c)
@@ -1101,9 +1098,8 @@ err_unblock:
 						bu[i], BCH_DATA_free, 0,
 						BTREE_TRIGGER_transactional));
 err_free:
-	if (!new_fs)
-		for (i = 0; i < nr_got; i++)
-			bch2_open_bucket_put(c, ob[i]);
+	for (i = 0; i < nr_got; i++)
+		bch2_open_bucket_put(c, ob[i]);
 
 	kfree(new_bucket_seq);
 	kfree(new_buckets);

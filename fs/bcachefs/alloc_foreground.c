@@ -156,6 +156,14 @@ static struct open_bucket *bch2_open_bucket_alloc(struct bch_fs *c)
 	return ob;
 }
 
+static inline bool is_superblock_bucket(struct bch_fs *c, struct bch_dev *ca, u64 b)
+{
+	if (c->curr_recovery_pass > BCH_RECOVERY_PASS_trans_mark_dev_sbs)
+		return false;
+
+	return bch2_is_superblock_bucket(ca, b);
+}
+
 static void open_bucket_free_unused(struct bch_fs *c, struct open_bucket *ob)
 {
 	BUG_ON(c->open_buckets_partial_nr >=
@@ -173,20 +181,6 @@ static void open_bucket_free_unused(struct bch_fs *c, struct open_bucket *ob)
 
 	closure_wake_up(&c->open_buckets_wait);
 	closure_wake_up(&c->freelist_wait);
-}
-
-/* _only_ for allocating the journal on a new device: */
-long bch2_bucket_alloc_new_fs(struct bch_dev *ca)
-{
-	while (ca->new_fs_bucket_idx < ca->mi.nbuckets) {
-		u64 b = ca->new_fs_bucket_idx++;
-
-		if (!is_superblock_bucket(ca, b) &&
-		    (!ca->buckets_nouse || !test_bit(b, ca->buckets_nouse)))
-			return b;
-	}
-
-	return -1;
 }
 
 static inline unsigned open_buckets_reserved(enum bch_watermark watermark)
@@ -213,6 +207,9 @@ static struct open_bucket *__try_alloc_bucket(struct bch_fs *c, struct bch_dev *
 					      struct closure *cl)
 {
 	struct open_bucket *ob;
+
+	if (unlikely(is_superblock_bucket(c, ca, bucket)))
+		return NULL;
 
 	if (unlikely(ca->buckets_nouse && test_bit(bucket, ca->buckets_nouse))) {
 		s->skipped_nouse++;
@@ -295,9 +292,6 @@ static struct open_bucket *try_alloc_bucket(struct btree_trans *trans, struct bc
 
 /*
  * This path is for before the freespace btree is initialized:
- *
- * If ca->new_fs_bucket_idx is nonzero, we haven't yet marked superblock &
- * journal buckets - journal buckets will be < ca->new_fs_bucket_idx
  */
 static noinline struct open_bucket *
 bch2_bucket_alloc_early(struct btree_trans *trans,
@@ -309,7 +303,7 @@ bch2_bucket_alloc_early(struct btree_trans *trans,
 	struct btree_iter iter, citer;
 	struct bkey_s_c k, ck;
 	struct open_bucket *ob = NULL;
-	u64 first_bucket = max_t(u64, ca->mi.first_bucket, ca->new_fs_bucket_idx);
+	u64 first_bucket = ca->mi.first_bucket;
 	u64 *dev_alloc_cursor = &ca->alloc_cursor[s->btree_bitmap];
 	u64 alloc_start = max(first_bucket, *dev_alloc_cursor);
 	u64 alloc_cursor = alloc_start;
@@ -331,10 +325,6 @@ again:
 
 		if (bkey_ge(k.k->p, POS(ca->dev_idx, ca->mi.nbuckets)))
 			break;
-
-		if (ca->new_fs_bucket_idx &&
-		    is_superblock_bucket(ca, k.k->p.offset))
-			continue;
 
 		if (s->btree_bitmap != BTREE_BITMAP_ANY &&
 		    s->btree_bitmap != bch2_dev_btree_bitmap_marked_sectors(ca,
@@ -406,8 +396,6 @@ static struct open_bucket *bch2_bucket_alloc_freelist(struct btree_trans *trans,
 	u64 alloc_start = max_t(u64, ca->mi.first_bucket, READ_ONCE(*dev_alloc_cursor));
 	u64 alloc_cursor = alloc_start;
 	int ret;
-
-	BUG_ON(ca->new_fs_bucket_idx);
 again:
 	for_each_btree_key_max_norestart(trans, iter, BTREE_ID_freespace,
 					 POS(ca->dev_idx, alloc_cursor),
@@ -551,6 +539,10 @@ again:
 		bch2_dev_do_invalidates(ca);
 
 	if (!avail) {
+		if (watermark > BCH_WATERMARK_normal &&
+		    c->curr_recovery_pass <= BCH_RECOVERY_PASS_check_allocations)
+			goto alloc;
+
 		if (cl && !waiting) {
 			closure_wait(&c->freelist_wait, cl);
 			waiting = true;

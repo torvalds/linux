@@ -28,8 +28,6 @@ struct dev_alloc_list bch2_dev_alloc_list(struct bch_fs *,
 					  struct bch_devs_mask *);
 void bch2_dev_stripe_increment(struct bch_dev *, struct dev_stripe_state *);
 
-long bch2_bucket_alloc_new_fs(struct bch_dev *);
-
 static inline struct bch_dev *ob_dev(struct bch_fs *c, struct open_bucket *ob)
 {
 	return bch2_dev_have_ref(c, ob->dev);

@@ -560,7 +560,6 @@ struct bch_dev {
 	struct bch_dev_usage __percpu	*usage;
 
 	/* Allocator: */
-	u64			new_fs_bucket_idx;
 	u64			alloc_cursor[3];
 
 	unsigned		nr_open_buckets;

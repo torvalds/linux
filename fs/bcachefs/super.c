@@ -1750,11 +1750,6 @@ int bch2_dev_add(struct bch_fs *c, const char *path)
 	if (ret)
 		goto err;
 
-	ret = bch2_dev_journal_alloc(ca, true);
-	bch_err_msg(c, ret, "allocating journal");
-	if (ret)
-		goto err;
-
 	down_write(&c->state_lock);
 	mutex_lock(&c->sb_lock);
 
@@ -1805,10 +1800,13 @@ int bch2_dev_add(struct bch_fs *c, const char *path)
 	if (ret)
 		goto err_late;
 
-	ca->new_fs_bucket_idx = 0;
-
 	if (ca->mi.state == BCH_MEMBER_STATE_rw)
 		__bch2_dev_read_write(c, ca);
+
+	ret = bch2_dev_journal_alloc(ca, false);
+	bch_err_msg(c, ret, "allocating journal");
+	if (ret)
+		goto err_late;
 
 	up_write(&c->state_lock);
 	return 0;

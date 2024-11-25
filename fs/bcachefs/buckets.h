@@ -308,26 +308,7 @@ int bch2_trans_mark_dev_sbs_flags(struct bch_fs *,
 				    enum btree_iter_update_trigger_flags);
 int bch2_trans_mark_dev_sbs(struct bch_fs *);
 
-static inline bool is_superblock_bucket(struct bch_dev *ca, u64 b)
-{
-	struct bch_sb_layout *layout = &ca->disk_sb.sb->layout;
-	u64 b_offset	= bucket_to_sector(ca, b);
-	u64 b_end	= bucket_to_sector(ca, b + 1);
-	unsigned i;
-
-	if (!b)
-		return true;
-
-	for (i = 0; i < layout->nr_superblocks; i++) {
-		u64 offset = le64_to_cpu(layout->sb_offset[i]);
-		u64 end = offset + (1 << layout->sb_max_size_bits);
-
-		if (!(offset >= b_end || end <= b_offset))
-			return true;
-	}
-
-	return false;
-}
+bool bch2_is_superblock_bucket(struct bch_dev *, u64);
 
 static inline const char *bch2_data_type_str(enum bch_data_type type)
 {

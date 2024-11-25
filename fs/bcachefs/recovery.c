@@ -1070,7 +1070,6 @@ int bch2_fs_initialize(struct bch_fs *c)
 	bch2_write_super(c);
 	mutex_unlock(&c->sb_lock);
 
-	c->curr_recovery_pass = BCH_RECOVERY_PASS_NR;
 	set_bit(BCH_FS_btree_running, &c->flags);
 	set_bit(BCH_FS_may_go_rw, &c->flags);
 
@@ -1110,9 +1109,6 @@ int bch2_fs_initialize(struct bch_fs *c)
 	bch_err_msg(c, ret, "marking superblocks");
 	if (ret)
 		goto err;
-
-	for_each_online_member(c, ca)
-		ca->new_fs_bucket_idx = 0;
 
 	ret = bch2_fs_freespace_init(c);
 	if (ret)
@@ -1172,6 +1168,7 @@ int bch2_fs_initialize(struct bch_fs *c)
 	bch2_write_super(c);
 	mutex_unlock(&c->sb_lock);
 
+	c->curr_recovery_pass = BCH_RECOVERY_PASS_NR;
 	return 0;
 err:
 	bch_err_fn(c, ret);
