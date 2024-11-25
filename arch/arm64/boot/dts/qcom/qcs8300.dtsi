@@ -615,6 +615,11 @@
 			};
 		};
 
+		rng: rng@10d2000 {
+			compatible = "qcom,qcs8300-trng", "qcom,trng";
+			reg = <0x0 0x010d2000 0x0 0x1000>;
+		};
+
 		config_noc: interconnect@14c0000 {
 			compatible = "qcom,qcs8300-config-noc";
 			reg = <0x0 0x014c0000 0x0 0x13080>;
