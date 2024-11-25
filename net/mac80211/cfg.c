@@ -3190,6 +3190,7 @@ static int ieee80211_set_tx_power(struct wiphy *wiphy,
 
 static int ieee80211_get_tx_power(struct wiphy *wiphy,
 				  struct wireless_dev *wdev,
+				  unsigned int link_id,
 				  int *dbm)
 {
 	struct ieee80211_local *local = wiphy_priv(wiphy);

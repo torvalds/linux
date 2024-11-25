@@ -3980,10 +3980,10 @@ static int nl80211_send_iface(struct sk_buff *msg, u32 portid, u32 seq, int flag
 			goto nla_put_failure;
 	}
 
-	if (rdev->ops->get_tx_power) {
+	if (rdev->ops->get_tx_power && !wdev->valid_links) {
 		int dbm, ret;
 
-		ret = rdev_get_tx_power(rdev, wdev, &dbm);
+		ret = rdev_get_tx_power(rdev, wdev, 0, &dbm);
 		if (ret == 0 &&
 		    nla_put_u32(msg, NL80211_ATTR_WIPHY_TX_POWER_LEVEL,
 				DBM_TO_MBM(dbm)))
@@ -4052,6 +4052,15 @@ static int nl80211_send_iface(struct sk_buff *msg, u32 portid, u32 seq, int flag
 			if (ret == 0 && nl80211_send_chandef(msg, &chandef))
 				goto nla_put_failure;
 
+			if (rdev->ops->get_tx_power) {
+				int dbm, ret;
+
+				ret = rdev_get_tx_power(rdev, wdev, link_id, &dbm);
+				if (ret == 0 &&
+				    nla_put_u32(msg, NL80211_ATTR_WIPHY_TX_POWER_LEVEL,
+						DBM_TO_MBM(dbm)))
+					goto nla_put_failure;
+			}
 			nla_nest_end(msg, link);
 		}
 
