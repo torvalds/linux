@@ -13882,6 +13882,12 @@ R:	schalla@marvell.com
 R:	vattunuru@marvell.com
 F:	drivers/vdpa/octeon_ep/
 
+MARVELL OCTEON HOTPLUG DRIVER
+R:	Shijith Thotton <sthotton@marvell.com>
+R:	Vamsi Attunuru <vattunuru@marvell.com>
+S:	Supported
+F:	drivers/pci/hotplug/octep_hp.c
+
 MATROX FRAMEBUFFER DRIVER
 L:	linux-fbdev@vger.kernel.org
 S:	Orphan
