@@ -3,9 +3,9 @@
  * Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
-#include "phy-qcom-ufs-qmp-v4-pineapple.h"
+#include "phy-qcom-ufs-qmp-v4-niobe.h"
 
-#define UFS_PHY_NAME "ufs_phy_qmp_v4_pineapple"
+#define UFS_PHY_NAME "ufs_phy_qmp_v4_niobe"
 
 static inline void ufs_qcom_phy_qmp_v4_start_serdes(struct ufs_qcom_phy *phy);
 static int ufs_qcom_phy_qmp_v4_is_pcs_ready(struct ufs_qcom_phy *phy_common);
