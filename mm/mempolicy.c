@@ -2222,7 +2222,7 @@ static struct page *alloc_pages_preferred_many(gfp_t gfp, unsigned int order,
  *
  * Return: The page on success or NULL if allocation fails.
  */
-struct page *alloc_pages_mpol_noprof(gfp_t gfp, unsigned int order,
+static struct page *alloc_pages_mpol(gfp_t gfp, unsigned int order,
 		struct mempolicy *pol, pgoff_t ilx, int nid)
 {
 	nodemask_t *nodemask;
@@ -2285,7 +2285,7 @@ struct page *alloc_pages_mpol_noprof(gfp_t gfp, unsigned int order,
 struct folio *folio_alloc_mpol_noprof(gfp_t gfp, unsigned int order,
 		struct mempolicy *pol, pgoff_t ilx, int nid)
 {
-	return page_rmappable_folio(alloc_pages_mpol_noprof(gfp | __GFP_COMP,
+	return page_rmappable_folio(alloc_pages_mpol(gfp | __GFP_COMP,
 							order, pol, ilx, nid));
 }
 
@@ -2300,7 +2300,7 @@ struct folio *folio_alloc_mpol_noprof(gfp_t gfp, unsigned int order,
  * NUMA policy.  The caller must hold the mmap_lock of the mm_struct of the
  * VMA to prevent it from going away.  Should be used for all allocations
  * for folios that will be mapped into user space, excepting hugetlbfs, and
- * excepting where direct use of alloc_pages_mpol() is more appropriate.
+ * excepting where direct use of folio_alloc_mpol() is more appropriate.
  *
  * Return: The folio on success or NULL if allocation fails.
  */
@@ -2346,7 +2346,7 @@ struct page *alloc_pages_noprof(gfp_t gfp, unsigned int order)
 	if (!in_interrupt() && !(gfp & __GFP_THISNODE))
 		pol = get_task_policy(current);
 
-	return alloc_pages_mpol_noprof(gfp, order, pol, NO_INTERLEAVE_INDEX,
+	return alloc_pages_mpol(gfp, order, pol, NO_INTERLEAVE_INDEX,
 				       numa_node_id());
 }
 EXPORT_SYMBOL(alloc_pages_noprof);
