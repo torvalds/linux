@@ -109,7 +109,7 @@ void __folio_put(struct folio *folio)
 	page_cache_release(folio);
 	folio_unqueue_deferred_split(folio);
 	mem_cgroup_uncharge(folio);
-	free_unref_page(&folio->page, folio_order(folio));
+	free_frozen_pages(&folio->page, folio_order(folio));
 }
 EXPORT_SYMBOL(__folio_put);
 
