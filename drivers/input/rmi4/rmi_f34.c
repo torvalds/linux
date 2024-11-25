@@ -246,7 +246,6 @@ static int rmi_f34_update_firmware(struct f34_data *f34,
 				(const struct rmi_f34_firmware *)fw->data;
 	u32 image_size = le32_to_cpu(syn_fw->image_size);
 	u32 config_size = le32_to_cpu(syn_fw->config_size);
-	int ret;
 
 	BUILD_BUG_ON(offsetof(struct rmi_f34_firmware, data) !=
 			F34_FW_IMAGE_OFFSET);
@@ -267,8 +266,7 @@ static int rmi_f34_update_firmware(struct f34_data *f34,
 		dev_err(&f34->fn->dev,
 			"Bad firmware image: fw size %d, expected %d\n",
 			image_size, f34->v5.fw_blocks * f34->v5.block_size);
-		ret = -EILSEQ;
-		goto out;
+		return -EILSEQ;
 	}
 
 	if (config_size &&
@@ -277,25 +275,18 @@ static int rmi_f34_update_firmware(struct f34_data *f34,
 			"Bad firmware image: config size %d, expected %d\n",
 			config_size,
 			f34->v5.config_blocks * f34->v5.block_size);
-		ret = -EILSEQ;
-		goto out;
+		return -EILSEQ;
 	}
 
 	if (image_size && !config_size) {
 		dev_err(&f34->fn->dev, "Bad firmware image: no config data\n");
-		ret = -EILSEQ;
-		goto out;
+		return -EILSEQ;
 	}
 
 	dev_info(&f34->fn->dev, "Firmware image OK\n");
-	mutex_lock(&f34->v5.flash_mutex);
 
-	ret = rmi_f34_flash_firmware(f34, syn_fw);
-
-	mutex_unlock(&f34->v5.flash_mutex);
-
-out:
-	return ret;
+	guard(mutex)(&f34->v5.flash_mutex);
+	return rmi_f34_flash_firmware(f34, syn_fw);
 }
 
 static int rmi_f34_status(struct rmi_function *fn)
@@ -461,9 +452,8 @@ static ssize_t rmi_driver_update_fw_store(struct device *dev,
 {
 	struct rmi_driver_data *data = dev_get_drvdata(dev);
 	char fw_name[NAME_MAX];
-	const struct firmware *fw;
 	size_t copy_count = count;
-	int ret;
+	int error;
 
 	if (count == 0 || count >= NAME_MAX)
 		return -EINVAL;
@@ -474,17 +464,18 @@ static ssize_t rmi_driver_update_fw_store(struct device *dev,
 	memcpy(fw_name, buf, copy_count);
 	fw_name[copy_count] = '\0';
 
-	ret = request_firmware(&fw, fw_name, dev);
-	if (ret)
-		return ret;
+	const struct firmware *fw __free(firmware) = NULL;
+	error = request_firmware(&fw, fw_name, dev);
+	if (error)
+		return error;
 
 	dev_info(dev, "Flashing %s\n", fw_name);
 
-	ret = rmi_firmware_update(data, fw);
+	error = rmi_firmware_update(data, fw);
+	if (error)
+		return error;
 
-	release_firmware(fw);
-
-	return ret ?: count;
+	return count;
 }
 
 static DEVICE_ATTR(update_fw, 0200, NULL, rmi_driver_update_fw_store);
