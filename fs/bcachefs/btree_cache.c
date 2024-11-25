@@ -1406,9 +1406,14 @@ void bch2_btree_id_level_to_text(struct printbuf *out, enum btree_id btree, unsi
 void bch2_btree_pos_to_text(struct printbuf *out, struct bch_fs *c, const struct btree *b)
 {
 	bch2_btree_id_to_text(out, b->c.btree_id);
-	prt_printf(out, " level %u/%u\n  ",
-		   b->c.level,
-		   bch2_btree_id_root(c, b->c.btree_id)->level);
+	prt_printf(out, " level %u/", b->c.level);
+	struct btree_root *r = bch2_btree_id_root(c, b->c.btree_id);
+	if (r)
+		prt_printf(out, "%u", r->level);
+	else
+		prt_printf(out, "(unknown)");
+	prt_printf(out, "\n  ");
+
 	bch2_bkey_val_to_text(out, c, bkey_i_to_s_c(&b->key));
 }
 
