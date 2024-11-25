@@ -133,4 +133,9 @@ unsafe impl super::Backend for SpinLockBackend {
             None
         }
     }
+
+    unsafe fn assert_is_held(ptr: *mut Self::State) {
+        // SAFETY: The `ptr` pointer is guaranteed to be valid and initialized before use.
+        unsafe { bindings::spin_assert_is_held(ptr) }
+    }
 }

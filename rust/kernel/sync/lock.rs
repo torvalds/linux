@@ -90,6 +90,13 @@ pub unsafe trait Backend {
         // SAFETY: The safety requirements ensure that the lock is initialised.
         *guard_state = unsafe { Self::lock(ptr) };
     }
+
+    /// Asserts that the lock is held using lockdep.
+    ///
+    /// # Safety
+    ///
+    /// Callers must ensure that [`Backend::init`] has been previously called.
+    unsafe fn assert_is_held(ptr: *mut Self::State);
 }
 
 /// A mutual exclusion primitive.
@@ -235,6 +242,9 @@ impl<'a, T: ?Sized, B: Backend> Guard<'a, T, B> {
     ///
     /// The caller must ensure that it owns the lock.
     pub unsafe fn new(lock: &'a Lock<T, B>, state: B::GuardState) -> Self {
+        // SAFETY: The caller can only hold the lock if `Backend::init` has already been called.
+        unsafe { B::assert_is_held(lock.state.get()) };
+
         Self {
             lock,
             state,

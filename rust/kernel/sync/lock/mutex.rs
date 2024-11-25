@@ -134,4 +134,9 @@ unsafe impl super::Backend for MutexBackend {
             None
         }
     }
+
+    unsafe fn assert_is_held(ptr: *mut Self::State) {
+        // SAFETY: The `ptr` pointer is guaranteed to be valid and initialized before use.
+        unsafe { bindings::mutex_assert_is_held(ptr) }
+    }
 }
