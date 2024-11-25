@@ -700,6 +700,21 @@ int bch2_accounting_read(struct bch_fs *c)
 	struct btree_trans *trans = bch2_trans_get(c);
 	struct printbuf buf = PRINTBUF;
 
+	/*
+	 * We might run more than once if we rewind to start topology repair or
+	 * btree node scan - and those might cause us to get different results,
+	 * so we can't just skip if we've already run.
+	 *
+	 * Instead, zero out any accounting we have:
+	 */
+	percpu_down_write(&c->mark_lock);
+	darray_for_each(acc->k, e)
+		percpu_memset(e->v[0], 0, sizeof(u64) * e->nr_counters);
+	for_each_member_device(c, ca)
+		percpu_memset(ca->usage, 0, sizeof(*ca->usage));
+	percpu_memset(c->usage, 0, sizeof(*c->usage));
+	percpu_up_write(&c->mark_lock);
+
 	int ret = for_each_btree_key(trans, iter,
 				BTREE_ID_accounting, POS_MIN,
 				BTREE_ITER_prefetch|BTREE_ITER_all_snapshots, k, ({
