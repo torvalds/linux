@@ -190,7 +190,7 @@ static struct platform_driver ct82c710_driver = {
 		.name	= "ct82c710",
 	},
 	.probe		= ct82c710_probe,
-	.remove_new	= ct82c710_remove,
+	.remove		= ct82c710_remove,
 };
 
 

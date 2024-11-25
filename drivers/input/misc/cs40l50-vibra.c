@@ -334,11 +334,12 @@ static int cs40l50_add(struct input_dev *dev, struct ff_effect *effect,
 	work_data.custom_len = effect->u.periodic.custom_len;
 	work_data.vib = vib;
 	work_data.effect = effect;
-	INIT_WORK(&work_data.work, cs40l50_add_worker);
+	INIT_WORK_ONSTACK(&work_data.work, cs40l50_add_worker);
 
 	/* Push to the workqueue to serialize with playbacks */
 	queue_work(vib->vib_wq, &work_data.work);
 	flush_work(&work_data.work);
+	destroy_work_on_stack(&work_data.work);
 
 	kfree(work_data.custom_data);
 
@@ -467,11 +468,12 @@ static int cs40l50_erase(struct input_dev *dev, int effect_id)
 	work_data.vib = vib;
 	work_data.effect = &dev->ff->effects[effect_id];
 
-	INIT_WORK(&work_data.work, cs40l50_erase_worker);
+	INIT_WORK_ONSTACK(&work_data.work, cs40l50_erase_worker);
 
 	/* Push to workqueue to serialize with playbacks */
 	queue_work(vib->vib_wq, &work_data.work);
 	flush_work(&work_data.work);
+	destroy_work_on_stack(&work_data.work);
 
 	return work_data.error;
 }

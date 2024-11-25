@@ -182,7 +182,7 @@ static void ams_delta_serio_exit(struct platform_device *pdev)
 
 static struct platform_driver ams_delta_serio_driver = {
 	.probe	= ams_delta_serio_init,
-	.remove_new = ams_delta_serio_exit,
+	.remove	= ams_delta_serio_exit,
 	.driver	= {
 		.name	= DRIVER_NAME
 	},
