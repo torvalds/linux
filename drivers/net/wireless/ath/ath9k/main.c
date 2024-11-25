@@ -2767,7 +2767,7 @@ void ath9k_fill_chanctx_ops(void)
 #endif
 
 static int ath9k_get_txpower(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-			     int *dbm)
+			     unsigned int link_id, int *dbm)
 {
 	struct ath_softc *sc = hw->priv;
 	struct ath_vif *avp = (void *)vif->drv_priv;

@@ -9356,6 +9356,7 @@ static int ath11k_fw_stats_request(struct ath11k *ar,
 
 static int ath11k_mac_op_get_txpower(struct ieee80211_hw *hw,
 				     struct ieee80211_vif *vif,
+				     unsigned int link_id,
 				     int *dbm)
 {
 	struct ath11k *ar = hw->priv;
