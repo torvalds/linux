@@ -29,7 +29,7 @@ NVKM_LAYOUT_INST(NVKM_SUBDEV_IOCTRL  , struct nvkm_subdev  ,   ioctrl, 3)
 NVKM_LAYOUT_ONCE(NVKM_SUBDEV_FLA     , struct nvkm_subdev  ,      fla)
 
 NVKM_LAYOUT_ONCE(NVKM_ENGINE_BSP     , struct nvkm_engine  ,      bsp)
-NVKM_LAYOUT_INST(NVKM_ENGINE_CE      , struct nvkm_engine  ,       ce, 10)
+NVKM_LAYOUT_INST(NVKM_ENGINE_CE      , struct nvkm_engine  ,       ce, 20)
 NVKM_LAYOUT_ONCE(NVKM_ENGINE_CIPHER  , struct nvkm_engine  ,   cipher)
 NVKM_LAYOUT_ONCE(NVKM_ENGINE_DISP    , struct nvkm_disp    ,     disp)
 NVKM_LAYOUT_ONCE(NVKM_ENGINE_DMAOBJ  , struct nvkm_dma     ,      dma)
