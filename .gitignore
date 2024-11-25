@@ -128,6 +128,7 @@ series
 
 # ctags files
 tags
+!tags/
 TAGS
 
 # cscope files
