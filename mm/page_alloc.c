@@ -1563,7 +1563,6 @@ static void prep_new_page(struct page *page, unsigned int order, gfp_t gfp_flags
 							unsigned int alloc_flags)
 {
 	post_alloc_hook(page, order, gfp_flags);
-	set_page_refcounted(page);
 
 	if (order && (gfp_flags & __GFP_COMP))
 		prep_compound_page(page, order);
@@ -3474,6 +3473,7 @@ try_this_zone:
 				gfp_mask, alloc_flags, ac->migratetype);
 		if (page) {
 			prep_new_page(page, order, gfp_mask, alloc_flags);
+			set_page_refcounted(page);
 
 			/*
 			 * If this is a high-order atomic allocation then check
@@ -3698,8 +3698,10 @@ __alloc_pages_direct_compact(gfp_t gfp_mask, unsigned int order,
 	count_vm_event(COMPACTSTALL);
 
 	/* Prep a captured page if available */
-	if (page)
+	if (page) {
 		prep_new_page(page, order, gfp_mask, alloc_flags);
+		set_page_refcounted(page);
+	}
 
 	/* Try get a page from the freelist if available */
 	if (!page)
@@ -4678,6 +4680,7 @@ retry_this_zone:
 		nr_account++;
 
 		prep_new_page(page, 0, gfp, 0);
+		set_page_refcounted(page);
 		if (page_list)
 			list_add(&page->lru, page_list);
 		else
@@ -6500,6 +6503,7 @@ int alloc_contig_range_noprof(unsigned long start, unsigned long end,
 
 		check_new_pages(head, order);
 		prep_new_page(head, order, gfp_mask, 0);
+		set_page_refcounted(head);
 	} else {
 		ret = -EINVAL;
 		WARN(true, "PFN range: requested [%lu, %lu), allocated [%lu, %lu)\n",
