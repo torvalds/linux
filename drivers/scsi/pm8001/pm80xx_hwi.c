@@ -3336,10 +3336,11 @@ static int mpi_phy_start_resp(struct pm8001_hba_info *pm8001_ha, void *piomb)
 	u32 phy_id =
 		le32_to_cpu(pPayload->phyid) & 0xFF;
 	struct pm8001_phy *phy = &pm8001_ha->phy[phy_id];
+	u32 tag = le32_to_cpu(pPayload->tag);
 
 	pm8001_dbg(pm8001_ha, INIT,
-		   "phy start resp status:0x%x, phyid:0x%x\n",
-		   status, phy_id);
+		   "phy start resp status:0x%x, phyid:0x%x, tag 0x%x\n",
+		   status, phy_id, tag);
 	if (status == 0)
 		phy->phy_state = PHY_LINK_DOWN;
 
@@ -3348,6 +3349,8 @@ static int mpi_phy_start_resp(struct pm8001_hba_info *pm8001_ha, void *piomb)
 		complete(phy->enable_completion);
 		phy->enable_completion = NULL;
 	}
+
+	pm8001_tag_free(pm8001_ha, tag);
 	return 0;
 
 }
@@ -3628,8 +3631,10 @@ static int mpi_phy_stop_resp(struct pm8001_hba_info *pm8001_ha, void *piomb)
 	u32 phyid =
 		le32_to_cpu(pPayload->phyid) & 0xFF;
 	struct pm8001_phy *phy = &pm8001_ha->phy[phyid];
-	pm8001_dbg(pm8001_ha, MSG, "phy:0x%x status:0x%x\n",
-		   phyid, status);
+	u32 tag = le32_to_cpu(pPayload->tag);
+
+	pm8001_dbg(pm8001_ha, MSG, "phy:0x%x status:0x%x tag 0x%x\n", phyid,
+		   status, tag);
 	if (status == PHY_STOP_SUCCESS ||
 		status == PHY_STOP_ERR_DEVICE_ATTACHED) {
 		phy->phy_state = PHY_LINK_DISABLE;
@@ -3637,6 +3642,7 @@ static int mpi_phy_stop_resp(struct pm8001_hba_info *pm8001_ha, void *piomb)
 		phy->sas_phy.linkrate = SAS_PHY_DISABLED;
 	}
 
+	pm8001_tag_free(pm8001_ha, tag);
 	return 0;
 }
 
@@ -3655,10 +3661,9 @@ static int mpi_set_controller_config_resp(struct pm8001_hba_info *pm8001_ha,
 	u32 tag = le32_to_cpu(pPayload->tag);
 
 	pm8001_dbg(pm8001_ha, MSG,
-		   "SET CONTROLLER RESP: status 0x%x qlfr_pgcd 0x%x\n",
-		   status, err_qlfr_pgcd);
+		   "SET CONTROLLER RESP: status 0x%x qlfr_pgcd 0x%x tag 0x%x\n",
+		   status, err_qlfr_pgcd, tag);
 	pm8001_tag_free(pm8001_ha, tag);
-
 	return 0;
 }
 
@@ -4632,8 +4637,15 @@ static int
 pm80xx_chip_phy_start_req(struct pm8001_hba_info *pm8001_ha, u8 phy_id)
 {
 	struct phy_start_req payload;
-	u32 tag = 0x01;
+	int ret;
+	u32 tag;
 	u32 opcode = OPC_INB_PHYSTART;
+
+	ret = pm8001_tag_alloc(pm8001_ha, &tag);
+	if (ret) {
+		pm8001_dbg(pm8001_ha, FAIL, "Tag allocation failed\n");
+		return ret;
+	}
 
 	memset(&payload, 0, sizeof(payload));
 	payload.tag = cpu_to_le32(tag);
@@ -4670,8 +4682,15 @@ static int pm80xx_chip_phy_stop_req(struct pm8001_hba_info *pm8001_ha,
 	u8 phy_id)
 {
 	struct phy_stop_req payload;
-	u32 tag = 0x01;
+	int ret;
+	u32 tag;
 	u32 opcode = OPC_INB_PHYSTOP;
+
+	ret = pm8001_tag_alloc(pm8001_ha, &tag);
+	if (ret) {
+		pm8001_dbg(pm8001_ha, FAIL, "Tag allocation failed\n");
+		return ret;
+	}
 
 	memset(&payload, 0, sizeof(payload));
 	payload.tag = cpu_to_le32(tag);
