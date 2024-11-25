@@ -3249,7 +3249,7 @@ void serial8250_init_port(struct uart_8250_port *up)
 	port->ops = &serial8250_pops;
 	port->has_sysrq = IS_ENABLED(CONFIG_SERIAL_8250_CONSOLE);
 
-	up->cur_iotype = 0xFF;
+	up->cur_iotype = UPIO_UNKNOWN;
 }
 EXPORT_SYMBOL_GPL(serial8250_init_port);
 
