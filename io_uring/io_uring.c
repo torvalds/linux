@@ -1728,7 +1728,7 @@ static int io_issue_sqe(struct io_kiocb *req, unsigned int issue_flags)
 		return -EBADF;
 
 	if (unlikely((req->flags & REQ_F_CREDS) && req->creds != current_cred()))
-		creds = override_creds(get_new_cred(req->creds));
+		creds = override_creds(req->creds);
 
 	if (!def->audit_skip)
 		audit_uring_entry(req->opcode);
@@ -1739,7 +1739,7 @@ static int io_issue_sqe(struct io_kiocb *req, unsigned int issue_flags)
 		audit_uring_exit(!ret, ret);
 
 	if (creds)
-		put_cred(revert_creds(creds));
+		revert_creds(creds);
 
 	if (ret == IOU_OK) {
 		if (issue_flags & IO_URING_F_COMPLETE_DEFER)
