@@ -143,8 +143,8 @@ void hab_ctx_free_fn(struct uhab_context *ctx)
 		list_del(&exp->node);
 		exp_super = container_of(exp, struct export_desc_super, exp);
 		if ((exp_super->remote_imported != 0) && (exp->pchan->mem_proto == 1)) {
-			pr_warn("exp id %d still imported on remote side on pchan %s\n",
-				exp->export_id, exp->pchan->name);
+			pr_warn("exp id %d still imported on remote side on %s, pcnt %d\n",
+				exp->export_id, exp->pchan->name, exp->payload_count);
 			hab_spin_lock(&hab_driver.reclaim_lock, irqs_disabled);
 			list_add_tail(&exp->node, &hab_driver.reclaim_list);
 			hab_spin_unlock(&hab_driver.reclaim_lock, irqs_disabled);
@@ -191,8 +191,8 @@ void hab_ctx_free_fn(struct uhab_context *ctx)
 					pr_err("failed to send unimp msg %d, vcid %d, exp id %d\n",
 						ret, exp->vcid_local, exp->export_id);
 			} else
-				pr_err("exp id %d unmap fail on vcid %X\n",
-					exp->export_id, exp->vcid_local);
+				pr_err("exp id %d pcnt %d unmap fail on vcid %X\n",
+					exp->export_id, exp->payload_count, exp->vcid_local);
 		}
 		exp_super = container_of(exp, struct export_desc_super, exp);
 		kfree(exp_super);
