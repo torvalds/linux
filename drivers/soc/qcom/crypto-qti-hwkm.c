@@ -2,7 +2,7 @@
 /*
  * Crypto HWKM library for storage encryption.
  *
- * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/slab.h>
@@ -16,13 +16,14 @@
 
 #include "crypto-qti-ice-regs.h"
 #include "crypto-qti-platform.h"
+#include "hwkmregs.h"
 
 #if IS_ENABLED(CONFIG_QTI_HW_KEY_MANAGER)
-#define KEYMANAGER_ICE_MAP_SLOT(slot)	((slot * 2))
+#define KEYMANAGER_ICE_MAP_SLOT(slot, offset)	((slot * 2) + offset)
 #endif
 
 #if IS_ENABLED(CONFIG_QTI_HW_KEY_MANAGER_V1)
-#define KEYMANAGER_ICE_MAP_SLOT(slot)	((slot * 2) + 10)
+#define KEYMANAGER_ICE_MAP_SLOT(slot, offset)	((slot * 2) + 10)
 #define GP_KEYSLOT			140
 #define RAW_SECRET_KEYSLOT		141
 #define TPKEY_SLOT_ICEMEM_SLAVE		0x92
@@ -45,6 +46,7 @@ union crypto_cfg {
 };
 
 static bool qti_hwkm_init_done;
+static int offset;
 
 static void print_key(const struct blk_crypto_key *key,
 				unsigned int slot)
@@ -218,18 +220,18 @@ static int crypto_qti_program_key_v1(const struct ice_mmio_data *mmio_data,
 	}
 
 	/* Failsafe, clear ICE keyslot incase it is not empty for any reason */
-	err_clear = crypto_qti_hwkm_evict_slot_v1(KEYMANAGER_ICE_MAP_SLOT(slot),
+	err_clear = crypto_qti_hwkm_evict_slot_v1(KEYMANAGER_ICE_MAP_SLOT(slot, offset),
 						true);
 	if (err_clear && (err_clear != SLOT_EMPTY_ERROR)) {
 		pr_err("%s: Error clearing ICE slot %d, err %d\n",
-			__func__, KEYMANAGER_ICE_MAP_SLOT(slot), err_clear);
+			__func__, KEYMANAGER_ICE_MAP_SLOT(slot, offset), err_clear);
 		qti_hwkm_clocks(false);
 		return -EINVAL;
 	}
 
 	/* Derive a 512-bit key which will be the key to encrypt/decrypt data */
 	cmd_kdf.op = SYSTEM_KDF;
-	cmd_kdf.kdf.dks = KEYMANAGER_ICE_MAP_SLOT(slot);
+	cmd_kdf.kdf.dks = KEYMANAGER_ICE_MAP_SLOT(slot, offset);
 	cmd_kdf.kdf.kdk = GP_KEYSLOT;
 	cmd_kdf.kdf.policy = policy_kdf;
 	cmd_kdf.kdf.bsve = bsve_kdf;
@@ -285,6 +287,10 @@ int crypto_qti_program_key(const struct ice_mmio_data *mmio_data,
 			   unsigned int data_unit_mask, int capid, int storage_type)
 {
 	int err = 0;
+#if IS_ENABLED(CONFIG_QTI_HW_KEY_MANAGER)
+	int minor_version = 0, major_version = 0;
+#endif
+
 	union crypto_cfg cfg;
 
 	if ((key->size) <= RAW_SECRET_SIZE) {
@@ -299,6 +305,23 @@ int crypto_qti_program_key(const struct ice_mmio_data *mmio_data,
 			return -EINVAL;
 		}
 		qti_hwkm_init_done = true;
+		offset = 0;
+#if IS_ENABLED(CONFIG_QTI_HW_KEY_MANAGER)
+		minor_version = qti_hwkm_get_reg_data(mmio_data->ice_hwkm_mmio,
+						QTI_HWKM_ICE_RG_IPCAT_VERSION, MINOR_VERSION_OFFSET,
+						MINOR_VERSION_BITS_MASK, ICE_SLAVE);
+
+		major_version = qti_hwkm_get_reg_data(mmio_data->ice_hwkm_mmio,
+						QTI_HWKM_ICE_RG_IPCAT_VERSION, MAJOR_VERSION_OFFSET,
+						MAJOR_VERSION_BITS_MASK, ICE_SLAVE);
+
+		pr_debug("HWKM minor version is %d.\n", minor_version);
+		pr_debug("HWKM major version is %d.\n", major_version);
+		if (major_version == 1)
+			offset = 10;
+		else if (major_version == 2)
+			offset = (minor_version < 1) ? 10 : 0;
+#endif
 	}
 
 #if IS_ENABLED(CONFIG_QTI_HW_KEY_MANAGER_V1)
@@ -321,7 +344,7 @@ int crypto_qti_program_key(const struct ice_mmio_data *mmio_data,
 	 * TZ unwraps the derivation key, derives a 512 bit XTS key
 	 * and wraps it with the TP Key. It then unwraps to the ICE slot.
 	 */
-	err = crypto_qti_program_hwkm_tz(key, KEYMANAGER_ICE_MAP_SLOT(slot));
+	err = crypto_qti_program_hwkm_tz(key, KEYMANAGER_ICE_MAP_SLOT(slot, offset));
 	if (err) {
 		pr_err("%s: Error programming hwkm keyblob , err = %d\n",
 								__func__, err);
@@ -348,7 +371,7 @@ int crypto_qti_invalidate_key(const struct ice_mmio_data *mmio_data,
 
 	/* Clear key from ICE keyslot */
 #if IS_ENABLED(CONFIG_QTI_HW_KEY_MANAGER)
-	err = crypto_qti_hwkm_evict_slot(KEYMANAGER_ICE_MAP_SLOT(slot));
+	err = crypto_qti_hwkm_evict_slot(KEYMANAGER_ICE_MAP_SLOT(slot, offset));
 	if (err)
 		pr_err("%s: Error with key clear %d, slot %d\n", __func__, err, slot);
 #endif
@@ -358,7 +381,7 @@ int crypto_qti_invalidate_key(const struct ice_mmio_data *mmio_data,
 		pr_err("%s: Error enabling clocks %d\n", __func__, err);
 		return err;
 	}
-	err = crypto_qti_hwkm_evict_slot_v1(KEYMANAGER_ICE_MAP_SLOT(slot), true);
+	err = crypto_qti_hwkm_evict_slot_v1(KEYMANAGER_ICE_MAP_SLOT(slot, offset), true);
 	if (err && (err != SLOT_EMPTY_ERROR)) {
 		pr_err("%s: Error clearing slot %d, err %d\n",
 			__func__, slot, err);
