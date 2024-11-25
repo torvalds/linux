@@ -448,7 +448,7 @@ static const struct cred *access_override_creds(void)
 	 */
 	override_cred->non_rcu = 1;
 
-	old_cred = override_creds_light(get_new_cred(override_cred));
+	old_cred = override_creds(get_new_cred(override_cred));
 
 	/* override_cred() gets its own ref */
 	put_cred(override_cred);

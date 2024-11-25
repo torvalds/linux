@@ -170,7 +170,7 @@ static inline bool cap_ambient_invariant_ok(const struct cred *cred)
 					  cred->cap_inheritable));
 }
 
-static inline const struct cred *override_creds_light(const struct cred *override_cred)
+static inline const struct cred *override_creds(const struct cred *override_cred)
 {
 	const struct cred *old = current->cred;
 

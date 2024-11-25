@@ -244,7 +244,7 @@ static struct file *open_file_as_root(const char *filename, int flags, umode_t m
 	if (!cred)
 		return ERR_PTR(-ENOMEM);
 	cred->fsuid = GLOBAL_ROOT_UID;
-	old_cred = override_creds_light(get_new_cred(cred));
+	old_cred = override_creds(get_new_cred(cred));
 
 	fp = file_open_root(&root, filename, flags, mode);
 	path_put(&root);

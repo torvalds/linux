@@ -741,7 +741,7 @@ static int ovl_prep_cu_creds(struct dentry *dentry, struct ovl_cu_creds *cc)
 		return err;
 
 	if (cc->new)
-		cc->old = override_creds_light(get_new_cred(cc->new));
+		cc->old = override_creds(get_new_cred(cc->new));
 
 	return 0;
 }

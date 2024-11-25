@@ -79,7 +79,7 @@ int nfsd_setuser(struct svc_cred *cred, struct svc_export *exp)
 	else
 		new->cap_effective = cap_raise_nfsd_set(new->cap_effective,
 							new->cap_permitted);
-	put_cred(override_creds_light(get_new_cred(new)));
+	put_cred(override_creds(get_new_cred(new)));
 	put_cred(new);
 	return 0;
 

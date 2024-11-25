@@ -829,7 +829,7 @@ static ssize_t bm_register_write(struct file *file, const char __user *buffer,
 		 * didn't matter much as only a privileged process could open
 		 * the register file.
 		 */
-		old_cred = override_creds_light(get_new_cred(file->f_cred));
+		old_cred = override_creds(get_new_cred(file->f_cred));
 		f = open_exec(e->interpreter);
 		put_cred(revert_creds_light(old_cred));
 		if (IS_ERR(f)) {

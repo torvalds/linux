@@ -311,7 +311,7 @@ static ssize_t nfs_idmap_get_key(const char *name, size_t namelen,
 	const struct user_key_payload *payload;
 	ssize_t ret;
 
-	saved_cred = override_creds_light(get_new_cred(id_resolver_cache));
+	saved_cred = override_creds(get_new_cred(id_resolver_cache));
 	rkey = nfs_idmap_request_key(name, namelen, type, idmap);
 	put_cred(revert_creds_light(saved_cred));
 
