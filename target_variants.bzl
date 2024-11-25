@@ -43,6 +43,17 @@ le_32_variants = [
     "perf-defconfig",
 ]
 
+le_64_targets = [
+    # keep sorted
+    "pineapple-le",
+]
+
+le_64_variants = [
+    # keep sorted
+    "debug-defconfig",
+    "perf-defconfig",
+]
+
 le_targets = [
     # keep sorted
     "pineapple-allyes",
@@ -89,6 +100,9 @@ def get_all_le_variants():
 def get_all_le_32_variants():
     return [(t, v) for t in le_32_targets for v in le_32_variants]
 
+def get_all_le_64_variants():
+    return [(t, v) for t in le_64_targets for v in le_64_variants]
+
 def get_all_lxc_variants():
     return [(t, v) for t in lxc_targets for v in lxc_variants]
 
@@ -96,7 +110,7 @@ def get_all_vm_variants():
     return [(t, v) for t in vm_targets for v in vm_variants]
 
 def get_all_variants():
-    return get_all_la_variants() + get_all_le_variants() + get_all_le_32_variants() + get_all_lxc_variants() + get_all_vm_variants()
+    return get_all_la_variants() + get_all_le_variants() + get_all_le_32_variants() + get_all_le_64_variants() + get_all_lxc_variants() + get_all_vm_variants()
 
 def get_all_lunch_target_base_target_variants():
     return [(lt, bt, v) for lt, bt in lunch_target_bases.items() for v in la_variants]
