@@ -134,7 +134,8 @@ int bch2_accounting_validate(struct bch_fs *c, struct bkey_s_c k,
 	void *end = &acc_k + 1;
 	int ret = 0;
 
-	bkey_fsck_err_on(bversion_zero(k.k->bversion),
+	bkey_fsck_err_on((flags & BCH_VALIDATE_commit) &&
+			 bversion_zero(k.k->bversion),
 			 c, accounting_key_version_0,
 			 "accounting key with version=0");
 
