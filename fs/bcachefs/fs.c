@@ -39,6 +39,7 @@
 #include <linux/posix_acl.h>
 #include <linux/random.h>
 #include <linux/seq_file.h>
+#include <linux/siphash.h>
 #include <linux/statfs.h>
 #include <linux/string.h>
 #include <linux/xattr.h>
@@ -176,8 +177,9 @@ static bool subvol_inum_eq(subvol_inum a, subvol_inum b)
 static u32 bch2_vfs_inode_hash_fn(const void *data, u32 len, u32 seed)
 {
 	const subvol_inum *inum = data;
+	siphash_key_t k = { .key[0] = seed };
 
-	return jhash(&inum->inum, sizeof(inum->inum), seed);
+	return siphash_2u64(inum->subvol, inum->inum, &k);
 }
 
 static u32 bch2_vfs_inode_obj_hash_fn(const void *data, u32 len, u32 seed)
@@ -206,11 +208,18 @@ static const struct rhashtable_params bch2_vfs_inodes_params = {
 	.automatic_shrinking	= true,
 };
 
+static const struct rhashtable_params bch2_vfs_inodes_by_inum_params = {
+	.head_offset		= offsetof(struct bch_inode_info, by_inum_hash),
+	.key_offset		= offsetof(struct bch_inode_info, ei_inum.inum),
+	.key_len		= sizeof(u64),
+	.automatic_shrinking	= true,
+};
+
 int bch2_inode_or_descendents_is_open(struct btree_trans *trans, struct bpos p)
 {
 	struct bch_fs *c = trans->c;
-	struct rhashtable *ht = &c->vfs_inodes_table;
-	subvol_inum inum = (subvol_inum) { .inum = p.offset };
+	struct rhltable *ht = &c->vfs_inodes_by_inum_table;
+	u64 inum = p.offset;
 	DARRAY(u32) subvols;
 	int ret = 0;
 
@@ -235,15 +244,15 @@ restart_from_top:
 	struct rhash_lock_head __rcu *const *bkt;
 	struct rhash_head *he;
 	unsigned int hash;
-	struct bucket_table *tbl = rht_dereference_rcu(ht->tbl, ht);
+	struct bucket_table *tbl = rht_dereference_rcu(ht->ht.tbl, &ht->ht);
 restart:
-	hash = rht_key_hashfn(ht, tbl, &inum, bch2_vfs_inodes_params);
+	hash = rht_key_hashfn(&ht->ht, tbl, &inum, bch2_vfs_inodes_by_inum_params);
 	bkt = rht_bucket(tbl, hash);
 	do {
 		struct bch_inode_info *inode;
 
 		rht_for_each_entry_rcu_from(inode, he, rht_ptr_rcu(bkt), tbl, hash, hash) {
-			if (inode->ei_inum.inum == inum.inum) {
+			if (inode->ei_inum.inum == inum) {
 				ret = darray_push_gfp(&subvols, inode->ei_inum.subvol,
 						      GFP_NOWAIT|__GFP_NOWARN);
 				if (ret) {
@@ -264,7 +273,7 @@ restart:
 	/* Ensure we see any new tables. */
 	smp_rmb();
 
-	tbl = rht_dereference_rcu(tbl->future_tbl, ht);
+	tbl = rht_dereference_rcu(tbl->future_tbl, &ht->ht);
 	if (unlikely(tbl))
 		goto restart;
 	rcu_read_unlock();
@@ -343,7 +352,11 @@ static void bch2_inode_hash_remove(struct bch_fs *c, struct bch_inode_info *inod
 	spin_unlock(&inode->v.i_lock);
 
 	if (remove) {
-		int ret = rhashtable_remove_fast(&c->vfs_inodes_table,
+		int ret = rhltable_remove(&c->vfs_inodes_by_inum_table,
+					&inode->by_inum_hash, bch2_vfs_inodes_by_inum_params);
+		BUG_ON(ret);
+
+		ret = rhashtable_remove_fast(&c->vfs_inodes_table,
 					&inode->hash, bch2_vfs_inodes_params);
 		BUG_ON(ret);
 		inode->v.i_hash.pprev = NULL;
@@ -388,6 +401,11 @@ retry:
 		discard_new_inode(&inode->v);
 		return old;
 	} else {
+		int ret = rhltable_insert(&c->vfs_inodes_by_inum_table,
+					  &inode->by_inum_hash,
+					  bch2_vfs_inodes_by_inum_params);
+		BUG_ON(ret);
+
 		inode_fake_hash(&inode->v);
 
 		inode_sb_list_add(&inode->v);
@@ -2359,13 +2377,16 @@ static int bch2_init_fs_context(struct fs_context *fc)
 
 void bch2_fs_vfs_exit(struct bch_fs *c)
 {
+	if (c->vfs_inodes_by_inum_table.ht.tbl)
+		rhltable_destroy(&c->vfs_inodes_by_inum_table);
 	if (c->vfs_inodes_table.tbl)
 		rhashtable_destroy(&c->vfs_inodes_table);
 }
 
 int bch2_fs_vfs_init(struct bch_fs *c)
 {
-	return rhashtable_init(&c->vfs_inodes_table, &bch2_vfs_inodes_params);
+	return rhashtable_init(&c->vfs_inodes_table, &bch2_vfs_inodes_params) ?:
+		rhltable_init(&c->vfs_inodes_by_inum_table, &bch2_vfs_inodes_by_inum_params);
 }
 
 static struct file_system_type bcache_fs_type = {
