@@ -800,7 +800,7 @@ void ksmbd_revert_fsids(struct ksmbd_work *work)
 	WARN_ON(!work->saved_cred);
 
 	cred = current_cred();
-	put_cred(revert_creds_light(work->saved_cred));
+	put_cred(revert_creds(work->saved_cred));
 	put_cred(cred);
 	work->saved_cred = NULL;
 }

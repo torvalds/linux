@@ -1476,7 +1476,7 @@ static int user_event_set_call_visible(struct user_event *user, bool visible)
 	else
 		ret = trace_remove_event_call(&user->call);
 
-	put_cred(revert_creds_light(old_cred));
+	put_cred(revert_creds(old_cred));
 	put_cred(cred);
 
 	return ret;

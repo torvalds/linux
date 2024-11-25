@@ -3758,7 +3758,7 @@ static int __init target_core_init_configfs(void)
 	}
 	old_cred = override_creds(get_new_cred(kern_cred));
 	target_init_dbroot();
-	put_cred(revert_creds_light(old_cred));
+	put_cred(revert_creds(old_cred));
 	put_cred(kern_cred);
 
 	return 0;

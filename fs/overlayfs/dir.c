@@ -575,7 +575,7 @@ static const struct cred *ovl_setup_cred_for_create(struct dentry *dentry,
 	}
 
 	/*
-	 * Caller is going to match this with revert_creds_light() and drop
+	 * Caller is going to match this with revert_creds() and drop
 	 * referenec on the returned creds.
 	 * We must be called with creator creds already, otherwise we risk
 	 * leaking creds.

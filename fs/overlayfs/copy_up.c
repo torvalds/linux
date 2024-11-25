@@ -749,7 +749,7 @@ static int ovl_prep_cu_creds(struct dentry *dentry, struct ovl_cu_creds *cc)
 static void ovl_revert_cu_creds(struct ovl_cu_creds *cc)
 {
 	if (cc->new) {
-		put_cred(revert_creds_light(cc->old));
+		put_cred(revert_creds(cc->old));
 		put_cred(cc->new);
 	}
 }

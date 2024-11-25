@@ -126,7 +126,7 @@ int dns_query(struct net *net,
 	 */
 	saved_cred = override_creds(get_new_cred(dns_resolver_cache));
 	rkey = request_key_net(&key_type_dns_resolver, desc, net, options);
-	put_cred(revert_creds_light(saved_cred));
+	put_cred(revert_creds(saved_cred));
 	kfree(desc);
 	if (IS_ERR(rkey)) {
 		ret = PTR_ERR(rkey);

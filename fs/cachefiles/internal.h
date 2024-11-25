@@ -399,7 +399,7 @@ static inline void cachefiles_begin_secure(struct cachefiles_cache *cache,
 static inline void cachefiles_end_secure(struct cachefiles_cache *cache,
 					 const struct cred *saved_cred)
 {
-	put_cred(revert_creds_light(saved_cred));
+	put_cred(revert_creds(saved_cred));
 }
 
 /*

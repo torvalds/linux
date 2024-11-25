@@ -178,7 +178,7 @@ static inline const struct cred *override_creds(const struct cred *override_cred
 	return old;
 }
 
-static inline const struct cred *revert_creds_light(const struct cred *revert_cred)
+static inline const struct cred *revert_creds(const struct cred *revert_cred)
 {
 	const struct cred *override_cred = current->cred;
 

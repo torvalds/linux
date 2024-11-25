@@ -781,7 +781,7 @@ fail_unlock:
 	kfree(argv);
 	kfree(cn.corename);
 	coredump_finish(core_dumped);
-	put_cred(revert_creds_light(old_cred));
+	put_cred(revert_creds(old_cred));
 fail_creds:
 	put_cred(cred);
 fail:
