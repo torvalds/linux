@@ -68,8 +68,8 @@ enum bch_fsck_flags {
 	x(btree_node_bkey_bad_format,				 55,	0)		\
 	x(btree_node_bad_bkey,					 56,	0)		\
 	x(btree_node_bkey_out_of_order,				 57,	0)		\
-	x(btree_root_bkey_invalid,				 58,	0)		\
-	x(btree_root_read_error,				 59,	0)		\
+	x(btree_root_bkey_invalid,				 58,	FSCK_AUTOFIX)	\
+	x(btree_root_read_error,				 59,	FSCK_AUTOFIX)	\
 	x(btree_root_bad_min_key,				 60,	0)		\
 	x(btree_root_bad_max_key,				 61,	0)		\
 	x(btree_node_read_error,				 62,	0)		\
