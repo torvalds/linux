@@ -480,7 +480,7 @@ static struct platform_driver starfive_pcie_driver = {
 		.pm = pm_sleep_ptr(&starfive_pcie_pm_ops),
 	},
 	.probe = starfive_pcie_probe,
-	.remove_new = starfive_pcie_remove,
+	.remove = starfive_pcie_remove,
 };
 module_platform_driver(starfive_pcie_driver);
 
