@@ -5220,7 +5220,7 @@ static ssize_t __cgroup_procs_write(struct kernfs_open_file *of, char *buf,
 	ret = cgroup_attach_permissions(src_cgrp, dst_cgrp,
 					of->file->f_path.dentry->d_sb,
 					threadgroup, ctx->ns);
-	revert_creds(saved_cred);
+	put_cred(revert_creds_light(saved_cred));
 	if (ret)
 		goto out_finish;
 

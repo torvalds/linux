@@ -89,7 +89,7 @@ nfs4_save_creds(const struct cred **original_creds)
 static void
 nfs4_reset_creds(const struct cred *original)
 {
-	revert_creds(original);
+	put_cred(revert_creds_light(original));
 }
 
 static void

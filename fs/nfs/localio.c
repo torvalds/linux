@@ -384,7 +384,7 @@ static void nfs_local_call_read(struct work_struct *work)
 	nfs_local_read_done(iocb, status);
 	nfs_local_pgio_release(iocb);
 
-	revert_creds(save_cred);
+	put_cred(revert_creds_light(save_cred));
 }
 
 static int
@@ -558,7 +558,7 @@ static void nfs_local_call_write(struct work_struct *work)
 	nfs_local_vfs_getattr(iocb);
 	nfs_local_pgio_release(iocb);
 
-	revert_creds(save_cred);
+	put_cred(revert_creds_light(save_cred));
 	current->flags = old_flags;
 }
 

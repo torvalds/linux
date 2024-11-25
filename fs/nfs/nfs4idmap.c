@@ -313,7 +313,7 @@ static ssize_t nfs_idmap_get_key(const char *name, size_t namelen,
 
 	saved_cred = override_creds_light(get_new_cred(id_resolver_cache));
 	rkey = nfs_idmap_request_key(name, namelen, type, idmap);
-	revert_creds(saved_cred);
+	put_cred(revert_creds_light(saved_cred));
 
 	if (IS_ERR(rkey)) {
 		ret = PTR_ERR(rkey);

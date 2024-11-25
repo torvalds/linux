@@ -523,7 +523,7 @@ out_path_release:
 	}
 out:
 	if (old_cred)
-		revert_creds(old_cred);
+		put_cred(revert_creds_light(old_cred));
 
 	return res;
 }

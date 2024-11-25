@@ -27,7 +27,7 @@ int nfsd_setuser(struct svc_cred *cred, struct svc_export *exp)
 	int flags = nfsexp_flags(cred, exp);
 
 	/* discard any old override before preparing the new set */
-	revert_creds(get_cred(current_real_cred()));
+	put_cred(revert_creds_light(get_cred(current_real_cred())));
 	new = prepare_creds();
 	if (!new)
 		return -ENOMEM;

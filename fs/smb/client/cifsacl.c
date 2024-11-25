@@ -327,7 +327,7 @@ id_to_sid(unsigned int cid, uint sidtype, struct smb_sid *ssid)
 out_key_put:
 	key_put(sidkey);
 out_revert_creds:
-	revert_creds(saved_cred);
+	put_cred(revert_creds_light(saved_cred));
 	return rc;
 
 invalidate_key:
@@ -438,7 +438,7 @@ try_upcall_to_get_id:
 out_key_put:
 	key_put(sidkey);
 out_revert_creds:
-	revert_creds(saved_cred);
+	put_cred(revert_creds_light(saved_cred));
 	kfree(sidstr);
 
 	/*

@@ -1642,7 +1642,7 @@ static void aio_fsync_work(struct work_struct *work)
 	const struct cred *old_cred = override_creds_light(get_new_cred(iocb->fsync.creds));
 
 	iocb->ki_res.res = vfs_fsync(iocb->fsync.file, iocb->fsync.datasync);
-	revert_creds(old_cred);
+	put_cred(revert_creds_light(old_cred));
 	put_cred(iocb->fsync.creds);
 	iocb_put(iocb);
 }

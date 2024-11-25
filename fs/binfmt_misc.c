@@ -831,7 +831,7 @@ static ssize_t bm_register_write(struct file *file, const char __user *buffer,
 		 */
 		old_cred = override_creds_light(get_new_cred(file->f_cred));
 		f = open_exec(e->interpreter);
-		revert_creds(old_cred);
+		put_cred(revert_creds_light(old_cred));
 		if (IS_ERR(f)) {
 			pr_notice("register: failed to install interpreter file %s\n",
 				 e->interpreter);

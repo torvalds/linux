@@ -943,7 +943,7 @@ _request_firmware(const struct firmware **firmware_p, const char *name,
 	} else
 		ret = assign_fw(fw, device);
 
-	revert_creds(old_cred);
+	put_cred(revert_creds_light(old_cred));
 	put_cred(kern_cred);
 
 out:
