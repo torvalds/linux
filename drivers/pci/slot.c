@@ -245,12 +245,13 @@ struct pci_slot *pci_create_slot(struct pci_bus *parent, int slot_nr,
 	slot = get_slot(parent, slot_nr);
 	if (slot) {
 		if (hotplug) {
-			if ((err = slot->hotplug ? -EBUSY : 0)
-			     || (err = rename_slot(slot, name))) {
-				kobject_put(&slot->kobj);
-				slot = NULL;
-				goto err;
+			if (slot->hotplug) {
+				err = -EBUSY;
+				goto put_slot;
 			}
+			err = rename_slot(slot, name);
+			if (err)
+				goto put_slot;
 		}
 		goto out;
 	}
@@ -280,10 +281,8 @@ placeholder:
 
 	err = kobject_init_and_add(&slot->kobj, &pci_slot_ktype, NULL,
 				   "%s", slot_name);
-	if (err) {
-		kobject_put(&slot->kobj);
-		goto err;
-	}
+	if (err)
+		goto put_slot;
 
 	down_read(&pci_bus_sem);
 	list_for_each_entry(dev, &parent->devices, bus_list)
@@ -298,6 +297,9 @@ out:
 	kfree(slot_name);
 	mutex_unlock(&pci_slot_mutex);
 	return slot;
+
+put_slot:
+	kobject_put(&slot->kobj);
 err:
 	slot = ERR_PTR(err);
 	goto out;
