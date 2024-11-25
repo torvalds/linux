@@ -12403,7 +12403,7 @@ F:	mm/usercopy.c
 F:	security/Kconfig.hardening
 K:	\b(add|choose)_random_kstack_offset\b
 K:	\b__check_(object_size|heap_object)\b
-K:	\b__counted_by\b
+K:	\b__counted_by(_le|_be)?\b
 
 KERNEL JANITORS
 L:	kernel-janitors@vger.kernel.org
