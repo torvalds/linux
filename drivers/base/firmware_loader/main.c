@@ -911,7 +911,7 @@ _request_firmware(const struct firmware **firmware_p, const char *name,
 		ret = -ENOMEM;
 		goto out;
 	}
-	old_cred = override_creds(get_new_cred(kern_cred));
+	old_cred = override_creds(kern_cred);
 
 	ret = fw_get_filesystem_firmware(device, fw->priv, "", NULL);
 
@@ -943,7 +943,7 @@ _request_firmware(const struct firmware **firmware_p, const char *name,
 	} else
 		ret = assign_fw(fw, device);
 
-	put_cred(revert_creds(old_cred));
+	revert_creds(old_cred);
 	put_cred(kern_cred);
 
 out:
