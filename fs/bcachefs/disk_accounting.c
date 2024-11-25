@@ -805,7 +805,7 @@ int bch2_accounting_read(struct bch_fs *c)
 			break;
 		case BCH_DISK_ACCOUNTING_dev_data_type:
 			rcu_read_lock();
-			struct bch_dev *ca = bch2_dev_rcu(c, k.dev_data_type.dev);
+			struct bch_dev *ca = bch2_dev_rcu_noerror(c, k.dev_data_type.dev);
 			if (ca) {
 				struct bch_dev_usage_type __percpu *d = &ca->usage->d[k.dev_data_type.data_type];
 				percpu_u64_set(&d->buckets,	v[0]);
@@ -911,7 +911,7 @@ void bch2_verify_accounting_clean(struct bch_fs *c)
 				break;
 			case BCH_DISK_ACCOUNTING_dev_data_type: {
 				rcu_read_lock();
-				struct bch_dev *ca = bch2_dev_rcu(c, acc_k.dev_data_type.dev);
+				struct bch_dev *ca = bch2_dev_rcu_noerror(c, acc_k.dev_data_type.dev);
 				if (!ca) {
 					rcu_read_unlock();
 					continue;
