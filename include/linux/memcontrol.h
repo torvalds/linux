@@ -1046,6 +1046,23 @@ static inline void memcg_memory_event_mm(struct mm_struct *mm,
 
 void split_page_memcg(struct page *head, int old_order, int new_order);
 
+static inline u64 cgroup_id_from_mm(struct mm_struct *mm)
+{
+	struct mem_cgroup *memcg;
+	u64 id;
+
+	if (mem_cgroup_disabled())
+		return 0;
+
+	rcu_read_lock();
+	memcg = mem_cgroup_from_task(rcu_dereference(mm->owner));
+	if (!memcg)
+		memcg = root_mem_cgroup;
+	id = cgroup_id(memcg->css.cgroup);
+	rcu_read_unlock();
+	return id;
+}
+
 #else /* CONFIG_MEMCG */
 
 #define MEM_CGROUP_ID_SHIFT	0
@@ -1465,6 +1482,11 @@ void count_memcg_event_mm(struct mm_struct *mm, enum vm_event_item idx)
 
 static inline void split_page_memcg(struct page *head, int old_order, int new_order)
 {
+}
+
+static inline u64 cgroup_id_from_mm(struct mm_struct *mm)
+{
+	return 0;
 }
 #endif /* CONFIG_MEMCG */
 
