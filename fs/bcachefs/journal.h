@@ -412,7 +412,7 @@ void bch2_journal_halt(struct journal *);
 static inline int bch2_journal_error(struct journal *j)
 {
 	return j->reservations.cur_entry_offset == JOURNAL_ENTRY_ERROR_VAL
-		? -EIO : 0;
+		? -BCH_ERR_journal_shutdown : 0;
 }
 
 struct bch_dev;

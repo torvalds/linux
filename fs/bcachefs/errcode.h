@@ -241,6 +241,8 @@
 	x(BCH_ERR_invalid_sb,		invalid_sb_downgrade)			\
 	x(BCH_ERR_invalid,		invalid_bkey)				\
 	x(BCH_ERR_operation_blocked,    nocow_lock_blocked)			\
+	x(EIO,				journal_shutdown)			\
+	x(EIO,				journal_flush_err)			\
 	x(EIO,				btree_node_read_err)			\
 	x(BCH_ERR_btree_node_read_err,	btree_node_read_err_cached)		\
 	x(EIO,				sb_not_downgraded)			\

@@ -673,7 +673,7 @@ out:
  * @seq:	seq to flush
  * @parent:	closure object to wait with
  * Returns:	1 if @seq has already been flushed, 0 if @seq is being flushed,
- *		-EIO if @seq will never be flushed
+ *		-BCH_ERR_journal_flush_err if @seq will never be flushed
  *
  * Like bch2_journal_wait_on_seq, except that it triggers a write immediately if
  * necessary
@@ -696,7 +696,7 @@ int bch2_journal_flush_seq_async(struct journal *j, u64 seq,
 
 	/* Recheck under lock: */
 	if (j->err_seq && seq >= j->err_seq) {
-		ret = -EIO;
+		ret = -BCH_ERR_journal_flush_err;
 		goto out;
 	}
 
