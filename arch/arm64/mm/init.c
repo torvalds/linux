@@ -117,15 +117,6 @@ static void __init arch_reserve_crashkernel(void)
 
 static phys_addr_t __init max_zone_phys(phys_addr_t zone_limit)
 {
-	/**
-	 * Information we get from firmware (e.g. DT dma-ranges) describe DMA
-	 * bus constraints. Devices using DMA might have their own limitations.
-	 * Some of them rely on DMA zone in low 32-bit memory. Keep low RAM
-	 * DMA zone on platforms that have RAM there.
-	 */
-	if (memblock_start_of_DRAM() < U32_MAX)
-		zone_limit = min(zone_limit, U32_MAX);
-
 	return min(zone_limit, memblock_end_of_DRAM() - 1) + 1;
 }
 
@@ -141,6 +132,14 @@ static void __init zone_sizes_init(void)
 	acpi_zone_dma_limit = acpi_iort_dma_get_max_cpu_address();
 	dt_zone_dma_limit = of_dma_get_max_cpu_address(NULL);
 	zone_dma_limit = min(dt_zone_dma_limit, acpi_zone_dma_limit);
+	/*
+	 * Information we get from firmware (e.g. DT dma-ranges) describe DMA
+	 * bus constraints. Devices using DMA might have their own limitations.
+	 * Some of them rely on DMA zone in low 32-bit memory. Keep low RAM
+	 * DMA zone on platforms that have RAM there.
+	 */
+	if (memblock_start_of_DRAM() < U32_MAX)
+		zone_dma_limit = min(zone_dma_limit, U32_MAX);
 	arm64_dma_phys_limit = max_zone_phys(zone_dma_limit);
 	max_zone_pfns[ZONE_DMA] = PFN_DOWN(arm64_dma_phys_limit);
 #endif
