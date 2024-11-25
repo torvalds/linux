@@ -731,6 +731,7 @@ bool intel_ddi_connector_get_hw_state(struct intel_connector *intel_connector)
 	if (!wakeref)
 		return false;
 
+	/* Note: This returns false for DP MST primary encoders. */
 	if (!encoder->get_hw_state(encoder, &pipe)) {
 		ret = false;
 		goto out;
@@ -752,12 +753,14 @@ bool intel_ddi_connector_get_hw_state(struct intel_connector *intel_connector)
 	} else if (ddi_mode == TRANS_DDI_MODE_SELECT_DP_SST) {
 		ret = type == DRM_MODE_CONNECTOR_eDP ||
 			type == DRM_MODE_CONNECTOR_DisplayPort;
-	} else if (ddi_mode == TRANS_DDI_MODE_SELECT_DP_MST ||
-		   (ddi_mode == TRANS_DDI_MODE_SELECT_FDI_OR_128B132B && HAS_DP20(display))) {
+	} else if (ddi_mode == TRANS_DDI_MODE_SELECT_FDI_OR_128B132B && HAS_DP20(display)) {
 		/*
-		 * If the transcoder is in MST state then connector isn't
-		 * connected.
+		 * encoder->get_hw_state() should have bailed out on MST. This
+		 * must be SST and non-eDP.
 		 */
+		ret = type == DRM_MODE_CONNECTOR_DisplayPort;
+	} else if (drm_WARN_ON(display->drm, ddi_mode == TRANS_DDI_MODE_SELECT_DP_MST)) {
+		/* encoder->get_hw_state() should have bailed out on MST. */
 		ret = false;
 	} else {
 		ret = false;
