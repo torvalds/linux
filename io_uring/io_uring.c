@@ -1728,7 +1728,7 @@ static int io_issue_sqe(struct io_kiocb *req, unsigned int issue_flags)
 		return -EBADF;
 
 	if (unlikely((req->flags & REQ_F_CREDS) && req->creds != current_cred()))
-		creds = override_creds(req->creds);
+		creds = override_creds_light(get_new_cred(req->creds));
 
 	if (!def->audit_skip)
 		audit_uring_entry(req->opcode);

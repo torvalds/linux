@@ -1469,7 +1469,7 @@ static int user_event_set_call_visible(struct user_event *user, bool visible)
 	 */
 	cred->fsuid = GLOBAL_ROOT_UID;
 
-	old_cred = override_creds(cred);
+	old_cred = override_creds_light(get_new_cred(cred));
 
 	if (visible)
 		ret = trace_add_event_call(&user->call);

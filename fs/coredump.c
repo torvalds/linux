@@ -576,7 +576,7 @@ void do_coredump(const kernel_siginfo_t *siginfo)
 	if (retval < 0)
 		goto fail_creds;
 
-	old_cred = override_creds(cred);
+	old_cred = override_creds_light(get_new_cred(cred));
 
 	ispipe = format_corename(&cn, &cprm, &argv, &argc);
 

@@ -221,7 +221,7 @@ static __be32 nfsd_set_fh_dentry(struct svc_rqst *rqstp, struct net *net,
 		new->cap_effective =
 			cap_raise_nfsd_set(new->cap_effective,
 					   new->cap_permitted);
-		put_cred(override_creds(new));
+		put_cred(override_creds_light(get_new_cred(new)));
 		put_cred(new);
 	} else {
 		error = nfsd_setuser_and_check_port(rqstp, cred, exp);

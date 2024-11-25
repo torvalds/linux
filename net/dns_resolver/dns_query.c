@@ -124,7 +124,7 @@ int dns_query(struct net *net,
 	/* make the upcall, using special credentials to prevent the use of
 	 * add_key() to preinstall malicious redirections
 	 */
-	saved_cred = override_creds(dns_resolver_cache);
+	saved_cred = override_creds_light(get_new_cred(dns_resolver_cache));
 	rkey = request_key_net(&key_type_dns_resolver, desc, net, options);
 	revert_creds(saved_cred);
 	kfree(desc);
