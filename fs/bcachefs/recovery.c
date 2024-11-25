@@ -40,19 +40,42 @@ int bch2_btree_lost_data(struct bch_fs *c, enum btree_id btree)
 	int ret = 0;
 
 	mutex_lock(&c->sb_lock);
+	struct bch_sb_field_ext *ext = bch2_sb_field_get(c->disk_sb.sb, ext);
 
 	if (!(c->sb.btrees_lost_data & b)) {
 		struct printbuf buf = PRINTBUF;
 		bch2_btree_id_to_text(&buf, btree);
 		bch_err(c, "flagging btree %s lost data", buf.buf);
 		printbuf_exit(&buf);
-		bch2_sb_field_get(c->disk_sb.sb, ext)->btrees_lost_data |= cpu_to_le64(b);
+		ext->btrees_lost_data |= cpu_to_le64(b);
 	}
+
+	/* Once we have runtime self healing for topology errors we won't need this: */
+	ret = bch2_run_explicit_recovery_pass_persistent_locked(c, BCH_RECOVERY_PASS_check_topology) ?: ret;
+
+	/* Btree node accounting will be off: */
+	__set_bit_le64(BCH_FSCK_ERR_accounting_mismatch, ext->errors_silent);
+	ret = bch2_run_explicit_recovery_pass_persistent_locked(c, BCH_RECOVERY_PASS_check_allocations) ?: ret;
+
+#ifdef CONFIG_BCACHEFS_DEBUG
+	/*
+	 * These are much more minor, and don't need to be corrected right away,
+	 * but in debug mode we want the next fsck run to be clean:
+	 */
+	ret = bch2_run_explicit_recovery_pass_persistent_locked(c, BCH_RECOVERY_PASS_check_lrus) ?: ret;
+	ret = bch2_run_explicit_recovery_pass_persistent_locked(c, BCH_RECOVERY_PASS_check_backpointers_to_extents) ?: ret;
+#endif
 
 	switch (btree) {
 	case BTREE_ID_alloc:
-		ret = bch2_run_explicit_recovery_pass_persistent_locked(c, BCH_RECOVERY_PASS_check_allocations) ?: ret;
 		ret = bch2_run_explicit_recovery_pass_persistent_locked(c, BCH_RECOVERY_PASS_check_alloc_info) ?: ret;
+
+		__set_bit_le64(BCH_FSCK_ERR_alloc_key_data_type_wrong, ext->errors_silent);
+		__set_bit_le64(BCH_FSCK_ERR_alloc_key_gen_wrong, ext->errors_silent);
+		__set_bit_le64(BCH_FSCK_ERR_alloc_key_dirty_sectors_wrong, ext->errors_silent);
+		__set_bit_le64(BCH_FSCK_ERR_alloc_key_cached_sectors_wrong, ext->errors_silent);
+		__set_bit_le64(BCH_FSCK_ERR_alloc_key_stripe_wrong, ext->errors_silent);
+		__set_bit_le64(BCH_FSCK_ERR_alloc_key_stripe_redundancy_wrong, ext->errors_silent);
 		goto out;
 	case BTREE_ID_backpointers:
 		ret = bch2_run_explicit_recovery_pass_persistent_locked(c, BCH_RECOVERY_PASS_check_btree_backpointers) ?: ret;
@@ -75,7 +98,6 @@ int bch2_btree_lost_data(struct bch_fs *c, enum btree_id btree)
 		goto out;
 	default:
 		ret = bch2_run_explicit_recovery_pass_persistent_locked(c, BCH_RECOVERY_PASS_scan_for_btree_nodes) ?: ret;
-		ret = bch2_run_explicit_recovery_pass_persistent_locked(c, BCH_RECOVERY_PASS_check_topology) ?: ret;
 		goto out;
 	}
 out:
@@ -747,9 +769,6 @@ int bch2_fs_recovery(struct bch_fs *c)
 	if (write_sb)
 		bch2_write_super(c);
 	mutex_unlock(&c->sb_lock);
-
-	if (c->opts.fsck && IS_ENABLED(CONFIG_BCACHEFS_DEBUG))
-		c->opts.recovery_passes |= BIT_ULL(BCH_RECOVERY_PASS_check_topology);
 
 	if (c->opts.fsck)
 		set_bit(BCH_FS_fsck_running, &c->flags);

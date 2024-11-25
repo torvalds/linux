@@ -348,7 +348,7 @@ again:
 		bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(cur_k.k));
 
 		if (mustfix_fsck_err_on(bch2_err_matches(ret, EIO),
-				trans, btree_node_unreadable,
+				trans, btree_node_read_error,
 				"Topology repair: unreadable btree node at\n"
 				"  %s",
 				buf.buf)) {

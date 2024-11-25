@@ -72,12 +72,12 @@ enum bch_fsck_flags {
 	x(btree_root_read_error,				 59,	FSCK_AUTOFIX)	\
 	x(btree_root_bad_min_key,				 60,	0)		\
 	x(btree_root_bad_max_key,				 61,	0)		\
-	x(btree_node_read_error,				 62,	0)		\
-	x(btree_node_topology_bad_min_key,			 63,	0)		\
-	x(btree_node_topology_bad_max_key,			 64,	0)		\
-	x(btree_node_topology_overwritten_by_prev_node,		 65,	0)		\
-	x(btree_node_topology_overwritten_by_next_node,		 66,	0)		\
-	x(btree_node_topology_interior_node_empty,		 67,	0)		\
+	x(btree_node_read_error,				 62,	FSCK_AUTOFIX)	\
+	x(btree_node_topology_bad_min_key,			 63,	FSCK_AUTOFIX)	\
+	x(btree_node_topology_bad_max_key,			 64,	FSCK_AUTOFIX)	\
+	x(btree_node_topology_overwritten_by_prev_node,		 65,	FSCK_AUTOFIX)	\
+	x(btree_node_topology_overwritten_by_next_node,		 66,	FSCK_AUTOFIX)	\
+	x(btree_node_topology_interior_node_empty,		 67,	FSCK_AUTOFIX)	\
 	x(fs_usage_hidden_wrong,				 68,	FSCK_AUTOFIX)	\
 	x(fs_usage_btree_wrong,					 69,	FSCK_AUTOFIX)	\
 	x(fs_usage_data_wrong,					 70,	FSCK_AUTOFIX)	\
