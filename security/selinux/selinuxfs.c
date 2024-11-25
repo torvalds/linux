@@ -1515,7 +1515,7 @@ static const struct file_operations sel_avc_hash_stats_ops = {
 #ifdef CONFIG_SECURITY_SELINUX_AVC_STATS
 static struct avc_cache_stats *sel_avc_get_stat_idx(loff_t *idx)
 {
-	int cpu;
+	loff_t cpu;
 
 	for (cpu = *idx; cpu < nr_cpu_ids; ++cpu) {
 		if (!cpu_possible(cpu))
