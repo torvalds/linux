@@ -402,7 +402,6 @@ static bool access_need_override_creds(int flags)
 
 static const struct cred *access_override_creds(void)
 {
-	const struct cred *old_cred;
 	struct cred *override_cred;
 
 	override_cred = prepare_creds();
@@ -447,13 +446,7 @@ static const struct cred *access_override_creds(void)
 	 * freeing.
 	 */
 	override_cred->non_rcu = 1;
-
-	old_cred = override_creds(get_new_cred(override_cred));
-
-	/* override_cred() gets its own ref */
-	put_cred(override_cred);
-
-	return old_cred;
+	return override_creds(override_cred);
 }
 
 static long do_faccessat(int dfd, const char __user *filename, int mode, int flags)
