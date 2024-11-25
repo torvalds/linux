@@ -26,6 +26,8 @@ obj-$(CONFIG_ARM_PSCI_CPUIDLE)		+= cpuidle-psci.o
 obj-$(CONFIG_ARM_PSCI_CPUIDLE_DOMAIN)	+= cpuidle-psci-domain.o
 obj-$(CONFIG_ARM_TEGRA_CPUIDLE)		+= cpuidle-tegra.o
 obj-$(CONFIG_ARM_QCOM_SPM_CPUIDLE)	+= cpuidle-qcom-spm.o
+obj-$(CONFIG_MSM_PM_LEGACY) 		+= lpm-levels-legacy.o
+obj-$(CONFIG_MSM_PM_LEGACY) 		+= lpm-levels-of-legacy.o
 
 ###############################################################################
 # MIPS drivers
