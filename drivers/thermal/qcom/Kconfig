@@ -189,6 +189,15 @@ config QTI_THERMAL_LIMITS_DCVS
 	  tracking temperatures of the CPUs and taking thermal action in the
 	  hardware without s/w intervention.
 
+config QTI_THERMAL_VENDOR_HOOK
+	tristate "QTI thermal vendor hook driver"
+	depends on THERMAL
+	help
+	   This is a placeholder driver for all thermal vendor hook register.
+	   It registers for thermal vendor hook and this driver will bypass
+	   thermal zone device initialization and update in the post suspend case
+	   of thermal core.
+
 config QTI_THERMALZONE_CONFIG_DEBUG
 	tristate "QTI Thermal Zone config debug driver"
 	depends on THERMAL && THERMAL_OF
