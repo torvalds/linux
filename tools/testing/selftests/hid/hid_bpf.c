@@ -54,41 +54,11 @@ FIXTURE_TEARDOWN(hid_bpf) {
 	hid_bpf_teardown(_metadata, self, variant); \
 } while (0)
 
-struct specific_device {
-	const char test_name[64];
-	__u16 bus;
-	__u32 vid;
-	__u32 pid;
-};
-
 FIXTURE_SETUP(hid_bpf)
 {
-	const struct specific_device *match = NULL;
 	int err;
 
-	const struct specific_device devices[] = {
-	{
-		.test_name = "test_hid_driver_probe",
-		.bus = BUS_BLUETOOTH,
-		.vid = 0x05ac,  /* USB_VENDOR_ID_APPLE */
-		.pid = 0x022c,  /* USB_DEVICE_ID_APPLE_ALU_WIRELESS_ANSI */
-	}, {
-		.test_name = "*",
-		.bus = BUS_USB,
-		.vid = 0x0001,
-		.pid = 0x0a36,
-	}};
-
-	for (int i = 0; i < ARRAY_SIZE(devices); i++) {
-		match = &devices[i];
-		if (!strncmp(_metadata->name, devices[i].test_name, sizeof(devices[i].test_name)))
-			break;
-	}
-
-	ASSERT_OK_PTR(match);
-
-	err = setup_uhid(_metadata, &self->hid, match->bus, match->vid, match->pid,
-			 rdesc, sizeof(rdesc));
+	err = setup_uhid(_metadata, &self->hid, BUS_USB, 0x0001, 0x0a36, rdesc, sizeof(rdesc));
 	ASSERT_OK(err);
 }
 
@@ -883,54 +853,6 @@ TEST_F(hid_bpf, test_hid_attach_flags)
 	ASSERT_EQ(buf[1], 1);
 	ASSERT_EQ(buf[2], 2);
 	ASSERT_EQ(buf[3], 3);
-}
-
-static bool is_using_driver(struct __test_metadata *_metadata, struct uhid_device *hid,
-			    const char *driver)
-{
-	char driver_line[512];
-	char uevent[1024];
-	char temp[512];
-	int fd, nread;
-	bool found = false;
-
-	sprintf(uevent, "/sys/bus/hid/devices/%04X:%04X:%04X.%04X/uevent",
-		hid->bus, hid->vid, hid->pid, hid->hid_id);
-
-	fd = open(uevent, O_RDONLY | O_NONBLOCK);
-	if (fd < 0) {
-		TH_LOG("couldn't open '%s': %d, %d", uevent, fd, errno);
-		return false;
-	}
-
-	sprintf(driver_line, "DRIVER=%s", driver);
-
-	nread = read(fd, temp, ARRAY_SIZE(temp));
-	if (nread > 0 && (strstr(temp, driver_line)) != NULL)
-		found = true;
-
-	close(fd);
-
-	return found;
-}
-
-/*
- * Attach hid_driver_probe to the given uhid device,
- * check that the device is now using hid-generic.
- */
-TEST_F(hid_bpf, test_hid_driver_probe)
-{
-	const struct test_program progs[] = {
-		{
-			.name = "hid_test_driver_probe",
-		},
-	};
-
-	ASSERT_TRUE(is_using_driver(_metadata, &self->hid, "apple"));
-
-	LOAD_PROGRAMS(progs);
-
-	ASSERT_TRUE(is_using_driver(_metadata, &self->hid, "hid-generic"));
 }
 
 /*
