@@ -113,6 +113,10 @@ static struct drm_driver driver_stub;
 static struct drm_driver driver_pci;
 static struct drm_driver driver_platform;
 
+#ifdef CONFIG_DEBUG_FS
+struct dentry *nouveau_debugfs_root;
+#endif
+
 static u64
 nouveau_pci_name(struct pci_dev *pdev)
 {
@@ -1423,6 +1427,8 @@ err_free:
 static int __init
 nouveau_drm_init(void)
 {
+	int ret;
+
 	driver_pci = driver_stub;
 	driver_platform = driver_stub;
 
@@ -1436,6 +1442,10 @@ nouveau_drm_init(void)
 	if (!nouveau_modeset)
 		return 0;
 
+	ret = nouveau_module_debugfs_init();
+	if (ret)
+		return ret;
+
 #ifdef CONFIG_NOUVEAU_PLATFORM_DRIVER
 	platform_driver_register(&nouveau_platform_driver);
 #endif
@@ -1444,10 +1454,14 @@ nouveau_drm_init(void)
 	nouveau_backlight_ctor();
 
 #ifdef CONFIG_PCI
-	return pci_register_driver(&nouveau_drm_pci_driver);
-#else
-	return 0;
+	ret = pci_register_driver(&nouveau_drm_pci_driver);
+	if (ret) {
+		nouveau_module_debugfs_fini();
+		return ret;
+	}
 #endif
+
+	return 0;
 }
 
 static void __exit
@@ -1467,6 +1481,8 @@ nouveau_drm_exit(void)
 #endif
 	if (IS_ENABLED(CONFIG_DRM_NOUVEAU_SVM))
 		mmu_notifier_synchronize();
+
+	nouveau_module_debugfs_fini();
 }
 
 module_init(nouveau_drm_init);
