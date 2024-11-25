@@ -71,6 +71,8 @@ cifs_prime_dcache(struct dentry *parent, struct qstr *name,
 	struct inode *inode;
 	struct super_block *sb = parent->d_sb;
 	struct cifs_sb_info *cifs_sb = CIFS_SB(sb);
+	bool posix = cifs_sb_master_tcon(cifs_sb)->posix_extensions;
+	bool reparse_need_reval = false;
 	DECLARE_WAIT_QUEUE_HEAD_ONSTACK(wq);
 	int rc;
 
@@ -85,7 +87,21 @@ cifs_prime_dcache(struct dentry *parent, struct qstr *name,
 		 * this spares us an invalidation.
 		 */
 retry:
-		if ((fattr->cf_cifsattrs & ATTR_REPARSE) ||
+		if (posix) {
+			switch (fattr->cf_mode & S_IFMT) {
+			case S_IFLNK:
+			case S_IFBLK:
+			case S_IFCHR:
+				reparse_need_reval = true;
+				break;
+			default:
+				break;
+			}
+		} else if (fattr->cf_cifsattrs & ATTR_REPARSE) {
+			reparse_need_reval = true;
+		}
+
+		if (reparse_need_reval ||
 		    (fattr->cf_flags & CIFS_FATTR_NEED_REVAL))
 			return;
 
