@@ -5482,8 +5482,8 @@ static int msm_geni_serial_port_init(struct platform_device *pdev,
 			return -ENOMEM;
 	} else {
 		dev_port->handle_rx = handle_rx_hs;
-		dev_port->rx_fifo = devm_kzalloc(uport->dev,
-				sizeof(dev_port->rx_fifo_depth * sizeof(u32)), GFP_KERNEL);
+		dev_port->rx_fifo = devm_kzalloc(uport->dev, (dev_port->rx_fifo_depth *
+						 sizeof(u32)), GFP_KERNEL);
 		if (!dev_port->rx_fifo)
 			return -ENOMEM;
 		if (dev_port->pm_auto_suspend_disable) {
