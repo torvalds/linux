@@ -1639,10 +1639,10 @@ static int aio_write(struct kiocb *req, const struct iocb *iocb,
 static void aio_fsync_work(struct work_struct *work)
 {
 	struct aio_kiocb *iocb = container_of(work, struct aio_kiocb, fsync.work);
-	const struct cred *old_cred = override_creds(get_new_cred(iocb->fsync.creds));
+	const struct cred *old_cred = override_creds(iocb->fsync.creds);
 
 	iocb->ki_res.res = vfs_fsync(iocb->fsync.file, iocb->fsync.datasync);
-	put_cred(revert_creds(old_cred));
+	revert_creds(old_cred);
 	put_cred(iocb->fsync.creds);
 	iocb_put(iocb);
 }
