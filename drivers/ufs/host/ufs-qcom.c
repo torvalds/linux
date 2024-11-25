@@ -3716,14 +3716,15 @@ cell_put:
 }
 
 /**
- * setup_vreg_to_enable - Determine and set the appropriate voltage
+ * ufs_qcom_setup_vreg_to_enable - Determine and set the appropriate voltage
  * regulator to enable.
  * @host: UFS host structure containing the regulator information.
- * @hba: Host Bus Adapter instance.
+ *
+ * Return: Pointer to the selected voltage regulator, or NULL if no
+ * appropriate regulator is found.
  */
-static void ufs_qcom_setup_vreg_to_enable(struct ufs_hba *hba)
+static struct ufs_vreg *ufs_qcom_setup_vreg_to_enable(struct ufs_qcom_host *host)
 {
-	struct ufs_qcom_host *host = ufshcd_get_variant(hba);
 	struct ufs_vreg *vccq_parent = NULL;
 	struct ufs_vreg *vccq2_parent = NULL;
 	int err;
@@ -3739,10 +3740,12 @@ static void ufs_qcom_setup_vreg_to_enable(struct ufs_hba *hba)
 	} else {
 		host->parent_vreg = vccq_parent ? vccq_parent : vccq2_parent;
 		if (!host->parent_vreg) {
-			dev_info(hba->dev, "vccq or vccq2 parent node is not provided\n");
-			return;
+			dev_info(host->hba->dev, "vccq or vccq2 parent node is not provided\n");
+			return NULL;
 		}
 	}
+
+	return host->parent_vreg;
 }
 
 static int ufs_qcom_get_host_id(struct ufs_hba *hba)
@@ -3873,7 +3876,7 @@ static int ufs_qcom_init(struct ufs_hba *hba)
 	}
 
 	ufs_qcom_parse_limits(host);
-	ufs_qcom_setup_vreg_to_enable(hba);
+	host->parent_vreg = ufs_qcom_setup_vreg_to_enable(host);
 	if (host->parent_vreg) {
 		err = ufs_qcom_enable_vreg(dev, host->parent_vreg);
 		if (err) {
