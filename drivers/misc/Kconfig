@@ -522,6 +522,15 @@ config BOOTMARKER_PROXY
 	  To compile this driver as a module, choose M here.
 	  If unsure, say N.
 
+config KINECTICS_XR_NORDIC
+	tristate "Nordic Misc driver support in XR Reference devices"
+	help
+	   This driver supports Nordic Chip in XR Reference devices.
+	   This driver interfaces with SoC to Nordic chip over SPI and contains
+	   code to power up the Nordic chip and initializes SPI interface. Also,
+	   this also parses the gpios and interrupts from device tree and sets
+	   the gpios and interrupt handler for handling the interrupt.
+
 source "drivers/misc/c2port/Kconfig"
 source "drivers/misc/eeprom/Kconfig"
 source "drivers/misc/cb710/Kconfig"
