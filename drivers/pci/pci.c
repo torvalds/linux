@@ -6679,8 +6679,7 @@ static void pci_request_resource_alignment(struct pci_dev *dev, int bar,
 	} else {
 		r->flags &= ~IORESOURCE_SIZEALIGN;
 		r->flags |= IORESOURCE_STARTALIGN;
-		r->start = align;
-		r->end = r->start + size - 1;
+		resource_set_range(r, align, size);
 	}
 	r->flags |= IORESOURCE_UNSET;
 }
