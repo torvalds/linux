@@ -393,13 +393,13 @@ extern int cachefiles_determine_cache_security(struct cachefiles_cache *cache,
 static inline void cachefiles_begin_secure(struct cachefiles_cache *cache,
 					   const struct cred **_saved_cred)
 {
-	*_saved_cred = override_creds(get_new_cred(cache->cache_cred));
+	*_saved_cred = override_creds(cache->cache_cred);
 }
 
 static inline void cachefiles_end_secure(struct cachefiles_cache *cache,
 					 const struct cred *saved_cred)
 {
-	put_cred(revert_creds(saved_cred));
+	revert_creds(saved_cred);
 }
 
 /*
