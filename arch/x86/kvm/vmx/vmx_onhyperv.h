@@ -3,7 +3,7 @@
 #ifndef __ARCH_X86_KVM_VMX_ONHYPERV_H__
 #define __ARCH_X86_KVM_VMX_ONHYPERV_H__
 
-#include <asm/hyperv-tlfs.h>
+#include <hyperv/hvhdk.h>
 #include <asm/mshyperv.h>
 
 #include <linux/jump_label.h>

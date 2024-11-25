@@ -6,9 +6,8 @@
  * independent. See arch/<arch>/include/asm/mshyperv.h for definitions
  * that are specific to architecture <arch>.
  *
- * Definitions that are specified in the Hyper-V Top Level Functional
- * Spec (TLFS) should not go in this file, but should instead go in
- * hyperv-tlfs.h.
+ * Definitions that are derived from Hyper-V code or headers should not go in
+ * this file, but should instead go in the relevant files in include/hyperv.
  *
  * Copyright (C) 2019, Microsoft, Inc.
  *
@@ -25,7 +24,7 @@
 #include <linux/cpumask.h>
 #include <linux/nmi.h>
 #include <asm/ptrace.h>
-#include <asm/hyperv-tlfs.h>
+#include <hyperv/hvhdk.h>
 
 #define VTPM_BASE_ADDRESS 0xfed40000
 
