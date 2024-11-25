@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/* Copyright (c) 2022-2023, Qualcomm Innovation Center, Inc. All rights reserved. */
+/* Copyright (c) 2022-2024, Qualcomm Innovation Center, Inc. All rights reserved. */
 
 #include <linux/platform_device.h>
 #include <linux/ipc_logging.h>
@@ -889,6 +889,12 @@ static int glink_pkt_zerocopy_receive(struct glink_pkt_device *gpdev,
 	zap_vma_ptes(vma, address, total_bytes_to_map);
 
 	pages_to_map = total_bytes_to_map / PAGE_SIZE;
+
+	if (leading_page)
+		pages_to_map--;
+	if (trailing_page)
+		pages_to_map--;
+
 	if (leading_page) {
 		rc = vm_insert_page(vma, address, virt_to_page(leading_page));
 		if (rc)
