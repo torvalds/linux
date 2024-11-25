@@ -259,8 +259,8 @@ static inline struct tracepoint *tracepoint_ptr_deref(tracepoint_ptr_t *p)
 	{								\
 		if (static_branch_unlikely(&__tracepoint_##name.key)) { \
 			if (cond) {					\
-				scoped_guard(preempt_notrace)		\
-					__DO_TRACE_CALL(name, TP_ARGS(args)); \
+				guard(preempt_notrace)();		\
+				__DO_TRACE_CALL(name, TP_ARGS(args));	\
 			}						\
 		}							\
 		if (IS_ENABLED(CONFIG_LOCKDEP) && (cond)) {		\
@@ -275,8 +275,8 @@ static inline struct tracepoint *tracepoint_ptr_deref(tracepoint_ptr_t *p)
 	{								\
 		might_fault();						\
 		if (static_branch_unlikely(&__tracepoint_##name.key)) {	\
-			scoped_guard(rcu_tasks_trace)			\
-				__DO_TRACE_CALL(name, TP_ARGS(args));	\
+			guard(rcu_tasks_trace)();			\
+			__DO_TRACE_CALL(name, TP_ARGS(args));		\
 		}							\
 		if (IS_ENABLED(CONFIG_LOCKDEP)) {			\
 			WARN_ONCE(!rcu_is_watching(),			\
