@@ -292,7 +292,7 @@ id_to_sid(unsigned int cid, uint sidtype, struct smb_sid *ssid)
 		return -EINVAL;
 
 	rc = 0;
-	saved_cred = override_creds(get_new_cred(root_cred));
+	saved_cred = override_creds(root_cred);
 	sidkey = request_key(&cifs_idmap_key_type, desc, "");
 	if (IS_ERR(sidkey)) {
 		rc = -EINVAL;
@@ -327,7 +327,7 @@ id_to_sid(unsigned int cid, uint sidtype, struct smb_sid *ssid)
 out_key_put:
 	key_put(sidkey);
 out_revert_creds:
-	put_cred(revert_creds(saved_cred));
+	revert_creds(saved_cred);
 	return rc;
 
 invalidate_key:
@@ -398,7 +398,7 @@ try_upcall_to_get_id:
 	if (!sidstr)
 		return -ENOMEM;
 
-	saved_cred = override_creds(get_new_cred(root_cred));
+	saved_cred = override_creds(root_cred);
 	sidkey = request_key(&cifs_idmap_key_type, sidstr, "");
 	if (IS_ERR(sidkey)) {
 		cifs_dbg(FYI, "%s: Can't map SID %s to a %cid\n",
@@ -438,7 +438,7 @@ try_upcall_to_get_id:
 out_key_put:
 	key_put(sidkey);
 out_revert_creds:
-	put_cred(revert_creds(saved_cred));
+	revert_creds(saved_cred);
 	kfree(sidstr);
 
 	/*
