@@ -81,8 +81,7 @@ nfs4_save_creds(const struct cred **original_creds)
 
 	new->fsuid = GLOBAL_ROOT_UID;
 	new->fsgid = GLOBAL_ROOT_GID;
-	*original_creds = override_creds(get_new_cred(new));
-	put_cred(new);
+	*original_creds = override_creds(new);
 	return 0;
 }
 
