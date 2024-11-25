@@ -857,6 +857,14 @@ static bool bkey_packed_valid(struct bch_fs *c, struct btree *b,
 	return !__bch2_bkey_validate(c, u.s_c, btree_node_type(b), BCH_VALIDATE_silent);
 }
 
+static inline int btree_node_read_bkey_cmp(const struct btree *b,
+				const struct bkey_packed *l,
+				const struct bkey_packed *r)
+{
+	return bch2_bkey_cmp_packed(b, l, r)
+		?: (int) bkey_deleted(r) - (int) bkey_deleted(l);
+}
+
 static int validate_bset_keys(struct bch_fs *c, struct btree *b,
 			 struct bset *i, int write,
 			 bool have_retry, bool *saw_error)
@@ -917,7 +925,7 @@ static int validate_bset_keys(struct bch_fs *c, struct btree *b,
 				    BSET_BIG_ENDIAN(i), write,
 				    &b->format, k);
 
-		if (prev && bkey_iter_cmp(b, prev, k) > 0) {
+		if (prev && btree_node_read_bkey_cmp(b, prev, k) >= 0) {
 			struct bkey up = bkey_unpack_key(b, prev);
 
 			printbuf_reset(&buf);
