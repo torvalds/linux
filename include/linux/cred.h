@@ -201,19 +201,6 @@ static inline struct cred *get_new_cred_many(struct cred *cred, int nr)
 }
 
 /**
- * get_new_cred - Get a reference on a new set of credentials
- * @cred: The new credentials to reference
- *
- * Get a reference on the specified set of new credentials.  The caller must
- * release the reference.
- */
-static inline struct cred *get_new_cred(const struct cred *cred)
-{
-	struct cred *nonconst_cred = (struct cred *) cred;
-	return get_new_cred_many(nonconst_cred, 1);
-}
-
-/**
  * get_cred_many - Get references on a set of credentials
  * @cred: The credentials to reference
  * @nr: Number of references to acquire
