@@ -3964,7 +3964,6 @@ retry:
 		drained = true;
 		goto retry;
 	}
-	set_page_refcounted(page);
 out:
 	psi_memstall_leave(&pflags);
 
@@ -4386,8 +4385,10 @@ retry:
 	/* Try direct reclaim and then allocating */
 	page = __alloc_pages_direct_reclaim(gfp_mask, order, alloc_flags, ac,
 							&did_some_progress);
-	if (page)
+	if (page) {
+		set_page_refcounted(page);
 		goto got_pg;
+	}
 
 	/* Try direct compaction and then allocating */
 	page = __alloc_pages_direct_compact(gfp_mask, order, alloc_flags, ac,
