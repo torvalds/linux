@@ -3222,6 +3222,33 @@ static const struct panel_desc mitsubishi_aa084xe01 = {
 	.bus_flags = DRM_BUS_FLAG_DE_HIGH | DRM_BUS_FLAG_PIXDATA_SAMPLE_NEGEDGE,
 };
 
+static const struct display_timing multi_inno_mi0700a2t_30_timing = {
+	.pixelclock = { 26400000, 33000000, 46800000 },
+	.hactive = { 800, 800, 800 },
+	.hfront_porch = { 16, 204, 354 },
+	.hback_porch = { 46, 46, 46 },
+	.hsync_len = { 1, 6, 40 },
+	.vactive = { 480, 480, 480 },
+	.vfront_porch = { 7, 22, 147 },
+	.vback_porch = { 23, 23, 23 },
+	.vsync_len = { 1, 3, 20 },
+	.flags = DISPLAY_FLAGS_HSYNC_LOW | DISPLAY_FLAGS_VSYNC_LOW |
+		 DISPLAY_FLAGS_DE_HIGH,
+};
+
+static const struct panel_desc multi_inno_mi0700a2t_30 = {
+	.timings = &multi_inno_mi0700a2t_30_timing,
+	.num_timings = 1,
+	.bpc = 6,
+	.size = {
+		.width = 153,
+		.height = 92,
+	},
+	.bus_format = MEDIA_BUS_FMT_RGB666_1X7X3_SPWG,
+	.bus_flags = DRM_BUS_FLAG_DE_HIGH,
+	.connector_type = DRM_MODE_CONNECTOR_LVDS,
+};
+
 static const struct display_timing multi_inno_mi0700s4t_6_timing = {
 	.pixelclock = { 29000000, 33000000, 38000000 },
 	.hactive = { 800, 800, 800 },
@@ -4905,6 +4932,9 @@ static const struct of_device_id platform_of_match[] = {
 	}, {
 		.compatible = "mitsubishi,aa084xe01",
 		.data = &mitsubishi_aa084xe01,
+	}, {
+		.compatible = "multi-inno,mi0700a2t-30",
+		.data = &multi_inno_mi0700a2t_30,
 	}, {
 		.compatible = "multi-inno,mi0700s4t-6",
 		.data = &multi_inno_mi0700s4t_6,
