@@ -22,9 +22,9 @@
  *
  */
 
-#ifndef MES_V11_0_USERQ_H
-#define MES_V11_0_USERQ_H
+#ifndef MES_USERQ_H
+#define MES_USERQ_H
 #include "amdgpu_userqueue.h"
 
-extern const struct amdgpu_userq_funcs userq_mes_v11_0_funcs;
+extern const struct amdgpu_userq_funcs userq_mes_funcs;
 #endif
