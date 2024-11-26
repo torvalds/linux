@@ -575,12 +575,12 @@ static const struct cred *ovl_setup_cred_for_create(struct dentry *dentry,
 	}
 
 	/*
-	 * Caller is going to match this with revert_creds_light() and drop
+	 * Caller is going to match this with revert_creds() and drop
 	 * referenec on the returned creds.
 	 * We must be called with creator creds already, otherwise we risk
 	 * leaking creds.
 	 */
-	old_cred = override_creds_light(override_cred);
+	old_cred = override_creds(override_cred);
 	WARN_ON_ONCE(old_cred != ovl_creds(dentry->d_sb));
 
 	return override_cred;

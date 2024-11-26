@@ -1248,7 +1248,7 @@ nfsd_file_acquire_local(struct net *net, struct svc_cred *cred,
 
 	beres = nfsd_file_do_acquire(NULL, net, cred, client,
 				     fhp, may_flags, NULL, pnf, true);
-	revert_creds(save_cred);
+	put_cred(revert_creds(save_cred));
 	return beres;
 }
 
