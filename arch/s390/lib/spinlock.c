@@ -77,7 +77,7 @@ static inline int arch_load_niai4(int *lock)
 	asm_inline volatile(
 		ALTERNATIVE("nop", ".insn rre,0xb2fa0000,4,0", ALT_FACILITY(49)) /* NIAI 4 */
 		"	l	%[owner],%[lock]\n"
-		: [owner] "=d" (owner) : [lock] "Q" (*lock) : "memory");
+		: [owner] "=d" (owner) : [lock] "R" (*lock) : "memory");
 	return owner;
 }
 
