@@ -512,6 +512,15 @@ mt7915_mac_init_band(struct mt7915_dev *dev, u8 band)
 	mt76_clear(dev, MT_WF_RMAC_MIB_AIRTIME4(band),
 		   MT_WF_RMAC_MIB_QOS23_BACKOFF);
 
+	/* clear backoff time for Tx duration */
+	mt76_clear(dev, MT_WTBLOFF_TOP_ACR(band),
+		   MT_WTBLOFF_TOP_ADM_BACKOFFTIME);
+
+	/* exclude estimated backoff time for Tx duration on MT7915 */
+	if (is_mt7915(&dev->mt76))
+		mt76_set(dev, MT_AGG_ATCR0(band),
+			   MT_AGG_ATCR_MAC_BFF_TIME_EN);
+
 	/* clear backoff time and set software compensation for OBSS time */
 	mask = MT_WF_RMAC_MIB_OBSS_BACKOFF | MT_WF_RMAC_MIB_ED_OFFSET;
 	set = FIELD_PREP(MT_WF_RMAC_MIB_OBSS_BACKOFF, 0) |
