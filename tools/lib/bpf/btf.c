@@ -283,7 +283,7 @@ static int btf_parse_str_sec(struct btf *btf)
 		return -EINVAL;
 	}
 	if (!btf->base_btf && start[0]) {
-		pr_debug("Invalid BTF string section\n");
+		pr_debug("Malformed BTF string section, did you forget to provide base BTF?\n");
 		return -EINVAL;
 	}
 	return 0;
