@@ -187,20 +187,6 @@ static inline const struct cred *revert_creds(const struct cred *revert_cred)
 }
 
 /**
- * get_new_cred_many - Get references on a new set of credentials
- * @cred: The new credentials to reference
- * @nr: Number of references to acquire
- *
- * Get references on the specified set of new credentials.  The caller must
- * release all acquired references.
- */
-static inline struct cred *get_new_cred_many(struct cred *cred, int nr)
-{
-	atomic_long_add(nr, &cred->usage);
-	return cred;
-}
-
-/**
  * get_cred_many - Get references on a set of credentials
  * @cred: The credentials to reference
  * @nr: Number of references to acquire
@@ -220,7 +206,8 @@ static inline const struct cred *get_cred_many(const struct cred *cred, int nr)
 	if (!cred)
 		return cred;
 	nonconst_cred->non_rcu = 0;
-	return get_new_cred_many(nonconst_cred, nr);
+	atomic_long_add(nr, &nonconst_cred->usage);
+	return cred;
 }
 
 /*
