@@ -92,6 +92,8 @@ static const struct amdgpu_hwip_reg_entry vcn_reg_list_2_0[] = {
 static void vcn_v2_0_set_dec_ring_funcs(struct amdgpu_device *adev);
 static void vcn_v2_0_set_enc_ring_funcs(struct amdgpu_device *adev);
 static void vcn_v2_0_set_irq_funcs(struct amdgpu_device *adev);
+static int vcn_v2_0_set_pg_state(struct amdgpu_vcn_inst *vinst,
+				 enum amd_powergating_state state);
 static int vcn_v2_0_set_powergating_state(struct amdgpu_ip_block *ip_block,
 				enum amd_powergating_state state);
 static int vcn_v2_0_pause_dpg_mode(struct amdgpu_vcn_inst *vinst,
@@ -114,6 +116,7 @@ static int vcn_v2_0_early_init(struct amdgpu_ip_block *ip_block)
 	else
 		adev->vcn.inst[0].num_enc_rings = 2;
 
+	adev->vcn.inst->set_pg_state = vcn_v2_0_set_pg_state;
 	vcn_v2_0_set_dec_ring_funcs(adev);
 	vcn_v2_0_set_enc_ring_funcs(adev);
 	vcn_v2_0_set_irq_funcs(adev);
@@ -312,13 +315,14 @@ static int vcn_v2_0_hw_init(struct amdgpu_ip_block *ip_block)
 static int vcn_v2_0_hw_fini(struct amdgpu_ip_block *ip_block)
 {
 	struct amdgpu_device *adev = ip_block->adev;
+	struct amdgpu_vcn_inst *vinst = adev->vcn.inst;
 
-	cancel_delayed_work_sync(&adev->vcn.inst[0].idle_work);
+	cancel_delayed_work_sync(&vinst->idle_work);
 
 	if ((adev->pg_flags & AMD_PG_SUPPORT_VCN_DPG) ||
-	    (adev->vcn.inst[0].cur_state != AMD_PG_STATE_GATE &&
+	    (vinst->cur_state != AMD_PG_STATE_GATE &&
 	     RREG32_SOC15(VCN, 0, mmUVD_STATUS)))
-		vcn_v2_0_set_powergating_state(ip_block, AMD_PG_STATE_GATE);
+		vinst->set_pg_state(vinst, AMD_PG_STATE_GATE);
 
 	return 0;
 }
@@ -1810,8 +1814,8 @@ int vcn_v2_0_dec_ring_test_ring(struct amdgpu_ring *ring)
 }
 
 
-static int vcn_v2_0_set_powergating_state(struct amdgpu_ip_block *ip_block,
-					  enum amd_powergating_state state)
+static int vcn_v2_0_set_pg_state(struct amdgpu_vcn_inst *vinst,
+				 enum amd_powergating_state state)
 {
 	/* This doesn't actually powergate the VCN block.
 	 * That's done in the dpm code via the SMC.  This
@@ -1821,25 +1825,34 @@ static int vcn_v2_0_set_powergating_state(struct amdgpu_ip_block *ip_block,
 	 * the smc and the hw blocks
 	 */
 	int ret;
-	struct amdgpu_device *adev = ip_block->adev;
+	struct amdgpu_device *adev = vinst->adev;
 
 	if (amdgpu_sriov_vf(adev)) {
-		adev->vcn.inst[0].cur_state = AMD_PG_STATE_UNGATE;
+		vinst->cur_state = AMD_PG_STATE_UNGATE;
 		return 0;
 	}
 
-	if (state == adev->vcn.inst[0].cur_state)
+	if (state == vinst->cur_state)
 		return 0;
 
 	if (state == AMD_PG_STATE_GATE)
-		ret = vcn_v2_0_stop(adev->vcn.inst);
+		ret = vcn_v2_0_stop(vinst);
 	else
-		ret = vcn_v2_0_start(adev->vcn.inst);
+		ret = vcn_v2_0_start(vinst);
 
 	if (!ret)
-		adev->vcn.inst[0].cur_state = state;
+		vinst->cur_state = state;
 
 	return ret;
+}
+
+static int vcn_v2_0_set_powergating_state(struct amdgpu_ip_block *ip_block,
+					  enum amd_powergating_state state)
+{
+	struct amdgpu_device *adev = ip_block->adev;
+	struct amdgpu_vcn_inst *vinst = adev->vcn.inst;
+
+	return vinst->set_pg_state(vinst, state);
 }
 
 static int vcn_v2_0_start_mmsch(struct amdgpu_device *adev,
