@@ -16,14 +16,14 @@ static void i9xx_display_save_swf(struct drm_i915_private *i915)
 	int i;
 
 	/* Scratch space */
-	if (GRAPHICS_VER(i915) == 2 && IS_MOBILE(i915)) {
+	if (DISPLAY_VER(i915) == 2 && IS_MOBILE(i915)) {
 		for (i = 0; i < 7; i++) {
 			display->restore.saveSWF0[i] = intel_de_read(display, SWF0(i915, i));
 			display->restore.saveSWF1[i] = intel_de_read(display, SWF1(i915, i));
 		}
 		for (i = 0; i < 3; i++)
 			display->restore.saveSWF3[i] = intel_de_read(display, SWF3(i915, i));
-	} else if (GRAPHICS_VER(i915) == 2) {
+	} else if (DISPLAY_VER(i915) == 2) {
 		for (i = 0; i < 7; i++)
 			display->restore.saveSWF1[i] = intel_de_read(display, SWF1(i915, i));
 	} else if (HAS_GMCH(i915)) {
@@ -42,14 +42,14 @@ static void i9xx_display_restore_swf(struct drm_i915_private *i915)
 	int i;
 
 	/* Scratch space */
-	if (GRAPHICS_VER(i915) == 2 && IS_MOBILE(i915)) {
+	if (DISPLAY_VER(i915) == 2 && IS_MOBILE(i915)) {
 		for (i = 0; i < 7; i++) {
 			intel_de_write(display, SWF0(i915, i), display->restore.saveSWF0[i]);
 			intel_de_write(display, SWF1(i915, i), display->restore.saveSWF1[i]);
 		}
 		for (i = 0; i < 3; i++)
 			intel_de_write(display, SWF3(i915, i), display->restore.saveSWF3[i]);
-	} else if (GRAPHICS_VER(i915) == 2) {
+	} else if (DISPLAY_VER(i915) == 2) {
 		for (i = 0; i < 7; i++)
 			intel_de_write(display, SWF1(i915, i), display->restore.saveSWF1[i]);
 	} else if (HAS_GMCH(i915)) {
@@ -71,10 +71,10 @@ void i9xx_display_sr_save(struct drm_i915_private *i915)
 		return;
 
 	/* Display arbitration control */
-	if (GRAPHICS_VER(i915) <= 4)
+	if (DISPLAY_VER(i915) <= 4)
 		display->restore.saveDSPARB = intel_de_read(display, DSPARB(i915));
 
-	if (GRAPHICS_VER(i915) == 4)
+	if (DISPLAY_VER(i915) == 4)
 		pci_read_config_word(pdev, GCDGMBUS, &display->restore.saveGCDGMBUS);
 
 	i9xx_display_save_swf(i915);
@@ -90,10 +90,10 @@ void i9xx_display_sr_restore(struct drm_i915_private *i915)
 
 	i9xx_display_restore_swf(i915);
 
-	if (GRAPHICS_VER(i915) == 4)
+	if (DISPLAY_VER(i915) == 4)
 		pci_write_config_word(pdev, GCDGMBUS, display->restore.saveGCDGMBUS);
 
 	/* Display arbitration */
-	if (GRAPHICS_VER(i915) <= 4)
+	if (DISPLAY_VER(i915) <= 4)
 		intel_de_write(display, DSPARB(i915), display->restore.saveDSPARB);
 }
