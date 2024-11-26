@@ -546,4 +546,7 @@ int amdgpu_vcn_sysfs_reset_mask_init(struct amdgpu_device *adev);
 void amdgpu_vcn_sysfs_reset_mask_fini(struct amdgpu_device *adev);
 void amdgpu_debugfs_vcn_sched_mask_init(struct amdgpu_device *adev);
 
+int vcn_set_powergating_state(struct amdgpu_ip_block *ip_block,
+			      enum amd_powergating_state state);
+
 #endif
