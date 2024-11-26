@@ -709,7 +709,7 @@ void eytzinger1_test(void)
 {
 	unsigned inorder, size;
 
-	pr_info("1 based eytzinger test:");
+	pr_info("1 based eytzinger test:\n");
 
 	for (size = 2;
 	     size < 65536;
@@ -717,7 +717,7 @@ void eytzinger1_test(void)
 		unsigned extra = eytzinger1_extra(size);
 
 		if (!(size % 4096))
-			pr_info("tree size %u", size);
+			pr_info("tree size %u\n", size);
 
 		BUG_ON(eytzinger1_prev(0, size) != eytzinger1_last(size));
 		BUG_ON(eytzinger1_next(0, size) != eytzinger1_first(size));
@@ -742,7 +742,7 @@ void eytzinger0_test(void)
 
 	unsigned inorder, size;
 
-	pr_info("0 based eytzinger test:");
+	pr_info("0 based eytzinger test:\n");
 
 	for (size = 1;
 	     size < 65536;
@@ -750,7 +750,7 @@ void eytzinger0_test(void)
 		unsigned extra = eytzinger0_extra(size);
 
 		if (!(size % 4096))
-			pr_info("tree size %u", size);
+			pr_info("tree size %u\n", size);
 
 		BUG_ON(eytzinger0_prev(-1, size) != eytzinger0_last(size));
 		BUG_ON(eytzinger0_next(-1, size) != eytzinger0_first(size));
@@ -794,8 +794,8 @@ static void eytzinger0_find_test_val(u16 *test_array, unsigned nr, u16 search)
 
 	if (c1 != c2) {
 		eytzinger0_for_each(j, nr)
-			pr_info("[%3u] = %12u", j, test_array[j]);
-		pr_info("find_le(%2u) -> [%2zi] = %2i should be %2i",
+			pr_info("[%3u] = %12u\n", j, test_array[j]);
+		pr_info("find_le(%2u) -> [%2zi] = %2i should be %2i\n",
 			i, r, c1, c2);
 	}
 }
@@ -806,7 +806,7 @@ void eytzinger0_find_test(void)
 	u16 *test_array = kmalloc_array(allocated, sizeof(test_array[0]), GFP_KERNEL);
 
 	for (nr = 1; nr < allocated; nr++) {
-		pr_info("testing %u elems", nr);
+		pr_info("testing %u elems\n", nr);
 
 		get_random_bytes(test_array, nr * sizeof(test_array[0]));
 		eytzinger0_sort(test_array, nr, sizeof(test_array[0]), cmp_u16, NULL);
