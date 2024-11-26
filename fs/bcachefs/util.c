@@ -774,7 +774,7 @@ static inline int cmp_u16(const void *_l, const void *_r)
 {
 	const u16 *l = _l, *r = _r;
 
-	return (*l > *r) - (*r - *l);
+	return (*l > *r) - (*r > *l);
 }
 
 static void eytzinger0_find_test_val(u16 *test_array, unsigned nr, u16 search)
