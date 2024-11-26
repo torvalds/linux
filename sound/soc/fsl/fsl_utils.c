@@ -152,6 +152,51 @@ void fsl_asoc_reparent_pll_clocks(struct device *dev, struct clk *clk,
 }
 EXPORT_SYMBOL(fsl_asoc_reparent_pll_clocks);
 
+/**
+ * fsl_asoc_constrain_rates - constrain rates according to clocks
+ *
+ * @target_constr: target constraint
+ * @original_constr: original constraint
+ * @pll8k_clk: PLL clock pointer for 8kHz
+ * @pll11k_clk: PLL clock pointer for 11kHz
+ * @ext_clk: External clock pointer
+ * @target_rates: target rates array
+ *
+ * This function constrain rates according to clocks
+ */
+void fsl_asoc_constrain_rates(struct snd_pcm_hw_constraint_list *target_constr,
+			      const struct snd_pcm_hw_constraint_list *original_constr,
+			      struct clk *pll8k_clk, struct clk *pll11k_clk,
+			      struct clk *ext_clk, int *target_rates)
+{
+	int i, j, k = 0;
+	u64 clk_rate[3];
+
+	*target_constr = *original_constr;
+	if (pll8k_clk || pll11k_clk || ext_clk) {
+		target_constr->list = target_rates;
+		target_constr->count = 0;
+		for (i = 0; i < original_constr->count; i++) {
+			clk_rate[0] = clk_get_rate(pll8k_clk);
+			clk_rate[1] = clk_get_rate(pll11k_clk);
+			clk_rate[2] = clk_get_rate(ext_clk);
+			for (j = 0; j < 3; j++) {
+				if (clk_rate[j] != 0 &&
+				    do_div(clk_rate[j], original_constr->list[i]) == 0) {
+					target_rates[k++] = original_constr->list[i];
+					target_constr->count++;
+					break;
+				}
+			}
+		}
+
+		/* protection for if there is no proper rate found*/
+		if (!target_constr->count)
+			*target_constr = *original_constr;
+	}
+}
+EXPORT_SYMBOL(fsl_asoc_constrain_rates);
+
 MODULE_AUTHOR("Timur Tabi <timur@freescale.com>");
 MODULE_DESCRIPTION("Freescale ASoC utility code");
 MODULE_LICENSE("GPL v2");
