@@ -6,7 +6,8 @@
 
 use crate::{
     bindings,
-    types::{NotThreadSafe, Opaque},
+    pid_namespace::PidNamespace,
+    types::{ARef, NotThreadSafe, Opaque},
 };
 use core::{
     cmp::{Eq, PartialEq},
@@ -33,6 +34,16 @@ macro_rules! current {
         // SAFETY: Deref + addr-of below create a temporary `TaskRef` that cannot outlive the
         // caller.
         unsafe { &*$crate::task::Task::current() }
+    };
+}
+
+/// Returns the currently running task's pid namespace.
+#[macro_export]
+macro_rules! current_pid_ns {
+    () => {
+        // SAFETY: Deref + addr-of below create a temporary `PidNamespaceRef` that cannot outlive
+        // the caller.
+        unsafe { &*$crate::task::Task::current_pid_ns() }
     };
 }
 
@@ -145,6 +156,97 @@ impl Task {
         }
     }
 
+    /// Returns a PidNamespace reference for the currently executing task's/thread's pid namespace.
+    ///
+    /// This function can be used to create an unbounded lifetime by e.g., storing the returned
+    /// PidNamespace in a global variable which would be a bug. So the recommended way to get the
+    /// current task's/thread's pid namespace is to use the [`current_pid_ns`] macro because it is
+    /// safe.
+    ///
+    /// # Safety
+    ///
+    /// Callers must ensure that the returned object doesn't outlive the current task/thread.
+    pub unsafe fn current_pid_ns() -> impl Deref<Target = PidNamespace> {
+        struct PidNamespaceRef<'a> {
+            task: &'a PidNamespace,
+            _not_send: NotThreadSafe,
+        }
+
+        impl Deref for PidNamespaceRef<'_> {
+            type Target = PidNamespace;
+
+            fn deref(&self) -> &Self::Target {
+                self.task
+            }
+        }
+
+        // The lifetime of `PidNamespace` is bound to `Task` and `struct pid`.
+        //
+        // The `PidNamespace` of a `Task` doesn't ever change once the `Task` is alive. A
+        // `unshare(CLONE_NEWPID)` or `setns(fd_pidns/pidfd, CLONE_NEWPID)` will not have an effect
+        // on the calling `Task`'s pid namespace. It will only effect the pid namespace of children
+        // created by the calling `Task`. This invariant guarantees that after having acquired a
+        // reference to a `Task`'s pid namespace it will remain unchanged.
+        //
+        // When a task has exited and been reaped `release_task()` will be called. This will set
+        // the `PidNamespace` of the task to `NULL`. So retrieving the `PidNamespace` of a task
+        // that is dead will return `NULL`. Note, that neither holding the RCU lock nor holding a
+        // referencing count to
+        // the `Task` will prevent `release_task()` being called.
+        //
+        // In order to retrieve the `PidNamespace` of a `Task` the `task_active_pid_ns()` function
+        // can be used. There are two cases to consider:
+        //
+        // (1) retrieving the `PidNamespace` of the `current` task
+        // (2) retrieving the `PidNamespace` of a non-`current` task
+        //
+        // From system call context retrieving the `PidNamespace` for case (1) is always safe and
+        // requires neither RCU locking nor a reference count to be held. Retrieving the
+        // `PidNamespace` after `release_task()` for current will return `NULL` but no codepath
+        // like that is exposed to Rust.
+        //
+        // Retrieving the `PidNamespace` from system call context for (2) requires RCU protection.
+        // Accessing `PidNamespace` outside of RCU protection requires a reference count that
+        // must've been acquired while holding the RCU lock. Note that accessing a non-`current`
+        // task means `NULL` can be returned as the non-`current` task could have already passed
+        // through `release_task()`.
+        //
+        // To retrieve (1) the `current_pid_ns!()` macro should be used which ensure that the
+        // returned `PidNamespace` cannot outlive the calling scope. The associated
+        // `current_pid_ns()` function should not be called directly as it could be abused to
+        // created an unbounded lifetime for `PidNamespace`. The `current_pid_ns!()` macro allows
+        // Rust to handle the common case of accessing `current`'s `PidNamespace` without RCU
+        // protection and without having to acquire a reference count.
+        //
+        // For (2) the `task_get_pid_ns()` method must be used. This will always acquire a
+        // reference on `PidNamespace` and will return an `Option` to force the caller to
+        // explicitly handle the case where `PidNamespace` is `None`, something that tends to be
+        // forgotten when doing the equivalent operation in `C`. Missing RCU primitives make it
+        // difficult to perform operations that are otherwise safe without holding a reference
+        // count as long as RCU protection is guaranteed. But it is not important currently. But we
+        // do want it in the future.
+        //
+        // Note for (2) the required RCU protection around calling `task_active_pid_ns()`
+        // synchronizes against putting the last reference of the associated `struct pid` of
+        // `task->thread_pid`. The `struct pid` stored in that field is used to retrieve the
+        // `PidNamespace` of the caller. When `release_task()` is called `task->thread_pid` will be
+        // `NULL`ed and `put_pid()` on said `struct pid` will be delayed in `free_pid()` via
+        // `call_rcu()` allowing everyone with an RCU protected access to the `struct pid` acquired
+        // from `task->thread_pid` to finish.
+        //
+        // SAFETY: The current task's pid namespace is valid as long as the current task is running.
+        let pidns = unsafe { bindings::task_active_pid_ns(Task::current_raw()) };
+        PidNamespaceRef {
+            // SAFETY: If the current thread is still running, the current task and its associated
+            // pid namespace are valid. `PidNamespaceRef` is not `Send`, so we know it cannot be
+            // transferred to another thread (where it could potentially outlive the current
+            // `Task`). The caller needs to ensure that the PidNamespaceRef doesn't outlive the
+            // current task/thread.
+            task: unsafe { PidNamespace::from_ptr(pidns) },
+            _not_send: NotThreadSafe,
+        }
+    }
+
     /// Returns a raw pointer to the task.
     #[inline]
     pub fn as_ptr(&self) -> *mut bindings::task_struct {
@@ -188,11 +290,32 @@ impl Task {
         unsafe { bindings::signal_pending(self.as_ptr()) != 0 }
     }
 
-    /// Returns the given task's pid in the current pid namespace.
-    pub fn pid_in_current_ns(&self) -> Pid {
-        // SAFETY: It's valid to pass a null pointer as the namespace (defaults to current
-        // namespace). The task pointer is also valid.
-        unsafe { bindings::task_tgid_nr_ns(self.as_ptr(), ptr::null_mut()) }
+    /// Returns task's pid namespace with elevated reference count
+    pub fn get_pid_ns(&self) -> Option<ARef<PidNamespace>> {
+        // SAFETY: By the type invariant, we know that `self.0` is valid.
+        let ptr = unsafe { bindings::task_get_pid_ns(self.as_ptr()) };
+        if ptr.is_null() {
+            None
+        } else {
+            // SAFETY: `ptr` is valid by the safety requirements of this function. And we own a
+            // reference count via `task_get_pid_ns()`.
+            // CAST: `Self` is a `repr(transparent)` wrapper around `bindings::pid_namespace`.
+            Some(unsafe { ARef::from_raw(ptr::NonNull::new_unchecked(ptr.cast::<PidNamespace>())) })
+        }
+    }
+
+    /// Returns the given task's pid in the provided pid namespace.
+    #[doc(alias = "task_tgid_nr_ns")]
+    pub fn tgid_nr_ns(&self, pidns: Option<&PidNamespace>) -> Pid {
+        let pidns = match pidns {
+            Some(pidns) => pidns.as_ptr(),
+            None => core::ptr::null_mut(),
+        };
+        // SAFETY: By the type invariant, we know that `self.0` is valid. We received a valid
+        // PidNamespace that we can use as a pointer or we received an empty PidNamespace and
+        // thus pass a null pointer. The underlying C function is safe to be used with NULL
+        // pointers.
+        unsafe { bindings::task_tgid_nr_ns(self.as_ptr(), pidns) }
     }
 
     /// Wakes up the task.
