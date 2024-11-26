@@ -12,6 +12,7 @@
 #define DML2_MAX_FMT_420_BUFFER_WIDTH 4096
 #define DML_MAX_NUM_OF_SLICES_PER_DSC 4
 #define ALLOW_SDPIF_RATE_LIMIT_PRE_CSTATE
+#define DML_PREFETCH_OTO_BW_CAP_FIX // just cap prefetch_bw_oto to max_vratio_oto
 
 const char *dml2_core_internal_bw_type_str(enum dml2_core_internal_bw_type bw_type)
 {
@@ -5302,10 +5303,20 @@ static bool CalculatePrefetchSchedule(struct dml2_core_internal_scratch *scratch
 		vm_bytes = vm_bytes + p->tdlut_pte_bytes_per_frame + (p->display_cfg->gpuvm_enable ? extra_tdpe_bytes : 0);
 
 	tdlut_row_bytes = (unsigned long) math_ceil2(p->tdlut_bytes_per_frame/2.0, 1.0);
+
+#ifdef DML_PREFETCH_OTO_BW_CAP_FIX
+	s->prefetch_bw_oto = math_min2(s->prefetch_bw_oto, s->prefetch_sw_bytes/(s->min_Lsw_oto*s->LineTime));
+
+	s->Lsw_oto = math_ceil2(4.0 * s->prefetch_sw_bytes / s->prefetch_bw_oto / s->LineTime, 1.0) / 4.0;
+	s->prefetch_bw_oto = math_max3(s->prefetch_bw_oto,
+					p->vm_bytes * p->HostVMInefficiencyFactor / (31 * s->LineTime) - *p->Tno_bw,
+					(p->PixelPTEBytesPerRow * p->HostVMInefficiencyFactor + p->meta_row_bytes + tdlut_row_bytes) / (15 * s->LineTime));
+#else
 	s->prefetch_bw_oto = math_max3(s->prefetch_bw_oto,
 					p->vm_bytes * p->HostVMInefficiencyFactor / (31 * s->LineTime) - *p->Tno_bw,
 					(p->PixelPTEBytesPerRow * p->HostVMInefficiencyFactor + p->meta_row_bytes + tdlut_row_bytes) / (15 * s->LineTime));
 	s->Lsw_oto = math_ceil2(4.0 * math_max2(s->prefetch_sw_bytes / s->prefetch_bw_oto / s->LineTime, s->min_Lsw_oto), 1.0) / 4.0;
+#endif
 
 	if (p->display_cfg->gpuvm_enable == true) {
 		s->Tvm_no_trip_oto = math_max2(
