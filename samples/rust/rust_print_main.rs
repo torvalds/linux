@@ -15,6 +15,7 @@ module! {
 
 struct RustPrint;
 
+#[expect(clippy::disallowed_macros)]
 fn arc_print() -> Result {
     use kernel::sync::*;
 

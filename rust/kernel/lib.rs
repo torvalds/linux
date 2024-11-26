@@ -12,10 +12,11 @@
 //! do so first instead of bypassing this crate.
 
 #![no_std]
+#![feature(arbitrary_self_types)]
 #![feature(coerce_unsized)]
 #![feature(dispatch_from_dyn)]
-#![feature(new_uninit)]
-#![feature(receiver_trait)]
+#![feature(inline_const)]
+#![feature(lint_reasons)]
 #![feature(unsize)]
 
 // Ensure conditional compilation based on the kernel configuration works;
@@ -25,6 +26,8 @@ compile_error!("Missing kernel configuration for conditional compilation");
 
 // Allow proc-macros to refer to `::kernel` inside the `kernel` crate (this crate).
 extern crate self as kernel;
+
+pub use ffi;
 
 pub mod alloc;
 #[cfg(CONFIG_BLOCK)]
@@ -60,6 +63,7 @@ pub mod sync;
 pub mod task;
 pub mod time;
 pub mod tracepoint;
+pub mod transmute;
 pub mod types;
 pub mod uaccess;
 pub mod workqueue;
@@ -90,7 +94,7 @@ pub trait Module: Sized + Sync + Send {
 
 /// Equivalent to `THIS_MODULE` in the C API.
 ///
-/// C header: [`include/linux/export.h`](srctree/include/linux/export.h)
+/// C header: [`include/linux/init.h`](srctree/include/linux/init.h)
 pub struct ThisModule(*mut bindings::module);
 
 // SAFETY: `THIS_MODULE` may be used from all threads within a module.
