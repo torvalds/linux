@@ -4317,8 +4317,8 @@ getDFSRetry:
 	 * CIFSGetDFSRefer() may be called from cifs_reconnect_tcon() and thus
 	 * causing an infinite recursion.
 	 */
-	rc = smb_init_no_reconnect(SMB_COM_TRANSACTION2, 15, ses->tcon_ipc,
-				   (void **)&pSMB, (void **)&pSMBr);
+	rc = smb_init(SMB_COM_TRANSACTION2, 15, ses->tcon_ipc,
+		      (void **)&pSMB, (void **)&pSMBr);
 	if (rc)
 		return rc;
 
