@@ -424,8 +424,7 @@ static void amdgpu_vcn_idle_work_handler(struct work_struct *work)
 	fences += fence[i];
 
 	if (!fences && !atomic_read(&vcn_inst->total_submission_cnt)) {
-		amdgpu_device_ip_set_powergating_state(adev, AMD_IP_BLOCK_TYPE_VCN,
-						       AMD_PG_STATE_GATE);
+		vcn_inst->set_pg_state(vcn_inst, AMD_PG_STATE_GATE);
 		r = amdgpu_dpm_switch_power_profile(adev, PP_SMC_POWER_PROFILE_VIDEO,
 						    false);
 		if (r)
@@ -438,45 +437,45 @@ static void amdgpu_vcn_idle_work_handler(struct work_struct *work)
 void amdgpu_vcn_ring_begin_use(struct amdgpu_ring *ring)
 {
 	struct amdgpu_device *adev = ring->adev;
+	struct amdgpu_vcn_inst *vcn_inst = &adev->vcn.inst[ring->me];
 	int r = 0;
 
-	atomic_inc(&adev->vcn.inst[ring->me].total_submission_cnt);
+	atomic_inc(&vcn_inst->total_submission_cnt);
 
-	if (!cancel_delayed_work_sync(&adev->vcn.inst[ring->me].idle_work)) {
+	if (!cancel_delayed_work_sync(&vcn_inst->idle_work)) {
 		r = amdgpu_dpm_switch_power_profile(adev, PP_SMC_POWER_PROFILE_VIDEO,
 				true);
 		if (r)
 			dev_warn(adev->dev, "(%d) failed to switch to video power profile mode\n", r);
 	}
 
-	mutex_lock(&adev->vcn.inst[ring->me].vcn_pg_lock);
-	amdgpu_device_ip_set_powergating_state(adev, AMD_IP_BLOCK_TYPE_VCN,
-					       AMD_PG_STATE_UNGATE);
+	mutex_lock(&vcn_inst->vcn_pg_lock);
+	vcn_inst->set_pg_state(vcn_inst, AMD_PG_STATE_UNGATE);
 
 	/* Only set DPG pause for VCN3 or below, VCN4 and above will be handled by FW */
 	if (adev->pg_flags & AMD_PG_SUPPORT_VCN_DPG &&
-	    !adev->vcn.inst[ring->me].using_unified_queue) {
+	    !vcn_inst->using_unified_queue) {
 		struct dpg_pause_state new_state;
 
 		if (ring->funcs->type == AMDGPU_RING_TYPE_VCN_ENC) {
-			atomic_inc(&adev->vcn.inst[ring->me].dpg_enc_submission_cnt);
+			atomic_inc(&vcn_inst->dpg_enc_submission_cnt);
 			new_state.fw_based = VCN_DPG_STATE__PAUSE;
 		} else {
 			unsigned int fences = 0;
 			unsigned int i;
 
-			for (i = 0; i < adev->vcn.inst[ring->me].num_enc_rings; ++i)
-				fences += amdgpu_fence_count_emitted(&adev->vcn.inst[ring->me].ring_enc[i]);
+			for (i = 0; i < vcn_inst->num_enc_rings; ++i)
+				fences += amdgpu_fence_count_emitted(&vcn_inst->ring_enc[i]);
 
-			if (fences || atomic_read(&adev->vcn.inst[ring->me].dpg_enc_submission_cnt))
+			if (fences || atomic_read(&vcn_inst->dpg_enc_submission_cnt))
 				new_state.fw_based = VCN_DPG_STATE__PAUSE;
 			else
 				new_state.fw_based = VCN_DPG_STATE__UNPAUSE;
 		}
 
-		adev->vcn.inst[ring->me].pause_dpg_mode(&adev->vcn.inst[ring->me], &new_state);
+		vcn_inst->pause_dpg_mode(vcn_inst, &new_state);
 	}
-	mutex_unlock(&adev->vcn.inst[ring->me].vcn_pg_lock);
+	mutex_unlock(&vcn_inst->vcn_pg_lock);
 }
 
 void amdgpu_vcn_ring_end_use(struct amdgpu_ring *ring)
