@@ -329,6 +329,8 @@ struct amdgpu_vcn_inst {
 	struct mutex		vcn1_jpeg1_workaround;
 	int (*pause_dpg_mode)(struct amdgpu_vcn_inst *vinst,
 			      struct dpg_pause_state *new_state);
+	int (*set_pg_state)(struct amdgpu_vcn_inst *vinst,
+			    enum amd_powergating_state state);
 	bool using_unified_queue;
 };
 
