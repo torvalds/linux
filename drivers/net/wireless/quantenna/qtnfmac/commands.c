@@ -257,7 +257,7 @@ int qtnf_cmd_send_start_ap(struct qtnf_vif *vif,
 	cmd->beacon_interval = cpu_to_le16(s->beacon_interval);
 	cmd->hidden_ssid = qlink_hidden_ssid_nl2q(s->hidden_ssid);
 	cmd->inactivity_timeout = cpu_to_le16(s->inactivity_timeout);
-	cmd->smps_mode = s->smps_mode;
+	cmd->smps_mode = NL80211_SMPS_OFF;
 	cmd->p2p_ctwindow = s->p2p_ctwindow;
 	cmd->p2p_opp_ps = s->p2p_opp_ps;
 	cmd->pbss = s->pbss;

@@ -140,7 +140,8 @@ int smu_set_soft_freq_range(struct smu_context *smu,
 		ret = smu->ppt_funcs->set_soft_freq_limited_range(smu,
 								  clk_type,
 								  min,
-								  max);
+								  max,
+								  false);
 
 	return ret;
 }
@@ -251,7 +252,7 @@ static int smu_dpm_set_vcn_enable(struct smu_context *smu,
 	if (atomic_read(&power_gate->vcn_gated) ^ enable)
 		return 0;
 
-	ret = smu->ppt_funcs->dpm_set_vcn_enable(smu, enable);
+	ret = smu->ppt_funcs->dpm_set_vcn_enable(smu, enable, 0xff);
 	if (!ret)
 		atomic_set(&power_gate->vcn_gated, !enable);
 
@@ -549,7 +550,8 @@ bool is_support_sw_smu(struct amdgpu_device *adev)
 	if (adev->asic_type == CHIP_VEGA20)
 		return false;
 
-	if (amdgpu_ip_version(adev, MP1_HWIP, 0) >= IP_VERSION(11, 0, 0))
+	if ((amdgpu_ip_version(adev, MP1_HWIP, 0) >= IP_VERSION(11, 0, 0)) &&
+	    amdgpu_device_ip_is_valid(adev, AMD_IP_BLOCK_TYPE_SMC))
 		return true;
 
 	return false;
@@ -741,9 +743,9 @@ static int smu_set_funcs(struct amdgpu_device *adev)
 	return 0;
 }
 
-static int smu_early_init(void *handle)
+static int smu_early_init(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	struct smu_context *smu;
 	int r;
 
@@ -825,9 +827,9 @@ static int smu_apply_default_config_table_settings(struct smu_context *smu)
 	return smu_set_config_table(smu, &adev->pm.config_table);
 }
 
-static int smu_late_init(void *handle)
+static int smu_late_init(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	struct smu_context *smu = adev->powerplay.pp_handle;
 	int ret = 0;
 
@@ -1242,9 +1244,9 @@ static bool smu_is_workload_profile_available(struct smu_context *smu,
 	return smu->workload_map && smu->workload_map[profile].valid_mapping;
 }
 
-static int smu_sw_init(void *handle)
+static int smu_sw_init(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	struct smu_context *smu = adev->powerplay.pp_handle;
 	int ret;
 
@@ -1259,26 +1261,33 @@ static int smu_sw_init(void *handle)
 	smu->watermarks_bitmap = 0;
 	smu->power_profile_mode = PP_SMC_POWER_PROFILE_BOOTUP_DEFAULT;
 	smu->default_power_profile_mode = PP_SMC_POWER_PROFILE_BOOTUP_DEFAULT;
+	smu->user_dpm_profile.user_workload_mask = 0;
 
 	atomic_set(&smu->smu_power.power_gate.vcn_gated, 1);
 	atomic_set(&smu->smu_power.power_gate.jpeg_gated, 1);
 	atomic_set(&smu->smu_power.power_gate.vpe_gated, 1);
 	atomic_set(&smu->smu_power.power_gate.umsch_mm_gated, 1);
 
-	smu->workload_prority[PP_SMC_POWER_PROFILE_BOOTUP_DEFAULT] = 0;
-	smu->workload_prority[PP_SMC_POWER_PROFILE_FULLSCREEN3D] = 1;
-	smu->workload_prority[PP_SMC_POWER_PROFILE_POWERSAVING] = 2;
-	smu->workload_prority[PP_SMC_POWER_PROFILE_VIDEO] = 3;
-	smu->workload_prority[PP_SMC_POWER_PROFILE_VR] = 4;
-	smu->workload_prority[PP_SMC_POWER_PROFILE_COMPUTE] = 5;
-	smu->workload_prority[PP_SMC_POWER_PROFILE_CUSTOM] = 6;
+	smu->workload_priority[PP_SMC_POWER_PROFILE_BOOTUP_DEFAULT] = 0;
+	smu->workload_priority[PP_SMC_POWER_PROFILE_FULLSCREEN3D] = 1;
+	smu->workload_priority[PP_SMC_POWER_PROFILE_POWERSAVING] = 2;
+	smu->workload_priority[PP_SMC_POWER_PROFILE_VIDEO] = 3;
+	smu->workload_priority[PP_SMC_POWER_PROFILE_VR] = 4;
+	smu->workload_priority[PP_SMC_POWER_PROFILE_COMPUTE] = 5;
+	smu->workload_priority[PP_SMC_POWER_PROFILE_CUSTOM] = 6;
 
 	if (smu->is_apu ||
-	    !smu_is_workload_profile_available(smu, PP_SMC_POWER_PROFILE_FULLSCREEN3D))
-		smu->workload_mask = 1 << smu->workload_prority[PP_SMC_POWER_PROFILE_BOOTUP_DEFAULT];
-	else
-		smu->workload_mask = 1 << smu->workload_prority[PP_SMC_POWER_PROFILE_FULLSCREEN3D];
+	    !smu_is_workload_profile_available(smu, PP_SMC_POWER_PROFILE_FULLSCREEN3D)) {
+		smu->driver_workload_mask =
+			1 << smu->workload_priority[PP_SMC_POWER_PROFILE_BOOTUP_DEFAULT];
+	} else {
+		smu->driver_workload_mask =
+			1 << smu->workload_priority[PP_SMC_POWER_PROFILE_FULLSCREEN3D];
+		smu->default_power_profile_mode = PP_SMC_POWER_PROFILE_FULLSCREEN3D;
+	}
 
+	smu->workload_mask = smu->driver_workload_mask |
+							smu->user_dpm_profile.user_workload_mask;
 	smu->workload_setting[0] = PP_SMC_POWER_PROFILE_BOOTUP_DEFAULT;
 	smu->workload_setting[1] = PP_SMC_POWER_PROFILE_FULLSCREEN3D;
 	smu->workload_setting[2] = PP_SMC_POWER_PROFILE_POWERSAVING;
@@ -1326,9 +1335,9 @@ static int smu_sw_init(void *handle)
 	return 0;
 }
 
-static int smu_sw_fini(void *handle)
+static int smu_sw_fini(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	struct smu_context *smu = adev->powerplay.pp_handle;
 	int ret;
 
@@ -1799,10 +1808,10 @@ static int smu_start_smc_engine(struct smu_context *smu)
 	return ret;
 }
 
-static int smu_hw_init(void *handle)
+static int smu_hw_init(struct amdgpu_ip_block *ip_block)
 {
 	int ret;
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	struct smu_context *smu = adev->powerplay.pp_handle;
 
 	if (amdgpu_sriov_vf(adev) && !amdgpu_sriov_is_pp_one_vf(adev)) {
@@ -2021,9 +2030,9 @@ static int smu_reset_mp1_state(struct smu_context *smu)
 	return ret;
 }
 
-static int smu_hw_fini(void *handle)
+static int smu_hw_fini(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	struct smu_context *smu = adev->powerplay.pp_handle;
 	int ret;
 
@@ -2054,9 +2063,9 @@ static int smu_hw_fini(void *handle)
 	return 0;
 }
 
-static void smu_late_fini(void *handle)
+static void smu_late_fini(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	struct smu_context *smu = adev->powerplay.pp_handle;
 
 	kfree(smu);
@@ -2065,26 +2074,31 @@ static void smu_late_fini(void *handle)
 static int smu_reset(struct smu_context *smu)
 {
 	struct amdgpu_device *adev = smu->adev;
+	struct amdgpu_ip_block *ip_block;
 	int ret;
 
-	ret = smu_hw_fini(adev);
+	ip_block = amdgpu_device_ip_get_ip_block(adev, AMD_IP_BLOCK_TYPE_SMC);
+	if (!ip_block)
+		return -EINVAL;
+
+	ret = smu_hw_fini(ip_block);
 	if (ret)
 		return ret;
 
-	ret = smu_hw_init(adev);
+	ret = smu_hw_init(ip_block);
 	if (ret)
 		return ret;
 
-	ret = smu_late_init(adev);
+	ret = smu_late_init(ip_block);
 	if (ret)
 		return ret;
 
 	return 0;
 }
 
-static int smu_suspend(void *handle)
+static int smu_suspend(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	struct smu_context *smu = adev->powerplay.pp_handle;
 	int ret;
 	uint64_t count;
@@ -2116,10 +2130,10 @@ static int smu_suspend(void *handle)
 	return 0;
 }
 
-static int smu_resume(void *handle)
+static int smu_resume(struct amdgpu_ip_block *ip_block)
 {
 	int ret;
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	struct smu_context *smu = adev->powerplay.pp_handle;
 
 	if (amdgpu_sriov_vf(adev)&& !amdgpu_sriov_is_pp_one_vf(adev))
@@ -2348,16 +2362,19 @@ static int smu_switch_power_profile(void *handle,
 		return -EINVAL;
 
 	if (!en) {
-		smu->workload_mask &= ~(1 << smu->workload_prority[type]);
+		smu->driver_workload_mask &= ~(1 << smu->workload_priority[type]);
 		index = fls(smu->workload_mask);
 		index = index > 0 && index <= WORKLOAD_POLICY_MAX ? index - 1 : 0;
 		workload[0] = smu->workload_setting[index];
 	} else {
-		smu->workload_mask |= (1 << smu->workload_prority[type]);
+		smu->driver_workload_mask |= (1 << smu->workload_priority[type]);
 		index = fls(smu->workload_mask);
 		index = index <= WORKLOAD_POLICY_MAX ? index - 1 : 0;
 		workload[0] = smu->workload_setting[index];
 	}
+
+	smu->workload_mask = smu->driver_workload_mask |
+						 smu->user_dpm_profile.user_workload_mask;
 
 	if (smu_dpm_ctx->dpm_level != AMD_DPM_FORCED_LEVEL_MANUAL &&
 		smu_dpm_ctx->dpm_level != AMD_DPM_FORCED_LEVEL_PERF_DETERMINISM)
@@ -2878,6 +2895,10 @@ static enum smu_clk_type smu_convert_to_smuclk(enum pp_clock_type type)
 		clk_type = SMU_OD_FAN_TARGET_TEMPERATURE; break;
 	case OD_FAN_MINIMUM_PWM:
 		clk_type = SMU_OD_FAN_MINIMUM_PWM; break;
+	case OD_FAN_ZERO_RPM_ENABLE:
+		clk_type = SMU_OD_FAN_ZERO_RPM_ENABLE; break;
+	case OD_FAN_ZERO_RPM_STOP_TEMP:
+		clk_type = SMU_OD_FAN_ZERO_RPM_STOP_TEMP; break;
 	default:
 		clk_type = SMU_CLK_COUNT; break;
 	}
@@ -3049,12 +3070,23 @@ static int smu_set_power_profile_mode(void *handle,
 				      uint32_t param_size)
 {
 	struct smu_context *smu = handle;
+	int ret;
 
 	if (!smu->pm_enabled || !smu->adev->pm.dpm_enabled ||
 	    !smu->ppt_funcs->set_power_profile_mode)
 		return -EOPNOTSUPP;
 
-	return smu_bump_power_profile_mode(smu, param, param_size);
+	if (smu->user_dpm_profile.user_workload_mask &
+	   (1 << smu->workload_priority[param[param_size]]))
+	   return 0;
+
+	smu->user_dpm_profile.user_workload_mask =
+		(1 << smu->workload_priority[param[param_size]]);
+	smu->workload_mask = smu->user_dpm_profile.user_workload_mask |
+		smu->driver_workload_mask;
+	ret = smu_bump_power_profile_mode(smu, param, param_size);
+
+	return ret;
 }
 
 static int smu_get_fan_control_mode(void *handle, u32 *fan_mode)

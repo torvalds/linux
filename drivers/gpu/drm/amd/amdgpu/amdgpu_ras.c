@@ -1214,6 +1214,42 @@ static void amdgpu_ras_error_generate_report(struct amdgpu_device *adev,
 	}
 }
 
+static void amdgpu_ras_virt_error_generate_report(struct amdgpu_device *adev,
+						  struct ras_query_if *query_if,
+						  struct ras_err_data *err_data,
+						  struct ras_query_context *qctx)
+{
+	unsigned long new_ue, new_ce, new_de;
+	struct ras_manager *obj = amdgpu_ras_find_obj(adev, &query_if->head);
+	const char *blk_name = get_ras_block_str(&query_if->head);
+	u64 event_id = qctx->evid.event_id;
+
+	new_ce = err_data->ce_count - obj->err_data.ce_count;
+	new_ue = err_data->ue_count - obj->err_data.ue_count;
+	new_de = err_data->de_count - obj->err_data.de_count;
+
+	if (new_ce) {
+		RAS_EVENT_LOG(adev, event_id, "%lu correctable hardware errors "
+			      "detected in %s block\n",
+			      new_ce,
+			      blk_name);
+	}
+
+	if (new_ue) {
+		RAS_EVENT_LOG(adev, event_id, "%lu uncorrectable hardware errors "
+			      "detected in %s block\n",
+			      new_ue,
+			      blk_name);
+	}
+
+	if (new_de) {
+		RAS_EVENT_LOG(adev, event_id, "%lu deferred hardware errors "
+			      "detected in %s block\n",
+			      new_de,
+			      blk_name);
+	}
+}
+
 static void amdgpu_rasmgr_error_data_statistic_update(struct ras_manager *obj, struct ras_err_data *err_data)
 {
 	struct ras_err_node *err_node;
@@ -1235,6 +1271,15 @@ static void amdgpu_rasmgr_error_data_statistic_update(struct ras_manager *obj, s
 		obj->err_data.ce_count += err_data->ce_count;
 		obj->err_data.de_count += err_data->de_count;
 	}
+}
+
+static void amdgpu_ras_mgr_virt_error_data_statistics_update(struct ras_manager *obj,
+							     struct ras_err_data *err_data)
+{
+	/* Host reports absolute counts */
+	obj->err_data.ue_count = err_data->ue_count;
+	obj->err_data.ce_count = err_data->ce_count;
+	obj->err_data.de_count = err_data->de_count;
 }
 
 static struct ras_manager *get_ras_manager(struct amdgpu_device *adev, enum amdgpu_ras_block blk)
@@ -1323,7 +1368,9 @@ static int amdgpu_ras_query_error_status_helper(struct amdgpu_device *adev,
 	if (error_query_mode == AMDGPU_RAS_INVALID_ERROR_QUERY)
 		return -EINVAL;
 
-	if (error_query_mode == AMDGPU_RAS_DIRECT_ERROR_QUERY) {
+	if (error_query_mode == AMDGPU_RAS_VIRT_ERROR_COUNT_QUERY) {
+		return amdgpu_virt_req_ras_err_count(adev, blk, err_data);
+	} else if (error_query_mode == AMDGPU_RAS_DIRECT_ERROR_QUERY) {
 		if (info->head.block == AMDGPU_RAS_BLOCK__UMC) {
 			amdgpu_ras_get_ecc_info(adev, err_data);
 		} else {
@@ -1405,13 +1452,21 @@ static int amdgpu_ras_query_error_status_with_event(struct amdgpu_device *adev,
 	if (ret)
 		goto out_fini_err_data;
 
-	amdgpu_rasmgr_error_data_statistic_update(obj, &err_data);
+	if (error_query_mode != AMDGPU_RAS_VIRT_ERROR_COUNT_QUERY) {
+		amdgpu_rasmgr_error_data_statistic_update(obj, &err_data);
+		amdgpu_ras_error_generate_report(adev, info, &err_data, &qctx);
+	} else {
+		/* Host provides absolute error counts. First generate the report
+		 * using the previous VF internal count against new host count.
+		 * Then Update VF internal count.
+		 */
+		amdgpu_ras_virt_error_generate_report(adev, info, &err_data, &qctx);
+		amdgpu_ras_mgr_virt_error_data_statistics_update(obj, &err_data);
+	}
 
 	info->ue_count = obj->err_data.ue_count;
 	info->ce_count = obj->err_data.ce_count;
 	info->de_count = obj->err_data.de_count;
-
-	amdgpu_ras_error_generate_report(adev, info, &err_data, &qctx);
 
 out_fini_err_data:
 	amdgpu_ras_error_data_fini(&err_data);
@@ -2605,6 +2660,7 @@ static void amdgpu_ras_do_recovery(struct work_struct *work)
 		reset_context.method = AMD_RESET_METHOD_NONE;
 		reset_context.reset_req_dev = adev;
 		reset_context.src = AMDGPU_RESET_SRC_RAS;
+		set_bit(AMDGPU_SKIP_COREDUMP, &reset_context.flags);
 
 		/* Perform full reset in fatal error mode */
 		if (!amdgpu_ras_is_poison_mode_supported(ras->adev))
@@ -3146,7 +3202,42 @@ static int amdgpu_ras_page_retirement_thread(void *param)
 	return 0;
 }
 
-int amdgpu_ras_recovery_init(struct amdgpu_device *adev)
+int amdgpu_ras_init_badpage_info(struct amdgpu_device *adev)
+{
+	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
+	int ret;
+
+	if (!con || amdgpu_sriov_vf(adev))
+		return 0;
+
+	ret = amdgpu_ras_eeprom_init(&con->eeprom_control);
+
+	if (ret)
+		return ret;
+
+	/* HW not usable */
+	if (amdgpu_ras_is_rma(adev))
+		return -EHWPOISON;
+
+	if (con->eeprom_control.ras_num_recs) {
+		ret = amdgpu_ras_load_bad_pages(adev);
+		if (ret)
+			return ret;
+
+		amdgpu_dpm_send_hbm_bad_pages_num(
+			adev, con->eeprom_control.ras_num_recs);
+
+		if (con->update_channel_flag == true) {
+			amdgpu_dpm_send_hbm_bad_channel_flag(
+				adev, con->eeprom_control.bad_channel_bitmap);
+			con->update_channel_flag = false;
+		}
+	}
+
+	return ret;
+}
+
+int amdgpu_ras_recovery_init(struct amdgpu_device *adev, bool init_bp_info)
 {
 	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
 	struct ras_err_handler_data **data;
@@ -3181,31 +3272,10 @@ int amdgpu_ras_recovery_init(struct amdgpu_device *adev)
 	max_eeprom_records_count = amdgpu_ras_eeprom_max_record_count(&con->eeprom_control);
 	amdgpu_ras_validate_threshold(adev, max_eeprom_records_count);
 
-	/* Todo: During test the SMU might fail to read the eeprom through I2C
-	 * when the GPU is pending on XGMI reset during probe time
-	 * (Mostly after second bus reset), skip it now
-	 */
-	if (adev->gmc.xgmi.pending_reset)
-		return 0;
-	ret = amdgpu_ras_eeprom_init(&con->eeprom_control);
-	/*
-	 * This calling fails when is_rma is true or
-	 * ret != 0.
-	 */
-	if (amdgpu_ras_is_rma(adev) || ret)
-		goto free;
-
-	if (con->eeprom_control.ras_num_recs) {
-		ret = amdgpu_ras_load_bad_pages(adev);
+	if (init_bp_info) {
+		ret = amdgpu_ras_init_badpage_info(adev);
 		if (ret)
 			goto free;
-
-		amdgpu_dpm_send_hbm_bad_pages_num(adev, con->eeprom_control.ras_num_recs);
-
-		if (con->update_channel_flag == true) {
-			amdgpu_dpm_send_hbm_bad_channel_flag(adev, con->eeprom_control.bad_channel_bitmap);
-			con->update_channel_flag = false;
-		}
 	}
 
 	mutex_init(&con->page_rsv_lock);
@@ -3437,6 +3507,11 @@ static void amdgpu_ras_check_supported(struct amdgpu_device *adev)
 
 	if (!amdgpu_ras_asic_supported(adev))
 		return;
+
+	if (amdgpu_sriov_vf(adev)) {
+		if (amdgpu_virt_get_ras_capability(adev))
+			goto init_ras_enabled_flag;
+	}
 
 	/* query ras capability from psp */
 	if (amdgpu_psp_get_ras_capability(&adev->psp))
@@ -3910,7 +3985,7 @@ int amdgpu_ras_late_init(struct amdgpu_device *adev)
 	}
 
 	/* Guest side doesn't need init ras feature */
-	if (amdgpu_sriov_vf(adev))
+	if (amdgpu_sriov_vf(adev) && !amdgpu_sriov_ras_telemetry_en(adev))
 		return 0;
 
 	list_for_each_entry_safe(node, tmp, &adev->ras_list, node) {
@@ -4294,8 +4369,27 @@ int amdgpu_ras_reset_gpu(struct amdgpu_device *adev)
 		ras->gpu_reset_flags |= AMDGPU_RAS_GPU_RESET_MODE1_RESET;
 	}
 
-	if (atomic_cmpxchg(&ras->in_recovery, 0, 1) == 0)
+	if (atomic_cmpxchg(&ras->in_recovery, 0, 1) == 0) {
+		struct amdgpu_hive_info *hive = amdgpu_get_xgmi_hive(adev);
+		int hive_ras_recovery = 0;
+
+		if (hive) {
+			hive_ras_recovery = atomic_read(&hive->ras_recovery);
+			amdgpu_put_xgmi_hive(hive);
+		}
+		/* In the case of multiple GPUs, after a GPU has started
+		 * resetting all GPUs on hive, other GPUs do not need to
+		 * trigger GPU reset again.
+		 */
+		if (!hive_ras_recovery)
+			amdgpu_reset_domain_schedule(ras->adev->reset_domain, &ras->recovery_work);
+		else
+			atomic_set(&ras->in_recovery, 0);
+	} else {
+		flush_work(&ras->recovery_work);
 		amdgpu_reset_domain_schedule(ras->adev->reset_domain, &ras->recovery_work);
+	}
+
 	return 0;
 }
 
@@ -4358,11 +4452,14 @@ bool amdgpu_ras_get_error_query_mode(struct amdgpu_device *adev,
 		return false;
 	}
 
-	if ((smu_funcs && smu_funcs->set_debug_mode) || (mca_funcs && mca_funcs->mca_set_debug_mode))
+	if (amdgpu_sriov_vf(adev)) {
+		*error_query_mode = AMDGPU_RAS_VIRT_ERROR_COUNT_QUERY;
+	} else if ((smu_funcs && smu_funcs->set_debug_mode) || (mca_funcs && mca_funcs->mca_set_debug_mode)) {
 		*error_query_mode =
 			(con->is_aca_debug_mode) ? AMDGPU_RAS_DIRECT_ERROR_QUERY : AMDGPU_RAS_FIRMWARE_ERROR_QUERY;
-	else
+	} else {
 		*error_query_mode = AMDGPU_RAS_DIRECT_ERROR_QUERY;
+	}
 
 	return true;
 }

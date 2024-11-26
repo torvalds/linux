@@ -1441,6 +1441,7 @@ struct task_struct {
 
 	/* Timestamp for last schedule: */
 	unsigned long long		ftrace_timestamp;
+	unsigned long long		ftrace_sleeptime;
 
 	/*
 	 * Number of functions that haven't been traced

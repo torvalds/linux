@@ -516,20 +516,44 @@ static int atmel_qspi_set_cs_timing(struct spi_device *spi)
 	struct spi_controller *ctrl = spi->controller;
 	struct atmel_qspi *aq = spi_controller_get_devdata(ctrl);
 	unsigned long clk_rate;
+	u32 cs_inactive;
 	u32 cs_setup;
+	u32 cs_hold;
 	int delay;
 	int ret;
-
-	delay = spi_delay_to_ns(&spi->cs_setup, NULL);
-	if (delay <= 0)
-		return delay;
 
 	clk_rate = clk_get_rate(aq->pclk);
 	if (!clk_rate)
 		return -EINVAL;
 
+	/* hold */
+	delay = spi_delay_to_ns(&spi->cs_hold, NULL);
+	if (aq->mr & QSPI_MR_SMM) {
+		if (delay > 0)
+			dev_warn(&aq->pdev->dev,
+				 "Ignoring cs_hold, must be 0 in Serial Memory Mode.\n");
+		cs_hold = 0;
+	} else {
+		delay = spi_delay_to_ns(&spi->cs_hold, NULL);
+		if (delay < 0)
+			return delay;
+
+		cs_hold = DIV_ROUND_UP((delay * DIV_ROUND_UP(clk_rate, 1000000)), 32000);
+	}
+
+	/* setup */
+	delay = spi_delay_to_ns(&spi->cs_setup, NULL);
+	if (delay < 0)
+		return delay;
+
 	cs_setup = DIV_ROUND_UP((delay * DIV_ROUND_UP(clk_rate, 1000000)),
 				1000);
+
+	/* inactive */
+	delay = spi_delay_to_ns(&spi->cs_inactive, NULL);
+	if (delay < 0)
+		return delay;
+	cs_inactive = DIV_ROUND_UP((delay * DIV_ROUND_UP(clk_rate, 1000000)), 1000);
 
 	ret = pm_runtime_resume_and_get(ctrl->dev.parent);
 	if (ret < 0)
@@ -538,6 +562,10 @@ static int atmel_qspi_set_cs_timing(struct spi_device *spi)
 	aq->scr &= ~QSPI_SCR_DLYBS_MASK;
 	aq->scr |= QSPI_SCR_DLYBS(cs_setup);
 	atmel_qspi_write(aq->scr, aq, QSPI_SCR);
+
+	aq->mr &= ~(QSPI_MR_DLYBCT_MASK | QSPI_MR_DLYCS_MASK);
+	aq->mr |= QSPI_MR_DLYBCT(cs_hold) | QSPI_MR_DLYCS(cs_inactive);
+	atmel_qspi_write(aq->mr, aq, QSPI_MR);
 
 	pm_runtime_mark_last_busy(ctrl->dev.parent);
 	pm_runtime_put_autosuspend(ctrl->dev.parent);
@@ -840,7 +868,7 @@ static struct platform_driver atmel_qspi_driver = {
 		.pm	= pm_ptr(&atmel_qspi_pm_ops),
 	},
 	.probe		= atmel_qspi_probe,
-	.remove_new	= atmel_qspi_remove,
+	.remove		= atmel_qspi_remove,
 };
 module_platform_driver(atmel_qspi_driver);
 

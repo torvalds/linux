@@ -196,7 +196,7 @@ static void iwl_mvm_tdls_update_cs_state(struct iwl_mvm *mvm,
 		mvm->tdls_cs.peer.sent_timestamp = iwl_mvm_get_systime(mvm);
 
 	if (state == IWL_MVM_TDLS_SW_IDLE)
-		mvm->tdls_cs.cur_sta_id = IWL_MVM_INVALID_STA;
+		mvm->tdls_cs.cur_sta_id = IWL_INVALID_STA;
 }
 
 void iwl_mvm_rx_tdls_notif(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb)
@@ -250,7 +250,7 @@ iwl_mvm_tdls_check_action(struct iwl_mvm *mvm,
 
 	/* get the existing peer if it's there */
 	if (mvm->tdls_cs.state != IWL_MVM_TDLS_SW_IDLE &&
-	    mvm->tdls_cs.cur_sta_id != IWL_MVM_INVALID_STA) {
+	    mvm->tdls_cs.cur_sta_id != IWL_INVALID_STA) {
 		struct ieee80211_sta *sta = rcu_dereference_protected(
 				mvm->fw_id_to_mac_id[mvm->tdls_cs.cur_sta_id],
 				lockdep_is_held(&mvm->mutex));
@@ -465,7 +465,7 @@ void iwl_mvm_tdls_ch_switch_work(struct work_struct *work)
 	iwl_mvm_tdls_update_cs_state(mvm, IWL_MVM_TDLS_SW_IDLE);
 
 	/* station might be gone, in that case do nothing */
-	if (mvm->tdls_cs.peer.sta_id == IWL_MVM_INVALID_STA)
+	if (mvm->tdls_cs.peer.sta_id == IWL_INVALID_STA)
 		return;
 
 	sta = rcu_dereference_protected(
@@ -512,7 +512,7 @@ iwl_mvm_tdls_channel_switch(struct ieee80211_hw *hw,
 		       sta->addr, chandef->chan->center_freq, chandef->width);
 
 	/* we only support a single peer for channel switching */
-	if (mvm->tdls_cs.peer.sta_id != IWL_MVM_INVALID_STA) {
+	if (mvm->tdls_cs.peer.sta_id != IWL_INVALID_STA) {
 		IWL_DEBUG_TDLS(mvm,
 			       "Existing peer. Can't start switch with %pM\n",
 			       sta->addr);
@@ -566,7 +566,7 @@ void iwl_mvm_tdls_cancel_channel_switch(struct ieee80211_hw *hw,
 	IWL_DEBUG_TDLS(mvm, "TDLS cancel channel switch with %pM\n", sta->addr);
 
 	/* we only support a single peer for channel switching */
-	if (mvm->tdls_cs.peer.sta_id == IWL_MVM_INVALID_STA) {
+	if (mvm->tdls_cs.peer.sta_id == IWL_INVALID_STA) {
 		IWL_DEBUG_TDLS(mvm, "No ch switch peer - %pM\n", sta->addr);
 		goto out;
 	}
@@ -587,7 +587,7 @@ void iwl_mvm_tdls_cancel_channel_switch(struct ieee80211_hw *hw,
 	    mvm->tdls_cs.state != IWL_MVM_TDLS_SW_IDLE)
 		wait_for_phy = true;
 
-	mvm->tdls_cs.peer.sta_id = IWL_MVM_INVALID_STA;
+	mvm->tdls_cs.peer.sta_id = IWL_INVALID_STA;
 	dev_kfree_skb(mvm->tdls_cs.peer.skb);
 	mvm->tdls_cs.peer.skb = NULL;
 
@@ -630,7 +630,7 @@ iwl_mvm_tdls_recv_channel_switch(struct ieee80211_hw *hw,
 	if (params->action_code == WLAN_TDLS_CHANNEL_SWITCH_RESPONSE &&
 	    params->status != 0 &&
 	    mvm->tdls_cs.state == IWL_MVM_TDLS_SW_REQ_SENT &&
-	    mvm->tdls_cs.cur_sta_id != IWL_MVM_INVALID_STA) {
+	    mvm->tdls_cs.cur_sta_id != IWL_INVALID_STA) {
 		struct ieee80211_sta *cur_sta;
 
 		/* make sure it's the same peer */

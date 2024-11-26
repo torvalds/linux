@@ -47,7 +47,7 @@ int amdgpu_jpeg_sw_init(struct amdgpu_device *adev)
 		adev->jpeg.indirect_sram = true;
 
 	for (i = 0; i < adev->jpeg.num_jpeg_inst; i++) {
-		if (adev->jpeg.harvest_config & (1 << i))
+		if (adev->jpeg.harvest_config & (1U << i))
 			continue;
 
 		if (adev->jpeg.indirect_sram) {
@@ -73,7 +73,7 @@ int amdgpu_jpeg_sw_fini(struct amdgpu_device *adev)
 	int i, j;
 
 	for (i = 0; i < adev->jpeg.num_jpeg_inst; ++i) {
-		if (adev->jpeg.harvest_config & (1 << i))
+		if (adev->jpeg.harvest_config & (1U << i))
 			continue;
 
 		amdgpu_bo_free_kernel(
@@ -110,7 +110,7 @@ static void amdgpu_jpeg_idle_work_handler(struct work_struct *work)
 	unsigned int i, j;
 
 	for (i = 0; i < adev->jpeg.num_jpeg_inst; ++i) {
-		if (adev->jpeg.harvest_config & (1 << i))
+		if (adev->jpeg.harvest_config & (1U << i))
 			continue;
 
 		for (j = 0; j < adev->jpeg.num_jpeg_rings; ++j)
@@ -341,4 +341,112 @@ int amdgpu_jpeg_psp_update_sram(struct amdgpu_device *adev, int inst_idx,
 	};
 
 	return psp_execute_ip_fw_load(&adev->psp, &ucode);
+}
+
+/*
+ * debugfs for to enable/disable jpeg job submission to specific core.
+ */
+#if defined(CONFIG_DEBUG_FS)
+static int amdgpu_debugfs_jpeg_sched_mask_set(void *data, u64 val)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)data;
+	u32 i, j;
+	u64 mask = 0;
+	struct amdgpu_ring *ring;
+
+	if (!adev)
+		return -ENODEV;
+
+	mask = (1ULL << (adev->jpeg.num_jpeg_inst * adev->jpeg.num_jpeg_rings)) - 1;
+	if ((val & mask) == 0)
+		return -EINVAL;
+
+	for (i = 0; i < adev->jpeg.num_jpeg_inst; ++i) {
+		for (j = 0; j < adev->jpeg.num_jpeg_rings; ++j) {
+			ring = &adev->jpeg.inst[i].ring_dec[j];
+			if (val & (1 << ((i * adev->jpeg.num_jpeg_rings) + j)))
+				ring->sched.ready = true;
+			else
+				ring->sched.ready = false;
+		}
+	}
+	/* publish sched.ready flag update effective immediately across smp */
+	smp_rmb();
+	return 0;
+}
+
+static int amdgpu_debugfs_jpeg_sched_mask_get(void *data, u64 *val)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)data;
+	u32 i, j;
+	u64 mask = 0;
+	struct amdgpu_ring *ring;
+
+	if (!adev)
+		return -ENODEV;
+	for (i = 0; i < adev->jpeg.num_jpeg_inst; ++i) {
+		for (j = 0; j < adev->jpeg.num_jpeg_rings; ++j) {
+			ring = &adev->jpeg.inst[i].ring_dec[j];
+			if (ring->sched.ready)
+				mask |= 1ULL << ((i * adev->jpeg.num_jpeg_rings) + j);
+		}
+	}
+	*val = mask;
+	return 0;
+}
+
+DEFINE_DEBUGFS_ATTRIBUTE(amdgpu_debugfs_jpeg_sched_mask_fops,
+			 amdgpu_debugfs_jpeg_sched_mask_get,
+			 amdgpu_debugfs_jpeg_sched_mask_set, "%llx\n");
+
+#endif
+
+void amdgpu_debugfs_jpeg_sched_mask_init(struct amdgpu_device *adev)
+{
+#if defined(CONFIG_DEBUG_FS)
+	struct drm_minor *minor = adev_to_drm(adev)->primary;
+	struct dentry *root = minor->debugfs_root;
+	char name[32];
+
+	if (!(adev->jpeg.num_jpeg_inst > 1) && !(adev->jpeg.num_jpeg_rings > 1))
+		return;
+	sprintf(name, "amdgpu_jpeg_sched_mask");
+	debugfs_create_file(name, 0600, root, adev,
+			    &amdgpu_debugfs_jpeg_sched_mask_fops);
+#endif
+}
+
+static ssize_t amdgpu_get_jpeg_reset_mask(struct device *dev,
+						struct device_attribute *attr,
+						char *buf)
+{
+	struct drm_device *ddev = dev_get_drvdata(dev);
+	struct amdgpu_device *adev = drm_to_adev(ddev);
+
+	if (!adev)
+		return -ENODEV;
+
+	return amdgpu_show_reset_mask(buf, adev->jpeg.supported_reset);
+}
+
+static DEVICE_ATTR(jpeg_reset_mask, 0444,
+		   amdgpu_get_jpeg_reset_mask, NULL);
+
+int amdgpu_jpeg_sysfs_reset_mask_init(struct amdgpu_device *adev)
+{
+	int r = 0;
+
+	if (adev->jpeg.num_jpeg_inst) {
+		r = device_create_file(adev->dev, &dev_attr_jpeg_reset_mask);
+		if (r)
+			return r;
+	}
+
+	return r;
+}
+
+void amdgpu_jpeg_sysfs_reset_mask_fini(struct amdgpu_device *adev)
+{
+	if (adev->jpeg.num_jpeg_inst)
+		device_remove_file(adev->dev, &dev_attr_jpeg_reset_mask);
 }

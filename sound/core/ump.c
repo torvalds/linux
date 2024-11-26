@@ -366,7 +366,7 @@ int snd_ump_block_new(struct snd_ump_endpoint *ump, unsigned int blk,
 {
 	struct snd_ump_block *fb, *p;
 
-	if (blk < 0 || blk >= SNDRV_UMP_MAX_BLOCKS)
+	if (blk >= SNDRV_UMP_MAX_BLOCKS)
 		return -EINVAL;
 
 	if (snd_ump_get_block(ump, blk))
@@ -387,7 +387,7 @@ int snd_ump_block_new(struct snd_ump_endpoint *ump, unsigned int blk,
 	fb->info.first_group = first_group;
 	fb->info.num_groups = num_groups;
 	/* fill the default name, may be overwritten to a better name */
-	snprintf(fb->info.name, sizeof(fb->info.name), "Group %d-%d",
+	snprintf(fb->info.name, sizeof(fb->info.name), "Group %u-%u",
 		 first_group + 1, first_group + num_groups);
 
 	/* put the entry in the ordered list */

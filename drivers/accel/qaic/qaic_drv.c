@@ -34,6 +34,7 @@
 
 MODULE_IMPORT_NS(DMA_BUF);
 
+#define PCI_DEV_AIC080			0xa080
 #define PCI_DEV_AIC100			0xa100
 #define QAIC_NAME			"qaic"
 #define QAIC_DESC			"Qualcomm Cloud AI Accelerators"
@@ -53,12 +54,12 @@ static void qaicm_wq_release(struct drm_device *dev, void *res)
 	destroy_workqueue(wq);
 }
 
-static struct workqueue_struct *qaicm_wq_init(struct drm_device *dev, const char *fmt)
+static struct workqueue_struct *qaicm_wq_init(struct drm_device *dev, const char *name)
 {
 	struct workqueue_struct *wq;
 	int ret;
 
-	wq = alloc_workqueue(fmt, WQ_UNBOUND, 0);
+	wq = alloc_workqueue("%s", WQ_UNBOUND, 0, name);
 	if (!wq)
 		return ERR_PTR(-ENOMEM);
 	ret = drmm_add_action_or_reset(dev, qaicm_wq_release, wq);
@@ -365,7 +366,7 @@ static struct qaic_device *create_qdev(struct pci_dev *pdev, const struct pci_de
 		return NULL;
 
 	qdev->dev_state = QAIC_OFFLINE;
-	if (id->device == PCI_DEV_AIC100) {
+	if (id->device == PCI_DEV_AIC080 || id->device == PCI_DEV_AIC100) {
 		qdev->num_dbc = 16;
 		qdev->dbc = devm_kcalloc(dev, qdev->num_dbc, sizeof(*qdev->dbc), GFP_KERNEL);
 		if (!qdev->dbc)
@@ -607,6 +608,7 @@ static struct mhi_driver qaic_mhi_driver = {
 };
 
 static const struct pci_device_id qaic_ids[] = {
+	{ PCI_DEVICE(PCI_VENDOR_ID_QCOM, PCI_DEV_AIC080), },
 	{ PCI_DEVICE(PCI_VENDOR_ID_QCOM, PCI_DEV_AIC100), },
 	{ }
 };

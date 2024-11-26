@@ -32,6 +32,7 @@
 #include <trace/events/iommu.h>
 #include <linux/sched/mm.h>
 #include <linux/msi.h>
+#include <uapi/linux/iommufd.h>
 
 #include "dma-iommu.h"
 #include "iommu-priv.h"
@@ -90,15 +91,17 @@ static const char * const iommu_group_resv_type_string[] = {
 #define IOMMU_CMD_LINE_DMA_API		BIT(0)
 #define IOMMU_CMD_LINE_STRICT		BIT(1)
 
+static int bus_iommu_probe(const struct bus_type *bus);
 static int iommu_bus_notifier(struct notifier_block *nb,
 			      unsigned long action, void *data);
 static void iommu_release_device(struct device *dev);
-static struct iommu_domain *
-__iommu_group_domain_alloc(struct iommu_group *group, unsigned int type);
 static int __iommu_attach_device(struct iommu_domain *domain,
 				 struct device *dev);
 static int __iommu_attach_group(struct iommu_domain *domain,
 				struct iommu_group *group);
+static struct iommu_domain *__iommu_paging_domain_alloc_flags(struct device *dev,
+						       unsigned int type,
+						       unsigned int flags);
 
 enum {
 	IOMMU_SET_DOMAIN_MUST_SUCCEED = 1 << 0,
@@ -133,6 +136,8 @@ static struct group_device *iommu_group_alloc_device(struct iommu_group *group,
 						     struct device *dev);
 static void __iommu_group_free_device(struct iommu_group *group,
 				      struct group_device *grp_dev);
+static void iommu_domain_init(struct iommu_domain *domain, unsigned int type,
+			      const struct iommu_ops *ops);
 
 #define IOMMU_GROUP_ATTR(_name, _mode, _show, _store)		\
 struct iommu_group_attribute iommu_group_attr_##_name =		\
@@ -1141,10 +1146,6 @@ map_end:
 		}
 
 	}
-
-	if (!list_empty(&mappings) && iommu_is_dma_domain(domain))
-		iommu_flush_iotlb_all(domain);
-
 out:
 	iommu_put_resv_regions(dev, &mappings);
 
@@ -1586,12 +1587,59 @@ struct iommu_group *fsl_mc_device_group(struct device *dev)
 }
 EXPORT_SYMBOL_GPL(fsl_mc_device_group);
 
+static struct iommu_domain *__iommu_alloc_identity_domain(struct device *dev)
+{
+	const struct iommu_ops *ops = dev_iommu_ops(dev);
+	struct iommu_domain *domain;
+
+	if (ops->identity_domain)
+		return ops->identity_domain;
+
+	/* Older drivers create the identity domain via ops->domain_alloc() */
+	if (!ops->domain_alloc)
+		return ERR_PTR(-EOPNOTSUPP);
+
+	domain = ops->domain_alloc(IOMMU_DOMAIN_IDENTITY);
+	if (IS_ERR(domain))
+		return domain;
+	if (!domain)
+		return ERR_PTR(-ENOMEM);
+
+	iommu_domain_init(domain, IOMMU_DOMAIN_IDENTITY, ops);
+	return domain;
+}
+
 static struct iommu_domain *
 __iommu_group_alloc_default_domain(struct iommu_group *group, int req_type)
 {
+	struct device *dev = iommu_group_first_dev(group);
+	struct iommu_domain *dom;
+
 	if (group->default_domain && group->default_domain->type == req_type)
 		return group->default_domain;
-	return __iommu_group_domain_alloc(group, req_type);
+
+	/*
+	 * When allocating the DMA API domain assume that the driver is going to
+	 * use PASID and make sure the RID's domain is PASID compatible.
+	 */
+	if (req_type & __IOMMU_DOMAIN_PAGING) {
+		dom = __iommu_paging_domain_alloc_flags(dev, req_type,
+			   dev->iommu->max_pasids ? IOMMU_HWPT_ALLOC_PASID : 0);
+
+		/*
+		 * If driver does not support PASID feature then
+		 * try to allocate non-PASID domain
+		 */
+		if (PTR_ERR(dom) == -EOPNOTSUPP)
+			dom = __iommu_paging_domain_alloc_flags(dev, req_type, 0);
+
+		return dom;
+	}
+
+	if (req_type == IOMMU_DOMAIN_IDENTITY)
+		return __iommu_alloc_identity_domain(dev);
+
+	return ERR_PTR(-EINVAL);
 }
 
 /*
@@ -1795,7 +1843,7 @@ static void iommu_group_do_probe_finalize(struct device *dev)
 		ops->probe_finalize(dev);
 }
 
-int bus_iommu_probe(const struct bus_type *bus)
+static int bus_iommu_probe(const struct bus_type *bus)
 {
 	struct iommu_group *group, *next;
 	LIST_HEAD(group_list);
@@ -1839,31 +1887,6 @@ int bus_iommu_probe(const struct bus_type *bus)
 
 	return 0;
 }
-
-/**
- * iommu_present() - make platform-specific assumptions about an IOMMU
- * @bus: bus to check
- *
- * Do not use this function. You want device_iommu_mapped() instead.
- *
- * Return: true if some IOMMU is present and aware of devices on the given bus;
- * in general it may not be the only IOMMU, and it may not have anything to do
- * with whatever device you are ultimately interested in.
- */
-bool iommu_present(const struct bus_type *bus)
-{
-	bool ret = false;
-
-	for (int i = 0; i < ARRAY_SIZE(iommu_buses); i++) {
-		if (iommu_buses[i] == bus) {
-			spin_lock(&iommu_device_lock);
-			ret = !list_empty(&iommu_device_list);
-			spin_unlock(&iommu_device_lock);
-		}
-	}
-	return ret;
-}
-EXPORT_SYMBOL_GPL(iommu_present);
 
 /**
  * device_iommu_capable() - check for a general IOMMU capability
@@ -1934,117 +1957,67 @@ void iommu_set_fault_handler(struct iommu_domain *domain,
 }
 EXPORT_SYMBOL_GPL(iommu_set_fault_handler);
 
-static struct iommu_domain *__iommu_domain_alloc(const struct iommu_ops *ops,
-						 struct device *dev,
-						 unsigned int type)
+static void iommu_domain_init(struct iommu_domain *domain, unsigned int type,
+			      const struct iommu_ops *ops)
 {
-	struct iommu_domain *domain;
-	unsigned int alloc_type = type & IOMMU_DOMAIN_ALLOC_FLAGS;
-
-	if (alloc_type == IOMMU_DOMAIN_IDENTITY && ops->identity_domain)
-		return ops->identity_domain;
-	else if (alloc_type == IOMMU_DOMAIN_BLOCKED && ops->blocked_domain)
-		return ops->blocked_domain;
-	else if (type & __IOMMU_DOMAIN_PAGING && ops->domain_alloc_paging)
-		domain = ops->domain_alloc_paging(dev);
-	else if (ops->domain_alloc)
-		domain = ops->domain_alloc(alloc_type);
-	else
-		return ERR_PTR(-EOPNOTSUPP);
-
-	/*
-	 * Many domain_alloc ops now return ERR_PTR, make things easier for the
-	 * driver by accepting ERR_PTR from all domain_alloc ops instead of
-	 * having two rules.
-	 */
-	if (IS_ERR(domain))
-		return domain;
-	if (!domain)
-		return ERR_PTR(-ENOMEM);
-
 	domain->type = type;
 	domain->owner = ops;
+	if (!domain->ops)
+		domain->ops = ops->default_domain_ops;
+
 	/*
 	 * If not already set, assume all sizes by default; the driver
 	 * may override this later
 	 */
 	if (!domain->pgsize_bitmap)
 		domain->pgsize_bitmap = ops->pgsize_bitmap;
-
-	if (!domain->ops)
-		domain->ops = ops->default_domain_ops;
-
-	if (iommu_is_dma_domain(domain)) {
-		int rc;
-
-		rc = iommu_get_dma_cookie(domain);
-		if (rc) {
-			iommu_domain_free(domain);
-			return ERR_PTR(rc);
-		}
-	}
-	return domain;
 }
 
 static struct iommu_domain *
-__iommu_group_domain_alloc(struct iommu_group *group, unsigned int type)
+__iommu_paging_domain_alloc_flags(struct device *dev, unsigned int type,
+				  unsigned int flags)
 {
-	struct device *dev = iommu_group_first_dev(group);
-
-	return __iommu_domain_alloc(dev_iommu_ops(dev), dev, type);
-}
-
-static int __iommu_domain_alloc_dev(struct device *dev, void *data)
-{
-	const struct iommu_ops **ops = data;
-
-	if (!dev_has_iommu(dev))
-		return 0;
-
-	if (WARN_ONCE(*ops && *ops != dev_iommu_ops(dev),
-		      "Multiple IOMMU drivers present for bus %s, which the public IOMMU API can't fully support yet. You will still need to disable one or more for this to work, sorry!\n",
-		      dev_bus_name(dev)))
-		return -EBUSY;
-
-	*ops = dev_iommu_ops(dev);
-	return 0;
-}
-
-/*
- * The iommu ops in bus has been retired. Do not use this interface in
- * new drivers.
- */
-struct iommu_domain *iommu_domain_alloc(const struct bus_type *bus)
-{
-	const struct iommu_ops *ops = NULL;
-	int err = bus_for_each_dev(bus, NULL, &ops, __iommu_domain_alloc_dev);
+	const struct iommu_ops *ops;
 	struct iommu_domain *domain;
 
-	if (err || !ops)
-		return NULL;
-
-	domain = __iommu_domain_alloc(ops, NULL, IOMMU_DOMAIN_UNMANAGED);
-	if (IS_ERR(domain))
-		return NULL;
-	return domain;
-}
-EXPORT_SYMBOL_GPL(iommu_domain_alloc);
-
-/**
- * iommu_paging_domain_alloc() - Allocate a paging domain
- * @dev: device for which the domain is allocated
- *
- * Allocate a paging domain which will be managed by a kernel driver. Return
- * allocated domain if successful, or a ERR pointer for failure.
- */
-struct iommu_domain *iommu_paging_domain_alloc(struct device *dev)
-{
 	if (!dev_has_iommu(dev))
 		return ERR_PTR(-ENODEV);
 
-	return __iommu_domain_alloc(dev_iommu_ops(dev), dev, IOMMU_DOMAIN_UNMANAGED);
+	ops = dev_iommu_ops(dev);
+
+	if (ops->domain_alloc_paging && !flags)
+		domain = ops->domain_alloc_paging(dev);
+	else if (ops->domain_alloc_user)
+		domain = ops->domain_alloc_user(dev, flags, NULL, NULL);
+	else if (ops->domain_alloc && !flags)
+		domain = ops->domain_alloc(IOMMU_DOMAIN_UNMANAGED);
+	else
+		return ERR_PTR(-EOPNOTSUPP);
+
+	if (IS_ERR(domain))
+		return domain;
+	if (!domain)
+		return ERR_PTR(-ENOMEM);
+
+	iommu_domain_init(domain, type, ops);
+	return domain;
 }
-EXPORT_SYMBOL_GPL(iommu_paging_domain_alloc);
+
+/**
+ * iommu_paging_domain_alloc_flags() - Allocate a paging domain
+ * @dev: device for which the domain is allocated
+ * @flags: Bitmap of iommufd_hwpt_alloc_flags
+ *
+ * Allocate a paging domain which will be managed by a kernel driver. Return
+ * allocated domain if successful, or an ERR pointer for failure.
+ */
+struct iommu_domain *iommu_paging_domain_alloc_flags(struct device *dev,
+						     unsigned int flags)
+{
+	return __iommu_paging_domain_alloc_flags(dev,
+					 IOMMU_DOMAIN_UNMANAGED, flags);
+}
+EXPORT_SYMBOL_GPL(iommu_paging_domain_alloc_flags);
 
 void iommu_domain_free(struct iommu_domain *domain)
 {
@@ -2216,8 +2189,8 @@ EXPORT_SYMBOL_GPL(iommu_attach_group);
 
 /**
  * iommu_group_replace_domain - replace the domain that a group is attached to
- * @new_domain: new IOMMU domain to replace with
  * @group: IOMMU group that will be attached to the new domain
+ * @new_domain: new IOMMU domain to replace with
  *
  * This API allows the group to switch domains without being forced to go to
  * the blocking domain in-between.
@@ -2586,6 +2559,20 @@ static size_t __iommu_unmap(struct iommu_domain *domain,
 	return unmapped;
 }
 
+/**
+ * iommu_unmap() - Remove mappings from a range of IOVA
+ * @domain: Domain to manipulate
+ * @iova: IO virtual address to start
+ * @size: Length of the range starting from @iova
+ *
+ * iommu_unmap() will remove a translation created by iommu_map(). It cannot
+ * subdivide a mapping created by iommu_map(), so it should be called with IOVA
+ * ranges that match what was passed to iommu_map(). The range can aggregate
+ * contiguous iommu_map() calls so long as no individual range is split.
+ *
+ * Returns: Number of bytes of IOVA unmapped. iova + res will be the point
+ * unmapping stopped.
+ */
 size_t iommu_unmap(struct iommu_domain *domain,
 		   unsigned long iova, size_t size)
 {
@@ -2722,16 +2709,6 @@ static int __init iommu_init(void)
 	return 0;
 }
 core_initcall(iommu_init);
-
-int iommu_enable_nesting(struct iommu_domain *domain)
-{
-	if (domain->type != IOMMU_DOMAIN_UNMANAGED)
-		return -EINVAL;
-	if (!domain->ops->enable_nesting)
-		return -EINVAL;
-	return domain->ops->enable_nesting(domain);
-}
-EXPORT_SYMBOL_GPL(iommu_enable_nesting);
 
 int iommu_set_pgtable_quirks(struct iommu_domain *domain,
 		unsigned long quirk)
@@ -2965,6 +2942,14 @@ static int iommu_setup_default_domain(struct iommu_group *group,
 	if (group->default_domain == dom)
 		return 0;
 
+	if (iommu_is_dma_domain(dom)) {
+		ret = iommu_get_dma_cookie(dom);
+		if (ret) {
+			iommu_domain_free(dom);
+			return ret;
+		}
+	}
+
 	/*
 	 * IOMMU_RESV_DIRECT and IOMMU_RESV_DIRECT_RELAXABLE regions must be
 	 * mapped before their device is attached, in order to guarantee
@@ -3152,22 +3137,25 @@ void iommu_device_unuse_default_domain(struct device *dev)
 
 static int __iommu_group_alloc_blocking_domain(struct iommu_group *group)
 {
+	struct device *dev = iommu_group_first_dev(group);
+	const struct iommu_ops *ops = dev_iommu_ops(dev);
 	struct iommu_domain *domain;
 
 	if (group->blocking_domain)
 		return 0;
 
-	domain = __iommu_group_domain_alloc(group, IOMMU_DOMAIN_BLOCKED);
-	if (IS_ERR(domain)) {
-		/*
-		 * For drivers that do not yet understand IOMMU_DOMAIN_BLOCKED
-		 * create an empty domain instead.
-		 */
-		domain = __iommu_group_domain_alloc(group,
-						    IOMMU_DOMAIN_UNMANAGED);
-		if (IS_ERR(domain))
-			return PTR_ERR(domain);
+	if (ops->blocked_domain) {
+		group->blocking_domain = ops->blocked_domain;
+		return 0;
 	}
+
+	/*
+	 * For drivers that do not yet understand IOMMU_DOMAIN_BLOCKED create an
+	 * empty PAGING domain instead.
+	 */
+	domain = iommu_paging_domain_alloc(dev);
+	if (IS_ERR(domain))
+		return PTR_ERR(domain);
 	group->blocking_domain = domain;
 	return 0;
 }
@@ -3331,7 +3319,8 @@ static int __iommu_set_group_pasid(struct iommu_domain *domain,
 	int ret;
 
 	for_each_group_device(group, device) {
-		ret = domain->ops->set_dev_pasid(domain, device->dev, pasid);
+		ret = domain->ops->set_dev_pasid(domain, device->dev,
+						 pasid, NULL);
 		if (ret)
 			goto err_revert;
 	}

@@ -111,6 +111,7 @@ struct fq_perband_flows {
 struct fq_sched_data {
 /* Read mostly cache line */
 
+	u64		offload_horizon;
 	u32		quantum;
 	u32		initial_quantum;
 	u32		flow_refill_delay;
@@ -299,7 +300,7 @@ static void fq_gc(struct fq_sched_data *q,
 }
 
 /* Fast path can be used if :
- * 1) Packet tstamp is in the past.
+ * 1) Packet tstamp is in the past, or within the pacing offload horizon.
  * 2) FQ qlen == 0   OR
  *   (no flow is currently eligible for transmit,
  *    AND fast path queue has less than 8 packets)
@@ -314,7 +315,7 @@ static bool fq_fastpath_check(const struct Qdisc *sch, struct sk_buff *skb,
 	const struct fq_sched_data *q = qdisc_priv(sch);
 	const struct sock *sk;
 
-	if (fq_skb_cb(skb)->time_to_send > now)
+	if (fq_skb_cb(skb)->time_to_send > now + q->offload_horizon)
 		return false;
 
 	if (sch->q.qlen != 0) {
@@ -361,8 +362,9 @@ static struct fq_flow *fq_classify(struct Qdisc *sch, struct sk_buff *skb,
 	 * 3) We do not want to rate limit them (eg SYNFLOOD attack),
 	 *    especially if the listener set SO_MAX_PACING_RATE
 	 * 4) We pretend they are orphaned
+	 * TCP can also associate TIME_WAIT sockets with RST or ACK packets.
 	 */
-	if (!sk || sk_listener(sk)) {
+	if (!sk || sk_listener_or_tw(sk)) {
 		unsigned long hash = skb_get_hash(skb) & q->orphan_mask;
 
 		/* By forcing low order bit to 1, we make sure to not
@@ -595,15 +597,18 @@ static void fq_check_throttled(struct fq_sched_data *q, u64 now)
 	unsigned long sample;
 	struct rb_node *p;
 
-	if (q->time_next_delayed_flow > now)
+	if (q->time_next_delayed_flow > now + q->offload_horizon)
 		return;
 
 	/* Update unthrottle latency EWMA.
 	 * This is cheap and can help diagnosing timer/latency problems.
 	 */
 	sample = (unsigned long)(now - q->time_next_delayed_flow);
-	q->unthrottle_latency_ns -= q->unthrottle_latency_ns >> 3;
-	q->unthrottle_latency_ns += sample >> 3;
+	if ((long)sample > 0) {
+		q->unthrottle_latency_ns -= q->unthrottle_latency_ns >> 3;
+		q->unthrottle_latency_ns += sample >> 3;
+	}
+	now += q->offload_horizon;
 
 	q->time_next_delayed_flow = ~0ULL;
 	while ((p = rb_first(&q->delayed)) != NULL) {
@@ -687,7 +692,7 @@ begin:
 		u64 time_next_packet = max_t(u64, fq_skb_cb(skb)->time_to_send,
 					     f->time_next_packet);
 
-		if (now < time_next_packet) {
+		if (now + q->offload_horizon < time_next_packet) {
 			head->first = f->next;
 			f->time_next_packet = time_next_packet;
 			fq_flow_set_throttled(q, f);
@@ -925,6 +930,7 @@ static const struct nla_policy fq_policy[TCA_FQ_MAX + 1] = {
 	[TCA_FQ_HORIZON_DROP]		= { .type = NLA_U8 },
 	[TCA_FQ_PRIOMAP]		= NLA_POLICY_EXACT_LEN(sizeof(struct tc_prio_qopt)),
 	[TCA_FQ_WEIGHTS]		= NLA_POLICY_EXACT_LEN(FQ_BANDS * sizeof(s32)),
+	[TCA_FQ_OFFLOAD_HORIZON]	= { .type = NLA_U32 },
 };
 
 /* compress a u8 array with all elems <= 3 to an array of 2-bit fields */
@@ -1100,6 +1106,17 @@ static int fq_change(struct Qdisc *sch, struct nlattr *opt,
 		WRITE_ONCE(q->horizon_drop,
 			   nla_get_u8(tb[TCA_FQ_HORIZON_DROP]));
 
+	if (tb[TCA_FQ_OFFLOAD_HORIZON]) {
+		u64 offload_horizon = (u64)NSEC_PER_USEC *
+				      nla_get_u32(tb[TCA_FQ_OFFLOAD_HORIZON]);
+
+		if (offload_horizon <= qdisc_dev(sch)->max_pacing_offload_horizon) {
+			WRITE_ONCE(q->offload_horizon, offload_horizon);
+		} else {
+			NL_SET_ERR_MSG_MOD(extack, "invalid offload_horizon");
+			err = -EINVAL;
+		}
+	}
 	if (!err) {
 
 		sch_tree_unlock(sch);
@@ -1183,6 +1200,7 @@ static int fq_dump(struct Qdisc *sch, struct sk_buff *skb)
 		.bands = FQ_BANDS,
 	};
 	struct nlattr *opts;
+	u64 offload_horizon;
 	u64 ce_threshold;
 	s32 weights[3];
 	u64 horizon;
@@ -1198,6 +1216,9 @@ static int fq_dump(struct Qdisc *sch, struct sk_buff *skb)
 
 	horizon = READ_ONCE(q->horizon);
 	do_div(horizon, NSEC_PER_USEC);
+
+	offload_horizon = READ_ONCE(q->offload_horizon);
+	do_div(offload_horizon, NSEC_PER_USEC);
 
 	if (nla_put_u32(skb, TCA_FQ_PLIMIT,
 			READ_ONCE(sch->limit)) ||
@@ -1224,6 +1245,7 @@ static int fq_dump(struct Qdisc *sch, struct sk_buff *skb)
 	    nla_put_u32(skb, TCA_FQ_TIMER_SLACK,
 			READ_ONCE(q->timer_slack)) ||
 	    nla_put_u32(skb, TCA_FQ_HORIZON, (u32)horizon) ||
+	    nla_put_u32(skb, TCA_FQ_OFFLOAD_HORIZON, (u32)offload_horizon) ||
 	    nla_put_u8(skb, TCA_FQ_HORIZON_DROP,
 		       READ_ONCE(q->horizon_drop)))
 		goto nla_put_failure;

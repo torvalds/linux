@@ -136,7 +136,7 @@ static int div_q(int A, int B)
 	else
 		temp -= B / 2;
 
-	result = (int)(temp / B);
+	result = div_s64(temp, B);
 	return result;
 }
 
@@ -239,7 +239,7 @@ static void dcss_scaler_gaussian_filter(int fc_q, bool use_5_taps,
 			ll_temp = coef[phase][i];
 			ll_temp <<= PSC_COEFF_PRECISION;
 			ll_temp += sum >> 1;
-			ll_temp /= sum;
+			ll_temp = div_s64(ll_temp, sum);
 			coef[phase][i] = (int)ll_temp;
 		}
 	}

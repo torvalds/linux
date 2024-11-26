@@ -1565,7 +1565,7 @@ static const struct hda_fixup alc880_fixups[] = {
 	},
 };
 
-static const struct snd_pci_quirk alc880_fixup_tbl[] = {
+static const struct hda_quirk alc880_fixup_tbl[] = {
 	SND_PCI_QUIRK(0x1019, 0x0f69, "Coeus G610P", ALC880_FIXUP_W810),
 	SND_PCI_QUIRK(0x1043, 0x10c3, "ASUS W5A", ALC880_FIXUP_ASUS_W5A),
 	SND_PCI_QUIRK(0x1043, 0x1964, "ASUS Z71V", ALC880_FIXUP_Z71V),
@@ -1874,7 +1874,7 @@ static const struct hda_fixup alc260_fixups[] = {
 	},
 };
 
-static const struct snd_pci_quirk alc260_fixup_tbl[] = {
+static const struct hda_quirk alc260_fixup_tbl[] = {
 	SND_PCI_QUIRK(0x1025, 0x007b, "Acer C20x", ALC260_FIXUP_GPIO1),
 	SND_PCI_QUIRK(0x1025, 0x007f, "Acer Aspire 9500", ALC260_FIXUP_COEF),
 	SND_PCI_QUIRK(0x1025, 0x008f, "Acer", ALC260_FIXUP_GPIO1),
@@ -2566,7 +2566,7 @@ static const struct hda_fixup alc882_fixups[] = {
 	},
 };
 
-static const struct snd_pci_quirk alc882_fixup_tbl[] = {
+static const struct hda_quirk alc882_fixup_tbl[] = {
 	SND_PCI_QUIRK(0x1025, 0x006c, "Acer Aspire 9810", ALC883_FIXUP_ACER_EAPD),
 	SND_PCI_QUIRK(0x1025, 0x0090, "Acer Aspire", ALC883_FIXUP_ACER_EAPD),
 	SND_PCI_QUIRK(0x1025, 0x0107, "Acer Aspire", ALC883_FIXUP_ACER_EAPD),
@@ -2910,7 +2910,7 @@ static const struct hda_fixup alc262_fixups[] = {
 	},
 };
 
-static const struct snd_pci_quirk alc262_fixup_tbl[] = {
+static const struct hda_quirk alc262_fixup_tbl[] = {
 	SND_PCI_QUIRK(0x103c, 0x170b, "HP Z200", ALC262_FIXUP_HP_Z200),
 	SND_PCI_QUIRK(0x10cf, 0x1397, "Fujitsu Lifebook S7110", ALC262_FIXUP_FSC_S7110),
 	SND_PCI_QUIRK(0x10cf, 0x142d, "Fujitsu Lifebook E8410", ALC262_FIXUP_BENQ),
@@ -3071,7 +3071,7 @@ static const struct hda_model_fixup alc268_fixup_models[] = {
 	{}
 };
 
-static const struct snd_pci_quirk alc268_fixup_tbl[] = {
+static const struct hda_quirk alc268_fixup_tbl[] = {
 	SND_PCI_QUIRK(0x1025, 0x0139, "Acer TravelMate 6293", ALC268_FIXUP_SPDIF),
 	SND_PCI_QUIRK(0x1025, 0x015b, "Acer AOA 150 (ZG5)", ALC268_FIXUP_INV_DMIC),
 	/* below is codec SSID since multiple Toshiba laptops have the
@@ -7736,8 +7736,6 @@ enum {
 	ALC287_FIXUP_LEGION_15IMHG05_AUTOMUTE,
 	ALC287_FIXUP_YOGA7_14ITL_SPEAKERS,
 	ALC298_FIXUP_LENOVO_C940_DUET7,
-	ALC287_FIXUP_LENOVO_14IRP8_DUETITL,
-	ALC287_FIXUP_LENOVO_LEGION_7,
 	ALC287_FIXUP_13S_GEN2_SPEAKERS,
 	ALC256_FIXUP_SET_COEF_DEFAULTS,
 	ALC256_FIXUP_SYSTEM76_MIC_NO_PRESENCE,
@@ -7782,8 +7780,6 @@ enum {
 	ALC285_FIXUP_ASUS_GU605_SPI_SPEAKER2_TO_DAC1,
 	ALC287_FIXUP_LENOVO_THKPAD_WH_ALC1318,
 	ALC256_FIXUP_CHROME_BOOK,
-	ALC287_FIXUP_LENOVO_14ARP8_LEGION_IAH7,
-	ALC287_FIXUP_LENOVO_SSID_17AA3820,
 	ALC245_FIXUP_CLEVO_NOISY_MIC,
 	ALC269_FIXUP_VAIO_VJFH52_MIC_NO_PRESENCE,
 };
@@ -7802,72 +7798,6 @@ static void alc298_fixup_lenovo_c940_duet7(struct hda_codec *codec,
 		id = ALC298_FIXUP_LENOVO_SPK_VOLUME; /* C940 */
 	else
 		id = ALC287_FIXUP_YOGA7_14ITL_SPEAKERS; /* Duet 7 */
-	__snd_hda_apply_fixup(codec, id, action, 0);
-}
-
-/* A special fixup for Lenovo Slim/Yoga Pro 9 14IRP8 and Yoga DuetITL 2021;
- * 14IRP8 PCI SSID will mistakenly be matched with the DuetITL codec SSID,
- * so we need to apply a different fixup in this case. The only DuetITL codec
- * SSID reported so far is the 17aa:3802 while the 14IRP8 has the 17aa:38be
- * and 17aa:38bf. If it weren't for the PCI SSID, the 14IRP8 models would
- * have matched correctly by their codecs.
- */
-static void alc287_fixup_lenovo_14irp8_duetitl(struct hda_codec *codec,
-					      const struct hda_fixup *fix,
-					      int action)
-{
-	int id;
-
-	if (codec->core.subsystem_id == 0x17aa3802)
-		id = ALC287_FIXUP_YOGA7_14ITL_SPEAKERS; /* DuetITL */
-	else
-		id = ALC287_FIXUP_TAS2781_I2C; /* 14IRP8 */
-	__snd_hda_apply_fixup(codec, id, action, 0);
-}
-
-/* Similar to above the Lenovo Yoga Pro 7 14ARP8 PCI SSID matches the codec SSID of the
-   Legion Y9000X 2022 IAH7.*/
-static void alc287_fixup_lenovo_14arp8_legion_iah7(struct hda_codec *codec,
-					   const struct hda_fixup *fix,
-					   int action)
-{
-	int id;
-
-	if (codec->core.subsystem_id == 0x17aa386e)
-		id = ALC287_FIXUP_CS35L41_I2C_2; /* Legion Y9000X 2022 IAH7 */
-	else
-		id = ALC285_FIXUP_SPEAKER2_TO_DAC1; /* Yoga Pro 7 14ARP8 */
-	__snd_hda_apply_fixup(codec, id, action, 0);
-}
-
-/* Another hilarious PCI SSID conflict with Lenovo Legion Pro 7 16ARX8H (with
- * TAS2781 codec) and Legion 7i 16IAX7 (with CS35L41 codec);
- * we apply a corresponding fixup depending on the codec SSID instead
- */
-static void alc287_fixup_lenovo_legion_7(struct hda_codec *codec,
-					 const struct hda_fixup *fix,
-					 int action)
-{
-	int id;
-
-	if (codec->core.subsystem_id == 0x17aa38a8)
-		id = ALC287_FIXUP_TAS2781_I2C; /* Legion Pro 7 16ARX8H */
-	else
-		id = ALC287_FIXUP_CS35L41_I2C_2; /* Legion 7i 16IAX7 */
-	__snd_hda_apply_fixup(codec, id, action, 0);
-}
-
-/* Yet more conflicting PCI SSID (17aa:3820) on two Lenovo models */
-static void alc287_fixup_lenovo_ssid_17aa3820(struct hda_codec *codec,
-					      const struct hda_fixup *fix,
-					      int action)
-{
-	int id;
-
-	if (codec->core.subsystem_id == 0x17aa3820)
-		id = ALC269_FIXUP_ASPIRE_HEADSET_MIC; /* IdeaPad 330-17IKB 81DM */
-	else /* 0x17aa3802 */
-		id =  ALC287_FIXUP_YOGA7_14ITL_SPEAKERS; /* "Yoga Duet 7 13ITL6 */
 	__snd_hda_apply_fixup(codec, id, action, 0);
 }
 
@@ -9810,14 +9740,6 @@ static const struct hda_fixup alc269_fixups[] = {
 		.type = HDA_FIXUP_FUNC,
 		.v.func = alc298_fixup_lenovo_c940_duet7,
 	},
-	[ALC287_FIXUP_LENOVO_14IRP8_DUETITL] = {
-		.type = HDA_FIXUP_FUNC,
-		.v.func = alc287_fixup_lenovo_14irp8_duetitl,
-	},
-	[ALC287_FIXUP_LENOVO_LEGION_7] = {
-		.type = HDA_FIXUP_FUNC,
-		.v.func = alc287_fixup_lenovo_legion_7,
-	},
 	[ALC287_FIXUP_13S_GEN2_SPEAKERS] = {
 		.type = HDA_FIXUP_VERBS,
 		.v.verbs = (const struct hda_verb[]) {
@@ -10002,10 +9924,6 @@ static const struct hda_fixup alc269_fixups[] = {
 		.chained = true,
 		.chain_id = ALC287_FIXUP_YOGA9_14IAP7_BASS_SPK,
 	},
-	[ALC287_FIXUP_LENOVO_14ARP8_LEGION_IAH7] = {
-		.type = HDA_FIXUP_FUNC,
-		.v.func = alc287_fixup_lenovo_14arp8_legion_iah7,
-	},
 	[ALC287_FIXUP_YOGA9_14IMH9_BASS_SPK_PIN] = {
 		.type = HDA_FIXUP_FUNC,
 		.v.func = alc287_fixup_yoga9_14iap7_bass_spk_pin,
@@ -10140,10 +10058,6 @@ static const struct hda_fixup alc269_fixups[] = {
 		.chained = true,
 		.chain_id = ALC225_FIXUP_HEADSET_JACK
 	},
-	[ALC287_FIXUP_LENOVO_SSID_17AA3820] = {
-		.type = HDA_FIXUP_FUNC,
-		.v.func = alc287_fixup_lenovo_ssid_17aa3820,
-	},
 	[ALC245_FIXUP_CLEVO_NOISY_MIC] = {
 		.type = HDA_FIXUP_FUNC,
 		.v.func = alc269_fixup_limit_int_mic_boost,
@@ -10162,7 +10076,7 @@ static const struct hda_fixup alc269_fixups[] = {
 	},
 };
 
-static const struct snd_pci_quirk alc269_fixup_tbl[] = {
+static const struct hda_quirk alc269_fixup_tbl[] = {
 	SND_PCI_QUIRK(0x1025, 0x0283, "Acer TravelMate 8371", ALC269_FIXUP_INV_DMIC),
 	SND_PCI_QUIRK(0x1025, 0x029b, "Acer 1810TZ", ALC269_FIXUP_INV_DMIC),
 	SND_PCI_QUIRK(0x1025, 0x0349, "Acer AOD260", ALC269_FIXUP_INV_DMIC),
@@ -10895,11 +10809,13 @@ static const struct snd_pci_quirk alc269_fixup_tbl[] = {
 	SND_PCI_QUIRK(0x17aa, 0x31af, "ThinkCentre Station", ALC623_FIXUP_LENOVO_THINKSTATION_P340),
 	SND_PCI_QUIRK(0x17aa, 0x334b, "Lenovo ThinkCentre M70 Gen5", ALC283_FIXUP_HEADSET_MIC),
 	SND_PCI_QUIRK(0x17aa, 0x3801, "Lenovo Yoga9 14IAP7", ALC287_FIXUP_YOGA9_14IAP7_BASS_SPK_PIN),
-	SND_PCI_QUIRK(0x17aa, 0x3802, "Lenovo Yoga Pro 9 14IRP8 / DuetITL 2021", ALC287_FIXUP_LENOVO_14IRP8_DUETITL),
+	HDA_CODEC_QUIRK(0x17aa, 0x3802, "DuetITL 2021", ALC287_FIXUP_YOGA7_14ITL_SPEAKERS),
+	SND_PCI_QUIRK(0x17aa, 0x3802, "Lenovo Yoga Pro 9 14IRP8", ALC287_FIXUP_TAS2781_I2C),
 	SND_PCI_QUIRK(0x17aa, 0x3813, "Legion 7i 15IMHG05", ALC287_FIXUP_LEGION_15IMHG05_SPEAKERS),
 	SND_PCI_QUIRK(0x17aa, 0x3818, "Lenovo C940 / Yoga Duet 7", ALC298_FIXUP_LENOVO_C940_DUET7),
 	SND_PCI_QUIRK(0x17aa, 0x3819, "Lenovo 13s Gen2 ITL", ALC287_FIXUP_13S_GEN2_SPEAKERS),
-	SND_PCI_QUIRK(0x17aa, 0x3820, "IdeaPad 330 / Yoga Duet 7", ALC287_FIXUP_LENOVO_SSID_17AA3820),
+	HDA_CODEC_QUIRK(0x17aa, 0x3820, "IdeaPad 330-17IKB 81DM", ALC269_FIXUP_ASPIRE_HEADSET_MIC),
+	SND_PCI_QUIRK(0x17aa, 0x3820, "Yoga Duet 7 13ITL6", ALC287_FIXUP_YOGA7_14ITL_SPEAKERS),
 	SND_PCI_QUIRK(0x17aa, 0x3824, "Legion Y9000X 2020", ALC285_FIXUP_LEGION_Y9000X_SPEAKERS),
 	SND_PCI_QUIRK(0x17aa, 0x3827, "Ideapad S740", ALC285_FIXUP_IDEAPAD_S740_COEF),
 	SND_PCI_QUIRK(0x17aa, 0x3834, "Lenovo IdeaPad Slim 9i 14ITL5", ALC287_FIXUP_YOGA7_14ITL_SPEAKERS),
@@ -10913,8 +10829,10 @@ static const struct snd_pci_quirk alc269_fixup_tbl[] = {
 	SND_PCI_QUIRK(0x17aa, 0x3865, "Lenovo 13X", ALC287_FIXUP_CS35L41_I2C_2),
 	SND_PCI_QUIRK(0x17aa, 0x3866, "Lenovo 13X", ALC287_FIXUP_CS35L41_I2C_2),
 	SND_PCI_QUIRK(0x17aa, 0x3869, "Lenovo Yoga7 14IAL7", ALC287_FIXUP_YOGA9_14IAP7_BASS_SPK_PIN),
-	SND_PCI_QUIRK(0x17aa, 0x386e, "Legion Y9000X 2022 IAH7 / Yoga Pro 7 14ARP8",  ALC287_FIXUP_LENOVO_14ARP8_LEGION_IAH7),
-	SND_PCI_QUIRK(0x17aa, 0x386f, "Legion Pro 7/7i", ALC287_FIXUP_LENOVO_LEGION_7),
+	HDA_CODEC_QUIRK(0x17aa, 0x386e, "Legion Y9000X 2022 IAH7", ALC287_FIXUP_CS35L41_I2C_2),
+	SND_PCI_QUIRK(0x17aa, 0x386e, "Yoga Pro 7 14ARP8", ALC285_FIXUP_SPEAKER2_TO_DAC1),
+	HDA_CODEC_QUIRK(0x17aa, 0x386f, "Legion Pro 7 16ARX8H", ALC287_FIXUP_TAS2781_I2C),
+	SND_PCI_QUIRK(0x17aa, 0x386f, "Legion Pro 7i 16IAX7", ALC287_FIXUP_CS35L41_I2C_2),
 	SND_PCI_QUIRK(0x17aa, 0x3870, "Lenovo Yoga 7 14ARB7", ALC287_FIXUP_YOGA7_14ARB7_I2C),
 	SND_PCI_QUIRK(0x17aa, 0x3877, "Lenovo Legion 7 Slim 16ARHA7", ALC287_FIXUP_CS35L41_I2C_2),
 	SND_PCI_QUIRK(0x17aa, 0x3878, "Lenovo Legion 7 Slim 16ARHA7", ALC287_FIXUP_CS35L41_I2C_2),
@@ -11085,7 +11003,7 @@ static const struct snd_pci_quirk alc269_fixup_tbl[] = {
 	{}
 };
 
-static const struct snd_pci_quirk alc269_fixup_vendor_tbl[] = {
+static const struct hda_quirk alc269_fixup_vendor_tbl[] = {
 	SND_PCI_QUIRK_VENDOR(0x1025, "Acer Aspire", ALC271_FIXUP_DMIC),
 	SND_PCI_QUIRK_VENDOR(0x103c, "HP", ALC269_FIXUP_HP_MUTE_LED),
 	SND_PCI_QUIRK_VENDOR(0x104d, "Sony VAIO", ALC269_FIXUP_SONY_VAIO),
@@ -12021,7 +11939,7 @@ static const struct hda_fixup alc861_fixups[] = {
 	}
 };
 
-static const struct snd_pci_quirk alc861_fixup_tbl[] = {
+static const struct hda_quirk alc861_fixup_tbl[] = {
 	SND_PCI_QUIRK(0x1043, 0x1253, "ASUS W7J", ALC660_FIXUP_ASUS_W7J),
 	SND_PCI_QUIRK(0x1043, 0x1263, "ASUS Z35HL", ALC660_FIXUP_ASUS_W7J),
 	SND_PCI_QUIRK(0x1043, 0x1393, "ASUS A6Rp", ALC861_FIXUP_ASUS_A6RP),
@@ -12125,7 +12043,7 @@ static const struct hda_fixup alc861vd_fixups[] = {
 	},
 };
 
-static const struct snd_pci_quirk alc861vd_fixup_tbl[] = {
+static const struct hda_quirk alc861vd_fixup_tbl[] = {
 	SND_PCI_QUIRK(0x103c, 0x30bf, "HP TX1000", ALC861VD_FIX_DALLAS),
 	SND_PCI_QUIRK(0x1043, 0x1339, "ASUS A7-K", ALC660VD_FIX_ASUS_GPIO1),
 	SND_PCI_QUIRK(0x1179, 0xff31, "Toshiba L30-149", ALC861VD_FIX_DALLAS),
@@ -12926,7 +12844,7 @@ static const struct hda_fixup alc662_fixups[] = {
 	},
 };
 
-static const struct snd_pci_quirk alc662_fixup_tbl[] = {
+static const struct hda_quirk alc662_fixup_tbl[] = {
 	SND_PCI_QUIRK(0x1019, 0x9087, "ECS", ALC662_FIXUP_ASUS_MODE2),
 	SND_PCI_QUIRK(0x1019, 0x9859, "JP-IK LEAP W502", ALC897_FIXUP_HEADSET_MIC_PIN3),
 	SND_PCI_QUIRK(0x1025, 0x022f, "Acer Aspire One", ALC662_FIXUP_INV_DMIC),

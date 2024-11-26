@@ -820,10 +820,16 @@ void ftrace_graph_graph_time_control(bool enable)
 	fgraph_graph_time = enable;
 }
 
+struct profile_fgraph_data {
+	unsigned long long		calltime;
+	unsigned long long		subtime;
+	unsigned long long		sleeptime;
+};
+
 static int profile_graph_entry(struct ftrace_graph_ent *trace,
 			       struct fgraph_ops *gops)
 {
-	struct ftrace_ret_stack *ret_stack;
+	struct profile_fgraph_data *profile_data;
 
 	function_profile_call(trace->func, 0, NULL, NULL);
 
@@ -831,9 +837,13 @@ static int profile_graph_entry(struct ftrace_graph_ent *trace,
 	if (!current->ret_stack)
 		return 0;
 
-	ret_stack = ftrace_graph_get_ret_stack(current, 0);
-	if (ret_stack)
-		ret_stack->subtime = 0;
+	profile_data = fgraph_reserve_data(gops->idx, sizeof(*profile_data));
+	if (!profile_data)
+		return 0;
+
+	profile_data->subtime = 0;
+	profile_data->sleeptime = current->ftrace_sleeptime;
+	profile_data->calltime = trace_clock_local();
 
 	return 1;
 }
@@ -841,33 +851,42 @@ static int profile_graph_entry(struct ftrace_graph_ent *trace,
 static void profile_graph_return(struct ftrace_graph_ret *trace,
 				 struct fgraph_ops *gops)
 {
-	struct ftrace_ret_stack *ret_stack;
+	struct profile_fgraph_data *profile_data;
 	struct ftrace_profile_stat *stat;
 	unsigned long long calltime;
+	unsigned long long rettime = trace_clock_local();
 	struct ftrace_profile *rec;
 	unsigned long flags;
+	int size;
 
 	local_irq_save(flags);
 	stat = this_cpu_ptr(&ftrace_profile_stats);
 	if (!stat->hash || !ftrace_profile_enabled)
 		goto out;
 
+	profile_data = fgraph_retrieve_data(gops->idx, &size);
+
 	/* If the calltime was zero'd ignore it */
-	if (!trace->calltime)
+	if (!profile_data || !profile_data->calltime)
 		goto out;
 
-	calltime = trace->rettime - trace->calltime;
+	calltime = rettime - profile_data->calltime;
+
+	if (!fgraph_sleep_time) {
+		if (current->ftrace_sleeptime)
+			calltime -= current->ftrace_sleeptime - profile_data->sleeptime;
+	}
 
 	if (!fgraph_graph_time) {
+		struct profile_fgraph_data *parent_data;
 
 		/* Append this call time to the parent time to subtract */
-		ret_stack = ftrace_graph_get_ret_stack(current, 1);
-		if (ret_stack)
-			ret_stack->subtime += calltime;
+		parent_data = fgraph_retrieve_parent_data(gops->idx, &size, 1);
+		if (parent_data)
+			parent_data->subtime += calltime;
 
-		ret_stack = ftrace_graph_get_ret_stack(current, 0);
-		if (ret_stack && ret_stack->subtime < calltime)
-			calltime -= ret_stack->subtime;
+		if (profile_data->subtime && profile_data->subtime < calltime)
+			calltime -= profile_data->subtime;
 		else
 			calltime = 0;
 	}
@@ -883,6 +902,10 @@ static void profile_graph_return(struct ftrace_graph_ret *trace,
 }
 
 static struct fgraph_ops fprofiler_ops = {
+	.ops = {
+		.flags = FTRACE_OPS_FL_INITIALIZED,
+		INIT_OPS_HASH(fprofiler_ops.ops)
+	},
 	.entryfunc = &profile_graph_entry,
 	.retfunc = &profile_graph_return,
 };
@@ -3663,7 +3686,8 @@ static int ftrace_hash_move_and_update_subops(struct ftrace_ops *subops,
 }
 
 
-static u64		ftrace_update_time;
+u64			ftrace_update_time;
+u64			ftrace_total_mod_time;
 unsigned long		ftrace_update_tot_cnt;
 unsigned long		ftrace_number_of_pages;
 unsigned long		ftrace_number_of_groups;
@@ -3683,7 +3707,7 @@ static int ftrace_update_code(struct module *mod, struct ftrace_page *new_pgs)
 	bool init_nop = ftrace_need_init_nop();
 	struct ftrace_page *pg;
 	struct dyn_ftrace *p;
-	u64 start, stop;
+	u64 start, stop, update_time;
 	unsigned long update_cnt = 0;
 	unsigned long rec_flags = 0;
 	int i;
@@ -3727,7 +3751,11 @@ static int ftrace_update_code(struct module *mod, struct ftrace_page *new_pgs)
 	}
 
 	stop = ftrace_now(raw_smp_processor_id());
-	ftrace_update_time = stop - start;
+	update_time = stop - start;
+	if (mod)
+		ftrace_total_mod_time += update_time;
+	else
+		ftrace_update_time = update_time;
 	ftrace_update_tot_cnt += update_cnt;
 
 	return 0;
@@ -4806,15 +4834,13 @@ match_records(struct ftrace_hash *hash, char *func, int len, char *mod)
 		mod_g.len = strlen(mod_g.search);
 	}
 
-	mutex_lock(&ftrace_lock);
+	guard(mutex)(&ftrace_lock);
 
 	if (unlikely(ftrace_disabled))
-		goto out_unlock;
+		return 0;
 
-	if (func_g.type == MATCH_INDEX) {
-		found = add_rec_by_index(hash, &func_g, clear_filter);
-		goto out_unlock;
-	}
+	if (func_g.type == MATCH_INDEX)
+		return add_rec_by_index(hash, &func_g, clear_filter);
 
 	do_for_each_ftrace_rec(pg, rec) {
 
@@ -4823,16 +4849,12 @@ match_records(struct ftrace_hash *hash, char *func, int len, char *mod)
 
 		if (ftrace_match_record(rec, &func_g, mod_match, exclude_mod)) {
 			ret = enter_record(hash, rec, clear_filter);
-			if (ret < 0) {
-				found = ret;
-				goto out_unlock;
-			}
+			if (ret < 0)
+				return ret;
 			found = 1;
 		}
 		cond_resched();
 	} while_for_each_ftrace_rec();
- out_unlock:
-	mutex_unlock(&ftrace_lock);
 
 	return found;
 }
@@ -4930,14 +4952,14 @@ static int cache_mod(struct trace_array *tr,
 {
 	struct ftrace_mod_load *ftrace_mod, *n;
 	struct list_head *head = enable ? &tr->mod_trace : &tr->mod_notrace;
-	int ret;
 
-	mutex_lock(&ftrace_lock);
+	guard(mutex)(&ftrace_lock);
 
 	/* We do not cache inverse filters */
 	if (func[0] == '!') {
+		int ret = -EINVAL;
+
 		func++;
-		ret = -EINVAL;
 
 		/* Look to remove this hash */
 		list_for_each_entry_safe(ftrace_mod, n, head, list) {
@@ -4953,20 +4975,15 @@ static int cache_mod(struct trace_array *tr,
 				continue;
 			}
 		}
-		goto out;
+		return ret;
 	}
 
-	ret = -EINVAL;
 	/* We only care about modules that have not been loaded yet */
 	if (module_exists(module))
-		goto out;
+		return -EINVAL;
 
 	/* Save this string off, and execute it when the module is loaded */
-	ret = ftrace_add_mod(tr, func, module, enable);
- out:
-	mutex_unlock(&ftrace_lock);
-
-	return ret;
+	return ftrace_add_mod(tr, func, module, enable);
 }
 
 static int
@@ -5075,6 +5092,9 @@ ftrace_mod_callback(struct trace_array *tr, struct ftrace_hash *hash,
 {
 	char *func;
 	int ret;
+
+	if (!tr)
+		return -ENODEV;
 
 	/* match_records() modifies func, and we need the original */
 	func = kstrdup(func_orig, GFP_KERNEL);
@@ -5276,7 +5296,7 @@ static void release_probe(struct ftrace_func_probe *probe)
 {
 	struct ftrace_probe_ops *probe_ops;
 
-	mutex_lock(&ftrace_lock);
+	guard(mutex)(&ftrace_lock);
 
 	WARN_ON(probe->ref <= 0);
 
@@ -5294,7 +5314,6 @@ static void release_probe(struct ftrace_func_probe *probe)
 		list_del(&probe->list);
 		kfree(probe);
 	}
-	mutex_unlock(&ftrace_lock);
 }
 
 static void acquire_probe_locked(struct ftrace_func_probe *probe)
@@ -6805,12 +6824,10 @@ ftrace_graph_set_hash(struct ftrace_hash *hash, char *buffer)
 
 	func_g.len = strlen(func_g.search);
 
-	mutex_lock(&ftrace_lock);
+	guard(mutex)(&ftrace_lock);
 
-	if (unlikely(ftrace_disabled)) {
-		mutex_unlock(&ftrace_lock);
+	if (unlikely(ftrace_disabled))
 		return -ENODEV;
-	}
 
 	do_for_each_ftrace_rec(pg, rec) {
 
@@ -6826,7 +6843,7 @@ ftrace_graph_set_hash(struct ftrace_hash *hash, char *buffer)
 				if (entry)
 					continue;
 				if (add_hash_entry(hash, rec->ip) == NULL)
-					goto out;
+					return 0;
 			} else {
 				if (entry) {
 					free_hash_entry(hash, entry);
@@ -6835,13 +6852,8 @@ ftrace_graph_set_hash(struct ftrace_hash *hash, char *buffer)
 			}
 		}
 	} while_for_each_ftrace_rec();
-out:
-	mutex_unlock(&ftrace_lock);
 
-	if (fail)
-		return -EINVAL;
-
-	return 0;
+	return fail ? -EINVAL : 0;
 }
 
 static ssize_t
@@ -7920,7 +7932,7 @@ out:
 void arch_ftrace_ops_list_func(unsigned long ip, unsigned long parent_ip,
 			       struct ftrace_ops *op, struct ftrace_regs *fregs)
 {
-	kmsan_unpoison_memory(fregs, sizeof(*fregs));
+	kmsan_unpoison_memory(fregs, ftrace_regs_size());
 	__ftrace_ops_list_func(ip, parent_ip, NULL, fregs);
 }
 #else

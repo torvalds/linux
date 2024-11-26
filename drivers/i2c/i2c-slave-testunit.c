@@ -183,6 +183,10 @@ static void i2c_slave_testunit_work(struct work_struct *work)
 		break;
 
 	case TU_CMD_SMBUS_ALERT_REQUEST:
+		if (!tu->gpio) {
+			ret = -ENOENT;
+			break;
+		}
 		i2c_slave_unregister(tu->client);
 		orig_addr = tu->client->addr;
 		tu->client->addr = 0x0c;
@@ -232,6 +236,9 @@ static int i2c_slave_testunit_probe(struct i2c_client *client)
 	INIT_DELAYED_WORK(&tu->worker, i2c_slave_testunit_work);
 
 	tu->gpio = devm_gpiod_get_index_optional(&client->dev, NULL, 0, GPIOD_OUT_LOW);
+	if (IS_ERR(tu->gpio))
+		return PTR_ERR(tu->gpio);
+
 	if (gpiod_cansleep(tu->gpio)) {
 		dev_err(&client->dev, "GPIO access which may sleep is not allowed\n");
 		return -EDEADLK;

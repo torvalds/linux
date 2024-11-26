@@ -137,10 +137,10 @@ questione.
 
 Quando volete fare riferimento ad una lista di discussione, preferite il
 servizio d'archiviazione lore.kernel.org. Per create un collegamento URL è
-sufficiente usare il campo ``Message-Id``, presente nell'intestazione del
+sufficiente usare il campo ``Message-ID``, presente nell'intestazione del
 messaggio, senza parentesi angolari. Per esempio::
 
-     Link: https://lore.kernel.org/r/30th.anniversary.repost@klaava.Helsinki.FI/
+     Link: https://lore.kernel.org/30th.anniversary.repost@klaava.Helsinki.FI
 
 Prima d'inviare il messaggio ricordatevi di verificare che il collegamento così
 creato funzioni e che indirizzi verso il messaggio desiderato.
@@ -275,11 +275,9 @@ patch riceverà molta più attenzione. Tuttavia, per favore, non spammate le lis
 di discussione che non sono interessate al vostro lavoro.
 
 Molte delle liste di discussione relative al kernel vengono ospitate su
-vger.kernel.org; potete trovare un loro elenco alla pagina
-http://vger.kernel.org/vger-lists.html.  Tuttavia, ci sono altre liste di
-discussione ospitate altrove.
-
-Non inviate più di 15 patch alla volta sulle liste di discussione vger!!!
+kernel.org; potete trovare un loro elenco alla pagina
+https://subspace.kernel.org. Tuttavia, ci sono altre liste di discussione
+ospitate altrove.
 
 L'ultimo giudizio sull'integrazione delle modifiche accettate spetta a
 Linux Torvalds.  Il suo indirizzo e-mail è <torvalds@linux-foundation.org>.
@@ -891,6 +889,14 @@ Assicuratevi che il commit si basi su sorgenti ufficiali del
 manutentore/mainline e non su sorgenti interni, accessibile solo a voi,
 altrimenti sarebbe inutile.
 
+Strumenti
+---------
+
+Molti degli aspetti più tecnici di questo processo possono essere automatizzati
+usando b4, la cui documentazione è disponibile all'indirizzo
+<https://b4.docs.kernel.org/en/latest/>. Può aiutare a tracciare la dipendenze,
+eseguire checkpatch e con la formattazione e l'invio di messaggi di posta.
+
 Riferimenti
 -----------
 
@@ -912,9 +918,6 @@ Greg Kroah-Hartman, "Come scocciare un manutentore di un sottosistema"
   <http://www.kroah.com/log/linux/maintainer-05.html>
 
   <http://www.kroah.com/log/linux/maintainer-06.html>
-
-No!!!! Basta gigantesche bombe patch alle persone sulla lista linux-kernel@vger.kernel.org!
-  <https://lore.kernel.org/r/20050711.125305.08322243.davem@davemloft.net>
 
 Kernel Documentation/translations/it_IT/process/coding-style.rst.
 

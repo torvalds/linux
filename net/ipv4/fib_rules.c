@@ -74,7 +74,7 @@ int fib4_rules_dump(struct net *net, struct notifier_block *nb,
 	return fib_rules_dump(net, nb, AF_INET, extack);
 }
 
-unsigned int fib4_rules_seq_read(struct net *net)
+unsigned int fib4_rules_seq_read(const struct net *net)
 {
 	return fib_rules_seq_read(net, AF_INET);
 }

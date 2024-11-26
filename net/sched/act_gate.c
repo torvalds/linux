@@ -190,15 +190,10 @@ static int fill_gate_entry(struct nlattr **tb, struct tcfg_gate_entry *entry,
 
 	entry->interval = interval;
 
-	if (tb[TCA_GATE_ENTRY_IPV])
-		entry->ipv = nla_get_s32(tb[TCA_GATE_ENTRY_IPV]);
-	else
-		entry->ipv = -1;
+	entry->ipv = nla_get_s32_default(tb[TCA_GATE_ENTRY_IPV], -1);
 
-	if (tb[TCA_GATE_ENTRY_MAX_OCTETS])
-		entry->maxoctets = nla_get_s32(tb[TCA_GATE_ENTRY_MAX_OCTETS]);
-	else
-		entry->maxoctets = -1;
+	entry->maxoctets = nla_get_s32_default(tb[TCA_GATE_ENTRY_MAX_OCTETS],
+					       -1);
 
 	return 0;
 }

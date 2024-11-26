@@ -659,8 +659,6 @@ static const struct vb2_ops deinterlace_qops = {
 	.buf_queue		= deinterlace_buf_queue,
 	.start_streaming	= deinterlace_start_streaming,
 	.stop_streaming		= deinterlace_stop_streaming,
-	.wait_prepare		= vb2_ops_wait_prepare,
-	.wait_finish		= vb2_ops_wait_finish,
 };
 
 static int deinterlace_queue_init(void *priv, struct vb2_queue *src_vq,
@@ -1001,7 +999,7 @@ static const struct dev_pm_ops deinterlace_pm_ops = {
 
 static struct platform_driver deinterlace_driver = {
 	.probe		= deinterlace_probe,
-	.remove_new	= deinterlace_remove,
+	.remove		= deinterlace_remove,
 	.driver		= {
 		.name		= DEINTERLACE_NAME,
 		.of_match_table	= deinterlace_dt_match,

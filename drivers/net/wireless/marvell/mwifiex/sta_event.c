@@ -177,17 +177,14 @@ void mwifiex_reset_connect_state(struct mwifiex_private *priv, u16 reason_code,
 	priv->is_data_rate_auto = true;
 	priv->data_rate = 0;
 
-	priv->assoc_resp_ht_param = 0;
 	priv->ht_param_present = false;
 
 	if ((GET_BSS_ROLE(priv) == MWIFIEX_BSS_ROLE_STA ||
 	     GET_BSS_ROLE(priv) == MWIFIEX_BSS_ROLE_UAP) && priv->hist_data)
 		mwifiex_hist_data_reset(priv);
 
-	if (priv->bss_mode == NL80211_IFTYPE_ADHOC) {
+	if (priv->bss_mode == NL80211_IFTYPE_ADHOC)
 		priv->adhoc_state = ADHOC_IDLE;
-		priv->adhoc_is_link_sensed = false;
-	}
 
 	/*
 	 * Memorize the previous SSID and BSSID so
@@ -843,7 +840,6 @@ int mwifiex_process_sta_event(struct mwifiex_private *priv)
 
 	case EVENT_ADHOC_BCN_LOST:
 		mwifiex_dbg(adapter, EVENT, "event: ADHOC_BCN_LOST\n");
-		priv->adhoc_is_link_sensed = false;
 		mwifiex_clean_txrx(priv);
 		mwifiex_stop_net_dev_queue(priv->netdev, adapter);
 		if (netif_carrier_ok(priv->netdev))

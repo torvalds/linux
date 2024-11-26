@@ -633,7 +633,7 @@ static struct platform_driver bcmbca_hsspi_driver = {
 		   .of_match_table = bcmbca_hsspi_of_match,
 		   },
 	.probe = bcmbca_hsspi_probe,
-	.remove_new = bcmbca_hsspi_remove,
+	.remove = bcmbca_hsspi_remove,
 };
 
 module_platform_driver(bcmbca_hsspi_driver);

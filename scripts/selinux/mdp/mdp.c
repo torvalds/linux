@@ -167,9 +167,6 @@ int main(int argc, char *argv[])
 #ifdef CONFIG_JFS_SECURITY
 	FS_USE("xattr", "jfs");
 #endif
-#ifdef CONFIG_REISERFS_FS_SECURITY
-	FS_USE("xattr", "reiserfs");
-#endif
 #ifdef CONFIG_JFFS2_FS_SECURITY
 	FS_USE("xattr", "jffs2");
 #endif

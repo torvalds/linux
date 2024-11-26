@@ -45,6 +45,8 @@ struct amdgpu_hive_info {
 	struct amdgpu_reset_domain *reset_domain;
 	atomic_t ras_recovery;
 	struct ras_event_manager event_mgr;
+	struct work_struct reset_on_init_work;
+	atomic_t requested_nps_mode;
 };
 
 struct amdgpu_pcs_ras_field {
@@ -64,6 +66,8 @@ int amdgpu_xgmi_get_hops_count(struct amdgpu_device *adev,
 		struct amdgpu_device *peer_adev);
 int amdgpu_xgmi_get_num_links(struct amdgpu_device *adev,
 		struct amdgpu_device *peer_adev);
+bool amdgpu_xgmi_get_is_sharing_enabled(struct amdgpu_device *adev,
+					struct amdgpu_device *peer_adev);
 uint64_t amdgpu_xgmi_get_relative_phy_addr(struct amdgpu_device *adev,
 					   uint64_t addr);
 static inline bool amdgpu_xgmi_same_hive(struct amdgpu_device *adev,
@@ -75,5 +79,10 @@ static inline bool amdgpu_xgmi_same_hive(struct amdgpu_device *adev,
 		adev->gmc.xgmi.hive_id == bo_adev->gmc.xgmi.hive_id);
 }
 int amdgpu_xgmi_ras_sw_init(struct amdgpu_device *adev);
+int amdgpu_xgmi_reset_on_init(struct amdgpu_device *adev);
+
+int amdgpu_xgmi_request_nps_change(struct amdgpu_device *adev,
+				   struct amdgpu_hive_info *hive,
+				   int req_nps_mode);
 
 #endif

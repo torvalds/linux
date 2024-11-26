@@ -4167,7 +4167,7 @@ EXPORT_SYMBOL(pci_request_regions_exclusive);
  * Record the PCI IO range (expressed as CPU physical address + size).
  * Return a negative value if an error has occurred, zero otherwise
  */
-int pci_register_io_range(struct fwnode_handle *fwnode, phys_addr_t addr,
+int pci_register_io_range(const struct fwnode_handle *fwnode, phys_addr_t addr,
 			resource_size_t	size)
 {
 	int ret = 0;

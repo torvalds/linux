@@ -49,7 +49,7 @@
 		};
 	};
 
-	typec_vcc5v: typec-vcc5v {
+	typec_vcc5v: regulator-typec-vcc5v {
 		compatible = "regulator-fixed";
 		regulator-name = "typec_vcc5v";
 		regulator-min-microvolt = <5000000>;
@@ -58,7 +58,7 @@
 		regulator-boot-on;
 	};
 
-	vcc5v0_sys: vcc5v0-sys {
+	vcc5v0_sys: regulator-vcc5v0-sys {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc5v0_sys";
 		regulator-min-microvolt = <5000000>;
@@ -68,7 +68,7 @@
 		vin-supply = <&typec_vcc5v>;
 	};
 
-	vcc_io: vcc-io {
+	vcc_io: regulator-vcc-io {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc_io";
 		regulator-min-microvolt = <3300000>;
@@ -89,7 +89,7 @@
 		vin-supply = <&vcc5v0_sys>;
 	};
 
-	vcc_sd: vcc-sd {
+	vcc_sd: regulator-vcc-sd {
 		compatible = "regulator-fixed";
 		gpio = <&gpio4 RK_PD6 GPIO_ACTIVE_LOW>;
 		regulator-name = "vcc_sd";
@@ -100,7 +100,7 @@
 		vin-supply = <&vcc_io>;
 	};
 
-	vdd_core: vdd-core {
+	vdd_core: regulator-vdd-core {
 		compatible = "pwm-regulator";
 		pwms = <&pwm0 0 5000 1>;
 		regulator-name = "vdd_core";
@@ -112,7 +112,7 @@
 		pwm-supply = <&vcc5v0_sys>;
 	};
 
-	vdd_log: vdd-log {
+	vdd_log: regulator-vdd-log {
 		compatible = "regulator-fixed";
 		regulator-name = "vdd_log";
 		regulator-min-microvolt = <1050000>;

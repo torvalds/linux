@@ -210,7 +210,7 @@ MODULE_DEVICE_TABLE(of, regulator_userspace_consumer_of_match);
 
 static struct platform_driver regulator_userspace_consumer_driver = {
 	.probe		= regulator_userspace_consumer_probe,
-	.remove_new	= regulator_userspace_consumer_remove,
+	.remove		= regulator_userspace_consumer_remove,
 	.driver		= {
 		.name		= "reg-userspace-consumer",
 		.probe_type	= PROBE_PREFER_ASYNCHRONOUS,

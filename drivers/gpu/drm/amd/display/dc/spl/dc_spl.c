@@ -848,13 +848,13 @@ static bool spl_get_isharp_en(struct spl_in *spl_in,
 	 *  surfaces based on policy setting
 	 */
 	if (!spl_is_yuv420(spl_in->basic_in.format) &&
-		(spl_in->debug.sharpen_policy == SHARPEN_YUV))
+		(spl_in->sharpen_policy == SHARPEN_YUV))
 		return enable_isharp;
 	else if ((spl_is_yuv420(spl_in->basic_in.format) && !fullscreen) &&
-		(spl_in->debug.sharpen_policy == SHARPEN_RGB_FULLSCREEN_YUV))
+		(spl_in->sharpen_policy == SHARPEN_RGB_FULLSCREEN_YUV))
 		return enable_isharp;
 	else if (!spl_in->is_fullscreen &&
-			spl_in->debug.sharpen_policy == SHARPEN_FULLSCREEN_ALL)
+			spl_in->sharpen_policy == SHARPEN_FULLSCREEN_ALL)
 		return enable_isharp;
 
 	/*
@@ -866,6 +866,60 @@ static bool spl_get_isharp_en(struct spl_in *spl_in,
 		enable_isharp = true;
 
 	return enable_isharp;
+}
+
+/* Calculate number of tap with adaptive scaling off */
+static void spl_get_taps_non_adaptive_scaler(
+	  struct spl_scratch *spl_scratch, const struct spl_taps *in_taps)
+{
+	if (in_taps->h_taps == 0) {
+		if (spl_fixpt_ceil(spl_scratch->scl_data.ratios.horz) > 1)
+			spl_scratch->scl_data.taps.h_taps = spl_min(2 * spl_fixpt_ceil(
+				spl_scratch->scl_data.ratios.horz), 8);
+		else
+			spl_scratch->scl_data.taps.h_taps = 4;
+	} else
+		spl_scratch->scl_data.taps.h_taps = in_taps->h_taps;
+
+	if (in_taps->v_taps == 0) {
+		if (spl_fixpt_ceil(spl_scratch->scl_data.ratios.vert) > 1)
+			spl_scratch->scl_data.taps.v_taps = spl_min(spl_fixpt_ceil(spl_fixpt_mul_int(
+				spl_scratch->scl_data.ratios.vert, 2)), 8);
+		else
+			spl_scratch->scl_data.taps.v_taps = 4;
+	} else
+		spl_scratch->scl_data.taps.v_taps = in_taps->v_taps;
+
+	if (in_taps->v_taps_c == 0) {
+		if (spl_fixpt_ceil(spl_scratch->scl_data.ratios.vert_c) > 1)
+			spl_scratch->scl_data.taps.v_taps_c = spl_min(spl_fixpt_ceil(spl_fixpt_mul_int(
+				spl_scratch->scl_data.ratios.vert_c, 2)), 8);
+		else
+			spl_scratch->scl_data.taps.v_taps_c = 4;
+	} else
+		spl_scratch->scl_data.taps.v_taps_c = in_taps->v_taps_c;
+
+	if (in_taps->h_taps_c == 0) {
+		if (spl_fixpt_ceil(spl_scratch->scl_data.ratios.horz_c) > 1)
+			spl_scratch->scl_data.taps.h_taps_c = spl_min(2 * spl_fixpt_ceil(
+				spl_scratch->scl_data.ratios.horz_c), 8);
+		else
+			spl_scratch->scl_data.taps.h_taps_c = 4;
+	} else if ((in_taps->h_taps_c % 2) != 0 && in_taps->h_taps_c != 1)
+		/* Only 1 and even h_taps_c are supported by hw */
+		spl_scratch->scl_data.taps.h_taps_c = in_taps->h_taps_c - 1;
+	else
+		spl_scratch->scl_data.taps.h_taps_c = in_taps->h_taps_c;
+
+	if (IDENTITY_RATIO(spl_scratch->scl_data.ratios.horz))
+		spl_scratch->scl_data.taps.h_taps = 1;
+	if (IDENTITY_RATIO(spl_scratch->scl_data.ratios.vert))
+		spl_scratch->scl_data.taps.v_taps = 1;
+	if (IDENTITY_RATIO(spl_scratch->scl_data.ratios.horz_c))
+		spl_scratch->scl_data.taps.h_taps_c = 1;
+	if (IDENTITY_RATIO(spl_scratch->scl_data.ratios.vert_c))
+		spl_scratch->scl_data.taps.v_taps_c = 1;
+
 }
 
 /* Calculate optimal number of taps */
@@ -882,8 +936,22 @@ static bool spl_get_optimal_number_of_taps(
 
 	if (spl_scratch->scl_data.viewport.width > spl_scratch->scl_data.h_active &&
 		max_downscale_src_width != 0 &&
-		spl_scratch->scl_data.viewport.width > max_downscale_src_width)
+		spl_scratch->scl_data.viewport.width > max_downscale_src_width) {
+		spl_get_taps_non_adaptive_scaler(spl_scratch, in_taps);
+		*enable_easf_v = false;
+		*enable_easf_h = false;
+		*enable_isharp = false;
 		return false;
+	}
+
+	/* Disable adaptive scaler and sharpener when integer scaling is enabled */
+	if (spl_in->scaling_quality.integer_scaling) {
+		spl_get_taps_non_adaptive_scaler(spl_scratch, in_taps);
+		*enable_easf_v = false;
+		*enable_easf_h = false;
+		*enable_isharp = false;
+		return true;
+	}
 
 	/* Check if we are using EASF or not */
 	skip_easf = enable_easf(spl_in, spl_scratch);
@@ -893,43 +961,9 @@ static bool spl_get_optimal_number_of_taps(
 	 * From programming guide: taps = min{ ceil(2*H_RATIO,1), 8} for downscaling
 	 * taps = 4 for upscaling
 	 */
-	if (skip_easf) {
-		if (in_taps->h_taps == 0) {
-			if (spl_fixpt_ceil(spl_scratch->scl_data.ratios.horz) > 1)
-				spl_scratch->scl_data.taps.h_taps = spl_min(2 * spl_fixpt_ceil(
-					spl_scratch->scl_data.ratios.horz), 8);
-			else
-				spl_scratch->scl_data.taps.h_taps = 4;
-		} else
-			spl_scratch->scl_data.taps.h_taps = in_taps->h_taps;
-		if (in_taps->v_taps == 0) {
-			if (spl_fixpt_ceil(spl_scratch->scl_data.ratios.vert) > 1)
-				spl_scratch->scl_data.taps.v_taps = spl_min(spl_fixpt_ceil(spl_fixpt_mul_int(
-					spl_scratch->scl_data.ratios.vert, 2)), 8);
-			else
-				spl_scratch->scl_data.taps.v_taps = 4;
-		} else
-			spl_scratch->scl_data.taps.v_taps = in_taps->v_taps;
-		if (in_taps->v_taps_c == 0) {
-			if (spl_fixpt_ceil(spl_scratch->scl_data.ratios.vert_c) > 1)
-				spl_scratch->scl_data.taps.v_taps_c = spl_min(spl_fixpt_ceil(spl_fixpt_mul_int(
-					spl_scratch->scl_data.ratios.vert_c, 2)), 8);
-			else
-				spl_scratch->scl_data.taps.v_taps_c = 4;
-		} else
-			spl_scratch->scl_data.taps.v_taps_c = in_taps->v_taps_c;
-		if (in_taps->h_taps_c == 0) {
-			if (spl_fixpt_ceil(spl_scratch->scl_data.ratios.horz_c) > 1)
-				spl_scratch->scl_data.taps.h_taps_c = spl_min(2 * spl_fixpt_ceil(
-					spl_scratch->scl_data.ratios.horz_c), 8);
-			else
-				spl_scratch->scl_data.taps.h_taps_c = 4;
-		} else if ((in_taps->h_taps_c % 2) != 0 && in_taps->h_taps_c != 1)
-			/* Only 1 and even h_taps_c are supported by hw */
-			spl_scratch->scl_data.taps.h_taps_c = in_taps->h_taps_c - 1;
-		else
-			spl_scratch->scl_data.taps.h_taps_c = in_taps->h_taps_c;
-	} else {
+	if (skip_easf)
+		spl_get_taps_non_adaptive_scaler(spl_scratch, in_taps);
+	else {
 		if (spl_is_yuv420(spl_in->basic_in.format)) {
 			spl_scratch->scl_data.taps.h_taps = 6;
 			spl_scratch->scl_data.taps.v_taps = 6;
@@ -954,7 +988,7 @@ static bool spl_get_optimal_number_of_taps(
 	else
 		lb_config = LB_MEMORY_CONFIG_0;
 	// Determine max vtap support by calculating how much line buffer can fit
-	spl_in->funcs->spl_calc_lb_num_partitions(spl_in->basic_out.alpha_en, &spl_scratch->scl_data,
+	spl_in->callbacks.spl_calc_lb_num_partitions(spl_in->basic_out.alpha_en, &spl_scratch->scl_data,
 			lb_config, &num_part_y, &num_part_c);
 	/* MAX_V_TAPS = MIN (NUM_LINES - MAX(CEILING(V_RATIO,1)-2, 0), 8) */
 	if (spl_fixpt_ceil(spl_scratch->scl_data.ratios.vert) > 2)
@@ -1590,7 +1624,8 @@ static void spl_set_isharp_data(struct dscl_prog_data *dscl_prog_data,
 
 	spl_build_isharp_1dlut_from_reference_curve(ratio, setup, adp_sharpness,
 		scale_to_sharpness_policy);
-	dscl_prog_data->isharp_delta = spl_get_pregen_filter_isharp_1D_lut(setup);
+	memcpy(dscl_prog_data->isharp_delta, spl_get_pregen_filter_isharp_1D_lut(setup),
+		sizeof(uint32_t) * ISHARP_LUT_TABLE_SIZE);
 	dscl_prog_data->sharpness_level = adp_sharpness.sharpness_level;
 
 	dscl_prog_data->isharp_en = 1;	// ISHARP_EN
@@ -1753,11 +1788,11 @@ bool spl_calculate_scaler_params(struct spl_in *spl_in, struct spl_out *spl_out)
 	// Clamp
 	spl_clamp_viewport(&spl_scratch.scl_data.viewport);
 
-	if (!res)
-		return res;
-
 	// Save all calculated parameters in dscl_prog_data structure to program hw registers
 	spl_set_dscl_prog_data(spl_in, &spl_scratch, spl_out, enable_easf_v, enable_easf_h, enable_isharp);
+
+	if (!res)
+		return res;
 
 	if (spl_in->lls_pref == LLS_PREF_YES) {
 		if (spl_in->is_hdr_on)

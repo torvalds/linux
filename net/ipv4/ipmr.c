@@ -288,7 +288,7 @@ static int ipmr_rules_dump(struct net *net, struct notifier_block *nb,
 	return fib_rules_dump(net, nb, RTNL_FAMILY_IPMR, extack);
 }
 
-static unsigned int ipmr_rules_seq_read(struct net *net)
+static unsigned int ipmr_rules_seq_read(const struct net *net)
 {
 	return fib_rules_seq_read(net, RTNL_FAMILY_IPMR);
 }
@@ -346,7 +346,7 @@ static int ipmr_rules_dump(struct net *net, struct notifier_block *nb,
 	return 0;
 }
 
-static unsigned int ipmr_rules_seq_read(struct net *net)
+static unsigned int ipmr_rules_seq_read(const struct net *net)
 {
 	return 0;
 }
@@ -2081,7 +2081,7 @@ static struct mr_table *ipmr_rt_fib_lookup(struct net *net, struct sk_buff *skb)
 	struct flowi4 fl4 = {
 		.daddr = iph->daddr,
 		.saddr = iph->saddr,
-		.flowi4_tos = iph->tos & INET_DSCP_MASK,
+		.flowi4_tos = inet_dscp_to_dsfield(ip4h_dscp(iph)),
 		.flowi4_oif = (rt_is_output_route(rt) ?
 			       skb->dev->ifindex : 0),
 		.flowi4_iif = (rt_is_output_route(rt) ?
@@ -2546,9 +2546,9 @@ static int ipmr_rtm_getroute(struct sk_buff *in_skb, struct nlmsghdr *nlh,
 	if (err < 0)
 		goto errout;
 
-	src = tb[RTA_SRC] ? nla_get_in_addr(tb[RTA_SRC]) : 0;
-	grp = tb[RTA_DST] ? nla_get_in_addr(tb[RTA_DST]) : 0;
-	tableid = tb[RTA_TABLE] ? nla_get_u32(tb[RTA_TABLE]) : 0;
+	src = nla_get_in_addr_default(tb[RTA_SRC], 0);
+	grp = nla_get_in_addr_default(tb[RTA_DST], 0);
+	tableid = nla_get_u32_default(tb[RTA_TABLE], 0);
 
 	mrt = ipmr_get_table(net, tableid ? tableid : RT_TABLE_DEFAULT);
 	if (!mrt) {
@@ -3035,11 +3035,9 @@ static const struct net_protocol pim_protocol = {
 };
 #endif
 
-static unsigned int ipmr_seq_read(struct net *net)
+static unsigned int ipmr_seq_read(const struct net *net)
 {
-	ASSERT_RTNL();
-
-	return net->ipv4.ipmr_seq + ipmr_rules_seq_read(net);
+	return READ_ONCE(net->ipv4.ipmr_seq) + ipmr_rules_seq_read(net);
 }
 
 static int ipmr_dump(struct net *net, struct notifier_block *nb,
@@ -3139,6 +3137,17 @@ static struct pernet_operations ipmr_net_ops = {
 	.exit_batch = ipmr_net_exit_batch,
 };
 
+static const struct rtnl_msg_handler ipmr_rtnl_msg_handlers[] __initconst = {
+	{.protocol = RTNL_FAMILY_IPMR, .msgtype = RTM_GETLINK,
+	 .dumpit = ipmr_rtm_dumplink},
+	{.protocol = RTNL_FAMILY_IPMR, .msgtype = RTM_NEWROUTE,
+	 .doit = ipmr_rtm_route},
+	{.protocol = RTNL_FAMILY_IPMR, .msgtype = RTM_DELROUTE,
+	 .doit = ipmr_rtm_route},
+	{.protocol = RTNL_FAMILY_IPMR, .msgtype = RTM_GETROUTE,
+	 .doit = ipmr_rtm_getroute, .dumpit = ipmr_rtm_dumproute},
+};
+
 int __init ip_mr_init(void)
 {
 	int err;
@@ -3159,15 +3168,8 @@ int __init ip_mr_init(void)
 		goto add_proto_fail;
 	}
 #endif
-	rtnl_register(RTNL_FAMILY_IPMR, RTM_GETROUTE,
-		      ipmr_rtm_getroute, ipmr_rtm_dumproute, 0);
-	rtnl_register(RTNL_FAMILY_IPMR, RTM_NEWROUTE,
-		      ipmr_rtm_route, NULL, 0);
-	rtnl_register(RTNL_FAMILY_IPMR, RTM_DELROUTE,
-		      ipmr_rtm_route, NULL, 0);
+	rtnl_register_many(ipmr_rtnl_msg_handlers);
 
-	rtnl_register(RTNL_FAMILY_IPMR, RTM_GETLINK,
-		      NULL, ipmr_rtm_dumplink, 0);
 	return 0;
 
 #ifdef CONFIG_IP_PIMSM_V2

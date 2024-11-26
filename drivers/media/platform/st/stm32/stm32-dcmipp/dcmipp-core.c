@@ -583,7 +583,7 @@ static const struct dev_pm_ops dcmipp_pm_ops = {
 
 static struct platform_driver dcmipp_pdrv = {
 	.probe		= dcmipp_probe,
-	.remove_new	= dcmipp_remove,
+	.remove		= dcmipp_remove,
 	.driver		= {
 		.name	= DCMIPP_PDEV_NAME,
 		.of_match_table = dcmipp_of_match,

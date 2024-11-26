@@ -80,7 +80,8 @@ symbol_lookup_callback(__maybe_unused void *disasm_info,
 static int
 init_context(disasm_ctx_t *ctx, const char *arch,
 	     __maybe_unused const char *disassembler_options,
-	     __maybe_unused unsigned char *image, __maybe_unused ssize_t len)
+	     __maybe_unused unsigned char *image, __maybe_unused ssize_t len,
+	     __maybe_unused __u64 func_ksym)
 {
 	char *triple;
 
@@ -109,12 +110,13 @@ static void destroy_context(disasm_ctx_t *ctx)
 }
 
 static int
-disassemble_insn(disasm_ctx_t *ctx, unsigned char *image, ssize_t len, int pc)
+disassemble_insn(disasm_ctx_t *ctx, unsigned char *image, ssize_t len, int pc,
+		 __u64 func_ksym)
 {
 	char buf[256];
 	int count;
 
-	count = LLVMDisasmInstruction(*ctx, image + pc, len - pc, pc,
+	count = LLVMDisasmInstruction(*ctx, image + pc, len - pc, func_ksym + pc,
 				      buf, sizeof(buf));
 	if (json_output)
 		printf_json(buf);
@@ -136,8 +138,21 @@ int disasm_init(void)
 #ifdef HAVE_LIBBFD_SUPPORT
 #define DISASM_SPACER "\t"
 
+struct disasm_info {
+	struct disassemble_info info;
+	__u64 func_ksym;
+};
+
+static void disasm_print_addr(bfd_vma addr, struct disassemble_info *info)
+{
+	struct disasm_info *dinfo = container_of(info, struct disasm_info, info);
+
+	addr += dinfo->func_ksym;
+	generic_print_address(addr, info);
+}
+
 typedef struct {
-	struct disassemble_info *info;
+	struct disasm_info *info;
 	disassembler_ftype disassemble;
 	bfd *bfdf;
 } disasm_ctx_t;
@@ -215,7 +230,7 @@ static int fprintf_json_styled(void *out,
 
 static int init_context(disasm_ctx_t *ctx, const char *arch,
 			const char *disassembler_options,
-			unsigned char *image, ssize_t len)
+			unsigned char *image, ssize_t len, __u64 func_ksym)
 {
 	struct disassemble_info *info;
 	char tpath[PATH_MAX];
@@ -238,12 +253,13 @@ static int init_context(disasm_ctx_t *ctx, const char *arch,
 	}
 	bfdf = ctx->bfdf;
 
-	ctx->info = malloc(sizeof(struct disassemble_info));
+	ctx->info = malloc(sizeof(struct disasm_info));
 	if (!ctx->info) {
 		p_err("mem alloc failed");
 		goto err_close;
 	}
-	info = ctx->info;
+	ctx->info->func_ksym = func_ksym;
+	info = &ctx->info->info;
 
 	if (json_output)
 		init_disassemble_info_compat(info, stdout,
@@ -272,6 +288,7 @@ static int init_context(disasm_ctx_t *ctx, const char *arch,
 		info->disassembler_options = disassembler_options;
 	info->buffer = image;
 	info->buffer_length = len;
+	info->print_address_func = disasm_print_addr;
 
 	disassemble_init_for_target(info);
 
@@ -304,9 +321,10 @@ static void destroy_context(disasm_ctx_t *ctx)
 
 static int
 disassemble_insn(disasm_ctx_t *ctx, __maybe_unused unsigned char *image,
-		 __maybe_unused ssize_t len, int pc)
+		 __maybe_unused ssize_t len, int pc,
+		 __maybe_unused __u64 func_ksym)
 {
-	return ctx->disassemble(pc, ctx->info);
+	return ctx->disassemble(pc, &ctx->info->info);
 }
 
 int disasm_init(void)
@@ -331,7 +349,7 @@ int disasm_print_insn(unsigned char *image, ssize_t len, int opcodes,
 	if (!len)
 		return -1;
 
-	if (init_context(&ctx, arch, disassembler_options, image, len))
+	if (init_context(&ctx, arch, disassembler_options, image, len, func_ksym))
 		return -1;
 
 	if (json_output)
@@ -360,7 +378,7 @@ int disasm_print_insn(unsigned char *image, ssize_t len, int opcodes,
 			printf("%4x:" DISASM_SPACER, pc);
 		}
 
-		count = disassemble_insn(&ctx, image, len, pc);
+		count = disassemble_insn(&ctx, image, len, pc, func_ksym);
 
 		if (json_output) {
 			/* Operand array, was started in fprintf_json. Before

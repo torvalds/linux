@@ -111,7 +111,7 @@
 #define  SFC_VER_4			0x4
 #define  SFC_VER_5			0x5
 
-/* Delay line controller resiter */
+/* Delay line controller register */
 #define SFC_DLL_CTRL0			0x3C
 #define SFC_DLL_CTRL0_SCLK_SMP_DLL	BIT(15)
 #define SFC_DLL_CTRL0_DLL_MAX_VER4	0xFFU
@@ -580,19 +580,16 @@ static int rockchip_sfc_probe(struct platform_device *pdev)
 		return PTR_ERR(sfc->regbase);
 
 	sfc->clk = devm_clk_get(&pdev->dev, "clk_sfc");
-	if (IS_ERR(sfc->clk)) {
-		dev_err(&pdev->dev, "Failed to get sfc interface clk\n");
-		return PTR_ERR(sfc->clk);
-	}
+	if (IS_ERR(sfc->clk))
+		return dev_err_probe(&pdev->dev, PTR_ERR(sfc->clk),
+				     "Failed to get sfc interface clk\n");
 
 	sfc->hclk = devm_clk_get(&pdev->dev, "hclk_sfc");
-	if (IS_ERR(sfc->hclk)) {
-		dev_err(&pdev->dev, "Failed to get sfc ahb clk\n");
-		return PTR_ERR(sfc->hclk);
-	}
+	if (IS_ERR(sfc->hclk))
+		return dev_err_probe(&pdev->dev, PTR_ERR(sfc->hclk),
+				     "Failed to get sfc ahb clk\n");
 
-	sfc->use_dma = !of_property_read_bool(sfc->dev->of_node,
-					      "rockchip,sfc-no-dma");
+	sfc->use_dma = !of_property_read_bool(sfc->dev->of_node, "rockchip,sfc-no-dma");
 
 	if (sfc->use_dma) {
 		ret = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(32));
@@ -602,8 +599,7 @@ static int rockchip_sfc_probe(struct platform_device *pdev)
 		}
 
 		sfc->buffer = dmam_alloc_coherent(dev, SFC_MAX_IOSIZE_VER3,
-						  &sfc->dma_buffer,
-						  GFP_KERNEL);
+						  &sfc->dma_buffer, GFP_KERNEL);
 		if (!sfc->buffer)
 			return -ENOMEM;
 	}
@@ -629,7 +625,6 @@ static int rockchip_sfc_probe(struct platform_device *pdev)
 			       0, pdev->name, sfc);
 	if (ret) {
 		dev_err(dev, "Failed to request irq\n");
-
 		goto err_irq;
 	}
 
@@ -677,7 +672,7 @@ static struct platform_driver rockchip_sfc_driver = {
 		.of_match_table = rockchip_sfc_dt_ids,
 	},
 	.probe	= rockchip_sfc_probe,
-	.remove_new = rockchip_sfc_remove,
+	.remove = rockchip_sfc_remove,
 };
 module_platform_driver(rockchip_sfc_driver);
 

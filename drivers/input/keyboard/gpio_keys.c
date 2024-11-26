@@ -531,12 +531,7 @@ static int gpio_keys_setup_key(struct platform_device *pdev,
 		 * Legacy GPIO number, so request the GPIO here and
 		 * convert it to descriptor.
 		 */
-		unsigned flags = GPIOF_IN;
-
-		if (button->active_low)
-			flags |= GPIOF_ACTIVE_LOW;
-
-		error = devm_gpio_request_one(dev, button->gpio, flags, desc);
+		error = devm_gpio_request_one(dev, button->gpio, GPIOF_IN, desc);
 		if (error < 0) {
 			dev_err(dev, "Failed to request GPIO %d, error %d\n",
 				button->gpio, error);
@@ -546,6 +541,9 @@ static int gpio_keys_setup_key(struct platform_device *pdev,
 		bdata->gpiod = gpio_to_desc(button->gpio);
 		if (!bdata->gpiod)
 			return -EINVAL;
+
+		if (button->active_low ^ gpiod_is_active_low(bdata->gpiod))
+			gpiod_toggle_active_low(bdata->gpiod);
 	}
 
 	if (bdata->gpiod) {

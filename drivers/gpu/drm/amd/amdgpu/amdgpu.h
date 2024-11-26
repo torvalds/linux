@@ -118,7 +118,7 @@
 
 #define MAX_GPU_INSTANCE		64
 
-#define GFX_SLICE_PERIOD		msecs_to_jiffies(250)
+#define GFX_SLICE_PERIOD_MS		250
 
 struct amdgpu_gpu_instance {
 	struct amdgpu_device		*adev;
@@ -131,10 +131,6 @@ struct amdgpu_mgpu_info {
 	uint32_t			num_gpu;
 	uint32_t			num_dgpu;
 	uint32_t			num_apu;
-
-	/* delayed reset_func for XGMI configuration if necessary */
-	struct delayed_work		delayed_reset_work;
-	bool				pending_reset;
 };
 
 enum amdgpu_ss {
@@ -303,6 +299,12 @@ extern int amdgpu_wbrf;
 #define AMDGPU_RESET_VCE			(1 << 13)
 #define AMDGPU_RESET_VCE1			(1 << 14)
 
+/* reset mask */
+#define AMDGPU_RESET_TYPE_FULL (1 << 0) /* full adapter reset, mode1/mode2/BACO/etc. */
+#define AMDGPU_RESET_TYPE_SOFT_RESET (1 << 1) /* IP level soft reset */
+#define AMDGPU_RESET_TYPE_PER_QUEUE (1 << 2) /* per queue */
+#define AMDGPU_RESET_TYPE_PER_PIPE (1 << 3) /* per pipe */
+
 /* max cursor sizes (in pixels) */
 #define CIK_CURSOR_WIDTH 128
 #define CIK_CURSOR_HEIGHT 128
@@ -365,8 +367,11 @@ void amdgpu_device_ip_get_clockgating_state(struct amdgpu_device *adev,
 					    u64 *flags);
 int amdgpu_device_ip_wait_for_idle(struct amdgpu_device *adev,
 				   enum amd_ip_block_type block_type);
-bool amdgpu_device_ip_is_idle(struct amdgpu_device *adev,
+bool amdgpu_device_ip_is_valid(struct amdgpu_device *adev,
 			      enum amd_ip_block_type block_type);
+int amdgpu_ip_block_suspend(struct amdgpu_ip_block *ip_block);
+
+int amdgpu_ip_block_resume(struct amdgpu_ip_block *ip_block);
 
 #define AMDGPU_MAX_IP_NUM 16
 
@@ -389,6 +394,7 @@ struct amdgpu_ip_block_version {
 struct amdgpu_ip_block {
 	struct amdgpu_ip_block_status status;
 	const struct amdgpu_ip_block_version *version;
+	struct amdgpu_device *adev;
 };
 
 int amdgpu_device_ip_block_version_cmp(struct amdgpu_device *adev,
@@ -563,6 +569,7 @@ enum amd_reset_method {
 	AMD_RESET_METHOD_MODE2,
 	AMD_RESET_METHOD_BACO,
 	AMD_RESET_METHOD_PCI,
+	AMD_RESET_METHOD_ON_INIT,
 };
 
 struct amdgpu_video_codec_info {
@@ -819,6 +826,24 @@ struct amdgpu_mqd {
 	unsigned mqd_size;
 	int (*init_mqd)(struct amdgpu_device *adev, void *mqd,
 			struct amdgpu_mqd_prop *p);
+};
+
+/*
+ * Custom Init levels could be defined for different situations where a full
+ * initialization of all hardware blocks are not expected. Sample cases are
+ * custom init sequences after resume after S0i3/S3, reset on initialization,
+ * partial reset of blocks etc. Presently, this defines only two levels. Levels
+ * are described in corresponding struct definitions - amdgpu_init_default,
+ * amdgpu_init_minimal_xgmi.
+ */
+enum amdgpu_init_lvl_id {
+	AMDGPU_INIT_LEVEL_DEFAULT,
+	AMDGPU_INIT_LEVEL_MINIMAL_XGMI,
+};
+
+struct amdgpu_init_level {
+	enum amdgpu_init_lvl_id level;
+	uint32_t hwini_ip_block_mask;
 };
 
 #define AMDGPU_RESET_MAGIC_NUM 64
@@ -1092,8 +1117,6 @@ struct amdgpu_device {
 	bool				in_s3;
 	bool				in_s4;
 	bool				in_s0ix;
-	/* indicate amdgpu suspension status */
-	bool				suspend_complete;
 
 	enum pp_mp1_state               mp1_state;
 	struct amdgpu_doorbell_index doorbell_index;
@@ -1166,6 +1189,8 @@ struct amdgpu_device {
 	bool				enforce_isolation[MAX_XCP];
 	/* Added this mutex for cleaner shader isolation between GFX and compute processes */
 	struct mutex                    enforce_isolation_mutex;
+
+	struct amdgpu_init_level *init_lvl;
 };
 
 static inline uint32_t amdgpu_ip_version(const struct amdgpu_device *adev,
@@ -1260,6 +1285,8 @@ int amdgpu_device_pre_asic_reset(struct amdgpu_device *adev,
 
 int amdgpu_do_asic_reset(struct list_head *device_list_handle,
 			 struct amdgpu_reset_context *reset_context);
+
+int amdgpu_device_reinit_after_reset(struct amdgpu_reset_context *reset_context);
 
 int emu_soc_asic_init(struct amdgpu_device *adev);
 
@@ -1443,6 +1470,8 @@ struct dma_fence *amdgpu_device_get_gang(struct amdgpu_device *adev);
 struct dma_fence *amdgpu_device_switch_gang(struct amdgpu_device *adev,
 					    struct dma_fence *gang);
 bool amdgpu_device_has_display_hardware(struct amdgpu_device *adev);
+ssize_t amdgpu_get_soft_full_reset_mask(struct amdgpu_ring *ring);
+ssize_t amdgpu_show_reset_mask(char *buf, uint32_t supported_reset);
 
 /* atpx handler */
 #if defined(CONFIG_VGA_SWITCHEROO)
@@ -1450,21 +1479,13 @@ void amdgpu_register_atpx_handler(void);
 void amdgpu_unregister_atpx_handler(void);
 bool amdgpu_has_atpx_dgpu_power_cntl(void);
 bool amdgpu_is_atpx_hybrid(void);
-bool amdgpu_atpx_dgpu_req_power_for_displays(void);
 bool amdgpu_has_atpx(void);
 #else
 static inline void amdgpu_register_atpx_handler(void) {}
 static inline void amdgpu_unregister_atpx_handler(void) {}
 static inline bool amdgpu_has_atpx_dgpu_power_cntl(void) { return false; }
 static inline bool amdgpu_is_atpx_hybrid(void) { return false; }
-static inline bool amdgpu_atpx_dgpu_req_power_for_displays(void) { return false; }
 static inline bool amdgpu_has_atpx(void) { return false; }
-#endif
-
-#if defined(CONFIG_VGA_SWITCHEROO) && defined(CONFIG_ACPI)
-void *amdgpu_atpx_get_dhandle(void);
-#else
-static inline void *amdgpu_atpx_get_dhandle(void) { return NULL; }
 #endif
 
 /*
@@ -1619,4 +1640,6 @@ extern const struct attribute_group amdgpu_vram_mgr_attr_group;
 extern const struct attribute_group amdgpu_gtt_mgr_attr_group;
 extern const struct attribute_group amdgpu_flash_attr_group;
 
+void amdgpu_set_init_level(struct amdgpu_device *adev,
+			   enum amdgpu_init_lvl_id lvl);
 #endif

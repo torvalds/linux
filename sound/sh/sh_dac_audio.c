@@ -383,7 +383,7 @@ probe_error:
  */
 static struct platform_driver sh_dac_driver = {
 	.probe	= snd_sh_dac_probe,
-	.remove_new = snd_sh_dac_remove,
+	.remove = snd_sh_dac_remove,
 	.driver = {
 		.name = "dac_audio",
 	},

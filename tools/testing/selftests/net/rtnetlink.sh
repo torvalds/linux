@@ -21,10 +21,10 @@ ALL_TESTS="
 	kci_test_vrf
 	kci_test_encap
 	kci_test_macsec
-	kci_test_macsec_offload
 	kci_test_ipsec
 	kci_test_ipsec_offload
 	kci_test_fdb_get
+	kci_test_fdb_del
 	kci_test_neigh_get
 	kci_test_bridge_parent_id
 	kci_test_address_proto
@@ -559,73 +559,6 @@ kci_test_macsec()
 	end_test "PASS: macsec"
 }
 
-kci_test_macsec_offload()
-{
-	sysfsd=/sys/kernel/debug/netdevsim/netdevsim0/ports/0/
-	sysfsnet=/sys/bus/netdevsim/devices/netdevsim0/net/
-	probed=false
-	local ret=0
-	run_cmd_grep "^Usage: ip macsec" ip macsec help
-	if [ $? -ne 0 ]; then
-		end_test "SKIP: macsec: iproute2 too old"
-		return $ksft_skip
-	fi
-
-	if ! mount | grep -q debugfs; then
-		mount -t debugfs none /sys/kernel/debug/ &> /dev/null
-	fi
-
-	# setup netdevsim since dummydev doesn't have offload support
-	if [ ! -w /sys/bus/netdevsim/new_device ] ; then
-		run_cmd modprobe -q netdevsim
-
-		if [ $ret -ne 0 ]; then
-			end_test "SKIP: macsec_offload can't load netdevsim"
-			return $ksft_skip
-		fi
-		probed=true
-	fi
-
-	echo "0" > /sys/bus/netdevsim/new_device
-	while [ ! -d $sysfsnet ] ; do :; done
-	udevadm settle
-	dev=`ls $sysfsnet`
-
-	ip link set $dev up
-	if [ ! -d $sysfsd ] ; then
-		end_test "FAIL: macsec_offload can't create device $dev"
-		return 1
-	fi
-	run_cmd_grep 'macsec-hw-offload: on' ethtool -k $dev
-	if [ $? -eq 1 ] ; then
-		end_test "FAIL: macsec_offload netdevsim doesn't support MACsec offload"
-		return 1
-	fi
-	run_cmd ip link add link $dev kci_macsec1 type macsec port 4 offload mac
-	run_cmd ip link add link $dev kci_macsec2 type macsec address "aa:bb:cc:dd:ee:ff" port 5 offload mac
-	run_cmd ip link add link $dev kci_macsec3 type macsec sci abbacdde01020304 offload mac
-	run_cmd_fail ip link add link $dev kci_macsec4 type macsec port 8 offload mac
-
-	msname=kci_macsec1
-	run_cmd ip macsec add "$msname" tx sa 0 pn 1024 on key 01 12345678901234567890123456789012
-	run_cmd ip macsec add "$msname" rx port 1234 address "1c:ed:de:ad:be:ef"
-	run_cmd ip macsec add "$msname" rx port 1234 address "1c:ed:de:ad:be:ef" sa 0 pn 1 on \
-		key 00 0123456789abcdef0123456789abcdef
-	run_cmd_fail ip macsec add "$msname" rx port 1235 address "1c:ed:de:ad:be:ef"
-	# clean up any leftovers
-	for msdev in kci_macsec{1,2,3,4} ; do
-	    ip link del $msdev 2> /dev/null
-	done
-	echo 0 > /sys/bus/netdevsim/del_device
-	$probed && rmmod netdevsim
-
-	if [ $ret -ne 0 ]; then
-		end_test "FAIL: macsec_offload"
-		return 1
-	fi
-	end_test "PASS: macsec_offload"
-}
-
 #-------------------------------------------------------------------
 # Example commands
 #   ip x s add proto esp src 14.0.0.52 dst 14.0.0.70 \
@@ -809,10 +742,10 @@ kci_test_ipsec_offload()
 	# does driver have correct offload info
 	run_cmd diff $sysfsf - << EOF
 SA count=2 tx=3
-sa[0] tx ipaddr=0x00000000 00000000 00000000 00000000
+sa[0] tx ipaddr=$dstip
 sa[0]    spi=0x00000009 proto=0x32 salt=0x61626364 crypt=1
 sa[0]    key=0x34333231 38373635 32313039 36353433
-sa[1] rx ipaddr=0x00000000 00000000 00000000 037ba8c0
+sa[1] rx ipaddr=$srcip
 sa[1]    spi=0x00000009 proto=0x32 salt=0x61626364 crypt=1
 sa[1]    key=0x34333231 38373635 32313039 36353433
 EOF
@@ -1063,6 +996,45 @@ kci_test_fdb_get()
 	fi
 
 	end_test "PASS: bridge fdb get"
+}
+
+kci_test_fdb_del()
+{
+	local test_mac=de:ad:be:ef:13:37
+	local dummydev="dummy1"
+	local brdev="test-br0"
+	local ret=0
+
+	run_cmd_grep 'bridge fdb get' bridge fdb help
+	if [ $? -ne 0 ]; then
+		end_test "SKIP: fdb del tests: iproute2 too old"
+		return $ksft_skip
+	fi
+
+	setup_ns testns
+	if [ $? -ne 0 ]; then
+		end_test "SKIP fdb del tests: cannot add net namespace $testns"
+		return $ksft_skip
+	fi
+	IP="ip -netns $testns"
+	BRIDGE="bridge -netns $testns"
+	run_cmd $IP link add $dummydev type dummy
+	run_cmd $IP link add name $brdev type bridge vlan_filtering 1
+	run_cmd $IP link set dev $dummydev master $brdev
+	run_cmd $BRIDGE fdb add $test_mac dev $dummydev master static vlan 1
+	run_cmd $BRIDGE vlan del vid 1 dev $dummydev
+	run_cmd $BRIDGE fdb get $test_mac br $brdev vlan 1
+	run_cmd $BRIDGE fdb del $test_mac dev $dummydev master vlan 1
+	run_cmd_fail $BRIDGE fdb get $test_mac br $brdev vlan 1
+
+	ip netns del $testns &>/dev/null
+
+	if [ $ret -ne 0 ]; then
+		end_test "FAIL: bridge fdb del"
+		return 1
+	fi
+
+	end_test "PASS: bridge fdb del"
 }
 
 kci_test_neigh_get()

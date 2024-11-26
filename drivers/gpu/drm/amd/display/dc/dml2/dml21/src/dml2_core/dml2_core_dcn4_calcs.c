@@ -12236,6 +12236,8 @@ static void rq_dlg_get_dlg_reg(
 
 static void rq_dlg_get_arb_params(const struct dml2_display_cfg *display_cfg, const struct dml2_core_internal_display_mode_lib *mode_lib, struct dml2_display_arb_regs *arb_param)
 {
+	double refclk_freq_in_mhz = (display_cfg->overrides.hw.dlg_ref_clk_mhz > 0) ? (double)display_cfg->overrides.hw.dlg_ref_clk_mhz : mode_lib->soc.dchub_refclk_mhz;
+
 	arb_param->max_req_outstanding = mode_lib->soc.max_outstanding_reqs;
 	arb_param->min_req_outstanding = mode_lib->soc.max_outstanding_reqs; // turn off the sat level feature if this set to max
 	arb_param->sdpif_request_rate_limit = (3 * mode_lib->ip.words_per_channel * mode_lib->soc.clk_table.dram_config.channel_count) / 4;
@@ -12247,6 +12249,7 @@ static void rq_dlg_get_arb_params(const struct dml2_display_cfg *display_cfg, co
 	arb_param->compbuf_size = mode_lib->mp.CompressedBufferSizeInkByte / mode_lib->ip.compressed_buffer_segment_size_in_kbytes;
 	arb_param->allow_sdpif_rate_limit_when_cstate_req = dml_get_hw_debug5(mode_lib);
 	arb_param->dcfclk_deep_sleep_hysteresis = dml_get_dcfclk_deep_sleep_hysteresis(mode_lib);
+	arb_param->pstate_stall_threshold = (unsigned int)(mode_lib->ip_caps.fams2.max_allow_delay_us * refclk_freq_in_mhz);
 
 #ifdef __DML_VBA_DEBUG__
 	dml2_printf("DML::%s: max_req_outstanding = %d\n", __func__, arb_param->max_req_outstanding);

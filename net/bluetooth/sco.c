@@ -51,6 +51,7 @@ struct sco_conn {
 	struct delayed_work	timeout_work;
 
 	unsigned int    mtu;
+	struct kref	ref;
 };
 
 #define sco_conn_lock(c)	spin_lock(&c->lock)
@@ -76,6 +77,49 @@ struct sco_pinfo {
 #define SCO_CONN_TIMEOUT	(HZ * 40)
 #define SCO_DISCONN_TIMEOUT	(HZ * 2)
 
+static void sco_conn_free(struct kref *ref)
+{
+	struct sco_conn *conn = container_of(ref, struct sco_conn, ref);
+
+	BT_DBG("conn %p", conn);
+
+	if (conn->sk)
+		sco_pi(conn->sk)->conn = NULL;
+
+	if (conn->hcon) {
+		conn->hcon->sco_data = NULL;
+		hci_conn_drop(conn->hcon);
+	}
+
+	/* Ensure no more work items will run since hci_conn has been dropped */
+	disable_delayed_work_sync(&conn->timeout_work);
+
+	kfree(conn);
+}
+
+static void sco_conn_put(struct sco_conn *conn)
+{
+	if (!conn)
+		return;
+
+	BT_DBG("conn %p refcnt %d", conn, kref_read(&conn->ref));
+
+	kref_put(&conn->ref, sco_conn_free);
+}
+
+static struct sco_conn *sco_conn_hold_unless_zero(struct sco_conn *conn)
+{
+	if (!conn)
+		return NULL;
+
+	BT_DBG("conn %p refcnt %u", conn, kref_read(&conn->ref));
+
+	if (!kref_get_unless_zero(&conn->ref))
+		return NULL;
+
+	return conn;
+}
+
 static struct sock *sco_sock_hold(struct sco_conn *conn)
 {
 	if (!conn || !bt_sock_linked(&sco_sk_list, conn->sk))
@@ -92,6 +136,10 @@ static void sco_sock_timeout(struct work_struct *work)
 					     timeout_work.work);
 	struct sock *sk;
 
+	conn = sco_conn_hold_unless_zero(conn);
+	if (!conn)
+		return;
+
 	sco_conn_lock(conn);
 	if (!conn->hcon) {
 		sco_conn_unlock(conn);
@@ -99,6 +147,7 @@ static void sco_sock_timeout(struct work_struct *work)
 	}
 	sk = sco_sock_hold(conn);
 	sco_conn_unlock(conn);
+	sco_conn_put(conn);
 
 	if (!sk)
 		return;
@@ -136,9 +185,14 @@ static struct sco_conn *sco_conn_add(struct hci_conn *hcon)
 {
 	struct sco_conn *conn = hcon->sco_data;
 
+	conn = sco_conn_hold_unless_zero(conn);
 	if (conn) {
-		if (!conn->hcon)
+		if (!conn->hcon) {
+			sco_conn_lock(conn);
 			conn->hcon = hcon;
+			sco_conn_unlock(conn);
+		}
+		sco_conn_put(conn);
 		return conn;
 	}
 
@@ -146,6 +200,7 @@ static struct sco_conn *sco_conn_add(struct hci_conn *hcon)
 	if (!conn)
 		return NULL;
 
+	kref_init(&conn->ref);
 	spin_lock_init(&conn->lock);
 	INIT_DELAYED_WORK(&conn->timeout_work, sco_sock_timeout);
 
@@ -170,17 +225,15 @@ static void sco_chan_del(struct sock *sk, int err)
 	struct sco_conn *conn;
 
 	conn = sco_pi(sk)->conn;
+	sco_pi(sk)->conn = NULL;
 
 	BT_DBG("sk %p, conn %p, err %d", sk, conn, err);
 
 	if (conn) {
 		sco_conn_lock(conn);
 		conn->sk = NULL;
-		sco_pi(sk)->conn = NULL;
 		sco_conn_unlock(conn);
-
-		if (conn->hcon)
-			hci_conn_drop(conn->hcon);
+		sco_conn_put(conn);
 	}
 
 	sk->sk_state = BT_CLOSED;
@@ -195,29 +248,28 @@ static void sco_conn_del(struct hci_conn *hcon, int err)
 	struct sco_conn *conn = hcon->sco_data;
 	struct sock *sk;
 
+	conn = sco_conn_hold_unless_zero(conn);
 	if (!conn)
 		return;
 
 	BT_DBG("hcon %p conn %p, err %d", hcon, conn, err);
 
-	/* Kill socket */
 	sco_conn_lock(conn);
 	sk = sco_sock_hold(conn);
 	sco_conn_unlock(conn);
+	sco_conn_put(conn);
 
-	if (sk) {
-		lock_sock(sk);
-		sco_sock_clear_timer(sk);
-		sco_chan_del(sk, err);
-		release_sock(sk);
-		sock_put(sk);
+	if (!sk) {
+		sco_conn_put(conn);
+		return;
 	}
 
-	/* Ensure no more work items will run before freeing conn. */
-	cancel_delayed_work_sync(&conn->timeout_work);
-
-	hcon->sco_data = NULL;
-	kfree(conn);
+	/* Kill socket */
+	lock_sock(sk);
+	sco_sock_clear_timer(sk);
+	sco_chan_del(sk, err);
+	release_sock(sk);
+	sock_put(sk);
 }
 
 static void __sco_chan_add(struct sco_conn *conn, struct sock *sk,
@@ -401,6 +453,8 @@ static void sco_sock_destruct(struct sock *sk)
 {
 	BT_DBG("sk %p", sk);
 
+	sco_conn_put(sco_pi(sk)->conn);
+
 	skb_queue_purge(&sk->sk_receive_queue);
 	skb_queue_purge(&sk->sk_write_queue);
 }
@@ -448,17 +502,6 @@ static void __sco_sock_close(struct sock *sk)
 
 	case BT_CONNECTED:
 	case BT_CONFIG:
-		if (sco_pi(sk)->conn->hcon) {
-			sk->sk_state = BT_DISCONN;
-			sco_sock_set_timer(sk, SCO_DISCONN_TIMEOUT);
-			sco_conn_lock(sco_pi(sk)->conn);
-			hci_conn_drop(sco_pi(sk)->conn->hcon);
-			sco_pi(sk)->conn->hcon = NULL;
-			sco_conn_unlock(sco_pi(sk)->conn);
-		} else
-			sco_chan_del(sk, ECONNRESET);
-		break;
-
 	case BT_CONNECT2:
 	case BT_CONNECT:
 	case BT_DISCONN:

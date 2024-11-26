@@ -3601,19 +3601,6 @@ struct ixgbe_phy_info {
 	u32				nw_mng_if_sel;
 };
 
-#include "ixgbe_mbx.h"
-
-struct ixgbe_mbx_operations {
-	int (*init_params)(struct ixgbe_hw *hw);
-	int (*read)(struct ixgbe_hw *, u32 *, u16,  u16);
-	int (*write)(struct ixgbe_hw *, u32 *, u16, u16);
-	int (*read_posted)(struct ixgbe_hw *, u32 *, u16,  u16);
-	int (*write_posted)(struct ixgbe_hw *, u32 *, u16, u16);
-	int (*check_for_msg)(struct ixgbe_hw *, u16);
-	int (*check_for_ack)(struct ixgbe_hw *, u16);
-	int (*check_for_rst)(struct ixgbe_hw *, u16);
-};
-
 struct ixgbe_mbx_stats {
 	u32 msgs_tx;
 	u32 msgs_rx;
@@ -3622,6 +3609,8 @@ struct ixgbe_mbx_stats {
 	u32 reqs;
 	u32 rsts;
 };
+
+struct ixgbe_mbx_operations;
 
 struct ixgbe_mbx_info {
 	const struct ixgbe_mbx_operations *ops;

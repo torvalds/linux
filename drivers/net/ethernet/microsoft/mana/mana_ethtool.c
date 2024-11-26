@@ -91,53 +91,34 @@ static void mana_get_strings(struct net_device *ndev, u32 stringset, u8 *data)
 {
 	struct mana_port_context *apc = netdev_priv(ndev);
 	unsigned int num_queues = apc->num_queues;
-	u8 *p = data;
 	int i;
 
 	if (stringset != ETH_SS_STATS)
 		return;
 
-	for (i = 0; i < ARRAY_SIZE(mana_eth_stats); i++) {
-		memcpy(p, mana_eth_stats[i].name, ETH_GSTRING_LEN);
-		p += ETH_GSTRING_LEN;
+	for (i = 0; i < ARRAY_SIZE(mana_eth_stats); i++)
+		ethtool_puts(&data, mana_eth_stats[i].name);
+
+	for (i = 0; i < num_queues; i++) {
+		ethtool_sprintf(&data, "rx_%d_packets", i);
+		ethtool_sprintf(&data, "rx_%d_bytes", i);
+		ethtool_sprintf(&data, "rx_%d_xdp_drop", i);
+		ethtool_sprintf(&data, "rx_%d_xdp_tx", i);
+		ethtool_sprintf(&data, "rx_%d_xdp_redirect", i);
 	}
 
 	for (i = 0; i < num_queues; i++) {
-		sprintf(p, "rx_%d_packets", i);
-		p += ETH_GSTRING_LEN;
-		sprintf(p, "rx_%d_bytes", i);
-		p += ETH_GSTRING_LEN;
-		sprintf(p, "rx_%d_xdp_drop", i);
-		p += ETH_GSTRING_LEN;
-		sprintf(p, "rx_%d_xdp_tx", i);
-		p += ETH_GSTRING_LEN;
-		sprintf(p, "rx_%d_xdp_redirect", i);
-		p += ETH_GSTRING_LEN;
-	}
-
-	for (i = 0; i < num_queues; i++) {
-		sprintf(p, "tx_%d_packets", i);
-		p += ETH_GSTRING_LEN;
-		sprintf(p, "tx_%d_bytes", i);
-		p += ETH_GSTRING_LEN;
-		sprintf(p, "tx_%d_xdp_xmit", i);
-		p += ETH_GSTRING_LEN;
-		sprintf(p, "tx_%d_tso_packets", i);
-		p += ETH_GSTRING_LEN;
-		sprintf(p, "tx_%d_tso_bytes", i);
-		p += ETH_GSTRING_LEN;
-		sprintf(p, "tx_%d_tso_inner_packets", i);
-		p += ETH_GSTRING_LEN;
-		sprintf(p, "tx_%d_tso_inner_bytes", i);
-		p += ETH_GSTRING_LEN;
-		sprintf(p, "tx_%d_long_pkt_fmt", i);
-		p += ETH_GSTRING_LEN;
-		sprintf(p, "tx_%d_short_pkt_fmt", i);
-		p += ETH_GSTRING_LEN;
-		sprintf(p, "tx_%d_csum_partial", i);
-		p += ETH_GSTRING_LEN;
-		sprintf(p, "tx_%d_mana_map_err", i);
-		p += ETH_GSTRING_LEN;
+		ethtool_sprintf(&data, "tx_%d_packets", i);
+		ethtool_sprintf(&data, "tx_%d_bytes", i);
+		ethtool_sprintf(&data, "tx_%d_xdp_xmit", i);
+		ethtool_sprintf(&data, "tx_%d_tso_packets", i);
+		ethtool_sprintf(&data, "tx_%d_tso_bytes", i);
+		ethtool_sprintf(&data, "tx_%d_tso_inner_packets", i);
+		ethtool_sprintf(&data, "tx_%d_tso_inner_bytes", i);
+		ethtool_sprintf(&data, "tx_%d_long_pkt_fmt", i);
+		ethtool_sprintf(&data, "tx_%d_short_pkt_fmt", i);
+		ethtool_sprintf(&data, "tx_%d_csum_partial", i);
+		ethtool_sprintf(&data, "tx_%d_mana_map_err", i);
 	}
 }
 
@@ -443,6 +424,15 @@ out:
 	return err;
 }
 
+static int mana_get_link_ksettings(struct net_device *ndev,
+				   struct ethtool_link_ksettings *cmd)
+{
+	cmd->base.duplex = DUPLEX_FULL;
+	cmd->base.port = PORT_OTHER;
+
+	return 0;
+}
+
 const struct ethtool_ops mana_ethtool_ops = {
 	.get_ethtool_stats	= mana_get_ethtool_stats,
 	.get_sset_count		= mana_get_sset_count,
@@ -456,4 +446,6 @@ const struct ethtool_ops mana_ethtool_ops = {
 	.set_channels		= mana_set_channels,
 	.get_ringparam          = mana_get_ringparam,
 	.set_ringparam          = mana_set_ringparam,
+	.get_link_ksettings	= mana_get_link_ksettings,
+	.get_link		= ethtool_op_get_link,
 };

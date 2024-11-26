@@ -1974,7 +1974,7 @@ MODULE_DEVICE_TABLE(of, qup_i2c_dt_match);
 
 static struct platform_driver qup_i2c_driver = {
 	.probe  = qup_i2c_probe,
-	.remove_new = qup_i2c_remove,
+	.remove = qup_i2c_remove,
 	.driver = {
 		.name = "i2c_qup",
 		.pm = pm_ptr(&qup_i2c_qup_pm_ops),

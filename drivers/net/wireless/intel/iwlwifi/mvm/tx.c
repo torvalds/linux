@@ -1213,7 +1213,7 @@ static int iwl_mvm_tx_mpdu(struct iwl_mvm *mvm, struct sk_buff *skb,
 	if (IWL_MVM_NON_TRANSMITTING_AP && ieee80211_is_probe_resp(fc))
 		return -1;
 
-	if (WARN_ON_ONCE(mvmsta->deflink.sta_id == IWL_MVM_INVALID_STA))
+	if (WARN_ON_ONCE(mvmsta->deflink.sta_id == IWL_INVALID_STA))
 		return -1;
 
 	if (unlikely(ieee80211_is_any_nullfunc(fc)) && sta->deflink.he_cap.has_he)
@@ -1357,7 +1357,7 @@ int iwl_mvm_tx_skb_sta(struct iwl_mvm *mvm, struct sk_buff *skb,
 
 	mvmsta = iwl_mvm_sta_from_mac80211(sta);
 
-	if (WARN_ON_ONCE(mvmsta->deflink.sta_id == IWL_MVM_INVALID_STA))
+	if (WARN_ON_ONCE(mvmsta->deflink.sta_id == IWL_INVALID_STA))
 		return -1;
 
 	memcpy(&info, skb->cb, sizeof(info));

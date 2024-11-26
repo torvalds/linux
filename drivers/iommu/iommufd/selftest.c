@@ -126,11 +126,34 @@ struct mock_iommu_domain {
 	struct xarray pfns;
 };
 
+static inline struct mock_iommu_domain *
+to_mock_domain(struct iommu_domain *domain)
+{
+	return container_of(domain, struct mock_iommu_domain, domain);
+}
+
 struct mock_iommu_domain_nested {
 	struct iommu_domain domain;
+	struct mock_viommu *mock_viommu;
 	struct mock_iommu_domain *parent;
 	u32 iotlb[MOCK_NESTED_DOMAIN_IOTLB_NUM];
 };
+
+static inline struct mock_iommu_domain_nested *
+to_mock_nested(struct iommu_domain *domain)
+{
+	return container_of(domain, struct mock_iommu_domain_nested, domain);
+}
+
+struct mock_viommu {
+	struct iommufd_viommu core;
+	struct mock_iommu_domain *s2_parent;
+};
+
+static inline struct mock_viommu *to_mock_viommu(struct iommufd_viommu *viommu)
+{
+	return container_of(viommu, struct mock_viommu, core);
+}
 
 enum selftest_obj_type {
 	TYPE_IDEV,
@@ -140,7 +163,13 @@ struct mock_dev {
 	struct device dev;
 	unsigned long flags;
 	int id;
+	u32 cache[MOCK_DEV_CACHE_NUM];
 };
+
+static inline struct mock_dev *to_mock_dev(struct device *dev)
+{
+	return container_of(dev, struct mock_dev, dev);
+}
 
 struct selftest_obj {
 	struct iommufd_object obj;
@@ -155,10 +184,15 @@ struct selftest_obj {
 	};
 };
 
+static inline struct selftest_obj *to_selftest_obj(struct iommufd_object *obj)
+{
+	return container_of(obj, struct selftest_obj, obj);
+}
+
 static int mock_domain_nop_attach(struct iommu_domain *domain,
 				  struct device *dev)
 {
-	struct mock_dev *mdev = container_of(dev, struct mock_dev, dev);
+	struct mock_dev *mdev = to_mock_dev(dev);
 
 	if (domain->dirty_ops && (mdev->flags & MOCK_FLAGS_DEVICE_NO_DIRTY))
 		return -EINVAL;
@@ -193,8 +227,7 @@ static void *mock_domain_hw_info(struct device *dev, u32 *length, u32 *type)
 static int mock_domain_set_dirty_tracking(struct iommu_domain *domain,
 					  bool enable)
 {
-	struct mock_iommu_domain *mock =
-		container_of(domain, struct mock_iommu_domain, domain);
+	struct mock_iommu_domain *mock = to_mock_domain(domain);
 	unsigned long flags = mock->flags;
 
 	if (enable && !domain->dirty_ops)
@@ -243,8 +276,7 @@ static int mock_domain_read_and_clear_dirty(struct iommu_domain *domain,
 					    unsigned long flags,
 					    struct iommu_dirty_bitmap *dirty)
 {
-	struct mock_iommu_domain *mock =
-		container_of(domain, struct mock_iommu_domain, domain);
+	struct mock_iommu_domain *mock = to_mock_domain(domain);
 	unsigned long end = iova + size;
 	void *ent;
 
@@ -281,7 +313,7 @@ static const struct iommu_dirty_ops dirty_ops = {
 
 static struct iommu_domain *mock_domain_alloc_paging(struct device *dev)
 {
-	struct mock_dev *mdev = container_of(dev, struct mock_dev, dev);
+	struct mock_dev *mdev = to_mock_dev(dev);
 	struct mock_iommu_domain *mock;
 
 	mock = kzalloc(sizeof(*mock), GFP_KERNEL);
@@ -298,21 +330,51 @@ static struct iommu_domain *mock_domain_alloc_paging(struct device *dev)
 	return &mock->domain;
 }
 
-static struct iommu_domain *
-__mock_domain_alloc_nested(struct mock_iommu_domain *mock_parent,
-			   const struct iommu_hwpt_selftest *user_cfg)
+static struct mock_iommu_domain_nested *
+__mock_domain_alloc_nested(const struct iommu_user_data *user_data)
 {
 	struct mock_iommu_domain_nested *mock_nested;
-	int i;
+	struct iommu_hwpt_selftest user_cfg;
+	int rc, i;
+
+	if (user_data->type != IOMMU_HWPT_DATA_SELFTEST)
+		return ERR_PTR(-EOPNOTSUPP);
+
+	rc = iommu_copy_struct_from_user(&user_cfg, user_data,
+					 IOMMU_HWPT_DATA_SELFTEST, iotlb);
+	if (rc)
+		return ERR_PTR(rc);
 
 	mock_nested = kzalloc(sizeof(*mock_nested), GFP_KERNEL);
 	if (!mock_nested)
 		return ERR_PTR(-ENOMEM);
-	mock_nested->parent = mock_parent;
 	mock_nested->domain.ops = &domain_nested_ops;
 	mock_nested->domain.type = IOMMU_DOMAIN_NESTED;
 	for (i = 0; i < MOCK_NESTED_DOMAIN_IOTLB_NUM; i++)
-		mock_nested->iotlb[i] = user_cfg->iotlb;
+		mock_nested->iotlb[i] = user_cfg.iotlb;
+	return mock_nested;
+}
+
+static struct iommu_domain *
+mock_domain_alloc_nested(struct iommu_domain *parent, u32 flags,
+			 const struct iommu_user_data *user_data)
+{
+	struct mock_iommu_domain_nested *mock_nested;
+	struct mock_iommu_domain *mock_parent;
+
+	if (flags)
+		return ERR_PTR(-EOPNOTSUPP);
+	if (!parent || parent->ops != mock_ops.default_domain_ops)
+		return ERR_PTR(-EINVAL);
+
+	mock_parent = to_mock_domain(parent);
+	if (!mock_parent)
+		return ERR_PTR(-EINVAL);
+
+	mock_nested = __mock_domain_alloc_nested(user_data);
+	if (IS_ERR(mock_nested))
+		return ERR_CAST(mock_nested);
+	mock_nested->parent = mock_parent;
 	return &mock_nested->domain;
 }
 
@@ -321,53 +383,32 @@ mock_domain_alloc_user(struct device *dev, u32 flags,
 		       struct iommu_domain *parent,
 		       const struct iommu_user_data *user_data)
 {
-	struct mock_iommu_domain *mock_parent;
-	struct iommu_hwpt_selftest user_cfg;
-	int rc;
+	bool has_dirty_flag = flags & IOMMU_HWPT_ALLOC_DIRTY_TRACKING;
+	const u32 PAGING_FLAGS = IOMMU_HWPT_ALLOC_DIRTY_TRACKING |
+				 IOMMU_HWPT_ALLOC_NEST_PARENT;
+	bool no_dirty_ops = to_mock_dev(dev)->flags &
+			    MOCK_FLAGS_DEVICE_NO_DIRTY;
+	struct iommu_domain *domain;
 
-	/* must be mock_domain */
-	if (!parent) {
-		struct mock_dev *mdev = container_of(dev, struct mock_dev, dev);
-		bool has_dirty_flag = flags & IOMMU_HWPT_ALLOC_DIRTY_TRACKING;
-		bool no_dirty_ops = mdev->flags & MOCK_FLAGS_DEVICE_NO_DIRTY;
-		struct iommu_domain *domain;
+	if (parent)
+		return mock_domain_alloc_nested(parent, flags, user_data);
 
-		if (flags & (~(IOMMU_HWPT_ALLOC_NEST_PARENT |
-			       IOMMU_HWPT_ALLOC_DIRTY_TRACKING)))
-			return ERR_PTR(-EOPNOTSUPP);
-		if (user_data || (has_dirty_flag && no_dirty_ops))
-			return ERR_PTR(-EOPNOTSUPP);
-		domain = mock_domain_alloc_paging(dev);
-		if (!domain)
-			return ERR_PTR(-ENOMEM);
-		if (has_dirty_flag)
-			container_of(domain, struct mock_iommu_domain, domain)
-				->domain.dirty_ops = &dirty_ops;
-		return domain;
-	}
-
-	/* must be mock_domain_nested */
-	if (user_data->type != IOMMU_HWPT_DATA_SELFTEST || flags)
+	if (user_data)
 		return ERR_PTR(-EOPNOTSUPP);
-	if (!parent || parent->ops != mock_ops.default_domain_ops)
-		return ERR_PTR(-EINVAL);
+	if ((flags & ~PAGING_FLAGS) || (has_dirty_flag && no_dirty_ops))
+		return ERR_PTR(-EOPNOTSUPP);
 
-	mock_parent = container_of(parent, struct mock_iommu_domain, domain);
-	if (!mock_parent)
-		return ERR_PTR(-EINVAL);
-
-	rc = iommu_copy_struct_from_user(&user_cfg, user_data,
-					 IOMMU_HWPT_DATA_SELFTEST, iotlb);
-	if (rc)
-		return ERR_PTR(rc);
-
-	return __mock_domain_alloc_nested(mock_parent, &user_cfg);
+	domain = mock_domain_alloc_paging(dev);
+	if (!domain)
+		return ERR_PTR(-ENOMEM);
+	if (has_dirty_flag)
+		domain->dirty_ops = &dirty_ops;
+	return domain;
 }
 
 static void mock_domain_free(struct iommu_domain *domain)
 {
-	struct mock_iommu_domain *mock =
-		container_of(domain, struct mock_iommu_domain, domain);
+	struct mock_iommu_domain *mock = to_mock_domain(domain);
 
 	WARN_ON(!xa_empty(&mock->pfns));
 	kfree(mock);
@@ -378,8 +419,7 @@ static int mock_domain_map_pages(struct iommu_domain *domain,
 				 size_t pgsize, size_t pgcount, int prot,
 				 gfp_t gfp, size_t *mapped)
 {
-	struct mock_iommu_domain *mock =
-		container_of(domain, struct mock_iommu_domain, domain);
+	struct mock_iommu_domain *mock = to_mock_domain(domain);
 	unsigned long flags = MOCK_PFN_START_IOVA;
 	unsigned long start_iova = iova;
 
@@ -430,8 +470,7 @@ static size_t mock_domain_unmap_pages(struct iommu_domain *domain,
 				      size_t pgcount,
 				      struct iommu_iotlb_gather *iotlb_gather)
 {
-	struct mock_iommu_domain *mock =
-		container_of(domain, struct mock_iommu_domain, domain);
+	struct mock_iommu_domain *mock = to_mock_domain(domain);
 	bool first = true;
 	size_t ret = 0;
 	void *ent;
@@ -479,8 +518,7 @@ static size_t mock_domain_unmap_pages(struct iommu_domain *domain,
 static phys_addr_t mock_domain_iova_to_phys(struct iommu_domain *domain,
 					    dma_addr_t iova)
 {
-	struct mock_iommu_domain *mock =
-		container_of(domain, struct mock_iommu_domain, domain);
+	struct mock_iommu_domain *mock = to_mock_domain(domain);
 	void *ent;
 
 	WARN_ON(iova % MOCK_IO_PAGE_SIZE);
@@ -491,7 +529,7 @@ static phys_addr_t mock_domain_iova_to_phys(struct iommu_domain *domain,
 
 static bool mock_domain_capable(struct device *dev, enum iommu_cap cap)
 {
-	struct mock_dev *mdev = container_of(dev, struct mock_dev, dev);
+	struct mock_dev *mdev = to_mock_dev(dev);
 
 	switch (cap) {
 	case IOMMU_CAP_CACHE_COHERENCY:
@@ -507,14 +545,17 @@ static bool mock_domain_capable(struct device *dev, enum iommu_cap cap)
 
 static struct iopf_queue *mock_iommu_iopf_queue;
 
-static struct iommu_device mock_iommu_device = {
-};
+static struct mock_iommu_device {
+	struct iommu_device iommu_dev;
+	struct completion complete;
+	refcount_t users;
+} mock_iommu;
 
 static struct iommu_device *mock_probe_device(struct device *dev)
 {
 	if (dev->bus != &iommufd_mock_bus_type.bus)
 		return ERR_PTR(-ENODEV);
-	return &mock_iommu_device;
+	return &mock_iommu.iommu_dev;
 }
 
 static void mock_domain_page_response(struct device *dev, struct iopf_fault *evt,
@@ -540,6 +581,132 @@ static int mock_dev_disable_feat(struct device *dev, enum iommu_dev_features fea
 	return 0;
 }
 
+static void mock_viommu_destroy(struct iommufd_viommu *viommu)
+{
+	struct mock_iommu_device *mock_iommu = container_of(
+		viommu->iommu_dev, struct mock_iommu_device, iommu_dev);
+
+	if (refcount_dec_and_test(&mock_iommu->users))
+		complete(&mock_iommu->complete);
+
+	/* iommufd core frees mock_viommu and viommu */
+}
+
+static struct iommu_domain *
+mock_viommu_alloc_domain_nested(struct iommufd_viommu *viommu, u32 flags,
+				const struct iommu_user_data *user_data)
+{
+	struct mock_viommu *mock_viommu = to_mock_viommu(viommu);
+	struct mock_iommu_domain_nested *mock_nested;
+
+	if (flags & ~IOMMU_HWPT_FAULT_ID_VALID)
+		return ERR_PTR(-EOPNOTSUPP);
+
+	mock_nested = __mock_domain_alloc_nested(user_data);
+	if (IS_ERR(mock_nested))
+		return ERR_CAST(mock_nested);
+	mock_nested->mock_viommu = mock_viommu;
+	mock_nested->parent = mock_viommu->s2_parent;
+	return &mock_nested->domain;
+}
+
+static int mock_viommu_cache_invalidate(struct iommufd_viommu *viommu,
+					struct iommu_user_data_array *array)
+{
+	struct iommu_viommu_invalidate_selftest *cmds;
+	struct iommu_viommu_invalidate_selftest *cur;
+	struct iommu_viommu_invalidate_selftest *end;
+	int rc;
+
+	/* A zero-length array is allowed to validate the array type */
+	if (array->entry_num == 0 &&
+	    array->type == IOMMU_VIOMMU_INVALIDATE_DATA_SELFTEST) {
+		array->entry_num = 0;
+		return 0;
+	}
+
+	cmds = kcalloc(array->entry_num, sizeof(*cmds), GFP_KERNEL);
+	if (!cmds)
+		return -ENOMEM;
+	cur = cmds;
+	end = cmds + array->entry_num;
+
+	static_assert(sizeof(*cmds) == 3 * sizeof(u32));
+	rc = iommu_copy_struct_from_full_user_array(
+		cmds, sizeof(*cmds), array,
+		IOMMU_VIOMMU_INVALIDATE_DATA_SELFTEST);
+	if (rc)
+		goto out;
+
+	while (cur != end) {
+		struct mock_dev *mdev;
+		struct device *dev;
+		int i;
+
+		if (cur->flags & ~IOMMU_TEST_INVALIDATE_FLAG_ALL) {
+			rc = -EOPNOTSUPP;
+			goto out;
+		}
+
+		if (cur->cache_id > MOCK_DEV_CACHE_ID_MAX) {
+			rc = -EINVAL;
+			goto out;
+		}
+
+		xa_lock(&viommu->vdevs);
+		dev = iommufd_viommu_find_dev(viommu,
+					      (unsigned long)cur->vdev_id);
+		if (!dev) {
+			xa_unlock(&viommu->vdevs);
+			rc = -EINVAL;
+			goto out;
+		}
+		mdev = container_of(dev, struct mock_dev, dev);
+
+		if (cur->flags & IOMMU_TEST_INVALIDATE_FLAG_ALL) {
+			/* Invalidate all cache entries and ignore cache_id */
+			for (i = 0; i < MOCK_DEV_CACHE_NUM; i++)
+				mdev->cache[i] = 0;
+		} else {
+			mdev->cache[cur->cache_id] = 0;
+		}
+		xa_unlock(&viommu->vdevs);
+
+		cur++;
+	}
+out:
+	array->entry_num = cur - cmds;
+	kfree(cmds);
+	return rc;
+}
+
+static struct iommufd_viommu_ops mock_viommu_ops = {
+	.destroy = mock_viommu_destroy,
+	.alloc_domain_nested = mock_viommu_alloc_domain_nested,
+	.cache_invalidate = mock_viommu_cache_invalidate,
+};
+
+static struct iommufd_viommu *mock_viommu_alloc(struct device *dev,
+						struct iommu_domain *domain,
+						struct iommufd_ctx *ictx,
+						unsigned int viommu_type)
+{
+	struct mock_iommu_device *mock_iommu =
+		iommu_get_iommu_dev(dev, struct mock_iommu_device, iommu_dev);
+	struct mock_viommu *mock_viommu;
+
+	if (viommu_type != IOMMU_VIOMMU_TYPE_SELFTEST)
+		return ERR_PTR(-EOPNOTSUPP);
+
+	mock_viommu = iommufd_viommu_alloc(ictx, struct mock_viommu, core,
+					   &mock_viommu_ops);
+	if (IS_ERR(mock_viommu))
+		return ERR_CAST(mock_viommu);
+
+	refcount_inc(&mock_iommu->users);
+	return &mock_viommu->core;
+}
+
 static const struct iommu_ops mock_ops = {
 	/*
 	 * IOMMU_DOMAIN_BLOCKED cannot be returned from def_domain_type()
@@ -559,6 +726,7 @@ static const struct iommu_ops mock_ops = {
 	.dev_enable_feat = mock_dev_enable_feat,
 	.dev_disable_feat = mock_dev_disable_feat,
 	.user_pasid_table = true,
+	.viommu_alloc = mock_viommu_alloc,
 	.default_domain_ops =
 		&(struct iommu_domain_ops){
 			.free = mock_domain_free,
@@ -571,18 +739,14 @@ static const struct iommu_ops mock_ops = {
 
 static void mock_domain_free_nested(struct iommu_domain *domain)
 {
-	struct mock_iommu_domain_nested *mock_nested =
-		container_of(domain, struct mock_iommu_domain_nested, domain);
-
-	kfree(mock_nested);
+	kfree(to_mock_nested(domain));
 }
 
 static int
 mock_domain_cache_invalidate_user(struct iommu_domain *domain,
 				  struct iommu_user_data_array *array)
 {
-	struct mock_iommu_domain_nested *mock_nested =
-		container_of(domain, struct mock_iommu_domain_nested, domain);
+	struct mock_iommu_domain_nested *mock_nested = to_mock_nested(domain);
 	struct iommu_hwpt_invalidate_selftest inv;
 	u32 processed = 0;
 	int i = 0, j;
@@ -657,7 +821,7 @@ get_md_pagetable(struct iommufd_ucmd *ucmd, u32 mockpt_id,
 		iommufd_put_object(ucmd->ictx, &hwpt->obj);
 		return ERR_PTR(-EINVAL);
 	}
-	*mock = container_of(hwpt->domain, struct mock_iommu_domain, domain);
+	*mock = to_mock_domain(hwpt->domain);
 	return hwpt;
 }
 
@@ -675,14 +839,13 @@ get_md_pagetable_nested(struct iommufd_ucmd *ucmd, u32 mockpt_id,
 		iommufd_put_object(ucmd->ictx, &hwpt->obj);
 		return ERR_PTR(-EINVAL);
 	}
-	*mock_nested = container_of(hwpt->domain,
-				    struct mock_iommu_domain_nested, domain);
+	*mock_nested = to_mock_nested(hwpt->domain);
 	return hwpt;
 }
 
 static void mock_dev_release(struct device *dev)
 {
-	struct mock_dev *mdev = container_of(dev, struct mock_dev, dev);
+	struct mock_dev *mdev = to_mock_dev(dev);
 
 	ida_free(&mock_dev_ida, mdev->id);
 	kfree(mdev);
@@ -691,7 +854,7 @@ static void mock_dev_release(struct device *dev)
 static struct mock_dev *mock_dev_create(unsigned long dev_flags)
 {
 	struct mock_dev *mdev;
-	int rc;
+	int rc, i;
 
 	if (dev_flags &
 	    ~(MOCK_FLAGS_DEVICE_NO_DIRTY | MOCK_FLAGS_DEVICE_HUGE_IOVA))
@@ -705,6 +868,8 @@ static struct mock_dev *mock_dev_create(unsigned long dev_flags)
 	mdev->flags = dev_flags;
 	mdev->dev.release = mock_dev_release;
 	mdev->dev.bus = &iommufd_mock_bus_type.bus;
+	for (i = 0; i < MOCK_DEV_CACHE_NUM; i++)
+		mdev->cache[i] = IOMMU_TEST_DEV_CACHE_DEFAULT;
 
 	rc = ida_alloc(&mock_dev_ida, GFP_KERNEL);
 	if (rc < 0)
@@ -813,7 +978,7 @@ static int iommufd_test_mock_domain_replace(struct iommufd_ucmd *ucmd,
 	if (IS_ERR(dev_obj))
 		return PTR_ERR(dev_obj);
 
-	sobj = container_of(dev_obj, struct selftest_obj, obj);
+	sobj = to_selftest_obj(dev_obj);
 	if (sobj->type != TYPE_IDEV) {
 		rc = -EINVAL;
 		goto out_dev_obj;
@@ -951,13 +1116,30 @@ static int iommufd_test_md_check_iotlb(struct iommufd_ucmd *ucmd,
 	if (IS_ERR(hwpt))
 		return PTR_ERR(hwpt);
 
-	mock_nested = container_of(hwpt->domain,
-				   struct mock_iommu_domain_nested, domain);
+	mock_nested = to_mock_nested(hwpt->domain);
 
 	if (iotlb_id > MOCK_NESTED_DOMAIN_IOTLB_ID_MAX ||
 	    mock_nested->iotlb[iotlb_id] != iotlb)
 		rc = -EINVAL;
 	iommufd_put_object(ucmd->ictx, &hwpt->obj);
+	return rc;
+}
+
+static int iommufd_test_dev_check_cache(struct iommufd_ucmd *ucmd, u32 idev_id,
+					unsigned int cache_id, u32 cache)
+{
+	struct iommufd_device *idev;
+	struct mock_dev *mdev;
+	int rc = 0;
+
+	idev = iommufd_get_device(ucmd, idev_id);
+	if (IS_ERR(idev))
+		return PTR_ERR(idev);
+	mdev = container_of(idev->dev, struct mock_dev, dev);
+
+	if (cache_id > MOCK_DEV_CACHE_ID_MAX || mdev->cache[cache_id] != cache)
+		rc = -EINVAL;
+	iommufd_put_object(ucmd->ictx, &idev->obj);
 	return rc;
 }
 
@@ -1431,7 +1613,7 @@ static int iommufd_test_trigger_iopf(struct iommufd_ucmd *ucmd,
 
 void iommufd_selftest_destroy(struct iommufd_object *obj)
 {
-	struct selftest_obj *sobj = container_of(obj, struct selftest_obj, obj);
+	struct selftest_obj *sobj = to_selftest_obj(obj);
 
 	switch (sobj->type) {
 	case TYPE_IDEV:
@@ -1470,6 +1652,10 @@ int iommufd_test(struct iommufd_ucmd *ucmd)
 		return iommufd_test_md_check_iotlb(ucmd, cmd->id,
 						   cmd->check_iotlb.id,
 						   cmd->check_iotlb.iotlb);
+	case IOMMU_TEST_OP_DEV_CHECK_CACHE:
+		return iommufd_test_dev_check_cache(ucmd, cmd->id,
+						    cmd->check_dev_cache.id,
+						    cmd->check_dev_cache.cache);
 	case IOMMU_TEST_OP_CREATE_ACCESS:
 		return iommufd_test_create_access(ucmd, cmd->id,
 						  cmd->create_access.flags);
@@ -1536,24 +1722,27 @@ int __init iommufd_test_init(void)
 	if (rc)
 		goto err_platform;
 
-	rc = iommu_device_sysfs_add(&mock_iommu_device,
+	rc = iommu_device_sysfs_add(&mock_iommu.iommu_dev,
 				    &selftest_iommu_dev->dev, NULL, "%s",
 				    dev_name(&selftest_iommu_dev->dev));
 	if (rc)
 		goto err_bus;
 
-	rc = iommu_device_register_bus(&mock_iommu_device, &mock_ops,
+	rc = iommu_device_register_bus(&mock_iommu.iommu_dev, &mock_ops,
 				  &iommufd_mock_bus_type.bus,
 				  &iommufd_mock_bus_type.nb);
 	if (rc)
 		goto err_sysfs;
+
+	refcount_set(&mock_iommu.users, 1);
+	init_completion(&mock_iommu.complete);
 
 	mock_iommu_iopf_queue = iopf_queue_alloc("mock-iopfq");
 
 	return 0;
 
 err_sysfs:
-	iommu_device_sysfs_remove(&mock_iommu_device);
+	iommu_device_sysfs_remove(&mock_iommu.iommu_dev);
 err_bus:
 	bus_unregister(&iommufd_mock_bus_type.bus);
 err_platform:
@@ -1563,6 +1752,22 @@ err_dbgfs:
 	return rc;
 }
 
+static void iommufd_test_wait_for_users(void)
+{
+	if (refcount_dec_and_test(&mock_iommu.users))
+		return;
+	/*
+	 * Time out waiting for iommu device user count to become 0.
+	 *
+	 * Note that this is just making an example here, since the selftest is
+	 * built into the iommufd module, i.e. it only unplugs the iommu device
+	 * when unloading the module. So, it is expected that this WARN_ON will
+	 * not trigger, as long as any iommufd FDs are open.
+	 */
+	WARN_ON(!wait_for_completion_timeout(&mock_iommu.complete,
+					     msecs_to_jiffies(10000)));
+}
+
 void iommufd_test_exit(void)
 {
 	if (mock_iommu_iopf_queue) {
@@ -1570,8 +1775,9 @@ void iommufd_test_exit(void)
 		mock_iommu_iopf_queue = NULL;
 	}
 
-	iommu_device_sysfs_remove(&mock_iommu_device);
-	iommu_device_unregister_bus(&mock_iommu_device,
+	iommufd_test_wait_for_users();
+	iommu_device_sysfs_remove(&mock_iommu.iommu_dev);
+	iommu_device_unregister_bus(&mock_iommu.iommu_dev,
 				    &iommufd_mock_bus_type.bus,
 				    &iommufd_mock_bus_type.nb);
 	bus_unregister(&iommufd_mock_bus_type.bus);

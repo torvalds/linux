@@ -379,7 +379,6 @@ void efi_native_runtime_setup(void);
 #define EFI_SYSTEM_RESOURCE_TABLE_GUID		EFI_GUID(0xb122a263, 0x3661, 0x4f68,  0x99, 0x29, 0x78, 0xf8, 0xb0, 0xd6, 0x21, 0x80)
 #define EFI_FILE_SYSTEM_GUID			EFI_GUID(0x964e5b22, 0x6459, 0x11d2,  0x8e, 0x39, 0x00, 0xa0, 0xc9, 0x69, 0x72, 0x3b)
 #define DEVICE_TREE_GUID			EFI_GUID(0xb1b621d5, 0xf19c, 0x41a5,  0x83, 0x0b, 0xd9, 0x15, 0x2c, 0x69, 0xaa, 0xe0)
-#define EFI_PROPERTIES_TABLE_GUID		EFI_GUID(0x880aaca3, 0x4adc, 0x4a04,  0x90, 0x79, 0xb7, 0x47, 0x34, 0x08, 0x25, 0xe5)
 #define EFI_RNG_PROTOCOL_GUID			EFI_GUID(0x3152bca5, 0xeade, 0x433d,  0x86, 0x2e, 0xc0, 0x1c, 0xdc, 0x29, 0x1f, 0x44)
 #define EFI_RNG_ALGORITHM_RAW			EFI_GUID(0xe43176d7, 0xb6e8, 0x4827,  0xb7, 0x84, 0x7f, 0xfd, 0xc4, 0xb6, 0x85, 0x61)
 #define EFI_MEMORY_ATTRIBUTES_TABLE_GUID	EFI_GUID(0xdcfa911d, 0x26eb, 0x469f,  0xa2, 0x20, 0x38, 0xb7, 0xdc, 0x46, 0x12, 0x20)
@@ -579,15 +578,6 @@ struct efi_mem_range {
 	struct range range;
 	u64 attribute;
 };
-
-typedef struct {
-	u32 version;
-	u32 length;
-	u64 memory_protection_attribute;
-} efi_properties_table_t;
-
-#define EFI_PROPERTIES_TABLE_VERSION	0x00010000
-#define EFI_PROPERTIES_RUNTIME_MEMORY_PROTECTION_NON_EXECUTABLE_PE_DATA	0x1
 
 typedef struct {
 	u16 version;
@@ -871,10 +861,9 @@ static inline int efi_range_is_wc(unsigned long start, unsigned long len)
 #define EFI_PARAVIRT		6	/* Access is via a paravirt interface */
 #define EFI_ARCH_1		7	/* First arch-specific bit */
 #define EFI_DBG			8	/* Print additional debug info at runtime */
-#define EFI_NX_PE_DATA		9	/* Can runtime data regions be mapped non-executable? */
-#define EFI_MEM_ATTR		10	/* Did firmware publish an EFI_MEMORY_ATTRIBUTES table? */
-#define EFI_MEM_NO_SOFT_RESERVE	11	/* Is the kernel configured to ignore soft reservations? */
-#define EFI_PRESERVE_BS_REGIONS	12	/* Are EFI boot-services memory segments available? */
+#define EFI_MEM_ATTR		9	/* Did firmware publish an EFI_MEMORY_ATTRIBUTES table? */
+#define EFI_MEM_NO_SOFT_RESERVE	10	/* Is the kernel configured to ignore soft reservations? */
+#define EFI_PRESERVE_BS_REGIONS	11	/* Are EFI boot-services memory segments available? */
 
 #ifdef CONFIG_EFI
 /*

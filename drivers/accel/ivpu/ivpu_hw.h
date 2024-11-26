@@ -46,7 +46,6 @@ struct ivpu_hw_info {
 		u32 profiling_freq;
 	} pll;
 	u32 tile_fuse;
-	u32 sched_mode;
 	u32 sku;
 	u16 config;
 	int dma_bits;

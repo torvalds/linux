@@ -16,7 +16,9 @@ properties:
   compatible:
     oneOf:
       - items:
-          - const: microchip,mpfs-i2c # Microchip PolarFire SoC compatible SoCs
+          - enum:
+              - microchip,pic64gx-i2c
+              - microchip,mpfs-i2c # Microchip PolarFire SoC compatible SoCs
           - const: microchip,corei2c-rtl-v7 # Microchip Fabric based i2c IP core
       - const: microchip,corei2c-rtl-v7 # Microchip Fabric based i2c IP core
 

@@ -422,8 +422,10 @@ static const struct soc_id soc_id[] = {
 	{ qcom_board_id(IPQ9510) },
 	{ qcom_board_id(QRB4210) },
 	{ qcom_board_id(QRB2210) },
+	{ qcom_board_id(SAR2130P) },
 	{ qcom_board_id(SM8475) },
 	{ qcom_board_id(SM8475P) },
+	{ qcom_board_id(SA8255P) },
 	{ qcom_board_id(SA8775P) },
 	{ qcom_board_id(QRU1000) },
 	{ qcom_board_id(SM8475_2) },
@@ -431,6 +433,7 @@ static const struct soc_id soc_id[] = {
 	{ qcom_board_id(X1E80100) },
 	{ qcom_board_id(SM8650) },
 	{ qcom_board_id(SM4450) },
+	{ qcom_board_id(SAR1130P) },
 	{ qcom_board_id(QDU1010) },
 	{ qcom_board_id(QRU1032) },
 	{ qcom_board_id(QRU1052) },
@@ -443,8 +446,12 @@ static const struct soc_id soc_id[] = {
 	{ qcom_board_id(QCM8550) },
 	{ qcom_board_id(IPQ5300) },
 	{ qcom_board_id(IPQ5321) },
+	{ qcom_board_id(IPQ5424) },
+	{ qcom_board_id(IPQ5404) },
+	{ qcom_board_id(QCS9100) },
 	{ qcom_board_id(QCS8300) },
 	{ qcom_board_id(QCS8275) },
+	{ qcom_board_id(QCS615) },
 };
 
 static const char *socinfo_machine(struct device *dev, unsigned int id)
@@ -822,7 +829,7 @@ static void qcom_socinfo_remove(struct platform_device *pdev)
 
 static struct platform_driver qcom_socinfo_driver = {
 	.probe = qcom_socinfo_probe,
-	.remove_new = qcom_socinfo_remove,
+	.remove = qcom_socinfo_remove,
 	.driver  = {
 		.name = "qcom-socinfo",
 	},

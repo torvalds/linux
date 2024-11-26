@@ -312,11 +312,11 @@ void get_mpctree_visual_confirm_color(
 {
 	const struct tg_color pipe_colors[6] = {
 			{MAX_TG_COLOR_VALUE, 0, 0}, /* red */
-			{MAX_TG_COLOR_VALUE, MAX_TG_COLOR_VALUE / 4, 0}, /* orange */
 			{MAX_TG_COLOR_VALUE, MAX_TG_COLOR_VALUE, 0}, /* yellow */
 			{0, MAX_TG_COLOR_VALUE, 0}, /* green */
+			{0, MAX_TG_COLOR_VALUE, MAX_TG_COLOR_VALUE}, /* cyan */
 			{0, 0, MAX_TG_COLOR_VALUE}, /* blue */
-			{MAX_TG_COLOR_VALUE / 2, 0, MAX_TG_COLOR_VALUE / 2}, /* purple */
+			{MAX_TG_COLOR_VALUE, 0, MAX_TG_COLOR_VALUE}, /* magenta */
 	};
 
 	struct pipe_ctx *top_pipe = pipe_ctx;
@@ -494,6 +494,23 @@ void get_mclk_switch_visual_confirm_color(
 		default:
 			break;
 		}
+	}
+}
+
+void get_cursor_visual_confirm_color(
+		struct pipe_ctx *pipe_ctx,
+		struct tg_color *color)
+{
+	uint32_t color_value = MAX_TG_COLOR_VALUE;
+
+	if (pipe_ctx->stream && pipe_ctx->stream->cursor_position.enable) {
+		color->color_r_cr = color_value;
+		color->color_g_y = 0;
+		color->color_b_cb = 0;
+	} else {
+		color->color_r_cr = 0;
+		color->color_g_y = 0;
+		color->color_b_cb = color_value;
 	}
 }
 
@@ -1071,8 +1088,13 @@ void hwss_wait_for_outstanding_hw_updates(struct dc *dc, struct dc_state *dc_con
 		if (!pipe_ctx->stream)
 			continue;
 
-		if (pipe_ctx->stream_res.tg->funcs->wait_drr_doublebuffer_pending_clear)
-			pipe_ctx->stream_res.tg->funcs->wait_drr_doublebuffer_pending_clear(pipe_ctx->stream_res.tg);
+		/* For full update we must wait for all double buffer updates, not just DRR updates. This
+		 * is particularly important for minimal transitions. Only check for OTG_MASTER pipes,
+		 * as non-OTG Master pipes share the same OTG as
+		 */
+		if (resource_is_pipe_type(pipe_ctx, OTG_MASTER) && dc->hwss.wait_for_all_pending_updates) {
+			dc->hwss.wait_for_all_pending_updates(pipe_ctx);
+		}
 
 		hubp = pipe_ctx->plane_res.hubp;
 		if (!hubp)

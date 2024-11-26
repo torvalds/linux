@@ -1,0 +1,66 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/clock/qcom,qcs8300-gcc.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Qualcomm Technologies, Inc. Global Clock & Reset Controller on QCS8300
+
+maintainers:
+  - Taniya Das <quic_tdas@quicinc.com>
+  - Imran Shaik <quic_imrashai@quicinc.com>
+
+description: |
+  Qualcomm Technologies, Inc. Global clock control module provides the clocks, resets and
+  power domains on QCS8300
+
+  See also: include/dt-bindings/clock/qcom,qcs8300-gcc.h
+
+properties:
+  compatible:
+    const: qcom,qcs8300-gcc
+
+  clocks:
+    items:
+      - description: Board XO source
+      - description: Sleep clock source
+      - description: PCIE 0 Pipe clock source
+      - description: PCIE 1 Pipe clock source
+      - description: PCIE Phy Auxiliary clock source
+      - description: First EMAC controller reference clock
+      - description: UFS Phy Rx symbol 0 clock source
+      - description: UFS Phy Rx symbol 1 clock source
+      - description: UFS Phy Tx symbol 0 clock source
+      - description: USB3 Phy wrapper pipe clock source
+
+required:
+  - compatible
+  - clocks
+  - '#power-domain-cells'
+
+allOf:
+  - $ref: qcom,gcc.yaml#
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/qcom,rpmh.h>
+    clock-controller@100000 {
+      compatible = "qcom,qcs8300-gcc";
+      reg = <0x00100000 0xc7018>;
+      clocks = <&rpmhcc RPMH_CXO_CLK>,
+               <&sleep_clk>,
+               <&pcie_0_pipe_clk>,
+               <&pcie_1_pipe_clk>,
+               <&pcie_phy_aux_clk>,
+               <&rxc0_ref_clk>,
+               <&ufs_phy_rx_symbol_0_clk>,
+               <&ufs_phy_rx_symbol_1_clk>,
+               <&ufs_phy_tx_symbol_0_clk>,
+               <&usb3_phy_wrapper_gcc_usb30_prim_pipe_clk>;
+      #clock-cells = <1>;
+      #reset-cells = <1>;
+      #power-domain-cells = <1>;
+    };
+...

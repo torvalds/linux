@@ -266,6 +266,12 @@ struct ftrace_likely_data {
 #define noinline_for_stack noinline
 
 /*
+ * Use noinline_for_tracing for functions that should not be inlined.
+ * For tracing reasons.
+ */
+#define noinline_for_tracing noinline
+
+/*
  * Sanitizer helper attributes: Because using __always_inline and
  * __no_sanitize_* conflict, provide helper attributes that will either expand
  * to __no_sanitize_* in compilation units where instrumentation is enabled

@@ -2269,7 +2269,7 @@ static SIMPLE_DEV_PM_OPS(tegra_soctherm_pm, soctherm_suspend, soctherm_resume);
 
 static struct platform_driver tegra_soctherm_driver = {
 	.probe = tegra_soctherm_probe,
-	.remove_new = tegra_soctherm_remove,
+	.remove = tegra_soctherm_remove,
 	.driver = {
 		.name = "tegra_soctherm",
 		.pm = &tegra_soctherm_pm,

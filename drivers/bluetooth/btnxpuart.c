@@ -16,6 +16,7 @@
 #include <linux/crc8.h>
 #include <linux/crc32.h>
 #include <linux/string_helpers.h>
+#include <linux/gpio/consumer.h>
 
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h>
@@ -34,16 +35,17 @@
 /* NXP HW err codes */
 #define BTNXPUART_IR_HW_ERR		0xb0
 
-#define FIRMWARE_W8987		"uart8987_bt_v0.bin"
+#define FIRMWARE_W8987		"uart8987_bt.bin"
 #define FIRMWARE_W8987_OLD	"uartuart8987_bt.bin"
 #define FIRMWARE_W8997		"uart8997_bt_v4.bin"
 #define FIRMWARE_W8997_OLD	"uartuart8997_bt_v4.bin"
 #define FIRMWARE_W9098		"uart9098_bt_v1.bin"
 #define FIRMWARE_W9098_OLD	"uartuart9098_bt_v1.bin"
-#define FIRMWARE_IW416		"uartiw416_bt_v0.bin"
+#define FIRMWARE_IW416		"uartiw416_bt.bin"
+#define FIRMWARE_IW416_OLD	"uartiw416_bt_v0.bin"
 #define FIRMWARE_IW612		"uartspi_n61x_v1.bin.se"
-#define FIRMWARE_IW615		"uartspi_iw610_v0.bin"
-#define FIRMWARE_SECURE_IW615	"uartspi_iw610_v0.bin.se"
+#define FIRMWARE_IW610		"uartspi_iw610.bin"
+#define FIRMWARE_SECURE_IW610	"uartspi_iw610.bin.se"
 #define FIRMWARE_IW624		"uartiw624_bt.bin"
 #define FIRMWARE_SECURE_IW624	"uartiw624_bt.bin.se"
 #define FIRMWARE_AW693		"uartaw693_bt.bin"
@@ -59,8 +61,8 @@
 #define CHIP_ID_IW624c		0x8001
 #define CHIP_ID_AW693a0		0x8200
 #define CHIP_ID_AW693a1		0x8201
-#define CHIP_ID_IW615a0		0x8800
-#define CHIP_ID_IW615a1		0x8801
+#define CHIP_ID_IW610a0		0x8800
+#define CHIP_ID_IW610a1		0x8801
 
 #define FW_SECURE_MASK		0xc0
 #define FW_OPEN			0x00
@@ -81,6 +83,7 @@
 #define WAKEUP_METHOD_BREAK     1
 #define WAKEUP_METHOD_EXT_BREAK 2
 #define WAKEUP_METHOD_RTS       3
+#define WAKEUP_METHOD_GPIO      4
 #define WAKEUP_METHOD_INVALID   0xff
 
 /* power save mode status */
@@ -134,6 +137,7 @@ struct ps_data {
 	bool  driver_sent_cmd;
 	u16   h2c_ps_interval;
 	u16   c2h_ps_interval;
+	struct gpio_desc *h2c_ps_gpio;
 	struct hci_dev *hdev;
 	struct work_struct work;
 	struct timer_list ps_timer;
@@ -364,7 +368,7 @@ static void ps_control(struct hci_dev *hdev, u8 ps_state)
 {
 	struct btnxpuart_dev *nxpdev = hci_get_drvdata(hdev);
 	struct ps_data *psdata = &nxpdev->psdata;
-	int status;
+	int status = 0;
 
 	if (psdata->ps_state == ps_state ||
 	    !test_bit(BTNXPUART_SERDEV_OPEN, &nxpdev->tx_state))
@@ -372,6 +376,14 @@ static void ps_control(struct hci_dev *hdev, u8 ps_state)
 
 	mutex_lock(&psdata->ps_lock);
 	switch (psdata->cur_h2c_wakeupmode) {
+	case WAKEUP_METHOD_GPIO:
+		if (ps_state == PS_STATE_AWAKE)
+			gpiod_set_value_cansleep(psdata->h2c_ps_gpio, 0);
+		else
+			gpiod_set_value_cansleep(psdata->h2c_ps_gpio, 1);
+		bt_dev_dbg(hdev, "Set h2c_ps_gpio: %s",
+			   str_high_low(ps_state == PS_STATE_SLEEP));
+		break;
 	case WAKEUP_METHOD_DTR:
 		if (ps_state == PS_STATE_AWAKE)
 			status = serdev_device_set_tiocm(nxpdev->serdev, TIOCM_DTR, 0);
@@ -421,15 +433,29 @@ static void ps_timeout_func(struct timer_list *t)
 	}
 }
 
-static void ps_setup(struct hci_dev *hdev)
+static int ps_setup(struct hci_dev *hdev)
 {
 	struct btnxpuart_dev *nxpdev = hci_get_drvdata(hdev);
+	struct serdev_device *serdev = nxpdev->serdev;
 	struct ps_data *psdata = &nxpdev->psdata;
+
+	psdata->h2c_ps_gpio = devm_gpiod_get_optional(&serdev->dev, "device-wakeup",
+						      GPIOD_OUT_LOW);
+	if (IS_ERR(psdata->h2c_ps_gpio)) {
+		bt_dev_err(hdev, "Error fetching device-wakeup-gpios: %ld",
+			   PTR_ERR(psdata->h2c_ps_gpio));
+		return PTR_ERR(psdata->h2c_ps_gpio);
+	}
+
+	if (!psdata->h2c_ps_gpio)
+		psdata->h2c_wakeup_gpio = 0xff;
 
 	psdata->hdev = hdev;
 	INIT_WORK(&psdata->work, ps_work_func);
 	mutex_init(&psdata->ps_lock);
 	timer_setup(&psdata->ps_timer, ps_timeout_func, 0);
+
+	return 0;
 }
 
 static bool ps_wakeup(struct btnxpuart_dev *nxpdev)
@@ -515,6 +541,9 @@ static int send_wakeup_method_cmd(struct hci_dev *hdev, void *data)
 	pcmd.c2h_wakeupmode = psdata->c2h_wakeupmode;
 	pcmd.c2h_wakeup_gpio = psdata->c2h_wakeup_gpio;
 	switch (psdata->h2c_wakeupmode) {
+	case WAKEUP_METHOD_GPIO:
+		pcmd.h2c_wakeupmode = BT_CTRL_WAKEUP_METHOD_GPIO;
+		break;
 	case WAKEUP_METHOD_DTR:
 		pcmd.h2c_wakeupmode = BT_CTRL_WAKEUP_METHOD_DSR;
 		break;
@@ -549,6 +578,7 @@ static void ps_init(struct hci_dev *hdev)
 {
 	struct btnxpuart_dev *nxpdev = hci_get_drvdata(hdev);
 	struct ps_data *psdata = &nxpdev->psdata;
+	u8 default_h2c_wakeup_mode = DEFAULT_H2C_WAKEUP_MODE;
 
 	serdev_device_set_tiocm(nxpdev->serdev, 0, TIOCM_RTS);
 	usleep_range(5000, 10000);
@@ -560,8 +590,17 @@ static void ps_init(struct hci_dev *hdev)
 	psdata->c2h_wakeup_gpio = 0xff;
 
 	psdata->cur_h2c_wakeupmode = WAKEUP_METHOD_INVALID;
+	if (psdata->h2c_ps_gpio)
+		default_h2c_wakeup_mode = WAKEUP_METHOD_GPIO;
+
 	psdata->h2c_ps_interval = PS_DEFAULT_TIMEOUT_PERIOD_MS;
-	switch (DEFAULT_H2C_WAKEUP_MODE) {
+
+	switch (default_h2c_wakeup_mode) {
+	case WAKEUP_METHOD_GPIO:
+		psdata->h2c_wakeupmode = WAKEUP_METHOD_GPIO;
+		gpiod_set_value_cansleep(psdata->h2c_ps_gpio, 0);
+		usleep_range(5000, 10000);
+		break;
 	case WAKEUP_METHOD_DTR:
 		psdata->h2c_wakeupmode = WAKEUP_METHOD_DTR;
 		serdev_device_set_tiocm(nxpdev->serdev, 0, TIOCM_DTR);
@@ -946,12 +985,12 @@ static char *nxp_get_fw_name_from_chipid(struct hci_dev *hdev, u16 chipid,
 		else
 			bt_dev_err(hdev, "Illegal loader version %02x", loader_ver);
 		break;
-	case CHIP_ID_IW615a0:
-	case CHIP_ID_IW615a1:
+	case CHIP_ID_IW610a0:
+	case CHIP_ID_IW610a1:
 		if ((loader_ver & FW_SECURE_MASK) == FW_OPEN)
-			fw_name = FIRMWARE_IW615;
+			fw_name = FIRMWARE_IW610;
 		else if ((loader_ver & FW_SECURE_MASK) != FW_AUTH_ILLEGAL)
-			fw_name = FIRMWARE_SECURE_IW615;
+			fw_name = FIRMWARE_SECURE_IW610;
 		else
 			bt_dev_err(hdev, "Illegal loader version %02x", loader_ver);
 		break;
@@ -970,6 +1009,9 @@ static char *nxp_get_old_fw_name_from_chipid(struct hci_dev *hdev, u16 chipid,
 	switch (chipid) {
 	case CHIP_ID_W9098:
 		fw_name_old = FIRMWARE_W9098_OLD;
+		break;
+	case CHIP_ID_IW416:
+		fw_name_old = FIRMWARE_IW416_OLD;
 		break;
 	}
 	return fw_name_old;
@@ -1275,6 +1317,9 @@ static int nxp_enqueue(struct hci_dev *hdev, struct sk_buff *skb)
 				psdata->c2h_wakeup_gpio = wakeup_parm.c2h_wakeup_gpio;
 				psdata->h2c_wakeup_gpio = wakeup_parm.h2c_wakeup_gpio;
 				switch (wakeup_parm.h2c_wakeupmode) {
+				case BT_CTRL_WAKEUP_METHOD_GPIO:
+					psdata->h2c_wakeupmode = WAKEUP_METHOD_GPIO;
+					break;
 				case BT_CTRL_WAKEUP_METHOD_DSR:
 					psdata->h2c_wakeupmode = WAKEUP_METHOD_DTR;
 					break;
@@ -1505,13 +1550,17 @@ static int nxp_serdev_probe(struct serdev_device *serdev)
 
 	if (hci_register_dev(hdev) < 0) {
 		dev_err(&serdev->dev, "Can't register HCI device\n");
-		hci_free_dev(hdev);
-		return -ENODEV;
+		goto probe_fail;
 	}
 
-	ps_setup(hdev);
+	if (ps_setup(hdev))
+		goto probe_fail;
 
 	return 0;
+
+probe_fail:
+	hci_free_dev(hdev);
+	return -ENODEV;
 }
 
 static void nxp_serdev_remove(struct serdev_device *serdev)

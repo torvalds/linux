@@ -536,7 +536,7 @@ static void __of_changeset_entry_destroy(struct of_changeset_entry *ce)
 	kfree(ce);
 }
 
-static void __of_changeset_entry_invert(struct of_changeset_entry *ce,
+static void __of_changeset_entry_invert(const struct of_changeset_entry *ce,
 					  struct of_changeset_entry *rce)
 {
 	memcpy(rce, ce, sizeof(*rce));
@@ -636,7 +636,7 @@ static int __of_changeset_entry_apply(struct of_changeset_entry *ce)
 	return 0;
 }
 
-static inline int __of_changeset_entry_revert(struct of_changeset_entry *ce)
+static inline int __of_changeset_entry_revert(const struct of_changeset_entry *ce)
 {
 	struct of_changeset_entry ce_inverted;
 

@@ -56,10 +56,10 @@ TEST(test_sanity)
 	ASSERT_EQ(n, sizeof(dump_policies));
 
 	n = recv(netlink_sock, buf, sizeof(buf), MSG_DONTWAIT);
-	ASSERT_GE(n, sizeof(struct nlmsghdr));
+	ASSERT_GE(n, (ssize_t)sizeof(struct nlmsghdr));
 
 	n = recv(netlink_sock, buf, sizeof(buf), MSG_DONTWAIT);
-	ASSERT_GE(n, sizeof(struct nlmsghdr));
+	ASSERT_GE(n, (ssize_t)sizeof(struct nlmsghdr));
 
 	close(netlink_sock);
 }

@@ -179,7 +179,7 @@ MODULE_DEVICE_TABLE(acpi, smo8800_ids);
 
 static struct platform_driver smo8800_driver = {
 	.probe = smo8800_probe,
-	.remove_new = smo8800_remove,
+	.remove = smo8800_remove,
 	.driver = {
 		.name = DRIVER_NAME,
 		.acpi_match_table = smo8800_ids,

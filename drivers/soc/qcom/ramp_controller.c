@@ -331,8 +331,8 @@ static struct platform_driver qcom_ramp_controller_driver = {
 		.of_match_table = qcom_ramp_controller_match_table,
 		.suppress_bind_attrs = true,
 	},
-	.probe  = qcom_ramp_controller_probe,
-	.remove_new = qcom_ramp_controller_remove,
+	.probe = qcom_ramp_controller_probe,
+	.remove = qcom_ramp_controller_remove,
 };
 
 static int __init qcom_ramp_controller_init(void)

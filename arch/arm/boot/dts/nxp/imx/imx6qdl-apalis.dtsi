@@ -191,7 +191,7 @@
 			"MIC_IN", "Mic Jack",
 			"Mic Jack", "Mic Bias",
 			"Headphone Jack", "HP_OUT";
-		model = "imx6q-apalis-sgtl5000";
+		model = "apalis-imx6";
 		mux-ext-port = <4>;
 		mux-int-port = <1>;
 		ssi-controller = <&ssi1>;

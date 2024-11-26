@@ -499,7 +499,6 @@ static void print_osnoise_headers(struct seq_file *s)
 static void
 __trace_osnoise_sample(struct osnoise_sample *sample, struct trace_buffer *buffer)
 {
-	struct trace_event_call *call = &event_osnoise;
 	struct ring_buffer_event *event;
 	struct osnoise_entry *entry;
 
@@ -517,8 +516,7 @@ __trace_osnoise_sample(struct osnoise_sample *sample, struct trace_buffer *buffe
 	entry->softirq_count	= sample->softirq_count;
 	entry->thread_count	= sample->thread_count;
 
-	if (!call_filter_check_discard(call, entry, buffer, event))
-		trace_buffer_unlock_commit_nostack(buffer, event);
+	trace_buffer_unlock_commit_nostack(buffer, event);
 }
 
 /*
@@ -578,7 +576,6 @@ static void print_timerlat_headers(struct seq_file *s)
 static void
 __trace_timerlat_sample(struct timerlat_sample *sample, struct trace_buffer *buffer)
 {
-	struct trace_event_call *call = &event_osnoise;
 	struct ring_buffer_event *event;
 	struct timerlat_entry *entry;
 
@@ -591,8 +588,7 @@ __trace_timerlat_sample(struct timerlat_sample *sample, struct trace_buffer *buf
 	entry->context			= sample->context;
 	entry->timer_latency		= sample->timer_latency;
 
-	if (!call_filter_check_discard(call, entry, buffer, event))
-		trace_buffer_unlock_commit_nostack(buffer, event);
+	trace_buffer_unlock_commit_nostack(buffer, event);
 }
 
 /*
@@ -654,7 +650,6 @@ static void timerlat_save_stack(int skip)
 static void
 __timerlat_dump_stack(struct trace_buffer *buffer, struct trace_stack *fstack, unsigned int size)
 {
-	struct trace_event_call *call = &event_osnoise;
 	struct ring_buffer_event *event;
 	struct stack_entry *entry;
 
@@ -668,8 +663,7 @@ __timerlat_dump_stack(struct trace_buffer *buffer, struct trace_stack *fstack, u
 	memcpy(&entry->caller, fstack->calls, size);
 	entry->size = fstack->nr_entries;
 
-	if (!call_filter_check_discard(call, entry, buffer, event))
-		trace_buffer_unlock_commit_nostack(buffer, event);
+	trace_buffer_unlock_commit_nostack(buffer, event);
 }
 
 /*

@@ -79,6 +79,7 @@ static int hid_bpf_ops_btf_struct_access(struct bpf_verifier_log *log,
 		WRITE_RANGE(hid_device, name, true),
 		WRITE_RANGE(hid_device, uniq, true),
 		WRITE_RANGE(hid_device, phys, true),
+		WRITE_RANGE(hid_device, quirks, false),
 	};
 #undef WRITE_RANGE
 	const struct btf_type *state = NULL;

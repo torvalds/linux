@@ -221,7 +221,7 @@ err_drm_dev_exit:
 	return ret;
 }
 
-static __always_inline u64
+static __always_inline __maybe_unused u64
 pvr_fw_version_packed(u32 major, u32 minor)
 {
 	return ((u64)major << 32) | minor;

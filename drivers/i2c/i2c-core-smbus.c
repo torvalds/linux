@@ -712,11 +712,14 @@ int i2c_setup_smbus_alert(struct i2c_adapter *adapter)
 	if (!parent)
 		return 0;
 
+	/* Report serious errors */
 	irq = device_property_match_string(parent, "interrupt-names", "smbus_alert");
-	if (irq == -EINVAL || irq == -ENODATA)
-		return 0;
-	else if (irq < 0)
+	if (irq < 0 && irq != -EINVAL && irq != -ENODATA)
 		return irq;
+
+	/* Skip setup when no irq was found */
+	if (irq < 0 && !device_property_present(parent, "smbalert-gpios"))
+		return 0;
 
 	return PTR_ERR_OR_ZERO(i2c_new_smbus_alert_device(adapter, NULL));
 }

@@ -15,6 +15,7 @@ properties:
       - items:
           - enum:
               - allwinner,sun4i-a10-ohci
+              - allwinner,sun50i-a100-ohci
               - allwinner,sun50i-a64-ohci
               - allwinner,sun50i-h6-ohci
               - allwinner,sun50i-h616-ohci

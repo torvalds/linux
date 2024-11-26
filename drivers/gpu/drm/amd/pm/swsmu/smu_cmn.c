@@ -1078,6 +1078,9 @@ void smu_cmn_init_soft_gpu_metrics(void *table, uint8_t frev, uint8_t crev)
 	case METRICS_VERSION(1, 5):
 		structure_size = sizeof(struct gpu_metrics_v1_5);
 		break;
+	case METRICS_VERSION(1, 6):
+		structure_size = sizeof(struct gpu_metrics_v1_6);
+		break;
 	case METRICS_VERSION(2, 0):
 		structure_size = sizeof(struct gpu_metrics_v2_0);
 		break;
@@ -1136,6 +1139,14 @@ int smu_cmn_set_mp1_state(struct smu_context *smu,
 		dev_err(smu->adev->dev, "[PrepareMp1] Failed!\n");
 
 	return ret;
+}
+
+void smu_cmn_assign_power_profile(struct smu_context *smu)
+{
+	uint32_t index;
+	index = fls(smu->workload_mask);
+	index = index > 0 && index <= WORKLOAD_POLICY_MAX ? index - 1 : 0;
+	smu->power_profile_mode = smu->workload_setting[index];
 }
 
 bool smu_cmn_is_audio_func_enabled(struct amdgpu_device *adev)

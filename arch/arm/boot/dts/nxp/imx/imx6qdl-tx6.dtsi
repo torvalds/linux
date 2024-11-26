@@ -70,9 +70,8 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		mclk: clock@0 {
+		mclk: clock {
 			compatible = "fixed-clock";
-			reg = <0>;
 			#clock-cells = <0>;
 			clock-frequency = <26000000>;
 		};

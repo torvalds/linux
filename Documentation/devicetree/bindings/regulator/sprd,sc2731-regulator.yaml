@@ -43,25 +43,4 @@ required:
   - compatible
 
 additionalProperties: false
-
-examples:
-  - |
-    regulators {
-      compatible = "sprd,sc2731-regulator";
-
-      BUCK_CPU0 {
-        regulator-name = "vddarm0";
-        regulator-min-microvolt = <400000>;
-        regulator-max-microvolt = <1996875>;
-        regulator-ramp-delay = <25000>;
-        regulator-always-on;
-      };
-
-      LDO_CAMA0 {
-        regulator-name = "vddcama0";
-        regulator-min-microvolt = <1200000>;
-        regulator-max-microvolt = <3750000>;
-        regulator-enable-ramp-delay = <100>;
-      };
-    };
 ...

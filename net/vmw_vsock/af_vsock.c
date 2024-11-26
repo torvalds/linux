@@ -2420,6 +2420,7 @@ static int vsock_create(struct net *net, struct socket *sock,
 	if (sock->type == SOCK_DGRAM) {
 		ret = vsock_assign_transport(vsk, NULL);
 		if (ret < 0) {
+			sock->sk = NULL;
 			sock_put(sk);
 			return ret;
 		}

@@ -40,8 +40,7 @@
 #include <drm/drm_cache.h>
 #include <drm/drm_print.h>
 
-#include "display/intel_dmc.h"
-#include "display/intel_overlay.h"
+#include "display/intel_display_snapshot.h"
 
 #include "gem/i915_gem_context.h"
 #include "gem/i915_gem_lmem.h"
@@ -651,8 +650,6 @@ static void err_print_capabilities(struct drm_i915_error_state_buf *m,
 	struct drm_printer p = i915_error_printer(m);
 
 	intel_device_info_print(&error->device_info, &error->runtime_info, &p);
-	intel_display_device_info_print(&error->display_device_info,
-					&error->display_runtime_info, &p);
 	intel_driver_caps_print(&error->driver_caps, &p);
 }
 
@@ -660,10 +657,8 @@ static void err_print_params(struct drm_i915_error_state_buf *m,
 			     const struct i915_params *params)
 {
 	struct drm_printer p = i915_error_printer(m);
-	struct intel_display *display = &m->i915->display;
 
 	i915_params_dump(params, &p);
-	intel_display_params_dump(display, &p);
 }
 
 static void err_print_pciid(struct drm_i915_error_state_buf *m,
@@ -875,8 +870,6 @@ static void __err_print_to_sgl(struct drm_i915_error_state_buf *m,
 
 	err_printf(m, "IOMMU enabled?: %d\n", error->iommu);
 
-	intel_dmc_print_error_state(&p, m->i915);
-
 	err_printf(m, "RPM wakelock: %s\n", str_yes_no(error->wakelock));
 	err_printf(m, "PM suspended: %s\n", str_yes_no(error->suspended));
 
@@ -905,11 +898,10 @@ static void __err_print_to_sgl(struct drm_i915_error_state_buf *m,
 		err_print_gt_info(m, error->gt);
 	}
 
-	if (error->overlay)
-		intel_overlay_print_error_state(&p, error->overlay);
-
 	err_print_capabilities(m, error);
 	err_print_params(m, &error->params);
+
+	intel_display_snapshot_print(error->display_snapshot, &p);
 }
 
 static int err_print_to_sgl(struct i915_gpu_coredump *error)
@@ -1032,7 +1024,6 @@ static void i915_vma_coredump_free(struct i915_vma_coredump *vma)
 static void cleanup_params(struct i915_gpu_coredump *error)
 {
 	i915_params_free(&error->params);
-	intel_display_params_free(&error->display_params);
 }
 
 static void cleanup_uc(struct intel_uc_coredump *uc)
@@ -1077,7 +1068,7 @@ void __i915_gpu_coredump_free(struct kref *error_ref)
 		cleanup_gt(gt);
 	}
 
-	kfree(error->overlay);
+	intel_display_snapshot_free(error->display_snapshot);
 
 	cleanup_params(error);
 
@@ -1993,17 +1984,12 @@ static void capture_gen(struct i915_gpu_coredump *error)
 	error->suspend_count = i915->suspend_count;
 
 	i915_params_copy(&error->params, &i915->params);
-	intel_display_params_copy(&error->display_params);
 	memcpy(&error->device_info,
 	       INTEL_INFO(i915),
 	       sizeof(error->device_info));
 	memcpy(&error->runtime_info,
 	       RUNTIME_INFO(i915),
 	       sizeof(error->runtime_info));
-	memcpy(&error->display_device_info, DISPLAY_INFO(i915),
-	       sizeof(error->display_device_info));
-	memcpy(&error->display_runtime_info, DISPLAY_RUNTIME_INFO(i915),
-	       sizeof(error->display_runtime_info));
 	error->driver_caps = i915->caps;
 }
 
@@ -2097,6 +2083,7 @@ static struct i915_gpu_coredump *
 __i915_gpu_coredump(struct intel_gt *gt, intel_engine_mask_t engine_mask, u32 dump_flags)
 {
 	struct drm_i915_private *i915 = gt->i915;
+	struct intel_display *display = &i915->display;
 	struct i915_gpu_coredump *error;
 
 	/* Check if GPU capture has been disabled */
@@ -2138,7 +2125,7 @@ __i915_gpu_coredump(struct intel_gt *gt, intel_engine_mask_t engine_mask, u32 du
 		error->simulated |= error->gt->simulated;
 	}
 
-	error->overlay = intel_overlay_capture_error_state(i915);
+	error->display_snapshot = intel_display_snapshot_capture(display);
 
 	return error;
 }

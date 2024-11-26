@@ -292,7 +292,9 @@ bool dc_stream_set_cursor_attributes(
 	 * 2. If not subvp high refresh, for single display cases, if resolution is >= 5K and refresh rate < 120hz
 	 * 3. If not subvp high refresh, for multi display cases, if resolution is >= 4K and refresh rate < 120hz
 	 */
-	if (dc->debug.allow_sw_cursor_fallback && attributes->height * attributes->width * 4 > 16384) {
+	if (dc->debug.allow_sw_cursor_fallback &&
+		attributes->height * attributes->width * 4 > 16384 &&
+		!stream->hw_cursor_req) {
 		if (check_subvp_sw_cursor_fallback_req(dc, stream))
 			return false;
 	}
@@ -421,7 +423,6 @@ bool dc_stream_program_cursor_position(
 		/* apply/update visual confirm */
 		if (dc->debug.visual_confirm == VISUAL_CONFIRM_HW_CURSOR) {
 			/* update software state */
-			uint32_t color_value = MAX_TG_COLOR_VALUE;
 			int i;
 
 			for (i = 0; i < dc->res_pool->pipe_count; i++) {
@@ -429,15 +430,7 @@ bool dc_stream_program_cursor_position(
 
 				/* adjust visual confirm color for all pipes with current stream */
 				if (stream == pipe_ctx->stream) {
-					if (stream->cursor_position.enable) {
-						pipe_ctx->visual_confirm_color.color_r_cr = color_value;
-						pipe_ctx->visual_confirm_color.color_g_y = 0;
-						pipe_ctx->visual_confirm_color.color_b_cb = 0;
-					} else {
-						pipe_ctx->visual_confirm_color.color_r_cr = 0;
-						pipe_ctx->visual_confirm_color.color_g_y = 0;
-						pipe_ctx->visual_confirm_color.color_b_cb = color_value;
-					}
+					get_cursor_visual_confirm_color(pipe_ctx, &(pipe_ctx->visual_confirm_color));
 
 					/* programming hardware */
 					if (pipe_ctx->plane_state)
@@ -819,12 +812,12 @@ void dc_stream_log(const struct dc *dc, const struct dc_stream_state *stream)
 			stream->dst.height,
 			stream->output_color_space);
 	DC_LOG_DC(
-			"\tpix_clk_khz: %d, h_total: %d, v_total: %d, pixelencoder:%d, displaycolorDepth:%d\n",
+			"\tpix_clk_khz: %d, h_total: %d, v_total: %d, pixel_encoding:%s, color_depth:%s\n",
 			stream->timing.pix_clk_100hz / 10,
 			stream->timing.h_total,
 			stream->timing.v_total,
-			stream->timing.pixel_encoding,
-			stream->timing.display_color_depth);
+			dc_pixel_encoding_to_str(stream->timing.pixel_encoding),
+			dc_color_depth_to_str(stream->timing.display_color_depth));
 	DC_LOG_DC(
 			"\tlink: %d\n",
 			stream->link->link_index);

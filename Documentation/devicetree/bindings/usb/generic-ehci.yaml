@@ -28,6 +28,7 @@ properties:
       - items:
           - enum:
               - allwinner,sun4i-a10-ehci
+              - allwinner,sun50i-a100-ehci
               - allwinner,sun50i-a64-ehci
               - allwinner,sun50i-h6-ehci
               - allwinner,sun50i-h616-ehci

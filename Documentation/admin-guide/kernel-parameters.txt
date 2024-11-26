@@ -921,12 +921,16 @@
 			the parameter has no effect.
 
 	crash_kexec_post_notifiers
-			Run kdump after running panic-notifiers and dumping
-			kmsg. This only for the users who doubt kdump always
-			succeeds in any situation.
-			Note that this also increases risks of kdump failure,
-			because some panic notifiers can make the crashed
-			kernel more unstable.
+			Only jump to kdump kernel after running the panic
+			notifiers and dumping kmsg. This option increases
+			the risks of a kdump failure, since some panic
+			notifiers can make the crashed kernel more unstable.
+			In configurations where kdump may not be reliable,
+			running the panic notifiers could allow collecting
+			more data on dmesg, like stack traces from other CPUS
+			or extra data dumped by panic_print. Note that some
+			configurations enable this option unconditionally,
+			like Hyper-V, PowerPC (fadump) and AMD SEV-SNP.
 
 	crashkernel=size[KMG][@offset[KMG]]
 			[KNL,EARLY] Using kexec, Linux can switch to a 'crash kernel'
@@ -1549,6 +1553,7 @@
 	failslab=
 	fail_usercopy=
 	fail_page_alloc=
+	fail_skb_realloc=
 	fail_make_request=[KNL]
 			General fault injection mechanism.
 			Format: <interval>,<probability>,<space>,<times>
@@ -6881,6 +6886,12 @@
 			at boot up).
 
 				reserve_mem=12M:4096:trace trace_instance=boot_map^traceoff^traceprintk@trace,sched,irq
+
+			Note, saving the trace buffer across reboots does require that the system
+			is set up to not wipe memory. For instance, CONFIG_RESET_ATTACK_MITIGATION
+			can force a memory reset on boot which will clear any trace that was stored.
+			This is just one of many ways that can clear memory. Make sure your system
+			keeps the content of memory across reboots before relying on this option.
 
 			See also Documentation/trace/debugging.rst
 

@@ -46,7 +46,7 @@
 		};
 	};
 
-	vdd_emmc_io: vdd-emmc-io {
+	vdd_emmc_io: regulator-vdd-emmc-io {
 		compatible = "regulator-fixed";
 		regulator-name = "vdd_emmc_io";
 		regulator-min-microvolt = <1800000>;
@@ -54,7 +54,7 @@
 		vin-supply = <&vdd_3v3_io>;
 	};
 
-	vdd_in_otg_out: vdd-in-otg-out {
+	vdd_in_otg_out: regulator-vdd-in-otg-out {
 		compatible = "regulator-fixed";
 		regulator-name = "vdd_in_otg_out";
 		regulator-always-on;
@@ -63,7 +63,7 @@
 		regulator-max-microvolt = <5000000>;
 	};
 
-	vdd_misc_1v8: vdd-misc-1v8 {
+	vdd_misc_1v8: regulator-vdd-misc-1v8 {
 		compatible = "regulator-fixed";
 		regulator-name = "vdd_misc_1v8";
 		regulator-always-on;

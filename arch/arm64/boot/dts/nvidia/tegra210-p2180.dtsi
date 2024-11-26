@@ -351,7 +351,7 @@
 		#size-cells = <0>;
 
 		wifi@1 {
-			compatible = "brcm,bcm4354-fmac";
+			compatible = "brcm,bcm4354-fmac", "brcm,bcm4329-fmac";
 			reg = <1>;
 			interrupt-parent = <&gpio>;
 			interrupts = <TEGRA_GPIO(H, 2) IRQ_TYPE_LEVEL_HIGH>;

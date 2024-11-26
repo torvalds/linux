@@ -134,13 +134,11 @@ static int dcss_dtg_irq_config(struct dcss_dtg *dtg,
 		    dtg->base_reg + DCSS_DTG_INT_MASK);
 
 	ret = request_irq(dtg->ctxld_kick_irq, dcss_dtg_irq_handler,
-			  0, "dcss_ctxld_kick", dtg);
+			  IRQF_NO_AUTOEN, "dcss_ctxld_kick", dtg);
 	if (ret) {
 		dev_err(dtg->dev, "dtg: irq request failed.\n");
 		return ret;
 	}
-
-	disable_irq(dtg->ctxld_kick_irq);
 
 	dtg->ctxld_kick_irq_en = false;
 

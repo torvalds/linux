@@ -287,20 +287,17 @@ static void uec_get_strings(struct net_device *netdev, u32 stringset, u8 *buf)
 {
 	struct ucc_geth_private *ugeth = netdev_priv(netdev);
 	u32 stats_mode = ugeth->ug_info->statisticsMode;
+	int i;
 
-	if (stats_mode & UCC_GETH_STATISTICS_GATHERING_MODE_HARDWARE) {
-		memcpy(buf, hw_stat_gstrings, UEC_HW_STATS_LEN *
-			       	ETH_GSTRING_LEN);
-		buf += UEC_HW_STATS_LEN * ETH_GSTRING_LEN;
-	}
-	if (stats_mode & UCC_GETH_STATISTICS_GATHERING_MODE_FIRMWARE_TX) {
-		memcpy(buf, tx_fw_stat_gstrings, UEC_TX_FW_STATS_LEN *
-			       	ETH_GSTRING_LEN);
-		buf += UEC_TX_FW_STATS_LEN * ETH_GSTRING_LEN;
-	}
+	if (stats_mode & UCC_GETH_STATISTICS_GATHERING_MODE_HARDWARE)
+		for (i = 0; i < UEC_HW_STATS_LEN; i++)
+			ethtool_puts(&buf, hw_stat_gstrings[i]);
+	if (stats_mode & UCC_GETH_STATISTICS_GATHERING_MODE_FIRMWARE_TX)
+		for (i = 0; i < UEC_TX_FW_STATS_LEN; i++)
+			ethtool_puts(&buf, tx_fw_stat_gstrings[i]);
 	if (stats_mode & UCC_GETH_STATISTICS_GATHERING_MODE_FIRMWARE_RX)
-		memcpy(buf, rx_fw_stat_gstrings, UEC_RX_FW_STATS_LEN *
-			       	ETH_GSTRING_LEN);
+		for (i = 0; i < UEC_RX_FW_STATS_LEN; i++)
+			ethtool_puts(&buf, rx_fw_stat_gstrings[i]);
 }
 
 static void uec_get_ethtool_stats(struct net_device *netdev,
