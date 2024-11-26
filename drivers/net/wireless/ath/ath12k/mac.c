@@ -725,11 +725,14 @@ static struct ath12k *ath12k_get_ar_by_ctx(struct ieee80211_hw *hw,
 }
 
 static struct ath12k *ath12k_get_ar_by_vif(struct ieee80211_hw *hw,
-					   struct ieee80211_vif *vif)
+					   struct ieee80211_vif *vif,
+					   u8 link_id)
 {
 	struct ath12k_vif *ahvif = ath12k_vif_to_ahvif(vif);
-	struct ath12k_link_vif *arvif = &ahvif->deflink;
 	struct ath12k_hw *ah = ath12k_hw_to_ah(hw);
+	struct ath12k_link_vif *arvif;
+
+	lockdep_assert_wiphy(hw->wiphy);
 
 	/* If there is one pdev within ah, then we return
 	 * ar directly.
@@ -737,7 +740,11 @@ static struct ath12k *ath12k_get_ar_by_vif(struct ieee80211_hw *hw,
 	if (ah->num_radio == 1)
 		return ah->radio;
 
-	if (arvif->is_created)
+	if (!(ahvif->links_map & BIT(link_id)))
+		return NULL;
+
+	arvif = wiphy_dereference(hw->wiphy, ahvif->link[link_id]);
+	if (arvif && arvif->is_created)
 		return arvif->ar;
 
 	return NULL;
@@ -5667,6 +5674,7 @@ static void ath12k_mac_op_sta_rc_update(struct ieee80211_hw *hw,
 	struct ath12k *ar;
 	struct ath12k_sta *ahsta = ath12k_sta_to_ahsta(sta);
 	struct ath12k_vif *ahvif = ath12k_vif_to_ahvif(vif);
+	struct ath12k_hw *ah = ath12k_hw_to_ah(hw);
 	struct ath12k_link_sta *arsta;
 	struct ath12k_link_vif *arvif;
 	struct ath12k_peer *peer;
@@ -5676,20 +5684,17 @@ static void ath12k_mac_op_sta_rc_update(struct ieee80211_hw *hw,
 	 */
 	u8 link_id = ATH12K_DEFAULT_LINK_ID;
 
-	ar = ath12k_get_ar_by_vif(hw, vif);
-	if (!ar) {
-		WARN_ON_ONCE(1);
-		return;
-	}
-
 	rcu_read_lock();
 	arvif = rcu_dereference(ahvif->link[link_id]);
 	if (!arvif) {
-		ath12k_warn(ar->ab, "mac sta rc update failed to fetch link vif on link id %u for peer %pM\n",
-			    link_id, sta->addr);
+		ath12k_hw_warn(ah, "mac sta rc update failed to fetch link vif on link id %u for peer %pM\n",
+			       link_id, sta->addr);
 		rcu_read_unlock();
 		return;
 	}
+
+	ar = arvif->ar;
+
 	arsta = rcu_dereference(ahsta->link[link_id]);
 	if (!arsta) {
 		rcu_read_unlock();
@@ -8288,20 +8293,26 @@ static int ath12k_mac_op_set_antenna(struct ieee80211_hw *hw, u32 tx_ant, u32 rx
 	return ret;
 }
 
-static int ath12k_mac_ampdu_action(struct ath12k_link_vif *arvif,
-				   struct ieee80211_ampdu_params *params)
+static int ath12k_mac_ampdu_action(struct ieee80211_hw *hw,
+				   struct ieee80211_vif *vif,
+				   struct ieee80211_ampdu_params *params,
+				   u8 link_id)
 {
-	struct ath12k *ar = arvif->ar;
+	struct ath12k *ar;
 	int ret = -EINVAL;
 
-	lockdep_assert_wiphy(ath12k_ar_to_hw(ar)->wiphy);
+	lockdep_assert_wiphy(hw->wiphy);
+
+	ar = ath12k_get_ar_by_vif(hw, vif, link_id);
+	if (!ar)
+		return -EINVAL;
 
 	switch (params->action) {
 	case IEEE80211_AMPDU_RX_START:
-		ret = ath12k_dp_rx_ampdu_start(ar, params);
+		ret = ath12k_dp_rx_ampdu_start(ar, params, link_id);
 		break;
 	case IEEE80211_AMPDU_RX_STOP:
-		ret = ath12k_dp_rx_ampdu_stop(ar, params);
+		ret = ath12k_dp_rx_ampdu_stop(ar, params, link_id);
 		break;
 	case IEEE80211_AMPDU_TX_START:
 	case IEEE80211_AMPDU_TX_STOP_CONT:
@@ -8315,6 +8326,10 @@ static int ath12k_mac_ampdu_action(struct ath12k_link_vif *arvif,
 		break;
 	}
 
+	if (ret)
+		ath12k_warn(ar->ab, "unable to perform ampdu action %d for vif %pM link %u ret %d\n",
+			    params->action, vif->addr, link_id, ret);
+
 	return ret;
 }
 
@@ -8322,27 +8337,24 @@ static int ath12k_mac_op_ampdu_action(struct ieee80211_hw *hw,
 				      struct ieee80211_vif *vif,
 				      struct ieee80211_ampdu_params *params)
 {
-	struct ath12k_hw *ah = ath12k_hw_to_ah(hw);
-	struct ath12k *ar;
-	struct ath12k_vif *ahvif = ath12k_vif_to_ahvif(vif);
-	struct ath12k_link_vif *arvif;
+	struct ieee80211_sta *sta = params->sta;
+	struct ath12k_sta *ahsta = ath12k_sta_to_ahsta(sta);
+	unsigned long links_map = ahsta->links_map;
 	int ret = -EINVAL;
+	u8 link_id;
 
 	lockdep_assert_wiphy(hw->wiphy);
 
-	ar = ath12k_get_ar_by_vif(hw, vif);
-	if (!ar)
-		return -EINVAL;
+	if (WARN_ON(!links_map))
+		return ret;
 
-	ar = ath12k_ah_to_ar(ah, 0);
-	arvif = &ahvif->deflink;
+	for_each_set_bit(link_id, &links_map, IEEE80211_MLD_MAX_NUM_LINKS) {
+		ret = ath12k_mac_ampdu_action(hw, vif, params, link_id);
+		if (ret)
+			return ret;
+	}
 
-	ret = ath12k_mac_ampdu_action(arvif, params);
-	if (ret)
-		ath12k_warn(ar->ab, "pdev idx %d unable to perform ampdu action %d ret %d\n",
-			    ar->pdev_idx, params->action, ret);
-
-	return ret;
+	return 0;
 }
 
 static int ath12k_mac_op_add_chanctx(struct ieee80211_hw *hw,

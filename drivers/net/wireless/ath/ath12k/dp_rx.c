@@ -1065,15 +1065,25 @@ err_mem_free:
 }
 
 int ath12k_dp_rx_ampdu_start(struct ath12k *ar,
-			     struct ieee80211_ampdu_params *params)
+			     struct ieee80211_ampdu_params *params,
+			     u8 link_id)
 {
 	struct ath12k_base *ab = ar->ab;
 	struct ath12k_sta *ahsta = ath12k_sta_to_ahsta(params->sta);
-	struct ath12k_link_sta *arsta = &ahsta->deflink;
-	int vdev_id = arsta->arvif->vdev_id;
+	struct ath12k_link_sta *arsta;
+	int vdev_id;
 	int ret;
 
-	ret = ath12k_dp_rx_peer_tid_setup(ar, params->sta->addr, vdev_id,
+	lockdep_assert_wiphy(ath12k_ar_to_hw(ar)->wiphy);
+
+	arsta = wiphy_dereference(ath12k_ar_to_hw(ar)->wiphy,
+				  ahsta->link[link_id]);
+	if (!arsta)
+		return -ENOLINK;
+
+	vdev_id = arsta->arvif->vdev_id;
+
+	ret = ath12k_dp_rx_peer_tid_setup(ar, arsta->addr, vdev_id,
 					  params->tid, params->buf_size,
 					  params->ssn, arsta->ahsta->pn_type);
 	if (ret)
@@ -1083,19 +1093,29 @@ int ath12k_dp_rx_ampdu_start(struct ath12k *ar,
 }
 
 int ath12k_dp_rx_ampdu_stop(struct ath12k *ar,
-			    struct ieee80211_ampdu_params *params)
+			    struct ieee80211_ampdu_params *params,
+			    u8 link_id)
 {
 	struct ath12k_base *ab = ar->ab;
 	struct ath12k_peer *peer;
 	struct ath12k_sta *ahsta = ath12k_sta_to_ahsta(params->sta);
-	struct ath12k_link_sta *arsta = &ahsta->deflink;
-	int vdev_id = arsta->arvif->vdev_id;
+	struct ath12k_link_sta *arsta;
+	int vdev_id;
 	bool active;
 	int ret;
 
+	lockdep_assert_wiphy(ath12k_ar_to_hw(ar)->wiphy);
+
+	arsta = wiphy_dereference(ath12k_ar_to_hw(ar)->wiphy,
+				  ahsta->link[link_id]);
+	if (!arsta)
+		return -ENOLINK;
+
+	vdev_id = arsta->arvif->vdev_id;
+
 	spin_lock_bh(&ab->base_lock);
 
-	peer = ath12k_peer_find(ab, vdev_id, params->sta->addr);
+	peer = ath12k_peer_find(ab, vdev_id, arsta->addr);
 	if (!peer) {
 		spin_unlock_bh(&ab->base_lock);
 		ath12k_warn(ab, "failed to find the peer to stop rx aggregation\n");
