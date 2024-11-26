@@ -6,9 +6,9 @@
 #ifndef __I9XX_DISPLAY_SR_H__
 #define __I9XX_DISPLAY_SR_H__
 
-struct drm_i915_private;
+struct intel_display;
 
-void i9xx_display_sr_save(struct drm_i915_private *i915);
-void i9xx_display_sr_restore(struct drm_i915_private *i915);
+void i9xx_display_sr_save(struct intel_display *display);
+void i9xx_display_sr_restore(struct intel_display *display);
 
 #endif
