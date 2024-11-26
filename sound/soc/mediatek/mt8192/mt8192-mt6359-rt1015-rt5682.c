@@ -1099,7 +1099,7 @@ static int mt8192_mt6359_legacy_probe(struct mtk_soc_card_data *soc_card_data)
 			dai_link->ignore = 0;
 		}
 
-		if (dai_link->num_codecs && dai_link->codecs[0].dai_name &&
+		if (dai_link->num_codecs &&
 		    strcmp(dai_link->codecs[0].dai_name, RT1015_CODEC_DAI) == 0)
 			dai_link->ops = &mt8192_rt1015_i2s_ops;
 	}
@@ -1127,7 +1127,7 @@ static int mt8192_mt6359_soc_card_probe(struct mtk_soc_card_data *soc_card_data,
 		int i;
 
 		for_each_card_prelinks(card, i, dai_link)
-			if (dai_link->num_codecs && dai_link->codecs[0].dai_name &&
+			if (dai_link->num_codecs &&
 			    strcmp(dai_link->codecs[0].dai_name, RT1015_CODEC_DAI) == 0)
 				dai_link->ops = &mt8192_rt1015_i2s_ops;
 	}
