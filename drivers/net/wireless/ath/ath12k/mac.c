@@ -9287,7 +9287,11 @@ static void ath12k_mac_op_flush(struct ieee80211_hw *hw, struct ieee80211_vif *v
 				u32 queues, bool drop)
 {
 	struct ath12k_hw *ah = ath12k_hw_to_ah(hw);
+	struct ath12k_link_vif *arvif;
+	struct ath12k_vif *ahvif;
+	unsigned long links;
 	struct ath12k *ar;
+	u8 link_id;
 	int i;
 
 	lockdep_assert_wiphy(hw->wiphy);
@@ -9302,12 +9306,18 @@ static void ath12k_mac_op_flush(struct ieee80211_hw *hw, struct ieee80211_vif *v
 		return;
 	}
 
-	ar = ath12k_get_ar_by_vif(hw, vif);
+	for_each_ar(ah, ar, i)
+		wiphy_work_flush(hw->wiphy, &ar->wmi_mgmt_tx_work);
 
-	if (!ar)
-		return;
+	ahvif = ath12k_vif_to_ahvif(vif);
+	links = ahvif->links_map;
+	for_each_set_bit(link_id, &links, IEEE80211_MLD_MAX_NUM_LINKS) {
+		arvif = wiphy_dereference(hw->wiphy, ahvif->link[link_id]);
+		if (!(arvif && arvif->ar))
+			continue;
 
-	ath12k_mac_flush(ar);
+		ath12k_mac_flush(arvif->ar);
+	}
 }
 
 static int
