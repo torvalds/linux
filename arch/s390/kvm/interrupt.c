@@ -247,12 +247,12 @@ static inline int gisa_set_iam(struct kvm_s390_gisa *gisa, u8 iam)
 {
 	u64 word, _word;
 
+	word = READ_ONCE(gisa->u64.word[0]);
 	do {
-		word = READ_ONCE(gisa->u64.word[0]);
 		if ((u64)gisa != word >> 32)
 			return -EBUSY;
 		_word = (word & ~0xffUL) | iam;
-	} while (cmpxchg(&gisa->u64.word[0], word, _word) != word);
+	} while (!try_cmpxchg(&gisa->u64.word[0], &word, _word));
 
 	return 0;
 }
@@ -270,10 +270,10 @@ static inline void gisa_clear_ipm(struct kvm_s390_gisa *gisa)
 {
 	u64 word, _word;
 
+	word = READ_ONCE(gisa->u64.word[0]);
 	do {
-		word = READ_ONCE(gisa->u64.word[0]);
 		_word = word & ~(0xffUL << 24);
-	} while (cmpxchg(&gisa->u64.word[0], word, _word) != word);
+	} while (!try_cmpxchg(&gisa->u64.word[0], &word, _word));
 }
 
 /**
@@ -291,14 +291,14 @@ static inline u8 gisa_get_ipm_or_restore_iam(struct kvm_s390_gisa_interrupt *gi)
 	u8 pending_mask, alert_mask;
 	u64 word, _word;
 
+	word = READ_ONCE(gi->origin->u64.word[0]);
 	do {
-		word = READ_ONCE(gi->origin->u64.word[0]);
 		alert_mask = READ_ONCE(gi->alert.mask);
 		pending_mask = (u8)(word >> 24) & alert_mask;
 		if (pending_mask)
 			return pending_mask;
 		_word = (word & ~0xffUL) | alert_mask;
-	} while (cmpxchg(&gi->origin->u64.word[0], word, _word) != word);
+	} while (!try_cmpxchg(&gi->origin->u64.word[0], &word, _word));
 
 	return 0;
 }
