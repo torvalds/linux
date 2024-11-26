@@ -473,10 +473,10 @@ void bch2_time_stats_to_text(struct printbuf *out, struct bch2_time_stats *stats
 		u64 last_q = 0;
 
 		prt_printf(out, "quantiles (%s):\t", u->name);
-		eytzinger0_for_each(i, NR_QUANTILES) {
-			bool is_last = eytzinger0_next(i, NR_QUANTILES) == -1;
+		eytzinger0_for_each(j, NR_QUANTILES) {
+			bool is_last = eytzinger0_next(j, NR_QUANTILES) == -1;
 
-			u64 q = max(quantiles->entries[i].m, last_q);
+			u64 q = max(quantiles->entries[j].m, last_q);
 			prt_printf(out, "%llu ", div64_u64(q, u->nsecs));
 			if (is_last)
 				prt_newline(out);
@@ -707,7 +707,7 @@ void memcpy_from_bio(void *dst, struct bio *src, struct bvec_iter src_iter)
 #if 0
 void eytzinger1_test(void)
 {
-	unsigned inorder, eytz, size;
+	unsigned inorder, size;
 
 	pr_info("1 based eytzinger test:");
 
@@ -740,7 +740,7 @@ void eytzinger1_test(void)
 void eytzinger0_test(void)
 {
 
-	unsigned inorder, eytz, size;
+	unsigned inorder, size;
 
 	pr_info("0 based eytzinger test:");
 
@@ -770,7 +770,7 @@ void eytzinger0_test(void)
 	}
 }
 
-static inline int cmp_u16(const void *_l, const void *_r, size_t size)
+static inline int cmp_u16(const void *_l, const void *_r)
 {
 	const u16 *l = _l, *r = _r;
 
@@ -793,8 +793,8 @@ static void eytzinger0_find_test_val(u16 *test_array, unsigned nr, u16 search)
 			c2 = test_array[i];
 
 	if (c1 != c2) {
-		eytzinger0_for_each(i, nr)
-			pr_info("[%3u] = %12u", i, test_array[i]);
+		eytzinger0_for_each(j, nr)
+			pr_info("[%3u] = %12u", j, test_array[j]);
 		pr_info("find_le(%2u) -> [%2zi] = %2i should be %2i",
 			i, r, c1, c2);
 	}
@@ -812,9 +812,9 @@ void eytzinger0_find_test(void)
 		eytzinger0_sort(test_array, nr, sizeof(test_array[0]), cmp_u16, NULL);
 
 		/* verify array is sorted correctly: */
-		eytzinger0_for_each(i, nr)
-			BUG_ON(i != eytzinger0_last(nr) &&
-			       test_array[i] > test_array[eytzinger0_next(i, nr)]);
+		eytzinger0_for_each(j, nr)
+			BUG_ON(j != eytzinger0_last(nr) &&
+			       test_array[j] > test_array[eytzinger0_next(j, nr)]);
 
 		for (i = 0; i < U16_MAX; i += 1 << 12)
 			eytzinger0_find_test_val(test_array, nr, i);
