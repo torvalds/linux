@@ -2999,7 +2999,7 @@ smb2_get_dfs_refer(const unsigned int xid, struct cifs_ses *ses,
 		rc = -EIO;
 	if (rc) {
 		if (!is_retryable_error(rc) && rc != -ENOENT && rc != -EOPNOTSUPP)
-			cifs_tcon_dbg(VFS, "%s: ioctl error: rc=%d\n", __func__, rc);
+			cifs_tcon_dbg(FYI, "%s: ioctl error: rc=%d\n", __func__, rc);
 		goto out;
 	}
 
