@@ -4344,10 +4344,10 @@ cifs_prune_tlinks(struct work_struct *work)
 }
 
 #ifndef CONFIG_CIFS_DFS_UPCALL
-int cifs_tree_connect(const unsigned int xid, struct cifs_tcon *tcon, const struct nls_table *nlsc)
+int cifs_tree_connect(const unsigned int xid, struct cifs_tcon *tcon)
 {
-	int rc;
 	const struct smb_version_operations *ops = tcon->ses->server->ops;
+	int rc;
 
 	/* only send once per connect */
 	spin_lock(&tcon->tc_lock);
@@ -4370,7 +4370,8 @@ int cifs_tree_connect(const unsigned int xid, struct cifs_tcon *tcon, const stru
 	tcon->status = TID_IN_TCON;
 	spin_unlock(&tcon->tc_lock);
 
-	rc = ops->tree_connect(xid, tcon->ses, tcon->tree_name, tcon, nlsc);
+	rc = ops->tree_connect(xid, tcon->ses, tcon->tree_name,
+			       tcon, tcon->ses->local_nls);
 	if (rc) {
 		spin_lock(&tcon->tc_lock);
 		if (tcon->status == TID_IN_TCON)

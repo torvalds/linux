@@ -546,7 +546,7 @@ static int tree_connect_dfs_target(const unsigned int xid, struct cifs_tcon *tco
 	return rc;
 }
 
-int cifs_tree_connect(const unsigned int xid, struct cifs_tcon *tcon, const struct nls_table *nlsc)
+int cifs_tree_connect(const unsigned int xid, struct cifs_tcon *tcon)
 {
 	int rc;
 	struct TCP_Server_Info *server = tcon->ses->server;
@@ -588,7 +588,8 @@ int cifs_tree_connect(const unsigned int xid, struct cifs_tcon *tcon, const stru
 		cifs_server_lock(server);
 		scnprintf(tree, MAX_TREE_SIZE, "\\\\%s\\IPC$", server->hostname);
 		cifs_server_unlock(server);
-		rc = ops->tree_connect(xid, tcon->ses, tree, tcon, nlsc);
+		rc = ops->tree_connect(xid, tcon->ses, tree,
+				       tcon, tcon->ses->local_nls);
 		goto out;
 	}
 

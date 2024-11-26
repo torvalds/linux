@@ -70,10 +70,9 @@ static struct {
 static int
 cifs_reconnect_tcon(struct cifs_tcon *tcon, int smb_command)
 {
-	int rc;
-	struct cifs_ses *ses;
 	struct TCP_Server_Info *server;
-	struct nls_table *nls_codepage = NULL;
+	struct cifs_ses *ses;
+	int rc;
 
 	/*
 	 * SMBs NegProt, SessSetup, uLogoff do not have tcon yet so check for
@@ -131,8 +130,6 @@ again:
 	}
 	spin_unlock(&server->srv_lock);
 
-	nls_codepage = ses->local_nls;
-
 	/*
 	 * need to prevent multiple threads trying to simultaneously
 	 * reconnect the same SMB session
@@ -156,7 +153,7 @@ again:
 
 	rc = cifs_negotiate_protocol(0, ses, server);
 	if (!rc)
-		rc = cifs_setup_session(0, ses, server, nls_codepage);
+		rc = cifs_setup_session(0, ses, server, ses->local_nls);
 
 	/* do we need to reconnect tcon? */
 	if (rc || !tcon->need_reconnect) {
@@ -166,7 +163,7 @@ again:
 
 skip_sess_setup:
 	cifs_mark_open_files_invalid(tcon);
-	rc = cifs_tree_connect(0, tcon, nls_codepage);
+	rc = cifs_tree_connect(0, tcon);
 	mutex_unlock(&ses->session_mutex);
 	cifs_dbg(FYI, "reconnect tcon rc = %d\n", rc);
 
