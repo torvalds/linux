@@ -401,6 +401,7 @@ void dcn35_update_clocks(struct clk_mgr *clk_mgr_base,
 		if (clk_mgr_base->clks.dtbclk_en && !new_clocks->dtbclk_en) {
 			if (clk_mgr->base.ctx->dc->config.allow_0_dtb_clk)
 				dcn35_smu_set_dtbclk(clk_mgr, false);
+
 			clk_mgr_base->clks.dtbclk_en = new_clocks->dtbclk_en;
 		}
 		/* check that we're not already in lower */
@@ -418,11 +419,17 @@ void dcn35_update_clocks(struct clk_mgr *clk_mgr_base,
 		}
 
 		if (!clk_mgr_base->clks.dtbclk_en && new_clocks->dtbclk_en) {
-			dcn35_smu_set_dtbclk(clk_mgr, true);
-			clk_mgr_base->clks.dtbclk_en = new_clocks->dtbclk_en;
+			int actual_dtbclk = 0;
 
 			dcn35_update_clocks_update_dtb_dto(clk_mgr, context, new_clocks->ref_dtbclk_khz);
-			clk_mgr_base->clks.ref_dtbclk_khz = new_clocks->ref_dtbclk_khz;
+			dcn35_smu_set_dtbclk(clk_mgr, true);
+
+			actual_dtbclk = REG_READ(CLK1_CLK4_CURRENT_CNT);
+
+			if (actual_dtbclk) {
+				clk_mgr_base->clks.ref_dtbclk_khz = new_clocks->ref_dtbclk_khz;
+				clk_mgr_base->clks.dtbclk_en = new_clocks->dtbclk_en;
+			}
 		}
 
 		/* check that we're not already in D0 */
@@ -584,12 +591,10 @@ static bool dcn35_is_spll_ssc_enabled(struct clk_mgr *clk_mgr_base)
 
 static void init_clk_states(struct clk_mgr *clk_mgr)
 {
-	struct clk_mgr_internal *clk_mgr_int = TO_CLK_MGR_INTERNAL(clk_mgr);
 	uint32_t ref_dtbclk = clk_mgr->clks.ref_dtbclk_khz;
+
 	memset(&(clk_mgr->clks), 0, sizeof(struct dc_clocks));
 
-	if (clk_mgr_int->smu_ver >= SMU_VER_THRESHOLD)
-		clk_mgr->clks.dtbclk_en = true; // request DTBCLK disable on first commit
 	clk_mgr->clks.ref_dtbclk_khz = ref_dtbclk;	// restore ref_dtbclk
 	clk_mgr->clks.p_state_change_support = true;
 	clk_mgr->clks.prev_p_state_change_support = true;
@@ -600,6 +605,7 @@ static void init_clk_states(struct clk_mgr *clk_mgr)
 void dcn35_init_clocks(struct clk_mgr *clk_mgr)
 {
 	struct clk_mgr_internal *clk_mgr_int = TO_CLK_MGR_INTERNAL(clk_mgr);
+
 	init_clk_states(clk_mgr);
 
 	// to adjust dp_dto reference clock if ssc is enable otherwise to apply dprefclk
