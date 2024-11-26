@@ -18315,6 +18315,13 @@ F:	drivers/pinctrl/
 F:	include/dt-bindings/pinctrl/
 F:	include/linux/pinctrl/
 
+PIN CONTROLLER - AIROHA
+M:	Lorenzo Bianconi <lorenzo@kernel.org>
+L:	linux-mediatek@lists.infradead.org (moderated for non-subscribers)
+S:	Maintained
+F:	Documentation/devicetree/bindings/pinctrl/airoha,en7581-pinctrl.yaml
+F:	drivers/pinctrl/mediatek/pinctrl-airoha.c
+
 PIN CONTROLLER - AMD
 M:	Basavaraj Natikar <Basavaraj.Natikar@amd.com>
 M:	Shyam Sundar S K <Shyam-sundar.S-k@amd.com>
@@ -20073,9 +20080,11 @@ S:	Maintained
 T:	git https://github.com/pdp7/linux.git
 F:	Documentation/devicetree/bindings/clock/thead,th1520-clk-ap.yaml
 F:	Documentation/devicetree/bindings/net/thead,th1520-gmac.yaml
+F:	Documentation/devicetree/bindings/pinctrl/thead,th1520-pinctrl.yaml
 F:	arch/riscv/boot/dts/thead/
 F:	drivers/clk/thead/clk-th1520-ap.c
 F:	drivers/net/ethernet/stmicro/stmmac/dwmac-thead.c
+F:	drivers/pinctrl/pinctrl-th1520.c
 F:	include/dt-bindings/clock/thead,th1520-clk-ap.h
 
 RNBD BLOCK DRIVERS
