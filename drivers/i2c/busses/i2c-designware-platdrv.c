@@ -349,6 +349,7 @@ static const struct acpi_device_id dw_i2c_acpi_match[] = {
 	{ "AMDI0019", ACCESS_INTR_MASK | ARBITRATION_SEMAPHORE },
 	{ "AMDI0510", 0 },
 	{ "APMC0D0F", 0 },
+	{ "FUJI200B", 0 },
 	{ "HISI02A1", 0 },
 	{ "HISI02A2", 0 },
 	{ "HISI02A3", 0 },

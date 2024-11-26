@@ -151,19 +151,38 @@ static int i2c_dw_set_timings_master(struct dw_i2c_dev *dev)
 			dev->hs_hcnt = 0;
 			dev->hs_lcnt = 0;
 		} else if (!dev->hs_hcnt || !dev->hs_lcnt) {
+			u32 t_high, t_low;
+
+			/*
+			 * The legal values stated in the databook for bus
+			 * capacitance are only 100pF and 400pF.
+			 * If dev->bus_capacitance_pF is greater than or equals
+			 * to 400, t_high and t_low are assumed to be
+			 * appropriate values for 400pF, otherwise 100pF.
+			 */
+			if (dev->bus_capacitance_pF >= 400) {
+				/* assume bus capacitance is 400pF */
+				t_high = dev->clk_freq_optimized ? 160 : 120;
+				t_low = 320;
+			} else {
+				/* assume bus capacitance is 100pF */
+				t_high = 60;
+				t_low = dev->clk_freq_optimized ? 120 : 160;
+			}
+
 			ic_clk = i2c_dw_clk_rate(dev);
 			dev->hs_hcnt =
 				i2c_dw_scl_hcnt(dev,
 						DW_IC_HS_SCL_HCNT,
 						ic_clk,
-						160,	/* tHIGH = 160 ns */
+						t_high,
 						sda_falling_time,
 						0);	/* No offset */
 			dev->hs_lcnt =
 				i2c_dw_scl_lcnt(dev,
 						DW_IC_HS_SCL_LCNT,
 						ic_clk,
-						320,	/* tLOW = 320 ns */
+						t_low,
 						scl_falling_time,
 						0);	/* No offset */
 		}
