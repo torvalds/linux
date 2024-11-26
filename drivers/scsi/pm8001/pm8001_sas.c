@@ -101,6 +101,63 @@ int pm8001_tag_alloc(struct pm8001_hba_info *pm8001_ha, u32 *tag_out)
 	return 0;
 }
 
+static void pm80xx_get_tag_opcodes(struct sas_task *task, int *ata_op,
+								   int *ata_tag, bool *task_aborted)
+{
+	unsigned long flags;
+	struct ata_queued_cmd *qc = NULL;
+
+	*ata_op = 0;
+	*ata_tag = -1;
+	*task_aborted = false;
+
+	if (!task)
+		return;
+
+	spin_lock_irqsave(&task->task_state_lock, flags);
+	if (unlikely((task->task_state_flags & SAS_TASK_STATE_ABORTED)))
+		*task_aborted = true;
+	spin_unlock_irqrestore(&task->task_state_lock, flags);
+
+	if (task->task_proto == SAS_PROTOCOL_STP) {
+		// sas_ata_qc_issue path uses SAS_PROTOCOL_STP.
+		// This only works for scsi + libsas + libata users.
+		qc = task->uldd_task;
+		if (qc) {
+			*ata_op = qc->tf.command;
+			*ata_tag = qc->tag;
+		}
+	}
+}
+
+void pm80xx_show_pending_commands(struct pm8001_hba_info *pm8001_ha,
+				  struct pm8001_device *target_pm8001_dev)
+{
+	int i = 0, ata_op = 0, ata_tag = -1;
+	struct pm8001_ccb_info *ccb = NULL;
+	struct sas_task *task = NULL;
+	struct pm8001_device *pm8001_dev = NULL;
+	bool task_aborted;
+
+	for (i = 0; i < pm8001_ha->ccb_count; i++) {
+		ccb = &pm8001_ha->ccb_info[i];
+		if (ccb->ccb_tag == PM8001_INVALID_TAG)
+			continue;
+		pm8001_dev = ccb->device;
+		if (target_pm8001_dev && pm8001_dev &&
+		    target_pm8001_dev != pm8001_dev)
+			continue;
+		task = ccb->task;
+		pm80xx_get_tag_opcodes(task, &ata_op, &ata_tag, &task_aborted);
+		pm8001_dbg(pm8001_ha, FAIL,
+			"tag %#x, device %#x task %p task aborted %d ata opcode %#x ata tag %d\n",
+			ccb->ccb_tag,
+			(pm8001_dev ? pm8001_dev->device_id : 0),
+			task, task_aborted,
+			ata_op, ata_tag);
+	}
+}
+
 /**
  * pm8001_mem_alloc - allocate memory for pm8001.
  * @pdev: pci device.
