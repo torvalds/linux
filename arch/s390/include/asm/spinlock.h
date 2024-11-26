@@ -85,7 +85,7 @@ static inline void arch_spin_unlock(arch_spinlock_t *lp)
 		"	sth	%[zero],%[lock]\n"
 		: [lock] "=R" (((unsigned short *)&lp->lock)[1])
 		: [zero] "d" (0)
-		: "cc", "memory");
+		: "memory");
 }
 
 /*
