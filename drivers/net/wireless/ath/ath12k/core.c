@@ -79,11 +79,17 @@ int ath12k_core_suspend(struct ath12k_base *ab)
 		ar = ab->pdevs[i].ar;
 		if (!ar)
 			continue;
+
+		wiphy_lock(ath12k_ar_to_hw(ar)->wiphy);
+
 		ret = ath12k_mac_wait_tx_complete(ar);
 		if (ret) {
+			wiphy_unlock(ath12k_ar_to_hw(ar)->wiphy);
 			ath12k_warn(ab, "failed to wait tx complete: %d\n", ret);
 			return ret;
 		}
+
+		wiphy_unlock(ath12k_ar_to_hw(ar)->wiphy);
 	}
 
 	/* PM framework skips suspend_late/resume_early callbacks

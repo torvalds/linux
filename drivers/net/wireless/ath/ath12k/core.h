@@ -679,7 +679,7 @@ struct ath12k {
 
 	struct work_struct regd_update_work;
 
-	struct work_struct wmi_mgmt_tx_work;
+	struct wiphy_work wmi_mgmt_tx_work;
 	struct sk_buff_head wmi_mgmt_tx_queue;
 
 	struct ath12k_wow wow;
