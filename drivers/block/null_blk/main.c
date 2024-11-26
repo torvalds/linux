@@ -266,6 +266,10 @@ static bool g_zone_full;
 module_param_named(zone_full, g_zone_full, bool, S_IRUGO);
 MODULE_PARM_DESC(zone_full, "Initialize the sequential write required zones of a zoned device to be full. Default: false");
 
+static bool g_rotational;
+module_param_named(rotational, g_rotational, bool, S_IRUGO);
+MODULE_PARM_DESC(rotational, "Set the rotational feature for the device. Default: false");
+
 static struct nullb_device *null_alloc_dev(void);
 static void null_free_dev(struct nullb_device *dev);
 static void null_del_dev(struct nullb *nullb);
@@ -468,6 +472,7 @@ NULLB_DEVICE_ATTR(no_sched, bool, NULL);
 NULLB_DEVICE_ATTR(shared_tags, bool, NULL);
 NULLB_DEVICE_ATTR(shared_tag_bitmap, bool, NULL);
 NULLB_DEVICE_ATTR(fua, bool, NULL);
+NULLB_DEVICE_ATTR(rotational, bool, NULL);
 
 static ssize_t nullb_device_power_show(struct config_item *item, char *page)
 {
@@ -621,6 +626,7 @@ static struct configfs_attribute *nullb_device_attrs[] = {
 	&nullb_device_attr_shared_tags,
 	&nullb_device_attr_shared_tag_bitmap,
 	&nullb_device_attr_fua,
+	&nullb_device_attr_rotational,
 	NULL,
 };
 
@@ -706,7 +712,8 @@ static ssize_t memb_group_features_show(struct config_item *item, char *page)
 			"shared_tags,size,submit_queues,use_per_node_hctx,"
 			"virt_boundary,zoned,zone_capacity,zone_max_active,"
 			"zone_max_open,zone_nr_conv,zone_offline,zone_readonly,"
-			"zone_size,zone_append_max_sectors,zone_full\n");
+			"zone_size,zone_append_max_sectors,zone_full,"
+			"rotational\n");
 }
 
 CONFIGFS_ATTR_RO(memb_group_, features);
@@ -793,6 +800,7 @@ static struct nullb_device *null_alloc_dev(void)
 	dev->shared_tags = g_shared_tags;
 	dev->shared_tag_bitmap = g_shared_tag_bitmap;
 	dev->fua = g_fua;
+	dev->rotational = g_rotational;
 
 	return dev;
 }
@@ -1937,6 +1945,9 @@ static int null_add_dev(struct nullb_device *dev)
 		if (dev->fua)
 			lim.features |= BLK_FEAT_FUA;
 	}
+
+	if (dev->rotational)
+		lim.features |= BLK_FEAT_ROTATIONAL;
 
 	nullb->disk = blk_mq_alloc_disk(nullb->tag_set, &lim, nullb);
 	if (IS_ERR(nullb->disk)) {
