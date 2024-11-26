@@ -82,9 +82,10 @@ static inline void arch_spin_unlock(arch_spinlock_t *lp)
 	kcsan_release();
 	asm_inline volatile(
 		ALTERNATIVE("nop", ".insn rre,0xb2fa0000,7,0", ALT_FACILITY(49)) /* NIAI 7 */
-		"	sth	%1,%0\n"
-		: "=R" (((unsigned short *) &lp->lock)[1])
-		: "d" (0) : "cc", "memory");
+		"	sth	%[zero],%[lock]\n"
+		: [lock] "=R" (((unsigned short *)&lp->lock)[1])
+		: [zero] "d" (0)
+		: "cc", "memory");
 }
 
 /*
