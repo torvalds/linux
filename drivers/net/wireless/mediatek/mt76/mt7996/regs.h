@@ -175,6 +175,9 @@ enum offs_rev {
 #define MT_WTBLOFF_RSCR_RCPI_MODE		GENMASK(31, 30)
 #define MT_WTBLOFF_RSCR_RCPI_PARAM		GENMASK(25, 24)
 
+#define MT_WTBLOFF_ACR(_band)			MT_WTBLOFF(_band, 0x010)
+#define MT_WTBLOFF_ADM_BACKOFFTIME		BIT(29)
+
 /* ETBF: band 0(0x820ea000), band 1(0x820fa000), band 2(0x830ea000) */
 #define MT_WF_ETBF_BASE(_band)			__BASE(WF_ETBF_BASE, (_band))
 #define MT_WF_ETBF(_band, ofs)			(MT_WF_ETBF_BASE(_band) + (ofs))
