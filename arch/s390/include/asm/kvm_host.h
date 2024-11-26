@@ -94,11 +94,16 @@ union ipte_control {
 	};
 };
 
+/*
+ * Utility is defined as two bytes but having it four bytes wide
+ * generates more efficient code. Since the following bytes are
+ * reserved this makes no functional difference.
+ */
 union sca_utility {
-	__u16 val;
+	__u32 val;
 	struct {
-		__u16 mtcr : 1;
-		__u16 reserved : 15;
+		__u32 mtcr : 1;
+		__u32	   : 31;
 	};
 };
 
@@ -107,7 +112,7 @@ struct bsca_block {
 	__u64	reserved[5];
 	__u64	mcn;
 	union sca_utility utility;
-	__u8	reserved2[6];
+	__u8	reserved2[4];
 	struct bsca_entry cpu[KVM_S390_BSCA_CPU_SLOTS];
 };
 
@@ -115,7 +120,7 @@ struct esca_block {
 	union ipte_control ipte_control;
 	__u64   reserved1[6];
 	union sca_utility utility;
-	__u8	reserved2[6];
+	__u8	reserved2[4];
 	__u64   mcn[4];
 	__u64   reserved3[20];
 	struct esca_entry cpu[KVM_S390_ESCA_CPU_SLOTS];
