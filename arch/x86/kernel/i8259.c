@@ -23,6 +23,7 @@
 #include <asm/desc.h>
 #include <asm/apic.h>
 #include <asm/i8259.h>
+#include <asm/io_apic.h>
 
 /*
  * This is the 'legacy' 8259A Programmable Interrupt Controller,
