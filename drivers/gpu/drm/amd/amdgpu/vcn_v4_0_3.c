@@ -92,8 +92,8 @@ static int vcn_v4_0_3_set_powergating_state_inst(struct amdgpu_ip_block *ip_bloc
 						 int i);
 static int vcn_v4_0_3_set_powergating_state(struct amdgpu_ip_block *ip_block,
 					    enum amd_powergating_state state);
-static int vcn_v4_0_3_pause_dpg_mode(struct amdgpu_device *adev,
-		int inst_idx, struct dpg_pause_state *new_state);
+static int vcn_v4_0_3_pause_dpg_mode(struct amdgpu_vcn_inst *vinst,
+				     struct dpg_pause_state *new_state);
 static void vcn_v4_0_3_unified_ring_set_wptr(struct amdgpu_ring *ring);
 static void vcn_v4_0_3_set_ras_funcs(struct amdgpu_device *adev);
 static void vcn_v4_0_3_enable_ras(struct amdgpu_device *adev,
@@ -1443,14 +1443,13 @@ Done:
 /**
  * vcn_v4_0_3_pause_dpg_mode - VCN pause with dpg mode
  *
- * @adev: amdgpu_device pointer
- * @inst_idx: instance number index
+ * @vinst: VCN instance
  * @new_state: pause state
  *
  * Pause dpg mode for VCN block
  */
-static int vcn_v4_0_3_pause_dpg_mode(struct amdgpu_device *adev, int inst_idx,
-				struct dpg_pause_state *new_state)
+static int vcn_v4_0_3_pause_dpg_mode(struct amdgpu_vcn_inst *vinst,
+				     struct dpg_pause_state *new_state)
 {
 
 	return 0;

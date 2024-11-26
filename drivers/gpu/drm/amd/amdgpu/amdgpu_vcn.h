@@ -327,8 +327,7 @@ struct amdgpu_vcn_inst {
 	bool			indirect_sram;
 	struct amdgpu_vcn_reg	 internal;
 	struct mutex		vcn1_jpeg1_workaround;
-	int (*pause_dpg_mode)(struct amdgpu_device *adev,
-			      int inst_idx,
+	int (*pause_dpg_mode)(struct amdgpu_vcn_inst *vinst,
 			      struct dpg_pause_state *new_state);
 	bool using_unified_queue;
 };

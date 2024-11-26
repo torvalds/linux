@@ -417,7 +417,7 @@ static void amdgpu_vcn_idle_work_handler(struct work_struct *work)
 		else
 			new_state.fw_based = VCN_DPG_STATE__UNPAUSE;
 
-		adev->vcn.inst[i].pause_dpg_mode(adev, i, &new_state);
+		adev->vcn.inst[i].pause_dpg_mode(vcn_inst, &new_state);
 	}
 
 	fence[i] += amdgpu_fence_count_emitted(&vcn_inst->ring_dec);
@@ -474,7 +474,7 @@ void amdgpu_vcn_ring_begin_use(struct amdgpu_ring *ring)
 				new_state.fw_based = VCN_DPG_STATE__UNPAUSE;
 		}
 
-		adev->vcn.inst[ring->me].pause_dpg_mode(adev, ring->me, &new_state);
+		adev->vcn.inst[ring->me].pause_dpg_mode(&adev->vcn.inst[ring->me], &new_state);
 	}
 	mutex_unlock(&adev->vcn.inst[ring->me].vcn_pg_lock);
 }

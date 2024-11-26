@@ -94,8 +94,8 @@ static void vcn_v2_0_set_enc_ring_funcs(struct amdgpu_device *adev);
 static void vcn_v2_0_set_irq_funcs(struct amdgpu_device *adev);
 static int vcn_v2_0_set_powergating_state(struct amdgpu_ip_block *ip_block,
 				enum amd_powergating_state state);
-static int vcn_v2_0_pause_dpg_mode(struct amdgpu_device *adev,
-				int inst_idx, struct dpg_pause_state *new_state);
+static int vcn_v2_0_pause_dpg_mode(struct amdgpu_vcn_inst *vinst,
+				   struct dpg_pause_state *new_state);
 static int vcn_v2_0_start_sriov(struct amdgpu_device *adev);
 /**
  * vcn_v2_0_early_init - set function pointers and load microcode
@@ -1158,7 +1158,7 @@ static int vcn_v2_0_stop_dpg_mode(struct amdgpu_vcn_inst *vinst)
 	struct dpg_pause_state state = {.fw_based = VCN_DPG_STATE__UNPAUSE};
 	uint32_t tmp;
 
-	vcn_v2_0_pause_dpg_mode(adev, 0, &state);
+	vcn_v2_0_pause_dpg_mode(vinst, &state);
 	/* Wait for power status to be 1 */
 	SOC15_WAIT_ON_RREG(UVD, 0, mmUVD_POWER_STATUS, 1,
 		UVD_POWER_STATUS__UVD_POWER_STATUS_MASK);
@@ -1252,9 +1252,11 @@ power_off:
 	return 0;
 }
 
-static int vcn_v2_0_pause_dpg_mode(struct amdgpu_device *adev,
-				int inst_idx, struct dpg_pause_state *new_state)
+static int vcn_v2_0_pause_dpg_mode(struct amdgpu_vcn_inst *vinst,
+				   struct dpg_pause_state *new_state)
 {
+	struct amdgpu_device *adev = vinst->adev;
+	int inst_idx = vinst->inst;
 	struct amdgpu_ring *ring;
 	uint32_t reg_data = 0;
 	int ret_code;

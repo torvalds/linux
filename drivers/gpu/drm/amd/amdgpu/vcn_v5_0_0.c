@@ -83,8 +83,8 @@ static int vcn_v5_0_0_set_powergating_state_inst(struct amdgpu_ip_block *ip_bloc
 						 int i);
 static int vcn_v5_0_0_set_powergating_state(struct amdgpu_ip_block *ip_block,
 					    enum amd_powergating_state state);
-static int vcn_v5_0_0_pause_dpg_mode(struct amdgpu_device *adev,
-		int inst_idx, struct dpg_pause_state *new_state);
+static int vcn_v5_0_0_pause_dpg_mode(struct amdgpu_vcn_inst *vinst,
+				     struct dpg_pause_state *new_state);
 static void vcn_v5_0_0_unified_ring_set_wptr(struct amdgpu_ring *ring);
 
 /**
@@ -961,7 +961,7 @@ static void vcn_v5_0_0_stop_dpg_mode(struct amdgpu_vcn_inst *vinst)
 	struct dpg_pause_state state = {.fw_based = VCN_DPG_STATE__UNPAUSE};
 	uint32_t tmp;
 
-	vcn_v5_0_0_pause_dpg_mode(adev, inst_idx, &state);
+	vcn_v5_0_0_pause_dpg_mode(vinst, &state);
 
 	/* Wait for power status to be 1 */
 	SOC15_WAIT_ON_RREG(VCN, inst_idx, regUVD_POWER_STATUS, 1,
@@ -1066,15 +1066,16 @@ done:
 /**
  * vcn_v5_0_0_pause_dpg_mode - VCN pause with dpg mode
  *
- * @adev: amdgpu_device pointer
- * @inst_idx: instance number index
+ * @vinst: VCN instance
  * @new_state: pause state
  *
  * Pause dpg mode for VCN block
  */
-static int vcn_v5_0_0_pause_dpg_mode(struct amdgpu_device *adev, int inst_idx,
-	struct dpg_pause_state *new_state)
+static int vcn_v5_0_0_pause_dpg_mode(struct amdgpu_vcn_inst *vinst,
+				     struct dpg_pause_state *new_state)
 {
+	struct amdgpu_device *adev = vinst->adev;
+	int inst_idx = vinst->inst;
 	uint32_t reg_data = 0;
 	int ret_code;
 

@@ -100,8 +100,8 @@ static int vcn_v2_5_set_powergating_state_inst(struct amdgpu_ip_block *ip_block,
 					       int i);
 static int vcn_v2_5_set_powergating_state(struct amdgpu_ip_block *ip_block,
 					  enum amd_powergating_state state);
-static int vcn_v2_5_pause_dpg_mode(struct amdgpu_device *adev,
-				int inst_idx, struct dpg_pause_state *new_state);
+static int vcn_v2_5_pause_dpg_mode(struct amdgpu_vcn_inst *vinst,
+				   struct dpg_pause_state *new_state);
 static int vcn_v2_5_sriov_start(struct amdgpu_device *adev);
 static void vcn_v2_5_set_ras_funcs(struct amdgpu_device *adev);
 
@@ -1510,9 +1510,11 @@ done:
 	return r;
 }
 
-static int vcn_v2_5_pause_dpg_mode(struct amdgpu_device *adev,
-				int inst_idx, struct dpg_pause_state *new_state)
+static int vcn_v2_5_pause_dpg_mode(struct amdgpu_vcn_inst *vinst,
+				   struct dpg_pause_state *new_state)
 {
+	struct amdgpu_device *adev = vinst->adev;
+	int inst_idx = vinst->inst;
 	struct amdgpu_ring *ring;
 	uint32_t reg_data = 0;
 	int ret_code = 0;
