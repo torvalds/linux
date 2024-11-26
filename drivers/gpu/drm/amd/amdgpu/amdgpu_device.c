@@ -3670,9 +3670,11 @@ static int amdgpu_device_ip_reinit_early_sriov(struct amdgpu_device *adev)
 				continue;
 
 			r = block->version->funcs->hw_init(&adev->ip_blocks[i]);
-			DRM_INFO("RE-INIT-early: %s %s\n", block->version->funcs->name, r?"failed":"succeeded");
-			if (r)
+			if (r) {
+				dev_err(adev->dev, "RE-INIT-early: %s failed\n",
+					 block->version->funcs->name);
 				return r;
+			}
 			block->status.hw = true;
 		}
 	}
@@ -3682,7 +3684,8 @@ static int amdgpu_device_ip_reinit_early_sriov(struct amdgpu_device *adev)
 
 static int amdgpu_device_ip_reinit_late_sriov(struct amdgpu_device *adev)
 {
-	int i, r;
+	struct amdgpu_ip_block *block;
+	int i, r = 0;
 
 	static enum amd_ip_block_type ip_order[] = {
 		AMD_IP_BLOCK_TYPE_SMC,
@@ -3697,34 +3700,28 @@ static int amdgpu_device_ip_reinit_late_sriov(struct amdgpu_device *adev)
 	};
 
 	for (i = 0; i < ARRAY_SIZE(ip_order); i++) {
-		int j;
-		struct amdgpu_ip_block *block;
+		block = amdgpu_device_ip_get_ip_block(adev, ip_order[i]);
 
-		for (j = 0; j < adev->num_ip_blocks; j++) {
-			block = &adev->ip_blocks[j];
+		if (!block)
+			continue;
 
-			if (block->version->type != ip_order[i] ||
-				!block->status.valid ||
-				block->status.hw)
-				continue;
-
+		if (block->status.valid && !block->status.hw) {
 			if (block->version->type == AMD_IP_BLOCK_TYPE_SMC) {
-				r = amdgpu_ip_block_resume(&adev->ip_blocks[i]);
-				if (r)
-					return r;
+				r = amdgpu_ip_block_resume(block);
 			} else {
-				r = block->version->funcs->hw_init(&adev->ip_blocks[i]);
-				if (r) {
-					DRM_ERROR("hw_init of IP block <%s> failed %d\n",
-						  adev->ip_blocks[i].version->funcs->name, r);
-					return r;
-				}
-				block->status.hw = true;
+				r = block->version->funcs->hw_init(block);
 			}
+
+			if (r) {
+				dev_err(adev->dev, "RE-INIT-late: %s failed\n",
+					 block->version->funcs->name);
+				break;
+			}
+			block->status.hw = true;
 		}
 	}
 
-	return 0;
+	return r;
 }
 
 /**
