@@ -185,14 +185,6 @@ static int mes_userq_create_ctx_space(struct amdgpu_userq_mgr *uq_mgr,
 	return 0;
 }
 
-static void mes_userq_set_fence_space(struct amdgpu_usermode_queue *queue)
-{
-	struct v11_gfx_mqd *mqd = queue->mqd.cpu_ptr;
-
-	mqd->fenceaddress_lo = lower_32_bits(queue->fence_drv->gpu_addr);
-	mqd->fenceaddress_hi = upper_32_bits(queue->fence_drv->gpu_addr);
-}
-
 static int mes_userq_mqd_create(struct amdgpu_userq_mgr *uq_mgr,
 				struct drm_amdgpu_userq_in *args_in,
 				struct amdgpu_usermode_queue *queue)
@@ -231,6 +223,7 @@ static int mes_userq_mqd_create(struct amdgpu_userq_mgr *uq_mgr,
 	userq_props->mqd_gpu_addr = queue->mqd.gpu_addr;
 	userq_props->use_doorbell = true;
 	userq_props->doorbell_index = queue->doorbell_index;
+	userq_props->fence_address = queue->fence_drv->gpu_addr;
 
 	if (queue->queue_type == AMDGPU_HW_IP_COMPUTE) {
 		struct drm_amdgpu_userq_mqd_compute_gfx11 *compute_mqd;
@@ -306,8 +299,6 @@ static int mes_userq_mqd_create(struct amdgpu_userq_mgr *uq_mgr,
 		DRM_ERROR("Failed to allocate BO for userqueue (%d)", r);
 		goto free_mqd;
 	}
-
-	mes_userq_set_fence_space(queue);
 
 	/* FW expects WPTR BOs to be mapped into GART */
 	r = mes_userq_create_wptr_mapping(uq_mgr, queue, userq_props->wptr_gpu_addr);

@@ -4134,6 +4134,8 @@ static int gfx_v11_0_gfx_mqd_init(struct amdgpu_device *adev, void *m,
 	mqd->gds_bkup_base_hi = upper_32_bits(prop->gds_bkup_addr);
 	mqd->fw_work_area_base_lo = lower_32_bits(prop->csa_addr);
 	mqd->fw_work_area_base_hi = upper_32_bits(prop->csa_addr);
+	mqd->fence_address_lo = lower_32_bits(prop->fence_address);
+	mqd->fence_address_hi = upper_32_bits(prop->fence_address);
 
 	return 0;
 }

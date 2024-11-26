@@ -535,8 +535,8 @@ struct v12_gfx_mqd {
     uint32_t reserved_507; // offset: 507  (0x1FB)
     uint32_t reserved_508; // offset: 508  (0x1FC)
     uint32_t reserved_509; // offset: 509  (0x1FD)
-    uint32_t reserved_510; // offset: 510  (0x1FE)
-    uint32_t reserved_511; // offset: 511  (0x1FF)
+    uint32_t fence_address_lo; // offset: 510  (0x1FE)
+    uint32_t fence_address_hi; // offset: 511  (0x1FF)
 };
 
 struct v12_sdma_mqd {

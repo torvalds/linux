@@ -833,6 +833,7 @@ struct amdgpu_mqd_prop {
 	uint64_t shadow_addr;
 	uint64_t gds_bkup_addr;
 	uint64_t csa_addr;
+	uint64_t fence_address;
 };
 
 struct amdgpu_mqd {
