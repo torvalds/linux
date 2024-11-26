@@ -52,8 +52,8 @@ static int __init hw_break_module_init(void)
 	attr.bp_type = HW_BREAKPOINT_W;
 
 	sample_hbp = register_wide_hw_breakpoint(&attr, sample_hbp_handler, NULL);
-	if (IS_ERR((void __force *)sample_hbp)) {
-		ret = PTR_ERR((void __force *)sample_hbp);
+	if (IS_ERR_PCPU(sample_hbp)) {
+		ret = PTR_ERR_PCPU(sample_hbp);
 		goto fail;
 	}
 

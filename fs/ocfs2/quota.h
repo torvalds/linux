@@ -97,7 +97,6 @@ ssize_t ocfs2_quota_write(struct super_block *sb, int type,
 			  const char *data, size_t len, loff_t off);
 int ocfs2_global_read_info(struct super_block *sb, int type);
 int ocfs2_global_write_info(struct super_block *sb, int type);
-int ocfs2_global_read_dquot(struct dquot *dquot);
 int __ocfs2_sync_dquot(struct dquot *dquot, int freeing);
 static inline int ocfs2_sync_dquot(struct dquot *dquot)
 {

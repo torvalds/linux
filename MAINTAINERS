@@ -15585,6 +15585,15 @@ F:	arch/arm/boot/dts/marvell/armada-xp-crs326-24g-2s.dts
 F:	arch/arm/boot/dts/marvell/armada-xp-crs328-4c-20s-4s-bit.dts
 F:	arch/arm/boot/dts/marvell/armada-xp-crs328-4c-20s-4s.dts
 
+MIN HEAP
+M:	Kuan-Wei Chiu <visitorckw@gmail.com>
+L:	linux-kernel@vger.kernel.org
+S:	Maintained
+F:	Documentation/core-api/min_heap.rst
+F:	include/linux/min_heap.h
+F:	lib/min_heap.c
+F:	lib/test_min_heap.c
+
 MIPI CCS, SMIA AND SMIA++ IMAGE SENSOR DRIVER
 M:	Sakari Ailus <sakari.ailus@linux.intel.com>
 L:	linux-media@vger.kernel.org
