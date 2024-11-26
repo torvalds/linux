@@ -17,6 +17,7 @@
 #include <linux/init.h>
 #include <linux/jiffies.h>
 #include <linux/regmap.h>
+#include <linux/regulator/consumer.h>
 #include <linux/slab.h>
 
 #define	DRIVER_NAME "tmp108"
@@ -330,6 +331,10 @@ static int tmp108_common_probe(struct device *dev, struct regmap *regmap, char *
 	struct tmp108 *tmp108;
 	u32 config;
 	int err;
+
+	err = devm_regulator_get_enable(dev, "vcc");
+	if (err)
+		return dev_err_probe(dev, err, "Failed to enable regulator\n");
 
 	tmp108 = devm_kzalloc(dev, sizeof(*tmp108), GFP_KERNEL);
 	if (!tmp108)
