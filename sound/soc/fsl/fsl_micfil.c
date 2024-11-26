@@ -35,6 +35,15 @@
 #define MICFIL_AUDIO_PLL2	1
 #define MICFIL_CLK_EXT3		2
 
+static const unsigned int fsl_micfil_rates[] = {
+	8000, 11025, 16000, 22050, 32000, 44100, 48000,
+};
+
+static const struct snd_pcm_hw_constraint_list fsl_micfil_rate_constraints = {
+	.count = ARRAY_SIZE(fsl_micfil_rates),
+	.list = fsl_micfil_rates,
+};
+
 enum quality {
 	QUALITY_HIGH,
 	QUALITY_MEDIUM,
@@ -486,27 +495,10 @@ static int fsl_micfil_startup(struct snd_pcm_substream *substream,
 			      struct snd_soc_dai *dai)
 {
 	struct fsl_micfil *micfil = snd_soc_dai_get_drvdata(dai);
-	unsigned int rates[MICFIL_NUM_RATES] = {8000, 11025, 16000, 22050, 32000, 44100, 48000};
-	int i, j, k = 0;
-	u64 clk_rate;
 
 	if (!micfil) {
 		dev_err(dai->dev, "micfil dai priv_data not set\n");
 		return -EINVAL;
-	}
-
-	micfil->constraint_rates.list = micfil->constraint_rates_list;
-	micfil->constraint_rates.count = 0;
-
-	for (j = 0; j < MICFIL_NUM_RATES; j++) {
-		for (i = 0; i < MICFIL_CLK_SRC_NUM; i++) {
-			clk_rate = clk_get_rate(micfil->clk_src[i]);
-			if (clk_rate != 0 && do_div(clk_rate, rates[j]) == 0) {
-				micfil->constraint_rates_list[k++] = rates[j];
-				micfil->constraint_rates.count++;
-				break;
-			}
-		}
 	}
 
 	if (micfil->constraint_rates.count > 0)
@@ -1238,6 +1230,13 @@ static int fsl_micfil_probe(struct platform_device *pdev)
 	micfil->clk_src[MICFIL_CLK_EXT3] = devm_clk_get(&pdev->dev, "clkext3");
 	if (IS_ERR(micfil->clk_src[MICFIL_CLK_EXT3]))
 		micfil->clk_src[MICFIL_CLK_EXT3] = NULL;
+
+	fsl_asoc_constrain_rates(&micfil->constraint_rates,
+				 &fsl_micfil_rate_constraints,
+				 micfil->clk_src[MICFIL_AUDIO_PLL1],
+				 micfil->clk_src[MICFIL_AUDIO_PLL2],
+				 micfil->clk_src[MICFIL_CLK_EXT3],
+				 micfil->constraint_rates_list);
 
 	/* init regmap */
 	regs = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
