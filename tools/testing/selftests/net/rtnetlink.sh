@@ -29,6 +29,7 @@ ALL_TESTS="
 	kci_test_bridge_parent_id
 	kci_test_address_proto
 	kci_test_enslave_bonding
+	kci_test_mngtmpaddr
 "
 
 devdummy="test-dummy0"
@@ -44,6 +45,7 @@ check_err()
 	if [ $ret -eq 0 ]; then
 		ret=$1
 	fi
+	[ -n "$2" ] && echo "$2"
 }
 
 # same but inverted -- used when command must fail for test to pass
@@ -1237,6 +1239,99 @@ kci_test_enslave_bonding()
 
 	end_test "PASS: enslave interface in a bond"
 	ip netns del "$testns"
+}
+
+# Called to validate the addresses on $IFNAME:
+#
+# 1. Every `temporary` address must have a matching `mngtmpaddr`
+# 2. Every `mngtmpaddr` address must have some un`deprecated` `temporary`
+#
+# If the mngtmpaddr or tempaddr checking failed, return 0 and stop slowwait
+validate_mngtmpaddr()
+{
+	local dev=$1
+	local prefix=""
+	local addr_list=$(ip -j -n $testns addr show dev ${dev})
+	local temp_addrs=$(echo ${addr_list} | \
+		jq -r '.[].addr_info[] | select(.temporary == true) | .local')
+	local mng_prefixes=$(echo ${addr_list} | \
+		jq -r '.[].addr_info[] | select(.mngtmpaddr == true) | .local' | \
+		cut -d: -f1-4 | tr '\n' ' ')
+	local undep_prefixes=$(echo ${addr_list} | \
+		jq -r '.[].addr_info[] | select(.temporary == true and .deprecated != true) | .local' | \
+		cut -d: -f1-4 | tr '\n' ' ')
+
+	# 1. All temporary addresses (temp and dep) must have a matching mngtmpaddr
+	for address in ${temp_addrs}; do
+		prefix=$(echo ${address} | cut -d: -f1-4)
+		if [[ ! " ${mng_prefixes} " =~ " $prefix " ]]; then
+			check_err 1 "FAIL: Temporary $address with no matching mngtmpaddr!";
+			return 0
+		fi
+	done
+
+	# 2. All mngtmpaddr addresses must have a temporary address (not dep)
+	for prefix in ${mng_prefixes}; do
+		if [[ ! " ${undep_prefixes} " =~ " $prefix " ]]; then
+			check_err 1 "FAIL: No undeprecated temporary in $prefix!";
+			return 0
+		fi
+	done
+
+	return 1
+}
+
+kci_test_mngtmpaddr()
+{
+	local ret=0
+
+	setup_ns testns
+	if [ $? -ne 0 ]; then
+		end_test "SKIP mngtmpaddr tests: cannot add net namespace $testns"
+		return $ksft_skip
+	fi
+
+	# 1. Create a dummy Ethernet interface
+	run_cmd ip -n $testns link add ${devdummy} type dummy
+	run_cmd ip -n $testns link set ${devdummy} up
+	run_cmd ip netns exec $testns sysctl -w net.ipv6.conf.${devdummy}.use_tempaddr=1
+	run_cmd ip netns exec $testns sysctl -w net.ipv6.conf.${devdummy}.temp_prefered_lft=10
+	run_cmd ip netns exec $testns sysctl -w net.ipv6.conf.${devdummy}.temp_valid_lft=25
+	run_cmd ip netns exec $testns sysctl -w net.ipv6.conf.${devdummy}.max_desync_factor=1
+
+	# 2. Create several mngtmpaddr addresses on that interface.
+	# with temp_*_lft configured to be pretty short (10 and 35 seconds
+	# for prefer/valid respectively)
+	for i in $(seq 1 9); do
+		run_cmd ip -n $testns addr add 2001:db8:7e57:${i}::1/64 mngtmpaddr dev ${devdummy}
+	done
+
+	# 3. Confirm that a preferred temporary address exists for each mngtmpaddr
+	# address at all times, polling once per second for 30 seconds.
+	slowwait 30 validate_mngtmpaddr ${devdummy}
+
+	# 4. Delete each mngtmpaddr address, one at a time (alternating between
+	# deleting and merely un-mngtmpaddr-ing), and confirm that the other
+	# mngtmpaddr addresses still have preferred temporaries.
+	for i in $(seq 1 9); do
+		(( $i % 4 == 0 )) && mng_flag="mngtmpaddr" || mng_flag=""
+		if (( $i % 2 == 0 )); then
+			run_cmd ip -n $testns addr del 2001:db8:7e57:${i}::1/64 $mng_flag dev ${devdummy}
+		else
+			run_cmd ip -n $testns addr change 2001:db8:7e57:${i}::1/64 dev ${devdummy}
+		fi
+		# the temp addr should be deleted
+		validate_mngtmpaddr ${devdummy}
+	done
+
+	if [ $ret -ne 0 ]; then
+		end_test "FAIL: mngtmpaddr add/remove incorrect"
+	else
+		end_test "PASS: mngtmpaddr add/remove correctly"
+	fi
+
+	ip netns del "$testns"
+	return $ret
 }
 
 kci_test_rtnl()
