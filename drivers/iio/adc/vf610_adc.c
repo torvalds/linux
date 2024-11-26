@@ -177,6 +177,10 @@ struct vf610_adc {
 	} scan;
 };
 
+struct vf610_chip_info {
+	u8 num_channels;
+};
+
 static const u32 vf610_hw_avgs[] = { 1, 4, 8, 16, 32 };
 static const u32 vf610_lst_adder[] = { 3, 5, 7, 9, 13, 17, 21, 25 };
 
@@ -808,8 +812,17 @@ static const struct iio_info vf610_adc_iio_info = {
 	.attrs = &vf610_attribute_group,
 };
 
+static const struct vf610_chip_info vf610_chip_info = {
+	.num_channels = ARRAY_SIZE(vf610_adc_iio_channels),
+};
+
+static const struct vf610_chip_info imx6sx_chip_info = {
+	.num_channels = 4,
+};
+
 static const struct of_device_id vf610_adc_match[] = {
-	{ .compatible = "fsl,vf610-adc", },
+	{ .compatible = "fsl,imx6sx-adc", .data = &imx6sx_chip_info},
+	{ .compatible = "fsl,vf610-adc", .data = &vf610_chip_info},
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, vf610_adc_match);
@@ -823,6 +836,7 @@ static void vf610_adc_action_remove(void *d)
 
 static int vf610_adc_probe(struct platform_device *pdev)
 {
+	const struct vf610_chip_info *chip_info;
 	struct device *dev = &pdev->dev;
 	struct vf610_adc *info;
 	struct iio_dev *indio_dev;
@@ -839,6 +853,8 @@ static int vf610_adc_probe(struct platform_device *pdev)
 	info->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(info->regs))
 		return PTR_ERR(info->regs);
+
+	chip_info = device_get_match_data(dev);
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
@@ -881,7 +897,7 @@ static int vf610_adc_probe(struct platform_device *pdev)
 	indio_dev->info = &vf610_adc_iio_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = vf610_adc_iio_channels;
-	indio_dev->num_channels = ARRAY_SIZE(vf610_adc_iio_channels);
+	indio_dev->num_channels = chip_info->num_channels;
 
 	vf610_adc_cfg_init(info);
 	vf610_adc_hw_init(info);
