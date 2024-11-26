@@ -8131,14 +8131,9 @@ static int ath12k_mac_op_add_interface(struct ieee80211_hw *hw,
 		vif->hw_queue[i] = ATH12K_HW_DEFAULT_QUEUE;
 
 	vif->driver_flags |= IEEE80211_VIF_SUPPORTS_UAPSD;
-	/* For non-ml vifs, vif->addr is the actual vdev address but for
-	 * ML vif link(link BSSID) address is the vdev address and it can be a
-	 * different one from vif->addr (i.e ML address).
-	 * Defer vdev creation until assign_chanctx or hw_scan is initiated as driver
+	/* Defer vdev creation until assign_chanctx or hw_scan is initiated as driver
 	 * will not know if this interface is an ML vif at this point.
 	 */
-	ath12k_mac_assign_vif_to_vdev(hw, arvif, NULL);
-
 	return 0;
 }
 
