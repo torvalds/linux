@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2017-2022 Broadcom. All Rights Reserved. The term *
+ * Copyright (C) 2017-2024 Broadcom. All Rights Reserved. The term *
  * “Broadcom” refers to Broadcom Inc. and/or its subsidiaries.     *
  * Copyright (C) 2004-2013 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
@@ -102,7 +102,7 @@ struct lpfc_nodelist {
 
 	spinlock_t	lock;			/* Node management lock */
 
-	uint32_t         nlp_flag;		/* entry flags */
+	unsigned long    nlp_flag;		/* entry flags */
 	uint32_t         nlp_DID;		/* FC D_ID of entry */
 	uint32_t         nlp_last_elscmd;	/* Last ELS cmd sent */
 	uint16_t         nlp_type;
@@ -182,37 +182,37 @@ struct lpfc_node_rrq {
 #define lpfc_ndlp_check_qdepth(phba, ndlp) \
 	(ndlp->cmd_qdepth < phba->sli4_hba.max_cfg_param.max_xri)
 
-/* Defines for nlp_flag (uint32) */
-#define NLP_IGNR_REG_CMPL  0x00000001 /* Rcvd rscn before we cmpl reg login */
-#define NLP_REG_LOGIN_SEND 0x00000002   /* sent reglogin to adapter */
-#define NLP_RELEASE_RPI    0x00000004   /* Release RPI to free pool */
-#define NLP_SUPPRESS_RSP   0x00000010	/* Remote NPort supports suppress rsp */
-#define NLP_PLOGI_SND      0x00000020	/* sent PLOGI request for this entry */
-#define NLP_PRLI_SND       0x00000040	/* sent PRLI request for this entry */
-#define NLP_ADISC_SND      0x00000080	/* sent ADISC request for this entry */
-#define NLP_LOGO_SND       0x00000100	/* sent LOGO request for this entry */
-#define NLP_RNID_SND       0x00000400	/* sent RNID request for this entry */
-#define NLP_ELS_SND_MASK   0x000007e0	/* sent ELS request for this entry */
-#define NLP_NVMET_RECOV    0x00001000   /* NVMET auditing node for recovery. */
-#define NLP_UNREG_INP      0x00008000	/* UNREG_RPI cmd is in progress */
-#define NLP_DROPPED        0x00010000	/* Init ref count has been dropped */
-#define NLP_DELAY_TMO      0x00020000	/* delay timeout is running for node */
-#define NLP_NPR_2B_DISC    0x00040000	/* node is included in num_disc_nodes */
-#define NLP_RCV_PLOGI      0x00080000	/* Rcv'ed PLOGI from remote system */
-#define NLP_LOGO_ACC       0x00100000	/* Process LOGO after ACC completes */
-#define NLP_TGT_NO_SCSIID  0x00200000	/* good PRLI but no binding for scsid */
-#define NLP_ISSUE_LOGO     0x00400000	/* waiting to issue a LOGO */
-#define NLP_IN_DEV_LOSS    0x00800000	/* devloss in progress */
-#define NLP_ACC_REGLOGIN   0x01000000	/* Issue Reg Login after successful
+/* nlp_flag mask bits */
+enum lpfc_nlp_flag {
+	NLP_IGNR_REG_CMPL  = 0,         /* Rcvd rscn before we cmpl reg login */
+	NLP_REG_LOGIN_SEND = 1,         /* sent reglogin to adapter */
+	NLP_SUPPRESS_RSP   = 4,         /* Remote NPort supports suppress rsp */
+	NLP_PLOGI_SND      = 5,         /* sent PLOGI request for this entry */
+	NLP_PRLI_SND       = 6,         /* sent PRLI request for this entry */
+	NLP_ADISC_SND      = 7,         /* sent ADISC request for this entry */
+	NLP_LOGO_SND       = 8,         /* sent LOGO request for this entry */
+	NLP_RNID_SND       = 10,        /* sent RNID request for this entry */
+	NLP_NVMET_RECOV    = 12,        /* NVMET auditing node for recovery. */
+	NLP_UNREG_INP      = 15,        /* UNREG_RPI cmd is in progress */
+	NLP_DROPPED        = 16,        /* Init ref count has been dropped */
+	NLP_DELAY_TMO      = 17,        /* delay timeout is running for node */
+	NLP_NPR_2B_DISC    = 18,        /* node is included in num_disc_nodes */
+	NLP_RCV_PLOGI      = 19,        /* Rcv'ed PLOGI from remote system */
+	NLP_LOGO_ACC       = 20,        /* Process LOGO after ACC completes */
+	NLP_TGT_NO_SCSIID  = 21,        /* good PRLI but no binding for scsid */
+	NLP_ISSUE_LOGO     = 22,        /* waiting to issue a LOGO */
+	NLP_IN_DEV_LOSS    = 23,        /* devloss in progress */
+	NLP_ACC_REGLOGIN   = 24,        /* Issue Reg Login after successful
 					   ACC */
-#define NLP_NPR_ADISC      0x02000000	/* Issue ADISC when dq'ed from
+	NLP_NPR_ADISC      = 25,        /* Issue ADISC when dq'ed from
 					   NPR list */
-#define NLP_RM_DFLT_RPI    0x04000000	/* need to remove leftover dflt RPI */
-#define NLP_NODEV_REMOVE   0x08000000	/* Defer removal till discovery ends */
-#define NLP_TARGET_REMOVE  0x10000000   /* Target remove in process */
-#define NLP_SC_REQ         0x20000000	/* Target requires authentication */
-#define NLP_FIRSTBURST     0x40000000	/* Target supports FirstBurst */
-#define NLP_RPI_REGISTERED 0x80000000	/* nlp_rpi is valid */
+	NLP_RM_DFLT_RPI    = 26,        /* need to remove leftover dflt RPI */
+	NLP_NODEV_REMOVE   = 27,        /* Defer removal till discovery ends */
+	NLP_TARGET_REMOVE  = 28,        /* Target remove in process */
+	NLP_SC_REQ         = 29,        /* Target requires authentication */
+	NLP_FIRSTBURST     = 30,        /* Target supports FirstBurst */
+	NLP_RPI_REGISTERED = 31         /* nlp_rpi is valid */
+};
 
 /* There are 4 different double linked lists nodelist entries can reside on.
  * The Port Login (PLOGI) list and Address Discovery (ADISC) list are used
