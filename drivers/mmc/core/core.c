@@ -557,8 +557,7 @@ int mmc_cqe_recovery(struct mmc_host *host)
 
 	memset(&cmd, 0, sizeof(cmd));
 	cmd.opcode       = MMC_STOP_TRANSMISSION;
-	cmd.flags        = MMC_RSP_R1B | MMC_CMD_AC;
-	cmd.flags       &= ~MMC_RSP_CRC; /* Ignore CRC */
+	cmd.flags        = MMC_RSP_R1B_NO_CRC | MMC_CMD_AC; /* Ignore CRC */
 	cmd.busy_timeout = MMC_CQE_RECOVERY_TIMEOUT;
 	mmc_wait_for_cmd(host, &cmd, MMC_CMD_RETRIES);
 
@@ -567,8 +566,7 @@ int mmc_cqe_recovery(struct mmc_host *host)
 	memset(&cmd, 0, sizeof(cmd));
 	cmd.opcode       = MMC_CMDQ_TASK_MGMT;
 	cmd.arg          = 1; /* Discard entire queue */
-	cmd.flags        = MMC_RSP_R1B | MMC_CMD_AC;
-	cmd.flags       &= ~MMC_RSP_CRC; /* Ignore CRC */
+	cmd.flags        = MMC_RSP_R1B_NO_CRC | MMC_CMD_AC; /* Ignore CRC */
 	cmd.busy_timeout = MMC_CQE_RECOVERY_TIMEOUT;
 	err = mmc_wait_for_cmd(host, &cmd, MMC_CMD_RETRIES);
 
