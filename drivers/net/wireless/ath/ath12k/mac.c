@@ -6848,6 +6848,7 @@ static void ath12k_mgmt_over_wmi_tx_purge(struct ath12k *ar)
 static void ath12k_mgmt_over_wmi_tx_work(struct wiphy *wiphy, struct wiphy_work *work)
 {
 	struct ath12k *ar = container_of(work, struct ath12k, wmi_mgmt_tx_work);
+	struct ath12k_hw *ah = ar->ah;
 	struct ath12k_skb_cb *skb_cb;
 	struct ath12k_vif *ahvif;
 	struct ath12k_link_vif *arvif;
@@ -6865,7 +6866,15 @@ static void ath12k_mgmt_over_wmi_tx_work(struct wiphy *wiphy, struct wiphy_work 
 		}
 
 		ahvif = ath12k_vif_to_ahvif(skb_cb->vif);
-		arvif = &ahvif->deflink;
+		if (!(ahvif->links_map & BIT(skb_cb->link_id))) {
+			ath12k_warn(ar->ab,
+				    "invalid linkid %u in mgmt over wmi tx with linkmap 0x%x\n",
+				    skb_cb->link_id, ahvif->links_map);
+			ath12k_mgmt_over_wmi_tx_drop(ar, skb);
+			continue;
+		}
+
+		arvif = wiphy_dereference(ah->hw->wiphy, ahvif->link[skb_cb->link_id]);
 		if (ar->allocated_vdev_map & (1LL << arvif->vdev_id)) {
 			ret = ath12k_mac_mgmt_tx_wmi(ar, arvif, skb);
 			if (ret) {
@@ -6875,8 +6884,9 @@ static void ath12k_mgmt_over_wmi_tx_work(struct wiphy *wiphy, struct wiphy_work 
 			}
 		} else {
 			ath12k_warn(ar->ab,
-				    "dropping mgmt frame for vdev %d, is_started %d\n",
+				    "dropping mgmt frame for vdev %d link %u is_started %d\n",
 				    arvif->vdev_id,
+				    skb_cb->link_id,
 				    arvif->is_started);
 			ath12k_mgmt_over_wmi_tx_drop(ar, skb);
 		}
@@ -6936,6 +6946,105 @@ static void ath12k_mac_add_p2p_noa_ie(struct ath12k *ar,
 	spin_unlock_bh(&ar->data_lock);
 }
 
+/* Note: called under rcu_read_lock() */
+static u8 ath12k_mac_get_tx_link(struct ieee80211_sta *sta, struct ieee80211_vif *vif,
+				 u8 link, struct sk_buff *skb, u32 info_flags)
+{
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
+	struct ath12k_vif *ahvif = ath12k_vif_to_ahvif(vif);
+	struct ieee80211_link_sta *link_sta;
+	struct ieee80211_bss_conf *bss_conf;
+	struct ath12k_sta *ahsta;
+
+	/* Use the link id passed or the default vif link */
+	if (!sta) {
+		if (link != IEEE80211_LINK_UNSPECIFIED)
+			return link;
+
+		return ahvif->deflink.link_id;
+	}
+
+	ahsta = ath12k_sta_to_ahsta(sta);
+
+	/* Below translation ensures we pass proper A2 & A3 for non ML clients.
+	 * Also it assumes for now support only for MLO AP in this path
+	 */
+	if (!sta->mlo) {
+		link = ahsta->deflink.link_id;
+
+		if (info_flags & IEEE80211_TX_CTL_HW_80211_ENCAP)
+			return link;
+
+		bss_conf = rcu_dereference(vif->link_conf[link]);
+		if (bss_conf) {
+			ether_addr_copy(hdr->addr2, bss_conf->addr);
+			if (!ieee80211_has_tods(hdr->frame_control) &&
+			    !ieee80211_has_fromds(hdr->frame_control))
+				ether_addr_copy(hdr->addr3, bss_conf->addr);
+		}
+
+		return link;
+	}
+
+	/* enqueue eth enacap & data frames on primary link, FW does link
+	 * selection and address translation.
+	 */
+	if (info_flags & IEEE80211_TX_CTL_HW_80211_ENCAP ||
+	    ieee80211_is_data(hdr->frame_control))
+		return ahsta->assoc_link_id;
+
+	/* 802.11 frame cases */
+	if (link == IEEE80211_LINK_UNSPECIFIED)
+		link = ahsta->deflink.link_id;
+
+	if (!ieee80211_is_mgmt(hdr->frame_control))
+		return link;
+
+	/* Perform address conversion for ML STA Tx */
+	bss_conf = rcu_dereference(vif->link_conf[link]);
+	link_sta = rcu_dereference(sta->link[link]);
+
+	if (bss_conf && link_sta) {
+		ether_addr_copy(hdr->addr1, link_sta->addr);
+		ether_addr_copy(hdr->addr2, bss_conf->addr);
+
+		if (vif->type == NL80211_IFTYPE_STATION && bss_conf->bssid)
+			ether_addr_copy(hdr->addr3, bss_conf->bssid);
+		else if (vif->type == NL80211_IFTYPE_AP)
+			ether_addr_copy(hdr->addr3, bss_conf->addr);
+
+		return link;
+	}
+
+	if (bss_conf) {
+		/* In certain cases where a ML sta associated and added subset of
+		 * links on which the ML AP is active, but now sends some frame
+		 * (ex. Probe request) on a different link which is active in our
+		 * MLD but was not added during previous association, we can
+		 * still honor the Tx to that ML STA via the requested link.
+		 * The control would reach here in such case only when that link
+		 * address is same as the MLD address or in worst case clients
+		 * used MLD address at TA wrongly which would have helped
+		 * identify the ML sta object and pass it here.
+		 * If the link address of that STA is different from MLD address,
+		 * then the sta object would be NULL and control won't reach
+		 * here but return at the start of the function itself with !sta
+		 * check. Also this would not need any translation at hdr->addr1
+		 * from MLD to link address since the RA is the MLD address
+		 * (same as that link address ideally) already.
+		 */
+		ether_addr_copy(hdr->addr2, bss_conf->addr);
+
+		if (vif->type == NL80211_IFTYPE_STATION && bss_conf->bssid)
+			ether_addr_copy(hdr->addr3, bss_conf->bssid);
+		else if (vif->type == NL80211_IFTYPE_AP)
+			ether_addr_copy(hdr->addr3, bss_conf->addr);
+	}
+
+	return link;
+}
+
+/* Note: called under rcu_read_lock() */
 static void ath12k_mac_op_tx(struct ieee80211_hw *hw,
 			     struct ieee80211_tx_control *control,
 			     struct sk_buff *skb)
@@ -6945,13 +7054,16 @@ static void ath12k_mac_op_tx(struct ieee80211_hw *hw,
 	struct ieee80211_vif *vif = info->control.vif;
 	struct ath12k_vif *ahvif = ath12k_vif_to_ahvif(vif);
 	struct ath12k_link_vif *arvif = &ahvif->deflink;
-	struct ath12k *ar = arvif->ar;
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	struct ieee80211_key_conf *key = info->control.hw_key;
+	struct ieee80211_sta *sta = control->sta;
 	u32 info_flags = info->flags;
+	struct ath12k *ar;
 	bool is_prb_rsp;
+	u8 link_id;
 	int ret;
 
+	link_id = u32_get_bits(info->control.flags, IEEE80211_TX_CTRL_MLO_LINK);
 	memset(skb_cb, 0, sizeof(*skb_cb));
 	skb_cb->vif = vif;
 
@@ -6960,6 +7072,27 @@ static void ath12k_mac_op_tx(struct ieee80211_hw *hw,
 		skb_cb->flags |= ATH12K_SKB_CIPHER_SET;
 	}
 
+	/* handle only for MLO case, use deflink for non MLO case */
+	if (ieee80211_vif_is_mld(vif)) {
+		link_id = ath12k_mac_get_tx_link(sta, vif, link_id, skb, info_flags);
+		if (link_id >= IEEE80211_MLD_MAX_NUM_LINKS) {
+			ieee80211_free_txskb(hw, skb);
+			return;
+		}
+	} else {
+		link_id = 0;
+	}
+
+	arvif = rcu_dereference(ahvif->link[link_id]);
+	if (!arvif || !arvif->ar) {
+		ath12k_warn(ahvif->ah, "failed to find arvif link id %u for frame transmission",
+			    link_id);
+		ieee80211_free_txskb(hw, skb);
+		return;
+	}
+
+	ar = arvif->ar;
+	skb_cb->link_id = link_id;
 	is_prb_rsp = ieee80211_is_probe_resp(hdr->frame_control);
 
 	if (info_flags & IEEE80211_TX_CTL_HW_80211_ENCAP) {

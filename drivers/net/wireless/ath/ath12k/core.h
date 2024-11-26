@@ -122,6 +122,7 @@ struct ath12k_skb_cb {
 	dma_addr_t paddr_ext_desc;
 	u32 cipher;
 	u8 flags;
+	u8 link_id;
 };
 
 struct ath12k_skb_rxcb {
