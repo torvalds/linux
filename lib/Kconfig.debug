@@ -2920,6 +2920,111 @@ config TEST_KMOD
 
 	  If unsure, say N.
 
+config TEST_RUNTIME
+	bool
+
+config TEST_RUNTIME_MODULE
+	bool
+
+config TEST_KALLSYMS
+	tristate "module kallsyms find_symbol() test"
+	depends on m
+	select TEST_RUNTIME
+	select TEST_RUNTIME_MODULE
+	select TEST_KALLSYMS_A
+	select TEST_KALLSYMS_B
+	select TEST_KALLSYMS_C
+	select TEST_KALLSYMS_D
+	help
+	  This allows us to stress test find_symbol() through the kallsyms
+	  used to place symbols on the kernel ELF kallsyms and modules kallsyms
+	  where we place kernel symbols such as exported symbols.
+
+	  We have four test modules:
+
+	  A: has KALLSYSMS_NUMSYMS exported symbols
+	  B: uses one of A's symbols
+	  C: adds KALLSYMS_SCALE_FACTOR * KALLSYSMS_NUMSYMS exported
+	  D: adds 2 * the symbols than C
+
+	  We stress test find_symbol() through two means:
+
+	  1) Upon load of B it will trigger simplify_symbols() to look for the
+	  one symbol it uses from the module A with tons of symbols. This is an
+	  indirect way for us to have B call resolve_symbol_wait() upon module
+	  load. This will eventually call find_symbol() which will eventually
+	  try to find the symbols used with find_exported_symbol_in_section().
+	  find_exported_symbol_in_section() uses bsearch() so a binary search
+	  for each symbol. Binary search will at worst be O(log(n)) so the
+	  larger TEST_MODULE_KALLSYSMS the worse the search.
+
+	  2) The selftests should load C first, before B. Upon B's load towards
+	  the end right before we call module B's init routine we get
+	  complete_formation() called on the module. That will first check
+	  for duplicate symbols with the call to verify_exported_symbols().
+	  That is when we'll force iteration on module C's insane symbol list.
+	  Since it has 10 * KALLSYMS_NUMSYMS it means we can first test
+	  just loading B without C. The amount of time it takes to load C Vs
+	  B can give us an idea of the impact growth of the symbol space and
+	  give us projection. Module A only uses one symbol from B so to allow
+	  this scaling in module C to be proportional, if it used more symbols
+	  then the first test would be doing more and increasing just the
+	  search space would be slightly different. The last module, module D
+	  will just increase the search space by twice the number of symbols in
+	  C so to allow for full projects.
+
+	  tools/testing/selftests/module/find_symbol.sh
+
+	  The current defaults will incur a build delay of about 7 minutes
+	  on an x86_64 with only 8 cores. Enable this only if you want to
+	  stress test find_symbol() with thousands of symbols. At the same
+	  time this is also useful to test building modules with thousands of
+	  symbols, and if BTF is enabled this also stress tests adding BTF
+	  information for each module. Currently enabling many more symbols
+	  will segfault the build system.
+
+	  If unsure, say N.
+
+if TEST_KALLSYMS
+
+config TEST_KALLSYMS_A
+	tristate
+	depends on m
+
+config TEST_KALLSYMS_B
+	tristate
+	depends on m
+
+config TEST_KALLSYMS_C
+	tristate
+	depends on m
+
+config TEST_KALLSYMS_D
+	tristate
+	depends on m
+
+config TEST_KALLSYMS_NUMSYMS
+	int "test kallsyms number of symbols"
+	default 100
+	help
+	  The number of symbols to create on TEST_KALLSYMS_A, only one of which
+	  module TEST_KALLSYMS_B will use. This also will be used
+	  for how many symbols TEST_KALLSYMS_C will have, scaled up by
+	  TEST_KALLSYMS_SCALE_FACTOR. Note that setting this to 10,000 will
+	  trigger a segfault today, don't use anything close to it unless
+	  you are aware that this should not be used for automated build tests.
+
+config TEST_KALLSYMS_SCALE_FACTOR
+	int "test kallsyms scale factor"
+	default 8
+	help
+	  How many more unusued symbols will TEST_KALLSYSMS_C have than
+	  TEST_KALLSYMS_A. If 8, then module C will have 8 * syms
+	  than module A. Then TEST_KALLSYMS_D will have double the amount
+	  of symbols than C so to allow projections.
+
+endif # TEST_KALLSYMS
+
 config TEST_DEBUG_VIRTUAL
 	tristate "Test CONFIG_DEBUG_VIRTUAL feature"
 	depends on DEBUG_VIRTUAL
