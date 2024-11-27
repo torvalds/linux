@@ -503,7 +503,7 @@ static int fsl_xcvr_prepare(struct snd_pcm_substream *substream,
 	switch (xcvr->mode) {
 	case FSL_XCVR_MODE_SPDIF:
 		if (xcvr->soc_data->spdif_only && tx) {
-			ret = regmap_update_bits(xcvr->regmap, FSL_XCVR_TX_DPTH_CTRL_SET,
+			ret = regmap_update_bits(xcvr->regmap, FSL_XCVR_TX_DPTH_CTRL,
 						 FSL_XCVR_TX_DPTH_CTRL_BYPASS_FEM,
 						 FSL_XCVR_TX_DPTH_CTRL_BYPASS_FEM);
 			if (ret < 0) {
@@ -521,8 +521,8 @@ static int fsl_xcvr_prepare(struct snd_pcm_substream *substream,
 				return ret;
 			}
 
-			ret = regmap_write(xcvr->regmap, FSL_XCVR_TX_DPTH_CTRL_SET,
-					   FSL_XCVR_TX_DPTH_CTRL_FRM_FMT);
+			ret = regmap_set_bits(xcvr->regmap, FSL_XCVR_TX_DPTH_CTRL,
+					      FSL_XCVR_TX_DPTH_CTRL_FRM_FMT);
 			if (ret < 0) {
 				dev_err(dai->dev, "Failed to set TX_DPTH: %d\n", ret);
 				return ret;
@@ -539,11 +539,11 @@ static int fsl_xcvr_prepare(struct snd_pcm_substream *substream,
 			 * Clear RX FIFO, flip RX FIFO bits,
 			 * disable eARC related HW mode detects
 			 */
-			ret = regmap_write(xcvr->regmap, FSL_XCVR_RX_DPTH_CTRL_SET,
-					   FSL_XCVR_RX_DPTH_CTRL_STORE_FMT |
-					   FSL_XCVR_RX_DPTH_CTRL_CLR_RX_FIFO |
-					   FSL_XCVR_RX_DPTH_CTRL_COMP |
-					   FSL_XCVR_RX_DPTH_CTRL_LAYB_CTRL);
+			ret = regmap_set_bits(xcvr->regmap, FSL_XCVR_RX_DPTH_CTRL,
+					      FSL_XCVR_RX_DPTH_CTRL_STORE_FMT |
+					      FSL_XCVR_RX_DPTH_CTRL_CLR_RX_FIFO |
+					      FSL_XCVR_RX_DPTH_CTRL_COMP |
+					      FSL_XCVR_RX_DPTH_CTRL_LAYB_CTRL);
 			if (ret < 0) {
 				dev_err(dai->dev, "Failed to set RX_DPTH: %d\n", ret);
 				return ret;
@@ -560,18 +560,18 @@ static int fsl_xcvr_prepare(struct snd_pcm_substream *substream,
 	case FSL_XCVR_MODE_EARC:
 		if (!tx) {
 			/** Clear RX FIFO, flip RX FIFO bits */
-			ret = regmap_write(xcvr->regmap, FSL_XCVR_RX_DPTH_CTRL_SET,
-					   FSL_XCVR_RX_DPTH_CTRL_STORE_FMT |
-					   FSL_XCVR_RX_DPTH_CTRL_CLR_RX_FIFO);
+			ret = regmap_set_bits(xcvr->regmap, FSL_XCVR_RX_DPTH_CTRL,
+					      FSL_XCVR_RX_DPTH_CTRL_STORE_FMT |
+					      FSL_XCVR_RX_DPTH_CTRL_CLR_RX_FIFO);
 			if (ret < 0) {
 				dev_err(dai->dev, "Failed to set RX_DPTH: %d\n", ret);
 				return ret;
 			}
 
 			/** Enable eARC related HW mode detects */
-			ret = regmap_write(xcvr->regmap, FSL_XCVR_RX_DPTH_CTRL_CLR,
-					   FSL_XCVR_RX_DPTH_CTRL_COMP |
-					   FSL_XCVR_RX_DPTH_CTRL_LAYB_CTRL);
+			ret = regmap_clear_bits(xcvr->regmap, FSL_XCVR_RX_DPTH_CTRL,
+						FSL_XCVR_RX_DPTH_CTRL_COMP |
+						FSL_XCVR_RX_DPTH_CTRL_LAYB_CTRL);
 			if (ret < 0) {
 				dev_err(dai->dev, "Failed to clr TX_DPTH: %d\n", ret);
 				return ret;
@@ -751,9 +751,9 @@ static int fsl_xcvr_trigger(struct snd_pcm_substream *substream, int cmd,
 				}
 				fallthrough;
 			case FSL_XCVR_MODE_SPDIF:
-				ret = regmap_write(xcvr->regmap,
-					 FSL_XCVR_TX_DPTH_CTRL_SET,
-					 FSL_XCVR_TX_DPTH_CTRL_STRT_DATA_TX);
+				ret = regmap_set_bits(xcvr->regmap,
+						      FSL_XCVR_TX_DPTH_CTRL,
+						      FSL_XCVR_TX_DPTH_CTRL_STRT_DATA_TX);
 				if (ret < 0) {
 					dev_err(dai->dev, "Failed to start DATA_TX: %d\n", ret);
 					goto release_lock;
@@ -809,9 +809,9 @@ static int fsl_xcvr_trigger(struct snd_pcm_substream *substream, int cmd,
 		if (tx) {
 			switch (xcvr->mode) {
 			case FSL_XCVR_MODE_SPDIF:
-				ret = regmap_write(xcvr->regmap,
-					 FSL_XCVR_TX_DPTH_CTRL_CLR,
-					 FSL_XCVR_TX_DPTH_CTRL_STRT_DATA_TX);
+				ret = regmap_clear_bits(xcvr->regmap,
+							FSL_XCVR_TX_DPTH_CTRL,
+							FSL_XCVR_TX_DPTH_CTRL_STRT_DATA_TX);
 				if (ret < 0) {
 					dev_err(dai->dev, "Failed to stop DATA_TX: %d\n", ret);
 					goto release_lock;
@@ -1224,6 +1224,7 @@ static bool fsl_xcvr_writeable_reg(struct device *dev, unsigned int reg)
 	case FSL_XCVR_RX_DPTH_CNTR_CTRL_SET:
 	case FSL_XCVR_RX_DPTH_CNTR_CTRL_CLR:
 	case FSL_XCVR_RX_DPTH_CNTR_CTRL_TOG:
+	case FSL_XCVR_TX_DPTH_CTRL:
 	case FSL_XCVR_TX_DPTH_CTRL_SET:
 	case FSL_XCVR_TX_DPTH_CTRL_CLR:
 	case FSL_XCVR_TX_DPTH_CTRL_TOG:
@@ -1245,7 +1246,49 @@ static bool fsl_xcvr_writeable_reg(struct device *dev, unsigned int reg)
 
 static bool fsl_xcvr_volatile_reg(struct device *dev, unsigned int reg)
 {
-	return fsl_xcvr_readable_reg(dev, reg);
+	switch (reg) {
+	case FSL_XCVR_EXT_STATUS:
+	case FSL_XCVR_EXT_ISR:
+	case FSL_XCVR_EXT_ISR_SET:
+	case FSL_XCVR_EXT_ISR_CLR:
+	case FSL_XCVR_EXT_ISR_TOG:
+	case FSL_XCVR_ISR:
+	case FSL_XCVR_ISR_SET:
+	case FSL_XCVR_ISR_CLR:
+	case FSL_XCVR_ISR_TOG:
+	case FSL_XCVR_PHY_AI_CTRL:
+	case FSL_XCVR_PHY_AI_CTRL_SET:
+	case FSL_XCVR_PHY_AI_CTRL_CLR:
+	case FSL_XCVR_PHY_AI_CTRL_TOG:
+	case FSL_XCVR_PHY_AI_RDATA:
+	case FSL_XCVR_RX_CS_DATA_0:
+	case FSL_XCVR_RX_CS_DATA_1:
+	case FSL_XCVR_RX_CS_DATA_2:
+	case FSL_XCVR_RX_CS_DATA_3:
+	case FSL_XCVR_RX_CS_DATA_4:
+	case FSL_XCVR_RX_CS_DATA_5:
+	case FSL_XCVR_RX_DPTH_CNTR_CTRL:
+	case FSL_XCVR_RX_DPTH_CNTR_CTRL_SET:
+	case FSL_XCVR_RX_DPTH_CNTR_CTRL_CLR:
+	case FSL_XCVR_RX_DPTH_CNTR_CTRL_TOG:
+	case FSL_XCVR_RX_DPTH_TSCR:
+	case FSL_XCVR_RX_DPTH_BCR:
+	case FSL_XCVR_RX_DPTH_BCTR:
+	case FSL_XCVR_RX_DPTH_BCRR:
+	case FSL_XCVR_TX_DPTH_CNTR_CTRL:
+	case FSL_XCVR_TX_DPTH_CNTR_CTRL_SET:
+	case FSL_XCVR_TX_DPTH_CNTR_CTRL_CLR:
+	case FSL_XCVR_TX_DPTH_CNTR_CTRL_TOG:
+	case FSL_XCVR_TX_DPTH_TSCR:
+	case FSL_XCVR_TX_DPTH_BCR:
+	case FSL_XCVR_TX_DPTH_BCTR:
+	case FSL_XCVR_TX_DPTH_BCRR:
+	case FSL_XCVR_DEBUG_REG_0:
+	case FSL_XCVR_DEBUG_REG_1:
+		return true;
+	default:
+		return false;
+	}
 }
 
 static const struct regmap_config fsl_xcvr_regmap_cfg = {
@@ -1586,6 +1629,10 @@ static int fsl_xcvr_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, xcvr);
 	pm_runtime_enable(dev);
 	regcache_cache_only(xcvr->regmap, true);
+	if (xcvr->soc_data->use_phy) {
+		regcache_cache_only(xcvr->regmap_phy, true);
+		regcache_cache_only(xcvr->regmap_pll, true);
+	}
 
 	/*
 	 * Register platform component before registering cpu dai for there
@@ -1624,7 +1671,8 @@ static int fsl_xcvr_runtime_suspend(struct device *dev)
 	struct fsl_xcvr *xcvr = dev_get_drvdata(dev);
 	int ret;
 
-	if (!xcvr->soc_data->spdif_only) {
+	if (!xcvr->soc_data->spdif_only &&
+	    xcvr->mode == FSL_XCVR_MODE_EARC) {
 		/* Assert M0+ reset */
 		ret = regmap_update_bits(xcvr->regmap, FSL_XCVR_EXT_CTRL,
 					FSL_XCVR_EXT_CTRL_CORE_RESET,
@@ -1634,6 +1682,10 @@ static int fsl_xcvr_runtime_suspend(struct device *dev)
 	}
 
 	regcache_cache_only(xcvr->regmap, true);
+	if (xcvr->soc_data->use_phy) {
+		regcache_cache_only(xcvr->regmap_phy, true);
+		regcache_cache_only(xcvr->regmap_pll, true);
+	}
 
 	clk_disable_unprepare(xcvr->spba_clk);
 	clk_disable_unprepare(xcvr->phy_clk);
@@ -1678,6 +1730,12 @@ static int fsl_xcvr_runtime_resume(struct device *dev)
 		goto stop_phy_clk;
 	}
 
+	ret = reset_control_deassert(xcvr->reset);
+	if (ret) {
+		dev_err(dev, "failed to deassert M0+ reset.\n");
+		goto stop_spba_clk;
+	}
+
 	regcache_cache_only(xcvr->regmap, false);
 	regcache_mark_dirty(xcvr->regmap);
 	ret = regcache_sync(xcvr->regmap);
@@ -1687,31 +1745,49 @@ static int fsl_xcvr_runtime_resume(struct device *dev)
 		goto stop_spba_clk;
 	}
 
-	if (xcvr->soc_data->spdif_only)
-		return 0;
+	if (xcvr->soc_data->use_phy) {
+		ret = regmap_write(xcvr->regmap, FSL_XCVR_PHY_AI_CTRL_SET,
+				   FSL_XCVR_PHY_AI_CTRL_AI_RESETN);
+		if (ret < 0) {
+			dev_err(dev, "Error while release PHY reset: %d\n", ret);
+			goto stop_spba_clk;
+		}
 
-	ret = reset_control_deassert(xcvr->reset);
-	if (ret) {
-		dev_err(dev, "failed to deassert M0+ reset.\n");
-		goto stop_spba_clk;
+		regcache_cache_only(xcvr->regmap_phy, false);
+		regcache_mark_dirty(xcvr->regmap_phy);
+		ret = regcache_sync(xcvr->regmap_phy);
+		if (ret) {
+			dev_err(dev, "failed to sync phy regcache.\n");
+			goto stop_spba_clk;
+		}
+
+		regcache_cache_only(xcvr->regmap_pll, false);
+		regcache_mark_dirty(xcvr->regmap_pll);
+		ret = regcache_sync(xcvr->regmap_pll);
+		if (ret) {
+			dev_err(dev, "failed to sync pll regcache.\n");
+			goto stop_spba_clk;
+		}
 	}
 
-	ret = fsl_xcvr_load_firmware(xcvr);
-	if (ret) {
-		dev_err(dev, "failed to load firmware.\n");
-		goto stop_spba_clk;
-	}
+	if (xcvr->mode == FSL_XCVR_MODE_EARC) {
+		ret = fsl_xcvr_load_firmware(xcvr);
+		if (ret) {
+			dev_err(dev, "failed to load firmware.\n");
+			goto stop_spba_clk;
+		}
 
-	/* Release M0+ reset */
-	ret = regmap_update_bits(xcvr->regmap, FSL_XCVR_EXT_CTRL,
-				 FSL_XCVR_EXT_CTRL_CORE_RESET, 0);
-	if (ret < 0) {
-		dev_err(dev, "M0+ core release failed: %d\n", ret);
-		goto stop_spba_clk;
-	}
+		/* Release M0+ reset */
+		ret = regmap_update_bits(xcvr->regmap, FSL_XCVR_EXT_CTRL,
+					 FSL_XCVR_EXT_CTRL_CORE_RESET, 0);
+		if (ret < 0) {
+			dev_err(dev, "M0+ core release failed: %d\n", ret);
+			goto stop_spba_clk;
+		}
 
-	/* Let M0+ core complete firmware initialization */
-	msleep(50);
+		/* Let M0+ core complete firmware initialization */
+		msleep(50);
+	}
 
 	return 0;
 
