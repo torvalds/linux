@@ -1950,7 +1950,6 @@ static void sdma_v4_4_2_dump_ip_state(struct amdgpu_ip_block *ip_block)
 	if (!adev->sdma.ip_dump)
 		return;
 
-	amdgpu_gfx_off_ctrl(adev, false);
 	for (i = 0; i < adev->sdma.num_instances; i++) {
 		instance_offset = i * reg_count;
 		for (j = 0; j < reg_count; j++)
@@ -1958,7 +1957,6 @@ static void sdma_v4_4_2_dump_ip_state(struct amdgpu_ip_block *ip_block)
 				RREG32(sdma_v4_4_2_get_reg_offset(adev, i,
 				       sdma_reg_list_4_4_2[j].reg_offset));
 	}
-	amdgpu_gfx_off_ctrl(adev, true);
 }
 
 const struct amd_ip_funcs sdma_v4_4_2_ip_funcs = {
