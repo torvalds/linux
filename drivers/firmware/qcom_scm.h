@@ -181,6 +181,7 @@ extern int scm_legacy_call(struct device *dev, const struct qcom_scm_desc *desc,
 #define QCOM_SCM_DCVS_INIT_V2			0x0b
 #define QCOM_SCM_DCVS_INIT_CA_V2		0x0c
 #define QCOM_SCM_DCVS_UPDATE_CA_V2		0x0d
+#define QCOM_SCM_DCVS_TUNING			0x0e
 
 #define QCOM_SCM_SVC_OCMEM		0x0f
 #define QCOM_SCM_OCMEM_LOCK_CMD		0x01
