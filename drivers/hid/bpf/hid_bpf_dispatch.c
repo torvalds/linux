@@ -19,7 +19,7 @@
 #include <linux/module.h>
 #include "hid_bpf_dispatch.h"
 
-struct hid_ops *hid_ops;
+const struct hid_ops *hid_ops;
 EXPORT_SYMBOL(hid_ops);
 
 u8 *
