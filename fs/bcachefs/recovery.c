@@ -442,7 +442,9 @@ static int journal_replay_entry_early(struct bch_fs *c,
 
 	switch (entry->type) {
 	case BCH_JSET_ENTRY_btree_root: {
-		struct btree_root *r;
+
+		if (unlikely(!entry->u64s))
+			return 0;
 
 		if (fsck_err_on(entry->btree_id >= BTREE_ID_NR_MAX,
 				c, invalid_btree_id,
@@ -456,15 +458,11 @@ static int journal_replay_entry_early(struct bch_fs *c,
 				return ret;
 		}
 
-		r = bch2_btree_id_root(c, entry->btree_id);
+		struct btree_root *r = bch2_btree_id_root(c, entry->btree_id);
 
-		if (entry->u64s) {
-			r->level = entry->level;
-			bkey_copy(&r->key, (struct bkey_i *) entry->start);
-			r->error = 0;
-		} else {
-			r->error = -BCH_ERR_btree_node_read_error;
-		}
+		r->level = entry->level;
+		bkey_copy(&r->key, (struct bkey_i *) entry->start);
+		r->error = 0;
 		r->alive = true;
 		break;
 	}
