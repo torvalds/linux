@@ -822,7 +822,7 @@ enum dc_status dcn401_enable_stream_timing(
 	int opp_inst[MAX_PIPES] = {0};
 	struct pipe_ctx *opp_heads[MAX_PIPES] = {0};
 	struct dc_crtc_timing patched_crtc_timing = stream->timing;
-	bool manual_mode;
+	bool manual_mode = false;
 	unsigned int tmds_div = PIXEL_RATE_DIV_NA;
 	unsigned int unused_div = PIXEL_RATE_DIV_NA;
 	int odm_slice_width;
