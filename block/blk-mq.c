@@ -134,6 +134,7 @@ static bool blk_freeze_set_owner(struct request_queue *q,
 		q->mq_freeze_disk_dead = !q->disk ||
 			test_bit(GD_DEAD, &q->disk->state) ||
 			!blk_queue_registered(q);
+		q->mq_freeze_queue_dying = blk_queue_dying(q);
 		return true;
 	}
 
@@ -190,7 +191,7 @@ bool __blk_freeze_queue_start(struct request_queue *q,
 void blk_freeze_queue_start(struct request_queue *q)
 {
 	if (__blk_freeze_queue_start(q, current))
-		blk_freeze_acquire_lock(q, false);
+		blk_freeze_acquire_lock(q);
 }
 EXPORT_SYMBOL_GPL(blk_freeze_queue_start);
 
@@ -238,7 +239,7 @@ bool __blk_mq_unfreeze_queue(struct request_queue *q, bool force_atomic)
 void blk_mq_unfreeze_queue(struct request_queue *q)
 {
 	if (__blk_mq_unfreeze_queue(q, false))
-		blk_unfreeze_release_lock(q, false);
+		blk_unfreeze_release_lock(q);
 }
 EXPORT_SYMBOL_GPL(blk_mq_unfreeze_queue);
 

@@ -721,26 +721,26 @@ void blk_integrity_prepare(struct request *rq);
 void blk_integrity_complete(struct request *rq, unsigned int nr_bytes);
 
 #ifdef CONFIG_LOCKDEP
-static inline void blk_freeze_acquire_lock(struct request_queue *q, bool queue_dying)
+static inline void blk_freeze_acquire_lock(struct request_queue *q)
 {
 	if (!q->mq_freeze_disk_dead)
 		rwsem_acquire(&q->io_lockdep_map, 0, 1, _RET_IP_);
-	if (!queue_dying)
+	if (!q->mq_freeze_queue_dying)
 		rwsem_acquire(&q->q_lockdep_map, 0, 1, _RET_IP_);
 }
 
-static inline void blk_unfreeze_release_lock(struct request_queue *q, bool queue_dying)
+static inline void blk_unfreeze_release_lock(struct request_queue *q)
 {
-	if (!queue_dying)
+	if (!q->mq_freeze_queue_dying)
 		rwsem_release(&q->q_lockdep_map, _RET_IP_);
 	if (!q->mq_freeze_disk_dead)
 		rwsem_release(&q->io_lockdep_map, _RET_IP_);
 }
 #else
-static inline void blk_freeze_acquire_lock(struct request_queue *q, bool queue_dying)
+static inline void blk_freeze_acquire_lock(struct request_queue *q)
 {
 }
-static inline void blk_unfreeze_release_lock(struct request_queue *q, bool queue_dying)
+static inline void blk_unfreeze_release_lock(struct request_queue *q)
 {
 }
 #endif

@@ -581,8 +581,12 @@ struct request_queue {
 #ifdef CONFIG_LOCKDEP
 	struct task_struct	*mq_freeze_owner;
 	int			mq_freeze_owner_depth;
-	/* Records disk state in current context, used in unfreeze queue */
+	/*
+	 * Records disk & queue state in current context, used in unfreeze
+	 * queue
+	 */
 	bool			mq_freeze_disk_dead;
+	bool			mq_freeze_queue_dying;
 #endif
 	wait_queue_head_t	mq_freeze_wq;
 	/*
