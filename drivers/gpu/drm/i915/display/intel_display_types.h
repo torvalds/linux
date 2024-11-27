@@ -587,6 +587,8 @@ struct intel_atomic_state {
 	bool skip_intermediate_wm;
 
 	bool rps_interactive;
+
+	struct work_struct cleanup_work;
 };
 
 struct intel_plane_state {
