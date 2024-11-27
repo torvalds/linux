@@ -602,14 +602,14 @@ void elevator_init_mq(struct request_queue *q)
 	 * Disk isn't added yet, so verifying queue lock only manually.
 	 */
 	blk_freeze_queue_start_non_owner(q);
-	blk_freeze_acquire_lock(q, true, false);
+	blk_freeze_acquire_lock(q, false);
 	blk_mq_freeze_queue_wait(q);
 
 	blk_mq_cancel_work_sync(q);
 
 	err = blk_mq_init_sched(q, e);
 
-	blk_unfreeze_release_lock(q, true, false);
+	blk_unfreeze_release_lock(q, false);
 	blk_mq_unfreeze_queue_non_owner(q);
 
 	if (err) {

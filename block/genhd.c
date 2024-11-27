@@ -692,7 +692,7 @@ void del_gendisk(struct gendisk *disk)
 	start_drain = __blk_mark_disk_dead(disk);
 	queue_dying = blk_queue_dying(q);
 	if (start_drain)
-		blk_freeze_acquire_lock(q, true, queue_dying);
+		blk_freeze_acquire_lock(q, queue_dying);
 	xa_for_each_start(&disk->part_tbl, idx, part, 1)
 		drop_partition(part);
 	mutex_unlock(&disk->open_mutex);
@@ -748,7 +748,7 @@ void del_gendisk(struct gendisk *disk)
 		blk_mq_exit_queue(q);
 
 	if (start_drain)
-		blk_unfreeze_release_lock(q, true, queue_dying);
+		blk_unfreeze_release_lock(q, queue_dying);
 }
 EXPORT_SYMBOL(del_gendisk);
 
