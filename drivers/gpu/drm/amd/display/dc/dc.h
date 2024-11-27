@@ -629,6 +629,8 @@ struct dc_clocks {
 	int bw_dispclk_khz;
 	int idle_dramclk_khz;
 	int idle_fclk_khz;
+	int subvp_prefetch_dramclk_khz;
+	int subvp_prefetch_fclk_khz;
 };
 
 struct dc_bw_validation_profile {
@@ -1072,6 +1074,7 @@ struct dc_debug_options {
 	bool skip_full_updated_if_possible;
 	unsigned int enable_oled_edp_power_up_opt;
 	bool enable_hblank_borrow;
+	bool force_subvp_df_throttle;
 };
 
 

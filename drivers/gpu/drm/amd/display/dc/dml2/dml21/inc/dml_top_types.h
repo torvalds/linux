@@ -387,6 +387,11 @@ struct dml2_display_cfg_programming {
 				unsigned long fclk_khz;
 				unsigned long dcfclk_khz;
 			} svp_prefetch;
+			struct {
+				unsigned long uclk_khz;
+				unsigned long fclk_khz;
+				unsigned long dcfclk_khz;
+			} svp_prefetch_no_throttle;
 
 			unsigned long deepsleep_dcfclk_khz;
 			unsigned long dispclk_khz;
