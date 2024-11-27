@@ -34,7 +34,7 @@ bool bch2_inconsistent_error(struct bch_fs *c)
 int bch2_topology_error(struct bch_fs *c)
 {
 	set_bit(BCH_FS_topology_error, &c->flags);
-	if (!test_bit(BCH_FS_fsck_running, &c->flags)) {
+	if (!test_bit(BCH_FS_recovery_running, &c->flags)) {
 		bch2_inconsistent_error(c);
 		return -BCH_ERR_btree_need_topology_repair;
 	} else {

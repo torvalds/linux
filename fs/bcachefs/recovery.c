@@ -774,6 +774,7 @@ int bch2_fs_recovery(struct bch_fs *c)
 		set_bit(BCH_FS_fsck_running, &c->flags);
 	if (c->sb.clean)
 		set_bit(BCH_FS_clean_recovery, &c->flags);
+	set_bit(BCH_FS_recovery_running, &c->flags);
 
 	ret = bch2_blacklist_table_initialize(c);
 	if (ret) {
@@ -925,6 +926,7 @@ use_clean:
 	 */
 	set_bit(BCH_FS_may_go_rw, &c->flags);
 	clear_bit(BCH_FS_fsck_running, &c->flags);
+	clear_bit(BCH_FS_recovery_running, &c->flags);
 
 	/* in case we don't run journal replay, i.e. norecovery mode */
 	set_bit(BCH_FS_accounting_replay_done, &c->flags);
