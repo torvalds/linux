@@ -1985,6 +1985,17 @@ void amdgpu_gfx_enforce_isolation_handler(struct work_struct *work)
 	mutex_unlock(&adev->enforce_isolation_mutex);
 }
 
+/**
+ * amdgpu_gfx_enforce_isolation_wait_for_kfd - Manage KFD wait period for process isolation
+ * @adev: amdgpu_device pointer
+ * @idx: Index of the GPU partition
+ *
+ * When kernel submissions come in, the jobs are given a time slice and once
+ * that time slice is up, if there are KFD user queues active, kernel
+ * submissions are blocked until KFD has had its time slice. Once the KFD time
+ * slice is up, KFD user queues are preempted and kernel submissions are
+ * unblocked and allowed to run again.
+ */
 static void
 amdgpu_gfx_enforce_isolation_wait_for_kfd(struct amdgpu_device *adev,
 					  u32 idx)
@@ -2030,6 +2041,15 @@ amdgpu_gfx_enforce_isolation_wait_for_kfd(struct amdgpu_device *adev,
 		msleep(GFX_SLICE_PERIOD_MS);
 }
 
+/**
+ * amdgpu_gfx_enforce_isolation_ring_begin_use - Begin use of a ring with enforced isolation
+ * @ring: Pointer to the amdgpu_ring structure
+ *
+ * Ring begin_use helper implementation for gfx which serializes access to the
+ * gfx IP between kernel submission IOCTLs and KFD user queues when isolation
+ * enforcement is enabled. The kernel submission IOCTLs and KFD user queues
+ * each get a time slice when both are active.
+ */
 void amdgpu_gfx_enforce_isolation_ring_begin_use(struct amdgpu_ring *ring)
 {
 	struct amdgpu_device *adev = ring->adev;
@@ -2057,6 +2077,15 @@ void amdgpu_gfx_enforce_isolation_ring_begin_use(struct amdgpu_ring *ring)
 	mutex_unlock(&adev->enforce_isolation_mutex);
 }
 
+/**
+ * amdgpu_gfx_enforce_isolation_ring_end_use - End use of a ring with enforced isolation
+ * @ring: Pointer to the amdgpu_ring structure
+ *
+ * Ring end_use helper implementation for gfx which serializes access to the
+ * gfx IP between kernel submission IOCTLs and KFD user queues when isolation
+ * enforcement is enabled. The kernel submission IOCTLs and KFD user queues
+ * each get a time slice when both are active.
+ */
 void amdgpu_gfx_enforce_isolation_ring_end_use(struct amdgpu_ring *ring)
 {
 	struct amdgpu_device *adev = ring->adev;
