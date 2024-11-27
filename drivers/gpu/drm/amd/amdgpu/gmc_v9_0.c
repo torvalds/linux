@@ -1594,23 +1594,39 @@ static void gmc_v9_0_set_xgmi_ras_funcs(struct amdgpu_device *adev)
 
 static void gmc_v9_0_init_nps_details(struct amdgpu_device *adev)
 {
+	enum amdgpu_memory_partition mode;
+	uint32_t supp_modes;
+	int i;
+
 	adev->gmc.supported_nps_modes = 0;
 
 	if (amdgpu_sriov_vf(adev) || (adev->flags & AMD_IS_APU))
 		return;
 
-	/*TODO: Check PSP version also which supports NPS switch. Otherwise keep
+	mode = gmc_v9_0_get_memory_partition(adev, &supp_modes);
+
+	/* Mode detected by hardware and supported modes available */
+	if ((mode != UNKNOWN_MEMORY_PARTITION_MODE) && supp_modes) {
+		for (i = AMDGPU_NPS1_PARTITION_MODE;
+		     supp_modes && i <= AMDGPU_NPS8_PARTITION_MODE; i++) {
+			if (supp_modes & BIT(i - 1))
+				adev->gmc.supported_nps_modes |= BIT(i);
+			supp_modes &= supp_modes - 1;
+		}
+	} else {
+		/*TODO: Check PSP version also which supports NPS switch. Otherwise keep
 	 * supported modes as 0.
 	 */
-	switch (amdgpu_ip_version(adev, GC_HWIP, 0)) {
-	case IP_VERSION(9, 4, 3):
-	case IP_VERSION(9, 4, 4):
-		adev->gmc.supported_nps_modes =
-			BIT(AMDGPU_NPS1_PARTITION_MODE) |
-			BIT(AMDGPU_NPS4_PARTITION_MODE);
-		break;
-	default:
-		break;
+		switch (amdgpu_ip_version(adev, GC_HWIP, 0)) {
+		case IP_VERSION(9, 4, 3):
+		case IP_VERSION(9, 4, 4):
+			adev->gmc.supported_nps_modes =
+				BIT(AMDGPU_NPS1_PARTITION_MODE) |
+				BIT(AMDGPU_NPS4_PARTITION_MODE);
+			break;
+		default:
+			break;
+		}
 	}
 }
 
