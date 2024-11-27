@@ -327,6 +327,7 @@ int backing_file_mmap(struct file *file, struct vm_area_struct *vma,
 		      struct backing_file_ctx *ctx)
 {
 	const struct cred *old_cred;
+	struct file *user_file = vma->vm_file;
 	int ret;
 
 	if (WARN_ON_ONCE(!(file->f_mode & FMODE_BACKING)))
@@ -342,7 +343,7 @@ int backing_file_mmap(struct file *file, struct vm_area_struct *vma,
 	revert_creds_light(old_cred);
 
 	if (ctx->accessed)
-		ctx->accessed(vma->vm_file);
+		ctx->accessed(user_file);
 
 	return ret;
 }
