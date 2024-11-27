@@ -554,6 +554,9 @@ struct intel_display {
 
 		/* unbound hipri wq for page flips/plane updates */
 		struct workqueue_struct *flip;
+
+		/* hipri wq for commit cleanups */
+		struct workqueue_struct *cleanup;
 	} wq;
 
 	/* Grouping using named structs. Keep sorted. */

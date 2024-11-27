@@ -7937,7 +7937,7 @@ static void intel_atomic_commit_tail(struct intel_atomic_state *state)
 	 * down.
 	 */
 	INIT_WORK(&state->cleanup_work, intel_atomic_cleanup_work);
-	queue_work(system_highpri_wq, &state->cleanup_work);
+	queue_work(dev_priv->display.wq.cleanup, &state->cleanup_work);
 }
 
 static void intel_atomic_commit_work(struct work_struct *work)
