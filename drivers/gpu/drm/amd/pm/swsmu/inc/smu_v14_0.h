@@ -53,7 +53,7 @@
 #define CTF_OFFSET_MEM			5
 
 extern const int decoded_link_speed[5];
-extern const int decoded_link_width[7];
+extern const int decoded_link_width[8];
 
 #define DECODE_GEN_SPEED(gen_speed_idx)		(decoded_link_speed[gen_speed_idx])
 #define DECODE_LANE_WIDTH(lane_width_idx)	(decoded_link_width[lane_width_idx])
