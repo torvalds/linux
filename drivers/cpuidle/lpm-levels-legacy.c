@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2011-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/module.h>
@@ -432,7 +432,7 @@ static inline uint32_t get_cpus_qos(const struct cpumask *mask)
 }
 
 static int cpu_power_select(struct cpuidle_device *dev,
-		struct lpm_cpu *cpu)
+		struct lpm_cpu *cpu, bool *stop_tick)
 {
 	int best_level = 0;
 	uint32_t latency_us = get_cpus_qos(cpumask_of(dev->cpu));
@@ -448,6 +448,9 @@ static int cpu_power_select(struct cpuidle_device *dev,
 
 	if ((sleep_disabled && !cpu_isolated(dev->cpu)) || sleep_us  < 0)
 		return 0;
+
+	if (((sleep_us * NSEC_PER_USEC) < TICK_NSEC) && !tick_nohz_tick_stopped())
+		*stop_tick = false;
 
 	for (i = 0; i < cpu->nlevels; i++) {
 		struct lpm_cpu_level *level = &cpu->levels[i];
@@ -966,7 +969,7 @@ static int lpm_cpuidle_select(struct cpuidle_driver *drv,
 	if (!cluster)
 		return 0;
 
-	idx = cpu_power_select(dev, cluster->cpu);
+	idx = cpu_power_select(dev, cluster->cpu, stop_tick);
 
 	return idx;
 }
@@ -1016,7 +1019,6 @@ exit:
 
 	trace_cpu_idle_exit(idx, success);
 	dev->last_residency_ns = ktime_to_ns(ktime_sub(ktime_get(), start));
-	local_irq_enable();
 
 	return idx;
 }
@@ -1235,15 +1237,6 @@ static int lpm_suspend_enter(suspend_state_t state)
 	if (idx > 0)
 		update_debug_pc_event(CPU_ENTER, idx, 0xdeaffeed,
 					0xdeaffeed, false);
-
-	/*
-	 * Print the clocks which are enabled during system suspend
-	 * This debug information is useful to know which are the
-	 * clocks that are enabled and preventing the system level
-	 * LPMs(XO and Vmin).
-	 */
-	clock_debug_print_enabled();
-
 	if (!use_psci)
 		msm_cpu_pm_enter_sleep(cluster->cpu->levels[idx].mode, false);
 	else
