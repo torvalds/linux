@@ -28,5 +28,8 @@
 #define EVA_CC_INTERFACE_BCR					0
 #define EVA_CC_MVS0_BCR						1
 #define EVA_CC_MVS0C_BCR					2
+#define EVA_CC_MVS0_FREERUN_CLK_ARES				3
+#define EVA_CC_MVS0C_CLK_ARES					4
+#define EVA_CC_MVS0C_FREERUN_CLK_ARES				5
 
 #endif
