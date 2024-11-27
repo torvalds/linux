@@ -28,6 +28,7 @@
 #include <linux/export.h>
 #include <linux/i2c.h>
 #include <linux/notifier.h>
+#include <linux/seq_buf.h>
 #include <linux/slab.h>
 #include <linux/sort.h>
 #include <linux/string_helpers.h>
@@ -1506,41 +1507,32 @@ bool intel_dp_source_supports_tps4(struct drm_i915_private *i915)
 	return DISPLAY_VER(i915) >= 10;
 }
 
-static void snprintf_int_array(char *str, size_t len,
-			       const int *array, int nelem)
+static void seq_buf_print_array(struct seq_buf *s, const int *array, int nelem)
 {
 	int i;
 
-	str[0] = '\0';
-
-	for (i = 0; i < nelem; i++) {
-		int r = snprintf(str, len, "%s%d", i ? ", " : "", array[i]);
-		if (r >= len)
-			return;
-		str += r;
-		len -= r;
-	}
+	for (i = 0; i < nelem; i++)
+		seq_buf_printf(s, "%s%d", i ? ", " : "", array[i]);
 }
 
 static void intel_dp_print_rates(struct intel_dp *intel_dp)
 {
-	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
-	char str[128]; /* FIXME: too big for stack? */
+	struct intel_display *display = to_intel_display(intel_dp);
+	DECLARE_SEQ_BUF(s, 128); /* FIXME: too big for stack? */
 
 	if (!drm_debug_enabled(DRM_UT_KMS))
 		return;
 
-	snprintf_int_array(str, sizeof(str),
-			   intel_dp->source_rates, intel_dp->num_source_rates);
-	drm_dbg_kms(&i915->drm, "source rates: %s\n", str);
+	seq_buf_print_array(&s, intel_dp->source_rates, intel_dp->num_source_rates);
+	drm_dbg_kms(display->drm, "source rates: %s\n", seq_buf_str(&s));
 
-	snprintf_int_array(str, sizeof(str),
-			   intel_dp->sink_rates, intel_dp->num_sink_rates);
-	drm_dbg_kms(&i915->drm, "sink rates: %s\n", str);
+	seq_buf_clear(&s);
+	seq_buf_print_array(&s, intel_dp->sink_rates, intel_dp->num_sink_rates);
+	drm_dbg_kms(display->drm, "sink rates: %s\n", seq_buf_str(&s));
 
-	snprintf_int_array(str, sizeof(str),
-			   intel_dp->common_rates, intel_dp->num_common_rates);
-	drm_dbg_kms(&i915->drm, "common rates: %s\n", str);
+	seq_buf_clear(&s);
+	seq_buf_print_array(&s, intel_dp->common_rates, intel_dp->num_common_rates);
+	drm_dbg_kms(display->drm, "common rates: %s\n", seq_buf_str(&s));
 }
 
 static int forced_link_rate(struct intel_dp *intel_dp)
