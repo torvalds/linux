@@ -12,7 +12,7 @@
 
 /* KEY_TYPE_lru is obsolete: */
 int bch2_lru_validate(struct bch_fs *c, struct bkey_s_c k,
-		     enum bch_validate_flags flags)
+		      struct bkey_validate_context from)
 {
 	int ret = 0;
 

@@ -1360,9 +1360,14 @@ static void bch2_insert_fixup_btree_ptr(struct btree_update *as,
 	if (unlikely(!test_bit(JOURNAL_replay_done, &c->journal.flags)))
 		bch2_journal_key_overwritten(c, b->c.btree_id, b->c.level, insert->k.p);
 
-	if (bch2_bkey_validate(c, bkey_i_to_s_c(insert),
-			      btree_node_type(b), BCH_VALIDATE_write) ?:
-	    bch2_bkey_in_btree_node(c, b, bkey_i_to_s_c(insert), BCH_VALIDATE_write)) {
+	struct bkey_validate_context from = (struct bkey_validate_context) {
+		.from	= BKEY_VALIDATE_btree_node,
+		.level	= b->c.level,
+		.btree	= b->c.btree_id,
+		.flags	= BCH_VALIDATE_commit,
+	};
+	if (bch2_bkey_validate(c, bkey_i_to_s_c(insert), from) ?:
+	    bch2_bkey_in_btree_node(c, b, bkey_i_to_s_c(insert), from)) {
 		bch2_fs_inconsistent(c, "%s: inserting invalid bkey", __func__);
 		dump_stack();
 	}

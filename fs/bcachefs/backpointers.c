@@ -15,7 +15,7 @@
 #include <linux/mm.h>
 
 int bch2_backpointer_validate(struct bch_fs *c, struct bkey_s_c k,
-			      enum bch_validate_flags flags)
+			      struct bkey_validate_context from)
 {
 	struct bkey_s_c_backpointer bp = bkey_s_c_to_backpointer(k);
 	int ret = 0;

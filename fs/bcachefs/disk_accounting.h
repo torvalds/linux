@@ -83,7 +83,8 @@ int bch2_disk_accounting_mod(struct btree_trans *, struct disk_accounting_pos *,
 			     s64 *, unsigned, bool);
 int bch2_mod_dev_cached_sectors(struct btree_trans *, unsigned, s64, bool);
 
-int bch2_accounting_validate(struct bch_fs *, struct bkey_s_c, enum bch_validate_flags);
+int bch2_accounting_validate(struct bch_fs *, struct bkey_s_c,
+			     struct bkey_validate_context);
 void bch2_accounting_key_to_text(struct printbuf *, struct disk_accounting_pos *);
 void bch2_accounting_to_text(struct printbuf *, struct bch_fs *, struct bkey_s_c);
 void bch2_accounting_swab(struct bkey_s);

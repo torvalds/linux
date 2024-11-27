@@ -6,7 +6,8 @@
 
 extern const struct bch_hash_desc bch2_xattr_hash_desc;
 
-int bch2_xattr_validate(struct bch_fs *, struct bkey_s_c, enum bch_validate_flags);
+int bch2_xattr_validate(struct bch_fs *, struct bkey_s_c,
+			struct bkey_validate_context);
 void bch2_xattr_to_text(struct printbuf *, struct bch_fs *, struct bkey_s_c);
 
 #define bch2_bkey_ops_xattr ((struct bkey_ops) {	\

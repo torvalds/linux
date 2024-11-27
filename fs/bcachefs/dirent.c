@@ -101,7 +101,7 @@ const struct bch_hash_desc bch2_dirent_hash_desc = {
 };
 
 int bch2_dirent_validate(struct bch_fs *c, struct bkey_s_c k,
-			 enum bch_validate_flags flags)
+			 struct bkey_validate_context from)
 {
 	struct bkey_s_c_dirent d = bkey_s_c_to_dirent(k);
 	struct qstr d_name = bch2_dirent_get_name(d);
@@ -120,7 +120,7 @@ int bch2_dirent_validate(struct bch_fs *c, struct bkey_s_c k,
 	 * Check new keys don't exceed the max length
 	 * (older keys may be larger.)
 	 */
-	bkey_fsck_err_on((flags & BCH_VALIDATE_commit) && d_name.len > BCH_NAME_MAX,
+	bkey_fsck_err_on((from.flags & BCH_VALIDATE_commit) && d_name.len > BCH_NAME_MAX,
 			 c, dirent_name_too_long,
 			 "dirent name too big (%u > %u)",
 			 d_name.len, BCH_NAME_MAX);

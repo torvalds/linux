@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 #include "bcachefs.h"
+#include "btree_cache.h"
 #include "btree_iter.h"
 #include "error.h"
 #include "journal.h"
@@ -443,23 +444,34 @@ err:
 	return ret;
 }
 
+static const char * const bch2_bkey_validate_contexts[] = {
+#define x(n) #n,
+	BKEY_VALIDATE_CONTEXTS()
+#undef x
+	NULL
+};
+
 int __bch2_bkey_fsck_err(struct bch_fs *c,
 			 struct bkey_s_c k,
-			 enum bch_validate_flags validate_flags,
+			 struct bkey_validate_context from,
 			 enum bch_sb_error_id err,
 			 const char *fmt, ...)
 {
-	if (validate_flags & BCH_VALIDATE_silent)
+	if (from.flags & BCH_VALIDATE_silent)
 		return -BCH_ERR_fsck_delete_bkey;
 
 	unsigned fsck_flags = 0;
-	if (!(validate_flags & (BCH_VALIDATE_write|BCH_VALIDATE_commit)))
+	if (!(from.flags & (BCH_VALIDATE_write|BCH_VALIDATE_commit)))
 		fsck_flags |= FSCK_AUTOFIX|FSCK_CAN_FIX;
 
 	struct printbuf buf = PRINTBUF;
 	va_list args;
 
-	prt_str(&buf, "invalid bkey ");
+	prt_printf(&buf, "invalid bkey in %s btree=",
+		   bch2_bkey_validate_contexts[from.from]);
+	bch2_btree_id_to_text(&buf, from.btree);
+	prt_printf(&buf, " level=%u: ", from.level);
+
 	bch2_bkey_val_to_text(&buf, c, k);
 	prt_str(&buf, "\n  ");
 	va_start(args, fmt);

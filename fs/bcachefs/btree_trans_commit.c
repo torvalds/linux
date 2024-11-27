@@ -726,7 +726,12 @@ bch2_trans_commit_write_locked(struct btree_trans *trans, unsigned flags,
 			invalid_flags |= BCH_VALIDATE_write|BCH_VALIDATE_commit;
 
 		ret = bch2_bkey_validate(c, bkey_i_to_s_c(i->k),
-					 i->bkey_type, invalid_flags);
+					 (struct bkey_validate_context) {
+						.from	= BKEY_VALIDATE_commit,
+						.level	= i->level,
+						.btree	= i->btree_id,
+						.flags	= invalid_flags,
+					 });
 		if (unlikely(ret)){
 			bch2_trans_inconsistent(trans, "invalid bkey on insert from %s -> %ps\n",
 						trans->fn, (void *) i->ip_allocated);

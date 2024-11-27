@@ -207,7 +207,7 @@ int bch2_check_subvol_children(struct bch_fs *c)
 /* Subvolumes: */
 
 int bch2_subvolume_validate(struct bch_fs *c, struct bkey_s_c k,
-			   enum bch_validate_flags flags)
+			    struct bkey_validate_context from)
 {
 	struct bkey_s_c_subvolume subvol = bkey_s_c_to_subvolume(k);
 	int ret = 0;

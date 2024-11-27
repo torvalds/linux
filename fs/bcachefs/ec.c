@@ -110,7 +110,7 @@ struct ec_bio {
 /* Stripes btree keys: */
 
 int bch2_stripe_validate(struct bch_fs *c, struct bkey_s_c k,
-			 enum bch_validate_flags flags)
+			 struct bkey_validate_context from)
 {
 	const struct bch_stripe *s = bkey_s_c_to_stripe(k).v;
 	int ret = 0;
@@ -130,7 +130,7 @@ int bch2_stripe_validate(struct bch_fs *c, struct bkey_s_c k,
 			 "invalid csum granularity (%u >= 64)",
 			 s->csum_granularity_bits);
 
-	ret = bch2_bkey_ptrs_validate(c, k, flags);
+	ret = bch2_bkey_ptrs_validate(c, k, from);
 fsck_err:
 	return ret;
 }

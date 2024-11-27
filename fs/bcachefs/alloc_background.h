@@ -8,8 +8,6 @@
 #include "debug.h"
 #include "super.h"
 
-enum bch_validate_flags;
-
 /* How out of date a pointer gen is allowed to be: */
 #define BUCKET_GC_GEN_MAX	96U
 
@@ -245,10 +243,14 @@ struct bkey_i_alloc_v4 *bch2_alloc_to_v4_mut(struct btree_trans *, struct bkey_s
 
 int bch2_bucket_io_time_reset(struct btree_trans *, unsigned, size_t, int);
 
-int bch2_alloc_v1_validate(struct bch_fs *, struct bkey_s_c, enum bch_validate_flags);
-int bch2_alloc_v2_validate(struct bch_fs *, struct bkey_s_c, enum bch_validate_flags);
-int bch2_alloc_v3_validate(struct bch_fs *, struct bkey_s_c, enum bch_validate_flags);
-int bch2_alloc_v4_validate(struct bch_fs *, struct bkey_s_c, enum bch_validate_flags);
+int bch2_alloc_v1_validate(struct bch_fs *, struct bkey_s_c,
+			   struct bkey_validate_context);
+int bch2_alloc_v2_validate(struct bch_fs *, struct bkey_s_c,
+			   struct bkey_validate_context);
+int bch2_alloc_v3_validate(struct bch_fs *, struct bkey_s_c,
+			   struct bkey_validate_context);
+int bch2_alloc_v4_validate(struct bch_fs *, struct bkey_s_c,
+			   struct bkey_validate_context);
 void bch2_alloc_v4_swab(struct bkey_s);
 void bch2_alloc_to_text(struct printbuf *, struct bch_fs *, struct bkey_s_c);
 
@@ -282,7 +284,7 @@ void bch2_alloc_to_text(struct printbuf *, struct bch_fs *, struct bkey_s_c);
 })
 
 int bch2_bucket_gens_validate(struct bch_fs *, struct bkey_s_c,
-			     enum bch_validate_flags);
+			      struct bkey_validate_context);
 void bch2_bucket_gens_to_text(struct printbuf *, struct bch_fs *, struct bkey_s_c);
 
 #define bch2_bkey_ops_bucket_gens ((struct bkey_ops) {	\

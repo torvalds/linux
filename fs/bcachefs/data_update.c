@@ -318,8 +318,11 @@ restart_drop_extra_replicas:
 		 * it's been hard to reproduce, so this should give us some more
 		 * information when it does occur:
 		 */
-		int invalid = bch2_bkey_validate(c, bkey_i_to_s_c(insert), __btree_node_type(0, m->btree_id),
-						 BCH_VALIDATE_commit);
+		int invalid = bch2_bkey_validate(c, bkey_i_to_s_c(insert),
+						 (struct bkey_validate_context) {
+							.btree	= m->btree_id,
+							.flags	= BCH_VALIDATE_commit,
+						 });
 		if (invalid) {
 			struct printbuf buf = PRINTBUF;
 

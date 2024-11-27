@@ -429,7 +429,7 @@ struct bkey_i *bch2_inode_to_v3(struct btree_trans *trans, struct bkey_i *k)
 }
 
 static int __bch2_inode_validate(struct bch_fs *c, struct bkey_s_c k,
-				 enum bch_validate_flags flags)
+				 struct bkey_validate_context from)
 {
 	struct bch_inode_unpacked unpacked;
 	int ret = 0;
@@ -469,7 +469,7 @@ fsck_err:
 }
 
 int bch2_inode_validate(struct bch_fs *c, struct bkey_s_c k,
-			enum bch_validate_flags flags)
+			struct bkey_validate_context from)
 {
 	struct bkey_s_c_inode inode = bkey_s_c_to_inode(k);
 	int ret = 0;
@@ -479,13 +479,13 @@ int bch2_inode_validate(struct bch_fs *c, struct bkey_s_c k,
 			 "invalid str hash type (%llu >= %u)",
 			 INODEv1_STR_HASH(inode.v), BCH_STR_HASH_NR);
 
-	ret = __bch2_inode_validate(c, k, flags);
+	ret = __bch2_inode_validate(c, k, from);
 fsck_err:
 	return ret;
 }
 
 int bch2_inode_v2_validate(struct bch_fs *c, struct bkey_s_c k,
-			   enum bch_validate_flags flags)
+			   struct bkey_validate_context from)
 {
 	struct bkey_s_c_inode_v2 inode = bkey_s_c_to_inode_v2(k);
 	int ret = 0;
@@ -495,13 +495,13 @@ int bch2_inode_v2_validate(struct bch_fs *c, struct bkey_s_c k,
 			 "invalid str hash type (%llu >= %u)",
 			 INODEv2_STR_HASH(inode.v), BCH_STR_HASH_NR);
 
-	ret = __bch2_inode_validate(c, k, flags);
+	ret = __bch2_inode_validate(c, k, from);
 fsck_err:
 	return ret;
 }
 
 int bch2_inode_v3_validate(struct bch_fs *c, struct bkey_s_c k,
-			   enum bch_validate_flags flags)
+			   struct bkey_validate_context from)
 {
 	struct bkey_s_c_inode_v3 inode = bkey_s_c_to_inode_v3(k);
 	int ret = 0;
@@ -519,7 +519,7 @@ int bch2_inode_v3_validate(struct bch_fs *c, struct bkey_s_c k,
 			 "invalid str hash type (%llu >= %u)",
 			 INODEv3_STR_HASH(inode.v), BCH_STR_HASH_NR);
 
-	ret = __bch2_inode_validate(c, k, flags);
+	ret = __bch2_inode_validate(c, k, from);
 fsck_err:
 	return ret;
 }
@@ -780,7 +780,7 @@ int bch2_trigger_inode(struct btree_trans *trans,
 }
 
 int bch2_inode_generation_validate(struct bch_fs *c, struct bkey_s_c k,
-				   enum bch_validate_flags flags)
+				   struct bkey_validate_context from)
 {
 	int ret = 0;
 

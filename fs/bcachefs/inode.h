@@ -7,15 +7,14 @@
 #include "opts.h"
 #include "snapshot.h"
 
-enum bch_validate_flags;
 extern const char * const bch2_inode_opts[];
 
 int bch2_inode_validate(struct bch_fs *, struct bkey_s_c,
-		       enum bch_validate_flags);
+			struct bkey_validate_context);
 int bch2_inode_v2_validate(struct bch_fs *, struct bkey_s_c,
-			  enum bch_validate_flags);
+			   struct bkey_validate_context);
 int bch2_inode_v3_validate(struct bch_fs *, struct bkey_s_c,
-			  enum bch_validate_flags);
+			   struct bkey_validate_context);
 void bch2_inode_to_text(struct printbuf *, struct bch_fs *, struct bkey_s_c);
 
 int __bch2_inode_has_child_snapshots(struct btree_trans *, struct bpos);
@@ -60,7 +59,7 @@ static inline bool bkey_is_inode(const struct bkey *k)
 }
 
 int bch2_inode_generation_validate(struct bch_fs *, struct bkey_s_c,
-				  enum bch_validate_flags);
+				   struct bkey_validate_context);
 void bch2_inode_generation_to_text(struct printbuf *, struct bch_fs *, struct bkey_s_c);
 
 #define bch2_bkey_ops_inode_generation ((struct bkey_ops) {	\

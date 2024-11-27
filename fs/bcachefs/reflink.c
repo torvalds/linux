@@ -41,7 +41,7 @@ static inline unsigned bkey_type_to_indirect(const struct bkey *k)
 /* reflink pointers */
 
 int bch2_reflink_p_validate(struct bch_fs *c, struct bkey_s_c k,
-			    enum bch_validate_flags flags)
+			    struct bkey_validate_context from)
 {
 	struct bkey_s_c_reflink_p p = bkey_s_c_to_reflink_p(k);
 	int ret = 0;
@@ -89,7 +89,7 @@ bool bch2_reflink_p_merge(struct bch_fs *c, struct bkey_s _l, struct bkey_s_c _r
 /* indirect extents */
 
 int bch2_reflink_v_validate(struct bch_fs *c, struct bkey_s_c k,
-			    enum bch_validate_flags flags)
+			    struct bkey_validate_context from)
 {
 	int ret = 0;
 
@@ -98,7 +98,7 @@ int bch2_reflink_v_validate(struct bch_fs *c, struct bkey_s_c k,
 			 "indirect extent above maximum position 0:%llu",
 			 REFLINK_P_IDX_MAX);
 
-	ret = bch2_bkey_ptrs_validate(c, k, flags);
+	ret = bch2_bkey_ptrs_validate(c, k, from);
 fsck_err:
 	return ret;
 }
@@ -128,7 +128,7 @@ bool bch2_reflink_v_merge(struct bch_fs *c, struct bkey_s _l, struct bkey_s_c _r
 /* indirect inline data */
 
 int bch2_indirect_inline_data_validate(struct bch_fs *c, struct bkey_s_c k,
-				      enum bch_validate_flags flags)
+				       struct bkey_validate_context from)
 {
 	return 0;
 }

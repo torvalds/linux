@@ -569,6 +569,7 @@ static int read_btree_roots(struct bch_fs *c)
 				r->error = 0;
 
 			ret = bch2_btree_lost_data(c, i);
+			BUG_ON(ret);
 		}
 	}
 

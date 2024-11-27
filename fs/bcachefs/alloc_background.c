@@ -198,7 +198,7 @@ static unsigned bch_alloc_v1_val_u64s(const struct bch_alloc *a)
 }
 
 int bch2_alloc_v1_validate(struct bch_fs *c, struct bkey_s_c k,
-			   enum bch_validate_flags flags)
+			   struct bkey_validate_context from)
 {
 	struct bkey_s_c_alloc a = bkey_s_c_to_alloc(k);
 	int ret = 0;
@@ -213,7 +213,7 @@ fsck_err:
 }
 
 int bch2_alloc_v2_validate(struct bch_fs *c, struct bkey_s_c k,
-			   enum bch_validate_flags flags)
+			   struct bkey_validate_context from)
 {
 	struct bkey_alloc_unpacked u;
 	int ret = 0;
@@ -226,7 +226,7 @@ fsck_err:
 }
 
 int bch2_alloc_v3_validate(struct bch_fs *c, struct bkey_s_c k,
-			   enum bch_validate_flags flags)
+			   struct bkey_validate_context from)
 {
 	struct bkey_alloc_unpacked u;
 	int ret = 0;
@@ -239,7 +239,7 @@ fsck_err:
 }
 
 int bch2_alloc_v4_validate(struct bch_fs *c, struct bkey_s_c k,
-			   enum bch_validate_flags flags)
+			   struct bkey_validate_context from)
 {
 	struct bch_alloc_v4 a;
 	int ret = 0;
@@ -509,7 +509,7 @@ static unsigned alloc_gen(struct bkey_s_c k, unsigned offset)
 }
 
 int bch2_bucket_gens_validate(struct bch_fs *c, struct bkey_s_c k,
-			     enum bch_validate_flags flags)
+			      struct bkey_validate_context from)
 {
 	int ret = 0;
 
