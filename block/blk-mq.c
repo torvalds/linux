@@ -142,8 +142,6 @@ static bool blk_freeze_set_owner(struct request_queue *q,
 /* verify the last unfreeze in owner context */
 static bool blk_unfreeze_check_owner(struct request_queue *q)
 {
-	if (!q->mq_freeze_owner)
-		return false;
 	if (q->mq_freeze_owner != current)
 		return false;
 	if (--q->mq_freeze_owner_depth == 0) {
