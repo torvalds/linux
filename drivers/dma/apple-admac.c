@@ -950,7 +950,7 @@ static struct platform_driver apple_admac_driver = {
 		.of_match_table = admac_of_match,
 	},
 	.probe = admac_probe,
-	.remove_new = admac_remove,
+	.remove = admac_remove,
 };
 module_platform_driver(apple_admac_driver);
 

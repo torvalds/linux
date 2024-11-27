@@ -458,7 +458,6 @@ SERDEV
 
 SLAVE DMA ENGINE
   devm_acpi_dma_controller_register()
-  devm_acpi_dma_controller_free()
 
 SPI
   devm_spi_alloc_host()
