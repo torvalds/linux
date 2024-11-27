@@ -136,6 +136,9 @@ amdgpu_eviction_fence_suspend_worker(struct work_struct *work)
 			if (!bo)
 				continue;
 
+			if (vm != bo_va->base.vm)
+				continue;
+
 			ret = drm_exec_lock_obj(&exec, &bo->tbo.base);
 			drm_exec_retry_on_contention(&exec);
 			if (unlikely(ret))
