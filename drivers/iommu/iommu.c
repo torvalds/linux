@@ -1987,8 +1987,8 @@ __iommu_paging_domain_alloc_flags(struct device *dev, unsigned int type,
 
 	if (ops->domain_alloc_paging && !flags)
 		domain = ops->domain_alloc_paging(dev);
-	else if (ops->domain_alloc_user)
-		domain = ops->domain_alloc_user(dev, flags, NULL, NULL);
+	else if (ops->domain_alloc_paging_flags)
+		domain = ops->domain_alloc_paging_flags(dev, flags, NULL);
 	else if (ops->domain_alloc && !flags)
 		domain = ops->domain_alloc(IOMMU_DOMAIN_UNMANAGED);
 	else
