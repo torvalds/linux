@@ -1527,6 +1527,7 @@ struct dc_surface_update {
 	const struct dc_cm2_parameters *cm2_params;
 	const struct dc_csc_transform *cursor_csc_color_matrix;
 	unsigned int sdr_white_level_nits;
+	struct dc_bias_and_scale bias_and_scale;
 };
 
 /*
