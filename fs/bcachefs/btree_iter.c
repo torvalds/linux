@@ -722,7 +722,7 @@ static inline int btree_path_lock_root(struct btree_trans *trans,
 				       unsigned long trace_ip)
 {
 	struct bch_fs *c = trans->c;
-	struct btree *b, **rootp = &bch2_btree_id_root(c, path->btree_id)->b;
+	struct btree_root *r = bch2_btree_id_root(c, path->btree_id);
 	enum six_lock_type lock_type;
 	unsigned i;
 	int ret;
@@ -730,7 +730,12 @@ static inline int btree_path_lock_root(struct btree_trans *trans,
 	EBUG_ON(path->nodes_locked);
 
 	while (1) {
-		b = READ_ONCE(*rootp);
+		struct btree *b = READ_ONCE(r->b);
+		if (unlikely(!b)) {
+			BUG_ON(!r->error);
+			return r->error;
+		}
+
 		path->level = READ_ONCE(b->c.level);
 
 		if (unlikely(path->level < depth_want)) {
@@ -755,7 +760,7 @@ static inline int btree_path_lock_root(struct btree_trans *trans,
 			BUG();
 		}
 
-		if (likely(b == READ_ONCE(*rootp) &&
+		if (likely(b == READ_ONCE(r->b) &&
 			   b->c.level == path->level &&
 			   !race_fault())) {
 			for (i = 0; i < path->level; i++)
