@@ -6075,6 +6075,10 @@
 			non-zero "wait" parameter.  See weight_single
 			and weight_many.
 
+	sdw_mclk_divider=[SDW]
+			Specify the MCLK divider for Intel SoundWire buses in
+			case the BIOS does not provide the clock rate properly.
+
 	skew_tick=	[KNL,EARLY] Offset the periodic timer tick per cpu to mitigate
 			xtime_lock contention on larger systems, and/or RCU lock
 			contention on all systems with CONFIG_MAXSMP set.
