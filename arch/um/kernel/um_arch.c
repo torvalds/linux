@@ -289,7 +289,7 @@ static void __init parse_cache_line(char *line)
 	}
 }
 
-static unsigned long get_top_address(char **envp)
+static unsigned long __init get_top_address(char **envp)
 {
 	unsigned long top_addr = (unsigned long) &top_addr;
 	int i;
