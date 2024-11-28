@@ -1213,14 +1213,10 @@ static struct kvm_cpuid_entry2 *do_host_cpuid(struct kvm_cpuid_array *array,
 	return entry;
 }
 
-static int __do_cpuid_func_emulated(struct kvm_cpuid_array *array, u32 func)
+static int cpuid_func_emulated(struct kvm_cpuid_entry2 *entry, u32 func)
 {
-	struct kvm_cpuid_entry2 *entry;
+	memset(entry, 0, sizeof(*entry));
 
-	if (array->nent >= array->maxnent)
-		return -E2BIG;
-
-	entry = &array->entries[array->nent];
 	entry->function = func;
 	entry->index = 0;
 	entry->flags = 0;
@@ -1228,23 +1224,27 @@ static int __do_cpuid_func_emulated(struct kvm_cpuid_array *array, u32 func)
 	switch (func) {
 	case 0:
 		entry->eax = 7;
-		++array->nent;
-		break;
+		return 1;
 	case 1:
 		entry->ecx = feature_bit(MOVBE);
-		++array->nent;
-		break;
+		return 1;
 	case 7:
 		entry->flags |= KVM_CPUID_FLAG_SIGNIFCANT_INDEX;
 		entry->eax = 0;
 		if (kvm_cpu_cap_has(X86_FEATURE_RDTSCP))
 			entry->ecx = feature_bit(RDPID);
-		++array->nent;
-		break;
+		return 1;
 	default:
-		break;
+		return 0;
 	}
+}
 
+static int __do_cpuid_func_emulated(struct kvm_cpuid_array *array, u32 func)
+{
+	if (array->nent >= array->maxnent)
+		return -E2BIG;
+
+	array->nent += cpuid_func_emulated(&array->entries[array->nent], func);
 	return 0;
 }
 
