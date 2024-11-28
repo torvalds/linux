@@ -124,9 +124,9 @@ enum bch_fsck_flags {
 	x(alloc_key_stripe_redundancy_wrong,			111,	FSCK_AUTOFIX)	\
 	x(bucket_sector_count_overflow,				112,	0)		\
 	x(bucket_metadata_type_mismatch,			113,	0)		\
-	x(need_discard_key_wrong,				114,	0)		\
-	x(freespace_key_wrong,					115,	0)		\
-	x(freespace_hole_missing,				116,	0)		\
+	x(need_discard_key_wrong,				114,	FSCK_AUTOFIX)	\
+	x(freespace_key_wrong,					115,	FSCK_AUTOFIX)	\
+	x(freespace_hole_missing,				116,	FSCK_AUTOFIX)	\
 	x(bucket_gens_val_size_bad,				117,	0)		\
 	x(bucket_gens_key_wrong,				118,	FSCK_AUTOFIX)	\
 	x(bucket_gens_hole_wrong,				119,	FSCK_AUTOFIX)	\
@@ -288,7 +288,7 @@ enum bch_fsck_flags {
 	x(btree_root_unreadable_and_scan_found_nothing,		263,	0)		\
 	x(snapshot_node_missing,				264,	0)		\
 	x(dup_backpointer_to_bad_csum_extent,			265,	0)		\
-	x(btree_bitmap_not_marked,				266,	0)		\
+	x(btree_bitmap_not_marked,				266,	FSCK_AUTOFIX)	\
 	x(sb_clean_entry_overrun,				267,	0)		\
 	x(btree_ptr_v2_written_0,				268,	0)		\
 	x(subvol_snapshot_bad,					269,	0)		\
