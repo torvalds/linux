@@ -3015,9 +3015,20 @@ static int amdgpu_ras_load_bad_pages(struct amdgpu_device *adev)
 				control->rec_type = AMDGPU_RAS_EEPROM_REC_MCA;
 		}
 
+		ret = amdgpu_ras_eeprom_check(control);
+		if (ret)
+			goto out;
+
+		/* HW not usable */
+		if (amdgpu_ras_is_rma(adev)) {
+			ret = -EHWPOISON;
+			goto out;
+		}
+
 		ret = amdgpu_ras_add_bad_pages(adev, bps, control->ras_num_recs, true);
 	}
 
+out:
 	kfree(bps);
 	return ret;
 }
@@ -3407,10 +3418,6 @@ int amdgpu_ras_init_badpage_info(struct amdgpu_device *adev)
 	ret = amdgpu_ras_eeprom_init(control);
 	if (ret)
 		return ret;
-
-	/* HW not usable */
-	if (amdgpu_ras_is_rma(adev))
-		return -EHWPOISON;
 
 	if (!adev->umc.ras || !adev->umc.ras->convert_ras_err_addr)
 		control->rec_type = AMDGPU_RAS_EEPROM_REC_PA;
