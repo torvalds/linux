@@ -721,7 +721,7 @@ do {									\
 })
 
 /* Scattered Flag - For features that are scattered by cpufeatures.h. */
-#define SF(name)						\
+#define SCATTERED_F(name)					\
 ({								\
 	BUILD_BUG_ON(X86_FEATURE_##name >= MAX_CPU_FEATURES);	\
 	KVM_VALIDATE_CPU_CAP_USAGE(name);			\
@@ -987,9 +987,9 @@ void kvm_set_cpu_caps(void)
 	);
 
 	kvm_cpu_cap_init(CPUID_12_EAX,
-		SF(SGX1) |
-		SF(SGX2) |
-		SF(SGX_EDECCSSA)
+		SCATTERED_F(SGX1) |
+		SCATTERED_F(SGX2) |
+		SCATTERED_F(SGX_EDECCSSA)
 	);
 
 	kvm_cpu_cap_init(CPUID_24_0_EBX,
@@ -1056,7 +1056,7 @@ void kvm_set_cpu_caps(void)
 		kvm_cpu_cap_set(X86_FEATURE_GBPAGES);
 
 	kvm_cpu_cap_init(CPUID_8000_0007_EDX,
-		SF(CONSTANT_TSC)
+		SCATTERED_F(CONSTANT_TSC)
 	);
 
 	kvm_cpu_cap_init(CPUID_8000_0008_EBX,
@@ -1177,7 +1177,7 @@ void kvm_set_cpu_caps(void)
 EXPORT_SYMBOL_GPL(kvm_set_cpu_caps);
 
 #undef F
-#undef SF
+#undef SCATTERED_F
 #undef X86_64_F
 #undef EMULATED_F
 #undef SYNTHESIZED_F
