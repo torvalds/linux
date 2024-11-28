@@ -665,6 +665,12 @@ static __always_inline void kvm_cpu_cap_init(u32 leaf, u32 mask)
 	feature_bit(name);							\
 })
 
+/*
+ * Undefine the MSR bit macro to avoid token concatenation issues when
+ * processing X86_FEATURE_SPEC_CTRL_SSBD.
+ */
+#undef SPEC_CTRL_SSBD
+
 void kvm_set_cpu_caps(void)
 {
 	memset(kvm_cpu_caps, 0, sizeof(kvm_cpu_caps));
