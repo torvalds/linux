@@ -678,21 +678,23 @@ static __always_inline u32 raw_cpuid_get(struct cpuid_reg cpuid)
 }
 
 /*
- * For kernel-defined leafs, mask the boot CPU's pre-populated value.  For KVM-
- * defined leafs, explicitly set the leaf, as KVM is the one and only authority.
+ * For kernel-defined leafs, mask KVM's supported feature set with the kernel's
+ * capabilities as well as raw CPUID.  For KVM-defined leafs, consult only raw
+ * CPUID, as KVM is the one and only authority (in the kernel).
  */
 #define kvm_cpu_cap_init(leaf, mask)					\
 do {									\
 	const struct cpuid_reg cpuid = x86_feature_cpuid(leaf * 32);	\
 	const u32 __maybe_unused kvm_cpu_cap_init_in_progress = leaf;	\
+	const u32 *kernel_cpu_caps = boot_cpu_data.x86_capability;	\
 	u32 kvm_cpu_cap_passthrough = 0;				\
 	u32 kvm_cpu_cap_synthesized = 0;				\
 	u32 kvm_cpu_cap_emulated = 0;					\
 									\
+	kvm_cpu_caps[leaf] = (mask);					\
+									\
 	if (leaf < NCAPINTS)						\
-		kvm_cpu_caps[leaf] &= (mask);				\
-	else								\
-		kvm_cpu_caps[leaf] = (mask);				\
+		kvm_cpu_caps[leaf] &= kernel_cpu_caps[leaf];		\
 									\
 	kvm_cpu_caps[leaf] |= kvm_cpu_cap_passthrough;			\
 	kvm_cpu_caps[leaf] &= (raw_cpuid_get(cpuid) |			\
@@ -789,9 +791,6 @@ void kvm_set_cpu_caps(void)
 
 	BUILD_BUG_ON(sizeof(kvm_cpu_caps) - (NKVMCAPINTS * sizeof(*kvm_cpu_caps)) >
 		     sizeof(boot_cpu_data.x86_capability));
-
-	memcpy(&kvm_cpu_caps, &boot_cpu_data.x86_capability,
-	       sizeof(kvm_cpu_caps) - (NKVMCAPINTS * sizeof(*kvm_cpu_caps)));
 
 	kvm_cpu_cap_init(CPUID_1_ECX,
 		F(XMM3) |
