@@ -1242,13 +1242,14 @@ int f2fs_truncate_partial_cluster(struct inode *inode, u64 from, bool lock)
 		int i;
 
 		for (i = cluster_size - 1; i >= 0; i--) {
-			loff_t start = rpages[i]->index << PAGE_SHIFT;
+			struct folio *folio = page_folio(rpages[i]);
+			loff_t start = folio->index << PAGE_SHIFT;
 
 			if (from <= start) {
-				zero_user_segment(rpages[i], 0, PAGE_SIZE);
+				folio_zero_segment(folio, 0, folio_size(folio));
 			} else {
-				zero_user_segment(rpages[i], from - start,
-								PAGE_SIZE);
+				folio_zero_segment(folio, from - start,
+						folio_size(folio));
 				break;
 			}
 		}
