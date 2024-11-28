@@ -1126,8 +1126,8 @@ struct replay_settings {
 	uint32_t defer_update_coasting_vtotal_table[PR_COASTING_TYPE_NUM];
 	/* Maximum link off frame count */
 	uint32_t link_off_frame_count;
-	/* Replay pseudo vtotal for low refresh rate*/
-	uint16_t low_rr_full_screen_video_pseudo_vtotal;
+	/* Replay pseudo vtotal for abm + ips on full screen video which can improve ips residency */
+	uint16_t abm_with_ips_on_full_screen_video_pseudo_vtotal;
 	/* Replay last pseudo vtotal set to DMUB */
 	uint16_t last_pseudo_vtotal;
 };
