@@ -73,7 +73,7 @@ static void __init install_fatal_handler(int sig)
 
 #define UML_LIB_PATH	":" OS_LIB_PATH "/uml"
 
-static void setup_env_path(void)
+static void __init setup_env_path(void)
 {
 	char *new_path = NULL;
 	char *old_path = NULL;
