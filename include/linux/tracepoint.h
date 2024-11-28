@@ -210,36 +210,6 @@ static inline struct tracepoint *tracepoint_ptr_deref(tracepoint_ptr_t *p)
 #endif /* CONFIG_HAVE_STATIC_CALL */
 
 /*
- * it_func[0] is never NULL because there is at least one element in the array
- * when the array itself is non NULL.
- *
- * With @syscall=0, the tracepoint callback array dereference is
- * protected by disabling preemption.
- * With @syscall=1, the tracepoint callback array dereference is
- * protected by Tasks Trace RCU, which allows probes to handle page
- * faults.
- */
-#define __DO_TRACE(name, args, cond, syscall)				\
-	do {								\
-		int __maybe_unused __idx = 0;				\
-									\
-		if (!(cond))						\
-			return;						\
-									\
-		if (syscall)						\
-			rcu_read_lock_trace();				\
-		else							\
-			preempt_disable_notrace();			\
-									\
-		__DO_TRACE_CALL(name, TP_ARGS(args));			\
-									\
-		if (syscall)						\
-			rcu_read_unlock_trace();			\
-		else							\
-			preempt_enable_notrace();			\
-	} while (0)
-
-/*
  * Declare an exported function that Rust code can call to trigger this
  * tracepoint. This function does not include the static branch; that is done
  * in Rust to avoid a function call when the tracepoint is disabled.
@@ -262,7 +232,7 @@ static inline struct tracepoint *tracepoint_ptr_deref(tracepoint_ptr_t *p)
  * site if it is not watching, as it will need to be active when the
  * tracepoint is enabled.
  */
-#define __DECLARE_TRACE_COMMON(name, proto, args, cond, data_proto)	\
+#define __DECLARE_TRACE_COMMON(name, proto, args, data_proto)		\
 	extern int __traceiter_##name(data_proto);			\
 	DECLARE_STATIC_CALL(tp_func_##name, __traceiter_##name);	\
 	extern struct tracepoint __tracepoint_##name;			\
@@ -297,41 +267,43 @@ static inline struct tracepoint *tracepoint_ptr_deref(tracepoint_ptr_t *p)
 	}
 
 #define __DECLARE_TRACE(name, proto, args, cond, data_proto)		\
-	__DECLARE_TRACE_COMMON(name, PARAMS(proto), PARAMS(args), cond, PARAMS(data_proto)) \
+	__DECLARE_TRACE_COMMON(name, PARAMS(proto), PARAMS(args), PARAMS(data_proto)) \
 	static inline void __rust_do_trace_##name(proto)		\
 	{								\
-		__DO_TRACE(name,					\
-			TP_ARGS(args),					\
-			TP_CONDITION(cond), 0);				\
+		if (cond) {						\
+			guard(preempt_notrace)();			\
+			__DO_TRACE_CALL(name, TP_ARGS(args));		\
+		}							\
 	}								\
 	static inline void trace_##name(proto)				\
 	{								\
-		if (static_branch_unlikely(&__tracepoint_##name.key))	\
-			__DO_TRACE(name,				\
-				TP_ARGS(args),				\
-				TP_CONDITION(cond), 0);			\
+		if (static_branch_unlikely(&__tracepoint_##name.key)) { \
+			if (cond) {					\
+				guard(preempt_notrace)();		\
+				__DO_TRACE_CALL(name, TP_ARGS(args));	\
+			}						\
+		}							\
 		if (IS_ENABLED(CONFIG_LOCKDEP) && (cond)) {		\
 			WARN_ONCE(!rcu_is_watching(),			\
 				  "RCU not watching for tracepoint");	\
 		}							\
 	}
 
-#define __DECLARE_TRACE_SYSCALL(name, proto, args, cond, data_proto)	\
-	__DECLARE_TRACE_COMMON(name, PARAMS(proto), PARAMS(args), cond, PARAMS(data_proto)) \
+#define __DECLARE_TRACE_SYSCALL(name, proto, args, data_proto)		\
+	__DECLARE_TRACE_COMMON(name, PARAMS(proto), PARAMS(args), PARAMS(data_proto)) \
 	static inline void __rust_do_trace_##name(proto)		\
 	{								\
-		__DO_TRACE(name,					\
-			TP_ARGS(args),					\
-			TP_CONDITION(cond), 1);				\
+		guard(rcu_tasks_trace)();				\
+		__DO_TRACE_CALL(name, TP_ARGS(args));			\
 	}								\
 	static inline void trace_##name(proto)				\
 	{								\
 		might_fault();						\
-		if (static_branch_unlikely(&__tracepoint_##name.key))	\
-			__DO_TRACE(name,				\
-				TP_ARGS(args),				\
-				TP_CONDITION(cond), 1);			\
-		if (IS_ENABLED(CONFIG_LOCKDEP) && (cond)) {		\
+		if (static_branch_unlikely(&__tracepoint_##name.key)) {	\
+			guard(rcu_tasks_trace)();			\
+			__DO_TRACE_CALL(name, TP_ARGS(args));		\
+		}							\
+		if (IS_ENABLED(CONFIG_LOCKDEP)) {			\
 			WARN_ONCE(!rcu_is_watching(),			\
 				  "RCU not watching for tracepoint");	\
 		}							\
@@ -341,6 +313,9 @@ static inline struct tracepoint *tracepoint_ptr_deref(tracepoint_ptr_t *p)
  * We have no guarantee that gcc and the linker won't up-align the tracepoint
  * structures, so we create an array of pointers that will be used for iteration
  * on the tracepoints.
+ *
+ * it_func[0] is never NULL because there is at least one element in the array
+ * when the array itself is non NULL.
  */
 #define __DEFINE_TRACE_EXT(_name, _ext, proto, args)			\
 	static const char __tpstrtab_##_name[]				\
@@ -412,7 +387,7 @@ static inline struct tracepoint *tracepoint_ptr_deref(tracepoint_ptr_t *p)
 
 
 #else /* !TRACEPOINTS_ENABLED */
-#define __DECLARE_TRACE(name, proto, args, cond, data_proto)		\
+#define __DECLARE_TRACE_COMMON(name, proto, args, data_proto)		\
 	static inline void trace_##name(proto)				\
 	{ }								\
 	static inline int						\
@@ -436,7 +411,11 @@ static inline struct tracepoint *tracepoint_ptr_deref(tracepoint_ptr_t *p)
 		return false;						\
 	}
 
-#define __DECLARE_TRACE_SYSCALL	__DECLARE_TRACE
+#define __DECLARE_TRACE(name, proto, args, cond, data_proto)		\
+	__DECLARE_TRACE_COMMON(name, PARAMS(proto), PARAMS(args), PARAMS(data_proto))
+
+#define __DECLARE_TRACE_SYSCALL(name, proto, args, data_proto)		\
+	__DECLARE_TRACE_COMMON(name, PARAMS(proto), PARAMS(args), PARAMS(data_proto))
 
 #define DEFINE_TRACE_FN(name, reg, unreg, proto, args)
 #define DEFINE_TRACE_SYSCALL(name, reg, unreg, proto, args)
@@ -502,7 +481,6 @@ static inline struct tracepoint *tracepoint_ptr_deref(tracepoint_ptr_t *p)
 
 #define DECLARE_TRACE_SYSCALL(name, proto, args)			\
 	__DECLARE_TRACE_SYSCALL(name, PARAMS(proto), PARAMS(args),	\
-				cpu_online(raw_smp_processor_id()),	\
 				PARAMS(void *__data, proto))
 
 #define TRACE_EVENT_FLAGS(event, flag)
