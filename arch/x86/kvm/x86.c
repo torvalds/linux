@@ -5814,9 +5814,6 @@ static int kvm_vcpu_ioctl_enable_cap(struct kvm_vcpu *vcpu,
 
 	case KVM_CAP_ENFORCE_PV_FEATURE_CPUID:
 		vcpu->arch.pv_cpuid.enforce = cap->args[0];
-		if (vcpu->arch.pv_cpuid.enforce)
-			kvm_update_pv_runtime(vcpu);
-
 		return 0;
 	default:
 		return -EINVAL;
