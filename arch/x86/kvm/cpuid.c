@@ -686,6 +686,7 @@ do {									\
 	const struct cpuid_reg cpuid = x86_feature_cpuid(leaf * 32);	\
 	const u32 __maybe_unused kvm_cpu_cap_init_in_progress = leaf;	\
 	u32 kvm_cpu_cap_passthrough = 0;				\
+	u32 kvm_cpu_cap_synthesized = 0;				\
 	u32 kvm_cpu_cap_emulated = 0;					\
 									\
 	if (leaf < NCAPINTS)						\
@@ -694,7 +695,8 @@ do {									\
 		kvm_cpu_caps[leaf] = (mask);				\
 									\
 	kvm_cpu_caps[leaf] |= kvm_cpu_cap_passthrough;			\
-	kvm_cpu_caps[leaf] &= raw_cpuid_get(cpuid);			\
+	kvm_cpu_caps[leaf] &= (raw_cpuid_get(cpuid) |			\
+			       kvm_cpu_cap_synthesized);		\
 	kvm_cpu_caps[leaf] |= kvm_cpu_cap_emulated;			\
 } while (0)
 
@@ -738,6 +740,17 @@ do {									\
 #define EMULATED_F(name)					\
 ({								\
 	kvm_cpu_cap_emulated |= F(name);			\
+	F(name);						\
+})
+
+/*
+ * Synthesized Feature - For features that are synthesized into boot_cpu_data,
+ * i.e. may not be present in the raw CPUID, but can still be advertised to
+ * userspace.  Primarily used for mitigation related feature flags.
+ */
+#define SYNTHESIZED_F(name)					\
+({								\
+	kvm_cpu_cap_synthesized |= F(name);			\
 	F(name);						\
 })
 
@@ -1105,35 +1118,32 @@ void kvm_set_cpu_caps(void)
 
 	kvm_cpu_cap_init(CPUID_8000_0021_EAX,
 		F(NO_NESTED_DATA_BP) |
-		F(LFENCE_RDTSC) |
+		/*
+		 * Synthesize "LFENCE is serializing" into the AMD-defined entry
+		 * in KVM's supported CPUID, i.e. if the feature is reported as
+		 * supported by the kernel.  LFENCE_RDTSC was a Linux-defined
+		 * synthetic feature long before AMD joined the bandwagon, e.g.
+		 * LFENCE is serializing on most CPUs that support SSE2.  On
+		 * CPUs that don't support AMD's leaf, ANDing with the raw host
+		 * CPUID will drop the flags, and reporting support in AMD's
+		 * leaf can make it easier for userspace to detect the feature.
+		 */
+		SYNTHESIZED_F(LFENCE_RDTSC) |
 		0 /* SmmPgCfgLock */ |
 		F(NULL_SEL_CLR_BASE) |
 		F(AUTOIBRS) |
 		EMULATED_F(NO_SMM_CTL_MSR) |
 		0 /* PrefetchCtlMsr */ |
-		F(WRMSR_XX_BASE_NS)
+		F(WRMSR_XX_BASE_NS) |
+		SYNTHESIZED_F(SBPB) |
+		SYNTHESIZED_F(IBPB_BRTYPE) |
+		SYNTHESIZED_F(SRSO_NO)
 	);
-
-	kvm_cpu_cap_check_and_set(X86_FEATURE_SBPB);
-	kvm_cpu_cap_check_and_set(X86_FEATURE_IBPB_BRTYPE);
-	kvm_cpu_cap_check_and_set(X86_FEATURE_SRSO_NO);
 
 	kvm_cpu_cap_init(CPUID_8000_0022_EAX,
 		F(PERFMON_V2)
 	);
 
-	/*
-	 * Synthesize "LFENCE is serializing" into the AMD-defined entry in
-	 * KVM's supported CPUID if the feature is reported as supported by the
-	 * kernel.  LFENCE_RDTSC was a Linux-defined synthetic feature long
-	 * before AMD joined the bandwagon, e.g. LFENCE is serializing on most
-	 * CPUs that support SSE2.  On CPUs that don't support AMD's leaf,
-	 * kvm_cpu_cap_init() will unfortunately drop the flag due to ANDing
-	 * the mask with the raw host CPUID, and reporting support in AMD's
-	 * leaf can make it easier for userspace to detect the feature.
-	 */
-	if (cpu_feature_enabled(X86_FEATURE_LFENCE_RDTSC))
-		kvm_cpu_cap_set(X86_FEATURE_LFENCE_RDTSC);
 	if (!static_cpu_has_bug(X86_BUG_NULL_SEG))
 		kvm_cpu_cap_set(X86_FEATURE_NULL_SEL_CLR_BASE);
 
@@ -1171,6 +1181,7 @@ EXPORT_SYMBOL_GPL(kvm_set_cpu_caps);
 #undef SF
 #undef X86_64_F
 #undef EMULATED_F
+#undef SYNTHESIZED_F
 #undef PASSTHROUGH_F
 #undef ALIASED_1_EDX_F
 
