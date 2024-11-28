@@ -136,6 +136,7 @@ enum ath12k_dbg_htt_ext_stats_type {
 	ATH12K_DBG_HTT_EXT_STATS_PDEV_CCA_STATS		= 19,
 	ATH12K_DBG_HTT_EXT_STATS_PDEV_OBSS_PD_STATS	= 23,
 	ATH12K_DBG_HTT_EXT_STATS_PDEV_TX_RATE_TXBF	= 31,
+	ATH12K_DBG_HTT_EXT_STATS_TXBF_OFDMA		= 32,
 	ATH12K_DBG_HTT_EXT_STATS_DLPAGER_STATS		= 36,
 	ATH12K_DBG_HTT_EXT_PHY_COUNTERS_AND_PHY_STATS	= 37,
 	ATH12K_DBG_HTT_EXT_VDEVS_TXRX_STATS		= 38,
@@ -214,9 +215,14 @@ enum ath12k_dbg_htt_tlv_tag {
 	HTT_STATS_TX_SELFGEN_BE_ERR_STATS_TAG		= 137,
 	HTT_STATS_TX_SELFGEN_BE_STATS_TAG		= 138,
 	HTT_STATS_TX_SELFGEN_BE_SCHED_STATUS_STATS_TAG	= 139,
+	HTT_STATS_TXBF_OFDMA_AX_NDPA_STATS_TAG		= 147,
+	HTT_STATS_TXBF_OFDMA_AX_NDP_STATS_TAG		= 148,
+	HTT_STATS_TXBF_OFDMA_AX_BRP_STATS_TAG		= 149,
+	HTT_STATS_TXBF_OFDMA_AX_STEER_STATS_TAG		= 150,
 	HTT_STATS_DMAC_RESET_STATS_TAG			= 155,
 	HTT_STATS_PHY_TPC_STATS_TAG			= 157,
 	HTT_STATS_PDEV_SCHED_ALGO_OFDMA_STATS_TAG	= 165,
+	HTT_STATS_TXBF_OFDMA_AX_STEER_MPDU_STATS_TAG	= 172,
 	HTT_STATS_PDEV_MBSSID_CTRL_FRAME_STATS_TAG	= 176,
 
 	HTT_STATS_MAX_TAG,
@@ -1098,6 +1104,67 @@ struct ath12k_htt_pdev_txrate_txbf_stats_tlv {
 	__le32 txbf_flag_not_set_disable_uldlofdma;
 	__le32 txbf_flag_not_set_mcs_threshold_val;
 	__le32 txbf_flag_not_set_final_status;
+} __packed;
+
+struct ath12k_htt_txbf_ofdma_ax_ndpa_stats_elem_t {
+	__le32 ax_ofdma_ndpa_queued;
+	__le32 ax_ofdma_ndpa_tried;
+	__le32 ax_ofdma_ndpa_flush;
+	__le32 ax_ofdma_ndpa_err;
+} __packed;
+
+struct ath12k_htt_txbf_ofdma_ax_ndpa_stats_tlv {
+	__le32 num_elems_ax_ndpa_arr;
+	__le32 arr_elem_size_ax_ndpa;
+	DECLARE_FLEX_ARRAY(struct ath12k_htt_txbf_ofdma_ax_ndpa_stats_elem_t, ax_ndpa);
+} __packed;
+
+struct ath12k_htt_txbf_ofdma_ax_ndp_stats_elem_t {
+	__le32 ax_ofdma_ndp_queued;
+	__le32 ax_ofdma_ndp_tried;
+	__le32 ax_ofdma_ndp_flush;
+	__le32 ax_ofdma_ndp_err;
+} __packed;
+
+struct ath12k_htt_txbf_ofdma_ax_ndp_stats_tlv {
+	__le32 num_elems_ax_ndp_arr;
+	__le32 arr_elem_size_ax_ndp;
+	DECLARE_FLEX_ARRAY(struct ath12k_htt_txbf_ofdma_ax_ndp_stats_elem_t, ax_ndp);
+} __packed;
+
+struct ath12k_htt_txbf_ofdma_ax_brp_stats_elem_t {
+	__le32 ax_ofdma_brp_queued;
+	__le32 ax_ofdma_brp_tried;
+	__le32 ax_ofdma_brp_flushed;
+	__le32 ax_ofdma_brp_err;
+	__le32 ax_ofdma_num_cbf_rcvd;
+} __packed;
+
+struct ath12k_htt_txbf_ofdma_ax_brp_stats_tlv {
+	__le32 num_elems_ax_brp_arr;
+	__le32 arr_elem_size_ax_brp;
+	DECLARE_FLEX_ARRAY(struct ath12k_htt_txbf_ofdma_ax_brp_stats_elem_t, ax_brp);
+} __packed;
+
+struct ath12k_htt_txbf_ofdma_ax_steer_stats_elem_t {
+	__le32 num_ppdu_steer;
+	__le32 num_ppdu_ol;
+	__le32 num_usr_prefetch;
+	__le32 num_usr_sound;
+	__le32 num_usr_force_sound;
+} __packed;
+
+struct ath12k_htt_txbf_ofdma_ax_steer_stats_tlv {
+	__le32 num_elems_ax_steer_arr;
+	__le32 arr_elem_size_ax_steer;
+	DECLARE_FLEX_ARRAY(struct ath12k_htt_txbf_ofdma_ax_steer_stats_elem_t, ax_steer);
+} __packed;
+
+struct ath12k_htt_txbf_ofdma_ax_steer_mpdu_stats_tlv {
+	__le32 ax_ofdma_rbo_steer_mpdus_tried;
+	__le32 ax_ofdma_rbo_steer_mpdus_failed;
+	__le32 ax_ofdma_sifs_steer_mpdus_tried;
+	__le32 ax_ofdma_sifs_steer_mpdus_failed;
 } __packed;
 
 enum ath12k_htt_stats_page_lock_state {
