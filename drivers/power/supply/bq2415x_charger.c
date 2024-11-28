@@ -171,6 +171,7 @@ struct bq2415x_device {
 	char *name;
 	int autotimer;	/* 1 - if driver automatically reset timer, 0 - not */
 	int automode;	/* 1 - enabled, 0 - disabled; -1 - not supported */
+	int charge_status;
 	int id;
 };
 
@@ -835,6 +836,8 @@ static int bq2415x_notifier_call(struct notifier_block *nb,
 	if (!bq2415x_update_reported_mode(bq, prop.intval))
 		return NOTIFY_OK;
 
+	power_supply_changed(bq->charger);
+
 	/* if automode is not enabled do not tell about reported_mode */
 	if (bq->automode < 1)
 		return NOTIFY_OK;
@@ -889,10 +892,17 @@ static void bq2415x_timer_work(struct work_struct *work)
 	int ret;
 	int error;
 	int boost;
+	int charge;
 
 	if (bq->automode > 0 && (bq->reported_mode != bq->mode)) {
 		sysfs_notify(&bq->charger->dev.kobj, NULL, "reported_mode");
 		bq2415x_set_mode(bq, bq->reported_mode);
+	}
+
+	charge = bq2415x_exec_command(bq, BQ2415X_CHARGE_STATUS);
+	if (bq->charge_status != charge) {
+		power_supply_changed(bq->charger);
+		bq->charge_status = charge;
 	}
 
 	if (!bq->autotimer)
