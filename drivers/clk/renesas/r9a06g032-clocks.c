@@ -27,7 +27,7 @@
 #include <dt-bindings/clock/r9a06g032-sysctrl.h>
 
 #define R9A06G032_SYSCTRL_USB    0x00
-#define R9A06G032_SYSCTRL_USB_H2MODE  (1<<1)
+#define R9A06G032_SYSCTRL_USB_H2MODE BIT(1)
 #define R9A06G032_SYSCTRL_DMAMUX 0xA0
 
 #define R9A06G032_SYSCTRL_RSTEN 0x120
