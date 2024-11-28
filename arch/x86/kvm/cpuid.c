@@ -380,7 +380,7 @@ void kvm_vcpu_after_set_cpuid(struct kvm_vcpu *vcpu)
 	allow_gbpages = tdp_enabled ? boot_cpu_has(X86_FEATURE_GBPAGES) :
 				      guest_cpuid_has(vcpu, X86_FEATURE_GBPAGES);
 	if (allow_gbpages)
-		kvm_governed_feature_set(vcpu, X86_FEATURE_GBPAGES);
+		guest_cpu_cap_set(vcpu, X86_FEATURE_GBPAGES);
 
 	best = kvm_find_cpuid_entry(vcpu, 1);
 	if (best && apic) {
