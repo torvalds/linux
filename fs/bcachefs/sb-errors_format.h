@@ -233,6 +233,7 @@ enum bch_fsck_flags {
 	x(inode_wrong_nlink,					209,	FSCK_AUTOFIX)	\
 	x(inode_has_child_snapshots_wrong,			287,	0)		\
 	x(inode_unreachable,					210,	FSCK_AUTOFIX)	\
+	x(inode_journal_seq_in_future,				299,	FSCK_AUTOFIX)	\
 	x(deleted_inode_but_clean,				211,	FSCK_AUTOFIX)	\
 	x(deleted_inode_missing,				212,	FSCK_AUTOFIX)	\
 	x(deleted_inode_is_dir,					213,	FSCK_AUTOFIX)	\
@@ -309,7 +310,7 @@ enum bch_fsck_flags {
 	x(logged_op_but_clean,					283,	FSCK_AUTOFIX)	\
 	x(compression_opt_not_marked_in_sb,			295,	FSCK_AUTOFIX)	\
 	x(compression_type_not_marked_in_sb,			296,	FSCK_AUTOFIX)	\
-	x(MAX,							299,	0)
+	x(MAX,							300,	0)
 
 enum bch_sb_error_id {
 #define x(t, n, ...) BCH_FSCK_ERR_##t = n,

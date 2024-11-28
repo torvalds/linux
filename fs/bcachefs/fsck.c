@@ -1392,7 +1392,7 @@ static int check_inode(struct btree_trans *trans,
 
 			if (fsck_err_on(!ret,
 					trans, inode_unlinked_and_not_open,
-				      "inode %llu%u unlinked and not open",
+				      "inode %llu:%u unlinked and not open",
 				      u.bi_inum, u.bi_snapshot)) {
 				ret = bch2_inode_rm_snapshot(trans, u.bi_inum, iter->pos.snapshot);
 				bch_err_msg(c, ret, "in fsck deleting inode");
@@ -1440,6 +1440,17 @@ static int check_inode(struct btree_trans *trans,
 			u.bi_parent_subvol = 0;
 			do_update = true;
 		}
+	}
+
+	if (fsck_err_on(u.bi_journal_seq > journal_cur_seq(&c->journal),
+			trans, inode_journal_seq_in_future,
+			"inode journal seq in future (currently at %llu)\n%s",
+			journal_cur_seq(&c->journal),
+			(printbuf_reset(&buf),
+			 bch2_inode_unpacked_to_text(&buf, &u),
+			buf.buf))) {
+		u.bi_journal_seq = journal_cur_seq(&c->journal);
+		do_update = true;
 	}
 do_update:
 	if (do_update) {

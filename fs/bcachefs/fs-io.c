@@ -167,6 +167,34 @@ void __bch2_i_sectors_acct(struct bch_fs *c, struct bch_inode_info *inode,
 
 /* fsync: */
 
+static int bch2_get_inode_journal_seq_trans(struct btree_trans *trans, subvol_inum inum,
+					    u64 *seq)
+{
+	struct printbuf buf = PRINTBUF;
+	struct bch_inode_unpacked u;
+	struct btree_iter iter;
+	int ret = bch2_inode_peek(trans, &iter, &u, inum, 0);
+	if (ret)
+		return ret;
+
+	u64 cur_seq = journal_cur_seq(&trans->c->journal);
+	*seq = min(cur_seq, u.bi_journal_seq);
+
+	if (fsck_err_on(u.bi_journal_seq > cur_seq,
+			trans, inode_journal_seq_in_future,
+			"inode journal seq in future (currently at %llu)\n%s",
+			cur_seq,
+			(bch2_inode_unpacked_to_text(&buf, &u),
+			buf.buf))) {
+		u.bi_journal_seq = cur_seq;
+		ret = bch2_inode_write(trans, &iter, &u);
+	}
+fsck_err:
+	bch2_trans_iter_exit(trans, &iter);
+	printbuf_exit(&buf);
+	return ret;
+}
+
 /*
  * inode->ei_inode.bi_journal_seq won't be up to date since it's set in an
  * insert trigger: look up the btree inode instead
@@ -180,9 +208,10 @@ static int bch2_flush_inode(struct bch_fs *c,
 	if (!bch2_write_ref_tryget(c, BCH_WRITE_REF_fsync))
 		return -EROFS;
 
-	struct bch_inode_unpacked u;
-	int ret = bch2_inode_find_by_inum(c, inode_inum(inode), &u) ?:
-		  bch2_journal_flush_seq(&c->journal, u.bi_journal_seq, TASK_INTERRUPTIBLE) ?:
+	u64 seq;
+	int ret = bch2_trans_commit_do(c, NULL, NULL, 0,
+			bch2_get_inode_journal_seq_trans(trans, inode_inum(inode), &seq)) ?:
+		  bch2_journal_flush_seq(&c->journal, seq, TASK_INTERRUPTIBLE) ?:
 		  bch2_inode_flush_nocow_writes(c, inode);
 	bch2_write_ref_put(c, BCH_WRITE_REF_fsync);
 	return ret;
