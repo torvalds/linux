@@ -1397,9 +1397,9 @@ config PROVE_LOCKING
 	 For more details, see Documentation/locking/lockdep-design.rst.
 
 config PROVE_RAW_LOCK_NESTING
-	bool
+	bool "Enable raw_spinlock - spinlock nesting checks" if !ARCH_SUPPORTS_RT
 	depends on PROVE_LOCKING
-	default y
+	default y if ARCH_SUPPORTS_RT
 	help
 	 Enable the raw_spinlock vs. spinlock nesting checks which ensure
 	 that the lock nesting rules for PREEMPT_RT enabled kernels are
