@@ -1307,10 +1307,15 @@ static void rtw89_ops_sta_rc_update(struct ieee80211_hw *hw,
 				    struct ieee80211_link_sta *link_sta,
 				    u32 changed)
 {
-	struct ieee80211_sta *sta = link_sta->sta;
+	struct rtw89_sta *rtwsta = sta_to_rtwsta(link_sta->sta);
 	struct rtw89_dev *rtwdev = hw->priv;
+	struct rtw89_sta_link *rtwsta_link;
 
-	rtw89_phy_ra_update_sta(rtwdev, sta, changed);
+	rtwsta_link = rtwsta->links[link_sta->link_id];
+	if (unlikely(!rtwsta_link))
+		return;
+
+	rtw89_phy_ra_update_sta_link(rtwdev, rtwsta_link, changed);
 }
 
 static int rtw89_ops_add_chanctx(struct ieee80211_hw *hw,

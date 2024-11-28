@@ -467,11 +467,11 @@ static void rtw89_phy_ra_sta_update(struct rtw89_dev *rtwdev,
 	ra->csi_mode = csi_mode;
 }
 
-static void __rtw89_phy_ra_update_sta(struct rtw89_dev *rtwdev,
-				      struct rtw89_vif_link *rtwvif_link,
-				      struct rtw89_sta_link *rtwsta_link,
-				      u32 changed)
+void rtw89_phy_ra_update_sta_link(struct rtw89_dev *rtwdev,
+				  struct rtw89_sta_link *rtwsta_link,
+				  u32 changed)
 {
+	struct rtw89_vif_link *rtwvif_link = rtwsta_link->rtwvif_link;
 	struct ieee80211_vif *vif = rtwvif_link_to_vif(rtwvif_link);
 	struct rtw89_ra_info *ra = &rtwsta_link->ra;
 	struct ieee80211_link_sta *link_sta;
@@ -504,14 +504,11 @@ void rtw89_phy_ra_update_sta(struct rtw89_dev *rtwdev, struct ieee80211_sta *sta
 			     u32 changed)
 {
 	struct rtw89_sta *rtwsta = sta_to_rtwsta(sta);
-	struct rtw89_vif_link *rtwvif_link;
 	struct rtw89_sta_link *rtwsta_link;
 	unsigned int link_id;
 
-	rtw89_sta_for_each_link(rtwsta, rtwsta_link, link_id) {
-		rtwvif_link = rtwsta_link->rtwvif_link;
-		__rtw89_phy_ra_update_sta(rtwdev, rtwvif_link, rtwsta_link, changed);
-	}
+	rtw89_sta_for_each_link(rtwsta, rtwsta_link, link_id)
+		rtw89_phy_ra_update_sta_link(rtwdev, rtwsta_link, changed);
 }
 
 static bool __check_rate_pattern(struct rtw89_phy_rate_pattern *next,
