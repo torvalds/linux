@@ -57,6 +57,13 @@
 	".long 998b\n\t"						\
 	".popsection\n\t"
 
+#define ASM_ANNOTATE(type)						\
+	"911:\n\t"							\
+	".pushsection .discard.annotate_insn,\"M\",@progbits,8\n\t"	\
+	".long 911b - .\n\t"						\
+	".long " __stringify(type) "\n\t"				\
+	".popsection\n\t"
+
 #else /* __ASSEMBLY__ */
 
 /*
@@ -146,6 +153,14 @@
 	.popsection
 .endm
 
+.macro ANNOTATE type:req
+.Lhere_\@:
+	.pushsection .discard.annotate_insn,"M",@progbits,8
+	.long	.Lhere_\@ - .
+	.long	\type
+	.popsection
+.endm
+
 #endif /* __ASSEMBLY__ */
 
 #else /* !CONFIG_OBJTOOL */
@@ -155,6 +170,7 @@
 #define UNWIND_HINT(type, sp_reg, sp_offset, signal) "\n\t"
 #define STACK_FRAME_NON_STANDARD(func)
 #define STACK_FRAME_NON_STANDARD_FP(func)
+#define ASM_ANNOTATE(type)
 #define ANNOTATE_NOENDBR
 #define ASM_REACHABLE
 #else
@@ -166,6 +182,8 @@
 .macro ANNOTATE_NOENDBR
 .endm
 .macro REACHABLE
+.endm
+.macro ANNOTATE type:req
 .endm
 #endif
 
