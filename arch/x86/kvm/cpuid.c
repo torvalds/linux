@@ -737,7 +737,7 @@ void kvm_set_cpu_caps(void)
 		EMULATED_F(X2APIC) |
 		F(MOVBE) |
 		F(POPCNT) |
-		0 /* Reserved*/ |
+		EMULATED_F(TSC_DEADLINE_TIMER) |
 		F(AES) |
 		F(XSAVE) |
 		0 /* OSXSAVE */ |
