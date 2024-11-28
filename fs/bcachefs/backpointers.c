@@ -249,9 +249,12 @@ struct bkey_s_c bch2_backpointer_get_key(struct btree_trans *trans,
 					 struct btree_iter *iter,
 					 unsigned iter_flags)
 {
-	if (likely(!bp.v->level)) {
-		struct bch_fs *c = trans->c;
+	struct bch_fs *c = trans->c;
 
+	if (unlikely(bp.v->btree_id >= btree_id_nr_alive(c)))
+		return bkey_s_c_null;
+
+	if (likely(!bp.v->level)) {
 		bch2_trans_node_iter_init(trans, iter,
 					  bp.v->btree_id,
 					  bp.v->pos,
