@@ -677,7 +677,8 @@ reread:
 	}
 
 	enum bch_csum_type csum_type = BCH_SB_CSUM_TYPE(sb->sb);
-	if (csum_type >= BCH_CSUM_NR) {
+	if (csum_type >= BCH_CSUM_NR ||
+	    bch2_csum_type_is_encryption(csum_type)) {
 		prt_printf(err, "unknown checksum type %llu", BCH_SB_CSUM_TYPE(sb->sb));
 		return -BCH_ERR_invalid_sb_csum_type;
 	}
