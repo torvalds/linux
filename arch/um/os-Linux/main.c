@@ -20,7 +20,6 @@
 #include "internal.h"
 
 #define STACKSIZE (8 * 1024 * 1024)
-#define THREAD_NAME_LEN (256)
 
 long elf_aux_hwcap;
 
