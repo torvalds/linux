@@ -135,6 +135,7 @@ enum ath12k_dbg_htt_ext_stats_type {
 	ATH12K_DBG_HTT_EXT_STATS_PDEV_TX_MU		= 17,
 	ATH12K_DBG_HTT_EXT_STATS_PDEV_CCA_STATS		= 19,
 	ATH12K_DBG_HTT_EXT_STATS_PDEV_OBSS_PD_STATS	= 23,
+	ATH12K_DBG_HTT_EXT_STATS_PDEV_TX_RATE_TXBF	= 31,
 	ATH12K_DBG_HTT_EXT_STATS_DLPAGER_STATS		= 36,
 	ATH12K_DBG_HTT_EXT_PHY_COUNTERS_AND_PHY_STATS	= 37,
 	ATH12K_DBG_HTT_EXT_VDEVS_TXRX_STATS		= 38,
@@ -197,6 +198,7 @@ enum ath12k_dbg_htt_tlv_tag {
 	HTT_STATS_HW_WAR_TAG				= 89,
 	HTT_STATS_SCHED_TXQ_SUPERCYCLE_TRIGGER_TAG	= 100,
 	HTT_STATS_PDEV_CTRL_PATH_TX_STATS_TAG		= 102,
+	HTT_STATS_PDEV_TX_RATE_TXBF_STATS_TAG		= 108,
 	HTT_STATS_TX_SELFGEN_AC_SCHED_STATUS_STATS_TAG	= 111,
 	HTT_STATS_TX_SELFGEN_AX_SCHED_STATUS_STATS_TAG	= 112,
 	HTT_STATS_DLPAGER_STATS_TAG			= 120,
@@ -1066,6 +1068,36 @@ struct ath12k_htt_pdev_obss_pd_stats_tlv {
 	__le32 num_srg_success_per_ac[ATH12K_HTT_NUM_AC_WMM];
 	__le32 num_obss_min_dur_check_flush_cnt;
 	__le32 num_sr_ppdu_abort_flush_cnt;
+} __packed;
+
+#define ATH12K_HTT_TX_BF_RATE_STATS_NUM_MCS_COUNTERS		14
+#define ATH12K_HTT_TX_PDEV_STATS_NUM_LEGACY_OFDM_STATS		8
+#define ATH12K_HTT_TX_PDEV_STATS_NUM_SPATIAL_STREAMS		8
+#define ATH12K_HTT_TXBF_NUM_BW_CNTRS				5
+#define ATH12K_HTT_TXBF_NUM_REDUCED_CHAN_TYPES			2
+
+struct ath12k_htt_pdev_txrate_txbf_stats_tlv {
+	__le32 tx_su_txbf_mcs[ATH12K_HTT_TX_BF_RATE_STATS_NUM_MCS_COUNTERS];
+	__le32 tx_su_ibf_mcs[ATH12K_HTT_TX_BF_RATE_STATS_NUM_MCS_COUNTERS];
+	__le32 tx_su_ol_mcs[ATH12K_HTT_TX_BF_RATE_STATS_NUM_MCS_COUNTERS];
+	__le32 tx_su_txbf_nss[ATH12K_HTT_TX_PDEV_STATS_NUM_SPATIAL_STREAMS];
+	__le32 tx_su_ibf_nss[ATH12K_HTT_TX_PDEV_STATS_NUM_SPATIAL_STREAMS];
+	__le32 tx_su_ol_nss[ATH12K_HTT_TX_PDEV_STATS_NUM_SPATIAL_STREAMS];
+	__le32 tx_su_txbf_bw[ATH12K_HTT_TXBF_NUM_BW_CNTRS];
+	__le32 tx_su_ibf_bw[ATH12K_HTT_TXBF_NUM_BW_CNTRS];
+	__le32 tx_su_ol_bw[ATH12K_HTT_TXBF_NUM_BW_CNTRS];
+	__le32 tx_legacy_ofdm_rate[ATH12K_HTT_TX_PDEV_STATS_NUM_LEGACY_OFDM_STATS];
+	__le32 txbf[ATH12K_HTT_TXBF_NUM_REDUCED_CHAN_TYPES][ATH12K_HTT_TXBF_NUM_BW_CNTRS];
+	__le32 ibf[ATH12K_HTT_TXBF_NUM_REDUCED_CHAN_TYPES][ATH12K_HTT_TXBF_NUM_BW_CNTRS];
+	__le32 ol[ATH12K_HTT_TXBF_NUM_REDUCED_CHAN_TYPES][ATH12K_HTT_TXBF_NUM_BW_CNTRS];
+	__le32 txbf_flag_set_mu_mode;
+	__le32 txbf_flag_set_final_status;
+	__le32 txbf_flag_not_set_verified_txbf_mode;
+	__le32 txbf_flag_not_set_disable_p2p_access;
+	__le32 txbf_flag_not_set_max_nss_in_he160;
+	__le32 txbf_flag_not_set_disable_uldlofdma;
+	__le32 txbf_flag_not_set_mcs_threshold_val;
+	__le32 txbf_flag_not_set_final_status;
 } __packed;
 
 enum ath12k_htt_stats_page_lock_state {
