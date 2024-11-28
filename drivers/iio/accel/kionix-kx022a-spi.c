@@ -39,6 +39,7 @@ static const struct spi_device_id kx022a_id[] = {
 	{ .name = "kx022a", .driver_data = (kernel_ulong_t)&kx022a_chip_info },
 	{ .name = "kx132-1211", .driver_data = (kernel_ulong_t)&kx132_chip_info },
 	{ .name = "kx132acr-lbz", .driver_data = (kernel_ulong_t)&kx132acr_chip_info },
+	{ .name = "kx134acr-lbz", .driver_data = (kernel_ulong_t)&kx134acr_chip_info },
 	{ }
 };
 MODULE_DEVICE_TABLE(spi, kx022a_id);
@@ -47,6 +48,7 @@ static const struct of_device_id kx022a_of_match[] = {
 	{ .compatible = "kionix,kx022a", .data = &kx022a_chip_info },
 	{ .compatible = "kionix,kx132-1211", .data = &kx132_chip_info },
 	{ .compatible = "rohm,kx132acr-lbz", .data = &kx132acr_chip_info },
+	{ .compatible = "rohm,kx134acr-lbz", .data = &kx134acr_chip_info },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, kx022a_of_match);
