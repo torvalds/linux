@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * x86_64-specific extensions to memstress.c.
+ * x86-specific extensions to memstress.c.
  *
  * Copyright (C) 2022, Google, Inc.
  */

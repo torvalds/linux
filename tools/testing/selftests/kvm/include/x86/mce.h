@@ -1,7 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * tools/testing/selftests/kvm/include/x86_64/mce.h
- *
  * Copyright (C) 2022, Google LLC.
  */
 

@@ -1,9 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * tools/testing/selftests/kvm/include/x86_64/evmcs.h
- *
  * Copyright (C) 2018, Red Hat, Inc.
- *
  */
 
 #ifndef SELFTEST_KVM_EVMCS_H

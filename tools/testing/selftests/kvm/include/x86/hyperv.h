@@ -1,9 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * tools/testing/selftests/kvm/include/x86_64/hyperv.h
- *
  * Copyright (C) 2021, Red Hat, Inc.
- *
  */
 
 #ifndef SELFTEST_KVM_HYPERV_H

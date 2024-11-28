@@ -1,7 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * tools/testing/selftests/kvm/include/x86_64/processor.h
- *
  * Copyright (C) 2018, Google LLC.
  */
 
