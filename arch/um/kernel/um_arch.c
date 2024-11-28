@@ -272,7 +272,8 @@ static void __init parse_host_cpu_flags(char *line)
 			set_cpu_cap(&boot_cpu_data, i);
 	}
 }
-static void parse_cache_line(char *line)
+
+static void __init parse_cache_line(char *line)
 {
 	long res;
 	char *to_parse = strstr(line, ":");
