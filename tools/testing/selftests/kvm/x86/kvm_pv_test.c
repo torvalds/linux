@@ -140,9 +140,10 @@ static void test_pv_unhalt(void)
 	struct kvm_cpuid_entry2 *ent;
 	u32 kvm_sig_old;
 
-	pr_info("testing KVM_FEATURE_PV_UNHALT\n");
+	if (!(kvm_check_cap(KVM_CAP_X86_DISABLE_EXITS) & KVM_X86_DISABLE_EXITS_HLT))
+		return;
 
-	TEST_REQUIRE(KVM_CAP_X86_DISABLE_EXITS);
+	pr_info("testing KVM_FEATURE_PV_UNHALT\n");
 
 	/* KVM_PV_UNHALT test */
 	vm = vm_create_with_one_vcpu(&vcpu, guest_main);
