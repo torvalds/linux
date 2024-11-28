@@ -901,7 +901,8 @@ static void xe_guc_exec_queue_lr_cleanup(struct work_struct *w)
 		if (!ret) {
 			xe_gt_warn(q->gt, "Schedule disable failed to respond, guc_id=%d\n",
 				   q->guc->id);
-			xe_devcoredump(q, NULL);
+			xe_devcoredump(q, NULL, "Schedule disable failed to respond, guc_id=%d\n",
+				       q->guc->id);
 			xe_sched_submission_start(sched);
 			xe_gt_reset_async(q->gt);
 			return;
@@ -909,7 +910,7 @@ static void xe_guc_exec_queue_lr_cleanup(struct work_struct *w)
 	}
 
 	if (!exec_queue_killed(q) && !xe_lrc_ring_is_idle(q->lrc[0]))
-		xe_devcoredump(q, NULL);
+		xe_devcoredump(q, NULL, "LR job cleanup, guc_id=%d", q->guc->id);
 
 	xe_sched_submission_start(sched);
 }
@@ -1136,7 +1137,9 @@ trigger_reset:
 				xe_gt_warn(guc_to_gt(guc),
 					   "Schedule disable failed to respond, guc_id=%d",
 					   q->guc->id);
-			xe_devcoredump(q, job);
+			xe_devcoredump(q, job,
+				       "Schedule disable failed to respond, guc_id=%d, ret=%d, guc_read=%d",
+				       q->guc->id, ret, xe_guc_read_stopped(guc));
 			set_exec_queue_extra_ref(q);
 			xe_exec_queue_get(q);	/* GT reset owns this */
 			set_exec_queue_banned(q);
@@ -1166,7 +1169,10 @@ trigger_reset:
 	trace_xe_sched_job_timedout(job);
 
 	if (!exec_queue_killed(q))
-		xe_devcoredump(q, job);
+		xe_devcoredump(q, job,
+			       "Timedout job - seqno=%u, lrc_seqno=%u, guc_id=%d, flags=0x%lx",
+			       xe_sched_job_seqno(job), xe_sched_job_lrc_seqno(job),
+			       q->guc->id, q->flags);
 
 	/*
 	 * Kernel jobs should never fail, nor should VM jobs if they do

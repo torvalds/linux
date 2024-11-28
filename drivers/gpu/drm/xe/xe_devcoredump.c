@@ -100,6 +100,7 @@ static ssize_t __xe_devcoredump_read(char *buffer, size_t count,
 	p = drm_coredump_printer(&iter);
 
 	drm_puts(&p, "**** Xe Device Coredump ****\n");
+	drm_printf(&p, "Reason: %s\n", ss->reason);
 	drm_puts(&p, "kernel: " UTS_RELEASE "\n");
 	drm_puts(&p, "module: " KBUILD_MODNAME "\n");
 
@@ -107,7 +108,7 @@ static ssize_t __xe_devcoredump_read(char *buffer, size_t count,
 	drm_printf(&p, "Snapshot time: %lld.%09ld\n", ts.tv_sec, ts.tv_nsec);
 	ts = ktime_to_timespec64(ss->boot_time);
 	drm_printf(&p, "Uptime: %lld.%09ld\n", ts.tv_sec, ts.tv_nsec);
-	drm_printf(&p, "Process: %s\n", ss->process_name);
+	drm_printf(&p, "Process: %s [%d]\n", ss->process_name, ss->pid);
 	xe_device_snapshot_print(xe, &p);
 
 	drm_printf(&p, "\n**** GT #%d ****\n", ss->gt->info.id);
@@ -138,6 +139,9 @@ static ssize_t __xe_devcoredump_read(char *buffer, size_t count,
 static void xe_devcoredump_snapshot_free(struct xe_devcoredump_snapshot *ss)
 {
 	int i;
+
+	kfree(ss->reason);
+	ss->reason = NULL;
 
 	xe_guc_log_snapshot_free(ss->guc.log);
 	ss->guc.log = NULL;
@@ -259,8 +263,11 @@ static void devcoredump_snapshot(struct xe_devcoredump *coredump,
 	ss->snapshot_time = ktime_get_real();
 	ss->boot_time = ktime_get_boottime();
 
-	if (q->vm && q->vm->xef)
+	if (q->vm && q->vm->xef) {
 		process_name = q->vm->xef->process_name;
+		ss->pid = q->vm->xef->pid;
+	}
+
 	strscpy(ss->process_name, process_name);
 
 	ss->gt = q->gt;
@@ -298,15 +305,18 @@ static void devcoredump_snapshot(struct xe_devcoredump *coredump,
  * xe_devcoredump - Take the required snapshots and initialize coredump device.
  * @q: The faulty xe_exec_queue, where the issue was detected.
  * @job: The faulty xe_sched_job, where the issue was detected.
+ * @fmt: Printf format + args to describe the reason for the core dump
  *
  * This function should be called at the crash time within the serialized
  * gt_reset. It is skipped if we still have the core dump device available
  * with the information of the 'first' snapshot.
  */
-void xe_devcoredump(struct xe_exec_queue *q, struct xe_sched_job *job)
+__printf(3, 4)
+void xe_devcoredump(struct xe_exec_queue *q, struct xe_sched_job *job, const char *fmt, ...)
 {
 	struct xe_device *xe = gt_to_xe(q->gt);
 	struct xe_devcoredump *coredump = &xe->devcoredump;
+	va_list varg;
 
 	if (coredump->captured) {
 		drm_dbg(&xe->drm, "Multiple hangs are occurring, but only the first snapshot was taken\n");
@@ -314,6 +324,11 @@ void xe_devcoredump(struct xe_exec_queue *q, struct xe_sched_job *job)
 	}
 
 	coredump->captured = true;
+
+	va_start(varg, fmt);
+	coredump->snapshot.reason = kvasprintf(GFP_ATOMIC, fmt, varg);
+	va_end(varg);
+
 	devcoredump_snapshot(coredump, q, job);
 
 	drm_info(&xe->drm, "Xe device coredump has been created\n");

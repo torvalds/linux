@@ -28,6 +28,10 @@ struct xe_devcoredump_snapshot {
 	ktime_t boot_time;
 	/** @process_name: Name of process that triggered this gpu hang */
 	char process_name[TASK_COMM_LEN];
+	/** @pid: Process id of process that triggered this gpu hang */
+	pid_t pid;
+	/** @reason: The reason the coredump was triggered */
+	char *reason;
 
 	/** @gt: Affected GT, used by forcewake for delayed capture */
 	struct xe_gt *gt;
