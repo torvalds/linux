@@ -28,12 +28,12 @@
 #include "skl_watermark_regs.h"
 #include "vlv_sideband.h"
 
-#define for_each_power_domain_well(__dev_priv, __power_well, __domain)	\
-	for_each_power_well(&(__dev_priv)->display, __power_well)	\
+#define for_each_power_domain_well(__display, __power_well, __domain)	\
+	for_each_power_well((__display), __power_well)			\
 		for_each_if(test_bit((__domain), (__power_well)->domains.bits))
 
-#define for_each_power_domain_well_reverse(__dev_priv, __power_well, __domain) \
-	for_each_power_well_reverse(&(__dev_priv)->display, __power_well) \
+#define for_each_power_domain_well_reverse(__display, __power_well, __domain) \
+	for_each_power_well_reverse((__display), __power_well) \
 		for_each_if(test_bit((__domain), (__power_well)->domains.bits))
 
 static const char *
@@ -201,6 +201,7 @@ intel_display_power_domain_str(enum intel_display_power_domain domain)
 static bool __intel_display_power_is_enabled(struct drm_i915_private *dev_priv,
 					     enum intel_display_power_domain domain)
 {
+	struct intel_display *display = &dev_priv->display;
 	struct i915_power_well *power_well;
 	bool is_enabled;
 
@@ -209,7 +210,7 @@ static bool __intel_display_power_is_enabled(struct drm_i915_private *dev_priv,
 
 	is_enabled = true;
 
-	for_each_power_domain_well_reverse(dev_priv, power_well, domain) {
+	for_each_power_domain_well_reverse(display, power_well, domain) {
 		if (intel_power_well_is_always_on(power_well))
 			continue;
 
@@ -486,13 +487,14 @@ static void
 __intel_display_power_get_domain(struct drm_i915_private *dev_priv,
 				 enum intel_display_power_domain domain)
 {
+	struct intel_display *display = &dev_priv->display;
 	struct i915_power_domains *power_domains = &dev_priv->display.power.domains;
 	struct i915_power_well *power_well;
 
 	if (intel_display_power_grab_async_put_ref(dev_priv, domain))
 		return;
 
-	for_each_power_domain_well(dev_priv, power_well, domain)
+	for_each_power_domain_well(display, power_well, domain)
 		intel_power_well_get(dev_priv, power_well);
 
 	power_domains->domain_use_count[domain]++;
@@ -570,6 +572,7 @@ static void
 __intel_display_power_put_domain(struct drm_i915_private *dev_priv,
 				 enum intel_display_power_domain domain)
 {
+	struct intel_display *display = &dev_priv->display;
 	struct i915_power_domains *power_domains;
 	struct i915_power_well *power_well;
 	const char *name = intel_display_power_domain_str(domain);
@@ -588,7 +591,7 @@ __intel_display_power_put_domain(struct drm_i915_private *dev_priv,
 
 	power_domains->domain_use_count[domain]--;
 
-	for_each_power_domain_well_reverse(dev_priv, power_well, domain)
+	for_each_power_domain_well_reverse(display, power_well, domain)
 		intel_power_well_put(dev_priv, power_well);
 }
 
