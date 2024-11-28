@@ -527,6 +527,7 @@
   devm_mbox_controller_register
   devm_mdiobus_alloc_size
   devm_memremap
+  devm_memremap_pages
   devm_mfd_add_devices
   devm_nvmem_cell_get
   devm_nvmem_device_get
@@ -2363,6 +2364,7 @@
   rproc_alloc
   rproc_boot
   rproc_del
+  rproc_detach
   rproc_free
   rproc_get_by_phandle
   rproc_put
@@ -3094,6 +3096,9 @@
   tty_vhangup
   tty_wakeup
   tty_write_room
+  tun_get_socket
+  tun_get_tx_ring
+  tun_ptr_free
   typec_get_drvdata
   typec_mux_get_drvdata
   typec_mux_put
