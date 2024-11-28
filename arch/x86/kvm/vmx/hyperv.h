@@ -42,7 +42,7 @@ static inline struct hv_enlightened_vmcs *nested_vmx_evmcs(struct vcpu_vmx *vmx)
 	return vmx->nested.hv_evmcs;
 }
 
-static inline bool guest_cpuid_has_evmcs(struct kvm_vcpu *vcpu)
+static inline bool guest_cpu_cap_has_evmcs(struct kvm_vcpu *vcpu)
 {
 	/*
 	 * eVMCS is exposed to the guest if Hyper-V is enabled in CPUID and

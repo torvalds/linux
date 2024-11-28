@@ -437,7 +437,7 @@ void kvm_vcpu_after_set_cpuid(struct kvm_vcpu *vcpu)
 	 * and can install smaller shadow pages if the host lacks 1GiB support.
 	 */
 	allow_gbpages = tdp_enabled ? boot_cpu_has(X86_FEATURE_GBPAGES) :
-				      guest_cpuid_has(vcpu, X86_FEATURE_GBPAGES);
+				      guest_cpu_cap_has(vcpu, X86_FEATURE_GBPAGES);
 	guest_cpu_cap_change(vcpu, X86_FEATURE_GBPAGES, allow_gbpages);
 
 	best = kvm_find_cpuid_entry(vcpu, 1);
@@ -462,7 +462,7 @@ void kvm_vcpu_after_set_cpuid(struct kvm_vcpu *vcpu)
 
 #define __kvm_cpu_cap_has(UNUSED_, f) kvm_cpu_cap_has(f)
 	vcpu->arch.cr4_guest_rsvd_bits = __cr4_reserved_bits(__kvm_cpu_cap_has, UNUSED_) |
-					 __cr4_reserved_bits(guest_cpuid_has, vcpu);
+					 __cr4_reserved_bits(guest_cpu_cap_has, vcpu);
 #undef __kvm_cpu_cap_has
 
 	kvm_hv_set_cpuid(vcpu, kvm_cpuid_has_hyperv(vcpu));
