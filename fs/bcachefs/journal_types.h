@@ -9,6 +9,9 @@
 #include "super_types.h"
 #include "fifo.h"
 
+/* btree write buffer steals 8 bits for its own purposes: */
+#define JOURNAL_SEQ_MAX		((1ULL << 56) - 1)
+
 #define JOURNAL_BUF_BITS	2
 #define JOURNAL_BUF_NR		(1U << JOURNAL_BUF_BITS)
 #define JOURNAL_BUF_MASK	(JOURNAL_BUF_NR - 1)

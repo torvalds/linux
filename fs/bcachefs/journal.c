@@ -382,6 +382,10 @@ static int journal_entry_open(struct journal *j)
 	if (nr_unwritten_journal_entries(j) == ARRAY_SIZE(j->buf))
 		return JOURNAL_ERR_max_in_flight;
 
+	if (bch2_fs_fatal_err_on(journal_cur_seq(j) >= JOURNAL_SEQ_MAX,
+				 c, "cannot start: journal seq overflow"))
+		return JOURNAL_ERR_insufficient_devices; /* -EROFS */
+
 	BUG_ON(!j->cur_entry_sectors);
 
 	buf->expires		=
@@ -1269,6 +1273,11 @@ int bch2_fs_journal_start(struct journal *j, u64 cur_seq)
 	struct genradix_iter iter;
 	bool had_entries = false;
 	u64 last_seq = cur_seq, nr, seq;
+
+	if (cur_seq >= JOURNAL_SEQ_MAX) {
+		bch_err(c, "cannot start: journal seq overflow");
+		return -EINVAL;
+	}
 
 	genradix_for_each_reverse(&c->journal_entries, iter, _i) {
 		i = *_i;
