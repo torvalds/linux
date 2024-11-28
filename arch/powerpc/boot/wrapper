@@ -267,6 +267,7 @@ pseries)
     link_address='0x4000000'
     if [ "$format" != "elf32ppc" ]; then
 	link_address=
+	notext='-z notext'
 	pie=-pie
     fi
     make_space=n
