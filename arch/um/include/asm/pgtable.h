@@ -8,8 +8,6 @@
 #ifndef __UM_PGTABLE_H
 #define __UM_PGTABLE_H
 
-#include <asm/fixmap.h>
-
 #define _PAGE_PRESENT	0x001
 #define _PAGE_NEEDSYNC	0x002
 #define _PAGE_RW	0x020
@@ -48,8 +46,7 @@ extern unsigned long end_iomem;
 
 #define VMALLOC_OFFSET	(__va_space)
 #define VMALLOC_START ((end_iomem + VMALLOC_OFFSET) & ~(VMALLOC_OFFSET-1))
-#define PKMAP_BASE ((FIXADDR_START - LAST_PKMAP * PAGE_SIZE) & PMD_MASK)
-#define VMALLOC_END	(FIXADDR_START-2*PAGE_SIZE)
+#define VMALLOC_END	(TASK_SIZE-2*PAGE_SIZE)
 #define MODULES_VADDR	VMALLOC_START
 #define MODULES_END	VMALLOC_END
 
