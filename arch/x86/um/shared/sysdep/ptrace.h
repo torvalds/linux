@@ -74,8 +74,6 @@ struct uml_pt_regs {
 #define UPT_FAULTINFO(r) (&(r)->faultinfo)
 #define UPT_IS_USER(r) ((r)->is_user)
 
-extern int user_context(unsigned long sp);
-
 extern int arch_init_registers(int pid);
 
 #endif /* __SYSDEP_X86_PTRACE_H */
