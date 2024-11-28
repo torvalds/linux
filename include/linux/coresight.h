@@ -200,8 +200,8 @@ struct coresight_connection {
 	struct coresight_device *dest_dev;
 	struct coresight_sysfs_link *link;
 	struct coresight_device *src_dev;
-	atomic_t src_refcnt;
-	atomic_t dest_refcnt;
+	int src_refcnt;
+	int dest_refcnt;
 };
 
 /**
