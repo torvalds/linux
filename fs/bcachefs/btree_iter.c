@@ -1007,7 +1007,7 @@ retry_all:
 
 	bch2_trans_unlock(trans);
 	cond_resched();
-	trans_set_locked(trans);
+	trans_set_locked(trans, false);
 
 	if (unlikely(trans->memory_allocation_failure)) {
 		struct closure cl;
@@ -3248,7 +3248,7 @@ u32 bch2_trans_begin(struct btree_trans *trans)
 
 	trans->last_begin_ip = _RET_IP_;
 
-	trans_set_locked(trans);
+	trans_set_locked(trans, false);
 
 	if (trans->restarted) {
 		bch2_btree_path_traverse_all(trans);
@@ -3354,7 +3354,7 @@ got_trans:
 	trans->srcu_idx		= srcu_read_lock(&c->btree_trans_barrier);
 	trans->srcu_lock_time	= jiffies;
 	trans->srcu_held	= true;
-	trans_set_locked(trans);
+	trans_set_locked(trans, false);
 
 	closure_init_stack_release(&trans->ref);
 	return trans;
@@ -3622,7 +3622,7 @@ int bch2_fs_btree_iter_init(struct bch_fs *c)
 #ifdef CONFIG_LOCKDEP
 	fs_reclaim_acquire(GFP_KERNEL);
 	struct btree_trans *trans = bch2_trans_get(c);
-	trans_set_locked(trans);
+	trans_set_locked(trans, false);
 	bch2_trans_put(trans);
 	fs_reclaim_release(GFP_KERNEL);
 #endif

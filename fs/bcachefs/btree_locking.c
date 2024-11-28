@@ -782,7 +782,7 @@ static inline int __bch2_trans_relock(struct btree_trans *trans, bool trace)
 			return bch2_trans_relock_fail(trans, path, &f, trace);
 	}
 
-	trans_set_locked(trans);
+	trans_set_locked(trans, true);
 out:
 	bch2_trans_verify_locks(trans);
 	return 0;
