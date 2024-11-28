@@ -311,7 +311,7 @@ SYM_CODE_END(xen_error_entry)
 	call	\cfunc
 
 	/* For some configurations \cfunc ends up being a noreturn. */
-	REACHABLE
+	ANNOTATE_REACHABLE
 
 	jmp	error_return
 .endm
@@ -532,7 +532,7 @@ SYM_CODE_START(\asmsym)
 	call	\cfunc
 
 	/* For some configurations \cfunc ends up being a noreturn. */
-	REACHABLE
+	ANNOTATE_REACHABLE
 
 	jmp	paranoid_exit
 

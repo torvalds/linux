@@ -627,56 +627,6 @@ static struct instruction *find_last_insn(struct objtool_file *file,
 	return insn;
 }
 
-/*
- * Mark "ud2" instructions and manually annotated dead ends.
- */
-static int add_dead_ends(struct objtool_file *file)
-{
-	struct section *rsec;
-	struct reloc *reloc;
-	struct instruction *insn;
-	uint64_t offset;
-
-	/*
-	 * UD2 defaults to being a dead-end, allow them to be annotated for
-	 * non-fatal, eg WARN.
-	 */
-	rsec = find_section_by_name(file->elf, ".rela.discard.reachable");
-	if (!rsec)
-		return 0;
-
-	for_each_reloc(rsec, reloc) {
-		if (reloc->sym->type == STT_SECTION) {
-			offset = reloc_addend(reloc);
-		} else if (reloc->sym->local_label) {
-			offset = reloc->sym->offset;
-		} else {
-			WARN("unexpected relocation symbol type in %s", rsec->name);
-			return -1;
-		}
-
-		insn = find_insn(file, reloc->sym->sec, offset);
-		if (insn)
-			insn = prev_insn_same_sec(file, insn);
-		else if (offset == reloc->sym->sec->sh.sh_size) {
-			insn = find_last_insn(file, reloc->sym->sec);
-			if (!insn) {
-				WARN("can't find reachable insn at %s+0x%" PRIx64,
-				     reloc->sym->sec->name, offset);
-				return -1;
-			}
-		} else {
-			WARN("can't find reachable insn at %s+0x%" PRIx64,
-			     reloc->sym->sec->name, offset);
-			return -1;
-		}
-
-		insn->dead_end = false;
-	}
-
-	return 0;
-}
-
 static int create_static_call_sections(struct objtool_file *file)
 {
 	struct static_call_site *site;
@@ -2306,6 +2256,7 @@ static int read_annotate(struct objtool_file *file,
 	struct section *sec;
 	struct instruction *insn;
 	struct reloc *reloc;
+	uint64_t offset;
 	int type, ret;
 
 	sec = find_section_by_name(file->elf, ".discard.annotate_insn");
@@ -2327,8 +2278,19 @@ static int read_annotate(struct objtool_file *file,
 	for_each_reloc(sec->rsec, reloc) {
 		type = *(u32 *)(sec->data->d_buf + (reloc_idx(reloc) * sec->sh.sh_entsize) + 4);
 
-		insn = find_insn(file, reloc->sym->sec,
-				 reloc->sym->offset + reloc_addend(reloc));
+		offset = reloc->sym->offset + reloc_addend(reloc);
+		insn = find_insn(file, reloc->sym->sec, offset);
+
+		/*
+		 * Reachable annotations are 'funneh' and act on the previous instruction :/
+		 */
+		if (type == ANNOTYPE_REACHABLE) {
+			if (insn)
+				insn = prev_insn_same_sec(file, insn);
+			else if (offset == reloc->sym->sec->sh.sh_size)
+				insn = find_last_insn(file, reloc->sym->sec);
+		}
+
 		if (!insn) {
 			WARN("bad .discard.annotate_insn entry: %d of type %d", reloc_idx(reloc), type);
 			return -1;
@@ -2418,6 +2380,10 @@ static int __annotate_late(struct objtool_file *file, int type, struct instructi
 
 	case ANNOTYPE_UNRET_BEGIN:
 		insn->unret = 1;
+		break;
+
+	case ANNOTYPE_REACHABLE:
+		insn->dead_end = false;
 		break;
 
 	default:
@@ -2566,14 +2532,6 @@ static int decode_sections(struct objtool_file *file)
 	if (ret)
 		return ret;
 
-	/*
-	 * Must be after add_call_destinations() such that it can override
-	 * dead_end_function() marks.
-	 */
-	ret = add_dead_ends(file);
-	if (ret)
-		return ret;
-
 	ret = add_jump_table_alts(file);
 	if (ret)
 		return ret;
@@ -2582,6 +2540,10 @@ static int decode_sections(struct objtool_file *file)
 	if (ret)
 		return ret;
 
+	/*
+	 * Must be after add_call_destinations() such that it can override
+	 * dead_end_function() marks.
+	 */
 	ret = read_annotate(file, __annotate_late);
 	if (ret)
 		return ret;

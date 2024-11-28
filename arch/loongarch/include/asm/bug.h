@@ -45,7 +45,7 @@
 #define __WARN_FLAGS(flags)					\
 do {								\
 	instrumentation_begin();				\
-	__BUG_FLAGS(BUGFLAG_WARNING|(flags), ASM_REACHABLE);	\
+	__BUG_FLAGS(BUGFLAG_WARNING|(flags), ANNOTATE_REACHABLE);\
 	instrumentation_end();					\
 } while (0)
 

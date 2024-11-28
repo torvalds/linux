@@ -64,5 +64,6 @@ struct unwind_hint {
 #define ANNOTYPE_UNRET_BEGIN		5
 #define ANNOTYPE_IGNORE_ALTS		6
 #define ANNOTYPE_INTRA_FUNCTION_CALL	7
+#define ANNOTYPE_REACHABLE		8
 
 #endif /* _LINUX_OBJTOOL_TYPES_H */
