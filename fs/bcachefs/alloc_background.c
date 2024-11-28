@@ -926,37 +926,43 @@ int bch2_trigger_alloc(struct btree_trans *trans,
 	}
 
 	if ((flags & BTREE_TRIGGER_atomic) && (flags & BTREE_TRIGGER_insert)) {
-		u64 journal_seq = trans->journal_res.seq;
-		u64 bucket_journal_seq = new_a->journal_seq;
+		u64 transaction_seq = trans->journal_res.seq;
 
-		if ((flags & BTREE_TRIGGER_insert) &&
-		    data_type_is_empty(old_a->data_type) !=
-		    data_type_is_empty(new_a->data_type) &&
-		    new.k->type == KEY_TYPE_alloc_v4) {
-			struct bch_alloc_v4 *v = bkey_s_to_alloc_v4(new).v;
+		if (log_fsck_err_on(transaction_seq && new_a->journal_seq > transaction_seq,
+				    trans, alloc_key_journal_seq_in_future,
+				    "bucket journal seq in future (currently at %llu)\n%s",
+				    journal_cur_seq(&c->journal),
+				    (bch2_bkey_val_to_text(&buf, c, new.s_c), buf.buf)))
+			new_a->journal_seq = transaction_seq;
 
-			/*
-			 * If the btree updates referring to a bucket weren't flushed
-			 * before the bucket became empty again, then the we don't have
-			 * to wait on a journal flush before we can reuse the bucket:
-			 */
-			v->journal_seq = bucket_journal_seq =
-				data_type_is_empty(new_a->data_type) &&
-				(journal_seq == v->journal_seq ||
-				 bch2_journal_noflush_seq(&c->journal, v->journal_seq))
-				? 0 : journal_seq;
-		}
+		int is_empty_delta = (int) data_type_is_empty(new_a->data_type) -
+				     (int) data_type_is_empty(old_a->data_type);
 
-		if (!data_type_is_empty(old_a->data_type) &&
-		    data_type_is_empty(new_a->data_type) &&
-		    bucket_journal_seq) {
-			ret = bch2_set_bucket_needs_journal_commit(&c->buckets_waiting_for_journal,
-					c->journal.flushed_seq_ondisk,
-					new.k->p.inode, new.k->p.offset,
-					bucket_journal_seq);
-			if (bch2_fs_fatal_err_on(ret, c,
-					"setting bucket_needs_journal_commit: %s", bch2_err_str(ret)))
-				goto err;
+		/* Record journal sequence number of empty -> nonempty transition: */
+		if (is_empty_delta < 0)
+			new_a->journal_seq = max(new_a->journal_seq, transaction_seq);
+
+		/*
+		 * Bucket becomes empty: mark it as waiting for a journal flush,
+		 * unless updates since empty -> nonempty transition were never
+		 * flushed - we may need to ask the journal not to flush
+		 * intermediate sequence numbers:
+		 */
+		if (is_empty_delta > 0) {
+			if (new_a->journal_seq == transaction_seq ||
+			    bch2_journal_noflush_seq(&c->journal, new_a->journal_seq))
+				new_a->journal_seq = 0;
+			else {
+				new_a->journal_seq = transaction_seq;
+
+				ret = bch2_set_bucket_needs_journal_commit(&c->buckets_waiting_for_journal,
+						c->journal.flushed_seq_ondisk,
+						new.k->p.inode, new.k->p.offset,
+						transaction_seq);
+				if (bch2_fs_fatal_err_on(ret, c,
+						"setting bucket_needs_journal_commit: %s", bch2_err_str(ret)))
+					goto err;
+			}
 		}
 
 		if (new_a->gen != old_a->gen) {
@@ -1004,6 +1010,7 @@ int bch2_trigger_alloc(struct btree_trans *trans,
 		rcu_read_unlock();
 	}
 err:
+fsck_err:
 	printbuf_exit(&buf);
 	bch2_dev_put(ca);
 	return ret;

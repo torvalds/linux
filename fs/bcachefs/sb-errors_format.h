@@ -122,6 +122,7 @@ enum bch_fsck_flags {
 	x(alloc_key_cached_sectors_wrong,			109,	FSCK_AUTOFIX)	\
 	x(alloc_key_stripe_wrong,				110,	FSCK_AUTOFIX)	\
 	x(alloc_key_stripe_redundancy_wrong,			111,	FSCK_AUTOFIX)	\
+	x(alloc_key_journal_seq_in_future,			298,	FSCK_AUTOFIX)	\
 	x(bucket_sector_count_overflow,				112,	0)		\
 	x(bucket_metadata_type_mismatch,			113,	0)		\
 	x(need_discard_key_wrong,				114,	FSCK_AUTOFIX)	\
@@ -308,7 +309,7 @@ enum bch_fsck_flags {
 	x(logged_op_but_clean,					283,	FSCK_AUTOFIX)	\
 	x(compression_opt_not_marked_in_sb,			295,	FSCK_AUTOFIX)	\
 	x(compression_type_not_marked_in_sb,			296,	FSCK_AUTOFIX)	\
-	x(MAX,							298,	0)
+	x(MAX,							299,	0)
 
 enum bch_sb_error_id {
 #define x(t, n, ...) BCH_FSCK_ERR_##t = n,
