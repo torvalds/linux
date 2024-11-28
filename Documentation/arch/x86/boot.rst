@@ -77,7 +77,7 @@ Protocol 2.14	BURNT BY INCORRECT COMMIT
 Protocol 2.15	(Kernel 5.5) Added the kernel_info and kernel_info.setup_type_max.
 =============	============================================================
 
-  .. note::
+.. note::
      The protocol version number should be changed only if the setup header
      is changed. There is no need to update the version number if boot_params
      or kernel_info are changed. Additionally, it is recommended to use
@@ -229,14 +229,14 @@ Offset/Size	Proto		Name			Meaning
 ===========	========	=====================	============================================
 
 .. note::
-  (1) For backwards compatibility, if the setup_sects field contains 0, the
-      real value is 4.
+     (1) For backwards compatibility, if the setup_sects field contains 0,
+         the real value is 4.
 
-  (2) For boot protocol prior to 2.04, the upper two bytes of the syssize
-      field are unusable, which means the size of a bzImage kernel
-      cannot be determined.
+     (2) For boot protocol prior to 2.04, the upper two bytes of the syssize
+         field are unusable, which means the size of a bzImage kernel
+         cannot be determined.
 
-  (3) Ignored, but safe to set, for boot protocols 2.02-2.09.
+     (3) Ignored, but safe to set, for boot protocols 2.02-2.09.
 
 If the "HdrS" (0x53726448) magic number is not found at offset 0x202,
 the boot protocol version is "old".  Loading an old kernel, the
@@ -265,7 +265,7 @@ All general purpose boot loaders should write the fields marked
 nonstandard address should fill in the fields marked (reloc); other
 boot loaders can ignore those fields.
 
-The byte order of all fields is littleendian (this is x86, after all.)
+The byte order of all fields is little endian (this is x86, after all.)
 
 ============	===========
 Field name:	setup_sects
@@ -1206,10 +1206,11 @@ bit (LOAD_HIGH) in the loadflags field is set::
   is_bzImage = (protocol >= 0x0200) && (loadflags & 0x01);
   load_address = is_bzImage ? 0x100000 : 0x10000;
 
-Note that Image/zImage kernels can be up to 512K in size, and thus use
-the entire 0x10000-0x90000 range of memory.  This means it is pretty
-much a requirement for these kernels to load the real-mode part at
-0x90000.  bzImage kernels allow much more flexibility.
+.. note::
+     Image/zImage kernels can be up to 512K in size, and thus use the entire
+     0x10000-0x90000 range of memory.  This means it is pretty much a
+     requirement for these kernels to load the real-mode part at 0x90000.
+     bzImage kernels allow much more flexibility.
 
 Special Command Line Options
 ============================
@@ -1439,12 +1440,13 @@ The boot loader *must* fill out the following fields in bp::
 
 All other fields should be zero.
 
-NOTE: The EFI Handover Protocol is deprecated in favour of the ordinary PE/COFF
-      entry point, combined with the LINUX_EFI_INITRD_MEDIA_GUID based initrd
-      loading protocol (refer to [0] for an example of the bootloader side of
-      this), which removes the need for any knowledge on the part of the EFI
-      bootloader regarding the internal representation of boot_params or any
-      requirements/limitations regarding the placement of the command line
-      and ramdisk in memory, or the placement of the kernel image itself.
+.. note::
+     The EFI Handover Protocol is deprecated in favour of the ordinary PE/COFF
+     entry point, combined with the LINUX_EFI_INITRD_MEDIA_GUID based initrd
+     loading protocol (refer to [0] for an example of the bootloader side of
+     this), which removes the need for any knowledge on the part of the EFI
+     bootloader regarding the internal representation of boot_params or any
+     requirements/limitations regarding the placement of the command line
+     and ramdisk in memory, or the placement of the kernel image itself.
 
 [0] https://github.com/u-boot/u-boot/commit/ec80b4735a593961fe701cc3a5d717d4739b0fd0
