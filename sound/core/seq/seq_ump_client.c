@@ -257,12 +257,12 @@ static void update_port_infos(struct seq_ump_client *client)
 			continue;
 
 		old->addr.client = client->seq_client;
-		old->addr.port = i;
+		old->addr.port = ump_group_to_seq_port(i);
 		err = snd_seq_kernel_client_ctl(client->seq_client,
 						SNDRV_SEQ_IOCTL_GET_PORT_INFO,
 						old);
 		if (err < 0)
-			return;
+			continue;
 		fill_port_info(new, client, &client->ump->groups[i]);
 		if (old->capability == new->capability &&
 		    !strcmp(old->name, new->name))
@@ -271,7 +271,7 @@ static void update_port_infos(struct seq_ump_client *client)
 						SNDRV_SEQ_IOCTL_SET_PORT_INFO,
 						new);
 		if (err < 0)
-			return;
+			continue;
 		/* notify to system port */
 		snd_seq_system_client_ev_port_change(client->seq_client, i);
 	}
