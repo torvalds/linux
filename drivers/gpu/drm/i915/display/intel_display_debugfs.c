@@ -730,11 +730,12 @@ static bool
 intel_lpsp_power_well_enabled(struct drm_i915_private *i915,
 			      enum i915_power_well_id power_well_id)
 {
+	struct intel_display *display = &i915->display;
 	intel_wakeref_t wakeref;
 	bool is_enabled;
 
 	wakeref = intel_runtime_pm_get(&i915->runtime_pm);
-	is_enabled = intel_display_power_well_is_enabled(i915,
+	is_enabled = intel_display_power_well_is_enabled(display,
 							 power_well_id);
 	intel_runtime_pm_put(&i915->runtime_pm, wakeref);
 

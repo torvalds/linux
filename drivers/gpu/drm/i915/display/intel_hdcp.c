@@ -349,7 +349,7 @@ static bool hdcp_key_loadable(struct intel_display *display)
 
 	/* PG1 (power well #1) needs to be enabled */
 	with_intel_runtime_pm(&i915->runtime_pm, wakeref)
-		enabled = intel_display_power_well_is_enabled(i915, id);
+		enabled = intel_display_power_well_is_enabled(display, id);
 
 	/*
 	 * Another req for hdcp key loadability is enabled state of pll for

@@ -134,7 +134,7 @@ vlv_power_sequencer_kick(struct intel_dp *intel_dp)
 	 */
 	if (!pll_enabled) {
 		release_cl_override = display->platform.cherryview &&
-			!chv_phy_powergate_ch(dev_priv, phy, ch, true);
+			!chv_phy_powergate_ch(display, phy, ch, true);
 
 		if (vlv_force_pll_on(dev_priv, pipe, vlv_get_dpll(dev_priv))) {
 			drm_err(display->drm,
@@ -163,7 +163,7 @@ vlv_power_sequencer_kick(struct intel_dp *intel_dp)
 		vlv_force_pll_off(dev_priv, pipe);
 
 		if (release_cl_override)
-			chv_phy_powergate_ch(dev_priv, phy, ch, false);
+			chv_phy_powergate_ch(display, phy, ch, false);
 	}
 }
 
