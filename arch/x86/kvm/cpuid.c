@@ -82,15 +82,6 @@ u32 xstate_required_size(u64 xstate_bv, bool compacted)
 	return ret;
 }
 
-#define F feature_bit
-
-/* Scattered Flag - For features that are scattered by cpufeatures.h. */
-#define SF(name)						\
-({								\
-	BUILD_BUG_ON(X86_FEATURE_##name >= MAX_CPU_FEATURES);	\
-	(boot_cpu_has(X86_FEATURE_##name) ? F(name) : 0);	\
-})
-
 /*
  * Magic value used by KVM when querying userspace-provided CPUID entries and
  * doesn't care about the CPIUD index because the index of the function in
@@ -625,6 +616,15 @@ static __always_inline void kvm_cpu_cap_mask(enum cpuid_leafs leaf, u32 mask)
 	__kvm_cpu_cap_mask(leaf);
 }
 
+#define F feature_bit
+
+/* Scattered Flag - For features that are scattered by cpufeatures.h. */
+#define SF(name)						\
+({								\
+	BUILD_BUG_ON(X86_FEATURE_##name >= MAX_CPU_FEATURES);	\
+	(boot_cpu_has(X86_FEATURE_##name) ? F(name) : 0);	\
+})
+
 void kvm_set_cpu_caps(void)
 {
 #ifdef CONFIG_X86_64
@@ -689,7 +689,7 @@ void kvm_set_cpu_caps(void)
 		F(SGX_LC) | F(BUS_LOCK_DETECT)
 	);
 	/* Set LA57 based on hardware capability. */
-	if (cpuid_ecx(7) & F(LA57))
+	if (cpuid_ecx(7) & feature_bit(LA57))
 		kvm_cpu_cap_set(X86_FEATURE_LA57);
 
 	/*
@@ -871,6 +871,9 @@ void kvm_set_cpu_caps(void)
 }
 EXPORT_SYMBOL_GPL(kvm_set_cpu_caps);
 
+#undef F
+#undef SF
+
 struct kvm_cpuid_array {
 	struct kvm_cpuid_entry2 *entries;
 	int maxnent;
@@ -946,14 +949,14 @@ static int __do_cpuid_func_emulated(struct kvm_cpuid_array *array, u32 func)
 		++array->nent;
 		break;
 	case 1:
-		entry->ecx = F(MOVBE);
+		entry->ecx = feature_bit(MOVBE);
 		++array->nent;
 		break;
 	case 7:
 		entry->flags |= KVM_CPUID_FLAG_SIGNIFCANT_INDEX;
 		entry->eax = 0;
 		if (kvm_cpu_cap_has(X86_FEATURE_RDTSCP))
-			entry->ecx = F(RDPID);
+			entry->ecx = feature_bit(RDPID);
 		++array->nent;
 		break;
 	default:
@@ -1103,7 +1106,7 @@ static inline int __do_cpuid_func(struct kvm_cpuid_array *array, u32 function)
 			goto out;
 
 		cpuid_entry_override(entry, CPUID_D_1_EAX);
-		if (entry->eax & (F(XSAVES)|F(XSAVEC)))
+		if (entry->eax & (feature_bit(XSAVES) | feature_bit(XSAVEC)))
 			entry->ebx = xstate_required_size(permitted_xcr0 | permitted_xss,
 							  true);
 		else {
@@ -1648,7 +1651,7 @@ bool kvm_cpuid(struct kvm_vcpu *vcpu, u32 *eax, u32 *ebx,
 			u64 data;
 		        if (!__kvm_get_msr(vcpu, MSR_IA32_TSX_CTRL, &data, true) &&
 			    (data & TSX_CTRL_CPUID_CLEAR))
-				*ebx &= ~(F(RTM) | F(HLE));
+				*ebx &= ~(feature_bit(RTM) | feature_bit(HLE));
 		} else if (function == 0x80000007) {
 			if (kvm_hv_invtsc_suppressed(vcpu))
 				*edx &= ~feature_bit(CONSTANT_TSC);
