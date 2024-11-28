@@ -43,7 +43,6 @@ obj-$(CONFIG_NOA1305)		+= noa1305.o
 obj-$(CONFIG_OPT3001)		+= opt3001.o
 obj-$(CONFIG_OPT4001)		+= opt4001.o
 obj-$(CONFIG_PA12203001)	+= pa12203001.o
-obj-$(CONFIG_ROHM_BU27008)	+= rohm-bu27008.o
 obj-$(CONFIG_ROHM_BU27034)	+= rohm-bu27034.o
 obj-$(CONFIG_RPR0521)		+= rpr0521.o
 obj-$(CONFIG_SI1133)		+= si1133.o
