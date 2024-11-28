@@ -11,7 +11,8 @@ maintainers:
 
 description: |
   KX022A, KX132ACR-LBZ and KX132-1211 are 3-axis accelerometers supporting
-  +/- 2G, 4G, 8G and 16G ranges, variable output data-rates and a
+  +/- 2G, 4G, 8G and 16G ranges. The KX134ACR-LBZ supports +/- 8G, 16G,
+  32G and 64G. All the sensors also have variable output data-rates and a
   hardware-fifo buffering. These accelerometers can be accessed either
   via I2C or SPI.
 
@@ -21,6 +22,7 @@ properties:
       - kionix,kx022a
       - kionix,kx132-1211
       - rohm,kx132acr-lbz
+      - rohm,kx134acr-lbz
 
   reg:
     maxItems: 1
