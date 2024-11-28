@@ -61,7 +61,7 @@ static void test_one_reg(struct kvm_vcpu *vcpu, uint64_t id, uint64_t value)
 {
 	uint64_t eval_reg;
 
-	vcpu_get_reg(vcpu, id, &eval_reg);
+	eval_reg = vcpu_get_reg(vcpu, id);
 	TEST_ASSERT(eval_reg == value, "value == 0x%lx", value);
 }
 

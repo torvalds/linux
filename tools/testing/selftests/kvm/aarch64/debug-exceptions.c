@@ -501,7 +501,7 @@ void test_single_step_from_userspace(int test_cnt)
 		TEST_ASSERT(ss_enable, "Unexpected KVM_EXIT_DEBUG");
 
 		/* Check if the current pc is expected. */
-		vcpu_get_reg(vcpu, ARM64_CORE_REG(regs.pc), &pc);
+		pc = vcpu_get_reg(vcpu, ARM64_CORE_REG(regs.pc));
 		TEST_ASSERT(!test_pc || pc == test_pc,
 			    "Unexpected pc 0x%lx (expected 0x%lx)",
 			    pc, test_pc);
@@ -583,7 +583,7 @@ int main(int argc, char *argv[])
 	uint64_t aa64dfr0;
 
 	vm = vm_create_with_one_vcpu(&vcpu, guest_code);
-	vcpu_get_reg(vcpu, KVM_ARM64_SYS_REG(SYS_ID_AA64DFR0_EL1), &aa64dfr0);
+	aa64dfr0 = vcpu_get_reg(vcpu, KVM_ARM64_SYS_REG(SYS_ID_AA64DFR0_EL1));
 	__TEST_REQUIRE(debug_version(aa64dfr0) >= 6,
 		       "Armv8 debug architecture not supported.");
 	kvm_vm_free(vm);
