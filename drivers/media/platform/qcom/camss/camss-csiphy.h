@@ -26,6 +26,12 @@ struct csiphy_lane {
 	u8 pol;
 };
 
+/**
+ * struct csiphy_lanes_cfg - CSIPHY lanes configuration
+ * @num_data: number of data lanes
+ * @data:     data lanes configuration
+ * @clk:      clock lane configuration (only for D-PHY)
+ */
 struct csiphy_lanes_cfg {
 	int num_data;
 	struct csiphy_lane *data;
