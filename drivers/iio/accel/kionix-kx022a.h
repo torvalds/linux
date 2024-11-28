@@ -161,6 +161,8 @@ struct kx022a_data;
 struct kx022a_chip_info {
 	const char *name;
 	const struct regmap_config *regmap_config;
+	const int (*scale_table)[2];
+	const int scale_table_size;
 	const struct iio_chan_spec *channels;
 	unsigned int num_channels;
 	unsigned int fifo_length;

@@ -413,6 +413,8 @@ static int kx022a_read_avail(struct iio_dev *indio_dev,
 			     const int **vals, int *type, int *length,
 			     long mask)
 {
+	struct kx022a_data *data = iio_priv(indio_dev);
+
 	switch (mask) {
 	case IIO_CHAN_INFO_SAMP_FREQ:
 		*vals = (const int *)kx022a_accel_samp_freq_table;
@@ -421,9 +423,8 @@ static int kx022a_read_avail(struct iio_dev *indio_dev,
 		*type = IIO_VAL_INT_PLUS_MICRO;
 		return IIO_AVAIL_LIST;
 	case IIO_CHAN_INFO_SCALE:
-		*vals = (const int *)kx022a_scale_table;
-		*length = ARRAY_SIZE(kx022a_scale_table) *
-			  ARRAY_SIZE(kx022a_scale_table[0]);
+		*vals = (const int *)data->chip_info->scale_table;
+		*length = data->chip_info->scale_table_size;
 		*type = IIO_VAL_INT_PLUS_NANO;
 		return IIO_AVAIL_LIST;
 	default:
@@ -439,14 +440,14 @@ static void kx022a_reg2freq(unsigned int val,  int *val1, int *val2)
 	*val2 = kx022a_accel_samp_freq_table[val & KX022A_MASK_ODR][1];
 }
 
-static void kx022a_reg2scale(unsigned int val, unsigned int *val1,
-			     unsigned int *val2)
+static void kx022a_reg2scale(struct kx022a_data *data, unsigned int val,
+			     unsigned int *val1, unsigned int *val2)
 {
 	val &= KX022A_MASK_GSEL;
 	val >>= KX022A_GSEL_SHIFT;
 
-	*val1 = kx022a_scale_table[val][0];
-	*val2 = kx022a_scale_table[val][1];
+	*val1 = data->chip_info->scale_table[val][0];
+	*val2 = data->chip_info->scale_table[val][1];
 }
 
 static int __kx022a_turn_on_off(struct kx022a_data *data, bool on)
@@ -544,11 +545,11 @@ static int kx022a_write_raw(struct iio_dev *idev,
 		kx022a_turn_on_unlock(data);
 		break;
 	case IIO_CHAN_INFO_SCALE:
-		n = ARRAY_SIZE(kx022a_scale_table);
+		n = data->chip_info->scale_table_size / 2;
 
 		while (n-- > 0)
-			if (val == kx022a_scale_table[n][0] &&
-			    val2 == kx022a_scale_table[n][1])
+			if (val == data->chip_info->scale_table[n][0] &&
+			    val2 == data->chip_info->scale_table[n][1])
 				break;
 		if (n < 0) {
 			ret = -EINVAL;
@@ -643,7 +644,7 @@ static int kx022a_read_raw(struct iio_dev *idev,
 		if (ret < 0)
 			return ret;
 
-		kx022a_reg2scale(regval, val, val2);
+		kx022a_reg2scale(data, regval, val, val2);
 
 		return IIO_VAL_INT_PLUS_NANO;
 	}
@@ -1148,6 +1149,9 @@ const struct kx022a_chip_info kx022a_chip_info = {
 	.regmap_config			= &kx022a_regmap_config,
 	.channels			= kx022a_channels,
 	.num_channels			= ARRAY_SIZE(kx022a_channels),
+	.scale_table			= kx022a_scale_table,
+	.scale_table_size		= ARRAY_SIZE(kx022a_scale_table) *
+					  ARRAY_SIZE(kx022a_scale_table[0]),
 	.fifo_length			= KX022A_FIFO_LENGTH,
 	.who				= KX022A_REG_WHO,
 	.id				= KX022A_ID,
@@ -1173,6 +1177,9 @@ const struct kx022a_chip_info kx132_chip_info = {
 	.regmap_config		  = &kx132_regmap_config,
 	.channels		  = kx132_channels,
 	.num_channels		  = ARRAY_SIZE(kx132_channels),
+	.scale_table			= kx022a_scale_table,
+	.scale_table_size		= ARRAY_SIZE(kx022a_scale_table) *
+					  ARRAY_SIZE(kx022a_scale_table[0]),
 	.fifo_length		  = KX132_FIFO_LENGTH,
 	.who			  = KX132_REG_WHO,
 	.id			  = KX132_ID,
@@ -1206,6 +1213,9 @@ const struct kx022a_chip_info kx132acr_chip_info = {
 	.regmap_config			= &kx022a_regmap_config,
 	.channels			= kx022a_channels,
 	.num_channels			= ARRAY_SIZE(kx022a_channels),
+	.scale_table			= kx022a_scale_table,
+	.scale_table_size		= ARRAY_SIZE(kx022a_scale_table) *
+					  ARRAY_SIZE(kx022a_scale_table[0]),
 	.fifo_length			= KX022A_FIFO_LENGTH,
 	.who				= KX022A_REG_WHO,
 	.id				= KX132ACR_LBZ_ID,
