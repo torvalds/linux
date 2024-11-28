@@ -5,6 +5,7 @@
  * ROHM/KIONIX accelerometer driver
  */
 
+#include <linux/cleanup.h>
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/interrupt.h>
@@ -448,7 +449,7 @@ static void kx022a_reg2scale(unsigned int val, unsigned int *val1,
 	*val2 = kx022a_scale_table[val][1];
 }
 
-static int kx022a_turn_on_off_unlocked(struct kx022a_data *data, bool on)
+static int __kx022a_turn_on_off(struct kx022a_data *data, bool on)
 {
 	int ret;
 
@@ -469,7 +470,7 @@ static int kx022a_turn_off_lock(struct kx022a_data *data)
 	int ret;
 
 	mutex_lock(&data->mutex);
-	ret = kx022a_turn_on_off_unlocked(data, false);
+	ret = __kx022a_turn_on_off(data, false);
 	if (ret)
 		mutex_unlock(&data->mutex);
 
@@ -480,7 +481,7 @@ static int kx022a_turn_on_unlock(struct kx022a_data *data)
 {
 	int ret;
 
-	ret = kx022a_turn_on_off_unlocked(data, true);
+	ret = __kx022a_turn_on_off(data, true);
 	mutex_unlock(&data->mutex);
 
 	return ret;
@@ -912,18 +913,19 @@ static int kx022a_fifo_disable(struct kx022a_data *data)
 {
 	int ret = 0;
 
-	ret = kx022a_turn_off_lock(data);
+	guard(mutex)(&data->mutex);
+	ret = __kx022a_turn_on_off(data, false);
 	if (ret)
 		return ret;
 
 	ret = regmap_clear_bits(data->regmap, data->ien_reg, KX022A_MASK_WMI);
 	if (ret)
-		goto unlock_out;
+		return ret;
 
 	ret = regmap_clear_bits(data->regmap, data->chip_info->buf_cntl2,
 				KX022A_MASK_BUF_EN);
 	if (ret)
-		goto unlock_out;
+		return ret;
 
 	data->state &= ~KX022A_STATE_FIFO;
 
@@ -931,12 +933,7 @@ static int kx022a_fifo_disable(struct kx022a_data *data)
 
 	kfree(data->fifo_buffer);
 
-	return kx022a_turn_on_unlock(data);
-
-unlock_out:
-	mutex_unlock(&data->mutex);
-
-	return ret;
+	return __kx022a_turn_on_off(data, true);
 }
 
 static int kx022a_buffer_predisable(struct iio_dev *idev)
@@ -959,33 +956,29 @@ static int kx022a_fifo_enable(struct kx022a_data *data)
 	if (!data->fifo_buffer)
 		return -ENOMEM;
 
-	ret = kx022a_turn_off_lock(data);
+	guard(mutex)(&data->mutex);
+	ret = __kx022a_turn_on_off(data, false);
 	if (ret)
 		return ret;
 
 	/* Update watermark to HW */
 	ret = kx022a_fifo_set_wmi(data);
 	if (ret)
-		goto unlock_out;
+		return ret;
 
 	/* Enable buffer */
 	ret = regmap_set_bits(data->regmap, data->chip_info->buf_cntl2,
 			      KX022A_MASK_BUF_EN);
 	if (ret)
-		goto unlock_out;
+		return ret;
 
 	data->state |= KX022A_STATE_FIFO;
 	ret = regmap_set_bits(data->regmap, data->ien_reg,
 			      KX022A_MASK_WMI);
 	if (ret)
-		goto unlock_out;
+		return ret;
 
-	return kx022a_turn_on_unlock(data);
-
-unlock_out:
-	mutex_unlock(&data->mutex);
-
-	return ret;
+	return __kx022a_turn_on_off(data, true);
 }
 
 static int kx022a_buffer_postenable(struct iio_dev *idev)
@@ -1053,7 +1046,7 @@ static irqreturn_t kx022a_irq_thread_handler(int irq, void *private)
 	struct kx022a_data *data = iio_priv(idev);
 	irqreturn_t ret = IRQ_NONE;
 
-	mutex_lock(&data->mutex);
+	guard(mutex)(&data->mutex);
 
 	if (data->trigger_enabled) {
 		iio_trigger_poll_nested(data->trig);
@@ -1068,8 +1061,6 @@ static irqreturn_t kx022a_irq_thread_handler(int irq, void *private)
 			ret = IRQ_HANDLED;
 	}
 
-	mutex_unlock(&data->mutex);
-
 	return ret;
 }
 
@@ -1079,32 +1070,26 @@ static int kx022a_trigger_set_state(struct iio_trigger *trig,
 	struct kx022a_data *data = iio_trigger_get_drvdata(trig);
 	int ret = 0;
 
-	mutex_lock(&data->mutex);
+	guard(mutex)(&data->mutex);
 
 	if (data->trigger_enabled == state)
-		goto unlock_out;
+		return 0;
 
 	if (data->state & KX022A_STATE_FIFO) {
 		dev_warn(data->dev, "Can't set trigger when FIFO enabled\n");
-		ret = -EBUSY;
-		goto unlock_out;
+		return -EBUSY;
 	}
 
-	ret = kx022a_turn_on_off_unlocked(data, false);
+	ret = __kx022a_turn_on_off(data, false);
 	if (ret)
-		goto unlock_out;
+		return ret;
 
 	data->trigger_enabled = state;
 	ret = kx022a_set_drdy_irq(data, state);
 	if (ret)
-		goto unlock_out;
+		return ret;
 
-	ret = kx022a_turn_on_off_unlocked(data, true);
-
-unlock_out:
-	mutex_unlock(&data->mutex);
-
-	return ret;
+	return __kx022a_turn_on_off(data, true);
 }
 
 static const struct iio_trigger_ops kx022a_trigger_ops = {
