@@ -376,6 +376,9 @@ static u32 cpuid_get_reg_unsafe(struct kvm_cpuid_entry2 *entry, u32 reg)
 	}
 }
 
+static int cpuid_func_emulated(struct kvm_cpuid_entry2 *entry, u32 func,
+			       bool include_partially_emulated);
+
 void kvm_vcpu_after_set_cpuid(struct kvm_vcpu *vcpu)
 {
 	struct kvm_lapic *apic = vcpu->arch.apic;
@@ -394,6 +397,7 @@ void kvm_vcpu_after_set_cpuid(struct kvm_vcpu *vcpu)
 	 */
 	for (i = 0; i < NR_KVM_CPU_CAPS; i++) {
 		const struct cpuid_reg cpuid = reverse_cpuid[i];
+		struct kvm_cpuid_entry2 emulated;
 
 		if (!cpuid.function)
 			continue;
@@ -402,7 +406,16 @@ void kvm_vcpu_after_set_cpuid(struct kvm_vcpu *vcpu)
 		if (!entry)
 			continue;
 
-		vcpu->arch.cpu_caps[i] = cpuid_get_reg_unsafe(entry, cpuid.reg);
+		cpuid_func_emulated(&emulated, cpuid.function, true);
+
+		/*
+		 * A vCPU has a feature if it's supported by KVM and is enabled
+		 * in guest CPUID.  Note, this includes features that are
+		 * supported by KVM but aren't advertised to userspace!
+		 */
+		vcpu->arch.cpu_caps[i] = kvm_cpu_caps[i] |
+					 cpuid_get_reg_unsafe(&emulated, cpuid.reg);
+		vcpu->arch.cpu_caps[i] &= cpuid_get_reg_unsafe(entry, cpuid.reg);
 	}
 
 	kvm_update_cpuid_runtime(vcpu);

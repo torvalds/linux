@@ -4406,10 +4406,6 @@ static void svm_vcpu_after_set_cpuid(struct kvm_vcpu *vcpu)
 			     boot_cpu_has(X86_FEATURE_XSAVES) &&
 			     guest_cpuid_has(vcpu, X86_FEATURE_XSAVE));
 
-	guest_cpu_cap_constrain(vcpu, X86_FEATURE_NRIPS);
-	guest_cpu_cap_constrain(vcpu, X86_FEATURE_TSCRATEMSR);
-	guest_cpu_cap_constrain(vcpu, X86_FEATURE_LBRV);
-
 	/*
 	 * Intercept VMLOAD if the vCPU model is Intel in order to emulate that
 	 * VMLOAD drops bits 63:32 of SYSENTER (ignoring the fact that exposing
@@ -4417,13 +4413,6 @@ static void svm_vcpu_after_set_cpuid(struct kvm_vcpu *vcpu)
 	 */
 	if (guest_cpuid_is_intel_compatible(vcpu))
 		guest_cpu_cap_clear(vcpu, X86_FEATURE_V_VMSAVE_VMLOAD);
-	else
-		guest_cpu_cap_constrain(vcpu, X86_FEATURE_V_VMSAVE_VMLOAD);
-
-	guest_cpu_cap_constrain(vcpu, X86_FEATURE_PAUSEFILTER);
-	guest_cpu_cap_constrain(vcpu, X86_FEATURE_PFTHRESHOLD);
-	guest_cpu_cap_constrain(vcpu, X86_FEATURE_VGIF);
-	guest_cpu_cap_constrain(vcpu, X86_FEATURE_VNMI);
 
 	svm_recalc_instruction_intercepts(vcpu, svm);
 
