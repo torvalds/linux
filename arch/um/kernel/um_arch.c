@@ -376,9 +376,8 @@ int __init linux_main(int argc, char **argv, char **envp)
 	iomem_size = (iomem_size + PAGE_SIZE - 1) & PAGE_MASK;
 
 	max_physmem = TASK_SIZE - uml_physmem - iomem_size - MIN_VMALLOC;
-
-	if (physmem_size + iomem_size > max_physmem) {
-		physmem_size = max_physmem - iomem_size;
+	if (physmem_size > max_physmem) {
+		physmem_size = max_physmem;
 		os_info("Physical memory size shrunk to %llu bytes\n",
 			physmem_size);
 	}
