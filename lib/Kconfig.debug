@@ -3003,9 +3003,39 @@ config TEST_KALLSYMS_D
 	tristate
 	depends on m
 
+choice
+	prompt "Kallsym test range"
+	default TEST_KALLSYMS_LARGE
+	help
+	  Selecting something other than "Fast" will enable tests which slow
+	  down the build and may crash your build.
+
+config TEST_KALLSYMS_FAST
+	bool "Fast builds"
+	help
+	  You won't really be testing kallsysms, so this just helps fast builds
+	  when allmodconfig is used..
+
+config TEST_KALLSYMS_LARGE
+	bool "Enable testing kallsyms with large exports"
+	help
+	  This will enable larger number of symbols. This will slow down
+	  your build considerably.
+
+config TEST_KALLSYMS_MAX
+	bool "Known kallsysms limits"
+	help
+	  This will enable exports to the point we know we'll start crashing
+	  builds.
+
+endchoice
+
 config TEST_KALLSYMS_NUMSYMS
 	int "test kallsyms number of symbols"
-	default 100
+	range 2 10000
+	default 2 if TEST_KALLSYMS_FAST
+	default 100 if TEST_KALLSYMS_LARGE
+	default 10000 if TEST_KALLSYMS_MAX
 	help
 	  The number of symbols to create on TEST_KALLSYMS_A, only one of which
 	  module TEST_KALLSYMS_B will use. This also will be used
