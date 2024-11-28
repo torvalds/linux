@@ -4788,9 +4788,11 @@ rtw89_mac_c2h_scanofld_rsp(struct rtw89_dev *rtwdev, struct sk_buff *skb,
 	struct rtw89_vif_link *rtwvif_link = rtwdev->scan_info.scanning_vif;
 	struct rtw89_vif *rtwvif;
 	struct rtw89_chan new;
-	u8 reason, status, tx_fail, band, actual_period, expect_period;
 	u32 last_chan = rtwdev->scan_info.last_chan_idx, report_tsf;
+	u16 actual_period, expect_period;
+	u8 reason, status, tx_fail, band;
 	u8 mac_idx, sw_def, fw_def;
+	u8 ver = U8_MAX;
 	u16 chan;
 	int ret;
 
@@ -4798,6 +4800,9 @@ rtw89_mac_c2h_scanofld_rsp(struct rtw89_dev *rtwdev, struct sk_buff *skb,
 		return;
 
 	rtwvif = rtwvif_link->rtwvif;
+
+	if (RTW89_CHK_FW_FEATURE(CH_INFO_BE_V0, &rtwdev->fw))
+		ver = 0;
 
 	tx_fail = le32_get_bits(c2h->w5, RTW89_C2H_SCANOFLD_W5_TX_FAIL);
 	status = le32_get_bits(c2h->w2, RTW89_C2H_SCANOFLD_W2_STATUS);
@@ -4811,20 +4816,27 @@ rtw89_mac_c2h_scanofld_rsp(struct rtw89_dev *rtwdev, struct sk_buff *skb,
 	if (!(rtwdev->chip->support_bands & BIT(NL80211_BAND_6GHZ)))
 		band = chan > 14 ? RTW89_BAND_5G : RTW89_BAND_2G;
 
-	rtw89_debug(rtwdev, RTW89_DBG_HW_SCAN,
-		    "mac_idx[%d] band: %d, chan: %d, reason: %d, status: %d, tx_fail: %d, actual: %d\n",
-		    mac_idx, band, chan, reason, status, tx_fail, actual_period);
-
 	if (rtwdev->chip->chip_gen == RTW89_CHIP_BE) {
 		sw_def = le32_get_bits(c2h->w6, RTW89_C2H_SCANOFLD_W6_SW_DEF);
-		expect_period = le32_get_bits(c2h->w6, RTW89_C2H_SCANOFLD_W6_EXPECT_PERIOD);
 		fw_def = le32_get_bits(c2h->w6, RTW89_C2H_SCANOFLD_W6_FW_DEF);
 		report_tsf = le32_get_bits(c2h->w7, RTW89_C2H_SCANOFLD_W7_REPORT_TSF);
+		if (ver == 0) {
+			expect_period =
+				le32_get_bits(c2h->w6, RTW89_C2H_SCANOFLD_W6_EXPECT_PERIOD);
+		} else {
+			actual_period = le32_get_bits(c2h->w8, RTW89_C2H_SCANOFLD_W8_PERIOD_V1);
+			expect_period =
+				le32_get_bits(c2h->w8, RTW89_C2H_SCANOFLD_W8_EXPECT_PERIOD_V1);
+		}
 
 		rtw89_debug(rtwdev, RTW89_DBG_HW_SCAN,
 			    "sw_def: %d, fw_def: %d, tsf: %x, expect: %d\n",
 			    sw_def, fw_def, report_tsf, expect_period);
 	}
+
+	rtw89_debug(rtwdev, RTW89_DBG_HW_SCAN,
+		    "mac_idx[%d] band: %d, chan: %d, reason: %d, status: %d, tx_fail: %d, actual: %d\n",
+		    mac_idx, band, chan, reason, status, tx_fail, actual_period);
 
 	switch (reason) {
 	case RTW89_SCAN_LEAVE_OP_NOTIFY:

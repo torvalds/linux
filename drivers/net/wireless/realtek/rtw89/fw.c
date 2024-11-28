@@ -729,6 +729,7 @@ static const struct __fw_feat_cfg fw_feat_tbl[] = {
 	__CFG_FW_FEAT(RTL8922A, lt, 0, 35, 31, 0, RFK_PRE_NOTIFY_V0),
 	__CFG_FW_FEAT(RTL8922A, lt, 0, 35, 42, 0, RFK_RXDCK_V0),
 	__CFG_FW_FEAT(RTL8922A, ge, 0, 35, 46, 0, NOTIFY_AP_INFO),
+	__CFG_FW_FEAT(RTL8922A, lt, 0, 35, 47, 0, CH_INFO_BE_V0),
 };
 
 static void rtw89_fw_iterate_feature_cfg(struct rtw89_fw_info *fw,
@@ -4956,13 +4957,14 @@ int rtw89_fw_h2c_scan_list_offload_be(struct rtw89_dev *rtwdev, int ch_num,
 	struct rtw89_wait_info *wait = &rtwdev->mac.fw_ofld_wait;
 	struct rtw89_h2c_chinfo_elem_be *elem;
 	struct rtw89_mac_chinfo_be *ch_info;
-	struct rtw89_h2c_chinfo *h2c;
+	struct rtw89_h2c_chinfo_be *h2c;
 	struct sk_buff *skb;
 	unsigned int cond;
+	u8 ver = U8_MAX;
 	int skb_len;
 	int ret;
 
-	static_assert(sizeof(*elem) == RTW89_MAC_CHINFO_SIZE);
+	static_assert(sizeof(*elem) == RTW89_MAC_CHINFO_SIZE_BE);
 
 	skb_len = struct_size(h2c, elem, ch_num);
 	skb = rtw89_fw_h2c_alloc_skb_with_hdr(rtwdev, skb_len);
@@ -4971,8 +4973,11 @@ int rtw89_fw_h2c_scan_list_offload_be(struct rtw89_dev *rtwdev, int ch_num,
 		return -ENOMEM;
 	}
 
+	if (RTW89_CHK_FW_FEATURE(CH_INFO_BE_V0, &rtwdev->fw))
+		ver = 0;
+
 	skb_put(skb, sizeof(*h2c));
-	h2c = (struct rtw89_h2c_chinfo *)skb->data;
+	h2c = (struct rtw89_h2c_chinfo_be *)skb->data;
 
 	h2c->ch_num = ch_num;
 	h2c->elem_size = sizeof(*elem) / 4; /* in unit of 4 bytes */
@@ -4982,8 +4987,7 @@ int rtw89_fw_h2c_scan_list_offload_be(struct rtw89_dev *rtwdev, int ch_num,
 	list_for_each_entry(ch_info, chan_list, list) {
 		elem = (struct rtw89_h2c_chinfo_elem_be *)skb_put(skb, sizeof(*elem));
 
-		elem->w0 = le32_encode_bits(ch_info->period, RTW89_H2C_CHINFO_BE_W0_PERIOD) |
-			   le32_encode_bits(ch_info->dwell_time, RTW89_H2C_CHINFO_BE_W0_DWELL) |
+		elem->w0 = le32_encode_bits(ch_info->dwell_time, RTW89_H2C_CHINFO_BE_W0_DWELL) |
 			   le32_encode_bits(ch_info->central_ch,
 					    RTW89_H2C_CHINFO_BE_W0_CENTER_CH) |
 			   le32_encode_bits(ch_info->pri_ch, RTW89_H2C_CHINFO_BE_W0_PRI_CH);
@@ -5030,6 +5034,12 @@ int rtw89_fw_h2c_scan_list_offload_be(struct rtw89_dev *rtwdev, int ch_num,
 					    RTW89_H2C_CHINFO_BE_W6_FW_PROBE0_SHORTSSIDS) |
 			   le32_encode_bits(ch_info->fw_probe0_bssids,
 					    RTW89_H2C_CHINFO_BE_W6_FW_PROBE0_BSSIDS);
+		if (ver == 0)
+			elem->w0 |=
+			   le32_encode_bits(ch_info->period, RTW89_H2C_CHINFO_BE_W0_PERIOD);
+		else
+			elem->w7 = le32_encode_bits(ch_info->period,
+						    RTW89_H2C_CHINFO_BE_W7_PERIOD_V1);
 	}
 
 	rtw89_h2c_pkt_set_hdr(rtwdev, skb, FWCMD_TYPE_H2C,
@@ -5173,6 +5183,7 @@ int rtw89_fw_h2c_scan_offload_be(struct rtw89_dev *rtwdev,
 	u8 probe_id[NUM_NL80211_BANDS];
 	u8 cfg_len = sizeof(*h2c);
 	unsigned int cond;
+	u8 ver = U8_MAX;
 	void *ptr;
 	int ret;
 	u32 len;
@@ -5192,6 +5203,9 @@ int rtw89_fw_h2c_scan_offload_be(struct rtw89_dev *rtwdev,
 	ptr = skb->data;
 
 	memset(probe_id, RTW89_SCANOFLD_PKT_NONE, sizeof(probe_id));
+
+	if (RTW89_CHK_FW_FEATURE(CH_INFO_BE_V0, &rtwdev->fw))
+		ver = 0;
 
 	if (!wowlan) {
 		list_for_each_entry(pkt_info, &scan_info->pkt_list[NL80211_BAND_6GHZ], list) {
@@ -5288,9 +5302,7 @@ flex_member:
 			   le32_encode_bits(RTW89_OFF_CHAN_TIME / 10,
 					    RTW89_H2C_SCANOFLD_BE_OPCH_W0_POLICY_VAL);
 
-		opch->w1 = le32_encode_bits(RTW89_CHANNEL_TIME,
-					    RTW89_H2C_SCANOFLD_BE_OPCH_W1_DURATION) |
-			   le32_encode_bits(op->band_type,
+		opch->w1 = le32_encode_bits(op->band_type,
 					    RTW89_H2C_SCANOFLD_BE_OPCH_W1_CH_BAND) |
 			   le32_encode_bits(op->band_width,
 					    RTW89_H2C_SCANOFLD_BE_OPCH_W1_BW) |
@@ -5316,6 +5328,13 @@ flex_member:
 					    RTW89_H2C_SCANOFLD_BE_OPCH_W3_PKT2) |
 			   le32_encode_bits(RTW89_SCANOFLD_PKT_NONE,
 					    RTW89_H2C_SCANOFLD_BE_OPCH_W3_PKT3);
+
+		if (ver == 0)
+			opch->w1 |= le32_encode_bits(RTW89_CHANNEL_TIME,
+						     RTW89_H2C_SCANOFLD_BE_OPCH_W1_DURATION);
+		else
+			opch->w4 = le32_encode_bits(RTW89_CHANNEL_TIME,
+						    RTW89_H2C_SCANOFLD_BE_OPCH_W4_DURATION_V1);
 		ptr += sizeof(*opch);
 	}
 
@@ -6498,7 +6517,7 @@ int rtw89_pno_scan_add_chan_list_ax(struct rtw89_dev *rtwdev,
 
 	INIT_LIST_HEAD(&chan_list);
 	for (idx = 0, list_len = 0;
-	     idx < nd_config->n_channels && list_len < RTW89_SCAN_LIST_LIMIT;
+	     idx < nd_config->n_channels && list_len < RTW89_SCAN_LIST_LIMIT_AX;
 	     idx++, list_len++) {
 		channel = nd_config->channels[idx];
 		ch_info = kzalloc(sizeof(*ch_info), GFP_KERNEL);
@@ -6549,7 +6568,7 @@ int rtw89_hw_scan_add_chan_list_ax(struct rtw89_dev *rtwdev,
 
 	INIT_LIST_HEAD(&chan_list);
 	for (idx = rtwdev->scan_info.last_chan_idx, list_len = 0;
-	     idx < req->n_channels && list_len < RTW89_SCAN_LIST_LIMIT;
+	     idx < req->n_channels && list_len < RTW89_SCAN_LIST_LIMIT_AX;
 	     idx++, list_len++) {
 		channel = req->channels[idx];
 		ch_info = kzalloc(sizeof(*ch_info), GFP_KERNEL);
@@ -6626,7 +6645,7 @@ int rtw89_pno_scan_add_chan_list_be(struct rtw89_dev *rtwdev,
 	INIT_LIST_HEAD(&chan_list);
 
 	for (idx = 0, list_len = 0;
-	     idx < nd_config->n_channels && list_len < RTW89_SCAN_LIST_LIMIT;
+	     idx < nd_config->n_channels && list_len < RTW89_SCAN_LIST_LIMIT_BE;
 	     idx++, list_len++) {
 		channel = nd_config->channels[idx];
 		ch_info = kzalloc(sizeof(*ch_info), GFP_KERNEL);
@@ -6681,7 +6700,7 @@ int rtw89_hw_scan_add_chan_list_be(struct rtw89_dev *rtwdev,
 	INIT_LIST_HEAD(&chan_list);
 
 	for (idx = rtwdev->scan_info.last_chan_idx, list_len = 0;
-	     idx < req->n_channels && list_len < RTW89_SCAN_LIST_LIMIT;
+	     idx < req->n_channels && list_len < RTW89_SCAN_LIST_LIMIT_BE;
 	     idx++, list_len++) {
 		channel = req->channels[idx];
 		ch_info = kzalloc(sizeof(*ch_info), GFP_KERNEL);
