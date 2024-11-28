@@ -56,12 +56,6 @@
 #endif
 
 /*
- * objtool annotation to ignore the alternatives and only consider the original
- * instruction(s).
- */
-#define ANNOTATE_IGNORE_ALTERNATIVE	ASM_ANNOTATE(ANNOTYPE_IGNORE_ALTS)
-
-/*
  * The patching flags are part of the upper bits of the @ft_flags parameter when
  * specifying them. The split is currently like this:
  *
@@ -306,12 +300,6 @@ void nop_func(void);
 	.macro LOCK_PREFIX
 	.endm
 #endif
-
-/*
- * objtool annotation to ignore the alternatives and only consider the original
- * instruction(s).
- */
-#define ANNOTATE_IGNORE_ALTERNATIVE ANNOTATE type=ANNOTYPE_IGNORE_ALTS
 
 /*
  * Issue one struct alt_instr descriptor entry (need to put it into
