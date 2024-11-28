@@ -1313,8 +1313,7 @@ static void dc_dmub_srv_notify_idle(const struct dc *dc, bool allow_idle)
 			new_signals.bits.allow_ips2 = 1;
 		} else if (dc->config.disable_ips == DMUB_IPS_RCG_IN_ACTIVE_IPS2_IN_OFF) {
 			/* TODO: Move this logic out to hwseq */
-			if (dc_dmub_srv->last_power_state == DC_ACPI_CM_POWER_STATE_D3 &&
-			    count_active_streams(dc) == 0) {
+			if (count_active_streams(dc) == 0) {
 				/* IPS2 - Display off */
 				new_signals.bits.allow_pg = 1;
 				new_signals.bits.allow_ips1 = 1;
@@ -1518,8 +1517,6 @@ void dc_dmub_srv_notify_fw_dc_power_state(struct dc_dmub_srv *dc_dmub_srv,
 	}
 
 	dc_wake_and_execute_dmub_cmd(dc_dmub_srv->ctx, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
-
-	dc_dmub_srv->last_power_state = power_state;
 }
 
 bool dc_dmub_srv_should_detect(struct dc_dmub_srv *dc_dmub_srv)
