@@ -6992,6 +6992,13 @@
 			See Documentation/admin-guide/mm/transhuge.rst
 			for more details.
 
+	transparent_hugepage_tmpfs= [KNL]
+			Format: [always|within_size|advise|never]
+			Can be used to control the default hugepage allocation policy
+			for the tmpfs mount.
+			See Documentation/admin-guide/mm/transhuge.rst
+			for more details.
+
 	trusted.source=	[KEYS]
 			Format: <string>
 			This parameter identifies the trust source as a backend
