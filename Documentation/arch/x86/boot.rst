@@ -754,7 +754,7 @@ Protocol:	2.07+
   0x00000000	The default x86/PC environment
   0x00000001	lguest
   0x00000002	Xen
-  0x00000003	Moorestown MID
+  0x00000003	Intel MID (Moorestown, CloverTrail, Merrifield, Moorefield)
   0x00000004	CE4100 TV Platform
   ==========	==============================
 
