@@ -136,27 +136,22 @@ struct bio_post_read_ctx {
  */
 static void f2fs_finish_read_bio(struct bio *bio, bool in_task)
 {
-	struct bio_vec *bv;
-	struct bvec_iter_all iter_all;
+	struct folio_iter fi;
 	struct bio_post_read_ctx *ctx = bio->bi_private;
 
-	bio_for_each_segment_all(bv, bio, iter_all) {
-		struct page *page = bv->bv_page;
+	bio_for_each_folio_all(fi, bio) {
+		struct folio *folio = fi.folio;
 
-		if (f2fs_is_compressed_page(page)) {
+		if (f2fs_is_compressed_page(&folio->page)) {
 			if (ctx && !ctx->decompression_attempted)
-				f2fs_end_read_compressed_page(page, true, 0,
+				f2fs_end_read_compressed_page(&folio->page, true, 0,
 							in_task);
-			f2fs_put_page_dic(page, in_task);
+			f2fs_put_page_dic(&folio->page, in_task);
 			continue;
 		}
 
-		if (bio->bi_status)
-			ClearPageUptodate(page);
-		else
-			SetPageUptodate(page);
-		dec_page_count(F2FS_P_SB(page), __read_io_type(page));
-		unlock_page(page);
+		dec_page_count(F2FS_F_SB(folio), __read_io_type(&folio->page));
+		folio_end_read(folio, bio->bi_status == 0);
 	}
 
 	if (ctx)
