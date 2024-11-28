@@ -360,9 +360,7 @@ void kvm_vcpu_after_set_cpuid(struct kvm_vcpu *vcpu)
 	struct kvm_cpuid_entry2 *best;
 	bool allow_gbpages;
 
-	BUILD_BUG_ON(KVM_NR_GOVERNED_FEATURES > KVM_MAX_NR_GOVERNED_FEATURES);
-	bitmap_zero(vcpu->arch.governed_features.enabled,
-		    KVM_MAX_NR_GOVERNED_FEATURES);
+	memset(vcpu->arch.cpu_caps, 0, sizeof(vcpu->arch.cpu_caps));
 
 	kvm_update_cpuid_runtime(vcpu);
 
@@ -446,6 +444,7 @@ u64 kvm_vcpu_reserved_gpa_bits_raw(struct kvm_vcpu *vcpu)
 static int kvm_set_cpuid(struct kvm_vcpu *vcpu, struct kvm_cpuid_entry2 *e2,
                         int nent)
 {
+	u32 vcpu_caps[NR_KVM_CPU_CAPS];
 	int r;
 
 	/*
@@ -453,9 +452,17 @@ static int kvm_set_cpuid(struct kvm_vcpu *vcpu, struct kvm_cpuid_entry2 *e2,
 	 * order to massage the new entries, e.g. to account for dynamic bits
 	 * that KVM controls, without clobbering the current guest CPUID, which
 	 * KVM needs to preserve in order to unwind on failure.
+	 *
+	 * Similarly, save the vCPU's current cpu_caps so that the capabilities
+	 * can be updated alongside the CPUID entries when performing runtime
+	 * updates.  Full initialization is done if and only if the vCPU hasn't
+	 * run, i.e. only if userspace is potentially changing CPUID features.
 	 */
 	swap(vcpu->arch.cpuid_entries, e2);
 	swap(vcpu->arch.cpuid_nent, nent);
+
+	memcpy(vcpu_caps, vcpu->arch.cpu_caps, sizeof(vcpu_caps));
+	BUILD_BUG_ON(sizeof(vcpu_caps) != sizeof(vcpu->arch.cpu_caps));
 
 	/*
 	 * KVM does not correctly handle changing guest CPUID after KVM_RUN, as
@@ -497,6 +504,7 @@ success:
 	return 0;
 
 err:
+	memcpy(vcpu->arch.cpu_caps, vcpu_caps, sizeof(vcpu_caps));
 	swap(vcpu->arch.cpuid_entries, e2);
 	swap(vcpu->arch.cpuid_nent, nent);
 	return r;
