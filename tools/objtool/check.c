@@ -614,19 +614,6 @@ static int init_pv_ops(struct objtool_file *file)
 	return 0;
 }
 
-static struct instruction *find_last_insn(struct objtool_file *file,
-					  struct section *sec)
-{
-	struct instruction *insn = NULL;
-	unsigned int offset;
-	unsigned int end = (sec->sh.sh_size > 10) ? sec->sh.sh_size - 10 : 0;
-
-	for (offset = sec->sh.sh_size - 1; offset >= end && !insn; offset--)
-		insn = find_insn(file, sec, offset);
-
-	return insn;
-}
-
 static int create_static_call_sections(struct objtool_file *file)
 {
 	struct static_call_site *site;
@@ -2280,16 +2267,6 @@ static int read_annotate(struct objtool_file *file,
 
 		offset = reloc->sym->offset + reloc_addend(reloc);
 		insn = find_insn(file, reloc->sym->sec, offset);
-
-		/*
-		 * Reachable annotations are 'funneh' and act on the previous instruction :/
-		 */
-		if (type == ANNOTYPE_REACHABLE) {
-			if (insn)
-				insn = prev_insn_same_sec(file, insn);
-			else if (offset == reloc->sym->sec->sh.sh_size)
-				insn = find_last_insn(file, reloc->sym->sec);
-		}
 
 		if (!insn) {
 			WARN("bad .discard.annotate_insn entry: %d of type %d", reloc_idx(reloc), type);
