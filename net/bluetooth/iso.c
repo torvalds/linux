@@ -1281,6 +1281,42 @@ static int iso_sock_accept(struct socket *sock, struct socket *newsock,
 
 	BT_DBG("new socket %p", ch);
 
+	/* A Broadcast Sink might require BIG sync to be terminated
+	 * and re-established multiple times, while keeping the same
+	 * PA sync handle active. To allow this, once all BIS
+	 * connections have been accepted on a PA sync parent socket,
+	 * "reset" socket state, to allow future BIG re-sync procedures.
+	 */
+	if (test_bit(BT_SK_PA_SYNC, &iso_pi(sk)->flags)) {
+		/* Iterate through the list of bound BIS indices
+		 * and clear each BIS as they are accepted by the
+		 * user space, one by one.
+		 */
+		for (int i = 0; i < iso_pi(sk)->bc_num_bis; i++) {
+			if (iso_pi(sk)->bc_bis[i] > 0) {
+				iso_pi(sk)->bc_bis[i] = 0;
+				iso_pi(sk)->bc_num_bis--;
+				break;
+			}
+		}
+
+		if (iso_pi(sk)->bc_num_bis == 0) {
+			/* Once the last BIS was accepted, reset parent
+			 * socket parameters to mark that the listening
+			 * process for BIS connections has been completed:
+			 *
+			 * 1. Reset the DEFER setup flag on the parent sk.
+			 * 2. Clear the flag marking that the BIG create
+			 *    sync command is pending.
+			 * 3. Transition socket state from BT_LISTEN to
+			 *    BT_CONNECTED.
+			 */
+			set_bit(BT_SK_DEFER_SETUP, &bt_sk(sk)->flags);
+			clear_bit(BT_SK_BIG_SYNC, &iso_pi(sk)->flags);
+			sk->sk_state = BT_CONNECTED;
+		}
+	}
+
 done:
 	release_sock(sk);
 	return err;
