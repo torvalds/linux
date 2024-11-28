@@ -525,6 +525,7 @@ struct ov2740 {
 
 	/* GPIOs, clocks */
 	struct gpio_desc *reset_gpio;
+	struct gpio_desc *powerdown_gpio;
 	struct clk *clk;
 
 	/* Current mode */
@@ -1306,6 +1307,7 @@ static int ov2740_suspend(struct device *dev)
 	struct ov2740 *ov2740 = to_ov2740(sd);
 
 	gpiod_set_value_cansleep(ov2740->reset_gpio, 1);
+	gpiod_set_value_cansleep(ov2740->powerdown_gpio, 1);
 	clk_disable_unprepare(ov2740->clk);
 	return 0;
 }
@@ -1320,6 +1322,7 @@ static int ov2740_resume(struct device *dev)
 	if (ret)
 		return ret;
 
+	gpiod_set_value_cansleep(ov2740->powerdown_gpio, 0);
 	gpiod_set_value_cansleep(ov2740->reset_gpio, 0);
 	msleep(20);
 
@@ -1348,9 +1351,17 @@ static int ov2740_probe(struct i2c_client *client)
 	if (IS_ERR(ov2740->reset_gpio)) {
 		return dev_err_probe(dev, PTR_ERR(ov2740->reset_gpio),
 				     "failed to get reset GPIO\n");
-	} else if (ov2740->reset_gpio) {
+	}
+
+	ov2740->powerdown_gpio = devm_gpiod_get_optional(dev, "powerdown", GPIOD_OUT_HIGH);
+	if (IS_ERR(ov2740->powerdown_gpio)) {
+		return dev_err_probe(dev, PTR_ERR(ov2740->powerdown_gpio),
+				     "failed to get powerdown GPIO\n");
+	}
+
+	if (ov2740->reset_gpio || ov2740->powerdown_gpio) {
 		/*
-		 * Ensure reset is asserted for at least 20 ms before
+		 * Ensure reset/powerdown is asserted for at least 20 ms before
 		 * ov2740_resume() deasserts it.
 		 */
 		msleep(20);
