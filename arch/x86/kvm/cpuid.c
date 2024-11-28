@@ -780,10 +780,23 @@ do {									\
 })
 
 /*
+ * Vendor Features - For features that KVM supports, but are added in later
+ * because they require additional vendor enabling.
+ */
+#define VENDOR_F(name)						\
+({								\
+	KVM_VALIDATE_CPU_CAP_USAGE(name);			\
+	0;							\
+})
+
+/*
  * Undefine the MSR bit macro to avoid token concatenation issues when
  * processing X86_FEATURE_SPEC_CTRL_SSBD.
  */
 #undef SPEC_CTRL_SSBD
+
+/* DS is defined by ptrace-abi.h on 32-bit builds. */
+#undef DS
 
 void kvm_set_cpu_caps(void)
 {
@@ -795,13 +808,14 @@ void kvm_set_cpu_caps(void)
 	kvm_cpu_cap_init(CPUID_1_ECX,
 		F(XMM3) |
 		F(PCLMULQDQ) |
-		0 /* DTES64 */ |
+		VENDOR_F(DTES64) |
 		/*
 		 * NOTE: MONITOR (and MWAIT) are emulated as NOP, but *not*
 		 * advertised to guests via CPUID!
 		 */
 		0 /* MONITOR */ |
-		0 /* DS-CPL, VMX, SMX, EST */ |
+		VENDOR_F(VMX) |
+		0 /* DS-CPL, SMX, EST */ |
 		0 /* TM2 */ |
 		F(SSSE3) |
 		0 /* CNXT-ID */ |
@@ -848,7 +862,9 @@ void kvm_set_cpu_caps(void)
 		F(PSE36) |
 		0 /* PSN */ |
 		F(CLFLUSH) |
-		0 /* Reserved, DS, ACPI */ |
+		0 /* Reserved */ |
+		VENDOR_F(DS) |
+		0 /* ACPI */ |
 		F(MMX) |
 		F(FXSR) |
 		F(XMM) |
@@ -871,7 +887,7 @@ void kvm_set_cpu_caps(void)
 		F(INVPCID) |
 		F(RTM) |
 		F(ZERO_FCS_FDS) |
-		0 /*MPX*/ |
+		VENDOR_F(MPX) |
 		F(AVX512F) |
 		F(AVX512DQ) |
 		F(RDSEED) |
@@ -880,7 +896,7 @@ void kvm_set_cpu_caps(void)
 		F(AVX512IFMA) |
 		F(CLFLUSHOPT) |
 		F(CLWB) |
-		0 /*INTEL_PT*/ |
+		VENDOR_F(INTEL_PT) |
 		F(AVX512PF) |
 		F(AVX512ER) |
 		F(AVX512CD) |
@@ -905,7 +921,7 @@ void kvm_set_cpu_caps(void)
 		F(CLDEMOTE) |
 		F(MOVDIRI) |
 		F(MOVDIR64B) |
-		0 /*WAITPKG*/ |
+		VENDOR_F(WAITPKG) |
 		F(SGX_LC) |
 		F(BUS_LOCK_DETECT)
 	);
@@ -1001,7 +1017,7 @@ void kvm_set_cpu_caps(void)
 	kvm_cpu_cap_init(CPUID_8000_0001_ECX,
 		F(LAHF_LM) |
 		F(CMP_LEGACY) |
-		0 /*SVM*/ |
+		VENDOR_F(SVM) |
 		0 /* ExtApicSpace */ |
 		F(CR8_LEGACY) |
 		F(ABM) |
@@ -1015,7 +1031,7 @@ void kvm_set_cpu_caps(void)
 		F(FMA4) |
 		F(TBM) |
 		F(TOPOEXT) |
-		0 /* PERFCTR_CORE */
+		VENDOR_F(PERFCTR_CORE)
 	);
 
 	kvm_cpu_cap_init(CPUID_8000_0001_EDX,
@@ -1101,17 +1117,27 @@ void kvm_set_cpu_caps(void)
 	    !boot_cpu_has(X86_FEATURE_AMD_SSBD))
 		kvm_cpu_cap_set(X86_FEATURE_VIRT_SSBD);
 
-	/*
-	 * Hide all SVM features by default, SVM will set the cap bits for
-	 * features it emulates and/or exposes for L1.
-	 */
-	kvm_cpu_cap_init(CPUID_8000_000A_EDX, 0);
+	/* All SVM features required additional vendor module enabling. */
+	kvm_cpu_cap_init(CPUID_8000_000A_EDX,
+		VENDOR_F(NPT) |
+		VENDOR_F(VMCBCLEAN) |
+		VENDOR_F(FLUSHBYASID) |
+		VENDOR_F(NRIPS) |
+		VENDOR_F(TSCRATEMSR) |
+		VENDOR_F(V_VMSAVE_VMLOAD) |
+		VENDOR_F(LBRV) |
+		VENDOR_F(PAUSEFILTER) |
+		VENDOR_F(PFTHRESHOLD) |
+		VENDOR_F(VGIF) |
+		VENDOR_F(VNMI) |
+		VENDOR_F(SVME_ADDR_CHK)
+	);
 
 	kvm_cpu_cap_init(CPUID_8000_001F_EAX,
-		0 /* SME */ |
-		0 /* SEV */ |
+		VENDOR_F(SME) |
+		VENDOR_F(SEV) |
 		0 /* VM_PAGE_FLUSH */ |
-		0 /* SEV_ES */ |
+		VENDOR_F(SEV_ES) |
 		F(SME_COHERENT)
 	);
 
@@ -1183,6 +1209,7 @@ EXPORT_SYMBOL_GPL(kvm_set_cpu_caps);
 #undef SYNTHESIZED_F
 #undef PASSTHROUGH_F
 #undef ALIASED_1_EDX_F
+#undef VENDOR_F
 
 struct kvm_cpuid_array {
 	struct kvm_cpuid_entry2 *entries;
