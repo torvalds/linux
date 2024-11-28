@@ -663,17 +663,14 @@ static __always_inline void kvm_cpu_cap_init(enum cpuid_leafs leaf, u32 mask)
 	(boot_cpu_has(X86_FEATURE_##name) ? F(name) : 0);	\
 })
 
+/* Features that KVM supports only on 64-bit kernels. */
+#define X86_64_F(name)						\
+({								\
+	(IS_ENABLED(CONFIG_X86_64) ? F(name) : 0);		\
+})
+
 void kvm_set_cpu_caps(void)
 {
-#ifdef CONFIG_X86_64
-	unsigned int f_gbpages = F(GBPAGES);
-	unsigned int f_lm = F(LM);
-	unsigned int f_xfd = F(XFD);
-#else
-	unsigned int f_gbpages = 0;
-	unsigned int f_lm = 0;
-	unsigned int f_xfd = 0;
-#endif
 	memset(kvm_cpu_caps, 0, sizeof(kvm_cpu_caps));
 
 	BUILD_BUG_ON(sizeof(kvm_cpu_caps) - (NKVMCAPINTS * sizeof(*kvm_cpu_caps)) >
@@ -880,7 +877,7 @@ void kvm_set_cpu_caps(void)
 		F(XSAVEC) |
 		F(XGETBV1) |
 		F(XSAVES) |
-		f_xfd
+		X86_64_F(XFD)
 	);
 
 	kvm_cpu_cap_init_kvm_defined(CPUID_12_EAX,
@@ -941,10 +938,10 @@ void kvm_set_cpu_caps(void)
 		F(MMX) |
 		F(FXSR) |
 		F(FXSR_OPT) |
-		f_gbpages |
+		X86_64_F(GBPAGES) |
 		F(RDTSCP) |
 		0 /* Reserved */ |
-		f_lm |
+		X86_64_F(LM) |
 		F(3DNOWEXT) |
 		F(3DNOW)
 	);
@@ -1078,6 +1075,7 @@ EXPORT_SYMBOL_GPL(kvm_set_cpu_caps);
 
 #undef F
 #undef SF
+#undef X86_64_F
 
 struct kvm_cpuid_array {
 	struct kvm_cpuid_entry2 *entries;
