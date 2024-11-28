@@ -2003,9 +2003,14 @@ static inline struct f2fs_sb_info *F2FS_M_SB(struct address_space *mapping)
 	return F2FS_I_SB(mapping->host);
 }
 
+static inline struct f2fs_sb_info *F2FS_F_SB(struct folio *folio)
+{
+	return F2FS_M_SB(folio->mapping);
+}
+
 static inline struct f2fs_sb_info *F2FS_P_SB(struct page *page)
 {
-	return F2FS_M_SB(page_file_mapping(page));
+	return F2FS_F_SB(page_folio(page));
 }
 
 static inline struct f2fs_super_block *F2FS_RAW_SUPER(struct f2fs_sb_info *sbi)
