@@ -29,11 +29,11 @@
 #include "vlv_sideband.h"
 
 #define for_each_power_domain_well(__dev_priv, __power_well, __domain)	\
-	for_each_power_well(__dev_priv, __power_well)				\
+	for_each_power_well(&(__dev_priv)->display, __power_well)	\
 		for_each_if(test_bit((__domain), (__power_well)->domains.bits))
 
 #define for_each_power_domain_well_reverse(__dev_priv, __power_well, __domain) \
-	for_each_power_well_reverse(__dev_priv, __power_well)		        \
+	for_each_power_well_reverse(&(__dev_priv)->display, __power_well) \
 		for_each_if(test_bit((__domain), (__power_well)->domains.bits))
 
 static const char *
@@ -1028,11 +1028,12 @@ void intel_power_domains_cleanup(struct drm_i915_private *dev_priv)
 
 static void intel_power_domains_sync_hw(struct drm_i915_private *dev_priv)
 {
+	struct intel_display *display = &dev_priv->display;
 	struct i915_power_domains *power_domains = &dev_priv->display.power.domains;
 	struct i915_power_well *power_well;
 
 	mutex_lock(&power_domains->lock);
-	for_each_power_well(dev_priv, power_well)
+	for_each_power_well(display, power_well)
 		intel_power_well_sync_hw(dev_priv, power_well);
 	mutex_unlock(&power_domains->lock);
 }
@@ -2003,12 +2004,13 @@ void intel_power_domains_driver_remove(struct drm_i915_private *i915)
  */
 void intel_power_domains_sanitize_state(struct drm_i915_private *i915)
 {
+	struct intel_display *display = &i915->display;
 	struct i915_power_domains *power_domains = &i915->display.power.domains;
 	struct i915_power_well *power_well;
 
 	mutex_lock(&power_domains->lock);
 
-	for_each_power_well_reverse(i915, power_well) {
+	for_each_power_well_reverse(display, power_well) {
 		if (power_well->desc->always_on || power_well->count ||
 		    !intel_power_well_is_enabled(i915, power_well))
 			continue;
@@ -2146,10 +2148,11 @@ void intel_power_domains_resume(struct drm_i915_private *i915)
 
 static void intel_power_domains_dump_info(struct drm_i915_private *i915)
 {
+	struct intel_display *display = &i915->display;
 	struct i915_power_domains *power_domains = &i915->display.power.domains;
 	struct i915_power_well *power_well;
 
-	for_each_power_well(i915, power_well) {
+	for_each_power_well(display, power_well) {
 		enum intel_display_power_domain domain;
 
 		drm_dbg(&i915->drm, "%-25s %d\n",
@@ -2174,6 +2177,7 @@ static void intel_power_domains_dump_info(struct drm_i915_private *i915)
  */
 static void intel_power_domains_verify_state(struct drm_i915_private *i915)
 {
+	struct intel_display *display = &i915->display;
 	struct i915_power_domains *power_domains = &i915->display.power.domains;
 	struct i915_power_well *power_well;
 	bool dump_domain_info;
@@ -2183,7 +2187,7 @@ static void intel_power_domains_verify_state(struct drm_i915_private *i915)
 	verify_async_put_domains_state(power_domains);
 
 	dump_domain_info = false;
-	for_each_power_well(i915, power_well) {
+	for_each_power_well(display, power_well) {
 		enum intel_display_power_domain domain;
 		int domains_count;
 		bool enabled;

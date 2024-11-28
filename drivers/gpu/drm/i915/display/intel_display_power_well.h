@@ -15,16 +15,16 @@ struct i915_power_well_ops;
 struct intel_display;
 struct intel_encoder;
 
-#define for_each_power_well(__dev_priv, __power_well)				\
-	for ((__power_well) = (__dev_priv)->display.power.domains.power_wells;	\
-	     (__power_well) - (__dev_priv)->display.power.domains.power_wells <	\
-		(__dev_priv)->display.power.domains.power_well_count;		\
+#define for_each_power_well(___display, __power_well)			\
+	for ((__power_well) = (___display)->power.domains.power_wells;	\
+	     (__power_well) - (___display)->power.domains.power_wells <	\
+		     (___display)->power.domains.power_well_count;	\
 	     (__power_well)++)
 
-#define for_each_power_well_reverse(__dev_priv, __power_well)			\
-	for ((__power_well) = (__dev_priv)->display.power.domains.power_wells +		\
-			      (__dev_priv)->display.power.domains.power_well_count - 1;	\
-	     (__power_well) - (__dev_priv)->display.power.domains.power_wells >= 0;	\
+#define for_each_power_well_reverse(___display, __power_well)		\
+	for ((__power_well) = (___display)->power.domains.power_wells +	\
+		     (___display)->power.domains.power_well_count - 1;	\
+	     (__power_well) - (___display)->power.domains.power_wells >= 0; \
 	     (__power_well)--)
 
 /*

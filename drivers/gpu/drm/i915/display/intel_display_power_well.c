@@ -76,9 +76,10 @@ struct i915_power_well *
 lookup_power_well(struct drm_i915_private *i915,
 		  enum i915_power_well_id power_well_id)
 {
+	struct intel_display *display = &i915->display;
 	struct i915_power_well *power_well;
 
-	for_each_power_well(i915, power_well)
+	for_each_power_well(display, power_well)
 		if (i915_power_well_instance(power_well)->id == power_well_id)
 			return power_well;
 
