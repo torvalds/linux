@@ -48,7 +48,7 @@ static void last_ditch_exit(int sig)
 	exit(1);
 }
 
-static void install_fatal_handler(int sig)
+static void __init install_fatal_handler(int sig)
 {
 	struct sigaction action;
 
