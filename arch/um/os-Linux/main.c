@@ -25,7 +25,7 @@
 
 long elf_aux_hwcap;
 
-static void set_stklim(void)
+static void __init set_stklim(void)
 {
 	struct rlimit lim;
 
