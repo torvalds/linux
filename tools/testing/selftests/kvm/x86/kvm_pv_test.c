@@ -139,6 +139,7 @@ static void test_pv_unhalt(void)
 	struct kvm_vm *vm;
 	struct kvm_cpuid_entry2 *ent;
 	u32 kvm_sig_old;
+	int r;
 
 	if (!(kvm_check_cap(KVM_CAP_X86_DISABLE_EXITS) & KVM_X86_DISABLE_EXITS_HLT))
 		return;
@@ -152,19 +153,45 @@ static void test_pv_unhalt(void)
 	TEST_ASSERT(vcpu_cpuid_has(vcpu, X86_FEATURE_KVM_PV_UNHALT),
 		    "Enabling X86_FEATURE_KVM_PV_UNHALT had no effect");
 
-	/* Make sure KVM clears vcpu->arch.kvm_cpuid */
+	/* Verify KVM disallows disabling exits after vCPU creation. */
+	r = __vm_enable_cap(vm, KVM_CAP_X86_DISABLE_EXITS, KVM_X86_DISABLE_EXITS_HLT);
+	TEST_ASSERT(r && errno == EINVAL,
+		    "Disabling exits after vCPU creation didn't fail as expected");
+
+	kvm_vm_free(vm);
+
+	/* Verify that KVM clear PV_UNHALT from guest CPUID. */
+	vm = vm_create(1);
+	vm_enable_cap(vm, KVM_CAP_X86_DISABLE_EXITS, KVM_X86_DISABLE_EXITS_HLT);
+
+	vcpu = vm_vcpu_add(vm, 0, NULL);
+	TEST_ASSERT(!vcpu_cpuid_has(vcpu, X86_FEATURE_KVM_PV_UNHALT),
+		    "vCPU created with PV_UNHALT set by default");
+
+	vcpu_set_cpuid_feature(vcpu, X86_FEATURE_KVM_PV_UNHALT);
+	TEST_ASSERT(!vcpu_cpuid_has(vcpu, X86_FEATURE_KVM_PV_UNHALT),
+		    "PV_UNHALT set in guest CPUID when HLT-exiting is disabled");
+
+	/*
+	 * Clobber the KVM PV signature and verify KVM does NOT clear PV_UNHALT
+	 * when KVM PV is not present, and DOES clear PV_UNHALT when switching
+	 * back to the correct signature..
+	 */
 	ent = vcpu_get_cpuid_entry(vcpu, KVM_CPUID_SIGNATURE);
 	kvm_sig_old = ent->ebx;
 	ent->ebx = 0xdeadbeef;
 	vcpu_set_cpuid(vcpu);
 
-	vm_enable_cap(vm, KVM_CAP_X86_DISABLE_EXITS, KVM_X86_DISABLE_EXITS_HLT);
+	vcpu_set_cpuid_feature(vcpu, X86_FEATURE_KVM_PV_UNHALT);
+	TEST_ASSERT(vcpu_cpuid_has(vcpu, X86_FEATURE_KVM_PV_UNHALT),
+		    "PV_UNHALT cleared when using bogus KVM PV signature");
+
 	ent = vcpu_get_cpuid_entry(vcpu, KVM_CPUID_SIGNATURE);
 	ent->ebx = kvm_sig_old;
 	vcpu_set_cpuid(vcpu);
 
 	TEST_ASSERT(!vcpu_cpuid_has(vcpu, X86_FEATURE_KVM_PV_UNHALT),
-		    "KVM_FEATURE_PV_UNHALT is set with KVM_CAP_X86_DISABLE_EXITS");
+		    "PV_UNHALT set in guest CPUID when HLT-exiting is disabled");
 
 	/* FIXME: actually test KVM_FEATURE_PV_UNHALT feature */
 
