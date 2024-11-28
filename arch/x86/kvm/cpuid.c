@@ -669,6 +669,16 @@ static __always_inline void kvm_cpu_cap_init(enum cpuid_leafs leaf, u32 mask)
 	(IS_ENABLED(CONFIG_X86_64) ? F(name) : 0);		\
 })
 
+/*
+ * Aliased Features - For features in 0x8000_0001.EDX that are duplicates of
+ * identical 0x1.EDX features, and thus are aliased from 0x1 to 0x8000_0001.
+ */
+#define ALIASED_1_EDX_F(name)							\
+({										\
+	BUILD_BUG_ON(__feature_leaf(X86_FEATURE_##name) != CPUID_1_EDX);	\
+	feature_bit(name);							\
+})
+
 void kvm_set_cpu_caps(void)
 {
 	memset(kvm_cpu_caps, 0, sizeof(kvm_cpu_caps));
@@ -913,30 +923,30 @@ void kvm_set_cpu_caps(void)
 	);
 
 	kvm_cpu_cap_init(CPUID_8000_0001_EDX,
-		F(FPU) |
-		F(VME) |
-		F(DE) |
-		F(PSE) |
-		F(TSC) |
-		F(MSR) |
-		F(PAE) |
-		F(MCE) |
-		F(CX8) |
-		F(APIC) |
+		ALIASED_1_EDX_F(FPU) |
+		ALIASED_1_EDX_F(VME) |
+		ALIASED_1_EDX_F(DE) |
+		ALIASED_1_EDX_F(PSE) |
+		ALIASED_1_EDX_F(TSC) |
+		ALIASED_1_EDX_F(MSR) |
+		ALIASED_1_EDX_F(PAE) |
+		ALIASED_1_EDX_F(MCE) |
+		ALIASED_1_EDX_F(CX8) |
+		ALIASED_1_EDX_F(APIC) |
 		0 /* Reserved */ |
 		F(SYSCALL) |
-		F(MTRR) |
-		F(PGE) |
-		F(MCA) |
-		F(CMOV) |
-		F(PAT) |
-		F(PSE36) |
+		ALIASED_1_EDX_F(MTRR) |
+		ALIASED_1_EDX_F(PGE) |
+		ALIASED_1_EDX_F(MCA) |
+		ALIASED_1_EDX_F(CMOV) |
+		ALIASED_1_EDX_F(PAT) |
+		ALIASED_1_EDX_F(PSE36) |
 		0 /* Reserved */ |
 		F(NX) |
 		0 /* Reserved */ |
 		F(MMXEXT) |
-		F(MMX) |
-		F(FXSR) |
+		ALIASED_1_EDX_F(MMX) |
+		ALIASED_1_EDX_F(FXSR) |
 		F(FXSR_OPT) |
 		X86_64_F(GBPAGES) |
 		F(RDTSCP) |
@@ -1076,6 +1086,7 @@ EXPORT_SYMBOL_GPL(kvm_set_cpu_caps);
 #undef F
 #undef SF
 #undef X86_64_F
+#undef ALIASED_1_EDX_F
 
 struct kvm_cpuid_array {
 	struct kvm_cpuid_entry2 *entries;
