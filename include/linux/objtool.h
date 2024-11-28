@@ -51,12 +51,17 @@
 	".long 998b\n\t"						\
 	".popsection\n\t"
 
-#define ASM_ANNOTATE(type)						\
-	"911:\n\t"							\
+#define __ASM_BREF(label)	label ## b
+
+#define __ASM_ANNOTATE(label, type)					\
 	".pushsection .discard.annotate_insn,\"M\",@progbits,8\n\t"	\
-	".long 911b - .\n\t"						\
+	".long " __stringify(label) " - .\n\t"			\
 	".long " __stringify(type) "\n\t"				\
 	".popsection\n\t"
+
+#define ASM_ANNOTATE(type)						\
+	"911:\n\t"						\
+	__ASM_ANNOTATE(911b, type)
 
 #define ANNOTATE_NOENDBR	ASM_ANNOTATE(ANNOTYPE_NOENDBR)
 
@@ -161,6 +166,7 @@
 #define UNWIND_HINT(type, sp_reg, sp_offset, signal) "\n\t"
 #define STACK_FRAME_NON_STANDARD(func)
 #define STACK_FRAME_NON_STANDARD_FP(func)
+#define __ASM_ANNOTATE(label, type)
 #define ASM_ANNOTATE(type)
 #define ANNOTATE_NOENDBR
 #define ASM_REACHABLE
