@@ -1084,6 +1084,7 @@ struct rtw89_rx_desc_info {
 	u16 offset;
 	u16 rxd_len;
 	bool ready;
+	u16 rssi;
 };
 
 struct rtw89_rxdesc_short {
@@ -1124,6 +1125,11 @@ struct rtw89_rxdesc_long_v2 {
 	__le32 dword7;
 	__le32 dword8;
 	__le32 dword9;
+} __packed;
+
+struct rtw89_rxdesc_phy_rpt_v2 {
+	__le32 dword0;
+	__le32 dword1;
 } __packed;
 
 struct rtw89_tx_desc_info {
@@ -3624,6 +3630,9 @@ struct rtw89_chip_ops {
 			   struct ieee80211_rx_status *status);
 	void (*convert_rpl_to_rssi)(struct rtw89_dev *rtwdev,
 				    struct rtw89_rx_phy_ppdu *phy_ppdu);
+	void (*phy_rpt_to_rssi)(struct rtw89_dev *rtwdev,
+				struct rtw89_rx_desc_info *desc_info,
+				struct ieee80211_rx_status *rx_status);
 	void (*ctrl_nbtg_bt_tx)(struct rtw89_dev *rtwdev, bool en,
 				enum rtw89_phy_idx phy_idx);
 	void (*cfg_txrx_path)(struct rtw89_dev *rtwdev);
@@ -6704,6 +6713,16 @@ static inline void rtw89_chip_convert_rpl_to_rssi(struct rtw89_dev *rtwdev,
 
 	if (chip->ops->convert_rpl_to_rssi)
 		chip->ops->convert_rpl_to_rssi(rtwdev, phy_ppdu);
+}
+
+static inline void rtw89_chip_phy_rpt_to_rssi(struct rtw89_dev *rtwdev,
+					      struct rtw89_rx_desc_info *desc_info,
+					      struct ieee80211_rx_status *rx_status)
+{
+	const struct rtw89_chip_info *chip = rtwdev->chip;
+
+	if (chip->ops->phy_rpt_to_rssi)
+		chip->ops->phy_rpt_to_rssi(rtwdev, desc_info, rx_status);
 }
 
 static inline void rtw89_ctrl_nbtg_bt_tx(struct rtw89_dev *rtwdev, bool en,

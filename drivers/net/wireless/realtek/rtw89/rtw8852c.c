@@ -2807,7 +2807,10 @@ static void rtw8852c_query_ppdu(struct rtw89_dev *rtwdev,
 	u8 path;
 	u8 *rx_power = phy_ppdu->rssi;
 
-	status->signal = RTW89_RSSI_RAW_TO_DBM(max(rx_power[RF_PATH_A], rx_power[RF_PATH_B]));
+	if (!status->signal)
+		status->signal = RTW89_RSSI_RAW_TO_DBM(max(rx_power[RF_PATH_A],
+							   rx_power[RF_PATH_B]));
+
 	for (path = 0; path < rtwdev->chip->rf_path_num; path++) {
 		status->chains |= BIT(path);
 		status->chain_signal[path] = RTW89_RSSI_RAW_TO_DBM(rx_power[path]);
@@ -2907,6 +2910,7 @@ static const struct rtw89_chip_ops rtw8852c_chip_ops = {
 	.ctrl_btg_bt_rx		= rtw8852c_ctrl_btg_bt_rx,
 	.query_ppdu		= rtw8852c_query_ppdu,
 	.convert_rpl_to_rssi	= NULL,
+	.phy_rpt_to_rssi	= NULL,
 	.ctrl_nbtg_bt_tx	= rtw8852c_ctrl_nbtg_bt_tx,
 	.cfg_txrx_path		= rtw8852c_bb_cfg_txrx_path,
 	.set_txpwr_ul_tb_offset	= rtw8852c_set_txpwr_ul_tb_offset,

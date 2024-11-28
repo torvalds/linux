@@ -6736,6 +6736,7 @@ const struct rtw89_mac_gen_def rtw89_mac_gen_ax = {
 
 	.typ_fltr_opt = rtw89_mac_typ_fltr_opt_ax,
 	.cfg_ppdu_status = rtw89_mac_cfg_ppdu_status_ax,
+	.cfg_phy_rpt = NULL,
 
 	.dle_mix_cfg = dle_mix_cfg_ax,
 	.chk_dle_rdy = chk_dle_rdy_ax,

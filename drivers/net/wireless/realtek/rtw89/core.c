@@ -2366,6 +2366,12 @@ static void rtw89_core_update_radiotap(struct rtw89_dev *rtwdev,
 	}
 }
 
+static void rtw89_core_validate_rx_signal(struct ieee80211_rx_status *rx_status)
+{
+	if (!rx_status->signal)
+		rx_status->flag |= RX_FLAG_NO_SIGNAL_VAL;
+}
+
 static void rtw89_core_rx_to_mac80211(struct rtw89_dev *rtwdev,
 				      struct rtw89_rx_phy_ppdu *phy_ppdu,
 				      struct rtw89_rx_desc_info *desc_info,
@@ -2382,6 +2388,8 @@ static void rtw89_core_rx_to_mac80211(struct rtw89_dev *rtwdev,
 	rtw89_core_rx_stats(rtwdev, phy_ppdu, desc_info, skb_ppdu);
 	rtw89_core_update_rx_status_by_ppdu(rtwdev, rx_status, phy_ppdu);
 	rtw89_core_update_radiotap(rtwdev, skb_ppdu, rx_status);
+	rtw89_core_validate_rx_signal(rx_status);
+
 	/* In low power mode, it does RX in thread context. */
 	local_bh_disable();
 	ieee80211_rx_napi(rtwdev->hw, NULL, skb_ppdu, napi);
@@ -2517,6 +2525,7 @@ void rtw89_core_query_rxdesc_v2(struct rtw89_dev *rtwdev,
 				struct rtw89_rx_desc_info *desc_info,
 				u8 *data, u32 data_offset)
 {
+	struct rtw89_rxdesc_phy_rpt_v2 *rxd_rpt;
 	struct rtw89_rxdesc_short_v2 *rxd_s;
 	struct rtw89_rxdesc_long_v2 *rxd_l;
 	u16 shift_len, drv_info_len, phy_rtp_len, hdr_cnv_len;
@@ -2563,6 +2572,12 @@ void rtw89_core_query_rxdesc_v2(struct rtw89_dev *rtwdev,
 	else
 		desc_info->rxd_len = sizeof(struct rtw89_rxdesc_short_v2);
 	desc_info->ready = true;
+
+	if (phy_rtp_len == sizeof(*rxd_rpt)) {
+		rxd_rpt = (struct rtw89_rxdesc_phy_rpt_v2 *)(data + data_offset +
+							     desc_info->rxd_len);
+		desc_info->rssi = le32_get_bits(rxd_rpt->dword0, BE_RXD_PHY_RSSI);
+	}
 
 	if (!desc_info->long_rxdesc)
 		return;
@@ -2706,6 +2721,7 @@ static void rtw89_core_update_rx_status(struct rtw89_dev *rtwdev,
 	rx_status->flag |= RX_FLAG_MACTIME_START;
 	rx_status->mactime = desc_info->free_run_cnt;
 
+	rtw89_chip_phy_rpt_to_rssi(rtwdev, desc_info, rx_status);
 	rtw89_core_stats_sta_rx_status(rtwdev, desc_info, rx_status);
 }
 
@@ -4522,6 +4538,7 @@ int rtw89_core_start(struct rtw89_dev *rtwdev)
 	rtw89_phy_dm_init(rtwdev);
 
 	rtw89_mac_cfg_ppdu_status_bands(rtwdev, true);
+	rtw89_mac_cfg_phy_rpt_bands(rtwdev, true);
 	rtw89_mac_update_rts_threshold(rtwdev);
 
 	rtw89_tas_reset(rtwdev);
