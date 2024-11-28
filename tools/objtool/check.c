@@ -2339,7 +2339,8 @@ static int read_unwind_hints(struct objtool_file *file)
 	return 0;
 }
 
-static int read_annotate(struct objtool_file *file, int (*func)(int type, struct instruction *insn))
+static int read_annotate(struct objtool_file *file,
+			 int (*func)(struct objtool_file *file, int type, struct instruction *insn))
 {
 	struct section *sec;
 	struct instruction *insn;
@@ -2372,7 +2373,7 @@ static int read_annotate(struct objtool_file *file, int (*func)(int type, struct
 			return -1;
 		}
 
-		ret = func(type, insn);
+		ret = func(file, type, insn);
 		if (ret < 0)
 			return ret;
 	}
@@ -2380,7 +2381,7 @@ static int read_annotate(struct objtool_file *file, int (*func)(int type, struct
 	return 0;
 }
 
-static int __annotate_ignore_alts(int type, struct instruction *insn)
+static int __annotate_ignore_alts(struct objtool_file *file, int type, struct instruction *insn)
 {
 	if (type != ANNOTYPE_IGNORE_ALTS)
 		return 0;
@@ -2389,7 +2390,7 @@ static int __annotate_ignore_alts(int type, struct instruction *insn)
 	return 0;
 }
 
-static int __annotate_noendbr(int type, struct instruction *insn)
+static int __annotate_noendbr(struct objtool_file *file, int type, struct instruction *insn)
 {
 	if (type != ANNOTYPE_NOENDBR)
 		return 0;
@@ -2398,7 +2399,37 @@ static int __annotate_noendbr(int type, struct instruction *insn)
 	return 0;
 }
 
-static int __annotate_retpoline_safe(int type, struct instruction *insn)
+static int __annotate_ifc(struct objtool_file *file, int type, struct instruction *insn)
+{
+	unsigned long dest_off;
+
+	if (type != ANNOTYPE_INTRA_FUNCTION_CALL)
+		return 0;
+
+	if (insn->type != INSN_CALL) {
+		WARN_INSN(insn, "intra_function_call not a direct call");
+		return -1;
+	}
+
+	/*
+	 * Treat intra-function CALLs as JMPs, but with a stack_op.
+	 * See add_call_destinations(), which strips stack_ops from
+	 * normal CALLs.
+	 */
+	insn->type = INSN_JUMP_UNCONDITIONAL;
+
+	dest_off = arch_jump_destination(insn);
+	insn->jump_dest = find_insn(file, insn->sec, dest_off);
+	if (!insn->jump_dest) {
+		WARN_INSN(insn, "can't find call dest at %s+0x%lx",
+			  insn->sec->name, dest_off);
+		return -1;
+	}
+
+	return 0;
+}
+
+static int __annotate_retpoline_safe(struct objtool_file *file, int type, struct instruction *insn)
 {
 	if (type != ANNOTYPE_RETPOLINE_SAFE)
 		return 0;
@@ -2415,7 +2446,7 @@ static int __annotate_retpoline_safe(int type, struct instruction *insn)
 	return 0;
 }
 
-static int __annotate_instr(int type, struct instruction *insn)
+static int __annotate_instr(struct objtool_file *file, int type, struct instruction *insn)
 {
 	switch (type) {
 	case ANNOTYPE_INSTR_BEGIN:
@@ -2433,7 +2464,7 @@ static int __annotate_instr(int type, struct instruction *insn)
 	return 0;
 }
 
-static int __annotate_unret(int type, struct instruction *insn)
+static int __annotate_unret(struct objtool_file *file, int type, struct instruction *insn)
 {
 	if (type != ANNOTYPE_UNRET_BEGIN)
 		return 0;
@@ -2441,55 +2472,6 @@ static int __annotate_unret(int type, struct instruction *insn)
 	insn->unret = 1;
 	return 0;
 
-}
-
-static int read_intra_function_calls(struct objtool_file *file)
-{
-	struct instruction *insn;
-	struct section *rsec;
-	struct reloc *reloc;
-
-	rsec = find_section_by_name(file->elf, ".rela.discard.intra_function_calls");
-	if (!rsec)
-		return 0;
-
-	for_each_reloc(rsec, reloc) {
-		unsigned long dest_off;
-
-		if (reloc->sym->type != STT_SECTION) {
-			WARN("unexpected relocation symbol type in %s",
-			     rsec->name);
-			return -1;
-		}
-
-		insn = find_insn(file, reloc->sym->sec, reloc_addend(reloc));
-		if (!insn) {
-			WARN("bad .discard.intra_function_call entry");
-			return -1;
-		}
-
-		if (insn->type != INSN_CALL) {
-			WARN_INSN(insn, "intra_function_call not a direct call");
-			return -1;
-		}
-
-		/*
-		 * Treat intra-function CALLs as JMPs, but with a stack_op.
-		 * See add_call_destinations(), which strips stack_ops from
-		 * normal CALLs.
-		 */
-		insn->type = INSN_JUMP_UNCONDITIONAL;
-
-		dest_off = arch_jump_destination(insn);
-		insn->jump_dest = find_insn(file, insn->sec, dest_off);
-		if (!insn->jump_dest) {
-			WARN_INSN(insn, "can't find call dest at %s+0x%lx",
-				  insn->sec->name, dest_off);
-			return -1;
-		}
-	}
-
-	return 0;
 }
 
 /*
@@ -2630,7 +2612,7 @@ static int decode_sections(struct objtool_file *file)
 	 * Must be before add_call_destination(); it changes INSN_CALL to
 	 * INSN_JUMP.
 	 */
-	ret = read_intra_function_calls(file);
+	ret = read_annotate(file, __annotate_ifc);
 	if (ret)
 		return ret;
 
