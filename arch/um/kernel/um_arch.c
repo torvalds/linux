@@ -264,7 +264,7 @@ EXPORT_SYMBOL(end_iomem);
 
 #define MIN_VMALLOC (32 * 1024 * 1024)
 
-static void parse_host_cpu_flags(char *line)
+static void __init parse_host_cpu_flags(char *line)
 {
 	int i;
 	for (i = 0; i < 32*NCAPINTS; i++) {
