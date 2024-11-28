@@ -623,35 +623,21 @@ static __always_inline u32 raw_cpuid_get(struct cpuid_reg cpuid)
 	return *__cpuid_entry_get_reg(&entry, cpuid.reg);
 }
 
-/* Mask kvm_cpu_caps for @leaf with the raw CPUID capabilities of this CPU. */
-static __always_inline void __kvm_cpu_cap_mask(unsigned int leaf)
+static __always_inline void kvm_cpu_cap_init(u32 leaf, u32 mask)
 {
 	const struct cpuid_reg cpuid = x86_feature_cpuid(leaf * 32);
 
-	reverse_cpuid_check(leaf);
+	/*
+	 * For kernel-defined leafs, mask the boot CPU's pre-populated value.
+	 * For KVM-defined leafs, explicitly set the leaf, as KVM is the one
+	 * and only authority.
+	 */
+	if (leaf < NCAPINTS)
+		kvm_cpu_caps[leaf] &= mask;
+	else
+		kvm_cpu_caps[leaf] = mask;
 
 	kvm_cpu_caps[leaf] &= raw_cpuid_get(cpuid);
-}
-
-static __always_inline
-void kvm_cpu_cap_init_kvm_defined(enum kvm_only_cpuid_leafs leaf, u32 mask)
-{
-	/* Use kvm_cpu_cap_init for leafs that aren't KVM-only. */
-	BUILD_BUG_ON(leaf < NCAPINTS);
-
-	kvm_cpu_caps[leaf] = mask;
-
-	__kvm_cpu_cap_mask(leaf);
-}
-
-static __always_inline void kvm_cpu_cap_init(enum cpuid_leafs leaf, u32 mask)
-{
-	/* Use kvm_cpu_cap_init_kvm_defined for KVM-only leafs. */
-	BUILD_BUG_ON(leaf >= NCAPINTS);
-
-	kvm_cpu_caps[leaf] &= mask;
-
-	__kvm_cpu_cap_mask(leaf);
 }
 
 #define F feature_bit
@@ -864,7 +850,7 @@ void kvm_set_cpu_caps(void)
 		F(LAM)
 	);
 
-	kvm_cpu_cap_init_kvm_defined(CPUID_7_1_EDX,
+	kvm_cpu_cap_init(CPUID_7_1_EDX,
 		F(AVX_VNNI_INT8) |
 		F(AVX_NE_CONVERT) |
 		F(AMX_COMPLEX) |
@@ -873,7 +859,7 @@ void kvm_set_cpu_caps(void)
 		F(AVX10)
 	);
 
-	kvm_cpu_cap_init_kvm_defined(CPUID_7_2_EDX,
+	kvm_cpu_cap_init(CPUID_7_2_EDX,
 		F(INTEL_PSFD) |
 		F(IPRED_CTRL) |
 		F(RRSBA_CTRL) |
@@ -890,13 +876,13 @@ void kvm_set_cpu_caps(void)
 		X86_64_F(XFD)
 	);
 
-	kvm_cpu_cap_init_kvm_defined(CPUID_12_EAX,
+	kvm_cpu_cap_init(CPUID_12_EAX,
 		SF(SGX1) |
 		SF(SGX2) |
 		SF(SGX_EDECCSSA)
 	);
 
-	kvm_cpu_cap_init_kvm_defined(CPUID_24_0_EBX,
+	kvm_cpu_cap_init(CPUID_24_0_EBX,
 		F(AVX10_128) |
 		F(AVX10_256) |
 		F(AVX10_512)
@@ -959,7 +945,7 @@ void kvm_set_cpu_caps(void)
 	if (!tdp_enabled && IS_ENABLED(CONFIG_X86_64))
 		kvm_cpu_cap_set(X86_FEATURE_GBPAGES);
 
-	kvm_cpu_cap_init_kvm_defined(CPUID_8000_0007_EDX,
+	kvm_cpu_cap_init(CPUID_8000_0007_EDX,
 		SF(CONSTANT_TSC)
 	);
 
@@ -1033,7 +1019,7 @@ void kvm_set_cpu_caps(void)
 	kvm_cpu_cap_check_and_set(X86_FEATURE_IBPB_BRTYPE);
 	kvm_cpu_cap_check_and_set(X86_FEATURE_SRSO_NO);
 
-	kvm_cpu_cap_init_kvm_defined(CPUID_8000_0022_EAX,
+	kvm_cpu_cap_init(CPUID_8000_0022_EAX,
 		F(PERFMON_V2)
 	);
 
