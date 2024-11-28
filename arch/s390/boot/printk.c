@@ -13,7 +13,6 @@
 
 const char hex_asc[] = "0123456789abcdef";
 
-#define MAX_NUMLEN 17
 static char *as_hex(char *dst, unsigned long val, int pad)
 {
 	char *p = dst + max(pad, (int)__fls(val | 1) / 4 + 1);
@@ -23,8 +22,30 @@ static char *as_hex(char *dst, unsigned long val, int pad)
 	return dst;
 }
 
+#define MAX_NUMLEN 21
+static char *as_dec(char *buf, unsigned long val, bool is_signed)
+{
+	bool negative = false;
+	char *p = buf + MAX_NUMLEN;
+
+	if (is_signed && (long)val < 0) {
+		val = (val == LONG_MIN ? LONG_MIN : -(long)val);
+		negative = true;
+	}
+
+	*--p = '\0';
+	do {
+		*--p = '0' + (val % 10);
+		val /= 10;
+	} while (val);
+
+	if (negative)
+		*--p = '-';
+	return p;
+}
+
 static ssize_t strpad(char *dst, size_t dst_size, const char *src,
-		      int _pad, bool zero_pad)
+		      int _pad, bool zero_pad, bool decimal)
 {
 	ssize_t len = strlen(src), pad = _pad;
 	char *p = dst;
@@ -33,6 +54,12 @@ static ssize_t strpad(char *dst, size_t dst_size, const char *src,
 		return -E2BIG;
 
 	if (pad > len) {
+		if (decimal && zero_pad && *src == '-') {
+			*p++ = '-';
+			src++;
+			len--;
+			pad--;
+		}
 		memset(p, zero_pad ? '0' : ' ', pad - len);
 		p += pad - len;
 	}
@@ -115,7 +142,7 @@ void boot_printk(const char *fmt, ...)
 {
 	char buf[1024] = { 0 };
 	char *end = buf + sizeof(buf) - 1; /* make sure buf is 0 terminated */
-	bool zero_pad;
+	bool zero_pad, decimal;
 	char *strval, *p = buf;
 	char valbuf[MAX(MAX_SYMLEN, MAX_NUMLEN)];
 	va_list args;
@@ -140,6 +167,7 @@ void boot_printk(const char *fmt, ...)
 			lenmod = 'H';
 			fmt++;
 		}
+		decimal = false;
 		switch (*fmt) {
 		case 's':
 			if (lenmod)
@@ -153,13 +181,21 @@ void boot_printk(const char *fmt, ...)
 			strval = strsym(valbuf, va_arg(args, void *));
 			zero_pad = false;
 			break;
+		case 'd':
+		case 'i':
+			strval = as_dec(valbuf, va_arg_len_type(args, lenmod, signed), 1);
+			decimal = true;
+			break;
+		case 'u':
+			strval = as_dec(valbuf, va_arg_len_type(args, lenmod, unsigned), 0);
+			break;
 		case 'x':
 			strval = as_hex(valbuf, va_arg_len_type(args, lenmod, unsigned), 0);
 			break;
 		default:
 			goto out;
 		}
-		len = strpad(p, end - p, strval, pad, zero_pad);
+		len = strpad(p, end - p, strval, pad, zero_pad, decimal);
 		if (len == -E2BIG)
 			break;
 		p += len;
