@@ -19,7 +19,6 @@
 #include <um_malloc.h>
 #include "internal.h"
 
-#define PGD_BOUND (4 * 1024 * 1024)
 #define STACKSIZE (8 * 1024 * 1024)
 #define THREAD_NAME_LEN (256)
 
