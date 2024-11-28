@@ -743,7 +743,8 @@ void kvm_set_cpu_caps(void)
 		0 /* OSXSAVE */ |
 		F(AVX) |
 		F(F16C) |
-		F(RDRAND)
+		F(RDRAND) |
+		EMULATED_F(HYPERVISOR)
 	);
 
 	kvm_cpu_cap_init(CPUID_1_EDX,
