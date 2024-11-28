@@ -525,11 +525,14 @@ void serial_test_flow_dissector_namespace(void)
 	ns = open_netns(TEST_NS);
 	if (!ASSERT_OK_PTR(ns, "enter non-root net namespace"))
 		goto out_clean_ns;
-
 	err = bpf_prog_attach(prog_fd, 0, BPF_FLOW_DISSECTOR, 0);
+	if (!ASSERT_ERR(err,
+			"refuse new flow dissector in non-root net namespace"))
+		bpf_prog_detach2(prog_fd, 0, BPF_FLOW_DISSECTOR);
+	else
+		ASSERT_EQ(errno, EEXIST,
+			  "refused because of already attached prog");
 	close_netns(ns);
-	ASSERT_ERR(err, "refuse new flow dissector in non-root net namespace");
-	ASSERT_EQ(errno, EEXIST, "refused because of already attached prog");
 
 	/* If no flow dissector is attached to the root namespace, we must
 	 * be able to attach one to a non-root net namespace
@@ -545,8 +548,11 @@ void serial_test_flow_dissector_namespace(void)
 	 * a flow dissector to root namespace must fail
 	 */
 	err = bpf_prog_attach(prog_fd, 0, BPF_FLOW_DISSECTOR, 0);
-	ASSERT_ERR(err, "refuse new flow dissector on root namespace");
-	ASSERT_EQ(errno, EEXIST, "refused because of already attached prog");
+	if (!ASSERT_ERR(err, "refuse new flow dissector on root namespace"))
+		bpf_prog_detach2(prog_fd, 0, BPF_FLOW_DISSECTOR);
+	else
+		ASSERT_EQ(errno, EEXIST,
+			  "refused because of already attached prog");
 
 	ns = open_netns(TEST_NS);
 	bpf_prog_detach2(prog_fd, 0, BPF_FLOW_DISSECTOR);
