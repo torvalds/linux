@@ -683,48 +683,121 @@ void kvm_set_cpu_caps(void)
 	       sizeof(kvm_cpu_caps) - (NKVMCAPINTS * sizeof(*kvm_cpu_caps)));
 
 	kvm_cpu_cap_mask(CPUID_1_ECX,
+		F(XMM3) |
+		F(PCLMULQDQ) |
+		0 /* DTES64 */ |
 		/*
 		 * NOTE: MONITOR (and MWAIT) are emulated as NOP, but *not*
 		 * advertised to guests via CPUID!
 		 */
-		F(XMM3) | F(PCLMULQDQ) | 0 /* DTES64, MONITOR */ |
+		0 /* MONITOR */ |
 		0 /* DS-CPL, VMX, SMX, EST */ |
-		0 /* TM2 */ | F(SSSE3) | 0 /* CNXT-ID */ | 0 /* Reserved */ |
-		F(FMA) | F(CX16) | 0 /* xTPR Update */ | F(PDCM) |
-		F(PCID) | 0 /* Reserved, DCA */ | F(XMM4_1) |
-		F(XMM4_2) | F(X2APIC) | F(MOVBE) | F(POPCNT) |
-		0 /* Reserved*/ | F(AES) | F(XSAVE) | 0 /* OSXSAVE */ | F(AVX) |
-		F(F16C) | F(RDRAND)
+		0 /* TM2 */ |
+		F(SSSE3) |
+		0 /* CNXT-ID */ |
+		0 /* Reserved */ |
+		F(FMA) |
+		F(CX16) |
+		0 /* xTPR Update */ |
+		F(PDCM) |
+		F(PCID) |
+		0 /* Reserved, DCA */ |
+		F(XMM4_1) |
+		F(XMM4_2) |
+		F(X2APIC) |
+		F(MOVBE) |
+		F(POPCNT) |
+		0 /* Reserved*/ |
+		F(AES) |
+		F(XSAVE) |
+		0 /* OSXSAVE */ |
+		F(AVX) |
+		F(F16C) |
+		F(RDRAND)
 	);
 	/* KVM emulates x2apic in software irrespective of host support. */
 	kvm_cpu_cap_set(X86_FEATURE_X2APIC);
 
 	kvm_cpu_cap_mask(CPUID_1_EDX,
-		F(FPU) | F(VME) | F(DE) | F(PSE) |
-		F(TSC) | F(MSR) | F(PAE) | F(MCE) |
-		F(CX8) | F(APIC) | 0 /* Reserved */ | F(SEP) |
-		F(MTRR) | F(PGE) | F(MCA) | F(CMOV) |
-		F(PAT) | F(PSE36) | 0 /* PSN */ | F(CLFLUSH) |
-		0 /* Reserved, DS, ACPI */ | F(MMX) |
-		F(FXSR) | F(XMM) | F(XMM2) | F(SELFSNOOP) |
+		F(FPU) |
+		F(VME) |
+		F(DE) |
+		F(PSE) |
+		F(TSC) |
+		F(MSR) |
+		F(PAE) |
+		F(MCE) |
+		F(CX8) |
+		F(APIC) |
+		0 /* Reserved */ |
+		F(SEP) |
+		F(MTRR) |
+		F(PGE) |
+		F(MCA) |
+		F(CMOV) |
+		F(PAT) |
+		F(PSE36) |
+		0 /* PSN */ |
+		F(CLFLUSH) |
+		0 /* Reserved, DS, ACPI */ |
+		F(MMX) |
+		F(FXSR) |
+		F(XMM) |
+		F(XMM2) |
+		F(SELFSNOOP) |
 		0 /* HTT, TM, Reserved, PBE */
 	);
 
 	kvm_cpu_cap_mask(CPUID_7_0_EBX,
-		F(FSGSBASE) | F(SGX) | F(BMI1) | F(HLE) | F(AVX2) |
-		F(FDP_EXCPTN_ONLY) | F(SMEP) | F(BMI2) | F(ERMS) | F(INVPCID) |
-		F(RTM) | F(ZERO_FCS_FDS) | 0 /*MPX*/ | F(AVX512F) |
-		F(AVX512DQ) | F(RDSEED) | F(ADX) | F(SMAP) | F(AVX512IFMA) |
-		F(CLFLUSHOPT) | F(CLWB) | 0 /*INTEL_PT*/ | F(AVX512PF) |
-		F(AVX512ER) | F(AVX512CD) | F(SHA_NI) | F(AVX512BW) |
+		F(FSGSBASE) |
+		F(SGX) |
+		F(BMI1) |
+		F(HLE) |
+		F(AVX2) |
+		F(FDP_EXCPTN_ONLY) |
+		F(SMEP) |
+		F(BMI2) |
+		F(ERMS) |
+		F(INVPCID) |
+		F(RTM) |
+		F(ZERO_FCS_FDS) |
+		0 /*MPX*/ |
+		F(AVX512F) |
+		F(AVX512DQ) |
+		F(RDSEED) |
+		F(ADX) |
+		F(SMAP) |
+		F(AVX512IFMA) |
+		F(CLFLUSHOPT) |
+		F(CLWB) |
+		0 /*INTEL_PT*/ |
+		F(AVX512PF) |
+		F(AVX512ER) |
+		F(AVX512CD) |
+		F(SHA_NI) |
+		F(AVX512BW) |
 		F(AVX512VL));
 
 	kvm_cpu_cap_mask(CPUID_7_ECX,
-		F(AVX512VBMI) | F(LA57) | F(PKU) | 0 /*OSPKE*/ | F(RDPID) |
-		F(AVX512_VPOPCNTDQ) | F(UMIP) | F(AVX512_VBMI2) | F(GFNI) |
-		F(VAES) | F(VPCLMULQDQ) | F(AVX512_VNNI) | F(AVX512_BITALG) |
-		F(CLDEMOTE) | F(MOVDIRI) | F(MOVDIR64B) | 0 /*WAITPKG*/ |
-		F(SGX_LC) | F(BUS_LOCK_DETECT)
+		F(AVX512VBMI) |
+		F(LA57) |
+		F(PKU) |
+		0 /*OSPKE*/ |
+		F(RDPID) |
+		F(AVX512_VPOPCNTDQ) |
+		F(UMIP) |
+		F(AVX512_VBMI2) |
+		F(GFNI) |
+		F(VAES) |
+		F(VPCLMULQDQ) |
+		F(AVX512_VNNI) |
+		F(AVX512_BITALG) |
+		F(CLDEMOTE) |
+		F(MOVDIRI) |
+		F(MOVDIR64B) |
+		0 /*WAITPKG*/ |
+		F(SGX_LC) |
+		F(BUS_LOCK_DETECT)
 	);
 	/* Set LA57 based on hardware capability. */
 	if (cpuid_ecx(7) & feature_bit(LA57))
@@ -738,11 +811,22 @@ void kvm_set_cpu_caps(void)
 		kvm_cpu_cap_clear(X86_FEATURE_PKU);
 
 	kvm_cpu_cap_mask(CPUID_7_EDX,
-		F(AVX512_4VNNIW) | F(AVX512_4FMAPS) | F(SPEC_CTRL) |
-		F(SPEC_CTRL_SSBD) | F(ARCH_CAPABILITIES) | F(INTEL_STIBP) |
-		F(MD_CLEAR) | F(AVX512_VP2INTERSECT) | F(FSRM) |
-		F(SERIALIZE) | F(TSXLDTRK) | F(AVX512_FP16) |
-		F(AMX_TILE) | F(AMX_INT8) | F(AMX_BF16) | F(FLUSH_L1D)
+		F(AVX512_4VNNIW) |
+		F(AVX512_4FMAPS) |
+		F(SPEC_CTRL) |
+		F(SPEC_CTRL_SSBD) |
+		F(ARCH_CAPABILITIES) |
+		F(INTEL_STIBP) |
+		F(MD_CLEAR) |
+		F(AVX512_VP2INTERSECT) |
+		F(FSRM) |
+		F(SERIALIZE) |
+		F(TSXLDTRK) |
+		F(AVX512_FP16) |
+		F(AMX_TILE) |
+		F(AMX_INT8) |
+		F(AMX_BF16) |
+		F(FLUSH_L1D)
 	);
 
 	/* TSC_ADJUST and ARCH_CAPABILITIES are emulated in software. */
@@ -759,50 +843,110 @@ void kvm_set_cpu_caps(void)
 		kvm_cpu_cap_set(X86_FEATURE_SPEC_CTRL_SSBD);
 
 	kvm_cpu_cap_mask(CPUID_7_1_EAX,
-		F(SHA512) | F(SM3) | F(SM4) | F(AVX_VNNI) | F(AVX512_BF16) |
-		F(CMPCCXADD) | F(FZRM) | F(FSRS) | F(FSRC) | F(AMX_FP16) |
-		F(AVX_IFMA) | F(LAM)
+		F(SHA512) |
+		F(SM3) |
+		F(SM4) |
+		F(AVX_VNNI) |
+		F(AVX512_BF16) |
+		F(CMPCCXADD) |
+		F(FZRM) |
+		F(FSRS) |
+		F(FSRC) |
+		F(AMX_FP16) |
+		F(AVX_IFMA) |
+		F(LAM)
 	);
 
 	kvm_cpu_cap_init_kvm_defined(CPUID_7_1_EDX,
-		F(AVX_VNNI_INT8) | F(AVX_NE_CONVERT) | F(AMX_COMPLEX) |
-		F(AVX_VNNI_INT16) | F(PREFETCHITI) | F(AVX10)
+		F(AVX_VNNI_INT8) |
+		F(AVX_NE_CONVERT) |
+		F(AMX_COMPLEX) |
+		F(AVX_VNNI_INT16) |
+		F(PREFETCHITI) |
+		F(AVX10)
 	);
 
 	kvm_cpu_cap_init_kvm_defined(CPUID_7_2_EDX,
-		F(INTEL_PSFD) | F(IPRED_CTRL) | F(RRSBA_CTRL) | F(DDPD_U) |
-		F(BHI_CTRL) | F(MCDT_NO)
+		F(INTEL_PSFD) |
+		F(IPRED_CTRL) |
+		F(RRSBA_CTRL) |
+		F(DDPD_U) |
+		F(BHI_CTRL) |
+		F(MCDT_NO)
 	);
 
 	kvm_cpu_cap_mask(CPUID_D_1_EAX,
-		F(XSAVEOPT) | F(XSAVEC) | F(XGETBV1) | F(XSAVES) | f_xfd
+		F(XSAVEOPT) |
+		F(XSAVEC) |
+		F(XGETBV1) |
+		F(XSAVES) |
+		f_xfd
 	);
 
 	kvm_cpu_cap_init_kvm_defined(CPUID_12_EAX,
-		SF(SGX1) | SF(SGX2) | SF(SGX_EDECCSSA)
+		SF(SGX1) |
+		SF(SGX2) |
+		SF(SGX_EDECCSSA)
 	);
 
 	kvm_cpu_cap_init_kvm_defined(CPUID_24_0_EBX,
-		F(AVX10_128) | F(AVX10_256) | F(AVX10_512)
+		F(AVX10_128) |
+		F(AVX10_256) |
+		F(AVX10_512)
 	);
 
 	kvm_cpu_cap_mask(CPUID_8000_0001_ECX,
-		F(LAHF_LM) | F(CMP_LEGACY) | 0 /*SVM*/ | 0 /* ExtApicSpace */ |
-		F(CR8_LEGACY) | F(ABM) | F(SSE4A) | F(MISALIGNSSE) |
-		F(3DNOWPREFETCH) | F(OSVW) | 0 /* IBS */ | F(XOP) |
-		0 /* SKINIT, WDT, LWP */ | F(FMA4) | F(TBM) |
-		F(TOPOEXT) | 0 /* PERFCTR_CORE */
+		F(LAHF_LM) |
+		F(CMP_LEGACY) |
+		0 /*SVM*/ |
+		0 /* ExtApicSpace */ |
+		F(CR8_LEGACY) |
+		F(ABM) |
+		F(SSE4A) |
+		F(MISALIGNSSE) |
+		F(3DNOWPREFETCH) |
+		F(OSVW) |
+		0 /* IBS */ |
+		F(XOP) |
+		0 /* SKINIT, WDT, LWP */ |
+		F(FMA4) |
+		F(TBM) |
+		F(TOPOEXT) |
+		0 /* PERFCTR_CORE */
 	);
 
 	kvm_cpu_cap_mask(CPUID_8000_0001_EDX,
-		F(FPU) | F(VME) | F(DE) | F(PSE) |
-		F(TSC) | F(MSR) | F(PAE) | F(MCE) |
-		F(CX8) | F(APIC) | 0 /* Reserved */ | F(SYSCALL) |
-		F(MTRR) | F(PGE) | F(MCA) | F(CMOV) |
-		F(PAT) | F(PSE36) | 0 /* Reserved */ |
-		F(NX) | 0 /* Reserved */ | F(MMXEXT) | F(MMX) |
-		F(FXSR) | F(FXSR_OPT) | f_gbpages | F(RDTSCP) |
-		0 /* Reserved */ | f_lm | F(3DNOWEXT) | F(3DNOW)
+		F(FPU) |
+		F(VME) |
+		F(DE) |
+		F(PSE) |
+		F(TSC) |
+		F(MSR) |
+		F(PAE) |
+		F(MCE) |
+		F(CX8) |
+		F(APIC) |
+		0 /* Reserved */ |
+		F(SYSCALL) |
+		F(MTRR) |
+		F(PGE) |
+		F(MCA) |
+		F(CMOV) |
+		F(PAT) |
+		F(PSE36) |
+		0 /* Reserved */ |
+		F(NX) |
+		0 /* Reserved */ |
+		F(MMXEXT) |
+		F(MMX) |
+		F(FXSR) |
+		F(FXSR_OPT) |
+		f_gbpages |
+		F(RDTSCP) |
+		0 /* Reserved */ |
+		f_lm |
+		F(3DNOWEXT) |
+		F(3DNOW)
 	);
 
 	if (!tdp_enabled && IS_ENABLED(CONFIG_X86_64))
@@ -813,10 +957,18 @@ void kvm_set_cpu_caps(void)
 	);
 
 	kvm_cpu_cap_mask(CPUID_8000_0008_EBX,
-		F(CLZERO) | F(XSAVEERPTR) |
-		F(WBNOINVD) | F(AMD_IBPB) | F(AMD_IBRS) | F(AMD_SSBD) | F(VIRT_SSBD) |
-		F(AMD_SSB_NO) | F(AMD_STIBP) | F(AMD_STIBP_ALWAYS_ON) |
-		F(AMD_PSFD) | F(AMD_IBPB_RET)
+		F(CLZERO) |
+		F(XSAVEERPTR) |
+		F(WBNOINVD) |
+		F(AMD_IBPB) |
+		F(AMD_IBRS) |
+		F(AMD_SSBD) |
+		F(VIRT_SSBD) |
+		F(AMD_SSB_NO) |
+		F(AMD_STIBP) |
+		F(AMD_STIBP_ALWAYS_ON) |
+		F(AMD_PSFD) |
+		F(AMD_IBPB_RET)
 	);
 
 	/*
@@ -853,12 +1005,20 @@ void kvm_set_cpu_caps(void)
 	kvm_cpu_cap_mask(CPUID_8000_000A_EDX, 0);
 
 	kvm_cpu_cap_mask(CPUID_8000_001F_EAX,
-		0 /* SME */ | 0 /* SEV */ | 0 /* VM_PAGE_FLUSH */ | 0 /* SEV_ES */ |
-		F(SME_COHERENT));
+		0 /* SME */ |
+		0 /* SEV */ |
+		0 /* VM_PAGE_FLUSH */ |
+		0 /* SEV_ES */ |
+		F(SME_COHERENT)
+	);
 
 	kvm_cpu_cap_mask(CPUID_8000_0021_EAX,
-		F(NO_NESTED_DATA_BP) | F(LFENCE_RDTSC) | 0 /* SmmPgCfgLock */ |
-		F(NULL_SEL_CLR_BASE) | F(AUTOIBRS) | 0 /* PrefetchCtlMsr */ |
+		F(NO_NESTED_DATA_BP) |
+		F(LFENCE_RDTSC) |
+		0 /* SmmPgCfgLock */ |
+		F(NULL_SEL_CLR_BASE) |
+		F(AUTOIBRS) |
+		0 /* PrefetchCtlMsr */ |
 		F(WRMSR_XX_BASE_NS)
 	);
 
@@ -887,9 +1047,16 @@ void kvm_set_cpu_caps(void)
 	kvm_cpu_cap_set(X86_FEATURE_NO_SMM_CTL_MSR);
 
 	kvm_cpu_cap_mask(CPUID_C000_0001_EDX,
-		F(XSTORE) | F(XSTORE_EN) | F(XCRYPT) | F(XCRYPT_EN) |
-		F(ACE2) | F(ACE2_EN) | F(PHE) | F(PHE_EN) |
-		F(PMM) | F(PMM_EN)
+		F(XSTORE) |
+		F(XSTORE_EN) |
+		F(XCRYPT) |
+		F(XCRYPT_EN) |
+		F(ACE2) |
+		F(ACE2_EN) |
+		F(PHE) |
+		F(PHE_EN) |
+		F(PMM) |
+		F(PMM_EN)
 	);
 
 	/*
