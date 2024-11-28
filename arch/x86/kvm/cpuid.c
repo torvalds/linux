@@ -1213,7 +1213,8 @@ static struct kvm_cpuid_entry2 *do_host_cpuid(struct kvm_cpuid_array *array,
 	return entry;
 }
 
-static int cpuid_func_emulated(struct kvm_cpuid_entry2 *entry, u32 func)
+static int cpuid_func_emulated(struct kvm_cpuid_entry2 *entry, u32 func,
+			       bool include_partially_emulated)
 {
 	memset(entry, 0, sizeof(*entry));
 
@@ -1227,6 +1228,16 @@ static int cpuid_func_emulated(struct kvm_cpuid_entry2 *entry, u32 func)
 		return 1;
 	case 1:
 		entry->ecx = feature_bit(MOVBE);
+		/*
+		 * KVM allows userspace to enumerate MONITOR+MWAIT support to
+		 * the guest, but the MWAIT feature flag is never advertised
+		 * to userspace because MONITOR+MWAIT aren't virtualized by
+		 * hardware, can't be faithfully emulated in software (KVM
+		 * emulates them as NOPs), and allowing the guest to execute
+		 * them natively requires enabling a per-VM capability.
+		 */
+		if (include_partially_emulated)
+			entry->ecx |= feature_bit(MWAIT);
 		return 1;
 	case 7:
 		entry->flags |= KVM_CPUID_FLAG_SIGNIFCANT_INDEX;
@@ -1244,7 +1255,7 @@ static int __do_cpuid_func_emulated(struct kvm_cpuid_array *array, u32 func)
 	if (array->nent >= array->maxnent)
 		return -E2BIG;
 
-	array->nent += cpuid_func_emulated(&array->entries[array->nent], func);
+	array->nent += cpuid_func_emulated(&array->entries[array->nent], func, false);
 	return 0;
 }
 
