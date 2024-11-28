@@ -828,6 +828,10 @@ static struct option *options__order(const struct option *opts)
 
 		nr_parent = nr_opts;
 	}
+	/* check wheather o is valid before using it in memcpy() */
+	if(o && o->type == OPTION_END){
+		memcpy(&ordered[nr_opts],o,sizeof(*o));
+	}
 	/* copy the last OPTION_END */
 	memcpy(&ordered[nr_opts], o, sizeof(*o));
 
