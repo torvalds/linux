@@ -644,6 +644,8 @@ static int ov2740_identify_module(struct ov2740 *ov2740)
 		return -ENXIO;
 	}
 
+	dev_dbg(&client->dev, "chip id: %x\n", val);
+
 	ov2740->identified = true;
 
 	return 0;
