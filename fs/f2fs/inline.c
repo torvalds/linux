@@ -81,7 +81,7 @@ bool f2fs_may_inline_dentry(struct inode *inode)
 
 void f2fs_do_read_inline_data(struct folio *folio, struct page *ipage)
 {
-	struct inode *inode = folio_file_mapping(folio)->host;
+	struct inode *inode = folio->mapping->host;
 
 	if (folio_test_uptodate(folio))
 		return;

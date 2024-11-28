@@ -1322,12 +1322,11 @@ DECLARE_EVENT_CLASS(f2fs__folio,
 	),
 
 	TP_fast_assign(
-		__entry->dev	= folio_file_mapping(folio)->host->i_sb->s_dev;
-		__entry->ino	= folio_file_mapping(folio)->host->i_ino;
+		__entry->dev	= folio->mapping->host->i_sb->s_dev;
+		__entry->ino	= folio->mapping->host->i_ino;
 		__entry->type	= type;
-		__entry->dir	=
-			S_ISDIR(folio_file_mapping(folio)->host->i_mode);
-		__entry->index	= folio_index(folio);
+		__entry->dir	= S_ISDIR(folio->mapping->host->i_mode);
+		__entry->index	= folio->index;
 		__entry->dirty	= folio_test_dirty(folio);
 		__entry->uptodate = folio_test_uptodate(folio);
 	),

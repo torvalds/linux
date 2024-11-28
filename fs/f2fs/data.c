@@ -2455,7 +2455,7 @@ next_page:
 
 static int f2fs_read_data_folio(struct file *file, struct folio *folio)
 {
-	struct inode *inode = folio_file_mapping(folio)->host;
+	struct inode *inode = folio->mapping->host;
 	int ret = -EAGAIN;
 
 	trace_f2fs_readpage(folio, DATA);
