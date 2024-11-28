@@ -227,7 +227,7 @@ int __bch2_fsck_err(struct bch_fs *c,
 {
 	struct fsck_err_state *s = NULL;
 	va_list args;
-	bool print = true, suppressing = false, inconsistent = false;
+	bool print = true, suppressing = false, inconsistent = false, exiting = false;
 	struct printbuf buf = PRINTBUF, *out = &buf;
 	int ret = -BCH_ERR_fsck_ignore;
 	const char *action_orig = "fix?", *action = action_orig;
@@ -320,13 +320,19 @@ int __bch2_fsck_err(struct bch_fs *c,
 		prt_printf(out, bch2_log_msg(c, ""));
 #endif
 
-	if ((flags & FSCK_CAN_FIX) &&
-	    (flags & FSCK_AUTOFIX) &&
+	if ((flags & FSCK_AUTOFIX) &&
 	    (c->opts.errors == BCH_ON_ERROR_continue ||
 	     c->opts.errors == BCH_ON_ERROR_fix_safe)) {
 		prt_str(out, ", ");
-		prt_actioning(out, action);
-		ret = -BCH_ERR_fsck_fix;
+		if (flags & FSCK_CAN_FIX) {
+			prt_actioning(out, action);
+			ret = -BCH_ERR_fsck_fix;
+		} else {
+			prt_str(out, ", continuing");
+			ret = -BCH_ERR_fsck_ignore;
+		}
+
+		goto print;
 	} else if (!test_bit(BCH_FS_fsck_running, &c->flags)) {
 		if (c->opts.errors != BCH_ON_ERROR_continue ||
 		    !(flags & (FSCK_CAN_FIX|FSCK_CAN_IGNORE))) {
@@ -396,14 +402,13 @@ int __bch2_fsck_err(struct bch_fs *c,
 	     !(flags & FSCK_CAN_IGNORE)))
 		ret = -BCH_ERR_fsck_errors_not_fixed;
 
-	bool exiting =
-		test_bit(BCH_FS_fsck_running, &c->flags) &&
-		(ret != -BCH_ERR_fsck_fix &&
-		 ret != -BCH_ERR_fsck_ignore);
-
-	if (exiting)
+	if (test_bit(BCH_FS_fsck_running, &c->flags) &&
+	    (ret != -BCH_ERR_fsck_fix &&
+	     ret != -BCH_ERR_fsck_ignore)) {
+		exiting = true;
 		print = true;
-
+	}
+print:
 	if (print) {
 		if (bch2_fs_stdio_redirect(c))
 			bch2_print(c, "%s\n", out->buf);

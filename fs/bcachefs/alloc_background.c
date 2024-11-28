@@ -676,6 +676,10 @@ static int __need_discard_or_freespace_err(struct btree_trans *trans,
 				  set ? "" : "un",
 				  bch2_btree_id_str(btree),
 				  buf.buf);
+	if (ret == -BCH_ERR_fsck_ignore ||
+	    ret == -BCH_ERR_fsck_errors_not_fixed)
+		ret = 0;
+
 	printbuf_exit(&buf);
 	return ret;
 }
@@ -1901,10 +1905,8 @@ static int bch2_do_discards_fast_one(struct btree_trans *trans,
 	if (log_fsck_err_on(discard_k.k->type != KEY_TYPE_set,
 			    trans, discarding_bucket_not_in_need_discard_btree,
 			    "attempting to discard bucket %u:%llu not in need_discard btree",
-			    ca->dev_idx, bucket)) {
-		/* log it in the superblock and continue: */
+			    ca->dev_idx, bucket))
 		goto out;
-	}
 
 	ret = bch2_discard_one_bucket(trans, ca, &need_discard_iter, discard_pos_done, s, true);
 out:

@@ -45,12 +45,11 @@ int bch2_topology_error(struct bch_fs *);
 	bch2_inconsistent_error(c);					\
 })
 
-#define bch2_fs_inconsistent_on(cond, c, ...)				\
+#define bch2_fs_inconsistent_on(cond, ...)				\
 ({									\
 	bool _ret = unlikely(!!(cond));					\
-									\
 	if (_ret)							\
-		bch2_fs_inconsistent(c, __VA_ARGS__);			\
+		bch2_fs_inconsistent(__VA_ARGS__);			\
 	_ret;								\
 })
 
@@ -146,8 +145,13 @@ void bch2_flush_fsck_errs(struct bch_fs *);
 #define log_fsck_err(c, _err_type, ...)					\
 	__fsck_err(c, FSCK_CAN_IGNORE, _err_type, __VA_ARGS__)
 
-#define log_fsck_err_on(cond, c, _err_type, ...)				\
-	__fsck_err_on(cond, c, FSCK_CAN_IGNORE, _err_type, __VA_ARGS__)
+#define log_fsck_err_on(cond, ...)					\
+({									\
+	bool _ret = unlikely(!!(cond));					\
+	if (_ret)							\
+		log_fsck_err(__VA_ARGS__);				\
+	_ret;								\
+})
 
 enum bch_validate_flags;
 __printf(5, 6)
