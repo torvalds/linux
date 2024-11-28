@@ -219,6 +219,30 @@ static const u8 fsck_flags_extra[] = {
 #undef x
 };
 
+static int do_fsck_ask_yn(struct bch_fs *c,
+			  struct btree_trans *trans,
+			  struct printbuf *question,
+			  const char *action)
+{
+	prt_str(question, ", ");
+	prt_str(question, action);
+
+	if (bch2_fs_stdio_redirect(c))
+		bch2_print(c, "%s", question->buf);
+	else
+		bch2_print_string_as_lines(KERN_ERR, question->buf);
+
+	int ask = bch2_fsck_ask_yn(c, trans);
+
+	if (trans) {
+		int ret = bch2_trans_relock(trans);
+		if (ret)
+			return ret;
+	}
+
+	return ask;
+}
+
 int __bch2_fsck_err(struct bch_fs *c,
 		  struct btree_trans *trans,
 		  enum bch_fsck_flags flags,
@@ -291,16 +315,14 @@ int __bch2_fsck_err(struct bch_fs *c,
 		 */
 		if (s->last_msg && !strcmp(buf.buf, s->last_msg)) {
 			ret = s->ret;
-			mutex_unlock(&c->fsck_error_msgs_lock);
-			goto err;
+			goto err_unlock;
 		}
 
 		kfree(s->last_msg);
 		s->last_msg = kstrdup(buf.buf, GFP_KERNEL);
 		if (!s->last_msg) {
-			mutex_unlock(&c->fsck_error_msgs_lock);
 			ret = -ENOMEM;
-			goto err;
+			goto err_unlock;
 		}
 
 		if (c->opts.ratelimit_errors &&
@@ -356,31 +378,18 @@ int __bch2_fsck_err(struct bch_fs *c,
 			: c->opts.fix_errors;
 
 		if (fix == FSCK_FIX_ask) {
-			prt_str(out, ", ");
-			prt_str(out, action);
-
-			if (bch2_fs_stdio_redirect(c))
-				bch2_print(c, "%s", out->buf);
-			else
-				bch2_print_string_as_lines(KERN_ERR, out->buf);
 			print = false;
 
-			int ask = bch2_fsck_ask_yn(c, trans);
+			ret = do_fsck_ask_yn(c, trans, out, action);
+			if (ret < 0)
+				goto err_unlock;
 
-			if (trans) {
-				ret = bch2_trans_relock(trans);
-				if (ret) {
-					mutex_unlock(&c->fsck_error_msgs_lock);
-					goto err;
-				}
-			}
-
-			if (ask >= YN_ALLNO && s)
-				s->fix = ask == YN_ALLNO
+			if (ret >= YN_ALLNO && s)
+				s->fix = ret == YN_ALLNO
 					? FSCK_FIX_no
 					: FSCK_FIX_yes;
 
-			ret = ask & 1
+			ret = ret & 1
 				? -BCH_ERR_fsck_fix
 				: -BCH_ERR_fsck_ignore;
 		} else if (fix == FSCK_FIX_yes ||
@@ -424,8 +433,6 @@ print:
 	if (s)
 		s->ret = ret;
 
-	mutex_unlock(&c->fsck_error_msgs_lock);
-
 	if (inconsistent)
 		bch2_inconsistent_error(c);
 
@@ -442,6 +449,8 @@ print:
 			set_bit(BCH_FS_error, &c->flags);
 		}
 	}
+err_unlock:
+	mutex_unlock(&c->fsck_error_msgs_lock);
 err:
 	if (action != action_orig)
 		kfree(action);
