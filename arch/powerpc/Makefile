@@ -176,7 +176,11 @@ ifdef CONFIG_476FPE_ERR46
 endif
 
 # No prefix or pcrel
+ifdef CONFIG_PPC_KERNEL_PREFIXED
+KBUILD_CFLAGS += $(call cc-option,-mprefixed)
+else
 KBUILD_CFLAGS += $(call cc-option,-mno-prefixed)
+endif
 KBUILD_CFLAGS += $(call cc-option,-mno-pcrel)
 
 # No AltiVec or VSX or MMA instructions when building kernel

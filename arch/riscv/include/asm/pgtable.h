@@ -805,8 +805,6 @@ static inline pmd_t pmdp_establish(struct vm_area_struct *vma,
 
 #endif /* !CONFIG_MMU */
 
-#define kern_addr_valid(addr)   (1) /* FIXME */
-
 extern char _start[];
 extern void *_dtb_early_va;
 extern uintptr_t _dtb_early_pa;

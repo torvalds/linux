@@ -341,8 +341,8 @@ btrfs_search_dir_index_item(struct btrfs_root *root, struct btrfs_path *path,
 			return di;
 	}
 	/* Adjust return code if the key was not found in the next leaf. */
-	if (ret > 0)
-		ret = 0;
+	if (ret >= 0)
+		ret = -ENOENT;
 
 	return ERR_PTR(ret);
 }

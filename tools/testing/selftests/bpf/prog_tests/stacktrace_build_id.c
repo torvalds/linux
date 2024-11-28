@@ -7,13 +7,12 @@ void test_stacktrace_build_id(void)
 
 	int control_map_fd, stackid_hmap_fd, stackmap_fd, stack_amap_fd;
 	struct test_stacktrace_build_id *skel;
-	int err, stack_trace_len;
+	int err, stack_trace_len, build_id_size;
 	__u32 key, prev_key, val, duration = 0;
-	char buf[256];
-	int i, j;
+	char buf[BPF_BUILD_ID_SIZE];
 	struct bpf_stack_build_id id_offs[PERF_MAX_STACK_DEPTH];
 	int build_id_matches = 0;
-	int retry = 1;
+	int i, retry = 1;
 
 retry:
 	skel = test_stacktrace_build_id__open_and_load();
@@ -52,9 +51,10 @@ retry:
 		  "err %d errno %d\n", err, errno))
 		goto cleanup;
 
-	err = extract_build_id(buf, 256);
+	build_id_size = read_build_id("urandom_read", buf, sizeof(buf));
+	err = build_id_size < 0 ? build_id_size : 0;
 
-	if (CHECK(err, "get build_id with readelf",
+	if (CHECK(err, "read_build_id",
 		  "err %d errno %d\n", err, errno))
 		goto cleanup;
 
@@ -64,8 +64,6 @@ retry:
 		goto cleanup;
 
 	do {
-		char build_id[64];
-
 		err = bpf_map_lookup_elem(stackmap_fd, &key, id_offs);
 		if (CHECK(err, "lookup_elem from stackmap",
 			  "err %d, errno %d\n", err, errno))
@@ -73,10 +71,7 @@ retry:
 		for (i = 0; i < PERF_MAX_STACK_DEPTH; ++i)
 			if (id_offs[i].status == BPF_STACK_BUILD_ID_VALID &&
 			    id_offs[i].offset != 0) {
-				for (j = 0; j < 20; ++j)
-					sprintf(build_id + 2 * j, "%02x",
-						id_offs[i].build_id[j] & 0xff);
-				if (strstr(buf, build_id) != NULL)
+				if (memcmp(buf, id_offs[i].build_id, build_id_size) == 0)
 					build_id_matches = 1;
 			}
 		prev_key = key;

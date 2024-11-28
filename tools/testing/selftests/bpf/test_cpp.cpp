@@ -6,6 +6,10 @@
 #pragma GCC diagnostic pop
 #include <bpf/bpf.h>
 #include <bpf/btf.h>
+
+#ifndef _Bool
+#define _Bool bool
+#endif
 #include "test_core_extern.skel.h"
 
 template <typename T>

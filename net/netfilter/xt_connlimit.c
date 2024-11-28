@@ -106,26 +106,41 @@ static void connlimit_mt_destroy(const struct xt_mtdtor_param *par)
 	nf_conncount_destroy(par->net, par->family, info->data);
 }
 
-static struct xt_match connlimit_mt_reg __read_mostly = {
-	.name       = "connlimit",
-	.revision   = 1,
-	.family     = NFPROTO_UNSPEC,
-	.checkentry = connlimit_mt_check,
-	.match      = connlimit_mt,
-	.matchsize  = sizeof(struct xt_connlimit_info),
-	.usersize   = offsetof(struct xt_connlimit_info, data),
-	.destroy    = connlimit_mt_destroy,
-	.me         = THIS_MODULE,
+static struct xt_match connlimit_mt_reg[] __read_mostly = {
+	{
+		.name       = "connlimit",
+		.revision   = 1,
+		.family     = NFPROTO_IPV4,
+		.checkentry = connlimit_mt_check,
+		.match      = connlimit_mt,
+		.matchsize  = sizeof(struct xt_connlimit_info),
+		.usersize   = offsetof(struct xt_connlimit_info, data),
+		.destroy    = connlimit_mt_destroy,
+		.me         = THIS_MODULE,
+	},
+#if IS_ENABLED(CONFIG_IP6_NF_IPTABLES)
+	{
+		.name       = "connlimit",
+		.revision   = 1,
+		.family     = NFPROTO_IPV6,
+		.checkentry = connlimit_mt_check,
+		.match      = connlimit_mt,
+		.matchsize  = sizeof(struct xt_connlimit_info),
+		.usersize   = offsetof(struct xt_connlimit_info, data),
+		.destroy    = connlimit_mt_destroy,
+		.me         = THIS_MODULE,
+	},
+#endif
 };
 
 static int __init connlimit_mt_init(void)
 {
-	return xt_register_match(&connlimit_mt_reg);
+	return xt_register_matches(connlimit_mt_reg, ARRAY_SIZE(connlimit_mt_reg));
 }
 
 static void __exit connlimit_mt_exit(void)
 {
-	xt_unregister_match(&connlimit_mt_reg);
+	xt_unregister_matches(connlimit_mt_reg, ARRAY_SIZE(connlimit_mt_reg));
 }
 
 module_init(connlimit_mt_init);

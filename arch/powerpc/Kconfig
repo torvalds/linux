@@ -1,6 +1,12 @@
 # SPDX-License-Identifier: GPL-2.0
 source "arch/powerpc/platforms/Kconfig.cputype"
 
+config CC_HAS_ELFV2
+	def_bool PPC64 && $(cc-option, -mabi=elfv2)
+
+config CC_HAS_PREFIXED
+	def_bool PPC64 && $(cc-option, -mcpu=power10 -mprefixed)
+
 config 32BIT
 	bool
 	default y if PPC32
@@ -582,6 +588,23 @@ config KEXEC_FILE
 
 config ARCH_HAS_KEXEC_PURGATORY
 	def_bool KEXEC_FILE
+
+config PPC64_BIG_ENDIAN_ELF_ABI_V2
+	bool "Build big-endian kernel using ELF ABI V2 (EXPERIMENTAL)"
+	depends on PPC64 && CPU_BIG_ENDIAN
+	depends on CC_HAS_ELFV2
+	depends on LD_VERSION >= 22400 || LLD_VERSION >= 150000
+	help
+	  This builds the kernel image using the "Power Architecture 64-Bit ELF
+	  V2 ABI Specification", which has a reduced stack overhead and faster
+	  function calls. This internal kernel ABI option does not affect
+          userspace compatibility.
+
+	  The V2 ABI is standard for 64-bit little-endian, but for big-endian
+	  it is less well tested by kernel and toolchain. However some distros
+	  build userspace this way, and it can produce a functioning kernel.
+
+	  This requires GCC and binutils 2.24 or newer.
 
 config RELOCATABLE
 	bool "Build a relocatable kernel"
