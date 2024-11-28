@@ -2335,6 +2335,10 @@ static int __annotate_ifc(struct objtool_file *file, int type, struct instructio
 static int __annotate_late(struct objtool_file *file, int type, struct instruction *insn)
 {
 	switch (type) {
+	case ANNOTYPE_NOENDBR:
+		/* early */
+		break;
+
 	case ANNOTYPE_RETPOLINE_SAFE:
 		if (insn->type != INSN_JUMP_DYNAMIC &&
 		    insn->type != INSN_CALL_DYNAMIC &&
@@ -2359,11 +2363,20 @@ static int __annotate_late(struct objtool_file *file, int type, struct instructi
 		insn->unret = 1;
 		break;
 
+	case ANNOTYPE_IGNORE_ALTS:
+		/* early */
+		break;
+
+	case ANNOTYPE_INTRA_FUNCTION_CALL:
+		/* ifc */
+		break;
+
 	case ANNOTYPE_REACHABLE:
 		insn->dead_end = false;
 		break;
 
 	default:
+		WARN_INSN(insn, "Unknown annotation type: %d", type);
 		break;
 	}
 
