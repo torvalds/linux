@@ -1209,6 +1209,35 @@ const struct kx022a_chip_info kx132_chip_info = {
 };
 EXPORT_SYMBOL_NS_GPL(kx132_chip_info, "IIO_KX022A");
 
+const struct kx022a_chip_info kx134_chip_info = {
+	.name			  = "kx134-1211",
+	.regmap_config		  = &kx132_regmap_config,
+	.channels		  = kx132_channels,
+	.num_channels		  = ARRAY_SIZE(kx132_channels),
+	.scale_table			= kx134acr_lbz_scale_table,
+	.scale_table_size		= ARRAY_SIZE(kx134acr_lbz_scale_table) *
+					  ARRAY_SIZE(kx134acr_lbz_scale_table[0]),
+	.fifo_length		  = KX132_FIFO_LENGTH,
+	.who			  = KX132_REG_WHO,
+	.id			  = KX134_1211_ID,
+	.cntl			  = KX132_REG_CNTL,
+	.cntl2			  = KX132_REG_CNTL2,
+	.odcntl			  = KX132_REG_ODCNTL,
+	.buf_cntl1		  = KX132_REG_BUF_CNTL1,
+	.buf_cntl2		  = KX132_REG_BUF_CNTL2,
+	.buf_clear		  = KX132_REG_BUF_CLEAR,
+	.buf_status1		  = KX132_REG_BUF_STATUS_1,
+	.buf_smp_lvl_mask	  = KX132_MASK_BUF_SMP_LVL,
+	.buf_read		  = KX132_REG_BUF_READ,
+	.inc1			  = KX132_REG_INC1,
+	.inc4			  = KX132_REG_INC4,
+	.inc5			  = KX132_REG_INC5,
+	.inc6			  = KX132_REG_INC6,
+	.xout_l			  = KX132_REG_XOUT_L,
+	.get_fifo_bytes_available = kx132_get_fifo_bytes_available,
+};
+EXPORT_SYMBOL_NS_GPL(kx134_chip_info, "IIO_KX022A");
+
 /*
  * Despite the naming, KX132ACR-LBZ is not similar to KX132-1211 but it is
  * exact subset of KX022A. KX132ACR-LBZ is meant to be used for industrial

@@ -78,6 +78,7 @@
 
 #define KX132_REG_WHO		0x13
 #define KX132_ID		0x3d
+#define KX134_1211_ID		0x46
 
 #define KX132_FIFO_LENGTH	86
 
@@ -190,6 +191,7 @@ int kx022a_probe_internal(struct device *dev, const struct kx022a_chip_info *chi
 
 extern const struct kx022a_chip_info kx022a_chip_info;
 extern const struct kx022a_chip_info kx132_chip_info;
+extern const struct kx022a_chip_info kx134_chip_info;
 extern const struct kx022a_chip_info kx132acr_chip_info;
 extern const struct kx022a_chip_info kx134acr_chip_info;
 
