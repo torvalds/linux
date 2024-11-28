@@ -584,10 +584,6 @@ static struct bucket_table *rhashtable_insert_one(
 	 */
 	rht_assign_locked(bkt, obj);
 
-	atomic_inc(&ht->nelems);
-	if (rht_grow_above_75(ht, tbl))
-		schedule_work(&ht->run_work);
-
 	return NULL;
 }
 
@@ -624,6 +620,12 @@ static void *rhashtable_try_insert(struct rhashtable *ht, const void *key,
 				data = ERR_CAST(new_tbl);
 
 			rht_unlock(tbl, bkt, flags);
+
+			if (PTR_ERR(data) == -ENOENT && !new_tbl) {
+				atomic_inc(&ht->nelems);
+				if (rht_grow_above_75(ht, tbl))
+					schedule_work(&ht->run_work);
+			}
 		}
 	} while (!IS_ERR_OR_NULL(new_tbl));
 
