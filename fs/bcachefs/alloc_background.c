@@ -1384,7 +1384,7 @@ delete:
 	ret =   bch2_btree_bit_mod_iter(trans, iter, false) ?:
 		bch2_trans_commit(trans, NULL, NULL,
 			BCH_TRANS_COMMIT_no_enospc) ?:
-		1;
+		-BCH_ERR_transaction_restart_commit;
 	goto out;
 }
 

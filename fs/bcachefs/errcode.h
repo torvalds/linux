@@ -148,6 +148,7 @@
 	x(BCH_ERR_transaction_restart,	transaction_restart_split_race)		\
 	x(BCH_ERR_transaction_restart,	transaction_restart_write_buffer_flush)	\
 	x(BCH_ERR_transaction_restart,	transaction_restart_nested)		\
+	x(BCH_ERR_transaction_restart,	transaction_restart_commit)		\
 	x(0,				no_btree_node)				\
 	x(BCH_ERR_no_btree_node,	no_btree_node_relock)			\
 	x(BCH_ERR_no_btree_node,	no_btree_node_upgrade)			\
