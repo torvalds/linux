@@ -49,12 +49,14 @@ static int sysclient = -1;
 /* port id numbers for this client */
 static int announce_port = -1;
 
+/* number of subscriptions to announce port */
+static int announce_subscribed;
 
 
 /* fill standard header data, source port & channel are filled in */
 static int setheader(struct snd_seq_event * ev, int client, int port)
 {
-	if (announce_port < 0)
+	if (announce_port < 0 || !announce_subscribed)
 		return -ENODEV;
 
 	memset(ev, 0, sizeof(struct snd_seq_event));
@@ -104,6 +106,22 @@ static int event_input_timer(struct snd_seq_event * ev, int direct, void *privat
 	return snd_seq_control_queue(ev, atomic, hop);
 }
 
+static int sys_announce_subscribe(void *private_data,
+				  struct snd_seq_port_subscribe *info)
+{
+	announce_subscribed++;
+	return 0;
+}
+
+static int sys_announce_unsubscribe(void *private_data,
+				    struct snd_seq_port_subscribe *info)
+{
+	if (snd_BUG_ON(!announce_subscribed))
+		return 0;
+	announce_subscribed--;
+	return 0;
+}
+
 /* register our internal client */
 int __init snd_seq_system_client_init(void)
 {
@@ -143,7 +161,10 @@ int __init snd_seq_system_client_init(void)
 	/* register announcement port */
 	strcpy(port->name, "Announce");
 	port->capability = SNDRV_SEQ_PORT_CAP_READ|SNDRV_SEQ_PORT_CAP_SUBS_READ; /* for broadcast only */
-	port->kernel = NULL;
+	pcallbacks.event_input = NULL;
+	pcallbacks.subscribe = sys_announce_subscribe;
+	pcallbacks.unsubscribe = sys_announce_unsubscribe;
+	port->kernel = &pcallbacks;
 	port->type = 0;
 	port->flags = SNDRV_SEQ_PORT_FLG_GIVEN_PORT;
 	port->addr.client = sysclient;
