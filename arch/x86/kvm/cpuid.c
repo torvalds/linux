@@ -178,12 +178,26 @@ static int kvm_check_cpuid(struct kvm_vcpu *vcpu,
 	return fpu_enable_guest_xfd_features(&vcpu->arch.guest_fpu, xfeatures);
 }
 
+static void __kvm_update_cpuid_runtime(struct kvm_vcpu *vcpu, struct kvm_cpuid_entry2 *entries,
+				       int nent);
+
 /* Check whether the supplied CPUID data is equal to what is already set for the vCPU. */
 static int kvm_cpuid_check_equal(struct kvm_vcpu *vcpu, struct kvm_cpuid_entry2 *e2,
 				 int nent)
 {
 	struct kvm_cpuid_entry2 *orig;
 	int i;
+
+	/*
+	 * Apply runtime CPUID updates to the incoming CPUID entries to avoid
+	 * false positives due mismatches on KVM-owned feature flags.  Note,
+	 * runtime CPUID updates may consume other CPUID-driven vCPU state,
+	 * e.g. KVM or Xen CPUID bases.  Updating runtime state before full
+	 * CPUID processing is functionally correct only because any change in
+	 * CPUID is disallowed, i.e. using stale data is ok because the below
+	 * checks will reject the change.
+	 */
+	__kvm_update_cpuid_runtime(vcpu, e2, nent);
 
 	if (nent != vcpu->arch.cpuid_nent)
 		return -EINVAL;
@@ -369,6 +383,8 @@ void kvm_vcpu_after_set_cpuid(struct kvm_vcpu *vcpu)
 	bitmap_zero(vcpu->arch.governed_features.enabled,
 		    KVM_MAX_NR_GOVERNED_FEATURES);
 
+	kvm_update_cpuid_runtime(vcpu);
+
 	/*
 	 * If TDP is enabled, let the guest use GBPAGES if they're supported in
 	 * hardware.  The hardware page walker doesn't let KVM disable GBPAGES,
@@ -449,8 +465,6 @@ static int kvm_set_cpuid(struct kvm_vcpu *vcpu, struct kvm_cpuid_entry2 *e2,
                         int nent)
 {
 	int r;
-
-	__kvm_update_cpuid_runtime(vcpu, e2, nent);
 
 	/*
 	 * KVM does not correctly handle changing guest CPUID after KVM_RUN, as
