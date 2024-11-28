@@ -143,6 +143,7 @@ static void sco_sock_timeout(struct work_struct *work)
 	sco_conn_lock(conn);
 	if (!conn->hcon) {
 		sco_conn_unlock(conn);
+		sco_conn_put(conn);
 		return;
 	}
 	sk = sco_sock_hold(conn);
@@ -192,7 +193,6 @@ static struct sco_conn *sco_conn_add(struct hci_conn *hcon)
 			conn->hcon = hcon;
 			sco_conn_unlock(conn);
 		}
-		sco_conn_put(conn);
 		return conn;
 	}
 

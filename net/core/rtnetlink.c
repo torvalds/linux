@@ -2442,7 +2442,9 @@ static int rtnl_dump_ifinfo(struct sk_buff *skb, struct netlink_callback *cb)
 			tgt_net = rtnl_get_net_ns_capable(skb->sk, netnsid);
 			if (IS_ERR(tgt_net)) {
 				NL_SET_ERR_MSG(extack, "Invalid target network namespace id");
-				return PTR_ERR(tgt_net);
+				err = PTR_ERR(tgt_net);
+				netnsid = -1;
+				goto out;
 			}
 			break;
 		case IFLA_EXT_MASK:
@@ -2457,7 +2459,8 @@ static int rtnl_dump_ifinfo(struct sk_buff *skb, struct netlink_callback *cb)
 		default:
 			if (cb->strict_check) {
 				NL_SET_ERR_MSG(extack, "Unsupported attribute in link dump request");
-				return -EINVAL;
+				err = -EINVAL;
+				goto out;
 			}
 		}
 	}
@@ -2479,11 +2482,14 @@ walk_entries:
 			break;
 	}
 
-	if (kind_ops)
-		rtnl_link_ops_put(kind_ops, ops_srcu_index);
 
 	cb->seq = tgt_net->dev_base_seq;
 	nl_dump_check_consistent(cb, nlmsg_hdr(skb));
+
+out:
+
+	if (kind_ops)
+		rtnl_link_ops_put(kind_ops, ops_srcu_index);
 	if (netnsid >= 0)
 		put_net(tgt_net);
 
