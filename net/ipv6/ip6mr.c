@@ -416,7 +416,7 @@ static void ip6mr_free_table(struct mr_table *mrt)
 {
 	struct net *net = read_pnet(&mrt->net);
 
-	DEBUG_NET_WARN_ON_ONCE(!ip6mr_can_free_table(net));
+	WARN_ON_ONCE(!ip6mr_can_free_table(net));
 
 	timer_shutdown_sync(&mrt->ipmr_expire_timer);
 	mroute_clean_tables(mrt, MRT6_FLUSH_MIFS | MRT6_FLUSH_MIFS_STATIC |
