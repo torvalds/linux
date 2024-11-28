@@ -1423,7 +1423,6 @@ static void intel_display_vblank_dc_work(struct work_struct *work)
 {
 	struct intel_display *display =
 		container_of(work, typeof(*display), irq.vblank_dc_work);
-	struct drm_i915_private *i915 = to_i915(display->drm);
 	int vblank_wa_num_pipes = READ_ONCE(display->irq.vblank_wa_num_pipes);
 
 	/*
@@ -1432,7 +1431,7 @@ static void intel_display_vblank_dc_work(struct work_struct *work)
 	 * PSR code. If DC3CO is taken into use we need take that into account
 	 * here as well.
 	 */
-	intel_display_power_set_target_dc_state(i915, vblank_wa_num_pipes ? DC_STATE_DISABLE :
+	intel_display_power_set_target_dc_state(display, vblank_wa_num_pipes ? DC_STATE_DISABLE :
 						DC_STATE_EN_UPTO_DC6);
 }
 

@@ -1024,5 +1024,5 @@ void intel_modeset_setup_hw_state(struct drm_i915_private *i915,
 
 	intel_display_power_put(i915, POWER_DOMAIN_INIT, wakeref);
 
-	intel_power_domains_sanitize_state(i915);
+	intel_power_domains_sanitize_state(display);
 }

@@ -104,11 +104,12 @@ int xe_display_create(struct xe_device *xe)
 static void xe_display_fini_nommio(struct drm_device *dev, void *dummy)
 {
 	struct xe_device *xe = to_xe_device(dev);
+	struct intel_display *display = &xe->display;
 
 	if (!xe->info.probe_display)
 		return;
 
-	intel_power_domains_cleanup(xe);
+	intel_power_domains_cleanup(display);
 }
 
 int xe_display_init_nommio(struct xe_device *xe)
@@ -216,21 +217,25 @@ void xe_display_fini(struct xe_device *xe)
 
 void xe_display_register(struct xe_device *xe)
 {
+	struct intel_display *display = &xe->display;
+
 	if (!xe->info.probe_display)
 		return;
 
 	intel_display_driver_register(xe);
-	intel_power_domains_enable(xe);
+	intel_power_domains_enable(display);
 	intel_register_dsm_handler();
 }
 
 void xe_display_unregister(struct xe_device *xe)
 {
+	struct intel_display *display = &xe->display;
+
 	if (!xe->info.probe_display)
 		return;
 
 	intel_unregister_dsm_handler();
-	intel_power_domains_disable(xe);
+	intel_power_domains_disable(display);
 	intel_display_driver_unregister(xe);
 }
 
@@ -323,7 +328,7 @@ static void __xe_display_pm_suspend(struct xe_device *xe, bool runtime)
 	 * We do a lot of poking in a lot of registers, make sure they work
 	 * properly.
 	 */
-	intel_power_domains_disable(xe);
+	intel_power_domains_disable(display);
 	if (!runtime)
 		intel_fbdev_set_suspend(&xe->drm, FBINFO_STATE_SUSPENDED, true);
 
@@ -359,7 +364,7 @@ void xe_display_pm_shutdown(struct xe_device *xe)
 	if (!xe->info.probe_display)
 		return;
 
-	intel_power_domains_disable(xe);
+	intel_power_domains_disable(display);
 	intel_fbdev_set_suspend(&xe->drm, FBINFO_STATE_SUSPENDED, true);
 	if (has_display(xe)) {
 		drm_kms_helper_poll_disable(&xe->drm);
@@ -395,12 +400,13 @@ void xe_display_pm_runtime_suspend(struct xe_device *xe)
 
 void xe_display_pm_suspend_late(struct xe_device *xe)
 {
+	struct intel_display *display = &xe->display;
 	bool s2idle = suspend_to_idle();
 
 	if (!xe->info.probe_display)
 		return;
 
-	intel_display_power_suspend_late(xe, s2idle);
+	intel_display_power_suspend_late(display, s2idle);
 }
 
 void xe_display_pm_runtime_suspend_late(struct xe_device *xe)
@@ -423,6 +429,8 @@ void xe_display_pm_runtime_suspend_late(struct xe_device *xe)
 
 void xe_display_pm_shutdown_late(struct xe_device *xe)
 {
+	struct intel_display *display = &xe->display;
+
 	if (!xe->info.probe_display)
 		return;
 
@@ -431,15 +439,17 @@ void xe_display_pm_shutdown_late(struct xe_device *xe)
 	 * for now leaving all display power wells in the INIT power domain
 	 * enabled.
 	 */
-	intel_power_domains_driver_remove(xe);
+	intel_power_domains_driver_remove(display);
 }
 
 void xe_display_pm_resume_early(struct xe_device *xe)
 {
+	struct intel_display *display = &xe->display;
+
 	if (!xe->info.probe_display)
 		return;
 
-	intel_display_power_resume_early(xe);
+	intel_display_power_resume_early(display);
 }
 
 static void __xe_display_pm_resume(struct xe_device *xe, bool runtime)
@@ -473,7 +483,7 @@ static void __xe_display_pm_resume(struct xe_device *xe, bool runtime)
 	if (!runtime)
 		intel_fbdev_set_suspend(&xe->drm, FBINFO_STATE_RUNNING, false);
 
-	intel_power_domains_enable(xe);
+	intel_power_domains_enable(display);
 }
 
 void xe_display_pm_resume(struct xe_device *xe)
