@@ -85,6 +85,16 @@ static void test_cr_bits(struct kvm_vcpu *vcpu, uint64_t cr4)
 	rc = _vcpu_sregs_set(vcpu, &sregs);
 	TEST_ASSERT(!rc, "Failed to set supported CR4 bits (0x%lx)", cr4);
 
+	TEST_ASSERT(!!(sregs.cr4 & X86_CR4_OSXSAVE) ==
+		    (vcpu->cpuid && vcpu_cpuid_has(vcpu, X86_FEATURE_OSXSAVE)),
+		    "KVM didn't %s OSXSAVE in CPUID as expected",
+		    (sregs.cr4 & X86_CR4_OSXSAVE) ? "set" : "clear");
+
+	TEST_ASSERT(!!(sregs.cr4 & X86_CR4_PKE) ==
+		    (vcpu->cpuid && vcpu_cpuid_has(vcpu, X86_FEATURE_OSPKE)),
+		    "KVM didn't %s OSPKE in CPUID as expected",
+		    (sregs.cr4 & X86_CR4_PKE) ? "set" : "clear");
+
 	vcpu_sregs_get(vcpu, &sregs);
 	TEST_ASSERT(sregs.cr4 == cr4, "sregs.CR4 (0x%llx) != CR4 (0x%lx)",
 		    sregs.cr4, cr4);
