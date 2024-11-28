@@ -13,13 +13,37 @@
 
 const char hex_asc[] = "0123456789abcdef";
 
+#define MAX_NUMLEN 17
 static char *as_hex(char *dst, unsigned long val, int pad)
 {
-	char *p, *end = p = dst + max(pad, (int)__fls(val | 1) / 4 + 1);
+	char *p = dst + max(pad, (int)__fls(val | 1) / 4 + 1);
 
-	for (*p-- = 0; p >= dst; val >>= 4)
+	for (*p-- = '\0'; p >= dst; val >>= 4)
 		*p-- = hex_asc[val & 0x0f];
-	return end;
+	return dst;
+}
+
+static ssize_t strpad(char *dst, size_t dst_size, const char *src,
+		      int _pad, bool zero_pad)
+{
+	ssize_t len = strlen(src), pad = _pad;
+	char *p = dst;
+
+	if (max(len, abs(pad)) >= dst_size)
+		return -E2BIG;
+
+	if (pad > len) {
+		memset(p, zero_pad ? '0' : ' ', pad - len);
+		p += pad - len;
+	}
+	memcpy(p, src, len);
+	p += len;
+	if (pad < 0 && -pad > len) {
+		memset(p, ' ', -pad - len);
+		p += -pad - len;
+	}
+	*p = '\0';
+	return p - dst;
 }
 
 static char *symstart(char *p)
@@ -58,22 +82,22 @@ static noinline char *findsym(unsigned long ip, unsigned short *off, unsigned sh
 	return NULL;
 }
 
-static noinline char *strsym(void *ip)
+#define MAX_SYMLEN 64
+static noinline char *strsym(char *buf, void *ip)
 {
-	static char buf[64];
 	unsigned short off;
 	unsigned short len;
 	char *p;
 
 	p = findsym((unsigned long)ip, &off, &len);
 	if (p) {
-		strncpy(buf, p, sizeof(buf));
+		strncpy(buf, p, MAX_SYMLEN);
 		/* reserve 15 bytes for offset/len in symbol+0x1234/0x1234 */
-		p = buf + strnlen(buf, sizeof(buf) - 15);
+		p = buf + strnlen(buf, MAX_SYMLEN - 15);
 		strcpy(p, "+0x");
-		p = as_hex(p + 3, off, 0);
-		strcpy(p, "/0x");
-		as_hex(p + 3, len, 0);
+		as_hex(p + 3, off, 0);
+		strcat(p, "/0x");
+		as_hex(p + strlen(p), len, 0);
 	} else {
 		as_hex(buf, (unsigned long)ip, 16);
 	}
@@ -91,10 +115,13 @@ void boot_printk(const char *fmt, ...)
 {
 	char buf[1024] = { 0 };
 	char *end = buf + sizeof(buf) - 1; /* make sure buf is 0 terminated */
-	unsigned long pad;
-	char *p = buf;
+	bool zero_pad;
+	char *strval, *p = buf;
+	char valbuf[MAX(MAX_SYMLEN, MAX_NUMLEN)];
 	va_list args;
 	char lenmod;
+	ssize_t len;
+	int pad;
 
 	va_start(args, fmt);
 	for (; p < end && *fmt; fmt++) {
@@ -106,7 +133,8 @@ void boot_printk(const char *fmt, ...)
 			*p++ = '%';
 			continue;
 		}
-		pad = isdigit(*fmt) ? simple_strtol(fmt, (char **)&fmt, 10) : 0;
+		zero_pad = (*fmt == '0');
+		pad = simple_strtol(fmt, (char **)&fmt, 10);
 		lenmod = (*fmt == 'h' || *fmt == 'l' || *fmt == 'z') ? *fmt++ : 0;
 		if (lenmod == 'h' && *fmt == 'h') {
 			lenmod = 'H';
@@ -116,21 +144,25 @@ void boot_printk(const char *fmt, ...)
 		case 's':
 			if (lenmod)
 				goto out;
-			p = buf + strlcat(buf, va_arg(args, char *), sizeof(buf));
+			strval = va_arg(args, char *);
+			zero_pad = false;
 			break;
 		case 'p':
 			if (*++fmt != 'S' || lenmod)
 				goto out;
-			p = buf + strlcat(buf, strsym(va_arg(args, void *)), sizeof(buf));
+			strval = strsym(valbuf, va_arg(args, void *));
+			zero_pad = false;
 			break;
 		case 'x':
-			if (end - p <= max(sizeof(long) * 2, pad))
-				goto out;
-			p = as_hex(p, va_arg_len_type(args, lenmod, unsigned), pad);
+			strval = as_hex(valbuf, va_arg_len_type(args, lenmod, unsigned), 0);
 			break;
 		default:
 			goto out;
 		}
+		len = strpad(p, end - p, strval, pad, zero_pad);
+		if (len == -E2BIG)
+			break;
+		p += len;
 	}
 out:
 	va_end(args);
