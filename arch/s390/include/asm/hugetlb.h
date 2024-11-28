@@ -10,6 +10,8 @@
 #define _ASM_S390_HUGETLB_H
 
 #include <linux/pgtable.h>
+#include <linux/swap.h>
+#include <linux/swapops.h>
 #include <asm/page.h>
 
 #define hugetlb_free_pgd_range			free_pgd_range
