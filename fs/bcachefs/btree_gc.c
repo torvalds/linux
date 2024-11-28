@@ -521,6 +521,7 @@ int bch2_check_topology(struct bch_fs *c)
 		struct btree_root *r = bch2_btree_id_root(c, i);
 		bool reconstructed_root = false;
 
+		printbuf_reset(&buf);
 		bch2_btree_id_to_text(&buf, i);
 
 		if (r->error) {
