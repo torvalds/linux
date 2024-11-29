@@ -476,11 +476,16 @@ int __bch2_bkey_fsck_err(struct bch_fs *c,
 		return -BCH_ERR_fsck_delete_bkey;
 
 	unsigned fsck_flags = 0;
-	if (!(from.flags & (BCH_VALIDATE_write|BCH_VALIDATE_commit)))
+	if (!(from.flags & (BCH_VALIDATE_write|BCH_VALIDATE_commit))) {
+		if (test_bit(err, c->sb.errors_silent))
+			return -BCH_ERR_fsck_delete_bkey;
+
 		fsck_flags |= FSCK_AUTOFIX|FSCK_CAN_FIX;
+	}
+	if (!WARN_ON(err >= ARRAY_SIZE(fsck_flags_extra)))
+		fsck_flags |= fsck_flags_extra[err];
 
 	struct printbuf buf = PRINTBUF;
-	va_list args;
 
 	prt_printf(&buf, "invalid bkey in %s btree=",
 		   bch2_bkey_validate_contexts[from.from]);
@@ -489,9 +494,12 @@ int __bch2_bkey_fsck_err(struct bch_fs *c,
 
 	bch2_bkey_val_to_text(&buf, c, k);
 	prt_str(&buf, "\n  ");
+
+	va_list args;
 	va_start(args, fmt);
 	prt_vprintf(&buf, fmt, args);
 	va_end(args);
+
 	prt_str(&buf, ": delete?");
 
 	int ret = __bch2_fsck_err(c, NULL, fsck_flags, err, "%s", buf.buf);
