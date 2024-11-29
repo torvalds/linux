@@ -1256,8 +1256,9 @@ static void fill_substream_names(struct snd_ump_endpoint *ump,
 		name = ump->groups[idx].name;
 		if (!*name)
 			name = ump->info.name;
-		snprintf(s->name, sizeof(s->name), "Group %d (%.16s)",
-			 idx + 1, name);
+		snprintf(s->name, sizeof(s->name), "Group %d (%.16s)%s",
+			 idx + 1, name,
+			 ump->groups[idx].active ? "" : " [Inactive]");
 	}
 }
 
