@@ -612,7 +612,8 @@ void dcn401_prepare_mcache_programming(struct dc *dc, struct dc_state *context);
 	SR(DCHUBBUB_SDPIF_CFG1),                                                 \
 	SR(DCHUBBUB_MEM_PWR_MODE_CTRL),                                          \
 	SR(DCHUBBUB_TIMEOUT_DETECTION_CTRL1),                                    \
-	SR(DCHUBBUB_TIMEOUT_DETECTION_CTRL2)
+	SR(DCHUBBUB_TIMEOUT_DETECTION_CTRL2),									 \
+	SR(DCHUBBUB_CTRL_STATUS)
 
 /* DCCG */
 

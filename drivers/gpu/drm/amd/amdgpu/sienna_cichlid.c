@@ -220,6 +220,7 @@ sienna_cichlid_mode2_restore_hwcontext(struct amdgpu_reset_control *reset_ctl,
 	int r;
 	struct amdgpu_device *tmp_adev = (struct amdgpu_device *)reset_ctl->handle;
 
+	amdgpu_set_init_level(tmp_adev, AMDGPU_INIT_LEVEL_RESET_RECOVERY);
 	dev_info(tmp_adev->dev,
 			"GPU reset succeeded, trying to resume\n");
 	r = sienna_cichlid_mode2_restore_ip(tmp_adev);
@@ -237,6 +238,7 @@ sienna_cichlid_mode2_restore_hwcontext(struct amdgpu_reset_control *reset_ctl,
 
 	amdgpu_irq_gpu_reset_resume_helper(tmp_adev);
 
+	amdgpu_set_init_level(tmp_adev, AMDGPU_INIT_LEVEL_DEFAULT);
 	r = amdgpu_ib_ring_tests(tmp_adev);
 	if (r) {
 		dev_err(tmp_adev->dev,
