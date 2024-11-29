@@ -217,6 +217,9 @@ class id_parser(object):
                 # Special case for SH magic boot code files
                 if line.startswith('LIST \"'):
                     expr = expr.rstrip('\"').strip()
+                # Remove j2 comment closure
+                if line.startswith('{#'):
+                    expr = expr.rstrip('#}').strip()
                 self.parse(expr)
                 self.spdx_valid += 1
                 #
