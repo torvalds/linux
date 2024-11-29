@@ -441,7 +441,7 @@ static const struct dev_pm_ops dwc3_rtk_dev_pm_ops = {
 
 static struct platform_driver dwc3_rtk_driver = {
 	.probe		= dwc3_rtk_probe,
-	.remove_new	= dwc3_rtk_remove,
+	.remove		= dwc3_rtk_remove,
 	.driver		= {
 		.name	= "rtk-dwc3",
 		.of_match_table = rtk_dwc3_match,

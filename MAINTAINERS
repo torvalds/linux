@@ -24352,6 +24352,13 @@ L:	linux-usb@vger.kernel.org
 S:	Orphan
 F:	drivers/usb/typec/tcpm/
 
+USB TYPEC TUSB1046 MUX DRIVER
+M:	Romain Gantois <romain.gantois@bootlin.com>
+L:	linux-usb@vger.kernel.org
+S:	Maintained
+F:	Documentation/devicetree/bindings/usb/ti,tusb1046.yaml
+F:	drivers/usb/typec/mux/tusb1046.c
+
 USB UHCI DRIVER
 M:	Alan Stern <stern@rowland.harvard.edu>
 L:	linux-usb@vger.kernel.org

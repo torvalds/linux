@@ -473,7 +473,7 @@ static const struct dev_pm_ops __maybe_unused onboard_dev_pm_ops = {
 
 static struct platform_driver onboard_dev_driver = {
 	.probe = onboard_dev_probe,
-	.remove_new = onboard_dev_remove,
+	.remove = onboard_dev_remove,
 
 	.driver = {
 		.name = "onboard-usb-dev",

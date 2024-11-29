@@ -752,7 +752,7 @@ sddr09_read_data(struct us_data *us,
 	// a bounce buffer and move the data a piece at a time between the
 	// bounce buffer and the actual transfer buffer.
 
-	len = min(sectors, (unsigned int) info->blocksize) * info->pagesize;
+	len = min_t(unsigned int, sectors, info->blocksize) * info->pagesize;
 	buffer = kmalloc(len, GFP_NOIO);
 	if (!buffer)
 		return -ENOMEM;
@@ -997,7 +997,7 @@ sddr09_write_data(struct us_data *us,
 	 * at a time between the bounce buffer and the actual transfer buffer.
 	 */
 
-	len = min(sectors, (unsigned int) info->blocksize) * info->pagesize;
+	len = min_t(unsigned int, sectors, info->blocksize) * info->pagesize;
 	buffer = kmalloc(len, GFP_NOIO);
 	if (!buffer) {
 		kfree(blockbuffer);
