@@ -15,6 +15,7 @@
 #include <linux/slab.h>
 #include <linux/i2c.h>
 #include <linux/delay.h>
+#include <linux/regulator/consumer.h>
 
 #include <linux/w1.h>
 
@@ -445,6 +446,7 @@ static int ds2482_probe(struct i2c_client *client)
 	int err = -ENODEV;
 	int temp1;
 	int idx;
+	int ret;
 
 	if (!i2c_check_functionality(client->adapter,
 				     I2C_FUNC_SMBUS_WRITE_BYTE_DATA |
@@ -454,6 +456,10 @@ static int ds2482_probe(struct i2c_client *client)
 	data = devm_kzalloc(&client->dev, sizeof(struct ds2482_data), GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
+
+	ret = devm_regulator_get_enable(&client->dev, "vcc");
+	if (ret)
+		return dev_err_probe(&client->dev, ret, "Failed to enable regulator\n");
 
 	data->client = client;
 	i2c_set_clientdata(client, data);
