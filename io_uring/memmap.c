@@ -246,10 +246,28 @@ static int io_region_init_ptr(struct io_mapped_region *mr)
 	return 0;
 }
 
+static int io_region_pin_pages(struct io_ring_ctx *ctx,
+				struct io_mapped_region *mr,
+				struct io_uring_region_desc *reg)
+{
+	unsigned long size = mr->nr_pages << PAGE_SHIFT;
+	struct page **pages;
+	int nr_pages;
+
+	pages = io_pin_pages(reg->user_addr, size, &nr_pages);
+	if (IS_ERR(pages))
+		return PTR_ERR(pages);
+	if (WARN_ON_ONCE(nr_pages != mr->nr_pages))
+		return -EFAULT;
+
+	mr->pages = pages;
+	mr->flags |= IO_REGION_F_USER_PROVIDED;
+	return 0;
+}
+
 int io_create_region(struct io_ring_ctx *ctx, struct io_mapped_region *mr,
 		     struct io_uring_region_desc *reg)
 {
-	struct page **pages;
 	int nr_pages, ret;
 	u64 end;
 
@@ -278,13 +296,9 @@ int io_create_region(struct io_ring_ctx *ctx, struct io_mapped_region *mr,
 	}
 	mr->nr_pages = nr_pages;
 
-	pages = io_pin_pages(reg->user_addr, reg->size, &nr_pages);
-	if (IS_ERR(pages)) {
-		ret = PTR_ERR(pages);
+	ret = io_region_pin_pages(ctx, mr, reg);
+	if (ret)
 		goto out_free;
-	}
-	mr->pages = pages;
-	mr->flags |= IO_REGION_F_USER_PROVIDED;
 
 	ret = io_region_init_ptr(mr);
 	if (ret)
