@@ -120,18 +120,6 @@ void io_pages_unmap(void *ptr, struct page ***pages, unsigned short *npages,
 	*npages = 0;
 }
 
-void io_pages_free(struct page ***pages, int npages)
-{
-	struct page **page_array = *pages;
-
-	if (!page_array)
-		return;
-
-	unpin_user_pages(page_array, npages);
-	kvfree(page_array);
-	*pages = NULL;
-}
-
 struct page **io_pin_pages(unsigned long uaddr, unsigned long len, int *npages)
 {
 	unsigned long start, end, nr_pages;
@@ -172,34 +160,6 @@ struct page **io_pin_pages(unsigned long uaddr, unsigned long len, int *npages)
 	}
 	kvfree(pages);
 	return ERR_PTR(ret);
-}
-
-void *__io_uaddr_map(struct page ***pages, unsigned short *npages,
-		     unsigned long uaddr, size_t size)
-{
-	struct page **page_array;
-	unsigned int nr_pages;
-	void *page_addr;
-
-	*npages = 0;
-
-	if (uaddr & (PAGE_SIZE - 1) || !size)
-		return ERR_PTR(-EINVAL);
-
-	nr_pages = 0;
-	page_array = io_pin_pages(uaddr, size, &nr_pages);
-	if (IS_ERR(page_array))
-		return page_array;
-
-	page_addr = vmap(page_array, nr_pages, VM_MAP, PAGE_KERNEL);
-	if (page_addr) {
-		*pages = page_array;
-		*npages = nr_pages;
-		return page_addr;
-	}
-
-	io_pages_free(&page_array, nr_pages);
-	return ERR_PTR(-ENOMEM);
 }
 
 enum {
@@ -446,9 +406,10 @@ int io_uring_mmap_pages(struct io_ring_ctx *ctx, struct vm_area_struct *vma,
 
 static int io_region_mmap(struct io_ring_ctx *ctx,
 			  struct io_mapped_region *mr,
-			  struct vm_area_struct *vma)
+			  struct vm_area_struct *vma,
+			  unsigned max_pages)
 {
-	unsigned long nr_pages = mr->nr_pages;
+	unsigned long nr_pages = min(mr->nr_pages, max_pages);
 
 	vm_flags_set(vma, VM_DONTEXPAND);
 	return vm_insert_pages(vma, vma->vm_start, mr->pages, &nr_pages);
@@ -459,7 +420,7 @@ __cold int io_uring_mmap(struct file *file, struct vm_area_struct *vma)
 	struct io_ring_ctx *ctx = file->private_data;
 	size_t sz = vma->vm_end - vma->vm_start;
 	long offset = vma->vm_pgoff << PAGE_SHIFT;
-	unsigned int npages;
+	unsigned int page_limit;
 	void *ptr;
 
 	guard(mutex)(&ctx->mmap_lock);
@@ -471,14 +432,14 @@ __cold int io_uring_mmap(struct file *file, struct vm_area_struct *vma)
 	switch (offset & IORING_OFF_MMAP_MASK) {
 	case IORING_OFF_SQ_RING:
 	case IORING_OFF_CQ_RING:
-		npages = min(ctx->n_ring_pages, (sz + PAGE_SIZE - 1) >> PAGE_SHIFT);
-		return io_uring_mmap_pages(ctx, vma, ctx->ring_pages, npages);
+		page_limit = (sz + PAGE_SIZE - 1) >> PAGE_SHIFT;
+		return io_region_mmap(ctx, &ctx->ring_region, vma, page_limit);
 	case IORING_OFF_SQES:
-		return io_region_mmap(ctx, &ctx->sq_region, vma);
+		return io_region_mmap(ctx, &ctx->sq_region, vma, UINT_MAX);
 	case IORING_OFF_PBUF_RING:
 		return io_pbuf_mmap(file, vma);
 	case IORING_MAP_OFF_PARAM_REGION:
-		return io_region_mmap(ctx, &ctx->param_region, vma);
+		return io_region_mmap(ctx, &ctx->param_region, vma, UINT_MAX);
 	}
 
 	return -EINVAL;

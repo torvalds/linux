@@ -427,14 +427,8 @@ struct io_ring_ctx {
 	 */
 	struct mutex			mmap_lock;
 
-	/*
-	 * If IORING_SETUP_NO_MMAP is used, then the below holds
-	 * the gup'ed pages for the two rings, and the sqes.
-	 */
-	unsigned short			n_ring_pages;
-	struct page			**ring_pages;
-
 	struct io_mapped_region		sq_region;
+	struct io_mapped_region		ring_region;
 	/* used for optimised request parameter and wait argument passing  */
 	struct io_mapped_region		param_region;
 };
