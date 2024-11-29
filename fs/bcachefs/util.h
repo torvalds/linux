@@ -709,4 +709,13 @@ static inline bool test_bit_le64(size_t bit, __le64 *addr)
 	return (addr[bit / 64] & cpu_to_le64(BIT_ULL(bit % 64))) != 0;
 }
 
+static inline void memcpy_swab(void *_dst, void *_src, size_t len)
+{
+	u8 *dst = _dst + len;
+	u8 *src = _src;
+
+	while (len--)
+		*--dst = *src++;
+}
+
 #endif /* _BCACHEFS_UTIL_H */

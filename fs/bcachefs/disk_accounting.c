@@ -698,8 +698,11 @@ int bch2_accounting_read(struct bch_fs *c)
 	percpu_memset(c->usage, 0, sizeof(*c->usage));
 	percpu_up_write(&c->mark_lock);
 
-	int ret = for_each_btree_key(trans, iter,
-				BTREE_ID_accounting, POS_MIN,
+	struct btree_iter iter;
+	bch2_trans_iter_init(trans, &iter, BTREE_ID_accounting, POS_MIN,
+			     BTREE_ITER_prefetch|BTREE_ITER_all_snapshots);
+	iter.flags &= ~BTREE_ITER_with_journal;
+	int ret = for_each_btree_key_continue(trans, iter,
 				BTREE_ITER_prefetch|BTREE_ITER_all_snapshots, k, ({
 			struct bkey u;
 			struct bkey_s_c k = bch2_btree_path_peek_slot_exact(btree_iter_path(trans, &iter), &u);
@@ -710,8 +713,14 @@ int bch2_accounting_read(struct bch_fs *c)
 			struct disk_accounting_pos acc_k;
 			bpos_to_disk_accounting_pos(&acc_k, k.k->p);
 
-			if (!bch2_accounting_is_mem(acc_k))
+			if (acc_k.type >= BCH_DISK_ACCOUNTING_TYPE_NR)
+				break;
+
+			if (!bch2_accounting_is_mem(acc_k)) {
+				struct disk_accounting_pos next = { .type = acc_k.type + 1 };
+				bch2_btree_iter_set_pos(&iter, disk_accounting_pos_to_bpos(&next));
 				continue;
+			}
 
 			accounting_read_key(trans, k);
 		}));
@@ -896,10 +905,13 @@ void bch2_verify_accounting_clean(struct bch_fs *c)
 			bpos_to_disk_accounting_pos(&acc_k, k.k->p);
 
 			if (acc_k.type >= BCH_DISK_ACCOUNTING_TYPE_NR)
-				continue;
+				break;
 
-			if (acc_k.type == BCH_DISK_ACCOUNTING_inum)
+			if (!bch2_accounting_is_mem(acc_k)) {
+				struct disk_accounting_pos next = { .type = acc_k.type + 1 };
+				bch2_btree_iter_set_pos(&iter, disk_accounting_pos_to_bpos(&next));
 				continue;
+			}
 
 			bch2_accounting_mem_read(c, k.k->p, v, nr);
 
