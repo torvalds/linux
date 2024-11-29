@@ -281,7 +281,7 @@ static struct open_bucket *try_alloc_bucket(struct btree_trans *trans, struct bc
 	u64 b = freespace_iter->pos.offset & ~(~0ULL << 56);
 	u8 gen;
 
-	int ret = bch2_check_discard_freespace_key(trans, freespace_iter, &gen);
+	int ret = bch2_check_discard_freespace_key(trans, freespace_iter, &gen, true);
 	if (ret < 0)
 		return ERR_PTR(ret);
 	if (ret)

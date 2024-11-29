@@ -680,6 +680,7 @@ struct btree_trans_buf {
 	x(dio_write)							\
 	x(discard)							\
 	x(discard_fast)							\
+	x(check_discard_freespace_key)					\
 	x(invalidate)							\
 	x(delete_dead_snapshots)					\
 	x(gc_gens)							\

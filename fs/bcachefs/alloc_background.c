@@ -1338,7 +1338,40 @@ fsck_err:
 	return ret;
 }
 
-int bch2_check_discard_freespace_key(struct btree_trans *trans, struct btree_iter *iter, u8 *gen)
+struct check_discard_freespace_key_async {
+	struct work_struct	work;
+	struct bch_fs		*c;
+	struct bbpos		pos;
+};
+
+static int bch2_recheck_discard_freespace_key(struct btree_trans *trans, struct bbpos pos)
+{
+	struct btree_iter iter;
+	struct bkey_s_c k = bch2_bkey_get_iter(trans, &iter, pos.btree, pos.pos, 0);
+	int ret = bkey_err(k);
+	if (ret)
+		return ret;
+
+	u8 gen;
+	ret = k.k->type != KEY_TYPE_set
+		? bch2_check_discard_freespace_key(trans, &iter, &gen, false)
+		: 0;
+	bch2_trans_iter_exit(trans, &iter);
+	return ret;
+}
+
+static void check_discard_freespace_key_work(struct work_struct *work)
+{
+	struct check_discard_freespace_key_async *w =
+		container_of(work, struct check_discard_freespace_key_async, work);
+
+	bch2_trans_do(w->c, bch2_recheck_discard_freespace_key(trans, w->pos));
+	bch2_write_ref_put(w->c, BCH_WRITE_REF_check_discard_freespace_key);
+	kfree(w);
+}
+
+int bch2_check_discard_freespace_key(struct btree_trans *trans, struct btree_iter *iter, u8 *gen,
+				     bool async_repair)
 {
 	struct bch_fs *c = trans->c;
 	enum bch_data_type state = iter->btree_id == BTREE_ID_need_discard
@@ -1351,7 +1384,8 @@ int bch2_check_discard_freespace_key(struct btree_trans *trans, struct btree_ite
 	u64 genbits = iter->pos.offset & (~0ULL << 56);
 
 	struct btree_iter alloc_iter;
-	struct bkey_s_c alloc_k = bch2_bkey_get_iter(trans, &alloc_iter, BTREE_ID_alloc, bucket, BTREE_ITER_cached);
+	struct bkey_s_c alloc_k = bch2_bkey_get_iter(trans, &alloc_iter,
+						     BTREE_ID_alloc, bucket, BTREE_ITER_cached);
 	int ret = bkey_err(alloc_k);
 	if (ret)
 		return ret;
@@ -1392,17 +1426,39 @@ fsck_err:
 	printbuf_exit(&buf);
 	return ret;
 delete:
-	ret =   bch2_btree_bit_mod_iter(trans, iter, false) ?:
-		bch2_trans_commit(trans, NULL, NULL,
-			BCH_TRANS_COMMIT_no_enospc) ?:
-		-BCH_ERR_transaction_restart_commit;
-	goto out;
+	if (!async_repair) {
+		ret =   bch2_btree_bit_mod_iter(trans, iter, false) ?:
+			bch2_trans_commit(trans, NULL, NULL,
+				BCH_TRANS_COMMIT_no_enospc) ?:
+			-BCH_ERR_transaction_restart_commit;
+		goto out;
+	} else {
+		/*
+		 * We can't repair here when called from the allocator path: the
+		 * commit will recurse back into the allocator
+		 */
+		struct check_discard_freespace_key_async *w =
+			kzalloc(sizeof(*w), GFP_KERNEL);
+		if (!w)
+			goto out;
+
+		if (!bch2_write_ref_tryget(c, BCH_WRITE_REF_check_discard_freespace_key)) {
+			kfree(w);
+			goto out;
+		}
+
+		INIT_WORK(&w->work, check_discard_freespace_key_work);
+		w->c = c;
+		w->pos = BBPOS(iter->btree_id, iter->pos);
+		queue_work(c->write_ref_wq, &w->work);
+		goto out;
+	}
 }
 
 static int bch2_check_discard_freespace_key_fsck(struct btree_trans *trans, struct btree_iter *iter)
 {
 	u8 gen;
-	int ret = bch2_check_discard_freespace_key(trans, iter, &gen);
+	int ret = bch2_check_discard_freespace_key(trans, iter, &gen, false);
 	return ret < 0 ? ret : 0;
 }
 
