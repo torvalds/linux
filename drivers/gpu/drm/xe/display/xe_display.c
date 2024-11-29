@@ -22,6 +22,7 @@
 #include "intel_display_irq.h"
 #include "intel_display_types.h"
 #include "intel_dmc.h"
+#include "intel_dmc_wl.h"
 #include "intel_dp.h"
 #include "intel_encoder.h"
 #include "intel_fbdev.h"
@@ -404,11 +405,20 @@ void xe_display_pm_suspend_late(struct xe_device *xe)
 
 void xe_display_pm_runtime_suspend_late(struct xe_device *xe)
 {
+	struct intel_display *display = &xe->display;
+
 	if (!xe->info.probe_display)
 		return;
 
 	if (xe->d3cold.allowed)
 		xe_display_pm_suspend_late(xe);
+
+	/*
+	 * If xe_display_pm_suspend_late() is not called, it is likely
+	 * that we will be on dynamic DC states with DMC wakelock enabled. We
+	 * need to flush the release work in that case.
+	 */
+	intel_dmc_wl_flush_release_work(display);
 }
 
 void xe_display_pm_shutdown_late(struct xe_device *xe)
