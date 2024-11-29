@@ -6,6 +6,17 @@
 #include <linux/string.h>
 #include <linux/types.h>
 
+/*
+ * The Min Heap API provides utilities for managing min-heaps, a binary tree
+ * structure where each node's value is less than or equal to its children's
+ * values, ensuring the smallest element is at the root.
+ *
+ * Users should avoid directly calling functions prefixed with __min_heap_*().
+ * Instead, use the provided macro wrappers.
+ *
+ * For further details and examples, refer to Documentation/core-api/min_heap.rst.
+ */
+
 /**
  * Data structure to hold a min-heap.
  * @nr: Number of elements currently in the heap.
