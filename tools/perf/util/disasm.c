@@ -1245,6 +1245,9 @@ int symbol__strerror_disassemble(struct map_symbol *ms, int errnum, char *buf, s
 		scnprintf(buf, buflen, "The %s BPF file has no BTF section, compile with -g or use pahole -J.",
 			  dso__long_name(dso));
 		break;
+	case SYMBOL_ANNOTATE_ERRNO__COULDNT_DETERMINE_FILE_TYPE:
+		scnprintf(buf, buflen, "Couldn't determine the file %s type.", dso__long_name(dso));
+		break;
 	default:
 		scnprintf(buf, buflen, "Internal error: Invalid %d error code\n", errnum);
 		break;
@@ -2289,7 +2292,7 @@ int symbol__disassemble(struct symbol *sym, struct annotate_args *args)
 	} else if (dso__binary_type(dso) == DSO_BINARY_TYPE__BPF_IMAGE) {
 		return symbol__disassemble_bpf_image(sym, args);
 	} else if (dso__binary_type(dso) == DSO_BINARY_TYPE__NOT_FOUND) {
-		return -1;
+		return SYMBOL_ANNOTATE_ERRNO__COULDNT_DETERMINE_FILE_TYPE;
 	} else if (dso__is_kcore(dso)) {
 		kce.addr = map__rip_2objdump(map, sym->start);
 		kce.kcore_filename = symfs_filename;
