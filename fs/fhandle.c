@@ -401,6 +401,7 @@ static long do_handle_open(int mountdirfd, struct file_handle __user *ufh,
 	long retval = 0;
 	struct path path __free(path_put) = {};
 	struct file *file;
+	const struct export_operations *eops;
 
 	retval = handle_to_path(mountdirfd, ufh, &path, open_flag);
 	if (retval)
@@ -410,7 +411,11 @@ static long do_handle_open(int mountdirfd, struct file_handle __user *ufh,
 	if (fd < 0)
 		return fd;
 
-	file = file_open_root(&path, "", open_flag, 0);
+	eops = path.mnt->mnt_sb->s_export_op;
+	if (eops->open)
+		file = eops->open(&path, open_flag);
+	else
+		file = file_open_root(&path, "", open_flag, 0);
 	if (IS_ERR(file))
 		return PTR_ERR(file);
 
