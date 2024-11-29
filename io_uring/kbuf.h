@@ -35,8 +35,6 @@ struct io_buffer_list {
 	__u16 mask;
 
 	__u16 flags;
-
-	atomic_t refs;
 };
 
 struct io_buffer {
@@ -83,7 +81,6 @@ void __io_put_kbuf(struct io_kiocb *req, int len, unsigned issue_flags);
 
 bool io_kbuf_recycle_legacy(struct io_kiocb *req, unsigned issue_flags);
 
-void io_put_bl(struct io_ring_ctx *ctx, struct io_buffer_list *bl);
 struct io_buffer_list *io_pbuf_get_bl(struct io_ring_ctx *ctx,
 				      unsigned long bgid);
 int io_pbuf_mmap(struct file *file, struct vm_area_struct *vma);

@@ -48,7 +48,6 @@ static int io_buffer_add_list(struct io_ring_ctx *ctx,
 	 * always under the ->uring_lock, but lookups from mmap do.
 	 */
 	bl->bgid = bgid;
-	atomic_set(&bl->refs, 1);
 	guard(mutex)(&ctx->mmap_lock);
 	return xa_err(xa_store(&ctx->io_bl_xa, bgid, bl, GFP_KERNEL));
 }
@@ -385,12 +384,10 @@ static int __io_remove_buffers(struct io_ring_ctx *ctx,
 	return i;
 }
 
-void io_put_bl(struct io_ring_ctx *ctx, struct io_buffer_list *bl)
+static void io_put_bl(struct io_ring_ctx *ctx, struct io_buffer_list *bl)
 {
-	if (atomic_dec_and_test(&bl->refs)) {
-		__io_remove_buffers(ctx, bl, -1U);
-		kfree(bl);
-	}
+	__io_remove_buffers(ctx, bl, -1U);
+	kfree(bl);
 }
 
 void io_destroy_buffers(struct io_ring_ctx *ctx)
@@ -804,10 +801,8 @@ struct io_buffer_list *io_pbuf_get_bl(struct io_ring_ctx *ctx,
 
 	bl = xa_load(&ctx->io_bl_xa, bgid);
 	/* must be a mmap'able buffer ring and have pages */
-	if (bl && bl->flags & IOBL_MMAP) {
-		if (atomic_inc_not_zero(&bl->refs))
-			return bl;
-	}
+	if (bl && bl->flags & IOBL_MMAP)
+		return bl;
 
 	return ERR_PTR(-EINVAL);
 }
@@ -817,7 +812,7 @@ int io_pbuf_mmap(struct file *file, struct vm_area_struct *vma)
 	struct io_ring_ctx *ctx = file->private_data;
 	loff_t pgoff = vma->vm_pgoff << PAGE_SHIFT;
 	struct io_buffer_list *bl;
-	int bgid, ret;
+	int bgid;
 
 	lockdep_assert_held(&ctx->mmap_lock);
 
@@ -826,7 +821,5 @@ int io_pbuf_mmap(struct file *file, struct vm_area_struct *vma)
 	if (IS_ERR(bl))
 		return PTR_ERR(bl);
 
-	ret = io_uring_mmap_pages(ctx, vma, bl->buf_pages, bl->buf_nr_pages);
-	io_put_bl(ctx, bl);
-	return ret;
+	return io_uring_mmap_pages(ctx, vma, bl->buf_pages, bl->buf_nr_pages);
 }

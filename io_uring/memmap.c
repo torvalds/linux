@@ -383,7 +383,6 @@ static void *io_uring_validate_mmap_request(struct file *file, loff_t pgoff,
 		if (IS_ERR(bl))
 			return bl;
 		ptr = bl->buf_ring;
-		io_put_bl(ctx, bl);
 		return ptr;
 		}
 	case IORING_MAP_OFF_PARAM_REGION:
