@@ -612,8 +612,7 @@ config MARVELL_CN10K_DPI
 config MCHP_LAN966X_PCI
 	tristate "Microchip LAN966x PCIe Support"
 	depends on PCI
-	select OF
-	select OF_OVERLAY
+	depends on OF_OVERLAY
 	select IRQ_DOMAIN
 	help
 	  This enables the support for the LAN966x PCIe device.
