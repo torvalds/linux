@@ -748,8 +748,5 @@ struct io_mapped_region *io_pbuf_get_region(struct io_ring_ctx *ctx,
 	bl = xa_load(&ctx->io_bl_xa, bgid);
 	if (!bl || !(bl->flags & IOBL_BUF_RING))
 		return NULL;
-	if (WARN_ON_ONCE(!io_region_is_set(&bl->region)))
-		return NULL;
-
 	return &bl->region;
 }

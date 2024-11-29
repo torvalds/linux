@@ -254,6 +254,27 @@ int io_create_region_mmap_safe(struct io_ring_ctx *ctx, struct io_mapped_region 
 	return 0;
 }
 
+static struct io_mapped_region *io_mmap_get_region(struct io_ring_ctx *ctx,
+						   loff_t pgoff)
+{
+	loff_t offset = pgoff << PAGE_SHIFT;
+	unsigned int bgid;
+
+	switch (offset & IORING_OFF_MMAP_MASK) {
+	case IORING_OFF_SQ_RING:
+	case IORING_OFF_CQ_RING:
+		return &ctx->ring_region;
+	case IORING_OFF_SQES:
+		return &ctx->sq_region;
+	case IORING_OFF_PBUF_RING:
+		bgid = (offset & ~IORING_OFF_MMAP_MASK) >> IORING_OFF_PBUF_SHIFT;
+		return io_pbuf_get_region(ctx, bgid);
+	case IORING_MAP_OFF_PARAM_REGION:
+		return &ctx->param_region;
+	}
+	return NULL;
+}
+
 static void *io_region_validate_mmap(struct io_ring_ctx *ctx,
 				     struct io_mapped_region *mr)
 {
@@ -271,39 +292,12 @@ static void *io_uring_validate_mmap_request(struct file *file, loff_t pgoff,
 					    size_t sz)
 {
 	struct io_ring_ctx *ctx = file->private_data;
-	loff_t offset = pgoff << PAGE_SHIFT;
+	struct io_mapped_region *region;
 
-	switch ((pgoff << PAGE_SHIFT) & IORING_OFF_MMAP_MASK) {
-	case IORING_OFF_SQ_RING:
-	case IORING_OFF_CQ_RING:
-		/* Don't allow mmap if the ring was setup without it */
-		if (ctx->flags & IORING_SETUP_NO_MMAP)
-			return ERR_PTR(-EINVAL);
-		if (!ctx->rings)
-			return ERR_PTR(-EFAULT);
-		return ctx->rings;
-	case IORING_OFF_SQES:
-		/* Don't allow mmap if the ring was setup without it */
-		if (ctx->flags & IORING_SETUP_NO_MMAP)
-			return ERR_PTR(-EINVAL);
-		if (!ctx->sq_sqes)
-			return ERR_PTR(-EFAULT);
-		return ctx->sq_sqes;
-	case IORING_OFF_PBUF_RING: {
-		struct io_mapped_region *region;
-		unsigned int bgid;
-
-		bgid = (offset & ~IORING_OFF_MMAP_MASK) >> IORING_OFF_PBUF_SHIFT;
-		region = io_pbuf_get_region(ctx, bgid);
-		if (!region)
-			return ERR_PTR(-EINVAL);
-		return io_region_validate_mmap(ctx, region);
-		}
-	case IORING_MAP_OFF_PARAM_REGION:
-		return io_region_validate_mmap(ctx, &ctx->param_region);
-	}
-
-	return ERR_PTR(-EINVAL);
+	region = io_mmap_get_region(ctx, pgoff);
+	if (!region)
+		return ERR_PTR(-EINVAL);
+	return io_region_validate_mmap(ctx, region);
 }
 
 #ifdef CONFIG_MMU
@@ -324,7 +318,8 @@ __cold int io_uring_mmap(struct file *file, struct vm_area_struct *vma)
 	struct io_ring_ctx *ctx = file->private_data;
 	size_t sz = vma->vm_end - vma->vm_start;
 	long offset = vma->vm_pgoff << PAGE_SHIFT;
-	unsigned int page_limit;
+	unsigned int page_limit = UINT_MAX;
+	struct io_mapped_region *region;
 	void *ptr;
 
 	guard(mutex)(&ctx->mmap_lock);
@@ -337,25 +332,11 @@ __cold int io_uring_mmap(struct file *file, struct vm_area_struct *vma)
 	case IORING_OFF_SQ_RING:
 	case IORING_OFF_CQ_RING:
 		page_limit = (sz + PAGE_SIZE - 1) >> PAGE_SHIFT;
-		return io_region_mmap(ctx, &ctx->ring_region, vma, page_limit);
-	case IORING_OFF_SQES:
-		return io_region_mmap(ctx, &ctx->sq_region, vma, UINT_MAX);
-	case IORING_OFF_PBUF_RING: {
-		struct io_mapped_region *region;
-		unsigned int bgid;
-
-		bgid = (offset & ~IORING_OFF_MMAP_MASK) >> IORING_OFF_PBUF_SHIFT;
-		region = io_pbuf_get_region(ctx, bgid);
-		if (!region)
-			return -EINVAL;
-
-		return io_region_mmap(ctx, region, vma, UINT_MAX);
-	}
-	case IORING_MAP_OFF_PARAM_REGION:
-		return io_region_mmap(ctx, &ctx->param_region, vma, UINT_MAX);
+		break;
 	}
 
-	return -EINVAL;
+	region = io_mmap_get_region(ctx, vma->vm_pgoff);
+	return io_region_mmap(ctx, region, vma, page_limit);
 }
 
 unsigned long io_uring_get_unmapped_area(struct file *filp, unsigned long addr,
