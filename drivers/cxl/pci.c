@@ -836,6 +836,9 @@ static ssize_t rcd_pcie_cap_emit(struct device *dev, u16 offset, char *buf, size
 	if (!root_dev)
 		return -ENXIO;
 
+	if (!dport->regs.rcd_pcie_cap)
+		return -ENXIO;
+
 	guard(device)(root_dev);
 	if (!root_dev->driver)
 		return -ENXIO;
