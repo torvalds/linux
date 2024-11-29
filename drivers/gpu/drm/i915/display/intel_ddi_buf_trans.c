@@ -1687,18 +1687,24 @@ dg2_get_snps_buf_trans(struct intel_encoder *encoder,
 }
 
 static const struct intel_ddi_buf_trans *
-mtl_get_cx0_buf_trans(struct intel_encoder *encoder,
+mtl_get_c10_buf_trans(struct intel_encoder *encoder,
 		      const struct intel_crtc_state *crtc_state,
 		      int *n_entries)
 {
-	if (intel_crtc_has_dp_encoder(crtc_state) && crtc_state->port_clock >= 1000000)
+	return intel_get_buf_trans(&mtl_c10_trans_dp14, n_entries);
+}
+
+static const struct intel_ddi_buf_trans *
+mtl_get_c20_buf_trans(struct intel_encoder *encoder,
+		      const struct intel_crtc_state *crtc_state,
+		      int *n_entries)
+{
+	if (intel_crtc_has_dp_encoder(crtc_state) && intel_dp_is_uhbr(crtc_state))
 		return intel_get_buf_trans(&mtl_c20_trans_uhbr, n_entries);
-	else if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_HDMI) && !(intel_encoder_is_c10phy(encoder)))
+	else if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_HDMI))
 		return intel_get_buf_trans(&mtl_c20_trans_hdmi, n_entries);
-	else if (!intel_encoder_is_c10phy(encoder))
-		return intel_get_buf_trans(&mtl_c20_trans_dp14, n_entries);
 	else
-		return intel_get_buf_trans(&mtl_c10_trans_dp14, n_entries);
+		return intel_get_buf_trans(&mtl_c20_trans_dp14, n_entries);
 }
 
 void intel_ddi_buf_trans_init(struct intel_encoder *encoder)
@@ -1706,7 +1712,10 @@ void intel_ddi_buf_trans_init(struct intel_encoder *encoder)
 	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
 
 	if (DISPLAY_VER(i915) >= 14) {
-		encoder->get_buf_trans = mtl_get_cx0_buf_trans;
+		if (intel_encoder_is_c10phy(encoder))
+			encoder->get_buf_trans = mtl_get_c10_buf_trans;
+		else
+			encoder->get_buf_trans = mtl_get_c20_buf_trans;
 	} else if (IS_DG2(i915)) {
 		encoder->get_buf_trans = dg2_get_snps_buf_trans;
 	} else if (IS_ALDERLAKE_P(i915)) {
