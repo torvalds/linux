@@ -634,7 +634,7 @@ static int register_trace_kprobe(struct trace_kprobe *tk)
 	struct trace_kprobe *old_tk;
 	int ret;
 
-	mutex_lock(&event_mutex);
+	guard(mutex)(&event_mutex);
 
 	old_tk = find_trace_kprobe(trace_probe_name(&tk->tp),
 				   trace_probe_group_name(&tk->tp));
@@ -642,11 +642,9 @@ static int register_trace_kprobe(struct trace_kprobe *tk)
 		if (trace_kprobe_is_return(tk) != trace_kprobe_is_return(old_tk)) {
 			trace_probe_log_set_index(0);
 			trace_probe_log_err(0, DIFF_PROBE_TYPE);
-			ret = -EEXIST;
-		} else {
-			ret = append_trace_kprobe(tk, old_tk);
+			return -EEXIST;
 		}
-		goto end;
+		return append_trace_kprobe(tk, old_tk);
 	}
 
 	/* Register new event */
@@ -657,7 +655,7 @@ static int register_trace_kprobe(struct trace_kprobe *tk)
 			trace_probe_log_err(0, EVENT_EXIST);
 		} else
 			pr_warn("Failed to register probe event(%d)\n", ret);
-		goto end;
+		return ret;
 	}
 
 	/* Register k*probe */
@@ -672,8 +670,6 @@ static int register_trace_kprobe(struct trace_kprobe *tk)
 	else
 		dyn_event_add(&tk->devent, trace_probe_event_call(&tk->tp));
 
-end:
-	mutex_unlock(&event_mutex);
 	return ret;
 }
 
@@ -706,7 +702,7 @@ static int trace_kprobe_module_callback(struct notifier_block *nb,
 		return NOTIFY_DONE;
 
 	/* Update probes on coming module */
-	mutex_lock(&event_mutex);
+	guard(mutex)(&event_mutex);
 	for_each_trace_kprobe(tk, pos) {
 		if (trace_kprobe_within_module(tk, mod)) {
 			/* Don't need to check busy - this should have gone. */
@@ -718,7 +714,6 @@ static int trace_kprobe_module_callback(struct notifier_block *nb,
 					module_name(mod), ret);
 		}
 	}
-	mutex_unlock(&event_mutex);
 
 	return NOTIFY_DONE;
 }
@@ -1970,13 +1965,12 @@ static __init void enable_boot_kprobe_events(void)
 	struct trace_kprobe *tk;
 	struct dyn_event *pos;
 
-	mutex_lock(&event_mutex);
+	guard(mutex)(&event_mutex);
 	for_each_trace_kprobe(tk, pos) {
 		list_for_each_entry(file, &tr->events, list)
 			if (file->event_call == trace_probe_event_call(&tk->tp))
 				trace_event_enable_disable(file, 1, 0);
 	}
-	mutex_unlock(&event_mutex);
 }
 
 static __init void setup_boot_kprobe_events(void)
