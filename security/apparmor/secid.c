@@ -39,20 +39,6 @@ int apparmor_display_secid_mode;
  * TODO: use secid_update in label replace
  */
 
-/**
- * aa_secid_update - update a secid mapping to a new label
- * @secid: secid to update
- * @label: label the secid will now map to
- */
-void aa_secid_update(u32 secid, struct aa_label *label)
-{
-	unsigned long flags;
-
-	xa_lock_irqsave(&aa_secids, flags);
-	__xa_store(&aa_secids, secid, label, 0);
-	xa_unlock_irqrestore(&aa_secids, flags);
-}
-
 /*
  * see label for inverse aa_label_to_secid
  */
