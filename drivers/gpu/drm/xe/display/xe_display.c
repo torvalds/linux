@@ -402,6 +402,15 @@ void xe_display_pm_suspend_late(struct xe_device *xe)
 	intel_display_power_suspend_late(xe, s2idle);
 }
 
+void xe_display_pm_runtime_suspend_late(struct xe_device *xe)
+{
+	if (!xe->info.probe_display)
+		return;
+
+	if (xe->d3cold.allowed)
+		xe_display_pm_suspend_late(xe);
+}
+
 void xe_display_pm_shutdown_late(struct xe_device *xe)
 {
 	if (!xe->info.probe_display)
