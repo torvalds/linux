@@ -1484,6 +1484,24 @@ static int amdgpu_gfx_run_cleaner_shader(struct amdgpu_device *adev, int xcp_id)
 	return 0;
 }
 
+/**
+ * amdgpu_gfx_set_run_cleaner_shader - Execute the AMDGPU GFX Cleaner Shader
+ * @dev: The device structure
+ * @attr: The device attribute structure
+ * @buf: The buffer containing the input data
+ * @count: The size of the input data
+ *
+ * Provides the sysfs interface to manually run a cleaner shader, which is
+ * used to clear the GPU state between different tasks. Writing a value to the
+ * 'run_cleaner_shader' sysfs file triggers the cleaner shader execution.
+ * The value written corresponds to the partition index on multi-partition
+ * devices. On single-partition devices, the value should be '0'.
+ *
+ * The cleaner shader clears the Local Data Store (LDS) and General Purpose
+ * Registers (GPRs) to ensure data isolation between GPU workloads.
+ *
+ * Return: The number of bytes written to the sysfs file.
+ */
 static ssize_t amdgpu_gfx_set_run_cleaner_shader(struct device *dev,
 						 struct device_attribute *attr,
 						 const char *buf,
@@ -1532,6 +1550,19 @@ static ssize_t amdgpu_gfx_set_run_cleaner_shader(struct device *dev,
 	return count;
 }
 
+/**
+ * amdgpu_gfx_get_enforce_isolation - Query AMDGPU GFX Enforce Isolation Settings
+ * @dev: The device structure
+ * @attr: The device attribute structure
+ * @buf: The buffer to store the output data
+ *
+ * Provides the sysfs read interface to get the current settings of the 'enforce_isolation'
+ * feature for each GPU partition. Reading from the 'enforce_isolation'
+ * sysfs file returns the isolation settings for all partitions, where '0'
+ * indicates disabled and '1' indicates enabled.
+ *
+ * Return: The number of bytes read from the sysfs file.
+ */
 static ssize_t amdgpu_gfx_get_enforce_isolation(struct device *dev,
 						struct device_attribute *attr,
 						char *buf)
@@ -1555,6 +1586,20 @@ static ssize_t amdgpu_gfx_get_enforce_isolation(struct device *dev,
 	return size;
 }
 
+/**
+ * amdgpu_gfx_set_enforce_isolation - Control AMDGPU GFX Enforce Isolation
+ * @dev: The device structure
+ * @attr: The device attribute structure
+ * @buf: The buffer containing the input data
+ * @count: The size of the input data
+ *
+ * This function allows control over the 'enforce_isolation' feature, which
+ * serializes access to the graphics engine. Writing '1' or '0' to the
+ * 'enforce_isolation' sysfs file enables or disables process isolation for
+ * each partition. The input should specify the setting for all partitions.
+ *
+ * Return: The number of bytes written to the sysfs file.
+ */
 static ssize_t amdgpu_gfx_set_enforce_isolation(struct device *dev,
 						struct device_attribute *attr,
 						const char *buf, size_t count)
