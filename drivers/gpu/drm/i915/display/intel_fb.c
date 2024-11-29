@@ -1694,6 +1694,8 @@ int intel_fill_fb_info(struct drm_i915_private *i915, struct intel_framebuffer *
 		 * arithmetic related to alignment and offset calculation.
 		 */
 		if (is_gen12_ccs_cc_plane(&fb->base, i)) {
+			unsigned int end;
+
 			if (!IS_ALIGNED(fb->base.offsets[i], 64)) {
 				drm_dbg_kms(&i915->drm,
 					    "fb misaligned clear color plane %d offset (0x%x)\n",
@@ -1701,6 +1703,14 @@ int intel_fill_fb_info(struct drm_i915_private *i915, struct intel_framebuffer *
 				return -EINVAL;
 			}
 
+			if (check_add_overflow(fb->base.offsets[i], 64, &end)) {
+				drm_dbg_kms(&i915->drm,
+					    "fb bad clear color plane %d offset (0x%x)\n",
+					    i, fb->base.offsets[i]);
+				return -EINVAL;
+			}
+
+			max_size = max(max_size, DIV_ROUND_UP(end, tile_size));
 			continue;
 		}
 
