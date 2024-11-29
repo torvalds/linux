@@ -350,7 +350,7 @@ static __cold struct io_ring_ctx *io_ring_ctx_alloc(struct io_uring_params *p)
 	INIT_WQ_LIST(&ctx->submit_state.compl_reqs);
 	INIT_HLIST_HEAD(&ctx->cancelable_uring_cmd);
 	io_napi_init(ctx);
-	mutex_init(&ctx->resize_lock);
+	mutex_init(&ctx->mmap_lock);
 
 	return ctx;
 

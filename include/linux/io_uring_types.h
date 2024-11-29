@@ -424,7 +424,7 @@ struct io_ring_ctx {
 	 * side will need to grab this lock, to prevent either side from
 	 * being run concurrently with the other.
 	 */
-	struct mutex			resize_lock;
+	struct mutex			mmap_lock;
 
 	/*
 	 * If IORING_SETUP_NO_MMAP is used, then the below holds

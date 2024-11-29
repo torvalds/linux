@@ -489,15 +489,15 @@ static int io_register_resize_rings(struct io_ring_ctx *ctx, void __user *arg)
 	}
 
 	/*
-	 * We'll do the swap. Grab the ctx->resize_lock, which will exclude
+	 * We'll do the swap. Grab the ctx->mmap_lock, which will exclude
 	 * any new mmap's on the ring fd. Clear out existing mappings to prevent
 	 * mmap from seeing them, as we'll unmap them. Any attempt to mmap
 	 * existing rings beyond this point will fail. Not that it could proceed
 	 * at this point anyway, as the io_uring mmap side needs go grab the
-	 * ctx->resize_lock as well. Likewise, hold the completion lock over the
+	 * ctx->mmap_lock as well. Likewise, hold the completion lock over the
 	 * duration of the actual swap.
 	 */
-	mutex_lock(&ctx->resize_lock);
+	mutex_lock(&ctx->mmap_lock);
 	spin_lock(&ctx->completion_lock);
 	o.rings = ctx->rings;
 	ctx->rings = NULL;
@@ -564,7 +564,7 @@ overflow:
 	ret = 0;
 out:
 	spin_unlock(&ctx->completion_lock);
-	mutex_unlock(&ctx->resize_lock);
+	mutex_unlock(&ctx->mmap_lock);
 	io_register_free_rings(&p, to_free);
 
 	if (ctx->sq_data)
