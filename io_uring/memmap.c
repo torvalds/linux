@@ -226,12 +226,31 @@ void io_free_region(struct io_ring_ctx *ctx, struct io_mapped_region *mr)
 	memset(mr, 0, sizeof(*mr));
 }
 
+static int io_region_init_ptr(struct io_mapped_region *mr)
+{
+	struct io_imu_folio_data ifd;
+	void *ptr;
+
+	if (io_check_coalesce_buffer(mr->pages, mr->nr_pages, &ifd)) {
+		if (ifd.nr_folios == 1) {
+			mr->ptr = page_address(mr->pages[0]);
+			return 0;
+		}
+	}
+	ptr = vmap(mr->pages, mr->nr_pages, VM_MAP, PAGE_KERNEL);
+	if (!ptr)
+		return -ENOMEM;
+
+	mr->ptr = ptr;
+	mr->flags |= IO_REGION_F_VMAP;
+	return 0;
+}
+
 int io_create_region(struct io_ring_ctx *ctx, struct io_mapped_region *mr,
 		     struct io_uring_region_desc *reg)
 {
 	struct page **pages;
 	int nr_pages, ret;
-	void *vptr;
 	u64 end;
 
 	if (WARN_ON_ONCE(mr->pages || mr->ptr || mr->nr_pages))
@@ -267,13 +286,9 @@ int io_create_region(struct io_ring_ctx *ctx, struct io_mapped_region *mr,
 	mr->pages = pages;
 	mr->flags |= IO_REGION_F_USER_PROVIDED;
 
-	vptr = vmap(pages, nr_pages, VM_MAP, PAGE_KERNEL);
-	if (!vptr) {
-		ret = -ENOMEM;
+	ret = io_region_init_ptr(mr);
+	if (ret)
 		goto out_free;
-	}
-	mr->ptr = vptr;
-	mr->flags |= IO_REGION_F_VMAP;
 	return 0;
 out_free:
 	io_free_region(ctx, mr);
