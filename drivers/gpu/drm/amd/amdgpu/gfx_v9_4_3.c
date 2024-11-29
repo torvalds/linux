@@ -56,10 +56,6 @@ MODULE_FIRMWARE("amdgpu/gc_9_4_4_sjt_mec.bin");
 #define GOLDEN_GB_ADDR_CONFIG 0x2a114042
 #define CP_HQD_PERSISTENT_STATE_DEFAULT 0xbe05301
 
-#define mmSMNAID_XCD0_MCA_SMU 0x36430400	/* SMN AID XCD0 */
-#define mmSMNAID_XCD1_MCA_SMU 0x38430400	/* SMN AID XCD1 */
-#define mmSMNXCD_XCD0_MCA_SMU 0x40430400	/* SMN XCD XCD0 */
-
 #define XCC_REG_RANGE_0_LOW  0x2000     /* XCC gfxdec0 lower Bound */
 #define XCC_REG_RANGE_0_HIGH 0x3400     /* XCC gfxdec0 upper Bound */
 #define XCC_REG_RANGE_1_LOW  0xA000     /* XCC gfxdec1 lower Bound */

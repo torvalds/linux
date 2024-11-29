@@ -33,7 +33,6 @@
 
 #define regVM_L2_CNTL3_DEFAULT	0x80100007
 #define regVM_L2_CNTL4_DEFAULT	0x000000c1
-#define mmSMNAID_AID0_MCA_SMU 0x03b30400
 
 static u64 mmhub_v1_8_get_fb_location(struct amdgpu_device *adev)
 {
