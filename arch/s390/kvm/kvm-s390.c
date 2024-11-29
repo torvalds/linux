@@ -1937,11 +1937,11 @@ static void kvm_s390_update_topology_change_report(struct kvm *kvm, bool val)
 
 	read_lock(&kvm->arch.sca_lock);
 	sca = kvm->arch.sca;
+	old = READ_ONCE(sca->utility);
 	do {
-		old = READ_ONCE(sca->utility);
 		new = old;
 		new.mtcr = val;
-	} while (cmpxchg(&sca->utility.val, old.val, new.val) != old.val);
+	} while (!try_cmpxchg(&sca->utility.val, &old.val, new.val));
 	read_unlock(&kvm->arch.sca_lock);
 }
 
