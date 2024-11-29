@@ -343,8 +343,8 @@ unsigned long physmem_alloc_range(enum reserved_range_type type, unsigned long s
 	return addr;
 }
 
-unsigned long physmem_alloc_or_die(enum reserved_range_type type, unsigned long size,
-				   unsigned long align)
+unsigned long physmem_alloc(enum reserved_range_type type, unsigned long size,
+			    unsigned long align, bool die_on_oom)
 {
 	struct reserved_range *range = &physmem_info.reserved[type];
 	struct reserved_range *new_range;
@@ -352,18 +352,22 @@ unsigned long physmem_alloc_or_die(enum reserved_range_type type, unsigned long 
 	unsigned long addr;
 
 	addr = __physmem_alloc_range(size, align, 0, physmem_alloc_pos, physmem_alloc_ranges,
-				     &ranges_left, true);
+				     &ranges_left, die_on_oom);
+	if (!addr)
+		return 0;
 	/* if not a consecutive allocation of the same type or first allocation */
 	if (range->start != addr + size) {
 		if (range->end) {
-			physmem_alloc_pos = __physmem_alloc_range(
-				sizeof(struct reserved_range), 0, 0, physmem_alloc_pos,
-				physmem_alloc_ranges, &ranges_left, true);
-			new_range = (struct reserved_range *)physmem_alloc_pos;
+			addr = __physmem_alloc_range(sizeof(struct reserved_range), 0, 0,
+						     physmem_alloc_pos, physmem_alloc_ranges,
+						     &ranges_left, true);
+			new_range = (struct reserved_range *)addr;
+			addr = __physmem_alloc_range(size, align, 0, addr, ranges_left,
+						     &ranges_left, die_on_oom);
+			if (!addr)
+				return 0;
 			*new_range = *range;
 			range->chain = new_range;
-			addr = __physmem_alloc_range(size, align, 0, physmem_alloc_pos,
-						     ranges_left, &ranges_left, true);
 		}
 		range->end = addr + size;
 	}
@@ -371,6 +375,12 @@ unsigned long physmem_alloc_or_die(enum reserved_range_type type, unsigned long 
 	physmem_alloc_pos = addr;
 	physmem_alloc_ranges = ranges_left;
 	return addr;
+}
+
+unsigned long physmem_alloc_or_die(enum reserved_range_type type, unsigned long size,
+				   unsigned long align)
+{
+	return physmem_alloc(type, size, align, true);
 }
 
 unsigned long get_physmem_alloc_pos(void)
