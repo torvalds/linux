@@ -1714,30 +1714,26 @@ void dc_dmub_srv_fams2_update_config(struct dc *dc,
 
 		/* construct per-stream configs */
 		for (i = 0; i < context->bw_ctx.bw.dcn.fams2_global_config.num_streams; i++) {
-			struct dmub_rb_cmd_fams2 *stream_cmd = &cmd[i+1].fams2_config;
-			struct dmub_rb_cmd_fams2 *sub_state_cmd = &cmd[i+1+context->bw_ctx.bw.dcn.fams2_global_config.num_streams].fams2_config;
+			struct dmub_rb_cmd_fams2 *stream_base_cmd = &cmd[i+1].fams2_config;
+			struct dmub_rb_cmd_fams2 *stream_sub_state_cmd = &cmd[i+1+context->bw_ctx.bw.dcn.fams2_global_config.num_streams].fams2_config;
 
 			/* configure command header */
-			stream_cmd->header.type = DMUB_CMD__FW_ASSISTED_MCLK_SWITCH;
-			stream_cmd->header.sub_type = DMUB_CMD__FAMS2_CONFIG;
-			stream_cmd->header.payload_bytes = sizeof(struct dmub_rb_cmd_fams2) - sizeof(struct dmub_cmd_header);
-			stream_cmd->header.multi_cmd_pending = 1;
-			sub_state_cmd->header.type = DMUB_CMD__FW_ASSISTED_MCLK_SWITCH;
-			sub_state_cmd->header.sub_type = DMUB_CMD__FAMS2_CONFIG;
-			sub_state_cmd->header.payload_bytes = sizeof(struct dmub_rb_cmd_fams2) - sizeof(struct dmub_cmd_header);
-			sub_state_cmd->header.multi_cmd_pending = 1;
-			/* copy stream static state */
-			memcpy(&stream_cmd->config.stream_v1.base,
-					&context->bw_ctx.bw.dcn.fams2_stream_params[i],
-					sizeof(struct dmub_fams2_cmd_stream_static_base_state));
-			// TODO: Use the below memcpy call instead of the above once DML is updated
-			/*memcpy(&stream_cmd->config.stream_v1.base,
-					&context->bw_ctx.bw.dcn.fams2_stream_params[i].base,
-					sizeof(struct dmub_fams2_cmd_stream_static_base_state));*/
-			/* copy stream sub state */
-			memcpy(&stream_cmd->config.stream_v1.sub_state,
-					&context->bw_ctx.bw.dcn.fams2_stream_params[i].sub_state,
-					sizeof(union dmub_fams2_cmd_stream_static_sub_state));
+			stream_base_cmd->header.type = DMUB_CMD__FW_ASSISTED_MCLK_SWITCH;
+			stream_base_cmd->header.sub_type = DMUB_CMD__FAMS2_CONFIG;
+			stream_base_cmd->header.payload_bytes = sizeof(struct dmub_rb_cmd_fams2) - sizeof(struct dmub_cmd_header);
+			stream_base_cmd->header.multi_cmd_pending = 1;
+			stream_sub_state_cmd->header.type = DMUB_CMD__FW_ASSISTED_MCLK_SWITCH;
+			stream_sub_state_cmd->header.sub_type = DMUB_CMD__FAMS2_CONFIG;
+			stream_sub_state_cmd->header.payload_bytes = sizeof(struct dmub_rb_cmd_fams2) - sizeof(struct dmub_cmd_header);
+			stream_sub_state_cmd->header.multi_cmd_pending = 1;
+			/* copy stream static base state */
+			memcpy(&stream_base_cmd->config,
+					&context->bw_ctx.bw.dcn.fams2_stream_base_params[i],
+					sizeof(union dmub_cmd_fams2_config));
+			/* copy stream static sub state */
+			memcpy(&stream_sub_state_cmd->config,
+					&context->bw_ctx.bw.dcn.fams2_stream_sub_params[i],
+					sizeof(union dmub_cmd_fams2_config));
 		}
 	}
 

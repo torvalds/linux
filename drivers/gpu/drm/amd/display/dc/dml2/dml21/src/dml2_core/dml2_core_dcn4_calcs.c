@@ -12332,13 +12332,17 @@ void dml2_core_calcs_get_global_fams2_programming(const struct dml2_core_interna
 
 void dml2_core_calcs_get_stream_fams2_programming(const struct dml2_core_internal_display_mode_lib *mode_lib,
 		const struct display_configuation_with_meta *display_cfg,
-		struct dmub_fams2_stream_static_state *fams2_programming,
+		union dmub_cmd_fams2_config *fams2_base_programming,
+		union dmub_cmd_fams2_config *fams2_sub_programming,
 		enum dml2_uclk_pstate_support_method pstate_method,
 		int plane_index)
 {
 	const struct dml2_plane_parameters *plane_descriptor = &display_cfg->display_config.plane_descriptors[plane_index];
 	const struct dml2_stream_parameters *stream_descriptor = &display_cfg->display_config.stream_descriptors[plane_descriptor->stream_index];
 	const struct dml2_fams2_meta *stream_fams2_meta = &display_cfg->stage3.stream_fams2_meta[plane_descriptor->stream_index];
+
+	struct dmub_fams2_cmd_stream_static_base_state *base_programming = &fams2_base_programming->stream_v1.base;
+	union dmub_fams2_cmd_stream_static_sub_state *sub_programming = &fams2_sub_programming->stream_v1.sub_state;
 
 	unsigned int i;
 
@@ -12348,34 +12352,34 @@ void dml2_core_calcs_get_stream_fams2_programming(const struct dml2_core_interna
 	}
 
 	/* from display configuration */
-	fams2_programming->htotal = (uint16_t)stream_descriptor->timing.h_total;
-	fams2_programming->vtotal = (uint16_t)stream_descriptor->timing.v_total;
-	fams2_programming->vblank_start = (uint16_t)(stream_fams2_meta->nom_vtotal -
+	base_programming->htotal = (uint16_t)stream_descriptor->timing.h_total;
+	base_programming->vtotal = (uint16_t)stream_descriptor->timing.v_total;
+	base_programming->vblank_start = (uint16_t)(stream_fams2_meta->nom_vtotal -
 		stream_descriptor->timing.v_front_porch);
-	fams2_programming->vblank_end = (uint16_t)(stream_fams2_meta->nom_vtotal -
+	base_programming->vblank_end = (uint16_t)(stream_fams2_meta->nom_vtotal -
 		stream_descriptor->timing.v_front_porch -
 		stream_descriptor->timing.v_active);
-	fams2_programming->config.bits.is_drr = stream_descriptor->timing.drr_config.enabled;
+	base_programming->config.bits.is_drr = stream_descriptor->timing.drr_config.enabled;
 
 	/* from meta */
-	fams2_programming->otg_vline_time_ns =
+	base_programming->otg_vline_time_ns =
 		(unsigned int)(stream_fams2_meta->otg_vline_time_us * 1000.0);
-	fams2_programming->scheduling_delay_otg_vlines = (uint8_t)stream_fams2_meta->scheduling_delay_otg_vlines;
-	fams2_programming->contention_delay_otg_vlines = (uint8_t)stream_fams2_meta->contention_delay_otg_vlines;
-	fams2_programming->vline_int_ack_delay_otg_vlines = (uint8_t)stream_fams2_meta->vertical_interrupt_ack_delay_otg_vlines;
-	fams2_programming->drr_keepout_otg_vline = (uint16_t)(stream_fams2_meta->nom_vtotal -
+	base_programming->scheduling_delay_otg_vlines = (uint8_t)stream_fams2_meta->scheduling_delay_otg_vlines;
+	base_programming->contention_delay_otg_vlines = (uint8_t)stream_fams2_meta->contention_delay_otg_vlines;
+	base_programming->vline_int_ack_delay_otg_vlines = (uint8_t)stream_fams2_meta->vertical_interrupt_ack_delay_otg_vlines;
+	base_programming->drr_keepout_otg_vline = (uint16_t)(stream_fams2_meta->nom_vtotal -
 		stream_descriptor->timing.v_front_porch -
 		stream_fams2_meta->method_drr.programming_delay_otg_vlines);
-	fams2_programming->allow_to_target_delay_otg_vlines = (uint8_t)stream_fams2_meta->allow_to_target_delay_otg_vlines;
-	fams2_programming->max_vtotal = (uint16_t)stream_fams2_meta->max_vtotal;
+	base_programming->allow_to_target_delay_otg_vlines = (uint8_t)stream_fams2_meta->allow_to_target_delay_otg_vlines;
+	base_programming->max_vtotal = (uint16_t)stream_fams2_meta->max_vtotal;
 
 	/* from core */
-	fams2_programming->config.bits.min_ttu_vblank_usable = true;
+	base_programming->config.bits.min_ttu_vblank_usable = true;
 	for (i = 0; i < display_cfg->display_config.num_planes; i++) {
 		/* check if all planes support p-state in blank */
 		if (display_cfg->display_config.plane_descriptors[i].stream_index == plane_descriptor->stream_index &&
 				mode_lib->mp.MinTTUVBlank[i] <= mode_lib->mp.Watermark.DRAMClockChangeWatermark) {
-			fams2_programming->config.bits.min_ttu_vblank_usable = false;
+			base_programming->config.bits.min_ttu_vblank_usable = false;
 			break;
 		}
 	}
@@ -12384,67 +12388,67 @@ void dml2_core_calcs_get_stream_fams2_programming(const struct dml2_core_interna
 	case dml2_uclk_pstate_support_method_vactive:
 	case dml2_uclk_pstate_support_method_fw_vactive_drr:
 		/* legacy vactive */
-		fams2_programming->type = FAMS2_STREAM_TYPE_VACTIVE;
-		fams2_programming->sub_state.legacy.vactive_det_fill_delay_otg_vlines =
+		base_programming->type = FAMS2_STREAM_TYPE_VACTIVE;
+		sub_programming->legacy.vactive_det_fill_delay_otg_vlines =
 				(uint8_t)stream_fams2_meta->method_vactive.max_vactive_det_fill_delay_otg_vlines;
-		fams2_programming->allow_start_otg_vline =
+		base_programming->allow_start_otg_vline =
 				(uint16_t)stream_fams2_meta->method_vactive.common.allow_start_otg_vline;
-		fams2_programming->allow_end_otg_vline =
+		base_programming->allow_end_otg_vline =
 				(uint16_t)stream_fams2_meta->method_vactive.common.allow_end_otg_vline;
-		fams2_programming->config.bits.clamp_vtotal_min = true;
+		base_programming->config.bits.clamp_vtotal_min = true;
 		break;
 	case dml2_uclk_pstate_support_method_vblank:
 	case dml2_uclk_pstate_support_method_fw_vblank_drr:
 		/* legacy vblank */
-		fams2_programming->type = FAMS2_STREAM_TYPE_VBLANK;
-		fams2_programming->allow_start_otg_vline =
+		base_programming->type = FAMS2_STREAM_TYPE_VBLANK;
+		base_programming->allow_start_otg_vline =
 				(uint16_t)stream_fams2_meta->method_vblank.common.allow_start_otg_vline;
-		fams2_programming->allow_end_otg_vline =
+		base_programming->allow_end_otg_vline =
 				(uint16_t)stream_fams2_meta->method_vblank.common.allow_end_otg_vline;
-		fams2_programming->config.bits.clamp_vtotal_min = true;
+		base_programming->config.bits.clamp_vtotal_min = true;
 		break;
 	case dml2_uclk_pstate_support_method_fw_drr:
 		/* drr */
-		fams2_programming->type = FAMS2_STREAM_TYPE_DRR;
-		fams2_programming->sub_state.drr.programming_delay_otg_vlines =
+		base_programming->type = FAMS2_STREAM_TYPE_DRR;
+		sub_programming->drr.programming_delay_otg_vlines =
 				(uint8_t)stream_fams2_meta->method_drr.programming_delay_otg_vlines;
-		fams2_programming->sub_state.drr.nom_stretched_vtotal =
+		sub_programming->drr.nom_stretched_vtotal =
 				(uint16_t)stream_fams2_meta->method_drr.stretched_vtotal;
-		fams2_programming->allow_start_otg_vline =
+		base_programming->allow_start_otg_vline =
 				(uint16_t)stream_fams2_meta->method_drr.common.allow_start_otg_vline;
-		fams2_programming->allow_end_otg_vline =
+		base_programming->allow_end_otg_vline =
 				(uint16_t)stream_fams2_meta->method_drr.common.allow_end_otg_vline;
 		/* drr only clamps to vtotal min for single display */
-		fams2_programming->config.bits.clamp_vtotal_min = display_cfg->display_config.num_streams == 1;
-		fams2_programming->sub_state.drr.only_stretch_if_required = true;
+		base_programming->config.bits.clamp_vtotal_min = display_cfg->display_config.num_streams == 1;
+		sub_programming->drr.only_stretch_if_required = true;
 		break;
 	case dml2_uclk_pstate_support_method_fw_subvp_phantom:
 	case dml2_uclk_pstate_support_method_fw_subvp_phantom_drr:
 		/* subvp */
-		fams2_programming->type = FAMS2_STREAM_TYPE_SUBVP;
-		fams2_programming->sub_state.subvp.vratio_numerator =
+		base_programming->type = FAMS2_STREAM_TYPE_SUBVP;
+		sub_programming->subvp.vratio_numerator =
 				(uint16_t)(plane_descriptor->composition.scaler_info.plane0.v_ratio * 1000.0);
-		fams2_programming->sub_state.subvp.vratio_denominator = 1000;
-		fams2_programming->sub_state.subvp.programming_delay_otg_vlines =
+		sub_programming->subvp.vratio_denominator = 1000;
+		sub_programming->subvp.programming_delay_otg_vlines =
 				(uint8_t)stream_fams2_meta->method_subvp.programming_delay_otg_vlines;
-		fams2_programming->sub_state.subvp.prefetch_to_mall_otg_vlines =
+		sub_programming->subvp.prefetch_to_mall_otg_vlines =
 				(uint8_t)stream_fams2_meta->method_subvp.prefetch_to_mall_delay_otg_vlines;
-		fams2_programming->sub_state.subvp.phantom_vtotal =
+		sub_programming->subvp.phantom_vtotal =
 				(uint16_t)stream_fams2_meta->method_subvp.phantom_vtotal;
-		fams2_programming->sub_state.subvp.phantom_vactive =
+		sub_programming->subvp.phantom_vactive =
 				(uint16_t)stream_fams2_meta->method_subvp.phantom_vactive;
-		fams2_programming->sub_state.subvp.config.bits.is_multi_planar =
+		sub_programming->subvp.config.bits.is_multi_planar =
 				plane_descriptor->surface.plane1.height > 0;
-		fams2_programming->sub_state.subvp.config.bits.is_yuv420 =
+		sub_programming->subvp.config.bits.is_yuv420 =
 				plane_descriptor->pixel_format == dml2_420_8 ||
 				plane_descriptor->pixel_format == dml2_420_10 ||
 				plane_descriptor->pixel_format == dml2_420_12;
 
-		fams2_programming->allow_start_otg_vline =
+		base_programming->allow_start_otg_vline =
 				(uint16_t)stream_fams2_meta->method_subvp.common.allow_start_otg_vline;
-		fams2_programming->allow_end_otg_vline =
+		base_programming->allow_end_otg_vline =
 				(uint16_t)stream_fams2_meta->method_subvp.common.allow_end_otg_vline;
-		fams2_programming->config.bits.clamp_vtotal_min = true;
+		base_programming->config.bits.clamp_vtotal_min = true;
 		break;
 	case dml2_uclk_pstate_support_method_reserved_hw:
 	case dml2_uclk_pstate_support_method_reserved_fw:

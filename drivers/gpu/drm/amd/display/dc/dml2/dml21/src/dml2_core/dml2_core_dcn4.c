@@ -360,7 +360,8 @@ static void pack_mode_programming_params_with_implicit_subvp(struct dml2_core_in
 				/* unconditionally populate fams2 params */
 				dml2_core_calcs_get_stream_fams2_programming(&core->clean_me_up.mode_lib,
 					display_cfg,
-					&programming->stream_programming[main_plane->stream_index].fams2_params,
+					&programming->stream_programming[main_plane->stream_index].fams2_base_params,
+					&programming->stream_programming[main_plane->stream_index].fams2_sub_params,
 					programming->stream_programming[main_plane->stream_index].uclk_pstate_method,
 					plane_index);
 

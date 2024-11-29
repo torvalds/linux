@@ -539,8 +539,8 @@ struct dcn_bw_output {
 	bool legacy_svp_drr_stream_index_valid;
 	struct dml2_mcache_surface_allocation mcache_allocations[DML2_MAX_PLANES];
 	struct dmub_cmd_fams2_global_config fams2_global_config;
-	struct dmub_fams2_stream_static_state fams2_stream_params[DML2_MAX_PLANES];
-	/*struct dmub_fams2_stream_static_state_v1 fams2_stream_params[DML2_MAX_PLANES];*/ // TODO: Update to this once DML is updated
+	union dmub_cmd_fams2_config fams2_stream_base_params[DML2_MAX_PLANES];
+	union dmub_cmd_fams2_config fams2_stream_sub_params[DML2_MAX_PLANES];
 	struct dml2_display_arb_regs arb_regs;
 };
 

@@ -354,7 +354,7 @@ static const struct dml2_ip_capabilities dml2_dcn401_max_ip_caps = {
 
 	.fams2 = {
 		.max_allow_delay_us = 100 * 1000,
-		.scheduling_delay_us = 125,
+		.scheduling_delay_us = 550,
 		.vertical_interrupt_ack_delay_us = 40,
 		.allow_programming_delay_us = 18,
 		.min_allow_width_us = 20,

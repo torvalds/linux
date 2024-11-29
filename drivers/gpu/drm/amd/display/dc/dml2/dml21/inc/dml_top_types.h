@@ -289,7 +289,8 @@ struct dml2_per_stream_programming {
 		union dml2_global_sync_programming global_sync;
 	} phantom_stream;
 
-	struct dmub_fams2_stream_static_state fams2_params;
+	union dmub_cmd_fams2_config fams2_base_params;
+	union dmub_cmd_fams2_config fams2_sub_params;
 };
 
 //-----------------
