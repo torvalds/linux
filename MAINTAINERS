@@ -9718,6 +9718,11 @@ L:	platform-driver-x86@vger.kernel.org
 S:	Maintained
 F:	drivers/platform/x86/gpd-pocket-fan.c
 
+GPIB DRIVERS
+M:	Dave Penkler <dpenkler@gmail.com>
+S:	Maintained
+F:	drivers/staging/gpib/
+
 GPIO ACPI SUPPORT
 M:	Mika Westerberg <mika.westerberg@linux.intel.com>
 M:	Andy Shevchenko <andriy.shevchenko@linux.intel.com>
@@ -22135,17 +22140,6 @@ L:	linux-media@vger.kernel.org
 S:	Maintained
 F:	drivers/staging/media/atomisp/
 
-STAGING - FIELDBUS SUBSYSTEM
-M:	Sven Van Asbroeck <TheSven73@gmail.com>
-S:	Maintained
-F:	drivers/staging/fieldbus/*
-F:	drivers/staging/fieldbus/Documentation/
-
-STAGING - HMS ANYBUS-S BUS
-M:	Sven Van Asbroeck <TheSven73@gmail.com>
-S:	Maintained
-F:	drivers/staging/fieldbus/anybuss/
-
 STAGING - INDUSTRIAL IO
 M:	Jonathan Cameron <jic23@kernel.org>
 L:	linux-iio@vger.kernel.org
@@ -22159,18 +22153,6 @@ L:	ac100@lists.launchpad.net (moderated for non-subscribers)
 L:	linux-tegra@vger.kernel.org
 S:	Maintained
 F:	drivers/staging/nvec/
-
-STAGING - OLPC SECONDARY DISPLAY CONTROLLER (DCON)
-M:	Jens Frederich <jfrederich@gmail.com>
-M:	Jon Nettleton <jon.nettleton@gmail.com>
-S:	Maintained
-W:	http://wiki.laptop.org/go/DCON
-F:	drivers/staging/olpc_dcon/
-
-STAGING - REALTEK RTL8712U DRIVERS
-M:	Florian Schilhabel <florian.c.schilhabel@googlemail.com>.
-S:	Odd Fixes
-F:	drivers/staging/rtl8712/
 
 STAGING - SEPS525 LCD CONTROLLER DRIVERS
 M:	Michael Hennerich <michael.hennerich@analog.com>
@@ -22186,11 +22168,6 @@ M:	Sudip Mukherjee <sudip.mukherjee@codethink.co.uk>
 L:	linux-fbdev@vger.kernel.org
 S:	Maintained
 F:	drivers/staging/sm750fb/
-
-STAGING - VIA VT665X DRIVERS
-M:	Philipp Hortmann <philipp.g.hortmann@gmail.com>
-S:	Odd Fixes
-F:	drivers/staging/vt665?/
 
 STAGING SUBSYSTEM
 M:	Greg Kroah-Hartman <gregkh@linuxfoundation.org>

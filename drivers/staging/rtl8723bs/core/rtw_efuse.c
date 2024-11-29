@@ -77,33 +77,7 @@ struct adapter *padapter,
 u8 bWrite,
 u8 PwrState)
 {
-	padapter->HalFunc.EfusePowerSwitch(padapter, bWrite, PwrState);
-}
-
-/*-----------------------------------------------------------------------------
- * Function:	Efuse_GetCurrentSize
- *
- * Overview:	Get current efuse size!!!
- *
- * Input:       NONE
- *
- * Output:      NONE
- *
- * Return:      NONE
- *
- * Revised History:
- * When			Who		Remark
- * 11/16/2008	MHC		Create Version 0.
- *
- *---------------------------------------------------------------------------*/
-u16
-Efuse_GetCurrentSize(
-	struct adapter *padapter,
-	u8	efuseType,
-	bool		bPseudoTest)
-{
-	return padapter->HalFunc.EfuseGetCurrentSize(padapter, efuseType,
-						     bPseudoTest);
+	Hal_EfusePowerSwitch(padapter, bWrite, PwrState);
 }
 
 /*  11/16/2008 MH Add description. Get current efuse area enabled word!!. */
@@ -159,7 +133,7 @@ efuse_ReadEFuse(
 bool	bPseudoTest
 	)
 {
-	Adapter->HalFunc.ReadEFuse(Adapter, efuseType, _offset, _size_byte, pbuf, bPseudoTest);
+	Hal_ReadEFuse(Adapter, efuseType, _offset, _size_byte, pbuf, bPseudoTest);
 }
 
 void
@@ -171,7 +145,7 @@ EFUSE_GetEfuseDefinition(
 	bool		bPseudoTest
 	)
 {
-	padapter->HalFunc.EFUSEGetEfuseDefinition(padapter, efuseType, type, pOut, bPseudoTest);
+	Hal_GetEfuseDefinition(padapter, efuseType, type, pOut, bPseudoTest);
 }
 
 /*-----------------------------------------------------------------------------
@@ -311,68 +285,6 @@ u8 efuse_OneByteWrite(struct adapter *padapter, u16 addr, u8 data, bool bPseudoT
 
 	return bResult;
 }
-
-int
-Efuse_PgPacketRead(struct adapter *padapter,
-				u8	offset,
-				u8	*data,
-				bool		bPseudoTest)
-{
-	return padapter->HalFunc.Efuse_PgPacketRead(padapter, offset, data,
-						    bPseudoTest);
-}
-
-int
-Efuse_PgPacketWrite(struct adapter *padapter,
-				u8	offset,
-				u8	word_en,
-				u8	*data,
-				bool		bPseudoTest)
-{
-	return padapter->HalFunc.Efuse_PgPacketWrite(padapter, offset, word_en,
-						     data, bPseudoTest);
-}
-
-/*-----------------------------------------------------------------------------
- * Function:	efuse_WordEnableDataRead
- *
- * Overview:	Read allowed word in current efuse section data.
- *
- * Input:       NONE
- *
- * Output:      NONE
- *
- * Return:      NONE
- *
- * Revised History:
- * When			Who		Remark
- * 11/16/2008	MHC		Create Version 0.
- * 11/21/2008	MHC		Fix Write bug when we only enable late word.
- *
- *---------------------------------------------------------------------------*/
-void
-efuse_WordEnableDataRead(u8 word_en,
-						u8 *sourdata,
-						u8 *targetdata)
-{
-	if (!(word_en & BIT(0))) {
-		targetdata[0] = sourdata[0];
-		targetdata[1] = sourdata[1];
-	}
-	if (!(word_en & BIT(1))) {
-		targetdata[2] = sourdata[2];
-		targetdata[3] = sourdata[3];
-	}
-	if (!(word_en & BIT(2))) {
-		targetdata[4] = sourdata[4];
-		targetdata[5] = sourdata[5];
-	}
-	if (!(word_en & BIT(3))) {
-		targetdata[6] = sourdata[6];
-		targetdata[7] = sourdata[7];
-	}
-}
-
 
 u8
 Efuse_WordEnableDataWrite(struct adapter *padapter,
