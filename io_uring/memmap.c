@@ -229,7 +229,6 @@ void io_free_region(struct io_ring_ctx *ctx, struct io_mapped_region *mr)
 int io_create_region(struct io_ring_ctx *ctx, struct io_mapped_region *mr,
 		     struct io_uring_region_desc *reg)
 {
-	int pages_accounted = 0;
 	struct page **pages;
 	int nr_pages, ret;
 	void *vptr;
@@ -257,32 +256,27 @@ int io_create_region(struct io_ring_ctx *ctx, struct io_mapped_region *mr,
 		ret = __io_account_mem(ctx->user, nr_pages);
 		if (ret)
 			return ret;
-		pages_accounted = nr_pages;
 	}
+	mr->nr_pages = nr_pages;
 
 	pages = io_pin_pages(reg->user_addr, reg->size, &nr_pages);
 	if (IS_ERR(pages)) {
 		ret = PTR_ERR(pages);
-		pages = NULL;
 		goto out_free;
 	}
+	mr->pages = pages;
+	mr->flags |= IO_REGION_F_USER_PROVIDED;
 
 	vptr = vmap(pages, nr_pages, VM_MAP, PAGE_KERNEL);
 	if (!vptr) {
 		ret = -ENOMEM;
 		goto out_free;
 	}
-
-	mr->pages = pages;
 	mr->ptr = vptr;
-	mr->nr_pages = nr_pages;
-	mr->flags |= IO_REGION_F_VMAP | IO_REGION_F_USER_PROVIDED;
+	mr->flags |= IO_REGION_F_VMAP;
 	return 0;
 out_free:
-	if (pages_accounted)
-		__io_unaccount_mem(ctx->user, pages_accounted);
-	if (pages)
-		io_pages_free(&pages, nr_pages);
+	io_free_region(ctx, mr);
 	return ret;
 }
 
