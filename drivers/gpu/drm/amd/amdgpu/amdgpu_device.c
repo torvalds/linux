@@ -145,7 +145,7 @@ const char *amdgpu_asic_name[] = {
 	"LAST",
 };
 
-#define AMDGPU_IP_BLK_MASK_ALL GENMASK(AMDGPU_MAX_IP_NUM - 1, 0)
+#define AMDGPU_IP_BLK_MASK_ALL GENMASK(AMDGPU_MAX_IP_NUM, 0)
 /*
  * Default init level where all blocks are expected to be initialized. This is
  * the level of initialization expected by default and also after a full reset
