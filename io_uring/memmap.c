@@ -202,14 +202,19 @@ void *__io_uaddr_map(struct page ***pages, unsigned short *npages,
 	return ERR_PTR(-ENOMEM);
 }
 
+enum {
+	/* memory was vmap'ed for the kernel, freeing the region vunmap's it */
+	IO_REGION_F_VMAP			= 1,
+};
+
 void io_free_region(struct io_ring_ctx *ctx, struct io_mapped_region *mr)
 {
 	if (mr->pages) {
 		unpin_user_pages(mr->pages, mr->nr_pages);
 		kvfree(mr->pages);
 	}
-	if (mr->vmap_ptr)
-		vunmap(mr->vmap_ptr);
+	if ((mr->flags & IO_REGION_F_VMAP) && mr->ptr)
+		vunmap(mr->ptr);
 	if (mr->nr_pages && ctx->user)
 		__io_unaccount_mem(ctx->user, mr->nr_pages);
 
@@ -225,7 +230,7 @@ int io_create_region(struct io_ring_ctx *ctx, struct io_mapped_region *mr,
 	void *vptr;
 	u64 end;
 
-	if (WARN_ON_ONCE(mr->pages || mr->vmap_ptr || mr->nr_pages))
+	if (WARN_ON_ONCE(mr->pages || mr->ptr || mr->nr_pages))
 		return -EFAULT;
 	if (memchr_inv(&reg->__resv, 0, sizeof(reg->__resv)))
 		return -EINVAL;
@@ -260,8 +265,9 @@ int io_create_region(struct io_ring_ctx *ctx, struct io_mapped_region *mr,
 	}
 
 	mr->pages = pages;
-	mr->vmap_ptr = vptr;
+	mr->ptr = vptr;
 	mr->nr_pages = nr_pages;
+	mr->flags |= IO_REGION_F_VMAP;
 	return 0;
 out_free:
 	if (pages_accounted)

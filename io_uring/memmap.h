@@ -28,7 +28,7 @@ int io_create_region(struct io_ring_ctx *ctx, struct io_mapped_region *mr,
 
 static inline void *io_region_get_ptr(struct io_mapped_region *mr)
 {
-	return mr->vmap_ptr;
+	return mr->ptr;
 }
 
 static inline bool io_region_is_set(struct io_mapped_region *mr)
