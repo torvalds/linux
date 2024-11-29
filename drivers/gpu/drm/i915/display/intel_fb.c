@@ -1694,10 +1694,14 @@ int intel_fill_fb_info(struct drm_i915_private *i915, struct intel_framebuffer *
 		 * arithmetic related to alignment and offset calculation.
 		 */
 		if (is_gen12_ccs_cc_plane(&fb->base, i)) {
-			if (IS_ALIGNED(fb->base.offsets[i], 64))
-				continue;
-			else
+			if (!IS_ALIGNED(fb->base.offsets[i], 64)) {
+				drm_dbg_kms(&i915->drm,
+					    "fb misaligned clear color plane %d offset (0x%x)\n",
+					    i, fb->base.offsets[i]);
 				return -EINVAL;
+			}
+
+			continue;
 		}
 
 		intel_fb_plane_dims(fb, i, &width, &height);
