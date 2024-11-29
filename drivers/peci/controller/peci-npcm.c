@@ -224,7 +224,7 @@ static const struct regmap_config npcm_peci_regmap_config = {
 	.fast_io = true,
 };
 
-static struct peci_controller_ops npcm_ops = {
+static const struct peci_controller_ops npcm_ops = {
 	.xfer = npcm_peci_xfer,
 };
 
