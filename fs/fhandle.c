@@ -187,17 +187,6 @@ static int get_path_from_fd(int fd, struct path *root)
 	return 0;
 }
 
-enum handle_to_path_flags {
-	HANDLE_CHECK_PERMS   = (1 << 0),
-	HANDLE_CHECK_SUBTREE = (1 << 1),
-};
-
-struct handle_to_path_ctx {
-	struct path root;
-	enum handle_to_path_flags flags;
-	unsigned int fh_flags;
-};
-
 static int vfs_dentry_acceptable(void *context, struct dentry *dentry)
 {
 	struct handle_to_path_ctx *ctx = context;
@@ -279,13 +268,13 @@ static int do_handle_to_path(struct file_handle *handle, struct path *path,
 	return 0;
 }
 
-static inline bool may_decode_fh(struct handle_to_path_ctx *ctx,
-				 unsigned int o_flags)
+static inline int may_decode_fh(struct handle_to_path_ctx *ctx,
+				unsigned int o_flags)
 {
 	struct path *root = &ctx->root;
 
 	if (capable(CAP_DAC_READ_SEARCH))
-		return true;
+		return 0;
 
 	/*
 	 * Allow relaxed permissions of file handles if the caller has
@@ -309,7 +298,7 @@ static inline bool may_decode_fh(struct handle_to_path_ctx *ctx,
 	 * There's only one dentry for each directory inode (VFS rule)...
 	 */
 	if (!(o_flags & O_DIRECTORY))
-		return false;
+		return -EPERM;
 
 	if (ns_capable(root->mnt->mnt_sb->s_user_ns, CAP_SYS_ADMIN))
 		ctx->flags = HANDLE_CHECK_PERMS;
@@ -319,14 +308,14 @@ static inline bool may_decode_fh(struct handle_to_path_ctx *ctx,
 		 !has_locked_children(real_mount(root->mnt), root->dentry))
 		ctx->flags = HANDLE_CHECK_PERMS | HANDLE_CHECK_SUBTREE;
 	else
-		return false;
+		return -EPERM;
 
 	/* Are we able to override DAC permissions? */
 	if (!ns_capable(current_user_ns(), CAP_DAC_READ_SEARCH))
-		return false;
+		return -EPERM;
 
 	ctx->fh_flags = EXPORT_FH_DIR_ONLY;
-	return true;
+	return 0;
 }
 
 static int handle_to_path(int mountdirfd, struct file_handle __user *ufh,
@@ -336,15 +325,19 @@ static int handle_to_path(int mountdirfd, struct file_handle __user *ufh,
 	struct file_handle f_handle;
 	struct file_handle *handle = NULL;
 	struct handle_to_path_ctx ctx = {};
+	const struct export_operations *eops;
 
 	retval = get_path_from_fd(mountdirfd, &ctx.root);
 	if (retval)
 		goto out_err;
 
-	if (!may_decode_fh(&ctx, o_flags)) {
-		retval = -EPERM;
+	eops = ctx.root.mnt->mnt_sb->s_export_op;
+	if (eops && eops->permission)
+		retval = eops->permission(&ctx, o_flags);
+	else
+		retval = may_decode_fh(&ctx, o_flags);
+	if (retval)
 		goto out_path;
-	}
 
 	if (copy_from_user(&f_handle, ufh, sizeof(struct file_handle))) {
 		retval = -EFAULT;
