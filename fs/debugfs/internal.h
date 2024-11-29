@@ -15,6 +15,7 @@ struct file_operations;
 extern const struct file_operations debugfs_noop_file_operations;
 extern const struct file_operations debugfs_open_proxy_file_operations;
 extern const struct file_operations debugfs_full_proxy_file_operations;
+extern const struct file_operations debugfs_full_short_proxy_file_operations;
 
 struct debugfs_fsdata {
 	const struct file_operations *real_fops;
@@ -40,11 +41,6 @@ struct debugfs_fsdata {
  * pointer gets its lowest bit set.
  */
 #define DEBUGFS_FSDATA_IS_REAL_FOPS_BIT BIT(0)
-/*
- * A dentry's ->d_fsdata, when pointing to real fops, is with
- * short fops instead of full fops.
- */
-#define DEBUGFS_FSDATA_IS_SHORT_FOPS_BIT BIT(1)
 
 /* Access BITS */
 #define DEBUGFS_ALLOW_API	BIT(0)
