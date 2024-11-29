@@ -1087,6 +1087,8 @@ static int snd_ump_legacy_open(struct snd_rawmidi_substream *substream)
 	guard(mutex)(&ump->open_mutex);
 	if (ump->legacy_substreams[dir][group])
 		return -EBUSY;
+	if (!ump->groups[group].active)
+		return -ENODEV;
 	if (dir == SNDRV_RAWMIDI_STREAM_OUTPUT) {
 		if (!ump->legacy_out_opens) {
 			err = snd_rawmidi_kernel_open(&ump->core, 0,
