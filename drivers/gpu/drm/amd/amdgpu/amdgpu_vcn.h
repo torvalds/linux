@@ -523,5 +523,6 @@ int amdgpu_vcn_psp_update_sram(struct amdgpu_device *adev, int inst_idx,
 int amdgpu_vcn_save_vcpu_bo(struct amdgpu_device *adev);
 int amdgpu_vcn_sysfs_reset_mask_init(struct amdgpu_device *adev);
 void amdgpu_vcn_sysfs_reset_mask_fini(struct amdgpu_device *adev);
+void amdgpu_debugfs_vcn_sched_mask_init(struct amdgpu_device *adev);
 
 #endif

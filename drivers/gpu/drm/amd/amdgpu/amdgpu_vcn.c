@@ -1320,3 +1320,71 @@ void amdgpu_vcn_sysfs_reset_mask_fini(struct amdgpu_device *adev)
 			device_remove_file(adev->dev, &dev_attr_vcn_reset_mask);
 	}
 }
+
+/*
+ * debugfs to enable/disable vcn job submission to specific core or
+ * instance. It is created only if the queue type is unified.
+ */
+#if defined(CONFIG_DEBUG_FS)
+static int amdgpu_debugfs_vcn_sched_mask_set(void *data, u64 val)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)data;
+	u32 i;
+	u64 mask;
+	struct amdgpu_ring *ring;
+
+	if (!adev)
+		return -ENODEV;
+
+	mask = (1ULL << adev->vcn.num_vcn_inst) - 1;
+	if ((val & mask) == 0)
+		return -EINVAL;
+	for (i = 0; i < adev->vcn.num_vcn_inst; ++i) {
+		ring = &adev->vcn.inst[i].ring_enc[0];
+		if (val & (1ULL << i))
+			ring->sched.ready = true;
+		else
+			ring->sched.ready = false;
+	}
+	/* publish sched.ready flag update effective immediately across smp */
+	smp_rmb();
+	return 0;
+}
+
+static int amdgpu_debugfs_vcn_sched_mask_get(void *data, u64 *val)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)data;
+	u32 i;
+	u64 mask = 0;
+	struct amdgpu_ring *ring;
+
+	if (!adev)
+		return -ENODEV;
+	for (i = 0; i < adev->vcn.num_vcn_inst; ++i) {
+		ring = &adev->vcn.inst[i].ring_enc[0];
+		if (ring->sched.ready)
+			mask |= 1ULL << i;
+		}
+	*val = mask;
+	return 0;
+}
+
+DEFINE_DEBUGFS_ATTRIBUTE(amdgpu_debugfs_vcn_sched_mask_fops,
+			 amdgpu_debugfs_vcn_sched_mask_get,
+			 amdgpu_debugfs_vcn_sched_mask_set, "%llx\n");
+#endif
+
+void amdgpu_debugfs_vcn_sched_mask_init(struct amdgpu_device *adev)
+{
+#if defined(CONFIG_DEBUG_FS)
+	struct drm_minor *minor = adev_to_drm(adev)->primary;
+	struct dentry *root = minor->debugfs_root;
+	char name[32];
+
+	if (adev->vcn.num_vcn_inst <= 1 || !adev->vcn.using_unified_queue)
+		return;
+	sprintf(name, "amdgpu_vcn_sched_mask");
+	debugfs_create_file(name, 0600, root, adev,
+			    &amdgpu_debugfs_vcn_sched_mask_fops);
+#endif
+}
