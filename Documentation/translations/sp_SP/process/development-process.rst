@@ -27,3 +27,4 @@ para entenderla.
    2.Process
    3.Early-stage
    4.Coding
+   5.Posting
