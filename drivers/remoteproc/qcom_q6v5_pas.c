@@ -222,7 +222,7 @@ static int adsp_custom_segment_dump(struct qcom_adsp *adsp,
 		return -EINVAL;
 
 custom_segment_dump:
-	base = ioremap((unsigned long)le64_to_cpu(segment->da), size);
+	base = ioremap((unsigned long)le64_to_cpu(segment->da) + offset, size);
 	if (!base) {
 		dev_err(adsp->dev, "failed to map custom_segment region\n");
 		return -EINVAL;
