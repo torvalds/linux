@@ -55,4 +55,15 @@ static inline bool bootdebug_filter_match(const char *buf)
 	return false;
 }
 
+static inline const char *skip_timestamp(const char *buf)
+{
+#ifdef CONFIG_PRINTK_TIME
+	const char *p = memchr(buf, ']', strlen(buf));
+
+	if (p && p[1] == ' ')
+		return p + 2;
+#endif
+	return buf;
+}
+
 #endif /* _ASM_S390_BOOT_DATA_H */

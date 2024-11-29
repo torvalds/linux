@@ -190,10 +190,27 @@ static void boot_console_earlyprintk(const char *buf)
 		return;
 	buf = printk_skip_level(buf);
 	/* print debug messages only when bootdebug is enabled */
-	if (level == LOGLEVEL_DEBUG && (!bootdebug || !bootdebug_filter_match(buf)))
+	if (level == LOGLEVEL_DEBUG && (!bootdebug || !bootdebug_filter_match(skip_timestamp(buf))))
 		return;
 	if (boot_ignore_loglevel || level < boot_console_loglevel)
 		sclp_early_printk(buf);
+}
+
+static char *add_timestamp(char *buf)
+{
+#ifdef CONFIG_PRINTK_TIME
+	union tod_clock *boot_clock = (union tod_clock *)&get_lowcore()->boot_clock;
+	unsigned long ns = tod_to_ns(get_tod_clock() - boot_clock->tod);
+	char ts[MAX_NUMLEN];
+
+	*buf++ = '[';
+	buf += strpad(buf, MAX_NUMLEN, as_dec(ts, ns / NSEC_PER_SEC, 0), 5, 0, 0);
+	*buf++ = '.';
+	buf += strpad(buf, MAX_NUMLEN, as_dec(ts, (ns % NSEC_PER_SEC) / NSEC_PER_USEC, 0), 6, 1, 0);
+	*buf++ = ']';
+	*buf++ = ' ';
+#endif
+	return buf;
 }
 
 #define va_arg_len_type(args, lenmod, typemod)				\
@@ -215,10 +232,10 @@ int boot_printk(const char *fmt, ...)
 	ssize_t len;
 	int pad;
 
-	if (!printk_get_level(fmt)) {
-		*p++ = KERN_SOH_ASCII;
-		*p++ = '0' + MESSAGE_LOGLEVEL_DEFAULT;
-	}
+	*p++ = KERN_SOH_ASCII;
+	*p++ = printk_get_level(fmt) ?: '0' + MESSAGE_LOGLEVEL_DEFAULT;
+	p = add_timestamp(p);
+	fmt = printk_skip_level(fmt);
 
 	va_start(args, fmt);
 	for (; p < end && *fmt; fmt++) {

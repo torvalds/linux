@@ -892,7 +892,7 @@ static void __init print_rb_entry(const char *buf)
 	char fmt[] = KERN_SOH "0boot: %s";
 	int level = printk_get_level(buf);
 
-	buf = printk_skip_level(buf);
+	buf = skip_timestamp(printk_skip_level(buf));
 	if (level == KERN_DEBUG[1] && (!bootdebug || !bootdebug_filter_match(buf)))
 		return;
 
