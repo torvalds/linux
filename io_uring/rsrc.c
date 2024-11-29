@@ -626,11 +626,12 @@ static int io_buffer_account_pin(struct io_ring_ctx *ctx, struct page **pages,
 	return ret;
 }
 
-static bool io_do_coalesce_buffer(struct page ***pages, int *nr_pages,
-				struct io_imu_folio_data *data, int nr_folios)
+static bool io_coalesce_buffer(struct page ***pages, int *nr_pages,
+				struct io_imu_folio_data *data)
 {
 	struct page **page_array = *pages, **new_array = NULL;
 	int nr_pages_left = *nr_pages, i, j;
+	int nr_folios = data->nr_folios;
 
 	/* Store head pages only*/
 	new_array = kvmalloc_array(nr_folios, sizeof(struct page *),
@@ -667,15 +668,14 @@ static bool io_do_coalesce_buffer(struct page ***pages, int *nr_pages,
 	return true;
 }
 
-static bool io_try_coalesce_buffer(struct page ***pages, int *nr_pages,
-					 struct io_imu_folio_data *data)
+bool io_check_coalesce_buffer(struct page **page_array, int nr_pages,
+			      struct io_imu_folio_data *data)
 {
-	struct page **page_array = *pages;
 	struct folio *folio = page_folio(page_array[0]);
 	unsigned int count = 1, nr_folios = 1;
 	int i;
 
-	if (*nr_pages <= 1)
+	if (nr_pages <= 1)
 		return false;
 
 	data->nr_pages_mid = folio_nr_pages(folio);
@@ -687,7 +687,7 @@ static bool io_try_coalesce_buffer(struct page ***pages, int *nr_pages,
 	 * Check if pages are contiguous inside a folio, and all folios have
 	 * the same page count except for the head and tail.
 	 */
-	for (i = 1; i < *nr_pages; i++) {
+	for (i = 1; i < nr_pages; i++) {
 		if (page_folio(page_array[i]) == folio &&
 			page_array[i] == page_array[i-1] + 1) {
 			count++;
@@ -715,7 +715,8 @@ static bool io_try_coalesce_buffer(struct page ***pages, int *nr_pages,
 	if (nr_folios == 1)
 		data->nr_pages_head = count;
 
-	return io_do_coalesce_buffer(pages, nr_pages, data, nr_folios);
+	data->nr_folios = nr_folios;
+	return true;
 }
 
 static struct io_rsrc_node *io_sqe_buffer_register(struct io_ring_ctx *ctx,
@@ -729,7 +730,7 @@ static struct io_rsrc_node *io_sqe_buffer_register(struct io_ring_ctx *ctx,
 	size_t size;
 	int ret, nr_pages, i;
 	struct io_imu_folio_data data;
-	bool coalesced;
+	bool coalesced = false;
 
 	if (!iov->iov_base)
 		return NULL;
@@ -749,7 +750,8 @@ static struct io_rsrc_node *io_sqe_buffer_register(struct io_ring_ctx *ctx,
 	}
 
 	/* If it's huge page(s), try to coalesce them into fewer bvec entries */
-	coalesced = io_try_coalesce_buffer(&pages, &nr_pages, &data);
+	if (io_check_coalesce_buffer(pages, nr_pages, &data))
+		coalesced = io_coalesce_buffer(&pages, &nr_pages, &data);
 
 	imu = kvmalloc(struct_size(imu, bvec, nr_pages), GFP_KERNEL);
 	if (!imu)
