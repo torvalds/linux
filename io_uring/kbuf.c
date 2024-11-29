@@ -45,10 +45,11 @@ static int io_buffer_add_list(struct io_ring_ctx *ctx,
 	/*
 	 * Store buffer group ID and finally mark the list as visible.
 	 * The normal lookup doesn't care about the visibility as we're
-	 * always under the ->uring_lock, but the RCU lookup from mmap does.
+	 * always under the ->uring_lock, but lookups from mmap do.
 	 */
 	bl->bgid = bgid;
 	atomic_set(&bl->refs, 1);
+	guard(mutex)(&ctx->mmap_lock);
 	return xa_err(xa_store(&ctx->io_bl_xa, bgid, bl, GFP_KERNEL));
 }
 
@@ -388,7 +389,7 @@ void io_put_bl(struct io_ring_ctx *ctx, struct io_buffer_list *bl)
 {
 	if (atomic_dec_and_test(&bl->refs)) {
 		__io_remove_buffers(ctx, bl, -1U);
-		kfree_rcu(bl, rcu);
+		kfree(bl);
 	}
 }
 
@@ -397,10 +398,17 @@ void io_destroy_buffers(struct io_ring_ctx *ctx)
 	struct io_buffer_list *bl;
 	struct list_head *item, *tmp;
 	struct io_buffer *buf;
-	unsigned long index;
 
-	xa_for_each(&ctx->io_bl_xa, index, bl) {
-		xa_erase(&ctx->io_bl_xa, bl->bgid);
+	while (1) {
+		unsigned long index = 0;
+
+		scoped_guard(mutex, &ctx->mmap_lock) {
+			bl = xa_find(&ctx->io_bl_xa, &index, ULONG_MAX, XA_PRESENT);
+			if (bl)
+				xa_erase(&ctx->io_bl_xa, bl->bgid);
+		}
+		if (!bl)
+			break;
 		io_put_bl(ctx, bl);
 	}
 
@@ -589,11 +597,7 @@ int io_provide_buffers(struct io_kiocb *req, unsigned int issue_flags)
 		INIT_LIST_HEAD(&bl->buf_list);
 		ret = io_buffer_add_list(ctx, bl, p->bgid);
 		if (ret) {
-			/*
-			 * Doesn't need rcu free as it was never visible, but
-			 * let's keep it consistent throughout.
-			 */
-			kfree_rcu(bl, rcu);
+			kfree(bl);
 			goto err;
 		}
 	}
@@ -736,7 +740,7 @@ int io_register_pbuf_ring(struct io_ring_ctx *ctx, void __user *arg)
 		return 0;
 	}
 
-	kfree_rcu(free_bl, rcu);
+	kfree(free_bl);
 	return ret;
 }
 
@@ -760,7 +764,9 @@ int io_unregister_pbuf_ring(struct io_ring_ctx *ctx, void __user *arg)
 	if (!(bl->flags & IOBL_BUF_RING))
 		return -EINVAL;
 
-	xa_erase(&ctx->io_bl_xa, bl->bgid);
+	scoped_guard(mutex, &ctx->mmap_lock)
+		xa_erase(&ctx->io_bl_xa, bl->bgid);
+
 	io_put_bl(ctx, bl);
 	return 0;
 }
@@ -795,29 +801,13 @@ struct io_buffer_list *io_pbuf_get_bl(struct io_ring_ctx *ctx,
 				      unsigned long bgid)
 {
 	struct io_buffer_list *bl;
-	bool ret;
 
-	/*
-	 * We have to be a bit careful here - we're inside mmap and cannot grab
-	 * the uring_lock. This means the buffer_list could be simultaneously
-	 * going away, if someone is trying to be sneaky. Look it up under rcu
-	 * so we know it's not going away, and attempt to grab a reference to
-	 * it. If the ref is already zero, then fail the mapping. If successful,
-	 * the caller will call io_put_bl() to drop the the reference at at the
-	 * end. This may then safely free the buffer_list (and drop the pages)
-	 * at that point, vm_insert_pages() would've already grabbed the
-	 * necessary vma references.
-	 */
-	rcu_read_lock();
 	bl = xa_load(&ctx->io_bl_xa, bgid);
 	/* must be a mmap'able buffer ring and have pages */
-	ret = false;
-	if (bl && bl->flags & IOBL_MMAP)
-		ret = atomic_inc_not_zero(&bl->refs);
-	rcu_read_unlock();
-
-	if (ret)
-		return bl;
+	if (bl && bl->flags & IOBL_MMAP) {
+		if (atomic_inc_not_zero(&bl->refs))
+			return bl;
+	}
 
 	return ERR_PTR(-EINVAL);
 }
@@ -828,6 +818,8 @@ int io_pbuf_mmap(struct file *file, struct vm_area_struct *vma)
 	loff_t pgoff = vma->vm_pgoff << PAGE_SHIFT;
 	struct io_buffer_list *bl;
 	int bgid, ret;
+
+	lockdep_assert_held(&ctx->mmap_lock);
 
 	bgid = (pgoff & ~IORING_OFF_MMAP_MASK) >> IORING_OFF_PBUF_SHIFT;
 	bl = io_pbuf_get_bl(ctx, bgid);

@@ -25,7 +25,6 @@ struct io_buffer_list {
 			struct page **buf_pages;
 			struct io_uring_buf_ring *buf_ring;
 		};
-		struct rcu_head rcu;
 	};
 	__u16 bgid;
 
