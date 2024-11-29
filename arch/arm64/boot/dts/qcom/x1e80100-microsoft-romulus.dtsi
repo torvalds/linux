@@ -767,6 +767,25 @@
 	status = "okay";
 };
 
+&pcie3 {
+	perst-gpios = <&tlmm 143 GPIO_ACTIVE_LOW>;
+	wake-gpios = <&tlmm 145 GPIO_ACTIVE_HIGH>;
+
+	pinctrl-0 = <&pcie3_default>;
+	pinctrl-names = "default";
+
+	/* The RTS5261 chip on the other side only does Gen1x1 anyway */
+	max-link-speed = <1>;
+	status = "okay";
+};
+
+&pcie3_phy {
+	vdda-phy-supply = <&vreg_l3c>;
+	vdda-pll-supply = <&vreg_l3e>;
+
+	status = "okay";
+};
+
 &pcie4 {
 	status = "okay";
 };
@@ -944,6 +963,29 @@
 		pins = "gpio91";
 		function = "gpio";
 		bias-disable;
+	};
+
+	pcie3_default: pcie3-default-state {
+		perst-n-pins {
+			pins = "gpio143";
+			function = "gpio";
+			drive-strength = <2>;
+			bias-disable;
+		};
+
+		clkreq-n-pins {
+			pins = "gpio144";
+			function = "pcie3_clk";
+			drive-strength = <2>;
+			bias-pull-up;
+		};
+
+		wake-n-pins {
+			pins = "gpio145";
+			function = "gpio";
+			drive-strength = <2>;
+			bias-pull-up;
+		};
 	};
 
 	pcie6a_default: pcie6a-default-state {
