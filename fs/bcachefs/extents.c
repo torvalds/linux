@@ -1323,15 +1323,25 @@ int bch2_bkey_ptrs_validate(struct bch_fs *c, struct bkey_s_c k,
 		case BCH_EXTENT_ENTRY_crc128:
 			crc = bch2_extent_crc_unpack(k.k, entry_to_crc(entry));
 
-			bkey_fsck_err_on(crc.offset + crc.live_size > crc.uncompressed_size,
-					 c, ptr_crc_uncompressed_size_too_small,
-					 "checksum offset + key size > uncompressed size");
 			bkey_fsck_err_on(!bch2_checksum_type_valid(c, crc.csum_type),
 					 c, ptr_crc_csum_type_unknown,
 					 "invalid checksum type");
 			bkey_fsck_err_on(crc.compression_type >= BCH_COMPRESSION_TYPE_NR,
 					 c, ptr_crc_compression_type_unknown,
 					 "invalid compression type");
+
+			bkey_fsck_err_on(crc.offset + crc.live_size > crc.uncompressed_size,
+					 c, ptr_crc_uncompressed_size_too_small,
+					 "checksum offset + key size > uncompressed size");
+			bkey_fsck_err_on(crc_is_encoded(crc) &&
+					 (crc.uncompressed_size > c->opts.encoded_extent_max >> 9) &&
+					 (from.flags & (BCH_VALIDATE_write|BCH_VALIDATE_commit)),
+					 c, ptr_crc_uncompressed_size_too_big,
+					 "too large encoded extent");
+			bkey_fsck_err_on(!crc_is_compressed(crc) &&
+					 crc.compressed_size != crc.uncompressed_size,
+					 c, ptr_crc_uncompressed_size_mismatch,
+					 "not compressed but compressed != uncompressed size");
 
 			if (bch2_csum_type_is_encryption(crc.csum_type)) {
 				if (nonce == UINT_MAX)
@@ -1345,12 +1355,6 @@ int bch2_bkey_ptrs_validate(struct bch_fs *c, struct bkey_s_c k,
 					 c, ptr_crc_redundant,
 					 "redundant crc entry");
 			crc_since_last_ptr = true;
-
-			bkey_fsck_err_on(crc_is_encoded(crc) &&
-					 (crc.uncompressed_size > c->opts.encoded_extent_max >> 9) &&
-					 (from.flags & (BCH_VALIDATE_write|BCH_VALIDATE_commit)),
-					 c, ptr_crc_uncompressed_size_too_big,
-					 "too large encoded extent");
 
 			size_ondisk = crc.compressed_size;
 			break;

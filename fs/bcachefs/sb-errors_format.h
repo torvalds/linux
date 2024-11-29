@@ -172,10 +172,11 @@ enum bch_fsck_flags {
 	x(ptr_bucket_data_type_mismatch,			155,	0)		\
 	x(ptr_cached_and_erasure_coded,				156,	0)		\
 	x(ptr_crc_uncompressed_size_too_small,			157,	0)		\
+	x(ptr_crc_uncompressed_size_too_big,			161,	0)		\
+	x(ptr_crc_uncompressed_size_mismatch,			300,	0)		\
 	x(ptr_crc_csum_type_unknown,				158,	0)		\
 	x(ptr_crc_compression_type_unknown,			159,	0)		\
 	x(ptr_crc_redundant,					160,	0)		\
-	x(ptr_crc_uncompressed_size_too_big,			161,	0)		\
 	x(ptr_crc_nonce_mismatch,				162,	0)		\
 	x(ptr_stripe_redundant,					163,	0)		\
 	x(reservation_key_nr_replicas_invalid,			164,	0)		\
@@ -310,7 +311,7 @@ enum bch_fsck_flags {
 	x(logged_op_but_clean,					283,	FSCK_AUTOFIX)	\
 	x(compression_opt_not_marked_in_sb,			295,	FSCK_AUTOFIX)	\
 	x(compression_type_not_marked_in_sb,			296,	FSCK_AUTOFIX)	\
-	x(MAX,							300,	0)
+	x(MAX,							301,	0)
 
 enum bch_sb_error_id {
 #define x(t, n, ...) BCH_FSCK_ERR_##t = n,
