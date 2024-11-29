@@ -368,11 +368,11 @@ static int io_register_clock(struct io_ring_ctx *ctx,
  */
 struct io_ring_ctx_rings {
 	unsigned short n_ring_pages;
-	unsigned short n_sqe_pages;
 	struct page **ring_pages;
-	struct page **sqe_pages;
-	struct io_uring_sqe *sq_sqes;
 	struct io_rings *rings;
+
+	struct io_uring_sqe *sq_sqes;
+	struct io_mapped_region sq_region;
 };
 
 static void io_register_free_rings(struct io_ring_ctx *ctx,
@@ -382,14 +382,11 @@ static void io_register_free_rings(struct io_ring_ctx *ctx,
 	if (!(p->flags & IORING_SETUP_NO_MMAP)) {
 		io_pages_unmap(r->rings, &r->ring_pages, &r->n_ring_pages,
 				true);
-		io_pages_unmap(r->sq_sqes, &r->sqe_pages, &r->n_sqe_pages,
-				true);
 	} else {
 		io_pages_free(&r->ring_pages, r->n_ring_pages);
-		io_pages_free(&r->sqe_pages, r->n_sqe_pages);
 		vunmap(r->rings);
-		vunmap(r->sq_sqes);
 	}
+	io_free_region(ctx, &r->sq_region);
 }
 
 #define swap_old(ctx, o, n, field)		\
@@ -404,11 +401,11 @@ static void io_register_free_rings(struct io_ring_ctx *ctx,
 
 static int io_register_resize_rings(struct io_ring_ctx *ctx, void __user *arg)
 {
+	struct io_uring_region_desc rd;
 	struct io_ring_ctx_rings o = { }, n = { }, *to_free = NULL;
 	size_t size, sq_array_offset;
 	struct io_uring_params p;
 	unsigned i, tail;
-	void *ptr;
 	int ret;
 
 	/* for single issuer, must be owner resizing */
@@ -469,16 +466,18 @@ static int io_register_resize_rings(struct io_ring_ctx *ctx, void __user *arg)
 		return -EOVERFLOW;
 	}
 
-	if (!(p.flags & IORING_SETUP_NO_MMAP))
-		ptr = io_pages_map(&n.sqe_pages, &n.n_sqe_pages, size);
-	else
-		ptr = __io_uaddr_map(&n.sqe_pages, &n.n_sqe_pages,
-					p.sq_off.user_addr,
-					size);
-	if (IS_ERR(ptr)) {
-		io_register_free_rings(ctx, &p, &n);
-		return PTR_ERR(ptr);
+	memset(&rd, 0, sizeof(rd));
+	rd.size = PAGE_ALIGN(size);
+	if (p.flags & IORING_SETUP_NO_MMAP) {
+		rd.user_addr = p.sq_off.user_addr;
+		rd.flags |= IORING_MEM_REGION_TYPE_USER;
 	}
+	ret = io_create_region_mmap_safe(ctx, &n.sq_region, &rd, IORING_OFF_SQES);
+	if (ret) {
+		io_register_free_rings(ctx, &p, &n);
+		return ret;
+	}
+	n.sq_sqes = io_region_get_ptr(&n.sq_region);
 
 	/*
 	 * If using SQPOLL, park the thread
@@ -509,7 +508,6 @@ static int io_register_resize_rings(struct io_ring_ctx *ctx, void __user *arg)
 	 * Now copy SQ and CQ entries, if any. If either of the destination
 	 * rings can't hold what is already there, then fail the operation.
 	 */
-	n.sq_sqes = ptr;
 	tail = o.rings->sq.tail;
 	if (tail - o.rings->sq.head > p.sq_entries)
 		goto overflow;
@@ -558,9 +556,8 @@ overflow:
 	ctx->rings = n.rings;
 	ctx->sq_sqes = n.sq_sqes;
 	swap_old(ctx, o, n, n_ring_pages);
-	swap_old(ctx, o, n, n_sqe_pages);
 	swap_old(ctx, o, n, ring_pages);
-	swap_old(ctx, o, n, sqe_pages);
+	swap_old(ctx, o, n, sq_region);
 	to_free = &o;
 	ret = 0;
 out:

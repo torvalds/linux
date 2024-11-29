@@ -2641,28 +2641,18 @@ static void *io_rings_map(struct io_ring_ctx *ctx, unsigned long uaddr,
 				size);
 }
 
-static void *io_sqes_map(struct io_ring_ctx *ctx, unsigned long uaddr,
-			 size_t size)
-{
-	return __io_uaddr_map(&ctx->sqe_pages, &ctx->n_sqe_pages, uaddr,
-				size);
-}
-
 static void io_rings_free(struct io_ring_ctx *ctx)
 {
 	if (!(ctx->flags & IORING_SETUP_NO_MMAP)) {
 		io_pages_unmap(ctx->rings, &ctx->ring_pages, &ctx->n_ring_pages,
 				true);
-		io_pages_unmap(ctx->sq_sqes, &ctx->sqe_pages, &ctx->n_sqe_pages,
-				true);
 	} else {
 		io_pages_free(&ctx->ring_pages, ctx->n_ring_pages);
 		ctx->n_ring_pages = 0;
-		io_pages_free(&ctx->sqe_pages, ctx->n_sqe_pages);
-		ctx->n_sqe_pages = 0;
 		vunmap(ctx->rings);
-		vunmap(ctx->sq_sqes);
 	}
+
+	io_free_region(ctx, &ctx->sq_region);
 
 	ctx->rings = NULL;
 	ctx->sq_sqes = NULL;
@@ -3481,9 +3471,10 @@ bool io_is_uring_fops(struct file *file)
 static __cold int io_allocate_scq_urings(struct io_ring_ctx *ctx,
 					 struct io_uring_params *p)
 {
+	struct io_uring_region_desc rd;
 	struct io_rings *rings;
 	size_t size, sq_array_offset;
-	void *ptr;
+	int ret;
 
 	/* make sure these are sane, as we already accounted them */
 	ctx->sq_entries = p->sq_entries;
@@ -3519,17 +3510,18 @@ static __cold int io_allocate_scq_urings(struct io_ring_ctx *ctx,
 		return -EOVERFLOW;
 	}
 
-	if (!(ctx->flags & IORING_SETUP_NO_MMAP))
-		ptr = io_pages_map(&ctx->sqe_pages, &ctx->n_sqe_pages, size);
-	else
-		ptr = io_sqes_map(ctx, p->sq_off.user_addr, size);
-
-	if (IS_ERR(ptr)) {
-		io_rings_free(ctx);
-		return PTR_ERR(ptr);
+	memset(&rd, 0, sizeof(rd));
+	rd.size = PAGE_ALIGN(size);
+	if (ctx->flags & IORING_SETUP_NO_MMAP) {
+		rd.user_addr = p->sq_off.user_addr;
+		rd.flags |= IORING_MEM_REGION_TYPE_USER;
 	}
-
-	ctx->sq_sqes = ptr;
+	ret = io_create_region(ctx, &ctx->sq_region, &rd, IORING_OFF_SQES);
+	if (ret) {
+		io_rings_free(ctx);
+		return ret;
+	}
+	ctx->sq_sqes = io_region_get_ptr(&ctx->sq_region);
 	return 0;
 }
 

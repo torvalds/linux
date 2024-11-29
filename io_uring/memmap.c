@@ -474,8 +474,7 @@ __cold int io_uring_mmap(struct file *file, struct vm_area_struct *vma)
 		npages = min(ctx->n_ring_pages, (sz + PAGE_SIZE - 1) >> PAGE_SHIFT);
 		return io_uring_mmap_pages(ctx, vma, ctx->ring_pages, npages);
 	case IORING_OFF_SQES:
-		return io_uring_mmap_pages(ctx, vma, ctx->sqe_pages,
-						ctx->n_sqe_pages);
+		return io_region_mmap(ctx, &ctx->sq_region, vma);
 	case IORING_OFF_PBUF_RING:
 		return io_pbuf_mmap(file, vma);
 	case IORING_MAP_OFF_PARAM_REGION:
