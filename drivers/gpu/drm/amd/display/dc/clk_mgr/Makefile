@@ -174,7 +174,7 @@ AMD_DISPLAY_FILES += $(AMD_DAL_CLK_MGR_DCN32)
 ###############################################################################
 # DCN35
 ###############################################################################
-CLK_MGR_DCN35 = dcn35_smu.o dcn35_clk_mgr.o
+CLK_MGR_DCN35 = dcn35_smu.o dcn351_clk_mgr.o dcn35_clk_mgr.o
 
 AMD_DAL_CLK_MGR_DCN35 = $(addprefix $(AMDDALPATH)/dc/clk_mgr/dcn35/,$(CLK_MGR_DCN35))
 

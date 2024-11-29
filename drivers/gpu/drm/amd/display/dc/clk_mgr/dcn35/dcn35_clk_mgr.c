@@ -36,15 +36,11 @@
 #include "dcn20/dcn20_clk_mgr.h"
 
 
-
-
 #include "reg_helper.h"
 #include "core_types.h"
 #include "dcn35_smu.h"
 #include "dm_helpers.h"
 
-/* TODO: remove this include once we ported over remaining clk mgr functions*/
-#include "dcn30/dcn30_clk_mgr.h"
 #include "dcn31/dcn31_clk_mgr.h"
 
 #include "dc_dmub_srv.h"
@@ -55,35 +51,102 @@
 #define DC_LOGGER \
 	clk_mgr->base.base.ctx->logger
 
+#define DCN_BASE__INST0_SEG1 0x000000C0
+#define mmCLK1_CLK_PLL_REQ 0x16E37
 
-#define regCLK1_CLK_PLL_REQ			0x0237
-#define regCLK1_CLK_PLL_REQ_BASE_IDX		0
+#define mmCLK1_CLK0_DFS_CNTL 0x16E69
+#define mmCLK1_CLK1_DFS_CNTL 0x16E6C
+#define mmCLK1_CLK2_DFS_CNTL 0x16E6F
+#define mmCLK1_CLK3_DFS_CNTL 0x16E72
+#define mmCLK1_CLK4_DFS_CNTL 0x16E75
+#define mmCLK1_CLK5_DFS_CNTL 0x16E78
 
-#define CLK1_CLK_PLL_REQ__FbMult_int__SHIFT	0x0
-#define CLK1_CLK_PLL_REQ__PllSpineDiv__SHIFT	0xc
-#define CLK1_CLK_PLL_REQ__FbMult_frac__SHIFT	0x10
-#define CLK1_CLK_PLL_REQ__FbMult_int_MASK	0x000001FFL
-#define CLK1_CLK_PLL_REQ__PllSpineDiv_MASK	0x0000F000L
-#define CLK1_CLK_PLL_REQ__FbMult_frac_MASK	0xFFFF0000L
+#define mmCLK1_CLK0_CURRENT_CNT 0x16EFB
+#define mmCLK1_CLK1_CURRENT_CNT 0x16EFC
+#define mmCLK1_CLK2_CURRENT_CNT 0x16EFD
+#define mmCLK1_CLK3_CURRENT_CNT 0x16EFE
+#define mmCLK1_CLK4_CURRENT_CNT 0x16EFF
+#define mmCLK1_CLK5_CURRENT_CNT 0x16F00
 
-#define regCLK1_CLK2_BYPASS_CNTL			0x029c
-#define regCLK1_CLK2_BYPASS_CNTL_BASE_IDX	0
+#define mmCLK1_CLK0_BYPASS_CNTL 0x16E8A
+#define mmCLK1_CLK1_BYPASS_CNTL 0x16E93
+#define mmCLK1_CLK2_BYPASS_CNTL 0x16E9C
+#define mmCLK1_CLK3_BYPASS_CNTL 0x16EA5
+#define mmCLK1_CLK4_BYPASS_CNTL 0x16EAE
+#define mmCLK1_CLK5_BYPASS_CNTL 0x16EB7
 
-#define CLK1_CLK2_BYPASS_CNTL__CLK2_BYPASS_SEL__SHIFT	0x0
-#define CLK1_CLK2_BYPASS_CNTL__CLK2_BYPASS_DIV__SHIFT	0x10
-#define CLK1_CLK2_BYPASS_CNTL__CLK2_BYPASS_SEL_MASK		0x00000007L
-#define CLK1_CLK2_BYPASS_CNTL__CLK2_BYPASS_DIV_MASK		0x000F0000L
+#define mmCLK1_CLK0_DS_CNTL 0x16E83
+#define mmCLK1_CLK1_DS_CNTL 0x16E8C
+#define mmCLK1_CLK2_DS_CNTL 0x16E95
+#define mmCLK1_CLK3_DS_CNTL 0x16E9E
+#define mmCLK1_CLK4_DS_CNTL 0x16EA7
+#define mmCLK1_CLK5_DS_CNTL 0x16EB0
 
-#define regCLK5_0_CLK5_spll_field_8				0x464b
-#define regCLK5_0_CLK5_spll_field_8_BASE_IDX	0
+#define mmCLK1_CLK0_ALLOW_DS 0x16E84
+#define mmCLK1_CLK1_ALLOW_DS 0x16E8D
+#define mmCLK1_CLK2_ALLOW_DS 0x16E96
+#define mmCLK1_CLK3_ALLOW_DS 0x16E9F
+#define mmCLK1_CLK4_ALLOW_DS 0x16EA8
+#define mmCLK1_CLK5_ALLOW_DS 0x16EB1
 
-#define CLK5_0_CLK5_spll_field_8__spll_ssc_en__SHIFT	0xd
-#define CLK5_0_CLK5_spll_field_8__spll_ssc_en_MASK		0x00002000L
+#define mmCLK5_spll_field_8 0x1B04B
+#define mmDENTIST_DISPCLK_CNTL 0x0124
+#define regDENTIST_DISPCLK_CNTL 0x0064
+#define regDENTIST_DISPCLK_CNTL_BASE_IDX 1
+
+#define CLK1_CLK_PLL_REQ__FbMult_int__SHIFT 0x0
+#define CLK1_CLK_PLL_REQ__PllSpineDiv__SHIFT 0xc
+#define CLK1_CLK_PLL_REQ__FbMult_frac__SHIFT 0x10
+#define CLK1_CLK_PLL_REQ__FbMult_int_MASK 0x000001FFL
+#define CLK1_CLK_PLL_REQ__PllSpineDiv_MASK 0x0000F000L
+#define CLK1_CLK_PLL_REQ__FbMult_frac_MASK 0xFFFF0000L
+
+#define CLK1_CLK2_BYPASS_CNTL__CLK2_BYPASS_SEL_MASK 0x00000007L
+#define CLK1_CLK2_BYPASS_CNTL__CLK2_BYPASS_DIV_MASK 0x000F0000L
+// DENTIST_DISPCLK_CNTL
+#define DENTIST_DISPCLK_CNTL__DENTIST_DISPCLK_WDIVIDER__SHIFT 0x0
+#define DENTIST_DISPCLK_CNTL__DENTIST_DISPCLK_RDIVIDER__SHIFT 0x8
+#define DENTIST_DISPCLK_CNTL__DENTIST_DISPCLK_CHG_DONE__SHIFT 0x13
+#define DENTIST_DISPCLK_CNTL__DENTIST_DPPCLK_CHG_DONE__SHIFT 0x14
+#define DENTIST_DISPCLK_CNTL__DENTIST_DPPCLK_WDIVIDER__SHIFT 0x18
+#define DENTIST_DISPCLK_CNTL__DENTIST_DISPCLK_WDIVIDER_MASK 0x0000007FL
+#define DENTIST_DISPCLK_CNTL__DENTIST_DISPCLK_RDIVIDER_MASK 0x00007F00L
+#define DENTIST_DISPCLK_CNTL__DENTIST_DISPCLK_CHG_DONE_MASK 0x00080000L
+#define DENTIST_DISPCLK_CNTL__DENTIST_DPPCLK_CHG_DONE_MASK 0x00100000L
+#define DENTIST_DISPCLK_CNTL__DENTIST_DPPCLK_WDIVIDER_MASK 0x7F000000L
+
+#define CLK5_spll_field_8__spll_ssc_en_MASK 0x00002000L
 
 #define SMU_VER_THRESHOLD 0x5D4A00 //93.74.0
+#undef FN
+#define FN(reg_name, field_name) \
+	clk_mgr->clk_mgr_shift->field_name, clk_mgr->clk_mgr_mask->field_name
 
-#define REG(reg_name) \
-	(ctx->clk_reg_offsets[reg ## reg_name ## _BASE_IDX] + reg ## reg_name)
+#define REG(reg) \
+	(clk_mgr->regs->reg)
+
+#define BASE_INNER(seg) DCN_BASE__INST0_SEG ## seg
+
+#define BASE(seg) BASE_INNER(seg)
+
+#define SR(reg_name)\
+		.reg_name = BASE(reg ## reg_name ## _BASE_IDX) +  \
+					reg ## reg_name
+
+#define CLK_SR_DCN35(reg_name)\
+	.reg_name = mm ## reg_name
+
+static const struct clk_mgr_registers clk_mgr_regs_dcn35 = {
+	CLK_REG_LIST_DCN35()
+};
+
+static const struct clk_mgr_shift clk_mgr_shift_dcn35 = {
+	CLK_COMMON_MASK_SH_LIST_DCN32(__SHIFT)
+};
+
+static const struct clk_mgr_mask clk_mgr_mask_dcn35 = {
+	CLK_COMMON_MASK_SH_LIST_DCN32(_MASK)
+};
 
 #define TO_CLK_MGR_DCN35(clk_mgr)\
 	container_of(clk_mgr, struct clk_mgr_dcn35, base)
@@ -452,7 +515,6 @@ static int get_vco_frequency_from_reg(struct clk_mgr_internal *clk_mgr)
 	struct fixed31_32 pll_req;
 	unsigned int fbmult_frac_val = 0;
 	unsigned int fbmult_int_val = 0;
-	struct dc_context *ctx = clk_mgr->base.ctx;
 
 	/*
 	 * Register value of fbmult is in 8.16 format, we are converting to 314.32
@@ -512,12 +574,12 @@ static void dcn35_dump_clk_registers(struct clk_state_registers_and_bypass *regs
 static bool dcn35_is_spll_ssc_enabled(struct clk_mgr *clk_mgr_base)
 {
 	struct clk_mgr_internal *clk_mgr = TO_CLK_MGR_INTERNAL(clk_mgr_base);
-	struct dc_context *ctx = clk_mgr->base.ctx;
+
 	uint32_t ssc_enable;
 
-	REG_GET(CLK5_0_CLK5_spll_field_8, spll_ssc_en, &ssc_enable);
+	ssc_enable = REG_READ(CLK5_spll_field_8) & CLK5_spll_field_8__spll_ssc_en_MASK;
 
-	return ssc_enable == 1;
+	return ssc_enable != 0;
 }
 
 static void init_clk_states(struct clk_mgr *clk_mgr)
@@ -643,10 +705,10 @@ static struct dcn35_ss_info_table ss_info_table = {
 
 static void dcn35_read_ss_info_from_lut(struct clk_mgr_internal *clk_mgr)
 {
-	struct dc_context *ctx = clk_mgr->base.ctx;
-	uint32_t clock_source;
+	uint32_t clock_source = 0;
 
-	REG_GET(CLK1_CLK2_BYPASS_CNTL, CLK2_BYPASS_SEL, &clock_source);
+	clock_source = REG_READ(CLK1_CLK2_BYPASS_CNTL) & CLK1_CLK2_BYPASS_CNTL__CLK2_BYPASS_SEL_MASK;
+
 	// If it's DFS mode, clock_source is 0.
 	if (dcn35_is_spll_ssc_enabled(&clk_mgr->base) && (clock_source < ARRAY_SIZE(ss_info_table.ss_percentage))) {
 		clk_mgr->dprefclk_ss_percentage = ss_info_table.ss_percentage[clock_source];
@@ -1181,6 +1243,12 @@ void dcn35_clk_mgr_construct(
 	clk_mgr->base.dprefclk_ss_divider = 1000;
 	clk_mgr->base.ss_on_dprefclk = false;
 	clk_mgr->base.dfs_ref_freq_khz = 48000;
+	if (ctx->dce_version == DCN_VERSION_3_5) {
+		clk_mgr->base.regs = &clk_mgr_regs_dcn35;
+		clk_mgr->base.clk_mgr_shift = &clk_mgr_shift_dcn35;
+		clk_mgr->base.clk_mgr_mask = &clk_mgr_mask_dcn35;
+	}
+
 
 	clk_mgr->smu_wm_set.wm_set = (struct dcn35_watermarks *)dm_helpers_allocate_gpu_mem(
 				clk_mgr->base.base.ctx,
