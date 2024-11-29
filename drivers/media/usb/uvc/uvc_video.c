@@ -322,8 +322,9 @@ static int uvc_get_video_ctrl(struct uvc_streaming *stream,
 		goto out;
 	} else if (ret != size) {
 		dev_err(&stream->intf->dev,
-			"Failed to query (%u) UVC %s control : %d (exp. %u).\n",
-			query, probe ? "probe" : "commit", ret, size);
+			"Failed to query (%s) UVC %s control : %d (exp. %u).\n",
+			uvc_query_name(query), probe ? "probe" : "commit",
+			ret, size);
 		ret = (ret == -EPROTO) ? -EPROTO : -EIO;
 		goto out;
 	}
