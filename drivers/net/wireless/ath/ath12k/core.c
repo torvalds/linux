@@ -1145,7 +1145,7 @@ static void ath12k_core_reset(struct work_struct *work)
 	int reset_count, fail_cont_count;
 	long time_left;
 
-	if (!(test_bit(ATH12K_FLAG_REGISTERED, &ab->dev_flags))) {
+	if (!(test_bit(ATH12K_FLAG_QMI_FW_READY_COMPLETE, &ab->dev_flags))) {
 		ath12k_warn(ab, "ignore reset dev flags 0x%lx\n", ab->dev_flags);
 		return;
 	}
