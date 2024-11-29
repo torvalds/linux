@@ -589,6 +589,8 @@ static int io_register_mem_region(struct io_ring_ctx *ctx, void __user *uarg)
 	if (copy_from_user(&rd, rd_uptr, sizeof(rd)))
 		return -EFAULT;
 
+	if (!(rd.flags & IORING_MEM_REGION_TYPE_USER))
+		return -EINVAL;
 	if (memchr_inv(&reg.__resv, 0, sizeof(reg.__resv)))
 		return -EINVAL;
 	if (reg.flags & ~IORING_MEM_REGION_REG_WAIT_ARG)

@@ -273,6 +273,39 @@ static int io_region_pin_pages(struct io_ring_ctx *ctx,
 	return 0;
 }
 
+static int io_region_allocate_pages(struct io_ring_ctx *ctx,
+				    struct io_mapped_region *mr,
+				    struct io_uring_region_desc *reg)
+{
+	gfp_t gfp = GFP_KERNEL_ACCOUNT | __GFP_ZERO | __GFP_NOWARN;
+	unsigned long size = mr->nr_pages << PAGE_SHIFT;
+	unsigned long nr_allocated;
+	struct page **pages;
+	void *p;
+
+	pages = kvmalloc_array(mr->nr_pages, sizeof(*pages), gfp);
+	if (!pages)
+		return -ENOMEM;
+
+	p = io_mem_alloc_compound(pages, mr->nr_pages, size, gfp);
+	if (!IS_ERR(p)) {
+		mr->flags |= IO_REGION_F_SINGLE_REF;
+		mr->pages = pages;
+		return 0;
+	}
+
+	nr_allocated = alloc_pages_bulk_array_node(gfp, NUMA_NO_NODE,
+						   mr->nr_pages, pages);
+	if (nr_allocated != mr->nr_pages) {
+		if (nr_allocated)
+			release_pages(pages, nr_allocated);
+		kvfree(pages);
+		return -ENOMEM;
+	}
+	mr->pages = pages;
+	return 0;
+}
+
 int io_create_region(struct io_ring_ctx *ctx, struct io_mapped_region *mr,
 		     struct io_uring_region_desc *reg)
 {
@@ -283,9 +316,10 @@ int io_create_region(struct io_ring_ctx *ctx, struct io_mapped_region *mr,
 		return -EFAULT;
 	if (memchr_inv(&reg->__resv, 0, sizeof(reg->__resv)))
 		return -EINVAL;
-	if (reg->flags != IORING_MEM_REGION_TYPE_USER)
+	if (reg->flags & ~IORING_MEM_REGION_TYPE_USER)
 		return -EINVAL;
-	if (!reg->user_addr)
+	/* user_addr should be set IFF it's a user memory backed region */
+	if ((reg->flags & IORING_MEM_REGION_TYPE_USER) != !!reg->user_addr)
 		return -EFAULT;
 	if (!reg->size || reg->mmap_offset || reg->id)
 		return -EINVAL;
@@ -304,7 +338,10 @@ int io_create_region(struct io_ring_ctx *ctx, struct io_mapped_region *mr,
 	}
 	mr->nr_pages = nr_pages;
 
-	ret = io_region_pin_pages(ctx, mr, reg);
+	if (reg->flags & IORING_MEM_REGION_TYPE_USER)
+		ret = io_region_pin_pages(ctx, mr, reg);
+	else
+		ret = io_region_allocate_pages(ctx, mr, reg);
 	if (ret)
 		goto out_free;
 
