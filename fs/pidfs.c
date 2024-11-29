@@ -23,6 +23,79 @@
 #include "internal.h"
 #include "mount.h"
 
+static DEFINE_IDR(pidfs_ino_idr);
+
+static u32 pidfs_ino_upper_32_bits = 0;
+
+#if BITS_PER_LONG == 32
+/*
+ * On 32 bit systems the lower 32 bits are the inode number and
+ * the higher 32 bits are the generation number. The starting
+ * value for the inode number and the generation number is one.
+ */
+static u32 pidfs_ino_lower_32_bits = 1;
+
+static inline unsigned long pidfs_ino(u64 ino)
+{
+	return lower_32_bits(ino);
+}
+
+/* On 32 bit the generation number are the upper 32 bits. */
+static inline u32 pidfs_gen(u64 ino)
+{
+	return upper_32_bits(ino);
+}
+
+#else
+
+static u32 pidfs_ino_lower_32_bits = 0;
+
+/* On 64 bit simply return ino. */
+static inline unsigned long pidfs_ino(u64 ino)
+{
+	return ino;
+}
+
+/* On 64 bit the generation number is 1. */
+static inline u32 pidfs_gen(u64 ino)
+{
+	return 1;
+}
+#endif
+
+/*
+ * Construct an inode number for struct pid in a way that we can use the
+ * lower 32bit to lookup struct pid independent of any pid numbers that
+ * could be leaked into userspace (e.g., via file handle encoding).
+ */
+int pidfs_add_pid(struct pid *pid)
+{
+	u32 upper;
+	int lower;
+
+        /*
+	 * Inode numbering for pidfs start at 2. This avoids collisions
+	 * with the root inode which is 1 for pseudo filesystems.
+         */
+	lower = idr_alloc_cyclic(&pidfs_ino_idr, pid, 2, 0, GFP_ATOMIC);
+	if (lower >= 0 && lower < pidfs_ino_lower_32_bits)
+		pidfs_ino_upper_32_bits++;
+	upper = pidfs_ino_upper_32_bits;
+	pidfs_ino_lower_32_bits = lower;
+	if (lower < 0)
+		return lower;
+
+	pid->ino = ((u64)upper << 32) | lower;
+	pid->stashed = NULL;
+	return 0;
+}
+
+/* The idr number to remove is the lower 32 bits of the inode. */
+void pidfs_remove_pid(struct pid *pid)
+{
+	idr_remove(&pidfs_ino_idr, lower_32_bits(pid->ino));
+}
+
 #ifdef CONFIG_PROC_FS
 /**
  * pidfd_show_fdinfo - print information about a pidfd
@@ -346,7 +419,7 @@ static inline void pidfs_free_inum(unsigned long ino)
 #else
 static inline int pidfs_inum(struct pid *pid, unsigned long *ino)
 {
-	*ino = pid->ino;
+	*ino = pidfs_ino(pid->ino);
 	return 0;
 }
 #define pidfs_free_inum(ino) ((void)(ino))
@@ -429,11 +502,14 @@ static const struct dentry_operations pidfs_dentry_operations = {
 
 static int pidfs_init_inode(struct inode *inode, void *data)
 {
+	const struct pid *pid = data;
+
 	inode->i_private = data;
 	inode->i_flags |= S_PRIVATE;
 	inode->i_mode |= S_IRWXU;
 	inode->i_op = &pidfs_inode_operations;
 	inode->i_fop = &pidfs_file_operations;
+	inode->i_generation = pidfs_gen(pid->ino);
 	/*
 	 * Inode numbering for pidfs start at RESERVED_PIDS + 1. This
 	 * avoids collisions with the root inode which is 1 for pseudo

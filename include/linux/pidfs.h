@@ -4,5 +4,7 @@
 
 struct file *pidfs_alloc_file(struct pid *pid, unsigned int flags);
 void __init pidfs_init(void);
+int pidfs_add_pid(struct pid *pid);
+void pidfs_remove_pid(struct pid *pid);
 
 #endif /* _LINUX_PID_FS_H */

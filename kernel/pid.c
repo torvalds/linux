@@ -64,11 +64,6 @@ int pid_max = PID_MAX_DEFAULT;
 
 int pid_max_min = RESERVED_PIDS + 1;
 int pid_max_max = PID_MAX_LIMIT;
-/*
- * Pseudo filesystems start inode numbering after one. We use Reserved
- * PIDs as a natural offset.
- */
-static u64 pidfs_ino = RESERVED_PIDS;
 
 /*
  * PID-map pages start out as NULL, they get allocated upon
@@ -158,6 +153,7 @@ void free_pid(struct pid *pid)
 
 		idr_remove(&ns->idr, upid->nr);
 	}
+	pidfs_remove_pid(pid);
 	spin_unlock_irqrestore(&pidmap_lock, flags);
 
 	call_rcu(&pid->rcu, delayed_put_pid);
@@ -273,22 +269,26 @@ struct pid *alloc_pid(struct pid_namespace *ns, pid_t *set_tid,
 	INIT_HLIST_HEAD(&pid->inodes);
 
 	upid = pid->numbers + ns->level;
+	idr_preload(GFP_KERNEL);
 	spin_lock_irq(&pidmap_lock);
 	if (!(ns->pid_allocated & PIDNS_ADDING))
 		goto out_unlock;
-	pid->stashed = NULL;
-	pid->ino = ++pidfs_ino;
+	retval = pidfs_add_pid(pid);
+	if (retval)
+		goto out_unlock;
 	for ( ; upid >= pid->numbers; --upid) {
 		/* Make the PID visible to find_pid_ns. */
 		idr_replace(&upid->ns->idr, pid, upid->nr);
 		upid->ns->pid_allocated++;
 	}
 	spin_unlock_irq(&pidmap_lock);
+	idr_preload_end();
 
 	return pid;
 
 out_unlock:
 	spin_unlock_irq(&pidmap_lock);
+	idr_preload_end();
 	put_pid_ns(ns);
 
 out_free:
