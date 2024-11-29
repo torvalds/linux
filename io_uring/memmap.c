@@ -36,90 +36,6 @@ static void *io_mem_alloc_compound(struct page **pages, int nr_pages,
 	return page_address(page);
 }
 
-static void *io_mem_alloc_single(struct page **pages, int nr_pages, size_t size,
-				 gfp_t gfp)
-{
-	void *ret;
-	int i;
-
-	for (i = 0; i < nr_pages; i++) {
-		pages[i] = alloc_page(gfp);
-		if (!pages[i])
-			goto err;
-	}
-
-	ret = vmap(pages, nr_pages, VM_MAP, PAGE_KERNEL);
-	if (ret)
-		return ret;
-err:
-	while (i--)
-		put_page(pages[i]);
-	return ERR_PTR(-ENOMEM);
-}
-
-void *io_pages_map(struct page ***out_pages, unsigned short *npages,
-		   size_t size)
-{
-	gfp_t gfp = GFP_KERNEL_ACCOUNT | __GFP_ZERO | __GFP_NOWARN;
-	struct page **pages;
-	int nr_pages;
-	void *ret;
-
-	nr_pages = (size + PAGE_SIZE - 1) >> PAGE_SHIFT;
-	pages = kvmalloc_array(nr_pages, sizeof(struct page *), gfp);
-	if (!pages)
-		return ERR_PTR(-ENOMEM);
-
-	ret = io_mem_alloc_compound(pages, nr_pages, size, gfp);
-	if (!IS_ERR(ret))
-		goto done;
-	if (nr_pages == 1)
-		goto fail;
-
-	ret = io_mem_alloc_single(pages, nr_pages, size, gfp);
-	if (!IS_ERR(ret)) {
-done:
-		*out_pages = pages;
-		*npages = nr_pages;
-		return ret;
-	}
-fail:
-	kvfree(pages);
-	*out_pages = NULL;
-	*npages = 0;
-	return ret;
-}
-
-void io_pages_unmap(void *ptr, struct page ***pages, unsigned short *npages,
-		    bool put_pages)
-{
-	bool do_vunmap = false;
-
-	if (!ptr)
-		return;
-
-	if (put_pages && *npages) {
-		struct page **to_free = *pages;
-		int i;
-
-		/*
-		 * Only did vmap for the non-compound multiple page case.
-		 * For the compound page, we just need to put the head.
-		 */
-		if (PageCompound(to_free[0]))
-			*npages = 1;
-		else if (*npages > 1)
-			do_vunmap = true;
-		for (i = 0; i < *npages; i++)
-			put_page(to_free[i]);
-	}
-	if (do_vunmap)
-		vunmap(ptr);
-	kvfree(*pages);
-	*pages = NULL;
-	*npages = 0;
-}
-
 struct page **io_pin_pages(unsigned long uaddr, unsigned long len, int *npages)
 {
 	unsigned long start, end, nr_pages;
@@ -374,31 +290,20 @@ static void *io_uring_validate_mmap_request(struct file *file, loff_t pgoff,
 			return ERR_PTR(-EFAULT);
 		return ctx->sq_sqes;
 	case IORING_OFF_PBUF_RING: {
-		struct io_buffer_list *bl;
+		struct io_mapped_region *region;
 		unsigned int bgid;
-		void *ptr;
 
 		bgid = (offset & ~IORING_OFF_MMAP_MASK) >> IORING_OFF_PBUF_SHIFT;
-		bl = io_pbuf_get_bl(ctx, bgid);
-		if (IS_ERR(bl))
-			return bl;
-		ptr = bl->buf_ring;
-		return ptr;
+		region = io_pbuf_get_region(ctx, bgid);
+		if (!region)
+			return ERR_PTR(-EINVAL);
+		return io_region_validate_mmap(ctx, region);
 		}
 	case IORING_MAP_OFF_PARAM_REGION:
 		return io_region_validate_mmap(ctx, &ctx->param_region);
 	}
 
 	return ERR_PTR(-EINVAL);
-}
-
-int io_uring_mmap_pages(struct io_ring_ctx *ctx, struct vm_area_struct *vma,
-			struct page **pages, int npages)
-{
-	unsigned long nr_pages = npages;
-
-	vm_flags_set(vma, VM_DONTEXPAND);
-	return vm_insert_pages(vma, vma->vm_start, pages, &nr_pages);
 }
 
 #ifdef CONFIG_MMU
@@ -435,8 +340,17 @@ __cold int io_uring_mmap(struct file *file, struct vm_area_struct *vma)
 		return io_region_mmap(ctx, &ctx->ring_region, vma, page_limit);
 	case IORING_OFF_SQES:
 		return io_region_mmap(ctx, &ctx->sq_region, vma, UINT_MAX);
-	case IORING_OFF_PBUF_RING:
-		return io_pbuf_mmap(file, vma);
+	case IORING_OFF_PBUF_RING: {
+		struct io_mapped_region *region;
+		unsigned int bgid;
+
+		bgid = (offset & ~IORING_OFF_MMAP_MASK) >> IORING_OFF_PBUF_SHIFT;
+		region = io_pbuf_get_region(ctx, bgid);
+		if (!region)
+			return -EINVAL;
+
+		return io_region_mmap(ctx, region, vma, UINT_MAX);
+	}
 	case IORING_MAP_OFF_PARAM_REGION:
 		return io_region_mmap(ctx, &ctx->param_region, vma, UINT_MAX);
 	}

@@ -351,17 +351,7 @@ static int __io_remove_buffers(struct io_ring_ctx *ctx,
 
 	if (bl->flags & IOBL_BUF_RING) {
 		i = bl->buf_ring->tail - bl->head;
-		if (bl->buf_nr_pages) {
-			int j;
-
-			if (!(bl->flags & IOBL_MMAP)) {
-				for (j = 0; j < bl->buf_nr_pages; j++)
-					unpin_user_page(bl->buf_pages[j]);
-			}
-			io_pages_unmap(bl->buf_ring, &bl->buf_pages,
-					&bl->buf_nr_pages, bl->flags & IOBL_MMAP);
-			bl->flags &= ~IOBL_MMAP;
-		}
+		io_free_region(ctx, &bl->region);
 		/* make sure it's seen as empty */
 		INIT_LIST_HEAD(&bl->buf_list);
 		bl->flags &= ~IOBL_BUF_RING;
@@ -614,75 +604,14 @@ err:
 	return IOU_OK;
 }
 
-static int io_pin_pbuf_ring(struct io_uring_buf_reg *reg,
-			    struct io_buffer_list *bl)
-{
-	struct io_uring_buf_ring *br = NULL;
-	struct page **pages;
-	int nr_pages, ret;
-
-	pages = io_pin_pages(reg->ring_addr,
-			     flex_array_size(br, bufs, reg->ring_entries),
-			     &nr_pages);
-	if (IS_ERR(pages))
-		return PTR_ERR(pages);
-
-	br = vmap(pages, nr_pages, VM_MAP, PAGE_KERNEL);
-	if (!br) {
-		ret = -ENOMEM;
-		goto error_unpin;
-	}
-
-#ifdef SHM_COLOUR
-	/*
-	 * On platforms that have specific aliasing requirements, SHM_COLOUR
-	 * is set and we must guarantee that the kernel and user side align
-	 * nicely. We cannot do that if IOU_PBUF_RING_MMAP isn't set and
-	 * the application mmap's the provided ring buffer. Fail the request
-	 * if we, by chance, don't end up with aligned addresses. The app
-	 * should use IOU_PBUF_RING_MMAP instead, and liburing will handle
-	 * this transparently.
-	 */
-	if ((reg->ring_addr | (unsigned long) br) & (SHM_COLOUR - 1)) {
-		ret = -EINVAL;
-		goto error_unpin;
-	}
-#endif
-	bl->buf_pages = pages;
-	bl->buf_nr_pages = nr_pages;
-	bl->buf_ring = br;
-	bl->flags |= IOBL_BUF_RING;
-	bl->flags &= ~IOBL_MMAP;
-	return 0;
-error_unpin:
-	unpin_user_pages(pages, nr_pages);
-	kvfree(pages);
-	vunmap(br);
-	return ret;
-}
-
-static int io_alloc_pbuf_ring(struct io_ring_ctx *ctx,
-			      struct io_uring_buf_reg *reg,
-			      struct io_buffer_list *bl)
-{
-	size_t ring_size;
-
-	ring_size = reg->ring_entries * sizeof(struct io_uring_buf_ring);
-
-	bl->buf_ring = io_pages_map(&bl->buf_pages, &bl->buf_nr_pages, ring_size);
-	if (IS_ERR(bl->buf_ring)) {
-		bl->buf_ring = NULL;
-		return -ENOMEM;
-	}
-
-	bl->flags |= (IOBL_BUF_RING | IOBL_MMAP);
-	return 0;
-}
-
 int io_register_pbuf_ring(struct io_ring_ctx *ctx, void __user *arg)
 {
 	struct io_uring_buf_reg reg;
 	struct io_buffer_list *bl, *free_bl = NULL;
+	struct io_uring_region_desc rd;
+	struct io_uring_buf_ring *br;
+	unsigned long mmap_offset;
+	unsigned long ring_size;
 	int ret;
 
 	lockdep_assert_held(&ctx->uring_lock);
@@ -694,19 +623,8 @@ int io_register_pbuf_ring(struct io_ring_ctx *ctx, void __user *arg)
 		return -EINVAL;
 	if (reg.flags & ~(IOU_PBUF_RING_MMAP | IOU_PBUF_RING_INC))
 		return -EINVAL;
-	if (!(reg.flags & IOU_PBUF_RING_MMAP)) {
-		if (!reg.ring_addr)
-			return -EFAULT;
-		if (reg.ring_addr & ~PAGE_MASK)
-			return -EINVAL;
-	} else {
-		if (reg.ring_addr)
-			return -EINVAL;
-	}
-
 	if (!is_power_of_2(reg.ring_entries))
 		return -EINVAL;
-
 	/* cannot disambiguate full vs empty due to head/tail size */
 	if (reg.ring_entries >= 65536)
 		return -EINVAL;
@@ -722,21 +640,47 @@ int io_register_pbuf_ring(struct io_ring_ctx *ctx, void __user *arg)
 			return -ENOMEM;
 	}
 
-	if (!(reg.flags & IOU_PBUF_RING_MMAP))
-		ret = io_pin_pbuf_ring(&reg, bl);
-	else
-		ret = io_alloc_pbuf_ring(ctx, &reg, bl);
+	mmap_offset = reg.bgid << IORING_OFF_PBUF_SHIFT;
+	ring_size = flex_array_size(br, bufs, reg.ring_entries);
 
-	if (!ret) {
-		bl->nr_entries = reg.ring_entries;
-		bl->mask = reg.ring_entries - 1;
-		if (reg.flags & IOU_PBUF_RING_INC)
-			bl->flags |= IOBL_INC;
-
-		io_buffer_add_list(ctx, bl, reg.bgid);
-		return 0;
+	memset(&rd, 0, sizeof(rd));
+	rd.size = PAGE_ALIGN(ring_size);
+	if (!(reg.flags & IOU_PBUF_RING_MMAP)) {
+		rd.user_addr = reg.ring_addr;
+		rd.flags |= IORING_MEM_REGION_TYPE_USER;
 	}
+	ret = io_create_region_mmap_safe(ctx, &bl->region, &rd, mmap_offset);
+	if (ret)
+		goto fail;
+	br = io_region_get_ptr(&bl->region);
 
+#ifdef SHM_COLOUR
+	/*
+	 * On platforms that have specific aliasing requirements, SHM_COLOUR
+	 * is set and we must guarantee that the kernel and user side align
+	 * nicely. We cannot do that if IOU_PBUF_RING_MMAP isn't set and
+	 * the application mmap's the provided ring buffer. Fail the request
+	 * if we, by chance, don't end up with aligned addresses. The app
+	 * should use IOU_PBUF_RING_MMAP instead, and liburing will handle
+	 * this transparently.
+	 */
+	if (!(reg.flags & IOU_PBUF_RING_MMAP) &&
+	    ((reg.ring_addr | (unsigned long)br) & (SHM_COLOUR - 1))) {
+		ret = -EINVAL;
+		goto fail;
+	}
+#endif
+
+	bl->nr_entries = reg.ring_entries;
+	bl->mask = reg.ring_entries - 1;
+	bl->flags |= IOBL_BUF_RING;
+	bl->buf_ring = br;
+	if (reg.flags & IOU_PBUF_RING_INC)
+		bl->flags |= IOBL_INC;
+	io_buffer_add_list(ctx, bl, reg.bgid);
+	return 0;
+fail:
+	io_free_region(ctx, &bl->region);
 	kfree(free_bl);
 	return ret;
 }
@@ -794,32 +738,18 @@ int io_register_pbuf_status(struct io_ring_ctx *ctx, void __user *arg)
 	return 0;
 }
 
-struct io_buffer_list *io_pbuf_get_bl(struct io_ring_ctx *ctx,
-				      unsigned long bgid)
+struct io_mapped_region *io_pbuf_get_region(struct io_ring_ctx *ctx,
+					    unsigned int bgid)
 {
 	struct io_buffer_list *bl;
-
-	bl = xa_load(&ctx->io_bl_xa, bgid);
-	/* must be a mmap'able buffer ring and have pages */
-	if (bl && bl->flags & IOBL_MMAP)
-		return bl;
-
-	return ERR_PTR(-EINVAL);
-}
-
-int io_pbuf_mmap(struct file *file, struct vm_area_struct *vma)
-{
-	struct io_ring_ctx *ctx = file->private_data;
-	loff_t pgoff = vma->vm_pgoff << PAGE_SHIFT;
-	struct io_buffer_list *bl;
-	int bgid;
 
 	lockdep_assert_held(&ctx->mmap_lock);
 
-	bgid = (pgoff & ~IORING_OFF_MMAP_MASK) >> IORING_OFF_PBUF_SHIFT;
-	bl = io_pbuf_get_bl(ctx, bgid);
-	if (IS_ERR(bl))
-		return PTR_ERR(bl);
+	bl = xa_load(&ctx->io_bl_xa, bgid);
+	if (!bl || !(bl->flags & IOBL_BUF_RING))
+		return NULL;
+	if (WARN_ON_ONCE(!io_region_is_set(&bl->region)))
+		return NULL;
 
-	return io_uring_mmap_pages(ctx, vma, bl->buf_pages, bl->buf_nr_pages);
+	return &bl->region;
 }
