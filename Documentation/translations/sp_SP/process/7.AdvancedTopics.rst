@@ -1,11 +1,214 @@
 .. include:: ../disclaimer-sp.rst
 
 :Original: Documentation/process/7.AdvancedTopics.rst
+:Translator: Carlos Bilbao <carlos.bilbao.osdev@gmail.com> and Avadhut Naik <avadhut.naik@amd.com>
 
 .. _sp_development_advancedtopics:
 
 Temas avanzados
 ===============
 
-.. warning::
-	TODO aún no traducido
+Llegados a este punto, con suerte, tiene una idea de cómo funciona el
+proceso de desarrollo. Sin embargo, ¡todavía hay más que aprender! Esta
+sección cubrirá varios temas que pueden ser útiles para los desarrolladores
+que desean convertirse en una parte regular del proceso de desarrollo del
+kernel Linux.
+
+Gestionar parches con git
+-------------------------
+
+El uso del control de versiones distribuido para el kernel comenzó a
+principios de 2002 cuando Linus comenzó a jugar con la aplicación
+propietaria BitKeeper. Aunque BitKeeper fue controvertido, el enfoque de
+la gestión de versiones de software que incorporó ciertamente no lo fue.
+El control de versiones distribuido permitió una aceleración inmediata
+del proyecto de desarrollo del kernel. En los tiempos actuales, existen
+varias alternativas gratuitas a BitKeeper. Para bien o para mal, el
+proyecto del kernel ha optado por git como su herramienta preferida.
+
+Administrar parches con git puede hacer la vida mucho más fácil para el
+desarrollador, especialmente a medida que crece el volumen de esos
+parches. Git también tiene sus asperezas y representa ciertos peligros;
+es una herramienta joven y poderosa que aún está siendo civilizada por
+sus desarrolladores. Este documento no intentará enseñar al lector cómo
+usar git; eso sería material suficiente para un documento extenso por
+derecho propio. En su lugar, el enfoque aquí será cómo git encaja en el
+proceso de desarrollo del kernel en particular. Los desarrolladores que
+deseen ponerse al día con git encontrarán más información en:
+
+	https://git-scm.com/
+
+	https://www.kernel.org/pub/software/scm/git/docs/user-manual.html
+
+y en varios tutoriales que se encuentran en la web.
+
+El primer orden del negocio es leer los sitios mencionados anteriormente
+y comprender cómo funciona git antes de intentar usarlo para poner
+parches a disposición de otros. Un desarrollador que usa git debe ser
+capaz de obtener una copia del repositorio mainline, explorar el historial
+de revisiones, hacer commits en el árbol, usar ramas, etcétera. También es
+útil entender las herramientas de git para rescribir la historia (como
+rebase). Git viene con su propia terminología y conceptos; un nuevo
+usuario de git debe conocer las referencias, las ramas remotas, el índice,
+las fusiones fast-forward, los pushes y pulls, las cabezas separadas,
+etcétera. Todo puede ser un poco intimidante al principio, pero los
+conceptos no son tan difíciles de entender con un poco de estudio.
+
+Usar git para generar parches para enviarlos por correo electrónico puede
+ser un buen ejercicio mientras te pones al día.
+
+Cuando esté listo para comenzar a publicar árboles de git para que otros
+los vean, necesitará por supuesto, un servidor del que se pueda extraer.
+Configurar un servidor de este tipo con git-daemon es relativamente
+sencillo si tiene un sistema accesible a Internet. De lo contrario, los
+sitios de alojamiento público y gratuitos (GitHub, por ejemplo) están
+comenzando a aparecer en la red. Los desarrolladores establecidos pueden
+obtener una cuenta en kernel.org, pero no son fáciles de conseguir; ver
+https://kernel.org/faq/ para más información.
+
+El flujo de trabajo normal de git implica el uso de muchas ramas. Cada
+línea de desarrollo puede separarse en una “rama temática” separada y
+mantenerse de forma independiente. Las ramas en git son baratas, no hay
+razón para no hacer uso gratuito de ellas. Y, en cualquier caso, no debe
+desarrollarse en ninguna rama de la que tenga la intención de pedir a
+otros que hagan un pull. Las ramas disponibles públicamente deben crearse
+con cuidado; fusione los parches de las ramas de desarrollo cuando estén
+en forma completa y listos para usar – no antes.
+
+Git proporciona herramientas poderosas que permiten reescribir su historia
+de desarrollo. Un parche inconveniente (uno que rompe la bisección, por
+ejemplo, o que tiene algún otro tipo de error obvio) se puede corregir en
+su lugar o hacer que desaparezca de la historia por completo. Una serie de
+parches se puede reescribir como si se hubiera escrito sobre el mainline
+de hoy, aunque haya estado trabajando en ella durante meses. Los cambios
+se pueden transferir de manera transparente de una rama a otra. Y así
+sucesivamente. El uso juicioso de la capacidad de git para revisar el
+historial puede ayudar en la creación de conjuntos de parches limpios con
+menos problemas.
+
+El uso excesivo de esta capacidad puede llevar a otros problemas más allá
+de una simple obsesión por crear la historia perfecta del proyecto.
+Reescribir la historia rescribirá los cambios contenidos en esa historia,
+convirtiendo un árbol del kernel probado (con suerte) en uno no probado.
+Pero más allá de eso, los desarrolladores no pueden colaborar fácilmente
+si no tienen una vista compartida del historial del proyecto; si reescribe
+la historia que otros desarrolladores han introducido en sus repositorios,
+les hará la vida mucho más difícil a esos desarrolladores. Por lo tanto,
+aquí se aplica una regla simple general: la historia que se ha exportado
+a otros generalmente debe considerarse inmutable a partir de entonces.
+
+Por lo tanto, una vez que envié un conjunto de cambios a su servidor
+disponible públicamente, esos cambios no deben reescribirse. Git
+intentará hacer cumplir esta regla si intenta enviar cambios que no
+resulten en un “fast-forward merge” (es decir, cambios que no comparten
+el mismo historial). Es posible anular esta comprobación, y puede haber
+ocasiones en las que sea necesario reescribir un árbol exportado. Mover
+conjuntos de cambios entre árboles para evitar conflictos en linux-next
+es un ejemplo. Pero tales acciones deberían ser raras. Esta es una de las
+razones por las que el desarrollo debe hacerse en ramas privadas (que se
+pueden reescribir si es necesario) y solo trasladarse a ramas públicas
+cuando esté en un estado razonablemente avanzado.
+
+A medida que el mainline (u otro árbol en el que se basa un conjunto de
+cambios) avanza, es tentador fusionarse con ese árbol para permanecer a
+la vanguardia. Para una rama privada, la rebase puede ser una manera fácil
+de mantenerse al día con otro árbol, pero la rebase no es una opción una
+vez que el árbol se exporta al mundo. Una vez que eso sucede, se debe
+realizar una fusión completa. Fusionar ocasionalmente tiene sentido, pero
+las fusiones demasiado frecuentes pueden desordenar el historial
+innecesariamente. La técnica sugerida en este caso es fusionar con poca
+frecuencia y, por lo general, solo en puntos de lanzamiento específicos
+(como una versión -rc del mainline). Si está nervioso por cambios
+específicos, siempre puede realizar fusiones de prueba en una rama
+privada. La herramienta git “rerere” puede ser útil en tales situaciones;
+recuerda cómo se resolvieron los conflictos de fusión para que no tenga
+que hacer el mismo trabajo dos veces.
+
+Una de las mayores quejas recurrentes sobre herramientas como git es la
+siguiente: el movimiento masivo de parches de un repositorio a otro hace
+que sea fácil deslizar cambios más aconsejados que pasan al mainline
+debajo del radar de revisión. Los desarrolladores del kernel tienden a
+descontentarse cuando ven que suceden ese tipo de cosas; poner un árbol
+de git con parches no revisados o fuera de tema puede afectar su capacidad
+para hacer que los árboles sean integrados en el futuro. Citando a Linus:
+
+::
+
+	Puede enviarme parches, pero para que yo acepte un parche de git de
+	su parte, necesito saber que usted sabe lo que está haciendo, y
+	necesito poder confiar en las cosas *sin* tener que revisar
+	manualmente cada cambio individual.
+
+(https://lwn.net/Articles/224135/).
+
+Para evitar este tipo de situación, asegúrese de que todos los parches
+dentro de una rama determinada se adhieran estrictamente al tema asociado;
+una rama de “correcciones de drivers” no debería hacer cambios en el
+código central de gestión de memoria. Y, lo más importante, no utilice un
+árbol git para eludir el proceso de revisión. Publique un resumen
+ocasional del árbol en la lista relevante y, cuando sea el momento
+adecuado, solicite que el árbol se incluya en linux-next.
+
+Si y cuando otros comiencen a enviar parches para su inclusión en su
+árbol, no olvide revisarlos. Además, asegúrese de mantener la información
+de autoría correcta; la herramienta git “am” hace lo mejor que puede es
+este sentido, pero es posible que tenga que agregar una línea “From:” al
+parche si ha sido reenviado a través de un tercero.
+
+Al solicitar un pull, proporcione toda la información relevante: dónde
+está su árbol, qué rama se debe pull, y que cambios resultarán del pull.
+El comando git request-pull puede ser útil en este sentido; formateará la
+solicitud como otros desarrolladores esperan, y también comprobará para
+asegurarse de que ha recordado enviar esos cambios al servidor público.
+
+Revisión de parches
+-------------------
+
+Algunos lectores seguramente se opondrán a incluir esta sección con
+“temas avanzados” porque incluso los desarrolladores principiantes del
+kernel deberían revisar los parches. Es cierto que no hay mejor manera de
+aprender a programar en el entorno del kernel que mirando el código
+publicado por otros. Además, los revisores siempre escasean; al revisar
+código, puede contribuir significativamente al proceso en su conjunto.
+
+Revisar el código puede ser una perspectiva intimidante, especialmente
+para un nuevo desarrollador de kernel que puede sentirse nervioso al
+cuestionar el código – en público – publicado por aquellos con más
+experiencia. Sin embargo, incluso el código escrito por los desarrolladores
+más experimentados se puede mejorar. Quizás el mejor consejo para los
+revisores (todos los revisores) es este: expresar los comentarios de
+revisión como preguntas en lugar de críticas. Preguntar “¿cómo se libera
+el bloqueo en este camino?” siempre funcionará mejor que decir “el
+bloqueo aquí es incorrecto”.
+
+Otra técnica que es útil en caso de desacuerdo es pedir a otros que
+intervengan. Si una discusión llega a un punto muerto después de algunos
+intercambios, solicite las opiniones de otros revisores o maintainers. A
+menudo, aquellos que están de acuerdo con un revisor permanecen en
+silencio a menos que se les invite a participar. La opinión de varias
+personas tiene exponencialmente más peso.
+
+Diferentes desarrolladores revisarán el código desde diferentes puntos de
+vista. Algunos se preocupan principalmente por el estilo de codificación
+y si las líneas de código tienen espacios en blanco al final. Otros se
+enfocarán principalmente en si el cambio implementado por el parche en su
+totalidad es beneficioso para el kernel o no. Sin embargo, otros
+comprobarán si hay bloqueos problemáticos, uso excesivo de la pila,
+posibles problemas de seguridad, duplicación de código encontrado en
+otras partes, documentación adecuada, efectos adversos en el rendimiento,
+cambios en la ABI del espacio de usuario, etcétera. Todos los tipos de
+revisión, si conducen a un mejor código en el kernel, son bienvenidos y
+valen la pena.
+
+No hay ningún requisito estricto para usar etiquetas específicas como
+``Reviewed-by``. De hecho, las revisiones en Inglés sencillo son más
+informativas y alentadas incluso cuando se proporciona una etiqueta, por
+ejemplo, “Revisé los aspectos A, B y C de esta propuesta y me parece
+bien”.
+¡Alguna forma de mensaje de revisión o respuesta es obviamente necesaria,
+de lo contrario, los maintainers no sabrán que el revisor ha revisado el
+parche en absoluto!
+
+Por último, pero no menos importante, la revisión de parches puede
+convertirse en un proceso negativo, centrado en señalar problemas. ¡Por
+favor, dé un cumplido de vez en cuando, especialmente a los principiantes!
