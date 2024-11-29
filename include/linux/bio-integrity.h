@@ -105,7 +105,7 @@ static inline void bioset_integrity_free(struct bio_set *bs)
 {
 }
 
-static int bio_integrity_map_user(struct bio *bio, struct iov_iter *iter)
+static inline int bio_integrity_map_user(struct bio *bio, struct iov_iter *iter)
 {
 	return -EINVAL;
 }
