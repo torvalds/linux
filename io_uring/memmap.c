@@ -207,15 +207,23 @@ enum {
 	IO_REGION_F_VMAP			= 1,
 	/* memory is provided by user and pinned by the kernel */
 	IO_REGION_F_USER_PROVIDED		= 2,
+	/* only the first page in the array is ref'ed */
+	IO_REGION_F_SINGLE_REF			= 4,
 };
 
 void io_free_region(struct io_ring_ctx *ctx, struct io_mapped_region *mr)
 {
 	if (mr->pages) {
+		long nr_refs = mr->nr_pages;
+
+		if (mr->flags & IO_REGION_F_SINGLE_REF)
+			nr_refs = 1;
+
 		if (mr->flags & IO_REGION_F_USER_PROVIDED)
-			unpin_user_pages(mr->pages, mr->nr_pages);
+			unpin_user_pages(mr->pages, nr_refs);
 		else
-			release_pages(mr->pages, mr->nr_pages);
+			release_pages(mr->pages, nr_refs);
+
 		kvfree(mr->pages);
 	}
 	if ((mr->flags & IO_REGION_F_VMAP) && mr->ptr)
