@@ -1814,11 +1814,13 @@ struct intel_lspcon {
 
 struct intel_digital_port {
 	struct intel_encoder base;
-	u32 saved_port_bits;
 	struct intel_dp dp;
 	struct intel_hdmi hdmi;
 	struct intel_lspcon lspcon;
 	enum irqreturn (*hpd_pulse)(struct intel_digital_port *, bool);
+
+	bool lane_reversal;
+	bool ddi_a_4_lanes;
 	bool release_cl2_override;
 	u8 max_lanes;
 	/* Used for DP and ICL+ TypeC/DP and TypeC/HDMI ports. */

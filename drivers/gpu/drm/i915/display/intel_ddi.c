@@ -335,9 +335,13 @@ static void intel_ddi_init_dp_buf_reg(struct intel_encoder *encoder,
 	struct intel_digital_port *dig_port = enc_to_dig_port(encoder);
 
 	/* DDI_BUF_CTL_ENABLE will be set by intel_ddi_prepare_link_retrain() later */
-	intel_dp->DP = dig_port->saved_port_bits |
-		DDI_PORT_WIDTH(crtc_state->lane_count) |
+	intel_dp->DP = DDI_PORT_WIDTH(crtc_state->lane_count) |
 		DDI_BUF_TRANS_SELECT(0);
+
+	if (dig_port->lane_reversal)
+		intel_dp->DP |= DDI_BUF_PORT_REVERSAL;
+	if (dig_port->ddi_a_4_lanes)
+		intel_dp->DP |= DDI_A_4_LANES;
 
 	if (DISPLAY_VER(i915) >= 14) {
 		if (intel_dp_is_uhbr(crtc_state))
@@ -2402,12 +2406,10 @@ static void intel_ddi_power_up_lanes(struct intel_encoder *encoder,
 
 	if (intel_encoder_is_combo(encoder)) {
 		enum phy phy = intel_encoder_to_phy(encoder);
-		bool lane_reversal =
-			dig_port->saved_port_bits & DDI_BUF_PORT_REVERSAL;
 
 		intel_combo_phy_power_up_lanes(i915, phy, false,
 					       crtc_state->lane_count,
-					       lane_reversal);
+					       dig_port->lane_reversal);
 	}
 }
 
@@ -2547,7 +2549,7 @@ static void mtl_port_buf_ctl_program(struct intel_encoder *encoder,
 	else
 		val |= XELPDP_PORT_BUF_PORT_DATA_10BIT;
 
-	if (dig_port->saved_port_bits & DDI_BUF_PORT_REVERSAL)
+	if (dig_port->lane_reversal)
 		val |= XELPDP_PORT_REVERSAL;
 
 	intel_de_write(i915, XELPDP_PORT_BUF_CTL1(i915, port), val);
@@ -3413,14 +3415,20 @@ static void intel_ddi_enable_hdmi(struct intel_atomic_state *state,
 	 * is filled with lane count, already set in the crtc_state.
 	 * The same is required to be filled in PORT_BUF_CTL for C10/20 Phy.
 	 */
-	buf_ctl = dig_port->saved_port_bits | DDI_BUF_CTL_ENABLE;
+	buf_ctl = DDI_BUF_CTL_ENABLE;
+
+	if (dig_port->lane_reversal)
+		buf_ctl |= DDI_BUF_PORT_REVERSAL;
+	if (dig_port->ddi_a_4_lanes)
+		buf_ctl |= DDI_A_4_LANES;
+
 	if (DISPLAY_VER(dev_priv) >= 14) {
 		u8  lane_count = mtl_get_port_width(crtc_state->lane_count);
 		u32 port_buf = 0;
 
 		port_buf |= XELPDP_PORT_WIDTH(lane_count);
 
-		if (dig_port->saved_port_bits & DDI_BUF_PORT_REVERSAL)
+		if (dig_port->lane_reversal)
 			port_buf |= XELPDP_PORT_REVERSAL;
 
 		intel_de_rmw(dev_priv, XELPDP_PORT_BUF_CTL1(dev_priv, port),
@@ -4763,7 +4771,7 @@ static bool intel_ddi_a_force_4_lanes(struct intel_digital_port *dig_port)
 	if (dig_port->base.port != PORT_A)
 		return false;
 
-	if (dig_port->saved_port_bits & DDI_A_4_LANES)
+	if (dig_port->ddi_a_4_lanes)
 		return false;
 
 	/* Broxton/Geminilake: Bspec says that DDI_A_4_LANES is the only
@@ -4801,7 +4809,7 @@ intel_ddi_max_lanes(struct intel_digital_port *dig_port)
 	if (intel_ddi_a_force_4_lanes(dig_port)) {
 		drm_dbg_kms(&dev_priv->drm,
 			    "Forcing DDI_A_4_LANES for port A\n");
-		dig_port->saved_port_bits |= DDI_A_4_LANES;
+		dig_port->ddi_a_4_lanes = true;
 		max_lanes = 4;
 	}
 
@@ -4980,6 +4988,7 @@ void intel_ddi_init(struct intel_display *display,
 	bool init_hdmi, init_dp;
 	enum port port;
 	enum phy phy;
+	u32 ddi_buf_ctl;
 
 	port = intel_bios_encoder_port(devdata);
 	if (port == PORT_NONE)
@@ -5229,17 +5238,12 @@ void intel_ddi_init(struct intel_display *display,
 	else
 		encoder->hpd_pin = intel_hpd_pin_default(dev_priv, port);
 
-	if (DISPLAY_VER(dev_priv) >= 11)
-		dig_port->saved_port_bits =
-			intel_de_read(dev_priv, DDI_BUF_CTL(port))
-			& DDI_BUF_PORT_REVERSAL;
-	else
-		dig_port->saved_port_bits =
-			intel_de_read(dev_priv, DDI_BUF_CTL(port))
-			& (DDI_BUF_PORT_REVERSAL | DDI_A_4_LANES);
+	ddi_buf_ctl = intel_de_read(dev_priv, DDI_BUF_CTL(port));
 
-	if (intel_bios_encoder_lane_reversal(devdata))
-		dig_port->saved_port_bits |= DDI_BUF_PORT_REVERSAL;
+	dig_port->lane_reversal = intel_bios_encoder_lane_reversal(devdata) ||
+		ddi_buf_ctl & DDI_BUF_PORT_REVERSAL;
+
+	dig_port->ddi_a_4_lanes = DISPLAY_VER(dev_priv) < 11 && ddi_buf_ctl & DDI_A_4_LANES;
 
 	dig_port->dp.output_reg = INVALID_MMIO_REG;
 	dig_port->max_lanes = intel_ddi_max_lanes(dig_port);
