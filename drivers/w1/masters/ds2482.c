@@ -451,11 +451,9 @@ static int ds2482_probe(struct i2c_client *client)
 				     I2C_FUNC_SMBUS_BYTE))
 		return -ENODEV;
 
-	data = kzalloc(sizeof(struct ds2482_data), GFP_KERNEL);
-	if (!data) {
-		err = -ENOMEM;
-		goto exit;
-	}
+	data = devm_kzalloc(&client->dev, sizeof(struct ds2482_data), GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
 
 	data->client = client;
 	i2c_set_clientdata(client, data);
@@ -463,7 +461,7 @@ static int ds2482_probe(struct i2c_client *client)
 	/* Reset the device (sets the read_ptr to status) */
 	if (ds2482_send_cmd(data, DS2482_CMD_RESET) < 0) {
 		dev_warn(&client->dev, "DS2482 reset failed.\n");
-		goto exit_free;
+		return err;
 	}
 
 	/* Sleep at least 525ns to allow the reset to complete */
@@ -474,7 +472,7 @@ static int ds2482_probe(struct i2c_client *client)
 	if (temp1 != (DS2482_REG_STS_LL | DS2482_REG_STS_RST)) {
 		dev_warn(&client->dev, "DS2482 reset status "
 			 "0x%02X - not a DS2482\n", temp1);
-		goto exit_free;
+		return err;
 	}
 
 	/* Detect the 8-port version */
@@ -516,9 +514,6 @@ exit_w1_remove:
 		if (data->w1_ch[idx].pdev != NULL)
 			w1_remove_master_device(&data->w1_ch[idx].w1_bm);
 	}
-exit_free:
-	kfree(data);
-exit:
 	return err;
 }
 
@@ -532,9 +527,6 @@ static void ds2482_remove(struct i2c_client *client)
 		if (data->w1_ch[idx].pdev != NULL)
 			w1_remove_master_device(&data->w1_ch[idx].w1_bm);
 	}
-
-	/* Free the memory */
-	kfree(data);
 }
 
 /*
