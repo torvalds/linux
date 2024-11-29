@@ -349,7 +349,7 @@ void intel_dmc_wl_disable(struct intel_display *display)
 	if (!__intel_dmc_wl_supported(display))
 		return;
 
-	flush_delayed_work(&wl->work);
+	intel_dmc_wl_flush_release_work(display);
 
 	spin_lock_irqsave(&wl->lock, flags);
 
@@ -375,6 +375,16 @@ void intel_dmc_wl_disable(struct intel_display *display)
 
 out_unlock:
 	spin_unlock_irqrestore(&wl->lock, flags);
+}
+
+void intel_dmc_wl_flush_release_work(struct intel_display *display)
+{
+	struct intel_dmc_wl *wl = &display->wl;
+
+	if (!__intel_dmc_wl_supported(display))
+		return;
+
+	flush_delayed_work(&wl->work);
 }
 
 void intel_dmc_wl_get(struct intel_display *display, i915_reg_t reg)

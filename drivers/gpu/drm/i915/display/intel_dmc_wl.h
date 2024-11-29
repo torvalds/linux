@@ -32,6 +32,7 @@ struct intel_dmc_wl {
 void intel_dmc_wl_init(struct intel_display *display);
 void intel_dmc_wl_enable(struct intel_display *display, u32 dc_state);
 void intel_dmc_wl_disable(struct intel_display *display);
+void intel_dmc_wl_flush_release_work(struct intel_display *display);
 void intel_dmc_wl_get(struct intel_display *display, i915_reg_t reg);
 void intel_dmc_wl_put(struct intel_display *display, i915_reg_t reg);
 void intel_dmc_wl_get_noreg(struct intel_display *display);
