@@ -588,9 +588,6 @@ static int io_register_mem_region(struct io_ring_ctx *ctx, void __user *uarg)
 	rd_uptr = u64_to_user_ptr(reg.region_uptr);
 	if (copy_from_user(&rd, rd_uptr, sizeof(rd)))
 		return -EFAULT;
-
-	if (!(rd.flags & IORING_MEM_REGION_TYPE_USER))
-		return -EINVAL;
 	if (memchr_inv(&reg.__resv, 0, sizeof(reg.__resv)))
 		return -EINVAL;
 	if (reg.flags & ~IORING_MEM_REGION_REG_WAIT_ARG)
@@ -605,7 +602,8 @@ static int io_register_mem_region(struct io_ring_ctx *ctx, void __user *uarg)
 	    !(ctx->flags & IORING_SETUP_R_DISABLED))
 		return -EINVAL;
 
-	ret = io_create_region(ctx, &ctx->param_region, &rd);
+	ret = io_create_region_mmap_safe(ctx, &ctx->param_region, &rd,
+					 IORING_MAP_OFF_PARAM_REGION);
 	if (ret)
 		return ret;
 	if (copy_to_user(rd_uptr, &rd, sizeof(rd))) {

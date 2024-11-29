@@ -275,7 +275,8 @@ static int io_region_pin_pages(struct io_ring_ctx *ctx,
 
 static int io_region_allocate_pages(struct io_ring_ctx *ctx,
 				    struct io_mapped_region *mr,
-				    struct io_uring_region_desc *reg)
+				    struct io_uring_region_desc *reg,
+				    unsigned long mmap_offset)
 {
 	gfp_t gfp = GFP_KERNEL_ACCOUNT | __GFP_ZERO | __GFP_NOWARN;
 	unsigned long size = mr->nr_pages << PAGE_SHIFT;
@@ -290,8 +291,7 @@ static int io_region_allocate_pages(struct io_ring_ctx *ctx,
 	p = io_mem_alloc_compound(pages, mr->nr_pages, size, gfp);
 	if (!IS_ERR(p)) {
 		mr->flags |= IO_REGION_F_SINGLE_REF;
-		mr->pages = pages;
-		return 0;
+		goto done;
 	}
 
 	nr_allocated = alloc_pages_bulk_array_node(gfp, NUMA_NO_NODE,
@@ -302,12 +302,15 @@ static int io_region_allocate_pages(struct io_ring_ctx *ctx,
 		kvfree(pages);
 		return -ENOMEM;
 	}
+done:
+	reg->mmap_offset = mmap_offset;
 	mr->pages = pages;
 	return 0;
 }
 
 int io_create_region(struct io_ring_ctx *ctx, struct io_mapped_region *mr,
-		     struct io_uring_region_desc *reg)
+		     struct io_uring_region_desc *reg,
+		     unsigned long mmap_offset)
 {
 	int nr_pages, ret;
 	u64 end;
@@ -341,7 +344,7 @@ int io_create_region(struct io_ring_ctx *ctx, struct io_mapped_region *mr,
 	if (reg->flags & IORING_MEM_REGION_TYPE_USER)
 		ret = io_region_pin_pages(ctx, mr, reg);
 	else
-		ret = io_region_allocate_pages(ctx, mr, reg);
+		ret = io_region_allocate_pages(ctx, mr, reg, mmap_offset);
 	if (ret)
 		goto out_free;
 
@@ -352,6 +355,40 @@ int io_create_region(struct io_ring_ctx *ctx, struct io_mapped_region *mr,
 out_free:
 	io_free_region(ctx, mr);
 	return ret;
+}
+
+int io_create_region_mmap_safe(struct io_ring_ctx *ctx, struct io_mapped_region *mr,
+				struct io_uring_region_desc *reg,
+				unsigned long mmap_offset)
+{
+	struct io_mapped_region tmp_mr;
+	int ret;
+
+	memcpy(&tmp_mr, mr, sizeof(tmp_mr));
+	ret = io_create_region(ctx, &tmp_mr, reg, mmap_offset);
+	if (ret)
+		return ret;
+
+	/*
+	 * Once published mmap can find it without holding only the ->mmap_lock
+	 * and not ->uring_lock.
+	 */
+	guard(mutex)(&ctx->mmap_lock);
+	memcpy(mr, &tmp_mr, sizeof(tmp_mr));
+	return 0;
+}
+
+static void *io_region_validate_mmap(struct io_ring_ctx *ctx,
+				     struct io_mapped_region *mr)
+{
+	lockdep_assert_held(&ctx->mmap_lock);
+
+	if (!io_region_is_set(mr))
+		return ERR_PTR(-EINVAL);
+	if (mr->flags & IO_REGION_F_USER_PROVIDED)
+		return ERR_PTR(-EINVAL);
+
+	return io_region_get_ptr(mr);
 }
 
 static void *io_uring_validate_mmap_request(struct file *file, loff_t pgoff,
@@ -389,6 +426,8 @@ static void *io_uring_validate_mmap_request(struct file *file, loff_t pgoff,
 		io_put_bl(ctx, bl);
 		return ptr;
 		}
+	case IORING_MAP_OFF_PARAM_REGION:
+		return io_region_validate_mmap(ctx, &ctx->param_region);
 	}
 
 	return ERR_PTR(-EINVAL);
@@ -404,6 +443,16 @@ int io_uring_mmap_pages(struct io_ring_ctx *ctx, struct vm_area_struct *vma,
 }
 
 #ifdef CONFIG_MMU
+
+static int io_region_mmap(struct io_ring_ctx *ctx,
+			  struct io_mapped_region *mr,
+			  struct vm_area_struct *vma)
+{
+	unsigned long nr_pages = mr->nr_pages;
+
+	vm_flags_set(vma, VM_DONTEXPAND);
+	return vm_insert_pages(vma, vma->vm_start, mr->pages, &nr_pages);
+}
 
 __cold int io_uring_mmap(struct file *file, struct vm_area_struct *vma)
 {
@@ -429,6 +478,8 @@ __cold int io_uring_mmap(struct file *file, struct vm_area_struct *vma)
 						ctx->n_sqe_pages);
 	case IORING_OFF_PBUF_RING:
 		return io_pbuf_mmap(file, vma);
+	case IORING_MAP_OFF_PARAM_REGION:
+		return io_region_mmap(ctx, &ctx->param_region, vma);
 	}
 
 	return -EINVAL;
