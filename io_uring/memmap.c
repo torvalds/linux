@@ -252,15 +252,19 @@ int io_create_region(struct io_ring_ctx *ctx, struct io_mapped_region *mr,
 	if (check_add_overflow(reg->user_addr, reg->size, &end))
 		return -EOVERFLOW;
 
-	pages = io_pin_pages(reg->user_addr, reg->size, &nr_pages);
-	if (IS_ERR(pages))
-		return PTR_ERR(pages);
-
+	nr_pages = reg->size >> PAGE_SHIFT;
 	if (ctx->user) {
 		ret = __io_account_mem(ctx->user, nr_pages);
 		if (ret)
-			goto out_free;
+			return ret;
 		pages_accounted = nr_pages;
+	}
+
+	pages = io_pin_pages(reg->user_addr, reg->size, &nr_pages);
+	if (IS_ERR(pages)) {
+		ret = PTR_ERR(pages);
+		pages = NULL;
+		goto out_free;
 	}
 
 	vptr = vmap(pages, nr_pages, VM_MAP, PAGE_KERNEL);
@@ -277,7 +281,8 @@ int io_create_region(struct io_ring_ctx *ctx, struct io_mapped_region *mr,
 out_free:
 	if (pages_accounted)
 		__io_unaccount_mem(ctx->user, pages_accounted);
-	io_pages_free(&pages, nr_pages);
+	if (pages)
+		io_pages_free(&pages, nr_pages);
 	return ret;
 }
 
