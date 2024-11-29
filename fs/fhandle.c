@@ -261,19 +261,20 @@ static int do_handle_to_path(struct file_handle *handle, struct path *path,
 {
 	int handle_dwords;
 	struct vfsmount *mnt = ctx->root.mnt;
+	struct dentry *dentry;
 
 	/* change the handle size to multiple of sizeof(u32) */
 	handle_dwords = handle->handle_bytes >> 2;
-	path->dentry = exportfs_decode_fh_raw(mnt,
-					  (struct fid *)handle->f_handle,
-					  handle_dwords, handle->handle_type,
-					  ctx->fh_flags,
-					  vfs_dentry_acceptable, ctx);
-	if (IS_ERR_OR_NULL(path->dentry)) {
-		if (path->dentry == ERR_PTR(-ENOMEM))
+	dentry = exportfs_decode_fh_raw(mnt, (struct fid *)handle->f_handle,
+					handle_dwords, handle->handle_type,
+					ctx->fh_flags, vfs_dentry_acceptable,
+					ctx);
+	if (IS_ERR_OR_NULL(dentry)) {
+		if (dentry == ERR_PTR(-ENOMEM))
 			return -ENOMEM;
 		return -ESTALE;
 	}
+	path->dentry = dentry;
 	path->mnt = mntget(mnt);
 	return 0;
 }
@@ -398,29 +399,23 @@ static long do_handle_open(int mountdirfd, struct file_handle __user *ufh,
 			   int open_flag)
 {
 	long retval = 0;
-	struct path path;
+	struct path path __free(path_put) = {};
 	struct file *file;
-	int fd;
 
 	retval = handle_to_path(mountdirfd, ufh, &path, open_flag);
 	if (retval)
 		return retval;
 
-	fd = get_unused_fd_flags(open_flag);
-	if (fd < 0) {
-		path_put(&path);
+	CLASS(get_unused_fd, fd)(O_CLOEXEC);
+	if (fd < 0)
 		return fd;
-	}
+
 	file = file_open_root(&path, "", open_flag, 0);
-	if (IS_ERR(file)) {
-		put_unused_fd(fd);
-		retval =  PTR_ERR(file);
-	} else {
-		retval = fd;
-		fd_install(fd, file);
-	}
-	path_put(&path);
-	return retval;
+	if (IS_ERR(file))
+		return PTR_ERR(file);
+
+	fd_install(fd, file);
+	return take_fd(fd);
 }
 
 /**
