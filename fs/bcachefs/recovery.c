@@ -931,6 +931,8 @@ use_clean:
 	/* in case we don't run journal replay, i.e. norecovery mode */
 	set_bit(BCH_FS_accounting_replay_done, &c->flags);
 
+	bch2_async_btree_node_rewrites_flush(c);
+
 	/* fsync if we fixed errors */
 	if (test_bit(BCH_FS_errors_fixed, &c->flags)) {
 		bch2_journal_flush_all_pins(&c->journal);

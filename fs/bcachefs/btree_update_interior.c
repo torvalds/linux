@@ -2206,42 +2206,50 @@ struct async_btree_rewrite {
 	struct list_head	list;
 	enum btree_id		btree_id;
 	unsigned		level;
-	struct bpos		pos;
-	__le64			seq;
+	struct bkey_buf		key;
 };
 
 static int async_btree_node_rewrite_trans(struct btree_trans *trans,
 					  struct async_btree_rewrite *a)
 {
-	struct bch_fs *c = trans->c;
 	struct btree_iter iter;
-	struct btree *b;
-	int ret;
-
-	bch2_trans_node_iter_init(trans, &iter, a->btree_id, a->pos,
+	bch2_trans_node_iter_init(trans, &iter,
+				  a->btree_id, a->key.k->k.p,
 				  BTREE_MAX_DEPTH, a->level, 0);
-	b = bch2_btree_iter_peek_node(&iter);
-	ret = PTR_ERR_OR_ZERO(b);
+	struct btree *b = bch2_btree_iter_peek_node(&iter);
+	int ret = PTR_ERR_OR_ZERO(b);
 	if (ret)
 		goto out;
 
-	if (!b || b->data->keys.seq != a->seq) {
+	bool found = b && btree_ptr_hash_val(&b->key) == btree_ptr_hash_val(a->key.k);
+	ret = found
+		? bch2_btree_node_rewrite(trans, &iter, b, 0)
+		: -ENOENT;
+
+#if 0
+	/* Tracepoint... */
+	if (!ret || ret == -ENOENT) {
+		struct bch_fs *c = trans->c;
 		struct printbuf buf = PRINTBUF;
 
-		if (b)
-			bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(&b->key));
-		else
-			prt_str(&buf, "(null");
-		bch_info(c, "%s: node to rewrite not found:, searching for seq %llu, got\n%s",
-			 __func__, a->seq, buf.buf);
+		if (!ret) {
+			prt_printf(&buf, "rewrite node:\n  ");
+			bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(a->key.k));
+		} else {
+			prt_printf(&buf, "node to rewrite not found:\n  want: ");
+			bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(a->key.k));
+			prt_printf(&buf, "\n  got:  ");
+			if (b)
+				bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(&b->key));
+			else
+				prt_str(&buf, "(null)");
+		}
+		bch_info(c, "%s", buf.buf);
 		printbuf_exit(&buf);
-		goto out;
 	}
-
-	ret = bch2_btree_node_rewrite(trans, &iter, b, 0);
+#endif
 out:
 	bch2_trans_iter_exit(trans, &iter);
-
 	return ret;
 }
 
@@ -2252,81 +2260,96 @@ static void async_btree_node_rewrite_work(struct work_struct *work)
 	struct bch_fs *c = a->c;
 
 	int ret = bch2_trans_do(c, async_btree_node_rewrite_trans(trans, a));
-	bch_err_fn_ratelimited(c, ret);
+	if (ret != -ENOENT)
+		bch_err_fn_ratelimited(c, ret);
+
+	spin_lock(&c->btree_node_rewrites_lock);
+	list_del(&a->list);
+	spin_unlock(&c->btree_node_rewrites_lock);
+
+	closure_wake_up(&c->btree_node_rewrites_wait);
+
+	bch2_bkey_buf_exit(&a->key, c);
 	bch2_write_ref_put(c, BCH_WRITE_REF_node_rewrite);
 	kfree(a);
 }
 
 void bch2_btree_node_rewrite_async(struct bch_fs *c, struct btree *b)
 {
-	struct async_btree_rewrite *a;
-	int ret;
-
-	a = kmalloc(sizeof(*a), GFP_NOFS);
-	if (!a) {
-		bch_err(c, "%s: error allocating memory", __func__);
+	struct async_btree_rewrite *a = kmalloc(sizeof(*a), GFP_NOFS);
+	if (!a)
 		return;
-	}
 
 	a->c		= c;
 	a->btree_id	= b->c.btree_id;
 	a->level	= b->c.level;
-	a->pos		= b->key.k.p;
-	a->seq		= b->data->keys.seq;
 	INIT_WORK(&a->work, async_btree_node_rewrite_work);
 
-	if (unlikely(!test_bit(BCH_FS_may_go_rw, &c->flags))) {
-		mutex_lock(&c->pending_node_rewrites_lock);
-		list_add(&a->list, &c->pending_node_rewrites);
-		mutex_unlock(&c->pending_node_rewrites_lock);
-		return;
+	bch2_bkey_buf_init(&a->key);
+	bch2_bkey_buf_copy(&a->key, c, &b->key);
+
+	bool now = false, pending = false;
+
+	spin_lock(&c->btree_node_rewrites_lock);
+	if (bch2_write_ref_tryget(c, BCH_WRITE_REF_node_rewrite)) {
+		list_add(&a->list, &c->btree_node_rewrites);
+		now = true;
+	} else if (!test_bit(BCH_FS_may_go_rw, &c->flags)) {
+		list_add(&a->list, &c->btree_node_rewrites_pending);
+		pending = true;
 	}
+	spin_unlock(&c->btree_node_rewrites_lock);
 
-	if (!bch2_write_ref_tryget(c, BCH_WRITE_REF_node_rewrite)) {
-		if (test_bit(BCH_FS_started, &c->flags)) {
-			bch_err(c, "%s: error getting c->writes ref", __func__);
-			kfree(a);
-			return;
-		}
-
-		ret = bch2_fs_read_write_early(c);
-		bch_err_msg(c, ret, "going read-write");
-		if (ret) {
-			kfree(a);
-			return;
-		}
-
-		bch2_write_ref_get(c, BCH_WRITE_REF_node_rewrite);
+	if (now) {
+		queue_work(c->btree_node_rewrite_worker, &a->work);
+	} else if (pending) {
+		/* bch2_do_pending_node_rewrites will execute */
+	} else {
+		bch2_bkey_buf_exit(&a->key, c);
+		kfree(a);
 	}
+}
 
-	queue_work(c->btree_node_rewrite_worker, &a->work);
+void bch2_async_btree_node_rewrites_flush(struct bch_fs *c)
+{
+	closure_wait_event(&c->btree_node_rewrites_wait,
+			   list_empty(&c->btree_node_rewrites));
 }
 
 void bch2_do_pending_node_rewrites(struct bch_fs *c)
 {
-	struct async_btree_rewrite *a, *n;
+	while (1) {
+		spin_lock(&c->btree_node_rewrites_lock);
+		struct async_btree_rewrite *a =
+			list_pop_entry(&c->btree_node_rewrites_pending,
+				       struct async_btree_rewrite, list);
+		if (a)
+			list_add(&a->list, &c->btree_node_rewrites);
+		spin_unlock(&c->btree_node_rewrites_lock);
 
-	mutex_lock(&c->pending_node_rewrites_lock);
-	list_for_each_entry_safe(a, n, &c->pending_node_rewrites, list) {
-		list_del(&a->list);
+		if (!a)
+			break;
 
 		bch2_write_ref_get(c, BCH_WRITE_REF_node_rewrite);
 		queue_work(c->btree_node_rewrite_worker, &a->work);
 	}
-	mutex_unlock(&c->pending_node_rewrites_lock);
 }
 
 void bch2_free_pending_node_rewrites(struct bch_fs *c)
 {
-	struct async_btree_rewrite *a, *n;
+	while (1) {
+		spin_lock(&c->btree_node_rewrites_lock);
+		struct async_btree_rewrite *a =
+			list_pop_entry(&c->btree_node_rewrites_pending,
+				       struct async_btree_rewrite, list);
+		spin_unlock(&c->btree_node_rewrites_lock);
 
-	mutex_lock(&c->pending_node_rewrites_lock);
-	list_for_each_entry_safe(a, n, &c->pending_node_rewrites, list) {
-		list_del(&a->list);
+		if (!a)
+			break;
 
+		bch2_bkey_buf_exit(&a->key, c);
 		kfree(a);
 	}
-	mutex_unlock(&c->pending_node_rewrites_lock);
 }
 
 static int __bch2_btree_node_update_key(struct btree_trans *trans,
@@ -2683,6 +2706,9 @@ void bch2_btree_reserve_cache_to_text(struct printbuf *out, struct bch_fs *c)
 
 void bch2_fs_btree_interior_update_exit(struct bch_fs *c)
 {
+	WARN_ON(!list_empty(&c->btree_node_rewrites));
+	WARN_ON(!list_empty(&c->btree_node_rewrites_pending));
+
 	if (c->btree_node_rewrite_worker)
 		destroy_workqueue(c->btree_node_rewrite_worker);
 	if (c->btree_interior_update_worker)
@@ -2698,8 +2724,9 @@ void bch2_fs_btree_interior_update_init_early(struct bch_fs *c)
 	mutex_init(&c->btree_interior_update_lock);
 	INIT_WORK(&c->btree_interior_update_work, btree_interior_update_work);
 
-	INIT_LIST_HEAD(&c->pending_node_rewrites);
-	mutex_init(&c->pending_node_rewrites_lock);
+	INIT_LIST_HEAD(&c->btree_node_rewrites);
+	INIT_LIST_HEAD(&c->btree_node_rewrites_pending);
+	spin_lock_init(&c->btree_node_rewrites_lock);
 }
 
 int bch2_fs_btree_interior_update_init(struct bch_fs *c)
