@@ -2943,13 +2943,7 @@ int amdgpu_ras_save_bad_pages(struct amdgpu_device *adev,
 	mutex_lock(&con->recovery_lock);
 	control = &con->eeprom_control;
 	data = con->eh_data;
-	bad_page_num = control->ras_num_recs;
-	/* one record on eeprom stands for all pages in one memory row
-	 * in this mode
-	 */
-	if (control->rec_type == AMDGPU_RAS_EEPROM_REC_MCA)
-		bad_page_num = control->ras_num_recs * adev->umc.retire_unit;
-
+	bad_page_num = control->ras_num_bad_pages;
 	save_count = data->count - bad_page_num;
 	mutex_unlock(&con->recovery_lock);
 
@@ -3433,7 +3427,7 @@ int amdgpu_ras_init_badpage_info(struct amdgpu_device *adev)
 			return ret;
 
 		amdgpu_dpm_send_hbm_bad_pages_num(
-			adev, control->ras_num_recs);
+			adev, control->ras_num_bad_pages);
 
 		if (con->update_channel_flag == true) {
 			amdgpu_dpm_send_hbm_bad_channel_flag(

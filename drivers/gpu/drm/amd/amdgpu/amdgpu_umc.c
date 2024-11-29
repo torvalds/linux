@@ -169,7 +169,8 @@ void amdgpu_umc_handle_bad_pages(struct amdgpu_device *adev,
 						err_data->err_addr_cnt, false);
 			amdgpu_ras_save_bad_pages(adev, &err_count);
 
-			amdgpu_dpm_send_hbm_bad_pages_num(adev, con->eeprom_control.ras_num_recs);
+			amdgpu_dpm_send_hbm_bad_pages_num(adev,
+					con->eeprom_control.ras_num_bad_pages);
 
 			if (con->update_channel_flag == true) {
 				amdgpu_dpm_send_hbm_bad_channel_flag(adev, con->eeprom_control.bad_channel_bitmap);

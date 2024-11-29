@@ -95,6 +95,11 @@ struct amdgpu_ras_eeprom_control {
 	 */
 	u32 ras_num_recs;
 
+	/* the bad page number is ras_num_recs or
+	 * ras_num_recs * umc.retire_unit
+	 */
+	u32 ras_num_bad_pages;
+
 	/* First record index to read, 0-based.
 	 * Range is [0, num_recs-1]. This is
 	 * an absolute index, starting right after
