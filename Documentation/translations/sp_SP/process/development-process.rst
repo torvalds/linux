@@ -28,3 +28,4 @@ para entenderla.
    3.Early-stage
    4.Coding
    5.Posting
+   6.Followthrough
