@@ -508,7 +508,7 @@ static int __cmd_test(struct test_suite **suites, int argc, const char *argv[],
 		for (size_t x = 0; x < num_tests; x++) {
 			struct child_test *child_test = child_tests[x];
 
-			if (!child_test)
+			if (!child_test || child_test->process.pid <= 0)
 				continue;
 
 			pr_debug3("Killing %d pid %d\n",
