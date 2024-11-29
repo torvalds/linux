@@ -59,7 +59,7 @@ static void __init kasan_early_init(void)
 {
 #ifdef CONFIG_KASAN
 	init_task.kasan_depth = 0;
-	sclp_early_printk("KernelAddressSanitizer initialized\n");
+	pr_info("KernelAddressSanitizer initialized\n");
 #endif
 }
 
