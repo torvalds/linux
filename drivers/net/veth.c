@@ -1765,7 +1765,7 @@ static int veth_init_queues(struct net_device *dev, struct nlattr *tb[])
 	return 0;
 }
 
-static int veth_newlink(struct net *src_net, struct net_device *dev,
+static int veth_newlink(struct net *peer_net, struct net_device *dev,
 			struct nlattr *tb[], struct nlattr *data[],
 			struct netlink_ext_ack *extack)
 {
@@ -1776,7 +1776,6 @@ static int veth_newlink(struct net *src_net, struct net_device *dev,
 	struct nlattr *peer_tb[IFLA_MAX + 1], **tbp;
 	unsigned char name_assign_type;
 	struct ifinfomsg *ifmp;
-	struct net *net;
 
 	/*
 	 * create and register peer first
@@ -1800,13 +1799,10 @@ static int veth_newlink(struct net *src_net, struct net_device *dev,
 		name_assign_type = NET_NAME_ENUM;
 	}
 
-	net = rtnl_link_get_net(src_net, tbp);
-	peer = rtnl_create_link(net, ifname, name_assign_type,
+	peer = rtnl_create_link(peer_net, ifname, name_assign_type,
 				&veth_link_ops, tbp, extack);
-	if (IS_ERR(peer)) {
-		put_net(net);
+	if (IS_ERR(peer))
 		return PTR_ERR(peer);
-	}
 
 	if (!ifmp || !tbp[IFLA_ADDRESS])
 		eth_hw_addr_random(peer);
@@ -1817,8 +1813,6 @@ static int veth_newlink(struct net *src_net, struct net_device *dev,
 	netif_inherit_tso_max(peer, dev);
 
 	err = register_netdevice(peer);
-	put_net(net);
-	net = NULL;
 	if (err < 0)
 		goto err_register_peer;
 
