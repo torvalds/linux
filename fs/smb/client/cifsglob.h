@@ -594,6 +594,7 @@ struct smb_version_operations {
 	/* Check for STATUS_NETWORK_NAME_DELETED */
 	bool (*is_network_name_deleted)(char *buf, struct TCP_Server_Info *srv);
 	int (*parse_reparse_point)(struct cifs_sb_info *cifs_sb,
+				   const char *full_path,
 				   struct kvec *rsp_iov,
 				   struct cifs_open_info_data *data);
 	int (*create_reparse_symlink)(const unsigned int xid,
@@ -1990,7 +1991,7 @@ require use of the stronger protocol */
  * cifsInodeInfo->lock_sem	cifsInodeInfo->llist		cifs_init_once
  *				->can_cache_brlcks
  * cifsInodeInfo->deferred_lock	cifsInodeInfo->deferred_closes	cifsInodeInfo_alloc
- * cached_fid->fid_mutex		cifs_tcon->crfid		tcon_info_alloc
+ * cached_fids->cfid_list_lock	cifs_tcon->cfids->entries	 init_cached_dirs
  * cifsFileInfo->fh_mutex		cifsFileInfo			cifs_new_fileinfo
  * cifsFileInfo->file_info_lock	cifsFileInfo->count		cifs_new_fileinfo
  *				->invalidHandle			initiate_cifs_search
@@ -2078,6 +2079,7 @@ extern struct workqueue_struct *fileinfo_put_wq;
 extern struct workqueue_struct *cifsoplockd_wq;
 extern struct workqueue_struct *deferredclose_wq;
 extern struct workqueue_struct *serverclose_wq;
+extern struct workqueue_struct *cfid_put_wq;
 extern __u32 cifs_lock_secret;
 
 extern mempool_t *cifs_sm_req_poolp;
