@@ -28,6 +28,7 @@ module! {
     type: NullBlkModule,
     name: "rnull_mod",
     author: "Andreas Hindborg",
+    description: "Rust implementation of the C null block driver",
     license: "GPL v2",
 }
 
