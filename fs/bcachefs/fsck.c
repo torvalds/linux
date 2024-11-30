@@ -3206,6 +3206,8 @@ int bch2_fix_reflink_p(struct bch_fs *c)
 	return ret;
 }
 
+#ifndef NO_BCACHEFS_CHARDEV
+
 struct fsck_thread {
 	struct thread_with_stdio thr;
 	struct bch_fs		*c;
@@ -3421,3 +3423,5 @@ err:
 	}
 	return ret;
 }
+
+#endif /* NO_BCACHEFS_CHARDEV */
