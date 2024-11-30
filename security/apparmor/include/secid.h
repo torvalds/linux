@@ -34,6 +34,5 @@ void apparmor_release_secctx(char *secdata, u32 seclen);
 
 int aa_alloc_secid(struct aa_label *label, gfp_t gfp);
 void aa_free_secid(u32 secid);
-void aa_secid_update(u32 secid, struct aa_label *label);
 
 #endif /* __AA_SECID_H */

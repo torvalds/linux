@@ -14,6 +14,7 @@
 #include <linux/module.h>
 #include <linux/interrupt.h>
 #include "sbshc.h"
+#include "internal.h"
 
 #define ACPI_SMB_HC_CLASS	"smbus_host_ctl"
 #define ACPI_SMB_HC_DEVICE_NAME	"ACPI SMBus HC"
@@ -236,12 +237,6 @@ static int smbus_alarm(void *context)
 	return 0;
 }
 
-typedef int (*acpi_ec_query_func) (void *data);
-
-extern int acpi_ec_add_query_handler(struct acpi_ec *ec, u8 query_bit,
-			      acpi_handle handle, acpi_ec_query_func func,
-			      void *data);
-
 static int acpi_smbus_hc_add(struct acpi_device *device)
 {
 	int status;
@@ -257,8 +252,8 @@ static int acpi_smbus_hc_add(struct acpi_device *device)
 		return -EIO;
 	}
 
-	strcpy(acpi_device_name(device), ACPI_SMB_HC_DEVICE_NAME);
-	strcpy(acpi_device_class(device), ACPI_SMB_HC_CLASS);
+	strscpy(acpi_device_name(device), ACPI_SMB_HC_DEVICE_NAME);
+	strscpy(acpi_device_class(device), ACPI_SMB_HC_CLASS);
 
 	hc = kzalloc(sizeof(struct acpi_smb_hc), GFP_KERNEL);
 	if (!hc)
@@ -277,8 +272,6 @@ static int acpi_smbus_hc_add(struct acpi_device *device)
 
 	return 0;
 }
-
-extern void acpi_ec_remove_query_handler(struct acpi_ec *ec, u8 query_bit);
 
 static void acpi_smbus_hc_remove(struct acpi_device *device)
 {

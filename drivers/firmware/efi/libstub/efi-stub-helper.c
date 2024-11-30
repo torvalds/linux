@@ -327,7 +327,7 @@ fail:
  * Size of memory allocated return in *cmd_line_len.
  * Returns NULL on error.
  */
-char *efi_convert_cmdline(efi_loaded_image_t *image, int *cmd_line_len)
+char *efi_convert_cmdline(efi_loaded_image_t *image)
 {
 	const efi_char16_t *options = efi_table_attr(image, load_options);
 	u32 options_size = efi_table_attr(image, load_options_size);
@@ -405,7 +405,6 @@ char *efi_convert_cmdline(efi_loaded_image_t *image, int *cmd_line_len)
 	snprintf((char *)cmdline_addr, options_bytes, "%.*ls",
 		 options_bytes - 1, options);
 
-	*cmd_line_len = options_bytes;
 	return (char *)cmdline_addr;
 }
 
@@ -621,10 +620,6 @@ efi_status_t efi_load_initrd(efi_loaded_image_t *image,
 	status = efi_load_initrd_dev_path(&initrd, hard_limit);
 	if (status == EFI_SUCCESS) {
 		efi_info("Loaded initrd from LINUX_EFI_INITRD_MEDIA_GUID device path\n");
-		if (initrd.size > 0 &&
-		    efi_measure_tagged_event(initrd.base, initrd.size,
-					     EFISTUB_EVT_INITRD) == EFI_SUCCESS)
-			efi_info("Measured initrd data into PCR 9\n");
 	} else if (status == EFI_NOT_FOUND) {
 		status = efi_load_initrd_cmdline(image, &initrd, soft_limit,
 						 hard_limit);
@@ -636,6 +631,11 @@ efi_status_t efi_load_initrd(efi_loaded_image_t *image,
 	}
 	if (status != EFI_SUCCESS)
 		goto failed;
+
+	if (initrd.size > 0 &&
+	    efi_measure_tagged_event(initrd.base, initrd.size,
+				     EFISTUB_EVT_INITRD) == EFI_SUCCESS)
+		efi_info("Measured initrd data into PCR 9\n");
 
 	status = efi_bs_call(allocate_pool, EFI_LOADER_DATA, sizeof(initrd),
 			     (void **)&tbl);

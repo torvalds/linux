@@ -880,7 +880,7 @@ static struct platform_device *einj_dev;
  * triggering a section mismatch warning.
  */
 static struct platform_driver einj_driver __refdata = {
-	.remove_new = __exit_p(einj_remove),
+	.remove = __exit_p(einj_remove),
 	.driver = {
 		.name = "acpi-einj",
 	},

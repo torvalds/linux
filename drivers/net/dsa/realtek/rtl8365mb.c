@@ -2164,7 +2164,7 @@ static struct platform_driver rtl8365mb_smi_driver = {
 		.of_match_table = rtl8365mb_of_match,
 	},
 	.probe  = realtek_smi_probe,
-	.remove_new = realtek_smi_remove,
+	.remove = realtek_smi_remove,
 	.shutdown = realtek_smi_shutdown,
 };
 

@@ -422,6 +422,7 @@ config TOUCHSCREEN_GOODIX_BERLIN_SPI
 config TOUCHSCREEN_HIDEEP
 	tristate "HiDeep Touch IC"
 	depends on I2C
+	select REGMAP_I2C
 	help
 	  Say Y here if you have a touchscreen using HiDeep.
 
@@ -433,6 +434,7 @@ config TOUCHSCREEN_HIDEEP
 config TOUCHSCREEN_HYCON_HY46XX
 	tristate "Hycon hy46xx touchscreen support"
 	depends on I2C
+	select REGMAP_I2C
 	help
 	  Say Y here if you have a touchscreen using Hycon hy46xx
 

@@ -31,8 +31,8 @@ nilfs_palloc_entries_per_group(const struct inode *inode)
 int nilfs_palloc_init_blockgroup(struct inode *, unsigned int);
 int nilfs_palloc_get_entry_block(struct inode *, __u64, int,
 				 struct buffer_head **);
-void *nilfs_palloc_block_get_entry(const struct inode *, __u64,
-				   const struct buffer_head *, void *);
+size_t nilfs_palloc_entry_offset(const struct inode *inode, __u64 nr,
+				 const struct buffer_head *bh);
 
 int nilfs_palloc_count_max_entries(struct inode *, u64, u64 *);
 

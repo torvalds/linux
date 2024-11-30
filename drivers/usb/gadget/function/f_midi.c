@@ -819,9 +819,9 @@ static int f_midi_register_card(struct f_midi *midi)
 		goto fail;
 	}
 
-	strcpy(card->driver, f_midi_longname);
-	strcpy(card->longname, f_midi_longname);
-	strcpy(card->shortname, f_midi_shortname);
+	strscpy(card->driver, f_midi_longname);
+	strscpy(card->longname, f_midi_longname);
+	strscpy(card->shortname, f_midi_shortname);
 
 	/* Set up rawmidi */
 	snd_component_add(card, "MIDI");
@@ -833,7 +833,7 @@ static int f_midi_register_card(struct f_midi *midi)
 	}
 	midi->rmidi = rmidi;
 	midi->in_last_port = 0;
-	strcpy(rmidi->name, card->shortname);
+	strscpy(rmidi->name, card->shortname);
 	rmidi->info_flags = SNDRV_RAWMIDI_INFO_OUTPUT |
 			    SNDRV_RAWMIDI_INFO_INPUT |
 			    SNDRV_RAWMIDI_INFO_DUPLEX;

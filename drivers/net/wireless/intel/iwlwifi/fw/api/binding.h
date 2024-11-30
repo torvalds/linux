@@ -56,8 +56,6 @@ struct iwl_binding_cmd {
 } __packed; /* BINDING_CMD_API_S_VER_2 */
 
 #define IWL_BINDING_CMD_SIZE_V1	sizeof(struct iwl_binding_cmd_v1)
-#define IWL_LMAC_24G_INDEX		0
-#define IWL_LMAC_5G_INDEX		1
 
 /* The maximal number of fragments in the FW's schedule session */
 #define IWL_MVM_MAX_QUOTA 128

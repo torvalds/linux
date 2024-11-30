@@ -1890,7 +1890,7 @@ static struct platform_driver stm32_dfsdm_adc_driver = {
 		.pm = pm_sleep_ptr(&stm32_dfsdm_adc_pm_ops),
 	},
 	.probe = stm32_dfsdm_adc_probe,
-	.remove_new = stm32_dfsdm_adc_remove,
+	.remove = stm32_dfsdm_adc_remove,
 };
 module_platform_driver(stm32_dfsdm_adc_driver);
 

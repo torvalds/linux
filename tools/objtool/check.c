@@ -4392,6 +4392,51 @@ static bool noendbr_range(struct objtool_file *file, struct instruction *insn)
 	return insn->offset == sym->offset + sym->len;
 }
 
+static int __validate_ibt_insn(struct objtool_file *file, struct instruction *insn,
+			       struct instruction *dest)
+{
+	if (dest->type == INSN_ENDBR) {
+		mark_endbr_used(dest);
+		return 0;
+	}
+
+	if (insn_func(dest) && insn_func(insn) &&
+	    insn_func(dest)->pfunc == insn_func(insn)->pfunc) {
+		/*
+		 * Anything from->to self is either _THIS_IP_ or
+		 * IRET-to-self.
+		 *
+		 * There is no sane way to annotate _THIS_IP_ since the
+		 * compiler treats the relocation as a constant and is
+		 * happy to fold in offsets, skewing any annotation we
+		 * do, leading to vast amounts of false-positives.
+		 *
+		 * There's also compiler generated _THIS_IP_ through
+		 * KCOV and such which we have no hope of annotating.
+		 *
+		 * As such, blanket accept self-references without
+		 * issue.
+		 */
+		return 0;
+	}
+
+	/*
+	 * Accept anything ANNOTATE_NOENDBR.
+	 */
+	if (dest->noendbr)
+		return 0;
+
+	/*
+	 * Accept if this is the instruction after a symbol
+	 * that is (no)endbr -- typical code-range usage.
+	 */
+	if (noendbr_range(file, dest))
+		return 0;
+
+	WARN_INSN(insn, "relocation to !ENDBR: %s", offstr(dest->sec, dest->offset));
+	return 1;
+}
+
 static int validate_ibt_insn(struct objtool_file *file, struct instruction *insn)
 {
 	struct instruction *dest;
@@ -4404,6 +4449,7 @@ static int validate_ibt_insn(struct objtool_file *file, struct instruction *insn
 	 * direct/indirect branches:
 	 */
 	switch (insn->type) {
+
 	case INSN_CALL:
 	case INSN_CALL_DYNAMIC:
 	case INSN_JUMP_CONDITIONAL:
@@ -4413,6 +4459,23 @@ static int validate_ibt_insn(struct objtool_file *file, struct instruction *insn
 	case INSN_RETURN:
 	case INSN_NOP:
 		return 0;
+
+	case INSN_LEA_RIP:
+		if (!insn_reloc(file, insn)) {
+			/* local function pointer reference without reloc */
+
+			off = arch_jump_destination(insn);
+
+			dest = find_insn(file, insn->sec, off);
+			if (!dest) {
+				WARN_INSN(insn, "corrupt function pointer reference");
+				return 1;
+			}
+
+			return __validate_ibt_insn(file, insn, dest);
+		}
+		break;
+
 	default:
 		break;
 	}
@@ -4422,13 +4485,6 @@ static int validate_ibt_insn(struct objtool_file *file, struct instruction *insn
 	     reloc = find_reloc_by_dest_range(file->elf, insn->sec,
 					      reloc_offset(reloc) + 1,
 					      (insn->offset + insn->len) - (reloc_offset(reloc) + 1))) {
-
-		/*
-		 * static_call_update() references the trampoline, which
-		 * doesn't have (or need) ENDBR.  Skip warning in that case.
-		 */
-		if (reloc->sym->static_call_tramp)
-			continue;
 
 		off = reloc->sym->offset;
 		if (reloc_type(reloc) == R_X86_64_PC32 ||
@@ -4441,47 +4497,7 @@ static int validate_ibt_insn(struct objtool_file *file, struct instruction *insn
 		if (!dest)
 			continue;
 
-		if (dest->type == INSN_ENDBR) {
-			mark_endbr_used(dest);
-			continue;
-		}
-
-		if (insn_func(dest) && insn_func(insn) &&
-		    insn_func(dest)->pfunc == insn_func(insn)->pfunc) {
-			/*
-			 * Anything from->to self is either _THIS_IP_ or
-			 * IRET-to-self.
-			 *
-			 * There is no sane way to annotate _THIS_IP_ since the
-			 * compiler treats the relocation as a constant and is
-			 * happy to fold in offsets, skewing any annotation we
-			 * do, leading to vast amounts of false-positives.
-			 *
-			 * There's also compiler generated _THIS_IP_ through
-			 * KCOV and such which we have no hope of annotating.
-			 *
-			 * As such, blanket accept self-references without
-			 * issue.
-			 */
-			continue;
-		}
-
-		/*
-		 * Accept anything ANNOTATE_NOENDBR.
-		 */
-		if (dest->noendbr)
-			continue;
-
-		/*
-		 * Accept if this is the instruction after a symbol
-		 * that is (no)endbr -- typical code-range usage.
-		 */
-		if (noendbr_range(file, dest))
-			continue;
-
-		WARN_INSN(insn, "relocation to !ENDBR: %s", offstr(dest->sec, dest->offset));
-
-		warnings++;
+		warnings += __validate_ibt_insn(file, insn, dest);
 	}
 
 	return warnings;
@@ -4557,6 +4573,7 @@ static int validate_ibt(struct objtool_file *file)
 		    !strcmp(sec->name, "__jump_table")			||
 		    !strcmp(sec->name, "__mcount_loc")			||
 		    !strcmp(sec->name, ".kcfi_traps")			||
+		    !strcmp(sec->name, "__tracepoints")			||
 		    strstr(sec->name, "__patchable_function_entries"))
 			continue;
 

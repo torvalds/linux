@@ -140,7 +140,6 @@ enum intel_ppgtt_type {
 
 #define DEV_INFO_FOR_EACH_FLAG(func) \
 	func(is_mobile); \
-	func(is_lp); \
 	func(require_force_probe); \
 	func(is_dgfx); \
 	/* Keep has_* in alphabetical order */ \

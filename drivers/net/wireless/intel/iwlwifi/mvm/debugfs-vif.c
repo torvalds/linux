@@ -221,7 +221,7 @@ static ssize_t iwl_dbgfs_mac_params_read(struct file *file,
 				 mvmvif->deflink.queue_params[i].uapsd);
 
 	if (vif->type == NL80211_IFTYPE_STATION &&
-	    ap_sta_id != IWL_MVM_INVALID_STA) {
+	    ap_sta_id != IWL_INVALID_STA) {
 		struct iwl_mvm_sta *mvm_sta;
 
 		mvm_sta = iwl_mvm_sta_from_staid_protected(mvm, ap_sta_id);
@@ -463,11 +463,13 @@ static ssize_t iwl_dbgfs_os_device_timediff_read(struct file *file,
 	return simple_read_from_buffer(user_buf, count, ppos, buf, pos);
 }
 
-static ssize_t iwl_dbgfs_low_latency_write(struct ieee80211_vif *vif, char *buf,
-					   size_t count, loff_t *ppos)
+static ssize_t
+iwl_dbgfs_low_latency_write_handle(struct wiphy *wiphy, struct file *file,
+				   char *buf, size_t count, void *data)
 {
-	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
-	struct iwl_mvm *mvm = mvmvif->mvm;
+	struct ieee80211_hw *hw = wiphy_to_ieee80211_hw(wiphy);
+	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
+	struct ieee80211_vif *vif = data;
 	u8 value;
 	int ret;
 
@@ -484,12 +486,28 @@ static ssize_t iwl_dbgfs_low_latency_write(struct ieee80211_vif *vif, char *buf,
 	return count;
 }
 
-static ssize_t
-iwl_dbgfs_low_latency_force_write(struct ieee80211_vif *vif, char *buf,
-				  size_t count, loff_t *ppos)
+static ssize_t iwl_dbgfs_low_latency_write(struct file *file,
+					   const char __user *user_buf,
+					   size_t count, loff_t *ppos)
 {
+	struct ieee80211_vif *vif = file->private_data;
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	struct iwl_mvm *mvm = mvmvif->mvm;
+	char buf[10] = {};
+
+	return wiphy_locked_debugfs_write(mvm->hw->wiphy, file,
+					  buf, sizeof(buf), user_buf, count,
+					  iwl_dbgfs_low_latency_write_handle,
+					  vif);
+}
+
+static ssize_t
+iwl_dbgfs_low_latency_force_write_handle(struct wiphy *wiphy, struct file *file,
+					 char *buf, size_t count, void *data)
+{
+	struct ieee80211_hw *hw = wiphy_to_ieee80211_hw(wiphy);
+	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
+	struct ieee80211_vif *vif = data;
 	u8 value;
 	int ret;
 
@@ -515,6 +533,22 @@ iwl_dbgfs_low_latency_force_write(struct ieee80211_vif *vif, char *buf,
 	}
 	mutex_unlock(&mvm->mutex);
 	return count;
+}
+
+static ssize_t
+iwl_dbgfs_low_latency_force_write(struct file *file,
+				  const char __user *user_buf,
+				  size_t count, loff_t *ppos)
+{
+	struct ieee80211_vif *vif = file->private_data;
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	struct iwl_mvm *mvm = mvmvif->mvm;
+	char buf[10] = {};
+
+	return wiphy_locked_debugfs_write(mvm->hw->wiphy, file,
+					  buf, sizeof(buf), user_buf, count,
+					  iwl_dbgfs_low_latency_force_write_handle,
+					  vif);
 }
 
 static ssize_t iwl_dbgfs_low_latency_read(struct file *file,
@@ -831,8 +865,20 @@ MVM_DEBUGFS_READ_FILE_OPS(mac_params);
 MVM_DEBUGFS_READ_FILE_OPS(tx_pwr_lmt);
 MVM_DEBUGFS_READ_WRITE_FILE_OPS(pm_params, 32);
 MVM_DEBUGFS_READ_WRITE_FILE_OPS(bf_params, 256);
-MVM_DEBUGFS_READ_WRITE_FILE_OPS(low_latency, 10);
-MVM_DEBUGFS_WRITE_FILE_OPS(low_latency_force, 10);
+
+static const struct file_operations iwl_dbgfs_low_latency_ops = {
+	.write = iwl_dbgfs_low_latency_write,
+	.read = iwl_dbgfs_low_latency_read,
+	.open = simple_open,
+	.llseek = generic_file_llseek,
+};
+
+static const struct file_operations iwl_dbgfs_low_latency_force_ops = {
+	.write = iwl_dbgfs_low_latency_force_write,
+	.open = simple_open,
+	.llseek = generic_file_llseek,
+};
+
 MVM_DEBUGFS_READ_WRITE_FILE_OPS(uapsd_misbehaving, 20);
 MVM_DEBUGFS_READ_WRITE_FILE_OPS(rx_phyinfo, 10);
 MVM_DEBUGFS_READ_WRITE_FILE_OPS(quota_min, 32);

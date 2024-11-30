@@ -5,7 +5,7 @@
 
 #include <linux/kernel.h>
 #include <linux/jump_label.h>
-#include <asm/code-patching.h>
+#include <asm/text-patching.h>
 #include <asm/inst.h>
 
 void arch_jump_label_transform(struct jump_entry *entry,

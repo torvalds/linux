@@ -1349,7 +1349,6 @@
 			dma-names = "tx", "rx", "tx", "rx";
 			power-domains = <&sysc R8A7794_PD_ALWAYS_ON>;
 			resets = <&cpg 315>;
-			reg-io-width = <4>;
 			status = "disabled";
 		};
 

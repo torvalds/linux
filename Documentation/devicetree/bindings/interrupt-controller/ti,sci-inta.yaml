@@ -109,6 +109,7 @@ examples:
             compatible = "ti,sci-inta";
             reg = <0x0 0x33d00000 0x0 0x100000>;
             interrupt-controller;
+            #interrupt-cells = <0>;
             msi-controller;
             interrupt-parent = <&main_navss_intr>;
             ti,sci = <&dmsc>;

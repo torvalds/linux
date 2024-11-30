@@ -451,7 +451,7 @@ static struct phylink_pcs *intel_mgbe_select_pcs(struct stmmac_priv *priv,
 	 * should always be an XPCS. The original code would always
 	 * return this if present.
 	 */
-	return &priv->hw->xpcs->pcs;
+	return xpcs_to_phylink_pcs(priv->hw->xpcs);
 }
 
 static int intel_mgbe_common_data(struct pci_dev *pdev,

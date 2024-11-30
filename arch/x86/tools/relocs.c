@@ -90,7 +90,6 @@ static const char * const	sym_regex_kernel[S_NSYMTYPES] = {
 	"init_per_cpu__.*|"
 	"__end_rodata_hpage_align|"
 #endif
-	"__vvar_page|"
 	"_end)$"
 };
 

@@ -8,10 +8,11 @@ drm_display_helper-$(CONFIG_DRM_BRIDGE_CONNECTOR) += \
 drm_display_helper-$(CONFIG_DRM_DISPLAY_DP_HELPER) += \
 	drm_dp_dual_mode_helper.o \
 	drm_dp_helper.o \
-	drm_dp_mst_topology.o \
-	drm_dsc_helper.o
+	drm_dp_mst_topology.o
 drm_display_helper-$(CONFIG_DRM_DISPLAY_DP_TUNNEL) += \
 	drm_dp_tunnel.o
+drm_display_helper-$(CONFIG_DRM_DISPLAY_DSC_HELPER) += \
+	drm_dsc_helper.o
 drm_display_helper-$(CONFIG_DRM_DISPLAY_HDCP_HELPER) += drm_hdcp_helper.o
 drm_display_helper-$(CONFIG_DRM_DISPLAY_HDMI_HELPER) += \
 	drm_hdmi_helper.o \

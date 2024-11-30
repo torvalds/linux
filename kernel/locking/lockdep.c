@@ -4586,6 +4586,30 @@ void lockdep_softirqs_off(unsigned long ip)
 		debug_atomic_inc(redundant_softirqs_off);
 }
 
+/**
+ * lockdep_cleanup_dead_cpu - Ensure CPU lockdep state is cleanly stopped
+ *
+ * @cpu: index of offlined CPU
+ * @idle: task pointer for offlined CPU's idle thread
+ *
+ * Invoked after the CPU is dead. Ensures that the tracing infrastructure
+ * is left in a suitable state for the CPU to be subsequently brought
+ * online again.
+ */
+void lockdep_cleanup_dead_cpu(unsigned int cpu, struct task_struct *idle)
+{
+	if (unlikely(!debug_locks))
+		return;
+
+	if (unlikely(per_cpu(hardirqs_enabled, cpu))) {
+		pr_warn("CPU %u left hardirqs enabled!", cpu);
+		if (idle)
+			print_irqtrace_events(idle);
+		/* Clean it up for when the CPU comes online again. */
+		per_cpu(hardirqs_enabled, cpu) = 0;
+	}
+}
+
 static int
 mark_usage(struct task_struct *curr, struct held_lock *hlock, int check)
 {
@@ -6576,17 +6600,17 @@ EXPORT_SYMBOL_GPL(lockdep_unregister_key);
 
 void __init lockdep_init(void)
 {
-	printk("Lock dependency validator: Copyright (c) 2006 Red Hat, Inc., Ingo Molnar\n");
+	pr_info("Lock dependency validator: Copyright (c) 2006 Red Hat, Inc., Ingo Molnar\n");
 
-	printk("... MAX_LOCKDEP_SUBCLASSES:  %lu\n", MAX_LOCKDEP_SUBCLASSES);
-	printk("... MAX_LOCK_DEPTH:          %lu\n", MAX_LOCK_DEPTH);
-	printk("... MAX_LOCKDEP_KEYS:        %lu\n", MAX_LOCKDEP_KEYS);
-	printk("... CLASSHASH_SIZE:          %lu\n", CLASSHASH_SIZE);
-	printk("... MAX_LOCKDEP_ENTRIES:     %lu\n", MAX_LOCKDEP_ENTRIES);
-	printk("... MAX_LOCKDEP_CHAINS:      %lu\n", MAX_LOCKDEP_CHAINS);
-	printk("... CHAINHASH_SIZE:          %lu\n", CHAINHASH_SIZE);
+	pr_info("... MAX_LOCKDEP_SUBCLASSES:  %lu\n", MAX_LOCKDEP_SUBCLASSES);
+	pr_info("... MAX_LOCK_DEPTH:          %lu\n", MAX_LOCK_DEPTH);
+	pr_info("... MAX_LOCKDEP_KEYS:        %lu\n", MAX_LOCKDEP_KEYS);
+	pr_info("... CLASSHASH_SIZE:          %lu\n", CLASSHASH_SIZE);
+	pr_info("... MAX_LOCKDEP_ENTRIES:     %lu\n", MAX_LOCKDEP_ENTRIES);
+	pr_info("... MAX_LOCKDEP_CHAINS:      %lu\n", MAX_LOCKDEP_CHAINS);
+	pr_info("... CHAINHASH_SIZE:          %lu\n", CHAINHASH_SIZE);
 
-	printk(" memory used by lock dependency info: %zu kB\n",
+	pr_info(" memory used by lock dependency info: %zu kB\n",
 	       (sizeof(lock_classes) +
 		sizeof(lock_classes_in_use) +
 		sizeof(classhash_table) +
@@ -6604,12 +6628,12 @@ void __init lockdep_init(void)
 		);
 
 #if defined(CONFIG_TRACE_IRQFLAGS) && defined(CONFIG_PROVE_LOCKING)
-	printk(" memory used for stack traces: %zu kB\n",
+	pr_info(" memory used for stack traces: %zu kB\n",
 	       (sizeof(stack_trace) + sizeof(stack_trace_hash)) / 1024
 	       );
 #endif
 
-	printk(" per task-struct memory footprint: %zu bytes\n",
+	pr_info(" per task-struct memory footprint: %zu bytes\n",
 	       sizeof(((struct task_struct *)NULL)->held_locks));
 }
 

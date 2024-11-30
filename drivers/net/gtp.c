@@ -1491,10 +1491,8 @@ static int gtp_newlink(struct net *src_net, struct net_device *dev,
 	}
 	gtp->role = role;
 
-	if (!data[IFLA_GTP_RESTART_COUNT])
-		gtp->restart_count = 0;
-	else
-		gtp->restart_count = nla_get_u8(data[IFLA_GTP_RESTART_COUNT]);
+	gtp->restart_count = nla_get_u8_default(data[IFLA_GTP_RESTART_COUNT],
+						0);
 
 	gtp->net = src_net;
 
@@ -1829,10 +1827,7 @@ static struct pdp_ctx *gtp_pdp_add(struct gtp_dev *gtp, struct sock *sk,
 
 	version = nla_get_u32(info->attrs[GTPA_VERSION]);
 
-	if (info->attrs[GTPA_FAMILY])
-		family = nla_get_u8(info->attrs[GTPA_FAMILY]);
-	else
-		family = AF_INET;
+	family = nla_get_u8_default(info->attrs[GTPA_FAMILY], AF_INET);
 
 #if !IS_ENABLED(CONFIG_IPV6)
 	if (family == AF_INET6)
@@ -2069,10 +2064,7 @@ static struct pdp_ctx *gtp_find_pdp_by_link(struct net *net,
 	struct gtp_dev *gtp;
 	int family;
 
-	if (nla[GTPA_FAMILY])
-		family = nla_get_u8(nla[GTPA_FAMILY]);
-	else
-		family = AF_INET;
+	family = nla_get_u8_default(nla[GTPA_FAMILY], AF_INET);
 
 	gtp = gtp_find_dev(net, nla);
 	if (!gtp)

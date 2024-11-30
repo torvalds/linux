@@ -1,0 +1,72 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright 2024 NXP
+ */
+
+#include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/i3c/i3c.h>
+#include <dt-bindings/usb/pd.h>
+
+#include "imx93-pinfunc.h"
+
+/dts-v1/;
+/plugin/;
+
+&lpi2c1 {
+	status = "disabled";
+};
+
+&i3c1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_i3c1>;
+	#address-cells = <3>;
+	#size-cells = <0>;
+	i2c-scl-hz = <400000>;
+	status = "okay";
+
+	tcpc@50 {
+		compatible = "nxp,ptn5110", "tcpci";
+		reg = <0x50 0x00 (I2C_FM | I2C_NO_FILTER_LOW_FREQUENCY)>;
+		interrupt-parent = <&gpio3>;
+		interrupts = <26 IRQ_TYPE_LEVEL_LOW>;
+
+		connector {
+			compatible = "usb-c-connector";
+			label = "USB-C";
+			power-role = "dual";
+			data-role = "dual";
+			try-power-role = "sink";
+			source-pdos = <PDO_FIXED(5000, 3000, PDO_FIXED_USB_COMM)>;
+			sink-pdos = <PDO_FIXED(5000, 3000, PDO_FIXED_USB_COMM)
+				     PDO_VAR(5000, 20000, 3000)>;
+			op-sink-microwatt = <15000000>;
+			self-powered;
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@0 {
+					reg = <0>;
+
+					typec1_dr_sw: endpoint {
+						remote-endpoint = <&usb1_drd_sw>;
+					};
+				};
+			};
+		};
+	};
+};
+
+&usb1_drd_sw {
+	remote-endpoint = <&typec1_dr_sw>;
+};
+
+&iomuxc {
+	pinctrl_i3c1: i3c1grp {
+		fsl,pins = <
+			MX93_PAD_I2C1_SCL__I3C1_SCL	0x40000186
+			MX93_PAD_I2C1_SDA__I3C1_SDA	0x40000186
+		>;
+	};
+};

@@ -579,6 +579,9 @@ N: Zach Brown
 E: zab@zabbo.net
 D: maestro pci sound
 
+N: Zefan Li
+D: Contribution to control group stuff
+
 N: David Brownell
 D: Kernel engineer, mentor, and friend.  Maintained USB EHCI and
 D: gadget layers, SPI subsystem, GPIO subsystem, and more than a few
@@ -3799,6 +3802,10 @@ D: alpha rtc port, random appletalk fixes
 S: Department of Zoology, University of Washington
 S: Seattle, WA  98195-1800
 S: USA
+
+N: York Sun
+E: york.sun@nxp.com
+D: Freescale DDR EDAC
 
 N: Eugene Surovegin
 E: ebs@ebshome.net

@@ -1023,7 +1023,7 @@ static struct platform_driver zynq_gpio_driver = {
 		.of_match_table = zynq_gpio_of_match,
 	},
 	.probe = zynq_gpio_probe,
-	.remove_new = zynq_gpio_remove,
+	.remove = zynq_gpio_remove,
 };
 
 module_platform_driver(zynq_gpio_driver);

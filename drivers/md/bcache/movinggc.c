@@ -190,14 +190,6 @@ static bool new_bucket_cmp(const void *l, const void *r, void __always_unused *a
 	return GC_SECTORS_USED(*_l) >= GC_SECTORS_USED(*_r);
 }
 
-static void new_bucket_swap(void *l, void *r, void __always_unused *args)
-{
-	struct bucket **_l = l;
-	struct bucket **_r = r;
-
-	swap(*_l, *_r);
-}
-
 static unsigned int bucket_heap_top(struct cache *ca)
 {
 	struct bucket *b;
@@ -212,7 +204,7 @@ void bch_moving_gc(struct cache_set *c)
 	unsigned long sectors_to_move, reserve_sectors;
 	const struct min_heap_callbacks callbacks = {
 		.less = new_bucket_cmp,
-		.swp = new_bucket_swap,
+		.swp = NULL,
 	};
 
 	if (!c->copy_gc_enabled)

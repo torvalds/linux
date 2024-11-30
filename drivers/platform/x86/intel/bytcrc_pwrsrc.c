@@ -167,7 +167,7 @@ static void crc_pwrsrc_remove(struct platform_device *pdev)
 
 static struct platform_driver crc_pwrsrc_driver = {
 	.probe = crc_pwrsrc_probe,
-	.remove_new = crc_pwrsrc_remove,
+	.remove = crc_pwrsrc_remove,
 	.driver = {
 		.name = "crystal_cove_pwrsrc",
 	},

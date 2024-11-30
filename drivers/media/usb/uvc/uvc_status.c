@@ -257,6 +257,8 @@ int uvc_status_init(struct uvc_device *dev)
 	unsigned int pipe;
 	int interval;
 
+	mutex_init(&dev->status_lock);
+
 	if (ep == NULL)
 		return 0;
 
@@ -292,7 +294,7 @@ int uvc_status_init(struct uvc_device *dev)
 
 void uvc_status_unregister(struct uvc_device *dev)
 {
-	usb_kill_urb(dev->int_urb);
+	uvc_status_suspend(dev);
 	uvc_input_unregister(dev);
 }
 
@@ -302,17 +304,24 @@ void uvc_status_cleanup(struct uvc_device *dev)
 	kfree(dev->status);
 }
 
-int uvc_status_start(struct uvc_device *dev, gfp_t flags)
+static int uvc_status_start(struct uvc_device *dev, gfp_t flags)
 {
-	if (dev->int_urb == NULL)
+	lockdep_assert_held(&dev->status_lock);
+
+	if (!dev->int_urb)
 		return 0;
 
 	return usb_submit_urb(dev->int_urb, flags);
 }
 
-void uvc_status_stop(struct uvc_device *dev)
+static void uvc_status_stop(struct uvc_device *dev)
 {
 	struct uvc_ctrl_work *w = &dev->async_ctrl;
+
+	lockdep_assert_held(&dev->status_lock);
+
+	if (!dev->int_urb)
+		return;
 
 	/*
 	 * Prevent the asynchronous control handler from requeing the URB. The
@@ -349,4 +358,50 @@ void uvc_status_stop(struct uvc_device *dev)
 	 * again.
 	 */
 	smp_store_release(&dev->flush_status, false);
+}
+
+int uvc_status_resume(struct uvc_device *dev)
+{
+	guard(mutex)(&dev->status_lock);
+
+	if (dev->status_users)
+		return uvc_status_start(dev, GFP_NOIO);
+
+	return 0;
+}
+
+void uvc_status_suspend(struct uvc_device *dev)
+{
+	guard(mutex)(&dev->status_lock);
+
+	if (dev->status_users)
+		uvc_status_stop(dev);
+}
+
+int uvc_status_get(struct uvc_device *dev)
+{
+	int ret;
+
+	guard(mutex)(&dev->status_lock);
+
+	if (!dev->status_users) {
+		ret = uvc_status_start(dev, GFP_KERNEL);
+		if (ret)
+			return ret;
+	}
+
+	dev->status_users++;
+
+	return 0;
+}
+
+void uvc_status_put(struct uvc_device *dev)
+{
+	guard(mutex)(&dev->status_lock);
+
+	if (dev->status_users == 1)
+		uvc_status_stop(dev);
+	WARN_ON(!dev->status_users);
+	if (dev->status_users)
+		dev->status_users--;
 }

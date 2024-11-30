@@ -43,23 +43,23 @@
 	};
 
 	/* A non-regulated voltage from power supply or battery */
-	vccsys: vccsys {
+	vccsys: regulator-vccsys {
 		compatible = "regulator-fixed";
 		regulator-name = "vccsys";
 		regulator-boot-on;
 		regulator-always-on;
 	};
 
-	vcc33_sys: vcc33-sys {
+	vcc33_sys: regulator-vcc33-sys {
 		vin-supply = <&vccsys>;
 	};
 
-	vcc_5v: vcc-5v {
+	vcc_5v: regulator-vcc-5v {
 		vin-supply = <&vccsys>;
 	};
 
 	/* This turns on vbus for host1 (dwc2) */
-	vcc5_host1: vcc5-host1-regulator {
+	vcc5_host1: regulator-vcc5-host1 {
 		compatible = "regulator-fixed";
 		enable-active-high;
 		gpio = <&gpio0 RK_PB3 GPIO_ACTIVE_HIGH>;
@@ -71,7 +71,7 @@
 	};
 
 	/* This turns on vbus for otg for host mode (dwc2) */
-	vcc5v_otg: vcc5v-otg-regulator {
+	vcc5v_otg: regulator-vcc5v-otg {
 		compatible = "regulator-fixed";
 		enable-active-high;
 		gpio = <&gpio0 RK_PB4 GPIO_ACTIVE_HIGH>;

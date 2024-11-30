@@ -324,14 +324,11 @@ static int stk3310_write_event_config(struct iio_dev *indio_dev,
 				      const struct iio_chan_spec *chan,
 				      enum iio_event_type type,
 				      enum iio_event_direction dir,
-				      int state)
+				      bool state)
 {
 	int ret;
 	struct stk3310_data *data = iio_priv(indio_dev);
 	struct i2c_client *client = data->client;
-
-	if (state < 0 || state > 7)
-		return -EINVAL;
 
 	/* Set INT_PS value */
 	mutex_lock(&data->lock);

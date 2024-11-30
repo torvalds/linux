@@ -1068,17 +1068,17 @@ static struct clk *bcm_get_txco(struct device *dev)
 	struct clk *clk;
 
 	/* New explicit name */
-	clk = devm_clk_get(dev, "txco");
-	if (!IS_ERR(clk) || PTR_ERR(clk) == -EPROBE_DEFER)
+	clk = devm_clk_get_optional(dev, "txco");
+	if (clk)
 		return clk;
 
 	/* Deprecated name */
-	clk = devm_clk_get(dev, "extclk");
-	if (!IS_ERR(clk) || PTR_ERR(clk) == -EPROBE_DEFER)
+	clk = devm_clk_get_optional(dev, "extclk");
+	if (clk)
 		return clk;
 
 	/* Original code used no name at all */
-	return devm_clk_get(dev, NULL);
+	return devm_clk_get_optional(dev, NULL);
 }
 
 static int bcm_get_resources(struct bcm_device *dev)
@@ -1093,21 +1093,12 @@ static int bcm_get_resources(struct bcm_device *dev)
 		return 0;
 
 	dev->txco_clk = bcm_get_txco(dev->dev);
-
-	/* Handle deferred probing */
-	if (dev->txco_clk == ERR_PTR(-EPROBE_DEFER))
+	if (IS_ERR(dev->txco_clk))
 		return PTR_ERR(dev->txco_clk);
 
-	/* Ignore all other errors as before */
-	if (IS_ERR(dev->txco_clk))
-		dev->txco_clk = NULL;
-
-	dev->lpo_clk = devm_clk_get(dev->dev, "lpo");
-	if (dev->lpo_clk == ERR_PTR(-EPROBE_DEFER))
-		return PTR_ERR(dev->lpo_clk);
-
+	dev->lpo_clk = devm_clk_get_optional(dev->dev, "lpo");
 	if (IS_ERR(dev->lpo_clk))
-		dev->lpo_clk = NULL;
+		return PTR_ERR(dev->lpo_clk);
 
 	/* Check if we accidentally fetched the lpo clock twice */
 	if (dev->lpo_clk && clk_is_match(dev->lpo_clk, dev->txco_clk)) {

@@ -79,6 +79,7 @@ struct amdgpu_vpe {
 
 	uint32_t			num_instances;
 	bool				collaborate_mode;
+	uint32_t			supported_reset;
 };
 
 int amdgpu_vpe_psp_update_sram(struct amdgpu_device *adev);
@@ -86,6 +87,8 @@ int amdgpu_vpe_init_microcode(struct amdgpu_vpe *vpe);
 int amdgpu_vpe_ring_init(struct amdgpu_vpe *vpe);
 int amdgpu_vpe_ring_fini(struct amdgpu_vpe *vpe);
 int amdgpu_vpe_configure_dpm(struct amdgpu_vpe *vpe);
+void amdgpu_vpe_sysfs_reset_mask_fini(struct amdgpu_device *adev);
+int amdgpu_vpe_sysfs_reset_mask_init(struct amdgpu_device *adev);
 
 #define vpe_ring_init(vpe) ((vpe)->funcs->ring_init ? (vpe)->funcs->ring_init((vpe)) : 0)
 #define vpe_ring_start(vpe) ((vpe)->funcs->ring_start ? (vpe)->funcs->ring_start((vpe)) : 0)

@@ -250,6 +250,7 @@ config CRYPTO_RSA
 	tristate "RSA (Rivest-Shamir-Adleman)"
 	select CRYPTO_AKCIPHER
 	select CRYPTO_MANAGER
+	select CRYPTO_SIG
 	select MPILIB
 	select ASN1
 	help
@@ -290,19 +291,19 @@ config CRYPTO_ECDH
 config CRYPTO_ECDSA
 	tristate "ECDSA (Elliptic Curve Digital Signature Algorithm)"
 	select CRYPTO_ECC
-	select CRYPTO_AKCIPHER
+	select CRYPTO_SIG
 	select ASN1
 	help
 	  ECDSA (Elliptic Curve Digital Signature Algorithm) (FIPS 186,
 	  ISO/IEC 14888-3)
-	  using curves P-192, P-256, and P-384
+	  using curves P-192, P-256, P-384 and P-521
 
 	  Only signature verification is implemented.
 
 config CRYPTO_ECRDSA
 	tristate "EC-RDSA (Elliptic Curve Russian Digital Signature Algorithm)"
 	select CRYPTO_ECC
-	select CRYPTO_AKCIPHER
+	select CRYPTO_SIG
 	select CRYPTO_STREEBOG
 	select OID_REGISTRY
 	select ASN1

@@ -1626,7 +1626,7 @@ static struct platform_driver sdhci_dwcmshc_driver = {
 		.pm = &dwcmshc_pmops,
 	},
 	.probe	= dwcmshc_probe,
-	.remove_new = dwcmshc_remove,
+	.remove = dwcmshc_remove,
 };
 module_platform_driver(sdhci_dwcmshc_driver);
 

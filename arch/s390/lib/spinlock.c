@@ -15,6 +15,7 @@
 #include <linux/percpu.h>
 #include <linux/io.h>
 #include <asm/alternative.h>
+#include <asm/asm.h>
 
 int spin_retry = -1;
 
@@ -76,23 +77,42 @@ static inline int arch_load_niai4(int *lock)
 
 	asm_inline volatile(
 		ALTERNATIVE("nop", ".insn rre,0xb2fa0000,4,0", ALT_FACILITY(49)) /* NIAI 4 */
-		"	l	%0,%1\n"
-		: "=d" (owner) : "Q" (*lock) : "memory");
+		"	l	%[owner],%[lock]\n"
+		: [owner] "=d" (owner) : [lock] "R" (*lock) : "memory");
 	return owner;
 }
 
-static inline int arch_cmpxchg_niai8(int *lock, int old, int new)
+#ifdef __HAVE_ASM_FLAG_OUTPUTS__
+
+static inline int arch_try_cmpxchg_niai8(int *lock, int old, int new)
+{
+	int cc;
+
+	asm_inline volatile(
+		ALTERNATIVE("nop", ".insn rre,0xb2fa0000,8,0", ALT_FACILITY(49)) /* NIAI 8 */
+		"	cs	%[old],%[new],%[lock]\n"
+		: [old] "+d" (old), [lock] "+Q" (*lock), "=@cc" (cc)
+		: [new] "d" (new)
+		: "memory");
+	return cc == 0;
+}
+
+#else /* __HAVE_ASM_FLAG_OUTPUTS__ */
+
+static inline int arch_try_cmpxchg_niai8(int *lock, int old, int new)
 {
 	int expected = old;
 
 	asm_inline volatile(
 		ALTERNATIVE("nop", ".insn rre,0xb2fa0000,8,0", ALT_FACILITY(49)) /* NIAI 8 */
-		"	cs	%0,%3,%1\n"
-		: "=d" (old), "=Q" (*lock)
-		: "0" (old), "d" (new), "Q" (*lock)
+		"	cs	%[old],%[new],%[lock]\n"
+		: [old] "+d" (old), [lock] "+Q" (*lock)
+		: [new] "d" (new)
 		: "cc", "memory");
 	return expected == old;
 }
+
+#endif /* __HAVE_ASM_FLAG_OUTPUTS__ */
 
 static inline struct spin_wait *arch_spin_decode_tail(int lock)
 {
@@ -226,7 +246,7 @@ static inline void arch_spin_lock_classic(arch_spinlock_t *lp)
 		/* Try to get the lock if it is free. */
 		if (!owner) {
 			new = (old & _Q_TAIL_MASK) | lockval;
-			if (arch_cmpxchg_niai8(&lp->lock, old, new)) {
+			if (arch_try_cmpxchg_niai8(&lp->lock, old, new)) {
 				/* Got the lock */
 				return;
 			}

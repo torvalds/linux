@@ -9,8 +9,6 @@
 
 #include <linux/module.h>
 #include <linux/platform_device.h>
-#include <linux/fb.h>
-#include <linux/backlight.h>
 #include <linux/lcd.h>
 #include <linux/slab.h>
 
@@ -42,7 +40,7 @@ static int platform_lcd_set_power(struct lcd_device *lcd, int power)
 	struct platform_lcd *plcd = to_our_lcd(lcd);
 	int lcd_power = 1;
 
-	if (power == FB_BLANK_POWERDOWN || plcd->suspended)
+	if (power == LCD_POWER_OFF || plcd->suspended)
 		lcd_power = 0;
 
 	plcd->pdata->set_power(plcd->pdata, lcd_power);
@@ -51,21 +49,17 @@ static int platform_lcd_set_power(struct lcd_device *lcd, int power)
 	return 0;
 }
 
-static int platform_lcd_match(struct lcd_device *lcd, struct fb_info *info)
+static bool platform_lcd_controls_device(struct lcd_device *lcd, struct device *display_device)
 {
 	struct platform_lcd *plcd = to_our_lcd(lcd);
-	struct plat_lcd_data *pdata = plcd->pdata;
 
-	if (pdata->match_fb)
-		return pdata->match_fb(pdata, info);
-
-	return plcd->us->parent == info->device;
+	return plcd->us->parent == display_device;
 }
 
 static const struct lcd_ops platform_lcd_ops = {
-	.get_power	= platform_lcd_get_power,
-	.set_power	= platform_lcd_set_power,
-	.check_fb	= platform_lcd_match,
+	.get_power		= platform_lcd_get_power,
+	.set_power		= platform_lcd_set_power,
+	.controls_device	= platform_lcd_controls_device,
 };
 
 static int platform_lcd_probe(struct platform_device *pdev)
@@ -102,7 +96,7 @@ static int platform_lcd_probe(struct platform_device *pdev)
 	}
 
 	platform_set_drvdata(pdev, plcd);
-	platform_lcd_set_power(plcd->lcd, FB_BLANK_NORMAL);
+	platform_lcd_set_power(plcd->lcd, LCD_POWER_REDUCED);
 
 	return 0;
 }

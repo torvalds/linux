@@ -733,7 +733,7 @@ static struct platform_driver i2c_pnx_driver = {
 		.pm = pm_sleep_ptr(&i2c_pnx_pm),
 	},
 	.probe = i2c_pnx_probe,
-	.remove_new = i2c_pnx_remove,
+	.remove = i2c_pnx_remove,
 };
 
 static int __init i2c_adap_pnx_init(void)

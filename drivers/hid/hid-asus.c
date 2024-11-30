@@ -1183,7 +1183,7 @@ static const __u8 *asus_report_fixup(struct hid_device *hdev, __u8 *rdesc,
 
 	if (drvdata->quirks & QUIRK_G752_KEYBOARD &&
 		 *rsize == 75 && rdesc[61] == 0x15 && rdesc[62] == 0x00) {
-		/* report is missing usage mninum and maximum */
+		/* report is missing usage minimum and maximum */
 		__u8 *new_rdesc;
 		size_t new_size = *rsize + sizeof(asus_g752_fixed_rdesc);
 

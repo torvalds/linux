@@ -231,7 +231,7 @@ xrep_rmap_stash(
 	if (xchk_iscan_aborted(&rr->iscan))
 		return -EFSCORRUPTED;
 
-	trace_xrep_rmap_found(sc->mp, sc->sa.pag->pag_agno, &rmap);
+	trace_xrep_rmap_found(sc->sa.pag, &rmap);
 
 	mutex_lock(&rr->lock);
 	mcur = xfs_rmapbt_mem_cursor(sc->sa.pag, sc->tp, &rr->rmap_btree);
@@ -344,7 +344,7 @@ xrep_rmap_visit_bmbt(
 	int			error;
 
 	if (XFS_FSB_TO_AGNO(mp, rec->br_startblock) !=
-			rf->rr->sc->sa.pag->pag_agno)
+			pag_agno(rf->rr->sc->sa.pag))
 		return 0;
 
 	agbno = XFS_FSB_TO_AGBNO(mp, rec->br_startblock);
@@ -391,7 +391,7 @@ xrep_rmap_visit_iroot_btree_block(
 		return 0;
 
 	fsbno = XFS_DADDR_TO_FSB(cur->bc_mp, xfs_buf_daddr(bp));
-	if (XFS_FSB_TO_AGNO(cur->bc_mp, fsbno) != rf->rr->sc->sa.pag->pag_agno)
+	if (XFS_FSB_TO_AGNO(cur->bc_mp, fsbno) != pag_agno(rf->rr->sc->sa.pag))
 		return 0;
 
 	agbno = XFS_FSB_TO_AGBNO(cur->bc_mp, fsbno);
@@ -622,7 +622,7 @@ xrep_rmap_walk_inobt(
 		return error;
 
 	xfs_inobt_btrec_to_irec(mp, rec, &irec);
-	if (xfs_inobt_check_irec(cur->bc_ag.pag, &irec) != NULL)
+	if (xfs_inobt_check_irec(to_perag(cur->bc_group), &irec) != NULL)
 		return -EFSCORRUPTED;
 
 	agino = irec.ir_startino;
@@ -801,7 +801,7 @@ xrep_rmap_find_log_rmaps(
 {
 	struct xfs_scrub	*sc = rr->sc;
 
-	if (!xfs_ag_contains_log(sc->mp, sc->sa.pag->pag_agno))
+	if (!xfs_ag_contains_log(sc->mp, pag_agno(sc->sa.pag)))
 		return 0;
 
 	return xrep_rmap_stash(rr,
@@ -976,7 +976,7 @@ xrep_rmap_try_reserve(
 {
 	struct xrep_rmap_agfl	ra = {
 		.bitmap		= freesp_blocks,
-		.agno		= rr->sc->sa.pag->pag_agno,
+		.agno		= pag_agno(rr->sc->sa.pag),
 	};
 	struct xfs_scrub	*sc = rr->sc;
 	struct xrep_newbt_resv	*resv, *n;
@@ -1272,7 +1272,6 @@ xrep_rmap_build_new_tree(
 	struct xfs_perag	*pag = sc->sa.pag;
 	struct xfs_agf		*agf = sc->sa.agf_bp->b_addr;
 	struct xfs_btree_cur	*rmap_cur;
-	xfs_fsblock_t		fsbno;
 	int			error;
 
 	/*
@@ -1290,9 +1289,9 @@ xrep_rmap_build_new_tree(
 	 * rmapbt per-AG reservation, which we will adjust further after
 	 * committing the new btree.
 	 */
-	fsbno = XFS_AGB_TO_FSB(sc->mp, pag->pag_agno, XFS_RMAP_BLOCK(sc->mp));
 	xrep_newbt_init_ag(&rr->new_btree, sc, &XFS_RMAP_OINFO_SKIP_UPDATE,
-			fsbno, XFS_AG_RESV_RMAPBT);
+			xfs_agbno_to_fsb(pag, XFS_RMAP_BLOCK(sc->mp)),
+			XFS_AG_RESV_RMAPBT);
 	rr->new_btree.bload.get_records = xrep_rmap_get_records;
 	rr->new_btree.bload.claim_block = xrep_rmap_claim_block;
 	rr->new_btree.alloc_vextent = xrep_rmap_alloc_vextent;
@@ -1553,7 +1552,7 @@ xrep_rmapbt_live_update(
 	if (!xrep_rmapbt_want_live_update(&rr->iscan, &p->oinfo))
 		goto out_unlock;
 
-	trace_xrep_rmap_live_update(mp, rr->sc->sa.pag->pag_agno, action, p);
+	trace_xrep_rmap_live_update(rr->sc->sa.pag, action, p);
 
 	error = xrep_trans_alloc_hook_dummy(mp, &txcookie, &tp);
 	if (error)
@@ -1597,7 +1596,7 @@ xrep_rmap_setup_scan(
 
 	/* Set up in-memory rmap btree */
 	error = xfs_rmapbt_mem_init(sc->mp, &rr->rmap_btree, sc->xmbtp,
-			sc->sa.pag->pag_agno);
+			pag_agno(sc->sa.pag));
 	if (error)
 		goto out_mutex;
 
@@ -1612,7 +1611,7 @@ xrep_rmap_setup_scan(
 	 */
 	ASSERT(sc->flags & XCHK_FSGATES_RMAP);
 	xfs_rmap_hook_setup(&rr->rhook, xrep_rmapbt_live_update);
-	error = xfs_rmap_hook_add(sc->sa.pag, &rr->rhook);
+	error = xfs_rmap_hook_add(pag_group(sc->sa.pag), &rr->rhook);
 	if (error)
 		goto out_iscan;
 	return 0;
@@ -1633,7 +1632,7 @@ xrep_rmap_teardown(
 	struct xfs_scrub	*sc = rr->sc;
 
 	xchk_iscan_abort(&rr->iscan);
-	xfs_rmap_hook_del(sc->sa.pag, &rr->rhook);
+	xfs_rmap_hook_del(pag_group(sc->sa.pag), &rr->rhook);
 	xchk_iscan_teardown(&rr->iscan);
 	xfbtree_destroy(&rr->rmap_btree);
 	mutex_destroy(&rr->lock);

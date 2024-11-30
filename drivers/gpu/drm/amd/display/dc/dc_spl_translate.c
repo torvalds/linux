@@ -8,13 +8,13 @@
 #include "dcn32/dcn32_dpp.h"
 #include "dcn401/dcn401_dpp.h"
 
-static struct spl_funcs dcn2_spl_funcs = {
+static struct spl_callbacks dcn2_spl_callbacks = {
 	.spl_calc_lb_num_partitions = dscl2_spl_calc_lb_num_partitions,
 };
-static struct spl_funcs dcn32_spl_funcs = {
+static struct spl_callbacks dcn32_spl_callbacks = {
 	.spl_calc_lb_num_partitions = dscl32_spl_calc_lb_num_partitions,
 };
-static struct spl_funcs dcn401_spl_funcs = {
+static struct spl_callbacks dcn401_spl_callbacks = {
 	.spl_calc_lb_num_partitions = dscl401_spl_calc_lb_num_partitions,
 };
 static void populate_splrect_from_rect(struct spl_rect *spl_rect, const struct rect *rect)
@@ -38,6 +38,7 @@ static void populate_spltaps_from_taps(struct spl_taps *spl_scaling_quality,
 	spl_scaling_quality->h_taps = scaling_quality->h_taps;
 	spl_scaling_quality->v_taps_c = scaling_quality->v_taps_c;
 	spl_scaling_quality->v_taps = scaling_quality->v_taps;
+	spl_scaling_quality->integer_scaling = scaling_quality->integer_scaling;
 }
 static void populate_taps_from_spltaps(struct scaling_taps *scaling_quality,
 		const struct spl_taps *spl_scaling_quality)
@@ -76,16 +77,16 @@ void translate_SPL_in_params_from_pipe_ctx(struct pipe_ctx *pipe_ctx, struct spl
 	// This is used to determine the vtap support
 	switch (plane_state->ctx->dce_version)	{
 	case DCN_VERSION_2_0:
-		spl_in->funcs = &dcn2_spl_funcs;
+		spl_in->callbacks = dcn2_spl_callbacks;
 		break;
 	case DCN_VERSION_3_2:
-		spl_in->funcs = &dcn32_spl_funcs;
+		spl_in->callbacks = dcn32_spl_callbacks;
 		break;
 	case DCN_VERSION_4_01:
-		spl_in->funcs = &dcn401_spl_funcs;
+		spl_in->callbacks = dcn401_spl_callbacks;
 		break;
 	default:
-		spl_in->funcs = &dcn2_spl_funcs;
+		spl_in->callbacks = dcn2_spl_callbacks;
 	}
 	// Make format field from spl_in point to plane_res scl_data format
 	spl_in->basic_in.format = (enum spl_pixel_format)pipe_ctx->plane_res.scl_data.format;
@@ -187,14 +188,14 @@ void translate_SPL_in_params_from_pipe_ctx(struct pipe_ctx *pipe_ctx, struct spl
 	spl_in->h_active = pipe_ctx->plane_res.scl_data.h_active;
 	spl_in->v_active = pipe_ctx->plane_res.scl_data.v_active;
 
-	spl_in->debug.sharpen_policy = (enum sharpen_policy)pipe_ctx->stream->ctx->dc->debug.sharpen_policy;
+	spl_in->sharpen_policy = (enum sharpen_policy)plane_state->adaptive_sharpness_policy;
 	spl_in->debug.scale_to_sharpness_policy =
 		(enum scale_to_sharpness_policy)pipe_ctx->stream->ctx->dc->debug.scale_to_sharpness_policy;
 
 	/* Check if it is stream is in fullscreen and if its HDR.
 	 * Use this to determine sharpness levels
 	 */
-	spl_in->is_fullscreen = dm_helpers_is_fullscreen(pipe_ctx->stream->ctx, pipe_ctx->stream);
+	spl_in->is_fullscreen = pipe_ctx->stream->sharpening_required;
 	spl_in->is_hdr_on = dm_helpers_is_hdr_on(pipe_ctx->stream->ctx, pipe_ctx->stream);
 	spl_in->sdr_white_level_nits = plane_state->sdr_white_level_nits;
 }

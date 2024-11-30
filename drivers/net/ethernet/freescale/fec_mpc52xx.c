@@ -1040,7 +1040,7 @@ static struct platform_driver mpc52xx_fec_driver = {
 		.of_match_table = mpc52xx_fec_match,
 	},
 	.probe		= mpc52xx_fec_probe,
-	.remove_new	= mpc52xx_fec_remove,
+	.remove		= mpc52xx_fec_remove,
 #ifdef CONFIG_PM
 	.suspend	= mpc52xx_fec_of_suspend,
 	.resume		= mpc52xx_fec_of_resume,

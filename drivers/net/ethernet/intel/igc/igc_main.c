@@ -7108,7 +7108,6 @@ static int igc_probe(struct pci_dev *pdev,
 
 	/* Initialize link properties that are user-changeable */
 	adapter->fc_autoneg = true;
-	hw->mac.autoneg = true;
 	hw->phy.autoneg_advertised = 0xaf;
 
 	hw->fc.requested_mode = igc_fc_default;

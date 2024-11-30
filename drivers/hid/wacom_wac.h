@@ -300,7 +300,7 @@ struct hid_data {
 	__s16 inputmode_index;	/* InputMode HID feature index in the report */
 	bool sense_state;
 	bool inrange_state;
-	bool invert_state;
+	bool eraser;
 	bool tipswitch;
 	bool barrelswitch;
 	bool barrelswitch2;

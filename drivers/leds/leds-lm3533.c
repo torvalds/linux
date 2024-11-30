@@ -744,7 +744,7 @@ static struct platform_driver lm3533_led_driver = {
 		.name = "lm3533-leds",
 	},
 	.probe		= lm3533_led_probe,
-	.remove_new	= lm3533_led_remove,
+	.remove		= lm3533_led_remove,
 	.shutdown	= lm3533_led_shutdown,
 };
 module_platform_driver(lm3533_led_driver);

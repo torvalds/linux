@@ -143,24 +143,17 @@ static int gen_74x164_probe(struct spi_device *spi)
 	chip->gpio_chip.parent = &spi->dev;
 	chip->gpio_chip.owner = THIS_MODULE;
 
-	mutex_init(&chip->lock);
+	ret = devm_mutex_init(&spi->dev, &chip->lock);
+	if (ret)
+		return ret;
 
 	ret = __gen_74x164_write_config(chip);
-	if (ret) {
-		dev_err(&spi->dev, "Failed writing: %d\n", ret);
-		goto exit_destroy;
-	}
+	if (ret)
+		return dev_err_probe(&spi->dev, ret, "Config write failed\n");
 
 	gpiod_set_value_cansleep(chip->gpiod_oe, 1);
 
-	ret = gpiochip_add_data(&chip->gpio_chip, chip);
-	if (!ret)
-		return 0;
-
-exit_destroy:
-	mutex_destroy(&chip->lock);
-
-	return ret;
+	return devm_gpiochip_add_data(&spi->dev, &chip->gpio_chip, chip);
 }
 
 static void gen_74x164_remove(struct spi_device *spi)
@@ -168,8 +161,6 @@ static void gen_74x164_remove(struct spi_device *spi)
 	struct gen_74x164_chip *chip = spi_get_drvdata(spi);
 
 	gpiod_set_value_cansleep(chip->gpiod_oe, 0);
-	gpiochip_remove(&chip->gpio_chip);
-	mutex_destroy(&chip->lock);
 }
 
 static const struct spi_device_id gen_74x164_spi_ids[] = {

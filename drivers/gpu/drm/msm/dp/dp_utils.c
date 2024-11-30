@@ -9,7 +9,7 @@
 
 #define DP_SDP_HEADER_SIZE		8
 
-u8 dp_utils_get_g0_value(u8 data)
+u8 msm_dp_utils_get_g0_value(u8 data)
 {
 	u8 c[4];
 	u8 g[4];
@@ -30,7 +30,7 @@ u8 dp_utils_get_g0_value(u8 data)
 	return ret_data;
 }
 
-u8 dp_utils_get_g1_value(u8 data)
+u8 msm_dp_utils_get_g1_value(u8 data)
 {
 	u8 c[4];
 	u8 g[4];
@@ -51,7 +51,7 @@ u8 dp_utils_get_g1_value(u8 data)
 	return ret_data;
 }
 
-u8 dp_utils_calculate_parity(u32 data)
+u8 msm_dp_utils_calculate_parity(u32 data)
 {
 	u8 x0 = 0;
 	u8 x1 = 0;
@@ -65,8 +65,8 @@ u8 dp_utils_calculate_parity(u32 data)
 		iData = (data >> i * 4) & 0xF;
 
 		ci = iData ^ x1;
-		x1 = x0 ^ dp_utils_get_g1_value(ci);
-		x0 = dp_utils_get_g0_value(ci);
+		x1 = x0 ^ msm_dp_utils_get_g1_value(ci);
+		x0 = msm_dp_utils_get_g0_value(ci);
 	}
 
 	parity_byte = x1 | (x0 << 4);
@@ -74,7 +74,7 @@ u8 dp_utils_calculate_parity(u32 data)
 	return parity_byte;
 }
 
-ssize_t dp_utils_pack_sdp_header(struct dp_sdp_header *sdp_header, u32 *header_buff)
+ssize_t msm_dp_utils_pack_sdp_header(struct dp_sdp_header *sdp_header, u32 *header_buff)
 {
 	size_t length;
 
@@ -83,14 +83,14 @@ ssize_t dp_utils_pack_sdp_header(struct dp_sdp_header *sdp_header, u32 *header_b
 		return -ENOSPC;
 
 	header_buff[0] = FIELD_PREP(HEADER_0_MASK, sdp_header->HB0) |
-		FIELD_PREP(PARITY_0_MASK, dp_utils_calculate_parity(sdp_header->HB0)) |
+		FIELD_PREP(PARITY_0_MASK, msm_dp_utils_calculate_parity(sdp_header->HB0)) |
 		FIELD_PREP(HEADER_1_MASK, sdp_header->HB1) |
-		FIELD_PREP(PARITY_1_MASK, dp_utils_calculate_parity(sdp_header->HB1));
+		FIELD_PREP(PARITY_1_MASK, msm_dp_utils_calculate_parity(sdp_header->HB1));
 
 	header_buff[1] = FIELD_PREP(HEADER_2_MASK, sdp_header->HB2) |
-		FIELD_PREP(PARITY_2_MASK, dp_utils_calculate_parity(sdp_header->HB2)) |
+		FIELD_PREP(PARITY_2_MASK, msm_dp_utils_calculate_parity(sdp_header->HB2)) |
 		FIELD_PREP(HEADER_3_MASK, sdp_header->HB3) |
-		FIELD_PREP(PARITY_3_MASK, dp_utils_calculate_parity(sdp_header->HB3));
+		FIELD_PREP(PARITY_3_MASK, msm_dp_utils_calculate_parity(sdp_header->HB3));
 
 	return length;
 }

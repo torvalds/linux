@@ -2082,6 +2082,9 @@ static enum dc_status enable_link_dp(struct dc_state *state,
 	if (link_settings->link_rate == LINK_RATE_LOW)
 		skip_video_pattern = false;
 
+	if (stream->sink_patches.oled_optimize_display_on)
+		set_default_brightness_aux(link);
+
 	if (perform_link_training_with_retries(link_settings,
 					       skip_video_pattern,
 					       lt_attempts,
@@ -2105,10 +2108,14 @@ static enum dc_status enable_link_dp(struct dc_state *state,
 	if (link->dpcd_sink_ext_caps.bits.oled == 1 ||
 		link->dpcd_sink_ext_caps.bits.sdr_aux_backlight_control == 1 ||
 		link->dpcd_sink_ext_caps.bits.hdr_aux_backlight_control == 1) {
-		set_default_brightness_aux(link);
-		if (link->dpcd_sink_ext_caps.bits.oled == 1)
-			msleep(bl_oled_enable_delay);
-		edp_backlight_enable_aux(link, true);
+		if (!stream->sink_patches.oled_optimize_display_on) {
+			set_default_brightness_aux(link);
+			if (link->dpcd_sink_ext_caps.bits.oled == 1)
+				msleep(bl_oled_enable_delay);
+			edp_backlight_enable_aux(link, true);
+		} else {
+			edp_backlight_enable_aux(link, true);
+		}
 	}
 
 	return status;

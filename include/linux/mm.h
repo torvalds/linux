@@ -97,11 +97,11 @@ extern const int mmap_rnd_compat_bits_max;
 extern int mmap_rnd_compat_bits __read_mostly;
 #endif
 
-#ifndef PHYSMEM_END
+#ifndef DIRECT_MAP_PHYSMEM_END
 # ifdef MAX_PHYSMEM_BITS
-# define PHYSMEM_END	((1ULL << MAX_PHYSMEM_BITS) - 1)
+# define DIRECT_MAP_PHYSMEM_END	((1ULL << MAX_PHYSMEM_BITS) - 1)
 # else
-# define PHYSMEM_END	(((phys_addr_t)-1)&~(1ULL<<63))
+# define DIRECT_MAP_PHYSMEM_END	(((phys_addr_t)-1)&~(1ULL<<63))
 # endif
 #endif
 
@@ -1298,8 +1298,6 @@ static inline struct folio *virt_to_folio(const void *x)
 
 void __folio_put(struct folio *folio);
 
-void put_pages_list(struct list_head *pages);
-
 void split_page(struct page *page, unsigned int order);
 void folio_copy(struct folio *dst, struct folio *src);
 int folio_mc_copy(struct folio *dst, struct folio *src);
@@ -1907,7 +1905,7 @@ static inline unsigned long page_to_section(const struct page *page)
  *
  * Return: The Page Frame Number of the first page in the folio.
  */
-static inline unsigned long folio_pfn(struct folio *folio)
+static inline unsigned long folio_pfn(const struct folio *folio)
 {
 	return page_to_pfn(&folio->page);
 }
@@ -2536,6 +2534,7 @@ long pin_user_pages_unlocked(unsigned long start, unsigned long nr_pages,
 long memfd_pin_folios(struct file *memfd, loff_t start, loff_t end,
 		      struct folio **folios, unsigned int max_folios,
 		      pgoff_t *offset);
+int folio_add_pins(struct folio *folio, unsigned int pins);
 
 int get_user_pages_fast(unsigned long start, int nr_pages,
 			unsigned int gup_flags, struct page **pages);
@@ -2551,6 +2550,7 @@ struct kvec;
 struct page *get_dump_page(unsigned long addr);
 
 bool folio_mark_dirty(struct folio *folio);
+bool folio_mark_dirty_lock(struct folio *folio);
 bool set_page_dirty(struct page *page);
 int set_page_dirty_lock(struct page *page);
 
@@ -3027,8 +3027,11 @@ static inline pte_t *pte_offset_map_lock(struct mm_struct *mm, pmd_t *pmd,
 	return pte;
 }
 
-pte_t *pte_offset_map_nolock(struct mm_struct *mm, pmd_t *pmd,
-			unsigned long addr, spinlock_t **ptlp);
+pte_t *pte_offset_map_ro_nolock(struct mm_struct *mm, pmd_t *pmd,
+				unsigned long addr, spinlock_t **ptlp);
+pte_t *pte_offset_map_rw_nolock(struct mm_struct *mm, pmd_t *pmd,
+				unsigned long addr, pmd_t *pmdvalp,
+				spinlock_t **ptlp);
 
 #define pte_unmap_unlock(pte, ptl)	do {		\
 	spin_unlock(ptl);				\
@@ -3830,9 +3833,6 @@ void *sparse_buffer_alloc(unsigned long size);
 struct page * __populate_section_memmap(unsigned long pfn,
 		unsigned long nr_pages, int nid, struct vmem_altmap *altmap,
 		struct dev_pagemap *pgmap);
-void pud_init(void *addr);
-void pmd_init(void *addr);
-void kernel_pte_init(void *addr);
 pgd_t *vmemmap_pgd_populate(unsigned long addr, int node);
 p4d_t *vmemmap_p4d_populate(pgd_t *pgd, unsigned long addr, int node);
 pud_t *vmemmap_pud_populate(p4d_t *p4d, unsigned long addr, int node);
@@ -4174,63 +4174,6 @@ static inline int do_mseal(unsigned long start, size_t len_in, unsigned long fla
 	return 0;
 }
 #endif
-
-#ifdef CONFIG_MEM_ALLOC_PROFILING
-static inline void pgalloc_tag_split(struct folio *folio, int old_order, int new_order)
-{
-	int i;
-	struct alloc_tag *tag;
-	unsigned int nr_pages = 1 << new_order;
-
-	if (!mem_alloc_profiling_enabled())
-		return;
-
-	tag = pgalloc_tag_get(&folio->page);
-	if (!tag)
-		return;
-
-	for (i = nr_pages; i < (1 << old_order); i += nr_pages) {
-		union codetag_ref *ref = get_page_tag_ref(folio_page(folio, i));
-
-		if (ref) {
-			/* Set new reference to point to the original tag */
-			alloc_tag_ref_set(ref, tag);
-			put_page_tag_ref(ref);
-		}
-	}
-}
-
-static inline void pgalloc_tag_copy(struct folio *new, struct folio *old)
-{
-	struct alloc_tag *tag;
-	union codetag_ref *ref;
-
-	tag = pgalloc_tag_get(&old->page);
-	if (!tag)
-		return;
-
-	ref = get_page_tag_ref(&new->page);
-	if (!ref)
-		return;
-
-	/* Clear the old ref to the original allocation tag. */
-	clear_page_tag_ref(&old->page);
-	/* Decrement the counters of the tag on get_new_folio. */
-	alloc_tag_sub(ref, folio_nr_pages(new));
-
-	__alloc_tag_ref_set(ref, tag);
-
-	put_page_tag_ref(ref);
-}
-#else /* !CONFIG_MEM_ALLOC_PROFILING */
-static inline void pgalloc_tag_split(struct folio *folio, int old_order, int new_order)
-{
-}
-
-static inline void pgalloc_tag_copy(struct folio *new, struct folio *old)
-{
-}
-#endif /* CONFIG_MEM_ALLOC_PROFILING */
 
 int arch_get_shadow_stack_status(struct task_struct *t, unsigned long __user *status);
 int arch_set_shadow_stack_status(struct task_struct *t, unsigned long status);

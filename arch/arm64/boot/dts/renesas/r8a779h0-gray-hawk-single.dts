@@ -126,6 +126,12 @@
 		reg = <0x4 0x80000000 0x1 0x80000000>;
 	};
 
+	pcie_clk: clk-9fgv0841-pci {
+		compatible = "fixed-clock";
+		clock-frequency = <100000000>;
+		#clock-cells = <0>;
+	};
+
 	reg_1p8v: regulator-1p8v {
 			compatible = "regulator-fixed";
 			regulator-name = "fixed-1.8V";
@@ -175,8 +181,7 @@
 			     "ethernet-phy-ieee802.3-c22";
 		rxc-skew-ps = <1500>;
 		reg = <0>;
-		interrupt-parent = <&gpio7>;
-		interrupts = <5 IRQ_TYPE_LEVEL_LOW>;
+		interrupts-extended = <&gpio7 5 IRQ_TYPE_LEVEL_LOW>;
 		reset-gpios = <&gpio7 10 GPIO_ACTIVE_LOW>;
 	};
 };
@@ -239,6 +244,16 @@
 
 	status = "okay";
 	clock-frequency = <400000>;
+
+	io_expander_a: gpio@20 {
+		compatible = "onnn,pca9654";
+		reg = <0x20>;
+		interrupts-extended = <&gpio0 0 IRQ_TYPE_LEVEL_LOW>;
+		gpio-controller;
+		#gpio-cells = <2>;
+		interrupt-controller;
+		#interrupt-cells = <2>;
+	};
 
 	eeprom@50 {
 		compatible = "rohm,br24g01", "atmel,24c01";
@@ -306,6 +321,18 @@
 	no-sdio;
 	non-removable;
 	full-pwr-cycle-in-suspend;
+	status = "okay";
+};
+
+&pcie0_clkref {
+	compatible = "gpio-gate-clock";
+	clocks = <&pcie_clk>;
+	enable-gpios = <&gpio4 21 GPIO_ACTIVE_LOW>;
+	/delete-property/ clock-frequency;
+};
+
+&pciec0 {
+	reset-gpios = <&io_expander_a 0 GPIO_ACTIVE_LOW>;
 	status = "okay";
 };
 

@@ -377,13 +377,8 @@ int ieee80211_parse_ch_switch_ie(struct ieee80211_sub_if_data *sdata,
 		/* capture the AP chandef before (potential) downgrading */
 		csa_ie->chanreq.ap = new_chandef;
 
-		if (conn->bw_limit < IEEE80211_CONN_BW_LIMIT_320 &&
-		    new_chandef.width == NL80211_CHAN_WIDTH_320)
-			ieee80211_chandef_downgrade(&new_chandef, NULL);
-
-		if (conn->bw_limit < IEEE80211_CONN_BW_LIMIT_160 &&
-		    (new_chandef.width == NL80211_CHAN_WIDTH_80P80 ||
-		     new_chandef.width == NL80211_CHAN_WIDTH_160))
+		while (conn->bw_limit <
+			       ieee80211_min_bw_limit_from_chandef(&new_chandef))
 			ieee80211_chandef_downgrade(&new_chandef, NULL);
 
 		if (!cfg80211_chandef_compatible(&new_chandef,

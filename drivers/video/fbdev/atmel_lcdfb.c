@@ -152,7 +152,7 @@ static void init_backlight(struct atmel_lcdfb_info *sinfo)
 	}
 	sinfo->backlight = bl;
 
-	bl->props.power = FB_BLANK_UNBLANK;
+	bl->props.power = BACKLIGHT_POWER_ON;
 	bl->props.brightness = atmel_bl_get_brightness(bl);
 }
 
@@ -162,7 +162,7 @@ static void exit_backlight(struct atmel_lcdfb_info *sinfo)
 		return;
 
 	if (sinfo->backlight->ops) {
-		sinfo->backlight->props.power = FB_BLANK_POWERDOWN;
+		sinfo->backlight->props.power = BACKLIGHT_POWER_OFF;
 		sinfo->backlight->ops->update_status(sinfo->backlight);
 	}
 	backlight_device_unregister(sinfo->backlight);

@@ -858,7 +858,7 @@ static struct platform_driver st_fdma_platform_driver = {
 		.of_match_table = st_fdma_match,
 	},
 	.probe = st_fdma_probe,
-	.remove_new = st_fdma_remove,
+	.remove = st_fdma_remove,
 };
 module_platform_driver(st_fdma_platform_driver);
 

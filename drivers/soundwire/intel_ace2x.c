@@ -175,6 +175,9 @@ static int intel_link_power_up(struct sdw_intel *sdw)
 				__func__, ret);
 			goto out;
 		}
+
+		hdac_bus_eml_enable_interrupt_unlocked(sdw->link_res->hbus, true,
+						       AZX_REG_ML_LEPTR_ID_SDW, true);
 	}
 
 	*shim_mask |= BIT(link_id);
@@ -200,6 +203,10 @@ static int intel_link_power_down(struct sdw_intel *sdw)
 	sdw->cdns.link_up = false;
 
 	*shim_mask &= ~BIT(link_id);
+
+	if (!*shim_mask)
+		hdac_bus_eml_enable_interrupt_unlocked(sdw->link_res->hbus, true,
+						       AZX_REG_ML_LEPTR_ID_SDW, false);
 
 	ret = hdac_bus_eml_sdw_power_down_unlocked(sdw->link_res->hbus, link_id);
 	if (ret < 0) {

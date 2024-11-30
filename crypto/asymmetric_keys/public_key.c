@@ -83,13 +83,19 @@ software_key_determine_akcipher(const struct public_key *pkey,
 		if (strcmp(encoding, "pkcs1") == 0) {
 			*sig = op == kernel_pkey_sign ||
 			       op == kernel_pkey_verify;
-			if (!hash_algo) {
+			if (!*sig) {
+				/*
+				 * For encrypt/decrypt, hash_algo is not used
+				 * but allowed to be set for historic reasons.
+				 */
 				n = snprintf(alg_name, CRYPTO_MAX_ALG_NAME,
 					     "pkcs1pad(%s)",
 					     pkey->pkey_algo);
 			} else {
+				if (!hash_algo)
+					hash_algo = "none";
 				n = snprintf(alg_name, CRYPTO_MAX_ALG_NAME,
-					     "pkcs1pad(%s,%s)",
+					     "pkcs1(%s,%s)",
 					     pkey->pkey_algo, hash_algo);
 			}
 			return n >= CRYPTO_MAX_ALG_NAME ? -EINVAL : 0;
@@ -104,7 +110,8 @@ software_key_determine_akcipher(const struct public_key *pkey,
 			return -EINVAL;
 		*sig = false;
 	} else if (strncmp(pkey->pkey_algo, "ecdsa", 5) == 0) {
-		if (strcmp(encoding, "x962") != 0)
+		if (strcmp(encoding, "x962") != 0 &&
+		    strcmp(encoding, "p1363") != 0)
 			return -EINVAL;
 		/*
 		 * ECDSA signatures are taken over a raw hash, so they don't
@@ -124,6 +131,9 @@ software_key_determine_akcipher(const struct public_key *pkey,
 		    strcmp(hash_algo, "sha3-384") != 0 &&
 		    strcmp(hash_algo, "sha3-512") != 0)
 			return -EINVAL;
+		n = snprintf(alg_name, CRYPTO_MAX_ALG_NAME, "%s(%s)",
+			     encoding, pkey->pkey_algo);
+		return n >= CRYPTO_MAX_ALG_NAME ? -EINVAL : 0;
 	} else if (strcmp(pkey->pkey_algo, "ecrdsa") == 0) {
 		if (strcmp(encoding, "raw") != 0)
 			return -EINVAL;
@@ -192,7 +202,9 @@ static int software_key_query(const struct kernel_pkey_params *params,
 		if (ret < 0)
 			goto error_free_tfm;
 
-		len = crypto_sig_maxsize(sig);
+		len = crypto_sig_keysize(sig);
+		info->max_sig_size = crypto_sig_maxsize(sig);
+		info->max_data_size = crypto_sig_digestsize(sig);
 
 		info->supported_ops = KEYCTL_SUPPORTS_VERIFY;
 		if (pkey->key_is_private)
@@ -218,6 +230,8 @@ static int software_key_query(const struct kernel_pkey_params *params,
 			goto error_free_tfm;
 
 		len = crypto_akcipher_maxsize(tfm);
+		info->max_sig_size = len;
+		info->max_data_size = len;
 
 		info->supported_ops = KEYCTL_SUPPORTS_ENCRYPT;
 		if (pkey->key_is_private)
@@ -225,40 +239,6 @@ static int software_key_query(const struct kernel_pkey_params *params,
 	}
 
 	info->key_size = len * 8;
-
-	if (strncmp(pkey->pkey_algo, "ecdsa", 5) == 0) {
-		int slen = len;
-		/*
-		 * ECDSA key sizes are much smaller than RSA, and thus could
-		 * operate on (hashed) inputs that are larger than key size.
-		 * For example SHA384-hashed input used with secp256r1
-		 * based keys.  Set max_data_size to be at least as large as
-		 * the largest supported hash size (SHA512)
-		 */
-		info->max_data_size = 64;
-
-		/*
-		 * Verify takes ECDSA-Sig (described in RFC 5480) as input,
-		 * which is actually 2 'key_size'-bit integers encoded in
-		 * ASN.1.  Account for the ASN.1 encoding overhead here.
-		 *
-		 * NIST P192/256/384 may prepend a '0' to a coordinate to
-		 * indicate a positive integer. NIST P521 never needs it.
-		 */
-		if (strcmp(pkey->pkey_algo, "ecdsa-nist-p521") != 0)
-			slen += 1;
-		/* Length of encoding the x & y coordinates */
-		slen = 2 * (slen + 2);
-		/*
-		 * If coordinate encoding takes at least 128 bytes then an
-		 * additional byte for length encoding is needed.
-		 */
-		info->max_sig_size = 1 + (slen >= 128) + 1 + slen;
-	} else {
-		info->max_data_size = len;
-		info->max_sig_size = len;
-	}
-
 	info->max_enc_size = len;
 	info->max_dec_size = len;
 
@@ -323,7 +303,7 @@ static int software_key_eds_op(struct kernel_pkey_params *params,
 		if (ret)
 			goto error_free_tfm;
 
-		ksz = crypto_sig_maxsize(sig);
+		ksz = crypto_sig_keysize(sig);
 	} else {
 		tfm = crypto_alloc_akcipher(alg_name, 0, 0);
 		if (IS_ERR(tfm)) {

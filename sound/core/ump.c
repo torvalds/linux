@@ -366,7 +366,7 @@ int snd_ump_block_new(struct snd_ump_endpoint *ump, unsigned int blk,
 {
 	struct snd_ump_block *fb, *p;
 
-	if (blk < 0 || blk >= SNDRV_UMP_MAX_BLOCKS)
+	if (blk >= SNDRV_UMP_MAX_BLOCKS)
 		return -EINVAL;
 
 	if (snd_ump_get_block(ump, blk))
@@ -387,7 +387,7 @@ int snd_ump_block_new(struct snd_ump_endpoint *ump, unsigned int blk,
 	fb->info.first_group = first_group;
 	fb->info.num_groups = num_groups;
 	/* fill the default name, may be overwritten to a better name */
-	snprintf(fb->info.name, sizeof(fb->info.name), "Group %d-%d",
+	snprintf(fb->info.name, sizeof(fb->info.name), "Group %u-%u",
 		 first_group + 1, first_group + num_groups);
 
 	/* put the entry in the ordered list */
@@ -788,7 +788,10 @@ static void fill_fb_info(struct snd_ump_endpoint *ump,
 	info->ui_hint = buf->fb_info.ui_hint;
 	info->first_group = buf->fb_info.first_group;
 	info->num_groups = buf->fb_info.num_groups;
-	info->flags = buf->fb_info.midi_10;
+	if (buf->fb_info.midi_10 < 2)
+		info->flags = buf->fb_info.midi_10;
+	else
+		info->flags = SNDRV_UMP_BLOCK_IS_MIDI1 | SNDRV_UMP_BLOCK_IS_LOWSPEED;
 	info->active = buf->fb_info.active;
 	info->midi_ci_version = buf->fb_info.midi_ci_version;
 	info->sysex8_streams = buf->fb_info.sysex8_streams;

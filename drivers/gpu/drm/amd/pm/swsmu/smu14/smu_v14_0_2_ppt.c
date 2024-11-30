@@ -670,19 +670,6 @@ static bool smu_v14_0_2_is_dpm_running(struct smu_context *smu)
 	return !!(feature_enabled & SMC_DPM_FEATURE);
 }
 
-static void smu_v14_0_2_dump_pptable(struct smu_context *smu)
-{
-       struct smu_table_context *table_context = &smu->smu_table;
-       PPTable_t *pptable = table_context->driver_pptable;
-       PFE_Settings_t *PFEsettings = &pptable->PFE_Settings;
-
-       dev_info(smu->adev->dev, "Dumped PPTable:\n");
-
-       dev_info(smu->adev->dev, "Version = 0x%08x\n", PFEsettings->Version);
-       dev_info(smu->adev->dev, "FeaturesToRun[0] = 0x%08x\n", PFEsettings->FeaturesToRun[0]);
-       dev_info(smu->adev->dev, "FeaturesToRun[1] = 0x%08x\n", PFEsettings->FeaturesToRun[1]);
-}
-
 static uint32_t smu_v14_0_2_get_throttler_status(SmuMetrics_t *metrics)
 {
 	uint32_t throttler_status = 0;
@@ -1186,13 +1173,15 @@ static int smu_v14_0_2_print_clk_levels(struct smu_context *smu,
 					(pcie_table->pcie_gen[i] == 0) ? "2.5GT/s," :
 					(pcie_table->pcie_gen[i] == 1) ? "5.0GT/s," :
 					(pcie_table->pcie_gen[i] == 2) ? "8.0GT/s," :
-					(pcie_table->pcie_gen[i] == 3) ? "16.0GT/s," : "",
+					(pcie_table->pcie_gen[i] == 3) ? "16.0GT/s," :
+					(pcie_table->pcie_gen[i] == 4) ? "32.0GT/s," : "",
 					(pcie_table->pcie_lane[i] == 1) ? "x1" :
 					(pcie_table->pcie_lane[i] == 2) ? "x2" :
 					(pcie_table->pcie_lane[i] == 3) ? "x4" :
 					(pcie_table->pcie_lane[i] == 4) ? "x8" :
 					(pcie_table->pcie_lane[i] == 5) ? "x12" :
-					(pcie_table->pcie_lane[i] == 6) ? "x16" : "",
+					(pcie_table->pcie_lane[i] == 6) ? "x16" :
+					(pcie_table->pcie_lane[i] == 7) ? "x32" : "",
 					pcie_table->clk_freq[i],
 					(gen_speed == DECODE_GEN_SPEED(pcie_table->pcie_gen[i])) &&
 					(lane_width == DECODE_LANE_WIDTH(pcie_table->pcie_lane[i])) ?
@@ -1457,7 +1446,8 @@ static int smu_v14_0_2_force_clk_levels(struct smu_context *smu,
 		ret = smu_v14_0_set_soft_freq_limited_range(smu,
 							    clk_type,
 							    min_freq,
-							    max_freq);
+							    max_freq,
+							    false);
 		break;
 	case SMU_DCEFCLK:
 	case SMU_PCIE:
@@ -1475,15 +1465,35 @@ static int smu_v14_0_2_update_pcie_parameters(struct smu_context *smu,
 	struct smu_14_0_dpm_context *dpm_context = smu->smu_dpm.dpm_context;
 	struct smu_14_0_pcie_table *pcie_table =
 				&dpm_context->dpm_tables.pcie_table;
+	int num_of_levels = pcie_table->num_of_link_levels;
 	uint32_t smu_pcie_arg;
 	int ret, i;
 
-	for (i = 0; i < pcie_table->num_of_link_levels; i++) {
-		if (pcie_table->pcie_gen[i] > pcie_gen_cap)
-			pcie_table->pcie_gen[i] = pcie_gen_cap;
-		if (pcie_table->pcie_lane[i] > pcie_width_cap)
-			pcie_table->pcie_lane[i] = pcie_width_cap;
+	if (!num_of_levels)
+		return 0;
 
+	if (!(smu->adev->pm.pp_feature & PP_PCIE_DPM_MASK)) {
+		if (pcie_table->pcie_gen[num_of_levels - 1] < pcie_gen_cap)
+			pcie_gen_cap = pcie_table->pcie_gen[num_of_levels - 1];
+
+		if (pcie_table->pcie_lane[num_of_levels - 1] < pcie_width_cap)
+			pcie_width_cap = pcie_table->pcie_lane[num_of_levels - 1];
+
+		/* Force all levels to use the same settings */
+		for (i = 0; i < num_of_levels; i++) {
+			pcie_table->pcie_gen[i] = pcie_gen_cap;
+			pcie_table->pcie_lane[i] = pcie_width_cap;
+		}
+	} else {
+		for (i = 0; i < num_of_levels; i++) {
+			if (pcie_table->pcie_gen[i] > pcie_gen_cap)
+				pcie_table->pcie_gen[i] = pcie_gen_cap;
+			if (pcie_table->pcie_lane[i] > pcie_width_cap)
+				pcie_table->pcie_lane[i] = pcie_width_cap;
+		}
+	}
+
+	for (i = 0; i < num_of_levels; i++) {
 		smu_pcie_arg = i << 16;
 		smu_pcie_arg |= pcie_table->pcie_gen[i] << 8;
 		smu_pcie_arg |= pcie_table->pcie_lane[i];
@@ -1807,12 +1817,11 @@ static int smu_v14_0_2_set_power_profile_mode(struct smu_context *smu,
 	if (workload_type < 0)
 		return -EINVAL;
 
-	ret = smu_cmn_send_smc_msg_with_param(smu,
-					       SMU_MSG_SetWorkloadMask,
-					       1 << workload_type,
-					       NULL);
+	ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_SetWorkloadMask,
+										  smu->workload_mask, NULL);
+
 	if (!ret)
-		smu->workload_mask = 1 << workload_type;
+		smu_cmn_assign_power_profile(smu);
 
 	return ret;
 }
@@ -2726,7 +2735,6 @@ static const struct pptable_funcs smu_v14_0_2_ppt_funcs = {
 	.i2c_init = smu_v14_0_2_i2c_control_init,
 	.i2c_fini = smu_v14_0_2_i2c_control_fini,
 	.is_dpm_running = smu_v14_0_2_is_dpm_running,
-	.dump_pptable = smu_v14_0_2_dump_pptable,
 	.init_microcode = smu_v14_0_init_microcode,
 	.load_microcode = smu_v14_0_load_microcode,
 	.fini_microcode = smu_v14_0_fini_microcode,
@@ -2767,7 +2775,6 @@ static const struct pptable_funcs smu_v14_0_2_ppt_funcs = {
 	.get_unique_id = smu_v14_0_2_get_unique_id,
 	.get_power_limit = smu_v14_0_2_get_power_limit,
 	.set_power_limit = smu_v14_0_2_set_power_limit,
-	.set_power_source = smu_v14_0_set_power_source,
 	.get_power_profile_mode = smu_v14_0_2_get_power_profile_mode,
 	.set_power_profile_mode = smu_v14_0_2_set_power_profile_mode,
 	.run_btc = smu_v14_0_run_btc,

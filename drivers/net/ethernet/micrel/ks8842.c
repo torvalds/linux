@@ -1247,7 +1247,7 @@ static struct platform_driver ks8842_platform_driver = {
 		.name	= DRV_NAME,
 	},
 	.probe		= ks8842_probe,
-	.remove_new	= ks8842_remove,
+	.remove		= ks8842_remove,
 };
 
 module_platform_driver(ks8842_platform_driver);

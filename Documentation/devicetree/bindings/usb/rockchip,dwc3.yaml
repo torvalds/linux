@@ -27,6 +27,7 @@ select:
         enum:
           - rockchip,rk3328-dwc3
           - rockchip,rk3568-dwc3
+          - rockchip,rk3576-dwc3
           - rockchip,rk3588-dwc3
   required:
     - compatible
@@ -37,6 +38,7 @@ properties:
       - enum:
           - rockchip,rk3328-dwc3
           - rockchip,rk3568-dwc3
+          - rockchip,rk3576-dwc3
           - rockchip,rk3588-dwc3
       - const: snps,dwc3
 
@@ -113,7 +115,9 @@ allOf:
       properties:
         compatible:
           contains:
-            const: rockchip,rk3568-dwc3
+            enum:
+              - rockchip,rk3568-dwc3
+              - rockchip,rk3576-dwc3
     then:
       properties:
         clocks:

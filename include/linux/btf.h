@@ -75,6 +75,7 @@
 #define KF_ITER_NEXT    (1 << 9) /* kfunc implements BPF iter next method */
 #define KF_ITER_DESTROY (1 << 10) /* kfunc implements BPF iter destructor */
 #define KF_RCU_PROTECTED (1 << 11) /* kfunc should be protected by rcu cs when they are invoked */
+#define KF_FASTCALL     (1 << 12) /* kfunc supports bpf_fastcall protocol */
 
 /*
  * Tag marking a kernel function as a kfunc. This is meant to minimize the
@@ -581,6 +582,16 @@ int get_kern_ctx_btf_id(struct bpf_verifier_log *log, enum bpf_prog_type prog_ty
 bool btf_types_are_same(const struct btf *btf1, u32 id1,
 			const struct btf *btf2, u32 id2);
 int btf_check_iter_arg(struct btf *btf, const struct btf_type *func, int arg_idx);
+
+static inline bool btf_type_is_struct_ptr(struct btf *btf, const struct btf_type *t)
+{
+	if (!btf_type_is_ptr(t))
+		return false;
+
+	t = btf_type_skip_modifiers(btf, t->type, NULL);
+
+	return btf_type_is_struct(t);
+}
 #else
 static inline const struct btf_type *btf_type_by_id(const struct btf *btf,
 						    u32 type_id)
@@ -660,15 +671,4 @@ static inline int btf_check_iter_arg(struct btf *btf, const struct btf_type *fun
 	return -EOPNOTSUPP;
 }
 #endif
-
-static inline bool btf_type_is_struct_ptr(struct btf *btf, const struct btf_type *t)
-{
-	if (!btf_type_is_ptr(t))
-		return false;
-
-	t = btf_type_skip_modifiers(btf, t->type, NULL);
-
-	return btf_type_is_struct(t);
-}
-
 #endif

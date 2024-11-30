@@ -35,7 +35,7 @@ static inline void copy_user_page(void *to, void *from, unsigned long vaddr,
 }
 
 #define vma_alloc_zeroed_movable_folio(vma, vaddr) \
-	vma_alloc_folio(GFP_HIGHUSER_MOVABLE | __GFP_ZERO, 0, vma, vaddr, false)
+	vma_alloc_folio(GFP_HIGHUSER_MOVABLE | __GFP_ZERO, 0, vma, vaddr)
 
 #ifndef __pa
 #define __pa(x)		__phys_addr((unsigned long)(x))

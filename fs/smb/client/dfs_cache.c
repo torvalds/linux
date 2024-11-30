@@ -173,8 +173,8 @@ static int dfscache_proc_show(struct seq_file *m, void *v)
 				   "cache entry: path=%s,type=%s,ttl=%d,etime=%ld,hdr_flags=0x%x,ref_flags=0x%x,interlink=%s,path_consumed=%d,expired=%s\n",
 				   ce->path, ce->srvtype == DFS_TYPE_ROOT ? "root" : "link",
 				   ce->ttl, ce->etime.tv_nsec, ce->hdr_flags, ce->ref_flags,
-				   DFS_INTERLINK(ce->hdr_flags) ? "yes" : "no",
-				   ce->path_consumed, cache_entry_expired(ce) ? "yes" : "no");
+				   str_yes_no(DFS_INTERLINK(ce->hdr_flags)),
+				   ce->path_consumed, str_yes_no(cache_entry_expired(ce)));
 
 			list_for_each_entry(t, &ce->tlist, list) {
 				seq_printf(m, "  %s%s\n",
@@ -242,9 +242,9 @@ static inline void dump_ce(const struct cache_entry *ce)
 		 ce->srvtype == DFS_TYPE_ROOT ? "root" : "link", ce->ttl,
 		 ce->etime.tv_nsec,
 		 ce->hdr_flags, ce->ref_flags,
-		 DFS_INTERLINK(ce->hdr_flags) ? "yes" : "no",
+		 str_yes_no(DFS_INTERLINK(ce->hdr_flags)),
 		 ce->path_consumed,
-		 cache_entry_expired(ce) ? "yes" : "no");
+		 str_yes_no(cache_entry_expired(ce)));
 	dump_tgts(ce);
 }
 

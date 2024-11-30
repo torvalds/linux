@@ -256,12 +256,16 @@ static irqreturn_t i2s_dma_isr(int irq, void *bcm_i2s_priv)
 
 		offlevel = (int_status & I2S_RX_DESC_OFF_LEVEL_MASK) >>
 			   I2S_RX_DESC_OFF_LEVEL_SHIFT;
+		bool val_read = false;
 		while (offlevel) {
 			regmap_read(regmap_i2s, I2S_RX_DESC_OFF_ADDR, &val_1);
 			regmap_read(regmap_i2s, I2S_RX_DESC_OFF_LEN, &val_2);
+			val_read = true;
 			offlevel--;
 		}
-		prtd->dma_addr_next = val_1 + val_2;
+		if (val_read)
+			prtd->dma_addr_next = val_1 + val_2;
+
 		ifflevel = (int_status & I2S_RX_DESC_IFF_LEVEL_MASK) >>
 			   I2S_RX_DESC_IFF_LEVEL_SHIFT;
 

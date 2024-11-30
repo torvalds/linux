@@ -1176,7 +1176,7 @@ static u64 io_hybrid_iopoll_delay(struct io_ring_ctx *ctx, struct io_kiocb *req)
 	req->flags |= REQ_F_IOPOLL_STATE;
 
 	mode = HRTIMER_MODE_REL;
-	hrtimer_init_sleeper_on_stack(&timer, CLOCK_MONOTONIC, mode);
+	hrtimer_setup_sleeper_on_stack(&timer, CLOCK_MONOTONIC, mode);
 	hrtimer_set_expires(&timer.timer, kt);
 	set_current_state(TASK_INTERRUPTIBLE);
 	hrtimer_sleeper_start_expires(&timer, mode);

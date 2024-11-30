@@ -2710,6 +2710,43 @@ static void local_lock_3B(void)
 
 }
 
+#ifdef CONFIG_DEBUG_LOCK_ALLOC
+static inline const char *rw_semaphore_lockdep_name(struct rw_semaphore *rwsem)
+{
+	return rwsem->dep_map.name;
+}
+#else
+static inline const char *rw_semaphore_lockdep_name(struct rw_semaphore *rwsem)
+{
+	return NULL;
+}
+#endif
+
+static void test_lockdep_set_subclass_name(void)
+{
+	const char *name_before = rw_semaphore_lockdep_name(&rwsem_X1);
+	const char *name_after;
+
+	lockdep_set_subclass(&rwsem_X1, 1);
+	name_after = rw_semaphore_lockdep_name(&rwsem_X1);
+	DEBUG_LOCKS_WARN_ON(name_before != name_after);
+}
+
+/*
+ * lockdep_set_subclass() should reuse the existing lock class name instead
+ * of creating a new one.
+ */
+static void lockdep_set_subclass_name_test(void)
+{
+	printk("  --------------------------------------------------------------------------\n");
+	printk("  | lockdep_set_subclass() name test|\n");
+	printk("  -----------------------------------\n");
+
+	print_testname("compare name before and after");
+	dotest(test_lockdep_set_subclass_name, SUCCESS, LOCKTYPE_RWSEM);
+	pr_cont("\n");
+}
+
 static void local_lock_tests(void)
 {
 	printk("  --------------------------------------------------------------------------\n");
@@ -2919,6 +2956,8 @@ void locking_selftest(void)
 	print_testname("hardirq_unsafe_softirq_safe");
 	dotest(hardirq_deadlock_softirq_not_deadlock, FAILURE, LOCKTYPE_SPECIAL);
 	pr_cont("\n");
+
+	lockdep_set_subclass_name_test();
 
 	if (unexpected_testcase_failures) {
 		printk("-----------------------------------------------------------------\n");

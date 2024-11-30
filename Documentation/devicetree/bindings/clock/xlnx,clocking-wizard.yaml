@@ -39,6 +39,11 @@ properties:
       - const: clk_in1
       - const: s_axi_aclk
 
+  xlnx,static-config:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description:
+      Indicate whether the core has been configured without support for dynamic
+      runtime reconfguration of the clocking primitive MMCM/PLL.
 
   xlnx,speed-grade:
     $ref: /schemas/types.yaml#/definitions/uint32
@@ -70,6 +75,7 @@ examples:
         compatible = "xlnx,clocking-wizard";
         reg = <0xb0000000 0x10000>;
         #clock-cells = <1>;
+        xlnx,static-config;
         xlnx,speed-grade = <1>;
         xlnx,nr-outputs = <6>;
         clock-names = "clk_in1", "s_axi_aclk";

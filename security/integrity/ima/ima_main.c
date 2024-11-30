@@ -1111,7 +1111,7 @@ EXPORT_SYMBOL_GPL(ima_measure_critical_data);
 #ifdef CONFIG_INTEGRITY_ASYMMETRIC_KEYS
 
 /**
- * ima_kernel_module_request - Prevent crypto-pkcs1pad(rsa,*) requests
+ * ima_kernel_module_request - Prevent crypto-pkcs1(rsa,*) requests
  * @kmod_name: kernel module name
  *
  * Avoid a verification loop where verifying the signature of the modprobe
@@ -1125,7 +1125,7 @@ EXPORT_SYMBOL_GPL(ima_measure_critical_data);
  * algorithm on the fly, but crypto_larval_lookup() will try to use alg_name
  * in order to load a kernel module with same name.
  *
- * Since we don't have any real "crypto-pkcs1pad(rsa,*)" kernel modules,
+ * Since we don't have any real "crypto-pkcs1(rsa,*)" kernel modules,
  * we are safe to fail such module request from crypto_larval_lookup(), and
  * avoid the verification loop.
  *
@@ -1133,7 +1133,7 @@ EXPORT_SYMBOL_GPL(ima_measure_critical_data);
  */
 static int ima_kernel_module_request(char *kmod_name)
 {
-	if (strncmp(kmod_name, "crypto-pkcs1pad(rsa,", 20) == 0)
+	if (strncmp(kmod_name, "crypto-pkcs1(rsa,", 17) == 0)
 		return -EINVAL;
 
 	return 0;

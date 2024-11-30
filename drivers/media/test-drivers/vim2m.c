@@ -1100,8 +1100,6 @@ static const struct vb2_ops vim2m_qops = {
 	.buf_queue	 = vim2m_buf_queue,
 	.start_streaming = vim2m_start_streaming,
 	.stop_streaming  = vim2m_stop_streaming,
-	.wait_prepare	 = vb2_ops_wait_prepare,
-	.wait_finish	 = vb2_ops_wait_finish,
 	.buf_request_complete = vim2m_buf_request_complete,
 };
 
@@ -1394,7 +1392,7 @@ static void vim2m_remove(struct platform_device *pdev)
 
 static struct platform_driver vim2m_pdrv = {
 	.probe		= vim2m_probe,
-	.remove_new	= vim2m_remove,
+	.remove		= vim2m_remove,
 	.driver		= {
 		.name	= MEM2MEM_NAME,
 	},

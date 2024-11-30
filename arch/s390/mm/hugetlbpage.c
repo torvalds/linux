@@ -24,6 +24,7 @@
 
 static inline unsigned long __pte_to_rste(pte_t pte)
 {
+	swp_entry_t arch_entry;
 	unsigned long rste;
 
 	/*
@@ -48,6 +49,7 @@ static inline unsigned long __pte_to_rste(pte_t pte)
 	 */
 	if (pte_present(pte)) {
 		rste = pte_val(pte) & PAGE_MASK;
+		rste |= _SEGMENT_ENTRY_PRESENT;
 		rste |= move_set_bit(pte_val(pte), _PAGE_READ,
 				     _SEGMENT_ENTRY_READ);
 		rste |= move_set_bit(pte_val(pte), _PAGE_WRITE,
@@ -66,6 +68,10 @@ static inline unsigned long __pte_to_rste(pte_t pte)
 #endif
 		rste |= move_set_bit(pte_val(pte), _PAGE_NOEXEC,
 				     _SEGMENT_ENTRY_NOEXEC);
+	} else if (!pte_none(pte)) {
+		/* swap pte */
+		arch_entry = __pte_to_swp_entry(pte);
+		rste = mk_swap_rste(__swp_type(arch_entry), __swp_offset(arch_entry));
 	} else
 		rste = _SEGMENT_ENTRY_EMPTY;
 	return rste;
@@ -73,13 +79,18 @@ static inline unsigned long __pte_to_rste(pte_t pte)
 
 static inline pte_t __rste_to_pte(unsigned long rste)
 {
+	swp_entry_t arch_entry;
 	unsigned long pteval;
-	int present;
+	int present, none;
+	pte_t pte;
 
-	if ((rste & _REGION_ENTRY_TYPE_MASK) == _REGION_ENTRY_TYPE_R3)
+	if ((rste & _REGION_ENTRY_TYPE_MASK) == _REGION_ENTRY_TYPE_R3) {
 		present = pud_present(__pud(rste));
-	else
+		none = pud_none(__pud(rste));
+	} else {
 		present = pmd_present(__pmd(rste));
+		none = pmd_none(__pmd(rste));
+	}
 
 	/*
 	 * Convert encoding		pmd / pud bits	    pte bits
@@ -114,6 +125,11 @@ static inline pte_t __rste_to_pte(unsigned long rste)
 		pteval |= move_set_bit(rste, _SEGMENT_ENTRY_SOFT_DIRTY, _PAGE_SOFT_DIRTY);
 #endif
 		pteval |= move_set_bit(rste, _SEGMENT_ENTRY_NOEXEC, _PAGE_NOEXEC);
+	} else if (!none) {
+		/* swap rste */
+		arch_entry = __rste_to_swp_entry(rste);
+		pte = mk_swap_pte(__swp_type_rste(arch_entry), __swp_offset_rste(arch_entry));
+		pteval = pte_val(pte);
 	} else
 		pteval = _PAGE_INVALID;
 	return __pte(pteval);
@@ -148,8 +164,6 @@ void __set_huge_pte_at(struct mm_struct *mm, unsigned long addr,
 	unsigned long rste;
 
 	rste = __pte_to_rste(pte);
-	if (!MACHINE_HAS_NX)
-		rste &= ~_SEGMENT_ENTRY_NOEXEC;
 
 	/* Set correct table type for 2G hugepages */
 	if ((pte_val(*ptep) & _REGION_ENTRY_TYPE_MASK) == _REGION_ENTRY_TYPE_R3) {
@@ -223,11 +237,10 @@ pte_t *huge_pte_offset(struct mm_struct *mm,
 		p4dp = p4d_offset(pgdp, addr);
 		if (p4d_present(*p4dp)) {
 			pudp = pud_offset(p4dp, addr);
-			if (pud_present(*pudp)) {
-				if (pud_leaf(*pudp))
-					return (pte_t *) pudp;
+			if (sz == PUD_SIZE)
+				return (pte_t *)pudp;
+			if (pud_present(*pudp))
 				pmdp = pmd_offset(pudp, addr);
-			}
 		}
 	}
 	return (pte_t *) pmdp;
@@ -241,89 +254,4 @@ bool __init arch_hugetlb_valid_size(unsigned long size)
 		return true;
 	else
 		return false;
-}
-
-static unsigned long hugetlb_get_unmapped_area_bottomup(struct file *file,
-		unsigned long addr, unsigned long len,
-		unsigned long pgoff, unsigned long flags)
-{
-	struct hstate *h = hstate_file(file);
-	struct vm_unmapped_area_info info = {};
-
-	info.length = len;
-	info.low_limit = current->mm->mmap_base;
-	info.high_limit = TASK_SIZE;
-	info.align_mask = PAGE_MASK & ~huge_page_mask(h);
-	return vm_unmapped_area(&info);
-}
-
-static unsigned long hugetlb_get_unmapped_area_topdown(struct file *file,
-		unsigned long addr0, unsigned long len,
-		unsigned long pgoff, unsigned long flags)
-{
-	struct hstate *h = hstate_file(file);
-	struct vm_unmapped_area_info info = {};
-	unsigned long addr;
-
-	info.flags = VM_UNMAPPED_AREA_TOPDOWN;
-	info.length = len;
-	info.low_limit = PAGE_SIZE;
-	info.high_limit = current->mm->mmap_base;
-	info.align_mask = PAGE_MASK & ~huge_page_mask(h);
-	addr = vm_unmapped_area(&info);
-
-	/*
-	 * A failed mmap() very likely causes application failure,
-	 * so fall back to the bottom-up function here. This scenario
-	 * can happen with large stack limits and large mmap()
-	 * allocations.
-	 */
-	if (addr & ~PAGE_MASK) {
-		VM_BUG_ON(addr != -ENOMEM);
-		info.flags = 0;
-		info.low_limit = TASK_UNMAPPED_BASE;
-		info.high_limit = TASK_SIZE;
-		addr = vm_unmapped_area(&info);
-	}
-
-	return addr;
-}
-
-unsigned long hugetlb_get_unmapped_area(struct file *file, unsigned long addr,
-		unsigned long len, unsigned long pgoff, unsigned long flags)
-{
-	struct hstate *h = hstate_file(file);
-	struct mm_struct *mm = current->mm;
-	struct vm_area_struct *vma;
-
-	if (len & ~huge_page_mask(h))
-		return -EINVAL;
-	if (len > TASK_SIZE - mmap_min_addr)
-		return -ENOMEM;
-
-	if (flags & MAP_FIXED) {
-		if (prepare_hugepage_range(file, addr, len))
-			return -EINVAL;
-		goto check_asce_limit;
-	}
-
-	if (addr) {
-		addr = ALIGN(addr, huge_page_size(h));
-		vma = find_vma(mm, addr);
-		if (TASK_SIZE - len >= addr && addr >= mmap_min_addr &&
-		    (!vma || addr + len <= vm_start_gap(vma)))
-			goto check_asce_limit;
-	}
-
-	if (!test_bit(MMF_TOPDOWN, &mm->flags))
-		addr = hugetlb_get_unmapped_area_bottomup(file, addr, len,
-				pgoff, flags);
-	else
-		addr = hugetlb_get_unmapped_area_topdown(file, addr, len,
-				pgoff, flags);
-	if (offset_in_page(addr))
-		return addr;
-
-check_asce_limit:
-	return check_asce_limit(mm, addr, len);
 }

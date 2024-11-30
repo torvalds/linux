@@ -24,7 +24,6 @@ Auxiliary Device Creation
 
 .. kernel-doc:: drivers/base/auxiliary.c
    :identifiers: auxiliary_device_init __auxiliary_device_add
-                 auxiliary_find_device
 
 Auxiliary Device Memory Model and Lifespan
 ------------------------------------------

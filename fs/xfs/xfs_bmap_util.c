@@ -29,6 +29,7 @@
 #include "xfs_iomap.h"
 #include "xfs_reflink.h"
 #include "xfs_rtbitmap.h"
+#include "xfs_rtgroup.h"
 
 /* Kernel only BMAP related definitions and functions */
 
@@ -41,16 +42,12 @@ xfs_daddr_t
 xfs_fsb_to_db(struct xfs_inode *ip, xfs_fsblock_t fsb)
 {
 	if (XFS_IS_REALTIME_INODE(ip))
-		return XFS_FSB_TO_BB(ip->i_mount, fsb);
+		return xfs_rtb_to_daddr(ip->i_mount, fsb);
 	return XFS_FSB_TO_DADDR(ip->i_mount, fsb);
 }
 
 /*
  * Routine to zero an extent on disk allocated to the specific inode.
- *
- * The VFS functions take a linearised filesystem block offset, so we have to
- * convert the sparse xfs fsb to the right format first.
- * VFS types are real funky, too.
  */
 int
 xfs_zero_extent(
@@ -58,15 +55,10 @@ xfs_zero_extent(
 	xfs_fsblock_t		start_fsb,
 	xfs_off_t		count_fsb)
 {
-	struct xfs_mount	*mp = ip->i_mount;
-	struct xfs_buftarg	*target = xfs_inode_buftarg(ip);
-	xfs_daddr_t		sector = xfs_fsb_to_db(ip, start_fsb);
-	sector_t		block = XFS_BB_TO_FSBT(mp, sector);
-
-	return blkdev_issue_zeroout(target->bt_bdev,
-		block << (mp->m_super->s_blocksize_bits - 9),
-		count_fsb << (mp->m_super->s_blocksize_bits - 9),
-		GFP_KERNEL, 0);
+	return blkdev_issue_zeroout(xfs_inode_buftarg(ip)->bt_bdev,
+			xfs_fsb_to_db(ip, start_fsb),
+			XFS_FSB_TO_BB(ip->i_mount, count_fsb),
+			GFP_KERNEL, 0);
 }
 
 /*
@@ -540,16 +532,20 @@ xfs_can_free_eofblocks(
 	 */
 	end_fsb = XFS_B_TO_FSB(mp, (xfs_ufsize_t)XFS_ISIZE(ip));
 	if (xfs_inode_has_bigrtalloc(ip))
-		end_fsb = xfs_rtb_roundup_rtx(mp, end_fsb);
+		end_fsb = xfs_fileoff_roundup_rtx(mp, end_fsb);
 	last_fsb = XFS_B_TO_FSB(mp, mp->m_super->s_maxbytes);
 	if (last_fsb <= end_fsb)
 		return false;
 
 	/*
-	 * Check if there is an post-EOF extent to free.
+	 * Check if there is an post-EOF extent to free.  If there are any
+	 * delalloc blocks attached to the inode (data fork delalloc
+	 * reservations or CoW extents of any kind), we need to free them so
+	 * that inactivation doesn't fail to erase them.
 	 */
 	xfs_ilock(ip, XFS_ILOCK_SHARED);
-	if (xfs_iext_lookup_extent(ip, &ip->i_df, end_fsb, &icur, &imap))
+	if (ip->i_delayed_blks ||
+	    xfs_iext_lookup_extent(ip, &ip->i_df, end_fsb, &icur, &imap))
 		found_blocks = true;
 	xfs_iunlock(ip, XFS_ILOCK_SHARED);
 	return found_blocks;
@@ -858,8 +854,8 @@ xfs_free_file_space(
 
 	/* We can only free complete realtime extents. */
 	if (xfs_inode_has_bigrtalloc(ip)) {
-		startoffset_fsb = xfs_rtb_roundup_rtx(mp, startoffset_fsb);
-		endoffset_fsb = xfs_rtb_rounddown_rtx(mp, endoffset_fsb);
+		startoffset_fsb = xfs_fileoff_roundup_rtx(mp, startoffset_fsb);
+		endoffset_fsb = xfs_fileoff_rounddown_rtx(mp, endoffset_fsb);
 	}
 
 	/*
@@ -1524,6 +1520,18 @@ xfs_swap_extents(
 	/* Verify both files are either real-time or non-realtime */
 	if (XFS_IS_REALTIME_INODE(ip) != XFS_IS_REALTIME_INODE(tip)) {
 		error = -EINVAL;
+		goto out_unlock;
+	}
+
+	/*
+	 * The rmapbt implementation is unable to resume a swapext operation
+	 * after a crash if the allocation unit size is larger than a block.
+	 * This (deprecated) interface will not be upgraded to handle this
+	 * situation.  Defragmentation must be performed with the commit range
+	 * ioctl.
+	 */
+	if (XFS_IS_REALTIME_INODE(ip) && xfs_has_rtgroups(ip->i_mount)) {
+		error = -EOPNOTSUPP;
 		goto out_unlock;
 	}
 

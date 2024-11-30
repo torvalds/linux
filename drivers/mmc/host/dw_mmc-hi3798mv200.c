@@ -237,7 +237,7 @@ static void dw_mci_hi3798mv200_remove(struct platform_device *pdev)
 MODULE_DEVICE_TABLE(of, dw_mci_hi3798mv200_match);
 static struct platform_driver dw_mci_hi3798mv200_driver = {
 	.probe = dw_mci_hi3798mv200_probe,
-	.remove_new = dw_mci_hi3798mv200_remove,
+	.remove = dw_mci_hi3798mv200_remove,
 	.driver = {
 		.name = "dwmmc_hi3798mv200",
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,

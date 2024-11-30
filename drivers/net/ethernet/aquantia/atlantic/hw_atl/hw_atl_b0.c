@@ -1654,6 +1654,137 @@ static int hw_atl_b0_get_mac_temp(struct aq_hw_s *self, u32 *temp)
 	return 0;
 }
 
+#define START_TRANSMIT 0x5001
+#define START_READ_TRANSMIT 0x5101
+#define STOP_TRANSMIT 0x3001
+#define REPEAT_TRANSMIT 0x1001
+#define REPEAT_NACK_TRANSMIT 0x1011
+
+static int hw_atl_b0_smb0_wait_result(struct aq_hw_s *self, bool expect_ack)
+{
+	int err;
+	u32 val;
+
+	err = readx_poll_timeout(hw_atl_smb0_byte_transfer_complete_get,
+				 self, val, val == 1, 100U, 10000U);
+	if (err)
+		return err;
+	if (hw_atl_smb0_receive_acknowledged_get(self) != expect_ack)
+		return -EIO;
+	return 0;
+}
+
+/* Starts an I2C/SMBUS write to a given address. addr is in 7-bit format,
+ * the read/write bit is not part of it.
+ */
+static int hw_atl_b0_smb0_start_write(struct aq_hw_s *self, u32 addr)
+{
+	hw_atl_smb0_tx_data_set(self, (addr << 1) | 0);
+	hw_atl_smb0_provisioning2_set(self, START_TRANSMIT);
+	return hw_atl_b0_smb0_wait_result(self, 0);
+}
+
+/* Writes a single byte as part of an ongoing write started by start_write. */
+static int hw_atl_b0_smb0_write_byte(struct aq_hw_s *self, u32 data)
+{
+	hw_atl_smb0_tx_data_set(self, data);
+	hw_atl_smb0_provisioning2_set(self, REPEAT_TRANSMIT);
+	return hw_atl_b0_smb0_wait_result(self, 0);
+}
+
+/* Starts an I2C/SMBUS read to a given address. addr is in 7-bit format,
+ * the read/write bit is not part of it.
+ */
+static int hw_atl_b0_smb0_start_read(struct aq_hw_s *self, u32 addr)
+{
+	int err;
+
+	hw_atl_smb0_tx_data_set(self, (addr << 1) | 1);
+	hw_atl_smb0_provisioning2_set(self, START_READ_TRANSMIT);
+	err = hw_atl_b0_smb0_wait_result(self, 0);
+	if (err)
+		return err;
+	if (hw_atl_smb0_repeated_start_detect_get(self) == 0)
+		return -EIO;
+	return 0;
+}
+
+/* Reads a single byte as part of an ongoing read started by start_read. */
+static int hw_atl_b0_smb0_read_byte(struct aq_hw_s *self)
+{
+	int err;
+
+	hw_atl_smb0_provisioning2_set(self, REPEAT_TRANSMIT);
+	err = hw_atl_b0_smb0_wait_result(self, 0);
+	if (err)
+		return err;
+	return hw_atl_smb0_rx_data_get(self);
+}
+
+/* Reads the last byte of an ongoing read. */
+static int hw_atl_b0_smb0_read_byte_nack(struct aq_hw_s *self)
+{
+	int err;
+
+	hw_atl_smb0_provisioning2_set(self, REPEAT_NACK_TRANSMIT);
+	err = hw_atl_b0_smb0_wait_result(self, 1);
+	if (err)
+		return err;
+	return hw_atl_smb0_rx_data_get(self);
+}
+
+/* Sends a stop condition and ends a transfer. */
+static void hw_atl_b0_smb0_stop(struct aq_hw_s *self)
+{
+	hw_atl_smb0_provisioning2_set(self, STOP_TRANSMIT);
+}
+
+static int hw_atl_b0_read_module_eeprom(struct aq_hw_s *self, u8 dev_addr,
+					u8 reg_start_addr, int len, u8 *data)
+{
+	int i, b;
+	int err;
+	u32 val;
+
+	/* Wait for SMBUS0 to be idle */
+	err = readx_poll_timeout(hw_atl_smb0_bus_busy_get, self,
+				 val, val == 0, 100U, 10000U);
+	if (err)
+		return err;
+
+	err = hw_atl_b0_smb0_start_write(self, dev_addr);
+	if (err)
+		goto out;
+
+	err = hw_atl_b0_smb0_write_byte(self, reg_start_addr);
+	if (err)
+		goto out;
+
+	err = hw_atl_b0_smb0_start_read(self, dev_addr);
+	if (err)
+		goto out;
+
+	for (i = 0; i < len - 1; i++) {
+		b = hw_atl_b0_smb0_read_byte(self);
+		if (b < 0) {
+			err = b;
+			goto out;
+		}
+		data[i] = (u8)b;
+	}
+
+	b = hw_atl_b0_smb0_read_byte_nack(self);
+	if (b < 0) {
+		err = b;
+		goto out;
+	}
+	data[i] = (u8)b;
+
+out:
+	hw_atl_b0_smb0_stop(self);
+	return err;
+}
+
 const struct aq_hw_ops hw_atl_ops_b0 = {
 	.hw_soft_reset        = hw_atl_utils_soft_reset,
 	.hw_prepare           = hw_atl_utils_initfw,
@@ -1712,4 +1843,5 @@ const struct aq_hw_ops hw_atl_ops_b0 = {
 	.hw_set_fc               = hw_atl_b0_set_fc,
 
 	.hw_get_mac_temp         = hw_atl_b0_get_mac_temp,
+	.hw_read_module_eeprom   = hw_atl_b0_read_module_eeprom,
 };

@@ -62,6 +62,7 @@ struct v4l2_ioctl_callbacks;
 struct video_device;
 struct v4l2_device;
 struct v4l2_ctrl_handler;
+struct dentry;
 
 /**
  * enum v4l2_video_device_flags - Flags used by &struct video_device
@@ -538,6 +539,20 @@ static inline int video_is_registered(struct video_device *vdev)
 {
 	return test_bit(V4L2_FL_REGISTERED, &vdev->flags);
 }
+
+/**
+ * v4l2_debugfs_root - returns the dentry of the top-level "v4l2" debugfs dir
+ *
+ * If this directory does not yet exist, then it will be created.
+ */
+#ifdef CONFIG_DEBUG_FS
+struct dentry *v4l2_debugfs_root(void);
+#else
+static inline struct dentry *v4l2_debugfs_root(void)
+{
+	return NULL;
+}
+#endif
 
 #if defined(CONFIG_MEDIA_CONTROLLER)
 

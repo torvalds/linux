@@ -28,12 +28,6 @@
 #define PCI_DRIVER_NAME		"cdns-pci-usbssp"
 #define PLAT_DRIVER_NAME	"cdns-usbssp"
 
-#define PCI_DEVICE_ID_CDNS_USB3		0x0100
-#define PCI_DEVICE_ID_CDNS_UDC		0x0200
-
-#define PCI_CLASS_SERIAL_USB_CDNS_USB3	(PCI_CLASS_SERIAL_USB << 8 | 0x80)
-#define PCI_CLASS_SERIAL_USB_CDNS_UDC	PCI_CLASS_SERIAL_USB_DEVICE
-
 static struct pci_dev *cdnsp_get_second_fun(struct pci_dev *pdev)
 {
 	/*
@@ -41,10 +35,10 @@ static struct pci_dev *cdnsp_get_second_fun(struct pci_dev *pdev)
 	 * Platform has two function. The fist keeps resources for
 	 * Host/Device while the secon keeps resources for DRD/OTG.
 	 */
-	if (pdev->device == PCI_DEVICE_ID_CDNS_UDC)
-		return pci_get_device(pdev->vendor, PCI_DEVICE_ID_CDNS_USB3, NULL);
-	if (pdev->device == PCI_DEVICE_ID_CDNS_USB3)
-		return pci_get_device(pdev->vendor, PCI_DEVICE_ID_CDNS_UDC, NULL);
+	if (pdev->device == PCI_DEVICE_ID_CDNS_USBSSP)
+		return pci_get_device(pdev->vendor, PCI_DEVICE_ID_CDNS_USBSS, NULL);
+	if (pdev->device == PCI_DEVICE_ID_CDNS_USBSS)
+		return pci_get_device(pdev->vendor, PCI_DEVICE_ID_CDNS_USBSSP, NULL);
 
 	return NULL;
 }
@@ -221,12 +215,12 @@ static const struct dev_pm_ops cdnsp_pci_pm_ops = {
 };
 
 static const struct pci_device_id cdnsp_pci_ids[] = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_CDNS, PCI_DEVICE_ID_CDNS_UDC),
-	  .class = PCI_CLASS_SERIAL_USB_CDNS_UDC },
-	{ PCI_DEVICE(PCI_VENDOR_ID_CDNS, PCI_DEVICE_ID_CDNS_UDC),
-	  .class = PCI_CLASS_SERIAL_USB_CDNS_USB3 },
-	{ PCI_DEVICE(PCI_VENDOR_ID_CDNS, PCI_DEVICE_ID_CDNS_USB3),
-	  .class = PCI_CLASS_SERIAL_USB_CDNS_USB3 },
+	{ PCI_DEVICE(PCI_VENDOR_ID_CDNS, PCI_DEVICE_ID_CDNS_USBSSP),
+	  .class = PCI_CLASS_SERIAL_USB_DEVICE },
+	{ PCI_DEVICE(PCI_VENDOR_ID_CDNS, PCI_DEVICE_ID_CDNS_USBSSP),
+	  .class = PCI_CLASS_SERIAL_USB_CDNS },
+	{ PCI_DEVICE(PCI_VENDOR_ID_CDNS, PCI_DEVICE_ID_CDNS_USBSS),
+	  .class = PCI_CLASS_SERIAL_USB_CDNS },
 	{ 0, }
 };
 

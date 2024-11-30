@@ -622,7 +622,7 @@ static const struct dev_pm_ops s3c_camif_pm_ops = {
 
 static struct platform_driver s3c_camif_driver = {
 	.probe		= s3c_camif_probe,
-	.remove_new	= s3c_camif_remove,
+	.remove		= s3c_camif_remove,
 	.id_table	= s3c_camif_driver_ids,
 	.driver = {
 		.name	= S3C_CAMIF_DRIVER_NAME,

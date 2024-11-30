@@ -278,7 +278,7 @@ static inline unsigned long base_##NAME##_addr_end(unsigned long addr,	\
 	return (next - 1) < (end - 1) ? next : end;			\
 }
 
-BASE_ADDR_END_FUNC(page,    _PAGE_SIZE)
+BASE_ADDR_END_FUNC(page,    PAGE_SIZE)
 BASE_ADDR_END_FUNC(segment, _SEGMENT_SIZE)
 BASE_ADDR_END_FUNC(region3, _REGION3_SIZE)
 BASE_ADDR_END_FUNC(region2, _REGION2_SIZE)
@@ -302,7 +302,7 @@ static int base_page_walk(unsigned long *origin, unsigned long addr,
 	if (!alloc)
 		return 0;
 	pte = origin;
-	pte += (addr & _PAGE_INDEX) >> _PAGE_SHIFT;
+	pte += (addr & _PAGE_INDEX) >> PAGE_SHIFT;
 	do {
 		next = base_page_addr_end(addr, end);
 		*pte = base_lra(addr);

@@ -244,7 +244,9 @@ extern int cifs_set_acl(struct mnt_idmap *idmap,
 extern int set_cifs_acl(struct smb_ntsd *pntsd, __u32 len, struct inode *ino,
 				const char *path, int flag);
 extern unsigned int setup_authusers_ACE(struct smb_ace *pace);
-extern unsigned int setup_special_mode_ACE(struct smb_ace *pace, __u64 nmode);
+extern unsigned int setup_special_mode_ACE(struct smb_ace *pace,
+					   bool posix,
+					   __u64 nmode);
 extern unsigned int setup_special_user_owner_ACE(struct smb_ace *pace);
 
 extern void dequeue_mid(struct mid_q_entry *mid, bool malformed);
@@ -549,13 +551,6 @@ extern int generate_smb311signingkey(struct cifs_ses *ses,
 				     struct TCP_Server_Info *server);
 
 #ifdef CONFIG_CIFS_ALLOW_INSECURE_LEGACY
-extern int CIFSSMBCopy(unsigned int xid,
-			struct cifs_tcon *source_tcon,
-			const char *fromName,
-			const __u16 target_tid,
-			const char *toName, const int flags,
-			const struct nls_table *nls_codepage,
-			int remap_special_chars);
 extern ssize_t CIFSSMBQAllEAs(const unsigned int xid, struct cifs_tcon *tcon,
 			const unsigned char *searchName,
 			const unsigned char *ea_name, char *EAData,

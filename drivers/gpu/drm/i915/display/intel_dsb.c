@@ -4,6 +4,8 @@
  *
  */
 
+#include <drm/drm_vblank.h>
+
 #include "i915_drv.h"
 #include "i915_irq.h"
 #include "i915_reg.h"
@@ -37,9 +39,16 @@ struct intel_dsb {
 	unsigned int free_pos;
 
 	/*
-	 * ins_start_offset will help to store start dword of the dsb
-	 * instuction and help in identifying the batch of auto-increment
-	 * register.
+	 * Previously emitted DSB instruction. Used to
+	 * identify/adjust the instruction for indexed
+	 * register writes.
+	 */
+	u32 ins[2];
+
+	/*
+	 * Start of the previously emitted DSB instruction.
+	 * Used to adjust the instruction for indexed
+	 * register writes.
 	 */
 	unsigned int ins_start_offset;
 
@@ -117,6 +126,12 @@ pre_commit_crtc_state(struct intel_atomic_state *state,
 		return new_crtc_state;
 	else
 		return old_crtc_state;
+}
+
+static int dsb_vblank_delay(const struct intel_crtc_state *crtc_state)
+{
+	return intel_mode_vblank_start(&crtc_state->hw.adjusted_mode) -
+		intel_mode_vdisplay(&crtc_state->hw.adjusted_mode);
 }
 
 static int dsb_vtotal(struct intel_atomic_state *state,
@@ -215,9 +230,11 @@ static void intel_dsb_emit(struct intel_dsb *dsb, u32 ldw, u32 udw)
 	dsb->free_pos = ALIGN(dsb->free_pos, 2);
 
 	dsb->ins_start_offset = dsb->free_pos;
+	dsb->ins[0] = ldw;
+	dsb->ins[1] = udw;
 
-	intel_dsb_buffer_write(&dsb->dsb_buf, dsb->free_pos++, ldw);
-	intel_dsb_buffer_write(&dsb->dsb_buf, dsb->free_pos++, udw);
+	intel_dsb_buffer_write(&dsb->dsb_buf, dsb->free_pos++, dsb->ins[0]);
+	intel_dsb_buffer_write(&dsb->dsb_buf, dsb->free_pos++, dsb->ins[1]);
 }
 
 static bool intel_dsb_prev_ins_is_write(struct intel_dsb *dsb,
@@ -233,10 +250,8 @@ static bool intel_dsb_prev_ins_is_write(struct intel_dsb *dsb,
 	if (dsb->free_pos == 0)
 		return false;
 
-	prev_opcode = intel_dsb_buffer_read(&dsb->dsb_buf,
-					    dsb->ins_start_offset + 1) & ~DSB_REG_VALUE_MASK;
-	prev_reg =  intel_dsb_buffer_read(&dsb->dsb_buf,
-					  dsb->ins_start_offset + 1) & DSB_REG_VALUE_MASK;
+	prev_opcode = dsb->ins[1] & ~DSB_REG_VALUE_MASK;
+	prev_reg =  dsb->ins[1] & DSB_REG_VALUE_MASK;
 
 	return prev_opcode == opcode && prev_reg == i915_mmio_reg_offset(reg);
 }
@@ -269,8 +284,6 @@ static bool intel_dsb_prev_ins_is_indexed_write(struct intel_dsb *dsb, i915_reg_
 void intel_dsb_reg_write(struct intel_dsb *dsb,
 			 i915_reg_t reg, u32 val)
 {
-	u32 old_val;
-
 	/*
 	 * For example the buffer will look like below for 3 dwords for auto
 	 * increment register:
@@ -299,23 +312,27 @@ void intel_dsb_reg_write(struct intel_dsb *dsb,
 
 		/* convert to indexed write? */
 		if (intel_dsb_prev_ins_is_mmio_write(dsb, reg)) {
-			u32 prev_val = intel_dsb_buffer_read(&dsb->dsb_buf,
-							     dsb->ins_start_offset + 0);
+			u32 prev_val = dsb->ins[0];
 
-			intel_dsb_buffer_write(&dsb->dsb_buf,
-					       dsb->ins_start_offset + 0, 1); /* count */
+			dsb->ins[0] = 1; /* count */
+			dsb->ins[1] = (DSB_OPCODE_INDEXED_WRITE << DSB_OPCODE_SHIFT) |
+				i915_mmio_reg_offset(reg);
+
+			intel_dsb_buffer_write(&dsb->dsb_buf, dsb->ins_start_offset + 0,
+					       dsb->ins[0]);
 			intel_dsb_buffer_write(&dsb->dsb_buf, dsb->ins_start_offset + 1,
-					       (DSB_OPCODE_INDEXED_WRITE << DSB_OPCODE_SHIFT) |
-					       i915_mmio_reg_offset(reg));
-			intel_dsb_buffer_write(&dsb->dsb_buf, dsb->ins_start_offset + 2, prev_val);
+					       dsb->ins[1]);
+			intel_dsb_buffer_write(&dsb->dsb_buf, dsb->ins_start_offset + 2,
+					       prev_val);
 
 			dsb->free_pos++;
 		}
 
 		intel_dsb_buffer_write(&dsb->dsb_buf, dsb->free_pos++, val);
 		/* Update the count */
-		old_val = intel_dsb_buffer_read(&dsb->dsb_buf, dsb->ins_start_offset);
-		intel_dsb_buffer_write(&dsb->dsb_buf, dsb->ins_start_offset, old_val + 1);
+		dsb->ins[0]++;
+		intel_dsb_buffer_write(&dsb->dsb_buf, dsb->ins_start_offset + 0,
+				       dsb->ins[0]);
 
 		/* if number of data words is odd, then the last dword should be 0.*/
 		if (dsb->free_pos & 0x1)
@@ -368,6 +385,24 @@ void intel_dsb_nonpost_end(struct intel_dsb *dsb)
 	intel_dsb_reg_write_masked(dsb, DSB_CTRL(pipe, dsb->id),
 				   DSB_NON_POSTED, 0);
 	intel_dsb_noop(dsb, 4);
+}
+
+void intel_dsb_interrupt(struct intel_dsb *dsb)
+{
+	intel_dsb_emit(dsb, 0,
+		       DSB_OPCODE_INTERRUPT << DSB_OPCODE_SHIFT);
+}
+
+void intel_dsb_wait_usec(struct intel_dsb *dsb, int count)
+{
+	intel_dsb_emit(dsb, count,
+		       DSB_OPCODE_WAIT_USEC << DSB_OPCODE_SHIFT);
+}
+
+void intel_dsb_wait_vblanks(struct intel_dsb *dsb, int count)
+{
+	intel_dsb_emit(dsb, count,
+		       DSB_OPCODE_WAIT_VBLANKS << DSB_OPCODE_SHIFT);
 }
 
 static void intel_dsb_emit_wait_dsl(struct intel_dsb *dsb,
@@ -510,6 +545,31 @@ static u32 dsb_error_int_en(struct intel_display *display)
 	return errors;
 }
 
+void intel_dsb_vblank_evade(struct intel_atomic_state *state,
+			    struct intel_dsb *dsb)
+{
+	struct intel_crtc *crtc = dsb->crtc;
+	const struct intel_crtc_state *crtc_state = pre_commit_crtc_state(state, crtc);
+	/* FIXME calibrate sensibly */
+	int latency = intel_usecs_to_scanlines(&crtc_state->hw.adjusted_mode, 20);
+	int vblank_delay = dsb_vblank_delay(crtc_state);
+	int start, end;
+
+	if (pre_commit_is_vrr_active(state, crtc)) {
+		end = intel_vrr_vmin_vblank_start(crtc_state);
+		start = end - vblank_delay - latency;
+		intel_dsb_wait_scanline_out(state, dsb, start, end);
+
+		end = intel_vrr_vmax_vblank_start(crtc_state);
+		start = end - vblank_delay - latency;
+		intel_dsb_wait_scanline_out(state, dsb, start, end);
+	} else {
+		end = intel_mode_vblank_start(&crtc_state->hw.adjusted_mode);
+		start = end - vblank_delay - latency;
+		intel_dsb_wait_scanline_out(state, dsb, start, end);
+	}
+}
+
 static void _intel_dsb_chain(struct intel_atomic_state *state,
 			     struct intel_dsb *dsb,
 			     struct intel_dsb *chained_dsb,
@@ -535,7 +595,7 @@ static void _intel_dsb_chain(struct intel_atomic_state *state,
 
 	intel_dsb_reg_write(dsb, DSB_INTERRUPT(pipe, chained_dsb->id),
 			    dsb_error_int_status(display) | DSB_PROG_INT_STATUS |
-			    dsb_error_int_en(display));
+			    dsb_error_int_en(display) | DSB_PROG_INT_EN);
 
 	if (ctrl & DSB_WAIT_FOR_VBLANK) {
 		int dewake_scanline = dsb_dewake_scanline_start(state, crtc);
@@ -577,6 +637,17 @@ void intel_dsb_chain(struct intel_atomic_state *state,
 			 wait_for_vblank ? DSB_WAIT_FOR_VBLANK : 0);
 }
 
+void intel_dsb_wait_vblank_delay(struct intel_atomic_state *state,
+				 struct intel_dsb *dsb)
+{
+	struct intel_crtc *crtc = dsb->crtc;
+	const struct intel_crtc_state *crtc_state = pre_commit_crtc_state(state, crtc);
+	int usecs = intel_scanlines_to_usecs(&crtc_state->hw.adjusted_mode,
+					     dsb_vblank_delay(crtc_state)) + 1;
+
+	intel_dsb_wait_usec(dsb, usecs);
+}
+
 static void _intel_dsb_commit(struct intel_dsb *dsb, u32 ctrl,
 			      int hw_dewake_scanline)
 {
@@ -603,7 +674,7 @@ static void _intel_dsb_commit(struct intel_dsb *dsb, u32 ctrl,
 
 	intel_de_write_fw(display, DSB_INTERRUPT(pipe, dsb->id),
 			  dsb_error_int_status(display) | DSB_PROG_INT_STATUS |
-			  dsb_error_int_en(display));
+			  dsb_error_int_en(display) | DSB_PROG_INT_EN);
 
 	intel_de_write_fw(display, DSB_HEAD(pipe, dsb->id),
 			  intel_dsb_buffer_ggtt_offset(&dsb->dsb_buf));
@@ -671,6 +742,9 @@ void intel_dsb_wait(struct intel_dsb *dsb)
 	/* Attempt to reset it */
 	dsb->free_pos = 0;
 	dsb->ins_start_offset = 0;
+	dsb->ins[0] = 0;
+	dsb->ins[1] = 0;
+
 	intel_de_write_fw(display, DSB_CTRL(pipe, dsb->id), 0);
 
 	intel_de_write_fw(display, DSB_INTERRUPT(pipe, dsb->id),
@@ -706,10 +780,6 @@ struct intel_dsb *intel_dsb_prepare(struct intel_atomic_state *state,
 	if (!i915->display.params.enable_dsb)
 		return NULL;
 
-	/* TODO: DSB is broken in Xe KMD, so disabling it until fixed */
-	if (!IS_ENABLED(I915))
-		return NULL;
-
 	dsb = kzalloc(sizeof(*dsb), GFP_KERNEL);
 	if (!dsb)
 		goto out;
@@ -727,8 +797,6 @@ struct intel_dsb *intel_dsb_prepare(struct intel_atomic_state *state,
 	dsb->id = dsb_id;
 	dsb->crtc = crtc;
 	dsb->size = size / 4; /* in dwords */
-	dsb->free_pos = 0;
-	dsb->ins_start_offset = 0;
 
 	dsb->chicken = dsb_chicken(state, crtc);
 	dsb->hw_dewake_scanline =
@@ -763,11 +831,28 @@ void intel_dsb_cleanup(struct intel_dsb *dsb)
 void intel_dsb_irq_handler(struct intel_display *display,
 			   enum pipe pipe, enum intel_dsb_id dsb_id)
 {
-	struct intel_crtc *crtc = intel_crtc_for_pipe(to_i915(display->drm), pipe);
+	struct intel_crtc *crtc = intel_crtc_for_pipe(display, pipe);
 	u32 tmp, errors;
 
 	tmp = intel_de_read_fw(display, DSB_INTERRUPT(pipe, dsb_id));
 	intel_de_write_fw(display, DSB_INTERRUPT(pipe, dsb_id), tmp);
+
+	if (tmp & DSB_PROG_INT_STATUS) {
+		spin_lock(&display->drm->event_lock);
+
+		if (crtc->dsb_event) {
+			/*
+			 * Update vblank counter/timestmap in case it
+			 * hasn't been done yet for this frame.
+			 */
+			drm_crtc_accurate_vblank_count(&crtc->base);
+
+			drm_crtc_send_vblank_event(&crtc->base, crtc->dsb_event);
+			crtc->dsb_event = NULL;
+		}
+
+		spin_unlock(&display->drm->event_lock);
+	}
 
 	errors = tmp & dsb_error_int_status(display);
 	if (errors)
