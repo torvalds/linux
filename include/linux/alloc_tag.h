@@ -63,7 +63,12 @@ static inline void set_codetag_empty(union codetag_ref *ref)
 #else /* CONFIG_MEM_ALLOC_PROFILING_DEBUG */
 
 static inline bool is_codetag_empty(union codetag_ref *ref) { return false; }
-static inline void set_codetag_empty(union codetag_ref *ref) {}
+
+static inline void set_codetag_empty(union codetag_ref *ref)
+{
+	if (ref)
+		ref->ct = NULL;
+}
 
 #endif /* CONFIG_MEM_ALLOC_PROFILING_DEBUG */
 
