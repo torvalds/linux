@@ -50,7 +50,7 @@ unsigned long vgic_mmio_read_group(struct kvm_vcpu *vcpu,
 
 	/* Loop over all IRQs affected by this read */
 	for (i = 0; i < len * 8; i++) {
-		struct vgic_irq *irq = vgic_get_irq(vcpu->kvm, vcpu, intid + i);
+		struct vgic_irq *irq = vgic_get_vcpu_irq(vcpu, intid + i);
 
 		if (irq->group)
 			value |= BIT(i);
@@ -74,7 +74,7 @@ void vgic_mmio_write_group(struct kvm_vcpu *vcpu, gpa_t addr,
 	unsigned long flags;
 
 	for (i = 0; i < len * 8; i++) {
-		struct vgic_irq *irq = vgic_get_irq(vcpu->kvm, vcpu, intid + i);
+		struct vgic_irq *irq = vgic_get_vcpu_irq(vcpu, intid + i);
 
 		raw_spin_lock_irqsave(&irq->irq_lock, flags);
 		irq->group = !!(val & BIT(i));
@@ -102,7 +102,7 @@ unsigned long vgic_mmio_read_enable(struct kvm_vcpu *vcpu,
 
 	/* Loop over all IRQs affected by this read */
 	for (i = 0; i < len * 8; i++) {
-		struct vgic_irq *irq = vgic_get_irq(vcpu->kvm, vcpu, intid + i);
+		struct vgic_irq *irq = vgic_get_vcpu_irq(vcpu, intid + i);
 
 		if (irq->enabled)
 			value |= (1U << i);
@@ -122,7 +122,7 @@ void vgic_mmio_write_senable(struct kvm_vcpu *vcpu,
 	unsigned long flags;
 
 	for_each_set_bit(i, &val, len * 8) {
-		struct vgic_irq *irq = vgic_get_irq(vcpu->kvm, vcpu, intid + i);
+		struct vgic_irq *irq = vgic_get_vcpu_irq(vcpu, intid + i);
 
 		raw_spin_lock_irqsave(&irq->irq_lock, flags);
 		if (irq->hw && vgic_irq_is_sgi(irq->intid)) {
@@ -171,7 +171,7 @@ void vgic_mmio_write_cenable(struct kvm_vcpu *vcpu,
 	unsigned long flags;
 
 	for_each_set_bit(i, &val, len * 8) {
-		struct vgic_irq *irq = vgic_get_irq(vcpu->kvm, vcpu, intid + i);
+		struct vgic_irq *irq = vgic_get_vcpu_irq(vcpu, intid + i);
 
 		raw_spin_lock_irqsave(&irq->irq_lock, flags);
 		if (irq->hw && vgic_irq_is_sgi(irq->intid) && irq->enabled)
@@ -193,7 +193,7 @@ int vgic_uaccess_write_senable(struct kvm_vcpu *vcpu,
 	unsigned long flags;
 
 	for_each_set_bit(i, &val, len * 8) {
-		struct vgic_irq *irq = vgic_get_irq(vcpu->kvm, vcpu, intid + i);
+		struct vgic_irq *irq = vgic_get_vcpu_irq(vcpu, intid + i);
 
 		raw_spin_lock_irqsave(&irq->irq_lock, flags);
 		irq->enabled = true;
@@ -214,7 +214,7 @@ int vgic_uaccess_write_cenable(struct kvm_vcpu *vcpu,
 	unsigned long flags;
 
 	for_each_set_bit(i, &val, len * 8) {
-		struct vgic_irq *irq = vgic_get_irq(vcpu->kvm, vcpu, intid + i);
+		struct vgic_irq *irq = vgic_get_vcpu_irq(vcpu, intid + i);
 
 		raw_spin_lock_irqsave(&irq->irq_lock, flags);
 		irq->enabled = false;
@@ -236,7 +236,7 @@ static unsigned long __read_pending(struct kvm_vcpu *vcpu,
 
 	/* Loop over all IRQs affected by this read */
 	for (i = 0; i < len * 8; i++) {
-		struct vgic_irq *irq = vgic_get_irq(vcpu->kvm, vcpu, intid + i);
+		struct vgic_irq *irq = vgic_get_vcpu_irq(vcpu, intid + i);
 		unsigned long flags;
 		bool val;
 
@@ -309,7 +309,7 @@ static void __set_pending(struct kvm_vcpu *vcpu, gpa_t addr, unsigned int len,
 	unsigned long flags;
 
 	for_each_set_bit(i, &val, len * 8) {
-		struct vgic_irq *irq = vgic_get_irq(vcpu->kvm, vcpu, intid + i);
+		struct vgic_irq *irq = vgic_get_vcpu_irq(vcpu, intid + i);
 
 		/* GICD_ISPENDR0 SGI bits are WI when written from the guest. */
 		if (is_vgic_v2_sgi(vcpu, irq) && !is_user) {
@@ -395,7 +395,7 @@ static void __clear_pending(struct kvm_vcpu *vcpu,
 	unsigned long flags;
 
 	for_each_set_bit(i, &val, len * 8) {
-		struct vgic_irq *irq = vgic_get_irq(vcpu->kvm, vcpu, intid + i);
+		struct vgic_irq *irq = vgic_get_vcpu_irq(vcpu, intid + i);
 
 		/* GICD_ICPENDR0 SGI bits are WI when written from the guest. */
 		if (is_vgic_v2_sgi(vcpu, irq) && !is_user) {
@@ -494,7 +494,7 @@ static unsigned long __vgic_mmio_read_active(struct kvm_vcpu *vcpu,
 
 	/* Loop over all IRQs affected by this read */
 	for (i = 0; i < len * 8; i++) {
-		struct vgic_irq *irq = vgic_get_irq(vcpu->kvm, vcpu, intid + i);
+		struct vgic_irq *irq = vgic_get_vcpu_irq(vcpu, intid + i);
 
 		/*
 		 * Even for HW interrupts, don't evaluate the HW state as
@@ -598,7 +598,7 @@ static void __vgic_mmio_write_cactive(struct kvm_vcpu *vcpu,
 	int i;
 
 	for_each_set_bit(i, &val, len * 8) {
-		struct vgic_irq *irq = vgic_get_irq(vcpu->kvm, vcpu, intid + i);
+		struct vgic_irq *irq = vgic_get_vcpu_irq(vcpu, intid + i);
 		vgic_mmio_change_active(vcpu, irq, false);
 		vgic_put_irq(vcpu->kvm, irq);
 	}
@@ -635,7 +635,7 @@ static void __vgic_mmio_write_sactive(struct kvm_vcpu *vcpu,
 	int i;
 
 	for_each_set_bit(i, &val, len * 8) {
-		struct vgic_irq *irq = vgic_get_irq(vcpu->kvm, vcpu, intid + i);
+		struct vgic_irq *irq = vgic_get_vcpu_irq(vcpu, intid + i);
 		vgic_mmio_change_active(vcpu, irq, true);
 		vgic_put_irq(vcpu->kvm, irq);
 	}
@@ -672,7 +672,7 @@ unsigned long vgic_mmio_read_priority(struct kvm_vcpu *vcpu,
 	u64 val = 0;
 
 	for (i = 0; i < len; i++) {
-		struct vgic_irq *irq = vgic_get_irq(vcpu->kvm, vcpu, intid + i);
+		struct vgic_irq *irq = vgic_get_vcpu_irq(vcpu, intid + i);
 
 		val |= (u64)irq->priority << (i * 8);
 
@@ -698,7 +698,7 @@ void vgic_mmio_write_priority(struct kvm_vcpu *vcpu,
 	unsigned long flags;
 
 	for (i = 0; i < len; i++) {
-		struct vgic_irq *irq = vgic_get_irq(vcpu->kvm, vcpu, intid + i);
+		struct vgic_irq *irq = vgic_get_vcpu_irq(vcpu, intid + i);
 
 		raw_spin_lock_irqsave(&irq->irq_lock, flags);
 		/* Narrow the priority range to what we actually support */
@@ -719,7 +719,7 @@ unsigned long vgic_mmio_read_config(struct kvm_vcpu *vcpu,
 	int i;
 
 	for (i = 0; i < len * 4; i++) {
-		struct vgic_irq *irq = vgic_get_irq(vcpu->kvm, vcpu, intid + i);
+		struct vgic_irq *irq = vgic_get_vcpu_irq(vcpu, intid + i);
 
 		if (irq->config == VGIC_CONFIG_EDGE)
 			value |= (2U << (i * 2));
@@ -750,7 +750,7 @@ void vgic_mmio_write_config(struct kvm_vcpu *vcpu,
 		if (intid + i < VGIC_NR_PRIVATE_IRQS)
 			continue;
 
-		irq = vgic_get_irq(vcpu->kvm, vcpu, intid + i);
+		irq = vgic_get_irq(vcpu->kvm, intid + i);
 		raw_spin_lock_irqsave(&irq->irq_lock, flags);
 
 		if (test_bit(i * 2 + 1, &val))
@@ -775,7 +775,7 @@ u32 vgic_read_irq_line_level_info(struct kvm_vcpu *vcpu, u32 intid)
 		if ((intid + i) < VGIC_NR_SGIS || (intid + i) >= nr_irqs)
 			continue;
 
-		irq = vgic_get_irq(vcpu->kvm, vcpu, intid + i);
+		irq = vgic_get_vcpu_irq(vcpu, intid + i);
 		if (irq->config == VGIC_CONFIG_LEVEL && irq->line_level)
 			val |= (1U << i);
 
@@ -799,7 +799,7 @@ void vgic_write_irq_line_level_info(struct kvm_vcpu *vcpu, u32 intid,
 		if ((intid + i) < VGIC_NR_SGIS || (intid + i) >= nr_irqs)
 			continue;
 
-		irq = vgic_get_irq(vcpu->kvm, vcpu, intid + i);
+		irq = vgic_get_vcpu_irq(vcpu, intid + i);
 
 		/*
 		 * Line level is set irrespective of irq type
