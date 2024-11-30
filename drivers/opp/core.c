@@ -121,7 +121,7 @@ unsigned long dev_pm_opp_get_bw(struct dev_pm_opp *opp, bool peak, int index)
 		return 0;
 	}
 
-	if (index > opp->opp_table->path_count)
+	if (index >= opp->opp_table->path_count)
 		return 0;
 
 	if (!opp->bandwidth)
