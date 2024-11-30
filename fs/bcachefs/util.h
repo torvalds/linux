@@ -317,6 +317,19 @@ do {									\
 	_ptr ? container_of(_ptr, type, member) : NULL;			\
 })
 
+static inline struct list_head *list_pop(struct list_head *head)
+{
+	if (list_empty(head))
+		return NULL;
+
+	struct list_head *ret = head->next;
+	list_del_init(ret);
+	return ret;
+}
+
+#define list_pop_entry(head, type, member)		\
+	container_of_or_null(list_pop(head), type, member)
+
 /* Does linear interpolation between powers of two */
 static inline unsigned fract_exp_two(unsigned x, unsigned fract_bits)
 {

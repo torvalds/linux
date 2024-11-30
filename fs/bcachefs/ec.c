@@ -2456,11 +2456,9 @@ void bch2_fs_ec_exit(struct bch_fs *c)
 
 	while (1) {
 		mutex_lock(&c->ec_stripe_head_lock);
-		h = list_first_entry_or_null(&c->ec_stripe_head_list,
-					     struct ec_stripe_head, list);
-		if (h)
-			list_del(&h->list);
+		h = list_pop_entry(&c->ec_stripe_head_list, struct ec_stripe_head, list);
 		mutex_unlock(&c->ec_stripe_head_lock);
+
 		if (!h)
 			break;
 

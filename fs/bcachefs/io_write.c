@@ -637,9 +637,7 @@ void bch2_write_point_do_index_updates(struct work_struct *work)
 
 	while (1) {
 		spin_lock_irq(&wp->writes_lock);
-		op = list_first_entry_or_null(&wp->writes, struct bch_write_op, wp_list);
-		if (op)
-			list_del(&op->wp_list);
+		op = list_pop_entry(&wp->writes, struct bch_write_op, wp_list);
 		wp_update_state(wp, op != NULL);
 		spin_unlock_irq(&wp->writes_lock);
 
