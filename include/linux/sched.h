@@ -1932,11 +1932,10 @@ static inline void kick_process(struct task_struct *tsk) { }
 #endif
 
 extern void __set_task_comm(struct task_struct *tsk, const char *from, bool exec);
-
-static inline void set_task_comm(struct task_struct *tsk, const char *from)
-{
-	__set_task_comm(tsk, from, false);
-}
+#define set_task_comm(tsk, from) ({			\
+	BUILD_BUG_ON(sizeof(from) != TASK_COMM_LEN);	\
+	__set_task_comm(tsk, from, false);		\
+})
 
 extern char *__get_task_comm(char *to, size_t len, struct task_struct *tsk);
 #define get_task_comm(buf, tsk) ({			\

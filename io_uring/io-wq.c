@@ -634,7 +634,7 @@ static int io_wq_worker(void *data)
 	struct io_wq_acct *acct = io_wq_get_acct(worker);
 	struct io_wq *wq = worker->wq;
 	bool exit_mask = false, last_timeout = false;
-	char buf[TASK_COMM_LEN];
+	char buf[TASK_COMM_LEN] = {};
 
 	set_mask_bits(&worker->flags, 0,
 		      BIT(IO_WORKER_F_UP) | BIT(IO_WORKER_F_RUNNING));

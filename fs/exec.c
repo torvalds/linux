@@ -1200,16 +1200,16 @@ char *__get_task_comm(char *buf, size_t buf_size, struct task_struct *tsk)
 EXPORT_SYMBOL_GPL(__get_task_comm);
 
 /*
- * These functions flushes out all traces of the currently running executable
- * so that a new one can be started
+ * This is unlocked -- the string will always be NUL-terminated, but
+ * may show overlapping contents if racing concurrent reads.
  */
-
 void __set_task_comm(struct task_struct *tsk, const char *buf, bool exec)
 {
-	task_lock(tsk);
+	size_t len = min(strlen(buf), sizeof(tsk->comm) - 1);
+
 	trace_task_rename(tsk, buf);
-	strscpy_pad(tsk->comm, buf, sizeof(tsk->comm));
-	task_unlock(tsk);
+	memcpy(tsk->comm, buf, len);
+	memset(&tsk->comm[len], 0, sizeof(tsk->comm) - len);
 	perf_event_comm(tsk, exec);
 }
 
