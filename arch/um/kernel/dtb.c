@@ -31,6 +31,7 @@ void uml_dtb_init(void)
 
 static int __init uml_dtb_setup(char *line, int *add)
 {
+	*add = 0;
 	dtb = line;
 	return 0;
 }

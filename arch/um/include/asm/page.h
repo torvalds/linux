@@ -29,50 +29,34 @@ struct page;
 #define clear_user_page(page, vaddr, pg)	clear_page(page)
 #define copy_user_page(to, from, vaddr, pg)	copy_page(to, from)
 
-#if defined(CONFIG_3_LEVEL_PGTABLES) && !defined(CONFIG_64BIT)
-
-typedef struct { unsigned long pte; } pte_t;
-typedef struct { unsigned long pmd; } pmd_t;
-typedef struct { unsigned long pgd; } pgd_t;
-#define pte_val(p) ((p).pte)
-
-#define pte_get_bits(p, bits) ((p).pte & (bits))
-#define pte_set_bits(p, bits) ((p).pte |= (bits))
-#define pte_clear_bits(p, bits) ((p).pte &= ~(bits))
-#define pte_copy(to, from) ({ (to).pte = (from).pte; })
-#define pte_is_zero(p) (!((p).pte & ~_PAGE_NEWPAGE))
-#define pte_set_val(p, phys, prot) \
-	({ (p).pte = (phys) | pgprot_val(prot); })
-
-#define pmd_val(x)	((x).pmd)
-#define __pmd(x) ((pmd_t) { (x) } )
-
-typedef unsigned long long phys_t;
-
-#else
-
 typedef struct { unsigned long pte; } pte_t;
 typedef struct { unsigned long pgd; } pgd_t;
 
-#ifdef CONFIG_3_LEVEL_PGTABLES
+#if CONFIG_PGTABLE_LEVELS > 2
+
 typedef struct { unsigned long pmd; } pmd_t;
 #define pmd_val(x)	((x).pmd)
 #define __pmd(x) ((pmd_t) { (x) } )
-#endif
+
+#if CONFIG_PGTABLE_LEVELS > 3
+
+typedef struct { unsigned long pud; } pud_t;
+#define pud_val(x)	((x).pud)
+#define __pud(x) ((pud_t) { (x) } )
+
+#endif /* CONFIG_PGTABLE_LEVELS > 3 */
+#endif /* CONFIG_PGTABLE_LEVELS > 2 */
 
 #define pte_val(x)	((x).pte)
-
 
 #define pte_get_bits(p, bits) ((p).pte & (bits))
 #define pte_set_bits(p, bits) ((p).pte |= (bits))
 #define pte_clear_bits(p, bits) ((p).pte &= ~(bits))
 #define pte_copy(to, from) ((to).pte = (from).pte)
-#define pte_is_zero(p) (!((p).pte & ~_PAGE_NEWPAGE))
+#define pte_is_zero(p) (!((p).pte & ~_PAGE_NEEDSYNC))
 #define pte_set_val(p, phys, prot) (p).pte = (phys | pgprot_val(prot))
 
 typedef unsigned long phys_t;
-
-#endif
 
 typedef struct { unsigned long pgprot; } pgprot_t;
 

@@ -8,6 +8,8 @@
 #include <asm/user.h>
 #include <skas.h>
 
+#define CORE_DUMP_USE_REGSET
+
 #ifdef CONFIG_X86_32
 
 #define R_386_NONE	0

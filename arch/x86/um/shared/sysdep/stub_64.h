@@ -28,6 +28,17 @@ static __always_inline long stub_syscall0(long syscall)
 	return ret;
 }
 
+static __always_inline long stub_syscall1(long syscall, long arg1)
+{
+	long ret;
+
+	__asm__ volatile (__syscall
+		: "=a" (ret)
+		: "0" (syscall), "D" (arg1) : __syscall_clobber );
+
+	return ret;
+}
+
 static __always_inline long stub_syscall2(long syscall, long arg1, long arg2)
 {
 	long ret;
@@ -106,11 +117,21 @@ static __always_inline void *get_stub_data(void)
 	unsigned long ret;
 
 	asm volatile (
-		"movq %%rsp,%0 ;"
-		"andq %1,%0"
+		"lea 0(%%rip), %0;"
+		"andq %1, %0 ;"
+		"addq %2, %0 ;"
 		: "=a" (ret)
-		: "g" (~(STUB_DATA_PAGES * UM_KERN_PAGE_SIZE - 1)));
+		: "g" (~(UM_KERN_PAGE_SIZE - 1)),
+		  "g" (UM_KERN_PAGE_SIZE));
 
 	return (void *)ret;
 }
+
+#define stub_start(fn)							\
+	asm volatile (							\
+		"subq %0,%%rsp ;"					\
+		"movq %1,%%rax ;"					\
+		"call *%%rax ;"						\
+		:: "i" ((1 + STUB_DATA_PAGES) * UM_KERN_PAGE_SIZE),	\
+		   "i" (&fn))
 #endif

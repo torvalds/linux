@@ -16,132 +16,57 @@
 #include <asm/sigcontext.h>
 #include <linux/elf.h>
 #include <registers.h>
+#include <sys/mman.h>
 
-static int have_xstate_support;
-
-int save_i387_registers(int pid, unsigned long *fp_regs)
-{
-	if (ptrace(PTRACE_GETFPREGS, pid, 0, fp_regs) < 0)
-		return -errno;
-	return 0;
-}
-
-int save_fp_registers(int pid, unsigned long *fp_regs)
-{
-#ifdef PTRACE_GETREGSET
-	struct iovec iov;
-
-	if (have_xstate_support) {
-		iov.iov_base = fp_regs;
-		iov.iov_len = FP_SIZE * sizeof(unsigned long);
-		if (ptrace(PTRACE_GETREGSET, pid, NT_X86_XSTATE, &iov) < 0)
-			return -errno;
-		return 0;
-	} else
-#endif
-		return save_i387_registers(pid, fp_regs);
-}
-
-int restore_i387_registers(int pid, unsigned long *fp_regs)
-{
-	if (ptrace(PTRACE_SETFPREGS, pid, 0, fp_regs) < 0)
-		return -errno;
-	return 0;
-}
-
-int restore_fp_registers(int pid, unsigned long *fp_regs)
-{
-#ifdef PTRACE_SETREGSET
-	struct iovec iov;
-	if (have_xstate_support) {
-		iov.iov_base = fp_regs;
-		iov.iov_len = FP_SIZE * sizeof(unsigned long);
-		if (ptrace(PTRACE_SETREGSET, pid, NT_X86_XSTATE, &iov) < 0)
-			return -errno;
-		return 0;
-	} else
-#endif
-		return restore_i387_registers(pid, fp_regs);
-}
-
-#ifdef __i386__
-int have_fpx_regs = 1;
-int save_fpx_registers(int pid, unsigned long *fp_regs)
-{
-	if (ptrace(PTRACE_GETFPXREGS, pid, 0, fp_regs) < 0)
-		return -errno;
-	return 0;
-}
-
-int restore_fpx_registers(int pid, unsigned long *fp_regs)
-{
-	if (ptrace(PTRACE_SETFPXREGS, pid, 0, fp_regs) < 0)
-		return -errno;
-	return 0;
-}
+unsigned long host_fp_size;
 
 int get_fp_registers(int pid, unsigned long *regs)
 {
-	if (have_fpx_regs)
-		return save_fpx_registers(pid, regs);
-	else
-		return save_fp_registers(pid, regs);
+	struct iovec iov = {
+		.iov_base = regs,
+		.iov_len = host_fp_size,
+	};
+
+	if (ptrace(PTRACE_GETREGSET, pid, NT_X86_XSTATE, &iov) < 0)
+		return -errno;
+	return 0;
 }
 
 int put_fp_registers(int pid, unsigned long *regs)
 {
-	if (have_fpx_regs)
-		return restore_fpx_registers(pid, regs);
-	else
-		return restore_fp_registers(pid, regs);
+	struct iovec iov = {
+		.iov_base = regs,
+		.iov_len = host_fp_size,
+	};
+
+	if (ptrace(PTRACE_SETREGSET, pid, NT_X86_XSTATE, &iov) < 0)
+		return -errno;
+	return 0;
 }
 
-void arch_init_registers(int pid)
+int arch_init_registers(int pid)
 {
-	struct user_fpxregs_struct fpx_regs;
-	int err;
+	struct iovec iov = {
+		/* Just use plenty of space, it does not cost us anything */
+		.iov_len = 2 * 1024 * 1024,
+	};
+	int ret;
 
-	err = ptrace(PTRACE_GETFPXREGS, pid, 0, &fpx_regs);
-	if (!err)
-		return;
+	iov.iov_base = mmap(NULL, iov.iov_len, PROT_WRITE | PROT_READ,
+			    MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
+	if (iov.iov_base == MAP_FAILED)
+		return -ENOMEM;
 
-	if (errno != EIO)
-		panic("check_ptrace : PTRACE_GETFPXREGS failed, errno = %d",
-		      errno);
+	/* GDB has x86_xsave_length, which uses x86_cpuid_count */
+	ret = ptrace(PTRACE_GETREGSET, pid, NT_X86_XSTATE, &iov);
+	if (ret)
+		ret = -errno;
+	munmap(iov.iov_base, 2 * 1024 * 1024);
 
-	have_fpx_regs = 0;
+	host_fp_size = iov.iov_len;
+
+	return ret;
 }
-#else
-
-int get_fp_registers(int pid, unsigned long *regs)
-{
-	return save_fp_registers(pid, regs);
-}
-
-int put_fp_registers(int pid, unsigned long *regs)
-{
-	return restore_fp_registers(pid, regs);
-}
-
-void arch_init_registers(int pid)
-{
-#ifdef PTRACE_GETREGSET
-	void * fp_regs;
-	struct iovec iov;
-
-	fp_regs = malloc(FP_SIZE * sizeof(unsigned long));
-	if(fp_regs == NULL)
-		return;
-
-	iov.iov_base = fp_regs;
-	iov.iov_len = FP_SIZE * sizeof(unsigned long);
-	if (ptrace(PTRACE_GETREGSET, pid, NT_X86_XSTATE, &iov) == 0)
-		have_xstate_support = 1;
-
-	free(fp_regs);
-#endif
-}
-#endif
 
 unsigned long get_thread_reg(int reg, jmp_buf *buf)
 {
