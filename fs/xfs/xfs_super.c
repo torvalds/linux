@@ -1263,6 +1263,10 @@ xfs_fs_show_stats(
 	struct seq_file		*m,
 	struct dentry		*root)
 {
+	struct xfs_mount	*mp = XFS_M(root->d_sb);
+
+	if (xfs_has_zoned(mp) && IS_ENABLED(CONFIG_XFS_RT))
+		xfs_zoned_show_stats(m, mp);
 	return 0;
 }
 
