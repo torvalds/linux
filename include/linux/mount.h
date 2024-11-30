@@ -76,7 +76,7 @@ struct vfsmount {
 static inline struct mnt_idmap *mnt_idmap(const struct vfsmount *mnt)
 {
 	/* Pairs with smp_store_release() in do_idmap_mount(). */
-	return smp_load_acquire(&mnt->mnt_idmap);
+	return READ_ONCE(mnt->mnt_idmap);
 }
 
 extern int mnt_want_write(struct vfsmount *mnt);
