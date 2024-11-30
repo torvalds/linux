@@ -1138,7 +1138,11 @@ xfs_getfsmap(
 		handlers[1].fn = xfs_getfsmap_logdev;
 	}
 #ifdef CONFIG_XFS_RT
-	if (mp->m_rtdev_targp) {
+	/*
+	 * For zoned file systems there is no rtbitmap, so only support fsmap
+	 * if the callers is privileged enough to use the full rmap version.
+	 */
+	if (mp->m_rtdev_targp && (use_rmap || !xfs_has_zoned(mp))) {
 		handlers[2].nr_sectors = XFS_FSB_TO_BB(mp, mp->m_sb.sb_rblocks);
 		handlers[2].dev = new_encode_dev(mp->m_rtdev_targp->bt_dev);
 		if (use_rmap)

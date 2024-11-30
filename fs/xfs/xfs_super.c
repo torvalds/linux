@@ -1792,8 +1792,17 @@ xfs_fs_fill_super(
 		mp->m_features &= ~XFS_FEAT_DISCARD;
 	}
 
-	if (xfs_has_metadir(mp))
+	if (xfs_has_zoned(mp)) {
+		if (!xfs_has_metadir(mp)) {
+			xfs_alert(mp,
+		"metadir feature required for zoned realtime devices.");
+			error = -EINVAL;
+			goto out_filestream_unmount;
+		}
+		xfs_warn_experimental(mp, XFS_EXPERIMENTAL_ZONED);
+	} else if (xfs_has_metadir(mp)) {
 		xfs_warn_experimental(mp, XFS_EXPERIMENTAL_METADIR);
+	}
 
 	if (xfs_has_reflink(mp)) {
 		if (xfs_has_realtime(mp) &&

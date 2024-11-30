@@ -1214,6 +1214,7 @@ retry:
 
 	fdblocks = indlen;
 	if (XFS_IS_REALTIME_INODE(ip)) {
+		ASSERT(!xfs_is_zoned_inode(ip));
 		error = xfs_dec_frextents(mp, xfs_blen_to_rtbxlen(mp, alen));
 		if (error)
 			goto out_unreserve_quota;

@@ -2056,6 +2056,8 @@ xfs_bmap_rtalloc(
 		ap->datatype & XFS_ALLOC_INITIAL_USER_DATA;
 	int			error;
 
+	ASSERT(!xfs_has_zoned(ap->tp->t_mountp));
+
 retry:
 	error = xfs_rtallocate_align(ap, &ralen, &raminlen, &prod, &noalign);
 	if (error)
