@@ -773,10 +773,10 @@ static void init_constants_master(struct ubifs_info *c)
 	 * necessary to report something for the 'statfs()' call.
 	 *
 	 * Subtract the LEB reserved for GC, the LEB which is reserved for
-	 * deletions, minimum LEBs for the index, and assume only one journal
-	 * head is available.
+	 * deletions, minimum LEBs for the index, the LEBs which are reserved
+	 * for each journal head.
 	 */
-	tmp64 = c->main_lebs - 1 - 1 - MIN_INDEX_LEBS - c->jhead_cnt + 1;
+	tmp64 = c->main_lebs - 1 - 1 - MIN_INDEX_LEBS - c->jhead_cnt;
 	tmp64 *= (long long)c->leb_size - c->leb_overhead;
 	tmp64 = ubifs_reported_space(c, tmp64);
 	c->block_cnt = tmp64 >> UBIFS_BLOCK_SHIFT;
@@ -2206,6 +2206,8 @@ static int ubifs_fill_super(struct super_block *sb, struct fs_context *fc)
 	}
 
 	super_set_uuid(sb, c->uuid, sizeof(c->uuid));
+	super_set_sysfs_name_generic(sb, UBIFS_DFS_DIR_NAME,
+				     c->vi.ubi_num, c->vi.vol_id);
 
 	mutex_unlock(&c->umount_mutex);
 	return 0;
