@@ -944,7 +944,7 @@ static int adc_tm5_gen3_set_trip_temp(struct thermal_zone_device *tz,
 	pr_debug("requested a low temp- %d and high temp- %d\n",
 			tm_config.low_thr_temp, tm_config.high_thr_temp);
 
-	adc_tm_scale_therm_voltage_100k_gen3(&tm_config);
+	adc_tm_scale_therm_voltage_100k_gen3(&tm_config, adc->data);
 
 	/*
 	 * Thresholds are forward scaled to confirm their
@@ -1610,6 +1610,7 @@ static const struct adc5_data adc5_gen3_data_pmic = {
 	.name = "pm-adc5-gen3",
 	.full_scale_code_volt = 0x70e4,
 	.full_scale_code_cur = 0x2ee0,
+	.full_scale_code_raw = 0x4000,
 	.adc_chans = adc5_chans_pmic,
 	.decimation = (unsigned int [ADC5_DECIMATION_SAMPLES_MAX])
 				{85, 340, 1360},

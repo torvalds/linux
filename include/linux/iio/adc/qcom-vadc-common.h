@@ -228,6 +228,7 @@ struct adc5_data {
 	const char	*name;
 	const u32	full_scale_code_volt;
 	const u32	full_scale_code_cur;
+	const u32	full_scale_code_raw;
 	const struct adc5_channels *adc_chans;
 	const struct iio_info *info;
 	unsigned int	*decimation;
@@ -266,7 +267,8 @@ int qcom_adc5_decimation_from_dt(u32 value, const unsigned int *decimation);
 
 int qcom_vadc_decimation_from_dt(u32 value);
 
-void adc_tm_scale_therm_voltage_100k_gen3(struct adc_tm_config *param);
+void adc_tm_scale_therm_voltage_100k_gen3(struct adc_tm_config *param,
+					  const struct adc5_data *data);
 
 int32_t adc_tm_absolute_rthr_gen3(struct adc_tm_config *tm_config);
 

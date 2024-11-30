@@ -918,20 +918,24 @@ static int qcom_vadc_scale_code_voltage_factor(u16 adc_code,
 	return (int) voltage;
 }
 
+static s64 adc_code_to_resistance(u16 adc_code, int pull_up, u16 full_scale_code)
+{
+	/* Resistance = (ADC code * R_PULLUP) / (full_scale_code - ADC code) */
+	return div64_s64((s64) adc_code * pull_up, full_scale_code - adc_code);
+}
+
 static int qcom_vadc7_scale_hw_calib_therm(
 				const struct u32_fract *prescale,
 				const struct adc5_data *data,
 				u16 adc_code, int *result_mdec)
 {
-	s64 resistance = adc_code;
+	s64 resistance;
 	int ret, result;
 
-	if (adc_code >= RATIO_MAX_ADC7)
+	if (adc_code >= data->full_scale_code_raw)
 		return -EINVAL;
 
-	/* (ADC code * R_PULLUP (100Kohm)) / (full_scale_code - ADC code)*/
-	resistance *= R_PU_100K;
-	resistance = div64_s64(resistance, RATIO_MAX_ADC7 - adc_code);
+	resistance = adc_code_to_resistance(adc_code, R_PU_100K, data->full_scale_code_raw);
 
 	ret = qcom_vadc_map_voltage_temp(adcmap7_100k,
 				 ARRAY_SIZE(adcmap7_100k),
@@ -1225,15 +1229,13 @@ static int qcom_adc5_gen3_scale_hw_calib_batt_therm_100(
 				const struct adc5_data *data,
 				u16 adc_code, int *result_mdec)
 {
-	s64 resistance = 0;
+	s64 resistance;
 	int ret, result = 0;
 
-	if (adc_code >= RATIO_MAX_ADC7)
+	if (adc_code >= data->full_scale_code_raw)
 		return -EINVAL;
 
-	/* (ADC code * R_PULLUP (100Kohm)) / (full_scale_code - ADC code)*/
-	resistance = (s64) adc_code * R_PU_100K;
-	resistance = div64_s64(resistance, (RATIO_MAX_ADC7 - adc_code));
+	resistance = adc_code_to_resistance(adc_code, R_PU_100K, data->full_scale_code_raw);
 
 	ret = qcom_vadc_map_voltage_temp(adcmap_gen3_batt_therm_100k,
 				 ARRAY_SIZE(adcmap_gen3_batt_therm_100k),
@@ -1251,16 +1253,10 @@ static int qcom_adc5_gen3_scale_hw_calib_batt_id_100(
 				const struct adc5_data *data,
 				u16 adc_code, int *result_mdec)
 {
-	s64 resistance = 0;
-
-	if (adc_code >= RATIO_MAX_ADC7)
+	if (adc_code >= data->full_scale_code_raw)
 		return -EINVAL;
 
-	/* (ADC code * R_PULLUP (100Kohm)) / (full_scale_code - ADC code)*/
-	resistance = (s64) adc_code * R_PU_100K;
-	resistance = div64_s64(resistance, (RATIO_MAX_ADC7 - adc_code));
-
-	*result_mdec = (int)resistance;
+	*result_mdec = (int)adc_code_to_resistance(adc_code, R_PU_100K, data->full_scale_code_raw);
 
 	return 0;
 };
@@ -1301,7 +1297,7 @@ static int qcom_vadc_scale_hw_chg5_temp(
 	return 0;
 }
 
-void adc_tm_scale_therm_voltage_100k_gen3(struct adc_tm_config *param)
+void adc_tm_scale_therm_voltage_100k_gen3(struct adc_tm_config *param, const struct adc5_data *data)
 {
 	int temp, ret;
 	int64_t resistance = 0;
@@ -1314,7 +1310,7 @@ void adc_tm_scale_therm_voltage_100k_gen3(struct adc_tm_config *param)
 						ARRAY_SIZE(adcmap7_100k),
 						param->high_thr_temp);
 
-	param->low_thr_voltage = resistance * RATIO_MAX_ADC7;
+	param->low_thr_voltage = resistance * data->full_scale_code_raw;
 	param->low_thr_voltage = div64_s64(param->low_thr_voltage,
 						(resistance + R_PU_100K));
 
@@ -1330,7 +1326,7 @@ void adc_tm_scale_therm_voltage_100k_gen3(struct adc_tm_config *param)
 	 * to ensure TM does see a violation when it reads raw code corresponding
 	 * to the upper limit temperature specified.
 	 */
-	ret = qcom_vadc7_scale_hw_calib_therm(NULL, NULL, param->low_thr_voltage, &temp);
+	ret = qcom_vadc7_scale_hw_calib_therm(NULL, data, param->low_thr_voltage, &temp);
 	if (ret < 0)
 		return;
 
@@ -1345,7 +1341,7 @@ void adc_tm_scale_therm_voltage_100k_gen3(struct adc_tm_config *param)
 						ARRAY_SIZE(adcmap7_100k),
 						param->low_thr_temp);
 
-	param->high_thr_voltage = resistance * RATIO_MAX_ADC7;
+	param->high_thr_voltage = resistance * data->full_scale_code_raw;
 	param->high_thr_voltage = div64_s64(param->high_thr_voltage,
 						(resistance + R_PU_100K));
 
@@ -1361,7 +1357,7 @@ void adc_tm_scale_therm_voltage_100k_gen3(struct adc_tm_config *param)
 	 * to ensure TM does see a violation when it reads raw code corresponding
 	 * to the lower limit temperature specified.
 	 */
-	ret = qcom_vadc7_scale_hw_calib_therm(NULL, NULL, param->high_thr_voltage, &temp);
+	ret = qcom_vadc7_scale_hw_calib_therm(NULL, data, param->high_thr_voltage, &temp);
 	if (ret < 0)
 		return;
 
