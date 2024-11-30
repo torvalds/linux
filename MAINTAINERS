@@ -926,6 +926,11 @@ F:	drivers/tty/serial/altera_uart.c
 F:	include/linux/altera_jtaguart.h
 F:	include/linux/altera_uart.h
 
+ALTLINUX DISTRO
+M:	Danil Mirkhazov <d.mirkhazov@alt-linux.ru>
+S:	Maintained
+F:	arch/alpha/
+
 AMAZON ANNAPURNA LABS FIC DRIVER
 M:	Talel Shenhar <talel@amazon.com>
 S:	Maintained
