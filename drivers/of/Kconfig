@@ -2,6 +2,12 @@
 config DTC
 	bool
 
+config GENERIC_BUILTIN_DTB
+	bool
+
+config BUILTIN_DTB_ALL
+	bool
+
 menuconfig OF
 	bool "Device Tree and Open Firmware support"
 	help

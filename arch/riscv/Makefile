@@ -135,7 +135,7 @@ stack_protector_prepare: prepare0
 				-mstack-protector-guard-reg=tp		  \
 				-mstack-protector-guard-offset=$(shell	  \
 			awk '{if ($$2 == "TSK_STACK_CANARY") print $$3;}' \
-					include/generated/asm-offsets.h))
+				$(objtree)/include/generated/asm-offsets.h))
 endif
 
 # arch specific predefines for sparse
