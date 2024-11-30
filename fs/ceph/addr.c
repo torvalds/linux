@@ -2195,7 +2195,7 @@ int ceph_pool_perm_check(struct inode *inode, int need)
 	if (ci->i_vino.snap != CEPH_NOSNAP) {
 		/*
 		 * Pool permission check needs to write to the first object.
-		 * But for snapshot, head of the first object may have alread
+		 * But for snapshot, head of the first object may have already
 		 * been deleted. Skip check to avoid creating orphan object.
 		 */
 		return 0;

@@ -16353,6 +16353,7 @@ X:	include/net/wext.h
 X:	net/9p/
 X:	net/bluetooth/
 X:	net/can/
+X:	net/ceph/
 X:	net/mac80211/
 X:	net/rfkill/
 X:	net/wireless/
