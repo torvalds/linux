@@ -19,8 +19,9 @@
 #include <linux/linkage.h>
 #include <linux/init.h>
 #include <linux/major.h>
-#include <linux/rtc.h>
 #include <linux/interrupt.h>
+#include <linux/platform_device.h>
+#include <linux/rtc/m48t59.h>
 
 #include <asm/bootinfo.h>
 #include <asm/bootinfo-vme.h>
@@ -36,11 +37,7 @@
 
 static void mvme147_get_model(char *model);
 static void __init mvme147_sched_init(void);
-extern int mvme147_hwclk (int, struct rtc_time *);
 extern void mvme147_reset (void);
-
-
-static int bcd2int (unsigned char b);
 
 
 int __init mvme147_parse_bootinfo(const struct bi_record *bi)
@@ -80,7 +77,6 @@ void __init config_mvme147(void)
 {
 	mach_sched_init		= mvme147_sched_init;
 	mach_init_IRQ		= mvme147_init_IRQ;
-	mach_hwclk		= mvme147_hwclk;
 	mach_reset		= mvme147_reset;
 	mach_get_model		= mvme147_get_model;
 
@@ -88,6 +84,28 @@ void __init config_mvme147(void)
 	if (!vme_brdtype)
 		vme_brdtype = VME_TYPE_MVME147;
 }
+
+static struct resource m48t59_rsrc[] = {
+	DEFINE_RES_MEM(MVME147_RTC_BASE, 0x800),
+};
+
+static struct m48t59_plat_data m48t59_data = {
+	.type = M48T59RTC_TYPE_M48T02,
+	.yy_offset = 70,
+};
+
+static int __init mvme147_platform_init(void)
+{
+	if (!MACH_IS_MVME147)
+		return 0;
+
+	platform_device_register_resndata(NULL, "rtc-m48t59", -1,
+					  m48t59_rsrc, ARRAY_SIZE(m48t59_rsrc),
+					  &m48t59_data, sizeof(m48t59_data));
+	return 0;
+}
+
+arch_initcall(mvme147_platform_init);
 
 static u64 mvme147_read_clk(struct clocksource *cs);
 
@@ -160,31 +178,6 @@ static u64 mvme147_read_clk(struct clocksource *cs)
 	local_irq_restore(flags);
 
 	return ticks;
-}
-
-static int bcd2int (unsigned char b)
-{
-	return ((b>>4)*10 + (b&15));
-}
-
-int mvme147_hwclk(int op, struct rtc_time *t)
-{
-	if (!op) {
-		m147_rtc->ctrl = RTC_READ;
-		t->tm_year = bcd2int (m147_rtc->bcd_year);
-		t->tm_mon  = bcd2int(m147_rtc->bcd_mth) - 1;
-		t->tm_mday = bcd2int (m147_rtc->bcd_dom);
-		t->tm_hour = bcd2int (m147_rtc->bcd_hr);
-		t->tm_min  = bcd2int (m147_rtc->bcd_min);
-		t->tm_sec  = bcd2int (m147_rtc->bcd_sec);
-		m147_rtc->ctrl = 0;
-		if (t->tm_year < 70)
-			t->tm_year += 100;
-	} else {
-		/* FIXME Setting the time is not yet supported */
-		return -EOPNOTSUPP;
-	}
-	return 0;
 }
 
 static void scc_delay(void)
