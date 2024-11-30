@@ -1551,6 +1551,7 @@ static int disk_update_zone_resources(struct gendisk *disk,
 	unsigned int nr_seq_zones, nr_conv_zones;
 	unsigned int pool_size;
 	struct queue_limits lim;
+	int ret;
 
 	disk->nr_zones = args->nr_zones;
 	disk->zone_capacity = args->zone_capacity;
@@ -1601,7 +1602,11 @@ static int disk_update_zone_resources(struct gendisk *disk,
 	}
 
 commit:
-	return queue_limits_commit_update(q, &lim);
+	blk_mq_freeze_queue(q);
+	ret = queue_limits_commit_update(q, &lim);
+	blk_mq_unfreeze_queue(q);
+
+	return ret;
 }
 
 static int blk_revalidate_conv_zone(struct blk_zone *zone, unsigned int idx,
@@ -1816,14 +1821,15 @@ int blk_revalidate_disk_zones(struct gendisk *disk)
 	 * Set the new disk zone parameters only once the queue is frozen and
 	 * all I/Os are completed.
 	 */
-	blk_mq_freeze_queue(q);
 	if (ret > 0)
 		ret = disk_update_zone_resources(disk, &args);
 	else
 		pr_warn("%s: failed to revalidate zones\n", disk->disk_name);
-	if (ret)
+	if (ret) {
+		blk_mq_freeze_queue(q);
 		disk_free_zone_resources(disk);
-	blk_mq_unfreeze_queue(q);
+		blk_mq_unfreeze_queue(q);
+	}
 
 	return ret;
 }

@@ -389,6 +389,11 @@ enum {
 	NVME_CTRL_CTRATT_PREDICTABLE_LAT	= 1 << 5,
 	NVME_CTRL_CTRATT_NAMESPACE_GRANULARITY	= 1 << 7,
 	NVME_CTRL_CTRATT_UUID_LIST		= 1 << 9,
+	NVME_CTRL_SGLS_BYTE_ALIGNED             = 1,
+	NVME_CTRL_SGLS_DWORD_ALIGNED            = 2,
+	NVME_CTRL_SGLS_KSDBDS			= 1 << 2,
+	NVME_CTRL_SGLS_MSDS                     = 1 << 19,
+	NVME_CTRL_SGLS_SAOS                     = 1 << 20,
 };
 
 struct nvme_lbaf {
@@ -2165,5 +2170,14 @@ enum nvme_pr_release_action {
 	NVME_PR_RELEASE_ACT_RELEASE		= 0,
 	NVME_PR_RELEASE_ACT_CLEAR		= 1,
 };
+
+enum nvme_pr_change_ptpl {
+	NVME_PR_CPTPL_NO_CHANGE			= 0,
+	NVME_PR_CPTPL_RESV			= 1 << 30,
+	NVME_PR_CPTPL_CLEARED			= 2 << 30,
+	NVME_PR_CPTPL_PERSIST			= 3 << 30,
+};
+
+#define NVME_PR_IGNORE_KEY (1 << 3)
 
 #endif /* _LINUX_NVME_H */
