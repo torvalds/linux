@@ -143,6 +143,7 @@ static int tas2781_read_acpi(struct tasdevice_priv *p, const char *hid)
 	sub = acpi_get_subsystem_id(ACPI_HANDLE(physdev));
 	if (IS_ERR(sub)) {
 		dev_err(p->dev, "Failed to get SUBSYS ID.\n");
+		ret = PTR_ERR(sub);
 		goto err;
 	}
 	/* Speaker id was needed for ASUS projects. */
