@@ -1049,7 +1049,7 @@ static void mlxbf_bootctl_remove(struct platform_device *pdev)
 
 static struct platform_driver mlxbf_bootctl_driver = {
 	.probe = mlxbf_bootctl_probe,
-	.remove_new = mlxbf_bootctl_remove,
+	.remove = mlxbf_bootctl_remove,
 	.driver = {
 		.name = "mlxbf-bootctl",
 		.dev_groups = mlxbf_bootctl_groups,

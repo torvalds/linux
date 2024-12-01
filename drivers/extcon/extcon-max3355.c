@@ -127,7 +127,7 @@ MODULE_DEVICE_TABLE(of, max3355_match_table);
 
 static struct platform_driver max3355_driver = {
 	.probe		= max3355_probe,
-	.remove_new	= max3355_remove,
+	.remove		= max3355_remove,
 	.driver		= {
 		.name	= "extcon-max3355",
 		.of_match_table = max3355_match_table,

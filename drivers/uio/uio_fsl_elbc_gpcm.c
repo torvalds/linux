@@ -453,7 +453,7 @@ static struct platform_driver uio_fsl_elbc_gpcm_driver = {
 		.dev_groups = uio_fsl_elbc_gpcm_groups,
 	},
 	.probe = uio_fsl_elbc_gpcm_probe,
-	.remove_new = uio_fsl_elbc_gpcm_remove,
+	.remove = uio_fsl_elbc_gpcm_remove,
 };
 module_platform_driver(uio_fsl_elbc_gpcm_driver);
 

@@ -331,7 +331,7 @@ static void ibwdt_shutdown(struct platform_device *dev)
 }
 
 static struct platform_driver ibwdt_driver = {
-	.remove_new	= ibwdt_remove,
+	.remove		= ibwdt_remove,
 	.shutdown	= ibwdt_shutdown,
 	.driver		= {
 		.name	= DRV_NAME,

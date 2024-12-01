@@ -603,7 +603,7 @@ MODULE_DEVICE_TABLE(of, ecap_cnt_of_match);
 
 static struct platform_driver ecap_cnt_driver = {
 	.probe = ecap_cnt_probe,
-	.remove_new = ecap_cnt_remove,
+	.remove = ecap_cnt_remove,
 	.driver = {
 		.name = "ecap-capture",
 		.of_match_table = ecap_cnt_of_match,

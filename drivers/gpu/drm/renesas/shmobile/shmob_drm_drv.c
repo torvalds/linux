@@ -282,7 +282,7 @@ static const struct of_device_id shmob_drm_of_table[] __maybe_unused = {
 
 static struct platform_driver shmob_drm_platform_driver = {
 	.probe		= shmob_drm_probe,
-	.remove_new	= shmob_drm_remove,
+	.remove		= shmob_drm_remove,
 	.shutdown	= shmob_drm_shutdown,
 	.driver		= {
 		.name	= "shmob-drm",

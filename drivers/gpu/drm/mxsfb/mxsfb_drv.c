@@ -417,7 +417,7 @@ static const struct dev_pm_ops mxsfb_pm_ops = {
 
 static struct platform_driver mxsfb_platform_driver = {
 	.probe		= mxsfb_probe,
-	.remove_new	= mxsfb_remove,
+	.remove		= mxsfb_remove,
 	.shutdown	= mxsfb_shutdown,
 	.driver	= {
 		.name		= "mxsfb",

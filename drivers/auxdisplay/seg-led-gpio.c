@@ -97,7 +97,7 @@ MODULE_DEVICE_TABLE(of, seg_led_of_match);
 
 static struct platform_driver seg_led_driver = {
 	.probe = seg_led_probe,
-	.remove_new = seg_led_remove,
+	.remove = seg_led_remove,
 	.driver = {
 		.name = "seg-led-gpio",
 		.of_match_table = seg_led_of_match,

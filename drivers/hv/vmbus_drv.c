@@ -2560,7 +2560,7 @@ static const struct dev_pm_ops vmbus_bus_pm = {
 
 static struct platform_driver vmbus_platform_driver = {
 	.probe = vmbus_platform_driver_probe,
-	.remove_new = vmbus_platform_driver_remove,
+	.remove = vmbus_platform_driver_remove,
 	.driver = {
 		.name = "vmbus",
 		.acpi_match_table = ACPI_PTR(vmbus_acpi_device_ids),

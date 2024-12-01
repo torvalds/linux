@@ -1485,7 +1485,7 @@ static const struct dev_pm_ops pvr_pm_ops = {
 
 static struct platform_driver pvr_driver = {
 	.probe = pvr_probe,
-	.remove_new = pvr_remove,
+	.remove = pvr_remove,
 	.driver = {
 		.name = PVR_DRIVER_NAME,
 		.pm = &pvr_pm_ops,

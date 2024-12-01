@@ -427,7 +427,7 @@ MODULE_DEVICE_TABLE(of, display_connector_match);
 
 static struct platform_driver display_connector_driver = {
 	.probe	= display_connector_probe,
-	.remove_new = display_connector_remove,
+	.remove = display_connector_remove,
 	.driver		= {
 		.name		= "display-connector",
 		.of_match_table	= display_connector_match,

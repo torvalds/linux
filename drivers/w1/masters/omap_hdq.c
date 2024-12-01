@@ -672,7 +672,7 @@ MODULE_DEVICE_TABLE(of, omap_hdq_dt_ids);
 
 static struct platform_driver omap_hdq_driver = {
 	.probe = omap_hdq_probe,
-	.remove_new = omap_hdq_remove,
+	.remove = omap_hdq_remove,
 	.driver = {
 		.name =	"omap_hdq",
 		.of_match_table = omap_hdq_dt_ids,

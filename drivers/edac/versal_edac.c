@@ -1186,7 +1186,7 @@ static struct platform_driver xilinx_ddr_edac_mc_driver = {
 		.of_match_table = xlnx_edac_match,
 	},
 	.probe = mc_probe,
-	.remove_new = mc_remove,
+	.remove = mc_remove,
 };
 
 module_platform_driver(xilinx_ddr_edac_mc_driver);

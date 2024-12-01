@@ -264,7 +264,7 @@ MODULE_DEVICE_TABLE(of, sun8i_dw_hdmi_dt_ids);
 
 static struct platform_driver sun8i_dw_hdmi_pltfm_driver = {
 	.probe  = sun8i_dw_hdmi_probe,
-	.remove_new = sun8i_dw_hdmi_remove,
+	.remove = sun8i_dw_hdmi_remove,
 	.driver = {
 		.name = "sun8i-dw-hdmi",
 		.of_match_table = sun8i_dw_hdmi_dt_ids,

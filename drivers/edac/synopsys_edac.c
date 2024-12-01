@@ -1488,7 +1488,7 @@ static struct platform_driver synps_edac_mc_driver = {
 		   .of_match_table = synps_edac_match,
 		   },
 	.probe = mc_probe,
-	.remove_new = mc_remove,
+	.remove = mc_remove,
 };
 
 module_platform_driver(synps_edac_mc_driver);

@@ -246,7 +246,7 @@ static struct platform_driver cell_edac_driver = {
 		.name	= "cbe-mic",
 	},
 	.probe		= cell_edac_probe,
-	.remove_new	= cell_edac_remove,
+	.remove		= cell_edac_remove,
 };
 
 static int __init cell_edac_init(void)

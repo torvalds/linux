@@ -236,7 +236,7 @@ static void __exit amiga_parallel_remove(struct platform_device *pdev)
  * triggering a section mismatch warning.
  */
 static struct platform_driver amiga_parallel_driver __refdata = {
-	.remove_new = __exit_p(amiga_parallel_remove),
+	.remove = __exit_p(amiga_parallel_remove),
 	.driver   = {
 		.name	= "amiga-parallel",
 	},

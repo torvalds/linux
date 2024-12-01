@@ -393,7 +393,7 @@ static const struct dev_pm_ops adreno_pm_ops = {
 
 static struct platform_driver adreno_driver = {
 	.probe = adreno_probe,
-	.remove_new = adreno_remove,
+	.remove = adreno_remove,
 	.shutdown = adreno_shutdown,
 	.driver = {
 		.name = "adreno",
