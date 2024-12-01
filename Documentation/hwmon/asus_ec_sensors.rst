@@ -29,6 +29,7 @@ Supported boards:
  * ROG STRIX Z690-A GAMING WIFI D4
  * ROG ZENITH II EXTREME
  * ROG ZENITH II EXTREME ALPHA
+ * TUF GAMING X670E PLUS
 
 Authors:
     - Eugene Shalygin <eugene.shalygin@gmail.com>
