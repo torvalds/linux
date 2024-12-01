@@ -259,7 +259,7 @@ int bch2_journal_key_insert_take(struct bch_fs *c, enum btree_id id,
 		 * Ensure these keys are done last by journal replay, to unblock
 		 * journal reclaim:
 		 */
-		.journal_seq	= U32_MAX,
+		.journal_seq	= U64_MAX,
 	};
 	struct journal_keys *keys = &c->journal_keys;
 	size_t idx = bch2_journal_key_search(keys, id, level, k->k.p);
