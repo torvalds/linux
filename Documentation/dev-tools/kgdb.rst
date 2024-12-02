@@ -255,10 +255,10 @@ scenarios.
 .. note::
 
    Kgdboc does not support interrupting the target via the gdb remote
-   protocol. You must manually send a :kbd:`SysRq-G` unless you have a proxy
+   protocol. You must manually send a `SysRq-G` unless you have a proxy
    that splits console output to a terminal program. A console proxy has a
    separate TCP port for the debugger and a separate TCP port for the
-   "human" console. The proxy can take care of sending the :kbd:`SysRq-G`
+   "human" console. The proxy can take care of sending the `SysRq-G`
    for you.
 
 When using kgdboc with no debugger proxy, you can end up connecting the
@@ -267,9 +267,9 @@ have loaded kgdboc, a message should print on the console stating it is
 waiting for the debugger. In this case you disconnect your terminal
 program and then connect the debugger in its place. If you want to
 interrupt the target system and forcibly enter a debug session you have
-to issue a :kbd:`Sysrq` sequence and then type the letter :kbd:`g`. Then you
+to issue a `Sysrq` sequence and then type the letter `g`. Then you
 disconnect the terminal session and connect gdb. Your options if you
-don't like this are to hack gdb to send the :kbd:`SysRq-G` for you as well as
+don't like this are to hack gdb to send the `SysRq-G` for you as well as
 on the initial connect, or to use a debugger proxy that allows an
 unmodified gdb to do the debugging.
 
@@ -401,7 +401,7 @@ This is a quick example of how to use kdb.
 
 2. Enter the kernel debugger manually or by waiting for an oops or
    fault. There are several ways you can enter the kernel debugger
-   manually; all involve using the :kbd:`SysRq-G`, which means you must have
+   manually; all involve using the `SysRq-G`, which means you must have
    enabled ``CONFIG_MAGIC_SYSRQ=y`` in your kernel config.
 
    -  When logged in as root or with a super user session you can run::
@@ -410,16 +410,16 @@ This is a quick example of how to use kdb.
 
    -  Example using minicom 2.2
 
-      Press: :kbd:`CTRL-A` :kbd:`f` :kbd:`g`
+      Press: `CTRL-A` `f` `g`
 
    -  When you have telneted to a terminal server that supports sending
       a remote break
 
-      Press: :kbd:`CTRL-]`
+      Press: `CTRL-]`
 
       Type in: ``send break``
 
-      Press: :kbd:`Enter` :kbd:`g`
+      Press: `Enter` `g`
 
 3. From the kdb prompt you can run the ``help`` command to see a complete
    list of the commands that are available.
@@ -460,7 +460,7 @@ This is a quick example of how to use kdb with a keyboard.
 
 2. Enter the kernel debugger manually or by waiting for an oops or
    fault. There are several ways you can enter the kernel debugger
-   manually; all involve using the :kbd:`SysRq-G`, which means you must have
+   manually; all involve using the `SysRq-G`, which means you must have
    enabled ``CONFIG_MAGIC_SYSRQ=y`` in your kernel config.
 
    -  When logged in as root or with a super user session you can run::
@@ -469,27 +469,27 @@ This is a quick example of how to use kdb with a keyboard.
 
    -  Example using a laptop keyboard:
 
-      Press and hold down: :kbd:`Alt`
+      Press and hold down: `Alt`
 
-      Press and hold down: :kbd:`Fn`
+      Press and hold down: `Fn`
 
-      Press and release the key with the label: :kbd:`SysRq`
+      Press and release the key with the label: `SysRq`
 
-      Release: :kbd:`Fn`
+      Release: `Fn`
 
-      Press and release: :kbd:`g`
+      Press and release: `g`
 
-      Release: :kbd:`Alt`
+      Release: `Alt`
 
    -  Example using a PS/2 101-key keyboard
 
-      Press and hold down: :kbd:`Alt`
+      Press and hold down: `Alt`
 
-      Press and release the key with the label: :kbd:`SysRq`
+      Press and release the key with the label: `SysRq`
 
-      Press and release: :kbd:`g`
+      Press and release: `g`
 
-      Release: :kbd:`Alt`
+      Release: `Alt`
 
 3. Now type in a kdb command such as ``help``, ``dmesg``, ``bt`` or ``go`` to
    continue kernel execution.
@@ -531,7 +531,7 @@ Connecting with gdb to a serial port
 
    In order to connect to gdb via kgdboc, the kernel must first be
    stopped. There are several ways to stop the kernel which include
-   using kgdbwait as a boot argument, via a :kbd:`SysRq-G`, or running the
+   using kgdbwait as a boot argument, via a `SysRq-G`, or running the
    kernel until it takes an exception where it waits for the debugger to
    attach.
 
@@ -541,16 +541,16 @@ Connecting with gdb to a serial port
 
    -  Example using minicom 2.2
 
-      Press: :kbd:`CTRL-A` :kbd:`f` :kbd:`g`
+      Press: `CTRL-A` `f` `g`
 
    -  When you have telneted to a terminal server that supports sending
       a remote break
 
-      Press: :kbd:`CTRL-]`
+      Press: `CTRL-]`
 
       Type in: ``send break``
 
-      Press: :kbd:`Enter` :kbd:`g`
+      Press: `Enter` `g`
 
 3. Connect from gdb
 
@@ -578,7 +578,7 @@ Connecting with gdb to a serial port
 	set debug remote 1
 
 Remember if you continue in gdb, and need to "break in" again, you need
-to issue an other :kbd:`SysRq-G`. It is easy to create a simple entry point by
+to issue an other `SysRq-G`. It is easy to create a simple entry point by
 putting a breakpoint at ``sys_sync`` and then you can run ``sync`` from a
 shell or script to break into the debugger.
 
@@ -612,7 +612,7 @@ or delete because kgdb will interpret that as part of the debug stream.
 
    .. note::
 
-     Now you must kill gdb. Typically you press :kbd:`CTRL-Z` and issue
+     Now you must kill gdb. Typically you press `CTRL-Z` and issue
      the command::
 
 	kill -9 %

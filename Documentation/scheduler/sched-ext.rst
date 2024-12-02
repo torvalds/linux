@@ -16,12 +16,12 @@ programs - the BPF scheduler.
 * The system integrity is maintained no matter what the BPF scheduler does.
   The default scheduling behavior is restored anytime an error is detected,
   a runnable task stalls, or on invoking the SysRq key sequence
-  :kbd:`SysRq-S`.
+  `SysRq-S`.
 
 * When the BPF scheduler triggers an error, debug information is dumped to
   aid debugging. The debug dump is passed to and printed out by the
   scheduler binary. The debug dump can also be accessed through the
-  `sched_ext_dump` tracepoint. The SysRq key sequence :kbd:`SysRq-D`
+  `sched_ext_dump` tracepoint. The SysRq key sequence `SysRq-D`
   triggers a debug dump. This doesn't terminate the BPF scheduler and can
   only be read through the tracepoint.
 
@@ -59,7 +59,7 @@ set in ``ops->flags``, only tasks with the ``SCHED_EXT`` policy are scheduled
 by sched_ext, while tasks with ``SCHED_NORMAL``, ``SCHED_BATCH`` and
 ``SCHED_IDLE`` policies are scheduled by CFS.
 
-Terminating the sched_ext scheduler program, triggering :kbd:`SysRq-S`, or
+Terminating the sched_ext scheduler program, triggering `SysRq-S`, or
 detection of any internal error including stalled runnable tasks aborts the
 BPF scheduler and reverts all tasks back to CFS.
 

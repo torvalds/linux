@@ -96,7 +96,7 @@ En la sección :menuselection:`Sending Preferences`:
 - :menuselection:`Strip Whitespace Before Sending` debe estar ``disabled``
 
 Al redactar el mensaje, el cursor debe colocarse donde el parche debería
-aparecer, y luego presionando :kbd:`CTRL-R` se le permite especificar e
+aparecer, y luego presionando `CTRL-R` se le permite especificar e
 archivo de parche a insertar en el mensaje.
 
 Claws Mail (GUI)
@@ -104,7 +104,7 @@ Claws Mail (GUI)
 
 Funciona. Algunos usan esto con éxito para los parches.
 
-Para insertar un parche haga :menuselection:`Message-->Insert File` (:kbd:`CTRL-I`)
+Para insertar un parche haga :menuselection:`Message-->Insert File` (`CTRL-I`)
 o use un editor externo.
 
 Si el parche insertado debe editarse en la ventana de composición de Claws
@@ -118,11 +118,11 @@ Evolution (GUI)
 Algunos usan esto con éxito para sus parches.
 
 Cuando escriba un correo seleccione: Preformat
-  desde :menuselection:`Format-->Paragraph Style-->Preformatted` (:kbd:`CTRL-7`)
+  desde :menuselection:`Format-->Paragraph Style-->Preformatted` (`CTRL-7`)
   o en la barra de herramientas
 
 Luego haga:
-:menuselection:`Insert-->Text File...` (:kbd:`ALT-N x`)
+:menuselection:`Insert-->Text File...` (`ALT-N x`)
 para insertar el parche.
 
 También puede hacer ``diff -Nru old.c new.c | xclip``, seleccione

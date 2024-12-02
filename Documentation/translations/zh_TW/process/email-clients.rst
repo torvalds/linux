@@ -86,7 +86,7 @@ Alpine (TUI)
 - :menuselection:`Do Not Send Flowed Text` 必須開啓
 - :menuselection:`Strip Whitespace Before Sending` 必須關閉
 
-當寫郵件時，光標應該放在補丁會出現的地方，然後按下 :kbd:`CTRL-R` 組合鍵，使指
+當寫郵件時，光標應該放在補丁會出現的地方，然後按下 `CTRL-R` 組合鍵，使指
 定的補丁文件嵌入到郵件中。
 
 Claws Mail (GUI)
@@ -94,7 +94,7 @@ Claws Mail (GUI)
 
 可以用，有人用它成功地發過補丁。
 
-用 :menuselection:`Message-->Insert File` (:kbd:`CTRL-I`) 或外置編輯器插入補丁。
+用 :menuselection:`Message-->Insert File` (`CTRL-I`) 或外置編輯器插入補丁。
 
 若要在Claws編輯窗口重修改插入的補丁，需關閉
 :menuselection:`Configuration-->Preferences-->Compose-->Wrapping`
@@ -106,11 +106,11 @@ Evolution (GUI)
 一些開發者成功的使用它發送補丁。
 
 撰寫郵件時：
-從 :menuselection:`格式-->段落樣式-->預格式化` (:kbd:`CTRL-7`)
+從 :menuselection:`格式-->段落樣式-->預格式化` (`CTRL-7`)
 或工具欄選擇 :menuselection:`預格式化` ；
 
 然後使用：
-:menuselection:`插入-->文本文件...` (:kbd:`ALT-N x`) 插入補丁文件。
+:menuselection:`插入-->文本文件...` (`ALT-N x`) 插入補丁文件。
 
 你還可以 ``diff -Nru old.c new.c | xclip`` ，選擇 :menuselection:`預格式化` ，
 然後使用鼠標中鍵進行粘帖。
