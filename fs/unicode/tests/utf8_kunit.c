@@ -8,7 +8,7 @@
 #include <linux/unicode.h>
 #include <kunit/test.h>
 
-#include "utf8n.h"
+#include "../utf8n.h"
 
 static const struct {
 	/* UTF-8 strings in this vector _must_ be NULL-terminated. */
