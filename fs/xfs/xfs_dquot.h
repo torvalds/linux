@@ -215,7 +215,7 @@ void xfs_dquot_to_disk(struct xfs_disk_dquot *ddqp, struct xfs_dquot *dqp);
 
 void		xfs_qm_dqdestroy(struct xfs_dquot *dqp);
 int		xfs_dquot_read_buf(struct xfs_trans *tp, struct xfs_dquot *dqp,
-				struct xfs_buf **bpp);
+				xfs_buf_flags_t flags, struct xfs_buf **bpp);
 int		xfs_qm_dqflush(struct xfs_dquot *dqp, struct xfs_buf *bp);
 void		xfs_qm_dqunpin_wait(struct xfs_dquot *dqp);
 void		xfs_qm_adjust_dqtimers(struct xfs_dquot *d);
@@ -238,6 +238,10 @@ void		xfs_dqlock2(struct xfs_dquot *, struct xfs_dquot *);
 void		xfs_dqlockn(struct xfs_dqtrx *q);
 
 void		xfs_dquot_set_prealloc_limits(struct xfs_dquot *);
+
+int xfs_dquot_attach_buf(struct xfs_trans *tp, struct xfs_dquot *dqp);
+int xfs_dquot_use_attached_buf(struct xfs_dquot *dqp, struct xfs_buf **bpp);
+void xfs_dquot_detach_buf(struct xfs_dquot *dqp);
 
 static inline struct xfs_dquot *xfs_qm_dqhold(struct xfs_dquot *dqp)
 {

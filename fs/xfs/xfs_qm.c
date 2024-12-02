@@ -148,7 +148,7 @@ xfs_qm_dqpurge(
 		 * We don't care about getting disk errors here. We need
 		 * to purge this dquot anyway, so we go ahead regardless.
 		 */
-		error = xfs_dquot_read_buf(NULL, dqp, &bp);
+		error = xfs_dquot_read_buf(NULL, dqp, XBF_TRYLOCK, &bp);
 		if (error == -EAGAIN) {
 			xfs_dqfunlock(dqp);
 			dqp->q_flags &= ~XFS_DQFLAG_FREEING;
@@ -168,6 +168,7 @@ xfs_qm_dqpurge(
 		}
 		xfs_dqflock(dqp);
 	}
+	xfs_dquot_detach_buf(dqp);
 
 out_funlock:
 	ASSERT(atomic_read(&dqp->q_pincount) == 0);
@@ -505,7 +506,7 @@ xfs_qm_dquot_isolate(
 		/* we have to drop the LRU lock to flush the dquot */
 		spin_unlock(&lru->lock);
 
-		error = xfs_dquot_read_buf(NULL, dqp, &bp);
+		error = xfs_dquot_read_buf(NULL, dqp, XBF_TRYLOCK, &bp);
 		if (error) {
 			xfs_dqfunlock(dqp);
 			goto out_unlock_dirty;
@@ -523,6 +524,8 @@ xfs_qm_dquot_isolate(
 		xfs_buf_relse(bp);
 		goto out_unlock_dirty;
 	}
+
+	xfs_dquot_detach_buf(dqp);
 	xfs_dqfunlock(dqp);
 
 	/*
@@ -1510,7 +1513,7 @@ xfs_qm_flush_one(
 		goto out_unlock;
 	}
 
-	error = xfs_dquot_read_buf(NULL, dqp, &bp);
+	error = xfs_dquot_read_buf(NULL, dqp, XBF_TRYLOCK, &bp);
 	if (error)
 		goto out_unlock;
 

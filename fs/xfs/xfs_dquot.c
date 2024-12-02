@@ -69,6 +69,30 @@ xfs_dquot_mark_sick(
 }
 
 /*
+ * Detach the dquot buffer if it's still attached, because we can get called
+ * through dqpurge after a log shutdown.  Caller must hold the dqflock or have
+ * otherwise isolated the dquot.
+ */
+void
+xfs_dquot_detach_buf(
+	struct xfs_dquot	*dqp)
+{
+	struct xfs_dq_logitem	*qlip = &dqp->q_logitem;
+	struct xfs_buf		*bp = NULL;
+
+	spin_lock(&qlip->qli_lock);
+	if (qlip->qli_item.li_buf) {
+		bp = qlip->qli_item.li_buf;
+		qlip->qli_item.li_buf = NULL;
+	}
+	spin_unlock(&qlip->qli_lock);
+	if (bp) {
+		list_del_init(&qlip->qli_item.li_bio_list);
+		xfs_buf_rele(bp);
+	}
+}
+
+/*
  * This is called to free all the memory associated with a dquot
  */
 void
@@ -76,6 +100,7 @@ xfs_qm_dqdestroy(
 	struct xfs_dquot	*dqp)
 {
 	ASSERT(list_empty(&dqp->q_lru));
+	ASSERT(dqp->q_logitem.qli_item.li_buf == NULL);
 
 	kvfree(dqp->q_logitem.qli_item.li_lv_shadow);
 	mutex_destroy(&dqp->q_qlock);
@@ -1146,6 +1171,7 @@ xfs_qm_dqflush_done(
 			container_of(lip, struct xfs_dq_logitem, qli_item);
 	struct xfs_dquot	*dqp = qlip->qli_dquot;
 	struct xfs_ail		*ailp = lip->li_ailp;
+	struct xfs_buf		*bp = NULL;
 	xfs_lsn_t		tail_lsn;
 
 	/*
@@ -1170,6 +1196,20 @@ xfs_qm_dqflush_done(
 			spin_unlock(&ailp->ail_lock);
 		}
 	}
+
+	/*
+	 * If this dquot hasn't been dirtied since initiating the last dqflush,
+	 * release the buffer reference.  We already unlinked this dquot item
+	 * from the buffer.
+	 */
+	spin_lock(&qlip->qli_lock);
+	if (!qlip->qli_dirty) {
+		bp = lip->li_buf;
+		lip->li_buf = NULL;
+	}
+	spin_unlock(&qlip->qli_lock);
+	if (bp)
+		xfs_buf_rele(bp);
 
 	/*
 	 * Release the dq's flush lock since we're done with it.
@@ -1197,7 +1237,7 @@ xfs_buf_dquot_io_fail(
 
 	spin_lock(&bp->b_mount->m_ail->ail_lock);
 	list_for_each_entry(lip, &bp->b_li_list, li_bio_list)
-		xfs_set_li_failed(lip, bp);
+		set_bit(XFS_LI_FAILED, &lip->li_flags);
 	spin_unlock(&bp->b_mount->m_ail->ail_lock);
 }
 
@@ -1249,6 +1289,7 @@ int
 xfs_dquot_read_buf(
 	struct xfs_trans	*tp,
 	struct xfs_dquot	*dqp,
+	xfs_buf_flags_t		xbf_flags,
 	struct xfs_buf		**bpp)
 {
 	struct xfs_mount	*mp = dqp->q_mount;
@@ -1256,7 +1297,7 @@ xfs_dquot_read_buf(
 	int			error;
 
 	error = xfs_trans_read_buf(mp, tp, mp->m_ddev_targp, dqp->q_blkno,
-				   mp->m_quotainfo->qi_dqchunklen, XBF_TRYLOCK,
+				   mp->m_quotainfo->qi_dqchunklen, xbf_flags,
 				   &bp, &xfs_dquot_buf_ops);
 	if (error == -EAGAIN)
 		return error;
@@ -1276,6 +1317,77 @@ out_abort:
 }
 
 /*
+ * Attach a dquot buffer to this dquot to avoid allocating a buffer during a
+ * dqflush, since dqflush can be called from reclaim context.
+ */
+int
+xfs_dquot_attach_buf(
+	struct xfs_trans	*tp,
+	struct xfs_dquot	*dqp)
+{
+	struct xfs_dq_logitem	*qlip = &dqp->q_logitem;
+	struct xfs_log_item	*lip = &qlip->qli_item;
+	int			error;
+
+	spin_lock(&qlip->qli_lock);
+	if (!lip->li_buf) {
+		struct xfs_buf	*bp = NULL;
+
+		spin_unlock(&qlip->qli_lock);
+		error = xfs_dquot_read_buf(tp, dqp, 0, &bp);
+		if (error)
+			return error;
+
+		/*
+		 * Attach the dquot to the buffer so that the AIL does not have
+		 * to read the dquot buffer to push this item.
+		 */
+		xfs_buf_hold(bp);
+		spin_lock(&qlip->qli_lock);
+		lip->li_buf = bp;
+		xfs_trans_brelse(tp, bp);
+	}
+	qlip->qli_dirty = true;
+	spin_unlock(&qlip->qli_lock);
+
+	return 0;
+}
+
+/*
+ * Get a new reference the dquot buffer attached to this dquot for a dqflush
+ * operation.
+ *
+ * Returns 0 and a NULL bp if none was attached to the dquot; 0 and a locked
+ * bp; or -EAGAIN if the buffer could not be locked.
+ */
+int
+xfs_dquot_use_attached_buf(
+	struct xfs_dquot	*dqp,
+	struct xfs_buf		**bpp)
+{
+	struct xfs_buf		*bp = dqp->q_logitem.qli_item.li_buf;
+
+	/*
+	 * A NULL buffer can happen if the dquot dirty flag was set but the
+	 * filesystem shut down before transaction commit happened.  In that
+	 * case we're not going to flush anyway.
+	 */
+	if (!bp) {
+		ASSERT(xfs_is_shutdown(dqp->q_mount));
+
+		*bpp = NULL;
+		return 0;
+	}
+
+	if (!xfs_buf_trylock(bp))
+		return -EAGAIN;
+
+	xfs_buf_hold(bp);
+	*bpp = bp;
+	return 0;
+}
+
+/*
  * Write a modified dquot to disk.
  * The dquot must be locked and the flush lock too taken by caller.
  * The flush lock will not be unlocked until the dquot reaches the disk,
@@ -1289,7 +1401,8 @@ xfs_qm_dqflush(
 	struct xfs_buf		*bp)
 {
 	struct xfs_mount	*mp = dqp->q_mount;
-	struct xfs_log_item	*lip = &dqp->q_logitem.qli_item;
+	struct xfs_dq_logitem	*qlip = &dqp->q_logitem;
+	struct xfs_log_item	*lip = &qlip->qli_item;
 	struct xfs_dqblk	*dqblk;
 	xfs_failaddr_t		fa;
 	int			error;
@@ -1319,8 +1432,15 @@ xfs_qm_dqflush(
 	 */
 	dqp->q_flags &= ~XFS_DQFLAG_DIRTY;
 
-	xfs_trans_ail_copy_lsn(mp->m_ail, &dqp->q_logitem.qli_flush_lsn,
-			&lip->li_lsn);
+	/*
+	 * We hold the dquot lock, so nobody can dirty it while we're
+	 * scheduling the write out.  Clear the dirty-since-flush flag.
+	 */
+	spin_lock(&qlip->qli_lock);
+	qlip->qli_dirty = false;
+	spin_unlock(&qlip->qli_lock);
+
+	xfs_trans_ail_copy_lsn(mp->m_ail, &qlip->qli_flush_lsn, &lip->li_lsn);
 
 	/*
 	 * copy the lsn into the on-disk dquot now while we have the in memory
