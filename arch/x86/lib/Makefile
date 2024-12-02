@@ -38,6 +38,10 @@ lib-$(CONFIG_RANDOMIZE_BASE) += kaslr.o
 lib-$(CONFIG_FUNCTION_ERROR_INJECTION)	+= error-inject.o
 lib-$(CONFIG_MITIGATION_RETPOLINE) += retpoline.o
 
+obj-$(CONFIG_CRC32_ARCH) += crc32-x86.o
+crc32-x86-y := crc32-glue.o crc32-pclmul.o
+crc32-x86-$(CONFIG_64BIT) += crc32c-3way.o
+
 obj-y += msr.o msr-reg.o msr-reg-export.o hweight.o
 obj-y += iomem.o
 
