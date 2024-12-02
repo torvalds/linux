@@ -357,6 +357,8 @@
 
 /* =====================================================[ exceptions] === */
 
+	__HEAD
+
 /* ---[ 0x100: RESET exception ]----------------------------------------- */
     .org 0x100
 	/* Jump to .init code at _start which lives in the .head section
@@ -506,10 +508,10 @@ _dispatch_do_ipage_fault:
 
 /*    .text*/
 
-/* This early stuff belongs in HEAD, but some of the functions below definitely
+/* This early stuff belongs in the .init.text section, but some of the functions below definitely
  * don't... */
 
-	__HEAD
+	__INIT
 	.global _start
 _start:
 	/* Init r0 to zero as per spec */
