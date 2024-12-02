@@ -8,10 +8,34 @@
 #include <linux/types.h>
 #include <linux/bitrev.h>
 
-u32 __pure crc32_le(u32 crc, unsigned char const *p, size_t len);
-u32 __pure crc32_le_base(u32 crc, unsigned char const *p, size_t len);
-u32 __pure crc32_be(u32 crc, unsigned char const *p, size_t len);
-u32 __pure crc32_be_base(u32 crc, unsigned char const *p, size_t len);
+u32 __pure crc32_le_arch(u32 crc, const u8 *p, size_t len);
+u32 __pure crc32_le_base(u32 crc, const u8 *p, size_t len);
+u32 __pure crc32_be_arch(u32 crc, const u8 *p, size_t len);
+u32 __pure crc32_be_base(u32 crc, const u8 *p, size_t len);
+u32 __pure crc32c_le_arch(u32 crc, const u8 *p, size_t len);
+u32 __pure crc32c_le_base(u32 crc, const u8 *p, size_t len);
+
+static inline u32 __pure crc32_le(u32 crc, const u8 *p, size_t len)
+{
+	if (IS_ENABLED(CONFIG_CRC32_ARCH))
+		return crc32_le_arch(crc, p, len);
+	return crc32_le_base(crc, p, len);
+}
+
+static inline u32 __pure crc32_be(u32 crc, const u8 *p, size_t len)
+{
+	if (IS_ENABLED(CONFIG_CRC32_ARCH))
+		return crc32_be_arch(crc, p, len);
+	return crc32_be_base(crc, p, len);
+}
+
+/* TODO: leading underscores should be dropped once callers have been updated */
+static inline u32 __pure __crc32c_le(u32 crc, const u8 *p, size_t len)
+{
+	if (IS_ENABLED(CONFIG_CRC32_ARCH))
+		return crc32c_le_arch(crc, p, len);
+	return crc32c_le_base(crc, p, len);
+}
 
 /**
  * crc32_le_combine - Combine two crc32 check values into one. For two
@@ -37,9 +61,6 @@ static inline u32 crc32_le_combine(u32 crc1, u32 crc2, size_t len2)
 {
 	return crc32_le_shift(crc1, len2) ^ crc2;
 }
-
-u32 __pure __crc32c_le(u32 crc, unsigned char const *p, size_t len);
-u32 __pure crc32c_le_base(u32 crc, unsigned char const *p, size_t len);
 
 /**
  * __crc32c_le_combine - Combine two crc32c check values into one. For two
