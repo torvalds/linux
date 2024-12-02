@@ -184,11 +184,18 @@ out_release_dquots:
 }
 
 /*
+ * Move sc->tempip from the regular directory tree to the metadata directory
+ * tree if sc->ip is part of the metadata directory tree and tempip has an
+ * eligible file mode.
+ *
  * Temporary files have to be created before we even know which inode we're
  * going to scrub, so we assume that they will be part of the regular directory
  * tree.  If it turns out that we're actually scrubbing a file from the
  * metadata directory tree, we have to subtract the temp file from the root
- * dquots and detach the dquots.
+ * dquots and detach the dquots prior to setting the METADATA iflag.  However,
+ * the scrub setup functions grab sc->ip and create sc->tempip before we
+ * actually get around to checking if the file mode is the right type for the
+ * scrubber.
  */
 int
 xrep_tempfile_adjust_directory_tree(
@@ -203,6 +210,9 @@ xrep_tempfile_adjust_directory_tree(
 	ASSERT(!xfs_is_metadir_inode(sc->tempip));
 
 	if (!sc->ip || !xfs_is_metadir_inode(sc->ip))
+		return 0;
+	if (!S_ISDIR(VFS_I(sc->tempip)->i_mode) &&
+	    !S_ISREG(VFS_I(sc->tempip)->i_mode))
 		return 0;
 
 	xfs_ilock(sc->tempip, XFS_IOLOCK_EXCL);
