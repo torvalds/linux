@@ -721,11 +721,21 @@ static void populate_dml21_surface_config_from_plane_state(
 	surface->dcc.informative.fraction_of_zero_size_request_plane1 = plane_state->dcc.independent_64b_blks_c;
 	surface->dcc.plane0.pitch = plane_state->dcc.meta_pitch;
 	surface->dcc.plane1.pitch = plane_state->dcc.meta_pitch_c;
-	if (in_dc->ctx->dce_version < DCN_VERSION_4_01) {
-		/* needed for N-1 testing */
+
+	// Update swizzle / array mode based on the gfx_format
+	switch (plane_state->tiling_info.gfxversion) {
+	case DcGfxVersion7:
+	case DcGfxVersion8:
+		// Placeholder for programming the array_mode
+		break;
+	case DcGfxVersion9:
+	case DcGfxVersion10:
+	case DcGfxVersion11:
 		surface->tiling = gfx9_to_dml2_swizzle_mode(plane_state->tiling_info.gfx9.swizzle);
-	} else {
+		break;
+	case DcGfxAddr3:
 		surface->tiling = gfx_addr3_to_dml2_swizzle_mode(plane_state->tiling_info.gfx_addr3.swizzle);
+		break;
 	}
 }
 
