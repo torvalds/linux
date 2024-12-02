@@ -63,8 +63,9 @@ fsck_err:
 int bch2_resume_logged_ops(struct bch_fs *c)
 {
 	int ret = bch2_trans_run(c,
-		for_each_btree_key(trans, iter,
-				   BTREE_ID_logged_ops, POS_MIN,
+		for_each_btree_key_max(trans, iter,
+				   BTREE_ID_logged_ops,
+				   POS(LOGGED_OPS_INUM, 0), POS(LOGGED_OPS_INUM, U64_MAX),
 				   BTREE_ITER_prefetch, k,
 			resume_logged_op(trans, &iter, k)));
 	bch_err_fn(c, ret);
@@ -74,9 +75,8 @@ int bch2_resume_logged_ops(struct bch_fs *c)
 static int __bch2_logged_op_start(struct btree_trans *trans, struct bkey_i *k)
 {
 	struct btree_iter iter;
-	int ret;
-
-	ret = bch2_bkey_get_empty_slot(trans, &iter, BTREE_ID_logged_ops, POS_MAX);
+	int ret = bch2_bkey_get_empty_slot(trans, &iter,
+				 BTREE_ID_logged_ops, POS(LOGGED_OPS_INUM, U64_MAX));
 	if (ret)
 		return ret;
 

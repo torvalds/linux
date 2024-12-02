@@ -2,6 +2,8 @@
 #ifndef _BCACHEFS_LOGGED_OPS_FORMAT_H
 #define _BCACHEFS_LOGGED_OPS_FORMAT_H
 
+#define LOGGED_OPS_INUM		0
+
 struct bch_logged_op_truncate {
 	struct bch_val		v;
 	__le32			subvol;
