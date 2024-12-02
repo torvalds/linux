@@ -359,17 +359,17 @@ void *restart_stack;
 
 unsigned long stack_alloc(void)
 {
-	void *ret;
+	void *stack;
 
-	ret = __vmalloc_node(THREAD_SIZE, THREAD_SIZE, THREADINFO_GFP,
-			     NUMA_NO_NODE, __builtin_return_address(0));
-	kmemleak_not_leak(ret);
-	return (unsigned long)ret;
+	stack = __vmalloc_node(THREAD_SIZE, THREAD_SIZE, THREADINFO_GFP,
+			       NUMA_NO_NODE, __builtin_return_address(0));
+	kmemleak_not_leak(stack);
+	return (unsigned long)stack;
 }
 
 void stack_free(unsigned long stack)
 {
-	vfree((void *) stack);
+	vfree((void *)stack);
 }
 
 static unsigned long __init stack_alloc_early(void)
