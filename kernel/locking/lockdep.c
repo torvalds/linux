@@ -157,10 +157,12 @@ static inline void lockdep_unlock(void)
 	__this_cpu_dec(lockdep_recursion);
 }
 
+#ifdef CONFIG_PROVE_LOCKING
 static inline bool lockdep_assert_locked(void)
 {
 	return DEBUG_LOCKS_WARN_ON(__owner != current);
 }
+#endif
 
 static struct task_struct *lockdep_selftest_task_struct;
 
