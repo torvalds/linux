@@ -1412,9 +1412,11 @@ int amdgpu_ras_eeprom_init(struct amdgpu_ras_eeprom_control *control)
 		}
 
 		res = __verify_ras_table_checksum(control);
-		if (res)
-			DRM_ERROR("RAS Table incorrect checksum or error:%d\n",
+		if (res) {
+			dev_err(adev->dev, "RAS Table incorrect checksum or error:%d\n",
 				  res);
+			return -EINVAL;
+		}
 		if (ras->bad_page_cnt_threshold > control->ras_num_recs) {
 			/* This means that, the threshold was increased since
 			 * the last time the system was booted, and now,
