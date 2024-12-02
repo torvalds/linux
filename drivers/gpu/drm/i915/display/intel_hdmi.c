@@ -1600,14 +1600,12 @@ static
 bool intel_hdmi_hdcp_check_link(struct intel_digital_port *dig_port,
 				struct intel_connector *connector)
 {
-	struct intel_display *display = to_intel_display(dig_port);
 	int retry;
 
 	for (retry = 0; retry < 3; retry++)
 		if (intel_hdmi_hdcp_check_link_once(dig_port, connector))
 			return true;
 
-	drm_err(display->drm, "Link check failed\n");
 	return false;
 }
 
