@@ -2,5 +2,12 @@
 /dts-v1/;
 
 / {
-
+	/*
+	 * #address-cells/#size-cells are required properties at root node.
+	 * Use 2 cells for both address cells and size cells in order to fully
+	 * support 64-bit addresses and sizes on systems using this empty root
+	 * node.
+	 */
+	#address-cells = <0x02>;
+	#size-cells = <0x02>;
 };
