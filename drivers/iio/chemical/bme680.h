@@ -2,6 +2,7 @@
 #ifndef BME680_H_
 #define BME680_H_
 
+#include <linux/pm.h>
 #include <linux/regmap.h>
 
 #define BME680_REG_CHIP_ID			0xD0
@@ -80,6 +81,7 @@
 #define BME680_CALIB_RANGE_3_LEN               5
 
 extern const struct regmap_config bme680_regmap_config;
+extern const struct dev_pm_ops bme680_dev_pm_ops;
 
 int bme680_core_probe(struct device *dev, struct regmap *regmap,
 		      const char *name);
