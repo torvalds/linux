@@ -223,6 +223,7 @@ xrep_tempfile_adjust_directory_tree(
 	if (error)
 		goto out_ilock;
 
+	xfs_iflags_set(sc->tempip, XFS_IRECOVERY);
 	xfs_qm_dqdetach(sc->tempip);
 out_ilock:
 	xrep_tempfile_iunlock(sc);
@@ -245,6 +246,8 @@ xrep_tempfile_remove_metadir(
 		return 0;
 
 	ASSERT(sc->tp == NULL);
+
+	xfs_iflags_clear(sc->tempip, XFS_IRECOVERY);
 
 	xfs_ilock(sc->tempip, XFS_IOLOCK_EXCL);
 	sc->temp_ilock_flags |= XFS_IOLOCK_EXCL;
@@ -945,10 +948,13 @@ xrep_is_tempfile(
 
 	/*
 	 * Files in the metadata directory tree also have S_PRIVATE set and
-	 * IOP_XATTR unset, so we must distinguish them separately.
+	 * IOP_XATTR unset, so we must distinguish them separately.  We (ab)use
+	 * the IRECOVERY flag to mark temporary metadir inodes knowing that the
+	 * end of log recovery clears IRECOVERY, so the only ones that can
+	 * exist during online repair are the ones we create.
 	 */
 	if (xfs_has_metadir(mp) && (ip->i_diflags2 & XFS_DIFLAG2_METADATA))
-		return false;
+		return __xfs_iflags_test(ip, XFS_IRECOVERY);
 
 	if (IS_PRIVATE(inode) && !(inode->i_opflags & IOP_XATTR))
 		return true;
