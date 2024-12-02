@@ -41,7 +41,7 @@ int intel_bo_read_from_page(struct drm_gem_object *obj, u64 offset, void *dst, i
 {
 	struct xe_bo *bo = gem_to_xe_bo(obj);
 
-	return ttm_bo_access(&bo->ttm, offset, dst, size, 0);
+	return xe_bo_read(bo, offset, dst, size);
 }
 
 struct intel_frontbuffer *intel_bo_get_frontbuffer(struct drm_gem_object *obj)

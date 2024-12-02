@@ -228,6 +228,7 @@ xe_bo_ggtt_addr(struct xe_bo *bo)
 
 int xe_bo_vmap(struct xe_bo *bo);
 void xe_bo_vunmap(struct xe_bo *bo);
+int xe_bo_read(struct xe_bo *bo, u64 offset, void *dst, int size);
 
 bool mem_type_is_vram(u32 mem_type);
 bool xe_bo_is_vram(struct xe_bo *bo);

@@ -1320,6 +1320,30 @@ static int xe_bo_vm_access(struct vm_area_struct *vma, unsigned long addr,
 	return ret;
 }
 
+/**
+ * xe_bo_read() - Read from an xe_bo
+ * @bo: The buffer object to read from.
+ * @offset: The byte offset to start reading from.
+ * @dst: Location to store the read.
+ * @size: Size in bytes for the read.
+ *
+ * Read @size bytes from the @bo, starting from @offset, storing into @dst.
+ *
+ * Return: Zero on success, or negative error.
+ */
+int xe_bo_read(struct xe_bo *bo, u64 offset, void *dst, int size)
+{
+	int ret;
+
+	ret = ttm_bo_access(&bo->ttm, offset, dst, size, 0);
+	if (ret >= 0 && ret != size)
+		ret = -EIO;
+	else if (ret == size)
+		ret = 0;
+
+	return ret;
+}
+
 static const struct vm_operations_struct xe_gem_vm_ops = {
 	.fault = xe_gem_fault,
 	.open = ttm_bo_vm_open,
