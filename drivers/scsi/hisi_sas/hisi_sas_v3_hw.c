@@ -3328,8 +3328,8 @@ static void hisi_sas_map_queues(struct Scsi_Host *shost)
 		if (i == HCTX_TYPE_POLL)
 			blk_mq_map_queues(qmap);
 		else
-			blk_mq_pci_map_queues(qmap, hisi_hba->pci_dev,
-					      BASE_VECTORS_V3_HW);
+			blk_mq_map_hw_queues(qmap, hisi_hba->dev,
+					     BASE_VECTORS_V3_HW);
 		qoff += qmap->nr_queues;
 	}
 }
