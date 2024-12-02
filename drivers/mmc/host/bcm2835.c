@@ -1343,6 +1343,25 @@ static int bcm2835_add_host(struct bcm2835_host *host)
 	return 0;
 }
 
+static int bcm2835_suspend(struct device *dev)
+{
+	struct bcm2835_host *host = dev_get_drvdata(dev);
+
+	clk_disable_unprepare(host->clk);
+
+	return 0;
+}
+
+static int bcm2835_resume(struct device *dev)
+{
+	struct bcm2835_host *host = dev_get_drvdata(dev);
+
+	return clk_prepare_enable(host->clk);
+}
+
+static DEFINE_SIMPLE_DEV_PM_OPS(bcm2835_pm_ops, bcm2835_suspend,
+				bcm2835_resume);
+
 static int bcm2835_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -1471,6 +1490,7 @@ static struct platform_driver bcm2835_driver = {
 		.name		= "sdhost-bcm2835",
 		.probe_type	= PROBE_PREFER_ASYNCHRONOUS,
 		.of_match_table	= bcm2835_match,
+		.pm = pm_ptr(&bcm2835_pm_ops),
 	},
 };
 module_platform_driver(bcm2835_driver);
