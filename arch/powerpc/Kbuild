@@ -1,0 +1,21 @@
+# SPDX-License-Identifier: GPL-2.0
+subdir-ccflags-$(CONFIG_PPC_WERROR) := -Werror
+
+obj-y += kernel/
+obj-y += mm/
+obj-y += lib/
+obj-y += sysdev/
+obj-y += platforms/
+obj-y += math-emu/
+obj-y += crypto/
+obj-y += net/
+
+obj-$(CONFIG_XMON) += xmon/
+obj-$(CONFIG_KVM)  += kvm/
+
+obj-$(CONFIG_PERF_EVENTS) += perf/
+obj-$(CONFIG_KEXEC_CORE)  += kexec/
+obj-$(CONFIG_KEXEC_FILE)  += purgatory/
+
+# for cleaning
+subdir- += boot

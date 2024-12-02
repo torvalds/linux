@@ -1,0 +1,46 @@
+What:           /sys/module/xen_blkback/parameters/max_buffer_pages
+Date:           March 2013
+KernelVersion:  3.11
+Contact:        Roger Pau Monné <roger.pau@citrix.com>
+Description:
+                Maximum number of free pages to keep in each block
+                backend buffer.
+
+What:           /sys/module/xen_blkback/parameters/max_persistent_grants
+Date:           March 2013
+KernelVersion:  3.11
+Contact:        Roger Pau Monné <roger.pau@citrix.com>
+Description:
+                Maximum number of grants to map persistently in
+                blkback. If the frontend tries to use more than
+                max_persistent_grants, the LRU kicks in and starts
+                removing 5% of max_persistent_grants every 100ms.
+
+What:           /sys/module/xen_blkback/parameters/persistent_grant_unused_seconds
+Date:           August 2018
+KernelVersion:  4.19
+Contact:        Roger Pau Monné <roger.pau@citrix.com>
+Description:
+                How long a persistent grant is allowed to remain
+                allocated without being in use. The time is in
+                seconds, 0 means indefinitely long.
+                The default is 60 seconds.
+
+What:           /sys/module/xen_blkback/parameters/buffer_squeeze_duration_ms
+Date:           December 2019
+KernelVersion:  5.6
+Contact:        Maximilian Heyne <mheyne@amazon.de>
+Description:
+                When memory pressure is reported to blkback this option
+                controls the duration in milliseconds that blkback will not
+                cache any page not backed by a grant mapping.
+                The default is 10ms.
+
+What:           /sys/module/xen_blkback/parameters/feature_persistent
+Date:           September 2020
+KernelVersion:  5.10
+Contact:        Maximilian Heyne <mheyne@amazon.de>
+Description:
+                Whether to enable the persistent grants feature or not.  Note
+                that this option only takes effect on newly connected backends.
+                The default is Y (enable).

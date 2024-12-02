@@ -1,0 +1,41 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+/*
+ * at91sam9g35ek.dts - Device Tree file for AT91SAM9G35-EK board
+ *
+ *  Copyright (C) 2012 Atmel,
+ *                2012 Nicolas Ferre <nicolas.ferre@atmel.com>
+ */
+/dts-v1/;
+#include "at91sam9g35.dtsi"
+#include "at91sam9x5dm.dtsi"
+#include "at91sam9x5ek.dtsi"
+
+/ {
+	model = "Atmel AT91SAM9G35-EK";
+	compatible = "atmel,at91sam9g35ek", "atmel,at91sam9x5ek", "atmel,at91sam9x5", "atmel,at91sam9";
+
+	backlight: backlight {
+		status = "okay";
+	};
+
+	bl_reg: backlight_regulator {
+		status = "okay";
+	};
+
+	panel: panel {
+		status = "okay";
+	};
+
+	panel_reg: panel_regulator {
+		status = "okay";
+	};
+};
+
+&hlcdc {
+	status = "okay";
+};
+
+&macb0 {
+	phy-mode = "rmii";
+	status = "okay";
+};

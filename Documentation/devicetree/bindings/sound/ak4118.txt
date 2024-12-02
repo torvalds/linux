@@ -1,0 +1,22 @@
+AK4118 S/PDIF transceiver
+
+This device supports I2C mode.
+
+Required properties:
+
+- compatible : "asahi-kasei,ak4118"
+- reg : The I2C address of the device for I2C
+- reset-gpios: A GPIO specifier for the reset pin
+- irq-gpios: A GPIO specifier for the IRQ pin
+
+Example:
+
+&i2c {
+	ak4118: ak4118@13 {
+		#sound-dai-cells = <0>;
+		compatible = "asahi-kasei,ak4118";
+		reg = <0x13>;
+		reset-gpios = <&gpio 0 GPIO_ACTIVE_LOW>
+		irq-gpios = <&gpio 1 GPIO_ACTIVE_HIGH>;
+	};
+};

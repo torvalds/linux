@@ -1,0 +1,104 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/pci/snps,dw-pcie.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Synopsys DesignWare PCIe interface
+
+maintainers:
+  - Jingoo Han <jingoohan1@gmail.com>
+  - Gustavo Pimentel <gustavo.pimentel@synopsys.com>
+
+description: |
+  Synopsys DesignWare PCIe host controller
+
+allOf:
+  - $ref: /schemas/pci/pci-bus.yaml#
+
+properties:
+  compatible:
+    anyOf:
+      - {}
+      - const: snps,dw-pcie
+
+  reg:
+    description: |
+      It should contain Data Bus Interface (dbi) and config registers for all
+      versions.
+      For designware core version >= 4.80, it may contain ATU address space.
+    minItems: 2
+    maxItems: 5
+
+  reg-names:
+    minItems: 2
+    maxItems: 5
+    items:
+      enum: [ dbi, dbi2, config, atu, atu_dma, app, appl, elbi, mgmt, ctrl,
+              parf, cfg, link, ulreg, smu, mpu, apb, phy ]
+
+  num-lanes:
+    description: |
+      number of lanes to use (this property should be specified unless
+      the link is brought already up in firmware)
+    maximum: 16
+
+  reset-gpio:
+    description: GPIO pin number of PERST# signal
+    maxItems: 1
+    deprecated: true
+
+  reset-gpios:
+    description: GPIO controlled connection to PERST# signal
+    maxItems: 1
+
+  interrupts: true
+
+  interrupt-names: true
+
+  clocks: true
+
+  snps,enable-cdm-check:
+    type: boolean
+    description: |
+      This is a boolean property and if present enables
+      automatic checking of CDM (Configuration Dependent Module) registers
+      for data corruption. CDM registers include standard PCIe configuration
+      space registers, Port Logic registers, DMA and iATU (internal Address
+      Translation Unit) registers.
+
+  num-viewport:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    maximum: 256
+    description: |
+      number of view ports configured in hardware. If a platform
+      does not specify it, the driver autodetects it.
+    deprecated: true
+
+additionalProperties: true
+
+required:
+  - reg
+  - reg-names
+  - compatible
+
+examples:
+  - |
+    bus {
+      #address-cells = <1>;
+      #size-cells = <1>;
+      pcie@dfc00000 {
+        device_type = "pci";
+        compatible = "snps,dw-pcie";
+        reg = <0xdfc00000 0x0001000>, /* IP registers */
+              <0xd0000000 0x0002000>; /* Configuration space */
+        reg-names = "dbi", "config";
+        #address-cells = <3>;
+        #size-cells = <2>;
+        ranges = <0x81000000 0 0x00000000 0xde000000 0 0x00010000>,
+                 <0x82000000 0 0xd0400000 0xd0400000 0 0x0d000000>;
+        interrupts = <25>, <24>;
+        #interrupt-cells = <1>;
+        num-lanes = <1>;
+      };
+    };

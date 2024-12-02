@@ -1,0 +1,3 @@
+# SPDX-License-Identifier: GPL-2.0
+# This file is intentionally empty. It's used as a placeholder for when
+# KCONFIG_EXT_PREFIX isn't defined.

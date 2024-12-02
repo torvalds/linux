@@ -1,0 +1,6 @@
+#
+# Broadcom Generic BMIPS kernel
+#
+cflags-$(CONFIG_BMIPS_GENERIC)		+=				\
+		-I$(srctree)/arch/mips/include/asm/mach-bmips/
+load-$(CONFIG_BMIPS_GENERIC)		:= 0xffffffff80010000

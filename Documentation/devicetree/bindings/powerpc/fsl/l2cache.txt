@@ -1,0 +1,55 @@
+Freescale L2 Cache Controller
+
+L2 cache is present in Freescale's QorIQ and QorIQ Qonverge platforms.
+The cache bindings explained below are Devicetree Specification compliant
+
+Required Properties:
+
+- compatible	: Should include one of the following:
+		  "fsl,b4420-l2-cache-controller"
+		  "fsl,b4860-l2-cache-controller"
+		  "fsl,bsc9131-l2-cache-controller"
+		  "fsl,bsc9132-l2-cache-controller"
+		  "fsl,c293-l2-cache-controller"
+		  "fsl,mpc8536-l2-cache-controller"
+		  "fsl,mpc8540-l2-cache-controller"
+		  "fsl,mpc8541-l2-cache-controller"
+		  "fsl,mpc8544-l2-cache-controller"
+		  "fsl,mpc8548-l2-cache-controller"
+		  "fsl,mpc8555-l2-cache-controller"
+		  "fsl,mpc8560-l2-cache-controller"
+		  "fsl,mpc8568-l2-cache-controller"
+		  "fsl,mpc8569-l2-cache-controller"
+		  "fsl,mpc8572-l2-cache-controller"
+		  "fsl,p1010-l2-cache-controller"
+		  "fsl,p1011-l2-cache-controller"
+		  "fsl,p1012-l2-cache-controller"
+		  "fsl,p1013-l2-cache-controller"
+		  "fsl,p1014-l2-cache-controller"
+		  "fsl,p1015-l2-cache-controller"
+		  "fsl,p1016-l2-cache-controller"
+		  "fsl,p1020-l2-cache-controller"
+		  "fsl,p1021-l2-cache-controller"
+		  "fsl,p1022-l2-cache-controller"
+		  "fsl,p1023-l2-cache-controller"
+		  "fsl,p1024-l2-cache-controller"
+		  "fsl,p1025-l2-cache-controller"
+		  "fsl,p2010-l2-cache-controller"
+		  "fsl,p2020-l2-cache-controller"
+		  "fsl,t2080-l2-cache-controller"
+		  "fsl,t4240-l2-cache-controller"
+		  and "cache".
+- reg		: Address and size of L2 cache controller registers
+- cache-size	: Size of the entire L2 cache
+- interrupts	: Error interrupt of L2 controller
+- cache-line-size : Size of L2 cache lines
+
+Example:
+
+	L2: l2-cache-controller@20000 {
+		compatible = "fsl,bsc9132-l2-cache-controller", "cache";
+		reg = <0x20000 0x1000>;
+		cache-line-size = <32>; // 32 bytes
+		cache-size = <0x40000>; // L2,256K
+		interrupts = <16 2 1 0>;
+	};

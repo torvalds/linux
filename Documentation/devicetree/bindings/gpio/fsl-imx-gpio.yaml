@@ -1,0 +1,113 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/gpio/fsl-imx-gpio.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Freescale i.MX/MXC GPIO controller
+
+maintainers:
+  - Anson Huang <Anson.Huang@nxp.com>
+
+properties:
+  compatible:
+    oneOf:
+      - enum:
+          - fsl,imx1-gpio
+          - fsl,imx21-gpio
+          - fsl,imx31-gpio
+          - fsl,imx35-gpio
+          - fsl,imx7d-gpio
+      - items:
+          - const: fsl,imx35-gpio
+          - const: fsl,imx31-gpio
+      - items:
+          - enum:
+              - fsl,imx50-gpio
+              - fsl,imx51-gpio
+              - fsl,imx53-gpio
+              - fsl,imx6q-gpio
+              - fsl,imx6sl-gpio
+              - fsl,imx6sll-gpio
+              - fsl,imx6sx-gpio
+              - fsl,imx6ul-gpio
+              - fsl,imx7d-gpio
+              - fsl,imx8mm-gpio
+              - fsl,imx8mn-gpio
+              - fsl,imx8mp-gpio
+              - fsl,imx8mq-gpio
+              - fsl,imx8qxp-gpio
+              - fsl,imxrt1050-gpio
+              - fsl,imxrt1170-gpio
+          - const: fsl,imx35-gpio
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    description: |
+      Should be the port interrupt shared by all 32 pins, if one number.
+      If two numbers, the first one is the interrupt shared by low 16 pins
+      and the second one is for high 16 pins.
+    minItems: 1
+    maxItems: 2
+
+  interrupt-controller: true
+
+  "#interrupt-cells":
+    const: 2
+
+  clocks:
+    maxItems: 1
+
+  "#gpio-cells":
+    const: 2
+
+  gpio-controller: true
+  gpio-line-names: true
+  gpio-ranges: true
+
+  power-domains:
+    maxItems: 1
+
+patternProperties:
+  "^(hog-[0-9]+|.+-hog(-[0-9]+)?)$":
+    type: object
+    properties:
+      gpio-hog: true
+      gpios: true
+      input: true
+      output-high: true
+      output-low: true
+      line-name: true
+
+    required:
+      - gpio-hog
+      - gpios
+
+    additionalProperties: false
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - interrupt-controller
+  - "#interrupt-cells"
+  - "#gpio-cells"
+  - gpio-controller
+
+additionalProperties: false
+
+examples:
+  - |
+    gpio0: gpio@73f84000 {
+        compatible = "fsl,imx35-gpio";
+        reg = <0x73f84000 0x4000>;
+        interrupts = <50 51>;
+        gpio-controller;
+        #gpio-cells = <2>;
+        interrupt-controller;
+        #interrupt-cells = <2>;
+    };
+
+...

@@ -1,0 +1,53 @@
+# SPDX-License-Identifier: GPL-2.0
+# CPU tuning section - shared with UML.
+# Must change only cflags-y (or [yn]), not CFLAGS! That makes a difference for UML.
+
+tune		= $(call cc-option,-mtune=$(1),$(2))
+
+ifdef CONFIG_CC_IS_CLANG
+align		:= -falign-functions=0 $(call cc-option,-falign-jumps=0) $(call cc-option,-falign-loops=0)
+else
+align		:= -falign-functions=0 -falign-jumps=0 -falign-loops=0
+endif
+
+cflags-$(CONFIG_M486SX)		+= -march=i486
+cflags-$(CONFIG_M486)		+= -march=i486
+cflags-$(CONFIG_M586)		+= -march=i586
+cflags-$(CONFIG_M586TSC)	+= -march=i586
+cflags-$(CONFIG_M586MMX)	+= -march=pentium-mmx
+cflags-$(CONFIG_M686)		+= -march=i686
+cflags-$(CONFIG_MPENTIUMII)	+= -march=i686 $(call tune,pentium2)
+cflags-$(CONFIG_MPENTIUMIII)	+= -march=i686 $(call tune,pentium3)
+cflags-$(CONFIG_MPENTIUMM)	+= -march=i686 $(call tune,pentium3)
+cflags-$(CONFIG_MPENTIUM4)	+= -march=i686 $(call tune,pentium4)
+cflags-$(CONFIG_MK6)		+= -march=k6
+# Please note, that patches that add -march=athlon-xp and friends are pointless.
+# They make zero difference whatsosever to performance at this time.
+cflags-$(CONFIG_MK7)		+= -march=athlon
+cflags-$(CONFIG_MK8)		+= $(call cc-option,-march=k8,-march=athlon)
+cflags-$(CONFIG_MCRUSOE)	+= -march=i686 $(align)
+cflags-$(CONFIG_MEFFICEON)	+= -march=i686 $(call tune,pentium3) $(align)
+cflags-$(CONFIG_MWINCHIPC6)	+= $(call cc-option,-march=winchip-c6,-march=i586)
+cflags-$(CONFIG_MWINCHIP3D)	+= $(call cc-option,-march=winchip2,-march=i586)
+cflags-$(CONFIG_MCYRIXIII)	+= $(call cc-option,-march=c3,-march=i486) $(align)
+cflags-$(CONFIG_MVIAC3_2)	+= $(call cc-option,-march=c3-2,-march=i686)
+cflags-$(CONFIG_MVIAC7)		+= -march=i686
+cflags-$(CONFIG_MCORE2)		+= -march=i686 $(call tune,core2)
+cflags-$(CONFIG_MATOM)		+= $(call cc-option,-march=atom,$(call cc-option,-march=core2,-march=i686)) \
+	$(call cc-option,-mtune=atom,$(call cc-option,-mtune=generic))
+
+# AMD Elan support
+cflags-$(CONFIG_MELAN)		+= -march=i486
+
+# Geode GX1 support
+cflags-$(CONFIG_MGEODEGX1)	+= -march=pentium-mmx
+cflags-$(CONFIG_MGEODE_LX)	+= $(call cc-option,-march=geode,-march=pentium-mmx)
+# add at the end to overwrite eventual tuning options from earlier
+# cpu entries
+cflags-$(CONFIG_X86_GENERIC) 	+= $(call tune,generic,$(call tune,i686))
+
+# Bug fix for binutils: this option is required in order to keep
+# binutils from generating NOPL instructions against our will.
+ifneq ($(CONFIG_X86_P6_NOP),y)
+cflags-y			+= $(call cc-option,-Wa$(comma)-mtune=generic32,)
+endif

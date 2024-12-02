@@ -1,0 +1,227 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Copyright 2021-2022 NXP
+ *
+ */
+
+/dts-v1/;
+#include "ls1021a.dtsi"
+
+/ {
+	model = "LS1021A-IOT Board";
+	compatible = "fsl,ls1021a-iot", "fsl,ls1021a";
+
+	sys_mclk: clock-mclk {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <24576000>;
+	};
+
+	reg_3p3v: regulator-3V3 {
+		compatible = "regulator-fixed";
+		regulator-name = "3P3V";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-always-on;
+	};
+
+	reg_2p5v: regulator-2V5 {
+		compatible = "regulator-fixed";
+		regulator-name = "2P5V";
+		regulator-min-microvolt = <2500000>;
+		regulator-max-microvolt = <2500000>;
+		regulator-always-on;
+	};
+
+	sound {
+		compatible = "simple-audio-card";
+		simple-audio-card,format = "i2s";
+		simple-audio-card,widgets =
+			"Microphone", "Microphone Jack",
+			"Headphone", "Headphone Jack",
+			"Speaker", "Speaker Ext",
+			"Line", "Line In Jack";
+		simple-audio-card,routing =
+			"MIC_IN", "Microphone Jack",
+			"Microphone Jack", "Mic Bias",
+			"LINE_IN", "Line In Jack",
+			"Headphone Jack", "HP_OUT",
+			"Speaker Ext", "LINE_OUT";
+
+		simple-audio-card,cpu {
+			sound-dai = <&sai2>;
+			frame-master;
+			bitclock-master;
+		};
+
+		simple-audio-card,codec {
+			sound-dai = <&sgtl5000>;
+			frame-master;
+			bitclock-master;
+		};
+	};
+};
+
+&can0{
+	status = "disabled";
+};
+
+&can1{
+	status = "disabled";
+};
+
+&can2{
+	status = "disabled";
+};
+
+&can3{
+	status = "okay";
+};
+
+&dcu {
+	display = <&display>;
+	status = "okay";
+
+	display: display@0 {
+		bits-per-pixel = <24>;
+
+		display-timings {
+			native-mode = <&timing0>;
+
+			timing0: mode0 {
+				clock-frequency = <25000000>;
+				hactive = <640>;
+				vactive = <480>;
+				hback-porch = <80>;
+				hfront-porch = <80>;
+				vback-porch = <16>;
+				vfront-porch = <16>;
+				hsync-len = <12>;
+				vsync-len = <2>;
+				hsync-active = <1>;
+				vsync-active = <1>;
+			};
+		};
+	};
+};
+
+&enet0 {
+	tbi-handle = <&tbi1>;
+	phy-handle = <&phy1>;
+	phy-connection-type = "sgmii";
+	status = "okay";
+};
+
+&enet1 {
+	tbi-handle = <&tbi1>;
+	phy-handle = <&phy3>;
+	phy-connection-type = "sgmii";
+	status = "okay";
+};
+
+&enet2 {
+	fixed-link = <0 1 1000 0 0>;
+	phy-connection-type = "rgmii-id";
+	status = "okay";
+};
+
+&esdhc{
+	status = "okay";
+};
+
+&i2c0 {
+	status = "okay";
+
+	pca9555: gpio@23 {
+		compatible = "nxp,pca9555";
+		reg = <0x23>;
+		gpio-controller;
+		#gpio-cells = <2>;
+		interrupt-controller;
+		#interrupt-cells = <2>;
+	};
+
+	sgtl5000: audio-codec@2a {
+		#sound-dai-cells = <0x0>;
+		compatible = "fsl,sgtl5000";
+		reg = <0x2a>;
+		VDDA-supply = <&reg_3p3v>;
+		VDDIO-supply = <&reg_2p5v>;
+		clocks = <&sys_mclk>;
+	};
+
+	max1239: adc@35 {
+		compatible = "maxim,max1239";
+		reg = <0x35>;
+		#io-channel-cells = <1>;
+	};
+
+	ina2201: core-monitor@44 {
+		compatible = "ti,ina220";
+		reg = <0x44>;
+		shunt-resistor = <1000>;
+	};
+
+	ina2202: current-monitor@45 {
+		compatible = "ti,ina220";
+		reg = <0x45>;
+		shunt-resistor = <1000>;
+	};
+
+	lm75b: thermal-monitor@48 {
+		compatible = "national,lm75b";
+		reg = <0x48>;
+	};
+};
+
+&lpuart0 {
+	status = "okay";
+};
+
+&mdio0 {
+	phy0: ethernet-phy@0 {
+		reg = <0x0>;
+	};
+
+	phy1: ethernet-phy@1 {
+		reg = <0x1>;
+	};
+
+	phy2: ethernet-phy@2 {
+		reg = <0x2>;
+	};
+
+	phy3: ethernet-phy@3 {
+		reg = <0x3>;
+	};
+
+	tbi1: tbi-phy@1f {
+		reg = <0x1f>;
+		device_type = "tbi-phy";
+	};
+};
+
+&qspi {
+	num-cs = <2>;
+	status = "okay";
+
+	s25fl128s: flash@0 {
+		compatible = "jedec,spi-nor";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		spi-max-frequency = <20000000>;
+		reg = <0>;
+	};
+};
+
+&sai2 {
+	status = "okay";
+};
+
+&uart0 {
+	status = "okay";
+};
+
+&uart1 {
+	status = "okay";
+};

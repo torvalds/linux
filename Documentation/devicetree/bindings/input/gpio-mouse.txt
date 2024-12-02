@@ -1,0 +1,32 @@
+Device-Tree bindings for GPIO attached mice
+
+This simply uses standard GPIO handles to define a simple mouse connected
+to 5-7 GPIO lines.
+
+Required properties:
+	- compatible: must be "gpio-mouse"
+	- scan-interval-ms: The scanning interval in milliseconds
+	- up-gpios: GPIO line phandle to the line indicating "up"
+	- down-gpios: GPIO line phandle to the line indicating "down"
+	- left-gpios: GPIO line phandle to the line indicating "left"
+	- right-gpios: GPIO line phandle to the line indicating "right"
+
+Optional properties:
+	- button-left-gpios: GPIO line handle to the left mouse button
+	- button-middle-gpios: GPIO line handle to the middle mouse button
+	- button-right-gpios: GPIO line handle to the right mouse button
+Example:
+
+#include <dt-bindings/gpio/gpio.h>
+
+gpio-mouse {
+	compatible = "gpio-mouse";
+	scan-interval-ms = <50>;
+	up-gpios = <&gpio0 0 GPIO_ACTIVE_LOW>;
+	down-gpios = <&gpio0 1 GPIO_ACTIVE_LOW>;
+	left-gpios = <&gpio0 2 GPIO_ACTIVE_LOW>;
+	right-gpios = <&gpio0 3 GPIO_ACTIVE_LOW>;
+	button-left-gpios = <&gpio0 4 GPIO_ACTIVE_LOW>;
+	button-middle-gpios = <&gpio0 5 GPIO_ACTIVE_LOW>;
+	button-right-gpios = <&gpio0 6 GPIO_ACTIVE_LOW>;
+};

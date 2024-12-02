@@ -1,0 +1,6 @@
+What:		/sys/kernel/mm
+Date:		July 2008
+Contact:	Nishanth Aravamudan <nacc@us.ibm.com>, VM maintainers
+Description:
+		/sys/kernel/mm/ should contain any and all VM
+		related information in /sys/kernel/.

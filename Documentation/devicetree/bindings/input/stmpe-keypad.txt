@@ -1,0 +1,41 @@
+* STMPE Keypad
+
+Required properties:
+ - compatible               : "st,stmpe-keypad"
+ - linux,keymap             : See ./matrix-keymap.txt
+
+Optional properties:
+ - debounce-interval        : Debouncing interval time in milliseconds
+ - st,scan-count            : Scanning cycles elapsed before key data is updated
+ - st,no-autorepeat         : If specified device will not autorepeat
+ - keypad,num-rows          : See ./matrix-keymap.txt
+ - keypad,num-columns       : See ./matrix-keymap.txt
+
+Example:
+
+	stmpe_keypad {
+		compatible = "st,stmpe-keypad";
+
+		debounce-interval = <64>;
+		st,scan-count = <8>;
+		st,no-autorepeat;
+
+		linux,keymap = <0x205006b
+				0x4010074
+				0x3050072
+				0x1030004
+				0x502006a
+				0x500000a
+				0x5008b
+				0x706001c
+				0x405000b
+				0x6070003
+				0x3040067
+				0x303006c
+				0x60400e7
+				0x602009e
+				0x4020073
+				0x5050002
+				0x4030069
+				0x3020008>;
+	};

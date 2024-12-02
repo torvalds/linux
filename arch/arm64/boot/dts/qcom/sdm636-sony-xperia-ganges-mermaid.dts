@@ -1,0 +1,25 @@
+// SPDX-License-Identifier: BSD-3-Clause
+/*
+ * Copyright (c) 2020, Martin Botka
+ */
+
+/dts-v1/;
+
+#include "sdm630-sony-xperia-ganges-kirin.dts"
+#include "sdm636.dtsi"
+
+/ {
+	model = "Sony Xperia 10 Plus";
+	compatible = "sony,mermaid-row", "qcom,sdm636";
+	chassis-type = "handset";
+
+	/* SDM636 v1 */
+	qcom,msm-id = <345 0>;
+	qcom,pmic-id = <0x1001b 0x101011a 0x00 0x00 0x1001b 0x201011a 0x00 0x00 0x1001b 0x102001a 0x00 0x00>;
+};
+
+&sdc2_state_on {
+	clk {
+		drive-strength = <14>;
+	};
+};

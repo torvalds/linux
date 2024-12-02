@@ -1,0 +1,18 @@
+* Dove Thermal
+
+This driver is for Dove SoCs which contain a thermal sensor.
+
+Required properties:
+- compatible : "marvell,dove-thermal"
+- reg : Address range of the thermal registers
+
+The reg properties should contain two ranges. The first is for the
+three Thermal Manager registers, while the second range contains the
+Thermal Diode Control Registers.
+
+Example:
+
+	thermal@10078 {
+		compatible = "marvell,dove-thermal";
+		reg = <0xd001c 0x0c>, <0xd005c 0x08>;
+	};

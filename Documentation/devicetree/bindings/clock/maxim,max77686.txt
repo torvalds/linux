@@ -1,0 +1,114 @@
+Binding for Maxim MAX77686/MAX77802/MAX77620 32k clock generator block
+
+This is a part of device tree bindings of MAX77686/MAX77802/MAX77620
+multi-function device. More information can be found in MFD DT binding
+doc as follows:
+	bindings/mfd/max77686.txt for MAX77686 and
+	bindings/mfd/max77802.txt for MAX77802 and
+	bindings/mfd/max77620.txt for MAX77620.
+
+The MAX77686 contains three 32.768khz clock outputs that can be controlled
+(gated/ungated) over I2C. Clocks are defined as preprocessor macros in
+dt-bindings/clock/maxim,max77686.h.
+
+
+The MAX77802 contains two 32.768khz clock outputs that can be controlled
+(gated/ungated) over I2C. Clocks are defined as preprocessor macros in
+dt-bindings/clock/maxim,max77802.h.
+
+The MAX77686 contains one 32.768khz clock outputs that can be controlled
+(gated/ungated) over I2C. Clocks are defined as preprocessor macros in
+dt-bindings/clock/maxim,max77620.h.
+
+Following properties should be presend in main device node of the MFD chip.
+
+Required properties:
+
+- #clock-cells: from common clock binding; shall be set to 1.
+
+Optional properties:
+- clock-output-names: From common clock binding.
+
+Each clock is assigned an identifier and client nodes can use this identifier
+to specify the clock which they consume. Following indices are allowed:
+    - 0: 32khz_ap clock (max77686, max77802), 32khz_out0 (max77620)
+    - 1: 32khz_cp clock (max77686, max77802),
+    - 2: 32khz_pmic clock (max77686).
+
+Clocks are defined as preprocessor macros in above dt-binding header for
+respective chips.
+
+Example:
+
+1. With MAX77686:
+
+#include <dt-bindings/clock/maxim,max77686.h>
+/* ... */
+
+	Node of the MFD chip
+		max77686: max77686@9 {
+			compatible = "maxim,max77686";
+			interrupt-parent = <&wakeup_eint>;
+			interrupts = <26 IRQ_TYPE_LEVEL_LOW>;
+			reg = <0x09>;
+			#clock-cells = <1>;
+
+			/* ... */
+		};
+
+	Clock consumer node
+
+		foo@0 {
+			compatible = "bar,foo";
+			/* ... */
+			clock-names = "my-clock";
+			clocks = <&max77686 MAX77686_CLK_PMIC>;
+		};
+
+2. With MAX77802:
+
+#include <dt-bindings/clock/maxim,max77802.h>
+/* ... */
+
+	Node of the MFD chip
+		max77802: max77802@9 {
+			compatible = "maxim,max77802";
+			interrupt-parent = <&wakeup_eint>;
+			interrupts = <26 IRQ_TYPE_LEVEL_LOW>;
+			reg = <0x09>;
+			#clock-cells = <1>;
+
+			/* ... */
+		};
+
+	Clock consumer node
+
+		foo@0 {
+			compatible = "bar,foo";
+			/* ... */
+			clock-names = "my-clock";
+			clocks = <&max77802 MAX77802_CLK_32K_AP>;
+		};
+
+
+3. With MAX77620:
+
+#include <dt-bindings/clock/maxim,max77620.h>
+/* ... */
+
+	Node of the MFD chip
+		max77620: max77620@3c {
+			compatible = "maxim,max77620";
+			reg = <0x3c>;
+			#clock-cells = <1>;
+			/* ... */
+		};
+
+	Clock consumer node
+
+		foo@0 {
+			compatible = "bar,foo";
+			/* ... */
+			clock-names = "my-clock";
+			clocks = <&max77620 MAX77620_CLK_32K_OUT0>;
+		};

@@ -1,0 +1,60 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-2.0
+# Linux kernel symbol namespace import generator
+#
+# This script requires a minimum spatch version.
+SPATCH_REQ_VERSION="1.0.4"
+
+DIR="$(dirname $(readlink -f $0))/.."
+SPATCH="`which ${SPATCH:=spatch}`"
+if [ ! -x "$SPATCH" ]; then
+	echo 'spatch is part of the Coccinelle project and is available at http://coccinelle.lip6.fr/'
+	exit 1
+fi
+
+SPATCH_VERSION=$($SPATCH --version | head -1 | awk '{print $3}')
+
+if ! { echo "$SPATCH_REQ_VERSION"; echo "$SPATCH_VERSION"; } | sort -CV ; then
+	echo "spatch needs to be version $SPATCH_REQ_VERSION or higher"
+	exit 1
+fi
+
+if [ "$KBUILD_EXTMOD" ]; then
+	src_prefix=
+else
+	src_prefix=$srctree/
+fi
+
+generate_deps_for_ns() {
+	$SPATCH --very-quiet --in-place --sp-file \
+		$srctree/scripts/coccinelle/misc/add_namespace.cocci -D nsdeps -D ns=$1 $2
+}
+
+generate_deps() {
+	local mod=${1%.ko:}
+	shift
+	local namespaces="$*"
+	local mod_source_files=$(sed "s|^\(.*\)\.o$|${src_prefix}\1.c|" $mod.mod)
+
+	for ns in $namespaces; do
+		echo "Adding namespace $ns to module $mod.ko."
+		generate_deps_for_ns $ns "$mod_source_files"
+		# sort the imports
+		for source_file in $mod_source_files; do
+			sed '/MODULE_IMPORT_NS/Q' $source_file > ${source_file}.tmp
+			offset=$(wc -l ${source_file}.tmp | awk '{print $1;}')
+			cat $source_file | grep MODULE_IMPORT_NS | LC_ALL=C sort -u >> ${source_file}.tmp
+			tail -n +$((offset +1)) ${source_file} | grep -v MODULE_IMPORT_NS >> ${source_file}.tmp
+			if ! diff -q ${source_file} ${source_file}.tmp; then
+				mv ${source_file}.tmp ${source_file}
+			else
+				rm ${source_file}.tmp
+			fi
+		done
+	done
+}
+
+while read line
+do
+	generate_deps $line
+done < $MODULES_NSDEPS

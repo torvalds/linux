@@ -1,0 +1,225 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/arm/samsung/samsung-boards.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Samsung Exynos and S5P SoC based boards
+
+maintainers:
+  - Krzysztof Kozlowski <krzk@kernel.org>
+
+properties:
+  $nodename:
+    const: '/'
+  compatible:
+    oneOf:
+      - description: S3C2416 based boards
+        items:
+          - enum:
+              - samsung,smdk2416                # Samsung SMDK2416
+          - const: samsung,s3c2416
+
+      - description: S3C6410 based boards
+        items:
+          - enum:
+              - friendlyarm,mini6410            # FriendlyARM Mini6410
+              - samsung,smdk6410                # Samsung SMDK6410
+          - const: samsung,s3c6410
+
+      - description: S5PV210 based boards
+        items:
+          - enum:
+              - aesop,torbreck                  # aESOP Torbreck based on S5PV210
+              - samsung,aquila                  # Samsung Aquila based on S5PC110
+              - samsung,goni                    # Samsung Goni based on S5PC110
+              - yic,smdkc110                    # YIC System SMDKC110 based on S5PC110
+              - yic,smdkv210                    # YIC System SMDKV210 based on S5PV210
+          - const: samsung,s5pv210
+
+      - description: S5PV210 based Aries boards
+        items:
+          - enum:
+              - samsung,fascinate4g             # Samsung Galaxy S Fascinate 4G (SGH-T959P)
+              - samsung,galaxys                 # Samsung Galaxy S (i9000)
+          - const: samsung,aries
+          - const: samsung,s5pv210
+
+      - description: Exynos3250 based boards
+        items:
+          - enum:
+              - samsung,monk                    # Samsung Simband
+              - samsung,rinato                  # Samsung Gear2
+          - const: samsung,exynos3250
+          - const: samsung,exynos3
+
+      - description: Samsung ARTIK5 boards
+        items:
+          - enum:
+              - samsung,artik5-eval             # Samsung ARTIK5 eval board
+          - const: samsung,artik5               # Samsung ARTIK5 module
+          - const: samsung,exynos3250
+          - const: samsung,exynos3
+
+      - description: Exynos4210 based boards
+        items:
+          - enum:
+              - insignal,origen                 # Insignal Origen
+              - samsung,i9100                   # Samsung Galaxy S2 (GT-I9100)
+              - samsung,smdkv310                # Samsung SMDKV310 eval
+              - samsung,trats                   # Samsung Tizen Reference
+              - samsung,universal_c210          # Samsung C210
+          - const: samsung,exynos4210
+          - const: samsung,exynos4
+
+      - description: Exynos4412 based boards
+        items:
+          - enum:
+              - friendlyarm,tiny4412            # FriendlyARM TINY4412
+              - hardkernel,odroid-u3            # Hardkernel Odroid U3
+              - hardkernel,odroid-x             # Hardkernel Odroid X
+              - hardkernel,odroid-x2            # Hardkernel Odroid X2
+              - insignal,origen4412             # Insignal Origen
+              - samsung,smdk4412                # Samsung SMDK4412 eval
+              - topeet,itop4412-elite           # TOPEET Elite base
+          - const: samsung,exynos4412
+          - const: samsung,exynos4
+
+      - description: Samsung Midas family boards
+        items:
+          - enum:
+              - samsung,i9300                   # Samsung GT-I9300
+              - samsung,i9305                   # Samsung GT-I9305
+              - samsung,n710x                   # Samsung GT-N7100/GT-N7105
+              - samsung,trats2                  # Samsung Tizen Reference
+          - const: samsung,midas
+          - const: samsung,exynos4412
+          - const: samsung,exynos4
+
+      - description: Samsung p4note family boards
+        items:
+          - enum:
+              - samsung,n8010                   # Samsung GT-N8010/GT-N8013
+          - const: samsung,p4note
+          - const: samsung,exynos4412
+          - const: samsung,exynos4
+
+      - description: Exynos5250 based boards
+        items:
+          - enum:
+              - google,snow-rev5                # Google Snow Rev 5+
+              - google,spring                   # Google Spring
+              - insignal,arndale                # Insignal Arndale
+              - samsung,smdk5250                # Samsung SMDK5250 eval
+          - const: samsung,exynos5250
+          - const: samsung,exynos5
+
+      - description: Google Snow Boards (Rev 4+)
+        items:
+          - const: google,snow-rev4
+          - const: google,snow
+          - const: samsung,exynos5250
+          - const: samsung,exynos5
+
+      - description: Exynos5260 based boards
+        items:
+          - enum:
+              - samsung,xyref5260               # Samsung Xyref5260 eval
+          - const: samsung,exynos5260
+          - const: samsung,exynos5
+
+      - description: Exynos5410 based boards
+        items:
+          - enum:
+              - hardkernel,odroid-xu            # Hardkernel Odroid XU
+              - samsung,smdk5410                # Samsung SMDK5410 eval
+          - const: samsung,exynos5410
+          - const: samsung,exynos5
+
+      - description: Exynos5420 based boards
+        items:
+          - enum:
+              - insignal,arndale-octa           # Insignal Arndale Octa
+              - samsung,chagall-wifi            # Samsung SM-T800
+              - samsung,klimt-wifi              # Samsung SM-T700
+              - samsung,smdk5420                # Samsung SMDK5420 eval
+          - const: samsung,exynos5420
+          - const: samsung,exynos5
+
+      - description: Google Peach Pit Boards (Rev 6+)
+        items:
+          - const: google,pit-rev16
+          - const: google,pit-rev15
+          - const: google,pit-rev14
+          - const: google,pit-rev13
+          - const: google,pit-rev12
+          - const: google,pit-rev11
+          - const: google,pit-rev10
+          - const: google,pit-rev9
+          - const: google,pit-rev8
+          - const: google,pit-rev7
+          - const: google,pit-rev6
+          - const: google,pit
+          - const: google,peach
+          - const: samsung,exynos5420
+          - const: samsung,exynos5
+
+      - description: Exynos5800 based boards
+        items:
+          - enum:
+              - hardkernel,odroid-xu3           # Hardkernel Odroid XU3
+              - hardkernel,odroid-xu3-lite      # Hardkernel Odroid XU3 Lite
+              - hardkernel,odroid-xu4           # Hardkernel Odroid XU4
+              - hardkernel,odroid-hc1           # Hardkernel Odroid HC1
+          - const: samsung,exynos5800
+          - const: samsung,exynos5
+
+      - description: Google Peach Pi Boards (Rev 10+)
+        items:
+          - const: google,pi-rev16
+          - const: google,pi-rev15
+          - const: google,pi-rev14
+          - const: google,pi-rev13
+          - const: google,pi-rev12
+          - const: google,pi-rev11
+          - const: google,pi-rev10
+          - const: google,pi
+          - const: google,peach
+          - const: samsung,exynos5800
+          - const: samsung,exynos5
+
+      - description: Exynos5433 based boards
+        items:
+          - enum:
+              - samsung,tm2                     # Samsung TM2
+              - samsung,tm2e                    # Samsung TM2E
+          - const: samsung,exynos5433
+
+      - description: Exynos7 based boards
+        items:
+          - enum:
+              - samsung,exynos7-espresso        # Samsung Exynos7 Espresso
+          - const: samsung,exynos7
+
+      - description: Exynos7885 based boards
+        items:
+          - enum:
+              - samsung,jackpotlte              # Samsung Galaxy A8 (2018)
+          - const: samsung,exynos7885
+
+      - description: Exynos850 based boards
+        items:
+          - enum:
+              - winlink,e850-96                 # WinLink E850-96
+          - const: samsung,exynos850
+
+      - description: Exynos Auto v9 based boards
+        items:
+          - enum:
+              - samsung,exynosautov9-sadk   # Samsung Exynos Auto v9 SADK
+          - const: samsung,exynosautov9
+
+required:
+  - compatible
+
+additionalProperties: true

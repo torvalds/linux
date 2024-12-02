@@ -1,0 +1,22 @@
+* Dialog DA9055 Audio CODEC
+
+DA9055 provides Audio CODEC support (I2C only).
+
+The Audio CODEC device in DA9055 has its own I2C address which is configurable,
+so the device is instantiated separately from the PMIC (MFD) device.
+
+For details on accompanying PMIC I2C device, see the following:
+Documentation/devicetree/bindings/mfd/da9055.txt
+
+Required properties:
+
+  - compatible: "dlg,da9055-codec"
+  - reg: Specifies the I2C slave address
+
+
+Example:
+
+	codec: da9055-codec@1a {
+		compatible = "dlg,da9055-codec";
+		reg = <0x1a>;
+	};

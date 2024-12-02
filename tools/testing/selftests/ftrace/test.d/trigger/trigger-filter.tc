@@ -1,0 +1,38 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-2.0
+# description: event trigger - test trigger filter
+# requires: set_event events/sched/sched_process_fork/trigger
+# flags: instance
+
+fail() { #msg
+    echo $1
+    exit_fail
+}
+
+echo "Test trigger filter"
+echo 1 > tracing_on
+echo 'traceoff if child_pid == 0' > events/sched/sched_process_fork/trigger
+( echo "forked")
+if [ `cat tracing_on` -ne 1 ]; then
+    fail "traceoff trigger on sched_process_fork did not work"
+fi
+
+reset_trigger
+
+echo "Test semantic error for trigger filter"
+! echo 'traceoff if a' > events/sched/sched_process_fork/trigger
+! echo 'traceoff if common_pid=0' > events/sched/sched_process_fork/trigger
+! echo 'traceoff if common_pid==b' > events/sched/sched_process_fork/trigger
+echo 'traceoff if common_pid == 0' > events/sched/sched_process_fork/trigger
+echo '!traceoff' > events/sched/sched_process_fork/trigger
+! echo 'traceoff if common_pid == child_pid' > events/sched/sched_process_fork/trigger
+echo 'traceoff if common_pid <= 0' > events/sched/sched_process_fork/trigger
+echo '!traceoff' > events/sched/sched_process_fork/trigger
+echo 'traceoff if common_pid >= 0' > events/sched/sched_process_fork/trigger
+echo '!traceoff' > events/sched/sched_process_fork/trigger
+echo 'traceoff if parent_pid >= 0 && child_pid >= 0' > events/sched/sched_process_fork/trigger
+echo '!traceoff' > events/sched/sched_process_fork/trigger
+echo 'traceoff if parent_pid >= 0 || child_pid >= 0' > events/sched/sched_process_fork/trigger
+echo '!traceoff' > events/sched/sched_process_fork/trigger
+
+exit 0

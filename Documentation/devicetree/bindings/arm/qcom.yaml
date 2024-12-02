@@ -1,0 +1,744 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/arm/qcom.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: QCOM
+
+maintainers:
+  - Bjorn Andersson <bjorn.andersson@linaro.org>
+
+description: |
+  Some qcom based bootloaders identify the dtb blob based on a set of
+  device properties like SoC and platform and revisions of those components.
+  To support this scheme, we encode this information into the board compatible
+  string.
+
+  Each board must specify a top-level board compatible string with the following
+  format:
+
+  	compatible = "qcom,<SoC>[-<soc_version>][-<foundry_id>]-<board>[/<subtype>][-<board_version>]"
+
+  The 'SoC' and 'board' elements are required. All other elements are optional.
+
+  The 'SoC' element must be one of the following strings:
+
+        apq8016
+        apq8026
+        apq8074
+        apq8084
+        apq8096
+        ipq6018
+        ipq8074
+        mdm9615
+        msm8226
+        msm8916
+        msm8974
+        msm8992
+        msm8994
+        msm8996
+        msm8998
+        qcs404
+        sa8155p
+        sa8540p
+        sc7180
+        sc7280
+        sc8180x
+        sc8280xp
+        sda660
+        sdm630
+        sdm632
+        sdm636
+        sdm660
+        sdm845
+        sdx55
+        sdx65
+        sm6125
+        sm6350
+        sm7225
+        sm8150
+        sm8250
+        sm8350
+        sm8450
+
+  The 'board' element must be one of the following strings:
+
+        adp
+        cdp
+        cp01-c1
+        dragonboard
+        hk01
+        hk10-c1
+        hk10-c2
+        idp
+        liquid
+        mtp
+        qrd
+        sbc
+
+  The 'soc_version' and 'board_version' elements take the form of v<Major>.<Minor>
+  where the minor number may be omitted when it's zero, i.e.  v1.0 is the same
+  as v1. If all versions of the 'board_version' elements match, then a
+  wildcard '*' should be used, e.g. 'v*'.
+
+  The 'foundry_id' and 'subtype' elements are one or more digits from 0 to 9.
+
+  Examples:
+
+  	"qcom,msm8916-v1-cdp-pm8916-v2.1"
+
+  A CDP board with an msm8916 SoC, version 1 paired with a pm8916 PMIC of version
+  2.1.
+
+  	"qcom,apq8074-v2.0-2-dragonboard/1-v0.1"
+
+  A dragonboard board v0.1 of subtype 1 with an apq8074 SoC version 2, made in
+  foundry 2.
+
+  There are many devices in the list below that run the standard ChromeOS
+  bootloader setup and use the open source depthcharge bootloader to boot the
+  OS. These devices do not use the scheme described above. For details, see:
+  https://docs.kernel.org/arm/google/chromebook-boot-flow.html
+
+properties:
+  $nodename:
+    const: "/"
+  compatible:
+    oneOf:
+      - items:
+          - enum:
+              - qcom,apq8016-sbc
+          - const: qcom,apq8016
+
+      - items:
+          - enum:
+              - asus,sparrow
+              - lg,lenok
+          - const: qcom,apq8026
+
+      - items:
+          - enum:
+              - asus,nexus7-flo
+              - lg,nexus4-mako
+              - sony,xperia-yuga
+              - qcom,apq8064-cm-qs600
+              - qcom,apq8064-ifc6410
+          - const: qcom,apq8064
+
+      - items:
+          - enum:
+              - qcom,apq8074-dragonboard
+          - const: qcom,apq8074
+
+      - items:
+          - enum:
+              - qcom,apq8060-dragonboard
+              - qcom,msm8660-surf
+          - const: qcom,msm8660
+
+      - items:
+          - enum:
+              - qcom,apq8084-mtp
+              - qcom,apq8084-sbc
+          - const: qcom,apq8084
+
+      - items:
+          - enum:
+              - samsung,s3ve3g
+          - const: qcom,msm8226
+
+      - items:
+          - enum:
+              - qcom,msm8960-cdp
+          - const: qcom,msm8960
+
+      - items:
+          - enum:
+              - fairphone,fp2
+              - lge,hammerhead
+              - samsung,klte
+              - sony,xperia-amami
+              - sony,xperia-castor
+              - sony,xperia-honami
+          - const: qcom,msm8974
+
+      - items:
+          - const: qcom,msm8916-mtp
+          - const: qcom,msm8916-mtp/1
+          - const: qcom,msm8916
+
+      - items:
+          - enum:
+              - alcatel,idol347
+              - asus,z00l
+              - huawei,g7
+              - longcheer,l8910
+              - samsung,a3u-eur
+              - samsung,a5u-eur
+              - samsung,e5
+              - samsung,e7
+              - samsung,grandmax
+              - samsung,j5
+              - samsung,serranove
+              - wingtech,wt88047
+          - const: qcom,msm8916
+
+      - items:
+          - const: longcheer,l8150
+          - const: qcom,msm8916-v1-qrd/9-v1
+          - const: qcom,msm8916
+
+      - items:
+          - enum:
+              - lg,bullhead
+              - microsoft,talkman
+              - xiaomi,libra
+          - const: qcom,msm8992
+
+      - items:
+          - enum:
+              - sony,karin_windy
+          - const: qcom,apq8094
+
+      - items:
+          - enum:
+              - huawei,angler
+              - microsoft,cityman
+              - sony,ivy-row
+              - sony,karin-row
+              - sony,satsuki-row
+              - sony,sumire-row
+              - sony,suzuran-row
+          - const: qcom,msm8994
+
+      - items:
+          - enum:
+              - arrow,apq8096-db820c
+              - inforce,ifc6640
+          - const: qcom,apq8096-sbc
+          - const: qcom,apq8096
+
+      - items:
+          - enum:
+              - qcom,msm8996-mtp
+              - sony,dora-row
+              - sony,kagura-row
+              - sony,keyaki-row
+              - xiaomi,gemini
+              - xiaomi,natrium
+              - xiaomi,scorpio
+          - const: qcom,msm8996
+
+      - items:
+          - enum:
+              - asus,novago-tp370ql
+              - fxtec,pro1
+              - hp,envy-x2
+              - lenovo,miix-630
+              - oneplus,cheeseburger
+              - oneplus,dumpling
+              - qcom,msm8998-mtp
+              - sony,xperia-lilac
+              - sony,xperia-maple
+              - sony,xperia-poplar
+          - const: qcom,msm8998
+
+      - items:
+          - enum:
+              - qcom,ipq4019-ap-dk01.1-c1
+              - qcom,ipq4019-ap-dk04.1-c3
+              - qcom,ipq4019-ap-dk07.1-c1
+              - qcom,ipq4019-ap-dk07.1-c2
+              - qcom,ipq4019-dk04.1-c1
+          - const: qcom,ipq4019
+
+      - items:
+          - enum:
+              - qcom,ipq8064-ap148
+          - const: qcom,ipq8064
+
+      - items:
+          - enum:
+              - qcom,ipq8074-hk01
+              - qcom,ipq8074-hk10-c1
+              - qcom,ipq8074-hk10-c2
+          - const: qcom,ipq8074
+
+      - description: Qualcomm Technologies, Inc. SC7180 IDP
+        items:
+          - enum:
+              - qcom,sc7180-idp
+          - const: qcom,sc7180
+
+      - description: HP Chromebook x2 11c (rev1 - 2)
+        items:
+          - const: google,coachz-rev1
+          - const: google,coachz-rev2
+          - const: qcom,sc7180
+
+      - description: HP Chromebook x2 11c (newest rev)
+        items:
+          - const: google,coachz
+          - const: qcom,sc7180
+
+      - description: HP Chromebook x2 11c with LTE (rev1 - 2)
+        items:
+          - const: google,coachz-rev1-sku0
+          - const: google,coachz-rev2-sku0
+          - const: qcom,sc7180
+
+      - description: HP Chromebook x2 11c with LTE (newest rev)
+        items:
+          - const: google,coachz-sku0
+          - const: qcom,sc7180
+
+      - description: Lenovo Chromebook Duet 5 13 (rev2)
+        items:
+          - const: google,homestar-rev2
+          - const: google,homestar-rev23
+          - const: qcom,sc7180
+
+      - description: Lenovo Chromebook Duet 5 13 (rev3)
+        items:
+          - const: google,homestar-rev3
+          - const: qcom,sc7180
+
+      - description: Lenovo Chromebook Duet 5 13 (newest rev)
+        items:
+          - const: google,homestar
+          - const: qcom,sc7180
+
+      - description: Google Kingoftown (rev0)
+        items:
+          - const: google,kingoftown-rev0
+          - const: qcom,sc7180
+
+      - description: Google Kingoftown (newest rev)
+        items:
+          - const: google,kingoftown
+          - const: qcom,sc7180
+
+      - description: Acer Chromebook Spin 513 (rev0)
+        items:
+          - const: google,lazor-rev0
+          - const: qcom,sc7180
+
+      - description: Acer Chromebook Spin 513 (rev1 - 2)
+        items:
+          - const: google,lazor-rev1
+          - const: google,lazor-rev2
+          - const: qcom,sc7180
+
+      - description: Acer Chromebook Spin 513 (rev3 - 8)
+        items:
+          - const: google,lazor-rev3
+          - const: google,lazor-rev4
+          - const: google,lazor-rev5
+          - const: google,lazor-rev6
+          - const: google,lazor-rev7
+          - const: google,lazor-rev8
+          - const: qcom,sc7180
+
+      - description: Acer Chromebook Spin 513 (newest rev)
+        items:
+          - const: google,lazor
+          - const: qcom,sc7180
+
+      - description: Acer Chromebook Spin 513 with KB Backlight (rev1 - 2)
+        items:
+          - const: google,lazor-rev1-sku2
+          - const: google,lazor-rev2-sku2
+          - const: qcom,sc7180
+
+      - description: Acer Chromebook Spin 513 with KB Backlight (rev3 - 8)
+        items:
+          - const: google,lazor-rev3-sku2
+          - const: google,lazor-rev4-sku2
+          - const: google,lazor-rev5-sku2
+          - const: google,lazor-rev6-sku2
+          - const: google,lazor-rev7-sku2
+          - const: google,lazor-rev8-sku2
+          - const: qcom,sc7180
+
+      - description: Acer Chromebook Spin 513 with KB Backlight (newest rev)
+        items:
+          - const: google,lazor-sku2
+          - const: qcom,sc7180
+
+      - description: Acer Chromebook Spin 513 with LTE (rev1 - 2)
+        items:
+          - const: google,lazor-rev1-sku0
+          - const: google,lazor-rev2-sku0
+          - const: qcom,sc7180
+
+      - description: Acer Chromebook Spin 513 with LTE (rev3 - 8)
+        items:
+          - const: google,lazor-rev3-sku0
+          - const: google,lazor-rev4-sku0
+          - const: google,lazor-rev5-sku0
+          - const: google,lazor-rev6-sku0
+          - const: google,lazor-rev7-sku0
+          - const: google,lazor-rev8-sku0
+          - const: qcom,sc7180
+
+      - description: Acer Chromebook Spin 513 with LTE (newest rev)
+        items:
+          - const: google,lazor-sku0
+          - const: qcom,sc7180
+
+      - description: Acer Chromebook 511 (rev4 - rev8)
+        items:
+          - const: google,lazor-rev4-sku4
+          - const: google,lazor-rev5-sku4
+          - const: google,lazor-rev6-sku4
+          - const: google,lazor-rev7-sku4
+          - const: google,lazor-rev8-sku4
+          - const: qcom,sc7180
+
+      - description: Acer Chromebook 511 (newest rev)
+        items:
+          - const: google,lazor-sku4
+          - const: qcom,sc7180
+
+      - description: Acer Chromebook 511 without Touchscreen (rev4)
+        items:
+          - const: google,lazor-rev4-sku5
+          - const: qcom,sc7180
+
+      - description: Acer Chromebook 511 without Touchscreen (rev5 - rev8)
+        items:
+          - const: google,lazor-rev5-sku5
+          - const: google,lazor-rev5-sku6
+          - const: google,lazor-rev6-sku6
+          - const: google,lazor-rev7-sku6
+          - const: google,lazor-rev8-sku6
+          - const: qcom,sc7180
+
+      - description: Acer Chromebook 511 without Touchscreen (newest rev)
+        items:
+          - const: google,lazor-sku6
+          - const: qcom,sc7180
+
+      - description: Google Mrbland with AUO panel (rev0)
+        items:
+          - const: google,mrbland-rev0-sku0
+          - const: qcom,sc7180
+
+      - description: Google Mrbland with AUO panel (newest rev)
+        items:
+          - const: google,mrbland-sku1536
+          - const: qcom,sc7180
+
+      - description: Google Mrbland with BOE panel (rev0)
+        items:
+          - const: google,mrbland-rev0-sku16
+          - const: qcom,sc7180
+
+      - description: Google Mrbland with BOE panel (newest rev)
+        items:
+          - const: google,mrbland-sku1024
+          - const: google,mrbland-sku768
+          - const: qcom,sc7180
+
+      - description: Google Pazquel with Parade (newest rev)
+        items:
+          - const: google,pazquel-sku5
+          - const: qcom,sc7180
+
+      - description: Google Pazquel with TI (newest rev)
+        items:
+          - const: google,pazquel-sku1
+          - const: qcom,sc7180
+
+      - description: Google Pazquel with LTE and Parade (newest rev)
+        items:
+          - const: google,pazquel-sku6
+          - const: google,pazquel-sku4
+          - const: qcom,sc7180
+
+      - description: Google Pazquel with LTE and TI (newest rev)
+        items:
+          - const: google,pazquel-sku0
+          - const: google,pazquel-sku2
+          - const: qcom,sc7180
+
+      - description: Sharp Dynabook Chromebook C1 (rev1)
+        items:
+          - const: google,pompom-rev1
+          - const: qcom,sc7180
+
+      - description: Sharp Dynabook Chromebook C1 (rev2)
+        items:
+          - const: google,pompom-rev2
+          - const: qcom,sc7180
+
+      - description: Sharp Dynabook Chromebook C1 (newest rev)
+        items:
+          - const: google,pompom
+          - const: qcom,sc7180
+
+      - description: Sharp Dynabook Chromebook C1 with LTE (rev1)
+        items:
+          - const: google,pompom-rev1-sku0
+          - const: qcom,sc7180
+
+      - description: Sharp Dynabook Chromebook C1 with LTE (rev2)
+        items:
+          - const: google,pompom-rev2-sku0
+          - const: qcom,sc7180
+
+      - description: Sharp Dynabook Chromebook C1 with LTE (newest rev)
+        items:
+          - const: google,pompom-sku0
+          - const: qcom,sc7180
+
+      - description: Google Quackingstick (newest rev)
+        items:
+          - const: google,quackingstick-sku1537
+          - const: qcom,sc7180
+
+      - description: Google Quackingstick with LTE (newest rev)
+        items:
+          - const: google,quackingstick-sku1536
+          - const: qcom,sc7180
+
+      - description: Google Trogdor (newest rev)
+        items:
+          - const: google,trogdor
+          - const: qcom,sc7180
+
+      - description: Google Trogdor with LTE (newest rev)
+        items:
+          - const: google,trogdor-sku0
+          - const: qcom,sc7180
+
+      - description: Lenovo IdeaPad Chromebook Duet 3 with BOE panel (rev0)
+        items:
+          - const: google,wormdingler-rev0-sku16
+          - const: qcom,sc7180
+
+      - description: Lenovo IdeaPad Chromebook Duet 3 with BOE panel (newest rev)
+        items:
+          - const: google,wormdingler-sku1024
+          - const: qcom,sc7180
+
+      - description: Lenovo IdeaPad Chromebook Duet 3 with BOE panel and rt5682s (newest rev)
+        items:
+          - const: google,wormdingler-sku1025
+          - const: qcom,sc7180
+
+      - description: Lenovo IdeaPad Chromebook Duet 3 with INX panel (rev0)
+        items:
+          - const: google,wormdingler-rev0-sku0
+          - const: qcom,sc7180
+
+      - description: Lenovo IdeaPad Chromebook Duet 3 with INX panel (newest rev)
+        items:
+          - const: google,wormdingler-sku0
+          - const: qcom,sc7180
+
+      - description: Lenovo IdeaPad Chromebook Duet 3 with INX panel and rt5682s (newest rev)
+        items:
+          - const: google,wormdingler-sku1
+          - const: qcom,sc7180
+
+      - description: Qualcomm Technologies, Inc. sc7280 CRD platform (rev3 - 4)
+        items:
+          - const: qcom,sc7280-crd
+          - const: google,hoglin-rev3
+          - const: google,hoglin-rev4
+          - const: google,piglin-rev3
+          - const: google,piglin-rev4
+          - const: qcom,sc7280
+
+      - description: Qualcomm Technologies, Inc. sc7280 CRD platform (newest rev)
+        items:
+          - const: google,zoglin
+          - const: google,hoglin
+          - const: qcom,sc7280
+
+      - description: Qualcomm Technologies, Inc. sc7280 IDP SKU1 platform
+        items:
+          - const: qcom,sc7280-idp
+          - const: google,senor
+          - const: qcom,sc7280
+
+      - description: Qualcomm Technologies, Inc. sc7280 IDP SKU2 platform
+        items:
+          - const: qcom,sc7280-idp2
+          - const: google,piglin
+          - const: qcom,sc7280
+
+      - description: Google Evoker (newest rev)
+        items:
+          - const: google,evoker
+          - const: qcom,sc7280
+
+      - description: Google Herobrine (newest rev)
+        items:
+          - const: google,herobrine
+          - const: qcom,sc7280
+
+      - description: Google Villager (rev0)
+        items:
+          - const: google,villager-rev0
+          - const: qcom,sc7280
+
+      - description: Google Villager (newest rev)
+        items:
+          - const: google,villager
+          - const: qcom,sc7280
+
+      - description: Google Villager with LTE (newest rev)
+        items:
+          - const: google,villager-sku512
+          - const: qcom,sc7280
+
+      - items:
+          - enum:
+              - lenovo,flex-5g
+              - microsoft,surface-prox
+              - qcom,sc8180x-primus
+          - const: qcom,sc8180x
+
+      - items:
+          - enum:
+              - lenovo,thinkpad-x13s
+              - qcom,sc8280xp-crd
+              - qcom,sc8280xp-qrd
+          - const: qcom,sc8280xp
+
+      - items:
+          - enum:
+              - sony,discovery-row
+              - sony,kirin-row
+              - sony,pioneer-row
+              - sony,voyager-row
+          - const: qcom,sdm630
+
+      - items:
+          - enum:
+              - inforce,ifc6560
+          - const: qcom,sda660
+
+      - items:
+          - enum:
+              - fairphone,fp3
+          - const: qcom,sdm632
+
+      - items:
+          - enum:
+              - sony,mermaid-row
+          - const: qcom,sdm636
+
+      - items:
+          - enum:
+              - xiaomi,lavender
+          - const: qcom,sdm660
+
+      - items:
+          - enum:
+              - qcom,sdx55-mtp
+              - qcom,sdx55-telit-fn980-tlb
+              - qcom,sdx55-t55
+          - const: qcom,sdx55
+
+      - items:
+          - enum:
+              - qcom,sdx65-mtp
+          - const: qcom,sdx65
+
+      - items:
+          - enum:
+              - qcom,ipq6018-cp01
+              - qcom,ipq6018-cp01-c1
+          - const: qcom,ipq6018
+
+      - items:
+          - enum:
+              - qcom,qcs404-evb-1000
+              - qcom,qcs404-evb-4000
+          - const: qcom,qcs404-evb
+          - const: qcom,qcs404
+
+      - items:
+          - enum:
+              - qcom,sa8155p-adp
+          - const: qcom,sa8155p
+
+      - items:
+          - enum:
+              - qcom,sa8295p-adp
+          - const: qcom,sa8540p
+
+      - items:
+          - enum:
+              - lenovo,yoga-c630
+              - lg,judyln
+              - lg,judyp
+              - oneplus,enchilada
+              - oneplus,fajita
+              - qcom,sdm845-mtp
+              - shift,axolotl
+              - samsung,w737
+              - sony,akari-row
+              - sony,akatsuki-row
+              - sony,apollo-row
+              - thundercomm,db845c
+              - xiaomi,beryllium
+              - xiaomi,polaris
+          - const: qcom,sdm845
+
+      - items:
+          - enum:
+              - sony,pdx201
+          - const: qcom,sm6125
+
+      - items:
+          - enum:
+              - sony,pdx213
+          - const: qcom,sm6350
+
+      - items:
+          - enum:
+              - fairphone,fp4
+          - const: qcom,sm7225
+
+      - items:
+          - enum:
+              - microsoft,surface-duo
+              - qcom,sm8150-hdk
+              - qcom,sm8150-mtp
+              - sony,bahamut-generic
+              - sony,griffin-generic
+          - const: qcom,sm8150
+
+      - items:
+          - enum:
+              - qcom,qrb5165-rb5
+              - qcom,sm8250-hdk
+              - qcom,sm8250-mtp
+              - sony,pdx203-generic
+              - sony,pdx206-generic
+          - const: qcom,sm8250
+
+      - items:
+          - enum:
+              - microsoft,surface-duo2
+              - qcom,sm8350-hdk
+              - qcom,sm8350-mtp
+              - sony,pdx214-generic
+              - sony,pdx215-generic
+          - const: qcom,sm8350
+
+      - items:
+          - enum:
+              - qcom,sm8450-hdk
+              - qcom,sm8450-qrd
+              - sony,pdx223
+          - const: qcom,sm8450
+
+additionalProperties: true
+
+...

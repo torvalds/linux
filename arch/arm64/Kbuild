@@ -1,0 +1,11 @@
+# SPDX-License-Identifier: GPL-2.0-only
+obj-y			+= kernel/ mm/ net/
+obj-$(CONFIG_KVM)	+= kvm/
+obj-$(CONFIG_XEN)	+= xen/
+obj-$(subst m,y,$(CONFIG_HYPERV))	+= hyperv/
+obj-$(CONFIG_GUNYAH)	+= gunyah/
+obj-$(CONFIG_CRYPTO)	+= crypto/
+obj-$(CONFIG_MTK_GZVM)	+= geniezone/
+
+# for cleaning
+subdir- += boot

@@ -1,0 +1,84 @@
+PCI bus bridges have standardized Device Tree bindings:
+
+PCI Bus Binding to: IEEE Std 1275-1994
+https://www.devicetree.org/open-firmware/bindings/pci/pci2_1.pdf
+
+And for the interrupt mapping part:
+
+Open Firmware Recommended Practice: Interrupt Mapping
+https://www.devicetree.org/open-firmware/practice/imap/imap0_9d.pdf
+
+Additionally to the properties specified in the above standards a host bridge
+driver implementation may support the following properties:
+
+- linux,pci-domain:
+   If present this property assigns a fixed PCI domain number to a host bridge,
+   otherwise an unstable (across boots) unique number will be assigned.
+   It is required to either not set this property at all or set it for all
+   host bridges in the system, otherwise potentially conflicting domain numbers
+   may be assigned to root buses behind different host bridges.  The domain
+   number for each host bridge in the system must be unique.
+- max-link-speed:
+   If present this property specifies PCI gen for link capability.  Host
+   drivers could add this as a strategy to avoid unnecessary operation for
+   unsupported link speed, for instance, trying to do training for
+   unsupported link speed, etc.  Must be '4' for gen4, '3' for gen3, '2'
+   for gen2, and '1' for gen1. Any other values are invalid.
+- reset-gpios:
+   If present this property specifies PERST# GPIO. Host drivers can parse the
+   GPIO and apply fundamental reset to endpoints.
+- supports-clkreq:
+   If present this property specifies that CLKREQ signal routing exists from
+   root port to downstream device and host bridge drivers can do programming
+   which depends on CLKREQ signal existence. For example, programming root port
+   not to advertise ASPM L1 Sub-States support if there is no CLKREQ signal.
+
+PCI-PCI Bridge properties
+-------------------------
+
+PCIe root ports and switch ports may be described explicitly in the device
+tree, as children of the host bridge node. Even though those devices are
+discoverable by probing, it might be necessary to describe properties that
+aren't provided by standard PCIe capabilities.
+
+Required properties:
+
+- reg:
+   Identifies the PCI-PCI bridge. As defined in the IEEE Std 1275-1994
+   document, it is a five-cell address encoded as (phys.hi phys.mid
+   phys.lo size.hi size.lo). phys.hi should contain the device's BDF as
+   0b00000000 bbbbbbbb dddddfff 00000000. The other cells should be zero.
+
+   The bus number is defined by firmware, through the standard bridge
+   configuration mechanism. If this port is a switch port, then firmware
+   allocates the bus number and writes it into the Secondary Bus Number
+   register of the bridge directly above this port. Otherwise, the bus
+   number of a root port is the first number in the bus-range property,
+   defaulting to zero.
+
+   If firmware leaves the ARI Forwarding Enable bit set in the bridge
+   above this port, then phys.hi contains the 8-bit function number as
+   0b00000000 bbbbbbbb ffffffff 00000000. Note that the PCIe specification
+   recommends that firmware only leaves ARI enabled when it knows that the
+   OS is ARI-aware.
+
+Optional properties:
+
+- external-facing:
+   When present, the port is external-facing. All bridges and endpoints
+   downstream of this port are external to the machine. The OS can, for
+   example, use this information to identify devices that cannot be
+   trusted with relaxed DMA protection, as users could easily attach
+   malicious devices to this port.
+
+Example:
+
+pcie@10000000 {
+	compatible = "pci-host-ecam-generic";
+	...
+	pcie@0008 {
+		/* Root port 00:01.0 is external-facing */
+		reg = <0x00000800 0 0 0 0>;
+		external-facing;
+	};
+};

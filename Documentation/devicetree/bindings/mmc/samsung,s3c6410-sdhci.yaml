@@ -1,0 +1,81 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/mmc/samsung,s3c6410-sdhci.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Samsung SoC SDHCI Controller
+
+maintainers:
+  - Jaehoon Chung <jh80.chung@samsung.com>
+  - Krzysztof Kozlowski <krzk@kernel.org>
+
+properties:
+  compatible:
+    enum:
+      - samsung,s3c6410-sdhci
+      - samsung,exynos4210-sdhci
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    minItems: 2
+    maxItems: 5
+
+  clock-names:
+    minItems: 2
+    items:
+      - const: hsmmc
+      - pattern: "^mmc_busclk.[0-3]$"
+      - pattern: "^mmc_busclk.[0-3]$"
+      - pattern: "^mmc_busclk.[0-3]$"
+      - pattern: "^mmc_busclk.[0-3]$"
+
+  interrupts:
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - clocks
+  - clock-names
+
+allOf:
+  - $ref: mmc-controller.yaml#
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - samsung,exynos4210-sdhci
+    then:
+      properties:
+        clocks:
+          maxItems: 2
+        clock-names:
+          items:
+            - const: hsmmc
+            - const: mmc_busclk.2
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/exynos4.h>
+    #include <dt-bindings/gpio/gpio.h>
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+
+    mmc@12510000 {
+        compatible = "samsung,exynos4210-sdhci";
+        reg = <0x12510000 0x100>;
+        interrupts = <GIC_SPI 73 IRQ_TYPE_LEVEL_HIGH>;
+        clocks = <&clock CLK_SDMMC0>, <&clock CLK_SCLK_MMC0>;
+        clock-names = "hsmmc", "mmc_busclk.2";
+        bus-width = <4>;
+        cd-gpios = <&gpx3 4 GPIO_ACTIVE_LOW>;
+        pinctrl-0 = <&sd2_clk &sd2_cmd &sd2_bus4 &sdhci2_cd>;
+        pinctrl-names = "default";
+        vmmc-supply = <&ldo21_reg>;
+    };

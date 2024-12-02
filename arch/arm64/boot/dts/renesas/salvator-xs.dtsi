@@ -1,0 +1,85 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Device Tree Source for the Salvator-X 2nd version board
+ *
+ * Copyright (C) 2015-2017 Renesas Electronics Corp.
+ */
+
+#include "salvator-common.dtsi"
+
+/ {
+	model = "Renesas Salvator-X 2nd version board";
+	compatible = "renesas,salvator-xs";
+};
+
+&extal_clk {
+	clock-frequency = <16640000>;
+};
+
+&i2c4 {
+	clock-frequency = <400000>;
+
+	versaclock6: clock-generator@6a {
+		compatible = "idt,5p49v6901";
+		reg = <0x6a>;
+		#clock-cells = <1>;
+		clocks = <&x23_clk>;
+		clock-names = "xin";
+	};
+};
+
+#ifdef SOC_HAS_SATA
+&pca9654 {
+	pcie-sata-switch-hog {
+		gpio-hog;
+		gpios = <7 GPIO_ACTIVE_HIGH>;
+		output-low; /* enable SATA by default */
+		line-name = "PCIE/SATA switch";
+	};
+};
+
+/* SW12-7 must be set 'Off' (MD12 set to 1) which is not the default! */
+#endif /* SOC_HAS_SATA */
+
+#ifdef SOC_HAS_USB2_CH3
+&ehci3 {
+	dr_mode = "otg";
+	status = "okay";
+};
+
+&hsusb3 {
+	dr_mode = "otg";
+	status = "okay";
+};
+
+&ohci3 {
+	dr_mode = "otg";
+	status = "okay";
+};
+
+&pfc {
+	/*
+	 * - On Salvator-X[S], GP6_3[01] are connected to ADV7482 as irq pins
+	 *   (when SW31 is the default setting on Salvator-XS).
+	 * - If SW31 is the default setting, you cannot use USB2.0 ch3 on
+	 *   r8a77951 with Salvator-XS.
+	 *   Hence the SW31 setting must be changed like 2) below.
+	 *   1) Default setting of SW31: ON-ON-OFF-OFF-OFF-OFF:
+	 *	- Connect GP6_3[01] to ADV7842.
+	 *   2) Changed setting of SW31: OFF-OFF-ON-ON-ON-ON:
+	 *	- Connect GP6_3[01] to BD082065 (USB2.0 ch3's host power).
+	 *	- Connect GP6_{04,21} to ADV7842.
+	 */
+	usb2_ch3_pins: usb2_ch3 {
+		groups = "usb2_ch3";
+		function = "usb2_ch3";
+	};
+};
+
+&usb2_phy3 {
+	pinctrl-0 = <&usb2_ch3_pins>;
+	pinctrl-names = "default";
+
+	status = "okay";
+};
+#endif /* SOC_HAS_USB2_CH3 */

@@ -1,0 +1,133 @@
+Binding for a type of flexgen structure found on certain
+STMicroelectronics consumer electronics SoC devices
+
+This structure includes:
+- a clock cross bar (represented by a mux element)
+- a pre and final dividers (represented by a divider and gate elements)
+
+Flexgen structure is a part of Clockgen[1].
+
+Please find an example below:
+
+    Clockgen block diagram
+    -------------------------------------------------------------------
+   |                     Flexgen structure                             |
+   |                  ---------------------------------------------    |
+   |                 |    -------       --------       --------    |   |
+clk_sysin            |   |       |     |        |     |        |   |   |
+---|-----------------|-->|       |     |        |     |        |   |   |
+   | |               |   |       |     |        |     |        |   |   |
+   | |   -------     |   |       |     |Pre     |     |Final   |   |   |
+   | |  |PLL0   |    |   |       |     |Dividers|     |Dividers|   |   |
+   | |->|       |    |   |       |     |  x32   |     |  x32   |   |   |
+   | |  |  odf_0|----|-->|       |     |        |     |        |   |   |
+   | |  |       |    |   |       |     |        |     |        |   |   |
+   | |  |       |    |   |       |     |        |     |        |   |   |
+   | |  |       |    |   |       |     |        |     |        |   |   |
+   | |  |       |    |   |       |     |        |     |        |   |   |
+   | |   -------     |   |       |     |        |     |        |   |   |
+   | |               |   |       |     |        |     |        |   |   |
+   | |   -------     |   | Clock |     |        |     |        |   |   |
+   | |  |PLL1   |    |   |       |     |        |     |        |   |   |
+   | |->|       |    |   | Cross |     |        |     |        |   |   |
+   | |  |  odf_0|----|-->|       |     |        |     |        | CLK_DIV[31:0]
+   | |  |       |    |   | Bar   |====>|        |====>|        |===|=========>
+   | |  |       |    |   |       |     |        |     |        |   |   |
+   | |  |       |    |   |       |     |        |     |        |   |   |
+   | |  |       |    |   |       |     |        |     |        |   |   |
+   | |   -------     |   |       |     |        |     |        |   |   |
+   | |               |   |       |     |        |     |        |   |   |
+   | |   -------     |   |       |     |        |     |        |   |   |
+   | |  |QUADFS |    |   |       |     |        |     |        |   |   |
+   | |->|    ch0|----|-->|       |     |        |     |        |   |   |
+   |    |       |    |   |       |     |        |     |        |   |   |
+   |    |    ch1|----|-->|       |     |        |     |        |   |   |
+   |    |       |    |   |       |     |        |     |        |   |   |
+   |    |    ch2|----|-->|       |     | DIV    |     | DIV    |   |   |
+   |    |       |    |   |       |     |  1 to  |     |  1 to  |   |   |
+   |    |    ch3|----|-->|       |     |   1024 |     |     64 |   |   |
+   |     -------     |   |       |     |        |     |        |   |   |
+   |                 |    -------       --------       --------    |   |
+   |                   --------------------------------------------    |
+   |                                                                   |
+    -------------------------------------------------------------------
+
+This binding uses the common clock binding[2].
+
+[1] Documentation/devicetree/bindings/clock/st/st,clkgen.txt
+[2] Documentation/devicetree/bindings/clock/clock-bindings.txt
+
+Required properties:
+- compatible : shall be:
+  "st,flexgen"
+  "st,flexgen-audio", "st,flexgen" (enable clock propagation on parent for
+  audio use case)
+  "st,flexgen-video", "st,flexgen" (enable clock propagation on parent
+					and activate synchronous mode)
+  "st,flexgen-stih407-a0"
+  "st,flexgen-stih410-a0"
+  "st,flexgen-stih407-c0"
+  "st,flexgen-stih410-c0"
+  "st,flexgen-stih418-c0"
+  "st,flexgen-stih407-d0"
+  "st,flexgen-stih410-d0"
+  "st,flexgen-stih407-d2"
+  "st,flexgen-stih418-d2"
+  "st,flexgen-stih407-d3"
+
+- #clock-cells : from common clock binding; shall be set to 1 (multiple clock
+  outputs).
+
+- clocks : must be set to the parent's phandle. it could be output clocks of
+  a quadsfs or/and a pll or/and clk_sysin (up to 7 clocks)
+
+- clock-output-names : List of strings used to name the clock outputs.
+
+Example:
+
+	clk_s_c0_flexgen: clk-s-c0-flexgen {
+
+		#clock-cells = <1>;
+		compatible = "st,flexgen";
+
+		clocks = <&clk_s_c0_pll0 0>,
+			 <&clk_s_c0_pll1 0>,
+			 <&clk_s_c0_quadfs 0>,
+			 <&clk_s_c0_quadfs 1>,
+			 <&clk_s_c0_quadfs 2>,
+			 <&clk_s_c0_quadfs 3>,
+			 <&clk_sysin>;
+
+		clock-output-names = "clk-icn-gpu",
+				     "clk-fdma",
+				     "clk-nand",
+				     "clk-hva",
+				     "clk-proc-stfe",
+				     "clk-proc-tp",
+				     "clk-rx-icn-dmu",
+				     "clk-rx-icn-hva",
+				     "clk-icn-cpu",
+				     "clk-tx-icn-dmu",
+				     "clk-mmc-0",
+				     "clk-mmc-1",
+				     "clk-jpegdec",
+				     "clk-ext2fa9",
+				     "clk-ic-bdisp-0",
+				     "clk-ic-bdisp-1",
+				     "clk-pp-dmu",
+				     "clk-vid-dmu",
+				     "clk-dss-lpc",
+				     "clk-st231-aud-0",
+				     "clk-st231-gp-1",
+				     "clk-st231-dmu",
+				     "clk-icn-lmi",
+				     "clk-tx-icn-disp-1",
+				     "clk-icn-sbc",
+				     "clk-stfe-frc2",
+				     "clk-eth-phy",
+				     "clk-eth-ref-phyclk",
+				     "clk-flash-promip",
+				     "clk-main-disp",
+				     "clk-aux-disp",
+				     "clk-compo-dvp";
+	};

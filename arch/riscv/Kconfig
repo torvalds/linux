@@ -1,0 +1,732 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# For a description of the syntax of this configuration file,
+# see Documentation/kbuild/kconfig-language.rst.
+#
+
+config 64BIT
+	bool
+
+config 32BIT
+	bool
+
+config RISCV
+	def_bool y
+	select ARCH_CLOCKSOURCE_INIT
+	select ARCH_ENABLE_HUGEPAGE_MIGRATION if HUGETLB_PAGE && MIGRATION
+	select ARCH_ENABLE_SPLIT_PMD_PTLOCK if PGTABLE_LEVELS > 2
+	select ARCH_HAS_BINFMT_FLAT
+	select ARCH_HAS_CURRENT_STACK_POINTER
+	select ARCH_HAS_DEBUG_VM_PGTABLE
+	select ARCH_HAS_DEBUG_VIRTUAL if MMU
+	select ARCH_HAS_DEBUG_WX
+	select ARCH_HAS_FORTIFY_SOURCE
+	select ARCH_HAS_GCOV_PROFILE_ALL
+	select ARCH_HAS_GIGANTIC_PAGE
+	select ARCH_HAS_KCOV
+	select ARCH_HAS_MMIOWB
+	select ARCH_HAS_NON_OVERLAPPING_ADDRESS_SPACE
+	select ARCH_HAS_PTE_SPECIAL
+	select ARCH_HAS_SET_DIRECT_MAP if MMU
+	select ARCH_HAS_SET_MEMORY if MMU
+	select ARCH_HAS_STRICT_KERNEL_RWX if MMU && !XIP_KERNEL
+	select ARCH_HAS_STRICT_MODULE_RWX if MMU && !XIP_KERNEL
+	select ARCH_HAS_TICK_BROADCAST if GENERIC_CLOCKEVENTS_BROADCAST
+	select ARCH_HAS_UBSAN_SANITIZE_ALL
+	select ARCH_OPTIONAL_KERNEL_RWX if ARCH_HAS_STRICT_KERNEL_RWX
+	select ARCH_OPTIONAL_KERNEL_RWX_DEFAULT
+	select ARCH_STACKWALK
+	select ARCH_SUPPORTS_ATOMIC_RMW
+	select ARCH_SUPPORTS_DEBUG_PAGEALLOC if MMU
+	select ARCH_SUPPORTS_HUGETLBFS if MMU
+	select ARCH_SUPPORTS_PAGE_TABLE_CHECK if MMU
+	select ARCH_SUPPORTS_PER_VMA_LOCK if MMU
+	select ARCH_USE_MEMTEST
+	select ARCH_USE_QUEUED_RWLOCKS
+	select ARCH_WANT_DEFAULT_TOPDOWN_MMAP_LAYOUT if MMU
+	select ARCH_WANT_FRAME_POINTERS
+	select ARCH_WANT_GENERAL_HUGETLB
+	select ARCH_WANT_HUGE_PMD_SHARE if 64BIT
+	select ARCH_WANTS_THP_SWAP if HAVE_ARCH_TRANSPARENT_HUGEPAGE
+	select BINFMT_FLAT_NO_DATA_START_OFFSET if !MMU
+	select BUILDTIME_TABLE_SORT if MMU
+	select CLONE_BACKWARDS
+	select CLINT_TIMER if !MMU
+	select COMMON_CLK
+	select CPU_PM if CPU_IDLE
+	select EDAC_SUPPORT
+	select GENERIC_ARCH_TOPOLOGY
+	select GENERIC_ATOMIC64 if !64BIT
+	select GENERIC_CLOCKEVENTS_BROADCAST if SMP
+	select GENERIC_EARLY_IOREMAP
+	select GENERIC_GETTIMEOFDAY if HAVE_GENERIC_VDSO
+	select GENERIC_IDLE_POLL_SETUP
+	select GENERIC_IOREMAP if MMU
+	select GENERIC_IRQ_MULTI_HANDLER
+	select GENERIC_IRQ_SHOW
+	select GENERIC_IRQ_SHOW_LEVEL
+	select GENERIC_LIB_DEVMEM_IS_ALLOWED
+	select GENERIC_PCI_IOMAP
+	select GENERIC_PTDUMP if MMU
+	select GENERIC_SCHED_CLOCK
+	select GENERIC_SMP_IDLE_THREAD
+	select GENERIC_TIME_VSYSCALL if MMU && 64BIT
+	select GENERIC_VDSO_TIME_NS if HAVE_GENERIC_VDSO
+	select HARDIRQS_SW_RESEND
+	select HAVE_ARCH_AUDITSYSCALL
+	select HAVE_ARCH_JUMP_LABEL if !XIP_KERNEL
+	select HAVE_ARCH_JUMP_LABEL_RELATIVE if !XIP_KERNEL
+	select HAVE_ARCH_KASAN if MMU && 64BIT
+	select HAVE_ARCH_KASAN_VMALLOC if MMU && 64BIT
+	select HAVE_ARCH_KFENCE if MMU && 64BIT
+	select HAVE_ARCH_KGDB if !XIP_KERNEL
+	select HAVE_ARCH_KGDB_QXFER_PKT
+	select HAVE_ARCH_MMAP_RND_BITS if MMU
+	select HAVE_ARCH_MMAP_RND_COMPAT_BITS if COMPAT
+	select HAVE_ARCH_SECCOMP_FILTER
+	select HAVE_ARCH_TRACEHOOK
+	select HAVE_ARCH_TRANSPARENT_HUGEPAGE if 64BIT && MMU
+	select ARCH_ENABLE_THP_MIGRATION if TRANSPARENT_HUGEPAGE
+	select HAVE_ARCH_THREAD_STRUCT_WHITELIST
+	select HAVE_ARCH_VMAP_STACK if MMU && 64BIT
+	select HAVE_ASM_MODVERSIONS
+	select HAVE_CONTEXT_TRACKING_USER
+	select HAVE_DEBUG_KMEMLEAK
+	select HAVE_DMA_CONTIGUOUS if MMU
+	select HAVE_EBPF_JIT if MMU
+	select HAVE_FUNCTION_ERROR_INJECTION
+	select HAVE_GCC_PLUGINS
+	select HAVE_GENERIC_VDSO if MMU && 64BIT
+	select HAVE_IRQ_TIME_ACCOUNTING
+	select HAVE_KPROBES if !XIP_KERNEL
+	select HAVE_KPROBES_ON_FTRACE if !XIP_KERNEL
+	select HAVE_KRETPROBES if !XIP_KERNEL
+	select HAVE_MOVE_PMD
+	select HAVE_MOVE_PUD
+	select HAVE_PCI
+	select HAVE_PERF_EVENTS
+	select HAVE_PERF_REGS
+	select HAVE_PERF_USER_STACK_DUMP
+	select HAVE_POSIX_CPU_TIMERS_TASK_WORK
+	select HAVE_REGS_AND_STACK_ACCESS_API
+	select HAVE_FUNCTION_ARG_ACCESS_API
+	select HAVE_STACKPROTECTOR
+	select HAVE_SYSCALL_TRACEPOINTS
+	select HAVE_RSEQ
+	select IRQ_DOMAIN
+	select IRQ_FORCED_THREADING
+	select LOCK_MM_AND_FIND_VMA
+	select MODULES_USE_ELF_RELA if MODULES
+	select MODULE_SECTIONS if MODULES
+	select OF
+	select OF_DMA_DEFAULT_COHERENT
+	select OF_EARLY_FLATTREE
+	select OF_IRQ
+	select PCI_DOMAINS_GENERIC if PCI
+	select PCI_MSI if PCI
+	select RISCV_INTC
+	select RISCV_TIMER if RISCV_SBI
+	select SPARSE_IRQ
+	select SYSCTL_EXCEPTION_TRACE
+	select THREAD_INFO_IN_TASK
+	select TRACE_IRQFLAGS_SUPPORT
+	select UACCESS_MEMCPY if !MMU
+	select ZONE_DMA32 if 64BIT
+
+config ARCH_MMAP_RND_BITS_MIN
+	default 18 if 64BIT
+	default 8
+
+config ARCH_MMAP_RND_COMPAT_BITS_MIN
+	default 8
+
+# max bits determined by the following formula:
+#  VA_BITS - PAGE_SHIFT - 3
+config ARCH_MMAP_RND_BITS_MAX
+	default 24 if 64BIT # SV39 based
+	default 17
+
+config ARCH_MMAP_RND_COMPAT_BITS_MAX
+	default 17
+
+# set if we run in machine mode, cleared if we run in supervisor mode
+config RISCV_M_MODE
+	bool
+	default !MMU
+
+# set if we are running in S-mode and can use SBI calls
+config RISCV_SBI
+	bool
+	depends on !RISCV_M_MODE
+	default y
+
+config MMU
+	bool "MMU-based Paged Memory Management Support"
+	default y
+	help
+	  Select if you want MMU-based virtualised addressing space
+	  support by paged memory management. If unsure, say 'Y'.
+
+config PAGE_OFFSET
+	hex
+	default 0xC0000000 if 32BIT
+	default 0x80000000 if 64BIT && !MMU
+	default 0xff60000000000000 if 64BIT
+
+config KASAN_SHADOW_OFFSET
+	hex
+	depends on KASAN_GENERIC
+	default 0xdfffffff00000000 if 64BIT
+	default 0xffffffff if 32BIT
+
+config ARCH_FLATMEM_ENABLE
+	def_bool !NUMA
+
+config ARCH_SPARSEMEM_ENABLE
+	def_bool y
+	depends on MMU
+	select SPARSEMEM_STATIC if 32BIT && SPARSEMEM
+	select SPARSEMEM_VMEMMAP_ENABLE if 64BIT
+
+config ARCH_SELECT_MEMORY_MODEL
+	def_bool ARCH_SPARSEMEM_ENABLE
+
+config ARCH_SUPPORTS_UPROBES
+	def_bool y
+
+config STACKTRACE_SUPPORT
+	def_bool y
+
+config GENERIC_BUG
+	def_bool y
+	depends on BUG
+	select GENERIC_BUG_RELATIVE_POINTERS if 64BIT
+
+config GENERIC_BUG_RELATIVE_POINTERS
+	bool
+
+config GENERIC_CALIBRATE_DELAY
+	def_bool y
+
+config GENERIC_CSUM
+	def_bool y
+
+config GENERIC_HWEIGHT
+	def_bool y
+
+config FIX_EARLYCON_MEM
+	def_bool MMU
+
+config ILLEGAL_POINTER_VALUE
+	hex
+	default 0 if 32BIT
+	default 0xdead000000000000 if 64BIT
+
+config PGTABLE_LEVELS
+	int
+	default 5 if 64BIT
+	default 2
+
+config LOCKDEP_SUPPORT
+	def_bool y
+
+config RISCV_DMA_NONCOHERENT
+	bool
+	select ARCH_HAS_DMA_PREP_COHERENT
+	select ARCH_HAS_SYNC_DMA_FOR_DEVICE
+	select ARCH_HAS_SYNC_DMA_FOR_CPU
+	select ARCH_HAS_SETUP_DMA_OPS
+	select DMA_DIRECT_REMAP
+
+config AS_HAS_INSN
+	def_bool $(as-instr,.insn r 51$(comma) 0$(comma) 0$(comma) t0$(comma) t0$(comma) zero)
+
+source "arch/riscv/Kconfig.socs"
+source "arch/riscv/Kconfig.erratas"
+
+menu "Platform type"
+
+config NONPORTABLE
+	bool "Allow configurations that result in non-portable kernels"
+	help
+	  RISC-V kernel binaries are compatible between all known systems
+	  whenever possible, but there are some use cases that can only be
+	  satisfied by configurations that result in kernel binaries that are
+	  not portable between systems.
+
+	  Selecting N does not guarantee kernels will be portable to all known
+	  systems.  Selecting any of the options guarded by NONPORTABLE will
+	  result in kernel binaries that are unlikely to be portable between
+	  systems.
+
+	  If unsure, say N.
+
+choice
+	prompt "Base ISA"
+	default ARCH_RV64I
+	help
+	  This selects the base ISA that this kernel will target and must match
+	  the target platform.
+
+config ARCH_RV32I
+	bool "RV32I"
+	depends on NONPORTABLE
+	select 32BIT
+	select GENERIC_LIB_ASHLDI3
+	select GENERIC_LIB_ASHRDI3
+	select GENERIC_LIB_LSHRDI3
+	select GENERIC_LIB_UCMPDI2
+	select MMU
+
+config ARCH_RV64I
+	bool "RV64I"
+	select 64BIT
+	select ARCH_SUPPORTS_INT128 if CC_HAS_INT128
+	select HAVE_DYNAMIC_FTRACE if !XIP_KERNEL && MMU && $(cc-option,-fpatchable-function-entry=8)
+	select HAVE_DYNAMIC_FTRACE_WITH_REGS if HAVE_DYNAMIC_FTRACE
+	select HAVE_FTRACE_MCOUNT_RECORD if !XIP_KERNEL
+	select HAVE_FUNCTION_GRAPH_TRACER
+	select HAVE_FUNCTION_TRACER if !XIP_KERNEL && !PREEMPTION
+	select SWIOTLB if MMU
+
+endchoice
+
+# We must be able to map all physical memory into the kernel, but the compiler
+# is still a bit more efficient when generating code if it's setup in a manner
+# such that it can only map 2GiB of memory.
+choice
+	prompt "Kernel Code Model"
+	default CMODEL_MEDLOW if 32BIT
+	default CMODEL_MEDANY if 64BIT
+
+	config CMODEL_MEDLOW
+		bool "medium low code model"
+	config CMODEL_MEDANY
+		bool "medium any code model"
+endchoice
+
+config MODULE_SECTIONS
+	bool
+	select HAVE_MOD_ARCH_SPECIFIC
+
+config SMP
+	bool "Symmetric Multi-Processing"
+	help
+	  This enables support for systems with more than one CPU.  If
+	  you say N here, the kernel will run on single and
+	  multiprocessor machines, but will use only one CPU of a
+	  multiprocessor machine. If you say Y here, the kernel will run
+	  on many, but not all, single processor machines. On a single
+	  processor machine, the kernel will run faster if you say N
+	  here.
+
+	  If you don't know what to do here, say N.
+
+config NR_CPUS
+	int "Maximum number of CPUs (2-512)"
+	depends on SMP
+	range 2 512 if !RISCV_SBI_V01
+	range 2 32 if RISCV_SBI_V01 && 32BIT
+	range 2 64 if RISCV_SBI_V01 && 64BIT
+	default "32" if 32BIT
+	default "64" if 64BIT
+
+config HOTPLUG_CPU
+	bool "Support for hot-pluggable CPUs"
+	depends on SMP
+	select GENERIC_IRQ_MIGRATION
+	help
+
+	  Say Y here to experiment with turning CPUs off and on.  CPUs
+	  can be controlled through /sys/devices/system/cpu.
+
+	  Say N if you want to disable CPU hotplug.
+
+choice
+	prompt "CPU Tuning"
+	default TUNE_GENERIC
+
+config TUNE_GENERIC
+	bool "generic"
+
+endchoice
+
+# Common NUMA Features
+config NUMA
+	bool "NUMA Memory Allocation and Scheduler Support"
+	depends on SMP && MMU
+	select GENERIC_ARCH_NUMA
+	select OF_NUMA
+	select ARCH_SUPPORTS_NUMA_BALANCING
+	select USE_PERCPU_NUMA_NODE_ID
+	select NEED_PER_CPU_EMBED_FIRST_CHUNK
+	help
+	  Enable NUMA (Non-Uniform Memory Access) support.
+
+	  The kernel will try to allocate memory used by a CPU on the
+	  local memory of the CPU and add some more NUMA awareness to the kernel.
+
+config NODES_SHIFT
+	int "Maximum NUMA Nodes (as a power of 2)"
+	range 1 10
+	default "2"
+	depends on NUMA
+	help
+	  Specify the maximum number of NUMA Nodes available on the target
+	  system.  Increases memory reserved to accommodate various tables.
+
+config RISCV_ALTERNATIVE
+	bool
+	depends on !XIP_KERNEL
+	help
+	  This Kconfig allows the kernel to automatically patch the
+	  errata required by the execution platform at run time. The
+	  code patching is performed once in the boot stages. It means
+	  that the overhead from this mechanism is just taken once.
+
+config RISCV_ALTERNATIVE_EARLY
+	bool
+	depends on RISCV_ALTERNATIVE
+	help
+	  Allows early patching of the kernel for special errata
+
+config RISCV_ISA_C
+	bool "Emit compressed instructions when building Linux"
+	default y
+	help
+	  Adds "C" to the ISA subsets that the toolchain is allowed to emit
+	  when building Linux, which results in compressed instructions in the
+	  Linux binary.
+
+	  If you don't know what to do here, say Y.
+
+config RISCV_ISA_SVPBMT
+	bool "SVPBMT extension support"
+	depends on 64BIT && MMU
+	depends on !XIP_KERNEL
+	select RISCV_ALTERNATIVE
+	default y
+	help
+	   Adds support to dynamically detect the presence of the SVPBMT
+	   ISA-extension (Supervisor-mode: page-based memory types) and
+	   enable its usage.
+
+	   The memory type for a page contains a combination of attributes
+	   that indicate the cacheability, idempotency, and ordering
+	   properties for access to that page.
+
+	   The SVPBMT extension is only available on 64Bit cpus.
+
+	   If you don't know what to do here, say Y.
+
+config TOOLCHAIN_HAS_ZICBOM
+	bool
+	default y
+	depends on !64BIT || $(cc-option,-mabi=lp64 -march=rv64ima_zicbom)
+	depends on !32BIT || $(cc-option,-mabi=ilp32 -march=rv32ima_zicbom)
+	depends on LLD_VERSION >= 150000 || LD_VERSION >= 23800
+
+config RISCV_ISA_ZICBOM
+	bool "Zicbom extension support for non-coherent DMA operation"
+	depends on TOOLCHAIN_HAS_ZICBOM
+	depends on !XIP_KERNEL && MMU
+	select RISCV_DMA_NONCOHERENT
+	select RISCV_ALTERNATIVE
+	default y
+	help
+	   Adds support to dynamically detect the presence of the ZICBOM
+	   extension (Cache Block Management Operations) and enable its
+	   usage.
+
+	   The Zicbom extension can be used to handle for example
+	   non-coherent DMA support on devices that need it.
+
+	   If you don't know what to do here, say Y.
+
+config TOOLCHAIN_HAS_ZIHINTPAUSE
+	bool
+	default y
+	depends on !64BIT || $(cc-option,-mabi=lp64 -march=rv64ima_zihintpause)
+	depends on !32BIT || $(cc-option,-mabi=ilp32 -march=rv32ima_zihintpause)
+	depends on LLD_VERSION >= 150000 || LD_VERSION >= 23600
+
+config TOOLCHAIN_NEEDS_EXPLICIT_ZICSR_ZIFENCEI
+	def_bool y
+	# https://sourceware.org/git/?p=binutils-gdb.git;a=commit;h=aed44286efa8ae8717a77d94b51ac3614e2ca6dc
+	# https://gcc.gnu.org/git/?p=gcc.git;a=commit;h=98416dbb0a62579d4a7a4a76bab51b5b52fec2cd
+	depends on AS_IS_GNU && AS_VERSION >= 23600
+	help
+	  Binutils-2.38 and GCC-12.1.0 bumped the default ISA spec to the newer
+	  20191213 version, which moves some instructions from the I extension to
+	  the Zicsr and Zifencei extensions. This requires explicitly specifying
+	  Zicsr and Zifencei when binutils >= 2.38 or GCC >= 12.1.0. Zicsr
+	  and Zifencei are supported in binutils from version 2.36 onwards.
+	  To make life easier, and avoid forcing toolchains that default to a
+	  newer ISA spec to version 2.2, relax the check to binutils >= 2.36.
+	  For clang < 17 or GCC < 11.3.0, for which this is not possible or need
+	  special treatment, this is dealt with in TOOLCHAIN_NEEDS_OLD_ISA_SPEC.
+
+config TOOLCHAIN_NEEDS_OLD_ISA_SPEC
+	def_bool y
+	depends on TOOLCHAIN_NEEDS_EXPLICIT_ZICSR_ZIFENCEI
+	# https://github.com/llvm/llvm-project/commit/22e199e6afb1263c943c0c0d4498694e15bf8a16
+	# https://gcc.gnu.org/git/?p=gcc.git;a=commit;h=d29f5d6ab513c52fd872f532c492e35ae9fd6671
+	depends on (CC_IS_CLANG && CLANG_VERSION < 170000) || (CC_IS_GCC && GCC_VERSION < 110300)
+	help
+	  Certain versions of clang and GCC do not support zicsr and zifencei via
+	  -march. This option causes an older ISA spec compatible with these older
+	  versions of clang and GCC to be passed to GAS, which has the same result
+	  as passing zicsr and zifencei to -march.
+
+config FPU
+	bool "FPU support"
+	default y
+	help
+	  Say N here if you want to disable all floating-point related procedure
+	  in the kernel.
+
+	  If you don't know what to do here, say Y.
+
+endmenu # "Platform type"
+
+menu "Kernel features"
+
+source "kernel/Kconfig.hz"
+
+config RISCV_SBI_V01
+	bool "SBI v0.1 support"
+	depends on RISCV_SBI
+	help
+	  This config allows kernel to use SBI v0.1 APIs. This will be
+	  deprecated in future once legacy M-mode software are no longer in use.
+
+config RISCV_BOOT_SPINWAIT
+	bool "Spinwait booting method"
+	depends on SMP
+	default y if RISCV_SBI_V01 || RISCV_M_MODE
+	help
+	  This enables support for booting Linux via spinwait method. In the
+	  spinwait method, all cores randomly jump to Linux. One of the cores
+	  gets chosen via lottery and all other keep spinning on a percpu
+	  variable. This method cannot support CPU hotplug and sparse hartid
+	  scheme. It should be only enabled for M-mode Linux or platforms relying
+	  on older firmware without SBI HSM extension. All other platforms should
+	  rely on ordered booting via SBI HSM extension which gets chosen
+	  dynamically at runtime if the firmware supports it.
+
+	  Since spinwait is incompatible with sparse hart IDs, it requires
+	  NR_CPUS be large enough to contain the physical hart ID of the first
+	  hart to enter Linux.
+
+	  If unsure what to do here, say N.
+
+config KEXEC
+	bool "Kexec system call"
+	select KEXEC_CORE
+	select HOTPLUG_CPU if SMP
+	depends on MMU
+	help
+	  kexec is a system call that implements the ability to shutdown your
+	  current kernel, and to start another kernel. It is like a reboot
+	  but it is independent of the system firmware. And like a reboot
+	  you can start any kernel with it, not just Linux.
+
+	  The name comes from the similarity to the exec system call.
+
+config KEXEC_FILE
+	bool "kexec file based systmem call"
+	select KEXEC_CORE
+	select KEXEC_ELF
+	select HAVE_IMA_KEXEC if IMA
+	depends on 64BIT && MMU
+	help
+	  This is new version of kexec system call. This system call is
+	  file based and takes file descriptors as system call argument
+	  for kernel and initramfs as opposed to list of segments as
+	  accepted by previous system call.
+
+	  If you don't know what to do here, say Y.
+
+config ARCH_HAS_KEXEC_PURGATORY
+	def_bool KEXEC_FILE
+	depends on CRYPTO=y
+	depends on CRYPTO_SHA256=y
+
+config CRASH_DUMP
+	bool "Build kdump crash kernel"
+	help
+	  Generate crash dump after being started by kexec. This should
+	  be normally only set in special crash dump kernels which are
+	  loaded in the main kernel with kexec-tools into a specially
+	  reserved region and then later executed after a crash by
+	  kdump/kexec.
+
+	  For more details see Documentation/admin-guide/kdump/kdump.rst
+
+config COMPAT
+	bool "Kernel support for 32-bit U-mode"
+	default 64BIT
+	depends on 64BIT && MMU
+	help
+	  This option enables support for a 32-bit U-mode running under a 64-bit
+	  kernel at S-mode. riscv32-specific components such as system calls,
+	  the user helper functions (vdso), signal rt_frame functions and the
+	  ptrace interface are handled appropriately by the kernel.
+
+	  If you want to execute 32-bit userspace applications, say Y.
+
+endmenu # "Kernel features"
+
+menu "Boot options"
+
+config CMDLINE
+	string "Built-in kernel command line"
+	help
+	  For most platforms, the arguments for the kernel's command line
+	  are provided at run-time, during boot. However, there are cases
+	  where either no arguments are being provided or the provided
+	  arguments are insufficient or even invalid.
+
+	  When that occurs, it is possible to define a built-in command
+	  line here and choose how the kernel should use it later on.
+
+choice
+	prompt "Built-in command line usage" if CMDLINE != ""
+	default CMDLINE_FALLBACK
+	help
+	  Choose how the kernel will handle the provided built-in command
+	  line.
+
+config CMDLINE_FALLBACK
+	bool "Use bootloader kernel arguments if available"
+	help
+	  Use the built-in command line as fallback in case we get nothing
+	  during boot. This is the default behaviour.
+
+config CMDLINE_EXTEND
+	bool "Extend bootloader kernel arguments"
+	help
+	  The command-line arguments provided during boot will be
+	  appended to the built-in command line. This is useful in
+	  cases where the provided arguments are insufficient and
+	  you don't want to or cannot modify them.
+
+config CMDLINE_FORCE
+	bool "Always use the default kernel command string"
+	help
+	  Always use the built-in command line, even if we get one during
+	  boot. This is useful in case you need to override the provided
+	  command line on systems where you don't have or want control
+	  over it.
+
+endchoice
+
+config EFI_STUB
+	bool
+
+config EFI
+	bool "UEFI runtime support"
+	depends on OF && !XIP_KERNEL
+	select LIBFDT
+	select UCS2_STRING
+	select EFI_PARAMS_FROM_FDT
+	select EFI_STUB
+	select EFI_GENERIC_STUB
+	select EFI_RUNTIME_WRAPPERS
+	select RISCV_ISA_C
+	depends on MMU
+	default y
+	help
+	  This option provides support for runtime services provided
+	  by UEFI firmware (such as non-volatile variables, realtime
+	  clock, and platform reset). A UEFI stub is also provided to
+	  allow the kernel to be booted as an EFI application. This
+	  is only useful on systems that have UEFI firmware.
+
+config CC_HAVE_STACKPROTECTOR_TLS
+	def_bool $(cc-option,-mstack-protector-guard=tls -mstack-protector-guard-reg=tp -mstack-protector-guard-offset=0)
+
+config STACKPROTECTOR_PER_TASK
+	def_bool y
+	depends on !RANDSTRUCT
+	depends on STACKPROTECTOR && CC_HAVE_STACKPROTECTOR_TLS
+
+config PHYS_RAM_BASE_FIXED
+	bool "Explicitly specified physical RAM address"
+	depends on NONPORTABLE
+	default n
+
+config PHYS_RAM_BASE
+	hex "Platform Physical RAM address"
+	depends on PHYS_RAM_BASE_FIXED
+	default "0x80000000"
+	help
+	  This is the physical address of RAM in the system. It has to be
+	  explicitly specified to run early relocations of read-write data
+	  from flash to RAM.
+
+config XIP_KERNEL
+	bool "Kernel Execute-In-Place from ROM"
+	depends on MMU && SPARSEMEM && NONPORTABLE
+	# This prevents XIP from being enabled by all{yes,mod}config, which
+	# fail to build since XIP doesn't support large kernels.
+	depends on !COMPILE_TEST
+	select PHYS_RAM_BASE_FIXED
+	help
+	  Execute-In-Place allows the kernel to run from non-volatile storage
+	  directly addressable by the CPU, such as NOR flash. This saves RAM
+	  space since the text section of the kernel is not loaded from flash
+	  to RAM.  Read-write sections, such as the data section and stack,
+	  are still copied to RAM.  The XIP kernel is not compressed since
+	  it has to run directly from flash, so it will take more space to
+	  store it.  The flash address used to link the kernel object files,
+	  and for storing it, is configuration dependent. Therefore, if you
+	  say Y here, you must know the proper physical address where to
+	  store the kernel image depending on your own flash memory usage.
+
+	  Also note that the make target becomes "make xipImage" rather than
+	  "make zImage" or "make Image".  The final kernel binary to put in
+	  ROM memory will be arch/riscv/boot/xipImage.
+
+	  SPARSEMEM is required because the kernel text and rodata that are
+	  flash resident are not backed by memmap, then any attempt to get
+	  a struct page on those regions will trigger a fault.
+
+	  If unsure, say N.
+
+config XIP_PHYS_ADDR
+	hex "XIP Kernel Physical Location"
+	depends on XIP_KERNEL
+	default "0x21000000"
+	help
+	  This is the physical address in your flash memory the kernel will
+	  be linked for and stored to.  This address is dependent on your
+	  own flash usage.
+
+endmenu # "Boot options"
+
+config BUILTIN_DTB
+	bool
+	depends on OF && NONPORTABLE
+	default y if XIP_KERNEL
+
+config PORTABLE
+	bool
+	default !NONPORTABLE
+	select EFI
+	select OF
+	select MMU
+
+menu "Power management options"
+
+source "kernel/power/Kconfig"
+
+endmenu # "Power management options"
+
+menu "CPU Power Management"
+
+source "drivers/cpuidle/Kconfig"
+
+endmenu # "CPU Power Management"
+
+source "arch/riscv/kvm/Kconfig"

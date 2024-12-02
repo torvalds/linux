@@ -1,0 +1,131 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+# Copyright (C) 2020 BAIKAL ELECTRONICS, JSC
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/clock/baikal,bt1-ccu-pll.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Baikal-T1 Clock Control Unit PLL
+
+maintainers:
+  - Serge Semin <fancer.lancer@gmail.com>
+
+description: |
+  Clocks Control Unit is the core of Baikal-T1 SoC System Controller
+  responsible for the chip subsystems clocking and resetting. The CCU is
+  connected with an external fixed rate oscillator, which signal is transformed
+  into clocks of various frequencies and then propagated to either individual
+  IP-blocks or to groups of blocks (clock domains). The transformation is done
+  by means of PLLs and gateable/non-gateable dividers embedded into the CCU.
+  It's logically divided into the next components:
+  1) External oscillator (normally XTAL's 25 MHz crystal oscillator, but
+     in general can provide any frequency supported by the CCU PLLs).
+  2) PLLs clocks generators (PLLs) - described in this binding file.
+  3) AXI-bus clock dividers (AXI).
+  4) System devices reference clock dividers (SYS).
+  which are connected with each other as shown on the next figure:
+
+          +---------------+
+          | Baikal-T1 CCU |
+          |   +----+------|- MIPS P5600 cores
+          | +-|PLLs|------|- DDR controller
+          | | +----+      |
+  +----+  | |  |  |       |
+  |XTAL|--|-+  |  | +---+-|
+  +----+  | |  |  +-|AXI|-|- AXI-bus
+          | |  |    +---+-|
+          | |  |          |
+          | |  +----+---+-|- APB-bus
+          | +-------|SYS|-|- Low-speed Devices
+          |         +---+-|- High-speed Devices
+          +---------------+
+
+  Each CCU sub-block is represented as a separate dts-node and has an
+  individual driver to be bound with.
+
+  In order to create signals of wide range frequencies the external oscillator
+  output is primarily connected to a set of CCU PLLs. There are five PLLs
+  to create a clock for the MIPS P5600 cores, the embedded DDR controller,
+  SATA, Ethernet and PCIe domains. The last three domains though named by the
+  biggest system interfaces in fact include nearly all of the rest SoC
+  peripherals. Each of the PLLs is based on True Circuits TSMC CLN28HPM core
+  with an interface wrapper (so called safe PLL' clocks switcher) to simplify
+  the PLL configuration procedure. The PLLs work as depicted on the next
+  diagram:
+
+      +--------------------------+
+      |                          |
+      +-->+---+    +---+   +---+ |  +---+   0|\
+  CLKF--->|/NF|--->|PFD|...|VCO|-+->|/OD|--->| |
+          +---+ +->+---+   +---+ /->+---+    | |--->CLKOUT
+  CLKOD---------C----------------+          1| |
+       +--------C--------------------------->|/
+       |        |                             ^
+  Rclk-+->+---+ |                             |
+  CLKR--->|/NR|-+                             |
+          +---+                               |
+  BYPASS--------------------------------------+
+  BWADJ--->
+
+  where Rclk is the reference clock coming  from XTAL, NR - reference clock
+  divider, NF - PLL clock multiplier, OD - VCO output clock divider, CLKOUT -
+  output clock, BWADJ is the PLL bandwidth adjustment parameter. At this moment
+  the binding supports the PLL dividers configuration in accordance with a
+  requested rate, while bypassing and bandwidth adjustment settings can be
+  added in future if it gets to be necessary.
+
+  The PLLs CLKOUT is then either directly connected with the corresponding
+  clocks consumer (like P5600 cores or DDR controller) or passed over a CCU
+  divider to create a signal required for the clock domain.
+
+  The CCU PLL dts-node uses the common clock bindings with no custom
+  parameters. The list of exported clocks can be found in
+  'include/dt-bindings/clock/bt1-ccu.h'. Since CCU PLL is a part of the
+  Baikal-T1 SoC System Controller its DT node is supposed to be a child of
+  later one.
+
+properties:
+  compatible:
+    const: baikal,bt1-ccu-pll
+
+  reg:
+    maxItems: 1
+
+  "#clock-cells":
+    const: 1
+
+  clocks:
+    description: External reference clock
+    maxItems: 1
+
+  clock-names:
+    const: ref_clk
+
+additionalProperties: false
+
+required:
+  - compatible
+  - "#clock-cells"
+  - clocks
+  - clock-names
+
+examples:
+  # Clock Control Unit PLL node:
+  - |
+    clock-controller@1f04d000 {
+      compatible = "baikal,bt1-ccu-pll";
+      reg = <0x1f04d000 0x028>;
+      #clock-cells = <1>;
+
+      clocks = <&clk25m>;
+      clock-names = "ref_clk";
+    };
+  # Required external oscillator:
+  - |
+    clk25m: clock-oscillator-25m {
+      compatible = "fixed-clock";
+      #clock-cells = <0>;
+      clock-frequency  = <25000000>;
+      clock-output-names = "clk25m";
+    };
+...

@@ -1,0 +1,25 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2016-2017 Andreas Färber
+ */
+
+/dts-v1/;
+
+#include "owl-s500-guitar.dtsi"
+
+/ {
+	compatible = "lemaker,guitar-bb-rev-b", "lemaker,guitar", "actions,s500";
+	model = "LeMaker Guitar Base Board rev. B";
+
+	aliases {
+		serial3 = &uart3;
+	};
+
+	chosen {
+		stdout-path = "serial3:115200n8";
+	};
+};
+
+&uart3 {
+	status = "okay";
+};

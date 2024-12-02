@@ -1,0 +1,81 @@
+[
+	{
+		"ConfigCode": "0x00",
+		"EventName": "cpa_cycles",
+		"BriefDescription": "count of CPA cycles",
+		"Compat": "0x00000030",
+		"Unit": "hisi_sicl,cpa"
+	},
+	{
+		"ConfigCode": "0x61",
+		"EventName": "cpa_p1_wr_dat",
+		"BriefDescription": "Number of write ops transmitted by the P1 port",
+		"Compat": "0x00000030",
+		"Unit": "hisi_sicl,cpa"
+	},
+	{
+		"ConfigCode": "0x62",
+		"EventName": "cpa_p1_rd_dat",
+		"BriefDescription": "Number of read ops transmitted by the P1 port",
+		"Compat": "0x00000030",
+		"Unit": "hisi_sicl,cpa"
+	},
+	{
+		"ConfigCode": "0x3",
+		"EventName": "cpa_p1_rd_dat_64b",
+		"BriefDescription": "Number of read ops transmitted by the P1 port which size is 64 bytes",
+		"Compat": "0x00000030",
+		"Unit": "hisi_sicl,cpa"
+	},
+	{
+		"ConfigCode": "0x4",
+		"EventName": "cpa_p1_rd_dat_32b",
+		"BriefDescription": "Number of read ops transmitted by the P1 port which size is 32 bytes",
+		"Compat": "0x00000030",
+		"Unit": "hisi_sicl,cpa"
+	},
+	{
+		"ConfigCode": "0xE1",
+		"EventName": "cpa_p0_wr_dat",
+		"BriefDescription": "Number of write ops transmitted by the P0 port",
+		"Compat": "0x00000030",
+		"Unit": "hisi_sicl,cpa"
+	},
+	{
+		"ConfigCode": "0xE2",
+		"EventName": "cpa_p0_rd_dat",
+		"BriefDescription": "Number of read ops transmitted by the P0 port",
+		"Compat": "0x00000030",
+		"Unit": "hisi_sicl,cpa"
+	},
+	{
+		"ConfigCode": "0x83",
+		"EventName": "cpa_p0_rd_dat_64b",
+		"BriefDescription": "Number of read ops transmitted by the P0 port which size is 64 bytes",
+		"Compat": "0x00000030",
+		"Unit": "hisi_sicl,cpa"
+	},
+	{
+		"ConfigCode": "0x84",
+		"EventName": "cpa_p0_rd_dat_32b",
+		"BriefDescription": "Number of read ops transmitted by the P0 port which size is 32 bytes",
+		"Compat": "0x00000030",
+		"Unit": "hisi_sicl,cpa"
+	},
+	{
+		"MetricExpr": "(cpa_p1_wr_dat * 64 + cpa_p1_rd_dat_64b * 64 + cpa_p1_rd_dat_32b * 32) / cpa_cycles",
+		"BriefDescription": "Average bandwidth of CPA Port 1",
+		"MetricGroup": "CPA",
+		"MetricName": "cpa_p1_avg_bw",
+		"Compat": "0x00000030",
+		"Unit": "hisi_sicl,cpa"
+	},
+	{
+		"MetricExpr": "(cpa_p0_wr_dat * 64 + cpa_p0_rd_dat_64b * 64 + cpa_p0_rd_dat_32b * 32) / cpa_cycles",
+		"BriefDescription": "Average bandwidth of CPA Port 0",
+		"MetricGroup": "CPA",
+		"MetricName": "cpa_p0_avg_bw",
+		"Compat": "0x00000030",
+		"Unit": "hisi_sicl,cpa"
+	}
+]

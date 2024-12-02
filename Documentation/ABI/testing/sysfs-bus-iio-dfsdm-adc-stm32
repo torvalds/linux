@@ -1,0 +1,22 @@
+What:		/sys/bus/iio/devices/iio:deviceX/in_voltage_spi_clk_freq
+KernelVersion:	4.14
+Contact:	arnaud.pouliquen@st.com
+Description:
+		For audio purpose only.
+
+		Used by audio driver to set/get the spi input frequency.
+
+		This is mandatory if DFSDM is slave on SPI bus, to
+		provide information on the SPI clock frequency during runtime
+		Notice that the SPI frequency should be a multiple of sample
+		frequency to ensure the precision.
+
+		if DFSDM input is SPI master:
+
+			Reading  SPI clkout frequency,
+			error on writing
+
+		If DFSDM input is SPI Slave:
+
+			Reading returns value previously set.
+			Writing value before starting conversions.

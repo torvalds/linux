@@ -1,0 +1,16 @@
+What:		/sys/bus/iio/devices/iio:deviceX/filter_mode_available
+KernelVersion:
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Reading this returns the valid values that can be written to the
+		filter_mode attribute:
+
+		- auto -> Adjust bandpass filter to track changes in input clock rate.
+		- manual -> disable/unregister the clock rate notifier / input clock tracking.
+
+What:		/sys/bus/iio/devices/iio:deviceX/filter_mode
+KernelVersion:
+Contact:	linux-iio@vger.kernel.org
+Description:
+		This attribute configures the filter mode.
+		Reading returns the actual mode.

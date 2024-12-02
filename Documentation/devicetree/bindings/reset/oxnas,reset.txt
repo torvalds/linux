@@ -1,0 +1,32 @@
+Oxford Semiconductor OXNAS SoC Family RESET Controller
+================================================
+
+Please also refer to reset.txt in this directory for common reset
+controller binding usage.
+
+Required properties:
+- compatible: For OX810SE, should be "oxsemi,ox810se-reset"
+	      For OX820, should be "oxsemi,ox820-reset"
+- #reset-cells: 1, see below
+
+Parent node should have the following properties :
+- compatible: For OX810SE, should be :
+			"oxsemi,ox810se-sys-ctrl", "syscon", "simple-mfd"
+	      For OX820, should be :
+			"oxsemi,ox820-sys-ctrl", "syscon", "simple-mfd"
+
+Reset indices are in dt-bindings include files :
+- For OX810SE: include/dt-bindings/reset/oxsemi,ox810se.h
+- For OX820: include/dt-bindings/reset/oxsemi,ox820.h
+
+example:
+
+sys: sys-ctrl@000000 {
+	compatible = "oxsemi,ox810se-sys-ctrl", "syscon", "simple-mfd";
+	reg = <0x000000 0x100000>;
+
+	reset: reset-controller {
+		compatible = "oxsemi,ox810se-reset";
+		#reset-cells = <1>;
+	};
+};

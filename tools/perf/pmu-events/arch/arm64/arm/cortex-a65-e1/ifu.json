@@ -1,0 +1,122 @@
+[
+    {
+        "PublicDescription": "I-Cache miss on an access from the prefetch block",
+        "EventCode": "0xD0",
+        "EventName": "IFU_IC_MISS_WAIT",
+        "BriefDescription": "I-Cache miss on an access from the prefetch block"
+    },
+    {
+        "PublicDescription": "Counts the cycles spent on a request for Level 2 TLB lookup after a Level 1l ITLB miss",
+        "EventCode": "0xD1",
+        "EventName": "IFU_IUTLB_MISS_WAIT",
+        "BriefDescription": "Counts the cycles spent on a request for Level 2 TLB lookup after a Level 1l ITLB miss"
+    },
+    {
+        "PublicDescription": "Micro-predictor conditional/direction mispredict, with respect to. if3/if4 predictor",
+        "EventCode": "0xD2",
+        "EventName": "IFU_MICRO_COND_MISPRED",
+        "BriefDescription": "Micro-predictor conditional/direction mispredict, with respect to. if3/if4 predictor"
+    },
+    {
+        "PublicDescription": "Micro-predictor address mispredict, with respect to if3/if4 predictor",
+        "EventCode": "0xD3",
+        "EventName": "IFU_MICRO_CADDR_MISPRED",
+        "BriefDescription": "Micro-predictor address mispredict, with respect to if3/if4 predictor"
+    },
+    {
+        "PublicDescription": "Micro-predictor hit with immediate redirect",
+        "EventCode": "0xD4",
+        "EventName": "IFU_MICRO_HIT",
+        "BriefDescription": "Micro-predictor hit with immediate redirect"
+    },
+    {
+        "PublicDescription": "Micro-predictor negative cache hit",
+        "EventCode": "0xD6",
+        "EventName": "IFU_MICRO_NEG_HIT",
+        "BriefDescription": "Micro-predictor negative cache hit"
+    },
+    {
+        "PublicDescription": "Micro-predictor correction",
+        "EventCode": "0xD7",
+        "EventName": "IFU_MICRO_CORRECTION",
+        "BriefDescription": "Micro-predictor correction"
+    },
+    {
+        "PublicDescription": "A 2nd instruction could have been pushed but was not because it was nonsequential",
+        "EventCode": "0xD8",
+        "EventName": "IFU_MICRO_NO_INSTR1",
+        "BriefDescription": "A 2nd instruction could have been pushed but was not because it was nonsequential"
+    },
+    {
+        "PublicDescription": "Micro-predictor miss",
+        "EventCode": "0xD9",
+        "EventName": "IFU_MICRO_NO_PRED",
+        "BriefDescription": "Micro-predictor miss"
+    },
+    {
+        "PublicDescription": "Thread flushed due to TLB miss",
+        "EventCode": "0xDA",
+        "EventName": "IFU_FLUSHED_TLB_MISS",
+        "BriefDescription": "Thread flushed due to TLB miss"
+    },
+    {
+        "PublicDescription": "Thread flushed due to reasons other than TLB miss",
+        "EventCode": "0xDB",
+        "EventName": "IFU_FLUSHED_EXCL_TLB_MISS",
+        "BriefDescription": "Thread flushed due to reasons other than TLB miss"
+    },
+    {
+        "PublicDescription": "This thread and the other thread both ready for scheduling in if0",
+        "EventCode": "0xDC",
+        "EventName": "IFU_ALL_THRDS_RDY",
+        "BriefDescription": "This thread and the other thread both ready for scheduling in if0"
+    },
+    {
+        "PublicDescription": "This thread was arbitrated when the other thread was also ready for scheduling",
+        "EventCode": "0xDD",
+        "EventName": "IFU_WIN_ARB_OTHER_RDY",
+        "BriefDescription": "This thread was arbitrated when the other thread was also ready for scheduling"
+    },
+    {
+        "PublicDescription": "This thread was arbitrated when the other thread was also active, but not necessarily ready. For example, waiting for I-Cache or TLB",
+        "EventCode": "0xDE",
+        "EventName": "IFU_WIN_ARB_OTHER_ACT",
+        "BriefDescription": "This thread was arbitrated when the other thread was also active, but not necessarily ready. For example, waiting for I-Cache or TLB"
+    },
+    {
+        "PublicDescription": "This thread was not arbitrated because it was not ready for scheduling. For example, due to a cache miss or TLB miss",
+        "EventCode": "0xDF",
+        "EventName": "IFU_NOT_RDY_FOR_ARB",
+        "BriefDescription": "This thread was not arbitrated because it was not ready for scheduling. For example, due to a cache miss or TLB miss"
+    },
+    {
+        "PublicDescription": "The thread moved from an active state to an inactive state (long-term sleep state, causing deallocation of some resources)",
+        "EventCode": "0xE0",
+        "EventName": "IFU_GOTO_IDLE",
+        "BriefDescription": "The thread moved from an active state to an inactive state (long-term sleep state, causing deallocation of some resources)"
+    },
+    {
+        "PublicDescription": "I-Cache lookup under miss from other thread",
+        "EventCode": "0xE1",
+        "EventName": "IFU_IC_LOOKUP_UNDER_MISS",
+        "BriefDescription": "I-Cache lookup under miss from other thread"
+    },
+    {
+        "PublicDescription": "I-Cache miss under miss from other thread",
+        "EventCode": "0xE2",
+        "EventName": "IFU_IC_MISS_UNDER_MISS",
+        "BriefDescription": "I-Cache miss under miss from other thread"
+    },
+    {
+        "PublicDescription": "This thread pushed an instruction into the IQ",
+        "EventCode": "0xE3",
+        "EventName": "IFU_INSTR_PUSHED",
+        "BriefDescription": "This thread pushed an instruction into the IQ"
+    },
+    {
+        "PublicDescription": "I-Cache Speculative line fill",
+        "EventCode": "0xE4",
+        "EventName": "IFU_IC_LF_SP",
+        "BriefDescription": "I-Cache Speculative line fill"
+    }
+]

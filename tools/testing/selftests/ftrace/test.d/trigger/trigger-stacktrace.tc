@@ -1,0 +1,33 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-2.0
+# description: event trigger - test stacktrace-trigger
+# requires: set_event events/sched/sched_process_fork/trigger
+
+fail() { #msg
+    echo $1
+    exit_fail
+}
+
+FEATURE=`grep stacktrace events/sched/sched_process_fork/trigger`
+if [ -z "$FEATURE" ]; then
+    echo "stacktrace trigger is not supported"
+    exit_unsupported
+fi
+
+echo "Test stacktrace trigger"
+echo 0 > trace
+echo 0 > options/stacktrace
+echo 'stacktrace' > events/sched/sched_process_fork/trigger
+( echo "forked")
+grep "<stack trace>" trace > /dev/null || \
+    fail "stacktrace trigger on sched_process_fork did not work"
+
+reset_trigger
+
+echo "Test stacktrace semantic errors"
+
+! echo "stacktrace:foo" > events/sched/sched_process_fork/trigger
+echo "stacktrace" > events/sched/sched_process_fork/trigger
+! echo "stacktrace" > events/sched/sched_process_fork/trigger
+
+exit 0

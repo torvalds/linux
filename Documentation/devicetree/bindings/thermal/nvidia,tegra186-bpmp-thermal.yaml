@@ -1,0 +1,42 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/thermal/nvidia,tegra186-bpmp-thermal.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: NVIDIA Tegra186 (and later) BPMP thermal sensor
+
+maintainers:
+  - Thierry Reding <thierry.reding@gmail.com>
+  - Jon Hunter <jonathanh@nvidia.com>
+
+description: |
+  In Tegra186, the BPMP (Boot and Power Management Processor) implements
+  an interface that is used to read system temperatures, including CPU
+  cluster and GPU temperatures. This binding describes the thermal
+  sensor that is exposed by BPMP.
+
+  The BPMP thermal node must be located directly inside the main BPMP
+  node. See ../firmware/nvidia,tegra186-bpmp.yaml for details of the
+  BPMP binding.
+
+  This node represents a thermal sensor. See
+
+    Documentation/devicetree/bindings/thermal/thermal-sensor.yaml
+
+  for details of the core thermal binding.
+
+properties:
+  compatible:
+    enum:
+      - nvidia,tegra186-bpmp-thermal
+      - nvidia,tegra194-bpmp-thermal
+
+  '#thermal-sensor-cells':
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: Number of cells needed in the phandle specifier to
+      identify a given sensor. Must be 1 and the single cell specifies
+      the sensor index.
+    const: 1
+
+additionalProperties: false

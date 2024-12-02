@@ -1,0 +1,51 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/serial/socionext,uniphier-uart.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: UniPhier UART controller
+
+maintainers:
+  - Masahiro Yamada <yamada.masahiro@socionext.com>
+
+properties:
+  compatible:
+    const: socionext,uniphier-uart
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+  resets:
+    maxItems: 1
+
+  auto-flow-control:
+    description: enable automatic flow control support.
+    $ref: /schemas/types.yaml#/definitions/flag
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - clocks
+
+additionalProperties: false
+
+examples:
+  - |
+    aliases {
+        serial0 = &serial0;
+    };
+
+    serial0: serial@54006800 {
+        compatible = "socionext,uniphier-uart";
+        reg = <0x54006800 0x40>;
+        interrupts = <0 33 4>;
+        clocks = <&uart_clk>;
+    };

@@ -1,0 +1,15 @@
+// SPDX-License-Identifier: GPL-2.0
+
+/dts-v1/;
+
+/*
+ * There are two types of 4.3" LCD, Type 15 and Type 28.
+ * By default, type 15 was used.  This device tree file
+ * uses the timing for the type 28 LCD
+ */
+
+#include "logicpd-torpedo-37xx-devkit.dts"
+
+&lcd0 {
+	compatible = "logicpd,type28";
+};

@@ -1,0 +1,15 @@
+OMAP HS USB OHCI controller (OMAP3 and later)
+
+Required properties:
+
+- compatible: should be "ti,ohci-omap3"
+- reg: should contain one register range i.e. start and length
+- interrupts: description of the interrupt line
+
+Example for OMAP4:
+
+usbhsohci: ohci@4a064800 {
+	compatible = "ti,ohci-omap3";
+	reg = <0x4a064800 0x400>;
+	interrupts = <0 76 0x4>;
+};

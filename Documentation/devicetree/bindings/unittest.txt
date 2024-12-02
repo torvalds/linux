@@ -1,0 +1,66 @@
+1) OF unittest platform device
+
+** unittest
+
+Required properties:
+- compatible: must be "unittest"
+
+All other properties are optional.
+
+Example:
+	unittest {
+		compatible = "unittest";
+	};
+
+2) OF unittest i2c adapter platform device
+
+** platform device unittest adapter
+
+Required properties:
+- compatible: must be unittest-i2c-bus
+
+Children nodes contain unittest i2c devices.
+
+Example:
+	unittest-i2c-bus {
+		compatible = "unittest-i2c-bus";
+	};
+
+3) OF unittest i2c device
+
+** I2C unittest device
+
+Required properties:
+- compatible: must be unittest-i2c-dev
+
+All other properties are optional
+
+Example:
+	unittest-i2c-dev {
+		compatible = "unittest-i2c-dev";
+	};
+
+4) OF unittest i2c mux device
+
+** I2C unittest mux
+
+Required properties:
+- compatible: must be unittest-i2c-mux
+
+Children nodes contain unittest i2c bus nodes per channel.
+
+Example:
+	unittest-i2c-mux {
+		compatible = "unittest-i2c-mux";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		channel-0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			i2c-dev {
+				reg = <8>;
+				compatible = "unittest-i2c-dev";
+			};
+		};
+	};

@@ -1,0 +1,115 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/input/touchscreen/zinitix,bt400.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Zinitix BT4xx and BT5xx series touchscreen controller bindings
+
+description: The Zinitix BT4xx and BT5xx series of touchscreen controllers
+  are Korea-produced touchscreens with embedded microcontrollers. The
+  BT4xx series was produced 2010-2013 and the BT5xx series 2013-2014.
+
+maintainers:
+  - Michael Srba <Michael.Srba@seznam.cz>
+  - Linus Walleij <linus.walleij@linaro.org>
+
+allOf:
+  - $ref: touchscreen.yaml#
+
+properties:
+  $nodename:
+    pattern: "^touchscreen(@.*)?$"
+
+  compatible:
+    enum:
+      - zinitix,bt402
+      - zinitix,bt403
+      - zinitix,bt404
+      - zinitix,bt412
+      - zinitix,bt413
+      - zinitix,bt431
+      - zinitix,bt432
+      - zinitix,bt531
+      - zinitix,bt532
+      - zinitix,bt538
+      - zinitix,bt541
+      - zinitix,bt548
+      - zinitix,bt554
+      - zinitix,at100
+
+  reg:
+    description: I2C address on the I2C bus
+
+  clock-frequency:
+    description: I2C client clock frequency, defined for host when using
+      the device on the I2C bus
+    minimum: 0
+    maximum: 400000
+
+  interrupts:
+    description: Interrupt to host
+    maxItems: 1
+
+  vcca-supply:
+    description: Analog power supply regulator on the VCCA pin
+
+  vdd-supply:
+    description: Digital power supply regulator on the VDD pin.
+      In older device trees this can be the accidental name for the analog
+      supply on the VCCA pin, and in that case the deprecated vddo-supply is
+      used for the digital power supply.
+
+  vddo-supply:
+    description: Deprecated name for the digital power supply, use vdd-supply
+      as this reflects the real name of the pin. If this supply is present,
+      the vdd-supply represents VCCA instead of VDD. Implementers should first
+      check for this property, and if it is present assume that the vdd-supply
+      represents the analog supply.
+    deprecated: true
+
+  reset-gpios:
+    description: Reset line for the touchscreen, should be tagged
+      as GPIO_ACTIVE_LOW
+
+  zinitix,mode:
+    description: Mode of reporting touch points. Some modes may not work
+      with a particular ts firmware for unknown reasons. Available modes are
+      1 and 2. Mode 2 is the default and preferred.
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [1, 2]
+
+  touchscreen-size-x: true
+  touchscreen-size-y: true
+  touchscreen-fuzz-x: true
+  touchscreen-fuzz-y: true
+
+additionalProperties: false
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - touchscreen-size-x
+  - touchscreen-size-y
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+    #include <dt-bindings/gpio/gpio.h>
+    i2c {
+      #address-cells = <1>;
+      #size-cells = <0>;
+
+      touchscreen@20 {
+        compatible = "zinitix,bt541";
+        reg = <0x20>;
+        interrupt-parent = <&gpio>;
+        interrupts = <13 IRQ_TYPE_EDGE_FALLING>;
+        vcca-supply = <&reg_vcca_tsp>;
+        vdd-supply = <&reg_vdd_tsp>;
+        touchscreen-size-x = <540>;
+        touchscreen-size-y = <960>;
+        zinitix,mode = <2>;
+      };
+    };

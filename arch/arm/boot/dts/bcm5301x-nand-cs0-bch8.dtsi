@@ -1,0 +1,17 @@
+// SPDX-License-Identifier: GPL-2.0-or-later OR MIT
+/*
+ * Broadcom BCM470X / BCM5301X Nand chip defaults.
+ *
+ * This should be included if the NAND controller is on chip select 0
+ * and uses 8 bit ECC.
+ *
+ * Copyright (C) 2015 Hauke Mehrtens <hauke@hauke-m.de>
+ */
+
+#include "bcm5301x-nand-cs0.dtsi"
+
+&nandcs {
+	nand-ecc-algo = "bch";
+	nand-ecc-strength = <8>;
+	nand-ecc-step-size = <512>;
+};

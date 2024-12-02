@@ -1,0 +1,48 @@
+// SPDX-License-Identifier: (GPL-2.0-or-later OR MIT)
+/*
+ * Copyright 2018-2022 TQ-Systems GmbH
+ * Author: Markus Niebel <Markus.Niebel@tq-group.com>
+ */
+
+/*
+ * Common for
+ * - TQMa6ULxL
+ * - TQMa6ULLxL
+ */
+
+/ {
+	reg_vin: reg-vin {
+		compatible = "regulator-fixed";
+		regulator-name = "VIN";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-always-on;
+	};
+};
+
+&m24c64_50 {
+	vcc-supply = <&reg_vin>;
+};
+
+&m24c02_52 {
+	vcc-supply = <&reg_vin>;
+};
+
+/* eMMC */
+&usdhc2 {
+	vmmc-supply = <&reg_vin>;
+	vqmmc-supply = <&reg_vldo4>;
+};
+
+&iomuxc {
+	pinctrl_qspi: qspigrp {
+		fsl,pins = <
+			MX6UL_PAD_NAND_WP_B__QSPI_A_SCLK      0x70a9
+			MX6UL_PAD_NAND_READY_B__QSPI_A_DATA00 0x70a9
+			MX6UL_PAD_NAND_CE0_B__QSPI_A_DATA01   0x70a9
+			MX6UL_PAD_NAND_CE1_B__QSPI_A_DATA02   0x70a9
+			MX6UL_PAD_NAND_CLE__QSPI_A_DATA03     0x70a9
+			MX6UL_PAD_NAND_DQS__QSPI_A_SS0_B      0x70a1
+		>;
+	};
+};

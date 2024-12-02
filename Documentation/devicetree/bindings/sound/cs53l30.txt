@@ -1,0 +1,44 @@
+CS53L30 audio CODEC
+
+Required properties:
+
+  - compatible : "cirrus,cs53l30"
+
+  - reg : the I2C address of the device
+
+  - VA-supply, VP-supply : power supplies for the device,
+    as covered in Documentation/devicetree/bindings/regulator/regulator.txt.
+
+Optional properties:
+
+  - reset-gpios : a GPIO spec for the reset pin.
+
+  - mute-gpios : a GPIO spec for the MUTE pin. The active state can be either
+		 GPIO_ACTIVE_HIGH or GPIO_ACTIVE_LOW, which would be handled
+		 by the driver automatically.
+
+  - cirrus,micbias-lvl : Set the output voltage level on the MICBIAS Pin.
+			 0 = Hi-Z
+			 1 = 1.80 V
+			 2 = 2.75 V
+
+  - cirrus,use-sdout2 : This is a boolean property. If present, it indicates
+			the hardware design connects both SDOUT1 and SDOUT2
+			pins to output data. Otherwise, it indicates that
+			only SDOUT1 is connected for data output.
+			* CS53l30 supports 4-channel data output in the same
+			* frame using two different ways:
+			* 1) Normal I2S mode on two data pins -- each SDOUT
+			*    carries 2-channel data in the same time.
+			* 2) TDM mode on one signle data pin -- SDOUT1 carries
+			*    4-channel data per frame.
+
+Example:
+
+codec: cs53l30@48 {
+	compatible = "cirrus,cs53l30";
+	reg = <0x48>;
+	reset-gpios = <&gpio 54 0>;
+	VA-supply = <&cs53l30_va>;
+	VP-supply = <&cs53l30_vp>;
+};

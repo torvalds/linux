@@ -1,0 +1,19 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config PHY_TEGRA_XUSB
+	tristate "NVIDIA Tegra XUSB pad controller driver"
+	depends on ARCH_TEGRA && USB_SUPPORT
+	select USB_COMMON
+	select USB_CONN_GPIO
+	select USB_PHY
+	help
+	  Choose this option if you have an NVIDIA Tegra SoC.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called phy-tegra-xusb.
+
+config PHY_TEGRA194_P2U
+	tristate "NVIDIA Tegra194 PIPE2UPHY PHY driver"
+	depends on ARCH_TEGRA_194_SOC || COMPILE_TEST
+	select GENERIC_PHY
+	help
+	  Enable this to support the P2U (PIPE to UPHY) that is part of Tegra 19x SOCs.

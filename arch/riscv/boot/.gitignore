@@ -1,0 +1,8 @@
+# SPDX-License-Identifier: GPL-2.0-only
+Image
+Image.*
+loader
+loader.lds
+loader.bin
+vmlinuz*
+xipImage

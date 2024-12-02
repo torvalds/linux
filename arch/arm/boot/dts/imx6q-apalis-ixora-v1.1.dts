@@ -1,0 +1,37 @@
+// SPDX-License-Identifier: GPL-2.0-or-later OR MIT
+/*
+ * Copyright 2014-2022 Toradex
+ * Copyright 2012 Freescale Semiconductor, Inc.
+ * Copyright 2011 Linaro Ltd.
+ */
+
+#include "imx6q-apalis-ixora-v1.2.dts"
+
+/ {
+	model = "Toradex Apalis iMX6Q/D Module on Ixora Carrier Board V1.1";
+	compatible = "toradex,apalis_imx6q-ixora-v1.1", "toradex,apalis_imx6q",
+		     "fsl,imx6q";
+
+
+};
+
+/delete-node/ &eeprom;
+/delete-node/ &reg_3v3_vmmc;
+/delete-node/ &reg_can1_supply;
+/delete-node/ &reg_can2_supply;
+
+&can1 {
+	/delete-property/ xceiver-supply;
+};
+
+&can2 {
+	/delete-property/ xceiver-supply;
+};
+
+/* MMC1 */
+&usdhc1 {
+	/delete-property/ cap-power-off-card;
+	/delete-property/ pinctrl-1;
+	/delete-property/ vmmc-supply;
+	pinctrl-names = "default";
+};

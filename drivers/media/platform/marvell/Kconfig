@@ -1,0 +1,35 @@
+# SPDX-License-Identifier: GPL-2.0-only
+
+comment "Marvell media platform drivers"
+
+config VIDEO_CAFE_CCIC
+	tristate "Marvell 88ALP01 (Cafe) CMOS Camera Controller support"
+	depends on V4L_PLATFORM_DRIVERS
+	depends on PCI && I2C && VIDEO_DEV
+	depends on COMMON_CLK
+	select VIDEO_OV7670 if MEDIA_SUBDRV_AUTOSELECT && VIDEO_CAMERA_SENSOR
+	select VIDEOBUF2_VMALLOC
+	select VIDEOBUF2_DMA_CONTIG
+	select VIDEOBUF2_DMA_SG
+	help
+	  This is a video4linux2 driver for the Marvell 88ALP01 integrated
+	  CMOS camera controller.  This is the controller found on first-
+	  generation OLPC systems.
+
+config VIDEO_MMP_CAMERA
+	tristate "Marvell Armada 610 integrated camera controller support"
+	depends on V4L_PLATFORM_DRIVERS
+	depends on I2C && VIDEO_DEV
+	depends on ARCH_MMP || COMPILE_TEST
+	depends on COMMON_CLK
+	select VIDEO_OV7670 if MEDIA_SUBDRV_AUTOSELECT && VIDEO_CAMERA_SENSOR
+	select I2C_GPIO
+	select VIDEOBUF2_VMALLOC
+	select VIDEOBUF2_DMA_CONTIG
+	select VIDEOBUF2_DMA_SG
+	help
+	  This is a Video4Linux2 driver for the integrated camera
+	  controller found on Marvell Armada 610 application
+	  processors (and likely beyond).  This is the controller found
+	  in OLPC XO 1.75 systems.
+

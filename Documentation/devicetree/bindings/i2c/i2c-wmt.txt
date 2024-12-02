@@ -1,0 +1,24 @@
+* Wondermedia I2C Controller
+
+Required properties :
+
+ - compatible : should be "wm,wm8505-i2c"
+ - reg : Offset and length of the register set for the device
+ - interrupts : <IRQ> where IRQ is the interrupt number
+ - clocks : phandle to the I2C clock source
+
+Optional properties :
+
+ - clock-frequency : desired I2C bus clock frequency in Hz.
+	Valid values are 100000 and 400000.
+	Default to 100000 if not specified, or invalid value.
+
+Example :
+
+	i2c_0: i2c@d8280000 {
+		compatible = "wm,wm8505-i2c";
+		reg = <0xd8280000 0x1000>;
+		interrupts = <19>;
+		clocks = <&clki2c0>;
+		clock-frequency = <400000>;
+	};

@@ -1,0 +1,44 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/rng/samsung,exynos5250-trng.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Samsung Exynos SoC True Random Number Generator
+
+maintainers:
+  - Krzysztof Kozlowski <krzk@kernel.org>
+  - Łukasz Stelmach <l.stelmach@samsung.com>
+
+properties:
+  compatible:
+    const: samsung,exynos5250-trng
+
+  clocks:
+    maxItems: 1
+
+  clock-names:
+    items:
+      - const: secss
+
+  reg:
+    maxItems: 1
+
+required:
+  - compatible
+  - clocks
+  - clock-names
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/exynos5250.h>
+
+    rng@10830600 {
+        compatible = "samsung,exynos5250-trng";
+        reg = <0x10830600 0x100>;
+        clocks = <&clock CLK_SSS>;
+        clock-names = "secss";
+    };

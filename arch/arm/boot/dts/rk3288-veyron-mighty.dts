@@ -1,0 +1,34 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Google Veyron Mighty Rev 1+ board device tree source
+ *
+ * Copyright 2015 Google, Inc
+ */
+
+/dts-v1/;
+
+#include "rk3288-veyron-jaq.dts"
+
+/ {
+	model = "Google Mighty";
+	compatible = "google,veyron-mighty-rev5", "google,veyron-mighty-rev4",
+		     "google,veyron-mighty-rev3", "google,veyron-mighty-rev2",
+		     "google,veyron-mighty-rev1", "google,veyron-mighty",
+		     "google,veyron", "rockchip,rk3288";
+};
+
+&sdmmc {
+	pinctrl-0 = <&sdmmc_clk &sdmmc_cmd &sdmmc_cd_disabled &sdmmc_cd_pin
+			&sdmmc_wp_pin &sdmmc_bus4>;
+	wp-gpios = <&gpio7 10 GPIO_ACTIVE_HIGH>;
+
+	/delete-property/ disable-wp;
+};
+
+&pinctrl {
+	sdmmc {
+		sdmmc_wp_pin: sdmmc-wp-pin {
+			rockchip,pins = <7 RK_PB2 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
+};

@@ -1,0 +1,11 @@
+# SPDX-License-Identifier: GPL-2.0-only
+menuconfig FSL_DPAA_ETH
+	tristate "DPAA Ethernet"
+	depends on FSL_DPAA && FSL_FMAN
+	select PHYLIB
+	select FIXED_PHY
+	help
+	  Data Path Acceleration Architecture Ethernet driver,
+	  supporting the Freescale QorIQ chips.
+	  Depends on Freescale Buffer Manager and Queue Manager
+	  driver and Frame Manager Driver.

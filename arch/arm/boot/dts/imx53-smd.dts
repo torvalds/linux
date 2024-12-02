@@ -1,0 +1,346 @@
+// SPDX-License-Identifier: GPL-2.0+
+//
+// Copyright 2011 Freescale Semiconductor, Inc.
+// Copyright 2011 Linaro Ltd.
+
+/dts-v1/;
+#include <dt-bindings/input/input.h>
+#include "imx53.dtsi"
+
+/ {
+	model = "Freescale i.MX53 Smart Mobile Reference Design Board";
+	compatible = "fsl,imx53-smd", "fsl,imx53";
+
+	memory@70000000 {
+		device_type = "memory";
+		reg = <0x70000000 0x40000000>;
+	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+
+		key-volume-up {
+			label = "Volume Up";
+			gpios = <&gpio2 14 0>;
+			linux,code = <KEY_VOLUMEUP>;
+		};
+
+		key-volume-down {
+			label = "Volume Down";
+			gpios = <&gpio2 15 0>;
+			linux,code = <KEY_VOLUMEDOWN>;
+		};
+	};
+};
+
+&esdhc1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_esdhc1>;
+	cd-gpios = <&gpio3 13 GPIO_ACTIVE_LOW>;
+	wp-gpios = <&gpio4 11 GPIO_ACTIVE_HIGH>;
+	status = "okay";
+};
+
+&esdhc2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_esdhc2>;
+	non-removable;
+	status = "okay";
+};
+
+&uart3 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart3>;
+	uart-has-rtscts;
+	status = "okay";
+};
+
+&ecspi1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_ecspi1>;
+	cs-gpios = <&gpio2 30 GPIO_ACTIVE_LOW>, <&gpio3 19 GPIO_ACTIVE_LOW>;
+	status = "okay";
+
+	zigbee: mc1323@0 {
+		compatible = "fsl,mc1323";
+		spi-max-frequency = <8000000>;
+		reg = <0>;
+	};
+
+	flash: m25p32@1 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "st,m25p32", "st,m25p", "jedec,spi-nor";
+		spi-max-frequency = <20000000>;
+		reg = <1>;
+
+		partition@0 {
+			label = "U-Boot";
+			reg = <0x0 0x40000>;
+			read-only;
+		};
+
+		partition@40000 {
+			label = "Kernel";
+			reg = <0x40000 0x3c0000>;
+		};
+	};
+};
+
+&esdhc3 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_esdhc3>;
+	non-removable;
+	status = "okay";
+};
+
+&iomuxc {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_hog>;
+
+	imx53-smd {
+		pinctrl_hog: hoggrp {
+			fsl,pins = <
+				MX53_PAD_PATA_DATA14__GPIO2_14 0x80000000
+				MX53_PAD_PATA_DATA15__GPIO2_15 0x80000000
+				MX53_PAD_EIM_EB2__GPIO2_30     0x80000000
+				MX53_PAD_EIM_DA13__GPIO3_13    0x80000000
+				MX53_PAD_EIM_D19__GPIO3_19     0x80000000
+				MX53_PAD_KEY_ROW2__GPIO4_11    0x80000000
+				MX53_PAD_PATA_DA_0__GPIO7_6    0x80000000
+			>;
+		};
+
+		pinctrl_ecspi1: ecspi1grp {
+			fsl,pins = <
+				MX53_PAD_EIM_D16__ECSPI1_SCLK		0x80000000
+				MX53_PAD_EIM_D17__ECSPI1_MISO		0x80000000
+				MX53_PAD_EIM_D18__ECSPI1_MOSI		0x80000000
+			>;
+		};
+
+		pinctrl_esdhc1: esdhc1grp {
+			fsl,pins = <
+				MX53_PAD_SD1_DATA0__ESDHC1_DAT0		0x1d5
+				MX53_PAD_SD1_DATA1__ESDHC1_DAT1		0x1d5
+				MX53_PAD_SD1_DATA2__ESDHC1_DAT2		0x1d5
+				MX53_PAD_SD1_DATA3__ESDHC1_DAT3		0x1d5
+				MX53_PAD_SD1_CMD__ESDHC1_CMD		0x1d5
+				MX53_PAD_SD1_CLK__ESDHC1_CLK		0x1d5
+			>;
+		};
+
+		pinctrl_esdhc2: esdhc2grp {
+			fsl,pins = <
+				MX53_PAD_SD2_CMD__ESDHC2_CMD		0x1d5
+				MX53_PAD_SD2_CLK__ESDHC2_CLK		0x1d5
+				MX53_PAD_SD2_DATA0__ESDHC2_DAT0		0x1d5
+				MX53_PAD_SD2_DATA1__ESDHC2_DAT1		0x1d5
+				MX53_PAD_SD2_DATA2__ESDHC2_DAT2		0x1d5
+				MX53_PAD_SD2_DATA3__ESDHC2_DAT3		0x1d5
+			>;
+		};
+
+		pinctrl_esdhc3: esdhc3grp {
+			fsl,pins = <
+				MX53_PAD_PATA_DATA8__ESDHC3_DAT0	0x1d5
+				MX53_PAD_PATA_DATA9__ESDHC3_DAT1	0x1d5
+				MX53_PAD_PATA_DATA10__ESDHC3_DAT2	0x1d5
+				MX53_PAD_PATA_DATA11__ESDHC3_DAT3	0x1d5
+				MX53_PAD_PATA_DATA0__ESDHC3_DAT4	0x1d5
+				MX53_PAD_PATA_DATA1__ESDHC3_DAT5	0x1d5
+				MX53_PAD_PATA_DATA2__ESDHC3_DAT6	0x1d5
+				MX53_PAD_PATA_DATA3__ESDHC3_DAT7	0x1d5
+				MX53_PAD_PATA_RESET_B__ESDHC3_CMD	0x1d5
+				MX53_PAD_PATA_IORDY__ESDHC3_CLK		0x1d5
+			>;
+		};
+
+		pinctrl_fec: fecgrp {
+			fsl,pins = <
+				MX53_PAD_FEC_MDC__FEC_MDC		0x80000000
+				MX53_PAD_FEC_MDIO__FEC_MDIO		0x80000000
+				MX53_PAD_FEC_REF_CLK__FEC_TX_CLK	0x80000000
+				MX53_PAD_FEC_RX_ER__FEC_RX_ER		0x80000000
+				MX53_PAD_FEC_CRS_DV__FEC_RX_DV		0x80000000
+				MX53_PAD_FEC_RXD1__FEC_RDATA_1		0x80000000
+				MX53_PAD_FEC_RXD0__FEC_RDATA_0		0x80000000
+				MX53_PAD_FEC_TX_EN__FEC_TX_EN		0x80000000
+				MX53_PAD_FEC_TXD1__FEC_TDATA_1		0x80000000
+				MX53_PAD_FEC_TXD0__FEC_TDATA_0		0x80000000
+			>;
+		};
+
+		pinctrl_i2c1: i2c1grp {
+			fsl,pins = <
+				MX53_PAD_CSI0_DAT8__I2C1_SDA		0xc0000000
+				MX53_PAD_CSI0_DAT9__I2C1_SCL		0xc0000000
+			>;
+		};
+
+		pinctrl_i2c2: i2c2grp {
+			fsl,pins = <
+				MX53_PAD_KEY_ROW3__I2C2_SDA		0xc0000000
+				MX53_PAD_KEY_COL3__I2C2_SCL		0xc0000000
+			>;
+		};
+
+		pinctrl_ipu_csi0: ipucsi0grp {
+			fsl,pins = <
+				MX53_PAD_CSI0_DAT12__IPU_CSI0_D_12    0x1c4
+				MX53_PAD_CSI0_DAT13__IPU_CSI0_D_13    0x1c4
+				MX53_PAD_CSI0_DAT14__IPU_CSI0_D_14    0x1c4
+				MX53_PAD_CSI0_DAT15__IPU_CSI0_D_15    0x1c4
+				MX53_PAD_CSI0_DAT16__IPU_CSI0_D_16    0x1c4
+				MX53_PAD_CSI0_DAT17__IPU_CSI0_D_17    0x1c4
+				MX53_PAD_CSI0_DAT18__IPU_CSI0_D_18    0x1c4
+				MX53_PAD_CSI0_DAT19__IPU_CSI0_D_19    0x1c4
+				MX53_PAD_CSI0_PIXCLK__IPU_CSI0_PIXCLK 0x1e4
+				MX53_PAD_CSI0_VSYNC__IPU_CSI0_VSYNC   0x1e4
+				MX53_PAD_CSI0_MCLK__IPU_CSI0_HSYNC    0x1e4
+				MX53_PAD_CSI0_DATA_EN__IPU_CSI0_DATA_EN 0x1e4
+			>;
+		};
+
+		pinctrl_ov5642: ov5642grp {
+			fsl,pins = <
+				MX53_PAD_NANDF_WP_B__GPIO6_9   0x1e4
+				MX53_PAD_NANDF_RB0__GPIO6_10   0x1e4
+				MX53_PAD_GPIO_0__CCM_SSI_EXT1_CLK 0x1c4
+			>;
+		};
+
+		pinctrl_uart1: uart1grp {
+			fsl,pins = <
+				MX53_PAD_CSI0_DAT10__UART1_TXD_MUX	0x1e4
+				MX53_PAD_CSI0_DAT11__UART1_RXD_MUX	0x1e4
+			>;
+		};
+
+		pinctrl_uart2: uart2grp {
+			fsl,pins = <
+				MX53_PAD_PATA_BUFFER_EN__UART2_RXD_MUX	0x1e4
+				MX53_PAD_PATA_DMARQ__UART2_TXD_MUX	0x1e4
+			>;
+		};
+
+		pinctrl_uart3: uart3grp {
+			fsl,pins = <
+				MX53_PAD_PATA_CS_0__UART3_TXD_MUX	0x1e4
+				MX53_PAD_PATA_CS_1__UART3_RXD_MUX	0x1e4
+				MX53_PAD_PATA_DA_1__UART3_CTS		0x1e4
+				MX53_PAD_PATA_DA_2__UART3_RTS		0x1e4
+			>;
+		};
+	};
+};
+
+&uart1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart1>;
+	status = "okay";
+};
+
+&uart2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart2>;
+	status = "okay";
+};
+
+&i2c2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_i2c2>;
+	status = "okay";
+
+	codec: sgtl5000@a {
+		compatible = "fsl,sgtl5000";
+		reg = <0x0a>;
+	};
+
+	magnetometer: mag3110@e {
+		compatible = "fsl,mag3110";
+		reg = <0x0e>;
+	};
+
+	touchkey: mpr121@5a {
+		compatible = "fsl,mpr121";
+		reg = <0x5a>;
+	};
+};
+
+&i2c1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_i2c1>;
+	status = "okay";
+
+	accelerometer: mma8450@1c {
+		compatible = "fsl,mma8450";
+		reg = <0x1c>;
+	};
+
+	camera: ov5642@3c {
+		compatible = "ovti,ov5642";
+		reg = <0x3c>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_ov5642>;
+		assigned-clocks = <&clks IMX5_CLK_SSI_EXT1_SEL>,
+				  <&clks IMX5_CLK_SSI_EXT1_COM_SEL>;
+		assigned-clock-parents = <&clks IMX5_CLK_PLL2_SW>,
+					 <&clks IMX5_CLK_SSI_EXT1_PODF>;
+		assigned-clock-rates = <0>, <24000000>;
+		clocks = <&clks IMX5_CLK_SSI_EXT1_GATE>;
+		clock-names = "xclk";
+		DVDD-supply = <&ldo9_reg>;
+		AVDD-supply = <&ldo7_reg>;
+		reset-gpios = <&gpio6 9 GPIO_ACTIVE_LOW>;
+		powerdown-gpios = <&gpio6 10 GPIO_ACTIVE_HIGH>;
+
+		port {
+			ov5642_to_ipu_csi0: endpoint {
+				remote-endpoint = <&ipu_csi0_from_parallel_sensor>;
+				bus-width = <8>;
+				hsync-active = <1>;
+				vsync-active = <1>;
+			};
+		};
+	};
+
+	pmic: dialog@48 {
+		compatible = "dlg,da9053", "dlg,da9052";
+		reg = <0x48>;
+		interrupt-parent = <&gpio7>;
+		interrupts = <11 IRQ_TYPE_LEVEL_LOW>;
+
+		regulators {
+			ldo7_reg: ldo7 {
+				regulator-min-microvolt = <1200000>;
+				regulator-max-microvolt = <3600000>;
+			};
+
+			ldo9_reg: ldo9 {
+				regulator-min-microvolt = <1250000>;
+				regulator-max-microvolt = <3650000>;
+			};
+		};
+	};
+};
+
+&fec {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_fec>;
+	phy-mode = "rmii";
+	phy-reset-gpios = <&gpio7 6 GPIO_ACTIVE_LOW>;
+	status = "okay";
+};
+
+&ipu_csi0_from_parallel_sensor {
+	remote-endpoint = <&ov5642_to_ipu_csi0>;
+	data-shift = <12>; /* Lines 19:12 used */
+	hsync-active = <1>;
+	vsync-active = <1>;
+};
+
+&ipu_csi0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_ipu_csi0>;
+};

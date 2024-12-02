@@ -1,0 +1,47 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/reset/st,stih407-picophyreset.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: STMicroelectronics STi family Sysconfig Picophy SoftReset Controller
+
+maintainers:
+  - Peter Griffin <peter.griffin@linaro.org>
+
+description: |
+  This binding describes a reset controller device that is used to enable and
+  disable on-chip PicoPHY USB2 phy(s) using "softreset" control bits found in
+  the STi family SoC system configuration registers.
+
+  The actual action taken when softreset is asserted is hardware dependent.
+  However, when asserted it may not be possible to access the hardware's
+  registers and after an assert/deassert sequence the hardware's previous state
+  may no longer be valid.
+
+properties:
+  compatible:
+    const: st,stih407-picophyreset
+
+  '#reset-cells':
+    const: 1
+
+required:
+  - compatible
+  - '#reset-cells'
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/reset/stih407-resets.h>
+
+    picophyreset: picophyreset-controller {
+        compatible = "st,stih407-picophyreset";
+        #reset-cells = <1>;
+    };
+
+    // Specifying picophyreset control of devices
+    usb2_picophy0: usbpicophy {
+        resets = <&picophyreset STIH407_PICOPHY0_RESET>;
+    };

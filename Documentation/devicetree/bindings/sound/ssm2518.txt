@@ -1,0 +1,20 @@
+SSM2518 audio amplifier
+
+This device supports I2C only.
+
+Required properties:
+  - compatible : Must be "adi,ssm2518"
+  - reg : the I2C address of the device. This will either be 0x34 (ADDR pin low)
+	or 0x35 (ADDR pin high)
+
+Optional properties:
+  - gpios : GPIO connected to the nSD pin. If the property is not present it is
+	        assumed that the nSD pin is hardwired to always on.
+
+Example:
+
+	ssm2518: ssm2518@34 {
+		compatible = "adi,ssm2518";
+		reg = <0x34>;
+		gpios = <&gpio 5 0>;
+	};

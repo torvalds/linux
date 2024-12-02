@@ -1,0 +1,438 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Device Tree Source for Keystone 2 clock tree
+ *
+ * Copyright (C) 2013-2017 Texas Instruments Incorporated - http://www.ti.com/
+ */
+
+clocks {
+	#address-cells = <1>;
+	#size-cells = <1>;
+	ranges;
+
+	mainmuxclk: mainmuxclk@2310108 {
+		#clock-cells = <0>;
+		compatible = "ti,keystone,pll-mux-clock";
+		clocks = <&mainpllclk>, <&refclksys>;
+		reg = <0x02310108 4>;
+		bit-shift = <23>;
+		bit-mask = <1>;
+		clock-output-names = "mainmuxclk";
+	};
+
+	chipclk1: chipclk1 {
+		#clock-cells = <0>;
+		compatible = "fixed-factor-clock";
+		clocks = <&mainmuxclk>;
+		clock-div = <1>;
+		clock-mult = <1>;
+		clock-output-names = "chipclk1";
+	};
+
+	chipclk1rstiso: chipclk1rstiso {
+		#clock-cells = <0>;
+		compatible = "fixed-factor-clock";
+		clocks = <&mainmuxclk>;
+		clock-div = <1>;
+		clock-mult = <1>;
+		clock-output-names = "chipclk1rstiso";
+	};
+
+	gemtraceclk: gemtraceclk@2310120 {
+		#clock-cells = <0>;
+		compatible = "ti,keystone,pll-divider-clock";
+		clocks = <&mainmuxclk>;
+		reg = <0x02310120 4>;
+		bit-shift = <0>;
+		bit-mask = <8>;
+		clock-output-names = "gemtraceclk";
+	};
+
+	chipstmxptclk: chipstmxptclk@2310164 {
+		#clock-cells = <0>;
+		compatible = "ti,keystone,pll-divider-clock";
+		clocks = <&mainmuxclk>;
+		reg = <0x02310164 4>;
+		bit-shift = <0>;
+		bit-mask = <8>;
+		clock-output-names = "chipstmxptclk";
+	};
+
+	chipclk12: chipclk12 {
+		#clock-cells = <0>;
+		compatible = "fixed-factor-clock";
+		clocks = <&chipclk1>;
+		clock-div = <2>;
+		clock-mult = <1>;
+		clock-output-names = "chipclk12";
+	};
+
+	chipclk13: chipclk13 {
+		#clock-cells = <0>;
+		compatible = "fixed-factor-clock";
+		clocks = <&chipclk1>;
+		clock-div = <3>;
+		clock-mult = <1>;
+		clock-output-names = "chipclk13";
+	};
+
+	paclk13: paclk13 {
+		#clock-cells = <0>;
+		compatible = "fixed-factor-clock";
+		clocks = <&papllclk>;
+		clock-div = <3>;
+		clock-mult = <1>;
+		clock-output-names = "paclk13";
+	};
+
+	chipclk14: chipclk14 {
+		#clock-cells = <0>;
+		compatible = "fixed-factor-clock";
+		clocks = <&chipclk1>;
+		clock-div = <4>;
+		clock-mult = <1>;
+		clock-output-names = "chipclk14";
+	};
+
+	chipclk16: chipclk16 {
+		#clock-cells = <0>;
+		compatible = "fixed-factor-clock";
+		clocks = <&chipclk1>;
+		clock-div = <6>;
+		clock-mult = <1>;
+		clock-output-names = "chipclk16";
+	};
+
+	chipclk112: chipclk112 {
+		#clock-cells = <0>;
+		compatible = "fixed-factor-clock";
+		clocks = <&chipclk1>;
+		clock-div = <12>;
+		clock-mult = <1>;
+		clock-output-names = "chipclk112";
+	};
+
+	chipclk124: chipclk124 {
+		#clock-cells = <0>;
+		compatible = "fixed-factor-clock";
+		clocks = <&chipclk1>;
+		clock-div = <24>;
+		clock-mult = <1>;
+		clock-output-names = "chipclk114";
+	};
+
+	chipclk1rstiso13: chipclk1rstiso13 {
+		#clock-cells = <0>;
+		compatible = "fixed-factor-clock";
+		clocks = <&chipclk1rstiso>;
+		clock-div = <3>;
+		clock-mult = <1>;
+		clock-output-names = "chipclk1rstiso13";
+	};
+
+	chipclk1rstiso14: chipclk1rstiso14 {
+		#clock-cells = <0>;
+		compatible = "fixed-factor-clock";
+		clocks = <&chipclk1rstiso>;
+		clock-div = <4>;
+		clock-mult = <1>;
+		clock-output-names = "chipclk1rstiso14";
+	};
+
+	chipclk1rstiso16: chipclk1rstiso16 {
+		#clock-cells = <0>;
+		compatible = "fixed-factor-clock";
+		clocks = <&chipclk1rstiso>;
+		clock-div = <6>;
+		clock-mult = <1>;
+		clock-output-names = "chipclk1rstiso16";
+	};
+
+	chipclk1rstiso112: chipclk1rstiso112 {
+		#clock-cells = <0>;
+		compatible = "fixed-factor-clock";
+		clocks = <&chipclk1rstiso>;
+		clock-div = <12>;
+		clock-mult = <1>;
+		clock-output-names = "chipclk1rstiso112";
+	};
+
+	clkmodrst0: clkmodrst0@2350000 {
+		#clock-cells = <0>;
+		compatible = "ti,keystone,psc-clock";
+		clocks = <&chipclk16>;
+		clock-output-names = "modrst0";
+		reg = <0x02350000 0xb00>, <0x02350000 0x400>;
+		reg-names = "control", "domain";
+		domain-id = <0>;
+	};
+
+
+	clkusb: clkusb@2350008 {
+		#clock-cells = <0>;
+		compatible = "ti,keystone,psc-clock";
+		clocks = <&chipclk16>;
+		clock-output-names = "usb";
+		reg = <0x02350008 0xb00>, <0x02350000 0x400>;
+		reg-names = "control", "domain";
+		domain-id = <0>;
+	};
+
+	clkaemifspi: clkaemifspi@235000c {
+		#clock-cells = <0>;
+		compatible = "ti,keystone,psc-clock";
+		clocks = <&chipclk16>;
+		clock-output-names = "aemif-spi";
+		reg = <0x0235000c 0xb00>, <0x02350000 0x400>;
+		reg-names = "control", "domain";
+		domain-id = <0>;
+	};
+
+
+	clkdebugsstrc: clkdebugsstrc@2350014 {
+		#clock-cells = <0>;
+		compatible = "ti,keystone,psc-clock";
+		clocks = <&chipclk13>;
+		clock-output-names = "debugss-trc";
+		reg = <0x02350014 0xb00>, <0x02350000 0x400>;
+		reg-names = "control", "domain";
+		domain-id = <1>;
+	};
+
+	clktetbtrc: clktetbtrc@2350018 {
+		#clock-cells = <0>;
+		compatible = "ti,keystone,psc-clock";
+		clocks = <&chipclk13>;
+		clock-output-names = "tetb-trc";
+		reg = <0x02350018 0xb00>, <0x02350004 0x400>;
+		reg-names = "control", "domain";
+		domain-id = <1>;
+	};
+
+	clkpa: clkpa@235001c {
+		#clock-cells = <0>;
+		compatible = "ti,keystone,psc-clock";
+		clocks = <&paclk13>;
+		clock-output-names = "pa";
+		reg = <0x0235001c 0xb00>, <0x02350008 0x400>;
+		reg-names = "control", "domain";
+		domain-id = <2>;
+	};
+
+	clkcpgmac: clkcpgmac@2350020 {
+		#clock-cells = <0>;
+		compatible = "ti,keystone,psc-clock";
+		clocks = <&clkpa>;
+		clock-output-names = "cpgmac";
+		reg = <0x02350020 0xb00>, <0x02350008 0x400>;
+		reg-names = "control", "domain";
+		domain-id = <2>;
+	};
+
+	clksa: clksa@2350024 {
+		#clock-cells = <0>;
+		compatible = "ti,keystone,psc-clock";
+		clocks = <&clkpa>;
+		clock-output-names = "sa";
+		reg = <0x02350024 0xb00>, <0x02350008 0x400>;
+		reg-names = "control", "domain";
+		domain-id = <2>;
+	};
+
+	clkpcie: clkpcie@2350028 {
+		#clock-cells = <0>;
+		compatible = "ti,keystone,psc-clock";
+		clocks = <&chipclk12>;
+		clock-output-names = "pcie";
+		reg = <0x02350028 0xb00>, <0x0235000c 0x400>;
+		reg-names = "control", "domain";
+		domain-id = <3>;
+	};
+
+	clksr: clksr@2350034 {
+		#clock-cells = <0>;
+		compatible = "ti,keystone,psc-clock";
+		clocks = <&chipclk1rstiso112>;
+		clock-output-names = "sr";
+		reg = <0x02350034 0xb00>, <0x02350018 0x400>;
+		reg-names = "control", "domain";
+		domain-id = <6>;
+	};
+
+	clkgem0: clkgem0@235003c {
+		#clock-cells = <0>;
+		compatible = "ti,keystone,psc-clock";
+		clocks = <&chipclk1>;
+		clock-output-names = "gem0";
+		reg = <0x0235003c 0xb00>, <0x02350020 0x400>;
+		reg-names = "control", "domain";
+		domain-id = <8>;
+	};
+
+	clkddr30: clkddr30@235005c {
+		#clock-cells = <0>;
+		compatible = "ti,keystone,psc-clock";
+		clocks = <&chipclk12>;
+		clock-output-names = "ddr3-0";
+		reg = <0x0235005c 0xb00>, <0x02350040 0x400>;
+		reg-names = "control", "domain";
+		domain-id = <16>;
+	};
+
+	clkwdtimer0: clkwdtimer0@2350000 {
+		#clock-cells = <0>;
+		compatible = "ti,keystone,psc-clock";
+		clocks = <&clkmodrst0>;
+		clock-output-names = "timer0";
+		reg = <0x02350000 0xb00>, <0x02350000 0x400>;
+		reg-names = "control", "domain";
+		domain-id = <0>;
+	};
+
+	clkwdtimer1: clkwdtimer1@2350000 {
+		#clock-cells = <0>;
+		compatible = "ti,keystone,psc-clock";
+		clocks = <&clkmodrst0>;
+		clock-output-names = "timer1";
+		reg = <0x02350000 0xb00>, <0x02350000 0x400>;
+		reg-names = "control", "domain";
+		domain-id = <0>;
+	};
+
+	clkwdtimer2: clkwdtimer2@2350000 {
+		#clock-cells = <0>;
+		compatible = "ti,keystone,psc-clock";
+		clocks = <&clkmodrst0>;
+		clock-output-names = "timer2";
+		reg = <0x02350000 0xb00>, <0x02350000 0x400>;
+		reg-names = "control", "domain";
+		domain-id = <0>;
+	};
+
+	clkwdtimer3: clkwdtimer3@2350000 {
+		#clock-cells = <0>;
+		compatible = "ti,keystone,psc-clock";
+		clocks = <&clkmodrst0>;
+		clock-output-names = "timer3";
+		reg = <0x02350000 0xb00>, <0x02350000 0x400>;
+		reg-names = "control", "domain";
+		domain-id = <0>;
+	};
+
+	clktimer15: clktimer15@2350000 {
+		#clock-cells = <0>;
+		compatible = "ti,keystone,psc-clock";
+		clocks = <&clkmodrst0>;
+		clock-output-names = "timer15";
+		reg = <0x02350000 0xb00>, <0x02350000 0x400>;
+		reg-names = "control", "domain";
+		domain-id = <0>;
+	};
+
+	clkuart0: clkuart0@2350000 {
+		#clock-cells = <0>;
+		compatible = "ti,keystone,psc-clock";
+		clocks = <&clkmodrst0>;
+		clock-output-names = "uart0";
+		reg = <0x02350000 0xb00>, <0x02350000 0x400>;
+		reg-names = "control", "domain";
+		domain-id = <0>;
+	};
+
+	clkuart1: clkuart1@2350000 {
+		#clock-cells = <0>;
+		compatible = "ti,keystone,psc-clock";
+		clocks = <&clkmodrst0>;
+		clock-output-names = "uart1";
+		reg = <0x02350000 0xb00>, <0x02350000 0x400>;
+		reg-names = "control", "domain";
+		domain-id = <0>;
+	};
+
+	clkaemif: clkaemif@2350000 {
+		#clock-cells = <0>;
+		compatible = "ti,keystone,psc-clock";
+		clocks = <&clkaemifspi>;
+		clock-output-names = "aemif";
+		reg = <0x02350000 0xb00>, <0x02350000 0x400>;
+		reg-names = "control", "domain";
+		domain-id = <0>;
+	};
+
+	clkusim: clkusim@2350000 {
+		#clock-cells = <0>;
+		compatible = "ti,keystone,psc-clock";
+		clocks = <&clkmodrst0>;
+		clock-output-names = "usim";
+		reg = <0x02350000 0xb00>, <0x02350000 0x400>;
+		reg-names = "control", "domain";
+		domain-id = <0>;
+	};
+
+	clki2c: clki2c@2350000 {
+		#clock-cells = <0>;
+		compatible = "ti,keystone,psc-clock";
+		clocks = <&clkmodrst0>;
+		clock-output-names = "i2c";
+		reg = <0x02350000 0xb00>, <0x02350000 0x400>;
+		reg-names = "control", "domain";
+		domain-id = <0>;
+	};
+
+	clkspi: clkspi@2350000 {
+		#clock-cells = <0>;
+		compatible = "ti,keystone,psc-clock";
+		clocks = <&clkaemifspi>;
+		clock-output-names = "spi";
+		reg = <0x02350000 0xb00>, <0x02350000 0x400>;
+		reg-names = "control", "domain";
+		domain-id = <0>;
+	};
+
+	clkgpio: clkgpio@2350000 {
+		#clock-cells = <0>;
+		compatible = "ti,keystone,psc-clock";
+		clocks = <&clkmodrst0>;
+		clock-output-names = "gpio";
+		reg = <0x02350000 0xb00>, <0x02350000 0x400>;
+		reg-names = "control", "domain";
+		domain-id = <0>;
+	};
+
+	clkkeymgr: clkkeymgr@2350000 {
+		#clock-cells = <0>;
+		compatible = "ti,keystone,psc-clock";
+		clocks = <&clkmodrst0>;
+		clock-output-names = "keymgr";
+		reg = <0x02350000 0xb00>, <0x02350000 0x400>;
+		reg-names = "control", "domain";
+		domain-id = <0>;
+	};
+
+	/*
+	 * Below are set of fixed, input clocks definitions,
+	 * for which real frequencies have to be defined in board files.
+	 * Those clocks can be used as reference clocks for some HW modules
+	 * (as cpts, for example) by configuring corresponding clock muxes.
+	 */
+	timi0: timi0 {
+		#clock-cells = <0>;
+		compatible = "fixed-clock";
+		clock-frequency = <0>;
+		clock-output-names = "timi0";
+	};
+
+	timi1: timi1 {
+		#clock-cells = <0>;
+		compatible = "fixed-clock";
+		clock-frequency = <0>;
+		clock-output-names = "timi1";
+	};
+
+	tsrefclk: tsrefclk {
+		#clock-cells = <0>;
+		compatible = "fixed-clock";
+		clock-frequency = <0>;
+		clock-output-names = "tsrefclk";
+	};
+};

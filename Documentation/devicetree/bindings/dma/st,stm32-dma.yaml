@@ -1,0 +1,116 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/dma/st,stm32-dma.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: STMicroelectronics STM32 DMA Controller bindings
+
+description: |
+  The STM32 DMA is a general-purpose direct memory access controller capable of
+  supporting 8 independent DMA channels. Each channel can have up to 8 requests.
+  DMA clients connected to the STM32 DMA controller must use the format
+  described in the dma.txt file, using a four-cell specifier for each
+  channel: a phandle to the DMA controller plus the following four integer cells:
+    1. The channel id
+    2. The request line number
+    3. A 32bit mask specifying the DMA channel configuration which are device
+      dependent:
+        -bit 9: Peripheral Increment Address
+          0x0: no address increment between transfers
+          0x1: increment address between transfers
+        -bit 10: Memory Increment Address
+          0x0: no address increment between transfers
+          0x1: increment address between transfers
+        -bit 15: Peripheral Increment Offset Size
+          0x0: offset size is linked to the peripheral bus width
+          0x1: offset size is fixed to 4 (32-bit alignment)
+        -bit 16-17: Priority level
+          0x0: low
+          0x1: medium
+          0x2: high
+          0x3: very high
+    4. A 32bit bitfield value specifying DMA features which are device dependent:
+       -bit 0-1: DMA FIFO threshold selection
+         0x0: 1/4 full FIFO
+         0x1: 1/2 full FIFO
+         0x2: 3/4 full FIFO
+         0x3: full FIFO
+       -bit 2: DMA direct mode
+         0x0: FIFO mode with threshold selectable with bit 0-1
+         0x1: Direct mode: each DMA request immediately initiates a transfer
+              from/to the memory, FIFO is bypassed.
+       -bit 4: alternative DMA request/acknowledge protocol
+         0x0: Use standard DMA ACK management, where ACK signal is maintained
+              up to the removal of request and transfer completion
+         0x1: Use alternative DMA ACK management, where ACK de-assertion does
+              not wait for the de-assertion of the REQuest, ACK is only managed
+              by transfer completion. This must only be used on channels
+              managing transfers for STM32 USART/UART.
+
+
+maintainers:
+  - Amelie Delaunay <amelie.delaunay@foss.st.com>
+
+allOf:
+  - $ref: "dma-controller.yaml#"
+
+properties:
+  "#dma-cells":
+    const: 4
+
+  compatible:
+    const: st,stm32-dma
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 8
+    description: Should contain all of the per-channel DMA
+      interrupts in ascending order with respect to the
+      DMA channel index.
+
+  resets:
+    maxItems: 1
+
+  st,mem2mem:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description: if defined, it indicates that the controller
+      supports memory-to-memory transfer
+
+required:
+  - compatible
+  - reg
+  - clocks
+  - interrupts
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/clock/stm32mp1-clks.h>
+    #include <dt-bindings/reset/stm32mp1-resets.h>
+    dma-controller@40026400 {
+      compatible = "st,stm32-dma";
+      reg = <0x40026400 0x400>;
+      interrupts = <56>,
+                   <57>,
+                   <58>,
+                   <59>,
+                   <60>,
+                   <68>,
+                   <69>,
+                   <70>;
+      clocks = <&clk_hclk>;
+      #dma-cells = <4>;
+      st,mem2mem;
+      resets = <&rcc 150>;
+      dma-requests = <8>;
+    };
+
+...

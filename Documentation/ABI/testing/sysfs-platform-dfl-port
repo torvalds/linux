@@ -1,0 +1,101 @@
+What:		/sys/bus/platform/devices/dfl-port.0/id
+Date:		June 2018
+KernelVersion:	4.19
+Contact:	Wu Hao <hao.wu@intel.com>
+Description:	Read-only. It returns id of this port. One DFL FPGA device
+		may have more than one port. Userspace could use this id to
+		distinguish different ports under same FPGA device.
+
+What:		/sys/bus/platform/devices/dfl-port.0/afu_id
+Date:		June 2018
+KernelVersion:	4.19
+Contact:	Wu Hao <hao.wu@intel.com>
+Description:	Read-only. User can program different PR bitstreams to FPGA
+		Accelerator Function Unit (AFU) for different functions. It
+		returns uuid which could be used to identify which PR bitstream
+		is programmed in this AFU.
+
+What:		/sys/bus/platform/devices/dfl-port.0/power_state
+Date:		August 2019
+KernelVersion:	5.4
+Contact:	Wu Hao <hao.wu@intel.com>
+Description:	Read-only. It reports the APx (AFU Power) state, different APx
+		means different throttling level. When reading this file, it
+		returns "0" - Normal / "1" - AP1 / "2" - AP2 / "6" - AP6.
+
+What:		/sys/bus/platform/devices/dfl-port.0/ap1_event
+Date:		August 2019
+KernelVersion:	5.4
+Contact:	Wu Hao <hao.wu@intel.com>
+Description:	Read-write. Read this file for AP1 (AFU Power State 1) event.
+		It's used to indicate transient AP1 state. Write 1 to this
+		file to clear AP1 event.
+
+What:		/sys/bus/platform/devices/dfl-port.0/ap2_event
+Date:		August 2019
+KernelVersion:	5.4
+Contact:	Wu Hao <hao.wu@intel.com>
+Description:	Read-write. Read this file for AP2 (AFU Power State 2) event.
+		It's used to indicate transient AP2 state. Write 1 to this
+		file to clear AP2 event.
+
+What:		/sys/bus/platform/devices/dfl-port.0/ltr
+Date:		August 2019
+KernelVersion:	5.4
+Contact:	Wu Hao <hao.wu@intel.com>
+Description:	Read-write. Read or set AFU latency tolerance reporting value.
+		Set ltr to 1 if the AFU can tolerate latency >= 40us or set it
+		to 0 if it is latency sensitive.
+
+What:		/sys/bus/platform/devices/dfl-port.0/userclk_freqcmd
+Date:		August 2019
+KernelVersion:	5.4
+Contact:	Wu Hao <hao.wu@intel.com>
+Description:	Write-only. User writes command to this interface to set
+		userclock to AFU.
+
+What:		/sys/bus/platform/devices/dfl-port.0/userclk_freqsts
+Date:		August 2019
+KernelVersion:	5.4
+Contact:	Wu Hao <hao.wu@intel.com>
+Description:	Read-only. Read this file to get the status of issued command
+		to userclck_freqcmd.
+
+What:		/sys/bus/platform/devices/dfl-port.0/userclk_freqcntrcmd
+Date:		August 2019
+KernelVersion:	5.4
+Contact:	Wu Hao <hao.wu@intel.com>
+Description:	Write-only. User writes command to this interface to set
+		userclock counter.
+
+What:		/sys/bus/platform/devices/dfl-port.0/userclk_freqcntrsts
+Date:		August 2019
+KernelVersion:	5.4
+Contact:	Wu Hao <hao.wu@intel.com>
+Description:	Read-only. Read this file to get the status of issued command
+		to userclck_freqcntrcmd.
+
+What:		/sys/bus/platform/devices/dfl-port.0/errors/errors
+Date:		August 2019
+KernelVersion:	5.4
+Contact:	Wu Hao <hao.wu@intel.com>
+Description:	Read-Write. Read this file to get errors detected on port and
+		Accelerated Function Unit (AFU). Write error code to this file
+		to clear errors. Write fails with -EINVAL if input parsing
+		fails or input error code doesn't match. Write fails with
+		-EBUSY or -ETIMEDOUT if error can't be cleared as hardware
+		in low power state (-EBUSY) or not respoding (-ETIMEDOUT).
+
+What:		/sys/bus/platform/devices/dfl-port.0/errors/first_error
+Date:		August 2019
+KernelVersion:	5.4
+Contact:	Wu Hao <hao.wu@intel.com>
+Description:	Read-only. Read this file to get the first error detected by
+		hardware.
+
+What:		/sys/bus/platform/devices/dfl-port.0/errors/first_malformed_req
+Date:		August 2019
+KernelVersion:	5.4
+Contact:	Wu Hao <hao.wu@intel.com>
+Description:	Read-only. Read this file to get the first malformed request
+		captured by hardware.

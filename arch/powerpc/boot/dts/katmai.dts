@@ -1,0 +1,492 @@
+/*
+ * Device Tree Source for AMCC Katmai eval board
+ *
+ * Copyright (c) 2006, 2007 IBM Corp.
+ * Benjamin Herrenschmidt <benh@kernel.crashing.org>
+ *
+ * Copyright (c) 2006, 2007 IBM Corp.
+ * Josh Boyer <jwboyer@linux.vnet.ibm.com>
+ *
+ * This file is licensed under the terms of the GNU General Public
+ * License version 2.  This program is licensed "as is" without
+ * any warranty of any kind, whether express or implied.
+ */
+
+/dts-v1/;
+
+/ {
+	#address-cells = <2>;
+	#size-cells = <2>;
+	model = "amcc,katmai";
+	compatible = "amcc,katmai";
+	dcr-parent = <&{/cpus/cpu@0}>;
+
+	aliases {
+		ethernet0 = &EMAC0;
+		serial0 = &UART0;
+		serial1 = &UART1;
+		serial2 = &UART2;
+	};
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cpu@0 {
+			device_type = "cpu";
+			model = "PowerPC,440SPe";
+			reg = <0x00000000>;
+			clock-frequency = <0>; /* Filled in by zImage */
+			timebase-frequency = <0>; /* Filled in by zImage */
+			i-cache-line-size = <32>;
+			d-cache-line-size = <32>;
+			i-cache-size = <32768>;
+			d-cache-size = <32768>;
+			dcr-controller;
+			dcr-access-method = "native";
+			reset-type = <2>;	/* Use chip-reset */
+		};
+	};
+
+	memory {
+		device_type = "memory";
+		reg = <0x0 0x00000000 0x0 0x00000000>; /* Filled in by U-Boot */
+	};
+
+	UIC0: interrupt-controller0 {
+		compatible = "ibm,uic-440spe","ibm,uic";
+		interrupt-controller;
+		cell-index = <0>;
+		dcr-reg = <0x0c0 0x009>;
+		#address-cells = <0>;
+		#size-cells = <0>;
+		#interrupt-cells = <2>;
+	};
+
+	UIC1: interrupt-controller1 {
+		compatible = "ibm,uic-440spe","ibm,uic";
+		interrupt-controller;
+		cell-index = <1>;
+		dcr-reg = <0x0d0 0x009>;
+		#address-cells = <0>;
+		#size-cells = <0>;
+		#interrupt-cells = <2>;
+		interrupts = <0x1e 0x4 0x1f 0x4>; /* cascade */
+		interrupt-parent = <&UIC0>;
+	};
+
+	UIC2: interrupt-controller2 {
+		compatible = "ibm,uic-440spe","ibm,uic";
+		interrupt-controller;
+		cell-index = <2>;
+		dcr-reg = <0x0e0 0x009>;
+		#address-cells = <0>;
+		#size-cells = <0>;
+		#interrupt-cells = <2>;
+		interrupts = <0xa 0x4 0xb 0x4>; /* cascade */
+		interrupt-parent = <&UIC0>;
+	};
+
+	UIC3: interrupt-controller3 {
+		compatible = "ibm,uic-440spe","ibm,uic";
+		interrupt-controller;
+		cell-index = <3>;
+		dcr-reg = <0x0f0 0x009>;
+		#address-cells = <0>;
+		#size-cells = <0>;
+		#interrupt-cells = <2>;
+		interrupts = <0x10 0x4 0x11 0x4>; /* cascade */
+		interrupt-parent = <&UIC0>;
+	};
+
+	SDR0: sdr {
+		compatible = "ibm,sdr-440spe";
+		dcr-reg = <0x00e 0x002>;
+	};
+
+	CPR0: cpr {
+		compatible = "ibm,cpr-440spe";
+		dcr-reg = <0x00c 0x002>;
+	};
+
+	MQ0: mq {
+		compatible = "ibm,mq-440spe";
+		dcr-reg = <0x040 0x020>;
+	};
+
+	plb {
+		compatible = "ibm,plb-440spe", "ibm,plb-440gp", "ibm,plb4";
+		#address-cells = <2>;
+		#size-cells = <1>;
+		/*        addr-child     addr-parent    size */
+		ranges = <0x4 0x00100000 0x4 0x00100000 0x00001000
+			  0x4 0x00200000 0x4 0x00200000 0x00000400
+			  0x4 0xe0000000 0x4 0xe0000000 0x20000000
+			  0xc 0x00000000 0xc 0x00000000 0x20000000
+			  0xd 0x00000000 0xd 0x00000000 0x80000000
+			  0xd 0x80000000 0xd 0x80000000 0x80000000
+			  0xe 0x00000000 0xe 0x00000000 0x80000000
+			  0xe 0x80000000 0xe 0x80000000 0x80000000
+			  0xf 0x00000000 0xf 0x00000000 0x80000000
+			  0xf 0x80000000 0xf 0x80000000 0x80000000>;
+		clock-frequency = <0>; /* Filled in by zImage */
+
+		SDRAM0: sdram {
+			compatible = "ibm,sdram-440spe", "ibm,sdram-405gp";
+			dcr-reg = <0x010 0x002>;
+		};
+
+		MAL0: mcmal {
+			compatible = "ibm,mcmal-440spe", "ibm,mcmal2";
+			dcr-reg = <0x180 0x062>;
+			num-tx-chans = <2>;
+			num-rx-chans = <1>;
+			interrupt-parent = <&MAL0>;
+			interrupts = <0x0 0x1 0x2 0x3 0x4>;
+			#interrupt-cells = <1>;
+			#address-cells = <0>;
+			#size-cells = <0>;
+			interrupt-map = </*TXEOB*/ 0x0 &UIC1 0x6 0x4
+					 /*RXEOB*/ 0x1 &UIC1 0x7 0x4
+					 /*SERR*/  0x2 &UIC1 0x1 0x4
+					 /*TXDE*/  0x3 &UIC1 0x2 0x4
+					 /*RXDE*/  0x4 &UIC1 0x3 0x4>;
+		};
+
+		POB0: opb {
+			compatible = "ibm,opb-440spe", "ibm,opb-440gp", "ibm,opb";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0xe0000000 0x00000004 0xe0000000 0x20000000>;
+			clock-frequency = <0>; /* Filled in by zImage */
+
+			EBC0: ebc {
+				compatible = "ibm,ebc-440spe", "ibm,ebc-440gp", "ibm,ebc";
+				dcr-reg = <0x012 0x002>;
+				#address-cells = <2>;
+				#size-cells = <1>;
+				clock-frequency = <0>; /* Filled in by zImage */
+				/* ranges property is supplied by U-Boot */
+				interrupts = <0x5 0x1>;
+				interrupt-parent = <&UIC1>;
+
+				nor_flash@0,0 {
+					compatible = "cfi-flash";
+					bank-width = <2>;
+					reg = <0x00000000 0x00000000 0x01000000>;
+					#address-cells = <1>;
+					#size-cells = <1>;
+					partition@0 {
+						label = "kernel";
+						reg = <0x00000000 0x001e0000>;
+					};
+					partition@1e0000 {
+						label = "dtb";
+						reg = <0x001e0000 0x00020000>;
+					};
+					partition@200000 {
+						label = "root";
+						reg = <0x00200000 0x00200000>;
+					};
+					partition@400000 {
+						label = "user";
+						reg = <0x00400000 0x00b60000>;
+					};
+					partition@f60000 {
+						label = "env";
+						reg = <0x00f60000 0x00040000>;
+					};
+					partition@fa0000 {
+						label = "u-boot";
+						reg = <0x00fa0000 0x00060000>;
+					};
+				};
+			};
+
+			UART0: serial@f0000200 {
+				device_type = "serial";
+				compatible = "ns16550";
+				reg = <0xf0000200 0x00000008>;
+				virtual-reg = <0xa0000200>;
+				clock-frequency = <0>; /* Filled in by zImage */
+				current-speed = <115200>;
+				interrupt-parent = <&UIC0>;
+				interrupts = <0x0 0x4>;
+			};
+
+			UART1: serial@f0000300 {
+				device_type = "serial";
+				compatible = "ns16550";
+				reg = <0xf0000300 0x00000008>;
+				virtual-reg = <0xa0000300>;
+				clock-frequency = <0>;
+				current-speed = <0>;
+				interrupt-parent = <&UIC0>;
+				interrupts = <0x1 0x4>;
+			};
+
+
+			UART2: serial@f0000600 {
+				device_type = "serial";
+				compatible = "ns16550";
+				reg = <0xf0000600 0x00000008>;
+				virtual-reg = <0xa0000600>;
+				clock-frequency = <0>;
+				current-speed = <0>;
+				interrupt-parent = <&UIC1>;
+				interrupts = <0x5 0x4>;
+			};
+
+			IIC0: i2c@f0000400 {
+				compatible = "ibm,iic-440spe", "ibm,iic-440gp", "ibm,iic";
+				reg = <0xf0000400 0x00000014>;
+				interrupt-parent = <&UIC0>;
+				interrupts = <0x2 0x4>;
+			};
+
+			IIC1: i2c@f0000500 {
+				compatible = "ibm,iic-440spe", "ibm,iic-440gp", "ibm,iic";
+				reg = <0xf0000500 0x00000014>;
+				interrupt-parent = <&UIC0>;
+				interrupts = <0x3 0x4>;
+			};
+
+			EMAC0: ethernet@f0000800 {
+				linux,network-index = <0x0>;
+				device_type = "network";
+				compatible = "ibm,emac-440spe", "ibm,emac4";
+				interrupt-parent = <&UIC1>;
+				interrupts = <0x1c 0x4 0x1d 0x4>;
+				reg = <0xf0000800 0x00000074>;
+				local-mac-address = [000000000000];
+				mal-device = <&MAL0>;
+				mal-tx-channel = <0>;
+				mal-rx-channel = <0>;
+				cell-index = <0>;
+				max-frame-size = <9000>;
+				rx-fifo-size = <4096>;
+				tx-fifo-size = <2048>;
+				phy-mode = "gmii";
+				phy-map = <0x00000000>;
+				has-inverted-stacr-oc;
+				has-new-stacr-staopc;
+			};
+		};
+
+		PCIX0: pci@c0ec00000 {
+			device_type = "pci";
+			#interrupt-cells = <1>;
+			#size-cells = <2>;
+			#address-cells = <3>;
+			compatible = "ibm,plb-pcix-440spe", "ibm,plb-pcix";
+			primary;
+			large-inbound-windows;
+			enable-msi-hole;
+			reg = <0x0000000c 0x0ec00000 0x00000008   /* Config space access */
+			       0x00000000 0x00000000 0x00000000   /* no IACK cycles */
+			       0x0000000c 0x0ed00000 0x00000004   /* Special cycles */
+			       0x0000000c 0x0ec80000 0x00000100   /* Internal registers */
+			       0x0000000c 0x0ec80100 0x000000fc>; /* Internal messaging registers */
+
+			/* Outbound ranges, one memory and one IO,
+			 * later cannot be changed
+			 */
+			ranges = <0x02000000 0x00000000 0x80000000 0x0000000d 0x80000000 0x00000000 0x80000000
+				  0x01000000 0x00000000 0x00000000 0x0000000c 0x08000000 0x00000000 0x00010000>;
+
+			/* Inbound 4GB range starting at 0 */
+			dma-ranges = <0x42000000 0x0 0x0 0x0 0x0 0x1 0x00000000>;
+
+			/* This drives busses 0 to 0xf */
+			bus-range = <0x0 0xf>;
+
+			/*
+			 * On Katmai, the following PCI-X interrupts signals
+			 * have to be enabled via jumpers (only INTA is
+			 * enabled per default):
+			 *
+			 * INTB: J3: 1-2
+			 * INTC: J2: 1-2
+			 * INTD: J1: 1-2
+			 */
+			interrupt-map-mask = <0xf800 0x0 0x0 0x7>;
+			interrupt-map = <
+				/* IDSEL 1 */
+				0x800 0x0 0x0 0x1 &UIC1 0x14 0x8
+				0x800 0x0 0x0 0x2 &UIC1 0x13 0x8
+				0x800 0x0 0x0 0x3 &UIC1 0x12 0x8
+				0x800 0x0 0x0 0x4 &UIC1 0x11 0x8
+			>;
+		};
+
+		PCIE0: pcie@d00000000 {
+			device_type = "pci";
+			#interrupt-cells = <1>;
+			#size-cells = <2>;
+			#address-cells = <3>;
+			compatible = "ibm,plb-pciex-440spe", "ibm,plb-pciex";
+			primary;
+			port = <0x0>; /* port number */
+			reg = <0x0000000d 0x00000000 0x20000000	/* Config space access */
+			       0x0000000c 0x10000000 0x00001000>;	/* Registers */
+			dcr-reg = <0x100 0x020>;
+			sdr-base = <0x300>;
+
+			/* Outbound ranges, one memory and one IO,
+			 * later cannot be changed
+			 */
+			ranges = <0x02000000 0x00000000 0x80000000 0x0000000e 0x00000000 0x00000000 0x80000000
+				  0x01000000 0x00000000 0x00000000 0x0000000f 0x80000000 0x00000000 0x00010000>;
+
+			/* Inbound 4GB range starting at 0 */
+			dma-ranges = <0x42000000 0x0 0x0 0x0 0x0 0x1 0x00000000>;
+
+			/* This drives busses 0x10 to 0x1f */
+			bus-range = <0x10 0x1f>;
+
+			/* Legacy interrupts (note the weird polarity, the bridge seems
+			 * to invert PCIe legacy interrupts).
+			 * We are de-swizzling here because the numbers are actually for
+			 * port of the root complex virtual P2P bridge. But I want
+			 * to avoid putting a node for it in the tree, so the numbers
+			 * below are basically de-swizzled numbers.
+			 * The real slot is on idsel 0, so the swizzling is 1:1
+			 */
+			interrupt-map-mask = <0x0 0x0 0x0 0x7>;
+			interrupt-map = <
+				0x0 0x0 0x0 0x1 &UIC3 0x0 0x4 /* swizzled int A */
+				0x0 0x0 0x0 0x2 &UIC3 0x1 0x4 /* swizzled int B */
+				0x0 0x0 0x0 0x3 &UIC3 0x2 0x4 /* swizzled int C */
+				0x0 0x0 0x0 0x4 &UIC3 0x3 0x4 /* swizzled int D */>;
+		};
+
+		PCIE1: pcie@d20000000 {
+			device_type = "pci";
+			#interrupt-cells = <1>;
+			#size-cells = <2>;
+			#address-cells = <3>;
+			compatible = "ibm,plb-pciex-440spe", "ibm,plb-pciex";
+			primary;
+			port = <0x1>; /* port number */
+			reg = <0x0000000d 0x20000000 0x20000000	/* Config space access */
+			       0x0000000c 0x10001000 0x00001000>;	/* Registers */
+			dcr-reg = <0x120 0x020>;
+			sdr-base = <0x340>;
+
+			/* Outbound ranges, one memory and one IO,
+			 * later cannot be changed
+			 */
+			ranges = <0x02000000 0x00000000 0x80000000 0x0000000e 0x80000000 0x00000000 0x80000000
+				  0x01000000 0x00000000 0x00000000 0x0000000f 0x80010000 0x00000000 0x00010000>;
+
+			/* Inbound 4GB range starting at 0 */
+			dma-ranges = <0x42000000 0x0 0x0 0x0 0x0 0x1 0x00000000>;
+
+			/* This drives busses 0x20 to 0x2f */
+			bus-range = <0x20 0x2f>;
+
+			/* Legacy interrupts (note the weird polarity, the bridge seems
+			 * to invert PCIe legacy interrupts).
+			 * We are de-swizzling here because the numbers are actually for
+			 * port of the root complex virtual P2P bridge. But I want
+			 * to avoid putting a node for it in the tree, so the numbers
+			 * below are basically de-swizzled numbers.
+			 * The real slot is on idsel 0, so the swizzling is 1:1
+			 */
+			interrupt-map-mask = <0x0 0x0 0x0 0x7>;
+			interrupt-map = <
+				0x0 0x0 0x0 0x1 &UIC3 0x4 0x4 /* swizzled int A */
+				0x0 0x0 0x0 0x2 &UIC3 0x5 0x4 /* swizzled int B */
+				0x0 0x0 0x0 0x3 &UIC3 0x6 0x4 /* swizzled int C */
+				0x0 0x0 0x0 0x4 &UIC3 0x7 0x4 /* swizzled int D */>;
+		};
+
+		PCIE2: pcie@d40000000 {
+			device_type = "pci";
+			#interrupt-cells = <1>;
+			#size-cells = <2>;
+			#address-cells = <3>;
+			compatible = "ibm,plb-pciex-440spe", "ibm,plb-pciex";
+			primary;
+			port = <0x2>; /* port number */
+			reg = <0x0000000d 0x40000000 0x20000000	/* Config space access */
+			       0x0000000c 0x10002000 0x00001000>;	/* Registers */
+			dcr-reg = <0x140 0x020>;
+			sdr-base = <0x370>;
+
+			/* Outbound ranges, one memory and one IO,
+			 * later cannot be changed
+			 */
+			ranges = <0x02000000 0x00000000 0x80000000 0x0000000f 0x00000000 0x00000000 0x80000000
+				  0x01000000 0x00000000 0x00000000 0x0000000f 0x80020000 0x00000000 0x00010000>;
+
+			/* Inbound 4GB range starting at 0 */
+			dma-ranges = <0x42000000 0x0 0x0 0x0 0x0 0x1 0x00000000>;
+
+			/* This drives busses 0x30 to 0x3f */
+			bus-range = <0x30 0x3f>;
+
+			/* Legacy interrupts (note the weird polarity, the bridge seems
+			 * to invert PCIe legacy interrupts).
+			 * We are de-swizzling here because the numbers are actually for
+			 * port of the root complex virtual P2P bridge. But I want
+			 * to avoid putting a node for it in the tree, so the numbers
+			 * below are basically de-swizzled numbers.
+			 * The real slot is on idsel 0, so the swizzling is 1:1
+			 */
+			interrupt-map-mask = <0x0 0x0 0x0 0x7>;
+			interrupt-map = <
+				0x0 0x0 0x0 0x1 &UIC3 0x8 0x4 /* swizzled int A */
+				0x0 0x0 0x0 0x2 &UIC3 0x9 0x4 /* swizzled int B */
+				0x0 0x0 0x0 0x3 &UIC3 0xa 0x4 /* swizzled int C */
+				0x0 0x0 0x0 0x4 &UIC3 0xb 0x4 /* swizzled int D */>;
+		};
+
+		I2O: i2o@400100000 {
+			compatible = "ibm,i2o-440spe";
+			reg = <0x00000004 0x00100000 0x100>;
+			dcr-reg = <0x060 0x020>;
+		};
+
+		DMA0: dma0@400100100 {
+			compatible = "ibm,dma-440spe";
+			cell-index = <0>;
+			reg = <0x00000004 0x00100100 0x100>;
+			dcr-reg = <0x060 0x020>;
+			interrupt-parent = <&DMA0>;
+			interrupts = <0 1>;
+			#interrupt-cells = <1>;
+			#address-cells = <0>;
+			#size-cells = <0>;
+			interrupt-map = <
+				0 &UIC0 0x14 4
+				1 &UIC1 0x16 4>;
+		};
+
+		DMA1: dma1@400100200 {
+			compatible = "ibm,dma-440spe";
+			cell-index = <1>;
+			reg = <0x00000004 0x00100200 0x100>;
+			dcr-reg = <0x060 0x020>;
+			interrupt-parent = <&DMA1>;
+			interrupts = <0 1>;
+			#interrupt-cells = <1>;
+			#address-cells = <0>;
+			#size-cells = <0>;
+			interrupt-map = <
+				0 &UIC0 0x16 4
+				1 &UIC1 0x16 4>;
+		};
+
+		xor-accel@400200000 {
+			compatible = "amcc,xor-accelerator";
+			reg = <0x00000004 0x00200000 0x400>;
+			interrupt-parent = <&UIC1>;
+			interrupts = <0x1f 4>;
+		};
+	};
+
+	chosen {
+		stdout-path = "/plb/opb/serial@f0000200";
+	};
+};

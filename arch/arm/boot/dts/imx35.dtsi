@@ -1,0 +1,414 @@
+// SPDX-License-Identifier: GPL-2.0
+//
+// Copyright 2012 Steffen Trumtrar, Pengutronix
+//
+// based on imx27.dtsi
+
+#include "imx35-pinfunc.h"
+
+/ {
+	#address-cells = <1>;
+	#size-cells = <1>;
+	/*
+	 * The decompressor and also some bootloaders rely on a
+	 * pre-existing /chosen node to be available to insert the
+	 * command line and merge other ATAGS info.
+	 */
+	chosen {};
+
+	aliases {
+		ethernet0 = &fec;
+		gpio0 = &gpio1;
+		gpio1 = &gpio2;
+		gpio2 = &gpio3;
+		i2c0 = &i2c1;
+		i2c1 = &i2c2;
+		i2c2 = &i2c3;
+		mmc0 = &esdhc1;
+		mmc1 = &esdhc2;
+		mmc2 = &esdhc3;
+		serial0 = &uart1;
+		serial1 = &uart2;
+		serial2 = &uart3;
+		spi0 = &spi1;
+		spi1 = &spi2;
+	};
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cpu@0 {
+			compatible = "arm,arm1136jf-s";
+			device_type = "cpu";
+			reg = <0>;
+		};
+	};
+
+	avic: avic-interrupt-controller@68000000 {
+		compatible = "fsl,imx35-avic", "fsl,avic";
+		interrupt-controller;
+		#interrupt-cells = <1>;
+		reg = <0x68000000 0x10000000>;
+	};
+
+	soc {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "simple-bus";
+		interrupt-parent = <&avic>;
+		ranges;
+
+		L2: cache-controller@30000000 {
+			compatible = "arm,l210-cache";
+			reg = <0x30000000 0x1000>;
+			cache-unified;
+			cache-level = <2>;
+		};
+
+		aips1: bus@43f00000 {
+			compatible = "fsl,aips", "simple-bus";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			reg = <0x43f00000 0x100000>;
+			ranges;
+
+			i2c1: i2c@43f80000 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				compatible = "fsl,imx35-i2c", "fsl,imx1-i2c";
+				reg = <0x43f80000 0x4000>;
+				clocks = <&clks 51>;
+				clock-names = "ipg_per";
+				interrupts = <10>;
+				status = "disabled";
+			};
+
+			i2c3: i2c@43f84000 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				compatible = "fsl,imx35-i2c", "fsl,imx1-i2c";
+				reg = <0x43f84000 0x4000>;
+				clocks = <&clks 53>;
+				clock-names = "ipg_per";
+				interrupts = <3>;
+				status = "disabled";
+			};
+
+			uart1: serial@43f90000 {
+				compatible = "fsl,imx35-uart", "fsl,imx21-uart";
+				reg = <0x43f90000 0x4000>;
+				clocks = <&clks 9>, <&clks 70>;
+				clock-names = "ipg", "per";
+				interrupts = <45>;
+				status = "disabled";
+			};
+
+			uart2: serial@43f94000 {
+				compatible = "fsl,imx35-uart", "fsl,imx21-uart";
+				reg = <0x43f94000 0x4000>;
+				clocks = <&clks 9>, <&clks 71>;
+				clock-names = "ipg", "per";
+				interrupts = <32>;
+				status = "disabled";
+			};
+
+			i2c2: i2c@43f98000 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				compatible = "fsl,imx35-i2c", "fsl,imx1-i2c";
+				reg = <0x43f98000 0x4000>;
+				clocks = <&clks 52>;
+				clock-names = "ipg_per";
+				interrupts = <4>;
+				status = "disabled";
+			};
+
+			ssi1: ssi@43fa0000 {
+				#sound-dai-cells = <0>;
+				compatible = "fsl,imx35-ssi", "fsl,imx21-ssi";
+				reg = <0x43fa0000 0x4000>;
+				interrupts = <11>;
+				clocks = <&clks 68>;
+				dmas = <&sdma 28 0 0>,
+				       <&sdma 29 0 0>;
+				dma-names = "rx", "tx";
+				fsl,fifo-depth = <15>;
+				status = "disabled";
+			};
+
+			spi1: spi@43fa4000 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				compatible = "fsl,imx35-cspi";
+				reg = <0x43fa4000 0x4000>;
+				clocks = <&clks 35 &clks 35>;
+				clock-names = "ipg", "per";
+				interrupts = <14>;
+				status = "disabled";
+			};
+
+			kpp: kpp@43fa8000 {
+				compatible = "fsl,imx35-kpp", "fsl,imx21-kpp";
+				reg = <0x43fa8000 0x4000>;
+				interrupts = <24>;
+				clocks = <&clks 56>;
+				status = "disabled";
+			};
+
+			iomuxc: iomuxc@43fac000 {
+				compatible = "fsl,imx35-iomuxc";
+				reg = <0x43fac000 0x4000>;
+			};
+		};
+
+		spba: spba-bus@50000000 {
+			compatible = "fsl,spba-bus", "simple-bus";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			reg = <0x50000000 0x100000>;
+			ranges;
+
+			uart3: serial@5000c000 {
+				compatible = "fsl,imx35-uart", "fsl,imx21-uart";
+				reg = <0x5000c000 0x4000>;
+				clocks = <&clks 9>, <&clks 72>;
+				clock-names = "ipg", "per";
+				interrupts = <18>;
+				status = "disabled";
+			};
+
+			spi2: spi@50010000 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				compatible = "fsl,imx35-cspi";
+				reg = <0x50010000 0x4000>;
+				interrupts = <13>;
+				clocks = <&clks 36 &clks 36>;
+				clock-names = "ipg", "per";
+				status = "disabled";
+			};
+
+			fec: ethernet@50038000 {
+				compatible = "fsl,imx35-fec", "fsl,imx27-fec";
+				reg = <0x50038000 0x4000>;
+				clocks = <&clks 46>, <&clks 8>;
+				clock-names = "ipg", "ahb";
+				interrupts = <57>;
+				status = "disabled";
+			};
+		};
+
+		aips2: bus@53f00000 {
+			compatible = "fsl,aips", "simple-bus";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			reg = <0x53f00000 0x100000>;
+			ranges;
+
+			clks: ccm@53f80000 {
+				compatible = "fsl,imx35-ccm";
+				reg = <0x53f80000 0x4000>;
+				interrupts = <31>;
+				#clock-cells = <1>;
+			};
+
+			gpt: timer@53f90000 {
+				compatible = "fsl,imx35-gpt", "fsl,imx31-gpt";
+				reg = <0x53f90000 0x4000>;
+				interrupts = <29>;
+				clocks = <&clks 9>, <&clks 50>;
+				clock-names = "ipg", "per";
+			};
+
+			gpio3: gpio@53fa4000 {
+				compatible = "fsl,imx35-gpio", "fsl,imx31-gpio";
+				reg = <0x53fa4000 0x4000>;
+				interrupts = <56>;
+				gpio-controller;
+				#gpio-cells = <2>;
+				interrupt-controller;
+				#interrupt-cells = <2>;
+			};
+
+			esdhc1: mmc@53fb4000 {
+				compatible = "fsl,imx35-esdhc";
+				reg = <0x53fb4000 0x4000>;
+				interrupts = <7>;
+				clocks = <&clks 9>, <&clks 8>, <&clks 43>;
+				clock-names = "ipg", "ahb", "per";
+				status = "disabled";
+			};
+
+			esdhc2: mmc@53fb8000 {
+				compatible = "fsl,imx35-esdhc";
+				reg = <0x53fb8000 0x4000>;
+				interrupts = <8>;
+				clocks = <&clks 9>, <&clks 8>, <&clks 44>;
+				clock-names = "ipg", "ahb", "per";
+				status = "disabled";
+			};
+
+			esdhc3: mmc@53fbc000 {
+				compatible = "fsl,imx35-esdhc";
+				reg = <0x53fbc000 0x4000>;
+				interrupts = <9>;
+				clocks = <&clks 9>, <&clks 8>, <&clks 45>;
+				clock-names = "ipg", "ahb", "per";
+				status = "disabled";
+			};
+
+			audmux: audmux@53fc4000 {
+				compatible = "fsl,imx35-audmux", "fsl,imx31-audmux";
+				reg = <0x53fc4000 0x4000>;
+				status = "disabled";
+			};
+
+			gpio1: gpio@53fcc000 {
+				compatible = "fsl,imx35-gpio", "fsl,imx31-gpio";
+				reg = <0x53fcc000 0x4000>;
+				interrupts = <52>;
+				gpio-controller;
+				#gpio-cells = <2>;
+				interrupt-controller;
+				#interrupt-cells = <2>;
+			};
+
+			gpio2: gpio@53fd0000 {
+				compatible = "fsl,imx35-gpio", "fsl,imx31-gpio";
+				reg = <0x53fd0000 0x4000>;
+				interrupts = <51>;
+				gpio-controller;
+				#gpio-cells = <2>;
+				interrupt-controller;
+				#interrupt-cells = <2>;
+			};
+
+			sdma: dma-controller@53fd4000 {
+				compatible = "fsl,imx35-sdma";
+				reg = <0x53fd4000 0x4000>;
+				clocks = <&clks 9>, <&clks 65>;
+				clock-names = "ipg", "ahb";
+				#dma-cells = <3>;
+				interrupts = <34>;
+				fsl,sdma-ram-script-name = "imx/sdma/sdma-imx35.bin";
+			};
+
+			wdog: watchdog@53fdc000 {
+				compatible = "fsl,imx35-wdt", "fsl,imx21-wdt";
+				reg = <0x53fdc000 0x4000>;
+				clocks = <&clks 74>;
+				clock-names = "";
+				interrupts = <55>;
+			};
+
+			can1: can@53fe4000 {
+				compatible = "fsl,imx35-flexcan", "fsl,imx25-flexcan";
+				reg = <0x53fe4000 0x1000>;
+				clocks = <&clks 33>, <&clks 33>;
+				clock-names = "ipg", "per";
+				interrupts = <43>;
+				status = "disabled";
+			};
+
+			can2: can@53fe8000 {
+				compatible = "fsl,imx35-flexcan", "fsl,imx25-flexcan";
+				reg = <0x53fe8000 0x1000>;
+				clocks = <&clks 34>, <&clks 34>;
+				clock-names = "ipg", "per";
+				interrupts = <44>;
+				status = "disabled";
+			};
+
+			efuse@53ff0000 {
+				compatible = "fsl,imx35-iim";
+				reg = <0x53ff0000 0x4000>;
+				interrupts = <19>;
+				clocks = <&clks 80>;
+			};
+
+			usbotg: usb@53ff4000 {
+				compatible = "fsl,imx35-usb", "fsl,imx27-usb";
+				reg = <0x53ff4000 0x0200>;
+				interrupts = <37>;
+				clocks = <&clks 9>, <&clks 73>, <&clks 28>;
+				clock-names = "ipg", "ahb", "per";
+				fsl,usbmisc = <&usbmisc 0>;
+				fsl,usbphy = <&usbphy0>;
+				status = "disabled";
+			};
+
+			usbhost1: usb@53ff4400 {
+				compatible = "fsl,imx35-usb", "fsl,imx27-usb";
+				reg = <0x53ff4400 0x0200>;
+				interrupts = <35>;
+				clocks = <&clks 9>, <&clks 73>, <&clks 28>;
+				clock-names = "ipg", "ahb", "per";
+				fsl,usbmisc = <&usbmisc 1>;
+				fsl,usbphy = <&usbphy1>;
+				dr_mode = "host";
+				status = "disabled";
+			};
+
+			usbmisc: usbmisc@53ff4600 {
+				#index-cells = <1>;
+				compatible = "fsl,imx35-usbmisc";
+				reg = <0x53ff4600 0x00f>;
+			};
+		};
+
+		emi@80000000 { /* External Memory Interface */
+			compatible = "fsl,emi", "simple-bus";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			reg = <0x80000000 0x40000000>;
+			ranges;
+
+			nfc: nand@bb000000 {
+				#address-cells = <1>;
+				#size-cells = <1>;
+				compatible = "fsl,imx35-nand", "fsl,imx25-nand";
+				reg = <0xbb000000 0x2000>;
+				clocks = <&clks 29>;
+				clock-names = "";
+				interrupts = <33>;
+				status = "disabled";
+			};
+
+			weim: weim@b8002000 {
+				#address-cells = <2>;
+				#size-cells = <1>;
+				clocks = <&clks 0>;
+				compatible = "fsl,imx35-weim", "fsl,imx27-weim";
+				reg = <0xb8002000 0x1000>;
+				ranges = <
+					0 0 0xa0000000 0x8000000
+					1 0 0xa8000000 0x8000000
+					2 0 0xb0000000 0x2000000
+					3 0 0xb2000000 0x2000000
+					4 0 0xb4000000 0x2000000
+					5 0 0xb6000000 0x2000000
+				>;
+				status = "disabled";
+			};
+		};
+	};
+
+	usbphy {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		usbphy0: usb-phy@0 {
+			reg = <0>;
+			compatible = "usb-nop-xceiv";
+			#phy-cells = <0>;
+		};
+
+		usbphy1: usb-phy@1 {
+			reg = <1>;
+			compatible = "usb-nop-xceiv";
+			#phy-cells = <0>;
+		};
+	};
+};

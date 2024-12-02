@@ -1,0 +1,55 @@
+[
+    {
+        "id": "1f",
+        "name": "simple test to test framework",
+        "category": [
+            "example"
+        ],
+        "setup": [
+            "mkdir mytest"
+        ],
+        "cmdUnderTest": "touch mytest/blorfl",
+        "expExitCode": "0",
+        "verifyCmd": "ls mytest/* | grep '[b]lorfl'",
+        "matchPattern": "orfl",
+        "matchCount": "1",
+        "teardown": [
+            "rm -rf mytest"
+        ]
+    },
+    {
+        "id": "2f",
+        "name": "simple test, no need for verify",
+        "category": [
+            "example"
+        ],
+        "setup": [
+            "mkdir mytest",
+            "touch mytest/blorfl"
+        ],
+        "cmdUnderTest": "ls mytest/blorfl",
+        "expExitCode": "0",
+        "verifyCmd": "/bin/true",
+        "matchPattern": " ",
+        "matchCount": "0",
+        "teardown": [
+            "rm -rf mytest"
+        ]
+    },
+    {
+        "id": "3f",
+        "name": "simple test, no need for setup or teardown (or verify)",
+        "category": [
+            "example"
+        ],
+        "setup": [
+        ],
+        "cmdUnderTest": "ip l l lo",
+        "expExitCode": "0",
+        "verifyCmd": "/bin/true",
+        "matchPattern": " ",
+        "matchCount": "0",
+        "teardown": [
+        ]
+    }
+]

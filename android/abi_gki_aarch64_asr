@@ -1,0 +1,57 @@
+[abi_symbol_list]
+
+# required by asr5803.ko
+  sdhci_enable_sdio_irq
+
+# required by asr_serial.ko
+  uart_get_divisor
+  uart_handle_cts_change
+  uart_handle_dcd_change
+  uart_insert_char
+
+# required by ehci-asr-ci.ko
+  ehci_init_driver
+  ehci_setup
+
+# required by phy-asr-ci-usb2.ko
+  usb_add_phy_dev
+  usb_remove_phy
+
+# required by pvrsrvkm.ko
+  call_rcu
+  devm_devfreq_remove_device
+  dev_pm_opp_remove
+  dma_fence_array_ops
+  dma_fence_enable_sw_signaling
+  idr_replace
+  kthread_freezable_should_stop
+  rcu_barrier
+
+# required by sdhci_asr.ko
+  sdhci_resume_host
+  sdhci_send_tuning
+  sdhci_set_clock
+  sdhci_set_uhs_signaling
+  sdhci_suspend_host
+
+# required by vh_sched.ko
+  __traceiter_android_vh_map_util_freq
+  __tracepoint_android_vh_map_util_freq
+
+# required by asr_drm.ko
+  clk_set_rate_exclusive
+  clk_rate_exclusive_put
+
+# required by mercury.ko
+  media_device_register_entity
+  media_device_unregister_entity
+  v4l2_ctrl_get_menu
+  v4l2_ctrl_type_op_equal
+  v4l2_ctrl_type_op_init
+  v4l2_ctrl_type_op_log
+  v4l2_m2m_buf_done_and_job_finish
+  v4l2_m2m_last_buf
+
+# required by jpu_heap.ko
+  kmem_cache_size
+  memset16

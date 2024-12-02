@@ -1,0 +1,91 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
+/*
+ * Copyright (c) 2014 Jiri Pirko <jiri@resnulli.us>
+ */
+
+#ifndef __NET_TC_VLAN_H
+#define __NET_TC_VLAN_H
+
+#include <net/act_api.h>
+#include <linux/tc_act/tc_vlan.h>
+
+struct tcf_vlan_params {
+	int               tcfv_action;
+	unsigned char     tcfv_push_dst[ETH_ALEN];
+	unsigned char     tcfv_push_src[ETH_ALEN];
+	u16               tcfv_push_vid;
+	__be16            tcfv_push_proto;
+	u8                tcfv_push_prio;
+	bool              tcfv_push_prio_exists;
+	struct rcu_head   rcu;
+};
+
+struct tcf_vlan {
+	struct tc_action	common;
+	struct tcf_vlan_params __rcu *vlan_p;
+};
+#define to_vlan(a) ((struct tcf_vlan *)a)
+
+static inline bool is_tcf_vlan(const struct tc_action *a)
+{
+#ifdef CONFIG_NET_CLS_ACT
+	if (a->ops && a->ops->id == TCA_ID_VLAN)
+		return true;
+#endif
+	return false;
+}
+
+static inline u32 tcf_vlan_action(const struct tc_action *a)
+{
+	u32 tcfv_action;
+
+	rcu_read_lock();
+	tcfv_action = rcu_dereference(to_vlan(a)->vlan_p)->tcfv_action;
+	rcu_read_unlock();
+
+	return tcfv_action;
+}
+
+static inline u16 tcf_vlan_push_vid(const struct tc_action *a)
+{
+	u16 tcfv_push_vid;
+
+	rcu_read_lock();
+	tcfv_push_vid = rcu_dereference(to_vlan(a)->vlan_p)->tcfv_push_vid;
+	rcu_read_unlock();
+
+	return tcfv_push_vid;
+}
+
+static inline __be16 tcf_vlan_push_proto(const struct tc_action *a)
+{
+	__be16 tcfv_push_proto;
+
+	rcu_read_lock();
+	tcfv_push_proto = rcu_dereference(to_vlan(a)->vlan_p)->tcfv_push_proto;
+	rcu_read_unlock();
+
+	return tcfv_push_proto;
+}
+
+static inline u8 tcf_vlan_push_prio(const struct tc_action *a)
+{
+	u8 tcfv_push_prio;
+
+	rcu_read_lock();
+	tcfv_push_prio = rcu_dereference(to_vlan(a)->vlan_p)->tcfv_push_prio;
+	rcu_read_unlock();
+
+	return tcfv_push_prio;
+}
+
+static inline void tcf_vlan_push_eth(unsigned char *src, unsigned char *dest,
+				     const struct tc_action *a)
+{
+	rcu_read_lock();
+	memcpy(dest, rcu_dereference(to_vlan(a)->vlan_p)->tcfv_push_dst, ETH_ALEN);
+	memcpy(src, rcu_dereference(to_vlan(a)->vlan_p)->tcfv_push_src, ETH_ALEN);
+	rcu_read_unlock();
+}
+
+#endif /* __NET_TC_VLAN_H */

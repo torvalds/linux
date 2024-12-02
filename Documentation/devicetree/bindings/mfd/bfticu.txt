@@ -1,0 +1,24 @@
+KEYMILE bfticu Chassis Management FPGA
+
+The bfticu is a multifunction device that manages the whole chassis.
+Its main functionality is to collect IRQs from the whole chassis and signals
+them to a single controller.
+
+Required properties:
+- compatible: "keymile,bfticu"
+- interrupt-controller: the bfticu FPGA is an interrupt controller
+- interrupts: the main IRQ line to signal the collected IRQs
+- #interrupt-cells : is 2 and their usage is compliant to the 2 cells variant
+  of Documentation/devicetree/bindings/interrupt-controller/interrupts.txt
+- reg: access on the parent local bus (chip select, offset in chip select, size)
+
+Example:
+
+	chassis-mgmt@3,0 {
+		compatible = "keymile,bfticu";
+		interrupt-controller;
+		#interrupt-cells = <2>;
+		reg = <3 0 0x100>;
+		interrupt-parent = <&mpic>;
+		interrupts = <6 1 0 0>;
+	};

@@ -1,0 +1,123 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+# Copyright 2021 Linaro Ltd.
+%YAML 1.2
+---
+$id: "http://devicetree.org/schemas/net/intel,ixp4xx-hss.yaml#"
+$schema: "http://devicetree.org/meta-schemas/core.yaml#"
+
+title: Intel IXP4xx V.35 WAN High Speed Serial Link (HSS)
+
+maintainers:
+  - Linus Walleij <linus.walleij@linaro.org>
+
+description: |
+  The Intel IXP4xx HSS makes use of the IXP4xx NPE (Network
+  Processing Engine) and the IXP4xx Queue Manager to process
+  V.35 Wideband Modem (WAN) links.
+
+properties:
+  compatible:
+    const: intel,ixp4xx-hss
+
+  reg:
+    maxItems: 1
+    description: The HSS instance
+
+  intel,npe-handle:
+    $ref: '/schemas/types.yaml#/definitions/phandle-array'
+    items:
+      items:
+        - description: phandle to the NPE this HSS instance is using
+        - description: the NPE instance number
+    description: phandle to the NPE this HSS instance is using
+      and the instance to use in the second cell
+
+  intel,queue-chl-rxtrig:
+    $ref: '/schemas/types.yaml#/definitions/phandle-array'
+    items:
+      - items:
+          - description: phandle to the RX trigger queue on the NPE
+          - description: the queue instance number
+    description: phandle to the RX trigger queue on the NPE
+
+  intel,queue-chl-txready:
+    $ref: '/schemas/types.yaml#/definitions/phandle-array'
+    items:
+      - items:
+          - description: phandle to the TX ready queue on the NPE
+          - description: the queue instance number
+    description: phandle to the TX ready queue on the NPE
+
+  intel,queue-pkt-rx:
+    $ref: '/schemas/types.yaml#/definitions/phandle-array'
+    items:
+      - items:
+          - description: phandle to the RX queue on the NPE
+          - description: the queue instance number
+    description: phandle to the packet RX queue on the NPE
+
+  intel,queue-pkt-tx:
+    $ref: '/schemas/types.yaml#/definitions/phandle-array'
+    maxItems: 4
+    items:
+      items:
+        - description: phandle to the TX queue on the NPE
+        - description: the queue instance number
+    description: phandle to the packet TX0, TX1, TX2 and TX3 queues on the NPE
+
+  intel,queue-pkt-rxfree:
+    $ref: '/schemas/types.yaml#/definitions/phandle-array'
+    maxItems: 4
+    items:
+      items:
+        - description: phandle to the RXFREE queue on the NPE
+        - description: the queue instance number
+    description: phandle to the packet RXFREE0, RXFREE1, RXFREE2 and
+      RXFREE3 queues on the NPE
+
+  intel,queue-pkt-txdone:
+    $ref: '/schemas/types.yaml#/definitions/phandle-array'
+    items:
+      - items:
+          - description: phandle to the TXDONE queue on the NPE
+          - description: the queue instance number
+    description: phandle to the packet TXDONE queue on the NPE
+
+  cts-gpios:
+    maxItems: 1
+    description: Clear To Send (CTS) GPIO line
+
+  rts-gpios:
+    maxItems: 1
+    description: Ready To Send (RTS) GPIO line
+
+  dcd-gpios:
+    maxItems: 1
+    description: Data Carrier Detect (DCD) GPIO line
+
+  dtr-gpios:
+    maxItems: 1
+    description: Data Terminal Ready (DTR) GPIO line
+
+  clk-internal-gpios:
+    maxItems: 1
+    description: Clock internal GPIO line, driving this high will make the HSS
+      use internal clocking as opposed to external clocking
+
+required:
+  - compatible
+  - reg
+  - intel,npe-handle
+  - intel,queue-chl-rxtrig
+  - intel,queue-chl-txready
+  - intel,queue-pkt-rx
+  - intel,queue-pkt-tx
+  - intel,queue-pkt-rxfree
+  - intel,queue-pkt-txdone
+  - cts-gpios
+  - rts-gpios
+  - dcd-gpios
+  - dtr-gpios
+  - clk-internal-gpios
+
+additionalProperties: false

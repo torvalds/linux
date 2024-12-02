@@ -1,0 +1,152 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/display/tegra/nvidia,tegra124-dpaux.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: NVIDIA Tegra DisplayPort AUX Interface
+
+maintainers:
+  - Thierry Reding <thierry.reding@gmail.com>
+  - Jon Hunter <jonathanh@nvidia.com>
+
+description: |
+  The Tegra Display Port Auxiliary (DPAUX) pad controller manages two
+  pins which can be assigned to either the DPAUX channel or to an I2C
+  controller.
+
+  When configured for DisplayPort AUX operation, the DPAUX controller
+  can also be used to communicate with a DisplayPort device using the
+  AUX channel.
+
+properties:
+  $nodename:
+    pattern: "^dpaux@[0-9a-f]+$"
+
+  compatible:
+    oneOf:
+      - enum:
+          - nvidia,tegra124-dpaux
+          - nvidia,tegra210-dpaux
+          - nvidia,tegra186-dpaux
+          - nvidia,tegra194-dpaux
+
+      - items:
+          - const: nvidia,tegra132-dpaux
+          - const: nvidia,tegra124-dpaux
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  clocks:
+    items:
+      - description: clock input for the DPAUX hardware
+      - description: reference clock
+
+  clock-names:
+    items:
+      - const: dpaux
+      - const: parent
+
+  resets:
+    items:
+      - description: module reset
+
+  reset-names:
+    items:
+      - const: dpaux
+
+  power-domains:
+    maxItems: 1
+
+  i2c-bus:
+    description: Subnode where I2C slave devices are listed. This
+      subnode must be always present. If there are no I2C slave
+      devices, an empty node should be added. See ../../i2c/i2c.yaml
+      for more information.
+    type: object
+
+  aux-bus:
+    $ref: /schemas/display/dp-aux-bus.yaml#
+
+  vdd-supply:
+    description: phandle of a supply that powers the DisplayPort
+      link
+
+patternProperties:
+  "^pinmux-[a-z0-9]+$":
+    description:
+      Since only three configurations are possible, only three child
+      nodes are needed to describe the pin mux'ing options for the
+      DPAUX pads. Furthermore, given that the pad functions are only
+      applicable to a single set of pads, the child nodes only need
+      to describe the pad group the functions are being applied to
+      rather than the individual pads.
+    type: object
+    properties:
+      groups:
+        const: dpaux-io
+
+      function:
+        enum:
+          - aux
+          - i2c
+          - off
+
+    additionalProperties: false
+
+    required:
+      - groups
+      - function
+
+additionalProperties: false
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - clocks
+  - clock-names
+  - resets
+  - reset-names
+
+examples:
+  - |
+    #include <dt-bindings/clock/tegra210-car.h>
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+
+    dpaux: dpaux@545c0000 {
+        compatible = "nvidia,tegra210-dpaux";
+        reg = <0x545c0000 0x00040000>;
+        interrupts = <GIC_SPI 159 IRQ_TYPE_LEVEL_HIGH>;
+        clocks = <&tegra_car TEGRA210_CLK_DPAUX>,
+                 <&tegra_car TEGRA210_CLK_PLL_DP>;
+        clock-names = "dpaux", "parent";
+        resets = <&tegra_car 181>;
+        reset-names = "dpaux";
+        power-domains = <&pd_sor>;
+        status = "disabled";
+
+        state_dpaux_aux: pinmux-aux {
+            groups = "dpaux-io";
+            function = "aux";
+        };
+
+        state_dpaux_i2c: pinmux-i2c {
+            groups = "dpaux-io";
+            function = "i2c";
+        };
+
+        state_dpaux_off: pinmux-off {
+            groups = "dpaux-io";
+            function = "off";
+        };
+
+        i2c-bus {
+            #address-cells = <1>;
+            #size-cells = <0>;
+        };
+    };

@@ -1,0 +1,63 @@
+Texas Instruments clkctrl clock binding
+
+Texas Instruments SoCs can have a clkctrl clock controller for each
+interconnect target module. The clkctrl clock controller manages functional
+and interface clocks for each module. Each clkctrl controller can also
+gate one or more optional functional clocks for a module, and can have one
+or more clock muxes. There is a clkctrl clock controller typically for each
+interconnect target module on omap4 and later variants.
+
+The clock consumers can specify the index of the clkctrl clock using
+the hardware offset from the clkctrl instance register space. The optional
+clocks can be specified by clkctrl hardware offset and the index of the
+optional clock.
+
+For more information, please see the Linux clock framework binding at
+Documentation/devicetree/bindings/clock/clock-bindings.txt.
+
+Required properties :
+- compatible : shall be "ti,clkctrl" or a clock domain specific name:
+	       "ti,clkctrl-l4-cfg"
+	       "ti,clkctrl-l4-per"
+	       "ti,clkctrl-l4-secure"
+	       "ti,clkctrl-l4-wkup"
+- clock-output-names : from common clock binding
+- #clock-cells : shall contain 2 with the first entry being the instance
+		 offset from the clock domain base and the second being the
+		 clock index
+- reg : clock registers
+
+Example: Clock controller node on omap 4430:
+
+&cm2 {
+	l4per: cm@1400 {
+		cm_l4per@0 {
+			cm_l4per_clkctrl: clock@20 {
+				compatible = "ti,clkctrl";
+				clock-output-names = "l4_per";
+				reg = <0x20 0x1b0>;
+				#clock-cells = <2>;
+			};
+		};
+	};
+};
+
+Example: Preprocessor helper macros in dt-bindings/clock/ti-clkctrl.h
+
+#define OMAP4_CLKCTRL_OFFSET		0x20
+#define OMAP4_CLKCTRL_INDEX(offset)	((offset) - OMAP4_CLKCTRL_OFFSET)
+#define MODULEMODE_HWCTRL		1
+#define MODULEMODE_SWCTRL		2
+
+#define OMAP4_GPTIMER10_CLKTRL		OMAP4_CLKCTRL_INDEX(0x28)
+#define OMAP4_GPTIMER11_CLKTRL		OMAP4_CLKCTRL_INDEX(0x30)
+#define OMAP4_GPTIMER2_CLKTRL		OMAP4_CLKCTRL_INDEX(0x38)
+...
+#define OMAP4_GPIO2_CLKCTRL		OMAP_CLKCTRL_INDEX(0x60)
+
+Example: Clock consumer node for GPIO2:
+
+&gpio2 {
+       clocks = <&cm_l4per_clkctrl OMAP4_GPIO2_CLKCTRL 0
+		 &cm_l4per_clkctrl OMAP4_GPIO2_CLKCTRL 8>;
+};

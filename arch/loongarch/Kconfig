@@ -1,0 +1,504 @@
+# SPDX-License-Identifier: GPL-2.0
+config LOONGARCH
+	bool
+	default y
+	select ACPI
+	select ACPI_GENERIC_GSI if ACPI
+	select ACPI_MCFG if ACPI
+	select ACPI_SYSTEM_POWER_STATES_SUPPORT	if ACPI
+	select ARCH_BINFMT_ELF_STATE
+	select ARCH_ENABLE_MEMORY_HOTPLUG
+	select ARCH_ENABLE_MEMORY_HOTREMOVE
+	select ARCH_ENABLE_THP_MIGRATION if TRANSPARENT_HUGEPAGE
+	select ARCH_HAS_ACPI_TABLE_UPGRADE	if ACPI
+	select ARCH_HAS_NON_OVERLAPPING_ADDRESS_SPACE
+	select ARCH_HAS_PTE_SPECIAL
+	select ARCH_HAS_TICK_BROADCAST if GENERIC_CLOCKEVENTS_BROADCAST
+	select ARCH_INLINE_READ_LOCK if !PREEMPTION
+	select ARCH_INLINE_READ_LOCK_BH if !PREEMPTION
+	select ARCH_INLINE_READ_LOCK_IRQ if !PREEMPTION
+	select ARCH_INLINE_READ_LOCK_IRQSAVE if !PREEMPTION
+	select ARCH_INLINE_READ_UNLOCK if !PREEMPTION
+	select ARCH_INLINE_READ_UNLOCK_BH if !PREEMPTION
+	select ARCH_INLINE_READ_UNLOCK_IRQ if !PREEMPTION
+	select ARCH_INLINE_READ_UNLOCK_IRQRESTORE if !PREEMPTION
+	select ARCH_INLINE_WRITE_LOCK if !PREEMPTION
+	select ARCH_INLINE_WRITE_LOCK_BH if !PREEMPTION
+	select ARCH_INLINE_WRITE_LOCK_IRQ if !PREEMPTION
+	select ARCH_INLINE_WRITE_LOCK_IRQSAVE if !PREEMPTION
+	select ARCH_INLINE_WRITE_UNLOCK if !PREEMPTION
+	select ARCH_INLINE_WRITE_UNLOCK_BH if !PREEMPTION
+	select ARCH_INLINE_WRITE_UNLOCK_IRQ if !PREEMPTION
+	select ARCH_INLINE_WRITE_UNLOCK_IRQRESTORE if !PREEMPTION
+	select ARCH_INLINE_SPIN_TRYLOCK if !PREEMPTION
+	select ARCH_INLINE_SPIN_TRYLOCK_BH if !PREEMPTION
+	select ARCH_INLINE_SPIN_LOCK if !PREEMPTION
+	select ARCH_INLINE_SPIN_LOCK_BH if !PREEMPTION
+	select ARCH_INLINE_SPIN_LOCK_IRQ if !PREEMPTION
+	select ARCH_INLINE_SPIN_LOCK_IRQSAVE if !PREEMPTION
+	select ARCH_INLINE_SPIN_UNLOCK if !PREEMPTION
+	select ARCH_INLINE_SPIN_UNLOCK_BH if !PREEMPTION
+	select ARCH_INLINE_SPIN_UNLOCK_IRQ if !PREEMPTION
+	select ARCH_INLINE_SPIN_UNLOCK_IRQRESTORE if !PREEMPTION
+	select ARCH_KEEP_MEMBLOCK
+	select ARCH_MIGHT_HAVE_PC_PARPORT
+	select ARCH_MIGHT_HAVE_PC_SERIO
+	select ARCH_SPARSEMEM_ENABLE
+	select ARCH_STACKWALK
+	select ARCH_SUPPORTS_ACPI
+	select ARCH_SUPPORTS_ATOMIC_RMW
+	select ARCH_SUPPORTS_HUGETLBFS
+	select ARCH_SUPPORTS_NUMA_BALANCING
+	select ARCH_USE_BUILTIN_BSWAP
+	select ARCH_USE_CMPXCHG_LOCKREF
+	select ARCH_USE_QUEUED_RWLOCKS
+	select ARCH_USE_QUEUED_SPINLOCKS
+	select ARCH_WANT_DEFAULT_TOPDOWN_MMAP_LAYOUT
+	select ARCH_WANT_LD_ORPHAN_WARN
+	select ARCH_WANTS_NO_INSTR
+	select BUILDTIME_TABLE_SORT
+	select COMMON_CLK
+	select EFI
+	select GENERIC_CLOCKEVENTS
+	select GENERIC_CMOS_UPDATE
+	select GENERIC_CPU_AUTOPROBE
+	select GENERIC_ENTRY
+	select GENERIC_GETTIMEOFDAY
+	select GENERIC_IOREMAP if !ARCH_IOREMAP
+	select GENERIC_IRQ_MULTI_HANDLER
+	select GENERIC_IRQ_PROBE
+	select GENERIC_IRQ_SHOW
+	select GENERIC_LIB_ASHLDI3
+	select GENERIC_LIB_ASHRDI3
+	select GENERIC_LIB_CMPDI2
+	select GENERIC_LIB_LSHRDI3
+	select GENERIC_LIB_UCMPDI2
+	select GENERIC_LIB_DEVMEM_IS_ALLOWED
+	select GENERIC_PCI_IOMAP
+	select GENERIC_SCHED_CLOCK
+	select GENERIC_SMP_IDLE_THREAD
+	select GENERIC_TIME_VSYSCALL
+	select GENERIC_VDSO_TIME_NS
+	select GPIOLIB
+	select HAVE_ARCH_AUDITSYSCALL
+	select HAVE_ARCH_MMAP_RND_BITS if MMU
+	select HAVE_ARCH_SECCOMP
+	select HAVE_ARCH_SECCOMP_FILTER
+	select HAVE_ARCH_TRACEHOOK
+	select HAVE_ARCH_TRANSPARENT_HUGEPAGE
+	select HAVE_ASM_MODVERSIONS
+	select HAVE_CONTEXT_TRACKING_USER
+	select HAVE_DEBUG_STACKOVERFLOW
+	select HAVE_DMA_CONTIGUOUS
+	select HAVE_EBPF_JIT
+	select HAVE_EXIT_THREAD
+	select HAVE_FAST_GUP
+	select HAVE_GENERIC_VDSO
+	select HAVE_IOREMAP_PROT
+	select HAVE_IRQ_EXIT_ON_IRQ_STACK
+	select HAVE_IRQ_TIME_ACCOUNTING
+	select HAVE_MOD_ARCH_SPECIFIC
+	select HAVE_NMI
+	select HAVE_PCI
+	select HAVE_PERF_EVENTS
+	select HAVE_PERF_REGS
+	select HAVE_PERF_USER_STACK_DUMP
+	select HAVE_REGS_AND_STACK_ACCESS_API
+	select HAVE_RSEQ
+	select HAVE_SETUP_PER_CPU_AREA if NUMA
+	select HAVE_SYSCALL_TRACEPOINTS
+	select HAVE_TIF_NOHZ
+	select HAVE_VIRT_CPU_ACCOUNTING_GEN if !SMP
+	select IRQ_FORCED_THREADING
+	select IRQ_LOONGARCH_CPU
+	select LOCK_MM_AND_FIND_VMA
+	select MMU_GATHER_MERGE_VMAS if MMU
+	select MODULES_USE_ELF_RELA if MODULES
+	select NEED_PER_CPU_EMBED_FIRST_CHUNK
+	select NEED_PER_CPU_PAGE_FIRST_CHUNK
+	select PCI
+	select PCI_DOMAINS_GENERIC
+	select PCI_ECAM if ACPI
+	select PCI_LOONGSON
+	select PCI_MSI_ARCH_FALLBACKS
+	select PCI_QUIRKS
+	select PERF_USE_VMALLOC
+	select RTC_LIB
+	select SMP
+	select SPARSE_IRQ
+	select SYSCTL_EXCEPTION_TRACE
+	select SWIOTLB
+	select TRACE_IRQFLAGS_SUPPORT
+	select USE_PERCPU_NUMA_NODE_ID
+	select USER_STACKTRACE_SUPPORT
+	select ZONE_DMA32
+
+config 32BIT
+	bool
+
+config 64BIT
+	def_bool y
+
+config CPU_HAS_FPU
+	bool
+	default y
+
+config CPU_HAS_PREFETCH
+	bool
+	default y
+
+config GENERIC_BUG
+	def_bool y
+	depends on BUG
+
+config GENERIC_BUG_RELATIVE_POINTERS
+	def_bool y
+	depends on GENERIC_BUG
+
+config GENERIC_CALIBRATE_DELAY
+	def_bool y
+
+config GENERIC_CSUM
+	def_bool y
+
+config GENERIC_HWEIGHT
+	def_bool y
+
+config L1_CACHE_SHIFT
+	int
+	default "6"
+
+config LOCKDEP_SUPPORT
+	bool
+	default y
+
+config STACKTRACE_SUPPORT
+	bool
+	default y
+
+# MACH_LOONGSON32 and MACH_LOONGSON64 are deliberately carried over from the
+# MIPS Loongson code, to preserve Loongson-specific code paths in drivers that
+# are shared between architectures, and specifically expecting the symbols.
+config MACH_LOONGSON32
+	def_bool 32BIT
+
+config MACH_LOONGSON64
+	def_bool 64BIT
+
+config FIX_EARLYCON_MEM
+	def_bool y
+
+config PAGE_SIZE_4KB
+	bool
+
+config PAGE_SIZE_16KB
+	bool
+
+config PAGE_SIZE_64KB
+	bool
+
+config PGTABLE_2LEVEL
+	bool
+
+config PGTABLE_3LEVEL
+	bool
+
+config PGTABLE_4LEVEL
+	bool
+
+config PGTABLE_LEVELS
+	int
+	default 2 if PGTABLE_2LEVEL
+	default 3 if PGTABLE_3LEVEL
+	default 4 if PGTABLE_4LEVEL
+
+config SCHED_OMIT_FRAME_POINTER
+	bool
+	default y
+
+config AS_HAS_EXPLICIT_RELOCS
+	def_bool $(as-instr,x:pcalau12i \$t0$(comma)%pc_hi20(x))
+
+menu "Kernel type and options"
+
+source "kernel/Kconfig.hz"
+
+choice
+	prompt "Page Table Layout"
+	default 16KB_2LEVEL if 32BIT
+	default 16KB_3LEVEL if 64BIT
+	help
+	  Allows choosing the page table layout, which is a combination
+	  of page size and page table levels. The size of virtual memory
+	  address space are determined by the page table layout.
+
+config 4KB_3LEVEL
+	bool "4KB with 3 levels"
+	select PAGE_SIZE_4KB
+	select PGTABLE_3LEVEL
+	help
+	  This option selects 4KB page size with 3 level page tables, which
+	  support a maximum of 39 bits of application virtual memory.
+
+config 4KB_4LEVEL
+	bool "4KB with 4 levels"
+	select PAGE_SIZE_4KB
+	select PGTABLE_4LEVEL
+	help
+	  This option selects 4KB page size with 4 level page tables, which
+	  support a maximum of 48 bits of application virtual memory.
+
+config 16KB_2LEVEL
+	bool "16KB with 2 levels"
+	select PAGE_SIZE_16KB
+	select PGTABLE_2LEVEL
+	help
+	  This option selects 16KB page size with 2 level page tables, which
+	  support a maximum of 36 bits of application virtual memory.
+
+config 16KB_3LEVEL
+	bool "16KB with 3 levels"
+	select PAGE_SIZE_16KB
+	select PGTABLE_3LEVEL
+	help
+	  This option selects 16KB page size with 3 level page tables, which
+	  support a maximum of 47 bits of application virtual memory.
+
+config 64KB_2LEVEL
+	bool "64KB with 2 levels"
+	select PAGE_SIZE_64KB
+	select PGTABLE_2LEVEL
+	help
+	  This option selects 64KB page size with 2 level page tables, which
+	  support a maximum of 42 bits of application virtual memory.
+
+config 64KB_3LEVEL
+	bool "64KB with 3 levels"
+	select PAGE_SIZE_64KB
+	select PGTABLE_3LEVEL
+	help
+	  This option selects 64KB page size with 3 level page tables, which
+	  support a maximum of 55 bits of application virtual memory.
+
+endchoice
+
+config CMDLINE
+	string "Built-in kernel command line"
+	help
+	  For most platforms, the arguments for the kernel's command line
+	  are provided at run-time, during boot. However, there are cases
+	  where either no arguments are being provided or the provided
+	  arguments are insufficient or even invalid.
+
+	  When that occurs, it is possible to define a built-in command
+	  line here and choose how the kernel should use it later on.
+
+choice
+	prompt "Kernel command line type"
+	default CMDLINE_BOOTLOADER
+	help
+	  Choose how the kernel will handle the provided built-in command
+	  line.
+
+config CMDLINE_BOOTLOADER
+	bool "Use bootloader kernel arguments if available"
+	help
+	  Prefer the command-line passed by the boot loader if available.
+	  Use the built-in command line as fallback in case we get nothing
+	  during boot. This is the default behaviour.
+
+config CMDLINE_EXTEND
+	bool "Use built-in to extend bootloader kernel arguments"
+	help
+	  The command-line arguments provided during boot will be
+	  appended to the built-in command line. This is useful in
+	  cases where the provided arguments are insufficient and
+	  you don't want to or cannot modify them.
+
+config CMDLINE_FORCE
+	bool "Always use the built-in kernel command string"
+	help
+	  Always use the built-in command line, even if we get one during
+	  boot. This is useful in case you need to override the provided
+	  command line on systems where you don't have or want control
+	  over it.
+
+endchoice
+
+config DMI
+	bool "Enable DMI scanning"
+	select DMI_SCAN_MACHINE_NON_EFI_FALLBACK
+	default y
+	help
+	  This enables SMBIOS/DMI feature for systems, and scanning of
+	  DMI to identify machine quirks.
+
+config EFI
+	bool "EFI runtime service support"
+	select UCS2_STRING
+	select EFI_RUNTIME_WRAPPERS
+	help
+	  This enables the kernel to use EFI runtime services that are
+	  available (such as the EFI variable services).
+
+config EFI_STUB
+	bool "EFI boot stub support"
+	default y
+	depends on EFI
+	select EFI_GENERIC_STUB
+	help
+	  This kernel feature allows the kernel to be loaded directly by
+	  EFI firmware without the use of a bootloader.
+
+config SMP
+	bool "Multi-Processing support"
+	help
+	  This enables support for systems with more than one CPU. If you have
+	  a system with only one CPU, say N. If you have a system with more
+	  than one CPU, say Y.
+
+	  If you say N here, the kernel will run on uni- and multiprocessor
+	  machines, but will use only one CPU of a multiprocessor machine. If
+	  you say Y here, the kernel will run on many, but not all,
+	  uniprocessor machines. On a uniprocessor machine, the kernel
+	  will run faster if you say N here.
+
+	  See also the SMP-HOWTO available at <http://www.tldp.org/docs.html#howto>.
+
+	  If you don't know what to do here, say N.
+
+config HOTPLUG_CPU
+	bool "Support for hot-pluggable CPUs"
+	depends on SMP
+	select GENERIC_IRQ_MIGRATION
+	help
+	  Say Y here to allow turning CPUs off and on. CPUs can be
+	  controlled through /sys/devices/system/cpu.
+	  (Note: power management support will enable this option
+	    automatically on SMP systems. )
+	  Say N if you want to disable CPU hotplug.
+
+config NR_CPUS
+	int "Maximum number of CPUs (2-256)"
+	range 2 256
+	depends on SMP
+	default "64"
+	help
+	  This allows you to specify the maximum number of CPUs which this
+	  kernel will support.
+
+config NUMA
+	bool "NUMA Support"
+	select SMP
+	select ACPI_NUMA if ACPI
+	help
+	  Say Y to compile the kernel with NUMA (Non-Uniform Memory Access)
+	  support.  This option improves performance on systems with more
+	  than one NUMA node; on single node systems it is generally better
+	  to leave it disabled.
+
+config NODES_SHIFT
+	int
+	default "6"
+	depends on NUMA
+
+config ARCH_FORCE_MAX_ORDER
+	int "Maximum zone order"
+	range 14 64 if PAGE_SIZE_64KB
+	default "14" if PAGE_SIZE_64KB
+	range 12 64 if PAGE_SIZE_16KB
+	default "12" if PAGE_SIZE_16KB
+	range 11 64
+	default "11"
+	help
+	  The kernel memory allocator divides physically contiguous memory
+	  blocks into "zones", where each zone is a power of two number of
+	  pages.  This option selects the largest power of two that the kernel
+	  keeps in the memory allocator.  If you need to allocate very large
+	  blocks of physically contiguous memory, then you may need to
+	  increase this value.
+
+	  This config option is actually maximum order plus one. For example,
+	  a value of 11 means that the largest free memory block is 2^10 pages.
+
+	  The page size is not necessarily 4KB.  Keep this in mind
+	  when choosing a value for this option.
+
+config ARCH_IOREMAP
+	bool "Enable LoongArch DMW-based ioremap()"
+	help
+	  We use generic TLB-based ioremap() by default since it has page
+	  protection support. However, you can enable LoongArch DMW-based
+	  ioremap() for better performance.
+
+config KEXEC
+	bool "Kexec system call"
+	select KEXEC_CORE
+	help
+	  kexec is a system call that implements the ability to shutdown your
+	  current kernel, and to start another kernel.  It is like a reboot
+	  but it is independent of the system firmware.   And like a reboot
+	  you can start any kernel with it, not just Linux.
+
+	  The name comes from the similarity to the exec system call.
+
+config CRASH_DUMP
+	bool "Build kdump crash kernel"
+	help
+	  Generate crash dump after being started by kexec. This should
+	  be normally only set in special crash dump kernels which are
+	  loaded in the main kernel with kexec-tools into a specially
+	  reserved region and then later executed after a crash by
+	  kdump/kexec.
+
+	  For more details see Documentation/admin-guide/kdump/kdump.rst
+
+config PHYSICAL_START
+	hex "Physical address where the kernel is loaded"
+	default "0x90000000a0000000"
+	depends on CRASH_DUMP
+	help
+	  This gives the XKPRANGE address where the kernel is loaded.
+	  If you plan to use kernel for capturing the crash dump change
+	  this value to start of the reserved region (the "X" value as
+	  specified in the "crashkernel=YM@XM" command line boot parameter
+	  passed to the panic-ed kernel).
+
+endmenu
+
+config ARCH_SELECT_MEMORY_MODEL
+	def_bool y
+
+config ARCH_FLATMEM_ENABLE
+	def_bool y
+	depends on !NUMA
+
+config ARCH_SPARSEMEM_ENABLE
+	def_bool y
+	help
+	  Say Y to support efficient handling of sparse physical memory,
+	  for architectures which are either NUMA (Non-Uniform Memory Access)
+	  or have huge holes in the physical address space for other reasons.
+	  See <file:Documentation/mm/numa.rst> for more.
+
+config ARCH_MEMORY_PROBE
+	def_bool y
+	depends on MEMORY_HOTPLUG
+
+config MMU
+	bool
+	default y
+
+config ARCH_MMAP_RND_BITS_MIN
+	default 12
+
+config ARCH_MMAP_RND_BITS_MAX
+	default 18
+
+menu "Power management options"
+
+source "drivers/acpi/Kconfig"
+
+endmenu
+
+source "drivers/firmware/Kconfig"
