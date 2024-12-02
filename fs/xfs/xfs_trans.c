@@ -1435,5 +1435,8 @@ done:
 
 out_cancel:
 	xfs_trans_cancel(tp);
+	xfs_iunlock(dp, XFS_ILOCK_EXCL);
+	if (dp != ip)
+		xfs_iunlock(ip, XFS_ILOCK_EXCL);
 	return error;
 }
