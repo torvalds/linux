@@ -1705,10 +1705,10 @@ static inline __init void parity_protection_init(void)
 		l2parity &= l1parity;
 
 		/* Probe L1 ECC support */
-		cp0_ectl = read_c0_ecc();
-		write_c0_ecc(cp0_ectl | ERRCTL_PE);
+		cp0_ectl = read_c0_errctl();
+		write_c0_errctl(cp0_ectl | ERRCTL_PE);
 		back_to_back_c0_hazard();
-		cp0_ectl = read_c0_ecc();
+		cp0_ectl = read_c0_errctl();
 
 		/* Probe L2 ECC support */
 		gcr_ectl = read_gcr_err_control();
@@ -1727,9 +1727,9 @@ static inline __init void parity_protection_init(void)
 			cp0_ectl |= ERRCTL_PE;
 		else
 			cp0_ectl &= ~ERRCTL_PE;
-		write_c0_ecc(cp0_ectl);
+		write_c0_errctl(cp0_ectl);
 		back_to_back_c0_hazard();
-		WARN_ON(!!(read_c0_ecc() & ERRCTL_PE) != l1parity);
+		WARN_ON(!!(read_c0_errctl() & ERRCTL_PE) != l1parity);
 
 		/* Configure L2 ECC checking */
 		if (l2parity)
@@ -1761,18 +1761,18 @@ static inline __init void parity_protection_init(void)
 			unsigned long errctl;
 			unsigned int l1parity_present, l2parity_present;
 
-			errctl = read_c0_ecc();
+			errctl = read_c0_errctl();
 			errctl &= ~(ERRCTL_PE|ERRCTL_L2P);
 
 			/* probe L1 parity support */
-			write_c0_ecc(errctl | ERRCTL_PE);
+			write_c0_errctl(errctl | ERRCTL_PE);
 			back_to_back_c0_hazard();
-			l1parity_present = (read_c0_ecc() & ERRCTL_PE);
+			l1parity_present = (read_c0_errctl() & ERRCTL_PE);
 
 			/* probe L2 parity support */
-			write_c0_ecc(errctl|ERRCTL_L2P);
+			write_c0_errctl(errctl|ERRCTL_L2P);
 			back_to_back_c0_hazard();
-			l2parity_present = (read_c0_ecc() & ERRCTL_L2P);
+			l2parity_present = (read_c0_errctl() & ERRCTL_L2P);
 
 			if (l1parity_present && l2parity_present) {
 				if (l1parity)
@@ -1791,9 +1791,9 @@ static inline __init void parity_protection_init(void)
 
 			printk(KERN_INFO "Writing ErrCtl register=%08lx\n", errctl);
 
-			write_c0_ecc(errctl);
+			write_c0_errctl(errctl);
 			back_to_back_c0_hazard();
-			errctl = read_c0_ecc();
+			errctl = read_c0_errctl();
 			printk(KERN_INFO "Readback ErrCtl register=%08lx\n", errctl);
 
 			if (l1parity_present)
@@ -1812,11 +1812,11 @@ static inline __init void parity_protection_init(void)
 	case CPU_5KC:
 	case CPU_5KE:
 	case CPU_LOONGSON32:
-		write_c0_ecc(0x80000000);
+		write_c0_errctl(0x80000000);
 		back_to_back_c0_hazard();
 		/* Set the PE bit (bit 31) in the c0_errctl register. */
 		printk(KERN_INFO "Cache parity protection %sabled\n",
-		       (read_c0_ecc() & 0x80000000) ? "en" : "dis");
+		       (read_c0_errctl() & 0x80000000) ? "en" : "dis");
 		break;
 	case CPU_20KC:
 	case CPU_25KF:
@@ -1887,8 +1887,8 @@ asmlinkage void do_ftlb(void)
 	if ((cpu_has_mips_r2_r6) &&
 	    (((current_cpu_data.processor_id & 0xff0000) == PRID_COMP_MIPS) ||
 	    ((current_cpu_data.processor_id & 0xff0000) == PRID_COMP_LOONGSON))) {
-		pr_err("FTLB error exception, cp0_ecc=0x%08x:\n",
-		       read_c0_ecc());
+		pr_err("FTLB error exception, cp0_errctl=0x%08x:\n",
+		       read_c0_errctl());
 		pr_err("cp0_errorepc == %0*lx\n", field, read_c0_errorepc());
 		reg_val = read_c0_cacheerr();
 		pr_err("c0_cacheerr == %08x\n", reg_val);

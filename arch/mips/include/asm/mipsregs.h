@@ -2039,8 +2039,8 @@ do {									\
 #define read_c0_perfcntr3_64()	__read_64bit_c0_register($25, 7)
 #define write_c0_perfcntr3_64(val) __write_64bit_c0_register($25, 7, val)
 
-#define read_c0_ecc()		__read_32bit_c0_register($26, 0)
-#define write_c0_ecc(val)	__write_32bit_c0_register($26, 0, val)
+#define read_c0_errctl()	__read_32bit_c0_register($26, 0)
+#define write_c0_errctl(val)	__write_32bit_c0_register($26, 0, val)
 
 #define read_c0_derraddr0()	__read_ulong_c0_register($26, 1)
 #define write_c0_derraddr0(val) __write_ulong_c0_register($26, 1, val)
