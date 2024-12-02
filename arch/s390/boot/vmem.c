@@ -63,7 +63,6 @@ static void kasan_populate_shadow(unsigned long kernel_start, unsigned long kern
 	pud_t pud_z = __pud(__pa(kasan_early_shadow_pmd) | _REGION3_ENTRY);
 	p4d_t p4d_z = __p4d(__pa(kasan_early_shadow_pud) | _REGION2_ENTRY);
 	unsigned long memgap_start = 0;
-	unsigned long untracked_end;
 	unsigned long start, end;
 	int i;
 
@@ -93,15 +92,10 @@ static void kasan_populate_shadow(unsigned long kernel_start, unsigned long kern
 	kasan_populate(kernel_start + TEXT_OFFSET, kernel_end, POPULATE_KASAN_MAP_SHADOW);
 	kasan_populate(0, (unsigned long)__identity_va(0), POPULATE_KASAN_ZERO_SHADOW);
 	kasan_populate(AMODE31_START, AMODE31_END, POPULATE_KASAN_ZERO_SHADOW);
-	if (IS_ENABLED(CONFIG_KASAN_VMALLOC)) {
-		untracked_end = VMALLOC_START;
-		/* shallowly populate kasan shadow for vmalloc and modules */
-		kasan_populate(VMALLOC_START, MODULES_END, POPULATE_KASAN_SHALLOW);
-	} else {
-		untracked_end = MODULES_VADDR;
-	}
+	/* shallowly populate kasan shadow for vmalloc and modules */
+	kasan_populate(VMALLOC_START, MODULES_END, POPULATE_KASAN_SHALLOW);
 	/* populate kasan shadow for untracked memory */
-	kasan_populate((unsigned long)__identity_va(ident_map_size), untracked_end,
+	kasan_populate((unsigned long)__identity_va(ident_map_size), VMALLOC_START,
 		       POPULATE_KASAN_ZERO_SHADOW);
 	kasan_populate(kernel_end, _REGION1_SIZE, POPULATE_KASAN_ZERO_SHADOW);
 }
