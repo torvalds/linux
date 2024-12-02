@@ -104,7 +104,6 @@ static const struct {
 	[RTL_GIGA_MAC_VER_08] = {"RTL8102e"				},
 	[RTL_GIGA_MAC_VER_09] = {"RTL8102e/RTL8103e"			},
 	[RTL_GIGA_MAC_VER_10] = {"RTL8101e/RTL8100e"			},
-	[RTL_GIGA_MAC_VER_11] = {"RTL8168b/8111b"			},
 	[RTL_GIGA_MAC_VER_14] = {"RTL8401"				},
 	[RTL_GIGA_MAC_VER_17] = {"RTL8168b/8111b"			},
 	[RTL_GIGA_MAC_VER_18] = {"RTL8168cp/8111cp"			},
@@ -2335,7 +2334,7 @@ static enum mac_version rtl8169_get_mac_version(u16 xid, bool gmii)
 
 		/* 8168B family. */
 		{ 0x7c8, 0x380,	RTL_GIGA_MAC_VER_17 },
-		/* This one is very old and rare, let's see if anybody complains.
+		/* This one is very old and rare, support has been removed.
 		 * { 0x7c8, 0x300,	RTL_GIGA_MAC_VER_11 },
 		 */
 
@@ -3803,7 +3802,6 @@ static void rtl_hw_config(struct rtl8169_private *tp)
 		[RTL_GIGA_MAC_VER_08] = rtl_hw_start_8102e_3,
 		[RTL_GIGA_MAC_VER_09] = rtl_hw_start_8102e_2,
 		[RTL_GIGA_MAC_VER_10] = NULL,
-		[RTL_GIGA_MAC_VER_11] = rtl_hw_start_8168b,
 		[RTL_GIGA_MAC_VER_14] = rtl_hw_start_8401,
 		[RTL_GIGA_MAC_VER_17] = rtl_hw_start_8168b,
 		[RTL_GIGA_MAC_VER_18] = rtl_hw_start_8168cp_1,
@@ -4679,12 +4677,6 @@ static irqreturn_t rtl8169_interrupt(int irq, void *dev_instance)
 	if (status & LinkChg)
 		phy_mac_interrupt(tp->phydev);
 
-	if (unlikely(status & RxFIFOOver &&
-	    tp->mac_version == RTL_GIGA_MAC_VER_11)) {
-		netif_stop_queue(tp->dev);
-		rtl_schedule_task(tp, RTL_FLAG_TASK_RESET_PENDING);
-	}
-
 	rtl_irq_disable(tp);
 	napi_schedule(&tp->napi);
 out:
@@ -5100,9 +5092,6 @@ static void rtl_set_irq_mask(struct rtl8169_private *tp)
 
 	if (tp->mac_version <= RTL_GIGA_MAC_VER_06)
 		tp->irq_mask |= SYSErr | RxFIFOOver;
-	else if (tp->mac_version == RTL_GIGA_MAC_VER_11)
-		/* special workaround needed */
-		tp->irq_mask |= RxFIFOOver;
 }
 
 static int rtl_alloc_irq(struct rtl8169_private *tp)
@@ -5297,7 +5286,6 @@ static int rtl_jumbo_max(struct rtl8169_private *tp)
 	case RTL_GIGA_MAC_VER_02 ... RTL_GIGA_MAC_VER_06:
 		return JUMBO_7K;
 	/* RTL8168b */
-	case RTL_GIGA_MAC_VER_11:
 	case RTL_GIGA_MAC_VER_17:
 		return JUMBO_4K;
 	/* RTL8168c */

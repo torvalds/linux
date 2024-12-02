@@ -276,15 +276,6 @@ static void rtl8169sce_hw_phy_config(struct rtl8169_private *tp,
 	rtl_writephy_batch(phydev, phy_reg_init);
 }
 
-static void rtl8168bb_hw_phy_config(struct rtl8169_private *tp,
-				    struct phy_device *phydev)
-{
-	phy_write(phydev, 0x1f, 0x0001);
-	phy_set_bits(phydev, 0x16, BIT(0));
-	phy_write(phydev, 0x10, 0xf41b);
-	phy_write(phydev, 0x1f, 0x0000);
-}
-
 static void rtl8168bef_hw_phy_config(struct rtl8169_private *tp,
 				     struct phy_device *phydev)
 {
@@ -1136,7 +1127,6 @@ void r8169_hw_phy_config(struct rtl8169_private *tp, struct phy_device *phydev,
 		[RTL_GIGA_MAC_VER_08] = rtl8102e_hw_phy_config,
 		[RTL_GIGA_MAC_VER_09] = rtl8102e_hw_phy_config,
 		[RTL_GIGA_MAC_VER_10] = NULL,
-		[RTL_GIGA_MAC_VER_11] = rtl8168bb_hw_phy_config,
 		[RTL_GIGA_MAC_VER_14] = rtl8401_hw_phy_config,
 		[RTL_GIGA_MAC_VER_17] = rtl8168bef_hw_phy_config,
 		[RTL_GIGA_MAC_VER_18] = rtl8168cp_1_hw_phy_config,

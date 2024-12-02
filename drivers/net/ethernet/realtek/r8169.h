@@ -23,7 +23,7 @@ enum mac_version {
 	RTL_GIGA_MAC_VER_08,
 	RTL_GIGA_MAC_VER_09,
 	RTL_GIGA_MAC_VER_10,
-	RTL_GIGA_MAC_VER_11,
+	/* support for RTL_GIGA_MAC_VER_11 has been removed */
 	/* RTL_GIGA_MAC_VER_12 was handled the same as VER_17 */
 	/* RTL_GIGA_MAC_VER_13 was merged with VER_10 */
 	RTL_GIGA_MAC_VER_14,
