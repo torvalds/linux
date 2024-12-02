@@ -306,6 +306,18 @@ static int get_rmpentry(u64 pfn, struct rmpentry *e)
 {
 	struct rmpentry_raw *e_raw;
 
+	if (cpu_feature_enabled(X86_FEATURE_RMPREAD)) {
+		int ret;
+
+		/* Binutils version 2.44 supports the RMPREAD mnemonic. */
+		asm volatile(".byte 0xf2, 0x0f, 0x01, 0xfd"
+			     : "=a" (ret)
+			     : "a" (pfn << PAGE_SHIFT), "c" (e)
+			     : "memory", "cc");
+
+		return ret;
+	}
+
 	e_raw = get_raw_rmpentry(pfn);
 	if (IS_ERR(e_raw))
 		return PTR_ERR(e_raw);
