@@ -731,6 +731,13 @@ xfs_qm_create_metadir_qinos(
 		error = xfs_dqinode_mkdir_parent(mp, &qi->qi_dirip);
 		if (error && error != -EEXIST)
 			return error;
+		/*
+		 * If the /quotas dirent points to an inode that isn't
+		 * loadable, qi_dirip will be NULL but mkdir_parent will return
+		 * -EEXIST.  In this case the metadir is corrupt, so bail out.
+		 */
+		if (XFS_IS_CORRUPT(mp, qi->qi_dirip == NULL))
+			return -EFSCORRUPTED;
 	}
 
 	if (XFS_IS_UQUOTA_ON(mp) && !qi->qi_uquotaip) {
