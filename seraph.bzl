@@ -16,6 +16,7 @@ def define_seraph():
         "drivers/clk/qcom/evacc-seraph.ko",
         "drivers/clk/qcom/gcc-seraph.ko",
         "drivers/clk/qcom/gdsc-regulator.ko",
+        "drivers/clk/qcom/gpucc-seraph.ko",
         "drivers/clk/qcom/lsrcc-seraph.ko",
         "drivers/clk/qcom/tcsrcc-seraph.ko",
         "drivers/clk/qcom/videocc-seraph.ko",
