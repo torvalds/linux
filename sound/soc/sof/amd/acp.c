@@ -633,7 +633,7 @@ int amd_sof_acp_suspend(struct snd_sof_dev *sdev, u32 target_state)
 
 	return 0;
 }
-EXPORT_SYMBOL_NS(amd_sof_acp_suspend, SND_SOC_SOF_AMD_COMMON);
+EXPORT_SYMBOL_NS(amd_sof_acp_suspend, "SND_SOC_SOF_AMD_COMMON");
 
 int amd_sof_acp_resume(struct snd_sof_dev *sdev)
 {
@@ -652,7 +652,7 @@ int amd_sof_acp_resume(struct snd_sof_dev *sdev)
 		return acp_dsp_reset(sdev);
 	}
 }
-EXPORT_SYMBOL_NS(amd_sof_acp_resume, SND_SOC_SOF_AMD_COMMON);
+EXPORT_SYMBOL_NS(amd_sof_acp_resume, "SND_SOC_SOF_AMD_COMMON");
 
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_AMD_SOUNDWIRE)
 static int acp_sof_scan_sdw_devices(struct snd_sof_dev *sdev, u64 addr)
@@ -852,7 +852,7 @@ unregister_dev:
 	platform_device_unregister(adata->dmic_dev);
 	return ret;
 }
-EXPORT_SYMBOL_NS(amd_sof_acp_probe, SND_SOC_SOF_AMD_COMMON);
+EXPORT_SYMBOL_NS(amd_sof_acp_probe, "SND_SOC_SOF_AMD_COMMON");
 
 void amd_sof_acp_remove(struct snd_sof_dev *sdev)
 {
@@ -872,9 +872,9 @@ void amd_sof_acp_remove(struct snd_sof_dev *sdev)
 
 	acp_reset(sdev);
 }
-EXPORT_SYMBOL_NS(amd_sof_acp_remove, SND_SOC_SOF_AMD_COMMON);
+EXPORT_SYMBOL_NS(amd_sof_acp_remove, "SND_SOC_SOF_AMD_COMMON");
 
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_DESCRIPTION("AMD ACP sof driver");
-MODULE_IMPORT_NS(SOUNDWIRE_AMD_INIT);
-MODULE_IMPORT_NS(SND_AMD_SOUNDWIRE_ACPI);
+MODULE_IMPORT_NS("SOUNDWIRE_AMD_INIT");
+MODULE_IMPORT_NS("SND_AMD_SOUNDWIRE_ACPI");

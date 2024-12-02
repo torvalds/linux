@@ -164,4 +164,4 @@ module_i2c_driver(mpq7932_regulator_driver);
 MODULE_AUTHOR("Saravanan Sekar <saravanan@linumiz.com>");
 MODULE_DESCRIPTION("MPQ7932 PMIC regulator driver");
 MODULE_LICENSE("GPL");
-MODULE_IMPORT_NS(PMBUS);
+MODULE_IMPORT_NS("PMBUS");

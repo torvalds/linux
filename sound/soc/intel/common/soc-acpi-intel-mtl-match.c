@@ -893,4 +893,4 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_mtl_sdw_machines[] = {
 };
 EXPORT_SYMBOL_GPL(snd_soc_acpi_intel_mtl_sdw_machines);
 
-MODULE_IMPORT_NS(SND_SOC_ACPI_INTEL_SDCA_QUIRKS);
+MODULE_IMPORT_NS("SND_SOC_ACPI_INTEL_SDCA_QUIRKS");

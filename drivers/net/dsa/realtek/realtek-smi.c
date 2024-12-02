@@ -361,7 +361,7 @@ int realtek_smi_probe(struct platform_device *pdev)
 
 	return 0;
 }
-EXPORT_SYMBOL_NS_GPL(realtek_smi_probe, REALTEK_DSA);
+EXPORT_SYMBOL_NS_GPL(realtek_smi_probe, "REALTEK_DSA");
 
 /**
  * realtek_smi_remove() - Remove the driver of a SMI-connected switch
@@ -384,7 +384,7 @@ void realtek_smi_remove(struct platform_device *pdev)
 
 	rtl83xx_remove(priv);
 }
-EXPORT_SYMBOL_NS_GPL(realtek_smi_remove, REALTEK_DSA);
+EXPORT_SYMBOL_NS_GPL(realtek_smi_remove, "REALTEK_DSA");
 
 /**
  * realtek_smi_shutdown() - Shutdown the driver of a SMI-connected switch
@@ -405,4 +405,4 @@ void realtek_smi_shutdown(struct platform_device *pdev)
 
 	rtl83xx_shutdown(priv);
 }
-EXPORT_SYMBOL_NS_GPL(realtek_smi_shutdown, REALTEK_DSA);
+EXPORT_SYMBOL_NS_GPL(realtek_smi_shutdown, "REALTEK_DSA");

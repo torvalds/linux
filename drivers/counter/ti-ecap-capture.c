@@ -615,4 +615,4 @@ module_platform_driver(ecap_cnt_driver);
 MODULE_DESCRIPTION("ECAP Capture driver");
 MODULE_AUTHOR("Julien Panis <jpanis@baylibre.com>");
 MODULE_LICENSE("GPL");
-MODULE_IMPORT_NS(COUNTER);
+MODULE_IMPORT_NS("COUNTER");

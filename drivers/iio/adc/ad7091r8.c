@@ -269,4 +269,4 @@ module_spi_driver(ad7091r8_driver);
 MODULE_AUTHOR("Marcelo Schmitt <marcelo.schmitt@analog.com>");
 MODULE_DESCRIPTION("Analog Devices AD7091R8 ADC driver");
 MODULE_LICENSE("GPL");
-MODULE_IMPORT_NS(IIO_AD7091R);
+MODULE_IMPORT_NS("IIO_AD7091R");

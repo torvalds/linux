@@ -1406,6 +1406,6 @@ static struct platform_driver sun20i_d1_ccu_driver = {
 };
 module_platform_driver(sun20i_d1_ccu_driver);
 
-MODULE_IMPORT_NS(SUNXI_CCU);
+MODULE_IMPORT_NS("SUNXI_CCU");
 MODULE_DESCRIPTION("Support for the Allwinner D1/R528/T113 CCU");
 MODULE_LICENSE("GPL");

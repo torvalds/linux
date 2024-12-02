@@ -13293,7 +13293,7 @@ MODULE_DEVICE_TABLE(hdaudio, snd_hda_id_realtek);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Realtek HD-audio codec");
-MODULE_IMPORT_NS(SND_HDA_SCODEC_COMPONENT);
+MODULE_IMPORT_NS("SND_HDA_SCODEC_COMPONENT");
 
 static struct hda_codec_driver realtek_driver = {
 	.id = snd_hda_id_realtek,

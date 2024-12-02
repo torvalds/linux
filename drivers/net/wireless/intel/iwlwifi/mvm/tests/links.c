@@ -8,7 +8,7 @@
 #include "../mvm.h"
 #include <kunit/test.h>
 
-MODULE_IMPORT_NS(EXPORTED_FOR_KUNIT_TESTING);
+MODULE_IMPORT_NS("EXPORTED_FOR_KUNIT_TESTING");
 
 static struct wiphy wiphy = {
 	.mtx = __MUTEX_INITIALIZER(wiphy.mtx),

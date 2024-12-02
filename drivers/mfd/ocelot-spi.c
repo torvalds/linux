@@ -193,7 +193,7 @@ struct regmap *ocelot_spi_init_regmap(struct device *dev, const struct resource 
 
 	return devm_regmap_init(dev, &ocelot_spi_regmap_bus, dev, &regmap_config);
 }
-EXPORT_SYMBOL_NS(ocelot_spi_init_regmap, MFD_OCELOT_SPI);
+EXPORT_SYMBOL_NS(ocelot_spi_init_regmap, "MFD_OCELOT_SPI");
 
 static int ocelot_spi_probe(struct spi_device *spi)
 {
@@ -295,4 +295,4 @@ module_spi_driver(ocelot_spi_driver);
 MODULE_DESCRIPTION("SPI Controlled Ocelot Chip Driver");
 MODULE_AUTHOR("Colin Foster <colin.foster@in-advantage.com>");
 MODULE_LICENSE("Dual MIT/GPL");
-MODULE_IMPORT_NS(MFD_OCELOT);
+MODULE_IMPORT_NS("MFD_OCELOT");

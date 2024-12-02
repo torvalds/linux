@@ -102,4 +102,4 @@ MODULE_DESCRIPTION("Amlogic Meson Reset Controller driver");
 MODULE_AUTHOR("Neil Armstrong <narmstrong@baylibre.com>");
 MODULE_AUTHOR("Jerome Brunet <jbrunet@baylibre.com>");
 MODULE_LICENSE("Dual BSD/GPL");
-MODULE_IMPORT_NS(MESON_RESET);
+MODULE_IMPORT_NS("MESON_RESET");

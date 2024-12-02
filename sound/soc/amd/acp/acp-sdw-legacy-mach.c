@@ -482,5 +482,5 @@ module_platform_driver(soc_sdw_driver);
 MODULE_DESCRIPTION("ASoC AMD SoundWire Legacy Generic Machine driver");
 MODULE_AUTHOR("Vijendar Mukunda <Vijendar.Mukunda@amd.com>");
 MODULE_LICENSE("GPL");
-MODULE_IMPORT_NS(SND_SOC_SDW_UTILS);
-MODULE_IMPORT_NS(SND_SOC_AMD_SDW_MACH);
+MODULE_IMPORT_NS("SND_SOC_SDW_UTILS");
+MODULE_IMPORT_NS("SND_SOC_AMD_SDW_MACH");

@@ -73,7 +73,7 @@ int cn10k_cptpf_lmtst_init(struct otx2_cptpf_dev *cptpf)
 
 	return 0;
 }
-EXPORT_SYMBOL_NS_GPL(cn10k_cptpf_lmtst_init, CRYPTO_DEV_OCTEONTX2_CPT);
+EXPORT_SYMBOL_NS_GPL(cn10k_cptpf_lmtst_init, "CRYPTO_DEV_OCTEONTX2_CPT");
 
 int cn10k_cptvf_lmtst_init(struct otx2_cptvf_dev *cptvf)
 {
@@ -94,7 +94,7 @@ int cn10k_cptvf_lmtst_init(struct otx2_cptvf_dev *cptvf)
 
 	return 0;
 }
-EXPORT_SYMBOL_NS_GPL(cn10k_cptvf_lmtst_init, CRYPTO_DEV_OCTEONTX2_CPT);
+EXPORT_SYMBOL_NS_GPL(cn10k_cptvf_lmtst_init, "CRYPTO_DEV_OCTEONTX2_CPT");
 
 void cn10k_cpt_hw_ctx_clear(struct pci_dev *pdev,
 			    struct cn10k_cpt_errata_ctx *er_ctx)
@@ -110,7 +110,7 @@ void cn10k_cpt_hw_ctx_clear(struct pci_dev *pdev,
 			 DMA_BIDIRECTIONAL);
 	kfree(er_ctx->hw_ctx);
 }
-EXPORT_SYMBOL_NS_GPL(cn10k_cpt_hw_ctx_clear, CRYPTO_DEV_OCTEONTX2_CPT);
+EXPORT_SYMBOL_NS_GPL(cn10k_cpt_hw_ctx_clear, "CRYPTO_DEV_OCTEONTX2_CPT");
 
 void cn10k_cpt_hw_ctx_set(union cn10k_cpt_hw_ctx *hctx, u16 ctx_sz)
 {
@@ -119,7 +119,7 @@ void cn10k_cpt_hw_ctx_set(union cn10k_cpt_hw_ctx *hctx, u16 ctx_sz)
 	hctx->w0.ctx_sz = ctx_sz;
 	hctx->w0.ctx_push_sz = 1;
 }
-EXPORT_SYMBOL_NS_GPL(cn10k_cpt_hw_ctx_set, CRYPTO_DEV_OCTEONTX2_CPT);
+EXPORT_SYMBOL_NS_GPL(cn10k_cpt_hw_ctx_set, "CRYPTO_DEV_OCTEONTX2_CPT");
 
 int cn10k_cpt_hw_ctx_init(struct pci_dev *pdev,
 			  struct cn10k_cpt_errata_ctx *er_ctx)
@@ -149,7 +149,7 @@ int cn10k_cpt_hw_ctx_init(struct pci_dev *pdev,
 
 	return 0;
 }
-EXPORT_SYMBOL_NS_GPL(cn10k_cpt_hw_ctx_init, CRYPTO_DEV_OCTEONTX2_CPT);
+EXPORT_SYMBOL_NS_GPL(cn10k_cpt_hw_ctx_init, "CRYPTO_DEV_OCTEONTX2_CPT");
 
 void cn10k_cpt_ctx_flush(struct pci_dev *pdev, u64 cptr, bool inval)
 {
@@ -168,7 +168,7 @@ void cn10k_cpt_ctx_flush(struct pci_dev *pdev, u64 cptr, bool inval)
 	otx2_cpt_read64(lfs->reg_base, lfs->blkaddr, lfs->lf[0].slot,
 			OTX2_CPT_LF_CTX_ERR);
 }
-EXPORT_SYMBOL_NS_GPL(cn10k_cpt_ctx_flush, CRYPTO_DEV_OCTEONTX2_CPT);
+EXPORT_SYMBOL_NS_GPL(cn10k_cpt_ctx_flush, "CRYPTO_DEV_OCTEONTX2_CPT");
 
 void cptvf_hw_ops_get(struct otx2_cptvf_dev *cptvf)
 {
@@ -177,4 +177,4 @@ void cptvf_hw_ops_get(struct otx2_cptvf_dev *cptvf)
 	else
 		cptvf->lfs.ops = &otx2_hw_ops;
 }
-EXPORT_SYMBOL_NS_GPL(cptvf_hw_ops_get, CRYPTO_DEV_OCTEONTX2_CPT);
+EXPORT_SYMBOL_NS_GPL(cptvf_hw_ops_get, "CRYPTO_DEV_OCTEONTX2_CPT");

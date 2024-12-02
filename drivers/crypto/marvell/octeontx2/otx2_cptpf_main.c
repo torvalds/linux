@@ -868,7 +868,7 @@ static struct pci_driver otx2_cpt_pci_driver = {
 
 module_pci_driver(otx2_cpt_pci_driver);
 
-MODULE_IMPORT_NS(CRYPTO_DEV_OCTEONTX2_CPT);
+MODULE_IMPORT_NS("CRYPTO_DEV_OCTEONTX2_CPT");
 
 MODULE_AUTHOR("Marvell");
 MODULE_DESCRIPTION(OTX2_CPT_DRV_STRING);

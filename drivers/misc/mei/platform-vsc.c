@@ -449,4 +449,4 @@ MODULE_AUTHOR("Wentong Wu <wentong.wu@intel.com>");
 MODULE_AUTHOR("Zhifeng Wang <zhifeng.wang@intel.com>");
 MODULE_DESCRIPTION("Intel Visual Sensing Controller Interface");
 MODULE_LICENSE("GPL");
-MODULE_IMPORT_NS(VSC_TP);
+MODULE_IMPORT_NS("VSC_TP");

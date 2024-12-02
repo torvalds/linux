@@ -46,7 +46,7 @@ Please note that due to macro expansion that argument needs to be a
 preprocessor symbol. E.g. to export the symbol ``usb_stor_suspend`` into the
 namespace ``USB_STORAGE``, use::
 
-	EXPORT_SYMBOL_NS(usb_stor_suspend, USB_STORAGE);
+	EXPORT_SYMBOL_NS(usb_stor_suspend, "USB_STORAGE");
 
 The corresponding ksymtab entry struct ``kernel_symbol`` will have the member
 ``namespace`` set accordingly. A symbol that is exported without a namespace will
@@ -94,7 +94,7 @@ for the namespaces it uses symbols from. E.g. a module using the
 usb_stor_suspend symbol from above, needs to import the namespace USB_STORAGE
 using a statement like::
 
-	MODULE_IMPORT_NS(USB_STORAGE);
+	MODULE_IMPORT_NS("USB_STORAGE");
 
 This will create a ``modinfo`` tag in the module for each imported namespace.
 This has the side effect, that the imported namespaces of a module can be
@@ -106,7 +106,7 @@ inspected with modinfo::
 	[...]
 
 
-It is advisable to add the MODULE_IMPORT_NS() statement close to other module
+It is advisable to add the MODULE_IMPORT_NS("") statement close to other module
 metadata definitions like MODULE_AUTHOR() or MODULE_LICENSE(). Refer to section
 5. for a way to create missing import statements automatically.
 
@@ -128,7 +128,7 @@ enable loading regardless, but will emit a warning.
 Missing namespaces imports can easily be detected at build time. In fact,
 modpost will emit a warning if a module uses a symbol from a namespace
 without importing it.
-MODULE_IMPORT_NS() statements will usually be added at a definite location
+MODULE_IMPORT_NS("") statements will usually be added at a definite location
 (along with other module meta data). To make the life of module authors (and
 subsystem maintainers) easier, a script and make target is available to fixup
 missing imports. Fixing missing imports can be done with::

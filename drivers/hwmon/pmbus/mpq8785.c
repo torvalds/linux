@@ -87,4 +87,4 @@ module_i2c_driver(mpq8785_driver);
 MODULE_AUTHOR("Charles Hsu <ythsu0511@gmail.com>");
 MODULE_DESCRIPTION("PMBus driver for MPS MPQ8785");
 MODULE_LICENSE("GPL");
-MODULE_IMPORT_NS(PMBUS);
+MODULE_IMPORT_NS("PMBUS");

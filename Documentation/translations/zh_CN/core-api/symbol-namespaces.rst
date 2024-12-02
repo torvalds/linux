@@ -48,7 +48,7 @@
 要是一个预处理器符号。例如，要把符号 ``usb_stor_suspend`` 导出到命名空间 ``USB_STORAGE``，
 请使用::
 
-       EXPORT_SYMBOL_NS(usb_stor_suspend, USB_STORAGE);
+       EXPORT_SYMBOL_NS(usb_stor_suspend, "USB_STORAGE");
 
 相应的 ksymtab 条目结构体 ``kernel_symbol`` 将有相应的成员 ``命名空间`` 集。
 导出时未指明命名空间的符号将指向 ``NULL`` 。如果没有定义命名空间，则默认没有。
@@ -88,7 +88,7 @@
 表示它所使用的命名空间的符号。例如，一个使用usb_stor_suspend符号的
 模块，需要使用如下语句导入命名空间USB_STORAGE::
 
-       MODULE_IMPORT_NS(USB_STORAGE);
+       MODULE_IMPORT_NS("USB_STORAGE");
 
 这将在模块中为每个导入的命名空间创建一个 ``modinfo`` 标签。这也顺带
 使得可以用modinfo检查模块已导入的命名空间::
@@ -99,7 +99,7 @@
        [...]
 
 
-建议将 MODULE_IMPORT_NS() 语句添加到靠近其他模块元数据定义的地方，
+建议将 MODULE_IMPORT_NS("") 语句添加到靠近其他模块元数据定义的地方，
 如 MODULE_AUTHOR() 或 MODULE_LICENSE() 。关于自动创建缺失的导入
 语句的方法，请参考第5节。
 
@@ -118,7 +118,7 @@ EINVAL方式失败。要允许加载不满足这个前提条件的模块，可�
 
 缺少命名空间的导入可以在构建时很容易被检测到。事实上，如果一个模块
 使用了一个命名空间的符号而没有导入它，modpost会发出警告。
-MODULE_IMPORT_NS()语句通常会被添加到一个明确的位置（和其他模块元
+MODULE_IMPORT_NS("")语句通常会被添加到一个明确的位置（和其他模块元
 数据一起）。为了使模块作者（和子系统维护者）的生活更加轻松，我们提
 供了一个脚本和make目标来修复丢失的导入。修复丢失的导入可以用::
 

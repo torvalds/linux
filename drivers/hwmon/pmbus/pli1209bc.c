@@ -145,4 +145,4 @@ module_i2c_driver(pli1209bc_driver);
 MODULE_AUTHOR("Marcello Sylvester Bauer <sylv@sylv.io>");
 MODULE_DESCRIPTION("PMBus driver for Vicor PLI1209BC");
 MODULE_LICENSE("GPL");
-MODULE_IMPORT_NS(PMBUS);
+MODULE_IMPORT_NS("PMBUS");

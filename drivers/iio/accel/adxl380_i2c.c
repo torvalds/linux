@@ -61,4 +61,4 @@ MODULE_AUTHOR("Ramona Gradinariu <ramona.gradinariu@analog.com>");
 MODULE_AUTHOR("Antoniu Miclaus <antoniu.miclaus@analog.com>");
 MODULE_DESCRIPTION("Analog Devices ADXL380 3-axis accelerometer I2C driver");
 MODULE_LICENSE("GPL");
-MODULE_IMPORT_NS(IIO_ADXL380);
+MODULE_IMPORT_NS("IIO_ADXL380");
