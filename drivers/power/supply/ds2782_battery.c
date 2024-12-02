@@ -314,7 +314,6 @@ static void ds278x_battery_remove(struct i2c_client *client)
 {
 	struct ds278x_info *info = i2c_get_clientdata(client);
 
-	power_supply_unregister(info->battery);
 	cancel_delayed_work_sync(&info->bat_work);
 }
 
@@ -415,8 +414,9 @@ static int ds278x_battery_probe(struct i2c_client *client)
 
 	INIT_DELAYED_WORK(&info->bat_work, ds278x_bat_work);
 
-	info->battery = power_supply_register(&client->dev,
-					      &info->battery_desc, &psy_cfg);
+	info->battery = devm_power_supply_register(&client->dev,
+						   &info->battery_desc,
+						   &psy_cfg);
 	if (IS_ERR(info->battery)) {
 		dev_err(&client->dev, "failed to register battery\n");
 		return PTR_ERR(info->battery);
