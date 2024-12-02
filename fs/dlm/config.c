@@ -935,7 +935,7 @@ int dlm_comm_seq(int nodeid, uint32_t *seq, bool locked)
 		mutex_unlock(&clusters_root.subsys.su_mutex);
 	}
 	if (!cm)
-		return -EEXIST;
+		return -ENOENT;
 
 	*seq = cm->seq;
 	put_comm(cm);
