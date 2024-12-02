@@ -368,7 +368,10 @@ static void vc4_plane_reset(struct drm_plane *plane)
 {
 	struct vc4_plane_state *vc4_state;
 
-	WARN_ON(plane->state);
+	if (plane->state)
+		__drm_atomic_helper_plane_destroy_state(plane->state);
+
+	kfree(plane->state);
 
 	vc4_state = kzalloc(sizeof(*vc4_state), GFP_KERNEL);
 	if (!vc4_state)
