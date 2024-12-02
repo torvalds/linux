@@ -2769,7 +2769,7 @@
 			VMs, i.e. on the 0=>1 and 1=>0 transitions of the
 			number of VMs.
 
-			Enabling virtualization at module lode avoids potential
+			Enabling virtualization at module load avoids potential
 			latency for creation of the 0=>1 VM, as KVM serializes
 			virtualization enabling across all online CPUs.  The
 			"cost" of enabling virtualization when KVM is loaded,
