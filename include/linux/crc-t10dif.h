@@ -6,11 +6,17 @@
 
 #define CRC_T10DIF_DIGEST_SIZE 2
 #define CRC_T10DIF_BLOCK_SIZE 1
-#define CRC_T10DIF_STRING "crct10dif"
 
-extern __u16 crc_t10dif_generic(__u16 crc, const unsigned char *buffer,
-				size_t len);
-extern __u16 crc_t10dif(unsigned char const *, size_t);
-extern __u16 crc_t10dif_update(__u16 crc, unsigned char const *, size_t);
+u16 crc_t10dif_generic(u16 crc, const u8 *p, size_t len);
+
+static inline u16 crc_t10dif_update(u16 crc, const u8 *p, size_t len)
+{
+	return crc_t10dif_generic(crc, p, len);
+}
+
+static inline u16 crc_t10dif(const u8 *p, size_t len)
+{
+	return crc_t10dif_update(0, p, len);
+}
 
 #endif
