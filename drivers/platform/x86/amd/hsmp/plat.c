@@ -59,7 +59,7 @@ static int amd_hsmp_pci_rdwr(struct hsmp_socket *sock, u32 offset,
 }
 
 static ssize_t hsmp_metric_tbl_plat_read(struct file *filp, struct kobject *kobj,
-					 struct bin_attribute *bin_attr, char *buf,
+					 const struct bin_attribute *bin_attr, char *buf,
 					 loff_t off, size_t count)
 {
 	struct hsmp_socket *sock;
@@ -97,13 +97,13 @@ static umode_t hsmp_is_sock_attr_visible(struct kobject *kobj,
  * is_bin_visible function is used to show / hide the necessary groups.
  */
 #define HSMP_BIN_ATTR(index, _list)					\
-static struct bin_attribute attr##index = {				\
+static const struct bin_attribute attr##index = {			\
 	.attr = { .name = HSMP_METRICS_TABLE_NAME, .mode = 0444},	\
 	.private = (void *)index,					\
-	.read = hsmp_metric_tbl_plat_read,					\
+	.read_new = hsmp_metric_tbl_plat_read,				\
 	.size = sizeof(struct hsmp_metric_table),			\
 };									\
-static struct bin_attribute _list[] = {					\
+static const struct bin_attribute _list[] = {				\
 	&attr##index,							\
 	NULL								\
 }
@@ -118,8 +118,8 @@ HSMP_BIN_ATTR(6, *sock6_attr_list);
 HSMP_BIN_ATTR(7, *sock7_attr_list);
 
 #define HSMP_BIN_ATTR_GRP(index, _list, _name)			\
-static struct attribute_group sock##index##_attr_grp = {	\
-	.bin_attrs = _list,					\
+static const struct attribute_group sock##index##_attr_grp = {	\
+	.bin_attrs_new = _list,					\
 	.is_bin_visible = hsmp_is_sock_attr_visible,		\
 	.name = #_name,						\
 }
