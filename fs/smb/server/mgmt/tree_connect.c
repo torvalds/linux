@@ -31,7 +31,8 @@ ksmbd_tree_conn_connect(struct ksmbd_work *work, const char *share_name)
 	if (!sc)
 		return status;
 
-	tree_conn = kzalloc(sizeof(struct ksmbd_tree_connect), GFP_KERNEL);
+	tree_conn = kzalloc(sizeof(struct ksmbd_tree_connect),
+			    KSMBD_DEFAULT_GFP);
 	if (!tree_conn) {
 		status.ret = -ENOMEM;
 		goto out_error;
@@ -80,7 +81,7 @@ ksmbd_tree_conn_connect(struct ksmbd_work *work, const char *share_name)
 	init_waitqueue_head(&tree_conn->refcount_q);
 
 	ret = xa_err(xa_store(&sess->tree_conns, tree_conn->id, tree_conn,
-			      GFP_KERNEL));
+			      KSMBD_DEFAULT_GFP));
 	if (ret) {
 		status.ret = -ENOMEM;
 		goto out_error;

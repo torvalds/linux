@@ -330,7 +330,7 @@ static int bch2_xattr_get_handler(const struct xattr_handler *handler,
 {
 	struct bch_inode_info *inode = to_bch_ei(vinode);
 	struct bch_fs *c = inode->v.i_sb->s_fs_info;
-	int ret = bch2_trans_do(c, NULL, NULL, 0,
+	int ret = bch2_trans_do(c,
 		bch2_xattr_get_trans(trans, inode, name, buffer, size, handler->flags));
 
 	if (ret < 0 && bch2_err_matches(ret, ENOENT))

@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0-only
 config DRM_IMX
 	tristate "DRM Support for Freescale i.MX"
+	select DRM_CLIENT_SELECTION
 	select DRM_KMS_HELPER
 	select VIDEOMODE_HELPERS
 	select DRM_GEM_DMA_HELPER
@@ -11,8 +12,11 @@ config DRM_IMX
 
 config DRM_IMX_PARALLEL_DISPLAY
 	tristate "Support for parallel displays"
-	select DRM_PANEL
 	depends on DRM_IMX
+	select DRM_BRIDGE
+	select DRM_BRIDGE_CONNECTOR
+	select DRM_IMX_LEGACY_BRIDGE
+	select DRM_PANEL_BRIDGE
 	select VIDEOMODE_HELPERS
 
 config DRM_IMX_TVE
@@ -26,9 +30,13 @@ config DRM_IMX_TVE
 
 config DRM_IMX_LDB
 	tristate "Support for LVDS displays"
-	depends on DRM_IMX && MFD_SYSCON
+	depends on DRM_IMX
 	depends on COMMON_CLK
-	select DRM_PANEL
+	select MFD_SYSCON
+	select DRM_BRIDGE
+	select DRM_BRIDGE_CONNECTOR
+	select DRM_PANEL_BRIDGE
+	select DRM_IMX_LEGACY_BRIDGE
 	help
 	  Choose this to enable the internal LVDS Display Bridge (LDB)
 	  found on i.MX53 and i.MX6 processors.

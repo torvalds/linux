@@ -418,8 +418,6 @@ bool __must_check bio_add_folio(struct bio *bio, struct folio *folio,
 				size_t len, size_t off);
 extern int bio_add_pc_page(struct request_queue *, struct bio *, struct page *,
 			   unsigned int, unsigned int);
-int bio_add_zone_append_page(struct bio *bio, struct page *page,
-			     unsigned int len, unsigned int offset);
 void __bio_add_page(struct bio *bio, struct page *page,
 		unsigned int len, unsigned int off);
 void bio_add_folio_nofail(struct bio *bio, struct folio *folio, size_t len,
@@ -675,6 +673,23 @@ static inline void bio_set_polled(struct bio *bio, struct kiocb *kiocb)
 static inline void bio_clear_polled(struct bio *bio)
 {
 	bio->bi_opf &= ~REQ_POLLED;
+}
+
+/**
+ * bio_is_zone_append - is this a zone append bio?
+ * @bio:	bio to check
+ *
+ * Check if @bio is a zone append operation.  Core block layer code and end_io
+ * handlers must use this instead of an open coded REQ_OP_ZONE_APPEND check
+ * because the block layer can rewrite REQ_OP_ZONE_APPEND to REQ_OP_WRITE if
+ * it is not natively supported.
+ */
+static inline bool bio_is_zone_append(struct bio *bio)
+{
+	if (!IS_ENABLED(CONFIG_BLK_DEV_ZONED))
+		return false;
+	return bio_op(bio) == REQ_OP_ZONE_APPEND ||
+		bio_flagged(bio, BIO_EMULATES_ZONE_APPEND);
 }
 
 struct bio *blk_next_bio(struct bio *bio, struct block_device *bdev,

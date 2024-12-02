@@ -364,8 +364,6 @@ void vsc_tp_reset(struct vsc_tp *tp)
 	gpiod_set_value_cansleep(tp->wakeupfw, 1);
 
 	atomic_set(&tp->assert_cnt, 0);
-
-	enable_irq(tp->spi->irq);
 }
 EXPORT_SYMBOL_NS_GPL(vsc_tp_reset, VSC_TP);
 

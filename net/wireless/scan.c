@@ -956,7 +956,8 @@ static int cfg80211_scan_6ghz(struct cfg80211_registered_device *rdev)
 		struct ieee80211_channel *chan =
 			ieee80211_get_channel(&rdev->wiphy, ap->center_freq);
 
-		if (!chan || chan->flags & IEEE80211_CHAN_DISABLED)
+		if (!chan || chan->flags & IEEE80211_CHAN_DISABLED ||
+		    !cfg80211_wdev_channel_allowed(rdev_req->wdev, chan))
 			continue;
 
 		for (i = 0; i < rdev_req->n_channels; i++) {
@@ -3050,6 +3051,10 @@ cfg80211_parse_ml_elem_sta_data(struct wiphy *wiphy,
 		freq = ieee80211_channel_to_freq_khz(ap_info->channel, band);
 		data.channel = ieee80211_get_channel_khz(wiphy, freq);
 
+		/* Skip if RNR element specifies an unsupported channel */
+		if (!data.channel)
+			continue;
+
 		/* Skip if BSS entry generated from MBSSID or DIRECT source
 		 * frame data available already.
 		 */
@@ -3515,9 +3520,12 @@ int cfg80211_wext_siwscan(struct net_device *dev,
 			continue;
 
 		for (j = 0; j < wiphy->bands[band]->n_channels; j++) {
+			struct ieee80211_channel *chan;
+
 			/* ignore disabled channels */
-			if (wiphy->bands[band]->channels[j].flags &
-						IEEE80211_CHAN_DISABLED)
+			chan = &wiphy->bands[band]->channels[j];
+			if (chan->flags & IEEE80211_CHAN_DISABLED ||
+			    !cfg80211_wdev_channel_allowed(creq->wdev, chan))
 				continue;
 
 			/* If we have a wireless request structure and the
@@ -3594,7 +3602,6 @@ int cfg80211_wext_siwscan(struct net_device *dev,
 	kfree(creq);
 	return err;
 }
-EXPORT_WEXT_HANDLER(cfg80211_wext_siwscan);
 
 static char *ieee80211_scan_add_ies(struct iw_request_info *info,
 				    const struct cfg80211_bss_ies *ies,
@@ -3966,5 +3973,4 @@ int cfg80211_wext_giwscan(struct net_device *dev,
 
 	return res;
 }
-EXPORT_WEXT_HANDLER(cfg80211_wext_giwscan);
 #endif

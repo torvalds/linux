@@ -206,9 +206,9 @@ void page_cache_ra_unbounded(struct readahead_control *ractl,
 		unsigned long nr_to_read, unsigned long lookahead_size)
 {
 	struct address_space *mapping = ractl->mapping;
-	unsigned long ra_folio_index, index = readahead_index(ractl);
+	unsigned long index = readahead_index(ractl);
 	gfp_t gfp_mask = readahead_gfp_mask(mapping);
-	unsigned long mark, i = 0;
+	unsigned long mark = ULONG_MAX, i = 0;
 	unsigned int min_nrpages = mapping_min_folio_nrpages(mapping);
 
 	/*
@@ -232,9 +232,14 @@ void page_cache_ra_unbounded(struct readahead_control *ractl,
 	 * index that only has lookahead or "async_region" to set the
 	 * readahead flag.
 	 */
-	ra_folio_index = round_up(readahead_index(ractl) + nr_to_read - lookahead_size,
-				  min_nrpages);
-	mark = ra_folio_index - index;
+	if (lookahead_size <= nr_to_read) {
+		unsigned long ra_folio_index;
+
+		ra_folio_index = round_up(readahead_index(ractl) +
+					  nr_to_read - lookahead_size,
+					  min_nrpages);
+		mark = ra_folio_index - index;
+	}
 	nr_to_read += readahead_index(ractl) - index;
 	ractl->_index = index;
 
@@ -673,29 +678,22 @@ EXPORT_SYMBOL_GPL(page_cache_async_ra);
 
 ssize_t ksys_readahead(int fd, loff_t offset, size_t count)
 {
-	ssize_t ret;
-	struct fd f;
+	CLASS(fd, f)(fd);
 
-	ret = -EBADF;
-	f = fdget(fd);
-	if (!fd_file(f) || !(fd_file(f)->f_mode & FMODE_READ))
-		goto out;
+	if (fd_empty(f) || !(fd_file(f)->f_mode & FMODE_READ))
+		return -EBADF;
 
 	/*
 	 * The readahead() syscall is intended to run only on files
 	 * that can execute readahead. If readahead is not possible
 	 * on this file, then we must return -EINVAL.
 	 */
-	ret = -EINVAL;
 	if (!fd_file(f)->f_mapping || !fd_file(f)->f_mapping->a_ops ||
 	    (!S_ISREG(file_inode(fd_file(f))->i_mode) &&
 	    !S_ISBLK(file_inode(fd_file(f))->i_mode)))
-		goto out;
+		return -EINVAL;
 
-	ret = vfs_fadvise(fd_file(f), offset, count, POSIX_FADV_WILLNEED);
-out:
-	fdput(f);
-	return ret;
+	return vfs_fadvise(fd_file(f), offset, count, POSIX_FADV_WILLNEED);
 }
 
 SYSCALL_DEFINE3(readahead, int, fd, loff_t, offset, size_t, count)

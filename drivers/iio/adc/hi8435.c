@@ -132,7 +132,7 @@ static int hi8435_read_event_config(struct iio_dev *idev,
 static int hi8435_write_event_config(struct iio_dev *idev,
 				     const struct iio_chan_spec *chan,
 				     enum iio_event_type type,
-				     enum iio_event_direction dir, int state)
+				     enum iio_event_direction dir, bool state)
 {
 	struct hi8435_priv *priv = iio_priv(idev);
 	int ret;

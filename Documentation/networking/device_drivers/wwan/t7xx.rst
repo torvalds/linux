@@ -7,12 +7,13 @@
 ============================================
 t7xx driver for MTK PCIe based T700 5G modem
 ============================================
-The t7xx driver is a WWAN PCIe host driver developed for linux or Chrome OS platforms
-for data exchange over PCIe interface between Host platform & MediaTek's T700 5G modem.
-The driver exposes an interface conforming to the MBIM protocol [1]. Any front end
-application (e.g. Modem Manager) could easily manage the MBIM interface to enable
-data communication towards WWAN. The driver also provides an interface to interact
-with the MediaTek's modem via AT commands.
+The t7xx driver is a WWAN PCIe host driver developed for linux or Chrome OS
+platforms for data exchange over PCIe interface between Host platform &
+MediaTek's T700 5G modem.
+The driver exposes an interface conforming to the MBIM protocol [1]. Any front
+end application (e.g. Modem Manager) could easily manage the MBIM interface to
+enable data communication towards WWAN. The driver also provides an interface
+to interact with the MediaTek's modem via AT commands.
 
 Basic usage
 ===========
@@ -45,8 +46,8 @@ The driver provides sysfs interfaces to userspace.
 
 t7xx_mode
 ---------
-The sysfs interface provides userspace with access to the device mode, this interface
-supports read and write operations.
+The sysfs interface provides userspace with access to the device mode, this
+interface supports read and write operations.
 
 Device mode:
 
@@ -66,6 +67,28 @@ Write from userspace to set the device mode.
 
 ::
   $ echo fastboot_switching > /sys/bus/pci/devices/${bdf}/t7xx_mode
+
+t7xx_debug_ports
+----------------
+The sysfs interface provides userspace with access to enable/disable the debug
+ports, this interface supports read and write operations.
+
+Debug port status:
+
+- ``1`` represents enable debug ports
+- ``0`` represents disable debug ports
+
+Currently supported debug ports (ADB/MIPC).
+
+Read from userspace to get the current debug ports status.
+
+::
+  $ cat /sys/bus/pci/devices/${bdf}/t7xx_debug_ports
+
+Write from userspace to set the debug ports status.
+
+::
+  $ echo 1 > /sys/bus/pci/devices/${bdf}/t7xx_debug_ports
 
 Management application development
 ==================================
@@ -139,6 +162,25 @@ Please note that driver needs to be reloaded to export /dev/wwan0fastboot0
 port, because device needs a cold reset after enter ``fastboot_switching``
 mode.
 
+ADB port userspace ABI
+----------------------
+
+/dev/wwan0adb0 character device
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+The driver exposes a ADB protocol interface by implementing ADB WWAN Port.
+The userspace end of the ADB channel pipe is a /dev/wwan0adb0 character device.
+Application shall use this interface for ADB protocol communication.
+
+MIPC port userspace ABI
+-----------------------
+
+/dev/wwan0mipc0 character device
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+The driver exposes a diagnostic interface by implementing MIPC (Modem
+Information Process Center) WWAN Port. The userspace end of the MIPC channel
+pipe is a /dev/wwan0mipc0 character device.
+Application shall use this interface for MTK modem diagnostic communication.
+
 The MediaTek's T700 modem supports the 3GPP TS 27.007 [4] specification.
 
 References
@@ -164,3 +206,9 @@ speak the Mobile Interface Broadband Model (MBIM) protocol"*
 [5] *fastboot "a mechanism for communicating with bootloaders"*
 
 - https://android.googlesource.com/platform/system/core/+/refs/heads/main/fastboot/README.md
+
+[6] *ADB (Android Debug Bridge) "a mechanism to keep track of Android devices
+and emulators instances connected to or running on a given host developer
+machine with ADB protocol"*
+
+- https://android.googlesource.com/platform/packages/modules/adb/+/refs/heads/main/README.md

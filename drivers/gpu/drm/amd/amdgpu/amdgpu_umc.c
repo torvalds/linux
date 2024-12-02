@@ -318,6 +318,9 @@ int amdgpu_umc_ras_late_init(struct amdgpu_device *adev, struct ras_common_if *r
 	if (r)
 		return r;
 
+	if (amdgpu_sriov_vf(adev))
+		return r;
+
 	if (amdgpu_ras_is_supported(adev, ras_block->block)) {
 		r = amdgpu_irq_get(adev, &adev->gmc.ecc_irq, 0);
 		if (r)

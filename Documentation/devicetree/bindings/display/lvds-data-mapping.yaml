@@ -26,12 +26,17 @@ description: |
   Device compatible with those specifications have been marketed under the
   FPD-Link and FlatLink brands.
 
+  This bindings also supports 30-bit data mapping compatible with JEIDA and
+  VESA.
+
 properties:
   data-mapping:
     enum:
       - jeida-18
       - jeida-24
+      - jeida-30
       - vesa-24
+      - vesa-30
     description: |
       The color signals mapping order.
 
@@ -60,6 +65,19 @@ properties:
       DATA2     ><_CTL2_><_CTL1_><_CTL0_><__B7__><__B6__><__B5__><__B4__><
       DATA3     ><_CTL3_><__B1__><__B0__><__G1__><__G0__><__R1__><__R0__><
 
+      - "jeida-30" - 30-bit data mapping compatible with JEIDA and VESA. Data
+        are transferred as follows on 5 LVDS lanes.
+
+      Slot          0       1       2       3       4       5       6
+                ________________                         _________________
+      Clock                     \_______________________/
+                  ______  ______  ______  ______  ______  ______  ______
+      DATA0     ><__G4__><__R9__><__R8__><__R7__><__R6__><__R5__><__R4__><
+      DATA1     ><__B5__><__B4__><__G9__><__G8__><__G7__><__G6__><__G5__><
+      DATA2     ><_CTL2_><_CTL1_><_CTL0_><__B9__><__B8__><__B7__><__B6__><
+      DATA3     ><_CTL3_><__B3__><__B2__><__G3__><__G2__><__R3__><__R2__><
+      DATA4     ><_CTL3_><__B1__><__B0__><__G1__><__G0__><__R1__><__R0__><
+
       - "vesa-24" - 24-bit data mapping compatible with the [VESA] specification.
         Data are transferred as follows on 4 LVDS lanes.
 
@@ -71,6 +89,19 @@ properties:
       DATA1     ><__B1__><__B0__><__G5__><__G4__><__G3__><__G2__><__G1__><
       DATA2     ><_CTL2_><_CTL1_><_CTL0_><__B5__><__B4__><__B3__><__B2__><
       DATA3     ><_CTL3_><__B7__><__B6__><__G7__><__G6__><__R7__><__R6__><
+
+      - "vesa-30" - 30-bit data mapping compatible with VESA. Data are
+        transferred as follows on 5 LVDS lanes.
+
+      Slot          0       1       2       3       4       5       6
+                ________________                         _________________
+      Clock                     \_______________________/
+                  ______  ______  ______  ______  ______  ______  ______
+      DATA0     ><__G0__><__R5__><__R4__><__R3__><__R2__><__R1__><__R0__><
+      DATA1     ><__B1__><__B0__><__G5__><__G4__><__G3__><__G2__><__G1__><
+      DATA2     ><_CTL2_><_CTL1_><_CTL0_><__B5__><__B4__><__B3__><__B2__><
+      DATA3     ><_CTL3_><__B7__><__B6__><__G7__><__G6__><__R7__><__R6__><
+      DATA4     ><_CTL3_><__B9__><__B8__><__G9__><__G8__><__R9__><__R8__><
 
       Control signals are mapped as follows.
 

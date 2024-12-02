@@ -5,25 +5,22 @@
 #include <stdlib.h>
 #include <string.h>
 #include "metricgroup.h"
-#include "cpumap.h"
-#include "cputopo.h"
 #include "debug.h"
 #include "evlist.h"
 #include "expr.h"
+#include "smt.h"
+#include "tool_pmu.h"
 #include <util/expr-bison.h>
 #include <util/expr-flex.h>
 #include "util/hashmap.h"
 #include "util/header.h"
 #include "util/pmu.h"
-#include "smt.h"
-#include "tsc.h"
-#include <api/fs/fs.h>
+#include <perf/cpumap.h>
 #include <linux/err.h>
 #include <linux/kernel.h>
 #include <linux/zalloc.h>
 #include <ctype.h>
 #include <math.h>
-#include "pmu.h"
 
 struct expr_id_data {
 	union {
@@ -393,90 +390,26 @@ double expr_id_data__source_count(const struct expr_id_data *data)
 	return data->val.source_count;
 }
 
-#if !defined(__i386__) && !defined(__x86_64__)
-double arch_get_tsc_freq(void)
-{
-	return 0.0;
-}
-#endif
-
-static double has_pmem(void)
-{
-	static bool has_pmem, cached;
-	const char *sysfs = sysfs__mountpoint();
-	char path[PATH_MAX];
-
-	if (!cached) {
-		snprintf(path, sizeof(path), "%s/firmware/acpi/tables/NFIT", sysfs);
-		has_pmem = access(path, F_OK) == 0;
-		cached = true;
-	}
-	return has_pmem ? 1.0 : 0.0;
-}
-
 double expr__get_literal(const char *literal, const struct expr_scanner_ctx *ctx)
 {
-	const struct cpu_topology *topology;
 	double result = NAN;
+	enum tool_pmu_event ev = tool_pmu__str_to_event(literal + 1);
 
-	if (!strcmp("#num_cpus", literal)) {
-		result = cpu__max_present_cpu().cpu;
-		goto out;
-	}
-	if (!strcmp("#num_cpus_online", literal)) {
-		struct perf_cpu_map *online = cpu_map__online();
+	if (ev != TOOL_PMU__EVENT_NONE) {
+		u64 count;
 
-		if (online)
-			result = perf_cpu_map__nr(online);
-		goto out;
-	}
+		if (tool_pmu__read_event(ev, &count))
+			result = count;
+		else
+			pr_err("Failure to read '%s'", literal);
 
-	if (!strcasecmp("#system_tsc_freq", literal)) {
-		result = arch_get_tsc_freq();
-		goto out;
-	}
-
-	/*
-	 * Assume that topology strings are consistent, such as CPUs "0-1"
-	 * wouldn't be listed as "0,1", and so after deduplication the number of
-	 * these strings gives an indication of the number of packages, dies,
-	 * etc.
-	 */
-	if (!strcasecmp("#smt_on", literal)) {
-		result = smt_on() ? 1.0 : 0.0;
-		goto out;
-	}
-	if (!strcmp("#core_wide", literal)) {
+	} else if (!strcmp("#core_wide", literal)) {
 		result = core_wide(ctx->system_wide, ctx->user_requested_cpu_list)
 			? 1.0 : 0.0;
-		goto out;
-	}
-	if (!strcmp("#num_packages", literal)) {
-		topology = online_topology();
-		result = topology->package_cpus_lists;
-		goto out;
-	}
-	if (!strcmp("#num_dies", literal)) {
-		topology = online_topology();
-		result = topology->die_cpus_lists;
-		goto out;
-	}
-	if (!strcmp("#num_cores", literal)) {
-		topology = online_topology();
-		result = topology->core_cpus_lists;
-		goto out;
-	}
-	if (!strcmp("#slots", literal)) {
-		result = perf_pmu__cpu_slots_per_cycle();
-		goto out;
-	}
-	if (!strcmp("#has_pmem", literal)) {
-		result = has_pmem();
-		goto out;
+	} else {
+		pr_err("Unrecognized literal '%s'", literal);
 	}
 
-	pr_err("Unrecognized literal '%s'", literal);
-out:
 	pr_debug2("literal: %s = %f\n", literal, result);
 	return result;
 }
@@ -523,8 +456,8 @@ double expr__strcmp_cpuid_str(const struct expr_parse_ctx *ctx __maybe_unused,
 		       bool compute_ids __maybe_unused, const char *test_id)
 {
 	double ret;
-	struct perf_pmu *pmu = perf_pmus__find_core_pmu();
-	char *cpuid = perf_pmu__getcpuid(pmu);
+	struct perf_cpu cpu = {-1};
+	char *cpuid = get_cpuid_allow_env_override(cpu);
 
 	if (!cpuid)
 		return NAN;

@@ -442,7 +442,7 @@ which can be used to communicate directly with the autofs filesystem.
 It requires CAP_SYS_ADMIN for access.
 
 The 'ioctl's that can be used on this device are described in a separate
-document `autofs-mount-control.txt`, and are summarised briefly here.
+document `autofs-mount-control.rst`, and are summarised briefly here.
 Each ioctl is passed a pointer to an `autofs_dev_ioctl` structure::
 
         struct autofs_dev_ioctl {

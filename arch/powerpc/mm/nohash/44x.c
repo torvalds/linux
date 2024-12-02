@@ -24,7 +24,7 @@
 #include <asm/mmu.h>
 #include <asm/page.h>
 #include <asm/cacheflush.h>
-#include <asm/code-patching.h>
+#include <asm/text-patching.h>
 #include <asm/smp.h>
 
 #include <mm/mmu_decl.h>

@@ -18,7 +18,7 @@ struct temperature_state {
 	struct hid_sensor_hub_attribute_info temperature_attr;
 	struct {
 		s32 temperature_data;
-		u64 timestamp __aligned(8);
+		aligned_s64 timestamp;
 	} scan;
 	int scale_pre_decml;
 	int scale_post_decml;
@@ -283,7 +283,7 @@ static struct platform_driver hid_temperature_platform_driver = {
 		.pm	= &hid_sensor_pm_ops,
 	},
 	.probe		= hid_temperature_probe,
-	.remove_new	= hid_temperature_remove,
+	.remove		= hid_temperature_remove,
 };
 module_platform_driver(hid_temperature_platform_driver);
 

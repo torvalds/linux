@@ -202,10 +202,7 @@ int ieee802154_associate_req(struct sk_buff *skb, struct genl_info *info)
 	addr.pan_id = nla_get_shortaddr(
 			info->attrs[IEEE802154_ATTR_COORD_PAN_ID]);
 
-	if (info->attrs[IEEE802154_ATTR_PAGE])
-		page = nla_get_u8(info->attrs[IEEE802154_ATTR_PAGE]);
-	else
-		page = 0;
+	page = nla_get_u8_default(info->attrs[IEEE802154_ATTR_PAGE], 0);
 
 	ret = ieee802154_mlme_ops(dev)->assoc_req(dev, &addr,
 			nla_get_u8(info->attrs[IEEE802154_ATTR_CHANNEL]),
@@ -338,10 +335,7 @@ int ieee802154_start_req(struct sk_buff *skb, struct genl_info *info)
 	blx = nla_get_u8(info->attrs[IEEE802154_ATTR_BAT_EXT]);
 	coord_realign = nla_get_u8(info->attrs[IEEE802154_ATTR_COORD_REALIGN]);
 
-	if (info->attrs[IEEE802154_ATTR_PAGE])
-		page = nla_get_u8(info->attrs[IEEE802154_ATTR_PAGE]);
-	else
-		page = 0;
+	page = nla_get_u8_default(info->attrs[IEEE802154_ATTR_PAGE], 0);
 
 	if (addr.short_addr == cpu_to_le16(IEEE802154_ADDR_BROADCAST)) {
 		ieee802154_nl_start_confirm(dev, IEEE802154_NO_SHORT_ADDRESS);
@@ -388,10 +382,7 @@ int ieee802154_scan_req(struct sk_buff *skb, struct genl_info *info)
 	channels = nla_get_u32(info->attrs[IEEE802154_ATTR_CHANNELS]);
 	duration = nla_get_u8(info->attrs[IEEE802154_ATTR_DURATION]);
 
-	if (info->attrs[IEEE802154_ATTR_PAGE])
-		page = nla_get_u8(info->attrs[IEEE802154_ATTR_PAGE]);
-	else
-		page = 0;
+	page = nla_get_u8_default(info->attrs[IEEE802154_ATTR_PAGE], 0);
 
 	ret = ieee802154_mlme_ops(dev)->scan_req(dev, type, channels,
 						 page, duration);

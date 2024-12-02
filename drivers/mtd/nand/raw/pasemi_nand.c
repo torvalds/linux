@@ -237,7 +237,7 @@ static struct platform_driver pasemi_nand_driver =
 		.of_match_table = pasemi_nand_match,
 	},
 	.probe		= pasemi_nand_probe,
-	.remove_new	= pasemi_nand_remove,
+	.remove		= pasemi_nand_remove,
 };
 
 module_platform_driver(pasemi_nand_driver);

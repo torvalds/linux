@@ -85,7 +85,6 @@ int btrfs_setxattr(struct btrfs_trans_handle *trans, struct inode *inode,
 {
 	struct btrfs_dir_item *di = NULL;
 	struct btrfs_root *root = BTRFS_I(inode)->root;
-	struct btrfs_fs_info *fs_info = root->fs_info;
 	struct btrfs_path *path;
 	size_t name_len = strlen(name);
 	int ret = 0;
@@ -143,14 +142,14 @@ int btrfs_setxattr(struct btrfs_trans_handle *trans, struct inode *inode,
 		 */
 		ret = 0;
 		btrfs_assert_tree_write_locked(path->nodes[0]);
-		di = btrfs_match_dir_item_name(fs_info, path, name, name_len);
+		di = btrfs_match_dir_item_name(path, name, name_len);
 		if (!di && !(flags & XATTR_REPLACE)) {
 			ret = -ENOSPC;
 			goto out;
 		}
 	} else if (ret == -EEXIST) {
 		ret = 0;
-		di = btrfs_match_dir_item_name(fs_info, path, name, name_len);
+		di = btrfs_match_dir_item_name(path, name, name_len);
 		ASSERT(di); /* logic error */
 	} else if (ret) {
 		goto out;

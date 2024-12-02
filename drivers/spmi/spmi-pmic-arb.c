@@ -1763,14 +1763,13 @@ static int spmi_pmic_arb_register_buses(struct spmi_pmic_arb *pmic_arb,
 {
 	struct device *dev = &pdev->dev;
 	struct device_node *node = dev->of_node;
-	struct device_node *child;
 	int ret;
 
 	/* legacy mode doesn't provide child node for the bus */
 	if (of_device_is_compatible(node, "qcom,spmi-pmic-arb"))
 		return spmi_pmic_arb_bus_init(pdev, node, pmic_arb);
 
-	for_each_available_child_of_node(node, child) {
+	for_each_available_child_of_node_scoped(node, child) {
 		if (of_node_name_eq(child, "spmi")) {
 			ret = spmi_pmic_arb_bus_init(pdev, child, pmic_arb);
 			if (ret)

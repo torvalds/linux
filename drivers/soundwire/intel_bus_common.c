@@ -16,6 +16,12 @@ int intel_start_bus(struct sdw_intel *sdw)
 	struct sdw_bus *bus = &cdns->bus;
 	int ret;
 
+	ret = sdw_cdns_soft_reset(cdns);
+	if (ret < 0) {
+		dev_err(dev, "%s: unable to soft-reset Cadence IP: %d\n", __func__, ret);
+		return ret;
+	}
+
 	/*
 	 * follow recommended programming flows to avoid timeouts when
 	 * gsync is enabled

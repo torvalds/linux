@@ -16,7 +16,7 @@ struct btrfs_ioctl_send_args;
 
 #define BTRFS_SEND_STREAM_MAGIC "btrfs-stream"
 /* Conditional support for the upcoming protocol version. */
-#ifdef CONFIG_BTRFS_DEBUG
+#ifdef CONFIG_BTRFS_EXPERIMENTAL
 #define BTRFS_SEND_STREAM_VERSION 3
 #else
 #define BTRFS_SEND_STREAM_VERSION 2

@@ -236,7 +236,7 @@ static struct platform_driver pic32_sdhci_driver = {
 		.of_match_table = of_match_ptr(pic32_sdhci_id_table),
 	},
 	.probe		= pic32_sdhci_probe,
-	.remove_new	= pic32_sdhci_remove,
+	.remove		= pic32_sdhci_remove,
 };
 
 module_platform_driver(pic32_sdhci_driver);

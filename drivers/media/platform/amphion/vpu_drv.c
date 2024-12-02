@@ -151,8 +151,8 @@ err_add_decoder:
 	media_device_cleanup(&vpu->mdev);
 	v4l2_device_unregister(&vpu->v4l2_dev);
 err_vpu_deinit:
-	pm_runtime_set_suspended(dev);
 	pm_runtime_disable(dev);
+	pm_runtime_set_suspended(dev);
 
 	return ret;
 }
@@ -227,7 +227,7 @@ MODULE_DEVICE_TABLE(of, vpu_dt_match);
 
 static struct platform_driver amphion_vpu_driver = {
 	.probe = vpu_probe,
-	.remove_new = vpu_remove,
+	.remove = vpu_remove,
 	.driver = {
 		.name = "amphion-vpu",
 		.of_match_table = vpu_dt_match,

@@ -1083,14 +1083,12 @@ void nfs_release_seqid(struct nfs_seqid *seqid)
 		return;
 	sequence = seqid->sequence;
 	spin_lock(&sequence->lock);
-	list_del_init(&seqid->list);
-	if (!list_empty(&sequence->list)) {
-		struct nfs_seqid *next;
-
-		next = list_first_entry(&sequence->list,
-				struct nfs_seqid, list);
+	if (list_is_first(&seqid->list, &sequence->list) &&
+	    !list_is_singular(&sequence->list)) {
+		struct nfs_seqid *next = list_next_entry(seqid, list);
 		rpc_wake_up_queued_task(&sequence->wait, next->task);
 	}
+	list_del_init(&seqid->list);
 	spin_unlock(&sequence->lock);
 }
 
@@ -1585,7 +1583,7 @@ static void nfs42_complete_copies(struct nfs4_state_owner *sp, struct nfs4_state
 			complete(&copy->completion);
 		}
 	}
-	list_for_each_entry(copy, &sp->so_server->ss_copies, src_copies) {
+	list_for_each_entry(copy, &sp->so_server->ss_src_copies, src_copies) {
 		if ((test_bit(NFS_CLNT_SRC_SSC_COPY_STATE, &state->flags) &&
 				!nfs4_stateid_match_other(&state->stateid,
 				&copy->parent_src_state->stateid)))

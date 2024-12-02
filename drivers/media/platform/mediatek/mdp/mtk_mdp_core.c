@@ -298,7 +298,7 @@ static const struct dev_pm_ops mtk_mdp_pm_ops = {
 
 static struct platform_driver mtk_mdp_driver = {
 	.probe		= mtk_mdp_probe,
-	.remove_new	= mtk_mdp_remove,
+	.remove		= mtk_mdp_remove,
 	.driver = {
 		.name	= MTK_MDP_MODULE_NAME,
 		.pm	= &mtk_mdp_pm_ops,

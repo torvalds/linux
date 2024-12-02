@@ -60,6 +60,11 @@ static const struct snd_soc_dapm_route rt713_sdca_map[] = {
 	{ "rt713 MIC2", NULL, "Headset Mic" },
 };
 
+static const struct snd_soc_dapm_route rt721_sdca_map[] = {
+	{ "Headphone", NULL, "rt721 HP" },
+	{ "rt721 MIC2", NULL, "Headset Mic" },
+};
+
 static const struct snd_soc_dapm_route rt722_sdca_map[] = {
 	{ "Headphone", NULL, "rt722 HP" },
 	{ "rt722 MIC2", NULL, "Headset Mic" },
@@ -121,6 +126,9 @@ int asoc_sdw_rt_sdca_jack_rtd_init(struct snd_soc_pcm_runtime *rtd, struct snd_s
 	} else if (strstr(component->name_prefix, "rt713")) {
 		ret = snd_soc_dapm_add_routes(&card->dapm, rt713_sdca_map,
 					      ARRAY_SIZE(rt713_sdca_map));
+	} else if (strstr(component->name_prefix, "rt721")) {
+		ret = snd_soc_dapm_add_routes(&card->dapm, rt721_sdca_map,
+					      ARRAY_SIZE(rt721_sdca_map));
 	} else if (strstr(component->name_prefix, "rt722")) {
 		ret = snd_soc_dapm_add_routes(&card->dapm, rt722_sdca_map,
 					      ARRAY_SIZE(rt722_sdca_map));

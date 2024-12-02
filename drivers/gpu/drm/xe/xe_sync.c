@@ -54,11 +54,12 @@ static struct xe_user_fence *user_fence_create(struct xe_device *xe, u64 addr,
 {
 	struct xe_user_fence *ufence;
 	u64 __user *ptr = u64_to_user_ptr(addr);
+	u64 __maybe_unused prefetch_val;
 
-	if (!access_ok(ptr, sizeof(*ptr)))
+	if (get_user(prefetch_val, ptr))
 		return ERR_PTR(-EFAULT);
 
-	ufence = kmalloc(sizeof(*ufence), GFP_KERNEL);
+	ufence = kzalloc(sizeof(*ufence), GFP_KERNEL);
 	if (!ufence)
 		return ERR_PTR(-ENOMEM);
 
@@ -82,10 +83,16 @@ static void user_fence_worker(struct work_struct *w)
 			XE_WARN_ON("Copy to user failed");
 		kthread_unuse_mm(ufence->mm);
 		mmput(ufence->mm);
+	} else {
+		drm_dbg(&ufence->xe->drm, "mmget_not_zero() failed, ufence wasn't signaled\n");
 	}
 
-	wake_up_all(&ufence->xe->ufence_wq);
+	/*
+	 * Wake up waiters only after updating the ufence state, allowing the UMD
+	 * to safely reuse the same ufence without encountering -EBUSY errors.
+	 */
 	WRITE_ONCE(ufence->signalled, 1);
+	wake_up_all(&ufence->xe->ufence_wq);
 	user_fence_put(ufence);
 }
 

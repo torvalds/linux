@@ -1513,7 +1513,7 @@ static struct platform_driver si476x_radio_driver = {
 		.name	= DRIVER_NAME,
 	},
 	.probe		= si476x_radio_probe,
-	.remove_new	= si476x_radio_remove,
+	.remove		= si476x_radio_remove,
 };
 module_platform_driver(si476x_radio_driver);
 

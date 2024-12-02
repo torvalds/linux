@@ -1574,7 +1574,7 @@ static const struct dev_pm_ops i2c_pxa_dev_pm_ops = {
 
 static struct platform_driver i2c_pxa_driver = {
 	.probe		= i2c_pxa_probe,
-	.remove_new	= i2c_pxa_remove,
+	.remove		= i2c_pxa_remove,
 	.driver		= {
 		.name	= "pxa2xx-i2c",
 		.pm	= pm_sleep_ptr(&i2c_pxa_dev_pm_ops),

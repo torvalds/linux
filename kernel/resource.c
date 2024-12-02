@@ -50,17 +50,35 @@ EXPORT_SYMBOL(iomem_resource);
 
 static DEFINE_RWLOCK(resource_lock);
 
-static struct resource *next_resource(struct resource *p, bool skip_children)
+/*
+ * Return the next node of @p in pre-order tree traversal.  If
+ * @skip_children is true, skip the descendant nodes of @p in
+ * traversal.  If @p is a descendant of @subtree_root, only traverse
+ * the subtree under @subtree_root.
+ */
+static struct resource *next_resource(struct resource *p, bool skip_children,
+				      struct resource *subtree_root)
 {
 	if (!skip_children && p->child)
 		return p->child;
-	while (!p->sibling && p->parent)
+	while (!p->sibling && p->parent) {
 		p = p->parent;
+		if (p == subtree_root)
+			return NULL;
+	}
 	return p->sibling;
 }
 
+/*
+ * Traverse the resource subtree under @_root in pre-order, excluding
+ * @_root itself.
+ *
+ * NOTE: '__p' is introduced to avoid shadowing '_p' outside of loop.
+ * And it is referenced to avoid unused variable warning.
+ */
 #define for_each_resource(_root, _p, _skip_children) \
-	for ((_p) = (_root)->child; (_p); (_p) = next_resource(_p, _skip_children))
+	for (typeof(_root) __root = (_root), __p = _p = __root->child;	\
+	     __p && _p; _p = next_resource(_p, _skip_children, __root))
 
 #ifdef CONFIG_PROC_FS
 
@@ -88,7 +106,7 @@ static void *r_next(struct seq_file *m, void *v, loff_t *pos)
 
 	(*pos)++;
 
-	return (void *)next_resource(p, false);
+	return (void *)next_resource(p, false, NULL);
 }
 
 static void r_stop(struct seq_file *m, void *v)
@@ -297,6 +315,11 @@ int release_resource(struct resource *old)
 
 EXPORT_SYMBOL(release_resource);
 
+static bool is_type_match(struct resource *p, unsigned long flags, unsigned long desc)
+{
+	return (p->flags & flags) == flags && (desc == IORES_DESC_NONE || desc == p->desc);
+}
+
 /**
  * find_next_iomem_res - Finds the lowest iomem resource that covers part of
  *			 [@start..@end].
@@ -339,13 +362,9 @@ static int find_next_iomem_res(resource_size_t start, resource_size_t end,
 		if (p->end < start)
 			continue;
 
-		if ((p->flags & flags) != flags)
-			continue;
-		if ((desc != IORES_DESC_NONE) && (desc != p->desc))
-			continue;
-
 		/* Found a match, break */
-		break;
+		if (is_type_match(p, flags, desc))
+			break;
 	}
 
 	if (p) {
@@ -459,9 +478,7 @@ int walk_system_ram_res_rev(u64 start, u64 end, void *arg,
 			rams_size += 16;
 		}
 
-		rams[i].start = res.start;
-		rams[i++].end = res.end;
-
+		rams[i++] = res;
 		start = res.end + 1;
 	}
 
@@ -539,21 +556,18 @@ static int __region_intersects(struct resource *parent, resource_size_t start,
 			       size_t size, unsigned long flags,
 			       unsigned long desc)
 {
-	resource_size_t ostart, oend;
 	int type = 0; int other = 0;
 	struct resource *p, *dp;
-	bool is_type, covered;
-	struct resource res;
+	struct resource res, o;
+	bool covered;
 
 	res.start = start;
 	res.end = start + size - 1;
 
 	for (p = parent->child; p ; p = p->sibling) {
-		if (!resource_overlaps(p, &res))
+		if (!resource_intersection(p, &res, &o))
 			continue;
-		is_type = (p->flags & flags) == flags &&
-			(desc == IORES_DESC_NONE || desc == p->desc);
-		if (is_type) {
+		if (is_type_match(p, flags, desc)) {
 			type++;
 			continue;
 		}
@@ -570,27 +584,23 @@ static int __region_intersects(struct resource *parent, resource_size_t start,
 		 * |-- "System RAM" --||-- "CXL Window 0a" --|
 		 */
 		covered = false;
-		ostart = max(res.start, p->start);
-		oend = min(res.end, p->end);
 		for_each_resource(p, dp, false) {
 			if (!resource_overlaps(dp, &res))
 				continue;
-			is_type = (dp->flags & flags) == flags &&
-				(desc == IORES_DESC_NONE || desc == dp->desc);
-			if (is_type) {
+			if (is_type_match(dp, flags, desc)) {
 				type++;
 				/*
-				 * Range from 'ostart' to 'dp->start'
+				 * Range from 'o.start' to 'dp->start'
 				 * isn't covered by matched resource.
 				 */
-				if (dp->start > ostart)
+				if (dp->start > o.start)
 					break;
-				if (dp->end >= oend) {
+				if (dp->end >= o.end) {
 					covered = true;
 					break;
 				}
 				/* Remove covered range */
-				ostart = max(ostart, dp->end + 1);
+				o.start = max(o.start, dp->end + 1);
 			}
 		}
 		if (!covered)
@@ -746,7 +756,7 @@ EXPORT_SYMBOL_GPL(find_resource_space);
  * @root: root resource descriptor
  * @old:  resource descriptor desired by caller
  * @newsize: new size of the resource descriptor
- * @constraint: the size and alignment constraints to be met.
+ * @constraint: the memory range and alignment constraints to be met.
  */
 static int reallocate_resource(struct resource *root, struct resource *old,
 			       resource_size_t newsize,
@@ -1871,7 +1881,7 @@ static resource_size_t gfr_start(struct resource *base, resource_size_t size,
 	if (flags & GFR_DESCENDING) {
 		resource_size_t end;
 
-		end = min_t(resource_size_t, base->end, PHYSMEM_END);
+		end = min_t(resource_size_t, base->end, DIRECT_MAP_PHYSMEM_END);
 		return end - size + 1;
 	}
 
@@ -1888,7 +1898,7 @@ static bool gfr_continue(struct resource *base, resource_size_t addr,
 	 * @size did not wrap 0.
 	 */
 	return addr > addr - size &&
-	       addr <= min_t(resource_size_t, base->end, PHYSMEM_END);
+	       addr <= min_t(resource_size_t, base->end, DIRECT_MAP_PHYSMEM_END);
 }
 
 static resource_size_t gfr_next(resource_size_t addr, resource_size_t size,

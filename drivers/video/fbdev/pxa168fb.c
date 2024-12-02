@@ -799,7 +799,7 @@ static struct platform_driver pxa168fb_driver = {
 		.name	= "pxa168-fb",
 	},
 	.probe		= pxa168fb_probe,
-	.remove_new	= pxa168fb_remove,
+	.remove		= pxa168fb_remove,
 };
 
 module_platform_driver(pxa168fb_driver);

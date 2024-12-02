@@ -46,7 +46,6 @@ static struct acp_card_drvdata sof_rt5682s_rt1019_data = {
 	.hs_codec_id = RT5682S,
 	.amp_codec_id = RT1019,
 	.dmic_codec_id = DMIC,
-	.platform = RENOIR,
 };
 
 static struct acp_card_drvdata sof_rt5682s_max_data = {
@@ -56,7 +55,6 @@ static struct acp_card_drvdata sof_rt5682s_max_data = {
 	.hs_codec_id = RT5682S,
 	.amp_codec_id = MAX98360A,
 	.dmic_codec_id = DMIC,
-	.platform = RENOIR,
 };
 
 static struct acp_card_drvdata sof_nau8825_data = {
@@ -66,7 +64,6 @@ static struct acp_card_drvdata sof_nau8825_data = {
 	.hs_codec_id = NAU8825,
 	.amp_codec_id = MAX98360A,
 	.dmic_codec_id = DMIC,
-	.platform = REMBRANDT,
 	.soc_mclk = true,
 };
 
@@ -77,7 +74,6 @@ static struct acp_card_drvdata sof_rt5682s_hs_rt1019_data = {
 	.hs_codec_id = RT5682S,
 	.amp_codec_id = RT1019,
 	.dmic_codec_id = DMIC,
-	.platform = REMBRANDT,
 	.soc_mclk = true,
 };
 
@@ -94,6 +90,7 @@ static int acp_sof_probe(struct platform_device *pdev)
 {
 	struct snd_soc_card *card = NULL;
 	struct device *dev = &pdev->dev;
+	struct snd_soc_acpi_mach *mach = dev_get_platdata(&pdev->dev);
 	const struct dmi_system_id *dmi_id;
 	struct acp_card_drvdata *acp_card_drvdata;
 	int ret;
@@ -116,6 +113,7 @@ static int acp_sof_probe(struct platform_device *pdev)
 	if (dmi_id && dmi_id->driver_data)
 		acp_card_drvdata->tdm_mode = dmi_id->driver_data;
 
+	acp_card_drvdata->acp_rev = mach->mach_params.subsystem_rev;
 	ret = acp_sofdsp_dai_links_create(card);
 	if (ret)
 		return dev_err_probe(&pdev->dev, ret, "Failed to create DAI links\n");

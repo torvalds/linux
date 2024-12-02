@@ -786,7 +786,7 @@ vc4_validate_shader(struct drm_gem_dma_object *shader_obj)
 	struct vc4_validated_shader_info *validated_shader = NULL;
 	struct vc4_shader_validation_state validation_state;
 
-	if (WARN_ON_ONCE(vc4->is_vc5))
+	if (WARN_ON_ONCE(vc4->gen > VC4_GEN_4))
 		return NULL;
 
 	memset(&validation_state, 0, sizeof(validation_state));

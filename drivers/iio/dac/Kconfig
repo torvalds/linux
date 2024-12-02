@@ -6,9 +6,30 @@
 
 menu "Digital to analog converters"
 
+config AD3552R_HS
+	tristate "Analog Devices AD3552R DAC High Speed driver"
+	select AD3552R_LIB
+	select IIO_BACKEND
+	help
+	  Say yes here to build support for Analog Devices AD3552R
+	  Digital to Analog Converter High Speed driver.
+
+	  The driver requires the assistance of an IP core to operate,
+	  since data is streamed into target device via DMA, sent over a
+	  QSPI + DDR (Double Data Rate) bus.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ad3552r-hs.
+
+config AD3552R_LIB
+	tristate
+
 config AD3552R
 	tristate "Analog Devices AD3552R DAC driver"
 	depends on SPI_MASTER
+	select AD3552R_LIB
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
 	help
 	  Say yes here to build support for Analog Devices AD3552R
 	  Digital to Analog Converter.
@@ -252,6 +273,8 @@ config AD5764
 config AD5766
 	tristate "Analog Devices AD5766/AD5767 DAC driver"
 	depends on SPI_MASTER
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
 	help
 	  Say yes here to build support for Analog Devices AD5766, AD5767
 	  Digital to Analog Converter.
@@ -262,6 +285,7 @@ config AD5766
 config AD5770R
 	tristate "Analog Devices AD5770R IDAC driver"
 	depends on SPI_MASTER
+	select REGMAP_SPI
 	help
 	  Say yes here to build support for Analog Devices AD5770R Digital to
 	  Analog Converter.
@@ -300,6 +324,19 @@ config AD7303
 
 	  To compile this driver as module choose M here: the module will be called
 	  ad7303.
+
+config AD8460
+	tristate "Analog Devices AD8460 DAC driver"
+	depends on SPI
+	select REGMAP_SPI
+	select IIO_BUFFER
+	select IIO_BUFFER_DMAENGINE
+	help
+	  Say yes here to build support for Analog Devices AD8460 Digital to
+	  Analog Converters (DAC).
+
+	  To compile this driver as a module choose M here: the module will be called
+	  ad8460.
 
 config AD8801
 	tristate "Analog Devices AD8801/AD8803 DAC driver"
@@ -353,6 +390,7 @@ config LPC18XX_DAC
 config LTC1660
 	tristate "Linear Technology LTC1660/LTC1665 DAC SPI driver"
 	depends on SPI
+	select REGMAP_SPI
 	help
 	  Say yes here to build support for Linear Technology
 	  LTC1660 and LTC1665 Digital to Analog Converters.
@@ -374,7 +412,7 @@ config LTC2632
 config LTC2664
 	tristate "Analog Devices LTC2664 and LTC2672 DAC SPI driver"
 	depends on SPI
-	select REGMAP
+	select REGMAP_SPI
 	help
 	  Say yes here to build support for Analog Devices
 	  LTC2664 and LTC2672 converters (DAC).
@@ -483,6 +521,7 @@ config STM32_DAC
 
 config STM32_DAC_CORE
 	tristate
+	select REGMAP_MMIO
 
 config TI_DAC082S085
 	tristate "Texas Instruments 8/10/12-bit 2/4-channel DAC driver"

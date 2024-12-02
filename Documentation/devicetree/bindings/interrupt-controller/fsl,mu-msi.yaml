@@ -62,8 +62,6 @@ properties:
       - const: processor-a-side
       - const: processor-b-side
 
-  interrupt-controller: true
-
   msi-controller: true
 
   "#msi-cells":
@@ -73,7 +71,6 @@ required:
   - compatible
   - reg
   - interrupts
-  - interrupt-controller
   - msi-controller
   - "#msi-cells"
 
@@ -88,7 +85,6 @@ examples:
         compatible = "fsl,imx6sx-mu-msi";
         msi-controller;
         #msi-cells = <0>;
-        interrupt-controller;
         reg = <0x5d270000 0x10000>,     /* A side */
               <0x5d300000 0x10000>;     /* B side */
         reg-names = "processor-a-side", "processor-b-side";

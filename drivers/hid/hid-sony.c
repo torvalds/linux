@@ -1379,7 +1379,8 @@ static int sony_leds_init(struct sony_sc *sc)
 	u8 max_brightness[MAX_LEDS] = { [0 ... (MAX_LEDS - 1)] = 1 };
 	u8 use_hw_blink[MAX_LEDS] = { 0 };
 
-	BUG_ON(!(sc->quirks & SONY_LED_SUPPORT));
+	if (WARN_ON(!(sc->quirks & SONY_LED_SUPPORT)))
+		return -EINVAL;
 
 	if (sc->quirks & BUZZ_CONTROLLER) {
 		sc->led_count = 4;

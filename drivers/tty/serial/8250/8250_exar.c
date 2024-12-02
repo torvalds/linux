@@ -11,6 +11,7 @@
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/dmi.h>
+#include <linux/eeprom_93cx6.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/math.h>
@@ -135,8 +136,6 @@
 #define UART_EXAR_REGB_EECS		BIT(5)
 #define UART_EXAR_REGB_EEDI		BIT(6)
 #define UART_EXAR_REGB_EEDO		BIT(7)
-#define UART_EXAR_REGB_EE_ADDR_SIZE	6
-#define UART_EXAR_REGB_EE_DATA_SIZE	16
 
 #define UART_EXAR_XR17C15X_PORT_OFFSET	0x200
 #define UART_EXAR_XR17V25X_PORT_OFFSET	0x200
@@ -179,18 +178,19 @@
 
 /* CTI EEPROM offsets */
 #define CTI_EE_OFF_XR17C15X_OSC_FREQ	0x04  /* 2 words */
-#define CTI_EE_OFF_XR17V25X_OSC_FREQ	0x08  /* 2 words */
 #define CTI_EE_OFF_XR17C15X_PART_NUM	0x0A  /* 4 words */
-#define CTI_EE_OFF_XR17V25X_PART_NUM	0x0E  /* 4 words */
 #define CTI_EE_OFF_XR17C15X_SERIAL_NUM	0x0E  /* 1 word */
+
+#define CTI_EE_OFF_XR17V25X_OSC_FREQ	0x08  /* 2 words */
+#define CTI_EE_OFF_XR17V25X_PART_NUM	0x0E  /* 4 words */
 #define CTI_EE_OFF_XR17V25X_SERIAL_NUM	0x12  /* 1 word */
+
 #define CTI_EE_OFF_XR17V35X_SERIAL_NUM	0x11  /* 2 word */
 #define CTI_EE_OFF_XR17V35X_BRD_FLAGS	0x13  /* 1 word */
 #define CTI_EE_OFF_XR17V35X_PORT_FLAGS	0x14  /* 1 word */
 
 #define CTI_EE_MASK_PORT_FLAGS_TYPE	GENMASK(7, 0)
-#define CTI_EE_MASK_OSC_FREQ_LOWER	GENMASK(15, 0)
-#define CTI_EE_MASK_OSC_FREQ_UPPER	GENMASK(31, 16)
+#define CTI_EE_MASK_OSC_FREQ		GENMASK(31, 0)
 
 #define CTI_FPGA_RS485_IO_REG		0x2008
 #define CTI_FPGA_CFG_INT_EN_REG		0x48
@@ -252,6 +252,7 @@ struct exar8250 {
 	unsigned int		nr;
 	unsigned int		osc_freq;
 	struct exar8250_board	*board;
+	struct eeprom_93cx6	eeprom;
 	void __iomem		*virt;
 	int			line[];
 };
@@ -267,92 +268,37 @@ static inline u8 exar_read_reg(struct exar8250 *priv, unsigned int reg)
 	return readb(priv->virt + reg);
 }
 
-static inline void exar_ee_select(struct exar8250 *priv)
+static void exar_eeprom_93cx6_reg_read(struct eeprom_93cx6 *eeprom)
 {
-	// Set chip select pin high to enable EEPROM reads/writes
-	exar_write_reg(priv, UART_EXAR_REGB, UART_EXAR_REGB_EECS);
-	// Min ~500ns delay needed between CS assert and EEPROM access
-	udelay(1);
+	struct exar8250 *priv = eeprom->data;
+	u8 regb = exar_read_reg(priv, UART_EXAR_REGB);
+
+	/* EECK and EECS always read 0 from REGB so only set EEDO */
+	eeprom->reg_data_out = regb & UART_EXAR_REGB_EEDO;
 }
 
-static inline void exar_ee_deselect(struct exar8250 *priv)
+static void exar_eeprom_93cx6_reg_write(struct eeprom_93cx6 *eeprom)
 {
-	exar_write_reg(priv, UART_EXAR_REGB, 0x00);
+	struct exar8250 *priv = eeprom->data;
+	u8 regb = 0;
+
+	if (eeprom->reg_data_in)
+		regb |= UART_EXAR_REGB_EEDI;
+	if (eeprom->reg_data_clock)
+		regb |= UART_EXAR_REGB_EECK;
+	if (eeprom->reg_chip_select)
+		regb |= UART_EXAR_REGB_EECS;
+
+	exar_write_reg(priv, UART_EXAR_REGB, regb);
 }
 
-static inline void exar_ee_write_bit(struct exar8250 *priv, u8 bit)
+static void exar_eeprom_init(struct exar8250 *priv)
 {
-	u8 value = UART_EXAR_REGB_EECS;
-
-	if (bit)
-		value |= UART_EXAR_REGB_EEDI;
-
-	// Clock out the bit on the EEPROM interface
-	exar_write_reg(priv, UART_EXAR_REGB, value);
-	// 2us delay = ~500khz clock speed
-	udelay(2);
-
-	value |= UART_EXAR_REGB_EECK;
-
-	exar_write_reg(priv, UART_EXAR_REGB, value);
-	udelay(2);
-}
-
-static inline u8 exar_ee_read_bit(struct exar8250 *priv)
-{
-	u8 regb;
-	u8 value = UART_EXAR_REGB_EECS;
-
-	// Clock in the bit on the EEPROM interface
-	exar_write_reg(priv, UART_EXAR_REGB, value);
-	// 2us delay = ~500khz clock speed
-	udelay(2);
-
-	value |= UART_EXAR_REGB_EECK;
-
-	exar_write_reg(priv, UART_EXAR_REGB, value);
-	udelay(2);
-
-	regb = exar_read_reg(priv, UART_EXAR_REGB);
-
-	return (regb & UART_EXAR_REGB_EEDO ? 1 : 0);
-}
-
-/**
- * exar_ee_read() - Read a word from the EEPROM
- * @priv: Device's private structure
- * @ee_addr: Offset of EEPROM to read word from
- *
- * Read a single 16bit word from an Exar UART's EEPROM.
- * The type of the EEPROM is AT93C46D.
- *
- * Return: EEPROM word
- */
-static u16 exar_ee_read(struct exar8250 *priv, u8 ee_addr)
-{
-	int i;
-	u16 data = 0;
-
-	exar_ee_select(priv);
-
-	// Send read command (opcode 110)
-	exar_ee_write_bit(priv, 1);
-	exar_ee_write_bit(priv, 1);
-	exar_ee_write_bit(priv, 0);
-
-	// Send address to read from
-	for (i = UART_EXAR_REGB_EE_ADDR_SIZE - 1; i >= 0; i--)
-		exar_ee_write_bit(priv, ee_addr & BIT(i));
-
-	// Read data 1 bit at a time starting with a dummy bit
-	for (i = UART_EXAR_REGB_EE_DATA_SIZE; i >= 0; i--) {
-		if (exar_ee_read_bit(priv))
-			data |= BIT(i);
-	}
-
-	exar_ee_deselect(priv);
-
-	return data;
+	priv->eeprom.data = priv;
+	priv->eeprom.register_read = exar_eeprom_93cx6_reg_read;
+	priv->eeprom.register_write = exar_eeprom_93cx6_reg_write;
+	priv->eeprom.width = PCI_EEPROM_WIDTH_93C46;
+	priv->eeprom.quirks |= PCI_EEPROM_QUIRK_EXTRA_READ_CYCLE;
 }
 
 /**
@@ -360,7 +306,7 @@ static u16 exar_ee_read(struct exar8250 *priv, u8 ee_addr)
  * @priv: Device's private structure
  * @mpio_num: MPIO number/offset to configure
  *
- * Configure a single MPIO as an output and disable tristate. It is reccomended
+ * Configure a single MPIO as an output and disable tristate. It is recommended
  * to set the level with exar_mpio_set_high()/exar_mpio_set_low() prior to
  * calling this function to ensure default MPIO pin state.
  *
@@ -516,7 +462,7 @@ static int xr17v35x_startup(struct uart_port *port)
 	serial_port_out(port, UART_XR_EFR, UART_EFR_ECB);
 
 	/*
-	 * Make sure all interrups are masked until initialization is
+	 * Make sure all interrupts are masked until initialization is
 	 * complete and the FIFOs are cleared
 	 *
 	 * Synchronize UART_IER access against the console.
@@ -696,20 +642,16 @@ static int cti_plx_int_enable(struct exar8250 *priv)
  */
 static int cti_read_osc_freq(struct exar8250 *priv, u8 eeprom_offset)
 {
-	u16 lower_word;
-	u16 upper_word;
+	__le16 ee_words[2];
+	u32 osc_freq;
 
-	lower_word = exar_ee_read(priv, eeprom_offset);
-	// Check if EEPROM word was blank
-	if (lower_word == 0xFFFF)
+	eeprom_93cx6_multiread(&priv->eeprom, eeprom_offset, ee_words, ARRAY_SIZE(ee_words));
+
+	osc_freq = le16_to_cpu(ee_words[0]) | (le16_to_cpu(ee_words[1]) << 16);
+	if (osc_freq == CTI_EE_MASK_OSC_FREQ)
 		return -EIO;
 
-	upper_word = exar_ee_read(priv, (eeprom_offset + 1));
-	if (upper_word == 0xFFFF)
-		return -EIO;
-
-	return FIELD_PREP(CTI_EE_MASK_OSC_FREQ_LOWER, lower_word) |
-	       FIELD_PREP(CTI_EE_MASK_OSC_FREQ_UPPER, upper_word);
+	return osc_freq;
 }
 
 /**
@@ -833,7 +775,7 @@ static enum cti_port_type cti_get_port_type_xr17v35x(struct exar8250 *priv,
 	u8 offset;
 
 	offset = CTI_EE_OFF_XR17V35X_PORT_FLAGS + port_num;
-	port_flags = exar_ee_read(priv, offset);
+	eeprom_93cx6_read(&priv->eeprom, offset, &port_flags);
 
 	port_type = FIELD_GET(CTI_EE_MASK_PORT_FLAGS_TYPE, port_flags);
 	if (CTI_PORT_TYPE_VALID(port_type))
@@ -1550,6 +1492,8 @@ exar_pci_probe(struct pci_dev *pcidev, const struct pci_device_id *ent)
 			 IRQF_SHARED, "exar_uart", priv);
 	if (rc)
 		return rc;
+
+	exar_eeprom_init(priv);
 
 	for (i = 0; i < nr_ports && i < maxnr; i++) {
 		rc = board->setup(priv, pcidev, &uart, i);

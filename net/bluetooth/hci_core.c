@@ -1644,12 +1644,12 @@ void hci_adv_instances_clear(struct hci_dev *hdev)
 	struct adv_info *adv_instance, *n;
 
 	if (hdev->adv_instance_timeout) {
-		cancel_delayed_work(&hdev->adv_instance_expire);
+		disable_delayed_work(&hdev->adv_instance_expire);
 		hdev->adv_instance_timeout = 0;
 	}
 
 	list_for_each_entry_safe(adv_instance, n, &hdev->adv_instances, list) {
-		cancel_delayed_work_sync(&adv_instance->rpa_expired_cb);
+		disable_delayed_work_sync(&adv_instance->rpa_expired_cb);
 		list_del(&adv_instance->list);
 		kfree(adv_instance);
 	}
@@ -2685,11 +2685,11 @@ void hci_unregister_dev(struct hci_dev *hdev)
 	list_del(&hdev->list);
 	write_unlock(&hci_dev_list_lock);
 
-	cancel_work_sync(&hdev->rx_work);
-	cancel_work_sync(&hdev->cmd_work);
-	cancel_work_sync(&hdev->tx_work);
-	cancel_work_sync(&hdev->power_on);
-	cancel_work_sync(&hdev->error_reset);
+	disable_work_sync(&hdev->rx_work);
+	disable_work_sync(&hdev->cmd_work);
+	disable_work_sync(&hdev->tx_work);
+	disable_work_sync(&hdev->power_on);
+	disable_work_sync(&hdev->error_reset);
 
 	hci_cmd_sync_clear(hdev);
 
@@ -2796,8 +2796,14 @@ static void hci_cancel_cmd_sync(struct hci_dev *hdev, int err)
 {
 	bt_dev_dbg(hdev, "err 0x%2.2x", err);
 
-	cancel_delayed_work_sync(&hdev->cmd_timer);
-	cancel_delayed_work_sync(&hdev->ncmd_timer);
+	if (hci_dev_test_flag(hdev, HCI_UNREGISTER)) {
+		disable_delayed_work_sync(&hdev->cmd_timer);
+		disable_delayed_work_sync(&hdev->ncmd_timer);
+	} else  {
+		cancel_delayed_work_sync(&hdev->cmd_timer);
+		cancel_delayed_work_sync(&hdev->ncmd_timer);
+	}
+
 	atomic_set(&hdev->cmd_cnt, 1);
 
 	hci_cmd_sync_cancel_sync(hdev, err);
@@ -3765,25 +3771,27 @@ static void hci_tx_work(struct work_struct *work)
 /* ACL data packet */
 static void hci_acldata_packet(struct hci_dev *hdev, struct sk_buff *skb)
 {
-	struct hci_acl_hdr *hdr = (void *) skb->data;
+	struct hci_acl_hdr *hdr;
 	struct hci_conn *conn;
 	__u16 handle, flags;
 
-	skb_pull(skb, HCI_ACL_HDR_SIZE);
+	hdr = skb_pull_data(skb, sizeof(*hdr));
+	if (!hdr) {
+		bt_dev_err(hdev, "ACL packet too small");
+		goto drop;
+	}
 
 	handle = __le16_to_cpu(hdr->handle);
 	flags  = hci_flags(handle);
 	handle = hci_handle(handle);
 
-	BT_DBG("%s len %d handle 0x%4.4x flags 0x%4.4x", hdev->name, skb->len,
-	       handle, flags);
+	bt_dev_dbg(hdev, "len %d handle 0x%4.4x flags 0x%4.4x", skb->len,
+		   handle, flags);
 
 	hdev->stat.acl_rx++;
 
 	hci_dev_lock(hdev);
 	conn = hci_conn_hash_lookup_handle(hdev, handle);
-	if (conn && hci_dev_test_flag(hdev, HCI_MGMT))
-		mgmt_device_connected(hdev, conn, NULL, 0);
 	hci_dev_unlock(hdev);
 
 	if (conn) {
@@ -3797,24 +3805,29 @@ static void hci_acldata_packet(struct hci_dev *hdev, struct sk_buff *skb)
 			   handle);
 	}
 
+drop:
 	kfree_skb(skb);
 }
 
 /* SCO data packet */
 static void hci_scodata_packet(struct hci_dev *hdev, struct sk_buff *skb)
 {
-	struct hci_sco_hdr *hdr = (void *) skb->data;
+	struct hci_sco_hdr *hdr;
 	struct hci_conn *conn;
 	__u16 handle, flags;
 
-	skb_pull(skb, HCI_SCO_HDR_SIZE);
+	hdr = skb_pull_data(skb, sizeof(*hdr));
+	if (!hdr) {
+		bt_dev_err(hdev, "SCO packet too small");
+		goto drop;
+	}
 
 	handle = __le16_to_cpu(hdr->handle);
 	flags  = hci_flags(handle);
 	handle = hci_handle(handle);
 
-	BT_DBG("%s len %d handle 0x%4.4x flags 0x%4.4x", hdev->name, skb->len,
-	       handle, flags);
+	bt_dev_dbg(hdev, "len %d handle 0x%4.4x flags 0x%4.4x", skb->len,
+		   handle, flags);
 
 	hdev->stat.sco_rx++;
 
@@ -3832,6 +3845,7 @@ static void hci_scodata_packet(struct hci_dev *hdev, struct sk_buff *skb)
 				       handle);
 	}
 
+drop:
 	kfree_skb(skb);
 }
 

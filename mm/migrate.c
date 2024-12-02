@@ -206,7 +206,8 @@ static bool try_to_map_unused_to_zeropage(struct page_vma_mapped_walk *pvmw,
 	pte_t newpte;
 	void *addr;
 
-	VM_BUG_ON_PAGE(PageCompound(page), page);
+	if (PageCompound(page))
+		return false;
 	VM_BUG_ON_PAGE(!PageAnon(page), page);
 	VM_BUG_ON_PAGE(!PageLocked(page), page);
 	VM_BUG_ON_PAGE(pte_present(*pvmw->pte), page);
@@ -472,7 +473,7 @@ static int folio_expected_refs(struct address_space *mapping,
  * The number of remaining references must be:
  * 1 for anonymous folios without a mapping
  * 2 for folios with a mapping
- * 3 for folios with a mapping and PagePrivate/PagePrivate2 set.
+ * 3 for folios with a mapping and the private flag set.
  */
 static int __folio_migrate_mapping(struct address_space *mapping,
 		struct folio *newfolio, struct folio *folio, int expected_count)
@@ -489,7 +490,7 @@ static int __folio_migrate_mapping(struct address_space *mapping,
 		    folio_test_large_rmappable(folio)) {
 			if (!folio_ref_freeze(folio, expected_count))
 				return -EAGAIN;
-			folio_undo_large_rmappable(folio);
+			folio_unqueue_deferred_split(folio);
 			folio_ref_unfreeze(folio, expected_count);
 		}
 
@@ -514,7 +515,7 @@ static int __folio_migrate_mapping(struct address_space *mapping,
 	}
 
 	/* Take off deferred split queue while frozen and memcg set */
-	folio_undo_large_rmappable(folio);
+	folio_unqueue_deferred_split(folio);
 
 	/*
 	 * Now we know that no one else is looking at the folio:
@@ -694,6 +695,7 @@ void folio_migrate_flags(struct folio *newfolio, struct folio *folio)
 	if (folio_test_idle(folio))
 		folio_set_idle(newfolio);
 
+	folio_migrate_refs(newfolio, folio);
 	/*
 	 * Copy NUMA information to the new page, to prevent over-eager
 	 * future migrations of this same page.
@@ -786,7 +788,7 @@ static int __migrate_folio(struct address_space *mapping, struct folio *dst,
  * @mode: How to migrate the page.
  *
  * Common logic to directly migrate a single LRU folio suitable for
- * folios that do not use PagePrivate/PagePrivate2.
+ * folios that do not have private data.
  *
  * Folios are locked upon entry and exit.
  */
@@ -1177,7 +1179,7 @@ static void migrate_folio_done(struct folio *src,
 	 * not accounted to NR_ISOLATED_*. They can be recognized
 	 * as __folio_test_movable
 	 */
-	if (likely(!__folio_test_movable(src)))
+	if (likely(!__folio_test_movable(src)) && reason != MR_DEMOTION)
 		mod_node_page_state(folio_pgdat(src), NR_ISOLATED_ANON +
 				    folio_is_file_lru(src), -folio_nr_pages(src));
 
@@ -1731,7 +1733,7 @@ static int migrate_pages_batch(struct list_head *from,
 
 		list_for_each_entry_safe(folio, folio2, from, lru) {
 			is_large = folio_test_large(folio);
-			is_thp = is_large && folio_test_pmd_mappable(folio);
+			is_thp = folio_test_pmd_mappable(folio);
 			nr_pages = folio_nr_pages(folio);
 
 			cond_resched();

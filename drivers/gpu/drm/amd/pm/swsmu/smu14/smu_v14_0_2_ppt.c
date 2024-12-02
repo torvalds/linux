@@ -367,54 +367,6 @@ static int smu_v14_0_2_store_powerplay_table(struct smu_context *smu)
 	return 0;
 }
 
-#ifndef atom_smc_dpm_info_table_14_0_0
-struct atom_smc_dpm_info_table_14_0_0 {
-	struct atom_common_table_header table_header;
-	BoardTable_t BoardTable;
-};
-#endif
-
-static int smu_v14_0_2_append_powerplay_table(struct smu_context *smu)
-{
-	struct smu_table_context *table_context = &smu->smu_table;
-	PPTable_t *smc_pptable = table_context->driver_pptable;
-	struct atom_smc_dpm_info_table_14_0_0 *smc_dpm_table;
-	BoardTable_t *BoardTable = &smc_pptable->BoardTable;
-	int index, ret;
-
-	index = get_index_into_master_table(atom_master_list_of_data_tables_v2_1,
-					    smc_dpm_info);
-
-	ret = amdgpu_atombios_get_data_table(smu->adev, index, NULL, NULL, NULL,
-					     (uint8_t **)&smc_dpm_table);
-	if (ret)
-		return ret;
-
-	memcpy(BoardTable, &smc_dpm_table->BoardTable, sizeof(BoardTable_t));
-
-	return 0;
-}
-
-#if 0
-static int smu_v14_0_2_get_pptable_from_pmfw(struct smu_context *smu,
-					     void **table,
-					     uint32_t *size)
-{
-	struct smu_table_context *smu_table = &smu->smu_table;
-	void *combo_pptable = smu_table->combo_pptable;
-	int ret = 0;
-
-	ret = smu_cmn_get_combo_pptable(smu);
-	if (ret)
-		return ret;
-
-	*table = combo_pptable;
-	*size = sizeof(struct smu_14_0_powerplay_table);
-
-	return 0;
-}
-#endif
-
 static int smu_v14_0_2_get_pptable_from_pmfw(struct smu_context *smu,
 					     void **table,
 					     uint32_t *size)
@@ -436,16 +388,12 @@ static int smu_v14_0_2_get_pptable_from_pmfw(struct smu_context *smu,
 static int smu_v14_0_2_setup_pptable(struct smu_context *smu)
 {
 	struct smu_table_context *smu_table = &smu->smu_table;
-	struct amdgpu_device *adev = smu->adev;
 	int ret = 0;
 
 	if (amdgpu_sriov_vf(smu->adev))
 		return 0;
 
-	if (!adev->scpm_enabled)
-		ret = smu_v14_0_setup_pptable(smu);
-	else
-		ret = smu_v14_0_2_get_pptable_from_pmfw(smu,
+	ret = smu_v14_0_2_get_pptable_from_pmfw(smu,
 							&smu_table->power_play_table,
 							&smu_table->power_play_table_size);
 	if (ret)
@@ -454,16 +402,6 @@ static int smu_v14_0_2_setup_pptable(struct smu_context *smu)
 	ret = smu_v14_0_2_store_powerplay_table(smu);
 	if (ret)
 		return ret;
-
-	/*
-	 * With SCPM enabled, the operation below will be handled
-	 * by PSP. Driver involvment is unnecessary and useless.
-	 */
-	if (!adev->scpm_enabled) {
-		ret = smu_v14_0_2_append_powerplay_table(smu);
-		if (ret)
-			return ret;
-	}
 
 	ret = smu_v14_0_2_check_powerplay_table(smu);
 	if (ret)
@@ -730,19 +668,6 @@ static bool smu_v14_0_2_is_dpm_running(struct smu_context *smu)
 		return false;
 
 	return !!(feature_enabled & SMC_DPM_FEATURE);
-}
-
-static void smu_v14_0_2_dump_pptable(struct smu_context *smu)
-{
-       struct smu_table_context *table_context = &smu->smu_table;
-       PPTable_t *pptable = table_context->driver_pptable;
-       PFE_Settings_t *PFEsettings = &pptable->PFE_Settings;
-
-       dev_info(smu->adev->dev, "Dumped PPTable:\n");
-
-       dev_info(smu->adev->dev, "Version = 0x%08x\n", PFEsettings->Version);
-       dev_info(smu->adev->dev, "FeaturesToRun[0] = 0x%08x\n", PFEsettings->FeaturesToRun[0]);
-       dev_info(smu->adev->dev, "FeaturesToRun[1] = 0x%08x\n", PFEsettings->FeaturesToRun[1]);
 }
 
 static uint32_t smu_v14_0_2_get_throttler_status(SmuMetrics_t *metrics)
@@ -1077,12 +1002,9 @@ static void smu_v14_0_2_get_od_setting_limits(struct smu_context *smu,
 
 	switch (od_feature_bit) {
 	case PP_OD_FEATURE_GFXCLK_FMIN:
-		od_min_setting = overdrive_lowerlimits->GfxclkFmin;
-		od_max_setting = overdrive_upperlimits->GfxclkFmin;
-		break;
 	case PP_OD_FEATURE_GFXCLK_FMAX:
-		od_min_setting = overdrive_lowerlimits->GfxclkFmax;
-		od_max_setting = overdrive_upperlimits->GfxclkFmax;
+		od_min_setting = overdrive_lowerlimits->GfxclkFoffset;
+		od_max_setting = overdrive_upperlimits->GfxclkFoffset;
 		break;
 	case PP_OD_FEATURE_UCLK_FMIN:
 		od_min_setting = overdrive_lowerlimits->UclkFmin;
@@ -1251,13 +1173,15 @@ static int smu_v14_0_2_print_clk_levels(struct smu_context *smu,
 					(pcie_table->pcie_gen[i] == 0) ? "2.5GT/s," :
 					(pcie_table->pcie_gen[i] == 1) ? "5.0GT/s," :
 					(pcie_table->pcie_gen[i] == 2) ? "8.0GT/s," :
-					(pcie_table->pcie_gen[i] == 3) ? "16.0GT/s," : "",
+					(pcie_table->pcie_gen[i] == 3) ? "16.0GT/s," :
+					(pcie_table->pcie_gen[i] == 4) ? "32.0GT/s," : "",
 					(pcie_table->pcie_lane[i] == 1) ? "x1" :
 					(pcie_table->pcie_lane[i] == 2) ? "x2" :
 					(pcie_table->pcie_lane[i] == 3) ? "x4" :
 					(pcie_table->pcie_lane[i] == 4) ? "x8" :
 					(pcie_table->pcie_lane[i] == 5) ? "x12" :
-					(pcie_table->pcie_lane[i] == 6) ? "x16" : "",
+					(pcie_table->pcie_lane[i] == 6) ? "x16" :
+					(pcie_table->pcie_lane[i] == 7) ? "x32" : "",
 					pcie_table->clk_freq[i],
 					(gen_speed == DECODE_GEN_SPEED(pcie_table->pcie_gen[i])) &&
 					(lane_width == DECODE_LANE_WIDTH(pcie_table->pcie_lane[i])) ?
@@ -1269,10 +1193,16 @@ static int smu_v14_0_2_print_clk_levels(struct smu_context *smu,
 							 PP_OD_FEATURE_GFXCLK_BIT))
 			break;
 
-		size += sysfs_emit_at(buf, size, "OD_SCLK:\n");
-		size += sysfs_emit_at(buf, size, "0: %uMhz\n1: %uMhz\n",
-					od_table->OverDriveTable.GfxclkFmin,
-					od_table->OverDriveTable.GfxclkFmax);
+		PPTable_t *pptable = smu->smu_table.driver_pptable;
+		const OverDriveLimits_t * const overdrive_upperlimits =
+					&pptable->SkuTable.OverDriveLimitsBasicMax;
+		const OverDriveLimits_t * const overdrive_lowerlimits =
+					&pptable->SkuTable.OverDriveLimitsBasicMin;
+
+		size += sysfs_emit_at(buf, size, "OD_SCLK_OFFSET:\n");
+		size += sysfs_emit_at(buf, size, "0: %dMhz\n1: %uMhz\n",
+					overdrive_lowerlimits->GfxclkFoffset,
+					overdrive_upperlimits->GfxclkFoffset);
 		break;
 
 	case SMU_OD_MCLK:
@@ -1414,7 +1344,7 @@ static int smu_v14_0_2_print_clk_levels(struct smu_context *smu,
 							  PP_OD_FEATURE_GFXCLK_FMAX,
 							  NULL,
 							  &max_value);
-			size += sysfs_emit_at(buf, size, "SCLK: %7uMhz %10uMhz\n",
+			size += sysfs_emit_at(buf, size, "SCLK_OFFSET: %7dMhz %10uMhz\n",
 					      min_value, max_value);
 		}
 
@@ -1516,7 +1446,8 @@ static int smu_v14_0_2_force_clk_levels(struct smu_context *smu,
 		ret = smu_v14_0_set_soft_freq_limited_range(smu,
 							    clk_type,
 							    min_freq,
-							    max_freq);
+							    max_freq,
+							    false);
 		break;
 	case SMU_DCEFCLK:
 	case SMU_PCIE:
@@ -1534,15 +1465,35 @@ static int smu_v14_0_2_update_pcie_parameters(struct smu_context *smu,
 	struct smu_14_0_dpm_context *dpm_context = smu->smu_dpm.dpm_context;
 	struct smu_14_0_pcie_table *pcie_table =
 				&dpm_context->dpm_tables.pcie_table;
+	int num_of_levels = pcie_table->num_of_link_levels;
 	uint32_t smu_pcie_arg;
 	int ret, i;
 
-	for (i = 0; i < pcie_table->num_of_link_levels; i++) {
-		if (pcie_table->pcie_gen[i] > pcie_gen_cap)
-			pcie_table->pcie_gen[i] = pcie_gen_cap;
-		if (pcie_table->pcie_lane[i] > pcie_width_cap)
-			pcie_table->pcie_lane[i] = pcie_width_cap;
+	if (!num_of_levels)
+		return 0;
 
+	if (!(smu->adev->pm.pp_feature & PP_PCIE_DPM_MASK)) {
+		if (pcie_table->pcie_gen[num_of_levels - 1] < pcie_gen_cap)
+			pcie_gen_cap = pcie_table->pcie_gen[num_of_levels - 1];
+
+		if (pcie_table->pcie_lane[num_of_levels - 1] < pcie_width_cap)
+			pcie_width_cap = pcie_table->pcie_lane[num_of_levels - 1];
+
+		/* Force all levels to use the same settings */
+		for (i = 0; i < num_of_levels; i++) {
+			pcie_table->pcie_gen[i] = pcie_gen_cap;
+			pcie_table->pcie_lane[i] = pcie_width_cap;
+		}
+	} else {
+		for (i = 0; i < num_of_levels; i++) {
+			if (pcie_table->pcie_gen[i] > pcie_gen_cap)
+				pcie_table->pcie_gen[i] = pcie_gen_cap;
+			if (pcie_table->pcie_lane[i] > pcie_width_cap)
+				pcie_table->pcie_lane[i] = pcie_width_cap;
+		}
+	}
+
+	for (i = 0; i < num_of_levels; i++) {
 		smu_pcie_arg = i << 16;
 		smu_pcie_arg |= pcie_table->pcie_gen[i] << 8;
 		smu_pcie_arg |= pcie_table->pcie_lane[i];
@@ -1796,7 +1747,7 @@ static int smu_v14_0_2_set_power_profile_mode(struct smu_context *smu,
 	DpmActivityMonitorCoeffInt_t *activity_monitor =
 		&(activity_monitor_external.DpmActivityMonitorCoeffInt);
 	int workload_type, ret = 0;
-
+	uint32_t current_profile_mode = smu->power_profile_mode;
 	smu->power_profile_mode = input[size];
 
 	if (smu->power_profile_mode >= PP_SMC_POWER_PROFILE_COUNT) {
@@ -1854,6 +1805,11 @@ static int smu_v14_0_2_set_power_profile_mode(struct smu_context *smu,
 		}
 	}
 
+	if (smu->power_profile_mode == PP_SMC_POWER_PROFILE_COMPUTE)
+		smu_v14_0_deep_sleep_control(smu, false);
+	else if (current_profile_mode == PP_SMC_POWER_PROFILE_COMPUTE)
+		smu_v14_0_deep_sleep_control(smu, true);
+
 	/* conv PP_SMC_POWER_PROFILE* to WORKLOAD_PPLIB_*_BIT */
 	workload_type = smu_cmn_to_asic_specific_index(smu,
 						       CMN2ASIC_MAPPING_WORKLOAD,
@@ -1861,12 +1817,11 @@ static int smu_v14_0_2_set_power_profile_mode(struct smu_context *smu,
 	if (workload_type < 0)
 		return -EINVAL;
 
-	ret = smu_cmn_send_smc_msg_with_param(smu,
-					       SMU_MSG_SetWorkloadMask,
-					       1 << workload_type,
-					       NULL);
+	ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_SetWorkloadMask,
+										  smu->workload_mask, NULL);
+
 	if (!ret)
-		smu->workload_mask = 1 << workload_type;
+		smu_cmn_assign_power_profile(smu);
 
 	return ret;
 }
@@ -2158,7 +2113,7 @@ static ssize_t smu_v14_0_2_get_gpu_metrics(struct smu_context *smu,
 
 	gpu_metrics->average_gfx_activity = metrics->AverageGfxActivity;
 	gpu_metrics->average_umc_activity = metrics->AverageUclkActivity;
-	gpu_metrics->average_mm_activity = max(metrics->Vcn0ActivityPercentage,
+	gpu_metrics->average_mm_activity = max(metrics->AverageVcn0ActivityPercentage,
 					       metrics->Vcn1ActivityPercentage);
 
 	gpu_metrics->average_socket_power = metrics->AverageSocketPower;
@@ -2217,8 +2172,7 @@ static void smu_v14_0_2_dump_od_table(struct smu_context *smu,
 {
 	struct amdgpu_device *adev = smu->adev;
 
-	dev_dbg(adev->dev, "OD: Gfxclk: (%d, %d)\n", od_table->OverDriveTable.GfxclkFmin,
-						     od_table->OverDriveTable.GfxclkFmax);
+	dev_dbg(adev->dev, "OD: Gfxclk offset: (%d)\n", od_table->OverDriveTable.GfxclkFoffset);
 	dev_dbg(adev->dev, "OD: Uclk: (%d, %d)\n", od_table->OverDriveTable.UclkFmin,
 						   od_table->OverDriveTable.UclkFmax);
 }
@@ -2309,10 +2263,8 @@ static int smu_v14_0_2_set_default_od_settings(struct smu_context *smu)
 		memcpy(user_od_table,
 		       boot_od_table,
 		       sizeof(OverDriveTableExternal_t));
-		user_od_table->OverDriveTable.GfxclkFmin =
-				user_od_table_bak.OverDriveTable.GfxclkFmin;
-		user_od_table->OverDriveTable.GfxclkFmax =
-				user_od_table_bak.OverDriveTable.GfxclkFmax;
+		user_od_table->OverDriveTable.GfxclkFoffset =
+				user_od_table_bak.OverDriveTable.GfxclkFoffset;
 		user_od_table->OverDriveTable.UclkFmin =
 				user_od_table_bak.OverDriveTable.UclkFmin;
 		user_od_table->OverDriveTable.UclkFmax =
@@ -2441,22 +2393,6 @@ static int smu_v14_0_2_od_edit_dpm_table(struct smu_context *smu,
 			}
 
 			switch (input[i]) {
-			case 0:
-				smu_v14_0_2_get_od_setting_limits(smu,
-								  PP_OD_FEATURE_GFXCLK_FMIN,
-								  &minimum,
-								  &maximum);
-				if (input[i + 1] < minimum ||
-				    input[i + 1] > maximum) {
-					dev_info(adev->dev, "GfxclkFmin (%ld) must be within [%u, %u]!\n",
-						input[i + 1], minimum, maximum);
-					return -EINVAL;
-				}
-
-				od_table->OverDriveTable.GfxclkFmin = input[i + 1];
-				od_table->OverDriveTable.FeatureCtrlMask |= 1U << PP_OD_FEATURE_GFXCLK_BIT;
-				break;
-
 			case 1:
 				smu_v14_0_2_get_od_setting_limits(smu,
 								  PP_OD_FEATURE_GFXCLK_FMAX,
@@ -2469,7 +2405,7 @@ static int smu_v14_0_2_od_edit_dpm_table(struct smu_context *smu,
 					return -EINVAL;
 				}
 
-				od_table->OverDriveTable.GfxclkFmax = input[i + 1];
+				od_table->OverDriveTable.GfxclkFoffset = input[i + 1];
 				od_table->OverDriveTable.FeatureCtrlMask |= 1U << PP_OD_FEATURE_GFXCLK_BIT;
 				break;
 
@@ -2480,13 +2416,6 @@ static int smu_v14_0_2_od_edit_dpm_table(struct smu_context *smu,
 			}
 		}
 
-		if (od_table->OverDriveTable.GfxclkFmin > od_table->OverDriveTable.GfxclkFmax) {
-			dev_err(adev->dev,
-				"Invalid setting: GfxclkFmin(%u) is bigger than GfxclkFmax(%u)\n",
-				(uint32_t)od_table->OverDriveTable.GfxclkFmin,
-				(uint32_t)od_table->OverDriveTable.GfxclkFmax);
-			return -EINVAL;
-		}
 		break;
 
 	case PP_OD_EDIT_MCLK_VDDC_TABLE:
@@ -2806,7 +2735,6 @@ static const struct pptable_funcs smu_v14_0_2_ppt_funcs = {
 	.i2c_init = smu_v14_0_2_i2c_control_init,
 	.i2c_fini = smu_v14_0_2_i2c_control_fini,
 	.is_dpm_running = smu_v14_0_2_is_dpm_running,
-	.dump_pptable = smu_v14_0_2_dump_pptable,
 	.init_microcode = smu_v14_0_init_microcode,
 	.load_microcode = smu_v14_0_load_microcode,
 	.fini_microcode = smu_v14_0_fini_microcode,
@@ -2817,7 +2745,6 @@ static const struct pptable_funcs smu_v14_0_2_ppt_funcs = {
 	.check_fw_status = smu_v14_0_check_fw_status,
 	.setup_pptable = smu_v14_0_2_setup_pptable,
 	.check_fw_version = smu_v14_0_check_fw_version,
-	.write_pptable = smu_cmn_write_pptable,
 	.set_driver_table_location = smu_v14_0_set_driver_table_location,
 	.system_features_control = smu_v14_0_system_features_control,
 	.set_allowed_mask = smu_v14_0_set_allowed_mask,
@@ -2848,7 +2775,6 @@ static const struct pptable_funcs smu_v14_0_2_ppt_funcs = {
 	.get_unique_id = smu_v14_0_2_get_unique_id,
 	.get_power_limit = smu_v14_0_2_get_power_limit,
 	.set_power_limit = smu_v14_0_2_set_power_limit,
-	.set_power_source = smu_v14_0_set_power_source,
 	.get_power_profile_mode = smu_v14_0_2_get_power_profile_mode,
 	.set_power_profile_mode = smu_v14_0_2_set_power_profile_mode,
 	.run_btc = smu_v14_0_run_btc,

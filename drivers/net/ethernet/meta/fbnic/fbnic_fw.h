@@ -44,6 +44,13 @@ struct fbnic_fw_cap {
 	u8	link_fec;
 };
 
+struct fbnic_fw_completion {
+	struct {
+		s32 millivolts;
+		s32 millidegrees;
+	} tsene;
+};
+
 void fbnic_mbx_init(struct fbnic_dev *fbd);
 void fbnic_mbx_clean(struct fbnic_dev *fbd);
 void fbnic_mbx_poll(struct fbnic_dev *fbd);

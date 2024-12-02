@@ -248,7 +248,6 @@ config SENSORS_ISL29018
 	tristate "Intersil 29018 light and proximity sensor"
 	depends on I2C
 	select REGMAP_I2C
-	default n
 	help
 	  If you say yes here you get support for ambient light sensing and
 	  proximity infrared sensing from Intersil ISL29018.
@@ -335,6 +334,8 @@ config ROHM_BU27008
 	depends on I2C
 	select REGMAP_I2C
 	select IIO_GTS_HELPER
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
 	help
 	  Enable support for the ROHM BU27008 color sensor.
 	  The ROHM BU27008 is a sensor with 5 photodiodes (red, green,
@@ -474,7 +475,7 @@ config OPT3001
 	depends on I2C
 	help
 	  If you say Y or M here, you get support for Texas Instruments
-	  OPT3001 Ambient Light Sensor.
+	  OPT3001 Ambient Light Sensor, OPT3002 Light-to-Digital Sensor.
 
 	  If built as a dynamically linked module, it will be called
 	  opt3001.
@@ -668,13 +669,24 @@ config VCNL4035
 	  To compile this driver as a module, choose M here: the
 	  module will be called vcnl4035.
 
+config VEML3235
+	tristate "VEML3235 ambient light sensor"
+	select REGMAP_I2C
+	depends on I2C
+	help
+	  Say Y here if you want to build a driver for the Vishay VEML3235
+	  ambient light sensor.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called veml3235.
+
 config VEML6030
-	tristate "VEML6030 ambient light sensor"
+	tristate "VEML6030 and VEML6035 ambient light sensors"
 	select REGMAP_I2C
 	depends on I2C
 	help
 	  Say Y here if you want to build a driver for the Vishay VEML6030
-	  ambient light sensor (ALS).
+	  and VEML6035 ambient light sensors (ALS).
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called veml6030.

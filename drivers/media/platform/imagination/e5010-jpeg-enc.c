@@ -1593,8 +1593,6 @@ static const struct vb2_ops e5010_video_ops = {
 	.buf_finish = e5010_buf_finish,
 	.buf_prepare = e5010_buf_prepare,
 	.buf_out_validate = e5010_buf_out_validate,
-	.wait_prepare = vb2_ops_wait_prepare,
-	.wait_finish = vb2_ops_wait_finish,
 	.start_streaming = e5010_start_streaming,
 	.stop_streaming = e5010_stop_streaming,
 };
@@ -1619,7 +1617,7 @@ MODULE_DEVICE_TABLE(of, e5010_of_match);
 
 static struct platform_driver e5010_driver = {
 	.probe = e5010_probe,
-	.remove_new = e5010_remove,
+	.remove = e5010_remove,
 	.driver = {
 		.name = E5010_MODULE_NAME,
 		.of_match_table = e5010_of_match,

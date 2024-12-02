@@ -1,7 +1,8 @@
 # SPDX-License-Identifier: GPL-2.0-only
 config DRM_QXL
 	tristate "QXL virtual GPU"
-	depends on DRM && PCI && MMU
+	depends on DRM && PCI && MMU && HAS_IOPORT
+	select DRM_CLIENT_SELECTION
 	select DRM_KMS_HELPER
 	select DRM_TTM
 	select DRM_TTM_HELPER

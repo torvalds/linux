@@ -375,6 +375,7 @@ static int gr3d_init_power(struct device *dev, struct gr3d *gr3d)
 	struct dev_pm_domain_attach_data pd_data = {
 		.pd_names = (const char *[]) { "3d0", "3d1" },
 		.num_pd_names = 2,
+		.pd_flags = PD_FLAG_REQUIRED_OPP,
 	};
 	int err;
 
@@ -409,7 +410,7 @@ static int gr3d_init_power(struct device *dev, struct gr3d *gr3d)
 	if (dev->pm_domain)
 		return 0;
 
-	err = dev_pm_domain_attach_list(dev, &pd_data, &gr3d->pd_list);
+	err = devm_pm_domain_attach_list(dev, &pd_data, &gr3d->pd_list);
 	if (err < 0)
 		return err;
 
@@ -503,13 +504,13 @@ static int gr3d_probe(struct platform_device *pdev)
 
 	err = devm_tegra_core_dev_init_opp_table_common(&pdev->dev);
 	if (err)
-		goto err;
+		return err;
 
 	err = host1x_client_register(&gr3d->client.base);
 	if (err < 0) {
 		dev_err(&pdev->dev, "failed to register host1x client: %d\n",
 			err);
-		goto err;
+		return err;
 	}
 
 	/* initialize address register map */
@@ -517,9 +518,6 @@ static int gr3d_probe(struct platform_device *pdev)
 		set_bit(gr3d_addr_regs[i], gr3d->addr_regs);
 
 	return 0;
-err:
-	dev_pm_domain_detach_list(gr3d->pd_list);
-	return err;
 }
 
 static void gr3d_remove(struct platform_device *pdev)
@@ -528,7 +526,6 @@ static void gr3d_remove(struct platform_device *pdev)
 
 	pm_runtime_disable(&pdev->dev);
 	host1x_client_unregister(&gr3d->client.base);
-	dev_pm_domain_detach_list(gr3d->pd_list);
 }
 
 static int __maybe_unused gr3d_runtime_suspend(struct device *dev)

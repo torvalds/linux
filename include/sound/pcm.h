@@ -97,11 +97,11 @@ struct snd_pcm_ops {
 
 #define SNDRV_PCM_TRIGGER_STOP		0
 #define SNDRV_PCM_TRIGGER_START		1
-#define SNDRV_PCM_TRIGGER_PAUSE_PUSH	3
-#define SNDRV_PCM_TRIGGER_PAUSE_RELEASE	4
-#define SNDRV_PCM_TRIGGER_SUSPEND	5
-#define SNDRV_PCM_TRIGGER_RESUME	6
-#define SNDRV_PCM_TRIGGER_DRAIN		7
+#define SNDRV_PCM_TRIGGER_PAUSE_PUSH	2
+#define SNDRV_PCM_TRIGGER_PAUSE_RELEASE	3
+#define SNDRV_PCM_TRIGGER_SUSPEND	4
+#define SNDRV_PCM_TRIGGER_RESUME	5
+#define SNDRV_PCM_TRIGGER_DRAIN		6
 
 #define SNDRV_PCM_POS_XRUN		((snd_pcm_uframes_t)-1)
 
@@ -1391,30 +1391,6 @@ snd_pcm_sgbuf_get_chunk_size(struct snd_pcm_substream *substream,
 			     unsigned int ofs, unsigned int size)
 {
 	return snd_sgbuf_get_chunk_size(snd_pcm_get_dma_buf(substream), ofs, size);
-}
-
-/**
- * snd_pcm_mmap_data_open - increase the mmap counter
- * @area: VMA
- *
- * PCM mmap callback should handle this counter properly
- */
-static inline void snd_pcm_mmap_data_open(struct vm_area_struct *area)
-{
-	struct snd_pcm_substream *substream = (struct snd_pcm_substream *)area->vm_private_data;
-	atomic_inc(&substream->mmap_count);
-}
-
-/**
- * snd_pcm_mmap_data_close - decrease the mmap counter
- * @area: VMA
- *
- * PCM mmap callback should handle this counter properly
- */
-static inline void snd_pcm_mmap_data_close(struct vm_area_struct *area)
-{
-	struct snd_pcm_substream *substream = (struct snd_pcm_substream *)area->vm_private_data;
-	atomic_dec(&substream->mmap_count);
 }
 
 int snd_pcm_lib_default_mmap(struct snd_pcm_substream *substream,

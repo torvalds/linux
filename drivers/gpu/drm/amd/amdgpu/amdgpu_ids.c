@@ -342,15 +342,13 @@ static int amdgpu_vmid_grab_reserved(struct amdgpu_vm *vm,
  * @ring: ring we want to submit job to
  * @job: job who wants to use the VMID
  * @id: resulting VMID
- * @fence: fence to wait for if no id could be grabbed
  *
  * Try to reuse a VMID for this submission.
  */
 static int amdgpu_vmid_grab_used(struct amdgpu_vm *vm,
 				 struct amdgpu_ring *ring,
 				 struct amdgpu_job *job,
-				 struct amdgpu_vmid **id,
-				 struct dma_fence **fence)
+				 struct amdgpu_vmid **id)
 {
 	struct amdgpu_device *adev = ring->adev;
 	unsigned vmhub = ring->vm_hub;
@@ -429,7 +427,7 @@ int amdgpu_vmid_grab(struct amdgpu_vm *vm, struct amdgpu_ring *ring,
 		if (r || !id)
 			goto error;
 	} else {
-		r = amdgpu_vmid_grab_used(vm, ring, job, &id, fence);
+		r = amdgpu_vmid_grab_used(vm, ring, job, &id);
 		if (r)
 			goto error;
 

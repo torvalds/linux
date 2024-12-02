@@ -4,6 +4,7 @@
  */
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
+#include <linux/clk/clk-conf.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
 
@@ -15,6 +16,7 @@
 #include <kunit/platform_device.h>
 #include <kunit/test.h>
 
+#include "kunit_clk_assigned_rates.h"
 #include "clk_parent_data_test.h"
 
 static const struct clk_ops empty_clk_ops = { };
@@ -473,7 +475,7 @@ clk_multiple_parents_mux_test_init(struct kunit *test)
 							    &clk_dummy_rate_ops,
 							    0);
 	ctx->parents_ctx[0].rate = DUMMY_CLOCK_RATE_1;
-	ret = clk_hw_register(NULL, &ctx->parents_ctx[0].hw);
+	ret = clk_hw_register_kunit(test, NULL, &ctx->parents_ctx[0].hw);
 	if (ret)
 		return ret;
 
@@ -481,7 +483,7 @@ clk_multiple_parents_mux_test_init(struct kunit *test)
 							    &clk_dummy_rate_ops,
 							    0);
 	ctx->parents_ctx[1].rate = DUMMY_CLOCK_RATE_2;
-	ret = clk_hw_register(NULL, &ctx->parents_ctx[1].hw);
+	ret = clk_hw_register_kunit(test, NULL, &ctx->parents_ctx[1].hw);
 	if (ret)
 		return ret;
 
@@ -489,21 +491,11 @@ clk_multiple_parents_mux_test_init(struct kunit *test)
 	ctx->hw.init = CLK_HW_INIT_PARENTS("test-mux", parents,
 					   &clk_multiple_parents_mux_ops,
 					   CLK_SET_RATE_PARENT);
-	ret = clk_hw_register(NULL, &ctx->hw);
+	ret = clk_hw_register_kunit(test, NULL, &ctx->hw);
 	if (ret)
 		return ret;
 
 	return 0;
-}
-
-static void
-clk_multiple_parents_mux_test_exit(struct kunit *test)
-{
-	struct clk_multiple_parent_ctx *ctx = test->priv;
-
-	clk_hw_unregister(&ctx->hw);
-	clk_hw_unregister(&ctx->parents_ctx[0].hw);
-	clk_hw_unregister(&ctx->parents_ctx[1].hw);
 }
 
 /*
@@ -561,18 +553,18 @@ clk_test_multiple_parents_mux_set_range_set_parent_get_rate(struct kunit *test)
 {
 	struct clk_multiple_parent_ctx *ctx = test->priv;
 	struct clk_hw *hw = &ctx->hw;
-	struct clk *clk = clk_hw_get_clk(hw, NULL);
+	struct clk *clk = clk_hw_get_clk_kunit(test, hw, NULL);
 	struct clk *parent1, *parent2;
 	unsigned long rate;
 	int ret;
 
 	kunit_skip(test, "This needs to be fixed in the core.");
 
-	parent1 = clk_hw_get_clk(&ctx->parents_ctx[0].hw, NULL);
+	parent1 = clk_hw_get_clk_kunit(test, &ctx->parents_ctx[0].hw, NULL);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, parent1);
 	KUNIT_ASSERT_TRUE(test, clk_is_match(clk_get_parent(clk), parent1));
 
-	parent2 = clk_hw_get_clk(&ctx->parents_ctx[1].hw, NULL);
+	parent2 = clk_hw_get_clk_kunit(test, &ctx->parents_ctx[1].hw, NULL);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, parent2);
 
 	ret = clk_set_rate(parent1, DUMMY_CLOCK_RATE_1);
@@ -593,10 +585,6 @@ clk_test_multiple_parents_mux_set_range_set_parent_get_rate(struct kunit *test)
 	KUNIT_ASSERT_GT(test, rate, 0);
 	KUNIT_EXPECT_GE(test, rate, DUMMY_CLOCK_RATE_1 - 1000);
 	KUNIT_EXPECT_LE(test, rate, DUMMY_CLOCK_RATE_1 + 1000);
-
-	clk_put(parent2);
-	clk_put(parent1);
-	clk_put(clk);
 }
 
 static struct kunit_case clk_multiple_parents_mux_test_cases[] = {
@@ -617,7 +605,6 @@ static struct kunit_suite
 clk_multiple_parents_mux_test_suite = {
 	.name = "clk-multiple-parents-mux-test",
 	.init = clk_multiple_parents_mux_test_init,
-	.exit = clk_multiple_parents_mux_test_exit,
 	.test_cases = clk_multiple_parents_mux_test_cases,
 };
 
@@ -637,27 +624,18 @@ clk_orphan_transparent_multiple_parent_mux_test_init(struct kunit *test)
 							    &clk_dummy_rate_ops,
 							    0);
 	ctx->parents_ctx[1].rate = DUMMY_CLOCK_INIT_RATE;
-	ret = clk_hw_register(NULL, &ctx->parents_ctx[1].hw);
+	ret = clk_hw_register_kunit(test, NULL, &ctx->parents_ctx[1].hw);
 	if (ret)
 		return ret;
 
 	ctx->hw.init = CLK_HW_INIT_PARENTS("test-orphan-mux", parents,
 					   &clk_multiple_parents_mux_ops,
 					   CLK_SET_RATE_PARENT);
-	ret = clk_hw_register(NULL, &ctx->hw);
+	ret = clk_hw_register_kunit(test, NULL, &ctx->hw);
 	if (ret)
 		return ret;
 
 	return 0;
-}
-
-static void
-clk_orphan_transparent_multiple_parent_mux_test_exit(struct kunit *test)
-{
-	struct clk_multiple_parent_ctx *ctx = test->priv;
-
-	clk_hw_unregister(&ctx->hw);
-	clk_hw_unregister(&ctx->parents_ctx[1].hw);
 }
 
 /*
@@ -912,7 +890,7 @@ clk_test_orphan_transparent_multiple_parent_mux_set_range_set_parent_get_rate(st
 {
 	struct clk_multiple_parent_ctx *ctx = test->priv;
 	struct clk_hw *hw = &ctx->hw;
-	struct clk *clk = clk_hw_get_clk(hw, NULL);
+	struct clk *clk = clk_hw_get_clk_kunit(test, hw, NULL);
 	struct clk *parent;
 	unsigned long rate;
 	int ret;
@@ -921,7 +899,7 @@ clk_test_orphan_transparent_multiple_parent_mux_set_range_set_parent_get_rate(st
 
 	clk_hw_set_rate_range(hw, DUMMY_CLOCK_RATE_1, DUMMY_CLOCK_RATE_2);
 
-	parent = clk_hw_get_clk(&ctx->parents_ctx[1].hw, NULL);
+	parent = clk_hw_get_clk_kunit(test, &ctx->parents_ctx[1].hw, NULL);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, parent);
 
 	ret = clk_set_parent(clk, parent);
@@ -931,9 +909,6 @@ clk_test_orphan_transparent_multiple_parent_mux_set_range_set_parent_get_rate(st
 	KUNIT_ASSERT_GT(test, rate, 0);
 	KUNIT_EXPECT_GE(test, rate, DUMMY_CLOCK_RATE_1);
 	KUNIT_EXPECT_LE(test, rate, DUMMY_CLOCK_RATE_2);
-
-	clk_put(parent);
-	clk_put(clk);
 }
 
 static struct kunit_case clk_orphan_transparent_multiple_parent_mux_test_cases[] = {
@@ -961,7 +936,6 @@ static struct kunit_case clk_orphan_transparent_multiple_parent_mux_test_cases[]
 static struct kunit_suite clk_orphan_transparent_multiple_parent_mux_test_suite = {
 	.name = "clk-orphan-transparent-multiple-parent-mux-test",
 	.init = clk_orphan_transparent_multiple_parent_mux_test_init,
-	.exit = clk_orphan_transparent_multiple_parent_mux_test_exit,
 	.test_cases = clk_orphan_transparent_multiple_parent_mux_test_cases,
 };
 
@@ -986,7 +960,7 @@ static int clk_single_parent_mux_test_init(struct kunit *test)
 				      &clk_dummy_rate_ops,
 				      0);
 
-	ret = clk_hw_register(NULL, &ctx->parent_ctx.hw);
+	ret = clk_hw_register_kunit(test, NULL, &ctx->parent_ctx.hw);
 	if (ret)
 		return ret;
 
@@ -994,7 +968,7 @@ static int clk_single_parent_mux_test_init(struct kunit *test)
 				   &clk_dummy_single_parent_ops,
 				   CLK_SET_RATE_PARENT);
 
-	ret = clk_hw_register(NULL, &ctx->hw);
+	ret = clk_hw_register_kunit(test, NULL, &ctx->hw);
 	if (ret)
 		return ret;
 
@@ -1060,7 +1034,7 @@ clk_test_single_parent_mux_set_range_disjoint_child_last(struct kunit *test)
 {
 	struct clk_single_parent_ctx *ctx = test->priv;
 	struct clk_hw *hw = &ctx->hw;
-	struct clk *clk = clk_hw_get_clk(hw, NULL);
+	struct clk *clk = clk_hw_get_clk_kunit(test, hw, NULL);
 	struct clk *parent;
 	int ret;
 
@@ -1074,8 +1048,6 @@ clk_test_single_parent_mux_set_range_disjoint_child_last(struct kunit *test)
 
 	ret = clk_set_rate_range(clk, 3000, 4000);
 	KUNIT_EXPECT_LT(test, ret, 0);
-
-	clk_put(clk);
 }
 
 /*
@@ -1092,7 +1064,7 @@ clk_test_single_parent_mux_set_range_disjoint_parent_last(struct kunit *test)
 {
 	struct clk_single_parent_ctx *ctx = test->priv;
 	struct clk_hw *hw = &ctx->hw;
-	struct clk *clk = clk_hw_get_clk(hw, NULL);
+	struct clk *clk = clk_hw_get_clk_kunit(test, hw, NULL);
 	struct clk *parent;
 	int ret;
 
@@ -1106,8 +1078,6 @@ clk_test_single_parent_mux_set_range_disjoint_parent_last(struct kunit *test)
 
 	ret = clk_set_rate_range(parent, 3000, 4000);
 	KUNIT_EXPECT_LT(test, ret, 0);
-
-	clk_put(clk);
 }
 
 /*
@@ -1238,7 +1208,6 @@ static struct kunit_suite
 clk_single_parent_mux_test_suite = {
 	.name = "clk-single-parent-mux-test",
 	.init = clk_single_parent_mux_test_init,
-	.exit = clk_single_parent_mux_test_exit,
 	.test_cases = clk_single_parent_mux_test_cases,
 };
 
@@ -3108,7 +3077,326 @@ static struct kunit_suite clk_register_clk_parent_data_device_suite = {
 	.test_cases = clk_register_clk_parent_data_device_test_cases,
 };
 
+struct clk_assigned_rates_context {
+	struct clk_dummy_context clk0;
+	struct clk_dummy_context clk1;
+};
+
+/*
+ * struct clk_assigned_rates_test_param - Test parameters for clk_assigned_rates test
+ * @desc: Test description
+ * @overlay_begin: Pointer to start of DT overlay to apply for test
+ * @overlay_end: Pointer to end of DT overlay to apply for test
+ * @rate0: Initial rate of first clk
+ * @rate1: Initial rate of second clk
+ * @consumer_test: true if a consumer is being tested
+ */
+struct clk_assigned_rates_test_param {
+	const char *desc;
+	u8 *overlay_begin;
+	u8 *overlay_end;
+	unsigned long rate0;
+	unsigned long rate1;
+	bool consumer_test;
+};
+
+#define TEST_PARAM_OVERLAY(overlay_name)				\
+	.overlay_begin = of_overlay_begin(overlay_name),		\
+	.overlay_end = of_overlay_end(overlay_name)
+
+static void
+clk_assigned_rates_register_clk(struct kunit *test,
+				struct clk_dummy_context *ctx,
+				struct device_node *np, const char *name,
+				unsigned long rate)
+{
+	struct clk_init_data init = { };
+
+	init.name = name;
+	init.ops = &clk_dummy_rate_ops;
+	ctx->hw.init = &init;
+	ctx->rate = rate;
+
+	KUNIT_ASSERT_EQ(test, 0, of_clk_hw_register_kunit(test, np, &ctx->hw));
+	KUNIT_ASSERT_EQ(test, ctx->rate, rate);
+}
+
+/*
+ * Does most of the work of the test:
+ *
+ * 1. Apply the overlay to test
+ * 2. Register the clk or clks to test
+ * 3. Register the clk provider
+ * 4. Apply clk defaults to the consumer device if this is a consumer test
+ *
+ * The tests will set different test_param values to test different scenarios
+ * and validate that in their test functions.
+ */
+static int clk_assigned_rates_test_init(struct kunit *test)
+{
+	struct device_node *np, *consumer;
+	struct clk_hw_onecell_data *data;
+	struct clk_assigned_rates_context *ctx;
+	u32 clk_cells;
+	const struct clk_assigned_rates_test_param *test_param;
+
+	test_param = test->param_value;
+
+	KUNIT_ASSERT_EQ(test, 0, __of_overlay_apply_kunit(test,
+							  test_param->overlay_begin,
+							  test_param->overlay_end));
+
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test,
+		ctx = kunit_kzalloc(test, sizeof(*ctx), GFP_KERNEL));
+	test->priv = ctx;
+
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test,
+		np = of_find_compatible_node(NULL, NULL, "test,clk-assigned-rates"));
+	of_node_put_kunit(test, np);
+
+	KUNIT_ASSERT_EQ(test, 0, of_property_read_u32(np, "#clock-cells", &clk_cells));
+	/* Only support #clock-cells = <0> or <1> */
+	KUNIT_ASSERT_LT(test, clk_cells, 2);
+
+	clk_assigned_rates_register_clk(test, &ctx->clk0, np,
+					"test_assigned_rate0", test_param->rate0);
+	if (clk_cells == 0) {
+		KUNIT_ASSERT_EQ(test, 0,
+				of_clk_add_hw_provider_kunit(test, np, of_clk_hw_simple_get,
+							     &ctx->clk0.hw));
+	} else if (clk_cells == 1) {
+		clk_assigned_rates_register_clk(test, &ctx->clk1, np,
+						"test_assigned_rate1", test_param->rate1);
+
+		KUNIT_ASSERT_NOT_ERR_OR_NULL(test,
+			data = kunit_kzalloc(test, struct_size(data, hws, 2), GFP_KERNEL));
+		data->num = 2;
+		data->hws[0] = &ctx->clk0.hw;
+		data->hws[1] = &ctx->clk1.hw;
+
+		KUNIT_ASSERT_EQ(test, 0,
+				of_clk_add_hw_provider_kunit(test, np, of_clk_hw_onecell_get, data));
+	}
+
+	/* Consumers are optional */
+	if (test_param->consumer_test) {
+		KUNIT_ASSERT_NOT_ERR_OR_NULL(test,
+			consumer = of_find_compatible_node(NULL, NULL, "test,clk-consumer"));
+		of_node_put_kunit(test, consumer);
+
+		KUNIT_ASSERT_EQ(test, 0, of_clk_set_defaults(consumer, false));
+	}
+
+	return 0;
+}
+
+static void clk_assigned_rates_assigns_one(struct kunit *test)
+{
+	struct clk_assigned_rates_context *ctx = test->priv;
+
+	KUNIT_EXPECT_EQ(test, ctx->clk0.rate, ASSIGNED_RATES_0_RATE);
+}
+
+static void clk_assigned_rates_assigns_multiple(struct kunit *test)
+{
+	struct clk_assigned_rates_context *ctx = test->priv;
+
+	KUNIT_EXPECT_EQ(test, ctx->clk0.rate, ASSIGNED_RATES_0_RATE);
+	KUNIT_EXPECT_EQ(test, ctx->clk1.rate, ASSIGNED_RATES_1_RATE);
+}
+
+static void clk_assigned_rates_skips(struct kunit *test)
+{
+	struct clk_assigned_rates_context *ctx = test->priv;
+	const struct clk_assigned_rates_test_param *test_param = test->param_value;
+
+	KUNIT_EXPECT_NE(test, ctx->clk0.rate, ASSIGNED_RATES_0_RATE);
+	KUNIT_EXPECT_EQ(test, ctx->clk0.rate, test_param->rate0);
+}
+
+OF_OVERLAY_DECLARE(kunit_clk_assigned_rates_one);
+OF_OVERLAY_DECLARE(kunit_clk_assigned_rates_one_consumer);
+OF_OVERLAY_DECLARE(kunit_clk_assigned_rates_u64_one);
+OF_OVERLAY_DECLARE(kunit_clk_assigned_rates_u64_one_consumer);
+
+/* Test cases that assign one rate */
+static const struct clk_assigned_rates_test_param clk_assigned_rates_assigns_one_test_params[] = {
+	{
+		/*
+		 * Test that a single cell assigned-clock-rates property
+		 * assigns the rate when the property is in the provider.
+		 */
+		.desc = "provider assigns",
+		TEST_PARAM_OVERLAY(kunit_clk_assigned_rates_one),
+	},
+	{
+		/*
+		 * Test that a single cell assigned-clock-rates property
+		 * assigns the rate when the property is in the consumer.
+		 */
+		.desc = "consumer assigns",
+		TEST_PARAM_OVERLAY(kunit_clk_assigned_rates_one_consumer),
+		.consumer_test = true,
+	},
+	{
+		/*
+		 * Test that a single cell assigned-clock-rates-u64 property
+		 * assigns the rate when the property is in the provider.
+		 */
+		.desc = "provider assigns u64",
+		TEST_PARAM_OVERLAY(kunit_clk_assigned_rates_u64_one),
+	},
+	{
+		/*
+		 * Test that a single cell assigned-clock-rates-u64 property
+		 * assigns the rate when the property is in the consumer.
+		 */
+		.desc = "consumer assigns u64",
+		TEST_PARAM_OVERLAY(kunit_clk_assigned_rates_u64_one_consumer),
+		.consumer_test = true,
+	},
+};
+KUNIT_ARRAY_PARAM_DESC(clk_assigned_rates_assigns_one,
+		       clk_assigned_rates_assigns_one_test_params, desc)
+
+OF_OVERLAY_DECLARE(kunit_clk_assigned_rates_multiple);
+OF_OVERLAY_DECLARE(kunit_clk_assigned_rates_multiple_consumer);
+OF_OVERLAY_DECLARE(kunit_clk_assigned_rates_u64_multiple);
+OF_OVERLAY_DECLARE(kunit_clk_assigned_rates_u64_multiple_consumer);
+
+/* Test cases that assign multiple rates */
+static const struct clk_assigned_rates_test_param clk_assigned_rates_assigns_multiple_test_params[] = {
+	{
+		/*
+		 * Test that a multiple cell assigned-clock-rates property
+		 * assigns the rates when the property is in the provider.
+		 */
+		.desc = "provider assigns",
+		TEST_PARAM_OVERLAY(kunit_clk_assigned_rates_multiple),
+	},
+	{
+		/*
+		 * Test that a multiple cell assigned-clock-rates property
+		 * assigns the rates when the property is in the consumer.
+		 */
+		.desc = "consumer assigns",
+		TEST_PARAM_OVERLAY(kunit_clk_assigned_rates_multiple_consumer),
+		.consumer_test = true,
+	},
+	{
+		/*
+		 * Test that a single cell assigned-clock-rates-u64 property
+		 * assigns the rate when the property is in the provider.
+		 */
+		.desc = "provider assigns u64",
+		TEST_PARAM_OVERLAY(kunit_clk_assigned_rates_u64_multiple),
+	},
+	{
+		/*
+		 * Test that a multiple cell assigned-clock-rates-u64 property
+		 * assigns the rates when the property is in the consumer.
+		 */
+		.desc = "consumer assigns u64",
+		TEST_PARAM_OVERLAY(kunit_clk_assigned_rates_u64_multiple_consumer),
+		.consumer_test = true,
+	},
+};
+KUNIT_ARRAY_PARAM_DESC(clk_assigned_rates_assigns_multiple,
+		       clk_assigned_rates_assigns_multiple_test_params,
+		       desc)
+
+OF_OVERLAY_DECLARE(kunit_clk_assigned_rates_without);
+OF_OVERLAY_DECLARE(kunit_clk_assigned_rates_without_consumer);
+OF_OVERLAY_DECLARE(kunit_clk_assigned_rates_zero);
+OF_OVERLAY_DECLARE(kunit_clk_assigned_rates_zero_consumer);
+OF_OVERLAY_DECLARE(kunit_clk_assigned_rates_null);
+OF_OVERLAY_DECLARE(kunit_clk_assigned_rates_null_consumer);
+
+/* Test cases that skip changing the rate due to malformed DT */
+static const struct clk_assigned_rates_test_param clk_assigned_rates_skips_test_params[] = {
+	{
+		/*
+		 * Test that an assigned-clock-rates property without an assigned-clocks
+		 * property fails when the property is in the provider.
+		 */
+		.desc = "provider missing assigned-clocks",
+		TEST_PARAM_OVERLAY(kunit_clk_assigned_rates_without),
+		.rate0 = 3000,
+	},
+	{
+		/*
+		 * Test that an assigned-clock-rates property without an assigned-clocks
+		 * property fails when the property is in the consumer.
+		 */
+		.desc = "consumer missing assigned-clocks",
+		TEST_PARAM_OVERLAY(kunit_clk_assigned_rates_without_consumer),
+		.rate0 = 3000,
+		.consumer_test = true,
+	},
+	{
+		/*
+		 * Test that an assigned-clock-rates property of zero doesn't
+		 * set a rate when the property is in the provider.
+		 */
+		.desc = "provider assigned-clock-rates of zero",
+		TEST_PARAM_OVERLAY(kunit_clk_assigned_rates_zero),
+		.rate0 = 3000,
+	},
+	{
+		/*
+		 * Test that an assigned-clock-rates property of zero doesn't
+		 * set a rate when the property is in the consumer.
+		 */
+		.desc = "consumer assigned-clock-rates of zero",
+		TEST_PARAM_OVERLAY(kunit_clk_assigned_rates_zero_consumer),
+		.rate0 = 3000,
+		.consumer_test = true,
+	},
+	{
+		/*
+		 * Test that an assigned-clocks property with a null phandle
+		 * doesn't set a rate when the property is in the provider.
+		 */
+		.desc = "provider assigned-clocks null phandle",
+		TEST_PARAM_OVERLAY(kunit_clk_assigned_rates_null),
+		.rate0 = 3000,
+	},
+	{
+		/*
+		 * Test that an assigned-clocks property with a null phandle
+		 * doesn't set a rate when the property is in the consumer.
+		 */
+		.desc = "provider assigned-clocks null phandle",
+		TEST_PARAM_OVERLAY(kunit_clk_assigned_rates_null_consumer),
+		.rate0 = 3000,
+		.consumer_test = true,
+	},
+};
+KUNIT_ARRAY_PARAM_DESC(clk_assigned_rates_skips,
+		       clk_assigned_rates_skips_test_params,
+		       desc)
+
+static struct kunit_case clk_assigned_rates_test_cases[] = {
+	KUNIT_CASE_PARAM(clk_assigned_rates_assigns_one,
+			 clk_assigned_rates_assigns_one_gen_params),
+	KUNIT_CASE_PARAM(clk_assigned_rates_assigns_multiple,
+			 clk_assigned_rates_assigns_multiple_gen_params),
+	KUNIT_CASE_PARAM(clk_assigned_rates_skips,
+			 clk_assigned_rates_skips_gen_params),
+	{}
+};
+
+/*
+ * Test suite for assigned-clock-rates{-u64} DT property.
+ */
+static struct kunit_suite clk_assigned_rates_suite = {
+	.name = "clk_assigned_rates",
+	.test_cases = clk_assigned_rates_test_cases,
+	.init = clk_assigned_rates_test_init,
+};
+
 kunit_test_suites(
+	&clk_assigned_rates_suite,
 	&clk_leaf_mux_set_rate_parent_test_suite,
 	&clk_test_suite,
 	&clk_multiple_parents_mux_test_suite,

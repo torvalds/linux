@@ -243,38 +243,24 @@ static void dpaa_get_ethtool_stats(struct net_device *net_dev,
 static void dpaa_get_strings(struct net_device *net_dev, u32 stringset,
 			     u8 *data)
 {
-	unsigned int i, j, num_cpus, size;
-	char string_cpu[ETH_GSTRING_LEN];
-	u8 *strings;
+	unsigned int i, j, num_cpus;
 
-	memset(string_cpu, 0, sizeof(string_cpu));
-	strings   = data;
-	num_cpus  = num_online_cpus();
-	size      = DPAA_STATS_GLOBAL_LEN * ETH_GSTRING_LEN;
+	num_cpus = num_online_cpus();
 
 	for (i = 0; i < DPAA_STATS_PERCPU_LEN; i++) {
-		for (j = 0; j < num_cpus; j++) {
-			snprintf(string_cpu, ETH_GSTRING_LEN, "%s [CPU %d]",
-				 dpaa_stats_percpu[i], j);
-			memcpy(strings, string_cpu, ETH_GSTRING_LEN);
-			strings += ETH_GSTRING_LEN;
-		}
-		snprintf(string_cpu, ETH_GSTRING_LEN, "%s [TOTAL]",
-			 dpaa_stats_percpu[i]);
-		memcpy(strings, string_cpu, ETH_GSTRING_LEN);
-		strings += ETH_GSTRING_LEN;
-	}
-	for (j = 0; j < num_cpus; j++) {
-		snprintf(string_cpu, ETH_GSTRING_LEN,
-			 "bpool [CPU %d]", j);
-		memcpy(strings, string_cpu, ETH_GSTRING_LEN);
-		strings += ETH_GSTRING_LEN;
-	}
-	snprintf(string_cpu, ETH_GSTRING_LEN, "bpool [TOTAL]");
-	memcpy(strings, string_cpu, ETH_GSTRING_LEN);
-	strings += ETH_GSTRING_LEN;
+		for (j = 0; j < num_cpus; j++)
+			ethtool_sprintf(&data, "%s [CPU %d]",
+					dpaa_stats_percpu[i], j);
 
-	memcpy(strings, dpaa_stats_global, size);
+		ethtool_sprintf(&data, "%s [TOTAL]", dpaa_stats_percpu[i]);
+	}
+	for (i = 0; i < num_cpus; i++)
+		ethtool_sprintf(&data, "bpool [CPU %d]", i);
+
+	ethtool_puts(&data, "bpool [TOTAL]");
+
+	for (i = 0; i < DPAA_STATS_GLOBAL_LEN; i++)
+		ethtool_puts(&data, dpaa_stats_global[i]);
 }
 
 static int dpaa_get_hash_opts(struct net_device *dev,

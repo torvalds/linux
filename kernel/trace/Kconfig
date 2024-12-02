@@ -242,6 +242,16 @@ config FUNCTION_GRAPH_RETVAL
 	  enable it via the trace option funcgraph-retval.
 	  See Documentation/trace/ftrace.rst
 
+config FUNCTION_GRAPH_RETADDR
+	bool "Kernel Function Graph Return Address"
+	depends on FUNCTION_GRAPH_TRACER
+	default n
+	help
+	  Support recording and printing the function return address when
+	  using function graph tracer. It can be helpful to locate code line that
+	  the function is called. This feature is off by default, and you can
+	  enable it via the trace option funcgraph-retaddr.
+
 config DYNAMIC_FTRACE
 	bool "enable/disable function tracing dynamically"
 	depends on FUNCTION_TRACER

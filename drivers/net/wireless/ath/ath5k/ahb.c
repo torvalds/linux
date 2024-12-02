@@ -218,10 +218,10 @@ static void ath_ahb_remove(struct platform_device *pdev)
 }
 
 static struct platform_driver ath_ahb_driver = {
-	.probe      = ath_ahb_probe,
-	.remove_new = ath_ahb_remove,
-	.driver		= {
-		.name	= "ar231x-wmac",
+	.probe = ath_ahb_probe,
+	.remove = ath_ahb_remove,
+	.driver = {
+		.name = "ar231x-wmac",
 	},
 };
 

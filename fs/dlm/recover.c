@@ -811,33 +811,42 @@ static void recover_lvb(struct dlm_rsb *r)
 }
 
 /* All master rsb's flagged RECOVER_CONVERT need to be looked at.  The locks
-   converting PR->CW or CW->PR need to have their lkb_grmode set. */
+ * converting PR->CW or CW->PR may need to have their lkb_grmode changed.
+ */
 
 static void recover_conversion(struct dlm_rsb *r)
 {
 	struct dlm_ls *ls = r->res_ls;
+	uint32_t other_lkid = 0;
+	int other_grmode = -1;
 	struct dlm_lkb *lkb;
-	int grmode = -1;
 
 	list_for_each_entry(lkb, &r->res_grantqueue, lkb_statequeue) {
 		if (lkb->lkb_grmode == DLM_LOCK_PR ||
 		    lkb->lkb_grmode == DLM_LOCK_CW) {
-			grmode = lkb->lkb_grmode;
+			other_grmode = lkb->lkb_grmode;
+			other_lkid = lkb->lkb_id;
 			break;
 		}
 	}
 
+	if (other_grmode == -1)
+		return;
+
 	list_for_each_entry(lkb, &r->res_convertqueue, lkb_statequeue) {
-		if (lkb->lkb_grmode != DLM_LOCK_IV)
-			continue;
-		if (grmode == -1) {
-			log_debug(ls, "recover_conversion %x set gr to rq %d",
-				  lkb->lkb_id, lkb->lkb_rqmode);
-			lkb->lkb_grmode = lkb->lkb_rqmode;
-		} else {
-			log_debug(ls, "recover_conversion %x set gr %d",
-				  lkb->lkb_id, grmode);
-			lkb->lkb_grmode = grmode;
+		/* Lock recovery created incompatible granted modes, so
+		 * change the granted mode of the converting lock to
+		 * NL. The rqmode of the converting lock should be CW,
+		 * which means the converting lock should be granted at
+		 * the end of recovery.
+		 */
+		if (((lkb->lkb_grmode == DLM_LOCK_PR) && (other_grmode == DLM_LOCK_CW)) ||
+		    ((lkb->lkb_grmode == DLM_LOCK_CW) && (other_grmode == DLM_LOCK_PR))) {
+			log_limit(ls, "%s %x gr %d rq %d, remote %d %x, other_lkid %u, other gr %d, set gr=NL",
+				  __func__, lkb->lkb_id, lkb->lkb_grmode,
+				  lkb->lkb_rqmode, lkb->lkb_nodeid,
+				  lkb->lkb_remid, other_lkid, other_grmode);
+			lkb->lkb_grmode = DLM_LOCK_NL;
 		}
 	}
 }

@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
+#include <syscall.h>
 #include <bpf/libbpf.h> /* libbpf_num_possible_cpus */
 
 static inline unsigned int bpf_num_possible_cpus(void)
@@ -57,6 +58,17 @@ static inline void bpf_strlcpy(char *dst, const char *src, size_t sz)
 #ifndef offsetofend
 #define offsetofend(TYPE, MEMBER) \
 	(offsetof(TYPE, MEMBER)	+ sizeof_field(TYPE, MEMBER))
+#endif
+
+/* Availability of gettid across glibc versions is hit-and-miss, therefore
+ * fallback to syscall in this macro and use it everywhere.
+ */
+#ifndef sys_gettid
+#define sys_gettid() syscall(SYS_gettid)
+#endif
+
+#ifndef ENOTSUPP
+#define ENOTSUPP 524
 #endif
 
 #endif /* __BPF_UTIL__ */

@@ -966,22 +966,20 @@ static inline int perf_cgroup_connect(int fd, struct perf_event *event,
 {
 	struct perf_cgroup *cgrp;
 	struct cgroup_subsys_state *css;
-	struct fd f = fdget(fd);
+	CLASS(fd, f)(fd);
 	int ret = 0;
 
-	if (!fd_file(f))
+	if (fd_empty(f))
 		return -EBADF;
 
 	css = css_tryget_online_from_dir(fd_file(f)->f_path.dentry,
 					 &perf_event_cgrp_subsys);
-	if (IS_ERR(css)) {
-		ret = PTR_ERR(css);
-		goto out;
-	}
+	if (IS_ERR(css))
+		return PTR_ERR(css);
 
 	ret = perf_cgroup_ensure_storage(event, css);
 	if (ret)
-		goto out;
+		return ret;
 
 	cgrp = container_of(css, struct perf_cgroup, css);
 	event->cgrp = cgrp;
@@ -995,8 +993,6 @@ static inline int perf_cgroup_connect(int fd, struct perf_event *event,
 		perf_detach_cgroup(event);
 		ret = -EINVAL;
 	}
-out:
-	fdput(f);
 	return ret;
 }
 
@@ -3782,18 +3778,11 @@ static bool perf_less_group_idx(const void *l, const void *r, void __always_unus
 	return le->group_index < re->group_index;
 }
 
-static void swap_ptr(void *l, void *r, void __always_unused *args)
-{
-	void **lp = l, **rp = r;
-
-	swap(*lp, *rp);
-}
-
 DEFINE_MIN_HEAP(struct perf_event *, perf_event_min_heap);
 
 static const struct min_heap_callbacks perf_min_heap = {
 	.less = perf_less_group_idx,
-	.swp = swap_ptr,
+	.swp = NULL,
 };
 
 static void __heap_add(struct perf_event_min_heap *heap, struct perf_event *event)
@@ -3874,7 +3863,7 @@ static noinline int visit_groups_merge(struct perf_event_context *ctx,
 		perf_assert_pmu_disabled((*evt)->pmu_ctx->pmu);
 	}
 
-	min_heapify_all(&event_heap, &perf_min_heap, NULL);
+	min_heapify_all_inline(&event_heap, &perf_min_heap, NULL);
 
 	while (event_heap.nr) {
 		ret = func(*evt, data);
@@ -3883,9 +3872,9 @@ static noinline int visit_groups_merge(struct perf_event_context *ctx,
 
 		*evt = perf_event_groups_next(*evt, pmu);
 		if (*evt)
-			min_heap_sift_down(&event_heap, 0, &perf_min_heap, NULL);
+			min_heap_sift_down_inline(&event_heap, 0, &perf_min_heap, NULL);
 		else
-			min_heap_pop(&event_heap, &perf_min_heap, NULL);
+			min_heap_pop_inline(&event_heap, &perf_min_heap, NULL);
 	}
 
 	return 0;
@@ -6002,18 +5991,9 @@ EXPORT_SYMBOL_GPL(perf_event_period);
 
 static const struct file_operations perf_fops;
 
-static inline int perf_fget_light(int fd, struct fd *p)
+static inline bool is_perf_file(struct fd f)
 {
-	struct fd f = fdget(fd);
-	if (!fd_file(f))
-		return -EBADF;
-
-	if (fd_file(f)->f_op != &perf_fops) {
-		fdput(f);
-		return -EBADF;
-	}
-	*p = f;
-	return 0;
+	return !fd_empty(f) && fd_file(f)->f_op == &perf_fops;
 }
 
 static int perf_event_set_output(struct perf_event *event,
@@ -6061,20 +6041,14 @@ static long _perf_ioctl(struct perf_event *event, unsigned int cmd, unsigned lon
 
 	case PERF_EVENT_IOC_SET_OUTPUT:
 	{
-		int ret;
+		CLASS(fd, output)(arg);	     // arg == -1 => empty
+		struct perf_event *output_event = NULL;
 		if (arg != -1) {
-			struct perf_event *output_event;
-			struct fd output;
-			ret = perf_fget_light(arg, &output);
-			if (ret)
-				return ret;
+			if (!is_perf_file(output))
+				return -EBADF;
 			output_event = fd_file(output)->private_data;
-			ret = perf_event_set_output(event, output_event);
-			fdput(output);
-		} else {
-			ret = perf_event_set_output(event, NULL);
 		}
-		return ret;
+		return perf_event_set_output(event, output_event);
 	}
 
 	case PERF_EVENT_IOC_SET_FILTER:
@@ -9321,7 +9295,7 @@ static void perf_event_switch(struct task_struct *task,
 		},
 	};
 
-	if (!sched_in && task->on_rq) {
+	if (!sched_in && task_is_runnable(task)) {
 		switch_event.event_id.header.misc |=
 				PERF_RECORD_MISC_SWITCH_OUT_PREEMPT;
 	}
@@ -12755,7 +12729,6 @@ SYSCALL_DEFINE5(perf_event_open,
 	struct perf_event_attr attr;
 	struct perf_event_context *ctx;
 	struct file *event_file = NULL;
-	struct fd group = EMPTY_FD;
 	struct task_struct *task = NULL;
 	struct pmu *pmu;
 	int event_fd;
@@ -12826,10 +12799,12 @@ SYSCALL_DEFINE5(perf_event_open,
 	if (event_fd < 0)
 		return event_fd;
 
+	CLASS(fd, group)(group_fd);     // group_fd == -1 => empty
 	if (group_fd != -1) {
-		err = perf_fget_light(group_fd, &group);
-		if (err)
+		if (!is_perf_file(group)) {
+			err = -EBADF;
 			goto err_fd;
+		}
 		group_leader = fd_file(group)->private_data;
 		if (flags & PERF_FLAG_FD_OUTPUT)
 			output_event = group_leader;
@@ -12841,7 +12816,7 @@ SYSCALL_DEFINE5(perf_event_open,
 		task = find_lively_task_by_vpid(pid);
 		if (IS_ERR(task)) {
 			err = PTR_ERR(task);
-			goto err_group_fd;
+			goto err_fd;
 		}
 	}
 
@@ -13108,12 +13083,11 @@ SYSCALL_DEFINE5(perf_event_open,
 	mutex_unlock(&current->perf_event_mutex);
 
 	/*
-	 * Drop the reference on the group_event after placing the
-	 * new event on the sibling_list. This ensures destruction
-	 * of the group leader will find the pointer to itself in
-	 * perf_group_detach().
+	 * File reference in group guarantees that group_leader has been
+	 * kept alive until we place the new event on the sibling_list.
+	 * This ensures destruction of the group leader will find
+	 * the pointer to itself in perf_group_detach().
 	 */
-	fdput(group);
 	fd_install(event_fd, event_file);
 	return event_fd;
 
@@ -13132,8 +13106,6 @@ err_alloc:
 err_task:
 	if (task)
 		put_task_struct(task);
-err_group_fd:
-	fdput(group);
 err_fd:
 	put_unused_fd(event_fd);
 	return err;
@@ -14050,7 +14022,7 @@ static void perf_event_clear_cpumask(unsigned int cpu)
 	}
 
 	/* migrate */
-	list_for_each_entry_rcu(pmu, &pmus, entry, lockdep_is_held(&pmus_srcu)) {
+	list_for_each_entry(pmu, &pmus, entry) {
 		if (pmu->scope == PERF_PMU_SCOPE_NONE ||
 		    WARN_ON_ONCE(pmu->scope >= PERF_PMU_MAX_SCOPE))
 			continue;

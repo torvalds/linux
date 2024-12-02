@@ -254,12 +254,11 @@ static void byd_clear_touch(struct timer_list *t)
 	struct byd_data *priv = from_timer(priv, t, timer);
 	struct psmouse *psmouse = priv->psmouse;
 
-	serio_pause_rx(psmouse->ps2dev.serio);
+	guard(serio_pause_rx)(psmouse->ps2dev.serio);
+
 	priv->touch = false;
 
 	byd_report_input(psmouse);
-
-	serio_continue_rx(psmouse->ps2dev.serio);
 
 	/*
 	 * Move cursor back to center of pad when we lose touch - this

@@ -1045,7 +1045,7 @@ static int qe_uart_verify_port(struct uart_port *port,
 	if (ser->type != PORT_UNKNOWN && ser->type != PORT_CPM)
 		return -EINVAL;
 
-	if (ser->irq < 0 || ser->irq >= nr_irqs)
+	if (ser->irq < 0 || ser->irq >= irq_get_nr_irqs())
 		return -EINVAL;
 
 	if (ser->baud_base < 9600)
@@ -1484,7 +1484,7 @@ static struct platform_driver ucc_uart_of_driver = {
 		.of_match_table    = ucc_uart_match,
 	},
 	.probe  	= ucc_uart_probe,
-	.remove_new 	= ucc_uart_remove,
+	.remove 	= ucc_uart_remove,
 };
 
 static int __init ucc_uart_init(void)

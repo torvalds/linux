@@ -733,11 +733,8 @@ static int validate_bset(struct bch_fs *c, struct bch_dev *ca,
 			 c, ca, b, i, NULL,
 			 bset_past_end_of_btree_node,
 			 "bset past end of btree node (offset %u len %u but written %zu)",
-			 offset, sectors, ptr_written ?: btree_sectors(c))) {
+			 offset, sectors, ptr_written ?: btree_sectors(c)))
 		i->u64s = 0;
-		ret = 0;
-		goto out;
-	}
 
 	btree_err_on(offset && !i->u64s,
 		     -BCH_ERR_btree_node_read_err_fixable,
@@ -829,7 +826,6 @@ static int validate_bset(struct bch_fs *c, struct bch_dev *ca,
 			       BSET_BIG_ENDIAN(i), write,
 			       &bn->format);
 	}
-out:
 fsck_err:
 	printbuf_exit(&buf2);
 	printbuf_exit(&buf1);
@@ -1838,10 +1834,11 @@ static void btree_node_write_done(struct bch_fs *c, struct btree *b)
 	struct btree_trans *trans = bch2_trans_get(c);
 
 	btree_node_lock_nopath_nofail(trans, &b->c, SIX_LOCK_read);
+
+	/* we don't need transaction context anymore after we got the lock. */
+	bch2_trans_put(trans);
 	__btree_node_write_done(c, b);
 	six_unlock_read(&b->c.lock);
-
-	bch2_trans_put(trans);
 }
 
 static void btree_node_write_work(struct work_struct *work)
@@ -1870,7 +1867,7 @@ static void btree_node_write_work(struct work_struct *work)
 
 		}
 	} else {
-		ret = bch2_trans_do(c, NULL, NULL, 0,
+		ret = bch2_trans_do(c,
 			bch2_btree_node_update_key_get_iter(trans, b, &wbio->key,
 					BCH_WATERMARK_interior_updates|
 					BCH_TRANS_COMMIT_journal_reclaim|

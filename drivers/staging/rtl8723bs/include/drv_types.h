@@ -182,8 +182,6 @@ struct registry_priv {
 
 #include <drv_types_sdio.h>
 
-#define is_primary_adapter(adapter) (1)
-#define get_iface_type(adapter) (IFACE_PORT0)
 #define GET_PRIMARY_ADAPTER(padapter) (((struct adapter *)padapter)->dvobj->if1)
 #define GET_IFACE_NUMS(padapter) (((struct adapter *)padapter)->dvobj->iface_nums)
 #define GET_ADAPTER(padapter, iface_id) (((struct adapter *)padapter)->dvobj->padapters[iface_id])
@@ -319,14 +317,6 @@ static inline struct device *dvobj_to_dev(struct dvobj_priv *dvobj)
 
 	return &dvobj->intf_data.func->dev;
 }
-
-struct adapter *dvobj_get_port0_adapter(struct dvobj_priv *dvobj);
-
-enum {
-	IFACE_PORT0, /* mapping to port0 for C/D series chips */
-	IFACE_PORT1, /* mapping to port1 for C/D series chip */
-	MAX_IFACE_PORT,
-};
 
 enum {
 	DRIVER_NORMAL = 0,

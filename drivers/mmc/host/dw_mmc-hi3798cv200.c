@@ -189,7 +189,7 @@ static const struct of_device_id dw_mci_hi3798cv200_match[] = {
 MODULE_DEVICE_TABLE(of, dw_mci_hi3798cv200_match);
 static struct platform_driver dw_mci_hi3798cv200_driver = {
 	.probe = dw_mci_hi3798cv200_probe,
-	.remove_new = dw_mci_hi3798cv200_remove,
+	.remove = dw_mci_hi3798cv200_remove,
 	.driver = {
 		.name = "dwmmc_hi3798cv200",
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,

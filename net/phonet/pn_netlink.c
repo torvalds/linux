@@ -19,10 +19,10 @@
 
 /* Device address handling */
 
-static int fill_addr(struct sk_buff *skb, struct net_device *dev, u8 addr,
+static int fill_addr(struct sk_buff *skb, u32 ifindex, u8 addr,
 		     u32 portid, u32 seq, int event);
 
-void phonet_address_notify(int event, struct net_device *dev, u8 addr)
+void phonet_address_notify(struct net *net, int event, u32 ifindex, u8 addr)
 {
 	struct sk_buff *skb;
 	int err = -ENOBUFS;
@@ -31,17 +31,18 @@ void phonet_address_notify(int event, struct net_device *dev, u8 addr)
 			nla_total_size(1), GFP_KERNEL);
 	if (skb == NULL)
 		goto errout;
-	err = fill_addr(skb, dev, addr, 0, 0, event);
+
+	err = fill_addr(skb, ifindex, addr, 0, 0, event);
 	if (err < 0) {
 		WARN_ON(err == -EMSGSIZE);
 		kfree_skb(skb);
 		goto errout;
 	}
-	rtnl_notify(skb, dev_net(dev), 0,
-		    RTNLGRP_PHONET_IFADDR, NULL, GFP_KERNEL);
+
+	rtnl_notify(skb, net, 0, RTNLGRP_PHONET_IFADDR, NULL, GFP_KERNEL);
 	return;
 errout:
-	rtnl_set_sk_err(dev_net(dev), RTNLGRP_PHONET_IFADDR, err);
+	rtnl_set_sk_err(net, RTNLGRP_PHONET_IFADDR, err);
 }
 
 static const struct nla_policy ifa_phonet_policy[IFA_MAX+1] = {
@@ -64,8 +65,6 @@ static int addr_doit(struct sk_buff *skb, struct nlmsghdr *nlh,
 	if (!netlink_capable(skb, CAP_SYS_ADMIN))
 		return -EPERM;
 
-	ASSERT_RTNL();
-
 	err = nlmsg_parse_deprecated(nlh, sizeof(*ifm), tb, IFA_MAX,
 				     ifa_phonet_policy, extack);
 	if (err < 0)
@@ -79,21 +78,29 @@ static int addr_doit(struct sk_buff *skb, struct nlmsghdr *nlh,
 		/* Phonet addresses only have 6 high-order bits */
 		return -EINVAL;
 
-	dev = __dev_get_by_index(net, ifm->ifa_index);
-	if (dev == NULL)
+	rcu_read_lock();
+
+	dev = dev_get_by_index_rcu(net, ifm->ifa_index);
+	if (!dev) {
+		rcu_read_unlock();
 		return -ENODEV;
+	}
 
 	if (nlh->nlmsg_type == RTM_NEWADDR)
 		err = phonet_address_add(dev, pnaddr);
 	else
 		err = phonet_address_del(dev, pnaddr);
+
+	rcu_read_unlock();
+
 	if (!err)
-		phonet_address_notify(nlh->nlmsg_type, dev, pnaddr);
+		phonet_address_notify(net, nlh->nlmsg_type, ifm->ifa_index, pnaddr);
+
 	return err;
 }
 
-static int fill_addr(struct sk_buff *skb, struct net_device *dev, u8 addr,
-			u32 portid, u32 seq, int event)
+static int fill_addr(struct sk_buff *skb, u32 ifindex, u8 addr,
+		     u32 portid, u32 seq, int event)
 {
 	struct ifaddrmsg *ifm;
 	struct nlmsghdr *nlh;
@@ -107,7 +114,7 @@ static int fill_addr(struct sk_buff *skb, struct net_device *dev, u8 addr,
 	ifm->ifa_prefixlen = 0;
 	ifm->ifa_flags = IFA_F_PERMANENT;
 	ifm->ifa_scope = RT_SCOPE_LINK;
-	ifm->ifa_index = dev->ifindex;
+	ifm->ifa_index = ifindex;
 	if (nla_put_u8(skb, IFA_LOCAL, addr))
 		goto nla_put_failure;
 	nlmsg_end(skb, nlh);
@@ -120,14 +127,17 @@ nla_put_failure:
 
 static int getaddr_dumpit(struct sk_buff *skb, struct netlink_callback *cb)
 {
+	int addr_idx = 0, addr_start_idx = cb->args[1];
+	int dev_idx = 0, dev_start_idx = cb->args[0];
 	struct phonet_device_list *pndevs;
 	struct phonet_device *pnd;
-	int dev_idx = 0, dev_start_idx = cb->args[0];
-	int addr_idx = 0, addr_start_idx = cb->args[1];
+	int err = 0;
 
 	pndevs = phonet_device_list(sock_net(skb->sk));
+
 	rcu_read_lock();
 	list_for_each_entry_rcu(pnd, &pndevs->list, list) {
+		DECLARE_BITMAP(addrs, 64);
 		u8 addr;
 
 		if (dev_idx > dev_start_idx)
@@ -136,29 +146,32 @@ static int getaddr_dumpit(struct sk_buff *skb, struct netlink_callback *cb)
 			continue;
 
 		addr_idx = 0;
-		for_each_set_bit(addr, pnd->addrs, 64) {
+		memcpy(addrs, pnd->addrs, sizeof(pnd->addrs));
+
+		for_each_set_bit(addr, addrs, 64) {
 			if (addr_idx++ < addr_start_idx)
 				continue;
 
-			if (fill_addr(skb, pnd->netdev, addr << 2,
-					 NETLINK_CB(cb->skb).portid,
-					cb->nlh->nlmsg_seq, RTM_NEWADDR) < 0)
+			err = fill_addr(skb, READ_ONCE(pnd->netdev->ifindex),
+					addr << 2, NETLINK_CB(cb->skb).portid,
+					cb->nlh->nlmsg_seq, RTM_NEWADDR);
+			if (err < 0)
 				goto out;
 		}
 	}
-
 out:
 	rcu_read_unlock();
+
 	cb->args[0] = dev_idx;
 	cb->args[1] = addr_idx;
 
-	return skb->len;
+	return err;
 }
 
 /* Routes handling */
 
-static int fill_route(struct sk_buff *skb, struct net_device *dev, u8 dst,
-			u32 portid, u32 seq, int event)
+static int fill_route(struct sk_buff *skb, u32 ifindex, u8 dst,
+		      u32 portid, u32 seq, int event)
 {
 	struct rtmsg *rtm;
 	struct nlmsghdr *nlh;
@@ -177,8 +190,7 @@ static int fill_route(struct sk_buff *skb, struct net_device *dev, u8 dst,
 	rtm->rtm_scope = RT_SCOPE_UNIVERSE;
 	rtm->rtm_type = RTN_UNICAST;
 	rtm->rtm_flags = 0;
-	if (nla_put_u8(skb, RTA_DST, dst) ||
-	    nla_put_u32(skb, RTA_OIF, READ_ONCE(dev->ifindex)))
+	if (nla_put_u8(skb, RTA_DST, dst) || nla_put_u32(skb, RTA_OIF, ifindex))
 		goto nla_put_failure;
 	nlmsg_end(skb, nlh);
 	return 0;
@@ -188,7 +200,7 @@ nla_put_failure:
 	return -EMSGSIZE;
 }
 
-void rtm_phonet_notify(int event, struct net_device *dev, u8 dst)
+void rtm_phonet_notify(struct net *net, int event, u32 ifindex, u8 dst)
 {
 	struct sk_buff *skb;
 	int err = -ENOBUFS;
@@ -197,17 +209,18 @@ void rtm_phonet_notify(int event, struct net_device *dev, u8 dst)
 			nla_total_size(1) + nla_total_size(4), GFP_KERNEL);
 	if (skb == NULL)
 		goto errout;
-	err = fill_route(skb, dev, dst, 0, 0, event);
+
+	err = fill_route(skb, ifindex, dst, 0, 0, event);
 	if (err < 0) {
 		WARN_ON(err == -EMSGSIZE);
 		kfree_skb(skb);
 		goto errout;
 	}
-	rtnl_notify(skb, dev_net(dev), 0,
-			  RTNLGRP_PHONET_ROUTE, NULL, GFP_KERNEL);
+
+	rtnl_notify(skb, net, 0, RTNLGRP_PHONET_ROUTE, NULL, GFP_KERNEL);
 	return;
 errout:
-	rtnl_set_sk_err(dev_net(dev), RTNLGRP_PHONET_ROUTE, err);
+	rtnl_set_sk_err(net, RTNLGRP_PHONET_ROUTE, err);
 }
 
 static const struct nla_policy rtm_phonet_policy[RTA_MAX+1] = {
@@ -220,8 +233,10 @@ static int route_doit(struct sk_buff *skb, struct nlmsghdr *nlh,
 {
 	struct net *net = sock_net(skb->sk);
 	struct nlattr *tb[RTA_MAX+1];
+	bool sync_needed = false;
 	struct net_device *dev;
 	struct rtmsg *rtm;
+	u32 ifindex;
 	int err;
 	u8 dst;
 
@@ -230,8 +245,6 @@ static int route_doit(struct sk_buff *skb, struct nlmsghdr *nlh,
 
 	if (!netlink_capable(skb, CAP_SYS_ADMIN))
 		return -EPERM;
-
-	ASSERT_RTNL();
 
 	err = nlmsg_parse_deprecated(nlh, sizeof(*rtm), tb, RTA_MAX,
 				     rtm_phonet_policy, extack);
@@ -247,16 +260,33 @@ static int route_doit(struct sk_buff *skb, struct nlmsghdr *nlh,
 	if (dst & 3) /* Phonet addresses only have 6 high-order bits */
 		return -EINVAL;
 
-	dev = __dev_get_by_index(net, nla_get_u32(tb[RTA_OIF]));
-	if (dev == NULL)
-		return -ENODEV;
+	ifindex = nla_get_u32(tb[RTA_OIF]);
 
-	if (nlh->nlmsg_type == RTM_NEWROUTE)
+	rcu_read_lock();
+
+	dev = dev_get_by_index_rcu(net, ifindex);
+	if (!dev) {
+		rcu_read_unlock();
+		return -ENODEV;
+	}
+
+	if (nlh->nlmsg_type == RTM_NEWROUTE) {
 		err = phonet_route_add(dev, dst);
-	else
+	} else {
 		err = phonet_route_del(dev, dst);
+		if (!err)
+			sync_needed = true;
+	}
+
+	rcu_read_unlock();
+
+	if (sync_needed) {
+		synchronize_rcu();
+		dev_put(dev);
+	}
 	if (!err)
-		rtm_phonet_notify(nlh->nlmsg_type, dev, dst);
+		rtm_phonet_notify(net, nlh->nlmsg_type, ifindex, dst);
+
 	return err;
 }
 
@@ -273,7 +303,7 @@ static int route_dumpit(struct sk_buff *skb, struct netlink_callback *cb)
 		if (!dev)
 			continue;
 
-		err = fill_route(skb, dev, addr << 2,
+		err = fill_route(skb, READ_ONCE(dev->ifindex), addr << 2,
 				 NETLINK_CB(cb->skb).portid,
 				 cb->nlh->nlmsg_seq, RTM_NEWROUTE);
 		if (err < 0)
@@ -285,23 +315,22 @@ static int route_dumpit(struct sk_buff *skb, struct netlink_callback *cb)
 	return err;
 }
 
+static const struct rtnl_msg_handler phonet_rtnl_msg_handlers[] __initdata_or_module = {
+	{.owner = THIS_MODULE, .protocol = PF_PHONET, .msgtype = RTM_NEWADDR,
+	 .doit = addr_doit, .flags = RTNL_FLAG_DOIT_UNLOCKED},
+	{.owner = THIS_MODULE, .protocol = PF_PHONET, .msgtype = RTM_DELADDR,
+	 .doit = addr_doit, .flags = RTNL_FLAG_DOIT_UNLOCKED},
+	{.owner = THIS_MODULE, .protocol = PF_PHONET, .msgtype = RTM_GETADDR,
+	 .dumpit = getaddr_dumpit, .flags = RTNL_FLAG_DUMP_UNLOCKED},
+	{.owner = THIS_MODULE, .protocol = PF_PHONET, .msgtype = RTM_NEWROUTE,
+	 .doit = route_doit, .flags = RTNL_FLAG_DOIT_UNLOCKED},
+	{.owner = THIS_MODULE, .protocol = PF_PHONET, .msgtype = RTM_DELROUTE,
+	 .doit = route_doit, .flags = RTNL_FLAG_DOIT_UNLOCKED},
+	{.owner = THIS_MODULE, .protocol = PF_PHONET, .msgtype = RTM_GETROUTE,
+	 .dumpit = route_dumpit, .flags = RTNL_FLAG_DUMP_UNLOCKED},
+};
+
 int __init phonet_netlink_register(void)
 {
-	int err = rtnl_register_module(THIS_MODULE, PF_PHONET, RTM_NEWADDR,
-				       addr_doit, NULL, 0);
-	if (err)
-		return err;
-
-	/* Further rtnl_register_module() cannot fail */
-	rtnl_register_module(THIS_MODULE, PF_PHONET, RTM_DELADDR,
-			     addr_doit, NULL, 0);
-	rtnl_register_module(THIS_MODULE, PF_PHONET, RTM_GETADDR,
-			     NULL, getaddr_dumpit, 0);
-	rtnl_register_module(THIS_MODULE, PF_PHONET, RTM_NEWROUTE,
-			     route_doit, NULL, 0);
-	rtnl_register_module(THIS_MODULE, PF_PHONET, RTM_DELROUTE,
-			     route_doit, NULL, 0);
-	rtnl_register_module(THIS_MODULE, PF_PHONET, RTM_GETROUTE,
-			     NULL, route_dumpit, RTNL_FLAG_DUMP_UNLOCKED);
-	return 0;
+	return rtnl_register_many(phonet_rtnl_msg_handlers);
 }

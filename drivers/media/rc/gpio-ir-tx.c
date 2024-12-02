@@ -78,8 +78,6 @@ static void gpio_ir_tx_unmodulated(struct gpio_ir *gpio_ir, uint *txbuf,
 	ktime_t edge;
 	int i;
 
-	local_irq_disable();
-
 	edge = ktime_get();
 
 	for (i = 0; i < count; i++) {
@@ -109,8 +107,6 @@ static void gpio_ir_tx_modulated(struct gpio_ir *gpio_ir, uint *txbuf,
 				  gpio_ir->carrier);
 	space = DIV_ROUND_CLOSEST((100 - gpio_ir->duty_cycle) *
 				  (NSEC_PER_SEC / 100), gpio_ir->carrier);
-
-	local_irq_disable();
 
 	edge = ktime_get();
 

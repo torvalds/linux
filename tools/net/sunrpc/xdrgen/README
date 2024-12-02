@@ -150,6 +150,23 @@ Pragma directives specify exceptions to the normal generation of
 encoding and decoding functions. Currently one directive is
 implemented: "public".
 
+Pragma big_endian
+------ ----------
+
+  pragma big_endian <enum> ;
+
+For variables that might contain only a small number values, it
+is more efficient to avoid the byte-swap when encoding or decoding
+on little-endian machines. Such is often the case with error status
+codes. For example:
+
+  pragma big_endian nfsstat3;
+
+In this case, when generating an XDR struct or union containing a
+field of type "nfsstat3", xdrgen will make the type of that field
+"__be32" instead of "enum nfsstat3". XDR unions then switch on the
+non-byte-swapped value of that field.
+
 Pragma exclude
 ------ -------
 

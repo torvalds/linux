@@ -180,9 +180,8 @@ static irqreturn_t hil_interrupt(int irq, void *handle)
 /* send a command to the HIL */
 static void hil_do(unsigned char cmd, unsigned char *data, unsigned int len)
 {
-	unsigned long flags;
+	guard(spinlock_irqsave)(&hil_dev.lock);
 
-	spin_lock_irqsave(&hil_dev.lock, flags);
 	while (hil_busy())
 		/* wait */;
 	hil_command(cmd);
@@ -191,7 +190,6 @@ static void hil_do(unsigned char cmd, unsigned char *data, unsigned int len)
 			/* wait */;
 		hil_write_data(*(data++));
 	}
-	spin_unlock_irqrestore(&hil_dev.lock, flags);
 }
 
 

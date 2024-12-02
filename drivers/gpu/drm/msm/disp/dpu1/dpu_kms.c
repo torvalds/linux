@@ -230,6 +230,21 @@ static int dpu_regset32_show(struct seq_file *s, void *data)
 }
 DEFINE_SHOW_ATTRIBUTE(dpu_regset32);
 
+/**
+ * dpu_debugfs_create_regset32 - Create register read back file for debugfs
+ *
+ * This function is almost identical to the standard debugfs_create_regset32()
+ * function, with the main difference being that a list of register
+ * names/offsets do not need to be provided. The 'read' function simply outputs
+ * sequential register values over a specified range.
+ *
+ * @name:   File name within debugfs
+ * @mode:   File mode within debugfs
+ * @parent: Parent directory entry within debugfs, can be NULL
+ * @offset: sub-block offset
+ * @length: sub-block length, in bytes
+ * @dpu_kms: pointer to dpu kms structure
+ */
 void dpu_debugfs_create_regset32(const char *name, umode_t mode,
 		void *parent,
 		uint32_t offset, uint32_t length, struct dpu_kms *dpu_kms)
@@ -1025,7 +1040,6 @@ static const struct msm_kms_funcs kms_funcs = {
 	.complete_commit = dpu_kms_complete_commit,
 	.enable_vblank   = dpu_kms_enable_vblank,
 	.disable_vblank  = dpu_kms_disable_vblank,
-	.check_modified_format = dpu_format_check_modified_format,
 	.destroy         = dpu_kms_destroy,
 	.snapshot        = dpu_kms_mdp_snapshot,
 #ifdef CONFIG_DEBUG_FS
@@ -1061,6 +1075,13 @@ static int _dpu_kms_mmu_init(struct dpu_kms *dpu_kms)
 	return 0;
 }
 
+/**
+ * dpu_kms_get_clk_rate() - get the clock rate
+ * @dpu_kms:  pointer to dpu_kms structure
+ * @clock_name: clock name to get the rate
+ *
+ * Return: current clock rate
+ */
 unsigned long dpu_kms_get_clk_rate(struct dpu_kms *dpu_kms, char *clock_name)
 {
 	struct clk *clk;
@@ -1202,13 +1223,8 @@ static int dpu_kms_hw_init(struct msm_kms *kms)
 	dev->mode_config.min_width = 0;
 	dev->mode_config.min_height = 0;
 
-	/*
-	 * max crtc width is equal to the max mixer width * 2 and max height is
-	 * is 4K
-	 */
-	dev->mode_config.max_width =
-			dpu_kms->catalog->caps->max_mixer_width * 2;
-	dev->mode_config.max_height = 4096;
+	dev->mode_config.max_width = DPU_MAX_IMG_WIDTH;
+	dev->mode_config.max_height = DPU_MAX_IMG_HEIGHT;
 
 	dev->max_vblank_count = 0xffffffff;
 	/* Disable vblank irqs aggressively for power-saving */
@@ -1445,8 +1461,13 @@ static const struct dev_pm_ops dpu_pm_ops = {
 };
 
 static const struct of_device_id dpu_dt_match[] = {
+	{ .compatible = "qcom,msm8917-mdp5", .data = &dpu_msm8917_cfg, },
+	{ .compatible = "qcom,msm8937-mdp5", .data = &dpu_msm8937_cfg, },
+	{ .compatible = "qcom,msm8953-mdp5", .data = &dpu_msm8953_cfg, },
+	{ .compatible = "qcom,msm8996-mdp5", .data = &dpu_msm8996_cfg, },
 	{ .compatible = "qcom,msm8998-dpu", .data = &dpu_msm8998_cfg, },
 	{ .compatible = "qcom,qcm2290-dpu", .data = &dpu_qcm2290_cfg, },
+	{ .compatible = "qcom,sa8775p-dpu", .data = &dpu_sa8775p_cfg, },
 	{ .compatible = "qcom,sdm630-mdp5", .data = &dpu_sdm630_cfg, },
 	{ .compatible = "qcom,sdm660-mdp5", .data = &dpu_sdm660_cfg, },
 	{ .compatible = "qcom,sdm670-dpu", .data = &dpu_sdm670_cfg, },

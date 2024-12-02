@@ -15,7 +15,6 @@
  */
 
 #include "hw.h"
-#include <linux/ath9k_platform.h>
 
 void ath9k_hw_analog_shift_regwrite(struct ath_hw *ah, u32 reg, u32 val)
 {
@@ -119,14 +118,6 @@ static bool ath9k_hw_nvram_read_array(u16 *blob, size_t blob_size,
 	return true;
 }
 
-static bool ath9k_hw_nvram_read_pdata(struct ath9k_platform_data *pdata,
-				      off_t offset, u16 *data)
-{
-	return ath9k_hw_nvram_read_array(pdata->eeprom_data,
-					 ARRAY_SIZE(pdata->eeprom_data),
-					 offset, data);
-}
-
 static bool ath9k_hw_nvram_read_firmware(const struct firmware *eeprom_blob,
 					 off_t offset, u16 *data)
 {
@@ -146,15 +137,12 @@ static bool ath9k_hw_nvram_read_nvmem(struct ath_hw *ah, off_t offset,
 bool ath9k_hw_nvram_read(struct ath_hw *ah, u32 off, u16 *data)
 {
 	struct ath_common *common = ath9k_hw_common(ah);
-	struct ath9k_platform_data *pdata = ah->dev->platform_data;
 	bool ret;
 
 	if (ah->nvmem_blob)
 		ret = ath9k_hw_nvram_read_nvmem(ah, off, data);
 	else if (ah->eeprom_blob)
 		ret = ath9k_hw_nvram_read_firmware(ah->eeprom_blob, off, data);
-	else if (pdata && !pdata->use_eeprom)
-		ret = ath9k_hw_nvram_read_pdata(pdata, off, data);
 	else
 		ret = common->bus_ops->eeprom_read(common, off, data);
 

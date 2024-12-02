@@ -226,7 +226,7 @@ static void mc13783_ts_remove(struct platform_device *pdev)
 }
 
 static struct platform_driver mc13783_ts_driver = {
-	.remove_new	= mc13783_ts_remove,
+	.remove		= mc13783_ts_remove,
 	.driver		= {
 		.name	= MC13783_TS_NAME,
 	},

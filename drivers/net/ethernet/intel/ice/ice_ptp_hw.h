@@ -316,7 +316,7 @@ ice_cgu_pll_params_e825c e825c_cgu_params[NUM_ICE_TIME_REF_FREQ];
 extern const struct ice_phy_reg_info_eth56g eth56g_phy_res[NUM_ETH56G_PHY_RES];
 
 /* Table of constants related to possible TIME_REF sources */
-extern const struct ice_time_ref_info_e82x e822_time_ref[NUM_ICE_TIME_REF_FREQ];
+extern const struct ice_time_ref_info_e82x e82x_time_ref[NUM_ICE_TIME_REF_FREQ];
 
 /* Table of constants for Vernier calibration on E822 */
 extern const struct ice_vernier_info_e82x e822_vernier[NUM_ICE_PTP_LNK_SPD];
@@ -326,10 +326,12 @@ extern const struct ice_vernier_info_e82x e822_vernier[NUM_ICE_PTP_LNK_SPD];
  */
 #define ICE_E810_PLL_FREQ		812500000
 #define ICE_PTP_NOMINAL_INCVAL_E810	0x13b13b13bULL
-#define E810_OUT_PROP_DELAY_NS 1
+#define ICE_E810_OUT_PROP_DELAY_NS	1
+#define ICE_E825C_OUT_PROP_DELAY_NS	11
 
 /* Device agnostic functions */
 u8 ice_get_ptp_src_clock_index(struct ice_hw *hw);
+int ice_cgu_cfg_pps_out(struct ice_hw *hw, bool enable);
 bool ice_ptp_lock(struct ice_hw *hw);
 void ice_ptp_unlock(struct ice_hw *hw);
 void ice_ptp_src_cmd(struct ice_hw *hw, enum ice_ptp_tmr_cmd cmd);
@@ -358,7 +360,7 @@ void ice_ptp_reset_ts_memory_quad_e82x(struct ice_hw *hw, u8 quad);
  *
  * Returns the current TIME_REF from the capabilities structure.
  */
-static inline enum ice_time_ref_freq ice_e82x_time_ref(struct ice_hw *hw)
+static inline enum ice_time_ref_freq ice_e82x_time_ref(const struct ice_hw *hw)
 {
 	return hw->func_caps.ts_func_info.time_ref;
 }
@@ -379,17 +381,17 @@ ice_set_e82x_time_ref(struct ice_hw *hw, enum ice_time_ref_freq time_ref)
 
 static inline u64 ice_e82x_pll_freq(enum ice_time_ref_freq time_ref)
 {
-	return e822_time_ref[time_ref].pll_freq;
+	return e82x_time_ref[time_ref].pll_freq;
 }
 
 static inline u64 ice_e82x_nominal_incval(enum ice_time_ref_freq time_ref)
 {
-	return e822_time_ref[time_ref].nominal_incval;
+	return e82x_time_ref[time_ref].nominal_incval;
 }
 
 static inline u64 ice_e82x_pps_delay(enum ice_time_ref_freq time_ref)
 {
-	return e822_time_ref[time_ref].pps_delay;
+	return e82x_time_ref[time_ref].pps_delay;
 }
 
 /* E822 Vernier calibration functions */
@@ -400,10 +402,11 @@ int ice_phy_cfg_rx_offset_e82x(struct ice_hw *hw, u8 port);
 int ice_phy_cfg_intr_e82x(struct ice_hw *hw, u8 quad, bool ena, u8 threshold);
 
 /* E810 family functions */
-int ice_read_sma_ctrl_e810t(struct ice_hw *hw, u8 *data);
-int ice_write_sma_ctrl_e810t(struct ice_hw *hw, u8 data);
-int ice_read_pca9575_reg_e810t(struct ice_hw *hw, u8 offset, u8 *data);
-bool ice_is_pca9575_present(struct ice_hw *hw);
+int ice_read_sma_ctrl(struct ice_hw *hw, u8 *data);
+int ice_write_sma_ctrl(struct ice_hw *hw, u8 data);
+int ice_read_pca9575_reg(struct ice_hw *hw, u8 offset, u8 *data);
+int ice_ptp_read_sdp_ac(struct ice_hw *hw, __le16 *entries, uint *num_entries);
+int ice_cgu_get_num_pins(struct ice_hw *hw, bool input);
 enum dpll_pin_type ice_cgu_get_pin_type(struct ice_hw *hw, u8 pin, bool input);
 struct dpll_pin_frequency *
 ice_cgu_get_pin_freq_supp(struct ice_hw *hw, u8 pin, bool input, u8 *num);
@@ -420,8 +423,6 @@ int ice_cgu_get_output_pin_state_caps(struct ice_hw *hw, u8 pin_id,
 int ice_ptp_read_tx_hwtstamp_status_eth56g(struct ice_hw *hw, u32 *ts_status);
 int ice_stop_phy_timer_eth56g(struct ice_hw *hw, u8 port, bool soft_reset);
 int ice_start_phy_timer_eth56g(struct ice_hw *hw, u8 port);
-int ice_phy_cfg_tx_offset_eth56g(struct ice_hw *hw, u8 port);
-int ice_phy_cfg_rx_offset_eth56g(struct ice_hw *hw, u8 port);
 int ice_phy_cfg_intr_eth56g(struct ice_hw *hw, u8 port, bool ena, u8 threshold);
 int ice_phy_cfg_ptp_1step_eth56g(struct ice_hw *hw, u8 port);
 
@@ -430,6 +431,20 @@ int ice_phy_cfg_ptp_1step_eth56g(struct ice_hw *hw, u8 port);
 #define ICE_ETH56G_NOMINAL_PCS_REF_INC	0x300000000ULL
 #define ICE_ETH56G_NOMINAL_THRESH4	0x7777
 #define ICE_ETH56G_NOMINAL_TX_THRESH	0x6
+
+static inline u64 ice_prop_delay(const struct ice_hw *hw)
+{
+	switch (hw->ptp.phy_model) {
+	case ICE_PHY_ETH56G:
+		return ICE_E825C_OUT_PROP_DELAY_NS;
+	case ICE_PHY_E810:
+		return ICE_E810_OUT_PROP_DELAY_NS;
+	case ICE_PHY_E82X:
+		return ice_e82x_pps_delay(ice_e82x_time_ref(hw));
+	default:
+		return 0;
+	}
+}
 
 /**
  * ice_get_base_incval - Get base clock increment value
@@ -449,6 +464,11 @@ static inline u64 ice_get_base_incval(struct ice_hw *hw)
 	default:
 		return 0;
 	}
+}
+
+static inline bool ice_is_dual(struct ice_hw *hw)
+{
+	return !!(hw->dev_caps.nac_topo.mode & ICE_NAC_TOPO_DUAL_M);
 }
 
 #define PFTSYN_SEM_BYTES	4
@@ -688,30 +708,27 @@ static inline u64 ice_get_base_incval(struct ice_hw *hw)
 #define LOW_TX_MEMORY_BANK_START	0x03090000
 #define HIGH_TX_MEMORY_BANK_START	0x03090004
 
-/* E810T SMA controller pin control */
-#define ICE_SMA1_DIR_EN_E810T		BIT(4)
-#define ICE_SMA1_TX_EN_E810T		BIT(5)
-#define ICE_SMA2_UFL2_RX_DIS_E810T	BIT(3)
-#define ICE_SMA2_DIR_EN_E810T		BIT(6)
-#define ICE_SMA2_TX_EN_E810T		BIT(7)
+/* SMA controller pin control */
+#define ICE_SMA1_DIR_EN		BIT(4)
+#define ICE_SMA1_TX_EN		BIT(5)
+#define ICE_SMA2_UFL2_RX_DIS	BIT(3)
+#define ICE_SMA2_DIR_EN		BIT(6)
+#define ICE_SMA2_TX_EN		BIT(7)
 
-#define ICE_SMA1_MASK_E810T	(ICE_SMA1_DIR_EN_E810T | \
-				 ICE_SMA1_TX_EN_E810T)
-#define ICE_SMA2_MASK_E810T	(ICE_SMA2_UFL2_RX_DIS_E810T | \
-				 ICE_SMA2_DIR_EN_E810T | \
-				 ICE_SMA2_TX_EN_E810T)
-#define ICE_ALL_SMA_MASK_E810T	(ICE_SMA1_MASK_E810T | \
-				 ICE_SMA2_MASK_E810T)
+#define ICE_SMA1_MASK		(ICE_SMA1_DIR_EN | ICE_SMA1_TX_EN)
+#define ICE_SMA2_MASK		(ICE_SMA2_UFL2_RX_DIS | ICE_SMA2_DIR_EN | \
+				 ICE_SMA2_TX_EN)
+#define ICE_ALL_SMA_MASK	(ICE_SMA1_MASK | ICE_SMA2_MASK)
 
-#define ICE_SMA_MIN_BIT_E810T	3
-#define ICE_SMA_MAX_BIT_E810T	7
+#define ICE_SMA_MIN_BIT		3
+#define ICE_SMA_MAX_BIT		7
 #define ICE_PCA9575_P1_OFFSET	8
 
-/* E810T PCA9575 IO controller registers */
+/* PCA9575 IO controller registers */
 #define ICE_PCA9575_P0_IN	0x0
 
-/* E810T PCA9575 IO controller pin control */
-#define ICE_E810T_P0_GNSS_PRSNT_N	BIT(4)
+/*  PCA9575 IO controller pin control */
+#define ICE_P0_GNSS_PRSNT_N	BIT(4)
 
 /* ETH56G PHY register addresses */
 /* Timestamp PHY incval registers */

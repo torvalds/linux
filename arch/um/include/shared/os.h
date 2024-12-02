@@ -145,7 +145,6 @@ extern int os_ioctl_generic(int fd, unsigned int cmd, unsigned long arg);
 extern int os_get_ifname(int fd, char *namebuf);
 extern int os_set_slip(int fd);
 extern int os_mode_fd(int fd, int mode);
-extern int os_fsync_file(int fd);
 
 extern int os_seek_file(int fd, unsigned long long offset);
 extern int os_open_file(const char *file, struct openflags flags, int mode);
@@ -199,15 +198,11 @@ extern int create_mem_file(unsigned long long len);
 extern void report_enomem(void);
 
 /* process.c */
-extern unsigned long os_process_pc(int pid);
-extern int os_process_parent(int pid);
 extern void os_alarm_process(int pid);
-extern void os_stop_process(int pid);
 extern void os_kill_process(int pid, int reap_child);
 extern void os_kill_ptraced_process(int pid, int reap_child);
 
 extern int os_getpid(void);
-extern int os_getpgrp(void);
 
 extern void init_new_thread_signals(void);
 
@@ -219,6 +214,8 @@ extern int os_unmap_memory(void *addr, int len);
 extern int os_drop_memory(void *addr, int length);
 extern int can_drop_memory(void);
 extern int os_mincore(void *addr, unsigned long len);
+
+void os_set_pdeathsig(void);
 
 /* execvp.c */
 extern int execvp_noalloc(char *buf, const char *file, char *const argv[]);
@@ -244,7 +241,6 @@ extern void block_signals(void);
 extern void unblock_signals(void);
 extern int um_set_signals(int enable);
 extern int um_set_signals_trace(int enable);
-extern int os_is_signal_stack(void);
 extern void deliver_alarm(void);
 extern void register_pm_wake_signal(void);
 extern void block_signals_hard(void);
@@ -283,13 +279,11 @@ int map(struct mm_id *mm_idp, unsigned long virt,
 	unsigned long len, int prot, int phys_fd,
 	unsigned long long offset);
 int unmap(struct mm_id *mm_idp, unsigned long addr, unsigned long len);
-int protect(struct mm_id *mm_idp, unsigned long addr,
-	    unsigned long len, unsigned int prot);
 
 /* skas/process.c */
 extern int is_skas_winch(int pid, int fd, void *data);
 extern int start_userspace(unsigned long stub_stack);
-extern void userspace(struct uml_pt_regs *regs, unsigned long *aux_fp_regs);
+extern void userspace(struct uml_pt_regs *regs);
 extern void new_thread(void *stack, jmp_buf *buf, void (*handler)(void));
 extern void switch_threads(jmp_buf *me, jmp_buf *you);
 extern int start_idle_thread(void *stack, jmp_buf *switch_buf);
@@ -328,9 +322,6 @@ extern int __ignore_sigio_fd(int fd);
 
 /* tty.c */
 extern int get_pty(void);
-
-/* sys-$ARCH/task_size.c */
-extern unsigned long os_get_top_address(void);
 
 long syscall(long number, ...);
 

@@ -512,10 +512,10 @@ EOF
 	:> "$TMPFILE1"
 	:> "$TMPFILE2"
 
-	timeout 10 ip netns exec "$ns2" socat UDP-LISTEN:12345,fork OPEN:"$TMPFILE1",trunc &
+	timeout 10 ip netns exec "$ns2" socat UDP-LISTEN:12345,fork,pf=ipv4 OPEN:"$TMPFILE1",trunc &
 	local rpid1=$!
 
-	timeout 10 ip netns exec "$ns3" socat UDP-LISTEN:12345,fork OPEN:"$TMPFILE2",trunc &
+	timeout 10 ip netns exec "$ns3" socat UDP-LISTEN:12345,fork,pf=ipv4 OPEN:"$TMPFILE2",trunc &
 	local rpid2=$!
 
 	ip netns exec "$nsrouter" ./nf_queue -q 12 -d 1000 &
@@ -528,8 +528,8 @@ EOF
 	# Send two packets, one should end up in ns1, other in ns2.
 	# This is because nfqueue will delay packet for long enough so that
 	# second packet will not find existing conntrack entry.
-	echo "Packet 1" | ip netns exec "$ns1" socat STDIN UDP-DATAGRAM:10.6.6.6:12345,bind=0.0.0.0:55221
-	echo "Packet 2" | ip netns exec "$ns1" socat STDIN UDP-DATAGRAM:10.6.6.6:12345,bind=0.0.0.0:55221
+	echo "Packet 1" | ip netns exec "$ns1" socat -u STDIN UDP-DATAGRAM:10.6.6.6:12345,bind=0.0.0.0:55221
+	echo "Packet 2" | ip netns exec "$ns1" socat -u STDIN UDP-DATAGRAM:10.6.6.6:12345,bind=0.0.0.0:55221
 
 	busywait 10000 output_files_written "$TMPFILE1" "$TMPFILE2"
 

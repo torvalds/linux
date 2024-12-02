@@ -180,7 +180,7 @@ fail:
 }
 
 /*
- * Return pointer to os infor entry and its size
+ * Return pointer to os info entry and its size
  */
 void *os_info_old_entry(int nr, unsigned long *size)
 {

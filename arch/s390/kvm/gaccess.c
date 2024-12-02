@@ -129,8 +129,8 @@ static void ipte_lock_simple(struct kvm *kvm)
 retry:
 	read_lock(&kvm->arch.sca_lock);
 	ic = kvm_s390_get_ipte_control(kvm);
+	old = READ_ONCE(*ic);
 	do {
-		old = READ_ONCE(*ic);
 		if (old.k) {
 			read_unlock(&kvm->arch.sca_lock);
 			cond_resched();
@@ -138,7 +138,7 @@ retry:
 		}
 		new = old;
 		new.k = 1;
-	} while (cmpxchg(&ic->val, old.val, new.val) != old.val);
+	} while (!try_cmpxchg(&ic->val, &old.val, new.val));
 	read_unlock(&kvm->arch.sca_lock);
 out:
 	mutex_unlock(&kvm->arch.ipte_mutex);
@@ -154,11 +154,11 @@ static void ipte_unlock_simple(struct kvm *kvm)
 		goto out;
 	read_lock(&kvm->arch.sca_lock);
 	ic = kvm_s390_get_ipte_control(kvm);
+	old = READ_ONCE(*ic);
 	do {
-		old = READ_ONCE(*ic);
 		new = old;
 		new.k = 0;
-	} while (cmpxchg(&ic->val, old.val, new.val) != old.val);
+	} while (!try_cmpxchg(&ic->val, &old.val, new.val));
 	read_unlock(&kvm->arch.sca_lock);
 	wake_up(&kvm->arch.ipte_wq);
 out:
@@ -172,8 +172,8 @@ static void ipte_lock_siif(struct kvm *kvm)
 retry:
 	read_lock(&kvm->arch.sca_lock);
 	ic = kvm_s390_get_ipte_control(kvm);
+	old = READ_ONCE(*ic);
 	do {
-		old = READ_ONCE(*ic);
 		if (old.kg) {
 			read_unlock(&kvm->arch.sca_lock);
 			cond_resched();
@@ -182,7 +182,7 @@ retry:
 		new = old;
 		new.k = 1;
 		new.kh++;
-	} while (cmpxchg(&ic->val, old.val, new.val) != old.val);
+	} while (!try_cmpxchg(&ic->val, &old.val, new.val));
 	read_unlock(&kvm->arch.sca_lock);
 }
 
@@ -192,13 +192,13 @@ static void ipte_unlock_siif(struct kvm *kvm)
 
 	read_lock(&kvm->arch.sca_lock);
 	ic = kvm_s390_get_ipte_control(kvm);
+	old = READ_ONCE(*ic);
 	do {
-		old = READ_ONCE(*ic);
 		new = old;
 		new.kh--;
 		if (!new.kh)
 			new.k = 0;
-	} while (cmpxchg(&ic->val, old.val, new.val) != old.val);
+	} while (!try_cmpxchg(&ic->val, &old.val, new.val));
 	read_unlock(&kvm->arch.sca_lock);
 	if (!new.kh)
 		wake_up(&kvm->arch.ipte_wq);
@@ -828,6 +828,8 @@ static int access_guest_page(struct kvm *kvm, enum gacc_mode mode, gpa_t gpa,
 	const gfn_t gfn = gpa_to_gfn(gpa);
 	int rc;
 
+	if (!gfn_to_memslot(kvm, gfn))
+		return PGM_ADDRESSING;
 	if (mode == GACC_STORE)
 		rc = kvm_write_guest_page(kvm, gfn, data, offset, len);
 	else
@@ -985,6 +987,8 @@ int access_guest_real(struct kvm_vcpu *vcpu, unsigned long gra,
 		gra += fragment_len;
 		data += fragment_len;
 	}
+	if (rc > 0)
+		vcpu->arch.pgm.code = rc;
 	return rc;
 }
 

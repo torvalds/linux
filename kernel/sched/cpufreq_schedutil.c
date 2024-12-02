@@ -783,9 +783,8 @@ static int sugov_init(struct cpufreq_policy *policy)
 	if (ret)
 		goto fail;
 
-	sugov_eas_rebuild_sd();
-
 out:
+	sugov_eas_rebuild_sd();
 	mutex_unlock(&global_tunables_lock);
 	return 0;
 

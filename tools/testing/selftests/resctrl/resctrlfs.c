@@ -182,7 +182,7 @@ int get_cache_size(int cpu_no, const char *cache_type, unsigned long *cache_size
 
 		return -1;
 	}
-	if (fscanf(fp, "%s", cache_str) <= 0) {
+	if (fscanf(fp, "%63s", cache_str) <= 0) {
 		ksft_perror("Could not get cache_size");
 		fclose(fp);
 
@@ -829,23 +829,6 @@ int filter_dmesg(void)
 	waitpid(pid, NULL, 0);
 
 	return 0;
-}
-
-const char *get_bw_report_type(const char *bw_report)
-{
-	if (strcmp(bw_report, "reads") == 0)
-		return bw_report;
-	if (strcmp(bw_report, "writes") == 0)
-		return bw_report;
-	if (strcmp(bw_report, "nt-writes") == 0) {
-		return "writes";
-	}
-	if (strcmp(bw_report, "total") == 0)
-		return bw_report;
-
-	fprintf(stderr, "Requested iMC bandwidth report type unavailable\n");
-
-	return NULL;
 }
 
 int perf_event_open(struct perf_event_attr *hw_event, pid_t pid, int cpu,

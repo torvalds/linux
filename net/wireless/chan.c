@@ -289,7 +289,7 @@ static bool cfg80211_valid_center_freq(u32 center,
 
 	/*
 	 * Valid channels are packed from lowest frequency towards higher ones.
-	 * So test that the lower frequency alignes with one of these steps.
+	 * So test that the lower frequency aligns with one of these steps.
 	 */
 	return (center - bw / 2 - 5945) % step == 0;
 }
@@ -1628,6 +1628,7 @@ bool cfg80211_reg_check_beaconing(struct wiphy *wiphy,
 EXPORT_SYMBOL(cfg80211_reg_check_beaconing);
 
 int cfg80211_set_monitor_channel(struct cfg80211_registered_device *rdev,
+				 struct net_device *dev,
 				 struct cfg80211_chan_def *chandef)
 {
 	if (!rdev->ops->set_monitor_channel)
@@ -1635,7 +1636,7 @@ int cfg80211_set_monitor_channel(struct cfg80211_registered_device *rdev,
 	if (!cfg80211_has_monitors_only(rdev))
 		return -EBUSY;
 
-	return rdev_set_monitor_channel(rdev, chandef);
+	return rdev_set_monitor_channel(rdev, dev, chandef);
 }
 
 bool cfg80211_any_usable_channels(struct wiphy *wiphy,

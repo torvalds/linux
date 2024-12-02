@@ -88,10 +88,10 @@ struct ufs_inode_info {
 #endif
 
 /* balloc.c */
-extern void ufs_free_fragments (struct inode *, u64, unsigned);
-extern void ufs_free_blocks (struct inode *, u64, unsigned);
-extern u64 ufs_new_fragments(struct inode *, void *, u64, u64,
-			     unsigned, int *, struct page *);
+void ufs_free_fragments (struct inode *, u64 fragment, unsigned count);
+void ufs_free_blocks (struct inode *, u64 fragment, unsigned count);
+u64 ufs_new_fragments(struct inode *, void *, u64 fragment, u64 goal,
+		unsigned count, int *err, struct folio *);
 
 /* cylinder.c */
 extern struct ufs_cg_private_info * ufs_load_cylinder (struct super_block *, unsigned);
@@ -108,8 +108,8 @@ struct ufs_dir_entry *ufs_find_entry(struct inode *, const struct qstr *,
 int ufs_delete_entry(struct inode *, struct ufs_dir_entry *, struct folio *);
 int ufs_empty_dir(struct inode *);
 struct ufs_dir_entry *ufs_dotdot(struct inode *, struct folio **);
-void ufs_set_link(struct inode *dir, struct ufs_dir_entry *de,
-		struct folio *folio, struct inode *inode, bool update_times);
+int ufs_set_link(struct inode *dir, struct ufs_dir_entry *de,
+		 struct folio *folio, struct inode *inode, bool update_times);
 
 /* file.c */
 extern const struct inode_operations ufs_file_inode_operations;

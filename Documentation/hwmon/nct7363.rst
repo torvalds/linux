@@ -1,0 +1,35 @@
+.. SPDX-License-Identifier: GPL-2.0
+
+Kernel driver nct7363
+=====================
+
+Supported chip:
+
+  * Nuvoton NCT7363Y
+
+    Prefix: nct7363
+
+    Addresses: I2C 0x20, 0x21, 0x22, 0x23
+
+Author: Ban Feng <kcfeng0@nuvoton.com>
+
+
+Description
+-----------
+
+The NCT7363Y is a fan controller which provides up to 16 independent
+FAN input monitors, and up to 16 independent PWM outputs with SMBus interface.
+
+
+Sysfs entries
+-------------
+
+Currently, the driver supports the following features:
+
+==========  ==========================================
+fanX_input  provide current fan rotation value in RPM
+fanX_alarm  report fan low speed real status
+fanX_min    get or set fan count threshold
+
+pwmX        get or set PWM fan control value.
+==========  ==========================================

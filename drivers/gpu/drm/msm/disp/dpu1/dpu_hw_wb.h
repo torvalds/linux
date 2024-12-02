@@ -37,7 +37,8 @@ struct dpu_hw_wb_ops {
 			struct dpu_hw_wb_cfg *wb);
 
 	void (*setup_outformat)(struct dpu_hw_wb *ctx,
-			struct dpu_hw_wb_cfg *wb);
+			struct dpu_hw_wb_cfg *wb,
+			const struct msm_format *fmt);
 
 	void (*setup_roi)(struct dpu_hw_wb *ctx,
 			struct dpu_hw_wb_cfg *wb);
@@ -74,14 +75,6 @@ struct dpu_hw_wb {
 	struct dpu_hw_wb_ops ops;
 };
 
-/**
- * dpu_hw_wb_init() - Initializes the writeback hw driver object.
- * @dev:  Corresponding device for devres management
- * @cfg:  wb_path catalog entry for which driver object is required
- * @addr: mapped register io address of MDP
- * @mdss_rev: dpu core's major and minor versions
- * Return: Error code or allocated dpu_hw_wb context
- */
 struct dpu_hw_wb *dpu_hw_wb_init(struct drm_device *dev,
 				 const struct dpu_wb_cfg *cfg,
 				 void __iomem *addr,

@@ -332,14 +332,11 @@ static int ljca_send(struct ljca_adapter *adap, u8 type, u8 cmd,
 
 	ret = usb_bulk_msg(adap->usb_dev, adap->tx_pipe, header,
 			   msg_len, &transferred, LJCA_WRITE_TIMEOUT_MS);
-
-	usb_autopm_put_interface(adap->intf);
-
 	if (ret < 0)
-		goto out;
+		goto out_put;
 	if (transferred != msg_len) {
 		ret = -EIO;
-		goto out;
+		goto out_put;
 	}
 
 	if (ack) {
@@ -347,10 +344,13 @@ static int ljca_send(struct ljca_adapter *adap, u8 type, u8 cmd,
 						  timeout);
 		if (!ret) {
 			ret = -ETIMEDOUT;
-			goto out;
+			goto out_put;
 		}
 	}
 	ret = adap->actual_length;
+
+out_put:
+	usb_autopm_put_interface(adap->intf);
 
 out:
 	spin_lock_irqsave(&adap->lock, flags);
@@ -810,6 +810,14 @@ static int ljca_probe(struct usb_interface *interface,
 	ret = ljca_enumerate_clients(adap);
 	if (ret)
 		goto err_free;
+
+	/*
+	 * This works around problems with ov2740 initialization on some
+	 * Lenovo platforms. The autosuspend delay, has to be smaller than
+	 * the delay after setting the reset_gpio line in ov2740_resume().
+	 * Otherwise the sensor randomly fails to initialize.
+	 */
+	pm_runtime_set_autosuspend_delay(&usb_dev->dev, 10);
 
 	usb_enable_autosuspend(usb_dev);
 

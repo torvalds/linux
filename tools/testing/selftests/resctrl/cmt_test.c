@@ -99,14 +99,13 @@ static int check_results(struct resctrl_val_param *param, size_t span, int no_of
 		}
 
 		/* Field 3 is llc occ resc value */
-		if (runs > 0)
-			sum_llc_occu_resc += strtoul(token_array[3], NULL, 0);
+		sum_llc_occu_resc += strtoul(token_array[3], NULL, 0);
 		runs++;
 	}
 	fclose(fp);
 
 	return show_results_info(sum_llc_occu_resc, no_of_bits, span,
-				 MAX_DIFF, MAX_DIFF_PERCENT, runs - 1, true);
+				 MAX_DIFF, MAX_DIFF_PERCENT, runs, true);
 }
 
 static void cmt_test_cleanup(void)
@@ -116,15 +115,13 @@ static void cmt_test_cleanup(void)
 
 static int cmt_run_test(const struct resctrl_test *test, const struct user_params *uparams)
 {
-	const char * const *cmd = uparams->benchmark_cmd;
-	const char *new_cmd[BENCHMARK_ARGS];
+	struct fill_buf_param fill_buf = {};
 	unsigned long cache_total_size = 0;
 	int n = uparams->bits ? : 5;
 	unsigned long long_mask;
-	char *span_str = NULL;
 	int count_of_bits;
 	size_t span;
-	int ret, i;
+	int ret;
 
 	ret = get_full_cbm("L3", &long_mask);
 	if (ret)
@@ -155,31 +152,25 @@ static int cmt_run_test(const struct resctrl_test *test, const struct user_param
 
 	span = cache_portion_size(cache_total_size, param.mask, long_mask);
 
-	if (strcmp(cmd[0], "fill_buf") == 0) {
-		/* Duplicate the command to be able to replace span in it */
-		for (i = 0; uparams->benchmark_cmd[i]; i++)
-			new_cmd[i] = uparams->benchmark_cmd[i];
-		new_cmd[i] = NULL;
-
-		ret = asprintf(&span_str, "%zu", span);
-		if (ret < 0)
-			return -1;
-		new_cmd[1] = span_str;
-		cmd = new_cmd;
+	if (uparams->fill_buf) {
+		fill_buf.buf_size = span;
+		fill_buf.memflush = uparams->fill_buf->memflush;
+		param.fill_buf = &fill_buf;
+	} else if (!uparams->benchmark_cmd[0]) {
+		fill_buf.buf_size = span;
+		fill_buf.memflush = true;
+		param.fill_buf = &fill_buf;
 	}
 
 	remove(RESULT_FILE_NAME);
 
-	ret = resctrl_val(test, uparams, cmd, &param);
+	ret = resctrl_val(test, uparams, &param);
 	if (ret)
-		goto out;
+		return ret;
 
 	ret = check_results(&param, span, n);
 	if (ret && (get_vendor() == ARCH_INTEL))
 		ksft_print_msg("Intel CMT may be inaccurate when Sub-NUMA Clustering is enabled. Check BIOS configuration.\n");
-
-out:
-	free(span_str);
 
 	return ret;
 }

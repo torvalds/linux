@@ -1147,6 +1147,8 @@ static int dapm_widget_list_create(struct snd_soc_dapm_widget_list **list,
 	if (*list == NULL)
 		return -ENOMEM;
 
+	(*list)->num_widgets = size;
+
 	list_for_each_entry(w, widgets, work_list)
 		(*list)->widgets[i++] = w;
 
@@ -2785,10 +2787,10 @@ EXPORT_SYMBOL_GPL(snd_soc_dapm_update_dai);
 
 int snd_soc_dapm_widget_name_cmp(struct snd_soc_dapm_widget *widget, const char *s)
 {
-	struct snd_soc_component *component = snd_soc_dapm_to_component(widget->dapm);
+	struct snd_soc_component *component = widget->dapm->component;
 	const char *wname = widget->name;
 
-	if (component->name_prefix)
+	if (component && component->name_prefix)
 		wname += strlen(component->name_prefix) + 1; /* plus space */
 
 	return strcmp(wname, s);

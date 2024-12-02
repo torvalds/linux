@@ -103,33 +103,31 @@ static void tgfx_timer(struct timer_list *t)
 static int tgfx_open(struct input_dev *dev)
 {
 	struct tgfx *tgfx = input_get_drvdata(dev);
-	int err;
 
-	err = mutex_lock_interruptible(&tgfx->sem);
-	if (err)
-		return err;
+	scoped_guard(mutex_intr, &tgfx->sem) {
+		if (!tgfx->used++) {
+			parport_claim(tgfx->pd);
+			parport_write_control(tgfx->pd->port, 0x04);
+			mod_timer(&tgfx->timer, jiffies + TGFX_REFRESH_TIME);
+		}
 
-	if (!tgfx->used++) {
-		parport_claim(tgfx->pd);
-		parport_write_control(tgfx->pd->port, 0x04);
-		mod_timer(&tgfx->timer, jiffies + TGFX_REFRESH_TIME);
+		return 0;
 	}
 
-	mutex_unlock(&tgfx->sem);
-	return 0;
+	return -EINTR;
 }
 
 static void tgfx_close(struct input_dev *dev)
 {
 	struct tgfx *tgfx = input_get_drvdata(dev);
 
-	mutex_lock(&tgfx->sem);
+	guard(mutex)(&tgfx->sem);
+
 	if (!--tgfx->used) {
 		del_timer_sync(&tgfx->timer);
 		parport_write_control(tgfx->pd->port, 0x00);
 		parport_release(tgfx->pd);
 	}
-	mutex_unlock(&tgfx->sem);
 }
 
 

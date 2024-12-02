@@ -46,6 +46,15 @@ static const char *const *syscalltbl_native = syscalltbl_mips_n64;
 #include <asm/syscalls.c>
 const int syscalltbl_native_max_id = SYSCALLTBL_LOONGARCH_MAX_ID;
 static const char *const *syscalltbl_native = syscalltbl_loongarch;
+#elif defined(__riscv)
+#include <asm/syscalls.c>
+const int syscalltbl_native_max_id = SYSCALLTBL_RISCV_MAX_ID;
+static const char *const *syscalltbl_native = syscalltbl_riscv;
+#else
+const int syscalltbl_native_max_id = 0;
+static const char *const syscalltbl_native[] = {
+	[0] = "unknown",
+};
 #endif
 
 struct syscall {
@@ -180,6 +189,11 @@ const char *syscalltbl__name(const struct syscalltbl *tbl, int id)
 int syscalltbl__id(struct syscalltbl *tbl, const char *name)
 {
 	return audit_name_to_syscall(name, tbl->audit_machine);
+}
+
+int syscalltbl__id_at_idx(struct syscalltbl *tbl __maybe_unused, int idx)
+{
+	return idx;
 }
 
 int syscalltbl__strglobmatch_next(struct syscalltbl *tbl __maybe_unused,

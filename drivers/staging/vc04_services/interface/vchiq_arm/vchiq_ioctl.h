@@ -47,7 +47,7 @@ struct vchiq_completion_data {
 	enum vchiq_reason reason;
 	struct vchiq_header __user *header;
 	void __user *service_userdata;
-	void __user *bulk_userdata;
+	void __user *cb_userdata;
 };
 
 struct vchiq_await_completion {

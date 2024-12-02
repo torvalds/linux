@@ -72,14 +72,6 @@ free_queue_irqs:
 	return err;
 }
 
-static int txgbe_request_gpio_irq(struct txgbe *txgbe)
-{
-	txgbe->gpio_irq = irq_find_mapping(txgbe->misc.domain, TXGBE_IRQ_GPIO);
-	return request_threaded_irq(txgbe->gpio_irq, NULL,
-				    txgbe_gpio_irq_handler,
-				    IRQF_ONESHOT, "txgbe-gpio-irq", txgbe);
-}
-
 static int txgbe_request_link_irq(struct txgbe *txgbe)
 {
 	txgbe->link_irq = irq_find_mapping(txgbe->misc.domain, TXGBE_IRQ_LINK);
@@ -149,11 +141,6 @@ static irqreturn_t txgbe_misc_irq_thread_fn(int irq, void *data)
 	u32 eicr;
 
 	eicr = wx_misc_isb(wx, WX_ISB_MISC);
-	if (eicr & TXGBE_PX_MISC_GPIO) {
-		sub_irq = irq_find_mapping(txgbe->misc.domain, TXGBE_IRQ_GPIO);
-		handle_nested_irq(sub_irq);
-		nhandled++;
-	}
 	if (eicr & (TXGBE_PX_MISC_ETH_LK | TXGBE_PX_MISC_ETH_LKDN |
 		    TXGBE_PX_MISC_ETH_AN)) {
 		sub_irq = irq_find_mapping(txgbe->misc.domain, TXGBE_IRQ_LINK);
@@ -179,7 +166,6 @@ static void txgbe_del_irq_domain(struct txgbe *txgbe)
 
 void txgbe_free_misc_irq(struct txgbe *txgbe)
 {
-	free_irq(txgbe->gpio_irq, txgbe);
 	free_irq(txgbe->link_irq, txgbe);
 	free_irq(txgbe->misc.irq, txgbe);
 	txgbe_del_irq_domain(txgbe);
@@ -191,7 +177,7 @@ int txgbe_setup_misc_irq(struct txgbe *txgbe)
 	struct wx *wx = txgbe->wx;
 	int hwirq, err;
 
-	txgbe->misc.nirqs = 2;
+	txgbe->misc.nirqs = 1;
 	txgbe->misc.domain = irq_domain_add_simple(NULL, txgbe->misc.nirqs, 0,
 						   &txgbe_misc_irq_domain_ops, txgbe);
 	if (!txgbe->misc.domain)
@@ -216,20 +202,14 @@ int txgbe_setup_misc_irq(struct txgbe *txgbe)
 	if (err)
 		goto del_misc_irq;
 
-	err = txgbe_request_gpio_irq(txgbe);
-	if (err)
-		goto free_msic_irq;
-
 	err = txgbe_request_link_irq(txgbe);
 	if (err)
-		goto free_gpio_irq;
+		goto free_msic_irq;
 
 	wx->misc_irq_domain = true;
 
 	return 0;
 
-free_gpio_irq:
-	free_irq(txgbe->gpio_irq, txgbe);
 free_msic_irq:
 	free_irq(txgbe->misc.irq, txgbe);
 del_misc_irq:

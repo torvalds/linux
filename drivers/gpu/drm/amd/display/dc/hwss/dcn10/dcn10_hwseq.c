@@ -3453,7 +3453,6 @@ static bool dcn10_can_pipe_disable_cursor(struct pipe_ctx *pipe_ctx)
 		r2 = test_pipe->plane_res.scl_data.recout;
 		r2_r = r2.x + r2.width;
 		r2_b = r2.y + r2.height;
-		split_pipe = test_pipe;
 
 		/**
 		 * There is another half plane on same layer because of

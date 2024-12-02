@@ -911,8 +911,7 @@ inline void rtw_indicate_scan_done(struct adapter *padapter, bool aborted)
 {
 	rtw_os_indicate_scan_done(padapter, aborted);
 
-	if (is_primary_adapter(padapter) &&
-	    (!adapter_to_pwrctl(padapter)->bInSuspend) &&
+	if ((!adapter_to_pwrctl(padapter)->bInSuspend) &&
 	    (!check_fwstate(&padapter->mlmepriv,
 			    WIFI_ASOC_STATE|WIFI_UNDER_LINKING))) {
 		rtw_set_ips_deny(padapter, 0);
@@ -1589,8 +1588,7 @@ void rtw_dynamic_check_timer_handler(struct adapter *adapter)
 		}
 
 	} else {
-		if (is_primary_adapter(adapter))
-			rtw_dynamic_chk_wk_cmd(adapter);
+		rtw_dynamic_chk_wk_cmd(adapter);
 	}
 
 	/* auto site survey */

@@ -1,0 +1,167 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/regulator/lltc,ltc3676.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Linear Technology LTC3676 8-output regulators
+
+maintainers:
+  - Tim Harvey <tharvey@gateworks.com>
+
+description: |
+  LTC3676 contains eight regulators, 4 switching SW1..SW4 and four LDO1..4 .
+
+properties:
+  compatible:
+    const: lltc,ltc3676
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  regulators:
+    type: object
+    additionalProperties: false
+    description: |
+      List of regulators provided by this controller, must be named
+      after their hardware counterparts (SW|LDO)[1-4].
+
+    patternProperties:
+      "^(sw[1-4]|ldo[24])$":
+        type: object
+        unevaluatedProperties: false
+        $ref: regulator.yaml#
+        description:
+          Properties for single SW or LDO regulator. Regulators SW1..SW4 can
+          regulate the feedback reference from 412.5mV to 800mV in 12.5 mV
+          steps. The output voltage thus ranges between 0.4125 * (1 + R1/R2) V
+          and 0.8 * (1 + R1/R2) V.
+          Regulators LDO1, LDO2, LDO4 have a fixed 0.725 V reference and thus
+          output 0.725 * (1 + R1/R2) V.
+          The LDO1 standby regulator can not be disabled and thus should have
+          the regulator-always-on property set.
+
+        properties:
+          lltc,fb-voltage-divider:
+            description:
+              An array of two integers containing the resistor values
+              R1 and R2 of the feedback voltage divider in ohms.
+            $ref: /schemas/types.yaml#/definitions/uint32-array
+            minItems: 2
+            maxItems: 2
+
+        required:
+          - lltc,fb-voltage-divider
+
+    properties:
+      ldo1:
+        type: object
+        unevaluatedProperties: false
+        $ref: regulator.yaml#
+        description:
+          The LDO1 standby regulator can not be disabled and thus should
+          have the regulator-always-on property set. See patternProperties
+          description above for the rest of the details.
+
+        properties:
+          lltc,fb-voltage-divider:
+            description:
+              An array of two integers containing the resistor values
+              R1 and R2 of the feedback voltage divider in ohms.
+            $ref: /schemas/types.yaml#/definitions/uint32-array
+            minItems: 2
+            maxItems: 2
+
+        required:
+          - lltc,fb-voltage-divider
+          - regulator-always-on
+
+      ldo3:
+        type: object
+        unevaluatedProperties: false
+        $ref: regulator.yaml#
+        description:
+          The LDO3 regulator is fixed to 1.8 V. See patternProperties
+          description above for the rest of the details.
+
+required:
+  - compatible
+  - reg
+  - regulators
+
+additionalProperties: false
+
+examples:
+  - |
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        pmic@3c {
+            compatible = "lltc,ltc3676";
+            reg = <0x3c>;
+
+            regulators {
+                sw1_reg: sw1 {
+                    regulator-min-microvolt = <674400>;
+                    regulator-max-microvolt = <1308000>;
+                    lltc,fb-voltage-divider = <127000 200000>;
+                    regulator-ramp-delay = <7000>;
+                    regulator-boot-on;
+                    regulator-always-on;
+                };
+
+                sw2_reg: sw2 {
+                    regulator-min-microvolt = <1033310>;
+                    regulator-max-microvolt = <200400>;
+                    lltc,fb-voltage-divider = <301000 200000>;
+                    regulator-ramp-delay = <7000>;
+                    regulator-boot-on;
+                    regulator-always-on;
+                };
+
+                sw3_reg: sw3 {
+                    regulator-min-microvolt = <674400>;
+                    regulator-max-microvolt = <130800>;
+                    lltc,fb-voltage-divider = <127000 200000>;
+                    regulator-ramp-delay = <7000>;
+                    regulator-boot-on;
+                    regulator-always-on;
+                };
+
+                sw4_reg: sw4 {
+                    regulator-min-microvolt = <868310>;
+                    regulator-max-microvolt = <168400>;
+                    lltc,fb-voltage-divider = <221000 200000>;
+                    regulator-ramp-delay = <7000>;
+                    regulator-boot-on;
+                    regulator-always-on;
+                };
+
+                ldo2_reg: ldo2 {
+                    regulator-min-microvolt = <2490375>;
+                    regulator-max-microvolt = <2490375>;
+                    lltc,fb-voltage-divider = <487000 200000>;
+                    regulator-boot-on;
+                    regulator-always-on;
+                };
+
+                ldo3_reg: ldo3 {
+                    regulator-min-microvolt = <1800000>;
+                    regulator-max-microvolt = <1800000>;
+                    regulator-boot-on;
+                };
+
+                ldo4_reg: ldo4 {
+                    regulator-min-microvolt = <3023250>;
+                    regulator-max-microvolt = <3023250>;
+                    lltc,fb-voltage-divider = <634000 200000>;
+                    regulator-boot-on;
+                    regulator-always-on;
+                };
+            };
+        };
+    };

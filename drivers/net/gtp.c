@@ -1491,10 +1491,8 @@ static int gtp_newlink(struct net *src_net, struct net_device *dev,
 	}
 	gtp->role = role;
 
-	if (!data[IFLA_GTP_RESTART_COUNT])
-		gtp->restart_count = 0;
-	else
-		gtp->restart_count = nla_get_u8(data[IFLA_GTP_RESTART_COUNT]);
+	gtp->restart_count = nla_get_u8_default(data[IFLA_GTP_RESTART_COUNT],
+						0);
 
 	gtp->net = src_net;
 
@@ -1702,20 +1700,24 @@ static int gtp_encap_enable(struct gtp_dev *gtp, struct nlattr *data[])
 		return -EINVAL;
 
 	if (data[IFLA_GTP_FD0]) {
-		u32 fd0 = nla_get_u32(data[IFLA_GTP_FD0]);
+		int fd0 = nla_get_u32(data[IFLA_GTP_FD0]);
 
-		sk0 = gtp_encap_enable_socket(fd0, UDP_ENCAP_GTP0, gtp);
-		if (IS_ERR(sk0))
-			return PTR_ERR(sk0);
+		if (fd0 >= 0) {
+			sk0 = gtp_encap_enable_socket(fd0, UDP_ENCAP_GTP0, gtp);
+			if (IS_ERR(sk0))
+				return PTR_ERR(sk0);
+		}
 	}
 
 	if (data[IFLA_GTP_FD1]) {
-		u32 fd1 = nla_get_u32(data[IFLA_GTP_FD1]);
+		int fd1 = nla_get_u32(data[IFLA_GTP_FD1]);
 
-		sk1u = gtp_encap_enable_socket(fd1, UDP_ENCAP_GTP1U, gtp);
-		if (IS_ERR(sk1u)) {
-			gtp_encap_disable_sock(sk0);
-			return PTR_ERR(sk1u);
+		if (fd1 >= 0) {
+			sk1u = gtp_encap_enable_socket(fd1, UDP_ENCAP_GTP1U, gtp);
+			if (IS_ERR(sk1u)) {
+				gtp_encap_disable_sock(sk0);
+				return PTR_ERR(sk1u);
+			}
 		}
 	}
 
@@ -1825,10 +1827,7 @@ static struct pdp_ctx *gtp_pdp_add(struct gtp_dev *gtp, struct sock *sk,
 
 	version = nla_get_u32(info->attrs[GTPA_VERSION]);
 
-	if (info->attrs[GTPA_FAMILY])
-		family = nla_get_u8(info->attrs[GTPA_FAMILY]);
-	else
-		family = AF_INET;
+	family = nla_get_u8_default(info->attrs[GTPA_FAMILY], AF_INET);
 
 #if !IS_ENABLED(CONFIG_IPV6)
 	if (family == AF_INET6)
@@ -2065,10 +2064,7 @@ static struct pdp_ctx *gtp_find_pdp_by_link(struct net *net,
 	struct gtp_dev *gtp;
 	int family;
 
-	if (nla[GTPA_FAMILY])
-		family = nla_get_u8(nla[GTPA_FAMILY]);
-	else
-		family = AF_INET;
+	family = nla_get_u8_default(nla[GTPA_FAMILY], AF_INET);
 
 	gtp = gtp_find_dev(net, nla);
 	if (!gtp)

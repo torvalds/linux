@@ -115,8 +115,7 @@
 		compatible = "smsc,lan89218", "smsc,lan9115";
 		reg = <0x18000000 0x100>;
 		phy-mode = "mii";
-		interrupt-parent = <&irqc>;
-		interrupts = <0 IRQ_TYPE_EDGE_FALLING>;
+		interrupts-extended = <&irqc 0 IRQ_TYPE_EDGE_FALLING>;
 		smsc,irq-push-pull;
 		smsc,save-mac-address;
 		reg-io-width = <4>;

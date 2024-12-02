@@ -455,7 +455,7 @@ MODULE_DEVICE_TABLE(of, s10_of_match);
 
 static struct platform_driver s10_driver = {
 	.probe = s10_probe,
-	.remove_new = s10_remove,
+	.remove = s10_remove,
 	.driver = {
 		.name	= "Stratix10 SoC FPGA manager",
 		.of_match_table = of_match_ptr(s10_of_match),

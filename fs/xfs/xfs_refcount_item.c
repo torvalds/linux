@@ -244,7 +244,7 @@ xfs_refcount_update_diff_items(
 	struct xfs_refcount_intent	*ra = ci_entry(a);
 	struct xfs_refcount_intent	*rb = ci_entry(b);
 
-	return ra->ri_pag->pag_agno - rb->ri_pag->pag_agno;
+	return ra->ri_group->xg_gno - rb->ri_group->xg_gno;
 }
 
 /* Log refcount updates in the intent item. */
@@ -330,7 +330,7 @@ xfs_refcount_defer_add(
 
 	trace_xfs_refcount_defer(mp, ri);
 
-	ri->ri_pag = xfs_perag_intent_get(mp, ri->ri_startblock);
+	ri->ri_group = xfs_group_intent_get(mp, ri->ri_startblock, XG_TYPE_AG);
 	xfs_defer_add(tp, &ri->ri_list, &xfs_refcount_update_defer_type);
 }
 
@@ -341,7 +341,7 @@ xfs_refcount_update_cancel_item(
 {
 	struct xfs_refcount_intent	*ri = ci_entry(item);
 
-	xfs_perag_intent_put(ri->ri_pag);
+	xfs_group_intent_put(ri->ri_group);
 	kmem_cache_free(xfs_refcount_intent_cache, ri);
 }
 
@@ -431,7 +431,8 @@ xfs_cui_recover_work(
 	ri->ri_type = pmap->pe_flags & XFS_REFCOUNT_EXTENT_TYPE_MASK;
 	ri->ri_startblock = pmap->pe_startblock;
 	ri->ri_blockcount = pmap->pe_len;
-	ri->ri_pag = xfs_perag_intent_get(mp, pmap->pe_startblock);
+	ri->ri_group = xfs_group_intent_get(mp, pmap->pe_startblock,
+			XG_TYPE_AG);
 
 	xfs_defer_add_item(dfp, &ri->ri_list);
 }

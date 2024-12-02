@@ -142,7 +142,7 @@ nvkm_volt_map(struct nvkm_volt *volt, u8 id, u8 temp)
 			return -ENODEV;
 		}
 
-		result = min(max(result, (s64)info.min), (s64)info.max);
+		result = clamp(result, (s64)info.min, (s64)info.max);
 
 		if (info.link != 0xff) {
 			int ret = nvkm_volt_map(volt, info.link, temp);

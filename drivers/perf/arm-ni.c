@@ -247,7 +247,6 @@ static struct attribute *arm_ni_other_attrs[] = {
 
 static const struct attribute_group arm_ni_other_attr_group = {
 	.attrs = arm_ni_other_attrs,
-	NULL
 };
 
 static const struct attribute_group *arm_ni_attr_groups[] = {

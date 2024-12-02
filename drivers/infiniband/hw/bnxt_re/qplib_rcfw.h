@@ -131,6 +131,8 @@ static inline u32 bnxt_qplib_set_cmd_slots(struct cmdq_base *req)
 #define RCFW_CMD_IS_BLOCKING		0x8000
 
 #define HWRM_VERSION_DEV_ATTR_MAX_DPI  0x1000A0000000DULL
+/* HWRM version 1.10.3.18 */
+#define HWRM_VERSION_READ_CTX           0x1000A00030012
 
 /* Crsq buf is 1024-Byte */
 struct bnxt_qplib_crsbe {
@@ -224,6 +226,8 @@ struct bnxt_qplib_rcfw {
 	struct bnxt_qplib_crsqe		*crsqe_tbl;
 	int qp_tbl_size;
 	struct bnxt_qplib_qp_node *qp_tbl;
+	/* To synchronize the qp-handle hash table */
+	spinlock_t			tbl_lock;
 	u64 oos_prev;
 	u32 init_oos_stats;
 	u32 cmdq_depth;

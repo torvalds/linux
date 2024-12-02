@@ -78,12 +78,9 @@ temp_crit_show(struct device *dev, struct device_attribute *attr, char *buf)
 	int temperature;
 	int ret;
 
-	mutex_lock(&tz->lock);
+	guard(thermal_zone)(tz);
 
 	ret = tz->ops.get_crit_temp(tz, &temperature);
-
-	mutex_unlock(&tz->lock);
-
 	if (ret)
 		return ret;
 

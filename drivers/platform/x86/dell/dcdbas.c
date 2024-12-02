@@ -29,6 +29,7 @@
 #include <linux/smp.h>
 #include <linux/spinlock.h>
 #include <linux/string.h>
+#include <linux/sysfs.h>
 #include <linux/types.h>
 #include <linux/mutex.h>
 
@@ -132,14 +133,14 @@ static ssize_t smi_data_buf_phys_addr_show(struct device *dev,
 					   struct device_attribute *attr,
 					   char *buf)
 {
-	return sprintf(buf, "%x\n", (u32)smi_buf.dma);
+	return sysfs_emit(buf, "%x\n", (u32)smi_buf.dma);
 }
 
 static ssize_t smi_data_buf_size_show(struct device *dev,
 				      struct device_attribute *attr,
 				      char *buf)
 {
-	return sprintf(buf, "%lu\n", smi_buf.size);
+	return sysfs_emit(buf, "%lu\n", smi_buf.size);
 }
 
 static ssize_t smi_data_buf_size_store(struct device *dev,
@@ -200,7 +201,7 @@ static ssize_t host_control_action_show(struct device *dev,
 					struct device_attribute *attr,
 					char *buf)
 {
-	return sprintf(buf, "%u\n", host_control_action);
+	return sysfs_emit(buf, "%u\n", host_control_action);
 }
 
 static ssize_t host_control_action_store(struct device *dev,
@@ -224,7 +225,7 @@ static ssize_t host_control_smi_type_show(struct device *dev,
 					  struct device_attribute *attr,
 					  char *buf)
 {
-	return sprintf(buf, "%u\n", host_control_smi_type);
+	return sysfs_emit(buf, "%u\n", host_control_smi_type);
 }
 
 static ssize_t host_control_smi_type_store(struct device *dev,
@@ -239,7 +240,7 @@ static ssize_t host_control_on_shutdown_show(struct device *dev,
 					     struct device_attribute *attr,
 					     char *buf)
 {
-	return sprintf(buf, "%u\n", host_control_on_shutdown);
+	return sysfs_emit(buf, "%u\n", host_control_on_shutdown);
 }
 
 static ssize_t host_control_on_shutdown_store(struct device *dev,
@@ -709,7 +710,7 @@ static struct platform_driver dcdbas_driver = {
 		.name	= DRIVER_NAME,
 	},
 	.probe		= dcdbas_probe,
-	.remove_new	= dcdbas_remove,
+	.remove		= dcdbas_remove,
 };
 
 static const struct platform_device_info dcdbas_dev_info __initconst = {

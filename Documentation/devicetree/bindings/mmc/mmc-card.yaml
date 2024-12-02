@@ -13,6 +13,10 @@ description: |
   This documents describes the devicetree bindings for a mmc-host controller
   child node describing a mmc-card / an eMMC.
 
+  It's possible to define a fixed partition table for an eMMC for the user
+  partition, the 2 BOOT partition (boot1/2) and the 4 GP (gp1/2/3/4) if supported
+  by the eMMC.
+
 properties:
   compatible:
     const: mmc-card
@@ -25,6 +29,24 @@ properties:
     description:
       Use this to indicate that the mmc-card has a broken hpi
       implementation, and that hpi should not be used.
+
+patternProperties:
+  "^partitions(-boot[12]|-gp[14])?$":
+    $ref: /schemas/mtd/partitions/partitions.yaml
+
+    patternProperties:
+      "^partition@[0-9a-f]+$":
+        $ref: /schemas/mtd/partitions/partition.yaml
+
+        properties:
+          reg:
+            description: Must be multiple of 512 as it's converted
+              internally from bytes to SECTOR_SIZE (512 bytes)
+
+        required:
+          - reg
+
+        unevaluatedProperties: false
 
 required:
   - compatible
@@ -42,6 +64,36 @@ examples:
             compatible = "mmc-card";
             reg = <0>;
             broken-hpi;
+
+            partitions {
+                compatible = "fixed-partitions";
+
+                #address-cells = <1>;
+                #size-cells = <1>;
+
+                partition@0 {
+                    label = "kernel"; /* Kernel */
+                    reg = <0x0 0x2000000>; /* 32 MB */
+                };
+
+                partition@2000000 {
+                    label = "rootfs";
+                    reg = <0x2000000 0x40000000>; /* 1GB */
+                };
+            };
+
+            partitions-boot1 {
+                compatible = "fixed-partitions";
+
+                #address-cells = <1>;
+                #size-cells = <1>;
+
+                partition@0 {
+                    label = "bl";
+                    reg = <0x0 0x2000000>; /* 32MB */
+                    read-only;
+                };
+            };
         };
     };
 

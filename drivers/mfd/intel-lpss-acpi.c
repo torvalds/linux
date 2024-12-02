@@ -208,7 +208,7 @@ static void intel_lpss_acpi_remove(struct platform_device *pdev)
 
 static struct platform_driver intel_lpss_acpi_driver = {
 	.probe = intel_lpss_acpi_probe,
-	.remove_new = intel_lpss_acpi_remove,
+	.remove = intel_lpss_acpi_remove,
 	.driver = {
 		.name = "intel-lpss",
 		.acpi_match_table = intel_lpss_acpi_ids,

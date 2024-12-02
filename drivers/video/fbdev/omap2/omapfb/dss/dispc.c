@@ -1230,17 +1230,6 @@ void dispc_ovl_set_fifo_threshold(enum omap_plane plane, u32 low, u32 high)
 		dispc_write_reg(DISPC_OVL_PRELOAD(plane), min(high, 0xfffu));
 }
 
-void dispc_enable_fifomerge(bool enable)
-{
-	if (!dss_has_feature(FEAT_FIFO_MERGE)) {
-		WARN_ON(enable);
-		return;
-	}
-
-	DSSDBG("FIFO merge %s\n", enable ? "enabled" : "disabled");
-	REG_FLD_MOD(DISPC_CONFIG, enable ? 1 : 0, 14, 14);
-}
-
 void dispc_ovl_compute_fifo_thresholds(enum omap_plane plane,
 		u32 *fifo_low, u32 *fifo_high, bool use_fifomerge,
 		bool manual_update)
@@ -3656,22 +3645,6 @@ void dispc_mgr_set_clock_div(enum omap_channel channel,
 	dispc_mgr_set_lcd_divisor(channel, cinfo->lck_div, cinfo->pck_div);
 }
 
-int dispc_mgr_get_clock_div(enum omap_channel channel,
-		struct dispc_clock_info *cinfo)
-{
-	unsigned long fck;
-
-	fck = dispc_fclk_rate();
-
-	cinfo->lck_div = REG_GET(DISPC_DIVISORo(channel), 23, 16);
-	cinfo->pck_div = REG_GET(DISPC_DIVISORo(channel), 7, 0);
-
-	cinfo->lck = fck / cinfo->lck_div;
-	cinfo->pck = cinfo->lck / cinfo->pck_div;
-
-	return 0;
-}
-
 u32 dispc_read_irqstatus(void)
 {
 	return dispc_read_reg(DISPC_IRQSTATUS);
@@ -4072,7 +4045,7 @@ static const struct of_device_id dispc_of_match[] = {
 
 static struct platform_driver omap_dispchw_driver = {
 	.probe		= dispc_probe,
-	.remove_new     = dispc_remove,
+	.remove         = dispc_remove,
 	.driver         = {
 		.name   = "omapdss_dispc",
 		.pm	= &dispc_pm_ops,

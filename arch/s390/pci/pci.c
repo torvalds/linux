@@ -29,6 +29,7 @@
 #include <linux/pci.h>
 #include <linux/printk.h>
 #include <linux/lockdep.h>
+#include <linux/list_sort.h>
 
 #include <asm/isc.h>
 #include <asm/airq.h>
@@ -160,6 +161,7 @@ int zpci_fmb_enable_device(struct zpci_dev *zdev)
 	u64 req = ZPCI_CREATE_REQ(zdev->fh, 0, ZPCI_MOD_FC_SET_MEASURE);
 	struct zpci_iommu_ctrs *ctrs;
 	struct zpci_fib fib = {0};
+	unsigned long flags;
 	u8 cc, status;
 
 	if (zdev->fmb || sizeof(*zdev->fmb) < zdev->fmb_length)
@@ -171,6 +173,7 @@ int zpci_fmb_enable_device(struct zpci_dev *zdev)
 	WARN_ON((u64) zdev->fmb & 0xf);
 
 	/* reset software counters */
+	spin_lock_irqsave(&zdev->dom_lock, flags);
 	ctrs = zpci_get_iommu_ctrs(zdev);
 	if (ctrs) {
 		atomic64_set(&ctrs->mapped_pages, 0);
@@ -179,6 +182,7 @@ int zpci_fmb_enable_device(struct zpci_dev *zdev)
 		atomic64_set(&ctrs->sync_map_rpcits, 0);
 		atomic64_set(&ctrs->sync_rpcits, 0);
 	}
+	spin_unlock_irqrestore(&zdev->dom_lock, flags);
 
 
 	fib.fmb_addr = virt_to_phys(zdev->fmb);
@@ -775,8 +779,9 @@ int zpci_hot_reset_device(struct zpci_dev *zdev)
  * @fh: Current Function Handle of the device to be created
  * @state: Initial state after creation either Standby or Configured
  *
- * Creates a new zpci device and adds it to its, possibly newly created, zbus
- * as well as zpci_list.
+ * Allocates a new struct zpci_dev and queries the platform for its details.
+ * If successful the device can subsequently be added to the zPCI subsystem
+ * using zpci_add_device().
  *
  * Returns: the zdev on success or an error pointer otherwise
  */
@@ -785,7 +790,6 @@ struct zpci_dev *zpci_create_device(u32 fid, u32 fh, enum zpci_state state)
 	struct zpci_dev *zdev;
 	int rc;
 
-	zpci_dbg(1, "add fid:%x, fh:%x, c:%d\n", fid, fh, state);
 	zdev = kzalloc(sizeof(*zdev), GFP_KERNEL);
 	if (!zdev)
 		return ERR_PTR(-ENOMEM);
@@ -800,11 +804,34 @@ struct zpci_dev *zpci_create_device(u32 fid, u32 fh, enum zpci_state state)
 		goto error;
 	zdev->state =  state;
 
-	kref_init(&zdev->kref);
 	mutex_init(&zdev->state_lock);
 	mutex_init(&zdev->fmb_lock);
 	mutex_init(&zdev->kzdev_lock);
 
+	return zdev;
+
+error:
+	zpci_dbg(0, "crt fid:%x, rc:%d\n", fid, rc);
+	kfree(zdev);
+	return ERR_PTR(rc);
+}
+
+/**
+ * zpci_add_device() - Add a previously created zPCI device to the zPCI subsystem
+ * @zdev: The zPCI device to be added
+ *
+ * A struct zpci_dev is added to the zPCI subsystem and to a virtual PCI bus creating
+ * a new one as necessary. A hotplug slot is created and events start to be handled.
+ * If successful from this point on zpci_zdev_get() and zpci_zdev_put() must be used.
+ * If adding the struct zpci_dev fails the device was not added and should be freed.
+ *
+ * Return: 0 on success, or an error code otherwise
+ */
+int zpci_add_device(struct zpci_dev *zdev)
+{
+	int rc;
+
+	zpci_dbg(1, "add fid:%x, fh:%x, c:%d\n", zdev->fid, zdev->fh, zdev->state);
 	rc = zpci_init_iommu(zdev);
 	if (rc)
 		goto error;
@@ -813,18 +840,17 @@ struct zpci_dev *zpci_create_device(u32 fid, u32 fh, enum zpci_state state)
 	if (rc)
 		goto error_destroy_iommu;
 
+	kref_init(&zdev->kref);
 	spin_lock(&zpci_list_lock);
 	list_add_tail(&zdev->entry, &zpci_list);
 	spin_unlock(&zpci_list_lock);
-
-	return zdev;
+	return 0;
 
 error_destroy_iommu:
 	zpci_destroy_iommu(zdev);
 error:
-	zpci_dbg(0, "add fid:%x, rc:%d\n", fid, rc);
-	kfree(zdev);
-	return ERR_PTR(rc);
+	zpci_dbg(0, "add fid:%x, rc:%d\n", zdev->fid, rc);
+	return rc;
 }
 
 bool zpci_is_device_configured(struct zpci_dev *zdev)
@@ -914,10 +940,8 @@ void zpci_device_reserved(struct zpci_dev *zdev)
 void zpci_release_device(struct kref *kref)
 {
 	struct zpci_dev *zdev = container_of(kref, struct zpci_dev, kref);
-	int ret;
 
-	if (zdev->has_hp_slot)
-		zpci_exit_slot(zdev);
+	WARN_ON(zdev->state != ZPCI_FN_STATE_RESERVED);
 
 	if (zdev->zbus->bus)
 		zpci_bus_remove_device(zdev, false);
@@ -925,28 +949,14 @@ void zpci_release_device(struct kref *kref)
 	if (zdev_enabled(zdev))
 		zpci_disable_device(zdev);
 
-	switch (zdev->state) {
-	case ZPCI_FN_STATE_CONFIGURED:
-		ret = sclp_pci_deconfigure(zdev->fid);
-		zpci_dbg(3, "deconf fid:%x, rc:%d\n", zdev->fid, ret);
-		fallthrough;
-	case ZPCI_FN_STATE_STANDBY:
-		if (zdev->has_hp_slot)
-			zpci_exit_slot(zdev);
-		spin_lock(&zpci_list_lock);
-		list_del(&zdev->entry);
-		spin_unlock(&zpci_list_lock);
-		zpci_dbg(3, "rsv fid:%x\n", zdev->fid);
-		fallthrough;
-	case ZPCI_FN_STATE_RESERVED:
-		if (zdev->has_resources)
-			zpci_cleanup_bus_resources(zdev);
-		zpci_bus_device_unregister(zdev);
-		zpci_destroy_iommu(zdev);
-		fallthrough;
-	default:
-		break;
-	}
+	if (zdev->has_hp_slot)
+		zpci_exit_slot(zdev);
+
+	if (zdev->has_resources)
+		zpci_cleanup_bus_resources(zdev);
+
+	zpci_bus_device_unregister(zdev);
+	zpci_destroy_iommu(zdev);
 	zpci_dbg(3, "rem fid:%x\n", zdev->fid);
 	kfree_rcu(zdev, rcu);
 }
@@ -1082,6 +1092,50 @@ bool zpci_is_enabled(void)
 	return s390_pci_initialized;
 }
 
+static int zpci_cmp_rid(void *priv, const struct list_head *a,
+			const struct list_head *b)
+{
+	struct zpci_dev *za = container_of(a, struct zpci_dev, entry);
+	struct zpci_dev *zb = container_of(b, struct zpci_dev, entry);
+
+	/*
+	 * PCI functions without RID available maintain original order
+	 * between themselves but sort before those with RID.
+	 */
+	if (za->rid == zb->rid)
+		return za->rid_available > zb->rid_available;
+	/*
+	 * PCI functions with RID sort by RID ascending.
+	 */
+	return za->rid > zb->rid;
+}
+
+static void zpci_add_devices(struct list_head *scan_list)
+{
+	struct zpci_dev *zdev, *tmp;
+
+	list_sort(NULL, scan_list, &zpci_cmp_rid);
+	list_for_each_entry_safe(zdev, tmp, scan_list, entry) {
+		list_del_init(&zdev->entry);
+		if (zpci_add_device(zdev))
+			kfree(zdev);
+	}
+}
+
+int zpci_scan_devices(void)
+{
+	LIST_HEAD(scan_list);
+	int rc;
+
+	rc = clp_scan_pci_devices(&scan_list);
+	if (rc)
+		return rc;
+
+	zpci_add_devices(&scan_list);
+	zpci_bus_scan_busses();
+	return 0;
+}
+
 static int __init pci_base_init(void)
 {
 	int rc;
@@ -1111,10 +1165,9 @@ static int __init pci_base_init(void)
 	if (rc)
 		goto out_irq;
 
-	rc = clp_scan_pci_devices();
+	rc = zpci_scan_devices();
 	if (rc)
 		goto out_find;
-	zpci_bus_scan_busses();
 
 	s390_pci_initialized = 1;
 	return 0;

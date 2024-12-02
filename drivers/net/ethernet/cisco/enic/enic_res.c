@@ -176,9 +176,9 @@ void enic_free_vnic_resources(struct enic *enic)
 	unsigned int i;
 
 	for (i = 0; i < enic->wq_count; i++)
-		vnic_wq_free(&enic->wq[i]);
+		vnic_wq_free(&enic->wq[i].vwq);
 	for (i = 0; i < enic->rq_count; i++)
-		vnic_rq_free(&enic->rq[i]);
+		vnic_rq_free(&enic->rq[i].vrq);
 	for (i = 0; i < enic->cq_count; i++)
 		vnic_cq_free(&enic->cq[i]);
 	for (i = 0; i < enic->intr_count; i++)
@@ -187,16 +187,21 @@ void enic_free_vnic_resources(struct enic *enic)
 
 void enic_get_res_counts(struct enic *enic)
 {
-	enic->wq_count = vnic_dev_get_res_count(enic->vdev, RES_TYPE_WQ);
-	enic->rq_count = vnic_dev_get_res_count(enic->vdev, RES_TYPE_RQ);
-	enic->cq_count = vnic_dev_get_res_count(enic->vdev, RES_TYPE_CQ);
-	enic->intr_count = vnic_dev_get_res_count(enic->vdev,
-		RES_TYPE_INTR_CTRL);
+	enic->wq_avail = vnic_dev_get_res_count(enic->vdev, RES_TYPE_WQ);
+	enic->rq_avail = vnic_dev_get_res_count(enic->vdev, RES_TYPE_RQ);
+	enic->cq_avail = vnic_dev_get_res_count(enic->vdev, RES_TYPE_CQ);
+	enic->intr_avail = vnic_dev_get_res_count(enic->vdev,
+						  RES_TYPE_INTR_CTRL);
+
+	enic->wq_count = enic->wq_avail;
+	enic->rq_count = enic->rq_avail;
+	enic->cq_count = enic->cq_avail;
+	enic->intr_count = enic->intr_avail;
 
 	dev_info(enic_get_dev(enic),
 		"vNIC resources avail: wq %d rq %d cq %d intr %d\n",
-		enic->wq_count, enic->rq_count,
-		enic->cq_count, enic->intr_count);
+		enic->wq_avail, enic->rq_avail,
+		enic->cq_avail, enic->intr_avail);
 }
 
 void enic_init_vnic_resources(struct enic *enic)
@@ -221,9 +226,12 @@ void enic_init_vnic_resources(struct enic *enic)
 
 	switch (intr_mode) {
 	case VNIC_DEV_INTR_MODE_INTX:
+		error_interrupt_enable = 1;
+		error_interrupt_offset = ENIC_LEGACY_ERR_INTR;
+		break;
 	case VNIC_DEV_INTR_MODE_MSIX:
 		error_interrupt_enable = 1;
-		error_interrupt_offset = enic->intr_count - 2;
+		error_interrupt_offset = enic_msix_err_intr(enic);
 		break;
 	default:
 		error_interrupt_enable = 0;
@@ -233,7 +241,7 @@ void enic_init_vnic_resources(struct enic *enic)
 
 	for (i = 0; i < enic->rq_count; i++) {
 		cq_index = i;
-		vnic_rq_init(&enic->rq[i],
+		vnic_rq_init(&enic->rq[i].vrq,
 			cq_index,
 			error_interrupt_enable,
 			error_interrupt_offset);
@@ -241,7 +249,7 @@ void enic_init_vnic_resources(struct enic *enic)
 
 	for (i = 0; i < enic->wq_count; i++) {
 		cq_index = enic->rq_count + i;
-		vnic_wq_init(&enic->wq[i],
+		vnic_wq_init(&enic->wq[i].vwq,
 			cq_index,
 			error_interrupt_enable,
 			error_interrupt_offset);
@@ -249,15 +257,15 @@ void enic_init_vnic_resources(struct enic *enic)
 
 	/* Init CQ resources
 	 *
-	 * CQ[0 - n+m-1] point to INTR[0] for INTx, MSI
-	 * CQ[0 - n+m-1] point to INTR[0 - n+m-1] for MSI-X
+	 * All CQs point to INTR[0] for INTx, MSI
+	 * CQ[i] point to INTR[ENIC_MSIX_IO_INTR_BASE + i] for MSI-X
 	 */
 
 	for (i = 0; i < enic->cq_count; i++) {
 
 		switch (intr_mode) {
 		case VNIC_DEV_INTR_MODE_MSIX:
-			interrupt_offset = i;
+			interrupt_offset = ENIC_MSIX_IO_INTR_BASE + i;
 			break;
 		default:
 			interrupt_offset = 0;
@@ -322,7 +330,7 @@ int enic_alloc_vnic_resources(struct enic *enic)
 	 */
 
 	for (i = 0; i < enic->wq_count; i++) {
-		err = vnic_wq_alloc(enic->vdev, &enic->wq[i], i,
+		err = vnic_wq_alloc(enic->vdev, &enic->wq[i].vwq, i,
 			enic->config.wq_desc_count,
 			sizeof(struct wq_enet_desc));
 		if (err)
@@ -330,7 +338,7 @@ int enic_alloc_vnic_resources(struct enic *enic)
 	}
 
 	for (i = 0; i < enic->rq_count; i++) {
-		err = vnic_rq_alloc(enic->vdev, &enic->rq[i], i,
+		err = vnic_rq_alloc(enic->vdev, &enic->rq[i].vrq, i,
 			enic->config.rq_desc_count,
 			sizeof(struct rq_enet_desc));
 		if (err)

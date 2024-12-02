@@ -2366,6 +2366,7 @@ static struct aa_sfs_entry aa_sfs_entry_policy[] = {
 	AA_SFS_FILE_U64("outofband",		MAX_OOB_SUPPORTED),
 	AA_SFS_FILE_U64("permstable32_version",	1),
 	AA_SFS_FILE_STRING("permstable32", PERMS32STR),
+	AA_SFS_FILE_U64("state32",	1),
 	AA_SFS_DIR("unconfined_restrictions",   aa_sfs_entry_unconfined),
 	{ }
 };
