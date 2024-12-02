@@ -359,25 +359,17 @@ void *restart_stack;
 
 unsigned long stack_alloc(void)
 {
-#ifdef CONFIG_VMAP_STACK
 	void *ret;
 
 	ret = __vmalloc_node(THREAD_SIZE, THREAD_SIZE, THREADINFO_GFP,
 			     NUMA_NO_NODE, __builtin_return_address(0));
 	kmemleak_not_leak(ret);
 	return (unsigned long)ret;
-#else
-	return __get_free_pages(GFP_KERNEL, THREAD_SIZE_ORDER);
-#endif
 }
 
 void stack_free(unsigned long stack)
 {
-#ifdef CONFIG_VMAP_STACK
 	vfree((void *) stack);
-#else
-	free_pages(stack, THREAD_SIZE_ORDER);
-#endif
 }
 
 static unsigned long __init stack_alloc_early(void)
