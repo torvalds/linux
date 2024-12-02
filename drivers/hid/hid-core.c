@@ -2175,7 +2175,7 @@ static bool hid_hiddev(struct hid_device *hdev)
 
 static ssize_t
 report_descriptor_read(struct file *filp, struct kobject *kobj,
-		       struct bin_attribute *attr,
+		       const struct bin_attribute *attr,
 		       char *buf, loff_t off, size_t count)
 {
 	struct device *dev = kobj_to_dev(kobj);
@@ -2201,7 +2201,7 @@ country_show(struct device *dev, struct device_attribute *attr,
 	return sprintf(buf, "%02x\n", hdev->country & 0xff);
 }
 
-static BIN_ATTR_RO(report_descriptor, HID_MAX_DESCRIPTOR_SIZE);
+static const BIN_ATTR_RO(report_descriptor, HID_MAX_DESCRIPTOR_SIZE);
 
 static const DEVICE_ATTR_RO(country);
 
@@ -2793,13 +2793,13 @@ static struct attribute *hid_dev_attrs[] = {
 	&dev_attr_modalias.attr,
 	NULL,
 };
-static struct bin_attribute *hid_dev_bin_attrs[] = {
+static const struct bin_attribute *hid_dev_bin_attrs[] = {
 	&bin_attr_report_descriptor,
 	NULL
 };
 static const struct attribute_group hid_dev_group = {
 	.attrs = hid_dev_attrs,
-	.bin_attrs = hid_dev_bin_attrs,
+	.bin_attrs_new = hid_dev_bin_attrs,
 };
 __ATTRIBUTE_GROUPS(hid_dev);
 
