@@ -45,3 +45,6 @@ ifeq ($(CONFIG_KERNEL_MODE_NEON),y)
 endif
 
 obj-$(CONFIG_FUNCTION_ERROR_INJECTION) += error-inject.o
+
+obj-$(CONFIG_CRC32_ARCH) += crc32-arm.o
+crc32-arm-y := crc32-glue.o crc32-core.o
