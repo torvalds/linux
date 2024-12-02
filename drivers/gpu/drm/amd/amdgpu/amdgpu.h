@@ -118,7 +118,7 @@
 
 #define MAX_GPU_INSTANCE		64
 
-#define GFX_SLICE_PERIOD		msecs_to_jiffies(250)
+#define GFX_SLICE_PERIOD_MS		250
 
 struct amdgpu_gpu_instance {
 	struct amdgpu_device		*adev;
@@ -298,6 +298,12 @@ extern int amdgpu_wbrf;
 #define AMDGPU_RESET_UVD			(1 << 12)
 #define AMDGPU_RESET_VCE			(1 << 13)
 #define AMDGPU_RESET_VCE1			(1 << 14)
+
+/* reset mask */
+#define AMDGPU_RESET_TYPE_FULL (1 << 0) /* full adapter reset, mode1/mode2/BACO/etc. */
+#define AMDGPU_RESET_TYPE_SOFT_RESET (1 << 1) /* IP level soft reset */
+#define AMDGPU_RESET_TYPE_PER_QUEUE (1 << 2) /* per queue */
+#define AMDGPU_RESET_TYPE_PER_PIPE (1 << 3) /* per pipe */
 
 /* max cursor sizes (in pixels) */
 #define CIK_CURSOR_WIDTH 128
@@ -833,6 +839,7 @@ struct amdgpu_mqd {
 enum amdgpu_init_lvl_id {
 	AMDGPU_INIT_LEVEL_DEFAULT,
 	AMDGPU_INIT_LEVEL_MINIMAL_XGMI,
+	AMDGPU_INIT_LEVEL_RESET_RECOVERY,
 };
 
 struct amdgpu_init_level {
@@ -1111,8 +1118,6 @@ struct amdgpu_device {
 	bool				in_s3;
 	bool				in_s4;
 	bool				in_s0ix;
-	/* indicate amdgpu suspension status */
-	bool				suspend_complete;
 
 	enum pp_mp1_state               mp1_state;
 	struct amdgpu_doorbell_index doorbell_index;
@@ -1466,6 +1471,8 @@ struct dma_fence *amdgpu_device_get_gang(struct amdgpu_device *adev);
 struct dma_fence *amdgpu_device_switch_gang(struct amdgpu_device *adev,
 					    struct dma_fence *gang);
 bool amdgpu_device_has_display_hardware(struct amdgpu_device *adev);
+ssize_t amdgpu_get_soft_full_reset_mask(struct amdgpu_ring *ring);
+ssize_t amdgpu_show_reset_mask(char *buf, uint32_t supported_reset);
 
 /* atpx handler */
 #if defined(CONFIG_VGA_SWITCHEROO)

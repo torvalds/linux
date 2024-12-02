@@ -52,6 +52,7 @@
 #include <net/net_trackers.h>
 #include <net/net_debug.h>
 #include <net/dropreason-core.h>
+#include <net/neighbour_tables.h>
 
 struct netpoll_info;
 struct device;
@@ -343,6 +344,16 @@ struct gro_list {
 #define GRO_HASH_BUCKETS	8
 
 /*
+ * Structure for per-NAPI config
+ */
+struct napi_config {
+	u64 gro_flush_timeout;
+	u64 irq_suspend_timeout;
+	u32 defer_hard_irqs;
+	unsigned int napi_id;
+};
+
+/*
  * Structure for NAPI scheduling similar to tasklet but with weighting
  */
 struct napi_struct {
@@ -373,10 +384,15 @@ struct napi_struct {
 	unsigned int		napi_id;
 	struct hrtimer		timer;
 	struct task_struct	*thread;
+	unsigned long		gro_flush_timeout;
+	unsigned long		irq_suspend_timeout;
+	u32			defer_hard_irqs;
 	/* control-path-only fields follow */
 	struct list_head	dev_list;
 	struct hlist_node	napi_hash_node;
 	int			irq;
+	int			index;
+	struct napi_config	*config;
 };
 
 enum {
@@ -1232,12 +1248,17 @@ struct netdev_net_notifier {
  * int (*ndo_fdb_add)(struct ndmsg *ndm, struct nlattr *tb[],
  *		      struct net_device *dev,
  *		      const unsigned char *addr, u16 vid, u16 flags,
- *		      struct netlink_ext_ack *extack);
+ *		      bool *notified, struct netlink_ext_ack *extack);
  *	Adds an FDB entry to dev for addr.
+ *	Callee shall set *notified to true if it sent any appropriate
+ *	notification(s). Otherwise core will send a generic one.
  * int (*ndo_fdb_del)(struct ndmsg *ndm, struct nlattr *tb[],
  *		      struct net_device *dev,
- *		      const unsigned char *addr, u16 vid)
+ *		      const unsigned char *addr, u16 vid
+ *		      bool *notified, struct netlink_ext_ack *extack);
  *	Deletes the FDB entry from dev corresponding to addr.
+ *	Callee shall set *notified to true if it sent any appropriate
+ *	notification(s). Otherwise core will send a generic one.
  * int (*ndo_fdb_del_bulk)(struct nlmsghdr *nlh, struct net_device *dev,
  *			   struct netlink_ext_ack *extack);
  * int (*ndo_fdb_dump)(struct sk_buff *skb, struct netlink_callback *cb,
@@ -1412,8 +1433,7 @@ struct net_device_ops {
 						        __be16 proto, u16 vid);
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	void                    (*ndo_poll_controller)(struct net_device *dev);
-	int			(*ndo_netpoll_setup)(struct net_device *dev,
-						     struct netpoll_info *info);
+	int			(*ndo_netpoll_setup)(struct net_device *dev);
 	void			(*ndo_netpoll_cleanup)(struct net_device *dev);
 #endif
 	int			(*ndo_set_vf_mac)(struct net_device *dev,
@@ -1510,12 +1530,15 @@ struct net_device_ops {
 					       const unsigned char *addr,
 					       u16 vid,
 					       u16 flags,
+					       bool *notified,
 					       struct netlink_ext_ack *extack);
 	int			(*ndo_fdb_del)(struct ndmsg *ndm,
 					       struct nlattr *tb[],
 					       struct net_device *dev,
 					       const unsigned char *addr,
-					       u16 vid, struct netlink_ext_ack *extack);
+					       u16 vid,
+					       bool *notified,
+					       struct netlink_ext_ack *extack);
 	int			(*ndo_fdb_del_bulk)(struct nlmsghdr *nlh,
 						    struct net_device *dev,
 						    struct netlink_ext_ack *extack);
@@ -1603,6 +1626,14 @@ struct net_device_ops {
 	int			(*ndo_hwtstamp_set)(struct net_device *dev,
 						    struct kernel_hwtstamp_config *kernel_config,
 						    struct netlink_ext_ack *extack);
+
+#if IS_ENABLED(CONFIG_NET_SHAPER)
+	/**
+	 * @net_shaper_ops: Device shaping offload operations
+	 * see include/net/net_shapers.h
+	 */
+	const struct net_shaper_ops *net_shaper_ops;
+#endif
 };
 
 /**
@@ -1773,7 +1804,6 @@ enum netdev_reg_state {
  *	@wireless_handlers:	List of functions to handle Wireless Extensions,
  *				instead of ioctl,
  *				see <net/iw_handler.h> for details.
- *	@wireless_data:	Instance data managed by the core of wireless extensions
  *
  *	@netdev_ops:	Includes several pointers to callbacks,
  *			if one wants to override the ndo_*() functions
@@ -1858,9 +1888,6 @@ enum netdev_reg_state {
  *				allocated at register_netdev() time
  *	@real_num_rx_queues: 	Number of RX queues currently active in device
  *	@xdp_prog:		XDP sockets filter program pointer
- *	@gro_flush_timeout:	timeout for GRO layer in NAPI
- *	@napi_defer_hard_irqs:	If not zero, provides a counter that would
- *				allow to avoid NIC hard IRQ, on busy queues.
  *
  *	@rx_handler:		handler for received packets
  *	@rx_handler_data: 	XXX: need comments on this one
@@ -2009,6 +2036,16 @@ enum netdev_reg_state {
  *	@dpll_pin: Pointer to the SyncE source pin of a DPLL subsystem,
  *		   where the clock is recovered.
  *
+ *	@max_pacing_offload_horizon: max EDT offload horizon in nsec.
+ *	@napi_config: An array of napi_config structures containing per-NAPI
+ *		      settings.
+ *	@gro_flush_timeout:	timeout for GRO layer in NAPI
+ *	@napi_defer_hard_irqs:	If not zero, provides a counter that would
+ *				allow to avoid NIC hard IRQ, on busy queues.
+ *
+ *	@neighbours:	List heads pointing to this device's neighbours'
+ *			dev_list, one per address-family.
+ *
  *	FIXME: cleanup struct net_device such that network protocol info
  *	moves out.
  */
@@ -2074,8 +2111,6 @@ struct net_device {
 	int			ifindex;
 	unsigned int		real_num_rx_queues;
 	struct netdev_rx_queue	*_rx;
-	unsigned long		gro_flush_timeout;
-	u32			napi_defer_hard_irqs;
 	unsigned int		gro_max_size;
 	unsigned int		gro_ipv4_max_size;
 	rx_handler_func_t __rcu	*rx_handler;
@@ -2150,7 +2185,6 @@ struct net_device {
 
 #ifdef CONFIG_WIRELESS_EXT
 	const struct iw_handler_def *wireless_handlers;
-	struct iw_public_data	*wireless_data;
 #endif
 	const struct ethtool_ops *ethtool_ops;
 #ifdef CONFIG_NET_L3_MASTER_DEV
@@ -2209,6 +2243,9 @@ struct net_device {
 
 	/* Protocol-specific pointers */
 	struct in_device __rcu	*ip_ptr;
+	/** @fib_nh_head: nexthops associated with this netdev */
+	struct hlist_head	fib_nh_head;
+
 #if IS_ENABLED(CONFIG_VLAN_8021Q)
 	struct vlan_info __rcu	*vlan_info;
 #endif
@@ -2398,6 +2435,27 @@ struct net_device {
 
 	/** @irq_moder: dim parameters used if IS_ENABLED(CONFIG_DIMLIB). */
 	struct dim_irq_moder	*irq_moder;
+
+	u64			max_pacing_offload_horizon;
+	struct napi_config	*napi_config;
+	unsigned long		gro_flush_timeout;
+	u32			napi_defer_hard_irqs;
+
+	/**
+	 * @lock: protects @net_shaper_hierarchy, feel free to use for other
+	 * netdev-scope protection. Ordering: take after rtnl_lock.
+	 */
+	struct mutex		lock;
+
+#if IS_ENABLED(CONFIG_NET_SHAPER)
+	/**
+	 * @net_shaper_hierarchy: data tracking the current shaper status
+	 *  see include/net/net_shapers.h
+	 */
+	struct net_shaper_hierarchy *net_shaper_hierarchy;
+#endif
+
+	struct hlist_head neighbours[NEIGH_NR_TABLES];
 
 	u8			priv[] ____cacheline_aligned
 				       __counted_by(priv_len);
@@ -2646,6 +2704,22 @@ netif_napi_add_tx_weight(struct net_device *dev,
 {
 	set_bit(NAPI_STATE_NO_BUSY_POLL, &napi->state);
 	netif_napi_add_weight(dev, napi, poll, weight);
+}
+
+/**
+ * netif_napi_add_config - initialize a NAPI context with persistent config
+ * @dev: network device
+ * @napi: NAPI context
+ * @poll: polling function
+ * @index: the NAPI index
+ */
+static inline void
+netif_napi_add_config(struct net_device *dev, struct napi_struct *napi,
+		      int (*poll)(struct napi_struct *, int), int index)
+{
+	napi->index = index;
+	napi->config = &dev->napi_config[index];
+	netif_napi_add_weight(dev, napi, poll, NAPI_POLL_WEIGHT);
 }
 
 /**
@@ -3470,7 +3544,7 @@ static inline void netdev_tx_sent_queue(struct netdev_queue *dev_queue,
 	 * because in netdev_tx_completed_queue we update the dql_completed
 	 * before checking the XOFF flag.
 	 */
-	smp_mb();
+	smp_mb__after_atomic();
 
 	/* check again in case another CPU has just made room avail */
 	if (unlikely(dql_avail(&dev_queue->dql) >= 0))

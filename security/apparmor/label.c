@@ -899,23 +899,6 @@ struct aa_label *aa_vec_find_or_create_label(struct aa_profile **vec, int len,
 	return vec_create_and_insert_label(vec, len, gfp);
 }
 
-/**
- * aa_label_find - find label @label in label set
- * @label: label to find (NOT NULL)
- *
- * Requires: caller to hold a valid ref on l
- *
- * Returns: refcounted @label if @label is in tree
- *          refcounted label that is equiv to @label in tree
- *     else NULL if @label or equiv is not in tree
- */
-struct aa_label *aa_label_find(struct aa_label *label)
-{
-	AA_BUG(!label);
-
-	return vec_find(label->vec, label->size);
-}
-
 
 /**
  * aa_label_insert - insert label @label into @ls or return existing label
@@ -1809,22 +1792,6 @@ void aa_label_xprintk(struct aa_ns *ns, struct aa_label *label, int flags,
 		       label_modename(ns, label, flags));
 	else
 		pr_info("%s", label->hname);
-}
-
-void aa_label_audit(struct audit_buffer *ab, struct aa_label *label, gfp_t gfp)
-{
-	struct aa_ns *ns = aa_get_current_ns();
-
-	aa_label_xaudit(ab, ns, label, FLAG_VIEW_SUBNS, gfp);
-	aa_put_ns(ns);
-}
-
-void aa_label_seq_print(struct seq_file *f, struct aa_label *label, gfp_t gfp)
-{
-	struct aa_ns *ns = aa_get_current_ns();
-
-	aa_label_seq_xprint(f, ns, label, FLAG_VIEW_SUBNS, gfp);
-	aa_put_ns(ns);
 }
 
 void aa_label_printk(struct aa_label *label, gfp_t gfp)

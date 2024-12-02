@@ -2006,8 +2006,6 @@ static void hpre_curve25519_exit_tfm(struct crypto_kpp *tfm)
 }
 
 static struct akcipher_alg rsa = {
-	.sign = hpre_rsa_dec,
-	.verify = hpre_rsa_enc,
 	.encrypt = hpre_rsa_enc,
 	.decrypt = hpre_rsa_dec,
 	.set_pub_key = hpre_rsa_setpubkey,

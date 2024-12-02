@@ -42,6 +42,7 @@ static char *input_file;
 static char *output_file;
 static uint32_t speed = 500000;
 static uint16_t delay;
+static uint16_t word_delay;
 static int verbose;
 static int transfer_size;
 static int iterations;
@@ -124,6 +125,7 @@ static void transfer(int fd, uint8_t const *tx, uint8_t const *rx, size_t len)
 		.rx_buf = (unsigned long)rx,
 		.len = len,
 		.delay_usecs = delay,
+		.word_delay_usecs = word_delay,
 		.speed_hz = speed,
 		.bits_per_word = bits,
 	};
@@ -172,11 +174,12 @@ static void transfer(int fd, uint8_t const *tx, uint8_t const *rx, size_t len)
 
 static void print_usage(const char *prog)
 {
-	printf("Usage: %s [-2348CDFHILMNORSZbdilopsv]\n", prog);
+	printf("Usage: %s [-2348CDFHILMNORSZbdilopsvw]\n", prog);
 	puts("general device settings:\n"
 		 "  -D --device         device to use (default /dev/spidev1.1)\n"
 		 "  -s --speed          max speed (Hz)\n"
 		 "  -d --delay          delay (usec)\n"
+		 "  -w --word-delay     word delay (usec)\n"
 		 "  -l --loop           loopback\n"
 		 "spi mode:\n"
 		 "  -H --cpha           clock phase\n"
@@ -213,6 +216,7 @@ static void parse_opts(int argc, char *argv[])
 			{ "device",        1, 0, 'D' },
 			{ "speed",         1, 0, 's' },
 			{ "delay",         1, 0, 'd' },
+			{ "word-delay",    1, 0, 'w' },
 			{ "loop",          0, 0, 'l' },
 			{ "cpha",          0, 0, 'H' },
 			{ "cpol",          0, 0, 'O' },
@@ -237,7 +241,7 @@ static void parse_opts(int argc, char *argv[])
 		};
 		int c;
 
-		c = getopt_long(argc, argv, "D:s:d:b:i:o:lHOLC3ZFMNR248p:vS:I:",
+		c = getopt_long(argc, argv, "D:s:d:w:b:i:o:lHOLC3ZFMNR248p:vS:I:",
 				lopts, NULL);
 
 		if (c == -1)
@@ -252,6 +256,9 @@ static void parse_opts(int argc, char *argv[])
 			break;
 		case 'd':
 			delay = atoi(optarg);
+			break;
+		case 'w':
+			word_delay = atoi(optarg);
 			break;
 		case 'b':
 			bits = atoi(optarg);

@@ -248,8 +248,9 @@ xhci_dbc_queue_trb(struct xhci_ring *ring, u32 field1,
 	trb->generic.field[2]	= cpu_to_le32(field3);
 	trb->generic.field[3]	= cpu_to_le32(field4);
 
-	trace_xhci_dbc_gadget_ep_queue(ring, &trb->generic);
-
+	trace_xhci_dbc_gadget_ep_queue(ring, &trb->generic,
+				       xhci_trb_virt_to_dma(ring->enq_seg,
+							    ring->enqueue));
 	ring->num_trbs_free--;
 	next = ++(ring->enqueue);
 	if (TRB_TYPE_LINK_LE32(next->link.control)) {
@@ -471,7 +472,7 @@ xhci_dbc_ring_alloc(struct device *dev, enum xhci_ring_type type, gfp_t flags)
 		trb->link.control = cpu_to_le32(LINK_TOGGLE | TRB_TYPE(TRB_LINK));
 	}
 	INIT_LIST_HEAD(&ring->td_list);
-	xhci_initialize_ring_info(ring, 1);
+	xhci_initialize_ring_info(ring);
 	return ring;
 dma_fail:
 	kfree(seg);
@@ -747,7 +748,7 @@ static void dbc_handle_xfer_event(struct xhci_dbc *dbc, union xhci_trb *event)
 		return;
 	}
 
-	trace_xhci_dbc_handle_transfer(ring, &req->trb->generic);
+	trace_xhci_dbc_handle_transfer(ring, &req->trb->generic, req->trb_dma);
 
 	switch (comp_code) {
 	case COMP_SUCCESS:
@@ -898,7 +899,9 @@ static enum evtreturn xhci_dbc_do_handle_events(struct xhci_dbc *dbc)
 		 */
 		rmb();
 
-		trace_xhci_dbc_handle_event(dbc->ring_evt, &evt->generic);
+		trace_xhci_dbc_handle_event(dbc->ring_evt, &evt->generic,
+					    xhci_trb_virt_to_dma(dbc->ring_evt->deq_seg,
+								 dbc->ring_evt->dequeue));
 
 		switch (le32_to_cpu(evt->event_cmd.flags) & TRB_TYPE_BITMASK) {
 		case TRB_TYPE(TRB_PORT_STATUS):

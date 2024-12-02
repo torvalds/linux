@@ -96,10 +96,16 @@ intel_rpm_wakelock_count(int wakeref_count)
 	return wakeref_count >> INTEL_RPM_WAKELOCK_SHIFT;
 }
 
+static inline bool
+intel_runtime_pm_suspended(struct intel_runtime_pm *rpm)
+{
+	return pm_runtime_suspended(rpm->kdev);
+}
+
 static inline void
 assert_rpm_device_not_suspended(struct intel_runtime_pm *rpm)
 {
-	WARN_ONCE(pm_runtime_suspended(rpm->kdev),
+	WARN_ONCE(intel_runtime_pm_suspended(rpm),
 		  "Device suspended during HW access\n");
 }
 

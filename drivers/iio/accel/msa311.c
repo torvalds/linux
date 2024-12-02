@@ -34,6 +34,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/regmap.h>
 #include <linux/string_choices.h>
+#include <linux/types.h>
 #include <linux/units.h>
 
 #include <linux/iio/buffer.h>
@@ -893,7 +894,7 @@ static irqreturn_t msa311_buffer_thread(int irq, void *p)
 	__le16 axis;
 	struct {
 		__le16 channels[MSA311_SI_Z + 1];
-		s64 ts __aligned(8);
+		aligned_s64 ts;
 	} buf;
 
 	memset(&buf, 0, sizeof(buf));

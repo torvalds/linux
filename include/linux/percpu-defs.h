@@ -220,15 +220,20 @@ do {									\
 	(void)__vpp_verify;						\
 } while (0)
 
+#define PERCPU_PTR(__p)							\
+({									\
+	unsigned long __pcpu_ptr = (__force unsigned long)(__p);	\
+	(typeof(*(__p)) __force __kernel *)(__pcpu_ptr);		\
+})
+
 #ifdef CONFIG_SMP
 
 /*
- * Add an offset to a pointer but keep the pointer as-is.  Use RELOC_HIDE()
- * to prevent the compiler from making incorrect assumptions about the
- * pointer value.  The weird cast keeps both GCC and sparse happy.
+ * Add an offset to a pointer.  Use RELOC_HIDE() to prevent the compiler
+ * from making incorrect assumptions about the pointer value.
  */
 #define SHIFT_PERCPU_PTR(__p, __offset)					\
-	RELOC_HIDE((typeof(*(__p)) __kernel __force *)(__p), (__offset))
+	RELOC_HIDE(PERCPU_PTR(__p), (__offset))
 
 #define per_cpu_ptr(ptr, cpu)						\
 ({									\
@@ -254,13 +259,13 @@ do {									\
 
 #else	/* CONFIG_SMP */
 
-#define VERIFY_PERCPU_PTR(__p)						\
+#define per_cpu_ptr(ptr, cpu)						\
 ({									\
-	__verify_pcpu_ptr(__p);						\
-	(typeof(*(__p)) __kernel __force *)(__p);			\
+	(void)(cpu);							\
+	__verify_pcpu_ptr(ptr);						\
+	PERCPU_PTR(ptr);						\
 })
 
-#define per_cpu_ptr(ptr, cpu)	({ (void)(cpu); VERIFY_PERCPU_PTR(ptr); })
 #define raw_cpu_ptr(ptr)	per_cpu_ptr(ptr, 0)
 #define this_cpu_ptr(ptr)	raw_cpu_ptr(ptr)
 

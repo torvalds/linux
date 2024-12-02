@@ -420,7 +420,9 @@ static bool busy_loop_ep_timeout(unsigned long start_time,
 
 static bool ep_busy_loop_on(struct eventpoll *ep)
 {
-	return !!READ_ONCE(ep->busy_poll_usecs) || net_busy_loop_on();
+	return !!READ_ONCE(ep->busy_poll_usecs) ||
+	       READ_ONCE(ep->prefer_busy_poll) ||
+	       net_busy_loop_on();
 }
 
 static bool ep_busy_loop_end(void *p, unsigned long start_time)
@@ -455,6 +457,8 @@ static bool ep_busy_loop(struct eventpoll *ep, int nonblock)
 		 * it back in when we have moved a socket with a valid NAPI
 		 * ID onto the ready list.
 		 */
+		if (prefer_busy_poll)
+			napi_resume_irqs(napi_id);
 		ep->napi_id = 0;
 		return false;
 	}
@@ -538,6 +542,22 @@ static long ep_eventpoll_bp_ioctl(struct file *file, unsigned int cmd,
 	}
 }
 
+static void ep_suspend_napi_irqs(struct eventpoll *ep)
+{
+	unsigned int napi_id = READ_ONCE(ep->napi_id);
+
+	if (napi_id >= MIN_NAPI_ID && READ_ONCE(ep->prefer_busy_poll))
+		napi_suspend_irqs(napi_id);
+}
+
+static void ep_resume_napi_irqs(struct eventpoll *ep)
+{
+	unsigned int napi_id = READ_ONCE(ep->napi_id);
+
+	if (napi_id >= MIN_NAPI_ID && READ_ONCE(ep->prefer_busy_poll))
+		napi_resume_irqs(napi_id);
+}
+
 #else
 
 static inline bool ep_busy_loop(struct eventpoll *ep, int nonblock)
@@ -553,6 +573,14 @@ static long ep_eventpoll_bp_ioctl(struct file *file, unsigned int cmd,
 				  unsigned long arg)
 {
 	return -EOPNOTSUPP;
+}
+
+static void ep_suspend_napi_irqs(struct eventpoll *ep)
+{
+}
+
+static void ep_resume_napi_irqs(struct eventpoll *ep)
+{
 }
 
 #endif /* CONFIG_NET_RX_BUSY_POLL */
@@ -786,6 +814,7 @@ static bool ep_refcount_dec_and_test(struct eventpoll *ep)
 
 static void ep_free(struct eventpoll *ep)
 {
+	ep_resume_napi_irqs(ep);
 	mutex_destroy(&ep->mtx);
 	free_uid(ep->user);
 	wakeup_source_unregister(ep->ws);
@@ -823,7 +852,8 @@ static bool __ep_remove(struct eventpoll *ep, struct epitem *epi, bool force)
 	to_free = NULL;
 	head = file->f_ep;
 	if (head->first == &epi->fllink && !epi->fllink.next) {
-		file->f_ep = NULL;
+		/* See eventpoll_release() for details. */
+		WRITE_ONCE(file->f_ep, NULL);
 		if (!is_file_epoll(file)) {
 			struct epitems_head *v;
 			v = container_of(head, struct epitems_head, epitems);
@@ -1002,7 +1032,7 @@ static struct file *epi_fget(const struct epitem *epi)
 	struct file *file;
 
 	file = epi->ffd.file;
-	if (!atomic_long_inc_not_zero(&file->f_count))
+	if (!file_ref_get(&file->f_ref))
 		file = NULL;
 	return file;
 }
@@ -1372,7 +1402,10 @@ static int ep_poll_callback(wait_queue_entry_t *wait, unsigned mode, int sync, v
 				break;
 			}
 		}
-		wake_up(&ep->wq);
+		if (sync)
+			wake_up_sync(&ep->wq);
+		else
+			wake_up(&ep->wq);
 	}
 	if (waitqueue_active(&ep->poll_wait))
 		pwake++;
@@ -1603,7 +1636,8 @@ allocate:
 			spin_unlock(&file->f_lock);
 			goto allocate;
 		}
-		file->f_ep = head;
+		/* See eventpoll_release() for details. */
+		WRITE_ONCE(file->f_ep, head);
 		to_free = NULL;
 	}
 	hlist_add_head_rcu(&epi->fllink, file->f_ep);
@@ -2003,8 +2037,11 @@ static int ep_poll(struct eventpoll *ep, struct epoll_event __user *events,
 			 * trying again in search of more luck.
 			 */
 			res = ep_send_events(ep, events, maxevents);
-			if (res)
+			if (res) {
+				if (res > 0)
+					ep_suspend_napi_irqs(ep);
 				return res;
+			}
 		}
 
 		if (timed_out)
@@ -2254,25 +2291,22 @@ int do_epoll_ctl(int epfd, int op, int fd, struct epoll_event *epds,
 {
 	int error;
 	int full_check = 0;
-	struct fd f, tf;
 	struct eventpoll *ep;
 	struct epitem *epi;
 	struct eventpoll *tep = NULL;
 
-	error = -EBADF;
-	f = fdget(epfd);
-	if (!fd_file(f))
-		goto error_return;
+	CLASS(fd, f)(epfd);
+	if (fd_empty(f))
+		return -EBADF;
 
 	/* Get the "struct file *" for the target file */
-	tf = fdget(fd);
-	if (!fd_file(tf))
-		goto error_fput;
+	CLASS(fd, tf)(fd);
+	if (fd_empty(tf))
+		return -EBADF;
 
 	/* The target file descriptor must support poll */
-	error = -EPERM;
 	if (!file_can_poll(fd_file(tf)))
-		goto error_tgt_fput;
+		return -EPERM;
 
 	/* Check if EPOLLWAKEUP is allowed */
 	if (ep_op_has_event(op))
@@ -2391,12 +2425,6 @@ error_tgt_fput:
 		loop_check_gen++;
 		mutex_unlock(&epnested_mutex);
 	}
-
-	fdput(tf);
-error_fput:
-	fdput(f);
-error_return:
-
 	return error;
 }
 
@@ -2424,8 +2452,6 @@ SYSCALL_DEFINE4(epoll_ctl, int, epfd, int, op, int, fd,
 static int do_epoll_wait(int epfd, struct epoll_event __user *events,
 			 int maxevents, struct timespec64 *to)
 {
-	int error;
-	struct fd f;
 	struct eventpoll *ep;
 
 	/* The maximum number of event must be greater than zero */
@@ -2437,17 +2463,16 @@ static int do_epoll_wait(int epfd, struct epoll_event __user *events,
 		return -EFAULT;
 
 	/* Get the "struct file *" for the eventpoll file */
-	f = fdget(epfd);
-	if (!fd_file(f))
+	CLASS(fd, f)(epfd);
+	if (fd_empty(f))
 		return -EBADF;
 
 	/*
 	 * We have to check that the file structure underneath the fd
 	 * the user passed to us _is_ an eventpoll file.
 	 */
-	error = -EINVAL;
 	if (!is_file_epoll(fd_file(f)))
-		goto error_fput;
+		return -EINVAL;
 
 	/*
 	 * At this point it is safe to assume that the "private_data" contains
@@ -2456,11 +2481,7 @@ static int do_epoll_wait(int epfd, struct epoll_event __user *events,
 	ep = fd_file(f)->private_data;
 
 	/* Time to fish for events ... */
-	error = ep_poll(ep, events, maxevents, to);
-
-error_fput:
-	fdput(f);
-	return error;
+	return ep_poll(ep, events, maxevents, to);
 }
 
 SYSCALL_DEFINE4(epoll_wait, int, epfd, struct epoll_event __user *, events,

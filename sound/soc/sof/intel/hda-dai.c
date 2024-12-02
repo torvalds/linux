@@ -646,6 +646,10 @@ static int hda_dai_suspend(struct hdac_bus *bus)
 			sdai = swidget->private;
 			ops = sdai->platform_private;
 
+			if (rtd->dpcm[hext_stream->link_substream->stream].state !=
+			    SND_SOC_DPCM_STATE_PAUSED)
+				continue;
+
 			/* for consistency with TRIGGER_SUSPEND  */
 			if (ops->post_trigger) {
 				ret = ops->post_trigger(sdev, cpu_dai,

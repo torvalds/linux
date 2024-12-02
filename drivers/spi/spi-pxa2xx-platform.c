@@ -207,7 +207,7 @@ static struct platform_driver driver = {
 		.of_match_table = pxa2xx_spi_of_match,
 	},
 	.probe = pxa2xx_spi_platform_probe,
-	.remove_new = pxa2xx_spi_platform_remove,
+	.remove = pxa2xx_spi_platform_remove,
 };
 
 static int __init pxa2xx_spi_init(void)

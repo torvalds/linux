@@ -58,9 +58,6 @@ bool hclge_ptp_set_tx_info(struct hnae3_handle *handle, struct sk_buff *skb)
 	struct hclge_dev *hdev = vport->back;
 	struct hclge_ptp *ptp = hdev->ptp;
 
-	if (!ptp)
-		return false;
-
 	if (!test_bit(HCLGE_PTP_FLAG_TX_EN, &ptp->flags) ||
 	    test_and_set_bit(HCLGE_STATE_PTP_TX_HANDLING, &hdev->state)) {
 		ptp->tx_skipped++;

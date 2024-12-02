@@ -171,6 +171,7 @@ struct led_classdev {
 	int			 new_blink_brightness;
 	void			(*flash_resume)(struct led_classdev *led_cdev);
 
+	struct workqueue_struct *wq;			/* LED workqueue */
 	struct work_struct	set_brightness_work;
 	int			delayed_set_value;
 	unsigned long		delayed_delay_on;
@@ -238,7 +239,7 @@ struct led_classdev {
 	struct kernfs_node	*brightness_hw_changed_kn;
 #endif
 
-	/* Ensures consistent access to the LED Flash Class device */
+	/* Ensures consistent access to the LED class device */
 	struct mutex		led_access;
 };
 

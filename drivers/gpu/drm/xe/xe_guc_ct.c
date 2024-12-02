@@ -213,7 +213,7 @@ int xe_guc_ct_init(struct xe_guc_ct *ct)
 
 	xe_gt_assert(gt, !(guc_ct_size() % PAGE_SIZE));
 
-	ct->g2h_wq = alloc_ordered_workqueue("xe-g2h-wq", 0);
+	ct->g2h_wq = alloc_ordered_workqueue("xe-g2h-wq", WQ_MEM_RECLAIM);
 	if (!ct->g2h_wq)
 		return -ENOMEM;
 
@@ -1018,17 +1018,8 @@ retry_same_fence:
 
 	ret = wait_event_timeout(ct->g2h_fence_wq, g2h_fence.done, HZ);
 
-	/*
-	 * Occasionally it is seen that the G2H worker starts running after a delay of more than
-	 * a second even after being queued and activated by the Linux workqueue subsystem. This
-	 * leads to G2H timeout error. The root cause of issue lies with scheduling latency of
-	 * Lunarlake Hybrid CPU. Issue dissappears if we disable Lunarlake atom cores from BIOS
-	 * and this is beyond xe kmd.
-	 *
-	 * TODO: Drop this change once workqueue scheduling delay issue is fixed on LNL Hybrid CPU.
-	 */
 	if (!ret) {
-		flush_work(&ct->g2h_worker);
+		LNL_FLUSH_WORK(&ct->g2h_worker);
 		if (g2h_fence.done) {
 			xe_gt_warn(gt, "G2H fence %u, action %04x, done\n",
 				   g2h_fence.seqno, action[0]);
@@ -1607,7 +1598,8 @@ static void g2h_worker_func(struct work_struct *w)
 	receive_g2h(ct);
 }
 
-struct xe_guc_ct_snapshot *xe_guc_ct_snapshot_alloc(struct xe_guc_ct *ct, bool atomic)
+static struct xe_guc_ct_snapshot *guc_ct_snapshot_alloc(struct xe_guc_ct *ct, bool atomic,
+							bool want_ctb)
 {
 	struct xe_guc_ct_snapshot *snapshot;
 
@@ -1615,7 +1607,7 @@ struct xe_guc_ct_snapshot *xe_guc_ct_snapshot_alloc(struct xe_guc_ct *ct, bool a
 	if (!snapshot)
 		return NULL;
 
-	if (ct->bo) {
+	if (ct->bo && want_ctb) {
 		snapshot->ctb_size = ct->bo->size;
 		snapshot->ctb = kmalloc(snapshot->ctb_size, atomic ? GFP_ATOMIC : GFP_KERNEL);
 	}
@@ -1645,25 +1637,13 @@ static void guc_ctb_snapshot_print(struct guc_ctb_snapshot *snapshot,
 	drm_printf(p, "\tstatus (memory): 0x%x\n", snapshot->desc.status);
 }
 
-/**
- * xe_guc_ct_snapshot_capture - Take a quick snapshot of the CT state.
- * @ct: GuC CT object.
- * @atomic: Boolean to indicate if this is called from atomic context like
- * reset or CTB handler or from some regular path like debugfs.
- *
- * This can be printed out in a later stage like during dev_coredump
- * analysis.
- *
- * Returns: a GuC CT snapshot object that must be freed by the caller
- * by using `xe_guc_ct_snapshot_free`.
- */
-struct xe_guc_ct_snapshot *xe_guc_ct_snapshot_capture(struct xe_guc_ct *ct,
-						      bool atomic)
+static struct xe_guc_ct_snapshot *guc_ct_snapshot_capture(struct xe_guc_ct *ct, bool atomic,
+							  bool want_ctb)
 {
 	struct xe_device *xe = ct_to_xe(ct);
 	struct xe_guc_ct_snapshot *snapshot;
 
-	snapshot = xe_guc_ct_snapshot_alloc(ct, atomic);
+	snapshot = guc_ct_snapshot_alloc(ct, atomic, want_ctb);
 	if (!snapshot) {
 		xe_gt_err(ct_to_gt(ct), "Skipping CTB snapshot entirely.\n");
 		return NULL;
@@ -1680,6 +1660,21 @@ struct xe_guc_ct_snapshot *xe_guc_ct_snapshot_capture(struct xe_guc_ct *ct,
 		xe_map_memcpy_from(xe, snapshot->ctb, &ct->bo->vmap, 0, snapshot->ctb_size);
 
 	return snapshot;
+}
+
+/**
+ * xe_guc_ct_snapshot_capture - Take a quick snapshot of the CT state.
+ * @ct: GuC CT object.
+ *
+ * This can be printed out in a later stage like during dev_coredump
+ * analysis. This is safe to be called during atomic context.
+ *
+ * Returns: a GuC CT snapshot object that must be freed by the caller
+ * by using `xe_guc_ct_snapshot_free`.
+ */
+struct xe_guc_ct_snapshot *xe_guc_ct_snapshot_capture(struct xe_guc_ct *ct)
+{
+	return guc_ct_snapshot_capture(ct, true, true);
 }
 
 /**
@@ -1704,12 +1699,8 @@ void xe_guc_ct_snapshot_print(struct xe_guc_ct_snapshot *snapshot,
 		drm_printf(p, "\tg2h outstanding: %d\n",
 			   snapshot->g2h_outstanding);
 
-		if (snapshot->ctb) {
+		if (snapshot->ctb)
 			xe_print_blob_ascii85(p, "CTB data", snapshot->ctb, 0, snapshot->ctb_size);
-		} else {
-			drm_printf(p, "CTB snapshot missing!\n");
-			return;
-		}
 	} else {
 		drm_puts(p, "CT disabled\n");
 	}
@@ -1735,14 +1726,16 @@ void xe_guc_ct_snapshot_free(struct xe_guc_ct_snapshot *snapshot)
  * xe_guc_ct_print - GuC CT Print.
  * @ct: GuC CT.
  * @p: drm_printer where it will be printed out.
+ * @want_ctb: Should the full CTB content be dumped (vs just the headers)
  *
- * This function quickly capture a snapshot and immediately print it out.
+ * This function will quickly capture a snapshot of the CT state
+ * and immediately print it out.
  */
-void xe_guc_ct_print(struct xe_guc_ct *ct, struct drm_printer *p)
+void xe_guc_ct_print(struct xe_guc_ct *ct, struct drm_printer *p, bool want_ctb)
 {
 	struct xe_guc_ct_snapshot *snapshot;
 
-	snapshot = xe_guc_ct_snapshot_capture(ct, false);
+	snapshot = guc_ct_snapshot_capture(ct, false, want_ctb);
 	xe_guc_ct_snapshot_print(snapshot, p);
 	xe_guc_ct_snapshot_free(snapshot);
 }
@@ -1776,7 +1769,7 @@ static void ct_dead_capture(struct xe_guc_ct *ct, struct guc_ctb *ctb, u32 reaso
 		return;
 
 	snapshot_log = xe_guc_log_snapshot_capture(&guc->log, true);
-	snapshot_ct = xe_guc_ct_snapshot_capture((ct), true);
+	snapshot_ct = xe_guc_ct_snapshot_capture((ct));
 
 	spin_lock_irqsave(&ct->dead.lock, flags);
 

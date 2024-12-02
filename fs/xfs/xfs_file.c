@@ -852,6 +852,20 @@ xfs_file_write_iter(
 	if (IS_DAX(inode))
 		return xfs_file_dax_write(iocb, from);
 
+	if (iocb->ki_flags & IOCB_ATOMIC) {
+		/*
+		 * Currently only atomic writing of a single FS block is
+		 * supported. It would be possible to atomic write smaller than
+		 * a FS block, but there is no requirement to support this.
+		 * Note that iomap also does not support this yet.
+		 */
+		if (ocount != ip->i_mount->m_sb.sb_blocksize)
+			return -EINVAL;
+		ret = generic_atomic_write_valid(iocb, from);
+		if (ret)
+			return ret;
+	}
+
 	if (iocb->ki_flags & IOCB_DIRECT) {
 		/*
 		 * Allow a directio write to fall back to a buffered
@@ -1239,6 +1253,8 @@ xfs_file_open(
 	if (xfs_is_shutdown(XFS_M(inode->i_sb)))
 		return -EIO;
 	file->f_mode |= FMODE_NOWAIT | FMODE_CAN_ODIRECT;
+	if (xfs_inode_can_atomicwrite(XFS_I(inode)))
+		file->f_mode |= FMODE_CAN_ATOMIC_WRITE;
 	return generic_file_open(inode, file);
 }
 
@@ -1425,6 +1441,8 @@ xfs_dax_read_fault(
 	struct xfs_inode	*ip = XFS_I(file_inode(vmf->vma->vm_file));
 	vm_fault_t		ret;
 
+	trace_xfs_read_fault(ip, order);
+
 	xfs_ilock(ip, XFS_MMAPLOCK_SHARED);
 	ret = xfs_dax_fault_locked(vmf, order, false);
 	xfs_iunlock(ip, XFS_MMAPLOCK_SHARED);
@@ -1432,6 +1450,16 @@ xfs_dax_read_fault(
 	return ret;
 }
 
+/*
+ * Locking for serialisation of IO during page faults. This results in a lock
+ * ordering of:
+ *
+ * mmap_lock (MM)
+ *   sb_start_pagefault(vfs, freeze)
+ *     invalidate_lock (vfs/XFS_MMAPLOCK - truncate serialisation)
+ *       page_lock (MM)
+ *         i_lock (XFS - extent map serialisation)
+ */
 static vm_fault_t
 xfs_write_fault(
 	struct vm_fault		*vmf,
@@ -1441,6 +1469,8 @@ xfs_write_fault(
 	struct xfs_inode	*ip = XFS_I(inode);
 	unsigned int		lock_mode = XFS_MMAPLOCK_SHARED;
 	vm_fault_t		ret;
+
+	trace_xfs_write_fault(ip, order);
 
 	sb_start_pagefault(inode->i_sb);
 	file_update_time(vmf->vma->vm_file);
@@ -1460,38 +1490,11 @@ xfs_write_fault(
 	if (IS_DAX(inode))
 		ret = xfs_dax_fault_locked(vmf, order, true);
 	else
-		ret = iomap_page_mkwrite(vmf, &xfs_page_mkwrite_iomap_ops);
+		ret = iomap_page_mkwrite(vmf, &xfs_buffered_write_iomap_ops);
 	xfs_iunlock(ip, lock_mode);
 
 	sb_end_pagefault(inode->i_sb);
 	return ret;
-}
-
-/*
- * Locking for serialisation of IO during page faults. This results in a lock
- * ordering of:
- *
- * mmap_lock (MM)
- *   sb_start_pagefault(vfs, freeze)
- *     invalidate_lock (vfs/XFS_MMAPLOCK - truncate serialisation)
- *       page_lock (MM)
- *         i_lock (XFS - extent map serialisation)
- */
-static vm_fault_t
-__xfs_filemap_fault(
-	struct vm_fault		*vmf,
-	unsigned int		order,
-	bool			write_fault)
-{
-	struct inode		*inode = file_inode(vmf->vma->vm_file);
-
-	trace_xfs_filemap_fault(XFS_I(inode), order, write_fault);
-
-	if (write_fault)
-		return xfs_write_fault(vmf, order);
-	if (IS_DAX(inode))
-		return xfs_dax_read_fault(vmf, order);
-	return filemap_fault(vmf);
 }
 
 static inline bool
@@ -1506,10 +1509,17 @@ static vm_fault_t
 xfs_filemap_fault(
 	struct vm_fault		*vmf)
 {
+	struct inode		*inode = file_inode(vmf->vma->vm_file);
+
 	/* DAX can shortcut the normal fault path on write faults! */
-	return __xfs_filemap_fault(vmf, 0,
-			IS_DAX(file_inode(vmf->vma->vm_file)) &&
-			xfs_is_write_fault(vmf));
+	if (IS_DAX(inode)) {
+		if (xfs_is_write_fault(vmf))
+			return xfs_write_fault(vmf, 0);
+		return xfs_dax_read_fault(vmf, 0);
+	}
+
+	trace_xfs_read_fault(XFS_I(inode), 0);
+	return filemap_fault(vmf);
 }
 
 static vm_fault_t
@@ -1521,15 +1531,16 @@ xfs_filemap_huge_fault(
 		return VM_FAULT_FALLBACK;
 
 	/* DAX can shortcut the normal fault path on write faults! */
-	return __xfs_filemap_fault(vmf, order,
-			xfs_is_write_fault(vmf));
+	if (xfs_is_write_fault(vmf))
+		return xfs_write_fault(vmf, order);
+	return xfs_dax_read_fault(vmf, order);
 }
 
 static vm_fault_t
 xfs_filemap_page_mkwrite(
 	struct vm_fault		*vmf)
 {
-	return __xfs_filemap_fault(vmf, 0, true);
+	return xfs_write_fault(vmf, 0);
 }
 
 /*
@@ -1541,8 +1552,7 @@ static vm_fault_t
 xfs_filemap_pfn_mkwrite(
 	struct vm_fault		*vmf)
 {
-
-	return __xfs_filemap_fault(vmf, 0, true);
+	return xfs_write_fault(vmf, 0);
 }
 
 static const struct vm_operations_struct xfs_file_vm_ops = {

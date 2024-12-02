@@ -161,7 +161,9 @@ bool edp_set_backlight_level_nits(struct dc_link *link,
 			link->connector_signal != SIGNAL_TYPE_DISPLAY_PORT))
 		return false;
 
-	if (link->backlight_control_type == BACKLIGHT_CONTROL_VESA_AUX) {
+	// use internal backlight control if dmub capabilities are not present
+	if (link->backlight_control_type == BACKLIGHT_CONTROL_VESA_AUX &&
+		!link->dc->caps.dmub_caps.aux_backlight_support) {
 		uint8_t backlight_enable = 0;
 		struct target_luminance_value *target_luminance = NULL;
 
@@ -185,7 +187,7 @@ bool edp_set_backlight_level_nits(struct dc_link *link,
 			(uint8_t *)(target_luminance),
 			sizeof(struct target_luminance_value)) != DC_OK)
 			return false;
-	} else {
+	} else if (link->backlight_control_type == BACKLIGHT_CONTROL_AMD_AUX) {
 		struct dpcd_source_backlight_set dpcd_backlight_set;
 		*(uint32_t *)&dpcd_backlight_set.backlight_level_millinits = backlight_millinits;
 		*(uint16_t *)&dpcd_backlight_set.backlight_transition_time_ms = (uint16_t)transition_time_in_ms;
@@ -517,17 +519,17 @@ static struct pipe_ctx *get_pipe_from_link(const struct dc_link *link)
 }
 
 bool edp_set_backlight_level(const struct dc_link *link,
-		uint32_t backlight_pwm_u16_16,
-		uint32_t frame_ramp)
+		struct set_backlight_level_params *backlight_level_params)
 {
 	struct dc  *dc = link->ctx->dc;
+	uint32_t backlight_pwm_u16_16 = backlight_level_params->backlight_pwm_u16_16;
+	uint32_t frame_ramp = backlight_level_params->frame_ramp;
 	DC_LOGGER_INIT(link->ctx->logger);
 	DC_LOG_BACKLIGHT("New Backlight level: %d (0x%X)\n",
 			backlight_pwm_u16_16, backlight_pwm_u16_16);
 
 	if (dc_is_embedded_signal(link->connector_signal)) {
 		struct pipe_ctx *pipe_ctx = get_pipe_from_link(link);
-		struct set_backlight_level_params backlight_level_param = { 0 };
 
 		if (link->panel_cntl)
 			link->panel_cntl->stored_backlight_registers.USER_LEVEL = backlight_pwm_u16_16;
@@ -542,12 +544,11 @@ bool edp_set_backlight_level(const struct dc_link *link,
 			return false;
 		}
 
-		backlight_level_param.backlight_pwm_u16_16 = backlight_pwm_u16_16;
-		backlight_level_param.frame_ramp = frame_ramp;
+		backlight_level_params->frame_ramp = frame_ramp;
 
 		dc->hwss.set_backlight_level(
 				pipe_ctx,
-				&backlight_level_param);
+				backlight_level_params);
 	}
 	return true;
 }

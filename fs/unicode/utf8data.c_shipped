@@ -4096,7 +4096,7 @@ static const unsigned char utf8data[64080] = {
 	0x80,0xcf,0x86,0x85,0x84,0xcf,0x86,0xcf,0x06,0x02,0x00,0x00,0x00,0x00,0x00,0x00
 };
 
-struct utf8data_table utf8_data_table = {
+const struct utf8data_table utf8_data_table = {
 	.utf8agetab = utf8agetab,
 	.utf8agetab_size = ARRAY_SIZE(utf8agetab),
 

@@ -736,14 +736,11 @@ bool block_dirty_folio(struct address_space *mapping, struct folio *folio)
 	 * Lock out page's memcg migration to keep PageDirty
 	 * synchronized with per-memcg dirty page counters.
 	 */
-	folio_memcg_lock(folio);
 	newly_dirty = !folio_test_set_dirty(folio);
 	spin_unlock(&mapping->i_private_lock);
 
 	if (newly_dirty)
 		__folio_mark_dirty(folio, mapping, 1);
-
-	folio_memcg_unlock(folio);
 
 	if (newly_dirty)
 		__mark_inode_dirty(mapping->host, I_DIRTY_PAGES);
@@ -855,8 +852,7 @@ static int fsync_buffers_list(spinlock_t *lock, struct list_head *list)
  * done a sync().  Just drop the buffers from the inode list.
  *
  * NOTE: we take the inode's blockdev's mapping's i_private_lock.  Which
- * assumes that all the buffers are against the blockdev.  Not true
- * for reiserfs.
+ * assumes that all the buffers are against the blockdev.
  */
 void invalidate_inode_buffers(struct inode *inode)
 {
@@ -1194,13 +1190,11 @@ void mark_buffer_dirty(struct buffer_head *bh)
 		struct folio *folio = bh->b_folio;
 		struct address_space *mapping = NULL;
 
-		folio_memcg_lock(folio);
 		if (!folio_test_set_dirty(folio)) {
 			mapping = folio->mapping;
 			if (mapping)
 				__folio_mark_dirty(folio, mapping, 0);
 		}
-		folio_memcg_unlock(folio);
 		if (mapping)
 			__mark_inode_dirty(mapping->host, I_DIRTY_PAGES);
 	}
@@ -1649,6 +1643,7 @@ void block_invalidate_folio(struct folio *folio, size_t offset, size_t length)
 	if (length == folio_size(folio))
 		filemap_release_folio(folio, 0);
 out:
+	folio_clear_mappedtodisk(folio);
 	return;
 }
 EXPORT_SYMBOL(block_invalidate_folio);
@@ -2803,7 +2798,7 @@ static void submit_bh_wbc(blk_opf_t opf, struct buffer_head *bh,
 	bio->bi_iter.bi_sector = bh->b_blocknr * (bh->b_size >> 9);
 	bio->bi_write_hint = write_hint;
 
-	__bio_add_page(bio, bh->b_page, bh->b_size, bh_offset(bh));
+	bio_add_folio_nofail(bio, bh->b_folio, bh->b_size, bh_offset(bh));
 
 	bio->bi_end_io = end_bio_bh_io_sync;
 	bio->bi_private = bh;
@@ -2813,7 +2808,7 @@ static void submit_bh_wbc(blk_opf_t opf, struct buffer_head *bh,
 
 	if (wbc) {
 		wbc_init_bio(wbc, bio);
-		wbc_account_cgroup_owner(wbc, bh->b_page, bh->b_size);
+		wbc_account_cgroup_owner(wbc, bh->b_folio, bh->b_size);
 	}
 
 	submit_bio(bio);

@@ -245,11 +245,6 @@ unsigned int dmz_zone_nr_blocks(struct dmz_metadata *zmd)
 	return zmd->zone_nr_blocks;
 }
 
-unsigned int dmz_zone_nr_blocks_shift(struct dmz_metadata *zmd)
-{
-	return zmd->zone_nr_blocks_shift;
-}
-
 unsigned int dmz_zone_nr_sectors(struct dmz_metadata *zmd)
 {
 	return zmd->zone_nr_sectors;
@@ -3004,49 +2999,4 @@ void dmz_dtr_metadata(struct dmz_metadata *zmd)
 	shrinker_free(zmd->mblk_shrinker);
 	dmz_cleanup_metadata(zmd);
 	kfree(zmd);
-}
-
-/*
- * Check zone information on resume.
- */
-int dmz_resume_metadata(struct dmz_metadata *zmd)
-{
-	struct dm_zone *zone;
-	sector_t wp_block;
-	unsigned int i;
-	int ret;
-
-	/* Check zones */
-	for (i = 0; i < zmd->nr_zones; i++) {
-		zone = dmz_get(zmd, i);
-		if (!zone) {
-			dmz_zmd_err(zmd, "Unable to get zone %u", i);
-			return -EIO;
-		}
-		wp_block = zone->wp_block;
-
-		ret = dmz_update_zone(zmd, zone);
-		if (ret) {
-			dmz_zmd_err(zmd, "Broken zone %u", i);
-			return ret;
-		}
-
-		if (dmz_is_offline(zone)) {
-			dmz_zmd_warn(zmd, "Zone %u is offline", i);
-			continue;
-		}
-
-		/* Check write pointer */
-		if (!dmz_is_seq(zone))
-			zone->wp_block = 0;
-		else if (zone->wp_block != wp_block) {
-			dmz_zmd_err(zmd, "Zone %u: Invalid wp (%llu / %llu)",
-				    i, (u64)zone->wp_block, (u64)wp_block);
-			zone->wp_block = wp_block;
-			dmz_invalidate_blocks(zmd, zone, zone->wp_block,
-					      zmd->zone_nr_blocks - zone->wp_block);
-		}
-	}
-
-	return 0;
 }

@@ -369,7 +369,7 @@ MODULE_DEVICE_TABLE(of, mpfs_id_table);
 
 static struct platform_driver mpfs_musb_driver = {
 	.probe = mpfs_probe,
-	.remove_new = mpfs_remove,
+	.remove = mpfs_remove,
 	.driver = {
 		.name = "mpfs-musb",
 		.of_match_table = of_match_ptr(mpfs_id_table)

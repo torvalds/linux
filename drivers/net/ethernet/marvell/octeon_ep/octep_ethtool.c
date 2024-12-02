@@ -47,7 +47,7 @@ static const char octep_gstrings_global_stats[][ETH_GSTRING_LEN] = {
 	"rx_err_pkts",
 };
 
-#define OCTEP_GLOBAL_STATS_CNT (sizeof(octep_gstrings_global_stats) / ETH_GSTRING_LEN)
+#define OCTEP_GLOBAL_STATS_CNT ARRAY_SIZE(octep_gstrings_global_stats)
 
 static const char octep_gstrings_tx_q_stats[][ETH_GSTRING_LEN] = {
 	"tx_packets_posted[Q-%u]",
@@ -56,7 +56,7 @@ static const char octep_gstrings_tx_q_stats[][ETH_GSTRING_LEN] = {
 	"tx_busy[Q-%u]",
 };
 
-#define OCTEP_TX_Q_STATS_CNT (sizeof(octep_gstrings_tx_q_stats) / ETH_GSTRING_LEN)
+#define OCTEP_TX_Q_STATS_CNT ARRAY_SIZE(octep_gstrings_tx_q_stats)
 
 static const char octep_gstrings_rx_q_stats[][ETH_GSTRING_LEN] = {
 	"rx_packets[Q-%u]",
@@ -64,7 +64,7 @@ static const char octep_gstrings_rx_q_stats[][ETH_GSTRING_LEN] = {
 	"rx_alloc_errors[Q-%u]",
 };
 
-#define OCTEP_RX_Q_STATS_CNT (sizeof(octep_gstrings_rx_q_stats) / ETH_GSTRING_LEN)
+#define OCTEP_RX_Q_STATS_CNT ARRAY_SIZE(octep_gstrings_rx_q_stats)
 
 static void octep_get_drvinfo(struct net_device *netdev,
 			      struct ethtool_drvinfo *info)
@@ -80,32 +80,25 @@ static void octep_get_strings(struct net_device *netdev,
 {
 	struct octep_device *oct = netdev_priv(netdev);
 	u16 num_queues = CFG_GET_PORTS_ACTIVE_IO_RINGS(oct->conf);
-	char *strings = (char *)data;
+	const char *str;
 	int i, j;
 
 	switch (stringset) {
 	case ETH_SS_STATS:
-		for (i = 0; i < OCTEP_GLOBAL_STATS_CNT; i++) {
-			snprintf(strings, ETH_GSTRING_LEN,
-				 octep_gstrings_global_stats[i]);
-			strings += ETH_GSTRING_LEN;
-		}
+		for (i = 0; i < OCTEP_GLOBAL_STATS_CNT; i++)
+			ethtool_puts(&data, octep_gstrings_global_stats[i]);
 
-		for (i = 0; i < num_queues; i++) {
+		for (i = 0; i < num_queues; i++)
 			for (j = 0; j < OCTEP_TX_Q_STATS_CNT; j++) {
-				snprintf(strings, ETH_GSTRING_LEN,
-					 octep_gstrings_tx_q_stats[j], i);
-				strings += ETH_GSTRING_LEN;
+				str = octep_gstrings_tx_q_stats[j];
+				ethtool_sprintf(&data, str, i);
 			}
-		}
 
-		for (i = 0; i < num_queues; i++) {
+		for (i = 0; i < num_queues; i++)
 			for (j = 0; j < OCTEP_RX_Q_STATS_CNT; j++) {
-				snprintf(strings, ETH_GSTRING_LEN,
-					 octep_gstrings_rx_q_stats[j], i);
-				strings += ETH_GSTRING_LEN;
+				str = octep_gstrings_rx_q_stats[j];
+				ethtool_sprintf(&data, str, i);
 			}
-		}
 		break;
 	default:
 		break;

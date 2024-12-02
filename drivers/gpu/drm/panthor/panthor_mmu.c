@@ -990,6 +990,8 @@ panthor_vm_map_pages(struct panthor_vm *vm, u64 iova, int prot,
 
 		if (!size)
 			break;
+
+		offset = 0;
 	}
 
 	return panthor_vm_flush_range(vm, start_iova, iova - start_iova);
@@ -1580,7 +1582,9 @@ panthor_vm_pool_get_vm(struct panthor_vm_pool *pool, u32 handle)
 {
 	struct panthor_vm *vm;
 
+	xa_lock(&pool->xa);
 	vm = panthor_vm_get(xa_load(&pool->xa, handle));
+	xa_unlock(&pool->xa);
 
 	return vm;
 }

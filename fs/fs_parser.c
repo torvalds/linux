@@ -156,6 +156,7 @@ int fs_lookup_param(struct fs_context *fc,
 		f = getname_kernel(param->string);
 		if (IS_ERR(f))
 			return PTR_ERR(f);
+		param->dirfd = AT_FDCWD;
 		put_f = true;
 		break;
 	case fs_value_is_filename:
@@ -307,6 +308,26 @@ int fs_param_is_fd(struct p_log *log, const struct fs_parameter_spec *p,
 	return fs_param_bad_value(log, param);
 }
 EXPORT_SYMBOL(fs_param_is_fd);
+
+int fs_param_is_file_or_string(struct p_log *log,
+			       const struct fs_parameter_spec *p,
+			       struct fs_parameter *param,
+			       struct fs_parse_result *result)
+{
+	switch (param->type) {
+	case fs_value_is_string:
+		return fs_param_is_string(log, p, param, result);
+	case fs_value_is_file:
+		result->uint_32 = param->dirfd;
+		if (result->uint_32 <= INT_MAX)
+			return 0;
+		break;
+	default:
+		break;
+	}
+	return fs_param_bad_value(log, param);
+}
+EXPORT_SYMBOL(fs_param_is_file_or_string);
 
 int fs_param_is_uid(struct p_log *log, const struct fs_parameter_spec *p,
 		    struct fs_parameter *param, struct fs_parse_result *result)

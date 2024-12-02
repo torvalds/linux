@@ -60,7 +60,6 @@ void mptcp_get_available_schedulers(char *buf, size_t maxlen)
 	size_t offs = 0;
 
 	rcu_read_lock();
-	spin_lock(&mptcp_sched_list_lock);
 	list_for_each_entry_rcu(sched, &mptcp_sched_list, list) {
 		offs += snprintf(buf + offs, maxlen - offs,
 				 "%s%s",
@@ -69,7 +68,6 @@ void mptcp_get_available_schedulers(char *buf, size_t maxlen)
 		if (WARN_ON_ONCE(offs >= maxlen))
 			break;
 	}
-	spin_unlock(&mptcp_sched_list_lock);
 	rcu_read_unlock();
 }
 

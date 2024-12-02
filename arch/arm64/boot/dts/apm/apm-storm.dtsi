@@ -851,7 +851,6 @@
 			interrupts = <0 0x44 0x4>;
 			#clock-cells = <1>;
 			clocks = <&ahbclk 0>;
-			bus_num = <0>;
 		};
 
 		phy1: phy@1f21a000 {

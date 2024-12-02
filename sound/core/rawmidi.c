@@ -724,8 +724,9 @@ static int resize_runtime_buffer(struct snd_rawmidi_substream *substream,
 		newbuf = kvzalloc(params->buffer_size, GFP_KERNEL);
 		if (!newbuf)
 			return -ENOMEM;
-		guard(spinlock_irq)(&substream->lock);
+		spin_lock_irq(&substream->lock);
 		if (runtime->buffer_ref) {
+			spin_unlock_irq(&substream->lock);
 			kvfree(newbuf);
 			return -EBUSY;
 		}
@@ -733,6 +734,7 @@ static int resize_runtime_buffer(struct snd_rawmidi_substream *substream,
 		runtime->buffer = newbuf;
 		runtime->buffer_size = params->buffer_size;
 		__reset_runtime_ptrs(runtime, is_input);
+		spin_unlock_irq(&substream->lock);
 		kvfree(oldbuf);
 	}
 	runtime->avail_min = params->avail_min;

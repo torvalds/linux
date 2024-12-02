@@ -671,10 +671,6 @@ static int pcc_data_alloc(int pcc_ss_id)
  *  )
  */
 
-#ifndef arch_init_invariance_cppc
-static inline void arch_init_invariance_cppc(void) { }
-#endif
-
 /**
  * acpi_cppc_processor_probe - Search for per CPU _CPC objects.
  * @pr: Ptr to acpi_processor containing this CPU's logical ID.
@@ -905,8 +901,6 @@ int acpi_cppc_processor_probe(struct acpi_processor *pr)
 		goto out_free;
 	}
 
-	arch_init_invariance_cppc();
-
 	kfree(output.pointer);
 	return 0;
 
@@ -1017,7 +1011,8 @@ static int cpc_read(int cpu, struct cpc_register_resource *reg_res, u64 *val)
 	*val = 0;
 	size = GET_BIT_WIDTH(reg);
 
-	if (reg->space_id == ACPI_ADR_SPACE_SYSTEM_IO) {
+	if (IS_ENABLED(CONFIG_HAS_IOPORT) &&
+	    reg->space_id == ACPI_ADR_SPACE_SYSTEM_IO) {
 		u32 val_u32;
 		acpi_status status;
 
@@ -1091,7 +1086,8 @@ static int cpc_write(int cpu, struct cpc_register_resource *reg_res, u64 val)
 
 	size = GET_BIT_WIDTH(reg);
 
-	if (reg->space_id == ACPI_ADR_SPACE_SYSTEM_IO) {
+	if (IS_ENABLED(CONFIG_HAS_IOPORT) &&
+	    reg->space_id == ACPI_ADR_SPACE_SYSTEM_IO) {
 		acpi_status status;
 
 		status = acpi_os_write_port((acpi_io_address)reg->address,
@@ -1146,7 +1142,6 @@ static int cpc_write(int cpu, struct cpc_register_resource *reg_res, u64 val)
 			return -EFAULT;
 		}
 		val = MASK_VAL_WRITE(reg, prev_val, val);
-		val |= prev_val;
 	}
 
 	switch (size) {

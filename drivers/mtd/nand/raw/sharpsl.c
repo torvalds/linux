@@ -234,7 +234,7 @@ static struct platform_driver sharpsl_nand_driver = {
 		.name	= "sharpsl-nand",
 	},
 	.probe		= sharpsl_nand_probe,
-	.remove_new	= sharpsl_nand_remove,
+	.remove		= sharpsl_nand_remove,
 };
 
 module_platform_driver(sharpsl_nand_driver);

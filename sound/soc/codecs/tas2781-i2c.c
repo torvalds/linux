@@ -650,7 +650,6 @@ static int tasdev_tf_data_get(struct snd_kcontrol *kcontrol,
 		(struct soc_bytes_ext *) kcontrol->private_value;
 	unsigned char *dst = ucontrol->value.bytes.data;
 	unsigned int reg;
-	int rc = -1;
 
 	if (tas_priv->chip_id == TAS2781)
 		reg = TAS2781_RUNTIME_RE_REG_TF;
@@ -659,9 +658,7 @@ static int tasdev_tf_data_get(struct snd_kcontrol *kcontrol,
 
 	guard(mutex)(&tas_priv->codec_lock);
 	dst[0] = bytes_ext->max;
-	rc = calib_data_get(tas_priv, reg, &dst[1]);
-
-	return rc;
+	return calib_data_get(tas_priv, reg, &dst[1]);
 }
 
 static int tasdev_re_data_get(struct snd_kcontrol *kcontrol,
@@ -673,7 +670,6 @@ static int tasdev_re_data_get(struct snd_kcontrol *kcontrol,
 		(struct soc_bytes_ext *) kcontrol->private_value;
 	unsigned char *dst = ucontrol->value.bytes.data;
 	unsigned int reg;
-	int rc = -1;
 
 	if (tas_priv->chip_id == TAS2781)
 		reg = TAS2781_RUNTIME_RE_REG;
@@ -681,9 +677,7 @@ static int tasdev_re_data_get(struct snd_kcontrol *kcontrol,
 		reg = TAS2563_RUNTIME_RE_REG;
 	guard(mutex)(&tas_priv->codec_lock);
 	dst[0] = bytes_ext->max;
-	rc = calib_data_get(tas_priv, reg, &dst[1]);
-
-	return rc;
+	return calib_data_get(tas_priv, reg, &dst[1]);
 }
 
 static int tasdev_r0_data_get(struct snd_kcontrol *kcontrol,
@@ -696,7 +690,6 @@ static int tasdev_r0_data_get(struct snd_kcontrol *kcontrol,
 		(struct soc_bytes_ext *) kcontrol->private_value;
 	unsigned char *dst = ucontrol->value.bytes.data;
 	unsigned int reg;
-	int rc = -1;
 
 	guard(mutex)(&tas_priv->codec_lock);
 
@@ -707,9 +700,7 @@ static int tasdev_r0_data_get(struct snd_kcontrol *kcontrol,
 	else
 		return -1;
 	dst[0] = bytes_ext->max;
-	rc = calib_data_get(tas_priv, reg, &dst[1]);
-
-	return rc;
+	return calib_data_get(tas_priv, reg, &dst[1]);
 }
 
 static int tasdev_XMA1_data_get(struct snd_kcontrol *kcontrol,
@@ -721,13 +712,10 @@ static int tasdev_XMA1_data_get(struct snd_kcontrol *kcontrol,
 		(struct soc_bytes_ext *) kcontrol->private_value;
 	unsigned char *dst = ucontrol->value.bytes.data;
 	unsigned int reg = TASDEVICE_XM_A1_REG;
-	int rc = -1;
 
 	guard(mutex)(&tas_priv->codec_lock);
 	dst[0] = bytes_ext->max;
-	rc = calib_data_get(tas_priv, reg, &dst[1]);
-
-	return rc;
+	return calib_data_get(tas_priv, reg, &dst[1]);
 }
 
 static int tasdev_XMA2_data_get(struct snd_kcontrol *kcontrol,
@@ -739,13 +727,10 @@ static int tasdev_XMA2_data_get(struct snd_kcontrol *kcontrol,
 		(struct soc_bytes_ext *) kcontrol->private_value;
 	unsigned char *dst = ucontrol->value.bytes.data;
 	unsigned int reg = TASDEVICE_XM_A2_REG;
-	int rc = -1;
 
 	guard(mutex)(&tas_priv->codec_lock);
 	dst[0] = bytes_ext->max;
-	rc = calib_data_get(tas_priv, reg, &dst[1]);
-
-	return rc;
+	return calib_data_get(tas_priv, reg, &dst[1]);
 }
 
 static int tasdev_nop_get(
@@ -1115,14 +1100,12 @@ static int tasdevice_active_num_put(struct snd_kcontrol *kcontrol,
 	struct snd_soc_component *codec = snd_soc_kcontrol_component(kcontrol);
 	struct tasdevice_priv *tas_priv = snd_soc_component_get_drvdata(codec);
 	int dev_id = ucontrol->value.integer.value[0];
-	int max = tas_priv->ndev - 1, rc;
+	int max = tas_priv->ndev - 1;
 
 	dev_id = clamp(dev_id, 0, max);
 
 	guard(mutex)(&tas_priv->codec_lock);
-	rc = tasdev_chn_switch(tas_priv, dev_id);
-
-	return rc;
+	return tasdev_chn_switch(tas_priv, dev_id);
 }
 
 static int tasdevice_dsp_create_ctrls(struct tasdevice_priv *tas_priv)
@@ -1339,10 +1322,8 @@ static int tasdevice_create_cali_ctrls(struct tasdevice_priv *priv)
 		i++;
 	}
 
-	rc = snd_soc_add_component_controls(priv->codec, cali_ctrls,
+	return snd_soc_add_component_controls(priv->codec, cali_ctrls,
 		nctrls < i ? nctrls : i);
-
-	return rc;
 }
 
 static void tasdevice_fw_ready(const struct firmware *fmw,

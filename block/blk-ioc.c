@@ -32,13 +32,6 @@ static void get_io_context(struct io_context *ioc)
 	atomic_long_inc(&ioc->refcount);
 }
 
-static void icq_free_icq_rcu(struct rcu_head *head)
-{
-	struct io_cq *icq = container_of(head, struct io_cq, __rcu_head);
-
-	kmem_cache_free(icq->__rcu_icq_cache, icq);
-}
-
 /*
  * Exit an icq. Called with ioc locked for blk-mq, and with both ioc
  * and queue locked for legacy.
@@ -102,7 +95,7 @@ static void ioc_destroy_icq(struct io_cq *icq)
 	 */
 	icq->__rcu_icq_cache = et->icq_cache;
 	icq->flags |= ICQ_DESTROYED;
-	call_rcu(&icq->__rcu_head, icq_free_icq_rcu);
+	kfree_rcu(icq, __rcu_head);
 }
 
 /*

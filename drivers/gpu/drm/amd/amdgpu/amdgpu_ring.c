@@ -109,21 +109,17 @@ int amdgpu_ring_alloc(struct amdgpu_ring *ring, unsigned int ndw)
 void amdgpu_ring_insert_nop(struct amdgpu_ring *ring, uint32_t count)
 {
 	uint32_t occupied, chunk1, chunk2;
-	uint32_t *dst;
 
 	occupied = ring->wptr & ring->buf_mask;
-	dst = (void *)&ring->ring[occupied];
 	chunk1 = ring->buf_mask + 1 - occupied;
 	chunk1 = (chunk1 >= count) ? count : chunk1;
 	chunk2 = count - chunk1;
 
 	if (chunk1)
-		memset32(dst, ring->funcs->nop, chunk1);
+		memset32(&ring->ring[occupied], ring->funcs->nop, chunk1);
 
-	if (chunk2) {
-		dst = (void *)ring->ring;
-		memset32(dst, ring->funcs->nop, chunk2);
-	}
+	if (chunk2)
+		memset32(ring->ring, ring->funcs->nop, chunk2);
 
 	ring->wptr += count;
 	ring->wptr &= ring->ptr_mask;

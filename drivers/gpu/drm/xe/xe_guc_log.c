@@ -145,8 +145,9 @@ struct xe_guc_log_snapshot *xe_guc_log_snapshot_capture(struct xe_guc_log *log, 
 	struct xe_device *xe = log_to_xe(log);
 	struct xe_guc *guc = log_to_guc(log);
 	struct xe_gt *gt = log_to_gt(log);
+	unsigned int fw_ref;
 	size_t remain;
-	int i, err;
+	int i;
 
 	if (!log->bo) {
 		xe_gt_err(gt, "GuC log buffer not allocated\n");
@@ -168,12 +169,12 @@ struct xe_guc_log_snapshot *xe_guc_log_snapshot_capture(struct xe_guc_log *log, 
 		remain -= size;
 	}
 
-	err = xe_force_wake_get(gt_to_fw(gt), XE_FW_GT);
-	if (err) {
-		snapshot->stamp = ~0;
+	fw_ref = xe_force_wake_get(gt_to_fw(gt), XE_FW_GT);
+	if (!fw_ref) {
+		snapshot->stamp = ~0ULL;
 	} else {
-		snapshot->stamp = xe_mmio_read32(&gt->mmio, GUC_PMTIMESTAMP);
-		xe_force_wake_put(gt_to_fw(gt), XE_FW_GT);
+		snapshot->stamp = xe_mmio_read64_2x32(&gt->mmio, GUC_PMTIMESTAMP_LO);
+		xe_force_wake_put(gt_to_fw(gt), fw_ref);
 	}
 	snapshot->ktime = ktime_get_boottime_ns();
 	snapshot->level = log->level;
@@ -204,7 +205,7 @@ void xe_guc_log_snapshot_print(struct xe_guc_log_snapshot *snapshot, struct drm_
 		   snapshot->ver_found.major, snapshot->ver_found.minor, snapshot->ver_found.patch,
 		   snapshot->ver_want.major, snapshot->ver_want.minor, snapshot->ver_want.patch);
 	drm_printf(p, "Kernel timestamp: 0x%08llX [%llu]\n", snapshot->ktime, snapshot->ktime);
-	drm_printf(p, "GuC timestamp: 0x%08X [%u]\n", snapshot->stamp, snapshot->stamp);
+	drm_printf(p, "GuC timestamp: 0x%08llX [%llu]\n", snapshot->stamp, snapshot->stamp);
 	drm_printf(p, "Log level: %u\n", snapshot->level);
 
 	remain = snapshot->size;

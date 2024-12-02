@@ -577,7 +577,7 @@ static struct platform_driver bcm2835aux_spi_driver = {
 		.of_match_table	= bcm2835aux_spi_match,
 	},
 	.probe		= bcm2835aux_spi_probe,
-	.remove_new	= bcm2835aux_spi_remove,
+	.remove		= bcm2835aux_spi_remove,
 };
 module_platform_driver(bcm2835aux_spi_driver);
 

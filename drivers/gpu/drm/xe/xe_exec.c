@@ -132,12 +132,16 @@ int xe_exec_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 	if (XE_IOCTL_DBG(xe, !q))
 		return -ENOENT;
 
-	if (XE_IOCTL_DBG(xe, q->flags & EXEC_QUEUE_FLAG_VM))
-		return -EINVAL;
+	if (XE_IOCTL_DBG(xe, q->flags & EXEC_QUEUE_FLAG_VM)) {
+		err = -EINVAL;
+		goto err_exec_queue;
+	}
 
 	if (XE_IOCTL_DBG(xe, args->num_batch_buffer &&
-			 q->width != args->num_batch_buffer))
-		return -EINVAL;
+			 q->width != args->num_batch_buffer)) {
+		err = -EINVAL;
+		goto err_exec_queue;
+	}
 
 	if (XE_IOCTL_DBG(xe, q->ops->reset_status(q))) {
 		err = -ECANCELED;
@@ -199,14 +203,14 @@ retry:
 		write_locked = false;
 	}
 	if (err)
-		goto err_syncs;
+		goto err_hw_exec_mode;
 
 	if (write_locked) {
 		err = xe_vm_userptr_pin(vm);
 		downgrade_write(&vm->lock);
 		write_locked = false;
 		if (err)
-			goto err_hw_exec_mode;
+			goto err_unlock_list;
 	}
 
 	if (!args->num_batch_buffer) {
@@ -220,6 +224,7 @@ retry:
 			fence = xe_sync_in_fence_get(syncs, num_syncs, q, vm);
 			if (IS_ERR(fence)) {
 				err = PTR_ERR(fence);
+				xe_vm_unlock(vm);
 				goto err_unlock_list;
 			}
 			for (i = 0; i < num_syncs; i++)

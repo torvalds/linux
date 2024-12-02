@@ -123,6 +123,12 @@ static int jpeg_v4_0_sw_init(struct amdgpu_ip_block *ip_block)
 	r = amdgpu_jpeg_ras_sw_init(adev);
 	if (r)
 		return r;
+	/* TODO: Add queue reset mask when FW fully supports it */
+	adev->jpeg.supported_reset =
+		amdgpu_get_soft_full_reset_mask(&adev->jpeg.inst[0].ring_dec[0]);
+	r = amdgpu_jpeg_sysfs_reset_mask_init(adev);
+	if (r)
+		return r;
 
 	return 0;
 }
@@ -143,6 +149,7 @@ static int jpeg_v4_0_sw_fini(struct amdgpu_ip_block *ip_block)
 	if (r)
 		return r;
 
+	amdgpu_jpeg_sysfs_reset_mask_fini(adev);
 	r = amdgpu_jpeg_sw_fini(adev);
 
 	return r;
@@ -195,7 +202,7 @@ static int jpeg_v4_0_hw_fini(struct amdgpu_ip_block *ip_block)
 {
 	struct amdgpu_device *adev = ip_block->adev;
 
-	cancel_delayed_work_sync(&adev->vcn.idle_work);
+	cancel_delayed_work_sync(&adev->jpeg.idle_work);
 	if (!amdgpu_sriov_vf(adev)) {
 		if (adev->jpeg.cur_state != AMD_PG_STATE_GATE &&
 			RREG32_SOC15(JPEG, 0, regUVD_JRBC_STATUS))

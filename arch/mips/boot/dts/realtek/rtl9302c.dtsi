@@ -1,0 +1,15 @@
+// SPDX-License-Identifier: GPL-2.0-or-later OR BSD-2-Clause
+
+#include "rtl930x.dtsi"
+
+&switch0 {
+	compatible = "realtek,rtl9302c-switch", "syscon", "simple-mfd";
+};
+
+&i2c0 {
+	compatible = "realtek,rtl9302c-i2c", "realtek,rtl9301-i2c";
+};
+
+&i2c1 {
+	compatible = "realtek,rtl9302c-i2c", "realtek,rtl9301-i2c";
+};

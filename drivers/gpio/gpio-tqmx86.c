@@ -275,7 +275,7 @@ static void tqmx86_gpio_irq_print_chip(struct irq_data *d, struct seq_file *p)
 {
 	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
 
-	seq_printf(p, gc->label);
+	seq_puts(p, gc->label);
 }
 
 static const struct irq_chip tqmx86_gpio_irq_chip = {

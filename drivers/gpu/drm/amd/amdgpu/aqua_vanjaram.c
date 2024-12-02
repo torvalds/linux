@@ -455,6 +455,7 @@ static int aqua_vanjaram_get_xcp_res_info(struct amdgpu_xcp_mgr *xcp_mgr,
 	int max_res[AMDGPU_XCP_RES_MAX] = {};
 	bool res_lt_xcp;
 	int num_xcp, i;
+	u16 nps_modes;
 
 	if (!(xcp_mgr->supp_xcp_modes & BIT(mode)))
 		return -EINVAL;
@@ -467,23 +468,33 @@ static int aqua_vanjaram_get_xcp_res_info(struct amdgpu_xcp_mgr *xcp_mgr,
 	switch (mode) {
 	case AMDGPU_SPX_PARTITION_MODE:
 		num_xcp = 1;
+		nps_modes = BIT(AMDGPU_NPS1_PARTITION_MODE);
 		break;
 	case AMDGPU_DPX_PARTITION_MODE:
 		num_xcp = 2;
+		nps_modes = BIT(AMDGPU_NPS1_PARTITION_MODE);
 		break;
 	case AMDGPU_TPX_PARTITION_MODE:
 		num_xcp = 3;
+		nps_modes = BIT(AMDGPU_NPS1_PARTITION_MODE) |
+			    BIT(AMDGPU_NPS4_PARTITION_MODE);
 		break;
 	case AMDGPU_QPX_PARTITION_MODE:
 		num_xcp = 4;
+		nps_modes = BIT(AMDGPU_NPS1_PARTITION_MODE) |
+			    BIT(AMDGPU_NPS4_PARTITION_MODE);
 		break;
 	case AMDGPU_CPX_PARTITION_MODE:
 		num_xcp = NUM_XCC(adev->gfx.xcc_mask);
+		nps_modes = BIT(AMDGPU_NPS1_PARTITION_MODE) |
+			    BIT(AMDGPU_NPS4_PARTITION_MODE);
 		break;
 	default:
 		return -EINVAL;
 	}
 
+	xcp_cfg->compatible_nps_modes =
+		(adev->gmc.supported_nps_modes & nps_modes);
 	xcp_cfg->num_res = ARRAY_SIZE(max_res);
 
 	for (i = 0; i < xcp_cfg->num_res; i++) {
@@ -537,7 +548,7 @@ static bool __aqua_vanjaram_is_valid_mode(struct amdgpu_xcp_mgr *xcp_mgr,
 	case AMDGPU_SPX_PARTITION_MODE:
 		return adev->gmc.num_mem_partitions == 1 && num_xcc > 0;
 	case AMDGPU_DPX_PARTITION_MODE:
-		return adev->gmc.num_mem_partitions != 8 && (num_xcc % 4) == 0;
+		return adev->gmc.num_mem_partitions <= 2 && (num_xcc % 4) == 0;
 	case AMDGPU_TPX_PARTITION_MODE:
 		return (adev->gmc.num_mem_partitions == 1 ||
 			adev->gmc.num_mem_partitions == 3) &&

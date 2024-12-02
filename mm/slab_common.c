@@ -222,15 +222,12 @@ static struct kmem_cache *create_cache(const char *name,
 	struct kmem_cache *s;
 	int err;
 
-	if (WARN_ON(args->useroffset + args->usersize > object_size))
-		args->useroffset = args->usersize = 0;
-
 	/* If a custom freelist pointer is requested make sure it's sane. */
 	err = -EINVAL;
 	if (args->use_freeptr_offset &&
 	    (args->freeptr_offset >= object_size ||
 	     !(flags & SLAB_TYPESAFE_BY_RCU) ||
-	     !IS_ALIGNED(args->freeptr_offset, sizeof(freeptr_t))))
+	     !IS_ALIGNED(args->freeptr_offset, __alignof__(freeptr_t))))
 		goto out;
 
 	err = -ENOMEM;
@@ -257,10 +254,22 @@ out:
  * @object_size: The size of objects to be created in this cache.
  * @args: Additional arguments for the cache creation (see
  *        &struct kmem_cache_args).
- * @flags: See %SLAB_* flags for an explanation of individual @flags.
+ * @flags: See the desriptions of individual flags. The common ones are listed
+ *         in the description below.
  *
  * Not to be called directly, use the kmem_cache_create() wrapper with the same
  * parameters.
+ *
+ * Commonly used @flags:
+ *
+ * &SLAB_ACCOUNT - Account allocations to memcg.
+ *
+ * &SLAB_HWCACHE_ALIGN - Align objects on cache line boundaries.
+ *
+ * &SLAB_RECLAIM_ACCOUNT - Objects are reclaimable.
+ *
+ * &SLAB_TYPESAFE_BY_RCU - Slab page (not individual objects) freeing delayed
+ * by a grace period - see the full description before using.
  *
  * Context: Cannot be called within a interrupt, but can be interrupted.
  *
@@ -380,8 +389,11 @@ kmem_buckets *kmem_buckets_create(const char *name, slab_flags_t flags,
 				  unsigned int usersize,
 				  void (*ctor)(void *))
 {
+	unsigned long mask = 0;
+	unsigned int idx;
 	kmem_buckets *b;
-	int idx;
+
+	BUILD_BUG_ON(ARRAY_SIZE(kmalloc_caches[KMALLOC_NORMAL]) > BITS_PER_LONG);
 
 	/*
 	 * When the separate buckets API is not built in, just return
@@ -403,7 +415,7 @@ kmem_buckets *kmem_buckets_create(const char *name, slab_flags_t flags,
 	for (idx = 0; idx < ARRAY_SIZE(kmalloc_caches[KMALLOC_NORMAL]); idx++) {
 		char *short_size, *cache_name;
 		unsigned int cache_useroffset, cache_usersize;
-		unsigned int size;
+		unsigned int size, aligned_idx;
 
 		if (!kmalloc_caches[KMALLOC_NORMAL][idx])
 			continue;
@@ -416,10 +428,6 @@ kmem_buckets *kmem_buckets_create(const char *name, slab_flags_t flags,
 		if (WARN_ON(!short_size))
 			goto fail;
 
-		cache_name = kasprintf(GFP_KERNEL, "%s-%s", name, short_size + 1);
-		if (WARN_ON(!cache_name))
-			goto fail;
-
 		if (useroffset >= size) {
 			cache_useroffset = 0;
 			cache_usersize = 0;
@@ -427,18 +435,28 @@ kmem_buckets *kmem_buckets_create(const char *name, slab_flags_t flags,
 			cache_useroffset = useroffset;
 			cache_usersize = min(size - cache_useroffset, usersize);
 		}
-		(*b)[idx] = kmem_cache_create_usercopy(cache_name, size,
+
+		aligned_idx = __kmalloc_index(size, false);
+		if (!(*b)[aligned_idx]) {
+			cache_name = kasprintf(GFP_KERNEL, "%s-%s", name, short_size + 1);
+			if (WARN_ON(!cache_name))
+				goto fail;
+			(*b)[aligned_idx] = kmem_cache_create_usercopy(cache_name, size,
 					0, flags, cache_useroffset,
 					cache_usersize, ctor);
-		kfree(cache_name);
-		if (WARN_ON(!(*b)[idx]))
-			goto fail;
+			kfree(cache_name);
+			if (WARN_ON(!(*b)[aligned_idx]))
+				goto fail;
+			set_bit(aligned_idx, &mask);
+		}
+		if (idx != aligned_idx)
+			(*b)[idx] = (*b)[aligned_idx];
 	}
 
 	return b;
 
 fail:
-	for (idx = 0; idx < ARRAY_SIZE(kmalloc_caches[KMALLOC_NORMAL]); idx++)
+	for_each_set_bit(idx, &mask, ARRAY_SIZE(kmalloc_caches[KMALLOC_NORMAL]))
 		kmem_cache_destroy((*b)[idx]);
 	kmem_cache_free(kmem_buckets_cache, b);
 
@@ -1190,90 +1208,6 @@ module_init(slab_proc_init);
 
 #endif /* CONFIG_SLUB_DEBUG */
 
-static __always_inline __realloc_size(2) void *
-__do_krealloc(const void *p, size_t new_size, gfp_t flags)
-{
-	void *ret;
-	size_t ks;
-
-	/* Check for double-free before calling ksize. */
-	if (likely(!ZERO_OR_NULL_PTR(p))) {
-		if (!kasan_check_byte(p))
-			return NULL;
-		ks = ksize(p);
-	} else
-		ks = 0;
-
-	/* If the object still fits, repoison it precisely. */
-	if (ks >= new_size) {
-		/* Zero out spare memory. */
-		if (want_init_on_alloc(flags)) {
-			kasan_disable_current();
-			memset(kasan_reset_tag(p) + new_size, 0, ks - new_size);
-			kasan_enable_current();
-		}
-
-		p = kasan_krealloc((void *)p, new_size, flags);
-		return (void *)p;
-	}
-
-	ret = kmalloc_node_track_caller_noprof(new_size, flags, NUMA_NO_NODE, _RET_IP_);
-	if (ret && p) {
-		/* Disable KASAN checks as the object's redzone is accessed. */
-		kasan_disable_current();
-		memcpy(ret, kasan_reset_tag(p), ks);
-		kasan_enable_current();
-	}
-
-	return ret;
-}
-
-/**
- * krealloc - reallocate memory. The contents will remain unchanged.
- * @p: object to reallocate memory for.
- * @new_size: how many bytes of memory are required.
- * @flags: the type of memory to allocate.
- *
- * If @p is %NULL, krealloc() behaves exactly like kmalloc().  If @new_size
- * is 0 and @p is not a %NULL pointer, the object pointed to is freed.
- *
- * If __GFP_ZERO logic is requested, callers must ensure that, starting with the
- * initial memory allocation, every subsequent call to this API for the same
- * memory allocation is flagged with __GFP_ZERO. Otherwise, it is possible that
- * __GFP_ZERO is not fully honored by this API.
- *
- * This is the case, since krealloc() only knows about the bucket size of an
- * allocation (but not the exact size it was allocated with) and hence
- * implements the following semantics for shrinking and growing buffers with
- * __GFP_ZERO.
- *
- *         new             bucket
- * 0       size             size
- * |--------|----------------|
- * |  keep  |      zero      |
- *
- * In any case, the contents of the object pointed to are preserved up to the
- * lesser of the new and old sizes.
- *
- * Return: pointer to the allocated memory or %NULL in case of error
- */
-void *krealloc_noprof(const void *p, size_t new_size, gfp_t flags)
-{
-	void *ret;
-
-	if (unlikely(!new_size)) {
-		kfree(p);
-		return ZERO_SIZE_PTR;
-	}
-
-	ret = __do_krealloc(p, new_size, flags);
-	if (ret && kasan_reset_tag(p) != kasan_reset_tag(ret))
-		kfree(p);
-
-	return ret;
-}
-EXPORT_SYMBOL(krealloc_noprof);
-
 /**
  * kfree_sensitive - Clear sensitive information in memory before freeing
  * @p: object to free memory of
@@ -1322,6 +1256,25 @@ size_t ksize(const void *objp)
 	return kfence_ksize(objp) ?: __ksize(objp);
 }
 EXPORT_SYMBOL(ksize);
+
+#ifdef CONFIG_BPF_SYSCALL
+#include <linux/btf.h>
+
+__bpf_kfunc_start_defs();
+
+__bpf_kfunc struct kmem_cache *bpf_get_kmem_cache(u64 addr)
+{
+	struct slab *slab;
+
+	if (!virt_addr_valid((void *)(long)addr))
+		return NULL;
+
+	slab = virt_to_slab((void *)(long)addr);
+	return slab ? slab->slab_cache : NULL;
+}
+
+__bpf_kfunc_end_defs();
+#endif /* CONFIG_BPF_SYSCALL */
 
 /* Tracepoints definitions. */
 EXPORT_TRACEPOINT_SYMBOL(kmalloc);

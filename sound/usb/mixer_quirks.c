@@ -3498,7 +3498,7 @@ static int snd_rme_digiface_controls_create(struct usb_mixer_interface *mixer)
 }
 
 /*
- * Pioneer DJ DJM Mixers
+ * Pioneer DJ / AlphaTheta DJM Mixers
  *
  * These devices generally have options for soft-switching the playback and
  * capture sources in addition to the recording level. Although different
@@ -3515,17 +3515,23 @@ static int snd_rme_digiface_controls_create(struct usb_mixer_interface *mixer)
 #define SND_DJM_CAP_CDLINE	0x01
 #define SND_DJM_CAP_DIGITAL	0x02
 #define SND_DJM_CAP_PHONO	0x03
+#define SND_DJM_CAP_PREFADER	0x05
 #define SND_DJM_CAP_PFADER	0x06
 #define SND_DJM_CAP_XFADERA	0x07
 #define SND_DJM_CAP_XFADERB	0x08
 #define SND_DJM_CAP_MIC		0x09
 #define SND_DJM_CAP_AUX		0x0d
 #define SND_DJM_CAP_RECOUT	0x0a
+#define SND_DJM_CAP_RECOUT_NOMIC	0x0e
 #define SND_DJM_CAP_NONE	0x0f
 #define SND_DJM_CAP_CH1PFADER	0x11
 #define SND_DJM_CAP_CH2PFADER	0x12
 #define SND_DJM_CAP_CH3PFADER	0x13
 #define SND_DJM_CAP_CH4PFADER	0x14
+#define SND_DJM_CAP_CH1PREFADER	0x31
+#define SND_DJM_CAP_CH2PREFADER	0x32
+#define SND_DJM_CAP_CH3PREFADER	0x33
+#define SND_DJM_CAP_CH4PREFADER	0x34
 
 // Playback types
 #define SND_DJM_PB_CH1		0x00
@@ -3551,6 +3557,7 @@ static int snd_rme_digiface_controls_create(struct usb_mixer_interface *mixer)
 #define SND_DJM_900NXS2_IDX	0x3
 #define SND_DJM_750MK2_IDX	0x4
 #define SND_DJM_450_IDX		0x5
+#define SND_DJM_A9_IDX		0x6
 
 
 #define SND_DJM_CTL(_name, suffix, _default_value, _windex) { \
@@ -3579,13 +3586,27 @@ struct snd_djm_ctl {
 	u16 wIndex;
 };
 
-static const char *snd_djm_get_label_caplevel(u16 wvalue)
+static const char *snd_djm_get_label_caplevel_common(u16 wvalue)
 {
 	switch (wvalue) {
 	case 0x0000:	return "-19dB";
 	case 0x0100:	return "-15dB";
 	case 0x0200:	return "-10dB";
 	case 0x0300:	return "-5dB";
+	default:	return NULL;
+	}
+};
+
+// The DJM-A9 has different capture levels than other, older models
+static const char *snd_djm_get_label_caplevel_a9(u16 wvalue)
+{
+	switch (wvalue) {
+	case 0x0000:	return "+15dB";
+	case 0x0100:	return "+12dB";
+	case 0x0200:	return "+9dB";
+	case 0x0300:	return "+6dB";
+	case 0x0400:	return "+3dB";
+	case 0x0500:	return "0dB";
 	default:	return NULL;
 	}
 };
@@ -3602,8 +3623,13 @@ static const char *snd_djm_get_label_cap_common(u16 wvalue)
 	case SND_DJM_CAP_XFADERB:	return "Cross Fader B";
 	case SND_DJM_CAP_MIC:		return "Mic";
 	case SND_DJM_CAP_RECOUT:	return "Rec Out";
+	case SND_DJM_CAP_RECOUT_NOMIC:	return "Rec Out without Mic";
 	case SND_DJM_CAP_AUX:		return "Aux";
 	case SND_DJM_CAP_NONE:		return "None";
+	case SND_DJM_CAP_CH1PREFADER:	return "Pre Fader Ch1";
+	case SND_DJM_CAP_CH2PREFADER:	return "Pre Fader Ch2";
+	case SND_DJM_CAP_CH3PREFADER:	return "Pre Fader Ch3";
+	case SND_DJM_CAP_CH4PREFADER:	return "Pre Fader Ch4";
 	case SND_DJM_CAP_CH1PFADER:	return "Post Fader Ch1";
 	case SND_DJM_CAP_CH2PFADER:	return "Post Fader Ch2";
 	case SND_DJM_CAP_CH3PFADER:	return "Post Fader Ch3";
@@ -3620,6 +3646,14 @@ static const char *snd_djm_get_label_cap_850(u16 wvalue)
 	case 0x00:		return "Control Tone CD/LINE";
 	case 0x01:		return "Control Tone LINE";
 	default:		return snd_djm_get_label_cap_common(wvalue);
+	}
+};
+
+static const char *snd_djm_get_label_caplevel(u8 device_idx, u16 wvalue)
+{
+	switch (device_idx) {
+	case SND_DJM_A9_IDX:		return snd_djm_get_label_caplevel_a9(wvalue);
+	default:			return snd_djm_get_label_caplevel_common(wvalue);
 	}
 };
 
@@ -3644,7 +3678,7 @@ static const char *snd_djm_get_label_pb(u16 wvalue)
 static const char *snd_djm_get_label(u8 device_idx, u16 wvalue, u16 windex)
 {
 	switch (windex) {
-	case SND_DJM_WINDEX_CAPLVL:	return snd_djm_get_label_caplevel(wvalue);
+	case SND_DJM_WINDEX_CAPLVL:	return snd_djm_get_label_caplevel(device_idx, wvalue);
 	case SND_DJM_WINDEX_CAP:	return snd_djm_get_label_cap(device_idx, wvalue);
 	case SND_DJM_WINDEX_PB:		return snd_djm_get_label_pb(wvalue);
 	default:			return NULL;
@@ -3653,7 +3687,7 @@ static const char *snd_djm_get_label(u8 device_idx, u16 wvalue, u16 windex)
 
 // common DJM capture level option values
 static const u16 snd_djm_opts_cap_level[] = {
-	0x0000, 0x0100, 0x0200, 0x0300 };
+	0x0000, 0x0100, 0x0200, 0x0300, 0x400, 0x500 };
 
 
 // DJM-250MK2
@@ -3795,6 +3829,28 @@ static const struct snd_djm_ctl snd_djm_ctls_750mk2[] = {
 };
 
 
+// DJM-A9
+static const u16 snd_djm_opts_a9_cap1[] = {
+	0x0107, 0x0108, 0x0109, 0x010a, 0x010e,
+	0x111, 0x112, 0x113, 0x114, 0x0131, 0x132, 0x133, 0x134 };
+static const u16 snd_djm_opts_a9_cap2[] = {
+	0x0201, 0x0202, 0x0203, 0x0205, 0x0206, 0x0207, 0x0208, 0x0209, 0x020a, 0x020e };
+static const u16 snd_djm_opts_a9_cap3[] = {
+	0x0301, 0x0302, 0x0303, 0x0305, 0x0306, 0x0307, 0x0308, 0x0309, 0x030a, 0x030e };
+static const u16 snd_djm_opts_a9_cap4[] = {
+	0x0401, 0x0402, 0x0403, 0x0405, 0x0406, 0x0407, 0x0408, 0x0409, 0x040a, 0x040e };
+static const u16 snd_djm_opts_a9_cap5[] = {
+	0x0501, 0x0502, 0x0503, 0x0505, 0x0506, 0x0507, 0x0508, 0x0509, 0x050a, 0x050e };
+
+static const struct snd_djm_ctl snd_djm_ctls_a9[] = {
+	SND_DJM_CTL("Capture Level", cap_level, 0, SND_DJM_WINDEX_CAPLVL),
+	SND_DJM_CTL("Master Input",  a9_cap1, 3, SND_DJM_WINDEX_CAP),
+	SND_DJM_CTL("Ch1 Input",     a9_cap2, 2, SND_DJM_WINDEX_CAP),
+	SND_DJM_CTL("Ch2 Input",     a9_cap3, 2, SND_DJM_WINDEX_CAP),
+	SND_DJM_CTL("Ch3 Input",     a9_cap4, 2, SND_DJM_WINDEX_CAP),
+	SND_DJM_CTL("Ch4 Input",     a9_cap5, 2, SND_DJM_WINDEX_CAP)
+};
+
 static const struct snd_djm_device snd_djm_devices[] = {
 	[SND_DJM_250MK2_IDX] = SND_DJM_DEVICE(250mk2),
 	[SND_DJM_750_IDX] = SND_DJM_DEVICE(750),
@@ -3802,6 +3858,7 @@ static const struct snd_djm_device snd_djm_devices[] = {
 	[SND_DJM_900NXS2_IDX] = SND_DJM_DEVICE(900nxs2),
 	[SND_DJM_750MK2_IDX] = SND_DJM_DEVICE(750mk2),
 	[SND_DJM_450_IDX] = SND_DJM_DEVICE(450),
+	[SND_DJM_A9_IDX] = SND_DJM_DEVICE(a9),
 };
 
 
@@ -4078,6 +4135,9 @@ int snd_usb_mixer_apply_create_quirk(struct usb_mixer_interface *mixer)
 		break;
 	case USB_ID(0x2b73, 0x000a): /* Pioneer DJ DJM-900NXS2 */
 		err = snd_djm_controls_create(mixer, SND_DJM_900NXS2_IDX);
+		break;
+	case USB_ID(0x2b73, 0x003c): /* Pioneer DJ / AlphaTheta DJM-A9 */
+		err = snd_djm_controls_create(mixer, SND_DJM_A9_IDX);
 		break;
 	}
 

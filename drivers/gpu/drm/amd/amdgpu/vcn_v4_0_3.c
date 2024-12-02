@@ -95,6 +95,13 @@ static void vcn_v4_0_3_unified_ring_set_wptr(struct amdgpu_ring *ring);
 static void vcn_v4_0_3_set_ras_funcs(struct amdgpu_device *adev);
 static void vcn_v4_0_3_enable_ras(struct amdgpu_device *adev,
 				  int inst_idx, bool indirect);
+
+static inline bool vcn_v4_0_3_normalizn_reqd(struct amdgpu_device *adev)
+{
+	return (amdgpu_sriov_vf(adev) ||
+		(amdgpu_ip_version(adev, GC_HWIP, 0) == IP_VERSION(9, 4, 4)));
+}
+
 /**
  * vcn_v4_0_3_early_init - set function pointers
  *
@@ -114,6 +121,20 @@ static int vcn_v4_0_3_early_init(struct amdgpu_ip_block *ip_block)
 	vcn_v4_0_3_set_ras_funcs(adev);
 
 	return amdgpu_vcn_early_init(adev);
+}
+
+static int vcn_v4_0_3_fw_shared_init(struct amdgpu_device *adev, int inst_idx)
+{
+	struct amdgpu_vcn4_fw_shared *fw_shared;
+
+	fw_shared = adev->vcn.inst[inst_idx].fw_shared.cpu_addr;
+	fw_shared->present_flag_0 = cpu_to_le32(AMDGPU_FW_SHARED_FLAG_0_UNIFIED_QUEUE);
+	fw_shared->sq.is_enabled = 1;
+
+	if (amdgpu_vcnfw_log)
+		amdgpu_vcn_fwlog_init(&adev->vcn.inst[inst_idx]);
+
+	return 0;
 }
 
 /**
@@ -148,8 +169,6 @@ static int vcn_v4_0_3_sw_init(struct amdgpu_ip_block *ip_block)
 		return r;
 
 	for (i = 0; i < adev->vcn.num_vcn_inst; i++) {
-		volatile struct amdgpu_vcn4_fw_shared *fw_shared;
-
 		vcn_inst = GET_INST(VCN, i);
 
 		ring = &adev->vcn.inst[i].ring_enc[0];
@@ -172,13 +191,12 @@ static int vcn_v4_0_3_sw_init(struct amdgpu_ip_block *ip_block)
 		if (r)
 			return r;
 
-		fw_shared = adev->vcn.inst[i].fw_shared.cpu_addr;
-		fw_shared->present_flag_0 = cpu_to_le32(AMDGPU_FW_SHARED_FLAG_0_UNIFIED_QUEUE);
-		fw_shared->sq.is_enabled = true;
-
-		if (amdgpu_vcnfw_log)
-			amdgpu_vcn_fwlog_init(&adev->vcn.inst[i]);
+		vcn_v4_0_3_fw_shared_init(adev, i);
 	}
+
+	/* TODO: Add queue reset mask when FW fully supports it */
+	adev->vcn.supported_reset =
+		amdgpu_get_soft_full_reset_mask(&adev->vcn.inst[0].ring_enc[0]);
 
 	if (amdgpu_sriov_vf(adev)) {
 		r = amdgpu_virt_alloc_mm_table(adev);
@@ -205,6 +223,10 @@ static int vcn_v4_0_3_sw_init(struct amdgpu_ip_block *ip_block)
 	} else {
 		adev->vcn.ip_dump = ptr;
 	}
+
+	r = amdgpu_vcn_sysfs_reset_mask_init(adev);
+	if (r)
+		return r;
 
 	return 0;
 }
@@ -239,6 +261,7 @@ static int vcn_v4_0_3_sw_fini(struct amdgpu_ip_block *ip_block)
 	if (r)
 		return r;
 
+	amdgpu_vcn_sysfs_reset_mask_fini(adev);
 	r = amdgpu_vcn_sw_fini(adev);
 
 	kfree(adev->vcn.ip_dump);
@@ -273,6 +296,8 @@ static int vcn_v4_0_3_hw_init(struct amdgpu_ip_block *ip_block)
 		}
 	} else {
 		for (i = 0; i < adev->vcn.num_vcn_inst; ++i) {
+			struct amdgpu_vcn4_fw_shared *fw_shared;
+
 			vcn_inst = GET_INST(VCN, i);
 			ring = &adev->vcn.inst[i].ring_enc[0];
 
@@ -295,6 +320,11 @@ static int vcn_v4_0_3_hw_init(struct amdgpu_ip_block *ip_block)
 					VCN, GET_INST(VCN, ring->me),
 					regVCN_RB1_DB_CTRL);
 			}
+
+			/* Re-init fw_shared when RAS fatal error occurred */
+			fw_shared = adev->vcn.inst[i].fw_shared.cpu_addr;
+			if (!fw_shared->sq.is_enabled)
+				vcn_v4_0_3_fw_shared_init(adev, i);
 
 			r = amdgpu_ring_test_helper(ring);
 			if (r)
@@ -1428,8 +1458,8 @@ static uint64_t vcn_v4_0_3_unified_ring_get_wptr(struct amdgpu_ring *ring)
 static void vcn_v4_0_3_enc_ring_emit_reg_wait(struct amdgpu_ring *ring, uint32_t reg,
 				uint32_t val, uint32_t mask)
 {
-	/* For VF, only local offsets should be used */
-	if (amdgpu_sriov_vf(ring->adev))
+	/* Use normalized offsets when required */
+	if (vcn_v4_0_3_normalizn_reqd(ring->adev))
 		reg = NORMALIZE_VCN_REG_OFFSET(reg);
 
 	amdgpu_ring_write(ring, VCN_ENC_CMD_REG_WAIT);
@@ -1440,8 +1470,8 @@ static void vcn_v4_0_3_enc_ring_emit_reg_wait(struct amdgpu_ring *ring, uint32_t
 
 static void vcn_v4_0_3_enc_ring_emit_wreg(struct amdgpu_ring *ring, uint32_t reg, uint32_t val)
 {
-	/* For VF, only local offsets should be used */
-	if (amdgpu_sriov_vf(ring->adev))
+	/* Use normalized offsets when required */
+	if (vcn_v4_0_3_normalizn_reqd(ring->adev))
 		reg = NORMALIZE_VCN_REG_OFFSET(reg);
 
 	amdgpu_ring_write(ring, VCN_ENC_CMD_REG_WRITE);

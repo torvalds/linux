@@ -42,7 +42,9 @@
  * held. For regular files, the lock order is the other way around - the
  * mmap_lock is taken during the page fault, and then we lock the ilock to do
  * block mapping. Hence we need a different class for the directory ilock so
- * that lockdep can tell them apart.
+ * that lockdep can tell them apart.  Directories in the metadata directory
+ * tree get a separate class so that lockdep reports will warn us if someone
+ * ever tries to lock regular directories after locking metadata directories.
  */
 static struct lock_class_key xfs_nondir_ilock_class;
 static struct lock_class_key xfs_dir_ilock_class;
@@ -570,6 +572,20 @@ xfs_stat_blksize(
 	return max_t(uint32_t, PAGE_SIZE, mp->m_sb.sb_blocksize);
 }
 
+static void
+xfs_get_atomic_write_attr(
+	struct xfs_inode	*ip,
+	unsigned int		*unit_min,
+	unsigned int		*unit_max)
+{
+	if (!xfs_inode_can_atomicwrite(ip)) {
+		*unit_min = *unit_max = 0;
+		return;
+	}
+
+	*unit_min = *unit_max = ip->i_mount->m_sb.sb_blocksize;
+}
+
 STATIC int
 xfs_vn_getattr(
 	struct mnt_idmap	*idmap,
@@ -597,8 +613,9 @@ xfs_vn_getattr(
 	stat->gid = vfsgid_into_kgid(vfsgid);
 	stat->ino = ip->i_ino;
 	stat->atime = inode_get_atime(inode);
-	stat->mtime = inode_get_mtime(inode);
-	stat->ctime = inode_get_ctime(inode);
+
+	fill_mg_cmtime(stat, request_mask, inode);
+
 	stat->blocks = XFS_FSB_TO_BB(mp, ip->i_nblocks + ip->i_delayed_blks);
 
 	if (xfs_has_v3inodes(mp)) {
@@ -606,11 +623,6 @@ xfs_vn_getattr(
 			stat->result_mask |= STATX_BTIME;
 			stat->btime = ip->i_crtime;
 		}
-	}
-
-	if ((request_mask & STATX_CHANGE_COOKIE) && IS_I_VERSION(inode)) {
-		stat->change_cookie = inode_query_iversion(inode);
-		stat->result_mask |= STATX_CHANGE_COOKIE;
 	}
 
 	/*
@@ -642,6 +654,14 @@ xfs_vn_getattr(
 			stat->result_mask |= STATX_DIOALIGN;
 			stat->dio_mem_align = bdev_dma_alignment(bdev) + 1;
 			stat->dio_offset_align = bdev_logical_block_size(bdev);
+		}
+		if (request_mask & STATX_WRITE_ATOMIC) {
+			unsigned int	unit_min, unit_max;
+
+			xfs_get_atomic_write_attr(ip, &unit_min,
+					&unit_max);
+			generic_fill_statx_atomic_writes(stat,
+					unit_min, unit_max);
 		}
 		fallthrough;
 	default:
@@ -1289,6 +1309,7 @@ xfs_setup_inode(
 {
 	struct inode		*inode = &ip->i_vnode;
 	gfp_t			gfp_mask;
+	bool			is_meta = xfs_is_internal_inode(ip);
 
 	inode->i_ino = ip->i_ino;
 	inode->i_state |= I_NEW;
@@ -1299,6 +1320,16 @@ xfs_setup_inode(
 
 	i_size_write(inode, ip->i_disk_size);
 	xfs_diflags_to_iflags(ip, true);
+
+	/*
+	 * Mark our metadata files as private so that LSMs and the ACL code
+	 * don't try to add their own metadata or reason about these files,
+	 * and users cannot ever obtain file handles to them.
+	 */
+	if (is_meta) {
+		inode->i_flags |= S_PRIVATE;
+		inode->i_opflags &= ~IOP_XATTR;
+	}
 
 	if (S_ISDIR(inode->i_mode)) {
 		/*

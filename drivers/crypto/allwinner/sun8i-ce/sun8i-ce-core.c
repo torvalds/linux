@@ -1129,7 +1129,7 @@ MODULE_DEVICE_TABLE(of, sun8i_ce_crypto_of_match_table);
 
 static struct platform_driver sun8i_ce_driver = {
 	.probe		 = sun8i_ce_probe,
-	.remove_new	 = sun8i_ce_remove,
+	.remove		 = sun8i_ce_remove,
 	.driver		 = {
 		.name		= "sun8i-ce",
 		.pm		= &sun8i_ce_pm_ops,

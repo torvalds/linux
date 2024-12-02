@@ -1834,6 +1834,9 @@ int psp_ras_initialize(struct psp_context *psp)
 	ras_cmd->ras_in_message.init_flags.xcc_mask =
 		adev->gfx.xcc_mask;
 	ras_cmd->ras_in_message.init_flags.channel_dis_num = hweight32(adev->gmc.m_half_use) * 2;
+	if (adev->gmc.gmc_funcs->query_mem_partition_mode)
+		ras_cmd->ras_in_message.init_flags.nps_mode =
+			adev->gmc.gmc_funcs->query_mem_partition_mode(adev);
 
 	ret = psp_ta_load(psp, &psp->ras_context.context);
 
@@ -3563,6 +3566,36 @@ out:
 	return err;
 }
 
+static bool is_ta_fw_applicable(struct psp_context *psp,
+			     const struct psp_fw_bin_desc *desc)
+{
+	struct amdgpu_device *adev = psp->adev;
+	uint32_t fw_version;
+
+	switch (desc->fw_type) {
+	case TA_FW_TYPE_PSP_XGMI:
+	case TA_FW_TYPE_PSP_XGMI_AUX:
+		/* for now, AUX TA only exists on 13.0.6 ta bin,
+		 * from v20.00.0x.14
+		 */
+		if (amdgpu_ip_version(adev, MP0_HWIP, 0) ==
+		    IP_VERSION(13, 0, 6)) {
+			fw_version = le32_to_cpu(desc->fw_version);
+
+			if (adev->flags & AMD_IS_APU &&
+			    (fw_version & 0xff) >= 0x14)
+				return desc->fw_type == TA_FW_TYPE_PSP_XGMI_AUX;
+			else
+				return desc->fw_type == TA_FW_TYPE_PSP_XGMI;
+		}
+		break;
+	default:
+		break;
+	}
+
+	return true;
+}
+
 static int parse_ta_bin_descriptor(struct psp_context *psp,
 				   const struct psp_fw_bin_desc *desc,
 				   const struct ta_firmware_header_v2_0 *ta_hdr)
@@ -3571,6 +3604,9 @@ static int parse_ta_bin_descriptor(struct psp_context *psp,
 
 	if (!psp || !desc || !ta_hdr)
 		return -EINVAL;
+
+	if (!is_ta_fw_applicable(psp, desc))
+		return 0;
 
 	ucode_start_addr  = (uint8_t *)ta_hdr +
 			    le32_to_cpu(desc->offset_bytes) +
@@ -3584,6 +3620,7 @@ static int parse_ta_bin_descriptor(struct psp_context *psp,
 		psp->asd_context.bin_desc.start_addr        = ucode_start_addr;
 		break;
 	case TA_FW_TYPE_PSP_XGMI:
+	case TA_FW_TYPE_PSP_XGMI_AUX:
 		psp->xgmi_context.context.bin_desc.fw_version       = le32_to_cpu(desc->fw_version);
 		psp->xgmi_context.context.bin_desc.size_bytes       = le32_to_cpu(desc->size_bytes);
 		psp->xgmi_context.context.bin_desc.start_addr       = ucode_start_addr;
@@ -4075,7 +4112,7 @@ static umode_t amdgpu_flash_attr_is_visible(struct kobject *kobj, struct attribu
 }
 
 static umode_t amdgpu_bin_flash_attr_is_visible(struct kobject *kobj,
-						struct bin_attribute *attr,
+						const struct bin_attribute *attr,
 						int idx)
 {
 	struct device *dev = kobj_to_dev(kobj);

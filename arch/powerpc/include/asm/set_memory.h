@@ -12,37 +12,37 @@
 
 int change_memory_attr(unsigned long addr, int numpages, long action);
 
-static inline int set_memory_ro(unsigned long addr, int numpages)
+static inline int __must_check set_memory_ro(unsigned long addr, int numpages)
 {
 	return change_memory_attr(addr, numpages, SET_MEMORY_RO);
 }
 
-static inline int set_memory_rw(unsigned long addr, int numpages)
+static inline int __must_check set_memory_rw(unsigned long addr, int numpages)
 {
 	return change_memory_attr(addr, numpages, SET_MEMORY_RW);
 }
 
-static inline int set_memory_nx(unsigned long addr, int numpages)
+static inline int __must_check set_memory_nx(unsigned long addr, int numpages)
 {
 	return change_memory_attr(addr, numpages, SET_MEMORY_NX);
 }
 
-static inline int set_memory_x(unsigned long addr, int numpages)
+static inline int __must_check set_memory_x(unsigned long addr, int numpages)
 {
 	return change_memory_attr(addr, numpages, SET_MEMORY_X);
 }
 
-static inline int set_memory_np(unsigned long addr, int numpages)
+static inline int __must_check set_memory_np(unsigned long addr, int numpages)
 {
 	return change_memory_attr(addr, numpages, SET_MEMORY_NP);
 }
 
-static inline int set_memory_p(unsigned long addr, int numpages)
+static inline int __must_check set_memory_p(unsigned long addr, int numpages)
 {
 	return change_memory_attr(addr, numpages, SET_MEMORY_P);
 }
 
-static inline int set_memory_rox(unsigned long addr, int numpages)
+static inline int __must_check set_memory_rox(unsigned long addr, int numpages)
 {
 	return change_memory_attr(addr, numpages, SET_MEMORY_ROX);
 }

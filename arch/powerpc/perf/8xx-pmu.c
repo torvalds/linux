@@ -14,7 +14,7 @@
 #include <asm/machdep.h>
 #include <asm/firmware.h>
 #include <asm/ptrace.h>
-#include <asm/code-patching.h>
+#include <asm/text-patching.h>
 #include <asm/inst.h>
 
 #define PERF_8xx_ID_CPU_CYCLES		1

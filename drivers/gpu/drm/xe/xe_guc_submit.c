@@ -717,6 +717,7 @@ guc_exec_queue_run_job(struct drm_sched_job *drm_job)
 	struct xe_exec_queue *q = job->q;
 	struct xe_guc *guc = exec_queue_to_guc(q);
 	struct xe_device *xe = guc_to_xe(guc);
+	struct dma_fence *fence = NULL;
 	bool lr = xe_exec_queue_is_lr(q);
 
 	xe_assert(xe, !(exec_queue_destroyed(q) || exec_queue_pending_disable(q)) ||
@@ -734,19 +735,17 @@ guc_exec_queue_run_job(struct drm_sched_job *drm_job)
 
 	if (lr) {
 		xe_sched_job_set_error(job, -EOPNOTSUPP);
-		return NULL;
-	} else if (test_and_set_bit(JOB_FLAG_SUBMIT, &job->fence->flags)) {
-		return job->fence;
+		dma_fence_put(job->fence);	/* Drop ref from xe_sched_job_arm */
 	} else {
-		return dma_fence_get(job->fence);
+		fence = job->fence;
 	}
+
+	return fence;
 }
 
 static void guc_exec_queue_free_job(struct drm_sched_job *drm_job)
 {
 	struct xe_sched_job *job = to_xe_sched_job(drm_job);
-
-	xe_exec_queue_update_run_ticks(job->q);
 
 	trace_xe_sched_job_free(job);
 	xe_sched_job_put(job);
@@ -768,17 +767,19 @@ static void disable_scheduling_deregister(struct xe_guc *guc,
 					  struct xe_exec_queue *q)
 {
 	MAKE_SCHED_CONTEXT_ACTION(q, DISABLE);
-	struct xe_device *xe = guc_to_xe(guc);
 	int ret;
 
 	set_min_preemption_timeout(guc, q);
 	smp_rmb();
-	ret = wait_event_timeout(guc->ct.wq, !exec_queue_pending_enable(q) ||
-				 xe_guc_read_stopped(guc), HZ * 5);
+	ret = wait_event_timeout(guc->ct.wq,
+				 (!exec_queue_pending_enable(q) &&
+				  !exec_queue_pending_disable(q)) ||
+					 xe_guc_read_stopped(guc),
+				 HZ * 5);
 	if (!ret) {
 		struct xe_gpu_scheduler *sched = &q->guc->sched;
 
-		drm_warn(&xe->drm, "Pending enable failed to respond");
+		xe_gt_warn(q->gt, "Pending enable/disable failed to respond\n");
 		xe_sched_submission_start(sched);
 		xe_gt_reset_async(q->gt);
 		xe_sched_tdr_queue_imm(sched);
@@ -1035,6 +1036,7 @@ guc_exec_queue_timedout_job(struct drm_sched_job *drm_job)
 	struct xe_guc *guc = exec_queue_to_guc(q);
 	const char *process_name = "no process";
 	struct xe_device *xe = guc_to_xe(guc);
+	unsigned int fw_ref;
 	int err = -ETIME;
 	pid_t pid = -1;
 	int i = 0;
@@ -1068,12 +1070,13 @@ guc_exec_queue_timedout_job(struct drm_sched_job *drm_job)
 	if (!exec_queue_killed(q) && !xe->devcoredump.captured &&
 	    !xe_guc_capture_get_matching_and_lock(job)) {
 		/* take force wake before engine register manual capture */
-		if (xe_force_wake_get(gt_to_fw(q->gt), XE_FORCEWAKE_ALL))
+		fw_ref = xe_force_wake_get(gt_to_fw(q->gt), XE_FORCEWAKE_ALL);
+		if (!xe_force_wake_ref_has_domain(fw_ref, XE_FORCEWAKE_ALL))
 			xe_gt_info(q->gt, "failed to get forcewake for coredump capture\n");
 
 		xe_engine_snapshot_capture_for_job(job);
 
-		xe_force_wake_put(gt_to_fw(q->gt), XE_FORCEWAKE_ALL);
+		xe_force_wake_put(gt_to_fw(q->gt), fw_ref);
 	}
 
 	/*
@@ -1098,7 +1101,8 @@ guc_exec_queue_timedout_job(struct drm_sched_job *drm_job)
 			 * modifying state
 			 */
 			ret = wait_event_timeout(guc->ct.wq,
-						 !exec_queue_pending_enable(q) ||
+						 (!exec_queue_pending_enable(q) &&
+						  !exec_queue_pending_disable(q)) ||
 						 xe_guc_read_stopped(guc), HZ * 5);
 			if (!ret || xe_guc_read_stopped(guc))
 				goto trigger_reset;
@@ -1327,8 +1331,8 @@ static void __guc_exec_queue_process_msg_suspend(struct xe_sched_msg *msg)
 
 	if (guc_exec_queue_allowed_to_change_state(q) && !exec_queue_suspended(q) &&
 	    exec_queue_enabled(q)) {
-		wait_event(guc->ct.wq, q->guc->resume_time != RESUME_PENDING ||
-			   xe_guc_read_stopped(guc));
+		wait_event(guc->ct.wq, (q->guc->resume_time != RESUME_PENDING ||
+			   xe_guc_read_stopped(guc)) && !exec_queue_pending_disable(q));
 
 		if (!xe_guc_read_stopped(guc)) {
 			s64 since_resume_ms =
@@ -1865,16 +1869,29 @@ static void handle_sched_done(struct xe_guc *guc, struct xe_exec_queue *q,
 		xe_gt_assert(guc_to_gt(guc), runnable_state == 0);
 		xe_gt_assert(guc_to_gt(guc), exec_queue_pending_disable(q));
 
-		clear_exec_queue_pending_disable(q);
 		if (q->guc->suspend_pending) {
 			suspend_fence_signal(q);
+			clear_exec_queue_pending_disable(q);
 		} else {
 			if (exec_queue_banned(q) || check_timeout) {
 				smp_wmb();
 				wake_up_all(&guc->ct.wq);
 			}
-			if (!check_timeout)
+			if (!check_timeout && exec_queue_destroyed(q)) {
+				/*
+				 * Make sure to clear the pending_disable only
+				 * after sampling the destroyed state. We want
+				 * to ensure we don't trigger the unregister too
+				 * early with something intending to only
+				 * disable scheduling. The caller doing the
+				 * destroy must wait for an ongoing
+				 * pending_disable before marking as destroyed.
+				 */
+				clear_exec_queue_pending_disable(q);
 				deregister_exec_queue(guc, q);
+			} else {
+				clear_exec_queue_pending_disable(q);
+			}
 		}
 	}
 }

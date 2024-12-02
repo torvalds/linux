@@ -343,7 +343,7 @@ static struct platform_driver tps65090_charger_driver = {
 		.of_match_table = of_tps65090_charger_match,
 	},
 	.probe	= tps65090_charger_probe,
-	.remove_new = tps65090_charger_remove,
+	.remove = tps65090_charger_remove,
 };
 module_platform_driver(tps65090_charger_driver);
 

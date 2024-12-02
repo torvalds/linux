@@ -11,12 +11,12 @@
 struct intel_atomic_state;
 struct intel_crtc_state;
 struct intel_crtc;
+struct intel_display;
 struct intel_dsb;
-struct drm_i915_private;
 struct drm_property_blob;
 
-void intel_color_init_hooks(struct drm_i915_private *i915);
-int intel_color_init(struct drm_i915_private *i915);
+void intel_color_init_hooks(struct intel_display *display);
+int intel_color_init(struct intel_display *display);
 void intel_color_crtc_init(struct intel_crtc *crtc);
 int intel_color_check(struct intel_atomic_state *state,
 		      struct intel_crtc *crtc);

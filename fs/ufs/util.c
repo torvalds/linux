@@ -99,20 +99,6 @@ void ubh_mark_buffer_dirty (struct ufs_buffer_head * ubh)
 		mark_buffer_dirty (ubh->bh[i]);
 }
 
-void ubh_mark_buffer_uptodate (struct ufs_buffer_head * ubh, int flag)
-{
-	unsigned i;
-	if (!ubh)
-		return;
-	if (flag) {
-		for ( i = 0; i < ubh->count; i++ )
-			set_buffer_uptodate (ubh->bh[i]);
-	} else {
-		for ( i = 0; i < ubh->count; i++ )
-			clear_buffer_uptodate (ubh->bh[i]);
-	}
-}
-
 void ubh_sync_block(struct ufs_buffer_head *ubh)
 {
 	if (ubh) {
@@ -144,38 +130,6 @@ int ubh_buffer_dirty (struct ufs_buffer_head * ubh)
 	for ( i = 0; i < ubh->count; i++ )
 		result |= buffer_dirty(ubh->bh[i]);
 	return result;
-}
-
-void _ubh_ubhcpymem_(struct ufs_sb_private_info * uspi, 
-	unsigned char * mem, struct ufs_buffer_head * ubh, unsigned size)
-{
-	unsigned len, bhno;
-	if (size > (ubh->count << uspi->s_fshift))
-		size = ubh->count << uspi->s_fshift;
-	bhno = 0;
-	while (size) {
-		len = min_t(unsigned int, size, uspi->s_fsize);
-		memcpy (mem, ubh->bh[bhno]->b_data, len);
-		mem += uspi->s_fsize;
-		size -= len;
-		bhno++;
-	}
-}
-
-void _ubh_memcpyubh_(struct ufs_sb_private_info * uspi, 
-	struct ufs_buffer_head * ubh, unsigned char * mem, unsigned size)
-{
-	unsigned len, bhno;
-	if (size > (ubh->count << uspi->s_fshift))
-		size = ubh->count << uspi->s_fshift;
-	bhno = 0;
-	while (size) {
-		len = min_t(unsigned int, size, uspi->s_fsize);
-		memcpy (ubh->bh[bhno]->b_data, mem, len);
-		mem += uspi->s_fsize;
-		size -= len;
-		bhno++;
-	}
 }
 
 dev_t

@@ -718,7 +718,7 @@ static int skl_compute_wm_params(const struct intel_crtc_state *crtc_state,
 				 int width, const struct drm_format_info *format,
 				 u64 modifier, unsigned int rotation,
 				 u32 plane_pixel_rate, struct skl_wm_params *wp,
-				 int color_plane);
+				 int color_plane, unsigned int pan_x);
 
 static void skl_compute_plane_wm(const struct intel_crtc_state *crtc_state,
 				 struct intel_plane *plane,
@@ -765,7 +765,7 @@ skl_cursor_allocation(const struct intel_crtc_state *crtc_state,
 				    drm_format_info(DRM_FORMAT_ARGB8888),
 				    DRM_FORMAT_MOD_LINEAR,
 				    DRM_MODE_ROTATE_0,
-				    crtc_state->pixel_rate, &wp, 0);
+				    crtc_state->pixel_rate, &wp, 0, 0);
 	drm_WARN_ON(&i915->drm, ret);
 
 	for (level = 0; level < i915->display.wm.num_levels; level++) {
@@ -1742,7 +1742,7 @@ skl_compute_wm_params(const struct intel_crtc_state *crtc_state,
 		      int width, const struct drm_format_info *format,
 		      u64 modifier, unsigned int rotation,
 		      u32 plane_pixel_rate, struct skl_wm_params *wp,
-		      int color_plane)
+		      int color_plane, unsigned int pan_x)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
@@ -1803,7 +1803,9 @@ skl_compute_wm_params(const struct intel_crtc_state *crtc_state,
 					   wp->y_min_scanlines,
 					   wp->dbuf_block_size);
 
-		if (DISPLAY_VER(i915) >= 10)
+		if (DISPLAY_VER(i915) >= 30)
+			interm_pbpl += (pan_x != 0);
+		else if (DISPLAY_VER(i915) >= 10)
 			interm_pbpl++;
 
 		wp->plane_blocks_per_line = div_fixed16(interm_pbpl,
@@ -1845,7 +1847,8 @@ skl_compute_plane_wm_params(const struct intel_crtc_state *crtc_state,
 				     fb->format, fb->modifier,
 				     plane_state->hw.rotation,
 				     intel_plane_pixel_rate(crtc_state, plane_state),
-				     wp, color_plane);
+				     wp, color_plane,
+				     plane_state->uapi.src.x1);
 }
 
 static bool skl_wm_has_lines(struct drm_i915_private *i915, int level)
@@ -1909,7 +1912,10 @@ static void skl_compute_plane_wm(const struct intel_crtc_state *crtc_state,
 		}
 	}
 
-	blocks = fixed16_to_u32_round_up(selected_result) + 1;
+	blocks = fixed16_to_u32_round_up(selected_result);
+	if (DISPLAY_VER(i915) < 30)
+		blocks++;
+
 	/*
 	 * Lets have blocks at minimum equivalent to plane_blocks_per_line
 	 * as there will be at minimum one line for lines configuration. This
@@ -3527,7 +3533,7 @@ static void intel_mbus_dbox_update(struct intel_atomic_state *state)
 	for_each_intel_crtc_in_pipe_mask(&i915->drm, crtc, new_dbuf_state->active_pipes) {
 		u32 pipe_val = val;
 
-		if (DISPLAY_VER_FULL(i915) == IP_VER(14, 0)) {
+		if (DISPLAY_VERx100(i915) == 1400) {
 			if (xelpdp_is_only_pipe_per_dbuf_bank(crtc->pipe,
 							      new_dbuf_state->active_pipes))
 				pipe_val |= MBUS_DBOX_BW_8CREDITS_MTL;

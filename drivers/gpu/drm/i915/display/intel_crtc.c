@@ -36,11 +36,11 @@
 
 static void assert_vblank_disabled(struct drm_crtc *crtc)
 {
-	struct drm_i915_private *i915 = to_i915(crtc->dev);
+	struct intel_display *display = to_intel_display(crtc->dev);
 
-	if (I915_STATE_WARN(i915, drm_crtc_vblank_get(crtc) == 0,
-			    "[CRTC:%d:%s] vblank assertion failure (expected off, current on)\n",
-			    crtc->base.id, crtc->name))
+	if (INTEL_DISPLAY_STATE_WARN(display, drm_crtc_vblank_get(crtc) == 0,
+				     "[CRTC:%d:%s] vblank assertion failure (expected off, current on)\n",
+				     crtc->base.id, crtc->name))
 		drm_crtc_vblank_put(crtc);
 }
 

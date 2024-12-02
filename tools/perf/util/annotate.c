@@ -2116,6 +2116,12 @@ static int annotation__config(const char *var, const char *value, void *data)
 			opt->offset_level = ANNOTATION__MAX_OFFSET_LEVEL;
 		else if (opt->offset_level < ANNOTATION__MIN_OFFSET_LEVEL)
 			opt->offset_level = ANNOTATION__MIN_OFFSET_LEVEL;
+	} else if (!strcmp(var, "annotate.disassemblers")) {
+		opt->disassemblers_str = strdup(value);
+		if (!opt->disassemblers_str) {
+			pr_err("Not enough memory for annotate.disassemblers\n");
+			return -1;
+		}
 	} else if (!strcmp(var, "annotate.hide_src_code")) {
 		opt->hide_src_code = perf_config_bool("hide_src_code", value);
 	} else if (!strcmp(var, "annotate.jump_arrows")) {
@@ -2292,7 +2298,7 @@ static int extract_reg_offset(struct arch *arch, const char *str,
 	if (regname == NULL)
 		return -1;
 
-	op_loc->reg1 = get_dwarf_regnum(regname, 0);
+	op_loc->reg1 = get_dwarf_regnum(regname, arch->e_machine, arch->e_flags);
 	free(regname);
 
 	/* Get the second register */
@@ -2305,7 +2311,7 @@ static int extract_reg_offset(struct arch *arch, const char *str,
 		if (regname == NULL)
 			return -1;
 
-		op_loc->reg2 = get_dwarf_regnum(regname, 0);
+		op_loc->reg2 = get_dwarf_regnum(regname, arch->e_machine, arch->e_flags);
 		free(regname);
 	}
 	return 0;
@@ -2405,7 +2411,7 @@ int annotate_get_insn_location(struct arch *arch, struct disasm_line *dl,
 				return -1;
 
 			if (*s == arch->objdump.register_char)
-				op_loc->reg1 = get_dwarf_regnum(s, 0);
+				op_loc->reg1 = get_dwarf_regnum(s, arch->e_machine, arch->e_flags);
 			else if (*s == arch->objdump.imm_char) {
 				op_loc->offset = strtol(s + 1, &p, 0);
 				if (p && p != s + 1)

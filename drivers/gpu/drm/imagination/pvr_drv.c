@@ -28,6 +28,7 @@
 #include <linux/export.h>
 #include <linux/fs.h>
 #include <linux/kernel.h>
+#include <linux/list.h>
 #include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
@@ -1325,6 +1326,8 @@ pvr_drm_driver_open(struct drm_device *drm_dev, struct drm_file *file)
 	 * private data for convenient access.
 	 */
 	pvr_file->pvr_dev = pvr_dev;
+
+	INIT_LIST_HEAD(&pvr_file->contexts);
 
 	xa_init_flags(&pvr_file->ctx_handles, XA_FLAGS_ALLOC1);
 	xa_init_flags(&pvr_file->free_list_handles, XA_FLAGS_ALLOC1);

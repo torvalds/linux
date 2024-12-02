@@ -73,9 +73,6 @@ int ips_leave(struct adapter *padapter)
 	struct pwrctrl_priv *pwrpriv = adapter_to_pwrctl(padapter);
 	int ret;
 
-	if (!is_primary_adapter(padapter))
-		return _SUCCESS;
-
 	mutex_lock(&pwrpriv->lock);
 	ret = _ips_leave(padapter);
 	mutex_unlock(&pwrpriv->lock);
@@ -453,10 +450,6 @@ void LPS_Enter(struct adapter *padapter, const char *msg)
 	if (check_fwstate(&(dvobj->padapters->mlmepriv), WIFI_ASOC_STATE))
 		n_assoc_iface++;
 	if (n_assoc_iface != 1)
-		return;
-
-	/* Skip lps enter request for adapter not port0 */
-	if (get_iface_type(padapter) != IFACE_PORT0)
 		return;
 
 	if (!PS_RDY_CHECK(dvobj->padapters))

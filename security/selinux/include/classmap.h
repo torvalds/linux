@@ -1,8 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 
-#include <linux/capability.h>
-#include <linux/socket.h>
-
 #define COMMON_FILE_SOCK_PERMS                                            \
 	"ioctl", "read", "write", "create", "getattr", "setattr", "lock", \
 		"relabelfrom", "relabelto", "append", "map"
@@ -36,8 +33,12 @@
 	"mac_override", "mac_admin", "syslog", "wake_alarm", "block_suspend", \
 		"audit_read", "perfmon", "bpf", "checkpoint_restore"
 
+#ifdef __KERNEL__ /* avoid this check when building host programs */
+#include <linux/capability.h>
+
 #if CAP_LAST_CAP > CAP_CHECKPOINT_RESTORE
 #error New capability defined, please update COMMON_CAP2_PERMS.
+#endif
 #endif
 
 /*
@@ -96,17 +97,17 @@ const struct security_class_mapping secclass_map[] = {
 	{ "shm", { COMMON_IPC_PERMS, "lock", NULL } },
 	{ "ipc", { COMMON_IPC_PERMS, NULL } },
 	{ "netlink_route_socket",
-	  { COMMON_SOCK_PERMS, "nlmsg_read", "nlmsg_write", NULL } },
+	  { COMMON_SOCK_PERMS, "nlmsg_read", "nlmsg_write", "nlmsg", NULL } },
 	{ "netlink_tcpdiag_socket",
-	  { COMMON_SOCK_PERMS, "nlmsg_read", "nlmsg_write", NULL } },
+	  { COMMON_SOCK_PERMS, "nlmsg_read", "nlmsg_write", "nlmsg", NULL } },
 	{ "netlink_nflog_socket", { COMMON_SOCK_PERMS, NULL } },
 	{ "netlink_xfrm_socket",
-	  { COMMON_SOCK_PERMS, "nlmsg_read", "nlmsg_write", NULL } },
+	  { COMMON_SOCK_PERMS, "nlmsg_read", "nlmsg_write", "nlmsg", NULL } },
 	{ "netlink_selinux_socket", { COMMON_SOCK_PERMS, NULL } },
 	{ "netlink_iscsi_socket", { COMMON_SOCK_PERMS, NULL } },
 	{ "netlink_audit_socket",
 	  { COMMON_SOCK_PERMS, "nlmsg_read", "nlmsg_write", "nlmsg_relay",
-	    "nlmsg_readpriv", "nlmsg_tty_audit", NULL } },
+	    "nlmsg_readpriv", "nlmsg_tty_audit", "nlmsg", NULL } },
 	{ "netlink_fib_lookup_socket", { COMMON_SOCK_PERMS, NULL } },
 	{ "netlink_connector_socket", { COMMON_SOCK_PERMS, NULL } },
 	{ "netlink_netfilter_socket", { COMMON_SOCK_PERMS, NULL } },
@@ -181,6 +182,10 @@ const struct security_class_mapping secclass_map[] = {
 	{ NULL }
 };
 
+#ifdef __KERNEL__ /* avoid this check when building host programs */
+#include <linux/socket.h>
+
 #if PF_MAX > 46
 #error New address family defined, please update secclass_map.
+#endif
 #endif

@@ -7,7 +7,7 @@
 #include "item.h"
 #include "core_acl_flex_keys.h"
 
-static struct mlxsw_afk_element_inst mlxsw_sp_afk_element_info_l2_dmac[] = {
+static const struct mlxsw_afk_element_inst mlxsw_sp_afk_element_info_l2_dmac[] = {
 	MLXSW_AFK_ELEMENT_INST_BUF(DMAC_32_47, 0x00, 2),
 	MLXSW_AFK_ELEMENT_INST_BUF(DMAC_0_31, 0x02, 4),
 	MLXSW_AFK_ELEMENT_INST_U32(PCP, 0x08, 13, 3),
@@ -15,7 +15,7 @@ static struct mlxsw_afk_element_inst mlxsw_sp_afk_element_info_l2_dmac[] = {
 	MLXSW_AFK_ELEMENT_INST_U32(SRC_SYS_PORT, 0x0C, 0, 16),
 };
 
-static struct mlxsw_afk_element_inst mlxsw_sp_afk_element_info_l2_smac[] = {
+static const struct mlxsw_afk_element_inst mlxsw_sp_afk_element_info_l2_smac[] = {
 	MLXSW_AFK_ELEMENT_INST_BUF(SMAC_32_47, 0x00, 2),
 	MLXSW_AFK_ELEMENT_INST_BUF(SMAC_0_31, 0x02, 4),
 	MLXSW_AFK_ELEMENT_INST_U32(PCP, 0x08, 13, 3),
@@ -23,27 +23,27 @@ static struct mlxsw_afk_element_inst mlxsw_sp_afk_element_info_l2_smac[] = {
 	MLXSW_AFK_ELEMENT_INST_U32(SRC_SYS_PORT, 0x0C, 0, 16),
 };
 
-static struct mlxsw_afk_element_inst mlxsw_sp_afk_element_info_l2_smac_ex[] = {
+static const struct mlxsw_afk_element_inst mlxsw_sp_afk_element_info_l2_smac_ex[] = {
 	MLXSW_AFK_ELEMENT_INST_BUF(SMAC_32_47, 0x02, 2),
 	MLXSW_AFK_ELEMENT_INST_BUF(SMAC_0_31, 0x04, 4),
 	MLXSW_AFK_ELEMENT_INST_U32(ETHERTYPE, 0x0C, 0, 16),
 };
 
-static struct mlxsw_afk_element_inst mlxsw_sp_afk_element_info_ipv4_sip[] = {
+static const struct mlxsw_afk_element_inst mlxsw_sp_afk_element_info_ipv4_sip[] = {
 	MLXSW_AFK_ELEMENT_INST_BUF(SRC_IP_0_31, 0x00, 4),
 	MLXSW_AFK_ELEMENT_INST_U32(L4_PORT_RANGE, 0x04, 16, 16),
 	MLXSW_AFK_ELEMENT_INST_U32(IP_PROTO, 0x08, 0, 8),
 	MLXSW_AFK_ELEMENT_INST_U32(SRC_SYS_PORT, 0x0C, 0, 16),
 };
 
-static struct mlxsw_afk_element_inst mlxsw_sp_afk_element_info_ipv4_dip[] = {
+static const struct mlxsw_afk_element_inst mlxsw_sp_afk_element_info_ipv4_dip[] = {
 	MLXSW_AFK_ELEMENT_INST_BUF(DST_IP_0_31, 0x00, 4),
 	MLXSW_AFK_ELEMENT_INST_U32(L4_PORT_RANGE, 0x04, 16, 16),
 	MLXSW_AFK_ELEMENT_INST_U32(IP_PROTO, 0x08, 0, 8),
 	MLXSW_AFK_ELEMENT_INST_U32(SRC_SYS_PORT, 0x0C, 0, 16),
 };
 
-static struct mlxsw_afk_element_inst mlxsw_sp_afk_element_info_ipv4[] = {
+static const struct mlxsw_afk_element_inst mlxsw_sp_afk_element_info_ipv4[] = {
 	MLXSW_AFK_ELEMENT_INST_BUF(SRC_IP_0_31, 0x00, 4),
 	MLXSW_AFK_ELEMENT_INST_U32(IP_ECN, 0x04, 4, 2),
 	MLXSW_AFK_ELEMENT_INST_U32(IP_TTL_, 0x04, 24, 8),
@@ -51,35 +51,35 @@ static struct mlxsw_afk_element_inst mlxsw_sp_afk_element_info_ipv4[] = {
 	MLXSW_AFK_ELEMENT_INST_U32(TCP_FLAGS, 0x08, 8, 9), /* TCP_CONTROL+TCP_ECN */
 };
 
-static struct mlxsw_afk_element_inst mlxsw_sp_afk_element_info_ipv4_ex[] = {
+static const struct mlxsw_afk_element_inst mlxsw_sp_afk_element_info_ipv4_ex[] = {
 	MLXSW_AFK_ELEMENT_INST_U32(VID, 0x00, 0, 12),
 	MLXSW_AFK_ELEMENT_INST_U32(PCP, 0x08, 29, 3),
 	MLXSW_AFK_ELEMENT_INST_U32(SRC_L4_PORT, 0x08, 0, 16),
 	MLXSW_AFK_ELEMENT_INST_U32(DST_L4_PORT, 0x0C, 0, 16),
 };
 
-static struct mlxsw_afk_element_inst mlxsw_sp_afk_element_info_ipv6_dip[] = {
+static const struct mlxsw_afk_element_inst mlxsw_sp_afk_element_info_ipv6_dip[] = {
 	MLXSW_AFK_ELEMENT_INST_BUF(DST_IP_32_63, 0x00, 4),
 	MLXSW_AFK_ELEMENT_INST_BUF(DST_IP_0_31, 0x04, 4),
 };
 
-static struct mlxsw_afk_element_inst mlxsw_sp_afk_element_info_ipv6_ex1[] = {
+static const struct mlxsw_afk_element_inst mlxsw_sp_afk_element_info_ipv6_ex1[] = {
 	MLXSW_AFK_ELEMENT_INST_BUF(DST_IP_96_127, 0x00, 4),
 	MLXSW_AFK_ELEMENT_INST_BUF(DST_IP_64_95, 0x04, 4),
 	MLXSW_AFK_ELEMENT_INST_U32(IP_PROTO, 0x08, 0, 8),
 };
 
-static struct mlxsw_afk_element_inst mlxsw_sp_afk_element_info_ipv6_sip[] = {
+static const struct mlxsw_afk_element_inst mlxsw_sp_afk_element_info_ipv6_sip[] = {
 	MLXSW_AFK_ELEMENT_INST_BUF(SRC_IP_32_63, 0x00, 4),
 	MLXSW_AFK_ELEMENT_INST_BUF(SRC_IP_0_31, 0x04, 4),
 };
 
-static struct mlxsw_afk_element_inst mlxsw_sp_afk_element_info_ipv6_sip_ex[] = {
+static const struct mlxsw_afk_element_inst mlxsw_sp_afk_element_info_ipv6_sip_ex[] = {
 	MLXSW_AFK_ELEMENT_INST_BUF(SRC_IP_96_127, 0x00, 4),
 	MLXSW_AFK_ELEMENT_INST_BUF(SRC_IP_64_95, 0x04, 4),
 };
 
-static struct mlxsw_afk_element_inst mlxsw_sp_afk_element_info_packet_type[] = {
+static const struct mlxsw_afk_element_inst mlxsw_sp_afk_element_info_packet_type[] = {
 	MLXSW_AFK_ELEMENT_INST_U32(ETHERTYPE, 0x00, 0, 16),
 };
 
@@ -124,90 +124,90 @@ const struct mlxsw_afk_ops mlxsw_sp1_afk_ops = {
 	.clear_block	= mlxsw_sp1_afk_clear_block,
 };
 
-static struct mlxsw_afk_element_inst mlxsw_sp_afk_element_info_mac_0[] = {
+static const struct mlxsw_afk_element_inst mlxsw_sp_afk_element_info_mac_0[] = {
 	MLXSW_AFK_ELEMENT_INST_U32(FDB_MISS, 0x00, 3, 1),
 	MLXSW_AFK_ELEMENT_INST_BUF(DMAC_0_31, 0x04, 4),
 };
 
-static struct mlxsw_afk_element_inst mlxsw_sp_afk_element_info_mac_1[] = {
+static const struct mlxsw_afk_element_inst mlxsw_sp_afk_element_info_mac_1[] = {
 	MLXSW_AFK_ELEMENT_INST_U32(FDB_MISS, 0x00, 3, 1),
 	MLXSW_AFK_ELEMENT_INST_BUF(SMAC_0_31, 0x04, 4),
 };
 
-static struct mlxsw_afk_element_inst mlxsw_sp_afk_element_info_mac_2[] = {
+static const struct mlxsw_afk_element_inst mlxsw_sp_afk_element_info_mac_2[] = {
 	MLXSW_AFK_ELEMENT_INST_BUF(SMAC_32_47, 0x04, 2),
 	MLXSW_AFK_ELEMENT_INST_BUF(DMAC_32_47, 0x06, 2),
 };
 
-static struct mlxsw_afk_element_inst mlxsw_sp_afk_element_info_mac_3[] = {
+static const struct mlxsw_afk_element_inst mlxsw_sp_afk_element_info_mac_3[] = {
 	MLXSW_AFK_ELEMENT_INST_U32(PCP, 0x00, 0, 3),
 	MLXSW_AFK_ELEMENT_INST_U32(VID, 0x04, 16, 12),
 	MLXSW_AFK_ELEMENT_INST_BUF(DMAC_32_47, 0x06, 2),
 };
 
-static struct mlxsw_afk_element_inst mlxsw_sp_afk_element_info_mac_4[] = {
+static const struct mlxsw_afk_element_inst mlxsw_sp_afk_element_info_mac_4[] = {
 	MLXSW_AFK_ELEMENT_INST_U32(PCP, 0x00, 0, 3),
 	MLXSW_AFK_ELEMENT_INST_U32(VID, 0x04, 16, 12),
 	MLXSW_AFK_ELEMENT_INST_U32(ETHERTYPE, 0x04, 0, 16),
 };
 
-static struct mlxsw_afk_element_inst mlxsw_sp_afk_element_info_mac_5[] = {
+static const struct mlxsw_afk_element_inst mlxsw_sp_afk_element_info_mac_5[] = {
 	MLXSW_AFK_ELEMENT_INST_U32(VID, 0x04, 16, 12),
 	MLXSW_AFK_ELEMENT_INST_EXT_U32(SRC_SYS_PORT, 0x04, 0, 8, -1, true), /* RX_ACL_SYSTEM_PORT */
 };
 
-static struct mlxsw_afk_element_inst mlxsw_sp_afk_element_info_ipv4_0[] = {
+static const struct mlxsw_afk_element_inst mlxsw_sp_afk_element_info_ipv4_0[] = {
 	MLXSW_AFK_ELEMENT_INST_BUF(DST_IP_0_31, 0x04, 4),
 };
 
-static struct mlxsw_afk_element_inst mlxsw_sp_afk_element_info_ipv4_1[] = {
+static const struct mlxsw_afk_element_inst mlxsw_sp_afk_element_info_ipv4_1[] = {
 	MLXSW_AFK_ELEMENT_INST_BUF(SRC_IP_0_31, 0x04, 4),
 };
 
-static struct mlxsw_afk_element_inst mlxsw_sp_afk_element_info_ipv4_2[] = {
+static const struct mlxsw_afk_element_inst mlxsw_sp_afk_element_info_ipv4_2[] = {
 	MLXSW_AFK_ELEMENT_INST_U32(IP_DSCP, 0x04, 0, 6),
 	MLXSW_AFK_ELEMENT_INST_U32(IP_ECN, 0x04, 6, 2),
 	MLXSW_AFK_ELEMENT_INST_U32(IP_TTL_, 0x04, 8, 8),
 	MLXSW_AFK_ELEMENT_INST_U32(IP_PROTO, 0x04, 16, 8),
 };
 
-static struct mlxsw_afk_element_inst mlxsw_sp_afk_element_info_ipv4_5[] = {
+static const struct mlxsw_afk_element_inst mlxsw_sp_afk_element_info_ipv4_5[] = {
 	MLXSW_AFK_ELEMENT_INST_EXT_U32(VIRT_ROUTER, 0x04, 20, 11, 0, true),
 };
 
-static struct mlxsw_afk_element_inst mlxsw_sp_afk_element_info_ipv6_0[] = {
+static const struct mlxsw_afk_element_inst mlxsw_sp_afk_element_info_ipv6_0[] = {
 	MLXSW_AFK_ELEMENT_INST_U32(VIRT_ROUTER_0_3, 0x00, 0, 4),
 	MLXSW_AFK_ELEMENT_INST_BUF(DST_IP_32_63, 0x04, 4),
 };
 
-static struct mlxsw_afk_element_inst mlxsw_sp_afk_element_info_ipv6_1[] = {
+static const struct mlxsw_afk_element_inst mlxsw_sp_afk_element_info_ipv6_1[] = {
 	MLXSW_AFK_ELEMENT_INST_U32(VIRT_ROUTER_4_7, 0x00, 0, 4),
 	MLXSW_AFK_ELEMENT_INST_BUF(DST_IP_64_95, 0x04, 4),
 };
 
-static struct mlxsw_afk_element_inst mlxsw_sp_afk_element_info_ipv6_2[] = {
+static const struct mlxsw_afk_element_inst mlxsw_sp_afk_element_info_ipv6_2[] = {
 	MLXSW_AFK_ELEMENT_INST_EXT_U32(VIRT_ROUTER_MSB, 0x00, 0, 3, 0, true),
 	MLXSW_AFK_ELEMENT_INST_BUF(DST_IP_96_127, 0x04, 4),
 };
 
-static struct mlxsw_afk_element_inst mlxsw_sp_afk_element_info_ipv6_3[] = {
+static const struct mlxsw_afk_element_inst mlxsw_sp_afk_element_info_ipv6_3[] = {
 	MLXSW_AFK_ELEMENT_INST_BUF(SRC_IP_32_63, 0x04, 4),
 };
 
-static struct mlxsw_afk_element_inst mlxsw_sp_afk_element_info_ipv6_4[] = {
+static const struct mlxsw_afk_element_inst mlxsw_sp_afk_element_info_ipv6_4[] = {
 	MLXSW_AFK_ELEMENT_INST_BUF(SRC_IP_64_95, 0x04, 4),
 };
 
-static struct mlxsw_afk_element_inst mlxsw_sp_afk_element_info_ipv6_5[] = {
+static const struct mlxsw_afk_element_inst mlxsw_sp_afk_element_info_ipv6_5[] = {
 	MLXSW_AFK_ELEMENT_INST_BUF(SRC_IP_96_127, 0x04, 4),
 };
 
-static struct mlxsw_afk_element_inst mlxsw_sp_afk_element_info_l4_0[] = {
+static const struct mlxsw_afk_element_inst mlxsw_sp_afk_element_info_l4_0[] = {
 	MLXSW_AFK_ELEMENT_INST_U32(SRC_L4_PORT, 0x04, 16, 16),
 	MLXSW_AFK_ELEMENT_INST_U32(DST_L4_PORT, 0x04, 0, 16),
 };
 
-static struct mlxsw_afk_element_inst mlxsw_sp_afk_element_info_l4_2[] = {
+static const struct mlxsw_afk_element_inst mlxsw_sp_afk_element_info_l4_2[] = {
 	MLXSW_AFK_ELEMENT_INST_U32(TCP_FLAGS, 0x04, 16, 9), /* TCP_CONTROL + TCP_ECN */
 	MLXSW_AFK_ELEMENT_INST_U32(L4_PORT_RANGE, 0x04, 0, 16),
 };
@@ -319,16 +319,16 @@ const struct mlxsw_afk_ops mlxsw_sp2_afk_ops = {
 	.clear_block	= mlxsw_sp2_afk_clear_block,
 };
 
-static struct mlxsw_afk_element_inst mlxsw_sp_afk_element_info_mac_5b[] = {
+static const struct mlxsw_afk_element_inst mlxsw_sp_afk_element_info_mac_5b[] = {
 	MLXSW_AFK_ELEMENT_INST_U32(VID, 0x04, 18, 12),
 	MLXSW_AFK_ELEMENT_INST_EXT_U32(SRC_SYS_PORT, 0x04, 0, 9, -1, true), /* RX_ACL_SYSTEM_PORT */
 };
 
-static struct mlxsw_afk_element_inst mlxsw_sp_afk_element_info_ipv4_5b[] = {
+static const struct mlxsw_afk_element_inst mlxsw_sp_afk_element_info_ipv4_5b[] = {
 	MLXSW_AFK_ELEMENT_INST_U32(VIRT_ROUTER, 0x04, 20, 12),
 };
 
-static struct mlxsw_afk_element_inst mlxsw_sp_afk_element_info_ipv6_2b[] = {
+static const struct mlxsw_afk_element_inst mlxsw_sp_afk_element_info_ipv6_2b[] = {
 	MLXSW_AFK_ELEMENT_INST_U32(VIRT_ROUTER_MSB, 0x00, 0, 4),
 	MLXSW_AFK_ELEMENT_INST_BUF(DST_IP_96_127, 0x04, 4),
 };

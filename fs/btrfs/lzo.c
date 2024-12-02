@@ -80,7 +80,7 @@ void lzo_free_workspace(struct list_head *ws)
 	kfree(workspace);
 }
 
-struct list_head *lzo_alloc_workspace(unsigned int level)
+struct list_head *lzo_alloc_workspace(void)
 {
 	struct workspace *workspace;
 

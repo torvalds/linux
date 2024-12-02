@@ -44,6 +44,7 @@
 #include "intel_dsi_vbt.h"
 #include "intel_fifo_underrun.h"
 #include "intel_panel.h"
+#include "intel_pfit.h"
 #include "skl_scaler.h"
 #include "vlv_dsi.h"
 #include "vlv_dsi_pll.h"

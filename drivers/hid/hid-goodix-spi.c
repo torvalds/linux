@@ -19,6 +19,8 @@
 #define GOODIX_HID_DESC_ADDR		0x1058C
 #define GOODIX_HID_REPORT_DESC_ADDR	0x105AA
 #define GOODIX_HID_SIGN_ADDR		0x10D32
+#define GOODIX_HID_CMD_ADDR		0x10364
+#define GOODIX_HID_REPORT_ADDR		0x22C8C
 
 #define GOODIX_HID_GET_REPORT_CMD	0x02
 #define GOODIX_HID_SET_REPORT_CMD	0x03
@@ -348,7 +350,7 @@ static int goodix_hid_check_ack_status(struct goodix_ts_data *ts, u32 *resp_len)
 		 * - byte 0:    Ack flag, value of 1 for data ready
 		 * - bytes 1-2: Response data length
 		 */
-		error = goodix_spi_read(ts, ts->hid_report_addr,
+		error = goodix_spi_read(ts, GOODIX_HID_CMD_ADDR,
 					&hdr, sizeof(hdr));
 		if (!error && (hdr.flag & GOODIX_HID_ACK_READY_FLAG)) {
 			len = le16_to_cpu(hdr.size);
@@ -356,7 +358,7 @@ static int goodix_hid_check_ack_status(struct goodix_ts_data *ts, u32 *resp_len)
 				dev_err(ts->dev, "hrd.size too short: %d", len);
 				return -EINVAL;
 			}
-			*resp_len = len;
+			*resp_len = len - GOODIX_HID_PKG_LEN_SIZE;
 			return 0;
 		}
 
@@ -431,7 +433,7 @@ static int goodix_hid_get_raw_report(struct hid_device *hid,
 	tx_len += args_len;
 
 	/* Step1: write report request info */
-	error = goodix_spi_write(ts, ts->hid_report_addr, tmp_buf, tx_len);
+	error = goodix_spi_write(ts, GOODIX_HID_CMD_ADDR, tmp_buf, tx_len);
 	if (error) {
 		dev_err(ts->dev, "failed send read feature cmd, %d", error);
 		return error;
@@ -446,9 +448,12 @@ static int goodix_hid_get_raw_report(struct hid_device *hid,
 	if (error)
 		return error;
 
-	len = min(len, response_data_len - GOODIX_HID_PKG_LEN_SIZE);
+	/* Empty reprot response */
+	if (!response_data_len)
+		return 0;
+	len = min(len, response_data_len);
 	/* Step3: read response data(skip 2bytes of hid pkg length) */
-	error = goodix_spi_read(ts, ts->hid_report_addr +
+	error = goodix_spi_read(ts, GOODIX_HID_CMD_ADDR +
 				GOODIX_HID_ACK_HEADER_SIZE +
 				GOODIX_HID_PKG_LEN_SIZE, buf, len);
 	if (error) {
@@ -518,7 +523,7 @@ static int goodix_hid_set_raw_report(struct hid_device *hid,
 	memcpy(tmp_buf + tx_len, buf, len);
 	tx_len += len;
 
-	error = goodix_spi_write(ts, ts->hid_report_addr, tmp_buf, tx_len);
+	error = goodix_spi_write(ts, GOODIX_HID_CMD_ADDR, tmp_buf, tx_len);
 	if (error) {
 		dev_err(ts->dev, "failed send report: %*ph", tx_len, tmp_buf);
 		return error;
@@ -697,12 +702,7 @@ static int goodix_spi_probe(struct spi_device *spi)
 		return dev_err_probe(dev, PTR_ERR(ts->reset_gpio),
 				     "failed to request reset gpio\n");
 
-	error = device_property_read_u32(dev, "goodix,hid-report-addr",
-					 &ts->hid_report_addr);
-	if (error)
-		return dev_err_probe(dev, error,
-				     "failed get hid report addr\n");
-
+	ts->hid_report_addr = GOODIX_HID_REPORT_ADDR;
 	error = goodix_dev_confirm(ts);
 	if (error)
 		return error;
@@ -749,7 +749,7 @@ static int goodix_spi_set_power(struct goodix_ts_data *ts, int power_state)
 	power_control_cmd[5] = power_state;
 
 	guard(mutex)(&ts->hid_request_lock);
-	error = goodix_spi_write(ts, ts->hid_report_addr, power_control_cmd,
+	error = goodix_spi_write(ts, GOODIX_HID_CMD_ADDR, power_control_cmd,
 				 sizeof(power_control_cmd));
 	if (error) {
 		dev_err(ts->dev, "failed set power mode: %s",
@@ -786,6 +786,14 @@ static const struct acpi_device_id goodix_spi_acpi_match[] = {
 MODULE_DEVICE_TABLE(acpi, goodix_spi_acpi_match);
 #endif
 
+#ifdef CONFIG_OF
+static const struct of_device_id goodix_spi_of_match[] = {
+	{ .compatible = "goodix,gt7986u-spifw", },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, goodix_spi_of_match);
+#endif
+
 static const struct spi_device_id goodix_spi_ids[] = {
 	{ "gt7986u" },
 	{ },
@@ -796,6 +804,7 @@ static struct spi_driver goodix_spi_driver = {
 	.driver = {
 		.name = "goodix-spi-hid",
 		.acpi_match_table = ACPI_PTR(goodix_spi_acpi_match),
+		.of_match_table = of_match_ptr(goodix_spi_of_match),
 		.pm = pm_sleep_ptr(&goodix_spi_pm_ops),
 	},
 	.probe =	goodix_spi_probe,

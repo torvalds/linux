@@ -72,7 +72,6 @@ static int rzg2l_cru_group_notify_complete(struct v4l2_async_notifier *notifier)
 			source->name, sink->name);
 		return ret;
 	}
-	cru->csi.channel = 0;
 	cru->ip.remote = cru->csi.subdev;
 
 	/* Create media device link between CRU IP <-> CRU OUTPUT */
@@ -209,7 +208,7 @@ static int rzg2l_cru_media_init(struct rzg2l_cru_dev *cru)
 	const struct of_device_id *match;
 	int ret;
 
-	cru->pad.flags = MEDIA_PAD_FL_SINK;
+	cru->pad.flags = MEDIA_PAD_FL_SINK | MEDIA_PAD_FL_MUST_CONNECT;
 	ret = media_entity_pads_init(&cru->vdev.entity, 1, &cru->pad);
 	if (ret)
 		return ret;
@@ -242,7 +241,7 @@ static int rzg2l_cru_media_init(struct rzg2l_cru_dev *cru)
 static int rzg2l_cru_probe(struct platform_device *pdev)
 {
 	struct rzg2l_cru_dev *cru;
-	int ret;
+	int irq, ret;
 
 	cru = devm_kzalloc(&pdev->dev, sizeof(*cru), GFP_KERNEL);
 	if (!cru)
@@ -270,9 +269,14 @@ static int rzg2l_cru_probe(struct platform_device *pdev)
 	cru->dev = &pdev->dev;
 	cru->info = of_device_get_match_data(&pdev->dev);
 
-	cru->image_conv_irq = platform_get_irq(pdev, 0);
-	if (cru->image_conv_irq < 0)
-		return cru->image_conv_irq;
+	irq = platform_get_irq(pdev, 0);
+	if (irq < 0)
+		return irq;
+
+	ret = devm_request_irq(&pdev->dev, irq, rzg2l_cru_irq, 0,
+			       KBUILD_MODNAME, cru);
+	if (ret)
+		return dev_err_probe(&pdev->dev, ret, "failed to request irq\n");
 
 	platform_set_drvdata(pdev, cru);
 
@@ -325,7 +329,7 @@ static struct platform_driver rzg2l_cru_driver = {
 		.of_match_table = rzg2l_cru_of_id_table,
 	},
 	.probe = rzg2l_cru_probe,
-	.remove_new = rzg2l_cru_remove,
+	.remove = rzg2l_cru_remove,
 };
 
 module_platform_driver(rzg2l_cru_driver);

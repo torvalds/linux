@@ -344,6 +344,10 @@
 	};
 };
 
+&i2c_som_rtc {
+	trickle-resistor-ohms = <3000>;
+};
+
 &main_i2c1 {
 	status = "okay";
 	pinctrl-names = "default";
@@ -423,7 +427,6 @@
 	vmmc-supply = <&vcc_3v3_mmc>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&main_mmc1_pins_default>;
-	bus-width = <4>;
 	disable-wp;
 	no-1-8-v;
 };

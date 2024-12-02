@@ -26,17 +26,15 @@ static ssize_t key_##name##_read(struct file *file,			\
 #define KEY_READ_X(name) KEY_READ(name, name, "0x%x\n")
 
 #define KEY_OPS(name)							\
-static const struct file_operations key_ ##name## _ops = {		\
+static const struct debugfs_short_fops key_ ##name## _ops = {		\
 	.read = key_##name##_read,					\
-	.open = simple_open,						\
 	.llseek = generic_file_llseek,					\
 }
 
 #define KEY_OPS_W(name)							\
-static const struct file_operations key_ ##name## _ops = {		\
+static const struct debugfs_short_fops key_ ##name## _ops = {		\
 	.read = key_##name##_read,					\
 	.write = key_##name##_write,					\
-	.open = simple_open,						\
 	.llseek = generic_file_llseek,					\
 }
 
@@ -49,9 +47,8 @@ static const struct file_operations key_ ##name## _ops = {		\
 #define KEY_CONF_READ_D(name) KEY_CONF_READ(name, "%d\n")
 
 #define KEY_CONF_OPS(name)						\
-static const struct file_operations key_ ##name## _ops = {		\
+static const struct debugfs_short_fops key_ ##name## _ops = {		\
 	.read = key_conf_##name##_read,					\
-	.open = simple_open,						\
 	.llseek = generic_file_llseek,					\
 }
 

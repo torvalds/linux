@@ -95,10 +95,7 @@ struct cxgb3_client {
  */
 int cxgb3_alloc_atid(struct t3cdev *dev, struct cxgb3_client *client,
 		     void *ctx);
-int cxgb3_alloc_stid(struct t3cdev *dev, struct cxgb3_client *client,
-		     void *ctx);
 void *cxgb3_free_atid(struct t3cdev *dev, int atid);
-void cxgb3_free_stid(struct t3cdev *dev, int stid);
 void cxgb3_insert_tid(struct t3cdev *dev, struct cxgb3_client *client,
 		      void *ctx, unsigned int tid);
 void cxgb3_queue_tid_release(struct t3cdev *dev, unsigned int tid);

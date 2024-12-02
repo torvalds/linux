@@ -25,15 +25,6 @@
 	: "=r"(_t)                      \
 	: "r"(_r), "0"(_t));
 
-static inline unsigned short from32to16(unsigned int x)
-{
-	/* 32 bits --> 16 bits + carry */
-	x = (x & 0xffff) + (x >> 16);
-	/* 16 bits + carry --> 16 bits including carry */
-	x = (x & 0xffff) + (x >> 16);
-	return (unsigned short)x;
-}
-
 static inline unsigned int do_csum(const unsigned char * buff, int len)
 {
 	int odd, count;
@@ -85,7 +76,7 @@ static inline unsigned int do_csum(const unsigned char * buff, int len)
 	}
 	if (len & 1)
 		result += le16_to_cpu(*buff);
-	result = from32to16(result);
+	result = csum_from32to16(result);
 	if (odd)
 		result = swab16(result);
 out:
@@ -102,7 +93,7 @@ __wsum csum_partial(const void *buff, int len, __wsum sum)
 {
 	unsigned int result = do_csum(buff, len);
 	addc(result, sum);
-	return (__force __wsum)from32to16(result);
+	return (__force __wsum)csum_from32to16(result);
 }
 
 EXPORT_SYMBOL(csum_partial);

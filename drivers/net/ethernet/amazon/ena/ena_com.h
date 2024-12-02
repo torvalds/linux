@@ -224,9 +224,6 @@ struct ena_com_admin_queue {
 	/* Indicate if the admin queue should poll for completion */
 	bool polling;
 
-	/* Define if fallback to polling mode should occur */
-	bool auto_polling;
-
 	u16 curr_cmd_id;
 
 	/* Indicate that the ena was initialized and can
@@ -493,17 +490,6 @@ bool ena_com_get_admin_running_state(struct ena_com_dev *ena_dev);
  */
 void ena_com_set_admin_polling_mode(struct ena_com_dev *ena_dev, bool polling);
 
-/* ena_com_set_admin_auto_polling_mode - Enable autoswitch to polling mode
- * @ena_dev: ENA communication layer struct
- * @polling: Enable/Disable polling mode
- *
- * Set the autopolling mode.
- * If autopolling is on:
- * In case of missing interrupt when data is available switch to polling.
- */
-void ena_com_set_admin_auto_polling_mode(struct ena_com_dev *ena_dev,
-					 bool polling);
-
 /* ena_com_admin_q_comp_intr_handler - admin queue interrupt handler
  * @ena_dev: ENA communication layer struct
  *
@@ -591,15 +577,6 @@ int ena_com_set_aenq_config(struct ena_com_dev *ena_dev, u32 groups_flag);
 int ena_com_get_dev_attr_feat(struct ena_com_dev *ena_dev,
 			      struct ena_com_dev_get_features_ctx *get_feat_ctx);
 
-/* ena_com_get_dev_basic_stats - Get device basic statistics
- * @ena_dev: ENA communication layer struct
- * @stats: stats return value
- *
- * @return: 0 on Success and negative value otherwise.
- */
-int ena_com_get_dev_basic_stats(struct ena_com_dev *ena_dev,
-				struct ena_admin_basic_stats *stats);
-
 /* ena_com_get_eni_stats - Get extended network interface statistics
  * @ena_dev: ENA communication layer struct
  * @stats: stats return value
@@ -634,15 +611,6 @@ int ena_com_get_customer_metrics(struct ena_com_dev *ena_dev, char *buffer, u32 
  * @return: 0 on Success and negative value otherwise.
  */
 int ena_com_set_dev_mtu(struct ena_com_dev *ena_dev, u32 mtu);
-
-/* ena_com_get_offload_settings - Retrieve the device offloads capabilities
- * @ena_dev: ENA communication layer struct
- * @offlad: offload return value
- *
- * @return: 0 on Success and negative value otherwise.
- */
-int ena_com_get_offload_settings(struct ena_com_dev *ena_dev,
-				 struct ena_admin_feature_offload_desc *offload);
 
 /* ena_com_rss_init - Init RSS
  * @ena_dev: ENA communication layer struct

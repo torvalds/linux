@@ -8,13 +8,13 @@
 #include "dcn32/dcn32_dpp.h"
 #include "dcn401/dcn401_dpp.h"
 
-static struct spl_funcs dcn2_spl_funcs = {
+static struct spl_callbacks dcn2_spl_callbacks = {
 	.spl_calc_lb_num_partitions = dscl2_spl_calc_lb_num_partitions,
 };
-static struct spl_funcs dcn32_spl_funcs = {
+static struct spl_callbacks dcn32_spl_callbacks = {
 	.spl_calc_lb_num_partitions = dscl32_spl_calc_lb_num_partitions,
 };
-static struct spl_funcs dcn401_spl_funcs = {
+static struct spl_callbacks dcn401_spl_callbacks = {
 	.spl_calc_lb_num_partitions = dscl401_spl_calc_lb_num_partitions,
 };
 static void populate_splrect_from_rect(struct spl_rect *spl_rect, const struct rect *rect)
@@ -77,16 +77,16 @@ void translate_SPL_in_params_from_pipe_ctx(struct pipe_ctx *pipe_ctx, struct spl
 	// This is used to determine the vtap support
 	switch (plane_state->ctx->dce_version)	{
 	case DCN_VERSION_2_0:
-		spl_in->funcs = &dcn2_spl_funcs;
+		spl_in->callbacks = dcn2_spl_callbacks;
 		break;
 	case DCN_VERSION_3_2:
-		spl_in->funcs = &dcn32_spl_funcs;
+		spl_in->callbacks = dcn32_spl_callbacks;
 		break;
 	case DCN_VERSION_4_01:
-		spl_in->funcs = &dcn401_spl_funcs;
+		spl_in->callbacks = dcn401_spl_callbacks;
 		break;
 	default:
-		spl_in->funcs = &dcn2_spl_funcs;
+		spl_in->callbacks = dcn2_spl_callbacks;
 	}
 	// Make format field from spl_in point to plane_res scl_data format
 	spl_in->basic_in.format = (enum spl_pixel_format)pipe_ctx->plane_res.scl_data.format;

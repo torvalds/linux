@@ -118,7 +118,7 @@ static inline void binder_selftest_alloc(struct binder_alloc *alloc) {}
 #endif
 enum lru_status binder_alloc_free_page(struct list_head *item,
 				       struct list_lru_one *lru,
-				       spinlock_t *lock, void *cb_arg);
+				       void *cb_arg);
 struct binder_buffer *binder_alloc_new_buf(struct binder_alloc *alloc,
 					   size_t data_size,
 					   size_t offsets_size,

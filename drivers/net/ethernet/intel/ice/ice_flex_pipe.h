@@ -23,9 +23,6 @@ int
 ice_get_sw_fv_list(struct ice_hw *hw, struct ice_prot_lkup_ext *lkups,
 		   unsigned long *bm, struct list_head *fv_list);
 int
-ice_pkg_buf_unreserve_section(struct ice_buf_build *bld, u16 count);
-u16 ice_pkg_buf_get_free_space(struct ice_buf_build *bld);
-int
 ice_aq_upload_section(struct ice_hw *hw, struct ice_buf_hdr *pkg_buf,
 		      u16 buf_size, struct ice_sq_cd *cd);
 bool

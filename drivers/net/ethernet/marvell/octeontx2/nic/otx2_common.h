@@ -29,6 +29,7 @@
 #include "otx2_devlink.h"
 #include <rvu_trace.h>
 #include "qos.h"
+#include "rep.h"
 
 /* IPv4 flag more fragment bit */
 #define IPV4_FLAG_MORE				0x20
@@ -40,6 +41,8 @@
 
 #define PCI_SUBSYS_DEVID_96XX_RVU_PFVF		0xB200
 #define PCI_SUBSYS_DEVID_CN10K_B_RVU_PFVF	0xBD00
+
+#define PCI_DEVID_OCTEONTX2_SDP_REP		0xA0F7
 
 /* PCI BAR nos */
 #define PCI_CFG_REG_BAR_NUM                     2
@@ -120,33 +123,6 @@ enum otx2_errcodes_re {
 	ERRCODE_IL4_CSUM = 0x22,
 };
 
-/* NIX TX stats */
-enum nix_stat_lf_tx {
-	TX_UCAST	= 0x0,
-	TX_BCAST	= 0x1,
-	TX_MCAST	= 0x2,
-	TX_DROP		= 0x3,
-	TX_OCTS		= 0x4,
-	TX_STATS_ENUM_LAST,
-};
-
-/* NIX RX stats */
-enum nix_stat_lf_rx {
-	RX_OCTS		= 0x0,
-	RX_UCAST	= 0x1,
-	RX_BCAST	= 0x2,
-	RX_MCAST	= 0x3,
-	RX_DROP		= 0x4,
-	RX_DROP_OCTS	= 0x5,
-	RX_FCS		= 0x6,
-	RX_ERR		= 0x7,
-	RX_DRP_BCAST	= 0x8,
-	RX_DRP_MCAST	= 0x9,
-	RX_DRP_L3BCAST	= 0xa,
-	RX_DRP_L3MCAST	= 0xb,
-	RX_STATS_ENUM_LAST,
-};
-
 struct otx2_dev_stats {
 	u64 rx_bytes;
 	u64 rx_frames;
@@ -224,15 +200,19 @@ struct otx2_hw {
 
 	/* NIX */
 	u8			txschq_link_cfg_lvl;
+	u8			txschq_cnt[NIX_TXSCH_LVL_CNT];
 	u8			txschq_aggr_lvl_rr_prio;
 	u16			txschq_list[NIX_TXSCH_LVL_CNT][MAX_TXSCHQ_PER_FUNC];
 	u16			matchall_ipolicer;
 	u32			dwrr_mtu;
+	u32			max_mtu;
 	u8			smq_link_type;
 
 	/* HW settings, coalescing etc */
 	u16			rx_chan_base;
 	u16			tx_chan_base;
+	u8			rx_chan_cnt;
+	u8			tx_chan_cnt;
 	u16			cq_qcount_wait;
 	u16			cq_ecount_wait;
 	u16			rq_skid;
@@ -367,7 +347,8 @@ struct otx2_flow_config {
 };
 
 struct dev_hw_ops {
-	int	(*sq_aq_init)(void *dev, u16 qidx, u16 sqb_aura);
+	int	(*sq_aq_init)(void *dev, u16 qidx, u8 chan_offset,
+			      u16 sqb_aura);
 	void	(*sqe_flush)(void *dev, struct otx2_snd_queue *sq,
 			     int size, int qidx);
 	int	(*refill_pool_ptrs)(void *dev, struct otx2_cq_queue *cq);
@@ -465,6 +446,8 @@ struct otx2_nic {
 #define OTX2_FLAG_PTP_ONESTEP_SYNC		BIT_ULL(15)
 #define OTX2_FLAG_ADPTV_INT_COAL_ENABLED BIT_ULL(16)
 #define OTX2_FLAG_TC_MARK_ENABLED		BIT_ULL(17)
+#define OTX2_FLAG_REP_MODE_ENABLED		 BIT_ULL(18)
+#define OTX2_FLAG_PORT_UP			BIT_ULL(19)
 	u64			flags;
 	u64			*cq_op_addr;
 
@@ -532,11 +515,19 @@ struct otx2_nic {
 #if IS_ENABLED(CONFIG_MACSEC)
 	struct cn10k_mcs_cfg	*macsec_cfg;
 #endif
+
+#if IS_ENABLED(CONFIG_RVU_ESWITCH)
+	struct rep_dev		**reps;
+	int			rep_cnt;
+	u16			rep_pf_map[RVU_MAX_REP];
+	u16			esw_mode;
+#endif
 };
 
 static inline bool is_otx2_lbkvf(struct pci_dev *pdev)
 {
-	return pdev->device == PCI_DEVID_OCTEONTX2_RVU_AFVF;
+	return (pdev->device == PCI_DEVID_OCTEONTX2_RVU_AFVF) ||
+		(pdev->device == PCI_DEVID_RVU_REP);
 }
 
 static inline bool is_96xx_A0(struct pci_dev *pdev)
@@ -549,6 +540,11 @@ static inline bool is_96xx_B0(struct pci_dev *pdev)
 {
 	return (pdev->revision == 0x01) &&
 		(pdev->subsystem_device == PCI_SUBSYS_DEVID_96XX_RVU_PFVF);
+}
+
+static inline bool is_otx2_sdp_rep(struct pci_dev *pdev)
+{
+	return pdev->device == PCI_DEVID_OCTEONTX2_SDP_REP;
 }
 
 /* REVID for PCIe devices.
@@ -913,15 +909,19 @@ static inline void otx2_dma_unmap_page(struct otx2_nic *pfvf,
 static inline u16 otx2_get_smq_idx(struct otx2_nic *pfvf, u16 qidx)
 {
 	u16 smq;
+	int idx;
+
 #ifdef CONFIG_DCB
 	if (qidx < NIX_PF_PFC_PRIO_MAX && pfvf->pfc_alloc_status[qidx])
 		return pfvf->pfc_schq_list[NIX_TXSCH_LVL_SMQ][qidx];
 #endif
 	/* check if qidx falls under QOS queues */
-	if (qidx >= pfvf->hw.non_qos_queues)
+	if (qidx >= pfvf->hw.non_qos_queues) {
 		smq = pfvf->qos.qid_to_sqmap[qidx - pfvf->hw.non_qos_queues];
-	else
-		smq = pfvf->hw.txschq_list[NIX_TXSCH_LVL_SMQ][0];
+	} else {
+		idx = qidx % pfvf->hw.txschq_cnt[NIX_TXSCH_LVL_SMQ];
+		smq = pfvf->hw.txschq_list[NIX_TXSCH_LVL_SMQ][idx];
+	}
 
 	return smq;
 }
@@ -988,14 +988,28 @@ int otx2_nix_config_bp(struct otx2_nic *pfvf, bool enable);
 void otx2_cleanup_rx_cqes(struct otx2_nic *pfvf, struct otx2_cq_queue *cq, int qidx);
 void otx2_cleanup_tx_cqes(struct otx2_nic *pfvf, struct otx2_cq_queue *cq);
 int otx2_sq_init(struct otx2_nic *pfvf, u16 qidx, u16 sqb_aura);
-int otx2_sq_aq_init(void *dev, u16 qidx, u16 sqb_aura);
-int cn10k_sq_aq_init(void *dev, u16 qidx, u16 sqb_aura);
+int otx2_sq_aq_init(void *dev, u16 qidx, u8 chan_offset, u16 sqb_aura);
+int cn10k_sq_aq_init(void *dev, u16 qidx, u8 chan_offset, u16 sqb_aura);
 int otx2_alloc_buffer(struct otx2_nic *pfvf, struct otx2_cq_queue *cq,
 		      dma_addr_t *dma);
 int otx2_pool_init(struct otx2_nic *pfvf, u16 pool_id,
 		   int stack_pages, int numptrs, int buf_size, int type);
 int otx2_aura_init(struct otx2_nic *pfvf, int aura_id,
 		   int pool_id, int numptrs);
+int otx2_init_rsrc(struct pci_dev *pdev, struct otx2_nic *pf);
+void otx2_free_queue_mem(struct otx2_qset *qset);
+int otx2_alloc_queue_mem(struct otx2_nic *pf);
+int otx2_init_hw_resources(struct otx2_nic *pfvf);
+void otx2_free_hw_resources(struct otx2_nic *pf);
+int otx2_wq_init(struct otx2_nic *pf);
+int otx2_check_pf_usable(struct otx2_nic *pf);
+int otx2_pfaf_mbox_init(struct otx2_nic *pf);
+int otx2_register_mbox_intr(struct otx2_nic *pf, bool probe_af);
+int otx2_realloc_msix_vectors(struct otx2_nic *pf);
+void otx2_pfaf_mbox_destroy(struct otx2_nic *pf);
+void otx2_disable_mbox_intr(struct otx2_nic *pf);
+void otx2_disable_napi(struct otx2_nic *pf);
+irqreturn_t otx2_cq_intr_handler(int irq, void *cq_irq);
 
 /* RSS configuration APIs*/
 int otx2_rss_init(struct otx2_nic *pfvf);
@@ -1127,4 +1141,12 @@ u16 otx2_select_queue(struct net_device *netdev, struct sk_buff *skb,
 int otx2_get_txq_by_classid(struct otx2_nic *pfvf, u16 classid);
 void otx2_qos_config_txschq(struct otx2_nic *pfvf);
 void otx2_clean_qos_queues(struct otx2_nic *pfvf);
+int rvu_event_up_notify(struct otx2_nic *pf, struct rep_event *info);
+int otx2_setup_tc_cls_flower(struct otx2_nic *nic,
+			     struct flow_cls_offload *cls_flower);
+
+static inline int mcam_entry_cmp(const void *a, const void *b)
+{
+	return *(u16 *)a - *(u16 *)b;
+}
 #endif /* OTX2_COMMON_H */

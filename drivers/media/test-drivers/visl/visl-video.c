@@ -136,6 +136,12 @@ static const u32 visl_decoded_fmts[] = {
 	V4L2_PIX_FMT_YUV420,
 };
 
+static const u32 visl_extended_decoded_fmts[] = {
+	V4L2_PIX_FMT_NV12,
+	V4L2_PIX_FMT_YUV420,
+	V4L2_PIX_FMT_P010,
+};
+
 const struct visl_coded_format_desc visl_coded_fmts[] = {
 	{
 		.pixelformat = V4L2_PIX_FMT_FWHT_STATELESS,
@@ -341,11 +347,21 @@ static int visl_enum_fmt_vid_cap(struct file *file, void *priv,
 				 struct v4l2_fmtdesc *f)
 {
 	struct visl_ctx *ctx = visl_file_to_ctx(file);
+	u32 index = f->index & ~V4L2_FMTDESC_FLAG_ENUM_ALL;
+	int max_fmts = ctx->coded_format_desc->num_decoded_fmts;
+	const u32 *decoded_fmts = ctx->coded_format_desc->decoded_fmts;
 
-	if (f->index >= ctx->coded_format_desc->num_decoded_fmts)
+	if (f->index & V4L2_FMTDESC_FLAG_ENUM_ALL) {
+		max_fmts = ARRAY_SIZE(visl_extended_decoded_fmts);
+		decoded_fmts = visl_extended_decoded_fmts;
+	}
+
+	f->index = index;
+
+	if (index >= max_fmts)
 		return -EINVAL;
 
-	f->pixelformat = ctx->coded_format_desc->decoded_fmts[f->index];
+	f->pixelformat = decoded_fmts[index];
 	return 0;
 }
 
@@ -716,8 +732,6 @@ static const struct vb2_ops visl_qops = {
 	.buf_queue            = visl_buf_queue,
 	.start_streaming      = visl_start_streaming,
 	.stop_streaming       = visl_stop_streaming,
-	.wait_prepare         = vb2_ops_wait_prepare,
-	.wait_finish          = vb2_ops_wait_finish,
 	.buf_request_complete = visl_buf_request_complete,
 };
 

@@ -50,7 +50,7 @@ struct sunxi_ccu_desc {
 
 	struct clk_hw_onecell_data	*hw_clks;
 
-	struct ccu_reset_map		*resets;
+	const struct ccu_reset_map	*resets;
 	unsigned long			num_resets;
 };
 

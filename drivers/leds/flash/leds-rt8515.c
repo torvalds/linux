@@ -388,7 +388,7 @@ static struct platform_driver rt8515_driver = {
 		.of_match_table = rt8515_match,
 	},
 	.probe  = rt8515_probe,
-	.remove_new = rt8515_remove,
+	.remove = rt8515_remove,
 };
 module_platform_driver(rt8515_driver);
 

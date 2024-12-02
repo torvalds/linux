@@ -55,7 +55,7 @@ struct aux_payload;
 struct set_config_cmd_payload;
 struct dmub_notification;
 
-#define DC_VER "3.2.306"
+#define DC_VER "3.2.310"
 
 #define MAX_SURFACES 3
 #define MAX_PLANES 6
@@ -225,6 +225,7 @@ struct dc_dmub_caps {
 	bool subvp_psr;
 	bool gecc_enable;
 	uint8_t fams_ver;
+	bool aux_backlight_support;
 };
 
 struct dc_scl_caps {
@@ -868,7 +869,6 @@ struct dc_debug_options {
 	bool sanity_checks;
 	bool max_disp_clk;
 	bool surface_trace;
-	bool timing_trace;
 	bool clock_trace;
 	bool validation_trace;
 	bool bandwidth_calcs_trace;
@@ -1067,6 +1067,7 @@ struct dc_debug_options {
 	unsigned int sharpen_policy;
 	unsigned int scale_to_sharpness_policy;
 	bool skip_full_updated_if_possible;
+	unsigned int enable_oled_edp_power_up_opt;
 };
 
 
@@ -2210,8 +2211,7 @@ void dc_link_edp_panel_backlight_power_on(struct dc_link *link,
  * and 16 bit fractional, where 1.0 is max backlight value.
  */
 bool dc_link_set_backlight_level(const struct dc_link *dc_link,
-		uint32_t backlight_pwm_u16_16,
-		uint32_t frame_ramp);
+		struct set_backlight_level_params *backlight_level_params);
 
 /* Set/get nits-based backlight level of an embedded panel (eDP, LVDS). */
 bool dc_link_set_backlight_level_nits(struct dc_link *link,

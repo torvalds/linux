@@ -1488,6 +1488,10 @@ void dcn401_prepare_bandwidth(struct dc *dc,
 					&context->bw_ctx.bw.dcn.watermarks,
 					dc->res_pool->ref_clocks.dchub_ref_clock_inKhz / 1000,
 					false);
+	/* update timeout thresholds */
+	if (hubbub->funcs->program_arbiter) {
+		dc->wm_optimized_required |= hubbub->funcs->program_arbiter(hubbub, &context->bw_ctx.bw.dcn.arb_regs, false);
+	}
 
 	/* decrease compbuf size */
 	if (hubbub->funcs->program_compbuf_segments) {
@@ -1529,6 +1533,10 @@ void dcn401_optimize_bandwidth(
 					&context->bw_ctx.bw.dcn.watermarks,
 					dc->res_pool->ref_clocks.dchub_ref_clock_inKhz / 1000,
 					true);
+	/* update timeout thresholds */
+	if (hubbub->funcs->program_arbiter) {
+		hubbub->funcs->program_arbiter(hubbub, &context->bw_ctx.bw.dcn.arb_regs, true);
+	}
 
 	if (dc->clk_mgr->dc_mode_softmax_enabled)
 		if (dc->clk_mgr->clks.dramclk_khz > dc->clk_mgr->bw_params->dc_mode_softmax_memclk * 1000 &&

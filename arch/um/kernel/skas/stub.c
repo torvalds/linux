@@ -35,16 +35,6 @@ static __always_inline int syscall_handler(struct stub_data *d)
 				return -1;
 			}
 			break;
-		case STUB_SYSCALL_MPROTECT:
-			res = stub_syscall3(__NR_mprotect,
-					    sc->mem.addr, sc->mem.length,
-					    sc->mem.prot);
-			if (res) {
-				d->err = res;
-				d->syscall_data_len = i;
-				return -1;
-			}
-			break;
 		default:
 			d->err = -95; /* EOPNOTSUPP */
 			d->syscall_data_len = i;

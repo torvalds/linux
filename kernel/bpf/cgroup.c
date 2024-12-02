@@ -1708,7 +1708,7 @@ const struct bpf_verifier_ops cg_dev_verifier_ops = {
  * returned value != 1 during execution. In all other cases 0 is returned.
  */
 int __cgroup_bpf_run_filter_sysctl(struct ctl_table_header *head,
-				   struct ctl_table *table, int write,
+				   const struct ctl_table *table, int write,
 				   char **buf, size_t *pcount, loff_t *ppos,
 				   enum cgroup_bpf_attach_type atype)
 {

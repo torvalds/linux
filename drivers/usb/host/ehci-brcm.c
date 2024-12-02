@@ -250,7 +250,7 @@ MODULE_DEVICE_TABLE(of, brcm_ehci_of_match);
 
 static struct platform_driver ehci_brcm_driver = {
 	.probe		= ehci_brcm_probe,
-	.remove_new	= ehci_brcm_remove,
+	.remove		= ehci_brcm_remove,
 	.shutdown	= usb_hcd_platform_shutdown,
 	.driver		= {
 		.name	= "ehci-brcm",

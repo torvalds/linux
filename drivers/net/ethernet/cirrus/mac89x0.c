@@ -568,7 +568,7 @@ static void mac89x0_device_remove(struct platform_device *pdev)
 
 static struct platform_driver mac89x0_platform_driver = {
 	.probe = mac89x0_device_probe,
-	.remove_new = mac89x0_device_remove,
+	.remove = mac89x0_device_remove,
 	.driver = {
 		.name = "mac89x0",
 	},

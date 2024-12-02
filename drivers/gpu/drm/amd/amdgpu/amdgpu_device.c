@@ -156,6 +156,11 @@ struct amdgpu_init_level amdgpu_init_default = {
 	.hwini_ip_block_mask = AMDGPU_IP_BLK_MASK_ALL,
 };
 
+struct amdgpu_init_level amdgpu_init_recovery = {
+	.level = AMDGPU_INIT_LEVEL_RESET_RECOVERY,
+	.hwini_ip_block_mask = AMDGPU_IP_BLK_MASK_ALL,
+};
+
 /*
  * Minimal blocks needed to be initialized before a XGMI hive can be reset. This
  * is used for cases like reset on initialization where the entire hive needs to
@@ -181,6 +186,9 @@ void amdgpu_set_init_level(struct amdgpu_device *adev,
 	switch (lvl) {
 	case AMDGPU_INIT_LEVEL_MINIMAL_XGMI:
 		adev->init_lvl = &amdgpu_init_minimal_xgmi;
+		break;
+	case AMDGPU_INIT_LEVEL_RESET_RECOVERY:
+		adev->init_lvl = &amdgpu_init_recovery;
 		break;
 	case AMDGPU_INIT_LEVEL_DEFAULT:
 		fallthrough;
@@ -3250,7 +3258,7 @@ static int amdgpu_device_ip_late_init(struct amdgpu_device *adev)
 		return r;
 	}
 
-	if (!amdgpu_in_reset(adev))
+	if (!amdgpu_reset_in_recovery(adev))
 		amdgpu_ras_set_error_query_ready(adev, true);
 
 	amdgpu_device_set_cg_state(adev, AMD_CG_STATE_GATE);
@@ -4236,7 +4244,10 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 	 * for throttling interrupt) = 60 seconds.
 	 */
 	ratelimit_state_init(&adev->throttling_logging_rs, (60 - 1) * HZ, 1);
+	ratelimit_state_init(&adev->virt.ras_telemetry_rs, 5 * HZ, 1);
+
 	ratelimit_set_flags(&adev->throttling_logging_rs, RATELIMIT_MSG_ON_RELEASE);
+	ratelimit_set_flags(&adev->virt.ras_telemetry_rs, RATELIMIT_MSG_ON_RELEASE);
 
 	/* Registers mapping */
 	/* TODO: block userspace mapping of io register */
@@ -4666,8 +4677,8 @@ void amdgpu_device_fini_sw(struct amdgpu_device *adev)
 	int idx;
 	bool px;
 
-	amdgpu_fence_driver_sw_fini(adev);
 	amdgpu_device_ip_fini(adev);
+	amdgpu_fence_driver_sw_fini(adev);
 	amdgpu_ucode_release(&adev->firmware.gpu_info_fw);
 	adev->accel_working = false;
 	dma_fence_put(rcu_dereference_protected(adev->gang_submit, true));
@@ -5186,6 +5197,9 @@ static int amdgpu_device_reset_sriov(struct amdgpu_device *adev,
 	    amdgpu_ip_version(adev, GC_HWIP, 0) == IP_VERSION(9, 4, 4) ||
 	    amdgpu_ip_version(adev, GC_HWIP, 0) == IP_VERSION(11, 0, 3))
 		amdgpu_ras_resume(adev);
+
+	amdgpu_virt_ras_telemetry_post_reset(adev);
+
 	return 0;
 }
 
@@ -5413,7 +5427,7 @@ int amdgpu_device_reinit_after_reset(struct amdgpu_reset_context *reset_context)
 	struct list_head *device_list_handle;
 	bool full_reset, vram_lost = false;
 	struct amdgpu_device *tmp_adev;
-	int r;
+	int r, init_level;
 
 	device_list_handle = reset_context->reset_device_list;
 
@@ -5422,10 +5436,18 @@ int amdgpu_device_reinit_after_reset(struct amdgpu_reset_context *reset_context)
 
 	full_reset = test_bit(AMDGPU_NEED_FULL_RESET, &reset_context->flags);
 
+	/**
+	 * If it's reset on init, it's default init level, otherwise keep level
+	 * as recovery level.
+	 */
+	if (reset_context->method == AMD_RESET_METHOD_ON_INIT)
+			init_level = AMDGPU_INIT_LEVEL_DEFAULT;
+	else
+			init_level = AMDGPU_INIT_LEVEL_RESET_RECOVERY;
+
 	r = 0;
 	list_for_each_entry(tmp_adev, device_list_handle, reset_list) {
-		/* After reset, it's default init level */
-		amdgpu_set_init_level(tmp_adev, AMDGPU_INIT_LEVEL_DEFAULT);
+		amdgpu_set_init_level(tmp_adev, init_level);
 		if (full_reset) {
 			/* post card */
 			amdgpu_ras_set_fed(tmp_adev, false);
@@ -5512,6 +5534,9 @@ int amdgpu_device_reinit_after_reset(struct amdgpu_reset_context *reset_context)
 
 out:
 		if (!r) {
+			/* IP init is complete now, set level as default */
+			amdgpu_set_init_level(tmp_adev,
+					      AMDGPU_INIT_LEVEL_DEFAULT);
 			amdgpu_irq_gpu_reset_resume_helper(tmp_adev);
 			r = amdgpu_ib_ring_tests(tmp_adev);
 			if (r) {
@@ -6200,6 +6225,9 @@ bool amdgpu_device_is_peer_accessible(struct amdgpu_device *adev,
 	bool p2p_access =
 		!adev->gmc.xgmi.connected_to_cpu &&
 		!(pci_p2pdma_distance(adev->pdev, peer_adev->dev, false) < 0);
+	if (!p2p_access)
+		dev_info(adev->dev, "PCIe P2P access from peer device %s is not supported by the chipset\n",
+			pci_name(peer_adev->pdev));
 
 	bool is_large_bar = adev->gmc.visible_vram_size &&
 		adev->gmc.real_vram_size == adev->gmc.visible_vram_size;
@@ -6451,6 +6479,9 @@ bool amdgpu_device_cache_pci_state(struct pci_dev *pdev)
 	struct drm_device *dev = pci_get_drvdata(pdev);
 	struct amdgpu_device *adev = drm_to_adev(dev);
 	int r;
+
+	if (amdgpu_sriov_vf(adev))
+		return false;
 
 	r = pci_save_state(pdev);
 	if (!r) {
@@ -6711,4 +6742,48 @@ uint32_t amdgpu_device_wait_on_rreg(struct amdgpu_device *adev,
 		}
 	}
 	return ret;
+}
+
+ssize_t amdgpu_get_soft_full_reset_mask(struct amdgpu_ring *ring)
+{
+	ssize_t size = 0;
+
+	if (!ring || !ring->adev)
+		return size;
+
+	if (amdgpu_device_should_recover_gpu(ring->adev))
+		size |= AMDGPU_RESET_TYPE_FULL;
+
+	if (unlikely(!ring->adev->debug_disable_soft_recovery) &&
+	    !amdgpu_sriov_vf(ring->adev) && ring->funcs->soft_recovery)
+		size |= AMDGPU_RESET_TYPE_SOFT_RESET;
+
+	return size;
+}
+
+ssize_t amdgpu_show_reset_mask(char *buf, uint32_t supported_reset)
+{
+	ssize_t size = 0;
+
+	if (supported_reset == 0) {
+		size += sysfs_emit_at(buf, size, "unsupported");
+		size += sysfs_emit_at(buf, size, "\n");
+		return size;
+
+	}
+
+	if (supported_reset & AMDGPU_RESET_TYPE_SOFT_RESET)
+		size += sysfs_emit_at(buf, size, "soft ");
+
+	if (supported_reset & AMDGPU_RESET_TYPE_PER_QUEUE)
+		size += sysfs_emit_at(buf, size, "queue ");
+
+	if (supported_reset & AMDGPU_RESET_TYPE_PER_PIPE)
+		size += sysfs_emit_at(buf, size, "pipe ");
+
+	if (supported_reset & AMDGPU_RESET_TYPE_FULL)
+		size += sysfs_emit_at(buf, size, "full ");
+
+	size += sysfs_emit_at(buf, size, "\n");
+	return size;
 }

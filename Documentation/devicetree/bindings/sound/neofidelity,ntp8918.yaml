@@ -1,0 +1,70 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/sound/neofidelity,ntp8918.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: NeoFidelity NTP8918 Amplifier
+
+maintainers:
+  - Igor Prusov <ivprusov@salutedevices.com>
+
+description:
+  The NTP8918 is a single chip full digital audio amplifier
+  including power stage for stereo amplifier system.
+  The NTP8918 is integrated with versatile digital audio signal
+  processing functions, high-performance, high-fidelity fully
+  digital PWM modulator and two high-power full-bridge MOSFET
+  power stages.
+
+allOf:
+  - $ref: dai-common.yaml#
+
+properties:
+  compatible:
+    enum:
+      - neofidelity,ntp8918
+
+  reg:
+    enum:
+      - 0x2a
+      - 0x2b
+      - 0x2c
+      - 0x2d
+
+  reset-gpios:
+    maxItems: 1
+
+  '#sound-dai-cells':
+    const: 0
+
+  clocks:
+    maxItems: 3
+
+  clock-names:
+    items:
+      - const: wck
+      - const: scl
+      - const: bck
+
+required:
+  - compatible
+  - reg
+
+unevaluatedProperties: false
+
+examples:
+  - |
+   #include <dt-bindings/gpio/gpio.h>
+   i2c {
+     #address-cells = <1>;
+     #size-cells = <0>;
+     audio-codec@2a {
+       compatible = "neofidelity,ntp8918";
+       #sound-dai-cells = <0>;
+       reg = <0x2a>;
+       clocks = <&clkc 150>, <&clkc 151>, <&clkc 152>;
+       clock-names =  "wck", "scl", "bck";
+       reset-gpios = <&gpio 5 GPIO_ACTIVE_LOW>;
+    };
+   };

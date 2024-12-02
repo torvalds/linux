@@ -247,7 +247,7 @@ static struct platform_driver sdhci_f_sdh30_driver = {
 		.pm	= &sdhci_pltfm_pmops,
 	},
 	.probe = sdhci_f_sdh30_probe,
-	.remove_new = sdhci_f_sdh30_remove,
+	.remove = sdhci_f_sdh30_remove,
 };
 
 module_platform_driver(sdhci_f_sdh30_driver);

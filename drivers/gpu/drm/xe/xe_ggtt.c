@@ -246,7 +246,7 @@ int xe_ggtt_init_early(struct xe_ggtt *ggtt)
 	else
 		ggtt->pt_ops = &xelp_pt_ops;
 
-	ggtt->wq = alloc_workqueue("xe-ggtt-wq", 0, 0);
+	ggtt->wq = alloc_workqueue("xe-ggtt-wq", 0, WQ_MEM_RECLAIM);
 
 	drm_mm_init(&ggtt->mm, xe_wopcm_size(xe),
 		    ggtt->size - xe_wopcm_size(xe));
@@ -409,7 +409,7 @@ static void xe_ggtt_invalidate(struct xe_ggtt *ggtt)
 	 * vs. correct GGTT page. Not particularly a hot code path so blindly
 	 * do a mmio read here which results in GuC reading correct GGTT page.
 	 */
-	xe_mmio_read32(&xe_root_mmio_gt(xe)->mmio, VF_CAP_REG);
+	xe_mmio_read32(xe_root_tile_mmio(xe), VF_CAP_REG);
 
 	/* Each GT in a tile has its own TLB to cache GGTT lookups */
 	ggtt_invalidate_gt_tlb(ggtt->tile->primary_gt);

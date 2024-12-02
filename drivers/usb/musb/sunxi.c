@@ -293,8 +293,6 @@ static int sunxi_musb_exit(struct musb *musb)
 	if (test_bit(SUNXI_MUSB_FL_HAS_SRAM, &glue->flags))
 		sunxi_sram_release(musb->controller->parent);
 
-	devm_usb_put_phy(glue->dev, glue->xceiv);
-
 	return 0;
 }
 
@@ -859,7 +857,7 @@ MODULE_DEVICE_TABLE(of, sunxi_musb_match);
 
 static struct platform_driver sunxi_musb_driver = {
 	.probe = sunxi_musb_probe,
-	.remove_new = sunxi_musb_remove,
+	.remove = sunxi_musb_remove,
 	.driver = {
 		.name = "musb-sunxi",
 		.of_match_table = sunxi_musb_match,

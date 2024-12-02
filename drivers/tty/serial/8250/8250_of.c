@@ -352,7 +352,7 @@ static struct platform_driver of_platform_serial_driver = {
 		.pm = &of_serial_pm_ops,
 	},
 	.probe = of_platform_serial_probe,
-	.remove_new = of_platform_serial_remove,
+	.remove = of_platform_serial_remove,
 };
 
 module_platform_driver(of_platform_serial_driver);

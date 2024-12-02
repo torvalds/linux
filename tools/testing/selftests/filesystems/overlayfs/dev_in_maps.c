@@ -17,32 +17,7 @@
 
 #include "../../kselftest.h"
 #include "log.h"
-
-static int sys_fsopen(const char *fsname, unsigned int flags)
-{
-	return syscall(__NR_fsopen, fsname, flags);
-}
-
-static int sys_fsconfig(int fd, unsigned int cmd, const char *key, const char *value, int aux)
-{
-	return syscall(__NR_fsconfig, fd, cmd, key, value, aux);
-}
-
-static int sys_fsmount(int fd, unsigned int flags, unsigned int attr_flags)
-{
-	return syscall(__NR_fsmount, fd, flags, attr_flags);
-}
-static int sys_mount(const char *src, const char *tgt, const char *fst,
-		unsigned long flags, const void *data)
-{
-	return syscall(__NR_mount, src, tgt, fst, flags, data);
-}
-static int sys_move_mount(int from_dfd, const char *from_pathname,
-			  int to_dfd, const char *to_pathname,
-			  unsigned int flags)
-{
-	return syscall(__NR_move_mount, from_dfd, from_pathname, to_dfd, to_pathname, flags);
-}
+#include "wrappers.h"
 
 static long get_file_dev_and_inode(void *addr, struct statx *stx)
 {

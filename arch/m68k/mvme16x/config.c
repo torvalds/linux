@@ -21,9 +21,10 @@
 #include <linux/linkage.h>
 #include <linux/init.h>
 #include <linux/major.h>
-#include <linux/rtc.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
+#include <linux/platform_device.h>
+#include <linux/rtc/m48t59.h>
 
 #include <asm/bootinfo.h>
 #include <asm/bootinfo-vme.h>
@@ -39,15 +40,9 @@
 
 extern t_bdid mvme_bdid;
 
-static MK48T08ptr_t volatile rtc = (MK48T08ptr_t)MVME_RTC_BASE;
-
 static void mvme16x_get_model(char *model);
 extern void mvme16x_sched_init(void);
-extern int mvme16x_hwclk (int, struct rtc_time *);
 extern void mvme16x_reset (void);
-
-int bcd2int (unsigned char b);
-
 
 unsigned short mvme16x_config;
 EXPORT_SYMBOL(mvme16x_config);
@@ -268,7 +263,6 @@ void __init config_mvme16x(void)
 
     mach_sched_init      = mvme16x_sched_init;
     mach_init_IRQ        = mvme16x_init_IRQ;
-    mach_hwclk           = mvme16x_hwclk;
     mach_reset		 = mvme16x_reset;
     mach_get_model       = mvme16x_get_model;
     mach_get_hardware_list = mvme16x_get_hardware_list;
@@ -311,6 +305,28 @@ void __init config_mvme16x(void)
 	mvme16x_config = MVME16x_CONFIG_GOT_LP | MVME16x_CONFIG_GOT_CD2401;
     }
 }
+
+static struct resource m48t59_rsrc[] = {
+	DEFINE_RES_MEM(MVME_RTC_BASE, 0x2000),
+};
+
+static struct m48t59_plat_data m48t59_data = {
+	.type = M48T59RTC_TYPE_M48T08,
+	.yy_offset = 70,
+};
+
+static int __init mvme16x_platform_init(void)
+{
+	if (!MACH_IS_MVME16x)
+		return 0;
+
+	platform_device_register_resndata(NULL, "rtc-m48t59", -1,
+					  m48t59_rsrc, ARRAY_SIZE(m48t59_rsrc),
+					  &m48t59_data, sizeof(m48t59_data));
+	return 0;
+}
+
+arch_initcall(mvme16x_platform_init);
 
 static irqreturn_t mvme16x_abort_int (int irq, void *dev_id)
 {
@@ -425,29 +441,4 @@ static u64 mvme16x_read_clk(struct clocksource *cs)
 	local_irq_restore(flags);
 
 	return ticks;
-}
-
-int bcd2int (unsigned char b)
-{
-	return ((b>>4)*10 + (b&15));
-}
-
-int mvme16x_hwclk(int op, struct rtc_time *t)
-{
-	if (!op) {
-		rtc->ctrl = RTC_READ;
-		t->tm_year = bcd2int (rtc->bcd_year);
-		t->tm_mon  = bcd2int(rtc->bcd_mth) - 1;
-		t->tm_mday = bcd2int (rtc->bcd_dom);
-		t->tm_hour = bcd2int (rtc->bcd_hr);
-		t->tm_min  = bcd2int (rtc->bcd_min);
-		t->tm_sec  = bcd2int (rtc->bcd_sec);
-		rtc->ctrl = 0;
-		if (t->tm_year < 70)
-			t->tm_year += 100;
-	} else {
-		/* FIXME Setting the time is not yet supported */
-		return -EOPNOTSUPP;
-	}
-	return 0;
 }

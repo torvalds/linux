@@ -43,7 +43,7 @@ get_proto_defrag_hook(struct bpf_nf_link *link,
 	hook = rcu_dereference(*ptr_global_hook);
 	if (!hook) {
 		rcu_read_unlock();
-		err = request_module(mod);
+		err = request_module("%s", mod);
 		if (err)
 			return ERR_PTR(err < 0 ? err : -EINVAL);
 

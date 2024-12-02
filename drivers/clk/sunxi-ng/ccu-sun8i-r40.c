@@ -1162,7 +1162,7 @@ static struct clk_hw_onecell_data sun8i_r40_hw_clks = {
 	.num	= CLK_NUMBER,
 };
 
-static struct ccu_reset_map sun8i_r40_ccu_resets[] = {
+static const struct ccu_reset_map sun8i_r40_ccu_resets[] = {
 	[RST_USB_PHY0]		=  { 0x0cc, BIT(0) },
 	[RST_USB_PHY1]		=  { 0x0cc, BIT(1) },
 	[RST_USB_PHY2]		=  { 0x0cc, BIT(2) },

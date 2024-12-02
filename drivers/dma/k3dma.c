@@ -1028,7 +1028,7 @@ static struct platform_driver k3_pdma_driver = {
 		.of_match_table = k3_pdma_dt_ids,
 	},
 	.probe		= k3_dma_probe,
-	.remove_new	= k3_dma_remove,
+	.remove		= k3_dma_remove,
 };
 
 module_platform_driver(k3_pdma_driver);

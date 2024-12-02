@@ -8,7 +8,7 @@ bool
 {% else %}
 static bool __maybe_unused
 {% endif %}
-xdrgen_decode_{{ name }}(struct xdr_stream *xdr, enum {{ name }} *ptr)
+xdrgen_decode_{{ name }}(struct xdr_stream *xdr, {{ name }} *ptr)
 {
 	u32 val;
 

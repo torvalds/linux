@@ -899,7 +899,7 @@ static int __get_required_blob_size(struct ceph_inode_info *ci, int name_size,
 }
 
 /*
- * If there are dirty xattrs, reencode xattrs into the prealloc_blob
+ * If there are dirty xattrs, re-encode xattrs into the prealloc_blob
  * and swap into place.  It returns the old i_xattrs.blob (or NULL) so
  * that it can be freed by the caller as the i_ceph_lock is likely to be
  * held.

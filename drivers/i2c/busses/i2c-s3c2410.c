@@ -1176,7 +1176,7 @@ static const struct dev_pm_ops s3c24xx_i2c_dev_pm_ops = {
 
 static struct platform_driver s3c24xx_i2c_driver = {
 	.probe		= s3c24xx_i2c_probe,
-	.remove_new	= s3c24xx_i2c_remove,
+	.remove		= s3c24xx_i2c_remove,
 	.id_table	= s3c24xx_driver_ids,
 	.driver		= {
 		.name	= "s3c-i2c",

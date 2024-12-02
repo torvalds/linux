@@ -200,7 +200,7 @@
 		widgets = "Microphone", "Mic Jack",
 			  "Line", "Line In Jack",
 			  "Headphone", "Headphone Jack";
-		mic-det-gpio = <&gpio0 2 GPIO_ACTIVE_LOW>;
+		mic-det-gpios = <&gpio0 2 GPIO_ACTIVE_LOW>;
 		routing = "Headphone Jack", "HPOUTL",
 			 "Headphone Jack", "HPOUTR",
 			 "IN3R", "MICBIAS",
@@ -364,6 +364,8 @@
 		#clock-cells = <1>;
 		clocks = <&x304_clk>;
 		clock-names = "xin";
+		idt,shutdown = <0>;
+		idt,output-enable-active = <0>;
 
 		assigned-clocks = <&versaclock6_bb 1>, <&versaclock6_bb 2>,
 				  <&versaclock6_bb 3>, <&versaclock6_bb 4>;
@@ -440,16 +442,14 @@
 	touchscreen@26 {
 		compatible = "ilitek,ili2117";
 		reg = <0x26>;
-		interrupt-parent = <&gpio5>;
-		interrupts = <9 IRQ_TYPE_EDGE_RISING>;
+		interrupts-extended = <&gpio5 9 IRQ_TYPE_EDGE_RISING>;
 		wakeup-source;
 	};
 
 	hd3ss3220@47 {
 		compatible = "ti,hd3ss3220";
 		reg = <0x47>;
-		interrupt-parent = <&gpio6>;
-		interrupts = <4 IRQ_TYPE_LEVEL_LOW>;
+		interrupts-extended = <&gpio6 4 IRQ_TYPE_LEVEL_LOW>;
 
 		ports {
 			#address-cells = <1>;

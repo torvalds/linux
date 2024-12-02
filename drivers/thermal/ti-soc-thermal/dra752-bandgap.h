@@ -74,7 +74,7 @@
 /**
  * Register bitfields for DRA752
  *
- * All the macros bellow define the required bits for
+ * All the macros below define the required bits for
  * controlling temperature on DRA752. Bit defines are
  * grouped by register.
  */
@@ -125,7 +125,7 @@
 /**
  * Temperature limits and thresholds for DRA752
  *
- * All the macros bellow are definitions for handling the
+ * All the macros below are definitions for handling the
  * ADC conversions and representation of temperature limits
  * and thresholds for DRA752. Definitions are grouped
  * by temperature domain.

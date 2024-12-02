@@ -194,7 +194,7 @@ void intel_display_driver_early_probe(struct drm_i915_private *i915)
 
 	intel_display_irq_init(i915);
 	intel_dkl_phy_init(i915);
-	intel_color_init_hooks(i915);
+	intel_color_init_hooks(&i915->display);
 	intel_init_cdclk_hooks(&i915->display);
 	intel_audio_hooks_init(i915);
 	intel_dpll_init_clock_hook(i915);
@@ -249,7 +249,7 @@ int intel_display_driver_probe_noirq(struct drm_i915_private *i915)
 	if (ret)
 		goto cleanup_vga_client_pw_domain_dmc;
 
-	ret = intel_color_init(i915);
+	ret = intel_color_init(display);
 	if (ret)
 		goto cleanup_vga_client_pw_domain_dmc;
 
@@ -432,7 +432,7 @@ int intel_display_driver_probe_nogem(struct drm_i915_private *i915)
 
 	intel_pps_setup(display);
 
-	intel_gmbus_setup(i915);
+	intel_gmbus_setup(display);
 
 	drm_dbg_kms(&i915->drm, "%d display pipe%s available.\n",
 		    INTEL_NUM_PIPES(i915),
@@ -485,7 +485,7 @@ int intel_display_driver_probe_nogem(struct drm_i915_private *i915)
 	return 0;
 
 err_hdcp:
-	intel_hdcp_component_fini(i915);
+	intel_hdcp_component_fini(display);
 err_mode_config:
 	intel_mode_config_cleanup(i915);
 
@@ -495,6 +495,7 @@ err_mode_config:
 /* part #3: call after gem init */
 int intel_display_driver_probe(struct drm_i915_private *i915)
 {
+	struct intel_display *display = &i915->display;
 	int ret;
 
 	if (!HAS_DISPLAY(i915))
@@ -505,7 +506,7 @@ int intel_display_driver_probe(struct drm_i915_private *i915)
 	 * the BIOS fb takeover and whatever else magic ggtt reservations
 	 * happen during gem/ggtt init.
 	 */
-	intel_hdcp_component_init(i915);
+	intel_hdcp_component_init(display);
 
 	/*
 	 * Force all active planes to recompute their states. So that on
@@ -600,7 +601,7 @@ void intel_display_driver_remove_noirq(struct drm_i915_private *i915)
 	/* flush any delayed tasks or pending work */
 	flush_workqueue(i915->unordered_wq);
 
-	intel_hdcp_component_fini(i915);
+	intel_hdcp_component_fini(display);
 
 	intel_mode_config_cleanup(i915);
 
@@ -608,7 +609,7 @@ void intel_display_driver_remove_noirq(struct drm_i915_private *i915)
 
 	intel_overlay_cleanup(i915);
 
-	intel_gmbus_teardown(i915);
+	intel_gmbus_teardown(display);
 
 	destroy_workqueue(i915->display.wq.flip);
 	destroy_workqueue(i915->display.wq.modeset);

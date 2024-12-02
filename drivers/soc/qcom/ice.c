@@ -44,7 +44,6 @@
 struct qcom_ice {
 	struct device *dev;
 	void __iomem *base;
-	struct device_link *link;
 
 	struct clk *core_clk;
 };
@@ -268,6 +267,7 @@ struct qcom_ice *of_qcom_ice_get(struct device *dev)
 	struct qcom_ice *ice;
 	struct resource *res;
 	void __iomem *base;
+	struct device_link *link;
 
 	if (!dev || !dev->of_node)
 		return ERR_PTR(-ENODEV);
@@ -311,8 +311,8 @@ struct qcom_ice *of_qcom_ice_get(struct device *dev)
 		return ERR_PTR(-EPROBE_DEFER);
 	}
 
-	ice->link = device_link_add(dev, &pdev->dev, DL_FLAG_AUTOREMOVE_SUPPLIER);
-	if (!ice->link) {
+	link = device_link_add(dev, &pdev->dev, DL_FLAG_AUTOREMOVE_SUPPLIER);
+	if (!link) {
 		dev_err(&pdev->dev,
 			"Failed to create device link to consumer %s\n",
 			dev_name(dev));

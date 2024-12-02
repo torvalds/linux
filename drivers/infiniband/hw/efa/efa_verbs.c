@@ -85,6 +85,8 @@ static const struct rdma_stat_desc efa_port_stats_descs[] = {
 	EFA_DEFINE_PORT_STATS(EFA_STATS_STR)
 };
 
+#define EFA_DEFAULT_LINK_SPEED_GBPS   100
+
 #define EFA_CHUNK_PAYLOAD_SHIFT       12
 #define EFA_CHUNK_PAYLOAD_SIZE        BIT(EFA_CHUNK_PAYLOAD_SHIFT)
 #define EFA_CHUNK_PAYLOAD_PTR_SIZE    8
@@ -277,10 +279,47 @@ int efa_query_device(struct ib_device *ibdev,
 	return 0;
 }
 
+static void efa_link_gbps_to_speed_and_width(u16 gbps,
+					     enum ib_port_speed *speed,
+					     enum ib_port_width *width)
+{
+	if (gbps >= 400) {
+		*width = IB_WIDTH_8X;
+		*speed = IB_SPEED_HDR;
+	} else if (gbps >= 200) {
+		*width = IB_WIDTH_4X;
+		*speed = IB_SPEED_HDR;
+	} else if (gbps >= 120) {
+		*width = IB_WIDTH_12X;
+		*speed = IB_SPEED_FDR10;
+	} else if (gbps >= 100) {
+		*width = IB_WIDTH_4X;
+		*speed = IB_SPEED_EDR;
+	} else if (gbps >= 60) {
+		*width = IB_WIDTH_12X;
+		*speed = IB_SPEED_DDR;
+	} else if (gbps >= 50) {
+		*width = IB_WIDTH_1X;
+		*speed = IB_SPEED_HDR;
+	} else if (gbps >= 40) {
+		*width = IB_WIDTH_4X;
+		*speed = IB_SPEED_FDR10;
+	} else if (gbps >= 30) {
+		*width = IB_WIDTH_12X;
+		*speed = IB_SPEED_SDR;
+	} else {
+		*width = IB_WIDTH_1X;
+		*speed = IB_SPEED_EDR;
+	}
+}
+
 int efa_query_port(struct ib_device *ibdev, u32 port,
 		   struct ib_port_attr *props)
 {
 	struct efa_dev *dev = to_edev(ibdev);
+	enum ib_port_speed link_speed;
+	enum ib_port_width link_width;
+	u16 link_gbps;
 
 	props->lmc = 1;
 
@@ -288,8 +327,10 @@ int efa_query_port(struct ib_device *ibdev, u32 port,
 	props->phys_state = IB_PORT_PHYS_STATE_LINK_UP;
 	props->gid_tbl_len = 1;
 	props->pkey_tbl_len = 1;
-	props->active_speed = IB_SPEED_EDR;
-	props->active_width = IB_WIDTH_4X;
+	link_gbps = dev->dev_attr.max_link_speed_gbps ?: EFA_DEFAULT_LINK_SPEED_GBPS;
+	efa_link_gbps_to_speed_and_width(link_gbps, &link_speed, &link_width);
+	props->active_speed = link_speed;
+	props->active_width = link_width;
 	props->max_mtu = ib_mtu_int_to_enum(dev->dev_attr.mtu);
 	props->active_mtu = ib_mtu_int_to_enum(dev->dev_attr.mtu);
 	props->max_msg_sz = dev->dev_attr.mtu;
@@ -676,7 +717,7 @@ int efa_create_qp(struct ib_qp *ibqp, struct ib_qp_init_attr *init_attr,
 		goto err_out;
 	}
 
-	if (cmd.comp_mask || !is_reserved_cleared(cmd.reserved_90)) {
+	if (cmd.comp_mask || !is_reserved_cleared(cmd.reserved_98)) {
 		ibdev_dbg(&dev->ibdev,
 			  "Incompatible ABI params, unknown fields in udata\n");
 		err = -EINVAL;
@@ -731,6 +772,8 @@ int efa_create_qp(struct ib_qp *ibqp, struct ib_qp_init_attr *init_attr,
 			  qp->rq_cpu_addr, qp->rq_size, &qp->rq_dma_addr);
 		create_qp_params.rq_base_addr = qp->rq_dma_addr;
 	}
+
+	create_qp_params.sl = cmd.sl;
 
 	if (cmd.flags & EFA_CREATE_QP_WITH_UNSOLICITED_WRITE_RECV)
 		create_qp_params.unsolicited_write_recv = true;
@@ -1167,7 +1210,7 @@ int efa_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 	}
 
 	params.uarn = cq->ucontext->uarn;
-	params.cq_depth = entries;
+	params.sub_cq_depth = entries;
 	params.dma_addr = cq->dma_addr;
 	params.entry_size_in_bytes = cmd.cq_entry_size;
 	params.num_sub_cqs = cmd.num_sub_cqs;

@@ -1243,7 +1243,7 @@ static const struct dev_pm_ops cppi41_pm_ops = {
 
 static struct platform_driver cpp41_dma_driver = {
 	.probe  = cppi41_dma_probe,
-	.remove_new = cppi41_dma_remove,
+	.remove = cppi41_dma_remove,
 	.driver = {
 		.name = "cppi41-dma-engine",
 		.pm = &cppi41_pm_ops,

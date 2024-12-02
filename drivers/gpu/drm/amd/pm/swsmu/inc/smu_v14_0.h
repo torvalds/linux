@@ -53,7 +53,7 @@
 #define CTF_OFFSET_MEM			5
 
 extern const int decoded_link_speed[5];
-extern const int decoded_link_width[7];
+extern const int decoded_link_width[8];
 
 #define DECODE_GEN_SPEED(gen_speed_idx)		(decoded_link_speed[gen_speed_idx])
 #define DECODE_LANE_WIDTH(lane_width_idx)	(decoded_link_width[lane_width_idx])
@@ -210,7 +210,8 @@ int smu_v14_0_wait_for_event(struct smu_context *smu, enum smu_event_type event,
 			     uint64_t event_arg);
 
 int smu_v14_0_set_vcn_enable(struct smu_context *smu,
-			     bool enable);
+			      bool enable,
+			      int inst);
 
 int smu_v14_0_set_jpeg_enable(struct smu_context *smu,
 			      bool enable);

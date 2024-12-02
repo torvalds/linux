@@ -88,7 +88,7 @@ static __always_inline bool test_facility(unsigned long nr)
 	return __test_facility(nr, &stfle_fac_list);
 }
 
-static inline unsigned long __stfle_asm(u64 *stfle_fac_list, int size)
+static inline unsigned long __stfle_asm(u64 *fac_list, int size)
 {
 	unsigned long reg0 = size - 1;
 
@@ -96,7 +96,7 @@ static inline unsigned long __stfle_asm(u64 *stfle_fac_list, int size)
 		"	lgr	0,%[reg0]\n"
 		"	.insn	s,0xb2b00000,%[list]\n" /* stfle */
 		"	lgr	%[reg0],0\n"
-		: [reg0] "+&d" (reg0), [list] "+Q" (*stfle_fac_list)
+		: [reg0] "+&d" (reg0), [list] "+Q" (*fac_list)
 		:
 		: "memory", "cc", "0");
 	return reg0;
@@ -104,10 +104,10 @@ static inline unsigned long __stfle_asm(u64 *stfle_fac_list, int size)
 
 /**
  * stfle - Store facility list extended
- * @stfle_fac_list: array where facility list can be stored
+ * @fac_list: array where facility list can be stored
  * @size: size of passed in array in double words
  */
-static inline void __stfle(u64 *stfle_fac_list, int size)
+static inline void __stfle(u64 *fac_list, int size)
 {
 	unsigned long nr;
 	u32 stfl_fac_list;
@@ -116,20 +116,20 @@ static inline void __stfle(u64 *stfle_fac_list, int size)
 		"	stfl	0(0)\n"
 		: "=m" (get_lowcore()->stfl_fac_list));
 	stfl_fac_list = get_lowcore()->stfl_fac_list;
-	memcpy(stfle_fac_list, &stfl_fac_list, 4);
+	memcpy(fac_list, &stfl_fac_list, 4);
 	nr = 4; /* bytes stored by stfl */
 	if (stfl_fac_list & 0x01000000) {
 		/* More facility bits available with stfle */
-		nr = __stfle_asm(stfle_fac_list, size);
+		nr = __stfle_asm(fac_list, size);
 		nr = min_t(unsigned long, (nr + 1) * 8, size * 8);
 	}
-	memset((char *) stfle_fac_list + nr, 0, size * 8 - nr);
+	memset((char *)fac_list + nr, 0, size * 8 - nr);
 }
 
-static inline void stfle(u64 *stfle_fac_list, int size)
+static inline void stfle(u64 *fac_list, int size)
 {
 	preempt_disable();
-	__stfle(stfle_fac_list, size);
+	__stfle(fac_list, size);
 	preempt_enable();
 }
 

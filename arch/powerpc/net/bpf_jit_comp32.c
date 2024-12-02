@@ -127,13 +127,16 @@ void bpf_jit_build_prologue(u32 *image, struct codegen_context *ctx)
 {
 	int i;
 
+	/* Instruction for trampoline attach */
+	EMIT(PPC_RAW_NOP());
+
 	/* Initialize tail_call_cnt, to be skipped if we do tail calls. */
 	if (ctx->seen & SEEN_TAILCALL)
 		EMIT(PPC_RAW_LI(_R4, 0));
 	else
 		EMIT(PPC_RAW_NOP());
 
-#define BPF_TAILCALL_PROLOGUE_SIZE	4
+#define BPF_TAILCALL_PROLOGUE_SIZE	8
 
 	if (bpf_has_stack_frame(ctx))
 		EMIT(PPC_RAW_STWU(_R1, _R1, -BPF_PPC_STACKFRAME(ctx)));
@@ -198,6 +201,8 @@ void bpf_jit_build_epilogue(u32 *image, struct codegen_context *ctx)
 	bpf_jit_emit_common_epilogue(image, ctx);
 
 	EMIT(PPC_RAW_BLR());
+
+	bpf_jit_build_fentry_stubs(image, ctx);
 }
 
 /* Relative offset needs to be calculated based on final image location */

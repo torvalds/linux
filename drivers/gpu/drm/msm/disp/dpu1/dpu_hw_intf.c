@@ -547,6 +547,14 @@ static void dpu_hw_intf_program_intf_cmd_cfg(struct dpu_hw_intf *intf,
 	DPU_REG_WRITE(&intf->hw, INTF_CONFIG2, intf_cfg2);
 }
 
+/**
+ * dpu_hw_intf_init() - Initializes the INTF driver for the passed
+ * interface catalog entry.
+ * @dev:  Corresponding device for devres management
+ * @cfg:  interface catalog entry for which driver object is required
+ * @addr: mapped register io address of MDP
+ * @mdss_rev: dpu core's major and minor versions
+ */
 struct dpu_hw_intf *dpu_hw_intf_init(struct drm_device *dev,
 				     const struct dpu_intf_cfg *cfg,
 				     void __iomem *addr,

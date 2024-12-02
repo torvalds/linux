@@ -42,6 +42,8 @@ cpucap_is_possible(const unsigned int cap)
 		return IS_ENABLED(CONFIG_ARM64_BTI);
 	case ARM64_HAS_TLB_RANGE:
 		return IS_ENABLED(CONFIG_ARM64_TLB_RANGE);
+	case ARM64_HAS_S1POE:
+		return IS_ENABLED(CONFIG_ARM64_POE);
 	case ARM64_UNMAP_KERNEL_AT_EL0:
 		return IS_ENABLED(CONFIG_UNMAP_KERNEL_AT_EL0);
 	case ARM64_WORKAROUND_843419:
@@ -60,6 +62,11 @@ cpucap_is_possible(const unsigned int cap)
 		return IS_ENABLED(CONFIG_ARM64_WORKAROUND_REPEAT_TLBI);
 	case ARM64_WORKAROUND_SPECULATIVE_SSBS:
 		return IS_ENABLED(CONFIG_ARM64_ERRATUM_3194386);
+	case ARM64_MPAM:
+		/*
+		 * KVM MPAM support doesn't rely on the host kernel supporting MPAM.
+		*/
+		return true;
 	}
 
 	return true;

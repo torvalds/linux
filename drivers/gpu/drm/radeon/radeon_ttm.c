@@ -219,8 +219,7 @@ static int radeon_bo_move(struct ttm_buffer_object *bo, bool evict,
 	if (old_mem->mem_type == TTM_PL_TT &&
 	    new_mem->mem_type == TTM_PL_SYSTEM) {
 		radeon_ttm_tt_unbind(bo->bdev, bo->ttm);
-		ttm_resource_free(bo, &bo->resource);
-		ttm_bo_assign_mem(bo, new_mem);
+		ttm_bo_move_null(bo, new_mem);
 		goto out;
 	}
 	if (rdev->ring[radeon_copy_ring_index(rdev)].ready &&

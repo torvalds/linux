@@ -326,7 +326,7 @@ MODULE_DEVICE_TABLE(of, stm32_timers_of_match);
 
 static struct platform_driver stm32_timers_driver = {
 	.probe = stm32_timers_probe,
-	.remove_new = stm32_timers_remove,
+	.remove = stm32_timers_remove,
 	.driver	= {
 		.name = "stm32-timers",
 		.of_match_table = stm32_timers_of_match,

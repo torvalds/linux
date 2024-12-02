@@ -153,9 +153,6 @@
 					   object identity and may not be
 					   usable with open_by_handle_at(2). */
 #define AT_HANDLE_MNT_ID_UNIQUE	0x001	/* Return the u64 unique mount ID. */
-
-#if defined(__KERNEL__)
-#define AT_GETATTR_NOSEC	0x80000000
-#endif
+#define AT_HANDLE_CONNECTABLE	0x002	/* Request a connectable file handle */
 
 #endif /* _UAPI_LINUX_FCNTL_H */

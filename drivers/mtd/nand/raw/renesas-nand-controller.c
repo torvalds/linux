@@ -1402,7 +1402,7 @@ static struct platform_driver rnandc_driver = {
 		.of_match_table = rnandc_id_table,
 	},
 	.probe = rnandc_probe,
-	.remove_new = rnandc_remove,
+	.remove = rnandc_remove,
 };
 module_platform_driver(rnandc_driver);
 

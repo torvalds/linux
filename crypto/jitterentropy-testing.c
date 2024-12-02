@@ -15,7 +15,7 @@
 #define JENT_TEST_RINGBUFFER_MASK	(JENT_TEST_RINGBUFFER_SIZE - 1)
 
 struct jent_testing {
-	u32 jent_testing_rb[JENT_TEST_RINGBUFFER_SIZE];
+	u64 jent_testing_rb[JENT_TEST_RINGBUFFER_SIZE];
 	u32 rb_reader;
 	atomic_t rb_writer;
 	atomic_t jent_testing_enabled;
@@ -72,7 +72,7 @@ static void jent_testing_fini(struct jent_testing *data, u32 boot)
 	pr_warn("Disabling data collection\n");
 }
 
-static bool jent_testing_store(struct jent_testing *data, u32 value,
+static bool jent_testing_store(struct jent_testing *data, u64 value,
 			       u32 *boot)
 {
 	unsigned long flags;
@@ -156,20 +156,20 @@ static int jent_testing_reader(struct jent_testing *data, u32 *boot,
 		}
 
 		/* We copy out word-wise */
-		if (outbuflen < sizeof(u32)) {
+		if (outbuflen < sizeof(u64)) {
 			spin_unlock_irqrestore(&data->lock, flags);
 			goto out;
 		}
 
 		memcpy(outbuf, &data->jent_testing_rb[data->rb_reader],
-		       sizeof(u32));
+		       sizeof(u64));
 		data->rb_reader++;
 
 		spin_unlock_irqrestore(&data->lock, flags);
 
-		outbuf += sizeof(u32);
-		outbuflen -= sizeof(u32);
-		collected_data += sizeof(u32);
+		outbuf += sizeof(u64);
+		outbuflen -= sizeof(u64);
+		collected_data += sizeof(u64);
 	}
 
 out:
@@ -189,16 +189,17 @@ static int jent_testing_extract_user(struct file *file, char __user *buf,
 
 	/*
 	 * The intention of this interface is for collecting at least
-	 * 1000 samples due to the SP800-90B requirements. So, we make no
-	 * effort in avoiding allocating more memory that actually needed
-	 * by the user. Hence, we allocate sufficient memory to always hold
-	 * that amount of data.
+	 * 1000 samples due to the SP800-90B requirements. However, due to
+	 * memory and performance constraints, it is not desirable to allocate
+	 * 8000 bytes of memory. Instead, we allocate space for only 125
+	 * samples, which will allow the user to collect all 1000 samples using
+	 * 8 calls to this interface.
 	 */
-	tmp = kmalloc(JENT_TEST_RINGBUFFER_SIZE + sizeof(u32), GFP_KERNEL);
+	tmp = kmalloc(125 * sizeof(u64) + sizeof(u64), GFP_KERNEL);
 	if (!tmp)
 		return -ENOMEM;
 
-	tmp_aligned = PTR_ALIGN(tmp, sizeof(u32));
+	tmp_aligned = PTR_ALIGN(tmp, sizeof(u64));
 
 	while (nbytes) {
 		int i;
@@ -212,7 +213,7 @@ static int jent_testing_extract_user(struct file *file, char __user *buf,
 			schedule();
 		}
 
-		i = min_t(int, nbytes, JENT_TEST_RINGBUFFER_SIZE);
+		i = min_t(int, nbytes, 125 * sizeof(u64));
 		i = reader(tmp_aligned, i);
 		if (i <= 0) {
 			if (i < 0)
@@ -251,7 +252,7 @@ static struct jent_testing jent_raw_hires = {
 	.read_wait = __WAIT_QUEUE_HEAD_INITIALIZER(jent_raw_hires.read_wait)
 };
 
-int jent_raw_hires_entropy_store(__u32 value)
+int jent_raw_hires_entropy_store(__u64 value)
 {
 	return jent_testing_store(&jent_raw_hires, value, &boot_raw_hires_test);
 }
