@@ -292,8 +292,8 @@ int bch2_move_extent(struct moving_context *ctxt,
 	io->write_sectors	= k.k->size;
 
 	bio_init(&io->write.op.wbio.bio, NULL, io->bi_inline_vecs, pages, 0);
-	bio_set_prio(&io->write.op.wbio.bio,
-		     IOPRIO_PRIO_VALUE(IOPRIO_CLASS_IDLE, 0));
+	io->write.op.wbio.bio.bi_ioprio =
+		     IOPRIO_PRIO_VALUE(IOPRIO_CLASS_IDLE, 0);
 
 	if (bch2_bio_alloc_pages(&io->write.op.wbio.bio, sectors << 9,
 				 GFP_KERNEL))
@@ -303,7 +303,7 @@ int bch2_move_extent(struct moving_context *ctxt,
 	io->rbio.opts		= io_opts;
 	bio_init(&io->rbio.bio, NULL, io->bi_inline_vecs, pages, 0);
 	io->rbio.bio.bi_vcnt = pages;
-	bio_set_prio(&io->rbio.bio, IOPRIO_PRIO_VALUE(IOPRIO_CLASS_IDLE, 0));
+	io->rbio.bio.bi_ioprio = IOPRIO_PRIO_VALUE(IOPRIO_CLASS_IDLE, 0);
 	io->rbio.bio.bi_iter.bi_size = sectors << 9;
 
 	io->rbio.bio.bi_opf		= REQ_OP_READ;
