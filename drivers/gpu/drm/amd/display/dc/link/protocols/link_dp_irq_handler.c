@@ -226,6 +226,8 @@ static void handle_hpd_irq_replay_sink(struct dc_link *link)
 		replay_configuration.bits.STATE_TRANSITION_ERROR_STATUS) {
 		bool allow_active;
 
+		link->replay_settings.config.replay_error_status.raw |= replay_error_status.raw;
+
 		if (link->replay_settings.config.force_disable_desync_error_check)
 			return;
 

@@ -431,7 +431,67 @@ union replay_debug_flags {
 		 */
 		uint32_t enable_ips_residency_profiling : 1;
 
-		uint32_t reserved : 20;
+		/**
+		 * 0x1000 (bit 12)
+		 * @enable_coasting_vtotal_check: Enable Coasting_vtotal_check
+		 */
+		uint32_t enable_coasting_vtotal_check : 1;
+
+		uint32_t reserved : 19;
+	} bitfields;
+
+	uint32_t u32All;
+};
+
+/**
+ * Flags record error state.
+ */
+union replay_error_state_flags {
+	struct {
+		/**
+		 * 0x1 (bit 0) - Desync Error flag.
+		 */
+		uint32_t desync_error : 1;
+
+		/**
+		 * 0x2 (bit 1) - State Transition Error flag.
+		 */
+		uint32_t state_transition_error : 1;
+
+		/**
+		 * 0x4 (bit 2) - Crc Error flag
+		 */
+		uint32_t crc_error : 1;
+
+		/**
+		 * 0x8 (bit 3) - Reserved
+		 */
+		uint32_t reserved_3 : 1;
+
+		/**
+		 * 0x10 (bit 4) - Incorrect Coasting vtotal checking --> use debug flag to control DPCD write.
+		 * Added new debug flag to control DPCD.
+		 */
+		uint32_t incorrect_vtotal_in_static_screen : 1;
+
+		/**
+		 * 0x20 (bit 5) - No doubled Refresh Rate.
+		 */
+		uint32_t no_double_rr : 1;
+
+		/**
+		 * Reserved bit 6-7
+		 */
+		uint32_t reserved_6_7 : 2;
+		/**
+		 * 0x100 (bit 8) - DQE Only.
+		 */
+		uint32_t pass_low_hz : 1;
+
+		/**
+		 * Reserved bit 9-31
+		 */
+		uint32_t reserved_9_31 : 23;
 	} bitfields;
 
 	uint32_t u32All;
@@ -3644,6 +3704,8 @@ enum dmub_cmd_replay_general_subtype {
 	 */
 	REPLAY_GENERAL_CMD_DISABLED_ADAPTIVE_SYNC_SDP,
 	REPLAY_GENERAL_CMD_DISABLED_DESYNC_ERROR_DETECTION,
+	REPLAY_GENERAL_CMD_UPDATE_ERROR_STATUS,
+	REPLAY_GENERAL_CMD_SET_LOW_RR_ACTIVATE,
 };
 
 /**
