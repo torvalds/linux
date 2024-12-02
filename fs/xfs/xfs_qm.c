@@ -241,6 +241,10 @@ xfs_qm_destroy_quotainos(
 		xfs_irele(qi->qi_pquotaip);
 		qi->qi_pquotaip = NULL;
 	}
+	if (qi->qi_dirip) {
+		xfs_irele(qi->qi_dirip);
+		qi->qi_dirip = NULL;
+	}
 }
 
 /*
@@ -646,8 +650,7 @@ xfs_qm_init_timelimits(
 static int
 xfs_qm_load_metadir_qinos(
 	struct xfs_mount	*mp,
-	struct xfs_quotainfo	*qi,
-	struct xfs_inode	**dpp)
+	struct xfs_quotainfo	*qi)
 {
 	struct xfs_trans	*tp;
 	int			error;
@@ -656,7 +659,7 @@ xfs_qm_load_metadir_qinos(
 	if (error)
 		return error;
 
-	error = xfs_dqinode_load_parent(tp, dpp);
+	error = xfs_dqinode_load_parent(tp, &qi->qi_dirip);
 	if (error == -ENOENT) {
 		/* no quota dir directory, but we'll create one later */
 		error = 0;
@@ -666,21 +669,21 @@ xfs_qm_load_metadir_qinos(
 		goto out_trans;
 
 	if (XFS_IS_UQUOTA_ON(mp)) {
-		error = xfs_dqinode_load(tp, *dpp, XFS_DQTYPE_USER,
+		error = xfs_dqinode_load(tp, qi->qi_dirip, XFS_DQTYPE_USER,
 				&qi->qi_uquotaip);
 		if (error && error != -ENOENT)
 			goto out_trans;
 	}
 
 	if (XFS_IS_GQUOTA_ON(mp)) {
-		error = xfs_dqinode_load(tp, *dpp, XFS_DQTYPE_GROUP,
+		error = xfs_dqinode_load(tp, qi->qi_dirip, XFS_DQTYPE_GROUP,
 				&qi->qi_gquotaip);
 		if (error && error != -ENOENT)
 			goto out_trans;
 	}
 
 	if (XFS_IS_PQUOTA_ON(mp)) {
-		error = xfs_dqinode_load(tp, *dpp, XFS_DQTYPE_PROJ,
+		error = xfs_dqinode_load(tp, qi->qi_dirip, XFS_DQTYPE_PROJ,
 				&qi->qi_pquotaip);
 		if (error && error != -ENOENT)
 			goto out_trans;
@@ -696,34 +699,33 @@ out_trans:
 STATIC int
 xfs_qm_create_metadir_qinos(
 	struct xfs_mount	*mp,
-	struct xfs_quotainfo	*qi,
-	struct xfs_inode	**dpp)
+	struct xfs_quotainfo	*qi)
 {
 	int			error;
 
-	if (!*dpp) {
-		error = xfs_dqinode_mkdir_parent(mp, dpp);
+	if (!qi->qi_dirip) {
+		error = xfs_dqinode_mkdir_parent(mp, &qi->qi_dirip);
 		if (error && error != -EEXIST)
 			return error;
 	}
 
 	if (XFS_IS_UQUOTA_ON(mp) && !qi->qi_uquotaip) {
-		error = xfs_dqinode_metadir_create(*dpp, XFS_DQTYPE_USER,
-				&qi->qi_uquotaip);
+		error = xfs_dqinode_metadir_create(qi->qi_dirip,
+				XFS_DQTYPE_USER, &qi->qi_uquotaip);
 		if (error)
 			return error;
 	}
 
 	if (XFS_IS_GQUOTA_ON(mp) && !qi->qi_gquotaip) {
-		error = xfs_dqinode_metadir_create(*dpp, XFS_DQTYPE_GROUP,
-				&qi->qi_gquotaip);
+		error = xfs_dqinode_metadir_create(qi->qi_dirip,
+				XFS_DQTYPE_GROUP, &qi->qi_gquotaip);
 		if (error)
 			return error;
 	}
 
 	if (XFS_IS_PQUOTA_ON(mp) && !qi->qi_pquotaip) {
-		error = xfs_dqinode_metadir_create(*dpp, XFS_DQTYPE_PROJ,
-				&qi->qi_pquotaip);
+		error = xfs_dqinode_metadir_create(qi->qi_dirip,
+				XFS_DQTYPE_PROJ, &qi->qi_pquotaip);
 		if (error)
 			return error;
 	}
@@ -768,7 +770,6 @@ xfs_qm_init_metadir_qinos(
 	struct xfs_mount	*mp)
 {
 	struct xfs_quotainfo	*qi = mp->m_quotainfo;
-	struct xfs_inode	*dp = NULL;
 	int			error;
 
 	if (!xfs_has_quota(mp)) {
@@ -777,20 +778,22 @@ xfs_qm_init_metadir_qinos(
 			return error;
 	}
 
-	error = xfs_qm_load_metadir_qinos(mp, qi, &dp);
+	error = xfs_qm_load_metadir_qinos(mp, qi);
 	if (error)
 		goto out_err;
 
-	error = xfs_qm_create_metadir_qinos(mp, qi, &dp);
+	error = xfs_qm_create_metadir_qinos(mp, qi);
 	if (error)
 		goto out_err;
 
-	xfs_irele(dp);
+	/* The only user of the quota dir inode is online fsck */
+#if !IS_ENABLED(CONFIG_XFS_ONLINE_SCRUB)
+	xfs_irele(qi->qi_dirip);
+	qi->qi_dirip = NULL;
+#endif
 	return 0;
 out_err:
 	xfs_qm_destroy_quotainos(mp->m_quotainfo);
-	if (dp)
-		xfs_irele(dp);
 	return error;
 }
 
