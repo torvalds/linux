@@ -420,7 +420,7 @@ static struct {
 } bus_vote_values[BUS_VOTE_MAX][3] = {
 	/* usb_ddr avg/peak, usb_ipa avg/peak, apps_usb avg/peak */
 	[BUS_VOTE_NONE]    = { {0, 0}, {0, 0}, {0, 0} },
-	[BUS_VOTE_NOMINAL] = { {1000000, 1250000}, {0, 2400}, {0, 40000}, },
+	[BUS_VOTE_NOMINAL] = { {1000000, 1350000}, {0, 2400}, {0, 40000}, },
 	[BUS_VOTE_SVS]     = { {240000, 700000}, {0, 2400}, {0, 40000}, },
 	[BUS_VOTE_MIN]     = { {1, 1}, {1, 1}, {1, 1}, },
 };
