@@ -316,8 +316,6 @@ static void ds278x_battery_remove(struct i2c_client *client)
 
 	power_supply_unregister(info->battery);
 	cancel_delayed_work_sync(&info->bat_work);
-	kfree(info->battery_desc.name);
-	kfree(info);
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -394,16 +392,14 @@ static int ds278x_battery_probe(struct i2c_client *client)
 	if (ret)
 		return ret;
 
-	info = kzalloc(sizeof(*info), GFP_KERNEL);
+	info = devm_kzalloc(&client->dev, sizeof(*info), GFP_KERNEL);
 	if (!info)
 		return -ENOMEM;
 
-	info->battery_desc.name = kasprintf(GFP_KERNEL, "%s-%d",
-					    client->name, num);
-	if (!info->battery_desc.name) {
-		ret = -ENOMEM;
-		goto fail_name;
-	}
+	info->battery_desc.name = devm_kasprintf(&client->dev, GFP_KERNEL,
+						 "%s-%d", client->name, num);
+	if (!info->battery_desc.name)
+		return -ENOMEM;
 
 	if (id->driver_data == DS2786)
 		info->rsns = pdata->rsns;
@@ -423,19 +419,12 @@ static int ds278x_battery_probe(struct i2c_client *client)
 					      &info->battery_desc, &psy_cfg);
 	if (IS_ERR(info->battery)) {
 		dev_err(&client->dev, "failed to register battery\n");
-		ret = PTR_ERR(info->battery);
-		goto fail_register;
+		return PTR_ERR(info->battery);
 	} else {
 		schedule_delayed_work(&info->bat_work, DS278x_DELAY);
 	}
 
 	return 0;
-
-fail_register:
-	kfree(info->battery_desc.name);
-fail_name:
-	kfree(info);
-	return ret;
 }
 
 static const struct i2c_device_id ds278x_id[] = {
