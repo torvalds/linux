@@ -274,6 +274,20 @@ static void enable_cpu_topology_enumeration(void)
 	tdg_vm_wr(TDCS_TD_CTLS, TD_CTLS_ENUM_TOPOLOGY, TD_CTLS_ENUM_TOPOLOGY);
 }
 
+static void reduce_unnecessary_ve(void)
+{
+	u64 err = tdg_vm_wr(TDCS_TD_CTLS, TD_CTLS_REDUCE_VE, TD_CTLS_REDUCE_VE);
+
+	if (err == TDX_SUCCESS)
+		return;
+
+	/*
+	 * Enabling REDUCE_VE includes ENUM_TOPOLOGY. Only try to
+	 * enable ENUM_TOPOLOGY if REDUCE_VE was not successful.
+	 */
+	enable_cpu_topology_enumeration();
+}
+
 static void tdx_setup(u64 *cc_mask)
 {
 	struct tdx_module_args args = {};
@@ -305,7 +319,8 @@ static void tdx_setup(u64 *cc_mask)
 	tdg_vm_wr(TDCS_NOTIFY_ENABLES, 0, -1ULL);
 
 	disable_sept_ve(td_attr);
-	enable_cpu_topology_enumeration();
+
+	reduce_unnecessary_ve();
 }
 
 /*

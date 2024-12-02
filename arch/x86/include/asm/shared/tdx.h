@@ -31,6 +31,7 @@
 /* TDCS_TD_CTLS bits */
 #define TD_CTLS_PENDING_VE_DISABLE	BIT_ULL(0)
 #define TD_CTLS_ENUM_TOPOLOGY		BIT_ULL(1)
+#define TD_CTLS_REDUCE_VE		BIT_ULL(3)
 
 /* TDX hypercall Leaf IDs */
 #define TDVMCALL_MAP_GPA		0x10001
