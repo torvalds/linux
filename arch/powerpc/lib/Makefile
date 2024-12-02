@@ -81,4 +81,7 @@ CFLAGS_xor_vmx.o += -isystem $(shell $(CC) -print-file-name=include)
 obj-$(CONFIG_CRC32_ARCH) += crc32-powerpc.o
 crc32-powerpc-y := crc32-glue.o crc32c-vpmsum_asm.o
 
+obj-$(CONFIG_CRC_T10DIF_ARCH) += crc-t10dif-powerpc.o
+crc-t10dif-powerpc-y := crc-t10dif-glue.o crct10dif-vpmsum_asm.o
+
 obj-$(CONFIG_PPC64) += $(obj64-y)

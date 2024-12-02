@@ -7,7 +7,6 @@
  */
 
 #include <linux/crc-t10dif.h>
-#include <crypto/internal/hash.h>
 #include <crypto/internal/simd.h>
 #include <linux/init.h>
 #include <linux/module.h>
@@ -22,15 +21,18 @@
 
 #define VECTOR_BREAKPOINT	64
 
+static DEFINE_STATIC_KEY_FALSE(have_vec_crypto);
+
 u32 __crct10dif_vpmsum(u32 crc, unsigned char const *p, size_t len);
 
-static u16 crct10dif_vpmsum(u16 crci, unsigned char const *p, size_t len)
+u16 crc_t10dif_arch(u16 crci, const u8 *p, size_t len)
 {
 	unsigned int prealign;
 	unsigned int tail;
 	u32 crc = crci;
 
-	if (len < (VECTOR_BREAKPOINT + VMX_ALIGN) || !crypto_simd_usable())
+	if (len < (VECTOR_BREAKPOINT + VMX_ALIGN) ||
+	    !static_branch_likely(&have_vec_crypto) || !crypto_simd_usable())
 		return crc_t10dif_generic(crc, p, len);
 
 	if ((unsigned long)p & VMX_ALIGN_MASK) {
@@ -60,67 +62,28 @@ static u16 crct10dif_vpmsum(u16 crci, unsigned char const *p, size_t len)
 
 	return crc & 0xffff;
 }
+EXPORT_SYMBOL(crc_t10dif_arch);
 
-static int crct10dif_vpmsum_init(struct shash_desc *desc)
+static int __init crc_t10dif_powerpc_init(void)
 {
-	u16 *crc = shash_desc_ctx(desc);
-
-	*crc = 0;
+	if (cpu_has_feature(CPU_FTR_ARCH_207S) &&
+	    (cur_cpu_spec->cpu_user_features2 & PPC_FEATURE2_VEC_CRYPTO))
+		static_branch_enable(&have_vec_crypto);
 	return 0;
 }
+arch_initcall(crc_t10dif_powerpc_init);
 
-static int crct10dif_vpmsum_update(struct shash_desc *desc, const u8 *data,
-			    unsigned int length)
+static void __exit crc_t10dif_powerpc_exit(void)
 {
-	u16 *crc = shash_desc_ctx(desc);
-
-	*crc = crct10dif_vpmsum(*crc, data, length);
-
-	return 0;
 }
+module_exit(crc_t10dif_powerpc_exit);
 
-
-static int crct10dif_vpmsum_final(struct shash_desc *desc, u8 *out)
+bool crc_t10dif_is_optimized(void)
 {
-	u16 *crcp = shash_desc_ctx(desc);
-
-	*(u16 *)out = *crcp;
-	return 0;
+	return static_key_enabled(&have_vec_crypto);
 }
-
-static struct shash_alg alg = {
-	.init		= crct10dif_vpmsum_init,
-	.update		= crct10dif_vpmsum_update,
-	.final		= crct10dif_vpmsum_final,
-	.descsize	= CRC_T10DIF_DIGEST_SIZE,
-	.digestsize	= CRC_T10DIF_DIGEST_SIZE,
-	.base		= {
-		.cra_name		= "crct10dif",
-		.cra_driver_name	= "crct10dif-vpmsum",
-		.cra_priority		= 200,
-		.cra_blocksize		= CRC_T10DIF_BLOCK_SIZE,
-		.cra_module		= THIS_MODULE,
-	}
-};
-
-static int __init crct10dif_vpmsum_mod_init(void)
-{
-	if (!cpu_has_feature(CPU_FTR_ARCH_207S))
-		return -ENODEV;
-
-	return crypto_register_shash(&alg);
-}
-
-static void __exit crct10dif_vpmsum_mod_fini(void)
-{
-	crypto_unregister_shash(&alg);
-}
-
-module_cpu_feature_match(PPC_MODULE_FEATURE_VEC_CRYPTO, crct10dif_vpmsum_mod_init);
-module_exit(crct10dif_vpmsum_mod_fini);
+EXPORT_SYMBOL(crc_t10dif_is_optimized);
 
 MODULE_AUTHOR("Daniel Axtens <dja@axtens.net>");
 MODULE_DESCRIPTION("CRCT10DIF using vector polynomial multiply-sum instructions");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS_CRYPTO("crct10dif");
-MODULE_ALIAS_CRYPTO("crct10dif-vpmsum");
