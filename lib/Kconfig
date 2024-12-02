@@ -223,15 +223,6 @@ config CRC32
 config ARCH_HAS_CRC32
 	bool
 
-config CRC32_SELFTEST
-	tristate "CRC32 perform self test on init"
-	depends on CRC32
-	help
-	  This option enables the CRC32 library functions to perform a
-	  self test on initialization. The self test computes crc32_le
-	  and crc32_be over byte strings with random alignment and length
-	  and computes the total elapsed time and number of bytes processed.
-
 choice
 	prompt "CRC32 implementation"
 	depends on CRC32
