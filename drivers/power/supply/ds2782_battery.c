@@ -11,6 +11,7 @@
  * UEvent sending added by Evgeny Romanov <romanov@neurosoft.ru>
  */
 
+#include <linux/devm-helpers.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/types.h>
@@ -310,13 +311,6 @@ static void ds278x_power_supply_init(struct power_supply_desc *battery)
 	battery->external_power_changed	= NULL;
 }
 
-static void ds278x_battery_remove(struct i2c_client *client)
-{
-	struct ds278x_info *info = i2c_get_clientdata(client);
-
-	cancel_delayed_work_sync(&info->bat_work);
-}
-
 #ifdef CONFIG_PM_SLEEP
 
 static int ds278x_suspend(struct device *dev)
@@ -412,17 +406,18 @@ static int ds278x_battery_probe(struct i2c_client *client)
 	info->capacity = 100;
 	info->status = POWER_SUPPLY_STATUS_FULL;
 
-	INIT_DELAYED_WORK(&info->bat_work, ds278x_bat_work);
-
 	info->battery = devm_power_supply_register(&client->dev,
 						   &info->battery_desc,
 						   &psy_cfg);
 	if (IS_ERR(info->battery)) {
 		dev_err(&client->dev, "failed to register battery\n");
 		return PTR_ERR(info->battery);
-	} else {
-		schedule_delayed_work(&info->bat_work, DS278x_DELAY);
 	}
+
+	ret = devm_delayed_work_autocancel(&client->dev, &info->bat_work, ds278x_bat_work);
+	if (ret)
+		return ret;
+	schedule_delayed_work(&info->bat_work, DS278x_DELAY);
 
 	return 0;
 }
@@ -440,7 +435,6 @@ static struct i2c_driver ds278x_battery_driver = {
 		.pm	= &ds278x_battery_pm_ops,
 	},
 	.probe		= ds278x_battery_probe,
-	.remove		= ds278x_battery_remove,
 	.id_table	= ds278x_id,
 };
 module_i2c_driver(ds278x_battery_driver);
