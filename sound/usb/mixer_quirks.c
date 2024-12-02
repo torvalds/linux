@@ -4116,6 +4116,7 @@ int snd_usb_mixer_apply_create_quirk(struct usb_mixer_interface *mixer)
 		err = snd_bbfpro_controls_create(mixer);
 		break;
 	case USB_ID(0x2a39, 0x3f8c): /* RME Digiface USB */
+	case USB_ID(0x2a39, 0x3fa0): /* RME Digiface USB (alternate) */
 		err = snd_rme_digiface_controls_create(mixer);
 		break;
 	case USB_ID(0x2b73, 0x0017): /* Pioneer DJ DJM-250MK2 */
