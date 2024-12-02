@@ -63,8 +63,7 @@ struct ds278x_info {
 	int			status;		/* State Of Charge */
 };
 
-static DEFINE_IDR(battery_id);
-static DEFINE_MUTEX(battery_lock);
+static DEFINE_IDA(battery_id);
 
 static inline int ds278x_read_reg(struct ds278x_info *info, int reg, u8 *val)
 {
@@ -322,9 +321,7 @@ static void ds278x_battery_remove(struct i2c_client *client)
 	kfree(info->battery_desc.name);
 	kfree(info);
 
-	mutex_lock(&battery_lock);
-	idr_remove(&battery_id, id);
-	mutex_unlock(&battery_lock);
+	ida_free(&battery_id, id);
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -387,12 +384,9 @@ static int ds278x_battery_probe(struct i2c_client *client)
 	}
 
 	/* Get an ID for this battery */
-	mutex_lock(&battery_lock);
-	ret = idr_alloc(&battery_id, client, 0, 0, GFP_KERNEL);
-	mutex_unlock(&battery_lock);
-	if (ret < 0)
-		goto fail_id;
-	num = ret;
+	num = ida_alloc(&battery_id, GFP_KERNEL);
+	if (num < 0)
+		return num;
 
 	info = kzalloc(sizeof(*info), GFP_KERNEL);
 	if (!info) {
@@ -439,10 +433,7 @@ fail_register:
 fail_name:
 	kfree(info);
 fail_info:
-	mutex_lock(&battery_lock);
-	idr_remove(&battery_id, num);
-	mutex_unlock(&battery_lock);
-fail_id:
+	ida_free(&battery_id, num);
 	return ret;
 }
 
