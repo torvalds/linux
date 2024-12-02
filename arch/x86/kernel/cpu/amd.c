@@ -355,10 +355,15 @@ static void bsp_determine_snp(struct cpuinfo_x86 *c)
 		/*
 		 * RMP table entry format is not architectural and is defined by the
 		 * per-processor PPR. Restrict SNP support on the known CPU models
-		 * for which the RMP table entry format is currently defined for.
+		 * for which the RMP table entry format is currently defined or for
+		 * processors which support the architecturally defined RMPREAD
+		 * instruction.
 		 */
 		if (!cpu_has(c, X86_FEATURE_HYPERVISOR) &&
-		    c->x86 >= 0x19 && snp_probe_rmptable_info()) {
+		    (cpu_feature_enabled(X86_FEATURE_ZEN3) ||
+		     cpu_feature_enabled(X86_FEATURE_ZEN4) ||
+		     cpu_feature_enabled(X86_FEATURE_RMPREAD)) &&
+		    snp_probe_rmptable_info()) {
 			cc_platform_set(CC_ATTR_HOST_SEV_SNP);
 		} else {
 			setup_clear_cpu_cap(X86_FEATURE_SEV_SNP);
