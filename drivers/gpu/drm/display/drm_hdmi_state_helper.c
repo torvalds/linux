@@ -347,6 +347,8 @@ static int hdmi_generate_avi_infoframe(const struct drm_connector *connector,
 		is_limited_range ? HDMI_QUANTIZATION_RANGE_LIMITED : HDMI_QUANTIZATION_RANGE_FULL;
 	int ret;
 
+	infoframe->set = false;
+
 	ret = drm_hdmi_avi_infoframe_from_display_mode(frame, connector, mode);
 	if (ret)
 		return ret;
@@ -376,6 +378,8 @@ static int hdmi_generate_spd_infoframe(const struct drm_connector *connector,
 		&infoframe->data.spd;
 	int ret;
 
+	infoframe->set = false;
+
 	ret = hdmi_spd_infoframe_init(frame,
 				      connector->hdmi.vendor,
 				      connector->hdmi.product);
@@ -397,6 +401,8 @@ static int hdmi_generate_hdr_infoframe(const struct drm_connector *connector,
 	struct hdmi_drm_infoframe *frame =
 		&infoframe->data.drm;
 	int ret;
+
+	infoframe->set = false;
 
 	if (connector->max_bpc < 10)
 		return 0;
@@ -424,6 +430,8 @@ static int hdmi_generate_hdmi_vendor_infoframe(const struct drm_connector *conne
 	struct hdmi_vendor_infoframe *frame =
 		&infoframe->data.vendor.hdmi;
 	int ret;
+
+	infoframe->set = false;
 
 	if (!info->has_hdmi_infoframe)
 		return 0;
