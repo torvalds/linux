@@ -57,7 +57,6 @@ struct ds278x_info {
 	struct power_supply_desc	battery_desc;
 	const struct ds278x_battery_ops *ops;
 	struct delayed_work	bat_work;
-	int			id;
 	int                     rsns;
 	int			capacity;
 	int			status;		/* State Of Charge */
@@ -314,14 +313,11 @@ static void ds278x_power_supply_init(struct power_supply_desc *battery)
 static void ds278x_battery_remove(struct i2c_client *client)
 {
 	struct ds278x_info *info = i2c_get_clientdata(client);
-	int id = info->id;
 
 	power_supply_unregister(info->battery);
 	cancel_delayed_work_sync(&info->bat_work);
 	kfree(info->battery_desc.name);
 	kfree(info);
-
-	ida_free(&battery_id, id);
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -365,6 +361,13 @@ static const struct ds278x_battery_ops ds278x_ops[] = {
 	}
 };
 
+static void ds278x_free_ida(void *data)
+{
+	int num = (uintptr_t)data;
+
+	ida_free(&battery_id, num);
+}
+
 static int ds278x_battery_probe(struct i2c_client *client)
 {
 	const struct i2c_device_id *id = i2c_client_get_device_id(client);
@@ -387,12 +390,13 @@ static int ds278x_battery_probe(struct i2c_client *client)
 	num = ida_alloc(&battery_id, GFP_KERNEL);
 	if (num < 0)
 		return num;
+	ret = devm_add_action_or_reset(&client->dev, ds278x_free_ida, (void *)(uintptr_t)num);
+	if (ret)
+		return ret;
 
 	info = kzalloc(sizeof(*info), GFP_KERNEL);
-	if (!info) {
-		ret = -ENOMEM;
-		goto fail_info;
-	}
+	if (!info)
+		return -ENOMEM;
 
 	info->battery_desc.name = kasprintf(GFP_KERNEL, "%s-%d",
 					    client->name, num);
@@ -406,7 +410,6 @@ static int ds278x_battery_probe(struct i2c_client *client)
 
 	i2c_set_clientdata(client, info);
 	info->client = client;
-	info->id = num;
 	info->ops  = &ds278x_ops[id->driver_data];
 	ds278x_power_supply_init(&info->battery_desc);
 	psy_cfg.drv_data = info;
@@ -432,8 +435,6 @@ fail_register:
 	kfree(info->battery_desc.name);
 fail_name:
 	kfree(info);
-fail_info:
-	ida_free(&battery_id, num);
 	return ret;
 }
 
