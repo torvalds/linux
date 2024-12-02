@@ -542,6 +542,18 @@ config SPI_JCORE
 	  This enables support for the SPI master controller in the J-Core
 	  synthesizable, open source SoC.
 
+config SPI_KSPI2
+	tristate "Support for KEBA SPI master type 2 hardware"
+	depends on HAS_IOMEM
+	depends on KEBA_CP500 || COMPILE_TEST
+	select AUXILIARY_BUS
+	help
+	  This driver supports KEBA SPI master type 2 FPGA implementation,
+	  as found on CP500 devices for example.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called spi-kspi2.
+
 config SPI_LM70_LLP
 	tristate "Parallel port adapter for LM70 eval board (DEVELOPMENT)"
 	depends on PARPORT
