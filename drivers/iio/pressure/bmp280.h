@@ -434,7 +434,7 @@ struct bmp280_data {
 		struct bmp380_calib bmp380;
 	} calib;
 	struct regulator_bulk_data supplies[BMP280_NUM_SUPPLIES];
-	unsigned int start_up_time; /* in microseconds */
+	unsigned int start_up_time_us;
 
 	/* log of base 2 of oversampling rate */
 	u8 oversampling_press;
@@ -490,7 +490,7 @@ struct bmp280_chip_info {
 
 	const struct iio_chan_spec *channels;
 	int num_channels;
-	unsigned int start_up_time;
+	unsigned int start_up_time_us;
 	const unsigned long *avail_scan_masks;
 
 	const int *oversampling_temp_avail;
