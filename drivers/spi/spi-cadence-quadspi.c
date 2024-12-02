@@ -43,6 +43,8 @@ static_assert(CQSPI_MAX_CHIPSELECT <= SPI_CS_CNT_MAX);
 #define CQSPI_SLOW_SRAM		BIT(4)
 #define CQSPI_NEEDS_APB_AHB_HAZARD_WAR	BIT(5)
 #define CQSPI_RD_NO_IRQ			BIT(6)
+#define CQSPI_DMA_SET_MASK		BIT(7)
+#define CQSPI_SUPPORT_DEVICE_RESET	BIT(8)
 
 /* Capabilities */
 #define CQSPI_SUPPORTS_OCTAL		BIT(0)
@@ -109,7 +111,7 @@ struct cqspi_st {
 
 struct cqspi_driver_platdata {
 	u32 hwcaps_mask;
-	u8 quirks;
+	u16 quirks;
 	int (*indirect_read_dma)(struct cqspi_flash_pdata *f_pdata,
 				 u_char *rxbuf, loff_t from_addr, size_t n_rx);
 	u32 (*get_dma_status)(struct cqspi_st *cqspi);
@@ -144,6 +146,8 @@ struct cqspi_driver_platdata {
 #define CQSPI_REG_CONFIG_IDLE_LSB		31
 #define CQSPI_REG_CONFIG_CHIPSELECT_MASK	0xF
 #define CQSPI_REG_CONFIG_BAUD_MASK		0xF
+#define CQSPI_REG_CONFIG_RESET_PIN_FLD_MASK    BIT(5)
+#define CQSPI_REG_CONFIG_RESET_CFG_FLD_MASK    BIT(6)
 
 #define CQSPI_REG_RD_INSTR			0x04
 #define CQSPI_REG_RD_INSTR_OPCODE_LSB		0
@@ -828,6 +832,25 @@ failrd:
 	writel(CQSPI_REG_INDIRECTRD_CANCEL_MASK,
 	       reg_base + CQSPI_REG_INDIRECTRD);
 	return ret;
+}
+
+static void cqspi_device_reset(struct cqspi_st *cqspi)
+{
+	u32 reg;
+
+	reg = readl(cqspi->iobase + CQSPI_REG_CONFIG);
+	reg |= CQSPI_REG_CONFIG_RESET_CFG_FLD_MASK;
+	writel(reg, cqspi->iobase + CQSPI_REG_CONFIG);
+	/*
+	 * NOTE: Delay timing implementation is derived from
+	 * spi_nor_hw_reset()
+	 */
+	writel(reg & ~CQSPI_REG_CONFIG_RESET_PIN_FLD_MASK, cqspi->iobase + CQSPI_REG_CONFIG);
+	usleep_range(1, 5);
+	writel(reg | CQSPI_REG_CONFIG_RESET_PIN_FLD_MASK, cqspi->iobase + CQSPI_REG_CONFIG);
+	usleep_range(100, 150);
+	writel(reg & ~CQSPI_REG_CONFIG_RESET_PIN_FLD_MASK, cqspi->iobase + CQSPI_REG_CONFIG);
+	usleep_range(1000, 1200);
 }
 
 static void cqspi_controller_enable(struct cqspi_st *cqspi, bool enable)
@@ -1881,8 +1904,7 @@ static int cqspi_probe(struct platform_device *pdev)
 				goto probe_reset_failed;
 		}
 
-		if (of_device_is_compatible(pdev->dev.of_node,
-					    "xlnx,versal-ospi-1.0")) {
+		if (ddata->quirks & CQSPI_DMA_SET_MASK) {
 			ret = dma_set_mask(&pdev->dev, DMA_BIT_MASK(64));
 			if (ret)
 				goto probe_reset_failed;
@@ -1911,6 +1933,9 @@ static int cqspi_probe(struct platform_device *pdev)
 	}
 
 	host->num_chipselect = cqspi->num_chipselect;
+
+	if (ddata->quirks & CQSPI_SUPPORT_DEVICE_RESET)
+		cqspi_device_reset(cqspi);
 
 	if (cqspi->use_direct_mode) {
 		ret = cqspi_request_mmap_dma(cqspi);
@@ -2048,7 +2073,17 @@ static const struct cqspi_driver_platdata socfpga_qspi = {
 
 static const struct cqspi_driver_platdata versal_ospi = {
 	.hwcaps_mask = CQSPI_SUPPORTS_OCTAL,
-	.quirks = CQSPI_DISABLE_DAC_MODE | CQSPI_SUPPORT_EXTERNAL_DMA,
+	.quirks = CQSPI_DISABLE_DAC_MODE | CQSPI_SUPPORT_EXTERNAL_DMA
+			| CQSPI_DMA_SET_MASK,
+	.indirect_read_dma = cqspi_versal_indirect_read_dma,
+	.get_dma_status = cqspi_get_versal_dma_status,
+};
+
+static const struct cqspi_driver_platdata versal2_ospi = {
+	.hwcaps_mask = CQSPI_SUPPORTS_OCTAL,
+	.quirks = CQSPI_DISABLE_DAC_MODE | CQSPI_SUPPORT_EXTERNAL_DMA
+			| CQSPI_DMA_SET_MASK
+			| CQSPI_SUPPORT_DEVICE_RESET,
 	.indirect_read_dma = cqspi_versal_indirect_read_dma,
 	.get_dma_status = cqspi_get_versal_dma_status,
 };
@@ -2104,6 +2139,10 @@ static const struct of_device_id cqspi_dt_ids[] = {
 	{
 		.compatible = "mobileye,eyeq5-ospi",
 		.data = &mobileye_eyeq5_ospi,
+	},
+	{
+		.compatible = "amd,versal2-ospi",
+		.data = &versal2_ospi,
 	},
 	{ /* end of table */ }
 };
