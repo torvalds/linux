@@ -145,8 +145,11 @@ xchk_superblock(
 		xchk_block_set_preen(sc, bp);
 
 	if (xfs_has_metadir(sc->mp)) {
-		if (sb->sb_metadirino != cpu_to_be64(mp->m_sb.sb_metadirino))
-			xchk_block_set_preen(sc, bp);
+		if (sb->sb_rbmino != cpu_to_be64(0))
+			xchk_block_set_corrupt(sc, bp);
+
+		if (sb->sb_rsumino != cpu_to_be64(0))
+			xchk_block_set_corrupt(sc, bp);
 	} else {
 		if (sb->sb_rbmino != cpu_to_be64(mp->m_sb.sb_rbmino))
 			xchk_block_set_preen(sc, bp);
@@ -229,7 +232,13 @@ xchk_superblock(
 	 * sb_icount, sb_ifree, sb_fdblocks, sb_frexents
 	 */
 
-	if (!xfs_has_metadir(mp)) {
+	if (xfs_has_metadir(mp)) {
+		if (sb->sb_uquotino != cpu_to_be64(0))
+			xchk_block_set_corrupt(sc, bp);
+
+		if (sb->sb_gquotino != cpu_to_be64(0))
+			xchk_block_set_preen(sc, bp);
+	} else {
 		if (sb->sb_uquotino != cpu_to_be64(mp->m_sb.sb_uquotino))
 			xchk_block_set_preen(sc, bp);
 
@@ -281,15 +290,8 @@ xchk_superblock(
 		if (!!(sb->sb_features2 & cpu_to_be32(~v2_ok)))
 			xchk_block_set_corrupt(sc, bp);
 
-		if (xfs_has_metadir(mp)) {
-			if (sb->sb_rgblklog != mp->m_sb.sb_rgblklog)
-				xchk_block_set_corrupt(sc, bp);
-			if (memchr_inv(sb->sb_pad, 0, sizeof(sb->sb_pad)))
-				xchk_block_set_preen(sc, bp);
-		} else {
-			if (sb->sb_features2 != sb->sb_bad_features2)
-				xchk_block_set_preen(sc, bp);
-		}
+		if (sb->sb_features2 != sb->sb_bad_features2)
+			xchk_block_set_preen(sc, bp);
 	}
 
 	/* Check sb_features2 flags that are set at mkfs time. */
@@ -351,7 +353,10 @@ xchk_superblock(
 		if (sb->sb_spino_align != cpu_to_be32(mp->m_sb.sb_spino_align))
 			xchk_block_set_corrupt(sc, bp);
 
-		if (!xfs_has_metadir(mp)) {
+		if (xfs_has_metadir(mp)) {
+			if (sb->sb_pquotino != cpu_to_be64(0))
+				xchk_block_set_corrupt(sc, bp);
+		} else {
 			if (sb->sb_pquotino != cpu_to_be64(mp->m_sb.sb_pquotino))
 				xchk_block_set_preen(sc, bp);
 		}
@@ -366,10 +371,19 @@ xchk_superblock(
 	}
 
 	if (xfs_has_metadir(mp)) {
+		if (sb->sb_metadirino != cpu_to_be64(mp->m_sb.sb_metadirino))
+			xchk_block_set_preen(sc, bp);
+
 		if (sb->sb_rgcount != cpu_to_be32(mp->m_sb.sb_rgcount))
 			xchk_block_set_corrupt(sc, bp);
 
 		if (sb->sb_rgextents != cpu_to_be32(mp->m_sb.sb_rgextents))
+			xchk_block_set_corrupt(sc, bp);
+
+		if (sb->sb_rgblklog != mp->m_sb.sb_rgblklog)
+			xchk_block_set_corrupt(sc, bp);
+
+		if (memchr_inv(sb->sb_pad, 0, sizeof(sb->sb_pad)))
 			xchk_block_set_corrupt(sc, bp);
 	}
 
