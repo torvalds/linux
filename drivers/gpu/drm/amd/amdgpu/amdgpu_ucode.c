@@ -1461,11 +1461,13 @@ int amdgpu_ucode_request(struct amdgpu_device *adev, const struct firmware **fw,
 		return -ENODEV;
 
 	r = amdgpu_ucode_validate(*fw);
-	if (r) {
+	if (r)
+		/*
+		 * The amdgpu_ucode_request() should be paired with amdgpu_ucode_release()
+		 * regardless of success/failure, and the amdgpu_ucode_release() takes care of
+		 * firmware release and need to avoid redundant release FW operation here.
+		 */
 		dev_dbg(adev->dev, "\"%s\" failed to validate\n", fname);
-		release_firmware(*fw);
-		*fw = NULL;
-	}
 
 	return r;
 }
