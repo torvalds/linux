@@ -1204,6 +1204,7 @@ enum its_mitigation_cmd {
 	ITS_CMD_OFF,
 	ITS_CMD_ON,
 	ITS_CMD_VMEXIT,
+	ITS_CMD_RSB_STUFF,
 };
 
 enum its_mitigation {
@@ -1244,6 +1245,8 @@ static int __init its_parse_cmdline(char *str)
 		setup_force_cpu_bug(X86_BUG_ITS);
 	} else if (!strcmp(str, "vmexit")) {
 		its_cmd = ITS_CMD_VMEXIT;
+	} else if (!strcmp(str, "stuff")) {
+		its_cmd = ITS_CMD_RSB_STUFF;
 	} else {
 		pr_err("Ignoring unknown indirect_target_selection option (%s).", str);
 	}
@@ -1295,6 +1298,12 @@ static void __init its_select_mitigation(void)
 		goto out;
 	}
 
+	if (cmd == ITS_CMD_RSB_STUFF &&
+	    (!boot_cpu_has(X86_FEATURE_RETPOLINE) || !IS_ENABLED(CONFIG_MITIGATION_CALL_DEPTH_TRACKING))) {
+		pr_err("RSB stuff mitigation not supported, using default\n");
+		cmd = ITS_CMD_ON;
+	}
+
 	switch (cmd) {
 	case ITS_CMD_OFF:
 		its_mitigation = ITS_MITIGATION_OFF;
@@ -1311,6 +1320,16 @@ static void __init its_select_mitigation(void)
 			setup_force_cpu_cap(X86_FEATURE_INDIRECT_THUNK_ITS);
 		setup_force_cpu_cap(X86_FEATURE_RETHUNK);
 		set_return_thunk(its_return_thunk);
+		break;
+	case ITS_CMD_RSB_STUFF:
+		its_mitigation = ITS_MITIGATION_RETPOLINE_STUFF;
+		setup_force_cpu_cap(X86_FEATURE_RETHUNK);
+		setup_force_cpu_cap(X86_FEATURE_CALL_DEPTH);
+		set_return_thunk(call_depth_return_thunk);
+		if (retbleed_mitigation == RETBLEED_MITIGATION_NONE) {
+			retbleed_mitigation = RETBLEED_MITIGATION_STUFF;
+			pr_info("Retbleed mitigation updated to stuffing\n");
+		}
 		break;
 	}
 out:

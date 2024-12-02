@@ -2212,6 +2212,9 @@
 				mitigation.
 			vmexit: Only deploy mitigation if CPU is affected by
 				guest/host isolation part of ITS.
+			stuff:	Deploy RSB-fill mitigation when retpoline is
+				also deployed. Otherwise, deploy the default
+				mitigation.
 
 			For details see:
 			Documentation/admin-guide/hw-vuln/indirect-target-selection.rst
