@@ -29,7 +29,7 @@ BGRT_SHOW(type, image_type);
 BGRT_SHOW(xoffset, image_offset_x);
 BGRT_SHOW(yoffset, image_offset_y);
 
-static BIN_ATTR_SIMPLE_RO(image);
+static __ro_after_init BIN_ATTR_SIMPLE_RO(image);
 
 static struct attribute *bgrt_attributes[] = {
 	&bgrt_attr_version.attr,
