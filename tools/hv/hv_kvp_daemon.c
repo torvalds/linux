@@ -24,6 +24,7 @@
 
 #include <sys/poll.h>
 #include <sys/utsname.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -677,6 +678,88 @@ static void kvp_process_ipconfig_file(char *cmd,
 	pclose(file);
 }
 
+static bool kvp_verify_ip_address(const void *address_string)
+{
+	char verify_buf[sizeof(struct in6_addr)];
+
+	if (inet_pton(AF_INET, address_string, verify_buf) == 1)
+		return true;
+	if (inet_pton(AF_INET6, address_string, verify_buf) == 1)
+		return true;
+	return false;
+}
+
+static void kvp_extract_routes(const char *line, void **output, size_t *remaining)
+{
+	static const char needle[] = "via ";
+	const char *match, *haystack = line;
+
+	while ((match = strstr(haystack, needle))) {
+		const char *address, *next_char;
+
+		/* Address starts after needle. */
+		address = match + strlen(needle);
+
+		/* The char following address is a space or end of line. */
+		next_char = strpbrk(address, " \t\\");
+		if (!next_char)
+			next_char = address + strlen(address) + 1;
+
+		/* Enough room for address and semicolon. */
+		if (*remaining >= (next_char - address) + 1) {
+			memcpy(*output, address, next_char - address);
+			/* Terminate string for verification. */
+			memcpy(*output + (next_char - address), "", 1);
+			if (kvp_verify_ip_address(*output)) {
+				/* Advance output buffer. */
+				*output += next_char - address;
+				*remaining -= next_char - address;
+
+				/* Each address needs a trailing semicolon. */
+				memcpy(*output, ";", 1);
+				*output += 1;
+				*remaining -= 1;
+			}
+		}
+		haystack = next_char;
+	}
+}
+
+static void kvp_get_gateway(void *buffer, size_t buffer_len)
+{
+	static const char needle[] = "default ";
+	FILE *f;
+	void *output = buffer;
+	char *line = NULL;
+	size_t alloc_size = 0, remaining = buffer_len - 1;
+	ssize_t num_chars;
+
+	/* Show route information in a single line, for each address family */
+	f = popen("ip --oneline -4 route show;ip --oneline -6 route show", "r");
+	if (!f) {
+		/* Convert buffer into C-String. */
+		memcpy(output, "", 1);
+		return;
+	}
+	while ((num_chars = getline(&line, &alloc_size, f)) > 0) {
+		/* Skip short lines. */
+		if (num_chars <= strlen(needle))
+			continue;
+		/* Skip lines without default route. */
+		if (memcmp(line, needle, strlen(needle)))
+			continue;
+		/* Remove trailing newline to simplify further parsing. */
+		if (line[num_chars - 1] == '\n')
+			line[num_chars - 1] = '\0';
+		/* Search routes after match. */
+		kvp_extract_routes(line + strlen(needle), &output, &remaining);
+	}
+	/* Convert buffer into C-String. */
+	memcpy(output, "", 1);
+	free(line);
+	pclose(f);
+}
+
 static void kvp_get_ipconfig_info(char *if_name,
 				 struct hv_kvp_ipaddr_value *buffer)
 {
@@ -685,30 +768,7 @@ static void kvp_get_ipconfig_info(char *if_name,
 	char *p;
 	FILE *file;
 
-	/*
-	 * Get the address of default gateway (ipv4).
-	 */
-	sprintf(cmd, "%s %s", "ip route show dev", if_name);
-	strcat(cmd, " | awk '/default/ {print $3 }'");
-
-	/*
-	 * Execute the command to gather gateway info.
-	 */
-	kvp_process_ipconfig_file(cmd, (char *)buffer->gate_way,
-				(MAX_GATEWAY_SIZE * 2), INET_ADDRSTRLEN, 0);
-
-	/*
-	 * Get the address of default gateway (ipv6).
-	 */
-	sprintf(cmd, "%s %s", "ip -f inet6  route show dev", if_name);
-	strcat(cmd, " | awk '/default/ {print $3 }'");
-
-	/*
-	 * Execute the command to gather gateway info (ipv6).
-	 */
-	kvp_process_ipconfig_file(cmd, (char *)buffer->gate_way,
-				(MAX_GATEWAY_SIZE * 2), INET6_ADDRSTRLEN, 1);
-
+	kvp_get_gateway(buffer->gate_way, sizeof(buffer->gate_way));
 
 	/*
 	 * Gather the DNS state.
