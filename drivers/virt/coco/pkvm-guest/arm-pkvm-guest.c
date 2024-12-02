@@ -87,12 +87,8 @@ static int mmio_guard_ioremap_hook(phys_addr_t phys, size_t size,
 
 	while (phys < end) {
 		const int func_id = ARM_SMCCC_VENDOR_HYP_KVM_MMIO_GUARD_FUNC_ID;
-		int err;
 
-		err = arm_smccc_do_one_page(func_id, phys);
-		if (err)
-			return err;
-
+		WARN_ON_ONCE(arm_smccc_do_one_page(func_id, phys));
 		phys += PAGE_SIZE;
 	}
 
