@@ -381,7 +381,7 @@ static struct platform_driver mxc_rtc_driver = {
 		.of_match_table = mxc_ids,
 	},
 	.probe = mxc_rtc_probe,
-	.remove_new = mxc_rtc_remove,
+	.remove = mxc_rtc_remove,
 };
 
 module_platform_driver(mxc_rtc_driver);

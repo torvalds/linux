@@ -24,6 +24,7 @@
 
 #include "ipu6.h"
 #include "ipu6-bus.h"
+#include "ipu6-dma.h"
 #include "ipu6-buttress.h"
 #include "ipu6-platform-buttress-regs.h"
 
@@ -214,19 +215,16 @@ static void ipu6_buttress_ipc_recv(struct ipu6_device *isp,
 }
 
 static int ipu6_buttress_ipc_send_bulk(struct ipu6_device *isp,
-				       enum ipu6_buttress_ipc_domain ipc_domain,
 				       struct ipu6_ipc_buttress_bulk_msg *msgs,
 				       u32 size)
 {
 	unsigned long tx_timeout_jiffies, rx_timeout_jiffies;
 	unsigned int i, retry = BUTTRESS_IPC_CMD_SEND_RETRY;
 	struct ipu6_buttress *b = &isp->buttress;
-	struct ipu6_buttress_ipc *ipc;
+	struct ipu6_buttress_ipc *ipc = &b->cse;
 	u32 val;
 	int ret;
 	int tout;
-
-	ipc = ipc_domain == IPU6_BUTTRESS_IPC_CSE ? &b->cse : &b->ish;
 
 	mutex_lock(&b->ipc_mutex);
 
@@ -305,7 +303,6 @@ out:
 
 static int
 ipu6_buttress_ipc_send(struct ipu6_device *isp,
-		       enum ipu6_buttress_ipc_domain ipc_domain,
 		       u32 ipc_msg, u32 size, bool require_resp,
 		       u32 expected_resp)
 {
@@ -316,7 +313,7 @@ ipu6_buttress_ipc_send(struct ipu6_device *isp,
 		.expected_resp = expected_resp,
 	};
 
-	return ipu6_buttress_ipc_send_bulk(isp, ipc_domain, &msg, 1);
+	return ipu6_buttress_ipc_send_bulk(isp, &msg, 1);
 }
 
 static irqreturn_t ipu6_buttress_call_isr(struct ipu6_bus_device *adev)
@@ -345,12 +342,16 @@ irqreturn_t ipu6_buttress_isr(int irq, void *isp_ptr)
 	u32 disable_irqs = 0;
 	u32 irq_status;
 	u32 i, count = 0;
+	int active;
 
-	pm_runtime_get_noresume(&isp->pdev->dev);
+	active = pm_runtime_get_if_active(&isp->pdev->dev);
+	if (!active)
+		return IRQ_NONE;
 
 	irq_status = readl(isp->base + reg_irq_sts);
-	if (!irq_status) {
-		pm_runtime_put_noidle(&isp->pdev->dev);
+	if (irq_status == 0 || WARN_ON_ONCE(irq_status == 0xffffffffu)) {
+		if (active > 0)
+			pm_runtime_put_noidle(&isp->pdev->dev);
 		return IRQ_NONE;
 	}
 
@@ -381,23 +382,10 @@ irqreturn_t ipu6_buttress_isr(int irq, void *isp_ptr)
 			complete(&b->cse.recv_complete);
 		}
 
-		if (irq_status & BUTTRESS_ISR_IPC_FROM_ISH_IS_WAITING) {
-			dev_dbg(&isp->pdev->dev,
-				"BUTTRESS_ISR_IPC_FROM_ISH_IS_WAITING\n");
-			ipu6_buttress_ipc_recv(isp, &b->ish, &b->ish.recv_data);
-			complete(&b->ish.recv_complete);
-		}
-
 		if (irq_status & BUTTRESS_ISR_IPC_EXEC_DONE_BY_CSE) {
 			dev_dbg(&isp->pdev->dev,
 				"BUTTRESS_ISR_IPC_EXEC_DONE_BY_CSE\n");
 			complete(&b->cse.send_complete);
-		}
-
-		if (irq_status & BUTTRESS_ISR_IPC_EXEC_DONE_BY_ISH) {
-			dev_dbg(&isp->pdev->dev,
-				"BUTTRESS_ISR_IPC_EXEC_DONE_BY_CSE\n");
-			complete(&b->ish.send_complete);
 		}
 
 		if (irq_status & BUTTRESS_ISR_SAI_VIOLATION &&
@@ -426,7 +414,8 @@ irqreturn_t ipu6_buttress_isr(int irq, void *isp_ptr)
 		writel(BUTTRESS_IRQS & ~disable_irqs,
 		       isp->base + BUTTRESS_REG_ISR_ENABLE);
 
-	pm_runtime_put(&isp->pdev->dev);
+	if (active > 0)
+		pm_runtime_put(&isp->pdev->dev);
 
 	return ret;
 }
@@ -553,6 +542,7 @@ int ipu6_buttress_map_fw_image(struct ipu6_bus_device *sys,
 			       const struct firmware *fw, struct sg_table *sgt)
 {
 	bool is_vmalloc = is_vmalloc_addr(fw->data);
+	struct pci_dev *pdev = sys->isp->pdev;
 	struct page **pages;
 	const void *addr;
 	unsigned long n_pages;
@@ -562,7 +552,7 @@ int ipu6_buttress_map_fw_image(struct ipu6_bus_device *sys,
 	if (!is_vmalloc && !virt_addr_valid(fw->data))
 		return -EDOM;
 
-	n_pages = PHYS_PFN(PAGE_ALIGN(fw->size));
+	n_pages = PFN_UP(fw->size);
 
 	pages = kmalloc_array(n_pages, sizeof(*pages), GFP_KERNEL);
 	if (!pages)
@@ -588,14 +578,20 @@ int ipu6_buttress_map_fw_image(struct ipu6_bus_device *sys,
 		goto out;
 	}
 
-	ret = dma_map_sgtable(&sys->auxdev.dev, sgt, DMA_TO_DEVICE, 0);
-	if (ret < 0) {
-		ret = -ENOMEM;
+	ret = dma_map_sgtable(&pdev->dev, sgt, DMA_TO_DEVICE, 0);
+	if (ret) {
 		sg_free_table(sgt);
 		goto out;
 	}
 
-	dma_sync_sgtable_for_device(&sys->auxdev.dev, sgt, DMA_TO_DEVICE);
+	ret = ipu6_dma_map_sgtable(sys, sgt, DMA_TO_DEVICE, 0);
+	if (ret) {
+		dma_unmap_sgtable(&pdev->dev, sgt, DMA_TO_DEVICE, 0);
+		sg_free_table(sgt);
+		goto out;
+	}
+
+	ipu6_dma_sync_sgtable(sys, sgt);
 
 out:
 	kfree(pages);
@@ -607,7 +603,10 @@ EXPORT_SYMBOL_NS_GPL(ipu6_buttress_map_fw_image, INTEL_IPU6);
 void ipu6_buttress_unmap_fw_image(struct ipu6_bus_device *sys,
 				  struct sg_table *sgt)
 {
-	dma_unmap_sgtable(&sys->auxdev.dev, sgt, DMA_TO_DEVICE, 0);
+	struct pci_dev *pdev = sys->isp->pdev;
+
+	ipu6_dma_unmap_sgtable(sys, sgt, DMA_TO_DEVICE, 0);
+	dma_unmap_sgtable(&pdev->dev, sgt, DMA_TO_DEVICE, 0);
 	sg_free_table(sgt);
 }
 EXPORT_SYMBOL_NS_GPL(ipu6_buttress_unmap_fw_image, INTEL_IPU6);
@@ -650,7 +649,7 @@ int ipu6_buttress_authenticate(struct ipu6_device *isp)
 	 */
 	dev_info(&isp->pdev->dev, "Sending BOOT_LOAD to CSE\n");
 
-	ret = ipu6_buttress_ipc_send(isp, IPU6_BUTTRESS_IPC_CSE,
+	ret = ipu6_buttress_ipc_send(isp,
 				     BUTTRESS_IU2CSEDATA0_IPC_BOOT_LOAD,
 				     1, true,
 				     BUTTRESS_CSE2IUDATA0_IPC_BOOT_LOAD_DONE);
@@ -692,7 +691,7 @@ int ipu6_buttress_authenticate(struct ipu6_device *isp)
 	 * IU2CSEDB.IU2CSECMD and set IU2CSEDB.IU2CSEBUSY as
 	 */
 	dev_info(&isp->pdev->dev, "Sending AUTHENTICATE_RUN to CSE\n");
-	ret = ipu6_buttress_ipc_send(isp, IPU6_BUTTRESS_IPC_CSE,
+	ret = ipu6_buttress_ipc_send(isp,
 				     BUTTRESS_IU2CSEDATA0_IPC_AUTH_RUN,
 				     1, true,
 				     BUTTRESS_CSE2IUDATA0_IPC_AUTH_RUN_DONE);
@@ -833,9 +832,7 @@ int ipu6_buttress_init(struct ipu6_device *isp)
 	mutex_init(&b->auth_mutex);
 	mutex_init(&b->cons_mutex);
 	mutex_init(&b->ipc_mutex);
-	init_completion(&b->ish.send_complete);
 	init_completion(&b->cse.send_complete);
-	init_completion(&b->ish.recv_complete);
 	init_completion(&b->cse.recv_complete);
 
 	b->cse.nack = BUTTRESS_CSE2IUDATA0_IPC_NACK;
@@ -847,8 +844,6 @@ int ipu6_buttress_init(struct ipu6_device *isp)
 	b->cse.data0_in = BUTTRESS_REG_CSE2IUDATA0;
 	b->cse.data0_out = BUTTRESS_REG_IU2CSEDATA0;
 
-	/* no ISH on IPU6 */
-	memset(&b->ish, 0, sizeof(b->ish));
 	INIT_LIST_HEAD(&b->constraints);
 
 	isp->secure_mode = ipu6_buttress_get_secure_mode(isp);

@@ -39,58 +39,61 @@ static void assert_pch_dp_disabled(struct drm_i915_private *dev_priv,
 				   enum pipe pipe, enum port port,
 				   i915_reg_t dp_reg)
 {
+	struct intel_display *display = &dev_priv->display;
 	enum pipe port_pipe;
 	bool state;
 
 	state = g4x_dp_port_enabled(dev_priv, dp_reg, port, &port_pipe);
 
-	I915_STATE_WARN(dev_priv, state && port_pipe == pipe,
-			"PCH DP %c enabled on transcoder %c, should be disabled\n",
-			port_name(port), pipe_name(pipe));
+	INTEL_DISPLAY_STATE_WARN(display, state && port_pipe == pipe,
+				 "PCH DP %c enabled on transcoder %c, should be disabled\n",
+				 port_name(port), pipe_name(pipe));
 
-	I915_STATE_WARN(dev_priv,
-			HAS_PCH_IBX(dev_priv) && !state && port_pipe == PIPE_B,
-			"IBX PCH DP %c still using transcoder B\n",
-			port_name(port));
+	INTEL_DISPLAY_STATE_WARN(display,
+				 HAS_PCH_IBX(dev_priv) && !state && port_pipe == PIPE_B,
+				 "IBX PCH DP %c still using transcoder B\n",
+				 port_name(port));
 }
 
 static void assert_pch_hdmi_disabled(struct drm_i915_private *dev_priv,
 				     enum pipe pipe, enum port port,
 				     i915_reg_t hdmi_reg)
 {
+	struct intel_display *display = &dev_priv->display;
 	enum pipe port_pipe;
 	bool state;
 
 	state = intel_sdvo_port_enabled(dev_priv, hdmi_reg, &port_pipe);
 
-	I915_STATE_WARN(dev_priv, state && port_pipe == pipe,
-			"PCH HDMI %c enabled on transcoder %c, should be disabled\n",
-			port_name(port), pipe_name(pipe));
+	INTEL_DISPLAY_STATE_WARN(display, state && port_pipe == pipe,
+				 "PCH HDMI %c enabled on transcoder %c, should be disabled\n",
+				 port_name(port), pipe_name(pipe));
 
-	I915_STATE_WARN(dev_priv,
-			HAS_PCH_IBX(dev_priv) && !state && port_pipe == PIPE_B,
-			"IBX PCH HDMI %c still using transcoder B\n",
-			port_name(port));
+	INTEL_DISPLAY_STATE_WARN(display,
+				 HAS_PCH_IBX(dev_priv) && !state && port_pipe == PIPE_B,
+				 "IBX PCH HDMI %c still using transcoder B\n",
+				 port_name(port));
 }
 
 static void assert_pch_ports_disabled(struct drm_i915_private *dev_priv,
 				      enum pipe pipe)
 {
+	struct intel_display *display = &dev_priv->display;
 	enum pipe port_pipe;
 
 	assert_pch_dp_disabled(dev_priv, pipe, PORT_B, PCH_DP_B);
 	assert_pch_dp_disabled(dev_priv, pipe, PORT_C, PCH_DP_C);
 	assert_pch_dp_disabled(dev_priv, pipe, PORT_D, PCH_DP_D);
 
-	I915_STATE_WARN(dev_priv,
-			intel_crt_port_enabled(dev_priv, PCH_ADPA, &port_pipe) && port_pipe == pipe,
-			"PCH VGA enabled on transcoder %c, should be disabled\n",
-			pipe_name(pipe));
+	INTEL_DISPLAY_STATE_WARN(display,
+				 intel_crt_port_enabled(display, PCH_ADPA, &port_pipe) && port_pipe == pipe,
+				 "PCH VGA enabled on transcoder %c, should be disabled\n",
+				 pipe_name(pipe));
 
-	I915_STATE_WARN(dev_priv,
-			intel_lvds_port_enabled(dev_priv, PCH_LVDS, &port_pipe) && port_pipe == pipe,
-			"PCH LVDS enabled on transcoder %c, should be disabled\n",
-			pipe_name(pipe));
+	INTEL_DISPLAY_STATE_WARN(display,
+				 intel_lvds_port_enabled(dev_priv, PCH_LVDS, &port_pipe) && port_pipe == pipe,
+				 "PCH LVDS enabled on transcoder %c, should be disabled\n",
+				 pipe_name(pipe));
 
 	/* PCH SDVOB multiplex with HDMIB */
 	assert_pch_hdmi_disabled(dev_priv, pipe, PORT_B, PCH_HDMIB);
@@ -101,14 +104,15 @@ static void assert_pch_ports_disabled(struct drm_i915_private *dev_priv,
 static void assert_pch_transcoder_disabled(struct drm_i915_private *dev_priv,
 					   enum pipe pipe)
 {
+	struct intel_display *display = &dev_priv->display;
 	u32 val;
 	bool enabled;
 
-	val = intel_de_read(dev_priv, PCH_TRANSCONF(pipe));
+	val = intel_de_read(display, PCH_TRANSCONF(pipe));
 	enabled = !!(val & TRANS_ENABLE);
-	I915_STATE_WARN(dev_priv, enabled,
-			"transcoder assertion failed, should be off on pipe %c but is still active\n",
-			pipe_name(pipe));
+	INTEL_DISPLAY_STATE_WARN(display, enabled,
+				 "transcoder assertion failed, should be off on pipe %c but is still active\n",
+				 pipe_name(pipe));
 }
 
 static void ibx_sanitize_pch_hdmi_port(struct drm_i915_private *dev_priv,

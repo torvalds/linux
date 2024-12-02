@@ -616,7 +616,7 @@ ONLINE section for notifications on online and offline operation::
    ....
    cpuhp_remove_instance(state, &inst2->node);
    ....
-   remove_multi_state(state);
+   cpuhp_remove_multi_state(state);
 
 
 Testing of hotplug states

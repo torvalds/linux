@@ -16,4 +16,5 @@ Next (GCN), Radeon DNA (RDNA), and Compute DNA (CDNA) architectures.
    thermal
    driver-misc
    debugging
+   process-isolation
    amdgpu-glossary

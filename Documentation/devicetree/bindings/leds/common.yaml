@@ -118,6 +118,8 @@ properties:
             # No trigger assigned to the LED. This is the default mode
             # if trigger is absent
           - none
+            # LED indicates remote control feedback
+          - rc-feedback
             # LED indicates camera torch state
           - torch
             # LED indicates USB gadget activity
@@ -202,6 +204,12 @@ properties:
       #trigger-source-cells property in the source node.
     $ref: /schemas/types.yaml#/definitions/phandle-array
 
+  active-high:
+    type: boolean
+    description:
+      Makes LED active high. To turn the LED ON, line needs to be
+      set to high voltage instead of low.
+
   active-low:
     type: boolean
     description:
@@ -224,6 +232,14 @@ properties:
     description:
       Maximum timeout in microseconds after which the flash LED is turned off.
       Required for flash LED nodes with configurable timeout.
+
+allOf:
+  - if:
+      required:
+        - active-low
+    then:
+      properties:
+        active-high: false
 
 additionalProperties: true
 

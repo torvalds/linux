@@ -351,8 +351,6 @@ int mwifiex_bss_start(struct mwifiex_private *priv, struct cfg80211_bss *bss,
 			goto done;
 		}
 
-		priv->adhoc_is_link_sensed = false;
-
 		ret = mwifiex_check_network_compatibility(priv, bss_desc);
 
 		mwifiex_stop_net_dev_queue(priv->netdev, adapter);

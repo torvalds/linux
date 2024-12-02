@@ -1598,8 +1598,8 @@ static int ag71xx_rx_packets(struct ag71xx *ag, int limit)
 	int ring_mask, ring_size, done = 0;
 	unsigned int pktlen_mask, offset;
 	struct ag71xx_ring *ring;
-	struct list_head rx_list;
 	struct sk_buff *skb;
+	LIST_HEAD(rx_list);
 
 	ring = &ag->rx_ring;
 	pktlen_mask = ag->dcfg->desc_pktlen_mask;
@@ -1609,8 +1609,6 @@ static int ag71xx_rx_packets(struct ag71xx *ag, int limit)
 
 	netif_dbg(ag, rx_status, ndev, "rx packets, limit=%d, curr=%u, dirty=%u\n",
 		  limit, ring->curr, ring->dirty);
-
-	INIT_LIST_HEAD(&rx_list);
 
 	while (done < limit) {
 		unsigned int i = ring->curr & ring_mask;
@@ -1648,6 +1646,7 @@ static int ag71xx_rx_packets(struct ag71xx *ag, int limit)
 
 		skb->dev = ndev;
 		skb->ip_summed = CHECKSUM_NONE;
+		skb->protocol = eth_type_trans(skb, ndev);
 		list_add_tail(&skb->list, &rx_list);
 
 next:
@@ -1659,8 +1658,6 @@ next:
 
 	ag71xx_ring_rx_refill(ag);
 
-	list_for_each_entry(skb, &rx_list, list)
-		skb->protocol = eth_type_trans(skb, ndev);
 	netif_receive_skb_list(&rx_list);
 
 	netif_dbg(ag, rx_status, ndev, "rx finish, curr=%u, dirty=%u, done=%d\n",
@@ -1822,10 +1819,9 @@ static int ag71xx_probe(struct platform_device *pdev)
 	}
 
 	clk_eth = devm_clk_get_enabled(&pdev->dev, "eth");
-	if (IS_ERR(clk_eth)) {
-		netif_err(ag, probe, ndev, "Failed to get eth clk.\n");
-		return PTR_ERR(clk_eth);
-	}
+	if (IS_ERR(clk_eth))
+		return dev_err_probe(&pdev->dev, PTR_ERR(clk_eth),
+				     "Failed to get eth clk.");
 
 	SET_NETDEV_DEV(ndev, &pdev->dev);
 
@@ -1836,14 +1832,13 @@ static int ag71xx_probe(struct platform_device *pdev)
 	memcpy(ag->fifodata, dcfg->fifodata, sizeof(ag->fifodata));
 
 	ag->mac_reset = devm_reset_control_get(&pdev->dev, "mac");
-	if (IS_ERR(ag->mac_reset)) {
-		netif_err(ag, probe, ndev, "missing mac reset\n");
-		return PTR_ERR(ag->mac_reset);
-	}
+	if (IS_ERR(ag->mac_reset))
+		return dev_err_probe(&pdev->dev, PTR_ERR(ag->mac_reset),
+				     "missing mac reset");
 
-	ag->mac_base = devm_ioremap(&pdev->dev, res->start, resource_size(res));
-	if (!ag->mac_base)
-		return -ENOMEM;
+	ag->mac_base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(ag->mac_base))
+		return PTR_ERR(ag->mac_base);
 
 	/* ensure that HW is in manual polling mode before interrupts are
 	 * activated. Otherwise ag71xx_interrupt might call napi_schedule
@@ -1917,18 +1912,14 @@ static int ag71xx_probe(struct platform_device *pdev)
 	if (err)
 		return err;
 
-	platform_set_drvdata(pdev, ndev);
-
 	err = ag71xx_phylink_setup(ag);
-	if (err) {
-		netif_err(ag, probe, ndev, "failed to setup phylink (%d)\n", err);
-		return err;
-	}
+	if (err)
+		return dev_err_probe(&pdev->dev, err,
+				     "failed to setup phylink");
 
 	err = devm_register_netdev(&pdev->dev, ndev);
 	if (err) {
 		netif_err(ag, probe, ndev, "unable to register net device\n");
-		platform_set_drvdata(pdev, NULL);
 		return err;
 	}
 

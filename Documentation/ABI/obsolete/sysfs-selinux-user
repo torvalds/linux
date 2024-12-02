@@ -1,0 +1,12 @@
+What:		/sys/fs/selinux/user
+Date:		April 2005 (predates git)
+KernelVersion:	2.6.12-rc2 (predates git)
+Contact:	selinux@vger.kernel.org
+Description:
+
+	The selinuxfs "user" node allows userspace to request a list
+	of security contexts that can be reached for a given SELinux
+	user from a given starting context. This was used by libselinux
+	when various login-style programs requested contexts for
+	users, but libselinux stopped using it in 2020.
+	Kernel support will be removed no sooner than Dec 2025.

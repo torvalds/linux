@@ -4766,7 +4766,7 @@ static struct platform_driver fec_driver = {
 	},
 	.id_table = fec_devtype,
 	.probe	= fec_probe,
-	.remove_new = fec_drv_remove,
+	.remove = fec_drv_remove,
 };
 
 module_platform_driver(fec_driver);

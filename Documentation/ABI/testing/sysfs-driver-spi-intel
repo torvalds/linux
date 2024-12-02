@@ -1,0 +1,20 @@
+What:		/sys/devices/.../intel_spi_protected
+Date:		Feb 2025
+KernelVersion:	6.13
+Contact:	Alexander Usyskin <alexander.usyskin@intel.com>
+Description:	This attribute allows the userspace to check if the
+		Intel SPI flash controller is write protected from the host.
+
+What:		/sys/devices/.../intel_spi_locked
+Date:		Feb 2025
+KernelVersion:	6.13
+Contact:	Alexander Usyskin <alexander.usyskin@intel.com>
+Description:	This attribute allows the user space to check if the
+		Intel SPI flash controller locks supported opcodes.
+
+What:		/sys/devices/.../intel_spi_bios_locked
+Date:		Feb 2025
+KernelVersion:	6.13
+Contact:	Alexander Usyskin <alexander.usyskin@intel.com>
+Description:	This attribute allows the user space to check if the
+		Intel SPI flash controller BIOS region is locked for writes.

@@ -225,7 +225,7 @@ static void denali_dt_remove(struct platform_device *pdev)
 
 static struct platform_driver denali_dt_driver = {
 	.probe		= denali_dt_probe,
-	.remove_new	= denali_dt_remove,
+	.remove		= denali_dt_remove,
 	.driver		= {
 		.name	= "denali-nand-dt",
 		.of_match_table	= denali_nand_dt_ids,

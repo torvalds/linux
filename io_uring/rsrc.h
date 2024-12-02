@@ -13,31 +13,15 @@ enum {
 	IORING_RSRC_BUFFER		= 1,
 };
 
-struct io_rsrc_put {
+struct io_rsrc_node {
+	unsigned char			type;
+	int				refs;
+
 	u64 tag;
 	union {
-		void *rsrc;
-		struct file *file;
+		unsigned long file_ptr;
 		struct io_mapped_ubuf *buf;
 	};
-};
-
-struct io_rsrc_data {
-	struct io_ring_ctx		*ctx;
-
-	u64				**tags;
-	unsigned int			nr;
-	u16				rsrc_type;
-	bool				quiesce;
-};
-
-struct io_rsrc_node {
-	struct io_ring_ctx		*ctx;
-	int				refs;
-	bool				empty;
-	u16				type;
-	struct list_head		node;
-	struct io_rsrc_put		item;
 };
 
 struct io_mapped_ubuf {
@@ -58,21 +42,19 @@ struct io_imu_folio_data {
 	unsigned int	folio_shift;
 };
 
-void io_rsrc_node_ref_zero(struct io_rsrc_node *node);
-void io_rsrc_node_destroy(struct io_ring_ctx *ctx, struct io_rsrc_node *ref_node);
-struct io_rsrc_node *io_rsrc_node_alloc(struct io_ring_ctx *ctx);
-int io_queue_rsrc_removal(struct io_rsrc_data *data, unsigned idx, void *rsrc);
+struct io_rsrc_node *io_rsrc_node_alloc(struct io_ring_ctx *ctx, int type);
+void io_free_rsrc_node(struct io_ring_ctx *ctx, struct io_rsrc_node *node);
+void io_rsrc_data_free(struct io_ring_ctx *ctx, struct io_rsrc_data *data);
+int io_rsrc_data_alloc(struct io_rsrc_data *data, unsigned nr);
 
 int io_import_fixed(int ddir, struct iov_iter *iter,
 			   struct io_mapped_ubuf *imu,
 			   u64 buf_addr, size_t len);
 
 int io_register_clone_buffers(struct io_ring_ctx *ctx, void __user *arg);
-void __io_sqe_buffers_unregister(struct io_ring_ctx *ctx);
 int io_sqe_buffers_unregister(struct io_ring_ctx *ctx);
 int io_sqe_buffers_register(struct io_ring_ctx *ctx, void __user *arg,
 			    unsigned int nr_args, u64 __user *tags);
-void __io_sqe_files_unregister(struct io_ring_ctx *ctx);
 int io_sqe_files_unregister(struct io_ring_ctx *ctx);
 int io_sqe_files_register(struct io_ring_ctx *ctx, void __user *arg,
 			  unsigned nr_args, u64 __user *tags);
@@ -84,51 +66,56 @@ int io_register_rsrc_update(struct io_ring_ctx *ctx, void __user *arg,
 int io_register_rsrc(struct io_ring_ctx *ctx, void __user *arg,
 			unsigned int size, unsigned int type);
 
+static inline struct io_rsrc_node *io_rsrc_node_lookup(struct io_rsrc_data *data,
+						       int index)
+{
+	if (index < data->nr)
+		return data->nodes[array_index_nospec(index, data->nr)];
+	return NULL;
+}
+
 static inline void io_put_rsrc_node(struct io_ring_ctx *ctx, struct io_rsrc_node *node)
 {
-	lockdep_assert_held(&ctx->uring_lock);
-
 	if (node && !--node->refs)
-		io_rsrc_node_ref_zero(node);
+		io_free_rsrc_node(ctx, node);
 }
 
-static inline void io_charge_rsrc_node(struct io_ring_ctx *ctx,
-				       struct io_rsrc_node *node)
+static inline bool io_reset_rsrc_node(struct io_ring_ctx *ctx,
+				      struct io_rsrc_data *data, int index)
 {
-	node->refs++;
+	struct io_rsrc_node *node = data->nodes[index];
+
+	if (!node)
+		return false;
+	io_put_rsrc_node(ctx, node);
+	data->nodes[index] = NULL;
+	return true;
 }
 
-static inline void __io_req_set_rsrc_node(struct io_kiocb *req,
-					  struct io_ring_ctx *ctx)
+static inline void io_req_put_rsrc_nodes(struct io_kiocb *req)
 {
-	lockdep_assert_held(&ctx->uring_lock);
-	req->rsrc_node = ctx->rsrc_node;
-	io_charge_rsrc_node(ctx, ctx->rsrc_node);
-}
-
-static inline void io_req_set_rsrc_node(struct io_kiocb *req,
-					struct io_ring_ctx *ctx,
-					unsigned int issue_flags)
-{
-	if (!req->rsrc_node) {
-		io_ring_submit_lock(ctx, issue_flags);
-		__io_req_set_rsrc_node(req, ctx);
-		io_ring_submit_unlock(ctx, issue_flags);
+	if (req->file_node) {
+		io_put_rsrc_node(req->ctx, req->file_node);
+		req->file_node = NULL;
+	}
+	if (req->flags & REQ_F_BUF_NODE) {
+		io_put_rsrc_node(req->ctx, req->buf_node);
+		req->buf_node = NULL;
 	}
 }
 
-static inline u64 *io_get_tag_slot(struct io_rsrc_data *data, unsigned int idx)
+static inline void io_req_assign_rsrc_node(struct io_rsrc_node **dst_node,
+					   struct io_rsrc_node *node)
 {
-	unsigned int off = idx & IO_RSRC_TAG_TABLE_MASK;
-	unsigned int table_idx = idx >> IO_RSRC_TAG_TABLE_SHIFT;
-
-	return &data->tags[table_idx][off];
+	node->refs++;
+	*dst_node = node;
 }
 
-static inline int io_rsrc_init(struct io_ring_ctx *ctx)
+static inline void io_req_assign_buf_node(struct io_kiocb *req,
+					  struct io_rsrc_node *node)
 {
-	ctx->rsrc_node = io_rsrc_node_alloc(ctx);
-	return ctx->rsrc_node ? 0 : -ENOMEM;
+	io_req_assign_rsrc_node(&req->buf_node, node);
+	req->flags |= REQ_F_BUF_NODE;
 }
 
 int io_files_update(struct io_kiocb *req, unsigned int issue_flags);

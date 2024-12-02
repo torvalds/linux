@@ -1003,6 +1003,7 @@ static u32 i9xx_dpll(const struct intel_crtc_state *crtc_state,
 		     const struct dpll *clock,
 		     const struct dpll *reduced_clock)
 {
+	struct intel_display *display = to_intel_display(crtc_state);
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	u32 dpll;
@@ -1061,7 +1062,7 @@ static u32 i9xx_dpll(const struct intel_crtc_state *crtc_state,
 	if (crtc_state->sdvo_tv_clock)
 		dpll |= PLL_REF_INPUT_TVCLKINBC;
 	else if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_LVDS) &&
-		 intel_panel_use_ssc(dev_priv))
+		 intel_panel_use_ssc(display))
 		dpll |= PLLB_REF_INPUT_SPREADSPECTRUMIN;
 	else
 		dpll |= PLL_REF_INPUT_DREFCLK;
@@ -1095,6 +1096,7 @@ static u32 i8xx_dpll(const struct intel_crtc_state *crtc_state,
 		     const struct dpll *clock,
 		     const struct dpll *reduced_clock)
 {
+	struct intel_display *display = to_intel_display(crtc_state);
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	u32 dpll;
@@ -1131,7 +1133,7 @@ static u32 i8xx_dpll(const struct intel_crtc_state *crtc_state,
 		dpll |= DPLL_DVO_2X_MODE;
 
 	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_LVDS) &&
-	    intel_panel_use_ssc(dev_priv))
+	    intel_panel_use_ssc(display))
 		dpll |= PLLB_REF_INPUT_SPREADSPECTRUMIN;
 	else
 		dpll |= PLL_REF_INPUT_DREFCLK;
@@ -1237,11 +1239,12 @@ static int mtl_crtc_compute_clock(struct intel_atomic_state *state,
 
 static int ilk_fb_cb_factor(const struct intel_crtc_state *crtc_state)
 {
+	struct intel_display *display = to_intel_display(crtc_state);
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
 
 	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_LVDS) &&
-	    ((intel_panel_use_ssc(i915) && i915->display.vbt.lvds_ssc_freq == 100000) ||
+	    ((intel_panel_use_ssc(display) && i915->display.vbt.lvds_ssc_freq == 100000) ||
 	     (HAS_PCH_IBX(i915) && intel_is_dual_link_lvds(i915))))
 		return 25;
 
@@ -1271,6 +1274,7 @@ static u32 ilk_dpll(const struct intel_crtc_state *crtc_state,
 		    const struct dpll *clock,
 		    const struct dpll *reduced_clock)
 {
+	struct intel_display *display = to_intel_display(crtc_state);
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	u32 dpll;
@@ -1332,7 +1336,7 @@ static u32 ilk_dpll(const struct intel_crtc_state *crtc_state,
 	WARN_ON(reduced_clock->p2 != clock->p2);
 
 	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_LVDS) &&
-	    intel_panel_use_ssc(dev_priv))
+	    intel_panel_use_ssc(display))
 		dpll |= PLLB_REF_INPUT_SPREADSPECTRUMIN;
 	else
 		dpll |= PLL_REF_INPUT_DREFCLK;
@@ -1356,6 +1360,7 @@ static void ilk_compute_dpll(struct intel_crtc_state *crtc_state,
 static int ilk_crtc_compute_clock(struct intel_atomic_state *state,
 				  struct intel_crtc *crtc)
 {
+	struct intel_display *display = to_intel_display(state);
 	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
 	struct intel_crtc_state *crtc_state =
 		intel_atomic_get_new_crtc_state(state, crtc);
@@ -1368,7 +1373,7 @@ static int ilk_crtc_compute_clock(struct intel_atomic_state *state,
 		return 0;
 
 	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_LVDS)) {
-		if (intel_panel_use_ssc(dev_priv)) {
+		if (intel_panel_use_ssc(display)) {
 			drm_dbg_kms(&dev_priv->drm,
 				    "using SSC reference clock of %d kHz\n",
 				    dev_priv->display.vbt.lvds_ssc_freq);
@@ -1532,6 +1537,7 @@ static int vlv_crtc_compute_clock(struct intel_atomic_state *state,
 static int g4x_crtc_compute_clock(struct intel_atomic_state *state,
 				  struct intel_crtc *crtc)
 {
+	struct intel_display *display = to_intel_display(state);
 	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
 	struct intel_crtc_state *crtc_state =
 		intel_atomic_get_new_crtc_state(state, crtc);
@@ -1539,7 +1545,7 @@ static int g4x_crtc_compute_clock(struct intel_atomic_state *state,
 	int refclk = 96000;
 
 	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_LVDS)) {
-		if (intel_panel_use_ssc(dev_priv)) {
+		if (intel_panel_use_ssc(display)) {
 			refclk = dev_priv->display.vbt.lvds_ssc_freq;
 			drm_dbg_kms(&dev_priv->drm,
 				    "using SSC reference clock of %d kHz\n",
@@ -1581,6 +1587,7 @@ static int g4x_crtc_compute_clock(struct intel_atomic_state *state,
 static int pnv_crtc_compute_clock(struct intel_atomic_state *state,
 				  struct intel_crtc *crtc)
 {
+	struct intel_display *display = to_intel_display(state);
 	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
 	struct intel_crtc_state *crtc_state =
 		intel_atomic_get_new_crtc_state(state, crtc);
@@ -1588,7 +1595,7 @@ static int pnv_crtc_compute_clock(struct intel_atomic_state *state,
 	int refclk = 96000;
 
 	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_LVDS)) {
-		if (intel_panel_use_ssc(dev_priv)) {
+		if (intel_panel_use_ssc(display)) {
 			refclk = dev_priv->display.vbt.lvds_ssc_freq;
 			drm_dbg_kms(&dev_priv->drm,
 				    "using SSC reference clock of %d kHz\n",
@@ -1619,6 +1626,7 @@ static int pnv_crtc_compute_clock(struct intel_atomic_state *state,
 static int i9xx_crtc_compute_clock(struct intel_atomic_state *state,
 				   struct intel_crtc *crtc)
 {
+	struct intel_display *display = to_intel_display(state);
 	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
 	struct intel_crtc_state *crtc_state =
 		intel_atomic_get_new_crtc_state(state, crtc);
@@ -1626,7 +1634,7 @@ static int i9xx_crtc_compute_clock(struct intel_atomic_state *state,
 	int refclk = 96000;
 
 	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_LVDS)) {
-		if (intel_panel_use_ssc(dev_priv)) {
+		if (intel_panel_use_ssc(display)) {
 			refclk = dev_priv->display.vbt.lvds_ssc_freq;
 			drm_dbg_kms(&dev_priv->drm,
 				    "using SSC reference clock of %d kHz\n",
@@ -1659,6 +1667,7 @@ static int i9xx_crtc_compute_clock(struct intel_atomic_state *state,
 static int i8xx_crtc_compute_clock(struct intel_atomic_state *state,
 				   struct intel_crtc *crtc)
 {
+	struct intel_display *display = to_intel_display(state);
 	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
 	struct intel_crtc_state *crtc_state =
 		intel_atomic_get_new_crtc_state(state, crtc);
@@ -1666,7 +1675,7 @@ static int i8xx_crtc_compute_clock(struct intel_atomic_state *state,
 	int refclk = 48000;
 
 	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_LVDS)) {
-		if (intel_panel_use_ssc(dev_priv)) {
+		if (intel_panel_use_ssc(display)) {
 			refclk = dev_priv->display.vbt.lvds_ssc_freq;
 			drm_dbg_kms(&dev_priv->drm,
 				    "using SSC reference clock of %d kHz\n",
@@ -2322,12 +2331,13 @@ void vlv_force_pll_off(struct drm_i915_private *dev_priv, enum pipe pipe)
 static void assert_pll(struct drm_i915_private *dev_priv,
 		       enum pipe pipe, bool state)
 {
+	struct intel_display *display = &dev_priv->display;
 	bool cur_state;
 
-	cur_state = intel_de_read(dev_priv, DPLL(dev_priv, pipe)) & DPLL_VCO_ENABLE;
-	I915_STATE_WARN(dev_priv, cur_state != state,
-			"PLL state assertion failure (expected %s, current %s)\n",
-			str_on_off(state), str_on_off(cur_state));
+	cur_state = intel_de_read(display, DPLL(display, pipe)) & DPLL_VCO_ENABLE;
+	INTEL_DISPLAY_STATE_WARN(display, cur_state != state,
+				 "PLL state assertion failure (expected %s, current %s)\n",
+				 str_on_off(state), str_on_off(cur_state));
 }
 
 void assert_pll_enabled(struct drm_i915_private *i915, enum pipe pipe)

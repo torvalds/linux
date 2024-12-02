@@ -3141,7 +3141,10 @@ static void restore_planes_and_stream_state(
 		return;
 
 	for (i = 0; i < status->plane_count; i++) {
+		/* refcount will always be valid, restore everything else */
+		struct kref refcount = status->plane_states[i]->refcount;
 		*status->plane_states[i] = scratch->plane_states[i];
+		status->plane_states[i]->refcount = refcount;
 	}
 	*stream = scratch->stream_state;
 }
@@ -3835,7 +3838,7 @@ static void commit_planes_for_stream(struct dc *dc,
 	dc_exit_ips_for_hw_access(dc);
 
 	dc_z10_restore(dc);
-	if (update_type == UPDATE_TYPE_FULL)
+	if (update_type == UPDATE_TYPE_FULL && dc->optimized_required)
 		hwss_process_outstanding_hw_updates(dc, dc->current_state);
 
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
@@ -3861,6 +3864,9 @@ static void commit_planes_for_stream(struct dc *dc,
 
 		context_clock_trace(dc, context);
 	}
+
+	if (update_type == UPDATE_TYPE_FULL)
+		hwss_wait_for_outstanding_hw_updates(dc, dc->current_state);
 
 	top_pipe_to_program = resource_get_otg_master_for_stream(
 				&context->res_ctx,
@@ -5429,8 +5435,10 @@ bool dc_set_ips_disable(struct dc *dc, unsigned int disable_ips)
 
 void dc_allow_idle_optimizations_internal(struct dc *dc, bool allow, char const *caller_name)
 {
-	if (dc->debug.disable_idle_power_optimizations)
+	if (dc->debug.disable_idle_power_optimizations) {
+		DC_LOG_DEBUG("%s: disabled\n", __func__);
 		return;
+	}
 
 	if (allow != dc->idle_optimizations_allowed)
 		DC_LOG_IPS("%s: allow_idle old=%d new=%d (caller=%s)\n", __func__,
@@ -5447,8 +5455,10 @@ void dc_allow_idle_optimizations_internal(struct dc *dc, bool allow, char const 
 		return;
 
 	if (dc->hwss.apply_idle_power_optimizations && dc->clk_mgr != NULL &&
-	    dc->hwss.apply_idle_power_optimizations(dc, allow))
+	    dc->hwss.apply_idle_power_optimizations(dc, allow)) {
 		dc->idle_optimizations_allowed = allow;
+		DC_LOG_DEBUG("%s: %s\n", __func__, allow ? "enabled" : "disabled");
+	}
 }
 
 void dc_exit_ips_for_hw_access_internal(struct dc *dc, const char *caller_name)
@@ -6090,10 +6100,10 @@ struct dc_power_profile dc_get_power_profile_for_dc_state(const struct dc_state 
 {
 	struct dc_power_profile profile = { 0 };
 
-	if (!context || !context->clk_mgr || !context->clk_mgr->ctx || !context->clk_mgr->ctx->dc)
+	profile.power_level = !context->bw_ctx.bw.dcn.clk.p_state_change_support;
+	if (!context->clk_mgr || !context->clk_mgr->ctx || !context->clk_mgr->ctx->dc)
 		return profile;
 	struct dc *dc = context->clk_mgr->ctx->dc;
-
 
 	if (dc->res_pool->funcs->get_power_profile)
 		profile.power_level = dc->res_pool->funcs->get_power_profile(context);

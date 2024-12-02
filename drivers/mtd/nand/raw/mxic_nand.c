@@ -574,7 +574,7 @@ MODULE_DEVICE_TABLE(of, mxic_nfc_of_ids);
 
 static struct platform_driver mxic_nfc_driver = {
 	.probe = mxic_nfc_probe,
-	.remove_new = mxic_nfc_remove,
+	.remove = mxic_nfc_remove,
 	.driver = {
 		.name = "mxic-nfc",
 		.of_match_table = mxic_nfc_of_ids,

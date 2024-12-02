@@ -5,7 +5,9 @@
 #include <sys/syscall.h>
 #include <test_progs.h>
 #include <bpf/btf.h>
+
 #include "access_map_in_map.skel.h"
+#include "update_map_in_htab.skel.h"
 
 struct thread_ctx {
 	pthread_barrier_t barrier;
@@ -127,6 +129,131 @@ out:
 	access_map_in_map__destroy(skel);
 }
 
+static void add_del_fd_htab(int outer_fd)
+{
+	int inner_fd, err;
+	int key = 1;
+
+	inner_fd = bpf_map_create(BPF_MAP_TYPE_ARRAY, "arr1", 4, 4, 1, NULL);
+	if (!ASSERT_OK_FD(inner_fd, "inner1"))
+		return;
+	err = bpf_map_update_elem(outer_fd, &key, &inner_fd, BPF_NOEXIST);
+	close(inner_fd);
+	if (!ASSERT_OK(err, "add"))
+		return;
+
+	/* Delete */
+	err = bpf_map_delete_elem(outer_fd, &key);
+	ASSERT_OK(err, "del");
+}
+
+static void overwrite_fd_htab(int outer_fd)
+{
+	int inner_fd, err;
+	int key = 1;
+
+	inner_fd = bpf_map_create(BPF_MAP_TYPE_ARRAY, "arr1", 4, 4, 1, NULL);
+	if (!ASSERT_OK_FD(inner_fd, "inner1"))
+		return;
+	err = bpf_map_update_elem(outer_fd, &key, &inner_fd, BPF_NOEXIST);
+	close(inner_fd);
+	if (!ASSERT_OK(err, "add"))
+		return;
+
+	/* Overwrite */
+	inner_fd = bpf_map_create(BPF_MAP_TYPE_ARRAY, "arr2", 4, 4, 1, NULL);
+	if (!ASSERT_OK_FD(inner_fd, "inner2"))
+		goto out;
+	err = bpf_map_update_elem(outer_fd, &key, &inner_fd, BPF_EXIST);
+	close(inner_fd);
+	if (!ASSERT_OK(err, "overwrite"))
+		goto out;
+
+	err = bpf_map_delete_elem(outer_fd, &key);
+	ASSERT_OK(err, "del");
+	return;
+out:
+	bpf_map_delete_elem(outer_fd, &key);
+}
+
+static void lookup_delete_fd_htab(int outer_fd)
+{
+	int key = 1, value;
+	int inner_fd, err;
+
+	inner_fd = bpf_map_create(BPF_MAP_TYPE_ARRAY, "arr1", 4, 4, 1, NULL);
+	if (!ASSERT_OK_FD(inner_fd, "inner1"))
+		return;
+	err = bpf_map_update_elem(outer_fd, &key, &inner_fd, BPF_NOEXIST);
+	close(inner_fd);
+	if (!ASSERT_OK(err, "add"))
+		return;
+
+	/* lookup_and_delete is not supported for htab of maps */
+	err = bpf_map_lookup_and_delete_elem(outer_fd, &key, &value);
+	ASSERT_EQ(err, -ENOTSUPP, "lookup_del");
+
+	err = bpf_map_delete_elem(outer_fd, &key);
+	ASSERT_OK(err, "del");
+}
+
+static void batched_lookup_delete_fd_htab(int outer_fd)
+{
+	int keys[2] = {1, 2}, values[2];
+	unsigned int cnt, batch;
+	int inner_fd, err;
+
+	inner_fd = bpf_map_create(BPF_MAP_TYPE_ARRAY, "arr1", 4, 4, 1, NULL);
+	if (!ASSERT_OK_FD(inner_fd, "inner1"))
+		return;
+
+	err = bpf_map_update_elem(outer_fd, &keys[0], &inner_fd, BPF_NOEXIST);
+	close(inner_fd);
+	if (!ASSERT_OK(err, "add1"))
+		return;
+
+	inner_fd = bpf_map_create(BPF_MAP_TYPE_ARRAY, "arr2", 4, 4, 1, NULL);
+	if (!ASSERT_OK_FD(inner_fd, "inner2"))
+		goto out;
+	err = bpf_map_update_elem(outer_fd, &keys[1], &inner_fd, BPF_NOEXIST);
+	close(inner_fd);
+	if (!ASSERT_OK(err, "add2"))
+		goto out;
+
+	/* batched lookup_and_delete */
+	cnt = ARRAY_SIZE(keys);
+	err = bpf_map_lookup_and_delete_batch(outer_fd, NULL, &batch, keys, values, &cnt, NULL);
+	ASSERT_TRUE((!err || err == -ENOENT), "delete_batch ret");
+	ASSERT_EQ(cnt, ARRAY_SIZE(keys), "delete_batch cnt");
+
+out:
+	bpf_map_delete_elem(outer_fd, &keys[0]);
+}
+
+static void test_update_map_in_htab(bool preallocate)
+{
+	struct update_map_in_htab *skel;
+	int err, fd;
+
+	skel = update_map_in_htab__open();
+	if (!ASSERT_OK_PTR(skel, "open"))
+		return;
+
+	err = update_map_in_htab__load(skel);
+	if (!ASSERT_OK(err, "load"))
+		goto out;
+
+	fd = preallocate ? bpf_map__fd(skel->maps.outer_htab_map) :
+			   bpf_map__fd(skel->maps.outer_alloc_htab_map);
+
+	add_del_fd_htab(fd);
+	overwrite_fd_htab(fd);
+	lookup_delete_fd_htab(fd);
+	batched_lookup_delete_fd_htab(fd);
+out:
+	update_map_in_htab__destroy(skel);
+}
+
 void test_map_in_map(void)
 {
 	if (test__start_subtest("acc_map_in_array"))
@@ -137,5 +264,8 @@ void test_map_in_map(void)
 		test_map_in_map_access("access_map_in_htab", "outer_htab_map");
 	if (test__start_subtest("sleepable_acc_map_in_htab"))
 		test_map_in_map_access("sleepable_access_map_in_htab", "outer_htab_map");
+	if (test__start_subtest("update_map_in_htab"))
+		test_update_map_in_htab(true);
+	if (test__start_subtest("update_map_in_alloc_htab"))
+		test_update_map_in_htab(false);
 }
-

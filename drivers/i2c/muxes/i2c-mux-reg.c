@@ -247,7 +247,7 @@ MODULE_DEVICE_TABLE(of, i2c_mux_reg_of_match);
 
 static struct platform_driver i2c_mux_reg_driver = {
 	.probe	= i2c_mux_reg_probe,
-	.remove_new = i2c_mux_reg_remove,
+	.remove = i2c_mux_reg_remove,
 	.driver	= {
 		.name	= "i2c-mux-reg",
 		.of_match_table = of_match_ptr(i2c_mux_reg_of_match),

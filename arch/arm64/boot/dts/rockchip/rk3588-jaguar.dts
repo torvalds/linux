@@ -8,6 +8,7 @@
 #include <dt-bindings/input/input.h>
 #include <dt-bindings/leds/common.h>
 #include <dt-bindings/pinctrl/rockchip.h>
+#include <dt-bindings/soc/rockchip,vop2.h>
 #include <dt-bindings/usb/pd.h>
 #include "rk3588.dtsi"
 
@@ -32,6 +33,7 @@
 
 	aliases {
 		ethernet0 = &gmac0;
+		i2c10 = &i2c10;
 		mmc0 = &sdhci;
 		mmc1 = &sdmmc;
 		rtc0 = &rtc_twi;
@@ -42,7 +44,7 @@
 	};
 
 	/* DCIN is 12-24V but standard is 12V */
-	dc_12v: dc-12v-regulator {
+	dc_12v: regulator-dc-12v {
 		compatible = "regulator-fixed";
 		regulator-name = "dc_12v";
 		regulator-always-on;
@@ -56,6 +58,17 @@
 		pinctrl-0 = <&emmc_reset>;
 		pinctrl-names = "default";
 		reset-gpios = <&gpio2 RK_PA3 GPIO_ACTIVE_HIGH>;
+	};
+
+	hdmi-con {
+		compatible = "hdmi-connector";
+		type = "a";
+
+		port {
+			hdmi_con_in: endpoint {
+				remote-endpoint = <&hdmi0_out_con>;
+			};
+		};
 	};
 
 	leds {
@@ -98,7 +111,7 @@
 		gpios = <&gpio0 RK_PD5 GPIO_ACTIVE_HIGH>;
 	};
 
-	vcc_1v1_nldo_s3: vcc-1v1-nldo-s3-regulator {
+	vcc_1v1_nldo_s3: regulator-vcc-1v1-nldo-s3 {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc_1v1_nldo_s3";
 		regulator-always-on;
@@ -108,7 +121,7 @@
 		vin-supply = <&vcc5v0_sys>;
 	};
 
-	vcc_1v2_s3: vcc-1v2-s3-regulator {
+	vcc_1v2_s3: regulator-vcc-1v2-s3 {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc_1v2_s3";
 		regulator-always-on;
@@ -119,7 +132,7 @@
 	};
 
 	/* Exposed on P14 and P15 */
-	vcc_2v8_s3: vcc-2v8-s3-regulator {
+	vcc_2v8_s3: regulator-vcc-2v8-s3 {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc_2v8_s3";
 		regulator-always-on;
@@ -129,7 +142,7 @@
 		vin-supply = <&vcc_3v3_s3>;
 	};
 
-	vcc_5v0_usb_a: vcc-5v0-usb-a-regulator {
+	vcc_5v0_usb_a: regulator-vcc-5v0-usb-a {
 		compatible = "regulator-fixed";
 		regulator-name = "usb_a_vcc";
 		regulator-min-microvolt = <5000000>;
@@ -139,7 +152,7 @@
 		enable-active-high;
 	};
 
-	vcc_5v0_usb_c1: vcc-5v0-usb-c1-regulator {
+	vcc_5v0_usb_c1: regulator-vcc-5v0-usb-c1 {
 		compatible = "regulator-fixed";
 		regulator-name = "5v_usbc1";
 		regulator-min-microvolt = <5000000>;
@@ -149,7 +162,7 @@
 		enable-active-high;
 	};
 
-	vcc_5v0_usb_c2: vcc-5v0-usb-c2-regulator {
+	vcc_5v0_usb_c2: regulator-vcc-5v0-usb-c2 {
 		compatible = "regulator-fixed";
 		regulator-name = "5v_usbc2";
 		regulator-min-microvolt = <5000000>;
@@ -159,7 +172,7 @@
 		enable-active-high;
 	};
 
-	vcc3v3_mdot2: vcc3v3-mdot2-regulator {
+	vcc3v3_mdot2: regulator-vcc3v3-mdot2 {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc3v3_mdot2";
 		regulator-always-on;
@@ -169,7 +182,7 @@
 		vin-supply = <&dc_12v>;
 	};
 
-	vcc5v0_sys: vcc5v0-sys-regulator {
+	vcc5v0_sys: regulator-vcc5v0-sys {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc5v0_sys";
 		regulator-always-on;
@@ -179,7 +192,7 @@
 		vin-supply = <&dc_12v>;
 	};
 
-	vcc5v0_usb: vcc5v0-usb-regulator {
+	vcc5v0_usb: regulator-vcc5v0-usb {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc5v0_usb";
 		regulator-always-on;
@@ -271,13 +284,53 @@
 	status = "okay";
 };
 
+&hdmi0 {
+	/* No CEC on Jaguar */
+	pinctrl-names = "default";
+	pinctrl-0 = <&hdmim0_tx0_hpd &hdmim0_tx0_scl &hdmim0_tx0_sda>;
+	status = "okay";
+};
+
+&hdmi0_in {
+	hdmi0_in_vp0: endpoint {
+		remote-endpoint = <&vp0_out_hdmi0>;
+	};
+};
+
+&hdmi0_out {
+	hdmi0_out_con: endpoint {
+		remote-endpoint = <&hdmi_con_in>;
+	};
+};
+
+&hdptxphy_hdmi0 {
+	status = "okay";
+};
+
 &i2c0 {
 	pinctrl-0 = <&i2c0m2_xfer>;
 	status = "okay";
 
 	fan@18 {
-		compatible = "ti,amc6821";
+		compatible = "tsd,mule", "ti,amc6821";
 		reg = <0x18>;
+
+		i2c-mux {
+			compatible = "tsd,mule-i2c-mux";
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			i2c10: i2c@0 {
+				reg = <0x0>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				rtc_twi: rtc@6f {
+					compatible = "isil,isl1208";
+					reg = <0x6f>;
+				};
+			};
+		};
 	};
 
 	vdd_npu_s0: regulator@42 {
@@ -312,11 +365,6 @@
 		regulator-state-mem {
 			regulator-off-in-suspend;
 		};
-	};
-
-	rtc_twi: rtc@6f {
-		compatible = "isil,isl1208";
-		reg = <0x6f>;
 	};
 };
 
@@ -863,4 +911,19 @@
 /* host1 on M.2 E-key */
 &usb_host1_ohci {
 	status = "okay";
+};
+
+&vop {
+	status = "okay";
+};
+
+&vop_mmu {
+	status = "okay";
+};
+
+&vp0 {
+	vp0_out_hdmi0: endpoint@ROCKCHIP_VOP2_EP_HDMI0 {
+		reg = <ROCKCHIP_VOP2_EP_HDMI0>;
+		remote-endpoint = <&hdmi0_in_vp0>;
+	};
 };

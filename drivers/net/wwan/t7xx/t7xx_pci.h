@@ -94,6 +94,7 @@ struct t7xx_pci_dev {
 	struct dentry		*debugfs_dir;
 #endif
 	u32			mode;
+	bool			debug_ports_show;
 };
 
 enum t7xx_pm_id {

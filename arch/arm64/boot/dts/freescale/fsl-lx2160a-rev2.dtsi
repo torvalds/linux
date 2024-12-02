@@ -1,0 +1,169 @@
+// SPDX-License-Identifier: (GPL-2.0 OR MIT)
+//
+// Device Tree file for LX2160 REV2
+//
+// Copyright 2025 NXP
+
+/dts-v1/;
+
+#include "fsl-lx2160a.dtsi"
+
+&pcie1 {
+	compatible = "fsl,lx2160ar2-pcie", "fsl,ls2088a-pcie";
+	reg = <0x00 0x03400000 0x0 0x00100000   /* controller registers */
+	      0x80 0x00000000 0x0 0x00002000>; /* configuration space */
+	reg-names = "regs", "config";
+
+	ranges = <0x81000000 0x0 0x00000000 0x80 0x00010000 0x0 0x00010000
+		  0x82000000 0x0 0x40000000 0x80 0x40000000 0x0 0x40000000>;
+
+	interrupts = <GIC_SPI 108 IRQ_TYPE_LEVEL_HIGH>;
+	interrupt-names = "intr";
+
+	/delete-property/ apio-wins;
+	/delete-property/ ppio-wins;
+};
+
+&pcie2 {
+	compatible = "fsl,lx2160ar2-pcie", "fsl,ls2088a-pcie";
+	reg = <0x00 0x03500000 0x0 0x00100000   /* controller registers */
+	       0x88 0x00000000 0x0 0x00002000>; /* configuration space */
+	reg-names = "regs", "config";
+
+	ranges = <0x81000000 0x0 0x00000000 0x88 0x00010000 0x0 0x00010000
+		  0x82000000 0x0 0x40000000 0x88 0x40000000 0x0 0x40000000>;
+
+	interrupts = <GIC_SPI 113 IRQ_TYPE_LEVEL_HIGH>;
+	interrupt-names = "intr";
+
+	/delete-property/ apio-wins;
+	/delete-property/ ppio-wins;
+};
+
+&pcie3 {
+	compatible = "fsl,lx2160ar2-pcie", "fsl,ls2088a-pcie";
+	reg = <0x00 0x03600000 0x0 0x00100000   /* controller registers */
+	       0x90 0x00000000 0x0 0x00002000>; /* configuration space */
+	reg-names = "regs", "config";
+
+	ranges = <0x81000000 0x0 0x00000000 0x90 0x00010000 0x0 0x00010000
+		  0x82000000 0x0 0x40000000 0x90 0x40000000 0x0 0x40000000>;
+
+	interrupts = <GIC_SPI 118 IRQ_TYPE_LEVEL_HIGH>;
+	interrupt-names = "intr";
+
+	/delete-property/ apio-wins;
+	/delete-property/ ppio-wins;
+};
+
+
+&pcie4 {
+	compatible = "fsl,lx2160ar2-pcie", "fsl,ls2088a-pcie";
+	reg = <0x00 0x03700000 0x0 0x00100000   /* controller registers */
+	       0x98 0x00000000 0x0 0x00002000>; /* configuration space */
+	reg-names = "regs", "config";
+
+	ranges = <0x81000000 0x0 0x00000000 0x98 0x00010000 0x0 0x00010000
+		  0x82000000 0x0 0x40000000 0x98 0x40000000 0x0 0x40000000>;
+
+	interrupts = <GIC_SPI 123 IRQ_TYPE_LEVEL_HIGH>;
+	interrupt-names = "intr";
+
+	/delete-property/ apio-wins;
+	/delete-property/ ppio-wins;
+};
+
+&pcie5 {
+	compatible = "fsl,lx2160ar2-pcie", "fsl,ls2088a-pcie";
+	reg = <0x00 0x03800000 0x0 0x00100000   /* controller registers */
+	       0xa0 0x00000000 0x0 0x00002000>; /* configuration space */
+	reg-names = "regs", "config";
+
+	ranges = <0x81000000 0x0 0x00000000 0xa0 0x00010000 0x0 0x00010000
+		  0x82000000 0x0 0x40000000 0xa0 0x40000000 0x0 0x40000000>;
+
+	interrupts = <GIC_SPI 128 IRQ_TYPE_LEVEL_HIGH>;
+	interrupt-names = "intr";
+
+	/delete-property/ apio-wins;
+	/delete-property/ ppio-wins;
+};
+
+&pcie6 {
+	compatible = "fsl,lx2160ar2-pcie", "fsl,ls2088a-pcie";
+	reg = <0x00 0x03900000 0x0 0x00100000   /* controller registers */
+	       0xa8 0x00000000 0x0 0x00002000>; /* configuration space */
+	reg-names = "regs", "config";
+
+	ranges = <0x81000000 0x0 0x00000000 0xa8 0x00010000 0x0 0x00010000
+		  0x82000000 0x0 0x40000000 0xa8 0x40000000 0x0 0x40000000>;
+
+	interrupts = <GIC_SPI 103 IRQ_TYPE_LEVEL_HIGH>;
+	interrupt-names = "intr";
+
+	/delete-property/ apio-wins;
+	/delete-property/ ppio-wins;
+};
+
+&soc {
+	pcie_ep1: pcie-ep@3400000 {
+		compatible = "fsl,lx2160ar2-pcie-ep";
+		reg = <0x00 0x03400000 0x0 0x00100000
+		       0x80 0x00000000 0x8 0x00000000>;
+		reg-names = "regs", "addr_space";
+		num-ob-windows = <8>;
+		num-ib-windows = <8>;
+		status = "disabled";
+	};
+
+	pcie_ep2: pcie-ep@3500000 {
+		compatible = "fsl,lx2160ar2-pcie-ep";
+		reg = <0x00 0x03500000 0x0 0x00100000
+		       0x88 0x00000000 0x8 0x00000000>;
+		reg-names = "regs", "addr_space";
+		num-ob-windows = <8>;
+		num-ib-windows = <8>;
+		status = "disabled";
+	};
+
+	pcie_ep3: pcie-ep@3600000 {
+		compatible = "fsl,lx2160ar2-pcie-ep";
+		reg = <0x00 0x03600000 0x0 0x00100000
+		       0x90 0x00000000 0x8 0x00000000>;
+		reg-names = "regs", "addr_space";
+		num-ob-windows = <256>;
+		num-ib-windows = <24>;
+		status = "disabled";
+	};
+
+	pcie_ep4: pcie-ep@3700000 {
+		compatible = "fsl,lx2160ar2-pcie-ep";
+		reg = <0x00 0x03700000 0x0 0x00100000
+		       0x98 0x00000000 0x8 0x00000000>;
+		reg-names = "regs", "addr_space";
+		num-ob-windows = <8>;
+		num-ib-windows = <8>;
+		status = "disabled";
+	};
+
+
+	pcie_ep5: pcie-ep@3800000 {
+		compatible = "fsl,lx2160ar2-pcie-ep";
+		reg = <0x00 0x03800000 0x0 0x00100000
+		       0xa0 0x00000000 0x8 0x00000000>;
+		reg-names = "regs", "addr_space";
+		num-ob-windows = <256>;
+		num-ib-windows = <24>;
+		status = "disabled";
+	};
+
+	pcie_ep6: pcie-ep@3900000 {
+		compatible = "fsl,lx2160ar2-pcie-ep";
+		reg = <0x00 0x03900000 0x0 0x00100000
+		       0xa8 0x00000000 0x8 0x00000000>;
+		reg-names = "regs", "addr_space";
+		num-ob-windows = <8>;
+		num-ib-windows = <8>;
+		status = "disabled";
+	};
+};

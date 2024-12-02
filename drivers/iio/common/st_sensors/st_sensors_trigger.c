@@ -134,11 +134,11 @@ int st_sensors_allocate_trigger(struct iio_dev *indio_dev,
 	iio_trigger_set_drvdata(sdata->trig, indio_dev);
 	sdata->trig->ops = trigger_ops;
 
-	irq_trig = irqd_get_trigger_type(irq_get_irq_data(sdata->irq));
 	/*
 	 * If the IRQ is triggered on falling edge, we need to mark the
 	 * interrupt as active low, if the hardware supports this.
 	 */
+	irq_trig = irq_get_trigger_type(sdata->irq);
 	switch(irq_trig) {
 	case IRQF_TRIGGER_FALLING:
 	case IRQF_TRIGGER_LOW:

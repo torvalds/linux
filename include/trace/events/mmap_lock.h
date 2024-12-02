@@ -10,9 +10,6 @@
 
 struct mm_struct;
 
-extern int trace_mmap_lock_reg(void);
-extern void trace_mmap_lock_unreg(void);
-
 DECLARE_EVENT_CLASS(mmap_lock,
 
 	TP_PROTO(struct mm_struct *mm, const char *memcg_path, bool write),
@@ -40,16 +37,15 @@ DECLARE_EVENT_CLASS(mmap_lock,
 );
 
 #define DEFINE_MMAP_LOCK_EVENT(name)                                    \
-	DEFINE_EVENT_FN(mmap_lock, name,                                \
+	DEFINE_EVENT(mmap_lock, name,                                   \
 		TP_PROTO(struct mm_struct *mm, const char *memcg_path,  \
 			bool write),                                    \
-		TP_ARGS(mm, memcg_path, write),                         \
-		trace_mmap_lock_reg, trace_mmap_lock_unreg)
+		TP_ARGS(mm, memcg_path, write))
 
 DEFINE_MMAP_LOCK_EVENT(mmap_lock_start_locking);
 DEFINE_MMAP_LOCK_EVENT(mmap_lock_released);
 
-TRACE_EVENT_FN(mmap_lock_acquire_returned,
+TRACE_EVENT(mmap_lock_acquire_returned,
 
 	TP_PROTO(struct mm_struct *mm, const char *memcg_path, bool write,
 		bool success),
@@ -76,9 +72,7 @@ TRACE_EVENT_FN(mmap_lock_acquire_returned,
 		__get_str(memcg_path),
 		__entry->write ? "true" : "false",
 		__entry->success ? "true" : "false"
-	),
-
-	trace_mmap_lock_reg, trace_mmap_lock_unreg
+	)
 );
 
 #endif /* _TRACE_MMAP_LOCK_H */

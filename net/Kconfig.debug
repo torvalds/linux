@@ -24,3 +24,18 @@ config DEBUG_NET
 	help
 	  Enable extra sanity checks in networking.
 	  This is mostly used by fuzzers, but is safe to select.
+
+config DEBUG_NET_SMALL_RTNL
+	bool "Add extra per-netns mutex inside RTNL"
+	depends on DEBUG_KERNEL && NET && LOCK_DEBUGGING_SUPPORT
+	select PROVE_LOCKING
+	default n
+	help
+	  rtnl_lock() is being replaced with rtnl_net_lock() that
+	  acquires the global RTNL and a small per-netns RTNL mutex.
+
+	  During the conversion, rtnl_net_lock() just adds an extra
+	  mutex in every RTNL scope and slows down the operations.
+
+	  Once the conversion completes, rtnl_lock() will be removed
+	  and rtnetlink will gain per-netns scalability.

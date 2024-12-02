@@ -907,7 +907,7 @@ xlog_cil_committed(
 	xlog_cil_ail_insert(ctx, abort);
 
 	xfs_extent_busy_sort(&ctx->busy_extents.extent_list);
-	xfs_extent_busy_clear(mp, &ctx->busy_extents.extent_list,
+	xfs_extent_busy_clear(&ctx->busy_extents.extent_list,
 			      xfs_has_discard(mp) && !abort);
 
 	spin_lock(&ctx->cil->xc_push_lock);
@@ -917,7 +917,6 @@ xlog_cil_committed(
 	xlog_cil_free_logvec(&ctx->lv_chain);
 
 	if (!list_empty(&ctx->busy_extents.extent_list)) {
-		ctx->busy_extents.mount = mp;
 		ctx->busy_extents.owner = ctx;
 		xfs_discard_extents(mp, &ctx->busy_extents);
 		return;

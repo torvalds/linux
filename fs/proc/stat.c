@@ -76,7 +76,7 @@ static void show_all_irqs(struct seq_file *p)
 		seq_put_decimal_ull(p, " ", kstat_irqs_usr(i));
 		next = i + 1;
 	}
-	show_irq_gap(p, nr_irqs - next);
+	show_irq_gap(p, irq_get_nr_irqs() - next);
 }
 
 static int show_stat(struct seq_file *p, void *v)
@@ -196,7 +196,7 @@ static int stat_open(struct inode *inode, struct file *file)
 	unsigned int size = 1024 + 128 * num_online_cpus();
 
 	/* minimum size to display an interrupt count : 2 bytes */
-	size += 2 * nr_irqs;
+	size += 2 * irq_get_nr_irqs();
 	return single_open_size(file, show_stat, NULL, size);
 }
 

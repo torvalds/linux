@@ -668,24 +668,38 @@ enum {
 #define PERF_PEBS_DATA_SOURCE_GRT_MAX	0x10
 #define PERF_PEBS_DATA_SOURCE_GRT_MASK	(PERF_PEBS_DATA_SOURCE_GRT_MAX - 1)
 
+/*
+ * CPUID.1AH.EAX[31:0] uniquely identifies the microarchitecture
+ * of the core. Bits 31-24 indicates its core type (Core or Atom)
+ * and Bits [23:0] indicates the native model ID of the core.
+ * Core type and native model ID are defined in below enumerations.
+ */
 enum hybrid_cpu_type {
 	HYBRID_INTEL_NONE,
 	HYBRID_INTEL_ATOM	= 0x20,
 	HYBRID_INTEL_CORE	= 0x40,
 };
 
-enum hybrid_pmu_type {
-	not_hybrid,
-	hybrid_small		= BIT(0),
-	hybrid_big		= BIT(1),
-
-	hybrid_big_small	= hybrid_big | hybrid_small, /* only used for matching */
-};
-
 #define X86_HYBRID_PMU_ATOM_IDX		0
 #define X86_HYBRID_PMU_CORE_IDX		1
+#define X86_HYBRID_PMU_TINY_IDX		2
 
-#define X86_HYBRID_NUM_PMUS		2
+enum hybrid_pmu_type {
+	not_hybrid,
+	hybrid_small		= BIT(X86_HYBRID_PMU_ATOM_IDX),
+	hybrid_big		= BIT(X86_HYBRID_PMU_CORE_IDX),
+	hybrid_tiny		= BIT(X86_HYBRID_PMU_TINY_IDX),
+
+	/* The belows are only used for matching */
+	hybrid_big_small	= hybrid_big   | hybrid_small,
+	hybrid_small_tiny	= hybrid_small | hybrid_tiny,
+	hybrid_big_small_tiny	= hybrid_big   | hybrid_small_tiny,
+};
+
+enum atom_native_id {
+	cmt_native_id           = 0x2,  /* Crestmont */
+	skt_native_id           = 0x3,  /* Skymont */
+};
 
 struct x86_hybrid_pmu {
 	struct pmu			pmu;
@@ -1578,6 +1592,8 @@ u64 cmt_latency_data(struct perf_event *event, u64 status);
 
 u64 lnl_latency_data(struct perf_event *event, u64 status);
 
+u64 arl_h_latency_data(struct perf_event *event, u64 status);
+
 extern struct event_constraint intel_core2_pebs_event_constraints[];
 
 extern struct event_constraint intel_atom_pebs_event_constraints[];
@@ -1696,6 +1712,8 @@ void intel_pmu_pebs_data_source_adl(void);
 void intel_pmu_pebs_data_source_grt(void);
 
 void intel_pmu_pebs_data_source_mtl(void);
+
+void intel_pmu_pebs_data_source_arl_h(void);
 
 void intel_pmu_pebs_data_source_cmt(void);
 

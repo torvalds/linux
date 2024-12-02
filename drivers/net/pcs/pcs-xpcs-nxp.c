@@ -152,26 +152,18 @@ static int nxp_sja1110_pma_config(struct dw_xpcs *xpcs,
 	/* Enable TX and RX PLLs and circuits.
 	 * Release reset of PMA to enable data flow to/from PCS.
 	 */
-	ret = xpcs_read(xpcs, MDIO_MMD_VEND2, SJA1110_POWERDOWN_ENABLE);
-	if (ret < 0)
-		return ret;
-
-	val = ret & ~(SJA1110_TXPLL_PD | SJA1110_TXPD | SJA1110_RXCH_PD |
-		      SJA1110_RXBIAS_PD | SJA1110_RESET_SER_EN |
-		      SJA1110_RESET_SER | SJA1110_RESET_DES);
-	val |= SJA1110_RXPKDETEN | SJA1110_RCVEN;
-
-	ret = xpcs_write(xpcs, MDIO_MMD_VEND2, SJA1110_POWERDOWN_ENABLE, val);
+	ret = xpcs_modify(xpcs, MDIO_MMD_VEND2, SJA1110_POWERDOWN_ENABLE,
+			  SJA1110_TXPLL_PD | SJA1110_TXPD | SJA1110_RXCH_PD |
+			  SJA1110_RXBIAS_PD | SJA1110_RESET_SER_EN |
+			  SJA1110_RESET_SER | SJA1110_RESET_DES |
+			  SJA1110_RXPKDETEN | SJA1110_RCVEN,
+			  SJA1110_RXPKDETEN | SJA1110_RCVEN);
 	if (ret < 0)
 		return ret;
 
 	/* Program continuous-time linear equalizer (CTLE) settings. */
-	ret = xpcs_write(xpcs, MDIO_MMD_VEND2, SJA1110_RX_CDR_CTLE,
-			 rx_cdr_ctle);
-	if (ret < 0)
-		return ret;
-
-	return 0;
+	return xpcs_write(xpcs, MDIO_MMD_VEND2, SJA1110_RX_CDR_CTLE,
+			  rx_cdr_ctle);
 }
 
 int nxp_sja1110_sgmii_pma_config(struct dw_xpcs *xpcs)

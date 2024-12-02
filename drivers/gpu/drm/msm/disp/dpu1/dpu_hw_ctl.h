@@ -294,15 +294,6 @@ static inline struct dpu_hw_ctl *to_dpu_hw_ctl(struct dpu_hw_blk *hw)
 	return container_of(hw, struct dpu_hw_ctl, base);
 }
 
-/**
- * dpu_hw_ctl_init() - Initializes the ctl_path hw driver object.
- * Should be called before accessing any ctl_path register.
- * @dev:  Corresponding device for devres management
- * @cfg:  ctl_path catalog entry for which driver object is required
- * @addr: mapped register io address of MDP
- * @mixer_count: Number of mixers in @mixer
- * @mixer: Pointer to an array of Layer Mixers defined in the catalog
- */
 struct dpu_hw_ctl *dpu_hw_ctl_init(struct drm_device *dev,
 				   const struct dpu_ctl_cfg *cfg,
 				   void __iomem *addr,

@@ -4109,6 +4109,117 @@ static umode_t fan_minimum_pwm_visible(struct amdgpu_device *adev)
 	return umode;
 }
 
+/**
+ * DOC: fan_zero_rpm_enable
+ *
+ * The amdgpu driver provides a sysfs API for checking and adjusting the
+ * zero RPM feature.
+ *
+ * Reading back the file shows you the current setting and the permitted
+ * ranges if changable.
+ *
+ * Writing an integer to the file, change the setting accordingly.
+ *
+ * When you have finished the editing, write "c" (commit) to the file to commit
+ * your changes.
+ *
+ * If you want to reset to the default value, write "r" (reset) to the file to
+ * reset them.
+ */
+static ssize_t fan_zero_rpm_enable_show(struct kobject *kobj,
+					   struct kobj_attribute *attr,
+					   char *buf)
+{
+	struct od_kobj *container = container_of(kobj, struct od_kobj, kobj);
+	struct amdgpu_device *adev = (struct amdgpu_device *)container->priv;
+
+	return (ssize_t)amdgpu_retrieve_od_settings(adev, OD_FAN_ZERO_RPM_ENABLE, buf);
+}
+
+static ssize_t fan_zero_rpm_enable_store(struct kobject *kobj,
+					    struct kobj_attribute *attr,
+					    const char *buf,
+					    size_t count)
+{
+	struct od_kobj *container = container_of(kobj, struct od_kobj, kobj);
+	struct amdgpu_device *adev = (struct amdgpu_device *)container->priv;
+
+	return (ssize_t)amdgpu_distribute_custom_od_settings(adev,
+							     PP_OD_EDIT_FAN_ZERO_RPM_ENABLE,
+							     buf,
+							     count);
+}
+
+static umode_t fan_zero_rpm_enable_visible(struct amdgpu_device *adev)
+{
+	umode_t umode = 0000;
+
+	if (adev->pm.od_feature_mask & OD_OPS_SUPPORT_FAN_ZERO_RPM_ENABLE_RETRIEVE)
+		umode |= S_IRUSR | S_IRGRP | S_IROTH;
+
+	if (adev->pm.od_feature_mask & OD_OPS_SUPPORT_FAN_ZERO_RPM_ENABLE_SET)
+		umode |= S_IWUSR;
+
+	return umode;
+}
+
+/**
+ * DOC: fan_zero_rpm_stop_temperature
+ *
+ * The amdgpu driver provides a sysfs API for checking and adjusting the
+ * zero RPM stop temperature feature.
+ *
+ * Reading back the file shows you the current setting and the permitted
+ * ranges if changable.
+ *
+ * Writing an integer to the file, change the setting accordingly.
+ *
+ * When you have finished the editing, write "c" (commit) to the file to commit
+ * your changes.
+ *
+ * If you want to reset to the default value, write "r" (reset) to the file to
+ * reset them.
+ *
+ * This setting works only if the Zero RPM setting is enabled. It adjusts the
+ * temperature below which the fan can stop.
+ */
+static ssize_t fan_zero_rpm_stop_temp_show(struct kobject *kobj,
+					   struct kobj_attribute *attr,
+					   char *buf)
+{
+	struct od_kobj *container = container_of(kobj, struct od_kobj, kobj);
+	struct amdgpu_device *adev = (struct amdgpu_device *)container->priv;
+
+	return (ssize_t)amdgpu_retrieve_od_settings(adev, OD_FAN_ZERO_RPM_STOP_TEMP, buf);
+}
+
+static ssize_t fan_zero_rpm_stop_temp_store(struct kobject *kobj,
+					    struct kobj_attribute *attr,
+					    const char *buf,
+					    size_t count)
+{
+	struct od_kobj *container = container_of(kobj, struct od_kobj, kobj);
+	struct amdgpu_device *adev = (struct amdgpu_device *)container->priv;
+
+	return (ssize_t)amdgpu_distribute_custom_od_settings(adev,
+							     PP_OD_EDIT_FAN_ZERO_RPM_STOP_TEMP,
+							     buf,
+							     count);
+}
+
+static umode_t fan_zero_rpm_stop_temp_visible(struct amdgpu_device *adev)
+{
+	umode_t umode = 0000;
+
+	if (adev->pm.od_feature_mask & OD_OPS_SUPPORT_FAN_ZERO_RPM_STOP_TEMP_RETRIEVE)
+		umode |= S_IRUSR | S_IRGRP | S_IROTH;
+
+	if (adev->pm.od_feature_mask & OD_OPS_SUPPORT_FAN_ZERO_RPM_STOP_TEMP_SET)
+		umode |= S_IWUSR;
+
+	return umode;
+}
+
 static struct od_feature_set amdgpu_od_set = {
 	.containers = {
 		[0] = {
@@ -4152,6 +4263,22 @@ static struct od_feature_set amdgpu_od_set = {
 						.is_visible = fan_minimum_pwm_visible,
 						.show = fan_minimum_pwm_show,
 						.store = fan_minimum_pwm_store,
+					},
+				},
+				[5] = {
+					.name = "fan_zero_rpm_enable",
+					.ops = {
+						.is_visible = fan_zero_rpm_enable_visible,
+						.show = fan_zero_rpm_enable_show,
+						.store = fan_zero_rpm_enable_store,
+					},
+				},
+				[6] = {
+					.name = "fan_zero_rpm_stop_temperature",
+					.ops = {
+						.is_visible = fan_zero_rpm_stop_temp_visible,
+						.show = fan_zero_rpm_stop_temp_show,
+						.store = fan_zero_rpm_stop_temp_store,
 					},
 				},
 			},

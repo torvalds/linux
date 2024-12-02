@@ -60,11 +60,6 @@ ice_eswitch_set_target_vsi(struct sk_buff *skb,
 static inline void
 ice_eswitch_update_repr(unsigned long *repr_id, struct ice_vsi *vsi) { }
 
-static inline int ice_eswitch_configure(struct ice_pf *pf)
-{
-	return 0;
-}
-
 static inline int ice_eswitch_mode_get(struct devlink *devlink, u16 *mode)
 {
 	return DEVLINK_ESWITCH_MODE_LEGACY;

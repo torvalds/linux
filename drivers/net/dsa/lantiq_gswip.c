@@ -2249,7 +2249,7 @@ MODULE_DEVICE_TABLE(of, gswip_of_match);
 
 static struct platform_driver gswip_driver = {
 	.probe = gswip_probe,
-	.remove_new = gswip_remove,
+	.remove = gswip_remove,
 	.shutdown = gswip_shutdown,
 	.driver = {
 		.name = "gswip",

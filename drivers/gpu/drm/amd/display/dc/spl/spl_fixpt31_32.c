@@ -22,7 +22,7 @@ static inline unsigned long long abs_i64(
  * result = dividend / divisor
  * *remainder = dividend % divisor
  */
-static inline unsigned long long complete_integer_division_u64(
+static inline unsigned long long spl_complete_integer_division_u64(
 	unsigned long long dividend,
 	unsigned long long divisor,
 	unsigned long long *remainder)
@@ -60,7 +60,7 @@ struct spl_fixed31_32 spl_fixpt_from_fraction(long long numerator, long long den
 
 	/* determine integer part */
 
-	unsigned long long res_value = complete_integer_division_u64(
+	unsigned long long res_value = spl_complete_integer_division_u64(
 		arg1_value, arg2_value, &remainder);
 
 	SPL_ASSERT(res_value <= (unsigned long long)LONG_MAX);
@@ -286,7 +286,7 @@ struct spl_fixed31_32 spl_fixpt_cos(struct spl_fixed31_32 arg)
  *
  * Calculated as Taylor series.
  */
-static struct spl_fixed31_32 fixed31_32_exp_from_taylor_series(struct spl_fixed31_32 arg)
+static struct spl_fixed31_32 spl_fixed31_32_exp_from_taylor_series(struct spl_fixed31_32 arg)
 {
 	unsigned int n = 9;
 
@@ -345,14 +345,14 @@ struct spl_fixed31_32 spl_fixpt_exp(struct spl_fixed31_32 arg)
 
 		if (m > 0)
 			return spl_fixpt_shl(
-				fixed31_32_exp_from_taylor_series(r),
+				spl_fixed31_32_exp_from_taylor_series(r),
 				(unsigned char)m);
 		else
 			return spl_fixpt_div_int(
-				fixed31_32_exp_from_taylor_series(r),
+				spl_fixed31_32_exp_from_taylor_series(r),
 				1LL << -m);
 	} else if (arg.value != 0)
-		return fixed31_32_exp_from_taylor_series(arg);
+		return spl_fixed31_32_exp_from_taylor_series(arg);
 	else
 		return spl_fixpt_one;
 }
@@ -396,7 +396,7 @@ struct spl_fixed31_32 spl_fixpt_log(struct spl_fixed31_32 arg)
  * part in 32 bits. It is used in hw programming (scaler)
  */
 
-static inline unsigned int ux_dy(
+static inline unsigned int spl_ux_dy(
 	long long value,
 	unsigned int integer_bits,
 	unsigned int fractional_bits)
@@ -415,13 +415,13 @@ static inline unsigned int ux_dy(
 	return result | fractional_part;
 }
 
-static inline unsigned int clamp_ux_dy(
+static inline unsigned int spl_clamp_ux_dy(
 	long long value,
 	unsigned int integer_bits,
 	unsigned int fractional_bits,
 	unsigned int min_clamp)
 {
-	unsigned int truncated_val = ux_dy(value, integer_bits, fractional_bits);
+	unsigned int truncated_val = spl_ux_dy(value, integer_bits, fractional_bits);
 
 	if (value >= (1LL << (integer_bits + FIXED31_32_BITS_PER_FRACTIONAL_PART)))
 		return (1 << (integer_bits + fractional_bits)) - 1;
@@ -433,40 +433,40 @@ static inline unsigned int clamp_ux_dy(
 
 unsigned int spl_fixpt_u4d19(struct spl_fixed31_32 arg)
 {
-	return ux_dy(arg.value, 4, 19);
+	return spl_ux_dy(arg.value, 4, 19);
 }
 
 unsigned int spl_fixpt_u3d19(struct spl_fixed31_32 arg)
 {
-	return ux_dy(arg.value, 3, 19);
+	return spl_ux_dy(arg.value, 3, 19);
 }
 
 unsigned int spl_fixpt_u2d19(struct spl_fixed31_32 arg)
 {
-	return ux_dy(arg.value, 2, 19);
+	return spl_ux_dy(arg.value, 2, 19);
 }
 
 unsigned int spl_fixpt_u0d19(struct spl_fixed31_32 arg)
 {
-	return ux_dy(arg.value, 0, 19);
+	return spl_ux_dy(arg.value, 0, 19);
 }
 
 unsigned int spl_fixpt_clamp_u0d14(struct spl_fixed31_32 arg)
 {
-	return clamp_ux_dy(arg.value, 0, 14, 1);
+	return spl_clamp_ux_dy(arg.value, 0, 14, 1);
 }
 
 unsigned int spl_fixpt_clamp_u0d10(struct spl_fixed31_32 arg)
 {
-	return clamp_ux_dy(arg.value, 0, 10, 1);
+	return spl_clamp_ux_dy(arg.value, 0, 10, 1);
 }
 
 int spl_fixpt_s4d19(struct spl_fixed31_32 arg)
 {
 	if (arg.value < 0)
-		return -(int)ux_dy(spl_fixpt_abs(arg).value, 4, 19);
+		return -(int)spl_ux_dy(spl_fixpt_abs(arg).value, 4, 19);
 	else
-		return ux_dy(arg.value, 4, 19);
+		return spl_ux_dy(arg.value, 4, 19);
 }
 
 struct spl_fixed31_32 spl_fixpt_from_ux_dy(unsigned int value,

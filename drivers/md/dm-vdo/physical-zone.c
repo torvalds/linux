@@ -517,7 +517,7 @@ static int allocate_and_lock_block(struct allocation *allocation)
  * @waiter: The allocating_vio that was waiting to allocate.
  * @context: The context (unused).
  */
-static void retry_allocation(struct vdo_waiter *waiter, void *context __always_unused)
+static void retry_allocation(struct vdo_waiter *waiter, void __always_unused *context)
 {
 	struct data_vio *data_vio = vdo_waiter_as_data_vio(waiter);
 

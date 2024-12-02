@@ -40,7 +40,7 @@
 		spi2 = &hspi2;
 	};
 
-	bsc: bus@1c000000 {
+	lbsc: bus {
 		compatible = "simple-bus";
 		#address-cells = <1>;
 		#size-cells = <1>;

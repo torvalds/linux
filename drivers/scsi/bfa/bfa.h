@@ -138,14 +138,6 @@ bfa_reqq_winit(struct bfa_reqq_wait_s *wqe, void (*qresume) (void *cbarg),
 	} while (0)
 
 
-/*
- * PCI devices supported by the current BFA
- */
-struct bfa_pciid_s {
-	u16	device_id;
-	u16	vendor_id;
-};
-
 extern char     bfa_version[];
 
 struct bfa_iocfc_regs_s {
@@ -408,9 +400,7 @@ int bfa_iocfc_get_pbc_vports(struct bfa_s *bfa,
 	(((&(_bfa)->modules.dconf_mod)->min_cfg)		\
 	 ? BFA_LUNMASK_MINCFG : ((bfa_get_lun_mask(_bfa))->status))
 
-void bfa_get_pciids(struct bfa_pciid_s **pciids, int *npciids);
 void bfa_cfg_get_default(struct bfa_iocfc_cfg_s *cfg);
-void bfa_cfg_get_min(struct bfa_iocfc_cfg_s *cfg);
 void bfa_cfg_get_meminfo(struct bfa_iocfc_cfg_s *cfg,
 			struct bfa_meminfo_s *meminfo,
 			struct bfa_s *bfa);

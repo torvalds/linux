@@ -1129,8 +1129,8 @@ static inline int usb_make_path(struct usb_device *dev, char *buf, size_t size)
 /* ----------------------------------------------------------------------- */
 
 /* Stuff for dynamic usb ids */
+extern struct mutex usb_dynids_lock;
 struct usb_dynids {
-	spinlock_t lock;
 	struct list_head list;
 };
 
@@ -1243,7 +1243,7 @@ struct usb_driver {
 	unsigned int disable_hub_initiated_lpm:1;
 	unsigned int soft_unbind:1;
 };
-#define	to_usb_driver(d) container_of(d, struct usb_driver, driver)
+#define	to_usb_driver(d) container_of_const(d, struct usb_driver, driver)
 
 /**
  * struct usb_device_driver - identifies USB device driver to usbcore
@@ -1294,8 +1294,7 @@ struct usb_device_driver {
 	unsigned int supports_autosuspend:1;
 	unsigned int generic_subclass:1;
 };
-#define	to_usb_device_driver(d) container_of(d, struct usb_device_driver, \
-		driver)
+#define	to_usb_device_driver(d) container_of_const(d, struct usb_device_driver, driver)
 
 /**
  * struct usb_class_driver - identifies a USB driver that wants to use the USB major number

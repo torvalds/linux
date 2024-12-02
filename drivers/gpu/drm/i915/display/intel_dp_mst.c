@@ -153,7 +153,7 @@ static int intel_dp_mst_dsc_get_slice_count(const struct intel_connector *connec
 {
 	const struct drm_display_mode *adjusted_mode =
 		&crtc_state->hw.adjusted_mode;
-	int num_joined_pipes = crtc_state->joiner_pipes;
+	int num_joined_pipes = intel_crtc_num_joined_pipes(crtc_state);
 
 	return intel_dp_dsc_get_slice_count(connector,
 					    adjusted_mode->clock,
@@ -1572,6 +1572,8 @@ intel_dp_mst_detect(struct drm_connector *connector,
 
 	if (!intel_display_driver_check_access(i915))
 		return connector->status;
+
+	intel_dp_flush_connector_commits(intel_connector);
 
 	return drm_dp_mst_detect_port(connector, ctx, &intel_dp->mst_mgr,
 				      intel_connector->port);

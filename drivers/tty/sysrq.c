@@ -583,7 +583,6 @@ static void __sysrq_put_key_op(u8 key, const struct sysrq_key_op *op_p)
 void __handle_sysrq(u8 key, bool check_mask)
 {
 	const struct sysrq_key_op *op_p;
-	int orig_log_level;
 	int orig_suppress_printk;
 	int i;
 
@@ -593,13 +592,12 @@ void __handle_sysrq(u8 key, bool check_mask)
 	rcu_sysrq_start();
 	rcu_read_lock();
 	/*
-	 * Raise the apparent loglevel to maximum so that the sysrq header
-	 * is shown to provide the user with positive feedback.  We do not
-	 * simply emit this at KERN_EMERG as that would change message
-	 * routing in the consumers of /proc/kmsg.
+	 * Enter in the force_console context so that sysrq header is shown to
+	 * provide the user with positive feedback.  We do not simply emit this
+	 * at KERN_EMERG as that would change message routing in the consumers
+	 * of /proc/kmsg.
 	 */
-	orig_log_level = console_loglevel;
-	console_loglevel = CONSOLE_LOGLEVEL_DEFAULT;
+	printk_force_console_enter();
 
 	op_p = __sysrq_get_key_op(key);
 	if (op_p) {
@@ -609,11 +607,11 @@ void __handle_sysrq(u8 key, bool check_mask)
 		 */
 		if (!check_mask || sysrq_on_mask(op_p->enable_mask)) {
 			pr_info("%s\n", op_p->action_msg);
-			console_loglevel = orig_log_level;
+			printk_force_console_exit();
 			op_p->handler(key);
 		} else {
 			pr_info("This sysrq operation is disabled.\n");
-			console_loglevel = orig_log_level;
+			printk_force_console_exit();
 		}
 	} else {
 		pr_info("HELP : ");
@@ -631,7 +629,7 @@ void __handle_sysrq(u8 key, bool check_mask)
 			}
 		}
 		pr_cont("\n");
-		console_loglevel = orig_log_level;
+		printk_force_console_exit();
 	}
 	rcu_read_unlock();
 	rcu_sysrq_end();

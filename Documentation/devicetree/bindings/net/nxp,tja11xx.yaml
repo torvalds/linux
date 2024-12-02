@@ -62,6 +62,22 @@ allOf:
             reference clock output when RMII mode enabled.
             Only supported on TJA1100 and TJA1101.
 
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - ethernet-phy-id001b.b010
+              - ethernet-phy-id001b.b013
+              - ethernet-phy-id001b.b030
+              - ethernet-phy-id001b.b031
+
+    then:
+      properties:
+        nxp,rmii-refclk-out:
+          type: boolean
+          description: Enable 50MHz RMII reference clock output on REF_CLK pin.
+
 patternProperties:
   "^ethernet-phy@[0-9a-f]+$":
     type: object

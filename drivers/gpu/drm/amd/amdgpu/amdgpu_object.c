@@ -40,6 +40,7 @@
 #include "amdgpu_trace.h"
 #include "amdgpu_amdkfd.h"
 #include "amdgpu_vram_mgr.h"
+#include "amdgpu_vm.h"
 
 /**
  * DOC: amdgpu_object
@@ -161,7 +162,8 @@ void amdgpu_bo_placement_from_domain(struct amdgpu_bo *abo, u32 domain)
 		 * When GTT is just an alternative to VRAM make sure that we
 		 * only use it as fallback and still try to fill up VRAM first.
 		 */
-		if (domain & abo->preferred_domains & AMDGPU_GEM_DOMAIN_VRAM)
+		if (domain & abo->preferred_domains & AMDGPU_GEM_DOMAIN_VRAM &&
+		    !(adev->flags & AMD_IS_APU))
 			places[c].flags |= TTM_PL_FLAG_FALLBACK;
 		c++;
 	}
@@ -1208,23 +1210,11 @@ void amdgpu_bo_get_memory(struct amdgpu_bo *bo,
 		type = res->mem_type;
 	}
 
-	/* Squash some into 'cpu' to keep the legacy userspace view. */
-	switch (type) {
-	case TTM_PL_VRAM:
-	case TTM_PL_TT:
-	case TTM_PL_SYSTEM:
-		break;
-	default:
-		type = TTM_PL_SYSTEM;
-		break;
-	}
-
 	if (drm_WARN_ON_ONCE(&adev->ddev, type >= sz))
 		return;
 
 	/* DRM stats common fields: */
 
-	stats[type].total += size;
 	if (drm_gem_object_is_shared_for_memory_stats(obj))
 		stats[type].drm.shared += size;
 	else
@@ -1237,23 +1227,14 @@ void amdgpu_bo_get_memory(struct amdgpu_bo *bo,
 			stats[type].drm.active += size;
 		else if (bo->flags & AMDGPU_GEM_CREATE_DISCARDABLE)
 			stats[type].drm.purgeable += size;
-
-		if (type == TTM_PL_VRAM && amdgpu_res_cpu_visible(adev, res))
-			stats[type].visible += size;
 	}
 
 	/* amdgpu specific stats: */
 
 	if (bo->preferred_domains & AMDGPU_GEM_DOMAIN_VRAM) {
 		stats[TTM_PL_VRAM].requested += size;
-		if (bo->flags & AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED)
-			stats[TTM_PL_VRAM].requested_visible += size;
-
-		if (type != TTM_PL_VRAM) {
+		if (type != TTM_PL_VRAM)
 			stats[TTM_PL_VRAM].evicted += size;
-			if (bo->flags & AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED)
-				stats[TTM_PL_VRAM].evicted_visible += size;
-		}
 	} else if (bo->preferred_domains & AMDGPU_GEM_DOMAIN_GTT) {
 		stats[TTM_PL_TT].requested += size;
 	}

@@ -524,8 +524,6 @@ static const struct vb2_ops tw68_video_qops = {
 	.buf_finish	= tw68_buf_finish,
 	.start_streaming = tw68_start_streaming,
 	.stop_streaming = tw68_stop_streaming,
-	.wait_prepare	= vb2_ops_wait_prepare,
-	.wait_finish	= vb2_ops_wait_finish,
 };
 
 /* ------------------------------------------------------------------ */

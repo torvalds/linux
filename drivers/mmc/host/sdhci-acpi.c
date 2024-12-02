@@ -1080,7 +1080,7 @@ static struct platform_driver sdhci_acpi_driver = {
 		.pm			= &sdhci_acpi_pm_ops,
 	},
 	.probe	= sdhci_acpi_probe,
-	.remove_new = sdhci_acpi_remove,
+	.remove = sdhci_acpi_remove,
 };
 
 module_platform_driver(sdhci_acpi_driver);

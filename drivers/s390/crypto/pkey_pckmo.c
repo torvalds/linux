@@ -15,7 +15,6 @@
 #include <crypto/aes.h>
 #include <linux/random.h>
 
-#include "zcrypt_api.h"
 #include "zcrypt_ccamisc.h"
 #include "pkey_base.h"
 
@@ -38,23 +37,9 @@ static bool is_pckmo_key(const u8 *key, u32 keylen)
 	case TOKTYPE_NON_CCA:
 		switch (hdr->version) {
 		case TOKVER_CLEAR_KEY:
-			switch (t->keytype) {
-			case PKEY_KEYTYPE_AES_128:
-			case PKEY_KEYTYPE_AES_192:
-			case PKEY_KEYTYPE_AES_256:
-			case PKEY_KEYTYPE_ECC_P256:
-			case PKEY_KEYTYPE_ECC_P384:
-			case PKEY_KEYTYPE_ECC_P521:
-			case PKEY_KEYTYPE_ECC_ED25519:
-			case PKEY_KEYTYPE_ECC_ED448:
-			case PKEY_KEYTYPE_AES_XTS_128:
-			case PKEY_KEYTYPE_AES_XTS_256:
-			case PKEY_KEYTYPE_HMAC_512:
-			case PKEY_KEYTYPE_HMAC_1024:
+			if (pkey_keytype_to_size(t->keytype))
 				return true;
-			default:
-				return false;
-			}
+			return false;
 		case TOKVER_PROTECTED_KEY:
 			return true;
 		default:
@@ -86,80 +71,49 @@ static int pckmo_clr2protkey(u32 keytype, const u8 *clrkey, u32 clrkeylen,
 
 	int keysize, rc = -EINVAL;
 	u8 paramblock[160];
-	u32 pkeytype;
-	long fc;
+	u32 pkeytype = 0;
+	unsigned int fc;
 
 	switch (keytype) {
 	case PKEY_KEYTYPE_AES_128:
-		/* 16 byte key, 32 byte aes wkvp, total 48 bytes */
-		keysize = 16;
-		pkeytype = keytype;
 		fc = CPACF_PCKMO_ENC_AES_128_KEY;
 		break;
 	case PKEY_KEYTYPE_AES_192:
-		/* 24 byte key, 32 byte aes wkvp, total 56 bytes */
-		keysize = 24;
-		pkeytype = keytype;
 		fc = CPACF_PCKMO_ENC_AES_192_KEY;
 		break;
 	case PKEY_KEYTYPE_AES_256:
-		/* 32 byte key, 32 byte aes wkvp, total 64 bytes */
-		keysize = 32;
-		pkeytype = keytype;
 		fc = CPACF_PCKMO_ENC_AES_256_KEY;
 		break;
 	case PKEY_KEYTYPE_ECC_P256:
-		/* 32 byte key, 32 byte aes wkvp, total 64 bytes */
-		keysize = 32;
 		pkeytype = PKEY_KEYTYPE_ECC;
 		fc = CPACF_PCKMO_ENC_ECC_P256_KEY;
 		break;
 	case PKEY_KEYTYPE_ECC_P384:
-		/* 48 byte key, 32 byte aes wkvp, total 80 bytes */
-		keysize = 48;
 		pkeytype = PKEY_KEYTYPE_ECC;
 		fc = CPACF_PCKMO_ENC_ECC_P384_KEY;
 		break;
 	case PKEY_KEYTYPE_ECC_P521:
-		/* 80 byte key, 32 byte aes wkvp, total 112 bytes */
-		keysize = 80;
 		pkeytype = PKEY_KEYTYPE_ECC;
 		fc = CPACF_PCKMO_ENC_ECC_P521_KEY;
 		break;
 	case PKEY_KEYTYPE_ECC_ED25519:
-		/* 32 byte key, 32 byte aes wkvp, total 64 bytes */
-		keysize = 32;
 		pkeytype = PKEY_KEYTYPE_ECC;
 		fc = CPACF_PCKMO_ENC_ECC_ED25519_KEY;
 		break;
 	case PKEY_KEYTYPE_ECC_ED448:
-		/* 64 byte key, 32 byte aes wkvp, total 96 bytes */
-		keysize = 64;
 		pkeytype = PKEY_KEYTYPE_ECC;
 		fc = CPACF_PCKMO_ENC_ECC_ED448_KEY;
 		break;
 	case PKEY_KEYTYPE_AES_XTS_128:
-		/* 2x16 byte keys, 32 byte aes wkvp, total 64 bytes */
-		keysize = 32;
-		pkeytype = PKEY_KEYTYPE_AES_XTS_128;
 		fc = CPACF_PCKMO_ENC_AES_XTS_128_DOUBLE_KEY;
 		break;
 	case PKEY_KEYTYPE_AES_XTS_256:
-		/* 2x32 byte keys, 32 byte aes wkvp, total 96 bytes */
-		keysize = 64;
-		pkeytype = PKEY_KEYTYPE_AES_XTS_256;
 		fc = CPACF_PCKMO_ENC_AES_XTS_256_DOUBLE_KEY;
 		break;
 	case PKEY_KEYTYPE_HMAC_512:
-		/* 64 byte key, 32 byte aes wkvp, total 96 bytes */
-		keysize = 64;
-		pkeytype = PKEY_KEYTYPE_HMAC_512;
 		fc = CPACF_PCKMO_ENC_HMAC_512_KEY;
 		break;
 	case PKEY_KEYTYPE_HMAC_1024:
-		/* 128 byte key, 32 byte aes wkvp, total 160 bytes */
-		keysize = 128;
-		pkeytype = PKEY_KEYTYPE_HMAC_1024;
 		fc = CPACF_PCKMO_ENC_HMAC_1024_KEY;
 		break;
 	default:
@@ -167,6 +121,9 @@ static int pckmo_clr2protkey(u32 keytype, const u8 *clrkey, u32 clrkeylen,
 			     __func__, keytype);
 		goto out;
 	}
+
+	keysize = pkey_keytype_to_size(keytype);
+	pkeytype = pkeytype ?: keytype;
 
 	if (clrkeylen && clrkeylen < keysize) {
 		PKEY_DBF_ERR("%s clear key size too small: %u < %d\n",
@@ -190,7 +147,8 @@ static int pckmo_clr2protkey(u32 keytype, const u8 *clrkey, u32 clrkeylen,
 	}
 	/* check for the pckmo subfunction we need now */
 	if (!cpacf_test_func(&pckmo_functions, fc)) {
-		PKEY_DBF_ERR("%s pckmo functions not available\n", __func__);
+		PKEY_DBF_ERR("%s pckmo fc 0x%02x not available\n",
+			     __func__, fc);
 		rc = -ENODEV;
 		goto out;
 	}
@@ -216,59 +174,41 @@ out:
 
 /*
  * Verify a raw protected key blob.
- * Currently only AES protected keys are supported.
  */
 static int pckmo_verify_protkey(const u8 *protkey, u32 protkeylen,
 				u32 protkeytype)
 {
-	struct {
-		u8 iv[AES_BLOCK_SIZE];
-		u8 key[MAXPROTKEYSIZE];
-	} param;
-	u8 null_msg[AES_BLOCK_SIZE];
-	u8 dest_buf[AES_BLOCK_SIZE];
-	unsigned int k, pkeylen;
-	unsigned long fc;
-	int rc = -EINVAL;
+	u8 clrkey[16] = { 0 }, tmpkeybuf[16 + AES_WK_VP_SIZE];
+	u32 tmpkeybuflen, tmpkeytype;
+	int keysize, rc = -EINVAL;
+	u8 *wkvp;
 
-	switch (protkeytype) {
-	case PKEY_KEYTYPE_AES_128:
-		pkeylen = 16 + AES_WK_VP_SIZE;
-		fc = CPACF_KMC_PAES_128;
-		break;
-	case PKEY_KEYTYPE_AES_192:
-		pkeylen = 24 + AES_WK_VP_SIZE;
-		fc = CPACF_KMC_PAES_192;
-		break;
-	case PKEY_KEYTYPE_AES_256:
-		pkeylen = 32 + AES_WK_VP_SIZE;
-		fc = CPACF_KMC_PAES_256;
-		break;
-	default:
+	/* check protkey type and size */
+	keysize = pkey_keytype_to_size(protkeytype);
+	if (!keysize) {
 		PKEY_DBF_ERR("%s unknown/unsupported keytype %u\n", __func__,
 			     protkeytype);
 		goto out;
 	}
-	if (protkeylen != pkeylen) {
-		PKEY_DBF_ERR("%s invalid protected key size %u for keytype %u\n",
-			     __func__, protkeylen, protkeytype);
+	if (protkeylen < keysize + AES_WK_VP_SIZE)
 		goto out;
-	}
 
-	memset(null_msg, 0, sizeof(null_msg));
+	/* generate a dummy AES 128 protected key */
+	tmpkeybuflen = sizeof(tmpkeybuf);
+	rc = pckmo_clr2protkey(PKEY_KEYTYPE_AES_128,
+			       clrkey, sizeof(clrkey),
+			       tmpkeybuf, &tmpkeybuflen, &tmpkeytype);
+	if (rc)
+		goto out;
+	memzero_explicit(tmpkeybuf, 16);
+	wkvp = tmpkeybuf + 16;
 
-	memset(param.iv, 0, sizeof(param.iv));
-	memcpy(param.key, protkey, protkeylen);
-
-	k = cpacf_kmc(fc | CPACF_ENCRYPT, &param, null_msg, dest_buf,
-		      sizeof(null_msg));
-	if (k != sizeof(null_msg)) {
-		PKEY_DBF_ERR("%s protected key is not valid\n", __func__);
+	/* compare WK VP from the temp key with that of the given prot key */
+	if (memcmp(wkvp, protkey + keysize, AES_WK_VP_SIZE)) {
+		PKEY_DBF_ERR("%s protected key WK VP mismatch\n", __func__);
 		rc = -EKEYREJECTED;
 		goto out;
 	}
-
-	rc = 0;
 
 out:
 	pr_debug("rc=%d\n", rc);
@@ -289,37 +229,33 @@ static int pckmo_key2protkey(const u8 *key, u32 keylen,
 	switch (hdr->version) {
 	case TOKVER_PROTECTED_KEY: {
 		struct protkeytoken *t = (struct protkeytoken *)key;
+		u32 keysize;
 
 		if (keylen < sizeof(*t))
 			goto out;
+		keysize = pkey_keytype_to_size(t->keytype);
+		if (!keysize) {
+			PKEY_DBF_ERR("%s protected key token: unknown keytype %u\n",
+				     __func__, t->keytype);
+			goto out;
+		}
 		switch (t->keytype) {
 		case PKEY_KEYTYPE_AES_128:
 		case PKEY_KEYTYPE_AES_192:
 		case PKEY_KEYTYPE_AES_256:
-			if (keylen != sizeof(struct protaeskeytoken))
+			if (t->len != keysize + AES_WK_VP_SIZE ||
+			    keylen < sizeof(struct protaeskeytoken))
 				goto out;
 			rc = pckmo_verify_protkey(t->protkey, t->len,
 						  t->keytype);
 			if (rc)
 				goto out;
 			break;
-		case PKEY_KEYTYPE_AES_XTS_128:
-			if (t->len != 64 || keylen != sizeof(*t) + t->len)
-				goto out;
-			break;
-		case PKEY_KEYTYPE_AES_XTS_256:
-		case PKEY_KEYTYPE_HMAC_512:
-			if (t->len != 96 || keylen != sizeof(*t) + t->len)
-				goto out;
-			break;
-		case PKEY_KEYTYPE_HMAC_1024:
-			if (t->len != 160 || keylen != sizeof(*t) + t->len)
-				goto out;
-			break;
 		default:
-			PKEY_DBF_ERR("%s protected key token: unknown keytype %u\n",
-				     __func__, t->keytype);
-			goto out;
+			if (t->len != keysize + AES_WK_VP_SIZE ||
+			    keylen < sizeof(*t) + keysize + AES_WK_VP_SIZE)
+				goto out;
+			break;
 		}
 		memcpy(protkey, t->protkey, t->len);
 		*protkeylen = t->len;
@@ -329,47 +265,12 @@ static int pckmo_key2protkey(const u8 *key, u32 keylen,
 	}
 	case TOKVER_CLEAR_KEY: {
 		struct clearkeytoken *t = (struct clearkeytoken *)key;
-		u32 keysize = 0;
+		u32 keysize;
 
-		if (keylen < sizeof(struct clearkeytoken) ||
-		    keylen != sizeof(*t) + t->len)
+		if (keylen < sizeof(*t) ||
+		    keylen < sizeof(*t) + t->len)
 			goto out;
-		switch (t->keytype) {
-		case PKEY_KEYTYPE_AES_128:
-		case PKEY_KEYTYPE_AES_192:
-		case PKEY_KEYTYPE_AES_256:
-			keysize = pkey_keytype_aes_to_size(t->keytype);
-			break;
-		case PKEY_KEYTYPE_ECC_P256:
-			keysize = 32;
-			break;
-		case PKEY_KEYTYPE_ECC_P384:
-			keysize = 48;
-			break;
-		case PKEY_KEYTYPE_ECC_P521:
-			keysize = 80;
-			break;
-		case PKEY_KEYTYPE_ECC_ED25519:
-			keysize = 32;
-			break;
-		case PKEY_KEYTYPE_ECC_ED448:
-			keysize = 64;
-			break;
-		case PKEY_KEYTYPE_AES_XTS_128:
-			keysize = 32;
-			break;
-		case PKEY_KEYTYPE_AES_XTS_256:
-			keysize = 64;
-			break;
-		case PKEY_KEYTYPE_HMAC_512:
-			keysize = 64;
-			break;
-		case PKEY_KEYTYPE_HMAC_1024:
-			keysize = 128;
-			break;
-		default:
-			break;
-		}
+		keysize = pkey_keytype_to_size(t->keytype);
 		if (!keysize) {
 			PKEY_DBF_ERR("%s clear key token: unknown keytype %u\n",
 				     __func__, t->keytype);
@@ -397,8 +298,6 @@ out:
 
 /*
  * Generate a random protected key.
- * Currently only the generation of AES protected keys
- * is supported.
  */
 static int pckmo_gen_protkey(u32 keytype, u32 subtype,
 			     u8 *protkey, u32 *protkeylen, u32 *protkeytype)
@@ -407,23 +306,8 @@ static int pckmo_gen_protkey(u32 keytype, u32 subtype,
 	int keysize;
 	int rc;
 
-	switch (keytype) {
-	case PKEY_KEYTYPE_AES_128:
-	case PKEY_KEYTYPE_AES_192:
-	case PKEY_KEYTYPE_AES_256:
-		keysize = pkey_keytype_aes_to_size(keytype);
-		break;
-	case PKEY_KEYTYPE_AES_XTS_128:
-		keysize = 32;
-		break;
-	case PKEY_KEYTYPE_AES_XTS_256:
-	case PKEY_KEYTYPE_HMAC_512:
-		keysize = 64;
-		break;
-	case PKEY_KEYTYPE_HMAC_1024:
-		keysize = 128;
-		break;
-	default:
+	keysize = pkey_keytype_to_size(keytype);
+	if (!keysize) {
 		PKEY_DBF_ERR("%s unknown/unsupported keytype %d\n",
 			     __func__, keytype);
 		return -EINVAL;
@@ -431,6 +315,21 @@ static int pckmo_gen_protkey(u32 keytype, u32 subtype,
 	if (subtype != PKEY_TYPE_PROTKEY) {
 		PKEY_DBF_ERR("%s unknown/unsupported subtype %d\n",
 			     __func__, subtype);
+		return -EINVAL;
+	}
+
+	switch (keytype) {
+	case PKEY_KEYTYPE_AES_128:
+	case PKEY_KEYTYPE_AES_192:
+	case PKEY_KEYTYPE_AES_256:
+	case PKEY_KEYTYPE_AES_XTS_128:
+	case PKEY_KEYTYPE_AES_XTS_256:
+	case PKEY_KEYTYPE_HMAC_512:
+	case PKEY_KEYTYPE_HMAC_1024:
+		break;
+	default:
+		PKEY_DBF_ERR("%s unsupported keytype %d\n",
+			     __func__, keytype);
 		return -EINVAL;
 	}
 
@@ -453,7 +352,6 @@ out:
 
 /*
  * Verify a protected key token blob.
- * Currently only AES protected keys are supported.
  */
 static int pckmo_verify_key(const u8 *key, u32 keylen)
 {
@@ -467,11 +365,26 @@ static int pckmo_verify_key(const u8 *key, u32 keylen)
 
 	switch (hdr->version) {
 	case TOKVER_PROTECTED_KEY: {
-		struct protaeskeytoken *t;
+		struct protkeytoken *t = (struct protkeytoken *)key;
+		u32 keysize;
 
-		if (keylen != sizeof(struct protaeskeytoken))
+		if (keylen < sizeof(*t))
 			goto out;
-		t = (struct protaeskeytoken *)key;
+		keysize = pkey_keytype_to_size(t->keytype);
+		if (!keysize || t->len != keysize + AES_WK_VP_SIZE)
+			goto out;
+		switch (t->keytype) {
+		case PKEY_KEYTYPE_AES_128:
+		case PKEY_KEYTYPE_AES_192:
+		case PKEY_KEYTYPE_AES_256:
+			if (keylen < sizeof(struct protaeskeytoken))
+				goto out;
+			break;
+		default:
+			if (keylen < sizeof(*t) + keysize + AES_WK_VP_SIZE)
+				goto out;
+			break;
+		}
 		rc = pckmo_verify_protkey(t->protkey, t->len, t->keytype);
 		break;
 	}

@@ -452,7 +452,7 @@ static struct platform_driver npcm_pspi_driver = {
 		.of_match_table	= npcm_pspi_match,
 	},
 	.probe		= npcm_pspi_probe,
-	.remove_new	= npcm_pspi_remove,
+	.remove		= npcm_pspi_remove,
 };
 module_platform_driver(npcm_pspi_driver);
 

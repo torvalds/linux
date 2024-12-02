@@ -249,7 +249,7 @@ MODULE_DEVICE_TABLE(of, i2c_opal_of_match);
 
 static struct platform_driver i2c_opal_driver = {
 	.probe	= i2c_opal_probe,
-	.remove_new = i2c_opal_remove,
+	.remove = i2c_opal_remove,
 	.driver	= {
 		.name		= "i2c-opal",
 		.of_match_table	= i2c_opal_of_match,

@@ -12,7 +12,6 @@
 #include <linux/leds.h>
 #include <linux/module.h>
 #include <linux/slab.h>
-#include "leds.h"
 
 #define has_flash_op(fled_cdev, op)				\
 	(fled_cdev && fled_cdev->ops->op)

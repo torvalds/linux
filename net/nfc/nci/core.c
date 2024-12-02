@@ -757,6 +757,14 @@ int nci_core_conn_close(struct nci_dev *ndev, u8 conn_id)
 }
 EXPORT_SYMBOL(nci_core_conn_close);
 
+static void nci_set_target_ats(struct nfc_target *target, struct nci_dev *ndev)
+{
+	if (ndev->target_ats_len > 0) {
+		target->ats_len = ndev->target_ats_len;
+		memcpy(target->ats, ndev->target_ats, target->ats_len);
+	}
+}
+
 static int nci_set_local_general_bytes(struct nfc_dev *nfc_dev)
 {
 	struct nci_dev *ndev = nfc_get_drvdata(nfc_dev);
@@ -939,8 +947,11 @@ static int nci_activate_target(struct nfc_dev *nfc_dev,
 				 msecs_to_jiffies(NCI_RF_DISC_SELECT_TIMEOUT));
 	}
 
-	if (!rc)
+	if (!rc) {
 		ndev->target_active_prot = protocol;
+		if (protocol == NFC_PROTO_ISO14443)
+			nci_set_target_ats(target, ndev);
+	}
 
 	return rc;
 }

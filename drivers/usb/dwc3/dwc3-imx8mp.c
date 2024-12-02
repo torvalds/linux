@@ -400,7 +400,7 @@ MODULE_DEVICE_TABLE(of, dwc3_imx8mp_of_match);
 
 static struct platform_driver dwc3_imx8mp_driver = {
 	.probe		= dwc3_imx8mp_probe,
-	.remove_new	= dwc3_imx8mp_remove,
+	.remove		= dwc3_imx8mp_remove,
 	.driver		= {
 		.name	= "imx8mp-dwc3",
 		.pm	= pm_ptr(&dwc3_imx8mp_dev_pm_ops),

@@ -1552,6 +1552,15 @@ struct reparse_symlink_data_buffer {
 
 /* See MS-FSCC 2.1.2.6 and cifspdu.h for struct reparse_posix_data */
 
+/* For IO_REPARSE_TAG_LX_SYMLINK */
+struct reparse_wsl_symlink_data_buffer {
+	__le32	ReparseTag;
+	__le16	ReparseDataLength;
+	__u16	Reserved;
+	__le32	Flags;
+	__u8	PathBuffer[]; /* Variable Length UTF-8 string without nul-term */
+} __packed;
+
 struct validate_negotiate_info_req {
 	__le32 Capabilities;
 	__u8   Guid[SMB2_CLIENT_GUID_SIZE];

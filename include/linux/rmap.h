@@ -171,7 +171,7 @@ static inline void anon_vma_merge(struct vm_area_struct *vma,
 	unlink_anon_vmas(next);
 }
 
-struct anon_vma *folio_get_anon_vma(struct folio *folio);
+struct anon_vma *folio_get_anon_vma(const struct folio *folio);
 
 /* RMAP flags, currently only relevant for some anon rmap operations. */
 typedef int __bitwise rmap_t;
@@ -194,8 +194,8 @@ enum rmap_level {
 	RMAP_LEVEL_PMD,
 };
 
-static inline void __folio_rmap_sanity_checks(struct folio *folio,
-		struct page *page, int nr_pages, enum rmap_level level)
+static inline void __folio_rmap_sanity_checks(const struct folio *folio,
+		const struct page *page, int nr_pages, enum rmap_level level)
 {
 	/* hugetlb folios are handled separately. */
 	VM_WARN_ON_FOLIO(folio_test_hugetlb(folio), folio);
@@ -728,11 +728,8 @@ page_vma_mapped_walk_restart(struct page_vma_mapped_walk *pvmw)
 }
 
 bool page_vma_mapped_walk(struct page_vma_mapped_walk *pvmw);
-
-/*
- * Used by swapoff to help locate where page is expected in vma.
- */
-unsigned long page_address_in_vma(struct page *, struct vm_area_struct *);
+unsigned long page_address_in_vma(const struct folio *folio,
+		const struct page *, const struct vm_area_struct *);
 
 /*
  * Cleans the PTEs of shared mappings.
@@ -774,14 +771,14 @@ struct rmap_walk_control {
 	bool (*rmap_one)(struct folio *folio, struct vm_area_struct *vma,
 					unsigned long addr, void *arg);
 	int (*done)(struct folio *folio);
-	struct anon_vma *(*anon_lock)(struct folio *folio,
+	struct anon_vma *(*anon_lock)(const struct folio *folio,
 				      struct rmap_walk_control *rwc);
 	bool (*invalid_vma)(struct vm_area_struct *vma, void *arg);
 };
 
 void rmap_walk(struct folio *folio, struct rmap_walk_control *rwc);
 void rmap_walk_locked(struct folio *folio, struct rmap_walk_control *rwc);
-struct anon_vma *folio_lock_anon_vma_read(struct folio *folio,
+struct anon_vma *folio_lock_anon_vma_read(const struct folio *folio,
 					  struct rmap_walk_control *rwc);
 
 #else	/* !CONFIG_MMU */

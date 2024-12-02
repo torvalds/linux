@@ -24,7 +24,7 @@
 		reg = <0x60000000 0x40000000>;
 	};
 
-	vcc5v0_otg: vcc5v0-otg-regulator {
+	vcc5v0_otg: regulator-vcc5v0-otg {
 		compatible = "regulator-fixed";
 		gpio = <&gpio0 26 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
@@ -34,7 +34,7 @@
 		regulator-max-microvolt = <5000000>;
 	};
 
-	vcc5v0_host: vcc5v0-host-regulator {
+	vcc5v0_host: regulator-vcc5v0-host {
 		compatible = "regulator-fixed";
 		gpio = <&gpio2 23 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";

@@ -55,9 +55,6 @@ void rtw_unregister_netdevs(struct dvobj_priv *dvobj);
 
 u16 rtw_recv_select_queue(struct sk_buff *skb);
 
-int rtw_ndev_notifier_register(void);
-void rtw_ndev_notifier_unregister(void);
-
 void rtw_ips_dev_unload(struct adapter *padapter);
 
 int rtw_ips_pwr_up(struct adapter *padapter);

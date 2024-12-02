@@ -23,7 +23,7 @@ Possible uses:
   associated code is never run?)
 
 .. _gcov: https://gcc.gnu.org/onlinedocs/gcc/Gcov.html
-.. _lcov: http://ltp.sourceforge.net/coverage/lcov.php
+.. _lcov: https://github.com/linux-test-project/lcov
 
 
 Preparation

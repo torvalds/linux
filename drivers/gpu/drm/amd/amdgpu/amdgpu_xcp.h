@@ -77,6 +77,7 @@ struct amdgpu_xcp_cfg {
 	u8 num_res;
 	struct amdgpu_xcp_mgr *xcp_mgr;
 	struct kobject kobj;
+	u16 compatible_nps_modes;
 };
 
 struct amdgpu_xcp_ip_funcs {

@@ -471,6 +471,16 @@ static const char *xcp_desc[] = {
 	[AMDGPU_CPX_PARTITION_MODE] = "CPX",
 };
 
+static const char *nps_desc[] = {
+	[UNKNOWN_MEMORY_PARTITION_MODE] = "UNKNOWN",
+	[AMDGPU_NPS1_PARTITION_MODE] = "NPS1",
+	[AMDGPU_NPS2_PARTITION_MODE] = "NPS2",
+	[AMDGPU_NPS3_PARTITION_MODE] = "NPS3",
+	[AMDGPU_NPS4_PARTITION_MODE] = "NPS4",
+	[AMDGPU_NPS6_PARTITION_MODE] = "NPS6",
+	[AMDGPU_NPS8_PARTITION_MODE] = "NPS8",
+};
+
 ATTRIBUTE_GROUPS(xcp_cfg_res_sysfs);
 
 #define to_xcp_attr(x) \
@@ -540,6 +550,26 @@ static ssize_t supported_xcp_configs_show(struct kobject *kobj,
 	return size;
 }
 
+static ssize_t supported_nps_configs_show(struct kobject *kobj,
+					  struct kobj_attribute *attr, char *buf)
+{
+	struct amdgpu_xcp_cfg *xcp_cfg = to_xcp_cfg(kobj);
+	int size = 0, mode;
+	char *sep = "";
+
+	if (!xcp_cfg || !xcp_cfg->compatible_nps_modes)
+		return sysfs_emit(buf, "Not supported\n");
+
+	for_each_inst(mode, xcp_cfg->compatible_nps_modes) {
+		size += sysfs_emit_at(buf, size, "%s%s", sep, nps_desc[mode]);
+		sep = ", ";
+	}
+
+	size += sysfs_emit_at(buf, size, "\n");
+
+	return size;
+}
+
 static ssize_t xcp_config_show(struct kobject *kobj,
 			       struct kobj_attribute *attr, char *buf)
 {
@@ -596,6 +626,9 @@ static const struct kobj_type xcp_cfg_sysfs_ktype = {
 static struct kobj_attribute supp_part_sysfs_mode =
 	__ATTR_RO(supported_xcp_configs);
 
+static struct kobj_attribute supp_nps_sysfs_mode =
+	__ATTR_RO(supported_nps_configs);
+
 static const struct attribute *xcp_attrs[] = {
 	&supp_part_sysfs_mode.attr,
 	&xcp_cfg_sysfs_mode.attr,
@@ -625,13 +658,24 @@ void amdgpu_xcp_cfg_sysfs_init(struct amdgpu_device *adev)
 	if (r)
 		goto err1;
 
+	if (adev->gmc.supported_nps_modes != 0) {
+		r = sysfs_create_file(&xcp_cfg->kobj, &supp_nps_sysfs_mode.attr);
+		if (r) {
+			sysfs_remove_files(&xcp_cfg->kobj, xcp_attrs);
+			goto err1;
+		}
+	}
+
 	mode = (xcp_cfg->xcp_mgr->mode ==
 		AMDGPU_UNKNOWN_COMPUTE_PARTITION_MODE) ?
 		       AMDGPU_SPX_PARTITION_MODE :
 		       xcp_cfg->xcp_mgr->mode;
 	r = amdgpu_xcp_get_res_info(xcp_cfg->xcp_mgr, mode, xcp_cfg);
-	if (r)
+	if (r) {
+		sysfs_remove_file(&xcp_cfg->kobj, &supp_nps_sysfs_mode.attr);
+		sysfs_remove_files(&xcp_cfg->kobj, xcp_attrs);
 		goto err1;
+	}
 
 	xcp_cfg->mode = mode;
 	for (i = 0; i < xcp_cfg->num_res; i++) {
@@ -653,6 +697,7 @@ err:
 		kobject_put(&xcp_res->kobj);
 	}
 
+	sysfs_remove_file(&xcp_cfg->kobj, &supp_nps_sysfs_mode.attr);
 	sysfs_remove_files(&xcp_cfg->kobj, xcp_attrs);
 err1:
 	kobject_put(&xcp_cfg->kobj);
@@ -673,6 +718,7 @@ void amdgpu_xcp_cfg_sysfs_fini(struct amdgpu_device *adev)
 		kobject_put(&xcp_res->kobj);
 	}
 
+	sysfs_remove_file(&xcp_cfg->kobj, &supp_nps_sysfs_mode.attr);
 	sysfs_remove_files(&xcp_cfg->kobj, xcp_attrs);
 	kobject_put(&xcp_cfg->kobj);
 }

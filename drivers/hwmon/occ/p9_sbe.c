@@ -192,8 +192,8 @@ static struct platform_driver p9_sbe_occ_driver = {
 		.name = "occ-hwmon",
 		.of_match_table = p9_sbe_occ_of_match,
 	},
-	.probe	= p9_sbe_occ_probe,
-	.remove_new = p9_sbe_occ_remove,
+	.probe = p9_sbe_occ_probe,
+	.remove = p9_sbe_occ_remove,
 };
 
 module_platform_driver(p9_sbe_occ_driver);

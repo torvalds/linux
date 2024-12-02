@@ -385,7 +385,7 @@ static struct platform_driver kempld_i2c_driver = {
 		.pm = pm_sleep_ptr(&kempld_i2c_pm_ops),
 	},
 	.probe		= kempld_i2c_probe,
-	.remove_new	= kempld_i2c_remove,
+	.remove		= kempld_i2c_remove,
 };
 
 module_platform_driver(kempld_i2c_driver);

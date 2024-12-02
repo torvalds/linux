@@ -35,7 +35,7 @@
 #include "amdgpu_dm_trace.h"
 #include "amdgpu_dm_debugfs.h"
 
-#define HPD_DETECTION_PERIOD_uS 5000000
+#define HPD_DETECTION_PERIOD_uS 2000000
 #define HPD_DETECTION_TIME_uS 100000
 
 void amdgpu_dm_crtc_handle_vblank(struct amdgpu_crtc *acrtc)
@@ -252,10 +252,8 @@ static void amdgpu_dm_crtc_vblank_control_worker(struct work_struct *work)
 	else if (dm->active_vblank_irq_count)
 		dm->active_vblank_irq_count--;
 
-	if (dm->active_vblank_irq_count > 0) {
-		DRM_DEBUG_KMS("Allow idle optimizations (MALL): false\n");
+	if (dm->active_vblank_irq_count > 0)
 		dc_allow_idle_optimizations(dm->dc, false);
-	}
 
 	/*
 	 * Control PSR based on vblank requirements from OS
@@ -267,17 +265,14 @@ static void amdgpu_dm_crtc_vblank_control_worker(struct work_struct *work)
 	 * where the SU region is the full hactive*vactive region. See
 	 * fill_dc_dirty_rects().
 	 */
-	if (vblank_work->stream && vblank_work->stream->link) {
+	if (vblank_work->stream && vblank_work->stream->link && vblank_work->acrtc) {
 		amdgpu_dm_crtc_set_panel_sr_feature(
 			vblank_work, vblank_work->enable,
-			vblank_work->acrtc->dm_irq_params.allow_psr_entry ||
-			vblank_work->stream->link->replay_settings.replay_feature_enabled);
+			vblank_work->acrtc->dm_irq_params.allow_sr_entry);
 	}
 
-	if (dm->active_vblank_irq_count == 0) {
-		DRM_DEBUG_KMS("Allow idle optimizations (MALL): true\n");
+	if (dm->active_vblank_irq_count == 0)
 		dc_allow_idle_optimizations(dm->dc, true);
-	}
 
 	mutex_unlock(&dm->dc_lock);
 

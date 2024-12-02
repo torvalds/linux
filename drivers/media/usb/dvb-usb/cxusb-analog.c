@@ -956,8 +956,6 @@ static const struct vb2_ops cxdev_video_qops = {
 	.start_streaming = cxusb_medion_v_start_streaming,
 	.stop_streaming = cxusb_medion_v_stop_streaming,
 	.buf_queue = cxusub_medion_v_buf_queue,
-	.wait_prepare = vb2_ops_wait_prepare,
-	.wait_finish = vb2_ops_wait_finish
 };
 
 static const __u32 videocaps = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_TUNER |

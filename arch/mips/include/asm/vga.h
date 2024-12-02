@@ -47,10 +47,6 @@ static inline void scr_memsetw(u16 *s, u16 v, unsigned int count)
 	memset16(s, cpu_to_le16(v), count / 2);
 }
 
-#define scr_memcpyw(d, s, c) memcpy(d, s, c)
-#define scr_memmovew(d, s, c) memmove(d, s, c)
-#define VT_BUF_HAVE_MEMCPYW
-#define VT_BUF_HAVE_MEMMOVEW
 #define VT_BUF_HAVE_MEMSETW
 
 #endif /* _ASM_VGA_H */

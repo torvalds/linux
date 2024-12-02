@@ -16,7 +16,7 @@
 #include <asm/ptrace.h>
 #include <asm/traps.h>
 #include <asm/processor.h>
-#include <asm/patch.h>
+#include <asm/text-patching.h>
 #include <asm/cacheflush.h>
 
 const struct kgdb_arch arch_kgdb_ops = {

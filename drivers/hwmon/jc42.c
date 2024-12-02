@@ -11,6 +11,7 @@
 
 #include <linux/bitops.h>
 #include <linux/bitfield.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/slab.h>
@@ -19,7 +20,6 @@
 #include <linux/hwmon.h>
 #include <linux/err.h>
 #include <linux/mutex.h>
-#include <linux/of.h>
 #include <linux/regmap.h>
 
 /* Addresses to scan */
@@ -595,20 +595,18 @@ static const struct i2c_device_id jc42_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, jc42_id);
 
-#ifdef CONFIG_OF
 static const struct of_device_id jc42_of_ids[] = {
 	{ .compatible = "jedec,jc-42.4-temp", },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, jc42_of_ids);
-#endif
 
 static struct i2c_driver jc42_driver = {
 	.class		= I2C_CLASS_HWMON,
 	.driver = {
 		.name	= "jc42",
 		.pm = JC42_DEV_PM_OPS,
-		.of_match_table = of_match_ptr(jc42_of_ids),
+		.of_match_table = jc42_of_ids,
 	},
 	.probe		= jc42_probe,
 	.remove		= jc42_remove,

@@ -167,8 +167,7 @@ static int tcf_police_init(struct net *net, struct nlattr *nla,
 	}
 	if (R_tab) {
 		new->rate_present = true;
-		rate64 = tb[TCA_POLICE_RATE64] ?
-			 nla_get_u64(tb[TCA_POLICE_RATE64]) : 0;
+		rate64 = nla_get_u64_default(tb[TCA_POLICE_RATE64], 0);
 		psched_ratecfg_precompute(&new->rate, &R_tab->rate, rate64);
 		qdisc_put_rtab(R_tab);
 	} else {
@@ -176,8 +175,7 @@ static int tcf_police_init(struct net *net, struct nlattr *nla,
 	}
 	if (P_tab) {
 		new->peak_present = true;
-		prate64 = tb[TCA_POLICE_PEAKRATE64] ?
-			  nla_get_u64(tb[TCA_POLICE_PEAKRATE64]) : 0;
+		prate64 = nla_get_u64_default(tb[TCA_POLICE_PEAKRATE64], 0);
 		psched_ratecfg_precompute(&new->peak, &P_tab->rate, prate64);
 		qdisc_put_rtab(P_tab);
 	} else {

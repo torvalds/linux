@@ -104,7 +104,7 @@ static struct platform_driver octeon_mdiobus_driver = {
 		.of_match_table = octeon_mdiobus_match,
 	},
 	.probe		= octeon_mdiobus_probe,
-	.remove_new	= octeon_mdiobus_remove,
+	.remove		= octeon_mdiobus_remove,
 };
 
 module_platform_driver(octeon_mdiobus_driver);

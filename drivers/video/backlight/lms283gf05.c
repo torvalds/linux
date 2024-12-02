@@ -126,7 +126,7 @@ static int lms283gf05_power_set(struct lcd_device *ld, int power)
 	struct lms283gf05_state *st = lcd_get_data(ld);
 	struct spi_device *spi = st->spi;
 
-	if (power <= FB_BLANK_NORMAL) {
+	if (power <= LCD_POWER_REDUCED) {
 		if (st->reset)
 			lms283gf05_reset(st->reset);
 		lms283gf05_toggle(spi, disp_initseq, ARRAY_SIZE(disp_initseq));

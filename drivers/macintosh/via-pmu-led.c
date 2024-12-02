@@ -92,18 +92,15 @@ static int __init via_pmu_led_init(void)
 	if (dt == NULL)
 		return -ENODEV;
 	model = of_get_property(dt, "model", NULL);
-	if (model == NULL) {
-		of_node_put(dt);
-		return -ENODEV;
-	}
+	if (!model)
+		goto put_node;
+
 	if (strncmp(model, "PowerBook", strlen("PowerBook")) != 0 &&
 	    strncmp(model, "iBook", strlen("iBook")) != 0 &&
 	    strcmp(model, "PowerMac7,2") != 0 &&
-	    strcmp(model, "PowerMac7,3") != 0) {
-		of_node_put(dt);
-		/* ignore */
-		return -ENODEV;
-	}
+	    strcmp(model, "PowerMac7,3") != 0)
+		goto put_node;
+
 	of_node_put(dt);
 
 	spin_lock_init(&pmu_blink_lock);
@@ -112,6 +109,10 @@ static int __init via_pmu_led_init(void)
 	pmu_blink_req.done = pmu_req_done;
 
 	return led_classdev_register(NULL, &pmu_led);
+
+put_node:
+	of_node_put(dt);
+	return -ENODEV;
 }
 
 late_initcall(via_pmu_led_init);

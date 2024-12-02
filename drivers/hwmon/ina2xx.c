@@ -51,17 +51,26 @@
 #define INA226_ALERT_LIMIT		0x07
 #define INA226_DIE_ID			0xFF
 
-#define INA2XX_MAX_REGISTERS		8
+/* SY24655 register definitions */
+#define SY24655_EIN				0x0A
+#define SY24655_ACCUM_CONFIG	0x0D
+#define INA2XX_MAX_REGISTERS		0x0D
 
 /* settings - depend on use case */
 #define INA219_CONFIG_DEFAULT		0x399F	/* PGA=8 */
 #define INA226_CONFIG_DEFAULT		0x4527	/* averages=16 */
+#define INA260_CONFIG_DEFAULT		0x6527	/* averages=16 */
+#define SY24655_CONFIG_DEFAULT		0x4527	/* averages=16 */
+
+/* (only for sy24655) */
+#define SY24655_ACCUM_CONFIG_DEFAULT	0x044C	/* continuous mode, clear after read*/
 
 /* worst case is 68.10 ms (~14.6Hz, ina219) */
 #define INA2XX_CONVERSION_RATE		15
 #define INA2XX_MAX_DELAY		69 /* worst case delay in ms */
 
 #define INA2XX_RSHUNT_DEFAULT		10000
+#define INA260_RSHUNT			2000
 
 /* bit mask for reading the averaging setting in the configuration register */
 #define INA226_AVG_RD_MASK		GENMASK(11, 9)
@@ -95,6 +104,7 @@ static bool ina2xx_writeable_reg(struct device *dev, unsigned int reg)
 	case INA2XX_CALIBRATION:
 	case INA226_MASK_ENABLE:
 	case INA226_ALERT_LIMIT:
+	case SY24655_ACCUM_CONFIG:
 		return true;
 	default:
 		return false;
@@ -125,10 +135,13 @@ static const struct regmap_config ina2xx_regmap_config = {
 	.writeable_reg = ina2xx_writeable_reg,
 };
 
-enum ina2xx_ids { ina219, ina226 };
+enum ina2xx_ids { ina219, ina226, ina260, sy24655 };
 
 struct ina2xx_config {
 	u16 config_default;
+	bool has_alerts;	/* chip supports alerts and limits */
+	bool has_ishunt;	/* chip has internal shunt resistor */
+	bool has_power_average;	/* chip has internal shunt resistor */
 	int calibration_value;
 	int shunt_div;
 	int bus_voltage_shift;
@@ -145,6 +158,7 @@ struct ina2xx_data {
 	long power_lsb_uW;
 	struct mutex config_lock;
 	struct regmap *regmap;
+	struct i2c_client *client;
 };
 
 static const struct ina2xx_config ina2xx_config[] = {
@@ -155,6 +169,9 @@ static const struct ina2xx_config ina2xx_config[] = {
 		.bus_voltage_shift = 3,
 		.bus_voltage_lsb = 4000,
 		.power_lsb_factor = 20,
+		.has_alerts = false,
+		.has_ishunt = false,
+		.has_power_average = false,
 	},
 	[ina226] = {
 		.config_default = INA226_CONFIG_DEFAULT,
@@ -163,6 +180,30 @@ static const struct ina2xx_config ina2xx_config[] = {
 		.bus_voltage_shift = 0,
 		.bus_voltage_lsb = 1250,
 		.power_lsb_factor = 25,
+		.has_alerts = true,
+		.has_ishunt = false,
+		.has_power_average = false,
+	},
+	[ina260] = {
+		.config_default = INA260_CONFIG_DEFAULT,
+		.shunt_div = 400,
+		.bus_voltage_shift = 0,
+		.bus_voltage_lsb = 1250,
+		.power_lsb_factor = 8,
+		.has_alerts = true,
+		.has_ishunt = true,
+		.has_power_average = false,
+	},
+	[sy24655] = {
+		.config_default = SY24655_CONFIG_DEFAULT,
+		.calibration_value = 4096,
+		.shunt_div = 400,
+		.bus_voltage_shift = 0,
+		.bus_voltage_lsb = 1250,
+		.power_lsb_factor = 25,
+		.has_alerts = true,
+		.has_ishunt = false,
+		.has_power_average = true,
 	},
 };
 
@@ -253,6 +294,15 @@ static int ina2xx_read_init(struct device *dev, int reg, long *val)
 	struct regmap *regmap = data->regmap;
 	unsigned int regval;
 	int ret, retry;
+
+	if (data->config->has_ishunt) {
+		/* No calibration needed */
+		ret = regmap_read(regmap, reg, &regval);
+		if (ret < 0)
+			return ret;
+		*val = ina2xx_get_value(data, reg, regval);
+		return 0;
+	}
 
 	for (retry = 5; retry; retry--) {
 		ret = regmap_read(regmap, reg, &regval);
@@ -459,6 +509,41 @@ static int ina2xx_in_read(struct device *dev, u32 attr, int channel, long *val)
 	return 0;
 }
 
+/*
+ * Configuring the READ_EIN (bit 10) of the ACCUM_CONFIG register to 1
+ * can clear accumulator and sample_count after reading the EIN register.
+ * This way, the average power between the last read and the current
+ * read can be obtained. By combining with accurate time data from
+ * outside, the energy consumption during that period can be calculated.
+ */
+static int sy24655_average_power_read(struct ina2xx_data *data, u8 reg, long *val)
+{
+	u8 template[6];
+	int ret;
+	long accumulator_24, sample_count;
+
+	/* 48-bit register read */
+	ret = i2c_smbus_read_i2c_block_data(data->client, reg, 6, template);
+	if (ret < 0)
+		return ret;
+	if (ret != 6)
+		return -EIO;
+	accumulator_24 = ((template[3] << 16) |
+				(template[4] << 8) |
+				template[5]);
+	sample_count = ((template[0] << 16) |
+				(template[1] << 8) |
+				template[2]);
+	if (sample_count <= 0) {
+		*val = 0;
+		return 0;
+	}
+
+	*val = DIV_ROUND_CLOSEST(accumulator_24, sample_count) * data->power_lsb_uW;
+
+	return 0;
+}
+
 static int ina2xx_power_read(struct device *dev, u32 attr, long *val)
 {
 	struct ina2xx_data *data = dev_get_drvdata(dev);
@@ -466,6 +551,8 @@ static int ina2xx_power_read(struct device *dev, u32 attr, long *val)
 	switch (attr) {
 	case hwmon_power_input:
 		return ina2xx_read_init(dev, INA2XX_POWER, val);
+	case hwmon_power_average:
+		return sy24655_average_power_read(data, SY24655_EIN, val);
 	case hwmon_power_crit:
 		return ina226_alert_limit_read(data, INA226_POWER_OVER_LIMIT_MASK,
 					       INA2XX_POWER, val);
@@ -624,6 +711,8 @@ static umode_t ina2xx_is_visible(const void *_data, enum hwmon_sensor_types type
 				 u32 attr, int channel)
 {
 	const struct ina2xx_data *data = _data;
+	bool has_alerts = data->config->has_alerts;
+	bool has_power_average = data->config->has_power_average;
 	enum ina2xx_ids chip = data->chip;
 
 	switch (type) {
@@ -633,12 +722,12 @@ static umode_t ina2xx_is_visible(const void *_data, enum hwmon_sensor_types type
 			return 0444;
 		case hwmon_in_lcrit:
 		case hwmon_in_crit:
-			if (chip == ina226)
+			if (has_alerts)
 				return 0644;
 			break;
 		case hwmon_in_lcrit_alarm:
 		case hwmon_in_crit_alarm:
-			if (chip == ina226)
+			if (has_alerts)
 				return 0444;
 			break;
 		default:
@@ -651,12 +740,12 @@ static umode_t ina2xx_is_visible(const void *_data, enum hwmon_sensor_types type
 			return 0444;
 		case hwmon_curr_lcrit:
 		case hwmon_curr_crit:
-			if (chip == ina226)
+			if (has_alerts)
 				return 0644;
 			break;
 		case hwmon_curr_lcrit_alarm:
 		case hwmon_curr_crit_alarm:
-			if (chip == ina226)
+			if (has_alerts)
 				return 0444;
 			break;
 		default:
@@ -668,11 +757,15 @@ static umode_t ina2xx_is_visible(const void *_data, enum hwmon_sensor_types type
 		case hwmon_power_input:
 			return 0444;
 		case hwmon_power_crit:
-			if (chip == ina226)
+			if (has_alerts)
 				return 0644;
 			break;
 		case hwmon_power_crit_alarm:
-			if (chip == ina226)
+			if (has_alerts)
+				return 0444;
+			break;
+		case hwmon_power_average:
+			if (has_power_average)
 				return 0444;
 			break;
 		default:
@@ -682,7 +775,7 @@ static umode_t ina2xx_is_visible(const void *_data, enum hwmon_sensor_types type
 	case hwmon_chip:
 		switch (attr) {
 		case hwmon_chip_update_interval:
-			if (chip == ina226)
+			if (chip == ina226 || chip == ina260)
 				return 0644;
 			break;
 		default:
@@ -707,7 +800,8 @@ static const struct hwmon_channel_info * const ina2xx_info[] = {
 	HWMON_CHANNEL_INFO(curr, HWMON_C_INPUT | HWMON_C_CRIT | HWMON_C_CRIT_ALARM |
 			   HWMON_C_LCRIT | HWMON_C_LCRIT_ALARM),
 	HWMON_CHANNEL_INFO(power,
-			   HWMON_P_INPUT | HWMON_P_CRIT | HWMON_P_CRIT_ALARM),
+			   HWMON_P_INPUT | HWMON_P_CRIT | HWMON_P_CRIT_ALARM |
+			   HWMON_P_AVERAGE),
 	NULL
 };
 
@@ -791,7 +885,9 @@ static int ina2xx_init(struct device *dev, struct ina2xx_data *data)
 	u32 shunt;
 	int ret;
 
-	if (device_property_read_u32(dev, "shunt-resistor", &shunt) < 0)
+	if (data->config->has_ishunt)
+		shunt = INA260_RSHUNT;
+	else if (device_property_read_u32(dev, "shunt-resistor", &shunt) < 0)
 		shunt = INA2XX_RSHUNT_DEFAULT;
 
 	ret = ina2xx_set_shunt(data, shunt);
@@ -802,7 +898,7 @@ static int ina2xx_init(struct device *dev, struct ina2xx_data *data)
 	if (ret < 0)
 		return ret;
 
-	if (data->chip == ina226) {
+	if (data->config->has_alerts) {
 		bool active_high = device_property_read_bool(dev, "ti,alert-polarity-active-high");
 
 		regmap_update_bits(regmap, INA226_MASK_ENABLE,
@@ -810,6 +906,22 @@ static int ina2xx_init(struct device *dev, struct ina2xx_data *data)
 				   INA226_ALERT_LATCH_ENABLE |
 						FIELD_PREP(INA226_ALERT_POLARITY, active_high));
 	}
+	if (data->config->has_power_average) {
+		if (data->chip == sy24655) {
+			/*
+			 * Initialize the power accumulation method to continuous
+			 * mode and clear the EIN register after each read of the
+			 * EIN register
+			 */
+			ret = regmap_write(regmap, SY24655_ACCUM_CONFIG,
+					   SY24655_ACCUM_CONFIG_DEFAULT);
+			if (ret < 0)
+				return ret;
+		}
+	}
+
+	if (data->config->has_ishunt)
+		return 0;
 
 	/*
 	 * Calibration register is set to the best value, which eliminates
@@ -836,6 +948,7 @@ static int ina2xx_probe(struct i2c_client *client)
 		return -ENOMEM;
 
 	/* set the device type */
+	data->client = client;
 	data->config = &ina2xx_config[chip];
 	data->chip = chip;
 	mutex_init(&data->config_lock);
@@ -856,7 +969,8 @@ static int ina2xx_probe(struct i2c_client *client)
 
 	hwmon_dev = devm_hwmon_device_register_with_info(dev, client->name,
 							 data, &ina2xx_chip_info,
-							 ina2xx_groups);
+							 data->config->has_ishunt ?
+								NULL : ina2xx_groups);
 	if (IS_ERR(hwmon_dev))
 		return PTR_ERR(hwmon_dev);
 
@@ -872,11 +986,17 @@ static const struct i2c_device_id ina2xx_id[] = {
 	{ "ina226", ina226 },
 	{ "ina230", ina226 },
 	{ "ina231", ina226 },
+	{ "ina260", ina260 },
+	{ "sy24655", sy24655 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, ina2xx_id);
 
 static const struct of_device_id __maybe_unused ina2xx_of_match[] = {
+	{
+		.compatible = "silergy,sy24655",
+		.data = (void *)sy24655
+	},
 	{
 		.compatible = "ti,ina219",
 		.data = (void *)ina219
@@ -897,7 +1017,11 @@ static const struct of_device_id __maybe_unused ina2xx_of_match[] = {
 		.compatible = "ti,ina231",
 		.data = (void *)ina226
 	},
-	{ },
+	{
+		.compatible = "ti,ina260",
+		.data = (void *)ina260
+	},
+	{ }
 };
 MODULE_DEVICE_TABLE(of, ina2xx_of_match);
 

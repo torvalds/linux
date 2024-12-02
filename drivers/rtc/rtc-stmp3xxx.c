@@ -403,7 +403,7 @@ MODULE_DEVICE_TABLE(of, rtc_dt_ids);
 
 static struct platform_driver stmp3xxx_rtcdrv = {
 	.probe		= stmp3xxx_rtc_probe,
-	.remove_new	= stmp3xxx_rtc_remove,
+	.remove		= stmp3xxx_rtc_remove,
 	.driver		= {
 		.name	= "stmp3xxx-rtc",
 		.pm	= &stmp3xxx_rtc_pm_ops,

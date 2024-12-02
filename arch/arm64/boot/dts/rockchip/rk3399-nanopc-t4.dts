@@ -15,7 +15,7 @@
 	model = "FriendlyElec NanoPC-T4";
 	compatible = "friendlyarm,nanopc-t4", "rockchip,rk3399";
 
-	vcc12v0_sys: vcc12v0-sys {
+	vcc12v0_sys: regulator-vcc12v0-sys {
 		compatible = "regulator-fixed";
 		regulator-always-on;
 		regulator-boot-on;
@@ -24,7 +24,7 @@
 		regulator-name = "vcc12v0_sys";
 	};
 
-	vcc5v0_host0: vcc5v0-host0 {
+	vcc5v0_host0: regulator-vcc5v0-host0 {
 		compatible = "regulator-fixed";
 		regulator-always-on;
 		regulator-boot-on;

@@ -31,28 +31,28 @@
 
 	gpio_keys {
 		compatible = "gpio-keys";
-		one {
+		key-1 {
 			debounce-interval = <50>;
 			wakeup-source;
 			label = "DSW2-1";
 			linux,code = <KEY_1>;
 			gpios = <&gpio0 14 GPIO_ACTIVE_HIGH>;
 		};
-		two {
+		key-2 {
 			debounce-interval = <50>;
 			wakeup-source;
 			label = "DSW2-2";
 			linux,code = <KEY_2>;
 			gpios = <&gpio0 15 GPIO_ACTIVE_HIGH>;
 		};
-		three {
+		key-3 {
 			debounce-interval = <50>;
 			wakeup-source;
 			label = "DSW2-3";
 			linux,code = <KEY_3>;
 			gpios = <&gpio0 16 GPIO_ACTIVE_HIGH>;
 		};
-		four {
+		key-4 {
 			debounce-interval = <50>;
 			wakeup-source;
 			label = "DSW2-4";
@@ -83,8 +83,7 @@
 		compatible = "smsc,lan9221", "smsc,lan9115";
 		reg = <0x20000000 0x10000>;
 		phy-mode = "mii";
-		interrupt-parent = <&gpio0>;
-		interrupts = <1 IRQ_TYPE_EDGE_RISING>;
+		interrupts-extended = <&gpio0 1 IRQ_TYPE_EDGE_RISING>;
 		reg-io-width = <4>;
 		smsc,irq-active-high;
 		smsc,irq-push-pull;

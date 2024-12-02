@@ -174,11 +174,6 @@ union block_sequence_params {
 	struct fams2_global_control_lock_fast_params fams2_global_control_lock_fast_params;
 };
 
-struct set_backlight_level_params {
-	uint32_t backlight_pwm_u16_16;
-	uint32_t frame_ramp;
-};
-
 enum block_sequence_func {
 	DMUB_SUBVP_PIPE_CONTROL_LOCK_FAST = 0,
 	OPTC_PIPE_CONTROL_LOCK,

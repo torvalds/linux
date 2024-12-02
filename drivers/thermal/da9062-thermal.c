@@ -250,10 +250,10 @@ static void da9062_thermal_remove(struct platform_device *pdev)
 
 static struct platform_driver da9062_thermal_driver = {
 	.probe	= da9062_thermal_probe,
-	.remove_new = da9062_thermal_remove,
+	.remove	= da9062_thermal_remove,
 	.driver	= {
-		.name	= "da9062-thermal",
-		.of_match_table = da9062_compatible_reg_id_table,
+		.name		= "da9062-thermal",
+		.of_match_table	= da9062_compatible_reg_id_table,
 	},
 };
 
