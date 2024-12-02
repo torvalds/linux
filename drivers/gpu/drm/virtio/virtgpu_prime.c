@@ -184,6 +184,23 @@ int virtgpu_dma_buf_import_sgt(struct virtio_gpu_mem_entry **ents,
 	return 0;
 }
 
+static void virtgpu_dma_buf_unmap(struct virtio_gpu_object *bo)
+{
+	struct dma_buf_attachment *attach = bo->base.base.import_attach;
+
+	dma_resv_assert_held(attach->dmabuf->resv);
+
+	if (bo->created) {
+		virtio_gpu_detach_object_fenced(bo);
+
+		if (bo->sgt)
+			dma_buf_unmap_attachment(attach, bo->sgt,
+						 DMA_BIDIRECTIONAL);
+
+		bo->sgt = NULL;
+	}
+}
+
 static void virtgpu_dma_buf_free_obj(struct drm_gem_object *obj)
 {
 	struct virtio_gpu_object *bo = gem_to_virtio_gpu_obj(obj);
@@ -194,13 +211,7 @@ static void virtgpu_dma_buf_free_obj(struct drm_gem_object *obj)
 		struct dma_buf *dmabuf = attach->dmabuf;
 
 		dma_resv_lock(dmabuf->resv, NULL);
-
-		virtio_gpu_detach_object_fenced(bo);
-
-		if (bo->sgt)
-			dma_buf_unmap_attachment(attach, bo->sgt,
-						 DMA_BIDIRECTIONAL);
-
+		virtgpu_dma_buf_unmap(bo);
 		dma_resv_unlock(dmabuf->resv);
 
 		dma_buf_detach(dmabuf, attach);
@@ -273,15 +284,7 @@ static void virtgpu_dma_buf_move_notify(struct dma_buf_attachment *attach)
 	struct drm_gem_object *obj = attach->importer_priv;
 	struct virtio_gpu_object *bo = gem_to_virtio_gpu_obj(obj);
 
-	if (bo->created && kref_read(&obj->refcount)) {
-		virtio_gpu_detach_object_fenced(bo);
-
-		if (bo->sgt)
-			dma_buf_unmap_attachment(attach, bo->sgt,
-						 DMA_BIDIRECTIONAL);
-
-		bo->sgt = NULL;
-	}
+	virtgpu_dma_buf_unmap(bo);
 }
 
 static const struct dma_buf_attach_ops virtgpu_dma_buf_attach_ops = {
