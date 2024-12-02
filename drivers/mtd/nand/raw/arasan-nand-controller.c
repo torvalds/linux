@@ -1478,7 +1478,14 @@ static int anfc_probe(struct platform_device *pdev)
 
 static void anfc_remove(struct platform_device *pdev)
 {
+	int i;
 	struct arasan_nfc *nfc = platform_get_drvdata(pdev);
+
+	for (i = 0; i < nfc->ncs; i++) {
+		if (nfc->cs_array[i]) {
+			gpiod_put(nfc->cs_array[i]);
+		}
+	}
 
 	anfc_chips_cleanup(nfc);
 }
