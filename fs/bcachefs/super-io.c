@@ -460,6 +460,11 @@ static int bch2_sb_validate(struct bch_sb_handle *disk_sb,
 			SET_BCH_SB_PROMOTE_WHOLE_EXTENTS(sb, true);
 	}
 
+#ifdef __KERNEL__
+	if (!BCH_SB_SHARD_INUMS_NBITS(sb))
+		SET_BCH_SB_SHARD_INUMS_NBITS(sb, ilog2(roundup_pow_of_two(num_online_cpus())));
+#endif
+
 	for (opt_id = 0; opt_id < bch2_opts_nr; opt_id++) {
 		const struct bch_option *opt = bch2_opt_table + opt_id;
 

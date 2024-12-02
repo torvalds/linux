@@ -418,7 +418,8 @@ static inline void bkey_init(struct bkey *k)
 	x(snapshot_tree,	31)			\
 	x(logged_op_truncate,	32)			\
 	x(logged_op_finsert,	33)			\
-	x(accounting,		34)
+	x(accounting,		34)			\
+	x(inode_alloc_cursor,	35)
 
 enum bch_bkey_type {
 #define x(name, nr) KEY_TYPE_##name	= nr,
@@ -682,7 +683,8 @@ struct bch_sb_field_ext {
 	x(backpointer_bucket_gen,	BCH_VERSION(1, 14))		\
 	x(disk_accounting_big_endian,	BCH_VERSION(1, 15))		\
 	x(reflink_p_may_update_opts,	BCH_VERSION(1, 16))		\
-	x(inode_depth,			BCH_VERSION(1, 17))
+	x(inode_depth,			BCH_VERSION(1, 17))		\
+	x(persistent_inode_cursors,	BCH_VERSION(1, 18))
 
 enum bcachefs_metadata_version {
 	bcachefs_metadata_version_min = 9,
@@ -850,6 +852,7 @@ LE64_BITMASK(BCH_SB_ALLOCATOR_STUCK_TIMEOUT,
 LE64_BITMASK(BCH_SB_VERSION_INCOMPAT,	struct bch_sb, flags[5], 32, 48);
 LE64_BITMASK(BCH_SB_VERSION_INCOMPAT_ALLOWED,
 					struct bch_sb, flags[5], 48, 64);
+LE64_BITMASK(BCH_SB_SHARD_INUMS_NBITS,	struct bch_sb, flags[6],  0,  4);
 
 static inline __u64 BCH_SB_COMPRESSION_TYPE(const struct bch_sb *sb)
 {
@@ -1347,7 +1350,8 @@ enum btree_id_flags {
 	  BIT_ULL(KEY_TYPE_set))						\
 	x(logged_ops,		17,	0,					\
 	  BIT_ULL(KEY_TYPE_logged_op_truncate)|					\
-	  BIT_ULL(KEY_TYPE_logged_op_finsert))					\
+	  BIT_ULL(KEY_TYPE_logged_op_finsert)|					\
+	  BIT_ULL(KEY_TYPE_inode_alloc_cursor))					\
 	x(rebalance_work,	18,	BTREE_ID_SNAPSHOT_FIELD,		\
 	  BIT_ULL(KEY_TYPE_set)|BIT_ULL(KEY_TYPE_cookie))			\
 	x(subvolume_children,	19,	0,					\

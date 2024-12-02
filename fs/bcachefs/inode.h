@@ -68,6 +68,16 @@ void bch2_inode_generation_to_text(struct printbuf *, struct bch_fs *, struct bk
 	.min_val_size	= 8,					\
 })
 
+int bch2_inode_alloc_cursor_validate(struct bch_fs *, struct bkey_s_c,
+				     struct bkey_validate_context);
+void bch2_inode_alloc_cursor_to_text(struct printbuf *, struct bch_fs *, struct bkey_s_c);
+
+#define bch2_bkey_ops_inode_alloc_cursor ((struct bkey_ops) {	\
+	.key_validate	= bch2_inode_alloc_cursor_validate,	\
+	.val_to_text	= bch2_inode_alloc_cursor_to_text,	\
+	.min_val_size	= 16,					\
+})
+
 #if 0
 typedef struct {
 	u64			lo;

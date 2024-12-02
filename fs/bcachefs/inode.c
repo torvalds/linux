@@ -799,6 +799,28 @@ void bch2_inode_generation_to_text(struct printbuf *out, struct bch_fs *c,
 	prt_printf(out, "generation: %u", le32_to_cpu(gen.v->bi_generation));
 }
 
+int bch2_inode_alloc_cursor_validate(struct bch_fs *c, struct bkey_s_c k,
+				   struct bkey_validate_context from)
+{
+	int ret = 0;
+
+	bkey_fsck_err_on(k.k->p.inode != LOGGED_OPS_INUM_inode_cursors,
+			 c, inode_alloc_cursor_inode_bad,
+			 "k.p.inode bad");
+fsck_err:
+	return ret;
+}
+
+void bch2_inode_alloc_cursor_to_text(struct printbuf *out, struct bch_fs *c,
+				     struct bkey_s_c k)
+{
+	struct bkey_s_c_inode_alloc_cursor i = bkey_s_c_to_inode_alloc_cursor(k);
+
+	prt_printf(out, "idx %llu generation %llu",
+		   le64_to_cpu(i.v->idx),
+		   le64_to_cpu(i.v->gen));
+}
+
 void bch2_inode_init_early(struct bch_fs *c,
 			   struct bch_inode_unpacked *inode_u)
 {
@@ -859,6 +881,56 @@ static inline u32 bkey_generation(struct bkey_s_c k)
 	}
 }
 
+static struct bkey_i_inode_alloc_cursor *
+bch2_inode_alloc_cursor_get(struct btree_trans *trans, u64 cpu, u64 *min, u64 *max)
+{
+	struct bch_fs *c = trans->c;
+
+	u64 cursor_idx = c->opts.inodes_32bit ? 0 : cpu + 1;
+
+	cursor_idx &= ~(~0ULL << c->opts.shard_inode_numbers_bits);
+
+	struct btree_iter iter;
+	struct bkey_s_c k = bch2_bkey_get_iter(trans, &iter,
+					BTREE_ID_logged_ops,
+					POS(LOGGED_OPS_INUM_inode_cursors, cursor_idx),
+					BTREE_ITER_cached);
+	int ret = bkey_err(k);
+	if (ret)
+		return ERR_PTR(ret);
+
+	struct bkey_i_inode_alloc_cursor *cursor =
+		k.k->type == KEY_TYPE_inode_alloc_cursor
+		? bch2_bkey_make_mut_typed(trans, &iter, &k, 0, inode_alloc_cursor)
+		: bch2_bkey_alloc(trans, &iter, 0, inode_alloc_cursor);
+	ret = PTR_ERR_OR_ZERO(cursor);
+	if (ret)
+		goto err;
+
+	if (c->opts.inodes_32bit) {
+		*min = BLOCKDEV_INODE_MAX;
+		*max = INT_MAX;
+	} else {
+		cursor->v.bits = c->opts.shard_inode_numbers_bits;
+
+		unsigned bits = 63 - c->opts.shard_inode_numbers_bits;
+
+		*min = max(cpu << bits, (u64) INT_MAX + 1);
+		*max = (cpu << bits) | ~(ULLONG_MAX << bits);
+	}
+
+	if (le64_to_cpu(cursor->v.idx)  < *min)
+		cursor->v.idx = cpu_to_le64(*min);
+
+	if (le64_to_cpu(cursor->v.idx) >= *max) {
+		cursor->v.idx = cpu_to_le64(*min);
+		le32_add_cpu(&cursor->v.gen, 1);
+	}
+err:
+	bch2_trans_iter_exit(trans, &iter);
+	return ret ? ERR_PTR(ret) : cursor;
+}
+
 /*
  * This just finds an empty slot:
  */
@@ -867,35 +939,20 @@ int bch2_inode_create(struct btree_trans *trans,
 		      struct bch_inode_unpacked *inode_u,
 		      u32 snapshot, u64 cpu)
 {
-	struct bch_fs *c = trans->c;
-	struct bkey_s_c k;
-	u64 min, max, start, pos, *hint;
-	int ret = 0;
-	unsigned bits = (c->opts.inodes_32bit ? 31 : 63);
+	u64 min, max;
+	struct bkey_i_inode_alloc_cursor *cursor =
+		bch2_inode_alloc_cursor_get(trans, cpu, &min, &max);
+	int ret = PTR_ERR_OR_ZERO(cursor);
+	if (ret)
+		return ret;
 
-	if (c->opts.shard_inode_numbers) {
-		bits -= c->inode_shard_bits;
+	u64 start = le64_to_cpu(cursor->v.idx);
+	u64 pos = start;
 
-		min = (cpu << bits);
-		max = (cpu << bits) | ~(ULLONG_MAX << bits);
-
-		min = max_t(u64, min, BLOCKDEV_INODE_MAX);
-		hint = c->unused_inode_hints + cpu;
-	} else {
-		min = BLOCKDEV_INODE_MAX;
-		max = ~(ULLONG_MAX << bits);
-		hint = c->unused_inode_hints;
-	}
-
-	start = READ_ONCE(*hint);
-
-	if (start >= max || start < min)
-		start = min;
-
-	pos = start;
 	bch2_trans_iter_init(trans, iter, BTREE_ID_inodes, POS(0, pos),
 			     BTREE_ITER_all_snapshots|
 			     BTREE_ITER_intent);
+	struct bkey_s_c k;
 again:
 	while ((k = bch2_btree_iter_peek(iter)).k &&
 	       !(ret = bkey_err(k)) &&
@@ -925,6 +982,7 @@ again:
 	/* Retry from start */
 	pos = start = min;
 	bch2_btree_iter_set_pos(iter, POS(0, pos));
+	le32_add_cpu(&cursor->v.gen, 1);
 	goto again;
 found_slot:
 	bch2_btree_iter_set_pos(iter, SPOS(0, pos, snapshot));
@@ -935,9 +993,9 @@ found_slot:
 		return ret;
 	}
 
-	*hint			= k.k->p.offset;
 	inode_u->bi_inum	= k.k->p.offset;
-	inode_u->bi_generation	= bkey_generation(k);
+	inode_u->bi_generation	= le64_to_cpu(cursor->v.gen);
+	cursor->v.idx		= cpu_to_le64(k.k->p.offset + 1);
 	return 0;
 }
 
@@ -999,8 +1057,6 @@ int bch2_inode_rm(struct bch_fs *c, subvol_inum inum)
 {
 	struct btree_trans *trans = bch2_trans_get(c);
 	struct btree_iter iter = { NULL };
-	struct bkey_i_inode_generation delete;
-	struct bch_inode_unpacked inode_u;
 	struct bkey_s_c k;
 	u32 snapshot;
 	int ret;
@@ -1040,13 +1096,7 @@ retry:
 		goto err;
 	}
 
-	bch2_inode_unpack(k, &inode_u);
-
-	bkey_inode_generation_init(&delete.k_i);
-	delete.k.p = iter.pos;
-	delete.v.bi_generation = cpu_to_le32(inode_u.bi_generation + 1);
-
-	ret   = bch2_trans_update(trans, &iter, &delete.k_i, 0) ?:
+	ret   = bch2_btree_delete_at(trans, &iter, 0) ?:
 		bch2_trans_commit(trans, NULL, NULL,
 				BCH_TRANS_COMMIT_no_enospc);
 err:

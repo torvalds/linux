@@ -586,7 +586,6 @@ static void __bch2_fs_free(struct bch_fs *c)
 #endif
 	kfree(rcu_dereference_protected(c->disk_groups, 1));
 	kfree(c->journal_seq_blacklist_table);
-	kfree(c->unused_inode_hints);
 
 	if (c->write_ref_wq)
 		destroy_workqueue(c->write_ref_wq);
@@ -872,8 +871,6 @@ static struct bch_fs *bch2_fs_alloc(struct bch_sb *sb, struct bch_opts opts)
 		(btree_blocks(c) + 1) * 2 *
 		sizeof(struct sort_iter_set);
 
-	c->inode_shard_bits = ilog2(roundup_pow_of_two(num_possible_cpus()));
-
 	if (!(c->btree_update_wq = alloc_workqueue("bcachefs",
 				WQ_HIGHPRI|WQ_FREEZABLE|WQ_MEM_RECLAIM|WQ_UNBOUND, 512)) ||
 	    !(c->btree_io_complete_wq = alloc_workqueue("bcachefs_btree_io",
@@ -900,9 +897,7 @@ static struct bch_fs *bch2_fs_alloc(struct bch_sb *sb, struct bch_opts opts)
 	    !(c->online_reserved = alloc_percpu(u64)) ||
 	    mempool_init_kvmalloc_pool(&c->btree_bounce_pool, 1,
 				       c->opts.btree_node_size) ||
-	    mempool_init_kmalloc_pool(&c->large_bkey_pool, 1, 2048) ||
-	    !(c->unused_inode_hints = kcalloc(1U << c->inode_shard_bits,
-					      sizeof(u64), GFP_KERNEL))) {
+	    mempool_init_kmalloc_pool(&c->large_bkey_pool, 1, 2048)) {
 		ret = -BCH_ERR_ENOMEM_fs_other_alloc;
 		goto err;
 	}

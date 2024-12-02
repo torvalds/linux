@@ -222,14 +222,14 @@ enum fsck_err_opts {
 	  BCH_SB_ERASURE_CODE,		false,				\
 	  NULL,		"Enable erasure coding (DO NOT USE YET)")	\
 	x(inodes_32bit,			u8,				\
-	  OPT_FS|OPT_FORMAT|OPT_MOUNT|OPT_RUNTIME,			\
+	  OPT_FS|OPT_INODE|OPT_FORMAT|OPT_MOUNT|OPT_RUNTIME,		\
 	  OPT_BOOL(),							\
 	  BCH_SB_INODE_32BIT,		true,				\
 	  NULL,		"Constrain inode numbers to 32 bits")		\
-	x(shard_inode_numbers,		u8,				\
-	  OPT_FS|OPT_FORMAT|OPT_MOUNT|OPT_RUNTIME,			\
-	  OPT_BOOL(),							\
-	  BCH_SB_SHARD_INUMS,		true,				\
+	x(shard_inode_numbers_bits,	u8,				\
+	  OPT_FS|OPT_FORMAT,						\
+	  OPT_UINT(0, 8),						\
+	  BCH_SB_SHARD_INUMS_NBITS,	0,				\
 	  NULL,		"Shard new inode numbers by CPU id")		\
 	x(inodes_use_key_cache,	u8,					\
 	  OPT_FS|OPT_FORMAT|OPT_MOUNT,					\
