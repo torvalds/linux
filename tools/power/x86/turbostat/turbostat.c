@@ -3,7 +3,7 @@
  * turbostat -- show CPU frequency and C-state residency
  * on modern Intel and AMD processors.
  *
- * Copyright (c) 2024 Intel Corporation.
+ * Copyright (c) 2025 Intel Corporation.
  * Len Brown <len.brown@intel.com>
  */
 
@@ -271,11 +271,11 @@ struct msr_counter bic[] = {
 #define	BIC_Sys_J		(1ULL << 60)
 #define	BIC_NMI			(1ULL << 61)
 
-#define BIC_TOPOLOGY (BIC_Package | BIC_Node | BIC_CoreCnt | BIC_PkgCnt | BIC_Core | BIC_CPU | BIC_Die )
-#define BIC_THERMAL_PWR ( BIC_CoreTmp | BIC_PkgTmp | BIC_PkgWatt | BIC_CorWatt | BIC_GFXWatt | BIC_RAMWatt | BIC_PKG__ | BIC_RAM__ | BIC_SysWatt)
+#define BIC_TOPOLOGY (BIC_Package | BIC_Node | BIC_CoreCnt | BIC_PkgCnt | BIC_Core | BIC_CPU | BIC_Die)
+#define BIC_THERMAL_PWR (BIC_CoreTmp | BIC_PkgTmp | BIC_PkgWatt | BIC_CorWatt | BIC_GFXWatt | BIC_RAMWatt | BIC_PKG__ | BIC_RAM__ | BIC_SysWatt)
 #define BIC_FREQUENCY (BIC_Avg_MHz | BIC_Busy | BIC_Bzy_MHz | BIC_TSC_MHz | BIC_GFXMHz | BIC_GFXACTMHz | BIC_SAMMHz | BIC_SAMACTMHz | BIC_UNCORE_MHZ)
 #define BIC_IDLE (BIC_Busy | BIC_sysfs | BIC_CPU_c1 | BIC_CPU_c3 | BIC_CPU_c6 | BIC_CPU_c7 | BIC_GFX_rc6 | BIC_Pkgpc2 | BIC_Pkgpc3 | BIC_Pkgpc6 | BIC_Pkgpc7 | BIC_Pkgpc8 | BIC_Pkgpc9 | BIC_Pkgpc10 | BIC_CPU_LPI | BIC_SYS_LPI | BIC_Mod_c6 | BIC_Totl_c0 | BIC_Any_c0 | BIC_GFX_c0 | BIC_CPUGFX | BIC_SAM_mc6 | BIC_Diec6)
-#define BIC_OTHER ( BIC_IRQ | BIC_NMI | BIC_SMI | BIC_ThreadC | BIC_CoreTmp | BIC_IPC)
+#define BIC_OTHER (BIC_IRQ | BIC_NMI | BIC_SMI | BIC_ThreadC | BIC_CoreTmp | BIC_IPC)
 
 #define BIC_DISABLED_BY_DEFAULT	(BIC_USEC | BIC_TOD | BIC_APIC | BIC_X2APIC)
 
@@ -1593,8 +1593,7 @@ struct pmt_counter {
  * PMT telemetry directory iterator.
  * Used to iterate telemetry files in sysfs in correct order.
  */
-struct pmt_diriter_t
-{
+struct pmt_diriter_t {
 	DIR *dir;
 	struct dirent **namelist;
 	unsigned int num_names;
@@ -1604,6 +1603,7 @@ struct pmt_diriter_t
 int pmt_telemdir_filter(const struct dirent *e)
 {
 	unsigned int dummy;
+
 	return sscanf(e->d_name, "telem%u", &dummy);
 }
 
@@ -1617,7 +1617,7 @@ int pmt_telemdir_sort(const struct dirent **a, const struct dirent **b)
 	return aidx >= bidx;
 }
 
-const struct dirent* pmt_diriter_next(struct pmt_diriter_t *iter)
+const struct dirent *pmt_diriter_next(struct pmt_diriter_t *iter)
 {
 	const struct dirent *ret = NULL;
 
@@ -1633,7 +1633,7 @@ const struct dirent* pmt_diriter_next(struct pmt_diriter_t *iter)
 	return ret;
 }
 
-const struct dirent* pmt_diriter_begin(struct pmt_diriter_t *iter, const char *pmt_root_path)
+const struct dirent *pmt_diriter_begin(struct pmt_diriter_t *iter, const char *pmt_root_path)
 {
 	int num_names = iter->num_names;
 
@@ -2302,7 +2302,7 @@ void help(void)
 		"  -h, --help\n"
 		"		print this help message\n"
 		"  -v, --version\n"
-		"		print version information\n" "\n" "For more help, run \"man turbostat\"\n");
+		"		print version information\n\nFor more help, run \"man turbostat\"\n");
 }
 
 /*
@@ -9053,18 +9053,16 @@ struct pmt_mmio *pmt_mmio_open(unsigned int target_guid)
 		return NULL;
 	}
 
-	for (;entry != NULL; entry = pmt_diriter_next(&pmt_iter)) {
-		if (fstatat(dirfd(pmt_iter.dir), entry->d_name, &st, 0) == -1) {
+	for ( ; entry != NULL; entry = pmt_diriter_next(&pmt_iter)) {
+		if (fstatat(dirfd(pmt_iter.dir), entry->d_name, &st, 0) == -1)
 			break;
-		}
 
 		if (!S_ISDIR(st.st_mode))
 			continue;
 
 		fd_telem_dir = openat(dirfd(pmt_iter.dir), entry->d_name, O_RDONLY);
-		if (fd_telem_dir == -1) {
+		if (fd_telem_dir == -1)
 			break;
-		}
 
 		if (parse_telem_info_file(fd_telem_dir, "guid", "%lx", &guid)) {
 			close(fd_telem_dir);
@@ -9425,7 +9423,7 @@ int get_and_dump_counters(void)
 
 void print_version()
 {
-	fprintf(outf, "turbostat version 2024.11.30 - Len Brown <lenb@kernel.org>\n");
+	fprintf(outf, "turbostat version 2025.01.14 - Len Brown <lenb@kernel.org>\n");
 }
 
 #define COMMAND_LINE_SIZE 2048
@@ -9750,7 +9748,7 @@ next:
 
 	}
 	if ((msr_num == 0) && (path == NULL) && (perf_device[0] == '\0' || perf_event[0] == '\0')) {
-		fprintf(stderr, "--add: (msrDDD | msr0xXXX | /path_to_counter | perf/device/event ) required\n");
+		fprintf(stderr, "--add: (msrDDD | msr0xXXX | /path_to_counter | perf/device/event) required\n");
 		fail++;
 	}
 
@@ -9822,9 +9820,8 @@ int pmt_parse_from_path(const char *target_path, unsigned int *out_guid, unsigne
 	     dirname = pmt_diriter_next(&pmt_iter)) {
 
 		fd_telem_dir = openat(dirfd(pmt_iter.dir), dirname->d_name, O_RDONLY | O_DIRECTORY);
-		if (fd_telem_dir == -1) {
+		if (fd_telem_dir == -1)
 			continue;
-		}
 
 		if (parse_telem_info_file(fd_telem_dir, "guid", "%lx", &guid)) {
 			fprintf(stderr, "%s: Failed to parse the guid file: %s", __func__, strerror(errno));
@@ -9962,9 +9959,8 @@ void parse_add_command_pmt(char *add_command)
 			goto next;
 		}
 
-		if (sscanf(add_command, "seq=%x", &seq) == 1) {
+		if (sscanf(add_command, "seq=%x", &seq) == 1)
 			goto next;
-		}
 
 		if (strncmp(add_command, direct_path_prefix, strlen(direct_path_prefix)) == 0) {
 			direct_path = add_command + strlen(direct_path_prefix);
