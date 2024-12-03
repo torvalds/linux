@@ -423,7 +423,7 @@ static const struct dev_pm_ops neponset_pm_ops = {
 
 static struct platform_driver neponset_device_driver = {
 	.probe		= neponset_probe,
-	.remove_new	= neponset_remove,
+	.remove		= neponset_remove,
 	.driver		= {
 		.name	= "neponset",
 		.pm	= PM_OPS,

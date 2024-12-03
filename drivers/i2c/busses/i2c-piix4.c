@@ -195,7 +195,7 @@ int piix4_sb800_region_request(struct device *dev, struct sb800_mmio_cfg *mmio_c
 
 	return 0;
 }
-EXPORT_SYMBOL_NS_GPL(piix4_sb800_region_request, PIIX4_SMBUS);
+EXPORT_SYMBOL_NS_GPL(piix4_sb800_region_request, "PIIX4_SMBUS");
 
 void piix4_sb800_region_release(struct device *dev, struct sb800_mmio_cfg *mmio_cfg)
 {
@@ -208,7 +208,7 @@ void piix4_sb800_region_release(struct device *dev, struct sb800_mmio_cfg *mmio_
 
 	release_region(SB800_PIIX4_SMB_IDX, SB800_PIIX4_SMB_MAP_SIZE);
 }
-EXPORT_SYMBOL_NS_GPL(piix4_sb800_region_release, PIIX4_SMBUS);
+EXPORT_SYMBOL_NS_GPL(piix4_sb800_region_release, "PIIX4_SMBUS");
 
 static bool piix4_sb800_use_mmio(struct pci_dev *PIIX4_dev)
 {
@@ -591,7 +591,7 @@ int piix4_transaction(struct i2c_adapter *piix4_adapter, unsigned short piix4_sm
 		inb_p(SMBHSTDAT1));
 	return result;
 }
-EXPORT_SYMBOL_NS_GPL(piix4_transaction, PIIX4_SMBUS);
+EXPORT_SYMBOL_NS_GPL(piix4_transaction, "PIIX4_SMBUS");
 
 /* Return negative errno on error. */
 static s32 piix4_access(struct i2c_adapter * adap, u16 addr,
@@ -767,7 +767,7 @@ int piix4_sb800_port_sel(u8 port, struct sb800_mmio_cfg *mmio_cfg)
 
 	return (smba_en_lo & piix4_port_mask_sb800);
 }
-EXPORT_SYMBOL_NS_GPL(piix4_sb800_port_sel, PIIX4_SMBUS);
+EXPORT_SYMBOL_NS_GPL(piix4_sb800_port_sel, "PIIX4_SMBUS");
 
 /*
  * Handles access to multiple SMBus ports on the SB800.

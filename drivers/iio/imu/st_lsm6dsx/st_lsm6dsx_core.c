@@ -2724,7 +2724,7 @@ int st_lsm6dsx_probe(struct device *dev, int irq, int hw_id,
 
 	return 0;
 }
-EXPORT_SYMBOL_NS(st_lsm6dsx_probe, IIO_LSM6DSX);
+EXPORT_SYMBOL_NS(st_lsm6dsx_probe, "IIO_LSM6DSX");
 
 static int st_lsm6dsx_suspend(struct device *dev)
 {

@@ -1352,7 +1352,7 @@ static struct platform_driver apple_dart_driver = {
 		.pm			= pm_sleep_ptr(&apple_dart_pm_ops),
 	},
 	.probe	= apple_dart_probe,
-	.remove_new = apple_dart_remove,
+	.remove = apple_dart_remove,
 };
 
 module_platform_driver(apple_dart_driver);

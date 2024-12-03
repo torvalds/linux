@@ -72,4 +72,4 @@ module_i2c_driver(xdpe152_driver);
 MODULE_AUTHOR("Greg Schwendimann <greg.schwendimann@infineon.com>");
 MODULE_DESCRIPTION("PMBus driver for Infineon XDPE152 family");
 MODULE_LICENSE("GPL");
-MODULE_IMPORT_NS(PMBUS);
+MODULE_IMPORT_NS("PMBUS");

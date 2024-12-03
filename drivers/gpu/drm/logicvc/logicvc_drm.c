@@ -491,7 +491,7 @@ MODULE_DEVICE_TABLE(of, logicvc_drm_of_table);
 
 static struct platform_driver logicvc_drm_platform_driver = {
 	.probe		= logicvc_drm_probe,
-	.remove_new	= logicvc_drm_remove,
+	.remove		= logicvc_drm_remove,
 	.shutdown	= logicvc_drm_shutdown,
 	.driver		= {
 		.name		= "logicvc-drm",

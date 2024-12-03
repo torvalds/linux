@@ -53,5 +53,5 @@ module_i2c_driver(bno055_driver);
 
 MODULE_AUTHOR("Andrea Merello");
 MODULE_DESCRIPTION("Bosch BNO055 I2C interface");
-MODULE_IMPORT_NS(IIO_BNO055);
+MODULE_IMPORT_NS("IIO_BNO055");
 MODULE_LICENSE("GPL");

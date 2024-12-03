@@ -206,7 +206,7 @@ static struct platform_driver flash_driver = {
 		.of_match_table = flash_match,
 	},
 	.probe		= flash_probe,
-	.remove_new	= flash_remove,
+	.remove		= flash_remove,
 };
 
 module_platform_driver(flash_driver);

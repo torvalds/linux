@@ -368,7 +368,7 @@ static void aspeed_gfx_shutdown(struct platform_device *pdev)
 
 static struct platform_driver aspeed_gfx_platform_driver = {
 	.probe		= aspeed_gfx_probe,
-	.remove_new	= aspeed_gfx_remove,
+	.remove		= aspeed_gfx_remove,
 	.shutdown	= aspeed_gfx_shutdown,
 	.driver = {
 		.name = "aspeed_gfx",

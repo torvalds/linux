@@ -605,5 +605,5 @@ struct platform_driver tegra_gr3d_driver = {
 		.pm = &tegra_gr3d_pm,
 	},
 	.probe = gr3d_probe,
-	.remove_new = gr3d_remove,
+	.remove = gr3d_remove,
 };

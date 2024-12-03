@@ -92,7 +92,7 @@ static struct i2c_driver cs42l43_i2c_driver = {
 };
 module_i2c_driver(cs42l43_i2c_driver);
 
-MODULE_IMPORT_NS(MFD_CS42L43);
+MODULE_IMPORT_NS("MFD_CS42L43");
 
 MODULE_DESCRIPTION("CS42L43 I2C Driver");
 MODULE_AUTHOR("Charles Keepax <ckeepax@opensource.cirrus.com>");

@@ -666,7 +666,7 @@ static const struct dev_pm_ops dw_hdmi_rockchip_pm = {
 
 struct platform_driver dw_hdmi_rockchip_pltfm_driver = {
 	.probe  = dw_hdmi_rockchip_probe,
-	.remove_new = dw_hdmi_rockchip_remove,
+	.remove = dw_hdmi_rockchip_remove,
 	.driver = {
 		.name = "dwhdmi-rockchip",
 		.pm = &dw_hdmi_rockchip_pm,

@@ -193,7 +193,7 @@ MODULE_DEVICE_TABLE(of, imx8mp_hdmi_pvi_match);
 
 static struct platform_driver imx8mp_hdmi_pvi_driver = {
 	.probe	= imx8mp_hdmi_pvi_probe,
-	.remove_new = imx8mp_hdmi_pvi_remove,
+	.remove = imx8mp_hdmi_pvi_remove,
 	.driver		= {
 		.name = "imx-hdmi-pvi",
 		.of_match_table	= imx8mp_hdmi_pvi_match,

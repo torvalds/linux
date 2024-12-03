@@ -279,7 +279,7 @@ MODULE_DEVICE_TABLE(of, exynos_dp_match);
 
 struct platform_driver dp_driver = {
 	.probe		= exynos_dp_probe,
-	.remove_new	= exynos_dp_remove,
+	.remove		= exynos_dp_remove,
 	.driver		= {
 		.name	= "exynos-dp",
 		.pm	= pm_ptr(&exynos_dp_pm_ops),

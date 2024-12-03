@@ -222,4 +222,4 @@ MODULE_AUTHOR("Andy Shevchenko <andriy.shevchenko@linux.intel.com>");
 MODULE_AUTHOR("Mika Westerberg <mika.westerberg@linux.intel.com>");
 MODULE_DESCRIPTION("Intel LPSS ACPI driver");
 MODULE_LICENSE("GPL v2");
-MODULE_IMPORT_NS(INTEL_LPSS);
+MODULE_IMPORT_NS("INTEL_LPSS");

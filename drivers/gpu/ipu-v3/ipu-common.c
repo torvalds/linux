@@ -1467,7 +1467,7 @@ static struct platform_driver imx_ipu_driver = {
 		.of_match_table = imx_ipu_dt_ids,
 	},
 	.probe = ipu_probe,
-	.remove_new = ipu_remove,
+	.remove = ipu_remove,
 };
 
 static struct platform_driver * const drivers[] = {

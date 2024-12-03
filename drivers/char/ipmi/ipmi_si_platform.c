@@ -445,7 +445,7 @@ struct platform_driver ipmi_platform_driver = {
 		.acpi_match_table = ACPI_PTR(acpi_ipmi_match),
 	},
 	.probe		= ipmi_probe,
-	.remove_new	= ipmi_remove,
+	.remove		= ipmi_remove,
 	.id_table       = si_plat_ids
 };
 

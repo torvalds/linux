@@ -34,7 +34,7 @@ const char * const hda_cs_dsp_fw_ids[HDA_CS_DSP_NUM_FW] = {
 	[HDA_CS_DSP_FW_SPK_DIAG] = "spk-diag",
 	[HDA_CS_DSP_FW_MISC] =     "misc",
 };
-EXPORT_SYMBOL_NS_GPL(hda_cs_dsp_fw_ids, SND_HDA_CS_DSP_CONTROLS);
+EXPORT_SYMBOL_NS_GPL(hda_cs_dsp_fw_ids, "SND_HDA_CS_DSP_CONTROLS");
 
 static int hda_cs_dsp_coeff_info(struct snd_kcontrol *kctl, struct snd_ctl_elem_info *uinfo)
 {
@@ -200,7 +200,7 @@ void hda_cs_dsp_add_controls(struct cs_dsp *dsp, const struct hda_cs_dsp_ctl_inf
 		hda_cs_dsp_control_add(cs_ctl, info);
 	}
 }
-EXPORT_SYMBOL_NS_GPL(hda_cs_dsp_add_controls, SND_HDA_CS_DSP_CONTROLS);
+EXPORT_SYMBOL_NS_GPL(hda_cs_dsp_add_controls, "SND_HDA_CS_DSP_CONTROLS");
 
 void hda_cs_dsp_control_remove(struct cs_dsp_coeff_ctl *cs_ctl)
 {
@@ -210,7 +210,7 @@ void hda_cs_dsp_control_remove(struct cs_dsp_coeff_ctl *cs_ctl)
 	if (ctl)
 		snd_ctl_remove(ctl->card, ctl->kctl);
 }
-EXPORT_SYMBOL_NS_GPL(hda_cs_dsp_control_remove, SND_HDA_CS_DSP_CONTROLS);
+EXPORT_SYMBOL_NS_GPL(hda_cs_dsp_control_remove, "SND_HDA_CS_DSP_CONTROLS");
 
 int hda_cs_dsp_write_ctl(struct cs_dsp *dsp, const char *name, int type,
 			 unsigned int alg, const void *buf, size_t len)
@@ -227,7 +227,7 @@ int hda_cs_dsp_write_ctl(struct cs_dsp *dsp, const char *name, int type,
 
 	return 0;
 }
-EXPORT_SYMBOL_NS_GPL(hda_cs_dsp_write_ctl, SND_HDA_CS_DSP_CONTROLS);
+EXPORT_SYMBOL_NS_GPL(hda_cs_dsp_write_ctl, "SND_HDA_CS_DSP_CONTROLS");
 
 int hda_cs_dsp_read_ctl(struct cs_dsp *dsp, const char *name, int type,
 			unsigned int alg, void *buf, size_t len)
@@ -241,9 +241,9 @@ int hda_cs_dsp_read_ctl(struct cs_dsp *dsp, const char *name, int type,
 	return ret;
 
 }
-EXPORT_SYMBOL_NS_GPL(hda_cs_dsp_read_ctl, SND_HDA_CS_DSP_CONTROLS);
+EXPORT_SYMBOL_NS_GPL(hda_cs_dsp_read_ctl, "SND_HDA_CS_DSP_CONTROLS");
 
 MODULE_DESCRIPTION("CS_DSP ALSA Control HDA Library");
 MODULE_AUTHOR("Stefan Binding, <sbinding@opensource.cirrus.com>");
 MODULE_LICENSE("GPL");
-MODULE_IMPORT_NS(FW_CS_DSP);
+MODULE_IMPORT_NS("FW_CS_DSP");
