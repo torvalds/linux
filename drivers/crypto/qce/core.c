@@ -232,13 +232,13 @@ static int qce_crypto_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	ret = qce_dma_request(qce->dev, &qce->dma);
+	ret = devm_qce_dma_request(qce->dev, &qce->dma);
 	if (ret)
 		return ret;
 
 	ret = qce_check_version(qce);
 	if (ret)
-		goto err_dma;
+		return ret;
 
 	spin_lock_init(&qce->lock);
 	tasklet_init(&qce->done_tasklet, qce_tasklet_req_done,
@@ -248,16 +248,7 @@ static int qce_crypto_probe(struct platform_device *pdev)
 	qce->async_req_enqueue = qce_async_request_enqueue;
 	qce->async_req_done = qce_async_request_done;
 
-	ret = qce_register_algs(qce);
-	if (ret)
-		goto err_dma;
-
-	return 0;
-
-err_dma:
-	qce_dma_release(&qce->dma);
-
-	return ret;
+	return qce_register_algs(qce);
 }
 
 static void qce_crypto_remove(struct platform_device *pdev)
@@ -266,7 +257,6 @@ static void qce_crypto_remove(struct platform_device *pdev)
 
 	tasklet_kill(&qce->done_tasklet);
 	qce_unregister_algs(qce);
-	qce_dma_release(&qce->dma);
 }
 
 static const struct of_device_id qce_crypto_of_match[] = {
