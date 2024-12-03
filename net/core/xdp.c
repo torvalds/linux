@@ -518,7 +518,7 @@ void xdp_flush_frame_bulk(struct xdp_frame_bulk *bq)
 	if (unlikely(!xa || !bq->count))
 		return;
 
-	page_pool_put_page_bulk(xa->page_pool, bq->q, bq->count);
+	page_pool_put_netmem_bulk(xa->page_pool, bq->q, bq->count);
 	/* bq->xa is not cleared to save lookup, if mem.id same in next bulk */
 	bq->count = 0;
 }
@@ -559,12 +559,12 @@ void xdp_return_frame_bulk(struct xdp_frame *xdpf,
 		for (i = 0; i < sinfo->nr_frags; i++) {
 			skb_frag_t *frag = &sinfo->frags[i];
 
-			bq->q[bq->count++] = skb_frag_address(frag);
+			bq->q[bq->count++] = skb_frag_netmem(frag);
 			if (bq->count == XDP_BULK_QUEUE_SIZE)
 				xdp_flush_frame_bulk(bq);
 		}
 	}
-	bq->q[bq->count++] = xdpf->data;
+	bq->q[bq->count++] = virt_to_netmem(xdpf->data);
 }
 EXPORT_SYMBOL_GPL(xdp_return_frame_bulk);
 
