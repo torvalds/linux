@@ -3324,6 +3324,8 @@ extern int __vm_enough_memory(struct mm_struct *mm, long pages, int cap_sys_admi
 extern int insert_vm_struct(struct mm_struct *, struct vm_area_struct *);
 extern void exit_mmap(struct mm_struct *);
 int relocate_vma_down(struct vm_area_struct *vma, unsigned long shift);
+bool mmap_read_lock_maybe_expand(struct mm_struct *mm, struct vm_area_struct *vma,
+				 unsigned long addr, bool write);
 
 static inline int check_data_rlimit(unsigned long rlim,
 				    unsigned long new,
@@ -3436,9 +3438,6 @@ extern unsigned long stack_guard_gap;
 /* Generic expand stack which grows the stack according to GROWS{UP,DOWN} */
 int expand_stack_locked(struct vm_area_struct *vma, unsigned long address);
 struct vm_area_struct *expand_stack(struct mm_struct * mm, unsigned long addr);
-
-/* CONFIG_STACK_GROWSUP still needs to grow downwards at some places */
-int expand_downwards(struct vm_area_struct *vma, unsigned long address);
 
 /* Look up the first VMA which satisfies  addr < vm_end,  NULL if none. */
 extern struct vm_area_struct * find_vma(struct mm_struct * mm, unsigned long addr);

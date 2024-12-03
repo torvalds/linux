@@ -1009,7 +1009,7 @@ static int expand_upwards(struct vm_area_struct *vma, unsigned long address)
  * vma is the first one with address < vma->vm_start.  Have to extend vma.
  * mmap_lock held for writing.
  */
-int expand_downwards(struct vm_area_struct *vma, unsigned long address)
+static int expand_downwards(struct vm_area_struct *vma, unsigned long address)
 {
 	struct mm_struct *mm = vma->vm_mm;
 	struct vm_area_struct *prev;
@@ -1940,3 +1940,55 @@ int relocate_vma_down(struct vm_area_struct *vma, unsigned long shift)
 	/* Shrink the vma to just the new range */
 	return vma_shrink(&vmi, vma, new_start, new_end, vma->vm_pgoff);
 }
+
+#ifdef CONFIG_MMU
+/*
+ * Obtain a read lock on mm->mmap_lock, if the specified address is below the
+ * start of the VMA, the intent is to perform a write, and it is a
+ * downward-growing stack, then attempt to expand the stack to contain it.
+ *
+ * This function is intended only for obtaining an argument page from an ELF
+ * image, and is almost certainly NOT what you want to use for any other
+ * purpose.
+ *
+ * IMPORTANT - VMA fields are accessed without an mmap lock being held, so the
+ * VMA referenced must not be linked in any user-visible tree, i.e. it must be a
+ * new VMA being mapped.
+ *
+ * The function assumes that addr is either contained within the VMA or below
+ * it, and makes no attempt to validate this value beyond that.
+ *
+ * Returns true if the read lock was obtained and a stack was perhaps expanded,
+ * false if the stack expansion failed.
+ *
+ * On stack expansion the function temporarily acquires an mmap write lock
+ * before downgrading it.
+ */
+bool mmap_read_lock_maybe_expand(struct mm_struct *mm,
+				 struct vm_area_struct *new_vma,
+				 unsigned long addr, bool write)
+{
+	if (!write || addr >= new_vma->vm_start) {
+		mmap_read_lock(mm);
+		return true;
+	}
+
+	if (!(new_vma->vm_flags & VM_GROWSDOWN))
+		return false;
+
+	mmap_write_lock(mm);
+	if (expand_downwards(new_vma, addr)) {
+		mmap_write_unlock(mm);
+		return false;
+	}
+
+	mmap_write_downgrade(mm);
+	return true;
+}
+#else
+bool mmap_read_lock_maybe_expand(struct mm_struct *mm, struct vm_area_struct *vma,
+				 unsigned long addr, bool write)
+{
+	return false;
+}
+#endif
