@@ -122,15 +122,16 @@ static int qce_handle_queue(struct qce_device *qce,
 	err = qce_handle_request(async_req);
 	if (err) {
 		qce->result = err;
-		tasklet_schedule(&qce->done_tasklet);
+		schedule_work(&qce->done_work);
 	}
 
 	return ret;
 }
 
-static void qce_tasklet_req_done(unsigned long data)
+static void qce_req_done_work(struct work_struct *work)
 {
-	struct qce_device *qce = (struct qce_device *)data;
+	struct qce_device *qce = container_of(work, struct qce_device,
+					      done_work);
 	struct crypto_async_request *req;
 	unsigned long flags;
 
@@ -154,7 +155,7 @@ static int qce_async_request_enqueue(struct qce_device *qce,
 static void qce_async_request_done(struct qce_device *qce, int ret)
 {
 	qce->result = ret;
-	tasklet_schedule(&qce->done_tasklet);
+	schedule_work(&qce->done_work);
 }
 
 static int qce_check_version(struct qce_device *qce)
@@ -243,21 +244,13 @@ static int qce_crypto_probe(struct platform_device *pdev)
 		return ret;
 
 	spin_lock_init(&qce->lock);
-	tasklet_init(&qce->done_tasklet, qce_tasklet_req_done,
-		     (unsigned long)qce);
+	INIT_WORK(&qce->done_work, qce_req_done_work);
 	crypto_init_queue(&qce->queue, QCE_QUEUE_LENGTH);
 
 	qce->async_req_enqueue = qce_async_request_enqueue;
 	qce->async_req_done = qce_async_request_done;
 
 	return devm_qce_register_algs(qce);
-}
-
-static void qce_crypto_remove(struct platform_device *pdev)
-{
-	struct qce_device *qce = platform_get_drvdata(pdev);
-
-	tasklet_kill(&qce->done_tasklet);
 }
 
 static const struct of_device_id qce_crypto_of_match[] = {
@@ -270,7 +263,6 @@ MODULE_DEVICE_TABLE(of, qce_crypto_of_match);
 
 static struct platform_driver qce_crypto_driver = {
 	.probe = qce_crypto_probe,
-	.remove = qce_crypto_remove,
 	.driver = {
 		.name = KBUILD_MODNAME,
 		.of_match_table = qce_crypto_of_match,
