@@ -4188,7 +4188,7 @@ static int drm_dp_mst_handle_up_req(struct drm_dp_mst_topology_mgr *mgr)
 out_put_primary:
 	drm_dp_mst_topology_put_mstb(mst_primary);
 out_clear_reply:
-	memset(&mgr->up_req_recv, 0, sizeof(struct drm_dp_sideband_msg_rx));
+	reset_msg_rx_state(&mgr->up_req_recv);
 	return ret;
 }
 
