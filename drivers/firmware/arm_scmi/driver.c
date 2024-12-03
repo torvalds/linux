@@ -3028,7 +3028,7 @@ static const struct scmi_desc *scmi_transport_setup(struct device *dev)
 	int ret;
 
 	trans = dev_get_platdata(dev);
-	if (!trans || !trans->desc || !trans->supplier || !trans->core_ops)
+	if (!trans || !trans->supplier || !trans->core_ops)
 		return NULL;
 
 	if (!device_link_add(dev, trans->supplier, DL_FLAG_AUTOREMOVE_CONSUMER)) {
@@ -3043,33 +3043,33 @@ static const struct scmi_desc *scmi_transport_setup(struct device *dev)
 	dev_info(dev, "Using %s\n", dev_driver_string(trans->supplier));
 
 	ret = of_property_read_u32(dev->of_node, "arm,max-rx-timeout-ms",
-				   &trans->desc->max_rx_timeout_ms);
+				   &trans->desc.max_rx_timeout_ms);
 	if (ret && ret != -EINVAL)
 		dev_err(dev, "Malformed arm,max-rx-timeout-ms DT property.\n");
 
 	ret = of_property_read_u32(dev->of_node, "arm,max-msg-size",
-				   &trans->desc->max_msg_size);
+				   &trans->desc.max_msg_size);
 	if (ret && ret != -EINVAL)
 		dev_err(dev, "Malformed arm,max-msg-size DT property.\n");
 
 	ret = of_property_read_u32(dev->of_node, "arm,max-msg",
-				   &trans->desc->max_msg);
+				   &trans->desc.max_msg);
 	if (ret && ret != -EINVAL)
 		dev_err(dev, "Malformed arm,max-msg DT property.\n");
 
 	dev_info(dev,
 		 "SCMI max-rx-timeout: %dms / max-msg-size: %dbytes / max-msg: %d\n",
-		 trans->desc->max_rx_timeout_ms, trans->desc->max_msg_size,
-		 trans->desc->max_msg);
+		 trans->desc.max_rx_timeout_ms, trans->desc.max_msg_size,
+		 trans->desc.max_msg);
 
 	/* System wide atomic threshold for atomic ops .. if any */
 	if (!of_property_read_u32(dev->of_node, "atomic-threshold-us",
-				  &trans->desc->atomic_threshold))
+				  &trans->desc.atomic_threshold))
 		dev_info(dev,
 			 "SCMI System wide atomic threshold set to %u us\n",
-			 trans->desc->atomic_threshold);
+			 trans->desc.atomic_threshold);
 
-	return trans->desc;
+	return &trans->desc;
 }
 
 static int scmi_probe(struct platform_device *pdev)

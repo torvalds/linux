@@ -442,7 +442,7 @@ struct scmi_transport_core_operations {
  */
 struct scmi_transport {
 	struct device *supplier;
-	struct scmi_desc *desc;
+	struct scmi_desc desc;
 	struct scmi_transport_core_operations **core_ops;
 };
 
@@ -468,7 +468,7 @@ static int __tag##_probe(struct platform_device *pdev)			       \
 	device_set_of_node_from_dev(&spdev->dev, dev);			       \
 									       \
 	strans.supplier = dev;						       \
-	strans.desc = &(__desc);					       \
+	memcpy(&strans.desc, &(__desc), sizeof(strans.desc));		       \
 	strans.core_ops = &(__core_ops);				       \
 									       \
 	ret = platform_device_add_data(spdev, &strans, sizeof(strans));	       \
