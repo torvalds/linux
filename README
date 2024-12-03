@@ -1,4 +1,4 @@
-Linux kernel 6.12-rc8
+Linux kernel 6.13-rc1
 ============
 
 There are several guides for kernel developers and users. These guides can
@@ -17,4 +17,5 @@ Please read the Documentation/process/changes.rst file, as it contains the
 requirements for building and running the kernel, and information about
 the problems which may result from upgrading your kernel.
 
-This release candidate software might have issues with your computer hardware. So be careful not to compile this release candidate kernel on your computer.
+This release candidate software might have issues with your computer hardware. 
+So please be careful not to compile this release candidate kernel using the wrong computer architecture.
