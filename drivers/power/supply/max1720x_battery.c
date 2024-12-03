@@ -29,6 +29,7 @@
 #define MAX172XX_TEMP			0x08	/* Temperature */
 #define MAX172XX_CURRENT		0x0A	/* Actual current */
 #define MAX172XX_AVG_CURRENT		0x0B	/* Average current */
+#define MAX172XX_FULL_CAP		0x10	/* Calculated full capacity */
 #define MAX172XX_TTE			0x11	/* Time to empty */
 #define MAX172XX_AVG_TA			0x16	/* Average temperature */
 #define MAX172XX_CYCLES			0x17
@@ -250,6 +251,7 @@ static const enum power_supply_property max1720x_battery_props[] = {
 	POWER_SUPPLY_PROP_TEMP,
 	POWER_SUPPLY_PROP_CURRENT_NOW,
 	POWER_SUPPLY_PROP_CURRENT_AVG,
+	POWER_SUPPLY_PROP_CHARGE_FULL,
 	POWER_SUPPLY_PROP_MODEL_NAME,
 	POWER_SUPPLY_PROP_MANUFACTURER,
 };
@@ -361,6 +363,10 @@ static int max1720x_battery_get_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_CURRENT_AVG:
 		ret = regmap_read(info->regmap, MAX172XX_AVG_CURRENT, &reg_val);
 		val->intval = max172xx_current_to_voltage(reg_val) / info->rsense;
+		break;
+	case POWER_SUPPLY_PROP_CHARGE_FULL:
+		ret = regmap_read(info->regmap, MAX172XX_FULL_CAP, &reg_val);
+		val->intval = max172xx_capacity_to_ps(reg_val);
 		break;
 	case POWER_SUPPLY_PROP_MODEL_NAME:
 		ret = regmap_read(info->regmap, MAX172XX_DEV_NAME, &reg_val);
