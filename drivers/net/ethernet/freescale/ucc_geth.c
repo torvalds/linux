@@ -1646,7 +1646,7 @@ static void ugeth_link_down(struct ucc_geth_private *ugeth)
 static void adjust_link(struct net_device *dev)
 {
 	struct ucc_geth_private *ugeth = netdev_priv(dev);
-	struct phy_device *phydev = ugeth->phydev;
+	struct phy_device *phydev = dev->phydev;
 
 	if (phydev->link)
 		ugeth_link_up(ugeth, phydev, phydev->interface,
@@ -1726,8 +1726,6 @@ static int init_phy(struct net_device *dev)
 		uec_configure_serdes(dev);
 
 	phy_set_max_speed(phydev, priv->max_speed);
-
-	priv->phydev = phydev;
 
 	return 0;
 }
@@ -2001,7 +1999,7 @@ static void ucc_geth_set_multi(struct net_device *dev)
 static void ucc_geth_stop(struct ucc_geth_private *ugeth)
 {
 	struct ucc_geth __iomem *ug_regs = ugeth->ug_regs;
-	struct phy_device *phydev = ugeth->phydev;
+	struct phy_device *phydev = ugeth->ndev->phydev;
 
 	ugeth_vdbg("%s: IN", __func__);
 
@@ -3316,13 +3314,13 @@ static int ucc_geth_open(struct net_device *dev)
 		goto err;
 	}
 
-	phy_start(ugeth->phydev);
+	phy_start(dev->phydev);
 	napi_enable(&ugeth->napi);
 	netdev_reset_queue(dev);
 	netif_start_queue(dev);
 
 	device_set_wakeup_capable(&dev->dev,
-			qe_alive_during_sleep() || ugeth->phydev->irq);
+			qe_alive_during_sleep() || dev->phydev->irq);
 	device_set_wakeup_enable(&dev->dev, ugeth->wol_en);
 
 	return err;
@@ -3343,8 +3341,7 @@ static int ucc_geth_close(struct net_device *dev)
 
 	cancel_work_sync(&ugeth->timeout_work);
 	ucc_geth_stop(ugeth);
-	phy_disconnect(ugeth->phydev);
-	ugeth->phydev = NULL;
+	phy_disconnect(dev->phydev);
 
 	free_irq(ugeth->ug_info->uf_info.irq, ugeth->ndev);
 
@@ -3378,7 +3375,7 @@ static void ucc_geth_timeout_work(struct work_struct *work)
 		ucc_geth_stop(ugeth);
 		ucc_geth_init_mac(ugeth);
 		/* Must start PHY here */
-		phy_start(ugeth->phydev);
+		phy_start(dev->phydev);
 		netif_tx_start_all_queues(dev);
 	}
 
@@ -3421,7 +3418,7 @@ static int ucc_geth_suspend(struct platform_device *ofdev, pm_message_t state)
 		setbits32(&ugeth->ug_regs->maccfg2, MACCFG2_MPE);
 		ucc_fast_enable(ugeth->uccf, COMM_DIR_RX_AND_TX);
 	} else if (!(ugeth->wol_en & WAKE_PHY)) {
-		phy_stop(ugeth->phydev);
+		phy_stop(ndev->phydev);
 	}
 
 	return 0;
@@ -3461,8 +3458,8 @@ static int ucc_geth_resume(struct platform_device *ofdev)
 	ugeth->oldspeed = 0;
 	ugeth->oldduplex = -1;
 
-	phy_stop(ugeth->phydev);
-	phy_start(ugeth->phydev);
+	phy_stop(ndev->phydev);
+	phy_start(ndev->phydev);
 
 	napi_enable(&ugeth->napi);
 	netif_device_attach(ndev);
@@ -3477,15 +3474,13 @@ static int ucc_geth_resume(struct platform_device *ofdev)
 
 static int ucc_geth_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 {
-	struct ucc_geth_private *ugeth = netdev_priv(dev);
-
 	if (!netif_running(dev))
 		return -EINVAL;
 
-	if (!ugeth->phydev)
+	if (!dev->phydev)
 		return -ENODEV;
 
-	return phy_mii_ioctl(ugeth->phydev, rq, cmd);
+	return phy_mii_ioctl(dev->phydev, rq, cmd);
 }
 
 static const struct net_device_ops ucc_geth_netdev_ops = {

@@ -1210,7 +1210,6 @@ struct ucc_geth_private {
 	u16 skb_dirtytx[NUM_TX_QUEUES];
 
 	struct ugeth_mii_info *mii_info;
-	struct phy_device *phydev;
 	phy_interface_t phy_interface;
 	int max_speed;
 	uint32_t msg_enable;

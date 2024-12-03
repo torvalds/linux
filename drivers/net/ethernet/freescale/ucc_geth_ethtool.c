@@ -103,8 +103,7 @@ static const char rx_fw_stat_gstrings[][ETH_GSTRING_LEN] = {
 static int
 uec_get_ksettings(struct net_device *netdev, struct ethtool_link_ksettings *cmd)
 {
-	struct ucc_geth_private *ugeth = netdev_priv(netdev);
-	struct phy_device *phydev = ugeth->phydev;
+	struct phy_device *phydev = netdev->phydev;
 
 	if (!phydev)
 		return -ENODEV;
@@ -118,8 +117,7 @@ static int
 uec_set_ksettings(struct net_device *netdev,
 		  const struct ethtool_link_ksettings *cmd)
 {
-	struct ucc_geth_private *ugeth = netdev_priv(netdev);
-	struct phy_device *phydev = ugeth->phydev;
+	struct phy_device *phydev = netdev->phydev;
 
 	if (!phydev)
 		return -ENODEV;
@@ -132,8 +130,10 @@ uec_get_pauseparam(struct net_device *netdev,
                      struct ethtool_pauseparam *pause)
 {
 	struct ucc_geth_private *ugeth = netdev_priv(netdev);
+	struct phy_device *phydev = netdev->phydev;
 
-	pause->autoneg = ugeth->phydev->autoneg;
+	if (phydev)
+		pause->autoneg = phydev->autoneg;
 
 	if (ugeth->ug_info->receiveFlowControl)
 		pause->rx_pause = 1;
@@ -146,12 +146,13 @@ uec_set_pauseparam(struct net_device *netdev,
                      struct ethtool_pauseparam *pause)
 {
 	struct ucc_geth_private *ugeth = netdev_priv(netdev);
+	struct phy_device *phydev = netdev->phydev;
 	int ret = 0;
 
 	ugeth->ug_info->receiveFlowControl = pause->rx_pause;
 	ugeth->ug_info->transmitFlowControl = pause->tx_pause;
 
-	if (ugeth->phydev->autoneg) {
+	if (phydev && phydev->autoneg) {
 		if (netif_running(netdev)) {
 			/* FIXME: automatically restart */
 			netdev_info(netdev, "Please re-open the interface\n");
@@ -343,7 +344,7 @@ uec_get_drvinfo(struct net_device *netdev,
 static void uec_get_wol(struct net_device *netdev, struct ethtool_wolinfo *wol)
 {
 	struct ucc_geth_private *ugeth = netdev_priv(netdev);
-	struct phy_device *phydev = ugeth->phydev;
+	struct phy_device *phydev = netdev->phydev;
 
 	if (phydev && phydev->irq)
 		wol->supported |= WAKE_PHY;
@@ -356,7 +357,7 @@ static void uec_get_wol(struct net_device *netdev, struct ethtool_wolinfo *wol)
 static int uec_set_wol(struct net_device *netdev, struct ethtool_wolinfo *wol)
 {
 	struct ucc_geth_private *ugeth = netdev_priv(netdev);
-	struct phy_device *phydev = ugeth->phydev;
+	struct phy_device *phydev = netdev->phydev;
 
 	if (wol->wolopts & ~(WAKE_PHY | WAKE_MAGIC))
 		return -EINVAL;
