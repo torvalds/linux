@@ -470,8 +470,10 @@ int xe_guc_ct_enable(struct xe_guc_ct *ct)
 	 * after any existing dead state has been dumped.
 	 */
 	spin_lock_irq(&ct->dead.lock);
-	if (ct->dead.reason)
+	if (ct->dead.reason) {
 		ct->dead.reason |= (1 << CT_DEAD_STATE_REARM);
+		queue_work(system_unbound_wq, &ct->dead.worker);
+	}
 	spin_unlock_irq(&ct->dead.lock);
 #endif
 
