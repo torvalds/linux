@@ -982,13 +982,16 @@ static int gfx_v8_0_init_microcode(struct amdgpu_device *adev)
 
 	if (adev->asic_type >= CHIP_POLARIS10 && adev->asic_type <= CHIP_POLARIS12) {
 		err = amdgpu_ucode_request(adev, &adev->gfx.pfp_fw,
+					   AMDGPU_UCODE_OPTIONAL,
 					   "amdgpu/%s_pfp_2.bin", chip_name);
 		if (err == -ENODEV) {
 			err = amdgpu_ucode_request(adev, &adev->gfx.pfp_fw,
+						   AMDGPU_UCODE_REQUIRED,
 						   "amdgpu/%s_pfp.bin", chip_name);
 		}
 	} else {
 		err = amdgpu_ucode_request(adev, &adev->gfx.pfp_fw,
+					   AMDGPU_UCODE_REQUIRED,
 					   "amdgpu/%s_pfp.bin", chip_name);
 	}
 	if (err)
@@ -999,13 +1002,16 @@ static int gfx_v8_0_init_microcode(struct amdgpu_device *adev)
 
 	if (adev->asic_type >= CHIP_POLARIS10 && adev->asic_type <= CHIP_POLARIS12) {
 		err = amdgpu_ucode_request(adev, &adev->gfx.me_fw,
+					   AMDGPU_UCODE_OPTIONAL,
 					   "amdgpu/%s_me_2.bin", chip_name);
 		if (err == -ENODEV) {
 			err = amdgpu_ucode_request(adev, &adev->gfx.me_fw,
+						   AMDGPU_UCODE_REQUIRED,
 						   "amdgpu/%s_me.bin", chip_name);
 		}
 	} else {
 		err = amdgpu_ucode_request(adev, &adev->gfx.me_fw,
+					   AMDGPU_UCODE_REQUIRED,
 					   "amdgpu/%s_me.bin", chip_name);
 	}
 	if (err)
@@ -1017,13 +1023,16 @@ static int gfx_v8_0_init_microcode(struct amdgpu_device *adev)
 
 	if (adev->asic_type >= CHIP_POLARIS10 && adev->asic_type <= CHIP_POLARIS12) {
 		err = amdgpu_ucode_request(adev, &adev->gfx.ce_fw,
+					   AMDGPU_UCODE_OPTIONAL,
 					   "amdgpu/%s_ce_2.bin", chip_name);
 		if (err == -ENODEV) {
 			err = amdgpu_ucode_request(adev, &adev->gfx.ce_fw,
+						   AMDGPU_UCODE_REQUIRED,
 						   "amdgpu/%s_ce.bin", chip_name);
 		}
 	} else {
 		err = amdgpu_ucode_request(adev, &adev->gfx.ce_fw,
+					   AMDGPU_UCODE_REQUIRED,
 					   "amdgpu/%s_ce.bin", chip_name);
 	}
 	if (err)
@@ -1044,6 +1053,7 @@ static int gfx_v8_0_init_microcode(struct amdgpu_device *adev)
 		adev->virt.chained_ib_support = false;
 
 	err = amdgpu_ucode_request(adev, &adev->gfx.rlc_fw,
+				   AMDGPU_UCODE_REQUIRED,
 				   "amdgpu/%s_rlc.bin", chip_name);
 	if (err)
 		goto out;
@@ -1093,13 +1103,16 @@ static int gfx_v8_0_init_microcode(struct amdgpu_device *adev)
 
 	if (adev->asic_type >= CHIP_POLARIS10 && adev->asic_type <= CHIP_POLARIS12) {
 		err = amdgpu_ucode_request(adev, &adev->gfx.mec_fw,
+					   AMDGPU_UCODE_OPTIONAL,
 					   "amdgpu/%s_mec_2.bin", chip_name);
 		if (err == -ENODEV) {
 			err = amdgpu_ucode_request(adev, &adev->gfx.mec_fw,
+						   AMDGPU_UCODE_REQUIRED,
 						   "amdgpu/%s_mec.bin", chip_name);
 		}
 	} else {
 		err = amdgpu_ucode_request(adev, &adev->gfx.mec_fw,
+					   AMDGPU_UCODE_REQUIRED,
 					   "amdgpu/%s_mec.bin", chip_name);
 	}
 	if (err)
@@ -1112,13 +1125,16 @@ static int gfx_v8_0_init_microcode(struct amdgpu_device *adev)
 	    (adev->asic_type != CHIP_TOPAZ)) {
 		if (adev->asic_type >= CHIP_POLARIS10 && adev->asic_type <= CHIP_POLARIS12) {
 			err = amdgpu_ucode_request(adev, &adev->gfx.mec2_fw,
+						   AMDGPU_UCODE_OPTIONAL,
 						   "amdgpu/%s_mec2_2.bin", chip_name);
 			if (err == -ENODEV) {
 				err = amdgpu_ucode_request(adev, &adev->gfx.mec2_fw,
+							   AMDGPU_UCODE_REQUIRED,
 							   "amdgpu/%s_mec2.bin", chip_name);
 			}
 		} else {
 			err = amdgpu_ucode_request(adev, &adev->gfx.mec2_fw,
+						   AMDGPU_UCODE_REQUIRED,
 						   "amdgpu/%s_mec2.bin", chip_name);
 		}
 		if (!err) {

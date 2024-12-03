@@ -133,9 +133,11 @@ static int cik_sdma_init_microcode(struct amdgpu_device *adev)
 	for (i = 0; i < adev->sdma.num_instances; i++) {
 		if (i == 0)
 			err = amdgpu_ucode_request(adev, &adev->sdma.instance[i].fw,
+						   AMDGPU_UCODE_REQUIRED,
 						   "amdgpu/%s_sdma.bin", chip_name);
 		else
 			err = amdgpu_ucode_request(adev, &adev->sdma.instance[i].fw,
+						   AMDGPU_UCODE_REQUIRED,
 						   "amdgpu/%s_sdma1.bin", chip_name);
 		if (err)
 			goto out;
