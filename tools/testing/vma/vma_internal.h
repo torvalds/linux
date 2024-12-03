@@ -39,6 +39,7 @@
 #define VM_SHARED	0x00000008
 #define VM_MAYREAD	0x00000010
 #define VM_MAYWRITE	0x00000020
+#define VM_MAYEXEC	0x00000040
 #define VM_GROWSDOWN	0x00000100
 #define VM_PFNMAP	0x00000400
 #define VM_LOCKED	0x00002000
@@ -57,6 +58,13 @@
 
 /* This mask represents all the VMA flag bits used by mlock */
 #define VM_LOCKED_MASK	(VM_LOCKED | VM_LOCKONFAULT)
+
+#define TASK_EXEC ((current->personality & READ_IMPLIES_EXEC) ? VM_EXEC : 0)
+
+#define VM_DATA_FLAGS_TSK_EXEC	(VM_READ | VM_WRITE | TASK_EXEC | \
+				 VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC)
+
+#define VM_DATA_DEFAULT_FLAGS	VM_DATA_FLAGS_TSK_EXEC
 
 #ifdef CONFIG_64BIT
 /* VM is sealed, in vm_flags */
@@ -122,10 +130,22 @@ enum {
 	TASK_COMM_LEN = 16,
 };
 
+/*
+ * Flags for bug emulation.
+ *
+ * These occupy the top three bytes.
+ */
+enum {
+	READ_IMPLIES_EXEC =	0x0400000,
+};
+
 struct task_struct {
 	char comm[TASK_COMM_LEN];
 	pid_t pid;
 	struct mm_struct *mm;
+
+	/* Used for emulating ABI behavior of previous Linux versions: */
+	unsigned int			personality;
 };
 
 struct task_struct *get_current(void);
@@ -186,6 +206,8 @@ struct mm_struct {
 	unsigned long data_vm;	   /* VM_WRITE & ~VM_SHARED & ~VM_STACK */
 	unsigned long exec_vm;	   /* VM_EXEC & ~VM_WRITE & ~VM_STACK */
 	unsigned long stack_vm;	   /* VM_STACK */
+
+	unsigned long def_flags;
 };
 
 struct vma_lock {

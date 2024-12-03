@@ -247,6 +247,9 @@ unsigned long __mmap_region(struct file *file, unsigned long addr,
 		unsigned long len, vm_flags_t vm_flags, unsigned long pgoff,
 		struct list_head *uf);
 
+int do_brk_flags(struct vma_iterator *vmi, struct vm_area_struct *brkvma,
+		 unsigned long addr, unsigned long request, unsigned long flags);
+
 static inline bool vma_wants_manual_pte_write_upgrade(struct vm_area_struct *vma)
 {
 	/*

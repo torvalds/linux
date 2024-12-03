@@ -2481,3 +2481,85 @@ abort_munmap:
 	vms_abort_munmap_vmas(&map.vms, &map.mas_detach);
 	return error;
 }
+
+/*
+ * do_brk_flags() - Increase the brk vma if the flags match.
+ * @vmi: The vma iterator
+ * @addr: The start address
+ * @len: The length of the increase
+ * @vma: The vma,
+ * @flags: The VMA Flags
+ *
+ * Extend the brk VMA from addr to addr + len.  If the VMA is NULL or the flags
+ * do not match then create a new anonymous VMA.  Eventually we may be able to
+ * do some brk-specific accounting here.
+ */
+int do_brk_flags(struct vma_iterator *vmi, struct vm_area_struct *vma,
+		 unsigned long addr, unsigned long len, unsigned long flags)
+{
+	struct mm_struct *mm = current->mm;
+
+	/*
+	 * Check against address space limits by the changed size
+	 * Note: This happens *after* clearing old mappings in some code paths.
+	 */
+	flags |= VM_DATA_DEFAULT_FLAGS | VM_ACCOUNT | mm->def_flags;
+	if (!may_expand_vm(mm, flags, len >> PAGE_SHIFT))
+		return -ENOMEM;
+
+	if (mm->map_count > sysctl_max_map_count)
+		return -ENOMEM;
+
+	if (security_vm_enough_memory_mm(mm, len >> PAGE_SHIFT))
+		return -ENOMEM;
+
+	/*
+	 * Expand the existing vma if possible; Note that singular lists do not
+	 * occur after forking, so the expand will only happen on new VMAs.
+	 */
+	if (vma && vma->vm_end == addr) {
+		VMG_STATE(vmg, mm, vmi, addr, addr + len, flags, PHYS_PFN(addr));
+
+		vmg.prev = vma;
+		/* vmi is positioned at prev, which this mode expects. */
+		vmg.merge_flags = VMG_FLAG_JUST_EXPAND;
+
+		if (vma_merge_new_range(&vmg))
+			goto out;
+		else if (vmg_nomem(&vmg))
+			goto unacct_fail;
+	}
+
+	if (vma)
+		vma_iter_next_range(vmi);
+	/* create a vma struct for an anonymous mapping */
+	vma = vm_area_alloc(mm);
+	if (!vma)
+		goto unacct_fail;
+
+	vma_set_anonymous(vma);
+	vma_set_range(vma, addr, addr + len, addr >> PAGE_SHIFT);
+	vm_flags_init(vma, flags);
+	vma->vm_page_prot = vm_get_page_prot(flags);
+	vma_start_write(vma);
+	if (vma_iter_store_gfp(vmi, vma, GFP_KERNEL))
+		goto mas_store_fail;
+
+	mm->map_count++;
+	validate_mm(mm);
+	ksm_add_vma(vma);
+out:
+	perf_event_mmap(vma);
+	mm->total_vm += len >> PAGE_SHIFT;
+	mm->data_vm += len >> PAGE_SHIFT;
+	if (flags & VM_LOCKED)
+		mm->locked_vm += (len >> PAGE_SHIFT);
+	vm_flags_set(vma, VM_SOFTDIRTY);
+	return 0;
+
+mas_store_fail:
+	vm_area_free(vma);
+unacct_fail:
+	vm_unacct_memory(len >> PAGE_SHIFT);
+	return -ENOMEM;
+}
