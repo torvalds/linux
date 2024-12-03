@@ -15,7 +15,29 @@ void arch_static_call_transform(void *site, void *tramp, void *func, bool tail)
 
 	mutex_lock(&text_mutex);
 
-	if (tramp) {
+	if (site && tail) {
+		if (!func)
+			err = patch_instruction(site, ppc_inst(PPC_RAW_BLR()));
+		else if (is_ret0)
+			err = patch_branch(site, _ret0, 0);
+		else if (is_short)
+			err = patch_branch(site, _func, 0);
+		else if (tramp)
+			err = patch_branch(site, _tramp, 0);
+		else
+			err = 0;
+	} else if (site) {
+		if (!func)
+			err = patch_instruction(site, ppc_inst(PPC_RAW_NOP()));
+		else if (is_ret0)
+			err = patch_instruction(site, ppc_inst(PPC_RAW_LI(_R3, 0)));
+		else if (is_short)
+			err = patch_branch(site, _func, BRANCH_SET_LINK);
+		else if (tramp)
+			err = patch_branch(site, _tramp, BRANCH_SET_LINK);
+		else
+			err = 0;
+	} else if (tramp) {
 		if (func && !is_short) {
 			err = patch_ulong(tramp + PPC_SCT_DATA, _func);
 			if (err)
