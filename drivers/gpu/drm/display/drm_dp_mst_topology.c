@@ -3679,7 +3679,7 @@ int drm_dp_mst_topology_mgr_set_mst(struct drm_dp_mst_topology_mgr *mgr, bool ms
 			goto out_unlock;
 
 		/* Write reset payload */
-		drm_dp_dpcd_write_payload(mgr->aux, 0, 0, 0x3f);
+		drm_dp_dpcd_clear_payload(mgr->aux);
 
 		drm_dp_mst_queue_probe_work(mgr);
 

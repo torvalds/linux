@@ -850,6 +850,20 @@ fail:
 EXPORT_SYMBOL(drm_dp_dpcd_write_payload);
 
 /**
+ * drm_dp_dpcd_clear_payload() - Clear the entire VC Payload ID table
+ * @aux: DisplayPort AUX channel
+ *
+ * Clear the entire VC Payload ID table.
+ *
+ * Returns: 0 on success, negative error code on errors.
+ */
+int drm_dp_dpcd_clear_payload(struct drm_dp_aux *aux)
+{
+	return drm_dp_dpcd_write_payload(aux, 0, 0, 0x3f);
+}
+EXPORT_SYMBOL(drm_dp_dpcd_clear_payload);
+
+/**
  * drm_dp_dpcd_poll_act_handled() - Poll for ACT handled status
  * @aux: DisplayPort AUX channel
  * @timeout_ms: Timeout in ms
