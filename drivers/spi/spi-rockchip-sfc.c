@@ -472,6 +472,16 @@ static int rockchip_sfc_xfer_done(struct rockchip_sfc *sfc, u32 timeout_us)
 	int ret = 0;
 	u32 status;
 
+	/*
+	 * There is very little data left in fifo, and the controller will
+	 * complete the transmission in a short period of time.
+	 */
+	ret = readl_poll_timeout(sfc->regbase + SFC_SR, status,
+				 !(status & SFC_SR_IS_BUSY),
+				 0, 10);
+	if (!ret)
+		return 0;
+
 	ret = readl_poll_timeout(sfc->regbase + SFC_SR, status,
 				 !(status & SFC_SR_IS_BUSY),
 				 20, timeout_us);
