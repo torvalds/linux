@@ -2854,18 +2854,30 @@ static int skl_wm_add_affected_planes(struct intel_atomic_state *state,
  * Program DEEP PKG_C_LATENCY Pkg C with all 1's.
  * Program PKG_C_LATENCY Added Wake Time = 0
  */
-static void
-skl_program_dpkgc_latency(struct drm_i915_private *i915, bool enable_dpkgc)
+void
+intel_program_dpkgc_latency(struct intel_atomic_state *state)
 {
-	struct intel_display *display = to_intel_display(&i915->drm);
+	struct intel_display *display = to_intel_display(state);
+	struct drm_i915_private *i915 = to_i915(display->drm);
+	struct intel_crtc *crtc;
+	struct intel_crtc_state *new_crtc_state;
 	u32 max_latency = LNL_PKG_C_LATENCY_MASK;
 	u32 clear, val;
 	u32 added_wake_time = 0;
+	bool fixed_refresh_rate = false;
+	int i;
 
 	if (DISPLAY_VER(display) < 20)
 		return;
 
-	if (enable_dpkgc) {
+	for_each_new_intel_crtc_in_state(state, crtc, new_crtc_state, i) {
+		if (!new_crtc_state->vrr.enable ||
+		    (new_crtc_state->vrr.vmin == new_crtc_state->vrr.vmax &&
+		     new_crtc_state->vrr.vmin == new_crtc_state->vrr.flipline))
+			fixed_refresh_rate = true;
+	}
+
+	if (fixed_refresh_rate) {
 		max_latency = skl_watermark_max_latency(i915, 1);
 		if (max_latency == 0)
 			max_latency = LNL_PKG_C_LATENCY_MASK;
@@ -2886,7 +2898,6 @@ skl_compute_wm(struct intel_atomic_state *state)
 	struct intel_crtc *crtc;
 	struct intel_crtc_state __maybe_unused *new_crtc_state;
 	int ret, i;
-	bool enable_dpkgc = false;
 
 	for_each_new_intel_crtc_in_state(state, crtc, new_crtc_state, i) {
 		ret = skl_build_pipe_wm(state, crtc);
@@ -2911,14 +2922,7 @@ skl_compute_wm(struct intel_atomic_state *state)
 		ret = skl_wm_add_affected_planes(state, crtc);
 		if (ret)
 			return ret;
-
-		if ((new_crtc_state->vrr.vmin == new_crtc_state->vrr.vmax &&
-		     new_crtc_state->vrr.vmin == new_crtc_state->vrr.flipline) ||
-		    !new_crtc_state->vrr.enable)
-			enable_dpkgc = true;
 	}
-
-	skl_program_dpkgc_latency(to_i915(state->base.dev), enable_dpkgc);
 
 	skl_print_wm_changes(state);
 

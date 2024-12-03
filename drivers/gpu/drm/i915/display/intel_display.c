@@ -7831,6 +7831,8 @@ static void intel_atomic_commit_tail(struct intel_atomic_state *state)
 	/* Now enable the clocks, plane, pipe, and connectors that we set up. */
 	dev_priv->display.funcs.display->commit_modeset_enables(state);
 
+	intel_program_dpkgc_latency(state);
+
 	if (state->modeset)
 		intel_set_cdclk_post_plane_update(state);
 
