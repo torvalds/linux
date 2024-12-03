@@ -250,6 +250,9 @@ unsigned long __mmap_region(struct file *file, unsigned long addr,
 int do_brk_flags(struct vma_iterator *vmi, struct vm_area_struct *brkvma,
 		 unsigned long addr, unsigned long request, unsigned long flags);
 
+unsigned long unmapped_area(struct vm_unmapped_area_info *info);
+unsigned long unmapped_area_topdown(struct vm_unmapped_area_info *info);
+
 static inline bool vma_wants_manual_pte_write_upgrade(struct vm_area_struct *vma)
 {
 	/*

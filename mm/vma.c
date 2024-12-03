@@ -2563,3 +2563,112 @@ unacct_fail:
 	vm_unacct_memory(len >> PAGE_SHIFT);
 	return -ENOMEM;
 }
+
+/**
+ * unmapped_area() - Find an area between the low_limit and the high_limit with
+ * the correct alignment and offset, all from @info. Note: current->mm is used
+ * for the search.
+ *
+ * @info: The unmapped area information including the range [low_limit -
+ * high_limit), the alignment offset and mask.
+ *
+ * Return: A memory address or -ENOMEM.
+ */
+unsigned long unmapped_area(struct vm_unmapped_area_info *info)
+{
+	unsigned long length, gap;
+	unsigned long low_limit, high_limit;
+	struct vm_area_struct *tmp;
+	VMA_ITERATOR(vmi, current->mm, 0);
+
+	/* Adjust search length to account for worst case alignment overhead */
+	length = info->length + info->align_mask + info->start_gap;
+	if (length < info->length)
+		return -ENOMEM;
+
+	low_limit = info->low_limit;
+	if (low_limit < mmap_min_addr)
+		low_limit = mmap_min_addr;
+	high_limit = info->high_limit;
+retry:
+	if (vma_iter_area_lowest(&vmi, low_limit, high_limit, length))
+		return -ENOMEM;
+
+	/*
+	 * Adjust for the gap first so it doesn't interfere with the
+	 * later alignment. The first step is the minimum needed to
+	 * fulill the start gap, the next steps is the minimum to align
+	 * that. It is the minimum needed to fulill both.
+	 */
+	gap = vma_iter_addr(&vmi) + info->start_gap;
+	gap += (info->align_offset - gap) & info->align_mask;
+	tmp = vma_next(&vmi);
+	if (tmp && (tmp->vm_flags & VM_STARTGAP_FLAGS)) { /* Avoid prev check if possible */
+		if (vm_start_gap(tmp) < gap + length - 1) {
+			low_limit = tmp->vm_end;
+			vma_iter_reset(&vmi);
+			goto retry;
+		}
+	} else {
+		tmp = vma_prev(&vmi);
+		if (tmp && vm_end_gap(tmp) > gap) {
+			low_limit = vm_end_gap(tmp);
+			vma_iter_reset(&vmi);
+			goto retry;
+		}
+	}
+
+	return gap;
+}
+
+/**
+ * unmapped_area_topdown() - Find an area between the low_limit and the
+ * high_limit with the correct alignment and offset at the highest available
+ * address, all from @info. Note: current->mm is used for the search.
+ *
+ * @info: The unmapped area information including the range [low_limit -
+ * high_limit), the alignment offset and mask.
+ *
+ * Return: A memory address or -ENOMEM.
+ */
+unsigned long unmapped_area_topdown(struct vm_unmapped_area_info *info)
+{
+	unsigned long length, gap, gap_end;
+	unsigned long low_limit, high_limit;
+	struct vm_area_struct *tmp;
+	VMA_ITERATOR(vmi, current->mm, 0);
+
+	/* Adjust search length to account for worst case alignment overhead */
+	length = info->length + info->align_mask + info->start_gap;
+	if (length < info->length)
+		return -ENOMEM;
+
+	low_limit = info->low_limit;
+	if (low_limit < mmap_min_addr)
+		low_limit = mmap_min_addr;
+	high_limit = info->high_limit;
+retry:
+	if (vma_iter_area_highest(&vmi, low_limit, high_limit, length))
+		return -ENOMEM;
+
+	gap = vma_iter_end(&vmi) - info->length;
+	gap -= (gap - info->align_offset) & info->align_mask;
+	gap_end = vma_iter_end(&vmi);
+	tmp = vma_next(&vmi);
+	if (tmp && (tmp->vm_flags & VM_STARTGAP_FLAGS)) { /* Avoid prev check if possible */
+		if (vm_start_gap(tmp) < gap_end) {
+			high_limit = vm_start_gap(tmp);
+			vma_iter_reset(&vmi);
+			goto retry;
+		}
+	} else {
+		tmp = vma_prev(&vmi);
+		if (tmp && vm_end_gap(tmp) > gap) {
+			high_limit = tmp->vm_start;
+			vma_iter_reset(&vmi);
+			goto retry;
+		}
+	}
+
+	return gap;
+}
