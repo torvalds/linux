@@ -1079,6 +1079,10 @@ void probe_platform_features(unsigned int family, unsigned int model)
 			return;
 		}
 	}
+
+	fprintf(stderr, "Unsupported platform detected.\n"
+		"\tSee RUN THE LATEST VERSION on turbostat(8)\n");
+	exit(1);
 }
 
 /* Model specific support End */
