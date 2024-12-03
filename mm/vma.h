@@ -139,12 +139,6 @@ void validate_mm(struct mm_struct *mm);
 #define validate_mm(mm) do { } while (0)
 #endif
 
-/* Required for expand_downwards(). */
-void anon_vma_interval_tree_pre_update_vma(struct vm_area_struct *vma);
-
-/* Required for expand_downwards(). */
-void anon_vma_interval_tree_post_update_vma(struct vm_area_struct *vma);
-
 int vma_expand(struct vma_merge_struct *vmg);
 int vma_shrink(struct vma_iterator *vmi, struct vm_area_struct *vma,
 	       unsigned long start, unsigned long end, pgoff_t pgoff);
@@ -477,5 +471,11 @@ static inline bool can_modify_vma_madv(struct vm_area_struct *vma, int behavior)
 }
 
 #endif
+
+#if defined(CONFIG_STACK_GROWSUP)
+int expand_upwards(struct vm_area_struct *vma, unsigned long address);
+#endif
+
+int expand_downwards(struct vm_area_struct *vma, unsigned long address);
 
 #endif	/* __MM_VMA_H */

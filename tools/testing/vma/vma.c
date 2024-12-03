@@ -53,6 +53,11 @@ struct task_struct *get_current(void)
 	return &__current;
 }
 
+unsigned long rlimit(unsigned int limit)
+{
+	return (unsigned long)-1;
+}
+
 /* Helper function to simply allocate a VMA. */
 static struct vm_area_struct *alloc_vma(struct mm_struct *mm,
 					unsigned long start,
