@@ -1,0 +1,24 @@
+// SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+/*
+ * Device Tree Source for the RZ SMARC Carrier-II Board.
+ *
+ * Copyright (C) 2024 Renesas Electronics Corp.
+ */
+
+/ {
+	model = "Renesas RZ SMARC Carrier-II Board";
+	compatible = "renesas,smarc2-evk";
+
+	chosen {
+		bootargs = "ignore_loglevel";
+		stdout-path = "serial3:115200n8";
+	};
+
+	aliases {
+		serial3 = &scif0;
+	};
+};
+
+&scif0 {
+	status = "okay";
+};
