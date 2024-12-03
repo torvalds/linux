@@ -325,6 +325,11 @@ static inline int check_net(const struct net *net)
 #define net_drop_ns NULL
 #endif
 
+/* Returns true if the netns initialization is completed successfully */
+static inline bool net_initialized(const struct net *net)
+{
+	return READ_ONCE(net->list.next);
+}
 
 static inline void __netns_tracker_alloc(struct net *net,
 					 netns_tracker *tracker,
