@@ -2360,13 +2360,15 @@ static int vma_lock_and_validate(struct drm_exec *exec, struct xe_vma *vma,
 				 bool validate)
 {
 	struct xe_bo *bo = xe_vma_bo(vma);
+	struct xe_vm *vm = xe_vma_vm(vma);
 	int err = 0;
 
 	if (bo) {
 		if (!bo->vm)
 			err = drm_exec_lock_obj(exec, &bo->ttm.base);
 		if (!err && validate)
-			err = xe_bo_validate(bo, xe_vma_vm(vma), true);
+			err = xe_bo_validate(bo, vm,
+					     !xe_vm_in_preempt_fence_mode(vm));
 	}
 
 	return err;
