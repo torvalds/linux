@@ -478,4 +478,6 @@ int expand_upwards(struct vm_area_struct *vma, unsigned long address);
 
 int expand_downwards(struct vm_area_struct *vma, unsigned long address);
 
+int __vm_munmap(unsigned long start, size_t len, bool unlock);
+
 #endif	/* __MM_VMA_H */

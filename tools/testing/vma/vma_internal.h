@@ -906,6 +906,11 @@ static inline void mmap_write_unlock(struct mm_struct *)
 {
 }
 
+static inline int mmap_write_lock_killable(struct mm_struct *)
+{
+	return 0;
+}
+
 static inline bool can_modify_mm(struct mm_struct *mm,
 				 unsigned long start,
 				 unsigned long end)
@@ -1175,5 +1180,9 @@ static inline int anon_vma_prepare(struct vm_area_struct *vma)
 	return __anon_vma_prepare(vma);
 }
 
+static inline void userfaultfd_unmap_complete(struct mm_struct *mm,
+					      struct list_head *uf)
+{
+}
 
 #endif	/* __MM_VMA_INTERNAL_H */

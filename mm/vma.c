@@ -2877,3 +2877,21 @@ int expand_downwards(struct vm_area_struct *vma, unsigned long address)
 	validate_mm(mm);
 	return error;
 }
+
+int __vm_munmap(unsigned long start, size_t len, bool unlock)
+{
+	int ret;
+	struct mm_struct *mm = current->mm;
+	LIST_HEAD(uf);
+	VMA_ITERATOR(vmi, mm, start);
+
+	if (mmap_write_lock_killable(mm))
+		return -EINTR;
+
+	ret = do_vmi_munmap(&vmi, mm, start, len, &uf, unlock);
+	if (ret || !unlock)
+		mmap_write_unlock(mm);
+
+	userfaultfd_unmap_complete(mm, &uf);
+	return ret;
+}
