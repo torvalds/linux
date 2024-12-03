@@ -793,6 +793,63 @@ static int read_payload_update_status(struct drm_dp_aux *aux)
 }
 
 /**
+ * drm_dp_dpcd_write_payload() - Write Virtual Channel information to payload table
+ * @aux: DisplayPort AUX channel
+ * @vcpid: Virtual Channel Payload ID
+ * @start_time_slot: Starting time slot
+ * @time_slot_count: Time slot count
+ *
+ * Write the Virtual Channel payload allocation table, checking the payload
+ * update status and retrying as necessary.
+ *
+ * Returns:
+ * 0 on success, negative error otherwise
+ */
+int drm_dp_dpcd_write_payload(struct drm_dp_aux *aux,
+			      int vcpid, u8 start_time_slot, u8 time_slot_count)
+{
+	u8 payload_alloc[3], status;
+	int ret;
+	int retries = 0;
+
+	drm_dp_dpcd_writeb(aux, DP_PAYLOAD_TABLE_UPDATE_STATUS,
+			   DP_PAYLOAD_TABLE_UPDATED);
+
+	payload_alloc[0] = vcpid;
+	payload_alloc[1] = start_time_slot;
+	payload_alloc[2] = time_slot_count;
+
+	ret = drm_dp_dpcd_write(aux, DP_PAYLOAD_ALLOCATE_SET, payload_alloc, 3);
+	if (ret != 3) {
+		drm_dbg_kms(aux->drm_dev, "failed to write payload allocation %d\n", ret);
+		goto fail;
+	}
+
+retry:
+	ret = drm_dp_dpcd_readb(aux, DP_PAYLOAD_TABLE_UPDATE_STATUS, &status);
+	if (ret < 0) {
+		drm_dbg_kms(aux->drm_dev, "failed to read payload table status %d\n", ret);
+		goto fail;
+	}
+
+	if (!(status & DP_PAYLOAD_TABLE_UPDATED)) {
+		retries++;
+		if (retries < 20) {
+			usleep_range(10000, 20000);
+			goto retry;
+		}
+		drm_dbg_kms(aux->drm_dev, "status not set after read payload table status %d\n",
+			    status);
+		ret = -EINVAL;
+		goto fail;
+	}
+	ret = 0;
+fail:
+	return ret;
+}
+EXPORT_SYMBOL(drm_dp_dpcd_write_payload);
+
+/**
  * drm_dp_dpcd_poll_act_handled() - Poll for ACT handled status
  * @aux: DisplayPort AUX channel
  * @timeout_ms: Timeout in ms

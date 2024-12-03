@@ -67,9 +67,6 @@ static bool dump_dp_payload_table(struct drm_dp_mst_topology_mgr *mgr,
 
 static void drm_dp_mst_topology_put_port(struct drm_dp_mst_port *port);
 
-static int drm_dp_dpcd_write_payload(struct drm_dp_mst_topology_mgr *mgr,
-				     int id, u8 start_slot, u8 num_slots);
-
 static int drm_dp_send_dpcd_read(struct drm_dp_mst_topology_mgr *mgr,
 				 struct drm_dp_mst_port *port,
 				 int offset, int size, u8 *bytes);
@@ -3263,7 +3260,7 @@ EXPORT_SYMBOL(drm_dp_send_query_stream_enc_status);
 static int drm_dp_create_payload_at_dfp(struct drm_dp_mst_topology_mgr *mgr,
 					struct drm_dp_mst_atomic_payload *payload)
 {
-	return drm_dp_dpcd_write_payload(mgr, payload->vcpi, payload->vc_start_slot,
+	return drm_dp_dpcd_write_payload(mgr->aux, payload->vcpi, payload->vc_start_slot,
 					 payload->time_slots);
 }
 
@@ -3294,7 +3291,7 @@ static void drm_dp_destroy_payload_at_remote_and_dfp(struct drm_dp_mst_topology_
 	}
 
 	if (payload->payload_allocation_status == DRM_DP_MST_PAYLOAD_ALLOCATION_DFP)
-		drm_dp_dpcd_write_payload(mgr, payload->vcpi, payload->vc_start_slot, 0);
+		drm_dp_dpcd_write_payload(mgr->aux, payload->vcpi, payload->vc_start_slot, 0);
 }
 
 /**
@@ -3682,7 +3679,7 @@ int drm_dp_mst_topology_mgr_set_mst(struct drm_dp_mst_topology_mgr *mgr, bool ms
 			goto out_unlock;
 
 		/* Write reset payload */
-		drm_dp_dpcd_write_payload(mgr, 0, 0, 0x3f);
+		drm_dp_dpcd_write_payload(mgr->aux, 0, 0, 0x3f);
 
 		drm_dp_mst_queue_probe_work(mgr);
 
@@ -4678,49 +4675,6 @@ void drm_dp_mst_update_slots(struct drm_dp_mst_topology_state *mst_state, uint8_
 		      mst_state);
 }
 EXPORT_SYMBOL(drm_dp_mst_update_slots);
-
-static int drm_dp_dpcd_write_payload(struct drm_dp_mst_topology_mgr *mgr,
-				     int id, u8 start_slot, u8 num_slots)
-{
-	u8 payload_alloc[3], status;
-	int ret;
-	int retries = 0;
-
-	drm_dp_dpcd_writeb(mgr->aux, DP_PAYLOAD_TABLE_UPDATE_STATUS,
-			   DP_PAYLOAD_TABLE_UPDATED);
-
-	payload_alloc[0] = id;
-	payload_alloc[1] = start_slot;
-	payload_alloc[2] = num_slots;
-
-	ret = drm_dp_dpcd_write(mgr->aux, DP_PAYLOAD_ALLOCATE_SET, payload_alloc, 3);
-	if (ret != 3) {
-		drm_dbg_kms(mgr->dev, "failed to write payload allocation %d\n", ret);
-		goto fail;
-	}
-
-retry:
-	ret = drm_dp_dpcd_readb(mgr->aux, DP_PAYLOAD_TABLE_UPDATE_STATUS, &status);
-	if (ret < 0) {
-		drm_dbg_kms(mgr->dev, "failed to read payload table status %d\n", ret);
-		goto fail;
-	}
-
-	if (!(status & DP_PAYLOAD_TABLE_UPDATED)) {
-		retries++;
-		if (retries < 20) {
-			usleep_range(10000, 20000);
-			goto retry;
-		}
-		drm_dbg_kms(mgr->dev, "status not set after read payload table status %d\n",
-			    status);
-		ret = -EINVAL;
-		goto fail;
-	}
-	ret = 0;
-fail:
-	return ret;
-}
 
 /**
  * drm_dp_check_act_status() - Polls for ACT handled status.
