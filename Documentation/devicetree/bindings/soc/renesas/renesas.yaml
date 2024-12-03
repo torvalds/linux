@@ -528,6 +528,10 @@ properties:
       - description: RZ/G3E (R9A09G047)
         items:
           - enum:
+              - renesas,smarc2-evk # RZ SMARC Carrier-II EVK
+          - enum:
+              - renesas,rzg3e-smarcm # RZ/G3E SMARC Module (SoM)
+          - enum:
               - renesas,r9a09g047e27 # Dual Cortex-A55 + Cortex-M33 (15mm BGA)
               - renesas,r9a09g047e28 # Dual Cortex-A55 + Cortex-M33 (21mm BGA)
               - renesas,r9a09g047e37 # Dual Cortex-A55 + Cortex-M33 + Ethos-U55 (15mm BGA)
