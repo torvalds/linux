@@ -990,6 +990,15 @@ static void phylink_resolve_an_pause(struct phylink_link_state *state)
 	}
 }
 
+static unsigned int phylink_pcs_inband_caps(struct phylink_pcs *pcs,
+				    phy_interface_t interface)
+{
+	if (pcs && pcs->ops->pcs_inband_caps)
+		return pcs->ops->pcs_inband_caps(pcs, interface);
+
+	return 0;
+}
+
 static void phylink_pcs_pre_config(struct phylink_pcs *pcs,
 				   phy_interface_t interface)
 {
@@ -1041,6 +1050,24 @@ static void phylink_pcs_link_up(struct phylink_pcs *pcs, unsigned int neg_mode,
 {
 	if (pcs && pcs->ops->pcs_link_up)
 		pcs->ops->pcs_link_up(pcs, neg_mode, interface, speed, duplex);
+}
+
+/* Query inband for a specific interface mode, asking the MAC for the
+ * PCS which will be used to handle the interface mode.
+ */
+static unsigned int phylink_inband_caps(struct phylink *pl,
+					 phy_interface_t interface)
+{
+	struct phylink_pcs *pcs;
+
+	if (!pl->mac_ops->mac_select_pcs)
+		return 0;
+
+	pcs = pl->mac_ops->mac_select_pcs(pl->config, interface);
+	if (!pcs)
+		return 0;
+
+	return phylink_pcs_inband_caps(pcs, interface);
 }
 
 static void phylink_pcs_poll_stop(struct phylink *pl)
@@ -2532,6 +2559,26 @@ int phylink_ethtool_ksettings_get(struct phylink *pl,
 }
 EXPORT_SYMBOL_GPL(phylink_ethtool_ksettings_get);
 
+static bool phylink_validate_pcs_inband_autoneg(struct phylink *pl,
+					        phy_interface_t interface,
+						unsigned long *adv)
+{
+	unsigned int inband = phylink_inband_caps(pl, interface);
+	unsigned int mask;
+
+	/* If the PCS doesn't implement inband support, be permissive. */
+	if (!inband)
+		return true;
+
+	if (linkmode_test_bit(ETHTOOL_LINK_MODE_Autoneg_BIT, adv))
+		mask = LINK_INBAND_ENABLE;
+	else
+		mask = LINK_INBAND_DISABLE;
+
+	/* Check whether the PCS implements the required mode */
+	return !!(inband & mask);
+}
+
 /**
  * phylink_ethtool_ksettings_set() - set the link settings
  * @pl: a pointer to a &struct phylink returned from phylink_create()
@@ -2660,6 +2707,13 @@ int phylink_ethtool_ksettings_set(struct phylink *pl,
 	if (linkmode_test_bit(ETHTOOL_LINK_MODE_Autoneg_BIT,
 			      config.advertising) &&
 	    phylink_is_empty_linkmode(config.advertising))
+		return -EINVAL;
+
+	/* Validate the autonegotiation state. We don't have a PHY in this
+	 * situation, so the PCS is the media-facing entity.
+	 */
+	if (!phylink_validate_pcs_inband_autoneg(pl, config.interface,
+						 config.advertising))
 		return -EINVAL;
 
 	mutex_lock(&pl->state_mutex);
@@ -3340,6 +3394,12 @@ static int phylink_sfp_config_optical(struct phylink *pl)
 
 	phylink_dbg(pl, "optical SFP: chosen %s interface\n",
 		    phy_modes(interface));
+
+	if (!phylink_validate_pcs_inband_autoneg(pl, interface,
+						 config.advertising)) {
+		phylink_err(pl, "autoneg setting not compatible with PCS");
+		return -EINVAL;
+	}
 
 	config.interface = interface;
 
