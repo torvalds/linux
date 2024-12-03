@@ -154,6 +154,8 @@ struct msm_ssphy_qmp {
 	int			init_seq_len;
 	bool			invert_ps_polarity;
 	enum qmp_phy_type	phy_type;
+
+	bool			force_usb3;
 };
 
 static const struct of_device_id msm_usb_id_table[] = {
@@ -503,13 +505,17 @@ static void usb_qmp_update_portselect_phymode(struct msm_ssphy_qmp *phy)
 				"USB DP QMP PHY: NO SW PORTSELECT\n");
 #endif
 
-		if (!(phy->phy.flags & PHY_USB_DP_CONCURRENT_MODE)) {
+		if (phy->force_usb3)
+			msm_ssphy_qmp_setmode(phy, USB3_MODE);
+		else if (!(phy->phy.flags & PHY_USB_DP_CONCURRENT_MODE))
 			msm_ssphy_qmp_setmode(phy, USB3_DP_COMBO_MODE);
+		else
+			goto skip_reset_override;
 
-			/* bring both USB and DP PHYs PCS block out of reset */
-			writel_relaxed(0x00, phy->base +
-				phy->phy_reg[USB3_DP_COM_RESET_OVRD_CTRL]);
-		}
+		/* bring both USB and DP PHYs PCS block out of reset */
+		writel_relaxed(0x00, phy->base +
+			phy->phy_reg[USB3_DP_COM_RESET_OVRD_CTRL]);
+skip_reset_override:
 		break;
 	case  USB3_OR_DP:
 		if (val > 0) {
@@ -1232,6 +1238,9 @@ static int msm_ssphy_qmp_probe(struct platform_device *pdev)
 
 	phy->invert_ps_polarity = of_property_read_bool(dev->of_node,
 					"qcom,invert-ps-polarity");
+
+	phy->force_usb3 = of_property_read_bool(dev->of_node,
+						"qcom,force-usb3");
 
 	phy->phy.dev			= dev;
 	phy->phy.init			= msm_ssphy_qmp_init;
