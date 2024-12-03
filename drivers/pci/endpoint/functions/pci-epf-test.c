@@ -44,6 +44,8 @@
 
 #define TIMER_RESOLUTION		1
 
+#define CAP_UNALIGNED_ACCESS		BIT(0)
+
 static struct workqueue_struct *kpcitest_workqueue;
 
 struct pci_epf_test {
@@ -74,6 +76,7 @@ struct pci_epf_test_reg {
 	u32	irq_type;
 	u32	irq_number;
 	u32	flags;
+	u32	caps;
 } __packed;
 
 static struct pci_epf_header test_header = {
@@ -739,6 +742,20 @@ static void pci_epf_test_clear_bar(struct pci_epf *epf)
 	}
 }
 
+static void pci_epf_test_set_capabilities(struct pci_epf *epf)
+{
+	struct pci_epf_test *epf_test = epf_get_drvdata(epf);
+	enum pci_barno test_reg_bar = epf_test->test_reg_bar;
+	struct pci_epf_test_reg *reg = epf_test->reg[test_reg_bar];
+	struct pci_epc *epc = epf->epc;
+	u32 caps = 0;
+
+	if (epc->ops->align_addr)
+		caps |= CAP_UNALIGNED_ACCESS;
+
+	reg->caps = cpu_to_le32(caps);
+}
+
 static int pci_epf_test_epc_init(struct pci_epf *epf)
 {
 	struct pci_epf_test *epf_test = epf_get_drvdata(epf);
@@ -762,6 +779,8 @@ static int pci_epf_test_epc_init(struct pci_epf *epf)
 			return ret;
 		}
 	}
+
+	pci_epf_test_set_capabilities(epf);
 
 	ret = pci_epf_test_set_bar(epf);
 	if (ret)
