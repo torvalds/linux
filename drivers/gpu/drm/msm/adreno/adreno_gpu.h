@@ -253,6 +253,8 @@ struct adreno_gpu {
 	bool gmu_is_wrapper;
 
 	bool has_ray_tracing;
+
+	u64 uche_trap_base;
 };
 #define to_adreno_gpu(x) container_of(x, struct adreno_gpu, base)
 
