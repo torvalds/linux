@@ -45,6 +45,11 @@
 #define VHOST_SCSI_PREALLOC_SGLS 2048
 #define VHOST_SCSI_PREALLOC_UPAGES 2048
 #define VHOST_SCSI_PREALLOC_PROT_SGLS 2048
+/*
+ * For the legacy descriptor case we allocate an iov per byte in the
+ * virtio_scsi_cmd_resp struct.
+ */
+#define VHOST_SCSI_MAX_RESP_IOVS sizeof(struct virtio_scsi_cmd_resp)
 
 static unsigned int vhost_scsi_inline_sg_cnt = VHOST_SCSI_PREALLOC_SGLS;
 
@@ -106,8 +111,6 @@ struct vhost_scsi_inflight {
 struct vhost_scsi_cmd {
 	/* Descriptor from vhost_get_vq_desc() for virt_queue segment */
 	int tvc_vq_desc;
-	/* virtio-scsi response incoming iovecs */
-	int tvc_in_iovs;
 	/* The number of scatterlists associated with this cmd */
 	u32 tvc_sgl_count;
 	u32 tvc_prot_sgl_count;
@@ -118,8 +121,12 @@ struct vhost_scsi_cmd {
 	struct sg_table table;
 	struct scatterlist *prot_sgl;
 	struct sg_table prot_table;
-	/* Pointer to response header iovec */
-	struct iovec *tvc_resp_iov;
+	/* Fast path response header iovec used when only one vec is needed */
+	struct iovec tvc_resp_iov;
+	/* Number of iovs for response */
+	unsigned int tvc_resp_iovs_cnt;
+	/* Pointer to response header iovecs if more than one is needed */
+	struct iovec *tvc_resp_iovs;
 	/* Pointer to vhost_virtqueue for the cmd */
 	struct vhost_virtqueue *tvc_vq;
 	/* The TCM I/O descriptor that is accessed via container_of() */
@@ -391,6 +398,8 @@ static void vhost_scsi_release_cmd_res(struct se_cmd *se_cmd)
 		sg_free_table_chained(&tv_cmd->prot_table, vs->inline_sg_cnt);
 	}
 
+	if (tv_cmd->tvc_resp_iovs != &tv_cmd->tvc_resp_iov)
+		kfree(tv_cmd->tvc_resp_iovs);
 	sbitmap_clear_bit(&svq->scsi_tags, se_cmd->map_tag);
 	vhost_scsi_put_inflight(inflight);
 }
@@ -638,8 +647,8 @@ static void vhost_scsi_complete_cmd_work(struct vhost_work *work)
 			       se_cmd->scsi_sense_length);
 		}
 
-		iov_iter_init(&iov_iter, ITER_DEST, cmd->tvc_resp_iov,
-			      cmd->tvc_in_iovs, sizeof(v_rsp));
+		iov_iter_init(&iov_iter, ITER_DEST, cmd->tvc_resp_iovs,
+			      cmd->tvc_resp_iovs_cnt, sizeof(v_rsp));
 		ret = copy_to_iter(&v_rsp, sizeof(v_rsp), &iov_iter);
 		if (likely(ret == sizeof(v_rsp))) {
 			signal = true;
@@ -662,7 +671,6 @@ vhost_scsi_get_cmd(struct vhost_virtqueue *vq, u64 scsi_tag)
 					struct vhost_scsi_virtqueue, vq);
 	struct vhost_scsi_cmd *cmd;
 	struct scatterlist *sgl, *prot_sgl;
-	struct iovec *tvc_resp_iov;
 	int tag;
 
 	tag = sbitmap_get(&svq->scsi_tags);
@@ -674,13 +682,11 @@ vhost_scsi_get_cmd(struct vhost_virtqueue *vq, u64 scsi_tag)
 	cmd = &svq->scsi_cmds[tag];
 	sgl = cmd->sgl;
 	prot_sgl = cmd->prot_sgl;
-	tvc_resp_iov = cmd->tvc_resp_iov;
 	memset(cmd, 0, sizeof(*cmd));
 	cmd->sgl = sgl;
 	cmd->prot_sgl = prot_sgl;
 	cmd->tvc_se_cmd.map_tag = tag;
 	cmd->inflight = vhost_scsi_get_inflight(vq);
-	cmd->tvc_resp_iov = tvc_resp_iov;
 
 	return cmd;
 }
@@ -1124,6 +1130,43 @@ out:
 	return ret;
 }
 
+static int
+vhost_scsi_setup_resp_iovs(struct vhost_scsi_cmd *cmd, struct iovec *in_iovs,
+			   unsigned int in_iovs_cnt)
+{
+	int i, cnt;
+
+	if (!in_iovs_cnt)
+		return 0;
+	/*
+	 * Initiator's normally just put the virtio_scsi_cmd_resp in the first
+	 * iov, but just in case they wedged in some data with it we check for
+	 * greater than or equal to the response struct.
+	 */
+	if (in_iovs[0].iov_len >= sizeof(struct virtio_scsi_cmd_resp)) {
+		cmd->tvc_resp_iovs = &cmd->tvc_resp_iov;
+		cmd->tvc_resp_iovs_cnt = 1;
+	} else {
+		/*
+		 * Legacy descriptor layouts didn't specify that we must put
+		 * the entire response in one iov. Worst case we have a
+		 * iov per byte.
+		 */
+		cnt = min(VHOST_SCSI_MAX_RESP_IOVS, in_iovs_cnt);
+		cmd->tvc_resp_iovs = kcalloc(cnt, sizeof(struct iovec),
+					     GFP_KERNEL);
+		if (!cmd->tvc_resp_iovs)
+			return -ENOMEM;
+
+		cmd->tvc_resp_iovs_cnt = cnt;
+	}
+
+	for (i = 0; i < cmd->tvc_resp_iovs_cnt; i++)
+		cmd->tvc_resp_iovs[i] = in_iovs[i];
+
+	return 0;
+}
+
 static u16 vhost_buf_to_lun(u8 *lun_buf)
 {
 	return ((lun_buf[2] << 8) | lun_buf[3]) & 0x3FFF;
@@ -1141,7 +1184,7 @@ vhost_scsi_handle_vq(struct vhost_scsi *vs, struct vhost_virtqueue *vq)
 	struct iov_iter in_iter, prot_iter, data_iter;
 	u64 tag;
 	u32 exp_data_len, data_direction;
-	int ret, prot_bytes, i, c = 0;
+	int ret, prot_bytes, c = 0;
 	u16 lun;
 	u8 task_attr;
 	bool t10_pi = vhost_has_feature(vq, VIRTIO_SCSI_F_T10_PI);
@@ -1303,9 +1346,13 @@ vhost_scsi_handle_vq(struct vhost_scsi *vs, struct vhost_virtqueue *vq)
 			goto err;
 		}
 		cmd->tvc_vq = vq;
-		for (i = 0; i < vc.in ; i++)
-			cmd->tvc_resp_iov[i] = vq->iov[vc.out + i];
-		cmd->tvc_in_iovs = vc.in;
+
+		ret = vhost_scsi_setup_resp_iovs(cmd, &vq->iov[vc.out], vc.in);
+		if (ret) {
+			vq_err(vq, "Failed to alloc recv iovs\n");
+			vhost_scsi_release_cmd_res(&cmd->tvc_se_cmd);
+			goto err;
+		}
 
 		pr_debug("vhost_scsi got command opcode: %#02x, lun: %d\n",
 			 cdb[0], lun);
@@ -1686,7 +1733,6 @@ static void vhost_scsi_destroy_vq_cmds(struct vhost_virtqueue *vq)
 
 		kfree(tv_cmd->sgl);
 		kfree(tv_cmd->prot_sgl);
-		kfree(tv_cmd->tvc_resp_iov);
 	}
 
 	sbitmap_free(&svq->scsi_tags);
@@ -1733,14 +1779,6 @@ static int vhost_scsi_setup_vq_cmds(struct vhost_virtqueue *vq, int max_cmds)
 				pr_err("Unable to allocate tv_cmd->sgl\n");
 				goto out;
 			}
-		}
-
-		tv_cmd->tvc_resp_iov = kcalloc(UIO_MAXIOV,
-					       sizeof(struct iovec),
-					       GFP_KERNEL);
-		if (!tv_cmd->tvc_resp_iov) {
-			pr_err("Unable to allocate tv_cmd->tvc_resp_iov\n");
-			goto out;
 		}
 
 		if (vhost_has_feature(vq, VIRTIO_SCSI_F_T10_PI) &&
