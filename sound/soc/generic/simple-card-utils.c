@@ -1026,7 +1026,6 @@ static int graph_get_dai_id(struct device_node *ep)
 {
 	struct device_node *node __free(device_node) = of_graph_get_port_parent(ep);
 	struct device_node *port __free(device_node) = of_get_parent(ep);
-	struct device_node *endpoint;
 	struct of_endpoint info;
 	int i, id;
 	int ret;
@@ -1062,9 +1061,11 @@ static int graph_get_dai_id(struct device_node *ep)
 	 */
 	i = 0;
 	id = -1;
-	for_each_endpoint_of_node(node, endpoint) {
-		if (endpoint == ep)
+	for_each_of_graph_port(node, p) {
+		if (port == p) {
 			id = i;
+			break;
+		}
 		i++;
 	}
 
