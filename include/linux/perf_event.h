@@ -1690,6 +1690,8 @@ static inline int perf_allow_tracepoint(struct perf_event_attr *attr)
 	return security_perf_event_open(attr, PERF_SECURITY_TRACEPOINT);
 }
 
+extern int perf_exclude_event(struct perf_event *event, struct pt_regs *regs);
+
 extern void perf_event_init(void);
 extern void perf_tp_event(u16 event_type, u64 count, void *record,
 			  int entry_size, struct pt_regs *regs,
@@ -1892,6 +1894,10 @@ static inline int perf_event_period(struct perf_event *event, u64 value)
 	return -EINVAL;
 }
 static inline u64 perf_event_pause(struct perf_event *event, bool reset)
+{
+	return 0;
+}
+static inline int perf_exclude_event(struct perf_event *event, struct pt_regs *regs)
 {
 	return 0;
 }
