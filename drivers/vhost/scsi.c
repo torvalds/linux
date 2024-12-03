@@ -112,8 +112,8 @@ struct vhost_scsi_cmd {
 	u32 tvc_sgl_count;
 	u32 tvc_prot_sgl_count;
 	u32 copied_iov:1;
-	const void *saved_iter_addr;
-	struct iov_iter saved_iter;
+	const void *read_iov;
+	struct iov_iter *read_iter;
 	struct scatterlist *sgl;
 	struct sg_table table;
 	struct scatterlist *prot_sgl;
@@ -378,7 +378,8 @@ static void vhost_scsi_release_cmd_res(struct se_cmd *se_cmd)
 			else
 				put_page(page);
 		}
-		kfree(tv_cmd->saved_iter_addr);
+		kfree(tv_cmd->read_iter);
+		kfree(tv_cmd->read_iov);
 		sg_free_table_chained(&tv_cmd->table, vs->inline_sg_cnt);
 	}
 	if (tv_cmd->tvc_prot_sgl_count) {
@@ -576,7 +577,7 @@ static void vhost_scsi_evt_work(struct vhost_work *work)
 
 static int vhost_scsi_copy_sgl_to_iov(struct vhost_scsi_cmd *cmd)
 {
-	struct iov_iter *iter = &cmd->saved_iter;
+	struct iov_iter *iter = cmd->read_iter;
 	struct scatterlist *sg;
 	struct page *page;
 	size_t len;
@@ -624,7 +625,7 @@ static void vhost_scsi_complete_cmd_work(struct vhost_work *work)
 			cmd, se_cmd->residual_count, se_cmd->scsi_status);
 		memset(&v_rsp, 0, sizeof(v_rsp));
 
-		if (cmd->saved_iter_addr && vhost_scsi_copy_sgl_to_iov(cmd)) {
+		if (cmd->read_iter && vhost_scsi_copy_sgl_to_iov(cmd)) {
 			v_rsp.response = VIRTIO_SCSI_S_BAD_TARGET;
 		} else {
 			v_rsp.resid = cpu_to_vhost32(cmd->tvc_vq,
@@ -808,10 +809,15 @@ vhost_scsi_copy_iov_to_sgl(struct vhost_scsi_cmd *cmd, struct iov_iter *iter,
 	int i, ret;
 
 	if (data_dir == DMA_FROM_DEVICE) {
-		cmd->saved_iter_addr = dup_iter(&cmd->saved_iter, iter,
-						GFP_KERNEL);
-		if (!cmd->saved_iter_addr)
+		cmd->read_iter = kzalloc(sizeof(*cmd->read_iter), GFP_KERNEL);
+		if (!cmd->read_iter)
 			return -ENOMEM;
+
+		cmd->read_iov = dup_iter(cmd->read_iter, iter, GFP_KERNEL);
+		if (!cmd->read_iov) {
+			ret = -ENOMEM;
+			goto free_iter;
+		}
 	}
 
 	for_each_sgtable_sg(sg_table, sg, i) {
@@ -845,7 +851,9 @@ err:
 		if (page)
 			__free_page(page);
 	}
-	kfree(cmd->saved_iter_addr);
+	kfree(cmd->read_iov);
+free_iter:
+	kfree(cmd->read_iter);
 	return ret;
 }
 
