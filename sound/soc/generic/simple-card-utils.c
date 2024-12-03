@@ -1045,12 +1045,15 @@ static int graph_get_dai_id(struct device_node *ep)
 		 * only of_graph_parse_endpoint().
 		 * We need to check "reg" property
 		 */
-		if (of_property_present(ep,   "reg"))
-			return info.id;
 
+		/* check port first */
 		ret = of_property_present(port, "reg");
 		if (ret)
 			return info.port;
+
+		/* check endpoint 2nd as backup */
+		if (of_property_present(ep,   "reg"))
+			return info.id;
 	}
 
 	/*
