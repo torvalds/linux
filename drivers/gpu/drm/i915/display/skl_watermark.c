@@ -2862,9 +2862,9 @@ intel_program_dpkgc_latency(struct intel_atomic_state *state)
 	struct intel_crtc *crtc;
 	struct intel_crtc_state *new_crtc_state;
 	u32 latency = LNL_PKG_C_LATENCY_MASK;
+	u32 added_wake_time = 0;
 	u32 max_linetime = 0;
 	u32 clear, val;
-	u32 added_wake_time = 0;
 	bool fixed_refresh_rate = false;
 	int i;
 
