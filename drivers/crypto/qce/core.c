@@ -4,6 +4,7 @@
  */
 
 #include <linux/clk.h>
+#include <linux/device.h>
 #include <linux/dma-mapping.h>
 #include <linux/interconnect.h>
 #include <linux/interrupt.h>
@@ -37,9 +38,10 @@ static const struct qce_algo_ops *qce_ops[] = {
 #endif
 };
 
-static void qce_unregister_algs(struct qce_device *qce)
+static void qce_unregister_algs(void *data)
 {
 	const struct qce_algo_ops *ops;
+	struct qce_device *qce = data;
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(qce_ops); i++) {
@@ -48,7 +50,7 @@ static void qce_unregister_algs(struct qce_device *qce)
 	}
 }
 
-static int qce_register_algs(struct qce_device *qce)
+static int devm_qce_register_algs(struct qce_device *qce)
 {
 	const struct qce_algo_ops *ops;
 	int i, j, ret = -ENODEV;
@@ -63,7 +65,7 @@ static int qce_register_algs(struct qce_device *qce)
 		}
 	}
 
-	return 0;
+	return devm_add_action_or_reset(qce->dev, qce_unregister_algs, qce);
 }
 
 static int qce_handle_request(struct crypto_async_request *async_req)
@@ -248,7 +250,7 @@ static int qce_crypto_probe(struct platform_device *pdev)
 	qce->async_req_enqueue = qce_async_request_enqueue;
 	qce->async_req_done = qce_async_request_done;
 
-	return qce_register_algs(qce);
+	return devm_qce_register_algs(qce);
 }
 
 static void qce_crypto_remove(struct platform_device *pdev)
@@ -256,7 +258,6 @@ static void qce_crypto_remove(struct platform_device *pdev)
 	struct qce_device *qce = platform_get_drvdata(pdev);
 
 	tasklet_kill(&qce->done_tasklet);
-	qce_unregister_algs(qce);
 }
 
 static const struct of_device_id qce_crypto_of_match[] = {
