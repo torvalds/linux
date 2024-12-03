@@ -1056,9 +1056,9 @@ void probe_platform_features(unsigned int family, unsigned int model)
 {
 	int i;
 
-	platform = &default_features;
 
 	if (authentic_amd || hygon_genuine) {
+		platform = &default_features;
 		if (max_extended_level >= 0x80000007) {
 			unsigned int eax, ebx, ecx, edx;
 
@@ -1071,7 +1071,7 @@ void probe_platform_features(unsigned int family, unsigned int model)
 	}
 
 	if (!genuine_intel)
-		return;
+		goto end;
 
 	for (i = 0; turbostat_pdata[i].features; i++) {
 		if (VFM_FAMILY(turbostat_pdata[i].vfm) == family && VFM_MODEL(turbostat_pdata[i].vfm) == model) {
@@ -1079,6 +1079,10 @@ void probe_platform_features(unsigned int family, unsigned int model)
 			return;
 		}
 	}
+
+end:
+	if (platform)
+		return;
 
 	fprintf(stderr, "Unsupported platform detected.\n"
 		"\tSee RUN THE LATEST VERSION on turbostat(8)\n");
