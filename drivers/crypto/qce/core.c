@@ -212,15 +212,15 @@ static int qce_crypto_probe(struct platform_device *pdev)
 	if (ret < 0)
 		return ret;
 
-	qce->core = devm_clk_get_optional(qce->dev, "core");
+	qce->core = devm_clk_get_optional_enabled(qce->dev, "core");
 	if (IS_ERR(qce->core))
 		return PTR_ERR(qce->core);
 
-	qce->iface = devm_clk_get_optional(qce->dev, "iface");
+	qce->iface = devm_clk_get_optional_enabled(qce->dev, "iface");
 	if (IS_ERR(qce->iface))
 		return PTR_ERR(qce->iface);
 
-	qce->bus = devm_clk_get_optional(qce->dev, "bus");
+	qce->bus = devm_clk_get_optional_enabled(qce->dev, "bus");
 	if (IS_ERR(qce->bus))
 		return PTR_ERR(qce->bus);
 
@@ -232,21 +232,9 @@ static int qce_crypto_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	ret = clk_prepare_enable(qce->core);
-	if (ret)
-		return ret;
-
-	ret = clk_prepare_enable(qce->iface);
-	if (ret)
-		goto err_clks_core;
-
-	ret = clk_prepare_enable(qce->bus);
-	if (ret)
-		goto err_clks_iface;
-
 	ret = qce_dma_request(qce->dev, &qce->dma);
 	if (ret)
-		goto err_clks;
+		return ret;
 
 	ret = qce_check_version(qce);
 	if (ret)
@@ -268,12 +256,6 @@ static int qce_crypto_probe(struct platform_device *pdev)
 
 err_dma:
 	qce_dma_release(&qce->dma);
-err_clks:
-	clk_disable_unprepare(qce->bus);
-err_clks_iface:
-	clk_disable_unprepare(qce->iface);
-err_clks_core:
-	clk_disable_unprepare(qce->core);
 
 	return ret;
 }
@@ -285,9 +267,6 @@ static void qce_crypto_remove(struct platform_device *pdev)
 	tasklet_kill(&qce->done_tasklet);
 	qce_unregister_algs(qce);
 	qce_dma_release(&qce->dma);
-	clk_disable_unprepare(qce->bus);
-	clk_disable_unprepare(qce->iface);
-	clk_disable_unprepare(qce->core);
 }
 
 static const struct of_device_id qce_crypto_of_match[] = {
