@@ -5,6 +5,7 @@
  * Intel Trusted Domain Extensions (TDX) support
  */
 
+#include "asm/page_types.h"
 #define pr_fmt(fmt)	"virt/tdx: " fmt
 
 #include <linux/types.h>
@@ -1462,6 +1463,11 @@ static inline u64 tdx_tdr_pa(struct tdx_td *td)
 	return page_to_phys(td->tdr_page);
 }
 
+static inline u64 tdx_tdvpr_pa(struct tdx_vp *td)
+{
+	return page_to_phys(td->tdvpr_page);
+}
+
 /*
  * The TDX module exposes a CLFLUSH_BEFORE_ALLOC bit to specify whether
  * a CLFLUSH of pages is required before handing them to the TDX module.
@@ -1485,6 +1491,18 @@ u64 tdh_mng_addcx(struct tdx_td *td, struct page *tdcs_page)
 }
 EXPORT_SYMBOL_GPL(tdh_mng_addcx);
 
+u64 tdh_vp_addcx(struct tdx_vp *vp, struct page *tdcx_page)
+{
+	struct tdx_module_args args = {
+		.rcx = page_to_phys(tdcx_page),
+		.rdx = tdx_tdvpr_pa(vp),
+	};
+
+	tdx_clflush_page(tdcx_page);
+	return seamcall(TDH_VP_ADDCX, &args);
+}
+EXPORT_SYMBOL_GPL(tdh_vp_addcx);
+
 u64 tdh_mng_key_config(struct tdx_td *td)
 {
 	struct tdx_module_args args = {
@@ -1506,6 +1524,18 @@ u64 tdh_mng_create(struct tdx_td *td, u16 hkid)
 	return seamcall(TDH_MNG_CREATE, &args);
 }
 EXPORT_SYMBOL_GPL(tdh_mng_create);
+
+u64 tdh_vp_create(struct tdx_td *td, struct tdx_vp *vp)
+{
+	struct tdx_module_args args = {
+		.rcx = tdx_tdvpr_pa(vp),
+		.rdx = tdx_tdr_pa(td),
+	};
+
+	tdx_clflush_page(vp->tdvpr_page);
+	return seamcall(TDH_VP_CREATE, &args);
+}
+EXPORT_SYMBOL_GPL(tdh_vp_create);
 
 u64 tdh_mng_key_freeid(struct tdx_td *td)
 {
@@ -1532,3 +1562,16 @@ u64 tdh_mng_init(struct tdx_td *td, u64 td_params, u64 *extended_err)
 	return ret;
 }
 EXPORT_SYMBOL_GPL(tdh_mng_init);
+
+u64 tdh_vp_init(struct tdx_vp *vp, u64 initial_rcx, u32 x2apicid)
+{
+	struct tdx_module_args args = {
+		.rcx = tdx_tdvpr_pa(vp),
+		.rdx = initial_rcx,
+		.r8 = x2apicid,
+	};
+
+	/* apicid requires version == 1. */
+	return seamcall(TDH_VP_INIT | (1ULL << TDX_VERSION_SHIFT), &args);
+}
+EXPORT_SYMBOL_GPL(tdh_vp_init);
