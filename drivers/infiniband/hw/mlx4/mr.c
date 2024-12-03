@@ -87,123 +87,20 @@ err_free:
 	return ERR_PTR(err);
 }
 
-static int mlx4_ib_umem_write_mtt_block(struct mlx4_ib_dev *dev,
-					struct mlx4_mtt *mtt,
-					u64 mtt_size, u64 mtt_shift, u64 len,
-					u64 cur_start_addr, u64 *pages,
-					int *start_index, int *npages)
-{
-	u64 cur_end_addr = cur_start_addr + len;
-	u64 cur_end_addr_aligned = 0;
-	u64 mtt_entries;
-	int err = 0;
-	int k;
-
-	len += (cur_start_addr & (mtt_size - 1ULL));
-	cur_end_addr_aligned = round_up(cur_end_addr, mtt_size);
-	len += (cur_end_addr_aligned - cur_end_addr);
-	if (len & (mtt_size - 1ULL)) {
-		pr_warn("write_block: len %llx is not aligned to mtt_size %llx\n",
-			len, mtt_size);
-		return -EINVAL;
-	}
-
-	mtt_entries = (len >> mtt_shift);
-
-	/*
-	 * Align the MTT start address to the mtt_size.
-	 * Required to handle cases when the MR starts in the middle of an MTT
-	 * record. Was not required in old code since the physical addresses
-	 * provided by the dma subsystem were page aligned, which was also the
-	 * MTT size.
-	 */
-	cur_start_addr = round_down(cur_start_addr, mtt_size);
-	/* A new block is started ... */
-	for (k = 0; k < mtt_entries; ++k) {
-		pages[*npages] = cur_start_addr + (mtt_size * k);
-		(*npages)++;
-		/*
-		 * Be friendly to mlx4_write_mtt() and pass it chunks of
-		 * appropriate size.
-		 */
-		if (*npages == PAGE_SIZE / sizeof(u64)) {
-			err = mlx4_write_mtt(dev->dev, mtt, *start_index,
-					     *npages, pages);
-			if (err)
-				return err;
-
-			(*start_index) += *npages;
-			*npages = 0;
-		}
-	}
-
-	return 0;
-}
-
 int mlx4_ib_umem_write_mtt(struct mlx4_ib_dev *dev, struct mlx4_mtt *mtt,
 			   struct ib_umem *umem)
 {
-	u64 *pages;
-	u64 len = 0;
-	int err = 0;
-	u64 mtt_size;
-	u64 cur_start_addr = 0;
-	u64 mtt_shift;
-	int start_index = 0;
-	int npages = 0;
-	struct scatterlist *sg;
-	int i;
+	struct ib_block_iter biter;
+	int err, i = 0;
+	u64 addr;
 
-	pages = (u64 *) __get_free_page(GFP_KERNEL);
-	if (!pages)
-		return -ENOMEM;
-
-	mtt_shift = mtt->page_shift;
-	mtt_size = 1ULL << mtt_shift;
-
-	for_each_sgtable_dma_sg(&umem->sgt_append.sgt, sg, i) {
-		if (cur_start_addr + len == sg_dma_address(sg)) {
-			/* still the same block */
-			len += sg_dma_len(sg);
-			continue;
-		}
-		/*
-		 * A new block is started ...
-		 * If len is malaligned, write an extra mtt entry to cover the
-		 * misaligned area (round up the division)
-		 */
-		err = mlx4_ib_umem_write_mtt_block(dev, mtt, mtt_size,
-						   mtt_shift, len,
-						   cur_start_addr,
-						   pages, &start_index,
-						   &npages);
+	rdma_umem_for_each_dma_block(umem, &biter, BIT(mtt->page_shift)) {
+		addr = rdma_block_iter_dma_address(&biter);
+		err = mlx4_write_mtt(dev->dev, mtt, i++, 1, &addr);
 		if (err)
-			goto out;
-
-		cur_start_addr = sg_dma_address(sg);
-		len = sg_dma_len(sg);
+			return err;
 	}
-
-	/* Handle the last block */
-	if (len > 0) {
-		/*
-		 * If len is malaligned, write an extra mtt entry to cover
-		 * the misaligned area (round up the division)
-		 */
-		err = mlx4_ib_umem_write_mtt_block(dev, mtt, mtt_size,
-						   mtt_shift, len,
-						   cur_start_addr, pages,
-						   &start_index, &npages);
-		if (err)
-			goto out;
-	}
-
-	if (npages)
-		err = mlx4_write_mtt(dev->dev, mtt, start_index, npages, pages);
-
-out:
-	free_page((unsigned long) pages);
-	return err;
+	return 0;
 }
 
 static struct ib_umem *mlx4_get_umem_mr(struct ib_device *device, u64 start,
