@@ -29,7 +29,7 @@
 #include <linux/types.h>
 #include <linux/units.h>
 
-#define DEFAULT_SYMBOL_NAMESPACE	I2C_DW_COMMON
+#define DEFAULT_SYMBOL_NAMESPACE	"I2C_DW_COMMON"
 
 #include "i2c-designware-core.h"
 

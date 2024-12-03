@@ -66,7 +66,7 @@
 子系统的 ``Makefile`` 中定义默认命名空间。例如，如果要将usb-common中定义的所有符号导
 出到USB_COMMON命名空间，可以在drivers/usb/common/Makefile中添加这样一行::
 
-       ccflags-y += -DDEFAULT_SYMBOL_NAMESPACE=USB_COMMON
+       ccflags-y += -DDEFAULT_SYMBOL_NAMESPACE='"USB_COMMON"'
 
 这将影响所有 EXPORT_SYMBOL() 和 EXPORT_SYMBOL_GPL() 语句。当这个定义存在时，
 用EXPORT_SYMBOL_NS()导出的符号仍然会被导出到作为命名空间参数传递的命名空间中，
@@ -76,7 +76,7 @@
 成::
 
        #undef  DEFAULT_SYMBOL_NAMESPACE
-       #define DEFAULT_SYMBOL_NAMESPACE USB_COMMON
+       #define DEFAULT_SYMBOL_NAMESPACE "USB_COMMON"
 
 应置于相关编译单元中任何 EXPORT_SYMBOL 宏之前
 
