@@ -274,12 +274,11 @@ int main(int argc, char *argv[])
 	int maskset = 0;
 	char *logfile = NULL;
 	int cfd = 0;
-	int forking = 0;
 
 	struct msgtemplate msg;
 
-	while (!forking) {
-		c = getopt(argc, argv, "m:vr:");
+	while (1) {
+		c = getopt(argc, argv, "m:vr:w:");
 		if (c < 0)
 			break;
 
