@@ -3391,10 +3391,11 @@ static phy_interface_t phylink_choose_sfp_interface(struct phylink *pl,
 	return interface;
 }
 
-static void phylink_sfp_set_config(struct phylink *pl, u8 mode,
+static void phylink_sfp_set_config(struct phylink *pl,
 				   unsigned long *supported,
 				   struct phylink_link_state *state)
 {
+	u8 mode = MLO_AN_INBAND;
 	bool changed = false;
 
 	phylink_dbg(pl, "requesting link mode %s/%s with support %*pb\n",
@@ -3428,8 +3429,7 @@ static void phylink_sfp_set_config(struct phylink *pl, u8 mode,
 		phylink_mac_initial_config(pl, false);
 }
 
-static int phylink_sfp_config_phy(struct phylink *pl, u8 mode,
-				  struct phy_device *phy)
+static int phylink_sfp_config_phy(struct phylink *pl, struct phy_device *phy)
 {
 	__ETHTOOL_DECLARE_LINK_MODE_MASK(support);
 	struct phylink_link_state config;
@@ -3473,7 +3473,7 @@ static int phylink_sfp_config_phy(struct phylink *pl, u8 mode,
 
 	pl->link_port = pl->sfp_port;
 
-	phylink_sfp_set_config(pl, mode, support, &config);
+	phylink_sfp_set_config(pl, support, &config);
 
 	return 0;
 }
@@ -3548,7 +3548,7 @@ static int phylink_sfp_config_optical(struct phylink *pl)
 
 	pl->link_port = pl->sfp_port;
 
-	phylink_sfp_set_config(pl, MLO_AN_INBAND, pl->sfp_support, &config);
+	phylink_sfp_set_config(pl, pl->sfp_support, &config);
 
 	return 0;
 }
@@ -3619,19 +3619,9 @@ static void phylink_sfp_link_up(void *upstream)
 	phylink_enable_and_run_resolve(pl, PHYLINK_DISABLE_LINK);
 }
 
-/* The Broadcom BCM84881 in the Methode DM7052 is unable to provide a SGMII
- * or 802.3z control word, so inband will not work.
- */
-static bool phylink_phy_no_inband(struct phy_device *phy)
-{
-	return phy->is_c45 && phy_id_compare(phy->c45_ids.device_ids[1],
-					     0xae025150, 0xfffffff0);
-}
-
 static int phylink_sfp_connect_phy(void *upstream, struct phy_device *phy)
 {
 	struct phylink *pl = upstream;
-	u8 mode;
 
 	/*
 	 * This is the new way of dealing with flow control for PHYs,
@@ -3642,17 +3632,12 @@ static int phylink_sfp_connect_phy(void *upstream, struct phy_device *phy)
 	 */
 	phy_support_asym_pause(phy);
 
-	if (phylink_phy_no_inband(phy))
-		mode = MLO_AN_PHY;
-	else
-		mode = MLO_AN_INBAND;
-
 	/* Set the PHY's host supported interfaces */
 	phy_interface_and(phy->host_interfaces, phylink_sfp_interfaces,
 			  pl->config->supported_interfaces);
 
 	/* Do the initial configuration */
-	return phylink_sfp_config_phy(pl, mode, phy);
+	return phylink_sfp_config_phy(pl, phy);
 }
 
 static void phylink_sfp_disconnect_phy(void *upstream,
