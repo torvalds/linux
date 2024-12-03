@@ -103,26 +103,18 @@ static const char rx_fw_stat_gstrings[][ETH_GSTRING_LEN] = {
 static int
 uec_get_ksettings(struct net_device *netdev, struct ethtool_link_ksettings *cmd)
 {
-	struct phy_device *phydev = netdev->phydev;
+	struct ucc_geth_private *ugeth = netdev_priv(netdev);
 
-	if (!phydev)
-		return -ENODEV;
-
-	phy_ethtool_ksettings_get(phydev, cmd);
-
-	return 0;
+	return phylink_ethtool_ksettings_get(ugeth->phylink, cmd);
 }
 
 static int
 uec_set_ksettings(struct net_device *netdev,
 		  const struct ethtool_link_ksettings *cmd)
 {
-	struct phy_device *phydev = netdev->phydev;
+	struct ucc_geth_private *ugeth = netdev_priv(netdev);
 
-	if (!phydev)
-		return -ENODEV;
-
-	return phy_ethtool_ksettings_set(phydev, cmd);
+	return phylink_ethtool_ksettings_set(ugeth->phylink, cmd);
 }
 
 static void
@@ -130,15 +122,8 @@ uec_get_pauseparam(struct net_device *netdev,
                      struct ethtool_pauseparam *pause)
 {
 	struct ucc_geth_private *ugeth = netdev_priv(netdev);
-	struct phy_device *phydev = netdev->phydev;
 
-	if (phydev)
-		pause->autoneg = phydev->autoneg;
-
-	if (ugeth->ug_info->receiveFlowControl)
-		pause->rx_pause = 1;
-	if (ugeth->ug_info->transmitFlowControl)
-		pause->tx_pause = 1;
+	return phylink_ethtool_get_pauseparam(ugeth->phylink, pause);
 }
 
 static int
@@ -146,31 +131,11 @@ uec_set_pauseparam(struct net_device *netdev,
                      struct ethtool_pauseparam *pause)
 {
 	struct ucc_geth_private *ugeth = netdev_priv(netdev);
-	struct phy_device *phydev = netdev->phydev;
-	int ret = 0;
 
 	ugeth->ug_info->receiveFlowControl = pause->rx_pause;
 	ugeth->ug_info->transmitFlowControl = pause->tx_pause;
 
-	if (phydev && phydev->autoneg) {
-		if (netif_running(netdev)) {
-			/* FIXME: automatically restart */
-			netdev_info(netdev, "Please re-open the interface\n");
-		}
-	} else {
-		struct ucc_geth_info *ug_info = ugeth->ug_info;
-
-		ret = init_flow_control_params(ug_info->aufc,
-					ug_info->receiveFlowControl,
-					ug_info->transmitFlowControl,
-					ug_info->pausePeriod,
-					ug_info->extensionField,
-					&ugeth->uccf->uf_regs->upsmr,
-					&ugeth->ug_regs->uempr,
-					&ugeth->ug_regs->maccfg1);
-	}
-
-	return ret;
+	return phylink_ethtool_set_pauseparam(ugeth->phylink, pause);
 }
 
 static uint32_t
@@ -344,13 +309,8 @@ uec_get_drvinfo(struct net_device *netdev,
 static void uec_get_wol(struct net_device *netdev, struct ethtool_wolinfo *wol)
 {
 	struct ucc_geth_private *ugeth = netdev_priv(netdev);
-	struct phy_device *phydev = netdev->phydev;
 
-	wol->supported = 0;
-	wol->wolopts = 0;
-
-	if (phydev)
-		phy_ethtool_get_wol(phydev, wol);
+	phylink_ethtool_get_wol(ugeth->phylink, wol);
 
 	if (qe_alive_during_sleep())
 		wol->supported |= WAKE_MAGIC;
@@ -361,19 +321,16 @@ static void uec_get_wol(struct net_device *netdev, struct ethtool_wolinfo *wol)
 static int uec_set_wol(struct net_device *netdev, struct ethtool_wolinfo *wol)
 {
 	struct ucc_geth_private *ugeth = netdev_priv(netdev);
-	struct phy_device *phydev = netdev->phydev;
 	int ret = 0;
 
-	if (phydev) {
-		ret = phy_ethtool_set_wol(phydev, wol);
-		if (ret == -EOPNOTSUPP) {
-			ugeth->phy_wol_en = 0;
-		} else if (ret) {
-			return ret;
-		} else {
-			ugeth->phy_wol_en = wol->wolopts;
-			goto out;
-		}
+	ret = phylink_ethtool_set_wol(ugeth->phylink, wol);
+	if (ret == -EOPNOTSUPP) {
+		ugeth->phy_wol_en = 0;
+	} else if (ret) {
+		return ret;
+	} else {
+		ugeth->phy_wol_en = wol->wolopts;
+		goto out;
 	}
 
 	/* If the PHY isn't handling the WoL and the MAC is asked to more than

@@ -81,8 +81,7 @@ config UCC_GETH
 	tristate "Freescale QE Gigabit Ethernet"
 	depends on QUICC_ENGINE && PPC32
 	select FSL_PQ_MDIO
-	select PHYLIB
-	select FIXED_PHY
+	select PHYLINK
 	help
 	  This driver supports the Gigabit Ethernet mode of the QUICC Engine,
 	  which is available on some Freescale SOCs.
