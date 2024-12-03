@@ -516,14 +516,40 @@ that they count at TSC rate, which is true on all processors tested to date.
 Volume 3B: System Programming Guide"
 https://www.intel.com/products/processor/manuals/
 
+.SH RUN THE LATEST VERSION
+If turbostat complains that it doesn't recognize your processor,
+please try the latest version.
+
+The latest version of turbostat does not require the latest version of the Linux kernel.
+However, some features, such as perf(1) counters, do require kernel support.
+
+The latest turbostat release is available in the upstream Linux Kernel source tree.
+eg. "git pull https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git"
+and run make in tools/power/x86/turbostat/.
+
+n.b. "make install" will update your system manually, but a distro update may subsequently downgrade your turbostat to an older version.
+For this reason, manually installing to /usr/local/bin may be what you want.
+
+Note that turbostat/Makefile has a "make snapshot" target, which will create a tar file
+that can build without a local kernel source tree.
+
+If the upstream version isn't new enough, the development tree can be found here:
+"git pull https://git.kernel.org/pub/scm/linux/kernel/git/lenb/linux.git turbostat"
+
+If the development tree doesn't work, please contact the author via chat,
+or via email with the word "turbostat" on the Subject line.
+
 .SH FILES
 .ta
 .nf
+/sys/bus/event_source/devices/
 /dev/cpu/*/msr
+/sys/class/intel_pmt/
+/sys/devices/system/cpu/
 .fi
 
 .SH "SEE ALSO"
-msr(4), vmstat(8)
+perf(1), msr(4), vmstat(8)
 .PP
 .SH AUTHOR
 .nf
