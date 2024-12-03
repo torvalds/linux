@@ -222,7 +222,6 @@ static int tpa6130a2_probe(struct i2c_client *client)
 	struct tpa6130a2_data *data;
 	struct tpa6130a2_platform_data *pdata = client->dev.platform_data;
 	struct device_node *np = client->dev.of_node;
-	const struct i2c_device_id *id;
 	const char *regulator;
 	unsigned int version;
 	int ret;
@@ -251,8 +250,7 @@ static int tpa6130a2_probe(struct i2c_client *client)
 
 	i2c_set_clientdata(client, data);
 
-	id = i2c_match_id(tpa6130a2_id, client);
-	data->id = id->driver_data;
+	data->id = (uintptr_t)i2c_get_match_data(client);
 
 	if (data->power_gpio >= 0) {
 		ret = devm_gpio_request(dev, data->power_gpio,
