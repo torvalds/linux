@@ -76,8 +76,6 @@ install_maint_scripts () {
 	# so do we; recent versions of dracut and initramfs-tools will obey this.
 	debhookdir=${KDEB_HOOKDIR:-/etc/kernel}
 	for script in postinst postrm preinst prerm; do
-		mkdir -p "${pdir}${debhookdir}/${script}.d"
-
 		mkdir -p "${pdir}/DEBIAN"
 		cat <<-EOF > "${pdir}/DEBIAN/${script}"
 		#!/bin/sh
