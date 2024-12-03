@@ -1486,4 +1486,30 @@ int iter_subprog_check_stacksafe(const void *ctx)
 	return 0;
 }
 
+struct bpf_iter_num global_it;
+
+SEC("raw_tp")
+__failure __msg("arg#0 expected pointer to an iterator on stack")
+int iter_new_bad_arg(const void *ctx)
+{
+	bpf_iter_num_new(&global_it, 0, 1);
+	return 0;
+}
+
+SEC("raw_tp")
+__failure __msg("arg#0 expected pointer to an iterator on stack")
+int iter_next_bad_arg(const void *ctx)
+{
+	bpf_iter_num_next(&global_it);
+	return 0;
+}
+
+SEC("raw_tp")
+__failure __msg("arg#0 expected pointer to an iterator on stack")
+int iter_destroy_bad_arg(const void *ctx)
+{
+	bpf_iter_num_destroy(&global_it);
+	return 0;
+}
+
 char _license[] SEC("license") = "GPL";
