@@ -56,7 +56,8 @@ struct phylink {
 	struct phy_device *phydev;
 	phy_interface_t link_interface;	/* PHY_INTERFACE_xxx */
 	u8 cfg_link_an_mode;		/* MLO_AN_xxx */
-	u8 cur_link_an_mode;
+	u8 req_link_an_mode;		/* Requested MLO_AN_xxx mode */
+	u8 act_link_an_mode;		/* Active MLO_AN_xxx mode */
 	u8 link_port;			/* The current non-phy ethtool port */
 	__ETHTOOL_DECLARE_LINK_MODE_MASK(supported);
 
@@ -1065,13 +1066,13 @@ static void phylink_mac_config(struct phylink *pl,
 
 	phylink_dbg(pl,
 		    "%s: mode=%s/%s/%s adv=%*pb pause=%02x\n",
-		    __func__, phylink_an_mode_str(pl->cur_link_an_mode),
+		    __func__, phylink_an_mode_str(pl->act_link_an_mode),
 		    phy_modes(st.interface),
 		    phy_rate_matching_to_str(st.rate_matching),
 		    __ETHTOOL_LINK_MODE_MASK_NBITS, st.advertising,
 		    st.pause);
 
-	pl->mac_ops->mac_config(pl->config, pl->cur_link_an_mode, &st);
+	pl->mac_ops->mac_config(pl->config, pl->act_link_an_mode, &st);
 }
 
 static void phylink_pcs_an_restart(struct phylink *pl)
@@ -1079,7 +1080,7 @@ static void phylink_pcs_an_restart(struct phylink *pl)
 	if (pl->pcs && linkmode_test_bit(ETHTOOL_LINK_MODE_Autoneg_BIT,
 					 pl->link_config.advertising) &&
 	    phy_interface_mode_is_8023z(pl->link_config.interface) &&
-	    phylink_autoneg_inband(pl->cur_link_an_mode))
+	    phylink_autoneg_inband(pl->act_link_an_mode))
 		pl->pcs->ops->pcs_an_restart(pl->pcs);
 }
 
@@ -1109,7 +1110,7 @@ static void phylink_pcs_neg_mode(struct phylink *pl, struct phylink_pcs *pcs,
 {
 	unsigned int neg_mode, mode;
 
-	mode = pl->cur_link_an_mode;
+	mode = pl->req_link_an_mode;
 
 	switch (interface) {
 	case PHY_INTERFACE_MODE_SGMII:
@@ -1151,6 +1152,7 @@ static void phylink_pcs_neg_mode(struct phylink *pl, struct phylink_pcs *pcs,
 	}
 
 	pl->pcs_neg_mode = neg_mode;
+	pl->act_link_an_mode = mode;
 }
 
 static void phylink_major_config(struct phylink *pl, bool restart,
@@ -1181,7 +1183,7 @@ static void phylink_major_config(struct phylink *pl, bool restart,
 	phylink_pcs_poll_stop(pl);
 
 	if (pl->mac_ops->mac_prepare) {
-		err = pl->mac_ops->mac_prepare(pl->config, pl->cur_link_an_mode,
+		err = pl->mac_ops->mac_prepare(pl->config, pl->act_link_an_mode,
 					       state->interface);
 		if (err < 0) {
 			phylink_err(pl, "mac_prepare failed: %pe\n",
@@ -1215,7 +1217,7 @@ static void phylink_major_config(struct phylink *pl, bool restart,
 	if (pl->pcs_state == PCS_STATE_STARTING || pcs_changed)
 		phylink_pcs_enable(pl->pcs);
 
-	neg_mode = pl->cur_link_an_mode;
+	neg_mode = pl->act_link_an_mode;
 	if (pl->pcs && pl->pcs->neg_mode)
 		neg_mode = pl->pcs_neg_mode;
 
@@ -1231,7 +1233,7 @@ static void phylink_major_config(struct phylink *pl, bool restart,
 		phylink_pcs_an_restart(pl);
 
 	if (pl->mac_ops->mac_finish) {
-		err = pl->mac_ops->mac_finish(pl->config, pl->cur_link_an_mode,
+		err = pl->mac_ops->mac_finish(pl->config, pl->act_link_an_mode,
 					      state->interface);
 		if (err < 0)
 			phylink_err(pl, "mac_finish failed: %pe\n",
@@ -1262,7 +1264,7 @@ static int phylink_change_inband_advert(struct phylink *pl)
 		return 0;
 
 	phylink_dbg(pl, "%s: mode=%s/%s adv=%*pb pause=%02x\n", __func__,
-		    phylink_an_mode_str(pl->cur_link_an_mode),
+		    phylink_an_mode_str(pl->req_link_an_mode),
 		    phy_modes(pl->link_config.interface),
 		    __ETHTOOL_LINK_MODE_MASK_NBITS, pl->link_config.advertising,
 		    pl->link_config.pause);
@@ -1271,7 +1273,7 @@ static int phylink_change_inband_advert(struct phylink *pl)
 	phylink_pcs_neg_mode(pl, pl->pcs, pl->link_config.interface,
 			     pl->link_config.advertising);
 
-	neg_mode = pl->cur_link_an_mode;
+	neg_mode = pl->act_link_an_mode;
 	if (pl->pcs->neg_mode)
 		neg_mode = pl->pcs_neg_mode;
 
@@ -1336,7 +1338,7 @@ static void phylink_mac_initial_config(struct phylink *pl, bool force_restart)
 {
 	struct phylink_link_state link_state;
 
-	switch (pl->cur_link_an_mode) {
+	switch (pl->req_link_an_mode) {
 	case MLO_AN_PHY:
 		link_state = pl->phy_state;
 		break;
@@ -1410,14 +1412,14 @@ static void phylink_link_up(struct phylink *pl,
 
 	pl->cur_interface = link_state.interface;
 
-	neg_mode = pl->cur_link_an_mode;
+	neg_mode = pl->act_link_an_mode;
 	if (pl->pcs && pl->pcs->neg_mode)
 		neg_mode = pl->pcs_neg_mode;
 
 	phylink_pcs_link_up(pl->pcs, neg_mode, pl->cur_interface, speed,
 			    duplex);
 
-	pl->mac_ops->mac_link_up(pl->config, pl->phydev, pl->cur_link_an_mode,
+	pl->mac_ops->mac_link_up(pl->config, pl->phydev, pl->act_link_an_mode,
 				 pl->cur_interface, speed, duplex,
 				 !!(link_state.pause & MLO_PAUSE_TX), rx_pause);
 
@@ -1437,7 +1439,7 @@ static void phylink_link_down(struct phylink *pl)
 
 	if (ndev)
 		netif_carrier_off(ndev);
-	pl->mac_ops->mac_link_down(pl->config, pl->cur_link_an_mode,
+	pl->mac_ops->mac_link_down(pl->config, pl->act_link_an_mode,
 				   pl->cur_interface);
 	phylink_info(pl, "Link is Down\n");
 }
@@ -1463,10 +1465,10 @@ static void phylink_resolve(struct work_struct *w)
 	} else if (pl->link_failed) {
 		link_state.link = false;
 		retrigger = true;
-	} else if (pl->cur_link_an_mode == MLO_AN_FIXED) {
+	} else if (pl->act_link_an_mode == MLO_AN_FIXED) {
 		phylink_get_fixed_state(pl, &link_state);
 		mac_config = link_state.link;
-	} else if (pl->cur_link_an_mode == MLO_AN_PHY) {
+	} else if (pl->act_link_an_mode == MLO_AN_PHY) {
 		link_state = pl->phy_state;
 		mac_config = link_state.link;
 	} else {
@@ -1520,7 +1522,7 @@ static void phylink_resolve(struct work_struct *w)
 		}
 	}
 
-	if (pl->cur_link_an_mode != MLO_AN_FIXED)
+	if (pl->act_link_an_mode != MLO_AN_FIXED)
 		phylink_apply_manual_flow(pl, &link_state);
 
 	if (mac_config) {
@@ -1644,7 +1646,7 @@ int phylink_set_fixed_link(struct phylink *pl,
 	pl->link_config.an_complete = 1;
 
 	pl->cfg_link_an_mode = MLO_AN_FIXED;
-	pl->cur_link_an_mode = pl->cfg_link_an_mode;
+	pl->req_link_an_mode = pl->cfg_link_an_mode;
 
 	return 0;
 }
@@ -1732,7 +1734,7 @@ struct phylink *phylink_create(struct phylink_config *config,
 		}
 	}
 
-	pl->cur_link_an_mode = pl->cfg_link_an_mode;
+	pl->req_link_an_mode = pl->cfg_link_an_mode;
 
 	ret = phylink_register_sfp(pl, fwnode);
 	if (ret < 0) {
@@ -2189,7 +2191,7 @@ void phylink_start(struct phylink *pl)
 	ASSERT_RTNL();
 
 	phylink_info(pl, "configuring for %s/%s link mode\n",
-		     phylink_an_mode_str(pl->cur_link_an_mode),
+		     phylink_an_mode_str(pl->req_link_an_mode),
 		     phy_modes(pl->link_config.interface));
 
 	/* Always set the carrier off */
@@ -2474,7 +2476,7 @@ int phylink_ethtool_ksettings_get(struct phylink *pl,
 
 	linkmode_copy(kset->link_modes.supported, pl->supported);
 
-	switch (pl->cur_link_an_mode) {
+	switch (pl->act_link_an_mode) {
 	case MLO_AN_FIXED:
 		/* We are using fixed settings. Report these as the
 		 * current link settings - and note that these also
@@ -2566,7 +2568,7 @@ int phylink_ethtool_ksettings_set(struct phylink *pl,
 		/* If we have a fixed link, refuse to change link parameters.
 		 * If the link parameters match, accept them but do nothing.
 		 */
-		if (pl->cur_link_an_mode == MLO_AN_FIXED) {
+		if (pl->req_link_an_mode == MLO_AN_FIXED) {
 			if (s->speed != pl->link_config.speed ||
 			    s->duplex != pl->link_config.duplex)
 				return -EINVAL;
@@ -2582,7 +2584,7 @@ int phylink_ethtool_ksettings_set(struct phylink *pl,
 		 * is our default case) but do not allow the advertisement to
 		 * be changed. If the advertisement matches, simply return.
 		 */
-		if (pl->cur_link_an_mode == MLO_AN_FIXED) {
+		if (pl->req_link_an_mode == MLO_AN_FIXED) {
 			if (!linkmode_equal(config.advertising,
 					    pl->link_config.advertising))
 				return -EINVAL;
@@ -2617,7 +2619,7 @@ int phylink_ethtool_ksettings_set(struct phylink *pl,
 		linkmode_copy(support, pl->supported);
 		if (phylink_validate(pl, support, &config)) {
 			phylink_err(pl, "validation of %s/%s with support %*pb failed\n",
-				    phylink_an_mode_str(pl->cur_link_an_mode),
+				    phylink_an_mode_str(pl->req_link_an_mode),
 				    phy_modes(config.interface),
 				    __ETHTOOL_LINK_MODE_MASK_NBITS, support);
 			return -EINVAL;
@@ -2717,7 +2719,7 @@ int phylink_ethtool_set_pauseparam(struct phylink *pl,
 
 	ASSERT_RTNL();
 
-	if (pl->cur_link_an_mode == MLO_AN_FIXED)
+	if (pl->req_link_an_mode == MLO_AN_FIXED)
 		return -EOPNOTSUPP;
 
 	if (!phylink_test(pl->supported, Pause) &&
@@ -2981,7 +2983,7 @@ static int phylink_mii_read(struct phylink *pl, unsigned int phy_id,
 	struct phylink_link_state state;
 	int val = 0xffff;
 
-	switch (pl->cur_link_an_mode) {
+	switch (pl->act_link_an_mode) {
 	case MLO_AN_FIXED:
 		if (phy_id == 0) {
 			phylink_get_fixed_state(pl, &state);
@@ -3006,7 +3008,7 @@ static int phylink_mii_read(struct phylink *pl, unsigned int phy_id,
 static int phylink_mii_write(struct phylink *pl, unsigned int phy_id,
 			     unsigned int reg, unsigned int val)
 {
-	switch (pl->cur_link_an_mode) {
+	switch (pl->act_link_an_mode) {
 	case MLO_AN_FIXED:
 		break;
 
@@ -3196,9 +3198,9 @@ static void phylink_sfp_set_config(struct phylink *pl, u8 mode,
 		changed = true;
 	}
 
-	if (pl->cur_link_an_mode != mode ||
+	if (pl->req_link_an_mode != mode ||
 	    pl->link_config.interface != state->interface) {
-		pl->cur_link_an_mode = mode;
+		pl->req_link_an_mode = mode;
 		pl->link_config.interface = state->interface;
 
 		changed = true;
