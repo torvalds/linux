@@ -5,6 +5,7 @@
 
 #include <linux/init.h>
 #include <linux/bits.h>
+#include <linux/mmzone.h>
 
 #include <asm/errno.h>
 #include <asm/ptrace.h>
@@ -33,6 +34,7 @@
 #ifndef __ASSEMBLY__
 
 #include <uapi/asm/mce.h>
+#include <linux/pgtable.h>
 
 /*
  * Used by the #VE exception handler to gather the #VE exception
@@ -140,6 +142,19 @@ struct tdx_vp {
 	struct page **tdcx_pages;
 };
 
+
+static inline u64 mk_keyed_paddr(u16 hkid, struct page *page)
+{
+	u64 ret;
+
+	ret = page_to_phys(page);
+	/* KeyID bits are just above the physical address bits: */
+	ret |= (u64)hkid << boot_cpu_data.x86_phys_bits;
+
+	return ret;
+
+}
+
 u64 tdh_mng_addcx(struct tdx_td *td, struct page *tdcs_page);
 u64 tdh_vp_addcx(struct tdx_vp *vp, struct page *tdcx_page);
 u64 tdh_mng_key_config(struct tdx_td *td);
@@ -148,6 +163,9 @@ u64 tdh_vp_create(struct tdx_td *td, struct tdx_vp *vp);
 u64 tdh_mng_key_freeid(struct tdx_td *td);
 u64 tdh_mng_init(struct tdx_td *td, u64 td_params, u64 *extended_err);
 u64 tdh_vp_init(struct tdx_vp *vp, u64 initial_rcx, u32 x2apicid);
+u64 tdh_phymem_page_reclaim(struct page *page, u64 *tdx_pt, u64 *tdx_owner, u64 *tdx_size);
+u64 tdh_phymem_cache_wb(bool resume);
+u64 tdh_phymem_page_wbinvd_tdr(struct tdx_td *td);
 #else
 static inline void tdx_init(void) { }
 static inline int tdx_cpu_enable(void) { return -ENODEV; }
