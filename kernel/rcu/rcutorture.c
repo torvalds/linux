@@ -273,8 +273,8 @@ struct rt_read_seg {
 	bool rt_preempted;
 	int rt_cpu;
 	int rt_end_cpu;
-	unsigned long rt_gp_seq;
-	unsigned long rt_gp_seq_end;
+	unsigned long long rt_gp_seq;
+	unsigned long long rt_gp_seq_end;
 };
 static int err_segs_recorded;
 static struct rt_read_seg err_segs[RCUTORTURE_RDR_MAX_SEGS];
@@ -409,8 +409,8 @@ struct rcu_torture_ops {
 	void (*gp_slow_register)(atomic_t *rgssp);
 	void (*gp_slow_unregister)(atomic_t *rgssp);
 	bool (*reader_blocked)(void);
-	unsigned long (*gather_gp_seqs)(void);
-	void (*format_gp_seqs)(unsigned long seqs, char *cp);
+	unsigned long long (*gather_gp_seqs)(void);
+	void (*format_gp_seqs)(unsigned long long seqs, char *cp);
 	long cbflood_max;
 	int irq_capable;
 	int can_boost;
@@ -3678,8 +3678,8 @@ rcu_torture_cleanup(void)
 			}
 			if (IS_ENABLED(CONFIG_RCU_TORTURE_TEST_LOG_GP) &&
 			    cur_ops->gather_gp_seqs && cur_ops->format_gp_seqs) {
-				char buf1[16+1];
-				char buf2[16+1];
+				char buf1[20+1];
+				char buf2[20+1];
 				char sepchar = '-';
 
 				cur_ops->format_gp_seqs(err_segs[i].rt_gp_seq, buf1);
