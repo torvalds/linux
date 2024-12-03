@@ -46,11 +46,11 @@ void ucsi_notify_common(struct ucsi *ucsi, u32 cci)
 		ucsi_connector_change(ucsi, UCSI_CCI_CONNECTOR(cci));
 
 	if (cci & UCSI_CCI_ACK_COMPLETE &&
-	    test_bit(ACK_PENDING, &ucsi->flags))
+	    test_and_clear_bit(ACK_PENDING, &ucsi->flags))
 		complete(&ucsi->complete);
 
 	if (cci & UCSI_CCI_COMMAND_COMPLETE &&
-	    test_bit(COMMAND_PENDING, &ucsi->flags))
+	    test_and_clear_bit(COMMAND_PENDING, &ucsi->flags))
 		complete(&ucsi->complete);
 }
 EXPORT_SYMBOL_GPL(ucsi_notify_common);
@@ -64,6 +64,8 @@ int ucsi_sync_control_common(struct ucsi *ucsi, u64 command)
 		set_bit(ACK_PENDING, &ucsi->flags);
 	else
 		set_bit(COMMAND_PENDING, &ucsi->flags);
+
+	reinit_completion(&ucsi->complete);
 
 	ret = ucsi->ops->async_control(ucsi, command);
 	if (ret)
