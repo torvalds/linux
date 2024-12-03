@@ -140,6 +140,7 @@ static struct journal_space __journal_space_available(struct journal *j, unsigne
 	struct bch_fs *c = container_of(j, struct bch_fs, journal);
 	unsigned pos, nr_devs = 0;
 	struct journal_space space, dev_space[BCH_SB_MEMBERS_MAX];
+	unsigned min_bucket_size = U32_MAX;
 
 	BUG_ON(nr_devs_want > ARRAY_SIZE(dev_space));
 
@@ -147,6 +148,8 @@ static struct journal_space __journal_space_available(struct journal *j, unsigne
 	for_each_member_device_rcu(c, ca, &c->rw_devs[BCH_DATA_journal]) {
 		if (!ca->journal.nr)
 			continue;
+
+		min_bucket_size = min(min_bucket_size, ca->mi.bucket_size);
 
 		space = journal_dev_space_available(j, ca, from);
 		if (!space.next_entry)
@@ -167,7 +170,9 @@ static struct journal_space __journal_space_available(struct journal *j, unsigne
 	 * We sorted largest to smallest, and we want the smallest out of the
 	 * @nr_devs_want largest devices:
 	 */
-	return dev_space[nr_devs_want - 1];
+	space = dev_space[nr_devs_want - 1];
+	space.next_entry = min(space.next_entry, min_bucket_size);
+	return space;
 }
 
 void bch2_journal_space_available(struct journal *j)
