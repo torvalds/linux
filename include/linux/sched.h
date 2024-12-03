@@ -398,6 +398,9 @@ struct sched_info {
 	/* Time spent waiting on a runqueue: */
 	unsigned long long		run_delay;
 
+	/* Max time spent waiting on a runqueue: */
+	unsigned long long		max_run_delay;
+
 	/* Timestamps: */
 
 	/* When did we last run on a CPU? */
