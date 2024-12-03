@@ -108,8 +108,8 @@ void kfd_interrupt_exit(struct kfd_node *node)
 bool enqueue_ih_ring_entry(struct kfd_node *node, const void *ih_ring_entry)
 {
 	if (kfifo_is_full(&node->ih_fifo)) {
-		dev_dbg_ratelimited(node->adev->dev,
-				    "Interrupt ring overflow, dropping interrupt\n");
+		dev_warn_ratelimited(node->adev->dev, "KFD node %d ih_fifo overflow\n",
+				     node->node_id);
 		return false;
 	}
 

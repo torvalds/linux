@@ -364,9 +364,8 @@ static u32 vega10_ih_get_wptr(struct amdgpu_device *adev,
 	 * this should allow us to catchup.
 	 */
 	tmp = (wptr + 32) & ih->ptr_mask;
-	dev_warn(adev->dev, "IH ring buffer overflow "
-		 "(0x%08X, 0x%08X, 0x%08X)\n",
-		 wptr, ih->rptr, tmp);
+	dev_warn_ratelimited(adev->dev, "%s ring buffer overflow (0x%08X, 0x%08X, 0x%08X)\n",
+			     amdgpu_ih_ring_name(adev, ih), wptr, ih->rptr, tmp);
 	ih->rptr = tmp;
 
 	tmp = RREG32_NO_KIQ(ih_regs->ih_rb_cntl);
