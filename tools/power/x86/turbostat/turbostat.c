@@ -326,6 +326,7 @@ unsigned int rapl_joules;
 unsigned int summary_only;
 unsigned int list_header_only;
 unsigned int dump_only;
+unsigned int force_load;
 unsigned int has_aperf;
 unsigned int has_aperf_access;
 unsigned int has_epb;
@@ -1058,7 +1059,8 @@ void probe_platform_features(unsigned int family, unsigned int model)
 
 
 	if (authentic_amd || hygon_genuine) {
-		platform = &default_features;
+		/* fallback to default features on unsupported models */
+		force_load++;
 		if (max_extended_level >= 0x80000007) {
 			unsigned int eax, ebx, ecx, edx;
 
@@ -1067,7 +1069,7 @@ void probe_platform_features(unsigned int family, unsigned int model)
 			if ((edx & (1 << 14)) && family >= 0x17)
 				platform = &amd_features_with_rapl;
 		}
-		return;
+		goto end;
 	}
 
 	if (!genuine_intel)
@@ -1081,6 +1083,11 @@ void probe_platform_features(unsigned int family, unsigned int model)
 	}
 
 end:
+	if (force_load && !platform) {
+		fprintf(outf, "Forced to run on unsupported platform!\n");
+		platform = &default_features;
+	}
+
 	if (platform)
 		return;
 
@@ -2160,6 +2167,8 @@ void help(void)
 		"		displays the raw counter values\n"
 		"  -e, --enable [all | column]\n"
 		"		shows all or the specified disabled column\n"
+		"  -f, --force\n"
+		"		force load turbostat with minimum default features on unsupported platforms.\n"
 		"  -H, --hide [column | column,column,...]\n"
 		"		hide the specified column(s)\n"
 		"  -i, --interval sec.subsec\n"
@@ -9942,6 +9951,7 @@ void cmdline(int argc, char **argv)
 		{ "Dump", no_argument, 0, 'D' },
 		{ "debug", no_argument, 0, 'd' },	/* internal, not documented */
 		{ "enable", required_argument, 0, 'e' },
+		{ "force", no_argument, 0, 'f' },
 		{ "interval", required_argument, 0, 'i' },
 		{ "IPC", no_argument, 0, 'I' },
 		{ "num_iterations", required_argument, 0, 'n' },
@@ -10001,6 +10011,9 @@ void cmdline(int argc, char **argv)
 		case 'e':
 			/* --enable specified counter */
 			bic_enabled = bic_enabled | bic_lookup(optarg, SHOW_LIST);
+			break;
+		case 'f':
+			force_load++;
 			break;
 		case 'd':
 			debug++;
