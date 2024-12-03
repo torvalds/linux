@@ -1868,7 +1868,7 @@ MODULE_DEVICE_TABLE(of, safexcel_of_match_table);
 
 static struct platform_driver  crypto_safexcel = {
 	.probe		= safexcel_probe,
-	.remove_new	= safexcel_remove,
+	.remove		= safexcel_remove,
 	.driver		= {
 		.name	= "crypto-safexcel",
 		.of_match_table = safexcel_of_match_table,
@@ -2031,7 +2031,7 @@ MODULE_AUTHOR("Ofer Heifetz <oferh@marvell.com>");
 MODULE_AUTHOR("Igal Liberman <igall@marvell.com>");
 MODULE_DESCRIPTION("Support for SafeXcel cryptographic engines: EIP97 & EIP197");
 MODULE_LICENSE("GPL v2");
-MODULE_IMPORT_NS(CRYPTO_INTERNAL);
+MODULE_IMPORT_NS("CRYPTO_INTERNAL");
 
 MODULE_FIRMWARE("ifpp.bin");
 MODULE_FIRMWARE("ipue.bin");

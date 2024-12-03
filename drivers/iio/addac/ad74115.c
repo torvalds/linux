@@ -191,7 +191,7 @@ enum ad74115_gpio_mode {
 };
 
 struct ad74115_channels {
-	struct iio_chan_spec		*channels;
+	const struct iio_chan_spec	*channels;
 	unsigned int			num_channels;
 };
 
@@ -1295,46 +1295,46 @@ static const struct iio_info ad74115_info = {
 	_AD74115_ADC_CHANNEL(_type, index, BIT(IIO_CHAN_INFO_SCALE)	\
 					   | BIT(IIO_CHAN_INFO_OFFSET))
 
-static struct iio_chan_spec ad74115_voltage_input_channels[] = {
+static const struct iio_chan_spec ad74115_voltage_input_channels[] = {
 	AD74115_ADC_CHANNEL(IIO_VOLTAGE, AD74115_ADC_CH_CONV1),
 	AD74115_ADC_CHANNEL(IIO_VOLTAGE, AD74115_ADC_CH_CONV2),
 };
 
-static struct iio_chan_spec ad74115_voltage_output_channels[] = {
+static const struct iio_chan_spec ad74115_voltage_output_channels[] = {
 	AD74115_DAC_CHANNEL(IIO_VOLTAGE, AD74115_DAC_CH_MAIN),
 	AD74115_ADC_CHANNEL(IIO_CURRENT, AD74115_ADC_CH_CONV1),
 	AD74115_ADC_CHANNEL(IIO_VOLTAGE, AD74115_ADC_CH_CONV2),
 };
 
-static struct iio_chan_spec ad74115_current_input_channels[] = {
+static const struct iio_chan_spec ad74115_current_input_channels[] = {
 	AD74115_ADC_CHANNEL(IIO_CURRENT, AD74115_ADC_CH_CONV1),
 	AD74115_ADC_CHANNEL(IIO_VOLTAGE, AD74115_ADC_CH_CONV2),
 };
 
-static struct iio_chan_spec ad74115_current_output_channels[] = {
+static const struct iio_chan_spec ad74115_current_output_channels[] = {
 	AD74115_DAC_CHANNEL(IIO_CURRENT, AD74115_DAC_CH_MAIN),
 	AD74115_ADC_CHANNEL(IIO_VOLTAGE, AD74115_ADC_CH_CONV1),
 	AD74115_ADC_CHANNEL(IIO_VOLTAGE, AD74115_ADC_CH_CONV2),
 };
 
-static struct iio_chan_spec ad74115_2_wire_resistance_input_channels[] = {
+static const struct iio_chan_spec ad74115_2_wire_resistance_input_channels[] = {
 	_AD74115_ADC_CHANNEL(IIO_RESISTANCE, AD74115_ADC_CH_CONV1,
 			     BIT(IIO_CHAN_INFO_PROCESSED)),
 	AD74115_ADC_CHANNEL(IIO_VOLTAGE, AD74115_ADC_CH_CONV2),
 };
 
-static struct iio_chan_spec ad74115_3_4_wire_resistance_input_channels[] = {
+static const struct iio_chan_spec ad74115_3_4_wire_resistance_input_channels[] = {
 	AD74115_ADC_CHANNEL(IIO_RESISTANCE, AD74115_ADC_CH_CONV1),
 	AD74115_ADC_CHANNEL(IIO_VOLTAGE, AD74115_ADC_CH_CONV2),
 };
 
-static struct iio_chan_spec ad74115_digital_input_logic_channels[] = {
+static const struct iio_chan_spec ad74115_digital_input_logic_channels[] = {
 	AD74115_DAC_CHANNEL(IIO_VOLTAGE, AD74115_DAC_CH_COMPARATOR),
 	AD74115_ADC_CHANNEL(IIO_VOLTAGE, AD74115_ADC_CH_CONV1),
 	AD74115_ADC_CHANNEL(IIO_VOLTAGE, AD74115_ADC_CH_CONV2),
 };
 
-static struct iio_chan_spec ad74115_digital_input_loop_channels[] = {
+static const struct iio_chan_spec ad74115_digital_input_loop_channels[] = {
 	AD74115_DAC_CHANNEL(IIO_CURRENT, AD74115_DAC_CH_MAIN),
 	AD74115_DAC_CHANNEL(IIO_VOLTAGE, AD74115_DAC_CH_COMPARATOR),
 	AD74115_ADC_CHANNEL(IIO_VOLTAGE, AD74115_ADC_CH_CONV1),

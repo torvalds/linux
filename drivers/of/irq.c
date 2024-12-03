@@ -720,7 +720,7 @@ struct irq_domain *of_msi_map_get_device_domain(struct device *dev, u32 id,
  * Returns: the MSI domain for this device (or NULL on failure).
  */
 struct irq_domain *of_msi_get_domain(struct device *dev,
-				     struct device_node *np,
+				     const struct device_node *np,
 				     enum irq_domain_bus_token token)
 {
 	struct of_phandle_iterator it;
@@ -742,7 +742,7 @@ EXPORT_SYMBOL_GPL(of_msi_get_domain);
  * @dev: device structure to associate with an MSI irq domain
  * @np: device node for that device
  */
-void of_msi_configure(struct device *dev, struct device_node *np)
+void of_msi_configure(struct device *dev, const struct device_node *np)
 {
 	dev_set_msi_domain(dev,
 			   of_msi_get_domain(dev, np, DOMAIN_BUS_PLATFORM_MSI));

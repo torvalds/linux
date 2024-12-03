@@ -309,7 +309,7 @@ static void iproc_gpio_irq_print_chip(struct irq_data *d, struct seq_file *p)
 	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
 	struct iproc_gpio *chip = gpiochip_get_data(gc);
 
-	seq_printf(p, dev_name(chip->dev));
+	seq_puts(p, dev_name(chip->dev));
 }
 
 static const struct irq_chip iproc_gpio_irq_chip = {

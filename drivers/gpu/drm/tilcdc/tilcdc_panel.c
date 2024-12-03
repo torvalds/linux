@@ -390,7 +390,7 @@ static const struct of_device_id panel_of_match[] = {
 
 static struct platform_driver panel_driver = {
 	.probe = panel_probe,
-	.remove_new = panel_remove,
+	.remove = panel_remove,
 	.driver = {
 		.name = "tilcdc-panel",
 		.of_match_table = panel_of_match,

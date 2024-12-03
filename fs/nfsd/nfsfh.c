@@ -320,6 +320,7 @@ __fh_verify(struct svc_rqst *rqstp,
 {
 	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
 	struct svc_export *exp = NULL;
+	bool may_bypass_gss = false;
 	struct dentry	*dentry;
 	__be32		error;
 
@@ -362,13 +363,12 @@ __fh_verify(struct svc_rqst *rqstp,
 	if (error)
 		goto out;
 
-	/*
-	 * pseudoflavor restrictions are not enforced on NLM,
-	 * which clients virtually always use auth_sys for,
-	 * even while using RPCSEC_GSS for NFS.
-	 */
-	if (access & NFSD_MAY_LOCK || access & NFSD_MAY_BYPASS_GSS)
-		goto skip_pseudoflavor_check;
+	if ((access & NFSD_MAY_NLM) && (exp->ex_flags & NFSEXP_NOAUTHNLM))
+		/* NLM is allowed to fully bypass authentication */
+		goto out;
+
+	if (access & NFSD_MAY_BYPASS_GSS)
+		may_bypass_gss = true;
 	/*
 	 * Clients may expect to be able to use auth_sys during mount,
 	 * even if they use gss for everything else; see section 2.3.2
@@ -376,13 +376,12 @@ __fh_verify(struct svc_rqst *rqstp,
 	 */
 	if (access & NFSD_MAY_BYPASS_GSS_ON_ROOT
 			&& exp->ex_path.dentry == dentry)
-		goto skip_pseudoflavor_check;
+		may_bypass_gss = true;
 
-	error = check_nfsd_access(exp, rqstp);
+	error = check_nfsd_access(exp, rqstp, may_bypass_gss);
 	if (error)
 		goto out;
 
-skip_pseudoflavor_check:
 	/* Finally, check access permissions. */
 	error = nfsd_permission(cred, exp, dentry, access);
 out:
@@ -667,20 +666,18 @@ out_negative:
 __be32 __must_check fh_fill_pre_attrs(struct svc_fh *fhp)
 {
 	bool v4 = (fhp->fh_maxsize == NFS4_FHSIZE);
-	struct inode *inode;
 	struct kstat stat;
 	__be32 err;
 
 	if (fhp->fh_no_wcc || fhp->fh_pre_saved)
 		return nfs_ok;
 
-	inode = d_inode(fhp->fh_dentry);
 	err = fh_getattr(fhp, &stat);
 	if (err)
 		return err;
 
 	if (v4)
-		fhp->fh_pre_change = nfsd4_change_attribute(&stat, inode);
+		fhp->fh_pre_change = nfsd4_change_attribute(&stat);
 
 	fhp->fh_pre_mtime = stat.mtime;
 	fhp->fh_pre_ctime = stat.ctime;
@@ -697,7 +694,6 @@ __be32 __must_check fh_fill_pre_attrs(struct svc_fh *fhp)
 __be32 fh_fill_post_attrs(struct svc_fh *fhp)
 {
 	bool v4 = (fhp->fh_maxsize == NFS4_FHSIZE);
-	struct inode *inode = d_inode(fhp->fh_dentry);
 	__be32 err;
 
 	if (fhp->fh_no_wcc)
@@ -713,7 +709,7 @@ __be32 fh_fill_post_attrs(struct svc_fh *fhp)
 	fhp->fh_post_saved = true;
 	if (v4)
 		fhp->fh_post_change =
-			nfsd4_change_attribute(&fhp->fh_post_attr, inode);
+			nfsd4_change_attribute(&fhp->fh_post_attr);
 	return nfs_ok;
 }
 
@@ -770,7 +766,7 @@ char * SVCFH_fmt(struct svc_fh *fhp)
 	struct knfsd_fh *fh = &fhp->fh_handle;
 	static char buf[2+1+1+64*3+1];
 
-	if (fh->fh_size < 0 || fh->fh_size> 64)
+	if (fh->fh_size > 64)
 		return "bad-fh";
 	sprintf(buf, "%d: %*ph", fh->fh_size, fh->fh_size, fh->fh_raw);
 	return buf;
@@ -804,7 +800,14 @@ enum fsid_source fsid_source(const struct svc_fh *fhp)
 	return FSIDSOURCE_DEV;
 }
 
-/*
+/**
+ * nfsd4_change_attribute - Generate an NFSv4 change_attribute value
+ * @stat: inode attributes
+ *
+ * Caller must fill in @stat before calling, typically by invoking
+ * vfs_getattr() with STATX_MODE, STATX_CTIME, and STATX_CHANGE_COOKIE.
+ * Returns an unsigned 64-bit changeid4 value (RFC 8881 Section 3.2).
+ *
  * We could use i_version alone as the change attribute.  However, i_version
  * can go backwards on a regular file after an unclean shutdown.  On its own
  * that doesn't necessarily cause a problem, but if i_version goes backwards
@@ -821,13 +824,13 @@ enum fsid_source fsid_source(const struct svc_fh *fhp)
  * assume that the new change attr is always logged to stable storage in some
  * fashion before the results can be seen.
  */
-u64 nfsd4_change_attribute(const struct kstat *stat, const struct inode *inode)
+u64 nfsd4_change_attribute(const struct kstat *stat)
 {
 	u64 chattr;
 
 	if (stat->result_mask & STATX_CHANGE_COOKIE) {
 		chattr = stat->change_cookie;
-		if (S_ISREG(inode->i_mode) &&
+		if (S_ISREG(stat->mode) &&
 		    !(stat->attributes & STATX_ATTR_CHANGE_MONOTONIC)) {
 			chattr += (u64)stat->ctime.tv_sec << 30;
 			chattr += stat->ctime.tv_nsec;

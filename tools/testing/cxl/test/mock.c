@@ -76,7 +76,7 @@ int __wrap_acpi_table_parse_cedt(enum acpi_cedt_type id,
 
 	return rc;
 }
-EXPORT_SYMBOL_NS_GPL(__wrap_acpi_table_parse_cedt, ACPI);
+EXPORT_SYMBOL_NS_GPL(__wrap_acpi_table_parse_cedt, "ACPI");
 
 acpi_status __wrap_acpi_evaluate_integer(acpi_handle handle,
 					 acpi_string pathname,
@@ -147,7 +147,7 @@ struct cxl_hdm *__wrap_devm_cxl_setup_hdm(struct cxl_port *port,
 
 	return cxlhdm;
 }
-EXPORT_SYMBOL_NS_GPL(__wrap_devm_cxl_setup_hdm, CXL);
+EXPORT_SYMBOL_NS_GPL(__wrap_devm_cxl_setup_hdm, "CXL");
 
 int __wrap_devm_cxl_add_passthrough_decoder(struct cxl_port *port)
 {
@@ -162,7 +162,7 @@ int __wrap_devm_cxl_add_passthrough_decoder(struct cxl_port *port)
 
 	return rc;
 }
-EXPORT_SYMBOL_NS_GPL(__wrap_devm_cxl_add_passthrough_decoder, CXL);
+EXPORT_SYMBOL_NS_GPL(__wrap_devm_cxl_add_passthrough_decoder, "CXL");
 
 int __wrap_devm_cxl_enumerate_decoders(struct cxl_hdm *cxlhdm,
 				       struct cxl_endpoint_dvsec_info *info)
@@ -179,7 +179,7 @@ int __wrap_devm_cxl_enumerate_decoders(struct cxl_hdm *cxlhdm,
 
 	return rc;
 }
-EXPORT_SYMBOL_NS_GPL(__wrap_devm_cxl_enumerate_decoders, CXL);
+EXPORT_SYMBOL_NS_GPL(__wrap_devm_cxl_enumerate_decoders, "CXL");
 
 int __wrap_devm_cxl_port_enumerate_dports(struct cxl_port *port)
 {
@@ -194,7 +194,7 @@ int __wrap_devm_cxl_port_enumerate_dports(struct cxl_port *port)
 
 	return rc;
 }
-EXPORT_SYMBOL_NS_GPL(__wrap_devm_cxl_port_enumerate_dports, CXL);
+EXPORT_SYMBOL_NS_GPL(__wrap_devm_cxl_port_enumerate_dports, "CXL");
 
 int __wrap_cxl_await_media_ready(struct cxl_dev_state *cxlds)
 {
@@ -209,7 +209,7 @@ int __wrap_cxl_await_media_ready(struct cxl_dev_state *cxlds)
 
 	return rc;
 }
-EXPORT_SYMBOL_NS_GPL(__wrap_cxl_await_media_ready, CXL);
+EXPORT_SYMBOL_NS_GPL(__wrap_cxl_await_media_ready, "CXL");
 
 int __wrap_cxl_hdm_decode_init(struct cxl_dev_state *cxlds,
 			       struct cxl_hdm *cxlhdm,
@@ -226,7 +226,7 @@ int __wrap_cxl_hdm_decode_init(struct cxl_dev_state *cxlds,
 
 	return rc;
 }
-EXPORT_SYMBOL_NS_GPL(__wrap_cxl_hdm_decode_init, CXL);
+EXPORT_SYMBOL_NS_GPL(__wrap_cxl_hdm_decode_init, "CXL");
 
 int __wrap_cxl_dvsec_rr_decode(struct device *dev, struct cxl_port *port,
 			       struct cxl_endpoint_dvsec_info *info)
@@ -242,7 +242,7 @@ int __wrap_cxl_dvsec_rr_decode(struct device *dev, struct cxl_port *port,
 
 	return rc;
 }
-EXPORT_SYMBOL_NS_GPL(__wrap_cxl_dvsec_rr_decode, CXL);
+EXPORT_SYMBOL_NS_GPL(__wrap_cxl_dvsec_rr_decode, "CXL");
 
 struct cxl_dport *__wrap_devm_cxl_add_rch_dport(struct cxl_port *port,
 						struct device *dport_dev,
@@ -266,7 +266,7 @@ struct cxl_dport *__wrap_devm_cxl_add_rch_dport(struct cxl_port *port,
 
 	return dport;
 }
-EXPORT_SYMBOL_NS_GPL(__wrap_devm_cxl_add_rch_dport, CXL);
+EXPORT_SYMBOL_NS_GPL(__wrap_devm_cxl_add_rch_dport, "CXL");
 
 resource_size_t __wrap_cxl_rcd_component_reg_phys(struct device *dev,
 						  struct cxl_dport *dport)
@@ -283,7 +283,7 @@ resource_size_t __wrap_cxl_rcd_component_reg_phys(struct device *dev,
 
 	return component_reg_phys;
 }
-EXPORT_SYMBOL_NS_GPL(__wrap_cxl_rcd_component_reg_phys, CXL);
+EXPORT_SYMBOL_NS_GPL(__wrap_cxl_rcd_component_reg_phys, "CXL");
 
 void __wrap_cxl_endpoint_parse_cdat(struct cxl_port *port)
 {
@@ -297,7 +297,7 @@ void __wrap_cxl_endpoint_parse_cdat(struct cxl_port *port)
 		cxl_endpoint_parse_cdat(port);
 	put_cxl_mock_ops(index);
 }
-EXPORT_SYMBOL_NS_GPL(__wrap_cxl_endpoint_parse_cdat, CXL);
+EXPORT_SYMBOL_NS_GPL(__wrap_cxl_endpoint_parse_cdat, "CXL");
 
 void __wrap_cxl_dport_init_ras_reporting(struct cxl_dport *dport, struct device *host)
 {
@@ -309,8 +309,8 @@ void __wrap_cxl_dport_init_ras_reporting(struct cxl_dport *dport, struct device 
 
 	put_cxl_mock_ops(index);
 }
-EXPORT_SYMBOL_NS_GPL(__wrap_cxl_dport_init_ras_reporting, CXL);
+EXPORT_SYMBOL_NS_GPL(__wrap_cxl_dport_init_ras_reporting, "CXL");
 
 MODULE_LICENSE("GPL v2");
-MODULE_IMPORT_NS(ACPI);
-MODULE_IMPORT_NS(CXL);
+MODULE_IMPORT_NS("ACPI");
+MODULE_IMPORT_NS("CXL");

@@ -52,8 +52,6 @@ struct guc_ctb {
 struct guc_ctb_snapshot {
 	/** @desc: snapshot of the CTB descriptor */
 	struct guc_ct_buffer_desc desc;
-	/** @cmds: snapshot of the CTB commands */
-	u32 *cmds;
 	/** @info: snapshot of the CTB info */
 	struct guc_ctb_info info;
 };
@@ -70,6 +68,10 @@ struct xe_guc_ct_snapshot {
 	struct guc_ctb_snapshot g2h;
 	/** @h2g: H2G CTB snapshot */
 	struct guc_ctb_snapshot h2g;
+	/** @ctb_size: size of the snapshot of the CTB */
+	size_t ctb_size;
+	/** @ctb: snapshot of the entire CTB */
+	u32 *ctb;
 };
 
 /**
@@ -85,6 +87,24 @@ enum xe_guc_ct_state {
 	XE_GUC_CT_STATE_STOPPED,
 	XE_GUC_CT_STATE_ENABLED,
 };
+
+#if IS_ENABLED(CONFIG_DRM_XE_DEBUG)
+/** struct xe_dead_ct - Information for debugging a dead CT */
+struct xe_dead_ct {
+	/** @lock: protects memory allocation/free operations, and @reason updates */
+	spinlock_t lock;
+	/** @reason: bit mask of CT_DEAD_* reason codes */
+	unsigned int reason;
+	/** @reported: for preventing multiple dumps per error sequence */
+	bool reported;
+	/** @worker: worker thread to get out of interrupt context before dumping */
+	struct work_struct worker;
+	/** snapshot_ct: copy of CT state and CTB content at point of error */
+	struct xe_guc_ct_snapshot *snapshot_ct;
+	/** snapshot_log: copy of GuC log at point of error */
+	struct xe_guc_log_snapshot *snapshot_log;
+};
+#endif
 
 /**
  * struct xe_guc_ct - GuC command transport (CT) layer
@@ -128,6 +148,11 @@ struct xe_guc_ct {
 	u32 msg[GUC_CTB_MSG_MAX_LEN];
 	/** @fast_msg: Message buffer */
 	u32 fast_msg[GUC_CTB_MSG_MAX_LEN];
+
+#if IS_ENABLED(CONFIG_DRM_XE_DEBUG)
+	/** @dead: information for debugging dead CTs */
+	struct xe_dead_ct dead;
+#endif
 };
 
 #endif

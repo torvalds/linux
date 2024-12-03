@@ -763,7 +763,7 @@ MODULE_DEVICE_TABLE(of, zynq_qspi_of_match);
  */
 static struct platform_driver zynq_qspi_driver = {
 	.probe = zynq_qspi_probe,
-	.remove_new = zynq_qspi_remove,
+	.remove = zynq_qspi_remove,
 	.driver = {
 		.name = "zynq-qspi",
 		.of_match_table = zynq_qspi_of_match,

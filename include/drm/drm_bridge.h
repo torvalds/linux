@@ -803,6 +803,11 @@ struct drm_bridge {
 	 */
 	bool interlace_allowed;
 	/**
+	 * @ycbcr_420_allowed: Indicate that the bridge can handle YCbCr 420
+	 * output.
+	 */
+	bool ycbcr_420_allowed;
+	/**
 	 * @pre_enable_prev_first: The bridge requires that the prev
 	 * bridge @pre_enable function is called before its @pre_enable,
 	 * and conversely for post_disable. This is most frequently a

@@ -23,6 +23,8 @@ int rtw89_parse_efuse_map_be(struct rtw89_dev *rtwdev);
 int rtw89_parse_phycap_map_be(struct rtw89_dev *rtwdev);
 int rtw89_cnv_efuse_state_be(struct rtw89_dev *rtwdev, bool idle);
 int rtw89_read_efuse_ver(struct rtw89_dev *rtwdev, u8 *efv);
+int rtw89_efuse_recognize_mss_info_v1(struct rtw89_dev *rtwdev, u8 b1, u8 b2);
+int rtw89_efuse_read_fw_secure_ax(struct rtw89_dev *rtwdev);
 int rtw89_efuse_read_fw_secure_be(struct rtw89_dev *rtwdev);
 
 #endif

@@ -110,13 +110,13 @@
 };
 
 &iomuxc {
-	pinctrl_lcd_reg: lcdreg {
+	pinctrl_lcd_reg: lcdreggrp {
 		fsl,pins = <
 			MX6QDL_PAD_DI0_PIN15__GPIO4_IO17	0x100b0	/* R_LCD_PANEL_PWR */
 		>;
 	};
 
-	pinctrl_lcd_reset: lcdreset {
+	pinctrl_lcd_reset: lcdresetgrp {
 		fsl,pins = <
 			MX6QDL_PAD_EIM_A25__GPIO5_IO02	0x100b0	/* LCD_nRESET */
 		>;

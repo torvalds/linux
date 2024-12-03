@@ -3,15 +3,16 @@
  * Copyright © 2021 Intel Corporation
  */
 
-#include <drm/drm_blend.h>
-#include <drm/drm_modeset_helper.h>
-
 #include <linux/dma-fence.h>
 #include <linux/dma-resv.h>
 
-#include "gem/i915_gem_object.h"
+#include <drm/drm_blend.h>
+#include <drm/drm_gem.h>
+#include <drm/drm_modeset_helper.h>
+
 #include "i915_drv.h"
 #include "intel_atomic_plane.h"
+#include "intel_bo.h"
 #include "intel_display.h"
 #include "intel_display_types.h"
 #include "intel_dpt.h"
@@ -44,6 +45,14 @@ static const struct drm_format_info skl_ccs_formats[] = {
 	  .cpp = { 4, 1, }, .hsub = 8, .vsub = 16, .has_alpha = true, },
 	{ .format = DRM_FORMAT_ABGR8888, .depth = 32, .num_planes = 2,
 	  .cpp = { 4, 1, }, .hsub = 8, .vsub = 16, .has_alpha = true, },
+	{ .format = DRM_FORMAT_XRGB2101010, .depth = 30, .num_planes = 2,
+	  .cpp = { 4, 1, }, .hsub = 8, .vsub = 16, },
+	{ .format = DRM_FORMAT_XBGR2101010, .depth = 30, .num_planes = 2,
+	  .cpp = { 4, 1, }, .hsub = 8, .vsub = 16, },
+	{ .format = DRM_FORMAT_ARGB2101010, .depth = 30, .num_planes = 2,
+	  .cpp = { 4, 1, }, .hsub = 8, .vsub = 16, .has_alpha = true, },
+	{ .format = DRM_FORMAT_ABGR2101010, .depth = 30, .num_planes = 2,
+	  .cpp = { 4, 1, }, .hsub = 8, .vsub = 16, .has_alpha = true, },
 };
 
 /*
@@ -65,6 +74,30 @@ static const struct drm_format_info gen12_ccs_formats[] = {
 	  .hsub = 1, .vsub = 1, .has_alpha = true },
 	{ .format = DRM_FORMAT_ABGR8888, .depth = 32, .num_planes = 2,
 	  .char_per_block = { 4, 1 }, .block_w = { 1, 2 }, .block_h = { 1, 1 },
+	  .hsub = 1, .vsub = 1, .has_alpha = true },
+	{ .format = DRM_FORMAT_XRGB2101010, .depth = 30, .num_planes = 2,
+	  .char_per_block = { 4, 1 }, .block_w = { 1, 2 }, .block_h = { 1, 1 },
+	  .hsub = 1, .vsub = 1, },
+	{ .format = DRM_FORMAT_XBGR2101010, .depth = 30, .num_planes = 2,
+	  .char_per_block = { 4, 1 }, .block_w = { 1, 2 }, .block_h = { 1, 1 },
+	  .hsub = 1, .vsub = 1, },
+	{ .format = DRM_FORMAT_ARGB2101010, .depth = 30, .num_planes = 2,
+	  .char_per_block = { 4, 1 }, .block_w = { 1, 2 }, .block_h = { 1, 1 },
+	  .hsub = 1, .vsub = 1, .has_alpha = true },
+	{ .format = DRM_FORMAT_ABGR2101010, .depth = 30, .num_planes = 2,
+	  .char_per_block = { 4, 1 }, .block_w = { 1, 2 }, .block_h = { 1, 1 },
+	  .hsub = 1, .vsub = 1, .has_alpha = true },
+	{ .format = DRM_FORMAT_XRGB16161616F, .depth = 0, .num_planes = 2,
+	  .char_per_block = { 8, 1 }, .block_w = { 1, 1 }, .block_h = { 1, 1 },
+	  .hsub = 1, .vsub = 1, },
+	{ .format = DRM_FORMAT_XBGR16161616F, .depth = 0, .num_planes = 2,
+	  .char_per_block = { 8, 1 }, .block_w = { 1, 1 }, .block_h = { 1, 1 },
+	  .hsub = 1, .vsub = 1, },
+	{ .format = DRM_FORMAT_ARGB16161616F, .depth = 0, .num_planes = 2,
+	  .char_per_block = { 8, 1 }, .block_w = { 1, 1 }, .block_h = { 1, 1 },
+	  .hsub = 1, .vsub = 1, .has_alpha = true },
+	{ .format = DRM_FORMAT_ABGR16161616F, .depth = 0, .num_planes = 2,
+	  .char_per_block = { 8, 1 }, .block_w = { 1, 1 }, .block_h = { 1, 1 },
 	  .hsub = 1, .vsub = 1, .has_alpha = true },
 	{ .format = DRM_FORMAT_YUYV, .num_planes = 2,
 	  .char_per_block = { 2, 1 }, .block_w = { 1, 2 }, .block_h = { 1, 1 },
@@ -101,31 +134,79 @@ static const struct drm_format_info gen12_ccs_formats[] = {
  */
 static const struct drm_format_info gen12_ccs_cc_formats[] = {
 	{ .format = DRM_FORMAT_XRGB8888, .depth = 24, .num_planes = 3,
-	  .char_per_block = { 4, 1, 0 }, .block_w = { 1, 2, 2 }, .block_h = { 1, 1, 1 },
+	  .char_per_block = { 4, 1, 0 }, .block_w = { 1, 2, 0 }, .block_h = { 1, 1, 0 },
 	  .hsub = 1, .vsub = 1, },
 	{ .format = DRM_FORMAT_XBGR8888, .depth = 24, .num_planes = 3,
-	  .char_per_block = { 4, 1, 0 }, .block_w = { 1, 2, 2 }, .block_h = { 1, 1, 1 },
+	  .char_per_block = { 4, 1, 0 }, .block_w = { 1, 2, 0 }, .block_h = { 1, 1, 0 },
 	  .hsub = 1, .vsub = 1, },
 	{ .format = DRM_FORMAT_ARGB8888, .depth = 32, .num_planes = 3,
-	  .char_per_block = { 4, 1, 0 }, .block_w = { 1, 2, 2 }, .block_h = { 1, 1, 1 },
+	  .char_per_block = { 4, 1, 0 }, .block_w = { 1, 2, 0 }, .block_h = { 1, 1, 0 },
 	  .hsub = 1, .vsub = 1, .has_alpha = true },
 	{ .format = DRM_FORMAT_ABGR8888, .depth = 32, .num_planes = 3,
-	  .char_per_block = { 4, 1, 0 }, .block_w = { 1, 2, 2 }, .block_h = { 1, 1, 1 },
+	  .char_per_block = { 4, 1, 0 }, .block_w = { 1, 2, 0 }, .block_h = { 1, 1, 0 },
+	  .hsub = 1, .vsub = 1, .has_alpha = true },
+	{ .format = DRM_FORMAT_XRGB2101010, .depth = 30, .num_planes = 3,
+	  .char_per_block = { 4, 1, 0 }, .block_w = { 1, 2, 0 }, .block_h = { 1, 1, 0 },
+	  .hsub = 1, .vsub = 1, },
+	{ .format = DRM_FORMAT_XBGR2101010, .depth = 30, .num_planes = 3,
+	  .char_per_block = { 4, 1, 0 }, .block_w = { 1, 2, 0 }, .block_h = { 1, 1, 0 },
+	  .hsub = 1, .vsub = 1, },
+	{ .format = DRM_FORMAT_ARGB2101010, .depth = 30, .num_planes = 3,
+	  .char_per_block = { 4, 1, 0 }, .block_w = { 1, 2, 0 }, .block_h = { 1, 1, 0 },
+	  .hsub = 1, .vsub = 1, .has_alpha = true },
+	{ .format = DRM_FORMAT_ABGR2101010, .depth = 30, .num_planes = 3,
+	  .char_per_block = { 4, 1, 0 }, .block_w = { 1, 2, 0 }, .block_h = { 1, 1, 0 },
+	  .hsub = 1, .vsub = 1, .has_alpha = true },
+	{ .format = DRM_FORMAT_XRGB16161616F, .depth = 0, .num_planes = 3,
+	  .char_per_block = { 8, 1, 0 }, .block_w = { 1, 1, 0 }, .block_h = { 1, 1, 0 },
+	  .hsub = 1, .vsub = 1, },
+	{ .format = DRM_FORMAT_XBGR16161616F, .depth = 0, .num_planes = 3,
+	  .char_per_block = { 8, 1, 0 }, .block_w = { 1, 1, 0 }, .block_h = { 1, 1, 0 },
+	  .hsub = 1, .vsub = 1, },
+	{ .format = DRM_FORMAT_ARGB16161616F, .depth = 0, .num_planes = 3,
+	  .char_per_block = { 8, 1, 0 }, .block_w = { 1, 1, 0 }, .block_h = { 1, 1, 0 },
+	  .hsub = 1, .vsub = 1, .has_alpha = true },
+	{ .format = DRM_FORMAT_ABGR16161616F, .depth = 0, .num_planes = 3,
+	  .char_per_block = { 8, 1, 0 }, .block_w = { 1, 1, 0 }, .block_h = { 1, 1, 0 },
 	  .hsub = 1, .vsub = 1, .has_alpha = true },
 };
 
 static const struct drm_format_info gen12_flat_ccs_cc_formats[] = {
 	{ .format = DRM_FORMAT_XRGB8888, .depth = 24, .num_planes = 2,
-	  .char_per_block = { 4, 0 }, .block_w = { 1, 2 }, .block_h = { 1, 1 },
+	  .char_per_block = { 4, 0 }, .block_w = { 1, 0 }, .block_h = { 1, 0 },
 	  .hsub = 1, .vsub = 1, },
 	{ .format = DRM_FORMAT_XBGR8888, .depth = 24, .num_planes = 2,
-	  .char_per_block = { 4, 0 }, .block_w = { 1, 2 }, .block_h = { 1, 1 },
+	  .char_per_block = { 4, 0 }, .block_w = { 1, 0 }, .block_h = { 1, 0 },
 	  .hsub = 1, .vsub = 1, },
 	{ .format = DRM_FORMAT_ARGB8888, .depth = 32, .num_planes = 2,
-	  .char_per_block = { 4, 0 }, .block_w = { 1, 2 }, .block_h = { 1, 1 },
+	  .char_per_block = { 4, 0 }, .block_w = { 1, 0 }, .block_h = { 1, 0 },
 	  .hsub = 1, .vsub = 1, .has_alpha = true },
 	{ .format = DRM_FORMAT_ABGR8888, .depth = 32, .num_planes = 2,
-	  .char_per_block = { 4, 0 }, .block_w = { 1, 2 }, .block_h = { 1, 1 },
+	  .char_per_block = { 4, 0 }, .block_w = { 1, 0 }, .block_h = { 1, 0 },
+	  .hsub = 1, .vsub = 1, .has_alpha = true },
+	{ .format = DRM_FORMAT_XRGB2101010, .depth = 30, .num_planes = 2,
+	  .char_per_block = { 4, 0 }, .block_w = { 1, 0 }, .block_h = { 1, 0 },
+	  .hsub = 1, .vsub = 1, },
+	{ .format = DRM_FORMAT_XBGR2101010, .depth = 30, .num_planes = 2,
+	  .char_per_block = { 4, 0 }, .block_w = { 1, 0 }, .block_h = { 1, 0 },
+	  .hsub = 1, .vsub = 1, },
+	{ .format = DRM_FORMAT_ARGB2101010, .depth = 30, .num_planes = 2,
+	  .char_per_block = { 4, 0 }, .block_w = { 1, 0 }, .block_h = { 1, 0 },
+	  .hsub = 1, .vsub = 1, .has_alpha = true },
+	{ .format = DRM_FORMAT_ABGR2101010, .depth = 30, .num_planes = 2,
+	  .char_per_block = { 4, 0 }, .block_w = { 1, 0 }, .block_h = { 1, 0 },
+	  .hsub = 1, .vsub = 1, .has_alpha = true },
+	{ .format = DRM_FORMAT_XRGB16161616F, .depth = 0, .num_planes = 2,
+	  .char_per_block = { 8, 0 }, .block_w = { 1, 0 }, .block_h = { 1, 0 },
+	  .hsub = 1, .vsub = 1, },
+	{ .format = DRM_FORMAT_XBGR16161616F, .depth = 0, .num_planes = 2,
+	  .char_per_block = { 8, 0 }, .block_w = { 1, 0 }, .block_h = { 1, 0 },
+	  .hsub = 1, .vsub = 1, },
+	{ .format = DRM_FORMAT_ARGB16161616F, .depth = 0, .num_planes = 2,
+	  .char_per_block = { 8, 0 }, .block_w = { 1, 0 }, .block_h = { 1, 0 },
+	  .hsub = 1, .vsub = 1, .has_alpha = true },
+	{ .format = DRM_FORMAT_ABGR16161616F, .depth = 0, .num_planes = 2,
+	  .char_per_block = { 8, 0 }, .block_w = { 1, 0 }, .block_h = { 1, 0 },
 	  .hsub = 1, .vsub = 1, .has_alpha = true },
 };
 
@@ -268,7 +349,7 @@ static const struct intel_modifier_desc intel_modifiers[] = {
 		.plane_caps = INTEL_PLANE_CAP_TILING_Y,
 	}, {
 		.modifier = I915_FORMAT_MOD_X_TILED,
-		.display_ver = DISPLAY_VER_ALL,
+		.display_ver = { 0, 29 },
 		.plane_caps = INTEL_PLANE_CAP_TILING_X,
 	}, {
 		.modifier = DRM_FORMAT_MOD_LINEAR,
@@ -1237,7 +1318,7 @@ static bool intel_plane_needs_remap(const struct intel_plane_state *plane_state)
 static int convert_plane_offset_to_xy(const struct intel_framebuffer *fb, int color_plane,
 				      int plane_width, int *x, int *y)
 {
-	struct drm_i915_gem_object *obj = intel_fb_obj(&fb->base);
+	struct drm_gem_object *obj = intel_fb_bo(&fb->base);
 	int ret;
 
 	ret = intel_fb_offset_to_xy(x, y, &fb->base, color_plane);
@@ -1261,7 +1342,7 @@ static int convert_plane_offset_to_xy(const struct intel_framebuffer *fb, int co
 	 * fb layout agrees with the fence layout. We already check that the
 	 * fb stride matches the fence stride elsewhere.
 	 */
-	if (color_plane == 0 && i915_gem_object_is_tiled(obj) &&
+	if (color_plane == 0 && intel_bo_is_tiled(obj) &&
 	    (*x + plane_width) * fb->base.format->cpp[color_plane] > fb->base.pitches[color_plane]) {
 		drm_dbg_kms(fb->base.dev,
 			    "bad fb plane %d offset: 0x%x\n",
@@ -1581,7 +1662,7 @@ static unsigned int intel_fb_min_alignment(const struct drm_framebuffer *fb)
 
 int intel_fill_fb_info(struct drm_i915_private *i915, struct intel_framebuffer *fb)
 {
-	struct drm_i915_gem_object *obj = intel_fb_obj(&fb->base);
+	struct drm_gem_object *obj = intel_fb_bo(&fb->base);
 	u32 gtt_offset_rotated = 0;
 	u32 gtt_offset_remapped = 0;
 	unsigned int max_size = 0;
@@ -1654,10 +1735,10 @@ int intel_fill_fb_info(struct drm_i915_private *i915, struct intel_framebuffer *
 		max_size = max(max_size, offset + size);
 	}
 
-	if (mul_u32_u32(max_size, tile_size) > intel_bo_to_drm_bo(obj)->size) {
+	if (mul_u32_u32(max_size, tile_size) > obj->size) {
 		drm_dbg_kms(&i915->drm,
 			    "fb too big for bo (need %llu bytes, have %zu bytes)\n",
-			    mul_u32_u32(max_size, tile_size), intel_bo_to_drm_bo(obj)->size);
+			    mul_u32_u32(max_size, tile_size), obj->size);
 		return -EINVAL;
 	}
 
@@ -1881,7 +1962,7 @@ static void intel_user_framebuffer_destroy(struct drm_framebuffer *fb)
 
 	intel_frontbuffer_put(intel_fb->frontbuffer);
 
-	intel_fb_bo_framebuffer_fini(intel_fb_obj(fb));
+	intel_fb_bo_framebuffer_fini(intel_fb_bo(fb));
 
 	kfree(intel_fb);
 }
@@ -1890,16 +1971,16 @@ static int intel_user_framebuffer_create_handle(struct drm_framebuffer *fb,
 						struct drm_file *file,
 						unsigned int *handle)
 {
-	struct drm_i915_gem_object *obj = intel_fb_obj(fb);
-	struct drm_i915_private *i915 = to_i915(intel_bo_to_drm_bo(obj)->dev);
+	struct drm_gem_object *obj = intel_fb_bo(fb);
+	struct intel_display *display = to_intel_display(obj->dev);
 
-	if (i915_gem_object_is_userptr(obj)) {
-		drm_dbg(&i915->drm,
+	if (intel_bo_is_userptr(obj)) {
+		drm_dbg(display->drm,
 			"attempting to use a userptr for a framebuffer, denied\n");
 		return -EINVAL;
 	}
 
-	return drm_gem_handle_create(file, intel_bo_to_drm_bo(obj), handle);
+	return drm_gem_handle_create(file, obj, handle);
 }
 
 struct frontbuffer_fence_cb {
@@ -1923,7 +2004,7 @@ static int intel_user_framebuffer_dirty(struct drm_framebuffer *fb,
 					struct drm_clip_rect *clips,
 					unsigned int num_clips)
 {
-	struct drm_i915_gem_object *obj = intel_fb_obj(fb);
+	struct drm_gem_object *obj = intel_fb_bo(fb);
 	struct intel_frontbuffer *front = to_intel_frontbuffer(fb);
 	struct dma_fence *fence;
 	struct frontbuffer_fence_cb *cb;
@@ -1932,10 +2013,10 @@ static int intel_user_framebuffer_dirty(struct drm_framebuffer *fb,
 	if (!atomic_read(&front->bits))
 		return 0;
 
-	if (dma_resv_test_signaled(intel_bo_to_drm_bo(obj)->resv, dma_resv_usage_rw(false)))
+	if (dma_resv_test_signaled(obj->resv, dma_resv_usage_rw(false)))
 		goto flush;
 
-	ret = dma_resv_get_singleton(intel_bo_to_drm_bo(obj)->resv, dma_resv_usage_rw(false),
+	ret = dma_resv_get_singleton(obj->resv, dma_resv_usage_rw(false),
 				     &fence);
 	if (ret || !fence)
 		goto flush;
@@ -1962,7 +2043,7 @@ static int intel_user_framebuffer_dirty(struct drm_framebuffer *fb,
 	return ret;
 
 flush:
-	i915_gem_object_flush_if_display(obj);
+	intel_bo_flush_if_display(obj);
 	intel_frontbuffer_flush(front, ORIGIN_DIRTYFB);
 	return ret;
 }
@@ -1974,10 +2055,10 @@ static const struct drm_framebuffer_funcs intel_fb_funcs = {
 };
 
 int intel_framebuffer_init(struct intel_framebuffer *intel_fb,
-			   struct drm_i915_gem_object *obj,
+			   struct drm_gem_object *obj,
 			   struct drm_mode_fb_cmd2 *mode_cmd)
 {
-	struct drm_i915_private *dev_priv = to_i915(intel_bo_to_drm_bo(obj)->dev);
+	struct drm_i915_private *dev_priv = to_i915(obj->dev);
 	struct drm_framebuffer *fb = &intel_fb->base;
 	u32 max_stride;
 	int ret = -EINVAL;
@@ -2053,7 +2134,7 @@ int intel_framebuffer_init(struct intel_framebuffer *intel_fb,
 			}
 		}
 
-		fb->obj[i] = intel_bo_to_drm_bo(obj);
+		fb->obj[i] = obj;
 	}
 
 	ret = intel_fill_fb_info(dev_priv, intel_fb);
@@ -2097,7 +2178,7 @@ intel_user_framebuffer_create(struct drm_device *dev,
 			      const struct drm_mode_fb_cmd2 *user_mode_cmd)
 {
 	struct drm_framebuffer *fb;
-	struct drm_i915_gem_object *obj;
+	struct drm_gem_object *obj;
 	struct drm_mode_fb_cmd2 mode_cmd = *user_mode_cmd;
 	struct drm_i915_private *i915 = to_i915(dev);
 
@@ -2106,13 +2187,13 @@ intel_user_framebuffer_create(struct drm_device *dev,
 		return ERR_CAST(obj);
 
 	fb = intel_framebuffer_create(obj, &mode_cmd);
-	drm_gem_object_put(intel_bo_to_drm_bo(obj));
+	drm_gem_object_put(obj);
 
 	return fb;
 }
 
 struct drm_framebuffer *
-intel_framebuffer_create(struct drm_i915_gem_object *obj,
+intel_framebuffer_create(struct drm_gem_object *obj,
 			 struct drm_mode_fb_cmd2 *mode_cmd)
 {
 	struct intel_framebuffer *intel_fb;
@@ -2131,4 +2212,9 @@ intel_framebuffer_create(struct drm_i915_gem_object *obj,
 err:
 	kfree(intel_fb);
 	return ERR_PTR(ret);
+}
+
+struct drm_gem_object *intel_fb_bo(const struct drm_framebuffer *fb)
+{
+	return fb ? fb->obj[0] : NULL;
 }

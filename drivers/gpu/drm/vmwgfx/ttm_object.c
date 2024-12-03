@@ -54,7 +54,7 @@
 #include <linux/module.h>
 #include <linux/hashtable.h>
 
-MODULE_IMPORT_NS(DMA_BUF);
+MODULE_IMPORT_NS("DMA_BUF");
 
 #define VMW_TTM_OBJECT_REF_HT_ORDER 10
 
@@ -471,7 +471,7 @@ void ttm_object_device_release(struct ttm_object_device **p_tdev)
  */
 static bool __must_check get_dma_buf_unless_doomed(struct dma_buf *dmabuf)
 {
-	return atomic_long_inc_not_zero(&dmabuf->file->f_count) != 0L;
+	return file_ref_get(&dmabuf->file->f_ref);
 }
 
 /**

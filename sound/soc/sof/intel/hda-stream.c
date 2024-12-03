@@ -27,7 +27,7 @@
 int sof_hda_position_quirk = SOF_HDA_POSITION_QUIRK_USE_DPIB_REGISTERS;
 module_param_named(position_quirk, sof_hda_position_quirk, int, 0444);
 MODULE_PARM_DESC(position_quirk, "SOF HDaudio position quirk");
-EXPORT_SYMBOL_NS(sof_hda_position_quirk, SND_SOC_SOF_INTEL_HDA_COMMON);
+EXPORT_SYMBOL_NS(sof_hda_position_quirk, "SND_SOC_SOF_INTEL_HDA_COMMON");
 
 #define HDA_LTRP_GB_VALUE_US	95
 
@@ -119,13 +119,39 @@ int hda_dsp_stream_setup_bdl(struct snd_sof_dev *sdev,
 	int remain, ioc;
 
 	period_bytes = hstream->period_bytes;
-	dev_dbg(sdev->dev, "period_bytes:0x%x\n", period_bytes);
-	if (!period_bytes)
+	dev_dbg(sdev->dev, "period_bytes: %#x, bufsize: %#x\n", period_bytes,
+		hstream->bufsize);
+
+	if (!period_bytes) {
+		unsigned int chunk_size;
+
+		chunk_size = snd_sgbuf_get_chunk_size(dmab, 0, hstream->bufsize);
+
 		period_bytes = hstream->bufsize;
+
+		/*
+		 * HDA spec demands that the LVI value must be at least one
+		 * before the DMA operation can begin. This means that there
+		 * must be at least two BDLE present for the transfer.
+		 *
+		 * If the buffer is not a single continuous area then the
+		 * hda_setup_bdle() will create multiple BDLEs for each segment.
+		 * If the memory is a single continuous area, force it to be
+		 * split into two 'periods', otherwise the transfer will be
+		 * split to multiple BDLE for each chunk in hda_setup_bdle()
+		 *
+		 * Note: period_bytes == 0 can only happen for firmware or
+		 * library loading. The data size is 4K aligned, which ensures
+		 * that the second chunk's start address will be 128-byte
+		 * aligned.
+		 */
+		if (chunk_size == hstream->bufsize)
+			period_bytes /= 2;
+	}
 
 	periods = hstream->bufsize / period_bytes;
 
-	dev_dbg(sdev->dev, "periods:%d\n", periods);
+	dev_dbg(sdev->dev, "periods: %d\n", periods);
 
 	remain = hstream->bufsize % period_bytes;
 	if (remain)
@@ -712,7 +738,7 @@ int hda_dsp_stream_hw_free(struct snd_sof_dev *sdev,
 
 	return 0;
 }
-EXPORT_SYMBOL_NS(hda_dsp_stream_hw_free, SND_SOC_SOF_INTEL_HDA_COMMON);
+EXPORT_SYMBOL_NS(hda_dsp_stream_hw_free, "SND_SOC_SOF_INTEL_HDA_COMMON");
 
 bool hda_dsp_check_stream_irq(struct snd_sof_dev *sdev)
 {
@@ -735,7 +761,7 @@ bool hda_dsp_check_stream_irq(struct snd_sof_dev *sdev)
 
 	return ret;
 }
-EXPORT_SYMBOL_NS(hda_dsp_check_stream_irq, SND_SOC_SOF_INTEL_HDA_COMMON);
+EXPORT_SYMBOL_NS(hda_dsp_check_stream_irq, "SND_SOC_SOF_INTEL_HDA_COMMON");
 
 static void
 hda_dsp_compr_bytes_transferred(struct hdac_stream *hstream, int direction)
@@ -832,7 +858,7 @@ irqreturn_t hda_dsp_stream_threaded_handler(int irq, void *context)
 
 	return IRQ_HANDLED;
 }
-EXPORT_SYMBOL_NS(hda_dsp_stream_threaded_handler, SND_SOC_SOF_INTEL_HDA_COMMON);
+EXPORT_SYMBOL_NS(hda_dsp_stream_threaded_handler, "SND_SOC_SOF_INTEL_HDA_COMMON");
 
 int hda_dsp_stream_init(struct snd_sof_dev *sdev)
 {
@@ -970,7 +996,7 @@ int hda_dsp_stream_init(struct snd_sof_dev *sdev)
 
 	return 0;
 }
-EXPORT_SYMBOL_NS(hda_dsp_stream_init, SND_SOC_SOF_INTEL_HDA_COMMON);
+EXPORT_SYMBOL_NS(hda_dsp_stream_init, "SND_SOC_SOF_INTEL_HDA_COMMON");
 
 void hda_dsp_stream_free(struct snd_sof_dev *sdev)
 {
@@ -1000,7 +1026,7 @@ void hda_dsp_stream_free(struct snd_sof_dev *sdev)
 		devm_kfree(sdev->dev, hda_stream);
 	}
 }
-EXPORT_SYMBOL_NS(hda_dsp_stream_free, SND_SOC_SOF_INTEL_HDA_COMMON);
+EXPORT_SYMBOL_NS(hda_dsp_stream_free, "SND_SOC_SOF_INTEL_HDA_COMMON");
 
 snd_pcm_uframes_t hda_dsp_stream_get_position(struct hdac_stream *hstream,
 					      int direction, bool can_sleep)
@@ -1087,7 +1113,7 @@ snd_pcm_uframes_t hda_dsp_stream_get_position(struct hdac_stream *hstream,
 
 	return pos;
 }
-EXPORT_SYMBOL_NS(hda_dsp_stream_get_position, SND_SOC_SOF_INTEL_HDA_COMMON);
+EXPORT_SYMBOL_NS(hda_dsp_stream_get_position, "SND_SOC_SOF_INTEL_HDA_COMMON");
 
 #define merge_u64(u32_u, u32_l) (((u64)(u32_u) << 32) | (u32_l))
 
@@ -1127,7 +1153,7 @@ u64 hda_dsp_get_stream_llp(struct snd_sof_dev *sdev,
 
 	return merge_u64(llp_u, llp_l);
 }
-EXPORT_SYMBOL_NS(hda_dsp_get_stream_llp, SND_SOC_SOF_INTEL_HDA_COMMON);
+EXPORT_SYMBOL_NS(hda_dsp_get_stream_llp, "SND_SOC_SOF_INTEL_HDA_COMMON");
 
 /**
  * hda_dsp_get_stream_ldp - Retrieve the LDP (Linear DMA Position) of the stream
@@ -1159,4 +1185,4 @@ u64 hda_dsp_get_stream_ldp(struct snd_sof_dev *sdev,
 
 	return ((u64)ldp_u << 32) | ldp_l;
 }
-EXPORT_SYMBOL_NS(hda_dsp_get_stream_ldp, SND_SOC_SOF_INTEL_HDA_COMMON);
+EXPORT_SYMBOL_NS(hda_dsp_get_stream_ldp, "SND_SOC_SOF_INTEL_HDA_COMMON");

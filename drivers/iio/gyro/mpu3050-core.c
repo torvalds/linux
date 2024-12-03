@@ -1059,12 +1059,12 @@ static int mpu3050_trigger_probe(struct iio_dev *indio_dev, int irq)
 	/* Check if IRQ is open drain */
 	mpu3050->irq_opendrain = device_property_read_bool(dev, "drive-open-drain");
 
-	irq_trig = irqd_get_trigger_type(irq_get_irq_data(irq));
 	/*
 	 * Configure the interrupt generator hardware to supply whatever
 	 * the interrupt is configured for, edges low/high level low/high,
 	 * we can provide it all.
 	 */
+	irq_trig = irq_get_trigger_type(irq);
 	switch (irq_trig) {
 	case IRQF_TRIGGER_RISING:
 		dev_info(&indio_dev->dev,

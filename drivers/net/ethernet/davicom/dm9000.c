@@ -1799,7 +1799,7 @@ static struct platform_driver dm9000_driver = {
 		.of_match_table = of_match_ptr(dm9000_of_matches),
 	},
 	.probe   = dm9000_probe,
-	.remove_new = dm9000_drv_remove,
+	.remove = dm9000_drv_remove,
 };
 
 module_platform_driver(dm9000_driver);

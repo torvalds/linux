@@ -431,7 +431,7 @@ static const struct power_supply_vbat_ri_table samsung_vbat2res_charging_eb58515
  * temperature compensation tables so we just state 100% for every temperature.
  * If you have the datasheets, please provide these tables.
  */
-static struct power_supply_resistance_temp_table samsung_temp2res[] = {
+static const struct power_supply_resistance_temp_table samsung_temp2res[] = {
 	{ .temp = 50, .resistance = 100 },
 	{ .temp = 40, .resistance = 100 },
 	{ .temp = 30, .resistance = 100 },
@@ -447,7 +447,7 @@ static struct power_supply_resistance_temp_table samsung_temp2res[] = {
  * These must be sorted by falling OCV value.
  */
 
-static struct power_supply_battery_ocv_table samsung_ocv_cap_eb485159lu[] = {
+static const struct power_supply_battery_ocv_table samsung_ocv_cap_eb485159lu[] = {
 	{ .ocv = 4330000, .capacity = 100},
 	{ .ocv = 4320000, .capacity = 99},
 	{ .ocv = 4283000, .capacity = 95},
@@ -499,7 +499,7 @@ static struct power_supply_battery_ocv_table samsung_ocv_cap_eb485159lu[] = {
 };
 
 /* Same capacity table is used by eb-l1m7flu, eb425161la, eb425161lu */
-static struct power_supply_battery_ocv_table samsung_ocv_cap_1500mah[] = {
+static const struct power_supply_battery_ocv_table samsung_ocv_cap_1500mah[] = {
 	{ .ocv = 4328000, .capacity = 100},
 	{ .ocv = 4299000, .capacity = 99},
 	{ .ocv = 4281000, .capacity = 98},
@@ -540,7 +540,7 @@ static struct power_supply_battery_ocv_table samsung_ocv_cap_1500mah[] = {
 	{ .ocv = 3300000, .capacity = 0},
 };
 
-static struct power_supply_battery_ocv_table samsung_ocv_cap_eb535151vu[] = {
+static const struct power_supply_battery_ocv_table samsung_ocv_cap_eb535151vu[] = {
 	{ .ocv = 4178000, .capacity = 100},
 	{ .ocv = 4148000, .capacity = 99},
 	{ .ocv = 4105000, .capacity = 95},
@@ -572,7 +572,7 @@ static struct power_supply_battery_ocv_table samsung_ocv_cap_eb535151vu[] = {
 	{ .ocv = 3300000, .capacity = 0},
 };
 
-static struct power_supply_battery_ocv_table samsung_ocv_cap_eb585157lu[] = {
+static const struct power_supply_battery_ocv_table samsung_ocv_cap_eb585157lu[] = {
 	{ .ocv = 4320000, .capacity = 100},
 	{ .ocv = 4296000, .capacity = 99},
 	{ .ocv = 4283000, .capacity = 98},

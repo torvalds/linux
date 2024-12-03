@@ -798,6 +798,7 @@ static void init_amd_bd(struct cpuinfo_x86 *c)
 static const struct x86_cpu_desc erratum_1386_microcode[] = {
 	AMD_CPU_DESC(0x17,  0x1, 0x2, 0x0800126e),
 	AMD_CPU_DESC(0x17, 0x31, 0x0, 0x08301052),
+	{},
 };
 
 static void fix_erratum_1386(struct cpuinfo_x86 *c)
@@ -924,6 +925,17 @@ static void init_amd_zen4(struct cpuinfo_x86 *c)
 {
 	if (!cpu_has(c, X86_FEATURE_HYPERVISOR))
 		msr_set_bit(MSR_ZEN4_BP_CFG, MSR_ZEN4_BP_CFG_SHARED_BTB_FIX_BIT);
+
+	/*
+	 * These Zen4 SoCs advertise support for virtualized VMLOAD/VMSAVE
+	 * in some BIOS versions but they can lead to random host reboots.
+	 */
+	switch (c->x86_model) {
+	case 0x18 ... 0x1f:
+	case 0x60 ... 0x7f:
+		clear_cpu_cap(c, X86_FEATURE_V_VMSAVE_VMLOAD);
+		break;
+	}
 }
 
 static void init_amd_zen5(struct cpuinfo_x86 *c)

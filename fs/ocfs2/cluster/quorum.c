@@ -60,7 +60,7 @@ static void o2quo_fence_self(void)
 	switch (o2nm_single_cluster->cl_fence_method) {
 	case O2NM_FENCE_PANIC:
 		panic("*** ocfs2 is very sorry to be fencing this system by "
-		      "panicing ***\n");
+		      "panicking ***\n");
 		break;
 	default:
 		WARN_ON(o2nm_single_cluster->cl_fence_method >=

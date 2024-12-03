@@ -6,6 +6,9 @@
 
 #include <linux/kvm_host.h>
 #include <linux/mm.h>
+
+#include <asm/kvm_emulate.h>
+
 #include <nvhe/fixed_config.h>
 #include <nvhe/mem_protect.h>
 #include <nvhe/memory.h>
@@ -201,11 +204,46 @@ static void pvm_init_trap_regs(struct kvm_vcpu *vcpu)
 	}
 }
 
+static void pkvm_vcpu_reset_hcr(struct kvm_vcpu *vcpu)
+{
+	vcpu->arch.hcr_el2 = HCR_GUEST_FLAGS;
+
+	if (has_hvhe())
+		vcpu->arch.hcr_el2 |= HCR_E2H;
+
+	if (cpus_have_final_cap(ARM64_HAS_RAS_EXTN)) {
+		/* route synchronous external abort exceptions to EL2 */
+		vcpu->arch.hcr_el2 |= HCR_TEA;
+		/* trap error record accesses */
+		vcpu->arch.hcr_el2 |= HCR_TERR;
+	}
+
+	if (cpus_have_final_cap(ARM64_HAS_STAGE2_FWB))
+		vcpu->arch.hcr_el2 |= HCR_FWB;
+
+	if (cpus_have_final_cap(ARM64_HAS_EVT) &&
+	    !cpus_have_final_cap(ARM64_MISMATCHED_CACHE_TYPE))
+		vcpu->arch.hcr_el2 |= HCR_TID4;
+	else
+		vcpu->arch.hcr_el2 |= HCR_TID2;
+
+	if (vcpu_has_ptrauth(vcpu))
+		vcpu->arch.hcr_el2 |= (HCR_API | HCR_APK);
+}
+
 /*
  * Initialize trap register values in protected mode.
  */
-void __pkvm_vcpu_init_traps(struct kvm_vcpu *vcpu)
+static void pkvm_vcpu_init_traps(struct kvm_vcpu *vcpu)
 {
+	vcpu->arch.cptr_el2 = kvm_get_reset_cptr_el2(vcpu);
+	vcpu->arch.mdcr_el2 = 0;
+
+	pkvm_vcpu_reset_hcr(vcpu);
+
+	if ((!vcpu_is_protected(vcpu)))
+		return;
+
 	pvm_init_trap_regs(vcpu);
 	pvm_init_traps_aa64pfr0(vcpu);
 	pvm_init_traps_aa64pfr1(vcpu);
@@ -289,6 +327,65 @@ void pkvm_put_hyp_vcpu(struct pkvm_hyp_vcpu *hyp_vcpu)
 	hyp_spin_unlock(&vm_table_lock);
 }
 
+static void pkvm_init_features_from_host(struct pkvm_hyp_vm *hyp_vm, const struct kvm *host_kvm)
+{
+	struct kvm *kvm = &hyp_vm->kvm;
+	DECLARE_BITMAP(allowed_features, KVM_VCPU_MAX_FEATURES);
+
+	/* No restrictions for non-protected VMs. */
+	if (!kvm_vm_is_protected(kvm)) {
+		bitmap_copy(kvm->arch.vcpu_features,
+			    host_kvm->arch.vcpu_features,
+			    KVM_VCPU_MAX_FEATURES);
+		return;
+	}
+
+	bitmap_zero(allowed_features, KVM_VCPU_MAX_FEATURES);
+
+	/*
+	 * For protected VMs, always allow:
+	 * - CPU starting in poweroff state
+	 * - PSCI v0.2
+	 */
+	set_bit(KVM_ARM_VCPU_POWER_OFF, allowed_features);
+	set_bit(KVM_ARM_VCPU_PSCI_0_2, allowed_features);
+
+	/*
+	 * Check if remaining features are allowed:
+	 * - Performance Monitoring
+	 * - Scalable Vectors
+	 * - Pointer Authentication
+	 */
+	if (FIELD_GET(ARM64_FEATURE_MASK(ID_AA64DFR0_EL1_PMUVer), PVM_ID_AA64DFR0_ALLOW))
+		set_bit(KVM_ARM_VCPU_PMU_V3, allowed_features);
+
+	if (FIELD_GET(ARM64_FEATURE_MASK(ID_AA64PFR0_EL1_SVE), PVM_ID_AA64PFR0_ALLOW))
+		set_bit(KVM_ARM_VCPU_SVE, allowed_features);
+
+	if (FIELD_GET(ARM64_FEATURE_MASK(ID_AA64ISAR1_EL1_API), PVM_ID_AA64ISAR1_RESTRICT_UNSIGNED) &&
+	    FIELD_GET(ARM64_FEATURE_MASK(ID_AA64ISAR1_EL1_APA), PVM_ID_AA64ISAR1_RESTRICT_UNSIGNED))
+		set_bit(KVM_ARM_VCPU_PTRAUTH_ADDRESS, allowed_features);
+
+	if (FIELD_GET(ARM64_FEATURE_MASK(ID_AA64ISAR1_EL1_GPI), PVM_ID_AA64ISAR1_ALLOW) &&
+	    FIELD_GET(ARM64_FEATURE_MASK(ID_AA64ISAR1_EL1_GPA), PVM_ID_AA64ISAR1_ALLOW))
+		set_bit(KVM_ARM_VCPU_PTRAUTH_GENERIC, allowed_features);
+
+	bitmap_and(kvm->arch.vcpu_features, host_kvm->arch.vcpu_features,
+		   allowed_features, KVM_VCPU_MAX_FEATURES);
+}
+
+static void pkvm_vcpu_init_ptrauth(struct pkvm_hyp_vcpu *hyp_vcpu)
+{
+	struct kvm_vcpu *vcpu = &hyp_vcpu->vcpu;
+
+	if (vcpu_has_feature(vcpu, KVM_ARM_VCPU_PTRAUTH_ADDRESS) ||
+	    vcpu_has_feature(vcpu, KVM_ARM_VCPU_PTRAUTH_GENERIC)) {
+		kvm_vcpu_enable_ptrauth(vcpu);
+	} else {
+		vcpu_clear_flag(&hyp_vcpu->vcpu, GUEST_HAS_PTRAUTH);
+	}
+}
+
 static void unpin_host_vcpu(struct kvm_vcpu *host_vcpu)
 {
 	if (host_vcpu)
@@ -310,6 +407,18 @@ static void init_pkvm_hyp_vm(struct kvm *host_kvm, struct pkvm_hyp_vm *hyp_vm,
 	hyp_vm->host_kvm = host_kvm;
 	hyp_vm->kvm.created_vcpus = nr_vcpus;
 	hyp_vm->kvm.arch.mmu.vtcr = host_mmu.arch.mmu.vtcr;
+	hyp_vm->kvm.arch.pkvm.enabled = READ_ONCE(host_kvm->arch.pkvm.enabled);
+	pkvm_init_features_from_host(hyp_vm, host_kvm);
+}
+
+static void pkvm_vcpu_init_sve(struct pkvm_hyp_vcpu *hyp_vcpu, struct kvm_vcpu *host_vcpu)
+{
+	struct kvm_vcpu *vcpu = &hyp_vcpu->vcpu;
+
+	if (!vcpu_has_feature(vcpu, KVM_ARM_VCPU_SVE)) {
+		vcpu_clear_flag(vcpu, GUEST_HAS_SVE);
+		vcpu_clear_flag(vcpu, VCPU_SVE_FINALIZED);
+	}
 }
 
 static int init_pkvm_hyp_vcpu(struct pkvm_hyp_vcpu *hyp_vcpu,
@@ -335,6 +444,11 @@ static int init_pkvm_hyp_vcpu(struct pkvm_hyp_vcpu *hyp_vcpu,
 
 	hyp_vcpu->vcpu.arch.hw_mmu = &hyp_vm->kvm.arch.mmu;
 	hyp_vcpu->vcpu.arch.cflags = READ_ONCE(host_vcpu->arch.cflags);
+	hyp_vcpu->vcpu.arch.mp_state.mp_state = KVM_MP_STATE_STOPPED;
+
+	pkvm_vcpu_init_sve(hyp_vcpu, host_vcpu);
+	pkvm_vcpu_init_ptrauth(hyp_vcpu);
+	pkvm_vcpu_init_traps(&hyp_vcpu->vcpu);
 done:
 	if (ret)
 		unpin_host_vcpu(host_vcpu);

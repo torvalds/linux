@@ -51,7 +51,7 @@ Such userspace applications includes, but are not limited to:
  - mbimcli (included with the libmbim [3] library), and
  - ModemManager [4]
 
-Establishing a MBIM IP session reequires at least these actions by the
+Establishing a MBIM IP session requires at least these actions by the
 management application:
 
  - open the control channel

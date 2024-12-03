@@ -1407,7 +1407,8 @@ static void call_rcu_tasks_rude(struct rcu_head *rhp, rcu_callback_t func)
  */
 void synchronize_rcu_tasks_rude(void)
 {
-	synchronize_rcu_tasks_generic(&rcu_tasks_rude);
+	if (!IS_ENABLED(CONFIG_ARCH_WANTS_NO_INSTR) || IS_ENABLED(CONFIG_FORCE_TASKS_RUDE_RCU))
+		synchronize_rcu_tasks_generic(&rcu_tasks_rude);
 }
 EXPORT_SYMBOL_GPL(synchronize_rcu_tasks_rude);
 
@@ -1549,22 +1550,7 @@ static void rcu_st_need_qs(struct task_struct *t, u8 v)
  */
 u8 rcu_trc_cmpxchg_need_qs(struct task_struct *t, u8 old, u8 new)
 {
-	union rcu_special ret;
-	union rcu_special trs_old = READ_ONCE(t->trc_reader_special);
-	union rcu_special trs_new = trs_old;
-
-	if (trs_old.b.need_qs != old)
-		return trs_old.b.need_qs;
-	trs_new.b.need_qs = new;
-
-	// Although cmpxchg() appears to KCSAN to update all four bytes,
-	// only the .b.need_qs byte actually changes.
-	instrument_atomic_read_write(&t->trc_reader_special.b.need_qs,
-				     sizeof(t->trc_reader_special.b.need_qs));
-	// Avoid false-positive KCSAN failures.
-	ret.s = data_race(cmpxchg(&t->trc_reader_special.s, trs_old.s, trs_new.s));
-
-	return ret.b.need_qs;
+	return cmpxchg(&t->trc_reader_special.b.need_qs, old, new);
 }
 EXPORT_SYMBOL_GPL(rcu_trc_cmpxchg_need_qs);
 

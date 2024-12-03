@@ -245,7 +245,11 @@ static int wilc_bus_probe(struct spi_device *spi)
 	if (ret)
 		goto power_down;
 
-	ret = wilc_validate_chipid(wilc);
+	ret = wilc_get_chipid(wilc);
+	if (ret)
+		goto power_down;
+
+	ret = wilc_cfg80211_register(wilc);
 	if (ret)
 		goto power_down;
 
@@ -1229,7 +1233,7 @@ static int wilc_validate_chipid(struct wilc *wilc)
 		dev_err(&spi->dev, "Fail cmd read chip id...\n");
 		return ret;
 	}
-	if (!is_wilc1000(chipid)) {
+	if (!is_wilc1000(chipid) && !is_wilc3000(chipid)) {
 		dev_err(&spi->dev, "Unknown chip id 0x%x\n", chipid);
 		return -ENODEV;
 	}

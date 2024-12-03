@@ -23,6 +23,7 @@
 
 #include <linux/mctp.h>
 #include <net/mctp.h>
+#include <net/mctpdevice.h>
 #include <net/pkt_sched.h>
 
 #define MCTP_SERIAL_MTU		68 /* base mtu (64) + mctp header */
@@ -470,7 +471,7 @@ static int mctp_serial_open(struct tty_struct *tty)
 	spin_lock_init(&dev->lock);
 	INIT_WORK(&dev->tx_work, mctp_serial_tx_work);
 
-	rc = register_netdev(ndev);
+	rc = mctp_register_netdev(ndev, NULL, MCTP_PHYS_BINDING_SERIAL);
 	if (rc)
 		goto free_netdev;
 
@@ -492,7 +493,7 @@ static void mctp_serial_close(struct tty_struct *tty)
 	struct mctp_serial *dev = tty->disc_data;
 	int idx = dev->idx;
 
-	unregister_netdev(dev->netdev);
+	mctp_unregister_netdev(dev->netdev);
 	ida_free(&mctp_serial_ida, idx);
 }
 

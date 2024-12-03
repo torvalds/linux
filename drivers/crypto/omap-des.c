@@ -1115,7 +1115,7 @@ static SIMPLE_DEV_PM_OPS(omap_des_pm_ops, omap_des_suspend, omap_des_resume);
 
 static struct platform_driver omap_des_driver = {
 	.probe	= omap_des_probe,
-	.remove_new = omap_des_remove,
+	.remove = omap_des_remove,
 	.driver	= {
 		.name	= "omap-des",
 		.pm	= &omap_des_pm_ops,

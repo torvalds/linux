@@ -741,7 +741,7 @@ struct pptable_funcs {
 	 * @dpm_set_vcn_enable: Enable/disable VCN engine dynamic power
 	 *                      management.
 	 */
-	int (*dpm_set_vcn_enable)(struct smu_context *smu, bool enable);
+	int (*dpm_set_vcn_enable)(struct smu_context *smu, bool enable, int inst);
 
 	/**
 	 * @dpm_set_jpeg_enable: Enable/disable JPEG engine dynamic power
@@ -859,11 +859,6 @@ struct pptable_funcs {
 	 * current display configuration.
 	 */
 	int (*display_disable_memory_clock_switch)(struct smu_context *smu, bool disable_memory_clock_switch);
-
-	/**
-	 * @dump_pptable: Print the power play table to the system log.
-	 */
-	void (*dump_pptable)(struct smu_context *smu);
 
 	/**
 	 * @get_power_limit: Get the device's power limits.
@@ -1262,7 +1257,8 @@ struct pptable_funcs {
 	 * @set_soft_freq_limited_range: Set the soft frequency range of a clock
 	 *                               domain in MHz.
 	 */
-	int (*set_soft_freq_limited_range)(struct smu_context *smu, enum smu_clk_type clk_type, uint32_t min, uint32_t max);
+	int (*set_soft_freq_limited_range)(struct smu_context *smu, enum smu_clk_type clk_type, uint32_t min, uint32_t max,
+					   bool automatic);
 
 	/**
 	 * @set_power_source: Notify the SMU of the current power source.

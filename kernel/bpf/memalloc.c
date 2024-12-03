@@ -254,11 +254,8 @@ static void alloc_bulk(struct bpf_mem_cache *c, int cnt, int node, bool atomic)
 
 static void free_one(void *obj, bool percpu)
 {
-	if (percpu) {
+	if (percpu)
 		free_percpu(((void __percpu **)obj)[1]);
-		kfree(obj);
-		return;
-	}
 
 	kfree(obj);
 }

@@ -19,6 +19,7 @@
 #include "intel_dp.h"
 #include "intel_dp_aux.h"
 #include "intel_dp_link_training.h"
+#include "intel_dp_test.h"
 #include "intel_dpio_phy.h"
 #include "intel_encoder.h"
 #include "intel_fifo_underrun.h"
@@ -169,13 +170,12 @@ static void assert_dp_port(struct intel_dp *intel_dp, bool state)
 {
 	struct intel_display *display = to_intel_display(intel_dp);
 	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
-	struct drm_i915_private *dev_priv = to_i915(dig_port->base.base.dev);
 	bool cur_state = intel_de_read(display, intel_dp->output_reg) & DP_PORT_EN;
 
-	I915_STATE_WARN(dev_priv, cur_state != state,
-			"[ENCODER:%d:%s] state assertion failure (expected %s, current %s)\n",
-			dig_port->base.base.base.id, dig_port->base.base.name,
-			str_on_off(state), str_on_off(cur_state));
+	INTEL_DISPLAY_STATE_WARN(display, cur_state != state,
+				 "[ENCODER:%d:%s] state assertion failure (expected %s, current %s)\n",
+				 dig_port->base.base.base.id, dig_port->base.base.name,
+				 str_on_off(state), str_on_off(cur_state));
 }
 #define assert_dp_port_disabled(d) assert_dp_port((d), false)
 
@@ -184,9 +184,9 @@ static void assert_edp_pll(struct drm_i915_private *dev_priv, bool state)
 	struct intel_display *display = &dev_priv->display;
 	bool cur_state = intel_de_read(display, DP_A) & DP_PLL_ENABLE;
 
-	I915_STATE_WARN(dev_priv, cur_state != state,
-			"eDP PLL state assertion failure (expected %s, current %s)\n",
-			str_on_off(state), str_on_off(cur_state));
+	INTEL_DISPLAY_STATE_WARN(display, cur_state != state,
+				 "eDP PLL state assertion failure (expected %s, current %s)\n",
+				 str_on_off(state), str_on_off(cur_state));
 }
 #define assert_edp_pll_enabled(d) assert_edp_pll((d), true)
 #define assert_edp_pll_disabled(d) assert_edp_pll((d), false)
@@ -477,12 +477,8 @@ intel_dp_link_down(struct intel_encoder *encoder,
 
 	msleep(intel_dp->pps.panel_power_down_delay);
 
-	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
-		intel_wakeref_t wakeref;
-
-		with_intel_pps_lock(intel_dp, wakeref)
-			intel_dp->pps.active_pipe = INVALID_PIPE;
-	}
+	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
+		vlv_pps_port_disable(encoder, old_crtc_state);
 }
 
 static void g4x_dp_audio_enable(struct intel_encoder *encoder,
@@ -694,7 +690,7 @@ static void intel_enable_dp(struct intel_atomic_state *state,
 
 	with_intel_pps_lock(intel_dp, wakeref) {
 		if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
-			vlv_pps_init(encoder, pipe_config);
+			vlv_pps_port_enable_unlocked(encoder, pipe_config);
 
 		intel_dp_enable_port(intel_dp, pipe_config);
 
@@ -709,8 +705,7 @@ static void intel_enable_dp(struct intel_atomic_state *state,
 		if (IS_CHERRYVIEW(dev_priv))
 			lane_mask = intel_dp_unused_lane_mask(pipe_config->lane_count);
 
-		vlv_wait_port_ready(dev_priv, dp_to_dig_port(intel_dp),
-				    lane_mask);
+		vlv_wait_port_ready(display, dp_to_dig_port(intel_dp), lane_mask);
 	}
 
 	intel_dp_set_power(intel_dp, DP_SET_POWER_D0);
@@ -1172,12 +1167,8 @@ intel_dp_hotplug(struct intel_encoder *encoder,
 	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 	enum intel_hotplug_state state;
 
-	if (intel_dp->compliance.test_active &&
-	    intel_dp->compliance.test_type == DP_TEST_LINK_PHY_TEST_PATTERN) {
-		intel_dp_phy_test(encoder);
-		/* just do the PHY test and nothing else */
+	if (intel_dp_test_phy(intel_dp))
 		return INTEL_HOTPLUG_UNCHANGED;
-	}
 
 	state = intel_encoder_hotplug(encoder, connector);
 
@@ -1249,20 +1240,6 @@ static void intel_dp_encoder_destroy(struct drm_encoder *encoder)
 	kfree(enc_to_dig_port(to_intel_encoder(encoder)));
 }
 
-enum pipe vlv_active_pipe(struct intel_dp *intel_dp)
-{
-	struct intel_display *display = to_intel_display(intel_dp);
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
-	struct intel_encoder *encoder = &dp_to_dig_port(intel_dp)->base;
-	enum pipe pipe;
-
-	if (g4x_dp_port_enabled(dev_priv, intel_dp->output_reg,
-				encoder->port, &pipe))
-		return pipe;
-
-	return INVALID_PIPE;
-}
-
 static void intel_dp_encoder_reset(struct drm_encoder *encoder)
 {
 	struct intel_display *display = to_intel_display(encoder->dev);
@@ -1272,13 +1249,10 @@ static void intel_dp_encoder_reset(struct drm_encoder *encoder)
 	intel_dp->DP = intel_de_read(display, intel_dp->output_reg);
 
 	intel_dp->reset_link_params = true;
+	intel_dp_invalidate_source_oui(intel_dp);
 
-	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
-		intel_wakeref_t wakeref;
-
-		with_intel_pps_lock(intel_dp, wakeref)
-			intel_dp->pps.active_pipe = vlv_active_pipe(intel_dp);
-	}
+	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
+		vlv_pps_pipe_reset(intel_dp);
 
 	intel_pps_encoder_reset(intel_dp);
 }

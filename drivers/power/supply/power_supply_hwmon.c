@@ -7,6 +7,7 @@
 #include <linux/hwmon.h>
 #include <linux/power_supply.h>
 #include <linux/slab.h>
+#include "power_supply.h"
 
 struct power_supply_hwmon {
 	struct power_supply *psy;

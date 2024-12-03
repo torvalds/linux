@@ -64,8 +64,6 @@ static int vkms_enable_vblank(struct drm_crtc *crtc)
 	struct drm_vblank_crtc *vblank = drm_crtc_vblank_crtc(crtc);
 	struct vkms_output *out = drm_crtc_to_vkms_output(crtc);
 
-	drm_calc_timestamping_constants(crtc, &crtc->mode);
-
 	hrtimer_init(&out->vblank_hrtimer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 	out->vblank_hrtimer.function = &vkms_vblank_simulate;
 	out->period_ns = ktime_set(0, vblank->framedur_ns);
@@ -232,6 +230,7 @@ static void vkms_crtc_atomic_disable(struct drm_crtc *crtc,
 
 static void vkms_crtc_atomic_begin(struct drm_crtc *crtc,
 				   struct drm_atomic_state *state)
+	__acquires(&vkms_output->lock)
 {
 	struct vkms_output *vkms_output = drm_crtc_to_vkms_output(crtc);
 
@@ -243,6 +242,7 @@ static void vkms_crtc_atomic_begin(struct drm_crtc *crtc,
 
 static void vkms_crtc_atomic_flush(struct drm_crtc *crtc,
 				   struct drm_atomic_state *state)
+	__releases(&vkms_output->lock)
 {
 	struct vkms_output *vkms_output = drm_crtc_to_vkms_output(crtc);
 
@@ -287,7 +287,12 @@ int vkms_crtc_init(struct drm_device *dev, struct drm_crtc *crtc,
 
 	drm_crtc_helper_add(crtc, &vkms_crtc_helper_funcs);
 
-	drm_mode_crtc_set_gamma_size(crtc, VKMS_LUT_SIZE);
+	ret = drm_mode_crtc_set_gamma_size(crtc, VKMS_LUT_SIZE);
+	if (ret) {
+		DRM_ERROR("Failed to set gamma size\n");
+		return ret;
+	}
+
 	drm_crtc_enable_color_mgmt(crtc, 0, false, VKMS_LUT_SIZE);
 
 	spin_lock_init(&vkms_out->lock);

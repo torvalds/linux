@@ -554,7 +554,7 @@
 #define FWD_DSCP_LOW_THR_MASK		GENMASK(17, 0)
 
 #define REG_EGRESS_RATE_METER_CFG		0x100c
-#define EGRESS_RATE_METER_EN_MASK		BIT(29)
+#define EGRESS_RATE_METER_EN_MASK		BIT(31)
 #define EGRESS_RATE_METER_EQ_RATE_EN_MASK	BIT(17)
 #define EGRESS_RATE_METER_WINDOW_SZ_MASK	GENMASK(16, 12)
 #define EGRESS_RATE_METER_TIMESLICE_MASK	GENMASK(10, 0)
@@ -752,11 +752,9 @@ struct airoha_tx_irq_queue {
 	struct airoha_qdma *qdma;
 
 	struct napi_struct napi;
-	u32 *q;
 
 	int size;
-	int queued;
-	u16 head;
+	u32 *q;
 };
 
 struct airoha_hw_stats {
@@ -1116,17 +1114,23 @@ static void airoha_fe_set_pse_queue_rsv_pages(struct airoha_eth *eth,
 		      PSE_CFG_WR_EN_MASK | PSE_CFG_OQRSV_SEL_MASK);
 }
 
+static u32 airoha_fe_get_pse_all_rsv(struct airoha_eth *eth)
+{
+	u32 val = airoha_fe_rr(eth, REG_FE_PSE_BUF_SET);
+
+	return FIELD_GET(PSE_ALLRSV_MASK, val);
+}
+
 static int airoha_fe_set_pse_oq_rsv(struct airoha_eth *eth,
 				    u32 port, u32 queue, u32 val)
 {
-	u32 orig_val, tmp, all_rsv, fq_limit;
+	u32 orig_val = airoha_fe_get_pse_queue_rsv_pages(eth, port, queue);
+	u32 tmp, all_rsv, fq_limit;
 
 	airoha_fe_set_pse_queue_rsv_pages(eth, port, queue, val);
 
 	/* modify all rsv */
-	orig_val = airoha_fe_get_pse_queue_rsv_pages(eth, port, queue);
-	tmp = airoha_fe_rr(eth, REG_FE_PSE_BUF_SET);
-	all_rsv = FIELD_GET(PSE_ALLRSV_MASK, tmp);
+	all_rsv = airoha_fe_get_pse_all_rsv(eth);
 	all_rsv += (val - orig_val);
 	airoha_fe_rmw(eth, REG_FE_PSE_BUF_SET, PSE_ALLRSV_MASK,
 		      FIELD_PREP(PSE_ALLRSV_MASK, all_rsv));
@@ -1166,11 +1170,13 @@ static void airoha_fe_pse_ports_init(struct airoha_eth *eth)
 		[FE_PSE_PORT_GDM4] = 2,
 		[FE_PSE_PORT_CDM5] = 2,
 	};
+	u32 all_rsv;
 	int q;
 
+	all_rsv = airoha_fe_get_pse_all_rsv(eth);
 	/* hw misses PPE2 oq rsv */
-	airoha_fe_set(eth, REG_FE_PSE_BUF_SET,
-		      PSE_RSV_PAGES * pse_port_num_queues[FE_PSE_PORT_PPE2]);
+	all_rsv += PSE_RSV_PAGES * pse_port_num_queues[FE_PSE_PORT_PPE2];
+	airoha_fe_set(eth, REG_FE_PSE_BUF_SET, all_rsv);
 
 	/* CMD1 */
 	for (q = 0; q < pse_port_num_queues[FE_PSE_PORT_CDM1]; q++)
@@ -1363,7 +1369,8 @@ static int airoha_fe_init(struct airoha_eth *eth)
 	airoha_fe_set(eth, REG_GDM_MISC_CFG,
 		      GDM2_RDM_ACK_WAIT_PREF_MASK |
 		      GDM2_CHN_VLD_MODE_MASK);
-	airoha_fe_rmw(eth, REG_CDM2_FWD_CFG, CDM2_OAM_QSEL_MASK, 15);
+	airoha_fe_rmw(eth, REG_CDM2_FWD_CFG, CDM2_OAM_QSEL_MASK,
+		      FIELD_PREP(CDM2_OAM_QSEL_MASK, 15));
 
 	/* init fragment and assemble Force Port */
 	/* NPU Core-3, NPU Bridge Channel-3 */
@@ -1647,30 +1654,38 @@ static int airoha_qdma_init_rx(struct airoha_qdma *qdma)
 static int airoha_qdma_tx_napi_poll(struct napi_struct *napi, int budget)
 {
 	struct airoha_tx_irq_queue *irq_q;
+	int id, done = 0, irq_queued;
 	struct airoha_qdma *qdma;
 	struct airoha_eth *eth;
-	int id, done = 0;
+	u32 status, head;
 
 	irq_q = container_of(napi, struct airoha_tx_irq_queue, napi);
 	qdma = irq_q->qdma;
 	id = irq_q - &qdma->q_tx_irq[0];
 	eth = qdma->eth;
 
-	while (irq_q->queued > 0 && done < budget) {
-		u32 qid, last, val = irq_q->q[irq_q->head];
+	status = airoha_qdma_rr(qdma, REG_IRQ_STATUS(id));
+	head = FIELD_GET(IRQ_HEAD_IDX_MASK, status);
+	head = head % irq_q->size;
+	irq_queued = FIELD_GET(IRQ_ENTRY_LEN_MASK, status);
+
+	while (irq_queued > 0 && done < budget) {
+		u32 qid, val = irq_q->q[head];
+		struct airoha_qdma_desc *desc;
+		struct airoha_queue_entry *e;
 		struct airoha_queue *q;
+		u32 index, desc_ctrl;
+		struct sk_buff *skb;
 
 		if (val == 0xff)
 			break;
 
-		irq_q->q[irq_q->head] = 0xff; /* mark as done */
-		irq_q->head = (irq_q->head + 1) % irq_q->size;
-		irq_q->queued--;
+		irq_q->q[head] = 0xff; /* mark as done */
+		head = (head + 1) % irq_q->size;
+		irq_queued--;
 		done++;
 
-		last = FIELD_GET(IRQ_DESC_IDX_MASK, val);
 		qid = FIELD_GET(IRQ_RING_IDX_MASK, val);
-
 		if (qid >= ARRAY_SIZE(qdma->q_tx))
 			continue;
 
@@ -1678,44 +1693,53 @@ static int airoha_qdma_tx_napi_poll(struct napi_struct *napi, int budget)
 		if (!q->ndesc)
 			continue;
 
+		index = FIELD_GET(IRQ_DESC_IDX_MASK, val);
+		if (index >= q->ndesc)
+			continue;
+
 		spin_lock_bh(&q->lock);
 
-		while (q->queued > 0) {
-			struct airoha_qdma_desc *desc = &q->desc[q->tail];
-			struct airoha_queue_entry *e = &q->entry[q->tail];
-			u32 desc_ctrl = le32_to_cpu(desc->ctrl);
-			struct sk_buff *skb = e->skb;
-			u16 index = q->tail;
+		if (!q->queued)
+			goto unlock;
 
-			if (!(desc_ctrl & QDMA_DESC_DONE_MASK) &&
-			    !(desc_ctrl & QDMA_DESC_DROP_MASK))
-				break;
+		desc = &q->desc[index];
+		desc_ctrl = le32_to_cpu(desc->ctrl);
 
+		if (!(desc_ctrl & QDMA_DESC_DONE_MASK) &&
+		    !(desc_ctrl & QDMA_DESC_DROP_MASK))
+			goto unlock;
+
+		e = &q->entry[index];
+		skb = e->skb;
+
+		dma_unmap_single(eth->dev, e->dma_addr, e->dma_len,
+				 DMA_TO_DEVICE);
+		memset(e, 0, sizeof(*e));
+		WRITE_ONCE(desc->msg0, 0);
+		WRITE_ONCE(desc->msg1, 0);
+		q->queued--;
+
+		/* completion ring can report out-of-order indexes if hw QoS
+		 * is enabled and packets with different priority are queued
+		 * to same DMA ring. Take into account possible out-of-order
+		 * reports incrementing DMA ring tail pointer
+		 */
+		while (q->tail != q->head && !q->entry[q->tail].dma_addr)
 			q->tail = (q->tail + 1) % q->ndesc;
-			q->queued--;
 
-			dma_unmap_single(eth->dev, e->dma_addr, e->dma_len,
-					 DMA_TO_DEVICE);
+		if (skb) {
+			u16 queue = skb_get_queue_mapping(skb);
+			struct netdev_queue *txq;
 
-			WRITE_ONCE(desc->msg0, 0);
-			WRITE_ONCE(desc->msg1, 0);
+			txq = netdev_get_tx_queue(skb->dev, queue);
+			netdev_tx_completed_queue(txq, 1, skb->len);
+			if (netif_tx_queue_stopped(txq) &&
+			    q->ndesc - q->queued >= q->free_thr)
+				netif_tx_wake_queue(txq);
 
-			if (skb) {
-				struct netdev_queue *txq;
-
-				txq = netdev_get_tx_queue(skb->dev, qid);
-				if (netif_tx_queue_stopped(txq) &&
-				    q->ndesc - q->queued >= q->free_thr)
-					netif_tx_wake_queue(txq);
-
-				dev_kfree_skb_any(skb);
-				e->skb = NULL;
-			}
-
-			if (index == last)
-				break;
+			dev_kfree_skb_any(skb);
 		}
-
+unlock:
 		spin_unlock_bh(&q->lock);
 	}
 
@@ -2015,20 +2039,11 @@ static irqreturn_t airoha_irq_handler(int irq, void *dev_instance)
 
 	if (intr[0] & INT_TX_MASK) {
 		for (i = 0; i < ARRAY_SIZE(qdma->q_tx_irq); i++) {
-			struct airoha_tx_irq_queue *irq_q = &qdma->q_tx_irq[i];
-			u32 status, head;
-
 			if (!(intr[0] & TX_DONE_INT_MASK(i)))
 				continue;
 
 			airoha_qdma_irq_disable(qdma, QDMA_INT_REG_IDX0,
 						TX_DONE_INT_MASK(i));
-
-			status = airoha_qdma_rr(qdma, REG_IRQ_STATUS(i));
-			head = FIELD_GET(IRQ_HEAD_IDX_MASK, status);
-			irq_q->head = head % irq_q->size;
-			irq_q->queued = FIELD_GET(IRQ_ENTRY_LEN_MASK, status);
-
 			napi_schedule(&qdma->q_tx_irq[i].napi);
 		}
 	}
@@ -2331,7 +2346,7 @@ static int airoha_dev_stop(struct net_device *dev)
 {
 	struct airoha_gdm_port *port = netdev_priv(dev);
 	struct airoha_qdma *qdma = port->qdma;
-	int err;
+	int i, err;
 
 	netif_tx_disable(dev);
 	err = airoha_set_gdm_ports(qdma->eth, false);
@@ -2341,6 +2356,14 @@ static int airoha_dev_stop(struct net_device *dev)
 	airoha_qdma_clear(qdma, REG_QDMA_GLOBAL_CFG,
 			  GLOBAL_CFG_TX_DMA_EN_MASK |
 			  GLOBAL_CFG_RX_DMA_EN_MASK);
+
+	for (i = 0; i < ARRAY_SIZE(qdma->q_tx); i++) {
+		if (!qdma->q_tx[i].ndesc)
+			continue;
+
+		airoha_qdma_cleanup_tx_queue(&qdma->q_tx[i]);
+		netdev_tx_reset_subqueue(dev, i);
+	}
 
 	return 0;
 }
@@ -2479,7 +2502,9 @@ static netdev_tx_t airoha_dev_xmit(struct sk_buff *skb,
 	q->queued += i;
 
 	skb_tx_timestamp(skb);
-	if (!netdev_xmit_more())
+	netdev_tx_sent_queue(txq, skb->len);
+
+	if (netif_xmit_stopped(txq) || !netdev_xmit_more())
 		airoha_qdma_rmw(qdma, REG_TX_CPU_IDX(qid),
 				TX_RING_CPU_IDX_MASK,
 				FIELD_PREP(TX_RING_CPU_IDX_MASK, q->head));
@@ -2780,7 +2805,7 @@ MODULE_DEVICE_TABLE(of, of_airoha_match);
 
 static struct platform_driver airoha_driver = {
 	.probe = airoha_probe,
-	.remove_new = airoha_remove,
+	.remove = airoha_remove,
 	.driver = {
 		.name = KBUILD_MODNAME,
 		.of_match_table = of_airoha_match,

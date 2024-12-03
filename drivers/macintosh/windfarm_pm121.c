@@ -999,7 +999,7 @@ static void pm121_remove(struct platform_device *ddev)
 
 static struct platform_driver pm121_driver = {
 	.probe = pm121_probe,
-	.remove_new = pm121_remove,
+	.remove = pm121_remove,
 	.driver = {
 		.name = "windfarm",
 		.bus = &platform_bus_type,

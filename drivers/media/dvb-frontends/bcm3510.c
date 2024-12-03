@@ -729,7 +729,7 @@ static int bcm3510_init_cold(struct bcm3510_state *st)
 	int ret;
 	bcm3510_register_value v;
 
-	/* read Acquisation Processor status register and check it is not in RUN mode */
+	/* read Acquisition Processor status register and check it is not in RUN mode */
 	if ((ret = bcm3510_readB(st,0xa2,&v)) < 0)
 		return ret;
 	if (v.APSTAT1_a2.RUN) {

@@ -101,6 +101,7 @@
 #include <crypto/internal/cipher.h>
 #include <linux/kernel.h>
 #include <linux/jiffies.h>
+#include <linux/string_choices.h>
 
 /***************************************************************
  * Backend cipher definitions available to DRBG
@@ -1412,7 +1413,7 @@ static int drbg_generate(struct drbg_state *drbg,
 	if (drbg->pr || drbg->seeded == DRBG_SEED_STATE_UNSEEDED) {
 		pr_devel("DRBG: reseeding before generation (prediction "
 			 "resistance: %s, state %s)\n",
-			 drbg->pr ? "true" : "false",
+			 str_true_false(drbg->pr),
 			 (drbg->seeded ==  DRBG_SEED_STATE_FULL ?
 			  "seeded" : "unseeded"));
 		/* 9.3.1 steps 7.1 through 7.3 */
@@ -1562,7 +1563,7 @@ static int drbg_instantiate(struct drbg_state *drbg, struct drbg_string *pers,
 	bool reseed = true;
 
 	pr_devel("DRBG: Initializing DRBG core %d with prediction resistance "
-		 "%s\n", coreref, pr ? "enabled" : "disabled");
+		 "%s\n", coreref, str_enabled_disabled(pr));
 	mutex_lock(&drbg->drbg_mutex);
 
 	/* 9.1 step 1 is implicit with the selected DRBG type */
@@ -2150,4 +2151,4 @@ MODULE_DESCRIPTION("NIST SP800-90A Deterministic Random Bit Generator (DRBG) "
 		   CRYPTO_DRBG_HMAC_STRING
 		   CRYPTO_DRBG_CTR_STRING);
 MODULE_ALIAS_CRYPTO("stdrng");
-MODULE_IMPORT_NS(CRYPTO_INTERNAL);
+MODULE_IMPORT_NS("CRYPTO_INTERNAL");

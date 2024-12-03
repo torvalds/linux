@@ -226,7 +226,7 @@ void BPF_STRUCT_OPS(qmap_enqueue, struct task_struct *p, u64 enq_flags)
 	 */
 	if (tctx->force_local) {
 		tctx->force_local = false;
-		scx_bpf_dispatch(p, SCX_DSQ_LOCAL, slice_ns, enq_flags);
+		scx_bpf_dsq_insert(p, SCX_DSQ_LOCAL, slice_ns, enq_flags);
 		return;
 	}
 
@@ -234,7 +234,7 @@ void BPF_STRUCT_OPS(qmap_enqueue, struct task_struct *p, u64 enq_flags)
 	if (!(enq_flags & SCX_ENQ_CPU_SELECTED) &&
 	    (cpu = pick_direct_dispatch_cpu(p, scx_bpf_task_cpu(p))) >= 0) {
 		__sync_fetch_and_add(&nr_ddsp_from_enq, 1);
-		scx_bpf_dispatch(p, SCX_DSQ_LOCAL_ON | cpu, slice_ns, enq_flags);
+		scx_bpf_dsq_insert(p, SCX_DSQ_LOCAL_ON | cpu, slice_ns, enq_flags);
 		return;
 	}
 
@@ -247,7 +247,7 @@ void BPF_STRUCT_OPS(qmap_enqueue, struct task_struct *p, u64 enq_flags)
 	if (enq_flags & SCX_ENQ_REENQ) {
 		s32 cpu;
 
-		scx_bpf_dispatch(p, SHARED_DSQ, 0, enq_flags);
+		scx_bpf_dsq_insert(p, SHARED_DSQ, 0, enq_flags);
 		cpu = scx_bpf_pick_idle_cpu(p->cpus_ptr, 0);
 		if (cpu >= 0)
 			scx_bpf_kick_cpu(cpu, SCX_KICK_IDLE);
@@ -262,7 +262,7 @@ void BPF_STRUCT_OPS(qmap_enqueue, struct task_struct *p, u64 enq_flags)
 
 	/* Queue on the selected FIFO. If the FIFO overflows, punt to global. */
 	if (bpf_map_push_elem(ring, &pid, 0)) {
-		scx_bpf_dispatch(p, SHARED_DSQ, slice_ns, enq_flags);
+		scx_bpf_dsq_insert(p, SHARED_DSQ, slice_ns, enq_flags);
 		return;
 	}
 
@@ -294,10 +294,10 @@ static void update_core_sched_head_seq(struct task_struct *p)
 }
 
 /*
- * To demonstrate the use of scx_bpf_dispatch_from_dsq(), implement silly
- * selective priority boosting mechanism by scanning SHARED_DSQ looking for
- * highpri tasks, moving them to HIGHPRI_DSQ and then consuming them first. This
- * makes minor difference only when dsp_batch is larger than 1.
+ * To demonstrate the use of scx_bpf_dsq_move(), implement silly selective
+ * priority boosting mechanism by scanning SHARED_DSQ looking for highpri tasks,
+ * moving them to HIGHPRI_DSQ and then consuming them first. This makes minor
+ * difference only when dsp_batch is larger than 1.
  *
  * scx_bpf_dispatch[_vtime]_from_dsq() are allowed both from ops.dispatch() and
  * non-rq-lock holding BPF programs. As demonstration, this function is called
@@ -318,11 +318,11 @@ static bool dispatch_highpri(bool from_timer)
 
 		if (tctx->highpri) {
 			/* exercise the set_*() and vtime interface too */
-			__COMPAT_scx_bpf_dispatch_from_dsq_set_slice(
+			__COMPAT_scx_bpf_dsq_move_set_slice(
 				BPF_FOR_EACH_ITER, slice_ns * 2);
-			__COMPAT_scx_bpf_dispatch_from_dsq_set_vtime(
+			__COMPAT_scx_bpf_dsq_move_set_vtime(
 				BPF_FOR_EACH_ITER, highpri_seq++);
-			__COMPAT_scx_bpf_dispatch_vtime_from_dsq(
+			__COMPAT_scx_bpf_dsq_move_vtime(
 				BPF_FOR_EACH_ITER, p, HIGHPRI_DSQ, 0);
 		}
 	}
@@ -340,9 +340,9 @@ static bool dispatch_highpri(bool from_timer)
 		else
 			cpu = scx_bpf_pick_any_cpu(p->cpus_ptr, 0);
 
-		if (__COMPAT_scx_bpf_dispatch_from_dsq(BPF_FOR_EACH_ITER, p,
-						       SCX_DSQ_LOCAL_ON | cpu,
-						       SCX_ENQ_PREEMPT)) {
+		if (__COMPAT_scx_bpf_dsq_move(BPF_FOR_EACH_ITER, p,
+					      SCX_DSQ_LOCAL_ON | cpu,
+					      SCX_ENQ_PREEMPT)) {
 			if (cpu == this_cpu) {
 				dispatched = true;
 				__sync_fetch_and_add(&nr_expedited_local, 1);
@@ -374,7 +374,7 @@ void BPF_STRUCT_OPS(qmap_dispatch, s32 cpu, struct task_struct *prev)
 	if (dispatch_highpri(false))
 		return;
 
-	if (!nr_highpri_queued && scx_bpf_consume(SHARED_DSQ))
+	if (!nr_highpri_queued && scx_bpf_dsq_move_to_local(SHARED_DSQ))
 		return;
 
 	if (dsp_inf_loop_after && nr_dispatched > dsp_inf_loop_after) {
@@ -385,7 +385,7 @@ void BPF_STRUCT_OPS(qmap_dispatch, s32 cpu, struct task_struct *prev)
 		 */
 		p = bpf_task_from_pid(2);
 		if (p) {
-			scx_bpf_dispatch(p, SCX_DSQ_LOCAL, slice_ns, 0);
+			scx_bpf_dsq_insert(p, SCX_DSQ_LOCAL, slice_ns, 0);
 			bpf_task_release(p);
 			return;
 		}
@@ -431,7 +431,7 @@ void BPF_STRUCT_OPS(qmap_dispatch, s32 cpu, struct task_struct *prev)
 			update_core_sched_head_seq(p);
 			__sync_fetch_and_add(&nr_dispatched, 1);
 
-			scx_bpf_dispatch(p, SHARED_DSQ, slice_ns, 0);
+			scx_bpf_dsq_insert(p, SHARED_DSQ, slice_ns, 0);
 			bpf_task_release(p);
 
 			batch--;
@@ -439,7 +439,7 @@ void BPF_STRUCT_OPS(qmap_dispatch, s32 cpu, struct task_struct *prev)
 			if (!batch || !scx_bpf_dispatch_nr_slots()) {
 				if (dispatch_highpri(false))
 					return;
-				scx_bpf_consume(SHARED_DSQ);
+				scx_bpf_dsq_move_to_local(SHARED_DSQ);
 				return;
 			}
 			if (!cpuc->dsp_cnt)

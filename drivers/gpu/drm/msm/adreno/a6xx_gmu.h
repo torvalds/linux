@@ -99,6 +99,7 @@ struct a6xx_gmu {
 	struct completion pd_gate;
 
 	struct qmp *qmp;
+	struct a6xx_hfi_msg_bw_table *bw_table;
 };
 
 static inline u32 gmu_read(struct a6xx_gmu *gmu, u32 offset)

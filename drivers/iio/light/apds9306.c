@@ -1071,7 +1071,7 @@ static int apds9306_write_event_config(struct iio_dev *indio_dev,
 				       const struct iio_chan_spec *chan,
 				       enum iio_event_type type,
 				       enum iio_event_direction dir,
-				       int state)
+				       bool state)
 {
 	struct apds9306_data *data = iio_priv(indio_dev);
 	struct apds9306_regfields *rf = &data->rf;
@@ -1125,10 +1125,7 @@ static int apds9306_write_event_config(struct iio_dev *indio_dev,
 		}
 	}
 	case IIO_EV_TYPE_THRESH_ADAPTIVE:
-		if (state)
-			return regmap_field_write(rf->int_thresh_var_en, 1);
-		else
-			return regmap_field_write(rf->int_thresh_var_en, 0);
+		return regmap_field_write(rf->int_thresh_var_en, state);
 	default:
 		return -EINVAL;
 	}
@@ -1358,4 +1355,4 @@ module_i2c_driver(apds9306_driver);
 MODULE_AUTHOR("Subhajit Ghosh <subhajit.ghosh@tweaklogic.com>");
 MODULE_DESCRIPTION("APDS9306 Ambient Light Sensor driver");
 MODULE_LICENSE("GPL");
-MODULE_IMPORT_NS(IIO_GTS_HELPER);
+MODULE_IMPORT_NS("IIO_GTS_HELPER");

@@ -107,7 +107,7 @@ static struct platform_driver mdio_mux_multiplexer_driver = {
 		.of_match_table	= mdio_mux_multiplexer_match,
 	},
 	.probe		= mdio_mux_multiplexer_probe,
-	.remove_new	= mdio_mux_multiplexer_remove,
+	.remove		= mdio_mux_multiplexer_remove,
 };
 
 module_platform_driver(mdio_mux_multiplexer_driver);

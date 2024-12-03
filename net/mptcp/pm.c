@@ -154,6 +154,9 @@ void mptcp_pm_fully_established(struct mptcp_sock *msk, const struct sock *ssk)
 void mptcp_pm_connection_closed(struct mptcp_sock *msk)
 {
 	pr_debug("msk=%p\n", msk);
+
+	if (msk->token)
+		mptcp_event(MPTCP_EVENT_CLOSED, msk, NULL, GFP_KERNEL);
 }
 
 void mptcp_pm_subflow_established(struct mptcp_sock *msk)

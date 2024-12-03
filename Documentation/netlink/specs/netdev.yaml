@@ -248,6 +248,26 @@ attribute-sets:
              threaded mode. If NAPI is not in threaded mode (i.e. uses normal
              softirq context), the attribute will be absent.
         type: u32
+      -
+        name: defer-hard-irqs
+        doc: The number of consecutive empty polls before IRQ deferral ends
+             and hardware IRQs are re-enabled.
+        type: u32
+        checks:
+          max: s32-max
+      -
+        name: gro-flush-timeout
+        doc: The timeout, in nanoseconds, of when to trigger the NAPI watchdog
+             timer which schedules NAPI processing. Additionally, a non-zero
+             value will also prevent GRO from flushing recent super-frames at
+             the end of a NAPI cycle. This may add receive latency in exchange
+             for reducing the number of frames processed by the network stack.
+        type: uint
+      -
+        name: irq-suspend-timeout
+        doc: The timeout, in nanoseconds, of how long to suspend irq
+             processing, if event polling finds events
+        type: uint
   -
     name: queue
     attributes:
@@ -636,6 +656,9 @@ operations:
             - ifindex
             - irq
             - pid
+            - defer-hard-irqs
+            - gro-flush-timeout
+            - irq-suspend-timeout
       dump:
         request:
           attributes:
@@ -676,6 +699,18 @@ operations:
         reply:
           attributes:
             - id
+    -
+      name: napi-set
+      doc: Set configurable NAPI instance settings.
+      attribute-set: napi
+      flags: [ admin-perm ]
+      do:
+        request:
+          attributes:
+            - id
+            - defer-hard-irqs
+            - gro-flush-timeout
+            - irq-suspend-timeout
 
 kernel-family:
   headers: [ "linux/list.h"]

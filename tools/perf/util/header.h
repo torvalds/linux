@@ -10,7 +10,13 @@
 #include <linux/bitmap.h>
 #include <linux/types.h>
 #include "env.h"
-#include "pmu.h"
+#include <perf/cpumap.h>
+
+struct evlist;
+union perf_event;
+struct perf_header;
+struct perf_session;
+struct perf_tool;
 
 enum {
 	HEADER_RESERVED		= 0,	/* always cleared */
@@ -91,8 +97,6 @@ struct perf_pipe_file_header {
 	u64				size;
 };
 
-struct perf_header;
-
 int perf_file_header__read(struct perf_file_header *header,
 			   struct perf_header *ph, int fd);
 
@@ -123,11 +127,6 @@ struct perf_header_feature_ops {
 	bool	   full_only;
 	bool	   synthesize;
 };
-
-struct evlist;
-struct perf_session;
-struct perf_tool;
-union perf_event;
 
 extern const char perf_version_string[];
 
@@ -196,14 +195,16 @@ int write_padded(struct feat_fd *fd, const void *bf,
 
 #define MAX_CACHE_LVL 4
 
-int is_cpu_online(unsigned int cpu);
 int build_caches_for_cpu(u32 cpu, struct cpu_cache_level caches[], u32 *cntp);
 
 /*
  * arch specific callback
  */
-int get_cpuid(char *buffer, size_t sz);
+int get_cpuid(char *buffer, size_t sz, struct perf_cpu cpu);
 
-char *get_cpuid_str(struct perf_pmu *pmu __maybe_unused);
+char *get_cpuid_str(struct perf_cpu cpu);
+
+char *get_cpuid_allow_env_override(struct perf_cpu cpu);
+
 int strcmp_cpuid_str(const char *s1, const char *s2);
 #endif /* __PERF_HEADER_H */

@@ -756,7 +756,7 @@ static struct platform_driver dwc2_platform_driver = {
 		.pm = &dwc2_dev_pm_ops,
 	},
 	.probe = dwc2_driver_probe,
-	.remove_new = dwc2_driver_remove,
+	.remove = dwc2_driver_remove,
 	.shutdown = dwc2_driver_shutdown,
 };
 

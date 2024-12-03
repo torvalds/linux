@@ -226,7 +226,7 @@ static bool blk_crypto_fallback_split_bio_if_needed(struct bio **bio_ptr)
 
 		split_bio = bio_split(bio, num_sectors, GFP_NOIO,
 				      &crypto_bio_split);
-		if (!split_bio) {
+		if (IS_ERR(split_bio)) {
 			bio->bi_status = BLK_STS_RESOURCE;
 			return false;
 		}

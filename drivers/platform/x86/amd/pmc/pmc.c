@@ -1161,7 +1161,7 @@ static struct platform_driver amd_pmc_driver = {
 		.pm = pm_sleep_ptr(&amd_pmc_pm),
 	},
 	.probe = amd_pmc_probe,
-	.remove_new = amd_pmc_remove,
+	.remove = amd_pmc_remove,
 };
 module_platform_driver(amd_pmc_driver);
 

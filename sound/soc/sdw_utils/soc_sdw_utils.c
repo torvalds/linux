@@ -138,14 +138,21 @@ struct asoc_sdw_codec_info codec_info_list[] = {
 				.dailink = {SOC_SDW_AMP_OUT_DAI_ID, SOC_SDW_UNUSED_DAI_ID},
 				.init = asoc_sdw_rt_amp_init,
 				.exit = asoc_sdw_rt_amp_exit,
-				.rtd_init = asoc_sdw_rt712_spk_rtd_init,
+				.rtd_init = asoc_sdw_rt_mf_sdca_spk_rtd_init,
 				.controls = generic_spk_controls,
 				.num_controls = ARRAY_SIZE(generic_spk_controls),
 				.widgets = generic_spk_widgets,
 				.num_widgets = ARRAY_SIZE(generic_spk_widgets),
 			},
+			{
+				.direction = {false, true},
+				.dai_name = "rt712-sdca-aif3",
+				.dai_type = SOC_SDW_DAI_TYPE_MIC,
+				.dailink = {SOC_SDW_UNUSED_DAI_ID, SOC_SDW_DMIC_DAI_ID},
+				.rtd_init = asoc_sdw_rt_dmic_rtd_init,
+			},
 		},
-		.dai_num = 2,
+		.dai_num = 3,
 	},
 	{
 		.part_id = 0x1712,
@@ -178,8 +185,15 @@ struct asoc_sdw_codec_info codec_info_list[] = {
 				.widgets = generic_jack_widgets,
 				.num_widgets = ARRAY_SIZE(generic_jack_widgets),
 			},
+			{
+				.direction = {false, true},
+				.dai_name = "rt712-sdca-aif3",
+				.dai_type = SOC_SDW_DAI_TYPE_MIC,
+				.dailink = {SOC_SDW_UNUSED_DAI_ID, SOC_SDW_DMIC_DAI_ID},
+				.rtd_init = asoc_sdw_rt_dmic_rtd_init,
+			},
 		},
-		.dai_num = 1,
+		.dai_num = 2,
 	},
 	{
 		.part_id = 0x1713,
@@ -334,6 +348,47 @@ struct asoc_sdw_codec_info codec_info_list[] = {
 		.dai_num = 1,
 	},
 	{
+		.part_id = 0x721,
+		.version_id = 3,
+		.dais = {
+			{
+				.direction = {true, true},
+				.dai_name = "rt721-sdca-aif1",
+				.dai_type = SOC_SDW_DAI_TYPE_JACK,
+				.dailink = {SOC_SDW_JACK_OUT_DAI_ID, SOC_SDW_JACK_IN_DAI_ID},
+				.init = asoc_sdw_rt_sdca_jack_init,
+				.exit = asoc_sdw_rt_sdca_jack_exit,
+				.rtd_init = asoc_sdw_rt_sdca_jack_rtd_init,
+				.controls = generic_jack_controls,
+				.num_controls = ARRAY_SIZE(generic_jack_controls),
+				.widgets = generic_jack_widgets,
+				.num_widgets = ARRAY_SIZE(generic_jack_widgets),
+			},
+			{
+				.direction = {true, false},
+				.dai_name = "rt721-sdca-aif2",
+				.dai_type = SOC_SDW_DAI_TYPE_AMP,
+				/* No feedback capability is provided by rt721-sdca codec driver*/
+				.dailink = {SOC_SDW_AMP_OUT_DAI_ID, SOC_SDW_UNUSED_DAI_ID},
+				.init = asoc_sdw_rt_amp_init,
+				.exit = asoc_sdw_rt_amp_exit,
+				.rtd_init = asoc_sdw_rt_mf_sdca_spk_rtd_init,
+				.controls = generic_spk_controls,
+				.num_controls = ARRAY_SIZE(generic_spk_controls),
+				.widgets = generic_spk_widgets,
+				.num_widgets = ARRAY_SIZE(generic_spk_widgets),
+			},
+			{
+				.direction = {false, true},
+				.dai_name = "rt721-sdca-aif3",
+				.dai_type = SOC_SDW_DAI_TYPE_MIC,
+				.dailink = {SOC_SDW_UNUSED_DAI_ID, SOC_SDW_DMIC_DAI_ID},
+				.rtd_init = asoc_sdw_rt_dmic_rtd_init,
+			},
+		},
+		.dai_num = 3,
+	},
+	{
 		.part_id = 0x722,
 		.version_id = 3,
 		.dais = {
@@ -358,11 +413,13 @@ struct asoc_sdw_codec_info codec_info_list[] = {
 				.dailink = {SOC_SDW_AMP_OUT_DAI_ID, SOC_SDW_UNUSED_DAI_ID},
 				.init = asoc_sdw_rt_amp_init,
 				.exit = asoc_sdw_rt_amp_exit,
-				.rtd_init = asoc_sdw_rt722_spk_rtd_init,
+				.rtd_init = asoc_sdw_rt_mf_sdca_spk_rtd_init,
 				.controls = generic_spk_controls,
 				.num_controls = ARRAY_SIZE(generic_spk_controls),
 				.widgets = generic_spk_widgets,
 				.num_widgets = ARRAY_SIZE(generic_spk_widgets),
+				.quirk = SOC_SDW_CODEC_SPKR,
+				.quirk_exclude = true,
 			},
 			{
 				.direction = {false, true},
@@ -487,6 +544,8 @@ struct asoc_sdw_codec_info codec_info_list[] = {
 				.rtd_init = asoc_sdw_cs42l43_dmic_rtd_init,
 				.widgets = generic_dmic_widgets,
 				.num_widgets = ARRAY_SIZE(generic_dmic_widgets),
+				.quirk = SOC_SDW_CODEC_MIC,
+				.quirk_exclude = true,
 			},
 			{
 				.direction = {false, true},
@@ -563,13 +622,13 @@ struct asoc_sdw_codec_info codec_info_list[] = {
 		.dai_num = 1,
 	},
 };
-EXPORT_SYMBOL_NS(codec_info_list, SND_SOC_SDW_UTILS);
+EXPORT_SYMBOL_NS(codec_info_list, "SND_SOC_SDW_UTILS");
 
 int asoc_sdw_get_codec_info_list_count(void)
 {
 	return ARRAY_SIZE(codec_info_list);
 };
-EXPORT_SYMBOL_NS(asoc_sdw_get_codec_info_list_count, SND_SOC_SDW_UTILS);
+EXPORT_SYMBOL_NS(asoc_sdw_get_codec_info_list_count, "SND_SOC_SDW_UTILS");
 
 struct asoc_sdw_codec_info *asoc_sdw_find_codec_info_part(const u64 adr)
 {
@@ -590,7 +649,7 @@ struct asoc_sdw_codec_info *asoc_sdw_find_codec_info_part(const u64 adr)
 
 	return NULL;
 }
-EXPORT_SYMBOL_NS(asoc_sdw_find_codec_info_part, SND_SOC_SDW_UTILS);
+EXPORT_SYMBOL_NS(asoc_sdw_find_codec_info_part, "SND_SOC_SDW_UTILS");
 
 struct asoc_sdw_codec_info *asoc_sdw_find_codec_info_acpi(const u8 *acpi_id)
 {
@@ -605,7 +664,7 @@ struct asoc_sdw_codec_info *asoc_sdw_find_codec_info_acpi(const u8 *acpi_id)
 
 	return NULL;
 }
-EXPORT_SYMBOL_NS(asoc_sdw_find_codec_info_acpi, SND_SOC_SDW_UTILS);
+EXPORT_SYMBOL_NS(asoc_sdw_find_codec_info_acpi, "SND_SOC_SDW_UTILS");
 
 struct asoc_sdw_codec_info *asoc_sdw_find_codec_info_dai(const char *dai_name, int *dai_index)
 {
@@ -622,7 +681,7 @@ struct asoc_sdw_codec_info *asoc_sdw_find_codec_info_dai(const char *dai_name, i
 
 	return NULL;
 }
-EXPORT_SYMBOL_NS(asoc_sdw_find_codec_info_dai, SND_SOC_SDW_UTILS);
+EXPORT_SYMBOL_NS(asoc_sdw_find_codec_info_dai, "SND_SOC_SDW_UTILS");
 
 int asoc_sdw_rtd_init(struct snd_soc_pcm_runtime *rtd)
 {
@@ -686,14 +745,14 @@ skip_add_controls_widgets:
 
 	return 0;
 }
-EXPORT_SYMBOL_NS(asoc_sdw_rtd_init, SND_SOC_SDW_UTILS);
+EXPORT_SYMBOL_NS(asoc_sdw_rtd_init, "SND_SOC_SDW_UTILS");
 
 /* these wrappers are only needed to avoid typecast compilation errors */
 int asoc_sdw_startup(struct snd_pcm_substream *substream)
 {
 	return sdw_startup_stream(substream);
 }
-EXPORT_SYMBOL_NS(asoc_sdw_startup, SND_SOC_SDW_UTILS);
+EXPORT_SYMBOL_NS(asoc_sdw_startup, "SND_SOC_SDW_UTILS");
 
 int asoc_sdw_prepare(struct snd_pcm_substream *substream)
 {
@@ -712,7 +771,7 @@ int asoc_sdw_prepare(struct snd_pcm_substream *substream)
 
 	return sdw_prepare_stream(sdw_stream);
 }
-EXPORT_SYMBOL_NS(asoc_sdw_prepare, SND_SOC_SDW_UTILS);
+EXPORT_SYMBOL_NS(asoc_sdw_prepare, "SND_SOC_SDW_UTILS");
 
 int asoc_sdw_trigger(struct snd_pcm_substream *substream, int cmd)
 {
@@ -752,7 +811,7 @@ int asoc_sdw_trigger(struct snd_pcm_substream *substream, int cmd)
 
 	return ret;
 }
-EXPORT_SYMBOL_NS(asoc_sdw_trigger, SND_SOC_SDW_UTILS);
+EXPORT_SYMBOL_NS(asoc_sdw_trigger, "SND_SOC_SDW_UTILS");
 
 int asoc_sdw_hw_params(struct snd_pcm_substream *substream,
 		       struct snd_pcm_hw_params *params)
@@ -795,7 +854,7 @@ int asoc_sdw_hw_params(struct snd_pcm_substream *substream,
 
 	return 0;
 }
-EXPORT_SYMBOL_NS(asoc_sdw_hw_params, SND_SOC_SDW_UTILS);
+EXPORT_SYMBOL_NS(asoc_sdw_hw_params, "SND_SOC_SDW_UTILS");
 
 int asoc_sdw_hw_free(struct snd_pcm_substream *substream)
 {
@@ -814,13 +873,13 @@ int asoc_sdw_hw_free(struct snd_pcm_substream *substream)
 
 	return sdw_deprepare_stream(sdw_stream);
 }
-EXPORT_SYMBOL_NS(asoc_sdw_hw_free, SND_SOC_SDW_UTILS);
+EXPORT_SYMBOL_NS(asoc_sdw_hw_free, "SND_SOC_SDW_UTILS");
 
 void asoc_sdw_shutdown(struct snd_pcm_substream *substream)
 {
 	sdw_shutdown_stream(substream);
 }
-EXPORT_SYMBOL_NS(asoc_sdw_shutdown, SND_SOC_SDW_UTILS);
+EXPORT_SYMBOL_NS(asoc_sdw_shutdown, "SND_SOC_SDW_UTILS");
 
 static bool asoc_sdw_is_unique_device(const struct snd_soc_acpi_link_adr *adr_link,
 				      unsigned int sdw_version,
@@ -881,7 +940,7 @@ const char *asoc_sdw_get_codec_name(struct device *dev,
 
 	return NULL;
 }
-EXPORT_SYMBOL_NS(asoc_sdw_get_codec_name, SND_SOC_SDW_UTILS);
+EXPORT_SYMBOL_NS(asoc_sdw_get_codec_name, "SND_SOC_SDW_UTILS");
 
 /* helper to get the link that the codec DAI is used */
 struct snd_soc_dai_link *asoc_sdw_mc_find_codec_dai_used(struct snd_soc_card *card,
@@ -900,7 +959,7 @@ struct snd_soc_dai_link *asoc_sdw_mc_find_codec_dai_used(struct snd_soc_card *ca
 	}
 	return NULL;
 }
-EXPORT_SYMBOL_NS(asoc_sdw_mc_find_codec_dai_used, SND_SOC_SDW_UTILS);
+EXPORT_SYMBOL_NS(asoc_sdw_mc_find_codec_dai_used, "SND_SOC_SDW_UTILS");
 
 void asoc_sdw_mc_dailink_exit_loop(struct snd_soc_card *card)
 {
@@ -933,7 +992,7 @@ void asoc_sdw_mc_dailink_exit_loop(struct snd_soc_card *card)
 		}
 	}
 }
-EXPORT_SYMBOL_NS(asoc_sdw_mc_dailink_exit_loop, SND_SOC_SDW_UTILS);
+EXPORT_SYMBOL_NS(asoc_sdw_mc_dailink_exit_loop, "SND_SOC_SDW_UTILS");
 
 int asoc_sdw_card_late_probe(struct snd_soc_card *card)
 {
@@ -949,22 +1008,24 @@ int asoc_sdw_card_late_probe(struct snd_soc_card *card)
 	}
 	return ret;
 }
-EXPORT_SYMBOL_NS(asoc_sdw_card_late_probe, SND_SOC_SDW_UTILS);
+EXPORT_SYMBOL_NS(asoc_sdw_card_late_probe, "SND_SOC_SDW_UTILS");
 
 void asoc_sdw_init_dai_link(struct device *dev, struct snd_soc_dai_link *dai_links,
 			    int *be_id, char *name, int playback, int capture,
 			    struct snd_soc_dai_link_component *cpus, int cpus_num,
 			    struct snd_soc_dai_link_component *platform_component,
 			    int num_platforms, struct snd_soc_dai_link_component *codecs,
-			    int codecs_num, int (*init)(struct snd_soc_pcm_runtime *rtd),
+			    int codecs_num, int no_pcm,
+			    int (*init)(struct snd_soc_pcm_runtime *rtd),
 			    const struct snd_soc_ops *ops)
 {
 	dev_dbg(dev, "create dai link %s, id %d\n", name, *be_id);
 	dai_links->id = (*be_id)++;
 	dai_links->name = name;
+	dai_links->stream_name = name;
 	dai_links->platforms = platform_component;
 	dai_links->num_platforms = num_platforms;
-	dai_links->no_pcm = 1;
+	dai_links->no_pcm = no_pcm;
 	dai_links->cpus = cpus;
 	dai_links->num_cpus = cpus_num;
 	dai_links->codecs = codecs;
@@ -974,13 +1035,13 @@ void asoc_sdw_init_dai_link(struct device *dev, struct snd_soc_dai_link *dai_lin
 	dai_links->init = init;
 	dai_links->ops = ops;
 }
-EXPORT_SYMBOL_NS(asoc_sdw_init_dai_link, SND_SOC_SDW_UTILS);
+EXPORT_SYMBOL_NS(asoc_sdw_init_dai_link, "SND_SOC_SDW_UTILS");
 
 int asoc_sdw_init_simple_dai_link(struct device *dev, struct snd_soc_dai_link *dai_links,
 				  int *be_id, char *name, int playback, int capture,
 				  const char *cpu_dai_name, const char *platform_comp_name,
 				  int num_platforms, const char *codec_name,
-				  const char *codec_dai_name,
+				  const char *codec_dai_name, int no_pcm,
 				  int (*init)(struct snd_soc_pcm_runtime *rtd),
 				  const struct snd_soc_ops *ops)
 {
@@ -999,11 +1060,11 @@ int asoc_sdw_init_simple_dai_link(struct device *dev, struct snd_soc_dai_link *d
 
 	asoc_sdw_init_dai_link(dev, dai_links, be_id, name, playback, capture,
 			       &dlc[0], 1, &dlc[1], num_platforms,
-			       &dlc[2], 1, init, ops);
+			       &dlc[2], 1, no_pcm, init, ops);
 
 	return 0;
 }
-EXPORT_SYMBOL_NS(asoc_sdw_init_simple_dai_link, SND_SOC_SDW_UTILS);
+EXPORT_SYMBOL_NS(asoc_sdw_init_simple_dai_link, "SND_SOC_SDW_UTILS");
 
 int asoc_sdw_count_sdw_endpoints(struct snd_soc_card *card, int *num_devs, int *num_ends)
 {
@@ -1024,7 +1085,7 @@ int asoc_sdw_count_sdw_endpoints(struct snd_soc_card *card, int *num_devs, int *
 
 	return 0;
 }
-EXPORT_SYMBOL_NS(asoc_sdw_count_sdw_endpoints, SND_SOC_SDW_UTILS);
+EXPORT_SYMBOL_NS(asoc_sdw_count_sdw_endpoints, "SND_SOC_SDW_UTILS");
 
 struct asoc_sdw_dailink *asoc_sdw_find_dailink(struct asoc_sdw_dailink *dailinks,
 					       const struct snd_soc_acpi_endpoint *new)
@@ -1042,7 +1103,7 @@ struct asoc_sdw_dailink *asoc_sdw_find_dailink(struct asoc_sdw_dailink *dailinks
 
 	return dailinks;
 }
-EXPORT_SYMBOL_NS(asoc_sdw_find_dailink, SND_SOC_SDW_UTILS);
+EXPORT_SYMBOL_NS(asoc_sdw_find_dailink, "SND_SOC_SDW_UTILS");
 
 int asoc_sdw_parse_sdw_endpoints(struct snd_soc_card *card,
 				 struct asoc_sdw_dailink *soc_dais,
@@ -1112,7 +1173,8 @@ int asoc_sdw_parse_sdw_endpoints(struct snd_soc_card *card,
 				dai_info = &codec_info->dais[adr_end->num];
 				soc_dai = asoc_sdw_find_dailink(soc_dais, adr_end);
 
-				if (dai_info->quirk && !(dai_info->quirk & ctx->mc_quirk))
+				if (dai_info->quirk &&
+				    !(dai_info->quirk_exclude ^ !!(dai_info->quirk & ctx->mc_quirk)))
 					continue;
 
 				dev_dbg(dev,
@@ -1164,7 +1226,7 @@ int asoc_sdw_parse_sdw_endpoints(struct snd_soc_card *card,
 
 	return num_dais;
 }
-EXPORT_SYMBOL_NS(asoc_sdw_parse_sdw_endpoints, SND_SOC_SDW_UTILS);
+EXPORT_SYMBOL_NS(asoc_sdw_parse_sdw_endpoints, "SND_SOC_SDW_UTILS");
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("SoundWire ASoC helpers");

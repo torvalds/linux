@@ -46,6 +46,10 @@ static const char *const *syscalltbl_native = syscalltbl_mips_n64;
 #include <asm/syscalls.c>
 const int syscalltbl_native_max_id = SYSCALLTBL_LOONGARCH_MAX_ID;
 static const char *const *syscalltbl_native = syscalltbl_loongarch;
+#elif defined(__riscv)
+#include <asm/syscalls.c>
+const int syscalltbl_native_max_id = SYSCALLTBL_RISCV_MAX_ID;
+static const char *const *syscalltbl_native = syscalltbl_riscv;
 #else
 const int syscalltbl_native_max_id = 0;
 static const char *const syscalltbl_native[] = {

@@ -62,7 +62,14 @@ allOf:
         peer-hub: true
         vdd-supply: true
 
-additionalProperties: false
+patternProperties:
+  "^.*@[0-9a-f]{1,2}$":
+    description: The hard wired USB devices
+    type: object
+    $ref: /schemas/usb/usb-device.yaml
+    additionalProperties: true
+
+unevaluatedProperties: false
 
 examples:
   - |

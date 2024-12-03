@@ -80,12 +80,7 @@ static inline void memcg1_soft_limit_reset(struct mem_cgroup *memcg)
 	WRITE_ONCE(memcg->soft_limit, PAGE_COUNTER_MAX);
 }
 
-bool memcg1_wait_acct_move(struct mem_cgroup *memcg);
-
 struct cgroup_taskset;
-int memcg1_can_attach(struct cgroup_taskset *tset);
-void memcg1_cancel_attach(struct cgroup_taskset *tset);
-void memcg1_move_task(void);
 void memcg1_css_offline(struct mem_cgroup *memcg);
 
 /* for encoding cft->private value on file */
@@ -130,7 +125,6 @@ static inline void memcg1_free_events(struct mem_cgroup *memcg) {}
 static inline void memcg1_memcg_init(struct mem_cgroup *memcg) {}
 static inline void memcg1_remove_from_trees(struct mem_cgroup *memcg) {}
 static inline void memcg1_soft_limit_reset(struct mem_cgroup *memcg) {}
-static inline bool memcg1_wait_acct_move(struct mem_cgroup *memcg) { return false; }
 static inline void memcg1_css_offline(struct mem_cgroup *memcg) {}
 
 static inline bool memcg1_oom_prepare(struct mem_cgroup *memcg, bool *locked) { return true; }

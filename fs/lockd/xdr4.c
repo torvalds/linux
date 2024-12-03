@@ -89,7 +89,6 @@ svcxdr_decode_lock(struct xdr_stream *xdr, struct nlm_lock *lock)
 		return false;
 
 	locks_init_lock(fl);
-	fl->c.flc_flags = FL_POSIX;
 	fl->c.flc_type  = F_RDLCK;
 	nlm4svc_set_file_lock_range(fl, lock->lock_start, lock->lock_len);
 	return true;
@@ -268,7 +267,6 @@ nlm4svc_decode_shareargs(struct svc_rqst *rqstp, struct xdr_stream *xdr)
 	struct nlm_args *argp = rqstp->rq_argp;
 	struct nlm_lock	*lock = &argp->lock;
 
-	memset(lock, 0, sizeof(*lock));
 	locks_init_lock(&lock->fl);
 	lock->svid = ~(u32)0;
 

@@ -360,7 +360,7 @@ int devm_ens160_core_probe(struct device *dev, struct regmap *regmap, int irq,
 
 	return devm_iio_device_register(dev, indio_dev);
 }
-EXPORT_SYMBOL_NS(devm_ens160_core_probe, IIO_ENS160);
+EXPORT_SYMBOL_NS(devm_ens160_core_probe, "IIO_ENS160");
 
 MODULE_AUTHOR("Gustavo Silva <gustavograzs@gmail.com>");
 MODULE_DESCRIPTION("ScioSense ENS160 driver");

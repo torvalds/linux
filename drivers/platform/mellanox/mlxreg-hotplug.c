@@ -786,7 +786,7 @@ static struct platform_driver mlxreg_hotplug_driver = {
 		.name = "mlxreg-hotplug",
 	},
 	.probe = mlxreg_hotplug_probe,
-	.remove_new = mlxreg_hotplug_remove,
+	.remove = mlxreg_hotplug_remove,
 };
 
 module_platform_driver(mlxreg_hotplug_driver);

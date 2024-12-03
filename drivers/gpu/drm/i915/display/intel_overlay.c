@@ -294,7 +294,7 @@ static void intel_overlay_flip_prepare(struct intel_overlay *overlay,
 	drm_WARN_ON(&overlay->i915->drm, overlay->old_vma);
 
 	if (vma)
-		frontbuffer = intel_frontbuffer_get(vma->obj);
+		frontbuffer = intel_frontbuffer_get(intel_bo_to_drm_bo(vma->obj));
 
 	intel_frontbuffer_track(overlay->frontbuffer, frontbuffer,
 				INTEL_FRONTBUFFER_OVERLAY(pipe));
@@ -1457,18 +1457,19 @@ void intel_overlay_cleanup(struct drm_i915_private *dev_priv)
 
 #if IS_ENABLED(CONFIG_DRM_I915_CAPTURE_ERROR)
 
-struct intel_overlay_error_state {
+struct intel_overlay_snapshot {
 	struct overlay_registers regs;
 	unsigned long base;
 	u32 dovsta;
 	u32 isr;
 };
 
-struct intel_overlay_error_state *
-intel_overlay_capture_error_state(struct drm_i915_private *dev_priv)
+struct intel_overlay_snapshot *
+intel_overlay_snapshot_capture(struct intel_display *display)
 {
+	struct drm_i915_private *dev_priv = to_i915(display->drm);
 	struct intel_overlay *overlay = dev_priv->display.overlay;
-	struct intel_overlay_error_state *error;
+	struct intel_overlay_snapshot *error;
 
 	if (!overlay || !overlay->active)
 		return NULL;
@@ -1487,9 +1488,12 @@ intel_overlay_capture_error_state(struct drm_i915_private *dev_priv)
 }
 
 void
-intel_overlay_print_error_state(struct drm_printer *p,
-				struct intel_overlay_error_state *error)
+intel_overlay_snapshot_print(const struct intel_overlay_snapshot *error,
+			     struct drm_printer *p)
 {
+	if (!error)
+		return;
+
 	drm_printf(p, "Overlay, status: 0x%08x, interrupt: 0x%08x\n",
 		   error->dovsta, error->isr);
 	drm_printf(p, "  Register file at 0x%08lx:\n", error->base);

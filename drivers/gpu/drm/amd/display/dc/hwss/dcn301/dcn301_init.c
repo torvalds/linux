@@ -107,6 +107,7 @@ static const struct hw_sequencer_funcs dcn301_funcs = {
 	.optimize_pwr_state = dcn21_optimize_pwr_state,
 	.exit_optimized_pwr_state = dcn21_exit_optimized_pwr_state,
 	.update_visual_confirm_color = dcn10_update_visual_confirm_color,
+	.wait_for_all_pending_updates = dcn30_wait_for_all_pending_updates,
 };
 
 static const struct hwseq_private_funcs dcn301_private_funcs = {

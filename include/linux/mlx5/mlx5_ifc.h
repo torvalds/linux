@@ -1872,7 +1872,11 @@ struct mlx5_ifc_cmd_hca_cap_bits {
 	u8         reserved_at_328[0x2];
 	u8	   relaxed_ordering_read[0x1];
 	u8         log_max_pd[0x5];
-	u8         reserved_at_330[0x5];
+	u8         dp_ordering_ooo_all_ud[0x1];
+	u8         dp_ordering_ooo_all_uc[0x1];
+	u8         dp_ordering_ooo_all_xrc[0x1];
+	u8         dp_ordering_ooo_all_dc[0x1];
+	u8         dp_ordering_ooo_all_rc[0x1];
 	u8         pcie_reset_using_hotreset_method[0x1];
 	u8         pci_sync_for_fw_update_with_driver_unload[0x1];
 	u8         vnic_env_cnt_steering_fail[0x1];
@@ -2094,7 +2098,9 @@ struct mlx5_ifc_cmd_hca_cap_2_bits {
 	u8	   reserved_at_0[0x80];
 
 	u8         migratable[0x1];
-	u8         reserved_at_81[0x11];
+	u8         reserved_at_81[0x7];
+	u8         dp_ordering_force[0x1];
+	u8         reserved_at_89[0x9];
 	u8         query_vuid[0x1];
 	u8         reserved_at_93[0x5];
 	u8         umr_log_entity_size_5[0x1];
@@ -3524,7 +3530,8 @@ struct mlx5_ifc_qpc_bits {
 	u8         latency_sensitive[0x1];
 	u8         reserved_at_24[0x1];
 	u8         drain_sigerr[0x1];
-	u8         reserved_at_26[0x2];
+	u8         reserved_at_26[0x1];
+	u8         dp_ordering_force[0x1];
 	u8         pd[0x18];
 
 	u8         mtu[0x3];
@@ -3597,7 +3604,8 @@ struct mlx5_ifc_qpc_bits {
 	u8         rae[0x1];
 	u8         reserved_at_493[0x1];
 	u8         page_offset[0x6];
-	u8         reserved_at_49a[0x3];
+	u8         reserved_at_49a[0x2];
+	u8         dp_ordering_1[0x1];
 	u8         cd_slave_receive[0x1];
 	u8         cd_slave_send[0x1];
 	u8         cd_master[0x1];
@@ -4105,11 +4113,47 @@ enum {
 	ELEMENT_TYPE_CAP_MASK_QUEUE_GROUP	= 1 << 4,
 };
 
+enum {
+	TSAR_ELEMENT_TSAR_TYPE_DWRR = 0x0,
+	TSAR_ELEMENT_TSAR_TYPE_ROUND_ROBIN = 0x1,
+	TSAR_ELEMENT_TSAR_TYPE_ETS = 0x2,
+};
+
+enum {
+	TSAR_TYPE_CAP_MASK_DWRR		= 1 << 0,
+	TSAR_TYPE_CAP_MASK_ROUND_ROBIN	= 1 << 1,
+	TSAR_TYPE_CAP_MASK_ETS		= 1 << 2,
+};
+
+struct mlx5_ifc_tsar_element_bits {
+	u8         reserved_at_0[0x8];
+	u8         tsar_type[0x8];
+	u8         reserved_at_10[0x10];
+};
+
+struct mlx5_ifc_vport_element_bits {
+	u8         reserved_at_0[0x10];
+	u8         vport_number[0x10];
+};
+
+struct mlx5_ifc_vport_tc_element_bits {
+	u8         traffic_class[0x4];
+	u8         reserved_at_4[0xc];
+	u8         vport_number[0x10];
+};
+
+union mlx5_ifc_element_attributes_bits {
+	struct mlx5_ifc_tsar_element_bits tsar;
+	struct mlx5_ifc_vport_element_bits vport;
+	struct mlx5_ifc_vport_tc_element_bits vport_tc;
+	u8 reserved_at_0[0x20];
+};
+
 struct mlx5_ifc_scheduling_context_bits {
 	u8         element_type[0x8];
 	u8         reserved_at_8[0x18];
 
-	u8         element_attributes[0x20];
+	union mlx5_ifc_element_attributes_bits element_attributes;
 
 	u8         parent_element_id[0x20];
 
@@ -4507,7 +4551,8 @@ struct mlx5_ifc_dctc_bits {
 	u8         state[0x4];
 	u8         reserved_at_8[0x18];
 
-	u8         reserved_at_20[0x8];
+	u8         reserved_at_20[0x7];
+	u8         dp_ordering_force[0x1];
 	u8         user_index[0x18];
 
 	u8         reserved_at_40[0x8];
@@ -4522,7 +4567,9 @@ struct mlx5_ifc_dctc_bits {
 	u8         latency_sensitive[0x1];
 	u8         rlky[0x1];
 	u8         free_ar[0x1];
-	u8         reserved_at_73[0xd];
+	u8         reserved_at_73[0x1];
+	u8         dp_ordering_1[0x1];
+	u8         reserved_at_75[0xb];
 
 	u8         reserved_at_80[0x8];
 	u8         cs_res[0x8];
@@ -4796,35 +4843,6 @@ struct mlx5_ifc_register_loopback_control_bits {
 	u8         reserved_at_10[0x10];
 
 	u8         reserved_at_20[0x60];
-};
-
-struct mlx5_ifc_vport_tc_element_bits {
-	u8         traffic_class[0x4];
-	u8         reserved_at_4[0xc];
-	u8         vport_number[0x10];
-};
-
-struct mlx5_ifc_vport_element_bits {
-	u8         reserved_at_0[0x10];
-	u8         vport_number[0x10];
-};
-
-enum {
-	TSAR_ELEMENT_TSAR_TYPE_DWRR = 0x0,
-	TSAR_ELEMENT_TSAR_TYPE_ROUND_ROBIN = 0x1,
-	TSAR_ELEMENT_TSAR_TYPE_ETS = 0x2,
-};
-
-enum {
-	TSAR_TYPE_CAP_MASK_DWRR		= 1 << 0,
-	TSAR_TYPE_CAP_MASK_ROUND_ROBIN	= 1 << 1,
-	TSAR_TYPE_CAP_MASK_ETS		= 1 << 2,
-};
-
-struct mlx5_ifc_tsar_element_bits {
-	u8         reserved_at_0[0x8];
-	u8         tsar_type[0x8];
-	u8         reserved_at_10[0x10];
 };
 
 enum {

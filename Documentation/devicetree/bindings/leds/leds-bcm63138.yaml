@@ -41,6 +41,16 @@ properties:
   "#size-cells":
     const: 0
 
+  brcm,serial-shift-bits:
+    minimum: 1
+    maximum: 32
+    description:
+      This describes the number of 8-bit serial shifters connected to the LED
+      controller block. The hardware is typically using 8-bit shift registers
+      with 8 LEDs per shift register, so 4 shifters results in 32 LEDs or 2
+      shifters give 16 LEDs etc, but the hardware supports any odd number of
+      registers. If left unspecified, the hardware boot-time default is used.
+
 patternProperties:
   "^led@[a-f0-9]+$":
     type: object
@@ -71,6 +81,7 @@ examples:
     leds@ff800800 {
         compatible = "brcm,bcm4908-leds", "brcm,bcm63138-leds";
         reg = <0xff800800 0xdc>;
+        brcm,serial-shift-bits = <16>;
 
         #address-cells = <1>;
         #size-cells = <0>;

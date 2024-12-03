@@ -85,16 +85,9 @@ static int aldebaran_mode2_suspend_ip(struct amdgpu_device *adev)
 			      AMD_IP_BLOCK_TYPE_SDMA))
 			continue;
 
-		r = adev->ip_blocks[i].version->funcs->suspend(adev);
-
-		if (r) {
-			dev_err(adev->dev,
-				"suspend of IP block <%s> failed %d\n",
-				adev->ip_blocks[i].version->funcs->name, r);
+		r = amdgpu_ip_block_suspend(&adev->ip_blocks[i]);
+		if (r)
 			return r;
-		}
-
-		adev->ip_blocks[i].status.hw = false;
 	}
 
 	return 0;
@@ -246,7 +239,7 @@ static int aldebaran_mode2_restore_ip(struct amdgpu_device *adev)
 		dev_err(adev->dev, "Failed to get BIF handle\n");
 		return -EINVAL;
 	}
-	r = cmn_block->version->funcs->resume(adev);
+	r = amdgpu_ip_block_resume(cmn_block);
 	if (r)
 		return r;
 
@@ -282,15 +275,10 @@ static int aldebaran_mode2_restore_ip(struct amdgpu_device *adev)
 		      adev->ip_blocks[i].version->type ==
 			      AMD_IP_BLOCK_TYPE_SDMA))
 			continue;
-		r = adev->ip_blocks[i].version->funcs->resume(adev);
-		if (r) {
-			dev_err(adev->dev,
-				"resume of IP block <%s> failed %d\n",
-				adev->ip_blocks[i].version->funcs->name, r);
-			return r;
-		}
 
-		adev->ip_blocks[i].status.hw = true;
+		r = amdgpu_ip_block_resume(&adev->ip_blocks[i]);
+		if (r)
+			return r;
 	}
 
 	for (i = 0; i < adev->num_ip_blocks; i++) {
@@ -304,7 +292,7 @@ static int aldebaran_mode2_restore_ip(struct amdgpu_device *adev)
 
 		if (adev->ip_blocks[i].version->funcs->late_init) {
 			r = adev->ip_blocks[i].version->funcs->late_init(
-				(void *)adev);
+				&adev->ip_blocks[i]);
 			if (r) {
 				dev_err(adev->dev,
 					"late_init of IP block <%s> failed %d after reset\n",
@@ -342,6 +330,8 @@ aldebaran_mode2_restore_hwcontext(struct amdgpu_reset_control *reset_ctl,
 	}
 
 	list_for_each_entry(tmp_adev, reset_device_list, reset_list) {
+		amdgpu_set_init_level(tmp_adev,
+				AMDGPU_INIT_LEVEL_RESET_RECOVERY);
 		dev_info(tmp_adev->dev,
 			 "GPU reset succeeded, trying to resume\n");
 		r = aldebaran_mode2_restore_ip(tmp_adev);
@@ -387,6 +377,8 @@ aldebaran_mode2_restore_hwcontext(struct amdgpu_reset_control *reset_ctl,
 							tmp_adev);
 
 		if (!r) {
+			amdgpu_set_init_level(tmp_adev,
+					      AMDGPU_INIT_LEVEL_DEFAULT);
 			amdgpu_irq_gpu_reset_resume_helper(tmp_adev);
 
 			r = amdgpu_ib_ring_tests(tmp_adev);
@@ -417,6 +409,7 @@ static struct amdgpu_reset_handler aldebaran_mode2_handler = {
 static struct amdgpu_reset_handler
 	*aldebaran_rst_handlers[AMDGPU_RESET_MAX_HANDLERS] = {
 		&aldebaran_mode2_handler,
+		&xgmi_reset_on_init_handler,
 	};
 
 int aldebaran_reset_init(struct amdgpu_device *adev)

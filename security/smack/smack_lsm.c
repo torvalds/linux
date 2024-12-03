@@ -1649,15 +1649,13 @@ static int smack_inode_listsecurity(struct inode *inode, char *buffer,
 }
 
 /**
- * smack_inode_getsecid - Extract inode's security id
+ * smack_inode_getlsmprop - Extract inode's security id
  * @inode: inode to extract the info from
- * @secid: where result will be saved
+ * @prop: where result will be saved
  */
-static void smack_inode_getsecid(struct inode *inode, u32 *secid)
+static void smack_inode_getlsmprop(struct inode *inode, struct lsm_prop *prop)
 {
-	struct smack_known *skp = smk_of_inode(inode);
-
-	*secid = skp->smk_secid;
+	prop->smack.skp = smk_of_inode(inode);
 }
 
 /*
@@ -2149,6 +2147,21 @@ static void smack_cred_getsecid(const struct cred *cred, u32 *secid)
 }
 
 /**
+ * smack_cred_getlsmprop - get the Smack label for a creds structure
+ * @cred: the object creds
+ * @prop: where to put the data
+ *
+ * Sets the Smack part of the ref
+ */
+static void smack_cred_getlsmprop(const struct cred *cred,
+				  struct lsm_prop *prop)
+{
+	rcu_read_lock();
+	prop->smack.skp = smk_of_task(smack_cred(cred));
+	rcu_read_unlock();
+}
+
+/**
  * smack_kernel_act_as - Set the subjective context in a set of credentials
  * @new: points to the set of credentials to be modified.
  * @secid: specifies the security ID to be set
@@ -2239,30 +2252,27 @@ static int smack_task_getsid(struct task_struct *p)
 }
 
 /**
- * smack_current_getsecid_subj - get the subjective secid of the current task
- * @secid: where to put the result
+ * smack_current_getlsmprop_subj - get the subjective secid of the current task
+ * @prop: where to put the result
  *
  * Sets the secid to contain a u32 version of the task's subjective smack label.
  */
-static void smack_current_getsecid_subj(u32 *secid)
+static void smack_current_getlsmprop_subj(struct lsm_prop *prop)
 {
-	struct smack_known *skp = smk_of_current();
-
-	*secid = skp->smk_secid;
+	prop->smack.skp = smk_of_current();
 }
 
 /**
- * smack_task_getsecid_obj - get the objective secid of the task
+ * smack_task_getlsmprop_obj - get the objective data of the task
  * @p: the task
- * @secid: where to put the result
+ * @prop: where to put the result
  *
  * Sets the secid to contain a u32 version of the task's objective smack label.
  */
-static void smack_task_getsecid_obj(struct task_struct *p, u32 *secid)
+static void smack_task_getlsmprop_obj(struct task_struct *p,
+				      struct lsm_prop *prop)
 {
-	struct smack_known *skp = smk_of_task_struct_obj(p);
-
-	*secid = skp->smk_secid;
+	prop->smack.skp = smk_of_task_struct_obj(p);
 }
 
 /**
@@ -3435,16 +3445,15 @@ static int smack_ipc_permission(struct kern_ipc_perm *ipp, short flag)
 }
 
 /**
- * smack_ipc_getsecid - Extract smack security id
+ * smack_ipc_getlsmprop - Extract smack security data
  * @ipp: the object permissions
- * @secid: where result will be saved
+ * @prop: where result will be saved
  */
-static void smack_ipc_getsecid(struct kern_ipc_perm *ipp, u32 *secid)
+static void smack_ipc_getlsmprop(struct kern_ipc_perm *ipp, struct lsm_prop *prop)
 {
-	struct smack_known **blob = smack_ipc(ipp);
-	struct smack_known *iskp = *blob;
+	struct smack_known **iskpp = smack_ipc(ipp);
 
-	*secid = iskp->smk_secid;
+	prop->smack.skp = *iskpp;
 }
 
 /**
@@ -4757,7 +4766,7 @@ static int smack_audit_rule_known(struct audit_krule *krule)
 
 /**
  * smack_audit_rule_match - Audit given object ?
- * @secid: security id for identifying the object to test
+ * @prop: security id for identifying the object to test
  * @field: audit rule flags given from user-space
  * @op: required testing operator
  * @vrule: smack internal rule presentation
@@ -4765,9 +4774,10 @@ static int smack_audit_rule_known(struct audit_krule *krule)
  * The core Audit hook. It's used to take the decision of
  * whether to audit or not to audit a given object.
  */
-static int smack_audit_rule_match(u32 secid, u32 field, u32 op, void *vrule)
+static int smack_audit_rule_match(struct lsm_prop *prop, u32 field, u32 op,
+				  void *vrule)
 {
-	struct smack_known *skp;
+	struct smack_known *skp = prop->smack.skp;
 	char *rule = vrule;
 
 	if (unlikely(!rule)) {
@@ -4777,8 +4787,6 @@ static int smack_audit_rule_match(u32 secid, u32 field, u32 op, void *vrule)
 
 	if (field != AUDIT_SUBJ_USER && field != AUDIT_OBJ_USER)
 		return 0;
-
-	skp = smack_from_secid(secid);
 
 	/*
 	 * No need to do string comparisons. If a match occurs,
@@ -4809,7 +4817,6 @@ static int smack_ismaclabel(const char *name)
 	return (strcmp(name, XATTR_SMACK_SUFFIX) == 0);
 }
 
-
 /**
  * smack_secid_to_secctx - return the smack label for a secid
  * @secid: incoming integer
@@ -4821,6 +4828,25 @@ static int smack_ismaclabel(const char *name)
 static int smack_secid_to_secctx(u32 secid, char **secdata, u32 *seclen)
 {
 	struct smack_known *skp = smack_from_secid(secid);
+
+	if (secdata)
+		*secdata = skp->smk_known;
+	*seclen = strlen(skp->smk_known);
+	return 0;
+}
+
+/**
+ * smack_lsmprop_to_secctx - return the smack label
+ * @prop: includes incoming Smack data
+ * @secdata: destination
+ * @seclen: how long it is
+ *
+ * Exists for audit code.
+ */
+static int smack_lsmprop_to_secctx(struct lsm_prop *prop, char **secdata,
+				   u32 *seclen)
+{
+	struct smack_known *skp = prop->smack.skp;
 
 	if (secdata)
 		*secdata = skp->smk_known;
@@ -5078,7 +5104,7 @@ static struct security_hook_list smack_hooks[] __ro_after_init = {
 	LSM_HOOK_INIT(inode_getsecurity, smack_inode_getsecurity),
 	LSM_HOOK_INIT(inode_setsecurity, smack_inode_setsecurity),
 	LSM_HOOK_INIT(inode_listsecurity, smack_inode_listsecurity),
-	LSM_HOOK_INIT(inode_getsecid, smack_inode_getsecid),
+	LSM_HOOK_INIT(inode_getlsmprop, smack_inode_getlsmprop),
 
 	LSM_HOOK_INIT(file_alloc_security, smack_file_alloc_security),
 	LSM_HOOK_INIT(file_ioctl, smack_file_ioctl),
@@ -5098,13 +5124,14 @@ static struct security_hook_list smack_hooks[] __ro_after_init = {
 	LSM_HOOK_INIT(cred_prepare, smack_cred_prepare),
 	LSM_HOOK_INIT(cred_transfer, smack_cred_transfer),
 	LSM_HOOK_INIT(cred_getsecid, smack_cred_getsecid),
+	LSM_HOOK_INIT(cred_getlsmprop, smack_cred_getlsmprop),
 	LSM_HOOK_INIT(kernel_act_as, smack_kernel_act_as),
 	LSM_HOOK_INIT(kernel_create_files_as, smack_kernel_create_files_as),
 	LSM_HOOK_INIT(task_setpgid, smack_task_setpgid),
 	LSM_HOOK_INIT(task_getpgid, smack_task_getpgid),
 	LSM_HOOK_INIT(task_getsid, smack_task_getsid),
-	LSM_HOOK_INIT(current_getsecid_subj, smack_current_getsecid_subj),
-	LSM_HOOK_INIT(task_getsecid_obj, smack_task_getsecid_obj),
+	LSM_HOOK_INIT(current_getlsmprop_subj, smack_current_getlsmprop_subj),
+	LSM_HOOK_INIT(task_getlsmprop_obj, smack_task_getlsmprop_obj),
 	LSM_HOOK_INIT(task_setnice, smack_task_setnice),
 	LSM_HOOK_INIT(task_setioprio, smack_task_setioprio),
 	LSM_HOOK_INIT(task_getioprio, smack_task_getioprio),
@@ -5115,7 +5142,7 @@ static struct security_hook_list smack_hooks[] __ro_after_init = {
 	LSM_HOOK_INIT(task_to_inode, smack_task_to_inode),
 
 	LSM_HOOK_INIT(ipc_permission, smack_ipc_permission),
-	LSM_HOOK_INIT(ipc_getsecid, smack_ipc_getsecid),
+	LSM_HOOK_INIT(ipc_getlsmprop, smack_ipc_getlsmprop),
 
 	LSM_HOOK_INIT(msg_msg_alloc_security, smack_msg_msg_alloc_security),
 
@@ -5187,6 +5214,7 @@ static struct security_hook_list smack_hooks[] __ro_after_init = {
 
 	LSM_HOOK_INIT(ismaclabel, smack_ismaclabel),
 	LSM_HOOK_INIT(secid_to_secctx, smack_secid_to_secctx),
+	LSM_HOOK_INIT(lsmprop_to_secctx, smack_lsmprop_to_secctx),
 	LSM_HOOK_INIT(secctx_to_secid, smack_secctx_to_secid),
 	LSM_HOOK_INIT(inode_notifysecctx, smack_inode_notifysecctx),
 	LSM_HOOK_INIT(inode_setsecctx, smack_inode_setsecctx),

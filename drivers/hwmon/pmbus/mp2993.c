@@ -233,8 +233,8 @@ static int mp2993_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id mp2993_id[] = {
-	{"mp2993", 0},
-	{}
+	{ "mp2993" },
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, mp2993_id);
 
@@ -258,4 +258,4 @@ module_i2c_driver(mp2993_driver);
 MODULE_AUTHOR("Noah Wang <noahwang.wang@outlook.com>");
 MODULE_DESCRIPTION("PMBus driver for MPS MP2993");
 MODULE_LICENSE("GPL");
-MODULE_IMPORT_NS(PMBUS);
+MODULE_IMPORT_NS("PMBUS");

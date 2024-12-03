@@ -43,7 +43,8 @@
  * cares about its entry, so it's OK if another processor is modifying its
  * entry.
  */
-struct cpu_task cpu_tasks[NR_CPUS] = { [0 ... NR_CPUS - 1] = { NULL } };
+struct task_struct *cpu_tasks[NR_CPUS];
+EXPORT_SYMBOL(cpu_tasks);
 
 void free_stack(unsigned long stack, int order)
 {
@@ -64,7 +65,7 @@ unsigned long alloc_stack(int order, int atomic)
 
 static inline void set_current(struct task_struct *task)
 {
-	cpu_tasks[task_thread_info(task)->cpu] = ((struct cpu_task) { task });
+	cpu_tasks[task_thread_info(task)->cpu] = task;
 }
 
 struct task_struct *__switch_to(struct task_struct *from, struct task_struct *to)
@@ -116,7 +117,7 @@ void new_thread_handler(void)
 	 * callback returns only if the kernel thread execs a process
 	 */
 	fn(arg);
-	userspace(&current->thread.regs.regs, current_thread_info()->aux_fp_regs);
+	userspace(&current->thread.regs.regs);
 }
 
 /* Called magically, see new_thread_handler above */
@@ -133,7 +134,7 @@ static void fork_handler(void)
 
 	current->thread.prev_sched = NULL;
 
-	userspace(&current->thread.regs.regs, current_thread_info()->aux_fp_regs);
+	userspace(&current->thread.regs.regs);
 }
 
 int copy_thread(struct task_struct * p, const struct kernel_clone_args *args)
@@ -185,6 +186,13 @@ void initial_thread_cb(void (*proc)(void *), void *arg)
 	kmalloc_ok = 0;
 	initial_thread_cb_skas(proc, arg);
 	kmalloc_ok = save_kmalloc_ok;
+}
+
+int arch_dup_task_struct(struct task_struct *dst,
+			 struct task_struct *src)
+{
+	memcpy(dst, src, arch_task_struct_size);
+	return 0;
 }
 
 void um_idle_sleep(void)
@@ -287,11 +295,3 @@ unsigned long __get_wchan(struct task_struct *p)
 
 	return 0;
 }
-
-int elf_core_copy_task_fpregs(struct task_struct *t, elf_fpregset_t *fpu)
-{
-	int cpu = current_thread_info()->cpu;
-
-	return save_i387_registers(userspace_pid[cpu], (unsigned long *) fpu);
-}
-

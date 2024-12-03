@@ -228,6 +228,32 @@ ocelot_flower_parse_egress_vlan_modify(struct ocelot_vcap_filter *filter,
 	return 0;
 }
 
+static int
+ocelot_flower_parse_egress_port(struct ocelot *ocelot, struct flow_cls_offload *f,
+				const struct flow_action_entry *a, bool mirror,
+				struct netlink_ext_ack *extack)
+{
+	const char *act_string = mirror ? "mirror" : "redirect";
+	int egress_port = ocelot->ops->netdev_to_port(a->dev);
+	enum flow_action_id offloadable_act_id;
+
+	offloadable_act_id = mirror ? FLOW_ACTION_MIRRED : FLOW_ACTION_REDIRECT;
+
+	/* Mirroring towards foreign interfaces is handled in software */
+	if (egress_port < 0 || a->id != offloadable_act_id) {
+		if (f->common.skip_sw) {
+			NL_SET_ERR_MSG_FMT(extack,
+					   "Can only %s to %s if filter also runs in software",
+					   act_string, egress_port < 0 ?
+					   "CPU" : "ingress of ocelot port");
+			return -EOPNOTSUPP;
+		}
+		egress_port = ocelot->num_phys_ports;
+	}
+
+	return egress_port;
+}
+
 static int ocelot_flower_parse_action(struct ocelot *ocelot, int port,
 				      bool ingress, struct flow_cls_offload *f,
 				      struct ocelot_vcap_filter *filter)
@@ -356,6 +382,7 @@ static int ocelot_flower_parse_action(struct ocelot *ocelot, int port,
 			filter->type = OCELOT_VCAP_FILTER_OFFLOAD;
 			break;
 		case FLOW_ACTION_REDIRECT:
+		case FLOW_ACTION_REDIRECT_INGRESS:
 			if (filter->block_id != VCAP_IS2) {
 				NL_SET_ERR_MSG_MOD(extack,
 						   "Redirect action can only be offloaded to VCAP IS2");
@@ -366,17 +393,19 @@ static int ocelot_flower_parse_action(struct ocelot *ocelot, int port,
 						   "Last action must be GOTO");
 				return -EOPNOTSUPP;
 			}
-			egress_port = ocelot->ops->netdev_to_port(a->dev);
-			if (egress_port < 0) {
-				NL_SET_ERR_MSG_MOD(extack,
-						   "Destination not an ocelot port");
-				return -EOPNOTSUPP;
-			}
+
+			egress_port = ocelot_flower_parse_egress_port(ocelot, f,
+								      a, false,
+								      extack);
+			if (egress_port < 0)
+				return egress_port;
+
 			filter->action.mask_mode = OCELOT_MASK_MODE_REDIRECT;
 			filter->action.port_mask = BIT(egress_port);
 			filter->type = OCELOT_VCAP_FILTER_OFFLOAD;
 			break;
 		case FLOW_ACTION_MIRRED:
+		case FLOW_ACTION_MIRRED_INGRESS:
 			if (filter->block_id != VCAP_IS2) {
 				NL_SET_ERR_MSG_MOD(extack,
 						   "Mirror action can only be offloaded to VCAP IS2");
@@ -387,12 +416,13 @@ static int ocelot_flower_parse_action(struct ocelot *ocelot, int port,
 						   "Last action must be GOTO");
 				return -EOPNOTSUPP;
 			}
-			egress_port = ocelot->ops->netdev_to_port(a->dev);
-			if (egress_port < 0) {
-				NL_SET_ERR_MSG_MOD(extack,
-						   "Destination not an ocelot port");
-				return -EOPNOTSUPP;
-			}
+
+			egress_port = ocelot_flower_parse_egress_port(ocelot, f,
+								      a, true,
+								      extack);
+			if (egress_port < 0)
+				return egress_port;
+
 			filter->egress_port.value = egress_port;
 			filter->action.mirror_ena = true;
 			filter->type = OCELOT_VCAP_FILTER_OFFLOAD;

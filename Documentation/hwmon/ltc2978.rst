@@ -1,3 +1,5 @@
+.. SPDX-License-Identifier: GPL-2.0
+
 Kernel driver ltc2978
 =====================
 
@@ -116,6 +118,14 @@ Supported chips:
     Addresses scanned: -
 
     Datasheet: https://www.analog.com/en/products/ltc3889
+
+  * Linear Technology LTC7841
+
+    Prefix: 'ltc7841'
+
+    Addresses scanned: -
+
+    Datasheet: https://www.analog.com/en/products/ltc7841
 
   * Linear Technology LTC7880
 
@@ -290,6 +300,7 @@ in[N]_label		"vout[1-8]".
 			  LTC7880, LTM4644, LTM4675, LTM4676, LTM4677, LTM4678,
 			  LTM4680, LTM4700: N=2-3
 			- LTC3883: N=2
+			- LTC7841: N=2
 
 in[N]_input		Measured output voltage.
 
@@ -420,6 +431,7 @@ curr[N]_label		"iout[1-4]".
 			  LTM4664, LTM4675, LTM4676, LTM4677, LTM4678, LTM4680,
 			  LTM4700: N=2-3
 			- LTC3883: N=2
+			- LTC7841: N=2
 
 curr[N]_input		Measured output current.
 

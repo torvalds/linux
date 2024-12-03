@@ -190,6 +190,13 @@ static void _setup_dsc_ops(struct dpu_hw_dsc_ops *ops,
 		ops->dsc_bind_pingpong_blk = dpu_hw_dsc_bind_pingpong_blk;
 };
 
+/**
+ * dpu_hw_dsc_init() - Initializes the DSC hw driver object.
+ * @dev:  Corresponding device for devres management
+ * @cfg:  DSC catalog entry for which driver object is required
+ * @addr: Mapped register io address of MDP
+ * Return: Error code or allocated dpu_hw_dsc context
+ */
 struct dpu_hw_dsc *dpu_hw_dsc_init(struct drm_device *dev,
 				   const struct dpu_dsc_cfg *cfg,
 				   void __iomem *addr)

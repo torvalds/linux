@@ -37,11 +37,6 @@ module_param(cfag12864b_rate, uint, 0444);
 MODULE_PARM_DESC(cfag12864b_rate,
 	"Refresh rate (hertz)");
 
-unsigned int cfag12864b_getrate(void)
-{
-	return cfag12864b_rate;
-}
-
 /*
  * cfag12864b Commands
  *
@@ -249,11 +244,6 @@ void cfag12864b_disable(void)
 	mutex_unlock(&cfag12864b_mutex);
 }
 
-unsigned char cfag12864b_isenabled(void)
-{
-	return cfag12864b_updating;
-}
-
 static void cfag12864b_update(struct work_struct *work)
 {
 	unsigned char c;
@@ -293,10 +283,8 @@ static void cfag12864b_update(struct work_struct *work)
  */
 
 EXPORT_SYMBOL_GPL(cfag12864b_buffer);
-EXPORT_SYMBOL_GPL(cfag12864b_getrate);
 EXPORT_SYMBOL_GPL(cfag12864b_enable);
 EXPORT_SYMBOL_GPL(cfag12864b_disable);
-EXPORT_SYMBOL_GPL(cfag12864b_isenabled);
 
 /*
  * Is the module inited?

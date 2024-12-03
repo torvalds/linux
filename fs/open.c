@@ -187,19 +187,13 @@ long do_ftruncate(struct file *file, loff_t length, int small)
 
 long do_sys_ftruncate(unsigned int fd, loff_t length, int small)
 {
-	struct fd f;
-	int error;
-
 	if (length < 0)
 		return -EINVAL;
-	f = fdget(fd);
-	if (!fd_file(f))
+	CLASS(fd, f)(fd);
+	if (fd_empty(f))
 		return -EBADF;
 
-	error = do_ftruncate(fd_file(f), length, small);
-
-	fdput(f);
-	return error;
+	return do_ftruncate(fd_file(f), length, small);
 }
 
 SYSCALL_DEFINE2(ftruncate, unsigned int, fd, off_t, length)
@@ -349,14 +343,12 @@ EXPORT_SYMBOL_GPL(vfs_fallocate);
 
 int ksys_fallocate(int fd, int mode, loff_t offset, loff_t len)
 {
-	struct fd f = fdget(fd);
-	int error = -EBADF;
+	CLASS(fd, f)(fd);
 
-	if (fd_file(f)) {
-		error = vfs_fallocate(fd_file(f), mode, offset, len);
-		fdput(f);
-	}
-	return error;
+	if (fd_empty(f))
+		return -EBADF;
+
+	return vfs_fallocate(fd_file(f), mode, offset, len);
 }
 
 SYSCALL_DEFINE4(fallocate, int, fd, int, mode, loff_t, offset, loff_t, len)
@@ -580,23 +572,18 @@ out:
 
 SYSCALL_DEFINE1(fchdir, unsigned int, fd)
 {
-	struct fd f = fdget_raw(fd);
+	CLASS(fd_raw, f)(fd);
 	int error;
 
-	error = -EBADF;
-	if (!fd_file(f))
-		goto out;
+	if (fd_empty(f))
+		return -EBADF;
 
-	error = -ENOTDIR;
 	if (!d_can_lookup(fd_file(f)->f_path.dentry))
-		goto out_putf;
+		return -ENOTDIR;
 
 	error = file_permission(fd_file(f), MAY_EXEC | MAY_CHDIR);
 	if (!error)
 		set_fs_pwd(current->fs, &fd_file(f)->f_path);
-out_putf:
-	fdput(f);
-out:
 	return error;
 }
 
@@ -671,14 +658,12 @@ int vfs_fchmod(struct file *file, umode_t mode)
 
 SYSCALL_DEFINE2(fchmod, unsigned int, fd, umode_t, mode)
 {
-	struct fd f = fdget(fd);
-	int err = -EBADF;
+	CLASS(fd, f)(fd);
 
-	if (fd_file(f)) {
-		err = vfs_fchmod(fd_file(f), mode);
-		fdput(f);
-	}
-	return err;
+	if (fd_empty(f))
+		return -EBADF;
+
+	return vfs_fchmod(fd_file(f), mode);
 }
 
 static int do_fchmodat(int dfd, const char __user *filename, umode_t mode,
@@ -865,14 +850,12 @@ int vfs_fchown(struct file *file, uid_t user, gid_t group)
 
 int ksys_fchown(unsigned int fd, uid_t user, gid_t group)
 {
-	struct fd f = fdget(fd);
-	int error = -EBADF;
+	CLASS(fd, f)(fd);
 
-	if (fd_file(f)) {
-		error = vfs_fchown(fd_file(f), user, group);
-		fdput(f);
-	}
-	return error;
+	if (fd_empty(f))
+		return -EBADF;
+
+	return vfs_fchown(fd_file(f), user, group);
 }
 
 SYSCALL_DEFINE3(fchown, unsigned int, fd, uid_t, user, gid_t, group)
@@ -943,6 +926,10 @@ static int do_dentry_open(struct file *f,
 	}
 
 	error = security_file_open(f);
+	if (error)
+		goto cleanup_all;
+
+	error = fsnotify_open_perm(f);
 	if (error)
 		goto cleanup_all;
 
@@ -1574,23 +1561,6 @@ SYSCALL_DEFINE1(close, unsigned int, fd)
 		retval = -EINTR;
 
 	return retval;
-}
-
-/**
- * sys_close_range() - Close all file descriptors in a given range.
- *
- * @fd:     starting file descriptor to close
- * @max_fd: last file descriptor to close
- * @flags:  reserved for future extensions
- *
- * This closes a range of file descriptors. All file descriptors
- * from @fd up to and including @max_fd are closed.
- * Currently, errors to close a given file descriptor are ignored.
- */
-SYSCALL_DEFINE3(close_range, unsigned int, fd, unsigned int, max_fd,
-		unsigned int, flags)
-{
-	return __close_range(fd, max_fd, flags);
 }
 
 /*

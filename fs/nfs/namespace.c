@@ -182,7 +182,7 @@ struct vfsmount *nfs_d_automount(struct path *path)
 	ctx->version		= client->rpc_ops->version;
 	ctx->minorversion	= client->cl_minorversion;
 	ctx->nfs_mod		= client->cl_nfs_mod;
-	__module_get(ctx->nfs_mod->owner);
+	get_nfs_version(ctx->nfs_mod);
 
 	ret = client->rpc_ops->submount(fc, server);
 	if (ret < 0) {

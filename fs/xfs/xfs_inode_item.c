@@ -556,7 +556,6 @@ xfs_inode_to_log_dinode(
 	to->di_projid_lo = ip->i_projid & 0xffff;
 	to->di_projid_hi = ip->i_projid >> 16;
 
-	memset(to->di_pad3, 0, sizeof(to->di_pad3));
 	to->di_atime = xfs_inode_to_log_dinode_ts(ip, inode_get_atime(inode));
 	to->di_mtime = xfs_inode_to_log_dinode_ts(ip, inode_get_mtime(inode));
 	to->di_ctime = xfs_inode_to_log_dinode_ts(ip, inode_get_ctime(inode));
@@ -590,10 +589,16 @@ xfs_inode_to_log_dinode(
 
 		/* dummy value for initialisation */
 		to->di_crc = 0;
+
+		if (xfs_is_metadir_inode(ip))
+			to->di_metatype = ip->i_metatype;
+		else
+			to->di_metatype = 0;
 	} else {
 		to->di_version = 2;
 		to->di_flushiter = ip->i_flushiter;
 		memset(to->di_v2_pad, 0, sizeof(to->di_v2_pad));
+		to->di_metatype = 0;
 	}
 
 	xfs_inode_to_log_dinode_iext_counters(ip, to);

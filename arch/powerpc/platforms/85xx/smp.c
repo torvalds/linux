@@ -23,7 +23,7 @@
 #include <asm/mpic.h>
 #include <asm/cacheflush.h>
 #include <asm/dbell.h>
-#include <asm/code-patching.h>
+#include <asm/text-patching.h>
 #include <asm/cputhreads.h>
 #include <asm/fsl_pm.h>
 

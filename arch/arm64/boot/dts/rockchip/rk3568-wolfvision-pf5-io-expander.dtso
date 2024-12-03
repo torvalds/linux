@@ -21,7 +21,7 @@
 		#clock-cells = <0>;
 	};
 
-	usb_host_vbus: usb-host-vbus-regulator {
+	usb_host_vbus: regulator-usb-host-vbus {
 		compatible = "regulator-fixed";
 		enable-active-high;
 		gpio = <&gpio1 RK_PA3 GPIO_ACTIVE_HIGH>;
@@ -33,7 +33,7 @@
 		vin-supply = <&vcc5v_in>;
 	};
 
-	vcc1v8_eth: vcc1v8-eth-regulator {
+	vcc1v8_eth: regulator-vcc1v8-eth {
 		compatible = "regulator-fixed";
 		enable-active-high;
 		gpio = <&gpio0 RK_PC1 GPIO_ACTIVE_HIGH>;
@@ -47,9 +47,8 @@
 		vin-supply = <&vcc3v3_sys>;
 	};
 
-	vcc3v3_eth: vcc3v3-eth-regulator {
+	vcc3v3_eth: regulator-vcc3v3-eth {
 		compatible = "regulator-fixed";
-		enable-active-low;
 		gpio = <&gpio0 RK_PC0 GPIO_ACTIVE_LOW>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&vcc3v3_eth_enn>;

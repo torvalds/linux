@@ -649,7 +649,7 @@ static bool apple_nvme_handle_cq(struct apple_nvme_queue *q, bool force)
 
 	found = apple_nvme_poll_cq(q, &iob);
 
-	if (!rq_list_empty(iob.req_list))
+	if (!rq_list_empty(&iob.req_list))
 		apple_nvme_complete_batch(&iob);
 
 	return found;
@@ -1618,7 +1618,7 @@ static struct platform_driver apple_nvme_driver = {
 		.pm = pm_sleep_ptr(&apple_nvme_pm_ops),
 	},
 	.probe = apple_nvme_probe,
-	.remove_new = apple_nvme_remove,
+	.remove = apple_nvme_remove,
 	.shutdown = apple_nvme_shutdown,
 };
 module_platform_driver(apple_nvme_driver);

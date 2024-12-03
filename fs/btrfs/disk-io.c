@@ -917,8 +917,7 @@ fail:
 	return ERR_PTR(ret);
 }
 
-static struct btrfs_root *alloc_log_tree(struct btrfs_trans_handle *trans,
-					 struct btrfs_fs_info *fs_info)
+static struct btrfs_root *alloc_log_tree(struct btrfs_fs_info *fs_info)
 {
 	struct btrfs_root *root;
 
@@ -966,7 +965,7 @@ int btrfs_init_log_root_tree(struct btrfs_trans_handle *trans,
 {
 	struct btrfs_root *log_root;
 
-	log_root = alloc_log_tree(trans, fs_info);
+	log_root = alloc_log_tree(fs_info);
 	if (IS_ERR(log_root))
 		return PTR_ERR(log_root);
 
@@ -992,7 +991,7 @@ int btrfs_add_log_tree(struct btrfs_trans_handle *trans,
 	struct btrfs_inode_item *inode_item;
 	int ret;
 
-	log_root = alloc_log_tree(trans, fs_info);
+	log_root = alloc_log_tree(fs_info);
 	if (IS_ERR(log_root))
 		return PTR_ERR(log_root);
 
@@ -2786,6 +2785,7 @@ void btrfs_init_fs_info(struct btrfs_fs_info *fs_info)
 	btrfs_init_scrub(fs_info);
 	btrfs_init_balance(fs_info);
 	btrfs_init_async_reclaim_work(fs_info);
+	btrfs_init_extent_map_shrinker_work(fs_info);
 
 	rwlock_init(&fs_info->block_group_cache_lock);
 	fs_info->block_group_cache_tree = RB_ROOT_CACHED;
@@ -2851,8 +2851,6 @@ static int init_mount_fs_info(struct btrfs_fs_info *fs_info, struct super_block 
 	ret = percpu_counter_init(&fs_info->evictable_extent_maps, 0, GFP_KERNEL);
 	if (ret)
 		return ret;
-
-	spin_lock_init(&fs_info->extent_map_shrinker_lock);
 
 	ret = percpu_counter_init(&fs_info->dirty_metadata_bytes, 0, GFP_KERNEL);
 	if (ret)
@@ -3202,8 +3200,7 @@ int btrfs_check_features(struct btrfs_fs_info *fs_info, bool is_rw_mount)
 	return 0;
 }
 
-int __cold open_ctree(struct super_block *sb, struct btrfs_fs_devices *fs_devices,
-		      const char *options)
+int __cold open_ctree(struct super_block *sb, struct btrfs_fs_devices *fs_devices)
 {
 	u32 sectorsize;
 	u32 nodesize;
@@ -4186,7 +4183,7 @@ static void warn_about_uncommitted_trans(struct btrfs_fs_info *fs_info)
 		btrfs_warn(fs_info,
 	"transaction %llu (with %llu dirty metadata bytes) is not committed",
 			   trans->transid, dirty_bytes);
-		btrfs_cleanup_one_transaction(trans, fs_info);
+		btrfs_cleanup_one_transaction(trans);
 
 		if (trans == fs_info->running_transaction)
 			fs_info->running_transaction = NULL;
@@ -4294,6 +4291,7 @@ void __cold close_ctree(struct btrfs_fs_info *fs_info)
 	cancel_work_sync(&fs_info->async_reclaim_work);
 	cancel_work_sync(&fs_info->async_data_reclaim_work);
 	cancel_work_sync(&fs_info->preempt_reclaim_work);
+	cancel_work_sync(&fs_info->em_shrinker_work);
 
 	/* Cancel or finish ongoing discard work */
 	btrfs_discard_cleanup(fs_info);
@@ -4531,75 +4529,6 @@ static void btrfs_destroy_all_ordered_extents(struct btrfs_fs_info *fs_info)
 	btrfs_wait_ordered_roots(fs_info, U64_MAX, NULL);
 }
 
-static void btrfs_destroy_delayed_refs(struct btrfs_transaction *trans,
-				       struct btrfs_fs_info *fs_info)
-{
-	struct rb_node *node;
-	struct btrfs_delayed_ref_root *delayed_refs = &trans->delayed_refs;
-	struct btrfs_delayed_ref_node *ref;
-
-	spin_lock(&delayed_refs->lock);
-	while ((node = rb_first_cached(&delayed_refs->href_root)) != NULL) {
-		struct btrfs_delayed_ref_head *head;
-		struct rb_node *n;
-		bool pin_bytes = false;
-
-		head = rb_entry(node, struct btrfs_delayed_ref_head,
-				href_node);
-		if (btrfs_delayed_ref_lock(delayed_refs, head))
-			continue;
-
-		spin_lock(&head->lock);
-		while ((n = rb_first_cached(&head->ref_tree)) != NULL) {
-			ref = rb_entry(n, struct btrfs_delayed_ref_node,
-				       ref_node);
-			rb_erase_cached(&ref->ref_node, &head->ref_tree);
-			RB_CLEAR_NODE(&ref->ref_node);
-			if (!list_empty(&ref->add_list))
-				list_del(&ref->add_list);
-			atomic_dec(&delayed_refs->num_entries);
-			btrfs_put_delayed_ref(ref);
-			btrfs_delayed_refs_rsv_release(fs_info, 1, 0);
-		}
-		if (head->must_insert_reserved)
-			pin_bytes = true;
-		btrfs_free_delayed_extent_op(head->extent_op);
-		btrfs_delete_ref_head(delayed_refs, head);
-		spin_unlock(&head->lock);
-		spin_unlock(&delayed_refs->lock);
-		mutex_unlock(&head->mutex);
-
-		if (pin_bytes) {
-			struct btrfs_block_group *cache;
-
-			cache = btrfs_lookup_block_group(fs_info, head->bytenr);
-			BUG_ON(!cache);
-
-			spin_lock(&cache->space_info->lock);
-			spin_lock(&cache->lock);
-			cache->pinned += head->num_bytes;
-			btrfs_space_info_update_bytes_pinned(fs_info,
-				cache->space_info, head->num_bytes);
-			cache->reserved -= head->num_bytes;
-			cache->space_info->bytes_reserved -= head->num_bytes;
-			spin_unlock(&cache->lock);
-			spin_unlock(&cache->space_info->lock);
-
-			btrfs_put_block_group(cache);
-
-			btrfs_error_unpin_extent_range(fs_info, head->bytenr,
-				head->bytenr + head->num_bytes - 1);
-		}
-		btrfs_cleanup_ref_head_accounting(fs_info, delayed_refs, head);
-		btrfs_put_delayed_ref_head(head);
-		cond_resched();
-		spin_lock(&delayed_refs->lock);
-	}
-	btrfs_qgroup_destroy_extent_records(trans);
-
-	spin_unlock(&delayed_refs->lock);
-}
-
 static void btrfs_destroy_delalloc_inodes(struct btrfs_root *root)
 {
 	struct btrfs_inode *btrfs_inode;
@@ -4805,9 +4734,9 @@ static void btrfs_free_all_qgroup_pertrans(struct btrfs_fs_info *fs_info)
 	spin_unlock(&fs_info->fs_roots_radix_lock);
 }
 
-void btrfs_cleanup_one_transaction(struct btrfs_transaction *cur_trans,
-				   struct btrfs_fs_info *fs_info)
+void btrfs_cleanup_one_transaction(struct btrfs_transaction *cur_trans)
 {
+	struct btrfs_fs_info *fs_info = cur_trans->fs_info;
 	struct btrfs_device *dev, *tmp;
 
 	btrfs_cleanup_dirty_bgs(cur_trans, fs_info);
@@ -4819,7 +4748,7 @@ void btrfs_cleanup_one_transaction(struct btrfs_transaction *cur_trans,
 		list_del_init(&dev->post_commit_list);
 	}
 
-	btrfs_destroy_delayed_refs(cur_trans, fs_info);
+	btrfs_destroy_delayed_refs(cur_trans);
 
 	cur_trans->state = TRANS_STATE_COMMIT_START;
 	wake_up(&fs_info->transaction_blocked_wait);
@@ -4865,7 +4794,7 @@ static int btrfs_cleanup_transaction(struct btrfs_fs_info *fs_info)
 		} else {
 			spin_unlock(&fs_info->trans_lock);
 		}
-		btrfs_cleanup_one_transaction(t, fs_info);
+		btrfs_cleanup_one_transaction(t);
 
 		spin_lock(&fs_info->trans_lock);
 		if (t == fs_info->running_transaction)

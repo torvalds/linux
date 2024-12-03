@@ -1173,7 +1173,7 @@ static int qcom_swrm_stream_alloc_ports(struct qcom_swrm_ctrl *ctrl,
 	else
 		sconfig.direction = SDW_DATA_DIR_RX;
 
-	/* hw parameters wil be ignored as we only support PDM */
+	/* hw parameters will be ignored as we only support PDM */
 	sconfig.ch_count = 1;
 	sconfig.frame_rate = params_rate(params);
 	sconfig.type = stream->type;
@@ -1779,7 +1779,7 @@ MODULE_DEVICE_TABLE(of, qcom_swrm_of_match);
 
 static struct platform_driver qcom_swrm_driver = {
 	.probe	= &qcom_swrm_probe,
-	.remove_new = qcom_swrm_remove,
+	.remove = qcom_swrm_remove,
 	.driver = {
 		.name	= "qcom-soundwire",
 		.of_match_table = qcom_swrm_of_match,

@@ -304,7 +304,7 @@ static ssize_t qat_vf_resume_write(struct file *filp, const char __user *buf,
 	offs = &filp->f_pos;
 
 	if (*offs < 0 ||
-	    check_add_overflow((loff_t)len, *offs, &end))
+	    check_add_overflow(len, *offs, &end))
 		return -EOVERFLOW;
 
 	if (end > mig_dev->state_size)
@@ -697,4 +697,4 @@ module_pci_driver(qat_vf_vfio_pci_driver);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Xin Zeng <xin.zeng@intel.com>");
 MODULE_DESCRIPTION("QAT VFIO PCI - VFIO PCI driver with live migration support for Intel(R) QAT GEN4 device family");
-MODULE_IMPORT_NS(CRYPTO_QAT);
+MODULE_IMPORT_NS("CRYPTO_QAT");

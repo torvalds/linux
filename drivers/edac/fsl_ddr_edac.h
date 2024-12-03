@@ -39,12 +39,18 @@
 #define FSL_MC_CAPTURE_EXT_ADDRESS	0x0e54
 #define FSL_MC_ERR_SBE		0x0e58
 
+#define IMX9_MC_ERR_EN			0x1000
+#define IMX9_MC_DATA_ERR_INJECT_OFF	0x100
+
 #define DSC_MEM_EN	0x80000000
 #define DSC_ECC_EN	0x20000000
 #define DSC_RD_EN	0x10000000
 #define DSC_DBW_MASK	0x00180000
 #define DSC_DBW_32	0x00080000
 #define DSC_DBW_64	0x00000000
+
+#define ERR_ECC_EN      0x80000000
+#define ERR_INLINE_ECC  0x40000000
 
 #define DSC_SDTYPE_MASK		0x07000000
 #define DSC_X32_EN	0x00000020
@@ -65,11 +71,18 @@
 #define	DDR_EDI_SBED	0x4	/* single-bit ECC error disable */
 #define	DDR_EDI_MBED	0x8	/* multi-bit ECC error disable */
 
+#define TYPE_IMX9	0x1	/* MC used by iMX9 having registers changed */
+
 struct fsl_mc_pdata {
 	char *name;
 	int edac_idx;
 	void __iomem *mc_vbase;
+	void __iomem *inject_vbase;
 	int irq;
+	u32 orig_ddr_err_disable;
+	u32 orig_ddr_err_sbe;
+	bool little_endian;
+	unsigned long flag;
 };
 int fsl_mc_err_probe(struct platform_device *op);
 void fsl_mc_err_remove(struct platform_device *op);

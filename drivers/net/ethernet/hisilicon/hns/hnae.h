@@ -512,7 +512,7 @@ struct hnae_ae_ops {
 			     struct net_device_stats *net_stats);
 	void (*get_stats)(struct hnae_handle *handle, u64 *data);
 	void (*get_strings)(struct hnae_handle *handle,
-			    u32 stringset, u8 *data);
+			    u32 stringset, u8 **data);
 	int (*get_sset_count)(struct hnae_handle *handle, int stringset);
 	void (*update_led_status)(struct hnae_handle *handle);
 	int (*set_led_id)(struct hnae_handle *handle,

@@ -507,7 +507,7 @@
 		>;
 	};
 
-	pinctrl_can1phy: can1phy {
+	pinctrl_can1phy: can1phygrp {
 		fsl,pins = <
 			/* CAN1_SR */
 			MX6QDL_PAD_KEY_COL3__GPIO4_IO12		0x13070

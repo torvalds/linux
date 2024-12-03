@@ -10,10 +10,10 @@
 
 void erofs_unmap_metabuf(struct erofs_buf *buf)
 {
-	if (buf->kmap_type == EROFS_KMAP)
-		kunmap_local(buf->base);
+	if (!buf->base)
+		return;
+	kunmap_local(buf->base);
 	buf->base = NULL;
-	buf->kmap_type = EROFS_NO_KMAP;
 }
 
 void erofs_put_metabuf(struct erofs_buf *buf)
@@ -38,20 +38,13 @@ void *erofs_bread(struct erofs_buf *buf, erofs_off_t offset,
 	}
 	if (!folio || !folio_contains(folio, index)) {
 		erofs_put_metabuf(buf);
-		folio = read_mapping_folio(buf->mapping, index, NULL);
+		folio = read_mapping_folio(buf->mapping, index, buf->file);
 		if (IS_ERR(folio))
 			return folio;
 	}
 	buf->page = folio_file_page(folio, index);
-
-	if (buf->kmap_type == EROFS_NO_KMAP) {
-		if (type == EROFS_KMAP)
-			buf->base = kmap_local_page(buf->page);
-		buf->kmap_type = type;
-	} else if (buf->kmap_type != type) {
-		DBG_BUGON(1);
-		return ERR_PTR(-EFAULT);
-	}
+	if (!buf->base && type == EROFS_KMAP)
+		buf->base = kmap_local_page(buf->page);
 	if (type == EROFS_NO_KMAP)
 		return NULL;
 	return buf->base + (offset & ~PAGE_MASK);
@@ -61,9 +54,11 @@ void erofs_init_metabuf(struct erofs_buf *buf, struct super_block *sb)
 {
 	struct erofs_sb_info *sbi = EROFS_SB(sb);
 
-	if (erofs_is_fileio_mode(sbi))
-		buf->mapping = file_inode(sbi->fdev)->i_mapping;
-	else if (erofs_is_fscache_mode(sb))
+	buf->file = NULL;
+	if (erofs_is_fileio_mode(sbi)) {
+		buf->file = sbi->fdev;		/* some fs like FUSE needs it */
+		buf->mapping = buf->file->f_mapping;
+	} else if (erofs_is_fscache_mode(sb))
 		buf->mapping = sbi->s_fscache->inode->i_mapping;
 	else
 		buf->mapping = sb->s_bdev->bd_mapping;
@@ -350,7 +345,6 @@ static int erofs_iomap_end(struct inode *inode, loff_t pos, loff_t length,
 		struct erofs_buf buf = {
 			.page = kmap_to_page(ptr),
 			.base = ptr,
-			.kmap_type = EROFS_KMAP,
 		};
 
 		DBG_BUGON(iomap->type != IOMAP_INLINE);
@@ -411,22 +405,9 @@ static ssize_t erofs_file_read_iter(struct kiocb *iocb, struct iov_iter *to)
 	if (IS_DAX(inode))
 		return dax_iomap_rw(iocb, to, &erofs_iomap_ops);
 #endif
-	if (iocb->ki_flags & IOCB_DIRECT) {
-		struct block_device *bdev = inode->i_sb->s_bdev;
-		unsigned int blksize_mask;
-
-		if (bdev)
-			blksize_mask = bdev_logical_block_size(bdev) - 1;
-		else
-			blksize_mask = i_blocksize(inode) - 1;
-
-		if ((iocb->ki_pos | iov_iter_count(to) |
-		     iov_iter_alignment(to)) & blksize_mask)
-			return -EINVAL;
-
+	if ((iocb->ki_flags & IOCB_DIRECT) && inode->i_sb->s_bdev)
 		return iomap_dio_rw(iocb, to, &erofs_iomap_ops,
 				    NULL, 0, NULL, 0);
-	}
 	return filemap_read(iocb, to, 0);
 }
 
@@ -473,8 +454,32 @@ static int erofs_file_mmap(struct file *file, struct vm_area_struct *vma)
 #define erofs_file_mmap	generic_file_readonly_mmap
 #endif
 
+static loff_t erofs_file_llseek(struct file *file, loff_t offset, int whence)
+{
+	struct inode *inode = file->f_mapping->host;
+	const struct iomap_ops *ops = &erofs_iomap_ops;
+
+	if (erofs_inode_is_data_compressed(EROFS_I(inode)->datalayout))
+#ifdef CONFIG_EROFS_FS_ZIP
+		ops = &z_erofs_iomap_report_ops;
+#else
+		return generic_file_llseek(file, offset, whence);
+#endif
+
+	if (whence == SEEK_HOLE)
+		offset = iomap_seek_hole(inode, offset, ops);
+	else if (whence == SEEK_DATA)
+		offset = iomap_seek_data(inode, offset, ops);
+	else
+		return generic_file_llseek(file, offset, whence);
+
+	if (offset < 0)
+		return offset;
+	return vfs_setpos(file, offset, inode->i_sb->s_maxbytes);
+}
+
 const struct file_operations erofs_file_fops = {
-	.llseek		= generic_file_llseek,
+	.llseek		= erofs_file_llseek,
 	.read_iter	= erofs_file_read_iter,
 	.mmap		= erofs_file_mmap,
 	.get_unmapped_area = thp_get_unmapped_area,

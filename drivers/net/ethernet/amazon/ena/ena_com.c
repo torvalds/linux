@@ -763,25 +763,16 @@ static int ena_com_wait_and_process_admin_cq_interrupts(struct ena_comp_ctx *com
 
 		if (comp_ctx->status == ENA_CMD_COMPLETED) {
 			netdev_err(admin_queue->ena_dev->net_device,
-				   "The ena device sent a completion but the driver didn't receive a MSI-X interrupt (cmd %d), autopolling mode is %s\n",
-				   comp_ctx->cmd_opcode, admin_queue->auto_polling ? "ON" : "OFF");
-			/* Check if fallback to polling is enabled */
-			if (admin_queue->auto_polling)
-				admin_queue->polling = true;
+				   "The ena device sent a completion but the driver didn't receive a MSI-X interrupt (cmd %d)\n",
+				   comp_ctx->cmd_opcode);
 		} else {
 			netdev_err(admin_queue->ena_dev->net_device,
 				   "The ena device didn't send a completion for the admin cmd %d status %d\n",
 				   comp_ctx->cmd_opcode, comp_ctx->status);
 		}
-		/* Check if shifted to polling mode.
-		 * This will happen if there is a completion without an interrupt
-		 * and autopolling mode is enabled. Continuing normal execution in such case
-		 */
-		if (!admin_queue->polling) {
-			admin_queue->running_state = false;
-			ret = -ETIME;
-			goto err;
-		}
+		admin_queue->running_state = false;
+		ret = -ETIME;
+		goto err;
 	}
 
 	ret = ena_com_comp_status_to_errno(admin_queue, comp_ctx->comp_status);
@@ -1650,12 +1641,6 @@ void ena_com_set_admin_polling_mode(struct ena_com_dev *ena_dev, bool polling)
 	ena_dev->admin_queue.polling = polling;
 }
 
-void ena_com_set_admin_auto_polling_mode(struct ena_com_dev *ena_dev,
-					 bool polling)
-{
-	ena_dev->admin_queue.auto_polling = polling;
-}
-
 int ena_com_mmio_reg_read_request_init(struct ena_com_dev *ena_dev)
 {
 	struct ena_com_mmio_read *mmio_read = &ena_dev->mmio_read;
@@ -2198,21 +2183,6 @@ int ena_com_get_ena_srd_info(struct ena_com_dev *ena_dev,
 	return ret;
 }
 
-int ena_com_get_dev_basic_stats(struct ena_com_dev *ena_dev,
-				struct ena_admin_basic_stats *stats)
-{
-	struct ena_com_stats_ctx ctx;
-	int ret;
-
-	memset(&ctx, 0x0, sizeof(ctx));
-	ret = ena_get_dev_stats(ena_dev, &ctx, ENA_ADMIN_GET_STATS_TYPE_BASIC);
-	if (likely(ret == 0))
-		memcpy(stats, &ctx.get_resp.u.basic_stats,
-		       sizeof(ctx.get_resp.u.basic_stats));
-
-	return ret;
-}
-
 int ena_com_get_customer_metrics(struct ena_com_dev *ena_dev, char *buffer, u32 len)
 {
 	struct ena_admin_aq_get_stats_cmd *get_cmd;
@@ -2287,24 +2257,6 @@ int ena_com_set_dev_mtu(struct ena_com_dev *ena_dev, u32 mtu)
 		netdev_err(ena_dev->net_device, "Failed to set mtu %d. error: %d\n", mtu, ret);
 
 	return ret;
-}
-
-int ena_com_get_offload_settings(struct ena_com_dev *ena_dev,
-				 struct ena_admin_feature_offload_desc *offload)
-{
-	int ret;
-	struct ena_admin_get_feat_resp resp;
-
-	ret = ena_com_get_feature(ena_dev, &resp,
-				  ENA_ADMIN_STATELESS_OFFLOAD_CONFIG, 0);
-	if (unlikely(ret)) {
-		netdev_err(ena_dev->net_device, "Failed to get offload capabilities %d\n", ret);
-		return ret;
-	}
-
-	memcpy(offload, &resp.u.offload, sizeof(resp.u.offload));
-
-	return 0;
 }
 
 int ena_com_set_hash_function(struct ena_com_dev *ena_dev)

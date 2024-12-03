@@ -247,8 +247,8 @@ static void update_perf_entry(struct device *dev, struct dsmas_entry *dent,
 	dpa_perf->dpa_range = dent->dpa_range;
 	dpa_perf->qos_class = dent->qos_class;
 	dev_dbg(dev,
-		"DSMAS: dpa: %#llx qos: %d read_bw: %d write_bw %d read_lat: %d write_lat: %d\n",
-		dent->dpa_range.start, dpa_perf->qos_class,
+		"DSMAS: dpa: %pra qos: %d read_bw: %d write_bw %d read_lat: %d write_lat: %d\n",
+		&dent->dpa_range, dpa_perf->qos_class,
 		dent->coord[ACCESS_COORDINATE_CPU].read_bandwidth,
 		dent->coord[ACCESS_COORDINATE_CPU].write_bandwidth,
 		dent->coord[ACCESS_COORDINATE_CPU].read_latency,
@@ -279,8 +279,8 @@ static void cxl_memdev_set_qos_class(struct cxl_dev_state *cxlds,
 			 range_contains(&pmem_range, &dent->dpa_range))
 			update_perf_entry(dev, dent, &mds->pmem_perf);
 		else
-			dev_dbg(dev, "no partition for dsmas dpa: %#llx\n",
-				dent->dpa_range.start);
+			dev_dbg(dev, "no partition for dsmas dpa: %pra\n",
+				&dent->dpa_range);
 	}
 }
 
@@ -416,7 +416,7 @@ void cxl_endpoint_parse_cdat(struct cxl_port *port)
 	cxl_qos_class_verify(cxlmd);
 	cxl_memdev_update_perf(cxlmd);
 }
-EXPORT_SYMBOL_NS_GPL(cxl_endpoint_parse_cdat, CXL);
+EXPORT_SYMBOL_NS_GPL(cxl_endpoint_parse_cdat, "CXL");
 
 static int cdat_sslbis_handler(union acpi_subtable_headers *header, void *arg,
 			       const unsigned long end)
@@ -513,7 +513,7 @@ void cxl_switch_parse_cdat(struct cxl_port *port)
 	if (rc)
 		dev_dbg(&port->dev, "Failed to parse SSLBIS: %d\n", rc);
 }
-EXPORT_SYMBOL_NS_GPL(cxl_switch_parse_cdat, CXL);
+EXPORT_SYMBOL_NS_GPL(cxl_switch_parse_cdat, "CXL");
 
 static void __cxl_coordinates_combine(struct access_coordinate *out,
 				      struct access_coordinate *c1,
@@ -545,7 +545,7 @@ void cxl_coordinates_combine(struct access_coordinate *out,
 		__cxl_coordinates_combine(&out[i], &c1[i], &c2[i]);
 }
 
-MODULE_IMPORT_NS(CXL);
+MODULE_IMPORT_NS("CXL");
 
 static void cxl_bandwidth_add(struct access_coordinate *coord,
 			      struct access_coordinate *c1,

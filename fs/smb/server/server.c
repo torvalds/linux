@@ -47,7 +47,7 @@ static int ___server_conf_set(int idx, char *val)
 		return -EINVAL;
 
 	kfree(server_conf.conf[idx]);
-	server_conf.conf[idx] = kstrdup(val, GFP_KERNEL);
+	server_conf.conf[idx] = kstrdup(val, KSMBD_DEFAULT_GFP);
 	if (!server_conf.conf[idx])
 		return -ENOMEM;
 	return 0;
@@ -276,8 +276,12 @@ static void handle_ksmbd_work(struct work_struct *wk)
 	 * disconnection. waitqueue_active is safe because it
 	 * uses atomic operation for condition.
 	 */
+	atomic_inc(&conn->refcnt);
 	if (!atomic_dec_return(&conn->r_count) && waitqueue_active(&conn->r_count_q))
 		wake_up(&conn->r_count_q);
+
+	if (atomic_dec_and_test(&conn->refcnt))
+		kfree(conn);
 }
 
 /**
@@ -415,7 +419,7 @@ static int __queue_ctrl_work(int type)
 {
 	struct server_ctrl_struct *ctrl;
 
-	ctrl = kmalloc(sizeof(struct server_ctrl_struct), GFP_KERNEL);
+	ctrl = kmalloc(sizeof(struct server_ctrl_struct), KSMBD_DEFAULT_GFP);
 	if (!ctrl)
 		return -ENOMEM;
 

@@ -17,7 +17,6 @@
 #include <linux/err.h>
 #include <linux/pwm.h>
 #include <linux/slab.h>
-#include "leds.h"
 
 struct led_pwm {
 	const char	*name;
@@ -63,6 +62,20 @@ static int led_pwm_set(struct led_classdev *led_cdev,
 	return pwm_apply_might_sleep(led_dat->pwm, &led_dat->pwmstate);
 }
 
+static int led_pwm_default_brightness_get(struct fwnode_handle *fwnode,
+					  int max_brightness)
+{
+	unsigned int default_brightness;
+	int ret;
+
+	ret = fwnode_property_read_u32(fwnode, "default-brightness",
+				       &default_brightness);
+	if (ret < 0 || default_brightness > max_brightness)
+		default_brightness = max_brightness;
+
+	return default_brightness;
+}
+
 __attribute__((nonnull))
 static int led_pwm_add(struct device *dev, struct led_pwm_priv *priv,
 		       struct led_pwm *led, struct fwnode_handle *fwnode)
@@ -104,7 +117,8 @@ static int led_pwm_add(struct device *dev, struct led_pwm_priv *priv,
 	/* set brightness */
 	switch (led->default_state) {
 	case LEDS_DEFSTATE_ON:
-		led_data->cdev.brightness = led->max_brightness;
+		led_data->cdev.brightness =
+			led_pwm_default_brightness_get(fwnode, led->max_brightness);
 		break;
 	case LEDS_DEFSTATE_KEEP:
 		{
@@ -140,21 +154,18 @@ static int led_pwm_add(struct device *dev, struct led_pwm_priv *priv,
 
 static int led_pwm_create_fwnode(struct device *dev, struct led_pwm_priv *priv)
 {
-	struct fwnode_handle *fwnode;
 	struct led_pwm led;
 	int ret;
 
-	device_for_each_child_node(dev, fwnode) {
+	device_for_each_child_node_scoped(dev, fwnode) {
 		memset(&led, 0, sizeof(led));
 
 		ret = fwnode_property_read_string(fwnode, "label", &led.name);
 		if (ret && is_of_node(fwnode))
 			led.name = to_of_node(fwnode)->name;
 
-		if (!led.name) {
-			ret = -EINVAL;
-			goto err_child_out;
-		}
+		if (!led.name)
+			return -EINVAL;
 
 		led.active_low = fwnode_property_read_bool(fwnode,
 							   "active-low");
@@ -165,14 +176,10 @@ static int led_pwm_create_fwnode(struct device *dev, struct led_pwm_priv *priv)
 
 		ret = led_pwm_add(dev, priv, &led, fwnode);
 		if (ret)
-			goto err_child_out;
+			return ret;
 	}
 
 	return 0;
-
-err_child_out:
-	fwnode_handle_put(fwnode);
-	return ret;
 }
 
 static int led_pwm_probe(struct platform_device *pdev)

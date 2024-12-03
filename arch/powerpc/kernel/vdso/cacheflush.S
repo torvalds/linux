@@ -30,7 +30,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_COHERENT_ICACHE)
 #ifdef CONFIG_PPC64
 	mflr	r12
   .cfi_register lr,r12
-	get_realdatapage	r10, r11
+	get_datapage	r10
 	mtlr	r12
   .cfi_restore	lr
 #endif

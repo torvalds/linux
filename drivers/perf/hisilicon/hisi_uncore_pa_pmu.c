@@ -538,7 +538,7 @@ static struct platform_driver hisi_pa_pmu_driver = {
 		.suppress_bind_attrs = true,
 	},
 	.probe = hisi_pa_pmu_probe,
-	.remove_new = hisi_pa_pmu_remove,
+	.remove = hisi_pa_pmu_remove,
 };
 
 static int __init hisi_pa_pmu_module_init(void)

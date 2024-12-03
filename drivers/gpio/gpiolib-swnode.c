@@ -141,7 +141,7 @@ int swnode_gpio_count(const struct fwnode_handle *fwnode, const char *con_id)
 const struct software_node swnode_gpio_undefined = {
 	.name = GPIOLIB_SWNODE_UNDEFINED_NAME,
 };
-EXPORT_SYMBOL_NS_GPL(swnode_gpio_undefined, GPIO_SWNODE);
+EXPORT_SYMBOL_NS_GPL(swnode_gpio_undefined, "GPIO_SWNODE");
 
 static int __init swnode_gpio_init(void)
 {

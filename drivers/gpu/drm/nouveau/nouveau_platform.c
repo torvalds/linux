@@ -86,5 +86,5 @@ struct platform_driver nouveau_platform_driver = {
 		.of_match_table = of_match_ptr(nouveau_platform_match),
 	},
 	.probe = nouveau_platform_probe,
-	.remove_new = nouveau_platform_remove,
+	.remove = nouveau_platform_remove,
 };

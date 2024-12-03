@@ -893,7 +893,7 @@ static int rz_dmac_probe(struct platform_device *pdev)
 	/* Initialize the channels. */
 	INIT_LIST_HEAD(&dmac->engine.channels);
 
-	dmac->rstc = devm_reset_control_array_get_exclusive(&pdev->dev);
+	dmac->rstc = devm_reset_control_array_get_optional_exclusive(&pdev->dev);
 	if (IS_ERR(dmac->rstc))
 		return dev_err_probe(&pdev->dev, PTR_ERR(dmac->rstc),
 				     "failed to get resets\n");
@@ -1004,7 +1004,7 @@ static struct platform_driver rz_dmac_driver = {
 		.of_match_table = of_rz_dmac_match,
 	},
 	.probe		= rz_dmac_probe,
-	.remove_new	= rz_dmac_remove,
+	.remove		= rz_dmac_remove,
 };
 
 module_platform_driver(rz_dmac_driver);

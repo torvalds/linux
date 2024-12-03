@@ -1335,5 +1335,5 @@ struct platform_driver mixer_driver = {
 		.of_match_table = mixer_match_types,
 	},
 	.probe = mixer_probe,
-	.remove_new = mixer_remove,
+	.remove = mixer_remove,
 };

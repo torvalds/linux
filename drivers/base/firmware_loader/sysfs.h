@@ -6,7 +6,7 @@
 
 #include "firmware.h"
 
-MODULE_IMPORT_NS(FIRMWARE_LOADER_PRIVATE);
+MODULE_IMPORT_NS("FIRMWARE_LOADER_PRIVATE");
 
 extern struct firmware_fallback_config fw_fallback_config;
 extern struct device_attribute dev_attr_loading;

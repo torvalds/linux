@@ -140,13 +140,13 @@ int realtek_mdio_probe(struct mdio_device *mdiodev)
 
 	return 0;
 }
-EXPORT_SYMBOL_NS_GPL(realtek_mdio_probe, REALTEK_DSA);
+EXPORT_SYMBOL_NS_GPL(realtek_mdio_probe, "REALTEK_DSA");
 
 /**
  * realtek_mdio_remove() - Remove the driver of an MDIO-connected switch
  * @mdiodev: mdio_device to be removed.
  *
- * This function should be used as the .remove_new in an mdio_driver. First
+ * This function should be used as the .remove in an mdio_driver. First
  * it unregisters the DSA switch and then it calls the common remove function.
  *
  * Context: Can sleep.
@@ -163,7 +163,7 @@ void realtek_mdio_remove(struct mdio_device *mdiodev)
 
 	rtl83xx_remove(priv);
 }
-EXPORT_SYMBOL_NS_GPL(realtek_mdio_remove, REALTEK_DSA);
+EXPORT_SYMBOL_NS_GPL(realtek_mdio_remove, "REALTEK_DSA");
 
 /**
  * realtek_mdio_shutdown() - Shutdown the driver of a MDIO-connected switch
@@ -184,4 +184,4 @@ void realtek_mdio_shutdown(struct mdio_device *mdiodev)
 
 	rtl83xx_shutdown(priv);
 }
-EXPORT_SYMBOL_NS_GPL(realtek_mdio_shutdown, REALTEK_DSA);
+EXPORT_SYMBOL_NS_GPL(realtek_mdio_shutdown, "REALTEK_DSA");

@@ -121,7 +121,7 @@ install-man: all
 		$(INSTALL) -d -m 755 $(DESTDIR)$(man7dir); \
 		$(INSTALL) -m 644 $(MAN_7) $(DESTDIR)$(man7dir);
 
-install-html:
+install-html: $(MAN_HTML)
 	$(call QUIET_INSTALL, html) \
 		$(INSTALL) -d -m 755 $(DESTDIR)$(htmldir); \
 		$(INSTALL) -m 644 $(MAN_HTML) $(DESTDIR)$(htmldir); \

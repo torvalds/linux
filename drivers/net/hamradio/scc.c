@@ -1460,6 +1460,7 @@ scc_start_calibrate(struct scc_channel *scc, int duration, unsigned char pattern
 
 static void z8530_init(void)
 {
+	const unsigned int nr_irqs = irq_get_nr_irqs();
 	struct scc_channel *scc;
 	int chip, k;
 	unsigned long flags;
@@ -1735,7 +1736,7 @@ static int scc_net_siocdevprivate(struct net_device *dev,
 
 			if (hwcfg.irq == 2) hwcfg.irq = 9;
 
-			if (hwcfg.irq < 0 || hwcfg.irq >= nr_irqs)
+			if (hwcfg.irq < 0 || hwcfg.irq >= irq_get_nr_irqs())
 				return -EINVAL;
 				
 			if (!Ivec[hwcfg.irq].used && hwcfg.irq)
@@ -2117,6 +2118,7 @@ static int __init scc_init_driver (void)
 
 static void __exit scc_cleanup_driver(void)
 {
+	const unsigned int nr_irqs = irq_get_nr_irqs();
 	io_port ctrl;
 	int k;
 	struct scc_channel *scc;

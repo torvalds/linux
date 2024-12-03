@@ -283,9 +283,9 @@ static void tonga_ih_set_rptr(struct amdgpu_device *adev,
 	}
 }
 
-static int tonga_ih_early_init(void *handle)
+static int tonga_ih_early_init(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	int ret;
 
 	ret = amdgpu_irq_add_domain(adev);
@@ -297,10 +297,10 @@ static int tonga_ih_early_init(void *handle)
 	return 0;
 }
 
-static int tonga_ih_sw_init(void *handle)
+static int tonga_ih_sw_init(struct amdgpu_ip_block *ip_block)
 {
 	int r;
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	r = amdgpu_ih_ring_init(adev, &adev->irq.ih, 64 * 1024, true);
 	if (r)
@@ -314,9 +314,9 @@ static int tonga_ih_sw_init(void *handle)
 	return r;
 }
 
-static int tonga_ih_sw_fini(void *handle)
+static int tonga_ih_sw_fini(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	amdgpu_irq_fini_sw(adev);
 	amdgpu_irq_remove_domain(adev);
@@ -324,10 +324,10 @@ static int tonga_ih_sw_fini(void *handle)
 	return 0;
 }
 
-static int tonga_ih_hw_init(void *handle)
+static int tonga_ih_hw_init(struct amdgpu_ip_block *ip_block)
 {
 	int r;
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	r = tonga_ih_irq_init(adev);
 	if (r)
@@ -336,27 +336,21 @@ static int tonga_ih_hw_init(void *handle)
 	return 0;
 }
 
-static int tonga_ih_hw_fini(void *handle)
+static int tonga_ih_hw_fini(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-
-	tonga_ih_irq_disable(adev);
+	tonga_ih_irq_disable(ip_block->adev);
 
 	return 0;
 }
 
-static int tonga_ih_suspend(void *handle)
+static int tonga_ih_suspend(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-
-	return tonga_ih_hw_fini(adev);
+	return tonga_ih_hw_fini(ip_block);
 }
 
-static int tonga_ih_resume(void *handle)
+static int tonga_ih_resume(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-
-	return tonga_ih_hw_init(adev);
+	return tonga_ih_hw_init(ip_block);
 }
 
 static bool tonga_ih_is_idle(void *handle)
@@ -370,11 +364,11 @@ static bool tonga_ih_is_idle(void *handle)
 	return true;
 }
 
-static int tonga_ih_wait_for_idle(void *handle)
+static int tonga_ih_wait_for_idle(struct amdgpu_ip_block *ip_block)
 {
 	unsigned i;
 	u32 tmp;
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	for (i = 0; i < adev->usec_timeout; i++) {
 		/* read MC_STATUS */
@@ -386,9 +380,9 @@ static int tonga_ih_wait_for_idle(void *handle)
 	return -ETIMEDOUT;
 }
 
-static bool tonga_ih_check_soft_reset(void *handle)
+static bool tonga_ih_check_soft_reset(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	u32 srbm_soft_reset = 0;
 	u32 tmp = RREG32(mmSRBM_STATUS);
 
@@ -405,29 +399,27 @@ static bool tonga_ih_check_soft_reset(void *handle)
 	}
 }
 
-static int tonga_ih_pre_soft_reset(void *handle)
+static int tonga_ih_pre_soft_reset(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	if (!ip_block->adev->irq.srbm_soft_reset)
+		return 0;
+
+	return tonga_ih_hw_fini(ip_block);
+}
+
+static int tonga_ih_post_soft_reset(struct amdgpu_ip_block *ip_block)
+{
+	struct amdgpu_device *adev = ip_block->adev;
 
 	if (!adev->irq.srbm_soft_reset)
 		return 0;
 
-	return tonga_ih_hw_fini(adev);
+	return tonga_ih_hw_init(ip_block);
 }
 
-static int tonga_ih_post_soft_reset(void *handle)
+static int tonga_ih_soft_reset(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-
-	if (!adev->irq.srbm_soft_reset)
-		return 0;
-
-	return tonga_ih_hw_init(adev);
-}
-
-static int tonga_ih_soft_reset(void *handle)
-{
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	u32 srbm_soft_reset;
 
 	if (!adev->irq.srbm_soft_reset)
@@ -471,7 +463,6 @@ static int tonga_ih_set_powergating_state(void *handle,
 static const struct amd_ip_funcs tonga_ih_ip_funcs = {
 	.name = "tonga_ih",
 	.early_init = tonga_ih_early_init,
-	.late_init = NULL,
 	.sw_init = tonga_ih_sw_init,
 	.sw_fini = tonga_ih_sw_fini,
 	.hw_init = tonga_ih_hw_init,
@@ -486,8 +477,6 @@ static const struct amd_ip_funcs tonga_ih_ip_funcs = {
 	.post_soft_reset = tonga_ih_post_soft_reset,
 	.set_clockgating_state = tonga_ih_set_clockgating_state,
 	.set_powergating_state = tonga_ih_set_powergating_state,
-	.dump_ip_state = NULL,
-	.print_ip_state = NULL,
 };
 
 static const struct amdgpu_ih_funcs tonga_ih_funcs = {

@@ -337,7 +337,7 @@ void *__init relocate_kernel(void)
 #if defined(CONFIG_USE_OF)
 	/* Deal with the device tree */
 	fdt = plat_get_fdt();
-	early_init_dt_scan(fdt);
+	early_init_dt_scan(fdt, __pa(fdt));
 	if (boot_command_line[0]) {
 		/* Boot command line was passed in device tree */
 		strscpy(arcs_cmdline, boot_command_line, COMMAND_LINE_SIZE);

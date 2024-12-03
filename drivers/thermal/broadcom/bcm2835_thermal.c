@@ -268,7 +268,7 @@ static void bcm2835_thermal_remove(struct platform_device *pdev)
 
 static struct platform_driver bcm2835_thermal_driver = {
 	.probe = bcm2835_thermal_probe,
-	.remove_new = bcm2835_thermal_remove,
+	.remove = bcm2835_thermal_remove,
 	.driver = {
 		.name = "bcm2835_thermal",
 		.of_match_table = bcm2835_thermal_of_match_table,

@@ -12,7 +12,7 @@
 #include <linux/delay.h>
 #include <linux/pgtable.h>
 
-#include <asm/code-patching.h>
+#include <asm/text-patching.h>
 #include <asm/page.h>
 #include <asm/pci-bridge.h>
 #include <asm/mpic.h>

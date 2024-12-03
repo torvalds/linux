@@ -371,6 +371,8 @@ static int mctp_fill_link_af(struct sk_buff *skb,
 		return -ENODATA;
 	if (nla_put_u32(skb, IFLA_MCTP_NET, mdev->net))
 		return -EMSGSIZE;
+	if (nla_put_u8(skb, IFLA_MCTP_PHYS_BINDING, mdev->binding))
+		return -EMSGSIZE;
 	return 0;
 }
 
@@ -385,6 +387,7 @@ static size_t mctp_get_link_af_size(const struct net_device *dev,
 	if (!mdev)
 		return 0;
 	ret = nla_total_size(4); /* IFLA_MCTP_NET */
+	ret += nla_total_size(1); /* IFLA_MCTP_PHYS_BINDING */
 	mctp_dev_put(mdev);
 	return ret;
 }
@@ -480,7 +483,8 @@ static int mctp_dev_notify(struct notifier_block *this, unsigned long event,
 }
 
 static int mctp_register_netdevice(struct net_device *dev,
-				   const struct mctp_netdev_ops *ops)
+				   const struct mctp_netdev_ops *ops,
+				   enum mctp_phys_binding binding)
 {
 	struct mctp_dev *mdev;
 
@@ -489,17 +493,19 @@ static int mctp_register_netdevice(struct net_device *dev,
 		return PTR_ERR(mdev);
 
 	mdev->ops = ops;
+	mdev->binding = binding;
 
 	return register_netdevice(dev);
 }
 
 int mctp_register_netdev(struct net_device *dev,
-			 const struct mctp_netdev_ops *ops)
+			 const struct mctp_netdev_ops *ops,
+			 enum mctp_phys_binding binding)
 {
 	int rc;
 
 	rtnl_lock();
-	rc = mctp_register_netdevice(dev, ops);
+	rc = mctp_register_netdevice(dev, ops, binding);
 	rtnl_unlock();
 
 	return rc;
@@ -535,14 +541,20 @@ int __init mctp_device_init(void)
 	int err;
 
 	register_netdevice_notifier(&mctp_dev_nb);
-	rtnl_af_register(&mctp_af_ops);
+
+	err = rtnl_af_register(&mctp_af_ops);
+	if (err)
+		goto err_notifier;
 
 	err = rtnl_register_many(mctp_device_rtnl_msg_handlers);
-	if (err) {
-		rtnl_af_unregister(&mctp_af_ops);
-		unregister_netdevice_notifier(&mctp_dev_nb);
-	}
+	if (err)
+		goto err_af;
 
+	return 0;
+err_af:
+	rtnl_af_unregister(&mctp_af_ops);
+err_notifier:
+	unregister_netdevice_notifier(&mctp_dev_nb);
 	return err;
 }
 

@@ -12,7 +12,6 @@
 #include <linux/fs.h>
 #include <linux/filelock.h>
 #include <linux/file.h>
-#include <linux/fdtable.h>
 #include <linux/capability.h>
 #include <linux/dnotify.h>
 #include <linux/slab.h>
@@ -375,6 +374,9 @@ static long fcntl_set_rw_hint(struct file *file, unsigned int cmd,
 	u64 __user *argp = (u64 __user *)arg;
 	u64 hint;
 
+	if (!inode_owner_or_capable(file_mnt_idmap(file), inode))
+		return -EPERM;
+
 	if (copy_from_user(&hint, argp, sizeof(hint)))
 		return -EFAULT;
 	if (!rw_hint_valid(hint))
@@ -396,6 +398,9 @@ static long fcntl_set_rw_hint(struct file *file, unsigned int cmd,
 static long f_dupfd_query(int fd, struct file *filp)
 {
 	CLASS(fd_raw, f)(fd);
+
+	if (fd_empty(f))
+		return -EBADF;
 
 	/*
 	 * We can do the 'fdput()' immediately, as the only thing that
@@ -570,24 +575,21 @@ static int check_fcntl_cmd(unsigned cmd)
 
 SYSCALL_DEFINE3(fcntl, unsigned int, fd, unsigned int, cmd, unsigned long, arg)
 {	
-	struct fd f = fdget_raw(fd);
-	long err = -EBADF;
+	CLASS(fd_raw, f)(fd);
+	long err;
 
-	if (!fd_file(f))
-		goto out;
+	if (fd_empty(f))
+		return -EBADF;
 
 	if (unlikely(fd_file(f)->f_mode & FMODE_PATH)) {
 		if (!check_fcntl_cmd(cmd))
-			goto out1;
+			return -EBADF;
 	}
 
 	err = security_file_fcntl(fd_file(f), cmd, arg);
 	if (!err)
 		err = do_fcntl(fd, cmd, arg, fd_file(f));
 
-out1:
- 	fdput(f);
-out:
 	return err;
 }
 
@@ -596,21 +598,21 @@ SYSCALL_DEFINE3(fcntl64, unsigned int, fd, unsigned int, cmd,
 		unsigned long, arg)
 {	
 	void __user *argp = (void __user *)arg;
-	struct fd f = fdget_raw(fd);
+	CLASS(fd_raw, f)(fd);
 	struct flock64 flock;
-	long err = -EBADF;
+	long err;
 
-	if (!fd_file(f))
-		goto out;
+	if (fd_empty(f))
+		return -EBADF;
 
 	if (unlikely(fd_file(f)->f_mode & FMODE_PATH)) {
 		if (!check_fcntl_cmd(cmd))
-			goto out1;
+			return -EBADF;
 	}
 
 	err = security_file_fcntl(fd_file(f), cmd, arg);
 	if (err)
-		goto out1;
+		return err;
 	
 	switch (cmd) {
 	case F_GETLK64:
@@ -635,9 +637,6 @@ SYSCALL_DEFINE3(fcntl64, unsigned int, fd, unsigned int, cmd,
 		err = do_fcntl(fd, cmd, arg, fd_file(f));
 		break;
 	}
-out1:
-	fdput(f);
-out:
 	return err;
 }
 #endif
@@ -733,21 +732,21 @@ static int fixup_compat_flock(struct flock *flock)
 static long do_compat_fcntl64(unsigned int fd, unsigned int cmd,
 			     compat_ulong_t arg)
 {
-	struct fd f = fdget_raw(fd);
+	CLASS(fd_raw, f)(fd);
 	struct flock flock;
-	long err = -EBADF;
+	long err;
 
-	if (!fd_file(f))
-		return err;
+	if (fd_empty(f))
+		return -EBADF;
 
 	if (unlikely(fd_file(f)->f_mode & FMODE_PATH)) {
 		if (!check_fcntl_cmd(cmd))
-			goto out_put;
+			return -EBADF;
 	}
 
 	err = security_file_fcntl(fd_file(f), cmd, arg);
 	if (err)
-		goto out_put;
+		return err;
 
 	switch (cmd) {
 	case F_GETLK:
@@ -790,8 +789,6 @@ static long do_compat_fcntl64(unsigned int fd, unsigned int cmd,
 		err = do_fcntl(fd, cmd, arg, fd_file(f));
 		break;
 	}
-out_put:
-	fdput(f);
 	return err;
 }
 

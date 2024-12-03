@@ -31,6 +31,15 @@ kselftest runs as a userspace process.  Tests that can be written/run in
 userspace may wish to use the `Test Harness`_.  Tests that need to be
 run in kernel space may wish to use a `Test Module`_.
 
+Documentation on the tests
+==========================
+
+For documentation on the kselftests themselves, see:
+
+.. toctree::
+
+   testing-devices
+
 Running the selftests (hotplug tests are run in limited mode)
 =============================================================
 

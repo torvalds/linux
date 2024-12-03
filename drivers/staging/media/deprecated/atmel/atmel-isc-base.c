@@ -477,8 +477,6 @@ static struct isc_format *find_format_by_fourcc(struct isc_device *isc,
 
 static const struct vb2_ops isc_vb2_ops = {
 	.queue_setup		= isc_queue_setup,
-	.wait_prepare		= vb2_ops_wait_prepare,
-	.wait_finish		= vb2_ops_wait_finish,
 	.buf_prepare		= isc_buffer_prepare,
 	.start_streaming	= isc_start_streaming,
 	.stop_streaming		= isc_stop_streaming,

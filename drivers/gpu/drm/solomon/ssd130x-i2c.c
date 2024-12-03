@@ -123,4 +123,4 @@ module_i2c_driver(ssd130x_i2c_driver);
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_AUTHOR("Javier Martinez Canillas <javierm@redhat.com>");
 MODULE_LICENSE("GPL v2");
-MODULE_IMPORT_NS(DRM_SSD130X);
+MODULE_IMPORT_NS("DRM_SSD130X");

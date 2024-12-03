@@ -309,7 +309,7 @@ MODULE_DEVICE_TABLE(of, liteeth_of_match);
 
 static struct platform_driver liteeth_driver = {
 	.probe = liteeth_probe,
-	.remove_new = liteeth_remove,
+	.remove = liteeth_remove,
 	.driver = {
 		.name = DRV_NAME,
 		.of_match_table = liteeth_of_match,

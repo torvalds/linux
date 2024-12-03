@@ -946,7 +946,7 @@ hid_sensor_register_platform_device(struct platform_device *pdev,
 
 	memcpy(real_usage, match->luid, 4);
 
-	/* usage id are all lowcase */
+	/* usage id are all lowercase */
 	for (c = real_usage; *c != '\0'; c++)
 		*c = tolower(*c);
 
@@ -1065,7 +1065,7 @@ static struct platform_driver hid_sensor_custom_platform_driver = {
 		.name	= KBUILD_MODNAME,
 	},
 	.probe		= hid_sensor_custom_probe,
-	.remove_new	= hid_sensor_custom_remove,
+	.remove		= hid_sensor_custom_remove,
 };
 module_platform_driver(hid_sensor_custom_platform_driver);
 

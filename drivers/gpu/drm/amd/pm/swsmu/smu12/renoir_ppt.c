@@ -645,7 +645,9 @@ static enum amd_pm_state_type renoir_get_current_power_state(struct smu_context 
 	return pm_type;
 }
 
-static int renoir_dpm_set_vcn_enable(struct smu_context *smu, bool enable)
+static int renoir_dpm_set_vcn_enable(struct smu_context *smu,
+				      bool enable,
+				      int inst)
 {
 	int ret = 0;
 
@@ -707,7 +709,7 @@ static int renoir_force_dpm_limit_value(struct smu_context *smu, bool highest)
 			return ret;
 
 		force_freq = highest ? max_freq : min_freq;
-		ret = smu_v12_0_set_soft_freq_limited_range(smu, clk_type, force_freq, force_freq);
+		ret = smu_v12_0_set_soft_freq_limited_range(smu, clk_type, force_freq, force_freq, false);
 		if (ret)
 			return ret;
 	}
@@ -740,7 +742,7 @@ static int renoir_unforce_dpm_levels(struct smu_context *smu) {
 		if (ret)
 			return ret;
 
-		ret = smu_v12_0_set_soft_freq_limited_range(smu, clk_type, min_freq, max_freq);
+		ret = smu_v12_0_set_soft_freq_limited_range(smu, clk_type, min_freq, max_freq, false);
 		if (ret)
 			return ret;
 	}
@@ -911,7 +913,7 @@ static int renoir_set_peak_clock_by_device(struct smu_context *smu)
 	if (ret)
 		return ret;
 
-	ret = smu_v12_0_set_soft_freq_limited_range(smu, SMU_SCLK, sclk_freq, sclk_freq);
+	ret = smu_v12_0_set_soft_freq_limited_range(smu, SMU_SCLK, sclk_freq, sclk_freq, false);
 	if (ret)
 		return ret;
 
@@ -919,7 +921,7 @@ static int renoir_set_peak_clock_by_device(struct smu_context *smu)
 	if (ret)
 		return ret;
 
-	ret = smu_v12_0_set_soft_freq_limited_range(smu, SMU_UCLK, uclk_freq, uclk_freq);
+	ret = smu_v12_0_set_soft_freq_limited_range(smu, SMU_UCLK, uclk_freq, uclk_freq, false);
 	if (ret)
 		return ret;
 
@@ -961,13 +963,13 @@ static int renior_set_dpm_profile_freq(struct smu_context *smu,
 	}
 
 	if (sclk)
-		ret = smu_v12_0_set_soft_freq_limited_range(smu, SMU_SCLK, sclk, sclk);
+		ret = smu_v12_0_set_soft_freq_limited_range(smu, SMU_SCLK, sclk, sclk, false);
 
 	if (socclk)
-		ret = smu_v12_0_set_soft_freq_limited_range(smu, SMU_SOCCLK, socclk, socclk);
+		ret = smu_v12_0_set_soft_freq_limited_range(smu, SMU_SOCCLK, socclk, socclk, false);
 
 	if (fclk)
-		ret = smu_v12_0_set_soft_freq_limited_range(smu, SMU_FCLK, fclk, fclk);
+		ret = smu_v12_0_set_soft_freq_limited_range(smu, SMU_FCLK, fclk, fclk, false);
 
 	return ret;
 }

@@ -85,7 +85,6 @@ int cw1200_queue_get(struct cw1200_queue *queue,
 		     struct ieee80211_tx_info **tx_info,
 		     const struct cw1200_txpriv **txpriv);
 int cw1200_queue_requeue(struct cw1200_queue *queue, u32 packet_id);
-int cw1200_queue_requeue_all(struct cw1200_queue *queue);
 int cw1200_queue_remove(struct cw1200_queue *queue,
 			u32 packet_id);
 int cw1200_queue_get_skb(struct cw1200_queue *queue, u32 packet_id,

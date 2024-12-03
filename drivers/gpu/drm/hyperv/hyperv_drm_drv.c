@@ -3,13 +3,14 @@
  * Copyright 2021 Microsoft
  */
 
+#include <linux/aperture.h>
 #include <linux/efi.h>
 #include <linux/hyperv.h>
 #include <linux/module.h>
 #include <linux/pci.h>
 
-#include <drm/drm_aperture.h>
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_client_setup.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_fbdev_shmem.h>
 #include <drm/drm_gem_shmem_helper.h>
@@ -36,6 +37,7 @@ static struct drm_driver hyperv_driver = {
 
 	.fops		 = &hv_fops,
 	DRM_GEM_SHMEM_DRIVER_OPS,
+	DRM_FBDEV_SHMEM_DRIVER_OPS,
 };
 
 static int hyperv_pci_probe(struct pci_dev *pdev,
@@ -124,7 +126,7 @@ static int hyperv_vmbus_probe(struct hv_device *hdev,
 		goto err_hv_set_drv_data;
 	}
 
-	drm_aperture_remove_framebuffers(&hyperv_driver);
+	aperture_remove_all_conflicting_devices(hyperv_driver.name);
 
 	ret = hyperv_setup_vram(hv, hdev);
 	if (ret)
@@ -149,7 +151,7 @@ static int hyperv_vmbus_probe(struct hv_device *hdev,
 		goto err_free_mmio;
 	}
 
-	drm_fbdev_shmem_setup(dev, 0);
+	drm_client_setup(dev, NULL);
 
 	return 0;
 

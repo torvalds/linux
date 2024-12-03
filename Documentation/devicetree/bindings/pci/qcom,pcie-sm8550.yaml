@@ -20,6 +20,7 @@ properties:
       - const: qcom,pcie-sm8550
       - items:
           - enum:
+              - qcom,sar2130p-pcie
               - qcom,pcie-sm8650
           - const: qcom,pcie-sm8550
 
@@ -39,7 +40,7 @@ properties:
 
   clocks:
     minItems: 7
-    maxItems: 8
+    maxItems: 9
 
   clock-names:
     minItems: 7
@@ -52,6 +53,7 @@ properties:
       - const: ddrss_sf_tbu # PCIe SF TBU clock
       - const: noc_aggr # Aggre NoC PCIe AXI clock
       - const: cnoc_sf_axi # Config NoC PCIe1 AXI clock
+      - const: qmip_pcie_ahb # QMIP PCIe AHB clock
 
   interrupts:
     minItems: 8

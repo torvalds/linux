@@ -4,6 +4,8 @@
  */
 
 #include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/gpio-keys.h>
+#include <dt-bindings/input/input.h>
 #include <dt-bindings/leds/common.h>
 #include <dt-bindings/regulator/qcom,rpmh-regulator.h>
 
@@ -28,6 +30,21 @@
 
 		pinctrl-0 = <&edp_bl_en>, <&edp_bl_pwm>;
 		pinctrl-names = "default";
+	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+
+		pinctrl-0 = <&hall_int_n_default>;
+		pinctrl-names = "default";
+
+		switch-lid {
+			gpios = <&tlmm 2 GPIO_ACTIVE_LOW>;
+			linux,input-type = <EV_SW>;
+			linux,code = <SW_LID>;
+			wakeup-source;
+			wakeup-event-action = <EV_ACT_DEASSERTED>;
+		};
 	};
 
 	leds {
@@ -125,17 +142,6 @@
 		};
 	};
 
-	vph_pwr: vph-pwr-regulator {
-		compatible = "regulator-fixed";
-
-		regulator-name = "vph_pwr";
-		regulator-min-microvolt = <3700000>;
-		regulator-max-microvolt = <3700000>;
-
-		regulator-always-on;
-		regulator-boot-on;
-	};
-
 	vreg_edp_3p3: regulator-edp-3p3 {
 		compatible = "regulator-fixed";
 
@@ -165,6 +171,17 @@
 		pinctrl-0 = <&nvme_reg_en>;
 		pinctrl-names = "default";
 
+		regulator-boot-on;
+	};
+
+	vph_pwr: regulator-vph-pwr {
+		compatible = "regulator-fixed";
+
+		regulator-name = "vph_pwr";
+		regulator-min-microvolt = <3700000>;
+		regulator-max-microvolt = <3700000>;
+
+		regulator-always-on;
 		regulator-boot-on;
 	};
 };
@@ -557,7 +574,17 @@
 
 	status = "okay";
 
-	/* Something @4f */
+	ptn3222: redriver@4f {
+		compatible = "nxp,ptn3222";
+		reg = <0x4f>;
+
+		reset-gpios = <&tlmm 7 GPIO_ACTIVE_LOW>;
+
+		vdd3v3-supply = <&vreg_l13b>;
+		vdd1v8-supply = <&vreg_l4b>;
+
+		#phy-cells = <0>;
+	};
 };
 
 &i2c7 {
@@ -567,7 +594,6 @@
 
 	/* PS8830 USB retimer @8 */
 };
-
 
 &mdss {
 	status = "okay";
@@ -702,9 +728,24 @@
 	vdd3-supply = <&vreg_l14b>;
 };
 
+&smb2360_2 {
+	status = "okay";
+};
+
+&smb2360_2_eusb2_repeater {
+	vdd18-supply = <&vreg_l3d>;
+	vdd3-supply = <&vreg_l8b>;
+};
+
 &tlmm {
 	gpio-reserved-ranges = <44 4>, /* SPI (TPM) */
 			       <238 1>; /* UFS Reset */
+
+	hall_int_n_default: hall-int-n-state {
+		pins = "gpio2";
+		function = "gpio";
+		bias-disable;
+	};
 
 	nvme_reg_en: nvme-reg-en-state {
 		pins = "gpio18";
@@ -834,4 +875,41 @@
 
 &usb_1_ss1_qmpphy_out {
 	remote-endpoint = <&pmic_glink_ss1_ss_in>;
+};
+
+/* MP0 goes to the Surface Connector, MP1 goes to the USB-A port */
+&usb_mp {
+	status = "okay";
+};
+
+&usb_mp_hsphy0 {
+	vdd-supply = <&vreg_l2e>;
+	vdda12-supply = <&vreg_l2j>;
+
+	phys = <&smb2360_2_eusb2_repeater>;
+
+	status = "okay";
+};
+
+&usb_mp_hsphy1 {
+	vdd-supply = <&vreg_l2e>;
+	vdda12-supply = <&vreg_l2j>;
+
+	phys = <&ptn3222>;
+
+	status = "okay";
+};
+
+&usb_mp_qmpphy0 {
+	vdda-phy-supply = <&vreg_l3e>;
+	vdda-pll-supply = <&vreg_l3c>;
+
+	status = "okay";
+};
+
+&usb_mp_qmpphy1 {
+	vdda-phy-supply = <&vreg_l3e>;
+	vdda-pll-supply = <&vreg_l3c>;
+
+	status = "okay";
 };

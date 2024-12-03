@@ -256,8 +256,6 @@ static int mei_vsc_hw_reset(struct mei_device *mei_dev, bool intr_enable)
 
 	vsc_tp_reset(hw->tp);
 
-	vsc_tp_intr_disable(hw->tp);
-
 	return vsc_tp_init(hw->tp, mei_dev->dev);
 }
 
@@ -437,7 +435,7 @@ MODULE_DEVICE_TABLE(platform, mei_vsc_id_table);
 
 static struct platform_driver mei_vsc_drv = {
 	.probe = mei_vsc_probe,
-	.remove_new = mei_vsc_remove,
+	.remove = mei_vsc_remove,
 	.id_table = mei_vsc_id_table,
 	.driver = {
 		.name = MEI_VSC_DRV_NAME,
@@ -451,4 +449,4 @@ MODULE_AUTHOR("Wentong Wu <wentong.wu@intel.com>");
 MODULE_AUTHOR("Zhifeng Wang <zhifeng.wang@intel.com>");
 MODULE_DESCRIPTION("Intel Visual Sensing Controller Interface");
 MODULE_LICENSE("GPL");
-MODULE_IMPORT_NS(VSC_TP);
+MODULE_IMPORT_NS("VSC_TP");

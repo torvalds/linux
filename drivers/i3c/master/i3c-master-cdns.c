@@ -1676,7 +1676,7 @@ static void cdns_i3c_master_remove(struct platform_device *pdev)
 
 static struct platform_driver cdns_i3c_master = {
 	.probe = cdns_i3c_master_probe,
-	.remove_new = cdns_i3c_master_remove,
+	.remove = cdns_i3c_master_remove,
 	.driver = {
 		.name = "cdns-i3c-master",
 		.of_match_table = cdns_i3c_master_of_ids,

@@ -1974,7 +1974,7 @@ MODULE_DEVICE_TABLE(of, of_ave_match);
 
 static struct platform_driver ave_driver = {
 	.probe  = ave_probe,
-	.remove_new = ave_remove,
+	.remove = ave_remove,
 	.driver	= {
 		.name = "ave",
 		.pm   = AVE_PM_OPS,

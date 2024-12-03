@@ -2332,18 +2332,35 @@ out_free:
 	return err;
 }
 
+static void esw_mode_change(struct mlx5_eswitch *esw, u16 mode)
+{
+	mlx5_devcom_comp_lock(esw->dev->priv.hca_devcom_comp);
+
+	if (esw->dev->priv.flags & MLX5_PRIV_FLAGS_DISABLE_IB_ADEV) {
+		esw->mode = mode;
+		mlx5_devcom_comp_unlock(esw->dev->priv.hca_devcom_comp);
+		return;
+	}
+
+	esw->dev->priv.flags |= MLX5_PRIV_FLAGS_DISABLE_IB_ADEV;
+	mlx5_rescan_drivers_locked(esw->dev);
+	esw->mode = mode;
+	esw->dev->priv.flags &= ~MLX5_PRIV_FLAGS_DISABLE_IB_ADEV;
+	mlx5_rescan_drivers_locked(esw->dev);
+	mlx5_devcom_comp_unlock(esw->dev->priv.hca_devcom_comp);
+}
+
 static int esw_offloads_start(struct mlx5_eswitch *esw,
 			      struct netlink_ext_ack *extack)
 {
 	int err;
 
-	esw->mode = MLX5_ESWITCH_OFFLOADS;
+	esw_mode_change(esw, MLX5_ESWITCH_OFFLOADS);
 	err = mlx5_eswitch_enable_locked(esw, esw->dev->priv.sriov.num_vfs);
 	if (err) {
 		NL_SET_ERR_MSG_MOD(extack,
 				   "Failed setting eswitch to offloads");
-		esw->mode = MLX5_ESWITCH_LEGACY;
-		mlx5_rescan_drivers(esw->dev);
+		esw_mode_change(esw, MLX5_ESWITCH_LEGACY);
 		return err;
 	}
 	if (esw->offloads.inline_mode == MLX5_INLINE_MODE_NONE) {
@@ -2620,7 +2637,7 @@ int mlx5_esw_offloads_load_rep(struct mlx5_eswitch *esw, struct mlx5_vport *vpor
 	return err;
 
 load_err:
-	mlx5_esw_offloads_devlink_port_unregister(esw, vport);
+	mlx5_esw_offloads_devlink_port_unregister(vport);
 	return err;
 }
 
@@ -2631,7 +2648,7 @@ void mlx5_esw_offloads_unload_rep(struct mlx5_eswitch *esw, struct mlx5_vport *v
 
 	mlx5_esw_offloads_rep_unload(esw, vport->vport);
 
-	mlx5_esw_offloads_devlink_port_unregister(esw, vport);
+	mlx5_esw_offloads_devlink_port_unregister(vport);
 }
 
 static int esw_set_slave_root_fdb(struct mlx5_core_dev *master,
@@ -3587,7 +3604,7 @@ static int esw_offloads_stop(struct mlx5_eswitch *esw,
 {
 	int err;
 
-	esw->mode = MLX5_ESWITCH_LEGACY;
+	esw_mode_change(esw, MLX5_ESWITCH_LEGACY);
 
 	/* If changing from switchdev to legacy mode without sriov enabled,
 	 * no need to create legacy fdb.
@@ -3773,7 +3790,6 @@ int mlx5_devlink_eswitch_mode_set(struct devlink *devlink, u16 mode,
 		err = esw_offloads_start(esw, extack);
 	} else if (mode == DEVLINK_ESWITCH_MODE_LEGACY) {
 		err = esw_offloads_stop(esw, extack);
-		mlx5_rescan_drivers(esw->dev);
 	} else {
 		err = -EINVAL;
 	}

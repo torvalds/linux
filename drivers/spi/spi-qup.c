@@ -1364,7 +1364,7 @@ static struct platform_driver spi_qup_driver = {
 		.of_match_table = spi_qup_dt_match,
 	},
 	.probe = spi_qup_probe,
-	.remove_new = spi_qup_remove,
+	.remove = spi_qup_remove,
 };
 module_platform_driver(spi_qup_driver);
 

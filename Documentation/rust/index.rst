@@ -56,6 +56,9 @@ more details.
     arch-support
     testing
 
+You can also find learning materials for Rust in its section in
+:doc:`../process/kernel-docs`.
+
 .. only::  subproject and html
 
    Indices

@@ -180,7 +180,7 @@ MODULE_DEVICE_TABLE(of, of_dwc3_simple_match);
 
 static struct platform_driver dwc3_of_simple_driver = {
 	.probe		= dwc3_of_simple_probe,
-	.remove_new	= dwc3_of_simple_remove,
+	.remove		= dwc3_of_simple_remove,
 	.shutdown	= dwc3_of_simple_shutdown,
 	.driver		= {
 		.name	= "dwc3-of-simple",
