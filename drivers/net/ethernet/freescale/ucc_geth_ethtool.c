@@ -346,26 +346,48 @@ static void uec_get_wol(struct net_device *netdev, struct ethtool_wolinfo *wol)
 	struct ucc_geth_private *ugeth = netdev_priv(netdev);
 	struct phy_device *phydev = netdev->phydev;
 
-	if (phydev && phydev->irq)
-		wol->supported |= WAKE_PHY;
+	wol->supported = 0;
+	wol->wolopts = 0;
+
+	if (phydev)
+		phy_ethtool_get_wol(phydev, wol);
+
 	if (qe_alive_during_sleep())
 		wol->supported |= WAKE_MAGIC;
 
-	wol->wolopts = ugeth->wol_en;
+	wol->wolopts |= ugeth->wol_en;
 }
 
 static int uec_set_wol(struct net_device *netdev, struct ethtool_wolinfo *wol)
 {
 	struct ucc_geth_private *ugeth = netdev_priv(netdev);
 	struct phy_device *phydev = netdev->phydev;
+	int ret = 0;
 
-	if (wol->wolopts & ~(WAKE_PHY | WAKE_MAGIC))
-		return -EINVAL;
-	else if (wol->wolopts & WAKE_PHY && (!phydev || !phydev->irq))
-		return -EINVAL;
-	else if (wol->wolopts & WAKE_MAGIC && !qe_alive_during_sleep())
+	if (phydev) {
+		ret = phy_ethtool_set_wol(phydev, wol);
+		if (ret == -EOPNOTSUPP) {
+			ugeth->phy_wol_en = 0;
+		} else if (ret) {
+			return ret;
+		} else {
+			ugeth->phy_wol_en = wol->wolopts;
+			goto out;
+		}
+	}
+
+	/* If the PHY isn't handling the WoL and the MAC is asked to more than
+	 * WAKE_MAGIC, error-out
+	 */
+	if (!ugeth->phy_wol_en &&
+	    wol->wolopts & ~WAKE_MAGIC)
 		return -EINVAL;
 
+	if (wol->wolopts & WAKE_MAGIC &&
+	    !qe_alive_during_sleep())
+		return -EINVAL;
+
+out:
 	ugeth->wol_en = wol->wolopts;
 	device_set_wakeup_enable(&netdev->dev, ugeth->wol_en);
 
