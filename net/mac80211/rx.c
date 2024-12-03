@@ -4562,7 +4562,9 @@ static bool ieee80211_accept_frame(struct ieee80211_rx_data *rx)
 		return ieee80211_is_public_action(hdr, skb->len) ||
 		       ieee80211_is_probe_req(hdr->frame_control) ||
 		       ieee80211_is_probe_resp(hdr->frame_control) ||
-		       ieee80211_is_beacon(hdr->frame_control);
+		       ieee80211_is_beacon(hdr->frame_control) ||
+		       (ieee80211_is_auth(hdr->frame_control) &&
+			ether_addr_equal(sdata->vif.addr, hdr->addr1));
 	case NL80211_IFTYPE_NAN:
 		/* Currently no frames on NAN interface are allowed */
 		return false;
