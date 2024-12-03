@@ -3941,15 +3941,14 @@ EXPORT_SYMBOL(pci_release_region);
  * __pci_request_region - Reserved PCI I/O and memory resource
  * @pdev: PCI device whose resources are to be reserved
  * @bar: BAR to be reserved
- * @res_name: Name to be associated with resource.
+ * @name: name of the driver requesting the resource
  * @exclusive: whether the region access is exclusive or not
  *
  * Returns: 0 on success, negative error code on failure.
  *
- * Mark the PCI region associated with PCI device @pdev BAR @bar as
- * being reserved by owner @res_name.  Do not access any
- * address inside the PCI regions unless this call returns
- * successfully.
+ * Mark the PCI region associated with PCI device @pdev BAR @bar as being
+ * reserved by owner @name. Do not access any address inside the PCI regions
+ * unless this call returns successfully.
  *
  * If @exclusive is set, then the region is marked so that userspace
  * is explicitly not allowed to map the resource via /dev/mem or
@@ -3959,13 +3958,13 @@ EXPORT_SYMBOL(pci_release_region);
  * message is also printed on failure.
  */
 static int __pci_request_region(struct pci_dev *pdev, int bar,
-				const char *res_name, int exclusive)
+				const char *name, int exclusive)
 {
 	if (pci_is_managed(pdev)) {
 		if (exclusive == IORESOURCE_EXCLUSIVE)
-			return pcim_request_region_exclusive(pdev, bar, res_name);
+			return pcim_request_region_exclusive(pdev, bar, name);
 
-		return pcim_request_region(pdev, bar, res_name);
+		return pcim_request_region(pdev, bar, name);
 	}
 
 	if (pci_resource_len(pdev, bar) == 0)
@@ -3973,11 +3972,11 @@ static int __pci_request_region(struct pci_dev *pdev, int bar,
 
 	if (pci_resource_flags(pdev, bar) & IORESOURCE_IO) {
 		if (!request_region(pci_resource_start(pdev, bar),
-			    pci_resource_len(pdev, bar), res_name))
+			    pci_resource_len(pdev, bar), name))
 			goto err_out;
 	} else if (pci_resource_flags(pdev, bar) & IORESOURCE_MEM) {
 		if (!__request_mem_region(pci_resource_start(pdev, bar),
-					pci_resource_len(pdev, bar), res_name,
+					pci_resource_len(pdev, bar), name,
 					exclusive))
 			goto err_out;
 	}
@@ -3994,14 +3993,13 @@ err_out:
  * pci_request_region - Reserve PCI I/O and memory resource
  * @pdev: PCI device whose resources are to be reserved
  * @bar: BAR to be reserved
- * @res_name: Name to be associated with resource
+ * @name: name of the driver requesting the resource
  *
  * Returns: 0 on success, negative error code on failure.
  *
- * Mark the PCI region associated with PCI device @pdev BAR @bar as
- * being reserved by owner @res_name.  Do not access any
- * address inside the PCI regions unless this call returns
- * successfully.
+ * Mark the PCI region associated with PCI device @pdev BAR @bar as being
+ * reserved by owner @name. Do not access any address inside the PCI regions
+ * unless this call returns successfully.
  *
  * Returns 0 on success, or %EBUSY on error.  A warning
  * message is also printed on failure.
@@ -4011,9 +4009,9 @@ err_out:
  * when pcim_enable_device() has been called in advance. This hybrid feature is
  * DEPRECATED! If you want managed cleanup, use the pcim_* functions instead.
  */
-int pci_request_region(struct pci_dev *pdev, int bar, const char *res_name)
+int pci_request_region(struct pci_dev *pdev, int bar, const char *name)
 {
-	return __pci_request_region(pdev, bar, res_name, 0);
+	return __pci_request_region(pdev, bar, name, 0);
 }
 EXPORT_SYMBOL(pci_request_region);
 
@@ -4036,13 +4034,13 @@ void pci_release_selected_regions(struct pci_dev *pdev, int bars)
 EXPORT_SYMBOL(pci_release_selected_regions);
 
 static int __pci_request_selected_regions(struct pci_dev *pdev, int bars,
-					  const char *res_name, int excl)
+					  const char *name, int excl)
 {
 	int i;
 
 	for (i = 0; i < PCI_STD_NUM_BARS; i++)
 		if (bars & (1 << i))
-			if (__pci_request_region(pdev, i, res_name, excl))
+			if (__pci_request_region(pdev, i, name, excl))
 				goto err_out;
 	return 0;
 
@@ -4059,7 +4057,7 @@ err_out:
  * pci_request_selected_regions - Reserve selected PCI I/O and memory resources
  * @pdev: PCI device whose resources are to be reserved
  * @bars: Bitmask of BARs to be requested
- * @res_name: Name to be associated with resource
+ * @name: Name of the driver requesting the resources
  *
  * Returns: 0 on success, negative error code on failure.
  *
@@ -4069,9 +4067,9 @@ err_out:
  * DEPRECATED! If you want managed cleanup, use the pcim_* functions instead.
  */
 int pci_request_selected_regions(struct pci_dev *pdev, int bars,
-				 const char *res_name)
+				 const char *name)
 {
-	return __pci_request_selected_regions(pdev, bars, res_name, 0);
+	return __pci_request_selected_regions(pdev, bars, name, 0);
 }
 EXPORT_SYMBOL(pci_request_selected_regions);
 
@@ -4079,7 +4077,7 @@ EXPORT_SYMBOL(pci_request_selected_regions);
  * pci_request_selected_regions_exclusive - Request regions exclusively
  * @pdev: PCI device to request regions from
  * @bars: bit mask of BARs to request
- * @res_name: name to be associated with the requests
+ * @name: name of the driver requesting the resources
  *
  * Returns: 0 on success, negative error code on failure.
  *
@@ -4089,9 +4087,9 @@ EXPORT_SYMBOL(pci_request_selected_regions);
  * DEPRECATED! If you want managed cleanup, use the pcim_* functions instead.
  */
 int pci_request_selected_regions_exclusive(struct pci_dev *pdev, int bars,
-					   const char *res_name)
+					   const char *name)
 {
-	return __pci_request_selected_regions(pdev, bars, res_name,
+	return __pci_request_selected_regions(pdev, bars, name,
 			IORESOURCE_EXCLUSIVE);
 }
 EXPORT_SYMBOL(pci_request_selected_regions_exclusive);
@@ -4114,12 +4112,11 @@ EXPORT_SYMBOL(pci_release_regions);
 /**
  * pci_request_regions - Reserve PCI I/O and memory resources
  * @pdev: PCI device whose resources are to be reserved
- * @res_name: Name to be associated with resource.
+ * @name: name of the driver requesting the resources
  *
- * Mark all PCI regions associated with PCI device @pdev as
- * being reserved by owner @res_name.  Do not access any
- * address inside the PCI regions unless this call returns
- * successfully.
+ * Mark all PCI regions associated with PCI device @pdev as being reserved by
+ * owner @name. Do not access any address inside the PCI regions unless this
+ * call returns successfully.
  *
  * Returns 0 on success, or %EBUSY on error.  A warning
  * message is also printed on failure.
@@ -4129,22 +4126,22 @@ EXPORT_SYMBOL(pci_release_regions);
  * when pcim_enable_device() has been called in advance. This hybrid feature is
  * DEPRECATED! If you want managed cleanup, use the pcim_* functions instead.
  */
-int pci_request_regions(struct pci_dev *pdev, const char *res_name)
+int pci_request_regions(struct pci_dev *pdev, const char *name)
 {
 	return pci_request_selected_regions(pdev,
-			((1 << PCI_STD_NUM_BARS) - 1), res_name);
+			((1 << PCI_STD_NUM_BARS) - 1), name);
 }
 EXPORT_SYMBOL(pci_request_regions);
 
 /**
  * pci_request_regions_exclusive - Reserve PCI I/O and memory resources
  * @pdev: PCI device whose resources are to be reserved
- * @res_name: Name to be associated with resource.
+ * @name: name of the driver requesting the resources
  *
  * Returns: 0 on success, negative error code on failure.
  *
  * Mark all PCI regions associated with PCI device @pdev as being reserved
- * by owner @res_name.  Do not access any address inside the PCI regions
+ * by owner @name. Do not access any address inside the PCI regions
  * unless this call returns successfully.
  *
  * pci_request_regions_exclusive() will mark the region so that /dev/mem
@@ -4158,10 +4155,10 @@ EXPORT_SYMBOL(pci_request_regions);
  * when pcim_enable_device() has been called in advance. This hybrid feature is
  * DEPRECATED! If you want managed cleanup, use the pcim_* functions instead.
  */
-int pci_request_regions_exclusive(struct pci_dev *pdev, const char *res_name)
+int pci_request_regions_exclusive(struct pci_dev *pdev, const char *name)
 {
 	return pci_request_selected_regions_exclusive(pdev,
-				((1 << PCI_STD_NUM_BARS) - 1), res_name);
+				((1 << PCI_STD_NUM_BARS) - 1), name);
 }
 EXPORT_SYMBOL(pci_request_regions_exclusive);
 

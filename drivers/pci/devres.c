@@ -101,7 +101,7 @@ static inline void pcim_addr_devres_clear(struct pcim_addr_devres *res)
  * @bar: BAR the range is within
  * @offset: offset from the BAR's start address
  * @maxlen: length in bytes, beginning at @offset
- * @name: name associated with the request
+ * @name: name of the driver requesting the resource
  * @req_flags: flags for the request, e.g., for kernel-exclusive requests
  *
  * Returns: 0 on success, a negative error code on failure.
@@ -723,7 +723,7 @@ EXPORT_SYMBOL(pcim_iounmap);
  * pcim_iomap_region - Request and iomap a PCI BAR
  * @pdev: PCI device to map IO resources for
  * @bar: Index of a BAR to map
- * @name: Name associated with the request
+ * @name: Name of the driver requesting the resource
  *
  * Returns: __iomem pointer on success, an IOMEM_ERR_PTR on failure.
  *
@@ -790,7 +790,7 @@ EXPORT_SYMBOL(pcim_iounmap_region);
  * pcim_iomap_regions - Request and iomap PCI BARs (DEPRECATED)
  * @pdev: PCI device to map IO resources for
  * @mask: Mask of BARs to request and iomap
- * @name: Name associated with the requests
+ * @name: Name of the driver requesting the resources
  *
  * Returns: 0 on success, negative error code on failure.
  *
@@ -855,9 +855,9 @@ static int _pcim_request_region(struct pci_dev *pdev, int bar, const char *name,
 
 /**
  * pcim_request_region - Request a PCI BAR
- * @pdev: PCI device to requestion region for
+ * @pdev: PCI device to request region for
  * @bar: Index of BAR to request
- * @name: Name associated with the request
+ * @name: Name of the driver requesting the resource
  *
  * Returns: 0 on success, a negative error code on failure.
  *
@@ -874,9 +874,9 @@ EXPORT_SYMBOL(pcim_request_region);
 
 /**
  * pcim_request_region_exclusive - Request a PCI BAR exclusively
- * @pdev: PCI device to requestion region for
+ * @pdev: PCI device to request region for
  * @bar: Index of BAR to request
- * @name: Name associated with the request
+ * @name: Name of the driver requesting the resource
  *
  * Returns: 0 on success, a negative error code on failure.
  *
@@ -932,7 +932,7 @@ static void pcim_release_all_regions(struct pci_dev *pdev)
 /**
  * pcim_request_all_regions - Request all regions
  * @pdev: PCI device to map IO resources for
- * @name: name associated with the request
+ * @name: name of the driver requesting the resources
  *
  * Returns: 0 on success, negative error code on failure.
  *
