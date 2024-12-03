@@ -75,6 +75,7 @@ struct phylink {
 
 	struct mutex state_mutex;
 	struct phylink_link_state phy_state;
+	unsigned int phy_ib_mode;
 	struct work_struct resolve;
 	unsigned int pcs_neg_mode;
 	unsigned int pcs_state;
@@ -1153,9 +1154,17 @@ static void phylink_pcs_neg_mode(struct phylink *pl, struct phylink_pcs *pcs,
 				 phy_interface_t interface,
 				 const unsigned long *advertising)
 {
+	unsigned int pcs_ib_caps = 0;
+	unsigned int phy_ib_caps = 0;
 	unsigned int neg_mode, mode;
+	enum {
+		INBAND_CISCO_SGMII,
+		INBAND_BASEX,
+	} type;
 
 	mode = pl->req_link_an_mode;
+
+	pl->phy_ib_mode = 0;
 
 	switch (interface) {
 	case PHY_INTERFACE_MODE_SGMII:
@@ -1168,10 +1177,7 @@ static void phylink_pcs_neg_mode(struct phylink *pl, struct phylink_pcs *pcs,
 		 * inband communication. Note: there exist PHYs that run
 		 * with SGMII but do not send the inband data.
 		 */
-		if (!phylink_autoneg_inband(mode))
-			neg_mode = PHYLINK_PCS_NEG_OUTBAND;
-		else
-			neg_mode = PHYLINK_PCS_NEG_INBAND_ENABLED;
+		type = INBAND_CISCO_SGMII;
 		break;
 
 	case PHY_INTERFACE_MODE_1000BASEX:
@@ -1182,18 +1188,139 @@ static void phylink_pcs_neg_mode(struct phylink *pl, struct phylink_pcs *pcs,
 		 * as well, but drivers may not support this, so may
 		 * need to override this.
 		 */
-		if (!phylink_autoneg_inband(mode))
+		type = INBAND_BASEX;
+		break;
+
+	default:
+		pl->pcs_neg_mode = PHYLINK_PCS_NEG_NONE;
+		pl->act_link_an_mode = mode;
+		return;
+	}
+
+	if (pcs)
+		pcs_ib_caps = phylink_pcs_inband_caps(pcs, interface);
+
+	if (pl->phydev)
+		phy_ib_caps = phy_inband_caps(pl->phydev, interface);
+
+	phylink_dbg(pl, "interface %s inband modes: pcs=%02x phy=%02x\n",
+		    phy_modes(interface), pcs_ib_caps, phy_ib_caps);
+
+	if (!phylink_autoneg_inband(mode)) {
+		bool pcs_ib_only = false;
+		bool phy_ib_only = false;
+
+		if (pcs_ib_caps && pcs_ib_caps != LINK_INBAND_DISABLE) {
+			/* PCS supports reporting in-band capabilities, and
+			 * supports more than disable mode.
+			 */
+			if (pcs_ib_caps & LINK_INBAND_DISABLE)
+				neg_mode = PHYLINK_PCS_NEG_OUTBAND;
+			else if (pcs_ib_caps & LINK_INBAND_ENABLE)
+				pcs_ib_only = true;
+		}
+
+		if (phy_ib_caps && phy_ib_caps != LINK_INBAND_DISABLE) {
+			/* PHY supports in-band capabilities, and supports
+			 * more than disable mode.
+			 */
+			if (phy_ib_caps & LINK_INBAND_DISABLE)
+				pl->phy_ib_mode = LINK_INBAND_DISABLE;
+			else if (phy_ib_caps & LINK_INBAND_BYPASS)
+				pl->phy_ib_mode = LINK_INBAND_BYPASS;
+			else if (phy_ib_caps & LINK_INBAND_ENABLE)
+				phy_ib_only = true;
+		}
+
+		/* If either the PCS or PHY requires inband to be enabled,
+		 * this is an invalid configuration. Provide a diagnostic
+		 * message for this case, but don't try to force the issue.
+		 */
+		if (pcs_ib_only || phy_ib_only)
+			phylink_warn(pl,
+				     "firmware wants %s mode, but %s%s%s requires inband\n",
+				     phylink_an_mode_str(mode),
+				     pcs_ib_only ? "PCS" : "",
+				     pcs_ib_only && phy_ib_only ? " and " : "",
+				     phy_ib_only ? "PHY" : "");
+
+		neg_mode = PHYLINK_PCS_NEG_OUTBAND;
+	} else if (type == INBAND_CISCO_SGMII || pl->phydev) {
+		/* For SGMII modes which are designed to be used with PHYs, or
+		 * Base-X with a PHY, we try to use in-band mode where-ever
+		 * possible. However, there are some PHYs e.g. BCM84881 which
+		 * do not support in-band.
+		 */
+		const unsigned int inband_ok = LINK_INBAND_ENABLE |
+					       LINK_INBAND_BYPASS;
+		const unsigned int outband_ok = LINK_INBAND_DISABLE |
+						LINK_INBAND_BYPASS;
+		/* PCS	PHY
+		 * D E	D E
+		 * 0 0  0 0	no information			inband enabled
+		 * 1 0  0 0	pcs doesn't support		outband
+		 * 0 1  0 0	pcs required			inband enabled
+		 * 1 1  0 0	pcs optional			inband enabled
+		 * 0 0  1 0	phy doesn't support		outband
+		 * 1 0  1 0	pcs+phy doesn't support		outband
+		 * 0 1  1 0	pcs required, phy doesn't support, invalid
+		 * 1 1  1 0	pcs optional, phy doesn't support, outband
+		 * 0 0  0 1	phy required			inband enabled
+		 * 1 0  0 1	pcs doesn't support, phy required, invalid
+		 * 0 1  0 1	pcs+phy required		inband enabled
+		 * 1 1  0 1	pcs optional, phy required	inband enabled
+		 * 0 0  1 1	phy optional			inband enabled
+		 * 1 0  1 1	pcs doesn't support, phy optional, outband
+		 * 0 1  1 1	pcs required, phy optional	inband enabled
+		 * 1 1  1 1	pcs+phy optional		inband enabled
+		 */
+		if ((!pcs_ib_caps || pcs_ib_caps & inband_ok) &&
+		    (!phy_ib_caps || phy_ib_caps & inband_ok)) {
+			/* In-band supported or unknown at both ends. Enable
+			 * in-band mode with or without bypass at the PHY.
+			 */
+			if (phy_ib_caps & LINK_INBAND_ENABLE)
+				pl->phy_ib_mode = LINK_INBAND_ENABLE;
+			else if (phy_ib_caps & LINK_INBAND_BYPASS)
+				pl->phy_ib_mode = LINK_INBAND_BYPASS;
+
+			neg_mode = PHYLINK_PCS_NEG_INBAND_ENABLED;
+		} else if ((!pcs_ib_caps || pcs_ib_caps & outband_ok) &&
+			   (!phy_ib_caps || phy_ib_caps & outband_ok)) {
+			/* Either in-band not supported at at least one end.
+			 * In-band bypass at the other end is possible.
+			 */
+			if (phy_ib_caps & LINK_INBAND_DISABLE)
+				pl->phy_ib_mode = LINK_INBAND_DISABLE;
+			else if (phy_ib_caps & LINK_INBAND_BYPASS)
+				pl->phy_ib_mode = LINK_INBAND_BYPASS;
+
 			neg_mode = PHYLINK_PCS_NEG_OUTBAND;
+			if (pl->phydev)
+				mode = MLO_AN_PHY;
+		} else {
+			/* invalid */
+			phylink_warn(pl, "%s: incompatible in-band capabilities, trying in-band",
+				     phy_modes(interface));
+			neg_mode = PHYLINK_PCS_NEG_INBAND_ENABLED;
+		}
+	} else {
+		/* For Base-X without a PHY */
+		if (pcs_ib_caps == LINK_INBAND_DISABLE)
+			/* If the PCS doesn't support inband, then inband must
+			 * be disabled.
+			 */
+			neg_mode = PHYLINK_PCS_NEG_INBAND_DISABLED;
+		else if (pcs_ib_caps == LINK_INBAND_ENABLE)
+			/* If the PCS requires inband, then inband must always
+			 * be enabled.
+			 */
+			neg_mode = PHYLINK_PCS_NEG_INBAND_ENABLED;
 		else if (linkmode_test_bit(ETHTOOL_LINK_MODE_Autoneg_BIT,
 					   advertising))
 			neg_mode = PHYLINK_PCS_NEG_INBAND_ENABLED;
 		else
 			neg_mode = PHYLINK_PCS_NEG_INBAND_DISABLED;
-		break;
-
-	default:
-		neg_mode = PHYLINK_PCS_NEG_NONE;
-		break;
 	}
 
 	pl->pcs_neg_mode = neg_mode;
@@ -1289,6 +1416,13 @@ static void phylink_major_config(struct phylink *pl, bool restart,
 					      state->interface);
 		if (err < 0)
 			phylink_err(pl, "mac_finish failed: %pe\n",
+				    ERR_PTR(err));
+	}
+
+	if (pl->phydev && pl->phy_ib_mode) {
+		err = phy_config_inband(pl->phydev, pl->phy_ib_mode);
+		if (err < 0)
+			phylink_err(pl, "phy_config_inband: %pe\n",
 				    ERR_PTR(err));
 	}
 
