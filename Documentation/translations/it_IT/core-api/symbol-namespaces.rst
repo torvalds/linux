@@ -107,7 +107,7 @@ modinfo::
 	[...]
 
 
-Si consiglia di posizionare la dichiarazione MODULE_IMPORT_NS("") vicino
+Si consiglia di posizionare la dichiarazione MODULE_IMPORT_NS() vicino
 ai metadati del modulo come MODULE_AUTHOR() o MODULE_LICENSE(). Fate
 riferimento alla sezione 5. per creare automaticamente le importazioni
 mancanti.
@@ -131,7 +131,7 @@ emetterà un avviso.
 La mancanza di un'importazione può essere individuata facilmente al momento
 della compilazione. Infatti, modpost emetterà un avviso se il modulo usa
 un simbolo da uno spazio dei nomi che non è stato importato.
-La dichiarazione MODULE_IMPORT_NS("") viene solitamente aggiunta in un posto
+La dichiarazione MODULE_IMPORT_NS() viene solitamente aggiunta in un posto
 ben definito (assieme agli altri metadati del modulo). Per facilitare
 la vita di chi scrive moduli (e i manutentori di sottosistemi), esistono uno
 script e un target make per correggere le importazioni mancanti. Questo può

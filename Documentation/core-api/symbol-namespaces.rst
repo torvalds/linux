@@ -106,7 +106,7 @@ inspected with modinfo::
 	[...]
 
 
-It is advisable to add the MODULE_IMPORT_NS("") statement close to other module
+It is advisable to add the MODULE_IMPORT_NS() statement close to other module
 metadata definitions like MODULE_AUTHOR() or MODULE_LICENSE(). Refer to section
 5. for a way to create missing import statements automatically.
 
@@ -128,7 +128,7 @@ enable loading regardless, but will emit a warning.
 Missing namespaces imports can easily be detected at build time. In fact,
 modpost will emit a warning if a module uses a symbol from a namespace
 without importing it.
-MODULE_IMPORT_NS("") statements will usually be added at a definite location
+MODULE_IMPORT_NS() statements will usually be added at a definite location
 (along with other module meta data). To make the life of module authors (and
 subsystem maintainers) easier, a script and make target is available to fixup
 missing imports. Fixing missing imports can be done with::
