@@ -14,6 +14,7 @@ use crate::{
     error::{to_result, Error, Result, VTABLE_DEFAULT_ERROR},
     fs::File,
     prelude::*,
+    seq_file::SeqFile,
     str::CStr,
     types::{ForeignOwnable, Opaque},
 };
@@ -152,6 +153,15 @@ pub trait MiscDevice: Sized {
     ) -> Result<isize> {
         kernel::build_error(VTABLE_DEFAULT_ERROR)
     }
+
+    /// Show info for this fd.
+    fn show_fdinfo(
+        _device: <Self::Ptr as ForeignOwnable>::Borrowed<'_>,
+        _m: &SeqFile,
+        _file: &File,
+    ) {
+        kernel::build_error(VTABLE_DEFAULT_ERROR)
+    }
 }
 
 const fn create_vtable<T: MiscDevice>() -> &'static bindings::file_operations {
@@ -179,6 +189,7 @@ const fn create_vtable<T: MiscDevice>() -> &'static bindings::file_operations {
             } else {
                 None
             },
+            show_fdinfo: maybe_fn(T::HAS_SHOW_FDINFO, fops_show_fdinfo::<T>),
             // SAFETY: All zeros is a valid value for `bindings::file_operations`.
             ..unsafe { MaybeUninit::zeroed().assume_init() }
         };
@@ -297,4 +308,27 @@ unsafe extern "C" fn fops_compat_ioctl<T: MiscDevice>(
         Ok(ret) => ret as c_long,
         Err(err) => err.to_errno() as c_long,
     }
+}
+
+/// # Safety
+///
+/// - `file` must be a valid file that is associated with a `MiscDeviceRegistration<T>`.
+/// - `seq_file` must be a valid `struct seq_file` that we can write to.
+unsafe extern "C" fn fops_show_fdinfo<T: MiscDevice>(
+    seq_file: *mut bindings::seq_file,
+    file: *mut bindings::file,
+) {
+    // SAFETY: The release call of a file owns the private data.
+    let private = unsafe { (*file).private_data };
+    // SAFETY: Ioctl calls can borrow the private data of the file.
+    let device = unsafe { <T::Ptr as ForeignOwnable>::borrow(private) };
+    // SAFETY:
+    // * The file is valid for the duration of this call.
+    // * There is no active fdget_pos region on the file on this thread.
+    let file = unsafe { File::from_raw_file(file) };
+    // SAFETY: The caller ensures that the pointer is valid and exclusive for the duration in which
+    // this method is called.
+    let m = unsafe { SeqFile::from_raw(seq_file) };
+
+    T::show_fdinfo(device, m, file);
 }
