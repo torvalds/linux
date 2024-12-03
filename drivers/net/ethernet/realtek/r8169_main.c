@@ -5332,13 +5332,6 @@ static bool rtl_aspm_is_safe(struct rtl8169_private *tp)
 	return false;
 }
 
-static umode_t r8169_hwmon_is_visible(const void *drvdata,
-				      enum hwmon_sensor_types type,
-				      u32 attr, int channel)
-{
-	return 0444;
-}
-
 static int r8169_hwmon_read(struct device *dev, enum hwmon_sensor_types type,
 			    u32 attr, int channel, long *val)
 {
@@ -5355,7 +5348,7 @@ static int r8169_hwmon_read(struct device *dev, enum hwmon_sensor_types type,
 }
 
 static const struct hwmon_ops r8169_hwmon_ops = {
-	.is_visible =  r8169_hwmon_is_visible,
+	.visible = 0444,
 	.read = r8169_hwmon_read,
 };
 
