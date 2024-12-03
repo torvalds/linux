@@ -175,6 +175,24 @@ static const char *phylink_an_mode_str(unsigned int mode)
 	return mode < ARRAY_SIZE(modestr) ? modestr[mode] : "unknown";
 }
 
+static const char *phylink_pcs_mode_str(unsigned int mode)
+{
+	if (!mode)
+		return "none";
+
+	if (mode & PHYLINK_PCS_NEG_OUTBAND)
+		return "outband";
+
+	if (mode & PHYLINK_PCS_NEG_INBAND) {
+		if (mode & PHYLINK_PCS_NEG_ENABLED)
+			return "inband,an-enabled";
+		else
+			return "inband,an-disabled";
+	}
+
+	return "unknown";
+}
+
 static unsigned int phylink_interface_signal_rate(phy_interface_t interface)
 {
 	switch (interface) {
@@ -1164,7 +1182,9 @@ static void phylink_major_config(struct phylink *pl, bool restart,
 	unsigned int neg_mode;
 	int err;
 
-	phylink_dbg(pl, "major config %s\n", phy_modes(state->interface));
+	phylink_dbg(pl, "major config, requested %s/%s\n",
+		    phylink_an_mode_str(pl->req_link_an_mode),
+		    phy_modes(state->interface));
 
 	if (pl->mac_ops->mac_select_pcs) {
 		pcs = pl->mac_ops->mac_select_pcs(pl->config, state->interface);
@@ -1179,6 +1199,11 @@ static void phylink_major_config(struct phylink *pl, bool restart,
 	}
 
 	phylink_pcs_neg_mode(pl, pcs, state->interface, state->advertising);
+
+	phylink_dbg(pl, "major config, active %s/%s/%s\n",
+		    phylink_an_mode_str(pl->act_link_an_mode),
+		    phylink_pcs_mode_str(pl->pcs_neg_mode),
+		    phy_modes(state->interface));
 
 	phylink_pcs_poll_stop(pl);
 
