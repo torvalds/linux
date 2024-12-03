@@ -1725,6 +1725,7 @@ static int rtase_get_settings(struct net_device *dev,
 		cmd->base.speed = SPEED_5000;
 		break;
 	case RTASE_HW_VER_907XD_V1:
+	case RTASE_HW_VER_907XD_VA:
 		cmd->base.speed = SPEED_10000;
 		break;
 	}
@@ -1993,6 +1994,7 @@ static int rtase_check_mac_version_valid(struct rtase_private *tp)
 	case RTASE_HW_VER_906X_7XA:
 	case RTASE_HW_VER_906X_7XC:
 	case RTASE_HW_VER_907XD_V1:
+	case RTASE_HW_VER_907XD_VA:
 		ret = 0;
 		break;
 	}
