@@ -6,6 +6,7 @@
 #ifndef _CORE_H_
 #define _CORE_H_
 
+#include <linux/mutex.h>
 #include <linux/workqueue.h>
 
 #include "dma.h"
@@ -30,7 +31,7 @@
  */
 struct qce_device {
 	struct crypto_queue queue;
-	spinlock_t lock;
+	struct mutex lock;
 	struct work_struct done_work;
 	struct crypto_async_request *req;
 	int result;

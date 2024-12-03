@@ -3,6 +3,7 @@
  * Copyright (c) 2010-2014, The Linux Foundation. All rights reserved.
  */
 
+#include <linux/cleanup.h>
 #include <linux/clk.h>
 #include <linux/device.h>
 #include <linux/dma-mapping.h>
@@ -11,7 +12,6 @@
 #include <linux/module.h>
 #include <linux/mod_devicetable.h>
 #include <linux/platform_device.h>
-#include <linux/spinlock.h>
 #include <linux/types.h>
 #include <crypto/algapi.h>
 #include <crypto/internal/hash.h>
@@ -89,34 +89,28 @@ static int qce_handle_queue(struct qce_device *qce,
 			    struct crypto_async_request *req)
 {
 	struct crypto_async_request *async_req, *backlog;
-	unsigned long flags;
 	int ret = 0, err;
 
-	spin_lock_irqsave(&qce->lock, flags);
+	scoped_guard(mutex, &qce->lock) {
+		if (req)
+			ret = crypto_enqueue_request(&qce->queue, req);
 
-	if (req)
-		ret = crypto_enqueue_request(&qce->queue, req);
+		/* busy, do not dequeue request */
+		if (qce->req)
+			return ret;
 
-	/* busy, do not dequeue request */
-	if (qce->req) {
-		spin_unlock_irqrestore(&qce->lock, flags);
-		return ret;
+		backlog = crypto_get_backlog(&qce->queue);
+		async_req = crypto_dequeue_request(&qce->queue);
+		if (async_req)
+			qce->req = async_req;
 	}
-
-	backlog = crypto_get_backlog(&qce->queue);
-	async_req = crypto_dequeue_request(&qce->queue);
-	if (async_req)
-		qce->req = async_req;
-
-	spin_unlock_irqrestore(&qce->lock, flags);
 
 	if (!async_req)
 		return ret;
 
 	if (backlog) {
-		spin_lock_bh(&qce->lock);
-		crypto_request_complete(backlog, -EINPROGRESS);
-		spin_unlock_bh(&qce->lock);
+		scoped_guard(mutex, &qce->lock)
+			crypto_request_complete(backlog, -EINPROGRESS);
 	}
 
 	err = qce_handle_request(async_req);
@@ -133,12 +127,11 @@ static void qce_req_done_work(struct work_struct *work)
 	struct qce_device *qce = container_of(work, struct qce_device,
 					      done_work);
 	struct crypto_async_request *req;
-	unsigned long flags;
 
-	spin_lock_irqsave(&qce->lock, flags);
-	req = qce->req;
-	qce->req = NULL;
-	spin_unlock_irqrestore(&qce->lock, flags);
+	scoped_guard(mutex, &qce->lock) {
+		req = qce->req;
+		qce->req = NULL;
+	}
 
 	if (req)
 		crypto_request_complete(req, qce->result);
@@ -243,7 +236,10 @@ static int qce_crypto_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	spin_lock_init(&qce->lock);
+	ret = devm_mutex_init(qce->dev, &qce->lock);
+	if (ret)
+		return ret;
+
 	INIT_WORK(&qce->done_work, qce_req_done_work);
 	crypto_init_queue(&qce->queue, QCE_QUEUE_LENGTH);
 
