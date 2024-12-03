@@ -1161,8 +1161,6 @@ static const typeof(pv_ops) xen_cpu_ops __initconst = {
 
 		.write_cr4 = xen_write_cr4,
 
-		.wbinvd = pv_native_wbinvd,
-
 		.read_msr = xen_read_msr,
 		.write_msr = xen_write_msr,
 
