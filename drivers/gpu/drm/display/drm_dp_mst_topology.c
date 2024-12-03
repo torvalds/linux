@@ -4013,9 +4013,6 @@ static int drm_dp_mst_handle_down_rep(struct drm_dp_mst_topology_mgr *mgr)
 			    txmsg->reply.u.nak.nak_data);
 	}
 
-	memset(msg, 0, sizeof(struct drm_dp_sideband_msg_rx));
-	drm_dp_mst_topology_put_mstb(mstb);
-
 	mutex_lock(&mgr->qlock);
 	txmsg->state = DRM_DP_SIDEBAND_TX_RX;
 	list_del(&txmsg->next);
@@ -4023,10 +4020,8 @@ static int drm_dp_mst_handle_down_rep(struct drm_dp_mst_topology_mgr *mgr)
 
 	wake_up_all(&mgr->tx_waitq);
 
-	return 0;
-
 out_clear_reply:
-	memset(msg, 0, sizeof(struct drm_dp_sideband_msg_rx));
+	reset_msg_rx_state(msg);
 out:
 	if (mstb)
 		drm_dp_mst_topology_put_mstb(mstb);
