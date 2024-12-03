@@ -501,17 +501,18 @@ int show_interrupts(struct seq_file *p, void *v)
 
 		seq_put_decimal_ull_width(p, " ", cnt, 10);
 	}
+	seq_putc(p, ' ');
 
 	raw_spin_lock_irqsave(&desc->lock, flags);
 	if (desc->irq_data.chip) {
 		if (desc->irq_data.chip->irq_print_chip)
 			desc->irq_data.chip->irq_print_chip(&desc->irq_data, p);
 		else if (desc->irq_data.chip->name)
-			seq_printf(p, " %8s", desc->irq_data.chip->name);
+			seq_printf(p, "%8s", desc->irq_data.chip->name);
 		else
-			seq_printf(p, " %8s", "-");
+			seq_printf(p, "%8s", "-");
 	} else {
-		seq_printf(p, " %8s", "None");
+		seq_printf(p, "%8s", "None");
 	}
 	if (desc->irq_data.domain)
 		seq_printf(p, " %*lu", prec, desc->irq_data.hwirq);
