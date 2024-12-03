@@ -1085,7 +1085,8 @@ static void phylink_pcs_an_restart(struct phylink *pl)
 
 /**
  * phylink_pcs_neg_mode() - helper to determine PCS inband mode
- * @mode: one of %MLO_AN_FIXED, %MLO_AN_PHY, %MLO_AN_INBAND.
+ * @pl: a pointer to a &struct phylink returned from phylink_create()
+ * @pcs: a pointer to &struct phylink_pcs
  * @interface: interface mode to be used
  * @advertising: adertisement ethtool link mode mask
  *
@@ -1102,11 +1103,13 @@ static void phylink_pcs_an_restart(struct phylink *pl)
  * Note: this is for cases where the PCS itself is involved in negotiation
  * (e.g. Clause 37, SGMII and similar) not Clause 73.
  */
-static unsigned int phylink_pcs_neg_mode(unsigned int mode,
-					 phy_interface_t interface,
-					 const unsigned long *advertising)
+static void phylink_pcs_neg_mode(struct phylink *pl, struct phylink_pcs *pcs,
+				 phy_interface_t interface,
+				 const unsigned long *advertising)
 {
-	unsigned int neg_mode;
+	unsigned int neg_mode, mode;
+
+	mode = pl->cur_link_an_mode;
 
 	switch (interface) {
 	case PHY_INTERFACE_MODE_SGMII:
@@ -1147,7 +1150,7 @@ static unsigned int phylink_pcs_neg_mode(unsigned int mode,
 		break;
 	}
 
-	return neg_mode;
+	pl->pcs_neg_mode = neg_mode;
 }
 
 static void phylink_major_config(struct phylink *pl, bool restart,
@@ -1161,10 +1164,6 @@ static void phylink_major_config(struct phylink *pl, bool restart,
 
 	phylink_dbg(pl, "major config %s\n", phy_modes(state->interface));
 
-	pl->pcs_neg_mode = phylink_pcs_neg_mode(pl->cur_link_an_mode,
-						state->interface,
-						state->advertising);
-
 	if (pl->mac_ops->mac_select_pcs) {
 		pcs = pl->mac_ops->mac_select_pcs(pl->config, state->interface);
 		if (IS_ERR(pcs)) {
@@ -1176,6 +1175,8 @@ static void phylink_major_config(struct phylink *pl, bool restart,
 
 		pcs_changed = pl->pcs != pcs;
 	}
+
+	phylink_pcs_neg_mode(pl, pcs, state->interface, state->advertising);
 
 	phylink_pcs_poll_stop(pl);
 
@@ -1267,9 +1268,8 @@ static int phylink_change_inband_advert(struct phylink *pl)
 		    pl->link_config.pause);
 
 	/* Recompute the PCS neg mode */
-	pl->pcs_neg_mode = phylink_pcs_neg_mode(pl->cur_link_an_mode,
-					pl->link_config.interface,
-					pl->link_config.advertising);
+	phylink_pcs_neg_mode(pl, pl->pcs, pl->link_config.interface,
+			     pl->link_config.advertising);
 
 	neg_mode = pl->cur_link_an_mode;
 	if (pl->pcs->neg_mode)
