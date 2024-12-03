@@ -234,7 +234,7 @@ static int qce_crypto_probe(struct platform_device *pdev)
 
 	ret = clk_prepare_enable(qce->core);
 	if (ret)
-		goto err_mem_path_disable;
+		return ret;
 
 	ret = clk_prepare_enable(qce->iface);
 	if (ret)
@@ -274,8 +274,6 @@ err_clks_iface:
 	clk_disable_unprepare(qce->iface);
 err_clks_core:
 	clk_disable_unprepare(qce->core);
-err_mem_path_disable:
-	icc_set_bw(qce->mem_path, 0, 0);
 
 	return ret;
 }
