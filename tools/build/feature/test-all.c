@@ -58,10 +58,6 @@
 # include "test-libelf-getshdrstrndx.c"
 #undef main
 
-#define main main_test_libunwind
-# include "test-libunwind.c"
-#undef main
-
 #define main main_test_libslang
 # include "test-libslang.c"
 #undef main
@@ -184,7 +180,6 @@ int main(int argc, char *argv[])
 	main_test_libelf_getphdrnum();
 	main_test_libelf_gelf_getnote();
 	main_test_libelf_getshdrstrndx();
-	main_test_libunwind();
 	main_test_libslang();
 	main_test_libbfd();
 	main_test_libbfd_buildid();
