@@ -1258,6 +1258,13 @@ static int init_min_frame_len(u16 min_frame_length,
 	return 0;
 }
 
+static bool phy_interface_mode_is_reduced(phy_interface_t interface)
+{
+	return phy_interface_mode_is_rgmii(interface) ||
+	       interface == PHY_INTERFACE_MODE_RMII ||
+	       interface == PHY_INTERFACE_MODE_RTBI;
+}
+
 static int adjust_enet_interface(struct ucc_geth_private *ugeth)
 {
 	struct ucc_geth_info *ug_info;
@@ -1290,12 +1297,7 @@ static int adjust_enet_interface(struct ucc_geth_private *ugeth)
 	upsmr = in_be32(&uf_regs->upsmr);
 	upsmr &= ~(UCC_GETH_UPSMR_RPM | UCC_GETH_UPSMR_R10M |
 		   UCC_GETH_UPSMR_TBIM | UCC_GETH_UPSMR_RMM);
-	if ((ugeth->phy_interface == PHY_INTERFACE_MODE_RMII) ||
-	    (ugeth->phy_interface == PHY_INTERFACE_MODE_RGMII) ||
-	    (ugeth->phy_interface == PHY_INTERFACE_MODE_RGMII_ID) ||
-	    (ugeth->phy_interface == PHY_INTERFACE_MODE_RGMII_RXID) ||
-	    (ugeth->phy_interface == PHY_INTERFACE_MODE_RGMII_TXID) ||
-	    (ugeth->phy_interface == PHY_INTERFACE_MODE_RTBI)) {
+	if (phy_interface_mode_is_reduced(ugeth->phy_interface)) {
 		if (ugeth->phy_interface != PHY_INTERFACE_MODE_RMII)
 			upsmr |= UCC_GETH_UPSMR_RPM;
 		switch (ugeth->max_speed) {
@@ -1594,9 +1596,7 @@ static void ugeth_link_up(struct ucc_geth_private *ugeth,
 				    ~(MACCFG2_INTERFACE_MODE_MASK)) |
 				    MACCFG2_INTERFACE_MODE_NIBBLE);
 			/* if reduced mode, re-set UPSMR.R10M */
-			if (interface == PHY_INTERFACE_MODE_RMII ||
-			    phy_interface_mode_is_rgmii(interface) ||
-			    interface == PHY_INTERFACE_MODE_RTBI) {
+			if (phy_interface_mode_is_reduced(interface)) {
 				if (speed == SPEED_10)
 					upsmr |= UCC_GETH_UPSMR_R10M;
 				else
