@@ -1622,6 +1622,9 @@ void uvc_ctrl_status_event(struct uvc_video_chain *chain,
 
 	mutex_lock(&chain->ctrl_mutex);
 
+	/* Flush the control cache, the data might have changed. */
+	ctrl->loaded = 0;
+
 	handle = ctrl->handle;
 	if (handle)
 		uvc_ctrl_set_handle(handle, ctrl, NULL);
