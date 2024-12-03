@@ -441,6 +441,66 @@ static const struct snd_soc_acpi_adr_device cs42l43_0_adr[] = {
 	}
 };
 
+static const struct snd_soc_acpi_endpoint cs35l56_l_fb_endpoints[] = {
+	{ /* Speaker Playback Endpoint */
+		.num = 0,
+		.aggregated = 1,
+		.group_position = 0,
+		.group_id = 1,
+	},
+	{ /* Feedback Capture Endpoint */
+		.num = 1,
+		.aggregated = 1,
+		.group_position = 0,
+		.group_id = 2,
+	},
+};
+
+static const struct snd_soc_acpi_endpoint cs35l56_r_fb_endpoints[] = {
+	{ /* Speaker Playback Endpoint */
+		.num = 0,
+		.aggregated = 1,
+		.group_position = 1,
+		.group_id = 1,
+	},
+	{ /* Feedback Capture Endpoint */
+		.num = 1,
+		.aggregated = 1,
+		.group_position = 1,
+		.group_id = 2,
+	},
+};
+
+static const struct snd_soc_acpi_endpoint cs35l56_2_fb_endpoints[] = {
+	{ /* Speaker Playback Endpoint */
+		.num = 0,
+		.aggregated = 1,
+		.group_position = 2,
+		.group_id = 1,
+	},
+	{ /* Feedback Capture Endpoint */
+		.num = 1,
+		.aggregated = 1,
+		.group_position = 2,
+		.group_id = 2,
+	},
+};
+
+static const struct snd_soc_acpi_endpoint cs35l56_3_fb_endpoints[] = {
+	{ /* Speaker Playback Endpoint */
+		.num = 0,
+		.aggregated = 1,
+		.group_position = 3,
+		.group_id = 1,
+	},
+	{ /* Feedback Capture Endpoint */
+		.num = 1,
+		.aggregated = 1,
+		.group_position = 3,
+		.group_id = 2,
+	},
+};
+
 static const struct snd_soc_acpi_adr_device cs35l56_1_adr[] = {
 	{
 		.adr = 0x00013701FA355601ull,
@@ -474,14 +534,14 @@ static const struct snd_soc_acpi_adr_device cs35l56_2_adr[] = {
 static const struct snd_soc_acpi_adr_device cs35l56_2_r_adr[] = {
 	{
 		.adr = 0x00023201FA355601ull,
-		.num_endpoints = 1,
-		.endpoints = &spk_r_endpoint,
+		.num_endpoints = ARRAY_SIZE(cs35l56_r_fb_endpoints),
+		.endpoints = cs35l56_r_fb_endpoints,
 		.name_prefix = "AMP3"
 	},
 	{
 		.adr = 0x00023301FA355601ull,
-		.num_endpoints = 1,
-		.endpoints = &spk_3_endpoint,
+		.num_endpoints = ARRAY_SIZE(cs35l56_3_fb_endpoints),
+		.endpoints = cs35l56_3_fb_endpoints,
 		.name_prefix = "AMP4"
 	}
 
@@ -490,14 +550,14 @@ static const struct snd_soc_acpi_adr_device cs35l56_2_r_adr[] = {
 static const struct snd_soc_acpi_adr_device cs35l56_3_l_adr[] = {
 	{
 		.adr = 0x00033001fa355601ull,
-		.num_endpoints = 1,
-		.endpoints = &spk_l_endpoint,
+		.num_endpoints = ARRAY_SIZE(cs35l56_l_fb_endpoints),
+		.endpoints = cs35l56_l_fb_endpoints,
 		.name_prefix = "AMP1"
 	},
 	{
 		.adr = 0x00033101fa355601ull,
-		.num_endpoints = 1,
-		.endpoints = &spk_2_endpoint,
+		.num_endpoints = ARRAY_SIZE(cs35l56_2_fb_endpoints),
+		.endpoints = cs35l56_2_fb_endpoints,
 		.name_prefix = "AMP2"
 	}
 };
