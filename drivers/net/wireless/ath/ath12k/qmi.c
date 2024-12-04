@@ -3321,7 +3321,6 @@ static void ath12k_qmi_driver_event_work(struct work_struct *work)
 			break;
 		case ATH12K_QMI_EVENT_SERVER_EXIT:
 			set_bit(ATH12K_FLAG_CRASH_FLUSH, &ab->dev_flags);
-			set_bit(ATH12K_FLAG_RECOVERY, &ab->dev_flags);
 			break;
 		case ATH12K_QMI_EVENT_REQUEST_MEM:
 			ret = ath12k_qmi_event_mem_request(qmi);
@@ -3338,13 +3337,14 @@ static void ath12k_qmi_driver_event_work(struct work_struct *work)
 			if (test_bit(ATH12K_FLAG_QMI_FW_READY_COMPLETE, &ab->dev_flags)) {
 				if (ab->is_reset)
 					ath12k_hal_dump_srng_stats(ab);
+
+				set_bit(ATH12K_FLAG_RECOVERY, &ab->dev_flags);
 				queue_work(ab->workqueue, &ab->restart_work);
 				break;
 			}
 
 			clear_bit(ATH12K_FLAG_CRASH_FLUSH,
 				  &ab->dev_flags);
-			clear_bit(ATH12K_FLAG_RECOVERY, &ab->dev_flags);
 			ret = ath12k_core_qmi_firmware_ready(ab);
 			if (!ret)
 				set_bit(ATH12K_FLAG_QMI_FW_READY_COMPLETE,

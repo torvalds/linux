@@ -824,6 +824,8 @@ struct ath12k_hw_group {
 	u8 id;
 	u8 num_devices;
 	u8 num_probed;
+	u8 num_started;
+	unsigned long flags;
 	struct ath12k_base *ab[ATH12K_MAX_SOCS];
 
 	/* protects access to this struct */
@@ -1175,4 +1177,24 @@ static inline int ath12k_get_num_hw(struct ath12k_base *ab)
 {
 	return ab->num_hw;
 }
+
+static inline struct ath12k_hw_group *ath12k_ab_to_ag(struct ath12k_base *ab)
+{
+	return ab->ag;
+}
+
+static inline void ath12k_core_started(struct ath12k_base *ab)
+{
+	lockdep_assert_held(&ab->ag->mutex);
+
+	ab->ag->num_started++;
+}
+
+static inline void ath12k_core_stopped(struct ath12k_base *ab)
+{
+	lockdep_assert_held(&ab->ag->mutex);
+
+	ab->ag->num_started--;
+}
+
 #endif /* _CORE_H_ */
