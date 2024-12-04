@@ -499,7 +499,7 @@ struct iio_channel *iio_channel_get_all(struct device *dev)
 	return_ptr(chans);
 
 error_free_chans:
-	for (i = 0; i < nummaps; i++)
+	for (i = 0; i < mapind; i++)
 		iio_device_put(chans[i].indio_dev);
 	return ERR_PTR(ret);
 }
