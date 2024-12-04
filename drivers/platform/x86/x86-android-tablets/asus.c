@@ -145,8 +145,8 @@ static const struct x86_i2c_client_info asus_me176c_i2c_clients[] __initconst = 
 
 static const struct x86_serdev_info asus_me176c_serdevs[] __initconst = {
 	{
-		.ctrl_hid = "80860F0A",
-		.ctrl_uid = "2",
+		.ctrl.acpi.hid = "80860F0A",
+		.ctrl.acpi.uid = "2",
 		.ctrl_devname = "serial0",
 		.serdev_hid = "BCM2E3A",
 	},

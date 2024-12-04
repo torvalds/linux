@@ -178,8 +178,8 @@ static const struct platform_device_info lenovo_yb1_x90_pdevs[] __initconst = {
  */
 static const struct x86_serdev_info lenovo_yb1_x90_serdevs[] __initconst = {
 	{
-		.ctrl_hid = "8086228A",
-		.ctrl_uid = "1",
+		.ctrl.acpi.hid = "8086228A",
+		.ctrl.acpi.uid = "1",
 		.ctrl_devname = "serial0",
 		.serdev_hid = "BCM2E1A",
 	},

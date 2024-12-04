@@ -57,8 +57,12 @@ struct x86_spi_dev_info {
 };
 
 struct x86_serdev_info {
-	const char *ctrl_hid;
-	const char *ctrl_uid;
+	union {
+		struct {
+			const char *hid;
+			const char *uid;
+		} acpi;
+	} ctrl;
 	const char *ctrl_devname;
 	/*
 	 * ATM the serdev core only supports of or ACPI matching; and so far all
