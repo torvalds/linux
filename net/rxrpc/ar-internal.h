@@ -834,11 +834,9 @@ struct rxrpc_txbuf {
 #define RXRPC_TXBUF_WIRE_FLAGS	0xff		/* The wire protocol flags */
 #define RXRPC_TXBUF_RESENT	0x100		/* Set if has been resent */
 	__be16			cksum;		/* Checksum to go in header */
-	unsigned short		ack_rwind;	/* ACK receive window */
-	u8 /*enum rxrpc_propose_ack_trace*/ ack_why;	/* If ack, why */
 	bool			jumboable;	/* Can be non-terminal jumbo subpacket */
 	u8			nr_kvec;	/* Amount of kvec[] used */
-	struct kvec		kvec[3];
+	struct kvec		kvec[1];
 };
 
 static inline bool rxrpc_sending_to_server(const struct rxrpc_txbuf *txb)
@@ -1364,7 +1362,6 @@ static inline void rxrpc_sysctl_exit(void) {}
 extern atomic_t rxrpc_nr_txbuf;
 struct rxrpc_txbuf *rxrpc_alloc_data_txbuf(struct rxrpc_call *call, size_t data_size,
 					   size_t data_align, gfp_t gfp);
-struct rxrpc_txbuf *rxrpc_alloc_ack_txbuf(struct rxrpc_call *call, size_t sack_size);
 void rxrpc_get_txbuf(struct rxrpc_txbuf *txb, enum rxrpc_txbuf_trace what);
 void rxrpc_see_txbuf(struct rxrpc_txbuf *txb, enum rxrpc_txbuf_trace what);
 void rxrpc_put_txbuf(struct rxrpc_txbuf *txb, enum rxrpc_txbuf_trace what);

@@ -462,13 +462,11 @@
 /* ---- Must update size of stat_why_req_ack[] if more are added! */
 
 #define rxrpc_txbuf_traces \
-	EM(rxrpc_txbuf_alloc_ack,		"ALLOC ACK  ")	\
 	EM(rxrpc_txbuf_alloc_data,		"ALLOC DATA ")	\
 	EM(rxrpc_txbuf_free,			"FREE       ")	\
 	EM(rxrpc_txbuf_get_buffer,		"GET BUFFER ")	\
 	EM(rxrpc_txbuf_get_trans,		"GET TRANS  ")	\
 	EM(rxrpc_txbuf_get_retrans,		"GET RETRANS")	\
-	EM(rxrpc_txbuf_put_ack_tx,		"PUT ACK TX ")	\
 	EM(rxrpc_txbuf_put_cleaned,		"PUT CLEANED")	\
 	EM(rxrpc_txbuf_put_nomem,		"PUT NOMEM  ")	\
 	EM(rxrpc_txbuf_put_rotated,		"PUT ROTATED")	\
