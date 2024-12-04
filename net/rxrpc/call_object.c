@@ -160,8 +160,7 @@ struct rxrpc_call *rxrpc_alloc_call(struct rxrpc_sock *rx, gfp_t gfp,
 	call->ackr_window	= 1;
 	call->ackr_wtop		= 1;
 	call->delay_ack_at	= KTIME_MAX;
-	call->ack_lost_at	= KTIME_MAX;
-	call->resend_at		= KTIME_MAX;
+	call->rack_timo_at	= KTIME_MAX;
 	call->ping_at		= KTIME_MAX;
 	call->keepalive_at	= KTIME_MAX;
 	call->expect_rx_by	= KTIME_MAX;

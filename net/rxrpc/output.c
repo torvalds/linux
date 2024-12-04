@@ -542,12 +542,14 @@ static size_t rxrpc_prepare_data_packet(struct rxrpc_call *call, struct rxrpc_se
 	unsigned int xmit_ts;
 	rxrpc_seq_t seq = req->seq;
 	size_t len = 0;
+	bool start_tlp = false;
 
 	trace_rxrpc_tq(call, tq, seq, rxrpc_tq_transmit);
 
 	/* Each transmission of a Tx packet needs a new serial number */
 	serial = rxrpc_get_next_serials(call->conn, req->n);
 
+	call->tx_last_serial = serial + req->n - 1;
 	call->tx_last_sent = req->now;
 	xmit_ts = rxrpc_prepare_txqueue(tq, req);
 	prefetch(tq->next);
@@ -557,6 +559,18 @@ static size_t rxrpc_prepare_data_packet(struct rxrpc_call *call, struct rxrpc_se
 		struct rxrpc_txbuf *txb = tq->bufs[seq & RXRPC_TXQ_MASK];
 
 		_debug("prep[%u] tq=%x q=%x", i, tq->qbase, seq);
+
+		/* Record (re-)transmission for RACK [RFC8985 6.1]. */
+		if (__test_and_clear_bit(ix, &tq->segment_lost))
+			call->tx_nr_lost--;
+		if (req->retrans) {
+			__set_bit(ix, &tq->ever_retransmitted);
+			__set_bit(ix, &tq->segment_retransmitted);
+			call->tx_nr_resent++;
+		} else {
+			call->tx_nr_sent++;
+			start_tlp = true;
+		}
 		tq->segment_xmit_ts[ix] = xmit_ts;
 		tq->segment_serial[ix] = serial;
 		if (i + 1 == req->n)
@@ -576,11 +590,24 @@ static size_t rxrpc_prepare_data_packet(struct rxrpc_call *call, struct rxrpc_se
 	}
 
 	/* Set timeouts */
-	if (call->rtt_count > 1) {
-		ktime_t delay = rxrpc_get_rto_backoff(call, false);
+	if (req->tlp_probe) {
+		/* Sending TLP loss probe [RFC8985 7.3]. */
+		call->tlp_serial = serial - 1;
+		call->tlp_seq = seq - 1;
+	} else if (start_tlp) {
+		/* Schedule TLP loss probe [RFC8985 7.2]. */
+		ktime_t pto;
 
-		call->ack_lost_at = ktime_add(req->now, delay);
-		trace_rxrpc_timer_set(call, delay, rxrpc_timer_trace_lost_ack);
+		if (!test_bit(RXRPC_CALL_BEGAN_RX_TIMER, &call->flags))
+			 /* The first packet may take longer to elicit a response. */
+			pto = NSEC_PER_SEC;
+		else
+			pto = rxrpc_tlp_calc_pto(call, req->now);
+
+		call->rack_timer_mode = RXRPC_CALL_RACKTIMER_TLP_PTO;
+		call->rack_timo_at = ktime_add(req->now, pto);
+		trace_rxrpc_rack_timer(call, pto, false);
+		trace_rxrpc_timer_set(call, pto, rxrpc_timer_trace_rack_tlp_pto);
 	}
 
 	if (!test_and_set_bit(RXRPC_CALL_BEGAN_RX_TIMER, &call->flags)) {
@@ -588,12 +615,6 @@ static size_t rxrpc_prepare_data_packet(struct rxrpc_call *call, struct rxrpc_se
 
 		call->expect_rx_by = ktime_add(req->now, delay);
 		trace_rxrpc_timer_set(call, delay, rxrpc_timer_trace_expect_rx);
-	}
-	if (call->resend_at == KTIME_MAX) {
-		ktime_t delay = rxrpc_get_rto_backoff(call, false);
-
-		call->resend_at = ktime_add(req->now, delay);
-		trace_rxrpc_timer_set(call, delay, rxrpc_timer_trace_resend);
 	}
 
 	rxrpc_set_keepalive(call, req->now);

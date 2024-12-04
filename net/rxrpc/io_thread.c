@@ -470,6 +470,7 @@ int rxrpc_io_thread(void *data)
 			spin_lock_irq(&local->rx_queue.lock);
 			skb_queue_splice_tail_init(&local->rx_queue, &rx_queue);
 			spin_unlock_irq(&local->rx_queue.lock);
+			trace_rxrpc_iothread_rx(local, skb_queue_len(&rx_queue));
 		}
 
 		/* Distribute packets and errors. */

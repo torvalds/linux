@@ -305,7 +305,9 @@
 #define rxrpc_txdata_traces \
 	EM(rxrpc_txdata_inject_loss,		" *INJ-LOSS*") \
 	EM(rxrpc_txdata_new_data,		" ") \
-	E_(rxrpc_txdata_retransmit,		" *RETRANS*")
+	EM(rxrpc_txdata_retransmit,		" *RETRANS*") \
+	EM(rxrpc_txdata_tlp_new_data,		" *TLP-NEW*") \
+	E_(rxrpc_txdata_tlp_retransmit,		" *TLP-RETRANS*")
 
 #define rxrpc_receive_traces \
 	EM(rxrpc_receive_end,			"END") \
@@ -353,11 +355,12 @@
 	EM(rxrpc_timer_trace_hard,		"HardLimit") \
 	EM(rxrpc_timer_trace_idle,		"IdleLimit") \
 	EM(rxrpc_timer_trace_keepalive,		"KeepAlive") \
-	EM(rxrpc_timer_trace_lost_ack,		"LostAck  ") \
 	EM(rxrpc_timer_trace_ping,		"DelayPing") \
-	EM(rxrpc_timer_trace_resend,		"Resend   ") \
-	EM(rxrpc_timer_trace_resend_reset,	"ResendRst") \
-	E_(rxrpc_timer_trace_resend_tx,		"ResendTx ")
+	EM(rxrpc_timer_trace_rack_off,		"RACK-OFF ") \
+	EM(rxrpc_timer_trace_rack_zwp,		"RACK-ZWP ") \
+	EM(rxrpc_timer_trace_rack_reo,		"RACK-Reo ") \
+	EM(rxrpc_timer_trace_rack_tlp_pto,	"TLP-PTO  ") \
+	E_(rxrpc_timer_trace_rack_rto,		"RTO      ")
 
 #define rxrpc_propose_ack_traces \
 	EM(rxrpc_propose_ack_client_tx_end,	"ClTxEnd") \
@@ -478,9 +481,9 @@
 	EM(rxrpc_txbuf_put_rotated,		"PUT ROTATED")	\
 	EM(rxrpc_txbuf_put_send_aborted,	"PUT SEND-X ")	\
 	EM(rxrpc_txbuf_put_trans,		"PUT TRANS  ")	\
+	EM(rxrpc_txbuf_see_lost,		"SEE LOST   ")	\
 	EM(rxrpc_txbuf_see_out_of_step,		"OUT-OF-STEP")	\
-	EM(rxrpc_txbuf_see_send_more,		"SEE SEND+  ")	\
-	E_(rxrpc_txbuf_see_unacked,		"SEE UNACKED")
+	E_(rxrpc_txbuf_see_send_more,		"SEE SEND+  ")
 
 #define rxrpc_tq_traces \
 	EM(rxrpc_tq_alloc,			"ALLOC") \
@@ -504,6 +507,24 @@
 	EM(rxrpc_rotate_trace_hack,		"hard-ack")	\
 	EM(rxrpc_rotate_trace_sack,		"soft-ack")	\
 	E_(rxrpc_rotate_trace_snak,		"soft-nack")
+
+#define rxrpc_rack_timer_modes \
+	EM(RXRPC_CALL_RACKTIMER_OFF,		"---") \
+	EM(RXRPC_CALL_RACKTIMER_RACK_REORDER,	"REO") \
+	EM(RXRPC_CALL_RACKTIMER_TLP_PTO,	"TLP") \
+	E_(RXRPC_CALL_RACKTIMER_RTO,		"RTO")
+
+#define rxrpc_tlp_probe_traces \
+	EM(rxrpc_tlp_probe_trace_busy,		"busy")		\
+	EM(rxrpc_tlp_probe_trace_transmit_new,	"transmit-new")	\
+	E_(rxrpc_tlp_probe_trace_retransmit,	"retransmit")
+
+#define rxrpc_tlp_ack_traces \
+	EM(rxrpc_tlp_ack_trace_acked,		"acked")	\
+	EM(rxrpc_tlp_ack_trace_dup_acked,	"dup-acked")	\
+	EM(rxrpc_tlp_ack_trace_hard_beyond,	"hard-beyond")	\
+	EM(rxrpc_tlp_ack_trace_incomplete,	"incomplete")	\
+	E_(rxrpc_tlp_ack_trace_new_data,	"new-data")
 
 /*
  * Generate enums for tracing information.
@@ -537,6 +558,8 @@ enum rxrpc_rtt_tx_trace		{ rxrpc_rtt_tx_traces } __mode(byte);
 enum rxrpc_sack_trace		{ rxrpc_sack_traces } __mode(byte);
 enum rxrpc_skb_trace		{ rxrpc_skb_traces } __mode(byte);
 enum rxrpc_timer_trace		{ rxrpc_timer_traces } __mode(byte);
+enum rxrpc_tlp_ack_trace	{ rxrpc_tlp_ack_traces } __mode(byte);
+enum rxrpc_tlp_probe_trace	{ rxrpc_tlp_probe_traces } __mode(byte);
 enum rxrpc_tq_trace		{ rxrpc_tq_traces } __mode(byte);
 enum rxrpc_tx_point		{ rxrpc_tx_points } __mode(byte);
 enum rxrpc_txbuf_trace		{ rxrpc_txbuf_traces } __mode(byte);
@@ -567,6 +590,7 @@ rxrpc_conn_traces;
 rxrpc_local_traces;
 rxrpc_pmtud_reduce_traces;
 rxrpc_propose_ack_traces;
+rxrpc_rack_timer_modes;
 rxrpc_receive_traces;
 rxrpc_recvmsg_traces;
 rxrpc_req_ack_traces;
@@ -576,6 +600,8 @@ rxrpc_rtt_tx_traces;
 rxrpc_sack_traces;
 rxrpc_skb_traces;
 rxrpc_timer_traces;
+rxrpc_tlp_ack_traces;
+rxrpc_tlp_probe_traces;
 rxrpc_tq_traces;
 rxrpc_tx_points;
 rxrpc_txbuf_traces;
@@ -616,6 +642,20 @@ TRACE_EVENT(rxrpc_local,
 		      __print_symbolic(__entry->op, rxrpc_local_traces),
 		      __entry->ref,
 		      __entry->usage)
+	    );
+
+TRACE_EVENT(rxrpc_iothread_rx,
+	    TP_PROTO(struct rxrpc_local *local, unsigned int nr_rx),
+	    TP_ARGS(local, nr_rx),
+	    TP_STRUCT__entry(
+		    __field(unsigned int,	local)
+		    __field(unsigned int,	nr_rx)
+			     ),
+	    TP_fast_assign(
+		    __entry->local = local->debug_id;
+		    __entry->nr_rx = nr_rx;
+			   ),
+	    TP_printk("L=%08x nrx=%u", __entry->local, __entry->nr_rx)
 	    );
 
 TRACE_EVENT(rxrpc_peer,
@@ -1684,16 +1724,15 @@ TRACE_EVENT(rxrpc_drop_ack,
 TRACE_EVENT(rxrpc_retransmit,
 	    TP_PROTO(struct rxrpc_call *call,
 		     struct rxrpc_send_data_req *req,
-		     struct rxrpc_txbuf *txb, ktime_t expiry),
+		     struct rxrpc_txbuf *txb),
 
-	    TP_ARGS(call, req, txb, expiry),
+	    TP_ARGS(call, req, txb),
 
 	    TP_STRUCT__entry(
 		    __field(unsigned int,	call)
 		    __field(unsigned int,	qbase)
 		    __field(rxrpc_seq_t,	seq)
 		    __field(rxrpc_serial_t,	serial)
-		    __field(ktime_t,		expiry)
 			     ),
 
 	    TP_fast_assign(
@@ -1701,15 +1740,13 @@ TRACE_EVENT(rxrpc_retransmit,
 		    __entry->qbase = req->tq->qbase;
 		    __entry->seq = req->seq;
 		    __entry->serial = txb->serial;
-		    __entry->expiry = expiry;
 			   ),
 
-	    TP_printk("c=%08x tq=%x q=%x r=%x xp=%lld",
+	    TP_printk("c=%08x tq=%x q=%x r=%x",
 		      __entry->call,
 		      __entry->qbase,
 		      __entry->seq,
-		      __entry->serial,
-		      ktime_to_us(__entry->expiry))
+		      __entry->serial)
 	    );
 
 TRACE_EVENT(rxrpc_congest,
@@ -1767,9 +1804,9 @@ TRACE_EVENT(rxrpc_congest,
 	    );
 
 TRACE_EVENT(rxrpc_reset_cwnd,
-	    TP_PROTO(struct rxrpc_call *call, ktime_t now),
+	    TP_PROTO(struct rxrpc_call *call, ktime_t since_last_tx, ktime_t rtt),
 
-	    TP_ARGS(call, now),
+	    TP_ARGS(call, since_last_tx, rtt),
 
 	    TP_STRUCT__entry(
 		    __field(unsigned int,		call)
@@ -1779,6 +1816,7 @@ TRACE_EVENT(rxrpc_reset_cwnd,
 		    __field(rxrpc_seq_t,		hard_ack)
 		    __field(rxrpc_seq_t,		prepared)
 		    __field(ktime_t,			since_last_tx)
+		    __field(ktime_t,			rtt)
 		    __field(bool,			has_data)
 			     ),
 
@@ -1789,18 +1827,20 @@ TRACE_EVENT(rxrpc_reset_cwnd,
 		    __entry->extra	= call->cong_extra;
 		    __entry->hard_ack	= call->acks_hard_ack;
 		    __entry->prepared	= call->send_top - call->tx_bottom;
-		    __entry->since_last_tx = ktime_sub(now, call->tx_last_sent);
+		    __entry->since_last_tx = since_last_tx;
+		    __entry->rtt	= rtt;
 		    __entry->has_data	= call->tx_bottom != call->tx_top;
 			   ),
 
-	    TP_printk("c=%08x q=%08x %s cw=%u+%u pr=%u tm=%llu d=%u",
+	    TP_printk("c=%08x q=%08x %s cw=%u+%u pr=%u tm=%llu/%llu d=%u",
 		      __entry->call,
 		      __entry->hard_ack,
 		      __print_symbolic(__entry->ca_state, rxrpc_ca_states),
 		      __entry->cwnd,
 		      __entry->extra,
 		      __entry->prepared,
-		      ktime_to_ns(__entry->since_last_tx),
+		      ktime_to_us(__entry->since_last_tx),
+		      ktime_to_us(__entry->rtt),
 		      __entry->has_data)
 	    );
 
@@ -1923,6 +1963,32 @@ TRACE_EVENT(rxrpc_resend,
 		      __entry->ack_serial,
 		      __entry->seq,
 		      __entry->transmitted)
+	    );
+
+TRACE_EVENT(rxrpc_resend_lost,
+	    TP_PROTO(struct rxrpc_call *call, struct rxrpc_txqueue *tq, unsigned long lost),
+
+	    TP_ARGS(call, tq, lost),
+
+	    TP_STRUCT__entry(
+		    __field(unsigned int,	call)
+		    __field(rxrpc_seq_t,	qbase)
+		    __field(u8,			nr_rep)
+		    __field(unsigned long,	lost)
+			     ),
+
+	    TP_fast_assign(
+		    __entry->call = call->debug_id;
+		    __entry->qbase = tq->qbase;
+		    __entry->nr_rep = tq->nr_reported_acks;
+		    __entry->lost = lost;
+			   ),
+
+	    TP_printk("c=%08x tq=%x lost=%016lx nr=%u",
+		      __entry->call,
+		      __entry->qbase,
+		      __entry->lost,
+		      __entry->nr_rep)
 	    );
 
 TRACE_EVENT(rxrpc_rotate,
@@ -2361,6 +2427,244 @@ TRACE_EVENT(rxrpc_pmtud_reduce,
 		      __entry->peer_debug_id,
 		      __print_symbolic(__entry->reason, rxrpc_pmtud_reduce_traces),
 		      __entry->serial, __entry->max_data)
+	    );
+
+TRACE_EVENT(rxrpc_rack,
+	    TP_PROTO(struct rxrpc_call *call, ktime_t timo),
+
+	    TP_ARGS(call, timo),
+
+	    TP_STRUCT__entry(
+		    __field(unsigned int,	call)
+		    __field(rxrpc_serial_t,	ack_serial)
+		    __field(rxrpc_seq_t,	seq)
+		    __field(enum rxrpc_rack_timer_mode, mode)
+		    __field(unsigned short,	nr_sent)
+		    __field(unsigned short,	nr_lost)
+		    __field(unsigned short,	nr_resent)
+		    __field(unsigned short,	nr_sacked)
+		    __field(ktime_t,		timo)
+			     ),
+
+	    TP_fast_assign(
+		    __entry->call	= call->debug_id;
+		    __entry->ack_serial	= call->rx_serial;
+		    __entry->seq	= call->rack_end_seq;
+		    __entry->mode	= call->rack_timer_mode;
+		    __entry->nr_sent	= call->tx_nr_sent;
+		    __entry->nr_lost	= call->tx_nr_lost;
+		    __entry->nr_resent	= call->tx_nr_resent;
+		    __entry->nr_sacked	= call->acks_nr_sacks;
+		    __entry->timo	= timo;
+			   ),
+
+	    TP_printk("c=%08x r=%08x q=%08x %s slrs=%u,%u,%u,%u t=%lld",
+		      __entry->call, __entry->ack_serial, __entry->seq,
+		      __print_symbolic(__entry->mode, rxrpc_rack_timer_modes),
+		      __entry->nr_sent, __entry->nr_lost,
+		      __entry->nr_resent, __entry->nr_sacked,
+		      ktime_to_us(__entry->timo))
+	    );
+
+TRACE_EVENT(rxrpc_rack_update,
+	    TP_PROTO(struct rxrpc_call *call, struct rxrpc_ack_summary *summary),
+
+	    TP_ARGS(call, summary),
+
+	    TP_STRUCT__entry(
+		    __field(unsigned int,	call)
+		    __field(rxrpc_serial_t,	ack_serial)
+		    __field(rxrpc_seq_t,	seq)
+		    __field(int,		xmit_ts)
+			     ),
+
+	    TP_fast_assign(
+		    __entry->call	= call->debug_id;
+		    __entry->ack_serial	= call->rx_serial;
+		    __entry->seq	= call->rack_end_seq;
+		    __entry->xmit_ts	= ktime_sub(call->acks_latest_ts, call->rack_xmit_ts);
+			   ),
+
+	    TP_printk("c=%08x r=%08x q=%08x xt=%lld",
+		      __entry->call, __entry->ack_serial, __entry->seq,
+		      ktime_to_us(__entry->xmit_ts))
+	    );
+
+TRACE_EVENT(rxrpc_rack_scan_loss,
+	    TP_PROTO(struct rxrpc_call *call),
+
+	    TP_ARGS(call),
+
+	    TP_STRUCT__entry(
+		    __field(unsigned int,	call)
+		    __field(ktime_t,		rack_rtt)
+		    __field(ktime_t,		rack_reo_wnd)
+			     ),
+
+	    TP_fast_assign(
+		    __entry->call		= call->debug_id;
+		    __entry->rack_rtt		= call->rack_rtt;
+		    __entry->rack_reo_wnd	= call->rack_reo_wnd;
+			   ),
+
+	    TP_printk("c=%08x rtt=%lld reow=%lld",
+		      __entry->call, ktime_to_us(__entry->rack_rtt),
+		      ktime_to_us(__entry->rack_reo_wnd))
+	    );
+
+TRACE_EVENT(rxrpc_rack_scan_loss_tq,
+	    TP_PROTO(struct rxrpc_call *call, const struct rxrpc_txqueue *tq,
+		     unsigned long nacks),
+
+	    TP_ARGS(call, tq, nacks),
+
+	    TP_STRUCT__entry(
+		    __field(unsigned int,	call)
+		    __field(rxrpc_seq_t,	qbase)
+		    __field(unsigned long,	nacks)
+		    __field(unsigned long,	lost)
+		    __field(unsigned long,	retrans)
+			     ),
+
+	    TP_fast_assign(
+		    __entry->call	= call->debug_id;
+		    __entry->qbase	= tq->qbase;
+		    __entry->nacks	= nacks;
+		    __entry->lost	= tq->segment_lost;
+		    __entry->retrans	= tq->segment_retransmitted;
+			   ),
+
+	    TP_printk("c=%08x q=%08x n=%lx l=%lx r=%lx",
+		      __entry->call, __entry->qbase,
+		      __entry->nacks, __entry->lost, __entry->retrans)
+	    );
+
+TRACE_EVENT(rxrpc_rack_detect_loss,
+	    TP_PROTO(struct rxrpc_call *call, struct rxrpc_ack_summary *summary,
+		     rxrpc_seq_t seq),
+
+	    TP_ARGS(call, summary, seq),
+
+	    TP_STRUCT__entry(
+		    __field(unsigned int,	call)
+		    __field(rxrpc_serial_t,	ack_serial)
+		    __field(rxrpc_seq_t,	seq)
+			     ),
+
+	    TP_fast_assign(
+		    __entry->call	= call->debug_id;
+		    __entry->ack_serial	= call->rx_serial;
+		    __entry->seq	= seq;
+			   ),
+
+	    TP_printk("c=%08x r=%08x q=%08x",
+		      __entry->call, __entry->ack_serial, __entry->seq)
+	    );
+
+TRACE_EVENT(rxrpc_rack_mark_loss_tq,
+	    TP_PROTO(struct rxrpc_call *call, const struct rxrpc_txqueue *tq),
+
+	    TP_ARGS(call, tq),
+
+	    TP_STRUCT__entry(
+		    __field(unsigned int,	call)
+		    __field(rxrpc_seq_t,	qbase)
+		    __field(rxrpc_seq_t,	trans)
+		    __field(unsigned long,	acked)
+		    __field(unsigned long,	lost)
+		    __field(unsigned long,	retrans)
+			     ),
+
+	    TP_fast_assign(
+		    __entry->call	= call->debug_id;
+		    __entry->qbase	= tq->qbase;
+		    __entry->trans	= call->tx_transmitted;
+		    __entry->acked	= tq->segment_acked;
+		    __entry->lost	= tq->segment_lost;
+		    __entry->retrans	= tq->segment_retransmitted;
+			   ),
+
+	    TP_printk("c=%08x tq=%08x txq=%08x a=%lx l=%lx r=%lx",
+		      __entry->call, __entry->qbase, __entry->trans,
+		      __entry->acked, __entry->lost, __entry->retrans)
+	    );
+
+TRACE_EVENT(rxrpc_tlp_probe,
+	    TP_PROTO(struct rxrpc_call *call, enum rxrpc_tlp_probe_trace trace),
+
+	    TP_ARGS(call, trace),
+
+	    TP_STRUCT__entry(
+		    __field(unsigned int,		call)
+		    __field(rxrpc_serial_t,		serial)
+		    __field(rxrpc_seq_t,		seq)
+		    __field(enum rxrpc_tlp_probe_trace,	trace)
+			     ),
+
+	    TP_fast_assign(
+		    __entry->call	= call->debug_id;
+		    __entry->serial	= call->tlp_serial;
+		    __entry->seq	= call->tlp_seq;
+		    __entry->trace	= trace;
+			   ),
+
+	    TP_printk("c=%08x r=%08x pq=%08x %s",
+		      __entry->call, __entry->serial, __entry->seq,
+		      __print_symbolic(__entry->trace, rxrpc_tlp_probe_traces))
+	    );
+
+TRACE_EVENT(rxrpc_tlp_ack,
+	    TP_PROTO(struct rxrpc_call *call, struct rxrpc_ack_summary *summary,
+		     enum rxrpc_tlp_ack_trace trace),
+
+	    TP_ARGS(call, summary, trace),
+
+	    TP_STRUCT__entry(
+		    __field(unsigned int,		call)
+		    __field(rxrpc_serial_t,		serial)
+		    __field(rxrpc_seq_t,		tlp_seq)
+		    __field(rxrpc_seq_t,		hard_ack)
+		    __field(enum rxrpc_tlp_ack_trace,	trace)
+			     ),
+
+	    TP_fast_assign(
+		    __entry->call	= call->debug_id;
+		    __entry->serial	= call->tlp_serial;
+		    __entry->tlp_seq	= call->tlp_seq;
+		    __entry->hard_ack	= call->acks_hard_ack;
+		    __entry->trace	= trace;
+			   ),
+
+	    TP_printk("c=%08x r=%08x pq=%08x hq=%08x %s",
+		      __entry->call, __entry->serial,
+		      __entry->tlp_seq, __entry->hard_ack,
+		      __print_symbolic(__entry->trace, rxrpc_tlp_ack_traces))
+	    );
+
+TRACE_EVENT(rxrpc_rack_timer,
+	    TP_PROTO(struct rxrpc_call *call, ktime_t delay, bool exp),
+
+	    TP_ARGS(call, delay, exp),
+
+	    TP_STRUCT__entry(
+		    __field(unsigned int,		call)
+		    __field(bool,			exp)
+		    __field(enum rxrpc_rack_timer_mode,	mode)
+		    __field(ktime_t,			delay)
+			     ),
+
+	    TP_fast_assign(
+		    __entry->call		= call->debug_id;
+		    __entry->exp		= exp;
+		    __entry->mode		= call->rack_timer_mode;
+		    __entry->delay		= delay;
+			   ),
+
+	    TP_printk("c=%08x %s %s to=%lld",
+		      __entry->call,
+		      __entry->exp ? "Exp" : "Set",
+		      __print_symbolic(__entry->mode, rxrpc_rack_timer_modes),
+		      ktime_to_us(__entry->delay))
 	    );
 
 #undef EM
