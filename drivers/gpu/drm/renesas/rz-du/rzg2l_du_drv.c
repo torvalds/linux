@@ -84,7 +84,6 @@ static const struct drm_driver rzg2l_du_driver = {
 	.fops			= &rzg2l_du_fops,
 	.name			= "rzg2l-du",
 	.desc			= "Renesas RZ/G2L Display Unit",
-	.date			= "20230410",
 	.major			= 1,
 	.minor			= 0,
 };

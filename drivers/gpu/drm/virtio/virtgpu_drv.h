@@ -45,7 +45,6 @@
 
 #define DRIVER_NAME "virtio_gpu"
 #define DRIVER_DESC "virtio GPU"
-#define DRIVER_DATE "0"
 
 #define DRIVER_MAJOR 0
 #define DRIVER_MINOR 1

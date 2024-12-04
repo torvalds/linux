@@ -1634,7 +1634,6 @@ static const struct drm_driver driver = {
 	.fops = &vmwgfx_driver_fops,
 	.name = VMWGFX_DRIVER_NAME,
 	.desc = VMWGFX_DRIVER_DESC,
-	.date = VMWGFX_DRIVER_DATE,
 	.major = VMWGFX_DRIVER_MAJOR,
 	.minor = VMWGFX_DRIVER_MINOR,
 	.patchlevel = VMWGFX_DRIVER_PATCHLEVEL

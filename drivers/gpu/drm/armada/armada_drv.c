@@ -45,7 +45,6 @@ static const struct drm_driver armada_drm_driver = {
 	.minor			= 0,
 	.name			= "armada-drm",
 	.desc			= "Armada SoC DRM",
-	.date			= "20120730",
 	.driver_features	= DRIVER_GEM | DRIVER_MODESET | DRIVER_ATOMIC,
 	.ioctls			= armada_ioctls,
 	.num_ioctls = ARRAY_SIZE(armada_ioctls),

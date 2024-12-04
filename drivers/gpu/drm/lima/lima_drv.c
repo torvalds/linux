@@ -271,7 +271,6 @@ static const struct drm_driver lima_drm_driver = {
 	.fops               = &lima_drm_driver_fops,
 	.name               = "lima",
 	.desc               = "lima DRM",
-	.date               = "20191231",
 	.major              = 1,
 	.minor              = 1,
 	.patchlevel         = 0,

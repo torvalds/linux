@@ -160,7 +160,6 @@ static const struct drm_driver st7735r_driver = {
 	.debugfs_init		= mipi_dbi_debugfs_init,
 	.name			= "st7735r",
 	.desc			= "Sitronix ST7735R",
-	.date			= "20171128",
 	.major			= 1,
 	.minor			= 0,
 };

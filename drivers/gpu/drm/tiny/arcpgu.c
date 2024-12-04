@@ -367,7 +367,6 @@ static const struct drm_driver arcpgu_drm_driver = {
 	.driver_features = DRIVER_MODESET | DRIVER_GEM | DRIVER_ATOMIC,
 	.name = "arcpgu",
 	.desc = "ARC PGU Controller",
-	.date = "20160219",
 	.major = 1,
 	.minor = 0,
 	.patchlevel = 0,

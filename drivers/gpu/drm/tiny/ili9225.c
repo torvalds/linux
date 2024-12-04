@@ -364,7 +364,6 @@ static const struct drm_driver ili9225_driver = {
 	DRM_FBDEV_DMA_DRIVER_OPS,
 	.name			= "ili9225",
 	.desc			= "Ilitek ILI9225",
-	.date			= "20171106",
 	.major			= 1,
 	.minor			= 0,
 };

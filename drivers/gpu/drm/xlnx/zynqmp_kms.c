@@ -409,7 +409,6 @@ static const struct drm_driver zynqmp_dpsub_drm_driver = {
 
 	.name				= "zynqmp-dpsub",
 	.desc				= "Xilinx DisplayPort Subsystem Driver",
-	.date				= "20130509",
 	.major				= 1,
 	.minor				= 0,
 };

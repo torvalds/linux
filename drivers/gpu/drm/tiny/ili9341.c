@@ -155,7 +155,6 @@ static const struct drm_driver ili9341_driver = {
 	.debugfs_init		= mipi_dbi_debugfs_init,
 	.name			= "ili9341",
 	.desc			= "Ilitek ILI9341",
-	.date			= "20180514",
 	.major			= 1,
 	.minor			= 0,
 };

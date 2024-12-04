@@ -107,7 +107,6 @@ static const struct drm_driver shmob_drm_driver = {
 	.fops			= &shmob_drm_fops,
 	.name			= "shmob-drm",
 	.desc			= "Renesas SH Mobile DRM",
-	.date			= "20120424",
 	.major			= 1,
 	.minor			= 0,
 };

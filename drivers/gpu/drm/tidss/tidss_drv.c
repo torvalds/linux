@@ -113,7 +113,6 @@ static const struct drm_driver tidss_driver = {
 	DRM_FBDEV_DMA_DRIVER_OPS,
 	.name			= "tidss",
 	.desc			= "TI Keystone DSS",
-	.date			= "20180215",
 	.major			= 1,
 	.minor			= 0,
 };

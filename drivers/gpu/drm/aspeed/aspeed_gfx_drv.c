@@ -252,7 +252,6 @@ static const struct drm_driver aspeed_gfx_driver = {
 	.fops = &fops,
 	.name = "aspeed-gfx-drm",
 	.desc = "ASPEED GFX DRM",
-	.date = "20180319",
 	.major = 1,
 	.minor = 0,
 };

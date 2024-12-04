@@ -163,7 +163,6 @@ static const struct drm_driver imx_drm_driver = {
 	.fops			= &imx_drm_driver_fops,
 	.name			= "imx-drm",
 	.desc			= "i.MX DRM graphics",
-	.date			= "20120507",
 	.major			= 1,
 	.minor			= 0,
 	.patchlevel		= 0,

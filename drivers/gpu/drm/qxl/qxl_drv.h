@@ -54,7 +54,6 @@ struct iosys_map;
 
 #define DRIVER_NAME		"qxl"
 #define DRIVER_DESC		"RH QXL"
-#define DRIVER_DATE		"20120117"
 
 #define DRIVER_MAJOR 0
 #define DRIVER_MINOR 1

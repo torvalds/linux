@@ -62,7 +62,6 @@ static const struct drm_driver drv_driver = {
 	.driver_features = DRIVER_MODESET | DRIVER_GEM | DRIVER_ATOMIC,
 	.name = "stm",
 	.desc = "STMicroelectronics SoC DRM",
-	.date = "20170330",
 	.major = 1,
 	.minor = 0,
 	.patchlevel = 0,

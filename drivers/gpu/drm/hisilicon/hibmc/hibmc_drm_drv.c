@@ -57,7 +57,6 @@ static const struct drm_driver hibmc_driver = {
 	.driver_features	= DRIVER_GEM | DRIVER_MODESET | DRIVER_ATOMIC,
 	.fops			= &hibmc_fops,
 	.name			= "hibmc",
-	.date			= "20160828",
 	.desc			= "hibmc drm driver",
 	.major			= 1,
 	.minor			= 0,

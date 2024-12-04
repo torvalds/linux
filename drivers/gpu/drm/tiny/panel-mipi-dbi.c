@@ -269,7 +269,6 @@ static const struct drm_driver panel_mipi_dbi_driver = {
 	.debugfs_init		= mipi_dbi_debugfs_init,
 	.name			= "panel-mipi-dbi",
 	.desc			= "MIPI DBI compatible display panel",
-	.date			= "20220103",
 	.major			= 1,
 	.minor			= 0,
 };

@@ -20,7 +20,6 @@
 
 #define DRIVER_NAME "hyperv_drm"
 #define DRIVER_DESC "DRM driver for Hyper-V synthetic video device"
-#define DRIVER_DATE "2020"
 #define DRIVER_MAJOR 1
 #define DRIVER_MINOR 0
 
@@ -31,7 +30,6 @@ static struct drm_driver hyperv_driver = {
 
 	.name		 = DRIVER_NAME,
 	.desc		 = DRIVER_DESC,
-	.date		 = DRIVER_DATE,
 	.major		 = DRIVER_MAJOR,
 	.minor		 = DRIVER_MINOR,
 

@@ -199,7 +199,6 @@ static const struct drm_driver hx8357d_driver = {
 	.debugfs_init		= mipi_dbi_debugfs_init,
 	.name			= "hx8357d",
 	.desc			= "HX8357D",
-	.date			= "20181023",
 	.major			= 1,
 	.minor			= 0,
 };

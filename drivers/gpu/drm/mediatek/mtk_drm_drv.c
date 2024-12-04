@@ -33,7 +33,6 @@
 
 #define DRIVER_NAME "mediatek"
 #define DRIVER_DESC "Mediatek SoC DRM"
-#define DRIVER_DATE "20150513"
 #define DRIVER_MAJOR 1
 #define DRIVER_MINOR 0
 
@@ -615,7 +614,6 @@ static const struct drm_driver mtk_drm_driver = {
 
 	.name = DRIVER_NAME,
 	.desc = DRIVER_DESC,
-	.date = DRIVER_DATE,
 	.major = DRIVER_MAJOR,
 	.minor = DRIVER_MINOR,
 };

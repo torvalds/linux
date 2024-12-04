@@ -478,7 +478,6 @@ static const struct drm_driver xen_drm_driver = {
 	.fops                      = &xen_drm_dev_fops,
 	.name                      = "xendrm-du",
 	.desc                      = "Xen PV DRM Display Unit",
-	.date                      = "20180221",
 	.major                     = 1,
 	.minor                     = 0,
 

@@ -48,7 +48,6 @@
 
 #define DRIVER_NAME "cirrus-qemu"
 #define DRIVER_DESC "qemu cirrus vga"
-#define DRIVER_DATE "2019"
 #define DRIVER_MAJOR 2
 #define DRIVER_MINOR 0
 
@@ -659,7 +658,6 @@ static const struct drm_driver cirrus_driver = {
 
 	.name		 = DRIVER_NAME,
 	.desc		 = DRIVER_DESC,
-	.date		 = DRIVER_DATE,
 	.major		 = DRIVER_MAJOR,
 	.minor		 = DRIVER_MINOR,
 

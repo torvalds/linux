@@ -118,7 +118,6 @@ static struct drm_driver ili9163_driver = {
 	.debugfs_init		= mipi_dbi_debugfs_init,
 	.name			= "ili9163",
 	.desc			= "Ilitek ILI9163",
-	.date			= "20210208",
 	.major			= 1,
 	.minor			= 0,
 };

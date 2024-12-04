@@ -233,7 +233,6 @@ static const struct drm_driver hdlcd_driver = {
 	.fops = &fops,
 	.name = "hdlcd",
 	.desc = "ARM HDLCD Controller DRM",
-	.date = "20151021",
 	.major = 1,
 	.minor = 0,
 };

@@ -31,7 +31,6 @@
 
 #define DRIVER_NAME "v3d"
 #define DRIVER_DESC "Broadcom V3D graphics"
-#define DRIVER_DATE "20180419"
 #define DRIVER_MAJOR 1
 #define DRIVER_MINOR 0
 #define DRIVER_PATCHLEVEL 0
@@ -249,7 +248,6 @@ static const struct drm_driver v3d_drm_driver = {
 
 	.name = DRIVER_NAME,
 	.desc = DRIVER_DESC,
-	.date = DRIVER_DATE,
 	.major = DRIVER_MAJOR,
 	.minor = DRIVER_MINOR,
 	.patchlevel = DRIVER_PATCHLEVEL,

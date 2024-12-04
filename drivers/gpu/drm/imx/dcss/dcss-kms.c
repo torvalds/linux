@@ -34,7 +34,6 @@ static const struct drm_driver dcss_kms_driver = {
 	.fops			= &dcss_cma_fops,
 	.name			= "imx-dcss",
 	.desc			= "i.MX8MQ Display Subsystem",
-	.date			= "20190917",
 	.major			= 1,
 	.minor			= 0,
 	.patchlevel		= 0,

@@ -39,7 +39,6 @@
 
 #define DRIVER_NAME	"ssd130x"
 #define DRIVER_DESC	"DRM driver for Solomon SSD13xx OLED displays"
-#define DRIVER_DATE	"20220131"
 #define DRIVER_MAJOR	1
 #define DRIVER_MINOR	0
 
@@ -1784,7 +1783,6 @@ static const struct drm_driver ssd130x_drm_driver = {
 	DRM_FBDEV_SHMEM_DRIVER_OPS,
 	.name			= DRIVER_NAME,
 	.desc			= DRIVER_DESC,
-	.date			= DRIVER_DATE,
 	.major			= DRIVER_MAJOR,
 	.minor			= DRIVER_MINOR,
 	.driver_features	= DRIVER_ATOMIC | DRIVER_GEM | DRIVER_MODESET,

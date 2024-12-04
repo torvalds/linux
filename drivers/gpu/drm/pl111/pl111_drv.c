@@ -220,7 +220,6 @@ static const struct drm_driver pl111_drm_driver = {
 	.fops = &drm_fops,
 	.name = "pl111",
 	.desc = DRIVER_DESC,
-	.date = "20170317",
 	.major = 1,
 	.minor = 0,
 	.patchlevel = 0,

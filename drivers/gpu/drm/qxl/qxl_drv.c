@@ -300,7 +300,6 @@ static struct drm_driver qxl_driver = {
 	.num_ioctls = ARRAY_SIZE(qxl_ioctls),
 	.name = DRIVER_NAME,
 	.desc = DRIVER_DESC,
-	.date = DRIVER_DATE,
 	.major = 0,
 	.minor = 1,
 	.patchlevel = 0,

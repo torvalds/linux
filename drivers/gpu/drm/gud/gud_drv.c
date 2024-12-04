@@ -381,7 +381,6 @@ static const struct drm_driver gud_drm_driver = {
 
 	.name			= "gud",
 	.desc			= "Generic USB Display",
-	.date			= "20200422",
 	.major			= 1,
 	.minor			= 0,
 };

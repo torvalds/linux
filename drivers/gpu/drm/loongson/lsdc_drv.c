@@ -26,7 +26,6 @@
 #define DRIVER_AUTHOR               "Sui Jingfeng <suijingfeng@loongson.cn>"
 #define DRIVER_NAME                 "loongson"
 #define DRIVER_DESC                 "drm driver for loongson graphics"
-#define DRIVER_DATE                 "20220701"
 #define DRIVER_MAJOR                1
 #define DRIVER_MINOR                0
 #define DRIVER_PATCHLEVEL           0
@@ -39,7 +38,6 @@ static const struct drm_driver lsdc_drm_driver = {
 
 	.name = DRIVER_NAME,
 	.desc = DRIVER_DESC,
-	.date = DRIVER_DATE,
 	.major = DRIVER_MAJOR,
 	.minor = DRIVER_MINOR,
 	.patchlevel = DRIVER_PATCHLEVEL,

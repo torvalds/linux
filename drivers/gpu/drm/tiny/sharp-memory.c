@@ -107,7 +107,6 @@ static const struct drm_driver sharp_memory_drm_driver = {
 	DRM_FBDEV_DMA_DRIVER_OPS,
 	.name			= "sharp_memory_display",
 	.desc			= "Sharp Display Memory LCD",
-	.date			= "20231129",
 	.major			= 1,
 	.minor			= 0,
 };

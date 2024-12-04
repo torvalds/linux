@@ -52,7 +52,6 @@ static struct drm_driver logicvc_drm_driver = {
 	.fops				= &logicvc_drm_fops,
 	.name				= "logicvc-drm",
 	.desc				= "Xylon LogiCVC DRM driver",
-	.date				= "20200403",
 	.major				= 1,
 	.minor				= 0,
 

@@ -146,7 +146,6 @@ static const struct drm_driver tve200_drm_driver = {
 	.fops = &drm_fops,
 	.name = "tve200",
 	.desc = DRIVER_DESC,
-	.date = "20170703",
 	.major = 1,
 	.minor = 0,
 	.patchlevel = 0,

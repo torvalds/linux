@@ -34,7 +34,6 @@ MODULE_PARM_DESC(eco_mode, "Turn on Eco mode (less bright, more silent)");
 
 #define DRIVER_NAME		"gm12u320"
 #define DRIVER_DESC		"Grain Media GM12U320 USB projector display"
-#define DRIVER_DATE		"2019"
 #define DRIVER_MAJOR		1
 #define DRIVER_MINOR		0
 
@@ -626,7 +625,6 @@ static const struct drm_driver gm12u320_drm_driver = {
 
 	.name		 = DRIVER_NAME,
 	.desc		 = DRIVER_DESC,
-	.date		 = DRIVER_DATE,
 	.major		 = DRIVER_MAJOR,
 	.minor		 = DRIVER_MINOR,
 

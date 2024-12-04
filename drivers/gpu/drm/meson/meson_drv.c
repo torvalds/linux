@@ -105,7 +105,6 @@ static const struct drm_driver meson_driver = {
 	.fops			= &fops,
 	.name			= DRIVER_NAME,
 	.desc			= DRIVER_DESC,
-	.date			= "20161109",
 	.major			= 1,
 	.minor			= 0,
 };

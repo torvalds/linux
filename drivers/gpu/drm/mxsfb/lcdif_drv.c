@@ -248,7 +248,6 @@ static const struct drm_driver lcdif_driver = {
 	.fops	= &fops,
 	.name	= "imx-lcdif",
 	.desc	= "i.MX LCDIF Controller DRM",
-	.date	= "20220417",
 	.major	= 1,
 	.minor	= 0,
 };

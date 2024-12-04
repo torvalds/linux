@@ -295,7 +295,6 @@ static const struct drm_driver st7586_driver = {
 	.debugfs_init		= mipi_dbi_debugfs_init,
 	.name			= "st7586",
 	.desc			= "Sitronix ST7586",
-	.date			= "20170801",
 	.major			= 1,
 	.minor			= 0,
 };

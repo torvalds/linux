@@ -481,7 +481,6 @@ static const struct drm_driver tilcdc_driver = {
 	.fops               = &fops,
 	.name               = "tilcdc",
 	.desc               = "TI LCD Controller DRM",
-	.date               = "20121205",
 	.major              = 1,
 	.minor              = 0,
 };

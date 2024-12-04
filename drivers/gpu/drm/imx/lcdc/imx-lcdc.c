@@ -352,7 +352,6 @@ static struct drm_driver imx_lcdc_drm_driver = {
 	DRM_FBDEV_DMA_DRIVER_OPS,
 	.name = "imx-lcdc",
 	.desc = "i.MX LCDC driver",
-	.date = "20200716",
 };
 
 static const struct of_device_id imx_lcdc_of_dev_id[] = {

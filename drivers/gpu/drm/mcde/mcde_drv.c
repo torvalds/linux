@@ -208,7 +208,6 @@ static const struct drm_driver mcde_drm_driver = {
 	.fops = &drm_fops,
 	.name = "mcde",
 	.desc = DRIVER_DESC,
-	.date = "20180529",
 	.major = 1,
 	.minor = 0,
 	.patchlevel = 0,

@@ -611,7 +611,6 @@ static const struct drm_driver rcar_du_driver = {
 	.fops			= &rcar_du_fops,
 	.name			= "rcar-du",
 	.desc			= "Renesas R-Car Display Unit",
-	.date			= "20130110",
 	.major			= 1,
 	.minor			= 0,
 };

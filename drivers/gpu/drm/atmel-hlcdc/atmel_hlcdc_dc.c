@@ -846,7 +846,6 @@ static const struct drm_driver atmel_hlcdc_dc_driver = {
 	.fops = &fops,
 	.name = "atmel-hlcdc",
 	.desc = "Atmel HLCD Controller DRM",
-	.date = "20141504",
 	.major = 1,
 	.minor = 0,
 };

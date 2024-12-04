@@ -26,7 +26,6 @@
 
 #define DRIVER_NAME "gma500"
 #define DRIVER_DESC "DRM driver for the Intel GMA500, GMA600, GMA3600, GMA3650"
-#define DRIVER_DATE "20140314"
 
 #define DRIVER_MAJOR 1
 #define DRIVER_MINOR 0

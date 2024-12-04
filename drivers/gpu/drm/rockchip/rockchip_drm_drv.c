@@ -39,7 +39,6 @@
 
 #define DRIVER_NAME	"rockchip"
 #define DRIVER_DESC	"RockChip Soc DRM"
-#define DRIVER_DATE	"20140818"
 #define DRIVER_MAJOR	1
 #define DRIVER_MINOR	0
 
@@ -235,7 +234,6 @@ static const struct drm_driver rockchip_drm_driver = {
 	.fops			= &rockchip_drm_driver_fops,
 	.name	= DRIVER_NAME,
 	.desc	= DRIVER_DESC,
-	.date	= DRIVER_DATE,
 	.major	= DRIVER_MAJOR,
 	.minor	= DRIVER_MINOR,
 };

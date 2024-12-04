@@ -159,7 +159,6 @@ static const struct drm_driver mi0283qt_driver = {
 	.debugfs_init		= mipi_dbi_debugfs_init,
 	.name			= "mi0283qt",
 	.desc			= "Multi-Inno MI0283QT",
-	.date			= "20160614",
 	.major			= 1,
 	.minor			= 0,
 };

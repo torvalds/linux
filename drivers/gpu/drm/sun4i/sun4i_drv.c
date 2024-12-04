@@ -50,7 +50,6 @@ static const struct drm_driver sun4i_drv_driver = {
 	.fops			= &sun4i_drv_fops,
 	.name			= "sun4i-drm",
 	.desc			= "Allwinner sun4i Display Engine",
-	.date			= "20150629",
 	.major			= 1,
 	.minor			= 0,
 

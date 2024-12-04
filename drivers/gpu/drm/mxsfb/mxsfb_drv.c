@@ -336,7 +336,6 @@ static const struct drm_driver mxsfb_driver = {
 	.fops	= &fops,
 	.name	= "mxsfb-drm",
 	.desc	= "MXSFB Controller DRM",
-	.date	= "20160824",
 	.major	= 1,
 	.minor	= 0,
 };

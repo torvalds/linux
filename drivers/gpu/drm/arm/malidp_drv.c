@@ -570,7 +570,6 @@ static const struct drm_driver malidp_driver = {
 	.fops = &fops,
 	.name = "mali-dp",
 	.desc = "ARM Mali Display Processor driver",
-	.date = "20160106",
 	.major = 1,
 	.minor = 0,
 };

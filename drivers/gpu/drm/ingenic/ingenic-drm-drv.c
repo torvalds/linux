@@ -953,7 +953,6 @@ static const struct drm_driver ingenic_drm_driver_data = {
 	.driver_features	= DRIVER_MODESET | DRIVER_GEM | DRIVER_ATOMIC,
 	.name			= "ingenic-drm",
 	.desc			= "DRM module for Ingenic SoCs",
-	.date			= "20200716",
 	.major			= 1,
 	.minor			= 1,
 	.patchlevel		= 0,
