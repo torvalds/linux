@@ -213,23 +213,23 @@ static void rxrpc_distribute_error(struct rxrpc_peer *peer, struct sk_buff *skb,
 	struct rxrpc_call *call;
 	HLIST_HEAD(error_targets);
 
-	spin_lock(&peer->lock);
+	spin_lock_irq(&peer->lock);
 	hlist_move_list(&peer->error_targets, &error_targets);
 
 	while (!hlist_empty(&error_targets)) {
 		call = hlist_entry(error_targets.first,
 				   struct rxrpc_call, error_link);
 		hlist_del_init(&call->error_link);
-		spin_unlock(&peer->lock);
+		spin_unlock_irq(&peer->lock);
 
 		rxrpc_see_call(call, rxrpc_call_see_distribute_error);
 		rxrpc_set_call_completion(call, compl, 0, -err);
 		rxrpc_input_call_event(call);
 
-		spin_lock(&peer->lock);
+		spin_lock_irq(&peer->lock);
 	}
 
-	spin_unlock(&peer->lock);
+	spin_unlock_irq(&peer->lock);
 }
 
 /*

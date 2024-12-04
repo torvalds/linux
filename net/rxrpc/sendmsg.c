@@ -261,7 +261,6 @@ static void rxrpc_queue_packet(struct rxrpc_sock *rx, struct rxrpc_call *call,
 		trace_rxrpc_tq(call, sq, seq, rxrpc_tq_queue);
 
 	/* Add the packet to the call's output buffer */
-	spin_lock(&call->tx_lock);
 	poke = (READ_ONCE(call->tx_bottom) == call->send_top);
 	sq->bufs[ix] = txb;
 	/* Order send_top after the queue->next pointer and txb content. */
@@ -270,7 +269,6 @@ static void rxrpc_queue_packet(struct rxrpc_sock *rx, struct rxrpc_call *call,
 		rxrpc_notify_end_tx(rx, call, notify_end_tx);
 		call->send_queue = NULL;
 	}
-	spin_unlock(&call->tx_lock);
 
 	if (poke)
 		rxrpc_poke_call(call, rxrpc_call_poke_start);

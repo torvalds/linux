@@ -320,6 +320,7 @@ static void rxrpc_free_peer(struct rxrpc_peer *peer)
  * Set up a new incoming peer.  There shouldn't be any other matching peers
  * since we've already done a search in the list from the non-reentrant context
  * (the data_ready handler) that is the only place we can add new peers.
+ * Called with interrupts disabled.
  */
 void rxrpc_new_incoming_peer(struct rxrpc_local *local, struct rxrpc_peer *peer)
 {

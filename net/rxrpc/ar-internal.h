@@ -700,7 +700,6 @@ struct rxrpc_call {
 	struct rxrpc_txqueue	*send_queue;	/* Queue that sendmsg is writing into */
 
 	/* Transmitted data tracking. */
-	spinlock_t		tx_lock;	/* Transmit queue lock */
 	struct rxrpc_txqueue	*tx_queue;	/* Start of transmission buffers */
 	struct rxrpc_txqueue	*tx_qtail;	/* End of transmission buffers */
 	rxrpc_seq_t		tx_qbase;	/* First slot in tx_queue */

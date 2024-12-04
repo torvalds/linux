@@ -510,9 +510,9 @@ void rxrpc_connect_client_calls(struct rxrpc_local *local)
 	struct rxrpc_call *call;
 	LIST_HEAD(new_client_calls);
 
-	spin_lock(&local->client_call_lock);
+	spin_lock_irq(&local->client_call_lock);
 	list_splice_tail_init(&local->new_client_calls, &new_client_calls);
-	spin_unlock(&local->client_call_lock);
+	spin_unlock_irq(&local->client_call_lock);
 
 	while ((call = list_first_entry_or_null(&new_client_calls,
 						struct rxrpc_call, wait_link))) {
@@ -547,9 +547,9 @@ void rxrpc_expose_client_call(struct rxrpc_call *call)
 			set_bit(RXRPC_CONN_DONT_REUSE, &conn->flags);
 		trace_rxrpc_client(conn, channel, rxrpc_client_exposed);
 
-		spin_lock(&call->peer->lock);
+		spin_lock_irq(&call->peer->lock);
 		hlist_add_head(&call->error_link, &call->peer->error_targets);
-		spin_unlock(&call->peer->lock);
+		spin_unlock_irq(&call->peer->lock);
 	}
 }
 
@@ -590,9 +590,9 @@ void rxrpc_disconnect_client_call(struct rxrpc_bundle *bundle, struct rxrpc_call
 		ASSERTCMP(call->call_id, ==, 0);
 		ASSERT(!test_bit(RXRPC_CALL_EXPOSED, &call->flags));
 		/* May still be on ->new_client_calls. */
-		spin_lock(&local->client_call_lock);
+		spin_lock_irq(&local->client_call_lock);
 		list_del_init(&call->wait_link);
-		spin_unlock(&local->client_call_lock);
+		spin_unlock_irq(&local->client_call_lock);
 		return;
 	}
 

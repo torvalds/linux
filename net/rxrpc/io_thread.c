@@ -500,9 +500,9 @@ int rxrpc_io_thread(void *data)
 		}
 
 		/* Deal with connections that want immediate attention. */
-		spin_lock_bh(&local->lock);
+		spin_lock_irq(&local->lock);
 		list_splice_tail_init(&local->conn_attend_q, &conn_attend_q);
-		spin_unlock_bh(&local->lock);
+		spin_unlock_irq(&local->lock);
 
 		while ((conn = list_first_entry_or_null(&conn_attend_q,
 							struct rxrpc_connection,
@@ -519,9 +519,9 @@ int rxrpc_io_thread(void *data)
 			rxrpc_discard_expired_client_conns(local);
 
 		/* Deal with calls that want immediate attention. */
-		spin_lock_bh(&local->lock);
+		spin_lock_irq(&local->lock);
 		list_splice_tail_init(&local->call_attend_q, &call_attend_q);
-		spin_unlock_bh(&local->lock);
+		spin_unlock_irq(&local->lock);
 
 		while ((call = list_first_entry_or_null(&call_attend_q,
 							struct rxrpc_call,

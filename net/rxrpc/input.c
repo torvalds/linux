@@ -424,7 +424,7 @@ static void rxrpc_input_queue_data(struct rxrpc_call *call, struct sk_buff *skb,
 	struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
 	bool last = sp->hdr.flags & RXRPC_LAST_PACKET;
 
-	__skb_queue_tail(&call->recvmsg_queue, skb);
+	skb_queue_tail(&call->recvmsg_queue, skb);
 	rxrpc_input_update_ack_window(call, window, wtop);
 	trace_rxrpc_receive(call, last ? why + 1 : why, sp->hdr.serial, sp->hdr.seq);
 	if (last)
@@ -501,7 +501,6 @@ static void rxrpc_input_data_one(struct rxrpc_call *call, struct sk_buff *skb,
 
 		rxrpc_get_skb(skb, rxrpc_skb_get_to_recvmsg);
 
-		spin_lock(&call->recvmsg_queue.lock);
 		rxrpc_input_queue_data(call, skb, window, wtop, rxrpc_receive_queue);
 		*_notify = true;
 
@@ -522,8 +521,6 @@ static void rxrpc_input_data_one(struct rxrpc_call *call, struct sk_buff *skb,
 			rxrpc_input_queue_data(call, oos, window, wtop,
 					       rxrpc_receive_queue_oos);
 		}
-
-		spin_unlock(&call->recvmsg_queue.lock);
 
 		call->ackr_sack_base = sack;
 	} else {
