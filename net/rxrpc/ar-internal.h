@@ -771,6 +771,7 @@ struct rxrpc_call {
  * Summary of a new ACK and the changes it made to the Tx buffer packet states.
  */
 struct rxrpc_ack_summary {
+	rxrpc_serial_t	ack_serial;		/* Serial number of ACK */
 	rxrpc_serial_t	acked_serial;		/* Serial number ACK'd */
 	u16		in_flight;		/* Number of unreceived transmissions */
 	u16		nr_new_hacks;		/* Number of rotated new ACKs */

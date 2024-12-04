@@ -198,11 +198,10 @@ void rxrpc_congestion_degrade(struct rxrpc_call *call)
 static void rxrpc_add_data_rtt_sample(struct rxrpc_call *call,
 				      struct rxrpc_ack_summary *summary,
 				      struct rxrpc_txqueue *tq,
-				      int ix,
-				      rxrpc_serial_t ack_serial)
+				      int ix)
 {
 	rxrpc_peer_add_rtt(call, rxrpc_rtt_rx_data_ack, -1,
-			   summary->acked_serial, ack_serial,
+			   summary->acked_serial, summary->ack_serial,
 			   ktime_add_us(tq->xmit_ts_base, tq->segment_xmit_ts[ix]),
 			   call->acks_latest_ts);
 	summary->rtt_sample_avail = false;
@@ -213,8 +212,7 @@ static void rxrpc_add_data_rtt_sample(struct rxrpc_call *call,
  * Apply a hard ACK by advancing the Tx window.
  */
 static bool rxrpc_rotate_tx_window(struct rxrpc_call *call, rxrpc_seq_t to,
-				   struct rxrpc_ack_summary *summary,
-				   rxrpc_serial_t ack_serial)
+				   struct rxrpc_ack_summary *summary)
 {
 	struct rxrpc_txqueue *tq = call->tx_queue;
 	rxrpc_seq_t seq = call->tx_bottom + 1;
@@ -255,7 +253,7 @@ static bool rxrpc_rotate_tx_window(struct rxrpc_call *call, rxrpc_seq_t to,
 		if (summary->rtt_sample_avail &&
 		    summary->acked_serial == tq->segment_serial[ix] &&
 		    test_bit(ix, &tq->rtt_samples))
-			rxrpc_add_data_rtt_sample(call, summary, tq, ix, ack_serial);
+			rxrpc_add_data_rtt_sample(call, summary, tq, ix);
 
 		if (ix == tq->nr_reported_acks) {
 			/* Packet directly hard ACK'd. */
@@ -369,7 +367,7 @@ static bool rxrpc_receiving_reply(struct rxrpc_call *call)
 	}
 
 	if (!test_bit(RXRPC_CALL_TX_LAST, &call->flags)) {
-		if (!rxrpc_rotate_tx_window(call, top, &summary, 0)) {
+		if (!rxrpc_rotate_tx_window(call, top, &summary)) {
 			rxrpc_proto_abort(call, top, rxrpc_eproto_early_reply);
 			return false;
 		}
@@ -826,12 +824,11 @@ static void rxrpc_input_ack_trailer(struct rxrpc_call *call, struct sk_buff *skb
  */
 static void rxrpc_input_soft_rtt(struct rxrpc_call *call,
 				 struct rxrpc_ack_summary *summary,
-				 struct rxrpc_txqueue *tq,
-				 rxrpc_serial_t ack_serial)
+				 struct rxrpc_txqueue *tq)
 {
 	for (int ix = 0; ix < RXRPC_NR_TXQUEUE; ix++)
 		if (summary->acked_serial == tq->segment_serial[ix])
-			return rxrpc_add_data_rtt_sample(call, summary, tq, ix, ack_serial);
+			return rxrpc_add_data_rtt_sample(call, summary, tq, ix);
 }
 
 /*
@@ -944,7 +941,7 @@ static void rxrpc_input_soft_acks(struct rxrpc_call *call,
 		_debug("bound %16lx %u", extracted, nr);
 
 		if (summary->rtt_sample_avail)
-			rxrpc_input_soft_rtt(call, summary, tq, sp->hdr.serial);
+			rxrpc_input_soft_rtt(call, summary, tq);
 		rxrpc_input_soft_ack_tq(call, summary, tq, extracted, RXRPC_NR_TXQUEUE,
 					seq - RXRPC_NR_TXQUEUE, &lowest_nak);
 		extracted = ~0UL;
@@ -1016,7 +1013,6 @@ static void rxrpc_input_ack(struct rxrpc_call *call, struct sk_buff *skb)
 	struct rxrpc_ack_summary summary = { 0 };
 	struct rxrpc_acktrailer trailer;
 	struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
-	rxrpc_serial_t ack_serial;
 	rxrpc_seq_t first_soft_ack, hard_ack, prev_pkt;
 	int nr_acks, offset, ioffset;
 
@@ -1024,14 +1020,14 @@ static void rxrpc_input_ack(struct rxrpc_call *call, struct sk_buff *skb)
 
 	offset = sizeof(struct rxrpc_wire_header) + sizeof(struct rxrpc_ackpacket);
 
-	ack_serial	= sp->hdr.serial;
-	first_soft_ack	= sp->ack.first_ack;
-	prev_pkt	= sp->ack.prev_ack;
-	nr_acks		= sp->ack.nr_acks;
-	hard_ack	= first_soft_ack - 1;
-	summary.acked_serial = sp->ack.acked_serial;
-	summary.ack_reason = (sp->ack.reason < RXRPC_ACK__INVALID ?
-			      sp->ack.reason : RXRPC_ACK__INVALID);
+	summary.ack_serial	= sp->hdr.serial;
+	first_soft_ack		= sp->ack.first_ack;
+	prev_pkt		= sp->ack.prev_ack;
+	nr_acks			= sp->ack.nr_acks;
+	hard_ack		= first_soft_ack - 1;
+	summary.acked_serial	= sp->ack.acked_serial;
+	summary.ack_reason	= (sp->ack.reason < RXRPC_ACK__INVALID ?
+				   sp->ack.reason : RXRPC_ACK__INVALID);
 
 	trace_rxrpc_rx_ack(call, sp);
 	rxrpc_inc_stat(call->rxnet, stat_rx_acks[summary.ack_reason]);
@@ -1066,7 +1062,7 @@ static void rxrpc_input_ack(struct rxrpc_call *call, struct sk_buff *skb)
 
 	/* Discard any out-of-order or duplicate ACKs (outside lock). */
 	if (!rxrpc_is_ack_valid(call, hard_ack, prev_pkt)) {
-		trace_rxrpc_rx_discard_ack(call, ack_serial, hard_ack, prev_pkt);
+		trace_rxrpc_rx_discard_ack(call, summary.ack_serial, hard_ack, prev_pkt);
 		goto send_response;
 	}
 
@@ -1100,10 +1096,10 @@ static void rxrpc_input_ack(struct rxrpc_call *call, struct sk_buff *skb)
 	if (hard_ack + 1 == 0)
 		return rxrpc_proto_abort(call, 0, rxrpc_eproto_ackr_zero);
 
-	if (summary.acked_serial != 0) {
+	if (summary.acked_serial) {
 		if (summary.ack_reason == RXRPC_ACK_PING_RESPONSE)
 			rxrpc_complete_rtt_probe(call, call->acks_latest_ts,
-						 summary.acked_serial, ack_serial,
+						 summary.acked_serial, summary.ack_serial,
 						 rxrpc_rtt_rx_ping_response);
 		else
 			summary.rtt_sample_avail = true;
@@ -1127,7 +1123,7 @@ static void rxrpc_input_ack(struct rxrpc_call *call, struct sk_buff *skb)
 		return rxrpc_proto_abort(call, 0, rxrpc_eproto_ackr_sack_overflow);
 
 	if (after(hard_ack, call->tx_bottom)) {
-		if (rxrpc_rotate_tx_window(call, hard_ack, &summary, ack_serial)) {
+		if (rxrpc_rotate_tx_window(call, hard_ack, &summary)) {
 			rxrpc_end_tx_phase(call, false, rxrpc_eproto_unexpected_ack);
 			goto send_response;
 		}
@@ -1142,19 +1138,20 @@ static void rxrpc_input_ack(struct rxrpc_call *call, struct sk_buff *skb)
 	if (test_bit(RXRPC_CALL_TX_LAST, &call->flags) &&
 	    call->acks_nr_sacks == call->tx_top - hard_ack &&
 	    rxrpc_is_client_call(call))
-		rxrpc_propose_ping(call, ack_serial,
+		rxrpc_propose_ping(call, summary.ack_serial,
 				   rxrpc_propose_ack_ping_for_lost_reply);
 
 	rxrpc_congestion_management(call, &summary);
 	if (summary.need_retransmit)
-		rxrpc_resend(call, ack_serial, summary.ack_reason == RXRPC_ACK_PING_RESPONSE);
+		rxrpc_resend(call, summary.ack_serial,
+			     summary.ack_reason == RXRPC_ACK_PING_RESPONSE);
 
 send_response:
 	if (summary.ack_reason == RXRPC_ACK_PING)
-		rxrpc_send_ACK(call, RXRPC_ACK_PING_RESPONSE, ack_serial,
+		rxrpc_send_ACK(call, RXRPC_ACK_PING_RESPONSE, summary.ack_serial,
 			       rxrpc_propose_ack_respond_to_ping);
 	else if (sp->hdr.flags & RXRPC_REQUEST_ACK)
-		rxrpc_send_ACK(call, RXRPC_ACK_REQUESTED, ack_serial,
+		rxrpc_send_ACK(call, RXRPC_ACK_REQUESTED, summary.ack_serial,
 			       rxrpc_propose_ack_respond_to_ack);
 }
 
@@ -1165,7 +1162,7 @@ static void rxrpc_input_ackall(struct rxrpc_call *call, struct sk_buff *skb)
 {
 	struct rxrpc_ack_summary summary = { 0 };
 
-	if (rxrpc_rotate_tx_window(call, call->tx_top, &summary, 0))
+	if (rxrpc_rotate_tx_window(call, call->tx_top, &summary))
 		rxrpc_end_tx_phase(call, false, rxrpc_eproto_unexpected_ackall);
 }
 
