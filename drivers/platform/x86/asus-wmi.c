@@ -3696,7 +3696,6 @@ static int asus_wmi_custom_fan_curve_init(struct asus_wmi *asus)
 /* Throttle thermal policy ****************************************************/
 static int throttle_thermal_policy_write(struct asus_wmi *asus)
 {
-	u32 retval;
 	u8 value;
 	int err;
 
@@ -3718,8 +3717,8 @@ static int throttle_thermal_policy_write(struct asus_wmi *asus)
 		value = asus->throttle_thermal_policy_mode;
 	}
 
-	err = asus_wmi_set_devstate(asus->throttle_thermal_policy_dev,
-				    value, &retval);
+	/* Some machines do not return an error code as a result, so we ignore it */
+	err = asus_wmi_set_devstate(asus->throttle_thermal_policy_dev, value, NULL);
 
 	sysfs_notify(&asus->platform_device->dev.kobj, NULL,
 			"throttle_thermal_policy");
@@ -3727,12 +3726,6 @@ static int throttle_thermal_policy_write(struct asus_wmi *asus)
 	if (err) {
 		pr_warn("Failed to set throttle thermal policy: %d\n", err);
 		return err;
-	}
-
-	if (retval != 1) {
-		pr_warn("Failed to set throttle thermal policy (retval): 0x%x\n",
-			retval);
-		return -EIO;
 	}
 
 	/* Must set to disabled if mode is toggled */
