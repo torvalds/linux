@@ -148,7 +148,7 @@ static int mperf_measure_stats(unsigned int cpu)
 	ret = get_aperf_mperf(cpu, &aval, &mval);
 	aperf_current_count[cpu] = aval;
 	mperf_current_count[cpu] = mval;
-	is_valid[cpu] = !ret;
+	is_valid[cpu] |= !ret;
 
 	return 0;
 }

@@ -117,7 +117,7 @@ static int hsw_ext_start(void)
 
 	for (num = 0; num < HSW_EXT_CSTATE_COUNT; num++) {
 		for (cpu = 0; cpu < cpu_count; cpu++) {
-			hsw_ext_get_count(num, &val, cpu);
+			is_valid[cpu] = !hsw_ext_get_count(num, &val, cpu);
 			previous_count[num][cpu] = val;
 		}
 	}
@@ -134,7 +134,7 @@ static int hsw_ext_stop(void)
 
 	for (num = 0; num < HSW_EXT_CSTATE_COUNT; num++) {
 		for (cpu = 0; cpu < cpu_count; cpu++) {
-			is_valid[cpu] = !hsw_ext_get_count(num, &val, cpu);
+			is_valid[cpu] |= !hsw_ext_get_count(num, &val, cpu);
 			current_count[num][cpu] = val;
 		}
 	}
