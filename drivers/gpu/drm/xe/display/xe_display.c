@@ -134,7 +134,7 @@ static void xe_display_fini_noirq(void *arg)
 	if (!xe->info.probe_display)
 		return;
 
-	intel_display_driver_remove_noirq(xe);
+	intel_display_driver_remove_noirq(display);
 	intel_opregion_cleanup(display);
 }
 
@@ -146,7 +146,7 @@ int xe_display_init_noirq(struct xe_device *xe)
 	if (!xe->info.probe_display)
 		return 0;
 
-	intel_display_driver_early_probe(xe);
+	intel_display_driver_early_probe(display);
 
 	/* Early display init.. */
 	intel_opregion_setup(display);
@@ -161,7 +161,7 @@ int xe_display_init_noirq(struct xe_device *xe)
 
 	intel_display_device_info_runtime_init(display);
 
-	err = intel_display_driver_probe_noirq(xe);
+	err = intel_display_driver_probe_noirq(display);
 	if (err) {
 		intel_opregion_cleanup(display);
 		return err;
@@ -173,21 +173,23 @@ int xe_display_init_noirq(struct xe_device *xe)
 static void xe_display_fini_noaccel(void *arg)
 {
 	struct xe_device *xe = arg;
+	struct intel_display *display = &xe->display;
 
 	if (!xe->info.probe_display)
 		return;
 
-	intel_display_driver_remove_nogem(xe);
+	intel_display_driver_remove_nogem(display);
 }
 
 int xe_display_init_noaccel(struct xe_device *xe)
 {
+	struct intel_display *display = &xe->display;
 	int err;
 
 	if (!xe->info.probe_display)
 		return 0;
 
-	err = intel_display_driver_probe_nogem(xe);
+	err = intel_display_driver_probe_nogem(display);
 	if (err)
 		return err;
 
@@ -196,10 +198,12 @@ int xe_display_init_noaccel(struct xe_device *xe)
 
 int xe_display_init(struct xe_device *xe)
 {
+	struct intel_display *display = &xe->display;
+
 	if (!xe->info.probe_display)
 		return 0;
 
-	return intel_display_driver_probe(xe);
+	return intel_display_driver_probe(display);
 }
 
 void xe_display_fini(struct xe_device *xe)
@@ -222,7 +226,7 @@ void xe_display_register(struct xe_device *xe)
 	if (!xe->info.probe_display)
 		return;
 
-	intel_display_driver_register(xe);
+	intel_display_driver_register(display);
 	intel_power_domains_enable(display);
 	intel_register_dsm_handler();
 }
@@ -236,15 +240,17 @@ void xe_display_unregister(struct xe_device *xe)
 
 	intel_unregister_dsm_handler();
 	intel_power_domains_disable(display);
-	intel_display_driver_unregister(xe);
+	intel_display_driver_unregister(display);
 }
 
 void xe_display_driver_remove(struct xe_device *xe)
 {
+	struct intel_display *display = &xe->display;
+
 	if (!xe->info.probe_display)
 		return;
 
-	intel_display_driver_remove(xe);
+	intel_display_driver_remove(display);
 }
 
 /* IRQ-related functions */
@@ -334,8 +340,8 @@ static void __xe_display_pm_suspend(struct xe_device *xe, bool runtime)
 
 	if (!runtime && has_display(xe)) {
 		drm_kms_helper_poll_disable(&xe->drm);
-		intel_display_driver_disable_user_access(xe);
-		intel_display_driver_suspend(xe);
+		intel_display_driver_disable_user_access(display);
+		intel_display_driver_suspend(display);
 	}
 
 	xe_display_flush_cleanup_work(xe);
@@ -343,7 +349,7 @@ static void __xe_display_pm_suspend(struct xe_device *xe, bool runtime)
 	intel_hpd_cancel_work(xe);
 
 	if (!runtime && has_display(xe)) {
-		intel_display_driver_suspend_access(xe);
+		intel_display_driver_suspend_access(display);
 		intel_encoder_suspend_all(&xe->display);
 	}
 
@@ -368,8 +374,8 @@ void xe_display_pm_shutdown(struct xe_device *xe)
 	intel_fbdev_set_suspend(&xe->drm, FBINFO_STATE_SUSPENDED, true);
 	if (has_display(xe)) {
 		drm_kms_helper_poll_disable(&xe->drm);
-		intel_display_driver_disable_user_access(xe);
-		intel_display_driver_suspend(xe);
+		intel_display_driver_disable_user_access(display);
+		intel_display_driver_suspend(display);
 	}
 
 	xe_display_flush_cleanup_work(xe);
@@ -377,7 +383,7 @@ void xe_display_pm_shutdown(struct xe_device *xe)
 	intel_hpd_cancel_work(xe);
 
 	if (has_display(xe))
-		intel_display_driver_suspend_access(xe);
+		intel_display_driver_suspend_access(display);
 
 	intel_encoder_suspend_all(display);
 	intel_encoder_shutdown_all(display);
@@ -464,17 +470,17 @@ static void __xe_display_pm_resume(struct xe_device *xe, bool runtime)
 	if (has_display(xe))
 		drm_mode_config_reset(&xe->drm);
 
-	intel_display_driver_init_hw(xe);
+	intel_display_driver_init_hw(display);
 
 	if (!runtime && has_display(xe))
-		intel_display_driver_resume_access(xe);
+		intel_display_driver_resume_access(display);
 
 	intel_hpd_init(xe);
 
 	if (!runtime && has_display(xe)) {
-		intel_display_driver_resume(xe);
+		intel_display_driver_resume(display);
 		drm_kms_helper_poll_enable(&xe->drm);
-		intel_display_driver_enable_user_access(xe);
+		intel_display_driver_enable_user_access(display);
 		intel_hpd_poll_disable(xe);
 	}
 

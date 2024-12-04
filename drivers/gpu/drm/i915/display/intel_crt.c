@@ -870,7 +870,7 @@ intel_crt_detect(struct drm_connector *connector,
 	if (!intel_display_device_enabled(display))
 		return connector_status_disconnected;
 
-	if (!intel_display_driver_check_access(dev_priv))
+	if (!intel_display_driver_check_access(display))
 		return connector->status;
 
 	if (display->params.load_detect_test) {
@@ -954,7 +954,7 @@ static int intel_crt_get_modes(struct drm_connector *connector)
 	struct i2c_adapter *ddc;
 	int ret;
 
-	if (!intel_display_driver_check_access(dev_priv))
+	if (!intel_display_driver_check_access(display))
 		return drm_edid_connector_add_modes(connector);
 
 	wakeref = intel_display_power_get(dev_priv, encoder->power_domain);

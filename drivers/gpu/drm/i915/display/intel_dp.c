@@ -5652,7 +5652,7 @@ intel_dp_detect(struct drm_connector *connector,
 	if (!intel_display_device_enabled(display))
 		return connector_status_disconnected;
 
-	if (!intel_display_driver_check_access(dev_priv))
+	if (!intel_display_driver_check_access(display))
 		return connector->status;
 
 	intel_dp_flush_connector_commits(intel_connector);
@@ -5774,6 +5774,7 @@ out_vdd_off:
 static void
 intel_dp_force(struct drm_connector *connector)
 {
+	struct intel_display *display = to_intel_display(connector->dev);
 	struct intel_dp *intel_dp = intel_attached_dp(to_intel_connector(connector));
 	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
 	struct intel_encoder *intel_encoder = &dig_port->base;
@@ -5782,7 +5783,7 @@ intel_dp_force(struct drm_connector *connector)
 	drm_dbg_kms(&dev_priv->drm, "[CONNECTOR:%d:%s]\n",
 		    connector->base.id, connector->name);
 
-	if (!intel_display_driver_check_access(dev_priv))
+	if (!intel_display_driver_check_access(display))
 		return;
 
 	intel_dp_unset_edid(intel_dp);

@@ -2557,7 +2557,7 @@ intel_hdmi_detect(struct drm_connector *connector, bool force)
 	if (!intel_display_device_enabled(display))
 		return connector_status_disconnected;
 
-	if (!intel_display_driver_check_access(dev_priv))
+	if (!intel_display_driver_check_access(display))
 		return connector->status;
 
 	wakeref = intel_display_power_get(dev_priv, POWER_DOMAIN_GMBUS);
@@ -2584,12 +2584,11 @@ static void
 intel_hdmi_force(struct drm_connector *connector)
 {
 	struct intel_display *display = to_intel_display(connector->dev);
-	struct drm_i915_private *i915 = to_i915(connector->dev);
 
 	drm_dbg_kms(display->drm, "[CONNECTOR:%d:%s]\n",
 		    connector->base.id, connector->name);
 
-	if (!intel_display_driver_check_access(i915))
+	if (!intel_display_driver_check_access(display))
 		return;
 
 	intel_hdmi_unset_edid(connector);

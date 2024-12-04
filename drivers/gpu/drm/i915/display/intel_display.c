@@ -6806,6 +6806,7 @@ static int intel_atomic_check_config_and_link(struct intel_atomic_state *state)
 int intel_atomic_check(struct drm_device *dev,
 		       struct drm_atomic_state *_state)
 {
+	struct intel_display *display = to_intel_display(dev);
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_atomic_state *state = to_intel_atomic_state(_state);
 	struct intel_crtc_state *old_crtc_state, *new_crtc_state;
@@ -6813,7 +6814,7 @@ int intel_atomic_check(struct drm_device *dev,
 	int ret, i;
 	bool any_ms = false;
 
-	if (!intel_display_driver_check_access(dev_priv))
+	if (!intel_display_driver_check_access(display))
 		return -ENODEV;
 
 	for_each_oldnew_intel_crtc_in_state(state, crtc, old_crtc_state,

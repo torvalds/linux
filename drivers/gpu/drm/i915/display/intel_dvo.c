@@ -329,7 +329,7 @@ intel_dvo_detect(struct drm_connector *_connector, bool force)
 	if (!intel_display_device_enabled(display))
 		return connector_status_disconnected;
 
-	if (!intel_display_driver_check_access(i915))
+	if (!intel_display_driver_check_access(display))
 		return connector->base.status;
 
 	return intel_dvo->dev.dev_ops->detect(&intel_dvo->dev);
@@ -337,11 +337,11 @@ intel_dvo_detect(struct drm_connector *_connector, bool force)
 
 static int intel_dvo_get_modes(struct drm_connector *_connector)
 {
+	struct intel_display *display = to_intel_display(_connector->dev);
 	struct intel_connector *connector = to_intel_connector(_connector);
-	struct drm_i915_private *i915 = to_i915(connector->base.dev);
 	int num_modes;
 
-	if (!intel_display_driver_check_access(i915))
+	if (!intel_display_driver_check_access(display))
 		return drm_edid_connector_add_modes(&connector->base);
 
 	/*
