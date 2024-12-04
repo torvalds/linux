@@ -57,6 +57,9 @@
 #define NIX_PF_PFC_PRIO_MAX			8
 #endif
 
+/* Number of segments per SG structure */
+#define MAX_SEGS_PER_SG 3
+
 enum arua_mapped_qtypes {
 	AURA_NIX_RQ,
 	AURA_NIX_SQ,

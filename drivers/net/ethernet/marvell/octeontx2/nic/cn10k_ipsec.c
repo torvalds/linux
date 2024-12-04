@@ -7,9 +7,14 @@
 #include <net/xfrm.h>
 #include <linux/netdevice.h>
 #include <linux/bitfield.h>
+#include <crypto/aead.h>
+#include <crypto/gcm.h>
 
 #include "otx2_common.h"
+#include "otx2_struct.h"
 #include "cn10k_ipsec.h"
+
+DEFINE_STATIC_KEY_FALSE(cn10k_ipsec_sa_enabled);
 
 static bool is_dev_support_ipsec_offload(struct pci_dev *pdev)
 {
@@ -690,6 +695,9 @@ static int cn10k_ipsec_outb_add_state(struct xfrm_state *x,
 	}
 
 	x->xso.offload_handle = (unsigned long)sa_info;
+	/* Enable static branch when first SA setup */
+	if (!pf->ipsec.outb_sa_count)
+		static_branch_enable(&cn10k_ipsec_sa_enabled);
 	pf->ipsec.outb_sa_count++;
 	return 0;
 }
@@ -749,6 +757,8 @@ static void cn10k_ipsec_sa_wq_handler(struct work_struct *work)
 						 sa_work);
 	struct otx2_nic *pf = container_of(ipsec, struct otx2_nic, ipsec);
 
+	/* Disable static branch when no more SA enabled */
+	static_branch_disable(&cn10k_ipsec_sa_enabled);
 	rtnl_lock();
 	netdev_update_features(pf->netdev);
 	rtnl_unlock();
@@ -822,3 +832,212 @@ void cn10k_ipsec_clean(struct otx2_nic *pf)
 	cn10k_outb_cpt_clean(pf);
 }
 EXPORT_SYMBOL(cn10k_ipsec_clean);
+
+static u16 cn10k_ipsec_get_ip_data_len(struct xfrm_state *x,
+				       struct sk_buff *skb)
+{
+	struct ipv6hdr *ipv6h;
+	struct iphdr *iph;
+	u8 *src;
+
+	src = (u8 *)skb->data + ETH_HLEN;
+
+	if (x->props.family == AF_INET) {
+		iph = (struct iphdr *)src;
+		return ntohs(iph->tot_len);
+	}
+
+	ipv6h = (struct ipv6hdr *)src;
+	return ntohs(ipv6h->payload_len) + sizeof(struct ipv6hdr);
+}
+
+/* Prepare CPT and NIX SQE scatter/gather subdescriptor structure.
+ * SG of NIX and CPT are same in size.
+ * Layout of a NIX SQE and CPT SG entry:
+ *      -----------------------------
+ *     |     CPT Scatter Gather      |
+ *     |       (SQE SIZE)            |
+ *     |                             |
+ *      -----------------------------
+ *     |       NIX SQE               |
+ *     |       (SQE SIZE)            |
+ *     |                             |
+ *      -----------------------------
+ */
+bool otx2_sqe_add_sg_ipsec(struct otx2_nic *pfvf, struct otx2_snd_queue *sq,
+			   struct sk_buff *skb, int num_segs, int *offset)
+{
+	struct cpt_sg_s *cpt_sg = NULL;
+	struct nix_sqe_sg_s *sg = NULL;
+	u64 dma_addr, *iova = NULL;
+	u64 *cpt_iova = NULL;
+	u16 *sg_lens = NULL;
+	int seg, len;
+
+	sq->sg[sq->head].num_segs = 0;
+	cpt_sg = (struct cpt_sg_s *)(sq->sqe_base - sq->sqe_size);
+
+	for (seg = 0; seg < num_segs; seg++) {
+		if ((seg % MAX_SEGS_PER_SG) == 0) {
+			sg = (struct nix_sqe_sg_s *)(sq->sqe_base + *offset);
+			sg->ld_type = NIX_SEND_LDTYPE_LDD;
+			sg->subdc = NIX_SUBDC_SG;
+			sg->segs = 0;
+			sg_lens = (void *)sg;
+			iova = (void *)sg + sizeof(*sg);
+			/* Next subdc always starts at a 16byte boundary.
+			 * So if sg->segs is whether 2 or 3, offset += 16bytes.
+			 */
+			if ((num_segs - seg) >= (MAX_SEGS_PER_SG - 1))
+				*offset += sizeof(*sg) + (3 * sizeof(u64));
+			else
+				*offset += sizeof(*sg) + sizeof(u64);
+
+			cpt_sg += (seg / MAX_SEGS_PER_SG) * 4;
+			cpt_iova = (void *)cpt_sg + sizeof(*cpt_sg);
+		}
+		dma_addr = otx2_dma_map_skb_frag(pfvf, skb, seg, &len);
+		if (dma_mapping_error(pfvf->dev, dma_addr))
+			return false;
+
+		sg_lens[seg % MAX_SEGS_PER_SG] = len;
+		sg->segs++;
+		*iova++ = dma_addr;
+		*cpt_iova++ = dma_addr;
+
+		/* Save DMA mapping info for later unmapping */
+		sq->sg[sq->head].dma_addr[seg] = dma_addr;
+		sq->sg[sq->head].size[seg] = len;
+		sq->sg[sq->head].num_segs++;
+
+		*cpt_sg = *(struct cpt_sg_s *)sg;
+		cpt_sg->rsvd_63_50 = 0;
+	}
+
+	sq->sg[sq->head].skb = (u64)skb;
+	return true;
+}
+
+static u16 cn10k_ipsec_get_param1(u8 iv_offset)
+{
+	u16 param1_val;
+
+	/* Set Crypto mode, disable L3/L4 checksum */
+	param1_val = CN10K_IPSEC_INST_PARAM1_DIS_L4_CSUM |
+		      CN10K_IPSEC_INST_PARAM1_DIS_L3_CSUM;
+	param1_val |= (u16)iv_offset << CN10K_IPSEC_INST_PARAM1_IV_OFFSET_SHIFT;
+	return param1_val;
+}
+
+bool cn10k_ipsec_transmit(struct otx2_nic *pf, struct netdev_queue *txq,
+			  struct otx2_snd_queue *sq, struct sk_buff *skb,
+			  int num_segs, int size)
+{
+	struct cpt_inst_s inst;
+	struct cpt_res_s *res;
+	struct xfrm_state *x;
+	struct qmem *sa_info;
+	dma_addr_t dptr_iova;
+	struct sec_path *sp;
+	u8 encap_offset;
+	u8 auth_offset;
+	u8 gthr_size;
+	u8 iv_offset;
+	u16 dlen;
+
+	/* Check for IPSEC offload enabled */
+	if (!(pf->flags & OTX2_FLAG_IPSEC_OFFLOAD_ENABLED))
+		goto drop;
+
+	sp = skb_sec_path(skb);
+	if (unlikely(!sp->len))
+		goto drop;
+
+	x = xfrm_input_state(skb);
+	if (unlikely(!x))
+		goto drop;
+
+	if (x->props.mode != XFRM_MODE_TRANSPORT &&
+	    x->props.mode != XFRM_MODE_TUNNEL)
+		goto drop;
+
+	dlen = cn10k_ipsec_get_ip_data_len(x, skb);
+	if (dlen == 0 && netif_msg_tx_err(pf)) {
+		netdev_err(pf->netdev, "Invalid IP header, ip-length zero\n");
+		goto drop;
+	}
+
+	/* Check for valid SA context */
+	sa_info = (struct qmem *)x->xso.offload_handle;
+	if (!sa_info)
+		goto drop;
+
+	memset(&inst, 0, sizeof(struct cpt_inst_s));
+
+	/* Get authentication offset */
+	if (x->props.family == AF_INET)
+		auth_offset = sizeof(struct iphdr);
+	else
+		auth_offset = sizeof(struct ipv6hdr);
+
+	/* IV offset is after ESP header */
+	iv_offset = auth_offset + sizeof(struct ip_esp_hdr);
+	/* Encap will start after IV */
+	encap_offset = iv_offset + GCM_RFC4106_IV_SIZE;
+
+	/* CPT Instruction word-1 */
+	res = (struct cpt_res_s *)(sq->cpt_resp->base + (64 * sq->head));
+	res->compcode = 0;
+	inst.res_addr = sq->cpt_resp->iova + (64 * sq->head);
+
+	/* CPT Instruction word-2 */
+	inst.rvu_pf_func = pf->pcifunc;
+
+	/* CPT Instruction word-3:
+	 * Set QORD to force CPT_RES_S write completion
+	 */
+	inst.qord = 1;
+
+	/* CPT Instruction word-4 */
+	/* inst.dlen should not include ICV length */
+	inst.dlen = dlen + ETH_HLEN - (x->aead->alg_icv_len / 8);
+	inst.opcode_major = CN10K_IPSEC_MAJOR_OP_OUTB_IPSEC;
+	inst.param1 = cn10k_ipsec_get_param1(iv_offset);
+
+	inst.param2 = encap_offset <<
+		       CN10K_IPSEC_INST_PARAM2_ENC_DATA_OFFSET_SHIFT;
+	inst.param2 |= (u16)auth_offset <<
+			CN10K_IPSEC_INST_PARAM2_AUTH_DATA_OFFSET_SHIFT;
+
+	/* CPT Instruction word-5 */
+	gthr_size = num_segs / MAX_SEGS_PER_SG;
+	gthr_size = (num_segs % MAX_SEGS_PER_SG) ? gthr_size + 1 : gthr_size;
+
+	gthr_size &= 0xF;
+	dptr_iova = (sq->sqe_ring->iova + (sq->head * (sq->sqe_size * 2)));
+	inst.dptr = dptr_iova | ((u64)gthr_size << 60);
+
+	/* CPT Instruction word-6 */
+	inst.rptr = inst.dptr;
+
+	/* CPT Instruction word-7 */
+	inst.cptr = sa_info->iova;
+	inst.ctx_val = 1;
+	inst.egrp = CN10K_DEF_CPT_IPSEC_EGRP;
+
+	/* CPT Instruction word-0 */
+	inst.nixtxl = (size / 16) - 1;
+	inst.dat_offset = ETH_HLEN;
+	inst.nixtx_offset = sq->sqe_size;
+
+	netdev_tx_sent_queue(txq, skb->len);
+
+	/* Finally Flush the CPT instruction */
+	sq->head++;
+	sq->head &= (sq->sqe_cnt - 1);
+	cn10k_cpt_inst_flush(pf, &inst, sizeof(struct cpt_inst_s));
+	return true;
+drop:
+	dev_kfree_skb_any(skb);
+	return false;
+}
