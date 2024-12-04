@@ -32,7 +32,7 @@
 #define GNR_PINS_PER_REG 32
 #define GNR_NUM_REGS DIV_ROUND_UP(GNR_NUM_PINS, GNR_PINS_PER_REG)
 
-#define GNR_CFG_BAR		0x00
+#define GNR_CFG_PADBAR		0x00
 #define GNR_CFG_LOCK_OFFSET	0x04
 #define GNR_GPI_STATUS_OFFSET	0x20
 #define GNR_GPI_ENABLE_OFFSET	0x24
@@ -50,6 +50,7 @@
  * struct gnr_gpio - Intel Granite Rapids-D vGPIO driver state
  * @gc: GPIO controller interface
  * @reg_base: base address of the GPIO registers
+ * @pad_base: base address of the vGPIO pad configuration registers
  * @ro_bitmap: bitmap of read-only pins
  * @lock: guard the registers
  * @pad_backup: backup of the register state for suspend
@@ -57,6 +58,7 @@
 struct gnr_gpio {
 	struct gpio_chip gc;
 	void __iomem *reg_base;
+	void __iomem *pad_base;
 	DECLARE_BITMAP(ro_bitmap, GNR_NUM_PINS);
 	raw_spinlock_t lock;
 	u32 pad_backup[];
@@ -65,7 +67,7 @@ struct gnr_gpio {
 static void __iomem *gnr_gpio_get_padcfg_addr(const struct gnr_gpio *priv,
 					      unsigned int gpio)
 {
-	return priv->reg_base + gpio * sizeof(u32);
+	return priv->pad_base + gpio * sizeof(u32);
 }
 
 static int gnr_gpio_configure_line(struct gpio_chip *gc, unsigned int gpio,
@@ -292,6 +294,7 @@ static int gnr_gpio_probe(struct platform_device *pdev)
 	struct gnr_gpio *priv;
 	void __iomem *regs;
 	int irq, ret;
+	u32 offset;
 
 	priv = devm_kzalloc(dev, struct_size(priv, pad_backup, num_backup_pins), GFP_KERNEL);
 	if (!priv)
@@ -303,6 +306,10 @@ static int gnr_gpio_probe(struct platform_device *pdev)
 	if (IS_ERR(regs))
 		return PTR_ERR(regs);
 
+	priv->reg_base = regs;
+	offset = readl(priv->reg_base + GNR_CFG_PADBAR);
+	priv->pad_base = priv->reg_base + offset;
+
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
 		return irq;
@@ -311,8 +318,6 @@ static int gnr_gpio_probe(struct platform_device *pdev)
 			       dev_name(dev), priv);
 	if (ret)
 		return dev_err_probe(dev, ret, "failed to request interrupt\n");
-
-	priv->reg_base = regs + readl(regs + GNR_CFG_BAR);
 
 	gnr_gpio_init_pin_ro_bits(dev, priv->reg_base + GNR_CFG_LOCK_OFFSET,
 				  priv->ro_bitmap);
