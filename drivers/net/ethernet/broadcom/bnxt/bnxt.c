@@ -8365,7 +8365,7 @@ static int bnxt_alloc_all_ctx_pg_info(struct bnxt *bp, int ctx_max)
 		struct bnxt_ctx_mem_type *ctxm = &ctx->ctx_arr[type];
 		int n = 1;
 
-		if (!ctxm->max_entries)
+		if (!ctxm->max_entries || ctxm->pg_info)
 			continue;
 
 		if (ctxm->instance_bmap)
@@ -8969,8 +8969,8 @@ static int bnxt_backing_store_cfg_v2(struct bnxt *bp, u32 ena)
 				continue;
 			}
 			bnxt_bs_trace_init(bp, ctxm);
-			last_type = type;
 		}
+		last_type = type;
 	}
 
 	if (last_type == BNXT_CTX_INV) {
