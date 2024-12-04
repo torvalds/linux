@@ -644,9 +644,8 @@ extern int hisi_sas_probe(struct platform_device *pdev,
 			  const struct hisi_sas_hw *ops);
 extern void hisi_sas_remove(struct platform_device *pdev);
 
-int hisi_sas_device_configure(struct scsi_device *sdev,
-		struct queue_limits *lim);
-extern int hisi_sas_slave_alloc(struct scsi_device *sdev);
+int hisi_sas_sdev_configure(struct scsi_device *sdev, struct queue_limits *lim);
+extern int hisi_sas_sdev_init(struct scsi_device *sdev);
 extern int hisi_sas_scan_finished(struct Scsi_Host *shost, unsigned long time);
 extern void hisi_sas_scan_start(struct Scsi_Host *shost);
 extern int hisi_sas_host_reset(struct Scsi_Host *shost, int reset_type);

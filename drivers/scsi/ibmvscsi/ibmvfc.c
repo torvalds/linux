@@ -3393,7 +3393,7 @@ static int ibmvfc_scan_finished(struct Scsi_Host *shost, unsigned long time)
 }
 
 /**
- * ibmvfc_slave_alloc - Setup the device's task set value
+ * ibmvfc_sdev_init - Setup the device's task set value
  * @sdev:	struct scsi_device device to configure
  *
  * Set the device's task set value so that error handling works as
@@ -3402,7 +3402,7 @@ static int ibmvfc_scan_finished(struct Scsi_Host *shost, unsigned long time)
  * Returns:
  *	0 on success / -ENXIO if device does not exist
  **/
-static int ibmvfc_slave_alloc(struct scsi_device *sdev)
+static int ibmvfc_sdev_init(struct scsi_device *sdev)
 {
 	struct Scsi_Host *shost = sdev->host;
 	struct fc_rport *rport = starget_to_rport(scsi_target(sdev));
@@ -3441,8 +3441,9 @@ static int ibmvfc_target_alloc(struct scsi_target *starget)
 }
 
 /**
- * ibmvfc_slave_configure - Configure the device
+ * ibmvfc_sdev_configure - Configure the device
  * @sdev:	struct scsi_device device to configure
+ * @lim:	Request queue limits
  *
  * Enable allow_restart for a device if it is a disk. Adjust the
  * queue_depth here also.
@@ -3450,7 +3451,8 @@ static int ibmvfc_target_alloc(struct scsi_target *starget)
  * Returns:
  *	0
  **/
-static int ibmvfc_slave_configure(struct scsi_device *sdev)
+static int ibmvfc_sdev_configure(struct scsi_device *sdev,
+				 struct queue_limits *lim)
 {
 	struct Scsi_Host *shost = sdev->host;
 	unsigned long flags = 0;
@@ -3696,8 +3698,8 @@ static const struct scsi_host_template driver_template = {
 	.eh_device_reset_handler = ibmvfc_eh_device_reset_handler,
 	.eh_target_reset_handler = ibmvfc_eh_target_reset_handler,
 	.eh_host_reset_handler = ibmvfc_eh_host_reset_handler,
-	.slave_alloc = ibmvfc_slave_alloc,
-	.slave_configure = ibmvfc_slave_configure,
+	.sdev_init = ibmvfc_sdev_init,
+	.sdev_configure = ibmvfc_sdev_configure,
 	.target_alloc = ibmvfc_target_alloc,
 	.scan_finished = ibmvfc_scan_finished,
 	.change_queue_depth = ibmvfc_change_queue_depth,

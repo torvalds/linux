@@ -2068,8 +2068,8 @@ static void megasas_set_static_target_properties(struct scsi_device *sdev,
 }
 
 
-static int megasas_device_configure(struct scsi_device *sdev,
-		struct queue_limits *lim)
+static int megasas_sdev_configure(struct scsi_device *sdev,
+				  struct queue_limits *lim)
 {
 	u16 pd_index = 0;
 	struct megasas_instance *instance;
@@ -2109,7 +2109,7 @@ static int megasas_device_configure(struct scsi_device *sdev,
 	return 0;
 }
 
-static int megasas_slave_alloc(struct scsi_device *sdev)
+static int megasas_sdev_init(struct scsi_device *sdev)
 {
 	u16 pd_index = 0, ld_tgt_id;
 	struct megasas_instance *instance ;
@@ -2154,7 +2154,7 @@ scan_target:
 	return 0;
 }
 
-static void megasas_slave_destroy(struct scsi_device *sdev)
+static void megasas_sdev_destroy(struct scsi_device *sdev)
 {
 	u16 ld_tgt_id;
 	struct megasas_instance *instance;
@@ -3510,9 +3510,9 @@ static const struct scsi_host_template megasas_template = {
 	.module = THIS_MODULE,
 	.name = "Avago SAS based MegaRAID driver",
 	.proc_name = "megaraid_sas",
-	.device_configure = megasas_device_configure,
-	.slave_alloc = megasas_slave_alloc,
-	.slave_destroy = megasas_slave_destroy,
+	.sdev_configure = megasas_sdev_configure,
+	.sdev_init = megasas_sdev_init,
+	.sdev_destroy = megasas_sdev_destroy,
 	.queuecommand = megasas_queue_command,
 	.eh_target_reset_handler = megasas_reset_target,
 	.eh_abort_handler = megasas_task_abort,

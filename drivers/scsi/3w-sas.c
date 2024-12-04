@@ -1523,13 +1523,14 @@ static void twl_shutdown(struct pci_dev *pdev)
 } /* End twl_shutdown() */
 
 /* This function configures unit settings when a unit is coming on-line */
-static int twl_slave_configure(struct scsi_device *sdev)
+static int twl_sdev_configure(struct scsi_device *sdev,
+			      struct queue_limits *lim)
 {
 	/* Force 60 second timeout */
 	blk_queue_rq_timeout(sdev->request_queue, 60 * HZ);
 
 	return 0;
-} /* End twl_slave_configure() */
+} /* End twl_sdev_configure() */
 
 static const struct scsi_host_template driver_template = {
 	.module			= THIS_MODULE,
@@ -1539,7 +1540,7 @@ static const struct scsi_host_template driver_template = {
 	.bios_param		= twl_scsi_biosparam,
 	.change_queue_depth	= scsi_change_queue_depth,
 	.can_queue		= TW_Q_LENGTH-2,
-	.slave_configure	= twl_slave_configure,
+	.sdev_configure		= twl_sdev_configure,
 	.this_id		= -1,
 	.sg_tablesize		= TW_LIBERATOR_MAX_SGL_LENGTH,
 	.max_sectors		= TW_MAX_SECTORS,

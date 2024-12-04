@@ -160,7 +160,7 @@ static int qla4xxx_eh_abort(struct scsi_cmnd *cmd);
 static int qla4xxx_eh_device_reset(struct scsi_cmnd *cmd);
 static int qla4xxx_eh_target_reset(struct scsi_cmnd *cmd);
 static int qla4xxx_eh_host_reset(struct scsi_cmnd *cmd);
-static int qla4xxx_slave_alloc(struct scsi_device *device);
+static int qla4xxx_sdev_init(struct scsi_device *device);
 static umode_t qla4_attr_is_visible(int param_type, int param);
 static int qla4xxx_host_reset(struct Scsi_Host *shost, int reset_type);
 
@@ -234,7 +234,7 @@ static struct scsi_host_template qla4xxx_driver_template = {
 	.eh_host_reset_handler	= qla4xxx_eh_host_reset,
 	.eh_timed_out		= qla4xxx_eh_cmd_timed_out,
 
-	.slave_alloc		= qla4xxx_slave_alloc,
+	.sdev_init		= qla4xxx_sdev_init,
 	.change_queue_depth	= scsi_change_queue_depth,
 
 	.this_id		= -1,
@@ -9052,7 +9052,7 @@ static void qla4xxx_config_dma_addressing(struct scsi_qla_host *ha)
 	}
 }
 
-static int qla4xxx_slave_alloc(struct scsi_device *sdev)
+static int qla4xxx_sdev_init(struct scsi_device *sdev)
 {
 	struct iscsi_cls_session *cls_sess;
 	struct iscsi_session *sess;

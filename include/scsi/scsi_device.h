@@ -155,7 +155,7 @@ struct scsi_device {
 
 	blist_flags_t		sdev_bflags; /* black/white flags as also found in
 				 * scsi_devinfo.[hc]. For now used only to
-				 * pass settings from slave_alloc to scsi
+				 * pass settings from sdev_init to scsi
 				 * core. */
 	unsigned int eh_timeout; /* Error handling timeout */
 
@@ -357,7 +357,7 @@ struct scsi_target {
 	atomic_t		target_blocked;
 
 	/*
-	 * LLDs should set this in the slave_alloc host template callout.
+	 * LLDs should set this in the sdev_init host template callout.
 	 * If set to zero then there is not limit.
 	 */
 	unsigned int		can_queue;

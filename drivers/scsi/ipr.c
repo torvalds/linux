@@ -4745,13 +4745,13 @@ static struct ipr_resource_entry *ipr_find_sdev(struct scsi_device *sdev)
 }
 
 /**
- * ipr_slave_destroy - Unconfigure a SCSI device
+ * ipr_sdev_destroy - Unconfigure a SCSI device
  * @sdev:	scsi device struct
  *
  * Return value:
  * 	nothing
  **/
-static void ipr_slave_destroy(struct scsi_device *sdev)
+static void ipr_sdev_destroy(struct scsi_device *sdev)
 {
 	struct ipr_resource_entry *res;
 	struct ipr_ioa_cfg *ioa_cfg;
@@ -4769,7 +4769,7 @@ static void ipr_slave_destroy(struct scsi_device *sdev)
 }
 
 /**
- * ipr_device_configure - Configure a SCSI device
+ * ipr_sdev_configure - Configure a SCSI device
  * @sdev:	scsi device struct
  * @lim:	queue limits
  *
@@ -4778,8 +4778,8 @@ static void ipr_slave_destroy(struct scsi_device *sdev)
  * Return value:
  * 	0 on success
  **/
-static int ipr_device_configure(struct scsi_device *sdev,
-		struct queue_limits *lim)
+static int ipr_sdev_configure(struct scsi_device *sdev,
+			      struct queue_limits *lim)
 {
 	struct ipr_ioa_cfg *ioa_cfg = (struct ipr_ioa_cfg *) sdev->host->hostdata;
 	struct ipr_resource_entry *res;
@@ -4815,7 +4815,7 @@ static int ipr_device_configure(struct scsi_device *sdev,
 }
 
 /**
- * ipr_slave_alloc - Prepare for commands to a device.
+ * ipr_sdev_init - Prepare for commands to a device.
  * @sdev:	scsi device struct
  *
  * This function saves a pointer to the resource entry
@@ -4826,7 +4826,7 @@ static int ipr_device_configure(struct scsi_device *sdev,
  * Return value:
  * 	0 on success / -ENXIO if device does not exist
  **/
-static int ipr_slave_alloc(struct scsi_device *sdev)
+static int ipr_sdev_init(struct scsi_device *sdev)
 {
 	struct ipr_ioa_cfg *ioa_cfg = (struct ipr_ioa_cfg *) sdev->host->hostdata;
 	struct ipr_resource_entry *res;
@@ -6398,9 +6398,9 @@ static const struct scsi_host_template driver_template = {
 	.eh_abort_handler = ipr_eh_abort,
 	.eh_device_reset_handler = ipr_eh_dev_reset,
 	.eh_host_reset_handler = ipr_eh_host_reset,
-	.slave_alloc = ipr_slave_alloc,
-	.device_configure = ipr_device_configure,
-	.slave_destroy = ipr_slave_destroy,
+	.sdev_init = ipr_sdev_init,
+	.sdev_configure = ipr_sdev_configure,
+	.sdev_destroy = ipr_sdev_destroy,
 	.scan_finished = ipr_scan_finished,
 	.target_destroy = ipr_target_destroy,
 	.change_queue_depth = ipr_change_queue_depth,

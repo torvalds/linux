@@ -1490,7 +1490,7 @@ static int sbp2_scsi_queuecommand(struct Scsi_Host *shost,
 	return retval;
 }
 
-static int sbp2_scsi_slave_alloc(struct scsi_device *sdev)
+static int sbp2_scsi_sdev_init(struct scsi_device *sdev)
 {
 	struct sbp2_logical_unit *lu = sdev->hostdata;
 
@@ -1506,8 +1506,8 @@ static int sbp2_scsi_slave_alloc(struct scsi_device *sdev)
 	return 0;
 }
 
-static int sbp2_scsi_device_configure(struct scsi_device *sdev,
-		struct queue_limits *lim)
+static int sbp2_scsi_sdev_configure(struct scsi_device *sdev,
+				    struct queue_limits *lim)
 {
 	struct sbp2_logical_unit *lu = sdev->hostdata;
 
@@ -1590,8 +1590,8 @@ static const struct scsi_host_template scsi_driver_template = {
 	.name			= "SBP-2 IEEE-1394",
 	.proc_name		= "sbp2",
 	.queuecommand		= sbp2_scsi_queuecommand,
-	.slave_alloc		= sbp2_scsi_slave_alloc,
-	.device_configure	= sbp2_scsi_device_configure,
+	.sdev_init		= sbp2_scsi_sdev_init,
+	.sdev_configure		= sbp2_scsi_sdev_configure,
 	.eh_abort_handler	= sbp2_scsi_abort,
 	.this_id		= -1,
 	.sg_tablesize		= SG_ALL,

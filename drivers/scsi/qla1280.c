@@ -1159,7 +1159,7 @@ qla1280_set_target_parameters(struct scsi_qla_host *ha, int bus, int target)
 
 
 /**************************************************************************
- *   qla1280_slave_configure
+ *   qla1280_sdev_configure
  *
  * Description:
  *   Determines the queue depth for a given device.  There are two ways
@@ -1170,7 +1170,7 @@ qla1280_set_target_parameters(struct scsi_qla_host *ha, int bus, int target)
  *   default queue depth (dependent on the number of hardware SCBs).
  **************************************************************************/
 static int
-qla1280_slave_configure(struct scsi_device *device)
+qla1280_sdev_configure(struct scsi_device *device, struct queue_limits *lim)
 {
 	struct scsi_qla_host *ha;
 	int default_depth = 3;
@@ -4121,7 +4121,7 @@ static const struct scsi_host_template qla1280_driver_template = {
 	.proc_name		= "qla1280",
 	.name			= "Qlogic ISP 1280/12160",
 	.info			= qla1280_info,
-	.slave_configure	= qla1280_slave_configure,
+	.sdev_configure		= qla1280_sdev_configure,
 	.queuecommand		= qla1280_queuecommand,
 	.eh_abort_handler	= qla1280_eh_abort,
 	.eh_device_reset_handler= qla1280_eh_device_reset,

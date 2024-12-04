@@ -377,15 +377,17 @@ static int aac_biosparm(struct scsi_device *sdev, struct block_device *bdev,
 }
 
 /**
- *	aac_slave_configure		-	compute queue depths
+ *	aac_sdev_configure		-	compute queue depths
  *	@sdev:	SCSI device we are considering
+ *	@lim:	Request queue limits
  *
  *	Selects queue depths for each target device based on the host adapter's
  *	total capacity and the queue depth supported by the target device.
  *	A queue depth of one automatically disables tagged queueing.
  */
 
-static int aac_slave_configure(struct scsi_device *sdev)
+static int aac_sdev_configure(struct scsi_device *sdev,
+			      struct queue_limits *lim)
 {
 	struct aac_dev *aac = (struct aac_dev *)sdev->host->hostdata;
 	int chn, tid;
@@ -1487,7 +1489,7 @@ static const struct scsi_host_template aac_driver_template = {
 	.queuecommand			= aac_queuecommand,
 	.bios_param			= aac_biosparm,
 	.shost_groups			= aac_host_groups,
-	.slave_configure		= aac_slave_configure,
+	.sdev_configure			= aac_sdev_configure,
 	.change_queue_depth		= aac_change_queue_depth,
 	.sdev_groups			= aac_dev_groups,
 	.eh_abort_handler		= aac_eh_abort,

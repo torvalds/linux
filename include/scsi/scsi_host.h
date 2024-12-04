@@ -168,20 +168,20 @@ struct scsi_host_template {
 	 * Return values: 0 on success, non-0 on failure
 	 *
 	 * Deallocation:  If we didn't find any devices at this ID, you will
-	 * get an immediate call to slave_destroy().  If we find something
-	 * here then you will get a call to slave_configure(), then the
+	 * get an immediate call to sdev_destroy().  If we find something
+	 * here then you will get a call to sdev_configure(), then the
 	 * device will be used for however long it is kept around, then when
 	 * the device is removed from the system (or * possibly at reboot
-	 * time), you will then get a call to slave_destroy().  This is
-	 * assuming you implement slave_configure and slave_destroy.
+	 * time), you will then get a call to sdev_destroy().  This is
+	 * assuming you implement sdev_configure and sdev_destroy.
 	 * However, if you allocate memory and hang it off the device struct,
-	 * then you must implement the slave_destroy() routine at a minimum
+	 * then you must implement the sdev_destroy() routine at a minimum
 	 * in order to avoid leaking memory
 	 * each time a device is tore down.
 	 *
 	 * Status: OPTIONAL
 	 */
-	int (* slave_alloc)(struct scsi_device *);
+	int (* sdev_init)(struct scsi_device *);
 
 	/*
 	 * Once the device has responded to an INQUIRY and we know the
@@ -206,28 +206,24 @@ struct scsi_host_template {
 	 *     specific setup basis...
 	 * 6.  Return 0 on success, non-0 on error.  The device will be marked
 	 *     as offline on error so that no access will occur.  If you return
-	 *     non-0, your slave_destroy routine will never get called for this
+	 *     non-0, your sdev_destroy routine will never get called for this
 	 *     device, so don't leave any loose memory hanging around, clean
 	 *     up after yourself before returning non-0
 	 *
 	 * Status: OPTIONAL
-	 *
-	 * Note: slave_configure is the legacy version, use device_configure for
-	 * all new code.  A driver must never define both.
 	 */
-	int (* device_configure)(struct scsi_device *, struct queue_limits *lim);
-	int (* slave_configure)(struct scsi_device *);
+	int (* sdev_configure)(struct scsi_device *, struct queue_limits *lim);
 
 	/*
 	 * Immediately prior to deallocating the device and after all activity
 	 * has ceased the mid layer calls this point so that the low level
 	 * driver may completely detach itself from the scsi device and vice
 	 * versa.  The low level driver is responsible for freeing any memory
-	 * it allocated in the slave_alloc or slave_configure calls. 
+	 * it allocated in the sdev_init or sdev_configure calls.
 	 *
 	 * Status: OPTIONAL
 	 */
-	void (* slave_destroy)(struct scsi_device *);
+	void (* sdev_destroy)(struct scsi_device *);
 
 	/*
 	 * Before the mid layer attempts to scan for a new device attached

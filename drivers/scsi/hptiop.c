@@ -1151,8 +1151,8 @@ static struct attribute *hptiop_host_attrs[] = {
 
 ATTRIBUTE_GROUPS(hptiop_host);
 
-static int hptiop_device_configure(struct scsi_device *sdev,
-		struct queue_limits *lim)
+static int hptiop_sdev_configure(struct scsi_device *sdev,
+				 struct queue_limits *lim)
 {
 	if (sdev->type == TYPE_TAPE)
 		lim->max_hw_sectors = 8192;
@@ -1168,7 +1168,7 @@ static const struct scsi_host_template driver_template = {
 	.emulated                   = 0,
 	.proc_name                  = driver_name,
 	.shost_groups		    = hptiop_host_groups,
-	.device_configure	    = hptiop_device_configure,
+	.sdev_configure		    = hptiop_sdev_configure,
 	.this_id                    = -1,
 	.change_queue_depth         = hptiop_adjust_disk_queue_depth,
 	.cmd_size		    = sizeof(struct hpt_cmd_priv),

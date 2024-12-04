@@ -5151,12 +5151,12 @@ set_qdepth:
 }
 
 /**
- * ufshcd_slave_alloc - handle initial SCSI device configurations
+ * ufshcd_sdev_init - handle initial SCSI device configurations
  * @sdev: pointer to SCSI device
  *
  * Return: success.
  */
-static int ufshcd_slave_alloc(struct scsi_device *sdev)
+static int ufshcd_sdev_init(struct scsi_device *sdev)
 {
 	struct ufs_hba *hba;
 
@@ -5199,14 +5199,14 @@ static int ufshcd_change_queue_depth(struct scsi_device *sdev, int depth)
 }
 
 /**
- * ufshcd_device_configure - adjust SCSI device configurations
+ * ufshcd_sdev_configure - adjust SCSI device configurations
  * @sdev: pointer to SCSI device
  * @lim: queue limits
  *
  * Return: 0 (success).
  */
-static int ufshcd_device_configure(struct scsi_device *sdev,
-		struct queue_limits *lim)
+static int ufshcd_sdev_configure(struct scsi_device *sdev,
+				 struct queue_limits *lim)
 {
 	struct ufs_hba *hba = shost_priv(sdev->host);
 	struct request_queue *q = sdev->request_queue;
@@ -5237,10 +5237,10 @@ static int ufshcd_device_configure(struct scsi_device *sdev,
 }
 
 /**
- * ufshcd_slave_destroy - remove SCSI device configurations
+ * ufshcd_sdev_destroy - remove SCSI device configurations
  * @sdev: pointer to SCSI device
  */
-static void ufshcd_slave_destroy(struct scsi_device *sdev)
+static void ufshcd_sdev_destroy(struct scsi_device *sdev)
 {
 	struct ufs_hba *hba;
 	unsigned long flags;
@@ -8925,9 +8925,9 @@ static const struct scsi_host_template ufshcd_driver_template = {
 	.map_queues		= ufshcd_map_queues,
 	.queuecommand		= ufshcd_queuecommand,
 	.mq_poll		= ufshcd_poll,
-	.slave_alloc		= ufshcd_slave_alloc,
-	.device_configure	= ufshcd_device_configure,
-	.slave_destroy		= ufshcd_slave_destroy,
+	.sdev_init		= ufshcd_sdev_init,
+	.sdev_configure		= ufshcd_sdev_configure,
+	.sdev_destroy		= ufshcd_sdev_destroy,
 	.change_queue_depth	= ufshcd_change_queue_depth,
 	.eh_abort_handler	= ufshcd_abort,
 	.eh_device_reset_handler = ufshcd_eh_device_reset_handler,

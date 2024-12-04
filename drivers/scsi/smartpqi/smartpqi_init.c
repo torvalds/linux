@@ -6490,7 +6490,7 @@ out:
 	return SUCCESS;
 }
 
-static int pqi_slave_alloc(struct scsi_device *sdev)
+static int pqi_sdev_init(struct scsi_device *sdev)
 {
 	struct pqi_scsi_dev *device;
 	unsigned long flags;
@@ -6558,7 +6558,8 @@ static inline bool pqi_is_tape_changer_device(struct pqi_scsi_dev *device)
 	return device->devtype == TYPE_TAPE || device->devtype == TYPE_MEDIUM_CHANGER;
 }
 
-static int pqi_slave_configure(struct scsi_device *sdev)
+static int pqi_sdev_configure(struct scsi_device *sdev,
+			      struct queue_limits *lim)
 {
 	int rc = 0;
 	struct pqi_scsi_dev *device;
@@ -6574,7 +6575,7 @@ static int pqi_slave_configure(struct scsi_device *sdev)
 	return rc;
 }
 
-static void pqi_slave_destroy(struct scsi_device *sdev)
+static void pqi_sdev_destroy(struct scsi_device *sdev)
 {
 	struct pqi_ctrl_info *ctrl_info;
 	struct pqi_scsi_dev *device;
@@ -7549,9 +7550,9 @@ static const struct scsi_host_template pqi_driver_template = {
 	.eh_device_reset_handler = pqi_eh_device_reset_handler,
 	.eh_abort_handler = pqi_eh_abort_handler,
 	.ioctl = pqi_ioctl,
-	.slave_alloc = pqi_slave_alloc,
-	.slave_configure = pqi_slave_configure,
-	.slave_destroy = pqi_slave_destroy,
+	.sdev_init = pqi_sdev_init,
+	.sdev_configure = pqi_sdev_configure,
+	.sdev_destroy = pqi_sdev_destroy,
 	.map_queues = pqi_map_queues,
 	.sdev_groups = pqi_sdev_groups,
 	.shost_groups = pqi_shost_groups,

@@ -143,7 +143,8 @@ static irqreturn_t arcmsr_interrupt(struct AdapterControlBlock *acb);
 static void arcmsr_free_irq(struct pci_dev *, struct AdapterControlBlock *);
 static void arcmsr_wait_firmware_ready(struct AdapterControlBlock *acb);
 static void arcmsr_set_iop_datetime(struct timer_list *);
-static int arcmsr_slave_config(struct scsi_device *sdev);
+static int arcmsr_sdev_configure(struct scsi_device *sdev,
+				 struct queue_limits *lim);
 static int arcmsr_adjust_disk_queue_depth(struct scsi_device *sdev, int queue_depth)
 {
 	if (queue_depth > ARCMSR_MAX_CMD_PERLUN)
@@ -160,7 +161,7 @@ static const struct scsi_host_template arcmsr_scsi_host_template = {
 	.eh_abort_handler	= arcmsr_abort,
 	.eh_bus_reset_handler	= arcmsr_bus_reset,
 	.bios_param		= arcmsr_bios_param,
-	.slave_configure	= arcmsr_slave_config,
+	.sdev_configure		= arcmsr_sdev_configure,
 	.change_queue_depth	= arcmsr_adjust_disk_queue_depth,
 	.can_queue		= ARCMSR_DEFAULT_OUTSTANDING_CMD,
 	.this_id		= ARCMSR_SCSI_INITIATOR_ID,
@@ -3344,7 +3345,8 @@ static int arcmsr_queue_command_lck(struct scsi_cmnd *cmd)
 
 static DEF_SCSI_QCMD(arcmsr_queue_command)
 
-static int arcmsr_slave_config(struct scsi_device *sdev)
+static int arcmsr_sdev_configure(struct scsi_device *sdev,
+				 struct queue_limits *lim)
 {
 	unsigned int	dev_timeout;
 
