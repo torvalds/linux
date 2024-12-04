@@ -1037,14 +1037,6 @@ static void rxrpc_input_ack(struct rxrpc_call *call, struct sk_buff *skb)
 	rxrpc_inc_stat(call->rxnet, stat_rx_acks[summary.ack_reason]);
 	prefetch(call->tx_queue);
 
-	if (summary.acked_serial != 0) {
-		if (summary.ack_reason == RXRPC_ACK_PING_RESPONSE)
-			rxrpc_complete_rtt_probe(call, skb->tstamp, summary.acked_serial,
-						 ack_serial, rxrpc_rtt_rx_ping_response);
-		else
-			summary.rtt_sample_avail = true;
-	}
-
 	/* If we get an EXCEEDS_WINDOW ACK from the server, it probably
 	 * indicates that the client address changed due to NAT.  The server
 	 * lost the call because it switched to a different peer.
@@ -1087,7 +1079,7 @@ static void rxrpc_input_ack(struct rxrpc_call *call, struct sk_buff *skb)
 	if (nr_acks > 0)
 		skb_condense(skb);
 
-	call->acks_latest_ts = skb->tstamp;
+	call->acks_latest_ts = ktime_get_real();
 	call->acks_hard_ack = hard_ack;
 	call->acks_prev_seq = prev_pkt;
 
@@ -1107,6 +1099,15 @@ static void rxrpc_input_ack(struct rxrpc_call *call, struct sk_buff *skb)
 
 	if (hard_ack + 1 == 0)
 		return rxrpc_proto_abort(call, 0, rxrpc_eproto_ackr_zero);
+
+	if (summary.acked_serial != 0) {
+		if (summary.ack_reason == RXRPC_ACK_PING_RESPONSE)
+			rxrpc_complete_rtt_probe(call, call->acks_latest_ts,
+						 summary.acked_serial, ack_serial,
+						 rxrpc_rtt_rx_ping_response);
+		else
+			summary.rtt_sample_avail = true;
+	}
 
 	/* Ignore ACKs unless we are or have just been transmitting. */
 	switch (__rxrpc_call_state(call)) {
