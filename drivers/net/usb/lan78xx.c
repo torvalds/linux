@@ -472,9 +472,6 @@ struct lan78xx_net {
 	struct irq_domain_data	domain_data;
 };
 
-/* define external phy id */
-#define	PHY_KSZ9031RNX			(0x00221620)
-
 /* use ethtool to change the level for any given device */
 static int msg_level = -1;
 module_param(msg_level, int, 0);
@@ -2233,23 +2230,6 @@ static void lan78xx_remove_irq_domain(struct lan78xx_net *dev)
 	dev->domain_data.irqdomain = NULL;
 }
 
-static int ksz9031rnx_fixup(struct phy_device *phydev)
-{
-	struct lan78xx_net *dev = netdev_priv(phydev->attached_dev);
-
-	/* Micrel9301RNX PHY configuration */
-	/* RGMII Control Signal Pad Skew */
-	phy_write_mmd(phydev, MDIO_MMD_WIS, 4, 0x0077);
-	/* RGMII RX Data Pad Skew */
-	phy_write_mmd(phydev, MDIO_MMD_WIS, 5, 0x7777);
-	/* RGMII RX Clock Pad Skew */
-	phy_write_mmd(phydev, MDIO_MMD_WIS, 8, 0x1FF);
-
-	dev->interface = PHY_INTERFACE_MODE_RGMII_RXID;
-
-	return 1;
-}
-
 static struct phy_device *lan7801_phy_init(struct lan78xx_net *dev)
 {
 	u32 buf;
@@ -2283,14 +2263,11 @@ static struct phy_device *lan7801_phy_init(struct lan78xx_net *dev)
 			netdev_err(dev->net, "no PHY driver found\n");
 			return NULL;
 		}
-		dev->interface = PHY_INTERFACE_MODE_RGMII;
-		/* external PHY fixup for KSZ9031RNX */
-		ret = phy_register_fixup_for_uid(PHY_KSZ9031RNX, 0xfffffff0,
-						 ksz9031rnx_fixup);
-		if (ret < 0) {
-			netdev_err(dev->net, "Failed to register fixup for PHY_KSZ9031RNX\n");
-			return NULL;
-		}
+		dev->interface = PHY_INTERFACE_MODE_RGMII_ID;
+		/* The PHY driver is responsible to configure proper RGMII
+		 * interface delays. Disable RGMII delays on MAC side.
+		 */
+		lan78xx_write_reg(dev, MAC_RGMII_ID, 0);
 
 		phydev->is_internal = false;
 	}
@@ -2349,9 +2326,6 @@ static int lan78xx_phy_init(struct lan78xx_net *dev)
 			if (phy_is_pseudo_fixed_link(phydev)) {
 				fixed_phy_unregister(phydev);
 				phy_device_free(phydev);
-			} else {
-				phy_unregister_fixup_for_uid(PHY_KSZ9031RNX,
-							     0xfffffff0);
 			}
 		}
 		return -EIO;
@@ -4207,8 +4181,6 @@ static void lan78xx_disconnect(struct usb_interface *intf)
 	cancel_delayed_work_sync(&dev->wq);
 
 	phydev = net->phydev;
-
-	phy_unregister_fixup_for_uid(PHY_KSZ9031RNX, 0xfffffff0);
 
 	phy_disconnect(net->phydev);
 
