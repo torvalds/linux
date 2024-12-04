@@ -10,7 +10,6 @@
 
 /* base module includes */
 
-#include <linux/version.h>
 #include <linux/module.h>
 #include <linux/sched.h>
 #include <linux/init.h>
