@@ -552,22 +552,24 @@ static int rxrpc_send_data_packet(struct rxrpc_call *call, struct rxrpc_txbuf *t
 	msg.msg_controllen = 0;
 	msg.msg_flags	= MSG_SPLICE_PAGES;
 
-	/* Track what we've attempted to transmit at least once so that the
-	 * retransmission algorithm doesn't try to resend what we haven't sent
-	 * yet.
+	/* Send the packet with the don't fragment bit set unless we think it's
+	 * too big or if this is a retransmission.
 	 */
-	if (txb->seq == call->tx_transmitted + 1)
-		call->tx_transmitted = txb->seq + n - 1;
-
-	/* send the packet with the don't fragment bit set if we currently
-	 * think it's small enough */
-	if (len >= sizeof(struct rxrpc_wire_header) + call->peer->max_data) {
+	if (txb->seq == call->tx_transmitted + 1 &&
+	    len >= sizeof(struct rxrpc_wire_header) + call->peer->max_data) {
 		rxrpc_local_dont_fragment(conn->local, false);
 		frag = rxrpc_tx_point_call_data_frag;
 	} else {
 		rxrpc_local_dont_fragment(conn->local, true);
 		frag = rxrpc_tx_point_call_data_nofrag;
 	}
+
+	/* Track what we've attempted to transmit at least once so that the
+	 * retransmission algorithm doesn't try to resend what we haven't sent
+	 * yet.
+	 */
+	if (txb->seq == call->tx_transmitted + 1)
+		call->tx_transmitted = txb->seq + n - 1;
 
 	if (IS_ENABLED(CONFIG_AF_RXRPC_INJECT_LOSS)) {
 		static int lose;
@@ -580,7 +582,6 @@ static int rxrpc_send_data_packet(struct rxrpc_call *call, struct rxrpc_txbuf *t
 		}
 	}
 
-retry:
 	/* send the packet by UDP
 	 * - returns -EMSGSIZE if UDP would have to fragment the packet
 	 *   to go out of the interface
@@ -591,7 +592,11 @@ retry:
 	ret = do_udp_sendmsg(conn->local->socket, &msg, len);
 	conn->peer->last_tx_at = ktime_get_seconds();
 
-	if (ret < 0) {
+	if (ret == -EMSGSIZE) {
+		rxrpc_inc_stat(call->rxnet, stat_tx_data_send_msgsize);
+		trace_rxrpc_tx_packet(call->debug_id, call->local->kvec[0].iov_base, frag);
+		ret = 0;
+	} else if (ret < 0) {
 		rxrpc_inc_stat(call->rxnet, stat_tx_data_send_fail);
 		trace_rxrpc_tx_fail(call->debug_id, txb->serial, ret, frag);
 	} else {
@@ -599,11 +604,6 @@ retry:
 	}
 
 	rxrpc_tx_backoff(call, ret);
-	if (ret == -EMSGSIZE && frag == rxrpc_tx_point_call_data_nofrag) {
-		rxrpc_local_dont_fragment(conn->local, false);
-		frag = rxrpc_tx_point_call_data_frag;
-		goto retry;
-	}
 
 done:
 	if (ret >= 0) {

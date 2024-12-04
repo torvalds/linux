@@ -473,10 +473,11 @@ int rxrpc_stats_show(struct seq_file *seq, void *v)
 	struct rxrpc_net *rxnet = rxrpc_net(seq_file_single_net(seq));
 
 	seq_printf(seq,
-		   "Data     : send=%u sendf=%u fail=%u\n",
+		   "Data     : send=%u sendf=%u fail=%u emsz=%u\n",
 		   atomic_read(&rxnet->stat_tx_data_send),
 		   atomic_read(&rxnet->stat_tx_data_send_frag),
-		   atomic_read(&rxnet->stat_tx_data_send_fail));
+		   atomic_read(&rxnet->stat_tx_data_send_fail),
+		   atomic_read(&rxnet->stat_tx_data_send_msgsize));
 	seq_printf(seq,
 		   "Data-Tx  : nr=%u retrans=%u uf=%u cwr=%u\n",
 		   atomic_read(&rxnet->stat_tx_data),
