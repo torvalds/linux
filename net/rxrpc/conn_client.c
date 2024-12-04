@@ -508,16 +508,18 @@ static void rxrpc_activate_channels(struct rxrpc_bundle *bundle)
 void rxrpc_connect_client_calls(struct rxrpc_local *local)
 {
 	struct rxrpc_call *call;
+	LIST_HEAD(new_client_calls);
 
-	while ((call = list_first_entry_or_null(&local->new_client_calls,
-						struct rxrpc_call, wait_link))
-	       ) {
+	spin_lock(&local->client_call_lock);
+	list_splice_tail_init(&local->new_client_calls, &new_client_calls);
+	spin_unlock(&local->client_call_lock);
+
+	while ((call = list_first_entry_or_null(&new_client_calls,
+						struct rxrpc_call, wait_link))) {
 		struct rxrpc_bundle *bundle = call->bundle;
 
-		spin_lock(&local->client_call_lock);
 		list_move_tail(&call->wait_link, &bundle->waiting_calls);
 		rxrpc_see_call(call, rxrpc_call_see_waiting_call);
-		spin_unlock(&local->client_call_lock);
 
 		if (rxrpc_bundle_has_space(bundle))
 			rxrpc_activate_channels(bundle);

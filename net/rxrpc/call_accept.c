@@ -408,7 +408,7 @@ bool rxrpc_new_incoming_call(struct rxrpc_local *local,
 	}
 
 	_leave(" = %p{%d}", call, call->debug_id);
-	rxrpc_input_call_event(call, skb);
+	rxrpc_queue_rx_call_packet(call, skb);
 	rxrpc_put_call(call, rxrpc_call_put_input);
 	return true;
 

@@ -705,6 +705,7 @@ struct rxrpc_call {
 
 	/* Received data tracking */
 	struct sk_buff_head	recvmsg_queue;	/* Queue of packets ready for recvmsg() */
+	struct sk_buff_head	rx_queue;	/* Queue of packets for this call to receive */
 	struct sk_buff_head	rx_oos_queue;	/* Queue of out of sequence packets */
 
 	rxrpc_seq_t		rx_highest_seq;	/* Higest sequence number received */
@@ -906,7 +907,7 @@ void rxrpc_propose_delay_ACK(struct rxrpc_call *, rxrpc_serial_t,
 void rxrpc_shrink_call_tx_buffer(struct rxrpc_call *);
 void rxrpc_resend(struct rxrpc_call *call, struct sk_buff *ack_skb);
 
-bool rxrpc_input_call_event(struct rxrpc_call *call, struct sk_buff *skb);
+bool rxrpc_input_call_event(struct rxrpc_call *call);
 
 /*
  * call_object.c
@@ -1350,6 +1351,13 @@ static inline bool after(u32 seq1, u32 seq2)
 static inline bool after_eq(u32 seq1, u32 seq2)
 {
         return (s32)(seq1 - seq2) >= 0;
+}
+
+static inline void rxrpc_queue_rx_call_packet(struct rxrpc_call *call, struct sk_buff *skb)
+{
+	rxrpc_get_skb(skb, rxrpc_skb_get_call_rx);
+	__skb_queue_tail(&call->rx_queue, skb);
+	rxrpc_poke_call(call, rxrpc_call_poke_rx_packet);
 }
 
 /*

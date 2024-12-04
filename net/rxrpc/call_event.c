@@ -324,10 +324,11 @@ static void rxrpc_send_initial_ping(struct rxrpc_call *call)
 /*
  * Handle retransmission and deferred ACK/abort generation.
  */
-bool rxrpc_input_call_event(struct rxrpc_call *call, struct sk_buff *skb)
+bool rxrpc_input_call_event(struct rxrpc_call *call)
 {
+	struct sk_buff *skb;
 	ktime_t now, t;
-	bool resend = false;
+	bool resend = false, did_receive = false, saw_ack = false;
 	s32 abort_code;
 
 	rxrpc_see_call(call, rxrpc_call_see_input);
@@ -337,9 +338,6 @@ bool rxrpc_input_call_event(struct rxrpc_call *call, struct sk_buff *skb)
 	       call->debug_id, rxrpc_call_states[__rxrpc_call_state(call)],
 	       call->events);
 
-	if (__rxrpc_call_is_complete(call))
-		goto out;
-
 	/* Handle abort request locklessly, vs rxrpc_propose_abort(). */
 	abort_code = smp_load_acquire(&call->send_abort);
 	if (abort_code) {
@@ -348,11 +346,21 @@ bool rxrpc_input_call_event(struct rxrpc_call *call, struct sk_buff *skb)
 		goto out;
 	}
 
-	if (skb && skb->mark == RXRPC_SKB_MARK_ERROR)
-		goto out;
+	while ((skb = __skb_dequeue(&call->rx_queue))) {
+		struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
 
-	if (skb)
+		if (__rxrpc_call_is_complete(call) ||
+		    skb->mark == RXRPC_SKB_MARK_ERROR) {
+			rxrpc_free_skb(skb, rxrpc_skb_put_call_rx);
+			goto out;
+		}
+
+		saw_ack |= sp->hdr.type == RXRPC_PACKET_TYPE_ACK;
+
 		rxrpc_input_call_packet(call, skb);
+		rxrpc_free_skb(skb, rxrpc_skb_put_call_rx);
+		did_receive = true;
+	}
 
 	/* If we see our async-event poke, check for timeout trippage. */
 	now = ktime_get_real();
@@ -418,12 +426,8 @@ bool rxrpc_input_call_event(struct rxrpc_call *call, struct sk_buff *skb)
 			       rxrpc_propose_ack_ping_for_keepalive);
 	}
 
-	if (skb) {
-		struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
-
-		if (sp->hdr.type == RXRPC_PACKET_TYPE_ACK)
-			rxrpc_congestion_degrade(call);
-	}
+	if (saw_ack)
+		rxrpc_congestion_degrade(call);
 
 	if (test_and_clear_bit(RXRPC_CALL_EV_INITIAL_PING, &call->events))
 		rxrpc_send_initial_ping(call);
@@ -494,7 +498,7 @@ out:
 		if (call->security)
 			call->security->free_call_crypto(call);
 	} else {
-		if (skb &&
+		if (did_receive &&
 		    call->peer->ackr_adv_pmtud &&
 		    call->peer->pmtud_pending)
 			rxrpc_send_probe_for_pmtud(call);

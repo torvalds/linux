@@ -224,7 +224,7 @@ static void rxrpc_distribute_error(struct rxrpc_peer *peer, struct sk_buff *skb,
 
 		rxrpc_see_call(call, rxrpc_call_see_distribute_error);
 		rxrpc_set_call_completion(call, compl, 0, -err);
-		rxrpc_input_call_event(call, skb);
+		rxrpc_input_call_event(call);
 
 		spin_lock(&peer->lock);
 	}

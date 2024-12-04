@@ -1124,5 +1124,5 @@ void rxrpc_implicit_end_call(struct rxrpc_call *call, struct sk_buff *skb)
 		break;
 	}
 
-	rxrpc_input_call_event(call, skb);
+	rxrpc_input_call_event(call);
 }
