@@ -552,9 +552,12 @@ void rxrpc_send_data_packet(struct rxrpc_call *call, struct rxrpc_send_data_req 
 	rxrpc_seq_t seq = req->seq;
 	size_t len;
 	bool new_call = test_bit(RXRPC_CALL_BEGAN_RX_TIMER, &call->flags);
-	int ret;
+	int ret, stat_ix;
 
 	_enter("%x,%x-%x", tq->qbase, seq, seq + req->n - 1);
+
+	stat_ix = umin(req->n, ARRAY_SIZE(call->rxnet->stat_tx_jumbo)) - 1;
+	atomic_inc(&call->rxnet->stat_tx_jumbo[stat_ix]);
 
 	len = rxrpc_prepare_data_packet(call, req);
 	txb = tq->bufs[seq & RXRPC_TXQ_MASK];

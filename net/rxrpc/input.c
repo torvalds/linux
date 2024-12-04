@@ -568,7 +568,7 @@ static bool rxrpc_input_split_jumbo(struct rxrpc_call *call, struct sk_buff *skb
 	unsigned int offset = sizeof(struct rxrpc_wire_header);
 	unsigned int len = skb->len - offset;
 	bool notify = false;
-	int ack_reason = 0;
+	int ack_reason = 0, count = 1, stat_ix;
 
 	while (sp->hdr.flags & RXRPC_JUMBO_PACKET) {
 		if (len < RXRPC_JUMBO_SUBPKTLEN)
@@ -597,11 +597,15 @@ static bool rxrpc_input_split_jumbo(struct rxrpc_call *call, struct sk_buff *skb
 		sp->hdr.serial++;
 		offset += RXRPC_JUMBO_SUBPKTLEN;
 		len -= RXRPC_JUMBO_SUBPKTLEN;
+		count++;
 	}
 
 	sp->offset = offset;
 	sp->len    = len;
 	rxrpc_input_data_one(call, skb, &notify, &ack_serial, &ack_reason);
+
+	stat_ix = umin(count, ARRAY_SIZE(call->rxnet->stat_rx_jumbo)) - 1;
+	atomic_inc(&call->rxnet->stat_rx_jumbo[stat_ix]);
 
 	if (ack_reason > 0) {
 		rxrpc_send_ACK(call, ack_reason, ack_serial,

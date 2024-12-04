@@ -530,6 +530,30 @@ int rxrpc_stats_show(struct seq_file *seq, void *v)
 		   atomic_read(&rxnet->stat_why_req_ack[rxrpc_reqack_slow_start]),
 		   atomic_read(&rxnet->stat_why_req_ack[rxrpc_reqack_small_txwin]));
 	seq_printf(seq,
+		   "Jumbo-Tx : %u,%u,%u,%u,%u,%u,%u,%u,%u,%u\n",
+		   atomic_read(&rxnet->stat_tx_jumbo[0]),
+		   atomic_read(&rxnet->stat_tx_jumbo[1]),
+		   atomic_read(&rxnet->stat_tx_jumbo[2]),
+		   atomic_read(&rxnet->stat_tx_jumbo[3]),
+		   atomic_read(&rxnet->stat_tx_jumbo[4]),
+		   atomic_read(&rxnet->stat_tx_jumbo[5]),
+		   atomic_read(&rxnet->stat_tx_jumbo[6]),
+		   atomic_read(&rxnet->stat_tx_jumbo[7]),
+		   atomic_read(&rxnet->stat_tx_jumbo[8]),
+		   atomic_read(&rxnet->stat_tx_jumbo[9]));
+	seq_printf(seq,
+		   "Jumbo-Rx : %u,%u,%u,%u,%u,%u,%u,%u,%u,%u\n",
+		   atomic_read(&rxnet->stat_rx_jumbo[0]),
+		   atomic_read(&rxnet->stat_rx_jumbo[1]),
+		   atomic_read(&rxnet->stat_rx_jumbo[2]),
+		   atomic_read(&rxnet->stat_rx_jumbo[3]),
+		   atomic_read(&rxnet->stat_rx_jumbo[4]),
+		   atomic_read(&rxnet->stat_rx_jumbo[5]),
+		   atomic_read(&rxnet->stat_rx_jumbo[6]),
+		   atomic_read(&rxnet->stat_rx_jumbo[7]),
+		   atomic_read(&rxnet->stat_rx_jumbo[8]),
+		   atomic_read(&rxnet->stat_rx_jumbo[9]));
+	seq_printf(seq,
 		   "Buffers  : txb=%u rxb=%u\n",
 		   atomic_read(&rxrpc_nr_txbuf),
 		   atomic_read(&rxrpc_n_rx_skbs));
@@ -566,6 +590,8 @@ int rxrpc_stats_clear(struct file *file, char *buf, size_t size)
 	atomic_set(&rxnet->stat_tx_ack_skip, 0);
 	memset(&rxnet->stat_tx_acks, 0, sizeof(rxnet->stat_tx_acks));
 	memset(&rxnet->stat_rx_acks, 0, sizeof(rxnet->stat_rx_acks));
+	memset(&rxnet->stat_tx_jumbo, 0, sizeof(rxnet->stat_tx_jumbo));
+	memset(&rxnet->stat_rx_jumbo, 0, sizeof(rxnet->stat_rx_jumbo));
 
 	memset(&rxnet->stat_why_req_ack, 0, sizeof(rxnet->stat_why_req_ack));
 
