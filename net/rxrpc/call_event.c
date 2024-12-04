@@ -159,11 +159,11 @@ void rxrpc_resend(struct rxrpc_call *call, rxrpc_serial_t ack_serial, bool ping_
 			rxrpc_seq_t stop = earliest(tq_top, call->tx_transmitted);
 
 			_debug("unrep %x-%x", start, stop);
-			for (rxrpc_seq_t seq = start; before(seq, stop); seq++) {
-				struct rxrpc_txbuf *txb = tq->bufs[seq & RXRPC_TXQ_MASK];
+			for (rxrpc_seq_t seq = start; before_eq(seq, stop); seq++) {
+				rxrpc_serial_t serial = tq->segment_serial[seq & RXRPC_TXQ_MASK];
 
 				if (ping_response &&
-				    before(txb->serial, call->acks_highest_serial))
+				    before(serial, call->acks_highest_serial))
 					break; /* Wasn't accounted for by a more recent ping. */
 				req.tq  = tq;
 				req.seq = seq;
@@ -198,7 +198,7 @@ void rxrpc_resend(struct rxrpc_call *call, rxrpc_serial_t ack_serial, bool ping_
 
 		_debug("delay %llu %lld", delay, ktime_sub(resend_at, req.now));
 		call->resend_at = resend_at;
-		trace_rxrpc_timer_set(call, resend_at - req.now,
+		trace_rxrpc_timer_set(call, ktime_sub(resend_at, req.now),
 				      rxrpc_timer_trace_resend_reset);
 	} else {
 		call->resend_at = KTIME_MAX;

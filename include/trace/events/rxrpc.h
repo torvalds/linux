@@ -337,11 +337,10 @@
 	E_(rxrpc_rtt_tx_ping,			"PING")
 
 #define rxrpc_rtt_rx_traces \
-	EM(rxrpc_rtt_rx_other_ack,		"OACK") \
+	EM(rxrpc_rtt_rx_data_ack,		"DACK") \
 	EM(rxrpc_rtt_rx_obsolete,		"OBSL") \
 	EM(rxrpc_rtt_rx_lost,			"LOST") \
-	EM(rxrpc_rtt_rx_ping_response,		"PONG") \
-	E_(rxrpc_rtt_rx_requested_ack,		"RACK")
+	E_(rxrpc_rtt_rx_ping_response,		"PONG")
 
 #define rxrpc_timer_traces \
 	EM(rxrpc_timer_trace_delayed_ack,	"DelayAck ") \
@@ -1695,10 +1694,9 @@ TRACE_EVENT(rxrpc_retransmit,
 	    );
 
 TRACE_EVENT(rxrpc_congest,
-	    TP_PROTO(struct rxrpc_call *call, struct rxrpc_ack_summary *summary,
-		     rxrpc_serial_t ack_serial),
+	    TP_PROTO(struct rxrpc_call *call, struct rxrpc_ack_summary *summary),
 
-	    TP_ARGS(call, summary, ack_serial),
+	    TP_ARGS(call, summary),
 
 	    TP_STRUCT__entry(
 		    __field(unsigned int,			call)
@@ -1706,7 +1704,6 @@ TRACE_EVENT(rxrpc_congest,
 		    __field(rxrpc_seq_t,			hard_ack)
 		    __field(rxrpc_seq_t,			top)
 		    __field(rxrpc_seq_t,			lowest_nak)
-		    __field(rxrpc_serial_t,			ack_serial)
 		    __field(u16,				nr_sacks)
 		    __field(u16,				nr_snacks)
 		    __field(u16,				cwnd)
@@ -1722,7 +1719,6 @@ TRACE_EVENT(rxrpc_congest,
 		    __entry->hard_ack	= call->acks_hard_ack;
 		    __entry->top	= call->tx_top;
 		    __entry->lowest_nak	= call->acks_lowest_nak;
-		    __entry->ack_serial	= ack_serial;
 		    __entry->nr_sacks	= call->acks_nr_sacks;
 		    __entry->nr_snacks	= call->acks_nr_snacks;
 		    __entry->cwnd	= call->cong_cwnd;
@@ -1734,7 +1730,7 @@ TRACE_EVENT(rxrpc_congest,
 
 	    TP_printk("c=%08x r=%08x %s q=%08x %s cw=%u ss=%u A=%u+%u/%u+%u r=%u b=%u u=%u d=%u l=%x%s%s%s",
 		      __entry->call,
-		      __entry->ack_serial,
+		      __entry->sum.acked_serial,
 		      __print_symbolic(__entry->sum.ack_reason, rxrpc_ack_names),
 		      __entry->hard_ack,
 		      __print_symbolic(__entry->ca_state, rxrpc_ca_states),

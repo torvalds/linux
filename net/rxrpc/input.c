@@ -30,9 +30,7 @@ static void rxrpc_proto_abort(struct rxrpc_call *call, rxrpc_seq_t seq,
  * Do TCP-style congestion management [RFC 5681].
  */
 static void rxrpc_congestion_management(struct rxrpc_call *call,
-					struct sk_buff *skb,
-					struct rxrpc_ack_summary *summary,
-					rxrpc_serial_t acked_serial)
+					struct rxrpc_ack_summary *summary)
 {
 	summary->change = rxrpc_cong_no_change;
 	summary->in_flight = (call->tx_top - call->tx_bottom) - call->acks_nr_sacks;
@@ -44,7 +42,7 @@ static void rxrpc_congestion_management(struct rxrpc_call *call,
 		if (call->cong_cwnd >= call->cong_ssthresh &&
 		    call->cong_ca_state == RXRPC_CA_SLOW_START) {
 			call->cong_ca_state = RXRPC_CA_CONGEST_AVOIDANCE;
-			call->cong_tstamp = skb->tstamp;
+			call->cong_tstamp = call->acks_latest_ts;
 			call->cong_cumul_acks = 0;
 		}
 	}
@@ -62,7 +60,7 @@ static void rxrpc_congestion_management(struct rxrpc_call *call,
 			call->cong_cwnd += 1;
 		if (call->cong_cwnd >= call->cong_ssthresh) {
 			call->cong_ca_state = RXRPC_CA_CONGEST_AVOIDANCE;
-			call->cong_tstamp = skb->tstamp;
+			call->cong_tstamp = call->acks_latest_ts;
 		}
 		goto out;
 
@@ -75,12 +73,12 @@ static void rxrpc_congestion_management(struct rxrpc_call *call,
 		 */
 		if (call->peer->rtt_count == 0)
 			goto out;
-		if (ktime_before(skb->tstamp,
+		if (ktime_before(call->acks_latest_ts,
 				 ktime_add_us(call->cong_tstamp,
 					      call->peer->srtt_us >> 3)))
 			goto out_no_clear_ca;
 		summary->change = rxrpc_cong_rtt_window_end;
-		call->cong_tstamp = skb->tstamp;
+		call->cong_tstamp = call->acks_latest_ts;
 		if (call->cong_cumul_acks >= call->cong_cwnd)
 			call->cong_cwnd++;
 		goto out;
@@ -137,7 +135,7 @@ resume_normality:
 	summary->change = rxrpc_cong_cleared_nacks;
 	call->cong_dup_acks = 0;
 	call->cong_extra = 0;
-	call->cong_tstamp = skb->tstamp;
+	call->cong_tstamp = call->acks_latest_ts;
 	if (call->cong_cwnd < call->cong_ssthresh)
 		call->cong_ca_state = RXRPC_CA_SLOW_START;
 	else
@@ -147,7 +145,7 @@ out:
 out_no_clear_ca:
 	if (call->cong_cwnd >= RXRPC_TX_MAX_WINDOW)
 		call->cong_cwnd = RXRPC_TX_MAX_WINDOW;
-	trace_rxrpc_congest(call, summary, acked_serial);
+	trace_rxrpc_congest(call, summary);
 	return;
 
 packet_loss_detected:
@@ -195,10 +193,28 @@ void rxrpc_congestion_degrade(struct rxrpc_call *call)
 }
 
 /*
+ * Add an RTT sample derived from an ACK'd DATA packet.
+ */
+static void rxrpc_add_data_rtt_sample(struct rxrpc_call *call,
+				      struct rxrpc_ack_summary *summary,
+				      struct rxrpc_txqueue *tq,
+				      int ix,
+				      rxrpc_serial_t ack_serial)
+{
+	rxrpc_peer_add_rtt(call, rxrpc_rtt_rx_data_ack, -1,
+			   summary->acked_serial, ack_serial,
+			   ktime_add_us(tq->xmit_ts_base, tq->segment_xmit_ts[ix]),
+			   call->acks_latest_ts);
+	summary->rtt_sample_avail = false;
+	__clear_bit(ix, &tq->rtt_samples); /* Prevent repeat RTT sample */
+}
+
+/*
  * Apply a hard ACK by advancing the Tx window.
  */
 static bool rxrpc_rotate_tx_window(struct rxrpc_call *call, rxrpc_seq_t to,
-				   struct rxrpc_ack_summary *summary)
+				   struct rxrpc_ack_summary *summary,
+				   rxrpc_serial_t ack_serial)
 {
 	struct rxrpc_txqueue *tq = call->tx_queue;
 	rxrpc_seq_t seq = call->tx_bottom + 1;
@@ -235,6 +251,11 @@ static bool rxrpc_rotate_tx_window(struct rxrpc_call *call, rxrpc_seq_t to,
 			set_bit(RXRPC_CALL_TX_LAST, &call->flags);
 			rot_last = true;
 		}
+
+		if (summary->rtt_sample_avail &&
+		    summary->acked_serial == tq->segment_serial[ix] &&
+		    test_bit(ix, &tq->rtt_samples))
+			rxrpc_add_data_rtt_sample(call, summary, tq, ix, ack_serial);
 
 		if (ix == tq->nr_reported_acks) {
 			/* Packet directly hard ACK'd. */
@@ -348,7 +369,7 @@ static bool rxrpc_receiving_reply(struct rxrpc_call *call)
 	}
 
 	if (!test_bit(RXRPC_CALL_TX_LAST, &call->flags)) {
-		if (!rxrpc_rotate_tx_window(call, top, &summary)) {
+		if (!rxrpc_rotate_tx_window(call, top, &summary, 0)) {
 			rxrpc_proto_abort(call, top, rxrpc_eproto_early_reply);
 			return false;
 		}
@@ -801,6 +822,19 @@ static void rxrpc_input_ack_trailer(struct rxrpc_call *call, struct sk_buff *skb
 #endif
 
 /*
+ * Deal with RTT samples from soft ACKs.
+ */
+static void rxrpc_input_soft_rtt(struct rxrpc_call *call,
+				 struct rxrpc_ack_summary *summary,
+				 struct rxrpc_txqueue *tq,
+				 rxrpc_serial_t ack_serial)
+{
+	for (int ix = 0; ix < RXRPC_NR_TXQUEUE; ix++)
+		if (summary->acked_serial == tq->segment_serial[ix])
+			return rxrpc_add_data_rtt_sample(call, summary, tq, ix, ack_serial);
+}
+
+/*
  * Process a batch of soft ACKs specific to a transmission queue segment.
  */
 static void rxrpc_input_soft_ack_tq(struct rxrpc_call *call,
@@ -909,6 +943,8 @@ static void rxrpc_input_soft_acks(struct rxrpc_call *call,
 
 		_debug("bound %16lx %u", extracted, nr);
 
+		if (summary->rtt_sample_avail)
+			rxrpc_input_soft_rtt(call, summary, tq, sp->hdr.serial);
 		rxrpc_input_soft_ack_tq(call, summary, tq, extracted, RXRPC_NR_TXQUEUE,
 					seq - RXRPC_NR_TXQUEUE, &lowest_nak);
 		extracted = ~0UL;
@@ -980,7 +1016,7 @@ static void rxrpc_input_ack(struct rxrpc_call *call, struct sk_buff *skb)
 	struct rxrpc_ack_summary summary = { 0 };
 	struct rxrpc_acktrailer trailer;
 	struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
-	rxrpc_serial_t ack_serial, acked_serial;
+	rxrpc_serial_t ack_serial;
 	rxrpc_seq_t first_soft_ack, hard_ack, prev_pkt;
 	int nr_acks, offset, ioffset;
 
@@ -989,11 +1025,11 @@ static void rxrpc_input_ack(struct rxrpc_call *call, struct sk_buff *skb)
 	offset = sizeof(struct rxrpc_wire_header) + sizeof(struct rxrpc_ackpacket);
 
 	ack_serial	= sp->hdr.serial;
-	acked_serial	= sp->ack.acked_serial;
 	first_soft_ack	= sp->ack.first_ack;
 	prev_pkt	= sp->ack.prev_ack;
 	nr_acks		= sp->ack.nr_acks;
 	hard_ack	= first_soft_ack - 1;
+	summary.acked_serial = sp->ack.acked_serial;
 	summary.ack_reason = (sp->ack.reason < RXRPC_ACK__INVALID ?
 			      sp->ack.reason : RXRPC_ACK__INVALID);
 
@@ -1001,21 +1037,12 @@ static void rxrpc_input_ack(struct rxrpc_call *call, struct sk_buff *skb)
 	rxrpc_inc_stat(call->rxnet, stat_rx_acks[summary.ack_reason]);
 	prefetch(call->tx_queue);
 
-	if (acked_serial != 0) {
-		switch (summary.ack_reason) {
-		case RXRPC_ACK_PING_RESPONSE:
-			rxrpc_complete_rtt_probe(call, skb->tstamp, acked_serial, ack_serial,
-						 rxrpc_rtt_rx_ping_response);
-			break;
-		case RXRPC_ACK_REQUESTED:
-			rxrpc_complete_rtt_probe(call, skb->tstamp, acked_serial, ack_serial,
-						 rxrpc_rtt_rx_requested_ack);
-			break;
-		default:
-			rxrpc_complete_rtt_probe(call, skb->tstamp, acked_serial, ack_serial,
-						 rxrpc_rtt_rx_other_ack);
-			break;
-		}
+	if (summary.acked_serial != 0) {
+		if (summary.ack_reason == RXRPC_ACK_PING_RESPONSE)
+			rxrpc_complete_rtt_probe(call, skb->tstamp, summary.acked_serial,
+						 ack_serial, rxrpc_rtt_rx_ping_response);
+		else
+			summary.rtt_sample_avail = true;
 	}
 
 	/* If we get an EXCEEDS_WINDOW ACK from the server, it probably
@@ -1068,8 +1095,9 @@ static void rxrpc_input_ack(struct rxrpc_call *call, struct sk_buff *skb)
 	case RXRPC_ACK_PING:
 		break;
 	default:
-		if (acked_serial && after(acked_serial, call->acks_highest_serial))
-			call->acks_highest_serial = acked_serial;
+		if (summary.acked_serial &&
+		    after(summary.acked_serial, call->acks_highest_serial))
+			call->acks_highest_serial = summary.acked_serial;
 		break;
 	}
 
@@ -1098,7 +1126,7 @@ static void rxrpc_input_ack(struct rxrpc_call *call, struct sk_buff *skb)
 		return rxrpc_proto_abort(call, 0, rxrpc_eproto_ackr_sack_overflow);
 
 	if (after(hard_ack, call->tx_bottom)) {
-		if (rxrpc_rotate_tx_window(call, hard_ack, &summary)) {
+		if (rxrpc_rotate_tx_window(call, hard_ack, &summary, ack_serial)) {
 			rxrpc_end_tx_phase(call, false, rxrpc_eproto_unexpected_ack);
 			goto send_response;
 		}
@@ -1116,7 +1144,7 @@ static void rxrpc_input_ack(struct rxrpc_call *call, struct sk_buff *skb)
 		rxrpc_propose_ping(call, ack_serial,
 				   rxrpc_propose_ack_ping_for_lost_reply);
 
-	rxrpc_congestion_management(call, skb, &summary, acked_serial);
+	rxrpc_congestion_management(call, &summary);
 	if (summary.need_retransmit)
 		rxrpc_resend(call, ack_serial, summary.ack_reason == RXRPC_ACK_PING_RESPONSE);
 
@@ -1136,7 +1164,7 @@ static void rxrpc_input_ackall(struct rxrpc_call *call, struct sk_buff *skb)
 {
 	struct rxrpc_ack_summary summary = { 0 };
 
-	if (rxrpc_rotate_tx_window(call, call->tx_top, &summary))
+	if (rxrpc_rotate_tx_window(call, call->tx_top, &summary, 0))
 		rxrpc_end_tx_phase(call, false, rxrpc_eproto_unexpected_ackall);
 }
 

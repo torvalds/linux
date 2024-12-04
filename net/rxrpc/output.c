@@ -436,7 +436,7 @@ static size_t rxrpc_prepare_data_subpacket(struct rxrpc_call *call,
 	trace_rxrpc_req_ack(call->debug_id, txb->seq, why);
 	if (why != rxrpc_reqack_no_srv_last) {
 		flags |= RXRPC_REQUEST_ACK;
-		rxrpc_begin_rtt_probe(call, serial, req->now, rxrpc_rtt_tx_data);
+		trace_rxrpc_rtt_tx(call, rxrpc_rtt_tx_data, -1, serial);
 		call->peer->rtt_last_req = req->now;
 	}
 dont_set_request_ack:
@@ -508,6 +508,10 @@ static size_t rxrpc_prepare_data_packet(struct rxrpc_call *call, struct rxrpc_se
 
 		_debug("prep[%u] tq=%x q=%x", i, tq->qbase, seq);
 		tq->segment_xmit_ts[ix] = xmit_ts;
+		tq->segment_serial[ix] = serial;
+		if (i + 1 == req->n)
+			/* Only sample the last subpacket in a jumbo. */
+			__set_bit(ix, &tq->rtt_samples);
 		len += rxrpc_prepare_data_subpacket(call, req, txb, serial, i);
 		serial++;
 		seq++;

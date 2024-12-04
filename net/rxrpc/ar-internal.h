@@ -769,6 +769,7 @@ struct rxrpc_call {
  * Summary of a new ACK and the changes it made to the Tx buffer packet states.
  */
 struct rxrpc_ack_summary {
+	rxrpc_serial_t	acked_serial;		/* Serial number ACK'd */
 	u16		in_flight;		/* Number of unreceived transmissions */
 	u16		nr_new_hacks;		/* Number of rotated new ACKs */
 	u16		nr_new_sacks;		/* Number of new soft ACKs in packet */
@@ -777,6 +778,7 @@ struct rxrpc_ack_summary {
 	bool		new_low_snack:1;	/* T if new low soft NACK found */
 	bool		retrans_timeo:1;	/* T if reTx due to timeout happened */
 	bool		need_retransmit:1;	/* T if we need transmission */
+	bool		rtt_sample_avail:1;	/* T if RTT sample available */
 	u8 /*enum rxrpc_congest_change*/ change;
 };
 
@@ -859,12 +861,14 @@ struct rxrpc_txqueue {
 	unsigned long		segment_acked;	/* Bit-per-buf: Set if ACK'd */
 	unsigned long		segment_lost;	/* Bit-per-buf: Set if declared lost */
 	unsigned long		segment_retransmitted; /* Bit-per-buf: Set if retransmitted */
+	unsigned long		rtt_samples;	/* Bit-per-buf: Set if available for RTT */
 
 	/* The arrays we want to pack into as few cache lines as possible. */
 	struct {
 #define RXRPC_NR_TXQUEUE BITS_PER_LONG
 #define RXRPC_TXQ_MASK (RXRPC_NR_TXQUEUE - 1)
 		struct rxrpc_txbuf *bufs[RXRPC_NR_TXQUEUE];
+		unsigned int	segment_serial[RXRPC_NR_TXQUEUE];
 		unsigned int	segment_xmit_ts[RXRPC_NR_TXQUEUE];
 	} ____cacheline_aligned;
 };
