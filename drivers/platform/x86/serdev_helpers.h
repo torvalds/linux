@@ -35,7 +35,7 @@ get_serdev_controller(const char *serial_ctrl_hid,
 	ctrl_adev = acpi_dev_get_first_match_dev(serial_ctrl_hid, serial_ctrl_uid, -1);
 	if (!ctrl_adev) {
 		pr_err("error could not get %s/%s serial-ctrl adev\n",
-		       serial_ctrl_hid, serial_ctrl_uid);
+		       serial_ctrl_hid, serial_ctrl_uid ?: "*");
 		return ERR_PTR(-ENODEV);
 	}
 
@@ -43,7 +43,7 @@ get_serdev_controller(const char *serial_ctrl_hid,
 	ctrl_dev = get_device(acpi_get_first_physical_node(ctrl_adev));
 	if (!ctrl_dev) {
 		pr_err("error could not get %s/%s serial-ctrl physical node\n",
-		       serial_ctrl_hid, serial_ctrl_uid);
+		       serial_ctrl_hid, serial_ctrl_uid ?: "*");
 		ctrl_dev = ERR_PTR(-ENODEV);
 		goto put_ctrl_adev;
 	}
