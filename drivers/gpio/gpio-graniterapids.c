@@ -234,6 +234,7 @@ static int gnr_gpio_irq_set_type(struct irq_data *d, unsigned int type)
 }
 
 static const struct irq_chip gnr_gpio_irq_chip = {
+	.name		= "gpio-graniterapids",
 	.irq_ack	= gnr_gpio_irq_ack,
 	.irq_mask	= gnr_gpio_irq_mask,
 	.irq_unmask	= gnr_gpio_irq_unmask,
@@ -324,7 +325,6 @@ static int gnr_gpio_probe(struct platform_device *pdev)
 
 	girq = &priv->gc.irq;
 	gpio_irq_chip_set_chip(girq, &gnr_gpio_irq_chip);
-	girq->chip->name	= dev_name(dev);
 	girq->parent_handler	= NULL;
 	girq->num_parents	= 0;
 	girq->parents		= NULL;
