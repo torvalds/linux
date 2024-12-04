@@ -668,23 +668,24 @@ static void wait_panel_power_cycle(struct intel_dp *intel_dp)
 	struct intel_display *display = to_intel_display(intel_dp);
 	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
 	ktime_t panel_power_on_time;
-	s64 panel_power_off_duration;
-
-	drm_dbg_kms(display->drm,
-		    "[ENCODER:%d:%s] %s wait for panel power cycle\n",
-		    dig_port->base.base.base.id, dig_port->base.base.name,
-		    pps_name(intel_dp));
+	s64 panel_power_off_duration, remaining;
 
 	/* take the difference of current time and panel power off time
 	 * and then make panel wait for power_cycle if needed. */
 	panel_power_on_time = ktime_get_boottime();
 	panel_power_off_duration = ktime_ms_delta(panel_power_on_time, intel_dp->pps.panel_power_off_time);
 
+	remaining = max(0, intel_dp->pps.panel_power_cycle_delay - panel_power_off_duration);
+
+	drm_dbg_kms(display->drm,
+		    "[ENCODER:%d:%s] %s wait for panel power cycle (%lld ms remaining)\n",
+		    dig_port->base.base.base.id, dig_port->base.base.name,
+		    pps_name(intel_dp), remaining);
+
 	/* When we disable the VDD override bit last we have to do the manual
 	 * wait. */
-	if (panel_power_off_duration < (s64)intel_dp->pps.panel_power_cycle_delay)
-		wait_remaining_ms_from_jiffies(jiffies,
-				       intel_dp->pps.panel_power_cycle_delay - panel_power_off_duration);
+	if (remaining)
+		wait_remaining_ms_from_jiffies(jiffies, remaining);
 
 	wait_panel_status(intel_dp, IDLE_CYCLE_MASK, IDLE_CYCLE_VALUE);
 }
