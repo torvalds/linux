@@ -129,7 +129,7 @@ config GPIB_FMH
        tristate "FMH FPGA based devices"
        select GPIB_COMMON
        select GPIB_NEC7210
-       depends on BROKEN
+       depends on !PPC
        depends on OF && PCI
        help
          GPIB driver for fmhess FPGA based devices
