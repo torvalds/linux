@@ -30,6 +30,7 @@
 #include <rvu_trace.h>
 #include "qos.h"
 #include "rep.h"
+#include "cn10k_ipsec.h"
 
 /* IPv4 flag more fragment bit */
 #define IPV4_FLAG_MORE				0x20
@@ -40,6 +41,7 @@
 #define PCI_DEVID_OCTEONTX2_RVU_AFVF		0xA0F8
 
 #define PCI_SUBSYS_DEVID_96XX_RVU_PFVF		0xB200
+#define PCI_SUBSYS_DEVID_CN10K_A_RVU_PFVF	0xB900
 #define PCI_SUBSYS_DEVID_CN10K_B_RVU_PFVF	0xBD00
 
 #define PCI_DEVID_OCTEONTX2_SDP_REP		0xA0F7
@@ -448,6 +450,7 @@ struct otx2_nic {
 #define OTX2_FLAG_TC_MARK_ENABLED		BIT_ULL(17)
 #define OTX2_FLAG_REP_MODE_ENABLED		 BIT_ULL(18)
 #define OTX2_FLAG_PORT_UP			BIT_ULL(19)
+#define OTX2_FLAG_IPSEC_OFFLOAD_ENABLED		BIT_ULL(20)
 	u64			flags;
 	u64			*cq_op_addr;
 
@@ -522,6 +525,9 @@ struct otx2_nic {
 	u16			rep_pf_map[RVU_MAX_REP];
 	u16			esw_mode;
 #endif
+
+	/* Inline ipsec */
+	struct cn10k_ipsec	ipsec;
 };
 
 static inline bool is_otx2_lbkvf(struct pci_dev *pdev)
@@ -572,6 +578,15 @@ static inline bool is_dev_cn10kb(struct pci_dev *pdev)
 	return pdev->subsystem_device == PCI_SUBSYS_DEVID_CN10K_B_RVU_PFVF;
 }
 
+static inline bool is_dev_cn10ka_b0(struct pci_dev *pdev)
+{
+	if (pdev->subsystem_device == PCI_SUBSYS_DEVID_CN10K_A_RVU_PFVF &&
+	    (pdev->revision & 0xFF) == 0x54)
+		return true;
+
+	return false;
+}
+
 static inline void otx2_setup_dev_hw_settings(struct otx2_nic *pfvf)
 {
 	struct otx2_hw *hw = &pfvf->hw;
@@ -620,6 +635,9 @@ static inline void __iomem *otx2_get_regaddr(struct otx2_nic *nic, u64 offset)
 		break;
 	case BLKTYPE_NPA:
 		blkaddr = BLKADDR_NPA;
+		break;
+	case BLKTYPE_CPT:
+		blkaddr = BLKADDR_CPT0;
 		break;
 	default:
 		blkaddr = BLKADDR_RVUM;
