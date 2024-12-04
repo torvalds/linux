@@ -302,6 +302,11 @@
 	EM(rxrpc_txqueue_rotate_last,		"RLS") \
 	E_(rxrpc_txqueue_wait,			"WAI")
 
+#define rxrpc_txdata_traces \
+	EM(rxrpc_txdata_inject_loss,		" *INJ-LOSS*") \
+	EM(rxrpc_txdata_new_data,		" ") \
+	E_(rxrpc_txdata_retransmit,		" *RETRANS*")
+
 #define rxrpc_receive_traces \
 	EM(rxrpc_receive_end,			"END") \
 	EM(rxrpc_receive_front,			"FRN") \
@@ -534,6 +539,7 @@ enum rxrpc_timer_trace		{ rxrpc_timer_traces } __mode(byte);
 enum rxrpc_tq_trace		{ rxrpc_tq_traces } __mode(byte);
 enum rxrpc_tx_point		{ rxrpc_tx_points } __mode(byte);
 enum rxrpc_txbuf_trace		{ rxrpc_txbuf_traces } __mode(byte);
+enum rxrpc_txdata_trace		{ rxrpc_txdata_traces } __mode(byte);
 enum rxrpc_txqueue_trace	{ rxrpc_txqueue_traces } __mode(byte);
 
 #endif /* end __RXRPC_DECLARE_TRACE_ENUMS_ONCE_ONLY */
@@ -572,6 +578,7 @@ rxrpc_timer_traces;
 rxrpc_tq_traces;
 rxrpc_tx_points;
 rxrpc_txbuf_traces;
+rxrpc_txdata_traces;
 rxrpc_txqueue_traces;
 
 /*
@@ -1222,9 +1229,10 @@ TRACE_EVENT(rxrpc_tx_packet,
 
 TRACE_EVENT(rxrpc_tx_data,
 	    TP_PROTO(struct rxrpc_call *call, rxrpc_seq_t seq,
-		     rxrpc_serial_t serial, unsigned int flags, bool lose),
+		     rxrpc_serial_t serial, unsigned int flags,
+		     enum rxrpc_txdata_trace trace),
 
-	    TP_ARGS(call, seq, serial, flags, lose),
+	    TP_ARGS(call, seq, serial, flags, trace),
 
 	    TP_STRUCT__entry(
 		    __field(unsigned int,	call)
@@ -1233,7 +1241,7 @@ TRACE_EVENT(rxrpc_tx_data,
 		    __field(u32,		cid)
 		    __field(u32,		call_id)
 		    __field(u16,		flags)
-		    __field(bool,		lose)
+		    __field(enum rxrpc_txdata_trace, trace)
 			     ),
 
 	    TP_fast_assign(
@@ -1243,18 +1251,17 @@ TRACE_EVENT(rxrpc_tx_data,
 		    __entry->seq = seq;
 		    __entry->serial = serial;
 		    __entry->flags = flags;
-		    __entry->lose = lose;
+		    __entry->trace = trace;
 			   ),
 
-	    TP_printk("c=%08x DATA %08x:%08x %08x q=%08x fl=%02x%s%s",
+	    TP_printk("c=%08x DATA %08x:%08x %08x q=%08x fl=%02x%s",
 		      __entry->call,
 		      __entry->cid,
 		      __entry->call_id,
 		      __entry->serial,
 		      __entry->seq,
 		      __entry->flags & RXRPC_TXBUF_WIRE_FLAGS,
-		      __entry->flags & RXRPC_TXBUF_RESENT ? " *RETRANS*" : "",
-		      __entry->lose ? " *LOSE*" : "")
+		      __print_symbolic(__entry->trace, rxrpc_txdata_traces))
 	    );
 
 TRACE_EVENT(rxrpc_tx_ack,

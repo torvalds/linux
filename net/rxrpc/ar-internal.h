@@ -883,6 +883,7 @@ struct rxrpc_send_data_req {
 	rxrpc_seq_t		seq;		/* Sequence of first data */
 	int			n;		/* Number of DATA packets to glue into jumbo */
 	bool			did_send;	/* T if did actually send */
+	int /* enum rxrpc_txdata_trace */ trace;
 };
 
 #include <trace/events/rxrpc.h>

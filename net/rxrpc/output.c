@@ -511,7 +511,7 @@ dont_set_request_ack:
 		len += sizeof(*jumbo);
 	}
 
-	trace_rxrpc_tx_data(call, txb->seq, txb->serial, txb->flags | flags, false);
+	trace_rxrpc_tx_data(call, txb->seq, txb->serial, flags, req->trace);
 	kv->iov_len = len;
 	return len;
 }
@@ -655,8 +655,8 @@ void rxrpc_send_data_packet(struct rxrpc_call *call, struct rxrpc_send_data_req 
 
 		if ((lose++ & 7) == 7) {
 			ret = 0;
-			trace_rxrpc_tx_data(call, txb->seq, txb->serial,
-					    txb->flags, true);
+			trace_rxrpc_tx_data(call, txb->seq, txb->serial, txb->flags,
+					    rxrpc_txdata_inject_loss);
 			conn->peer->last_tx_at = ktime_get_seconds();
 			goto done;
 		}

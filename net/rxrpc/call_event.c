@@ -101,6 +101,7 @@ void rxrpc_resend(struct rxrpc_call *call, rxrpc_serial_t ack_serial, bool ping_
 {
 	struct rxrpc_send_data_req req = {
 		.now	= ktime_get_real(),
+		.trace	= rxrpc_txdata_retransmit,
 	};
 	struct rxrpc_txqueue *tq = call->tx_queue;
 	ktime_t lowest_xmit_ts = KTIME_MAX;
@@ -269,7 +270,8 @@ static unsigned int rxrpc_tx_window_space(struct rxrpc_call *call)
 /*
  * Transmit some as-yet untransmitted data.
  */
-static void rxrpc_transmit_fresh_data(struct rxrpc_call *call)
+static void rxrpc_transmit_fresh_data(struct rxrpc_call *call,
+				      enum rxrpc_txdata_trace trace)
 {
 	int space = rxrpc_tx_window_space(call);
 
@@ -284,6 +286,7 @@ static void rxrpc_transmit_fresh_data(struct rxrpc_call *call)
 			.now	= ktime_get_real(),
 			.seq	= call->tx_transmitted + 1,
 			.n	= 0,
+			.trace	= trace,
 		};
 		struct rxrpc_txqueue *tq;
 		struct rxrpc_txbuf *txb;
@@ -332,7 +335,8 @@ static void rxrpc_transmit_fresh_data(struct rxrpc_call *call)
 	}
 }
 
-static void rxrpc_transmit_some_data(struct rxrpc_call *call)
+static void rxrpc_transmit_some_data(struct rxrpc_call *call,
+				     enum rxrpc_txdata_trace trace)
 {
 	switch (__rxrpc_call_state(call)) {
 	case RXRPC_CALL_SERVER_ACK_REQUEST:
@@ -349,7 +353,7 @@ static void rxrpc_transmit_some_data(struct rxrpc_call *call)
 			rxrpc_inc_stat(call->rxnet, stat_tx_data_underflow);
 			return;
 		}
-		rxrpc_transmit_fresh_data(call);
+		rxrpc_transmit_fresh_data(call, trace);
 		break;
 	default:
 		return;
@@ -463,7 +467,7 @@ bool rxrpc_input_call_event(struct rxrpc_call *call)
 		resend = true;
 	}
 
-	rxrpc_transmit_some_data(call);
+	rxrpc_transmit_some_data(call, rxrpc_txdata_new_data);
 
 	now = ktime_get_real();
 	t = ktime_sub(call->keepalive_at, now);
