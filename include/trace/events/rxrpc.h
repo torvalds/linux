@@ -1453,7 +1453,7 @@ TRACE_EVENT(rxrpc_rtt_rx,
 		    __entry->rtt = rtt;
 		    __entry->srtt = srtt;
 		    __entry->rto = rto;
-		    __entry->min_rtt = minmax_get(&call->peer->min_rtt)
+		    __entry->min_rtt = minmax_get(&call->min_rtt)
 			   ),
 
 	    TP_printk("c=%08x [%d] %s sr=%08x rr=%08x rtt=%u srtt=%u rto=%u min=%u",

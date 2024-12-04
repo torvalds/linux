@@ -134,7 +134,7 @@ static int rxrpc_wait_for_tx_window_waitall(struct rxrpc_sock *rx,
 	rxrpc_seq_t tx_start, tx_win;
 	signed long rtt, timeout;
 
-	rtt = READ_ONCE(call->peer->srtt_us) >> 3;
+	rtt = READ_ONCE(call->srtt_us) >> 3;
 	rtt = usecs_to_jiffies(rtt) * 2;
 	if (rtt < 2)
 		rtt = 2;

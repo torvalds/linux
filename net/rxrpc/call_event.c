@@ -44,8 +44,8 @@ void rxrpc_propose_delay_ACK(struct rxrpc_call *call, rxrpc_serial_t serial,
 
 	trace_rxrpc_propose_ack(call, why, RXRPC_ACK_DELAY, serial);
 
-	if (call->peer->srtt_us)
-		delay = (call->peer->srtt_us >> 3) * NSEC_PER_USEC;
+	if (call->srtt_us)
+		delay = (call->srtt_us >> 3) * NSEC_PER_USEC;
 	else
 		delay = ms_to_ktime(READ_ONCE(rxrpc_soft_ack_delay));
 	ktime_add_ms(delay, call->tx_backoff);
@@ -105,7 +105,7 @@ void rxrpc_resend(struct rxrpc_call *call, rxrpc_serial_t ack_serial, bool ping_
 	};
 	struct rxrpc_txqueue *tq = call->tx_queue;
 	ktime_t lowest_xmit_ts = KTIME_MAX;
-	ktime_t rto = rxrpc_get_rto_backoff(call->peer, false);
+	ktime_t rto = rxrpc_get_rto_backoff(call, false);
 	bool unacked = false;
 
 	_enter("{%d,%d}", call->tx_bottom, call->tx_top);
@@ -195,7 +195,7 @@ void rxrpc_resend(struct rxrpc_call *call, rxrpc_serial_t ack_serial, bool ping_
 	} while ((tq = tq->next));
 
 	if (lowest_xmit_ts < KTIME_MAX) {
-		ktime_t delay = rxrpc_get_rto_backoff(call->peer, req.did_send);
+		ktime_t delay = rxrpc_get_rto_backoff(call, req.did_send);
 		ktime_t resend_at = ktime_add(lowest_xmit_ts, delay);
 
 		_debug("delay %llu %lld", delay, ktime_sub(resend_at, req.now));
@@ -216,7 +216,7 @@ void rxrpc_resend(struct rxrpc_call *call, rxrpc_serial_t ack_serial, bool ping_
 	 */
 	if (!req.did_send) {
 		ktime_t next_ping = ktime_add_us(call->acks_latest_ts,
-						 call->peer->srtt_us >> 3);
+						 call->srtt_us >> 3);
 
 		if (ktime_sub(next_ping, req.now) <= 0)
 			rxrpc_send_ACK(call, RXRPC_ACK_PING, 0,
@@ -366,8 +366,8 @@ static void rxrpc_transmit_some_data(struct rxrpc_call *call,
  */
 static void rxrpc_send_initial_ping(struct rxrpc_call *call)
 {
-	if (call->peer->rtt_count < 3 ||
-	    ktime_before(ktime_add_ms(call->peer->rtt_last_req, 1000),
+	if (call->rtt_count < 3 ||
+	    ktime_before(ktime_add_ms(call->rtt_last_req, 1000),
 			 ktime_get_real()))
 		rxrpc_send_ACK(call, RXRPC_ACK_PING, 0,
 			       rxrpc_propose_ack_ping_for_params);
@@ -499,10 +499,10 @@ bool rxrpc_input_call_event(struct rxrpc_call *call)
 			       rxrpc_propose_ack_rx_idle);
 
 	if (call->ackr_nr_unacked > 2) {
-		if (call->peer->rtt_count < 3)
+		if (call->rtt_count < 3)
 			rxrpc_send_ACK(call, RXRPC_ACK_PING, 0,
 				       rxrpc_propose_ack_ping_for_rtt);
-		else if (ktime_before(ktime_add_ms(call->peer->rtt_last_req, 1000),
+		else if (ktime_before(ktime_add_ms(call->rtt_last_req, 1000),
 				      ktime_get_real()))
 			rxrpc_send_ACK(call, RXRPC_ACK_PING, 0,
 				       rxrpc_propose_ack_ping_for_old_rtt);

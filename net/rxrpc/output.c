@@ -234,7 +234,7 @@ static int rxrpc_fill_out_ack(struct rxrpc_call *call, int nr_kv, u8 ack_reason,
 	if (ack_reason == RXRPC_ACK_PING)
 		rxrpc_begin_rtt_probe(call, *_ack_serial, now, rxrpc_rtt_tx_ping);
 	if (whdr->flags & RXRPC_REQUEST_ACK)
-		call->peer->rtt_last_req = now;
+		call->rtt_last_req = now;
 	rxrpc_set_keepalive(call, now);
 	return nr_kv;
 }
@@ -473,9 +473,9 @@ static size_t rxrpc_prepare_data_subpacket(struct rxrpc_call *call,
 		why = rxrpc_reqack_slow_start;
 	else if (call->tx_winsize <= 2)
 		why = rxrpc_reqack_small_txwin;
-	else if (call->peer->rtt_count < 3 && txb->seq & 1)
+	else if (call->rtt_count < 3)
 		why = rxrpc_reqack_more_rtt;
-	else if (ktime_before(ktime_add_ms(call->peer->rtt_last_req, 1000), ktime_get_real()))
+	else if (ktime_before(ktime_add_ms(call->rtt_last_req, 1000), ktime_get_real()))
 		why = rxrpc_reqack_old_rtt;
 	else if (!last && !after(READ_ONCE(call->send_top), txb->seq))
 		why = rxrpc_reqack_app_stall;
@@ -487,7 +487,7 @@ static size_t rxrpc_prepare_data_subpacket(struct rxrpc_call *call,
 	if (why != rxrpc_reqack_no_srv_last) {
 		flags |= RXRPC_REQUEST_ACK;
 		trace_rxrpc_rtt_tx(call, rxrpc_rtt_tx_data, -1, serial);
-		call->peer->rtt_last_req = req->now;
+		call->rtt_last_req = req->now;
 	}
 dont_set_request_ack:
 
@@ -576,8 +576,8 @@ static size_t rxrpc_prepare_data_packet(struct rxrpc_call *call, struct rxrpc_se
 	}
 
 	/* Set timeouts */
-	if (call->peer->rtt_count > 1) {
-		ktime_t delay = rxrpc_get_rto_backoff(call->peer, false);
+	if (call->rtt_count > 1) {
+		ktime_t delay = rxrpc_get_rto_backoff(call, false);
 
 		call->ack_lost_at = ktime_add(req->now, delay);
 		trace_rxrpc_timer_set(call, delay, rxrpc_timer_trace_lost_ack);
@@ -590,7 +590,7 @@ static size_t rxrpc_prepare_data_packet(struct rxrpc_call *call, struct rxrpc_se
 		trace_rxrpc_timer_set(call, delay, rxrpc_timer_trace_expect_rx);
 	}
 	if (call->resend_at == KTIME_MAX) {
-		ktime_t delay = rxrpc_get_rto_backoff(call->peer, false);
+		ktime_t delay = rxrpc_get_rto_backoff(call, false);
 
 		call->resend_at = ktime_add(req->now, delay);
 		trace_rxrpc_timer_set(call, delay, rxrpc_timer_trace_resend);

@@ -71,11 +71,11 @@ static void rxrpc_congestion_management(struct rxrpc_call *call,
 		/* We analyse the number of packets that get ACK'd per RTT
 		 * period and increase the window if we managed to fill it.
 		 */
-		if (call->peer->rtt_count == 0)
+		if (call->rtt_count == 0)
 			goto out;
 		if (ktime_before(call->acks_latest_ts,
 				 ktime_add_us(call->cong_tstamp,
-					      call->peer->srtt_us >> 3)))
+					      call->srtt_us >> 3)))
 			goto out_no_clear_ca;
 		summary->change = rxrpc_cong_rtt_window_end;
 		call->cong_tstamp = call->acks_latest_ts;
@@ -179,7 +179,7 @@ void rxrpc_congestion_degrade(struct rxrpc_call *call)
 	if (__rxrpc_call_state(call) == RXRPC_CALL_CLIENT_AWAIT_REPLY)
 		return;
 
-	rtt = ns_to_ktime(call->peer->srtt_us * (1000 / 8));
+	rtt = ns_to_ktime(call->srtt_us * (NSEC_PER_USEC / 8));
 	now = ktime_get_real();
 	if (!ktime_before(ktime_add(call->tx_last_sent, rtt), now))
 		return;
@@ -200,7 +200,7 @@ static void rxrpc_add_data_rtt_sample(struct rxrpc_call *call,
 				      struct rxrpc_txqueue *tq,
 				      int ix)
 {
-	rxrpc_peer_add_rtt(call, rxrpc_rtt_rx_data_ack, -1,
+	rxrpc_call_add_rtt(call, rxrpc_rtt_rx_data_ack, -1,
 			   summary->acked_serial, summary->ack_serial,
 			   ktime_add_us(tq->xmit_ts_base, tq->segment_xmit_ts[ix]),
 			   call->acks_latest_ts);
@@ -725,7 +725,7 @@ static void rxrpc_complete_rtt_probe(struct rxrpc_call *call,
 			clear_bit(i + RXRPC_CALL_RTT_PEND_SHIFT, &call->rtt_avail);
 			smp_mb(); /* Read data before setting avail bit */
 			set_bit(i, &call->rtt_avail);
-			rxrpc_peer_add_rtt(call, type, i, acked_serial, ack_serial,
+			rxrpc_call_add_rtt(call, type, i, acked_serial, ack_serial,
 					   sent_at, resp_time);
 			matched = true;
 		}
