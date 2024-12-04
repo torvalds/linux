@@ -5,6 +5,8 @@
 #include "bpf_misc.h"
 #include "bpf_experimental.h"
 
+extern int bpf_copy_from_user_str(void *dst, u32 dst__sz, const void *unsafe_ptr__ign, u64 flags) __weak __ksym;
+
 SEC("?tc")
 __failure __msg("BPF_EXIT instruction in main prog cannot be used inside bpf_preempt_disable-ed region")
 int preempt_lock_missing_1(struct __sk_buff *ctx)
@@ -109,6 +111,18 @@ int preempt_sleepable_helper(void *ctx)
 
 	bpf_preempt_disable();
 	bpf_copy_from_user(&data, sizeof(data), NULL);
+	bpf_preempt_enable();
+	return 0;
+}
+
+SEC("?fentry.s/" SYS_PREFIX "sys_getpgid")
+__failure __msg("kernel func bpf_copy_from_user_str is sleepable within non-preemptible region")
+int preempt_sleepable_kfunc(void *ctx)
+{
+	u32 data;
+
+	bpf_preempt_disable();
+	bpf_copy_from_user_str(&data, sizeof(data), NULL, 0);
 	bpf_preempt_enable();
 	return 0;
 }
