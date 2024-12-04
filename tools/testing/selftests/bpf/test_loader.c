@@ -36,6 +36,7 @@
 #define TEST_TAG_ARCH "comment:test_arch="
 #define TEST_TAG_JITED_PFX "comment:test_jited="
 #define TEST_TAG_JITED_PFX_UNPRIV "comment:test_jited_unpriv="
+#define TEST_TAG_CAPS_UNPRIV "comment:test_caps_unpriv="
 
 /* Warning: duplicated in bpf_misc.h */
 #define POINTER_VALUE	0xcafe4all
@@ -74,6 +75,7 @@ struct test_subspec {
 	struct expected_msgs jited;
 	int retval;
 	bool execute;
+	__u64 caps;
 };
 
 struct test_spec {
@@ -273,6 +275,37 @@ static int parse_int(const char *str, int *val, const char *name)
 		return -EINVAL;
 	}
 	*val = tmp;
+	return 0;
+}
+
+static int parse_caps(const char *str, __u64 *val, const char *name)
+{
+	int cap_flag = 0;
+	char *token = NULL, *saveptr = NULL;
+
+	char *str_cpy = strdup(str);
+	if (str_cpy == NULL) {
+		PRINT_FAIL("Memory allocation failed\n");
+		return -EINVAL;
+	}
+
+	token = strtok_r(str_cpy, "|", &saveptr);
+	while (token != NULL) {
+		errno = 0;
+		if (!strncmp("CAP_", token, sizeof("CAP_") - 1)) {
+			PRINT_FAIL("define %s constant in bpf_misc.h, failed to parse caps\n", token);
+			return -EINVAL;
+		}
+		cap_flag = strtol(token, NULL, 10);
+		if (!cap_flag || errno) {
+			PRINT_FAIL("failed to parse caps %s\n", name);
+			return -EINVAL;
+		}
+		*val |= (1ULL << cap_flag);
+		token = strtok_r(NULL, "|", &saveptr);
+	}
+
+	free(str_cpy);
 	return 0;
 }
 
@@ -541,6 +574,12 @@ static int parse_test_spec(struct test_loader *tester,
 			jit_on_next_line = true;
 		} else if (str_has_pfx(s, TEST_BTF_PATH)) {
 			spec->btf_custom_path = s + sizeof(TEST_BTF_PATH) - 1;
+		} else if (str_has_pfx(s, TEST_TAG_CAPS_UNPRIV)) {
+			val = s + sizeof(TEST_TAG_CAPS_UNPRIV) - 1;
+			err = parse_caps(val, &spec->unpriv.caps, "test caps");
+			if (err)
+				goto cleanup;
+			spec->mode_mask |= UNPRIV;
 		}
 	}
 
@@ -916,6 +955,13 @@ void run_subtest(struct test_loader *tester,
 		if (drop_capabilities(&caps)) {
 			test__end_subtest();
 			return;
+		}
+		if (subspec->caps) {
+			err = cap_enable_effective(subspec->caps, NULL);
+			if (err) {
+				PRINT_FAIL("failed to set capabilities: %i, %s\n", err, strerror(err));
+				goto subtest_cleanup;
+			}
 		}
 	}
 
