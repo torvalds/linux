@@ -24,6 +24,7 @@ static struct rxrpc_txbuf *none_alloc_txbuf(struct rxrpc_call *call, size_t rema
 
 static int none_secure_packet(struct rxrpc_call *call, struct rxrpc_txbuf *txb)
 {
+	txb->pkt_len = txb->len;
 	return 0;
 }
 

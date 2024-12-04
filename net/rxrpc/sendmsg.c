@@ -391,7 +391,6 @@ reload:
 				goto out;
 
 			txb->kvec[0].iov_len += txb->len;
-			txb->len = txb->kvec[0].iov_len;
 			rxrpc_queue_packet(rx, call, txb, notify_end_tx);
 			txb = NULL;
 		}

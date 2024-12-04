@@ -383,11 +383,11 @@ static size_t rxrpc_prepare_data_subpacket(struct rxrpc_call *call, struct rxrpc
 	enum rxrpc_req_ack_trace why;
 	struct rxrpc_connection *conn = call->conn;
 	struct kvec *kv = &call->local->kvec[subpkt];
-	size_t len = txb->len;
+	size_t len = txb->pkt_len;
 	bool last, more;
 	u8 flags;
 
-	_enter("%x,{%d}", txb->seq, txb->len);
+	_enter("%x,%zd", txb->seq, len);
 
 	txb->serial = serial;
 
@@ -441,6 +441,7 @@ dont_set_request_ack:
 	whdr->cksum	= txb->cksum;
 	whdr->serviceId	= htons(conn->service_id);
 	kv->iov_base	= whdr;
+	len += sizeof(*whdr);
 	// TODO: Convert into a jumbo header for tail subpackets
 
 	trace_rxrpc_tx_data(call, txb->seq, txb->serial, flags, false);
@@ -509,7 +510,7 @@ static int rxrpc_send_data_packet(struct rxrpc_call *call, struct rxrpc_txbuf *t
 	size_t len;
 	int ret;
 
-	_enter("%x,{%d}", txb->seq, txb->len);
+	_enter("%x,{%d}", txb->seq, txb->pkt_len);
 
 	len = rxrpc_prepare_data_packet(call, txb);
 

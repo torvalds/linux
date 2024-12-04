@@ -821,9 +821,11 @@ struct rxrpc_txbuf {
 	rxrpc_serial_t		serial;		/* Last serial number transmitted with */
 	unsigned int		call_debug_id;
 	unsigned int		debug_id;
-	unsigned int		len;		/* Amount of data in buffer */
-	unsigned int		space;		/* Remaining data space */
-	unsigned int		offset;		/* Offset of fill point */
+	unsigned short		len;		/* Amount of data in buffer */
+	unsigned short		space;		/* Remaining data space */
+	unsigned short		offset;		/* Offset of fill point */
+	unsigned short		pkt_len;	/* Size of packet content */
+	unsigned short		alloc_size;	/* Amount of bufferage allocated */
 	unsigned int		flags;
 #define RXRPC_TXBUF_WIRE_FLAGS	0xff		/* The wire protocol flags */
 #define RXRPC_TXBUF_RESENT	0x100		/* Set if has been resent */

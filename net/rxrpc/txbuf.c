@@ -24,7 +24,7 @@ struct rxrpc_txbuf *rxrpc_alloc_data_txbuf(struct rxrpc_call *call, size_t data_
 	size_t total, hoff;
 	void *buf;
 
-	txb = kmalloc(sizeof(*txb), gfp);
+	txb = kzalloc(sizeof(*txb), gfp);
 	if (!txb)
 		return NULL;
 
@@ -49,14 +49,11 @@ struct rxrpc_txbuf *rxrpc_alloc_data_txbuf(struct rxrpc_call *call, size_t data_
 	txb->last_sent		= KTIME_MIN;
 	txb->call_debug_id	= call->debug_id;
 	txb->debug_id		= atomic_inc_return(&rxrpc_txbuf_debug_ids);
+	txb->alloc_size		= data_size;
 	txb->space		= data_size;
-	txb->len		= 0;
 	txb->offset		= sizeof(*whdr);
 	txb->flags		= call->conn->out_clientflag;
-	txb->ack_why		= 0;
 	txb->seq		= call->tx_prepared + 1;
-	txb->serial		= 0;
-	txb->cksum		= 0;
 	txb->nr_kvec		= 1;
 	txb->kvec[0].iov_base	= whdr;
 	txb->kvec[0].iov_len	= sizeof(*whdr);
