@@ -796,7 +796,10 @@ static void rxrpc_input_ack_trailer(struct rxrpc_call *call, struct sk_buff *skb
 		peer->ackr_adv_pmtud = true;
 	} else {
 		peer->ackr_adv_pmtud = false;
+		capacity = clamp(capacity, 1, jumbo_max);
 	}
+
+	call->tx_jumbo_max = capacity;
 
 	if (wake)
 		wake_up(&call->waitq);

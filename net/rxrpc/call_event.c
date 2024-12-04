@@ -288,7 +288,7 @@ static void rxrpc_transmit_fresh_data(struct rxrpc_call *call)
 		struct rxrpc_txqueue *tq;
 		struct rxrpc_txbuf *txb;
 		rxrpc_seq_t send_top, seq;
-		int limit = min(space, 1);
+		int limit = min(space, max(call->peer->pmtud_jumbo, 1));
 
 		/* Order send_top before the contents of the new txbufs and
 		 * txqueue pointers

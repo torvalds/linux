@@ -155,6 +155,7 @@ struct rxrpc_call *rxrpc_alloc_call(struct rxrpc_sock *rx, gfp_t gfp,
 	refcount_set(&call->ref, 1);
 	call->debug_id		= debug_id;
 	call->tx_total_len	= -1;
+	call->tx_jumbo_max	= 1;
 	call->next_rx_timo	= 20 * HZ;
 	call->next_req_timo	= 1 * HZ;
 	call->ackr_window	= 1;
