@@ -8,6 +8,7 @@
 
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/regulator/qcom,rpmh-regulator.h>
+#include <dt-bindings/pinctrl/qcom,pmic-gpio.h>
 
 #include "x1e80100.dtsi"
 #include "x1e80100-pmics.dtsi"
@@ -407,8 +408,12 @@
 
 	aux-bus {
 		panel {
-			compatible = "edp-panel";
+			compatible = "samsung,atna56ac03", "samsung,atna33xc20";
+			enable-gpios = <&pmc8380_3_gpios 4 GPIO_ACTIVE_HIGH>;
 			power-supply = <&vreg_edp_3p3>;
+
+			pinctrl-0 = <&edp_bl_en>;
+			pinctrl-names = "default";
 
 			port {
 				edp_panel_in: endpoint {
@@ -473,6 +478,18 @@
 	vdda-pll-supply = <&vreg_l2j_1p2>;
 
 	status = "okay";
+};
+
+&pmc8380_3_gpios {
+	edp_bl_en: edp-bl-en-state {
+		pins = "gpio4";
+		function = "normal";
+		power-source = <1>; /* 1.8 V */
+		qcom,drive-strength = <PMIC_GPIO_STRENGTH_MED>;
+		bias-pull-down;
+		input-disable;
+		output-enable;
+	};
 };
 
 &qupv3_0 {
