@@ -123,7 +123,7 @@ always-y += ibumad_kern.o
 always-y += hbm_out_kern.o
 always-y += hbm_edt_kern.o
 
-TPROGS_CFLAGS = $(TPROGS_USER_CFLAGS)
+COMMON_CFLAGS = $(TPROGS_USER_CFLAGS)
 TPROGS_LDFLAGS = $(TPROGS_USER_LDFLAGS)
 
 ifeq ($(ARCH), arm)
