@@ -155,13 +155,6 @@ static const char *guc_name(struct xe_guc *guc)
  *
  */
 
-static void __release_xe_bo(struct drm_device *drm, void *arg)
-{
-	struct xe_bo *bo = arg;
-
-	xe_bo_unpin_map_no_vm(bo);
-}
-
 static inline bool hw_reports_to_instance_zero(struct xe_memirq *memirq)
 {
 	/*
@@ -184,14 +177,12 @@ static int memirq_alloc_pages(struct xe_memirq *memirq)
 	BUILD_BUG_ON(!IS_ALIGNED(XE_MEMIRQ_SOURCE_OFFSET(0), SZ_64));
 	BUILD_BUG_ON(!IS_ALIGNED(XE_MEMIRQ_STATUS_OFFSET(0), SZ_4K));
 
-	/* XXX: convert to managed bo */
-	bo = xe_bo_create_pin_map(xe, tile, NULL, bo_size,
-				  ttm_bo_type_kernel,
-				  XE_BO_FLAG_SYSTEM |
-				  XE_BO_FLAG_GGTT |
-				  XE_BO_FLAG_GGTT_INVALIDATE |
-				  XE_BO_FLAG_NEEDS_UC |
-				  XE_BO_FLAG_NEEDS_CPU_ACCESS);
+	bo = xe_managed_bo_create_pin_map(xe, tile, bo_size,
+					  XE_BO_FLAG_SYSTEM |
+					  XE_BO_FLAG_GGTT |
+					  XE_BO_FLAG_GGTT_INVALIDATE |
+					  XE_BO_FLAG_NEEDS_UC |
+					  XE_BO_FLAG_NEEDS_CPU_ACCESS);
 	if (IS_ERR(bo)) {
 		err = PTR_ERR(bo);
 		goto out;
@@ -215,7 +206,7 @@ static int memirq_alloc_pages(struct xe_memirq *memirq)
 		     xe_bo_ggtt_addr(bo), bo_size, XE_MEMIRQ_SOURCE_OFFSET(0),
 		     XE_MEMIRQ_STATUS_OFFSET(0));
 
-	return drmm_add_action_or_reset(&xe->drm, __release_xe_bo, memirq->bo);
+	return 0;
 
 out:
 	memirq_err(memirq, "Failed to allocate memirq page (%pe)\n", ERR_PTR(err));
