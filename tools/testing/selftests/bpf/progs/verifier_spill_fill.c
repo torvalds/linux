@@ -1262,4 +1262,21 @@ __naked void stack_noperfmon_reject_invalid_read(void)
 "	::: __clobber_all);
 }
 
+SEC("socket")
+__description("stack_noperfmon: narrow spill onto 64-bit scalar spilled slots")
+__success
+__caps_unpriv(CAP_BPF)
+__success_unpriv
+__naked void stack_noperfmon_spill_32bit_onto_64bit_slot(void)
+{
+	asm volatile("					\
+	r0 = 0;						\
+	*(u64 *)(r10 - 8) = r0;				\
+	*(u32 *)(r10 - 8) = r0;				\
+	exit;						\
+"	:
+	:
+	: __clobber_all);
+}
+
 char _license[] SEC("license") = "GPL";
