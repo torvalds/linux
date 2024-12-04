@@ -2172,6 +2172,7 @@ out:
 
 static int nvme_alloc_host_mem(struct nvme_dev *dev, u64 min, u64 preferred)
 {
+	unsigned long dma_merge_boundary = dma_get_merge_boundary(dev->dev);
 	u64 min_chunk = min_t(u64, preferred, PAGE_SIZE * MAX_ORDER_NR_PAGES);
 	u64 hmminds = max_t(u32, dev->ctrl.hmminds * 4096, PAGE_SIZE * 2);
 	u64 chunk_size;
@@ -2180,7 +2181,7 @@ static int nvme_alloc_host_mem(struct nvme_dev *dev, u64 min, u64 preferred)
 	 * If there is an IOMMU that can merge pages, try a virtually
 	 * non-contiguous allocation for a single segment first.
 	 */
-	if (!(PAGE_SIZE & dma_get_merge_boundary(dev->dev))) {
+	if (dma_merge_boundary && (PAGE_SIZE & dma_merge_boundary) == 0) {
 		if (!nvme_alloc_host_mem_single(dev, preferred))
 			return 0;
 	}
