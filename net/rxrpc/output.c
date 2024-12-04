@@ -82,10 +82,9 @@ static void rxrpc_fill_out_ack(struct rxrpc_call *call,
 	struct rxrpc_wire_header *whdr = txb->kvec[0].iov_base;
 	struct rxrpc_acktrailer *trailer = txb->kvec[2].iov_base + 3;
 	struct rxrpc_ackpacket *ack = (struct rxrpc_ackpacket *)(whdr + 1);
-	unsigned int qsize, sack, wrap, to;
+	unsigned int qsize, sack, wrap, to, max_mtu, if_mtu;
 	rxrpc_seq_t window, wtop;
 	int rsize;
-	u32 mtu, jmax;
 	u8 *filler = txb->kvec[2].iov_base;
 	u8 *sackp = txb->kvec[1].iov_base;
 
@@ -132,16 +131,22 @@ static void rxrpc_fill_out_ack(struct rxrpc_call *call,
 		ack->reason = RXRPC_ACK_IDLE;
 	}
 
-	mtu = call->peer->if_mtu;
-	mtu -= call->peer->hdrsize;
-	jmax = rxrpc_rx_jumbo_max;
 	qsize = (window - 1) - call->rx_consumed;
 	rsize = max_t(int, call->rx_winsize - qsize, 0);
 	txb->ack_rwind = rsize;
-	trailer->maxMTU		= htonl(rxrpc_rx_mtu);
-	trailer->ifMTU		= htonl(mtu);
+
+	if_mtu = call->peer->if_mtu - call->peer->hdrsize;
+	if (call->peer->ackr_adv_pmtud) {
+		max_mtu = umax(call->peer->max_data, rxrpc_rx_mtu);
+	} else {
+		if_mtu = umin(if_mtu, 1444);
+		max_mtu = if_mtu;
+	}
+
+	trailer->maxMTU		= htonl(max_mtu);
+	trailer->ifMTU		= htonl(if_mtu);
 	trailer->rwind		= htonl(rsize);
-	trailer->jumbo_max	= htonl(jmax);
+	trailer->jumbo_max	= 0; /* Advertise pmtu discovery */
 }
 
 /*
@@ -176,7 +181,7 @@ no_slot:
  * Transmit an ACK packet.
  */
 static void rxrpc_send_ack_packet(struct rxrpc_call *call, struct rxrpc_txbuf *txb,
-				  int nr_kv)
+				  int nr_kv, enum rxrpc_propose_ack_trace why)
 {
 	struct kvec *kv = call->local->kvec;
 	struct rxrpc_wire_header *whdr = kv[0].iov_base;
@@ -209,13 +214,16 @@ static void rxrpc_send_ack_packet(struct rxrpc_call *call, struct rxrpc_txbuf *t
 	rxrpc_inc_stat(call->rxnet, stat_tx_ack_send);
 
 	iov_iter_kvec(&msg.msg_iter, WRITE, kv, nr_kv, txb->len);
-	rxrpc_local_dont_fragment(conn->local, false);
+	rxrpc_local_dont_fragment(conn->local, why == rxrpc_propose_ack_ping_for_mtu_probe);
 
 	ret = do_udp_sendmsg(conn->local->socket, &msg, txb->len);
 	call->peer->last_tx_at = ktime_get_seconds();
 	if (ret < 0) {
 		trace_rxrpc_tx_fail(call->debug_id, txb->serial, ret,
 				    rxrpc_tx_point_call_ack);
+		if (why == rxrpc_propose_ack_ping_for_mtu_probe &&
+		    ret == -EMSGSIZE)
+			rxrpc_input_probe_for_pmtud(conn, txb->serial, true);
 	} else {
 		trace_rxrpc_tx_packet(call->debug_id, whdr,
 				      rxrpc_tx_point_call_ack);
@@ -225,6 +233,13 @@ static void rxrpc_send_ack_packet(struct rxrpc_call *call, struct rxrpc_txbuf *t
 		if (txb->flags & RXRPC_REQUEST_ACK)
 			call->peer->rtt_last_req = now;
 		rxrpc_set_keepalive(call, now);
+		if (why == rxrpc_propose_ack_ping_for_mtu_probe) {
+			call->peer->pmtud_pending = false;
+			call->peer->pmtud_probing = true;
+			call->conn->pmtud_probe = txb->serial;
+			call->conn->pmtud_call = call->debug_id;
+			trace_rxrpc_pmtud_tx(call);
+		}
 	}
 	rxrpc_tx_backoff(call, ret);
 }
@@ -254,19 +269,43 @@ void rxrpc_send_ACK(struct rxrpc_call *call, u8 ack_reason,
 
 	rxrpc_fill_out_ack(call, txb, ack_reason, serial);
 
+	/* Extend a path MTU probe ACK. */
 	nr_kv = txb->nr_kvec;
 	kv[0] = txb->kvec[0];
 	kv[1] = txb->kvec[1];
 	kv[2] = txb->kvec[2];
-	// TODO: Extend a path MTU probe ACK
+	if (why == rxrpc_propose_ack_ping_for_mtu_probe) {
+		size_t probe_mtu = call->peer->pmtud_trial + sizeof(struct rxrpc_wire_header);
+
+		if (txb->len > probe_mtu)
+			goto skip;
+		while (txb->len < probe_mtu) {
+			size_t part = umin(probe_mtu - txb->len, PAGE_SIZE);
+
+			kv[nr_kv].iov_base = page_address(ZERO_PAGE(0));
+			kv[nr_kv].iov_len = part;
+			txb->len += part;
+			nr_kv++;
+		}
+	}
 
 	call->ackr_nr_unacked = 0;
 	atomic_set(&call->ackr_nr_consumed, 0);
 	clear_bit(RXRPC_CALL_RX_IS_IDLE, &call->flags);
 
 	trace_rxrpc_send_ack(call, why, ack_reason, serial);
-	rxrpc_send_ack_packet(call, txb, nr_kv);
+	rxrpc_send_ack_packet(call, txb, nr_kv, why);
+skip:
 	rxrpc_put_txbuf(txb, rxrpc_txbuf_put_ack_tx);
+}
+
+/*
+ * Send an ACK probe for path MTU discovery.
+ */
+void rxrpc_send_probe_for_pmtud(struct rxrpc_call *call)
+{
+	rxrpc_send_ACK(call, RXRPC_ACK_PING, 0,
+		       rxrpc_propose_ack_ping_for_mtu_probe);
 }
 
 /*
@@ -501,7 +540,7 @@ static int rxrpc_send_data_packet(struct rxrpc_call *call, struct rxrpc_txbuf *t
 
 	/* send the packet with the don't fragment bit set if we currently
 	 * think it's small enough */
-	if (len >= sizeof(struct rxrpc_wire_header) + call->peer->maxdata) {
+	if (len >= sizeof(struct rxrpc_wire_header) + call->peer->max_data) {
 		rxrpc_local_dont_fragment(conn->local, false);
 		frag = rxrpc_tx_point_call_data_frag;
 	} else {
@@ -548,7 +587,7 @@ done:
 						  RX_USER_ABORT, ret);
 	}
 
-	_leave(" = %d [%u]", ret, call->peer->maxdata);
+	_leave(" = %d [%u]", ret, call->peer->max_data);
 	return ret;
 }
 

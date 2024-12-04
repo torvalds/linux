@@ -692,8 +692,8 @@ static void rxrpc_input_ack_trailer(struct rxrpc_call *call, struct sk_buff *skb
 				    struct rxrpc_acktrailer *trailer)
 {
 	struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
-	struct rxrpc_peer *peer;
-	unsigned int mtu;
+	struct rxrpc_peer *peer = call->peer;
+	unsigned int max_data;
 	bool wake = false;
 	u32 rwind = ntohl(trailer->rwind);
 
@@ -706,14 +706,22 @@ static void rxrpc_input_ack_trailer(struct rxrpc_call *call, struct sk_buff *skb
 		call->tx_winsize = rwind;
 	}
 
-	mtu = umin(ntohl(trailer->maxMTU), ntohl(trailer->ifMTU));
+	if (trailer->jumbo_max == 0) {
+		/* The peer says it supports pmtu discovery */
+		peer->ackr_adv_pmtud = true;
+	} else {
+		peer->ackr_adv_pmtud = false;
+	}
 
-	peer = call->peer;
-	if (mtu < peer->maxdata) {
-		spin_lock(&peer->lock);
-		peer->maxdata = mtu;
-		peer->mtu = mtu + peer->hdrsize;
-		spin_unlock(&peer->lock);
+	max_data = ntohl(trailer->maxMTU);
+	peer->ackr_max_data = max_data;
+
+	if (max_data < peer->max_data) {
+		trace_rxrpc_pmtud_reduce(peer, sp->hdr.serial, max_data,
+					 rxrpc_pmtud_reduce_ack);
+		write_seqcount_begin(&peer->mtu_lock);
+		peer->max_data = max_data;
+		write_seqcount_end(&peer->mtu_lock);
 	}
 
 	if (wake)

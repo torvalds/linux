@@ -344,12 +344,24 @@ struct rxrpc_peer {
 	time64_t		last_tx_at;	/* Last time packet sent here */
 	seqlock_t		service_conn_lock;
 	spinlock_t		lock;		/* access lock */
-	unsigned int		if_mtu;		/* interface MTU for this peer */
-	unsigned int		mtu;		/* network MTU for this peer */
-	unsigned int		maxdata;	/* data size (MTU - hdrsize) */
-	unsigned short		hdrsize;	/* header size (IP + UDP + RxRPC) */
 	int			debug_id;	/* debug ID for printks */
 	struct sockaddr_rxrpc	srx;		/* remote address */
+
+	/* Path MTU discovery [RFC8899] */
+	unsigned int		pmtud_trial;	/* Current MTU probe size */
+	unsigned int		pmtud_good;	/* Largest working MTU probe we've tried */
+	unsigned int		pmtud_bad;	/* Smallest non-working MTU probe we've tried */
+	bool			pmtud_lost;	/* T if MTU probe was lost */
+	bool			pmtud_probing;	/* T if we have an active probe outstanding */
+	bool			pmtud_pending;	/* T if a call to this peer should send a probe */
+	u8			pmtud_jumbo;	/* Max jumbo packets for the MTU */
+	bool			ackr_adv_pmtud;	/* T if the peer advertises path-MTU */
+	unsigned int		ackr_max_data;	/* Maximum data advertised by peer */
+	seqcount_t		mtu_lock;	/* Lockless MTU access management */
+	unsigned int		if_mtu;		/* Local interface MTU (- hdrsize) for this peer */
+	unsigned int		max_data;	/* Maximum packet data capacity for this peer */
+	unsigned short		hdrsize;	/* header size (IP + UDP + RxRPC) */
+	unsigned short		tx_seg_max;	/* Maximum number of transmissable segments */
 
 	/* calculated RTT cache */
 #define RXRPC_RTT_CACHE_SIZE 32
@@ -531,6 +543,8 @@ struct rxrpc_connection {
 	int			debug_id;	/* debug ID for printks */
 	rxrpc_serial_t		tx_serial;	/* Outgoing packet serial number counter */
 	unsigned int		hi_serial;	/* highest serial number received */
+	rxrpc_serial_t		pmtud_probe;	/* Serial of MTU probe (or 0) */
+	unsigned int		pmtud_call;	/* ID of call used for probe */
 	u32			service_id;	/* Service ID, possibly upgraded */
 	u32			security_level;	/* Security level selected */
 	u8			security_ix;	/* security type */
@@ -1155,6 +1169,7 @@ static inline struct rxrpc_net *rxrpc_net(struct net *net)
  */
 void rxrpc_send_ACK(struct rxrpc_call *call, u8 ack_reason,
 		    rxrpc_serial_t serial, enum rxrpc_propose_ack_trace why);
+void rxrpc_send_probe_for_pmtud(struct rxrpc_call *call);
 int rxrpc_send_abort_packet(struct rxrpc_call *);
 void rxrpc_send_conn_abort(struct rxrpc_connection *conn);
 void rxrpc_reject_packet(struct rxrpc_local *local, struct sk_buff *skb);
@@ -1166,6 +1181,8 @@ void rxrpc_transmit_one(struct rxrpc_call *call, struct rxrpc_txbuf *txb);
  */
 void rxrpc_input_error(struct rxrpc_local *, struct sk_buff *);
 void rxrpc_peer_keepalive_worker(struct work_struct *);
+void rxrpc_input_probe_for_pmtud(struct rxrpc_connection *conn, rxrpc_serial_t acked_serial,
+				 bool sendmsg_fail);
 
 /*
  * peer_object.c

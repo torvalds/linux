@@ -364,6 +364,12 @@ static int rxrpc_input_packet_on_conn(struct rxrpc_connection *conn,
 	if (sp->hdr.callNumber == 0)
 		return rxrpc_input_conn_packet(conn, skb);
 
+	/* Deal with path MTU discovery probing. */
+	if (sp->hdr.type == RXRPC_PACKET_TYPE_ACK &&
+	    conn->pmtud_probe &&
+	    after_eq(sp->ack.acked_serial, conn->pmtud_probe))
+		rxrpc_input_probe_for_pmtud(conn, sp->ack.acked_serial, false);
+
 	/* Call-bound packets are routed by connection channel. */
 	channel = sp->hdr.cid & RXRPC_CHANNELMASK;
 	chan = &conn->channels[channel];

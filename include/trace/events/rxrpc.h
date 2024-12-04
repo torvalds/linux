@@ -364,6 +364,7 @@
 	EM(rxrpc_propose_ack_ping_for_lost_ack,	"LostAck") \
 	EM(rxrpc_propose_ack_ping_for_lost_reply, "LostRpl") \
 	EM(rxrpc_propose_ack_ping_for_0_retrans, "0-Retrn") \
+	EM(rxrpc_propose_ack_ping_for_mtu_probe, "MTUProb") \
 	EM(rxrpc_propose_ack_ping_for_old_rtt,	"OldRtt ") \
 	EM(rxrpc_propose_ack_ping_for_params,	"Params ") \
 	EM(rxrpc_propose_ack_ping_for_rtt,	"Rtt    ") \
@@ -478,6 +479,11 @@
 	EM(rxrpc_txbuf_see_send_more,		"SEE SEND+  ")	\
 	E_(rxrpc_txbuf_see_unacked,		"SEE UNACKED")
 
+#define rxrpc_pmtud_reduce_traces \
+	EM(rxrpc_pmtud_reduce_ack,		"Ack  ")	\
+	EM(rxrpc_pmtud_reduce_icmp,		"Icmp ")	\
+	E_(rxrpc_pmtud_reduce_route,		"Route")
+
 /*
  * Generate enums for tracing information.
  */
@@ -498,6 +504,7 @@ enum rxrpc_congest_change	{ rxrpc_congest_changes } __mode(byte);
 enum rxrpc_conn_trace		{ rxrpc_conn_traces } __mode(byte);
 enum rxrpc_local_trace		{ rxrpc_local_traces } __mode(byte);
 enum rxrpc_peer_trace		{ rxrpc_peer_traces } __mode(byte);
+enum rxrpc_pmtud_reduce_trace	{ rxrpc_pmtud_reduce_traces } __mode(byte);
 enum rxrpc_propose_ack_outcome	{ rxrpc_propose_ack_outcomes } __mode(byte);
 enum rxrpc_propose_ack_trace	{ rxrpc_propose_ack_traces } __mode(byte);
 enum rxrpc_receive_trace	{ rxrpc_receive_traces } __mode(byte);
@@ -534,6 +541,7 @@ rxrpc_congest_changes;
 rxrpc_congest_modes;
 rxrpc_conn_traces;
 rxrpc_local_traces;
+rxrpc_pmtud_reduce_traces;
 rxrpc_propose_ack_traces;
 rxrpc_receive_traces;
 rxrpc_recvmsg_traces;
@@ -2038,6 +2046,122 @@ TRACE_EVENT(rxrpc_sack,
 		      __entry->seq,
 		      __print_symbolic(__entry->what, rxrpc_sack_traces),
 		      __entry->sack)
+	    );
+
+TRACE_EVENT(rxrpc_pmtud_tx,
+	    TP_PROTO(struct rxrpc_call *call),
+
+	    TP_ARGS(call),
+
+	    TP_STRUCT__entry(
+		    __field(unsigned int,	peer_debug_id)
+		    __field(unsigned int,	call_debug_id)
+		    __field(rxrpc_serial_t,	ping_serial)
+		    __field(unsigned short,	pmtud_trial)
+		    __field(unsigned short,	pmtud_good)
+		    __field(unsigned short,	pmtud_bad)
+			     ),
+
+	    TP_fast_assign(
+		    __entry->peer_debug_id = call->peer->debug_id;
+		    __entry->call_debug_id = call->debug_id;
+		    __entry->ping_serial = call->conn->pmtud_probe;
+		    __entry->pmtud_trial = call->peer->pmtud_trial;
+		    __entry->pmtud_good = call->peer->pmtud_good;
+		    __entry->pmtud_bad = call->peer->pmtud_bad;
+			   ),
+
+	    TP_printk("P=%08x c=%08x pr=%08x %u-%u-%u",
+		      __entry->peer_debug_id,
+		      __entry->call_debug_id,
+		      __entry->ping_serial,
+		      __entry->pmtud_good,
+		      __entry->pmtud_trial,
+		      __entry->pmtud_bad)
+	    );
+
+TRACE_EVENT(rxrpc_pmtud_rx,
+	    TP_PROTO(struct rxrpc_connection *conn, rxrpc_serial_t resp_serial),
+
+	    TP_ARGS(conn, resp_serial),
+
+	    TP_STRUCT__entry(
+		    __field(unsigned int,	peer_debug_id)
+		    __field(unsigned int,	call_debug_id)
+		    __field(rxrpc_serial_t,	ping_serial)
+		    __field(rxrpc_serial_t,	resp_serial)
+		    __field(unsigned short,	max_data)
+		    __field(u8,			jumbo_max)
+			     ),
+
+	    TP_fast_assign(
+		    __entry->peer_debug_id = conn->peer->debug_id;
+		    __entry->call_debug_id = conn->pmtud_call;
+		    __entry->ping_serial = conn->pmtud_probe;
+		    __entry->resp_serial = resp_serial;
+		    __entry->max_data = conn->peer->max_data;
+		    __entry->jumbo_max = conn->peer->pmtud_jumbo;
+			   ),
+
+	    TP_printk("P=%08x c=%08x pr=%08x rr=%08x max=%u jm=%u",
+		      __entry->peer_debug_id,
+		      __entry->call_debug_id,
+		      __entry->ping_serial,
+		      __entry->resp_serial,
+		      __entry->max_data,
+		      __entry->jumbo_max)
+	    );
+
+TRACE_EVENT(rxrpc_pmtud_lost,
+	    TP_PROTO(struct rxrpc_connection *conn, rxrpc_serial_t resp_serial),
+
+	    TP_ARGS(conn, resp_serial),
+
+	    TP_STRUCT__entry(
+		    __field(unsigned int,	peer_debug_id)
+		    __field(unsigned int,	call_debug_id)
+		    __field(rxrpc_serial_t,	ping_serial)
+		    __field(rxrpc_serial_t,	resp_serial)
+			     ),
+
+	    TP_fast_assign(
+		    __entry->peer_debug_id = conn->peer->debug_id;
+		    __entry->call_debug_id = conn->pmtud_call;
+		    __entry->ping_serial = conn->pmtud_probe;
+		    __entry->resp_serial = resp_serial;
+			   ),
+
+	    TP_printk("P=%08x c=%08x pr=%08x rr=%08x",
+		      __entry->peer_debug_id,
+		      __entry->call_debug_id,
+		      __entry->ping_serial,
+		      __entry->resp_serial)
+	    );
+
+TRACE_EVENT(rxrpc_pmtud_reduce,
+	    TP_PROTO(struct rxrpc_peer *peer, rxrpc_serial_t serial,
+		     unsigned int max_data, enum rxrpc_pmtud_reduce_trace reason),
+
+	    TP_ARGS(peer, serial, max_data, reason),
+
+	    TP_STRUCT__entry(
+		    __field(unsigned int,	peer_debug_id)
+		    __field(rxrpc_serial_t,	serial)
+		    __field(unsigned int,	max_data)
+		    __field(enum rxrpc_pmtud_reduce_trace, reason)
+			     ),
+
+	    TP_fast_assign(
+		    __entry->peer_debug_id = peer->debug_id;
+		    __entry->serial = serial;
+		    __entry->max_data = max_data;
+		    __entry->reason = reason;
+			   ),
+
+	    TP_printk("P=%08x %s r=%08x m=%u",
+		      __entry->peer_debug_id,
+		      __print_symbolic(__entry->reason, rxrpc_pmtud_reduce_traces),
+		      __entry->serial, __entry->max_data)
 	    );
 
 #undef EM

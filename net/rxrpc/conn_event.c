@@ -92,7 +92,7 @@ void rxrpc_conn_retransmit_call(struct rxrpc_connection *conn,
 	struct rxrpc_acktrailer trailer;
 	size_t len;
 	int ret, ioc;
-	u32 serial, mtu, call_id, padding;
+	u32 serial, max_mtu, if_mtu, call_id, padding;
 
 	_enter("%d", conn->debug_id);
 
@@ -150,8 +150,13 @@ void rxrpc_conn_retransmit_call(struct rxrpc_connection *conn,
 		break;
 
 	case RXRPC_PACKET_TYPE_ACK:
-		mtu = conn->peer->if_mtu;
-		mtu -= conn->peer->hdrsize;
+		if_mtu = conn->peer->if_mtu - conn->peer->hdrsize;
+		if (conn->peer->ackr_adv_pmtud) {
+			max_mtu = umax(conn->peer->max_data, rxrpc_rx_mtu);
+		} else {
+			if_mtu = umin(1444, if_mtu);
+			max_mtu = if_mtu;
+		}
 		pkt.ack.bufferSpace	= 0;
 		pkt.ack.maxSkew		= htons(skb ? skb->priority : 0);
 		pkt.ack.firstPacket	= htonl(chan->last_seq + 1);
@@ -159,10 +164,10 @@ void rxrpc_conn_retransmit_call(struct rxrpc_connection *conn,
 		pkt.ack.serial		= htonl(skb ? sp->hdr.serial : 0);
 		pkt.ack.reason		= skb ? RXRPC_ACK_DUPLICATE : RXRPC_ACK_IDLE;
 		pkt.ack.nAcks		= 0;
-		trailer.maxMTU		= htonl(rxrpc_rx_mtu);
-		trailer.ifMTU		= htonl(mtu);
+		trailer.maxMTU		= htonl(max_mtu);
+		trailer.ifMTU		= htonl(if_mtu);
 		trailer.rwind		= htonl(rxrpc_rx_window_size);
-		trailer.jumbo_max	= htonl(rxrpc_rx_jumbo_max);
+		trailer.jumbo_max	= 0;
 		pkt.whdr.flags		|= RXRPC_SLOW_START_OK;
 		padding			= 0;
 		iov[0].iov_len += sizeof(pkt.ack);

@@ -321,6 +321,12 @@ static void rxrpc_clean_up_connection(struct work_struct *work)
 	list_del_init(&conn->proc_link);
 	write_unlock(&rxnet->conn_lock);
 
+	if (conn->pmtud_probe) {
+		trace_rxrpc_pmtud_lost(conn, 0);
+		conn->peer->pmtud_probing = false;
+		conn->peer->pmtud_pending = true;
+	}
+
 	rxrpc_purge_queue(&conn->rx_queue);
 
 	rxrpc_kill_client_conn(conn);

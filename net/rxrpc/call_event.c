@@ -483,6 +483,11 @@ out:
 			rxrpc_disconnect_call(call);
 		if (call->security)
 			call->security->free_call_crypto(call);
+	} else {
+		if (skb &&
+		    call->peer->ackr_adv_pmtud &&
+		    call->peer->pmtud_pending)
+			rxrpc_send_probe_for_pmtud(call);
 	}
 	if (call->acks_hard_ack != call->tx_bottom)
 		rxrpc_shrink_call_tx_buffer(call);

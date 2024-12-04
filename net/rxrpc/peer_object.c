@@ -162,6 +162,11 @@ static void rxrpc_assess_MTU_size(struct rxrpc_local *local,
 #endif
 
 	peer->if_mtu = 1500;
+	if (peer->max_data < peer->if_mtu - peer->hdrsize) {
+		trace_rxrpc_pmtud_reduce(peer, 0, peer->if_mtu - peer->hdrsize,
+					 rxrpc_pmtud_reduce_route);
+		peer->max_data = peer->if_mtu - peer->hdrsize;
+	}
 
 	memset(&fl, 0, sizeof(fl));
 	switch (peer->srx.transport.family) {
@@ -199,7 +204,15 @@ static void rxrpc_assess_MTU_size(struct rxrpc_local *local,
 	}
 
 	peer->if_mtu = dst_mtu(dst);
+	peer->hdrsize += dst->header_len + dst->trailer_len;
+	peer->tx_seg_max = dst->dev->gso_max_segs;
 	dst_release(dst);
+
+	peer->max_data		= umin(RXRPC_JUMBO(1), peer->if_mtu - peer->hdrsize);
+	peer->pmtud_good	= 500;
+	peer->pmtud_bad		= peer->if_mtu - peer->hdrsize + 1;
+	peer->pmtud_trial	= umin(peer->max_data, peer->pmtud_bad - 1);
+	peer->pmtud_pending	= true;
 
 	_leave(" [if_mtu %u]", peer->if_mtu);
 }
@@ -223,6 +236,7 @@ struct rxrpc_peer *rxrpc_alloc_peer(struct rxrpc_local *local, gfp_t gfp,
 		seqlock_init(&peer->service_conn_lock);
 		spin_lock_init(&peer->lock);
 		spin_lock_init(&peer->rtt_input_lock);
+		seqcount_init(&peer->mtu_lock);
 		peer->debug_id = atomic_inc_return(&rxrpc_debug_id);
 
 		rxrpc_peer_init_rtt(peer);
@@ -242,9 +256,7 @@ static void rxrpc_init_peer(struct rxrpc_local *local, struct rxrpc_peer *peer,
 			    unsigned long hash_key)
 {
 	peer->hash_key = hash_key;
-	rxrpc_assess_MTU_size(local, peer);
-	peer->mtu = peer->if_mtu;
-	peer->rtt_last_req = ktime_get_real();
+
 
 	switch (peer->srx.transport.family) {
 	case AF_INET:
@@ -268,7 +280,11 @@ static void rxrpc_init_peer(struct rxrpc_local *local, struct rxrpc_peer *peer,
 	}
 
 	peer->hdrsize += sizeof(struct rxrpc_wire_header);
-	peer->maxdata = peer->mtu - peer->hdrsize;
+	peer->max_data = peer->if_mtu - peer->hdrsize;
+
+	rxrpc_assess_MTU_size(local, peer);
+
+	peer->rtt_last_req = ktime_get_real();
 }
 
 /*

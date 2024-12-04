@@ -179,7 +179,8 @@ static void rxrpc_free_txbuf(struct rxrpc_txbuf *txb)
 	trace_rxrpc_txbuf(txb->debug_id, txb->call_debug_id, txb->seq, 0,
 			  rxrpc_txbuf_free);
 	for (i = 0; i < txb->nr_kvec; i++)
-		if (txb->kvec[i].iov_base)
+		if (txb->kvec[i].iov_base &&
+		    !is_zero_pfn(page_to_pfn(virt_to_page(txb->kvec[i].iov_base))))
 			page_frag_free(txb->kvec[i].iov_base);
 	kfree(txb);
 	atomic_dec(&rxrpc_nr_txbuf);

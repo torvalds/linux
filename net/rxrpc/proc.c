@@ -283,9 +283,7 @@ static int rxrpc_peer_seq_show(struct seq_file *seq, void *v)
 
 	if (v == SEQ_START_TOKEN) {
 		seq_puts(seq,
-			 "Proto Local                                          "
-			 " Remote                                         "
-			 " Use SST   MTU LastUse      RTT      RTO\n"
+			 "Proto Local                                           Remote                                          Use SST   Maxd LastUse      RTT      RTO\n"
 			 );
 		return 0;
 	}
@@ -298,13 +296,12 @@ static int rxrpc_peer_seq_show(struct seq_file *seq, void *v)
 
 	now = ktime_get_seconds();
 	seq_printf(seq,
-		   "UDP   %-47.47s %-47.47s %3u"
-		   " %3u %5u %6llus %8u %8u\n",
+		   "UDP   %-47.47s %-47.47s %3u %4u %5u %6llus %8u %8u\n",
 		   lbuff,
 		   rbuff,
 		   refcount_read(&peer->ref),
 		   peer->cong_ssthresh,
-		   peer->mtu,
+		   peer->max_data,
 		   now - peer->last_tx_at,
 		   peer->srtt_us >> 3,
 		   peer->rto_us);
