@@ -1665,17 +1665,30 @@ static inline int do_zap_pte_range(struct mmu_gather *tlb,
 {
 	pte_t ptent = ptep_get(pte);
 	int max_nr = (end - addr) / PAGE_SIZE;
+	int nr = 0;
 
-	if (pte_none(ptent))
-		return 1;
+	/* Skip all consecutive none ptes */
+	if (pte_none(ptent)) {
+		for (nr = 1; nr < max_nr; nr++) {
+			ptent = ptep_get(pte + nr);
+			if (!pte_none(ptent))
+				break;
+		}
+		max_nr -= nr;
+		if (!max_nr)
+			return nr;
+		pte += nr;
+		addr += nr * PAGE_SIZE;
+	}
 
 	if (pte_present(ptent))
-		return zap_present_ptes(tlb, vma, pte, ptent, max_nr,
-					addr, details, rss, force_flush,
-					force_break);
+		nr += zap_present_ptes(tlb, vma, pte, ptent, max_nr, addr,
+				       details, rss, force_flush, force_break);
+	else
+		nr += zap_nonpresent_ptes(tlb, vma, pte, ptent, max_nr, addr,
+					  details, rss);
 
-	return zap_nonpresent_ptes(tlb, vma, pte, ptent, max_nr, addr,
-					 details, rss);
+	return nr;
 }
 
 static unsigned long zap_pte_range(struct mmu_gather *tlb,
