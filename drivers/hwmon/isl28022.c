@@ -486,7 +486,7 @@ static int isl28022_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id isl28022_ids[] = {
-	{ "isl28022", 0},
+	{ "isl28022" },
 	{ /* LIST END */ }
 };
 MODULE_DEVICE_TABLE(i2c, isl28022_ids);
