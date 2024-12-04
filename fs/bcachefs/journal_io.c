@@ -1503,8 +1503,7 @@ retry:
 
 	devs_sorted = bch2_dev_alloc_list(c, &j->wp.stripe, &devs);
 
-	__journal_write_alloc(j, w, &devs_sorted,
-			      sectors, &replicas, replicas_want);
+	__journal_write_alloc(j, w, &devs_sorted, sectors, &replicas, replicas_want);
 
 	if (replicas >= replicas_want)
 		goto done;
@@ -1544,7 +1543,7 @@ done:
 
 	BUG_ON(bkey_val_u64s(&w->key.k) > BCH_REPLICAS_MAX);
 
-	return replicas >= replicas_need ? 0 : -EROFS;
+	return replicas >= replicas_need ? 0 : -BCH_ERR_insufficient_journal_devices;
 }
 
 static void journal_buf_realloc(struct journal *j, struct journal_buf *buf)
