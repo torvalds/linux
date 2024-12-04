@@ -56,7 +56,9 @@ If ``name-prefix`` is specified it replaces the ``$family-$enum``
 portion of the entry name.
 
 Boolean ``render-max`` controls creation of the max values
-(which are enabled by default for attribute enums).
+(which are enabled by default for attribute enums). These max
+values are named ``__$pfx-MAX`` and ``$pfx-MAX``. The name
+of the first value can be overridden via ``enum-cnt-name`` property.
 
 Attributes
 ==========
