@@ -785,7 +785,7 @@ int bch2_evacuate_bucket(struct moving_context *ctxt,
 			b = bch2_backpointer_get_node(trans, bp, &iter);
 			ret = PTR_ERR_OR_ZERO(b);
 			if (ret == -BCH_ERR_backpointer_to_overwritten_btree_node)
-				continue;
+				goto next;
 			if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
 				continue;
 			if (ret)
