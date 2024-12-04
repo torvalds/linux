@@ -10968,10 +10968,12 @@ int ath12k_mac_allocate(struct ath12k_hw_group *ag)
 	/* All pdev get combined and register as single wiphy based on
 	 * hardware group which participate in multi-link operation else
 	 * each pdev get register separately.
-	 *
-	 * Currently, registering as single pdevs.
 	 */
-	radio_per_hw = 1;
+	if (ag->mlo_capable)
+		radio_per_hw = total_radio;
+	else
+		radio_per_hw = 1;
+
 	num_hw = total_radio / radio_per_hw;
 
 	if (WARN_ON(num_hw >= ATH12K_GROUP_MAX_RADIO))

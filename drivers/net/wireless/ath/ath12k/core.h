@@ -844,6 +844,7 @@ struct ath12k_hw_group {
 	 */
 	struct ath12k_hw *ah[ATH12K_GROUP_MAX_RADIO];
 	u8 num_hw;
+	bool mlo_capable;
 };
 
 /* Master structure to hold the hw data which may be used in core module */
@@ -1065,6 +1066,8 @@ const struct firmware *ath12k_core_firmware_request(struct ath12k_base *ab,
 u32 ath12k_core_get_max_station_per_radio(struct ath12k_base *ab);
 u32 ath12k_core_get_max_peers_per_radio(struct ath12k_base *ab);
 u32 ath12k_core_get_max_num_tids(struct ath12k_base *ab);
+
+void ath12k_core_hw_group_set_mlo_capable(struct ath12k_hw_group *ag);
 
 static inline const char *ath12k_scan_state_str(enum ath12k_scan_state state)
 {

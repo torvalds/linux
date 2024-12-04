@@ -2023,9 +2023,9 @@ static void ath12k_host_cap_parse_mlo(struct ath12k_base *ab,
 	u8 hw_link_id = 0;
 	int i;
 
-	if (!ab->single_chip_mlo_supp) {
+	if (!ab->ag->mlo_capable) {
 		ath12k_dbg(ab, ATH12K_DBG_QMI,
-			   "intra device MLO is disabled hence skip QMI MLO cap");
+			   "MLO is disabled hence skip QMI MLO cap");
 		return;
 	}
 
@@ -3170,6 +3170,8 @@ int ath12k_qmi_event_server_arrive(struct ath12k_qmi *qmi)
 	mutex_lock(&ag->mutex);
 
 	if (ath12k_qmi_hw_group_host_cap_ready(ag)) {
+		ath12k_core_hw_group_set_mlo_capable(ag);
+
 		block_ab = ath12k_qmi_hw_group_find_blocked(ag);
 		if (block_ab)
 			ath12k_qmi_trigger_host_cap(block_ab);
