@@ -782,12 +782,12 @@ static void rxrpc_input_ack_trailer(struct rxrpc_call *call, struct sk_buff *skb
  */
 static rxrpc_seq_t rxrpc_input_check_prev_ack(struct rxrpc_call *call,
 					      struct rxrpc_ack_summary *summary,
-					      rxrpc_seq_t seq)
+					      rxrpc_seq_t hard_ack)
 {
 	struct sk_buff *skb = call->cong_last_nack;
 	struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
 	unsigned int i, new_acks = 0, retained_nacks = 0;
-	rxrpc_seq_t old_seq = sp->ack.first_ack;
+	rxrpc_seq_t seq = hard_ack + 1, old_seq = sp->ack.first_ack;
 	u8 *acks = skb->data + sizeof(struct rxrpc_wire_header) + sizeof(struct rxrpc_ackpacket);
 
 	if (after_eq(seq, old_seq + sp->ack.nr_acks)) {
@@ -810,7 +810,7 @@ static rxrpc_seq_t rxrpc_input_check_prev_ack(struct rxrpc_call *call,
 		summary->nr_retained_nacks = retained_nacks;
 	}
 
-	return old_seq + sp->ack.nr_acks;
+	return old_seq + sp->ack.nr_acks - 1;
 }
 
 /*
@@ -825,22 +825,23 @@ static rxrpc_seq_t rxrpc_input_check_prev_ack(struct rxrpc_call *call,
 static void rxrpc_input_soft_acks(struct rxrpc_call *call,
 				  struct rxrpc_ack_summary *summary,
 				  struct sk_buff *skb,
-				  rxrpc_seq_t seq,
 				  rxrpc_seq_t since)
 {
 	struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
 	unsigned int i, old_nacks = 0;
-	rxrpc_seq_t lowest_nak = seq + sp->ack.nr_acks;
+	rxrpc_seq_t lowest_nak = call->acks_hard_ack + sp->ack.nr_acks + 1;
+	rxrpc_seq_t seq = call->acks_hard_ack;
 	u8 *acks = skb->data + sizeof(struct rxrpc_wire_header) + sizeof(struct rxrpc_ackpacket);
 
 	for (i = 0; i < sp->ack.nr_acks; i++) {
+		seq++;
 		if (acks[i] == RXRPC_ACK_TYPE_ACK) {
 			summary->nr_acks++;
-			if (after_eq(seq, since))
+			if (after(seq, since))
 				summary->nr_new_acks++;
 		} else {
 			summary->saw_nacks = true;
-			if (before(seq, since)) {
+			if (before_eq(seq, since)) {
 				/* Overlap with previous ACK */
 				old_nacks++;
 			} else {
@@ -851,7 +852,6 @@ static void rxrpc_input_soft_acks(struct rxrpc_call *call,
 			if (before(seq, lowest_nak))
 				lowest_nak = seq;
 		}
-		seq++;
 	}
 
 	if (lowest_nak != call->acks_lowest_nak) {
@@ -874,21 +874,21 @@ static void rxrpc_input_soft_acks(struct rxrpc_call *call,
  * with respect to the ack state conveyed by preceding ACKs.
  */
 static bool rxrpc_is_ack_valid(struct rxrpc_call *call,
-			       rxrpc_seq_t first_pkt, rxrpc_seq_t prev_pkt)
+			       rxrpc_seq_t hard_ack, rxrpc_seq_t prev_pkt)
 {
-	rxrpc_seq_t base = READ_ONCE(call->acks_first_seq);
+	rxrpc_seq_t base = READ_ONCE(call->acks_hard_ack);
 
-	if (after(first_pkt, base))
+	if (after(hard_ack, base))
 		return true; /* The window advanced */
 
-	if (before(first_pkt, base))
+	if (before(hard_ack, base))
 		return false; /* firstPacket regressed */
 
 	if (after_eq(prev_pkt, call->acks_prev_seq))
 		return true; /* previousPacket hasn't regressed. */
 
 	/* Some rx implementations put a serial number in previousPacket. */
-	if (after_eq(prev_pkt, base + call->tx_winsize))
+	if (after(prev_pkt, base + call->tx_winsize))
 		return false;
 	return true;
 }
@@ -906,8 +906,8 @@ static bool rxrpc_is_ack_valid(struct rxrpc_call *call,
 static void rxrpc_input_ack(struct rxrpc_call *call, struct sk_buff *skb)
 {
 	struct rxrpc_ack_summary summary = { 0 };
-	struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
 	struct rxrpc_acktrailer trailer;
+	struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
 	rxrpc_serial_t ack_serial, acked_serial;
 	rxrpc_seq_t first_soft_ack, hard_ack, prev_pkt, since;
 	int nr_acks, offset, ioffset;
@@ -925,9 +925,7 @@ static void rxrpc_input_ack(struct rxrpc_call *call, struct sk_buff *skb)
 	summary.ack_reason = (sp->ack.reason < RXRPC_ACK__INVALID ?
 			      sp->ack.reason : RXRPC_ACK__INVALID);
 
-	trace_rxrpc_rx_ack(call, ack_serial, acked_serial,
-			   first_soft_ack, prev_pkt,
-			   summary.ack_reason, nr_acks);
+	trace_rxrpc_rx_ack(call, sp);
 	rxrpc_inc_stat(call->rxnet, stat_rx_acks[summary.ack_reason]);
 
 	if (acked_serial != 0) {
@@ -952,7 +950,7 @@ static void rxrpc_input_ack(struct rxrpc_call *call, struct sk_buff *skb)
 	 * lost the call because it switched to a different peer.
 	 */
 	if (unlikely(summary.ack_reason == RXRPC_ACK_EXCEEDS_WINDOW) &&
-	    first_soft_ack == 1 &&
+	    hard_ack == 0 &&
 	    prev_pkt == 0 &&
 	    rxrpc_is_client_call(call)) {
 		rxrpc_set_call_completion(call, RXRPC_CALL_REMOTELY_ABORTED,
@@ -965,7 +963,7 @@ static void rxrpc_input_ack(struct rxrpc_call *call, struct sk_buff *skb)
 	 * if we still have it buffered to the beginning.
 	 */
 	if (unlikely(summary.ack_reason == RXRPC_ACK_OUT_OF_SEQUENCE) &&
-	    first_soft_ack == 1 &&
+	    hard_ack == 0 &&
 	    prev_pkt == 0 &&
 	    call->tx_bottom == 0 &&
 	    rxrpc_is_client_call(call)) {
@@ -975,10 +973,8 @@ static void rxrpc_input_ack(struct rxrpc_call *call, struct sk_buff *skb)
 	}
 
 	/* Discard any out-of-order or duplicate ACKs (outside lock). */
-	if (!rxrpc_is_ack_valid(call, first_soft_ack, prev_pkt)) {
-		trace_rxrpc_rx_discard_ack(call->debug_id, ack_serial,
-					   first_soft_ack, call->acks_first_seq,
-					   prev_pkt, call->acks_prev_seq);
+	if (!rxrpc_is_ack_valid(call, hard_ack, prev_pkt)) {
+		trace_rxrpc_rx_discard_ack(call, ack_serial, hard_ack, prev_pkt);
 		goto send_response;
 	}
 
@@ -992,17 +988,17 @@ static void rxrpc_input_ack(struct rxrpc_call *call, struct sk_buff *skb)
 		skb_condense(skb);
 
 	if (call->cong_last_nack) {
-		since = rxrpc_input_check_prev_ack(call, &summary, first_soft_ack);
+		since = rxrpc_input_check_prev_ack(call, &summary, hard_ack);
 		rxrpc_free_skb(call->cong_last_nack, rxrpc_skb_put_last_nack);
 		call->cong_last_nack = NULL;
 	} else {
-		summary.nr_new_acks = first_soft_ack - call->acks_first_seq;
-		call->acks_lowest_nak = first_soft_ack + nr_acks;
-		since = first_soft_ack;
+		summary.nr_new_acks = hard_ack - call->acks_hard_ack;
+		call->acks_lowest_nak = hard_ack + nr_acks;
+		since = hard_ack;
 	}
 
 	call->acks_latest_ts = skb->tstamp;
-	call->acks_first_seq = first_soft_ack;
+	call->acks_hard_ack = hard_ack;
 	call->acks_prev_seq = prev_pkt;
 
 	switch (summary.ack_reason) {
@@ -1018,7 +1014,7 @@ static void rxrpc_input_ack(struct rxrpc_call *call, struct sk_buff *skb)
 	if (trailer.maxMTU)
 		rxrpc_input_ack_trailer(call, skb, &trailer);
 
-	if (first_soft_ack == 0)
+	if (hard_ack + 1 == 0)
 		return rxrpc_proto_abort(call, 0, rxrpc_eproto_ackr_zero);
 
 	/* Ignore ACKs unless we are or have just been transmitting. */
@@ -1048,7 +1044,7 @@ static void rxrpc_input_ack(struct rxrpc_call *call, struct sk_buff *skb)
 	if (nr_acks > 0) {
 		if (offset > (int)skb->len - nr_acks)
 			return rxrpc_proto_abort(call, 0, rxrpc_eproto_ackr_short_sack);
-		rxrpc_input_soft_acks(call, &summary, skb, first_soft_ack, since);
+		rxrpc_input_soft_acks(call, &summary, skb, since);
 		rxrpc_get_skb(skb, rxrpc_skb_get_last_nack);
 		call->cong_last_nack = skb;
 	}

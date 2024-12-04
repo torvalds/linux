@@ -893,7 +893,7 @@ TRACE_EVENT(rxrpc_txqueue,
 		    __field(unsigned int,		call)
 		    __field(enum rxrpc_txqueue_trace,	why)
 		    __field(rxrpc_seq_t,		tx_bottom)
-		    __field(rxrpc_seq_t,		acks_first_seq)
+		    __field(rxrpc_seq_t,		acks_hard_ack)
 		    __field(rxrpc_seq_t,		tx_top)
 		    __field(rxrpc_seq_t,		send_top)
 		    __field(int,			tx_winsize)
@@ -903,19 +903,19 @@ TRACE_EVENT(rxrpc_txqueue,
 		    __entry->call = call->debug_id;
 		    __entry->why = why;
 		    __entry->tx_bottom = call->tx_bottom;
-		    __entry->acks_first_seq = call->acks_first_seq;
+		    __entry->acks_hard_ack = call->acks_hard_ack;
 		    __entry->tx_top = call->tx_top;
 		    __entry->send_top = call->send_top;
 		    __entry->tx_winsize = call->tx_winsize;
 			   ),
 
-	    TP_printk("c=%08x %s f=%08x h=%08x n=%u/%u/%u/%u",
+	    TP_printk("c=%08x %s b=%08x h=%08x n=%u/%u/%u/%u",
 		      __entry->call,
 		      __print_symbolic(__entry->why, rxrpc_txqueue_traces),
 		      __entry->tx_bottom,
-		      __entry->acks_first_seq,
-		      __entry->acks_first_seq - __entry->tx_bottom,
-		      __entry->tx_top - __entry->acks_first_seq,
+		      __entry->acks_hard_ack,
+		      __entry->acks_hard_ack - __entry->tx_bottom,
+		      __entry->tx_top - __entry->acks_hard_ack,
 		      __entry->send_top - __entry->tx_top,
 		      __entry->tx_winsize)
 	    );
@@ -1015,11 +1015,9 @@ TRACE_EVENT(rxrpc_rx_data,
 	    );
 
 TRACE_EVENT(rxrpc_rx_ack,
-	    TP_PROTO(struct rxrpc_call *call,
-		     rxrpc_serial_t serial, rxrpc_serial_t ack_serial,
-		     rxrpc_seq_t first, rxrpc_seq_t prev, u8 reason, u8 n_acks),
+	    TP_PROTO(struct rxrpc_call *call, struct rxrpc_skb_priv *sp),
 
-	    TP_ARGS(call, serial, ack_serial, first, prev, reason, n_acks),
+	    TP_ARGS(call, sp),
 
 	    TP_STRUCT__entry(
 		    __field(unsigned int,	call)
@@ -1032,13 +1030,13 @@ TRACE_EVENT(rxrpc_rx_ack,
 			     ),
 
 	    TP_fast_assign(
-		    __entry->call = call->debug_id;
-		    __entry->serial = serial;
-		    __entry->ack_serial = ack_serial;
-		    __entry->first = first;
-		    __entry->prev = prev;
-		    __entry->reason = reason;
-		    __entry->n_acks = n_acks;
+		    __entry->call	= call->debug_id;
+		    __entry->serial	= sp->hdr.serial;
+		    __entry->ack_serial = sp->ack.acked_serial;
+		    __entry->first	= sp->ack.first_ack;
+		    __entry->prev	= sp->ack.prev_ack;
+		    __entry->reason	= sp->ack.reason;
+		    __entry->n_acks	= sp->ack.nr_acks;
 			   ),
 
 	    TP_printk("c=%08x %08x %s r=%08x f=%08x p=%08x n=%u",
@@ -1707,7 +1705,7 @@ TRACE_EVENT(rxrpc_congest,
 	    TP_fast_assign(
 		    __entry->call	= call->debug_id;
 		    __entry->change	= change;
-		    __entry->hard_ack	= call->acks_first_seq;
+		    __entry->hard_ack	= call->acks_hard_ack;
 		    __entry->top	= call->tx_top;
 		    __entry->lowest_nak	= call->acks_lowest_nak;
 		    __entry->ack_serial	= ack_serial;
@@ -1754,7 +1752,7 @@ TRACE_EVENT(rxrpc_reset_cwnd,
 		    __entry->mode	= call->cong_mode;
 		    __entry->cwnd	= call->cong_cwnd;
 		    __entry->extra	= call->cong_extra;
-		    __entry->hard_ack	= call->acks_first_seq;
+		    __entry->hard_ack	= call->acks_hard_ack;
 		    __entry->prepared	= call->send_top - call->tx_bottom;
 		    __entry->since_last_tx = ktime_sub(now, call->tx_last_sent);
 		    __entry->has_data	= call->tx_bottom != call->tx_top;
@@ -1855,7 +1853,7 @@ TRACE_EVENT(rxrpc_resend,
 	    TP_fast_assign(
 		    struct rxrpc_skb_priv *sp = ack ? rxrpc_skb(ack) : NULL;
 		    __entry->call = call->debug_id;
-		    __entry->seq = call->acks_first_seq;
+		    __entry->seq = call->acks_hard_ack;
 		    __entry->transmitted = call->tx_transmitted;
 		    __entry->ack_serial = sp ? sp->hdr.serial : 0;
 			   ),
@@ -1944,7 +1942,7 @@ TRACE_EVENT(rxrpc_call_reset,
 		    __entry->call_id = call->call_id;
 		    __entry->call_serial = call->rx_serial;
 		    __entry->conn_serial = call->conn->hi_serial;
-		    __entry->tx_seq = call->acks_first_seq;
+		    __entry->tx_seq = call->acks_hard_ack;
 		    __entry->rx_seq = call->rx_highest_seq;
 			   ),
 
@@ -1976,38 +1974,36 @@ TRACE_EVENT(rxrpc_notify_socket,
 	    );
 
 TRACE_EVENT(rxrpc_rx_discard_ack,
-	    TP_PROTO(unsigned int debug_id, rxrpc_serial_t serial,
-		     rxrpc_seq_t first_soft_ack, rxrpc_seq_t call_ackr_first,
-		     rxrpc_seq_t prev_pkt, rxrpc_seq_t call_ackr_prev),
+	    TP_PROTO(struct rxrpc_call *call, rxrpc_serial_t serial,
+		     rxrpc_seq_t hard_ack, rxrpc_seq_t prev_pkt),
 
-	    TP_ARGS(debug_id, serial, first_soft_ack, call_ackr_first,
-		    prev_pkt, call_ackr_prev),
+	    TP_ARGS(call, serial, hard_ack, prev_pkt),
 
 	    TP_STRUCT__entry(
 		    __field(unsigned int,	debug_id)
 		    __field(rxrpc_serial_t,	serial)
-		    __field(rxrpc_seq_t,	first_soft_ack)
-		    __field(rxrpc_seq_t,	call_ackr_first)
+		    __field(rxrpc_seq_t,	hard_ack)
 		    __field(rxrpc_seq_t,	prev_pkt)
-		    __field(rxrpc_seq_t,	call_ackr_prev)
+		    __field(rxrpc_seq_t,	acks_hard_ack)
+		    __field(rxrpc_seq_t,	acks_prev_seq)
 			     ),
 
 	    TP_fast_assign(
-		    __entry->debug_id		= debug_id;
+		    __entry->debug_id		= call->debug_id;
 		    __entry->serial		= serial;
-		    __entry->first_soft_ack	= first_soft_ack;
-		    __entry->call_ackr_first	= call_ackr_first;
+		    __entry->hard_ack		= hard_ack;
 		    __entry->prev_pkt		= prev_pkt;
-		    __entry->call_ackr_prev	= call_ackr_prev;
+		    __entry->acks_hard_ack	= call->acks_hard_ack;
+		    __entry->acks_prev_seq	= call->acks_prev_seq;
 			   ),
 
 	    TP_printk("c=%08x r=%08x %08x<%08x %08x<%08x",
 		      __entry->debug_id,
 		      __entry->serial,
-		      __entry->first_soft_ack,
-		      __entry->call_ackr_first,
+		      __entry->hard_ack,
+		      __entry->acks_hard_ack,
 		      __entry->prev_pkt,
-		      __entry->call_ackr_prev)
+		      __entry->acks_prev_seq)
 	    );
 
 TRACE_EVENT(rxrpc_req_ack,
