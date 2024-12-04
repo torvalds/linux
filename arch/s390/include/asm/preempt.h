@@ -8,8 +8,6 @@
 #include <asm/cmpxchg.h>
 #include <asm/march.h>
 
-#ifdef MARCH_HAS_Z196_FEATURES
-
 /* We use the MSB mostly because its available */
 #define PREEMPT_NEED_RESCHED	0x80000000
 
@@ -100,56 +98,6 @@ static __always_inline bool should_resched(int preempt_offset)
 	return unlikely(READ_ONCE(get_lowcore()->preempt_count) ==
 			preempt_offset);
 }
-
-#else /* MARCH_HAS_Z196_FEATURES */
-
-#define PREEMPT_ENABLED	(0)
-
-static __always_inline int preempt_count(void)
-{
-	return READ_ONCE(get_lowcore()->preempt_count);
-}
-
-static __always_inline void preempt_count_set(int pc)
-{
-	get_lowcore()->preempt_count = pc;
-}
-
-static __always_inline void set_preempt_need_resched(void)
-{
-}
-
-static __always_inline void clear_preempt_need_resched(void)
-{
-}
-
-static __always_inline bool test_preempt_need_resched(void)
-{
-	return false;
-}
-
-static __always_inline void __preempt_count_add(int val)
-{
-	get_lowcore()->preempt_count += val;
-}
-
-static __always_inline void __preempt_count_sub(int val)
-{
-	get_lowcore()->preempt_count -= val;
-}
-
-static __always_inline bool __preempt_count_dec_and_test(void)
-{
-	return !--get_lowcore()->preempt_count && tif_need_resched();
-}
-
-static __always_inline bool should_resched(int preempt_offset)
-{
-	return unlikely(preempt_count() == preempt_offset &&
-			tif_need_resched());
-}
-
-#endif /* MARCH_HAS_Z196_FEATURES */
 
 #define init_task_preempt_count(p)	do { } while (0)
 /* Deferred to CPU bringup time */
