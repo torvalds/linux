@@ -24,7 +24,6 @@
 #include <linux/timer.h>
 #include <linux/delay.h>
 #include <linux/sched/signal.h>
-#include <linux/uaccess.h>
 #include <linux/usb.h>
 
 #include "gpibP.h"
