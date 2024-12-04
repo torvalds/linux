@@ -12,7 +12,7 @@
 #include "ar-internal.h"
 
 #define RXRPC_RTO_MAX	(120 * USEC_PER_SEC)
-#define RXRPC_TIMEOUT_INIT ((unsigned int)(1 * MSEC_PER_SEC)) /* RFC6298 2.1 initial RTO value */
+#define RXRPC_TIMEOUT_INIT ((unsigned int)(1 * USEC_PER_SEC)) /* RFC6298 2.1 initial RTO value */
 #define rxrpc_jiffies32 ((u32)jiffies)		/* As rxrpc_jiffies32 */
 
 static u32 rxrpc_rto_min_us(struct rxrpc_peer *peer)
