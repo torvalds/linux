@@ -174,22 +174,14 @@ static int aemif_config_abus(struct platform_device *pdev, int csnum)
 {
 	struct aemif_device *aemif = platform_get_drvdata(pdev);
 	struct aemif_cs_data *data = &aemif->cs_data[csnum];
-	int ta, rhold, rstrobe, rsetup, whold, wstrobe, wsetup;
 	unsigned offset;
 	u32 set, val;
 
 	offset = A1CR_OFFSET + (data->cs - aemif->cs_offset) * 4;
 
-	ta	=  data->ta;
-	rhold	=  data->rhold;
-	rstrobe	=  data->rstrobe;
-	rsetup	=  data->rsetup;
-	whold	=  data->whold;
-	wstrobe	=  data->wstrobe;
-	wsetup	=  data->wsetup;
-
-	set = TA(ta) | RHOLD(rhold) | RSTROBE(rstrobe) | RSETUP(rsetup) |
-		WHOLD(whold) | WSTROBE(wstrobe) | WSETUP(wsetup);
+	set = TA(data->ta) |
+		RHOLD(data->rhold) | RSTROBE(data->rstrobe) | RSETUP(data->rsetup) |
+		WHOLD(data->whold) | WSTROBE(data->wstrobe) | WSETUP(data->wsetup);
 
 	set |= (data->asize & ACR_ASIZE_MASK);
 	if (data->enable_ew)
