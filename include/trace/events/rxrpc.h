@@ -1031,11 +1031,13 @@ TRACE_EVENT(rxrpc_rx_ack,
 		    __field(rxrpc_seq_t,	prev)
 		    __field(u8,			reason)
 		    __field(u8,			n_acks)
+		    __field(u8,			user_status)
 			     ),
 
 	    TP_fast_assign(
 		    __entry->call	= call->debug_id;
 		    __entry->serial	= sp->hdr.serial;
+		    __entry->user_status = sp->hdr.userStatus;
 		    __entry->ack_serial = sp->ack.acked_serial;
 		    __entry->first	= sp->ack.first_ack;
 		    __entry->prev	= sp->ack.prev_ack;
@@ -1043,11 +1045,12 @@ TRACE_EVENT(rxrpc_rx_ack,
 		    __entry->n_acks	= sp->ack.nr_acks;
 			   ),
 
-	    TP_printk("c=%08x %08x %s r=%08x f=%08x p=%08x n=%u",
+	    TP_printk("c=%08x %08x %s r=%08x us=%02x f=%08x p=%08x n=%u",
 		      __entry->call,
 		      __entry->serial,
 		      __print_symbolic(__entry->reason, rxrpc_ack_names),
 		      __entry->ack_serial,
+		      __entry->user_status,
 		      __entry->first,
 		      __entry->prev,
 		      __entry->n_acks)
