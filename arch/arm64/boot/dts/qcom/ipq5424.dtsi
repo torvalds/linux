@@ -101,6 +101,7 @@
 	firmware {
 		scm {
 			compatible = "qcom,scm-ipq5424", "qcom,scm";
+			qcom,dload-mode = <&tcsr 0x25100>;
 		};
 	};
 
@@ -202,6 +203,11 @@
 			compatible = "qcom,tcsr-mutex";
 			reg = <0 0x01905000 0 0x20000>;
 			#hwlock-cells = <1>;
+		};
+
+		tcsr: syscon@1937000 {
+			compatible = "qcom,tcsr-ipq5424", "syscon";
+			reg = <0 0x01937000 0 0x2a000>;
 		};
 
 		qupv3: geniqup@1ac0000 {
