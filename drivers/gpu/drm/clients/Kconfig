@@ -12,6 +12,7 @@ config DRM_CLIENT_LIB
 config DRM_CLIENT_SELECTION
 	tristate
 	depends on DRM
+	select DRM_CLIENT_LIB if DRM_CLIENT_LOG
 	select DRM_CLIENT_LIB if DRM_FBDEV_EMULATION
 	help
 	  Drivers that support in-kernel DRM clients have to select this
@@ -69,5 +70,52 @@ config DRM_FBDEV_LEAK_PHYS_SMEM
 
 	  If in doubt, say "N" or spread the word to your closed source
 	  library vendor.
+
+config DRM_CLIENT_LOG
+	bool "Print the kernel boot message on the screen"
+	depends on DRM_CLIENT_SELECTION
+	select DRM_CLIENT
+	select DRM_CLIENT_SETUP
+	select DRM_DRAW
+	help
+	  This enable a drm logger, that will print the kernel messages to the
+	  screen until the userspace is ready to take over.
+
+	  If you only need logs, but no terminal, or if you prefer userspace
+	  terminal, say "Y".
+
+choice
+	prompt "Default DRM Client"
+	depends on DRM_CLIENT_SELECTION
+	default DRM_CLIENT_DEFAULT_FBDEV
+	help
+	  Selects the default drm client.
+
+	  The selection made here can be overridden by using the kernel
+	  command line 'drm_client_lib.active=fbdev' option.
+
+config DRM_CLIENT_DEFAULT_FBDEV
+	bool "fbdev"
+	depends on DRM_FBDEV_EMULATION
+	help
+	  Use fbdev emulation as default drm client. This is needed to have
+	  fbcon on top of a drm driver.
+
+config DRM_CLIENT_DEFAULT_LOG
+	bool "log"
+	depends on DRM_CLIENT_LOG
+	help
+	  Use drm log as default drm client. This will display boot logs on the
+	  screen, but doesn't implement a full terminal. For that you will need
+	  a userspace terminal using drm/kms.
+
+endchoice
+
+config DRM_CLIENT_DEFAULT
+       string
+       depends on DRM_CLIENT
+       default "fbdev" if DRM_CLIENT_DEFAULT_FBDEV
+       default "log" if DRM_CLIENT_DEFAULT_LOG
+       default ""
 
 endmenu
