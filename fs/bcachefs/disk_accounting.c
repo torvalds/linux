@@ -765,15 +765,16 @@ int bch2_accounting_read(struct bch_fs *c)
 	keys->gap = keys->nr = dst - keys->data;
 
 	percpu_down_write(&c->mark_lock);
-	unsigned i = 0;
-	while (i < acc->k.nr) {
-		unsigned idx = inorder_to_eytzinger0(i, acc->k.nr);
 
+	darray_for_each_reverse(acc->k, i) {
 		struct disk_accounting_pos acc_k;
-		bpos_to_disk_accounting_pos(&acc_k, acc->k.data[idx].pos);
+		bpos_to_disk_accounting_pos(&acc_k, i->pos);
 
 		u64 v[BCH_ACCOUNTING_MAX_COUNTERS];
-		bch2_accounting_mem_read_counters(acc, idx, v, ARRAY_SIZE(v), false);
+		memset(v, 0, sizeof(v));
+
+		for (unsigned j = 0; j < i->nr_counters; j++)
+			v[j] = percpu_u64_get(i->v[0] + j);
 
 		/*
 		 * If the entry counters are zeroed, it should be treated as
@@ -782,25 +783,24 @@ int bch2_accounting_read(struct bch_fs *c)
 		 * Remove it, so that if it's re-added it gets re-marked in the
 		 * superblock:
 		 */
-		ret = bch2_is_zero(v, sizeof(v[0]) * acc->k.data[idx].nr_counters)
+		ret = bch2_is_zero(v, sizeof(v[0]) * i->nr_counters)
 			? -BCH_ERR_remove_disk_accounting_entry
-			: bch2_disk_accounting_validate_late(trans, acc_k,
-							v, acc->k.data[idx].nr_counters);
+			: bch2_disk_accounting_validate_late(trans, acc_k, v, i->nr_counters);
 
 		if (ret == -BCH_ERR_remove_disk_accounting_entry) {
-			free_percpu(acc->k.data[idx].v[0]);
-			free_percpu(acc->k.data[idx].v[1]);
-			darray_remove_item(&acc->k, &acc->k.data[idx]);
-			eytzinger0_sort(acc->k.data, acc->k.nr, sizeof(acc->k.data[0]),
-					accounting_pos_cmp, NULL);
+			free_percpu(i->v[0]);
+			free_percpu(i->v[1]);
+			darray_remove_item(&acc->k, i);
 			ret = 0;
 			continue;
 		}
 
 		if (ret)
 			goto fsck_err;
-		i++;
 	}
+
+	eytzinger0_sort(acc->k.data, acc->k.nr, sizeof(acc->k.data[0]),
+			accounting_pos_cmp, NULL);
 
 	preempt_disable();
 	struct bch_fs_usage_base *usage = this_cpu_ptr(c->usage);
