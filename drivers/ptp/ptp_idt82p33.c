@@ -1461,7 +1461,7 @@ static struct platform_driver idt82p33_driver = {
 		.name = "82p33x1x-phc",
 	},
 	.probe = idt82p33_probe,
-	.remove = idt82p33_remove,
+	.remove_new = idt82p33_remove,
 };
 
 module_platform_driver(idt82p33_driver);

@@ -670,7 +670,7 @@ static struct platform_driver ptp_qoriq_driver = {
 		.of_match_table	= match_table,
 	},
 	.probe       = ptp_qoriq_probe,
-	.remove      = ptp_qoriq_remove,
+	.remove_new  = ptp_qoriq_remove,
 };
 
 module_platform_driver(ptp_qoriq_driver);
