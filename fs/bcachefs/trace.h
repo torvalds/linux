@@ -199,6 +199,30 @@ DECLARE_EVENT_CLASS(bio,
 		  (unsigned long long)__entry->sector, __entry->nr_sector)
 );
 
+/* disk_accounting.c */
+
+TRACE_EVENT(accounting_mem_insert,
+	TP_PROTO(struct bch_fs *c, const char *acc),
+	TP_ARGS(c, acc),
+
+	TP_STRUCT__entry(
+		__field(dev_t,		dev			)
+		__field(unsigned,	new_nr			)
+		__string(acc,		acc			)
+	),
+
+	TP_fast_assign(
+		__entry->dev		= c->dev;
+		__entry->new_nr		= c->accounting.k.nr;
+		__assign_str(acc);
+	),
+
+	TP_printk("%d,%d entries %u added %s",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->new_nr,
+		  __get_str(acc))
+);
+
 /* fs.c: */
 TRACE_EVENT(bch2_sync_fs,
 	TP_PROTO(struct super_block *sb, int wait),

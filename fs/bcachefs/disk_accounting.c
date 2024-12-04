@@ -324,6 +324,14 @@ static int __bch2_accounting_mem_insert(struct bch_fs *c, struct bkey_s_c_accoun
 
 	eytzinger0_sort(acc->k.data, acc->k.nr, sizeof(acc->k.data[0]),
 			accounting_pos_cmp, NULL);
+
+	if (trace_accounting_mem_insert_enabled()) {
+		struct printbuf buf = PRINTBUF;
+
+		bch2_accounting_to_text(&buf, c, a.s_c);
+		trace_accounting_mem_insert(c, buf.buf);
+		printbuf_exit(&buf);
+	}
 	return 0;
 err:
 	free_percpu(n.v[1]);
