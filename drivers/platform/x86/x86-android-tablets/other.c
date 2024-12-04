@@ -602,14 +602,14 @@ const struct x86_dev_info whitelabel_tm800a550l_info __initconst = {
  * Vexia EDU ATLA 10 tablet, Android 4.2 / 4.4 + Guadalinex Ubuntu tablet
  * distributed to schools in the Spanish Andalucía region.
  */
-const char * const crystal_cove_pwrsrc_psy[] = { "crystal_cove_pwrsrc" };
+static const char * const crystal_cove_pwrsrc_psy[] = { "crystal_cove_pwrsrc" };
 
 static const struct property_entry vexia_edu_atla10_ulpmc_props[] = {
 	PROPERTY_ENTRY_STRING_ARRAY("supplied-from", crystal_cove_pwrsrc_psy),
 	{ }
 };
 
-const struct software_node vexia_edu_atla10_ulpmc_node = {
+static const struct software_node vexia_edu_atla10_ulpmc_node = {
 	.properties = vexia_edu_atla10_ulpmc_props,
 };
 
