@@ -166,7 +166,7 @@ static void gnr_gpio_irq_ack(struct irq_data *d)
 	guard(raw_spinlock_irqsave)(&priv->lock);
 
 	reg = readl(addr);
-	reg &= ~BIT(bit_idx);
+	reg |= BIT(bit_idx);
 	writel(reg, addr);
 }
 
