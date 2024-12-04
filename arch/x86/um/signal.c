@@ -187,7 +187,12 @@ static int copy_sc_to_user(struct sigcontext __user *to,
 	 * Put magic/size values for userspace. We do not bother to verify them
 	 * later on, however, userspace needs them should it try to read the
 	 * XSTATE data. And ptrace does not fill in these parts.
+	 *
+	 * Skip this if we do not have an XSTATE frame.
 	 */
+	if (host_fp_size <= sizeof(to_fp64->fpstate))
+		return 0;
+
 	BUILD_BUG_ON(sizeof(int) != FP_XSTATE_MAGIC2_SIZE);
 #ifdef CONFIG_X86_32
 	__put_user(offsetof(struct _fpstate_32, _fxsr_env) +
