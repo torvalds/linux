@@ -375,10 +375,10 @@ int rxrpc_send_abort_packet(struct rxrpc_call *call)
 /*
  * Prepare a (sub)packet for transmission.
  */
-static size_t rxrpc_prepare_data_subpacket(struct rxrpc_call *call, struct rxrpc_txbuf *txb,
-					   rxrpc_serial_t serial,
-					   int subpkt, int nr_subpkts,
-					   ktime_t now)
+static size_t rxrpc_prepare_data_subpacket(struct rxrpc_call *call,
+					   struct rxrpc_send_data_req *req,
+					   struct rxrpc_txbuf *txb,
+					   rxrpc_serial_t serial, int subpkt)
 {
 	struct rxrpc_wire_header *whdr = txb->kvec[0].iov_base;
 	struct rxrpc_jumbo_header *jumbo = (void *)(whdr + 1) - sizeof(*jumbo);
@@ -386,7 +386,7 @@ static size_t rxrpc_prepare_data_subpacket(struct rxrpc_call *call, struct rxrpc
 	struct rxrpc_connection *conn = call->conn;
 	struct kvec *kv = &call->local->kvec[subpkt];
 	size_t len = txb->pkt_len;
-	bool last, more;
+	bool last;
 	u8 flags;
 
 	_enter("%x,%zd", txb->seq, len);
@@ -401,13 +401,10 @@ static size_t rxrpc_prepare_data_subpacket(struct rxrpc_call *call, struct rxrpc
 	flags = txb->flags & RXRPC_TXBUF_WIRE_FLAGS;
 	last = txb->flags & RXRPC_LAST_PACKET;
 
-	if (subpkt < nr_subpkts - 1) {
+	if (subpkt < req->n - 1) {
 		len = RXRPC_JUMBO_DATALEN;
 		goto dont_set_request_ack;
 	}
-
-	more = (!list_is_last(&txb->call_link, &call->tx_buffer) ||
-		!list_empty(&call->tx_sendmsg));
 
 	/* If our RTT cache needs working on, request an ACK.  Also request
 	 * ACKs if a DATA packet appears to have been lost.
@@ -430,7 +427,7 @@ static size_t rxrpc_prepare_data_subpacket(struct rxrpc_call *call, struct rxrpc
 		why = rxrpc_reqack_more_rtt;
 	else if (ktime_before(ktime_add_ms(call->peer->rtt_last_req, 1000), ktime_get_real()))
 		why = rxrpc_reqack_old_rtt;
-	else if (!last && !more)
+	else if (!last && !after(READ_ONCE(call->send_top), txb->seq))
 		why = rxrpc_reqack_app_stall;
 	else
 		goto dont_set_request_ack;
@@ -439,13 +436,13 @@ static size_t rxrpc_prepare_data_subpacket(struct rxrpc_call *call, struct rxrpc
 	trace_rxrpc_req_ack(call->debug_id, txb->seq, why);
 	if (why != rxrpc_reqack_no_srv_last) {
 		flags |= RXRPC_REQUEST_ACK;
-		rxrpc_begin_rtt_probe(call, serial, now, rxrpc_rtt_tx_data);
-		call->peer->rtt_last_req = now;
+		rxrpc_begin_rtt_probe(call, serial, req->now, rxrpc_rtt_tx_data);
+		call->peer->rtt_last_req = req->now;
 	}
 dont_set_request_ack:
 
 	/* The jumbo header overlays the wire header in the txbuf. */
-	if (subpkt < nr_subpkts - 1)
+	if (subpkt < req->n - 1)
 		flags |= RXRPC_JUMBO_PACKET;
 	else
 		flags &= ~RXRPC_JUMBO_PACKET;
@@ -470,61 +467,99 @@ dont_set_request_ack:
 }
 
 /*
+ * Prepare a transmission queue object for initial transmission.  Returns the
+ * number of microseconds since the transmission queue base timestamp.
+ */
+static unsigned int rxrpc_prepare_txqueue(struct rxrpc_txqueue *tq,
+					  struct rxrpc_send_data_req *req)
+{
+	if (!tq)
+		return 0;
+	if (tq->xmit_ts_base == KTIME_MIN) {
+		tq->xmit_ts_base = req->now;
+		return 0;
+	}
+	return ktime_to_us(ktime_sub(req->now, tq->xmit_ts_base));
+}
+
+/*
  * Prepare a (jumbo) packet for transmission.
  */
-static size_t rxrpc_prepare_data_packet(struct rxrpc_call *call, struct rxrpc_txbuf *head, int n)
+static size_t rxrpc_prepare_data_packet(struct rxrpc_call *call, struct rxrpc_send_data_req *req)
 {
-	struct rxrpc_txbuf *txb = head;
+	struct rxrpc_txqueue *tq = req->tq;
 	rxrpc_serial_t serial;
-	ktime_t now = ktime_get_real();
+	unsigned int xmit_ts;
+	rxrpc_seq_t seq = req->seq;
 	size_t len = 0;
 
-	/* Each transmission of a Tx packet needs a new serial number */
-	serial = rxrpc_get_next_serials(call->conn, n);
+	trace_rxrpc_tq(call, tq, seq, rxrpc_tq_transmit);
 
-	for (int i = 0; i < n; i++) {
-		txb->last_sent = now;
-		len += rxrpc_prepare_data_subpacket(call, txb, serial, i, n, now);
+	/* Each transmission of a Tx packet needs a new serial number */
+	serial = rxrpc_get_next_serials(call->conn, req->n);
+
+	call->tx_last_sent = req->now;
+	xmit_ts = rxrpc_prepare_txqueue(tq, req);
+	prefetch(tq->next);
+
+	for (int i = 0;;) {
+		int ix = seq & RXRPC_TXQ_MASK;
+		struct rxrpc_txbuf *txb = tq->bufs[seq & RXRPC_TXQ_MASK];
+
+		_debug("prep[%u] tq=%x q=%x", i, tq->qbase, seq);
+		tq->segment_xmit_ts[ix] = xmit_ts;
+		len += rxrpc_prepare_data_subpacket(call, req, txb, serial, i);
 		serial++;
-		txb = list_next_entry(txb, call_link);
+		seq++;
+		i++;
+		if (i >= req->n)
+			break;
+		if (!(seq & RXRPC_TXQ_MASK)) {
+			tq = tq->next;
+			trace_rxrpc_tq(call, tq, seq, rxrpc_tq_transmit_advance);
+			xmit_ts = rxrpc_prepare_txqueue(tq, req);
+		}
 	}
 
 	/* Set timeouts */
-	if (call->peer->rtt_count > 1) {
-		ktime_t delay = rxrpc_get_rto_backoff(call->peer, false);
-
-		call->ack_lost_at = ktime_add(now, delay);
-		trace_rxrpc_timer_set(call, delay, rxrpc_timer_trace_lost_ack);
-	}
-
 	if (!test_and_set_bit(RXRPC_CALL_BEGAN_RX_TIMER, &call->flags)) {
 		ktime_t delay = ms_to_ktime(READ_ONCE(call->next_rx_timo));
 
-		call->expect_rx_by = ktime_add(now, delay);
+		call->expect_rx_by = ktime_add(req->now, delay);
 		trace_rxrpc_timer_set(call, delay, rxrpc_timer_trace_expect_rx);
 	}
+	if (call->resend_at == KTIME_MAX) {
+		ktime_t delay = rxrpc_get_rto_backoff(call->peer, false);
 
-	rxrpc_set_keepalive(call, now);
+		call->resend_at = ktime_add(req->now, delay);
+		trace_rxrpc_timer_set(call, delay, rxrpc_timer_trace_resend);
+	}
+
+	rxrpc_set_keepalive(call, req->now);
 	return len;
 }
 
 /*
- * send a packet through the transport endpoint
+ * Send one or more packets through the transport endpoint
  */
-static int rxrpc_send_data_packet(struct rxrpc_call *call, struct rxrpc_txbuf *txb, int n)
+void rxrpc_send_data_packet(struct rxrpc_call *call, struct rxrpc_send_data_req *req)
 {
 	struct rxrpc_connection *conn = call->conn;
 	enum rxrpc_tx_point frag;
+	struct rxrpc_txqueue *tq = req->tq;
+	struct rxrpc_txbuf *txb;
 	struct msghdr msg;
+	rxrpc_seq_t seq = req->seq;
 	size_t len;
 	bool new_call = test_bit(RXRPC_CALL_BEGAN_RX_TIMER, &call->flags);
 	int ret;
 
-	_enter("%x,{%d}", txb->seq, txb->pkt_len);
+	_enter("%x,%x-%x", tq->qbase, seq, seq + req->n - 1);
 
-	len = rxrpc_prepare_data_packet(call, txb, n);
+	len = rxrpc_prepare_data_packet(call, req);
+	txb = tq->bufs[seq & RXRPC_TXQ_MASK];
 
-	iov_iter_kvec(&msg.msg_iter, WRITE, call->local->kvec, n, len);
+	iov_iter_kvec(&msg.msg_iter, WRITE, call->local->kvec, req->n, len);
 
 	msg.msg_name	= &call->peer->srx.transport;
 	msg.msg_namelen	= call->peer->srx.transport_len;
@@ -535,7 +570,7 @@ static int rxrpc_send_data_packet(struct rxrpc_call *call, struct rxrpc_txbuf *t
 	/* Send the packet with the don't fragment bit set unless we think it's
 	 * too big or if this is a retransmission.
 	 */
-	if (txb->seq == call->tx_transmitted + 1 &&
+	if (seq == call->tx_transmitted + 1 &&
 	    len >= sizeof(struct rxrpc_wire_header) + call->peer->max_data) {
 		rxrpc_local_dont_fragment(conn->local, false);
 		frag = rxrpc_tx_point_call_data_frag;
@@ -548,8 +583,8 @@ static int rxrpc_send_data_packet(struct rxrpc_call *call, struct rxrpc_txbuf *t
 	 * retransmission algorithm doesn't try to resend what we haven't sent
 	 * yet.
 	 */
-	if (txb->seq == call->tx_transmitted + 1)
-		call->tx_transmitted = txb->seq + n - 1;
+	if (seq == call->tx_transmitted + 1)
+		call->tx_transmitted = seq + req->n - 1;
 
 	if (IS_ENABLED(CONFIG_AF_RXRPC_INJECT_LOSS)) {
 		static int lose;
@@ -586,19 +621,21 @@ static int rxrpc_send_data_packet(struct rxrpc_call *call, struct rxrpc_txbuf *t
 	rxrpc_tx_backoff(call, ret);
 
 	if (ret < 0) {
-		/* Cancel the call if the initial transmission fails,
-		 * particularly if that's due to network routing issues that
-		 * aren't going away anytime soon.  The layer above can arrange
-		 * the retransmission.
+		/* Cancel the call if the initial transmission fails or if we
+		 * hit due to network routing issues that aren't going away
+		 * anytime soon.  The layer above can arrange the
+		 * retransmission.
 		 */
-		if (new_call)
+		if (new_call ||
+		    ret == -ENETUNREACH ||
+		    ret == -EHOSTUNREACH ||
+		    ret == -ECONNREFUSED)
 			rxrpc_set_call_completion(call, RXRPC_CALL_LOCAL_ERROR,
 						  RX_USER_ABORT, ret);
 	}
 
 done:
 	_leave(" = %d [%u]", ret, call->peer->max_data);
-	return ret;
 }
 
 /*
@@ -772,42 +809,4 @@ void rxrpc_send_keepalive(struct rxrpc_peer *peer)
 
 	peer->last_tx_at = ktime_get_seconds();
 	_leave("");
-}
-
-/*
- * Schedule an instant Tx resend.
- */
-static inline void rxrpc_instant_resend(struct rxrpc_call *call,
-					struct rxrpc_txbuf *txb)
-{
-	if (!__rxrpc_call_is_complete(call))
-		kdebug("resend");
-}
-
-/*
- * Transmit a packet, possibly gluing several subpackets together.
- */
-void rxrpc_transmit_data(struct rxrpc_call *call, struct rxrpc_txbuf *txb, int n)
-{
-	int ret;
-
-	ret = rxrpc_send_data_packet(call, txb, n);
-	if (ret < 0) {
-		switch (ret) {
-		case -ENETUNREACH:
-		case -EHOSTUNREACH:
-		case -ECONNREFUSED:
-			rxrpc_set_call_completion(call, RXRPC_CALL_LOCAL_ERROR,
-						  0, ret);
-			break;
-		default:
-			_debug("need instant resend %d", ret);
-			rxrpc_instant_resend(call, txb);
-		}
-	} else {
-		ktime_t delay = ns_to_ktime(call->peer->rto_us * NSEC_PER_USEC);
-
-		call->resend_at = ktime_add(ktime_get_real(), delay);
-		trace_rxrpc_timer_set(call, delay, rxrpc_timer_trace_resend_tx);
-	}
 }

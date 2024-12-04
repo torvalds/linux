@@ -43,17 +43,14 @@ struct rxrpc_txbuf *rxrpc_alloc_data_txbuf(struct rxrpc_call *call, size_t data_
 
 	whdr = buf + hoff;
 
-	INIT_LIST_HEAD(&txb->call_link);
-	INIT_LIST_HEAD(&txb->tx_link);
 	refcount_set(&txb->ref, 1);
-	txb->last_sent		= KTIME_MIN;
 	txb->call_debug_id	= call->debug_id;
 	txb->debug_id		= atomic_inc_return(&rxrpc_txbuf_debug_ids);
 	txb->alloc_size		= data_size;
 	txb->space		= data_size;
 	txb->offset		= sizeof(*whdr);
 	txb->flags		= call->conn->out_clientflag;
-	txb->seq		= call->tx_prepared + 1;
+	txb->seq		= call->send_top + 1;
 	txb->nr_kvec		= 1;
 	txb->kvec[0].iov_base	= whdr;
 	txb->kvec[0].iov_len	= sizeof(*whdr);
@@ -114,8 +111,6 @@ struct rxrpc_txbuf *rxrpc_alloc_ack_txbuf(struct rxrpc_call *call, size_t sack_s
 	filler	= buf + sizeof(*whdr) + sizeof(*ack) + 1;
 	trailer	= buf + sizeof(*whdr) + sizeof(*ack) + 1 + 3;
 
-	INIT_LIST_HEAD(&txb->call_link);
-	INIT_LIST_HEAD(&txb->tx_link);
 	refcount_set(&txb->ref, 1);
 	txb->call_debug_id	= call->debug_id;
 	txb->debug_id		= atomic_inc_return(&rxrpc_txbuf_debug_ids);
@@ -199,38 +194,4 @@ void rxrpc_put_txbuf(struct rxrpc_txbuf *txb, enum rxrpc_txbuf_trace what)
 		if (dead)
 			rxrpc_free_txbuf(txb);
 	}
-}
-
-/*
- * Shrink the transmit buffer.
- */
-void rxrpc_shrink_call_tx_buffer(struct rxrpc_call *call)
-{
-	struct rxrpc_txbuf *txb;
-	rxrpc_seq_t hard_ack = smp_load_acquire(&call->acks_hard_ack);
-	bool wake = false;
-
-	_enter("%x/%x/%x", call->tx_bottom, call->acks_hard_ack, call->tx_top);
-
-	while ((txb = list_first_entry_or_null(&call->tx_buffer,
-					       struct rxrpc_txbuf, call_link))) {
-		hard_ack = call->acks_hard_ack;
-		if (before(hard_ack, txb->seq))
-			break;
-
-		if (txb->seq != call->tx_bottom + 1)
-			rxrpc_see_txbuf(txb, rxrpc_txbuf_see_out_of_step);
-		ASSERTCMP(txb->seq, ==, call->tx_bottom + 1);
-		WRITE_ONCE(call->tx_bottom, call->tx_bottom + 1);
-		list_del_rcu(&txb->call_link);
-
-		trace_rxrpc_txqueue(call, rxrpc_txqueue_dequeue);
-
-		rxrpc_put_txbuf(txb, rxrpc_txbuf_put_rotated);
-		if (after(call->acks_hard_ack, call->tx_bottom + 128))
-			wake = true;
-	}
-
-	if (wake)
-		wake_up(&call->waitq);
 }

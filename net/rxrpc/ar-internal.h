@@ -30,6 +30,7 @@ struct rxrpc_crypt {
 struct key_preparsed_payload;
 struct rxrpc_connection;
 struct rxrpc_txbuf;
+struct rxrpc_txqueue;
 
 /*
  * Mark applied to socket buffers in skb->mark.  skb->priority is used
@@ -691,13 +692,17 @@ struct rxrpc_call {
 	unsigned short		rx_pkt_offset;	/* Current recvmsg packet offset */
 	unsigned short		rx_pkt_len;	/* Current recvmsg packet len */
 
+	/* Sendmsg data tracking. */
+	rxrpc_seq_t		send_top;	/* Highest Tx slot filled by sendmsg. */
+	struct rxrpc_txqueue	*send_queue;	/* Queue that sendmsg is writing into */
+
 	/* Transmitted data tracking. */
 	spinlock_t		tx_lock;	/* Transmit queue lock */
-	struct list_head	tx_sendmsg;	/* Sendmsg prepared packets */
-	struct list_head	tx_buffer;	/* Buffer of transmissible packets */
+	struct rxrpc_txqueue	*tx_queue;	/* Start of transmission buffers */
+	struct rxrpc_txqueue	*tx_qtail;	/* End of transmission buffers */
+	rxrpc_seq_t		tx_qbase;	/* First slot in tx_queue */
 	rxrpc_seq_t		tx_bottom;	/* First packet in buffer */
 	rxrpc_seq_t		tx_transmitted;	/* Highest packet transmitted */
-	rxrpc_seq_t		tx_prepared;	/* Highest Tx slot prepared. */
 	rxrpc_seq_t		tx_top;		/* Highest Tx slot allocated. */
 	u16			tx_backoff;	/* Delay to insert due to Tx failure (ms) */
 	u8			tx_winsize;	/* Maximum size of Tx window */
@@ -815,9 +820,6 @@ struct rxrpc_send_params {
  * Buffer of data to be output as a packet.
  */
 struct rxrpc_txbuf {
-	struct list_head	call_link;	/* Link in call->tx_sendmsg/tx_buffer */
-	struct list_head	tx_link;	/* Link in live Enc queue or Tx queue */
-	ktime_t			last_sent;	/* Time at which last transmitted */
 	refcount_t		ref;
 	rxrpc_seq_t		seq;		/* Sequence number of this packet */
 	rxrpc_serial_t		serial;		/* Last serial number transmitted with */
@@ -848,6 +850,36 @@ static inline bool rxrpc_sending_to_client(const struct rxrpc_txbuf *txb)
 {
 	return !rxrpc_sending_to_server(txb);
 }
+
+/*
+ * Transmit queue element, including RACK [RFC8985] per-segment metadata.  The
+ * transmission timestamp is in usec from the base.
+ */
+struct rxrpc_txqueue {
+	/* Start with the members we want to prefetch. */
+	struct rxrpc_txqueue	*next;
+	ktime_t			xmit_ts_base;
+	rxrpc_seq_t		qbase;
+
+	/* The arrays we want to pack into as few cache lines as possible. */
+	struct {
+#define RXRPC_NR_TXQUEUE BITS_PER_LONG
+#define RXRPC_TXQ_MASK (RXRPC_NR_TXQUEUE - 1)
+		struct rxrpc_txbuf *bufs[RXRPC_NR_TXQUEUE];
+		unsigned int	segment_xmit_ts[RXRPC_NR_TXQUEUE];
+	} ____cacheline_aligned;
+};
+
+/*
+ * Data transmission request.
+ */
+struct rxrpc_send_data_req {
+	ktime_t			now;		/* Current time */
+	struct rxrpc_txqueue	*tq;		/* Tx queue segment holding first DATA */
+	rxrpc_seq_t		seq;		/* Sequence of first data */
+	int			n;		/* Number of DATA packets to glue into jumbo */
+	bool			did_send;	/* T if did actually send */
+};
 
 #include <trace/events/rxrpc.h>
 
@@ -905,7 +937,6 @@ void rxrpc_propose_ping(struct rxrpc_call *call, u32 serial,
 			enum rxrpc_propose_ack_trace why);
 void rxrpc_propose_delay_ACK(struct rxrpc_call *, rxrpc_serial_t,
 			     enum rxrpc_propose_ack_trace);
-void rxrpc_shrink_call_tx_buffer(struct rxrpc_call *);
 void rxrpc_resend(struct rxrpc_call *call, struct sk_buff *ack_skb);
 
 bool rxrpc_input_call_event(struct rxrpc_call *call);
@@ -1191,10 +1222,10 @@ void rxrpc_send_ACK(struct rxrpc_call *call, u8 ack_reason,
 		    rxrpc_serial_t serial, enum rxrpc_propose_ack_trace why);
 void rxrpc_send_probe_for_pmtud(struct rxrpc_call *call);
 int rxrpc_send_abort_packet(struct rxrpc_call *);
+void rxrpc_send_data_packet(struct rxrpc_call *call, struct rxrpc_send_data_req *req);
 void rxrpc_send_conn_abort(struct rxrpc_connection *conn);
 void rxrpc_reject_packet(struct rxrpc_local *local, struct sk_buff *skb);
 void rxrpc_send_keepalive(struct rxrpc_peer *);
-void rxrpc_transmit_data(struct rxrpc_call *call, struct rxrpc_txbuf *txb, int n);
 
 /*
  * peer_event.c

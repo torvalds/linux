@@ -214,24 +214,71 @@ void rxrpc_congestion_degrade(struct rxrpc_call *call)
 static bool rxrpc_rotate_tx_window(struct rxrpc_call *call, rxrpc_seq_t to,
 				   struct rxrpc_ack_summary *summary)
 {
-	struct rxrpc_txbuf *txb;
+	struct rxrpc_txqueue *tq = call->tx_queue;
+	rxrpc_seq_t seq = call->tx_bottom + 1;
 	bool rot_last = false;
 
-	list_for_each_entry_rcu(txb, &call->tx_buffer, call_link, false) {
-		if (before_eq(txb->seq, call->acks_hard_ack))
-			continue;
-		if (txb->flags & RXRPC_LAST_PACKET) {
+	_enter("%x,%x,%x", call->tx_bottom, call->acks_hard_ack, to);
+
+	trace_rxrpc_tx_rotate(call, seq, to);
+	trace_rxrpc_tq(call, tq, seq, rxrpc_tq_rotate);
+
+	/* We may have a left over fully-consumed buffer at the front that we
+	 * couldn't drop before (rotate_and_keep below).
+	 */
+	if (seq == call->tx_qbase + RXRPC_NR_TXQUEUE) {
+		call->tx_qbase += RXRPC_NR_TXQUEUE;
+		call->tx_queue = tq->next;
+		trace_rxrpc_tq(call, tq, seq, rxrpc_tq_rotate_and_free);
+		kfree(tq);
+		tq = call->tx_queue;
+	}
+
+	do {
+		unsigned int ix = seq - call->tx_qbase;
+
+		_debug("tq=%x seq=%x i=%d f=%x", tq->qbase, seq, ix, tq->bufs[ix]->flags);
+		if (tq->bufs[ix]->flags & RXRPC_LAST_PACKET) {
 			set_bit(RXRPC_CALL_TX_LAST, &call->flags);
 			rot_last = true;
 		}
-		if (txb->seq == to)
-			break;
+		rxrpc_put_txbuf(tq->bufs[ix], rxrpc_txbuf_put_rotated);
+		tq->bufs[ix] = NULL;
+
+		WRITE_ONCE(call->tx_bottom, seq);
+		WRITE_ONCE(call->acks_hard_ack, seq);
+		trace_rxrpc_txqueue(call, (rot_last ?
+					   rxrpc_txqueue_rotate_last :
+					   rxrpc_txqueue_rotate));
+
+		seq++;
+		if (!(seq & RXRPC_TXQ_MASK)) {
+			prefetch(tq->next);
+			if (tq != call->tx_qtail) {
+				call->tx_qbase += RXRPC_NR_TXQUEUE;
+				call->tx_queue = tq->next;
+				trace_rxrpc_tq(call, tq, seq, rxrpc_tq_rotate_and_free);
+				kfree(tq);
+				tq = call->tx_queue;
+			} else {
+				trace_rxrpc_tq(call, tq, seq, rxrpc_tq_rotate_and_keep);
+				tq = NULL;
+				break;
+			}
+		}
+
+	} while (before_eq(seq, to));
+
+	if (rot_last) {
+		set_bit(RXRPC_CALL_TX_ALL_ACKED, &call->flags);
+		if (tq) {
+			trace_rxrpc_tq(call, tq, seq, rxrpc_tq_rotate_and_free);
+			kfree(tq);
+			call->tx_queue = NULL;
+		}
 	}
 
-	if (rot_last)
-		set_bit(RXRPC_CALL_TX_ALL_ACKED, &call->flags);
-
-	_enter("%x,%x,%x,%d", to, call->acks_hard_ack, call->tx_top, rot_last);
+	_debug("%x,%x,%x,%d", to, call->acks_hard_ack, call->tx_top, rot_last);
 
 	if (call->acks_lowest_nak == call->acks_hard_ack) {
 		call->acks_lowest_nak = to;
@@ -240,11 +287,6 @@ static bool rxrpc_rotate_tx_window(struct rxrpc_call *call, rxrpc_seq_t to,
 		call->acks_lowest_nak = to;
 	}
 
-	smp_store_release(&call->acks_hard_ack, to);
-
-	trace_rxrpc_txqueue(call, (rot_last ?
-				   rxrpc_txqueue_rotate_last :
-				   rxrpc_txqueue_rotate));
 	wake_up(&call->waitq);
 	return rot_last;
 }
