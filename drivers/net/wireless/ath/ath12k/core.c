@@ -22,6 +22,11 @@ unsigned int ath12k_debug_mask;
 module_param_named(debug_mask, ath12k_debug_mask, uint, 0644);
 MODULE_PARM_DESC(debug_mask, "Debugging mask");
 
+/* protected with ath12k_hw_group_mutex */
+static struct list_head ath12k_hw_group_list = LIST_HEAD_INIT(ath12k_hw_group_list);
+
+static DEFINE_MUTEX(ath12k_hw_group_mutex);
+
 static int ath12k_core_rfkill_config(struct ath12k_base *ab)
 {
 	struct ath12k *ar;
@@ -1244,27 +1249,112 @@ static void ath12k_core_panic_notifier_unregister(struct ath12k_base *ab)
 					 &ab->panic_nb);
 }
 
-int ath12k_core_init(struct ath12k_base *ab)
+static inline
+bool ath12k_core_hw_group_create_ready(struct ath12k_hw_group *ag)
 {
-	int ret;
+	lockdep_assert_held(&ag->mutex);
 
-	ret = ath12k_core_soc_create(ab);
-	if (ret) {
-		ath12k_err(ab, "failed to create soc core: %d\n", ret);
-		return ret;
-	}
-
-	ret = ath12k_core_panic_notifier_register(ab);
-	if (ret)
-		ath12k_warn(ab, "failed to register panic handler: %d\n", ret);
-
-	return 0;
+	return (ag->num_probed == ag->num_devices);
 }
 
-void ath12k_core_deinit(struct ath12k_base *ab)
+static struct ath12k_hw_group *ath12k_core_hw_group_alloc(u8 id, u8 max_devices)
 {
-	ath12k_core_panic_notifier_unregister(ab);
+	struct ath12k_hw_group *ag;
 
+	lockdep_assert_held(&ath12k_hw_group_mutex);
+
+	ag = kzalloc(sizeof(*ag), GFP_KERNEL);
+	if (!ag)
+		return NULL;
+
+	ag->id = id;
+	ag->num_devices = max_devices;
+	list_add(&ag->list, &ath12k_hw_group_list);
+	mutex_init(&ag->mutex);
+
+	return ag;
+}
+
+static void ath12k_core_hw_group_free(struct ath12k_hw_group *ag)
+{
+	mutex_lock(&ath12k_hw_group_mutex);
+
+	list_del(&ag->list);
+	kfree(ag);
+
+	mutex_unlock(&ath12k_hw_group_mutex);
+}
+
+static struct ath12k_hw_group *ath12k_core_hw_group_assign(struct ath12k_base *ab)
+{
+	u32 group_id = ATH12K_INVALID_GROUP_ID;
+	struct ath12k_hw_group *ag;
+
+	lockdep_assert_held(&ath12k_hw_group_mutex);
+
+	/* The grouping of multiple devices will be done based on device tree file.
+	 * TODO: device tree file parsing to know about the devices involved in group.
+	 *
+	 * The platforms that do not have any valid group information would have each
+	 * device to be part of its own invalid group.
+	 *
+	 * Currently, we are not parsing any device tree information and hence, grouping
+	 * of multiple devices is not involved. Thus, single device is added to device
+	 * group.
+	 */
+	ag = ath12k_core_hw_group_alloc(group_id, 1);
+	if (!ag) {
+		ath12k_warn(ab, "unable to create new hw group\n");
+		return NULL;
+	}
+
+	ath12k_dbg(ab, ATH12K_DBG_BOOT, "single device added to hardware group\n");
+
+	ab->device_id = ag->num_probed++;
+	ag->ab[ab->device_id] = ab;
+	ab->ag = ag;
+
+	return ag;
+}
+
+void ath12k_core_hw_group_unassign(struct ath12k_base *ab)
+{
+	struct ath12k_hw_group *ag = ab->ag;
+	u8 device_id = ab->device_id;
+	int num_probed;
+
+	if (!ag)
+		return;
+
+	mutex_lock(&ag->mutex);
+
+	if (WARN_ON(device_id >= ag->num_devices)) {
+		mutex_unlock(&ag->mutex);
+		return;
+	}
+
+	if (WARN_ON(ag->ab[device_id] != ab)) {
+		mutex_unlock(&ag->mutex);
+		return;
+	}
+
+	ag->ab[device_id] = NULL;
+	ab->ag = NULL;
+	ab->device_id = ATH12K_INVALID_DEVICE_ID;
+
+	if (ag->num_probed)
+		ag->num_probed--;
+
+	num_probed = ag->num_probed;
+
+	mutex_unlock(&ag->mutex);
+
+	if (!num_probed)
+		ath12k_core_hw_group_free(ag);
+}
+
+static void ath12k_core_device_cleanup(struct ath12k_base *ab)
+{
 	mutex_lock(&ab->core_lock);
 
 	ath12k_hif_irq_disable(ab);
@@ -1274,8 +1364,123 @@ void ath12k_core_deinit(struct ath12k_base *ab)
 	ath12k_core_stop(ab);
 
 	mutex_unlock(&ab->core_lock);
+}
 
-	ath12k_core_soc_destroy(ab);
+static void ath12k_core_hw_group_destroy(struct ath12k_hw_group *ag)
+{
+	struct ath12k_base *ab;
+	int i;
+
+	if (WARN_ON(!ag))
+		return;
+
+	for (i = 0; i < ag->num_devices; i++) {
+		ab = ag->ab[i];
+		if (!ab)
+			continue;
+
+		ath12k_core_soc_destroy(ab);
+	}
+}
+
+static void ath12k_core_hw_group_cleanup(struct ath12k_hw_group *ag)
+{
+	struct ath12k_base *ab;
+	int i;
+
+	if (!ag)
+		return;
+
+	mutex_lock(&ag->mutex);
+
+	for (i = 0; i < ag->num_devices; i++) {
+		ab = ag->ab[i];
+		if (!ab)
+			continue;
+
+		ath12k_core_device_cleanup(ab);
+	}
+
+	mutex_unlock(&ag->mutex);
+}
+
+static int ath12k_core_hw_group_create(struct ath12k_hw_group *ag)
+{
+	struct ath12k_base *ab;
+	int i, ret;
+
+	lockdep_assert_held(&ag->mutex);
+
+	for (i = 0; i < ag->num_devices; i++) {
+		ab = ag->ab[i];
+		if (!ab)
+			continue;
+
+		mutex_lock(&ab->core_lock);
+
+		ret = ath12k_core_soc_create(ab);
+		if (ret) {
+			mutex_unlock(&ab->core_lock);
+			ath12k_err(ab, "failed to create soc core: %d\n", ret);
+			return ret;
+		}
+
+		mutex_unlock(&ab->core_lock);
+	}
+
+	return 0;
+}
+
+int ath12k_core_init(struct ath12k_base *ab)
+{
+	struct ath12k_hw_group *ag;
+	int ret;
+
+	ret = ath12k_core_panic_notifier_register(ab);
+	if (ret)
+		ath12k_warn(ab, "failed to register panic handler: %d\n", ret);
+
+	mutex_lock(&ath12k_hw_group_mutex);
+
+	ag = ath12k_core_hw_group_assign(ab);
+	if (!ag) {
+		mutex_unlock(&ath12k_hw_group_mutex);
+		ath12k_warn(ab, "unable to get hw group\n");
+		return -ENODEV;
+	}
+
+	mutex_unlock(&ath12k_hw_group_mutex);
+
+	mutex_lock(&ag->mutex);
+
+	ath12k_dbg(ab, ATH12K_DBG_BOOT, "num devices %d num probed %d\n",
+		   ag->num_devices, ag->num_probed);
+
+	if (ath12k_core_hw_group_create_ready(ag)) {
+		ret = ath12k_core_hw_group_create(ag);
+		if (ret) {
+			mutex_unlock(&ag->mutex);
+			ath12k_warn(ab, "unable to create hw group\n");
+			goto err;
+		}
+	}
+
+	mutex_unlock(&ag->mutex);
+
+	return 0;
+
+err:
+	ath12k_core_hw_group_destroy(ab->ag);
+	ath12k_core_hw_group_unassign(ab);
+	return ret;
+}
+
+void ath12k_core_deinit(struct ath12k_base *ab)
+{
+	ath12k_core_panic_notifier_unregister(ab);
+	ath12k_core_hw_group_cleanup(ab->ag);
+	ath12k_core_hw_group_destroy(ab->ag);
+	ath12k_core_hw_group_unassign(ab);
 }
 
 void ath12k_core_free(struct ath12k_base *ab)
