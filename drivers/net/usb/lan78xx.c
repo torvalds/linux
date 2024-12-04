@@ -1000,8 +1000,8 @@ static int lan78xx_wait_eeprom(struct lan78xx_net *dev)
 
 	do {
 		ret = lan78xx_read_reg(dev, E2P_CMD, &val);
-		if (unlikely(ret < 0))
-			return -EIO;
+		if (ret < 0)
+			return ret;
 
 		if (!(val & E2P_CMD_EPC_BUSY_) ||
 		    (val & E2P_CMD_EPC_TIMEOUT_))
@@ -1011,7 +1011,7 @@ static int lan78xx_wait_eeprom(struct lan78xx_net *dev)
 
 	if (val & (E2P_CMD_EPC_TIMEOUT_ | E2P_CMD_EPC_BUSY_)) {
 		netdev_warn(dev->net, "EEPROM read operation timeout");
-		return -EIO;
+		return -ETIMEDOUT;
 	}
 
 	return 0;
@@ -1025,8 +1025,8 @@ static int lan78xx_eeprom_confirm_not_busy(struct lan78xx_net *dev)
 
 	do {
 		ret = lan78xx_read_reg(dev, E2P_CMD, &val);
-		if (unlikely(ret < 0))
-			return -EIO;
+		if (ret < 0)
+			return ret;
 
 		if (!(val & E2P_CMD_EPC_BUSY_))
 			return 0;
@@ -1035,75 +1035,81 @@ static int lan78xx_eeprom_confirm_not_busy(struct lan78xx_net *dev)
 	} while (!time_after(jiffies, start_time + HZ));
 
 	netdev_warn(dev->net, "EEPROM is busy");
-	return -EIO;
+	return -ETIMEDOUT;
 }
 
 static int lan78xx_read_raw_eeprom(struct lan78xx_net *dev, u32 offset,
 				   u32 length, u8 *data)
 {
-	u32 val;
-	u32 saved;
+	u32 val, saved;
 	int i, ret;
-	int retval;
 
 	/* depends on chip, some EEPROM pins are muxed with LED function.
 	 * disable & restore LED function to access EEPROM.
 	 */
 	ret = lan78xx_read_reg(dev, HW_CFG, &val);
+	if (ret < 0)
+		return ret;
+
 	saved = val;
 	if (dev->chipid == ID_REV_CHIP_ID_7800_) {
 		val &= ~(HW_CFG_LED1_EN_ | HW_CFG_LED0_EN_);
 		ret = lan78xx_write_reg(dev, HW_CFG, val);
+		if (ret < 0)
+			return ret;
 	}
 
-	retval = lan78xx_eeprom_confirm_not_busy(dev);
-	if (retval)
-		return retval;
+	ret = lan78xx_eeprom_confirm_not_busy(dev);
+	if (ret == -ETIMEDOUT)
+		goto read_raw_eeprom_done;
+	/* If USB fails, there is nothing to do */
+	if (ret < 0)
+		return ret;
 
 	for (i = 0; i < length; i++) {
 		val = E2P_CMD_EPC_BUSY_ | E2P_CMD_EPC_CMD_READ_;
 		val |= (offset & E2P_CMD_EPC_ADDR_MASK_);
 		ret = lan78xx_write_reg(dev, E2P_CMD, val);
-		if (unlikely(ret < 0)) {
-			retval = -EIO;
-			goto exit;
-		}
+		if (ret < 0)
+			return ret;
 
-		retval = lan78xx_wait_eeprom(dev);
-		if (retval < 0)
-			goto exit;
+		ret = lan78xx_wait_eeprom(dev);
+		/* Looks like not USB specific error, try to recover */
+		if (ret == -ETIMEDOUT)
+			goto read_raw_eeprom_done;
+		/* If USB fails, there is nothing to do */
+		if (ret < 0)
+			return ret;
 
 		ret = lan78xx_read_reg(dev, E2P_DATA, &val);
-		if (unlikely(ret < 0)) {
-			retval = -EIO;
-			goto exit;
-		}
+		if (ret < 0)
+			return ret;
 
 		data[i] = val & 0xFF;
 		offset++;
 	}
 
-	retval = 0;
-exit:
+read_raw_eeprom_done:
 	if (dev->chipid == ID_REV_CHIP_ID_7800_)
-		ret = lan78xx_write_reg(dev, HW_CFG, saved);
+		return lan78xx_write_reg(dev, HW_CFG, saved);
 
-	return retval;
+	return 0;
 }
 
 static int lan78xx_read_eeprom(struct lan78xx_net *dev, u32 offset,
 			       u32 length, u8 *data)
 {
-	u8 sig;
 	int ret;
+	u8 sig;
 
 	ret = lan78xx_read_raw_eeprom(dev, 0, 1, &sig);
-	if ((ret == 0) && (sig == EEPROM_INDICATOR))
-		ret = lan78xx_read_raw_eeprom(dev, offset, length, data);
-	else
-		ret = -EINVAL;
+	if (ret < 0)
+		return ret;
 
-	return ret;
+	if (sig != EEPROM_INDICATOR)
+		return -ENODATA;
+
+	return lan78xx_read_raw_eeprom(dev, offset, length, data);
 }
 
 static int lan78xx_write_raw_eeprom(struct lan78xx_net *dev, u32 offset,
@@ -1112,113 +1118,144 @@ static int lan78xx_write_raw_eeprom(struct lan78xx_net *dev, u32 offset,
 	u32 val;
 	u32 saved;
 	int i, ret;
-	int retval;
 
 	/* depends on chip, some EEPROM pins are muxed with LED function.
 	 * disable & restore LED function to access EEPROM.
 	 */
 	ret = lan78xx_read_reg(dev, HW_CFG, &val);
+	if (ret < 0)
+		return ret;
+
 	saved = val;
 	if (dev->chipid == ID_REV_CHIP_ID_7800_) {
 		val &= ~(HW_CFG_LED1_EN_ | HW_CFG_LED0_EN_);
 		ret = lan78xx_write_reg(dev, HW_CFG, val);
+		if (ret < 0)
+			return ret;
 	}
 
-	retval = lan78xx_eeprom_confirm_not_busy(dev);
-	if (retval)
-		goto exit;
+	ret = lan78xx_eeprom_confirm_not_busy(dev);
+	/* Looks like not USB specific error, try to recover */
+	if (ret == -ETIMEDOUT)
+		goto write_raw_eeprom_done;
+	/* If USB fails, there is nothing to do */
+	if (ret < 0)
+		return ret;
 
 	/* Issue write/erase enable command */
 	val = E2P_CMD_EPC_BUSY_ | E2P_CMD_EPC_CMD_EWEN_;
 	ret = lan78xx_write_reg(dev, E2P_CMD, val);
-	if (unlikely(ret < 0)) {
-		retval = -EIO;
-		goto exit;
-	}
+	if (ret < 0)
+		return ret;
 
-	retval = lan78xx_wait_eeprom(dev);
-	if (retval < 0)
-		goto exit;
+	ret = lan78xx_wait_eeprom(dev);
+	/* Looks like not USB specific error, try to recover */
+	if (ret == -ETIMEDOUT)
+		goto write_raw_eeprom_done;
+	/* If USB fails, there is nothing to do */
+	if (ret < 0)
+		return ret;
 
 	for (i = 0; i < length; i++) {
 		/* Fill data register */
 		val = data[i];
 		ret = lan78xx_write_reg(dev, E2P_DATA, val);
-		if (ret < 0) {
-			retval = -EIO;
-			goto exit;
-		}
+		if (ret < 0)
+			return ret;
 
 		/* Send "write" command */
 		val = E2P_CMD_EPC_BUSY_ | E2P_CMD_EPC_CMD_WRITE_;
 		val |= (offset & E2P_CMD_EPC_ADDR_MASK_);
 		ret = lan78xx_write_reg(dev, E2P_CMD, val);
-		if (ret < 0) {
-			retval = -EIO;
-			goto exit;
-		}
+		if (ret < 0)
+			return ret;
 
-		retval = lan78xx_wait_eeprom(dev);
-		if (retval < 0)
-			goto exit;
+		ret = lan78xx_wait_eeprom(dev);
+		/* Looks like not USB specific error, try to recover */
+		if (ret == -ETIMEDOUT)
+			goto write_raw_eeprom_done;
+		/* If USB fails, there is nothing to do */
+		if (ret < 0)
+			return ret;
 
 		offset++;
 	}
 
-	retval = 0;
-exit:
+write_raw_eeprom_done:
 	if (dev->chipid == ID_REV_CHIP_ID_7800_)
-		ret = lan78xx_write_reg(dev, HW_CFG, saved);
+		return lan78xx_write_reg(dev, HW_CFG, saved);
 
-	return retval;
+	return 0;
 }
 
 static int lan78xx_read_raw_otp(struct lan78xx_net *dev, u32 offset,
 				u32 length, u8 *data)
 {
-	int i;
-	u32 buf;
 	unsigned long timeout;
+	int ret, i;
+	u32 buf;
 
-	lan78xx_read_reg(dev, OTP_PWR_DN, &buf);
+	ret = lan78xx_read_reg(dev, OTP_PWR_DN, &buf);
+	if (ret < 0)
+		return ret;
 
 	if (buf & OTP_PWR_DN_PWRDN_N_) {
 		/* clear it and wait to be cleared */
-		lan78xx_write_reg(dev, OTP_PWR_DN, 0);
+		ret = lan78xx_write_reg(dev, OTP_PWR_DN, 0);
+		if (ret < 0)
+			return ret;
 
 		timeout = jiffies + HZ;
 		do {
 			usleep_range(1, 10);
-			lan78xx_read_reg(dev, OTP_PWR_DN, &buf);
+			ret = lan78xx_read_reg(dev, OTP_PWR_DN, &buf);
+			if (ret < 0)
+				return ret;
+
 			if (time_after(jiffies, timeout)) {
 				netdev_warn(dev->net,
 					    "timeout on OTP_PWR_DN");
-				return -EIO;
+				return -ETIMEDOUT;
 			}
 		} while (buf & OTP_PWR_DN_PWRDN_N_);
 	}
 
 	for (i = 0; i < length; i++) {
-		lan78xx_write_reg(dev, OTP_ADDR1,
-				  ((offset + i) >> 8) & OTP_ADDR1_15_11);
-		lan78xx_write_reg(dev, OTP_ADDR2,
-				  ((offset + i) & OTP_ADDR2_10_3));
+		ret = lan78xx_write_reg(dev, OTP_ADDR1,
+					((offset + i) >> 8) & OTP_ADDR1_15_11);
+		if (ret < 0)
+			return ret;
 
-		lan78xx_write_reg(dev, OTP_FUNC_CMD, OTP_FUNC_CMD_READ_);
-		lan78xx_write_reg(dev, OTP_CMD_GO, OTP_CMD_GO_GO_);
+		ret = lan78xx_write_reg(dev, OTP_ADDR2,
+					((offset + i) & OTP_ADDR2_10_3));
+		if (ret < 0)
+			return ret;
+
+		ret = lan78xx_write_reg(dev, OTP_FUNC_CMD, OTP_FUNC_CMD_READ_);
+		if (ret < 0)
+			return ret;
+
+		ret = lan78xx_write_reg(dev, OTP_CMD_GO, OTP_CMD_GO_GO_);
+		if (ret < 0)
+			return ret;
 
 		timeout = jiffies + HZ;
 		do {
 			udelay(1);
-			lan78xx_read_reg(dev, OTP_STATUS, &buf);
+			ret = lan78xx_read_reg(dev, OTP_STATUS, &buf);
+			if (ret < 0)
+				return ret;
+
 			if (time_after(jiffies, timeout)) {
 				netdev_warn(dev->net,
 					    "timeout on OTP_STATUS");
-				return -EIO;
+				return -ETIMEDOUT;
 			}
 		} while (buf & OTP_STATUS_BUSY_);
 
-		lan78xx_read_reg(dev, OTP_RD_DATA, &buf);
+		ret = lan78xx_read_reg(dev, OTP_RD_DATA, &buf);
+		if (ret < 0)
+			return ret;
 
 		data[i] = (u8)(buf & 0xFF);
 	}
@@ -1232,45 +1269,72 @@ static int lan78xx_write_raw_otp(struct lan78xx_net *dev, u32 offset,
 	int i;
 	u32 buf;
 	unsigned long timeout;
+	int ret;
 
-	lan78xx_read_reg(dev, OTP_PWR_DN, &buf);
+	ret = lan78xx_read_reg(dev, OTP_PWR_DN, &buf);
+	if (ret < 0)
+		return ret;
 
 	if (buf & OTP_PWR_DN_PWRDN_N_) {
 		/* clear it and wait to be cleared */
-		lan78xx_write_reg(dev, OTP_PWR_DN, 0);
+		ret = lan78xx_write_reg(dev, OTP_PWR_DN, 0);
+		if (ret < 0)
+			return ret;
 
 		timeout = jiffies + HZ;
 		do {
 			udelay(1);
-			lan78xx_read_reg(dev, OTP_PWR_DN, &buf);
+			ret = lan78xx_read_reg(dev, OTP_PWR_DN, &buf);
+			if (ret < 0)
+				return ret;
+
 			if (time_after(jiffies, timeout)) {
 				netdev_warn(dev->net,
 					    "timeout on OTP_PWR_DN completion");
-				return -EIO;
+				return -ETIMEDOUT;
 			}
 		} while (buf & OTP_PWR_DN_PWRDN_N_);
 	}
 
 	/* set to BYTE program mode */
-	lan78xx_write_reg(dev, OTP_PRGM_MODE, OTP_PRGM_MODE_BYTE_);
+	ret = lan78xx_write_reg(dev, OTP_PRGM_MODE, OTP_PRGM_MODE_BYTE_);
+	if (ret < 0)
+		return ret;
 
 	for (i = 0; i < length; i++) {
-		lan78xx_write_reg(dev, OTP_ADDR1,
-				  ((offset + i) >> 8) & OTP_ADDR1_15_11);
-		lan78xx_write_reg(dev, OTP_ADDR2,
-				  ((offset + i) & OTP_ADDR2_10_3));
-		lan78xx_write_reg(dev, OTP_PRGM_DATA, data[i]);
-		lan78xx_write_reg(dev, OTP_TST_CMD, OTP_TST_CMD_PRGVRFY_);
-		lan78xx_write_reg(dev, OTP_CMD_GO, OTP_CMD_GO_GO_);
+		ret = lan78xx_write_reg(dev, OTP_ADDR1,
+					((offset + i) >> 8) & OTP_ADDR1_15_11);
+		if (ret < 0)
+			return ret;
+
+		ret = lan78xx_write_reg(dev, OTP_ADDR2,
+					((offset + i) & OTP_ADDR2_10_3));
+		if (ret < 0)
+			return ret;
+
+		ret = lan78xx_write_reg(dev, OTP_PRGM_DATA, data[i]);
+		if (ret < 0)
+			return ret;
+
+		ret = lan78xx_write_reg(dev, OTP_TST_CMD, OTP_TST_CMD_PRGVRFY_);
+		if (ret < 0)
+			return ret;
+
+		ret = lan78xx_write_reg(dev, OTP_CMD_GO, OTP_CMD_GO_GO_);
+		if (ret < 0)
+			return ret;
 
 		timeout = jiffies + HZ;
 		do {
 			udelay(1);
-			lan78xx_read_reg(dev, OTP_STATUS, &buf);
+			ret = lan78xx_read_reg(dev, OTP_STATUS, &buf);
+			if (ret < 0)
+				return ret;
+
 			if (time_after(jiffies, timeout)) {
 				netdev_warn(dev->net,
 					    "Timeout on OTP_STATUS completion");
-				return -EIO;
+				return -ETIMEDOUT;
 			}
 		} while (buf & OTP_STATUS_BUSY_);
 	}
