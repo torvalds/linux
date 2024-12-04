@@ -903,6 +903,47 @@ TRACE_EVENT(rxrpc_txqueue,
 		      __entry->tx_winsize)
 	    );
 
+TRACE_EVENT(rxrpc_transmit,
+	    TP_PROTO(struct rxrpc_call *call, int space),
+
+	    TP_ARGS(call, space),
+
+	    TP_STRUCT__entry(
+		    __field(unsigned int,	call)
+		    __field(rxrpc_seq_t,	seq)
+		    __field(u16,		space)
+		    __field(u16,		tx_winsize)
+		    __field(u16,		cong_cwnd)
+		    __field(u16,		cong_extra)
+		    __field(u16,		in_flight)
+		    __field(u16,		prepared)
+		    __field(u16,		pmtud_jumbo)
+			     ),
+
+	    TP_fast_assign(
+		    __entry->call	= call->debug_id;
+		    __entry->seq	= call->tx_bottom;
+		    __entry->space	= space;
+		    __entry->tx_winsize	= call->tx_winsize;
+		    __entry->cong_cwnd	= call->cong_cwnd;
+		    __entry->cong_extra	= call->cong_extra;
+		    __entry->prepared	= call->tx_prepared - call->tx_bottom;
+		    __entry->in_flight	= call->tx_top - call->acks_hard_ack;
+		    __entry->pmtud_jumbo = call->peer->pmtud_jumbo;
+			   ),
+
+	    TP_printk("c=%08x q=%08x sp=%u tw=%u cw=%u+%u pr=%u if=%u pj=%u",
+		      __entry->call,
+		      __entry->seq,
+		      __entry->space,
+		      __entry->tx_winsize,
+		      __entry->cong_cwnd,
+		      __entry->cong_extra,
+		      __entry->prepared,
+		      __entry->in_flight,
+		      __entry->pmtud_jumbo)
+	    );
+
 TRACE_EVENT(rxrpc_rx_data,
 	    TP_PROTO(unsigned int call, rxrpc_seq_t seq,
 		     rxrpc_serial_t serial, u8 flags),

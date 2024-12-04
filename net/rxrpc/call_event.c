@@ -259,6 +259,8 @@ static void rxrpc_decant_prepared_tx(struct rxrpc_call *call)
 		if (list_empty(&call->tx_sendmsg))
 			break;
 
+		trace_rxrpc_transmit(call, space);
+
 		spin_lock(&call->tx_lock);
 		do {
 			txb = list_first_entry(&call->tx_sendmsg,
