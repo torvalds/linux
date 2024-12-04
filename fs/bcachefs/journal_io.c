@@ -2032,7 +2032,7 @@ CLOSURE_CALLBACK(bch2_journal_write)
 		bch2_journal_do_discards(j);
 	}
 
-	if (ret) {
+	if (ret && !bch2_journal_error(j)) {
 		struct printbuf buf = PRINTBUF;
 		buf.atomic++;
 
@@ -2044,8 +2044,9 @@ CLOSURE_CALLBACK(bch2_journal_write)
 		spin_unlock(&j->lock);
 		bch2_print_string_as_lines(KERN_ERR, buf.buf);
 		printbuf_exit(&buf);
-		goto err;
 	}
+	if (ret)
+		goto err;
 
 	/*
 	 * write is allocated, no longer need to account for it in
