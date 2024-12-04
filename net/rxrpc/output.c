@@ -175,9 +175,11 @@ no_slot:
 /*
  * Transmit an ACK packet.
  */
-static void rxrpc_send_ack_packet(struct rxrpc_call *call, struct rxrpc_txbuf *txb)
+static void rxrpc_send_ack_packet(struct rxrpc_call *call, struct rxrpc_txbuf *txb,
+				  int nr_kv)
 {
-	struct rxrpc_wire_header *whdr = txb->kvec[0].iov_base;
+	struct kvec *kv = call->local->kvec;
+	struct rxrpc_wire_header *whdr = kv[0].iov_base;
 	struct rxrpc_connection *conn;
 	struct rxrpc_ackpacket *ack = (struct rxrpc_ackpacket *)(whdr + 1);
 	struct msghdr msg;
@@ -206,8 +208,9 @@ static void rxrpc_send_ack_packet(struct rxrpc_call *call, struct rxrpc_txbuf *t
 
 	rxrpc_inc_stat(call->rxnet, stat_tx_ack_send);
 
-	iov_iter_kvec(&msg.msg_iter, WRITE, txb->kvec, txb->nr_kvec, txb->len);
+	iov_iter_kvec(&msg.msg_iter, WRITE, kv, nr_kv, txb->len);
 	rxrpc_local_dont_fragment(conn->local, false);
+
 	ret = do_udp_sendmsg(conn->local->socket, &msg, txb->len);
 	call->peer->last_tx_at = ktime_get_seconds();
 	if (ret < 0) {
@@ -233,6 +236,8 @@ void rxrpc_send_ACK(struct rxrpc_call *call, u8 ack_reason,
 		    rxrpc_serial_t serial, enum rxrpc_propose_ack_trace why)
 {
 	struct rxrpc_txbuf *txb;
+	struct kvec *kv = call->local->kvec;
+	int nr_kv;
 
 	if (test_bit(RXRPC_CALL_DISCONNECTED, &call->flags))
 		return;
@@ -248,12 +253,19 @@ void rxrpc_send_ACK(struct rxrpc_call *call, u8 ack_reason,
 	txb->ack_why = why;
 
 	rxrpc_fill_out_ack(call, txb, ack_reason, serial);
+
+	nr_kv = txb->nr_kvec;
+	kv[0] = txb->kvec[0];
+	kv[1] = txb->kvec[1];
+	kv[2] = txb->kvec[2];
+	// TODO: Extend a path MTU probe ACK
+
 	call->ackr_nr_unacked = 0;
 	atomic_set(&call->ackr_nr_consumed, 0);
 	clear_bit(RXRPC_CALL_RX_IS_IDLE, &call->flags);
 
 	trace_rxrpc_send_ack(call, why, ack_reason, serial);
-	rxrpc_send_ack_packet(call, txb);
+	rxrpc_send_ack_packet(call, txb, nr_kv);
 	rxrpc_put_txbuf(txb, rxrpc_txbuf_put_ack_tx);
 }
 
@@ -324,12 +336,15 @@ int rxrpc_send_abort_packet(struct rxrpc_call *call)
 /*
  * Prepare a (sub)packet for transmission.
  */
-static void rxrpc_prepare_data_subpacket(struct rxrpc_call *call, struct rxrpc_txbuf *txb,
-					 rxrpc_serial_t serial)
+static size_t rxrpc_prepare_data_subpacket(struct rxrpc_call *call, struct rxrpc_txbuf *txb,
+					   rxrpc_serial_t serial,
+					   int subpkt)
 {
 	struct rxrpc_wire_header *whdr = txb->kvec[0].iov_base;
 	enum rxrpc_req_ack_trace why;
 	struct rxrpc_connection *conn = call->conn;
+	struct kvec *kv = &call->local->kvec[subpkt];
+	size_t len = txb->len;
 	bool last, more;
 	u8 flags;
 
@@ -385,8 +400,13 @@ dont_set_request_ack:
 	whdr->flags	= flags;
 	whdr->serial	= htonl(txb->serial);
 	whdr->cksum	= txb->cksum;
+	whdr->serviceId	= htons(conn->service_id);
+	kv->iov_base	= whdr;
+	// TODO: Convert into a jumbo header for tail subpackets
 
 	trace_rxrpc_tx_data(call, txb->seq, txb->serial, flags, false);
+	kv->iov_len = len;
+	return len;
 }
 
 /*
@@ -395,13 +415,15 @@ dont_set_request_ack:
 static size_t rxrpc_prepare_data_packet(struct rxrpc_call *call, struct rxrpc_txbuf *txb)
 {
 	rxrpc_serial_t serial;
+	size_t len = 0;
 
 	/* Each transmission of a Tx packet needs a new serial number */
 	serial = rxrpc_get_next_serial(call->conn);
 
-	rxrpc_prepare_data_subpacket(call, txb, serial);
+	len += rxrpc_prepare_data_subpacket(call, txb, serial, 0);
+	// TODO: Loop around adding tail subpackets
 
-	return txb->len;
+	return len;
 }
 
 /*
@@ -442,7 +464,6 @@ static void rxrpc_tstamp_data_packets(struct rxrpc_call *call, struct rxrpc_txbu
  */
 static int rxrpc_send_data_packet(struct rxrpc_call *call, struct rxrpc_txbuf *txb)
 {
-	struct rxrpc_wire_header *whdr = txb->kvec[0].iov_base;
 	struct rxrpc_connection *conn = call->conn;
 	enum rxrpc_tx_point frag;
 	struct msghdr msg;
@@ -463,7 +484,7 @@ static int rxrpc_send_data_packet(struct rxrpc_call *call, struct rxrpc_txbuf *t
 		}
 	}
 
-	iov_iter_kvec(&msg.msg_iter, WRITE, txb->kvec, txb->nr_kvec, len);
+	iov_iter_kvec(&msg.msg_iter, WRITE, call->local->kvec, 1, len);
 
 	msg.msg_name	= &call->peer->srx.transport;
 	msg.msg_namelen	= call->peer->srx.transport_len;
@@ -480,7 +501,7 @@ static int rxrpc_send_data_packet(struct rxrpc_call *call, struct rxrpc_txbuf *t
 
 	/* send the packet with the don't fragment bit set if we currently
 	 * think it's small enough */
-	if (txb->len >= call->peer->maxdata) {
+	if (len >= sizeof(struct rxrpc_wire_header) + call->peer->maxdata) {
 		rxrpc_local_dont_fragment(conn->local, false);
 		frag = rxrpc_tx_point_call_data_frag;
 	} else {
@@ -503,7 +524,7 @@ retry:
 		rxrpc_inc_stat(call->rxnet, stat_tx_data_send_fail);
 		trace_rxrpc_tx_fail(call->debug_id, txb->serial, ret, frag);
 	} else {
-		trace_rxrpc_tx_packet(call->debug_id, whdr, frag);
+		trace_rxrpc_tx_packet(call->debug_id, call->local->kvec[0].iov_base, frag);
 	}
 
 	rxrpc_tx_backoff(call, ret);
