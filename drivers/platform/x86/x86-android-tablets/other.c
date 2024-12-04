@@ -757,7 +757,7 @@ const struct x86_dev_info vexia_edu_atla10_info __initconst = {
 	.i2c_client_count = ARRAY_SIZE(vexia_edu_atla10_i2c_clients),
 	.gpiod_lookup_tables = vexia_edu_atla10_gpios,
 	.init = vexia_edu_atla10_init,
-	.use_pci_devname = true,
+	.use_pci = true,
 };
 
 /*

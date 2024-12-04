@@ -62,6 +62,9 @@ struct x86_serdev_info {
 			const char *hid;
 			const char *uid;
 		} acpi;
+		struct {
+			unsigned int devfn;
+		} pci;
 	} ctrl;
 	const char *ctrl_devname;
 	/*
@@ -95,7 +98,7 @@ struct x86_dev_info {
 	int gpio_button_count;
 	int (*init)(struct device *dev);
 	void (*exit)(void);
-	bool use_pci_devname;
+	bool use_pci;
 };
 
 int x86_android_tablet_get_gpiod(const char *chip, int pin, const char *con_id,
