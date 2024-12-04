@@ -45,6 +45,18 @@ static __always_inline void arch_atomic_add(int i, atomic_t *v)
 }
 #define arch_atomic_add arch_atomic_add
 
+static __always_inline void arch_atomic_inc(atomic_t *v)
+{
+	__atomic_add_const(1, &v->counter);
+}
+#define arch_atomic_inc arch_atomic_inc
+
+static __always_inline void arch_atomic_dec(atomic_t *v)
+{
+	__atomic_add_const(-1, &v->counter);
+}
+#define arch_atomic_dec arch_atomic_dec
+
 #define arch_atomic_sub(_i, _v)		arch_atomic_add(-(int)(_i), _v)
 #define arch_atomic_sub_return(_i, _v)	arch_atomic_add_return(-(int)(_i), _v)
 #define arch_atomic_fetch_sub(_i, _v)	arch_atomic_fetch_add(-(int)(_i), _v)
@@ -121,6 +133,18 @@ static __always_inline void arch_atomic64_add(s64 i, atomic64_t *v)
 	__atomic64_add(i, (long *)&v->counter);
 }
 #define arch_atomic64_add arch_atomic64_add
+
+static __always_inline void arch_atomic64_inc(atomic64_t *v)
+{
+	__atomic64_add_const(1, (long *)&v->counter);
+}
+#define arch_atomic64_inc arch_atomic64_inc
+
+static __always_inline void arch_atomic64_dec(atomic64_t *v)
+{
+	__atomic64_add_const(-1, (long *)&v->counter);
+}
+#define arch_atomic64_dec arch_atomic64_dec
 
 static __always_inline s64 arch_atomic64_xchg(atomic64_t *v, s64 new)
 {
