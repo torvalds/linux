@@ -2599,27 +2599,36 @@ static int lan78xx_phy_init(struct lan78xx_net *dev)
 
 static int lan78xx_set_rx_max_frame_length(struct lan78xx_net *dev, int size)
 {
-	u32 buf;
 	bool rxenabled;
+	u32 buf;
+	int ret;
 
-	lan78xx_read_reg(dev, MAC_RX, &buf);
+	ret = lan78xx_read_reg(dev, MAC_RX, &buf);
+	if (ret < 0)
+		return ret;
 
 	rxenabled = ((buf & MAC_RX_RXEN_) != 0);
 
 	if (rxenabled) {
 		buf &= ~MAC_RX_RXEN_;
-		lan78xx_write_reg(dev, MAC_RX, buf);
+		ret = lan78xx_write_reg(dev, MAC_RX, buf);
+		if (ret < 0)
+			return ret;
 	}
 
 	/* add 4 to size for FCS */
 	buf &= ~MAC_RX_MAX_SIZE_MASK_;
 	buf |= (((size + 4) << MAC_RX_MAX_SIZE_SHIFT_) & MAC_RX_MAX_SIZE_MASK_);
 
-	lan78xx_write_reg(dev, MAC_RX, buf);
+	ret = lan78xx_write_reg(dev, MAC_RX, buf);
+	if (ret < 0)
+		return ret;
 
 	if (rxenabled) {
 		buf |= MAC_RX_RXEN_;
-		lan78xx_write_reg(dev, MAC_RX, buf);
+		ret = lan78xx_write_reg(dev, MAC_RX, buf);
+		if (ret < 0)
+			return ret;
 	}
 
 	return 0;
@@ -2685,7 +2694,10 @@ static int lan78xx_change_mtu(struct net_device *netdev, int new_mtu)
 		return ret;
 
 	ret = lan78xx_set_rx_max_frame_length(dev, max_frame_len);
-	if (!ret)
+	if (ret < 0)
+		netdev_err(dev->net, "MTU changed to %d from %d failed with %pe\n",
+			   new_mtu, netdev->mtu, ERR_PTR(ret));
+	else
 		WRITE_ONCE(netdev->mtu, new_mtu);
 
 	usb_autopm_put_interface(dev->intf);
