@@ -715,6 +715,14 @@ static const struct x86_i2c_client_info vexia_edu_atla10_i2c_clients[] __initcon
 	}
 };
 
+static const struct x86_serdev_info vexia_edu_atla10_serdevs[] __initconst = {
+	{
+		.ctrl.pci.devfn = PCI_DEVFN(0x1e, 3),
+		.ctrl_devname = "serial0",
+		.serdev_hid = "OBDA8723",
+	},
+};
+
 static struct gpiod_lookup_table vexia_edu_atla10_ft5416_gpios = {
 	.dev_id = "i2c-FTSC1000",
 	.table = {
@@ -755,6 +763,8 @@ static int __init vexia_edu_atla10_init(struct device *dev)
 const struct x86_dev_info vexia_edu_atla10_info __initconst = {
 	.i2c_client_info = vexia_edu_atla10_i2c_clients,
 	.i2c_client_count = ARRAY_SIZE(vexia_edu_atla10_i2c_clients),
+	.serdev_info = vexia_edu_atla10_serdevs,
+	.serdev_count = ARRAY_SIZE(vexia_edu_atla10_serdevs),
 	.gpiod_lookup_tables = vexia_edu_atla10_gpios,
 	.init = vexia_edu_atla10_init,
 	.use_pci = true,
