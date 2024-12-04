@@ -124,7 +124,7 @@ void rxrpc_resend(struct rxrpc_call *call, struct sk_buff *ack_skb)
 					       ktime_sub(resend_at, now));
 
 			txb->flags |= RXRPC_TXBUF_RESENT;
-			rxrpc_transmit_one(call, txb);
+			rxrpc_transmit_data(call, txb, 1);
 			did_send = true;
 			now = ktime_get_real();
 
@@ -164,7 +164,7 @@ void rxrpc_resend(struct rxrpc_call *call, struct sk_buff *ack_skb)
 		unacked = true;
 
 		txb->flags |= RXRPC_TXBUF_RESENT;
-		rxrpc_transmit_one(call, txb);
+		rxrpc_transmit_data(call, txb, 1);
 		did_send = true;
 		rxrpc_inc_stat(call->rxnet, stat_tx_data_retrans);
 		now = ktime_get_real();
@@ -231,15 +231,12 @@ static void rxrpc_close_tx_phase(struct rxrpc_call *call)
 	}
 }
 
-static bool rxrpc_tx_window_has_space(struct rxrpc_call *call)
+static unsigned int rxrpc_tx_window_space(struct rxrpc_call *call)
 {
-	unsigned int winsize = umin(call->tx_winsize, call->cong_cwnd + call->cong_extra);
-	rxrpc_seq_t window = call->acks_hard_ack, wtop = window + winsize;
-	rxrpc_seq_t tx_top = call->tx_top;
-	int space;
+	int winsize = umin(call->tx_winsize, call->cong_cwnd + call->cong_extra);
+	int in_flight = call->tx_top - call->acks_hard_ack;
 
-	space = wtop - tx_top;
-	return space > 0;
+	return max(winsize - in_flight, 0);
 }
 
 /*
@@ -247,7 +244,7 @@ static bool rxrpc_tx_window_has_space(struct rxrpc_call *call)
  */
 static void rxrpc_decant_prepared_tx(struct rxrpc_call *call)
 {
-	struct rxrpc_txbuf *txb;
+	int space = rxrpc_tx_window_space(call);
 
 	if (!test_bit(RXRPC_CALL_EXPOSED, &call->flags)) {
 		if (list_empty(&call->tx_sendmsg))
@@ -255,22 +252,33 @@ static void rxrpc_decant_prepared_tx(struct rxrpc_call *call)
 		rxrpc_expose_client_call(call);
 	}
 
-	while ((txb = list_first_entry_or_null(&call->tx_sendmsg,
-					       struct rxrpc_txbuf, call_link))) {
+	while (space > 0) {
+		struct rxrpc_txbuf *head = NULL, *txb;
+		int count = 0, limit = min(space, 1);
+
+		if (list_empty(&call->tx_sendmsg))
+			break;
+
 		spin_lock(&call->tx_lock);
-		list_del(&txb->call_link);
+		do {
+			txb = list_first_entry(&call->tx_sendmsg,
+					       struct rxrpc_txbuf, call_link);
+			if (!head)
+				head = txb;
+			list_move_tail(&txb->call_link, &call->tx_buffer);
+			count++;
+			if (!txb->jumboable)
+				break;
+		} while (count < limit && !list_empty(&call->tx_sendmsg));
+
 		spin_unlock(&call->tx_lock);
 
 		call->tx_top = txb->seq;
-		list_add_tail(&txb->call_link, &call->tx_buffer);
-
 		if (txb->flags & RXRPC_LAST_PACKET)
 			rxrpc_close_tx_phase(call);
 
-		rxrpc_transmit_one(call, txb);
-
-		if (!rxrpc_tx_window_has_space(call))
-			break;
+		space -= count;
+		rxrpc_transmit_data(call, head, count);
 	}
 }
 
@@ -285,7 +293,7 @@ static void rxrpc_transmit_some_data(struct rxrpc_call *call)
 
 	case RXRPC_CALL_SERVER_SEND_REPLY:
 	case RXRPC_CALL_CLIENT_SEND_REQUEST:
-		if (!rxrpc_tx_window_has_space(call))
+		if (!rxrpc_tx_window_space(call))
 			return;
 		if (list_empty(&call->tx_sendmsg)) {
 			rxrpc_inc_stat(call->rxnet, stat_tx_data_underflow);

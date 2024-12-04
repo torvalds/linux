@@ -377,9 +377,10 @@ int rxrpc_send_abort_packet(struct rxrpc_call *call)
  */
 static size_t rxrpc_prepare_data_subpacket(struct rxrpc_call *call, struct rxrpc_txbuf *txb,
 					   rxrpc_serial_t serial,
-					   int subpkt)
+					   int subpkt, int nr_subpkts)
 {
 	struct rxrpc_wire_header *whdr = txb->kvec[0].iov_base;
+	struct rxrpc_jumbo_header *jumbo = (void *)(whdr + 1) - sizeof(*jumbo);
 	enum rxrpc_req_ack_trace why;
 	struct rxrpc_connection *conn = call->conn;
 	struct kvec *kv = &call->local->kvec[subpkt];
@@ -398,6 +399,11 @@ static size_t rxrpc_prepare_data_subpacket(struct rxrpc_call *call, struct rxrpc
 	txb->flags &= ~RXRPC_REQUEST_ACK;
 	flags = txb->flags & RXRPC_TXBUF_WIRE_FLAGS;
 	last = txb->flags & RXRPC_LAST_PACKET;
+
+	if (subpkt < nr_subpkts - 1) {
+		len = RXRPC_JUMBO_DATALEN;
+		goto dont_set_request_ack;
+	}
 
 	more = (!list_is_last(&txb->call_link, &call->tx_buffer) ||
 		!list_empty(&call->tx_sendmsg));
@@ -436,13 +442,25 @@ static size_t rxrpc_prepare_data_subpacket(struct rxrpc_call *call, struct rxrpc
 	}
 dont_set_request_ack:
 
-	whdr->flags	= flags;
-	whdr->serial	= htonl(txb->serial);
-	whdr->cksum	= txb->cksum;
-	whdr->serviceId	= htons(conn->service_id);
-	kv->iov_base	= whdr;
-	len += sizeof(*whdr);
-	// TODO: Convert into a jumbo header for tail subpackets
+	/* The jumbo header overlays the wire header in the txbuf. */
+	if (subpkt < nr_subpkts - 1)
+		flags |= RXRPC_JUMBO_PACKET;
+	else
+		flags &= ~RXRPC_JUMBO_PACKET;
+	if (subpkt == 0) {
+		whdr->flags	= flags;
+		whdr->serial	= htonl(txb->serial);
+		whdr->cksum	= txb->cksum;
+		whdr->serviceId	= htons(conn->service_id);
+		kv->iov_base	= whdr;
+		len += sizeof(*whdr);
+	} else {
+		jumbo->flags	= flags;
+		jumbo->pad	= 0;
+		jumbo->cksum	= txb->cksum;
+		kv->iov_base	= jumbo;
+		len += sizeof(*jumbo);
+	}
 
 	trace_rxrpc_tx_data(call, txb->seq, txb->serial, flags, false);
 	kv->iov_len = len;
@@ -450,18 +468,22 @@ dont_set_request_ack:
 }
 
 /*
- * Prepare a packet for transmission.
+ * Prepare a (jumbo) packet for transmission.
  */
-static size_t rxrpc_prepare_data_packet(struct rxrpc_call *call, struct rxrpc_txbuf *txb)
+static size_t rxrpc_prepare_data_packet(struct rxrpc_call *call, struct rxrpc_txbuf *head, int n)
 {
+	struct rxrpc_txbuf *txb = head;
 	rxrpc_serial_t serial;
 	size_t len = 0;
 
 	/* Each transmission of a Tx packet needs a new serial number */
-	serial = rxrpc_get_next_serial(call->conn);
+	serial = rxrpc_get_next_serials(call->conn, n);
 
-	len += rxrpc_prepare_data_subpacket(call, txb, serial, 0);
-	// TODO: Loop around adding tail subpackets
+	for (int i = 0; i < n; i++) {
+		len += rxrpc_prepare_data_subpacket(call, txb, serial, i, n);
+		serial++;
+		txb = list_next_entry(txb, call_link);
+	}
 
 	return len;
 }
@@ -469,16 +491,24 @@ static size_t rxrpc_prepare_data_packet(struct rxrpc_call *call, struct rxrpc_tx
 /*
  * Set timeouts after transmitting a packet.
  */
-static void rxrpc_tstamp_data_packets(struct rxrpc_call *call, struct rxrpc_txbuf *txb)
+static void rxrpc_tstamp_data_packets(struct rxrpc_call *call, struct rxrpc_txbuf *txb, int n)
 {
+	rxrpc_serial_t serial;
 	ktime_t now = ktime_get_real();
 	bool ack_requested = txb->flags & RXRPC_REQUEST_ACK;
+	int i;
 
 	call->tx_last_sent = now;
-	txb->last_sent = now;
+
+	for (i = 0; i < n; i++) {
+		txb->last_sent = now;
+		ack_requested |= txb->flags & RXRPC_REQUEST_ACK;
+		serial = txb->serial;
+		txb = list_next_entry(txb, call_link);
+	}
 
 	if (ack_requested) {
-		rxrpc_begin_rtt_probe(call, txb->serial, now, rxrpc_rtt_tx_data);
+		rxrpc_begin_rtt_probe(call, serial, now, rxrpc_rtt_tx_data);
 
 		call->peer->rtt_last_req = now;
 		if (call->peer->rtt_count > 1) {
@@ -502,7 +532,7 @@ static void rxrpc_tstamp_data_packets(struct rxrpc_call *call, struct rxrpc_txbu
 /*
  * send a packet through the transport endpoint
  */
-static int rxrpc_send_data_packet(struct rxrpc_call *call, struct rxrpc_txbuf *txb)
+static int rxrpc_send_data_packet(struct rxrpc_call *call, struct rxrpc_txbuf *txb, int n)
 {
 	struct rxrpc_connection *conn = call->conn;
 	enum rxrpc_tx_point frag;
@@ -512,7 +542,7 @@ static int rxrpc_send_data_packet(struct rxrpc_call *call, struct rxrpc_txbuf *t
 
 	_enter("%x,{%d}", txb->seq, txb->pkt_len);
 
-	len = rxrpc_prepare_data_packet(call, txb);
+	len = rxrpc_prepare_data_packet(call, txb, n);
 
 	if (IS_ENABLED(CONFIG_AF_RXRPC_INJECT_LOSS)) {
 		static int lose;
@@ -524,7 +554,7 @@ static int rxrpc_send_data_packet(struct rxrpc_call *call, struct rxrpc_txbuf *t
 		}
 	}
 
-	iov_iter_kvec(&msg.msg_iter, WRITE, call->local->kvec, 1, len);
+	iov_iter_kvec(&msg.msg_iter, WRITE, call->local->kvec, n, len);
 
 	msg.msg_name	= &call->peer->srx.transport;
 	msg.msg_namelen	= call->peer->srx.transport_len;
@@ -537,7 +567,7 @@ static int rxrpc_send_data_packet(struct rxrpc_call *call, struct rxrpc_txbuf *t
 	 * yet.
 	 */
 	if (txb->seq == call->tx_transmitted + 1)
-		call->tx_transmitted = txb->seq;
+		call->tx_transmitted = txb->seq + n - 1;
 
 	/* send the packet with the don't fragment bit set if we currently
 	 * think it's small enough */
@@ -568,7 +598,7 @@ retry:
 	}
 
 	rxrpc_tx_backoff(call, ret);
-	if (ret == -EMSGSIZE && frag == rxrpc_tx_point_call_data_frag) {
+	if (ret == -EMSGSIZE && frag == rxrpc_tx_point_call_data_nofrag) {
 		rxrpc_local_dont_fragment(conn->local, false);
 		frag = rxrpc_tx_point_call_data_frag;
 		goto retry;
@@ -576,7 +606,7 @@ retry:
 
 done:
 	if (ret >= 0) {
-		rxrpc_tstamp_data_packets(call, txb);
+		rxrpc_tstamp_data_packets(call, txb, n);
 	} else {
 		/* Cancel the call if the initial transmission fails,
 		 * particularly if that's due to network routing issues that
@@ -776,13 +806,13 @@ static inline void rxrpc_instant_resend(struct rxrpc_call *call,
 }
 
 /*
- * Transmit one packet.
+ * Transmit a packet, possibly gluing several subpackets together.
  */
-void rxrpc_transmit_one(struct rxrpc_call *call, struct rxrpc_txbuf *txb)
+void rxrpc_transmit_data(struct rxrpc_call *call, struct rxrpc_txbuf *txb, int n)
 {
 	int ret;
 
-	ret = rxrpc_send_data_packet(call, txb);
+	ret = rxrpc_send_data_packet(call, txb, n);
 	if (ret < 0) {
 		switch (ret) {
 		case -ENETUNREACH:

@@ -693,9 +693,12 @@ static void rxrpc_input_ack_trailer(struct rxrpc_call *call, struct sk_buff *skb
 {
 	struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
 	struct rxrpc_peer *peer = call->peer;
-	unsigned int max_data;
+	unsigned int max_data, capacity;
 	bool wake = false;
-	u32 rwind = ntohl(trailer->rwind);
+	u32 max_mtu	= ntohl(trailer->maxMTU);
+	//u32 if_mtu	= ntohl(trailer->ifMTU);
+	u32 rwind	= ntohl(trailer->rwind);
+	u32 jumbo_max	= ntohl(trailer->jumbo_max);
 
 	if (rwind > RXRPC_TX_MAX_WINDOW)
 		rwind = RXRPC_TX_MAX_WINDOW;
@@ -706,22 +709,27 @@ static void rxrpc_input_ack_trailer(struct rxrpc_call *call, struct sk_buff *skb
 		call->tx_winsize = rwind;
 	}
 
-	if (trailer->jumbo_max == 0) {
+	max_mtu = clamp(max_mtu, 500, 65535);
+	peer->ackr_max_data = max_mtu;
+
+	if (max_mtu < peer->max_data) {
+		trace_rxrpc_pmtud_reduce(peer, sp->hdr.serial, max_mtu,
+					 rxrpc_pmtud_reduce_ack);
+		write_seqcount_begin(&peer->mtu_lock);
+		peer->max_data = max_mtu;
+		write_seqcount_end(&peer->mtu_lock);
+	}
+
+	max_data = umin(max_mtu, peer->max_data);
+	capacity = max_data;
+	capacity += sizeof(struct rxrpc_jumbo_header); /* First subpacket has main hdr, not jumbo */
+	capacity /= sizeof(struct rxrpc_jumbo_header) + RXRPC_JUMBO_DATALEN;
+
+	if (jumbo_max == 0) {
 		/* The peer says it supports pmtu discovery */
 		peer->ackr_adv_pmtud = true;
 	} else {
 		peer->ackr_adv_pmtud = false;
-	}
-
-	max_data = ntohl(trailer->maxMTU);
-	peer->ackr_max_data = max_data;
-
-	if (max_data < peer->max_data) {
-		trace_rxrpc_pmtud_reduce(peer, sp->hdr.serial, max_data,
-					 rxrpc_pmtud_reduce_ack);
-		write_seqcount_begin(&peer->mtu_lock);
-		peer->max_data = max_data;
-		write_seqcount_end(&peer->mtu_lock);
 	}
 
 	if (wake)

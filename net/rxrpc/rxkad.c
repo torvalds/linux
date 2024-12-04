@@ -392,13 +392,26 @@ static int rxkad_secure_packet(struct rxrpc_call *call, struct rxrpc_txbuf *txb)
 		break;
 	case RXRPC_SECURITY_AUTH:
 		ret = rxkad_secure_packet_auth(call, txb, req);
+		if (txb->alloc_size == RXRPC_JUMBO_DATALEN)
+			txb->jumboable = true;
 		break;
 	case RXRPC_SECURITY_ENCRYPT:
 		ret = rxkad_secure_packet_encrypt(call, txb, req);
+		if (txb->alloc_size == RXRPC_JUMBO_DATALEN)
+			txb->jumboable = true;
 		break;
 	default:
 		ret = -EPERM;
 		break;
+	}
+
+	/* Clear excess space in the packet */
+	if (txb->pkt_len < txb->alloc_size) {
+		struct rxrpc_wire_header *whdr = txb->kvec[0].iov_base;
+		size_t gap = txb->alloc_size - txb->pkt_len;
+		void *p = whdr + 1;
+
+		memset(p + txb->pkt_len, 0, gap);
 	}
 
 	skcipher_request_free(req);

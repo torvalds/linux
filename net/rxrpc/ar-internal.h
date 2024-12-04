@@ -832,6 +832,7 @@ struct rxrpc_txbuf {
 	__be16			cksum;		/* Checksum to go in header */
 	unsigned short		ack_rwind;	/* ACK receive window */
 	u8 /*enum rxrpc_propose_ack_trace*/ ack_why;	/* If ack, why */
+	bool			jumboable;	/* Can be non-terminal jumbo subpacket */
 	u8			nr_kvec;	/* Amount of kvec[] used */
 	struct kvec		kvec[3];
 };
@@ -859,6 +860,21 @@ static inline rxrpc_serial_t rxrpc_get_next_serial(struct rxrpc_connection *conn
 	if (serial == 0)
 		serial = 1;
 	conn->tx_serial = serial + 1;
+	return serial;
+}
+
+/*
+ * Allocate the next serial n numbers on a connection.  0 must be skipped.
+ */
+static inline rxrpc_serial_t rxrpc_get_next_serials(struct rxrpc_connection *conn,
+						    unsigned int n)
+{
+	rxrpc_serial_t serial;
+
+	serial = conn->tx_serial;
+	if (serial + n <= n)
+		serial = 1;
+	conn->tx_serial = serial + n;
 	return serial;
 }
 
@@ -1176,7 +1192,7 @@ int rxrpc_send_abort_packet(struct rxrpc_call *);
 void rxrpc_send_conn_abort(struct rxrpc_connection *conn);
 void rxrpc_reject_packet(struct rxrpc_local *local, struct sk_buff *skb);
 void rxrpc_send_keepalive(struct rxrpc_peer *);
-void rxrpc_transmit_one(struct rxrpc_call *call, struct rxrpc_txbuf *txb);
+void rxrpc_transmit_data(struct rxrpc_call *call, struct rxrpc_txbuf *txb, int n);
 
 /*
  * peer_event.c
