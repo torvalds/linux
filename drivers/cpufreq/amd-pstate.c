@@ -180,25 +180,39 @@ static inline int get_mode_idx_from_str(const char *str, size_t size)
 static DEFINE_MUTEX(amd_pstate_limits_lock);
 static DEFINE_MUTEX(amd_pstate_driver_lock);
 
-static s16 amd_pstate_get_epp(struct amd_cpudata *cpudata, u64 cppc_req_cached)
+static s16 msr_get_epp(struct amd_cpudata *cpudata, u64 cppc_req_cached)
 {
 	u64 epp;
 	int ret;
 
-	if (cpu_feature_enabled(X86_FEATURE_CPPC)) {
-		if (!cppc_req_cached) {
-			epp = rdmsrl_on_cpu(cpudata->cpu, MSR_AMD_CPPC_REQ,
-					&cppc_req_cached);
-			if (epp)
-				return epp;
-		}
-		epp = (cppc_req_cached >> 24) & 0xFF;
-	} else {
-		ret = cppc_get_epp_perf(cpudata->cpu, &epp);
+	if (!cppc_req_cached) {
+		ret = rdmsrl_on_cpu(cpudata->cpu, MSR_AMD_CPPC_REQ, &cppc_req_cached);
 		if (ret < 0) {
 			pr_debug("Could not retrieve energy perf value (%d)\n", ret);
-			return -EIO;
+			return ret;
 		}
+	}
+	epp = (cppc_req_cached >> 24) & 0xFF;
+
+	return (s16)epp;
+}
+
+DEFINE_STATIC_CALL(amd_pstate_get_epp, msr_get_epp);
+
+static inline s16 amd_pstate_get_epp(struct amd_cpudata *cpudata, u64 cppc_req_cached)
+{
+	return static_call(amd_pstate_get_epp)(cpudata, cppc_req_cached);
+}
+
+static s16 shmem_get_epp(struct amd_cpudata *cpudata, u64 dummy)
+{
+	u64 epp;
+	int ret;
+
+	ret = cppc_get_epp_perf(cpudata->cpu, &epp);
+	if (ret < 0) {
+		pr_debug("Could not retrieve energy perf value (%d)\n", ret);
+		return ret;
 	}
 
 	return (s16)(epp & 0xff);
@@ -253,33 +267,45 @@ static inline void amd_pstate_update_perf(struct amd_cpudata *cpudata,
 					    max_perf, fast_switch);
 }
 
-static int amd_pstate_set_epp(struct amd_cpudata *cpudata, u32 epp)
+static int msr_set_epp(struct amd_cpudata *cpudata, u32 epp)
+{
+	int ret;
+
+	u64 value = READ_ONCE(cpudata->cppc_req_cached);
+
+	value &= ~GENMASK_ULL(31, 24);
+	value |= (u64)epp << 24;
+	WRITE_ONCE(cpudata->cppc_req_cached, value);
+
+	ret = wrmsrl_on_cpu(cpudata->cpu, MSR_AMD_CPPC_REQ, value);
+	if (!ret)
+		cpudata->epp_cached = epp;
+
+	return ret;
+}
+
+DEFINE_STATIC_CALL(amd_pstate_set_epp, msr_set_epp);
+
+static inline int amd_pstate_set_epp(struct amd_cpudata *cpudata, u32 epp)
+{
+	return static_call(amd_pstate_set_epp)(cpudata, epp);
+}
+
+static int shmem_set_epp(struct amd_cpudata *cpudata, u32 epp)
 {
 	int ret;
 	struct cppc_perf_ctrls perf_ctrls;
 
-	if (cpu_feature_enabled(X86_FEATURE_CPPC)) {
-		u64 value = READ_ONCE(cpudata->cppc_req_cached);
+	amd_pstate_update_perf(cpudata, cpudata->min_limit_perf, 0U,
+				     cpudata->max_limit_perf, false);
 
-		value &= ~GENMASK_ULL(31, 24);
-		value |= (u64)epp << 24;
-		WRITE_ONCE(cpudata->cppc_req_cached, value);
-
-		ret = wrmsrl_on_cpu(cpudata->cpu, MSR_AMD_CPPC_REQ, value);
-		if (!ret)
-			cpudata->epp_cached = epp;
-	} else {
-		amd_pstate_update_perf(cpudata, cpudata->min_limit_perf, 0U,
-					     cpudata->max_limit_perf, false);
-
-		perf_ctrls.energy_perf = epp;
-		ret = cppc_set_epp_perf(cpudata->cpu, &perf_ctrls, 1);
-		if (ret) {
-			pr_debug("failed to set energy perf value (%d)\n", ret);
-			return ret;
-		}
-		cpudata->epp_cached = epp;
+	perf_ctrls.energy_perf = epp;
+	ret = cppc_set_epp_perf(cpudata->cpu, &perf_ctrls, 1);
+	if (ret) {
+		pr_debug("failed to set energy perf value (%d)\n", ret);
+		return ret;
 	}
+	cpudata->epp_cached = epp;
 
 	return ret;
 }
@@ -1869,6 +1895,8 @@ static int __init amd_pstate_init(void)
 		static_call_update(amd_pstate_cppc_enable, shmem_cppc_enable);
 		static_call_update(amd_pstate_init_perf, shmem_init_perf);
 		static_call_update(amd_pstate_update_perf, shmem_update_perf);
+		static_call_update(amd_pstate_get_epp, shmem_get_epp);
+		static_call_update(amd_pstate_set_epp, shmem_set_epp);
 	}
 
 	if (amd_pstate_prefcore) {
