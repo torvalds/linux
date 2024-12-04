@@ -2383,6 +2383,13 @@ struct dc_sink_dsc_caps {
 	struct dsc_dec_dpcd_caps dsc_dec_caps;
 };
 
+struct dc_sink_hblank_expansion_caps {
+	// 'true' if these are virtual DPCD's HBlank expansion caps (immediately upstream of sink in MST topology),
+	// 'false' if they are sink's HBlank expansion caps
+	bool is_virtual_dpcd_hblank_expansion;
+	struct hblank_expansion_dpcd_caps dpcd_caps;
+};
+
 struct dc_sink_fec_caps {
 	bool is_rx_fec_supported;
 	bool is_topology_fec_supported;
@@ -2409,6 +2416,7 @@ struct dc_sink {
 	struct scdc_caps scdc_caps;
 	struct dc_sink_dsc_caps dsc_caps;
 	struct dc_sink_fec_caps fec_caps;
+	struct dc_sink_hblank_expansion_caps hblank_expansion_caps;
 
 	bool is_vsc_sdp_colorimetry_supported;
 

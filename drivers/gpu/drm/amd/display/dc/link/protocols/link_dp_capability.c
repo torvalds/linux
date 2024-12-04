@@ -1779,6 +1779,11 @@ static bool retrieve_link_cap(struct dc_link *link)
 	link->test_pattern_enabled = false;
 	link->compliance_test_state.raw = 0;
 
+	link->dpcd_caps.receive_port0_cap.raw[0] =
+			dpcd_data[DP_RECEIVE_PORT_0_CAP_0 - DP_DPCD_REV];
+	link->dpcd_caps.receive_port0_cap.raw[1] =
+			dpcd_data[DP_RECEIVE_PORT_0_BUFFER_SIZE - DP_DPCD_REV];
+
 	/* read sink count */
 	core_link_read_dpcd(link,
 			DP_SINK_COUNT,
