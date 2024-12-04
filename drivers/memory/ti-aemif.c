@@ -134,17 +134,47 @@ struct aemif_device {
 };
 
 /**
+ * aemif_check_cs_timings() - Check the validity of a CS timing configuration.
+ * @timings: timings configuration
+ *
+ * @return: 0 if the timing configuration is valid, negative error number otherwise.
+ */
+static int aemif_check_cs_timings(struct aemif_cs_timings *timings)
+{
+	if (timings->ta > TA_MAX)
+		return -EINVAL;
+
+	if (timings->rhold > RHOLD_MAX)
+		return -EINVAL;
+
+	if (timings->rstrobe > RSTROBE_MAX)
+		return -EINVAL;
+
+	if (timings->rsetup > RSETUP_MAX)
+		return -EINVAL;
+
+	if (timings->whold > WHOLD_MAX)
+		return -EINVAL;
+
+	if (timings->wstrobe > WSTROBE_MAX)
+		return -EINVAL;
+
+	if (timings->wsetup > WSETUP_MAX)
+		return -EINVAL;
+
+	return 0;
+}
+
+/**
  * aemif_calc_rate - calculate timing data.
  * @pdev: platform device to calculate for
  * @wanted: The cycle time needed in nanoseconds.
  * @clk: The input clock rate in kHz.
- * @max: The maximum divider value that can be programmed.
  *
- * On success, returns the calculated timing value minus 1 for easy
- * programming into AEMIF timing registers, else negative errno.
+ * @return: the calculated timing value minus 1 for easy
+ * programming into AEMIF timing registers.
  */
-static int aemif_calc_rate(struct platform_device *pdev, int wanted,
-			   unsigned long clk, int max)
+static u32 aemif_calc_rate(struct platform_device *pdev, int wanted, unsigned long clk)
 {
 	int result;
 
@@ -156,10 +186,6 @@ static int aemif_calc_rate(struct platform_device *pdev, int wanted,
 	/* It is generally OK to have a more relaxed timing than requested... */
 	if (result < 0)
 		result = 0;
-
-	/* ... But configuring tighter timings is not an option. */
-	else if (result > max)
-		result = -EINVAL;
 
 	return result;
 }
@@ -250,7 +276,6 @@ static int of_aemif_parse_abus_config(struct platform_device *pdev,
 	struct aemif_device *aemif = platform_get_drvdata(pdev);
 	unsigned long clk_rate = aemif->clk_rate;
 	struct aemif_cs_data *data;
-	int ret;
 	u32 cs;
 	u32 val;
 
@@ -276,68 +301,34 @@ static int of_aemif_parse_abus_config(struct platform_device *pdev,
 	aemif_get_hw_params(pdev, aemif->num_cs++);
 
 	/* override the values from device node */
-	if (!of_property_read_u32(np, "ti,cs-min-turnaround-ns", &val)) {
-		ret = aemif_calc_rate(pdev, val, clk_rate, TA_MAX);
-		if (ret < 0)
-			return ret;
+	if (!of_property_read_u32(np, "ti,cs-min-turnaround-ns", &val))
+		data->timings.ta = aemif_calc_rate(pdev, val, clk_rate);
 
-		data->timings.ta = ret;
-	}
+	if (!of_property_read_u32(np, "ti,cs-read-hold-ns", &val))
+		data->timings.rhold = aemif_calc_rate(pdev, val, clk_rate);
 
-	if (!of_property_read_u32(np, "ti,cs-read-hold-ns", &val)) {
-		ret = aemif_calc_rate(pdev, val, clk_rate, RHOLD_MAX);
-		if (ret < 0)
-			return ret;
+	if (!of_property_read_u32(np, "ti,cs-read-strobe-ns", &val))
+		data->timings.rstrobe = aemif_calc_rate(pdev, val, clk_rate);
 
-		data->timings.rhold = ret;
-	}
+	if (!of_property_read_u32(np, "ti,cs-read-setup-ns", &val))
+		data->timings.rsetup = aemif_calc_rate(pdev, val, clk_rate);
 
-	if (!of_property_read_u32(np, "ti,cs-read-strobe-ns", &val)) {
-		ret = aemif_calc_rate(pdev, val, clk_rate, RSTROBE_MAX);
-		if (ret < 0)
-			return ret;
+	if (!of_property_read_u32(np, "ti,cs-write-hold-ns", &val))
+		data->timings.whold = aemif_calc_rate(pdev, val, clk_rate);
 
-		data->timings.rstrobe = ret;
-	}
+	if (!of_property_read_u32(np, "ti,cs-write-strobe-ns", &val))
+		data->timings.wstrobe = aemif_calc_rate(pdev, val, clk_rate);
 
-	if (!of_property_read_u32(np, "ti,cs-read-setup-ns", &val)) {
-		ret = aemif_calc_rate(pdev, val, clk_rate, RSETUP_MAX);
-		if (ret < 0)
-			return ret;
-
-		data->timings.rsetup = ret;
-	}
-
-	if (!of_property_read_u32(np, "ti,cs-write-hold-ns", &val)) {
-		ret = aemif_calc_rate(pdev, val, clk_rate, WHOLD_MAX);
-		if (ret < 0)
-			return ret;
-
-		data->timings.whold = ret;
-	}
-
-	if (!of_property_read_u32(np, "ti,cs-write-strobe-ns", &val)) {
-		ret = aemif_calc_rate(pdev, val, clk_rate, WSTROBE_MAX);
-		if (ret < 0)
-			return ret;
-
-		data->timings.wstrobe = ret;
-	}
-
-	if (!of_property_read_u32(np, "ti,cs-write-setup-ns", &val)) {
-		ret = aemif_calc_rate(pdev, val, clk_rate, WSETUP_MAX);
-		if (ret < 0)
-			return ret;
-
-		data->timings.wsetup = ret;
-	}
+	if (!of_property_read_u32(np, "ti,cs-write-setup-ns", &val))
+		data->timings.wsetup = aemif_calc_rate(pdev, val, clk_rate);
 
 	if (!of_property_read_u32(np, "ti,cs-bus-width", &val))
 		if (val == 16)
 			data->asize = 1;
 	data->enable_ew = of_property_read_bool(np, "ti,cs-extended-wait-mode");
 	data->enable_ss = of_property_read_bool(np, "ti,cs-select-strobe-mode");
-	return 0;
+
+	return aemif_check_cs_timings(&data->timings);
 }
 
 static const struct of_device_id aemif_of_match[] = {
