@@ -1498,6 +1498,15 @@ static int journal_write_alloc(struct journal *j, struct journal_buf *w)
 				       READ_ONCE(c->opts.metadata_replicas_required));
 
 	rcu_read_lock();
+
+	/* We might run more than once if we have to stop and do discards: */
+	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(bkey_i_to_s_c(&w->key));
+	bkey_for_each_ptr(ptrs, p) {
+		struct bch_dev *ca = bch2_dev_rcu_noerror(c, p->dev);
+		if (ca)
+			replicas += ca->mi.durability;
+	}
+
 retry:
 	devs = target_rw_devs(c, BCH_DATA_journal, target);
 
