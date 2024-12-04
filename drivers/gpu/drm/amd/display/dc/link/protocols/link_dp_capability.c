@@ -2506,3 +2506,40 @@ bool dp_is_sink_present(struct dc_link *link)
 
 	return present;
 }
+
+uint8_t dp_get_lttpr_count(struct dc_link *link)
+{
+	if (dp_is_lttpr_present(link))
+		return dp_parse_lttpr_repeater_count(link->dpcd_caps.lttpr_caps.phy_repeater_cnt);
+
+	return 0;
+}
+
+void edp_get_alpm_support(struct dc_link *link,
+	bool *auxless_support,
+	bool *auxwake_support)
+{
+	bool lttpr_present = dp_is_lttpr_present(link);
+
+	if (auxless_support == NULL || auxwake_support == NULL)
+		return;
+
+	*auxless_support = false;
+	*auxwake_support = false;
+
+	if (!dc_is_embedded_signal(link->connector_signal))
+		return;
+
+	if (link->dpcd_caps.alpm_caps.bits.AUX_LESS_ALPM_CAP) {
+		if (lttpr_present) {
+			if (link->dpcd_caps.lttpr_caps.alpm.bits.AUX_LESS_ALPM_SUPPORTED)
+				*auxless_support = true;
+		} else
+			*auxless_support = true;
+	}
+
+	if (link->dpcd_caps.alpm_caps.bits.AUX_WAKE_ALPM_CAP) {
+		if (!lttpr_present)
+			*auxwake_support = true;
+	}
+}

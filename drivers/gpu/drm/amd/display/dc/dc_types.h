@@ -577,6 +577,12 @@ struct dc_plane_flip_time {
 	unsigned int prev_update_time_in_us;
 };
 
+enum dc_alpm_mode {
+	DC_ALPM_AUXWAKE = 0,
+	DC_ALPM_AUXLESS = 1,
+	DC_ALPM_UNSUPPORTED = 0xF,
+};
+
 enum dc_psr_state {
 	PSR_STATE0 = 0x0,
 	PSR_STATE1,
@@ -1143,6 +1149,8 @@ struct replay_config {
 	bool low_rr_supported;
 	/* Replay Video Conferencing Optimization Enabled */
 	bool replay_video_conferencing_optimization_enabled;
+	/* Replay alpm mode */
+	enum dc_alpm_mode alpm_mode;
 };
 
 /* Replay feature flags*/

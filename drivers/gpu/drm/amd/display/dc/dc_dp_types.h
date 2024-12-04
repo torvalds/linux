@@ -1021,7 +1021,8 @@ union dp_128b_132b_supported_lttpr_link_rates {
 union dp_alpm_lttpr_cap {
 	struct {
 		uint8_t AUX_LESS_ALPM_SUPPORTED	:1;
-		uint8_t RESERVED				:7;
+		uint8_t ASSR_SUPPORTED			:1;
+		uint8_t RESERVED			:6;
 	} bits;
 	uint8_t raw;
 };
@@ -1119,10 +1120,11 @@ union dp_128b_132b_training_aux_rd_interval {
 
 union edp_alpm_caps {
 	struct {
-		uint8_t AUX_WAKE_ALPM_CAP       :1;
-		uint8_t PM_STATE_2A_SUPPORT     :1;
-		uint8_t AUX_LESS_ALPM_CAP       :1;
-		uint8_t RESERVED                :5;
+		uint8_t AUX_WAKE_ALPM_CAP                               :1;
+		uint8_t PM_STATE_2A_SUPPORT                             :1;
+		uint8_t AUX_LESS_ALPM_CAP                               :1;
+		uint8_t AUX_LESS_ALPM_ML_PHY_SLEEP_STATUS_SUPPORTED     :1;
+		uint8_t RESERVED                                        :4;
 	} bits;
 	uint8_t raw;
 };
@@ -1347,7 +1349,9 @@ union dpcd_alpm_configuration {
 	struct {
 		unsigned char ENABLE                    : 1;
 		unsigned char IRQ_HPD_ENABLE            : 1;
-		unsigned char RESERVED                  : 6;
+		unsigned char ALPM_MODE_SEL             : 1;
+		unsigned char ACDS_PERIOD_DURATION      : 1;
+		unsigned char RESERVED                  : 4;
 	} bits;
 	unsigned char raw;
 };

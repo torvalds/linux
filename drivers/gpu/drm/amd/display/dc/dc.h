@@ -1145,6 +1145,11 @@ struct dc_debug_options {
 	bool enable_hblank_borrow;
 	bool force_subvp_df_throttle;
 	uint32_t acpi_transition_bitmasks[MAX_PIPES];
+	unsigned int auxless_alpm_lfps_setup_ns;
+	unsigned int auxless_alpm_lfps_period_ns;
+	unsigned int auxless_alpm_lfps_silence_ns;
+	unsigned int auxless_alpm_lfps_t1t2_us;
+	short auxless_alpm_lfps_t1t2_offset_us;
 };
 
 
@@ -2446,6 +2451,12 @@ void dc_link_dp_dpia_handle_usb4_bandwidth_allocation_for_link(
  * return: dc_status
  */
 enum dc_status dc_link_validate_dp_tunneling_bandwidth(const struct dc *dc, const struct dc_state *new_ctx);
+
+/*
+ * Get if ALPM is supported by the link
+ */
+void dc_link_get_alpm_support(struct dc_link *link, bool *auxless_support,
+	bool *auxwake_support);
 
 /* Sink Interfaces - A sink corresponds to a display output device */
 
