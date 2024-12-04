@@ -639,8 +639,6 @@ int blk_trace_setup(struct request_queue *q, char *name, dev_t dev,
 		return -EFAULT;
 	}
 	return 0;
-
-	return ret;
 }
 EXPORT_SYMBOL_GPL(blk_trace_setup);
 
