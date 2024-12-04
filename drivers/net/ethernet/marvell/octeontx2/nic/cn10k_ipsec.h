@@ -50,6 +50,20 @@
 #define CN10K_CPT_LF_NQX(a)		(CPT_LFBASE | 0x400 | (a) << 3)
 #define CN10K_CPT_LF_CTX_FLUSH		(CPT_LFBASE | 0x510)
 
+/* IPSEC Instruction opcodes */
+#define CN10K_IPSEC_MAJOR_OP_WRITE_SA 0x01UL
+#define CN10K_IPSEC_MINOR_OP_WRITE_SA 0x09UL
+
+enum cn10k_cpt_comp_e {
+	CN10K_CPT_COMP_E_NOTDONE = 0x00,
+	CN10K_CPT_COMP_E_GOOD = 0x01,
+	CN10K_CPT_COMP_E_FAULT = 0x02,
+	CN10K_CPT_COMP_E_HWERR = 0x04,
+	CN10K_CPT_COMP_E_INSTERR = 0x05,
+	CN10K_CPT_COMP_E_WARN = 0x06,
+	CN10K_CPT_COMP_E_MASK = 0x3F
+};
+
 struct cn10k_cpt_inst_queue {
 	u8 *vaddr;
 	u8 *real_vaddr;
@@ -69,6 +83,103 @@ struct cn10k_ipsec {
 	u64 io_addr;
 	atomic_t cpt_state;
 	struct cn10k_cpt_inst_queue iq;
+
+	/* SA info */
+	u32 sa_size;
+	u32 outb_sa_count;
+	struct work_struct sa_work;
+	struct workqueue_struct *sa_workq;
+};
+
+/* CN10K IPSEC Security Association (SA) */
+/* SA direction */
+#define CN10K_IPSEC_SA_DIR_INB			0
+#define CN10K_IPSEC_SA_DIR_OUTB			1
+/* SA protocol */
+#define CN10K_IPSEC_SA_IPSEC_PROTO_AH		0
+#define CN10K_IPSEC_SA_IPSEC_PROTO_ESP		1
+/* SA Encryption Type */
+#define CN10K_IPSEC_SA_ENCAP_TYPE_AES_GCM	5
+/* SA IPSEC mode Transport/Tunnel */
+#define CN10K_IPSEC_SA_IPSEC_MODE_TRANSPORT	0
+#define CN10K_IPSEC_SA_IPSEC_MODE_TUNNEL	1
+/* SA AES Key Length */
+#define CN10K_IPSEC_SA_AES_KEY_LEN_128		1
+#define CN10K_IPSEC_SA_AES_KEY_LEN_192		2
+#define CN10K_IPSEC_SA_AES_KEY_LEN_256		3
+/* IV Source */
+#define CN10K_IPSEC_SA_IV_SRC_COUNTER		0
+#define CN10K_IPSEC_SA_IV_SRC_PACKET		3
+
+struct cn10k_tx_sa_s {
+	u64 esn_en		: 1; /* W0 */
+	u64 rsvd_w0_1_8		: 8;
+	u64 hw_ctx_off		: 7;
+	u64 ctx_id		: 16;
+	u64 rsvd_w0_32_47	: 16;
+	u64 ctx_push_size	: 7;
+	u64 rsvd_w0_55		: 1;
+	u64 ctx_hdr_size	: 2;
+	u64 aop_valid		: 1;
+	u64 rsvd_w0_59		: 1;
+	u64 ctx_size		: 4;
+	u64 w1;			/* W1 */
+	u64 sa_valid		: 1; /* W2 */
+	u64 sa_dir		: 1;
+	u64 rsvd_w2_2_3		: 2;
+	u64 ipsec_mode		: 1;
+	u64 ipsec_protocol	: 1;
+	u64 aes_key_len		: 2;
+	u64 enc_type		: 3;
+	u64 rsvd_w2_11_19	: 9;
+	u64 iv_src		: 2;
+	u64 rsvd_w2_22_31	: 10;
+	u64 rsvd_w2_32_63	: 32;
+	u64 w3;			/* W3 */
+	u8 cipher_key[32];	/* W4 - W7 */
+	u32 rsvd_w8_0_31;	/* W8 : IV */
+	u32 iv_gcm_salt;
+	u64 rsvd_w9_w30[22];	/* W9 - W30 */
+	u64 hw_ctx[6];		/* W31 - W36 */
+};
+
+/* CPT Instruction Structure */
+struct cpt_inst_s {
+	u64 nixtxl		: 3; /* W0 */
+	u64 doneint		: 1;
+	u64 rsvd_w0_4_15	: 12;
+	u64 dat_offset		: 8;
+	u64 ext_param1		: 8;
+	u64 nixtx_offset	: 20;
+	u64 rsvd_w0_52_63	: 12;
+	u64 res_addr;		/* W1 */
+	u64 tag			: 32; /* W2 */
+	u64 tt			: 2;
+	u64 grp			: 10;
+	u64 rsvd_w2_44_47	: 4;
+	u64 rvu_pf_func		: 16;
+	u64 qord		: 1; /* W3 */
+	u64 rsvd_w3_1_2		: 2;
+	u64 wqe_ptr		: 61;
+	u64 dlen		: 16; /* W4 */
+	u64 param2		: 16;
+	u64 param1		: 16;
+	u64 opcode_major	: 8;
+	u64 opcode_minor	: 8;
+	u64 dptr;		/* W5 */
+	u64 rptr;		/* W6 */
+	u64 cptr		: 60; /* W7 */
+	u64 ctx_val		: 1;
+	u64 egrp		: 3;
+};
+
+/* CPT Instruction Result Structure */
+struct cpt_res_s {
+	u64 compcode		: 7; /* W0 */
+	u64 doneint		: 1;
+	u64 uc_compcode		: 8;
+	u64 uc_info		: 48;
+	u64 esn;		/* W1 */
 };
 
 /* CPT LF_INPROG Register */
@@ -85,6 +196,9 @@ struct cn10k_ipsec {
 
 /* CPT LF_Q_SIZE Register */
 #define CPT_LF_Q_SIZE_DIV40 GENMASK_ULL(14, 0)
+
+/* CPT LF CTX Flush Register */
+#define CPT_LF_CTX_FLUSH GENMASK_ULL(45, 0)
 
 #ifdef CONFIG_XFRM_OFFLOAD
 int cn10k_ipsec_init(struct net_device *netdev);
