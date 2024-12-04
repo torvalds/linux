@@ -37,6 +37,7 @@
 #define GNR_GPI_STATUS_OFFSET	0x14
 #define GNR_GPI_ENABLE_OFFSET	0x24
 
+#define GNR_CFG_DW_HOSTSW_MODE	BIT(27)
 #define GNR_CFG_DW_RX_MASK	GENMASK(23, 22)
 #define GNR_CFG_DW_RX_DISABLE	FIELD_PREP(GNR_CFG_DW_RX_MASK, 2)
 #define GNR_CFG_DW_RX_EDGE	FIELD_PREP(GNR_CFG_DW_RX_MASK, 1)
@@ -86,6 +87,20 @@ static int gnr_gpio_configure_line(struct gpio_chip *gc, unsigned int gpio,
 	dw &= ~clear_mask;
 	dw |= set_mask;
 	writel(dw, addr);
+
+	return 0;
+}
+
+static int gnr_gpio_request(struct gpio_chip *gc, unsigned int gpio)
+{
+	struct gnr_gpio *priv = gpiochip_get_data(gc);
+	u32 dw;
+
+	dw = readl(gnr_gpio_get_padcfg_addr(priv, gpio));
+	if (!(dw & GNR_CFG_DW_HOSTSW_MODE)) {
+		dev_warn(gc->parent, "GPIO %u is not owned by host", gpio);
+		return -EBUSY;
+	}
 
 	return 0;
 }
@@ -141,6 +156,7 @@ static int gnr_gpio_direction_output(struct gpio_chip *gc, unsigned int gpio, in
 
 static const struct gpio_chip gnr_gpio_chip = {
 	.owner		  = THIS_MODULE,
+	.request	  = gnr_gpio_request,
 	.get		  = gnr_gpio_get,
 	.set		  = gnr_gpio_set,
 	.get_direction    = gnr_gpio_get_direction,
