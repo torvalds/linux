@@ -150,11 +150,11 @@ static struct rxrpc_txbuf *rxkad_alloc_txbuf(struct rxrpc_call *call, size_t rem
 	struct rxrpc_txbuf *txb;
 	size_t shdr, space;
 
-	remain = min(remain, 65535 - sizeof(struct rxrpc_wire_header));
+	remain = umin(remain, 65535 - sizeof(struct rxrpc_wire_header));
 
 	switch (call->conn->security_level) {
 	default:
-		space = min_t(size_t, remain, RXRPC_JUMBO_DATALEN);
+		space = umin(remain, RXRPC_JUMBO_DATALEN);
 		return rxrpc_alloc_data_txbuf(call, space, 1, gfp);
 	case RXRPC_SECURITY_AUTH:
 		shdr = sizeof(struct rxkad_level1_hdr);
@@ -164,7 +164,7 @@ static struct rxrpc_txbuf *rxkad_alloc_txbuf(struct rxrpc_call *call, size_t rem
 		break;
 	}
 
-	space = min_t(size_t, round_down(RXRPC_JUMBO_DATALEN, RXKAD_ALIGN), remain + shdr);
+	space = umin(round_down(RXRPC_JUMBO_DATALEN, RXKAD_ALIGN), remain + shdr);
 	space = round_up(space, RXKAD_ALIGN);
 
 	txb = rxrpc_alloc_data_txbuf(call, space, RXKAD_ALIGN, gfp);

@@ -233,8 +233,7 @@ static void rxrpc_close_tx_phase(struct rxrpc_call *call)
 
 static bool rxrpc_tx_window_has_space(struct rxrpc_call *call)
 {
-	unsigned int winsize = min_t(unsigned int, call->tx_winsize,
-				     call->cong_cwnd + call->cong_extra);
+	unsigned int winsize = umin(call->tx_winsize, call->cong_cwnd + call->cong_extra);
 	rxrpc_seq_t window = call->acks_hard_ack, wtop = window + winsize;
 	rxrpc_seq_t tx_top = call->tx_top;
 	int space;
@@ -467,7 +466,7 @@ bool rxrpc_input_call_event(struct rxrpc_call *call, struct sk_buff *skb)
 		} else {
 			unsigned long nowj = jiffies, delayj, nextj;
 
-			delayj = max(nsecs_to_jiffies(delay), 1);
+			delayj = umax(nsecs_to_jiffies(delay), 1);
 			nextj = nowj + delayj;
 			if (time_before(nextj, call->timer.expires) ||
 			    !timer_pending(&call->timer)) {

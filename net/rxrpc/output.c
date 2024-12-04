@@ -118,7 +118,7 @@ static void rxrpc_fill_out_ack(struct rxrpc_call *call,
 		txb->kvec[1].iov_len = ack->nAcks;
 
 		wrap = RXRPC_SACK_SIZE - sack;
-		to = min_t(unsigned int, ack->nAcks, RXRPC_SACK_SIZE);
+		to = umin(ack->nAcks, RXRPC_SACK_SIZE);
 
 		if (sack + ack->nAcks <= RXRPC_SACK_SIZE) {
 			memcpy(sackp, call->ackr_sack_table + sack, ack->nAcks);

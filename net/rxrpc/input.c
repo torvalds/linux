@@ -44,8 +44,7 @@ static void rxrpc_congestion_management(struct rxrpc_call *call,
 
 	if (test_and_clear_bit(RXRPC_CALL_RETRANS_TIMEOUT, &call->flags)) {
 		summary->retrans_timeo = true;
-		call->cong_ssthresh = max_t(unsigned int,
-					    summary->flight_size / 2, 2);
+		call->cong_ssthresh = umax(summary->flight_size / 2, 2);
 		cwnd = 1;
 		if (cwnd >= call->cong_ssthresh &&
 		    call->cong_mode == RXRPC_CALL_SLOW_START) {
@@ -113,8 +112,7 @@ static void rxrpc_congestion_management(struct rxrpc_call *call,
 
 		change = rxrpc_cong_begin_retransmission;
 		call->cong_mode = RXRPC_CALL_FAST_RETRANSMIT;
-		call->cong_ssthresh = max_t(unsigned int,
-					    summary->flight_size / 2, 2);
+		call->cong_ssthresh = umax(summary->flight_size / 2, 2);
 		cwnd = call->cong_ssthresh + 3;
 		call->cong_extra = 0;
 		call->cong_dup_acks = 0;
@@ -206,9 +204,8 @@ void rxrpc_congestion_degrade(struct rxrpc_call *call)
 	rxrpc_inc_stat(call->rxnet, stat_tx_data_cwnd_reset);
 	call->tx_last_sent = now;
 	call->cong_mode = RXRPC_CALL_SLOW_START;
-	call->cong_ssthresh = max_t(unsigned int, call->cong_ssthresh,
-				    call->cong_cwnd * 3 / 4);
-	call->cong_cwnd = max_t(unsigned int, call->cong_cwnd / 2, RXRPC_MIN_CWND);
+	call->cong_ssthresh = umax(call->cong_ssthresh, call->cong_cwnd * 3 / 4);
+	call->cong_cwnd = umax(call->cong_cwnd / 2, RXRPC_MIN_CWND);
 }
 
 /*
@@ -709,7 +706,7 @@ static void rxrpc_input_ack_trailer(struct rxrpc_call *call, struct sk_buff *skb
 		call->tx_winsize = rwind;
 	}
 
-	mtu = min(ntohl(trailer->maxMTU), ntohl(trailer->ifMTU));
+	mtu = umin(ntohl(trailer->maxMTU), ntohl(trailer->ifMTU));
 
 	peer = call->peer;
 	if (mtu < peer->maxdata) {

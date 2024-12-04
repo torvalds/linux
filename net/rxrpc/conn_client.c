@@ -231,7 +231,7 @@ static bool rxrpc_may_reuse_conn(struct rxrpc_connection *conn)
 	distance = id - id_cursor;
 	if (distance < 0)
 		distance = -distance;
-	limit = max_t(unsigned long, atomic_read(&rxnet->nr_conns) * 4, 1024);
+	limit = umax(atomic_read(&rxnet->nr_conns) * 4, 1024);
 	if (distance > limit)
 		goto mark_dont_reuse;
 

@@ -360,7 +360,7 @@ reload:
 
 		/* append next segment of data to the current buffer */
 		if (msg_data_left(msg) > 0) {
-			size_t copy = min_t(size_t, txb->space, msg_data_left(msg));
+			size_t copy = umin(txb->space, msg_data_left(msg));
 
 			_debug("add %zu", copy);
 			if (!copy_from_iter_full(txb->kvec[0].iov_base + txb->offset,

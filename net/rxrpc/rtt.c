@@ -27,7 +27,7 @@ static u32 __rxrpc_set_rto(const struct rxrpc_peer *peer)
 
 static u32 rxrpc_bound_rto(u32 rto)
 {
-	return min(rto, RXRPC_RTO_MAX);
+	return umin(rto, RXRPC_RTO_MAX);
 }
 
 /*
@@ -91,11 +91,11 @@ static void rxrpc_rtt_estimator(struct rxrpc_peer *peer, long sample_rtt_us)
 		/* no previous measure. */
 		srtt = m << 3;		/* take the measured time to be rtt */
 		peer->mdev_us = m << 1;	/* make sure rto = 3*rtt */
-		peer->rttvar_us = max(peer->mdev_us, rxrpc_rto_min_us(peer));
+		peer->rttvar_us = umax(peer->mdev_us, rxrpc_rto_min_us(peer));
 		peer->mdev_max_us = peer->rttvar_us;
 	}
 
-	peer->srtt_us = max(1U, srtt);
+	peer->srtt_us = umax(srtt, 1);
 }
 
 /*

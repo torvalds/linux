@@ -558,7 +558,7 @@ int rxrpc_io_thread(void *data)
 			}
 
 			timeout = nsecs_to_jiffies(delay_ns);
-			timeout = max(timeout, 1UL);
+			timeout = umax(timeout, 1);
 			schedule_timeout(timeout);
 			__set_current_state(TASK_RUNNING);
 			continue;

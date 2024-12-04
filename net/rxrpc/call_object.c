@@ -220,9 +220,9 @@ static struct rxrpc_call *rxrpc_alloc_client_call(struct rxrpc_sock *rx,
 		__set_bit(RXRPC_CALL_EXCLUSIVE, &call->flags);
 
 	if (p->timeouts.normal)
-		call->next_rx_timo = min(p->timeouts.normal, 1);
+		call->next_rx_timo = umin(p->timeouts.normal, 1);
 	if (p->timeouts.idle)
-		call->next_req_timo = min(p->timeouts.idle, 1);
+		call->next_req_timo = umin(p->timeouts.idle, 1);
 	if (p->timeouts.hard)
 		call->hard_timo = p->timeouts.hard;
 
