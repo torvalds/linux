@@ -267,7 +267,7 @@ static void rxrpc_send_ack_packet(struct rxrpc_call *call, int nr_kv, size_t len
 	trace_rxrpc_tx_ack(call->debug_id, serial,
 			   ntohl(ack->firstPacket),
 			   ntohl(ack->serial), ack->reason, ack->nAcks,
-			   ntohl(trailer->rwind));
+			   ntohl(trailer->rwind), why);
 
 	rxrpc_inc_stat(call->rxnet, stat_tx_ack_send);
 

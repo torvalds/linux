@@ -375,6 +375,7 @@
 	EM(rxrpc_propose_ack_processing_op,	"ProcOp ") \
 	EM(rxrpc_propose_ack_respond_to_ack,	"Rsp2Ack") \
 	EM(rxrpc_propose_ack_respond_to_ping,	"Rsp2Png") \
+	EM(rxrpc_propose_ack_retransmit,	"Retrans") \
 	EM(rxrpc_propose_ack_retry_tx,		"RetryTx") \
 	EM(rxrpc_propose_ack_rotate_rx,		"RxAck  ") \
 	EM(rxrpc_propose_ack_rx_idle,		"RxIdle ") \
@@ -1267,9 +1268,10 @@ TRACE_EVENT(rxrpc_tx_data,
 TRACE_EVENT(rxrpc_tx_ack,
 	    TP_PROTO(unsigned int call, rxrpc_serial_t serial,
 		     rxrpc_seq_t ack_first, rxrpc_serial_t ack_serial,
-		     u8 reason, u8 n_acks, u16 rwind),
+		     u8 reason, u8 n_acks, u16 rwind,
+		     enum rxrpc_propose_ack_trace trace),
 
-	    TP_ARGS(call, serial, ack_first, ack_serial, reason, n_acks, rwind),
+	    TP_ARGS(call, serial, ack_first, ack_serial, reason, n_acks, rwind, trace),
 
 	    TP_STRUCT__entry(
 		    __field(unsigned int,	call)
@@ -1279,6 +1281,7 @@ TRACE_EVENT(rxrpc_tx_ack,
 		    __field(u8,			reason)
 		    __field(u8,			n_acks)
 		    __field(u16,		rwind)
+		    __field(enum rxrpc_propose_ack_trace, trace)
 			     ),
 
 	    TP_fast_assign(
@@ -1289,16 +1292,18 @@ TRACE_EVENT(rxrpc_tx_ack,
 		    __entry->reason = reason;
 		    __entry->n_acks = n_acks;
 		    __entry->rwind = rwind;
+		    __entry->trace = trace;
 			   ),
 
-	    TP_printk(" c=%08x ACK  %08x %s f=%08x r=%08x n=%u rw=%u",
+	    TP_printk(" c=%08x ACK  %08x %s f=%08x r=%08x n=%u rw=%u %s",
 		      __entry->call,
 		      __entry->serial,
 		      __print_symbolic(__entry->reason, rxrpc_ack_names),
 		      __entry->ack_first,
 		      __entry->ack_serial,
 		      __entry->n_acks,
-		      __entry->rwind)
+		      __entry->rwind,
+		      __print_symbolic(__entry->trace, rxrpc_propose_ack_traces))
 	    );
 
 TRACE_EVENT(rxrpc_receive,
