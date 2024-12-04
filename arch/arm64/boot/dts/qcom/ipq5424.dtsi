@@ -98,6 +98,12 @@
 		};
 	};
 
+	firmware {
+		scm {
+			compatible = "qcom,scm-ipq5424", "qcom,scm";
+		};
+	};
+
 	memory@80000000 {
 		device_type = "memory";
 		/* We expect the bootloader to fill in the size */
