@@ -377,7 +377,8 @@ int rxrpc_send_abort_packet(struct rxrpc_call *call)
  */
 static size_t rxrpc_prepare_data_subpacket(struct rxrpc_call *call, struct rxrpc_txbuf *txb,
 					   rxrpc_serial_t serial,
-					   int subpkt, int nr_subpkts)
+					   int subpkt, int nr_subpkts,
+					   ktime_t now)
 {
 	struct rxrpc_wire_header *whdr = txb->kvec[0].iov_base;
 	struct rxrpc_jumbo_header *jumbo = (void *)(whdr + 1) - sizeof(*jumbo);
@@ -437,8 +438,9 @@ static size_t rxrpc_prepare_data_subpacket(struct rxrpc_call *call, struct rxrpc
 	rxrpc_inc_stat(call->rxnet, stat_why_req_ack[why]);
 	trace_rxrpc_req_ack(call->debug_id, txb->seq, why);
 	if (why != rxrpc_reqack_no_srv_last) {
-		txb->flags |= RXRPC_REQUEST_ACK;
 		flags |= RXRPC_REQUEST_ACK;
+		rxrpc_begin_rtt_probe(call, serial, now, rxrpc_rtt_tx_data);
+		call->peer->rtt_last_req = now;
 	}
 dont_set_request_ack:
 
@@ -474,49 +476,25 @@ static size_t rxrpc_prepare_data_packet(struct rxrpc_call *call, struct rxrpc_tx
 {
 	struct rxrpc_txbuf *txb = head;
 	rxrpc_serial_t serial;
+	ktime_t now = ktime_get_real();
 	size_t len = 0;
 
 	/* Each transmission of a Tx packet needs a new serial number */
 	serial = rxrpc_get_next_serials(call->conn, n);
 
 	for (int i = 0; i < n; i++) {
-		len += rxrpc_prepare_data_subpacket(call, txb, serial, i, n);
+		txb->last_sent = now;
+		len += rxrpc_prepare_data_subpacket(call, txb, serial, i, n, now);
 		serial++;
 		txb = list_next_entry(txb, call_link);
 	}
 
-	return len;
-}
+	/* Set timeouts */
+	if (call->peer->rtt_count > 1) {
+		ktime_t delay = rxrpc_get_rto_backoff(call->peer, false);
 
-/*
- * Set timeouts after transmitting a packet.
- */
-static void rxrpc_tstamp_data_packets(struct rxrpc_call *call, struct rxrpc_txbuf *txb, int n)
-{
-	rxrpc_serial_t serial;
-	ktime_t now = ktime_get_real();
-	bool ack_requested = txb->flags & RXRPC_REQUEST_ACK;
-	int i;
-
-	call->tx_last_sent = now;
-
-	for (i = 0; i < n; i++) {
-		txb->last_sent = now;
-		ack_requested |= txb->flags & RXRPC_REQUEST_ACK;
-		serial = txb->serial;
-		txb = list_next_entry(txb, call_link);
-	}
-
-	if (ack_requested) {
-		rxrpc_begin_rtt_probe(call, serial, now, rxrpc_rtt_tx_data);
-
-		call->peer->rtt_last_req = now;
-		if (call->peer->rtt_count > 1) {
-			ktime_t delay = rxrpc_get_rto_backoff(call->peer, false);
-
-			call->ack_lost_at = ktime_add(now, delay);
-			trace_rxrpc_timer_set(call, delay, rxrpc_timer_trace_lost_ack);
-		}
+		call->ack_lost_at = ktime_add(now, delay);
+		trace_rxrpc_timer_set(call, delay, rxrpc_timer_trace_lost_ack);
 	}
 
 	if (!test_and_set_bit(RXRPC_CALL_BEGAN_RX_TIMER, &call->flags)) {
@@ -527,6 +505,7 @@ static void rxrpc_tstamp_data_packets(struct rxrpc_call *call, struct rxrpc_txbu
 	}
 
 	rxrpc_set_keepalive(call, now);
+	return len;
 }
 
 /*
@@ -538,6 +517,7 @@ static int rxrpc_send_data_packet(struct rxrpc_call *call, struct rxrpc_txbuf *t
 	enum rxrpc_tx_point frag;
 	struct msghdr msg;
 	size_t len;
+	bool new_call = test_bit(RXRPC_CALL_BEGAN_RX_TIMER, &call->flags);
 	int ret;
 
 	_enter("%x,{%d}", txb->seq, txb->pkt_len);
@@ -605,20 +585,18 @@ static int rxrpc_send_data_packet(struct rxrpc_call *call, struct rxrpc_txbuf *t
 
 	rxrpc_tx_backoff(call, ret);
 
-done:
-	if (ret >= 0) {
-		rxrpc_tstamp_data_packets(call, txb, n);
-	} else {
+	if (ret < 0) {
 		/* Cancel the call if the initial transmission fails,
 		 * particularly if that's due to network routing issues that
 		 * aren't going away anytime soon.  The layer above can arrange
 		 * the retransmission.
 		 */
-		if (!test_and_set_bit(RXRPC_CALL_BEGAN_RX_TIMER, &call->flags))
+		if (new_call)
 			rxrpc_set_call_completion(call, RXRPC_CALL_LOCAL_ERROR,
 						  RX_USER_ABORT, ret);
 	}
 
+done:
 	_leave(" = %d [%u]", ret, call->peer->max_data);
 	return ret;
 }
