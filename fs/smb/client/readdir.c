@@ -261,7 +261,8 @@ cifs_posix_to_fattr(struct cifs_fattr *fattr, struct smb2_posix_info *info,
 		fattr->cf_cifstag = le32_to_cpu(info->ReparseTag);
 
 	/* The Mode field in the response can now include the file type as well */
-	fattr->cf_mode = wire_mode_to_posix(le32_to_cpu(info->Mode));
+	fattr->cf_mode = wire_mode_to_posix(le32_to_cpu(info->Mode),
+					    fattr->cf_cifsattrs & ATTR_DIRECTORY);
 	fattr->cf_dtype = S_DT(le32_to_cpu(info->Mode));
 
 	switch (fattr->cf_mode & S_IFMT) {

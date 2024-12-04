@@ -814,13 +814,17 @@ static u32 wire_filetype_to_posix(u32 wire_type)
 	return posix_filetypes[wire_type];
 }
 
-umode_t wire_mode_to_posix(u32 wire)
+umode_t wire_mode_to_posix(u32 wire, bool is_dir)
 {
 	u32 wire_type;
 	u32 mode;
 
 	wire_type = (wire & POSIX_FILETYPE_MASK) >> POSIX_FILETYPE_SHIFT;
-	mode = (wire_perms_to_posix(wire) | wire_filetype_to_posix(wire_type));
+	/* older servers do not set POSIX file type in the mode field in the response */
+	if ((wire_type == 0) && is_dir)
+		mode = wire_perms_to_posix(wire) | S_IFDIR;
+	else
+		mode = (wire_perms_to_posix(wire) | wire_filetype_to_posix(wire_type));
 	return (umode_t)mode;
 }
 
@@ -860,7 +864,8 @@ static void smb311_posix_info_to_fattr(struct cifs_fattr *fattr,
 	fattr->cf_bytes = le64_to_cpu(info->AllocationSize);
 	fattr->cf_createtime = le64_to_cpu(info->CreationTime);
 	fattr->cf_nlink = le32_to_cpu(info->HardLinks);
-	fattr->cf_mode = wire_mode_to_posix(le32_to_cpu(info->Mode));
+	fattr->cf_mode = wire_mode_to_posix(le32_to_cpu(info->Mode),
+					    fattr->cf_cifsattrs & ATTR_DIRECTORY);
 
 	if (cifs_open_data_reparse(data) &&
 	    cifs_reparse_point_to_fattr(cifs_sb, fattr, data))

@@ -669,7 +669,7 @@ int __cifs_sfu_make_node(unsigned int xid, struct inode *inode,
 int cifs_sfu_make_node(unsigned int xid, struct inode *inode,
 		       struct dentry *dentry, struct cifs_tcon *tcon,
 		       const char *full_path, umode_t mode, dev_t dev);
-umode_t wire_mode_to_posix(u32 wire);
+umode_t wire_mode_to_posix(u32 wire, bool is_dir);
 
 #ifdef CONFIG_CIFS_DFS_UPCALL
 static inline int get_dfs_path(const unsigned int xid, struct cifs_ses *ses,
