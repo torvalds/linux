@@ -969,6 +969,25 @@ bool ath12k_core_hw_group_start_ready(struct ath12k_hw_group *ag)
 	return (ag->num_started == ag->num_devices);
 }
 
+static void ath12k_core_trigger_partner(struct ath12k_base *ab)
+{
+	struct ath12k_hw_group *ag = ab->ag;
+	struct ath12k_base *partner_ab;
+	bool found = false;
+	int i;
+
+	for (i = 0; i < ag->num_devices; i++) {
+		partner_ab = ag->ab[i];
+		if (!partner_ab)
+			continue;
+
+		if (found)
+			ath12k_qmi_trigger_host_cap(partner_ab);
+
+		found = (partner_ab == ab);
+	}
+}
+
 int ath12k_core_qmi_firmware_ready(struct ath12k_base *ab)
 {
 	struct ath12k_hw_group *ag = ath12k_ab_to_ag(ab);
@@ -1010,6 +1029,8 @@ int ath12k_core_qmi_firmware_ready(struct ath12k_base *ab)
 			goto err_core_stop;
 		}
 		ath12k_dbg(ab, ATH12K_DBG_BOOT, "group %d started\n", ag->id);
+	} else {
+		ath12k_core_trigger_partner(ab);
 	}
 
 	mutex_unlock(&ag->mutex);
