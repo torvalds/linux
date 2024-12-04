@@ -330,6 +330,8 @@ static void rxrpc_prepare_data_subpacket(struct rxrpc_call *call, struct rxrpc_t
 	struct rxrpc_wire_header *whdr = txb->kvec[0].iov_base;
 	enum rxrpc_req_ack_trace why;
 	struct rxrpc_connection *conn = call->conn;
+	bool last;
+	u8 flags;
 
 	_enter("%x,{%d}", txb->seq, txb->len);
 
@@ -339,6 +341,10 @@ static void rxrpc_prepare_data_subpacket(struct rxrpc_call *call, struct rxrpc_t
 	    txb->seq == 1)
 		whdr->userStatus = RXRPC_USERSTATUS_SERVICE_UPGRADE;
 
+	txb->flags &= ~RXRPC_REQUEST_ACK;
+	flags = txb->flags & RXRPC_TXBUF_WIRE_FLAGS;
+	last = txb->flags & RXRPC_LAST_PACKET;
+
 	/* If our RTT cache needs working on, request an ACK.  Also request
 	 * ACKs if a DATA packet appears to have been lost.
 	 *
@@ -346,9 +352,7 @@ static void rxrpc_prepare_data_subpacket(struct rxrpc_call *call, struct rxrpc_t
 	 * service call, lest OpenAFS incorrectly send us an ACK with some
 	 * soft-ACKs in it and then never follow up with a proper hard ACK.
 	 */
-	if (txb->flags & RXRPC_REQUEST_ACK)
-		why = rxrpc_reqack_already_on;
-	else if ((txb->flags & RXRPC_LAST_PACKET) && rxrpc_sending_to_client(txb))
+	if (last && rxrpc_sending_to_client(txb))
 		why = rxrpc_reqack_no_srv_last;
 	else if (test_and_clear_bit(RXRPC_CALL_EV_ACK_LOST, &call->events))
 		why = rxrpc_reqack_ack_lost;
@@ -367,15 +371,17 @@ static void rxrpc_prepare_data_subpacket(struct rxrpc_call *call, struct rxrpc_t
 
 	rxrpc_inc_stat(call->rxnet, stat_why_req_ack[why]);
 	trace_rxrpc_req_ack(call->debug_id, txb->seq, why);
-	if (why != rxrpc_reqack_no_srv_last)
+	if (why != rxrpc_reqack_no_srv_last) {
 		txb->flags |= RXRPC_REQUEST_ACK;
+		flags |= RXRPC_REQUEST_ACK;
+	}
 dont_set_request_ack:
 
-	whdr->flags = txb->flags & RXRPC_TXBUF_WIRE_FLAGS;
+	whdr->flags	= flags;
 	whdr->serial	= htonl(txb->serial);
 	whdr->cksum	= txb->cksum;
 
-	trace_rxrpc_tx_data(call, txb->seq, txb->serial, txb->flags, false);
+	trace_rxrpc_tx_data(call, txb->seq, txb->serial, flags, false);
 }
 
 /*
