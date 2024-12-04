@@ -299,6 +299,9 @@ static int rxrpc_alloc_txqueue(struct sock *sk, struct rxrpc_call *call)
 		kfree(tq);
 		return -ENOMEM;
 	} else {
+		/* We start at seq 1, so pretend seq 0 is hard-acked. */
+		tq->nr_reported_acks = 1;
+		tq->segment_acked = 1UL;
 		tq->qbase = 0;
 		call->tx_qbase = 0;
 		call->send_queue = tq;

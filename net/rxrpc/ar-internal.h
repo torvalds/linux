@@ -214,9 +214,8 @@ struct rxrpc_skb_priv {
 			rxrpc_seq_t	first_ack;	/* First packet in acks table */
 			rxrpc_seq_t	prev_ack;	/* Highest seq seen */
 			rxrpc_serial_t	acked_serial;	/* Packet in response to (or 0) */
+			u16		nr_acks;	/* Number of acks+nacks */
 			u8		reason;		/* Reason for ack */
-			u8		nr_acks;	/* Number of acks+nacks */
-			u8		nr_nacks;	/* Number of nacks */
 		} ack;
 	};
 	struct rxrpc_host_header hdr;	/* RxRPC packet header from this packet */
@@ -734,7 +733,6 @@ struct rxrpc_call {
 	u16			cong_dup_acks;	/* Count of ACKs showing missing packets */
 	u16			cong_cumul_acks; /* Cumulative ACK count */
 	ktime_t			cong_tstamp;	/* Last time cwnd was changed */
-	struct sk_buff		*cong_last_nack; /* Last ACK with nacks received */
 
 	/* Receive-phase ACK management (ACKs we send). */
 	u8			ackr_reason;	/* reason to ACK */
@@ -775,11 +773,10 @@ struct rxrpc_ack_summary {
 	u16		nr_new_hacks;		/* Number of rotated new ACKs */
 	u16		nr_new_sacks;		/* Number of new soft ACKs in packet */
 	u16		nr_new_snacks;		/* Number of new soft nacks in packet */
-	u16		nr_retained_snacks;	/* Number of nacks retained between ACKs */
 	u8		ack_reason;
-	bool		saw_snacks:1;		/* T if we saw a soft NACK */
 	bool		new_low_snack:1;	/* T if new low soft NACK found */
 	bool		retrans_timeo:1;	/* T if reTx due to timeout happened */
+	bool		need_retransmit:1;	/* T if we need transmission */
 	u8 /*enum rxrpc_congest_change*/ change;
 };
 
@@ -858,6 +855,10 @@ struct rxrpc_txqueue {
 	struct rxrpc_txqueue	*next;
 	ktime_t			xmit_ts_base;
 	rxrpc_seq_t		qbase;
+	u8			nr_reported_acks; /* Number of segments explicitly acked/nacked */
+	unsigned long		segment_acked;	/* Bit-per-buf: Set if ACK'd */
+	unsigned long		segment_lost;	/* Bit-per-buf: Set if declared lost */
+	unsigned long		segment_retransmitted; /* Bit-per-buf: Set if retransmitted */
 
 	/* The arrays we want to pack into as few cache lines as possible. */
 	struct {
@@ -935,7 +936,7 @@ void rxrpc_propose_ping(struct rxrpc_call *call, u32 serial,
 			enum rxrpc_propose_ack_trace why);
 void rxrpc_propose_delay_ACK(struct rxrpc_call *, rxrpc_serial_t,
 			     enum rxrpc_propose_ack_trace);
-void rxrpc_resend(struct rxrpc_call *call, struct sk_buff *ack_skb);
+void rxrpc_resend(struct rxrpc_call *call, rxrpc_serial_t ack_serial, bool ping_response);
 
 bool rxrpc_input_call_event(struct rxrpc_call *call);
 
@@ -1381,6 +1382,16 @@ static inline bool after(u32 seq1, u32 seq2)
 static inline bool after_eq(u32 seq1, u32 seq2)
 {
         return (s32)(seq1 - seq2) >= 0;
+}
+
+static inline u32 earliest(u32 seq1, u32 seq2)
+{
+	return before(seq1, seq2) ? seq1 : seq2;
+}
+
+static inline u32 latest(u32 seq1, u32 seq2)
+{
+	return after(seq1, seq2) ? seq1 : seq2;
 }
 
 static inline void rxrpc_queue_rx_call_packet(struct rxrpc_call *call, struct sk_buff *skb)

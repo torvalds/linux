@@ -34,8 +34,6 @@ static void rxrpc_congestion_management(struct rxrpc_call *call,
 					struct rxrpc_ack_summary *summary,
 					rxrpc_serial_t acked_serial)
 {
-	bool resend = false;
-
 	summary->change = rxrpc_cong_no_change;
 	summary->in_flight = (call->tx_top - call->tx_bottom) - call->acks_nr_sacks;
 
@@ -52,12 +50,13 @@ static void rxrpc_congestion_management(struct rxrpc_call *call,
 	}
 
 	call->cong_cumul_acks += summary->nr_new_sacks;
+	call->cong_cumul_acks += summary->nr_new_hacks;
 	if (call->cong_cumul_acks > 255)
 		call->cong_cumul_acks = 255;
 
 	switch (call->cong_ca_state) {
 	case RXRPC_CA_SLOW_START:
-		if (summary->saw_snacks)
+		if (call->acks_nr_snacks > 0)
 			goto packet_loss_detected;
 		if (call->cong_cumul_acks > 0)
 			call->cong_cwnd += 1;
@@ -68,7 +67,7 @@ static void rxrpc_congestion_management(struct rxrpc_call *call,
 		goto out;
 
 	case RXRPC_CA_CONGEST_AVOIDANCE:
-		if (summary->saw_snacks)
+		if (call->acks_nr_snacks > 0)
 			goto packet_loss_detected;
 
 		/* We analyse the number of packets that get ACK'd per RTT
@@ -87,7 +86,7 @@ static void rxrpc_congestion_management(struct rxrpc_call *call,
 		goto out;
 
 	case RXRPC_CA_PACKET_LOSS:
-		if (!summary->saw_snacks)
+		if (call->acks_nr_snacks == 0)
 			goto resume_normality;
 
 		if (summary->new_low_snack) {
@@ -108,7 +107,7 @@ static void rxrpc_congestion_management(struct rxrpc_call *call,
 		call->cong_cwnd = call->cong_ssthresh + 3;
 		call->cong_extra = 0;
 		call->cong_dup_acks = 0;
-		resend = true;
+		summary->need_retransmit = true;
 		goto out;
 
 	case RXRPC_CA_FAST_RETRANSMIT:
@@ -119,12 +118,12 @@ static void rxrpc_congestion_management(struct rxrpc_call *call,
 			if (call->cong_dup_acks == 2) {
 				summary->change = rxrpc_cong_retransmit_again;
 				call->cong_dup_acks = 0;
-				resend = true;
+				summary->need_retransmit = true;
 			}
 		} else {
 			summary->change = rxrpc_cong_progress;
 			call->cong_cwnd = call->cong_ssthresh;
-			if (!summary->saw_snacks)
+			if (call->acks_nr_snacks == 0)
 				goto resume_normality;
 		}
 		goto out;
@@ -149,8 +148,6 @@ out_no_clear_ca:
 	if (call->cong_cwnd >= RXRPC_TX_MAX_WINDOW)
 		call->cong_cwnd = RXRPC_TX_MAX_WINDOW;
 	trace_rxrpc_congest(call, summary, acked_serial);
-	if (resend)
-		rxrpc_resend(call, skb);
 	return;
 
 packet_loss_detected:
@@ -212,6 +209,13 @@ static bool rxrpc_rotate_tx_window(struct rxrpc_call *call, rxrpc_seq_t to,
 	trace_rxrpc_tx_rotate(call, seq, to);
 	trace_rxrpc_tq(call, tq, seq, rxrpc_tq_rotate);
 
+	if (call->acks_lowest_nak == call->tx_bottom) {
+		call->acks_lowest_nak = to;
+	} else if (after(to, call->acks_lowest_nak)) {
+		summary->new_low_snack = true;
+		call->acks_lowest_nak = to;
+	}
+
 	/* We may have a left over fully-consumed buffer at the front that we
 	 * couldn't drop before (rotate_and_keep below).
 	 */
@@ -231,6 +235,25 @@ static bool rxrpc_rotate_tx_window(struct rxrpc_call *call, rxrpc_seq_t to,
 			set_bit(RXRPC_CALL_TX_LAST, &call->flags);
 			rot_last = true;
 		}
+
+		if (ix == tq->nr_reported_acks) {
+			/* Packet directly hard ACK'd. */
+			tq->nr_reported_acks++;
+			summary->nr_new_hacks++;
+			__set_bit(ix, &tq->segment_acked);
+			trace_rxrpc_rotate(call, tq, summary, seq, rxrpc_rotate_trace_hack);
+		} else if (test_bit(ix, &tq->segment_acked)) {
+			/* Soft ACK -> hard ACK. */
+			call->acks_nr_sacks--;
+			trace_rxrpc_rotate(call, tq, summary, seq, rxrpc_rotate_trace_sack);
+		} else {
+			/* Soft NAK -> hard ACK. */
+			call->acks_nr_snacks--;
+			summary->nr_new_hacks++;
+			__set_bit(ix, &tq->segment_acked);
+			trace_rxrpc_rotate(call, tq, summary, seq, rxrpc_rotate_trace_snak);
+		}
+
 		rxrpc_put_txbuf(tq->bufs[ix], rxrpc_txbuf_put_rotated);
 		tq->bufs[ix] = NULL;
 
@@ -268,13 +291,6 @@ static bool rxrpc_rotate_tx_window(struct rxrpc_call *call, rxrpc_seq_t to,
 
 	_debug("%x,%x,%x,%d", to, call->tx_bottom, call->tx_top, rot_last);
 
-	if (call->acks_lowest_nak == call->tx_bottom) {
-		call->acks_lowest_nak = to;
-	} else if (after(to, call->acks_lowest_nak)) {
-		summary->new_low_snack = true;
-		call->acks_lowest_nak = to;
-	}
-
 	wake_up(&call->waitq);
 	return rot_last;
 }
@@ -292,11 +308,6 @@ static void rxrpc_end_tx_phase(struct rxrpc_call *call, bool reply_begun,
 
 	call->resend_at = KTIME_MAX;
 	trace_rxrpc_timer_can(call, rxrpc_timer_trace_resend);
-
-	if (unlikely(call->cong_last_nack)) {
-		rxrpc_free_skb(call->cong_last_nack, rxrpc_skb_put_last_nack);
-		call->cong_last_nack = NULL;
-	}
 
 	switch (__rxrpc_call_state(call)) {
 	case RXRPC_CALL_CLIENT_SEND_REQUEST:
@@ -770,40 +781,92 @@ static void rxrpc_input_ack_trailer(struct rxrpc_call *call, struct sk_buff *skb
 		wake_up(&call->waitq);
 }
 
+#if defined(CONFIG_X86) && __GNUC__ && !defined(__clang__)
+/* Clang doesn't support the %z constraint modifier */
+#define shiftr_adv_rotr(shift_from, rotate_into) ({			\
+			asm(" shr%z1 %1\n"				\
+			    " inc %0\n"					\
+			    " rcr%z2 %2\n"				\
+			    : "+d"(shift_from), "+m"(*(shift_from)), "+rm"(rotate_into) \
+			    );						\
+		})
+#else
+#define shiftr_adv_rotr(shift_from, rotate_into) ({	\
+			typeof(rotate_into) __bit0 = *(shift_from) & 1;	\
+			*(shift_from) >>= 1;				\
+			shift_from++;					\
+			rotate_into >>= 1;				\
+			rotate_into |= __bit0 << (sizeof(rotate_into) * 8 - 1); \
+		})
+#endif
+
 /*
- * Determine how many nacks from the previous ACK have now been satisfied.
+ * Process a batch of soft ACKs specific to a transmission queue segment.
  */
-static rxrpc_seq_t rxrpc_input_check_prev_ack(struct rxrpc_call *call,
-					      struct rxrpc_ack_summary *summary,
-					      rxrpc_seq_t hard_ack)
+static void rxrpc_input_soft_ack_tq(struct rxrpc_call *call,
+				    struct rxrpc_ack_summary *summary,
+				    struct rxrpc_txqueue *tq,
+				    unsigned long extracted_acks,
+				    int nr_reported,
+				    rxrpc_seq_t seq,
+				    rxrpc_seq_t *lowest_nak)
 {
-	struct sk_buff *skb = call->cong_last_nack;
-	struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
-	unsigned int i, new_acks = 0, retained_nacks = 0;
-	rxrpc_seq_t seq = hard_ack + 1, old_seq = sp->ack.first_ack;
-	u8 *acks = skb->data + sizeof(struct rxrpc_wire_header) + sizeof(struct rxrpc_ackpacket);
+	unsigned long old_reported, flipped, new_acks, a_to_n, n_to_a;
+	int new, a, n;
 
-	if (after_eq(seq, old_seq + sp->ack.nr_acks)) {
-		summary->nr_new_sacks += sp->ack.nr_nacks;
-		summary->nr_new_sacks += seq - (old_seq + sp->ack.nr_acks);
-		summary->nr_retained_snacks = 0;
-	} else if (seq == old_seq) {
-		summary->nr_retained_snacks = sp->ack.nr_nacks;
-	} else {
-		for (i = 0; i < sp->ack.nr_acks; i++) {
-			if (acks[i] == RXRPC_ACK_TYPE_NACK) {
-				if (before(old_seq + i, seq))
-					new_acks++;
-				else
-					retained_nacks++;
-			}
-		}
+	old_reported = ~0UL >> (RXRPC_NR_TXQUEUE - tq->nr_reported_acks);
+	_enter("{%x,%lx,%d},%lx,%d,%x",
+	       tq->qbase, tq->segment_acked, tq->nr_reported_acks,
+	       extracted_acks, nr_reported, seq);
 
-		summary->nr_new_sacks += new_acks;
-		summary->nr_retained_snacks = retained_nacks;
+	_debug("[%x]", tq->qbase);
+	_debug("tq    %16lx %u", tq->segment_acked, tq->nr_reported_acks);
+	_debug("sack  %16lx %u", extracted_acks, nr_reported);
+
+	/* See how many previously logged ACKs/NAKs have flipped. */
+	flipped = (tq->segment_acked ^ extracted_acks) & old_reported;
+	if (flipped) {
+		n_to_a = ~tq->segment_acked & flipped; /* Old NAK -> ACK */
+		a_to_n =  tq->segment_acked & flipped; /* Old ACK -> NAK */
+		a = hweight_long(n_to_a);
+		n = hweight_long(a_to_n);
+		_debug("flip  %16lx", flipped);
+		_debug("ntoa  %16lx %d", n_to_a, a);
+		_debug("aton  %16lx %d", a_to_n, n);
+		call->acks_nr_sacks	+= a - n;
+		call->acks_nr_snacks	+= n - a;
+		summary->nr_new_sacks	+= a;
+		summary->nr_new_snacks	+= n;
 	}
 
-	return old_seq + sp->ack.nr_acks - 1;
+	/* See how many new ACKs/NAKs have been acquired. */
+	new = nr_reported - tq->nr_reported_acks;
+	if (new > 0) {
+		new_acks = extracted_acks & ~old_reported;
+		if (new_acks) {
+			a = hweight_long(new_acks);
+			n = new - a;
+			_debug("new_a %16lx new=%d a=%d n=%d", new_acks, new, a, n);
+			call->acks_nr_sacks	+= a;
+			call->acks_nr_snacks	+= n;
+			summary->nr_new_sacks	+= a;
+			summary->nr_new_snacks	+= n;
+		} else {
+			call->acks_nr_snacks	+= new;
+			summary->nr_new_snacks	+= new;
+		}
+	}
+
+	tq->nr_reported_acks = nr_reported;
+	tq->segment_acked = extracted_acks;
+	trace_rxrpc_apply_acks(call, tq);
+
+	if (extracted_acks != ~0UL) {
+		rxrpc_seq_t lowest = seq + ffz(extracted_acks);
+
+		if (before(lowest, *lowest_nak))
+			*lowest_nak = lowest;
+	}
 }
 
 /*
@@ -817,39 +880,50 @@ static rxrpc_seq_t rxrpc_input_check_prev_ack(struct rxrpc_call *call,
  */
 static void rxrpc_input_soft_acks(struct rxrpc_call *call,
 				  struct rxrpc_ack_summary *summary,
-				  struct sk_buff *skb,
-				  rxrpc_seq_t since)
+				  struct sk_buff *skb)
 {
 	struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
-	unsigned int i, old_nacks = 0;
-	rxrpc_seq_t lowest_nak = call->acks_hard_ack + sp->ack.nr_acks + 1;
-	rxrpc_seq_t seq = call->acks_hard_ack;
+	struct rxrpc_txqueue *tq = call->tx_queue;
+	unsigned long extracted = ~0UL;
+	unsigned int nr = 0;
+	rxrpc_seq_t seq = call->acks_hard_ack + 1;
+	rxrpc_seq_t lowest_nak = seq + sp->ack.nr_acks;
 	u8 *acks = skb->data + sizeof(struct rxrpc_wire_header) + sizeof(struct rxrpc_ackpacket);
 
-	for (i = 0; i < sp->ack.nr_acks; i++) {
-		seq++;
-		if (acks[i] == RXRPC_ACK_TYPE_ACK) {
-			call->acks_nr_sacks++;
-			if (after(seq, since))
-				summary->nr_new_sacks++;
-		} else {
-			summary->saw_snacks = true;
-			if (before_eq(seq, since)) {
-				/* Overlap with previous ACK */
-				old_nacks++;
-			} else {
-				summary->nr_new_snacks++;
-				sp->ack.nr_nacks++;
-			}
+	_enter("%x,%x,%u", tq->qbase, seq, sp->ack.nr_acks);
 
-			if (before(seq, lowest_nak))
-				lowest_nak = seq;
+	while (after(seq, tq->qbase + RXRPC_NR_TXQUEUE - 1))
+		tq = tq->next;
+
+	for (unsigned int i = 0; i < sp->ack.nr_acks; i++) {
+		/* Decant ACKs until we hit a txqueue boundary. */
+		shiftr_adv_rotr(acks, extracted);
+		if (i == 256) {
+			acks -= i;
+			i = 0;
 		}
+		seq++;
+		nr++;
+		if ((seq & RXRPC_TXQ_MASK) != 0)
+			continue;
+
+		_debug("bound %16lx %u", extracted, nr);
+
+		rxrpc_input_soft_ack_tq(call, summary, tq, extracted, RXRPC_NR_TXQUEUE,
+					seq - RXRPC_NR_TXQUEUE, &lowest_nak);
+		extracted = ~0UL;
+		nr = 0;
+		tq = tq->next;
+		prefetch(tq);
 	}
 
-	if (lowest_nak != call->acks_lowest_nak) {
-		call->acks_lowest_nak = lowest_nak;
-		summary->new_low_snack = true;
+	if (nr) {
+		unsigned int nr_reported = seq & RXRPC_TXQ_MASK;
+
+		extracted >>= RXRPC_NR_TXQUEUE - nr_reported;
+		_debug("tail  %16lx %u", extracted, nr_reported);
+		rxrpc_input_soft_ack_tq(call, summary, tq, extracted, nr_reported,
+					seq & ~RXRPC_TXQ_MASK, &lowest_nak);
 	}
 
 	/* We *can* have more nacks than we did - the peer is permitted to drop
@@ -857,9 +931,14 @@ static void rxrpc_input_soft_acks(struct rxrpc_call *call,
 	 * possible for the nack distribution to change whilst the number of
 	 * nacks stays the same or goes down.
 	 */
-	if (old_nacks < summary->nr_retained_snacks)
-		summary->nr_new_sacks += summary->nr_retained_snacks - old_nacks;
-	summary->nr_retained_snacks = old_nacks;
+	if (lowest_nak != call->acks_lowest_nak) {
+		call->acks_lowest_nak = lowest_nak;
+		summary->new_low_snack = true;
+	}
+
+	_debug("summary A=%d+%d N=%d+%d",
+	       call->acks_nr_sacks,  summary->nr_new_sacks,
+	       call->acks_nr_snacks, summary->nr_new_snacks);
 }
 
 /*
@@ -902,7 +981,7 @@ static void rxrpc_input_ack(struct rxrpc_call *call, struct sk_buff *skb)
 	struct rxrpc_acktrailer trailer;
 	struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
 	rxrpc_serial_t ack_serial, acked_serial;
-	rxrpc_seq_t first_soft_ack, hard_ack, prev_pkt, since;
+	rxrpc_seq_t first_soft_ack, hard_ack, prev_pkt;
 	int nr_acks, offset, ioffset;
 
 	_enter("");
@@ -920,6 +999,7 @@ static void rxrpc_input_ack(struct rxrpc_call *call, struct sk_buff *skb)
 
 	trace_rxrpc_rx_ack(call, sp);
 	rxrpc_inc_stat(call->rxnet, stat_rx_acks[summary.ack_reason]);
+	prefetch(call->tx_queue);
 
 	if (acked_serial != 0) {
 		switch (summary.ack_reason) {
@@ -980,16 +1060,6 @@ static void rxrpc_input_ack(struct rxrpc_call *call, struct sk_buff *skb)
 	if (nr_acks > 0)
 		skb_condense(skb);
 
-	if (call->cong_last_nack) {
-		since = rxrpc_input_check_prev_ack(call, &summary, hard_ack);
-		rxrpc_free_skb(call->cong_last_nack, rxrpc_skb_put_last_nack);
-		call->cong_last_nack = NULL;
-	} else {
-		summary.nr_new_sacks = hard_ack - call->acks_hard_ack;
-		call->acks_lowest_nak = hard_ack + nr_acks;
-		since = hard_ack;
-	}
-
 	call->acks_latest_ts = skb->tstamp;
 	call->acks_hard_ack = hard_ack;
 	call->acks_prev_seq = prev_pkt;
@@ -1037,9 +1107,7 @@ static void rxrpc_input_ack(struct rxrpc_call *call, struct sk_buff *skb)
 	if (nr_acks > 0) {
 		if (offset > (int)skb->len - nr_acks)
 			return rxrpc_proto_abort(call, 0, rxrpc_eproto_ackr_short_sack);
-		rxrpc_input_soft_acks(call, &summary, skb, since);
-		rxrpc_get_skb(skb, rxrpc_skb_get_last_nack);
-		call->cong_last_nack = skb;
+		rxrpc_input_soft_acks(call, &summary, skb);
 	}
 
 	if (test_bit(RXRPC_CALL_TX_LAST, &call->flags) &&
@@ -1049,6 +1117,8 @@ static void rxrpc_input_ack(struct rxrpc_call *call, struct sk_buff *skb)
 				   rxrpc_propose_ack_ping_for_lost_reply);
 
 	rxrpc_congestion_management(call, skb, &summary, acked_serial);
+	if (summary.need_retransmit)
+		rxrpc_resend(call, ack_serial, summary.ack_reason == RXRPC_ACK_PING_RESPONSE);
 
 send_response:
 	if (summary.ack_reason == RXRPC_ACK_PING)

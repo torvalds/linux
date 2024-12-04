@@ -461,7 +461,7 @@ dont_set_request_ack:
 		len += sizeof(*jumbo);
 	}
 
-	trace_rxrpc_tx_data(call, txb->seq, txb->serial, flags, false);
+	trace_rxrpc_tx_data(call, txb->seq, txb->serial, txb->flags | flags, false);
 	kv->iov_len = len;
 	return len;
 }
@@ -522,6 +522,13 @@ static size_t rxrpc_prepare_data_packet(struct rxrpc_call *call, struct rxrpc_se
 	}
 
 	/* Set timeouts */
+	if (call->peer->rtt_count > 1) {
+		ktime_t delay = rxrpc_get_rto_backoff(call->peer, false);
+
+		call->ack_lost_at = ktime_add(req->now, delay);
+		trace_rxrpc_timer_set(call, delay, rxrpc_timer_trace_lost_ack);
+	}
+
 	if (!test_and_set_bit(RXRPC_CALL_BEGAN_RX_TIMER, &call->flags)) {
 		ktime_t delay = ms_to_ktime(READ_ONCE(call->next_rx_timo));
 
@@ -596,6 +603,7 @@ void rxrpc_send_data_packet(struct rxrpc_call *call, struct rxrpc_send_data_req 
 			ret = 0;
 			trace_rxrpc_tx_data(call, txb->seq, txb->serial,
 					    txb->flags, true);
+			conn->peer->last_tx_at = ktime_get_seconds();
 			goto done;
 		}
 	}
