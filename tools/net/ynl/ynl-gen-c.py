@@ -801,6 +801,7 @@ class EnumSet(SpecEnumSet):
             self.user_type = 'int'
 
         self.value_pfx = yaml.get('name-prefix', f"{family.ident_name}-{yaml['name']}-")
+        self.header = yaml.get('header', None)
         self.enum_cnt_name = yaml.get('enum-cnt-name', None)
 
         super().__init__(family, yaml)
@@ -2440,6 +2441,9 @@ def render_uapi(family, cw):
         # Write kdoc for enum and flags (one day maybe also structs)
         if const['type'] == 'enum' or const['type'] == 'flags':
             enum = family.consts[const['name']]
+
+            if enum.header:
+                continue
 
             if enum.has_doc():
                 if enum.has_entry_doc():
