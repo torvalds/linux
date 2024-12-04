@@ -1415,9 +1415,9 @@ TRACE_EVENT(rxrpc_rtt_rx,
 	    TP_PROTO(struct rxrpc_call *call, enum rxrpc_rtt_rx_trace why,
 		     int slot,
 		     rxrpc_serial_t send_serial, rxrpc_serial_t resp_serial,
-		     u32 rtt, u32 rto),
+		     u32 rtt, u32 srtt, u32 rto),
 
-	    TP_ARGS(call, why, slot, send_serial, resp_serial, rtt, rto),
+	    TP_ARGS(call, why, slot, send_serial, resp_serial, rtt, srtt, rto),
 
 	    TP_STRUCT__entry(
 		    __field(unsigned int,		call)
@@ -1426,7 +1426,9 @@ TRACE_EVENT(rxrpc_rtt_rx,
 		    __field(rxrpc_serial_t,		send_serial)
 		    __field(rxrpc_serial_t,		resp_serial)
 		    __field(u32,			rtt)
+		    __field(u32,			srtt)
 		    __field(u32,			rto)
+		    __field(u32,			min_rtt)
 			     ),
 
 	    TP_fast_assign(
@@ -1436,17 +1438,21 @@ TRACE_EVENT(rxrpc_rtt_rx,
 		    __entry->send_serial = send_serial;
 		    __entry->resp_serial = resp_serial;
 		    __entry->rtt = rtt;
+		    __entry->srtt = srtt;
 		    __entry->rto = rto;
+		    __entry->min_rtt = minmax_get(&call->peer->min_rtt)
 			   ),
 
-	    TP_printk("c=%08x [%d] %s sr=%08x rr=%08x rtt=%u rto=%u",
+	    TP_printk("c=%08x [%d] %s sr=%08x rr=%08x rtt=%u srtt=%u rto=%u min=%u",
 		      __entry->call,
 		      __entry->slot,
 		      __print_symbolic(__entry->why, rxrpc_rtt_rx_traces),
 		      __entry->send_serial,
 		      __entry->resp_serial,
 		      __entry->rtt,
-		      __entry->rto)
+		      __entry->srtt / 8,
+		      __entry->rto,
+		      __entry->min_rtt)
 	    );
 
 TRACE_EVENT(rxrpc_timer_set,

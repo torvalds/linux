@@ -740,7 +740,7 @@ static void rxrpc_complete_rtt_probe(struct rxrpc_call *call,
 		 */
 		if (after(acked_serial, orig_serial)) {
 			trace_rxrpc_rtt_rx(call, rxrpc_rtt_rx_obsolete, i,
-					   orig_serial, acked_serial, 0, 0);
+					   orig_serial, acked_serial, 0, 0, 0);
 			clear_bit(i + RXRPC_CALL_RTT_PEND_SHIFT, &call->rtt_avail);
 			smp_wmb();
 			set_bit(i, &call->rtt_avail);
@@ -748,7 +748,7 @@ static void rxrpc_complete_rtt_probe(struct rxrpc_call *call,
 	}
 
 	if (!matched)
-		trace_rxrpc_rtt_rx(call, rxrpc_rtt_rx_lost, 9, 0, acked_serial, 0, 0);
+		trace_rxrpc_rtt_rx(call, rxrpc_rtt_rx_lost, 9, 0, acked_serial, 0, 0, 0);
 }
 
 /*
