@@ -437,9 +437,9 @@ static void rxrpc_activate_one_channel(struct rxrpc_connection *conn,
 	call->dest_srx.srx_service = conn->service_id;
 	call->cong_ssthresh = call->peer->cong_ssthresh;
 	if (call->cong_cwnd >= call->cong_ssthresh)
-		call->cong_mode = RXRPC_CALL_CONGEST_AVOIDANCE;
+		call->cong_ca_state = RXRPC_CA_CONGEST_AVOIDANCE;
 	else
-		call->cong_mode = RXRPC_CALL_SLOW_START;
+		call->cong_ca_state = RXRPC_CA_SLOW_START;
 
 	chan->call_id		= call_id;
 	chan->call_debug_id	= call->debug_id;

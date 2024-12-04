@@ -378,11 +378,11 @@
 	EM(rxrpc_propose_ack_rx_idle,		"RxIdle ") \
 	E_(rxrpc_propose_ack_terminal_ack,	"ClTerm ")
 
-#define rxrpc_congest_modes \
-	EM(RXRPC_CALL_CONGEST_AVOIDANCE,	"CongAvoid") \
-	EM(RXRPC_CALL_FAST_RETRANSMIT,		"FastReTx ") \
-	EM(RXRPC_CALL_PACKET_LOSS,		"PktLoss  ") \
-	E_(RXRPC_CALL_SLOW_START,		"SlowStart")
+#define rxrpc_ca_states \
+	EM(RXRPC_CA_CONGEST_AVOIDANCE,		"CongAvoid") \
+	EM(RXRPC_CA_FAST_RETRANSMIT,		"FastReTx ") \
+	EM(RXRPC_CA_PACKET_LOSS,		"PktLoss  ") \
+	E_(RXRPC_CA_SLOW_START,			"SlowStart")
 
 #define rxrpc_congest_changes \
 	EM(rxrpc_cong_begin_retransmission,	" Retrans") \
@@ -550,11 +550,11 @@ enum rxrpc_txqueue_trace	{ rxrpc_txqueue_traces } __mode(byte);
 
 rxrpc_abort_reasons;
 rxrpc_bundle_traces;
+rxrpc_ca_states;
 rxrpc_call_poke_traces;
 rxrpc_call_traces;
 rxrpc_client_traces;
 rxrpc_congest_changes;
-rxrpc_congest_modes;
 rxrpc_conn_traces;
 rxrpc_local_traces;
 rxrpc_pmtud_reduce_traces;
@@ -1688,27 +1688,39 @@ TRACE_EVENT(rxrpc_retransmit,
 
 TRACE_EVENT(rxrpc_congest,
 	    TP_PROTO(struct rxrpc_call *call, struct rxrpc_ack_summary *summary,
-		     rxrpc_serial_t ack_serial, enum rxrpc_congest_change change),
+		     rxrpc_serial_t ack_serial),
 
-	    TP_ARGS(call, summary, ack_serial, change),
+	    TP_ARGS(call, summary, ack_serial),
 
 	    TP_STRUCT__entry(
 		    __field(unsigned int,			call)
-		    __field(enum rxrpc_congest_change,		change)
+		    __field(enum rxrpc_ca_state,		ca_state)
 		    __field(rxrpc_seq_t,			hard_ack)
 		    __field(rxrpc_seq_t,			top)
 		    __field(rxrpc_seq_t,			lowest_nak)
 		    __field(rxrpc_serial_t,			ack_serial)
+		    __field(u16,				nr_sacks)
+		    __field(u16,				nr_snacks)
+		    __field(u16,				cwnd)
+		    __field(u16,				ssthresh)
+		    __field(u16,				cumul_acks)
+		    __field(u16,				dup_acks)
 		    __field_struct(struct rxrpc_ack_summary,	sum)
 			     ),
 
 	    TP_fast_assign(
 		    __entry->call	= call->debug_id;
-		    __entry->change	= change;
+		    __entry->ca_state	= call->cong_ca_state;
 		    __entry->hard_ack	= call->acks_hard_ack;
 		    __entry->top	= call->tx_top;
 		    __entry->lowest_nak	= call->acks_lowest_nak;
 		    __entry->ack_serial	= ack_serial;
+		    __entry->nr_sacks	= call->acks_nr_sacks;
+		    __entry->nr_snacks	= call->acks_nr_snacks;
+		    __entry->cwnd	= call->cong_cwnd;
+		    __entry->ssthresh	= call->cong_ssthresh;
+		    __entry->cumul_acks	= call->cong_cumul_acks;
+		    __entry->dup_acks	= call->cong_dup_acks;
 		    memcpy(&__entry->sum, summary, sizeof(__entry->sum));
 			   ),
 
@@ -1717,17 +1729,17 @@ TRACE_EVENT(rxrpc_congest,
 		      __entry->ack_serial,
 		      __print_symbolic(__entry->sum.ack_reason, rxrpc_ack_names),
 		      __entry->hard_ack,
-		      __print_symbolic(__entry->sum.mode, rxrpc_congest_modes),
-		      __entry->sum.cwnd,
-		      __entry->sum.ssthresh,
-		      __entry->sum.nr_acks, __entry->sum.nr_retained_nacks,
-		      __entry->sum.nr_new_acks,
-		      __entry->sum.nr_new_nacks,
+		      __print_symbolic(__entry->ca_state, rxrpc_ca_states),
+		      __entry->cwnd,
+		      __entry->ssthresh,
+		      __entry->nr_sacks, __entry->sum.nr_retained_snacks,
+		      __entry->sum.nr_new_sacks,
+		      __entry->sum.nr_new_snacks,
 		      __entry->top - __entry->hard_ack,
-		      __entry->sum.cumulative_acks,
-		      __entry->sum.dup_acks,
-		      __entry->lowest_nak, __entry->sum.new_low_nack ? "!" : "",
-		      __print_symbolic(__entry->change, rxrpc_congest_changes),
+		      __entry->cumul_acks,
+		      __entry->dup_acks,
+		      __entry->lowest_nak, __entry->sum.new_low_snack ? "!" : "",
+		      __print_symbolic(__entry->sum.change, rxrpc_congest_changes),
 		      __entry->sum.retrans_timeo ? " rTxTo" : "")
 	    );
 
@@ -1738,7 +1750,7 @@ TRACE_EVENT(rxrpc_reset_cwnd,
 
 	    TP_STRUCT__entry(
 		    __field(unsigned int,		call)
-		    __field(enum rxrpc_congest_mode,	mode)
+		    __field(enum rxrpc_ca_state,	ca_state)
 		    __field(unsigned short,		cwnd)
 		    __field(unsigned short,		extra)
 		    __field(rxrpc_seq_t,		hard_ack)
@@ -1749,7 +1761,7 @@ TRACE_EVENT(rxrpc_reset_cwnd,
 
 	    TP_fast_assign(
 		    __entry->call	= call->debug_id;
-		    __entry->mode	= call->cong_mode;
+		    __entry->ca_state	= call->cong_ca_state;
 		    __entry->cwnd	= call->cong_cwnd;
 		    __entry->extra	= call->cong_extra;
 		    __entry->hard_ack	= call->acks_hard_ack;
@@ -1761,7 +1773,7 @@ TRACE_EVENT(rxrpc_reset_cwnd,
 	    TP_printk("c=%08x q=%08x %s cw=%u+%u pr=%u tm=%llu d=%u",
 		      __entry->call,
 		      __entry->hard_ack,
-		      __print_symbolic(__entry->mode, rxrpc_congest_modes),
+		      __print_symbolic(__entry->ca_state, rxrpc_ca_states),
 		      __entry->cwnd,
 		      __entry->extra,
 		      __entry->prepared,

@@ -623,13 +623,13 @@ enum rxrpc_call_state {
 /*
  * Call Tx congestion management modes.
  */
-enum rxrpc_congest_mode {
-	RXRPC_CALL_SLOW_START,
-	RXRPC_CALL_CONGEST_AVOIDANCE,
-	RXRPC_CALL_PACKET_LOSS,
-	RXRPC_CALL_FAST_RETRANSMIT,
-	NR__RXRPC_CONGEST_MODES
-};
+enum rxrpc_ca_state {
+	RXRPC_CA_SLOW_START,
+	RXRPC_CA_CONGEST_AVOIDANCE,
+	RXRPC_CA_PACKET_LOSS,
+	RXRPC_CA_FAST_RETRANSMIT,
+	NR__RXRPC_CA_STATES
+} __mode(byte);
 
 /*
  * RxRPC call definition
@@ -727,12 +727,12 @@ struct rxrpc_call {
 	 */
 #define RXRPC_TX_SMSS		RXRPC_JUMBO_DATALEN
 #define RXRPC_MIN_CWND		4
-	u8			cong_cwnd;	/* Congestion window size */
+	enum rxrpc_ca_state	cong_ca_state;	/* Congestion control state */
 	u8			cong_extra;	/* Extra to send for congestion management */
-	u8			cong_ssthresh;	/* Slow-start threshold */
-	enum rxrpc_congest_mode	cong_mode:8;	/* Congestion management mode */
-	u8			cong_dup_acks;	/* Count of ACKs showing missing packets */
-	u8			cong_cumul_acks; /* Cumulative ACK count */
+	u16			cong_cwnd;	/* Congestion window size */
+	u16			cong_ssthresh;	/* Slow-start threshold */
+	u16			cong_dup_acks;	/* Count of ACKs showing missing packets */
+	u16			cong_cumul_acks; /* Cumulative ACK count */
 	ktime_t			cong_tstamp;	/* Last time cwnd was changed */
 	struct sk_buff		*cong_last_nack; /* Last ACK with nacks received */
 
@@ -763,27 +763,24 @@ struct rxrpc_call {
 	rxrpc_seq_t		acks_prev_seq;	/* Highest previousPacket received */
 	rxrpc_seq_t		acks_lowest_nak; /* Lowest NACK in the buffer (or ==tx_hard_ack) */
 	rxrpc_serial_t		acks_highest_serial; /* Highest serial number ACK'd */
+	unsigned short		acks_nr_sacks;	/* Number of soft acks recorded */
+	unsigned short		acks_nr_snacks;	/* Number of soft nacks recorded */
 };
 
 /*
  * Summary of a new ACK and the changes it made to the Tx buffer packet states.
  */
 struct rxrpc_ack_summary {
-	u16			nr_acks;		/* Number of ACKs in packet */
-	u16			nr_new_acks;		/* Number of new ACKs in packet */
-	u16			nr_new_nacks;		/* Number of new nacks in packet */
-	u16			nr_retained_nacks;	/* Number of nacks retained between ACKs */
-	u8			ack_reason;
-	bool			saw_nacks;		/* Saw NACKs in packet */
-	bool			new_low_nack;		/* T if new low NACK found */
-	bool			retrans_timeo;		/* T if reTx due to timeout happened */
-	u8			flight_size;		/* Number of unreceived transmissions */
-	/* Place to stash values for tracing */
-	enum rxrpc_congest_mode	mode:8;
-	u8			cwnd;
-	u8			ssthresh;
-	u8			dup_acks;
-	u8			cumulative_acks;
+	u16		in_flight;		/* Number of unreceived transmissions */
+	u16		nr_new_hacks;		/* Number of rotated new ACKs */
+	u16		nr_new_sacks;		/* Number of new soft ACKs in packet */
+	u16		nr_new_snacks;		/* Number of new soft nacks in packet */
+	u16		nr_retained_snacks;	/* Number of nacks retained between ACKs */
+	u8		ack_reason;
+	bool		saw_snacks:1;		/* T if we saw a soft NACK */
+	bool		new_low_snack:1;	/* T if new low soft NACK found */
+	bool		retrans_timeo:1;	/* T if reTx due to timeout happened */
+	u8 /*enum rxrpc_congest_change*/ change;
 };
 
 /*
