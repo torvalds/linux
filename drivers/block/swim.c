@@ -944,7 +944,7 @@ static void swim_remove(struct platform_device *dev)
 
 static struct platform_driver swim_driver = {
 	.probe  = swim_probe,
-	.remove_new = swim_remove,
+	.remove = swim_remove,
 	.driver   = {
 		.name	= CARDNAME,
 	},

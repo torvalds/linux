@@ -58,4 +58,4 @@ module_spi_driver(hsc_spi_driver);
 MODULE_AUTHOR("Petre Rodan <petre.rodan@subdimension.ro>");
 MODULE_DESCRIPTION("Honeywell HSC and SSC pressure sensor spi driver");
 MODULE_LICENSE("GPL");
-MODULE_IMPORT_NS(IIO_HONEYWELL_HSC030PA);
+MODULE_IMPORT_NS("IIO_HONEYWELL_HSC030PA");

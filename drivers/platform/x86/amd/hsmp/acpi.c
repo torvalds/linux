@@ -372,7 +372,7 @@ static struct platform_driver amd_hsmp_driver = {
 
 module_platform_driver(amd_hsmp_driver);
 
-MODULE_IMPORT_NS(AMD_HSMP);
+MODULE_IMPORT_NS("AMD_HSMP");
 MODULE_DESCRIPTION("AMD HSMP Platform Interface Driver");
 MODULE_VERSION(DRIVER_VERSION);
 MODULE_LICENSE("GPL");

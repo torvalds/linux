@@ -25,7 +25,7 @@ void rtl83xx_lock(void *ctx)
 
 	mutex_lock(&priv->map_lock);
 }
-EXPORT_SYMBOL_NS_GPL(rtl83xx_lock, REALTEK_DSA);
+EXPORT_SYMBOL_NS_GPL(rtl83xx_lock, "REALTEK_DSA");
 
 /**
  * rtl83xx_unlock() - Unlocks the mutex used by regmaps
@@ -42,7 +42,7 @@ void rtl83xx_unlock(void *ctx)
 
 	mutex_unlock(&priv->map_lock);
 }
-EXPORT_SYMBOL_NS_GPL(rtl83xx_unlock, REALTEK_DSA);
+EXPORT_SYMBOL_NS_GPL(rtl83xx_unlock, "REALTEK_DSA");
 
 static int rtl83xx_user_mdio_read(struct mii_bus *bus, int addr, int regnum)
 {
@@ -109,7 +109,7 @@ err_put_node:
 
 	return ret;
 }
-EXPORT_SYMBOL_NS_GPL(rtl83xx_setup_user_mdio, REALTEK_DSA);
+EXPORT_SYMBOL_NS_GPL(rtl83xx_setup_user_mdio, "REALTEK_DSA");
 
 /**
  * rtl83xx_probe() - probe a Realtek switch
@@ -208,7 +208,7 @@ rtl83xx_probe(struct device *dev,
 
 	return priv;
 }
-EXPORT_SYMBOL_NS_GPL(rtl83xx_probe, REALTEK_DSA);
+EXPORT_SYMBOL_NS_GPL(rtl83xx_probe, "REALTEK_DSA");
 
 /**
  * rtl83xx_register_switch() - detects and register a switch
@@ -245,7 +245,7 @@ int rtl83xx_register_switch(struct realtek_priv *priv)
 
 	return 0;
 }
-EXPORT_SYMBOL_NS_GPL(rtl83xx_register_switch, REALTEK_DSA);
+EXPORT_SYMBOL_NS_GPL(rtl83xx_register_switch, "REALTEK_DSA");
 
 /**
  * rtl83xx_unregister_switch() - unregister a switch
@@ -262,7 +262,7 @@ void rtl83xx_unregister_switch(struct realtek_priv *priv)
 
 	dsa_unregister_switch(ds);
 }
-EXPORT_SYMBOL_NS_GPL(rtl83xx_unregister_switch, REALTEK_DSA);
+EXPORT_SYMBOL_NS_GPL(rtl83xx_unregister_switch, "REALTEK_DSA");
 
 /**
  * rtl83xx_shutdown() - shutdown a switch
@@ -283,7 +283,7 @@ void rtl83xx_shutdown(struct realtek_priv *priv)
 
 	dev_set_drvdata(priv->dev, NULL);
 }
-EXPORT_SYMBOL_NS_GPL(rtl83xx_shutdown, REALTEK_DSA);
+EXPORT_SYMBOL_NS_GPL(rtl83xx_shutdown, "REALTEK_DSA");
 
 /**
  * rtl83xx_remove() - Cleanup a realtek switch driver
@@ -297,7 +297,7 @@ EXPORT_SYMBOL_NS_GPL(rtl83xx_shutdown, REALTEK_DSA);
 void rtl83xx_remove(struct realtek_priv *priv)
 {
 }
-EXPORT_SYMBOL_NS_GPL(rtl83xx_remove, REALTEK_DSA);
+EXPORT_SYMBOL_NS_GPL(rtl83xx_remove, "REALTEK_DSA");
 
 void rtl83xx_reset_assert(struct realtek_priv *priv)
 {

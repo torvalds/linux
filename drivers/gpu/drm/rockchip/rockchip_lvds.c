@@ -746,7 +746,7 @@ static void rockchip_lvds_remove(struct platform_device *pdev)
 
 struct platform_driver rockchip_lvds_driver = {
 	.probe = rockchip_lvds_probe,
-	.remove_new = rockchip_lvds_remove,
+	.remove = rockchip_lvds_remove,
 	.driver = {
 		   .name = "rockchip-lvds",
 		   .of_match_table = rockchip_lvds_dt_ids,

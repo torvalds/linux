@@ -1989,7 +1989,7 @@ MODULE_DEVICE_TABLE(of, xgene_edac_of_match);
 
 static struct platform_driver xgene_edac_driver = {
 	.probe = xgene_edac_probe,
-	.remove_new = xgene_edac_remove,
+	.remove = xgene_edac_remove,
 	.driver = {
 		.name = "xgene-edac",
 		.of_match_table = xgene_edac_of_match,

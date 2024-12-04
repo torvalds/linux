@@ -32,7 +32,7 @@ int peci_temp_read(struct peci_device *device, s16 *temp_raw)
 
 	return 0;
 }
-EXPORT_SYMBOL_NS_GPL(peci_temp_read, PECI_CPU);
+EXPORT_SYMBOL_NS_GPL(peci_temp_read, "PECI_CPU");
 
 /**
  * peci_pcs_read() - read PCS register
@@ -64,7 +64,7 @@ out_req_free:
 
 	return ret;
 }
-EXPORT_SYMBOL_NS_GPL(peci_pcs_read, PECI_CPU);
+EXPORT_SYMBOL_NS_GPL(peci_pcs_read, "PECI_CPU");
 
 /**
  * peci_pci_local_read() - read 32-bit memory location using raw address
@@ -99,7 +99,7 @@ out_req_free:
 
 	return ret;
 }
-EXPORT_SYMBOL_NS_GPL(peci_pci_local_read, PECI_CPU);
+EXPORT_SYMBOL_NS_GPL(peci_pci_local_read, "PECI_CPU");
 
 /**
  * peci_ep_pci_local_read() - read 32-bit memory location using raw address
@@ -135,7 +135,7 @@ out_req_free:
 
 	return ret;
 }
-EXPORT_SYMBOL_NS_GPL(peci_ep_pci_local_read, PECI_CPU);
+EXPORT_SYMBOL_NS_GPL(peci_ep_pci_local_read, "PECI_CPU");
 
 /**
  * peci_mmio_read() - read 32-bit memory location using 64-bit bar offset address
@@ -172,7 +172,7 @@ out_req_free:
 
 	return ret;
 }
-EXPORT_SYMBOL_NS_GPL(peci_mmio_read, PECI_CPU);
+EXPORT_SYMBOL_NS_GPL(peci_mmio_read, "PECI_CPU");
 
 static const char * const peci_adev_types[] = {
 	"cputemp",
@@ -337,4 +337,4 @@ module_peci_driver(peci_cpu_driver);
 MODULE_AUTHOR("Iwona Winiarska <iwona.winiarska@intel.com>");
 MODULE_DESCRIPTION("PECI CPU driver");
 MODULE_LICENSE("GPL");
-MODULE_IMPORT_NS(PECI);
+MODULE_IMPORT_NS("PECI");

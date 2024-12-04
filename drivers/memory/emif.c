@@ -1159,7 +1159,7 @@ MODULE_DEVICE_TABLE(of, emif_of_match);
 
 static struct platform_driver emif_driver = {
 	.probe		= emif_probe,
-	.remove_new	= emif_remove,
+	.remove		= emif_remove,
 	.shutdown	= emif_shutdown,
 	.driver = {
 		.name = "emif",

@@ -138,7 +138,7 @@ static struct platform_driver mcb_lpc_driver = {
 		.name = "mcb-lpc",
 	},
 	.probe		= mcb_lpc_probe,
-	.remove_new	= mcb_lpc_remove,
+	.remove		= mcb_lpc_remove,
 };
 
 static const struct dmi_system_id mcb_lpc_dmi_table[] = {
@@ -184,4 +184,4 @@ module_exit(mcb_lpc_exit);
 MODULE_AUTHOR("Andreas Werner <andreas.werner@men.de>");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("MCB over LPC support");
-MODULE_IMPORT_NS(MCB);
+MODULE_IMPORT_NS("MCB");

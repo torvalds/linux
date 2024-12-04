@@ -756,7 +756,7 @@ static struct kunit_suite cs_amp_lib_test_suite = {
 
 kunit_test_suite(cs_amp_lib_test_suite);
 
-MODULE_IMPORT_NS(SND_SOC_CS_AMP_LIB);
+MODULE_IMPORT_NS("SND_SOC_CS_AMP_LIB");
 MODULE_DESCRIPTION("KUnit test for Cirrus Logic amplifier library");
 MODULE_AUTHOR("Richard Fitzgerald <rf@opensource.cirrus.com>");
 MODULE_LICENSE("GPL");

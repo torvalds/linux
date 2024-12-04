@@ -81,7 +81,7 @@ static const struct of_device_id riscv_iommu_of_match[] = {
 
 static struct platform_driver riscv_iommu_platform_driver = {
 	.probe = riscv_iommu_platform_probe,
-	.remove_new = riscv_iommu_platform_remove,
+	.remove = riscv_iommu_platform_remove,
 	.driver = {
 		.name = "riscv,iommu",
 		.of_match_table = riscv_iommu_of_match,

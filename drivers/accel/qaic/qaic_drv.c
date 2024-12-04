@@ -32,7 +32,7 @@
 #include "qaic_timesync.h"
 #include "sahara.h"
 
-MODULE_IMPORT_NS(DMA_BUF);
+MODULE_IMPORT_NS("DMA_BUF");
 
 #define PCI_DEV_AIC080			0xa080
 #define PCI_DEV_AIC100			0xa100

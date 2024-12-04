@@ -195,7 +195,7 @@ const struct ad7606_chip_info ad7605_4_info = {
 	.num_channels = 5,
 	.scale_setup_cb = ad7606_16bit_chan_scale_setup,
 };
-EXPORT_SYMBOL_NS_GPL(ad7605_4_info, IIO_AD7606);
+EXPORT_SYMBOL_NS_GPL(ad7605_4_info, "IIO_AD7606");
 
 const struct ad7606_chip_info ad7606_8_info = {
 	.channels = ad7606_channels_16bit,
@@ -206,7 +206,7 @@ const struct ad7606_chip_info ad7606_8_info = {
 	.oversampling_num = ARRAY_SIZE(ad7606_oversampling_avail),
 	.scale_setup_cb = ad7606_16bit_chan_scale_setup,
 };
-EXPORT_SYMBOL_NS_GPL(ad7606_8_info, IIO_AD7606);
+EXPORT_SYMBOL_NS_GPL(ad7606_8_info, "IIO_AD7606");
 
 const struct ad7606_chip_info ad7606_6_info = {
 	.channels = ad7606_channels_16bit,
@@ -217,7 +217,7 @@ const struct ad7606_chip_info ad7606_6_info = {
 	.oversampling_num = ARRAY_SIZE(ad7606_oversampling_avail),
 	.scale_setup_cb = ad7606_16bit_chan_scale_setup,
 };
-EXPORT_SYMBOL_NS_GPL(ad7606_6_info, IIO_AD7606);
+EXPORT_SYMBOL_NS_GPL(ad7606_6_info, "IIO_AD7606");
 
 const struct ad7606_chip_info ad7606_4_info = {
 	.channels = ad7606_channels_16bit,
@@ -228,7 +228,7 @@ const struct ad7606_chip_info ad7606_4_info = {
 	.oversampling_num = ARRAY_SIZE(ad7606_oversampling_avail),
 	.scale_setup_cb = ad7606_16bit_chan_scale_setup,
 };
-EXPORT_SYMBOL_NS_GPL(ad7606_4_info, IIO_AD7606);
+EXPORT_SYMBOL_NS_GPL(ad7606_4_info, "IIO_AD7606");
 
 const struct ad7606_chip_info ad7606b_info = {
 	.channels = ad7606_channels_16bit,
@@ -240,7 +240,7 @@ const struct ad7606_chip_info ad7606b_info = {
 	.oversampling_num = ARRAY_SIZE(ad7606_oversampling_avail),
 	.scale_setup_cb = ad7606_16bit_chan_scale_setup,
 };
-EXPORT_SYMBOL_NS_GPL(ad7606b_info, IIO_AD7606);
+EXPORT_SYMBOL_NS_GPL(ad7606b_info, "IIO_AD7606");
 
 const struct ad7606_chip_info ad7606c_16_info = {
 	.channels = ad7606_channels_16bit,
@@ -251,7 +251,7 @@ const struct ad7606_chip_info ad7606c_16_info = {
 	.oversampling_num = ARRAY_SIZE(ad7606_oversampling_avail),
 	.scale_setup_cb = ad7606c_16bit_chan_scale_setup,
 };
-EXPORT_SYMBOL_NS_GPL(ad7606c_16_info, IIO_AD7606);
+EXPORT_SYMBOL_NS_GPL(ad7606c_16_info, "IIO_AD7606");
 
 const struct ad7606_chip_info ad7607_info = {
 	.channels = ad7607_channels,
@@ -262,7 +262,7 @@ const struct ad7606_chip_info ad7607_info = {
 	.oversampling_num = ARRAY_SIZE(ad7606_oversampling_avail),
 	.scale_setup_cb = ad7607_chan_scale_setup,
 };
-EXPORT_SYMBOL_NS_GPL(ad7607_info, IIO_AD7606);
+EXPORT_SYMBOL_NS_GPL(ad7607_info, "IIO_AD7606");
 
 const struct ad7606_chip_info ad7608_info = {
 	.channels = ad7608_channels,
@@ -273,7 +273,7 @@ const struct ad7606_chip_info ad7608_info = {
 	.oversampling_num = ARRAY_SIZE(ad7606_oversampling_avail),
 	.scale_setup_cb = ad7608_chan_scale_setup,
 };
-EXPORT_SYMBOL_NS_GPL(ad7608_info, IIO_AD7606);
+EXPORT_SYMBOL_NS_GPL(ad7608_info, "IIO_AD7606");
 
 const struct ad7606_chip_info ad7609_info = {
 	.channels = ad7608_channels,
@@ -284,7 +284,7 @@ const struct ad7606_chip_info ad7609_info = {
 	.oversampling_num = ARRAY_SIZE(ad7606_oversampling_avail),
 	.scale_setup_cb = ad7609_chan_scale_setup,
 };
-EXPORT_SYMBOL_NS_GPL(ad7609_info, IIO_AD7606);
+EXPORT_SYMBOL_NS_GPL(ad7609_info, "IIO_AD7606");
 
 const struct ad7606_chip_info ad7606c_18_info = {
 	.channels = ad7606_channels_18bit,
@@ -295,7 +295,7 @@ const struct ad7606_chip_info ad7606c_18_info = {
 	.oversampling_num = ARRAY_SIZE(ad7606_oversampling_avail),
 	.scale_setup_cb = ad7606c_18bit_chan_scale_setup,
 };
-EXPORT_SYMBOL_NS_GPL(ad7606c_18_info, IIO_AD7606);
+EXPORT_SYMBOL_NS_GPL(ad7606c_18_info, "IIO_AD7606");
 
 const struct ad7606_chip_info ad7616_info = {
 	.channels = ad7616_channels,
@@ -308,7 +308,7 @@ const struct ad7606_chip_info ad7616_info = {
 	.os_req_reset = true,
 	.scale_setup_cb = ad7606_16bit_chan_scale_setup,
 };
-EXPORT_SYMBOL_NS_GPL(ad7616_info, IIO_AD7606);
+EXPORT_SYMBOL_NS_GPL(ad7616_info, "IIO_AD7606");
 
 int ad7606_reset(struct ad7606_state *st)
 {
@@ -321,7 +321,7 @@ int ad7606_reset(struct ad7606_state *st)
 
 	return -ENODEV;
 }
-EXPORT_SYMBOL_NS_GPL(ad7606_reset, IIO_AD7606);
+EXPORT_SYMBOL_NS_GPL(ad7606_reset, "IIO_AD7606");
 
 static int ad7606_16bit_chan_scale_setup(struct ad7606_state *st,
 					 struct iio_chan_spec *chan, int ch)
@@ -1328,7 +1328,7 @@ int ad7606_probe(struct device *dev, int irq, void __iomem *base_address,
 
 	return devm_iio_device_register(dev, indio_dev);
 }
-EXPORT_SYMBOL_NS_GPL(ad7606_probe, IIO_AD7606);
+EXPORT_SYMBOL_NS_GPL(ad7606_probe, "IIO_AD7606");
 
 #ifdef CONFIG_PM_SLEEP
 
@@ -1360,7 +1360,7 @@ static int ad7606_resume(struct device *dev)
 }
 
 SIMPLE_DEV_PM_OPS(ad7606_pm_ops, ad7606_suspend, ad7606_resume);
-EXPORT_SYMBOL_NS_GPL(ad7606_pm_ops, IIO_AD7606);
+EXPORT_SYMBOL_NS_GPL(ad7606_pm_ops, "IIO_AD7606");
 
 #endif
 

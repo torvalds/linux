@@ -1492,7 +1492,7 @@ struct platform_driver sti_hdmi_driver = {
 		.of_match_table = hdmi_of_match,
 	},
 	.probe = sti_hdmi_probe,
-	.remove_new = sti_hdmi_remove,
+	.remove = sti_hdmi_remove,
 };
 
 MODULE_AUTHOR("Benjamin Gaignard <benjamin.gaignard@st.com>");

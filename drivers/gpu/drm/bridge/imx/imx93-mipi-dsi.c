@@ -904,7 +904,7 @@ MODULE_DEVICE_TABLE(of, imx93_dsi_dt_ids);
 
 static struct platform_driver imx93_dsi_driver = {
 	.probe	= imx93_dsi_probe,
-	.remove_new = imx93_dsi_remove,
+	.remove = imx93_dsi_remove,
 	.driver	= {
 		.of_match_table = imx93_dsi_dt_ids,
 		.name = "imx93_mipi_dsi",

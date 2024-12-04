@@ -600,7 +600,7 @@ static struct platform_driver smb_driver = {
 		.suppress_bind_attrs = true,
 	},
 	.probe = smb_probe,
-	.remove_new = smb_remove,
+	.remove = smb_remove,
 };
 module_platform_driver(smb_driver);
 

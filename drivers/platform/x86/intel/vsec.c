@@ -137,7 +137,7 @@ int intel_vsec_add_aux(struct pci_dev *pdev, struct device *parent,
 	return devm_add_action_or_reset(parent, intel_vsec_remove_aux,
 				       auxdev);
 }
-EXPORT_SYMBOL_NS_GPL(intel_vsec_add_aux, INTEL_VSEC);
+EXPORT_SYMBOL_NS_GPL(intel_vsec_add_aux, "INTEL_VSEC");
 
 static int intel_vsec_add_dev(struct pci_dev *pdev, struct intel_vsec_header *header,
 			      struct intel_vsec_platform_info *info)
@@ -340,7 +340,7 @@ void intel_vsec_register(struct pci_dev *pdev,
 
 	intel_vsec_walk_header(pdev, info);
 }
-EXPORT_SYMBOL_NS_GPL(intel_vsec_register, INTEL_VSEC);
+EXPORT_SYMBOL_NS_GPL(intel_vsec_register, "INTEL_VSEC");
 
 static int intel_vsec_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {

@@ -1066,7 +1066,7 @@ static struct platform_driver simpledrm_platform_driver = {
 		.of_match_table = simpledrm_of_match_table,
 	},
 	.probe = simpledrm_probe,
-	.remove_new = simpledrm_remove,
+	.remove = simpledrm_remove,
 };
 
 module_platform_driver(simpledrm_platform_driver);

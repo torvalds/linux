@@ -276,7 +276,7 @@ void sof_rt1011_dai_link(struct device *dev, struct snd_soc_dai_link *link)
 	link->init = rt1011_init;
 	link->ops = &rt1011_ops;
 }
-EXPORT_SYMBOL_NS(sof_rt1011_dai_link, SND_SOC_INTEL_SOF_REALTEK_COMMON);
+EXPORT_SYMBOL_NS(sof_rt1011_dai_link, "SND_SOC_INTEL_SOF_REALTEK_COMMON");
 
 void sof_rt1011_codec_conf(struct device *dev, struct snd_soc_card *card)
 {
@@ -306,7 +306,7 @@ void sof_rt1011_codec_conf(struct device *dev, struct snd_soc_card *card)
 	}
 
 }
-EXPORT_SYMBOL_NS(sof_rt1011_codec_conf, SND_SOC_INTEL_SOF_REALTEK_COMMON);
+EXPORT_SYMBOL_NS(sof_rt1011_codec_conf, "SND_SOC_INTEL_SOF_REALTEK_COMMON");
 
 /*
  * rt1015:  i2c mode driver for ALC1015 and ALC1015Q
@@ -374,12 +374,12 @@ void sof_rt1015p_dai_link(struct snd_soc_dai_link *link)
 	link->init = rt1015p_init;
 	link->ops = &rt1015p_ops;
 }
-EXPORT_SYMBOL_NS(sof_rt1015p_dai_link, SND_SOC_INTEL_SOF_REALTEK_COMMON);
+EXPORT_SYMBOL_NS(sof_rt1015p_dai_link, "SND_SOC_INTEL_SOF_REALTEK_COMMON");
 
 void sof_rt1015p_codec_conf(struct snd_soc_card *card)
 {
 }
-EXPORT_SYMBOL_NS(sof_rt1015p_codec_conf, SND_SOC_INTEL_SOF_REALTEK_COMMON);
+EXPORT_SYMBOL_NS(sof_rt1015p_codec_conf, "SND_SOC_INTEL_SOF_REALTEK_COMMON");
 
 /*
  * RT1015 audio amplifier
@@ -523,7 +523,7 @@ void sof_rt1015_codec_conf(struct snd_soc_card *card)
 	card->codec_conf = rt1015_amp_conf;
 	card->num_configs = ARRAY_SIZE(rt1015_amp_conf);
 }
-EXPORT_SYMBOL_NS(sof_rt1015_codec_conf, SND_SOC_INTEL_SOF_REALTEK_COMMON);
+EXPORT_SYMBOL_NS(sof_rt1015_codec_conf, "SND_SOC_INTEL_SOF_REALTEK_COMMON");
 
 void sof_rt1015_dai_link(struct snd_soc_dai_link *link)
 {
@@ -532,7 +532,7 @@ void sof_rt1015_dai_link(struct snd_soc_dai_link *link)
 	link->init = speaker_codec_init_lr;
 	link->ops = &rt1015_ops;
 }
-EXPORT_SYMBOL_NS(sof_rt1015_dai_link, SND_SOC_INTEL_SOF_REALTEK_COMMON);
+EXPORT_SYMBOL_NS(sof_rt1015_dai_link, "SND_SOC_INTEL_SOF_REALTEK_COMMON");
 
 /*
  * RT1308 audio amplifier
@@ -628,7 +628,7 @@ void sof_rt1308_dai_link(struct snd_soc_dai_link *link)
 	link->init = rt1308_init;
 	link->ops = &rt1308_ops;
 }
-EXPORT_SYMBOL_NS(sof_rt1308_dai_link, SND_SOC_INTEL_SOF_REALTEK_COMMON);
+EXPORT_SYMBOL_NS(sof_rt1308_dai_link, "SND_SOC_INTEL_SOF_REALTEK_COMMON");
 
 /*
  * 2-amp Configuration for RT1019
@@ -681,7 +681,7 @@ void sof_rt1019p_dai_link(struct snd_soc_dai_link *link)
 	link->num_codecs = ARRAY_SIZE(rt1019p_components);
 	link->init = rt1019p_init;
 }
-EXPORT_SYMBOL_NS(sof_rt1019p_dai_link, SND_SOC_INTEL_SOF_REALTEK_COMMON);
+EXPORT_SYMBOL_NS(sof_rt1019p_dai_link, "SND_SOC_INTEL_SOF_REALTEK_COMMON");
 
 MODULE_DESCRIPTION("ASoC Intel SOF Realtek helpers");
 MODULE_LICENSE("GPL");

@@ -54,7 +54,7 @@ int cdat_table_parse(enum acpi_cdat_type type,
 #define EXPORT_SYMBOL_FWTBL_LIB(x) EXPORT_SYMBOL_ACPI_LIB(x)
 #define __init_or_fwtbl_lib __init_or_acpilib
 #else
-#define EXPORT_SYMBOL_FWTBL_LIB(x) EXPORT_SYMBOL_NS_GPL(x, CXL)
+#define EXPORT_SYMBOL_FWTBL_LIB(x) EXPORT_SYMBOL_NS_GPL(x, "CXL")
 #define __init_or_fwtbl_lib
 #endif
 

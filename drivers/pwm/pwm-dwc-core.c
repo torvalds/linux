@@ -9,7 +9,7 @@
  * Author: Raymond Tan <raymond.tan@intel.com>
  */
 
-#define DEFAULT_SYMBOL_NAMESPACE dwc_pwm
+#define DEFAULT_SYMBOL_NAMESPACE "dwc_pwm"
 
 #include <linux/bitops.h>
 #include <linux/export.h>

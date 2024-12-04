@@ -322,7 +322,7 @@ int st_uvis25_probe(struct device *dev, int irq, struct regmap *regmap)
 
 	return devm_iio_device_register(dev, iio_dev);
 }
-EXPORT_SYMBOL_NS(st_uvis25_probe, IIO_UVIS25);
+EXPORT_SYMBOL_NS(st_uvis25_probe, "IIO_UVIS25");
 
 static int st_uvis25_suspend(struct device *dev)
 {

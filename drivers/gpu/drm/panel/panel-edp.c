@@ -2049,7 +2049,7 @@ static struct platform_driver panel_edp_platform_driver = {
 		.pm = &panel_edp_pm_ops,
 	},
 	.probe = panel_edp_platform_probe,
-	.remove_new = panel_edp_platform_remove,
+	.remove = panel_edp_platform_remove,
 	.shutdown = panel_edp_platform_shutdown,
 };
 

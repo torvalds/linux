@@ -334,7 +334,7 @@ static void efi_secret_remove(struct platform_device *dev)
 
 static struct platform_driver efi_secret_driver = {
 	.probe = efi_secret_probe,
-	.remove_new = efi_secret_remove,
+	.remove = efi_secret_remove,
 	.driver = {
 		.name = "efi_secret",
 	},

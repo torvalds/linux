@@ -332,7 +332,7 @@ static void __exit hsmp_plt_exit(void)
 device_initcall(hsmp_plt_init);
 module_exit(hsmp_plt_exit);
 
-MODULE_IMPORT_NS(AMD_HSMP);
+MODULE_IMPORT_NS("AMD_HSMP");
 MODULE_DESCRIPTION("AMD HSMP Platform Interface Driver");
 MODULE_VERSION(DRIVER_VERSION);
 MODULE_LICENSE("GPL");
