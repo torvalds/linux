@@ -140,7 +140,7 @@ static int rxrpc_wait_for_tx_window_waitall(struct rxrpc_sock *rx,
 		rtt = 2;
 
 	timeout = rtt;
-	tx_start = READ_ONCE(call->acks_hard_ack);
+	tx_start = READ_ONCE(call->tx_bottom);
 
 	for (;;) {
 		set_current_state(TASK_UNINTERRUPTIBLE);
@@ -197,8 +197,8 @@ static int rxrpc_wait_for_tx_window(struct rxrpc_sock *rx,
 	DECLARE_WAITQUEUE(myself, current);
 	int ret;
 
-	_enter(",{%u,%u,%u,%u}",
-	       call->tx_bottom, call->acks_hard_ack, call->tx_top, call->tx_winsize);
+	_enter(",{%u,%u,%u}",
+	       call->tx_bottom, call->tx_top, call->tx_winsize);
 
 	add_wait_queue(&call->waitq, &myself);
 

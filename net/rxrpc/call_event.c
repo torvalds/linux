@@ -109,7 +109,7 @@ void rxrpc_resend(struct rxrpc_call *call, struct sk_buff *ack_skb)
 	bool unacked = false, did_send = false;
 	unsigned int qix;
 
-	_enter("{%d,%d}", call->acks_hard_ack, call->tx_top);
+	_enter("{%d,%d}", call->tx_bottom, call->tx_top);
 
 	if (call->tx_bottom == call->tx_top)
 		goto no_resend;
@@ -267,7 +267,7 @@ static void rxrpc_close_tx_phase(struct rxrpc_call *call)
 static unsigned int rxrpc_tx_window_space(struct rxrpc_call *call)
 {
 	int winsize = umin(call->tx_winsize, call->cong_cwnd + call->cong_extra);
-	int in_flight = call->tx_top - call->acks_hard_ack;
+	int in_flight = call->tx_top - call->tx_bottom;
 
 	return max(winsize - in_flight, 0);
 }

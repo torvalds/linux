@@ -40,7 +40,7 @@ static void rxrpc_congestion_management(struct rxrpc_call *call,
 	bool resend = false;
 
 	summary->flight_size =
-		(call->tx_top - call->acks_hard_ack) - summary->nr_acks;
+		(call->tx_top - call->tx_bottom) - summary->nr_acks;
 
 	if (test_and_clear_bit(RXRPC_CALL_RETRANS_TIMEOUT, &call->flags)) {
 		summary->retrans_timeo = true;
@@ -175,7 +175,7 @@ send_extra_data:
 	 * state.
 	 */
 	if (test_bit(RXRPC_CALL_TX_LAST, &call->flags) ||
-	    summary->nr_acks != call->tx_top - call->acks_hard_ack) {
+	    summary->nr_acks != call->tx_top - call->tx_bottom) {
 		call->cong_extra++;
 		wake_up(&call->waitq);
 	}
@@ -218,7 +218,7 @@ static bool rxrpc_rotate_tx_window(struct rxrpc_call *call, rxrpc_seq_t to,
 	rxrpc_seq_t seq = call->tx_bottom + 1;
 	bool rot_last = false;
 
-	_enter("%x,%x,%x", call->tx_bottom, call->acks_hard_ack, to);
+	_enter("%x,%x", call->tx_bottom, to);
 
 	trace_rxrpc_tx_rotate(call, seq, to);
 	trace_rxrpc_tq(call, tq, seq, rxrpc_tq_rotate);
@@ -246,7 +246,6 @@ static bool rxrpc_rotate_tx_window(struct rxrpc_call *call, rxrpc_seq_t to,
 		tq->bufs[ix] = NULL;
 
 		WRITE_ONCE(call->tx_bottom, seq);
-		WRITE_ONCE(call->acks_hard_ack, seq);
 		trace_rxrpc_txqueue(call, (rot_last ?
 					   rxrpc_txqueue_rotate_last :
 					   rxrpc_txqueue_rotate));
@@ -278,9 +277,9 @@ static bool rxrpc_rotate_tx_window(struct rxrpc_call *call, rxrpc_seq_t to,
 		}
 	}
 
-	_debug("%x,%x,%x,%d", to, call->acks_hard_ack, call->tx_top, rot_last);
+	_debug("%x,%x,%x,%d", to, call->tx_bottom, call->tx_top, rot_last);
 
-	if (call->acks_lowest_nak == call->acks_hard_ack) {
+	if (call->acks_lowest_nak == call->tx_bottom) {
 		call->acks_lowest_nak = to;
 	} else if (after(to, call->acks_lowest_nak)) {
 		summary->new_low_nack = true;
@@ -968,7 +967,7 @@ static void rxrpc_input_ack(struct rxrpc_call *call, struct sk_buff *skb)
 	if (unlikely(summary.ack_reason == RXRPC_ACK_OUT_OF_SEQUENCE) &&
 	    first_soft_ack == 1 &&
 	    prev_pkt == 0 &&
-	    call->acks_hard_ack == 0 &&
+	    call->tx_bottom == 0 &&
 	    rxrpc_is_client_call(call)) {
 		rxrpc_set_call_completion(call, RXRPC_CALL_REMOTELY_ABORTED,
 					  0, -ENETRESET);
@@ -1033,13 +1032,13 @@ static void rxrpc_input_ack(struct rxrpc_call *call, struct sk_buff *skb)
 		goto send_response;
 	}
 
-	if (before(hard_ack, call->acks_hard_ack) ||
+	if (before(hard_ack, call->tx_bottom) ||
 	    after(hard_ack, call->tx_top))
 		return rxrpc_proto_abort(call, 0, rxrpc_eproto_ackr_outside_window);
 	if (nr_acks > call->tx_top - hard_ack)
 		return rxrpc_proto_abort(call, 0, rxrpc_eproto_ackr_sack_overflow);
 
-	if (after(hard_ack, call->acks_hard_ack)) {
+	if (after(hard_ack, call->tx_bottom)) {
 		if (rxrpc_rotate_tx_window(call, hard_ack, &summary)) {
 			rxrpc_end_tx_phase(call, false, rxrpc_eproto_unexpected_ack);
 			goto send_response;
