@@ -95,8 +95,7 @@ static __always_inline bool __preempt_count_dec_and_test(void)
  */
 static __always_inline bool should_resched(int preempt_offset)
 {
-	return unlikely(READ_ONCE(get_lowcore()->preempt_count) ==
-			preempt_offset);
+	return unlikely(READ_ONCE(get_lowcore()->preempt_count) == preempt_offset);
 }
 
 #define init_task_preempt_count(p)	do { } while (0)
