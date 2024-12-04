@@ -2807,13 +2807,16 @@ static int lan78xx_vlan_rx_kill_vid(struct net_device *netdev,
 	return 0;
 }
 
-static void lan78xx_init_ltm(struct lan78xx_net *dev)
+static int lan78xx_init_ltm(struct lan78xx_net *dev)
 {
+	u32 regs[6] = { 0 };
 	int ret;
 	u32 buf;
-	u32 regs[6] = { 0 };
 
 	ret = lan78xx_read_reg(dev, USB_CFG1, &buf);
+	if (ret < 0)
+		goto init_ltm_failed;
+
 	if (buf & USB_CFG1_LTM_ENABLE_) {
 		u8 temp[2];
 		/* Get values from EEPROM first */
@@ -2824,7 +2827,7 @@ static void lan78xx_init_ltm(struct lan78xx_net *dev)
 							      24,
 							      (u8 *)regs);
 				if (ret < 0)
-					return;
+					return ret;
 			}
 		} else if (lan78xx_read_otp(dev, 0x3F, 2, temp) == 0) {
 			if (temp[0] == 24) {
@@ -2833,17 +2836,40 @@ static void lan78xx_init_ltm(struct lan78xx_net *dev)
 							   24,
 							   (u8 *)regs);
 				if (ret < 0)
-					return;
+					return ret;
 			}
 		}
 	}
 
-	lan78xx_write_reg(dev, LTM_BELT_IDLE0, regs[0]);
-	lan78xx_write_reg(dev, LTM_BELT_IDLE1, regs[1]);
-	lan78xx_write_reg(dev, LTM_BELT_ACT0, regs[2]);
-	lan78xx_write_reg(dev, LTM_BELT_ACT1, regs[3]);
-	lan78xx_write_reg(dev, LTM_INACTIVE0, regs[4]);
-	lan78xx_write_reg(dev, LTM_INACTIVE1, regs[5]);
+	ret = lan78xx_write_reg(dev, LTM_BELT_IDLE0, regs[0]);
+	if (ret < 0)
+		goto init_ltm_failed;
+
+	ret = lan78xx_write_reg(dev, LTM_BELT_IDLE1, regs[1]);
+	if (ret < 0)
+		goto init_ltm_failed;
+
+	ret = lan78xx_write_reg(dev, LTM_BELT_ACT0, regs[2]);
+	if (ret < 0)
+		goto init_ltm_failed;
+
+	ret = lan78xx_write_reg(dev, LTM_BELT_ACT1, regs[3]);
+	if (ret < 0)
+		goto init_ltm_failed;
+
+	ret = lan78xx_write_reg(dev, LTM_INACTIVE0, regs[4]);
+	if (ret < 0)
+		goto init_ltm_failed;
+
+	ret = lan78xx_write_reg(dev, LTM_INACTIVE1, regs[5]);
+	if (ret < 0)
+		goto init_ltm_failed;
+
+	return 0;
+
+init_ltm_failed:
+	netdev_err(dev->net, "Failed to init LTM with error %pe\n", ERR_PTR(ret));
+	return ret;
 }
 
 static int lan78xx_urb_config_init(struct lan78xx_net *dev)
@@ -2939,7 +2965,9 @@ static int lan78xx_reset(struct lan78xx_net *dev)
 		return ret;
 
 	/* Init LTM */
-	lan78xx_init_ltm(dev);
+	ret = lan78xx_init_ltm(dev);
+	if (ret < 0)
+		return ret;
 
 	ret = lan78xx_write_reg(dev, BURST_CAP, dev->burst_cap);
 	if (ret < 0)
