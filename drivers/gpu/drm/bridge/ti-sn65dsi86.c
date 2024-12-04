@@ -1971,8 +1971,8 @@ static int ti_sn65dsi86_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id ti_sn65dsi86_id[] = {
-	{ "ti,sn65dsi86", 0},
-	{},
+	{ "ti,sn65dsi86" },
+	{}
 };
 MODULE_DEVICE_TABLE(i2c, ti_sn65dsi86_id);
 
