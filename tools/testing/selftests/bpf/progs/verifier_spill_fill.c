@@ -1244,4 +1244,22 @@ __naked void old_stack_misc_vs_cur_ctx_ptr(void)
 	: __clobber_all);
 }
 
+SEC("socket")
+__description("stack_noperfmon: reject read of invalid slots")
+__success
+__caps_unpriv(CAP_BPF)
+__failure_unpriv __msg_unpriv("invalid read from stack off -8+1 size 8")
+__naked void stack_noperfmon_reject_invalid_read(void)
+{
+	asm volatile ("					\
+	r2 = 1;						\
+	r6 = r10;					\
+	r6 += -8;					\
+	*(u8 *)(r6 + 0) = r2;				\
+	r2 = *(u64 *)(r6 + 0);				\
+	r0 = 0;						\
+	exit;						\
+"	::: __clobber_all);
+}
+
 char _license[] SEC("license") = "GPL";
