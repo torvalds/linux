@@ -80,8 +80,7 @@
 				ASIZE_MAX)
 
 /**
- * struct aemif_cs_data: structure to hold cs parameters
- * @cs: chip-select number
+ * struct aemif_cs_timings: structure to hold CS timings
  * @wstrobe: write strobe width, number of cycles - 1
  * @rstrobe: read strobe width, number of cycles - 1
  * @wsetup: write setup width, number of cycles - 1
@@ -89,12 +88,8 @@
  * @rsetup: read setup width, number of cycles - 1
  * @rhold: read hold width, number of cycles - 1
  * @ta: minimum turn around time, number of cycles - 1
- * @enable_ss: enable/disable select strobe mode
- * @enable_ew: enable/disable extended wait mode
- * @asize: width of the asynchronous device's data bus
  */
-struct aemif_cs_data {
-	u8	cs;
+struct aemif_cs_timings {
 	u32	wstrobe;
 	u32	rstrobe;
 	u32	wsetup;
@@ -102,6 +97,19 @@ struct aemif_cs_data {
 	u32	rsetup;
 	u32	rhold;
 	u32	ta;
+};
+
+/**
+ * struct aemif_cs_data: structure to hold CS parameters
+ * @timings: timings configuration
+ * @cs: chip-select number
+ * @enable_ss: enable/disable select strobe mode
+ * @enable_ew: enable/disable extended wait mode
+ * @asize: width of the asynchronous device's data bus
+ */
+struct aemif_cs_data {
+	struct aemif_cs_timings timings;
+	u8	cs;
 	u8	enable_ss;
 	u8	enable_ew;
 	u8	asize;
@@ -179,9 +187,10 @@ static int aemif_config_abus(struct platform_device *pdev, int csnum)
 
 	offset = A1CR_OFFSET + (data->cs - aemif->cs_offset) * 4;
 
-	set = TA(data->ta) |
-		RHOLD(data->rhold) | RSTROBE(data->rstrobe) | RSETUP(data->rsetup) |
-		WHOLD(data->whold) | WSTROBE(data->wstrobe) | WSETUP(data->wsetup);
+	set = TA(data->timings.ta) |
+		RHOLD(data->timings.rhold) | RSTROBE(data->timings.rstrobe) |
+		RSETUP(data->timings.rsetup) | WHOLD(data->timings.whold) |
+		WSTROBE(data->timings.wstrobe) | WSETUP(data->timings.wsetup);
 
 	set |= (data->asize & ACR_ASIZE_MASK);
 	if (data->enable_ew)
@@ -215,13 +224,13 @@ static void aemif_get_hw_params(struct platform_device *pdev, int csnum)
 	offset = A1CR_OFFSET + (data->cs - aemif->cs_offset) * 4;
 	val = readl(aemif->base + offset);
 
-	data->ta = TA_VAL(val);
-	data->rhold = RHOLD_VAL(val);
-	data->rstrobe = RSTROBE_VAL(val);
-	data->rsetup = RSETUP_VAL(val);
-	data->whold = WHOLD_VAL(val);
-	data->wstrobe = WSTROBE_VAL(val);
-	data->wsetup = WSETUP_VAL(val);
+	data->timings.ta = TA_VAL(val);
+	data->timings.rhold = RHOLD_VAL(val);
+	data->timings.rstrobe = RSTROBE_VAL(val);
+	data->timings.rsetup = RSETUP_VAL(val);
+	data->timings.whold = WHOLD_VAL(val);
+	data->timings.wstrobe = WSTROBE_VAL(val);
+	data->timings.wsetup = WSETUP_VAL(val);
 	data->enable_ew = EW_VAL(val);
 	data->enable_ss = SSTROBE_VAL(val);
 	data->asize = val & ASIZE_MAX;
@@ -272,7 +281,7 @@ static int of_aemif_parse_abus_config(struct platform_device *pdev,
 		if (ret < 0)
 			return ret;
 
-		data->ta = ret;
+		data->timings.ta = ret;
 	}
 
 	if (!of_property_read_u32(np, "ti,cs-read-hold-ns", &val)) {
@@ -280,7 +289,7 @@ static int of_aemif_parse_abus_config(struct platform_device *pdev,
 		if (ret < 0)
 			return ret;
 
-		data->rhold = ret;
+		data->timings.rhold = ret;
 	}
 
 	if (!of_property_read_u32(np, "ti,cs-read-strobe-ns", &val)) {
@@ -288,7 +297,7 @@ static int of_aemif_parse_abus_config(struct platform_device *pdev,
 		if (ret < 0)
 			return ret;
 
-		data->rstrobe = ret;
+		data->timings.rstrobe = ret;
 	}
 
 	if (!of_property_read_u32(np, "ti,cs-read-setup-ns", &val)) {
@@ -296,7 +305,7 @@ static int of_aemif_parse_abus_config(struct platform_device *pdev,
 		if (ret < 0)
 			return ret;
 
-		data->rsetup = ret;
+		data->timings.rsetup = ret;
 	}
 
 	if (!of_property_read_u32(np, "ti,cs-write-hold-ns", &val)) {
@@ -304,7 +313,7 @@ static int of_aemif_parse_abus_config(struct platform_device *pdev,
 		if (ret < 0)
 			return ret;
 
-		data->whold = ret;
+		data->timings.whold = ret;
 	}
 
 	if (!of_property_read_u32(np, "ti,cs-write-strobe-ns", &val)) {
@@ -312,7 +321,7 @@ static int of_aemif_parse_abus_config(struct platform_device *pdev,
 		if (ret < 0)
 			return ret;
 
-		data->wstrobe = ret;
+		data->timings.wstrobe = ret;
 	}
 
 	if (!of_property_read_u32(np, "ti,cs-write-setup-ns", &val)) {
@@ -320,7 +329,7 @@ static int of_aemif_parse_abus_config(struct platform_device *pdev,
 		if (ret < 0)
 			return ret;
 
-		data->wsetup = ret;
+		data->timings.wsetup = ret;
 	}
 
 	if (!of_property_read_u32(np, "ti,cs-bus-width", &val))
