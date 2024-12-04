@@ -296,9 +296,6 @@ static int shmem_set_epp(struct amd_cpudata *cpudata, u32 epp)
 	int ret;
 	struct cppc_perf_ctrls perf_ctrls;
 
-	amd_pstate_update_perf(cpudata, cpudata->min_limit_perf, 0U,
-				     cpudata->max_limit_perf, false);
-
 	perf_ctrls.energy_perf = epp;
 	ret = cppc_set_epp_perf(cpudata->cpu, &perf_ctrls, 1);
 	if (ret) {
@@ -1600,6 +1597,10 @@ static int amd_pstate_epp_update_limit(struct cpufreq_policy *policy)
 		epp = 0;
 
 	WRITE_ONCE(cpudata->cppc_req_cached, value);
+
+	amd_pstate_update_perf(cpudata, cpudata->min_limit_perf, 0U,
+			       cpudata->max_limit_perf, false);
+
 	return amd_pstate_set_epp(cpudata, epp);
 }
 
