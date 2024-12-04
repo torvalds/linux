@@ -914,7 +914,7 @@ static void device_resume(struct device *dev, pm_message_t state, bool async)
 		goto Complete;
 
 	if (dev->power.direct_complete) {
-		/* Match the pm_runtime_disable() in __device_suspend(). */
+		/* Match the pm_runtime_disable() in device_suspend(). */
 		pm_runtime_enable(dev);
 		goto Complete;
 	}
