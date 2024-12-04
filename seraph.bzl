@@ -10,7 +10,9 @@ def define_seraph():
         # TODO: Need to add GKI modules
         "drivers/clk/qcom/clk-dummy.ko",
         "drivers/clk/qcom/clk-qcom.ko",
+        "drivers/clk/qcom/gcc-seraph.ko",
         "drivers/clk/qcom/gdsc-regulator.ko",
+        "drivers/clk/qcom/tcsrcc-seraph.ko",
         "drivers/dma-buf/heaps/qcom_dma_heaps.ko",
         "drivers/firmware/qcom-scm.ko",
         "drivers/hwspinlock/qcom_hwspinlock.ko",
