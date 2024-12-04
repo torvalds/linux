@@ -103,7 +103,8 @@ void rxrpc_resend(struct rxrpc_call *call, rxrpc_serial_t ack_serial, bool ping_
 		.now	= ktime_get_real(),
 	};
 	struct rxrpc_txqueue *tq = call->tx_queue;
-	ktime_t lowest_xmit_ts = KTIME_MAX, rto	= ns_to_ktime(call->peer->rto_us * NSEC_PER_USEC);
+	ktime_t lowest_xmit_ts = KTIME_MAX;
+	ktime_t rto = rxrpc_get_rto_backoff(call->peer, false);
 	bool unacked = false;
 
 	_enter("{%d,%d}", call->tx_bottom, call->tx_top);
