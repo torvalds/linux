@@ -473,7 +473,6 @@ struct lan78xx_net {
 };
 
 /* define external phy id */
-#define	PHY_LAN8835			(0x0007C130)
 #define	PHY_KSZ9031RNX			(0x00221620)
 
 /* use ethtool to change the level for any given device */
@@ -2234,29 +2233,6 @@ static void lan78xx_remove_irq_domain(struct lan78xx_net *dev)
 	dev->domain_data.irqdomain = NULL;
 }
 
-static int lan8835_fixup(struct phy_device *phydev)
-{
-	int buf;
-	struct lan78xx_net *dev = netdev_priv(phydev->attached_dev);
-
-	/* LED2/PME_N/IRQ_N/RGMII_ID pin to IRQ_N mode */
-	buf = phy_read_mmd(phydev, MDIO_MMD_PCS, 0x8010);
-	buf &= ~0x1800;
-	buf |= 0x0800;
-	phy_write_mmd(phydev, MDIO_MMD_PCS, 0x8010, buf);
-
-	/* RGMII MAC TXC Delay Enable */
-	lan78xx_write_reg(dev, MAC_RGMII_ID,
-			  MAC_RGMII_ID_TXC_DELAY_EN_);
-
-	/* RGMII TX DLL Tune Adjust */
-	lan78xx_write_reg(dev, RGMII_TX_BYP_DLL, 0x3D00);
-
-	dev->interface = PHY_INTERFACE_MODE_RGMII_TXID;
-
-	return 1;
-}
-
 static int ksz9031rnx_fixup(struct phy_device *phydev)
 {
 	struct lan78xx_net *dev = netdev_priv(phydev->attached_dev);
@@ -2315,14 +2291,6 @@ static struct phy_device *lan7801_phy_init(struct lan78xx_net *dev)
 			netdev_err(dev->net, "Failed to register fixup for PHY_KSZ9031RNX\n");
 			return NULL;
 		}
-		/* external PHY fixup for LAN8835 */
-		ret = phy_register_fixup_for_uid(PHY_LAN8835, 0xfffffff0,
-						 lan8835_fixup);
-		if (ret < 0) {
-			netdev_err(dev->net, "Failed to register fixup for PHY_LAN8835\n");
-			return NULL;
-		}
-		/* add more external PHY fixup here if needed */
 
 		phydev->is_internal = false;
 	}
@@ -2383,8 +2351,6 @@ static int lan78xx_phy_init(struct lan78xx_net *dev)
 				phy_device_free(phydev);
 			} else {
 				phy_unregister_fixup_for_uid(PHY_KSZ9031RNX,
-							     0xfffffff0);
-				phy_unregister_fixup_for_uid(PHY_LAN8835,
 							     0xfffffff0);
 			}
 		}
@@ -4243,7 +4209,6 @@ static void lan78xx_disconnect(struct usb_interface *intf)
 	phydev = net->phydev;
 
 	phy_unregister_fixup_for_uid(PHY_KSZ9031RNX, 0xfffffff0);
-	phy_unregister_fixup_for_uid(PHY_LAN8835, 0xfffffff0);
 
 	phy_disconnect(net->phydev);
 
