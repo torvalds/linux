@@ -11,49 +11,49 @@
 #include <linux/limits.h>
 #include <asm/march.h>
 
-static __always_inline int __atomic_read(const atomic_t *v)
+static __always_inline int __atomic_read(const int *ptr)
 {
-	int c;
+	int val;
 
 	asm volatile(
-		"	l	%[c],%[counter]\n"
-		: [c] "=d" (c) : [counter] "R" (v->counter));
-	return c;
+		"	l	%[val],%[ptr]\n"
+		: [val] "=d" (val) : [ptr] "R" (*ptr));
+	return val;
 }
 
-static __always_inline void __atomic_set(atomic_t *v, int i)
+static __always_inline void __atomic_set(int *ptr, int val)
 {
-	if (__builtin_constant_p(i) && i >= S16_MIN && i <= S16_MAX) {
+	if (__builtin_constant_p(val) && val >= S16_MIN && val <= S16_MAX) {
 		asm volatile(
-			"	mvhi	%[counter], %[i]\n"
-			: [counter] "=Q" (v->counter) : [i] "K" (i));
+			"	mvhi	%[ptr],%[val]\n"
+			: [ptr] "=Q" (*ptr) : [val] "K" (val));
 	} else {
 		asm volatile(
-			"	st	%[i],%[counter]\n"
-			: [counter] "=R" (v->counter) : [i] "d" (i));
+			"	st	%[val],%[ptr]\n"
+			: [ptr] "=R" (*ptr) : [val] "d" (val));
 	}
 }
 
-static __always_inline s64 __atomic64_read(const atomic64_t *v)
+static __always_inline long __atomic64_read(const long *ptr)
 {
-	s64 c;
+	long val;
 
 	asm volatile(
-		"	lg	%[c],%[counter]\n"
-		: [c] "=d" (c) : [counter] "RT" (v->counter));
-	return c;
+		"	lg	%[val],%[ptr]\n"
+		: [val] "=d" (val) : [ptr] "RT" (*ptr));
+	return val;
 }
 
-static __always_inline void __atomic64_set(atomic64_t *v, s64 i)
+static __always_inline void __atomic64_set(long *ptr, long val)
 {
-	if (__builtin_constant_p(i) && i >= S16_MIN && i <= S16_MAX) {
+	if (__builtin_constant_p(val) && val >= S16_MIN && val <= S16_MAX) {
 		asm volatile(
-			"	mvghi	%[counter], %[i]\n"
-			: [counter] "=Q" (v->counter) : [i] "K" (i));
+			"	mvghi	%[ptr],%[val]\n"
+			: [ptr] "=Q" (*ptr) : [val] "K" (val));
 	} else {
 		asm volatile(
-			"	stg	%[i],%[counter]\n"
-			: [counter] "=RT" (v->counter) : [i] "d" (i));
+			"	stg	%[val],%[ptr]\n"
+			: [ptr] "=RT" (*ptr) : [val] "d" (val));
 	}
 }
 

@@ -17,13 +17,13 @@
 
 static __always_inline int arch_atomic_read(const atomic_t *v)
 {
-	return __atomic_read(v);
+	return __atomic_read(&v->counter);
 }
 #define arch_atomic_read arch_atomic_read
 
 static __always_inline void arch_atomic_set(atomic_t *v, int i)
 {
-	__atomic_set(v, i);
+	__atomic_set(&v->counter, i);
 }
 #define arch_atomic_set arch_atomic_set
 
@@ -106,13 +106,13 @@ static __always_inline bool arch_atomic_try_cmpxchg(atomic_t *v, int *old, int n
 
 static __always_inline s64 arch_atomic64_read(const atomic64_t *v)
 {
-	return __atomic64_read(v);
+	return __atomic64_read((long *)&v->counter);
 }
 #define arch_atomic64_read arch_atomic64_read
 
 static __always_inline void arch_atomic64_set(atomic64_t *v, s64 i)
 {
-	__atomic64_set(v, i);
+	__atomic64_set((long *)&v->counter, i);
 }
 #define arch_atomic64_set arch_atomic64_set
 
