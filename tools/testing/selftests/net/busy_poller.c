@@ -54,16 +54,16 @@ struct epoll_params {
 #define EPIOCGPARAMS _IOR(EPOLL_IOC_TYPE, 0x02, struct epoll_params)
 #endif
 
-static uint32_t cfg_port = 8000;
+static uint16_t cfg_port = 8000;
 static struct in_addr cfg_bind_addr = { .s_addr = INADDR_ANY };
 static char *cfg_outfile;
 static int cfg_max_events = 8;
-static int cfg_ifindex;
+static uint32_t cfg_ifindex;
 
 /* busy poll params */
 static uint32_t cfg_busy_poll_usecs;
-static uint32_t cfg_busy_poll_budget;
-static uint32_t cfg_prefer_busy_poll;
+static uint16_t cfg_busy_poll_budget;
+static uint8_t cfg_prefer_busy_poll;
 
 /* IRQ params */
 static uint32_t cfg_defer_hard_irqs;
@@ -79,6 +79,7 @@ static void usage(const char *filepath)
 
 static void parse_opts(int argc, char **argv)
 {
+	unsigned long long tmp;
 	int ret;
 	int c;
 
@@ -86,31 +87,40 @@ static void parse_opts(int argc, char **argv)
 		usage(argv[0]);
 
 	while ((c = getopt(argc, argv, "p:m:b:u:P:g:o:d:r:s:i:")) != -1) {
+		/* most options take integer values, except o and b, so reduce
+		 * code duplication a bit for the common case by calling
+		 * strtoull here and leave bounds checking and casting per
+		 * option below.
+		 */
+		if (c != 'o' && c != 'b')
+			tmp = strtoull(optarg, NULL, 0);
+
 		switch (c) {
 		case 'u':
-			cfg_busy_poll_usecs = strtoul(optarg, NULL, 0);
-			if (cfg_busy_poll_usecs == ULONG_MAX ||
-			    cfg_busy_poll_usecs > UINT32_MAX)
+			if (tmp == ULLONG_MAX || tmp > UINT32_MAX)
 				error(1, ERANGE, "busy_poll_usecs too large");
+
+			cfg_busy_poll_usecs = (uint32_t)tmp;
 			break;
 		case 'P':
-			cfg_prefer_busy_poll = strtoul(optarg, NULL, 0);
-			if (cfg_prefer_busy_poll == ULONG_MAX ||
-			    cfg_prefer_busy_poll > 1)
+			if (tmp == ULLONG_MAX || tmp > 1)
 				error(1, ERANGE,
 				      "prefer busy poll should be 0 or 1");
+
+			cfg_prefer_busy_poll = (uint8_t)tmp;
 			break;
 		case 'g':
-			cfg_busy_poll_budget = strtoul(optarg, NULL, 0);
-			if (cfg_busy_poll_budget == ULONG_MAX ||
-			    cfg_busy_poll_budget > UINT16_MAX)
+			if (tmp == ULLONG_MAX || tmp > UINT16_MAX)
 				error(1, ERANGE,
 				      "busy poll budget must be [0, UINT16_MAX]");
+
+			cfg_busy_poll_budget = (uint16_t)tmp;
 			break;
 		case 'p':
-			cfg_port = strtoul(optarg, NULL, 0);
-			if (cfg_port > UINT16_MAX)
+			if (tmp == ULLONG_MAX || tmp > UINT16_MAX)
 				error(1, ERANGE, "port must be <= 65535");
+
+			cfg_port = (uint16_t)tmp;
 			break;
 		case 'b':
 			ret = inet_aton(optarg, &cfg_bind_addr);
@@ -124,41 +134,39 @@ static void parse_opts(int argc, char **argv)
 				error(1, 0, "outfile invalid");
 			break;
 		case 'm':
-			cfg_max_events = strtol(optarg, NULL, 0);
-
-			if (cfg_max_events == LONG_MIN ||
-			    cfg_max_events == LONG_MAX ||
-			    cfg_max_events <= 0)
+			if (tmp == ULLONG_MAX || tmp > INT_MAX)
 				error(1, ERANGE,
-				      "max events must be > 0 and < LONG_MAX");
+				      "max events must be > 0 and <= INT_MAX");
+
+			cfg_max_events = (int)tmp;
 			break;
 		case 'd':
-			cfg_defer_hard_irqs = strtoul(optarg, NULL, 0);
-
-			if (cfg_defer_hard_irqs == ULONG_MAX ||
-			    cfg_defer_hard_irqs > INT32_MAX)
+			if (tmp == ULLONG_MAX || tmp > INT32_MAX)
 				error(1, ERANGE,
 				      "defer_hard_irqs must be <= INT32_MAX");
+
+			cfg_defer_hard_irqs = (uint32_t)tmp;
 			break;
 		case 'r':
-			cfg_gro_flush_timeout = strtoull(optarg, NULL, 0);
-
-			if (cfg_gro_flush_timeout == ULLONG_MAX)
+			if (tmp == ULLONG_MAX || tmp > UINT64_MAX)
 				error(1, ERANGE,
-				      "gro_flush_timeout must be < ULLONG_MAX");
+				      "gro_flush_timeout must be < UINT64_MAX");
+
+			cfg_gro_flush_timeout = (uint64_t)tmp;
 			break;
 		case 's':
-			cfg_irq_suspend_timeout = strtoull(optarg, NULL, 0);
-
-			if (cfg_irq_suspend_timeout == ULLONG_MAX)
+			if (tmp == ULLONG_MAX || tmp > UINT64_MAX)
 				error(1, ERANGE,
 				      "irq_suspend_timeout must be < ULLONG_MAX");
+
+			cfg_irq_suspend_timeout = (uint64_t)tmp;
 			break;
 		case 'i':
-			cfg_ifindex = strtoul(optarg, NULL, 0);
-			if (cfg_ifindex == ULONG_MAX)
+			if (tmp == ULLONG_MAX || tmp > INT_MAX)
 				error(1, ERANGE,
-				      "ifindex must be < ULONG_MAX");
+				      "ifindex must be <= INT_MAX");
+
+			cfg_ifindex = (int)tmp;
 			break;
 		}
 	}
@@ -215,7 +223,7 @@ static void setup_queue(void)
 	struct netdev_napi_set_req *set_req = NULL;
 	struct ynl_sock *ys;
 	struct ynl_error yerr;
-	uint32_t napi_id;
+	uint32_t napi_id = 0;
 
 	ys = ynl_sock_create(&ynl_netdev_family, &yerr);
 	if (!ys)
@@ -277,8 +285,8 @@ static void run_poller(void)
 	 * here
 	 */
 	epoll_params.busy_poll_usecs = cfg_busy_poll_usecs;
-	epoll_params.busy_poll_budget = (uint16_t)cfg_busy_poll_budget;
-	epoll_params.prefer_busy_poll = (uint8_t)cfg_prefer_busy_poll;
+	epoll_params.busy_poll_budget = cfg_busy_poll_budget;
+	epoll_params.prefer_busy_poll = cfg_prefer_busy_poll;
 	epoll_params.__pad = 0;
 
 	val = 1;
@@ -342,5 +350,9 @@ int main(int argc, char *argv[])
 	parse_opts(argc, argv);
 	setup_queue();
 	run_poller();
+
+	if (cfg_outfile)
+		free(cfg_outfile);
+
 	return 0;
 }
