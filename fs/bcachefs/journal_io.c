@@ -1420,6 +1420,35 @@ fsck_err:
 
 /* journal write: */
 
+static void journal_advance_devs_to_next_bucket(struct journal *j,
+						struct dev_alloc_list *devs,
+						unsigned sectors, u64 seq)
+{
+	struct bch_fs *c = container_of(j, struct bch_fs, journal);
+
+	darray_for_each(*devs, i) {
+		struct bch_dev *ca = rcu_dereference(c->devs[*i]);
+		if (!ca)
+			continue;
+
+		struct journal_device *ja = &ca->journal;
+
+		if (sectors > ja->sectors_free &&
+		    sectors <= ca->mi.bucket_size &&
+		    bch2_journal_dev_buckets_available(j, ja,
+					journal_space_discarded)) {
+			ja->cur_idx = (ja->cur_idx + 1) % ja->nr;
+			ja->sectors_free = ca->mi.bucket_size;
+
+			/*
+			 * ja->bucket_seq[ja->cur_idx] must always have
+			 * something sensible:
+			 */
+			ja->bucket_seq[ja->cur_idx] = le64_to_cpu(seq);
+		}
+	}
+}
+
 static void __journal_write_alloc(struct journal *j,
 				  struct journal_buf *w,
 				  struct dev_alloc_list *devs,
@@ -1428,9 +1457,6 @@ static void __journal_write_alloc(struct journal *j,
 				  unsigned replicas_want)
 {
 	struct bch_fs *c = container_of(j, struct bch_fs, journal);
-
-	if (*replicas >= replicas_want)
-		return;
 
 	darray_for_each(*devs, i) {
 		struct bch_dev *ca = rcu_dereference(c->devs[*i]);
@@ -1491,6 +1517,7 @@ static int journal_write_alloc(struct journal *j, struct journal_buf *w)
 		READ_ONCE(c->opts.metadata_replicas);
 	unsigned replicas_need = min_t(unsigned, replicas_want,
 				       READ_ONCE(c->opts.metadata_replicas_required));
+	bool advance_done = false;
 
 	rcu_read_lock();
 
@@ -1502,45 +1529,26 @@ static int journal_write_alloc(struct journal *j, struct journal_buf *w)
 			replicas += ca->mi.durability;
 	}
 
-retry:
+retry_target:
 	devs = target_rw_devs(c, BCH_DATA_journal, target);
-
 	devs_sorted = bch2_dev_alloc_list(c, &j->wp.stripe, &devs);
-
+retry_alloc:
 	__journal_write_alloc(j, w, &devs_sorted, sectors, &replicas, replicas_want);
 
-	if (replicas >= replicas_want)
+	if (likely(replicas >= replicas_want))
 		goto done;
 
-	darray_for_each(devs_sorted, i) {
-		struct bch_dev *ca = rcu_dereference(c->devs[*i]);
-		if (!ca)
-			continue;
-
-		struct journal_device *ja = &ca->journal;
-
-		if (sectors > ja->sectors_free &&
-		    sectors <= ca->mi.bucket_size &&
-		    bch2_journal_dev_buckets_available(j, ja,
-					journal_space_discarded)) {
-			ja->cur_idx = (ja->cur_idx + 1) % ja->nr;
-			ja->sectors_free = ca->mi.bucket_size;
-
-			/*
-			 * ja->bucket_seq[ja->cur_idx] must always have
-			 * something sensible:
-			 */
-			ja->bucket_seq[ja->cur_idx] = le64_to_cpu(w->data->seq);
-		}
+	if (!advance_done) {
+		journal_advance_devs_to_next_bucket(j, &devs_sorted, sectors, w->data->seq);
+		advance_done = true;
+		goto retry_alloc;
 	}
-
-	__journal_write_alloc(j, w, &devs_sorted,
-			      sectors, &replicas, replicas_want);
 
 	if (replicas < replicas_want && target) {
 		/* Retry from all devices: */
 		target = 0;
-		goto retry;
+		advance_done = false;
+		goto retry_target;
 	}
 done:
 	rcu_read_unlock();
