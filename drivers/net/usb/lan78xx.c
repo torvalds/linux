@@ -2136,12 +2136,16 @@ static int lan78xx_mdiobus_read(struct mii_bus *bus, int phy_id, int idx)
 	/* set the address, index & direction (read from PHY) */
 	addr = mii_access(phy_id, idx, MII_READ);
 	ret = lan78xx_write_reg(dev, MII_ACC, addr);
+	if (ret < 0)
+		goto done;
 
 	ret = lan78xx_phy_wait_not_busy(dev);
 	if (ret < 0)
 		goto done;
 
 	ret = lan78xx_read_reg(dev, MII_DATA, &val);
+	if (ret < 0)
+		goto done;
 
 	ret = (int)(val & 0xFFFF);
 
@@ -2172,10 +2176,14 @@ static int lan78xx_mdiobus_write(struct mii_bus *bus, int phy_id, int idx,
 
 	val = (u32)regval;
 	ret = lan78xx_write_reg(dev, MII_DATA, val);
+	if (ret < 0)
+		goto done;
 
 	/* set the address, index & direction (write to PHY) */
 	addr = mii_access(phy_id, idx, MII_WRITE);
 	ret = lan78xx_write_reg(dev, MII_ACC, addr);
+	if (ret < 0)
+		goto done;
 
 	ret = lan78xx_phy_wait_not_busy(dev);
 	if (ret < 0)
@@ -2184,7 +2192,7 @@ static int lan78xx_mdiobus_write(struct mii_bus *bus, int phy_id, int idx,
 done:
 	mutex_unlock(&dev->phy_mutex);
 	usb_autopm_put_interface(dev->intf);
-	return 0;
+	return ret;
 }
 
 static int lan78xx_mdio_init(struct lan78xx_net *dev)
