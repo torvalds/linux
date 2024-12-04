@@ -2043,7 +2043,8 @@ static enum dc_status enable_link_dp(struct dc_state *state,
 	/* Train with fallback when enabling DPIA link. Conventional links are
 	 * trained with fallback during sink detection.
 	 */
-	if (link->ep_type == DISPLAY_ENDPOINT_USB4_DPIA)
+	if (link->ep_type == DISPLAY_ENDPOINT_USB4_DPIA &&
+			!link->dc->config.enable_dpia_pre_training)
 		do_fallback = true;
 
 	/*

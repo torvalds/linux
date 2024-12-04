@@ -410,7 +410,8 @@ bool dp_handle_hpd_rx_irq(struct dc_link *link,
 
 	if (hpd_irq_dpcd_data.bytes.device_service_irq.bits.AUTOMATED_TEST) {
 		// Workaround for DP 1.4a LL Compliance CTS as USB4 has to share encoders unlike DP and USBC
-		if (link->ep_type == DISPLAY_ENDPOINT_USB4_DPIA)
+		if (link->ep_type == DISPLAY_ENDPOINT_USB4_DPIA &&
+				!link->dc->config.enable_dpia_pre_training)
 			link->skip_fallback_on_link_loss = true;
 
 		device_service_clear.bits.AUTOMATED_TEST = 1;

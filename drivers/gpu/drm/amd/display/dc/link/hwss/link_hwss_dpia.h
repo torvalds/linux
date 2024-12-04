@@ -27,6 +27,9 @@
 
 #include "link_hwss.h"
 
+#define DIG_SST_MODE    0
+#define DIG_MST_MODE    5
+
 const struct link_hwss *get_dpia_link_hwss(void);
 bool can_use_dpia_link_hwss(const struct dc_link *link,
 		const struct link_resource *link_res);
