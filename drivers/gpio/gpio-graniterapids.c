@@ -39,6 +39,7 @@
 
 #define GNR_CFG_DW_HOSTSW_MODE	BIT(27)
 #define GNR_CFG_DW_RX_MASK	GENMASK(23, 22)
+#define GNR_CFG_DW_INTSEL_MASK	GENMASK(21, 14)
 #define GNR_CFG_DW_RX_DISABLE	FIELD_PREP(GNR_CFG_DW_RX_MASK, 2)
 #define GNR_CFG_DW_RX_EDGE	FIELD_PREP(GNR_CFG_DW_RX_MASK, 1)
 #define GNR_CFG_DW_RX_LEVEL	FIELD_PREP(GNR_CFG_DW_RX_MASK, 0)
@@ -227,9 +228,17 @@ static void gnr_gpio_irq_unmask(struct irq_data *d)
 static int gnr_gpio_irq_set_type(struct irq_data *d, unsigned int type)
 {
 	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
-	irq_hw_number_t pin = irqd_to_hwirq(d);
-	u32 mask = GNR_CFG_DW_RX_MASK;
+	struct gnr_gpio *priv = gpiochip_get_data(gc);
+	irq_hw_number_t hwirq = irqd_to_hwirq(d);
+	u32 reg;
 	u32 set;
+
+	/* Allow interrupts only if Interrupt Select field is non-zero */
+	reg = readl(gnr_gpio_get_padcfg_addr(priv, hwirq));
+	if (!(reg & GNR_CFG_DW_INTSEL_MASK)) {
+		dev_dbg(gc->parent, "GPIO %lu cannot be used as IRQ", hwirq);
+		return -EPERM;
+	}
 
 	/* Falling edge and level low triggers not supported by the GPIO controller */
 	switch (type) {
@@ -248,7 +257,7 @@ static int gnr_gpio_irq_set_type(struct irq_data *d, unsigned int type)
 		return -EINVAL;
 	}
 
-	return gnr_gpio_configure_line(gc, pin, mask, set);
+	return gnr_gpio_configure_line(gc, hwirq, GNR_CFG_DW_RX_MASK, set);
 }
 
 static const struct irq_chip gnr_gpio_irq_chip = {
