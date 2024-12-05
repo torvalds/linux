@@ -731,22 +731,22 @@ struct ocfs2_write_ctxt {
 	/*
 	 * Pages involved in this write.
 	 *
-	 * w_target_page is the page being written to by the user.
+	 * w_target_folio is the folio being written to by the user.
 	 *
 	 * w_pages is an array of pages which always contains
-	 * w_target_page, and in the case of an allocating write with
+	 * w_target_folio, and in the case of an allocating write with
 	 * page_size < cluster size, it will contain zero'd and mapped
-	 * pages adjacent to w_target_page which need to be written
+	 * pages adjacent to w_target_folio which need to be written
 	 * out in so that future reads from that region will get
 	 * zero's.
 	 */
 	unsigned int			w_num_pages;
 	struct page			*w_pages[OCFS2_MAX_CTXT_PAGES];
-	struct page			*w_target_page;
+	struct folio			*w_target_folio;
 
 	/*
 	 * w_target_locked is used for page_mkwrite path indicating no unlocking
-	 * against w_target_page in ocfs2_write_end_nolock.
+	 * against w_target_folio in ocfs2_write_end_nolock.
 	 */
 	unsigned int			w_target_locked:1;
 
@@ -791,18 +791,18 @@ static void ocfs2_unlock_pages(struct ocfs2_write_ctxt *wc)
 	/*
 	 * w_target_locked is only set to true in the page_mkwrite() case.
 	 * The intent is to allow us to lock the target page from write_begin()
-	 * to write_end(). The caller must hold a ref on w_target_page.
+	 * to write_end(). The caller must hold a ref on w_target_folio.
 	 */
 	if (wc->w_target_locked) {
-		BUG_ON(!wc->w_target_page);
+		BUG_ON(!wc->w_target_folio);
 		for (i = 0; i < wc->w_num_pages; i++) {
-			if (wc->w_target_page == wc->w_pages[i]) {
+			if (&wc->w_target_folio->page == wc->w_pages[i]) {
 				wc->w_pages[i] = NULL;
 				break;
 			}
 		}
-		mark_page_accessed(wc->w_target_page);
-		put_page(wc->w_target_page);
+		folio_mark_accessed(wc->w_target_folio);
+		folio_put(wc->w_target_folio);
 	}
 	ocfs2_unlock_and_free_pages(wc->w_pages, wc->w_num_pages);
 }
@@ -869,8 +869,9 @@ static int ocfs2_alloc_write_ctxt(struct ocfs2_write_ctxt **wcp,
  * and dirty so they'll be written out (in order to prevent uninitialised
  * block data from leaking). And clear the new bit.
  */
-static void ocfs2_zero_new_buffers(struct page *page, unsigned from, unsigned to)
+static void ocfs2_zero_new_buffers(struct folio *folio, unsigned from, unsigned to)
 {
+	struct page *page = &folio->page;
 	unsigned int block_start, block_end;
 	struct buffer_head *head, *bh;
 
@@ -918,8 +919,8 @@ static void ocfs2_write_failure(struct inode *inode,
 		to = user_pos + user_len;
 	struct page *tmppage;
 
-	if (wc->w_target_page)
-		ocfs2_zero_new_buffers(wc->w_target_page, from, to);
+	if (wc->w_target_folio)
+		ocfs2_zero_new_buffers(wc->w_target_folio, from, to);
 
 	for(i = 0; i < wc->w_num_pages; i++) {
 		tmppage = wc->w_pages[i];
@@ -954,7 +955,7 @@ static int ocfs2_prepare_page_for_write(struct inode *inode, u64 *p_blkno,
 	new = new | ((i_size_read(inode) <= page_offset(page)) &&
 			(page_offset(page) <= user_pos));
 
-	if (page == wc->w_target_page) {
+	if (page == &wc->w_target_folio->page) {
 		map_from = user_pos & (PAGE_SIZE - 1);
 		map_to = map_from + user_len;
 
@@ -1097,7 +1098,7 @@ static int ocfs2_grab_pages_for_write(struct address_space *mapping,
 		wait_for_stable_page(wc->w_pages[i]);
 
 		if (index == target_index)
-			wc->w_target_page = wc->w_pages[i];
+			wc->w_target_folio = page_folio(wc->w_pages[i]);
 	}
 out:
 	if (ret)
@@ -1494,7 +1495,8 @@ static int ocfs2_write_begin_inline(struct address_space *mapping,
 	 * If we don't set w_num_pages then this page won't get unlocked
 	 * and freed on cleanup of the write context.
 	 */
-	wc->w_pages[0] = wc->w_target_page = page;
+	wc->w_target_folio = page_folio(page);
+	wc->w_pages[0] = page;
 	wc->w_num_pages = 1;
 
 	ret = ocfs2_journal_access_di(handle, INODE_CACHE(inode), wc->w_di_bh,
@@ -1803,7 +1805,7 @@ try_again:
 		 * the operation.
 		 */
 		if (type == OCFS2_WRITE_MMAP && ret == -EAGAIN) {
-			BUG_ON(wc->w_target_page);
+			BUG_ON(wc->w_target_folio);
 			ret = 0;
 			goto out_quota;
 		}
@@ -1826,7 +1828,7 @@ try_again:
 
 success:
 	if (foliop)
-		*foliop = page_folio(wc->w_target_page);
+		*foliop = wc->w_target_folio;
 	*fsdata = wc;
 	return 0;
 out_quota:
@@ -1924,18 +1926,15 @@ static void ocfs2_write_end_inline(struct inode *inode, loff_t pos,
 				   struct ocfs2_dinode *di,
 				   struct ocfs2_write_ctxt *wc)
 {
-	void *kaddr;
-
 	if (unlikely(*copied < len)) {
-		if (!PageUptodate(wc->w_target_page)) {
+		if (!folio_test_uptodate(wc->w_target_folio)) {
 			*copied = 0;
 			return;
 		}
 	}
 
-	kaddr = kmap_atomic(wc->w_target_page);
-	memcpy(di->id2.i_data.id_data + pos, kaddr + pos, *copied);
-	kunmap_atomic(kaddr);
+	memcpy_from_folio(di->id2.i_data.id_data + pos, wc->w_target_folio,
+			pos, *copied);
 
 	trace_ocfs2_write_end_inline(
 	     (unsigned long long)OCFS2_I(inode)->ip_blkno,
@@ -1973,15 +1972,15 @@ int ocfs2_write_end_nolock(struct address_space *mapping,
 		goto out_write_size;
 	}
 
-	if (unlikely(copied < len) && wc->w_target_page) {
+	if (unlikely(copied < len) && wc->w_target_folio) {
 		loff_t new_isize;
 
-		if (!PageUptodate(wc->w_target_page))
+		if (!folio_test_uptodate(wc->w_target_folio))
 			copied = 0;
 
 		new_isize = max_t(loff_t, i_size_read(inode), pos + copied);
-		if (new_isize > page_offset(wc->w_target_page))
-			ocfs2_zero_new_buffers(wc->w_target_page, start+copied,
+		if (new_isize > folio_pos(wc->w_target_folio))
+			ocfs2_zero_new_buffers(wc->w_target_folio, start+copied,
 					       start+len);
 		else {
 			/*
@@ -1991,12 +1990,12 @@ int ocfs2_write_end_nolock(struct address_space *mapping,
 			 * put page & buffer dirty bits into inconsistent
 			 * state.
 			 */
-			block_invalidate_folio(page_folio(wc->w_target_page),
+			block_invalidate_folio(wc->w_target_folio,
 						0, PAGE_SIZE);
 		}
 	}
-	if (wc->w_target_page)
-		flush_dcache_page(wc->w_target_page);
+	if (wc->w_target_folio)
+		flush_dcache_folio(wc->w_target_folio);
 
 	for(i = 0; i < wc->w_num_pages; i++) {
 		tmppage = wc->w_pages[i];
@@ -2005,7 +2004,7 @@ int ocfs2_write_end_nolock(struct address_space *mapping,
 		if (tmppage == NULL)
 			continue;
 
-		if (tmppage == wc->w_target_page) {
+		if (tmppage == &wc->w_target_folio->page) {
 			from = wc->w_target_from;
 			to = wc->w_target_to;
 
