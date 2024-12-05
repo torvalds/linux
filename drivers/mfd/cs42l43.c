@@ -984,7 +984,7 @@ static int cs42l43_power_up(struct cs42l43 *cs42l43)
 	/* vdd-p must be on for 50uS before any other supply */
 	usleep_range(CS42L43_VDDP_DELAY_US, 2 * CS42L43_VDDP_DELAY_US);
 
-	gpiod_set_value_cansleep(cs42l43->reset, 1);
+	gpiod_set_raw_value_cansleep(cs42l43->reset, 1);
 
 	ret = regulator_bulk_enable(CS42L43_N_SUPPLIES, cs42l43->core_supplies);
 	if (ret) {
@@ -1005,7 +1005,7 @@ static int cs42l43_power_up(struct cs42l43 *cs42l43)
 err_core_supplies:
 	regulator_bulk_disable(CS42L43_N_SUPPLIES, cs42l43->core_supplies);
 err_reset:
-	gpiod_set_value_cansleep(cs42l43->reset, 0);
+	gpiod_set_raw_value_cansleep(cs42l43->reset, 0);
 	regulator_disable(cs42l43->vdd_p);
 
 	return ret;
@@ -1027,7 +1027,7 @@ static int cs42l43_power_down(struct cs42l43 *cs42l43)
 		return ret;
 	}
 
-	gpiod_set_value_cansleep(cs42l43->reset, 0);
+	gpiod_set_raw_value_cansleep(cs42l43->reset, 0);
 
 	ret = regulator_disable(cs42l43->vdd_p);
 	if (ret) {
@@ -1052,10 +1052,12 @@ int cs42l43_dev_probe(struct cs42l43 *cs42l43)
 
 	regcache_cache_only(cs42l43->regmap, true);
 
-	cs42l43->reset = devm_gpiod_get_optional(cs42l43->dev, "reset", GPIOD_OUT_LOW);
+	cs42l43->reset = devm_gpiod_get_optional(cs42l43->dev, "reset", GPIOD_OUT_HIGH);
 	if (IS_ERR(cs42l43->reset))
 		return dev_err_probe(cs42l43->dev, PTR_ERR(cs42l43->reset),
 				     "Failed to get reset\n");
+
+	gpiod_set_raw_value_cansleep(cs42l43->reset, 0);
 
 	cs42l43->vdd_p = devm_regulator_get(cs42l43->dev, "vdd-p");
 	if (IS_ERR(cs42l43->vdd_p))
