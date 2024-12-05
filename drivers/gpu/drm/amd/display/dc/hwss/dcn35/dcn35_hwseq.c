@@ -1596,3 +1596,37 @@ bool dcn35_is_dp_dig_pixel_rate_div_policy(struct pipe_ctx *pipe_ctx)
 
 	return false;
 }
+
+/*
+ * Set powerup to true for every pipe to match pre-OS configuration.
+ */
+static void dcn35_calc_blocks_to_ungate_for_hw_release(struct dc *dc, struct pg_block_update *update_state)
+{
+	int i = 0, j = 0;
+
+	memset(update_state, 0, sizeof(struct pg_block_update));
+
+	for (i = 0; i < dc->res_pool->pipe_count; i++)
+		for (j = 0; j < PG_HW_PIPE_RESOURCES_NUM_ELEMENT; j++)
+			update_state->pg_pipe_res_update[j][i] = true;
+
+	update_state->pg_res_update[PG_HPO] = true;
+	update_state->pg_res_update[PG_DWB] = true;
+}
+
+/*
+ * The purpose is to power up all gatings to restore optimization to pre-OS env.
+ * Re-use hwss func and existing PG&RCG flags to decide powerup sequence.
+ */
+void dcn35_hardware_release(struct dc *dc)
+{
+	struct pg_block_update pg_update_state;
+
+	dcn35_calc_blocks_to_ungate_for_hw_release(dc, &pg_update_state);
+
+	if (dc->hwss.root_clock_control)
+		dc->hwss.root_clock_control(dc, &pg_update_state, true);
+	/*power up required HW block*/
+	if (dc->hwss.hw_block_power_up)
+		dc->hwss.hw_block_power_up(dc, &pg_update_state);
+}
