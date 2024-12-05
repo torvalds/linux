@@ -37,9 +37,9 @@ typedef enum {
 } ocfs2_write_type_t;
 
 int ocfs2_write_begin_nolock(struct address_space *mapping,
-			     loff_t pos, unsigned len, ocfs2_write_type_t type,
-			     struct folio **foliop, void **fsdata,
-			     struct buffer_head *di_bh, struct page *mmap_page);
+		loff_t pos, unsigned len, ocfs2_write_type_t type,
+		struct folio **foliop, void **fsdata,
+		struct buffer_head *di_bh, struct folio *mmap_folio);
 
 int ocfs2_read_inline_data(struct inode *inode, struct page *page,
 			   struct buffer_head *di_bh);

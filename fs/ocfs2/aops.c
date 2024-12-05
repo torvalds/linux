@@ -1023,7 +1023,7 @@ static int ocfs2_grab_pages_for_write(struct address_space *mapping,
 				      struct ocfs2_write_ctxt *wc,
 				      u32 cpos, loff_t user_pos,
 				      unsigned user_len, int new,
-				      struct page *mmap_page)
+				      struct folio *mmap_folio)
 {
 	int ret = 0, i;
 	unsigned long start, target_index, end_index, index;
@@ -1068,18 +1068,18 @@ static int ocfs2_grab_pages_for_write(struct address_space *mapping,
 			 * and wants us to directly use the page
 			 * passed in.
 			 */
-			lock_page(mmap_page);
+			folio_lock(mmap_folio);
 
 			/* Exit and let the caller retry */
-			if (mmap_page->mapping != mapping) {
-				WARN_ON(mmap_page->mapping);
-				unlock_page(mmap_page);
+			if (mmap_folio->mapping != mapping) {
+				WARN_ON(mmap_folio->mapping);
+				folio_unlock(mmap_folio);
 				ret = -EAGAIN;
 				goto out;
 			}
 
-			get_page(mmap_page);
-			wc->w_pages[i] = mmap_page;
+			folio_get(mmap_folio);
+			wc->w_pages[i] = &mmap_folio->page;
 			wc->w_target_locked = true;
 		} else if (index >= target_index && index <= end_index &&
 			   wc->w_type == OCFS2_WRITE_DIRECT) {
@@ -1536,9 +1536,8 @@ int ocfs2_size_fits_inline_data(struct buffer_head *di_bh, u64 new_size)
 }
 
 static int ocfs2_try_to_write_inline_data(struct address_space *mapping,
-					  struct inode *inode, loff_t pos,
-					  unsigned len, struct page *mmap_page,
-					  struct ocfs2_write_ctxt *wc)
+		struct inode *inode, loff_t pos, size_t len,
+		struct folio *mmap_folio, struct ocfs2_write_ctxt *wc)
 {
 	int ret, written = 0;
 	loff_t end = pos + len;
@@ -1553,7 +1552,7 @@ static int ocfs2_try_to_write_inline_data(struct address_space *mapping,
 	 * Handle inodes which already have inline data 1st.
 	 */
 	if (oi->ip_dyn_features & OCFS2_INLINE_DATA_FL) {
-		if (mmap_page == NULL &&
+		if (mmap_folio == NULL &&
 		    ocfs2_size_fits_inline_data(wc->w_di_bh, end))
 			goto do_inline_write;
 
@@ -1577,7 +1576,7 @@ static int ocfs2_try_to_write_inline_data(struct address_space *mapping,
 	 * Check whether the write can fit.
 	 */
 	di = (struct ocfs2_dinode *)wc->w_di_bh->b_data;
-	if (mmap_page ||
+	if (mmap_folio ||
 	    end > ocfs2_max_inline_data_with_xattr(inode->i_sb, di))
 		return 0;
 
@@ -1644,9 +1643,9 @@ static int ocfs2_zero_tail(struct inode *inode, struct buffer_head *di_bh,
 }
 
 int ocfs2_write_begin_nolock(struct address_space *mapping,
-			     loff_t pos, unsigned len, ocfs2_write_type_t type,
-			     struct folio **foliop, void **fsdata,
-			     struct buffer_head *di_bh, struct page *mmap_page)
+		loff_t pos, unsigned len, ocfs2_write_type_t type,
+		struct folio **foliop, void **fsdata,
+		struct buffer_head *di_bh, struct folio *mmap_folio)
 {
 	int ret, cluster_of_pages, credits = OCFS2_INODE_UPDATE_CREDITS;
 	unsigned int clusters_to_alloc, extents_to_split, clusters_need = 0;
@@ -1669,7 +1668,7 @@ try_again:
 
 	if (ocfs2_supports_inline_data(osb)) {
 		ret = ocfs2_try_to_write_inline_data(mapping, inode, pos, len,
-						     mmap_page, wc);
+						     mmap_folio, wc);
 		if (ret == 1) {
 			ret = 0;
 			goto success;
@@ -1721,7 +1720,7 @@ try_again:
 			(unsigned long long)OCFS2_I(inode)->ip_blkno,
 			(long long)i_size_read(inode),
 			le32_to_cpu(di->i_clusters),
-			pos, len, type, mmap_page,
+			pos, len, type, mmap_folio,
 			clusters_to_alloc, extents_to_split);
 
 	/*
@@ -1797,7 +1796,7 @@ try_again:
 	 * extent.
 	 */
 	ret = ocfs2_grab_pages_for_write(mapping, wc, wc->w_cpos, pos, len,
-					 cluster_of_pages, mmap_page);
+					 cluster_of_pages, mmap_folio);
 	if (ret) {
 		/*
 		 * ocfs2_grab_pages_for_write() returns -EAGAIN if it could not lock
@@ -1848,7 +1847,7 @@ out:
 	 * to VM code.
 	 */
 	if (wc->w_target_locked)
-		unlock_page(mmap_page);
+		folio_unlock(mmap_folio);
 
 	ocfs2_free_write_ctxt(inode, wc);
 

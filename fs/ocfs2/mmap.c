@@ -91,7 +91,7 @@ static vm_fault_t __ocfs2_page_mkwrite(struct file *file,
 		len = ((size - 1) & ~PAGE_MASK) + 1;
 
 	err = ocfs2_write_begin_nolock(mapping, pos, len, OCFS2_WRITE_MMAP,
-				       &locked_folio, &fsdata, di_bh, &folio->page);
+				       &locked_folio, &fsdata, di_bh, folio);
 	if (err) {
 		if (err != -ENOSPC)
 			mlog_errno(err);
