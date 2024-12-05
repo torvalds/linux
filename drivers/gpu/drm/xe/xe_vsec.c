@@ -180,7 +180,7 @@ static int xe_pmt_telem_read(struct pci_dev *pdev, u32 guid, u64 *data, loff_t u
 	return count;
 }
 
-struct pmt_callbacks xe_pmt_cb = {
+static struct pmt_callbacks xe_pmt_cb = {
 	.read_telem = xe_pmt_telem_read,
 };
 
