@@ -358,7 +358,7 @@ unsigned long long cpuidle_cur_sys_lpi_us;
 unsigned int tj_max;
 unsigned int tj_max_override;
 double rapl_power_units, rapl_time_units;
-double rapl_dram_energy_units, rapl_energy_units;
+double rapl_dram_energy_units, rapl_energy_units, rapl_psys_energy_units;
 double rapl_joule_counter_range;
 unsigned int crystal_hz;
 unsigned long long tsc_hz;
@@ -424,6 +424,7 @@ struct platform_features {
 	bool has_per_core_rapl;	/* Indicates cores energy collection is per-core, not per-package. AMD specific for now */
 	bool has_rapl_divisor;	/* Divisor for Energy unit raw value from MSR_RAPL_POWER_UNIT */
 	bool has_fixed_rapl_unit;	/* Fixed Energy Unit used for DRAM RAPL Domain */
+	bool has_fixed_rapl_psys_unit;	/* Fixed Energy Unit used for PSYS RAPL Domain */
 	int rapl_quirk_tdp;	/* Hardcoded TDP value when cannot be retrieved from hardware */
 	int tcc_offset_bits;	/* TCC Offset bits in MSR_IA32_TEMPERATURE_TARGET */
 	bool enable_tsc_tweak;	/* Use CPU Base freq instead of TSC freq for aperf/mperf counter */
@@ -824,6 +825,7 @@ static const struct platform_features spr_features = {
 	.has_msr_core_c1_res = 1,
 	.has_irtl_msrs = 1,
 	.has_cst_prewake_bit = 1,
+	.has_fixed_rapl_psys_unit = 1,
 	.trl_msrs = TRL_BASE | TRL_CORECOUNT,
 	.rapl_msrs = RAPL_PKG_ALL | RAPL_DRAM_ALL | RAPL_PSYS,
 };
@@ -1292,7 +1294,7 @@ static const struct rapl_counter_arch_info rapl_counter_arch_infos[] = {
 	 .msr = MSR_PLATFORM_ENERGY_STATUS,
 	 .msr_mask = 0x00000000FFFFFFFF,
 	 .msr_shift = 0,
-	 .platform_rapl_msr_scale = &rapl_energy_units,
+	 .platform_rapl_msr_scale = &rapl_psys_energy_units,
 	 .rci_index = RAPL_RCI_INDEX_ENERGY_PLATFORM,
 	 .bic = BIC_SysWatt | BIC_Sys_J,
 	 .compat_scale = 1.0,
@@ -7111,6 +7113,11 @@ void rapl_probe_intel(void)
 		rapl_dram_energy_units = (15.3 / 1000000);
 	else
 		rapl_dram_energy_units = rapl_energy_units;
+
+	if (platform->has_fixed_rapl_psys_unit)
+		rapl_psys_energy_units = 1.0;
+	else
+		rapl_psys_energy_units = rapl_energy_units;
 
 	time_unit = msr >> 16 & 0xF;
 	if (time_unit == 0)
