@@ -6851,7 +6851,6 @@ static void ocfs2_zero_cluster_folios(struct inode *inode, loff_t start,
 		u64 phys, handle_t *handle)
 {
 	int i;
-	unsigned int from, to = PAGE_SIZE;
 	struct super_block *sb = inode->i_sb;
 
 	BUG_ON(!ocfs2_sparse_alloc(OCFS2_SB(sb)));
@@ -6859,21 +6858,18 @@ static void ocfs2_zero_cluster_folios(struct inode *inode, loff_t start,
 	if (numfolios == 0)
 		goto out;
 
-	to = PAGE_SIZE;
 	for (i = 0; i < numfolios; i++) {
 		struct folio *folio = folios[i];
+		size_t to = folio_size(folio);
+		size_t from = offset_in_folio(folio, start);
 
-		from = start & (PAGE_SIZE - 1);
-		if ((end >> PAGE_SHIFT) == folio->index)
-			to = end & (PAGE_SIZE - 1);
-
-		BUG_ON(from > PAGE_SIZE);
-		BUG_ON(to > PAGE_SIZE);
+		if (to > end - folio_pos(folio))
+			to = end - folio_pos(folio);
 
 		ocfs2_map_and_dirty_folio(inode, handle, from, to, folio, 1,
 				&phys);
 
-		start = (folio->index + 1) << PAGE_SHIFT;
+		start = folio_next_index(folio) << PAGE_SHIFT;
 	}
 out:
 	if (folios)
