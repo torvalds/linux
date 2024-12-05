@@ -135,8 +135,6 @@ SECTIONS
 #endif
 		ALIGN_ENTRY_TEXT_END
 
-		/* bootstrapping code */
-		HEAD_TEXT
 		TEXT_TEXT
 		SCHED_TEXT
 		LOCK_TEXT
@@ -149,6 +147,11 @@ SECTIONS
 		STATIC_CALL_TEXT
 		*(.gnu.warning)
 
+	} :text = 0xcccccccc
+
+	/* bootstrapping code */
+	.head.text : AT(ADDR(.head.text) - LOAD_OFFSET) {
+		HEAD_TEXT
 	} :text = 0xcccccccc
 
 	/* End of text section, which should occupy whole number of pages */
