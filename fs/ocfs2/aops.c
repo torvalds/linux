@@ -534,7 +534,7 @@ static void ocfs2_figure_cluster_boundaries(struct ocfs2_super *osb,
  *
  * from == to == 0 is code for "zero the entire cluster region"
  */
-static void ocfs2_clear_page_regions(struct page *page,
+static void ocfs2_clear_folio_regions(struct folio *folio,
 				     struct ocfs2_super *osb, u32 cpos,
 				     unsigned from, unsigned to)
 {
@@ -543,7 +543,7 @@ static void ocfs2_clear_page_regions(struct page *page,
 
 	ocfs2_figure_cluster_boundaries(osb, cpos, &cluster_start, &cluster_end);
 
-	kaddr = kmap_atomic(page);
+	kaddr = kmap_local_folio(folio, 0);
 
 	if (from || to) {
 		if (from > cluster_start)
@@ -554,7 +554,7 @@ static void ocfs2_clear_page_regions(struct page *page,
 		memset(kaddr + cluster_start, 0, cluster_end - cluster_start);
 	}
 
-	kunmap_atomic(kaddr);
+	kunmap_local(kaddr);
 }
 
 /*
@@ -950,7 +950,6 @@ static int ocfs2_prepare_folio_for_write(struct inode *inode, u64 *p_blkno,
 		struct ocfs2_write_ctxt *wc, struct folio *folio, u32 cpos,
 		loff_t user_pos, unsigned user_len, int new)
 {
-	struct page *page = &folio->page;
 	int ret;
 	unsigned int map_from = 0, map_to = 0;
 	unsigned int cluster_start, cluster_end;
@@ -1016,7 +1015,7 @@ static int ocfs2_prepare_folio_for_write(struct inode *inode, u64 *p_blkno,
 	 * been zero'd from being read in as a hole.
 	 */
 	if (new && !folio_test_uptodate(folio))
-		ocfs2_clear_page_regions(page, OCFS2_SB(inode->i_sb),
+		ocfs2_clear_folio_regions(folio, OCFS2_SB(inode->i_sb),
 					 cpos, user_data_from, user_data_to);
 
 	flush_dcache_folio(folio);
