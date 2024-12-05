@@ -720,6 +720,8 @@ static int fpmr_set(struct task_struct *target, const struct user_regset *regset
 	if (!system_supports_fpmr())
 		return -EINVAL;
 
+	fpmr = target->thread.uw.fpmr;
+
 	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf, &fpmr, 0, count);
 	if (ret)
 		return ret;
