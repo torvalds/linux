@@ -36,14 +36,7 @@
 #include <asm/traps.h>
 #include <asm/vdso.h>
 
-#ifdef CONFIG_ARM64_GCS
 #define GCS_SIGNAL_CAP(addr) (((unsigned long)addr) & GCS_CAP_ADDR_MASK)
-
-static bool gcs_signal_cap_valid(u64 addr, u64 val)
-{
-	return val == GCS_SIGNAL_CAP(addr);
-}
-#endif
 
 /*
  * Do a signal return; undo the signal stack. These are aligned to 128-bit.
@@ -1062,8 +1055,7 @@ static int restore_sigframe(struct pt_regs *regs,
 #ifdef CONFIG_ARM64_GCS
 static int gcs_restore_signal(void)
 {
-	unsigned long __user *gcspr_el0;
-	u64 cap;
+	u64 gcspr_el0, cap;
 	int ret;
 
 	if (!system_supports_gcs())
@@ -1072,7 +1064,7 @@ static int gcs_restore_signal(void)
 	if (!(current->thread.gcs_el0_mode & PR_SHADOW_STACK_ENABLE))
 		return 0;
 
-	gcspr_el0 = (unsigned long __user *)read_sysreg_s(SYS_GCSPR_EL0);
+	gcspr_el0 = read_sysreg_s(SYS_GCSPR_EL0);
 
 	/*
 	 * Ensure that any changes to the GCS done via GCS operations
@@ -1087,22 +1079,23 @@ static int gcs_restore_signal(void)
 	 * then faults will be generated on GCS operations - the main
 	 * concern is to protect GCS pages.
 	 */
-	ret = copy_from_user(&cap, gcspr_el0, sizeof(cap));
+	ret = copy_from_user(&cap, (unsigned long __user *)gcspr_el0,
+			     sizeof(cap));
 	if (ret)
 		return -EFAULT;
 
 	/*
 	 * Check that the cap is the actual GCS before replacing it.
 	 */
-	if (!gcs_signal_cap_valid((u64)gcspr_el0, cap))
+	if (cap != GCS_SIGNAL_CAP(gcspr_el0))
 		return -EINVAL;
 
 	/* Invalidate the token to prevent reuse */
-	put_user_gcs(0, (__user void*)gcspr_el0, &ret);
+	put_user_gcs(0, (unsigned long __user *)gcspr_el0, &ret);
 	if (ret != 0)
 		return -EFAULT;
 
-	write_sysreg_s(gcspr_el0 + 1, SYS_GCSPR_EL0);
+	write_sysreg_s(gcspr_el0 + 8, SYS_GCSPR_EL0);
 
 	return 0;
 }
@@ -1421,7 +1414,7 @@ static int get_sigframe(struct rt_sigframe_user_layout *user,
 
 static int gcs_signal_entry(__sigrestore_t sigtramp, struct ksignal *ksig)
 {
-	unsigned long __user *gcspr_el0;
+	u64 gcspr_el0;
 	int ret = 0;
 
 	if (!system_supports_gcs())
@@ -1434,18 +1427,20 @@ static int gcs_signal_entry(__sigrestore_t sigtramp, struct ksignal *ksig)
 	 * We are entering a signal handler, current register state is
 	 * active.
 	 */
-	gcspr_el0 = (unsigned long __user *)read_sysreg_s(SYS_GCSPR_EL0);
+	gcspr_el0 = read_sysreg_s(SYS_GCSPR_EL0);
 
 	/*
 	 * Push a cap and the GCS entry for the trampoline onto the GCS.
 	 */
-	put_user_gcs((unsigned long)sigtramp, gcspr_el0 - 2, &ret);
-	put_user_gcs(GCS_SIGNAL_CAP(gcspr_el0 - 1), gcspr_el0 - 1, &ret);
+	put_user_gcs((unsigned long)sigtramp,
+		     (unsigned long __user *)(gcspr_el0 - 16), &ret);
+	put_user_gcs(GCS_SIGNAL_CAP(gcspr_el0 - 8),
+		     (unsigned long __user *)(gcspr_el0 - 8), &ret);
 	if (ret != 0)
 		return ret;
 
-	gcspr_el0 -= 2;
-	write_sysreg_s((unsigned long)gcspr_el0, SYS_GCSPR_EL0);
+	gcspr_el0 -= 16;
+	write_sysreg_s(gcspr_el0, SYS_GCSPR_EL0);
 
 	return 0;
 }
