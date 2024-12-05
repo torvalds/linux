@@ -963,10 +963,10 @@ static int ocfs2_prepare_folio_for_write(struct inode *inode, u64 *p_blkno,
 	/* treat the write as new if the a hole/lseek spanned across
 	 * the page boundary.
 	 */
-	new = new | ((i_size_read(inode) <= page_offset(page)) &&
-			(page_offset(page) <= user_pos));
+	new = new | ((i_size_read(inode) <= folio_pos(folio)) &&
+			(folio_pos(folio) <= user_pos));
 
-	if (page == &wc->w_target_folio->page) {
+	if (folio == wc->w_target_folio) {
 		map_from = user_pos & (PAGE_SIZE - 1);
 		map_to = map_from + user_len;
 
@@ -990,7 +990,7 @@ static int ocfs2_prepare_folio_for_write(struct inode *inode, u64 *p_blkno,
 		}
 	} else {
 		/*
-		 * If we haven't allocated the new page yet, we
+		 * If we haven't allocated the new folio yet, we
 		 * shouldn't be writing it out without copying user
 		 * data. This is likely a math error from the caller.
 		 */
@@ -1008,20 +1008,20 @@ static int ocfs2_prepare_folio_for_write(struct inode *inode, u64 *p_blkno,
 	}
 
 	/*
-	 * Parts of newly allocated pages need to be zero'd.
+	 * Parts of newly allocated folios need to be zero'd.
 	 *
 	 * Above, we have also rewritten 'to' and 'from' - as far as
 	 * the rest of the function is concerned, the entire cluster
-	 * range inside of a page needs to be written.
+	 * range inside of a folio needs to be written.
 	 *
-	 * We can skip this if the page is up to date - it's already
+	 * We can skip this if the folio is uptodate - it's already
 	 * been zero'd from being read in as a hole.
 	 */
-	if (new && !PageUptodate(page))
+	if (new && !folio_test_uptodate(folio))
 		ocfs2_clear_page_regions(page, OCFS2_SB(inode->i_sb),
 					 cpos, user_data_from, user_data_to);
 
-	flush_dcache_page(page);
+	flush_dcache_folio(folio);
 
 out:
 	return ret;
