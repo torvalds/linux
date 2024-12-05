@@ -42,6 +42,7 @@
 
 #include "ixgbe.h"
 #include "ixgbe_common.h"
+#include "ixgbe_e610.h"
 #include "ixgbe_dcb_82599.h"
 #include "ixgbe_mbx.h"
 #include "ixgbe_phy.h"
@@ -10932,6 +10933,12 @@ static int ixgbe_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	err = ixgbe_sw_init(adapter, ii);
 	if (err)
 		goto err_sw_init;
+
+	if (adapter->hw.mac.type == ixgbe_mac_e610) {
+		err = ixgbe_get_caps(&adapter->hw);
+		if (err)
+			dev_err(&pdev->dev, "ixgbe_get_caps failed %d\n", err);
+	}
 
 	if (adapter->hw.mac.type == ixgbe_mac_82599EB)
 		adapter->flags2 |= IXGBE_FLAG2_AUTO_DISABLE_VF;
