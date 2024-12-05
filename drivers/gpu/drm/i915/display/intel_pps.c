@@ -1820,6 +1820,8 @@ static int intel_pps_show(struct seq_file *m, void *data)
 		   intel_dp->pps.panel_power_up_delay);
 	seq_printf(m, "Panel power down delay: %d\n",
 		   intel_dp->pps.panel_power_down_delay);
+	seq_printf(m, "Panel power cycle delay: %d\n",
+		   intel_dp->pps.panel_power_cycle_delay);
 	seq_printf(m, "Backlight on delay: %d\n",
 		   intel_dp->pps.backlight_on_delay);
 	seq_printf(m, "Backlight off delay: %d\n",
