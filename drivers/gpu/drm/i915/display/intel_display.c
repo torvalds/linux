@@ -5268,26 +5268,13 @@ pipe_config_buffer_mismatch(struct drm_printer *p, bool fastset,
 			    const char *name,
 			    const u8 *a, const u8 *b, size_t len)
 {
-	const char *loglevel;
-
-	if (fastset) {
-		if (!drm_debug_enabled(DRM_UT_KMS))
-			return;
-
-		loglevel = KERN_DEBUG;
-	} else {
-		loglevel = KERN_ERR;
-	}
-
 	pipe_config_mismatch(p, fastset, crtc, name, "buffer");
 
 	/* only dump up to the last difference */
 	len = memcmp_diff_len(a, b, len);
 
-	print_hex_dump(loglevel, "expected: ", DUMP_PREFIX_NONE,
-		       16, 0, a, len, false);
-	print_hex_dump(loglevel, "found: ", DUMP_PREFIX_NONE,
-		       16, 0, b, len, false);
+	drm_print_hex_dump(p, "expected: ", a, len);
+	drm_print_hex_dump(p, "found:    ", b, len);
 }
 
 static void
