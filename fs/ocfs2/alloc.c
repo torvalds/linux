@@ -6812,8 +6812,9 @@ void ocfs2_map_and_dirty_page(struct inode *inode, handle_t *handle,
 			      unsigned int from, unsigned int to,
 			      struct page *page, int zero, u64 *phys)
 {
+	struct folio *folio = page_folio(page);
 	int ret, partial = 0;
-	loff_t start_byte = ((loff_t)page->index << PAGE_SHIFT) + from;
+	loff_t start_byte = folio_pos(folio) + from;
 	loff_t length = to - from;
 
 	ret = ocfs2_map_page_blocks(page, phys, inode, from, to, 0);
@@ -6821,14 +6822,14 @@ void ocfs2_map_and_dirty_page(struct inode *inode, handle_t *handle,
 		mlog_errno(ret);
 
 	if (zero)
-		zero_user_segment(page, from, to);
+		folio_zero_segment(folio, from, to);
 
 	/*
 	 * Need to set the buffers we zero'd into uptodate
 	 * here if they aren't - ocfs2_map_page_blocks()
 	 * might've skipped some
 	 */
-	ret = walk_page_buffers(handle, page_buffers(page),
+	ret = walk_page_buffers(handle, folio_buffers(folio),
 				from, to, &partial,
 				ocfs2_zero_func);
 	if (ret < 0)
@@ -6841,9 +6842,9 @@ void ocfs2_map_and_dirty_page(struct inode *inode, handle_t *handle,
 	}
 
 	if (!partial)
-		SetPageUptodate(page);
+		folio_mark_uptodate(folio);
 
-	flush_dcache_page(page);
+	flush_dcache_folio(folio);
 }
 
 static void ocfs2_zero_cluster_pages(struct inode *inode, loff_t start,
