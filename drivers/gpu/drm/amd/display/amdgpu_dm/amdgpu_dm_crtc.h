@@ -37,7 +37,7 @@ int amdgpu_dm_crtc_set_vupdate_irq(struct drm_crtc *crtc, bool enable);
 
 bool amdgpu_dm_crtc_vrr_active_irq(struct amdgpu_crtc *acrtc);
 
-bool amdgpu_dm_crtc_vrr_active(struct dm_crtc_state *dm_state);
+bool amdgpu_dm_crtc_vrr_active(const struct dm_crtc_state *dm_state);
 
 int amdgpu_dm_crtc_enable_vblank(struct drm_crtc *crtc);
 
