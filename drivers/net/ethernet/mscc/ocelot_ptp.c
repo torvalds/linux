@@ -786,7 +786,7 @@ try_again:
 		spin_unlock_irqrestore(&port->tx_skbs.lock, flags);
 
 		if (WARN_ON(!skb_match))
-			continue;
+			goto next_ts;
 
 		if (!ocelot_validate_ptp_skb(skb_match, seqid)) {
 			dev_err_ratelimited(ocelot->dev,
@@ -804,7 +804,7 @@ try_again:
 		shhwtstamps.hwtstamp = ktime_set(ts.tv_sec, ts.tv_nsec);
 		skb_complete_tx_timestamp(skb_match, &shhwtstamps);
 
-		/* Next ts */
+next_ts:
 		ocelot_write(ocelot, SYS_PTP_NXT_PTP_NXT, SYS_PTP_NXT);
 	}
 }
