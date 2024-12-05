@@ -1670,7 +1670,6 @@ static int vxlan_rcv(struct sock *sk, struct sk_buff *skb)
 	const struct vxlanhdr *vh;
 	struct vxlan_dev *vxlan;
 	struct vxlan_sock *vs;
-	struct vxlanhdr unparsed;
 	struct vxlan_metadata _md;
 	struct vxlan_metadata *md = &_md;
 	__be16 protocol = htons(ETH_P_TEB);
@@ -1685,7 +1684,6 @@ static int vxlan_rcv(struct sock *sk, struct sk_buff *skb)
 	if (reason)
 		goto drop;
 
-	unparsed = *vxlan_hdr(skb);
 	vh = vxlan_hdr(skb);
 	/* VNI flag always required to be set */
 	if (!(vh->vx_flags & VXLAN_HF_VNI)) {
@@ -1695,8 +1693,6 @@ static int vxlan_rcv(struct sock *sk, struct sk_buff *skb)
 		/* Return non vxlan pkt */
 		goto drop;
 	}
-	unparsed.vx_flags &= ~VXLAN_HF_VNI;
-	unparsed.vx_vni &= ~VXLAN_VNI_MASK;
 
 	vs = rcu_dereference_sk_user_data(sk);
 	if (!vs)
@@ -1731,7 +1727,6 @@ static int vxlan_rcv(struct sock *sk, struct sk_buff *skb)
 	if (vxlan->cfg.flags & VXLAN_F_GPE) {
 		if (!vxlan_parse_gpe_proto(vh, &protocol))
 			goto drop;
-		unparsed.vx_flags &= ~VXLAN_GPE_USED_BITS;
 		raw_proto = true;
 	}
 
@@ -1745,8 +1740,6 @@ static int vxlan_rcv(struct sock *sk, struct sk_buff *skb)
 		reason = vxlan_remcsum(skb, vxlan->cfg.flags);
 		if (unlikely(reason))
 			goto drop;
-		unparsed.vx_flags &= ~VXLAN_HF_RCO;
-		unparsed.vx_vni &= VXLAN_VNI_MASK;
 	}
 
 	if (vxlan_collect_metadata(vs)) {
@@ -1769,18 +1762,11 @@ static int vxlan_rcv(struct sock *sk, struct sk_buff *skb)
 		memset(md, 0, sizeof(*md));
 	}
 
-	if (vxlan->cfg.flags & VXLAN_F_GBP) {
+	if (vxlan->cfg.flags & VXLAN_F_GBP)
 		vxlan_parse_gbp_hdr(skb, vxlan->cfg.flags, md);
-		unparsed.vx_flags &= ~VXLAN_GBP_USED_BITS;
-	}
 	/* Note that GBP and GPE can never be active together. This is
 	 * ensured in vxlan_dev_configure.
 	 */
-
-	if (unparsed.vx_flags || unparsed.vx_vni) {
-		reason = SKB_DROP_REASON_VXLAN_INVALID_HDR;
-		goto drop;
-	}
 
 	if (!raw_proto) {
 		reason = vxlan_set_mac(vxlan, vs, skb, vni);
