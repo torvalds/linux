@@ -33,3 +33,7 @@ phy-generic.ko
 dwc3-msm.ko
 gcc-seraph.ko
 tcsrcc-seraph.ko
+mdt_loader.ko
+tmecom-intf.ko
+msm_qmp.ko
+qcom_aoss.ko
