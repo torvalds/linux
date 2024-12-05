@@ -1285,7 +1285,7 @@ static void lan966x_remove(struct platform_device *pdev)
 
 static struct platform_driver lan966x_driver = {
 	.probe = lan966x_probe,
-	.remove_new = lan966x_remove,
+	.remove = lan966x_remove,
 	.driver = {
 		.name = "lan966x-switch",
 		.of_match_table = lan966x_match,

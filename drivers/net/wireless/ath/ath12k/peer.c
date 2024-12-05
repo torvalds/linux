@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 /*
  * Copyright (c) 2018-2021 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2022, 2024 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include "core.h"
@@ -186,7 +186,7 @@ void ath12k_peer_cleanup(struct ath12k *ar, u32 vdev_id)
 	struct ath12k_peer *peer, *tmp;
 	struct ath12k_base *ab = ar->ab;
 
-	lockdep_assert_held(&ar->conf_mutex);
+	lockdep_assert_wiphy(ath12k_ar_to_hw(ar)->wiphy);
 
 	spin_lock_bh(&ab->base_lock);
 	list_for_each_entry_safe(peer, tmp, &ab->peers, list) {
@@ -235,7 +235,7 @@ int ath12k_peer_delete(struct ath12k *ar, u32 vdev_id, u8 *addr)
 {
 	int ret;
 
-	lockdep_assert_held(&ar->conf_mutex);
+	lockdep_assert_wiphy(ath12k_ar_to_hw(ar)->wiphy);
 
 	reinit_completion(&ar->peer_delete_done);
 
@@ -261,14 +261,15 @@ static int ath12k_wait_for_peer_created(struct ath12k *ar, int vdev_id, const u8
 	return ath12k_wait_for_peer_common(ar->ab, vdev_id, addr, true);
 }
 
-int ath12k_peer_create(struct ath12k *ar, struct ath12k_vif *arvif,
+int ath12k_peer_create(struct ath12k *ar, struct ath12k_link_vif *arvif,
 		       struct ieee80211_sta *sta,
 		       struct ath12k_wmi_peer_create_arg *arg)
 {
+	struct ieee80211_vif *vif = ath12k_ahvif_to_vif(arvif->ahvif);
 	struct ath12k_peer *peer;
 	int ret;
 
-	lockdep_assert_held(&ar->conf_mutex);
+	lockdep_assert_wiphy(ath12k_ar_to_hw(ar)->wiphy);
 
 	if (ar->num_peers > (ar->max_num_peers - 1)) {
 		ath12k_warn(ar->ab,
@@ -326,7 +327,7 @@ int ath12k_peer_create(struct ath12k *ar, struct ath12k_vif *arvif,
 	peer->pdev_idx = ar->pdev_idx;
 	peer->sta = sta;
 
-	if (arvif->vif->type == NL80211_IFTYPE_STATION) {
+	if (vif->type == NL80211_IFTYPE_STATION) {
 		arvif->ast_hash = peer->ast_hash;
 		arvif->ast_idx = peer->hw_peer_id;
 	}

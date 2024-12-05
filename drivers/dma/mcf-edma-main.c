@@ -267,7 +267,7 @@ static struct platform_driver mcf_edma_driver = {
 		.name	= "mcf-edma",
 	},
 	.probe		= mcf_edma_probe,
-	.remove_new	= mcf_edma_remove,
+	.remove		= mcf_edma_remove,
 };
 
 bool mcf_edma_filter_fn(struct dma_chan *chan, void *param)

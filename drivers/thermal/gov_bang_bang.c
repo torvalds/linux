@@ -30,9 +30,7 @@ static void bang_bang_set_instance_target(struct thermal_instance *instance,
 
 	dev_dbg(&instance->cdev->device, "target=%ld\n", instance->target);
 
-	mutex_lock(&instance->cdev->lock);
-	__thermal_cdev_update(instance->cdev);
-	mutex_unlock(&instance->cdev->lock);
+	thermal_cdev_update_nocheck(instance->cdev);
 }
 
 /**
@@ -67,6 +65,7 @@ static void bang_bang_control(struct thermal_zone_device *tz,
 			      const struct thermal_trip *trip,
 			      bool crossed_up)
 {
+	const struct thermal_trip_desc *td = trip_to_trip_desc(trip);
 	struct thermal_instance *instance;
 
 	lockdep_assert_held(&tz->lock);
@@ -75,10 +74,8 @@ static void bang_bang_control(struct thermal_zone_device *tz,
 		thermal_zone_trip_id(tz, trip), trip->temperature,
 		tz->temperature, trip->hysteresis);
 
-	list_for_each_entry(instance, &tz->thermal_instances, tz_node) {
-		if (instance->trip == trip)
-			bang_bang_set_instance_target(instance, crossed_up);
-	}
+	list_for_each_entry(instance, &td->thermal_instances, trip_node)
+		bang_bang_set_instance_target(instance, crossed_up);
 }
 
 static void bang_bang_manage(struct thermal_zone_device *tz)
@@ -104,8 +101,8 @@ static void bang_bang_manage(struct thermal_zone_device *tz)
 		 * to the thermal zone temperature and the trip point threshold.
 		 */
 		turn_on = tz->temperature >= td->threshold;
-		list_for_each_entry(instance, &tz->thermal_instances, tz_node) {
-			if (!instance->initialized && instance->trip == trip)
+		list_for_each_entry(instance, &td->thermal_instances, trip_node) {
+			if (!instance->initialized)
 				bang_bang_set_instance_target(instance, turn_on);
 		}
 	}

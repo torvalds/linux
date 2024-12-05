@@ -598,8 +598,6 @@ static void mtk_init_vdec_params(struct mtk_vcodec_dec_ctx *ctx)
 static const struct vb2_ops mtk_vdec_frame_vb2_ops = {
 	.queue_setup = vb2ops_vdec_queue_setup,
 	.buf_prepare = vb2ops_vdec_buf_prepare,
-	.wait_prepare = vb2_ops_wait_prepare,
-	.wait_finish = vb2_ops_wait_finish,
 	.start_streaming = vb2ops_vdec_start_streaming,
 
 	.buf_queue = vb2ops_vdec_stateful_buf_queue,

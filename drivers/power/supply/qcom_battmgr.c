@@ -151,7 +151,7 @@ struct qcom_battmgr_message {
 			__le32 capacity_low;
 			__le32 capacity_warning;
 			__le32 cycle_count;
-			/* thousandth of persent */
+			/* thousandth of percent */
 			__le32 accuracy;
 			__le32 max_sample_time_ms;
 			__le32 min_sample_time_ms;

@@ -248,6 +248,29 @@ static int __init param_setup_earlycon(char *buf)
 }
 early_param("earlycon", param_setup_earlycon);
 
+/*
+ * The `console` parameter is overloaded. It's handled here as an early param
+ * and in `printk.c` as a late param. It's possible to specify an early
+ * `bootconsole` using `earlycon=uartXXXX` (handled above), or via
+ * the `console=uartXXX` alias. See the comment in `8250_early.c`.
+ */
+static int __init param_setup_earlycon_console_alias(char *buf)
+{
+	/*
+	 * A plain `console` parameter must not enable the SPCR `bootconsole`
+	 * like a plain `earlycon` does.
+	 *
+	 * A `console=` parameter that specifies an empty value is used to
+	 * disable the `console`, not the `earlycon` `bootconsole`. The
+	 * disabling of the `console` is handled by `printk.c`.
+	 */
+	if (!buf || !buf[0])
+		return 0;
+
+	return param_setup_earlycon(buf);
+}
+early_param("console", param_setup_earlycon_console_alias);
+
 #ifdef CONFIG_OF_EARLY_FLATTREE
 
 int __init of_setup_earlycon(const struct earlycon_id *match,

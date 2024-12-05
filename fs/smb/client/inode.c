@@ -598,6 +598,17 @@ cifs_sfu_type(struct cifs_fattr *fattr, const char *path,
 				mjr = le64_to_cpu(*(__le64 *)(pbuf+8));
 				mnr = le64_to_cpu(*(__le64 *)(pbuf+16));
 				fattr->cf_rdev = MKDEV(mjr, mnr);
+			} else if (bytes_read == 16) {
+				/*
+				 * Windows NFS server before Windows Server 2012
+				 * stores major and minor number in SFU-modified
+				 * style, just as 32-bit numbers. Recognize it.
+				 */
+				__u32 mjr; /* major */
+				__u32 mnr; /* minor */
+				mjr = le32_to_cpu(*(__le32 *)(pbuf+8));
+				mnr = le32_to_cpu(*(__le32 *)(pbuf+12));
+				fattr->cf_rdev = MKDEV(mjr, mnr);
 			}
 		} else if (memcmp("IntxCHR\0", pbuf, 8) == 0) {
 			cifs_dbg(FYI, "Char device\n");
@@ -609,6 +620,17 @@ cifs_sfu_type(struct cifs_fattr *fattr, const char *path,
 				__u64 mnr; /* minor */
 				mjr = le64_to_cpu(*(__le64 *)(pbuf+8));
 				mnr = le64_to_cpu(*(__le64 *)(pbuf+16));
+				fattr->cf_rdev = MKDEV(mjr, mnr);
+			} else if (bytes_read == 16) {
+				/*
+				 * Windows NFS server before Windows Server 2012
+				 * stores major and minor number in SFU-modified
+				 * style, just as 32-bit numbers. Recognize it.
+				 */
+				__u32 mjr; /* major */
+				__u32 mnr; /* minor */
+				mjr = le32_to_cpu(*(__le32 *)(pbuf+8));
+				mnr = le32_to_cpu(*(__le32 *)(pbuf+12));
 				fattr->cf_rdev = MKDEV(mjr, mnr);
 			}
 		} else if (memcmp("LnxSOCK", pbuf, 8) == 0) {
@@ -1115,6 +1137,7 @@ static int reparse_info_to_fattr(struct cifs_open_info_data *data,
 			rc = 0;
 		} else if (iov && server->ops->parse_reparse_point) {
 			rc = server->ops->parse_reparse_point(cifs_sb,
+							      full_path,
 							      iov, data);
 		}
 		break;
@@ -2473,13 +2496,10 @@ cifs_dentry_needs_reval(struct dentry *dentry)
 		return true;
 
 	if (!open_cached_dir_by_dentry(tcon, dentry->d_parent, &cfid)) {
-		spin_lock(&cfid->fid_lock);
 		if (cfid->time && cifs_i->time > cfid->time) {
-			spin_unlock(&cfid->fid_lock);
 			close_cached_dir(cfid);
 			return false;
 		}
-		spin_unlock(&cfid->fid_lock);
 		close_cached_dir(cfid);
 	}
 	/*
@@ -3062,6 +3082,7 @@ cifs_setattr_nounix(struct dentry *direntry, struct iattr *attrs)
 	int rc = -EACCES;
 	__u32 dosattr = 0;
 	__u64 mode = NO_CHANGE_64;
+	bool posix = cifs_sb_master_tcon(cifs_sb)->posix_extensions;
 
 	xid = get_xid();
 
@@ -3152,7 +3173,8 @@ cifs_setattr_nounix(struct dentry *direntry, struct iattr *attrs)
 		mode = attrs->ia_mode;
 		rc = 0;
 		if ((cifs_sb->mnt_cifs_flags & CIFS_MOUNT_CIFS_ACL) ||
-		    (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MODE_FROM_SID)) {
+		    (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MODE_FROM_SID) ||
+		    posix) {
 			rc = id_mode_to_cifs_acl(inode, full_path, &mode,
 						INVALID_UID, INVALID_GID);
 			if (rc) {

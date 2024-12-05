@@ -513,12 +513,12 @@ static void bcm_sf2_crossbar_setup(struct bcm_sf2_priv *priv)
 	u32 reg;
 	int i;
 
-	mask = BIT(priv->num_crossbar_int_ports) - 1;
+	mask = BIT(priv->num_crossbar_ext_bits) - 1;
 
 	reg = reg_readl(priv, REG_CROSSBAR);
 	switch (priv->type) {
 	case BCM4908_DEVICE_ID:
-		shift = CROSSBAR_BCM4908_INT_P7 * priv->num_crossbar_int_ports;
+		shift = CROSSBAR_BCM4908_INT_P7 * priv->num_crossbar_ext_bits;
 		reg &= ~(mask << shift);
 		if (0) /* FIXME */
 			reg |= CROSSBAR_BCM4908_EXT_SERDES << shift;
@@ -536,7 +536,7 @@ static void bcm_sf2_crossbar_setup(struct bcm_sf2_priv *priv)
 
 	reg = reg_readl(priv, REG_CROSSBAR);
 	for (i = 0; i < priv->num_crossbar_int_ports; i++) {
-		shift = i * priv->num_crossbar_int_ports;
+		shift = i * priv->num_crossbar_ext_bits;
 
 		dev_dbg(dev, "crossbar int port #%d - ext port #%d\n", i,
 			(reg >> shift) & mask);
@@ -1183,8 +1183,8 @@ static void bcm_sf2_sw_get_strings(struct dsa_switch *ds, int port,
 	int cnt = b53_get_sset_count(ds, port, stringset);
 
 	b53_get_strings(ds, port, stringset, data);
-	bcm_sf2_cfp_get_strings(ds, port, stringset,
-				data + cnt * ETH_GSTRING_LEN);
+	data += cnt * ETH_GSTRING_LEN;
+	bcm_sf2_cfp_get_strings(ds, port, stringset, &data);
 }
 
 static void bcm_sf2_sw_get_ethtool_stats(struct dsa_switch *ds, int port,
@@ -1260,6 +1260,7 @@ struct bcm_sf2_of_data {
 	unsigned int core_reg_align;
 	unsigned int num_cfp_rules;
 	unsigned int num_crossbar_int_ports;
+	unsigned int num_crossbar_ext_bits;
 };
 
 static const u16 bcm_sf2_4908_reg_offsets[] = {
@@ -1288,6 +1289,7 @@ static const struct bcm_sf2_of_data bcm_sf2_4908_data = {
 	.reg_offsets	= bcm_sf2_4908_reg_offsets,
 	.num_cfp_rules	= 256,
 	.num_crossbar_int_ports = 2,
+	.num_crossbar_ext_bits = 2,
 };
 
 /* Register offsets for the SWITCH_REG_* block */
@@ -1399,6 +1401,7 @@ static int bcm_sf2_sw_probe(struct platform_device *pdev)
 	priv->core_reg_align = data->core_reg_align;
 	priv->num_cfp_rules = data->num_cfp_rules;
 	priv->num_crossbar_int_ports = data->num_crossbar_int_ports;
+	priv->num_crossbar_ext_bits = data->num_crossbar_ext_bits;
 
 	priv->rcdev = devm_reset_control_get_optional_exclusive(&pdev->dev,
 								"switch");
@@ -1620,7 +1623,7 @@ static SIMPLE_DEV_PM_OPS(bcm_sf2_pm_ops,
 
 static struct platform_driver bcm_sf2_driver = {
 	.probe	= bcm_sf2_sw_probe,
-	.remove_new = bcm_sf2_sw_remove,
+	.remove = bcm_sf2_sw_remove,
 	.shutdown = bcm_sf2_sw_shutdown,
 	.driver = {
 		.name = "brcm-sf2",

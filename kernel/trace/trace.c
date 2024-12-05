@@ -593,19 +593,6 @@ int tracing_check_open_get_tr(struct trace_array *tr)
 	return 0;
 }
 
-int call_filter_check_discard(struct trace_event_call *call, void *rec,
-			      struct trace_buffer *buffer,
-			      struct ring_buffer_event *event)
-{
-	if (unlikely(call->flags & TRACE_EVENT_FL_FILTERED) &&
-	    !filter_match_preds(call->filter, rec)) {
-		__trace_event_discard_commit(buffer, event);
-		return 1;
-	}
-
-	return 0;
-}
-
 /**
  * trace_find_filtered_pid - check if a pid exists in a filtered_pid list
  * @filtered_pids: The list of pids to check
@@ -988,7 +975,8 @@ static inline void trace_access_lock_init(void)
 #endif
 
 #ifdef CONFIG_STACKTRACE
-static void __ftrace_trace_stack(struct trace_buffer *buffer,
+static void __ftrace_trace_stack(struct trace_array *tr,
+				 struct trace_buffer *buffer,
 				 unsigned int trace_ctx,
 				 int skip, struct pt_regs *regs);
 static inline void ftrace_trace_stack(struct trace_array *tr,
@@ -997,7 +985,8 @@ static inline void ftrace_trace_stack(struct trace_array *tr,
 				      int skip, struct pt_regs *regs);
 
 #else
-static inline void __ftrace_trace_stack(struct trace_buffer *buffer,
+static inline void __ftrace_trace_stack(struct trace_array *tr,
+					struct trace_buffer *buffer,
 					unsigned int trace_ctx,
 					int skip, struct pt_regs *regs)
 {
@@ -1934,7 +1923,7 @@ __update_max_tr(struct trace_array *tr, struct task_struct *tsk, int cpu)
 	max_data->critical_start = data->critical_start;
 	max_data->critical_end = data->critical_end;
 
-	strncpy(max_data->comm, tsk->comm, TASK_COMM_LEN);
+	strscpy(max_data->comm, tsk->comm);
 	max_data->pid = tsk->pid;
 	/*
 	 * If tsk == current, then use current_uid(), as that does not use
@@ -2386,6 +2375,25 @@ void tracing_reset_online_cpus(struct array_buffer *buf)
 	ring_buffer_record_enable(buffer);
 }
 
+static void tracing_reset_all_cpus(struct array_buffer *buf)
+{
+	struct trace_buffer *buffer = buf->buffer;
+
+	if (!buffer)
+		return;
+
+	ring_buffer_record_disable(buffer);
+
+	/* Make sure all commits have finished */
+	synchronize_rcu();
+
+	buf->time_start = buffer_ftrace_now(buf, buf->cpu);
+
+	ring_buffer_reset(buffer);
+
+	ring_buffer_record_enable(buffer);
+}
+
 /* Must have trace_types_lock held */
 void tracing_reset_all_online_cpus_unlocked(void)
 {
@@ -2544,6 +2552,8 @@ unsigned int tracing_gen_ctx_irq_test(unsigned int irqs_status)
 		trace_flags |= TRACE_FLAG_NEED_RESCHED;
 	if (test_preempt_need_resched())
 		trace_flags |= TRACE_FLAG_PREEMPT_RESCHED;
+	if (IS_ENABLED(CONFIG_ARCH_HAS_PREEMPT_LAZY) && tif_test_bit(TIF_NEED_RESCHED_LAZY))
+		trace_flags |= TRACE_FLAG_NEED_RESCHED_LAZY;
 	return (trace_flags << 16) | (min_t(unsigned int, pc & 0xff, 0xf)) |
 		(min_t(unsigned int, migration_disable_value(), 0xf)) << 4;
 }
@@ -2889,7 +2899,6 @@ void
 trace_function(struct trace_array *tr, unsigned long ip, unsigned long
 	       parent_ip, unsigned int trace_ctx)
 {
-	struct trace_event_call *call = &event_function;
 	struct trace_buffer *buffer = tr->array_buffer.buffer;
 	struct ring_buffer_event *event;
 	struct ftrace_entry *entry;
@@ -2902,11 +2911,9 @@ trace_function(struct trace_array *tr, unsigned long ip, unsigned long
 	entry->ip			= ip;
 	entry->parent_ip		= parent_ip;
 
-	if (!call_filter_check_discard(call, entry, buffer, event)) {
-		if (static_branch_unlikely(&trace_function_exports_enabled))
-			ftrace_exports(event, TRACE_EXPORT_FUNCTION);
-		__buffer_unlock_commit(buffer, event);
-	}
+	if (static_branch_unlikely(&trace_function_exports_enabled))
+		ftrace_exports(event, TRACE_EXPORT_FUNCTION);
+	__buffer_unlock_commit(buffer, event);
 }
 
 #ifdef CONFIG_STACKTRACE
@@ -2914,7 +2921,7 @@ trace_function(struct trace_array *tr, unsigned long ip, unsigned long
 /* Allow 4 levels of nesting: normal, softirq, irq, NMI */
 #define FTRACE_KSTACK_NESTING	4
 
-#define FTRACE_KSTACK_ENTRIES	(PAGE_SIZE / FTRACE_KSTACK_NESTING)
+#define FTRACE_KSTACK_ENTRIES	(SZ_4K / FTRACE_KSTACK_NESTING)
 
 struct ftrace_stack {
 	unsigned long		calls[FTRACE_KSTACK_ENTRIES];
@@ -2928,11 +2935,11 @@ struct ftrace_stacks {
 static DEFINE_PER_CPU(struct ftrace_stacks, ftrace_stacks);
 static DEFINE_PER_CPU(int, ftrace_stack_reserve);
 
-static void __ftrace_trace_stack(struct trace_buffer *buffer,
+static void __ftrace_trace_stack(struct trace_array *tr,
+				 struct trace_buffer *buffer,
 				 unsigned int trace_ctx,
 				 int skip, struct pt_regs *regs)
 {
-	struct trace_event_call *call = &event_kernel_stack;
 	struct ring_buffer_event *event;
 	unsigned int size, nr_entries;
 	struct ftrace_stack *fstack;
@@ -2975,6 +2982,20 @@ static void __ftrace_trace_stack(struct trace_buffer *buffer,
 		nr_entries = stack_trace_save(fstack->calls, size, skip);
 	}
 
+#ifdef CONFIG_DYNAMIC_FTRACE
+	/* Mark entry of stack trace as trampoline code */
+	if (tr->ops && tr->ops->trampoline) {
+		unsigned long tramp_start = tr->ops->trampoline;
+		unsigned long tramp_end = tramp_start + tr->ops->trampoline_size;
+		unsigned long *calls = fstack->calls;
+
+		for (int i = 0; i < nr_entries; i++) {
+			if (calls[i] >= tramp_start && calls[i] < tramp_end)
+				calls[i] = FTRACE_TRAMPOLINE_MARKER;
+		}
+	}
+#endif
+
 	event = __trace_buffer_lock_reserve(buffer, TRACE_STACK,
 				    struct_size(entry, caller, nr_entries),
 				    trace_ctx);
@@ -2986,8 +3007,7 @@ static void __ftrace_trace_stack(struct trace_buffer *buffer,
 	memcpy(&entry->caller, fstack->calls,
 	       flex_array_size(entry, caller, nr_entries));
 
-	if (!call_filter_check_discard(call, entry, buffer, event))
-		__buffer_unlock_commit(buffer, event);
+	__buffer_unlock_commit(buffer, event);
 
  out:
 	/* Again, don't let gcc optimize things here */
@@ -3005,7 +3025,7 @@ static inline void ftrace_trace_stack(struct trace_array *tr,
 	if (!(tr->trace_flags & TRACE_ITER_STACKTRACE))
 		return;
 
-	__ftrace_trace_stack(buffer, trace_ctx, skip, regs);
+	__ftrace_trace_stack(tr, buffer, trace_ctx, skip, regs);
 }
 
 void __trace_stack(struct trace_array *tr, unsigned int trace_ctx,
@@ -3014,7 +3034,7 @@ void __trace_stack(struct trace_array *tr, unsigned int trace_ctx,
 	struct trace_buffer *buffer = tr->array_buffer.buffer;
 
 	if (rcu_is_watching()) {
-		__ftrace_trace_stack(buffer, trace_ctx, skip, NULL);
+		__ftrace_trace_stack(tr, buffer, trace_ctx, skip, NULL);
 		return;
 	}
 
@@ -3031,7 +3051,7 @@ void __trace_stack(struct trace_array *tr, unsigned int trace_ctx,
 		return;
 
 	ct_irq_enter_irqson();
-	__ftrace_trace_stack(buffer, trace_ctx, skip, NULL);
+	__ftrace_trace_stack(tr, buffer, trace_ctx, skip, NULL);
 	ct_irq_exit_irqson();
 }
 
@@ -3048,8 +3068,8 @@ void trace_dump_stack(int skip)
 	/* Skip 1 to skip this function. */
 	skip++;
 #endif
-	__ftrace_trace_stack(printk_trace->array_buffer.buffer,
-			     tracing_gen_ctx(), skip, NULL);
+	__ftrace_trace_stack(printk_trace, printk_trace->array_buffer.buffer,
+				tracing_gen_ctx(), skip, NULL);
 }
 EXPORT_SYMBOL_GPL(trace_dump_stack);
 
@@ -3060,7 +3080,6 @@ static void
 ftrace_trace_userstack(struct trace_array *tr,
 		       struct trace_buffer *buffer, unsigned int trace_ctx)
 {
-	struct trace_event_call *call = &event_user_stack;
 	struct ring_buffer_event *event;
 	struct userstack_entry *entry;
 
@@ -3094,8 +3113,7 @@ ftrace_trace_userstack(struct trace_array *tr,
 	memset(&entry->caller, 0, sizeof(entry->caller));
 
 	stack_trace_save_user(entry->caller, FTRACE_STACK_ENTRIES);
-	if (!call_filter_check_discard(call, entry, buffer, event))
-		__buffer_unlock_commit(buffer, event);
+	__buffer_unlock_commit(buffer, event);
 
  out_drop_count:
 	__this_cpu_dec(user_stack_count);
@@ -3264,7 +3282,6 @@ static void trace_printk_start_stop_comm(int enabled)
  */
 int trace_vbprintk(unsigned long ip, const char *fmt, va_list args)
 {
-	struct trace_event_call *call = &event_bprint;
 	struct ring_buffer_event *event;
 	struct trace_buffer *buffer;
 	struct trace_array *tr = READ_ONCE(printk_trace);
@@ -3308,10 +3325,8 @@ int trace_vbprintk(unsigned long ip, const char *fmt, va_list args)
 	entry->fmt			= fmt;
 
 	memcpy(entry->buf, tbuffer, sizeof(u32) * len);
-	if (!call_filter_check_discard(call, entry, buffer, event)) {
-		__buffer_unlock_commit(buffer, event);
-		ftrace_trace_stack(tr, buffer, trace_ctx, 6, NULL);
-	}
+	__buffer_unlock_commit(buffer, event);
+	ftrace_trace_stack(tr, buffer, trace_ctx, 6, NULL);
 
 out:
 	ring_buffer_nest_end(buffer);
@@ -3331,7 +3346,6 @@ static int
 __trace_array_vprintk(struct trace_buffer *buffer,
 		      unsigned long ip, const char *fmt, va_list args)
 {
-	struct trace_event_call *call = &event_print;
 	struct ring_buffer_event *event;
 	int len = 0, size;
 	struct print_entry *entry;
@@ -3366,10 +3380,8 @@ __trace_array_vprintk(struct trace_buffer *buffer,
 	entry->ip = ip;
 
 	memcpy(&entry->buf, tbuffer, len + 1);
-	if (!call_filter_check_discard(call, entry, buffer, event)) {
-		__buffer_unlock_commit(buffer, event);
-		ftrace_trace_stack(printk_trace, buffer, trace_ctx, 6, NULL);
-	}
+	__buffer_unlock_commit(buffer, event);
+	ftrace_trace_stack(printk_trace, buffer, trace_ctx, 6, NULL);
 
 out:
 	ring_buffer_nest_end(buffer);
@@ -6145,8 +6157,13 @@ static void update_last_data(struct trace_array *tr)
 	if (!tr->text_delta && !tr->data_delta)
 		return;
 
-	/* Clear old data */
-	tracing_reset_online_cpus(&tr->array_buffer);
+	/*
+	 * Need to clear all CPU buffers as there cannot be events
+	 * from the previous boot mixed with events with this boot
+	 * as that will cause a confusing trace. Need to clear all
+	 * CPU buffers, even for those that may currently be offline.
+	 */
+	tracing_reset_all_cpus(&tr->array_buffer);
 
 	/* Using current data now */
 	tr->text_delta = 0;
@@ -8563,15 +8580,22 @@ tracing_read_dyn_info(struct file *filp, char __user *ubuf,
 	char *buf;
 	int r;
 
-	/* 256 should be plenty to hold the amount needed */
-	buf = kmalloc(256, GFP_KERNEL);
+	/* 512 should be plenty to hold the amount needed */
+#define DYN_INFO_BUF_SIZE	512
+
+	buf = kmalloc(DYN_INFO_BUF_SIZE, GFP_KERNEL);
 	if (!buf)
 		return -ENOMEM;
 
-	r = scnprintf(buf, 256, "%ld pages:%ld groups: %ld\n",
+	r = scnprintf(buf, DYN_INFO_BUF_SIZE,
+		      "%ld pages:%ld groups: %ld\n"
+		      "ftrace boot update time = %llu (ns)\n"
+		      "ftrace module total update time = %llu (ns)\n",
 		      ftrace_update_tot_cnt,
 		      ftrace_number_of_pages,
-		      ftrace_number_of_groups);
+		      ftrace_number_of_groups,
+		      ftrace_update_time,
+		      ftrace_total_mod_time);
 
 	ret = simple_read_from_buffer(ubuf, cnt, ppos, buf, r);
 	kfree(buf);

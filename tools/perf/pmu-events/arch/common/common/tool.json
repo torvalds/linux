@@ -1,0 +1,74 @@
+[
+  {
+    "Unit": "tool",
+    "EventName": "duration_time",
+    "BriefDescription": "Wall clock interval time in nanoseconds",
+    "ConfigCode": "1"
+  },
+  {
+    "Unit": "tool",
+    "EventName": "user_time",
+    "BriefDescription": "User (non-kernel) time in nanoseconds",
+    "ConfigCode": "2"
+  },
+  {
+    "Unit": "tool",
+    "EventName": "system_time",
+    "BriefDescription": "System/kernel time in nanoseconds",
+    "ConfigCode": "3"
+  },
+  {
+    "Unit": "tool",
+    "EventName": "has_pmem",
+    "BriefDescription": "1 if persistent memory installed otherwise 0",
+    "ConfigCode": "4"
+  },
+  {
+    "Unit": "tool",
+    "EventName": "num_cores",
+    "BriefDescription": "Number of cores. A core consists of 1 or more thread, with each thread being associated with a logical Linux CPU",
+    "ConfigCode": "5"
+  },
+  {
+    "Unit": "tool",
+    "EventName": "num_cpus",
+    "BriefDescription": "Number of logical Linux CPUs. There may be multiple such CPUs on a core",
+    "ConfigCode": "6"
+  },
+  {
+    "Unit": "tool",
+    "EventName": "num_cpus_online",
+    "BriefDescription": "Number of online logical Linux CPUs. There may be multiple such CPUs on a core",
+    "ConfigCode": "7"
+  },
+  {
+    "Unit": "tool",
+    "EventName": "num_dies",
+    "BriefDescription": "Number of dies. Each die has 1 or more cores",
+    "ConfigCode": "8"
+  },
+  {
+    "Unit": "tool",
+    "EventName": "num_packages",
+    "BriefDescription": "Number of packages. Each package has 1 or more die",
+    "ConfigCode": "9"
+  },
+  {
+    "Unit": "tool",
+    "EventName": "slots",
+    "BriefDescription": "Number of functional units that in parallel can execute parts of an instruction",
+    "ConfigCode": "10"
+  },
+  {
+    "Unit": "tool",
+    "EventName": "smt_on",
+    "BriefDescription": "1 if simultaneous multithreading (aka hyperthreading) is enable otherwise 0",
+    "ConfigCode": "11"
+  },
+  {
+    "Unit": "tool",
+    "EventName": "system_tsc_freq",
+    "BriefDescription": "The amount a Time Stamp Counter (TSC) increases per second",
+    "ConfigCode": "12"
+  }
+]

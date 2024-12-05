@@ -308,6 +308,28 @@ static int request_ish_firmware(const struct firmware **firmware_p,
 	return _request_ish_firmware(firmware_p, filename, dev);
 }
 
+static int copy_manifest(const struct firmware *fw, struct ish_global_manifest *manifest)
+{
+	u32 offset;
+
+	for (offset = 0; offset + sizeof(*manifest) < fw->size; offset += ISH_MANIFEST_ALIGNMENT) {
+		memcpy(manifest, fw->data + offset, sizeof(*manifest));
+
+		if (le32_to_cpu(manifest->sig_fourcc) == ISH_GLOBAL_SIG)
+			return 0;
+	}
+
+	return -1;
+}
+
+static void copy_ish_version(struct version_in_manifest *src, struct ish_version *dst)
+{
+	dst->major = le16_to_cpu(src->major);
+	dst->minor = le16_to_cpu(src->minor);
+	dst->hotfix = le16_to_cpu(src->hotfix);
+	dst->build = le16_to_cpu(src->build);
+}
+
 /**
  * ishtp_loader_work() - Load the ISHTP firmware
  * @work: The work structure
@@ -336,6 +358,7 @@ void ishtp_loader_work(struct work_struct *work)
 	struct loader_xfer_query query = { .header = cpu_to_le32(query_hdr.val32), };
 	struct loader_start start = { .header = cpu_to_le32(start_hdr.val32), };
 	union loader_recv_message recv_msg;
+	struct ish_global_manifest manifest;
 	const struct firmware *ish_fw;
 	void *dma_bufs[FRAGMENT_MAX_NUM] = {};
 	u32 fragment_size;
@@ -372,7 +395,7 @@ void ishtp_loader_work(struct work_struct *work)
 		if (rv)
 			continue; /* try again if failed */
 
-		dev_dbg(dev->devc, "ISH Version %u.%u.%u.%u\n",
+		dev_dbg(dev->devc, "ISH Bootloader Version %u.%u.%u.%u\n",
 			recv_msg.query_ack.version_major,
 			recv_msg.query_ack.version_minor,
 			recv_msg.query_ack.version_hotfix,
@@ -390,6 +413,16 @@ void ishtp_loader_work(struct work_struct *work)
 			continue; /* try again if failed */
 
 		dev_info(dev->devc, "firmware loaded. size:%zu\n", ish_fw->size);
+		if (!copy_manifest(ish_fw, &manifest)) {
+			copy_ish_version(&manifest.base_ver, &dev->base_ver);
+			copy_ish_version(&manifest.prj_ver, &dev->prj_ver);
+			dev_info(dev->devc, "FW base version: %u.%u.%u.%u\n",
+				 dev->base_ver.major, dev->base_ver.minor,
+				 dev->base_ver.hotfix, dev->base_ver.build);
+			dev_info(dev->devc, "FW project version: %u.%u.%u.%u\n",
+				 dev->prj_ver.major, dev->prj_ver.minor,
+				 dev->prj_ver.hotfix, dev->prj_ver.build);
+		}
 		break;
 	} while (--retry);
 

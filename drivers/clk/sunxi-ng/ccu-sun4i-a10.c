@@ -1382,7 +1382,7 @@ static struct clk_hw_onecell_data sun7i_a20_hw_clks = {
 	.num	= CLK_NUMBER_SUN7I,
 };
 
-static struct ccu_reset_map sunxi_a10_a20_ccu_resets[] = {
+static const struct ccu_reset_map sunxi_a10_a20_ccu_resets[] = {
 	[RST_USB_PHY0]		= { 0x0cc, BIT(0) },
 	[RST_USB_PHY1]		= { 0x0cc, BIT(1) },
 	[RST_USB_PHY2]		= { 0x0cc, BIT(2) },

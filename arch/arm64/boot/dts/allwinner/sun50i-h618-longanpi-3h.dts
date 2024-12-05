@@ -111,6 +111,7 @@
 };
 
 &mmc0 {
+	disable-wp;
 	bus-width = <4>;
 	cd-gpios = <&pio 5 6 GPIO_ACTIVE_HIGH>;	/* PF6 */
 	vmmc-supply = <&reg_vcc3v3>;

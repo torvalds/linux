@@ -383,6 +383,25 @@ static inline bool bnxt_qplib_queue_full(struct bnxt_qplib_q *que,
 	return avail <= slots;
 }
 
+/* CQ coalescing parameters */
+struct bnxt_qplib_cq_coal_param {
+	u16 buf_maxtime;
+	u8 normal_maxbuf;
+	u8 during_maxbuf;
+	u8 en_ring_idle_mode;
+};
+
+#define BNXT_QPLIB_CQ_COAL_DEF_BUF_MAXTIME		0x1
+#define BNXT_QPLIB_CQ_COAL_DEF_NORMAL_MAXBUF_P7		0x8
+#define BNXT_QPLIB_CQ_COAL_DEF_DURING_MAXBUF_P7		0x8
+#define BNXT_QPLIB_CQ_COAL_DEF_NORMAL_MAXBUF_P5		0x1
+#define BNXT_QPLIB_CQ_COAL_DEF_DURING_MAXBUF_P5		0x1
+#define BNXT_QPLIB_CQ_COAL_DEF_EN_RING_IDLE_MODE	0x1
+#define BNXT_QPLIB_CQ_COAL_MAX_BUF_MAXTIME		0x1bf
+#define BNXT_QPLIB_CQ_COAL_MAX_NORMAL_MAXBUF		0x1f
+#define BNXT_QPLIB_CQ_COAL_MAX_DURING_MAXBUF		0x1f
+#define BNXT_QPLIB_CQ_COAL_MAX_EN_RING_IDLE_MODE	0x1
+
 struct bnxt_qplib_cqe {
 	u8				status;
 	u8				type;
@@ -391,7 +410,7 @@ struct bnxt_qplib_cqe {
 	u16				cfa_meta;
 	u64				wr_id;
 	union {
-		__le32			immdata;
+		u32			immdata;
 		u32			invrkey;
 	};
 	u64				qp_handle;
@@ -445,6 +464,7 @@ struct bnxt_qplib_cq {
  */
 	spinlock_t			flush_lock; /* QP flush management */
 	u16				cnq_events;
+	struct bnxt_qplib_cq_coal_param	*coalescing;
 };
 
 #define BNXT_QPLIB_MAX_IRRQE_ENTRY_SIZE	sizeof(struct xrrq_irrq)
@@ -499,6 +519,7 @@ struct bnxt_qplib_nq {
 	struct tasklet_struct		nq_tasklet;
 	bool				requested;
 	int				budget;
+	u32				load;
 
 	cqn_handler_t			cqn_handler;
 	srqn_handler_t			srqn_handler;

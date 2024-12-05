@@ -437,7 +437,7 @@ static int i2c_powermac_probe(struct platform_device *dev)
 
 static struct platform_driver i2c_powermac_driver = {
 	.probe = i2c_powermac_probe,
-	.remove_new = i2c_powermac_remove,
+	.remove = i2c_powermac_remove,
 	.driver = {
 		.name = "i2c-powermac",
 		.bus = &platform_bus_type,

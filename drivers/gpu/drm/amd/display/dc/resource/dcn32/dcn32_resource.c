@@ -689,7 +689,6 @@ static const struct dc_plane_cap plane_cap = {
 static const struct dc_debug_options debug_defaults_drv = {
 	.disable_dmcu = true,
 	.force_abm_enable = false,
-	.timing_trace = false,
 	.clock_trace = true,
 	.disable_pplib_clock_request = false,
 	.pipe_split_policy = MPC_SPLIT_AVOID, // Due to CRB, no need to MPC split anymore
@@ -1039,7 +1038,7 @@ static struct link_encoder *dcn32_link_encoder_create(
 	struct dcn20_link_encoder *enc20 =
 		kzalloc(sizeof(struct dcn20_link_encoder), GFP_KERNEL);
 
-	if (!enc20)
+	if (!enc20 || enc_init_data->hpd_source >= ARRAY_SIZE(link_enc_hpd_regs))
 		return NULL;
 
 #undef REG_STRUCT
@@ -1988,6 +1987,10 @@ unsigned int dcn32_calculate_mall_ways_from_bytes(const struct dc *dc, unsigned 
 
 	if (total_size_in_mall_bytes == 0) {
 		return 0;
+	}
+
+	if (dc->caps.max_cab_allocation_bytes == 0) {
+		return 0xffffffff;
 	}
 
 	/* add 2 lines for worst case alignment */

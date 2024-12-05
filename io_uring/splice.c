@@ -21,6 +21,7 @@ struct io_splice {
 	u64				len;
 	int				splice_fd_in;
 	unsigned int			flags;
+	struct io_rsrc_node		*rsrc_node;
 };
 
 static int __io_splice_prep(struct io_kiocb *req,
@@ -34,6 +35,7 @@ static int __io_splice_prep(struct io_kiocb *req,
 	if (unlikely(sp->flags & ~valid_flags))
 		return -EINVAL;
 	sp->splice_fd_in = READ_ONCE(sqe->splice_fd_in);
+	sp->rsrc_node = NULL;
 	req->flags |= REQ_F_FORCE_ASYNC;
 	return 0;
 }
@@ -43,6 +45,36 @@ int io_tee_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	if (READ_ONCE(sqe->splice_off_in) || READ_ONCE(sqe->off))
 		return -EINVAL;
 	return __io_splice_prep(req, sqe);
+}
+
+void io_splice_cleanup(struct io_kiocb *req)
+{
+	struct io_splice *sp = io_kiocb_to_cmd(req, struct io_splice);
+
+	io_put_rsrc_node(req->ctx, sp->rsrc_node);
+}
+
+static struct file *io_splice_get_file(struct io_kiocb *req,
+				       unsigned int issue_flags)
+{
+	struct io_splice *sp = io_kiocb_to_cmd(req, struct io_splice);
+	struct io_ring_ctx *ctx = req->ctx;
+	struct io_rsrc_node *node;
+	struct file *file = NULL;
+
+	if (!(sp->flags & SPLICE_F_FD_IN_FIXED))
+		return io_file_get_normal(req, sp->splice_fd_in);
+
+	io_ring_submit_lock(ctx, issue_flags);
+	node = io_rsrc_node_lookup(&ctx->file_table.data, sp->splice_fd_in);
+	if (node) {
+		node->refs++;
+		sp->rsrc_node = node;
+		file = io_slot_file(node);
+		req->flags |= REQ_F_NEED_CLEANUP;
+	}
+	io_ring_submit_unlock(ctx, issue_flags);
+	return file;
 }
 
 int io_tee(struct io_kiocb *req, unsigned int issue_flags)
@@ -55,10 +87,7 @@ int io_tee(struct io_kiocb *req, unsigned int issue_flags)
 
 	WARN_ON_ONCE(issue_flags & IO_URING_F_NONBLOCK);
 
-	if (sp->flags & SPLICE_F_FD_IN_FIXED)
-		in = io_file_get_fixed(req, sp->splice_fd_in, issue_flags);
-	else
-		in = io_file_get_normal(req, sp->splice_fd_in);
+	in = io_splice_get_file(req, issue_flags);
 	if (!in) {
 		ret = -EBADF;
 		goto done;
@@ -96,10 +125,7 @@ int io_splice(struct io_kiocb *req, unsigned int issue_flags)
 
 	WARN_ON_ONCE(issue_flags & IO_URING_F_NONBLOCK);
 
-	if (sp->flags & SPLICE_F_FD_IN_FIXED)
-		in = io_file_get_fixed(req, sp->splice_fd_in, issue_flags);
-	else
-		in = io_file_get_normal(req, sp->splice_fd_in);
+	in = io_splice_get_file(req, issue_flags);
 	if (!in) {
 		ret = -EBADF;
 		goto done;

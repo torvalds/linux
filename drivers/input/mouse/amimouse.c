@@ -139,7 +139,7 @@ static void __exit amimouse_remove(struct platform_device *pdev)
  * triggering a section mismatch warning.
  */
 static struct platform_driver amimouse_driver __refdata = {
-	.remove_new = __exit_p(amimouse_remove),
+	.remove = __exit_p(amimouse_remove),
 	.driver   = {
 		.name	= "amiga-mouse",
 	},

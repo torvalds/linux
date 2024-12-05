@@ -51,6 +51,40 @@
 		regulator-name = "5V_SW_CAN2";
 		startup-delay-us = <10000>;
 	};
+
+	sound-carrier {
+		compatible = "simple-audio-card";
+		simple-audio-card,bitclock-master = <&codec_dai>;
+		simple-audio-card,format = "i2s";
+		simple-audio-card,frame-master = <&codec_dai>;
+		simple-audio-card,name = "apalis-nau8822";
+		simple-audio-card,routing =
+			"Headphones", "LHP",
+			"Headphones", "RHP",
+			"Speaker", "LSPK",
+			"Speaker", "RSPK",
+			"Line Out", "AUXOUT1",
+			"Line Out", "AUXOUT2",
+			"LAUX", "Line In",
+			"RAUX", "Line In",
+			"LMICP", "Mic In",
+			"RMICP", "Mic In";
+		simple-audio-card,widgets =
+			"Headphones", "Headphones",
+			"Line Out", "Line Out",
+			"Speaker", "Speaker",
+			"Microphone", "Mic In",
+			"Line", "Line In";
+
+		codec_dai: simple-audio-card,codec {
+			sound-dai = <&nau8822_1a>;
+			system-clock-frequency = <12288000>;
+		};
+
+		simple-audio-card,cpu {
+			sound-dai = <&sai0>;
+		};
+	};
 };
 
 /* Apalis CAN1 */
@@ -69,6 +103,13 @@
 &i2c2 {
 	status = "okay";
 
+	/* Audio Codec */
+	nau8822_1a: audio-codec@1a {
+		compatible = "nuvoton,nau8822";
+		reg = <0x1a>;
+		#sound-dai-cells = <0>;
+	};
+
 	/* Power/Current Measurement Sensor */
 	hwmon@40 {
 		compatible = "ti,ina219";
@@ -85,6 +126,18 @@
 		compatible = "st,24c02", "atmel,24c02";
 		reg = <0x57>;
 	};
+};
+
+&sai0 {
+	assigned-clocks = <&clk IMX_SC_R_AUDIO_PLL_0 IMX_SC_PM_CLK_PLL>,
+			  <&clk IMX_SC_R_AUDIO_PLL_0 IMX_SC_PM_CLK_SLV_BUS>,
+			  <&clk IMX_SC_R_AUDIO_PLL_0 IMX_SC_PM_CLK_MST_BUS>,
+			  <&sai0_lpcg IMX_LPCG_CLK_0>;
+	assigned-clock-rates = <786432000>, <49152000>, <12288000>, <49152000>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_sai0>;
+	#sound-dai-cells = <0>;
+	status = "okay";
 };
 
 /* Apalis MMC1 */
@@ -105,6 +158,15 @@
 };
 
 &iomuxc {
+	pinctrl-0 = <&pinctrl_cam1_gpios>,
+		    <&pinctrl_esai0_gpios>, <&pinctrl_fec2_gpios>,
+		    <&pinctrl_gpio3>, <&pinctrl_gpio4>, <&pinctrl_gpio_keys>,
+		    <&pinctrl_gpio_usbh_oc_n>, <&pinctrl_lpuart1ctrl>,
+		    <&pinctrl_lvds0_i2c0_gpio>, <&pinctrl_lvds1_i2c0_gpios>,
+		    <&pinctrl_mipi_dsi_0_1_en>, <&pinctrl_mipi_dsi1_gpios>,
+		    <&pinctrl_mlb_gpios>, <&pinctrl_qspi1a_gpios>,
+		    <&pinctrl_sata1_act>, <&pinctrl_sim0_gpios>,
+		    <&pinctrl_usdhc1_gpios>;
 
 	pinctrl_enable_3v3_mmc: enable3v3mmcgrp {
 		fsl,pins = <IMX8QM_USDHC1_DATA4_LSIO_GPIO5_IO19	0x00000021>; /* MXM3_148 */
@@ -120,5 +182,12 @@
 
 	pinctrl_enable_can2_power: enablecan2powergrp {
 		fsl,pins = <IMX8QM_USDHC1_DATA6_LSIO_GPIO5_IO21	0x00000021>; /* MXM3_156 */
+	};
+
+	pinctrl_sai0: sai0grp {
+		fsl,pins = <IMX8QM_SAI1_RXC_AUD_SAI0_TXD	0xc600006c>, /* MXM3_196 */
+			   <IMX8QM_SPI0_CS1_AUD_SAI0_TXC	0xc600004c>, /* MXM3_200 */
+			   <IMX8QM_SAI1_RXFS_AUD_SAI0_RXD	0xc600004c>, /* MXM3_202 */
+			   <IMX8QM_SPI2_CS1_AUD_SAI0_TXFS	0xc600004c>; /* MXM3_204 */
 	};
 };

@@ -815,28 +815,23 @@ void __exit lirc_dev_exit(void)
 
 struct rc_dev *rc_dev_get_from_fd(int fd, bool write)
 {
-	struct fd f = fdget(fd);
+	CLASS(fd, f)(fd);
 	struct lirc_fh *fh;
 	struct rc_dev *dev;
 
-	if (!fd_file(f))
+	if (fd_empty(f))
 		return ERR_PTR(-EBADF);
 
-	if (fd_file(f)->f_op != &lirc_fops) {
-		fdput(f);
+	if (fd_file(f)->f_op != &lirc_fops)
 		return ERR_PTR(-EINVAL);
-	}
 
-	if (write && !(fd_file(f)->f_mode & FMODE_WRITE)) {
-		fdput(f);
+	if (write && !(fd_file(f)->f_mode & FMODE_WRITE))
 		return ERR_PTR(-EPERM);
-	}
 
 	fh = fd_file(f)->private_data;
 	dev = fh->rc;
 
 	get_device(&dev->dev);
-	fdput(f);
 
 	return dev;
 }

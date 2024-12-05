@@ -40,6 +40,7 @@
 #include "amdgpu_trace.h"
 #include "amdgpu_amdkfd.h"
 #include "amdgpu_vram_mgr.h"
+#include "amdgpu_vm.h"
 
 /**
  * DOC: amdgpu_object
@@ -161,7 +162,8 @@ void amdgpu_bo_placement_from_domain(struct amdgpu_bo *abo, u32 domain)
 		 * When GTT is just an alternative to VRAM make sure that we
 		 * only use it as fallback and still try to fill up VRAM first.
 		 */
-		if (domain & abo->preferred_domains & AMDGPU_GEM_DOMAIN_VRAM)
+		if (domain & abo->preferred_domains & AMDGPU_GEM_DOMAIN_VRAM &&
+		    !(adev->flags & AMD_IS_APU))
 			places[c].flags |= TTM_PL_FLAG_FALLBACK;
 		c++;
 	}
@@ -1170,54 +1172,71 @@ void amdgpu_bo_move_notify(struct ttm_buffer_object *bo,
 }
 
 void amdgpu_bo_get_memory(struct amdgpu_bo *bo,
-			  struct amdgpu_mem_stats *stats)
+			  struct amdgpu_mem_stats *stats,
+			  unsigned int sz)
 {
+	const unsigned int domain_to_pl[] = {
+		[ilog2(AMDGPU_GEM_DOMAIN_CPU)]	    = TTM_PL_SYSTEM,
+		[ilog2(AMDGPU_GEM_DOMAIN_GTT)]	    = TTM_PL_TT,
+		[ilog2(AMDGPU_GEM_DOMAIN_VRAM)]	    = TTM_PL_VRAM,
+		[ilog2(AMDGPU_GEM_DOMAIN_GDS)]	    = AMDGPU_PL_GDS,
+		[ilog2(AMDGPU_GEM_DOMAIN_GWS)]	    = AMDGPU_PL_GWS,
+		[ilog2(AMDGPU_GEM_DOMAIN_OA)]	    = AMDGPU_PL_OA,
+		[ilog2(AMDGPU_GEM_DOMAIN_DOORBELL)] = AMDGPU_PL_DOORBELL,
+	};
 	struct amdgpu_device *adev = amdgpu_ttm_adev(bo->tbo.bdev);
 	struct ttm_resource *res = bo->tbo.resource;
+	struct drm_gem_object *obj = &bo->tbo.base;
 	uint64_t size = amdgpu_bo_size(bo);
-	struct drm_gem_object *obj;
-	bool shared;
+	unsigned int type;
 
-	/* Abort if the BO doesn't currently have a backing store */
-	if (!res)
-		return;
-
-	obj = &bo->tbo.base;
-	shared = drm_gem_object_is_shared_for_memory_stats(obj);
-
-	switch (res->mem_type) {
-	case TTM_PL_VRAM:
-		stats->vram += size;
-		if (amdgpu_res_cpu_visible(adev, res))
-			stats->visible_vram += size;
-		if (shared)
-			stats->vram_shared += size;
-		break;
-	case TTM_PL_TT:
-		stats->gtt += size;
-		if (shared)
-			stats->gtt_shared += size;
-		break;
-	case TTM_PL_SYSTEM:
-	default:
-		stats->cpu += size;
-		if (shared)
-			stats->cpu_shared += size;
-		break;
+	if (!res) {
+		/*
+		 * If no backing store use one of the preferred domain for basic
+		 * stats. We take the MSB since that should give a reasonable
+		 * view.
+		 */
+		BUILD_BUG_ON(TTM_PL_VRAM < TTM_PL_TT ||
+			     TTM_PL_VRAM < TTM_PL_SYSTEM);
+		type = fls(bo->preferred_domains & AMDGPU_GEM_DOMAIN_MASK);
+		if (!type)
+			return;
+		type--;
+		if (drm_WARN_ON_ONCE(&adev->ddev,
+				     type >= ARRAY_SIZE(domain_to_pl)))
+			return;
+		type = domain_to_pl[type];
+	} else {
+		type = res->mem_type;
 	}
 
-	if (bo->preferred_domains & AMDGPU_GEM_DOMAIN_VRAM) {
-		stats->requested_vram += size;
-		if (bo->flags & AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED)
-			stats->requested_visible_vram += size;
+	if (drm_WARN_ON_ONCE(&adev->ddev, type >= sz))
+		return;
 
-		if (res->mem_type != TTM_PL_VRAM) {
-			stats->evicted_vram += size;
-			if (bo->flags & AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED)
-				stats->evicted_visible_vram += size;
-		}
+	/* DRM stats common fields: */
+
+	if (drm_gem_object_is_shared_for_memory_stats(obj))
+		stats[type].drm.shared += size;
+	else
+		stats[type].drm.private += size;
+
+	if (res) {
+		stats[type].drm.resident += size;
+
+		if (!dma_resv_test_signaled(obj->resv, DMA_RESV_USAGE_BOOKKEEP))
+			stats[type].drm.active += size;
+		else if (bo->flags & AMDGPU_GEM_CREATE_DISCARDABLE)
+			stats[type].drm.purgeable += size;
+	}
+
+	/* amdgpu specific stats: */
+
+	if (bo->preferred_domains & AMDGPU_GEM_DOMAIN_VRAM) {
+		stats[TTM_PL_VRAM].requested += size;
+		if (type != TTM_PL_VRAM)
+			stats[TTM_PL_VRAM].evicted += size;
 	} else if (bo->preferred_domains & AMDGPU_GEM_DOMAIN_GTT) {
-		stats->requested_gtt += size;
+		stats[TTM_PL_TT].requested += size;
 	}
 }
 

@@ -100,6 +100,29 @@ struct hpre_sqe {
 	__le32 rsvd1[_HPRE_SQE_ALIGN_EXT];
 };
 
+enum hpre_cap_table_type {
+	QM_RAS_NFE_TYPE = 0x0,
+	QM_RAS_NFE_RESET,
+	QM_RAS_CE_TYPE,
+	HPRE_RAS_NFE_TYPE,
+	HPRE_RAS_NFE_RESET,
+	HPRE_RAS_CE_TYPE,
+	HPRE_CORE_INFO,
+	HPRE_CORE_EN,
+	HPRE_DRV_ALG_BITMAP,
+	HPRE_ALG_BITMAP,
+	HPRE_CORE1_BITMAP_CAP,
+	HPRE_CORE2_BITMAP_CAP,
+	HPRE_CORE3_BITMAP_CAP,
+	HPRE_CORE4_BITMAP_CAP,
+	HPRE_CORE5_BITMAP_CAP,
+	HPRE_CORE6_BITMAP_CAP,
+	HPRE_CORE7_BITMAP_CAP,
+	HPRE_CORE8_BITMAP_CAP,
+	HPRE_CORE9_BITMAP_CAP,
+	HPRE_CORE10_BITMAP_CAP,
+};
+
 struct hisi_qp *hpre_create_qp(u8 type);
 int hpre_algs_register(struct hisi_qm *qm);
 void hpre_algs_unregister(struct hisi_qm *qm);

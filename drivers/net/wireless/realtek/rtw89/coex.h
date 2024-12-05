@@ -271,8 +271,10 @@ void rtw89_btc_ntfy_eapol_packet_work(struct work_struct *work);
 void rtw89_btc_ntfy_arp_packet_work(struct work_struct *work);
 void rtw89_btc_ntfy_dhcp_packet_work(struct work_struct *work);
 void rtw89_btc_ntfy_icmp_packet_work(struct work_struct *work);
-void rtw89_btc_ntfy_role_info(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif,
-			      struct rtw89_sta *rtwsta, enum btc_role_state state);
+void rtw89_btc_ntfy_role_info(struct rtw89_dev *rtwdev,
+			      struct rtw89_vif_link *rtwvif_link,
+			      struct rtw89_sta_link *rtwsta_link,
+			      enum btc_role_state state);
 void rtw89_btc_ntfy_radio_state(struct rtw89_dev *rtwdev, enum btc_rfctrl rf_state);
 void rtw89_btc_ntfy_wl_rfk(struct rtw89_dev *rtwdev, u8 phy_map,
 			   enum btc_wl_rfk_type type,

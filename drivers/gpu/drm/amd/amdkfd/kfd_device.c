@@ -534,7 +534,8 @@ static void kfd_cwsr_init(struct kfd_dev *kfd)
 			kfd->cwsr_isa = cwsr_trap_gfx11_hex;
 			kfd->cwsr_isa_size = sizeof(cwsr_trap_gfx11_hex);
 		} else {
-			BUILD_BUG_ON(sizeof(cwsr_trap_gfx12_hex) > PAGE_SIZE);
+			BUILD_BUG_ON(sizeof(cwsr_trap_gfx12_hex)
+					     > KFD_CWSR_TMA_OFFSET);
 			kfd->cwsr_isa = cwsr_trap_gfx12_hex;
 			kfd->cwsr_isa_size = sizeof(cwsr_trap_gfx12_hex);
 		}
@@ -1392,6 +1393,13 @@ void kfd_dec_compute_active(struct kfd_node *node)
 	WARN_ONCE(count < 0, "Compute profile ref. count error");
 }
 
+static bool kfd_compute_active(struct kfd_node *node)
+{
+	if (atomic_read(&node->kfd->compute_profile))
+		return true;
+	return false;
+}
+
 void kgd2kfd_smi_event_throttle(struct kfd_dev *kfd, uint64_t throttle_bitmask)
 {
 	/*
@@ -1483,6 +1491,24 @@ int kgd2kfd_stop_sched(struct kfd_dev *kfd, uint32_t node_id)
 
 	node = kfd->nodes[node_id];
 	return node->dqm->ops.halt(node->dqm);
+}
+
+bool kgd2kfd_compute_active(struct kfd_dev *kfd, uint32_t node_id)
+{
+	struct kfd_node *node;
+
+	if (!kfd->init_complete)
+		return false;
+
+	if (node_id >= kfd->num_nodes) {
+		dev_warn(kfd->adev->dev, "Invalid node ID: %u exceeds %u\n",
+			 node_id, kfd->num_nodes - 1);
+		return false;
+	}
+
+	node = kfd->nodes[node_id];
+
+	return kfd_compute_active(node);
 }
 
 #if defined(CONFIG_DEBUG_FS)

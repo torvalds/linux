@@ -5789,9 +5789,10 @@ static int wlcore_op_cancel_remain_on_channel(struct ieee80211_hw *hw,
 
 static void wlcore_op_sta_rc_update(struct ieee80211_hw *hw,
 				    struct ieee80211_vif *vif,
-				    struct ieee80211_sta *sta,
+				    struct ieee80211_link_sta *link_sta,
 				    u32 changed)
 {
+	struct ieee80211_sta *sta = link_sta->sta;
 	struct wl12xx_vif *wlvif = wl12xx_vif_to_data(vif);
 
 	wl1271_debug(DEBUG_MAC80211, "mac80211 sta_rc_update");
@@ -6052,7 +6053,7 @@ static const struct ieee80211_ops wl1271_ops = {
 	.assign_vif_chanctx = wlcore_op_assign_vif_chanctx,
 	.unassign_vif_chanctx = wlcore_op_unassign_vif_chanctx,
 	.switch_vif_chanctx = wlcore_op_switch_vif_chanctx,
-	.sta_rc_update = wlcore_op_sta_rc_update,
+	.link_sta_rc_update = wlcore_op_sta_rc_update,
 	.sta_statistics = wlcore_op_sta_statistics,
 	.get_expected_throughput = wlcore_op_get_expected_throughput,
 	CFG80211_TESTMODE_CMD(wl1271_tm_cmd)

@@ -409,7 +409,7 @@ static struct platform_driver smi_driver = {
 		.acpi_match_table = smi_acpi_ids,
 	},
 	.probe = smi_probe,
-	.remove_new = smi_remove,
+	.remove = smi_remove,
 };
 module_platform_driver(smi_driver);
 

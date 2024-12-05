@@ -682,7 +682,7 @@ MODULE_DEVICE_TABLE(of, wcnss_of_match);
 
 static struct platform_driver wcnss_driver = {
 	.probe = wcnss_probe,
-	.remove_new = wcnss_remove,
+	.remove = wcnss_remove,
 	.driver = {
 		.name = "qcom-wcnss-pil",
 		.of_match_table = wcnss_of_match,

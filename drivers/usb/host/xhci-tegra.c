@@ -2664,7 +2664,7 @@ MODULE_DEVICE_TABLE(of, tegra_xusb_of_match);
 
 static struct platform_driver tegra_xusb_driver = {
 	.probe = tegra_xusb_probe,
-	.remove_new = tegra_xusb_remove,
+	.remove = tegra_xusb_remove,
 	.shutdown = tegra_xusb_shutdown,
 	.driver = {
 		.name = "tegra-xusb",

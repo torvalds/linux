@@ -1383,7 +1383,7 @@ static void ena_adjust_adaptive_rx_intr_moderation(struct ena_napi *ena_napi)
 			  rx_ring->rx_stats.bytes,
 			  &dim_sample);
 
-	net_dim(&ena_napi->dim, dim_sample);
+	net_dim(&ena_napi->dim, &dim_sample);
 
 	rx_ring->per_napi_packets = 0;
 }
@@ -1677,9 +1677,9 @@ static int ena_request_mgmnt_irq(struct ena_adapter *adapter)
 static int ena_request_io_irq(struct ena_adapter *adapter)
 {
 	u32 io_queue_count = adapter->num_io_queues + adapter->xdp_num_queues;
+	int rc = 0, i, k, irq_idx;
 	unsigned long flags = 0;
 	struct ena_irq *irq;
-	int rc = 0, i, k;
 
 	if (!test_bit(ENA_FLAG_MSIX_ENABLED, &adapter->flags)) {
 		netif_err(adapter, ifup, adapter->netdev,
@@ -1703,6 +1703,16 @@ static int ena_request_io_irq(struct ena_adapter *adapter)
 			  i, irq->affinity_hint_mask.bits[0], irq->vector);
 
 		irq_set_affinity_hint(irq->vector, &irq->affinity_hint_mask);
+	}
+
+	/* Now that IO IRQs have been successfully allocated map them to the
+	 * corresponding IO NAPI instance. Note that the mgmnt IRQ does not
+	 * have a NAPI, so care must be taken to correctly map IRQs to NAPIs.
+	 */
+	for (i = 0; i < io_queue_count; i++) {
+		irq_idx = ENA_IO_IRQ_IDX(i);
+		irq = &adapter->irq_tbl[irq_idx];
+		netif_napi_set_irq(&adapter->ena_napi[i].napi, irq->vector);
 	}
 
 	return rc;
@@ -1811,20 +1821,40 @@ static void ena_napi_disable_in_range(struct ena_adapter *adapter,
 				      int first_index,
 				      int count)
 {
+	struct napi_struct *napi;
 	int i;
 
-	for (i = first_index; i < first_index + count; i++)
-		napi_disable(&adapter->ena_napi[i].napi);
+	for (i = first_index; i < first_index + count; i++) {
+		napi = &adapter->ena_napi[i].napi;
+		if (!ENA_IS_XDP_INDEX(adapter, i)) {
+			/* This API is supported for non-XDP queues only */
+			netif_queue_set_napi(adapter->netdev, i,
+					     NETDEV_QUEUE_TYPE_TX, NULL);
+			netif_queue_set_napi(adapter->netdev, i,
+					     NETDEV_QUEUE_TYPE_RX, NULL);
+		}
+		napi_disable(napi);
+	}
 }
 
 static void ena_napi_enable_in_range(struct ena_adapter *adapter,
 				     int first_index,
 				     int count)
 {
+	struct napi_struct *napi;
 	int i;
 
-	for (i = first_index; i < first_index + count; i++)
-		napi_enable(&adapter->ena_napi[i].napi);
+	for (i = first_index; i < first_index + count; i++) {
+		napi = &adapter->ena_napi[i].napi;
+		napi_enable(napi);
+		if (!ENA_IS_XDP_INDEX(adapter, i)) {
+			/* This API is supported for non-XDP queues only */
+			netif_queue_set_napi(adapter->netdev, i,
+					     NETDEV_QUEUE_TYPE_RX, napi);
+			netif_queue_set_napi(adapter->netdev, i,
+					     NETDEV_QUEUE_TYPE_TX, napi);
+		}
+	}
 }
 
 /* Configure the Rx forwarding */

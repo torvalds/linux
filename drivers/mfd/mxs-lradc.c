@@ -243,7 +243,7 @@ static struct platform_driver mxs_lradc_driver = {
 		.of_match_table = mxs_lradc_dt_ids,
 	},
 	.probe = mxs_lradc_probe,
-	.remove_new = mxs_lradc_remove,
+	.remove = mxs_lradc_remove,
 };
 module_platform_driver(mxs_lradc_driver);
 

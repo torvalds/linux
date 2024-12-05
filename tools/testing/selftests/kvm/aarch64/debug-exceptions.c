@@ -433,15 +433,15 @@ static void test_guest_debug_exceptions(uint8_t bpn, uint8_t wpn, uint8_t ctx_bp
 	vcpu_init_descriptor_tables(vcpu);
 
 	vm_install_sync_handler(vm, VECTOR_SYNC_CURRENT,
-				ESR_EC_BRK_INS, guest_sw_bp_handler);
+				ESR_ELx_EC_BRK64, guest_sw_bp_handler);
 	vm_install_sync_handler(vm, VECTOR_SYNC_CURRENT,
-				ESR_EC_HW_BP_CURRENT, guest_hw_bp_handler);
+				ESR_ELx_EC_BREAKPT_CUR, guest_hw_bp_handler);
 	vm_install_sync_handler(vm, VECTOR_SYNC_CURRENT,
-				ESR_EC_WP_CURRENT, guest_wp_handler);
+				ESR_ELx_EC_WATCHPT_CUR, guest_wp_handler);
 	vm_install_sync_handler(vm, VECTOR_SYNC_CURRENT,
-				ESR_EC_SSTEP_CURRENT, guest_ss_handler);
+				ESR_ELx_EC_SOFTSTP_CUR, guest_ss_handler);
 	vm_install_sync_handler(vm, VECTOR_SYNC_CURRENT,
-				ESR_EC_SVC64, guest_svc_handler);
+				ESR_ELx_EC_SVC64, guest_svc_handler);
 
 	/* Specify bpn/wpn/ctx_bpn to be tested */
 	vcpu_args_set(vcpu, 3, bpn, wpn, ctx_bpn);

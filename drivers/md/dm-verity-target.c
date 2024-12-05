@@ -93,7 +93,7 @@ static void dm_bufio_alloc_callback(struct dm_buffer *buf)
  */
 static sector_t verity_map_sector(struct dm_verity *v, sector_t bi_sector)
 {
-	return v->data_start + dm_target_offset(v->ti, bi_sector);
+	return dm_target_offset(v->ti, bi_sector);
 }
 
 /*
@@ -952,7 +952,7 @@ static int verity_prepare_ioctl(struct dm_target *ti, struct block_device **bdev
 
 	*bdev = v->data_dev->bdev;
 
-	if (v->data_start || ti->len != bdev_nr_sectors(v->data_dev->bdev))
+	if (ti->len != bdev_nr_sectors(v->data_dev->bdev))
 		return 1;
 	return 0;
 }
@@ -962,7 +962,7 @@ static int verity_iterate_devices(struct dm_target *ti,
 {
 	struct dm_verity *v = ti->private;
 
-	return fn(ti, v->data_dev, v->data_start, ti->len, data);
+	return fn(ti, v->data_dev, 0, ti->len, data);
 }
 
 static void verity_io_hints(struct dm_target *ti, struct queue_limits *limits)

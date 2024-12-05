@@ -148,8 +148,8 @@ extern void elv_unregister(struct elevator_type *);
  * io scheduler sysfs switching
  */
 ssize_t elv_iosched_show(struct gendisk *disk, char *page);
-int elv_iosched_load_module(struct gendisk *disk, const char *page,
-			    size_t count);
+void elv_iosched_load_module(struct gendisk *disk, const char *page,
+		size_t count);
 ssize_t elv_iosched_store(struct gendisk *disk, const char *page, size_t count);
 
 extern bool elv_bio_merge_ok(struct request *, struct bio *);

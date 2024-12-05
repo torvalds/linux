@@ -22,6 +22,9 @@
 #define NVMEM_MASK	0x7
 #define NVMEM_SHIFT	5
 
+#define SUN50I_A100_NVMEM_MASK	0xf
+#define SUN50I_A100_NVMEM_SHIFT	12
+
 static struct platform_device *cpufreq_dt_pdev, *sun50i_cpufreq_pdev;
 
 struct sunxi_cpufreq_data {
@@ -43,6 +46,23 @@ static u32 sun50i_h6_efuse_xlate(u32 speedbin)
 		return efuse_value - 1;
 	else
 		return 0;
+}
+
+static u32 sun50i_a100_efuse_xlate(u32 speedbin)
+{
+	u32 efuse_value;
+
+	efuse_value = (speedbin >> SUN50I_A100_NVMEM_SHIFT) &
+		      SUN50I_A100_NVMEM_MASK;
+
+	switch (efuse_value) {
+	case 0b100:
+		return 2;
+	case 0b010:
+		return 1;
+	default:
+		return 0;
+	}
 }
 
 static int get_soc_id_revision(void)
@@ -108,6 +128,10 @@ static struct sunxi_cpufreq_data sun50i_h6_cpufreq_data = {
 	.efuse_xlate = sun50i_h6_efuse_xlate,
 };
 
+static struct sunxi_cpufreq_data sun50i_a100_cpufreq_data = {
+	.efuse_xlate = sun50i_a100_efuse_xlate,
+};
+
 static struct sunxi_cpufreq_data sun50i_h616_cpufreq_data = {
 	.efuse_xlate = sun50i_h616_efuse_xlate,
 };
@@ -115,6 +139,9 @@ static struct sunxi_cpufreq_data sun50i_h616_cpufreq_data = {
 static const struct of_device_id cpu_opp_match_list[] = {
 	{ .compatible = "allwinner,sun50i-h6-operating-points",
 	  .data = &sun50i_h6_cpufreq_data,
+	},
+	{ .compatible = "allwinner,sun50i-a100-operating-points",
+	  .data = &sun50i_a100_cpufreq_data,
 	},
 	{ .compatible = "allwinner,sun50i-h616-operating-points",
 	  .data = &sun50i_h616_cpufreq_data,
@@ -283,7 +310,7 @@ static void sun50i_cpufreq_nvmem_remove(struct platform_device *pdev)
 
 static struct platform_driver sun50i_cpufreq_driver = {
 	.probe = sun50i_cpufreq_nvmem_probe,
-	.remove_new = sun50i_cpufreq_nvmem_remove,
+	.remove = sun50i_cpufreq_nvmem_remove,
 	.driver = {
 		.name = "sun50i-cpufreq-nvmem",
 	},
@@ -291,6 +318,7 @@ static struct platform_driver sun50i_cpufreq_driver = {
 
 static const struct of_device_id sun50i_cpufreq_match_list[] = {
 	{ .compatible = "allwinner,sun50i-h6" },
+	{ .compatible = "allwinner,sun50i-a100" },
 	{ .compatible = "allwinner,sun50i-h616" },
 	{ .compatible = "allwinner,sun50i-h618" },
 	{ .compatible = "allwinner,sun50i-h700" },

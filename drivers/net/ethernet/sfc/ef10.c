@@ -1751,7 +1751,7 @@ static void efx_ef10_get_stat_mask(struct efx_nic *efx, unsigned long *mask)
 #endif
 }
 
-static size_t efx_ef10_describe_stats(struct efx_nic *efx, u8 *names)
+static size_t efx_ef10_describe_stats(struct efx_nic *efx, u8 **names)
 {
 	DECLARE_BITMAP(mask, EF10_STAT_COUNT);
 

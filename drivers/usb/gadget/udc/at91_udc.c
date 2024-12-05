@@ -2002,7 +2002,7 @@ static int at91udc_resume(struct platform_device *pdev)
 
 static struct platform_driver at91_udc_driver = {
 	.probe		= at91udc_probe,
-	.remove_new	= at91udc_remove,
+	.remove		= at91udc_remove,
 	.shutdown	= at91udc_shutdown,
 	.suspend	= at91udc_suspend,
 	.resume		= at91udc_resume,

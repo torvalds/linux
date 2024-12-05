@@ -21,6 +21,7 @@ static inline bool bch2_btree_write_buffer_must_wait(struct bch_fs *c)
 
 struct btree_trans;
 int bch2_btree_write_buffer_flush_sync(struct btree_trans *);
+bool bch2_btree_write_buffer_flush_going_ro(struct bch_fs *);
 int bch2_btree_write_buffer_flush_nocheck_rw(struct btree_trans *);
 int bch2_btree_write_buffer_tryflush(struct btree_trans *);
 

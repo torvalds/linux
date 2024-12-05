@@ -32,7 +32,7 @@
 /**
  * Register and bit definitions for OMAP4430
  *
- * All the macros bellow define the required bits for
+ * All the macros below define the required bits for
  * controlling temperature on OMAP4430. Bit defines are
  * grouped by register.
  */
@@ -48,7 +48,7 @@
 /**
  * Temperature limits and thresholds for OMAP4430
  *
- * All the macros bellow are definitions for handling the
+ * All the macros below are definitions for handling the
  * ADC conversions and representation of temperature limits
  * and thresholds for OMAP4430.
  */
@@ -102,7 +102,7 @@
 /**
  * Register bitfields for OMAP4460
  *
- * All the macros bellow define the required bits for
+ * All the macros below define the required bits for
  * controlling temperature on OMAP4460. Bit defines are
  * grouped by register.
  */
@@ -135,7 +135,7 @@
 /**
  * Temperature limits and thresholds for OMAP4460
  *
- * All the macros bellow are definitions for handling the
+ * All the macros below are definitions for handling the
  * ADC conversions and representation of temperature limits
  * and thresholds for OMAP4460.
  */

@@ -129,13 +129,7 @@ struct page可以与现有的 mm 机制进行最简单、最干净的集成。�
   int hmm_range_fault(struct hmm_range *range);
 
 如果请求写访问，它将在丢失或只读条目上触发缺页异常（见下文）。缺页异常使用通用的 mm 缺
-页异常代码路径，就像 CPU 缺页异常一样。
-
-这两个函数都将 CPU 页表条目复制到它们的 pfns 数组参数中。该数组中的每个条目对应于虚拟
-范围中的一个地址。HMM 提供了一组标志来帮助驱动程序识别特殊的 CPU 页表项。
-
-在 sync_cpu_device_pagetables() 回调中锁定是驱动程序必须尊重的最重要的方面，以保
-持事物正确同步。使用模式是::
+页异常代码路径，就像 CPU 缺页异常一样。使用模式是::
 
  int driver_populate_range(...)
  {

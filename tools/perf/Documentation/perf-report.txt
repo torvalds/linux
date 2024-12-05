@@ -391,6 +391,14 @@ OPTIONS
 	This allows to examine the path the program took to each sample.
 	The data collection must have used -b (or -j) and -g.
 
+	Also show with some branch flags that can be:
+	- Predicted: display the average percentage of predicated branches.
+		     (predicated number / total number)
+	- Abort: display the number of tsx aborted branches.
+	- Cycles: cycles in basic block.
+
+	- iterations: display the average number of iterations in callchain list.
+
 --addr2line=<path>::
         Path to addr2line binary.
 

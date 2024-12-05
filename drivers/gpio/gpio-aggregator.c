@@ -65,11 +65,11 @@ static int aggr_parse(struct gpio_aggregator *aggr)
 {
 	char *args = skip_spaces(aggr->args);
 	char *name, *offsets, *p;
-	unsigned long *bitmap;
 	unsigned int i, n = 0;
 	int error = 0;
 
-	bitmap = bitmap_alloc(AGGREGATOR_MAX_GPIOS, GFP_KERNEL);
+	unsigned long *bitmap __free(bitmap) =
+			bitmap_alloc(AGGREGATOR_MAX_GPIOS, GFP_KERNEL);
 	if (!bitmap)
 		return -ENOMEM;
 
@@ -82,7 +82,7 @@ static int aggr_parse(struct gpio_aggregator *aggr)
 			/* Named GPIO line */
 			error = aggr_add_gpio(aggr, name, U16_MAX, &n);
 			if (error)
-				goto free_bitmap;
+				return error;
 
 			name = offsets;
 			continue;
@@ -92,13 +92,13 @@ static int aggr_parse(struct gpio_aggregator *aggr)
 		error = bitmap_parselist(offsets, bitmap, AGGREGATOR_MAX_GPIOS);
 		if (error) {
 			pr_err("Cannot parse %s: %d\n", offsets, error);
-			goto free_bitmap;
+			return error;
 		}
 
 		for_each_set_bit(i, bitmap, AGGREGATOR_MAX_GPIOS) {
 			error = aggr_add_gpio(aggr, name, i, &n);
 			if (error)
-				goto free_bitmap;
+				return error;
 		}
 
 		args = next_arg(args, &name, &p);
@@ -106,12 +106,10 @@ static int aggr_parse(struct gpio_aggregator *aggr)
 
 	if (!n) {
 		pr_err("No GPIOs specified\n");
-		error = -EINVAL;
+		return -EINVAL;
 	}
 
-free_bitmap:
-	bitmap_free(bitmap);
-	return error;
+	return 0;
 }
 
 static ssize_t new_device_store(struct device_driver *driver, const char *buf,

@@ -467,7 +467,7 @@ static int bmi323_feature_engine_events(struct bmi323_data *data,
 			    BMI323_FEAT_IO_STATUS_MSK);
 }
 
-static int bmi323_step_wtrmrk_en(struct bmi323_data *data, int state)
+static int bmi323_step_wtrmrk_en(struct bmi323_data *data, bool state)
 {
 	enum bmi323_irq_pin step_irq;
 	int ret;
@@ -484,7 +484,7 @@ static int bmi323_step_wtrmrk_en(struct bmi323_data *data, int state)
 	ret = bmi323_update_ext_reg(data, BMI323_STEP_SC1_REG,
 				    BMI323_STEP_SC1_WTRMRK_MSK,
 				    FIELD_PREP(BMI323_STEP_SC1_WTRMRK_MSK,
-					       state ? 1 : 0));
+					       state));
 	if (ret)
 		return ret;
 
@@ -506,7 +506,7 @@ static int bmi323_motion_config_reg(enum iio_event_direction dir)
 }
 
 static int bmi323_motion_event_en(struct bmi323_data *data,
-				  enum iio_event_direction dir, int state)
+				  enum iio_event_direction dir, bool state)
 {
 	unsigned int state_value = state ? BMI323_FEAT_XYZ_MSK : 0;
 	int config, ret, msk, raw, field_value;
@@ -570,7 +570,7 @@ static int bmi323_motion_event_en(struct bmi323_data *data,
 }
 
 static int bmi323_tap_event_en(struct bmi323_data *data,
-			       enum iio_event_direction dir, int state)
+			       enum iio_event_direction dir, bool state)
 {
 	enum bmi323_irq_pin tap_irq;
 	int ret, tap_enabled;
@@ -785,7 +785,7 @@ static const struct attribute_group bmi323_event_attribute_group = {
 static int bmi323_write_event_config(struct iio_dev *indio_dev,
 				     const struct iio_chan_spec *chan,
 				     enum iio_event_type type,
-				     enum iio_event_direction dir, int state)
+				     enum iio_event_direction dir, bool state)
 {
 	struct bmi323_data *data = iio_priv(indio_dev);
 
@@ -1881,7 +1881,6 @@ static int bmi323_trigger_probe(struct bmi323_data *data,
 	struct fwnode_handle *fwnode;
 	enum bmi323_irq_pin irq_pin;
 	int ret, irq, irq_type;
-	struct irq_data *desc;
 
 	fwnode = dev_fwnode(data->dev);
 	if (!fwnode)
@@ -1898,12 +1897,7 @@ static int bmi323_trigger_probe(struct bmi323_data *data,
 		irq_pin = BMI323_IRQ_INT2;
 	}
 
-	desc = irq_get_irq_data(irq);
-	if (!desc)
-		return dev_err_probe(data->dev, -EINVAL,
-				     "Could not find IRQ %d\n", irq);
-
-	irq_type = irqd_get_trigger_type(desc);
+	irq_type = irq_get_trigger_type(irq);
 	switch (irq_type) {
 	case IRQF_TRIGGER_RISING:
 		latch = false;

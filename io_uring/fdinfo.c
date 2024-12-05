@@ -46,6 +46,46 @@ static __cold int io_uring_show_cred(struct seq_file *m, unsigned int id,
 	return 0;
 }
 
+#ifdef CONFIG_NET_RX_BUSY_POLL
+static __cold void common_tracking_show_fdinfo(struct io_ring_ctx *ctx,
+					       struct seq_file *m,
+					       const char *tracking_strategy)
+{
+	seq_puts(m, "NAPI:\tenabled\n");
+	seq_printf(m, "napi tracking:\t%s\n", tracking_strategy);
+	seq_printf(m, "napi_busy_poll_dt:\t%llu\n", ctx->napi_busy_poll_dt);
+	if (ctx->napi_prefer_busy_poll)
+		seq_puts(m, "napi_prefer_busy_poll:\ttrue\n");
+	else
+		seq_puts(m, "napi_prefer_busy_poll:\tfalse\n");
+}
+
+static __cold void napi_show_fdinfo(struct io_ring_ctx *ctx,
+				    struct seq_file *m)
+{
+	unsigned int mode = READ_ONCE(ctx->napi_track_mode);
+
+	switch (mode) {
+	case IO_URING_NAPI_TRACKING_INACTIVE:
+		seq_puts(m, "NAPI:\tdisabled\n");
+		break;
+	case IO_URING_NAPI_TRACKING_DYNAMIC:
+		common_tracking_show_fdinfo(ctx, m, "dynamic");
+		break;
+	case IO_URING_NAPI_TRACKING_STATIC:
+		common_tracking_show_fdinfo(ctx, m, "static");
+		break;
+	default:
+		seq_printf(m, "NAPI:\tunknown mode (%u)\n", mode);
+	}
+}
+#else
+static inline void napi_show_fdinfo(struct io_ring_ctx *ctx,
+				    struct seq_file *m)
+{
+}
+#endif
+
 /*
  * Caller holds a reference to the file already, we don't need to do
  * anything else to get an extra reference.
@@ -165,20 +205,27 @@ __cold void io_uring_show_fdinfo(struct seq_file *m, struct file *file)
 	seq_printf(m, "SqThreadCpu:\t%d\n", sq_cpu);
 	seq_printf(m, "SqTotalTime:\t%llu\n", sq_total_time);
 	seq_printf(m, "SqWorkTime:\t%llu\n", sq_work_time);
-	seq_printf(m, "UserFiles:\t%u\n", ctx->nr_user_files);
-	for (i = 0; has_lock && i < ctx->nr_user_files; i++) {
-		struct file *f = io_file_from_index(&ctx->file_table, i);
+	seq_printf(m, "UserFiles:\t%u\n", ctx->file_table.data.nr);
+	for (i = 0; has_lock && i < ctx->file_table.data.nr; i++) {
+		struct file *f = NULL;
 
+		if (ctx->file_table.data.nodes[i])
+			f = io_slot_file(ctx->file_table.data.nodes[i]);
 		if (f)
 			seq_printf(m, "%5u: %s\n", i, file_dentry(f)->d_iname);
 		else
 			seq_printf(m, "%5u: <none>\n", i);
 	}
-	seq_printf(m, "UserBufs:\t%u\n", ctx->nr_user_bufs);
-	for (i = 0; has_lock && i < ctx->nr_user_bufs; i++) {
-		struct io_mapped_ubuf *buf = ctx->user_bufs[i];
+	seq_printf(m, "UserBufs:\t%u\n", ctx->buf_table.nr);
+	for (i = 0; has_lock && i < ctx->buf_table.nr; i++) {
+		struct io_mapped_ubuf *buf = NULL;
 
-		seq_printf(m, "%5u: 0x%llx/%u\n", i, buf->ubuf, buf->len);
+		if (ctx->buf_table.nodes[i])
+			buf = ctx->buf_table.nodes[i]->buf;
+		if (buf)
+			seq_printf(m, "%5u: 0x%llx/%u\n", i, buf->ubuf, buf->len);
+		else
+			seq_printf(m, "%5u: <none>\n", i);
 	}
 	if (has_lock && !xa_empty(&ctx->personalities)) {
 		unsigned long index;
@@ -190,22 +237,13 @@ __cold void io_uring_show_fdinfo(struct seq_file *m, struct file *file)
 	}
 
 	seq_puts(m, "PollList:\n");
-	for (i = 0; i < (1U << ctx->cancel_table.hash_bits); i++) {
+	for (i = 0; has_lock && i < (1U << ctx->cancel_table.hash_bits); i++) {
 		struct io_hash_bucket *hb = &ctx->cancel_table.hbs[i];
-		struct io_hash_bucket *hbl = &ctx->cancel_table_locked.hbs[i];
 		struct io_kiocb *req;
 
-		spin_lock(&hb->lock);
 		hlist_for_each_entry(req, &hb->list, hash_node)
 			seq_printf(m, "  op=%d, task_works=%d\n", req->opcode,
-					task_work_pending(req->task));
-		spin_unlock(&hb->lock);
-
-		if (!has_lock)
-			continue;
-		hlist_for_each_entry(req, &hbl->list, hash_node)
-			seq_printf(m, "  op=%d, task_works=%d\n", req->opcode,
-					task_work_pending(req->task));
+					task_work_pending(req->tctx->task));
 	}
 
 	if (has_lock)
@@ -221,18 +259,6 @@ __cold void io_uring_show_fdinfo(struct seq_file *m, struct file *file)
 
 	}
 	spin_unlock(&ctx->completion_lock);
-
-#ifdef CONFIG_NET_RX_BUSY_POLL
-	if (ctx->napi_enabled) {
-		seq_puts(m, "NAPI:\tenabled\n");
-		seq_printf(m, "napi_busy_poll_dt:\t%llu\n", ctx->napi_busy_poll_dt);
-		if (ctx->napi_prefer_busy_poll)
-			seq_puts(m, "napi_prefer_busy_poll:\ttrue\n");
-		else
-			seq_puts(m, "napi_prefer_busy_poll:\tfalse\n");
-	} else {
-		seq_puts(m, "NAPI:\tdisabled\n");
-	}
-#endif
+	napi_show_fdinfo(ctx, m);
 }
 #endif

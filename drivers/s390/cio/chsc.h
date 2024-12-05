@@ -17,6 +17,22 @@ struct cmg_chars {
 	u32 values[NR_MEASUREMENT_CHARS];
 };
 
+struct cmg_cmcb {
+	u32 not_valid : 1;
+	u32 shared    : 1;
+	u32 extended  : 1;
+	u32	      : 21;
+	u32 chpid     : 8;
+	u32 cmcv      : 5;
+	u32	      : 7;
+	u32 cmgp      : 4;
+	u32 cmgq      : 8;
+	u32 cmg       : 8;
+	u32	      : 16;
+	u32 cmgs      : 16;
+	u32 data[NR_MEASUREMENT_CHARS];
+};
+
 #define NR_MEASUREMENT_ENTRIES 8
 struct cmg_entry {
 	u32 values[NR_MEASUREMENT_ENTRIES];

@@ -849,8 +849,7 @@ static int fxas21002c_trigger_probe(struct fxas21002c_data *data)
 	if (!data->dready_trig)
 		return -ENOMEM;
 
-	irq_trig = irqd_get_trigger_type(irq_get_irq_data(data->irq));
-
+	irq_trig = irq_get_trigger_type(data->irq);
 	if (irq_trig == IRQF_TRIGGER_RISING) {
 		ret = regmap_field_write(data->regmap_fields[F_IPOL], 1);
 		if (ret < 0)

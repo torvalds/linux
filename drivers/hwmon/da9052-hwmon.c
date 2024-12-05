@@ -473,7 +473,7 @@ static void da9052_hwmon_remove(struct platform_device *pdev)
 
 static struct platform_driver da9052_hwmon_driver = {
 	.probe = da9052_hwmon_probe,
-	.remove_new = da9052_hwmon_remove,
+	.remove = da9052_hwmon_remove,
 	.driver = {
 		.name = "da9052-hwmon",
 	},

@@ -201,7 +201,6 @@ void segv_handler(int sig, struct siginfo *unused_si, struct uml_pt_regs *regs)
 unsigned long segv(struct faultinfo fi, unsigned long ip, int is_user,
 		   struct uml_pt_regs *regs)
 {
-	jmp_buf *catcher;
 	int si_code;
 	int err;
 	int is_write = FAULT_WRITE(fi);
@@ -246,15 +245,8 @@ unsigned long segv(struct faultinfo fi, unsigned long ip, int is_user,
 		address = 0;
 	}
 
-	catcher = current->thread.fault_catcher;
 	if (!err)
 		goto out;
-	else if (catcher != NULL) {
-		current->thread.fault_addr = (void *) address;
-		UML_LONGJMP(catcher, 1);
-	}
-	else if (current->thread.fault_addr != NULL)
-		panic("fault_addr set but no fault catcher");
 	else if (!is_user && arch_fixup(ip, regs))
 		goto out;
 
@@ -308,14 +300,6 @@ void relay_signal(int sig, struct siginfo *si, struct uml_pt_regs *regs)
 		       sig, code, err);
 		force_sig(sig);
 	}
-}
-
-void bus_handler(int sig, struct siginfo *si, struct uml_pt_regs *regs)
-{
-	if (current->thread.fault_catcher != NULL)
-		UML_LONGJMP(current->thread.fault_catcher, 1);
-	else
-		relay_signal(sig, si, regs);
 }
 
 void winch(int sig, struct siginfo *unused_si, struct uml_pt_regs *regs)

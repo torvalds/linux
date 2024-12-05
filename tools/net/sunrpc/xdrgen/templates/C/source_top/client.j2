@@ -3,6 +3,11 @@
 // XDR specification file: {{ filename }}
 // XDR specification modification time: {{ mtime }}
 
-#include <linux/sunrpc/xprt.h>
+#include <linux/types.h>
 
-#include "{{ program }}xdr_gen.h"
+#include <linux/sunrpc/xdr.h>
+#include <linux/sunrpc/xdrgen/_defs.h>
+#include <linux/sunrpc/xdrgen/_builtins.h>
+#include <linux/sunrpc/xdrgen/nlm4.h>
+
+#include <linux/sunrpc/clnt.h>

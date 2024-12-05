@@ -96,7 +96,12 @@ attribute-sets:
         name: bits
         type: nest
         nested-attributes: bitset-bits
-
+      -
+        name: value
+        type: binary
+      -
+        name: mask
+        type: binary
   -
     name: string
     attributes:
@@ -1951,3 +1956,7 @@ operations:
             - upstream-sfp-name
             - downstream-sfp-name
       dump: *phy-get-op
+    -
+      name: phy-ntf
+      doc: Notification for change in PHY devices.
+      notify: phy-get

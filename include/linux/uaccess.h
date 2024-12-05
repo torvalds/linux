@@ -403,6 +403,103 @@ copy_struct_from_user(void *dst, size_t ksize, const void __user *src,
 	return 0;
 }
 
+/**
+ * copy_struct_to_user: copy a struct to userspace
+ * @dst:   Destination address, in userspace. This buffer must be @ksize
+ *         bytes long.
+ * @usize: (Alleged) size of @dst struct.
+ * @src:   Source address, in kernel space.
+ * @ksize: Size of @src struct.
+ * @ignored_trailing: Set to %true if there was a non-zero byte in @src that
+ * userspace cannot see because they are using an smaller struct.
+ *
+ * Copies a struct from kernel space to userspace, in a way that guarantees
+ * backwards-compatibility for struct syscall arguments (as long as future
+ * struct extensions are made such that all new fields are *appended* to the
+ * old struct, and zeroed-out new fields have the same meaning as the old
+ * struct).
+ *
+ * Some syscalls may wish to make sure that userspace knows about everything in
+ * the struct, and if there is a non-zero value that userspce doesn't know
+ * about, they want to return an error (such as -EMSGSIZE) or have some other
+ * fallback (such as adding a "you're missing some information" flag). If
+ * @ignored_trailing is non-%NULL, it will be set to %true if there was a
+ * non-zero byte that could not be copied to userspace (ie. was past @usize).
+ *
+ * While unconditionally returning an error in this case is the simplest
+ * solution, for maximum backward compatibility you should try to only return
+ * -EMSGSIZE if the user explicitly requested the data that couldn't be copied.
+ * Note that structure sizes can change due to header changes and simple
+ * recompilations without code changes(!), so if you care about
+ * @ignored_trailing you probably want to make sure that any new field data is
+ * associated with a flag. Otherwise you might assume that a program knows
+ * about data it does not.
+ *
+ * @ksize is just sizeof(*src), and @usize should've been passed by userspace.
+ * The recommended usage is something like the following:
+ *
+ *   SYSCALL_DEFINE2(foobar, struct foo __user *, uarg, size_t, usize)
+ *   {
+ *      int err;
+ *      bool ignored_trailing;
+ *      struct foo karg = {};
+ *
+ *      if (usize > PAGE_SIZE)
+ *		return -E2BIG;
+ *      if (usize < FOO_SIZE_VER0)
+ *		return -EINVAL;
+ *
+ *      // ... modify karg somehow ...
+ *
+ *      err = copy_struct_to_user(uarg, usize, &karg, sizeof(karg),
+ *				  &ignored_trailing);
+ *      if (err)
+ *		return err;
+ *      if (ignored_trailing)
+ *		return -EMSGSIZE:
+ *
+ *      // ...
+ *   }
+ *
+ * There are three cases to consider:
+ *  * If @usize == @ksize, then it's copied verbatim.
+ *  * If @usize < @ksize, then the kernel is trying to pass userspace a newer
+ *    struct than it supports. Thus we only copy the interoperable portions
+ *    (@usize) and ignore the rest (but @ignored_trailing is set to %true if
+ *    any of the trailing (@ksize - @usize) bytes are non-zero).
+ *  * If @usize > @ksize, then the kernel is trying to pass userspace an older
+ *    struct than userspace supports. In order to make sure the
+ *    unknown-to-the-kernel fields don't contain garbage values, we zero the
+ *    trailing (@usize - @ksize) bytes.
+ *
+ * Returns (in all cases, some data may have been copied):
+ *  * -EFAULT: access to userspace failed.
+ */
+static __always_inline __must_check int
+copy_struct_to_user(void __user *dst, size_t usize, const void *src,
+		    size_t ksize, bool *ignored_trailing)
+{
+	size_t size = min(ksize, usize);
+	size_t rest = max(ksize, usize) - size;
+
+	/* Double check if ksize is larger than a known object size. */
+	if (WARN_ON_ONCE(ksize > __builtin_object_size(src, 1)))
+		return -E2BIG;
+
+	/* Deal with trailing bytes. */
+	if (usize > ksize) {
+		if (clear_user(dst + size, rest))
+			return -EFAULT;
+	}
+	if (ignored_trailing)
+		*ignored_trailing = ksize < usize &&
+			memchr_inv(src + size, 0, rest) != NULL;
+	/* Copy the interoperable parts of the struct. */
+	if (copy_to_user(dst, src, size))
+		return -EFAULT;
+	return 0;
+}
+
 bool copy_from_kernel_nofault_allowed(const void *unsafe_src, size_t size);
 
 long copy_from_kernel_nofault(void *dst, const void *src, size_t size);

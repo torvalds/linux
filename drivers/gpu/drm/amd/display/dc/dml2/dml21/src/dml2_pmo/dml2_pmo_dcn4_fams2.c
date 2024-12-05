@@ -8,6 +8,7 @@
 #include "dml2_pmo_dcn4_fams2.h"
 
 static const double MIN_VACTIVE_MARGIN_PCT = 0.25; // We need more than non-zero margin because DET buffer granularity can alter vactive latency hiding
+static const double MIN_BLANK_STUTTER_FACTOR = 3.0;
 
 static const struct dml2_pmo_pstate_strategy base_strategy_list_1_display[] = {
 	// VActive Preferred
@@ -1798,6 +1799,7 @@ bool pmo_dcn4_fams2_init_for_pstate_support(struct dml2_pmo_init_for_pstate_supp
 	}
 
 	if (s->pmo_dcn4.num_pstate_candidates > 0) {
+		s->pmo_dcn4.pstate_strategy_candidates[s->pmo_dcn4.num_pstate_candidates - 1].allow_state_increase = true;
 		s->pmo_dcn4.cur_pstate_candidate = -1;
 		return true;
 	} else {
@@ -2139,6 +2141,7 @@ bool pmo_dcn4_fams2_init_for_stutter(struct dml2_pmo_init_for_stutter_in_out *in
 	struct dml2_pmo_instance *pmo = in_out->instance;
 	bool stutter_period_meets_z8_eco = true;
 	bool z8_stutter_optimization_too_expensive = false;
+	bool stutter_optimization_too_expensive = false;
 	double line_time_us, vblank_nom_time_us;
 
 	unsigned int i;
@@ -2160,8 +2163,13 @@ bool pmo_dcn4_fams2_init_for_stutter(struct dml2_pmo_init_for_stutter_in_out *in
 		line_time_us = (double)in_out->base_display_config->display_config.stream_descriptors[i].timing.h_total / (in_out->base_display_config->display_config.stream_descriptors[i].timing.pixel_clock_khz * 1000) * 1000000;
 		vblank_nom_time_us = line_time_us * in_out->base_display_config->display_config.stream_descriptors[i].timing.vblank_nom;
 
-		if (vblank_nom_time_us < pmo->soc_bb->power_management_parameters.z8_stutter_exit_latency_us) {
+		if (vblank_nom_time_us < pmo->soc_bb->power_management_parameters.z8_stutter_exit_latency_us * MIN_BLANK_STUTTER_FACTOR) {
 			z8_stutter_optimization_too_expensive = true;
+			break;
+		}
+
+		if (vblank_nom_time_us < pmo->soc_bb->power_management_parameters.stutter_enter_plus_exit_latency_us * MIN_BLANK_STUTTER_FACTOR) {
+			stutter_optimization_too_expensive = true;
 			break;
 		}
 	}
@@ -2179,7 +2187,7 @@ bool pmo_dcn4_fams2_init_for_stutter(struct dml2_pmo_init_for_stutter_in_out *in
 		pmo->scratch.pmo_dcn4.z8_vblank_optimizable = false;
 	}
 
-	if (pmo->soc_bb->power_management_parameters.stutter_enter_plus_exit_latency_us > 0) {
+	if (!stutter_optimization_too_expensive && pmo->soc_bb->power_management_parameters.stutter_enter_plus_exit_latency_us > 0) {
 		pmo->scratch.pmo_dcn4.optimal_vblank_reserved_time_for_stutter_us[pmo->scratch.pmo_dcn4.num_stutter_candidates] = (unsigned int)pmo->soc_bb->power_management_parameters.stutter_enter_plus_exit_latency_us;
 		pmo->scratch.pmo_dcn4.num_stutter_candidates++;
 	}

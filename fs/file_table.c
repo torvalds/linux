@@ -9,7 +9,6 @@
 #include <linux/string.h>
 #include <linux/slab.h>
 #include <linux/file.h>
-#include <linux/fdtable.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/fs.h>
@@ -40,13 +39,17 @@ static struct files_stat_struct files_stat = {
 
 /* SLAB cache for file structures */
 static struct kmem_cache *filp_cachep __ro_after_init;
+static struct kmem_cache *bfilp_cachep __ro_after_init;
 
 static struct percpu_counter nr_files __cacheline_aligned_in_smp;
 
 /* Container for backing file with optional user path */
 struct backing_file {
 	struct file file;
-	struct path user_path;
+	union {
+		struct path user_path;
+		freeptr_t bf_freeptr;
+	};
 };
 
 static inline struct backing_file *backing_file(struct file *f)
@@ -68,7 +71,7 @@ static inline void file_free(struct file *f)
 	put_cred(f->f_cred);
 	if (unlikely(f->f_mode & FMODE_BACKING)) {
 		path_put(backing_file_user_path(f));
-		kfree(backing_file(f));
+		kmem_cache_free(bfilp_cachep, backing_file(f));
 	} else {
 		kmem_cache_free(filp_cachep, f);
 	}
@@ -165,16 +168,32 @@ static int init_file(struct file *f, int flags, const struct cred *cred)
 	 * the respective member when opening the file.
 	 */
 	mutex_init(&f->f_pos_lock);
-	f->f_flags = flags;
-	f->f_mode = OPEN_FMODE(flags);
-	/* f->f_version: 0 */
+	memset(&f->f_path, 0, sizeof(f->f_path));
+	memset(&f->f_ra, 0, sizeof(f->f_ra));
+
+	f->f_flags	= flags;
+	f->f_mode	= OPEN_FMODE(flags);
+
+	f->f_op		= NULL;
+	f->f_mapping	= NULL;
+	f->private_data = NULL;
+	f->f_inode	= NULL;
+	f->f_owner	= NULL;
+#ifdef CONFIG_EPOLL
+	f->f_ep		= NULL;
+#endif
+
+	f->f_iocb_flags = 0;
+	f->f_pos	= 0;
+	f->f_wb_err	= 0;
+	f->f_sb_err	= 0;
 
 	/*
 	 * We're SLAB_TYPESAFE_BY_RCU so initialize f_count last. While
 	 * fget-rcu pattern users need to be able to handle spurious
 	 * refcount bumps we should reinitialize the reused file first.
 	 */
-	atomic_long_set(&f->f_count, 1);
+	file_ref_init(&f->f_ref, 1);
 	return 0;
 }
 
@@ -206,7 +225,7 @@ struct file *alloc_empty_file(int flags, const struct cred *cred)
 			goto over;
 	}
 
-	f = kmem_cache_zalloc(filp_cachep, GFP_KERNEL);
+	f = kmem_cache_alloc(filp_cachep, GFP_KERNEL);
 	if (unlikely(!f))
 		return ERR_PTR(-ENOMEM);
 
@@ -240,7 +259,7 @@ struct file *alloc_empty_file_noaccount(int flags, const struct cred *cred)
 	struct file *f;
 	int error;
 
-	f = kmem_cache_zalloc(filp_cachep, GFP_KERNEL);
+	f = kmem_cache_alloc(filp_cachep, GFP_KERNEL);
 	if (unlikely(!f))
 		return ERR_PTR(-ENOMEM);
 
@@ -267,13 +286,13 @@ struct file *alloc_empty_backing_file(int flags, const struct cred *cred)
 	struct backing_file *ff;
 	int error;
 
-	ff = kzalloc(sizeof(struct backing_file), GFP_KERNEL);
+	ff = kmem_cache_alloc(bfilp_cachep, GFP_KERNEL);
 	if (unlikely(!ff))
 		return ERR_PTR(-ENOMEM);
 
 	error = init_file(&ff->file, flags, cred);
 	if (unlikely(error)) {
-		kfree(ff);
+		kmem_cache_free(bfilp_cachep, ff);
 		return ERR_PTR(error);
 	}
 
@@ -479,7 +498,7 @@ static DECLARE_DELAYED_WORK(delayed_fput_work, delayed_fput);
 
 void fput(struct file *file)
 {
-	if (atomic_long_dec_and_test(&file->f_count)) {
+	if (file_ref_put(&file->f_ref)) {
 		struct task_struct *task = current;
 
 		if (unlikely(!(file->f_mode & (FMODE_BACKING | FMODE_OPENED)))) {
@@ -512,7 +531,7 @@ void fput(struct file *file)
  */
 void __fput_sync(struct file *file)
 {
-	if (atomic_long_dec_and_test(&file->f_count))
+	if (file_ref_put(&file->f_ref))
 		__fput(file);
 }
 
@@ -528,6 +547,11 @@ void __init files_init(void)
 
 	filp_cachep = kmem_cache_create("filp", sizeof(struct file), &args,
 				SLAB_HWCACHE_ALIGN | SLAB_PANIC |
+				SLAB_ACCOUNT | SLAB_TYPESAFE_BY_RCU);
+
+	args.freeptr_offset = offsetof(struct backing_file, bf_freeptr);
+	bfilp_cachep = kmem_cache_create("bfilp", sizeof(struct backing_file),
+				&args, SLAB_HWCACHE_ALIGN | SLAB_PANIC |
 				SLAB_ACCOUNT | SLAB_TYPESAFE_BY_RCU);
 	percpu_counter_init(&nr_files, 0, GFP_KERNEL);
 }

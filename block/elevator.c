@@ -598,13 +598,19 @@ void elevator_init_mq(struct request_queue *q)
 	 * drain any dispatch activities originated from passthrough
 	 * requests, then no need to quiesce queue which may add long boot
 	 * latency, especially when lots of disks are involved.
+	 *
+	 * Disk isn't added yet, so verifying queue lock only manually.
 	 */
-	blk_mq_freeze_queue(q);
+	blk_freeze_queue_start_non_owner(q);
+	blk_freeze_acquire_lock(q, true, false);
+	blk_mq_freeze_queue_wait(q);
+
 	blk_mq_cancel_work_sync(q);
 
 	err = blk_mq_init_sched(q, e);
 
-	blk_mq_unfreeze_queue(q);
+	blk_unfreeze_release_lock(q, true, false);
+	blk_mq_unfreeze_queue_non_owner(q);
 
 	if (err) {
 		pr_warn("\"%s\" elevator initialization failed, "
@@ -704,15 +710,15 @@ static int elevator_change(struct request_queue *q, const char *elevator_name)
 	return ret;
 }
 
-int elv_iosched_load_module(struct gendisk *disk, const char *buf,
-			    size_t count)
+void elv_iosched_load_module(struct gendisk *disk, const char *buf,
+			     size_t count)
 {
 	char elevator_name[ELV_NAME_MAX];
 	struct elevator_type *found;
 	const char *name;
 
 	if (!elv_support_iosched(disk->queue))
-		return -EOPNOTSUPP;
+		return;
 
 	strscpy(elevator_name, buf, sizeof(elevator_name));
 	name = strstrip(elevator_name);
@@ -723,8 +729,6 @@ int elv_iosched_load_module(struct gendisk *disk, const char *buf,
 
 	if (!found)
 		request_module("%s-iosched", name);
-
-	return 0;
 }
 
 ssize_t elv_iosched_store(struct gendisk *disk, const char *buf,

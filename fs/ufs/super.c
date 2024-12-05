@@ -505,7 +505,6 @@ static int ufs_read_cylinder_structures(struct super_block *sb)
 {
 	struct ufs_sb_info *sbi = UFS_SB(sb);
 	struct ufs_sb_private_info *uspi = sbi->s_uspi;
-	struct ufs_buffer_head * ubh;
 	unsigned char * base, * space;
 	unsigned size, blks, i;
 
@@ -521,21 +520,13 @@ static int ufs_read_cylinder_structures(struct super_block *sb)
 	if (!base)
 		goto failed; 
 	sbi->s_csp = (struct ufs_csum *)space;
-	for (i = 0; i < blks; i += uspi->s_fpb) {
-		size = uspi->s_bsize;
-		if (i + uspi->s_fpb > blks)
-			size = (blks - i) * uspi->s_fsize;
-
-		ubh = ubh_bread(sb, uspi->s_csaddr + i, size);
-		
-		if (!ubh)
+	for (i = 0; i < blks; i++) {
+		struct buffer_head *bh = sb_bread(sb, uspi->s_csaddr + i);
+		if (!bh)
 			goto failed;
-
-		ubh_ubhcpymem (space, ubh, size);
-
-		space += size;
-		ubh_brelse (ubh);
-		ubh = NULL;
+		memcpy(space, bh->b_data, uspi->s_fsize);
+		space += uspi->s_fsize;
+		brelse (bh);
 	}
 
 	/*
@@ -645,7 +636,6 @@ static void ufs_put_super_internal(struct super_block *sb)
 {
 	struct ufs_sb_info *sbi = UFS_SB(sb);
 	struct ufs_sb_private_info *uspi = sbi->s_uspi;
-	struct ufs_buffer_head * ubh;
 	unsigned char * base, * space;
 	unsigned blks, size, i;
 
@@ -656,18 +646,17 @@ static void ufs_put_super_internal(struct super_block *sb)
 	size = uspi->s_cssize;
 	blks = (size + uspi->s_fsize - 1) >> uspi->s_fshift;
 	base = space = (char*) sbi->s_csp;
-	for (i = 0; i < blks; i += uspi->s_fpb) {
-		size = uspi->s_bsize;
-		if (i + uspi->s_fpb > blks)
-			size = (blks - i) * uspi->s_fsize;
+	for (i = 0; i < blks; i++, space += uspi->s_fsize) {
+		struct buffer_head *bh = sb_bread(sb, uspi->s_csaddr + i);
 
-		ubh = ubh_bread(sb, uspi->s_csaddr + i, size);
-
-		ubh_memcpyubh (ubh, space, size);
-		space += size;
-		ubh_mark_buffer_uptodate (ubh, 1);
-		ubh_mark_buffer_dirty (ubh);
-		ubh_brelse (ubh);
+		if (unlikely(!bh)) { // better than an oops...
+			ufs_panic(sb, __func__,
+				"can't write part of cylinder group summary");
+			continue;
+		}
+		memcpy(bh->b_data, space, uspi->s_fsize);
+		mark_buffer_dirty(bh);
+		brelse(bh);
 	}
 	for (i = 0; i < sbi->s_cg_loaded; i++) {
 		ufs_put_cylinder (sb, i);
@@ -1240,11 +1229,7 @@ magic_found:
 	else
 		uspi->s_apbshift = uspi->s_bshift - 2;
 
-	uspi->s_2apbshift = uspi->s_apbshift * 2;
-	uspi->s_3apbshift = uspi->s_apbshift * 3;
 	uspi->s_apb = 1 << uspi->s_apbshift;
-	uspi->s_2apb = 1 << uspi->s_2apbshift;
-	uspi->s_3apb = 1 << uspi->s_3apbshift;
 	uspi->s_apbmask = uspi->s_apb - 1;
 	uspi->s_nspfshift = uspi->s_fshift - UFS_SECTOR_BITS;
 	uspi->s_nspb = uspi->s_nspf << uspi->s_fpbshift;

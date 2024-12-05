@@ -345,7 +345,7 @@ static ssize_t ur_attr_reclen_show(struct device *dev,
 	urd = urdev_get_from_cdev(to_ccwdev(dev));
 	if (!urd)
 		return -ENODEV;
-	rc = sprintf(buf, "%zu\n", urd->reclen);
+	rc = sysfs_emit(buf, "%zu\n", urd->reclen);
 	urdev_put(urd);
 	return rc;
 }

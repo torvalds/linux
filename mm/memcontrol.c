@@ -71,6 +71,10 @@
 
 #include <linux/uaccess.h>
 
+#define CREATE_TRACE_POINTS
+#include <trace/events/memcg.h>
+#undef CREATE_TRACE_POINTS
+
 #include <trace/events/vmscan.h>
 
 struct cgroup_subsys memory_cgrp_subsys __read_mostly;
@@ -114,6 +118,7 @@ struct mem_cgroup *vmpressure_to_memcg(struct vmpressure *vmpr)
 	return container_of(vmpr, struct mem_cgroup, vmpressure);
 }
 
+#define SEQ_BUF_SIZE SZ_4K
 #define CURRENT_OBJCG_UPDATE_BIT 0
 #define CURRENT_OBJCG_UPDATE_FLAG (1UL << CURRENT_OBJCG_UPDATE_BIT)
 
@@ -310,6 +315,9 @@ static const unsigned int memcg_node_stat_items[] = {
 	PGDEMOTE_KSWAPD,
 	PGDEMOTE_DIRECT,
 	PGDEMOTE_KHUGEPAGED,
+#ifdef CONFIG_HUGETLB_PAGE
+	NR_HUGETLB,
+#endif
 };
 
 static const unsigned int memcg_stat_items[] = {
@@ -418,6 +426,8 @@ static const unsigned int memcg_vm_event_stat[] = {
 	PGPGIN,
 	PGPGOUT,
 #endif
+	PSWPIN,
+	PSWPOUT,
 	PGSCAN_KSWAPD,
 	PGSCAN_DIRECT,
 	PGSCAN_KHUGEPAGED,
@@ -431,6 +441,10 @@ static const unsigned int memcg_vm_event_stat[] = {
 	PGDEACTIVATE,
 	PGLAZYFREE,
 	PGLAZYFREED,
+#ifdef CONFIG_SWAP
+	SWPIN_ZERO,
+	SWPOUT_ZERO,
+#endif
 #ifdef CONFIG_ZSWAP
 	ZSWPIN,
 	ZSWPOUT,
@@ -584,8 +598,16 @@ static inline void memcg_rstat_updated(struct mem_cgroup *memcg, int val)
 	}
 }
 
-static void do_flush_stats(struct mem_cgroup *memcg)
+static void __mem_cgroup_flush_stats(struct mem_cgroup *memcg, bool force)
 {
+	bool needs_flush = memcg_vmstats_needs_flush(memcg->vmstats);
+
+	trace_memcg_flush_stats(memcg, atomic64_read(&memcg->vmstats->stats_updates),
+		force, needs_flush);
+
+	if (!force && !needs_flush)
+		return;
+
 	if (mem_cgroup_is_root(memcg))
 		WRITE_ONCE(flush_last_time, jiffies_64);
 
@@ -609,8 +631,7 @@ void mem_cgroup_flush_stats(struct mem_cgroup *memcg)
 	if (!memcg)
 		memcg = root_mem_cgroup;
 
-	if (memcg_vmstats_needs_flush(memcg->vmstats))
-		do_flush_stats(memcg);
+	__mem_cgroup_flush_stats(memcg, false);
 }
 
 void mem_cgroup_flush_stats_ratelimited(struct mem_cgroup *memcg)
@@ -626,7 +647,7 @@ static void flush_memcg_stats_dwork(struct work_struct *w)
 	 * Deliberately ignore memcg_vmstats_needs_flush() here so that flushing
 	 * in latency-sensitive paths is as cheap as possible.
 	 */
-	do_flush_stats(root_mem_cgroup);
+	__mem_cgroup_flush_stats(root_mem_cgroup, true);
 	queue_delayed_work(system_unbound_wq, &stats_flush_dwork, FLUSH_TIME);
 }
 
@@ -680,7 +701,9 @@ void __mod_memcg_state(struct mem_cgroup *memcg, enum memcg_stat_item idx,
 		return;
 
 	__this_cpu_add(memcg->vmstats_percpu->state[i], val);
-	memcg_rstat_updated(memcg, memcg_state_val_in_pages(idx, val));
+	val = memcg_state_val_in_pages(idx, val);
+	memcg_rstat_updated(memcg, val);
+	trace_mod_memcg_state(memcg, idx, val);
 }
 
 /* idx can be of type enum memcg_stat_item or node_stat_item. */
@@ -739,7 +762,9 @@ static void __mod_memcg_lruvec_state(struct lruvec *lruvec,
 	/* Update lruvec */
 	__this_cpu_add(pn->lruvec_stats_percpu->state[i], val);
 
-	memcg_rstat_updated(memcg, memcg_state_val_in_pages(idx, val));
+	val = memcg_state_val_in_pages(idx, val);
+	memcg_rstat_updated(memcg, val);
+	trace_mod_memcg_lruvec_state(memcg, idx, val);
 	memcg_stats_unlock();
 }
 
@@ -830,6 +855,7 @@ void __count_memcg_events(struct mem_cgroup *memcg, enum vm_event_item idx,
 	memcg_stats_lock();
 	__this_cpu_add(memcg->vmstats_percpu->events[i], count);
 	memcg_rstat_updated(memcg, count);
+	trace_count_memcg_events(memcg, idx, count);
 	memcg_stats_unlock();
 }
 
@@ -1177,7 +1203,6 @@ void lruvec_memcg_debug(struct lruvec *lruvec, struct folio *folio)
  * These functions are safe to use under any of the following conditions:
  * - folio locked
  * - folio_test_lru false
- * - folio_memcg_lock()
  * - folio frozen (refcount of 0)
  *
  * Return: The lruvec this folio is on with its lock held.
@@ -1199,7 +1224,6 @@ struct lruvec *folio_lruvec_lock(struct folio *folio)
  * These functions are safe to use under any of the following conditions:
  * - folio locked
  * - folio_test_lru false
- * - folio_memcg_lock()
  * - folio frozen (refcount of 0)
  *
  * Return: The lruvec this folio is on with its lock held and interrupts
@@ -1223,7 +1247,6 @@ struct lruvec *folio_lruvec_lock_irq(struct folio *folio)
  * These functions are safe to use under any of the following conditions:
  * - folio locked
  * - folio_test_lru false
- * - folio_memcg_lock()
  * - folio frozen (refcount of 0)
  *
  * Return: The lruvec this folio is on with its lock held and interrupts
@@ -1346,6 +1369,9 @@ static const struct memory_stat memory_stats[] = {
 	{ "unevictable",		NR_UNEVICTABLE			},
 	{ "slab_reclaimable",		NR_SLAB_RECLAIMABLE_B		},
 	{ "slab_unreclaimable",		NR_SLAB_UNRECLAIMABLE_B		},
+#ifdef CONFIG_HUGETLB_PAGE
+	{ "hugetlb",			NR_HUGETLB			},
+#endif
 
 	/* The memory events */
 	{ "workingset_refault_anon",	WORKINGSET_REFAULT_ANON		},
@@ -1441,6 +1467,11 @@ static void memcg_stat_format(struct mem_cgroup *memcg, struct seq_buf *s)
 	for (i = 0; i < ARRAY_SIZE(memory_stats); i++) {
 		u64 size;
 
+#ifdef CONFIG_HUGETLB_PAGE
+		if (unlikely(memory_stats[i].idx == NR_HUGETLB) &&
+		    !(cgrp_dfl_root.flags & CGRP_ROOT_MEMORY_HUGETLB_ACCOUNTING))
+			continue;
+#endif
 		size = memcg_page_state_output(memcg, memory_stats[i].idx);
 		seq_buf_printf(s, "%s %llu\n", memory_stats[i].name, size);
 
@@ -1516,7 +1547,7 @@ void mem_cgroup_print_oom_context(struct mem_cgroup *memcg, struct task_struct *
 void mem_cgroup_print_oom_meminfo(struct mem_cgroup *memcg)
 {
 	/* Use static buffer, for the caller is holding oom_lock. */
-	static char buf[PAGE_SIZE];
+	static char buf[SEQ_BUF_SIZE];
 	struct seq_buf s;
 
 	lockdep_assert_held(&oom_lock);
@@ -1542,7 +1573,7 @@ void mem_cgroup_print_oom_meminfo(struct mem_cgroup *memcg)
 	pr_info("Memory cgroup stats for ");
 	pr_cont_cgroup_path(memcg->css.cgroup);
 	pr_cont(":");
-	seq_buf_init(&s, buf, sizeof(buf));
+	seq_buf_init(&s, buf, SEQ_BUF_SIZE);
 	memory_stat_format(memcg, &s);
 	seq_buf_do_printk(&s, KERN_INFO);
 }
@@ -2230,12 +2261,6 @@ retry:
 	 */
 	if (nr_reclaimed && nr_pages <= (1 << PAGE_ALLOC_COSTLY_ORDER))
 		goto retry;
-	/*
-	 * At task move, charge accounts can be doubly counted. So, it's
-	 * better to wait until the end of task_move if something is going on.
-	 */
-	if (memcg1_wait_acct_move(mem_over_limit))
-		goto retry;
 
 	if (nr_retries--)
 		goto retry;
@@ -2369,9 +2394,7 @@ static void commit_charge(struct folio *folio, struct mem_cgroup *memcg)
 	 *
 	 * - the page lock
 	 * - LRU isolation
-	 * - folio_memcg_lock()
 	 * - exclusive reference
-	 * - mem_cgroup_trylock_pages()
 	 */
 	folio->memcg_data = (unsigned long)memcg;
 }
@@ -3098,15 +3121,13 @@ static void memcg_offline_kmem(struct mem_cgroup *memcg)
 	if (!parent)
 		parent = root_mem_cgroup;
 
-	memcg_reparent_objcgs(memcg, parent);
+	memcg_reparent_list_lrus(memcg, parent);
 
 	/*
-	 * After we have finished memcg_reparent_objcgs(), all list_lrus
-	 * corresponding to this cgroup are guaranteed to remain empty.
-	 * The ordering is imposed by list_lru_node->lock taken by
-	 * memcg_reparent_list_lrus().
+	 * Objcg's reparenting must be after list_lru's, make sure list_lru
+	 * helpers won't use parent's list_lru until child is drained.
 	 */
-	memcg_reparent_list_lrus(memcg, parent);
+	memcg_reparent_objcgs(memcg, parent);
 }
 
 #ifdef CONFIG_CGROUP_WRITEBACK
@@ -3729,68 +3750,90 @@ static void mem_cgroup_css_reset(struct cgroup_subsys_state *css)
 	memcg_wb_domain_size_changed(memcg);
 }
 
-static void mem_cgroup_css_rstat_flush(struct cgroup_subsys_state *css, int cpu)
+struct aggregate_control {
+	/* pointer to the aggregated (CPU and subtree aggregated) counters */
+	long *aggregate;
+	/* pointer to the non-hierarchichal (CPU aggregated) counters */
+	long *local;
+	/* pointer to the pending child counters during tree propagation */
+	long *pending;
+	/* pointer to the parent's pending counters, could be NULL */
+	long *ppending;
+	/* pointer to the percpu counters to be aggregated */
+	long *cstat;
+	/* pointer to the percpu counters of the last aggregation*/
+	long *cstat_prev;
+	/* size of the above counters */
+	int size;
+};
+
+static void mem_cgroup_stat_aggregate(struct aggregate_control *ac)
 {
-	struct mem_cgroup *memcg = mem_cgroup_from_css(css);
-	struct mem_cgroup *parent = parent_mem_cgroup(memcg);
-	struct memcg_vmstats_percpu *statc;
+	int i;
 	long delta, delta_cpu, v;
-	int i, nid;
 
-	statc = per_cpu_ptr(memcg->vmstats_percpu, cpu);
-
-	for (i = 0; i < MEMCG_VMSTAT_SIZE; i++) {
+	for (i = 0; i < ac->size; i++) {
 		/*
 		 * Collect the aggregated propagation counts of groups
 		 * below us. We're in a per-cpu loop here and this is
 		 * a global counter, so the first cycle will get them.
 		 */
-		delta = memcg->vmstats->state_pending[i];
+		delta = ac->pending[i];
 		if (delta)
-			memcg->vmstats->state_pending[i] = 0;
+			ac->pending[i] = 0;
 
 		/* Add CPU changes on this level since the last flush */
 		delta_cpu = 0;
-		v = READ_ONCE(statc->state[i]);
-		if (v != statc->state_prev[i]) {
-			delta_cpu = v - statc->state_prev[i];
+		v = READ_ONCE(ac->cstat[i]);
+		if (v != ac->cstat_prev[i]) {
+			delta_cpu = v - ac->cstat_prev[i];
 			delta += delta_cpu;
-			statc->state_prev[i] = v;
+			ac->cstat_prev[i] = v;
 		}
 
 		/* Aggregate counts on this level and propagate upwards */
 		if (delta_cpu)
-			memcg->vmstats->state_local[i] += delta_cpu;
+			ac->local[i] += delta_cpu;
 
 		if (delta) {
-			memcg->vmstats->state[i] += delta;
-			if (parent)
-				parent->vmstats->state_pending[i] += delta;
+			ac->aggregate[i] += delta;
+			if (ac->ppending)
+				ac->ppending[i] += delta;
 		}
 	}
+}
 
-	for (i = 0; i < NR_MEMCG_EVENTS; i++) {
-		delta = memcg->vmstats->events_pending[i];
-		if (delta)
-			memcg->vmstats->events_pending[i] = 0;
+static void mem_cgroup_css_rstat_flush(struct cgroup_subsys_state *css, int cpu)
+{
+	struct mem_cgroup *memcg = mem_cgroup_from_css(css);
+	struct mem_cgroup *parent = parent_mem_cgroup(memcg);
+	struct memcg_vmstats_percpu *statc;
+	struct aggregate_control ac;
+	int nid;
 
-		delta_cpu = 0;
-		v = READ_ONCE(statc->events[i]);
-		if (v != statc->events_prev[i]) {
-			delta_cpu = v - statc->events_prev[i];
-			delta += delta_cpu;
-			statc->events_prev[i] = v;
-		}
+	statc = per_cpu_ptr(memcg->vmstats_percpu, cpu);
 
-		if (delta_cpu)
-			memcg->vmstats->events_local[i] += delta_cpu;
+	ac = (struct aggregate_control) {
+		.aggregate = memcg->vmstats->state,
+		.local = memcg->vmstats->state_local,
+		.pending = memcg->vmstats->state_pending,
+		.ppending = parent ? parent->vmstats->state_pending : NULL,
+		.cstat = statc->state,
+		.cstat_prev = statc->state_prev,
+		.size = MEMCG_VMSTAT_SIZE,
+	};
+	mem_cgroup_stat_aggregate(&ac);
 
-		if (delta) {
-			memcg->vmstats->events[i] += delta;
-			if (parent)
-				parent->vmstats->events_pending[i] += delta;
-		}
-	}
+	ac = (struct aggregate_control) {
+		.aggregate = memcg->vmstats->events,
+		.local = memcg->vmstats->events_local,
+		.pending = memcg->vmstats->events_pending,
+		.ppending = parent ? parent->vmstats->events_pending : NULL,
+		.cstat = statc->events,
+		.cstat_prev = statc->events_prev,
+		.size = NR_MEMCG_EVENTS,
+	};
+	mem_cgroup_stat_aggregate(&ac);
 
 	for_each_node_state(nid, N_MEMORY) {
 		struct mem_cgroup_per_node *pn = memcg->nodeinfo[nid];
@@ -3803,28 +3846,17 @@ static void mem_cgroup_css_rstat_flush(struct cgroup_subsys_state *css, int cpu)
 
 		lstatc = per_cpu_ptr(pn->lruvec_stats_percpu, cpu);
 
-		for (i = 0; i < NR_MEMCG_NODE_STAT_ITEMS; i++) {
-			delta = lstats->state_pending[i];
-			if (delta)
-				lstats->state_pending[i] = 0;
+		ac = (struct aggregate_control) {
+			.aggregate = lstats->state,
+			.local = lstats->state_local,
+			.pending = lstats->state_pending,
+			.ppending = plstats ? plstats->state_pending : NULL,
+			.cstat = lstatc->state,
+			.cstat_prev = lstatc->state_prev,
+			.size = NR_MEMCG_NODE_STAT_ITEMS,
+		};
+		mem_cgroup_stat_aggregate(&ac);
 
-			delta_cpu = 0;
-			v = READ_ONCE(lstatc->state[i]);
-			if (v != lstatc->state_prev[i]) {
-				delta_cpu = v - lstatc->state_prev[i];
-				delta += delta_cpu;
-				lstatc->state_prev[i] = v;
-			}
-
-			if (delta_cpu)
-				lstats->state_local[i] += delta_cpu;
-
-			if (delta) {
-				lstats->state[i] += delta;
-				if (plstats)
-					plstats->state_pending[i] += delta;
-			}
-		}
 	}
 	WRITE_ONCE(statc->stats_updates, 0);
 	/* We are in a per-cpu loop here, only do the atomic write once */
@@ -4185,12 +4217,12 @@ static int memory_events_local_show(struct seq_file *m, void *v)
 int memory_stat_show(struct seq_file *m, void *v)
 {
 	struct mem_cgroup *memcg = mem_cgroup_from_seq(m);
-	char *buf = kmalloc(PAGE_SIZE, GFP_KERNEL);
+	char *buf = kmalloc(SEQ_BUF_SIZE, GFP_KERNEL);
 	struct seq_buf s;
 
 	if (!buf)
 		return -ENOMEM;
-	seq_buf_init(&s, buf, PAGE_SIZE);
+	seq_buf_init(&s, buf, SEQ_BUF_SIZE);
 	memory_stat_format(memcg, &s);
 	seq_puts(m, buf);
 	kfree(buf);
@@ -4429,9 +4461,6 @@ struct cgroup_subsys memory_cgrp_subsys = {
 	.exit = mem_cgroup_exit,
 	.dfl_cftypes = memory_files,
 #ifdef CONFIG_MEMCG_V1
-	.can_attach = memcg1_can_attach,
-	.cancel_attach = memcg1_cancel_attach,
-	.post_attach = memcg1_move_task,
 	.legacy_cftypes = mem_cgroup_legacy_files,
 #endif
 	.early_init = 0,
@@ -5273,11 +5302,8 @@ bool obj_cgroup_may_zswap(struct obj_cgroup *objcg)
 			break;
 		}
 
-		/*
-		 * mem_cgroup_flush_stats() ignores small changes. Use
-		 * do_flush_stats() directly to get accurate stats for charging.
-		 */
-		do_flush_stats(memcg);
+		/* Force flush to get accurate stats for charging */
+		__mem_cgroup_flush_stats(memcg, true);
 		pages = memcg_page_state(memcg, MEMCG_ZSWAP_B) / PAGE_SIZE;
 		if (pages < max)
 			continue;

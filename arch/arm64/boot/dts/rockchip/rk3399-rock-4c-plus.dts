@@ -76,7 +76,7 @@
 		reset-gpios = <&gpio0 RK_PB2 GPIO_ACTIVE_LOW>;
 	};
 
-	vcc_3v3: vcc-3v3-regulator {
+	vcc_3v3: regulator-vcc-3v3 {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc_3v3";
 		regulator-always-on;
@@ -86,7 +86,7 @@
 		vin-supply = <&vcc3v3_sys>;
 	};
 
-	vcc3v3_phy1: vcc3v3-phy1-regulator {
+	vcc3v3_phy1: regulator-vcc3v3-phy1 {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc3v3_phy1";
 		regulator-always-on;
@@ -96,7 +96,7 @@
 		vin-supply = <&vcc_3v3>;
 	};
 
-	vcc5v0_host1: vcc5v0-host-regulator {
+	vcc5v0_host1: regulator-vcc5v0-host {
 		compatible = "regulator-fixed";
 		enable-active-high;
 		gpio = <&gpio3 RK_PD6 GPIO_ACTIVE_HIGH>;
@@ -108,7 +108,7 @@
 		vin-supply = <&vcc5v0_host0_s0>;
 	};
 
-	vcc5v0_sys: vcc5v0-sys-regulator {
+	vcc5v0_sys: regulator-vcc5v0-sys {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc5v0_sys";
 		regulator-always-on;
@@ -117,7 +117,7 @@
 		regulator-max-microvolt = <5000000>;
 	};
 
-	vcc5v0_typec: vcc5v0-typec-regulator {
+	vcc5v0_typec: regulator-vcc5v0-typec {
 		compatible = "regulator-fixed";
 		enable-active-high;
 		gpio = <&gpio1 RK_PA3 GPIO_ACTIVE_HIGH>;
@@ -129,7 +129,7 @@
 		vin-supply = <&vcc5v0_sys>;
 	};
 
-	vdd_log: vdd-log-regulator {
+	vdd_log: regulator-vdd-log {
 		compatible = "regulator-fixed";
 		regulator-name = "vdd_log";
 		regulator-always-on;
@@ -220,7 +220,7 @@
 		clock-output-names = "rk808-clkout1", "rk808-clkout2";
 		pinctrl-names = "default";
 		pinctrl-0 = <&pmic_int_l>, <&i2s_8ch_mclk>;
-		rockchip,system-power-controller;
+		system-power-controller;
 		#sound-dai-cells = <0>;
 		wakeup-source;
 

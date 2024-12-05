@@ -21,9 +21,9 @@ static void ast_release_firmware(void *data)
 	ast->dp501_fw = NULL;
 }
 
-static int ast_load_dp501_microcode(struct drm_device *dev)
+static int ast_load_dp501_microcode(struct ast_device *ast)
 {
-	struct ast_device *ast = to_ast_device(dev);
+	struct drm_device *dev = &ast->base;
 	int ret;
 
 	ret = request_firmware(&ast->dp501_fw, "ast_dp501_fw.bin", dev->dev);
@@ -109,10 +109,10 @@ static bool wait_fw_ready(struct ast_device *ast)
 }
 #endif
 
-static bool ast_write_cmd(struct drm_device *dev, u8 data)
+static bool ast_write_cmd(struct ast_device *ast, u8 data)
 {
-	struct ast_device *ast = to_ast_device(dev);
 	int retry = 0;
+
 	if (wait_nack(ast)) {
 		send_nack(ast);
 		ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0x9a, 0x00, data);
@@ -131,10 +131,8 @@ static bool ast_write_cmd(struct drm_device *dev, u8 data)
 	return false;
 }
 
-static bool ast_write_data(struct drm_device *dev, u8 data)
+static bool ast_write_data(struct ast_device *ast, u8 data)
 {
-	struct ast_device *ast = to_ast_device(dev);
-
 	if (wait_nack(ast)) {
 		send_nack(ast);
 		ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0x9a, 0x00, data);
@@ -175,10 +173,10 @@ static void clear_cmd(struct ast_device *ast)
 }
 #endif
 
-static void ast_set_dp501_video_output(struct drm_device *dev, u8 mode)
+static void ast_set_dp501_video_output(struct ast_device *ast, u8 mode)
 {
-	ast_write_cmd(dev, 0x40);
-	ast_write_data(dev, mode);
+	ast_write_cmd(ast, 0x40);
+	ast_write_data(ast, mode);
 
 	msleep(10);
 }
@@ -188,9 +186,8 @@ static u32 get_fw_base(struct ast_device *ast)
 	return ast_mindwm(ast, 0x1e6e2104) & 0x7fffffff;
 }
 
-bool ast_backup_fw(struct drm_device *dev, u8 *addr, u32 size)
+bool ast_backup_fw(struct ast_device *ast, u8 *addr, u32 size)
 {
-	struct ast_device *ast = to_ast_device(dev);
 	u32 i, data;
 	u32 boot_address;
 
@@ -207,9 +204,8 @@ bool ast_backup_fw(struct drm_device *dev, u8 *addr, u32 size)
 	return false;
 }
 
-static bool ast_launch_m68k(struct drm_device *dev)
+static bool ast_launch_m68k(struct ast_device *ast)
 {
-	struct ast_device *ast = to_ast_device(dev);
 	u32 i, data, len = 0;
 	u32 boot_address;
 	u8 *fw_addr = NULL;
@@ -226,7 +222,7 @@ static bool ast_launch_m68k(struct drm_device *dev)
 			len = 32*1024;
 		} else {
 			if (!ast->dp501_fw &&
-			    ast_load_dp501_microcode(dev) < 0)
+			    ast_load_dp501_microcode(ast) < 0)
 				return false;
 
 			fw_addr = (u8 *)ast->dp501_fw->data;
@@ -348,9 +344,8 @@ static int ast_dp512_read_edid_block(void *data, u8 *buf, unsigned int block, si
 	return true;
 }
 
-static bool ast_init_dvo(struct drm_device *dev)
+static bool ast_init_dvo(struct ast_device *ast)
 {
-	struct ast_device *ast = to_ast_device(dev);
 	u8 jreg;
 	u32 data;
 	ast_write32(ast, 0xf004, 0x1e6e0000);
@@ -421,9 +416,8 @@ static bool ast_init_dvo(struct drm_device *dev)
 }
 
 
-static void ast_init_analog(struct drm_device *dev)
+static void ast_init_analog(struct ast_device *ast)
 {
-	struct ast_device *ast = to_ast_device(dev);
 	u32 data;
 
 	/*
@@ -448,28 +442,28 @@ static void ast_init_analog(struct drm_device *dev)
 	ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xa3, 0xcf, 0x00);
 }
 
-void ast_init_3rdtx(struct drm_device *dev)
+void ast_init_3rdtx(struct ast_device *ast)
 {
-	struct ast_device *ast = to_ast_device(dev);
-	u8 jreg;
+	u8 vgacrd1;
 
 	if (IS_AST_GEN4(ast) || IS_AST_GEN5(ast)) {
-		jreg = ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xd1, 0xff);
-		switch (jreg & 0x0e) {
-		case 0x04:
-			ast_init_dvo(dev);
+		vgacrd1 = ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xd1,
+						 AST_IO_VGACRD1_TX_TYPE_MASK);
+		switch (vgacrd1) {
+		case AST_IO_VGACRD1_TX_SIL164_VBIOS:
+			ast_init_dvo(ast);
 			break;
-		case 0x08:
-			ast_launch_m68k(dev);
+		case AST_IO_VGACRD1_TX_DP501_VBIOS:
+			ast_launch_m68k(ast);
 			break;
-		case 0x0c:
-			ast_init_dvo(dev);
+		case AST_IO_VGACRD1_TX_FW_EMBEDDED_FW:
+			ast_init_dvo(ast);
 			break;
 		default:
-			if (ast->tx_chip_types & BIT(AST_TX_SIL164))
-				ast_init_dvo(dev);
+			if (ast->tx_chip == AST_TX_SIL164)
+				ast_init_dvo(ast);
 			else
-				ast_init_analog(dev);
+				ast_init_analog(ast);
 		}
 	}
 }
@@ -485,17 +479,17 @@ static const struct drm_encoder_funcs ast_dp501_encoder_funcs = {
 static void ast_dp501_encoder_helper_atomic_enable(struct drm_encoder *encoder,
 						   struct drm_atomic_state *state)
 {
-	struct drm_device *dev = encoder->dev;
+	struct ast_device *ast = to_ast_device(encoder->dev);
 
-	ast_set_dp501_video_output(dev, 1);
+	ast_set_dp501_video_output(ast, 1);
 }
 
 static void ast_dp501_encoder_helper_atomic_disable(struct drm_encoder *encoder,
 						    struct drm_atomic_state *state)
 {
-	struct drm_device *dev = encoder->dev;
+	struct ast_device *ast = to_ast_device(encoder->dev);
 
-	ast_set_dp501_video_output(dev, 0);
+	ast_set_dp501_video_output(ast, 0);
 }
 
 static const struct drm_encoder_helper_funcs ast_dp501_encoder_helper_funcs = {
@@ -567,34 +561,22 @@ static const struct drm_connector_funcs ast_dp501_connector_funcs = {
 	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
 };
 
-static int ast_dp501_connector_init(struct drm_device *dev, struct drm_connector *connector)
-{
-	int ret;
-
-	ret = drm_connector_init(dev, connector, &ast_dp501_connector_funcs,
-				 DRM_MODE_CONNECTOR_DisplayPort);
-	if (ret)
-		return ret;
-
-	drm_connector_helper_add(connector, &ast_dp501_connector_helper_funcs);
-
-	connector->interlace_allowed = 0;
-	connector->doublescan_allowed = 0;
-
-	connector->polled = DRM_CONNECTOR_POLL_CONNECT | DRM_CONNECTOR_POLL_DISCONNECT;
-
-	return 0;
-}
+/*
+ * Output
+ */
 
 int ast_dp501_output_init(struct ast_device *ast)
 {
 	struct drm_device *dev = &ast->base;
 	struct drm_crtc *crtc = &ast->crtc;
-	struct drm_encoder *encoder = &ast->output.dp501.encoder;
-	struct ast_connector *ast_connector = &ast->output.dp501.connector;
-	struct drm_connector *connector = &ast_connector->base;
+	struct drm_encoder *encoder;
+	struct ast_connector *ast_connector;
+	struct drm_connector *connector;
 	int ret;
 
+	/* encoder */
+
+	encoder = &ast->output.dp501.encoder;
 	ret = drm_encoder_init(dev, encoder, &ast_dp501_encoder_funcs,
 			       DRM_MODE_ENCODER_TMDS, NULL);
 	if (ret)
@@ -603,9 +585,20 @@ int ast_dp501_output_init(struct ast_device *ast)
 
 	encoder->possible_crtcs = drm_crtc_mask(crtc);
 
-	ret = ast_dp501_connector_init(dev, connector);
+	/* connector */
+
+	ast_connector = &ast->output.dp501.connector;
+	connector = &ast_connector->base;
+	ret = drm_connector_init(dev, connector, &ast_dp501_connector_funcs,
+				 DRM_MODE_CONNECTOR_DisplayPort);
 	if (ret)
 		return ret;
+	drm_connector_helper_add(connector, &ast_dp501_connector_helper_funcs);
+
+	connector->interlace_allowed = 0;
+	connector->doublescan_allowed = 0;
+	connector->polled = DRM_CONNECTOR_POLL_CONNECT | DRM_CONNECTOR_POLL_DISCONNECT;
+
 	ast_connector->physical_status = connector->status;
 
 	ret = drm_connector_attach_encoder(connector, encoder);

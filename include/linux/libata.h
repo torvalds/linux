@@ -270,9 +270,7 @@ enum {
 
 	/* bits 24:31 of host->flags are reserved for LLD specific flags */
 
-	/* various lengths of time */
-	ATA_TMOUT_BOOT		= 30000,	/* heuristic */
-	ATA_TMOUT_BOOT_QUICK	=  7000,	/* heuristic */
+	/* Various lengths of time */
 	ATA_TMOUT_INTERNAL_QUICK = 5000,
 	ATA_TMOUT_MAX_PARK	= 30000,
 

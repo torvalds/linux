@@ -144,9 +144,6 @@ static int test_body(void)
 	/* Run for 16Bi instructions */
 	FAIL_IF(do_count_loop(events, 16000000000, overhead, true));
 
-	/* Run for 64Bi instructions */
-	FAIL_IF(do_count_loop(events, 64000000000, overhead, true));
-
 	event_close(&events[0]);
 	event_close(&events[1]);
 

@@ -1,0 +1,98 @@
+[
+    {
+        "id": "ca5e",
+        "name": "Check class delete notification for ffff:",
+        "category": [
+            "qdisc"
+        ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
+        "setup": [
+            "$IP link set dev $DUMMY up || true",
+            "$IP addr add 10.10.10.10/24 dev $DUMMY || true",
+            "$TC qdisc add dev $DUMMY root handle 1: drr",
+            "$TC filter add dev $DUMMY parent 1: basic classid 1:1",
+            "$TC class add dev $DUMMY parent 1: classid 1:1 drr",
+            "$TC qdisc add dev $DUMMY parent 1:1 handle ffff: drr",
+            "$TC filter add dev $DUMMY parent ffff: basic classid ffff:1",
+            "$TC class add dev $DUMMY parent ffff: classid ffff:1 drr",
+            "$TC qdisc add dev $DUMMY parent ffff:1 netem delay 1s",
+            "ping -c1 -W0.01 -I $DUMMY 10.10.10.1 || true",
+            "$TC class del dev $DUMMY classid ffff:1",
+            "$TC class add dev $DUMMY parent ffff: classid ffff:1 drr"
+        ],
+        "cmdUnderTest": "ping -c1 -W0.01 -I $DUMMY 10.10.10.1",
+        "expExitCode": "1",
+        "verifyCmd": "$TC -s qdisc ls dev $DUMMY",
+        "matchPattern": "drr 1: root",
+        "matchCount": "1",
+        "teardown": [
+            "$TC qdisc del dev $DUMMY root handle 1: drr",
+            "$IP addr del 10.10.10.10/24 dev $DUMMY"
+        ]
+    },
+    {
+        "id": "e4b7",
+        "name": "Check class delete notification for root ffff:",
+        "category": [
+            "qdisc"
+        ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
+        "setup": [
+            "$IP link set dev $DUMMY up || true",
+            "$IP addr add 10.10.10.10/24 dev $DUMMY || true",
+            "$TC qdisc add dev $DUMMY root handle ffff: drr",
+            "$TC filter add dev $DUMMY parent ffff: basic classid ffff:1",
+            "$TC class add dev $DUMMY parent ffff: classid ffff:1 drr",
+            "$TC qdisc add dev $DUMMY parent ffff:1 netem delay 1s",
+            "ping -c1 -W0.01 -I $DUMMY 10.10.10.1 || true",
+            "$TC class del dev $DUMMY classid ffff:1",
+            "$TC class add dev $DUMMY parent ffff: classid ffff:1 drr"
+        ],
+        "cmdUnderTest": "ping -c1 -W0.01 -I $DUMMY 10.10.10.1",
+        "expExitCode": "1",
+        "verifyCmd": "$TC qdisc ls dev $DUMMY",
+        "matchPattern": "drr ffff: root",
+        "matchCount": "1",
+        "teardown": [
+            "$TC qdisc del dev $DUMMY root handle ffff: drr",
+            "$IP addr del 10.10.10.10/24 dev $DUMMY"
+        ]
+    },
+    {
+        "id": "33a9",
+        "name": "Check ingress is not searchable on backlog update",
+        "category": [
+            "qdisc"
+        ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
+        "setup": [
+            "$IP link set dev $DUMMY up || true",
+            "$IP addr add 10.10.10.10/24 dev $DUMMY || true",
+            "$TC qdisc add dev $DUMMY ingress",
+            "$TC qdisc add dev $DUMMY root handle 1: drr",
+            "$TC filter add dev $DUMMY parent 1: basic classid 1:1",
+            "$TC class add dev $DUMMY parent 1: classid 1:1 drr",
+            "$TC qdisc add dev $DUMMY parent 1:1 handle 2: drr",
+            "$TC filter add dev $DUMMY parent 2: basic classid 2:1",
+            "$TC class add dev $DUMMY parent 2: classid 2:1 drr",
+            "$TC qdisc add dev $DUMMY parent 2:1 netem delay 1s",
+            "ping -c1 -W0.01 -I $DUMMY 10.10.10.1 || true"
+        ],
+        "cmdUnderTest": "$TC class del dev $DUMMY classid 2:1",
+        "expExitCode": "0",
+        "verifyCmd": "$TC qdisc ls dev $DUMMY",
+        "matchPattern": "drr 1: root",
+        "matchCount": "1",
+        "teardown": [
+            "$TC qdisc del dev $DUMMY root handle 1: drr",
+            "$TC qdisc del dev $DUMMY ingress",
+            "$IP addr del 10.10.10.10/24 dev $DUMMY"
+        ]
+    }
+]

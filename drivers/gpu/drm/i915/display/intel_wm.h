@@ -15,10 +15,8 @@ struct intel_crtc_state;
 struct intel_plane_state;
 
 void intel_update_watermarks(struct drm_i915_private *i915);
-int intel_compute_pipe_wm(struct intel_atomic_state *state,
-			  struct intel_crtc *crtc);
-int intel_compute_intermediate_wm(struct intel_atomic_state *state,
-				  struct intel_crtc *crtc);
+int intel_wm_compute(struct intel_atomic_state *state,
+		     struct intel_crtc *crtc);
 bool intel_initial_watermarks(struct intel_atomic_state *state,
 			      struct intel_crtc *crtc);
 void intel_atomic_update_watermarks(struct intel_atomic_state *state,

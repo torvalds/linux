@@ -225,6 +225,15 @@ The user must ensure the tokens are returned to the kernel in a timely manner.
 Failure to do so will exhaust the limited dmabuf that is bound to the RX queue
 and will lead to packet drops.
 
+The user must pass no more than 128 tokens, with no more than 1024 total frags
+among the token->token_count across all the tokens. If the user provides more
+than 1024 frags, the kernel will free up to 1024 frags and return early.
+
+The kernel returns the number of actual frags freed. The number of frags freed
+can be less than the tokens provided by the user in case of:
+
+(a) an internal kernel leak bug.
+(b) the user passed more than 1024 frags.
 
 Implementation & Caveats
 ========================

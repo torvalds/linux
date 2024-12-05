@@ -69,9 +69,6 @@
 
 	status = "okay";
 
-	/* Single DAI */
-	#sound-dai-cells = <0>;
-
 	rsnd_port: port {
 		rsnd_endpoint: endpoint {
 			remote-endpoint = <&dw_hdmi0_snd_in>;

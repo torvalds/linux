@@ -211,22 +211,38 @@ getname_flags(const char __user *filename, int flags)
 	return result;
 }
 
-struct filename *
-getname_uflags(const char __user *filename, int uflags)
+struct filename *getname_uflags(const char __user *filename, int uflags)
 {
 	int flags = (uflags & AT_EMPTY_PATH) ? LOOKUP_EMPTY : 0;
 
 	return getname_flags(filename, flags);
 }
 
-struct filename *
-getname(const char __user * filename)
+struct filename *getname(const char __user * filename)
 {
 	return getname_flags(filename, 0);
 }
 
-struct filename *
-getname_kernel(const char * filename)
+struct filename *__getname_maybe_null(const char __user *pathname)
+{
+	struct filename *name;
+	char c;
+
+	/* try to save on allocations; loss on um, though */
+	if (get_user(c, pathname))
+		return ERR_PTR(-EFAULT);
+	if (!c)
+		return NULL;
+
+	name = getname_flags(pathname, LOOKUP_EMPTY);
+	if (!IS_ERR(name) && !(name->name[0])) {
+		putname(name);
+		name = NULL;
+	}
+	return name;
+}
+
+struct filename *getname_kernel(const char * filename)
 {
 	struct filename *result;
 	int len = strlen(filename) + 1;
@@ -264,7 +280,7 @@ EXPORT_SYMBOL(getname_kernel);
 
 void putname(struct filename *name)
 {
-	if (IS_ERR(name))
+	if (IS_ERR_OR_NULL(name))
 		return;
 
 	if (WARN_ON_ONCE(!atomic_read(&name->refcnt)))
@@ -326,6 +342,25 @@ static int check_acl(struct mnt_idmap *idmap,
 	return -EAGAIN;
 }
 
+/*
+ * Very quick optimistic "we know we have no ACL's" check.
+ *
+ * Note that this is purely for ACL_TYPE_ACCESS, and purely
+ * for the "we have cached that there are no ACLs" case.
+ *
+ * If this returns true, we know there are no ACLs. But if
+ * it returns false, we might still not have ACLs (it could
+ * be the is_uncached_acl() case).
+ */
+static inline bool no_acl_inode(struct inode *inode)
+{
+#ifdef CONFIG_FS_POSIX_ACL
+	return likely(!READ_ONCE(inode->i_acl));
+#else
+	return true;
+#endif
+}
+
 /**
  * acl_permission_check - perform basic UNIX permission checking
  * @idmap:	idmap of the mount the inode was found from
@@ -347,6 +382,28 @@ static int acl_permission_check(struct mnt_idmap *idmap,
 {
 	unsigned int mode = inode->i_mode;
 	vfsuid_t vfsuid;
+
+	/*
+	 * Common cheap case: everybody has the requested
+	 * rights, and there are no ACLs to check. No need
+	 * to do any owner/group checks in that case.
+	 *
+	 *  - 'mask&7' is the requested permission bit set
+	 *  - multiplying by 0111 spreads them out to all of ugo
+	 *  - '& ~mode' looks for missing inode permission bits
+	 *  - the '!' is for "no missing permissions"
+	 *
+	 * After that, we just need to check that there are no
+	 * ACL's on the inode - do the 'IS_POSIXACL()' check last
+	 * because it will dereference the ->i_sb pointer and we
+	 * want to avoid that if at all possible.
+	 */
+	if (!((mask & 7) * 0111 & ~mode)) {
+		if (no_acl_inode(inode))
+			return 0;
+		if (!IS_POSIXACL(inode))
+			return 0;
+	}
 
 	/* Are we the owner? If so, ACL's don't matter */
 	vfsuid = i_uid_into_vfsuid(idmap, inode);
@@ -588,6 +645,7 @@ struct nameidata {
 		unsigned seq;
 	} *stack, internal[EMBEDDED_LEVELS];
 	struct filename	*name;
+	const char *pathname;
 	struct nameidata *saved;
 	unsigned	root_seq;
 	int		dfd;
@@ -606,6 +664,7 @@ static void __set_nameidata(struct nameidata *p, int dfd, struct filename *name)
 	p->depth = 0;
 	p->dfd = dfd;
 	p->name = name;
+	p->pathname = likely(name) ? name->name : "";
 	p->path.mnt = NULL;
 	p->path.dentry = NULL;
 	p->total_link_count = old ? old->total_link_count : 0;
@@ -2439,7 +2498,7 @@ OK:
 static const char *path_init(struct nameidata *nd, unsigned flags)
 {
 	int error;
-	const char *s = nd->name->name;
+	const char *s = nd->pathname;
 
 	/* LOOKUP_CACHED requires RCU, ask caller to retry */
 	if ((flags & (LOOKUP_RCU | LOOKUP_CACHED)) == LOOKUP_CACHED)
@@ -2503,26 +2562,22 @@ static const char *path_init(struct nameidata *nd, unsigned flags)
 		}
 	} else {
 		/* Caller must check execute permissions on the starting path component */
-		struct fd f = fdget_raw(nd->dfd);
+		CLASS(fd_raw, f)(nd->dfd);
 		struct dentry *dentry;
 
-		if (!fd_file(f))
+		if (fd_empty(f))
 			return ERR_PTR(-EBADF);
 
 		if (flags & LOOKUP_LINKAT_EMPTY) {
 			if (fd_file(f)->f_cred != current_cred() &&
-			    !ns_capable(fd_file(f)->f_cred->user_ns, CAP_DAC_READ_SEARCH)) {
-				fdput(f);
+			    !ns_capable(fd_file(f)->f_cred->user_ns, CAP_DAC_READ_SEARCH))
 				return ERR_PTR(-ENOENT);
-			}
 		}
 
 		dentry = fd_file(f)->f_path.dentry;
 
-		if (*s && unlikely(!d_can_lookup(dentry))) {
-			fdput(f);
+		if (*s && unlikely(!d_can_lookup(dentry)))
 			return ERR_PTR(-ENOTDIR);
-		}
 
 		nd->path = fd_file(f)->f_path;
 		if (flags & LOOKUP_RCU) {
@@ -2532,7 +2587,6 @@ static const char *path_init(struct nameidata *nd, unsigned flags)
 			path_get(&nd->path);
 			nd->inode = nd->path.dentry->d_inode;
 		}
-		fdput(f);
 	}
 
 	/* For scoped-lookups we need to set the root to the dirfd as well. */

@@ -67,6 +67,8 @@
 
 #define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
 
+#define strstarts(str, prefix) (strncmp(str, prefix, strlen(prefix)) == 0)
+
 struct buffer {
 	char *p;
 	int pos;
@@ -79,6 +81,22 @@ buf_printf(struct buffer *buf, const char *fmt, ...);
 void
 buf_write(struct buffer *buf, const char *s, int len);
 
+/**
+ * struct module_alias - auto-generated MODULE_ALIAS()
+ *
+ * @node: linked to module::aliases
+ * @str: a string for MODULE_ALIAS()
+ */
+struct module_alias {
+	struct list_head node;
+	char str[];
+};
+
+/**
+ * struct module - represent a module (vmlinux or *.ko)
+ *
+ * @aliases: list head for module_aliases
+ */
 struct module {
 	struct list_head list;
 	struct list_head exported_symbols;
@@ -89,12 +107,12 @@ struct module {
 	bool seen;
 	bool has_init;
 	bool has_cleanup;
-	struct buffer dev_table_buf;
 	char	     srcversion[25];
 	// Missing namespace dependencies
 	struct list_head missing_namespaces;
 	// Actual imported namespaces
 	struct list_head imported_namespaces;
+	struct list_head aliases;
 	char name[];
 };
 
@@ -170,7 +188,6 @@ Elf_Sym *symsearch_find_nearest(struct elf_info *elf, Elf_Addr addr,
 /* file2alias.c */
 void handle_moddevtable(struct module *mod, struct elf_info *info,
 			Elf_Sym *sym, const char *symname);
-void add_moddevtable(struct buffer *buf, struct module *mod);
 
 /* sumversion.c */
 void get_src_version(const char *modname, char sum[], unsigned sumlen);

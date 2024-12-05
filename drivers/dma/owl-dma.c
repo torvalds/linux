@@ -1252,7 +1252,7 @@ static void owl_dma_remove(struct platform_device *pdev)
 
 static struct platform_driver owl_dma_driver = {
 	.probe	= owl_dma_probe,
-	.remove_new = owl_dma_remove,
+	.remove = owl_dma_remove,
 	.driver = {
 		.name = "dma-owl",
 		.of_match_table = of_match_ptr(owl_dma_match),

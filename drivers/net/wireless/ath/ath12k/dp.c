@@ -327,20 +327,22 @@ int ath12k_dp_srng_setup(struct ath12k_base *ab, struct dp_srng *ring,
 }
 
 static
-u32 ath12k_dp_tx_get_vdev_bank_config(struct ath12k_base *ab, struct ath12k_vif *arvif)
+u32 ath12k_dp_tx_get_vdev_bank_config(struct ath12k_base *ab,
+				      struct ath12k_link_vif *arvif)
 {
 	u32 bank_config = 0;
+	struct ath12k_vif *ahvif = arvif->ahvif;
 
 	/* Only valid for raw frames with HW crypto enabled.
 	 * With SW crypto, mac80211 sets key per packet
 	 */
-	if (arvif->tx_encap_type == HAL_TCL_ENCAP_TYPE_RAW &&
+	if (ahvif->tx_encap_type == HAL_TCL_ENCAP_TYPE_RAW &&
 	    test_bit(ATH12K_FLAG_HW_CRYPTO_DISABLED, &ab->dev_flags))
 		bank_config |=
-			u32_encode_bits(ath12k_dp_tx_get_encrypt_type(arvif->key_cipher),
+			u32_encode_bits(ath12k_dp_tx_get_encrypt_type(ahvif->key_cipher),
 					HAL_TX_BANK_CONFIG_ENCRYPT_TYPE);
 
-	bank_config |= u32_encode_bits(arvif->tx_encap_type,
+	bank_config |= u32_encode_bits(ahvif->tx_encap_type,
 					HAL_TX_BANK_CONFIG_ENCAP_TYPE);
 	bank_config |= u32_encode_bits(0, HAL_TX_BANK_CONFIG_SRC_BUFFER_SWAP) |
 			u32_encode_bits(0, HAL_TX_BANK_CONFIG_LINK_META_SWAP) |
@@ -355,7 +357,7 @@ u32 ath12k_dp_tx_get_vdev_bank_config(struct ath12k_base *ab, struct ath12k_vif 
 					HAL_TX_ADDRY_EN),
 					HAL_TX_BANK_CONFIG_ADDRY_EN);
 
-	bank_config |= u32_encode_bits(ieee80211_vif_is_mesh(arvif->vif) ? 3 : 0,
+	bank_config |= u32_encode_bits(ieee80211_vif_is_mesh(ahvif->vif) ? 3 : 0,
 					HAL_TX_BANK_CONFIG_MESH_EN) |
 			u32_encode_bits(arvif->vdev_id_check_en,
 					HAL_TX_BANK_CONFIG_VDEV_ID_CHECK_EN);
@@ -365,7 +367,8 @@ u32 ath12k_dp_tx_get_vdev_bank_config(struct ath12k_base *ab, struct ath12k_vif 
 	return bank_config;
 }
 
-static int ath12k_dp_tx_get_bank_profile(struct ath12k_base *ab, struct ath12k_vif *arvif,
+static int ath12k_dp_tx_get_bank_profile(struct ath12k_base *ab,
+					 struct ath12k_link_vif *arvif,
 					 struct ath12k_dp *dp)
 {
 	int bank_id = DP_INVALID_BANK_ID;
@@ -1099,9 +1102,9 @@ int ath12k_dp_htt_connect(struct ath12k_dp *dp)
 	return 0;
 }
 
-static void ath12k_dp_update_vdev_search(struct ath12k_vif *arvif)
+static void ath12k_dp_update_vdev_search(struct ath12k_link_vif *arvif)
 {
-	switch (arvif->vdev_type) {
+	switch (arvif->ahvif->vdev_type) {
 	case WMI_VDEV_TYPE_STA:
 		/* TODO: Verify the search type and flags since ast hash
 		 * is not part of peer mapv3
@@ -1120,7 +1123,7 @@ static void ath12k_dp_update_vdev_search(struct ath12k_vif *arvif)
 	}
 }
 
-void ath12k_dp_vdev_tx_attach(struct ath12k *ar, struct ath12k_vif *arvif)
+void ath12k_dp_vdev_tx_attach(struct ath12k *ar, struct ath12k_link_vif *arvif)
 {
 	struct ath12k_base *ab = ar->ab;
 
@@ -1162,7 +1165,7 @@ static void ath12k_dp_cc_cleanup(struct ath12k_base *ab)
 	spin_lock_bh(&dp->rx_desc_lock);
 
 	for (i = 0; i < ATH12K_NUM_RX_SPT_PAGES; i++) {
-		desc_info = dp->spt_info->rxbaddr[i];
+		desc_info = dp->rxbaddr[i];
 
 		for (j = 0; j < ATH12K_MAX_SPT_ENTRIES; j++) {
 			if (!desc_info[j].in_use) {
@@ -1181,11 +1184,11 @@ static void ath12k_dp_cc_cleanup(struct ath12k_base *ab)
 	}
 
 	for (i = 0; i < ATH12K_NUM_RX_SPT_PAGES; i++) {
-		if (!dp->spt_info->rxbaddr[i])
+		if (!dp->rxbaddr[i])
 			continue;
 
-		kfree(dp->spt_info->rxbaddr[i]);
-		dp->spt_info->rxbaddr[i] = NULL;
+		kfree(dp->rxbaddr[i]);
+		dp->rxbaddr[i] = NULL;
 	}
 
 	spin_unlock_bh(&dp->rx_desc_lock);
@@ -1202,10 +1205,16 @@ static void ath12k_dp_cc_cleanup(struct ath12k_base *ab)
 			if (!skb)
 				continue;
 
-			skb_cb = ATH12K_SKB_CB(skb);
-			ar = skb_cb->ar;
-			if (atomic_dec_and_test(&ar->dp.num_tx_pending))
-				wake_up(&ar->dp.tx_empty_waitq);
+			/* if we are unregistering, hw would've been destroyed and
+			 * ar is no longer valid.
+			 */
+			if (!(test_bit(ATH12K_FLAG_UNREGISTERING, &ab->dev_flags))) {
+				skb_cb = ATH12K_SKB_CB(skb);
+				ar = skb_cb->ar;
+
+				if (atomic_dec_and_test(&ar->dp.num_tx_pending))
+					wake_up(&ar->dp.tx_empty_waitq);
+			}
 
 			dma_unmap_single(ab->dev, ATH12K_SKB_CB(skb)->paddr,
 					 skb->len, DMA_TO_DEVICE);
@@ -1220,11 +1229,11 @@ static void ath12k_dp_cc_cleanup(struct ath12k_base *ab)
 
 		for (i = 0; i < ATH12K_TX_SPT_PAGES_PER_POOL; i++) {
 			tx_spt_page = i + pool_id * ATH12K_TX_SPT_PAGES_PER_POOL;
-			if (!dp->spt_info->txbaddr[tx_spt_page])
+			if (!dp->txbaddr[tx_spt_page])
 				continue;
 
-			kfree(dp->spt_info->txbaddr[tx_spt_page]);
-			dp->spt_info->txbaddr[tx_spt_page] = NULL;
+			kfree(dp->txbaddr[tx_spt_page]);
+			dp->txbaddr[tx_spt_page] = NULL;
 		}
 
 		spin_unlock_bh(&dp->tx_desc_lock[pool_id]);
@@ -1241,6 +1250,7 @@ static void ath12k_dp_cc_cleanup(struct ath12k_base *ab)
 	}
 
 	kfree(dp->spt_info);
+	dp->spt_info = NULL;
 }
 
 static void ath12k_dp_reoq_lut_cleanup(struct ath12k_base *ab)
@@ -1276,8 +1286,10 @@ void ath12k_dp_free(struct ath12k_base *ab)
 
 	ath12k_dp_rx_reo_cmd_list_cleanup(ab);
 
-	for (i = 0; i < ab->hw_params->max_tx_ring; i++)
+	for (i = 0; i < ab->hw_params->max_tx_ring; i++) {
 		kfree(dp->tx_ring[i].tx_status);
+		dp->tx_ring[i].tx_status = NULL;
+	}
 
 	ath12k_dp_rx_free(ab);
 	/* Deinit any SOC level resource */
@@ -1415,7 +1427,7 @@ static int ath12k_dp_cc_desc_init(struct ath12k_base *ab)
 
 		ppt_idx = ATH12K_RX_SPT_PAGE_OFFSET + i;
 		cookie_ppt_idx = dp->rx_ppt_base + ppt_idx;
-		dp->spt_info->rxbaddr[i] = &rx_descs[0];
+		dp->rxbaddr[i] = &rx_descs[0];
 
 		for (j = 0; j < ATH12K_MAX_SPT_ENTRIES; j++) {
 			rx_descs[j].cookie = ath12k_dp_cc_cookie_gen(cookie_ppt_idx, j);
@@ -1445,7 +1457,7 @@ static int ath12k_dp_cc_desc_init(struct ath12k_base *ab)
 			tx_spt_page = i + pool_id * ATH12K_TX_SPT_PAGES_PER_POOL;
 			ppt_idx = ATH12K_TX_SPT_PAGE_OFFSET + tx_spt_page;
 
-			dp->spt_info->txbaddr[tx_spt_page] = &tx_descs[0];
+			dp->txbaddr[tx_spt_page] = &tx_descs[0];
 
 			for (j = 0; j < ATH12K_MAX_SPT_ENTRIES; j++) {
 				tx_descs[j].desc_id = ath12k_dp_cc_cookie_gen(ppt_idx, j);

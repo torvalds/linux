@@ -92,10 +92,6 @@ static inline struct file *files_lookup_fd_locked(struct files_struct *files, un
 	return files_lookup_fd_raw(files, fd);
 }
 
-struct file *lookup_fdget_rcu(unsigned int fd);
-struct file *task_lookup_fdget_rcu(struct task_struct *task, unsigned int fd);
-struct file *task_lookup_next_fdget_rcu(struct task_struct *task, unsigned int *fd);
-
 static inline bool close_on_exec(unsigned int fd, const struct files_struct *files)
 {
 	return test_bit(fd, files_fdtable(files)->close_on_exec);
@@ -115,7 +111,6 @@ int iterate_fd(struct files_struct *, unsigned,
 		const void *);
 
 extern int close_fd(unsigned int fd);
-extern int __close_range(unsigned int fd, unsigned int max_fd, unsigned int flags);
 extern struct file *file_close_fd(unsigned int fd);
 
 extern struct kmem_cache *files_cachep;

@@ -112,7 +112,6 @@ static int acrn_irqfd_assign(struct acrn_vm *vm, struct acrn_irqfd *args)
 	struct eventfd_ctx *eventfd = NULL;
 	struct hsm_irqfd *irqfd, *tmp;
 	__poll_t events;
-	struct fd f;
 	int ret = 0;
 
 	irqfd = kzalloc(sizeof(*irqfd), GFP_KERNEL);
@@ -124,8 +123,8 @@ static int acrn_irqfd_assign(struct acrn_vm *vm, struct acrn_irqfd *args)
 	INIT_LIST_HEAD(&irqfd->list);
 	INIT_WORK(&irqfd->shutdown, hsm_irqfd_shutdown_work);
 
-	f = fdget(args->fd);
-	if (!fd_file(f)) {
+	CLASS(fd, f)(args->fd);
+	if (fd_empty(f)) {
 		ret = -EBADF;
 		goto out;
 	}
@@ -133,7 +132,7 @@ static int acrn_irqfd_assign(struct acrn_vm *vm, struct acrn_irqfd *args)
 	eventfd = eventfd_ctx_fileget(fd_file(f));
 	if (IS_ERR(eventfd)) {
 		ret = PTR_ERR(eventfd);
-		goto fail;
+		goto out;
 	}
 
 	irqfd->eventfd = eventfd;
@@ -162,13 +161,9 @@ static int acrn_irqfd_assign(struct acrn_vm *vm, struct acrn_irqfd *args)
 	if (events & EPOLLIN)
 		acrn_irqfd_inject(irqfd);
 
-	fdput(f);
 	return 0;
 fail:
-	if (eventfd && !IS_ERR(eventfd))
-		eventfd_ctx_put(eventfd);
-
-	fdput(f);
+	eventfd_ctx_put(eventfd);
 out:
 	kfree(irqfd);
 	return ret;

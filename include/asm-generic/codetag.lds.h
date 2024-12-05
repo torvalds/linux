@@ -11,4 +11,23 @@
 #define CODETAG_SECTIONS()		\
 	SECTION_WITH_BOUNDARIES(alloc_tags)
 
+/*
+ * Module codetags which aren't used after module unload, therefore have the
+ * same lifespan as the module and can be safely unloaded with the module.
+ */
+#define MOD_CODETAG_SECTIONS()
+
+#define MOD_SEPARATE_CODETAG_SECTION(_name)	\
+	.codetag.##_name : {			\
+		SECTION_WITH_BOUNDARIES(_name)	\
+	}
+
+/*
+ * For codetags which might be used after module unload, therefore might stay
+ * longer in memory. Each such codetag type has its own section so that we can
+ * unload them individually once unused.
+ */
+#define MOD_SEPARATE_CODETAG_SECTIONS()		\
+	MOD_SEPARATE_CODETAG_SECTION(alloc_tags)
+
 #endif /* __ASM_GENERIC_CODETAG_LDS_H */

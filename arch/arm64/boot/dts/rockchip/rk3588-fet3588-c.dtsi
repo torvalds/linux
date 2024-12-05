@@ -29,7 +29,7 @@
 		};
 	};
 
-	pcie20_avdd0v85: pcie20-avdd0v85-regulator {
+	pcie20_avdd0v85: regulator-pcie20-avdd0v85 {
 		compatible = "regulator-fixed";
 		regulator-name = "pcie20_avdd0v85";
 		regulator-always-on;
@@ -39,7 +39,7 @@
 		vin-supply = <&vdd_0v85_s0>;
 	};
 
-	pcie20_avdd1v8: pcie20-avdd1v8-regulator {
+	pcie20_avdd1v8: regulator-pcie20-avdd1v8 {
 		compatible = "regulator-fixed";
 		regulator-name = "pcie20_avdd1v8";
 		regulator-always-on;
@@ -49,7 +49,7 @@
 		vin-supply = <&avcc_1v8_s0>;
 	};
 
-	pcie30_avdd0v75: pcie30-avdd0v75-regulator {
+	pcie30_avdd0v75: regulator-pcie30-avdd0v75 {
 		compatible = "regulator-fixed";
 		regulator-name = "pcie30_avdd0v75";
 		regulator-always-on;
@@ -59,7 +59,7 @@
 		vin-supply = <&avdd_0v75_s0>;
 	};
 
-	pcie30_avdd1v8: pcie30-avdd1v8-regulator {
+	pcie30_avdd1v8: regulator-pcie30-avdd1v8 {
 		compatible = "regulator-fixed";
 		regulator-name = "pcie30_avdd1v8";
 		regulator-always-on;
@@ -69,7 +69,7 @@
 		vin-supply = <&avcc_1v8_s0>;
 	};
 
-	vcc_1v1_nldo_s3: vcc-1v1-nldo-s3-regulator {
+	vcc_1v1_nldo_s3: regulator-vcc-1v1-nldo-s3 {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc_1v1_nldo_s3";
 		regulator-always-on;
@@ -79,7 +79,7 @@
 		vin-supply = <&vcc5v0_sys>;
 	};
 
-	vcc4v0_sys: vcc4v0-sys-regulator {
+	vcc4v0_sys: regulator-vcc4v0-sys {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc4v0_sys";
 		regulator-always-on;

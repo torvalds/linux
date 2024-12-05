@@ -1503,7 +1503,7 @@ MODULE_DEVICE_TABLE(of, lpc_eth_match);
 
 static struct platform_driver lpc_eth_driver = {
 	.probe		= lpc_eth_drv_probe,
-	.remove_new	= lpc_eth_drv_remove,
+	.remove		= lpc_eth_drv_remove,
 #ifdef CONFIG_PM
 	.suspend	= lpc_eth_drv_suspend,
 	.resume		= lpc_eth_drv_resume,

@@ -346,8 +346,8 @@ static void sg2042_mcu_i2c_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id sg2042_mcu_id[] = {
-	{ "sg2042-hwmon-mcu", 0 },
-	{},
+	{ "sg2042-hwmon-mcu" },
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, sg2042_mcu_id);
 

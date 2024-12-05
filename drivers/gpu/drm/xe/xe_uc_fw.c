@@ -4,6 +4,7 @@
  */
 
 #include <linux/bitfield.h>
+#include <linux/fault-inject.h>
 #include <linux/firmware.h>
 
 #include <drm/drm_managed.h>
@@ -796,6 +797,7 @@ int xe_uc_fw_init(struct xe_uc_fw *uc_fw)
 
 	return err;
 }
+ALLOW_ERROR_INJECTION(xe_uc_fw_init, ERRNO); /* See xe_pci_probe() */
 
 static u32 uc_fw_ggtt_offset(struct xe_uc_fw *uc_fw)
 {
@@ -806,6 +808,7 @@ static int uc_fw_xfer(struct xe_uc_fw *uc_fw, u32 offset, u32 dma_flags)
 {
 	struct xe_device *xe = uc_fw_to_xe(uc_fw);
 	struct xe_gt *gt = uc_fw_to_gt(uc_fw);
+	struct xe_mmio *mmio = &gt->mmio;
 	u64 src_offset;
 	u32 dma_ctrl;
 	int ret;
@@ -814,34 +817,34 @@ static int uc_fw_xfer(struct xe_uc_fw *uc_fw, u32 offset, u32 dma_flags)
 
 	/* Set the source address for the uCode */
 	src_offset = uc_fw_ggtt_offset(uc_fw) + uc_fw->css_offset;
-	xe_mmio_write32(gt, DMA_ADDR_0_LOW, lower_32_bits(src_offset));
-	xe_mmio_write32(gt, DMA_ADDR_0_HIGH,
+	xe_mmio_write32(mmio, DMA_ADDR_0_LOW, lower_32_bits(src_offset));
+	xe_mmio_write32(mmio, DMA_ADDR_0_HIGH,
 			upper_32_bits(src_offset) | DMA_ADDRESS_SPACE_GGTT);
 
 	/* Set the DMA destination */
-	xe_mmio_write32(gt, DMA_ADDR_1_LOW, offset);
-	xe_mmio_write32(gt, DMA_ADDR_1_HIGH, DMA_ADDRESS_SPACE_WOPCM);
+	xe_mmio_write32(mmio, DMA_ADDR_1_LOW, offset);
+	xe_mmio_write32(mmio, DMA_ADDR_1_HIGH, DMA_ADDRESS_SPACE_WOPCM);
 
 	/*
 	 * Set the transfer size. The header plus uCode will be copied to WOPCM
 	 * via DMA, excluding any other components
 	 */
-	xe_mmio_write32(gt, DMA_COPY_SIZE,
+	xe_mmio_write32(mmio, DMA_COPY_SIZE,
 			sizeof(struct uc_css_header) + uc_fw->ucode_size);
 
 	/* Start the DMA */
-	xe_mmio_write32(gt, DMA_CTRL,
+	xe_mmio_write32(mmio, DMA_CTRL,
 			_MASKED_BIT_ENABLE(dma_flags | START_DMA));
 
 	/* Wait for DMA to finish */
-	ret = xe_mmio_wait32(gt, DMA_CTRL, START_DMA, 0, 100000, &dma_ctrl,
+	ret = xe_mmio_wait32(mmio, DMA_CTRL, START_DMA, 0, 100000, &dma_ctrl,
 			     false);
 	if (ret)
 		drm_err(&xe->drm, "DMA for %s fw failed, DMA_CTRL=%u\n",
 			xe_uc_fw_type_repr(uc_fw->type), dma_ctrl);
 
 	/* Disable the bits once DMA is over */
-	xe_mmio_write32(gt, DMA_CTRL, _MASKED_BIT_DISABLE(dma_flags));
+	xe_mmio_write32(mmio, DMA_CTRL, _MASKED_BIT_DISABLE(dma_flags));
 
 	return ret;
 }

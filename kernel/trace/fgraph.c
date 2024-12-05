@@ -153,7 +153,7 @@ enum {
  * SHADOW_STACK_OFFSET:	The size in long words of the shadow stack
  * SHADOW_STACK_MAX_OFFSET: The max offset of the stack for a new frame to be added
  */
-#define SHADOW_STACK_SIZE	(PAGE_SIZE)
+#define SHADOW_STACK_SIZE	(4096)
 #define SHADOW_STACK_OFFSET	(SHADOW_STACK_SIZE / sizeof(long))
 /* Leave on a buffer at the end */
 #define SHADOW_STACK_MAX_OFFSET				\
@@ -171,6 +171,8 @@ enum {
 
 DEFINE_STATIC_KEY_FALSE(kill_ftrace_graph);
 int ftrace_graph_active;
+
+static struct kmem_cache *fgraph_stack_cachep;
 
 static struct fgraph_ops *fgraph_array[FGRAPH_ARRAY_SIZE];
 static unsigned long fgraph_array_bitmask;
@@ -390,21 +392,7 @@ void *fgraph_reserve_data(int idx, int size_bytes)
  */
 void *fgraph_retrieve_data(int idx, int *size_bytes)
 {
-	int offset = current->curr_ret_stack - 1;
-	unsigned long val;
-
-	val = get_fgraph_entry(current, offset);
-	while (__get_type(val) == FGRAPH_TYPE_DATA) {
-		if (__get_data_index(val) == idx)
-			goto found;
-		offset -= __get_data_size(val) + 1;
-		val = get_fgraph_entry(current, offset);
-	}
-	return NULL;
-found:
-	if (size_bytes)
-		*size_bytes = __get_data_size(val) * sizeof(long);
-	return get_data_type_data(current, offset);
+	return fgraph_retrieve_parent_data(idx, size_bytes, 0);
 }
 
 /**
@@ -460,8 +448,56 @@ get_ret_stack(struct task_struct *t, int offset, int *frame_offset)
 	return RET_STACK(t, offset);
 }
 
+/**
+ * fgraph_retrieve_parent_data - get data from a parent function
+ * @idx: The index into the fgraph_array (fgraph_ops::idx)
+ * @size_bytes: A pointer to retrieved data size
+ * @depth: The depth to find the parent (0 is the current function)
+ *
+ * This is similar to fgraph_retrieve_data() but can be used to retrieve
+ * data from a parent caller function.
+ *
+ * Return: a pointer to the specified parent data or NULL if not found
+ */
+void *fgraph_retrieve_parent_data(int idx, int *size_bytes, int depth)
+{
+	struct ftrace_ret_stack *ret_stack = NULL;
+	int offset = current->curr_ret_stack;
+	unsigned long val;
+
+	if (offset <= 0)
+		return NULL;
+
+	for (;;) {
+		int next_offset;
+
+		ret_stack = get_ret_stack(current, offset, &next_offset);
+		if (!ret_stack || --depth < 0)
+			break;
+		offset = next_offset;
+	}
+
+	if (!ret_stack)
+		return NULL;
+
+	offset--;
+
+	val = get_fgraph_entry(current, offset);
+	while (__get_type(val) == FGRAPH_TYPE_DATA) {
+		if (__get_data_index(val) == idx)
+			goto found;
+		offset -= __get_data_size(val) + 1;
+		val = get_fgraph_entry(current, offset);
+	}
+	return NULL;
+found:
+	if (size_bytes)
+		*size_bytes = __get_data_size(val) * sizeof(long);
+	return get_data_type_data(current, offset);
+}
+
 /* Both enabled by default (can be cleared by function_graph tracer flags */
-static bool fgraph_sleep_time = true;
+bool fgraph_sleep_time = true;
 
 #ifdef CONFIG_DYNAMIC_FTRACE
 /*
@@ -524,7 +560,6 @@ ftrace_push_return_trace(unsigned long ret, unsigned long func,
 			 int fgraph_idx)
 {
 	struct ftrace_ret_stack *ret_stack;
-	unsigned long long calltime;
 	unsigned long val;
 	int offset;
 
@@ -553,8 +588,6 @@ ftrace_push_return_trace(unsigned long ret, unsigned long func,
 		atomic_inc(&current->trace_overrun);
 		return -EBUSY;
 	}
-
-	calltime = trace_clock_local();
 
 	offset = READ_ONCE(current->curr_ret_stack);
 	ret_stack = RET_STACK(current, offset);
@@ -589,7 +622,6 @@ ftrace_push_return_trace(unsigned long ret, unsigned long func,
 
 	ret_stack->ret = ret;
 	ret_stack->func = func;
-	ret_stack->calltime = calltime;
 #ifdef HAVE_FUNCTION_GRAPH_FP_TEST
 	ret_stack->fp = frame_pointer;
 #endif
@@ -723,7 +755,6 @@ ftrace_pop_return_trace(struct ftrace_graph_ret *trace, unsigned long *ret,
 	*offset += FGRAPH_FRAME_OFFSET;
 	*ret = ret_stack->ret;
 	trace->func = ret_stack->func;
-	trace->calltime = ret_stack->calltime;
 	trace->overrun = atomic_read(&current->trace_overrun);
 	trace->depth = current->curr_ret_depth;
 	/*
@@ -868,6 +899,29 @@ ftrace_graph_get_ret_stack(struct task_struct *task, int idx)
 }
 
 /**
+ * ftrace_graph_top_ret_addr - return the top return address in the shadow stack
+ * @task: The task to read the shadow stack from.
+ *
+ * Return the first return address on the shadow stack of the @task, which is
+ * not the fgraph's return_to_handler.
+ */
+unsigned long ftrace_graph_top_ret_addr(struct task_struct *task)
+{
+	unsigned long return_handler = (unsigned long)dereference_kernel_function_descriptor(return_to_handler);
+	struct ftrace_ret_stack *ret_stack = NULL;
+	int offset = task->curr_ret_stack;
+
+	if (offset < 0)
+		return 0;
+
+	do {
+		ret_stack = get_ret_stack(task, offset, &offset);
+	} while (ret_stack && ret_stack->ret == return_handler);
+
+	return ret_stack ? ret_stack->ret : 0;
+}
+
+/**
  * ftrace_graph_ret_addr - return the original value of the return address
  * @task: The task the unwinder is being executed on
  * @idx: An initialized pointer to the next stack index to use
@@ -892,7 +946,7 @@ unsigned long ftrace_graph_ret_addr(struct task_struct *task, int *idx,
 {
 	struct ftrace_ret_stack *ret_stack;
 	unsigned long return_handler = (unsigned long)dereference_kernel_function_descriptor(return_to_handler);
-	int i = task->curr_ret_stack;
+	int i;
 
 	if (ret != return_handler)
 		return ret;
@@ -970,8 +1024,11 @@ static int alloc_retstack_tasklist(unsigned long **ret_stack_list)
 	int start = 0, end = FTRACE_RETSTACK_ALLOC_SIZE;
 	struct task_struct *g, *t;
 
+	if (WARN_ON_ONCE(!fgraph_stack_cachep))
+		return -ENOMEM;
+
 	for (i = 0; i < FTRACE_RETSTACK_ALLOC_SIZE; i++) {
-		ret_stack_list[i] = kmalloc(SHADOW_STACK_SIZE, GFP_KERNEL);
+		ret_stack_list[i] = kmem_cache_alloc(fgraph_stack_cachep, GFP_KERNEL);
 		if (!ret_stack_list[i]) {
 			start = 0;
 			end = i;
@@ -1002,7 +1059,7 @@ unlock:
 	rcu_read_unlock();
 free:
 	for (i = start; i < end; i++)
-		kfree(ret_stack_list[i]);
+		kmem_cache_free(fgraph_stack_cachep, ret_stack_list[i]);
 	return ret;
 }
 
@@ -1012,9 +1069,7 @@ ftrace_graph_probe_sched_switch(void *ignore, bool preempt,
 				struct task_struct *next,
 				unsigned int prev_state)
 {
-	struct ftrace_ret_stack *ret_stack;
 	unsigned long long timestamp;
-	int offset;
 
 	/*
 	 * Does the user want to count the time a function was asleep.
@@ -1031,17 +1086,7 @@ ftrace_graph_probe_sched_switch(void *ignore, bool preempt,
 	if (!next->ftrace_timestamp)
 		return;
 
-	/*
-	 * Update all the counters in next to make up for the
-	 * time next was sleeping.
-	 */
-	timestamp -= next->ftrace_timestamp;
-
-	for (offset = next->curr_ret_stack; offset > 0; ) {
-		ret_stack = get_ret_stack(next, offset, &offset);
-		if (ret_stack)
-			ret_stack->calltime += timestamp;
-	}
+	next->ftrace_sleeptime += timestamp - next->ftrace_timestamp;
 }
 
 static DEFINE_PER_CPU(unsigned long *, idle_ret_stack);
@@ -1077,9 +1122,12 @@ void ftrace_graph_init_idle_task(struct task_struct *t, int cpu)
 	if (ftrace_graph_active) {
 		unsigned long *ret_stack;
 
+		if (WARN_ON_ONCE(!fgraph_stack_cachep))
+			return;
+
 		ret_stack = per_cpu(idle_ret_stack, cpu);
 		if (!ret_stack) {
-			ret_stack = kmalloc(SHADOW_STACK_SIZE, GFP_KERNEL);
+			ret_stack = kmem_cache_alloc(fgraph_stack_cachep, GFP_KERNEL);
 			if (!ret_stack)
 				return;
 			per_cpu(idle_ret_stack, cpu) = ret_stack;
@@ -1099,7 +1147,10 @@ void ftrace_graph_init_task(struct task_struct *t)
 	if (ftrace_graph_active) {
 		unsigned long *ret_stack;
 
-		ret_stack = kmalloc(SHADOW_STACK_SIZE, GFP_KERNEL);
+		if (WARN_ON_ONCE(!fgraph_stack_cachep))
+			return;
+
+		ret_stack = kmem_cache_alloc(fgraph_stack_cachep, GFP_KERNEL);
 		if (!ret_stack)
 			return;
 		graph_init_task(t, ret_stack);
@@ -1114,7 +1165,11 @@ void ftrace_graph_exit_task(struct task_struct *t)
 	/* NULL must become visible to IRQs before we free it: */
 	barrier();
 
-	kfree(ret_stack);
+	if (ret_stack) {
+		if (WARN_ON_ONCE(!fgraph_stack_cachep))
+			return;
+		kmem_cache_free(fgraph_stack_cachep, ret_stack);
+	}
 }
 
 #ifdef CONFIG_DYNAMIC_FTRACE
@@ -1254,6 +1309,14 @@ int register_ftrace_graph(struct fgraph_ops *gops)
 
 	guard(mutex)(&ftrace_lock);
 
+	if (!fgraph_stack_cachep) {
+		fgraph_stack_cachep = kmem_cache_create("fgraph_stack",
+							SHADOW_STACK_SIZE,
+							SHADOW_STACK_SIZE, 0, NULL);
+		if (!fgraph_stack_cachep)
+			return -ENOMEM;
+	}
+
 	if (!fgraph_initialized) {
 		ret = cpuhp_setup_state(CPUHP_AP_ONLINE_DYN, "fgraph:online",
 					fgraph_cpu_init, NULL);
@@ -1318,17 +1381,17 @@ void unregister_ftrace_graph(struct fgraph_ops *gops)
 {
 	int command = 0;
 
-	mutex_lock(&ftrace_lock);
+	guard(mutex)(&ftrace_lock);
 
 	if (unlikely(!ftrace_graph_active))
-		goto out;
+		return;
 
 	if (unlikely(gops->idx < 0 || gops->idx >= FGRAPH_ARRAY_SIZE ||
 		     fgraph_array[gops->idx] != gops))
-		goto out;
+		return;
 
 	if (fgraph_lru_release_index(gops->idx) < 0)
-		goto out;
+		return;
 
 	fgraph_array[gops->idx] = &fgraph_stub;
 
@@ -1350,7 +1413,5 @@ void unregister_ftrace_graph(struct fgraph_ops *gops)
 		unregister_pm_notifier(&ftrace_suspend_notifier);
 		unregister_trace_sched_switch(ftrace_graph_probe_sched_switch, NULL);
 	}
- out:
 	gops->saved_func = NULL;
-	mutex_unlock(&ftrace_lock);
 }

@@ -379,7 +379,7 @@ nouveau_sched_timedout_job(struct drm_sched_job *sched_job)
 	else
 		NV_PRINTK(warn, job->cli, "Generic job timeout.\n");
 
-	drm_sched_start(sched);
+	drm_sched_start(sched, 0);
 
 	return stat;
 }

@@ -628,7 +628,7 @@ static const struct option long_opts[] = {
 
 static void conf_usage(const char *progname)
 {
-	printf("Usage: %s [options] <kconfig-file>\n", progname);
+	printf("Usage: %s [options] kconfig_file\n", progname);
 	printf("\n");
 	printf("Generic options:\n");
 	printf("  -h, --help              Print this message and exit.\n");
@@ -653,6 +653,9 @@ static void conf_usage(const char *progname)
 	printf("  --mod2yesconfig         Change answers from mod to yes if possible\n");
 	printf("  --mod2noconfig          Change answers from mod to no if possible\n");
 	printf("  (If none of the above is given, --oldaskconfig is the default)\n");
+	printf("\n");
+	printf("Arguments:\n");
+	printf("  kconfig_file            Top-level Kconfig file.\n");
 }
 
 int main(int ac, char **av)

@@ -454,7 +454,7 @@ static struct platform_driver highlander_i2c_driver = {
 	},
 
 	.probe		= highlander_i2c_probe,
-	.remove_new	= highlander_i2c_remove,
+	.remove		= highlander_i2c_remove,
 };
 
 module_platform_driver(highlander_i2c_driver);

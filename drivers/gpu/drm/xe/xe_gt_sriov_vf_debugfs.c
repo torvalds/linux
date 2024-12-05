@@ -33,7 +33,7 @@ static const struct drm_info_list vf_info[] = {
 		.show = xe_gt_debugfs_simple_show,
 		.data = xe_gt_sriov_vf_print_version,
 	},
-#if defined(CONFIG_DRM_XE_DEBUG) || defined(CONFIG_DRM_XE_DEBUG_SRIOV)
+#if IS_ENABLED(CONFIG_DRM_XE_DEBUG) || IS_ENABLED(CONFIG_DRM_XE_DEBUG_SRIOV)
 	{
 		"runtime_regs",
 		.show = xe_gt_debugfs_simple_show,

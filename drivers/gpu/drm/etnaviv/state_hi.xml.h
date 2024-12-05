@@ -8,17 +8,17 @@ http://0x04.net/cgit/index.cgi/rules-ng-ng
 git clone git://0x04.net/rules-ng-ng
 
 The rules-ng-ng source files this header was generated from are:
-- state.xml     (  29355 bytes, from 2024-01-19 10:18:54)
-- common.xml    (  35664 bytes, from 2023-12-06 10:55:32)
-- common_3d.xml (  15069 bytes, from 2023-11-22 10:05:24)
-- state_hi.xml  (  35854 bytes, from 2023-12-11 15:50:17)
-- copyright.xml (   1597 bytes, from 2016-11-10 13:58:32)
-- state_2d.xml  (  52271 bytes, from 2023-06-02 12:35:03)
-- state_3d.xml  (  89522 bytes, from 2024-01-19 10:18:54)
-- state_blt.xml (  14592 bytes, from 2023-11-22 10:05:09)
-- state_vg.xml  (   5975 bytes, from 2016-11-10 13:58:32)
+- state.xml     (  30729 bytes, from 2024-06-21 11:31:54)
+- common.xml    (  35664 bytes, from 2023-12-13 09:33:18)
+- common_3d.xml (  15069 bytes, from 2023-12-13 09:33:18)
+- state_hi.xml  (  35909 bytes, from 2024-06-21 11:31:54)
+- copyright.xml (   1597 bytes, from 2020-10-28 12:56:03)
+- state_2d.xml  (  52271 bytes, from 2023-05-30 20:50:02)
+- state_3d.xml  (  89626 bytes, from 2024-06-21 11:32:57)
+- state_blt.xml (  14592 bytes, from 2023-12-13 09:33:18)
+- state_vg.xml  (   5975 bytes, from 2020-10-28 12:56:03)
 
-Copyright (C) 2012-2023 by the following authors:
+Copyright (C) 2012-2024 by the following authors:
 - Wladimir J. van der Laan <laanwj@gmail.com>
 - Christian Gmeiner <christian.gmeiner@gmail.com>
 - Lucas Stach <l.stach@pengutronix.de>
@@ -467,6 +467,7 @@ DEALINGS IN THE SOFTWARE.
 #define VIVS_MC_PROFILE_CONFIG0					0x00000470
 #define VIVS_MC_PROFILE_CONFIG0_FE__MASK			0x000000ff
 #define VIVS_MC_PROFILE_CONFIG0_FE__SHIFT			0
+#define VIVS_MC_PROFILE_CONFIG0_FE_CURRENT_PRIM			0x00000009
 #define VIVS_MC_PROFILE_CONFIG0_FE_DRAW_COUNT			0x0000000a
 #define VIVS_MC_PROFILE_CONFIG0_FE_OUT_VERTEX_COUNT		0x0000000b
 #define VIVS_MC_PROFILE_CONFIG0_FE_CACHE_MISS_COUNT		0x0000000c

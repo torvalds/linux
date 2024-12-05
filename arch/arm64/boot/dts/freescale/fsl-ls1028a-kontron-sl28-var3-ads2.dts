@@ -19,8 +19,6 @@
 
 	pwm-fan {
 		compatible = "pwm-fan";
-		cooling-min-state = <0>;
-		cooling-max-state = <3>;
 		#cooling-cells = <2>;
 		pwms = <&sl28cpld_pwm0 0 4000000>;
 		cooling-levels = <1 128 192 255>;

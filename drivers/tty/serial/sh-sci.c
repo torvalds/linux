@@ -3505,7 +3505,7 @@ static SIMPLE_DEV_PM_OPS(sci_dev_pm_ops, sci_suspend, sci_resume);
 
 static struct platform_driver sci_driver = {
 	.probe		= sci_probe,
-	.remove_new	= sci_remove,
+	.remove		= sci_remove,
 	.driver		= {
 		.name	= "sh-sci",
 		.pm	= &sci_dev_pm_ops,

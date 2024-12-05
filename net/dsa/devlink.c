@@ -229,10 +229,15 @@ int dsa_devlink_resource_register(struct dsa_switch *ds,
 				  u64 parent_resource_id,
 				  const struct devlink_resource_size_params *size_params)
 {
-	return devlink_resource_register(ds->devlink, resource_name,
-					 resource_size, resource_id,
-					 parent_resource_id,
-					 size_params);
+	int ret;
+
+	devl_lock(ds->devlink);
+	ret = devl_resource_register(ds->devlink, resource_name, resource_size,
+				     resource_id, parent_resource_id,
+				     size_params);
+	devl_unlock(ds->devlink);
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(dsa_devlink_resource_register);
 
@@ -247,15 +252,19 @@ void dsa_devlink_resource_occ_get_register(struct dsa_switch *ds,
 					   devlink_resource_occ_get_t *occ_get,
 					   void *occ_get_priv)
 {
-	return devlink_resource_occ_get_register(ds->devlink, resource_id,
-						 occ_get, occ_get_priv);
+	devl_lock(ds->devlink);
+	devl_resource_occ_get_register(ds->devlink, resource_id, occ_get,
+				       occ_get_priv);
+	devl_unlock(ds->devlink);
 }
 EXPORT_SYMBOL_GPL(dsa_devlink_resource_occ_get_register);
 
 void dsa_devlink_resource_occ_get_unregister(struct dsa_switch *ds,
 					     u64 resource_id)
 {
-	devlink_resource_occ_get_unregister(ds->devlink, resource_id);
+	devl_lock(ds->devlink);
+	devl_resource_occ_get_unregister(ds->devlink, resource_id);
+	devl_unlock(ds->devlink);
 }
 EXPORT_SYMBOL_GPL(dsa_devlink_resource_occ_get_unregister);
 

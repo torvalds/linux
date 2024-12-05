@@ -1292,7 +1292,7 @@ MODULE_DEVICE_TABLE(of, sun4i_dma_match);
 
 static struct platform_driver sun4i_dma_driver = {
 	.probe	= sun4i_dma_probe,
-	.remove_new = sun4i_dma_remove,
+	.remove = sun4i_dma_remove,
 	.driver	= {
 		.name		= "sun4i-dma",
 		.of_match_table	= sun4i_dma_match,

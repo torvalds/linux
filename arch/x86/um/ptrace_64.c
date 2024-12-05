@@ -8,6 +8,7 @@
 #include <linux/mm.h>
 #include <linux/sched.h>
 #include <linux/errno.h>
+#include <linux/regset.h>
 #define __FRAME_OFFSETS
 #include <asm/ptrace.h>
 #include <linux/uaccess.h>
@@ -188,36 +189,6 @@ int peek_user(struct task_struct *child, long addr, long data)
 	return put_user(tmp, (unsigned long *) data);
 }
 
-static int get_fpregs(struct user_i387_struct __user *buf, struct task_struct *child)
-{
-	int err, n, cpu = ((struct thread_info *) child->stack)->cpu;
-	struct user_i387_struct fpregs;
-
-	err = save_i387_registers(userspace_pid[cpu],
-				  (unsigned long *) &fpregs);
-	if (err)
-		return err;
-
-	n = copy_to_user(buf, &fpregs, sizeof(fpregs));
-	if (n > 0)
-		return -EFAULT;
-
-	return n;
-}
-
-static int set_fpregs(struct user_i387_struct __user *buf, struct task_struct *child)
-{
-	int n, cpu = ((struct thread_info *) child->stack)->cpu;
-	struct user_i387_struct fpregs;
-
-	n = copy_from_user(&fpregs, buf, sizeof(fpregs));
-	if (n > 0)
-		return -EFAULT;
-
-	return restore_i387_registers(userspace_pid[cpu],
-				      (unsigned long *) &fpregs);
-}
-
 long subarch_ptrace(struct task_struct *child, long request,
 		    unsigned long addr, unsigned long data)
 {
@@ -226,11 +197,15 @@ long subarch_ptrace(struct task_struct *child, long request,
 
 	switch (request) {
 	case PTRACE_GETFPREGS: /* Get the child FPU state. */
-		ret = get_fpregs(datap, child);
-		break;
+		return copy_regset_to_user(child, task_user_regset_view(child),
+					   REGSET_FP,
+					   0, sizeof(struct user_i387_struct),
+					   datap);
 	case PTRACE_SETFPREGS: /* Set the child FPU state. */
-		ret = set_fpregs(datap, child);
-		break;
+		return copy_regset_from_user(child, task_user_regset_view(child),
+					     REGSET_FP,
+					     0, sizeof(struct user_i387_struct),
+					     datap);
 	case PTRACE_ARCH_PRCTL:
 		/* XXX Calls ptrace on the host - needs some SMP thinking */
 		ret = arch_prctl(child, data, (void __user *) addr);

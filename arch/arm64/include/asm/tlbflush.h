@@ -431,6 +431,23 @@ do {									\
 #define __flush_s2_tlb_range_op(op, start, pages, stride, tlb_level) \
 	__flush_tlb_range_op(op, start, pages, stride, 0, tlb_level, false, kvm_lpa2_is_enabled());
 
+static inline bool __flush_tlb_range_limit_excess(unsigned long start,
+		unsigned long end, unsigned long pages, unsigned long stride)
+{
+	/*
+	 * When the system does not support TLB range based flush
+	 * operation, (MAX_DVM_OPS - 1) pages can be handled. But
+	 * with TLB range based operation, MAX_TLBI_RANGE_PAGES
+	 * pages can be handled.
+	 */
+	if ((!system_supports_tlb_range() &&
+	     (end - start) >= (MAX_DVM_OPS * stride)) ||
+	    pages > MAX_TLBI_RANGE_PAGES)
+		return true;
+
+	return false;
+}
+
 static inline void __flush_tlb_range_nosync(struct vm_area_struct *vma,
 				     unsigned long start, unsigned long end,
 				     unsigned long stride, bool last_level,
@@ -442,15 +459,7 @@ static inline void __flush_tlb_range_nosync(struct vm_area_struct *vma,
 	end = round_up(end, stride);
 	pages = (end - start) >> PAGE_SHIFT;
 
-	/*
-	 * When not uses TLB range ops, we can handle up to
-	 * (MAX_DVM_OPS - 1) pages;
-	 * When uses TLB range ops, we can handle up to
-	 * MAX_TLBI_RANGE_PAGES pages.
-	 */
-	if ((!system_supports_tlb_range() &&
-	     (end - start) >= (MAX_DVM_OPS * stride)) ||
-	    pages > MAX_TLBI_RANGE_PAGES) {
+	if (__flush_tlb_range_limit_excess(start, end, pages, stride)) {
 		flush_tlb_mm(vma->vm_mm);
 		return;
 	}
@@ -492,19 +501,21 @@ static inline void flush_tlb_range(struct vm_area_struct *vma,
 
 static inline void flush_tlb_kernel_range(unsigned long start, unsigned long end)
 {
-	unsigned long addr;
+	const unsigned long stride = PAGE_SIZE;
+	unsigned long pages;
 
-	if ((end - start) > (MAX_DVM_OPS * PAGE_SIZE)) {
+	start = round_down(start, stride);
+	end = round_up(end, stride);
+	pages = (end - start) >> PAGE_SHIFT;
+
+	if (__flush_tlb_range_limit_excess(start, end, pages, stride)) {
 		flush_tlb_all();
 		return;
 	}
 
-	start = __TLBI_VADDR(start, 0);
-	end = __TLBI_VADDR(end, 0);
-
 	dsb(ishst);
-	for (addr = start; addr < end; addr += 1 << (PAGE_SHIFT - 12))
-		__tlbi(vaale1is, addr);
+	__flush_tlb_range_op(vaale1is, start, pages, stride, 0,
+			     TLBI_TTL_UNKNOWN, false, lpa2_is_enabled());
 	dsb(ish);
 	isb();
 }
