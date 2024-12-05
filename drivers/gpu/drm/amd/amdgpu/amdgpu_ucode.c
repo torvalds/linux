@@ -1459,8 +1459,11 @@ int amdgpu_ucode_request(struct amdgpu_device *adev, const struct firmware **fw,
 
 	if (required == AMDGPU_UCODE_REQUIRED)
 		r = request_firmware(fw, fname, adev->dev);
-	else
+	else {
 		r = firmware_request_nowarn(fw, fname, adev->dev);
+		if (r)
+			drm_info(&adev->ddev, "Optional firmware \"%s\" was not found\n", fname);
+	}
 	if (r)
 		return -ENODEV;
 
