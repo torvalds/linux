@@ -293,7 +293,7 @@ __ATTRIBUTE_GROUPS(_name)
 
 #define BIN_ATTRIBUTE_GROUPS(_name)				\
 static const struct attribute_group _name##_group = {		\
-	.bin_attrs = _name##_attrs,				\
+	.bin_attrs_new = _name##_attrs,				\
 };								\
 __ATTRIBUTE_GROUPS(_name)
 
