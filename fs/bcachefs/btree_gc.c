@@ -29,6 +29,7 @@
 #include "move.h"
 #include "recovery_passes.h"
 #include "reflink.h"
+#include "recovery.h"
 #include "replicas.h"
 #include "super-io.h"
 #include "trace.h"
@@ -359,11 +360,9 @@ again:
 			if (ret)
 				break;
 
-			if (!btree_id_is_alloc(b->c.btree_id)) {
-				ret = bch2_run_explicit_recovery_pass(c, BCH_RECOVERY_PASS_scan_for_btree_nodes);
-				if (ret)
-					break;
-			}
+			ret = bch2_btree_lost_data(c, b->c.btree_id);
+			if (ret)
+				break;
 			continue;
 		}
 
@@ -525,7 +524,7 @@ int bch2_check_topology(struct bch_fs *c)
 		bch2_btree_id_to_text(&buf, i);
 
 		if (r->error) {
-			ret = bch2_run_explicit_recovery_pass(c, BCH_RECOVERY_PASS_scan_for_btree_nodes);
+			ret = bch2_btree_lost_data(c, i);
 			if (ret)
 				break;
 reconstruct_root:
@@ -741,7 +740,7 @@ static int bch2_gc_btrees(struct bch_fs *c)
 			       (printbuf_reset(&buf),
 				bch2_btree_id_to_text(&buf, btree),
 				buf.buf)))
-			ret = bch2_run_explicit_recovery_pass(c, BCH_RECOVERY_PASS_check_topology);
+			ret = bch2_btree_lost_data(c, btree);
 	}
 fsck_err:
 	printbuf_exit(&buf);
