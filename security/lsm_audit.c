@@ -425,6 +425,9 @@ static void dump_common_audit_data(struct audit_buffer *ab,
 	case LSM_AUDIT_DATA_ANONINODE:
 		audit_log_format(ab, " anonclass=%s", a->u.anonclass);
 		break;
+	case LSM_AUDIT_DATA_NLMSGTYPE:
+		audit_log_format(ab, " nl-msgtype=%hu", a->u.nlmsg_type);
+		break;
 	} /* switch (a->type) */
 }
 

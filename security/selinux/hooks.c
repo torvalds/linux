@@ -5939,14 +5939,14 @@ static int nlmsg_sock_has_extended_perms(struct sock *sk, u32 perms, u16 nlmsg_t
 {
 	struct sk_security_struct *sksec = sk->sk_security;
 	struct common_audit_data ad;
-	struct lsm_network_audit net;
 	u8 driver;
 	u8 xperm;
 
 	if (sock_skip_has_perm(sksec->sid))
 		return 0;
 
-	ad_net_init_from_sk(&ad, &net, sk);
+	ad.type = LSM_AUDIT_DATA_NLMSGTYPE;
+	ad.u.nlmsg_type = nlmsg_type;
 
 	driver = nlmsg_type >> 8;
 	xperm = nlmsg_type & 0xff;
