@@ -622,9 +622,9 @@ static int vxlan_fdb_append(struct vxlan_fdb *f,
 	return 1;
 }
 
-static bool vxlan_parse_gpe_proto(struct vxlanhdr *hdr, __be16 *protocol)
+static bool vxlan_parse_gpe_proto(const struct vxlanhdr *hdr, __be16 *protocol)
 {
-	struct vxlanhdr_gpe *gpe = (struct vxlanhdr_gpe *)hdr;
+	const struct vxlanhdr_gpe *gpe = (const struct vxlanhdr_gpe *)hdr;
 
 	/* Need to have Next Protocol set for interfaces in GPE mode. */
 	if (!gpe->np_applied)
@@ -1554,18 +1554,17 @@ static void vxlan_sock_release(struct vxlan_dev *vxlan)
 #endif
 }
 
-static enum skb_drop_reason vxlan_remcsum(struct vxlanhdr *unparsed,
-					  struct sk_buff *skb,
-					  u32 vxflags)
+static enum skb_drop_reason vxlan_remcsum(struct sk_buff *skb, u32 vxflags)
 {
+	const struct vxlanhdr *vh = vxlan_hdr(skb);
 	enum skb_drop_reason reason;
 	size_t start, offset;
 
-	if (!(unparsed->vx_flags & VXLAN_HF_RCO) || skb->remcsum_offload)
+	if (!(vh->vx_flags & VXLAN_HF_RCO) || skb->remcsum_offload)
 		return SKB_NOT_DROPPED_YET;
 
-	start = vxlan_rco_start(unparsed->vx_vni);
-	offset = start + vxlan_rco_offset(unparsed->vx_vni);
+	start = vxlan_rco_start(vh->vx_vni);
+	offset = start + vxlan_rco_offset(vh->vx_vni);
 
 	reason = pskb_may_pull_reason(skb, offset + sizeof(u16));
 	if (reason)
@@ -1576,14 +1575,16 @@ static enum skb_drop_reason vxlan_remcsum(struct vxlanhdr *unparsed,
 	return SKB_NOT_DROPPED_YET;
 }
 
-static void vxlan_parse_gbp_hdr(struct vxlanhdr *unparsed,
-				struct sk_buff *skb, u32 vxflags,
+static void vxlan_parse_gbp_hdr(struct sk_buff *skb, u32 vxflags,
 				struct vxlan_metadata *md)
 {
-	struct vxlanhdr_gbp *gbp = (struct vxlanhdr_gbp *)unparsed;
+	const struct vxlanhdr *vh = vxlan_hdr(skb);
+	const struct vxlanhdr_gbp *gbp;
 	struct metadata_dst *tun_dst;
 
-	if (!(unparsed->vx_flags & VXLAN_HF_GBP))
+	gbp = (const struct vxlanhdr_gbp *)vh;
+
+	if (!(vh->vx_flags & VXLAN_HF_GBP))
 		return;
 
 	md->gbp = ntohs(gbp->policy_id);
@@ -1712,7 +1713,7 @@ static int vxlan_rcv(struct sock *sk, struct sk_buff *skb)
 	 * used by VXLAN extensions if explicitly requested.
 	 */
 	if (vxlan->cfg.flags & VXLAN_F_GPE) {
-		if (!vxlan_parse_gpe_proto(&unparsed, &protocol))
+		if (!vxlan_parse_gpe_proto(vxlan_hdr(skb), &protocol))
 			goto drop;
 		unparsed.vx_flags &= ~VXLAN_GPE_USED_BITS;
 		raw_proto = true;
@@ -1725,7 +1726,7 @@ static int vxlan_rcv(struct sock *sk, struct sk_buff *skb)
 	}
 
 	if (vxlan->cfg.flags & VXLAN_F_REMCSUM_RX) {
-		reason = vxlan_remcsum(&unparsed, skb, vxlan->cfg.flags);
+		reason = vxlan_remcsum(skb, vxlan->cfg.flags);
 		if (unlikely(reason))
 			goto drop;
 		unparsed.vx_flags &= ~VXLAN_HF_RCO;
@@ -1753,7 +1754,7 @@ static int vxlan_rcv(struct sock *sk, struct sk_buff *skb)
 	}
 
 	if (vxlan->cfg.flags & VXLAN_F_GBP) {
-		vxlan_parse_gbp_hdr(&unparsed, skb, vxlan->cfg.flags, md);
+		vxlan_parse_gbp_hdr(skb, vxlan->cfg.flags, md);
 		unparsed.vx_flags &= ~VXLAN_GBP_USED_BITS;
 	}
 	/* Note that GBP and GPE can never be active together. This is
