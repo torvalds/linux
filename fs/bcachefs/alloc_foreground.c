@@ -626,9 +626,9 @@ struct dev_alloc_list bch2_dev_alloc_list(struct bch_fs *c,
 	unsigned i;
 
 	for_each_set_bit(i, devs->d, BCH_SB_MEMBERS_MAX)
-		ret.devs[ret.nr++] = i;
+		ret.data[ret.nr++] = i;
 
-	bubble_sort(ret.devs, ret.nr, dev_stripe_cmp);
+	bubble_sort(ret.data, ret.nr, dev_stripe_cmp);
 	return ret;
 }
 
@@ -700,18 +700,13 @@ int bch2_bucket_alloc_set_trans(struct btree_trans *trans,
 		      struct closure *cl)
 {
 	struct bch_fs *c = trans->c;
-	struct dev_alloc_list devs_sorted =
-		bch2_dev_alloc_list(c, stripe, devs_may_alloc);
 	int ret = -BCH_ERR_insufficient_devices;
 
 	BUG_ON(*nr_effective >= nr_replicas);
 
-	for (unsigned i = 0; i < devs_sorted.nr; i++) {
-		struct bch_dev_usage usage;
-		struct open_bucket *ob;
-
-		unsigned dev = devs_sorted.devs[i];
-		struct bch_dev *ca = bch2_dev_tryget_noerror(c, dev);
+	struct dev_alloc_list devs_sorted = bch2_dev_alloc_list(c, stripe, devs_may_alloc);
+	darray_for_each(devs_sorted, i) {
+		struct bch_dev *ca = bch2_dev_tryget_noerror(c, *i);
 		if (!ca)
 			continue;
 
@@ -720,8 +715,9 @@ int bch2_bucket_alloc_set_trans(struct btree_trans *trans,
 			continue;
 		}
 
-		ob = bch2_bucket_alloc_trans(trans, ca, watermark, data_type,
-					     cl, flags & BCH_WRITE_ALLOC_NOWAIT, &usage);
+		struct bch_dev_usage usage;
+		struct open_bucket *ob = bch2_bucket_alloc_trans(trans, ca, watermark, data_type,
+						     cl, flags & BCH_WRITE_ALLOC_NOWAIT, &usage);
 		if (!IS_ERR(ob))
 			bch2_dev_stripe_increment_inlined(ca, stripe, &usage);
 		bch2_dev_put(ca);
@@ -765,10 +761,6 @@ static int bucket_alloc_from_stripe(struct btree_trans *trans,
 			 struct closure *cl)
 {
 	struct bch_fs *c = trans->c;
-	struct dev_alloc_list devs_sorted;
-	struct ec_stripe_head *h;
-	struct open_bucket *ob;
-	unsigned i, ec_idx;
 	int ret = 0;
 
 	if (nr_replicas < 2)
@@ -777,34 +769,32 @@ static int bucket_alloc_from_stripe(struct btree_trans *trans,
 	if (ec_open_bucket(c, ptrs))
 		return 0;
 
-	h = bch2_ec_stripe_head_get(trans, target, 0, nr_replicas - 1, watermark, cl);
+	struct ec_stripe_head *h =
+		bch2_ec_stripe_head_get(trans, target, 0, nr_replicas - 1, watermark, cl);
 	if (IS_ERR(h))
 		return PTR_ERR(h);
 	if (!h)
 		return 0;
 
-	devs_sorted = bch2_dev_alloc_list(c, &wp->stripe, devs_may_alloc);
-
-	for (i = 0; i < devs_sorted.nr; i++)
-		for (ec_idx = 0; ec_idx < h->s->nr_data; ec_idx++) {
+	struct dev_alloc_list devs_sorted = bch2_dev_alloc_list(c, &wp->stripe, devs_may_alloc);
+	darray_for_each(devs_sorted, i)
+		for (unsigned ec_idx = 0; ec_idx < h->s->nr_data; ec_idx++) {
 			if (!h->s->blocks[ec_idx])
 				continue;
 
-			ob = c->open_buckets + h->s->blocks[ec_idx];
-			if (ob->dev == devs_sorted.devs[i] &&
-			    !test_and_set_bit(ec_idx, h->s->blocks_allocated))
-				goto got_bucket;
-		}
-	goto out_put_head;
-got_bucket:
-	ob->ec_idx	= ec_idx;
-	ob->ec		= h->s;
-	ec_stripe_new_get(h->s, STRIPE_REF_io);
+			struct open_bucket *ob = c->open_buckets + h->s->blocks[ec_idx];
+			if (ob->dev == *i && !test_and_set_bit(ec_idx, h->s->blocks_allocated)) {
+				ob->ec_idx	= ec_idx;
+				ob->ec		= h->s;
+				ec_stripe_new_get(h->s, STRIPE_REF_io);
 
-	ret = add_new_bucket(c, ptrs, devs_may_alloc,
-			     nr_replicas, nr_effective,
-			     have_cache, ob);
-out_put_head:
+				ret = add_new_bucket(c, ptrs, devs_may_alloc,
+						     nr_replicas, nr_effective,
+						     have_cache, ob);
+				goto out;
+			}
+		}
+out:
 	bch2_ec_stripe_head_put(c, h);
 	return ret;
 }

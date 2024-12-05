@@ -20,7 +20,7 @@ void bch2_reset_alloc_cursors(struct bch_fs *);
 
 struct dev_alloc_list {
 	unsigned	nr;
-	u8		devs[BCH_SB_MEMBERS_MAX];
+	u8		data[BCH_SB_MEMBERS_MAX];
 };
 
 struct dev_alloc_list bch2_dev_alloc_list(struct bch_fs *,

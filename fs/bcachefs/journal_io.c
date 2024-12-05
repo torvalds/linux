@@ -1422,25 +1422,22 @@ fsck_err:
 
 static void __journal_write_alloc(struct journal *j,
 				  struct journal_buf *w,
-				  struct dev_alloc_list *devs_sorted,
+				  struct dev_alloc_list *devs,
 				  unsigned sectors,
 				  unsigned *replicas,
 				  unsigned replicas_want)
 {
 	struct bch_fs *c = container_of(j, struct bch_fs, journal);
-	struct journal_device *ja;
-	struct bch_dev *ca;
-	unsigned i;
 
 	if (*replicas >= replicas_want)
 		return;
 
-	for (i = 0; i < devs_sorted->nr; i++) {
-		ca = rcu_dereference(c->devs[devs_sorted->devs[i]]);
+	darray_for_each(*devs, i) {
+		struct bch_dev *ca = rcu_dereference(c->devs[*i]);
 		if (!ca)
 			continue;
 
-		ja = &ca->journal;
+		struct journal_device *ja = &ca->journal;
 
 		/*
 		 * Check that we can use this device, and aren't already using
@@ -1486,13 +1483,11 @@ static int journal_write_alloc(struct journal *j, struct journal_buf *w)
 {
 	struct bch_fs *c = container_of(j, struct bch_fs, journal);
 	struct bch_devs_mask devs;
-	struct journal_device *ja;
-	struct bch_dev *ca;
 	struct dev_alloc_list devs_sorted;
 	unsigned sectors = vstruct_sectors(w->data, c->block_bits);
 	unsigned target = c->opts.metadata_target ?:
 		c->opts.foreground_target;
-	unsigned i, replicas = 0, replicas_want =
+	unsigned replicas = 0, replicas_want =
 		READ_ONCE(c->opts.metadata_replicas);
 	unsigned replicas_need = min_t(unsigned, replicas_want,
 				       READ_ONCE(c->opts.metadata_replicas_required));
@@ -1517,12 +1512,12 @@ retry:
 	if (replicas >= replicas_want)
 		goto done;
 
-	for (i = 0; i < devs_sorted.nr; i++) {
-		ca = rcu_dereference(c->devs[devs_sorted.devs[i]]);
+	darray_for_each(devs_sorted, i) {
+		struct bch_dev *ca = rcu_dereference(c->devs[*i]);
 		if (!ca)
 			continue;
 
-		ja = &ca->journal;
+		struct journal_device *ja = &ca->journal;
 
 		if (sectors > ja->sectors_free &&
 		    sectors <= ca->mi.bucket_size &&
