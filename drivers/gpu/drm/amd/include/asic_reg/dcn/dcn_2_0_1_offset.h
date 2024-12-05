@@ -19,8 +19,8 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#ifndef _dcn_2_0_3_OFFSET_HEADER
-#define _dcn_2_0_3_OFFSET_HEADER
+#ifndef _dcn_2_0_1_OFFSET_HEADER
+#define _dcn_2_0_1_OFFSET_HEADER
 
 
 // addressBlock: dce_dc_dccg_dccg_dispdec

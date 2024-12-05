@@ -18,8 +18,8 @@
  * AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef _dcn_2_0_3_SH_MASK_HEADER
-#define _dcn_2_0_3_SH_MASK_HEADER
+#ifndef _dcn_2_0_1_SH_MASK_HEADER
+#define _dcn_2_0_1_SH_MASK_HEADER
 
 
 // addressBlock: dce_dc_dccg_dccg_dispdec
