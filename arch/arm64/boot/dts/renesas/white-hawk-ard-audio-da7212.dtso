@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Device Tree Source for the White Hawk board with ARD-AUDIO-DA7212 Board
+ * Device Tree Source for White Hawk (Single) board with ARD-AUDIO-DA7212 board
  *
  * You can find and buy "ARD-AUDIO-DA7212" at Digi-Key
  *
@@ -27,12 +27,12 @@
  * +----------------------------+
  * |Breakout board		|
  * |				|	+---------------+
- * |CN34 (I2C CN)		|	|J1		|
+ * |CN(30)34 (I2C CN)		|	|J1		|
  * |	I2C0_SCL	   pin3 |<----->| pin20 SCL	|
  * |	I2C0_SDA	   pin5 |<----->| pin18 SDA	|
  * |				|	+---------------+
  * |				|	+-----------------------+
- * |CN4 (Power)		        |	|J7			|
+ * |CN(300)4 (Power)	        |	|J7			|
  * |	3v3 (v)		   pin9 |<----->| pin4  / pin8  3.3v	|
  * |	GND (v)	    pin3 / pin4 |<----->| pin12 / pin14 GND	|
  * +----------------------------+	+-----------------------+
