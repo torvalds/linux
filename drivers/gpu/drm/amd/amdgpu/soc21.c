@@ -962,6 +962,7 @@ static int soc21_common_set_clockgating_state(struct amdgpu_ip_block *ip_block,
 	case IP_VERSION(7, 7, 1):
 	case IP_VERSION(7, 11, 0):
 	case IP_VERSION(7, 11, 1):
+	case IP_VERSION(7, 11, 2):
 	case IP_VERSION(7, 11, 3):
 		adev->nbio.funcs->update_medium_grain_clock_gating(adev,
 				state == AMD_CG_STATE_GATE);
