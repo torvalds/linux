@@ -1562,7 +1562,7 @@ static enum skb_drop_reason vxlan_remcsum(struct vxlanhdr *unparsed,
 	size_t start, offset;
 
 	if (!(unparsed->vx_flags & VXLAN_HF_RCO) || skb->remcsum_offload)
-		goto out;
+		return SKB_NOT_DROPPED_YET;
 
 	start = vxlan_rco_start(unparsed->vx_vni);
 	offset = start + vxlan_rco_offset(unparsed->vx_vni);
@@ -1573,10 +1573,6 @@ static enum skb_drop_reason vxlan_remcsum(struct vxlanhdr *unparsed,
 
 	skb_remcsum_process(skb, (void *)(vxlan_hdr(skb) + 1), start, offset,
 			    !!(vxflags & VXLAN_F_REMCSUM_NOPARTIAL));
-out:
-	unparsed->vx_flags &= ~VXLAN_HF_RCO;
-	unparsed->vx_vni &= VXLAN_VNI_MASK;
-
 	return SKB_NOT_DROPPED_YET;
 }
 
@@ -1588,7 +1584,7 @@ static void vxlan_parse_gbp_hdr(struct vxlanhdr *unparsed,
 	struct metadata_dst *tun_dst;
 
 	if (!(unparsed->vx_flags & VXLAN_HF_GBP))
-		goto out;
+		return;
 
 	md->gbp = ntohs(gbp->policy_id);
 
@@ -1607,8 +1603,6 @@ static void vxlan_parse_gbp_hdr(struct vxlanhdr *unparsed,
 	/* In flow-based mode, GBP is carried in dst_metadata */
 	if (!(vxflags & VXLAN_F_COLLECT_METADATA))
 		skb->mark = md->gbp;
-out:
-	unparsed->vx_flags &= ~VXLAN_GBP_USED_BITS;
 }
 
 static enum skb_drop_reason vxlan_set_mac(struct vxlan_dev *vxlan,
@@ -1734,6 +1728,8 @@ static int vxlan_rcv(struct sock *sk, struct sk_buff *skb)
 		reason = vxlan_remcsum(&unparsed, skb, vxlan->cfg.flags);
 		if (unlikely(reason))
 			goto drop;
+		unparsed.vx_flags &= ~VXLAN_HF_RCO;
+		unparsed.vx_vni &= VXLAN_VNI_MASK;
 	}
 
 	if (vxlan_collect_metadata(vs)) {
@@ -1756,8 +1752,10 @@ static int vxlan_rcv(struct sock *sk, struct sk_buff *skb)
 		memset(md, 0, sizeof(*md));
 	}
 
-	if (vxlan->cfg.flags & VXLAN_F_GBP)
+	if (vxlan->cfg.flags & VXLAN_F_GBP) {
 		vxlan_parse_gbp_hdr(&unparsed, skb, vxlan->cfg.flags, md);
+		unparsed.vx_flags &= ~VXLAN_GBP_USED_BITS;
+	}
 	/* Note that GBP and GPE can never be active together. This is
 	 * ensured in vxlan_dev_configure.
 	 */
