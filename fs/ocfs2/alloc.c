@@ -6817,7 +6817,7 @@ void ocfs2_map_and_dirty_page(struct inode *inode, handle_t *handle,
 	loff_t start_byte = folio_pos(folio) + from;
 	loff_t length = to - from;
 
-	ret = ocfs2_map_page_blocks(page, phys, inode, from, to, 0);
+	ret = ocfs2_map_folio_blocks(folio, phys, inode, from, to, 0);
 	if (ret)
 		mlog_errno(ret);
 

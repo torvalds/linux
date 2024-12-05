@@ -13,7 +13,7 @@ handle_t *ocfs2_start_walk_page_trans(struct inode *inode,
 							 unsigned from,
 							 unsigned to);
 
-int ocfs2_map_page_blocks(struct page *page, u64 *p_blkno,
+int ocfs2_map_folio_blocks(struct folio *folio, u64 *p_blkno,
 			  struct inode *inode, unsigned int from,
 			  unsigned int to, int new);
 

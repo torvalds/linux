@@ -560,7 +560,7 @@ static void ocfs2_clear_page_regions(struct page *page,
 /*
  * Nonsparse file systems fully allocate before we get to the write
  * code. This prevents ocfs2_write() from tagging the write as an
- * allocating one, which means ocfs2_map_page_blocks() might try to
+ * allocating one, which means ocfs2_map_folio_blocks() might try to
  * read-in the blocks at the tail of our file. Avoid reading them by
  * testing i_size against each block offset.
  */
@@ -585,11 +585,10 @@ static int ocfs2_should_read_blk(struct inode *inode, struct folio *folio,
  *
  * This will also skip zeroing, which is handled externally.
  */
-int ocfs2_map_page_blocks(struct page *page, u64 *p_blkno,
+int ocfs2_map_folio_blocks(struct folio *folio, u64 *p_blkno,
 			  struct inode *inode, unsigned int from,
 			  unsigned int to, int new)
 {
-	struct folio *folio = page_folio(page);
 	int ret = 0;
 	struct buffer_head *head, *bh, *wait[2], **wait_bh = wait;
 	unsigned int block_end, block_start;
@@ -971,12 +970,11 @@ static int ocfs2_prepare_folio_for_write(struct inode *inode, u64 *p_blkno,
 		map_to = map_from + user_len;
 
 		if (new)
-			ret = ocfs2_map_page_blocks(page, p_blkno, inode,
-						    cluster_start, cluster_end,
-						    new);
+			ret = ocfs2_map_folio_blocks(folio, p_blkno, inode,
+					cluster_start, cluster_end, new);
 		else
-			ret = ocfs2_map_page_blocks(page, p_blkno, inode,
-						    map_from, map_to, new);
+			ret = ocfs2_map_folio_blocks(folio, p_blkno, inode,
+					map_from, map_to, new);
 		if (ret) {
 			mlog_errno(ret);
 			goto out;
@@ -999,8 +997,8 @@ static int ocfs2_prepare_folio_for_write(struct inode *inode, u64 *p_blkno,
 		map_from = cluster_start;
 		map_to = cluster_end;
 
-		ret = ocfs2_map_page_blocks(page, p_blkno, inode,
-					    cluster_start, cluster_end, new);
+		ret = ocfs2_map_folio_blocks(folio, p_blkno, inode,
+				cluster_start, cluster_end, new);
 		if (ret) {
 			mlog_errno(ret);
 			goto out;
