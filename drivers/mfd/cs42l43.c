@@ -1038,6 +1038,15 @@ static int cs42l43_power_down(struct cs42l43 *cs42l43)
 	return 0;
 }
 
+static void cs42l43_dev_remove(void *data)
+{
+	struct cs42l43 *cs42l43 = data;
+
+	cancel_work_sync(&cs42l43->boot_work);
+
+	cs42l43_power_down(cs42l43);
+}
+
 int cs42l43_dev_probe(struct cs42l43 *cs42l43)
 {
 	int i, ret;
@@ -1084,6 +1093,10 @@ int cs42l43_dev_probe(struct cs42l43 *cs42l43)
 	if (ret)
 		return ret;
 
+	ret = devm_add_action_or_reset(cs42l43->dev, cs42l43_dev_remove, cs42l43);
+	if (ret)
+		return ret;
+
 	pm_runtime_set_autosuspend_delay(cs42l43->dev, CS42L43_AUTOSUSPEND_TIME_MS);
 	pm_runtime_use_autosuspend(cs42l43->dev);
 	pm_runtime_set_active(cs42l43->dev);
@@ -1101,14 +1114,6 @@ int cs42l43_dev_probe(struct cs42l43 *cs42l43)
 	return 0;
 }
 EXPORT_SYMBOL_NS_GPL(cs42l43_dev_probe, MFD_CS42L43);
-
-void cs42l43_dev_remove(struct cs42l43 *cs42l43)
-{
-	cancel_work_sync(&cs42l43->boot_work);
-
-	cs42l43_power_down(cs42l43);
-}
-EXPORT_SYMBOL_NS_GPL(cs42l43_dev_remove, MFD_CS42L43);
 
 static int cs42l43_suspend(struct device *dev)
 {
