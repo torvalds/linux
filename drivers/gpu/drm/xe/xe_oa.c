@@ -96,6 +96,7 @@ struct xe_oa_open_param {
 	struct drm_xe_sync __user *syncs_user;
 	int num_syncs;
 	struct xe_sync_entry *syncs;
+	size_t oa_buffer_size;
 };
 
 struct xe_oa_config_bo {
@@ -403,10 +404,18 @@ static int xe_oa_append_reports(struct xe_oa_stream *stream, char __user *buf,
 
 static void xe_oa_init_oa_buffer(struct xe_oa_stream *stream)
 {
-	struct xe_mmio *mmio = &stream->gt->mmio;
 	u32 gtt_offset = xe_bo_ggtt_addr(stream->oa_buffer.bo);
-	u32 oa_buf = gtt_offset | OABUFFER_SIZE_16M | OAG_OABUFFER_MEMORY_SELECT;
+	int size_exponent = __ffs(stream->oa_buffer.bo->size);
+	u32 oa_buf = gtt_offset | OAG_OABUFFER_MEMORY_SELECT;
+	struct xe_mmio *mmio = &stream->gt->mmio;
 	unsigned long flags;
+
+	/*
+	 * If oa buffer size is more than 16MB (exponent greater than 24), the
+	 * oa buffer size field is multiplied by 8 in xe_oa_enable_metric_set.
+	 */
+	oa_buf |= REG_FIELD_PREP(OABUFFER_SIZE_MASK,
+		size_exponent > 24 ? size_exponent - 20 : size_exponent - 17);
 
 	spin_lock_irqsave(&stream->oa_buffer.ptr_lock, flags);
 
@@ -901,15 +910,12 @@ static void xe_oa_stream_destroy(struct xe_oa_stream *stream)
 	xe_file_put(stream->xef);
 }
 
-static int xe_oa_alloc_oa_buffer(struct xe_oa_stream *stream)
+static int xe_oa_alloc_oa_buffer(struct xe_oa_stream *stream, size_t size)
 {
 	struct xe_bo *bo;
 
-	BUILD_BUG_ON_NOT_POWER_OF_2(XE_OA_BUFFER_SIZE);
-	BUILD_BUG_ON(XE_OA_BUFFER_SIZE < SZ_128K || XE_OA_BUFFER_SIZE > SZ_16M);
-
 	bo = xe_bo_create_pin_map(stream->oa->xe, stream->gt->tile, NULL,
-				  XE_OA_BUFFER_SIZE, ttm_bo_type_kernel,
+				  size, ttm_bo_type_kernel,
 				  XE_BO_FLAG_SYSTEM | XE_BO_FLAG_GGTT);
 	if (IS_ERR(bo))
 		return PTR_ERR(bo);
@@ -1087,6 +1093,13 @@ static u32 oag_report_ctx_switches(const struct xe_oa_stream *stream)
 			     0 : OAG_OA_DEBUG_DISABLE_CTX_SWITCH_REPORTS);
 }
 
+static u32 oag_buf_size_select(const struct xe_oa_stream *stream)
+{
+	return _MASKED_FIELD(OAG_OA_DEBUG_BUF_SIZE_SELECT,
+			     stream->oa_buffer.bo->size > SZ_16M ?
+			     OAG_OA_DEBUG_BUF_SIZE_SELECT : 0);
+}
+
 static int xe_oa_enable_metric_set(struct xe_oa_stream *stream)
 {
 	struct xe_mmio *mmio = &stream->gt->mmio;
@@ -1119,6 +1132,7 @@ static int xe_oa_enable_metric_set(struct xe_oa_stream *stream)
 	xe_mmio_write32(mmio, __oa_regs(stream)->oa_debug,
 			_MASKED_BIT_ENABLE(oa_debug) |
 			oag_report_ctx_switches(stream) |
+			oag_buf_size_select(stream) |
 			oag_configure_mmio_trigger(stream, true));
 
 	xe_mmio_write32(mmio, __oa_regs(stream)->oa_ctx_ctrl, stream->periodic ?
@@ -1260,6 +1274,17 @@ static int xe_oa_set_prop_syncs_user(struct xe_oa *oa, u64 value,
 	return 0;
 }
 
+static int xe_oa_set_prop_oa_buffer_size(struct xe_oa *oa, u64 value,
+					 struct xe_oa_open_param *param)
+{
+	if (!is_power_of_2(value) || value < SZ_128K || value > SZ_128M) {
+		drm_dbg(&oa->xe->drm, "OA buffer size invalid %llu\n", value);
+		return -EINVAL;
+	}
+	param->oa_buffer_size = value;
+	return 0;
+}
+
 static int xe_oa_set_prop_ret_inval(struct xe_oa *oa, u64 value,
 				    struct xe_oa_open_param *param)
 {
@@ -1280,6 +1305,7 @@ static const xe_oa_set_property_fn xe_oa_set_property_funcs_open[] = {
 	[DRM_XE_OA_PROPERTY_NO_PREEMPT] = xe_oa_set_no_preempt,
 	[DRM_XE_OA_PROPERTY_NUM_SYNCS] = xe_oa_set_prop_num_syncs,
 	[DRM_XE_OA_PROPERTY_SYNCS] = xe_oa_set_prop_syncs_user,
+	[DRM_XE_OA_PROPERTY_OA_BUFFER_SIZE] = xe_oa_set_prop_oa_buffer_size,
 };
 
 static const xe_oa_set_property_fn xe_oa_set_property_funcs_config[] = {
@@ -1294,6 +1320,7 @@ static const xe_oa_set_property_fn xe_oa_set_property_funcs_config[] = {
 	[DRM_XE_OA_PROPERTY_NO_PREEMPT] = xe_oa_set_prop_ret_inval,
 	[DRM_XE_OA_PROPERTY_NUM_SYNCS] = xe_oa_set_prop_num_syncs,
 	[DRM_XE_OA_PROPERTY_SYNCS] = xe_oa_set_prop_syncs_user,
+	[DRM_XE_OA_PROPERTY_OA_BUFFER_SIZE] = xe_oa_set_prop_ret_inval,
 };
 
 static int xe_oa_user_ext_set_property(struct xe_oa *oa, enum xe_oa_user_extn_from from,
@@ -1553,7 +1580,7 @@ static long xe_oa_status_locked(struct xe_oa_stream *stream, unsigned long arg)
 
 static long xe_oa_info_locked(struct xe_oa_stream *stream, unsigned long arg)
 {
-	struct drm_xe_oa_stream_info info = { .oa_buf_size = XE_OA_BUFFER_SIZE, };
+	struct drm_xe_oa_stream_info info = { .oa_buf_size = stream->oa_buffer.bo->size, };
 	void __user *uaddr = (void __user *)arg;
 
 	if (copy_to_user(uaddr, &info, sizeof(info)))
@@ -1639,7 +1666,7 @@ static int xe_oa_mmap(struct file *file, struct vm_area_struct *vma)
 	}
 
 	/* Can mmap the entire OA buffer or nothing (no partial OA buffer mmaps) */
-	if (vma->vm_end - vma->vm_start != XE_OA_BUFFER_SIZE) {
+	if (vma->vm_end - vma->vm_start != stream->oa_buffer.bo->size) {
 		drm_dbg(&stream->oa->xe->drm, "Wrong mmap size, must be OA buffer size\n");
 		return -EINVAL;
 	}
@@ -1783,9 +1810,10 @@ static int xe_oa_stream_init(struct xe_oa_stream *stream,
 	if (GRAPHICS_VER(stream->oa->xe) >= 20 &&
 	    stream->hwe->oa_unit->type == DRM_XE_OA_UNIT_TYPE_OAG && stream->sample)
 		stream->oa_buffer.circ_size =
-			XE_OA_BUFFER_SIZE - XE_OA_BUFFER_SIZE % stream->oa_buffer.format->size;
+			param->oa_buffer_size -
+			param->oa_buffer_size % stream->oa_buffer.format->size;
 	else
-		stream->oa_buffer.circ_size = XE_OA_BUFFER_SIZE;
+		stream->oa_buffer.circ_size = param->oa_buffer_size;
 
 	if (stream->exec_q && engine_supports_mi_query(stream->hwe)) {
 		/* If we don't find the context offset, just return error */
@@ -1828,7 +1856,7 @@ static int xe_oa_stream_init(struct xe_oa_stream *stream,
 		goto err_fw_put;
 	}
 
-	ret = xe_oa_alloc_oa_buffer(stream);
+	ret = xe_oa_alloc_oa_buffer(stream, param->oa_buffer_size);
 	if (ret)
 		goto err_fw_put;
 
@@ -2124,6 +2152,9 @@ int xe_oa_stream_open_ioctl(struct drm_device *dev, u64 data, struct drm_file *f
 		oa_freq_hz = div64_u64(NSEC_PER_SEC, oa_period);
 		drm_dbg(&oa->xe->drm, "Using periodic sampling freq %lld Hz\n", oa_freq_hz);
 	}
+
+	if (!param.oa_buffer_size)
+		param.oa_buffer_size = DEFAULT_XE_OA_BUFFER_SIZE;
 
 	ret = xe_oa_parse_syncs(oa, &param);
 	if (ret)
