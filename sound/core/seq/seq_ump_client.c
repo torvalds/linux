@@ -272,8 +272,6 @@ static void update_port_infos(struct seq_ump_client *client)
 						new);
 		if (err < 0)
 			continue;
-		/* notify to system port */
-		snd_seq_system_client_ev_port_change(client->seq_client, i);
 	}
 }
 
