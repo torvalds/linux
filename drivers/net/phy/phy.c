@@ -1701,8 +1701,8 @@ EXPORT_SYMBOL(phy_get_eee_err);
  * @phydev: target phy_device struct
  * @data: ethtool_keee data
  *
- * Description: reports the Supported/Advertisement/LP Advertisement
- * capabilities, etc.
+ * Description: get the current EEE settings, filling in all members of
+ * @data.
  */
 int phy_ethtool_get_eee(struct phy_device *phydev, struct ethtool_keee *data)
 {
