@@ -5216,7 +5216,7 @@ pipe_config_dp_vsc_sdp_mismatch(struct drm_printer *p, bool fastset,
 				const struct drm_dp_vsc_sdp *a,
 				const struct drm_dp_vsc_sdp *b)
 {
-	pipe_config_mismatch(p, fastset, crtc, name, "dp sdp");
+	pipe_config_mismatch(p, fastset, crtc, name, "dp vsc sdp");
 
 	drm_printf(p, "expected:\n");
 	drm_dp_vsc_sdp_log(p, a);
@@ -5225,27 +5225,18 @@ pipe_config_dp_vsc_sdp_mismatch(struct drm_printer *p, bool fastset,
 }
 
 static void
-pipe_config_dp_as_sdp_mismatch(struct drm_i915_private *i915,
-			       bool fastset, const char *name,
+pipe_config_dp_as_sdp_mismatch(struct drm_printer *p, bool fastset,
+			       const struct intel_crtc *crtc,
+			       const char *name,
 			       const struct drm_dp_as_sdp *a,
 			       const struct drm_dp_as_sdp *b)
 {
-	struct drm_printer p;
+	pipe_config_mismatch(p, fastset, crtc, name, "dp as sdp");
 
-	if (fastset) {
-		p = drm_dbg_printer(&i915->drm, DRM_UT_KMS, NULL);
-
-		drm_printf(&p, "fastset requirement not met in %s dp sdp\n", name);
-	} else {
-		p = drm_err_printer(&i915->drm, NULL);
-
-		drm_printf(&p, "mismatch in %s dp sdp\n", name);
-	}
-
-	drm_printf(&p, "expected:\n");
-	drm_dp_as_sdp_log(&p, a);
-	drm_printf(&p, "found:\n");
-	drm_dp_as_sdp_log(&p, b);
+	drm_printf(p, "expected:\n");
+	drm_dp_as_sdp_log(p, a);
+	drm_printf(p, "found:\n");
+	drm_dp_as_sdp_log(p, b);
 }
 
 /* Returns the length up to and including the last differing byte */
@@ -5494,7 +5485,7 @@ intel_pipe_config_compare(const struct intel_crtc_state *current_config,
 #define PIPE_CONF_CHECK_DP_AS_SDP(name) do { \
 	if (!intel_compare_dp_as_sdp(&current_config->infoframes.name, \
 				      &pipe_config->infoframes.name)) { \
-		pipe_config_dp_as_sdp_mismatch(dev_priv, fastset, __stringify(name), \
+		pipe_config_dp_as_sdp_mismatch(&p, fastset, crtc, __stringify(name), \
 						&current_config->infoframes.name, \
 						&pipe_config->infoframes.name); \
 		ret = false; \
