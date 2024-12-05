@@ -3746,6 +3746,7 @@ static int rtnl_group_changelink(const struct sk_buff *skb,
 static int rtnl_newlink_create(struct sk_buff *skb, struct ifinfomsg *ifm,
 			       const struct rtnl_link_ops *ops,
 			       struct net *tgt_net, struct net *link_net,
+			       struct net *peer_net,
 			       const struct nlmsghdr *nlh,
 			       struct nlattr **tb, struct nlattr **data,
 			       struct netlink_ext_ack *extack)
@@ -3776,8 +3777,13 @@ static int rtnl_newlink_create(struct sk_buff *skb, struct ifinfomsg *ifm,
 
 	dev->ifindex = ifm->ifi_index;
 
+	if (link_net)
+		net = link_net;
+	if (peer_net)
+		net = peer_net;
+
 	if (ops->newlink)
-		err = ops->newlink(link_net ? : net, dev, tb, data, extack);
+		err = ops->newlink(net, dev, tb, data, extack);
 	else
 		err = register_netdevice(dev);
 	if (err < 0) {
@@ -3812,40 +3818,33 @@ out_unregister:
 	goto out;
 }
 
-static int rtnl_add_peer_net(struct rtnl_nets *rtnl_nets,
-			     const struct rtnl_link_ops *ops,
-			     struct nlattr *data[],
-			     struct netlink_ext_ack *extack)
+static struct net *rtnl_get_peer_net(const struct rtnl_link_ops *ops,
+				     struct nlattr *data[],
+				     struct netlink_ext_ack *extack)
 {
 	struct nlattr *tb[IFLA_MAX + 1];
-	struct net *net;
 	int err;
 
 	if (!data || !data[ops->peer_type])
-		return 0;
+		return NULL;
 
 	err = rtnl_nla_parse_ifinfomsg(tb, data[ops->peer_type], extack);
 	if (err < 0)
-		return err;
+		return ERR_PTR(err);
 
 	if (ops->validate) {
 		err = ops->validate(tb, NULL, extack);
 		if (err < 0)
-			return err;
+			return ERR_PTR(err);
 	}
 
-	net = rtnl_link_get_net_ifla(tb);
-	if (IS_ERR(net))
-		return PTR_ERR(net);
-	if (net)
-		rtnl_nets_add(rtnl_nets, net);
-
-	return 0;
+	return rtnl_link_get_net_ifla(tb);
 }
 
 static int __rtnl_newlink(struct sk_buff *skb, struct nlmsghdr *nlh,
 			  const struct rtnl_link_ops *ops,
 			  struct net *tgt_net, struct net *link_net,
+			  struct net *peer_net,
 			  struct rtnl_newlink_tbs *tbs,
 			  struct nlattr **data,
 			  struct netlink_ext_ack *extack)
@@ -3894,14 +3893,15 @@ static int __rtnl_newlink(struct sk_buff *skb, struct nlmsghdr *nlh,
 		return -EOPNOTSUPP;
 	}
 
-	return rtnl_newlink_create(skb, ifm, ops, tgt_net, link_net, nlh, tb, data, extack);
+	return rtnl_newlink_create(skb, ifm, ops, tgt_net, link_net, peer_net, nlh,
+				   tb, data, extack);
 }
 
 static int rtnl_newlink(struct sk_buff *skb, struct nlmsghdr *nlh,
 			struct netlink_ext_ack *extack)
 {
+	struct net *tgt_net, *link_net = NULL, *peer_net = NULL;
 	struct nlattr **tb, **linkinfo, **data = NULL;
-	struct net *tgt_net, *link_net = NULL;
 	struct rtnl_link_ops *ops = NULL;
 	struct rtnl_newlink_tbs *tbs;
 	struct rtnl_nets rtnl_nets;
@@ -3971,9 +3971,11 @@ static int rtnl_newlink(struct sk_buff *skb, struct nlmsghdr *nlh,
 		}
 
 		if (ops->peer_type) {
-			ret = rtnl_add_peer_net(&rtnl_nets, ops, data, extack);
-			if (ret < 0)
+			peer_net = rtnl_get_peer_net(ops, data, extack);
+			if (IS_ERR(peer_net))
 				goto put_ops;
+			if (peer_net)
+				rtnl_nets_add(&rtnl_nets, peer_net);
 		}
 	}
 
@@ -4004,7 +4006,7 @@ static int rtnl_newlink(struct sk_buff *skb, struct nlmsghdr *nlh,
 	}
 
 	rtnl_nets_lock(&rtnl_nets);
-	ret = __rtnl_newlink(skb, nlh, ops, tgt_net, link_net, tbs, data, extack);
+	ret = __rtnl_newlink(skb, nlh, ops, tgt_net, link_net, peer_net, tbs, data, extack);
 	rtnl_nets_unlock(&rtnl_nets);
 
 put_net:

@@ -23,10 +23,7 @@
 #define ENETC_SICTR0	0x18
 #define ENETC_SICTR1	0x1c
 #define ENETC_SIPCAPR0	0x20
-#define ENETC_SIPCAPR0_PSFP	BIT(9)
 #define ENETC_SIPCAPR0_RSS	BIT(8)
-#define ENETC_SIPCAPR0_QBV	BIT(4)
-#define ENETC_SIPCAPR0_QBU	BIT(3)
 #define ENETC_SIPCAPR0_RFS	BIT(2)
 #define ENETC_SIPCAPR1	0x24
 #define ENETC_SITGTGR	0x30
@@ -194,6 +191,9 @@ enum enetc_bdr_type {TX, RX};
 #define ENETC_PCAPR0		0x0900
 #define ENETC_PCAPR0_RXBDR(val)	((val) >> 24)
 #define ENETC_PCAPR0_TXBDR(val)	(((val) >> 16) & 0xff)
+#define ENETC_PCAPR0_PSFP	BIT(9)
+#define ENETC_PCAPR0_QBV	BIT(4)
+#define ENETC_PCAPR0_QBU	BIT(3)
 #define ENETC_PCAPR1		0x0904
 #define ENETC_PSICFGR0(n)	(0x0940 + (n) * 0xc)  /* n = SI index */
 #define ENETC_PSICFGR0_SET_TXBDR(val)	((val) & 0xff)

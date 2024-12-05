@@ -2335,9 +2335,10 @@ out_free:
 static void esw_mode_change(struct mlx5_eswitch *esw, u16 mode)
 {
 	mlx5_devcom_comp_lock(esw->dev->priv.hca_devcom_comp);
-
-	if (esw->dev->priv.flags & MLX5_PRIV_FLAGS_DISABLE_IB_ADEV) {
+	if (esw->dev->priv.flags & MLX5_PRIV_FLAGS_DISABLE_IB_ADEV ||
+	    mlx5_core_mp_enabled(esw->dev)) {
 		esw->mode = mode;
+		mlx5_rescan_drivers_locked(esw->dev);
 		mlx5_devcom_comp_unlock(esw->dev->priv.hca_devcom_comp);
 		return;
 	}
