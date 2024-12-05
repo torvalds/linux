@@ -1607,8 +1607,6 @@ static int btree_split(struct btree_update *as, struct btree_trans *trans,
 	if (ret)
 		return ret;
 
-	bch2_btree_interior_update_will_free_node(as, b);
-
 	if (b->nr.live_u64s > BTREE_SPLIT_THRESHOLD(c)) {
 		struct btree *n[2];
 
@@ -1706,6 +1704,8 @@ static int btree_split(struct btree_update *as, struct btree_trans *trans,
 
 	if (ret)
 		goto err;
+
+	bch2_btree_interior_update_will_free_node(as, b);
 
 	if (n3) {
 		bch2_btree_update_get_open_buckets(as, n3);
@@ -2063,9 +2063,6 @@ int __bch2_foreground_maybe_merge(struct btree_trans *trans,
 
 	trace_and_count(c, btree_node_merge, trans, b);
 
-	bch2_btree_interior_update_will_free_node(as, b);
-	bch2_btree_interior_update_will_free_node(as, m);
-
 	n = bch2_btree_node_alloc(as, trans, b->c.level);
 
 	SET_BTREE_NODE_SEQ(n->data,
@@ -2100,6 +2097,9 @@ int __bch2_foreground_maybe_merge(struct btree_trans *trans,
 	ret = bch2_btree_insert_node(as, trans, path, parent, &as->parent_keys);
 	if (ret)
 		goto err_free_update;
+
+	bch2_btree_interior_update_will_free_node(as, b);
+	bch2_btree_interior_update_will_free_node(as, m);
 
 	bch2_trans_verify_paths(trans);
 
@@ -2155,8 +2155,6 @@ int bch2_btree_node_rewrite(struct btree_trans *trans,
 	if (ret)
 		goto out;
 
-	bch2_btree_interior_update_will_free_node(as, b);
-
 	n = bch2_btree_node_alloc_replacement(as, trans, b);
 
 	bch2_btree_build_aux_trees(n);
@@ -2179,6 +2177,8 @@ int bch2_btree_node_rewrite(struct btree_trans *trans,
 
 	if (ret)
 		goto err;
+
+	bch2_btree_interior_update_will_free_node(as, b);
 
 	bch2_btree_update_get_open_buckets(as, n);
 	bch2_btree_node_write(c, n, SIX_LOCK_intent, 0);
