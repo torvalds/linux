@@ -688,8 +688,10 @@ int ocelot_port_txtstamp_request(struct ocelot *ocelot, int port,
 			return -ENOMEM;
 
 		err = ocelot_port_add_txtstamp_skb(ocelot, port, *clone);
-		if (err)
+		if (err) {
+			kfree_skb(*clone);
 			return err;
+		}
 
 		OCELOT_SKB_CB(skb)->ptp_cmd = ptp_cmd;
 		OCELOT_SKB_CB(*clone)->ptp_class = ptp_class;
