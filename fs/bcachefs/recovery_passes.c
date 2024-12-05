@@ -103,27 +103,31 @@ u64 bch2_recovery_passes_from_stable(u64 v)
 static int __bch2_run_explicit_recovery_pass(struct bch_fs *c,
 					     enum bch_recovery_pass pass)
 {
-	if (c->opts.recovery_passes & BIT_ULL(pass))
-		return 0;
-
 	if (c->curr_recovery_pass == ARRAY_SIZE(recovery_pass_fns))
 		return -BCH_ERR_not_in_recovery;
 
+	if (c->recovery_passes_complete & BIT_ULL(pass))
+		return 0;
+
+	bool print = !(c->opts.recovery_passes & BIT_ULL(pass));
+
 	if (pass < BCH_RECOVERY_PASS_set_may_go_rw &&
 	    c->curr_recovery_pass >= BCH_RECOVERY_PASS_set_may_go_rw) {
-		bch_info(c, "need recovery pass %s (%u), but already rw",
-			 bch2_recovery_passes[pass], pass);
+		if (print)
+			bch_info(c, "need recovery pass %s (%u), but already rw",
+				 bch2_recovery_passes[pass], pass);
 		return -BCH_ERR_cannot_rewind_recovery;
 	}
 
-	bch_info(c, "running explicit recovery pass %s (%u), currently at %s (%u)",
-		 bch2_recovery_passes[pass], pass,
-		 bch2_recovery_passes[c->curr_recovery_pass], c->curr_recovery_pass);
+	if (print)
+		bch_info(c, "running explicit recovery pass %s (%u), currently at %s (%u)",
+			 bch2_recovery_passes[pass], pass,
+			 bch2_recovery_passes[c->curr_recovery_pass], c->curr_recovery_pass);
 
 	c->opts.recovery_passes |= BIT_ULL(pass);
 
-	if (c->curr_recovery_pass >= pass) {
-		c->curr_recovery_pass = pass;
+	if (c->curr_recovery_pass > pass) {
+		c->next_recovery_pass = pass;
 		c->recovery_passes_complete &= (1ULL << pass) >> 1;
 		return -BCH_ERR_restart_recovery;
 	} else {
@@ -264,7 +268,9 @@ int bch2_run_recovery_passes(struct bch_fs *c)
 	 */
 	c->opts.recovery_passes_exclude &= ~BCH_RECOVERY_PASS_set_may_go_rw;
 
-	while (c->curr_recovery_pass < ARRAY_SIZE(recovery_pass_fns)) {
+	while (c->curr_recovery_pass < ARRAY_SIZE(recovery_pass_fns) && !ret) {
+		c->next_recovery_pass = c->curr_recovery_pass + 1;
+
 		spin_lock_irq(&c->recovery_pass_lock);
 		unsigned pass = c->curr_recovery_pass;
 
@@ -285,31 +291,25 @@ int bch2_run_recovery_passes(struct bch_fs *c)
 		ret =   bch2_run_recovery_pass(c, pass) ?:
 			bch2_journal_flush(&c->journal);
 
+		if (!ret && !test_bit(BCH_FS_error, &c->flags))
+			bch2_clear_recovery_pass_required(c, pass);
+
 		spin_lock_irq(&c->recovery_pass_lock);
-		if (c->curr_recovery_pass < pass) {
+		if (c->next_recovery_pass < c->curr_recovery_pass) {
 			/*
 			 * bch2_run_explicit_recovery_pass() was called: we
 			 * can't always catch -BCH_ERR_restart_recovery because
 			 * it may have been called from another thread (btree
 			 * node read completion)
 			 */
-			spin_unlock_irq(&c->recovery_pass_lock);
-			continue;
-		} else if (c->curr_recovery_pass == pass) {
-			c->curr_recovery_pass++;
+			ret = 0;
+			c->recovery_passes_complete &= ~(~0ULL << c->curr_recovery_pass);
 		} else {
-			BUG();
+			c->recovery_passes_complete |= BIT_ULL(pass);
+			c->recovery_pass_done = max(c->recovery_pass_done, pass);
 		}
+		c->curr_recovery_pass = c->next_recovery_pass;
 		spin_unlock_irq(&c->recovery_pass_lock);
-
-		if (ret)
-			break;
-
-		c->recovery_passes_complete |= BIT_ULL(pass);
-		c->recovery_pass_done = max(c->recovery_pass_done, pass);
-
-		if (!test_bit(BCH_FS_error, &c->flags))
-			bch2_clear_recovery_pass_required(c, pass);
 	}
 
 	return ret;

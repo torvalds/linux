@@ -1044,6 +1044,7 @@ struct bch_fs {
 	 * for signaling to the toplevel code which pass we want to run now.
 	 */
 	enum bch_recovery_pass	curr_recovery_pass;
+	enum bch_recovery_pass	next_recovery_pass;
 	/* bitmask of recovery passes that we actually ran */
 	u64			recovery_passes_complete;
 	/* never rewinds version of curr_recovery_pass */
