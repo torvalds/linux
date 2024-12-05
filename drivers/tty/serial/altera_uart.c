@@ -24,7 +24,6 @@
 #include <linux/io.h>
 #include <linux/altera_uart.h>
 
-#define DRV_NAME "altera_uart"
 #define SERIAL_ALTERA_MAJOR 204
 #define SERIAL_ALTERA_MINOR 213
 
@@ -518,7 +517,7 @@ OF_EARLYCON_DECLARE(uart, "altr,uart-1.0", altera_uart_earlycon_setup);
  */
 static struct uart_driver altera_uart_driver = {
 	.owner		= THIS_MODULE,
-	.driver_name	= DRV_NAME,
+	.driver_name	= KBUILD_MODNAME,
 	.dev_name	= "ttyAL",
 	.major		= SERIAL_ALTERA_MAJOR,
 	.minor		= SERIAL_ALTERA_MINOR,
@@ -619,7 +618,7 @@ static struct platform_driver altera_uart_platform_driver = {
 	.probe	= altera_uart_probe,
 	.remove = altera_uart_remove,
 	.driver	= {
-		.name		= DRV_NAME,
+		.name		= KBUILD_MODNAME,
 		.of_match_table	= of_match_ptr(altera_uart_match),
 	},
 };
@@ -649,5 +648,5 @@ module_exit(altera_uart_exit);
 MODULE_DESCRIPTION("Altera UART driver");
 MODULE_AUTHOR("Thomas Chou <thomas@wytron.com.tw>");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS("platform:" DRV_NAME);
+MODULE_ALIAS("platform:" KBUILD_MODNAME);
 MODULE_ALIAS_CHARDEV_MAJOR(SERIAL_ALTERA_MAJOR);
