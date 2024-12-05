@@ -1478,6 +1478,8 @@ static int poe_set(struct task_struct *target, const struct
 	if (!system_supports_poe())
 		return -EINVAL;
 
+	ctrl = target->thread.por_el0;
+
 	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf, &ctrl, 0, -1);
 	if (ret)
 		return ret;
