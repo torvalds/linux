@@ -911,6 +911,7 @@ again:
 			ret = PTR_ERR(folio);
 		return ret;
 	}
+	folio_wait_writeback(folio);
 	/* Only support page sized folio yet. */
 	ASSERT(folio_order(folio) == 0);
 	ret = set_folio_extent_mapped(folio);

@@ -403,7 +403,7 @@ static int imx_pgc_power_up(struct generic_pm_domain *genpd)
 		 * already reaches target before udelay()
 		 */
 		regmap_read_bypassed(domain->regmap, domain->regs->hsk, &reg_val);
-		udelay(5);
+		udelay(10);
 	}
 
 	/* Disable reset clocks for all devices in the domain */
