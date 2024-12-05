@@ -2456,8 +2456,22 @@ config TEST_BITMAP
 config TEST_UUID
 	tristate "Test functions located in the uuid module at runtime"
 
-config TEST_XARRAY
-	tristate "Test the XArray code at runtime"
+config XARRAY_KUNIT
+	tristate "KUnit test XArray code at runtime" if !KUNIT_ALL_TESTS
+	depends on KUNIT
+	default KUNIT_ALL_TESTS
+	help
+	  Enable this option to test the Xarray code at boot.
+
+	  KUnit tests run during boot and output the results to the debug log
+	  in TAP format (http://testanything.org/). Only useful for kernel devs
+	  running the KUnit test harness, and not intended for inclusion into a
+	  production build.
+
+	  For more information on KUnit and unit tests in general please refer
+	  to the KUnit documentation in Documentation/dev-tools/kunit/.
+
+	  If unsure, say N.
 
 config TEST_MAPLE_TREE
 	tristate "Test the Maple Tree code at runtime or module load"
