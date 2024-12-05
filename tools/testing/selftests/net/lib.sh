@@ -435,6 +435,13 @@ xfail_on_veth()
 	fi
 }
 
+mac_get()
+{
+	local if_name=$1
+
+	ip -j link show dev $if_name | jq -r '.[]["address"]'
+}
+
 kill_process()
 {
 	local pid=$1; shift
@@ -458,4 +465,36 @@ ip_link_set_master()
 
 	ip link set dev "$member" master "$master"
 	defer ip link set dev "$member" nomaster
+}
+
+ip_link_set_addr()
+{
+	local name=$1; shift
+	local addr=$1; shift
+
+	local old_addr=$(mac_get "$name")
+	ip link set dev "$name" address "$addr"
+	defer ip link set dev "$name" address "$old_addr"
+}
+
+ip_link_set_up()
+{
+	local name=$1; shift
+
+	ip link set dev "$name" up
+	defer ip link set dev "$name" down
+}
+
+ip_addr_add()
+{
+	local name=$1; shift
+
+	ip addr add dev "$name" "$@"
+	defer ip addr del dev "$name" "$@"
+}
+
+ip_route_add()
+{
+	ip route add "$@"
+	defer ip route del "$@"
 }
