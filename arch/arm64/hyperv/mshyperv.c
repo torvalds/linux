@@ -24,7 +24,7 @@ int hv_get_hypervisor_version(union hv_hypervisor_version_info *info)
 	hv_get_vpreg_128(HV_REGISTER_HYPERVISOR_VERSION,
 			 (struct hv_get_vp_registers_output *)info);
 
-	return 0;
+	return 1;
 }
 
 static int __init hyperv_init(void)
