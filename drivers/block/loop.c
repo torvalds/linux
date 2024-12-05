@@ -770,12 +770,11 @@ static void loop_sysfs_exit(struct loop_device *lo)
 				   &loop_attribute_group);
 }
 
-static void loop_config_discard(struct loop_device *lo,
-		struct queue_limits *lim)
+static void loop_get_discard_config(struct loop_device *lo,
+				    u32 *granularity, u32 *max_discard_sectors)
 {
 	struct file *file = lo->lo_backing_file;
 	struct inode *inode = file->f_mapping->host;
-	u32 granularity = 0, max_discard_sectors = 0;
 	struct kstatfs sbuf;
 
 	/*
@@ -788,24 +787,17 @@ static void loop_config_discard(struct loop_device *lo,
 	if (S_ISBLK(inode->i_mode)) {
 		struct block_device *bdev = I_BDEV(inode);
 
-		max_discard_sectors = bdev_write_zeroes_sectors(bdev);
-		granularity = bdev_discard_granularity(bdev);
+		*max_discard_sectors = bdev_write_zeroes_sectors(bdev);
+		*granularity = bdev_discard_granularity(bdev);
 
 	/*
 	 * We use punch hole to reclaim the free space used by the
 	 * image a.k.a. discard.
 	 */
 	} else if (file->f_op->fallocate && !vfs_statfs(&file->f_path, &sbuf)) {
-		max_discard_sectors = UINT_MAX >> 9;
-		granularity = sbuf.f_bsize;
+		*max_discard_sectors = UINT_MAX >> 9;
+		*granularity = sbuf.f_bsize;
 	}
-
-	lim->max_hw_discard_sectors = max_discard_sectors;
-	lim->max_write_zeroes_sectors = max_discard_sectors;
-	if (max_discard_sectors)
-		lim->discard_granularity = granularity;
-	else
-		lim->discard_granularity = 0;
 }
 
 struct loop_worker {
@@ -991,6 +983,7 @@ static int loop_reconfigure_limits(struct loop_device *lo, unsigned int bsize)
 	struct inode *inode = file->f_mapping->host;
 	struct block_device *backing_bdev = NULL;
 	struct queue_limits lim;
+	u32 granularity = 0, max_discard_sectors = 0;
 
 	if (S_ISBLK(inode->i_mode))
 		backing_bdev = I_BDEV(inode);
@@ -999,6 +992,8 @@ static int loop_reconfigure_limits(struct loop_device *lo, unsigned int bsize)
 
 	if (!bsize)
 		bsize = loop_default_blocksize(lo, backing_bdev);
+
+	loop_get_discard_config(lo, &granularity, &max_discard_sectors);
 
 	lim = queue_limits_start_update(lo->lo_queue);
 	lim.logical_block_size = bsize;
@@ -1009,7 +1004,12 @@ static int loop_reconfigure_limits(struct loop_device *lo, unsigned int bsize)
 		lim.features |= BLK_FEAT_WRITE_CACHE;
 	if (backing_bdev && !bdev_nonrot(backing_bdev))
 		lim.features |= BLK_FEAT_ROTATIONAL;
-	loop_config_discard(lo, &lim);
+	lim.max_hw_discard_sectors = max_discard_sectors;
+	lim.max_write_zeroes_sectors = max_discard_sectors;
+	if (max_discard_sectors)
+		lim.discard_granularity = granularity;
+	else
+		lim.discard_granularity = 0;
 	return queue_limits_commit_update(lo->lo_queue, &lim);
 }
 

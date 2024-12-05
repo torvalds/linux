@@ -1019,7 +1019,7 @@ static int nvme_rdma_setup_ctrl(struct nvme_rdma_ctrl *ctrl, bool new)
 		goto destroy_admin;
 	}
 
-	if (!(ctrl->ctrl.sgls & (1 << 2))) {
+	if (!(ctrl->ctrl.sgls & NVME_CTRL_SGLS_KSDBDS)) {
 		ret = -EOPNOTSUPP;
 		dev_err(ctrl->ctrl.device,
 			"Mandatory keyed sgls are not supported!\n");
@@ -1051,7 +1051,7 @@ static int nvme_rdma_setup_ctrl(struct nvme_rdma_ctrl *ctrl, bool new)
 		ctrl->ctrl.sqsize = ctrl->ctrl.maxcmd - 1;
 	}
 
-	if (ctrl->ctrl.sgls & (1 << 20))
+	if (ctrl->ctrl.sgls & NVME_CTRL_SGLS_SAOS)
 		ctrl->use_inline_data = true;
 
 	if (ctrl->ctrl.queue_count > 1) {

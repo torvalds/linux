@@ -213,9 +213,6 @@ void aa_perms_accum_raw(struct aa_perms *accum, struct aa_perms *addend);
 void aa_profile_match_label(struct aa_profile *profile,
 			    struct aa_ruleset *rules, struct aa_label *label,
 			    int type, u32 request, struct aa_perms *perms);
-int aa_profile_label_perm(struct aa_profile *profile, struct aa_profile *target,
-			  u32 request, int type, u32 *deny,
-			  struct apparmor_audit_data *ad);
 int aa_check_perms(struct aa_profile *profile, struct aa_perms *perms,
 		   u32 request, struct apparmor_audit_data *ad,
 		   void (*cb)(struct audit_buffer *, void *));

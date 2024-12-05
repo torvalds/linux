@@ -44,10 +44,10 @@ load_mod()
 	local ARCH="$(uname -m)"
 	case "${ARCH}" in
 	x86_64)
-		perf stat $STATS $MODPROBE test_kallsyms_b
+		perf stat $STATS $MODPROBE $MOD
 		;;
 	*)
-		time $MODPROBE test_kallsyms_b
+		time $MODPROBE $MOD
 		exit 1
 		;;
 	esac

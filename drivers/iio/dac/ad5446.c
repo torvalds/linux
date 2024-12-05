@@ -32,7 +32,6 @@
  * struct ad5446_state - driver instance specific data
  * @dev:		this device
  * @chip_info:		chip model specific constants, available modes etc
- * @reg:		supply regulator
  * @vref_mv:		actual reference voltage used
  * @cached_val:		store/retrieve values during power down
  * @pwr_down_mode:	power down mode (1k, 100k or tristate)
@@ -43,7 +42,6 @@
 struct ad5446_state {
 	struct device		*dev;
 	const struct ad5446_chip_info	*chip_info;
-	struct regulator		*reg;
 	unsigned short			vref_mv;
 	unsigned			cached_val;
 	unsigned			pwr_down_mode;
@@ -226,32 +224,15 @@ static int ad5446_probe(struct device *dev, const char *name,
 {
 	struct ad5446_state *st;
 	struct iio_dev *indio_dev;
-	struct regulator *reg;
-	int ret, voltage_uv = 0;
-
-	reg = devm_regulator_get(dev, "vcc");
-	if (!IS_ERR(reg)) {
-		ret = regulator_enable(reg);
-		if (ret)
-			return ret;
-
-		ret = regulator_get_voltage(reg);
-		if (ret < 0)
-			goto error_disable_reg;
-
-		voltage_uv = ret;
-	}
+	int ret;
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*st));
-	if (indio_dev == NULL) {
-		ret = -ENOMEM;
-		goto error_disable_reg;
-	}
+	if (!indio_dev)
+		return -ENOMEM;
+
 	st = iio_priv(indio_dev);
 	st->chip_info = chip_info;
 
-	dev_set_drvdata(dev, indio_dev);
-	st->reg = reg;
 	st->dev = dev;
 
 	indio_dev->name = name;
@@ -264,33 +245,19 @@ static int ad5446_probe(struct device *dev, const char *name,
 
 	st->pwr_down_mode = MODE_PWRDWN_1k;
 
-	if (st->chip_info->int_vref_mv)
-		st->vref_mv = st->chip_info->int_vref_mv;
-	else if (voltage_uv)
-		st->vref_mv = voltage_uv / 1000;
-	else
-		dev_warn(dev, "reference voltage unspecified\n");
+	ret = devm_regulator_get_enable_read_voltage(dev, "vcc");
+	if (ret < 0 && ret != -ENODEV)
+		return ret;
+	if (ret == -ENODEV) {
+		if (chip_info->int_vref_mv)
+			st->vref_mv = chip_info->int_vref_mv;
+		else
+			dev_warn(dev, "reference voltage unspecified\n");
+	} else {
+		st->vref_mv = ret / 1000;
+	}
 
-	ret = iio_device_register(indio_dev);
-	if (ret)
-		goto error_disable_reg;
-
-	return 0;
-
-error_disable_reg:
-	if (!IS_ERR(reg))
-		regulator_disable(reg);
-	return ret;
-}
-
-static void ad5446_remove(struct device *dev)
-{
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-	struct ad5446_state *st = iio_priv(indio_dev);
-
-	iio_device_unregister(indio_dev);
-	if (!IS_ERR(st->reg))
-		regulator_disable(st->reg);
+	return devm_iio_device_register(dev, indio_dev);
 }
 
 #if IS_ENABLED(CONFIG_SPI_MASTER)
@@ -491,18 +458,12 @@ static int ad5446_spi_probe(struct spi_device *spi)
 		&ad5446_spi_chip_info[id->driver_data]);
 }
 
-static void ad5446_spi_remove(struct spi_device *spi)
-{
-	ad5446_remove(&spi->dev);
-}
-
 static struct spi_driver ad5446_spi_driver = {
 	.driver = {
 		.name	= "ad5446",
 		.of_match_table = ad5446_of_ids,
 	},
 	.probe		= ad5446_spi_probe,
-	.remove		= ad5446_spi_remove,
 	.id_table	= ad5446_spi_ids,
 };
 
@@ -575,11 +536,6 @@ static int ad5446_i2c_probe(struct i2c_client *i2c)
 		&ad5446_i2c_chip_info[id->driver_data]);
 }
 
-static void ad5446_i2c_remove(struct i2c_client *i2c)
-{
-	ad5446_remove(&i2c->dev);
-}
-
 static const struct i2c_device_id ad5446_i2c_ids[] = {
 	{"ad5301", ID_AD5602},
 	{"ad5311", ID_AD5612},
@@ -596,7 +552,6 @@ static struct i2c_driver ad5446_i2c_driver = {
 		   .name = "ad5446",
 	},
 	.probe = ad5446_i2c_probe,
-	.remove = ad5446_i2c_remove,
 	.id_table = ad5446_i2c_ids,
 };
 

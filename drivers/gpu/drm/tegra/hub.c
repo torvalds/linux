@@ -1218,5 +1218,5 @@ struct platform_driver tegra_display_hub_driver = {
 		.of_match_table = tegra_display_hub_of_match,
 	},
 	.probe = tegra_display_hub_probe,
-	.remove_new = tegra_display_hub_remove,
+	.remove = tegra_display_hub_remove,
 };

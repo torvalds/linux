@@ -782,7 +782,7 @@ MODULE_DEVICE_TABLE(of, ines_ptp_ctrl_of_match);
 
 static struct platform_driver ines_ptp_ctrl_driver = {
 	.probe  = ines_ptp_ctrl_probe,
-	.remove_new = ines_ptp_ctrl_remove,
+	.remove = ines_ptp_ctrl_remove,
 	.driver = {
 		.name = "ines_ptp_ctrl",
 		.of_match_table = ines_ptp_ctrl_of_match,

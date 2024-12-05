@@ -264,7 +264,7 @@ const struct reg_default cs42l43_reg_default[CS42L43_N_DEFAULTS] = {
 	{ CS42L43_ASRC_MASK,				0x0000000F },
 	{ CS42L43_HPOUT_MASK,				0x00000003 },
 };
-EXPORT_SYMBOL_NS_GPL(cs42l43_reg_default, MFD_CS42L43);
+EXPORT_SYMBOL_NS_GPL(cs42l43_reg_default, "MFD_CS42L43");
 
 bool cs42l43_readable_register(struct device *dev, unsigned int reg)
 {
@@ -392,7 +392,7 @@ bool cs42l43_readable_register(struct device *dev, unsigned int reg)
 		return false;
 	}
 }
-EXPORT_SYMBOL_NS_GPL(cs42l43_readable_register, MFD_CS42L43);
+EXPORT_SYMBOL_NS_GPL(cs42l43_readable_register, "MFD_CS42L43");
 
 bool cs42l43_precious_register(struct device *dev, unsigned int reg)
 {
@@ -407,7 +407,7 @@ bool cs42l43_precious_register(struct device *dev, unsigned int reg)
 		return false;
 	}
 }
-EXPORT_SYMBOL_NS_GPL(cs42l43_precious_register, MFD_CS42L43);
+EXPORT_SYMBOL_NS_GPL(cs42l43_precious_register, "MFD_CS42L43");
 
 bool cs42l43_volatile_register(struct device *dev, unsigned int reg)
 {
@@ -435,7 +435,7 @@ bool cs42l43_volatile_register(struct device *dev, unsigned int reg)
 		return cs42l43_precious_register(dev, reg);
 	}
 }
-EXPORT_SYMBOL_NS_GPL(cs42l43_volatile_register, MFD_CS42L43);
+EXPORT_SYMBOL_NS_GPL(cs42l43_volatile_register, "MFD_CS42L43");
 
 #define CS42L43_IRQ_OFFSET(reg) ((CS42L43_##reg##_INT) - CS42L43_DECIM_INT)
 
@@ -1096,7 +1096,7 @@ int cs42l43_dev_probe(struct cs42l43 *cs42l43)
 
 	return 0;
 }
-EXPORT_SYMBOL_NS_GPL(cs42l43_dev_probe, MFD_CS42L43);
+EXPORT_SYMBOL_NS_GPL(cs42l43_dev_probe, "MFD_CS42L43");
 
 void cs42l43_dev_remove(struct cs42l43 *cs42l43)
 {
@@ -1104,7 +1104,7 @@ void cs42l43_dev_remove(struct cs42l43 *cs42l43)
 
 	cs42l43_power_down(cs42l43);
 }
-EXPORT_SYMBOL_NS_GPL(cs42l43_dev_remove, MFD_CS42L43);
+EXPORT_SYMBOL_NS_GPL(cs42l43_dev_remove, "MFD_CS42L43");
 
 static int cs42l43_suspend(struct device *dev)
 {

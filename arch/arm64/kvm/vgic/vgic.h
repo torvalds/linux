@@ -146,29 +146,6 @@ static inline int vgic_write_guest_lock(struct kvm *kvm, gpa_t gpa,
 	return ret;
 }
 
-static inline int vgic_its_read_entry_lock(struct vgic_its *its, gpa_t eaddr,
-					   u64 *eval, unsigned long esize)
-{
-	struct kvm *kvm = its->dev->kvm;
-
-	if (KVM_BUG_ON(esize != sizeof(*eval), kvm))
-		return -EINVAL;
-
-	return kvm_read_guest_lock(kvm, eaddr, eval, esize);
-
-}
-
-static inline int vgic_its_write_entry_lock(struct vgic_its *its, gpa_t eaddr,
-					    u64 eval, unsigned long esize)
-{
-	struct kvm *kvm = its->dev->kvm;
-
-	if (KVM_BUG_ON(esize != sizeof(eval), kvm))
-		return -EINVAL;
-
-	return vgic_write_guest_lock(kvm, eaddr, &eval, esize);
-}
-
 /*
  * This struct provides an intermediate representation of the fields contained
  * in the GICH_VMCR and ICH_VMCR registers, such that code exporting the GIC
@@ -202,8 +179,8 @@ int vgic_v2_parse_attr(struct kvm_device *dev, struct kvm_device_attr *attr,
 const struct vgic_register_region *
 vgic_get_mmio_region(struct kvm_vcpu *vcpu, struct vgic_io_device *iodev,
 		     gpa_t addr, int len);
-struct vgic_irq *vgic_get_irq(struct kvm *kvm, struct kvm_vcpu *vcpu,
-			      u32 intid);
+struct vgic_irq *vgic_get_irq(struct kvm *kvm, u32 intid);
+struct vgic_irq *vgic_get_vcpu_irq(struct kvm_vcpu *vcpu, u32 intid);
 void vgic_put_irq(struct kvm *kvm, struct vgic_irq *irq);
 bool vgic_get_phys_line_level(struct vgic_irq *irq);
 void vgic_irq_set_phys_pending(struct vgic_irq *irq, bool pending);

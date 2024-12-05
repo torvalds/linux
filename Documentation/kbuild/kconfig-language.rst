@@ -412,8 +412,8 @@ choices::
 	<choice block>
 	"endchoice"
 
-This defines a choice group and accepts any of the above attributes as
-options.
+This defines a choice group and accepts "prompt", "default", "depends on", and
+"help" attributes as options.
 
 A choice only allows a single config entry to be selected.
 

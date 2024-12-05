@@ -2474,7 +2474,7 @@ static int pxa25x_udc_resume(struct platform_device *dev)
 static struct platform_driver udc_driver = {
 	.shutdown	= pxa25x_udc_shutdown,
 	.probe		= pxa25x_udc_probe,
-	.remove_new	= pxa25x_udc_remove,
+	.remove		= pxa25x_udc_remove,
 	.suspend	= pxa25x_udc_suspend,
 	.resume		= pxa25x_udc_resume,
 	.driver		= {

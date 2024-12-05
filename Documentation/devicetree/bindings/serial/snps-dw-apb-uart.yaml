@@ -37,6 +37,8 @@ properties:
           - const: renesas,rzn1-uart
       - items:
           - enum:
+              - brcm,bcm11351-dw-apb-uart
+              - brcm,bcm21664-dw-apb-uart
               - rockchip,px30-uart
               - rockchip,rk1808-uart
               - rockchip,rk3036-uart
@@ -48,18 +50,13 @@ properties:
               - rockchip,rk3328-uart
               - rockchip,rk3368-uart
               - rockchip,rk3399-uart
+              - rockchip,rk3528-uart
               - rockchip,rk3568-uart
+              - rockchip,rk3576-uart
               - rockchip,rk3588-uart
               - rockchip,rv1108-uart
               - rockchip,rv1126-uart
-          - const: snps,dw-apb-uart
-      - items:
-          - enum:
-              - brcm,bcm11351-dw-apb-uart
-              - brcm,bcm21664-dw-apb-uart
-          - const: snps,dw-apb-uart
-      - items:
-          - enum:
+              - sophgo,sg2044-uart
               - starfive,jh7100-hsuart
               - starfive,jh7100-uart
               - starfive,jh7110-uart

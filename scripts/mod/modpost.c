@@ -21,6 +21,7 @@
 #include <stdbool.h>
 #include <errno.h>
 
+#include <hash.h>
 #include <hashtable.h>
 #include <list.h>
 #include <xalloc.h>
@@ -176,6 +177,7 @@ static struct module *new_module(const char *name, size_t namelen)
 	INIT_LIST_HEAD(&mod->unresolved_symbols);
 	INIT_LIST_HEAD(&mod->missing_namespaces);
 	INIT_LIST_HEAD(&mod->imported_namespaces);
+	INIT_LIST_HEAD(&mod->aliases);
 
 	memcpy(mod->name, name, namelen);
 	mod->name[namelen] = '\0';
@@ -209,19 +211,6 @@ struct symbol {
 
 static HASHTABLE_DEFINE(symbol_hashtable, 1U << 10);
 
-/* This is based on the hash algorithm from gdbm, via tdb */
-static inline unsigned int tdb_hash(const char *name)
-{
-	unsigned value;	/* Used to compute the hash value.  */
-	unsigned   i;	/* Used to cycle through random values. */
-
-	/* Set the initial value from the key size. */
-	for (value = 0x238F13AF * strlen(name), i = 0; name[i]; i++)
-		value = (value + (((unsigned char *)name)[i] << (i*5 % 24)));
-
-	return (1103515243 * value + 12345);
-}
-
 /**
  * Allocate a new symbols for use in the hash of exported symbols or
  * the list of unresolved symbols per module
@@ -239,7 +228,7 @@ static struct symbol *alloc_symbol(const char *name)
 /* For the hash of exported symbols */
 static void hash_add_symbol(struct symbol *sym)
 {
-	hash_add(symbol_hashtable, &sym->hnode, tdb_hash(sym->name));
+	hash_add(symbol_hashtable, &sym->hnode, hash_str(sym->name));
 }
 
 static void sym_add_unresolved(const char *name, struct module *mod, bool weak)
@@ -260,7 +249,7 @@ static struct symbol *sym_find_with_module(const char *name, struct module *mod)
 	if (name[0] == '.')
 		name++;
 
-	hash_for_each_possible(symbol_hashtable, s, hnode, tdb_hash(name)) {
+	hash_for_each_possible(symbol_hashtable, s, hnode, hash_str(name)) {
 		if (strcmp(s->name, name) == 0 && (!mod || s->module == mod))
 			return s;
 	}
@@ -339,8 +328,6 @@ static const char *sec_name(const struct elf_info *info, unsigned int secindex)
 
 	return sech_name(info, &info->sechdrs[secindex]);
 }
-
-#define strstarts(str, prefix) (strncmp(str, prefix, strlen(prefix)) == 0)
 
 static struct symbol *sym_add_exported(const char *name, struct module *mod,
 				       bool gpl_only, const char *namespace)
@@ -1966,6 +1953,7 @@ static void write_vmlinux_export_c_file(struct module *mod)
 static void write_mod_c_file(struct module *mod)
 {
 	struct buffer buf = { };
+	struct module_alias *alias, *next;
 	char fname[PATH_MAX];
 	int ret;
 
@@ -1973,7 +1961,14 @@ static void write_mod_c_file(struct module *mod)
 	add_exported_symbols(&buf, mod);
 	add_versions(&buf, mod);
 	add_depends(&buf, mod);
-	add_moddevtable(&buf, mod);
+
+	buf_printf(&buf, "\n");
+	list_for_each_entry_safe(alias, next, &mod->aliases, node) {
+		buf_printf(&buf, "MODULE_ALIAS(\"%s\");\n", alias->str);
+		list_del(&alias->node);
+		free(alias);
+	}
+
 	add_srcversion(&buf, mod);
 
 	ret = snprintf(fname, sizeof(fname), "%s.mod.c", mod->name);

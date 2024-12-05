@@ -11,6 +11,7 @@
 
 #define DML2_MAX_FMT_420_BUFFER_WIDTH 4096
 #define DML_MAX_NUM_OF_SLICES_PER_DSC 4
+#define ALLOW_SDPIF_RATE_LIMIT_PRE_CSTATE
 
 const char *dml2_core_internal_bw_type_str(enum dml2_core_internal_bw_type bw_type)
 {
@@ -3886,6 +3887,10 @@ static void CalculateSwathAndDETConfiguration(struct dml2_core_internal_scratch 
 #endif
 
 	*p->hw_debug5 = false;
+#ifdef ALLOW_SDPIF_RATE_LIMIT_PRE_CSTATE
+	if (p->NumberOfActiveSurfaces > 1)
+		*p->hw_debug5 = true;
+#else
 	for (unsigned int k = 0; k < p->NumberOfActiveSurfaces; ++k) {
 		if (!(p->mrq_present) && (!(*p->UnboundedRequestEnabled)) && (TotalActiveDPP == 1)
 			&& p->display_cfg->plane_descriptors[k].surface.dcc.enable
@@ -3901,6 +3906,7 @@ static void CalculateSwathAndDETConfiguration(struct dml2_core_internal_scratch 
 		dml2_printf("DML::%s: k=%u hw_debug5 = %u\n", __func__, k, *p->hw_debug5);
 #endif
 	}
+#endif
 }
 
 static enum dml2_odm_mode DecideODMMode(unsigned int HActive,

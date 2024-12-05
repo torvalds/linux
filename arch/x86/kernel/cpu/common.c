@@ -169,7 +169,7 @@ static void ppin_init(struct cpuinfo_x86 *c)
 	}
 
 clear_ppin:
-	clear_cpu_cap(c, info->feature);
+	setup_clear_cpu_cap(info->feature);
 }
 
 static void default_init(struct cpuinfo_x86 *c)

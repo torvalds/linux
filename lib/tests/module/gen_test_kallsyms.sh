@@ -7,6 +7,11 @@ NUM_SYMS=$2
 SCALE_FACTOR=$3
 TEST_TYPE=$(echo $TARGET | sed -e 's|lib/tests/module/test_kallsyms_||g')
 TEST_TYPE=$(echo $TEST_TYPE | sed -e 's|.c||g')
+FIRST_B_LOOKUP=1
+
+if [[ $NUM_SYMS -gt 2 ]]; then
+	FIRST_B_LOOKUP=$((NUM_SYMS/2))
+fi
 
 gen_template_module_header()
 {
@@ -52,10 +57,10 @@ ____END_MODULE
 
 gen_template_module_data_b()
 {
-	printf "\nextern int auto_test_a_%010d;\n\n" 28
+	printf "\nextern int auto_test_a_%010d;\n\n" $FIRST_B_LOOKUP
 	echo "static int auto_runtime_test(void)"
 	echo "{"
-	printf "\nreturn auto_test_a_%010d;\n" 28
+	printf "\nreturn auto_test_a_%010d;\n" $FIRST_B_LOOKUP
 	echo "}"
 }
 

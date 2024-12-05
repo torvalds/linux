@@ -403,7 +403,7 @@ static struct platform_driver ab8500_rtc_driver = {
 		.name = "ab8500-rtc",
 	},
 	.probe	= ab8500_rtc_probe,
-	.remove_new = ab8500_rtc_remove,
+	.remove = ab8500_rtc_remove,
 	.id_table = ab85xx_rtc_ids,
 };
 

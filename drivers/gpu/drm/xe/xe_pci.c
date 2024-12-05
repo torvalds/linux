@@ -174,7 +174,7 @@ static const struct xe_graphics_desc graphics_xelpg = {
 		GENMASK(XE_HW_ENGINE_CCS3, XE_HW_ENGINE_CCS0)
 
 static const struct xe_graphics_desc graphics_xe2 = {
-	.name = "Xe2_LPG / Xe2_HPG",
+	.name = "Xe2_LPG / Xe2_HPG / Xe3_LPG",
 
 	XE2_GFX_FEATURES,
 };

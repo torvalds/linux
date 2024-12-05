@@ -236,7 +236,7 @@ static ssize_t hsmp_metric_tbl_acpi_read(struct file *filp, struct kobject *kobj
 }
 
 static umode_t hsmp_is_sock_attr_visible(struct kobject *kobj,
-					 struct bin_attribute *battr, int id)
+					 const struct bin_attribute *battr, int id)
 {
 	if (hsmp_pdev->proto_ver == HSMP_PROTO_VER6)
 		return battr->attr.mode;
@@ -372,7 +372,7 @@ static struct platform_driver amd_hsmp_driver = {
 
 module_platform_driver(amd_hsmp_driver);
 
-MODULE_IMPORT_NS(AMD_HSMP);
+MODULE_IMPORT_NS("AMD_HSMP");
 MODULE_DESCRIPTION("AMD HSMP Platform Interface Driver");
 MODULE_VERSION(DRIVER_VERSION);
 MODULE_LICENSE("GPL");

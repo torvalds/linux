@@ -333,6 +333,10 @@ typedef unsigned int __bitwise blk_features_t;
 #define BLK_FEAT_RAID_PARTIAL_STRIPES_EXPENSIVE \
 	((__force blk_features_t)(1u << 15))
 
+/* stacked device can/does support atomic writes */
+#define BLK_FEAT_ATOMIC_WRITES_STACKED \
+	((__force blk_features_t)(1u << 16))
+
 /*
  * Flags automatically inherited when stacking limits.
  */
@@ -775,13 +779,13 @@ static inline void bdev_clear_flag(struct block_device *bdev, unsigned flag)
 	atomic_andnot(flag, &bdev->__bd_flags);
 }
 
-static inline int get_disk_ro(struct gendisk *disk)
+static inline bool get_disk_ro(struct gendisk *disk)
 {
 	return bdev_test_flag(disk->part0, BD_READ_ONLY) ||
 		test_bit(GD_READ_ONLY, &disk->state);
 }
 
-static inline int bdev_read_only(struct block_device *bdev)
+static inline bool bdev_read_only(struct block_device *bdev)
 {
 	return bdev_test_flag(bdev, BD_READ_ONLY) || get_disk_ro(bdev->bd_disk);
 }
@@ -1261,7 +1265,7 @@ static inline unsigned int queue_io_min(const struct request_queue *q)
 	return q->limits.io_min;
 }
 
-static inline int bdev_io_min(struct block_device *bdev)
+static inline unsigned int bdev_io_min(struct block_device *bdev)
 {
 	return queue_io_min(bdev_get_queue(bdev));
 }
@@ -1271,7 +1275,7 @@ static inline unsigned int queue_io_opt(const struct request_queue *q)
 	return q->limits.io_opt;
 }
 
-static inline int bdev_io_opt(struct block_device *bdev)
+static inline unsigned int bdev_io_opt(struct block_device *bdev)
 {
 	return queue_io_opt(bdev_get_queue(bdev));
 }
@@ -1417,7 +1421,7 @@ static inline bool bdev_zone_is_seq(struct block_device *bdev, sector_t sector)
 	return is_seq;
 }
 
-static inline int queue_dma_alignment(const struct request_queue *q)
+static inline unsigned int queue_dma_alignment(const struct request_queue *q)
 {
 	return q->limits.dma_alignment;
 }
@@ -1458,12 +1462,13 @@ static inline bool bdev_iter_is_aligned(struct block_device *bdev,
 				   bdev_logical_block_size(bdev) - 1);
 }
 
-static inline int blk_lim_dma_alignment_and_pad(struct queue_limits *lim)
+static inline unsigned int
+blk_lim_dma_alignment_and_pad(struct queue_limits *lim)
 {
 	return lim->dma_alignment | lim->dma_pad_mask;
 }
 
-static inline int blk_rq_aligned(struct request_queue *q, unsigned long addr,
+static inline bool blk_rq_aligned(struct request_queue *q, unsigned long addr,
 				 unsigned int len)
 {
 	unsigned int alignment = blk_lim_dma_alignment_and_pad(&q->limits);
@@ -1581,7 +1586,6 @@ static inline void bio_end_io_acct(struct bio *bio, unsigned long start_time)
 	return bio_end_io_acct_remapped(bio, start_time, bio->bi_bdev);
 }
 
-int bdev_read_only(struct block_device *bdev);
 int set_blocksize(struct file *file, int size);
 
 int lookup_bdev(const char *pathname, dev_t *dev);

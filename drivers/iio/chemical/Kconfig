@@ -50,6 +50,8 @@ config BME680
 	select REGMAP
 	select BME680_I2C if I2C
 	select BME680_SPI if SPI
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
 	help
 	  Say yes here to build support for Bosch Sensortec BME680 sensor with
 	  temperature, pressure, humidity and gas sensing capability.

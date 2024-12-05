@@ -90,7 +90,7 @@ snd_soc_acpi_intel_detect_codec_type(struct device *dev)
 
 	return CODEC_NONE;
 }
-EXPORT_SYMBOL_NS(snd_soc_acpi_intel_detect_codec_type, SND_SOC_ACPI_INTEL_MATCH);
+EXPORT_SYMBOL_NS(snd_soc_acpi_intel_detect_codec_type, "SND_SOC_ACPI_INTEL_MATCH");
 
 enum snd_soc_acpi_intel_codec
 snd_soc_acpi_intel_detect_amp_type(struct device *dev)
@@ -107,7 +107,7 @@ snd_soc_acpi_intel_detect_amp_type(struct device *dev)
 
 	return CODEC_NONE;
 }
-EXPORT_SYMBOL_NS(snd_soc_acpi_intel_detect_amp_type, SND_SOC_ACPI_INTEL_MATCH);
+EXPORT_SYMBOL_NS(snd_soc_acpi_intel_detect_amp_type, "SND_SOC_ACPI_INTEL_MATCH");
 
 const char *
 snd_soc_acpi_intel_get_codec_name(enum snd_soc_acpi_intel_codec codec_type)
@@ -129,7 +129,7 @@ snd_soc_acpi_intel_get_codec_name(enum snd_soc_acpi_intel_codec codec_type)
 
 	return NULL;
 }
-EXPORT_SYMBOL_NS(snd_soc_acpi_intel_get_codec_name, SND_SOC_ACPI_INTEL_MATCH);
+EXPORT_SYMBOL_NS(snd_soc_acpi_intel_get_codec_name, "SND_SOC_ACPI_INTEL_MATCH");
 
 const char *
 snd_soc_acpi_intel_get_codec_tplg_suffix(enum snd_soc_acpi_intel_codec codec_type)
@@ -145,7 +145,7 @@ snd_soc_acpi_intel_get_codec_tplg_suffix(enum snd_soc_acpi_intel_codec codec_typ
 
 	return NULL;
 }
-EXPORT_SYMBOL_NS(snd_soc_acpi_intel_get_codec_tplg_suffix, SND_SOC_ACPI_INTEL_MATCH);
+EXPORT_SYMBOL_NS(snd_soc_acpi_intel_get_codec_tplg_suffix, "SND_SOC_ACPI_INTEL_MATCH");
 
 const char *
 snd_soc_acpi_intel_get_amp_tplg_suffix(enum snd_soc_acpi_intel_codec codec_type)
@@ -161,7 +161,7 @@ snd_soc_acpi_intel_get_amp_tplg_suffix(enum snd_soc_acpi_intel_codec codec_type)
 
 	return NULL;
 }
-EXPORT_SYMBOL_NS(snd_soc_acpi_intel_get_amp_tplg_suffix, SND_SOC_ACPI_INTEL_MATCH);
+EXPORT_SYMBOL_NS(snd_soc_acpi_intel_get_amp_tplg_suffix, "SND_SOC_ACPI_INTEL_MATCH");
 
 MODULE_DESCRIPTION("ASoC Intel SOF Common Machine Driver Helpers");
 MODULE_AUTHOR("Brent Lu <brent.lu@intel.com>");

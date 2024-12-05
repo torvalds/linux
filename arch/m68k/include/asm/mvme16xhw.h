@@ -24,23 +24,7 @@ typedef struct {
 
 #define mvmelp   ((*(volatile MVMElpPtr)(MVME_LPR_BASE)))
 
-typedef struct {
-	unsigned char
-		ctrl,
-		bcd_sec,
-		bcd_min,
-		bcd_hr,
-		bcd_dow,
-		bcd_dom,
-		bcd_mth,
-		bcd_year;
-} MK48T08_t, *MK48T08ptr_t;
-
-#define RTC_WRITE	0x80
-#define RTC_READ	0x40
-#define RTC_STOP	0x20
-
-#define MVME_RTC_BASE	0xfffc1ff8
+#define MVME_RTC_BASE	0xfffc0000
 
 #define MVME_I596_BASE	0xfff46000
 

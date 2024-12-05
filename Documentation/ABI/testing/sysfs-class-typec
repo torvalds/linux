@@ -149,6 +149,19 @@ Description:
 		advertise to the partner. The currently used capabilities are in
 		brackets. Selection happens by writing to the file.
 
+What:		/sys/class/typec/<port>/usb_capability
+Date:		November 2024
+Contact:	Heikki Krogerus <heikki.krogerus@linux.intel.com>
+Description:	Lists the supported USB Modes. The default USB mode that is used
+		next time with the Enter_USB Message is in brackets. The default
+		mode can be changed by writing to the file when supported by the
+		driver.
+
+		Valid values:
+		- usb2 (USB 2.0)
+		- usb3 (USB 3.2)
+		- usb4 (USB4)
+
 USB Type-C partner devices (eg. /sys/class/typec/port0-partner/)
 
 What:		/sys/class/typec/<port>-partner/accessory_mode
@@ -219,6 +232,20 @@ Description:
 		communication for the port is mostly handled in firmware. If the
 		directory exists, it will have an attribute file for every VDO
 		in Discover Identity command result.
+
+What:		/sys/class/typec/<port>-partner/usb_mode
+Date:		November 2024
+Contact:	Heikki Krogerus <heikki.krogerus@linux.intel.com>
+Description:	The USB Modes that the partner device supports. The active mode
+		is displayed in brackets. The active USB mode can be changed by
+		writing to this file when the port driver is able to send Data
+		Reset Message to the partner. That requires USB Power Delivery
+		contract between the partner and the port.
+
+		Valid values:
+		- usb2 (USB 2.0)
+		- usb3 (USB 3.2)
+		- usb4 (USB4)
 
 USB Type-C cable devices (eg. /sys/class/typec/port0-cable/)
 
