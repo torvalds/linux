@@ -252,12 +252,12 @@ int ocfs2_read_inline_data(struct inode *inode, struct page *page,
 	return 0;
 }
 
-static int ocfs2_readpage_inline(struct inode *inode, struct page *page)
+static int ocfs2_readpage_inline(struct inode *inode, struct folio *folio)
 {
 	int ret;
 	struct buffer_head *di_bh = NULL;
 
-	BUG_ON(!PageLocked(page));
+	BUG_ON(!folio_test_locked(folio));
 	BUG_ON(!(OCFS2_I(inode)->ip_dyn_features & OCFS2_INLINE_DATA_FL));
 
 	ret = ocfs2_read_inode_block(inode, &di_bh);
@@ -266,9 +266,9 @@ static int ocfs2_readpage_inline(struct inode *inode, struct page *page)
 		goto out;
 	}
 
-	ret = ocfs2_read_inline_data(inode, page, di_bh);
+	ret = ocfs2_read_inline_data(inode, &folio->page, di_bh);
 out:
-	unlock_page(page);
+	folio_unlock(folio);
 
 	brelse(di_bh);
 	return ret;
@@ -322,7 +322,7 @@ static int ocfs2_read_folio(struct file *file, struct folio *folio)
 	}
 
 	if (oi->ip_dyn_features & OCFS2_INLINE_DATA_FL)
-		ret = ocfs2_readpage_inline(inode, &folio->page);
+		ret = ocfs2_readpage_inline(inode, folio);
 	else
 		ret = block_read_full_folio(folio, ocfs2_get_block);
 	unlock = 0;
