@@ -346,8 +346,3 @@ const struct sparx5_match_data lan969x_desc = {
 	.consts     = &lan969x_consts,
 	.ops        = &lan969x_ops,
 };
-EXPORT_SYMBOL_GPL(lan969x_desc);
-
-MODULE_DESCRIPTION("Microchip lan969x switch driver");
-MODULE_AUTHOR("Daniel Machon <daniel.machon@microchip.com>");
-MODULE_LICENSE("Dual MIT/GPL");

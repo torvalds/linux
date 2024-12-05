@@ -24,7 +24,7 @@
 #include <linux/types.h>
 #include <linux/reset.h>
 
-#include "../lan969x/lan969x.h" /* for lan969x match data */
+#include "lan969x/lan969x.h" /* for lan969x match data */
 
 #include "sparx5_main_regs.h"
 #include "sparx5_main.h"
@@ -1093,7 +1093,7 @@ static const struct sparx5_match_data sparx5_desc = {
 
 static const struct of_device_id mchp_sparx5_match[] = {
 	{ .compatible = "microchip,sparx5-switch", .data = &sparx5_desc },
-#if IS_ENABLED(CONFIG_LAN969X_SWITCH)
+#ifdef CONFIG_LAN969X_SWITCH
 	{ .compatible = "microchip,lan9691-switch", .data = &lan969x_desc },
 #endif
 	{ }

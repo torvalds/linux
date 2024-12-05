@@ -15343,7 +15343,7 @@ M:	Daniel Machon <daniel.machon@microchip.com>
 M:	UNGLinuxDriver@microchip.com
 L:	netdev@vger.kernel.org
 S:	Maintained
-F:	drivers/net/ethernet/microchip/lan969x/*
+F:	drivers/net/ethernet/microchip/sparx5/lan969x/*
 
 MICROCHIP LCDFB DRIVER
 M:	Nicolas Ferre <nicolas.ferre@microchip.com>
