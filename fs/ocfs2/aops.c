@@ -215,10 +215,9 @@ bail:
 	return err;
 }
 
-int ocfs2_read_inline_data(struct inode *inode, struct page *page,
+int ocfs2_read_inline_data(struct inode *inode, struct folio *folio,
 			   struct buffer_head *di_bh)
 {
-	void *kaddr;
 	loff_t size;
 	struct ocfs2_dinode *di = (struct ocfs2_dinode *)di_bh->b_data;
 
@@ -230,7 +229,7 @@ int ocfs2_read_inline_data(struct inode *inode, struct page *page,
 
 	size = i_size_read(inode);
 
-	if (size > PAGE_SIZE ||
+	if (size > folio_size(folio) ||
 	    size > ocfs2_max_inline_data_with_xattr(inode->i_sb, di)) {
 		ocfs2_error(inode->i_sb,
 			    "Inode %llu has with inline data has bad size: %Lu\n",
@@ -239,15 +238,8 @@ int ocfs2_read_inline_data(struct inode *inode, struct page *page,
 		return -EROFS;
 	}
 
-	kaddr = kmap_atomic(page);
-	if (size)
-		memcpy(kaddr, di->id2.i_data.id_data, size);
-	/* Clear the remaining part of the page */
-	memset(kaddr + size, 0, PAGE_SIZE - size);
-	flush_dcache_page(page);
-	kunmap_atomic(kaddr);
-
-	SetPageUptodate(page);
+	folio_fill_tail(folio, 0, di->id2.i_data.id_data, size);
+	folio_mark_uptodate(folio);
 
 	return 0;
 }
@@ -266,7 +258,7 @@ static int ocfs2_readpage_inline(struct inode *inode, struct folio *folio)
 		goto out;
 	}
 
-	ret = ocfs2_read_inline_data(inode, &folio->page, di_bh);
+	ret = ocfs2_read_inline_data(inode, folio, di_bh);
 out:
 	folio_unlock(folio);
 
@@ -1506,7 +1498,7 @@ static int ocfs2_write_begin_inline(struct address_space *mapping,
 		ocfs2_set_inode_data_inline(inode, di);
 
 	if (!folio_test_uptodate(folio)) {
-		ret = ocfs2_read_inline_data(inode, &folio->page, wc->w_di_bh);
+		ret = ocfs2_read_inline_data(inode, folio, wc->w_di_bh);
 		if (ret) {
 			ocfs2_commit_trans(osb, handle);
 

@@ -41,7 +41,7 @@ int ocfs2_write_begin_nolock(struct address_space *mapping,
 		struct folio **foliop, void **fsdata,
 		struct buffer_head *di_bh, struct folio *mmap_folio);
 
-int ocfs2_read_inline_data(struct inode *inode, struct page *page,
+int ocfs2_read_inline_data(struct inode *inode, struct folio *folio,
 			   struct buffer_head *di_bh);
 int ocfs2_size_fits_inline_data(struct buffer_head *di_bh, u64 new_size);
 

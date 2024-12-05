@@ -7135,7 +7135,7 @@ int ocfs2_convert_inline_data_to_extents(struct inode *inode,
 		 * This should populate the 1st page for us and mark
 		 * it up to date.
 		 */
-		ret = ocfs2_read_inline_data(inode, &folio->page, di_bh);
+		ret = ocfs2_read_inline_data(inode, folio, di_bh);
 		if (ret) {
 			mlog_errno(ret);
 			need_free = 1;
