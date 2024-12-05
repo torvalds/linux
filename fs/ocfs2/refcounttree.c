@@ -2975,9 +2975,8 @@ retry:
 			}
 		}
 
-		ocfs2_map_and_dirty_page(inode,
-					 handle, from, to,
-					 &folio->page, 0, &new_block);
+		ocfs2_map_and_dirty_folio(inode, handle, from, to,
+				folio, 0, &new_block);
 		folio_mark_accessed(folio);
 unlock:
 		folio_unlock(folio);

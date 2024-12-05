@@ -6808,11 +6808,10 @@ static int ocfs2_zero_func(handle_t *handle, struct buffer_head *bh)
 	return 0;
 }
 
-void ocfs2_map_and_dirty_page(struct inode *inode, handle_t *handle,
-			      unsigned int from, unsigned int to,
-			      struct page *page, int zero, u64 *phys)
+void ocfs2_map_and_dirty_folio(struct inode *inode, handle_t *handle,
+		size_t from, size_t to, struct folio *folio, int zero,
+		u64 *phys)
 {
-	struct folio *folio = page_folio(page);
 	int ret, partial = 0;
 	loff_t start_byte = folio_pos(folio) + from;
 	loff_t length = to - from;
@@ -6871,8 +6870,8 @@ static void ocfs2_zero_cluster_folios(struct inode *inode, loff_t start,
 		BUG_ON(from > PAGE_SIZE);
 		BUG_ON(to > PAGE_SIZE);
 
-		ocfs2_map_and_dirty_page(inode, handle, from, to, &folio->page, 1,
-					 &phys);
+		ocfs2_map_and_dirty_folio(inode, handle, from, to, folio, 1,
+				&phys);
 
 		start = (folio->index + 1) << PAGE_SHIFT;
 	}
@@ -7120,7 +7119,7 @@ int ocfs2_convert_inline_data_to_extents(struct inode *inode,
 
 		/*
 		 * Save two copies, one for insert, and one that can
-		 * be changed by ocfs2_map_and_dirty_page() below.
+		 * be changed by ocfs2_map_and_dirty_folio() below.
 		 */
 		block = phys = ocfs2_clusters_to_blocks(inode->i_sb, bit_off);
 
@@ -7143,8 +7142,8 @@ int ocfs2_convert_inline_data_to_extents(struct inode *inode,
 			goto out_unlock;
 		}
 
-		ocfs2_map_and_dirty_page(inode, handle, 0, page_end, &folio->page, 0,
-					 &phys);
+		ocfs2_map_and_dirty_folio(inode, handle, 0, page_end, folio, 0,
+				&phys);
 	}
 
 	spin_lock(&oi->ip_lock);

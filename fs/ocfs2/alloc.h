@@ -254,9 +254,9 @@ static inline int ocfs2_is_empty_extent(struct ocfs2_extent_rec *rec)
 	return !rec->e_leaf_clusters;
 }
 
-void ocfs2_map_and_dirty_page(struct inode *inode, handle_t *handle,
-			      unsigned int from, unsigned int to,
-			      struct page *page, int zero, u64 *phys);
+void ocfs2_map_and_dirty_folio(struct inode *inode, handle_t *handle,
+		size_t from, size_t to, struct folio *folio, int zero,
+		u64 *phys);
 /*
  * Structures which describe a path through a btree, and functions to
  * manipulate them.
