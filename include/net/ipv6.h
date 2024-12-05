@@ -471,7 +471,7 @@ struct ipv6_txoptions *ipv6_update_options(struct sock *sk,
 /* This helper is specialized for BIG TCP needs.
  * It assumes the hop_jumbo_hdr will immediately follow the IPV6 header.
  * It assumes headers are already in skb->head.
- * Returns 0, or IPPROTO_TCP if a BIG TCP packet is there.
+ * Returns: 0, or IPPROTO_TCP if a BIG TCP packet is there.
  */
 static inline int ipv6_has_hopopt_jumbo(const struct sk_buff *skb)
 {

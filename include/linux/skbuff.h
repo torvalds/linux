@@ -1134,7 +1134,7 @@ static inline bool skb_pfmemalloc(const struct sk_buff *skb)
  * skb_dst - returns skb dst_entry
  * @skb: buffer
  *
- * Returns skb dst_entry, regardless of reference taken or not.
+ * Returns: skb dst_entry, regardless of reference taken or not.
  */
 static inline struct dst_entry *skb_dst(const struct sk_buff *skb)
 {
@@ -1222,7 +1222,7 @@ static inline bool skb_wifi_acked_valid(const struct sk_buff *skb)
  * skb_unref - decrement the skb's reference count
  * @skb: buffer
  *
- * Returns true if we can free the skb.
+ * Returns: true if we can free the skb.
  */
 static inline bool skb_unref(struct sk_buff *skb)
 {
@@ -1344,7 +1344,7 @@ struct sk_buff_fclones {
  *	@sk: socket
  *	@skb: buffer
  *
- * Returns true if skb is a fast clone, and its clone is not freed.
+ * Returns: true if skb is a fast clone, and its clone is not freed.
  * Some drivers call skb_orphan() in their ndo_start_xmit(),
  * so we also check that didn't happen.
  */
@@ -3516,7 +3516,7 @@ static inline struct page *__dev_alloc_page_noprof(gfp_t gfp_mask)
  * A page shouldn't be considered for reusing/recycling if it was allocated
  * under memory pressure or at a distant memory node.
  *
- * Returns false if this page should be returned to page allocator, true
+ * Returns: false if this page should be returned to page allocator, true
  * otherwise.
  */
 static inline bool dev_page_is_reusable(const struct page *page)
@@ -3633,7 +3633,7 @@ int skb_cow_data_for_xdp(struct page_pool *pool, struct sk_buff **pskb,
  * skb_frag_address - gets the address of the data contained in a paged fragment
  * @frag: the paged fragment buffer
  *
- * Returns the address of the data within @frag. The page must already
+ * Returns: the address of the data within @frag. The page must already
  * be mapped.
  */
 static inline void *skb_frag_address(const skb_frag_t *frag)
@@ -3648,7 +3648,7 @@ static inline void *skb_frag_address(const skb_frag_t *frag)
  * skb_frag_address_safe - gets the address of the data contained in a paged fragment
  * @frag: the paged fragment buffer
  *
- * Returns the address of the data within @frag. Checks that the page
+ * Returns: the address of the data within @frag. Checks that the page
  * is mapped and returns %NULL otherwise.
  */
 static inline void *skb_frag_address_safe(const skb_frag_t *frag)
@@ -3890,7 +3890,7 @@ static inline int skb_linearize(struct sk_buff *skb)
  * skb_has_shared_frag - can any frag be overwritten
  * @skb: buffer to test
  *
- * Return true if the skb has at least one frag that might be modified
+ * Return: true if the skb has at least one frag that might be modified
  * by an external entity (as in vmsplice()/sendfile())
  */
 static inline bool skb_has_shared_frag(const struct sk_buff *skb)
@@ -4612,7 +4612,7 @@ static inline void __skb_reset_checksum_unnecessary(struct sk_buff *skb)
 
 /* Check if we need to perform checksum complete validation.
  *
- * Returns true if checksum complete is needed, false otherwise
+ * Returns: true if checksum complete is needed, false otherwise
  * (either checksum is unnecessary or zero checksum is allowed).
  */
 static inline bool __skb_checksum_validate_needed(struct sk_buff *skb,

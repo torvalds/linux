@@ -5957,7 +5957,7 @@ int wiphy_register(struct wiphy *wiphy);
  * @wiphy: the wiphy to check the locking on
  * @p: The pointer to read, prior to dereferencing
  *
- * Return the value of the specified RCU-protected pointer, but omit the
+ * Return: the value of the specified RCU-protected pointer, but omit the
  * READ_ONCE(), because caller holds the wiphy mutex used for updates.
  */
 #define wiphy_dereference(wiphy, p)				\

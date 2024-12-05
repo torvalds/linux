@@ -257,7 +257,7 @@ struct ethtool_link_ksettings {
  *   @mode : one of the ETHTOOL_LINK_MODE_*_BIT
  * (not atomic, no bound checking)
  *
- * Returns true/false.
+ * Returns: true/false.
  */
 #define ethtool_link_ksettings_test_link_mode(ptr, name, mode)		\
 	test_bit(ETHTOOL_LINK_MODE_ ## mode ## _BIT, (ptr)->link_modes.name)
@@ -1199,7 +1199,7 @@ ethtool_params_from_link_mode(struct ethtool_link_ksettings *link_ksettings,
  * @dev: pointer to net_device structure
  * @vclock_index: pointer to pointer of vclock index
  *
- * Return number of phc vclocks
+ * Return: number of phc vclocks
  */
 int ethtool_get_phc_vclocks(struct net_device *dev, int **vclock_index);
 
@@ -1253,7 +1253,7 @@ static inline int ethtool_mm_frag_size_min_to_add(u32 val_min, u32 *val_add,
  * ethtool_get_ts_info_by_layer - Obtains time stamping capabilities from the MAC or PHY layer.
  * @dev: pointer to net_device structure
  * @info: buffer to hold the result
- * Returns zero on success, non-zero otherwise.
+ * Returns: zero on success, non-zero otherwise.
  */
 int ethtool_get_ts_info_by_layer(struct net_device *dev,
 				 struct kernel_ethtool_ts_info *info);

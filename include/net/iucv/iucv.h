@@ -202,7 +202,7 @@ struct iucv_handler {
  *
  * Registers a driver with IUCV.
  *
- * Returns 0 on success, -ENOMEM if the memory allocation for the pathid
+ * Returns: 0 on success, -ENOMEM if the memory allocation for the pathid
  * table failed, or -EIO if IUCV_DECLARE_BUFFER failed on all cpus.
  */
 int iucv_register(struct iucv_handler *handler, int smp);
@@ -224,7 +224,7 @@ void iucv_unregister(struct iucv_handler *handle, int smp);
  *
  * Allocate a new path structure for use with iucv_connect.
  *
- * Returns NULL if the memory allocation failed or a pointer to the
+ * Returns: NULL if the memory allocation failed or a pointer to the
  * path structure.
  */
 static inline struct iucv_path *iucv_path_alloc(u16 msglim, u8 flags, gfp_t gfp)
@@ -260,7 +260,7 @@ static inline void iucv_path_free(struct iucv_path *path)
  * This function is issued after the user received a connection pending
  * external interrupt and now wishes to complete the IUCV communication path.
  *
- * Returns the result of the CP IUCV call.
+ * Returns: the result of the CP IUCV call.
  */
 int iucv_path_accept(struct iucv_path *path, struct iucv_handler *handler,
 		     u8 *userdata, void *private);
@@ -278,7 +278,7 @@ int iucv_path_accept(struct iucv_path *path, struct iucv_handler *handler,
  * successfully, you are not able to use the path until you receive an IUCV
  * Connection Complete external interrupt.
  *
- * Returns the result of the CP IUCV call.
+ * Returns: the result of the CP IUCV call.
  */
 int iucv_path_connect(struct iucv_path *path, struct iucv_handler *handler,
 		      u8 *userid, u8 *system, u8 *userdata,
@@ -292,7 +292,7 @@ int iucv_path_connect(struct iucv_path *path, struct iucv_handler *handler,
  * This function temporarily suspends incoming messages on an IUCV path.
  * You can later reactivate the path by invoking the iucv_resume function.
  *
- * Returns the result from the CP IUCV call.
+ * Returns: the result from the CP IUCV call.
  */
 int iucv_path_quiesce(struct iucv_path *path, u8 *userdata);
 
@@ -304,7 +304,7 @@ int iucv_path_quiesce(struct iucv_path *path, u8 *userdata);
  * This function resumes incoming messages on an IUCV path that has
  * been stopped with iucv_path_quiesce.
  *
- * Returns the result from the CP IUCV call.
+ * Returns: the result from the CP IUCV call.
  */
 int iucv_path_resume(struct iucv_path *path, u8 *userdata);
 
@@ -315,7 +315,7 @@ int iucv_path_resume(struct iucv_path *path, u8 *userdata);
  *
  * This function terminates an IUCV path.
  *
- * Returns the result from the CP IUCV call.
+ * Returns: the result from the CP IUCV call.
  */
 int iucv_path_sever(struct iucv_path *path, u8 *userdata);
 
@@ -327,7 +327,7 @@ int iucv_path_sever(struct iucv_path *path, u8 *userdata);
  *
  * Cancels a message you have sent.
  *
- * Returns the result from the CP IUCV call.
+ * Returns: the result from the CP IUCV call.
  */
 int iucv_message_purge(struct iucv_path *path, struct iucv_message *msg,
 		       u32 srccls);
@@ -347,7 +347,7 @@ int iucv_message_purge(struct iucv_path *path, struct iucv_message *msg,
  *
  * Locking:	local_bh_enable/local_bh_disable
  *
- * Returns the result from the CP IUCV call.
+ * Returns: the result from the CP IUCV call.
  */
 int iucv_message_receive(struct iucv_path *path, struct iucv_message *msg,
 			 u8 flags, void *buffer, size_t size, size_t *residual);
@@ -367,7 +367,7 @@ int iucv_message_receive(struct iucv_path *path, struct iucv_message *msg,
  *
  * Locking:	no locking.
  *
- * Returns the result from the CP IUCV call.
+ * Returns: the result from the CP IUCV call.
  */
 int __iucv_message_receive(struct iucv_path *path, struct iucv_message *msg,
 			   u8 flags, void *buffer, size_t size,
@@ -382,7 +382,7 @@ int __iucv_message_receive(struct iucv_path *path, struct iucv_message *msg,
  * are notified of a message and the time that you complete the message,
  * the message may be rejected.
  *
- * Returns the result from the CP IUCV call.
+ * Returns: the result from the CP IUCV call.
  */
 int iucv_message_reject(struct iucv_path *path, struct iucv_message *msg);
 
@@ -399,7 +399,7 @@ int iucv_message_reject(struct iucv_path *path, struct iucv_message *msg);
  * pathid, msgid, and trgcls. Prmmsg signifies the data is moved into
  * the parameter list.
  *
- * Returns the result from the CP IUCV call.
+ * Returns: the result from the CP IUCV call.
  */
 int iucv_message_reply(struct iucv_path *path, struct iucv_message *msg,
 		       u8 flags, void *reply, size_t size);
@@ -419,7 +419,7 @@ int iucv_message_reply(struct iucv_path *path, struct iucv_message *msg,
  *
  * Locking:	local_bh_enable/local_bh_disable
  *
- * Returns the result from the CP IUCV call.
+ * Returns: the result from the CP IUCV call.
  */
 int iucv_message_send(struct iucv_path *path, struct iucv_message *msg,
 		      u8 flags, u32 srccls, void *buffer, size_t size);
@@ -439,7 +439,7 @@ int iucv_message_send(struct iucv_path *path, struct iucv_message *msg,
  *
  * Locking:	no locking.
  *
- * Returns the result from the CP IUCV call.
+ * Returns: the result from the CP IUCV call.
  */
 int __iucv_message_send(struct iucv_path *path, struct iucv_message *msg,
 			u8 flags, u32 srccls, void *buffer, size_t size);
@@ -461,7 +461,7 @@ int __iucv_message_send(struct iucv_path *path, struct iucv_message *msg,
  * reply to the message and a buffer is provided into which IUCV moves
  * the reply to this message.
  *
- * Returns the result from the CP IUCV call.
+ * Returns: the result from the CP IUCV call.
  */
 int iucv_message_send2way(struct iucv_path *path, struct iucv_message *msg,
 			  u8 flags, u32 srccls, void *buffer, size_t size,

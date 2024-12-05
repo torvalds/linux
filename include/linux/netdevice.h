@@ -509,7 +509,7 @@ static inline bool napi_prefer_busy_poll(struct napi_struct *n)
  * is scheduled for example in the context of delayed timer
  * that can be skipped if a NAPI is already scheduled.
  *
- * Return True if NAPI is scheduled, False otherwise.
+ * Return: True if NAPI is scheduled, False otherwise.
  */
 static inline bool napi_is_scheduled(struct napi_struct *n)
 {
@@ -524,7 +524,7 @@ bool napi_schedule_prep(struct napi_struct *n);
  *
  * Schedule NAPI poll routine to be called if it is not already
  * running.
- * Return true if we schedule a NAPI or false if not.
+ * Return: true if we schedule a NAPI or false if not.
  * Refer to napi_schedule_prep() for additional reason on why
  * a NAPI might not be scheduled.
  */
@@ -558,7 +558,7 @@ static inline void napi_schedule_irqoff(struct napi_struct *n)
  * Mark NAPI processing as complete. Should only be called if poll budget
  * has not been completely consumed.
  * Prefer over napi_complete().
- * Return false if device should avoid rearming interrupts.
+ * Return: false if device should avoid rearming interrupts.
  */
 bool napi_complete_done(struct napi_struct *n, int work_done);
 
@@ -3851,7 +3851,7 @@ static inline bool netif_attr_test_mask(unsigned long j,
  *	@online_mask: bitmask for CPUs/Rx queues that are online
  *	@nr_bits: number of bits in the bitmask
  *
- * Returns true if a CPU/Rx queue is online.
+ * Returns: true if a CPU/Rx queue is online.
  */
 static inline bool netif_attr_test_online(unsigned long j,
 					  const unsigned long *online_mask,
@@ -3871,7 +3871,8 @@ static inline bool netif_attr_test_online(unsigned long j,
  *	@srcp: the cpumask/Rx queue mask pointer
  *	@nr_bits: number of bits in the bitmask
  *
- * Returns >= nr_bits if no further CPUs/Rx queues set.
+ * Returns: next (after n) CPU/Rx queue index in the mask;
+ * >= nr_bits if no further CPUs/Rx queues set.
  */
 static inline unsigned int netif_attrmask_next(int n, const unsigned long *srcp,
 					       unsigned int nr_bits)
@@ -3893,7 +3894,8 @@ static inline unsigned int netif_attrmask_next(int n, const unsigned long *srcp,
  *	@src2p: the second CPUs/Rx queues mask pointer
  *	@nr_bits: number of bits in the bitmask
  *
- * Returns >= nr_bits if no further CPUs/Rx queues set in both.
+ * Returns: next (after n) CPU/Rx queue index set in both masks;
+ * >= nr_bits if no further CPUs/Rx queues set in both.
  */
 static inline int netif_attrmask_next_and(int n, const unsigned long *src1p,
 					  const unsigned long *src2p,

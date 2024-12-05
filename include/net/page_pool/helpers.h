@@ -104,8 +104,7 @@ static inline struct page *page_pool_dev_alloc_pages(struct page_pool *pool)
  *
  * Get a page fragment from the page allocator or page_pool caches.
  *
- * Return:
- * Return allocated page fragment, otherwise return NULL.
+ * Return: allocated page fragment, otherwise return NULL.
  */
 static inline struct page *page_pool_dev_alloc_frag(struct page_pool *pool,
 						    unsigned int *offset,
@@ -155,8 +154,7 @@ static inline struct page *page_pool_alloc(struct page_pool *pool,
  * depending on the requested size in order to allocate memory with least memory
  * utilization and performance penalty.
  *
- * Return:
- * Return allocated page or page fragment, otherwise return NULL.
+ * Return: allocated page or page fragment, otherwise return NULL.
  */
 static inline struct page *page_pool_dev_alloc(struct page_pool *pool,
 					       unsigned int *offset,
@@ -190,8 +188,7 @@ static inline void *page_pool_alloc_va(struct page_pool *pool,
  * This is just a thin wrapper around the page_pool_alloc() API, and
  * it returns va of the allocated page or page fragment.
  *
- * Return:
- * Return the va for the allocated page or page fragment, otherwise return NULL.
+ * Return: the va for the allocated page or page fragment, otherwise return NULL.
  */
 static inline void *page_pool_dev_alloc_va(struct page_pool *pool,
 					   unsigned int *size)
