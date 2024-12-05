@@ -941,6 +941,17 @@ static void calculate_adjust_recout_for_visual_confirm(struct pipe_ctx *pipe_ctx
 		*base_offset = VISUAL_CONFIRM_BASE_DEFAULT;
 }
 
+static void reverse_adjust_recout_for_visual_confirm(struct rect *recout,
+		struct pipe_ctx *pipe_ctx)
+{
+	int dpp_offset, base_offset;
+
+	calculate_adjust_recout_for_visual_confirm(pipe_ctx, &base_offset,
+		&dpp_offset);
+	recout->height += base_offset;
+	recout->height += dpp_offset;
+}
+
 static void adjust_recout_for_visual_confirm(struct rect *recout,
 		struct pipe_ctx *pipe_ctx)
 {
@@ -1639,6 +1650,62 @@ bool resource_build_scaling_params(struct pipe_ctx *pipe_ctx)
 	pipe_ctx->stream->dst.y -= timing->v_border_top;
 
 	return res;
+}
+
+bool resource_can_pipe_disable_cursor(struct pipe_ctx *pipe_ctx)
+{
+	struct pipe_ctx *test_pipe, *split_pipe;
+	struct rect r1 = pipe_ctx->plane_res.scl_data.recout;
+	int r1_right, r1_bottom;
+	int cur_layer = pipe_ctx->plane_state->layer_index;
+
+	reverse_adjust_recout_for_visual_confirm(&r1, pipe_ctx);
+	r1_right = r1.x + r1.width;
+	r1_bottom = r1.y + r1.height;
+
+	/**
+	 * Disable the cursor if there's another pipe above this with a
+	 * plane that contains this pipe's viewport to prevent double cursor
+	 * and incorrect scaling artifacts.
+	 */
+	for (test_pipe = pipe_ctx->top_pipe; test_pipe;
+	     test_pipe = test_pipe->top_pipe) {
+		struct rect r2;
+		int r2_right, r2_bottom;
+		// Skip invisible layer and pipe-split plane on same layer
+		if (!test_pipe->plane_state ||
+		    !test_pipe->plane_state->visible ||
+		    test_pipe->plane_state->layer_index == cur_layer)
+			continue;
+
+		r2 = test_pipe->plane_res.scl_data.recout;
+		reverse_adjust_recout_for_visual_confirm(&r2, test_pipe);
+		r2_right = r2.x + r2.width;
+		r2_bottom = r2.y + r2.height;
+
+		/**
+		 * There is another half plane on same layer because of
+		 * pipe-split, merge together per same height.
+		 */
+		for (split_pipe = pipe_ctx->top_pipe; split_pipe;
+		     split_pipe = split_pipe->top_pipe)
+			if (split_pipe->plane_state->layer_index == test_pipe->plane_state->layer_index) {
+				struct rect r2_half;
+
+				r2_half = split_pipe->plane_res.scl_data.recout;
+				reverse_adjust_recout_for_visual_confirm(&r2_half, split_pipe);
+				r2.x = min(r2_half.x, r2.x);
+				r2.width = r2.width + r2_half.width;
+				r2_right = r2.x + r2.width;
+				r2_bottom = min(r2_bottom, r2_half.y + r2_half.height);
+				break;
+			}
+
+		if (r1.x >= r2.x && r1.y >= r2.y && r1_right <= r2_right && r1_bottom <= r2_bottom)
+			return true;
+	}
+
+	return false;
 }
 
 

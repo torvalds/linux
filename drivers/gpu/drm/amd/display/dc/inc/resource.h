@@ -152,6 +152,8 @@ bool resource_attach_surfaces_to_context(
 		struct dc_state *context,
 		const struct resource_pool *pool);
 
+bool resource_can_pipe_disable_cursor(struct pipe_ctx *pipe_ctx);
+
 #define FREE_PIPE_INDEX_NOT_FOUND -1
 
 /*
