@@ -660,7 +660,11 @@ int ixgbe_get_bus_info_generic(struct ixgbe_hw *hw)
 	hw->bus.type = ixgbe_bus_type_pci_express;
 
 	/* Get the negotiated link width and speed from PCI config space */
-	link_status = ixgbe_read_pci_cfg_word(hw, IXGBE_PCI_LINK_STATUS);
+	if (hw->mac.type == ixgbe_mac_e610)
+		link_status = ixgbe_read_pci_cfg_word(hw, IXGBE_PCI_LINK_STATUS_E610);
+	else
+		link_status = ixgbe_read_pci_cfg_word(hw,
+						      IXGBE_PCI_LINK_STATUS);
 
 	hw->bus.width = ixgbe_convert_bus_width(link_status);
 	hw->bus.speed = ixgbe_convert_bus_speed(link_status);
