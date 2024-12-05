@@ -48,6 +48,7 @@
 
 #define CS42L43_MCU_SUPPORTED_REV		0x2105
 #define CS42L43_MCU_SHADOW_REGS_REQUIRED_REV	0x2200
+#define CS42L43_BIOS_SHADOW_REGS_REQUIRED_REV	0x1002
 #define CS42L43_MCU_SUPPORTED_BIOS_REV		0x0001
 
 #define CS42L43_VDDP_DELAY_US			50
@@ -773,7 +774,8 @@ static int cs42l43_mcu_update_step(struct cs42l43 *cs42l43)
 	 * Later versions of the firmwware require the driver to access some
 	 * features through a set of shadow registers.
 	 */
-	shadow = mcu_rev >= CS42L43_MCU_SHADOW_REGS_REQUIRED_REV;
+	shadow = (mcu_rev >= CS42L43_MCU_SHADOW_REGS_REQUIRED_REV) ||
+		 (bios_rev >= CS42L43_BIOS_SHADOW_REGS_REQUIRED_REV);
 
 	ret = regmap_read(cs42l43->regmap, CS42L43_BOOT_CONTROL, &secure_cfg);
 	if (ret) {
