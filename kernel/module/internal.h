@@ -327,7 +327,8 @@ static inline struct module *mod_find(unsigned long addr, struct mod_tree_root *
 }
 #endif /* CONFIG_MODULES_TREE_LOOKUP */
 
-int module_enable_rodata_ro(const struct module *mod, bool after_init);
+int module_enable_rodata_ro(const struct module *mod);
+int module_enable_rodata_ro_after_init(const struct module *mod);
 int module_enable_data_nx(const struct module *mod);
 int module_enable_text_rox(const struct module *mod);
 int module_enforce_rwx_sections(Elf_Ehdr *hdr, Elf_Shdr *sechdrs,

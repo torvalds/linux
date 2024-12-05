@@ -2953,7 +2953,7 @@ static noinline int do_init_module(struct module *mod)
 	/* Switch to core kallsyms now init is done: kallsyms may be walking! */
 	rcu_assign_pointer(mod->kallsyms, &mod->core_kallsyms);
 #endif
-	ret = module_enable_rodata_ro(mod, true);
+	ret = module_enable_rodata_ro_after_init(mod);
 	if (ret)
 		goto fail_mutex_unlock;
 	mod_tree_remove_init(mod);
@@ -3123,7 +3123,7 @@ static int complete_formation(struct module *mod, struct load_info *info)
 	module_bug_finalize(info->hdr, info->sechdrs, mod);
 	module_cfi_finalize(info->hdr, info->sechdrs, mod);
 
-	err = module_enable_rodata_ro(mod, false);
+	err = module_enable_rodata_ro(mod);
 	if (err)
 		goto out_strict_rwx;
 	err = module_enable_data_nx(mod);
