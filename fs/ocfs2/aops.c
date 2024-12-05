@@ -1473,7 +1473,7 @@ static int ocfs2_write_begin_inline(struct address_space *mapping,
 {
 	int ret;
 	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
-	struct page *page;
+	struct folio *folio;
 	handle_t *handle;
 	struct ocfs2_dinode *di = (struct ocfs2_dinode *)wc->w_di_bh->b_data;
 
@@ -1484,19 +1484,20 @@ static int ocfs2_write_begin_inline(struct address_space *mapping,
 		goto out;
 	}
 
-	page = find_or_create_page(mapping, 0, GFP_NOFS);
-	if (!page) {
+	folio = __filemap_get_folio(mapping, 0,
+			FGP_LOCK | FGP_ACCESSED | FGP_CREAT, GFP_NOFS);
+	if (IS_ERR(folio)) {
 		ocfs2_commit_trans(osb, handle);
-		ret = -ENOMEM;
+		ret = PTR_ERR(folio);
 		mlog_errno(ret);
 		goto out;
 	}
 	/*
-	 * If we don't set w_num_pages then this page won't get unlocked
+	 * If we don't set w_num_pages then this folio won't get unlocked
 	 * and freed on cleanup of the write context.
 	 */
-	wc->w_target_folio = page_folio(page);
-	wc->w_pages[0] = page;
+	wc->w_target_folio = folio;
+	wc->w_pages[0] = &folio->page;
 	wc->w_num_pages = 1;
 
 	ret = ocfs2_journal_access_di(handle, INODE_CACHE(inode), wc->w_di_bh,
@@ -1511,8 +1512,8 @@ static int ocfs2_write_begin_inline(struct address_space *mapping,
 	if (!(OCFS2_I(inode)->ip_dyn_features & OCFS2_INLINE_DATA_FL))
 		ocfs2_set_inode_data_inline(inode, di);
 
-	if (!PageUptodate(page)) {
-		ret = ocfs2_read_inline_data(inode, page, wc->w_di_bh);
+	if (!folio_test_uptodate(folio)) {
+		ret = ocfs2_read_inline_data(inode, &folio->page, wc->w_di_bh);
 		if (ret) {
 			ocfs2_commit_trans(osb, handle);
 
