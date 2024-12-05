@@ -101,6 +101,7 @@ static void kfd_device_info_set_sdma_info(struct kfd_dev *kfd)
 	case IP_VERSION(6, 1, 0):
 	case IP_VERSION(6, 1, 1):
 	case IP_VERSION(6, 1, 2):
+	case IP_VERSION(6, 1, 3):
 	case IP_VERSION(7, 0, 0):
 	case IP_VERSION(7, 0, 1):
 		kfd->device_info.num_sdma_queues_per_engine = 8;
@@ -122,6 +123,7 @@ static void kfd_device_info_set_sdma_info(struct kfd_dev *kfd)
 	case IP_VERSION(6, 1, 0):
 	case IP_VERSION(6, 1, 1):
 	case IP_VERSION(6, 1, 2):
+	case IP_VERSION(6, 1, 3):
 	case IP_VERSION(7, 0, 0):
 	case IP_VERSION(7, 0, 1):
 		/* Reserve 1 for paging and 1 for gfx */
