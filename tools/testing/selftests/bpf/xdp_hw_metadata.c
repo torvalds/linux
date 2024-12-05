@@ -551,6 +551,7 @@ static void hwtstamp_enable(const char *ifname)
 {
 	struct hwtstamp_config cfg = {
 		.rx_filter = HWTSTAMP_FILTER_ALL,
+		.tx_type = HWTSTAMP_TX_ON,
 	};
 
 	hwtstamp_ioctl(SIOCGHWTSTAMP, ifname, &saved_hwtstamp_cfg);
