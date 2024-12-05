@@ -105,8 +105,6 @@ static const char * const event_class_str[] = {
 	[3] = "Reserved",
 };
 
-static int arm_smmu_domain_finalise(struct arm_smmu_domain *smmu_domain,
-				    struct arm_smmu_device *smmu, u32 flags);
 static int arm_smmu_alloc_cd_tables(struct arm_smmu_master *master);
 
 static void parse_driver_options(struct arm_smmu_device *smmu)
@@ -2466,34 +2464,6 @@ struct arm_smmu_domain *arm_smmu_domain_alloc(void)
 	return smmu_domain;
 }
 
-static struct iommu_domain *arm_smmu_domain_alloc_paging(struct device *dev)
-{
-	struct arm_smmu_master *master = dev_iommu_priv_get(dev);
-	struct arm_smmu_domain *smmu_domain;
-	int ret;
-
-	/*
-	 * Allocate the domain and initialise some of its data structures.
-	 * We can't really do anything meaningful until we've added a
-	 * master.
-	 */
-	smmu_domain = arm_smmu_domain_alloc();
-	if (IS_ERR(smmu_domain))
-		return ERR_CAST(smmu_domain);
-
-	if (master->smmu->features & ARM_SMMU_FEAT_TRANS_S1)
-		smmu_domain->stage = ARM_SMMU_DOMAIN_S1;
-	else
-		smmu_domain->stage = ARM_SMMU_DOMAIN_S2;
-
-	ret = arm_smmu_domain_finalise(smmu_domain, master->smmu, 0);
-	if (ret) {
-		kfree(smmu_domain);
-		return ERR_PTR(ret);
-	}
-	return &smmu_domain->domain;
-}
-
 static void arm_smmu_domain_free_paging(struct iommu_domain *domain)
 {
 	struct arm_smmu_domain *smmu_domain = to_smmu_domain(domain);
@@ -3656,7 +3626,6 @@ static struct iommu_ops arm_smmu_ops = {
 	.blocked_domain		= &arm_smmu_blocked_domain,
 	.capable		= arm_smmu_capable,
 	.hw_info		= arm_smmu_hw_info,
-	.domain_alloc_paging    = arm_smmu_domain_alloc_paging,
 	.domain_alloc_sva       = arm_smmu_sva_domain_alloc,
 	.domain_alloc_paging_flags = arm_smmu_domain_alloc_paging_flags,
 	.probe_device		= arm_smmu_probe_device,
