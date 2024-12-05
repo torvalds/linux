@@ -3,8 +3,10 @@
 
 #include "ixgbe_common.h"
 #include "ixgbe_e610.h"
+#include "ixgbe_x550.h"
 #include "ixgbe_type.h"
 #include "ixgbe_x540.h"
+#include "ixgbe_mbx.h"
 #include "ixgbe_phy.h"
 
 /**
@@ -2491,3 +2493,166 @@ int ixgbe_validate_eeprom_checksum_e610(struct ixgbe_hw *hw, u16 *checksum_val)
 
 	return err;
 }
+
+/**
+ * ixgbe_reset_hw_e610 - Perform hardware reset
+ * @hw: pointer to hardware structure
+ *
+ * Resets the hardware by resetting the transmit and receive units, masks
+ * and clears all interrupts, and performs a reset.
+ *
+ * Return: the exit code of the operation.
+ */
+int ixgbe_reset_hw_e610(struct ixgbe_hw *hw)
+{
+	u32 swfw_mask = hw->phy.phy_semaphore_mask;
+	u32 ctrl, i;
+	int err;
+
+	/* Call adapter stop to disable tx/rx and clear interrupts */
+	err = hw->mac.ops.stop_adapter(hw);
+	if (err)
+		goto reset_hw_out;
+
+	/* Flush pending Tx transactions. */
+	ixgbe_clear_tx_pending(hw);
+
+	hw->phy.ops.init(hw);
+mac_reset_top:
+	err = hw->mac.ops.acquire_swfw_sync(hw, swfw_mask);
+	if (err)
+		return -EBUSY;
+	ctrl = IXGBE_CTRL_RST;
+	ctrl |= IXGBE_READ_REG(hw, IXGBE_CTRL);
+	IXGBE_WRITE_REG(hw, IXGBE_CTRL, ctrl);
+	IXGBE_WRITE_FLUSH(hw);
+	hw->mac.ops.release_swfw_sync(hw, swfw_mask);
+
+	/* Poll for reset bit to self-clear indicating reset is complete */
+	for (i = 0; i < 10; i++) {
+		udelay(1);
+		ctrl = IXGBE_READ_REG(hw, IXGBE_CTRL);
+		if (!(ctrl & IXGBE_CTRL_RST_MASK))
+			break;
+	}
+
+	if (ctrl & IXGBE_CTRL_RST_MASK) {
+		struct ixgbe_adapter *adapter = container_of(hw, struct ixgbe_adapter,
+							     hw);
+
+		err = -EIO;
+		netdev_err(adapter->netdev, "Reset polling failed to complete.");
+	}
+
+	/* Double resets are required for recovery from certain error
+	 * conditions. Between resets, it is necessary to stall to allow time
+	 * for any pending HW events to complete.
+	 */
+	msleep(100);
+	if (hw->mac.flags & IXGBE_FLAGS_DOUBLE_RESET_REQUIRED) {
+		hw->mac.flags &= ~IXGBE_FLAGS_DOUBLE_RESET_REQUIRED;
+		goto mac_reset_top;
+	}
+
+	/* Set the Rx packet buffer size. */
+	IXGBE_WRITE_REG(hw, IXGBE_RXPBSIZE(0), GENMASK(18, 17));
+
+	/* Store the permanent mac address */
+	hw->mac.ops.get_mac_addr(hw, hw->mac.perm_addr);
+
+	/* Maximum number of Receive Address Registers. */
+#define IXGBE_MAX_NUM_RAR		128
+
+	/* Store MAC address from RAR0, clear receive address registers, and
+	 * clear the multicast table.  Also reset num_rar_entries to the
+	 * maximum number of Receive Address Registers, since we modify this
+	 * value when programming the SAN MAC address.
+	 */
+	hw->mac.num_rar_entries = IXGBE_MAX_NUM_RAR;
+	hw->mac.ops.init_rx_addrs(hw);
+
+	/* Initialize bus function number */
+	hw->mac.ops.set_lan_id(hw);
+
+reset_hw_out:
+	return err;
+}
+
+static const struct ixgbe_mac_operations mac_ops_e610 = {
+	.init_hw			= ixgbe_init_hw_generic,
+	.start_hw			= ixgbe_start_hw_X540,
+	.clear_hw_cntrs			= ixgbe_clear_hw_cntrs_generic,
+	.enable_rx_dma			= ixgbe_enable_rx_dma_generic,
+	.get_mac_addr			= ixgbe_get_mac_addr_generic,
+	.get_device_caps		= ixgbe_get_device_caps_generic,
+	.stop_adapter			= ixgbe_stop_adapter_generic,
+	.set_lan_id			= ixgbe_set_lan_id_multi_port_pcie,
+	.set_rxpba			= ixgbe_set_rxpba_generic,
+	.check_link			= ixgbe_check_link_e610,
+	.blink_led_start		= ixgbe_blink_led_start_X540,
+	.blink_led_stop			= ixgbe_blink_led_stop_X540,
+	.set_rar			= ixgbe_set_rar_generic,
+	.clear_rar			= ixgbe_clear_rar_generic,
+	.set_vmdq			= ixgbe_set_vmdq_generic,
+	.set_vmdq_san_mac		= ixgbe_set_vmdq_san_mac_generic,
+	.clear_vmdq			= ixgbe_clear_vmdq_generic,
+	.init_rx_addrs			= ixgbe_init_rx_addrs_generic,
+	.update_mc_addr_list		= ixgbe_update_mc_addr_list_generic,
+	.enable_mc			= ixgbe_enable_mc_generic,
+	.disable_mc			= ixgbe_disable_mc_generic,
+	.clear_vfta			= ixgbe_clear_vfta_generic,
+	.set_vfta			= ixgbe_set_vfta_generic,
+	.fc_enable			= ixgbe_fc_enable_generic,
+	.set_fw_drv_ver			= ixgbe_set_fw_drv_ver_x550,
+	.init_uta_tables		= ixgbe_init_uta_tables_generic,
+	.set_mac_anti_spoofing		= ixgbe_set_mac_anti_spoofing,
+	.set_vlan_anti_spoofing		= ixgbe_set_vlan_anti_spoofing,
+	.set_source_address_pruning	=
+				ixgbe_set_source_address_pruning_x550,
+	.set_ethertype_anti_spoofing	=
+				ixgbe_set_ethertype_anti_spoofing_x550,
+	.disable_rx_buff		= ixgbe_disable_rx_buff_generic,
+	.enable_rx_buff			= ixgbe_enable_rx_buff_generic,
+	.enable_rx			= ixgbe_enable_rx_generic,
+	.disable_rx			= ixgbe_disable_rx_e610,
+	.led_on				= ixgbe_led_on_generic,
+	.led_off			= ixgbe_led_off_generic,
+	.init_led_link_act		= ixgbe_init_led_link_act_generic,
+	.reset_hw			= ixgbe_reset_hw_e610,
+	.get_media_type			= ixgbe_get_media_type_e610,
+	.setup_link			= ixgbe_setup_link_e610,
+	.get_link_capabilities		= ixgbe_get_link_capabilities_e610,
+	.get_bus_info			= ixgbe_get_bus_info_generic,
+	.acquire_swfw_sync		= ixgbe_acquire_swfw_sync_X540,
+	.release_swfw_sync		= ixgbe_release_swfw_sync_X540,
+	.init_swfw_sync			= ixgbe_init_swfw_sync_X540,
+	.prot_autoc_read		= prot_autoc_read_generic,
+	.prot_autoc_write		= prot_autoc_write_generic,
+	.setup_fc			= ixgbe_setup_fc_e610,
+	.fc_autoneg			= ixgbe_fc_autoneg_e610,
+};
+
+static const struct ixgbe_phy_operations phy_ops_e610 = {
+	.init				= ixgbe_init_phy_ops_e610,
+	.identify			= ixgbe_identify_phy_e610,
+	.identify_sfp			= ixgbe_identify_module_e610,
+	.setup_link_speed		= ixgbe_setup_phy_link_speed_generic,
+	.setup_link			= ixgbe_setup_phy_link_e610,
+	.enter_lplu			= ixgbe_enter_lplu_e610,
+};
+
+static const struct ixgbe_eeprom_operations eeprom_ops_e610 = {
+	.read				= ixgbe_read_ee_aci_e610,
+	.read_buffer			= ixgbe_read_ee_aci_buffer_e610,
+	.validate_checksum		= ixgbe_validate_eeprom_checksum_e610,
+};
+
+const struct ixgbe_info ixgbe_e610_info = {
+	.mac			= ixgbe_mac_e610,
+	.get_invariants		= ixgbe_get_invariants_X540,
+	.mac_ops		= &mac_ops_e610,
+	.eeprom_ops		= &eeprom_ops_e610,
+	.phy_ops		= &phy_ops_e610,
+	.mbx_ops		= &mbx_ops_generic,
+	.mvals			= ixgbe_mvals_x550em_a,
+};
