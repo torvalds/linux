@@ -607,13 +607,12 @@ static int ocelot_port_add_txtstamp_skb(struct ocelot *ocelot, int port,
 					struct sk_buff *clone)
 {
 	struct ocelot_port *ocelot_port = ocelot->ports[port];
-	unsigned long flags;
 
-	spin_lock_irqsave(&ocelot->ts_id_lock, flags);
+	spin_lock(&ocelot->ts_id_lock);
 
 	if (ocelot_port->ptp_skbs_in_flight == OCELOT_MAX_PTP_ID ||
 	    ocelot->ptp_skbs_in_flight == OCELOT_PTP_FIFO_SIZE) {
-		spin_unlock_irqrestore(&ocelot->ts_id_lock, flags);
+		spin_unlock(&ocelot->ts_id_lock);
 		return -EBUSY;
 	}
 
@@ -630,7 +629,7 @@ static int ocelot_port_add_txtstamp_skb(struct ocelot *ocelot, int port,
 
 	skb_queue_tail(&ocelot_port->tx_skbs, clone);
 
-	spin_unlock_irqrestore(&ocelot->ts_id_lock, flags);
+	spin_unlock(&ocelot->ts_id_lock);
 
 	return 0;
 }
@@ -749,7 +748,6 @@ void ocelot_get_txtstamp(struct ocelot *ocelot)
 		u32 val, id, seqid, txport;
 		struct ocelot_port *port;
 		struct timespec64 ts;
-		unsigned long flags;
 
 		val = ocelot_read(ocelot, SYS_PTP_STATUS);
 
@@ -773,7 +771,7 @@ void ocelot_get_txtstamp(struct ocelot *ocelot)
 
 		/* Retrieve its associated skb */
 try_again:
-		spin_lock_irqsave(&port->tx_skbs.lock, flags);
+		spin_lock(&port->tx_skbs.lock);
 
 		skb_queue_walk_safe(&port->tx_skbs, skb, skb_tmp) {
 			if (OCELOT_SKB_CB(skb)->ts_id != id)
@@ -783,7 +781,7 @@ try_again:
 			break;
 		}
 
-		spin_unlock_irqrestore(&port->tx_skbs.lock, flags);
+		spin_unlock(&port->tx_skbs.lock);
 
 		if (WARN_ON(!skb_match))
 			goto next_ts;
@@ -792,7 +790,7 @@ try_again:
 			dev_err_ratelimited(ocelot->dev,
 					    "port %d received stale TX timestamp for seqid %d, discarding\n",
 					    txport, seqid);
-			dev_kfree_skb_any(skb);
+			kfree_skb(skb);
 			goto try_again;
 		}
 
