@@ -930,20 +930,19 @@ static void ocfs2_write_failure(struct inode *inode,
 	int i;
 	unsigned from = user_pos & (PAGE_SIZE - 1),
 		to = user_pos + user_len;
-	struct page *tmppage;
 
 	if (wc->w_target_folio)
 		ocfs2_zero_new_buffers(wc->w_target_folio, from, to);
 
 	for (i = 0; i < wc->w_num_folios; i++) {
-		tmppage = &wc->w_folios[i]->page;
+		struct folio *folio = wc->w_folios[i];
 
-		if (tmppage && page_has_buffers(tmppage)) {
+		if (folio && folio_buffers(folio)) {
 			if (ocfs2_should_order_data(inode))
 				ocfs2_jbd2_inode_add_write(wc->w_handle, inode,
 							   user_pos, user_len);
 
-			block_commit_write(tmppage, from, to);
+			block_commit_write(&folio->page, from, to);
 		}
 	}
 }
