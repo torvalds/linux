@@ -1710,9 +1710,20 @@ static int vxlan_rcv(struct sock *sk, struct sk_buff *skb)
 		goto drop;
 	}
 
-	/* For backwards compatibility, only allow reserved fields to be
-	 * used by VXLAN extensions if explicitly requested.
-	 */
+	if (vh->vx_flags & vxlan->cfg.reserved_bits.vx_flags ||
+	    vh->vx_vni & vxlan->cfg.reserved_bits.vx_vni) {
+		/* If the header uses bits besides those enabled by the
+		 * netdevice configuration, treat this as a malformed packet.
+		 * This behavior diverges from VXLAN RFC (RFC7348) which
+		 * stipulates that bits in reserved in reserved fields are to be
+		 * ignored. The approach here maintains compatibility with
+		 * previous stack code, and also is more robust and provides a
+		 * little more security in adding extensions to VXLAN.
+		 */
+		reason = SKB_DROP_REASON_VXLAN_INVALID_HDR;
+		goto drop;
+	}
+
 	if (vxlan->cfg.flags & VXLAN_F_GPE) {
 		if (!vxlan_parse_gpe_proto(vh, &protocol))
 			goto drop;
@@ -1763,14 +1774,6 @@ static int vxlan_rcv(struct sock *sk, struct sk_buff *skb)
 	 */
 
 	if (unparsed.vx_flags || unparsed.vx_vni) {
-		/* If there are any unprocessed flags remaining treat
-		 * this as a malformed packet. This behavior diverges from
-		 * VXLAN RFC (RFC7348) which stipulates that bits in reserved
-		 * in reserved fields are to be ignored. The approach here
-		 * maintains compatibility with previous stack code, and also
-		 * is more robust and provides a little more security in
-		 * adding extensions to VXLAN.
-		 */
 		reason = SKB_DROP_REASON_VXLAN_INVALID_HDR;
 		goto drop;
 	}
@@ -4070,6 +4073,10 @@ static int vxlan_nl2conf(struct nlattr *tb[], struct nlattr *data[],
 			 struct net_device *dev, struct vxlan_config *conf,
 			 bool changelink, struct netlink_ext_ack *extack)
 {
+	struct vxlanhdr used_bits = {
+		.vx_flags = VXLAN_HF_VNI,
+		.vx_vni = VXLAN_VNI_MASK,
+	};
 	struct vxlan_dev *vxlan = netdev_priv(dev);
 	int err = 0;
 
@@ -4296,6 +4303,8 @@ static int vxlan_nl2conf(struct nlattr *tb[], struct nlattr *data[],
 				    extack);
 		if (err)
 			return err;
+		used_bits.vx_flags |= VXLAN_HF_RCO;
+		used_bits.vx_vni |= ~VXLAN_VNI_MASK;
 	}
 
 	if (data[IFLA_VXLAN_GBP]) {
@@ -4303,6 +4312,7 @@ static int vxlan_nl2conf(struct nlattr *tb[], struct nlattr *data[],
 				    VXLAN_F_GBP, changelink, false, extack);
 		if (err)
 			return err;
+		used_bits.vx_flags |= VXLAN_GBP_USED_BITS;
 	}
 
 	if (data[IFLA_VXLAN_GPE]) {
@@ -4311,8 +4321,17 @@ static int vxlan_nl2conf(struct nlattr *tb[], struct nlattr *data[],
 				    extack);
 		if (err)
 			return err;
+
+		used_bits.vx_flags |= VXLAN_GPE_USED_BITS;
 	}
 
+	/* For backwards compatibility, only allow reserved fields to be
+	 * used by VXLAN extensions if explicitly requested.
+	 */
+	conf->reserved_bits = (struct vxlanhdr) {
+		.vx_flags = ~used_bits.vx_flags,
+		.vx_vni = ~used_bits.vx_vni,
+	};
 	if (data[IFLA_VXLAN_REMCSUM_NOPARTIAL]) {
 		err = vxlan_nl2flag(conf, data, IFLA_VXLAN_REMCSUM_NOPARTIAL,
 				    VXLAN_F_REMCSUM_NOPARTIAL, changelink,
