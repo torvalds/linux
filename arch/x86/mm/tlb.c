@@ -756,13 +756,13 @@ static void flush_tlb_func(void *info)
 	if (!local) {
 		inc_irq_stat(irq_tlb_count);
 		count_vm_tlb_event(NR_TLB_REMOTE_FLUSH_RECEIVED);
+	}
 
-		/* Can only happen on remote CPUs */
-		if (f->mm && f->mm != loaded_mm) {
-			cpumask_clear_cpu(raw_smp_processor_id(), mm_cpumask(f->mm));
-			trace_tlb_flush(TLB_REMOTE_WRONG_CPU, 0);
-			return;
-		}
+	/* The CPU was left in the mm_cpumask of the target mm. Clear it. */
+	if (f->mm && f->mm != loaded_mm) {
+		cpumask_clear_cpu(raw_smp_processor_id(), mm_cpumask(f->mm));
+		trace_tlb_flush(TLB_REMOTE_WRONG_CPU, 0);
+		return;
 	}
 
 	if (unlikely(loaded_mm == &init_mm))
