@@ -69,9 +69,7 @@ int bch2_create_trans(struct btree_trans *trans,
 		if (!snapshot_src.inum) {
 			/* Inode wasn't specified, just snapshot: */
 			struct bch_subvolume s;
-
-			ret = bch2_subvolume_get(trans, snapshot_src.subvol, true,
-						 BTREE_ITER_cached, &s);
+			ret = bch2_subvolume_get(trans, snapshot_src.subvol, true, &s);
 			if (ret)
 				goto err;
 

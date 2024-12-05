@@ -570,8 +570,7 @@ static int check_snapshot_tree(struct btree_trans *trans,
 		goto err;
 	}
 
-	ret = bch2_subvolume_get(trans, le32_to_cpu(st.v->master_subvol),
-				 false, 0, &subvol);
+	ret = bch2_subvolume_get(trans, le32_to_cpu(st.v->master_subvol), false, &subvol);
 	if (ret && !bch2_err_matches(ret, ENOENT))
 		goto err;
 
@@ -811,7 +810,7 @@ static int check_snapshot(struct btree_trans *trans,
 
 	if (should_have_subvol) {
 		id = le32_to_cpu(s.subvol);
-		ret = bch2_subvolume_get(trans, id, 0, false, &subvol);
+		ret = bch2_subvolume_get(trans, id, false, &subvol);
 		if (bch2_err_matches(ret, ENOENT))
 			bch_err(c, "snapshot points to nonexistent subvolume:\n  %s",
 				(bch2_bkey_val_to_text(&buf, c, k), buf.buf));

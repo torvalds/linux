@@ -499,7 +499,7 @@ struct inode *bch2_vfs_inode_get(struct bch_fs *c, subvol_inum inum)
 	struct bch_inode_unpacked inode_u;
 	struct bch_subvolume subvol;
 	int ret = lockrestart_do(trans,
-		bch2_subvolume_get(trans, inum.subvol, true, 0, &subvol) ?:
+		bch2_subvolume_get(trans, inum.subvol, true, &subvol) ?:
 		bch2_inode_find_by_inum_trans(trans, inum, &inode_u)) ?:
 		PTR_ERR_OR_ZERO(inode = bch2_inode_hash_init_insert(trans, inum, &inode_u, &subvol));
 	bch2_trans_put(trans);
@@ -569,8 +569,7 @@ retry:
 	inum.subvol = inode_u.bi_subvol ?: dir->ei_inum.subvol;
 	inum.inum = inode_u.bi_inum;
 
-	ret   = bch2_subvolume_get(trans, inum.subvol, true,
-				   BTREE_ITER_with_updates, &subvol) ?:
+	ret   = bch2_subvolume_get(trans, inum.subvol, true, &subvol) ?:
 		bch2_trans_commit(trans, NULL, &journal_seq, 0);
 	if (unlikely(ret)) {
 		bch2_quota_acct(c, bch_qid(&inode_u), Q_INO, -1,
@@ -651,7 +650,7 @@ static struct bch_inode_info *bch2_lookup_trans(struct btree_trans *trans,
 
 	struct bch_subvolume subvol;
 	struct bch_inode_unpacked inode_u;
-	ret =   bch2_subvolume_get(trans, inum.subvol, true, 0, &subvol) ?:
+	ret =   bch2_subvolume_get(trans, inum.subvol, true, &subvol) ?:
 		bch2_inode_find_by_inum_nowarn_trans(trans, inum, &inode_u) ?:
 		PTR_ERR_OR_ZERO(inode = bch2_inode_hash_init_insert(trans, inum, &inode_u, &subvol));
 

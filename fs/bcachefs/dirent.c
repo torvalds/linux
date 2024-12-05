@@ -266,7 +266,7 @@ int bch2_dirent_read_target(struct btree_trans *trans, subvol_inum dir,
 	} else {
 		target->subvol	= le32_to_cpu(d.v->d_child_subvol);
 
-		ret = bch2_subvolume_get(trans, target->subvol, true, BTREE_ITER_cached, &s);
+		ret = bch2_subvolume_get(trans, target->subvol, true, &s);
 
 		target->inum	= le64_to_cpu(s.inode);
 	}
