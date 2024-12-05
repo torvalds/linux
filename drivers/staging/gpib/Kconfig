@@ -50,6 +50,7 @@ config GPIB_CEC_PCI
 	tristate "CEC PCI board"
 	depends on PCI
 	depends on HAS_IOPORT
+	depends on !X86_PAE
 	select GPIB_COMMON
 	select GPIB_NEC7210
 	help
@@ -62,6 +63,8 @@ config GPIB_CEC_PCI
 config GPIB_NI_PCI_ISA
 	tristate "NI PCI/ISA compatible boards"
 	depends on ISA_BUS || PCI || PCMCIA
+	depends on HAS_IOPORT
+	depends on !X86_PAE
 	select GPIB_COMMON
 	select GPIB_NEC7210
 	help
@@ -85,6 +88,7 @@ config GPIB_CB7210
        tristate "Measurement Computing compatible boards"
 	depends on HAS_IOPORT
 	depends on ISA_BUS || PCI || PCMCIA
+	depends on !X86_PAE
        select GPIB_COMMON
 	select GPIB_NEC7210
        help
@@ -128,7 +132,7 @@ config GPIB_FMH
        tristate "FMH FPGA based devices"
        select GPIB_COMMON
        select GPIB_NEC7210
-       depends on BROKEN
+       depends on !PPC
        depends on OF && PCI
        help
          GPIB driver for fmhess FPGA based devices
@@ -174,6 +178,7 @@ config GPIB_INES
        tristate "INES"
 	depends on PCI || ISA_BUS || PCMCIA
 	depends on HAS_IOPORT
+	depends on !X86_PAE
        select GPIB_COMMON
        select GPIB_NEC7210
        help

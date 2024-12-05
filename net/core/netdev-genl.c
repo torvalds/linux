@@ -430,10 +430,10 @@ static int
 netdev_nl_queue_fill(struct sk_buff *rsp, struct net_device *netdev, u32 q_idx,
 		     u32 q_type, const struct genl_info *info)
 {
-	int err = 0;
+	int err;
 
 	if (!(netdev->flags & IFF_UP))
-		return err;
+		return -ENOENT;
 
 	err = netdev_nl_queue_validate(netdev, q_idx, q_type);
 	if (err)
@@ -488,24 +488,21 @@ netdev_nl_queue_dump_one(struct net_device *netdev, struct sk_buff *rsp,
 			 struct netdev_nl_dump_ctx *ctx)
 {
 	int err = 0;
-	int i;
 
 	if (!(netdev->flags & IFF_UP))
 		return err;
 
-	for (i = ctx->rxq_idx; i < netdev->real_num_rx_queues;) {
-		err = netdev_nl_queue_fill_one(rsp, netdev, i,
+	for (; ctx->rxq_idx < netdev->real_num_rx_queues; ctx->rxq_idx++) {
+		err = netdev_nl_queue_fill_one(rsp, netdev, ctx->rxq_idx,
 					       NETDEV_QUEUE_TYPE_RX, info);
 		if (err)
 			return err;
-		ctx->rxq_idx = i++;
 	}
-	for (i = ctx->txq_idx; i < netdev->real_num_tx_queues;) {
-		err = netdev_nl_queue_fill_one(rsp, netdev, i,
+	for (; ctx->txq_idx < netdev->real_num_tx_queues; ctx->txq_idx++) {
+		err = netdev_nl_queue_fill_one(rsp, netdev, ctx->txq_idx,
 					       NETDEV_QUEUE_TYPE_TX, info);
 		if (err)
 			return err;
-		ctx->txq_idx = i++;
 	}
 
 	return err;
@@ -671,7 +668,7 @@ netdev_nl_stats_by_queue(struct net_device *netdev, struct sk_buff *rsp,
 					    i, info);
 		if (err)
 			return err;
-		ctx->rxq_idx = i++;
+		ctx->rxq_idx = ++i;
 	}
 	i = ctx->txq_idx;
 	while (ops->get_queue_stats_tx && i < netdev->real_num_tx_queues) {
@@ -679,7 +676,7 @@ netdev_nl_stats_by_queue(struct net_device *netdev, struct sk_buff *rsp,
 					    i, info);
 		if (err)
 			return err;
-		ctx->txq_idx = i++;
+		ctx->txq_idx = ++i;
 	}
 
 	ctx->rxq_idx = 0;

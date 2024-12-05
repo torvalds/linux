@@ -258,8 +258,12 @@ static int hwmon_pmu__read_events(struct hwmon_pmu *pmu)
 	if (pmu->pmu.sysfs_aliases_loaded)
 		return 0;
 
-	/* Use a dup-ed fd as closedir will close it. */
-	dup_fd = dup(pmu->hwmon_dir_fd);
+	/*
+	 * Use a dup-ed fd as closedir will close it. Use openat so that the
+	 * directory contents are refreshed.
+	 */
+	dup_fd = openat(pmu->hwmon_dir_fd, ".", O_DIRECTORY);
+
 	if (dup_fd == -1)
 		return -ENOMEM;
 
@@ -336,6 +340,9 @@ static int hwmon_pmu__read_events(struct hwmon_pmu *pmu)
 			close(fd);
 		}
 	}
+	if (hashmap__size(&pmu->events) == 0)
+		pr_debug2("hwmon_pmu: %s has no events\n", pmu->pmu.name);
+
 	hashmap__for_each_entry_safe((&pmu->events), cur, tmp, bkt) {
 		union hwmon_pmu_event_key key = {
 			.type_and_num = cur->key,
@@ -343,8 +350,8 @@ static int hwmon_pmu__read_events(struct hwmon_pmu *pmu)
 		struct hwmon_pmu_event_value *value = cur->pvalue;
 
 		if (!test_bit(HWMON_ITEM_INPUT, value->items)) {
-			pr_debug("hwmon_pmu: removing event '%s%d' that has no input file\n",
-				hwmon_type_strs[key.type], key.num);
+			pr_debug("hwmon_pmu: %s removing event '%s%d' that has no input file\n",
+				pmu->pmu.name, hwmon_type_strs[key.type], key.num);
 			hashmap__delete(&pmu->events, key.type_and_num, &key, &value);
 			zfree(&value->label);
 			zfree(&value->name);

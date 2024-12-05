@@ -860,7 +860,7 @@ impl DeviceMask {
 /// ];
 /// #[cfg(MODULE)]
 /// #[no_mangle]
-/// static __mod_mdio__phydev_device_table: [::kernel::bindings::mdio_device_id; 2] = _DEVICE_TABLE;
+/// static __mod_device_table__mdio__phydev: [::kernel::bindings::mdio_device_id; 2] = _DEVICE_TABLE;
 /// ```
 #[macro_export]
 macro_rules! module_phy_driver {
@@ -883,7 +883,7 @@ macro_rules! module_phy_driver {
 
         #[cfg(MODULE)]
         #[no_mangle]
-        static __mod_mdio__phydev_device_table: [$crate::bindings::mdio_device_id;
+        static __mod_device_table__mdio__phydev: [$crate::bindings::mdio_device_id;
             $crate::module_phy_driver!(@count_devices $($dev),+) + 1] = _DEVICE_TABLE;
     };
 
