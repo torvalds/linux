@@ -783,19 +783,6 @@ void ocfs2_unlock_and_free_folios(struct folio **folios, int num_folios)
 	}
 }
 
-void ocfs2_unlock_and_free_pages(struct page **pages, int num_pages)
-{
-	int i;
-
-	for(i = 0; i < num_pages; i++) {
-		if (pages[i]) {
-			unlock_page(pages[i]);
-			mark_page_accessed(pages[i]);
-			put_page(pages[i]);
-		}
-	}
-}
-
 static void ocfs2_unlock_folios(struct ocfs2_write_ctxt *wc)
 {
 	int i;

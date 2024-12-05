@@ -18,7 +18,6 @@ int ocfs2_map_folio_blocks(struct folio *folio, u64 *p_blkno,
 			  unsigned int to, int new);
 
 void ocfs2_unlock_and_free_folios(struct folio **folios, int num_folios);
-void ocfs2_unlock_and_free_pages(struct page **pages, int num_pages);
 
 int walk_page_buffers(	handle_t *handle,
 			struct buffer_head *head,
