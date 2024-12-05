@@ -2,6 +2,14 @@
 #ifndef _BCACHEFS_FSCK_H
 #define _BCACHEFS_FSCK_H
 
+#include "str_hash.h"
+
+int bch2_fsck_update_backpointers(struct btree_trans *,
+				  struct snapshots_seen *,
+				  const struct bch_hash_desc,
+				  struct bch_hash_info *,
+				  struct bkey_i *);
+
 int bch2_check_inodes(struct bch_fs *);
 int bch2_check_extents(struct bch_fs *);
 int bch2_check_indirect_extents(struct bch_fs *);

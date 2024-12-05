@@ -393,4 +393,11 @@ int bch2_hash_delete(struct btree_trans *trans,
 	return ret;
 }
 
+struct snapshots_seen;
+int bch2_str_hash_check_key(struct btree_trans *,
+			    struct snapshots_seen *,
+			    const struct bch_hash_desc,
+			    struct bch_hash_info *,
+			    struct btree_iter *, struct bkey_s_c);
+
 #endif /* _BCACHEFS_STR_HASH_H */
