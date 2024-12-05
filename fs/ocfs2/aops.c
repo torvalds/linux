@@ -869,30 +869,30 @@ static int ocfs2_alloc_write_ctxt(struct ocfs2_write_ctxt **wcp,
  * and dirty so they'll be written out (in order to prevent uninitialised
  * block data from leaking). And clear the new bit.
  */
-static void ocfs2_zero_new_buffers(struct folio *folio, unsigned from, unsigned to)
+static void ocfs2_zero_new_buffers(struct folio *folio, size_t from, size_t to)
 {
-	struct page *page = &folio->page;
 	unsigned int block_start, block_end;
 	struct buffer_head *head, *bh;
 
-	BUG_ON(!PageLocked(page));
-	if (!page_has_buffers(page))
+	BUG_ON(!folio_test_locked(folio));
+	head = folio_buffers(folio);
+	if (!head)
 		return;
 
-	bh = head = page_buffers(page);
+	bh = head;
 	block_start = 0;
 	do {
 		block_end = block_start + bh->b_size;
 
 		if (buffer_new(bh)) {
 			if (block_end > from && block_start < to) {
-				if (!PageUptodate(page)) {
+				if (!folio_test_uptodate(folio)) {
 					unsigned start, end;
 
 					start = max(from, block_start);
 					end = min(to, block_end);
 
-					zero_user_segment(page, start, end);
+					folio_zero_segment(folio, start, end);
 					set_buffer_uptodate(bh);
 				}
 
