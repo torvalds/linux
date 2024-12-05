@@ -2460,7 +2460,6 @@ struct arm_smmu_domain *arm_smmu_domain_alloc(void)
 	if (!smmu_domain)
 		return ERR_PTR(-ENOMEM);
 
-	mutex_init(&smmu_domain->init_mutex);
 	INIT_LIST_HEAD(&smmu_domain->devices);
 	spin_lock_init(&smmu_domain->devices_lock);
 
@@ -2469,7 +2468,9 @@ struct arm_smmu_domain *arm_smmu_domain_alloc(void)
 
 static struct iommu_domain *arm_smmu_domain_alloc_paging(struct device *dev)
 {
+	struct arm_smmu_master *master = dev_iommu_priv_get(dev);
 	struct arm_smmu_domain *smmu_domain;
+	int ret;
 
 	/*
 	 * Allocate the domain and initialise some of its data structures.
@@ -2480,15 +2481,10 @@ static struct iommu_domain *arm_smmu_domain_alloc_paging(struct device *dev)
 	if (IS_ERR(smmu_domain))
 		return ERR_CAST(smmu_domain);
 
-	if (dev) {
-		struct arm_smmu_master *master = dev_iommu_priv_get(dev);
-		int ret;
-
-		ret = arm_smmu_domain_finalise(smmu_domain, master->smmu, 0);
-		if (ret) {
-			kfree(smmu_domain);
-			return ERR_PTR(ret);
-		}
+	ret = arm_smmu_domain_finalise(smmu_domain, master->smmu, 0);
+	if (ret) {
+		kfree(smmu_domain);
+		return ERR_PTR(ret);
 	}
 	return &smmu_domain->domain;
 }
@@ -2965,15 +2961,7 @@ static int arm_smmu_attach_dev(struct iommu_domain *domain, struct device *dev)
 	state.master = master = dev_iommu_priv_get(dev);
 	smmu = master->smmu;
 
-	mutex_lock(&smmu_domain->init_mutex);
-
-	if (!smmu_domain->smmu) {
-		ret = arm_smmu_domain_finalise(smmu_domain, smmu, 0);
-	} else if (smmu_domain->smmu != smmu)
-		ret = -EINVAL;
-
-	mutex_unlock(&smmu_domain->init_mutex);
-	if (ret)
+	if (smmu_domain->smmu != smmu)
 		return ret;
 
 	if (smmu_domain->stage == ARM_SMMU_DOMAIN_S1) {
@@ -3030,16 +3018,9 @@ static int arm_smmu_s1_set_dev_pasid(struct iommu_domain *domain,
 	struct arm_smmu_master *master = dev_iommu_priv_get(dev);
 	struct arm_smmu_device *smmu = master->smmu;
 	struct arm_smmu_cd target_cd;
-	int ret = 0;
 
-	mutex_lock(&smmu_domain->init_mutex);
-	if (!smmu_domain->smmu)
-		ret = arm_smmu_domain_finalise(smmu_domain, smmu, 0);
-	else if (smmu_domain->smmu != smmu)
-		ret = -EINVAL;
-	mutex_unlock(&smmu_domain->init_mutex);
-	if (ret)
-		return ret;
+	if (smmu_domain->smmu != smmu)
+		return -EINVAL;
 
 	if (smmu_domain->stage != ARM_SMMU_DOMAIN_S1)
 		return -EINVAL;
