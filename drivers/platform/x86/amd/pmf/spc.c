@@ -47,11 +47,34 @@ void amd_pmf_dump_ta_inputs(struct amd_pmf_dev *dev, struct ta_pmf_enact_table *
 	dev_dbg(dev->dev, "LID State: %s\n", in->ev_info.lid_state ? "close" : "open");
 	dev_dbg(dev->dev, "User Presence: %s\n", in->ev_info.user_present ? "Present" : "Away");
 	dev_dbg(dev->dev, "Ambient Light: %d\n", in->ev_info.ambient_light);
+	dev_dbg(dev->dev, "Custom BIOS input1: %u\n", in->ev_info.bios_input1);
+	dev_dbg(dev->dev, "Custom BIOS input2: %u\n", in->ev_info.bios_input2);
 	dev_dbg(dev->dev, "==== TA inputs END ====\n");
 }
 #else
 void amd_pmf_dump_ta_inputs(struct amd_pmf_dev *dev, struct ta_pmf_enact_table *in) {}
 #endif
+
+static void amd_pmf_get_custom_bios_inputs(struct amd_pmf_dev *pdev,
+					   struct ta_pmf_enact_table *in)
+{
+	if (!pdev->req.pending_req)
+		return;
+
+	switch (pdev->req.pending_req) {
+	case BIT(NOTIFY_CUSTOM_BIOS_INPUT1):
+		in->ev_info.bios_input1 = pdev->req.custom_policy[APMF_SMARTPC_CUSTOM_BIOS_INPUT1];
+		break;
+	case BIT(NOTIFY_CUSTOM_BIOS_INPUT2):
+		in->ev_info.bios_input2 = pdev->req.custom_policy[APMF_SMARTPC_CUSTOM_BIOS_INPUT2];
+		break;
+	default:
+		dev_dbg(pdev->dev, "Invalid preq for BIOS input: 0x%x\n", pdev->req.pending_req);
+	}
+
+	/* Clear pending requests after handling */
+	memset(&pdev->req, 0, sizeof(pdev->req));
+}
 
 static void amd_pmf_get_c0_residency(u16 *core_res, size_t size, struct ta_pmf_enact_table *in)
 {
@@ -201,4 +224,5 @@ void amd_pmf_populate_ta_inputs(struct amd_pmf_dev *dev, struct ta_pmf_enact_tab
 	amd_pmf_get_battery_info(dev, in);
 	amd_pmf_get_slider_info(dev, in);
 	amd_pmf_get_sensor_info(dev, in);
+	amd_pmf_get_custom_bios_inputs(dev, in);
 }
