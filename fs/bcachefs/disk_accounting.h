@@ -114,6 +114,12 @@ enum bch_accounting_mode {
 int bch2_accounting_mem_insert(struct bch_fs *, struct bkey_s_c_accounting, enum bch_accounting_mode);
 void bch2_accounting_mem_gc(struct bch_fs *);
 
+static inline bool bch2_accounting_is_mem(struct disk_accounting_pos acc)
+{
+	return acc.type < BCH_DISK_ACCOUNTING_TYPE_NR &&
+		acc.type != BCH_DISK_ACCOUNTING_inum;
+}
+
 /*
  * Update in memory counters so they match the btree update we're doing; called
  * from transaction commit path
@@ -130,7 +136,7 @@ static inline int bch2_accounting_mem_mod_locked(struct btree_trans *trans,
 
 	EBUG_ON(gc && !acc->gc_running);
 
-	if (acc_k.type == BCH_DISK_ACCOUNTING_inum)
+	if (!bch2_accounting_is_mem(acc_k))
 		return 0;
 
 	if (mode == BCH_ACCOUNTING_normal) {

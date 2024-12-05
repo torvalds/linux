@@ -729,6 +729,16 @@ int bch2_accounting_read(struct bch_fs *c)
 				BTREE_ITER_prefetch|BTREE_ITER_all_snapshots, k, ({
 			struct bkey u;
 			struct bkey_s_c k = bch2_btree_path_peek_slot_exact(btree_iter_path(trans, &iter), &u);
+
+			if (k.k->type != KEY_TYPE_accounting)
+				continue;
+
+			struct disk_accounting_pos acc_k;
+			bpos_to_disk_accounting_pos(&acc_k, k.k->p);
+
+			if (!bch2_accounting_is_mem(acc_k))
+				continue;
+
 			accounting_read_key(trans, k);
 		}));
 	if (ret)
@@ -740,6 +750,12 @@ int bch2_accounting_read(struct bch_fs *c)
 
 	darray_for_each(*keys, i) {
 		if (i->k->k.type == KEY_TYPE_accounting) {
+			struct disk_accounting_pos acc_k;
+			bpos_to_disk_accounting_pos(&acc_k, i->k->k.p);
+
+			if (!bch2_accounting_is_mem(acc_k))
+				continue;
+
 			struct bkey_s_c k = bkey_i_to_s_c(i->k);
 			unsigned idx = eytzinger0_find(acc->k.data, acc->k.nr,
 						sizeof(acc->k.data[0]),
