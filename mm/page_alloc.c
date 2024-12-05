@@ -6412,11 +6412,11 @@ static int __alloc_contig_verify_gfp_mask(gfp_t gfp_mask, gfp_t *gfp_cc_mask)
 	 * page range. Migratable pages are movable, __GFP_MOVABLE is implied
 	 * for them.
 	 *
-	 * Traditionally we always had __GFP_HARDWALL|__GFP_RETRY_MAYFAIL set,
-	 * keep doing that to not degrade callers.
+	 * Traditionally we always had __GFP_RETRY_MAYFAIL set, keep doing that
+	 * to not degrade callers.
 	 */
 	*gfp_cc_mask = (gfp_mask & (reclaim_mask | cc_action_mask)) |
-			__GFP_HARDWALL | __GFP_MOVABLE | __GFP_RETRY_MAYFAIL;
+			__GFP_MOVABLE | __GFP_RETRY_MAYFAIL;
 	return 0;
 }
 
