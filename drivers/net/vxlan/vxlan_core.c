@@ -3428,6 +3428,7 @@ static const struct nla_policy vxlan_policy[IFLA_VXLAN_MAX + 1] = {
 	[IFLA_VXLAN_VNIFILTER]	= { .type = NLA_U8 },
 	[IFLA_VXLAN_LOCALBYPASS]	= NLA_POLICY_MAX(NLA_U8, 1),
 	[IFLA_VXLAN_LABEL_POLICY]       = NLA_POLICY_MAX(NLA_U32, VXLAN_LABEL_MAX),
+	[IFLA_VXLAN_RESERVED_BITS] = NLA_POLICY_EXACT_LEN(sizeof(struct vxlanhdr)),
 };
 
 static int vxlan_validate(struct nlattr *tb[], struct nlattr *data[],
@@ -4315,13 +4316,44 @@ static int vxlan_nl2conf(struct nlattr *tb[], struct nlattr *data[],
 		used_bits.vx_flags |= VXLAN_GPE_USED_BITS;
 	}
 
-	/* For backwards compatibility, only allow reserved fields to be
-	 * used by VXLAN extensions if explicitly requested.
-	 */
-	conf->reserved_bits = (struct vxlanhdr) {
-		.vx_flags = ~used_bits.vx_flags,
-		.vx_vni = ~used_bits.vx_vni,
-	};
+	if (data[IFLA_VXLAN_RESERVED_BITS]) {
+		struct vxlanhdr reserved_bits;
+
+		if (changelink) {
+			NL_SET_ERR_MSG_ATTR(extack,
+					    data[IFLA_VXLAN_RESERVED_BITS],
+					    "Cannot change reserved_bits");
+			return -EOPNOTSUPP;
+		}
+
+		nla_memcpy(&reserved_bits, data[IFLA_VXLAN_RESERVED_BITS],
+			   sizeof(reserved_bits));
+		if (used_bits.vx_flags & reserved_bits.vx_flags ||
+		    used_bits.vx_vni & reserved_bits.vx_vni) {
+			__be64 ub_be64, rb_be64;
+
+			memcpy(&ub_be64, &used_bits, sizeof(ub_be64));
+			memcpy(&rb_be64, &reserved_bits, sizeof(rb_be64));
+
+			NL_SET_ERR_MSG_ATTR_FMT(extack,
+						data[IFLA_VXLAN_RESERVED_BITS],
+						"Used bits %#018llx cannot overlap reserved bits %#018llx",
+						be64_to_cpu(ub_be64),
+						be64_to_cpu(rb_be64));
+			return -EINVAL;
+		}
+
+		conf->reserved_bits = reserved_bits;
+	} else {
+		/* For backwards compatibility, only allow reserved fields to be
+		 * used by VXLAN extensions if explicitly requested.
+		 */
+		conf->reserved_bits = (struct vxlanhdr) {
+			.vx_flags = ~used_bits.vx_flags,
+			.vx_vni = ~used_bits.vx_vni,
+		};
+	}
+
 	if (data[IFLA_VXLAN_REMCSUM_NOPARTIAL]) {
 		err = vxlan_nl2flag(conf, data, IFLA_VXLAN_REMCSUM_NOPARTIAL,
 				    VXLAN_F_REMCSUM_NOPARTIAL, changelink,
@@ -4506,6 +4538,8 @@ static size_t vxlan_get_size(const struct net_device *dev)
 		nla_total_size(0) + /* IFLA_VXLAN_GPE */
 		nla_total_size(0) + /* IFLA_VXLAN_REMCSUM_NOPARTIAL */
 		nla_total_size(sizeof(__u8)) + /* IFLA_VXLAN_VNIFILTER */
+		/* IFLA_VXLAN_RESERVED_BITS */
+		nla_total_size(sizeof(struct vxlanhdr)) +
 		0;
 }
 
@@ -4606,6 +4640,11 @@ static int vxlan_fill_info(struct sk_buff *skb, const struct net_device *dev)
 	if (vxlan->cfg.flags & VXLAN_F_VNIFILTER &&
 	    nla_put_u8(skb, IFLA_VXLAN_VNIFILTER,
 		       !!(vxlan->cfg.flags & VXLAN_F_VNIFILTER)))
+		goto nla_put_failure;
+
+	if (nla_put(skb, IFLA_VXLAN_RESERVED_BITS,
+		    sizeof(vxlan->cfg.reserved_bits),
+		    &vxlan->cfg.reserved_bits))
 		goto nla_put_failure;
 
 	return 0;
