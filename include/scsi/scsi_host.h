@@ -595,7 +595,7 @@ struct Scsi_Host {
 	 * have some way of identifying each detected host adapter properly
 	 * and uniquely.  For hosts that do not support more than one card
 	 * in the system at one time, this does not need to be set.  It is
-	 * initialized to 0 in scsi_register.
+	 * initialized to 0 in scsi_host_alloc.
 	 */
 	unsigned int unique_id;
 

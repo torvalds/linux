@@ -101,7 +101,7 @@ supplied functions" below.
 Those functions in group b) are listed in a section entitled "Interface
 functions" below. Their function pointers are placed in the members of
 "struct scsi_host_template", an instance of which is passed to
-scsi_host_alloc() [#]_.  Those interface functions that the LLD does not
+scsi_host_alloc().  Those interface functions that the LLD does not
 wish to supply should have NULL placed in the corresponding member of
 struct scsi_host_template.  Defining an instance of struct
 scsi_host_template at file scope will cause NULL to be  placed in function
@@ -115,9 +115,6 @@ All functions defined within an LLD and all data defined at file scope
 should be static. For example the sdev_init() function in an LLD
 called "xxx" could be defined as
 ``static int xxx_sdev_init(struct scsi_device * sdev) { /* code */ }``
-
-.. [#] the scsi_host_alloc() function is a replacement for the rather vaguely
-       named scsi_register() function in most situations.
 
 
 Hotplug initialization model
@@ -302,14 +299,12 @@ Summary:
   - scsi_host_alloc - return a new scsi_host instance whose refcount==1
   - scsi_host_get - increments Scsi_Host instance's refcount
   - scsi_host_put - decrements Scsi_Host instance's refcount (free if 0)
-  - scsi_register - create and register a scsi host adapter instance.
   - scsi_remove_device - detach and remove a SCSI device
   - scsi_remove_host - detach and remove all SCSI devices owned by host
   - scsi_report_bus_reset - report scsi _bus_ reset observed
   - scsi_scan_host - scan SCSI bus
   - scsi_track_queue_full - track successive QUEUE_FULL events
   - scsi_unblock_requests - allow further commands to be queued to given host
-  - scsi_unregister - [calls scsi_host_put()]
 
 
 Details::
@@ -475,27 +470,6 @@ Details::
 
 
     /**
-    * scsi_register - create and register a scsi host adapter instance.
-    * @sht:        pointer to scsi host template
-    * @privsize:   extra bytes to allocate in hostdata array (which is the
-    *              last member of the returned Scsi_Host instance)
-    *
-    *      Returns pointer to new Scsi_Host instance or NULL on failure
-    *
-    *      Might block: yes
-    *
-    *      Notes: When this call returns to the LLD, the SCSI bus scan on
-    *      this host has _not_ yet been done.
-    *      The hostdata array (by default zero length) is a per host scratch
-    *      area for the LLD.
-    *
-    *      Defined in: drivers/scsi/hosts.c .
-    **/
-    struct Scsi_Host * scsi_register(struct scsi_host_template * sht,
-				    int privsize)
-
-
-    /**
     * scsi_remove_device - detach and remove a SCSI device
     * @sdev:      a pointer to a scsi device instance
     *
@@ -524,7 +498,7 @@ Details::
     *
     *      Notes: Should only be invoked if the "hotplug initialization
     *      model" is being used. It should be called _prior_ to
-    *      scsi_unregister().
+    *      calling scsi_host_put().
     *
     *      Defined in: drivers/scsi/hosts.c .
     **/
@@ -601,31 +575,12 @@ Details::
     void scsi_unblock_requests(struct Scsi_Host * shost)
 
 
-    /**
-    * scsi_unregister - unregister and free memory used by host instance
-    * @shp:        pointer to scsi host instance to unregister.
-    *
-    *      Returns nothing
-    *
-    *      Might block: no
-    *
-    *      Notes: Should not be invoked if the "hotplug initialization
-    *      model" is being used. Called internally by exit_this_scsi_driver()
-    *      in the "passive initialization model". Hence a LLD has no need to
-    *      call this function directly.
-    *
-    *      Defined in: drivers/scsi/hosts.c .
-    **/
-    void scsi_unregister(struct Scsi_Host * shp)
-
-
-
 
 Interface Functions
 ===================
 Interface functions are supplied (defined) by LLDs and their function
 pointers are placed in an instance of struct scsi_host_template which
-is passed to scsi_host_alloc() or scsi_register().
+is passed to scsi_host_alloc().
 Some are mandatory. Interface functions should be declared static. The
 accepted convention is that driver "xyz" will declare its sdev_configure()
 function as::
@@ -636,7 +591,7 @@ and so forth for all interface functions listed below.
 
 A pointer to this function should be placed in the 'sdev_configure' member
 of a "struct scsi_host_template" instance. A pointer to such an instance
-should be passed to the mid level's scsi_host_alloc() or scsi_register().
+should be passed to the mid level's scsi_host_alloc().
 .
 
 The interface functions are also described in the include/scsi/scsi_host.h
@@ -1111,7 +1066,7 @@ of interest:
     hostdata[0]
 		 - area reserved for LLD at end of struct Scsi_Host. Size
                    is set by the second argument (named 'xtr_bytes') to
-                   scsi_host_alloc() or scsi_register().
+                   scsi_host_alloc().
     vendor_id
 		 - a unique value that identifies the vendor supplying
                    the LLD for the Scsi_Host.  Used most often in validating
