@@ -4647,48 +4647,37 @@ bad_value:
 	return invalfc(fc, "Bad value for '%s'", param->key);
 }
 
-static int shmem_parse_options(struct fs_context *fc, void *data)
+static char *shmem_next_opt(char **s)
 {
-	char *options = data;
+	char *sbegin = *s;
+	char *p;
 
-	if (options) {
-		int err = security_sb_eat_lsm_opts(options, &fc->security);
-		if (err)
-			return err;
-	}
+	if (sbegin == NULL)
+		return NULL;
 
-	while (options != NULL) {
-		char *this_char = options;
-		for (;;) {
-			/*
-			 * NUL-terminate this option: unfortunately,
-			 * mount options form a comma-separated list,
-			 * but mpol's nodelist may also contain commas.
-			 */
-			options = strchr(options, ',');
-			if (options == NULL)
-				break;
-			options++;
-			if (!isdigit(*options)) {
-				options[-1] = '\0';
-				break;
-			}
-		}
-		if (*this_char) {
-			char *value = strchr(this_char, '=');
-			size_t len = 0;
-			int err;
-
-			if (value) {
-				*value++ = '\0';
-				len = strlen(value);
-			}
-			err = vfs_parse_fs_string(fc, this_char, value, len);
-			if (err < 0)
-				return err;
+	/*
+	 * NUL-terminate this option: unfortunately,
+	 * mount options form a comma-separated list,
+	 * but mpol's nodelist may also contain commas.
+	 */
+	for (;;) {
+		p = strchr(*s, ',');
+		if (p == NULL)
+			break;
+		*s = p + 1;
+		if (!isdigit(*(p+1))) {
+			*p = '\0';
+			return sbegin;
 		}
 	}
-	return 0;
+
+	*s = NULL;
+	return sbegin;
+}
+
+static int shmem_parse_monolithic(struct fs_context *fc, void *data)
+{
+	return vfs_parse_monolithic_sep(fc, data, shmem_next_opt);
 }
 
 /*
@@ -5038,7 +5027,7 @@ static const struct fs_context_operations shmem_fs_context_ops = {
 	.free			= shmem_free_fc,
 	.get_tree		= shmem_get_tree,
 #ifdef CONFIG_TMPFS
-	.parse_monolithic	= shmem_parse_options,
+	.parse_monolithic	= shmem_parse_monolithic,
 	.parse_param		= shmem_parse_one,
 	.reconfigure		= shmem_reconfigure,
 #endif
