@@ -601,8 +601,10 @@
 		interrupts = <0 IRQ_TYPE_EDGE_FALLING>; /* GPIO_160 */
 		gpios = <&gpio6 0 GPIO_ACTIVE_LOW>;	/* GPIO_160 */
 		ti,x-plate-ohms = <600>;
-		touchscreen-size-x = <480>;
-		touchscreen-size-y = <640>;
+		touchscreen-size-x = <0xf00>;
+		touchscreen-size-y = <0xf00>;
+		touchscreen-min-x = <0x100>;
+		touchscreen-min-y = <0x100>;
 		touchscreen-max-pressure = <1000>;
 		touchscreen-fuzz-x = <3>;
 		touchscreen-fuzz-y = <8>;
