@@ -625,7 +625,7 @@ Interface Functions
 ===================
 Interface functions are supplied (defined) by LLDs and their function
 pointers are placed in an instance of struct scsi_host_template which
-is passed to scsi_host_alloc() [or scsi_register() / init_this_scsi_driver()].
+is passed to scsi_host_alloc() or scsi_register().
 Some are mandatory. Interface functions should be declared static. The
 accepted convention is that driver "xyz" will declare its sdev_configure()
 function as::
@@ -636,8 +636,8 @@ and so forth for all interface functions listed below.
 
 A pointer to this function should be placed in the 'sdev_configure' member
 of a "struct scsi_host_template" instance. A pointer to such an instance
-should be passed to the mid level's scsi_host_alloc() [or scsi_register() /
-init_this_scsi_driver()].
+should be passed to the mid level's scsi_host_alloc() or scsi_register().
+.
 
 The interface functions are also described in the include/scsi/scsi_host.h
 file immediately above their definition point in "struct scsi_host_template".
@@ -817,10 +817,6 @@ Details::
     *      The SCSI_IOCTL_PROBE_HOST ioctl yields the string returned by this
     *      function (or struct Scsi_Host::name if this function is not
     *      available).
-    *      In a similar manner, init_this_scsi_driver() outputs to the console
-    *      each host's "info" (or name) for the driver it is registering.
-    *      Also if proc_info() is not supplied, the output of this function
-    *      is used instead.
     *
     *      Optionally defined in: LLD
     **/
