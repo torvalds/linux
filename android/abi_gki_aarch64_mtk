@@ -2570,6 +2570,7 @@
   snd_ctl_boolean_mono_info
   snd_jack_set_key
   snd_pcm_format_physical_width
+  snd_pcm_format_set_silence
   snd_pcm_format_width
   snd_pcm_hw_constraint_integer
   snd_pcm_hw_constraint_minmax
