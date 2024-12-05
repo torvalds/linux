@@ -444,7 +444,7 @@ void iostat_print_metric(struct perf_stat_config *config, struct evsel *evsel,
 		iostat_value = (count->val - prev_count_val) /
 			       ((double) count->run / count->ena);
 	}
-	out->print_metric(config, out->ctx, NULL, "%8.0f", iostat_metric,
+	out->print_metric(config, out->ctx, METRIC_THRESHOLD_UNKNOWN, "%8.0f", iostat_metric,
 			  iostat_value / (256 * 1024));
 }
 

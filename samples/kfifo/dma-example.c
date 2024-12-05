@@ -9,6 +9,7 @@
 #include <linux/kfifo.h>
 #include <linux/module.h>
 #include <linux/scatterlist.h>
+#include <linux/dma-mapping.h>
 
 /*
  * This module shows how to handle fifo dma operations.

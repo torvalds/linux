@@ -11,6 +11,7 @@
 #include <linux/ratelimit.h>
 #include <linux/error-injection.h>
 #include <linux/sched/mm.h>
+#include <linux/string_choices.h>
 #include "ctree.h"
 #include "fs.h"
 #include "messages.h"
@@ -1387,6 +1388,7 @@ static int __btrfs_write_out_cache(struct inode *inode,
 	int bitmaps = 0;
 	int ret;
 	int must_iput = 0;
+	int i_size;
 
 	if (!i_size_read(inode))
 		return -EIO;
@@ -1457,11 +1459,16 @@ static int __btrfs_write_out_cache(struct inode *inode,
 	io_ctl_zero_remaining_pages(io_ctl);
 
 	/* Everything is written out, now we dirty the pages in the file. */
-	ret = btrfs_dirty_pages(BTRFS_I(inode), io_ctl->pages,
-				io_ctl->num_pages, 0, i_size_read(inode),
-				&cached_state, false);
-	if (ret)
-		goto out_nospc;
+	i_size = i_size_read(inode);
+	for (int i = 0; i < round_up(i_size, PAGE_SIZE) / PAGE_SIZE; i++) {
+		u64 dirty_start = i * PAGE_SIZE;
+		u64 dirty_len = min_t(u64, dirty_start + PAGE_SIZE, i_size) - dirty_start;
+
+		ret = btrfs_dirty_folio(BTRFS_I(inode), page_folio(io_ctl->pages[i]),
+					dirty_start, dirty_len, &cached_state, false);
+		if (ret < 0)
+			goto out_nospc;
+	}
 
 	if (block_group && (block_group->flags & BTRFS_BLOCK_GROUP_DATA))
 		up_write(&block_group->data_rwsem);
@@ -2936,12 +2943,11 @@ void btrfs_dump_free_space(struct btrfs_block_group *block_group,
 		if (info->bytes >= bytes && !block_group->ro)
 			count++;
 		btrfs_crit(fs_info, "entry offset %llu, bytes %llu, bitmap %s",
-			   info->offset, info->bytes,
-		       (info->bitmap) ? "yes" : "no");
+			   info->offset, info->bytes, str_yes_no(info->bitmap));
 	}
 	spin_unlock(&ctl->tree_lock);
 	btrfs_info(fs_info, "block group has cluster?: %s",
-	       list_empty(&block_group->cluster_list) ? "no" : "yes");
+	       str_no_yes(list_empty(&block_group->cluster_list)));
 	btrfs_info(fs_info,
 		   "%d free space entries at or bigger than %llu bytes",
 		   count, bytes);

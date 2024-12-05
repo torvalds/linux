@@ -146,6 +146,6 @@ extern const struct export_operations cifs_export_ops;
 #endif /* CONFIG_CIFS_NFSD_EXPORT */
 
 /* when changing internal version - update following two lines at same time */
-#define SMB3_PRODUCT_BUILD 51
-#define CIFS_VERSION   "2.51"
+#define SMB3_PRODUCT_BUILD 52
+#define CIFS_VERSION   "2.52"
 #endif				/* _CIFSFS_H */

@@ -783,7 +783,7 @@ static struct platform_driver cros_ec_lpc_driver = {
 		.probe_type = PROBE_FORCE_SYNCHRONOUS,
 	},
 	.probe = cros_ec_lpc_probe,
-	.remove_new = cros_ec_lpc_remove,
+	.remove = cros_ec_lpc_remove,
 };
 
 static struct platform_device cros_ec_lpc_device = {

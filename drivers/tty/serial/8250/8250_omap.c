@@ -776,11 +776,11 @@ static void omap_8250_shutdown(struct uart_port *port)
 	struct uart_8250_port *up = up_to_u8250p(port);
 	struct omap8250_priv *priv = port->private_data;
 
+	pm_runtime_get_sync(port->dev);
+
 	flush_work(&priv->qos_work);
 	if (up->dma)
 		omap_8250_rx_dma_flush(up);
-
-	pm_runtime_get_sync(port->dev);
 
 	serial_out(up, UART_OMAP_WER, 0);
 	if (priv->habit & UART_HAS_EFR2)
@@ -1304,7 +1304,7 @@ static void am654_8250_handle_rx_dma(struct uart_8250_port *up, u8 iir,
 
 /*
  * This is mostly serial8250_handle_irq(). We have a slightly different DMA
- * hoook for RX/TX and need different logic for them in the ISR. Therefore we
+ * hook for RX/TX and need different logic for them in the ISR. Therefore we
  * use the default routine in the non-DMA case and this one for with DMA.
  */
 static int omap_8250_dma_handle_irq(struct uart_port *port)
@@ -1338,7 +1338,7 @@ static int omap_8250_dma_handle_irq(struct uart_port *port)
 			serial8250_tx_chars(up);
 		} else  {
 			/*
-			 * try again due to an earlier failer which
+			 * try again due to an earlier failure which
 			 * might have been resolved by now.
 			 */
 			if (omap_8250_tx_dma(up))
@@ -1867,7 +1867,7 @@ static struct platform_driver omap8250_platform_driver = {
 		.of_match_table = omap8250_dt_ids,
 	},
 	.probe			= omap8250_probe,
-	.remove_new		= omap8250_remove,
+	.remove			= omap8250_remove,
 };
 module_platform_driver(omap8250_platform_driver);
 

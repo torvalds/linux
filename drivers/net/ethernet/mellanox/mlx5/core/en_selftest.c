@@ -36,6 +36,7 @@
 #include "en.h"
 #include "en/port.h"
 #include "eswitch.h"
+#include "lib/mlx5.h"
 
 static int mlx5e_test_health_info(struct mlx5e_priv *priv)
 {
@@ -245,6 +246,9 @@ static void mlx5e_test_loopback_cleanup(struct mlx5e_priv *priv,
 static int mlx5e_cond_loopback(struct mlx5e_priv *priv)
 {
 	if (is_mdev_switchdev_mode(priv->mdev))
+		return -EOPNOTSUPP;
+
+	if (mlx5_get_sd(priv->mdev))
 		return -EOPNOTSUPP;
 
 	return 0;

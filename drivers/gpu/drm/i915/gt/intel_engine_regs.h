@@ -15,6 +15,7 @@
 #define   HEAD_WRAP_COUNT			0xFFE00000
 #define   HEAD_WRAP_ONE				0x00200000
 #define   HEAD_ADDR				0x001FFFFC
+#define   HEAD_WAIT_I8XX			(1 << 0) /* gen2, PRBx_HEAD */
 #define RING_START(base)			_MMIO((base) + 0x38)
 #define RING_CTL(base)				_MMIO((base) + 0x3c)
 #define   RING_CTL_SIZE(size)			((size) - PAGE_SIZE) /* in bytes -> pages */
@@ -26,7 +27,6 @@
 #define   RING_VALID_MASK			0x00000001
 #define   RING_VALID				0x00000001
 #define   RING_INVALID				0x00000000
-#define   RING_WAIT_I8XX			(1 << 0) /* gen2, PRBx_HEAD */
 #define   RING_WAIT				(1 << 11) /* gen3+, PRBx_CTL */
 #define   RING_WAIT_SEMAPHORE			(1 << 10) /* gen6+ */
 #define RING_SYNC_0(base)			_MMIO((base) + 0x40)

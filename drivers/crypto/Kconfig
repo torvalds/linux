@@ -95,6 +95,9 @@ config PKEY
 	    loaded when a CEX crypto card is available.
 	  - A pkey EP11 kernel module (pkey-ep11.ko) which is automatically
 	    loaded when a CEX crypto card is available.
+	  - A pkey UV kernel module (pkey-uv.ko) which is automatically
+	    loaded when the Ultravisor feature is available within a
+	    protected execution environment.
 
 	  Select this option if you want to enable the kernel and userspace
 	  API for protected key handling.
@@ -151,6 +154,24 @@ config PKEY_PCKMO
 	  If you have selected the PKEY option then you should also enable
 	  this option unless you are sure you never need to derive protected
 	  keys from clear key values directly via PCKMO.
+
+config PKEY_UV
+	tristate "PKEY UV support handler"
+	depends on PKEY
+	depends on S390_UV_UAPI
+	help
+	  This is the PKEY Ultravisor support handler for deriving protected
+	  keys from secrets stored within the Ultravisor (UV).
+
+	  This module works together with the UV device and supports the
+	  retrieval of protected keys from secrets stored within the
+	  UV firmware layer. This service is only available within
+	  a protected execution guest and thus this module will fail upon
+	  modprobe if no protected execution environment is detected.
+
+	  Enable this option if you intend to run this kernel with an KVM
+	  guest with protected execution and you want to use UV retrievable
+	  secrets via PKEY API.
 
 config CRYPTO_PAES_S390
 	tristate "PAES cipher algorithms"

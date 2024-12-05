@@ -15,6 +15,7 @@
 #include <linux/overflow.h>
 #include <linux/platform_device.h>
 #include <linux/spi/spi.h>
+#include <trace/events/spi.h>
 
 #define SPI_ENGINE_REG_RESET			0x40
 
@@ -590,6 +591,13 @@ static int spi_engine_transfer_one_message(struct spi_controller *host,
 
 	reinit_completion(&spi_engine->msg_complete);
 
+	if (trace_spi_transfer_start_enabled()) {
+		struct spi_transfer *xfer;
+
+		list_for_each_entry(xfer, &msg->transfers, transfer_list)
+			trace_spi_transfer_start(msg, xfer);
+	}
+
 	spin_lock_irqsave(&spi_engine->lock, flags);
 
 	if (spi_engine_write_cmd_fifo(spi_engine, msg))
@@ -615,6 +623,13 @@ static int spi_engine_transfer_one_message(struct spi_controller *host,
 		dev_err(&host->dev,
 			"Timeout occurred while waiting for transfer to complete. Hardware is probably broken.\n");
 		msg->status = -ETIMEDOUT;
+	}
+
+	if (trace_spi_transfer_stop_enabled()) {
+		struct spi_transfer *xfer;
+
+		list_for_each_entry(xfer, &msg->transfers, transfer_list)
+			trace_spi_transfer_stop(msg, xfer);
 	}
 
 	spi_finalize_current_message(host);

@@ -108,10 +108,22 @@ int amdgpu_ring_alloc(struct amdgpu_ring *ring, unsigned int ndw)
  */
 void amdgpu_ring_insert_nop(struct amdgpu_ring *ring, uint32_t count)
 {
-	int i;
+	uint32_t occupied, chunk1, chunk2;
 
-	for (i = 0; i < count; i++)
-		amdgpu_ring_write(ring, ring->funcs->nop);
+	occupied = ring->wptr & ring->buf_mask;
+	chunk1 = ring->buf_mask + 1 - occupied;
+	chunk1 = (chunk1 >= count) ? count : chunk1;
+	chunk2 = count - chunk1;
+
+	if (chunk1)
+		memset32(&ring->ring[occupied], ring->funcs->nop, chunk1);
+
+	if (chunk2)
+		memset32(ring->ring, ring->funcs->nop, chunk2);
+
+	ring->wptr += count;
+	ring->wptr &= ring->ptr_mask;
+	ring->count_dw -= count;
 }
 
 /**
@@ -140,6 +152,9 @@ void amdgpu_ring_generic_pad_ib(struct amdgpu_ring *ring, struct amdgpu_ib *ib)
 void amdgpu_ring_commit(struct amdgpu_ring *ring)
 {
 	uint32_t count;
+
+	if (ring->count_dw < 0)
+		DRM_ERROR("amdgpu: writing more dwords to the ring than expected!\n");
 
 	/* We pad to match fetch size */
 	count = ring->funcs->align_mask + 1 -

@@ -52,6 +52,7 @@ static int video_mux_link_setup(struct media_entity *entity,
 				const struct media_pad *remote, u32 flags)
 {
 	struct v4l2_subdev *sd = media_entity_to_v4l2_subdev(entity);
+	struct v4l2_subdev_state *sd_state;
 	struct video_mux *vmux = v4l2_subdev_to_video_mux(sd);
 	u16 source_pad = entity->num_pads - 1;
 	int ret = 0;
@@ -67,10 +68,10 @@ static int video_mux_link_setup(struct media_entity *entity,
 		remote->entity->name, remote->index, local->entity->name,
 		local->index, flags & MEDIA_LNK_FL_ENABLED);
 
+	sd_state = v4l2_subdev_lock_and_get_active_state(sd);
 	mutex_lock(&vmux->lock);
 
 	if (flags & MEDIA_LNK_FL_ENABLED) {
-		struct v4l2_subdev_state *sd_state;
 		struct v4l2_mbus_framefmt *source_mbusformat;
 
 		if (vmux->active == local->index)
@@ -88,12 +89,10 @@ static int video_mux_link_setup(struct media_entity *entity,
 		vmux->active = local->index;
 
 		/* Propagate the active format to the source */
-		sd_state = v4l2_subdev_lock_and_get_active_state(sd);
 		source_mbusformat = v4l2_subdev_state_get_format(sd_state,
 								 source_pad);
 		*source_mbusformat = *v4l2_subdev_state_get_format(sd_state,
 								   vmux->active);
-		v4l2_subdev_unlock_state(sd_state);
 	} else {
 		if (vmux->active != local->index)
 			goto out;
@@ -105,6 +104,7 @@ static int video_mux_link_setup(struct media_entity *entity,
 
 out:
 	mutex_unlock(&vmux->lock);
+	v4l2_subdev_unlock_state(sd_state);
 	return ret;
 }
 
@@ -486,7 +486,7 @@ MODULE_DEVICE_TABLE(of, video_mux_dt_ids);
 
 static struct platform_driver video_mux_driver = {
 	.probe		= video_mux_probe,
-	.remove_new	= video_mux_remove,
+	.remove		= video_mux_remove,
 	.driver		= {
 		.of_match_table = video_mux_dt_ids,
 		.name = "video-mux",

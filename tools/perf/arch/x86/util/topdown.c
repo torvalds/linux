@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 #include "api/fs/fs.h"
 #include "util/evsel.h"
+#include "util/evlist.h"
 #include "util/pmu.h"
 #include "util/pmus.h"
 #include "util/topdown.h"
@@ -32,6 +33,31 @@ bool topdown_sys_has_perf_metrics(void)
 }
 
 #define TOPDOWN_SLOTS		0x0400
+bool arch_is_topdown_slots(const struct evsel *evsel)
+{
+	if (evsel->core.attr.config == TOPDOWN_SLOTS)
+		return true;
+
+	return false;
+}
+
+bool arch_is_topdown_metrics(const struct evsel *evsel)
+{
+	int config = evsel->core.attr.config;
+	const char *name_from_config;
+	struct perf_pmu *pmu;
+
+	/* All topdown events have an event code of 0. */
+	if ((config & 0xFF) != 0)
+		return false;
+
+	pmu = evsel__find_pmu(evsel);
+	if (!pmu || !pmu->is_core)
+		return false;
+
+	name_from_config = perf_pmu__name_from_config(pmu, config);
+	return name_from_config && strcasestr(name_from_config, "topdown");
+}
 
 /*
  * Check whether a topdown group supports sample-read.
@@ -41,11 +67,24 @@ bool topdown_sys_has_perf_metrics(void)
  */
 bool arch_topdown_sample_read(struct evsel *leader)
 {
+	struct evsel *evsel;
+
 	if (!evsel__sys_has_perf_metrics(leader))
 		return false;
 
-	if (leader->core.attr.config == TOPDOWN_SLOTS)
-		return true;
+	if (!arch_is_topdown_slots(leader))
+		return false;
+
+	/*
+	 * If slots event as leader event but no topdown metric events
+	 * in group, slots event should still sample as leader.
+	 */
+	evlist__for_each_entry(leader->evlist, evsel) {
+		if (evsel->core.leader != leader->core.leader)
+			return false;
+		if (evsel != leader && arch_is_topdown_metrics(evsel))
+			return true;
+	}
 
 	return false;
 }

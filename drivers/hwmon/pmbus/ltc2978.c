@@ -23,7 +23,8 @@ enum chips {
 	/* Managers */
 	ltc2972, ltc2974, ltc2975, ltc2977, ltc2978, ltc2979, ltc2980,
 	/* Controllers */
-	ltc3880, ltc3882, ltc3883, ltc3884, ltc3886, ltc3887, ltc3889, ltc7132, ltc7880,
+	ltc3880, ltc3882, ltc3883, ltc3884, ltc3886, ltc3887, ltc3889, ltc7132,
+	ltc7841, ltc7880,
 	/* Modules */
 	ltm2987, ltm4664, ltm4675, ltm4676, ltm4677, ltm4678, ltm4680, ltm4686,
 	ltm4700,
@@ -50,7 +51,7 @@ enum chips {
 #define LTC3880_MFR_CLEAR_PEAKS		0xe3
 #define LTC3880_MFR_TEMPERATURE2_PEAK	0xf4
 
-/* LTC3883, LTC3884, LTC3886, LTC3889, LTC7132, LTC7880 */
+/* LTC3883, LTC3884, LTC3886, LTC3889, LTC7132, LTC7841 and LTC7880 only */
 #define LTC3883_MFR_IIN_PEAK		0xe1
 
 /* LTC2975 only */
@@ -80,6 +81,7 @@ enum chips {
 #define LTC3887_ID			0x4700
 #define LTC3889_ID			0x4900
 #define LTC7132_ID			0x4CE0
+#define LTC7841_ID			0x40D0
 #define LTC7880_ID			0x49E0
 #define LTM2987_ID_A			0x8010	/* A/B for two die IDs */
 #define LTM2987_ID_B			0x8020
@@ -548,6 +550,7 @@ static const struct i2c_device_id ltc2978_id[] = {
 	{"ltc3887", ltc3887},
 	{"ltc3889", ltc3889},
 	{"ltc7132", ltc7132},
+	{"ltc7841", ltc7841},
 	{"ltc7880", ltc7880},
 	{"ltm2987", ltm2987},
 	{"ltm4664", ltm4664},
@@ -654,6 +657,8 @@ static int ltc2978_get_id(struct i2c_client *client)
 		return ltc3889;
 	else if (chip_id == LTC7132_ID)
 		return ltc7132;
+	else if (chip_id == LTC7841_ID)
+		return ltc7841;
 	else if (chip_id == LTC7880_ID)
 		return ltc7880;
 	else if (chip_id == LTM2987_ID_A || chip_id == LTM2987_ID_B)
@@ -854,6 +859,16 @@ static int ltc2978_probe(struct i2c_client *client)
 		  | PMBUS_HAVE_POUT
 		  | PMBUS_HAVE_TEMP | PMBUS_HAVE_STATUS_TEMP;
 		break;
+	case ltc7841:
+		data->features |= FEAT_CLEAR_PEAKS;
+		info->read_word_data = ltc3883_read_word_data;
+		info->pages = LTC3883_NUM_PAGES;
+		info->func[0] = PMBUS_HAVE_VIN | PMBUS_HAVE_IIN
+		  | PMBUS_HAVE_STATUS_INPUT
+		  | PMBUS_HAVE_VOUT | PMBUS_HAVE_STATUS_VOUT
+		  | PMBUS_HAVE_IOUT
+		  | PMBUS_HAVE_TEMP | PMBUS_HAVE_STATUS_TEMP;
+		break;
 	default:
 		return -ENODEV;
 	}
@@ -907,6 +922,7 @@ static const struct of_device_id ltc2978_of_match[] = {
 	{ .compatible = "lltc,ltc3887" },
 	{ .compatible = "lltc,ltc3889" },
 	{ .compatible = "lltc,ltc7132" },
+	{ .compatible = "lltc,ltc7841" },
 	{ .compatible = "lltc,ltc7880" },
 	{ .compatible = "lltc,ltm2987" },
 	{ .compatible = "lltc,ltm4664" },

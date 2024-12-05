@@ -1,0 +1,49 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/usb/ti,tusb1046.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Texas Instruments TUSB1046-DCI Type-C crosspoint switch
+
+maintainers:
+  - Romain Gantois <romain.gantois@bootlin.com>
+
+allOf:
+  - $ref: usb-switch.yaml#
+
+properties:
+  compatible:
+    const: ti,tusb1046
+
+  reg:
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+  - port
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        typec-mux@44 {
+            compatible = "ti,tusb1046";
+            reg = <0x44>;
+
+            mode-switch;
+            orientation-switch;
+
+            port {
+                endpoint {
+                    remote-endpoint = <&typec_controller>;
+                };
+            };
+        };
+    };
+...

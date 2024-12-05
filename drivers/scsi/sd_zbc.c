@@ -633,8 +633,6 @@ int sd_zbc_read_zones(struct scsi_disk *sdkp, struct queue_limits *lim,
 		lim->max_open_zones = sdkp->zones_max_open;
 	lim->max_active_zones = 0;
 	lim->chunk_sectors = logical_to_sectors(sdkp->device, zone_blocks);
-	/* Enable block layer zone append emulation */
-	lim->max_zone_append_sectors = 0;
 
 	return 0;
 

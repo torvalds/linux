@@ -68,25 +68,6 @@ static inline void apbt_writel_relaxed(struct dw_apb_timer *timer, u32 val,
 	writel_relaxed(val, timer->base + offs);
 }
 
-static void apbt_disable_int(struct dw_apb_timer *timer)
-{
-	u32 ctrl = apbt_readl(timer, APBTMR_N_CONTROL);
-
-	ctrl |= APBTMR_CONTROL_INT;
-	apbt_writel(timer, ctrl, APBTMR_N_CONTROL);
-}
-
-/**
- * dw_apb_clockevent_pause() - stop the clock_event_device from running
- *
- * @dw_ced:	The APB clock to stop generating events.
- */
-void dw_apb_clockevent_pause(struct dw_apb_clock_event_device *dw_ced)
-{
-	disable_irq(dw_ced->timer.irq);
-	apbt_disable_int(&dw_ced->timer);
-}
-
 static void apbt_eoi(struct dw_apb_timer *timer)
 {
 	apbt_readl_relaxed(timer, APBTMR_N_EOI);
@@ -282,26 +263,6 @@ dw_apb_clockevent_init(int cpu, const char *name, unsigned rating,
 	}
 
 	return dw_ced;
-}
-
-/**
- * dw_apb_clockevent_resume() - resume a clock that has been paused.
- *
- * @dw_ced:	The APB clock to resume.
- */
-void dw_apb_clockevent_resume(struct dw_apb_clock_event_device *dw_ced)
-{
-	enable_irq(dw_ced->timer.irq);
-}
-
-/**
- * dw_apb_clockevent_stop() - stop the clock_event_device and release the IRQ.
- *
- * @dw_ced:	The APB clock to stop generating the events.
- */
-void dw_apb_clockevent_stop(struct dw_apb_clock_event_device *dw_ced)
-{
-	free_irq(dw_ced->timer.irq, &dw_ced->ced);
 }
 
 /**

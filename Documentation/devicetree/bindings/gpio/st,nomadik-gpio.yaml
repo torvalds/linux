@@ -89,6 +89,7 @@ examples:
         interrupts = <0 120 0x4>;
         #gpio-cells = <2>;
         gpio-controller;
+        #interrupt-cells = <2>;
         interrupt-controller;
         st,supports-sleepmode;
         gpio-bank = <1>;

@@ -5,16 +5,8 @@
 
 extra-y			+= vmlinux.lds
 
-obj-$(CONFIG_AMIGA)	:= head.o
-obj-$(CONFIG_ATARI)	:= head.o
-obj-$(CONFIG_MAC)	:= head.o
-obj-$(CONFIG_APOLLO)	:= head.o
-obj-$(CONFIG_VME)	:= head.o
-obj-$(CONFIG_HP300)	:= head.o
-obj-$(CONFIG_Q40)	:= head.o
-obj-$(CONFIG_SUN3X)	:= head.o
-obj-$(CONFIG_VIRT)	:= head.o
-obj-$(CONFIG_SUN3)	:= sun3-head.o
+obj-$(CONFIG_MMU_MOTOROLA)	:= head.o
+obj-$(CONFIG_SUN3)		:= sun3-head.o
 
 obj-y	+= entry.o irq.o module.o process.o ptrace.o
 obj-y	+= setup.o signal.o sys_m68k.o syscalltable.o time.o traps.o

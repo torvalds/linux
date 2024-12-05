@@ -53,37 +53,21 @@ examples:
 
             ethernet-phy@1 {
                 reg = <1>;
-                marvell,reg-init = <3 0x10 0 0x5777>,
-                  <3 0x11 0 0x00aa>,
-                  <3 0x12 0 0x4105>,
-                  <3 0x13 0 0x0a60>;
                 interrupt-parent = <&gpio>;
                 interrupts = <10 8>; /* Pin 10, active low */
             };
             ethernet-phy@2 {
                 reg = <2>;
-                marvell,reg-init = <3 0x10 0 0x5777>,
-                  <3 0x11 0 0x00aa>,
-                  <3 0x12 0 0x4105>,
-                  <3 0x13 0 0x0a60>;
                 interrupt-parent = <&gpio>;
                 interrupts = <10 8>; /* Pin 10, active low */
             };
             ethernet-phy@3 {
                 reg = <3>;
-                marvell,reg-init = <3 0x10 0 0x5777>,
-                  <3 0x11 0 0x00aa>,
-                  <3 0x12 0 0x4105>,
-                  <3 0x13 0 0x0a60>;
                 interrupt-parent = <&gpio>;
                 interrupts = <10 8>; /* Pin 10, active low */
             };
             ethernet-phy@4 {
                 reg = <4>;
-                marvell,reg-init = <3 0x10 0 0x5777>,
-                  <3 0x11 0 0x00aa>,
-                  <3 0x12 0 0x4105>,
-                  <3 0x13 0 0x0a60>;
                 interrupt-parent = <&gpio>;
                 interrupts = <10 8>; /* Pin 10, active low */
             };
@@ -96,37 +80,21 @@ examples:
 
             ethernet-phy@1 {
                 reg = <1>;
-                marvell,reg-init = <3 0x10 0 0x5777>,
-                  <3 0x11 0 0x00aa>,
-                  <3 0x12 0 0x4105>,
-                  <3 0x13 0 0x0a60>;
                 interrupt-parent = <&gpio>;
                 interrupts = <12 8>; /* Pin 12, active low */
             };
             ethernet-phy@2 {
                 reg = <2>;
-                marvell,reg-init = <3 0x10 0 0x5777>,
-                  <3 0x11 0 0x00aa>,
-                  <3 0x12 0 0x4105>,
-                  <3 0x13 0 0x0a60>;
                 interrupt-parent = <&gpio>;
                 interrupts = <12 8>; /* Pin 12, active low */
             };
             ethernet-phy@3 {
                 reg = <3>;
-                marvell,reg-init = <3 0x10 0 0x5777>,
-                  <3 0x11 0 0x00aa>,
-                  <3 0x12 0 0x4105>,
-                  <3 0x13 0 0x0a60>;
                 interrupt-parent = <&gpio>;
                 interrupts = <12 8>; /* Pin 12, active low */
             };
             ethernet-phy@4 {
                 reg = <4>;
-                marvell,reg-init = <3 0x10 0 0x5777>,
-                  <3 0x11 0 0x00aa>,
-                  <3 0x12 0 0x4105>,
-                  <3 0x13 0 0x0a60>;
                 interrupt-parent = <&gpio>;
                 interrupts = <12 8>; /* Pin 12, active low */
             };

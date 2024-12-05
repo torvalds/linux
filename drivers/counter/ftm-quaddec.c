@@ -311,6 +311,7 @@ static const struct of_device_id ftm_quaddec_match[] = {
 	{ .compatible = "fsl,ftm-quaddec" },
 	{},
 };
+MODULE_DEVICE_TABLE(of, ftm_quaddec_match);
 
 static struct platform_driver ftm_quaddec_driver = {
 	.driver = {

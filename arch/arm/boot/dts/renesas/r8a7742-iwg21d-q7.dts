@@ -202,8 +202,7 @@
 	touch: touchpanel@38 {
 		compatible = "edt,edt-ft5406";
 		reg = <0x38>;
-		interrupt-parent = <&gpio0>;
-		interrupts = <24 IRQ_TYPE_EDGE_FALLING>;
+		interrupts-extended = <&gpio0 24 IRQ_TYPE_EDGE_FALLING>;
 		/* GP1_29 is also shared with audio codec reset pin */
 		reset-gpios = <&gpio1 29 GPIO_ACTIVE_LOW>;
 		vcc-supply = <&vcc_3v3_tft1>;

@@ -25,7 +25,7 @@ int xadc_read_event_config(struct iio_dev *indio_dev,
 	enum iio_event_direction dir);
 int xadc_write_event_config(struct iio_dev *indio_dev,
 	const struct iio_chan_spec *chan, enum iio_event_type type,
-	enum iio_event_direction dir, int state);
+	enum iio_event_direction dir, bool state);
 int xadc_read_event_value(struct iio_dev *indio_dev,
 	const struct iio_chan_spec *chan, enum iio_event_type type,
 	enum iio_event_direction dir, enum iio_event_info info,

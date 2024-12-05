@@ -24,13 +24,17 @@
 #include <linux/types.h>
 #include <linux/reset.h>
 
+#include "../lan969x/lan969x.h" /* for lan969x match data */
+
 #include "sparx5_main_regs.h"
 #include "sparx5_main.h"
 #include "sparx5_port.h"
 #include "sparx5_qos.h"
+#include "sparx5_vcap_ag_api.h"
+#include "sparx5_vcap_impl.h"
 
-#define QLIM_WM(fraction) \
-	((SPX5_BUFFER_MEMORY / SPX5_BUFFER_CELL_SZ - 100) * (fraction) / 100)
+const struct sparx5_regs *regs;
+
 #define IO_RANGES 3
 
 struct initial_port_config {
@@ -43,12 +47,6 @@ struct initial_port_config {
 struct sparx5_ram_config {
 	void __iomem *init_reg;
 	u32 init_val;
-};
-
-struct sparx5_main_io_resource {
-	enum sparx5_target id;
-	phys_addr_t offset;
-	int range;
 };
 
 static const struct sparx5_main_io_resource sparx5_main_iomap[] =  {
@@ -214,23 +212,79 @@ static const struct sparx5_main_io_resource sparx5_main_iomap[] =  {
 	{ TARGET_VOP,                0x11a00000, 2 }, /* 0x611a00000 */
 };
 
+bool is_sparx5(struct sparx5 *sparx5)
+{
+	switch (sparx5->target_ct) {
+	case SPX5_TARGET_CT_7546:
+	case SPX5_TARGET_CT_7549:
+	case SPX5_TARGET_CT_7552:
+	case SPX5_TARGET_CT_7556:
+	case SPX5_TARGET_CT_7558:
+	case SPX5_TARGET_CT_7546TSN:
+	case SPX5_TARGET_CT_7549TSN:
+	case SPX5_TARGET_CT_7552TSN:
+	case SPX5_TARGET_CT_7556TSN:
+	case SPX5_TARGET_CT_7558TSN:
+		return true;
+	default:
+		return false;
+	}
+}
+
+static void sparx5_init_features(struct sparx5 *sparx5)
+{
+	switch (sparx5->target_ct) {
+	case SPX5_TARGET_CT_7546:
+	case SPX5_TARGET_CT_7549:
+	case SPX5_TARGET_CT_7552:
+	case SPX5_TARGET_CT_7556:
+	case SPX5_TARGET_CT_7558:
+	case SPX5_TARGET_CT_7546TSN:
+	case SPX5_TARGET_CT_7549TSN:
+	case SPX5_TARGET_CT_7552TSN:
+	case SPX5_TARGET_CT_7556TSN:
+	case SPX5_TARGET_CT_7558TSN:
+	case SPX5_TARGET_CT_LAN9691VAO:
+	case SPX5_TARGET_CT_LAN9694TSN:
+	case SPX5_TARGET_CT_LAN9694RED:
+	case SPX5_TARGET_CT_LAN9692VAO:
+	case SPX5_TARGET_CT_LAN9696TSN:
+	case SPX5_TARGET_CT_LAN9696RED:
+	case SPX5_TARGET_CT_LAN9693VAO:
+	case SPX5_TARGET_CT_LAN9698TSN:
+	case SPX5_TARGET_CT_LAN9698RED:
+		sparx5->features = (SPX5_FEATURE_PSFP | SPX5_FEATURE_PTP);
+		break;
+	default:
+		break;
+	}
+}
+
+bool sparx5_has_feature(struct sparx5 *sparx5, enum sparx5_feature feature)
+{
+	return sparx5->features & feature;
+}
+
 static int sparx5_create_targets(struct sparx5 *sparx5)
 {
+	const struct sparx5_main_io_resource *iomap = sparx5->data->iomap;
+	int iomap_size = sparx5->data->iomap_size;
+	int ioranges = sparx5->data->ioranges;
 	struct resource *iores[IO_RANGES];
 	void __iomem *iomem[IO_RANGES];
 	void __iomem *begin[IO_RANGES];
 	int range_id[IO_RANGES];
 	int idx, jdx;
 
-	for (idx = 0, jdx = 0; jdx < ARRAY_SIZE(sparx5_main_iomap); jdx++) {
-		const struct sparx5_main_io_resource *iomap = &sparx5_main_iomap[jdx];
+	for (idx = 0, jdx = 0; jdx < iomap_size; jdx++) {
+		const struct sparx5_main_io_resource *io = &iomap[jdx];
 
-		if (idx == iomap->range) {
+		if (idx == io->range) {
 			range_id[idx] = jdx;
 			idx++;
 		}
 	}
-	for (idx = 0; idx < IO_RANGES; idx++) {
+	for (idx = 0; idx < ioranges; idx++) {
 		iores[idx] = platform_get_resource(sparx5->pdev, IORESOURCE_MEM,
 						   idx);
 		if (!iores[idx]) {
@@ -245,12 +299,12 @@ static int sparx5_create_targets(struct sparx5 *sparx5)
 				iores[idx]->name);
 			return -ENOMEM;
 		}
-		begin[idx] = iomem[idx] - sparx5_main_iomap[range_id[idx]].offset;
+		begin[idx] = iomem[idx] - iomap[range_id[idx]].offset;
 	}
-	for (jdx = 0; jdx < ARRAY_SIZE(sparx5_main_iomap); jdx++) {
-		const struct sparx5_main_io_resource *iomap = &sparx5_main_iomap[jdx];
+	for (jdx = 0; jdx < iomap_size; jdx++) {
+		const struct sparx5_main_io_resource *io = &iomap[jdx];
 
-		sparx5->regs[iomap->id] = begin[iomap->range] + iomap->offset;
+		sparx5->regs[io->id] = begin[io->range] + io->offset;
 	}
 	return 0;
 }
@@ -459,56 +513,74 @@ static int sparx5_init_coreclock(struct sparx5 *sparx5)
 		else if (sparx5->coreclock == SPX5_CORE_CLOCK_250MHZ)
 			freq = 0; /* Not supported */
 		break;
+	case SPX5_TARGET_CT_LAN9694:
+	case SPX5_TARGET_CT_LAN9691VAO:
+	case SPX5_TARGET_CT_LAN9694TSN:
+	case SPX5_TARGET_CT_LAN9694RED:
+	case SPX5_TARGET_CT_LAN9696:
+	case SPX5_TARGET_CT_LAN9692VAO:
+	case SPX5_TARGET_CT_LAN9696TSN:
+	case SPX5_TARGET_CT_LAN9696RED:
+	case SPX5_TARGET_CT_LAN9698:
+	case SPX5_TARGET_CT_LAN9693VAO:
+	case SPX5_TARGET_CT_LAN9698TSN:
+	case SPX5_TARGET_CT_LAN9698RED:
+		freq = SPX5_CORE_CLOCK_328MHZ;
+		break;
 	default:
 		dev_err(sparx5->dev, "Target (%#04x) not supported\n",
 			sparx5->target_ct);
 		return -ENODEV;
 	}
 
-	switch (freq) {
-	case SPX5_CORE_CLOCK_250MHZ:
-		clk_div = 10;
-		pol_upd_int = 312;
-		break;
-	case SPX5_CORE_CLOCK_500MHZ:
-		clk_div = 5;
-		pol_upd_int = 624;
-		break;
-	case SPX5_CORE_CLOCK_625MHZ:
-		clk_div = 4;
-		pol_upd_int = 780;
-		break;
-	default:
-		dev_err(sparx5->dev, "%d coreclock not supported on (%#04x)\n",
-			sparx5->coreclock, sparx5->target_ct);
-		return -EINVAL;
+	if (is_sparx5(sparx5)) {
+		switch (freq) {
+		case SPX5_CORE_CLOCK_250MHZ:
+			clk_div = 10;
+			pol_upd_int = 312;
+			break;
+		case SPX5_CORE_CLOCK_500MHZ:
+			clk_div = 5;
+			pol_upd_int = 624;
+			break;
+		case SPX5_CORE_CLOCK_625MHZ:
+			clk_div = 4;
+			pol_upd_int = 780;
+			break;
+		default:
+			dev_err(sparx5->dev,
+				"%d coreclock not supported on (%#04x)\n",
+				sparx5->coreclock, sparx5->target_ct);
+			return -EINVAL;
+		}
+
+		/* Configure the LCPLL */
+		spx5_rmw(CLKGEN_LCPLL1_CORE_CLK_CFG_CORE_CLK_DIV_SET(clk_div) |
+			 CLKGEN_LCPLL1_CORE_CLK_CFG_CORE_PRE_DIV_SET(0) |
+			 CLKGEN_LCPLL1_CORE_CLK_CFG_CORE_ROT_DIR_SET(0) |
+			 CLKGEN_LCPLL1_CORE_CLK_CFG_CORE_ROT_SEL_SET(0) |
+			 CLKGEN_LCPLL1_CORE_CLK_CFG_CORE_ROT_ENA_SET(0) |
+			 CLKGEN_LCPLL1_CORE_CLK_CFG_CORE_CLK_ENA_SET(1),
+			 CLKGEN_LCPLL1_CORE_CLK_CFG_CORE_CLK_DIV |
+			 CLKGEN_LCPLL1_CORE_CLK_CFG_CORE_PRE_DIV |
+			 CLKGEN_LCPLL1_CORE_CLK_CFG_CORE_ROT_DIR |
+			 CLKGEN_LCPLL1_CORE_CLK_CFG_CORE_ROT_SEL |
+			 CLKGEN_LCPLL1_CORE_CLK_CFG_CORE_ROT_ENA |
+			 CLKGEN_LCPLL1_CORE_CLK_CFG_CORE_CLK_ENA,
+			 sparx5, CLKGEN_LCPLL1_CORE_CLK_CFG);
+	} else {
+		pol_upd_int = 820; // SPX5_CORE_CLOCK_328MHZ
 	}
 
 	/* Update state with chosen frequency */
 	sparx5->coreclock = freq;
-
-	/* Configure the LCPLL */
-	spx5_rmw(CLKGEN_LCPLL1_CORE_CLK_CFG_CORE_CLK_DIV_SET(clk_div) |
-		 CLKGEN_LCPLL1_CORE_CLK_CFG_CORE_PRE_DIV_SET(0) |
-		 CLKGEN_LCPLL1_CORE_CLK_CFG_CORE_ROT_DIR_SET(0) |
-		 CLKGEN_LCPLL1_CORE_CLK_CFG_CORE_ROT_SEL_SET(0) |
-		 CLKGEN_LCPLL1_CORE_CLK_CFG_CORE_ROT_ENA_SET(0) |
-		 CLKGEN_LCPLL1_CORE_CLK_CFG_CORE_CLK_ENA_SET(1),
-		 CLKGEN_LCPLL1_CORE_CLK_CFG_CORE_CLK_DIV |
-		 CLKGEN_LCPLL1_CORE_CLK_CFG_CORE_PRE_DIV |
-		 CLKGEN_LCPLL1_CORE_CLK_CFG_CORE_ROT_DIR |
-		 CLKGEN_LCPLL1_CORE_CLK_CFG_CORE_ROT_SEL |
-		 CLKGEN_LCPLL1_CORE_CLK_CFG_CORE_ROT_ENA |
-		 CLKGEN_LCPLL1_CORE_CLK_CFG_CORE_CLK_ENA,
-		 sparx5,
-		 CLKGEN_LCPLL1_CORE_CLK_CFG);
-
 	clk_period = sparx5_clk_period(freq);
 
-	spx5_rmw(HSCH_SYS_CLK_PER_100PS_SET(clk_period / 100),
-		 HSCH_SYS_CLK_PER_100PS,
-		 sparx5,
-		 HSCH_SYS_CLK_PER);
+	if (is_sparx5(sparx5))
+		spx5_rmw(HSCH_SYS_CLK_PER_100PS_SET(clk_period / 100),
+			 HSCH_SYS_CLK_PER_100PS,
+			 sparx5,
+			 HSCH_SYS_CLK_PER);
 
 	spx5_rmw(ANA_AC_POL_BDLB_DLB_CTRL_CLK_PERIOD_01NS_SET(clk_period / 100),
 		 ANA_AC_POL_BDLB_DLB_CTRL_CLK_PERIOD_01NS,
@@ -525,7 +597,7 @@ static int sparx5_init_coreclock(struct sparx5 *sparx5)
 		 sparx5,
 		 LRN_AUTOAGE_CFG_1);
 
-	for (idx = 0; idx < 3; idx++)
+	for (idx = 0; idx < sparx5->data->consts->n_sio_clks; idx++)
 		spx5_rmw(GCB_SIO_CLOCK_SYS_CLK_PERIOD_SET(clk_period / 100),
 			 GCB_SIO_CLOCK_SYS_CLK_PERIOD,
 			 sparx5,
@@ -545,25 +617,36 @@ static int sparx5_init_coreclock(struct sparx5 *sparx5)
 	return 0;
 }
 
+static u32 qlim_wm(struct sparx5 *sparx5, int fraction)
+{
+	return (sparx5->data->consts->buf_size / SPX5_BUFFER_CELL_SZ - 100) *
+	       fraction / 100;
+}
+
 static int sparx5_qlim_set(struct sparx5 *sparx5)
 {
+	const struct sparx5_consts *consts = sparx5->data->consts;
 	u32 res, dp, prio;
 
 	for (res = 0; res < 2; res++) {
 		for (prio = 0; prio < 8; prio++)
 			spx5_wr(0xFFF, sparx5,
-				QRES_RES_CFG(prio + 630 + res * 1024));
+				QRES_RES_CFG(prio +
+					     consts->qres_max_prio_idx +
+					     res * 1024));
 
 		for (dp = 0; dp < 4; dp++)
 			spx5_wr(0xFFF, sparx5,
-				QRES_RES_CFG(dp + 638 + res * 1024));
+				QRES_RES_CFG(dp +
+					     consts->qres_max_colour_idx +
+					     res * 1024));
 	}
 
 	/* Set 80,90,95,100% of memory size for top watermarks */
-	spx5_wr(QLIM_WM(80), sparx5, XQS_QLIMIT_SHR_QLIM_CFG(0));
-	spx5_wr(QLIM_WM(90), sparx5, XQS_QLIMIT_SHR_CTOP_CFG(0));
-	spx5_wr(QLIM_WM(95), sparx5, XQS_QLIMIT_SHR_ATOP_CFG(0));
-	spx5_wr(QLIM_WM(100), sparx5, XQS_QLIMIT_SHR_TOP_CFG(0));
+	spx5_wr(qlim_wm(sparx5, 80), sparx5, XQS_QLIMIT_SHR_QLIM_CFG(0));
+	spx5_wr(qlim_wm(sparx5, 90), sparx5, XQS_QLIMIT_SHR_CTOP_CFG(0));
+	spx5_wr(qlim_wm(sparx5, 95), sparx5, XQS_QLIMIT_SHR_ATOP_CFG(0));
+	spx5_wr(qlim_wm(sparx5, 100), sparx5, XQS_QLIMIT_SHR_TOP_CFG(0));
 
 	return 0;
 }
@@ -585,7 +668,7 @@ static void sparx5_board_init(struct sparx5 *sparx5)
 		 GCB_HW_SGPIO_SD_CFG);
 
 	/* Refer to LOS SGPIO */
-	for (idx = 0; idx < SPX5_PORTS; idx++)
+	for (idx = 0; idx < sparx5->data->consts->n_ports; idx++)
 		if (sparx5->ports[idx])
 			if (sparx5->ports[idx]->conf.sd_sgpio != ~0)
 				spx5_wr(sparx5->ports[idx]->conf.sd_sgpio,
@@ -596,12 +679,14 @@ static void sparx5_board_init(struct sparx5 *sparx5)
 static int sparx5_start(struct sparx5 *sparx5)
 {
 	u8 broadcast[ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
+	const struct sparx5_consts *consts = sparx5->data->consts;
+	const struct sparx5_ops *ops = sparx5->data->ops;
 	char queue_name[32];
 	u32 idx;
 	int err;
 
 	/* Setup own UPSIDs */
-	for (idx = 0; idx < 3; idx++) {
+	for (idx = 0; idx < consts->n_own_upsids; idx++) {
 		spx5_wr(idx, sparx5, ANA_AC_OWN_UPSID(idx));
 		spx5_wr(idx, sparx5, ANA_CL_OWN_UPSID(idx));
 		spx5_wr(idx, sparx5, ANA_L2_OWN_UPSID(idx));
@@ -609,7 +694,7 @@ static int sparx5_start(struct sparx5 *sparx5)
 	}
 
 	/* Enable CPU ports */
-	for (idx = SPX5_PORTS; idx < SPX5_PORTS_ALL; idx++)
+	for (idx = consts->n_ports; idx < consts->n_ports_all; idx++)
 		spx5_rmw(QFWD_SWITCH_PORT_MODE_PORT_ENA_SET(1),
 			 QFWD_SWITCH_PORT_MODE_PORT_ENA,
 			 sparx5,
@@ -619,13 +704,14 @@ static int sparx5_start(struct sparx5 *sparx5)
 	sparx5_update_fwd(sparx5);
 
 	/* CPU copy CPU pgids */
-	spx5_wr(ANA_AC_PGID_MISC_CFG_PGID_CPU_COPY_ENA_SET(1),
-		sparx5, ANA_AC_PGID_MISC_CFG(PGID_CPU));
-	spx5_wr(ANA_AC_PGID_MISC_CFG_PGID_CPU_COPY_ENA_SET(1),
-		sparx5, ANA_AC_PGID_MISC_CFG(PGID_BCAST));
+	spx5_wr(ANA_AC_PGID_MISC_CFG_PGID_CPU_COPY_ENA_SET(1), sparx5,
+		ANA_AC_PGID_MISC_CFG(sparx5_get_pgid(sparx5, PGID_CPU)));
+	spx5_wr(ANA_AC_PGID_MISC_CFG_PGID_CPU_COPY_ENA_SET(1), sparx5,
+		ANA_AC_PGID_MISC_CFG(sparx5_get_pgid(sparx5, PGID_BCAST)));
 
 	/* Recalc injected frame FCS */
-	for (idx = SPX5_PORT_CPU_0; idx <= SPX5_PORT_CPU_1; idx++)
+	for (idx = sparx5_get_internal_port(sparx5, SPX5_PORT_CPU_0);
+	     idx <= sparx5_get_internal_port(sparx5, SPX5_PORT_CPU_1); idx++)
 		spx5_rmw(ANA_CL_FILTER_CTRL_FORCE_FCS_UPDATE_ENA_SET(1),
 			 ANA_CL_FILTER_CTRL_FORCE_FCS_UPDATE_ENA,
 			 sparx5, ANA_CL_FILTER_CTRL(idx));
@@ -640,7 +726,8 @@ static int sparx5_start(struct sparx5 *sparx5)
 	sparx5_vlan_init(sparx5);
 
 	/* Add host mode BC address (points only to CPU) */
-	sparx5_mact_learn(sparx5, PGID_CPU, broadcast, NULL_VID);
+	sparx5_mact_learn(sparx5, sparx5_get_pgid(sparx5, PGID_CPU), broadcast,
+			  NULL_VID);
 
 	/* Enable queue limitation watermarks */
 	sparx5_qlim_set(sparx5);
@@ -691,7 +778,7 @@ static int sparx5_start(struct sparx5 *sparx5)
 
 	/* Start Frame DMA with fallback to register based INJ/XTR */
 	err = -ENXIO;
-	if (sparx5->fdma_irq >= 0) {
+	if (sparx5->fdma_irq >= 0 && is_sparx5(sparx5)) {
 		if (GCB_CHIP_ID_REV_ID_GET(sparx5->chip_id) > 0)
 			err = devm_request_threaded_irq(sparx5->dev,
 							sparx5->fdma_irq,
@@ -718,9 +805,10 @@ static int sparx5_start(struct sparx5 *sparx5)
 		sparx5->xtr_irq = -ENXIO;
 	}
 
-	if (sparx5->ptp_irq >= 0) {
+	if (sparx5->ptp_irq >= 0 &&
+	    sparx5_has_feature(sparx5, SPX5_FEATURE_PTP)) {
 		err = devm_request_threaded_irq(sparx5->dev, sparx5->ptp_irq,
-						NULL, sparx5_ptp_irq_handler,
+						NULL, ops->ptp_irq_handler,
 						IRQF_ONESHOT, "sparx5-ptp",
 						sparx5);
 		if (err)
@@ -758,6 +846,12 @@ static int mchp_sparx5_probe(struct platform_device *pdev)
 	sparx5->pdev = pdev;
 	sparx5->dev = &pdev->dev;
 	spin_lock_init(&sparx5->tx_lock);
+
+	sparx5->data = device_get_match_data(sparx5->dev);
+	if (!sparx5->data)
+		return -EINVAL;
+
+	regs = sparx5->data->regs;
 
 	/* Do switch core reset if available */
 	reset = devm_reset_control_get_optional_shared(&pdev->dev, "switch");
@@ -856,6 +950,9 @@ static int mchp_sparx5_probe(struct platform_device *pdev)
 	sparx5->target_ct = (enum spx5_target_chiptype)
 		GCB_CHIP_ID_PART_ID_GET(sparx5->chip_id);
 
+	/* Initialize the features based on the target */
+	sparx5_init_features(sparx5);
+
 	/* Initialize Switchcore and internal RAMs */
 	err = sparx5_init_switchcore(sparx5);
 	if (err) {
@@ -937,15 +1034,75 @@ static void mchp_sparx5_remove(struct platform_device *pdev)
 	destroy_workqueue(sparx5->mact_queue);
 }
 
+static const struct sparx5_regs sparx5_regs = {
+	.tsize = sparx5_tsize,
+	.gaddr = sparx5_gaddr,
+	.gcnt = sparx5_gcnt,
+	.gsize = sparx5_gsize,
+	.raddr = sparx5_raddr,
+	.rcnt = sparx5_rcnt,
+	.fpos = sparx5_fpos,
+	.fsize = sparx5_fsize,
+};
+
+static const struct sparx5_consts sparx5_consts = {
+	.n_ports             = 65,
+	.n_ports_all         = 70,
+	.n_hsch_l1_elems     = 64,
+	.n_hsch_queues       = 8,
+	.n_lb_groups         = 10,
+	.n_pgids             = 2113, /* (2048 + n_ports) */
+	.n_sio_clks          = 3,
+	.n_own_upsids        = 3,
+	.n_auto_cals         = 7,
+	.n_filters           = 1024,
+	.n_gates             = 1024,
+	.n_sdlbs             = 4096,
+	.n_dsm_cal_taxis     = 8,
+	.buf_size            = 4194280,
+	.qres_max_prio_idx   = 630,
+	.qres_max_colour_idx = 638,
+	.tod_pin             = 4,
+	.vcaps               = sparx5_vcaps,
+	.vcaps_cfg           = sparx5_vcap_inst_cfg,
+	.vcap_stats          = &sparx5_vcap_stats,
+};
+
+static const struct sparx5_ops sparx5_ops = {
+	.is_port_2g5             = &sparx5_port_is_2g5,
+	.is_port_5g              = &sparx5_port_is_5g,
+	.is_port_10g             = &sparx5_port_is_10g,
+	.is_port_25g             = &sparx5_port_is_25g,
+	.get_port_dev_index      = &sparx5_port_dev_mapping,
+	.get_port_dev_bit        = &sparx5_port_dev_mapping,
+	.get_hsch_max_group_rate = &sparx5_get_hsch_max_group_rate,
+	.get_sdlb_group          = &sparx5_get_sdlb_group,
+	.set_port_mux            = &sparx5_port_mux_set,
+	.ptp_irq_handler         = &sparx5_ptp_irq_handler,
+	.dsm_calendar_calc       = &sparx5_dsm_calendar_calc,
+};
+
+static const struct sparx5_match_data sparx5_desc = {
+	.iomap = sparx5_main_iomap,
+	.iomap_size = ARRAY_SIZE(sparx5_main_iomap),
+	.ioranges = 3,
+	.regs = &sparx5_regs,
+	.consts = &sparx5_consts,
+	.ops = &sparx5_ops,
+};
+
 static const struct of_device_id mchp_sparx5_match[] = {
-	{ .compatible = "microchip,sparx5-switch" },
+	{ .compatible = "microchip,sparx5-switch", .data = &sparx5_desc },
+#if IS_ENABLED(CONFIG_LAN969X_SWITCH)
+	{ .compatible = "microchip,lan9691-switch", .data = &lan969x_desc },
+#endif
 	{ }
 };
 MODULE_DEVICE_TABLE(of, mchp_sparx5_match);
 
 static struct platform_driver mchp_sparx5_driver = {
 	.probe = mchp_sparx5_probe,
-	.remove_new = mchp_sparx5_remove,
+	.remove = mchp_sparx5_remove,
 	.driver = {
 		.name = "sparx5-switch",
 		.of_match_table = mchp_sparx5_match,

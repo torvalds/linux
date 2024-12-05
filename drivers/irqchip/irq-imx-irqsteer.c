@@ -328,6 +328,6 @@ static struct platform_driver imx_irqsteer_driver = {
 		.pm		= &imx_irqsteer_pm_ops,
 	},
 	.probe		= imx_irqsteer_probe,
-	.remove_new	= imx_irqsteer_remove,
+	.remove		= imx_irqsteer_remove,
 };
 builtin_platform_driver(imx_irqsteer_driver);

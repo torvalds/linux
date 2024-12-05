@@ -1,1 +1,2 @@
 panfrost/panfrost_prime@gem-prime-import,Crash
+panfrost/panfrost_submit@pan-submit-error-bad-requirements,Crash

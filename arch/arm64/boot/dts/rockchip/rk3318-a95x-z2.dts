@@ -78,7 +78,7 @@
 	};
 
 	/* Power tree */
-	vccio_1v8: vccio-1v8-regulator {
+	vccio_1v8: regulator-vccio-1v8 {
 		compatible = "regulator-fixed";
 		regulator-name = "vccio_1v8";
 		regulator-min-microvolt = <1800000>;
@@ -86,7 +86,7 @@
 		regulator-always-on;
 	};
 
-	vccio_3v3: vccio-3v3-regulator {
+	vccio_3v3: regulator-vccio-3v3 {
 		compatible = "regulator-fixed";
 		regulator-name = "vccio_3v3";
 		regulator-min-microvolt = <3300000>;
@@ -94,7 +94,7 @@
 		regulator-always-on;
 	};
 
-	vcc_otg_vbus: otg-vbus-regulator {
+	vcc_otg_vbus: regulator-otg-vbus {
 		compatible = "regulator-fixed";
 		gpio = <&gpio0 RK_PA2 GPIO_ACTIVE_HIGH>;
 		pinctrl-0 = <&otg_vbus_drv>;
@@ -105,7 +105,7 @@
 		enable-active-high;
 	};
 
-	vcc_sd: sdmmc-regulator {
+	vcc_sd: regulator-sdmmc {
 		compatible = "regulator-fixed";
 		gpio = <&gpio0 RK_PD6 GPIO_ACTIVE_LOW>;
 		pinctrl-0 = <&sdmmc0m1_pin>;
@@ -116,7 +116,7 @@
 		vin-supply = <&vccio_3v3>;
 	};
 
-	vdd_arm: vdd-arm {
+	vdd_arm: regulator-vdd-arm {
 		compatible = "pwm-regulator";
 		pwms = <&pwm0 0 5000 1>;
 		regulator-name = "vdd_arm";
@@ -127,7 +127,7 @@
 		regulator-boot-on;
 	};
 
-	vdd_log: vdd-log {
+	vdd_log: regulator-vdd-log {
 		compatible = "pwm-regulator";
 		pwms = <&pwm1 0 5000 1>;
 		regulator-name = "vdd_log";

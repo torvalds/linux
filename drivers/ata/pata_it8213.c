@@ -81,7 +81,7 @@ static void it8213_set_piomode (struct ata_port *ap, struct ata_device *adev)
 	int control = 0;
 
 	/*
-	 *	See Intel Document 298600-004 for the timing programing rules
+	 *	See Intel Document 298600-004 for the timing programming rules
 	 *	for PIIX/ICH. The 8213 is a clone so very similar
 	 */
 

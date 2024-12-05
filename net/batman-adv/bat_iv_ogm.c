@@ -36,6 +36,7 @@
 #include <linux/spinlock.h>
 #include <linux/stddef.h>
 #include <linux/string.h>
+#include <linux/string_choices.h>
 #include <linux/types.h>
 #include <linux/workqueue.h>
 #include <net/genetlink.h>
@@ -371,8 +372,7 @@ static void batadv_iv_ogm_send_to_if(struct batadv_forw_packet *forw_packet,
 			   batadv_ogm_packet->orig,
 			   ntohl(batadv_ogm_packet->seqno),
 			   batadv_ogm_packet->tq, batadv_ogm_packet->ttl,
-			   ((batadv_ogm_packet->flags & BATADV_DIRECTLINK) ?
-			    "on" : "off"),
+			   str_on_off(batadv_ogm_packet->flags & BATADV_DIRECTLINK),
 			   hard_iface->net_dev->name,
 			   hard_iface->net_dev->dev_addr);
 

@@ -81,6 +81,10 @@ properties:
   vddpe-3v3-supply:
     description: PCIe endpoint power supply
 
+  operating-points-v2: true
+  opp-table:
+    type: object
+
 required:
   - reg
   - reg-names

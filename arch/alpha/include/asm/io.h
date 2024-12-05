@@ -88,7 +88,6 @@ static inline void * phys_to_virt(unsigned long address)
 
 #define virt_to_phys		virt_to_phys
 #define phys_to_virt		phys_to_virt
-#define page_to_phys(page)	page_to_pa(page)
 
 /* Maximum PIO space address supported?  */
 #define IO_SPACE_LIMIT 0xffff

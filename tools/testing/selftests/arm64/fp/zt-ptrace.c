@@ -43,10 +43,12 @@ static void fill_buf(char *buf, size_t size)
 static int do_child(void)
 {
 	if (ptrace(PTRACE_TRACEME, -1, NULL, NULL))
-		ksft_exit_fail_msg("PTRACE_TRACEME", strerror(errno));
+		ksft_exit_fail_msg("ptrace(PTRACE_TRACEME) failed: %s (%d)\n",
+				   strerror(errno), errno);
 
 	if (raise(SIGSTOP))
-		ksft_exit_fail_msg("raise(SIGSTOP)", strerror(errno));
+		ksft_exit_fail_msg("raise(SIGSTOP) failed: %s (%d)\n",
+				   strerror(errno), errno);
 
 	return EXIT_SUCCESS;
 }
@@ -231,7 +233,7 @@ static void ptrace_enable_za_via_zt(pid_t child)
 		/* Should have register data */
 		if (za_out->size < ZA_PT_SIZE(vq)) {
 			ksft_print_msg("ZA data less than expected: %u < %u\n",
-				       za_out->size, ZA_PT_SIZE(vq));
+				       za_out->size, (unsigned int)ZA_PT_SIZE(vq));
 			fail = true;
 			vq = 0;
 		}

@@ -55,6 +55,8 @@ struct configfs_dirent {
 #define CONFIGFS_USET_IN_MKDIR	0x0200
 #define CONFIGFS_USET_CREATING	0x0400
 #define CONFIGFS_NOT_PINNED	(CONFIGFS_ITEM_ATTR | CONFIGFS_ITEM_BIN_ATTR)
+#define CONFIGFS_PINNED \
+	(CONFIGFS_ROOT | CONFIGFS_DIR | CONFIGFS_ITEM_LINK)
 
 extern struct mutex configfs_symlink_mutex;
 extern spinlock_t configfs_dirent_lock;
@@ -72,8 +74,6 @@ extern int configfs_create_bin_file(struct config_item *,
 extern int configfs_make_dirent(struct configfs_dirent *, struct dentry *,
 				void *, umode_t, int, struct configfs_fragment *);
 extern int configfs_dirent_is_ready(struct configfs_dirent *);
-
-extern void configfs_hash_and_remove(struct dentry * dir, const char * name);
 
 extern const unsigned char * configfs_get_name(struct configfs_dirent *sd);
 extern void configfs_drop_dentry(struct configfs_dirent *sd, struct dentry *parent);

@@ -1218,6 +1218,8 @@
 		nvidia,pad-autocal-pull-down-offset-3v3 = <0x7d>;
 		nvidia,pad-autocal-pull-up-offset-1v8 = <0x7b>;
 		nvidia,pad-autocal-pull-down-offset-1v8 = <0x7b>;
+		nvidia,pad-autocal-pull-up-offset-sdr104 = <0x0>;
+		nvidia,pad-autocal-pull-down-offset-sdr104 = <0x0>;
 		nvidia,default-tap = <0x2>;
 		nvidia,default-trim = <0x4>;
 		assigned-clocks = <&tegra_car TEGRA210_CLK_SDMMC4>,

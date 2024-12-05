@@ -121,6 +121,7 @@ static struct sdw_amd_ctx *sdw_amd_probe_controller(struct sdw_amd_res *res)
 
 		sdw_pdata[index].instance = index;
 		sdw_pdata[index].acp_sdw_lock = res->acp_lock;
+		sdw_pdata[index].acp_rev = res->acp_rev;
 		pdevinfo[index].name = "amd_sdw_manager";
 		pdevinfo[index].id = index;
 		pdevinfo[index].parent = res->parent;

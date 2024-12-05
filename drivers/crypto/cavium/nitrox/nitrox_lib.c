@@ -17,7 +17,7 @@
 
 #define CRYPTO_CTX_SIZE	256
 
-/* packet inuput ring alignments */
+/* packet input ring alignments */
 #define PKTIN_Q_ALIGN_BYTES 16
 /* AQM Queue input alignments */
 #define AQM_Q_ALIGN_BYTES 32

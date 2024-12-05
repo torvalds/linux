@@ -46,8 +46,14 @@ static inline void dynamic_scs_init(void)
 static inline void dynamic_scs_init(void) {}
 #endif
 
+enum {
+	EDYNSCS_INVALID_CIE_HEADER		= 1,
+	EDYNSCS_INVALID_CIE_SDATA_SIZE		= 2,
+	EDYNSCS_INVALID_FDE_AUGM_DATA_SIZE	= 3,
+	EDYNSCS_INVALID_CFA_OPCODE		= 4,
+};
+
 int __pi_scs_patch(const u8 eh_frame[], int size);
-asmlinkage void __pi_scs_patch_vmlinux(void);
 
 #endif /* __ASSEMBLY __ */
 

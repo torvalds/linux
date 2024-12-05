@@ -198,15 +198,6 @@ int dm_bio_detain(struct dm_bio_prison *prison,
 }
 EXPORT_SYMBOL_GPL(dm_bio_detain);
 
-int dm_get_cell(struct dm_bio_prison *prison,
-		struct dm_cell_key *key,
-		struct dm_bio_prison_cell *cell_prealloc,
-		struct dm_bio_prison_cell **cell_result)
-{
-	return bio_detain(prison, key, NULL, cell_prealloc, cell_result);
-}
-EXPORT_SYMBOL_GPL(dm_get_cell);
-
 /*
  * @inmates must have been initialised prior to this call
  */
@@ -287,32 +278,6 @@ void dm_cell_visit_release(struct dm_bio_prison *prison,
 	spin_unlock_irq(&prison->regions[l].lock);
 }
 EXPORT_SYMBOL_GPL(dm_cell_visit_release);
-
-static int __promote_or_release(struct rb_root *root,
-				struct dm_bio_prison_cell *cell)
-{
-	if (bio_list_empty(&cell->bios)) {
-		rb_erase(&cell->node, root);
-		return 1;
-	}
-
-	cell->holder = bio_list_pop(&cell->bios);
-	return 0;
-}
-
-int dm_cell_promote_or_release(struct dm_bio_prison *prison,
-			       struct dm_bio_prison_cell *cell)
-{
-	int r;
-	unsigned l = lock_nr(&cell->key, prison->num_locks);
-
-	spin_lock_irq(&prison->regions[l].lock);
-	r = __promote_or_release(&prison->regions[l].cell, cell);
-	spin_unlock_irq(&prison->regions[l].lock);
-
-	return r;
-}
-EXPORT_SYMBOL_GPL(dm_cell_promote_or_release);
 
 /*----------------------------------------------------------------*/
 

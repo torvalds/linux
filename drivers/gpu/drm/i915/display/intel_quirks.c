@@ -231,7 +231,7 @@ static struct intel_quirk intel_quirks[] = {
 	{ 0x0f31, 0x103c, 0x220f, quirk_invert_brightness },
 };
 
-static struct intel_dpcd_quirk intel_dpcd_quirks[] = {
+static const struct intel_dpcd_quirk intel_dpcd_quirks[] = {
 	/* Dell Precision 5490 */
 	{
 		.device = 0x7d55,
@@ -272,7 +272,7 @@ void intel_init_dpcd_quirks(struct intel_dp *intel_dp,
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(intel_dpcd_quirks); i++) {
-		struct intel_dpcd_quirk *q = &intel_dpcd_quirks[i];
+		const struct intel_dpcd_quirk *q = &intel_dpcd_quirks[i];
 
 		if (d->device == q->device &&
 		    (d->subsystem_vendor == q->subsystem_vendor ||

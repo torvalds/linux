@@ -9,6 +9,7 @@
 #include <dt-bindings/phy/phy-imx8-pcie.h>
 #include <dt-bindings/leds/leds-pca9532.h>
 #include <dt-bindings/pwm/pwm.h>
+#include <dt-bindings/thermal/thermal.h>
 #include "imx8mp-phycore-som.dtsi"
 
 / {
@@ -30,6 +31,16 @@
 		num-interpolated-steps = <2>;
 		power-supply = <&reg_lvds1_reg_en>;
 		pwms = <&pwm3 0 50000 0>;
+	};
+
+	fan0: fan {
+		compatible = "gpio-fan";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_fan>;
+		gpio-fan,speed-map = <0     0
+				      13000 1>;
+		gpios = <&gpio5 4 GPIO_ACTIVE_HIGH>;
+		#cooling-cells = <2>;
 	};
 
 	panel1_lvds: panel-lvds {
@@ -110,6 +121,25 @@
 		regulator-name = "VCC_3V3_SW";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
+	};
+
+	thermal-zones {
+		soc-thermal {
+			trips {
+				active1: trip2 {
+					temperature = <60000>;
+					hysteresis = <2000>;
+					type = "active";
+				};
+			};
+
+			cooling-maps {
+				map1 {
+					trip = <&active1>;
+					cooling-device = <&fan0 1 THERMAL_NO_LIMIT>;
+				};
+			};
+		};
 	};
 };
 
@@ -334,15 +364,16 @@
 
 &gpio1 {
 	gpio-line-names = "", "", "X_PMIC_WDOG_B", "",
-		"PMIC_SD_VSEL", "", "", "", "", "",
-		"", "", "USB1_OTG_PWR", "", "", "X_nETHPHY_INT";
+		"PMIC_SD_VSEL", "", "", "", "PCIe_nPERST", "LVDS1REG_EN",
+		"PCIe_nWAKE", "PCIe_nCLKREQ", "USB1_OTG_PWR", "",
+		"PCIe_nW_DISABLE";
 };
 
 &gpio2 {
 	gpio-line-names = "", "", "", "",
 		"", "", "", "", "", "",
 		"", "", "X_SD2_CD_B", "", "", "",
-		"", "", "", "SD2_RESET_B";
+		"", "", "", "SD2_RESET_B", "LVDS1_BL_EN";
 };
 
 &gpio3 {
@@ -356,7 +387,12 @@
 	gpio-line-names = "", "", "", "",
 		"", "", "", "", "", "",
 		"", "", "", "", "", "",
-		"", "", "X_PMIC_IRQ_B", "", "nENET0_INT_PWDN";
+		"", "", "X_PMIC_IRQ_B", "nRTC_INT", "nENET0_INT_PWDN";
+};
+
+&gpio5 {
+	gpio-line-names = "", "", "", "",
+		"", "", "", "", "", "X_ECSPI1_SSO";
 };
 
 &iomuxc {
@@ -386,6 +422,12 @@
 			MX8MP_IOMUXC_ENET_TX_CTL__ENET_QOS_RGMII_TX_CTL		0x12
 			MX8MP_IOMUXC_ENET_TXC__CCM_ENET_QOS_CLOCK_GENERATE_TX_CLK	0x12
 			MX8MP_IOMUXC_SAI1_MCLK__GPIO4_IO20			0x10
+		>;
+	};
+
+	pinctrl_fan: fan0grp {
+		fsl,pins = <
+			MX8MP_IOMUXC_SPDIF_RX__GPIO5_IO04       0x16
 		>;
 	};
 

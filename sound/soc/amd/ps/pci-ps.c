@@ -267,6 +267,7 @@ static int amd_sdw_probe(struct device *dev)
 	sdw_res.acp_lock = &acp_data->acp_lock;
 	sdw_res.count = acp_data->info.count;
 	sdw_res.mmio_base = acp_data->acp63_base;
+	sdw_res.acp_rev = acp_data->acp_rev;
 	sdw_res.link_mask = acp_data->info.link_mask;
 	ret = sdw_amd_probe(&sdw_res, &acp_data->sdw);
 	if (ret)
@@ -575,6 +576,7 @@ static int snd_acp63_probe(struct pci_dev *pci,
 	}
 	adata->addr = addr;
 	adata->reg_range = ACP63_REG_END - ACP63_REG_START;
+	adata->acp_rev = pci->revision;
 	pci_set_master(pci);
 	pci_set_drvdata(pci, adata);
 	mutex_init(&adata->acp_lock);

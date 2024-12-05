@@ -27,9 +27,8 @@
 #include <unistd.h>
 #include <time.h>
 #include <sys/time.h>
+#include <include/vdso/time64.h>
 #include "../kselftest.h"
-
-#define NSEC_PER_SEC 1000000000LL
 
 #define KTIME_MAX	((long long)~((unsigned long long)1 << 63))
 #define KTIME_SEC_MAX	(KTIME_MAX / NSEC_PER_SEC)

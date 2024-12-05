@@ -145,11 +145,6 @@ static void __attribute__((__flatten__)) guest_code(void *arg)
 
 		memset(buffer, 0xcc, sizeof(buffer));
 
-		set_cr4(get_cr4() | X86_CR4_OSXSAVE);
-		GUEST_ASSERT(this_cpu_has(X86_FEATURE_OSXSAVE));
-
-		xsetbv(0, xgetbv(0) | supported_xcr0);
-
 		/*
 		 * Modify state for all supported xfeatures to take them out of
 		 * their "init" state, i.e. to make them show up in XSTATE_BV.

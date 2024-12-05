@@ -4,7 +4,7 @@
 
 pcieportdrv-y			:= portdrv.o rcec.o
 
-obj-$(CONFIG_PCIEPORTBUS)	+= pcieportdrv.o
+obj-$(CONFIG_PCIEPORTBUS)	+= pcieportdrv.o bwctrl.o
 
 obj-y				+= aspm.o
 obj-$(CONFIG_PCIEAER)		+= aer.o err.o

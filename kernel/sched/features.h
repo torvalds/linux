@@ -19,7 +19,7 @@ SCHED_FEAT(PLACE_REL_DEADLINE, true)
  */
 SCHED_FEAT(RUN_TO_PARITY, true)
 /*
- * Allow wakeup of tasks with a shorter slice to cancel RESPECT_SLICE for
+ * Allow wakeup of tasks with a shorter slice to cancel RUN_TO_PARITY for
  * current.
  */
 SCHED_FEAT(PREEMPT_SHORT, true)
@@ -56,7 +56,6 @@ SCHED_FEAT(WAKEUP_PREEMPTION, true)
 
 SCHED_FEAT(HRTICK, false)
 SCHED_FEAT(HRTICK_DL, false)
-SCHED_FEAT(DOUBLE_TICK, false)
 
 /*
  * Decrement CPU capacity based on time not spent running tasks

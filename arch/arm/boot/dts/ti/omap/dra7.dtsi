@@ -9,7 +9,6 @@
 #include <dt-bindings/clock/dra7.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/pinctrl/dra.h>
-#include <dt-bindings/clock/dra7.h>
 
 #define MAX_SOURCES 400
 

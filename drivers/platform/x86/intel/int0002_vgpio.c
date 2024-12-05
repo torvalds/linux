@@ -266,13 +266,13 @@ static const struct acpi_device_id int0002_acpi_ids[] = {
 MODULE_DEVICE_TABLE(acpi, int0002_acpi_ids);
 
 static struct platform_driver int0002_driver = {
-	.driver = {
+	.driver	= {
 		.name			= DRV_NAME,
 		.acpi_match_table	= int0002_acpi_ids,
 		.pm			= &int0002_pm_ops,
 	},
 	.probe	= int0002_probe,
-	.remove_new = int0002_remove,
+	.remove	= int0002_remove,
 };
 
 module_platform_driver(int0002_driver);

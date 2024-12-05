@@ -39,7 +39,6 @@ static struct buffer_head *__nilfs_get_folio_block(struct folio *folio,
 	first_block = (unsigned long)index << (PAGE_SHIFT - blkbits);
 	bh = get_nth_bh(bh, block - first_block);
 
-	touch_buffer(bh);
 	wait_on_buffer(bh);
 	return bh;
 }
@@ -64,6 +63,7 @@ struct buffer_head *nilfs_grab_buffer(struct inode *inode,
 		folio_put(folio);
 		return NULL;
 	}
+	bh->b_bdev = inode->i_sb->s_bdev;
 	return bh;
 }
 
@@ -99,16 +99,16 @@ void nilfs_forget_buffer(struct buffer_head *bh)
  */
 void nilfs_copy_buffer(struct buffer_head *dbh, struct buffer_head *sbh)
 {
-	void *kaddr0, *kaddr1;
+	void *saddr, *daddr;
 	unsigned long bits;
-	struct page *spage = sbh->b_page, *dpage = dbh->b_page;
+	struct folio *sfolio = sbh->b_folio, *dfolio = dbh->b_folio;
 	struct buffer_head *bh;
 
-	kaddr0 = kmap_local_page(spage);
-	kaddr1 = kmap_local_page(dpage);
-	memcpy(kaddr1 + bh_offset(dbh), kaddr0 + bh_offset(sbh), sbh->b_size);
-	kunmap_local(kaddr1);
-	kunmap_local(kaddr0);
+	saddr = kmap_local_folio(sfolio, bh_offset(sbh));
+	daddr = kmap_local_folio(dfolio, bh_offset(dbh));
+	memcpy(daddr, saddr, sbh->b_size);
+	kunmap_local(daddr);
+	kunmap_local(saddr);
 
 	dbh->b_state = sbh->b_state & NILFS_BUFFER_INHERENT_BITS;
 	dbh->b_blocknr = sbh->b_blocknr;
@@ -122,13 +122,13 @@ void nilfs_copy_buffer(struct buffer_head *dbh, struct buffer_head *sbh)
 		unlock_buffer(bh);
 	}
 	if (bits & BIT(BH_Uptodate))
-		SetPageUptodate(dpage);
+		folio_mark_uptodate(dfolio);
 	else
-		ClearPageUptodate(dpage);
+		folio_clear_uptodate(dfolio);
 	if (bits & BIT(BH_Mapped))
-		SetPageMappedToDisk(dpage);
+		folio_set_mappedtodisk(dfolio);
 	else
-		ClearPageMappedToDisk(dpage);
+		folio_clear_mappedtodisk(dfolio);
 }
 
 /**
@@ -422,14 +422,14 @@ void nilfs_clear_folio_dirty(struct folio *folio)
 	__nilfs_clear_folio_dirty(folio);
 }
 
-unsigned int nilfs_page_count_clean_buffers(struct page *page,
+unsigned int nilfs_page_count_clean_buffers(struct folio *folio,
 					    unsigned int from, unsigned int to)
 {
 	unsigned int block_start, block_end;
 	struct buffer_head *bh, *head;
 	unsigned int nc = 0;
 
-	for (bh = head = page_buffers(page), block_start = 0;
+	for (bh = head = folio_buffers(folio), block_start = 0;
 	     bh != head || !block_start;
 	     block_start = block_end, bh = bh->b_this_page) {
 		block_end = block_start + bh->b_size;

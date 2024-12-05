@@ -140,9 +140,9 @@ futex_setup_timer(ktime_t *time, struct hrtimer_sleeper *timeout,
 	if (!time)
 		return NULL;
 
-	hrtimer_init_sleeper_on_stack(timeout, (flags & FLAGS_CLOCKRT) ?
-				      CLOCK_REALTIME : CLOCK_MONOTONIC,
-				      HRTIMER_MODE_ABS);
+	hrtimer_setup_sleeper_on_stack(timeout,
+				       (flags & FLAGS_CLOCKRT) ? CLOCK_REALTIME : CLOCK_MONOTONIC,
+				       HRTIMER_MODE_ABS);
 	/*
 	 * If range_ns is 0, calling hrtimer_set_expires_range_ns() is
 	 * effectively the same as calling hrtimer_set_expires().
@@ -181,12 +181,12 @@ static u64 get_inode_sequence_number(struct inode *inode)
 		return old;
 
 	for (;;) {
-		u64 new = atomic64_add_return(1, &i_seq);
+		u64 new = atomic64_inc_return(&i_seq);
 		if (WARN_ON_ONCE(!new))
 			continue;
 
-		old = atomic64_cmpxchg_relaxed(&inode->i_sequence, 0, new);
-		if (old)
+		old = 0;
+		if (!atomic64_try_cmpxchg_relaxed(&inode->i_sequence, &old, new))
 			return old;
 		return new;
 	}
@@ -399,7 +399,7 @@ again:
 
 		key->both.offset |= FUT_OFF_INODE; /* inode-based key */
 		key->shared.i_seq = get_inode_sequence_number(inode);
-		key->shared.pgoff = folio->index + folio_page_idx(folio, page);
+		key->shared.pgoff = page_pgoff(folio, page);
 		rcu_read_unlock();
 	}
 
@@ -449,28 +449,6 @@ struct futex_q *futex_top_waiter(struct futex_hash_bucket *hb, union futex_key *
 			return this;
 	}
 	return NULL;
-}
-
-int futex_cmpxchg_value_locked(u32 *curval, u32 __user *uaddr, u32 uval, u32 newval)
-{
-	int ret;
-
-	pagefault_disable();
-	ret = futex_atomic_cmpxchg_inatomic(curval, uaddr, uval, newval);
-	pagefault_enable();
-
-	return ret;
-}
-
-int futex_get_value_locked(u32 *dest, u32 __user *from)
-{
-	int ret;
-
-	pagefault_disable();
-	ret = __get_user(*dest, from);
-	pagefault_enable();
-
-	return ret ? -EFAULT : 0;
 }
 
 /**

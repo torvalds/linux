@@ -18,7 +18,12 @@
 
 #include <asm/inst.h>
 #include <asm/kvm_mmu.h>
+#include <asm/kvm_ipi.h>
+#include <asm/kvm_eiointc.h>
+#include <asm/kvm_pch_pic.h>
 #include <asm/loongarch.h>
+
+#define __KVM_HAVE_ARCH_INTC_INITIALIZED
 
 /* Loongarch KVM register ids */
 #define KVM_GET_IOC_CSR_IDX(id)		((id & KVM_CSR_IDX_MASK) >> LOONGARCH_REG_SHIFT)
@@ -44,6 +49,12 @@ struct kvm_vm_stat {
 	struct kvm_vm_stat_generic generic;
 	u64 pages;
 	u64 hugepages;
+	u64 ipi_read_exits;
+	u64 ipi_write_exits;
+	u64 eiointc_read_exits;
+	u64 eiointc_write_exits;
+	u64 pch_pic_read_exits;
+	u64 pch_pic_write_exits;
 };
 
 struct kvm_vcpu_stat {
@@ -84,7 +95,7 @@ struct kvm_world_switch {
  *
  *  For LOONGARCH_CSR_CPUID register, max CPUID size if 512
  *  For IPI hardware, max destination CPUID size 1024
- *  For extioi interrupt controller, max destination CPUID size is 256
+ *  For eiointc interrupt controller, max destination CPUID size is 256
  *  For msgint interrupt controller, max supported CPUID size is 65536
  *
  * Currently max CPUID is defined as 256 for KVM hypervisor, in future
@@ -117,6 +128,9 @@ struct kvm_arch {
 
 	s64 time_offset;
 	struct kvm_context __percpu *vmcs;
+	struct loongarch_ipi *ipi;
+	struct loongarch_eiointc *eiointc;
+	struct loongarch_pch_pic *pch_pic;
 };
 
 #define CSR_MAX_NUMS		0x800
@@ -221,6 +235,8 @@ struct kvm_vcpu_arch {
 	int last_sched_cpu;
 	/* mp state */
 	struct kvm_mp_state mp_state;
+	/* ipi state */
+	struct ipi_state ipi_state;
 	/* cpucfg */
 	u32 cpucfg[KVM_MAX_CPUCFG_REGS];
 

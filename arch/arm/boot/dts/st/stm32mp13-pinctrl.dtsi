@@ -595,6 +595,13 @@
 	};
 
 	/omit-if-no-ref/
+	rtc_rsvd_pins_a: rtc-rsvd-0 {
+		pins {
+			pinmux = <STM32_PINMUX('I', 1, ANALOG)>; /* RTC_OUT2_RMP */
+		};
+	};
+
+	/omit-if-no-ref/
 	sai1a_pins_a: sai1a-0 {
 		pins {
 			pinmux = <STM32_PINMUX('A', 4, AF12)>, /* SAI1_SCK_A */

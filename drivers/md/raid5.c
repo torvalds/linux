@@ -4724,14 +4724,13 @@ static void analyse_stripe(struct stripe_head *sh, struct stripe_head_state *s)
 		if (rdev) {
 			is_bad = rdev_has_badblock(rdev, sh->sector,
 						   RAID5_STRIPE_SECTORS(conf));
-			if (s->blocked_rdev == NULL
-			    && (test_bit(Blocked, &rdev->flags)
-				|| is_bad < 0)) {
+			if (s->blocked_rdev == NULL) {
 				if (is_bad < 0)
-					set_bit(BlockedBadBlocks,
-						&rdev->flags);
-				s->blocked_rdev = rdev;
-				atomic_inc(&rdev->nr_pending);
+					set_bit(BlockedBadBlocks, &rdev->flags);
+				if (rdev_blocked(rdev)) {
+					s->blocked_rdev = rdev;
+					atomic_inc(&rdev->nr_pending);
+				}
 			}
 		}
 		clear_bit(R5_Insync, &dev->flags);
@@ -7177,6 +7176,8 @@ raid5_store_group_thread_cnt(struct mddev *mddev, const char *page, size_t len)
 	err = mddev_suspend_and_lock(mddev);
 	if (err)
 		return err;
+	raid5_quiesce(mddev, true);
+
 	conf = mddev->private;
 	if (!conf)
 		err = -ENODEV;
@@ -7198,6 +7199,8 @@ raid5_store_group_thread_cnt(struct mddev *mddev, const char *page, size_t len)
 			kfree(old_groups);
 		}
 	}
+
+	raid5_quiesce(mddev, false);
 	mddev_unlock_and_resume(mddev);
 
 	return err ?: len;

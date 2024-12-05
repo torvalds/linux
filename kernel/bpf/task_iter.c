@@ -5,7 +5,6 @@
 #include <linux/namei.h>
 #include <linux/pid_namespace.h>
 #include <linux/fs.h>
-#include <linux/fdtable.h>
 #include <linux/filter.h>
 #include <linux/bpf_mem_alloc.h>
 #include <linux/btf_ids.h>
@@ -286,17 +285,14 @@ again:
 			curr_fd = 0;
 	}
 
-	rcu_read_lock();
-	f = task_lookup_next_fdget_rcu(curr_task, &curr_fd);
+	f = fget_task_next(curr_task, &curr_fd);
 	if (f) {
 		/* set info->fd */
 		info->fd = curr_fd;
-		rcu_read_unlock();
 		return f;
 	}
 
 	/* the current task is done, go to the next task */
-	rcu_read_unlock();
 	put_task_struct(curr_task);
 
 	if (info->common.type == BPF_TASK_ITER_TID) {

@@ -230,6 +230,8 @@ struct imx_port {
 	unsigned int            saved_reg[10];
 	bool			context_saved;
 
+	bool			last_putchar_was_newline;
+
 	enum imx_tx_state	tx_state;
 	struct hrtimer		trigger_start_tx;
 	struct hrtimer		trigger_stop_tx;
@@ -370,6 +372,7 @@ static void imx_uart_soft_reset(struct imx_port *sport)
 	sport->idle_counter = 0;
 }
 
+/* called with port.lock taken and irqs off */
 static void imx_uart_disable_loopback_rs485(struct imx_port *sport)
 {
 	unsigned int uts;
@@ -470,6 +473,7 @@ static void imx_uart_stop_tx(struct uart_port *port)
 	}
 }
 
+/* called with port.lock taken and irqs off */
 static void imx_uart_stop_rx_with_loopback_ctrl(struct uart_port *port, bool loopback)
 {
 	struct imx_port *sport = to_imx_port(port);
@@ -818,6 +822,8 @@ static irqreturn_t imx_uart_txint(int irq, void *dev_id)
  * issuing soft reset to the UART (just stop/start of RX does not help). Note
  * that what we do here is sending isolated start bit about 2.4 times shorter
  * than it is to be on UART configured baud rate.
+ *
+ * Called with port.lock taken and irqs off.
  */
 static void imx_uart_check_flood(struct imx_port *sport, u32 usr2)
 {
@@ -853,6 +859,7 @@ static void imx_uart_check_flood(struct imx_port *sport, u32 usr2)
 	}
 }
 
+/* called with port.lock taken and irqs off */
 static irqreturn_t __imx_uart_rxint(int irq, void *dev_id)
 {
 	struct imx_port *sport = dev_id;
@@ -931,6 +938,7 @@ static void imx_uart_clear_rx_errors(struct imx_port *sport);
 /*
  * We have a modem side uart, so the meanings of RTS and CTS are inverted.
  */
+/* called with port.lock taken and irqs off */
 static unsigned int imx_uart_get_hwmctrl(struct imx_port *sport)
 {
 	unsigned int tmp = TIOCM_DSR;
@@ -953,6 +961,8 @@ static unsigned int imx_uart_get_hwmctrl(struct imx_port *sport)
 
 /*
  * Handle any change of modem status signal since we were last called.
+ *
+ * Called with port.lock taken and irqs off.
  */
 static void imx_uart_mctrl_check(struct imx_port *sport)
 {
@@ -1292,6 +1302,7 @@ static int imx_uart_start_rx_dma(struct imx_port *sport)
 	return 0;
 }
 
+/* called with port.lock taken and irqs off */
 static void imx_uart_clear_rx_errors(struct imx_port *sport)
 {
 	struct tty_port *port = &sport->port.state->port;
@@ -1422,6 +1433,7 @@ err:
 	return ret;
 }
 
+/* called with port.lock taken and irqs off */
 static void imx_uart_enable_dma(struct imx_port *sport)
 {
 	u32 ucr1;
@@ -2069,26 +2081,34 @@ static void imx_uart_console_putchar(struct uart_port *port, unsigned char ch)
 		barrier();
 
 	imx_uart_writel(sport, ch, URTX0);
+
+	sport->last_putchar_was_newline = (ch == '\n');
 }
 
-/*
- * Interrupts are disabled on entering
- */
-static void
-imx_uart_console_write(struct console *co, const char *s, unsigned int count)
+static void imx_uart_console_device_lock(struct console *co, unsigned long *flags)
+{
+	struct uart_port *up = &imx_uart_ports[co->index]->port;
+
+	return __uart_port_lock_irqsave(up, flags);
+}
+
+static void imx_uart_console_device_unlock(struct console *co, unsigned long flags)
+{
+	struct uart_port *up = &imx_uart_ports[co->index]->port;
+
+	return __uart_port_unlock_irqrestore(up, flags);
+}
+
+static void imx_uart_console_write_atomic(struct console *co,
+					  struct nbcon_write_context *wctxt)
 {
 	struct imx_port *sport = imx_uart_ports[co->index];
+	struct uart_port *port = &sport->port;
 	struct imx_port_ucrs old_ucr;
-	unsigned long flags;
 	unsigned int ucr1, usr2;
-	int locked = 1;
 
-	if (sport->port.sysrq)
-		locked = 0;
-	else if (oops_in_progress)
-		locked = uart_port_trylock_irqsave(&sport->port, &flags);
-	else
-		uart_port_lock_irqsave(&sport->port, &flags);
+	if (!nbcon_enter_unsafe(wctxt))
+		return;
 
 	/*
 	 *	First, save UCR1/2/3 and then disable interrupts
@@ -2102,10 +2122,12 @@ imx_uart_console_write(struct console *co, const char *s, unsigned int count)
 	ucr1 &= ~(UCR1_TRDYEN | UCR1_RRDYEN | UCR1_RTSDEN);
 
 	imx_uart_writel(sport, ucr1, UCR1);
-
 	imx_uart_writel(sport, old_ucr.ucr2 | UCR2_TXEN, UCR2);
 
-	uart_console_write(&sport->port, s, count, imx_uart_console_putchar);
+	if (!sport->last_putchar_was_newline)
+		uart_console_write(port, "\n", 1, imx_uart_console_putchar);
+	uart_console_write(port, wctxt->outbuf, wctxt->len,
+			   imx_uart_console_putchar);
 
 	/*
 	 *	Finally, wait for transmitter to become empty
@@ -2115,8 +2137,73 @@ imx_uart_console_write(struct console *co, const char *s, unsigned int count)
 				 0, USEC_PER_SEC, false, sport, USR2);
 	imx_uart_ucrs_restore(sport, &old_ucr);
 
-	if (locked)
-		uart_port_unlock_irqrestore(&sport->port, flags);
+	nbcon_exit_unsafe(wctxt);
+}
+
+static void imx_uart_console_write_thread(struct console *co,
+					  struct nbcon_write_context *wctxt)
+{
+	struct imx_port *sport = imx_uart_ports[co->index];
+	struct uart_port *port = &sport->port;
+	struct imx_port_ucrs old_ucr;
+	unsigned int ucr1, usr2;
+
+	if (!nbcon_enter_unsafe(wctxt))
+		return;
+
+	/*
+	 *	First, save UCR1/2/3 and then disable interrupts
+	 */
+	imx_uart_ucrs_save(sport, &old_ucr);
+	ucr1 = old_ucr.ucr1;
+
+	if (imx_uart_is_imx1(sport))
+		ucr1 |= IMX1_UCR1_UARTCLKEN;
+	ucr1 |= UCR1_UARTEN;
+	ucr1 &= ~(UCR1_TRDYEN | UCR1_RRDYEN | UCR1_RTSDEN);
+
+	imx_uart_writel(sport, ucr1, UCR1);
+	imx_uart_writel(sport, old_ucr.ucr2 | UCR2_TXEN, UCR2);
+
+	if (nbcon_exit_unsafe(wctxt)) {
+		int len = READ_ONCE(wctxt->len);
+		int i;
+
+		/*
+		 * Write out the message. Toggle unsafe for each byte in order
+		 * to give another (higher priority) context the opportunity
+		 * for a friendly takeover. If such a takeover occurs, this
+		 * context must reacquire ownership in order to perform final
+		 * actions (such as re-enabling the interrupts).
+		 *
+		 * IMPORTANT: wctxt->outbuf and wctxt->len are no longer valid
+		 *	      after a reacquire so writing the message must be
+		 *	      aborted.
+		 */
+		for (i = 0; i < len; i++) {
+			if (!nbcon_enter_unsafe(wctxt))
+				break;
+
+			uart_console_write(port, wctxt->outbuf + i, 1,
+					   imx_uart_console_putchar);
+
+			if (!nbcon_exit_unsafe(wctxt))
+				break;
+		}
+	}
+
+	while (!nbcon_enter_unsafe(wctxt))
+		nbcon_reacquire_nobuf(wctxt);
+
+	/*
+	 *	Finally, wait for transmitter to become empty
+	 *	and restore UCR1/2/3
+	 */
+	read_poll_timeout(imx_uart_readl, usr2, usr2 & USR2_TXDC,
+			  0, USEC_PER_SEC, false, sport, USR2);
+	imx_uart_ucrs_restore(sport, &old_ucr);
+
+	nbcon_exit_unsafe(wctxt);
 }
 
 /*
@@ -2208,6 +2295,8 @@ imx_uart_console_setup(struct console *co, char *options)
 	if (retval)
 		goto error_console;
 
+	sport->last_putchar_was_newline = true;
+
 	if (options)
 		uart_parse_options(options, &baud, &parity, &bits, &flow);
 	else
@@ -2244,11 +2333,14 @@ imx_uart_console_exit(struct console *co)
 static struct uart_driver imx_uart_uart_driver;
 static struct console imx_uart_console = {
 	.name		= DEV_NAME,
-	.write		= imx_uart_console_write,
+	.write_atomic	= imx_uart_console_write_atomic,
+	.write_thread	= imx_uart_console_write_thread,
+	.device_lock	= imx_uart_console_device_lock,
+	.device_unlock	= imx_uart_console_device_unlock,
+	.flags		= CON_PRINTBUFFER | CON_NBCON,
 	.device		= uart_console_device,
 	.setup		= imx_uart_console_setup,
 	.exit		= imx_uart_console_exit,
-	.flags		= CON_PRINTBUFFER,
 	.index		= -1,
 	.data		= &imx_uart_uart_driver,
 };
@@ -2595,9 +2687,12 @@ static void imx_uart_save_context(struct imx_port *sport)
 	uart_port_unlock_irqrestore(&sport->port, flags);
 }
 
+/* called with irq off */
 static void imx_uart_enable_wakeup(struct imx_port *sport, bool on)
 {
 	u32 ucr3;
+
+	uart_port_lock(&sport->port);
 
 	ucr3 = imx_uart_readl(sport, UCR3);
 	if (on) {
@@ -2618,6 +2713,8 @@ static void imx_uart_enable_wakeup(struct imx_port *sport, bool on)
 		}
 		imx_uart_writel(sport, ucr1, UCR1);
 	}
+
+	uart_port_unlock(&sport->port);
 }
 
 static int imx_uart_suspend_noirq(struct device *dev)
@@ -2717,7 +2814,7 @@ static const struct dev_pm_ops imx_uart_pm_ops = {
 
 static struct platform_driver imx_uart_platform_driver = {
 	.probe = imx_uart_probe,
-	.remove_new = imx_uart_remove,
+	.remove = imx_uart_remove,
 
 	.driver = {
 		.name = "imx-uart",

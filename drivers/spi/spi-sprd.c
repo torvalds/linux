@@ -728,7 +728,7 @@ static int sprd_spi_setup_transfer(struct spi_device *sdev,
 	if (ret)
 		return ret;
 
-	/* Set tansfer speed and valid bits */
+	/* Set transfer speed and valid bits */
 	sprd_spi_set_speed(ss, t->speed_hz);
 	sprd_spi_set_transfer_bits(ss, bits_per_word);
 
@@ -1072,7 +1072,7 @@ static struct platform_driver sprd_spi_driver = {
 		.pm = &sprd_spi_pm_ops,
 	},
 	.probe = sprd_spi_probe,
-	.remove_new = sprd_spi_remove,
+	.remove = sprd_spi_remove,
 };
 
 module_platform_driver(sprd_spi_driver);

@@ -26,12 +26,13 @@
  * Authors: Dave Airlie <airlied@redhat.com>
  */
 
+#include <linux/aperture.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/pci.h>
 
-#include <drm/drm_aperture.h>
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_client_setup.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_fbdev_shmem.h>
 #include <drm/drm_gem_shmem_helper.h>
@@ -64,7 +65,8 @@ static const struct drm_driver ast_driver = {
 	.minor = DRIVER_MINOR,
 	.patchlevel = DRIVER_PATCHLEVEL,
 
-	DRM_GEM_SHMEM_DRIVER_OPS
+	DRM_GEM_SHMEM_DRIVER_OPS,
+	DRM_FBDEV_SHMEM_DRIVER_OPS,
 };
 
 /*
@@ -279,7 +281,7 @@ static int ast_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct drm_device *drm;
 	bool need_post = false;
 
-	ret = drm_aperture_remove_conflicting_pci_framebuffers(pdev, &ast_driver);
+	ret = aperture_remove_conflicting_pci_devices(pdev, ast_driver.name);
 	if (ret)
 		return ret;
 
@@ -360,7 +362,7 @@ static int ast_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (ret)
 		return ret;
 
-	drm_fbdev_shmem_setup(drm, 32);
+	drm_client_setup(drm, NULL);
 
 	return 0;
 }
@@ -396,7 +398,7 @@ static int ast_drm_thaw(struct drm_device *dev)
 	ast_enable_vga(ast->ioregs);
 	ast_open_key(ast->ioregs);
 	ast_enable_mmio(dev->dev, ast->ioregs);
-	ast_post_gpu(dev);
+	ast_post_gpu(ast);
 
 	return drm_mode_config_helper_resume(dev);
 }

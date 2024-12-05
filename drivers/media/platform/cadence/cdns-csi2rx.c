@@ -751,7 +751,7 @@ MODULE_DEVICE_TABLE(of, csi2rx_of_table);
 
 static struct platform_driver csi2rx_driver = {
 	.probe	= csi2rx_probe,
-	.remove_new = csi2rx_remove,
+	.remove = csi2rx_remove,
 
 	.driver	= {
 		.name		= "cdns-csi2rx",

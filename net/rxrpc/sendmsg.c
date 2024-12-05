@@ -29,6 +29,7 @@ bool rxrpc_propose_abort(struct rxrpc_call *call, s32 abort_code, int error,
 		call->send_abort_why = why;
 		call->send_abort_err = error;
 		call->send_abort_seq = 0;
+		trace_rxrpc_abort_call(call, abort_code);
 		/* Request abort locklessly vs rxrpc_input_call_event(). */
 		smp_store_release(&call->send_abort, abort_code);
 		rxrpc_poke_call(call, rxrpc_call_poke_abort);

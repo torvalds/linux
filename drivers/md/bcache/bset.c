@@ -1093,14 +1093,6 @@ static inline bool new_btree_iter_cmp(const void *l, const void *r, void __alway
 	return bkey_cmp(_l->k, _r->k) <= 0;
 }
 
-static inline void new_btree_iter_swap(void *iter1, void *iter2, void __always_unused *args)
-{
-	struct btree_iter_set *_iter1 = iter1;
-	struct btree_iter_set *_iter2 = iter2;
-
-	swap(*_iter1, *_iter2);
-}
-
 static inline bool btree_iter_end(struct btree_iter *iter)
 {
 	return !iter->heap.nr;
@@ -1111,7 +1103,7 @@ void bch_btree_iter_push(struct btree_iter *iter, struct bkey *k,
 {
 	const struct min_heap_callbacks callbacks = {
 		.less = new_btree_iter_cmp,
-		.swp = new_btree_iter_swap,
+		.swp = NULL,
 	};
 
 	if (k != end)
@@ -1157,7 +1149,7 @@ static inline struct bkey *__bch_btree_iter_next(struct btree_iter *iter,
 	struct bkey *ret = NULL;
 	const struct min_heap_callbacks callbacks = {
 		.less = cmp,
-		.swp = new_btree_iter_swap,
+		.swp = NULL,
 	};
 
 	if (!btree_iter_end(iter)) {
@@ -1231,7 +1223,7 @@ static void btree_mergesort(struct btree_keys *b, struct bset *out,
 		: bch_ptr_invalid;
 	const struct min_heap_callbacks callbacks = {
 		.less = b->ops->sort_cmp,
-		.swp = new_btree_iter_swap,
+		.swp = NULL,
 	};
 
 	/* Heapify the iterator, using our comparison function */

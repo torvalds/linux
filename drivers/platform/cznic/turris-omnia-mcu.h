@@ -23,41 +23,71 @@
 struct i2c_client;
 struct rtc_device;
 
+/**
+ * struct omnia_mcu - driver private data structure
+ * @client:			I2C client
+ * @type:			MCU type (STM32, GD32, MKL, or unknown)
+ * @features:			bitmap of features supported by the MCU firmware
+ * @board_serial_number:	board serial number, if stored in MCU
+ * @board_first_mac:		board first MAC address, if stored in MCU
+ * @board_revision:		board revision, if stored in MCU
+ * @gc:				GPIO chip
+ * @lock:			mutex to protect internal GPIO chip state
+ * @mask:			bitmap of masked IRQs
+ * @rising:			bitmap of rising edge IRQs
+ * @falling:			bitmap of falling edge IRQs
+ * @both:			bitmap of both edges IRQs
+ * @cached:			bitmap of cached IRQ line values (when an IRQ line is configured for
+ *				both edges, we cache the corresponding GPIO values in the IRQ
+ *				handler)
+ * @is_cached:			bitmap of which IRQ line values are cached
+ * @button_release_emul_work:	front button release emulation work, used with old MCU firmware
+ *				versions which did not send button release events, only button press
+ *				events
+ * @last_status:		cached value of the status word, to be compared with new value to
+ *				determine which interrupt events occurred, used with old MCU
+ *				firmware versions which only informed that the status word changed,
+ *				but not which bits of the status word changed
+ * @button_pressed_emul:	the front button is still emulated to be pressed
+ * @rtcdev:			RTC device, does not actually count real-time, the device is only
+ *				used for the RTC alarm mechanism, so that the board can be
+ *				configured to wake up from poweroff state at a specific time
+ * @rtc_alarm:			RTC alarm that was set for the board to wake up on, in MCU time
+ *				(seconds since last MCU reset)
+ * @front_button_poweron:	the front button should power on the device after it is powered off
+ * @wdt:			watchdog driver structure
+ * @trng:			RNG driver structure
+ * @trng_entropy_ready:		RNG entropy ready completion
+ */
 struct omnia_mcu {
 	struct i2c_client *client;
 	const char *type;
 	u32 features;
 
-	/* board information */
 	u64 board_serial_number;
 	u8 board_first_mac[ETH_ALEN];
 	u8 board_revision;
 
 #ifdef CONFIG_TURRIS_OMNIA_MCU_GPIO
-	/* GPIO chip */
 	struct gpio_chip gc;
 	struct mutex lock;
 	unsigned long mask, rising, falling, both, cached, is_cached;
-	/* Old MCU firmware handling needs the following */
 	struct delayed_work button_release_emul_work;
 	unsigned long last_status;
 	bool button_pressed_emul;
 #endif
 
 #ifdef CONFIG_TURRIS_OMNIA_MCU_SYSOFF_WAKEUP
-	/* RTC device for configuring wake-up */
 	struct rtc_device *rtcdev;
 	u32 rtc_alarm;
 	bool front_button_poweron;
 #endif
 
 #ifdef CONFIG_TURRIS_OMNIA_MCU_WATCHDOG
-	/* MCU watchdog */
 	struct watchdog_device wdt;
 #endif
 
 #ifdef CONFIG_TURRIS_OMNIA_MCU_TRNG
-	/* true random number generator */
 	struct hwrng trng;
 	struct completion trng_entropy_ready;
 #endif

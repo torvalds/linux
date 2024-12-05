@@ -655,7 +655,7 @@ static void phy_mdm6600_remove(struct platform_device *pdev)
 
 static struct platform_driver phy_mdm6600_driver = {
 	.probe = phy_mdm6600_probe,
-	.remove_new = phy_mdm6600_remove,
+	.remove = phy_mdm6600_remove,
 	.driver = {
 		.name = "phy-mapphone-mdm6600",
 		.pm = &phy_mdm6600_pm_ops,

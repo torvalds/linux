@@ -1606,8 +1606,6 @@ static const struct vb2_ops pxp_qops = {
 	.buf_queue	 = pxp_buf_queue,
 	.start_streaming = pxp_start_streaming,
 	.stop_streaming  = pxp_stop_streaming,
-	.wait_prepare	 = vb2_ops_wait_prepare,
-	.wait_finish	 = vb2_ops_wait_finish,
 };
 
 static int queue_init(void *priv, struct vb2_queue *src_vq,
@@ -1943,7 +1941,7 @@ MODULE_DEVICE_TABLE(of, pxp_dt_ids);
 
 static struct platform_driver pxp_driver = {
 	.probe		= pxp_probe,
-	.remove_new	= pxp_remove,
+	.remove		= pxp_remove,
 	.driver		= {
 		.name	= MEM2MEM_NAME,
 		.of_match_table = pxp_dt_ids,

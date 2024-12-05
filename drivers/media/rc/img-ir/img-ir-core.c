@@ -181,7 +181,7 @@ static struct platform_driver img_ir_driver = {
 		.pm = &img_ir_pmops,
 	},
 	.probe = img_ir_probe,
-	.remove_new = img_ir_remove,
+	.remove = img_ir_remove,
 };
 
 module_platform_driver(img_ir_driver);

@@ -40,35 +40,13 @@ int init_new_context(struct task_struct *task, struct mm_struct *mm)
 		goto out_free;
 	}
 
-	/*
-	 * Ensure the new MM is clean and nothing unwanted is mapped.
-	 *
-	 * TODO: We should clear the memory up to STUB_START to ensure there is
-	 * nothing mapped there, i.e. we (currently) have:
-	 *
-	 * |- user memory -|- unused        -|- stub        -|- unused    -|
-	 *                 ^ TASK_SIZE      ^ STUB_START
-	 *
-	 * Meaning we have two unused areas where we may still have valid
-	 * mappings from our internal clone(). That isn't really a problem as
-	 * userspace is not going to access them, but it is definitely not
-	 * correct.
-	 *
-	 * However, we are "lucky" and if rseq is configured, then on 32 bit
-	 * it will fall into the first empty range while on 64 bit it is going
-	 * to use an anonymous mapping in the second range. As such, things
-	 * continue to work for now as long as we don't start unmapping these
-	 * areas.
-	 *
-	 * Change this to STUB_START once we have a clean userspace.
-	 */
-	unmap(new_id, 0, TASK_SIZE);
+	/* Ensure the new MM is clean and nothing unwanted is mapped */
+	unmap(new_id, 0, STUB_START);
 
 	return 0;
 
  out_free:
-	if (new_id->stack != 0)
-		free_pages(new_id->stack, ilog2(STUB_DATA_PAGES));
+	free_pages(new_id->stack, ilog2(STUB_DATA_PAGES));
  out:
 	return ret;
 }

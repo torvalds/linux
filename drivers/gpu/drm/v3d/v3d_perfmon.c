@@ -409,11 +409,7 @@ int v3d_perfmon_get_values_ioctl(struct drm_device *dev, void *data,
 	if (req->pad != 0)
 		return -EINVAL;
 
-	mutex_lock(&v3d_priv->perfmon.lock);
-	perfmon = idr_find(&v3d_priv->perfmon.idr, req->id);
-	v3d_perfmon_get(perfmon);
-	mutex_unlock(&v3d_priv->perfmon.lock);
-
+	perfmon = v3d_perfmon_find(v3d_priv, req->id);
 	if (!perfmon)
 		return -EINVAL;
 

@@ -2335,7 +2335,7 @@ static void s5p_aes_remove(struct platform_device *pdev)
 
 static struct platform_driver s5p_aes_crypto = {
 	.probe	= s5p_aes_probe,
-	.remove_new = s5p_aes_remove,
+	.remove = s5p_aes_remove,
 	.driver	= {
 		.name	= "s5p-secss",
 		.of_match_table = s5p_sss_dt_match,

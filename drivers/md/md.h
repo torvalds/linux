@@ -1002,6 +1002,30 @@ static inline void mddev_trace_remap(struct mddev *mddev, struct bio *bio,
 		trace_block_bio_remap(bio, disk_devt(mddev->gendisk), sector);
 }
 
+static inline bool rdev_blocked(struct md_rdev *rdev)
+{
+	/*
+	 * Blocked will be set by error handler and cleared by daemon after
+	 * updating superblock, meanwhile write IO should be blocked to prevent
+	 * reading old data after power failure.
+	 */
+	if (test_bit(Blocked, &rdev->flags))
+		return true;
+
+	/*
+	 * Faulty device should not be accessed anymore, there is no need to
+	 * wait for bad block to be acknowledged.
+	 */
+	if (test_bit(Faulty, &rdev->flags))
+		return false;
+
+	/* rdev is blocked by badblocks. */
+	if (test_bit(BlockedBadBlocks, &rdev->flags))
+		return true;
+
+	return false;
+}
+
 #define mddev_add_trace_msg(mddev, fmt, args...)			\
 do {									\
 	if (!mddev_is_dm(mddev))					\

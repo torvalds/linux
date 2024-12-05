@@ -269,7 +269,7 @@
 #define AF_8x           0x08	/*     Add frame when AGC reaches  8x gain */
 #define AF_16x          0x0c	/* Add frame when AGC reaches 16x gain */
 				/* AEC max step control */
-#define AEC_NO_LIMIT    0x01	/*   0 : AEC incease step has limit */
+#define AEC_NO_LIMIT    0x01	/*   0 : AEC increase step has limit */
 				/*   1 : No limit to AEC increase step */
 /* CLKRC */
 				/* Input clock divider register */

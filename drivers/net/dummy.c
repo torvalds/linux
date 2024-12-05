@@ -168,22 +168,21 @@ static int __init dummy_init_module(void)
 {
 	int i, err = 0;
 
-	down_write(&pernet_ops_rwsem);
-	rtnl_lock();
-	err = __rtnl_link_register(&dummy_link_ops);
+	err = rtnl_link_register(&dummy_link_ops);
 	if (err < 0)
-		goto out;
+		return err;
+
+	rtnl_net_lock(&init_net);
 
 	for (i = 0; i < numdummies && !err; i++) {
 		err = dummy_init_one();
 		cond_resched();
 	}
-	if (err < 0)
-		__rtnl_link_unregister(&dummy_link_ops);
 
-out:
-	rtnl_unlock();
-	up_write(&pernet_ops_rwsem);
+	rtnl_net_unlock(&init_net);
+
+	if (err < 0)
+		rtnl_link_unregister(&dummy_link_ops);
 
 	return err;
 }

@@ -23,6 +23,7 @@ config FBNIC
 	depends on !S390
 	depends on MAX_SKB_FRAGS < 22
 	depends on PCI_MSI
+	depends on PTP_1588_CLOCK_OPTIONAL
 	select NET_DEVLINK
 	select PAGE_POOL
 	select PHYLINK

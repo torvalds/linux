@@ -39,7 +39,7 @@ Controlling fan speed
 ---------------------
 
 The SCH5627 allows for partially controlling the fan speed. If a temperature
-channel excedes tempX_max, all fans are forced to maximum speed. The same is not
+channel exceeds tempX_max, all fans are forced to maximum speed. The same is not
 true for tempX_crit, presumably some other measures to cool down the system are
 take in this case.
 In which way the value of fanX_min affects the fan speed is currently unknown.

@@ -335,7 +335,7 @@ struct ov9734 {
 	/* Current mode */
 	const struct ov9734_mode *cur_mode;
 
-	/* To serialize asynchronus callbacks */
+	/* To serialize asynchronous callbacks */
 	struct mutex mutex;
 };
 

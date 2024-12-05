@@ -60,7 +60,7 @@ static SIMPLE_DEV_PM_OPS(int3401_proc_thermal_pm, int3401_thermal_suspend,
 
 static struct platform_driver int3401_driver = {
 	.probe = int3401_add,
-	.remove_new = int3401_remove,
+	.remove = int3401_remove,
 	.driver = {
 		.name = "int3401 thermal",
 		.acpi_match_table = int3401_device_ids,

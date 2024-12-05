@@ -23,6 +23,8 @@
  *
  */
 
+#include <acpi/video.h>
+
 #include <linux/string.h>
 #include <linux/acpi.h>
 #include <linux/i2c.h>
@@ -642,6 +644,8 @@ static bool execute_synaptics_rc_command(struct drm_dp_aux *aux,
 		// write rc data
 		memmove(rc_data, data, length);
 		ret = drm_dp_dpcd_write(aux, SYNAPTICS_RC_DATA, rc_data, sizeof(rc_data));
+		if (ret < 0)
+			goto err;
 	}
 
 	// write rc offset
@@ -650,20 +654,21 @@ static bool execute_synaptics_rc_command(struct drm_dp_aux *aux,
 	rc_offset[2] = (unsigned char) (offset >> 16) & 0xFF;
 	rc_offset[3] = (unsigned char) (offset >> 24) & 0xFF;
 	ret = drm_dp_dpcd_write(aux, SYNAPTICS_RC_OFFSET, rc_offset, sizeof(rc_offset));
+	if (ret < 0)
+		goto err;
 
 	// write rc length
 	rc_length[0] = (unsigned char) length & 0xFF;
 	rc_length[1] = (unsigned char) (length >> 8) & 0xFF;
 	ret = drm_dp_dpcd_write(aux, SYNAPTICS_RC_LENGTH, rc_length, sizeof(rc_length));
+	if (ret < 0)
+		goto err;
 
 	// write rc cmd
 	rc_cmd = cmd | 0x80;
 	ret = drm_dp_dpcd_write(aux, SYNAPTICS_RC_COMMAND, &rc_cmd, sizeof(rc_cmd));
-
-	if (ret < 0) {
-		DRM_ERROR("%s: write cmd ..., err = %d\n",  __func__, ret);
-		return false;
-	}
+	if (ret < 0)
+		goto err;
 
 	// poll until active is 0
 	for (i = 0; i < 10; i++) {
@@ -686,6 +691,10 @@ static bool execute_synaptics_rc_command(struct drm_dp_aux *aux,
 	drm_dbg_dp(aux->drm_dev, "success = %d\n", success);
 
 	return success;
+
+err:
+	DRM_ERROR("%s: write cmd ..., err = %d\n",  __func__, ret);
+	return false;
 }
 
 static void apply_synaptics_fifo_reset_wa(struct drm_dp_aux *aux)
@@ -892,6 +901,60 @@ bool dm_helpers_is_dp_sink_present(struct dc_link *link)
 	return dp_sink_present;
 }
 
+static int
+dm_helpers_probe_acpi_edid(void *data, u8 *buf, unsigned int block, size_t len)
+{
+	struct drm_connector *connector = data;
+	struct acpi_device *acpidev = ACPI_COMPANION(connector->dev->dev);
+	unsigned char start = block * EDID_LENGTH;
+	void *edid;
+	int r;
+
+	if (!acpidev)
+		return -ENODEV;
+
+	/* fetch the entire edid from BIOS */
+	r = acpi_video_get_edid(acpidev, ACPI_VIDEO_DISPLAY_LCD, -1, &edid);
+	if (r < 0) {
+		drm_dbg(connector->dev, "Failed to get EDID from ACPI: %d\n", r);
+		return r;
+	}
+	if (len > r || start > r || start + len > r) {
+		r = -EINVAL;
+		goto cleanup;
+	}
+
+	memcpy(buf, edid + start, len);
+	r = 0;
+
+cleanup:
+	kfree(edid);
+
+	return r;
+}
+
+static const struct drm_edid *
+dm_helpers_read_acpi_edid(struct amdgpu_dm_connector *aconnector)
+{
+	struct drm_connector *connector = &aconnector->base;
+
+	if (amdgpu_dc_debug_mask & DC_DISABLE_ACPI_EDID)
+		return NULL;
+
+	switch (connector->connector_type) {
+	case DRM_MODE_CONNECTOR_LVDS:
+	case DRM_MODE_CONNECTOR_eDP:
+		break;
+	default:
+		return NULL;
+	}
+
+	if (connector->force == DRM_FORCE_OFF)
+		return NULL;
+
+	return drm_edid_read_custom(connector, dm_helpers_probe_acpi_edid, connector);
+}
+
 enum dc_edid_status dm_helpers_read_local_edid(
 		struct dc_context *ctx,
 		struct dc_link *link,
@@ -902,7 +965,8 @@ enum dc_edid_status dm_helpers_read_local_edid(
 	struct i2c_adapter *ddc;
 	int retry = 3;
 	enum dc_edid_status edid_status;
-	struct edid *edid;
+	const struct drm_edid *drm_edid;
+	const struct edid *edid;
 
 	if (link->aux_mode)
 		ddc = &aconnector->dm_dp_aux.aux.ddc;
@@ -913,26 +977,31 @@ enum dc_edid_status dm_helpers_read_local_edid(
 	 * do check sum and retry to make sure read correct edid.
 	 */
 	do {
-
-		edid = drm_get_edid(&aconnector->base, ddc);
+		drm_edid = dm_helpers_read_acpi_edid(aconnector);
+		if (drm_edid)
+			drm_info(connector->dev, "Using ACPI provided EDID for %s\n", connector->name);
+		else
+			drm_edid = drm_edid_read_ddc(connector, ddc);
+		drm_edid_connector_update(connector, drm_edid);
 
 		/* DP Compliance Test 4.2.2.6 */
 		if (link->aux_mode && connector->edid_corrupt)
 			drm_dp_send_real_edid_checksum(&aconnector->dm_dp_aux.aux, connector->real_edid_checksum);
 
-		if (!edid && connector->edid_corrupt) {
+		if (!drm_edid && connector->edid_corrupt) {
 			connector->edid_corrupt = false;
 			return EDID_BAD_CHECKSUM;
 		}
 
-		if (!edid)
+		if (!drm_edid)
 			return EDID_NO_RESPONSE;
 
+		edid = drm_edid_raw(drm_edid); // FIXME: Get rid of drm_edid_raw()
 		sink->dc_edid.length = EDID_LENGTH * (edid->extensions + 1);
 		memmove(sink->dc_edid.raw_edid, (uint8_t *)edid, sink->dc_edid.length);
 
 		/* We don't need the original edid anymore */
-		kfree(edid);
+		drm_edid_free(drm_edid);
 
 		edid_status = dm_helpers_parse_edid_caps(
 						link,
@@ -1055,17 +1124,8 @@ void dm_helpers_free_gpu_mem(
 		void *pvMem)
 {
 	struct amdgpu_device *adev = ctx->driver_context;
-	struct dal_allocation *da;
 
-	/* walk the da list in DM */
-	list_for_each_entry(da, &adev->dm.da_list, list) {
-		if (pvMem == da->cpu_ptr) {
-			amdgpu_bo_free_kernel(&da->bo, &da->gpu_addr, &da->cpu_ptr);
-			list_del(&da->list);
-			kfree(da);
-			break;
-		}
-	}
+	dm_free_gpu_mem(adev, type, pvMem);
 }
 
 bool dm_helpers_dmub_outbox_interrupt_control(struct dc_context *ctx, bool enable)

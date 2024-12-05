@@ -509,7 +509,8 @@ static int tegra241_vcmdq_alloc_smmu_cmdq(struct tegra241_vcmdq *vcmdq)
 
 	snprintf(name, 16, "vcmdq%u", vcmdq->idx);
 
-	q->llq.max_n_shift = VCMDQ_LOG2SIZE_MAX;
+	/* Queue size, capped to ensure natural alignment */
+	q->llq.max_n_shift = min_t(u32, CMDQ_MAX_SZ_SHIFT, VCMDQ_LOG2SIZE_MAX);
 
 	/* Use the common helper to init the VCMDQ, and then... */
 	ret = arm_smmu_init_one_queue(smmu, q, vcmdq->page0,
@@ -800,7 +801,9 @@ out_fallback:
 	return 0;
 }
 
-struct dentry *cmdqv_debugfs_dir;
+#ifdef CONFIG_IOMMU_DEBUGFS
+static struct dentry *cmdqv_debugfs_dir;
+#endif
 
 static struct arm_smmu_device *
 __tegra241_cmdqv_probe(struct arm_smmu_device *smmu, struct resource *res,

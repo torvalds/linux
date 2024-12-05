@@ -34,6 +34,7 @@ void intel_pps_off_unlocked(struct intel_dp *intel_dp);
 void intel_pps_check_power_unlocked(struct intel_dp *intel_dp);
 
 void intel_pps_vdd_on(struct intel_dp *intel_dp);
+void intel_pps_vdd_off(struct intel_dp *intel_dp);
 void intel_pps_on(struct intel_dp *intel_dp);
 void intel_pps_off(struct intel_dp *intel_dp);
 void intel_pps_vdd_off_sync(struct intel_dp *intel_dp);
@@ -43,10 +44,16 @@ void intel_pps_wait_power_cycle(struct intel_dp *intel_dp);
 bool intel_pps_init(struct intel_dp *intel_dp);
 void intel_pps_init_late(struct intel_dp *intel_dp);
 void intel_pps_encoder_reset(struct intel_dp *intel_dp);
-void intel_pps_reset_all(struct intel_display *display);
 
-void vlv_pps_init(struct intel_encoder *encoder,
-		  const struct intel_crtc_state *crtc_state);
+void vlv_pps_pipe_init(struct intel_dp *intel_dp);
+void vlv_pps_pipe_reset(struct intel_dp *intel_dp);
+enum pipe vlv_pps_backlight_initial_pipe(struct intel_dp *intel_dp);
+void vlv_pps_port_enable_unlocked(struct intel_encoder *encoder,
+				  const struct intel_crtc_state *crtc_state);
+void vlv_pps_port_disable(struct intel_encoder *encoder,
+			  const struct intel_crtc_state *crtc_state);
+void vlv_pps_reset_all(struct intel_display *display);
+void bxt_pps_reset_all(struct intel_display *display);
 
 void intel_pps_unlock_regs_wa(struct intel_display *display);
 void intel_pps_setup(struct intel_display *display);

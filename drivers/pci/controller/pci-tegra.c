@@ -1460,7 +1460,7 @@ static int tegra_pcie_get_resources(struct tegra_pcie *pcie)
 	pcie->cs = *res;
 
 	/* constrain configuration space to 4 KiB */
-	pcie->cs.end = pcie->cs.start + SZ_4K - 1;
+	resource_set_size(&pcie->cs, SZ_4K);
 
 	pcie->cfg = devm_ioremap_resource(dev, &pcie->cs);
 	if (IS_ERR(pcie->cfg)) {
@@ -2800,6 +2800,6 @@ static struct platform_driver tegra_pcie_driver = {
 		.pm = &tegra_pcie_pm_ops,
 	},
 	.probe = tegra_pcie_probe,
-	.remove_new = tegra_pcie_remove,
+	.remove = tegra_pcie_remove,
 };
 module_platform_driver(tegra_pcie_driver);
