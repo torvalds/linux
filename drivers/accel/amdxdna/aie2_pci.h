@@ -149,6 +149,11 @@ struct amdxdna_hwctx_priv {
 	struct drm_syncobj		*syncobj;
 };
 
+enum aie2_dev_status {
+	AIE2_DEV_INIT,
+	AIE2_DEV_START,
+};
+
 struct amdxdna_dev_hdl {
 	struct amdxdna_dev		*xdna;
 	const struct amdxdna_dev_priv	*priv;
@@ -171,6 +176,8 @@ struct amdxdna_dev_hdl {
 	struct mailbox			*mbox;
 	struct mailbox_channel		*mgmt_chann;
 	struct async_events		*async_events;
+
+	enum aie2_dev_status		dev_status;
 };
 
 #define DEFINE_BAR_OFFSET(reg_name, bar, reg_addr) \
