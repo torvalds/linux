@@ -586,7 +586,7 @@ static int amdgpu_vcn_dec_send_msg(struct amdgpu_ring *ring,
 	if (r)
 		goto err_free;
 
-	amdgpu_ib_free(adev, ib_msg, f);
+	amdgpu_ib_free(ib_msg, f);
 
 	if (fence)
 		*fence = dma_fence_get(f);
@@ -597,7 +597,7 @@ static int amdgpu_vcn_dec_send_msg(struct amdgpu_ring *ring,
 err_free:
 	amdgpu_job_free(job);
 err:
-	amdgpu_ib_free(adev, ib_msg, f);
+	amdgpu_ib_free(ib_msg, f);
 	return r;
 }
 
@@ -779,7 +779,7 @@ static int amdgpu_vcn_dec_sw_send_msg(struct amdgpu_ring *ring,
 	if (r)
 		goto err_free;
 
-	amdgpu_ib_free(adev, ib_msg, f);
+	amdgpu_ib_free(ib_msg, f);
 
 	if (fence)
 		*fence = dma_fence_get(f);
@@ -790,7 +790,7 @@ static int amdgpu_vcn_dec_sw_send_msg(struct amdgpu_ring *ring,
 err_free:
 	amdgpu_job_free(job);
 err:
-	amdgpu_ib_free(adev, ib_msg, f);
+	amdgpu_ib_free(ib_msg, f);
 	return r;
 }
 
@@ -1020,7 +1020,7 @@ int amdgpu_vcn_enc_ring_test_ib(struct amdgpu_ring *ring, long timeout)
 		r = 0;
 
 error:
-	amdgpu_ib_free(adev, &ib, fence);
+	amdgpu_ib_free(&ib, fence);
 	dma_fence_put(fence);
 
 	return r;

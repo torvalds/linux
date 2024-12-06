@@ -503,7 +503,7 @@ static int amdgpu_vce_get_create_msg(struct amdgpu_ring *ring, uint32_t handle,
 		ib->ptr[i] = 0x0;
 
 	r = amdgpu_job_submit_direct(job, ring, &f);
-	amdgpu_ib_free(ring->adev, &ib_msg, f);
+	amdgpu_ib_free(&ib_msg, f);
 	if (r)
 		goto err;
 

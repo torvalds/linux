@@ -342,8 +342,7 @@ int amdgpu_sa_bo_manager_start(struct amdgpu_device *adev,
 int amdgpu_sa_bo_new(struct amdgpu_sa_manager *sa_manager,
 		     struct drm_suballoc **sa_bo,
 		     unsigned int size);
-void amdgpu_sa_bo_free(struct amdgpu_device *adev,
-		       struct drm_suballoc **sa_bo,
+void amdgpu_sa_bo_free(struct drm_suballoc **sa_bo,
 		       struct dma_fence *fence);
 #if defined(CONFIG_DEBUG_FS)
 void amdgpu_sa_bo_dump_debug_info(struct amdgpu_sa_manager *sa_manager,
