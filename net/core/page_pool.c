@@ -840,22 +840,22 @@ void page_pool_put_unrefed_page(struct page_pool *pool, struct page *page,
 EXPORT_SYMBOL(page_pool_put_unrefed_page);
 
 /**
- * page_pool_put_page_bulk() - release references on multiple pages
+ * page_pool_put_netmem_bulk() - release references on multiple netmems
  * @pool:	pool from which pages were allocated
- * @data:	array holding page pointers
- * @count:	number of pages in @data
+ * @data:	array holding netmem references
+ * @count:	number of entries in @data
  *
- * Tries to refill a number of pages into the ptr_ring cache holding ptr_ring
- * producer lock. If the ptr_ring is full, page_pool_put_page_bulk()
- * will release leftover pages to the page allocator.
- * page_pool_put_page_bulk() is suitable to be run inside the driver NAPI tx
+ * Tries to refill a number of netmems into the ptr_ring cache holding ptr_ring
+ * producer lock. If the ptr_ring is full, page_pool_put_netmem_bulk()
+ * will release leftover netmems to the memory provider.
+ * page_pool_put_netmem_bulk() is suitable to be run inside the driver NAPI tx
  * completion loop for the XDP_REDIRECT use case.
  *
  * Please note the caller must not use data area after running
- * page_pool_put_page_bulk(), as this function overwrites it.
+ * page_pool_put_netmem_bulk(), as this function overwrites it.
  */
-void page_pool_put_page_bulk(struct page_pool *pool, void **data,
-			     int count)
+void page_pool_put_netmem_bulk(struct page_pool *pool, netmem_ref *data,
+			       u32 count)
 {
 	int i, bulk_len = 0;
 	bool allow_direct;
@@ -864,7 +864,7 @@ void page_pool_put_page_bulk(struct page_pool *pool, void **data,
 	allow_direct = page_pool_napi_local(pool);
 
 	for (i = 0; i < count; i++) {
-		netmem_ref netmem = page_to_netmem(virt_to_head_page(data[i]));
+		netmem_ref netmem = netmem_compound_head(data[i]);
 
 		/* It is not the last user for the page frag case */
 		if (!page_pool_is_last_ref(netmem))
@@ -873,7 +873,7 @@ void page_pool_put_page_bulk(struct page_pool *pool, void **data,
 		netmem = __page_pool_put_page(pool, netmem, -1, allow_direct);
 		/* Approved for bulk recycling in ptr_ring cache */
 		if (netmem)
-			data[bulk_len++] = (__force void *)netmem;
+			data[bulk_len++] = netmem;
 	}
 
 	if (!bulk_len)
@@ -882,7 +882,7 @@ void page_pool_put_page_bulk(struct page_pool *pool, void **data,
 	/* Bulk producer into ptr_ring page_pool cache */
 	in_softirq = page_pool_producer_lock(pool);
 	for (i = 0; i < bulk_len; i++) {
-		if (__ptr_ring_produce(&pool->ring, data[i])) {
+		if (__ptr_ring_produce(&pool->ring, (__force void *)data[i])) {
 			/* ring full */
 			recycle_stat_inc(pool, ring_full);
 			break;
@@ -899,9 +899,9 @@ void page_pool_put_page_bulk(struct page_pool *pool, void **data,
 	 * since put_page() with refcnt == 1 can be an expensive operation
 	 */
 	for (; i < bulk_len; i++)
-		page_pool_return_page(pool, (__force netmem_ref)data[i]);
+		page_pool_return_page(pool, data[i]);
 }
-EXPORT_SYMBOL(page_pool_put_page_bulk);
+EXPORT_SYMBOL(page_pool_put_netmem_bulk);
 
 static netmem_ref page_pool_drain_frag(struct page_pool *pool,
 				       netmem_ref netmem)
