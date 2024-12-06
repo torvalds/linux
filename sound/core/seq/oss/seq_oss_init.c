@@ -111,7 +111,7 @@ snd_seq_oss_create_client(void)
 
 
 /*
- * receive annoucement from system port, and check the midi device
+ * receive announcement from system port, and check the midi device
  */
 static int
 receive_announce(struct snd_seq_event *ev, int direct, void *private, int atomic, int hop)
