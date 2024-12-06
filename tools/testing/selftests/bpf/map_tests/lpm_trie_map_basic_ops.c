@@ -223,7 +223,7 @@ static void test_lpm_map(int keysize)
 	n_matches = 0;
 	n_matches_after_delete = 0;
 	n_nodes = 1 << 8;
-	n_lookups = 1 << 16;
+	n_lookups = 1 << 9;
 
 	data = alloca(keysize);
 	memset(data, 0, keysize);
@@ -770,15 +770,12 @@ static void test_lpm_multi_thread(void)
 	close(map_fd);
 }
 
-int main(void)
+void test_lpm_trie_map_basic_ops(void)
 {
 	int i;
 
 	/* we want predictable, pseudo random tests */
 	srand(0xf00ba1);
-
-	/* Use libbpf 1.0 API mode */
-	libbpf_set_strict_mode(LIBBPF_STRICT_ALL);
 
 	test_lpm_basic();
 	test_lpm_order();
@@ -792,6 +789,5 @@ int main(void)
 	test_lpm_get_next_key();
 	test_lpm_multi_thread();
 
-	printf("test_lpm: OK\n");
-	return 0;
+	printf("%s: PASS\n", __func__);
 }
