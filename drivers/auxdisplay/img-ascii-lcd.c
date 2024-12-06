@@ -36,7 +36,6 @@ struct img_ascii_lcd_config {
  * @base: the base address of the LCD registers
  * @regmap: the regmap through which LCD registers are accessed
  * @offset: the offset within regmap to the start of the LCD registers
- * @cfg: pointer to the LCD model configuration
  */
 struct img_ascii_lcd_ctx {
 	struct linedisp linedisp;
@@ -45,7 +44,6 @@ struct img_ascii_lcd_ctx {
 		struct regmap *regmap;
 	};
 	u32 offset;
-	const struct img_ascii_lcd_config *cfg;
 };
 
 /*
