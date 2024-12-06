@@ -603,7 +603,7 @@ int jbd2_journal_start_commit(journal_t *journal, tid_t *ptid)
 int jbd2_trans_will_send_data_barrier(journal_t *journal, tid_t tid)
 {
 	int ret = 0;
-	transaction_t *commit_trans;
+	transaction_t *commit_trans, *running_trans;
 
 	if (!(journal->j_flags & JBD2_BARRIER))
 		return 0;
@@ -613,6 +613,16 @@ int jbd2_trans_will_send_data_barrier(journal_t *journal, tid_t tid)
 		goto out;
 	commit_trans = journal->j_committing_transaction;
 	if (!commit_trans || commit_trans->t_tid != tid) {
+		running_trans = journal->j_running_transaction;
+		/*
+		 * The query transaction hasn't started committing,
+		 * it must still be running.
+		 */
+		if (WARN_ON_ONCE(!running_trans ||
+				 running_trans->t_tid != tid))
+			goto out;
+
+		running_trans->t_need_data_flush = 1;
 		ret = 1;
 		goto out;
 	}
