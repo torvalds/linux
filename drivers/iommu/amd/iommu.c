@@ -1415,6 +1415,7 @@ static int domain_flush_pages_v2(struct protection_domain *pdom,
 	struct iommu_cmd cmd;
 	int ret = 0;
 
+	lockdep_assert_held(&pdom->lock);
 	list_for_each_entry(dev_data, &pdom->dev_list, list) {
 		struct amd_iommu *iommu = get_amd_iommu_from_dev(dev_data->dev);
 		u16 domid = dev_data->gcr3_info.domid;
@@ -1463,6 +1464,8 @@ static void __domain_flush_pages(struct protection_domain *domain,
 	int ret = 0;
 	ioasid_t pasid = IOMMU_NO_PASID;
 	bool gn = false;
+
+	lockdep_assert_held(&domain->lock);
 
 	if (pdom_is_v2_pgtbl_mode(domain)) {
 		gn = true;
@@ -1584,6 +1587,8 @@ static void domain_flush_np_cache(struct protection_domain *domain,
 void amd_iommu_update_and_flush_device_table(struct protection_domain *domain)
 {
 	struct iommu_dev_data *dev_data;
+
+	lockdep_assert_held(&domain->lock);
 
 	list_for_each_entry(dev_data, &domain->dev_list, list) {
 		struct amd_iommu *iommu = rlookup_amd_iommu(dev_data->dev);
