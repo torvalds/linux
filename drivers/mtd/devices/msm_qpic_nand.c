@@ -5228,8 +5228,10 @@ static int msm_nand_probe(struct platform_device *pdev)
 	info->bam_base = devm_ioremap(&pdev->dev, res->start,
 					resource_size(res));
 	if (!info->bam_base) {
-		pr_err("BAM ioremap() failed for addr 0x%llx size 0x%llx\n",
-			res->start, resource_size(res));
+		resource_size_t size = resource_size(res);
+
+		pr_err("BAM ioremap() failed for addr %pap size %pap\n",
+			&res->start, &size);
 		err = -ENOMEM;
 		goto out;
 	}
@@ -5344,8 +5346,8 @@ static int msm_nand_probe(struct platform_device *pdev)
 
 	pr_info("NANDc phys addr 0x%lx, BAM phys addr 0x%lx, BAM IRQ %d\n",
 			info->nand_phys, info->bam_phys, info->bam_irq);
-	pr_info("Allocated DMA buffer at virt_addr 0x%pK, phys_addr 0x%llx\n",
-		info->nand_chip.dma_virt_addr, info->nand_chip.dma_phys_addr);
+	pr_info("Allocated DMA buffer at virt_addr 0x%pK, phys_addr %pad\n",
+		info->nand_chip.dma_virt_addr, &info->nand_chip.dma_phys_addr);
 	pr_info("Host capabilities:0x%08x\n", info->nand_chip.caps);
 	dev_node = dev;
 	msm_nand_bam_register_panic_handler();
