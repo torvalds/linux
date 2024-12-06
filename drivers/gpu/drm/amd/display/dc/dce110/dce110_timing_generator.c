@@ -2127,65 +2127,126 @@ bool dce110_configure_crc(struct timing_generator *tg,
 
 	cntl_addr = CRTC_REG(mmCRTC_CRC_CNTL);
 
-	/* First, disable CRC before we configure it. */
-	dm_write_reg(tg->ctx, cntl_addr, 0);
+	if (!params->enable || params->reset)
+		/* First, disable CRC before we configure it. */
+		dm_write_reg(tg->ctx, cntl_addr, 0);
 
 	if (!params->enable)
 		return true;
 
 	/* Program frame boundaries */
-	/* Window A x axis start and end. */
-	value = 0;
-	addr = CRTC_REG(mmCRTC_CRC0_WINDOWA_X_CONTROL);
-	set_reg_field_value(value, params->windowa_x_start,
-			    CRTC_CRC0_WINDOWA_X_CONTROL,
-			    CRTC_CRC0_WINDOWA_X_START);
-	set_reg_field_value(value, params->windowa_x_end,
-			    CRTC_CRC0_WINDOWA_X_CONTROL,
-			    CRTC_CRC0_WINDOWA_X_END);
-	dm_write_reg(tg->ctx, addr, value);
+	switch (params->crc_eng_inst) {
+	case 0:
+		/* Window A x axis start and end. */
+		value = 0;
+		addr = CRTC_REG(mmCRTC_CRC0_WINDOWA_X_CONTROL);
+		set_reg_field_value(value, params->windowa_x_start,
+				    CRTC_CRC0_WINDOWA_X_CONTROL,
+				    CRTC_CRC0_WINDOWA_X_START);
+		set_reg_field_value(value, params->windowa_x_end,
+				    CRTC_CRC0_WINDOWA_X_CONTROL,
+				    CRTC_CRC0_WINDOWA_X_END);
+		dm_write_reg(tg->ctx, addr, value);
 
-	/* Window A y axis start and end. */
-	value = 0;
-	addr = CRTC_REG(mmCRTC_CRC0_WINDOWA_Y_CONTROL);
-	set_reg_field_value(value, params->windowa_y_start,
-			    CRTC_CRC0_WINDOWA_Y_CONTROL,
-			    CRTC_CRC0_WINDOWA_Y_START);
-	set_reg_field_value(value, params->windowa_y_end,
-			    CRTC_CRC0_WINDOWA_Y_CONTROL,
-			    CRTC_CRC0_WINDOWA_Y_END);
-	dm_write_reg(tg->ctx, addr, value);
+		/* Window A y axis start and end. */
+		value = 0;
+		addr = CRTC_REG(mmCRTC_CRC0_WINDOWA_Y_CONTROL);
+		set_reg_field_value(value, params->windowa_y_start,
+				    CRTC_CRC0_WINDOWA_Y_CONTROL,
+				    CRTC_CRC0_WINDOWA_Y_START);
+		set_reg_field_value(value, params->windowa_y_end,
+				    CRTC_CRC0_WINDOWA_Y_CONTROL,
+				    CRTC_CRC0_WINDOWA_Y_END);
+		dm_write_reg(tg->ctx, addr, value);
 
-	/* Window B x axis start and end. */
-	value = 0;
-	addr = CRTC_REG(mmCRTC_CRC0_WINDOWB_X_CONTROL);
-	set_reg_field_value(value, params->windowb_x_start,
-			    CRTC_CRC0_WINDOWB_X_CONTROL,
-			    CRTC_CRC0_WINDOWB_X_START);
-	set_reg_field_value(value, params->windowb_x_end,
-			    CRTC_CRC0_WINDOWB_X_CONTROL,
-			    CRTC_CRC0_WINDOWB_X_END);
-	dm_write_reg(tg->ctx, addr, value);
+		/* Window B x axis start and end. */
+		value = 0;
+		addr = CRTC_REG(mmCRTC_CRC0_WINDOWB_X_CONTROL);
+		set_reg_field_value(value, params->windowb_x_start,
+				    CRTC_CRC0_WINDOWB_X_CONTROL,
+				    CRTC_CRC0_WINDOWB_X_START);
+		set_reg_field_value(value, params->windowb_x_end,
+				    CRTC_CRC0_WINDOWB_X_CONTROL,
+				    CRTC_CRC0_WINDOWB_X_END);
+		dm_write_reg(tg->ctx, addr, value);
 
-	/* Window B y axis start and end. */
-	value = 0;
-	addr = CRTC_REG(mmCRTC_CRC0_WINDOWB_Y_CONTROL);
-	set_reg_field_value(value, params->windowb_y_start,
-			    CRTC_CRC0_WINDOWB_Y_CONTROL,
-			    CRTC_CRC0_WINDOWB_Y_START);
-	set_reg_field_value(value, params->windowb_y_end,
-			    CRTC_CRC0_WINDOWB_Y_CONTROL,
-			    CRTC_CRC0_WINDOWB_Y_END);
-	dm_write_reg(tg->ctx, addr, value);
+		/* Window B y axis start and end. */
+		value = 0;
+		addr = CRTC_REG(mmCRTC_CRC0_WINDOWB_Y_CONTROL);
+		set_reg_field_value(value, params->windowb_y_start,
+				    CRTC_CRC0_WINDOWB_Y_CONTROL,
+				    CRTC_CRC0_WINDOWB_Y_START);
+		set_reg_field_value(value, params->windowb_y_end,
+				    CRTC_CRC0_WINDOWB_Y_CONTROL,
+				    CRTC_CRC0_WINDOWB_Y_END);
+		dm_write_reg(tg->ctx, addr, value);
 
-	/* Set crc mode and selection, and enable. Only using CRC0*/
-	value = 0;
-	set_reg_field_value(value, params->continuous_mode ? 1 : 0,
-			    CRTC_CRC_CNTL, CRTC_CRC_CONT_EN);
-	set_reg_field_value(value, params->selection,
-			    CRTC_CRC_CNTL, CRTC_CRC0_SELECT);
-	set_reg_field_value(value, 1, CRTC_CRC_CNTL, CRTC_CRC_EN);
-	dm_write_reg(tg->ctx, cntl_addr, value);
+		/* Set crc mode and selection, and enable.*/
+		value = 0;
+		set_reg_field_value(value, params->continuous_mode ? 1 : 0,
+				    CRTC_CRC_CNTL, CRTC_CRC_CONT_EN);
+		set_reg_field_value(value, params->selection,
+				    CRTC_CRC_CNTL, CRTC_CRC0_SELECT);
+		set_reg_field_value(value, 1, CRTC_CRC_CNTL, CRTC_CRC_EN);
+		dm_write_reg(tg->ctx, cntl_addr, value);
+		break;
+	case 1:
+		/* Window A x axis start and end. */
+		value = 0;
+		addr = CRTC_REG(mmCRTC_CRC1_WINDOWA_X_CONTROL);
+		set_reg_field_value(value, params->windowa_x_start,
+				    CRTC_CRC1_WINDOWA_X_CONTROL,
+				    CRTC_CRC1_WINDOWA_X_START);
+		set_reg_field_value(value, params->windowa_x_end,
+				    CRTC_CRC1_WINDOWA_X_CONTROL,
+				    CRTC_CRC1_WINDOWA_X_END);
+		dm_write_reg(tg->ctx, addr, value);
+
+		/* Window A y axis start and end. */
+		value = 0;
+		addr = CRTC_REG(mmCRTC_CRC1_WINDOWA_Y_CONTROL);
+		set_reg_field_value(value, params->windowa_y_start,
+				    CRTC_CRC1_WINDOWA_Y_CONTROL,
+				    CRTC_CRC1_WINDOWA_Y_START);
+		set_reg_field_value(value, params->windowa_y_end,
+				    CRTC_CRC1_WINDOWA_Y_CONTROL,
+				    CRTC_CRC1_WINDOWA_Y_END);
+		dm_write_reg(tg->ctx, addr, value);
+
+		/* Window B x axis start and end. */
+		value = 0;
+		addr = CRTC_REG(mmCRTC_CRC1_WINDOWB_X_CONTROL);
+		set_reg_field_value(value, params->windowb_x_start,
+				    CRTC_CRC1_WINDOWB_X_CONTROL,
+				    CRTC_CRC1_WINDOWB_X_START);
+		set_reg_field_value(value, params->windowb_x_end,
+				    CRTC_CRC1_WINDOWB_X_CONTROL,
+				    CRTC_CRC1_WINDOWB_X_END);
+		dm_write_reg(tg->ctx, addr, value);
+
+		/* Window B y axis start and end. */
+		value = 0;
+		addr = CRTC_REG(mmCRTC_CRC1_WINDOWB_Y_CONTROL);
+		set_reg_field_value(value, params->windowb_y_start,
+				    CRTC_CRC1_WINDOWB_Y_CONTROL,
+				    CRTC_CRC1_WINDOWB_Y_START);
+		set_reg_field_value(value, params->windowb_y_end,
+				    CRTC_CRC1_WINDOWB_Y_CONTROL,
+				    CRTC_CRC1_WINDOWB_Y_END);
+		dm_write_reg(tg->ctx, addr, value);
+
+		/* Set crc mode and selection, and enable.*/
+		value = 0;
+		set_reg_field_value(value, params->continuous_mode ? 1 : 0,
+				    CRTC_CRC_CNTL, CRTC_CRC_CONT_EN);
+		set_reg_field_value(value, params->selection,
+				    CRTC_CRC_CNTL, CRTC_CRC1_SELECT);
+		set_reg_field_value(value, 1, CRTC_CRC_CNTL, CRTC_CRC_EN);
+		dm_write_reg(tg->ctx, cntl_addr, value);
+		break;
+	default:
+		return false;
+	}
 
 	return true;
 }

@@ -141,6 +141,9 @@ struct crc_params {
 
 	bool continuous_mode;
 	bool enable;
+
+	uint8_t crc_eng_inst;
+	bool reset;
 };
 
 /**
