@@ -136,28 +136,24 @@ static int __amd_smn_rw(u16 node, u32 address, u32 *value, bool write)
 	int err = -ENODEV;
 
 	if (node >= amd_nb_num())
-		goto out;
+		return err;
 
 	root = node_to_amd_nb(node)->root;
 	if (!root)
-		goto out;
+		return err;
 
-	mutex_lock(&smn_mutex);
+	guard(mutex)(&smn_mutex);
 
 	err = pci_write_config_dword(root, 0x60, address);
 	if (err) {
 		pr_warn("Error programming SMN address 0x%x.\n", address);
-		goto out_unlock;
+		return pcibios_err_to_errno(err);
 	}
 
 	err = (write ? pci_write_config_dword(root, 0x64, *value)
 		     : pci_read_config_dword(root, 0x64, value));
 
-out_unlock:
-	mutex_unlock(&smn_mutex);
-
-out:
-	return err;
+	return pcibios_err_to_errno(err);
 }
 
 int __must_check amd_smn_read(u16 node, u32 address, u32 *value)
