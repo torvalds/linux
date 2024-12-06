@@ -44,6 +44,8 @@ static void log_quirks(struct device *dev)
 		dev_dbg(dev, "quirk SOC_SDW_CODEC_SPKR enabled\n");
 	if (sof_sdw_quirk & SOC_SDW_SIDECAR_AMPS)
 		dev_dbg(dev, "quirk SOC_SDW_SIDECAR_AMPS enabled\n");
+	if (sof_sdw_quirk & SOC_SDW_CODEC_MIC)
+		dev_dbg(dev, "quirk SOC_SDW_CODEC_MIC enabled\n");
 }
 
 static int sof_sdw_quirk_cb(const struct dmi_system_id *id)
