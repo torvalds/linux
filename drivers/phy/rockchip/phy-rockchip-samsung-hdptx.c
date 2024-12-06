@@ -560,13 +560,13 @@ static const struct reg_sequence rk_hdtpx_tmds_lane_init_seq[] = {
 static bool rk_hdptx_phy_is_rw_reg(struct device *dev, unsigned int reg)
 {
 	switch (reg) {
-	case 0x0000 ... 0x029c:
-	case 0x0400 ... 0x04a4:
-	case 0x0800 ... 0x08a4:
-	case 0x0c00 ... 0x0cb4:
-	case 0x1000 ... 0x10b4:
-	case 0x1400 ... 0x14b4:
-	case 0x1800 ... 0x18b4:
+	case 0x0000 ... 0x029c: /* CMN Register */
+	case 0x0400 ... 0x04a4: /* Sideband Register */
+	case 0x0800 ... 0x08a4: /* Lane Top Register */
+	case 0x0c00 ... 0x0cb4: /* Lane 0 Register */
+	case 0x1000 ... 0x10b4: /* Lane 1 Register */
+	case 0x1400 ... 0x14b4: /* Lane 2 Register */
+	case 0x1800 ... 0x18b4: /* Lane 3 Register */
 		return true;
 	}
 
