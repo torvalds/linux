@@ -2761,7 +2761,10 @@ def main():
         cw.p('#define ' + hdr_prot)
         cw.nl()
 
-    hdr_file=os.path.basename(args.out_file[:-2]) + ".h"
+    if args.out_file:
+        hdr_file = os.path.basename(args.out_file[:-2]) + ".h"
+    else:
+        hdr_file = "generated_header_file.h"
 
     if args.mode == 'kernel':
         cw.p('#include <net/netlink.h>')
