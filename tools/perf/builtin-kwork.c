@@ -6,6 +6,7 @@
  */
 
 #include "builtin.h"
+#include "perf.h"
 
 #include "util/data.h"
 #include "util/evlist.h"

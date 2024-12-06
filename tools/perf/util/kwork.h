@@ -1,6 +1,7 @@
 #ifndef PERF_UTIL_KWORK_H
 #define PERF_UTIL_KWORK_H
 
+#include "perf.h"
 #include "util/tool.h"
 #include "util/time-utils.h"
 
