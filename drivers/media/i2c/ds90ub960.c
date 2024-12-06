@@ -2448,7 +2448,6 @@ static int ub960_configure_ports_for_streaming(struct ub960_data *priv,
 	} rx_data[UB960_MAX_RX_NPORTS] = {};
 	u8 vc_map[UB960_MAX_RX_NPORTS] = {};
 	struct v4l2_subdev_route *route;
-	unsigned int nport;
 	int ret;
 
 	ret = ub960_validate_stream_vcs(priv);
@@ -2518,7 +2517,8 @@ static int ub960_configure_ports_for_streaming(struct ub960_data *priv,
 	 */
 	fwd_ctl = GENMASK(7, 4);
 
-	for (nport = 0; nport < priv->hw_data->num_rxports; nport++) {
+	for (unsigned int nport = 0; nport < priv->hw_data->num_rxports;
+	     nport++) {
 		struct ub960_rxport *rxport = priv->rxports[nport];
 		u8 vc = vc_map[nport];
 
@@ -3040,14 +3040,13 @@ static int ub960_log_status(struct v4l2_subdev *sd)
 	struct device *dev = &priv->client->dev;
 	struct v4l2_subdev_state *state;
 	unsigned int nport;
-	unsigned int i;
 	u16 v16 = 0;
 	u8 v = 0;
 	u8 id[UB960_SR_FPD3_RX_ID_LEN];
 
 	state = v4l2_subdev_lock_and_get_active_state(sd);
 
-	for (i = 0; i < sizeof(id); i++)
+	for (unsigned int i = 0; i < sizeof(id); i++)
 		ub960_read(priv, UB960_SR_FPD3_RX_ID(i), &id[i]);
 
 	dev_info(dev, "ID '%.*s'\n", (int)sizeof(id), id);
@@ -3081,7 +3080,6 @@ static int ub960_log_status(struct v4l2_subdev *sd)
 
 	for (nport = 0; nport < priv->hw_data->num_rxports; nport++) {
 		struct ub960_rxport *rxport = priv->rxports[nport];
-		unsigned int i;
 
 		dev_info(dev, "RX %u\n", nport);
 
@@ -3120,7 +3118,7 @@ static int ub960_log_status(struct v4l2_subdev *sd)
 			ub960_log_status_ub960_sp_eq(priv, nport);
 
 		/* GPIOs */
-		for (i = 0; i < UB960_NUM_BC_GPIOS; i++) {
+		for (unsigned int i = 0; i < UB960_NUM_BC_GPIOS; i++) {
 			u8 ctl_reg;
 			u8 ctl_shift;
 
