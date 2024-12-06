@@ -8,7 +8,6 @@
  * Author: Yazen Ghannam <Yazen.Ghannam@amd.com>
  */
 
-#include <asm/amd_nb.h>
 #include <asm/amd_node.h>
 
 /*
@@ -90,6 +89,8 @@ struct pci_dev *amd_node_get_root(u16 node)
 	return root;
 }
 
+static struct pci_dev **amd_roots;
+
 /* Protect the PCI config register pairs used for SMN. */
 static DEFINE_MUTEX(smn_mutex);
 
@@ -135,10 +136,10 @@ static int __amd_smn_rw(u16 node, u32 address, u32 *value, bool write)
 	struct pci_dev *root;
 	int err = -ENODEV;
 
-	if (node >= amd_nb_num())
+	if (node >= amd_num_nodes())
 		return err;
 
-	root = node_to_amd_nb(node)->root;
+	root = amd_roots[node];
 	if (!root)
 		return err;
 
@@ -174,3 +175,38 @@ int __must_check amd_smn_write(u16 node, u32 address, u32 value)
 	return __amd_smn_rw(node, address, &value, true);
 }
 EXPORT_SYMBOL_GPL(amd_smn_write);
+
+static int amd_cache_roots(void)
+{
+	u16 node, num_nodes = amd_num_nodes();
+
+	amd_roots = kcalloc(num_nodes, sizeof(*amd_roots), GFP_KERNEL);
+	if (!amd_roots)
+		return -ENOMEM;
+
+	for (node = 0; node < num_nodes; node++)
+		amd_roots[node] = amd_node_get_root(node);
+
+	return 0;
+}
+
+static int __init amd_smn_init(void)
+{
+	int err;
+
+	if (!cpu_feature_enabled(X86_FEATURE_ZEN))
+		return 0;
+
+	guard(mutex)(&smn_mutex);
+
+	if (amd_roots)
+		return 0;
+
+	err = amd_cache_roots();
+	if (err)
+		return err;
+
+	return 0;
+}
+
+fs_initcall(amd_smn_init);
