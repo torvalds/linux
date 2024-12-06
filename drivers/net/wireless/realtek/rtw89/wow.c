@@ -694,9 +694,7 @@ static void rtw89_wow_leave_deep_ps(struct rtw89_dev *rtwdev)
 
 static void rtw89_wow_enter_deep_ps(struct rtw89_dev *rtwdev)
 {
-	struct rtw89_vif_link *rtwvif_link = rtwdev->wow.rtwvif_link;
-
-	__rtw89_enter_ps_mode(rtwdev, rtwvif_link);
+	__rtw89_enter_ps_mode(rtwdev);
 }
 
 static void rtw89_wow_enter_ps(struct rtw89_dev *rtwdev)
@@ -704,7 +702,7 @@ static void rtw89_wow_enter_ps(struct rtw89_dev *rtwdev)
 	struct rtw89_vif_link *rtwvif_link = rtwdev->wow.rtwvif_link;
 
 	if (rtw89_wow_mgd_linked(rtwdev))
-		rtw89_enter_lps(rtwdev, rtwvif_link, false);
+		rtw89_enter_lps(rtwdev, rtwvif_link->rtwvif, false);
 	else if (rtw89_wow_no_link(rtwdev))
 		rtw89_fw_h2c_fwips(rtwdev, rtwvif_link, true);
 }

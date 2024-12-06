@@ -2729,10 +2729,6 @@ static enum rtw89_ps_mode rtw89_update_ps_mode(struct rtw89_dev *rtwdev)
 {
 	const struct rtw89_chip_info *chip = rtwdev->chip;
 
-	/* FIXME: Fix __rtw89_enter_ps_mode() to consider MLO cases. */
-	if (rtwdev->support_mlo)
-		return RTW89_PS_MODE_NONE;
-
 	if (rtw89_disable_ps_mode || !chip->ps_mode_supported ||
 	    RTW89_CHK_FW_FEATURE(NO_DEEP_PS, &rtwdev->fw))
 		return RTW89_PS_MODE_NONE;
@@ -3469,21 +3465,10 @@ static bool rtw89_traffic_stats_track(struct rtw89_dev *rtwdev)
 	return tfc_changed;
 }
 
-static void rtw89_vif_enter_lps(struct rtw89_dev *rtwdev,
-				struct rtw89_vif_link *rtwvif_link)
-{
-	if (rtwvif_link->wifi_role != RTW89_WIFI_ROLE_STATION &&
-	    rtwvif_link->wifi_role != RTW89_WIFI_ROLE_P2P_CLIENT)
-		return;
-
-	rtw89_enter_lps(rtwdev, rtwvif_link, true);
-}
-
 static void rtw89_enter_lps_track(struct rtw89_dev *rtwdev)
 {
-	struct rtw89_vif_link *rtwvif_link;
+	struct ieee80211_vif *vif;
 	struct rtw89_vif *rtwvif;
-	unsigned int link_id;
 
 	rtw89_for_each_rtwvif(rtwdev, rtwvif) {
 		if (rtwvif->tdls_peer)
@@ -3495,8 +3480,13 @@ static void rtw89_enter_lps_track(struct rtw89_dev *rtwdev)
 		    rtwvif->stats.rx_tfc_lv != RTW89_TFC_IDLE)
 			continue;
 
-		rtw89_vif_for_each_link(rtwvif, rtwvif_link, link_id)
-			rtw89_vif_enter_lps(rtwdev, rtwvif_link);
+		vif = rtwvif_to_vif(rtwvif);
+
+		if (!(vif->type == NL80211_IFTYPE_STATION ||
+		      vif->type == NL80211_IFTYPE_P2P_CLIENT))
+			continue;
+
+		rtw89_enter_lps(rtwdev, rtwvif, true);
 	}
 }
 
