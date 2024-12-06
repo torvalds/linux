@@ -9033,46 +9033,35 @@ int parse_telem_info_file(int fd_dir, const char *info_filename, const char *for
 
 struct pmt_mmio *pmt_mmio_open(unsigned int target_guid)
 {
-	DIR *dirp;
-	struct dirent *entry;
+	struct pmt_diriter_t pmt_iter;
+	const struct dirent *entry;
 	struct stat st;
-	unsigned int telem_idx;
 	int fd_telem_dir, fd_pmt;
 	unsigned long guid, size, offset;
 	size_t mmap_size;
 	void *mmio;
-	struct pmt_mmio *ret = NULL;
+	struct pmt_mmio *head = NULL, *last = NULL;
+	struct pmt_mmio *new_pmt = NULL;
 
 	if (stat(SYSFS_TELEM_PATH, &st) == -1)
 		return NULL;
 
-	dirp = opendir(SYSFS_TELEM_PATH);
-	if (dirp == NULL)
+	pmt_diriter_init(&pmt_iter);
+	entry = pmt_diriter_begin(&pmt_iter, SYSFS_TELEM_PATH);
+	if (!entry) {
+		pmt_diriter_remove(&pmt_iter);
 		return NULL;
+	}
 
-	for (;;) {
-		entry = readdir(dirp);
-
-		if (entry == NULL)
-			break;
-
-		if (strcmp(entry->d_name, ".") == 0)
-			continue;
-
-		if (strcmp(entry->d_name, "..") == 0)
-			continue;
-
-		if (sscanf(entry->d_name, "telem%u", &telem_idx) != 1)
-			continue;
-
-		if (fstatat(dirfd(dirp), entry->d_name, &st, 0) == -1) {
+	for (;entry != NULL; entry = pmt_diriter_next(&pmt_iter)) {
+		if (fstatat(dirfd(pmt_iter.dir), entry->d_name, &st, 0) == -1) {
 			break;
 		}
 
 		if (!S_ISDIR(st.st_mode))
 			continue;
 
-		fd_telem_dir = openat(dirfd(dirp), entry->d_name, O_RDONLY);
+		fd_telem_dir = openat(dirfd(pmt_iter.dir), entry->d_name, O_RDONLY);
 		if (fd_telem_dir == -1) {
 			break;
 		}
@@ -9106,35 +9095,51 @@ struct pmt_mmio *pmt_mmio_open(unsigned int target_guid)
 		mmap_size = ROUND_UP_TO_PAGE_SIZE(size);
 		mmio = mmap(0, mmap_size, PROT_READ, MAP_SHARED, fd_pmt, 0);
 		if (mmio != MAP_FAILED) {
-
 			if (debug)
 				fprintf(stderr, "%s: 0x%lx mmaped at: %p\n", __func__, guid, mmio);
 
-			ret = calloc(1, sizeof(*ret));
+			new_pmt = calloc(1, sizeof(*new_pmt));
 
-			if (!ret) {
+			if (!new_pmt) {
 				fprintf(stderr, "%s: Failed to allocate pmt_mmio\n", __func__);
 				exit(1);
 			}
 
-			ret->guid = guid;
-			ret->mmio_base = mmio;
-			ret->pmt_offset = offset;
-			ret->size = size;
+			/*
+			 * Create linked list of mmaped regions,
+			 * but preserve the ordering from sysfs.
+			 * Ordering is important for the user to
+			 * use the seq=%u parameter when adding a counter.
+			 */
+			new_pmt->guid = guid;
+			new_pmt->mmio_base = mmio;
+			new_pmt->pmt_offset = offset;
+			new_pmt->size = size;
+			new_pmt->next = pmt_mmios;
 
-			ret->next = pmt_mmios;
-			pmt_mmios = ret;
+			if (last)
+				last->next = new_pmt;
+			else
+				head = new_pmt;
+
+			last = new_pmt;
 		}
 
 loop_cleanup_and_break:
 		close(fd_pmt);
 		close(fd_telem_dir);
-		break;
 	}
 
-	closedir(dirp);
+	pmt_diriter_remove(&pmt_iter);
 
-	return ret;
+	/*
+	 * If we found something, stick just
+	 * created linked list to the front.
+	 */
+	if (head)
+		pmt_mmios = head;
+
+	return head;
 }
 
 struct pmt_mmio *pmt_mmio_find(unsigned int guid)
