@@ -12,6 +12,8 @@
 #include <limits.h>
 #include "internal.h"
 
+#define MAX_NR_CPUS 4096
+
 void perf_cpu_map__set_nr(struct perf_cpu_map *map, int nr_cpus)
 {
 	RC_CHK_ACCESS(map)->nr = nr_cpus;
