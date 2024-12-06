@@ -1601,7 +1601,7 @@ static void vop2_crtc_atomic_try_set_gamma(struct vop2 *vop2,
 					   struct drm_crtc *crtc,
 					   struct drm_crtc_state *crtc_state)
 {
-	if (!vop2->lut_regs || !crtc_state->color_mgmt_changed)
+	if (!vop2->lut_regs)
 		return;
 
 	if (!crtc_state->gamma_lut) {
@@ -2691,7 +2691,7 @@ static void vop2_crtc_atomic_flush(struct drm_crtc *crtc,
 	struct vop2 *vop2 = vp->vop2;
 
 	/* In case of modeset, gamma lut update already happened in atomic enable */
-	if (!drm_atomic_crtc_needs_modeset(crtc_state))
+	if (!drm_atomic_crtc_needs_modeset(crtc_state) && crtc_state->color_mgmt_changed)
 		vop2_crtc_atomic_try_set_gamma_locked(vop2, vp, crtc, crtc_state);
 
 	vop2_post_config(crtc);
