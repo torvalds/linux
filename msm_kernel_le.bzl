@@ -125,7 +125,7 @@ def _define_kernel_build(
     out_list += aarch64_outs
 
     if target.split("_")[0] == "pineapple-le":
-        out_list += ["utsrelease.h"] + ["certs/signing_key.x509"] + ["certs/signing_key.pem"]
+        out_list += ["utsrelease.h"] + ["certs/signing_key.x509"] + ["certs/signing_key.pem"] + ["scripts/sign-file"]
     elif target_arch == "arm":
         out_list += ["zImage"] + ["module.lds"] + ["utsrelease.h"]
         out_list += ["scripts/sign-file"] + ["certs/signing_key.x509"] + ["certs/signing_key.pem"]
