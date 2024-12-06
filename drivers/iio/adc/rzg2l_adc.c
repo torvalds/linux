@@ -412,11 +412,6 @@ static void rzg2l_adc_pm_runtime_set_suspended(void *data)
 	pm_runtime_set_suspended(dev->parent);
 }
 
-static void rzg2l_adc_reset_assert(void *data)
-{
-	reset_control_assert(data);
-}
-
 static int rzg2l_adc_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -451,37 +446,15 @@ static int rzg2l_adc_probe(struct platform_device *pdev)
 		return dev_err_probe(dev, PTR_ERR(adc->adclk),
 				     "Failed to get adclk");
 
-	adc->adrstn = devm_reset_control_get_exclusive(dev, "adrst-n");
+	adc->adrstn = devm_reset_control_get_exclusive_deasserted(dev, "adrst-n");
 	if (IS_ERR(adc->adrstn))
 		return dev_err_probe(dev, PTR_ERR(adc->adrstn),
-				     "failed to get adrstn\n");
+				     "failed to get/deassert adrst-n\n");
 
-	adc->presetn = devm_reset_control_get_exclusive(dev, "presetn");
+	adc->presetn = devm_reset_control_get_exclusive_deasserted(dev, "presetn");
 	if (IS_ERR(adc->presetn))
 		return dev_err_probe(dev, PTR_ERR(adc->presetn),
-				     "failed to get presetn\n");
-
-	ret = reset_control_deassert(adc->adrstn);
-	if (ret)
-		return dev_err_probe(&pdev->dev, ret,
-				     "failed to deassert adrstn pin\n");
-
-	ret = devm_add_action_or_reset(&pdev->dev,
-				       rzg2l_adc_reset_assert, adc->adrstn);
-	if (ret)
-		return dev_err_probe(&pdev->dev, ret,
-				     "failed to register adrstn assert devm action\n");
-
-	ret = reset_control_deassert(adc->presetn);
-	if (ret)
-		return dev_err_probe(&pdev->dev, ret,
-				     "failed to deassert presetn pin\n");
-
-	ret = devm_add_action_or_reset(&pdev->dev,
-				       rzg2l_adc_reset_assert, adc->presetn);
-	if (ret)
-		return dev_err_probe(&pdev->dev, ret,
-				     "failed to register presetn assert devm action\n");
+				     "failed to get/deassert presetn\n");
 
 	ret = rzg2l_adc_hw_init(adc);
 	if (ret)
