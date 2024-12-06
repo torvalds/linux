@@ -894,6 +894,7 @@ static struct platform_driver imx8m_blk_ctrl_driver = {
 		.name = "imx8m-blk-ctrl",
 		.pm = &imx8m_blk_ctrl_pm_ops,
 		.of_match_table = imx8m_blk_ctrl_of_match,
+		.suppress_bind_attrs = true,
 	},
 };
 module_platform_driver(imx8m_blk_ctrl_driver);
