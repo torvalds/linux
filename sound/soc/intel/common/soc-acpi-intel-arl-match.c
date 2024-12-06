@@ -138,7 +138,7 @@ static const struct snd_soc_acpi_adr_device cs35l56_2_r1_adr[] = {
 	},
 };
 
-static const struct snd_soc_acpi_adr_device cs35l56_3_l1_adr[] = {
+static const struct snd_soc_acpi_adr_device cs35l56_3_l3_adr[] = {
 	{
 		.adr = 0x00033301fa355601ull,
 		.num_endpoints = 1,
@@ -306,8 +306,8 @@ static const struct snd_soc_acpi_link_adr arl_cs42l43_l0_cs35l56_2_l23[] = {
 	},
 	{
 		.mask = BIT(3),
-		.num_adr = ARRAY_SIZE(cs35l56_3_l1_adr),
-		.adr_d = cs35l56_3_l1_adr,
+		.num_adr = ARRAY_SIZE(cs35l56_3_l3_adr),
+		.adr_d = cs35l56_3_l3_adr,
 	},
 	{}
 };
