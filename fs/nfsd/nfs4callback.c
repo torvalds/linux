@@ -1036,8 +1036,7 @@ static void nfsd41_cb_inflight_begin(struct nfs4_client *clp)
 static void nfsd41_cb_inflight_end(struct nfs4_client *clp)
 {
 
-	if (atomic_dec_and_test(&clp->cl_cb_inflight))
-		wake_up_var(&clp->cl_cb_inflight);
+	atomic_dec_and_wake_up(&clp->cl_cb_inflight);
 }
 
 static void nfsd41_cb_inflight_wait_complete(struct nfs4_client *clp)

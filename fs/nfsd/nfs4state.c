@@ -4739,7 +4739,7 @@ static void init_nfs4_replay(struct nfs4_replay *rp)
 	rp->rp_status = nfserr_serverfault;
 	rp->rp_buflen = 0;
 	rp->rp_buf = rp->rp_ibuf;
-	atomic_set(&rp->rp_locked, RP_UNLOCKED);
+	rp->rp_locked = RP_UNLOCKED;
 }
 
 static int nfsd4_cstate_assign_replay(struct nfsd4_compound_state *cstate,
@@ -4747,9 +4747,9 @@ static int nfsd4_cstate_assign_replay(struct nfsd4_compound_state *cstate,
 {
 	if (!nfsd4_has_session(cstate)) {
 		wait_var_event(&so->so_replay.rp_locked,
-			       atomic_cmpxchg(&so->so_replay.rp_locked,
-					      RP_UNLOCKED, RP_LOCKED) != RP_LOCKED);
-		if (atomic_read(&so->so_replay.rp_locked) == RP_UNHASHED)
+			       cmpxchg(&so->so_replay.rp_locked,
+				       RP_UNLOCKED, RP_LOCKED) != RP_LOCKED);
+		if (so->so_replay.rp_locked == RP_UNHASHED)
 			return -EAGAIN;
 		cstate->replay_owner = nfs4_get_stateowner(so);
 	}
@@ -4762,9 +4762,7 @@ void nfsd4_cstate_clear_replay(struct nfsd4_compound_state *cstate)
 
 	if (so != NULL) {
 		cstate->replay_owner = NULL;
-		atomic_set(&so->so_replay.rp_locked, RP_UNLOCKED);
-		smp_mb__after_atomic();
-		wake_up_var(&so->so_replay.rp_locked);
+		store_release_wake_up(&so->so_replay.rp_locked, RP_UNLOCKED);
 		nfs4_put_stateowner(so);
 	}
 }
@@ -5069,9 +5067,7 @@ move_to_close_lru(struct nfs4_ol_stateid *s, struct net *net)
 	 * Some threads with a reference might be waiting for rp_locked,
 	 * so tell them to stop waiting.
 	 */
-	atomic_set(&oo->oo_owner.so_replay.rp_locked, RP_UNHASHED);
-	smp_mb__after_atomic();
-	wake_up_var(&oo->oo_owner.so_replay.rp_locked);
+	store_release_wake_up(&oo->oo_owner.so_replay.rp_locked, RP_UNHASHED);
 	wait_event(close_wq, refcount_read(&s->st_stid.sc_count) == 2);
 
 	release_all_access(s);
