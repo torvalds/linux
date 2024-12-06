@@ -1777,7 +1777,7 @@ static void kfd_fill_cache_non_crat_info(struct kfd_topology_device *dev, struct
 	struct amdgpu_cu_info *cu_info = &kdev->adev->gfx.cu_info;
 	struct amdgpu_gfx_config *gfx_info = &kdev->adev->gfx.config;
 	int gpu_processor_id;
-	struct kfd_cache_properties *props_ext;
+	struct kfd_cache_properties *props_ext = NULL;
 	int num_of_entries = 0;
 	int num_of_cache_types = 0;
 	struct kfd_gpu_cache_info cache_info[KFD_MAX_CACHE_TYPES];
