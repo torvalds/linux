@@ -139,9 +139,10 @@ void validate_mm(struct mm_struct *mm);
 #define validate_mm(mm) do { } while (0)
 #endif
 
-int vma_expand(struct vma_merge_struct *vmg);
-int vma_shrink(struct vma_iterator *vmi, struct vm_area_struct *vma,
-	       unsigned long start, unsigned long end, pgoff_t pgoff);
+__must_check int vma_expand(struct vma_merge_struct *vmg);
+__must_check int vma_shrink(struct vma_iterator *vmi,
+		struct vm_area_struct *vma,
+		unsigned long start, unsigned long end, pgoff_t pgoff);
 
 static inline int vma_iter_store_gfp(struct vma_iterator *vmi,
 			struct vm_area_struct *vma, gfp_t gfp)
@@ -174,13 +175,14 @@ void unmap_region(struct ma_state *mas, struct vm_area_struct *vma,
 		struct vm_area_struct *prev, struct vm_area_struct *next);
 
 /* We are about to modify the VMA's flags. */
-struct vm_area_struct *vma_modify_flags(struct vma_iterator *vmi,
+__must_check struct vm_area_struct
+*vma_modify_flags(struct vma_iterator *vmi,
 		struct vm_area_struct *prev, struct vm_area_struct *vma,
 		unsigned long start, unsigned long end,
 		unsigned long new_flags);
 
 /* We are about to modify the VMA's flags and/or anon_name. */
-struct vm_area_struct
+__must_check struct vm_area_struct
 *vma_modify_flags_name(struct vma_iterator *vmi,
 		       struct vm_area_struct *prev,
 		       struct vm_area_struct *vma,
@@ -190,7 +192,7 @@ struct vm_area_struct
 		       struct anon_vma_name *new_name);
 
 /* We are about to modify the VMA's memory policy. */
-struct vm_area_struct
+__must_check struct vm_area_struct
 *vma_modify_policy(struct vma_iterator *vmi,
 		   struct vm_area_struct *prev,
 		   struct vm_area_struct *vma,
@@ -198,7 +200,7 @@ struct vm_area_struct
 		   struct mempolicy *new_pol);
 
 /* We are about to modify the VMA's flags and/or uffd context. */
-struct vm_area_struct
+__must_check struct vm_area_struct
 *vma_modify_flags_uffd(struct vma_iterator *vmi,
 		       struct vm_area_struct *prev,
 		       struct vm_area_struct *vma,
@@ -206,11 +208,13 @@ struct vm_area_struct
 		       unsigned long new_flags,
 		       struct vm_userfaultfd_ctx new_ctx);
 
-struct vm_area_struct *vma_merge_new_range(struct vma_merge_struct *vmg);
+__must_check struct vm_area_struct
+*vma_merge_new_range(struct vma_merge_struct *vmg);
 
-struct vm_area_struct *vma_merge_extend(struct vma_iterator *vmi,
-					struct vm_area_struct *vma,
-					unsigned long delta);
+__must_check struct vm_area_struct
+*vma_merge_extend(struct vma_iterator *vmi,
+		  struct vm_area_struct *vma,
+		  unsigned long delta);
 
 void unlink_file_vma_batch_init(struct unlink_vma_file_batch *vb);
 

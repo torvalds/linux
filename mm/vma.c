@@ -447,8 +447,9 @@ void unmap_region(struct ma_state *mas, struct vm_area_struct *vma,
  * has already been checked or doesn't make sense to fail.
  * VMA Iterator will point to the original VMA.
  */
-static int __split_vma(struct vma_iterator *vmi, struct vm_area_struct *vma,
-		       unsigned long addr, int new_below)
+static __must_check int
+__split_vma(struct vma_iterator *vmi, struct vm_area_struct *vma,
+	    unsigned long addr, int new_below)
 {
 	struct vma_prepare vp;
 	struct vm_area_struct *new;
@@ -710,7 +711,8 @@ static bool can_merge_remove_vma(struct vm_area_struct *vma)
  * - The caller must hold a WRITE lock on the mm_struct->mmap_lock.
  * - vmi must be positioned within [@vmg->vma->vm_start, @vmg->vma->vm_end).
  */
-static struct vm_area_struct *vma_merge_existing_range(struct vma_merge_struct *vmg)
+static __must_check struct vm_area_struct *vma_merge_existing_range(
+		struct vma_merge_struct *vmg)
 {
 	struct vm_area_struct *vma = vmg->vma;
 	struct vm_area_struct *prev = vmg->prev;
