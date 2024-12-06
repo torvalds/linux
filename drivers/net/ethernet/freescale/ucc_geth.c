@@ -26,7 +26,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/mii.h>
 #include <linux/phy.h>
-#include <linux/phy_fixed.h>
+#include <linux/phylink.h>
 #include <linux/workqueue.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
@@ -34,6 +34,7 @@
 #include <linux/of_mdio.h>
 #include <linux/of_net.h>
 #include <linux/platform_device.h>
+#include <linux/rtnetlink.h>
 
 #include <linux/uaccess.h>
 #include <asm/irq.h>
@@ -132,7 +133,6 @@ static const struct ucc_geth_info ugeth_primary_info = {
 	.transmitFlowControl = 1,
 	.maxGroupAddrInHash = 4,
 	.maxIndAddrInHash = 4,
-	.prel = 7,
 	.maxFrameLength = 1518+16, /* Add extra bytes for VLANs etc. */
 	.minFrameLength = 64,
 	.maxD1Length = 1520+16, /* Add extra bytes for VLANs etc. */
@@ -1205,34 +1205,6 @@ static int init_mac_station_addr_regs(u8 address_byte_0,
 	return 0;
 }
 
-static int init_check_frame_length_mode(int length_check,
-					u32 __iomem *maccfg2_register)
-{
-	u32 value = 0;
-
-	value = in_be32(maccfg2_register);
-
-	if (length_check)
-		value |= MACCFG2_LC;
-	else
-		value &= ~MACCFG2_LC;
-
-	out_be32(maccfg2_register, value);
-	return 0;
-}
-
-static int init_preamble_length(u8 preamble_length,
-				u32 __iomem *maccfg2_register)
-{
-	if ((preamble_length < 3) || (preamble_length > 7))
-		return -EINVAL;
-
-	clrsetbits_be32(maccfg2_register, MACCFG2_PREL_MASK,
-			preamble_length << MACCFG2_PREL_SHIFT);
-
-	return 0;
-}
-
 static int init_rx_parameters(int reject_broadcast,
 			      int receive_short_frames,
 			      int promiscuous, u32 __iomem *upsmr_register)
@@ -1287,94 +1259,11 @@ static int init_min_frame_len(u16 min_frame_length,
 	return 0;
 }
 
-static int adjust_enet_interface(struct ucc_geth_private *ugeth)
+static bool phy_interface_mode_is_reduced(phy_interface_t interface)
 {
-	struct ucc_geth_info *ug_info;
-	struct ucc_geth __iomem *ug_regs;
-	struct ucc_fast __iomem *uf_regs;
-	int ret_val;
-	u32 upsmr, maccfg2;
-	u16 value;
-
-	ugeth_vdbg("%s: IN", __func__);
-
-	ug_info = ugeth->ug_info;
-	ug_regs = ugeth->ug_regs;
-	uf_regs = ugeth->uccf->uf_regs;
-
-	/*                    Set MACCFG2                    */
-	maccfg2 = in_be32(&ug_regs->maccfg2);
-	maccfg2 &= ~MACCFG2_INTERFACE_MODE_MASK;
-	if ((ugeth->max_speed == SPEED_10) ||
-	    (ugeth->max_speed == SPEED_100))
-		maccfg2 |= MACCFG2_INTERFACE_MODE_NIBBLE;
-	else if (ugeth->max_speed == SPEED_1000)
-		maccfg2 |= MACCFG2_INTERFACE_MODE_BYTE;
-	maccfg2 |= ug_info->padAndCrc;
-	out_be32(&ug_regs->maccfg2, maccfg2);
-
-	/*                    Set UPSMR                      */
-	upsmr = in_be32(&uf_regs->upsmr);
-	upsmr &= ~(UCC_GETH_UPSMR_RPM | UCC_GETH_UPSMR_R10M |
-		   UCC_GETH_UPSMR_TBIM | UCC_GETH_UPSMR_RMM);
-	if ((ugeth->phy_interface == PHY_INTERFACE_MODE_RMII) ||
-	    (ugeth->phy_interface == PHY_INTERFACE_MODE_RGMII) ||
-	    (ugeth->phy_interface == PHY_INTERFACE_MODE_RGMII_ID) ||
-	    (ugeth->phy_interface == PHY_INTERFACE_MODE_RGMII_RXID) ||
-	    (ugeth->phy_interface == PHY_INTERFACE_MODE_RGMII_TXID) ||
-	    (ugeth->phy_interface == PHY_INTERFACE_MODE_RTBI)) {
-		if (ugeth->phy_interface != PHY_INTERFACE_MODE_RMII)
-			upsmr |= UCC_GETH_UPSMR_RPM;
-		switch (ugeth->max_speed) {
-		case SPEED_10:
-			upsmr |= UCC_GETH_UPSMR_R10M;
-			fallthrough;
-		case SPEED_100:
-			if (ugeth->phy_interface != PHY_INTERFACE_MODE_RTBI)
-				upsmr |= UCC_GETH_UPSMR_RMM;
-		}
-	}
-	if ((ugeth->phy_interface == PHY_INTERFACE_MODE_TBI) ||
-	    (ugeth->phy_interface == PHY_INTERFACE_MODE_RTBI)) {
-		upsmr |= UCC_GETH_UPSMR_TBIM;
-	}
-	if (ugeth->phy_interface == PHY_INTERFACE_MODE_SGMII)
-		upsmr |= UCC_GETH_UPSMR_SGMM;
-
-	out_be32(&uf_regs->upsmr, upsmr);
-
-	/* Disable autonegotiation in tbi mode, because by default it
-	comes up in autonegotiation mode. */
-	/* Note that this depends on proper setting in utbipar register. */
-	if ((ugeth->phy_interface == PHY_INTERFACE_MODE_TBI) ||
-	    (ugeth->phy_interface == PHY_INTERFACE_MODE_RTBI)) {
-		struct ucc_geth_info *ug_info = ugeth->ug_info;
-		struct phy_device *tbiphy;
-
-		if (!ug_info->tbi_node)
-			pr_warn("TBI mode requires that the device tree specify a tbi-handle\n");
-
-		tbiphy = of_phy_find_device(ug_info->tbi_node);
-		if (!tbiphy)
-			pr_warn("Could not get TBI device\n");
-
-		value = phy_read(tbiphy, ENET_TBI_MII_CR);
-		value &= ~0x1000;	/* Turn off autonegotiation */
-		phy_write(tbiphy, ENET_TBI_MII_CR, value);
-
-		put_device(&tbiphy->mdio.dev);
-	}
-
-	init_check_frame_length_mode(ug_info->lengthCheckRx, &ug_regs->maccfg2);
-
-	ret_val = init_preamble_length(ug_info->prel, &ug_regs->maccfg2);
-	if (ret_val != 0) {
-		if (netif_msg_probe(ugeth))
-			pr_err("Preamble length must be between 3 and 7 inclusive\n");
-		return ret_val;
-	}
-
-	return 0;
+	return phy_interface_mode_is_rgmii(interface) ||
+	       interface == PHY_INTERFACE_MODE_RMII ||
+	       interface == PHY_INTERFACE_MODE_RTBI;
 }
 
 static int ugeth_graceful_stop_tx(struct ucc_geth_private *ugeth)
@@ -1548,107 +1437,6 @@ static void ugeth_activate(struct ucc_geth_private *ugeth)
 	__netdev_watchdog_up(ugeth->ndev);
 }
 
-/* Called every time the controller might need to be made
- * aware of new link state.  The PHY code conveys this
- * information through variables in the ugeth structure, and this
- * function converts those variables into the appropriate
- * register values, and can bring down the device if needed.
- */
-
-static void adjust_link(struct net_device *dev)
-{
-	struct ucc_geth_private *ugeth = netdev_priv(dev);
-	struct ucc_geth __iomem *ug_regs;
-	struct ucc_fast __iomem *uf_regs;
-	struct phy_device *phydev = ugeth->phydev;
-	int new_state = 0;
-
-	ug_regs = ugeth->ug_regs;
-	uf_regs = ugeth->uccf->uf_regs;
-
-	if (phydev->link) {
-		u32 tempval = in_be32(&ug_regs->maccfg2);
-		u32 upsmr = in_be32(&uf_regs->upsmr);
-		/* Now we make sure that we can be in full duplex mode.
-		 * If not, we operate in half-duplex mode. */
-		if (phydev->duplex != ugeth->oldduplex) {
-			new_state = 1;
-			if (!(phydev->duplex))
-				tempval &= ~(MACCFG2_FDX);
-			else
-				tempval |= MACCFG2_FDX;
-			ugeth->oldduplex = phydev->duplex;
-		}
-
-		if (phydev->speed != ugeth->oldspeed) {
-			new_state = 1;
-			switch (phydev->speed) {
-			case SPEED_1000:
-				tempval = ((tempval &
-					    ~(MACCFG2_INTERFACE_MODE_MASK)) |
-					    MACCFG2_INTERFACE_MODE_BYTE);
-				break;
-			case SPEED_100:
-			case SPEED_10:
-				tempval = ((tempval &
-					    ~(MACCFG2_INTERFACE_MODE_MASK)) |
-					    MACCFG2_INTERFACE_MODE_NIBBLE);
-				/* if reduced mode, re-set UPSMR.R10M */
-				if ((ugeth->phy_interface == PHY_INTERFACE_MODE_RMII) ||
-				    (ugeth->phy_interface == PHY_INTERFACE_MODE_RGMII) ||
-				    (ugeth->phy_interface == PHY_INTERFACE_MODE_RGMII_ID) ||
-				    (ugeth->phy_interface == PHY_INTERFACE_MODE_RGMII_RXID) ||
-				    (ugeth->phy_interface == PHY_INTERFACE_MODE_RGMII_TXID) ||
-				    (ugeth->phy_interface == PHY_INTERFACE_MODE_RTBI)) {
-					if (phydev->speed == SPEED_10)
-						upsmr |= UCC_GETH_UPSMR_R10M;
-					else
-						upsmr &= ~UCC_GETH_UPSMR_R10M;
-				}
-				break;
-			default:
-				if (netif_msg_link(ugeth))
-					pr_warn(
-						"%s: Ack!  Speed (%d) is not 10/100/1000!",
-						dev->name, phydev->speed);
-				break;
-			}
-			ugeth->oldspeed = phydev->speed;
-		}
-
-		if (!ugeth->oldlink) {
-			new_state = 1;
-			ugeth->oldlink = 1;
-		}
-
-		if (new_state) {
-			/*
-			 * To change the MAC configuration we need to disable
-			 * the controller. To do so, we have to either grab
-			 * ugeth->lock, which is a bad idea since 'graceful
-			 * stop' commands might take quite a while, or we can
-			 * quiesce driver's activity.
-			 */
-			ugeth_quiesce(ugeth);
-			ugeth_disable(ugeth, COMM_DIR_RX_AND_TX);
-
-			out_be32(&ug_regs->maccfg2, tempval);
-			out_be32(&uf_regs->upsmr, upsmr);
-
-			ugeth_enable(ugeth, COMM_DIR_RX_AND_TX);
-			ugeth_activate(ugeth);
-		}
-	} else if (ugeth->oldlink) {
-			new_state = 1;
-			ugeth->oldlink = 0;
-			ugeth->oldspeed = 0;
-			ugeth->oldduplex = -1;
-	}
-
-	if (new_state && netif_msg_link(ugeth))
-		phy_print_status(phydev);
-}
-
 /* Initialize TBI PHY interface for communicating with the
  * SERDES lynx PHY on the chip.  We communicate with this PHY
  * through the MDIO bus on each controller, treating it as a
@@ -1664,8 +1452,7 @@ static void uec_configure_serdes(struct net_device *dev)
 	struct phy_device *tbiphy;
 
 	if (!ug_info->tbi_node) {
-		dev_warn(&dev->dev, "SGMII mode requires that the device "
-			"tree specify a tbi-handle\n");
+		dev_warn(&dev->dev, "SGMII mode requires that the device tree specify a tbi-handle\n");
 		return;
 	}
 
@@ -1696,34 +1483,145 @@ static void uec_configure_serdes(struct net_device *dev)
 	put_device(&tbiphy->mdio.dev);
 }
 
-/* Configure the PHY for dev.
- * returns 0 if success.  -1 if failure
- */
-static int init_phy(struct net_device *dev)
+static void ugeth_mac_link_up(struct phylink_config *config, struct phy_device *phy,
+			      unsigned int mode, phy_interface_t interface,
+			      int speed, int duplex, bool tx_pause, bool rx_pause)
 {
-	struct ucc_geth_private *priv = netdev_priv(dev);
-	struct ucc_geth_info *ug_info = priv->ug_info;
-	struct phy_device *phydev;
+	struct net_device *ndev = to_net_dev(config->dev);
+	struct ucc_geth_private *ugeth = netdev_priv(ndev);
+	struct ucc_geth_info *ug_info = ugeth->ug_info;
+	struct ucc_geth __iomem *ug_regs = ugeth->ug_regs;
+	struct ucc_fast __iomem *uf_regs = ugeth->uccf->uf_regs;
+	u32 old_maccfg2, maccfg2 = in_be32(&ug_regs->maccfg2);
+	u32 old_upsmr, upsmr = in_be32(&uf_regs->upsmr);
 
-	priv->oldlink = 0;
-	priv->oldspeed = 0;
-	priv->oldduplex = -1;
+	old_maccfg2 = maccfg2;
+	old_upsmr = upsmr;
 
-	phydev = of_phy_connect(dev, ug_info->phy_node, &adjust_link, 0,
-				priv->phy_interface);
-	if (!phydev) {
-		dev_err(&dev->dev, "Could not attach to PHY\n");
-		return -ENODEV;
+	/* No length check */
+	maccfg2 &= ~MACCFG2_LC;
+	maccfg2 &= ~MACCFG2_INTERFACE_MODE_MASK;
+	upsmr &= ~(UCC_GETH_UPSMR_RPM | UCC_GETH_UPSMR_R10M |
+		   UCC_GETH_UPSMR_TBIM | UCC_GETH_UPSMR_RMM);
+
+	if (speed == SPEED_10 || speed == SPEED_100)
+		maccfg2 |= MACCFG2_INTERFACE_MODE_NIBBLE;
+	else if (speed == SPEED_1000)
+		maccfg2 |= MACCFG2_INTERFACE_MODE_BYTE;
+
+	maccfg2 |= ug_info->padAndCrc;
+
+	if (phy_interface_mode_is_reduced(interface)) {
+
+		if (interface != PHY_INTERFACE_MODE_RMII)
+			upsmr |= UCC_GETH_UPSMR_RPM;
+
+		switch (speed) {
+		case SPEED_10:
+			upsmr |= UCC_GETH_UPSMR_R10M;
+			fallthrough;
+		case SPEED_100:
+			if (interface != PHY_INTERFACE_MODE_RTBI)
+				upsmr |= UCC_GETH_UPSMR_RMM;
+		}
 	}
 
-	if (priv->phy_interface == PHY_INTERFACE_MODE_SGMII)
-		uec_configure_serdes(dev);
+	if (interface == PHY_INTERFACE_MODE_TBI ||
+	    interface == PHY_INTERFACE_MODE_RTBI)
+		upsmr |= UCC_GETH_UPSMR_TBIM;
 
-	phy_set_max_speed(phydev, priv->max_speed);
+	if (interface == PHY_INTERFACE_MODE_SGMII)
+		upsmr |= UCC_GETH_UPSMR_SGMM;
 
-	priv->phydev = phydev;
+	if (duplex == DUPLEX_HALF)
+		maccfg2 &= ~(MACCFG2_FDX);
+	else
+		maccfg2 |= MACCFG2_FDX;
 
-	return 0;
+	if (maccfg2 != old_maccfg2 || upsmr != old_upsmr) {
+		/*
+		 * To change the MAC configuration we need to disable
+		 * the controller. To do so, we have to either grab
+		 * ugeth->lock, which is a bad idea since 'graceful
+		 * stop' commands might take quite a while, or we can
+		 * quiesce driver's activity.
+		 */
+		ugeth_quiesce(ugeth);
+		ugeth_disable(ugeth, COMM_DIR_RX_AND_TX);
+
+		out_be32(&ug_regs->maccfg2, maccfg2);
+		out_be32(&uf_regs->upsmr, upsmr);
+
+		ugeth_enable(ugeth, COMM_DIR_RX_AND_TX);
+		ugeth_activate(ugeth);
+	}
+
+	if (interface == PHY_INTERFACE_MODE_SGMII)
+		uec_configure_serdes(ndev);
+
+	if (!phylink_autoneg_inband(mode)) {
+		ug_info->aufc = 0;
+		ug_info->receiveFlowControl = rx_pause;
+		ug_info->transmitFlowControl = tx_pause;
+
+		init_flow_control_params(ug_info->aufc,
+					 ug_info->receiveFlowControl,
+					 ug_info->transmitFlowControl,
+					 ug_info->pausePeriod,
+					 ug_info->extensionField,
+					 &ugeth->uccf->uf_regs->upsmr,
+					 &ugeth->ug_regs->uempr,
+					 &ugeth->ug_regs->maccfg1);
+	}
+
+	ugeth_enable(ugeth, COMM_DIR_RX_AND_TX);
+}
+
+static void ugeth_mac_link_down(struct phylink_config *config,
+				unsigned int mode, phy_interface_t interface)
+{
+	struct net_device *ndev = to_net_dev(config->dev);
+	struct ucc_geth_private *ugeth = netdev_priv(ndev);
+
+	ugeth_disable(ugeth, COMM_DIR_RX_AND_TX);
+}
+
+static void ugeth_mac_config(struct phylink_config *config, unsigned int mode,
+			     const struct phylink_link_state *state)
+{
+	struct net_device *ndev = to_net_dev(config->dev);
+	struct ucc_geth_private *ugeth = netdev_priv(ndev);
+	struct ucc_geth_info *ug_info = ugeth->ug_info;
+	u16 value;
+
+	if (state->interface == PHY_INTERFACE_MODE_TBI ||
+	    state->interface == PHY_INTERFACE_MODE_RTBI) {
+		struct phy_device *tbiphy;
+
+		if (!ug_info->tbi_node)
+			pr_warn("TBI mode requires that the device tree specify a tbi-handle\n");
+
+		tbiphy = of_phy_find_device(ug_info->tbi_node);
+		if (!tbiphy)
+			pr_warn("Could not get TBI device\n");
+
+		value = phy_read(tbiphy, ENET_TBI_MII_CR);
+		value &= ~0x1000;	/* Turn off autonegotiation */
+		phy_write(tbiphy, ENET_TBI_MII_CR, value);
+
+		put_device(&tbiphy->mdio.dev);
+	}
+
+	if (phylink_autoneg_inband(mode)) {
+		ug_info->aufc = 1;
+
+		init_flow_control_params(ug_info->aufc, 1, 1,
+					 ug_info->pausePeriod,
+					 ug_info->extensionField,
+					 &ugeth->uccf->uf_regs->upsmr,
+					 &ugeth->ug_regs->uempr,
+					 &ugeth->ug_regs->maccfg1);
+	}
 }
 
 static void ugeth_dump_regs(struct ucc_geth_private *ugeth)
@@ -1995,7 +1893,6 @@ static void ucc_geth_set_multi(struct net_device *dev)
 static void ucc_geth_stop(struct ucc_geth_private *ugeth)
 {
 	struct ucc_geth __iomem *ug_regs = ugeth->ug_regs;
-	struct phy_device *phydev = ugeth->phydev;
 
 	ugeth_vdbg("%s: IN", __func__);
 
@@ -2004,7 +1901,7 @@ static void ucc_geth_stop(struct ucc_geth_private *ugeth)
 	 * Must be done before disabling the controller
 	 * or deadlock may happen.
 	 */
-	phy_stop(phydev);
+	phylink_stop(ugeth->phylink);
 
 	/* Disable the controller */
 	ugeth_disable(ugeth, COMM_DIR_RX_AND_TX);
@@ -3246,12 +3143,6 @@ static int ucc_geth_init_mac(struct ucc_geth_private *ugeth)
 		goto err;
 	}
 
-	err = adjust_enet_interface(ugeth);
-	if (err) {
-		netif_err(ugeth, ifup, dev, "Cannot configure net device, aborting\n");
-		goto err;
-	}
-
 	/*       Set MACSTNADDR1, MACSTNADDR2                */
 	/* For more details see the hardware spec.           */
 	init_mac_station_addr_regs(dev->dev_addr[0],
@@ -3262,12 +3153,6 @@ static int ucc_geth_init_mac(struct ucc_geth_private *ugeth)
 				   dev->dev_addr[5],
 				   &ugeth->ug_regs->macstnaddr1,
 				   &ugeth->ug_regs->macstnaddr2);
-
-	err = ugeth_enable(ugeth, COMM_DIR_RX_AND_TX);
-	if (err) {
-		netif_err(ugeth, ifup, dev, "Cannot enable net device, aborting\n");
-		goto err;
-	}
 
 	return 0;
 err:
@@ -3291,10 +3176,10 @@ static int ucc_geth_open(struct net_device *dev)
 		return -EINVAL;
 	}
 
-	err = init_phy(dev);
+	err = phylink_of_phy_connect(ugeth->phylink, ugeth->dev->of_node, 0);
 	if (err) {
-		netif_err(ugeth, ifup, dev, "Cannot initialize PHY, aborting\n");
-		return err;
+		dev_err(&dev->dev, "Could not attach to PHY\n");
+		return -ENODEV;
 	}
 
 	err = ucc_geth_init_mac(ugeth);
@@ -3310,13 +3195,13 @@ static int ucc_geth_open(struct net_device *dev)
 		goto err;
 	}
 
-	phy_start(ugeth->phydev);
+	phylink_start(ugeth->phylink);
 	napi_enable(&ugeth->napi);
 	netdev_reset_queue(dev);
 	netif_start_queue(dev);
 
 	device_set_wakeup_capable(&dev->dev,
-			qe_alive_during_sleep() || ugeth->phydev->irq);
+			qe_alive_during_sleep() || dev->phydev->irq);
 	device_set_wakeup_enable(&dev->dev, ugeth->wol_en);
 
 	return err;
@@ -3337,8 +3222,7 @@ static int ucc_geth_close(struct net_device *dev)
 
 	cancel_work_sync(&ugeth->timeout_work);
 	ucc_geth_stop(ugeth);
-	phy_disconnect(ugeth->phydev);
-	ugeth->phydev = NULL;
+	phylink_disconnect_phy(ugeth->phylink);
 
 	free_irq(ugeth->ug_info->uf_info.irq, ugeth->ndev);
 
@@ -3372,7 +3256,7 @@ static void ucc_geth_timeout_work(struct work_struct *work)
 		ucc_geth_stop(ugeth);
 		ucc_geth_init_mac(ugeth);
 		/* Must start PHY here */
-		phy_start(ugeth->phydev);
+		phylink_start(ugeth->phylink);
 		netif_tx_start_all_queues(dev);
 	}
 
@@ -3397,6 +3281,7 @@ static int ucc_geth_suspend(struct platform_device *ofdev, pm_message_t state)
 {
 	struct net_device *ndev = platform_get_drvdata(ofdev);
 	struct ucc_geth_private *ugeth = netdev_priv(ndev);
+	bool mac_wol = false;
 
 	if (!netif_running(ndev))
 		return 0;
@@ -3410,13 +3295,16 @@ static int ucc_geth_suspend(struct platform_device *ofdev, pm_message_t state)
 	 */
 	ugeth_disable(ugeth, COMM_DIR_RX_AND_TX);
 
-	if (ugeth->wol_en & WAKE_MAGIC) {
+	if (ugeth->wol_en & WAKE_MAGIC && !ugeth->phy_wol_en) {
 		setbits32(ugeth->uccf->p_uccm, UCC_GETH_UCCE_MPD);
 		setbits32(&ugeth->ug_regs->maccfg2, MACCFG2_MPE);
 		ucc_fast_enable(ugeth->uccf, COMM_DIR_RX_AND_TX);
-	} else if (!(ugeth->wol_en & WAKE_PHY)) {
-		phy_stop(ugeth->phydev);
+		mac_wol = true;
 	}
+
+	rtnl_lock();
+	phylink_suspend(ugeth->phylink, mac_wol);
+	rtnl_unlock();
 
 	return 0;
 }
@@ -3451,12 +3339,9 @@ static int ucc_geth_resume(struct platform_device *ofdev)
 		}
 	}
 
-	ugeth->oldlink = 0;
-	ugeth->oldspeed = 0;
-	ugeth->oldduplex = -1;
-
-	phy_stop(ugeth->phydev);
-	phy_start(ugeth->phydev);
+	rtnl_lock();
+	phylink_resume(ugeth->phylink);
+	rtnl_unlock();
 
 	napi_enable(&ugeth->napi);
 	netif_device_attach(ndev);
@@ -3469,32 +3354,6 @@ static int ucc_geth_resume(struct platform_device *ofdev)
 #define ucc_geth_resume NULL
 #endif
 
-static phy_interface_t to_phy_interface(const char *phy_connection_type)
-{
-	if (strcasecmp(phy_connection_type, "mii") == 0)
-		return PHY_INTERFACE_MODE_MII;
-	if (strcasecmp(phy_connection_type, "gmii") == 0)
-		return PHY_INTERFACE_MODE_GMII;
-	if (strcasecmp(phy_connection_type, "tbi") == 0)
-		return PHY_INTERFACE_MODE_TBI;
-	if (strcasecmp(phy_connection_type, "rmii") == 0)
-		return PHY_INTERFACE_MODE_RMII;
-	if (strcasecmp(phy_connection_type, "rgmii") == 0)
-		return PHY_INTERFACE_MODE_RGMII;
-	if (strcasecmp(phy_connection_type, "rgmii-id") == 0)
-		return PHY_INTERFACE_MODE_RGMII_ID;
-	if (strcasecmp(phy_connection_type, "rgmii-txid") == 0)
-		return PHY_INTERFACE_MODE_RGMII_TXID;
-	if (strcasecmp(phy_connection_type, "rgmii-rxid") == 0)
-		return PHY_INTERFACE_MODE_RGMII_RXID;
-	if (strcasecmp(phy_connection_type, "rtbi") == 0)
-		return PHY_INTERFACE_MODE_RTBI;
-	if (strcasecmp(phy_connection_type, "sgmii") == 0)
-		return PHY_INTERFACE_MODE_SGMII;
-
-	return PHY_INTERFACE_MODE_MII;
-}
-
 static int ucc_geth_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 {
 	struct ucc_geth_private *ugeth = netdev_priv(dev);
@@ -3502,10 +3361,7 @@ static int ucc_geth_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 	if (!netif_running(dev))
 		return -EINVAL;
 
-	if (!ugeth->phydev)
-		return -ENODEV;
-
-	return phy_mii_ioctl(ugeth->phydev, rq, cmd);
+	return phylink_mii_ioctl(ugeth->phylink, rq, cmd);
 }
 
 static const struct net_device_ops ucc_geth_netdev_ops = {
@@ -3513,7 +3369,6 @@ static const struct net_device_ops ucc_geth_netdev_ops = {
 	.ndo_stop		= ucc_geth_close,
 	.ndo_start_xmit		= ucc_geth_start_xmit,
 	.ndo_validate_addr	= eth_validate_addr,
-	.ndo_change_carrier     = fixed_phy_change_carrier,
 	.ndo_set_mac_address	= ucc_geth_set_mac_addr,
 	.ndo_set_rx_mode	= ucc_geth_set_multi,
 	.ndo_tx_timeout		= ucc_geth_timeout,
@@ -3553,6 +3408,12 @@ static int ucc_geth_parse_clock(struct device_node *np, const char *which,
 	return 0;
 }
 
+struct phylink_mac_ops ugeth_mac_ops = {
+	.mac_link_up = ugeth_mac_link_up,
+	.mac_link_down = ugeth_mac_link_down,
+	.mac_config = ugeth_mac_config,
+};
+
 static int ucc_geth_probe(struct platform_device* ofdev)
 {
 	struct device *device = &ofdev->dev;
@@ -3560,23 +3421,12 @@ static int ucc_geth_probe(struct platform_device* ofdev)
 	struct net_device *dev = NULL;
 	struct ucc_geth_private *ugeth = NULL;
 	struct ucc_geth_info *ug_info;
+	struct device_node *phy_node;
+	struct phylink *phylink;
 	struct resource res;
-	int err, ucc_num, max_speed = 0;
+	int err, ucc_num;
 	const unsigned int *prop;
 	phy_interface_t phy_interface;
-	static const int enet_to_speed[] = {
-		SPEED_10, SPEED_10, SPEED_10,
-		SPEED_100, SPEED_100, SPEED_100,
-		SPEED_1000, SPEED_1000, SPEED_1000, SPEED_1000,
-	};
-	static const phy_interface_t enet_to_phy_interface[] = {
-		PHY_INTERFACE_MODE_MII, PHY_INTERFACE_MODE_RMII,
-		PHY_INTERFACE_MODE_RGMII, PHY_INTERFACE_MODE_MII,
-		PHY_INTERFACE_MODE_RMII, PHY_INTERFACE_MODE_RGMII,
-		PHY_INTERFACE_MODE_GMII, PHY_INTERFACE_MODE_RGMII,
-		PHY_INTERFACE_MODE_TBI, PHY_INTERFACE_MODE_RTBI,
-		PHY_INTERFACE_MODE_SGMII,
-	};
 
 	ugeth_vdbg("%s: IN", __func__);
 
@@ -3612,57 +3462,35 @@ static int ucc_geth_probe(struct platform_device* ofdev)
 	ug_info->uf_info.regs = res.start;
 	ug_info->uf_info.irq = irq_of_parse_and_map(np, 0);
 
-	ug_info->phy_node = of_parse_phandle(np, "phy-handle", 0);
-	if (!ug_info->phy_node && of_phy_is_fixed_link(np)) {
-		/*
-		 * In the case of a fixed PHY, the DT node associated
-		 * to the PHY is the Ethernet MAC DT node.
-		 */
-		err = of_phy_register_fixed_link(np);
-		if (err)
-			return err;
-		ug_info->phy_node = of_node_get(np);
-	}
-
 	/* Find the TBI PHY node.  If it's not there, we don't support SGMII */
 	ug_info->tbi_node = of_parse_phandle(np, "tbi-handle", 0);
 
-	/* get the phy interface type, or default to MII */
-	prop = of_get_property(np, "phy-connection-type", NULL);
-	if (!prop) {
-		/* handle interface property present in old trees */
-		prop = of_get_property(ug_info->phy_node, "interface", NULL);
-		if (prop != NULL) {
-			phy_interface = enet_to_phy_interface[*prop];
-			max_speed = enet_to_speed[*prop];
-		} else
-			phy_interface = PHY_INTERFACE_MODE_MII;
-	} else {
-		phy_interface = to_phy_interface((const char *)prop);
+	phy_node = of_parse_phandle(np, "phy-handle", 0);
+	if (phy_node) {
+		prop = of_get_property(phy_node, "interface", NULL);
+		if (prop) {
+			dev_err(&ofdev->dev,
+				"Device-tree property 'interface' is no longer supported. Please use 'phy-connection-type' instead.");
+			of_node_put(phy_node);
+			err = -EINVAL;
+			goto err_put_tbi;
+		}
+		of_node_put(phy_node);
 	}
 
-	/* get speed, or derive from PHY interface */
-	if (max_speed == 0)
-		switch (phy_interface) {
-		case PHY_INTERFACE_MODE_GMII:
-		case PHY_INTERFACE_MODE_RGMII:
-		case PHY_INTERFACE_MODE_RGMII_ID:
-		case PHY_INTERFACE_MODE_RGMII_RXID:
-		case PHY_INTERFACE_MODE_RGMII_TXID:
-		case PHY_INTERFACE_MODE_TBI:
-		case PHY_INTERFACE_MODE_RTBI:
-		case PHY_INTERFACE_MODE_SGMII:
-			max_speed = SPEED_1000;
-			break;
-		default:
-			max_speed = SPEED_100;
-			break;
-		}
+	err = of_get_phy_mode(np, &phy_interface);
+	if (err) {
+		dev_err(&ofdev->dev, "Invalid phy-connection-type");
+		goto err_put_tbi;
+	}
 
-	if (max_speed == SPEED_1000) {
+	if (phy_interface == PHY_INTERFACE_MODE_GMII ||
+	    phy_interface_mode_is_rgmii(phy_interface) ||
+	    phy_interface == PHY_INTERFACE_MODE_TBI ||
+	    phy_interface == PHY_INTERFACE_MODE_RTBI ||
+	    phy_interface == PHY_INTERFACE_MODE_SGMII) {
 		unsigned int snums = qe_get_num_of_snums();
 
-		/* configure muram FIFOs for gigabit operation */
 		ug_info->uf_info.urfs = UCC_GETH_URFS_GIGA_INIT;
 		ug_info->uf_info.urfet = UCC_GETH_URFET_GIGA_INIT;
 		ug_info->uf_info.urfset = UCC_GETH_URFSET_GIGA_INIT;
@@ -3691,7 +3519,7 @@ static int ucc_geth_probe(struct platform_device* ofdev)
 	dev = devm_alloc_etherdev(&ofdev->dev, sizeof(*ugeth));
 	if (!dev) {
 		err = -ENOMEM;
-		goto err_deregister_fixed_link;
+		goto err_put_tbi;
 	}
 
 	ugeth = netdev_priv(dev);
@@ -3718,23 +3546,50 @@ static int ucc_geth_probe(struct platform_device* ofdev)
 	dev->max_mtu = 1518;
 
 	ugeth->msg_enable = netif_msg_init(debug.msg_enable, UGETH_MSG_DEFAULT);
-	ugeth->phy_interface = phy_interface;
-	ugeth->max_speed = max_speed;
 
-	/* Carrier starts down, phylib will bring it up */
-	netif_carrier_off(dev);
+	ugeth->phylink_config.dev = &dev->dev;
+	ugeth->phylink_config.type = PHYLINK_NETDEV;
+
+	ugeth->phylink_config.mac_capabilities =
+		MAC_SYM_PAUSE | MAC_10 | MAC_100 | MAC_1000FD;
+
+	__set_bit(PHY_INTERFACE_MODE_MII,
+		  ugeth->phylink_config.supported_interfaces);
+	__set_bit(PHY_INTERFACE_MODE_RMII,
+		  ugeth->phylink_config.supported_interfaces);
+	__set_bit(PHY_INTERFACE_MODE_GMII,
+		  ugeth->phylink_config.supported_interfaces);
+	phy_interface_set_rgmii(ugeth->phylink_config.supported_interfaces);
+
+	if (ug_info->tbi_node) {
+		__set_bit(PHY_INTERFACE_MODE_SGMII,
+			  ugeth->phylink_config.supported_interfaces);
+		__set_bit(PHY_INTERFACE_MODE_TBI,
+			  ugeth->phylink_config.supported_interfaces);
+		__set_bit(PHY_INTERFACE_MODE_RTBI,
+			  ugeth->phylink_config.supported_interfaces);
+	}
+
+	phylink = phylink_create(&ugeth->phylink_config, dev_fwnode(&dev->dev),
+				 phy_interface, &ugeth_mac_ops);
+	if (IS_ERR(phylink)) {
+		err = PTR_ERR(phylink);
+		goto err_put_tbi;
+	}
+
+	ugeth->phylink = phylink;
 
 	err = devm_register_netdev(&ofdev->dev, dev);
 	if (err) {
 		if (netif_msg_probe(ugeth))
 			pr_err("%s: Cannot register net device, aborting\n",
 			       dev->name);
-		goto err_deregister_fixed_link;
+		goto err_destroy_phylink;
 	}
 
 	err = of_get_ethdev_address(np, dev);
 	if (err == -EPROBE_DEFER)
-		goto err_deregister_fixed_link;
+		goto err_destroy_phylink;
 
 	ugeth->ug_info = ug_info;
 	ugeth->dev = device;
@@ -3743,11 +3598,11 @@ static int ucc_geth_probe(struct platform_device* ofdev)
 
 	return 0;
 
-err_deregister_fixed_link:
-	if (of_phy_is_fixed_link(np))
-		of_phy_deregister_fixed_link(np);
+err_destroy_phylink:
+	phylink_destroy(phylink);
+err_put_tbi:
 	of_node_put(ug_info->tbi_node);
-	of_node_put(ug_info->phy_node);
+
 	return err;
 }
 
@@ -3755,13 +3610,10 @@ static void ucc_geth_remove(struct platform_device* ofdev)
 {
 	struct net_device *dev = platform_get_drvdata(ofdev);
 	struct ucc_geth_private *ugeth = netdev_priv(dev);
-	struct device_node *np = ofdev->dev.of_node;
 
 	ucc_geth_memclean(ugeth);
-	if (of_phy_is_fixed_link(np))
-		of_phy_deregister_fixed_link(np);
+	phylink_destroy(ugeth->phylink);
 	of_node_put(ugeth->ug_info->tbi_node);
-	of_node_put(ugeth->ug_info->phy_node);
 }
 
 static const struct of_device_id ucc_geth_match[] = {
