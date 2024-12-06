@@ -94,6 +94,9 @@ static struct pci_dev **amd_roots;
 /* Protect the PCI config register pairs used for SMN. */
 static DEFINE_MUTEX(smn_mutex);
 
+#define SMN_INDEX_OFFSET	0x60
+#define SMN_DATA_OFFSET		0x64
+
 /*
  * SMN accesses may fail in ways that are difficult to detect here in the called
  * functions amd_smn_read() and amd_smn_write(). Therefore, callers must do
@@ -131,7 +134,7 @@ static DEFINE_MUTEX(smn_mutex);
  * the operation is considered a success, and the caller does their own
  * checking.
  */
-static int __amd_smn_rw(u16 node, u32 address, u32 *value, bool write)
+static int __amd_smn_rw(u8 i_off, u8 d_off, u16 node, u32 address, u32 *value, bool write)
 {
 	struct pci_dev *root;
 	int err = -ENODEV;
@@ -145,21 +148,21 @@ static int __amd_smn_rw(u16 node, u32 address, u32 *value, bool write)
 
 	guard(mutex)(&smn_mutex);
 
-	err = pci_write_config_dword(root, 0x60, address);
+	err = pci_write_config_dword(root, i_off, address);
 	if (err) {
 		pr_warn("Error programming SMN address 0x%x.\n", address);
 		return pcibios_err_to_errno(err);
 	}
 
-	err = (write ? pci_write_config_dword(root, 0x64, *value)
-		     : pci_read_config_dword(root, 0x64, value));
+	err = (write ? pci_write_config_dword(root, d_off, *value)
+		     : pci_read_config_dword(root, d_off, value));
 
 	return pcibios_err_to_errno(err);
 }
 
 int __must_check amd_smn_read(u16 node, u32 address, u32 *value)
 {
-	int err = __amd_smn_rw(node, address, value, false);
+	int err = __amd_smn_rw(SMN_INDEX_OFFSET, SMN_DATA_OFFSET, node, address, value, false);
 
 	if (PCI_POSSIBLE_ERROR(*value)) {
 		err = -ENODEV;
@@ -172,7 +175,7 @@ EXPORT_SYMBOL_GPL(amd_smn_read);
 
 int __must_check amd_smn_write(u16 node, u32 address, u32 value)
 {
-	return __amd_smn_rw(node, address, &value, true);
+	return __amd_smn_rw(SMN_INDEX_OFFSET, SMN_DATA_OFFSET, node, address, &value, true);
 }
 EXPORT_SYMBOL_GPL(amd_smn_write);
 
