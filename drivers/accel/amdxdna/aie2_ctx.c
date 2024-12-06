@@ -179,7 +179,7 @@ aie2_sched_notify(struct amdxdna_sched_job *job)
 	up(&job->hwctx->priv->job_sem);
 	job->job_done = true;
 	dma_fence_put(fence);
-	mmput(job->mm);
+	mmput_async(job->mm);
 	aie2_job_put(job);
 }
 
