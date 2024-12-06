@@ -137,6 +137,14 @@ struct kx022a_data;
  *
  * @name:			name of the device
  * @regmap_config:		pointer to register map configuration
+ * @scale_table:		An array of tables of scaling factors for
+ *				a supported acceleration measurement range.
+ *				Each table containing a single scaling
+ *				factor consisting of two integers. The first
+ *				value in a table is the integer part, and
+ *				the second value is the	fractional part as
+ *				parts per billion.
+ * @scale_table_size:		Amount of values in tables.
  * @channels:			pointer to iio_chan_spec array
  * @num_channels:		number of iio_chan_spec channels
  * @fifo_length:		number of 16-bit samples in a full buffer
