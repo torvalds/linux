@@ -1109,7 +1109,7 @@ static int sof_card_dai_links_create(struct snd_soc_card *card)
 
 	/* enable dmic01 & dmic16k */
 	if (ctx->ignore_internal_dmic) {
-		dev_warn(dev, "Ignoring internal DMIC\n");
+		dev_dbg(dev, "SoundWire DMIC is used, ignoring internal DMIC\n");
 		mach_params->dmic_num = 0;
 	} else if (mach_params->dmic_num) {
 		dmic_num = 2;
