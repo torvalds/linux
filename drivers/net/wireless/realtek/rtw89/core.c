@@ -3844,6 +3844,22 @@ int rtw89_core_sta_link_disconnect(struct rtw89_dev *rtwdev,
 	return ret;
 }
 
+static bool rtw89_sta_link_can_er(struct rtw89_dev *rtwdev,
+				  struct ieee80211_bss_conf *bss_conf,
+				  struct ieee80211_link_sta *link_sta)
+{
+	if (!bss_conf->he_support ||
+	    bss_conf->he_oper.params & IEEE80211_HE_OPERATION_ER_SU_DISABLE)
+		return false;
+
+	if (rtwdev->chip->chip_id == RTL8852C &&
+	    rtw89_sta_link_has_su_mu_4xhe08(link_sta) &&
+	    !rtw89_sta_link_has_er_su_4xhe08(link_sta))
+		return false;
+
+	return true;
+}
+
 int rtw89_core_sta_link_assoc(struct rtw89_dev *rtwdev,
 			      struct rtw89_vif_link *rtwvif_link,
 			      struct rtw89_sta_link *rtwsta_link)
@@ -3854,12 +3870,11 @@ int rtw89_core_sta_link_assoc(struct rtw89_dev *rtwdev,
 									 rtwsta_link);
 	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev,
 						       rtwvif_link->chanctx_idx);
+	struct ieee80211_link_sta *link_sta;
 	int ret;
 
 	if (vif->type == NL80211_IFTYPE_AP || sta->tdls) {
 		if (sta->tdls) {
-			struct ieee80211_link_sta *link_sta;
-
 			rcu_read_lock();
 
 			link_sta = rtw89_sta_rcu_dereference_link(rtwsta_link, true);
@@ -3910,9 +3925,8 @@ int rtw89_core_sta_link_assoc(struct rtw89_dev *rtwdev,
 		rcu_read_lock();
 
 		bss_conf = rtw89_vif_rcu_dereference_link(rtwvif_link, true);
-		if (bss_conf->he_support &&
-		    !(bss_conf->he_oper.params & IEEE80211_HE_OPERATION_ER_SU_DISABLE))
-			rtwsta_link->er_cap = true;
+		link_sta = rtw89_sta_rcu_dereference_link(rtwsta_link, true);
+		rtwsta_link->er_cap = rtw89_sta_link_can_er(rtwdev, bss_conf, link_sta);
 
 		rcu_read_unlock();
 
