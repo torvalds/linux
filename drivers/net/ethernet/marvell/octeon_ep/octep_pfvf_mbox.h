@@ -8,8 +8,6 @@
 #ifndef _OCTEP_PFVF_MBOX_H_
 #define _OCTEP_PFVF_MBOX_H_
 
-/* VF flags */
-#define OCTEON_PFVF_FLAG_MAC_SET_BY_PF  BIT_ULL(0) /* PF has set VF MAC address */
 #define OCTEON_SDP_16K_HW_FRS  16380UL
 #define OCTEON_SDP_64K_HW_FRS  65531UL
 
@@ -22,6 +20,10 @@ enum octep_pfvf_mbox_version {
 };
 
 #define OCTEP_PFVF_MBOX_VERSION_CURRENT	OCTEP_PFVF_MBOX_VERSION_V2
+
+/* VF flags */
+/* PF has set VF MAC address */
+#define OCTEON_PFVF_FLAG_MAC_SET_BY_PF  BIT(0)
 
 enum octep_pfvf_mbox_opcode {
 	OCTEP_PFVF_MBOX_CMD_VERSION,
