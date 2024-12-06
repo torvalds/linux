@@ -2189,6 +2189,8 @@ static void rtw89_vif_rx_stats_iter(void *data, u8 *mac,
 
 		if (phy_ppdu)
 			ewma_rssi_add(&rtwdev->phystat.bcn_rssi, phy_ppdu->rssi_avg);
+
+		pkt_stat->beacon_rate = desc_info->data_rate;
 	}
 
 	if (!ether_addr_equal(bss_conf->addr, hdr->addr1))

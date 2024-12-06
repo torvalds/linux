@@ -8,6 +8,7 @@
 #include "debug.h"
 #include "fw.h"
 #include "mac.h"
+#include "phy.h"
 #include "ps.h"
 #include "reg.h"
 #include "util.h"
@@ -136,7 +137,10 @@ void rtw89_enter_lps(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif,
 			can_ps_mode = false;
 	}
 
-	rtw89_fw_h2c_lps_ch_info(rtwdev, rtwvif);
+	if (RTW89_CHK_FW_FEATURE(LPS_CH_INFO, &rtwdev->fw))
+		rtw89_fw_h2c_lps_ch_info(rtwdev, rtwvif);
+	else
+		rtw89_fw_h2c_lps_ml_cmn_info(rtwdev, rtwvif);
 
 	if (ps_mode && can_ps_mode)
 		__rtw89_enter_ps_mode(rtwdev);
@@ -164,6 +168,8 @@ void rtw89_leave_lps(struct rtw89_dev *rtwdev)
 		return;
 
 	__rtw89_leave_ps_mode(rtwdev);
+
+	rtw89_phy_dm_reinit(rtwdev);
 
 	rtw89_for_each_rtwvif(rtwdev, rtwvif)
 		rtw89_vif_for_each_link(rtwvif, rtwvif_link, link_id)

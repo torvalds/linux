@@ -1783,6 +1783,21 @@ struct rtw89_h2c_lps_ch_info {
 	__le32 mlo_dbcc_mode_lps;
 } __packed;
 
+struct rtw89_h2c_lps_ml_cmn_info {
+	u8 fmt_id;
+	u8 rsvd0[3];
+	__le32 mlo_dbcc_mode;
+	u8 central_ch[RTW89_PHY_MAX];
+	u8 pri_ch[RTW89_PHY_MAX];
+	u8 bw[RTW89_PHY_MAX];
+	u8 band[RTW89_PHY_MAX];
+	u8 bcn_rate_type[RTW89_PHY_MAX];
+	u8 rsvd1[2];
+	__le16 tia_gain[RTW89_PHY_MAX][TIA_GAIN_NUM];
+	u8 lna_gain[RTW89_PHY_MAX][LNA_GAIN_NUM];
+	u8 rsvd2[2];
+} __packed;
+
 static inline void RTW89_SET_FWCMD_CPU_EXCEPTION_TYPE(void *cmd, u32 val)
 {
 	le32p_replace_bits((__le32 *)cmd, val, GENMASK(31, 0));
@@ -4211,6 +4226,7 @@ enum rtw89_mrc_h2c_func {
 
 #define H2C_CL_OUTSRC_DM		0x2
 #define H2C_FUNC_FW_LPS_CH_INFO		0xb
+#define H2C_FUNC_FW_LPS_ML_CMN_INFO	0xe
 
 #define H2C_CL_OUTSRC_RF_REG_A		0x8
 #define H2C_CL_OUTSRC_RF_REG_B		0x9
@@ -4639,6 +4655,8 @@ int rtw89_fw_h2c_init_ba_cam_users(struct rtw89_dev *rtwdev, u8 users,
 int rtw89_fw_h2c_lps_parm(struct rtw89_dev *rtwdev,
 			  struct rtw89_lps_parm *lps_param);
 int rtw89_fw_h2c_lps_ch_info(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif);
+int rtw89_fw_h2c_lps_ml_cmn_info(struct rtw89_dev *rtwdev,
+				 struct rtw89_vif *rtwvif);
 int rtw89_fw_h2c_fwips(struct rtw89_dev *rtwdev, struct rtw89_vif_link *rtwvif_link,
 		       bool enable);
 struct sk_buff *rtw89_fw_h2c_alloc_skb_with_hdr(struct rtw89_dev *rtwdev, u32 len);
