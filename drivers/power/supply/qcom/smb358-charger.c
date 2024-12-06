@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2016-2021 The Linux Foundation. All rights reserved.
- * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2023, 2024 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 #define pr_fmt(fmt) "SMB358 %s: " fmt, __func__
 #include <linux/i2c.h>
@@ -2560,7 +2560,7 @@ static int smb358_charger_probe(struct i2c_client *client,
 		if (rc) {
 			dev_err(&client->dev,
 				"Failed STAT irq=%d request rc = %d\n",
-				irq, rc);
+				client->irq, rc);
 			goto err_set_vtg_i2c;
 		}
 		enable_irq_wake(client->irq);
