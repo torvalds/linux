@@ -9,6 +9,8 @@ smem.ko
 socinfo.ko
 clk-dummy.ko
 clk-qcom.ko
+cqhci.ko
+sdhci-msm.ko
 gdsc-regulator.ko
 cmd-db.ko
 qcom_rpmh.ko
