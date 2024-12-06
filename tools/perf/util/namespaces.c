@@ -271,6 +271,11 @@ pid_t nsinfo__in_pidns(const struct nsinfo  *nsi)
 	return RC_CHK_ACCESS(nsi)->in_pidns;
 }
 
+void nsinfo__set_in_pidns(struct nsinfo *nsi)
+{
+	RC_CHK_ACCESS(nsi)->in_pidns = true;
+}
+
 void nsinfo__mountns_enter(struct nsinfo *nsi,
 				  struct nscookie *nc)
 {
