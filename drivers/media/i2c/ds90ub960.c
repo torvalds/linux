@@ -1575,7 +1575,12 @@ static int ub960_rxport_wait_locks(struct ub960_data *priv,
 		if (missing == 0)
 			break;
 
-		msleep(50);
+		/*
+		 * The sleep time of 10 ms was found by testing to give a lock
+		 * with a few iterations. It can be decreased if on some setups
+		 * the lock can be achieved much faster.
+		 */
+		fsleep(10 * USEC_PER_MSEC);
 	}
 
 	if (lock_mask)
