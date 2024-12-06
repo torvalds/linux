@@ -433,7 +433,7 @@ static int aw96103_write_event_config(struct iio_dev *indio_dev,
 				  state ? BIT(chan->channel) : 0);
 }
 
-static struct iio_info iio_info = {
+static const struct iio_info iio_info = {
 	.read_raw = aw96103_read_raw,
 	.read_event_value = aw96103_read_event_val,
 	.write_event_value = aw96103_write_event_val,
