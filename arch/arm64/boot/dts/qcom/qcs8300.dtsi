@@ -45,6 +45,8 @@
 			next-level-cache = <&l2_0>;
 			power-domains = <&cpu_pd0>;
 			power-domain-names = "psci";
+			capacity-dmips-mhz = <1946>;
+			dynamic-power-coefficient = <472>;
 
 			l2_0: l2-cache {
 				compatible = "cache";
@@ -62,6 +64,8 @@
 			next-level-cache = <&l2_1>;
 			power-domains = <&cpu_pd1>;
 			power-domain-names = "psci";
+			capacity-dmips-mhz = <1946>;
+			dynamic-power-coefficient = <472>;
 
 			l2_1: l2-cache {
 				compatible = "cache";
@@ -79,6 +83,8 @@
 			next-level-cache = <&l2_2>;
 			power-domains = <&cpu_pd2>;
 			power-domain-names = "psci";
+			capacity-dmips-mhz = <1946>;
+			dynamic-power-coefficient = <507>;
 
 			l2_2: l2-cache {
 				compatible = "cache";
@@ -96,6 +102,8 @@
 			next-level-cache = <&l2_3>;
 			power-domains = <&cpu_pd3>;
 			power-domain-names = "psci";
+			capacity-dmips-mhz = <1946>;
+			dynamic-power-coefficient = <507>;
 
 			l2_3: l2-cache {
 				compatible = "cache";
@@ -113,6 +121,8 @@
 			next-level-cache = <&l2_4>;
 			power-domains = <&cpu_pd4>;
 			power-domain-names = "psci";
+			capacity-dmips-mhz = <1024>;
+			dynamic-power-coefficient = <100>;
 
 			l2_4: l2-cache {
 				compatible = "cache";
@@ -130,6 +140,8 @@
 			next-level-cache = <&l2_5>;
 			power-domains = <&cpu_pd5>;
 			power-domain-names = "psci";
+			capacity-dmips-mhz = <1024>;
+			dynamic-power-coefficient = <100>;
 
 			l2_5: l2-cache {
 				compatible = "cache";
@@ -147,6 +159,8 @@
 			next-level-cache = <&l2_6>;
 			power-domains = <&cpu_pd6>;
 			power-domain-names = "psci";
+			capacity-dmips-mhz = <1024>;
+			dynamic-power-coefficient = <100>;
 
 			l2_6: l2-cache {
 				compatible = "cache";
@@ -164,6 +178,8 @@
 			next-level-cache = <&l2_7>;
 			power-domains = <&cpu_pd7>;
 			power-domain-names = "psci";
+			capacity-dmips-mhz = <1024>;
+			dynamic-power-coefficient = <100>;
 
 			l2_7: l2-cache {
 				compatible = "cache";
