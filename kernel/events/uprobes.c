@@ -1888,10 +1888,8 @@ unsigned long uprobe_get_trap_addr(struct pt_regs *regs)
 	return instruction_pointer(regs);
 }
 
-static struct return_instance *free_ret_instance(struct return_instance *ri, bool cleanup_hprobe)
+static void free_ret_instance(struct return_instance *ri, bool cleanup_hprobe)
 {
-	struct return_instance *next = ri->next;
-
 	if (cleanup_hprobe) {
 		enum hprobe_state hstate;
 
@@ -1901,7 +1899,6 @@ static struct return_instance *free_ret_instance(struct return_instance *ri, boo
 
 	kfree(ri->extra_consumers);
 	kfree_rcu(ri, rcu);
-	return next;
 }
 
 /*
@@ -1911,7 +1908,7 @@ static struct return_instance *free_ret_instance(struct return_instance *ri, boo
 void uprobe_free_utask(struct task_struct *t)
 {
 	struct uprobe_task *utask = t->utask;
-	struct return_instance *ri;
+	struct return_instance *ri, *ri_next;
 
 	if (!utask)
 		return;
@@ -1921,8 +1918,11 @@ void uprobe_free_utask(struct task_struct *t)
 	timer_delete_sync(&utask->ri_timer);
 
 	ri = utask->return_instances;
-	while (ri)
-		ri = free_ret_instance(ri, true /* cleanup_hprobe */);
+	while (ri) {
+		ri_next = ri->next;
+		free_ret_instance(ri, true /* cleanup_hprobe */);
+		ri = ri_next;
+	}
 
 	kfree(utask);
 	t->utask = NULL;
@@ -2111,12 +2111,15 @@ unsigned long uprobe_get_trampoline_vaddr(void)
 static void cleanup_return_instances(struct uprobe_task *utask, bool chained,
 					struct pt_regs *regs)
 {
-	struct return_instance *ri = utask->return_instances;
+	struct return_instance *ri = utask->return_instances, *ri_next;
 	enum rp_check ctx = chained ? RP_CHECK_CHAIN_CALL : RP_CHECK_CALL;
 
 	while (ri && !arch_uretprobe_is_alive(ri, ctx, regs)) {
-		ri = free_ret_instance(ri, true /* cleanup_hprobe */);
+		ri_next = ri->next;
 		utask->depth--;
+
+		free_ret_instance(ri, true /* cleanup_hprobe */);
+		ri = ri_next;
 	}
 	rcu_assign_pointer(utask->return_instances, ri);
 }
@@ -2508,7 +2511,7 @@ static struct return_instance *find_next_ret_chain(struct return_instance *ri)
 void uprobe_handle_trampoline(struct pt_regs *regs)
 {
 	struct uprobe_task *utask;
-	struct return_instance *ri, *next;
+	struct return_instance *ri, *ri_next, *next_chain;
 	struct uprobe *uprobe;
 	enum hprobe_state hstate;
 	bool valid;
@@ -2528,8 +2531,8 @@ void uprobe_handle_trampoline(struct pt_regs *regs)
 		 * or NULL; the latter case means that nobody but ri->func
 		 * could hit this trampoline on return. TODO: sigaltstack().
 		 */
-		next = find_next_ret_chain(ri);
-		valid = !next || arch_uretprobe_is_alive(next, RP_CHECK_RET, regs);
+		next_chain = find_next_ret_chain(ri);
+		valid = !next_chain || arch_uretprobe_is_alive(next_chain, RP_CHECK_RET, regs);
 
 		instruction_pointer_set(regs, ri->orig_ret_vaddr);
 		do {
@@ -2541,7 +2544,9 @@ void uprobe_handle_trampoline(struct pt_regs *regs)
 			 * trampoline addresses on the stack are replaced with correct
 			 * original return addresses
 			 */
-			rcu_assign_pointer(utask->return_instances, ri->next);
+			ri_next = ri->next;
+			rcu_assign_pointer(utask->return_instances, ri_next);
+			utask->depth--;
 
 			uprobe = hprobe_consume(&ri->hprobe, &hstate);
 			if (valid)
@@ -2549,9 +2554,9 @@ void uprobe_handle_trampoline(struct pt_regs *regs)
 			hprobe_finalize(&ri->hprobe, hstate);
 
 			/* We already took care of hprobe, no need to waste more time on that. */
-			ri = free_ret_instance(ri, false /* !cleanup_hprobe */);
-			utask->depth--;
-		} while (ri != next);
+			free_ret_instance(ri, false /* !cleanup_hprobe */);
+			ri = ri_next;
+		} while (ri != next_chain);
 	} while (!valid);
 
 	return;
