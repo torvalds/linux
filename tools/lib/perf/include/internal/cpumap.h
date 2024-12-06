@@ -22,7 +22,7 @@ DECLARE_RC_STRUCT(perf_cpu_map) {
 };
 
 #ifndef MAX_NR_CPUS
-#define MAX_NR_CPUS	2048
+#define MAX_NR_CPUS	4096
 #endif
 
 struct perf_cpu_map *perf_cpu_map__alloc(int nr_cpus);
