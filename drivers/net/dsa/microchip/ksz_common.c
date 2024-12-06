@@ -2550,7 +2550,11 @@ static int ksz_mdio_register(struct ksz_device *dev)
 		bus->read = ksz_sw_mdio_read;
 		bus->write = ksz_sw_mdio_write;
 		bus->name = "ksz user smi";
-		snprintf(bus->id, MII_BUS_ID_SIZE, "SMI-%d", ds->index);
+		if (ds->dst->index != 0) {
+			snprintf(bus->id, MII_BUS_ID_SIZE, "SMI-%d-%d", ds->dst->index, ds->index);
+		} else {
+			snprintf(bus->id, MII_BUS_ID_SIZE, "SMI-%d", ds->index);
+		}
 	}
 
 	ret = ksz_parse_dt_phy_config(dev, bus, mdio_np);
