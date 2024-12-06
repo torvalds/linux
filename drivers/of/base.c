@@ -1026,19 +1026,15 @@ struct device_node *of_find_node_with_property(struct device_node *from,
 	const char *prop_name)
 {
 	struct device_node *np;
-	const struct property *pp;
 	unsigned long flags;
 
 	raw_spin_lock_irqsave(&devtree_lock, flags);
 	for_each_of_allnodes_from(from, np) {
-		for (pp = np->properties; pp; pp = pp->next) {
-			if (of_prop_cmp(pp->name, prop_name) == 0) {
-				of_node_get(np);
-				goto out;
-			}
+		if (__of_find_property(np, prop_name, NULL)) {
+			of_node_get(np);
+			break;
 		}
 	}
-out:
 	of_node_put(from);
 	raw_spin_unlock_irqrestore(&devtree_lock, flags);
 	return np;
