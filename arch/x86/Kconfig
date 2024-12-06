@@ -3129,6 +3129,10 @@ endif # X86_32
 
 config AMD_NB
 	def_bool y
+	depends on AMD_NODE
+
+config AMD_NODE
+	def_bool y
 	depends on CPU_SUP_AMD && PCI
 
 endmenu
