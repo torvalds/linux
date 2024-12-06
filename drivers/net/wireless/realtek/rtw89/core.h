@@ -6875,6 +6875,16 @@ bool rtw89_sta_has_beamformer_cap(struct ieee80211_link_sta *link_sta)
 	return false;
 }
 
+static inline
+bool rtw89_sta_link_has_su_mu_4xhe08(struct ieee80211_link_sta *link_sta)
+{
+	if (link_sta->he_cap.he_cap_elem.phy_cap_info[7] &
+	    IEEE80211_HE_PHY_CAP7_HE_SU_MU_PPDU_4XLTF_AND_08_US_GI)
+		return true;
+
+	return false;
+}
+
 static inline struct rtw89_fw_suit *rtw89_fw_suit_get(struct rtw89_dev *rtwdev,
 						      enum rtw89_fw_type type)
 {

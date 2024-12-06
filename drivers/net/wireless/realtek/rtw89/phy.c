@@ -264,16 +264,26 @@ rtw89_ra_mask_eht_rates[4] = {RA_MASK_EHT_1SS_RATES, RA_MASK_EHT_2SS_RATES,
 
 static void rtw89_phy_ra_gi_ltf(struct rtw89_dev *rtwdev,
 				struct rtw89_sta_link *rtwsta_link,
+				struct ieee80211_link_sta *link_sta,
 				const struct rtw89_chan *chan,
 				bool *fix_giltf_en, u8 *fix_giltf)
 {
 	struct cfg80211_bitrate_mask *mask = &rtwsta_link->mask;
 	u8 band = chan->band_type;
 	enum nl80211_band nl_band = rtw89_hw_to_nl80211_band(band);
-	u8 he_gi = mask->control[nl_band].he_gi;
 	u8 he_ltf = mask->control[nl_band].he_ltf;
+	u8 he_gi = mask->control[nl_band].he_gi;
 
-	if (!rtwsta_link->use_cfg_mask)
+	*fix_giltf_en = true;
+
+	if (rtwdev->chip->chip_id == RTL8852C &&
+	    chan->band_width == RTW89_CHANNEL_WIDTH_160 &&
+	    rtw89_sta_link_has_su_mu_4xhe08(link_sta))
+		*fix_giltf = RTW89_GILTF_SGI_4XHE08;
+	else
+		*fix_giltf = RTW89_GILTF_2XHE08;
+
+	if (!(rtwsta_link->use_cfg_mask && link_sta->he_cap.has_he))
 		return;
 
 	if (he_ltf == 2 && he_gi == 2) {
@@ -288,12 +298,7 @@ static void rtw89_phy_ra_gi_ltf(struct rtw89_dev *rtwdev,
 		*fix_giltf = RTW89_GILTF_1XHE16;
 	} else if (he_ltf == 0 && he_gi == 0) {
 		*fix_giltf = RTW89_GILTF_1XHE08;
-	} else {
-		*fix_giltf_en = false;
-		return;
 	}
-
-	*fix_giltf_en = true;
 }
 
 static void rtw89_phy_ra_sta_update(struct rtw89_dev *rtwdev,
@@ -326,6 +331,8 @@ static void rtw89_phy_ra_sta_update(struct rtw89_dev *rtwdev,
 		mode |= RTW89_RA_MODE_EHT;
 		ra_mask |= get_eht_ra_mask(link_sta);
 		high_rate_masks = rtw89_ra_mask_eht_rates;
+		rtw89_phy_ra_gi_ltf(rtwdev, rtwsta_link, link_sta,
+				    chan, &fix_giltf_en, &fix_giltf);
 	} else if (link_sta->he_cap.has_he) {
 		mode |= RTW89_RA_MODE_HE;
 		csi_mode = RTW89_RA_RPT_MODE_HE;
@@ -337,7 +344,8 @@ static void rtw89_phy_ra_sta_update(struct rtw89_dev *rtwdev,
 		if (link_sta->he_cap.he_cap_elem.phy_cap_info[1] &
 		    IEEE80211_HE_PHY_CAP1_LDPC_CODING_IN_PAYLOAD)
 			ldpc_en = 1;
-		rtw89_phy_ra_gi_ltf(rtwdev, rtwsta_link, chan, &fix_giltf_en, &fix_giltf);
+		rtw89_phy_ra_gi_ltf(rtwdev, rtwsta_link, link_sta,
+				    chan, &fix_giltf_en, &fix_giltf);
 	} else if (link_sta->vht_cap.vht_supported) {
 		u16 mcs_map = le16_to_cpu(link_sta->vht_cap.vht_mcs.rx_mcs_map);
 
