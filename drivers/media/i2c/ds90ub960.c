@@ -43,6 +43,7 @@
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
 #include <linux/slab.h>
+#include <linux/units.h>
 #include <linux/workqueue.h>
 
 #include <media/i2c/ds90ub9xx.h>
@@ -51,7 +52,7 @@
 #include <media/v4l2-fwnode.h>
 #include <media/v4l2-subdev.h>
 
-#define MHZ(v) ((u32)((v) * 1000000U))
+#define MHZ(v) ((u32)((v) * HZ_PER_MHZ))
 
 #define UB960_POLL_TIME_MS	500
 
@@ -1578,7 +1579,7 @@ static int ub960_rxport_wait_locks(struct ub960_data *priv,
 
 		if (priv->hw_data->is_ub9702) {
 			dev_dbg(dev, "\trx%u: locked, freq %llu Hz\n",
-				nport, (v * 1000000ULL) >> 8);
+				nport, ((u64)v * HZ_PER_MHZ) >> 8);
 		} else {
 			ret = ub960_rxport_get_strobe_pos(priv, nport,
 							  &strobe_pos);
@@ -1592,7 +1593,7 @@ static int ub960_rxport_wait_locks(struct ub960_data *priv,
 			dev_dbg(dev,
 				"\trx%u: locked, SP: %d, EQ: %u, freq %llu Hz\n",
 				nport, strobe_pos, eq_level,
-				(v * 1000000ULL) >> 8);
+				((u64)v * HZ_PER_MHZ) >> 8);
 		}
 	}
 
@@ -3065,7 +3066,7 @@ static int ub960_log_status(struct v4l2_subdev *sd)
 		dev_info(dev, "\trx_port_sts2 %#02x\n", v);
 
 		ub960_rxport_read16(priv, nport, UB960_RR_RX_FREQ_HIGH, &v16);
-		dev_info(dev, "\tlink freq %llu Hz\n", (v16 * 1000000ULL) >> 8);
+		dev_info(dev, "\tlink freq %llu Hz\n", ((u64)v16 * HZ_PER_MHZ) >> 8);
 
 		ub960_rxport_read16(priv, nport, UB960_RR_RX_PAR_ERR_HI, &v16);
 		dev_info(dev, "\tparity errors %u\n", v16);
@@ -3863,7 +3864,7 @@ static int ub960_enable_core_hw(struct ub960_data *priv)
 
 	dev_dbg(dev, "refclk valid %u freq %u MHz (clk fw freq %lu MHz)\n",
 		!!(dev_sts & BIT(4)), refclk_freq,
-		clk_get_rate(priv->refclk) / 1000000);
+		clk_get_rate(priv->refclk) / HZ_PER_MHZ);
 
 	/* Disable all RX ports by default */
 	ret = ub960_write(priv, UB960_SR_RX_PORT_CTL, 0);
