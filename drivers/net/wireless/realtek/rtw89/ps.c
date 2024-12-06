@@ -93,7 +93,6 @@ static void __rtw89_enter_lps_link(struct rtw89_dev *rtwdev,
 
 	rtw89_btc_ntfy_radio_state(rtwdev, BTC_RFCTRL_FW_CTRL);
 	rtw89_fw_h2c_lps_parm(rtwdev, &lps_param);
-	rtw89_fw_h2c_lps_ch_info(rtwdev, rtwvif_link);
 }
 
 static void __rtw89_leave_lps(struct rtw89_dev *rtwdev,
@@ -136,6 +135,8 @@ void rtw89_enter_lps(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif,
 		if (rtwvif_link->wifi_role == RTW89_WIFI_ROLE_P2P_CLIENT)
 			can_ps_mode = false;
 	}
+
+	rtw89_fw_h2c_lps_ch_info(rtwdev, rtwvif);
 
 	if (ps_mode && can_ps_mode)
 		__rtw89_enter_ps_mode(rtwdev);

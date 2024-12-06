@@ -2594,14 +2594,17 @@ fail:
 	return ret;
 }
 
-int rtw89_fw_h2c_lps_ch_info(struct rtw89_dev *rtwdev, struct rtw89_vif_link *rtwvif_link)
+int rtw89_fw_h2c_lps_ch_info(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif)
 {
-	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev,
-						       rtwvif_link->chanctx_idx);
 	const struct rtw89_chip_info *chip = rtwdev->chip;
+	const struct rtw89_chan *chan;
+	struct rtw89_vif_link *rtwvif_link;
 	struct rtw89_h2c_lps_ch_info *h2c;
 	u32 len = sizeof(*h2c);
+	unsigned int link_id;
 	struct sk_buff *skb;
+	bool no_chan = true;
+	u8 phy_idx;
 	u32 done;
 	int ret;
 
@@ -2616,11 +2619,27 @@ int rtw89_fw_h2c_lps_ch_info(struct rtw89_dev *rtwdev, struct rtw89_vif_link *rt
 	skb_put(skb, len);
 	h2c = (struct rtw89_h2c_lps_ch_info *)skb->data;
 
-	h2c->info[0].central_ch = chan->channel;
-	h2c->info[0].pri_ch = chan->primary_channel;
-	h2c->info[0].band = chan->band_type;
-	h2c->info[0].bw = chan->band_width;
-	h2c->mlo_dbcc_mode_lps = cpu_to_le32(MLO_2_PLUS_0_1RF);
+	rtw89_vif_for_each_link(rtwvif, rtwvif_link, link_id) {
+		phy_idx = rtwvif_link->phy_idx;
+		if (phy_idx >= ARRAY_SIZE(h2c->info))
+			continue;
+
+		chan = rtw89_chan_get(rtwdev, rtwvif_link->chanctx_idx);
+		no_chan = false;
+
+		h2c->info[phy_idx].central_ch = chan->channel;
+		h2c->info[phy_idx].pri_ch = chan->primary_channel;
+		h2c->info[phy_idx].band = chan->band_type;
+		h2c->info[phy_idx].bw = chan->band_width;
+	}
+
+	if (no_chan) {
+		rtw89_err(rtwdev, "no chan for h2c lps_ch_info\n");
+		ret = -ENOENT;
+		goto fail;
+	}
+
+	h2c->mlo_dbcc_mode_lps = cpu_to_le32(rtwdev->mlo_dbcc_mode);
 
 	rtw89_h2c_pkt_set_hdr(rtwdev, skb, FWCMD_TYPE_H2C,
 			      H2C_CAT_OUTSRC, H2C_CL_OUTSRC_DM,
