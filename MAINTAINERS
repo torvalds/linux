@@ -1122,6 +1122,7 @@ S:	Supported
 F:	drivers/i2c/busses/i2c-amd-asf-plat.c
 
 AMD NODE DRIVER
+M:	Mario Limonciello <mario.limonciello@amd.com>
 M:	Yazen Ghannam <yazen.ghannam@amd.com>
 L:	linux-kernel@vger.kernel.org
 S:	Supported
