@@ -83,6 +83,11 @@ static ssize_t platform_profile_store(struct device *dev,
 {
 	int err, i;
 
+	/* Scan for a matching profile */
+	i = sysfs_match_string(profile_names, buf);
+	if (i < 0)
+		return -EINVAL;
+
 	err = mutex_lock_interruptible(&profile_lock);
 	if (err)
 		return err;
@@ -90,13 +95,6 @@ static ssize_t platform_profile_store(struct device *dev,
 	if (!cur_profile) {
 		mutex_unlock(&profile_lock);
 		return -ENODEV;
-	}
-
-	/* Scan for a matching profile */
-	i = sysfs_match_string(profile_names, buf);
-	if (i < 0) {
-		mutex_unlock(&profile_lock);
-		return -EINVAL;
 	}
 
 	/* Check that platform supports this profile choice */
