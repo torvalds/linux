@@ -2830,6 +2830,7 @@ int ath12k_dp_rx_peer_frag_setup(struct ath12k *ar, const u8 *peer_mac, int vdev
 
 	if (!peer->primary_link) {
 		spin_unlock_bh(&ab->base_lock);
+		crypto_free_shash(tfm);
 		return 0;
 	}
 
