@@ -410,6 +410,9 @@ int f2fs_commit_atomic_write(struct inode *inode)
  */
 void f2fs_balance_fs(struct f2fs_sb_info *sbi, bool need)
 {
+	if (f2fs_cp_error(sbi))
+		return;
+
 	if (time_to_inject(sbi, FAULT_CHECKPOINT))
 		f2fs_stop_checkpoint(sbi, false, STOP_CP_REASON_FAULT_INJECT);
 
@@ -2551,18 +2554,17 @@ static int is_next_segment_free(struct f2fs_sb_info *sbi,
  * Find a new segment from the free segments bitmap to right order
  * This function should be returned with success, otherwise BUG
  */
-static void get_new_segment(struct f2fs_sb_info *sbi,
-			unsigned int *newseg, bool new_sec, int dir)
+static int get_new_segment(struct f2fs_sb_info *sbi,
+			unsigned int *newseg, bool new_sec)
 {
 	struct free_segmap_info *free_i = FREE_I(sbi);
 	unsigned int segno, secno, zoneno;
 	unsigned int total_zones = MAIN_SECS(sbi) / sbi->secs_per_zone;
 	unsigned int hint = GET_SEC_FROM_SEG(sbi, *newseg);
 	unsigned int old_zoneno = GET_ZONE_FROM_SEG(sbi, *newseg);
-	unsigned int left_start = hint;
 	bool init = true;
-	int go_left = 0;
 	int i;
+	int ret = 0;
 
 	spin_lock(&free_i->segmap_lock);
 
@@ -2575,30 +2577,13 @@ static void get_new_segment(struct f2fs_sb_info *sbi,
 find_other_zone:
 	secno = find_next_zero_bit(free_i->free_secmap, MAIN_SECS(sbi), hint);
 	if (secno >= MAIN_SECS(sbi)) {
-		if (dir == ALLOC_RIGHT) {
-			secno = find_first_zero_bit(free_i->free_secmap,
+		secno = find_first_zero_bit(free_i->free_secmap,
 							MAIN_SECS(sbi));
-			f2fs_bug_on(sbi, secno >= MAIN_SECS(sbi));
-		} else {
-			go_left = 1;
-			left_start = hint - 1;
+		if (secno >= MAIN_SECS(sbi)) {
+			ret = -ENOSPC;
+			goto out_unlock;
 		}
 	}
-	if (go_left == 0)
-		goto skip_left;
-
-	while (test_bit(left_start, free_i->free_secmap)) {
-		if (left_start > 0) {
-			left_start--;
-			continue;
-		}
-		left_start = find_first_zero_bit(free_i->free_secmap,
-							MAIN_SECS(sbi));
-		f2fs_bug_on(sbi, left_start >= MAIN_SECS(sbi));
-		break;
-	}
-	secno = left_start;
-skip_left:
 	segno = GET_SEG_FROM_SEC(sbi, secno);
 	zoneno = GET_ZONE_FROM_SEC(sbi, secno);
 
@@ -2609,21 +2594,13 @@ skip_left:
 		goto got_it;
 	if (zoneno == old_zoneno)
 		goto got_it;
-	if (dir == ALLOC_LEFT) {
-		if (!go_left && zoneno + 1 >= total_zones)
-			goto got_it;
-		if (go_left && zoneno == 0)
-			goto got_it;
-	}
 	for (i = 0; i < NR_CURSEG_TYPE; i++)
 		if (CURSEG_I(sbi, i)->zone == zoneno)
 			break;
 
 	if (i < NR_CURSEG_TYPE) {
 		/* zone is in user, try another */
-		if (go_left)
-			hint = zoneno * sbi->secs_per_zone - 1;
-		else if (zoneno + 1 >= total_zones)
+		if (zoneno + 1 >= total_zones)
 			hint = 0;
 		else
 			hint = (zoneno + 1) * sbi->secs_per_zone;
@@ -2635,7 +2612,14 @@ got_it:
 	f2fs_bug_on(sbi, test_bit(segno, free_i->free_segmap));
 	__set_inuse(sbi, segno);
 	*newseg = segno;
+out_unlock:
 	spin_unlock(&free_i->segmap_lock);
+
+	if (ret) {
+		f2fs_stop_checkpoint(sbi, false, STOP_CP_REASON_NO_SEGMENT);
+		f2fs_bug_on(sbi, 1);
+	}
+	return ret;
 }
 
 static void reset_curseg(struct f2fs_sb_info *sbi, int type, int modified)
@@ -2643,6 +2627,10 @@ static void reset_curseg(struct f2fs_sb_info *sbi, int type, int modified)
 	struct curseg_info *curseg = CURSEG_I(sbi, type);
 	struct summary_footer *sum_footer;
 	unsigned short seg_type = curseg->seg_type;
+
+	/* only happen when get_new_segment() fails */
+	if (curseg->next_segno == NULL_SEGNO)
+		return;
 
 	curseg->inited = true;
 	curseg->segno = curseg->next_segno;
@@ -2682,8 +2670,7 @@ static unsigned int __get_next_segno(struct f2fs_sb_info *sbi, int type)
 	if (unlikely(is_sbi_flag_set(sbi, SBI_CP_DISABLED)))
 		return 0;
 
-	if (test_opt(sbi, NOHEAP) &&
-		(seg_type == CURSEG_HOT_DATA || IS_NODESEG(seg_type)))
+	if (seg_type == CURSEG_HOT_DATA || IS_NODESEG(seg_type))
 		return 0;
 
 	if (SIT_I(sbi)->last_victim[ALLOC_NEXT])
@@ -2703,21 +2690,16 @@ static unsigned int __get_next_segno(struct f2fs_sb_info *sbi, int type)
 static void new_curseg(struct f2fs_sb_info *sbi, int type, bool new_sec)
 {
 	struct curseg_info *curseg = CURSEG_I(sbi, type);
-	unsigned short seg_type = curseg->seg_type;
 	unsigned int segno = curseg->segno;
-	int dir = ALLOC_LEFT;
 
 	if (curseg->inited)
-		write_sum_page(sbi, curseg->sum_blk,
-				GET_SUM_BLOCK(sbi, segno));
-	if (seg_type == CURSEG_WARM_DATA || seg_type == CURSEG_COLD_DATA)
-		dir = ALLOC_RIGHT;
-
-	if (test_opt(sbi, NOHEAP))
-		dir = ALLOC_RIGHT;
-
+		write_sum_page(sbi, curseg->sum_blk, GET_SUM_BLOCK(sbi, segno));
 	segno = __get_next_segno(sbi, type);
-	get_new_segment(sbi, &segno, new_sec, dir);
+	if (get_new_segment(sbi, &segno, new_sec)) {
+		curseg->segno = NULL_SEGNO;
+		return;
+	}
+
 	curseg->next_segno = segno;
 	reset_curseg(sbi, type, 1);
 	curseg->alloc_type = LFS;
@@ -3324,7 +3306,7 @@ static void f2fs_randomize_chunk(struct f2fs_sb_info *sbi,
 		prandom_u32_max(sbi->max_fragment_hole) + 1;
 }
 
-void f2fs_allocate_data_block(struct f2fs_sb_info *sbi, struct page *page,
+int f2fs_allocate_data_block(struct f2fs_sb_info *sbi, struct page *page,
 		block_t old_blkaddr, block_t *new_blkaddr,
 		struct f2fs_summary *sum, int type,
 		struct f2fs_io_info *fio)
@@ -3340,6 +3322,9 @@ void f2fs_allocate_data_block(struct f2fs_sb_info *sbi, struct page *page,
 
 	mutex_lock(&curseg->curseg_mutex);
 	down_write(&sit_i->sentry_lock);
+
+	if (curseg->segno == NULL_SEGNO)
+		goto out_err;
 
 	if (from_gc) {
 		f2fs_bug_on(sbi, GET_SEGNO(sbi, old_blkaddr) == NULL_SEGNO);
@@ -3396,6 +3381,9 @@ void f2fs_allocate_data_block(struct f2fs_sb_info *sbi, struct page *page,
 				change_curseg(sbi, type);
 			stat_inc_seg_type(sbi, curseg);
 		}
+
+		if (curseg->segno == NULL_SEGNO)
+			goto out_err;
 	}
 	/*
 	 * segment dirty status should be updated after segment allocation,
@@ -3431,8 +3419,15 @@ void f2fs_allocate_data_block(struct f2fs_sb_info *sbi, struct page *page,
 	}
 
 	mutex_unlock(&curseg->curseg_mutex);
-
 	f2fs_up_read(&SM_I(sbi)->curseg_lock);
+	return 0;
+out_err:
+	*new_blkaddr = NULL_ADDR;
+	up_write(&sit_i->sentry_lock);
+	mutex_unlock(&curseg->curseg_mutex);
+	f2fs_up_read(&SM_I(sbi)->curseg_lock);
+	return -ENOSPC;
+
 }
 
 void f2fs_update_device_state(struct f2fs_sb_info *sbi, nid_t ino,
@@ -3470,8 +3465,17 @@ static void do_write_page(struct f2fs_summary *sum, struct f2fs_io_info *fio)
 	if (keep_order)
 		f2fs_down_read(&fio->sbi->io_order_lock);
 reallocate:
-	f2fs_allocate_data_block(fio->sbi, fio->page, fio->old_blkaddr,
-			&fio->new_blkaddr, sum, type, fio);
+	if (f2fs_allocate_data_block(fio->sbi, fio->page, fio->old_blkaddr,
+			&fio->new_blkaddr, sum, type, fio)) {
+		if (fscrypt_inode_uses_fs_layer_crypto(fio->page->mapping->host))
+			fscrypt_finalize_bounce_page(&fio->encrypted_page);
+		if (PageWriteback(fio->page))
+			end_page_writeback(fio->page);
+		if (f2fs_in_warm_node_list(fio->sbi, fio->page))
+			f2fs_del_fsync_node_entry(fio->sbi, fio->page);
+		goto out;
+	}
+
 	if (GET_SEGNO(fio->sbi, fio->old_blkaddr) != NULL_SEGNO) {
 		invalidate_mapping_pages(META_MAPPING(fio->sbi),
 					fio->old_blkaddr, fio->old_blkaddr);
@@ -3486,7 +3490,7 @@ reallocate:
 	}
 
 	f2fs_update_device_state(fio->sbi, fio->ino, fio->new_blkaddr, 1);
-
+out:
 	if (keep_order)
 		f2fs_up_read(&fio->sbi->io_order_lock);
 }
