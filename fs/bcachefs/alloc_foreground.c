@@ -200,35 +200,40 @@ static inline unsigned open_buckets_reserved(enum bch_watermark watermark)
 	}
 }
 
+static inline bool may_alloc_bucket(struct bch_fs *c,
+				    struct bpos bucket,
+				    struct bucket_alloc_state *s)
+{
+	if (bch2_bucket_is_open(c, bucket.inode, bucket.offset)) {
+		s->skipped_open++;
+		return false;
+	}
+
+	if (bch2_bucket_needs_journal_commit(&c->buckets_waiting_for_journal,
+			c->journal.flushed_seq_ondisk, bucket.inode, bucket.offset)) {
+		s->skipped_need_journal_commit++;
+		return false;
+	}
+
+	if (bch2_bucket_nocow_is_locked(&c->nocow_locks, bucket)) {
+		s->skipped_nocow++;
+		return false;
+	}
+
+	return true;
+}
+
 static struct open_bucket *__try_alloc_bucket(struct bch_fs *c, struct bch_dev *ca,
 					      u64 bucket, u8 gen,
 					      enum bch_watermark watermark,
 					      struct bucket_alloc_state *s,
 					      struct closure *cl)
 {
-	struct open_bucket *ob;
-
 	if (unlikely(is_superblock_bucket(c, ca, bucket)))
 		return NULL;
 
 	if (unlikely(ca->buckets_nouse && test_bit(bucket, ca->buckets_nouse))) {
 		s->skipped_nouse++;
-		return NULL;
-	}
-
-	if (bch2_bucket_is_open(c, ca->dev_idx, bucket)) {
-		s->skipped_open++;
-		return NULL;
-	}
-
-	if (bch2_bucket_needs_journal_commit(&c->buckets_waiting_for_journal,
-			c->journal.flushed_seq_ondisk, ca->dev_idx, bucket)) {
-		s->skipped_need_journal_commit++;
-		return NULL;
-	}
-
-	if (bch2_bucket_nocow_is_locked(&c->nocow_locks, POS(ca->dev_idx, bucket))) {
-		s->skipped_nocow++;
 		return NULL;
 	}
 
@@ -250,10 +255,9 @@ static struct open_bucket *__try_alloc_bucket(struct bch_fs *c, struct bch_dev *
 		return NULL;
 	}
 
-	ob = bch2_open_bucket_alloc(c);
+	struct open_bucket *ob = bch2_open_bucket_alloc(c);
 
 	spin_lock(&ob->lock);
-
 	ob->valid	= true;
 	ob->sectors_free = ca->mi.bucket_size;
 	ob->dev		= ca->dev_idx;
@@ -279,8 +283,11 @@ static struct open_bucket *try_alloc_bucket(struct btree_trans *trans, struct bc
 {
 	struct bch_fs *c = trans->c;
 	u64 b = freespace_iter->pos.offset & ~(~0ULL << 56);
-	u8 gen;
 
+	if (!may_alloc_bucket(c, POS(ca->dev_idx, b), s))
+		return NULL;
+
+	u8 gen;
 	int ret = bch2_check_discard_freespace_key(trans, freespace_iter, &gen, true);
 	if (ret < 0)
 		return ERR_PTR(ret);
@@ -300,6 +307,7 @@ bch2_bucket_alloc_early(struct btree_trans *trans,
 			struct bucket_alloc_state *s,
 			struct closure *cl)
 {
+	struct bch_fs *c = trans->c;
 	struct btree_iter iter, citer;
 	struct bkey_s_c k, ck;
 	struct open_bucket *ob = NULL;
@@ -359,7 +367,10 @@ again:
 
 		s->buckets_seen++;
 
-		ob = __try_alloc_bucket(trans->c, ca, k.k->p.offset, a->gen, watermark, s, cl);
+		ob = may_alloc_bucket(c, k.k->p, s)
+			? __try_alloc_bucket(c, ca, k.k->p.offset, a->gen,
+					     watermark, s, cl)
+			: NULL;
 next:
 		bch2_set_btree_iter_dontneed(&citer);
 		bch2_trans_iter_exit(trans, &citer);
