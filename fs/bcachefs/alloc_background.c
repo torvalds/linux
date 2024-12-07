@@ -323,7 +323,8 @@ void bch2_alloc_v4_swab(struct bkey_s k)
 {
 	struct bch_alloc_v4 *a = bkey_s_to_alloc_v4(k).v;
 
-	a->journal_seq		= swab64(a->journal_seq);
+	a->journal_seq_nonempty	= swab64(a->journal_seq_nonempty);
+	a->journal_seq_empty	= swab64(a->journal_seq_empty);
 	a->flags		= swab32(a->flags);
 	a->dirty_sectors	= swab32(a->dirty_sectors);
 	a->cached_sectors	= swab32(a->cached_sectors);
@@ -346,16 +347,17 @@ void bch2_alloc_to_text(struct printbuf *out, struct bch_fs *c, struct bkey_s_c 
 	prt_printf(out, "gen %u oldest_gen %u data_type ", a->gen, a->oldest_gen);
 	bch2_prt_data_type(out, a->data_type);
 	prt_newline(out);
-	prt_printf(out, "journal_seq       %llu\n",	a->journal_seq);
-	prt_printf(out, "need_discard      %llu\n",	BCH_ALLOC_V4_NEED_DISCARD(a));
-	prt_printf(out, "need_inc_gen      %llu\n",	BCH_ALLOC_V4_NEED_INC_GEN(a));
-	prt_printf(out, "dirty_sectors     %u\n",	a->dirty_sectors);
-	prt_printf(out, "stripe_sectors    %u\n",	a->stripe_sectors);
-	prt_printf(out, "cached_sectors    %u\n",	a->cached_sectors);
-	prt_printf(out, "stripe            %u\n",	a->stripe);
-	prt_printf(out, "stripe_redundancy %u\n",	a->stripe_redundancy);
-	prt_printf(out, "io_time[READ]     %llu\n",	a->io_time[READ]);
-	prt_printf(out, "io_time[WRITE]    %llu\n",	a->io_time[WRITE]);
+	prt_printf(out, "journal_seq_nonempty %llu\n",	a->journal_seq_nonempty);
+	prt_printf(out, "journal_seq_empty    %llu\n",	a->journal_seq_empty);
+	prt_printf(out, "need_discard         %llu\n",	BCH_ALLOC_V4_NEED_DISCARD(a));
+	prt_printf(out, "need_inc_gen         %llu\n",	BCH_ALLOC_V4_NEED_INC_GEN(a));
+	prt_printf(out, "dirty_sectors        %u\n",	a->dirty_sectors);
+	prt_printf(out, "stripe_sectors       %u\n",	a->stripe_sectors);
+	prt_printf(out, "cached_sectors       %u\n",	a->cached_sectors);
+	prt_printf(out, "stripe               %u\n",	a->stripe);
+	prt_printf(out, "stripe_redundancy    %u\n",	a->stripe_redundancy);
+	prt_printf(out, "io_time[READ]        %llu\n",	a->io_time[READ]);
+	prt_printf(out, "io_time[WRITE]       %llu\n",	a->io_time[WRITE]);
 
 	if (ca)
 		prt_printf(out, "fragmentation     %llu\n",	alloc_lru_idx_fragmentation(*a, ca));
@@ -384,7 +386,7 @@ void __bch2_alloc_to_v4(struct bkey_s_c k, struct bch_alloc_v4 *out)
 		struct bkey_alloc_unpacked u = bch2_alloc_unpack(k);
 
 		*out = (struct bch_alloc_v4) {
-			.journal_seq		= u.journal_seq,
+			.journal_seq_nonempty	= u.journal_seq,
 			.flags			= u.need_discard,
 			.gen			= u.gen,
 			.oldest_gen		= u.oldest_gen,
@@ -930,20 +932,29 @@ int bch2_trigger_alloc(struct btree_trans *trans,
 
 	if ((flags & BTREE_TRIGGER_atomic) && (flags & BTREE_TRIGGER_insert)) {
 		u64 transaction_seq = trans->journal_res.seq;
+		BUG_ON(!transaction_seq);
 
-		if (log_fsck_err_on(transaction_seq && new_a->journal_seq > transaction_seq,
+		if (log_fsck_err_on(transaction_seq && new_a->journal_seq_nonempty > transaction_seq,
 				    trans, alloc_key_journal_seq_in_future,
 				    "bucket journal seq in future (currently at %llu)\n%s",
 				    journal_cur_seq(&c->journal),
 				    (bch2_bkey_val_to_text(&buf, c, new.s_c), buf.buf)))
-			new_a->journal_seq = transaction_seq;
+			new_a->journal_seq_nonempty = transaction_seq;
 
 		int is_empty_delta = (int) data_type_is_empty(new_a->data_type) -
 				     (int) data_type_is_empty(old_a->data_type);
 
-		/* Record journal sequence number of empty -> nonempty transition: */
-		if (is_empty_delta < 0)
-			new_a->journal_seq = max(new_a->journal_seq, transaction_seq);
+		/*
+		 * Record journal sequence number of empty -> nonempty transition:
+		 * Note that there may be multiple empty -> nonempty
+		 * transitions, data in a bucket may be overwritten while we're
+		 * still writing to it - so be careful to only record the first:
+		 * */
+		if (is_empty_delta < 0 &&
+		    new_a->journal_seq_empty <= c->journal.flushed_seq_ondisk) {
+			new_a->journal_seq_nonempty	= transaction_seq;
+			new_a->journal_seq_empty	= 0;
+		}
 
 		/*
 		 * Bucket becomes empty: mark it as waiting for a journal flush,
@@ -952,20 +963,21 @@ int bch2_trigger_alloc(struct btree_trans *trans,
 		 * intermediate sequence numbers:
 		 */
 		if (is_empty_delta > 0) {
-			if (new_a->journal_seq == transaction_seq ||
+			if (new_a->journal_seq_nonempty == transaction_seq ||
 			    bch2_journal_noflush_seq(&c->journal,
-						     new_a->journal_seq,
-						     transaction_seq))
-				new_a->journal_seq = 0;
-			else {
-				new_a->journal_seq = transaction_seq;
+						     new_a->journal_seq_nonempty,
+						     transaction_seq)) {
+				new_a->journal_seq_nonempty = new_a->journal_seq_empty = 0;
+			} else {
+				new_a->journal_seq_empty = transaction_seq;
 
 				ret = bch2_set_bucket_needs_journal_commit(&c->buckets_waiting_for_journal,
-						c->journal.flushed_seq_ondisk,
-						new.k->p.inode, new.k->p.offset,
-						transaction_seq);
+									   c->journal.flushed_seq_ondisk,
+									   new.k->p.inode, new.k->p.offset,
+									   transaction_seq);
 				if (bch2_fs_fatal_err_on(ret, c,
-						"setting bucket_needs_journal_commit: %s", bch2_err_str(ret)))
+						"setting bucket_needs_journal_commit: %s",
+						bch2_err_str(ret)))
 					goto err;
 			}
 		}
@@ -983,7 +995,7 @@ int bch2_trigger_alloc(struct btree_trans *trans,
 
 #define eval_state(_a, expr)		({ const struct bch_alloc_v4 *a = _a; expr; })
 #define statechange(expr)		!eval_state(old_a, expr) && eval_state(new_a, expr)
-#define bucket_flushed(a)		(!a->journal_seq || a->journal_seq <= c->journal.flushed_seq_ondisk)
+#define bucket_flushed(a)		(a->journal_seq_empty <= c->journal.flushed_seq_ondisk)
 
 		if (statechange(a->data_type == BCH_DATA_free) &&
 		    bucket_flushed(new_a))
@@ -1842,16 +1854,6 @@ static int bch2_discard_one_bucket(struct btree_trans *trans,
 			goto commit;
 		}
 
-		goto out;
-	}
-
-	if (a->v.journal_seq > c->journal.flushed_seq_ondisk) {
-		if (bch2_trans_inconsistent_on(c->curr_recovery_pass > BCH_RECOVERY_PASS_check_alloc_info,
-					       trans, "clearing need_discard but journal_seq %llu > flushed_seq %llu\n%s",
-					       a->v.journal_seq,
-					       c->journal.flushed_seq_ondisk,
-					       (bch2_bkey_val_to_text(&buf, c, k), buf.buf)))
-			ret = -EIO;
 		goto out;
 	}
 
