@@ -279,7 +279,6 @@ static int crypto_kw_create(struct crypto_template *tmpl, struct rtattr **tb)
 		goto out_free_inst;
 
 	inst->alg.base.cra_blocksize = SEMIBSIZE;
-	inst->alg.base.cra_alignmask = 0;
 	inst->alg.ivsize = SEMIBSIZE;
 
 	inst->alg.encrypt = crypto_kw_encrypt;
