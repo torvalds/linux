@@ -9844,7 +9844,7 @@ static void ipr_shutdown(struct pci_dev *pdev)
 	}
 }
 
-static struct pci_device_id ipr_pci_table[] = {
+static const struct pci_device_id ipr_pci_table[] = {
 	{ PCI_VENDOR_ID_MYLEX, PCI_DEVICE_ID_IBM_GEMSTONE,
 		PCI_VENDOR_ID_IBM, IPR_SUBS_DEV_ID_5702, 0, 0, 0 },
 	{ PCI_VENDOR_ID_MYLEX, PCI_DEVICE_ID_IBM_GEMSTONE,

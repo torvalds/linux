@@ -1488,7 +1488,7 @@ static const struct scsi_host_template driver_template = {
 	.dma_boundary			= PAGE_SIZE - 1,
 };
 
-static struct pci_device_id stex_pci_tbl[] = {
+static const struct pci_device_id stex_pci_tbl[] = {
 	/* st_shasta */
 	{ 0x105a, 0x8350, PCI_ANY_ID, PCI_ANY_ID, 0, 0,
 		st_shasta }, /* SuperTrak EX8350/8300/16350/16300 */

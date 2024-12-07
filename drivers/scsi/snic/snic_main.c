@@ -21,7 +21,7 @@
 #define PCI_DEVICE_ID_CISCO_SNIC	0x0046
 
 /* Supported devices by snic module */
-static struct pci_device_id snic_id_table[] = {
+static const struct pci_device_id snic_id_table[] = {
 	{PCI_DEVICE(0x1137, PCI_DEVICE_ID_CISCO_SNIC) },
 	{ 0, }	/* end of table */
 };

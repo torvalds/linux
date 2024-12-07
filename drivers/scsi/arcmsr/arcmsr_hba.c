@@ -172,7 +172,7 @@ static const struct scsi_host_template arcmsr_scsi_host_template = {
 	.no_write_same		= 1,
 };
 
-static struct pci_device_id arcmsr_device_id_table[] = {
+static const struct pci_device_id arcmsr_device_id_table[] = {
 	{PCI_DEVICE(PCI_VENDOR_ID_ARECA, PCI_DEVICE_ID_ARECA_1110),
 		.driver_data = ACB_ADAPTER_TYPE_A},
 	{PCI_DEVICE(PCI_VENDOR_ID_ARECA, PCI_DEVICE_ID_ARECA_1120),

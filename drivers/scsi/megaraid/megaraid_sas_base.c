@@ -147,7 +147,7 @@ megasas_set_ld_removed_by_fw(struct megasas_instance *instance);
 /*
  * PCI ID table for all supported controllers
  */
-static struct pci_device_id megasas_pci_table[] = {
+static const struct pci_device_id megasas_pci_table[] = {
 
 	{PCI_DEVICE(PCI_VENDOR_ID_LSI_LOGIC, PCI_DEVICE_ID_LSI_SAS1064R)},
 	/* xscale IOP */
