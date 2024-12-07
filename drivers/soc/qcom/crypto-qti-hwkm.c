@@ -308,12 +308,14 @@ int crypto_qti_program_key(const struct ice_mmio_data *mmio_data,
 		offset = 0;
 #if IS_ENABLED(CONFIG_QTI_HW_KEY_MANAGER)
 		minor_version = qti_hwkm_get_reg_data(mmio_data->ice_hwkm_mmio,
-						QTI_HWKM_ICE_RG_IPCAT_VERSION, MINOR_VERSION_OFFSET,
-						MINOR_VERSION_BITS_MASK, ICE_SLAVE);
+						QTI_HWKM_ICE_RG_IPCAT_VERSION,
+						HWKM_VERSION_MINOR_REV,
+						HWKM_VERSION_MINOR_REV_MASK, ICE_SLAVE);
 
 		major_version = qti_hwkm_get_reg_data(mmio_data->ice_hwkm_mmio,
-						QTI_HWKM_ICE_RG_IPCAT_VERSION, MAJOR_VERSION_OFFSET,
-						MAJOR_VERSION_BITS_MASK, ICE_SLAVE);
+						QTI_HWKM_ICE_RG_IPCAT_VERSION,
+						HWKM_VERSION_MAJOR_REV,
+						HWKM_VERSION_MAJOR_REV_MASK, ICE_SLAVE);
 
 		pr_debug("HWKM minor version is %d.\n", minor_version);
 		pr_debug("HWKM major version is %d.\n", major_version);
