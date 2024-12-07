@@ -178,18 +178,12 @@ arm_vsmmu_alloc_domain_nested(struct iommufd_viommu *viommu, u32 flags,
 			      const struct iommu_user_data *user_data)
 {
 	struct arm_vsmmu *vsmmu = container_of(viommu, struct arm_vsmmu, core);
-	const u32 SUPPORTED_FLAGS = IOMMU_HWPT_FAULT_ID_VALID;
 	struct arm_smmu_nested_domain *nested_domain;
 	struct iommu_hwpt_arm_smmuv3 arg;
 	bool enable_ats = false;
 	int ret;
 
-	/*
-	 * Faults delivered to the nested domain are faults that originated by
-	 * the S1 in the domain. The core code will match all PASIDs when
-	 * delivering the fault due to user_pasid_table
-	 */
-	if (flags & ~SUPPORTED_FLAGS)
+	if (flags)
 		return ERR_PTR(-EOPNOTSUPP);
 
 	ret = iommu_copy_struct_from_user(&arg, user_data,
