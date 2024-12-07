@@ -13,7 +13,7 @@
 #include <linux/init.h>
 #include <linux/types.h>
 #include <linux/errno.h>
-#include <asm/byteorder.h>
+#include <linux/unaligned.h>
 
 #define SEED_NUM_KCONSTANTS	16
 #define SEED_KEY_SIZE		16
@@ -329,13 +329,12 @@ static int seed_set_key(struct crypto_tfm *tfm, const u8 *in_key,
 {
 	struct seed_ctx *ctx = crypto_tfm_ctx(tfm);
 	u32 *keyout = ctx->keysched;
-	const __be32 *key = (const __be32 *)in_key;
 	u32 i, t0, t1, x1, x2, x3, x4;
 
-	x1 = be32_to_cpu(key[0]);
-	x2 = be32_to_cpu(key[1]);
-	x3 = be32_to_cpu(key[2]);
-	x4 = be32_to_cpu(key[3]);
+	x1 = get_unaligned_be32(&in_key[0]);
+	x2 = get_unaligned_be32(&in_key[4]);
+	x3 = get_unaligned_be32(&in_key[8]);
+	x4 = get_unaligned_be32(&in_key[12]);
 
 	for (i = 0; i < SEED_NUM_KCONSTANTS; i++) {
 		t0 = x1 + x3 - KC[i];
@@ -364,15 +363,13 @@ static int seed_set_key(struct crypto_tfm *tfm, const u8 *in_key,
 static void seed_encrypt(struct crypto_tfm *tfm, u8 *out, const u8 *in)
 {
 	const struct seed_ctx *ctx = crypto_tfm_ctx(tfm);
-	const __be32 *src = (const __be32 *)in;
-	__be32 *dst = (__be32 *)out;
 	u32 x1, x2, x3, x4, t0, t1;
 	const u32 *ks = ctx->keysched;
 
-	x1 = be32_to_cpu(src[0]);
-	x2 = be32_to_cpu(src[1]);
-	x3 = be32_to_cpu(src[2]);
-	x4 = be32_to_cpu(src[3]);
+	x1 = get_unaligned_be32(&in[0]);
+	x2 = get_unaligned_be32(&in[4]);
+	x3 = get_unaligned_be32(&in[8]);
+	x4 = get_unaligned_be32(&in[12]);
 
 	OP(x1, x2, x3, x4, 0);
 	OP(x3, x4, x1, x2, 2);
@@ -391,10 +388,10 @@ static void seed_encrypt(struct crypto_tfm *tfm, u8 *out, const u8 *in)
 	OP(x1, x2, x3, x4, 28);
 	OP(x3, x4, x1, x2, 30);
 
-	dst[0] = cpu_to_be32(x3);
-	dst[1] = cpu_to_be32(x4);
-	dst[2] = cpu_to_be32(x1);
-	dst[3] = cpu_to_be32(x2);
+	put_unaligned_be32(x3, &out[0]);
+	put_unaligned_be32(x4, &out[4]);
+	put_unaligned_be32(x1, &out[8]);
+	put_unaligned_be32(x2, &out[12]);
 }
 
 /* decrypt a block of text */
@@ -402,15 +399,13 @@ static void seed_encrypt(struct crypto_tfm *tfm, u8 *out, const u8 *in)
 static void seed_decrypt(struct crypto_tfm *tfm, u8 *out, const u8 *in)
 {
 	const struct seed_ctx *ctx = crypto_tfm_ctx(tfm);
-	const __be32 *src = (const __be32 *)in;
-	__be32 *dst = (__be32 *)out;
 	u32 x1, x2, x3, x4, t0, t1;
 	const u32 *ks = ctx->keysched;
 
-	x1 = be32_to_cpu(src[0]);
-	x2 = be32_to_cpu(src[1]);
-	x3 = be32_to_cpu(src[2]);
-	x4 = be32_to_cpu(src[3]);
+	x1 = get_unaligned_be32(&in[0]);
+	x2 = get_unaligned_be32(&in[4]);
+	x3 = get_unaligned_be32(&in[8]);
+	x4 = get_unaligned_be32(&in[12]);
 
 	OP(x1, x2, x3, x4, 30);
 	OP(x3, x4, x1, x2, 28);
@@ -429,10 +424,10 @@ static void seed_decrypt(struct crypto_tfm *tfm, u8 *out, const u8 *in)
 	OP(x1, x2, x3, x4, 2);
 	OP(x3, x4, x1, x2, 0);
 
-	dst[0] = cpu_to_be32(x3);
-	dst[1] = cpu_to_be32(x4);
-	dst[2] = cpu_to_be32(x1);
-	dst[3] = cpu_to_be32(x2);
+	put_unaligned_be32(x3, &out[0]);
+	put_unaligned_be32(x4, &out[4]);
+	put_unaligned_be32(x1, &out[8]);
+	put_unaligned_be32(x2, &out[12]);
 }
 
 
@@ -443,7 +438,6 @@ static struct crypto_alg seed_alg = {
 	.cra_flags		=	CRYPTO_ALG_TYPE_CIPHER,
 	.cra_blocksize		=	SEED_BLOCK_SIZE,
 	.cra_ctxsize		=	sizeof(struct seed_ctx),
-	.cra_alignmask		=	3,
 	.cra_module		=	THIS_MODULE,
 	.cra_u			=	{
 		.cipher = {
