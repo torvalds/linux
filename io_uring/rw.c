@@ -240,7 +240,6 @@ done:
 static int io_prep_rw_setup(struct io_kiocb *req, int ddir, bool do_import)
 {
 	struct io_async_rw *rw;
-	int ret;
 
 	if (io_rw_alloc_async(req))
 		return -ENOMEM;
@@ -249,12 +248,7 @@ static int io_prep_rw_setup(struct io_kiocb *req, int ddir, bool do_import)
 		return 0;
 
 	rw = req->async_data;
-	ret = io_import_iovec(ddir, req, rw, 0);
-	if (unlikely(ret < 0))
-		return ret;
-
-	iov_iter_save_state(&rw->iter, &rw->iter_state);
-	return 0;
+	return io_import_iovec(ddir, req, rw, 0);
 }
 
 static inline void io_meta_save_state(struct io_async_rw *io)
