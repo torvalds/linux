@@ -18,7 +18,8 @@
  *     ksft_print_msg(fmt, ...);
  *     ksft_perror(msg);
  *
- * and finally report the pass/fail/skip/xfail state of the test with one of:
+ * and finally report the pass/fail/skip/xfail/xpass state of the test
+ * with one of:
  *
  *     ksft_test_result(condition, fmt, ...);
  *     ksft_test_result_report(result, fmt, ...);
@@ -26,6 +27,7 @@
  *     ksft_test_result_fail(fmt, ...);
  *     ksft_test_result_skip(fmt, ...);
  *     ksft_test_result_xfail(fmt, ...);
+ *     ksft_test_result_xpass(fmt, ...);
  *     ksft_test_result_error(fmt, ...);
  *     ksft_test_result_code(exit_code, test_name, fmt, ...);
  *
@@ -227,6 +229,20 @@ static inline __printf(1, 2) void ksft_test_result_xfail(const char *msg, ...)
 	va_end(args);
 }
 
+static inline __printf(1, 2) void ksft_test_result_xpass(const char *msg, ...)
+{
+	int saved_errno = errno;
+	va_list args;
+
+	ksft_cnt.ksft_xpass++;
+
+	va_start(args, msg);
+	printf("ok %u # XPASS ", ksft_test_num());
+	errno = saved_errno;
+	vprintf(msg, args);
+	va_end(args);
+}
+
 static inline __printf(1, 2) void ksft_test_result_skip(const char *msg, ...)
 {
 	int saved_errno = errno;
@@ -317,6 +333,9 @@ void ksft_test_result_code(int exit_code, const char *test_name,
 		break;						\
 	case KSFT_XFAIL:					\
 		ksft_test_result_xfail(fmt, ##__VA_ARGS__);	\
+		break;						\
+	case KSFT_XPASS:					\
+		ksft_test_result_xpass(fmt, ##__VA_ARGS__);	\
 		break;						\
 	case KSFT_SKIP:						\
 		ksft_test_result_skip(fmt, ##__VA_ARGS__);	\
