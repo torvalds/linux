@@ -58,7 +58,7 @@ enum bch_fsck_flags {
 	x(bset_empty,						 45,	0)		\
 	x(bset_bad_seq,						 46,	0)		\
 	x(bset_blacklisted_journal_seq,				 47,	0)		\
-	x(first_bset_blacklisted_journal_seq,			 48,	0)		\
+	x(first_bset_blacklisted_journal_seq,			 48,	FSCK_AUTOFIX)	\
 	x(btree_node_bad_btree,					 49,	0)		\
 	x(btree_node_bad_level,					 50,	0)		\
 	x(btree_node_bad_min_key,				 51,	0)		\
@@ -168,7 +168,7 @@ enum bch_fsck_flags {
 	x(ptr_to_incorrect_stripe,				151,	0)		\
 	x(ptr_gen_newer_than_bucket_gen,			152,	0)		\
 	x(ptr_too_stale,					153,	0)		\
-	x(stale_dirty_ptr,					154,	0)		\
+	x(stale_dirty_ptr,					154,	FSCK_AUTOFIX)	\
 	x(ptr_bucket_data_type_mismatch,			155,	0)		\
 	x(ptr_cached_and_erasure_coded,				156,	0)		\
 	x(ptr_crc_uncompressed_size_too_small,			157,	0)		\
