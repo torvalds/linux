@@ -240,7 +240,6 @@ static struct aead_alg crypto_aegis128_aesni_alg = {
 		.cra_blocksize = 1,
 		.cra_ctxsize = sizeof(struct aegis_ctx) +
 			       __alignof__(struct aegis_ctx),
-		.cra_alignmask = 0,
 		.cra_priority = 400,
 
 		.cra_name = "__aegis128",
