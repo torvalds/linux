@@ -92,7 +92,8 @@ out_drop:
  *
  * Should return 1 if dentry can still be trusted, else 0.
  */
-static int orangefs_d_revalidate(struct dentry *dentry, unsigned int flags)
+static int orangefs_d_revalidate(struct inode *dir, const struct qstr *name,
+				 struct dentry *dentry, unsigned int flags)
 {
 	int ret;
 	unsigned long time = (unsigned long) dentry->d_fsdata;

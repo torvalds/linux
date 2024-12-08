@@ -192,7 +192,8 @@ static void fuse_lookup_init(struct fuse_conn *fc, struct fuse_args *args,
  * the lookup once more.  If the lookup results in the same inode,
  * then refresh the attributes, timeouts and mark the dentry valid.
  */
-static int fuse_dentry_revalidate(struct dentry *entry, unsigned int flags)
+static int fuse_dentry_revalidate(struct inode *dir, const struct qstr *name,
+				  struct dentry *entry, unsigned int flags)
 {
 	struct inode *inode;
 	struct dentry *parent;

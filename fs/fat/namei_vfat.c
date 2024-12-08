@@ -53,7 +53,8 @@ static int vfat_revalidate_shortname(struct dentry *dentry)
 	return ret;
 }
 
-static int vfat_revalidate(struct dentry *dentry, unsigned int flags)
+static int vfat_revalidate(struct inode *dir, const struct qstr *name,
+			   struct dentry *dentry, unsigned int flags)
 {
 	if (flags & LOOKUP_RCU)
 		return -ECHILD;
@@ -64,7 +65,8 @@ static int vfat_revalidate(struct dentry *dentry, unsigned int flags)
 	return vfat_revalidate_shortname(dentry);
 }
 
-static int vfat_revalidate_ci(struct dentry *dentry, unsigned int flags)
+static int vfat_revalidate_ci(struct inode *dir, const struct qstr *name,
+			      struct dentry *dentry, unsigned int flags)
 {
 	if (flags & LOOKUP_RCU)
 		return -ECHILD;

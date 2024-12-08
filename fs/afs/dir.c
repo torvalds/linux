@@ -22,7 +22,8 @@ static struct dentry *afs_lookup(struct inode *dir, struct dentry *dentry,
 				 unsigned int flags);
 static int afs_dir_open(struct inode *inode, struct file *file);
 static int afs_readdir(struct file *file, struct dir_context *ctx);
-static int afs_d_revalidate(struct dentry *dentry, unsigned int flags);
+static int afs_d_revalidate(struct inode *dir, const struct qstr *name,
+			    struct dentry *dentry, unsigned int flags);
 static int afs_d_delete(const struct dentry *dentry);
 static void afs_d_iput(struct dentry *dentry, struct inode *inode);
 static bool afs_lookup_one_filldir(struct dir_context *ctx, const char *name, int nlen,
@@ -1093,7 +1094,8 @@ static int afs_d_revalidate_rcu(struct dentry *dentry)
  * - NOTE! the hit can be a negative hit too, so we can't assume we have an
  *   inode
  */
-static int afs_d_revalidate(struct dentry *dentry, unsigned int flags)
+static int afs_d_revalidate(struct inode *parent_dir, const struct qstr *name,
+			    struct dentry *dentry, unsigned int flags)
 {
 	struct afs_vnode *vnode, *dir;
 	struct afs_fid fid;

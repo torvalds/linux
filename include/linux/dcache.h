@@ -144,7 +144,8 @@ enum d_real_type {
 };
 
 struct dentry_operations {
-	int (*d_revalidate)(struct dentry *, unsigned int);
+	int (*d_revalidate)(struct inode *, const struct qstr *,
+			    struct dentry *, unsigned int);
 	int (*d_weak_revalidate)(struct dentry *, unsigned int);
 	int (*d_hash)(const struct dentry *, struct qstr *);
 	int (*d_compare)(const struct dentry *,

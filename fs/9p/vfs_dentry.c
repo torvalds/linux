@@ -61,7 +61,7 @@ static void v9fs_dentry_release(struct dentry *dentry)
 		p9_fid_put(hlist_entry(p, struct p9_fid, dlist));
 }
 
-static int v9fs_lookup_revalidate(struct dentry *dentry, unsigned int flags)
+static int __v9fs_lookup_revalidate(struct dentry *dentry, unsigned int flags)
 {
 	struct p9_fid *fid;
 	struct inode *inode;
@@ -99,9 +99,15 @@ out_valid:
 	return 1;
 }
 
+static int v9fs_lookup_revalidate(struct inode *dir, const struct qstr *name,
+				  struct dentry *dentry, unsigned int flags)
+{
+	return __v9fs_lookup_revalidate(dentry, flags);
+}
+
 const struct dentry_operations v9fs_cached_dentry_operations = {
 	.d_revalidate = v9fs_lookup_revalidate,
-	.d_weak_revalidate = v9fs_lookup_revalidate,
+	.d_weak_revalidate = __v9fs_lookup_revalidate,
 	.d_delete = v9fs_cached_dentry_delete,
 	.d_release = v9fs_dentry_release,
 };

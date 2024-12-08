@@ -31,7 +31,8 @@ static inline void exfat_d_version_set(struct dentry *dentry,
  * If it happened, the negative dentry isn't actually negative anymore.  So,
  * drop it.
  */
-static int exfat_d_revalidate(struct dentry *dentry, unsigned int flags)
+static int exfat_d_revalidate(struct inode *dir, const struct qstr *name,
+			      struct dentry *dentry, unsigned int flags)
 {
 	int ret;
 

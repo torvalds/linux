@@ -1940,7 +1940,8 @@ static int dir_lease_is_valid(struct inode *dir, struct dentry *dentry,
 /*
  * Check if cached dentry can be trusted.
  */
-static int ceph_d_revalidate(struct dentry *dentry, unsigned int flags)
+static int ceph_d_revalidate(struct inode *parent_dir, const struct qstr *name,
+			     struct dentry *dentry, unsigned int flags)
 {
 	struct ceph_mds_client *mdsc = ceph_sb_to_fs_client(dentry->d_sb)->mdsc;
 	struct ceph_client *cl = mdsc->fsc->client;
@@ -1948,7 +1949,7 @@ static int ceph_d_revalidate(struct dentry *dentry, unsigned int flags)
 	struct dentry *parent;
 	struct inode *dir, *inode;
 
-	valid = fscrypt_d_revalidate(dentry, flags);
+	valid = fscrypt_d_revalidate(parent_dir, name, dentry, flags);
 	if (valid <= 0)
 		return valid;
 
