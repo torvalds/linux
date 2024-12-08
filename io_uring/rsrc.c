@@ -675,14 +675,9 @@ bool io_check_coalesce_buffer(struct page **page_array, int nr_pages,
 	unsigned int count = 1, nr_folios = 1;
 	int i;
 
-	if (nr_pages <= 1)
-		return false;
-
 	data->nr_pages_mid = folio_nr_pages(folio);
-	if (data->nr_pages_mid == 1)
-		return false;
-
 	data->folio_shift = folio_shift(folio);
+
 	/*
 	 * Check if pages are contiguous inside a folio, and all folios have
 	 * the same page count except for the head and tail.
@@ -750,8 +745,10 @@ static struct io_rsrc_node *io_sqe_buffer_register(struct io_ring_ctx *ctx,
 	}
 
 	/* If it's huge page(s), try to coalesce them into fewer bvec entries */
-	if (io_check_coalesce_buffer(pages, nr_pages, &data))
-		coalesced = io_coalesce_buffer(&pages, &nr_pages, &data);
+	if (nr_pages > 1 && io_check_coalesce_buffer(pages, nr_pages, &data)) {
+		if (data.nr_pages_mid != 1)
+			coalesced = io_coalesce_buffer(&pages, &nr_pages, &data);
+	}
 
 	imu = kvmalloc(struct_size(imu, bvec, nr_pages), GFP_KERNEL);
 	if (!imu)
