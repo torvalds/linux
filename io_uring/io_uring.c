@@ -3211,6 +3211,7 @@ static struct io_uring_reg_wait *io_get_ext_arg_reg(struct io_ring_ctx *ctx,
 		     end > ctx->cq_wait_size))
 		return ERR_PTR(-EFAULT);
 
+	offset = array_index_nospec(offset, ctx->cq_wait_size - size);
 	return ctx->cq_wait_arg + offset;
 }
 
