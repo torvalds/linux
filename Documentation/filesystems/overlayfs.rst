@@ -156,7 +156,7 @@ A directory is made opaque by setting the xattr "trusted.overlay.opaque"
 to "y".  Where the upper filesystem contains an opaque directory, any
 directory in the lower filesystem with the same name is ignored.
 
-An opaque directory should not conntain any whiteouts, because they do not
+An opaque directory should not contain any whiteouts, because they do not
 serve any purpose.  A merge directory containing regular files with the xattr
 "trusted.overlay.whiteout", should be additionally marked by setting the xattr
 "trusted.overlay.opaque" to "x" on the merge directory itself.
