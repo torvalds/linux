@@ -39,6 +39,7 @@
 #include <linux/static_call.h>
 #include <linux/perf_event.h>
 #include <linux/execmem.h>
+#include <linux/cleanup.h>
 
 #include <asm/sections.h>
 #include <asm/cacheflush.h>
@@ -1566,14 +1567,23 @@ static int check_kprobe_address_safe(struct kprobe *p,
 	if (ret)
 		return ret;
 	jump_label_lock();
-	preempt_disable();
 
 	/* Ensure the address is in a text area, and find a module if exists. */
 	*probed_mod = NULL;
 	if (!core_kernel_text((unsigned long) p->addr)) {
+		guard(preempt)();
 		*probed_mod = __module_text_address((unsigned long) p->addr);
 		if (!(*probed_mod)) {
 			ret = -EINVAL;
+			goto out;
+		}
+
+		/*
+		 * We must hold a refcount of the probed module while updating
+		 * its code to prohibit unexpected unloading.
+		 */
+		if (unlikely(!try_module_get(*probed_mod))) {
+			ret = -ENOENT;
 			goto out;
 		}
 	}
@@ -1584,6 +1594,7 @@ static int check_kprobe_address_safe(struct kprobe *p,
 	    static_call_text_reserved(p->addr, p->addr) ||
 	    find_bug((unsigned long)p->addr) ||
 	    is_cfi_preamble_symbol((unsigned long)p->addr)) {
+		module_put(*probed_mod);
 		ret = -EINVAL;
 		goto out;
 	}
@@ -1591,28 +1602,17 @@ static int check_kprobe_address_safe(struct kprobe *p,
 	/* Get module refcount and reject __init functions for loaded modules. */
 	if (IS_ENABLED(CONFIG_MODULES) && *probed_mod) {
 		/*
-		 * We must hold a refcount of the probed module while updating
-		 * its code to prohibit unexpected unloading.
-		 */
-		if (unlikely(!try_module_get(*probed_mod))) {
-			ret = -ENOENT;
-			goto out;
-		}
-
-		/*
 		 * If the module freed '.init.text', we couldn't insert
 		 * kprobes in there.
 		 */
 		if (within_module_init((unsigned long)p->addr, *probed_mod) &&
 		    !module_is_coming(*probed_mod)) {
 			module_put(*probed_mod);
-			*probed_mod = NULL;
 			ret = -ENOENT;
 		}
 	}
 
 out:
-	preempt_enable();
 	jump_label_unlock();
 
 	return ret;
