@@ -807,10 +807,11 @@ int bch2_journal_flush(struct journal *j)
 }
 
 /*
- * bch2_journal_noflush_seq - tell the journal not to issue any flushes before
+ * bch2_journal_noflush_seq - ask the journal not to issue any flushes in the
+ * range [start, end)
  * @seq
  */
-bool bch2_journal_noflush_seq(struct journal *j, u64 seq)
+bool bch2_journal_noflush_seq(struct journal *j, u64 start, u64 end)
 {
 	struct bch_fs *c = container_of(j, struct bch_fs, journal);
 	u64 unwritten_seq;
@@ -819,15 +820,15 @@ bool bch2_journal_noflush_seq(struct journal *j, u64 seq)
 	if (!(c->sb.features & (1ULL << BCH_FEATURE_journal_no_flush)))
 		return false;
 
-	if (seq <= c->journal.flushed_seq_ondisk)
+	if (c->journal.flushed_seq_ondisk >= start)
 		return false;
 
 	spin_lock(&j->lock);
-	if (seq <= c->journal.flushed_seq_ondisk)
+	if (c->journal.flushed_seq_ondisk >= start)
 		goto out;
 
 	for (unwritten_seq = journal_last_unwritten_seq(j);
-	     unwritten_seq < seq;
+	     unwritten_seq < end;
 	     unwritten_seq++) {
 		struct journal_buf *buf = journal_seq_to_buf(j, unwritten_seq);
 

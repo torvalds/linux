@@ -953,7 +953,9 @@ int bch2_trigger_alloc(struct btree_trans *trans,
 		 */
 		if (is_empty_delta > 0) {
 			if (new_a->journal_seq == transaction_seq ||
-			    bch2_journal_noflush_seq(&c->journal, new_a->journal_seq))
+			    bch2_journal_noflush_seq(&c->journal,
+						     new_a->journal_seq,
+						     transaction_seq))
 				new_a->journal_seq = 0;
 			else {
 				new_a->journal_seq = transaction_seq;
