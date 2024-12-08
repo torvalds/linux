@@ -40,3 +40,5 @@ tmecom-intf.ko
 msm_qmp.ko
 qcom_aoss.ko
 qcom-ipcc.ko
+qcom_wdt_core.ko
+gh_virt_wdt.ko
