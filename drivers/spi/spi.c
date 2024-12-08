@@ -417,19 +417,14 @@ static int spi_probe(struct device *dev)
 	if (ret)
 		return ret;
 
-	if (is_of_node(fwnode)) {
+	if (is_of_node(fwnode))
 		spi->irq = of_irq_get(dev->of_node, 0);
-		if (spi->irq == -EPROBE_DEFER)
-			return dev_err_probe(dev, -EPROBE_DEFER, "Failed to get irq\n");
-		if (spi->irq < 0)
-			spi->irq = 0;
-	} else if (is_acpi_device_node(fwnode) && spi->irq < 0) {
+	else if (is_acpi_device_node(fwnode) && spi->irq < 0)
 		spi->irq = acpi_dev_gpio_irq_get(to_acpi_device_node(fwnode), 0);
-		if (spi->irq == -EPROBE_DEFER)
-			return -EPROBE_DEFER;
-		if (spi->irq < 0)
-			spi->irq = 0;
-	}
+	if (spi->irq == -EPROBE_DEFER)
+		return dev_err_probe(dev, spi->irq, "Failed to get irq\n");
+	if (spi->irq < 0)
+		spi->irq = 0;
 
 	ret = dev_pm_domain_attach(dev, true);
 	if (ret)
