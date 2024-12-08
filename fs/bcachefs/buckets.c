@@ -262,8 +262,6 @@ int bch2_check_fix_ptrs(struct btree_trans *trans,
 	struct printbuf buf = PRINTBUF;
 	int ret = 0;
 
-	percpu_down_read(&c->mark_lock);
-
 	bkey_for_each_ptr_decode(k.k, ptrs_c, p, entry_c) {
 		ret = bch2_check_fix_ptr(trans, k, p, entry_c, &do_update);
 		if (ret)
@@ -364,7 +362,6 @@ found:
 			bch_info(c, "new key %s", buf.buf);
 		}
 
-		percpu_up_read(&c->mark_lock);
 		struct btree_iter iter;
 		bch2_trans_node_iter_init(trans, &iter, btree, new->k.p, 0, level,
 					  BTREE_ITER_intent|BTREE_ITER_all_snapshots);
@@ -373,8 +370,6 @@ found:
 					  BTREE_UPDATE_internal_snapshot_node|
 					  BTREE_TRIGGER_norun);
 		bch2_trans_iter_exit(trans, &iter);
-		percpu_down_read(&c->mark_lock);
-
 		if (ret)
 			goto err;
 
@@ -382,7 +377,6 @@ found:
 			bch2_btree_node_update_key_early(trans, btree, level - 1, k, new);
 	}
 err:
-	percpu_up_read(&c->mark_lock);
 	printbuf_exit(&buf);
 	return ret;
 }
@@ -603,13 +597,12 @@ static int bch2_trigger_pointer(struct btree_trans *trans,
 	}
 
 	if (flags & BTREE_TRIGGER_gc) {
-		percpu_down_read(&c->mark_lock);
 		struct bucket *g = gc_bucket(ca, bucket.offset);
 		if (bch2_fs_inconsistent_on(!g, c, "reference to invalid bucket on device %u\n  %s",
 					    p.ptr.dev,
 					    (bch2_bkey_val_to_text(&buf, c, k), buf.buf))) {
 			ret = -BCH_ERR_trigger_pointer;
-			goto err_unlock;
+			goto err;
 		}
 
 		bucket_lock(g);
@@ -617,8 +610,6 @@ static int bch2_trigger_pointer(struct btree_trans *trans,
 		ret = __mark_pointer(trans, ca, k, &p, *sectors, bp.v.data_type, &new);
 		alloc_to_bucket(g, new);
 		bucket_unlock(g);
-err_unlock:
-		percpu_up_read(&c->mark_lock);
 
 		if (!ret)
 			ret = bch2_alloc_key_to_dev_counters(trans, ca, &old, &new, flags);
@@ -996,11 +987,10 @@ static int bch2_mark_metadata_bucket(struct btree_trans *trans, struct bch_dev *
 	struct bch_fs *c = trans->c;
 	int ret = 0;
 
-	percpu_down_read(&c->mark_lock);
 	struct bucket *g = gc_bucket(ca, b);
 	if (bch2_fs_inconsistent_on(!g, c, "reference to invalid bucket on device %u when marking metadata type %s",
 				    ca->dev_idx, bch2_data_type_str(data_type)))
-		goto err_unlock;
+		goto err;
 
 	bucket_lock(g);
 	struct bch_alloc_v4 old = bucket_m_to_alloc(*g);
@@ -1010,26 +1000,24 @@ static int bch2_mark_metadata_bucket(struct btree_trans *trans, struct bch_dev *
 			"different types of data in same bucket: %s, %s",
 			bch2_data_type_str(g->data_type),
 			bch2_data_type_str(data_type)))
-		goto err;
+		goto err_unlock;
 
 	if (bch2_fs_inconsistent_on((u64) g->dirty_sectors + sectors > ca->mi.bucket_size, c,
 			"bucket %u:%llu gen %u data type %s sector count overflow: %u + %u > bucket size",
 			ca->dev_idx, b, g->gen,
 			bch2_data_type_str(g->data_type ?: data_type),
 			g->dirty_sectors, sectors))
-		goto err;
+		goto err_unlock;
 
 	g->data_type = data_type;
 	g->dirty_sectors += sectors;
 	struct bch_alloc_v4 new = bucket_m_to_alloc(*g);
 	bucket_unlock(g);
-	percpu_up_read(&c->mark_lock);
 	ret = bch2_alloc_key_to_dev_counters(trans, ca, &old, &new, flags);
 	return ret;
-err:
-	bucket_unlock(g);
 err_unlock:
-	percpu_up_read(&c->mark_lock);
+	bucket_unlock(g);
+err:
 	return -BCH_ERR_metadata_bucket_inconsistency;
 }
 
@@ -1295,7 +1283,11 @@ int bch2_dev_buckets_resize(struct bch_fs *c, struct bch_dev *ca, u64 nbuckets)
 	bool resize = ca->bucket_gens != NULL;
 	int ret;
 
-	BUG_ON(resize && ca->buckets_nouse);
+	if (resize)
+		lockdep_assert_held(&c->state_lock);
+
+	if (resize && ca->buckets_nouse)
+		return -BCH_ERR_no_resize_with_buckets_nouse;
 
 	bucket_gens = kvmalloc(struct_size(bucket_gens, b, nbuckets),
 			       GFP_KERNEL|__GFP_ZERO);
@@ -1308,11 +1300,6 @@ int bch2_dev_buckets_resize(struct bch_fs *c, struct bch_dev *ca, u64 nbuckets)
 	bucket_gens->nbuckets	= nbuckets;
 	bucket_gens->nbuckets_minus_first =
 		bucket_gens->nbuckets - bucket_gens->first_bucket;
-
-	if (resize) {
-		down_write(&ca->bucket_lock);
-		percpu_down_write(&c->mark_lock);
-	}
 
 	old_bucket_gens = rcu_dereference_protected(ca->bucket_gens, 1);
 
@@ -1330,11 +1317,6 @@ int bch2_dev_buckets_resize(struct bch_fs *c, struct bch_dev *ca, u64 nbuckets)
 	bucket_gens	= old_bucket_gens;
 
 	nbuckets = ca->mi.nbuckets;
-
-	if (resize) {
-		percpu_up_write(&c->mark_lock);
-		up_write(&ca->bucket_lock);
-	}
 
 	ret = 0;
 err:

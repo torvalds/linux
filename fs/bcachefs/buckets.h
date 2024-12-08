@@ -82,16 +82,15 @@ static inline void bucket_lock(struct bucket *b)
 
 static inline struct bucket *gc_bucket(struct bch_dev *ca, size_t b)
 {
-	return genradix_ptr(&ca->buckets_gc, b);
+	return bucket_valid(ca, b)
+		? genradix_ptr(&ca->buckets_gc, b)
+		: NULL;
 }
 
 static inline struct bucket_gens *bucket_gens(struct bch_dev *ca)
 {
 	return rcu_dereference_check(ca->bucket_gens,
-				     !ca->fs ||
-				     percpu_rwsem_is_held(&ca->fs->mark_lock) ||
-				     lockdep_is_held(&ca->fs->state_lock) ||
-				     lockdep_is_held(&ca->bucket_lock));
+				     lockdep_is_held(&ca->fs->state_lock));
 }
 
 static inline u8 *bucket_gen(struct bch_dev *ca, size_t b)

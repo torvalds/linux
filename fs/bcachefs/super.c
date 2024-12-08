@@ -1311,8 +1311,6 @@ static struct bch_dev *__bch2_dev_alloc(struct bch_fs *c,
 	init_completion(&ca->ref_completion);
 	init_completion(&ca->io_ref_completion);
 
-	init_rwsem(&ca->bucket_lock);
-
 	INIT_WORK(&ca->io_error_work, bch2_io_error_work);
 
 	bch2_time_stats_quantiles_init(&ca->io_latency[READ]);

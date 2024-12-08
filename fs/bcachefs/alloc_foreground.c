@@ -107,14 +107,10 @@ void __bch2_open_bucket_put(struct bch_fs *c, struct open_bucket *ob)
 		return;
 	}
 
-	percpu_down_read(&c->mark_lock);
 	spin_lock(&ob->lock);
-
 	ob->valid = false;
 	ob->data_type = 0;
-
 	spin_unlock(&ob->lock);
-	percpu_up_read(&c->mark_lock);
 
 	spin_lock(&c->freelist_lock);
 	bch2_open_bucket_hash_remove(c, ob);
