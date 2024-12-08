@@ -139,6 +139,10 @@ static ssize_t cros_chctl_store_threshold(struct device *dev, struct cros_chctl_
 		return -EINVAL;
 
 	if (is_end_threshold) {
+		/* Start threshold is not exposed, use fixed value */
+		if (priv->cmd_version == 2)
+			priv->current_start_threshold = val == 100 ? 0 : val;
+
 		if (val < priv->current_start_threshold)
 			return -EINVAL;
 		priv->current_end_threshold = val;
@@ -234,12 +238,10 @@ static umode_t cros_chtl_attr_is_visible(struct kobject *kobj, struct attribute 
 {
 	struct cros_chctl_priv *priv = cros_chctl_attr_to_priv(attr, n);
 
-	if (priv->cmd_version < 2) {
-		if (n == CROS_CHCTL_ATTR_START_THRESHOLD)
-			return 0;
-		if (n == CROS_CHCTL_ATTR_END_THRESHOLD)
-			return 0;
-	}
+	if (n == CROS_CHCTL_ATTR_START_THRESHOLD && priv->cmd_version < 3)
+		return 0;
+	else if (n == CROS_CHCTL_ATTR_END_THRESHOLD && priv->cmd_version < 2)
+		return 0;
 
 	return attr->mode;
 }
