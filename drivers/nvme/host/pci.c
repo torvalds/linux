@@ -372,7 +372,7 @@ static bool nvme_dbbuf_update_and_check_event(u16 value, __le32 *dbbuf_db,
 		/*
 		 * Ensure that the doorbell is updated before reading the event
 		 * index from memory.  The controller needs to provide similar
-		 * ordering to ensure the envent index is updated before reading
+		 * ordering to ensure the event index is updated before reading
 		 * the doorbell.
 		 */
 		mb();
