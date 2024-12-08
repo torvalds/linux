@@ -213,16 +213,16 @@ BCH_BKEY_TYPES();
 enum bch_validate_flags {
 	BCH_VALIDATE_write		= BIT(0),
 	BCH_VALIDATE_commit		= BIT(1),
-	BCH_VALIDATE_journal		= BIT(2),
-	BCH_VALIDATE_silent		= BIT(3),
+	BCH_VALIDATE_silent		= BIT(2),
 };
 
 #define BKEY_VALIDATE_CONTEXTS()	\
 	x(unknown)			\
-	x(commit)			\
+	x(superblock)			\
 	x(journal)			\
 	x(btree_root)			\
-	x(btree_node)
+	x(btree_node)			\
+	x(commit)
 
 struct bkey_validate_context {
 	enum {
@@ -230,10 +230,12 @@ struct bkey_validate_context {
 	BKEY_VALIDATE_CONTEXTS()
 #undef x
 	}			from:8;
+	enum bch_validate_flags	flags:8;
 	u8			level;
 	enum btree_id		btree;
 	bool			root:1;
-	enum bch_validate_flags	flags:8;
+	unsigned		journal_offset;
+	u64			journal_seq;
 };
 
 #endif /* _BCACHEFS_BKEY_TYPES_H */

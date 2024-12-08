@@ -1238,6 +1238,12 @@ static int extent_ptr_validate(struct bch_fs *c,
 {
 	int ret = 0;
 
+	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
+	bkey_for_each_ptr(ptrs, ptr2)
+		bkey_fsck_err_on(ptr != ptr2 && ptr->dev == ptr2->dev,
+				 c, ptr_to_duplicate_device,
+				 "multiple pointers to same device (%u)", ptr->dev);
+
 	/* bad pointers are repaired by check_fix_ptrs(): */
 	rcu_read_lock();
 	struct bch_dev *ca = bch2_dev_rcu_noerror(c, ptr->dev);
@@ -1251,13 +1257,6 @@ static int extent_ptr_validate(struct bch_fs *c,
 	u64 nbuckets		= ca->mi.nbuckets;
 	unsigned bucket_size	= ca->mi.bucket_size;
 	rcu_read_unlock();
-
-	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
-	bkey_for_each_ptr(ptrs, ptr2)
-		bkey_fsck_err_on(ptr != ptr2 && ptr->dev == ptr2->dev,
-				 c, ptr_to_duplicate_device,
-				 "multiple pointers to same device (%u)", ptr->dev);
-
 
 	bkey_fsck_err_on(bucket >= nbuckets,
 			 c, ptr_after_last_bucket,

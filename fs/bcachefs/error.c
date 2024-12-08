@@ -486,9 +486,14 @@ int __bch2_bkey_fsck_err(struct bch_fs *c,
 		fsck_flags |= fsck_flags_extra[err];
 
 	struct printbuf buf = PRINTBUF;
-
-	prt_printf(&buf, "invalid bkey in %s btree=",
+	prt_printf(&buf, "invalid bkey in %s",
 		   bch2_bkey_validate_contexts[from.from]);
+
+	if (from.from == BKEY_VALIDATE_journal)
+		prt_printf(&buf, " journal seq=%llu offset=%u",
+			   from.journal_seq, from.journal_offset);
+
+	prt_str(&buf, " btree=");
 	bch2_btree_id_to_text(&buf, from.btree);
 	prt_printf(&buf, " level=%u: ", from.level);
 

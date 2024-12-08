@@ -23,6 +23,10 @@
 int bch2_sb_clean_validate_late(struct bch_fs *c, struct bch_sb_field_clean *clean,
 				int write)
 {
+	struct bkey_validate_context from = {
+		.flags		= write,
+		.from		= BKEY_VALIDATE_superblock,
+	};
 	struct jset_entry *entry;
 	int ret;
 
@@ -40,7 +44,7 @@ int bch2_sb_clean_validate_late(struct bch_fs *c, struct bch_sb_field_clean *cle
 		ret = bch2_journal_entry_validate(c, NULL, entry,
 						  le16_to_cpu(c->disk_sb.sb->version),
 						  BCH_SB_BIG_ENDIAN(c->disk_sb.sb),
-						  write);
+						  from);
 		if (ret)
 			return ret;
 	}
