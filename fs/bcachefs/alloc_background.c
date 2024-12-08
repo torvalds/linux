@@ -856,7 +856,10 @@ int bch2_trigger_alloc(struct btree_trans *trans,
 	if (flags & BTREE_TRIGGER_transactional) {
 		alloc_data_type_set(new_a, new_a->data_type);
 
-		if (bch2_bucket_sectors_total(*new_a) > bch2_bucket_sectors_total(*old_a)) {
+		int is_empty_delta = (int) data_type_is_empty(new_a->data_type) -
+				     (int) data_type_is_empty(old_a->data_type);
+
+		if (is_empty_delta < 0) {
 			new_a->io_time[READ] = bch2_current_io_time(c, READ);
 			new_a->io_time[WRITE]= bch2_current_io_time(c, WRITE);
 			SET_BCH_ALLOC_V4_NEED_INC_GEN(new_a, true);
