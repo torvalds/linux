@@ -367,9 +367,6 @@ static int ip5xxx_battery_get_voltage_max(struct ip5xxx *ip5xxx, int *val)
 	if (ret)
 		return ret;
 
-	if (*val > ip5xxx->vbat_max)
-		return -EINVAL;
-
 	/*
 	 * It is not clear what this will return if
 	 * IP5XXX_CHG_CTL4_BAT_TYPE_SEL_EN is not set...
@@ -503,6 +500,9 @@ static int ip5xxx_battery_set_voltage_max(struct ip5xxx *ip5xxx, int val)
 {
 	unsigned int rval;
 	int ret;
+
+	if (val > ip5xxx->vbat_max)
+		return -EINVAL;
 
 	switch (val) {
 	case 4200000:
