@@ -139,11 +139,11 @@ static ssize_t cros_chctl_store_threshold(struct device *dev, struct cros_chctl_
 		return -EINVAL;
 
 	if (is_end_threshold) {
-		if (val <= priv->current_start_threshold)
+		if (val < priv->current_start_threshold)
 			return -EINVAL;
 		priv->current_end_threshold = val;
 	} else {
-		if (val >= priv->current_end_threshold)
+		if (val > priv->current_end_threshold)
 			return -EINVAL;
 		priv->current_start_threshold = val;
 	}
