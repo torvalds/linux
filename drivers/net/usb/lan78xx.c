@@ -674,11 +674,7 @@ static int lan78xx_update_reg(struct lan78xx_net *dev, u32 reg, u32 mask,
 	buf &= ~mask;
 	buf |= (mask & data);
 
-	ret = lan78xx_write_reg(dev, reg, buf);
-	if (ret < 0)
-		return ret;
-
-	return 0;
+	return lan78xx_write_reg(dev, reg, buf);
 }
 
 static int lan78xx_read_stats(struct lan78xx_net *dev,
