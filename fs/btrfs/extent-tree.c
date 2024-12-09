@@ -2352,6 +2352,7 @@ static noinline int check_committed_ref(struct btrfs_root *root,
 	if (btrfs_fs_incompat(fs_info, SIMPLE_QUOTA) && type == BTRFS_EXTENT_OWNER_REF_KEY) {
 		expected_size += btrfs_extent_inline_ref_size(BTRFS_EXTENT_OWNER_REF_KEY);
 		iref = (struct btrfs_extent_inline_ref *)(iref + 1);
+		type = btrfs_get_extent_inline_ref_type(leaf, iref, BTRFS_REF_TYPE_DATA);
 	}
 
 	/* If extent item has more than 1 inline ref then it's shared */
@@ -2359,7 +2360,6 @@ static noinline int check_committed_ref(struct btrfs_root *root,
 		goto out;
 
 	/* If this extent has SHARED_DATA_REF then it's shared */
-	type = btrfs_get_extent_inline_ref_type(leaf, iref, BTRFS_REF_TYPE_DATA);
 	if (type != BTRFS_EXTENT_DATA_REF_KEY)
 		goto out;
 
