@@ -10723,7 +10723,10 @@ static int ath12k_mac_hw_register(struct ath12k_hw *ah)
 		if (ret)
 			goto err_cleanup_unregister;
 
-		ht_cap &= ht_cap_info;
+		/* 6 GHz does not support HT Cap, hence do not consider it */
+		if (!ar->supports_6ghz)
+			ht_cap &= ht_cap_info;
+
 		wiphy->max_ap_assoc_sta += ar->max_num_stations;
 
 		/* Advertise the max antenna support of all radios, driver can handle
@@ -10787,7 +10790,7 @@ static int ath12k_mac_hw_register(struct ath12k_hw *ah)
 	ieee80211_hw_set(hw, SUPPORTS_TX_FRAG);
 	ieee80211_hw_set(hw, REPORTS_LOW_ACK);
 
-	if ((ht_cap & WMI_HT_CAP_ENABLED) || ar->supports_6ghz) {
+	if ((ht_cap & WMI_HT_CAP_ENABLED) || is_6ghz) {
 		ieee80211_hw_set(hw, AMPDU_AGGREGATION);
 		ieee80211_hw_set(hw, TX_AMPDU_SETUP_IN_HW);
 		ieee80211_hw_set(hw, SUPPORTS_REORDERING_BUFFER);
@@ -10803,7 +10806,7 @@ static int ath12k_mac_hw_register(struct ath12k_hw *ah)
 	 * handle it when the ht capability different for each band.
 	 */
 	if (ht_cap & WMI_HT_CAP_DYNAMIC_SMPS ||
-	    (ar->supports_6ghz && ab->hw_params->supports_dynamic_smps_6ghz))
+	    (is_6ghz && ab->hw_params->supports_dynamic_smps_6ghz))
 		wiphy->features |= NL80211_FEATURE_DYNAMIC_SMPS;
 
 	wiphy->max_scan_ssids = WLAN_SCAN_PARAMS_MAX_SSID;
