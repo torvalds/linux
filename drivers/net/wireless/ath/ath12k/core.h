@@ -63,6 +63,14 @@
 #define ATH12K_RECONFIGURE_TIMEOUT_HZ		(10 * HZ)
 #define ATH12K_RECOVER_START_TIMEOUT_HZ		(20 * HZ)
 
+#define ATH12K_MAX_SOCS 3
+#define ATH12K_GROUP_MAX_RADIO (ATH12K_MAX_SOCS * MAX_RADIOS)
+#define ATH12K_INVALID_GROUP_ID  0xFF
+#define ATH12K_INVALID_DEVICE_ID 0xFF
+
+#define ATH12K_MAX_MLO_PEERS            256
+#define ATH12K_MLO_PEER_ID_INVALID      0xFFFF
+
 enum ath12k_bdf_search {
 	ATH12K_BDF_SEARCH_DEFAULT,
 	ATH12K_BDF_SEARCH_BUS_AND_BOARD,
@@ -115,6 +123,7 @@ struct ath12k_skb_cb {
 	dma_addr_t paddr_ext_desc;
 	u32 cipher;
 	u8 flags;
+	u8 link_id;
 };
 
 struct ath12k_skb_rxcb {
@@ -208,6 +217,10 @@ enum ath12k_scan_state {
 	ATH12K_SCAN_ABORTING,
 };
 
+enum ath12k_hw_group_flags {
+	ATH12K_GROUP_FLAG_REGISTERED,
+};
+
 enum ath12k_dev_flags {
 	ATH12K_CAC_RUNNING,
 	ATH12K_FLAG_CRASH_FLUSH,
@@ -220,6 +233,7 @@ enum ath12k_dev_flags {
 	ATH12K_FLAG_HTC_SUSPEND_COMPLETE,
 	ATH12K_FLAG_CE_IRQ_ENABLED,
 	ATH12K_FLAG_EXT_IRQ_ENABLED,
+	ATH12K_FLAG_QMI_FW_READY_COMPLETE,
 };
 
 struct ath12k_tx_conf {
@@ -314,10 +328,11 @@ struct ath12k_vif {
 	bool ps;
 
 	struct ath12k_link_vif deflink;
-	struct ath12k_link_vif __rcu *link[IEEE80211_MLD_MAX_NUM_LINKS];
+	struct ath12k_link_vif __rcu *link[ATH12K_NUM_MAX_LINKS];
 	struct ath12k_vif_cache *cache[IEEE80211_MLD_MAX_NUM_LINKS];
 	/* indicates bitmap of link vif created in FW */
 	u16 links_map;
+	u8 last_scan_link;
 
 	/* Must be last - ends in a flexible-array member.
 	 *
@@ -469,6 +484,9 @@ struct ath12k_link_sta {
 	struct ath12k_link_vif *arvif;
 	struct ath12k_sta *ahsta;
 
+	/* link address similar to ieee80211_link_sta */
+	u8 addr[ETH_ALEN];
+
 	/* the following are protected by ar->data_lock */
 	u32 changed; /* IEEE80211_RC_* */
 	u32 bw;
@@ -485,14 +503,26 @@ struct ath12k_link_sta {
 	struct ath12k_rx_peer_stats *rx_stats;
 	struct ath12k_wbm_tx_stats *wbm_tx_stats;
 	u32 bw_prev;
+
+	/* For now the assoc link will be considered primary */
+	bool is_assoc_link;
+
+	 /* for firmware use only */
+	u8 link_idx;
 };
 
 struct ath12k_sta {
+	struct ath12k_vif *ahvif;
 	enum hal_pn_type pn_type;
 	struct ath12k_link_sta deflink;
 	struct ath12k_link_sta __rcu *link[IEEE80211_MLD_MAX_NUM_LINKS];
 	/* indicates bitmap of link sta created in FW */
 	u16 links_map;
+	u8 assoc_link_id;
+	u16 ml_peer_id;
+	u8 num_peer;
+
+	enum ieee80211_sta_state state;
 };
 
 #define ATH12K_MIN_5G_FREQ 4150
@@ -657,7 +687,7 @@ struct ath12k {
 
 	struct work_struct regd_update_work;
 
-	struct work_struct wmi_mgmt_tx_work;
+	struct wiphy_work wmi_mgmt_tx_work;
 	struct sk_buff_head wmi_mgmt_tx_queue;
 
 	struct ath12k_wow wow;
@@ -688,6 +718,8 @@ struct ath12k {
 
 struct ath12k_hw {
 	struct ieee80211_hw *hw;
+	struct device *dev;
+
 	/* Protect the write operation of the hardware state ath12k_hw::state
 	 * between hardware start<=>reconfigure<=>stop transitions.
 	 */
@@ -697,6 +729,11 @@ struct ath12k_hw {
 	bool use_6ghz_regd;
 
 	u8 num_radio;
+
+	DECLARE_BITMAP(free_ml_peer_id_map, ATH12K_MAX_MLO_PEERS);
+
+	/* protected by wiphy_lock() */
+	struct list_head ml_peers;
 
 	/* Keep last */
 	struct ath12k radio[] __aligned(sizeof(void *));
@@ -784,19 +821,30 @@ struct ath12k_soc_dp_stats {
 	struct ath12k_soc_dp_tx_err_stats tx_err;
 };
 
-/**
- * enum ath12k_link_capable_flags - link capable flags
- *
- * Single/Multi link capability information
- *
- * @ATH12K_INTRA_DEVICE_MLO_SUPPORT: SLO/MLO form between the radio, where all
- *	the links (radios) present within a device.
- * @ATH12K_INTER_DEVICE_MLO_SUPPORT: SLO/MLO form between the radio, where all
- *	the links (radios) present across the devices.
+/* Holds info on the group of devices that are registered as a single
+ * wiphy, protected with struct ath12k_hw_group::mutex.
  */
-enum ath12k_link_capable_flags {
-	ATH12K_INTRA_DEVICE_MLO_SUPPORT	= BIT(0),
-	ATH12K_INTER_DEVICE_MLO_SUPPORT	= BIT(1),
+struct ath12k_hw_group {
+	struct list_head list;
+	u8 id;
+	u8 num_devices;
+	u8 num_probed;
+	u8 num_started;
+	unsigned long flags;
+	struct ath12k_base *ab[ATH12K_MAX_SOCS];
+
+	/* protects access to this struct */
+	struct mutex mutex;
+
+	/* Holds information of wiphy (hw) registration.
+	 *
+	 * In Multi/Single Link Operation case, all pdevs are registered as
+	 * a single wiphy. In other (legacy/Non-MLO) cases, each pdev is
+	 * registered as separate wiphys.
+	 */
+	struct ath12k_hw *ah[ATH12K_GROUP_MAX_RADIO];
+	u8 num_hw;
+	bool mlo_capable;
 };
 
 /* Master structure to hold the hw data which may be used in core module */
@@ -861,15 +909,6 @@ struct ath12k_base {
 	u8 fw_pdev_count;
 
 	struct ath12k_pdev __rcu *pdevs_active[MAX_RADIOS];
-
-	/* Holds information of wiphy (hw) registration.
-	 *
-	 * In Multi/Single Link Operation case, all pdevs are registered as
-	 * a single wiphy. In other (legacy/Non-MLO) cases, each pdev is
-	 * registered as separate wiphys.
-	 */
-	struct ath12k_hw *ah[MAX_RADIOS];
-	u8 num_hw;
 
 	struct ath12k_wmi_hal_reg_capabilities_ext_arg hal_reg_cap[MAX_RADIOS];
 	unsigned long long free_vdev_map;
@@ -964,12 +1003,8 @@ struct ath12k_base {
 
 	const struct hal_rx_ops *hal_rx_ops;
 
-	/* mlo_capable_flags denotes the single/multi link operation
-	 * capabilities of the Device.
-	 *
-	 * See enum ath12k_link_capable_flags
-	 */
-	u8 mlo_capable_flags;
+	/* Denotes the whether MLO is possible within the chip */
+	bool single_chip_mlo_supp;
 
 	struct completion restart_completed;
 
@@ -991,6 +1026,8 @@ struct ath12k_base {
 #endif /* CONFIG_ACPI */
 
 	struct notifier_block panic_nb;
+
+	struct ath12k_hw_group *ag;
 
 	/* must be last */
 	u8 drv_priv[] __aligned(sizeof(void *));
@@ -1022,12 +1059,15 @@ int ath12k_core_resume_early(struct ath12k_base *ab);
 int ath12k_core_resume(struct ath12k_base *ab);
 int ath12k_core_suspend(struct ath12k_base *ab);
 int ath12k_core_suspend_late(struct ath12k_base *ab);
+void ath12k_core_hw_group_unassign(struct ath12k_base *ab);
 
 const struct firmware *ath12k_core_firmware_request(struct ath12k_base *ab,
 						    const char *filename);
 u32 ath12k_core_get_max_station_per_radio(struct ath12k_base *ab);
 u32 ath12k_core_get_max_peers_per_radio(struct ath12k_base *ab);
 u32 ath12k_core_get_max_num_tids(struct ath12k_base *ab);
+
+void ath12k_core_hw_group_set_mlo_capable(struct ath12k_hw_group *ag);
 
 static inline const char *ath12k_scan_state_str(enum ath12k_scan_state state)
 {
@@ -1129,4 +1169,40 @@ static inline struct ieee80211_hw *ath12k_ar_to_hw(struct ath12k *ar)
 #define for_each_ar(ah, ar, index) \
 	for ((index) = 0; ((index) < (ah)->num_radio && \
 	     ((ar) = &(ah)->radio[(index)])); (index)++)
+
+static inline struct ath12k_hw *ath12k_ab_to_ah(struct ath12k_base *ab, int idx)
+{
+	return ab->ag->ah[idx];
+}
+
+static inline void ath12k_ab_set_ah(struct ath12k_base *ab, int idx,
+				    struct ath12k_hw *ah)
+{
+	ab->ag->ah[idx] = ah;
+}
+
+static inline int ath12k_get_num_hw(struct ath12k_base *ab)
+{
+	return ab->ag->num_hw;
+}
+
+static inline struct ath12k_hw_group *ath12k_ab_to_ag(struct ath12k_base *ab)
+{
+	return ab->ag;
+}
+
+static inline void ath12k_core_started(struct ath12k_base *ab)
+{
+	lockdep_assert_held(&ab->ag->mutex);
+
+	ab->ag->num_started++;
+}
+
+static inline void ath12k_core_stopped(struct ath12k_base *ab)
+{
+	lockdep_assert_held(&ab->ag->mutex);
+
+	ab->ag->num_started--;
+}
+
 #endif /* _CORE_H_ */

@@ -2149,7 +2149,7 @@ static void ath9k_set_power_network_sleep(struct ath_hw *ah)
 
 		/* When chip goes into network sleep, it could be waken
 		 * up by MCI_INT interrupt caused by BT's HW messages
-		 * (LNA_xxx, CONT_xxx) which chould be in a very fast
+		 * (LNA_xxx, CONT_xxx) which could be in a very fast
 		 * rate (~100us). This will cause chip to leave and
 		 * re-enter network sleep mode frequently, which in
 		 * consequence will have WLAN MCI HW to generate lots of
@@ -2544,7 +2544,7 @@ int ath9k_hw_fill_cap_info(struct ath_hw *ah)
 
 	pCap->tx_chainmask = ah->eep_ops->get_eeprom(ah, EEP_TX_MASK);
 	/*
-	 * For AR9271 we will temporarilly uses the rx chainmax as read from
+	 * For AR9271 we will temporarily use the rx chainmax as read from
 	 * the EEPROM.
 	 */
 	if ((ah->hw_version.devid == AR5416_DEVID_PCI) &&

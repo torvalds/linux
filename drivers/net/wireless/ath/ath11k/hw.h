@@ -227,6 +227,7 @@ struct ath11k_hw_params {
 	bool smp2p_wow_exit;
 	bool support_fw_mac_sequence;
 	bool support_dual_stations;
+	bool pdev_suspend;
 };
 
 struct ath11k_hw_ops {

@@ -79,7 +79,7 @@ static int ath9k_get_max_index_ht40(struct ath9k_dfs_fft_40 *fft,
 	const int DFS_UPPER_BIN_OFFSET = 64;
 	/* if detected radar on both channels, select the significant one */
 	if (is_ctl && is_ext) {
-		/* first check wether channels have 'strong' bins */
+		/* first check whether channels have 'strong' bins */
 		is_ctl = fft_bitmap_weight(fft->lower_bins) != 0;
 		is_ext = fft_bitmap_weight(fft->upper_bins) != 0;
 
