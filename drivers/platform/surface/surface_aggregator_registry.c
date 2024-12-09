@@ -554,7 +554,7 @@ static void ssam_platform_hub_remove(struct platform_device *pdev)
 
 static struct platform_driver ssam_platform_hub_driver = {
 	.probe = ssam_platform_hub_probe,
-	.remove_new = ssam_platform_hub_remove,
+	.remove = ssam_platform_hub_remove,
 	.driver = {
 		.name = "surface_aggregator_platform_hub",
 		.acpi_match_table = ssam_platform_hub_acpi_match,

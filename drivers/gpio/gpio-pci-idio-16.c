@@ -112,4 +112,4 @@ module_pci_driver(idio_16_driver);
 MODULE_AUTHOR("William Breathitt Gray <vilhelm.gray@gmail.com>");
 MODULE_DESCRIPTION("ACCES PCI-IDIO-16 GPIO driver");
 MODULE_LICENSE("GPL v2");
-MODULE_IMPORT_NS(GPIO_IDIO_16);
+MODULE_IMPORT_NS("GPIO_IDIO_16");

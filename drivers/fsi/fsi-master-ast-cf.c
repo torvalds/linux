@@ -1434,7 +1434,7 @@ static struct platform_driver fsi_master_acf = {
 		.of_match_table	= fsi_master_acf_match,
 	},
 	.probe	= fsi_master_acf_probe,
-	.remove_new = fsi_master_acf_remove,
+	.remove = fsi_master_acf_remove,
 };
 
 module_platform_driver(fsi_master_acf);

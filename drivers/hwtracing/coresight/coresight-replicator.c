@@ -389,7 +389,7 @@ MODULE_DEVICE_TABLE(acpi, replicator_acpi_ids);
 
 static struct platform_driver replicator_driver = {
 	.probe          = replicator_platform_probe,
-	.remove_new     = replicator_platform_remove,
+	.remove         = replicator_platform_remove,
 	.driver         = {
 		.name   = "coresight-replicator",
 		/* THIS_MODULE is taken care of by platform_driver_register() */

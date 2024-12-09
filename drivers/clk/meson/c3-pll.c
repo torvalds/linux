@@ -746,4 +746,4 @@ module_platform_driver(c3_pll_driver);
 MODULE_DESCRIPTION("Amlogic C3 PLL Clock Controller driver");
 MODULE_AUTHOR("Chuan Liu <chuan.liu@amlogic.com>");
 MODULE_LICENSE("GPL");
-MODULE_IMPORT_NS(CLK_MESON);
+MODULE_IMPORT_NS("CLK_MESON");

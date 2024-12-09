@@ -1325,5 +1325,5 @@ MODULE_AUTHOR("Bard Liao <yung-chuan.liao@linux.intel.com>");
 MODULE_AUTHOR("Rander Wang <rander.wang@linux.intel.com>");
 MODULE_AUTHOR("Pierre-Louis Bossart <pierre-louis.bossart@linux.intel.com>");
 MODULE_LICENSE("GPL v2");
-MODULE_IMPORT_NS(SND_SOC_INTEL_HDA_DSP_COMMON);
-MODULE_IMPORT_NS(SND_SOC_SDW_UTILS);
+MODULE_IMPORT_NS("SND_SOC_INTEL_HDA_DSP_COMMON");
+MODULE_IMPORT_NS("SND_SOC_SDW_UTILS");

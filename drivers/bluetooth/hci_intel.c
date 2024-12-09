@@ -1206,7 +1206,7 @@ static void intel_remove(struct platform_device *pdev)
 
 static struct platform_driver intel_driver = {
 	.probe = intel_probe,
-	.remove_new = intel_remove,
+	.remove = intel_remove,
 	.driver = {
 		.name = "hci_intel",
 		.acpi_match_table = ACPI_PTR(intel_acpi_match),

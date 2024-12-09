@@ -582,8 +582,8 @@ static struct sdw_driver cs35l56_sdw_driver = {
 module_sdw_driver(cs35l56_sdw_driver);
 
 MODULE_DESCRIPTION("ASoC CS35L56 SoundWire driver");
-MODULE_IMPORT_NS(SND_SOC_CS35L56_CORE);
-MODULE_IMPORT_NS(SND_SOC_CS35L56_SHARED);
+MODULE_IMPORT_NS("SND_SOC_CS35L56_CORE");
+MODULE_IMPORT_NS("SND_SOC_CS35L56_SHARED");
 MODULE_AUTHOR("Richard Fitzgerald <rf@opensource.cirrus.com>");
 MODULE_AUTHOR("Simon Trimmer <simont@opensource.cirrus.com>");
 MODULE_LICENSE("GPL");

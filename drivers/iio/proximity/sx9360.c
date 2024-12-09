@@ -865,4 +865,4 @@ module_i2c_driver(sx9360_driver);
 MODULE_AUTHOR("Gwendal Grignou <gwendal@chromium.org>");
 MODULE_DESCRIPTION("Driver for Semtech SX9360 proximity sensor");
 MODULE_LICENSE("GPL v2");
-MODULE_IMPORT_NS(SEMTECH_PROX);
+MODULE_IMPORT_NS("SEMTECH_PROX");

@@ -160,7 +160,7 @@ static struct spi_driver adxl367_spi_driver = {
 
 module_spi_driver(adxl367_spi_driver);
 
-MODULE_IMPORT_NS(IIO_ADXL367);
+MODULE_IMPORT_NS("IIO_ADXL367");
 MODULE_AUTHOR("Cosmin Tanislav <cosmin.tanislav@analog.com>");
 MODULE_DESCRIPTION("Analog Devices ADXL367 3-axis accelerometer SPI driver");
 MODULE_LICENSE("GPL");

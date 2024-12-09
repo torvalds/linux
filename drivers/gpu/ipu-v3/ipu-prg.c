@@ -469,7 +469,7 @@ static const struct of_device_id ipu_prg_dt_ids[] = {
 
 struct platform_driver ipu_prg_drv = {
 	.probe		= ipu_prg_probe,
-	.remove_new	= ipu_prg_remove,
+	.remove		= ipu_prg_remove,
 	.driver		= {
 		.name	= "imx-ipu-prg",
 		.pm	= &prg_pm_ops,

@@ -812,7 +812,7 @@ module_pci_driver(pci1xxxx_pci_driver);
 
 static_assert((ARRAY_SIZE(logical_to_physical_port_idx) == PCI_SUBDEVICE_ID_EFAR_PCI1XXXX_1p3 + 1));
 
-MODULE_IMPORT_NS(SERIAL_8250_PCI);
+MODULE_IMPORT_NS("SERIAL_8250_PCI");
 MODULE_DESCRIPTION("Microchip Technology Inc. PCIe to UART module");
 MODULE_AUTHOR("Kumaravel Thiagarajan <kumaravel.thiagarajan@microchip.com>");
 MODULE_AUTHOR("Tharun Kumar P <tharunkumar.pasumarthi@microchip.com>");
