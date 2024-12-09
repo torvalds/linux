@@ -32,9 +32,9 @@
 
 #define STACK_SIZE PTHREAD_STACK_MIN
 
-pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
-pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
-siginfo_t siginfo = {0};
+static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+static pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
+static siginfo_t siginfo = {0};
 
 /*
  * We need to use inline assembly instead of glibc's syscall because glibc's
