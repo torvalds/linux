@@ -2822,9 +2822,7 @@ static int lan78xx_set_features(struct net_device *netdev,
 
 	spin_unlock_irqrestore(&pdata->rfe_ctl_lock, flags);
 
-	lan78xx_write_reg(dev, RFE_CTL, pdata->rfe_ctl);
-
-	return 0;
+	return lan78xx_write_reg(dev, RFE_CTL, pdata->rfe_ctl);
 }
 
 static void lan78xx_deferred_vlan_write(struct work_struct *param)
