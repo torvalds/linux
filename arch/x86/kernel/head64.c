@@ -186,7 +186,7 @@ unsigned long __head __startup_64(unsigned long p2v_offset,
 	pgd = &RIP_REL_REF(early_top_pgt)->pgd;
 	pgd[pgd_index(__START_KERNEL_map)] += load_delta;
 
-	if (la57) {
+	if (IS_ENABLED(CONFIG_X86_5LEVEL) && la57) {
 		p4d = (p4dval_t *)&RIP_REL_REF(level4_kernel_pgt);
 		p4d[MAX_PTRS_PER_P4D - 1] += load_delta;
 
