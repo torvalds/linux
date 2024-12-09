@@ -2358,14 +2358,6 @@ static noinline int check_committed_ref(struct btrfs_root *root,
 	if (item_size != expected_size)
 		goto out;
 
-	/*
-	 * If extent created before last snapshot => it's shared unless the
-	 * snapshot has been deleted.
-	 */
-	if (btrfs_extent_generation(leaf, ei) <=
-	    btrfs_root_last_snapshot(&root->root_item))
-		goto out;
-
 	/* If this extent has SHARED_DATA_REF then it's shared */
 	type = btrfs_get_extent_inline_ref_type(leaf, iref, BTRFS_REF_TYPE_DATA);
 	if (type != BTRFS_EXTENT_DATA_REF_KEY)
