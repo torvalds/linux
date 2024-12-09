@@ -171,7 +171,7 @@ void efi_set_u64_split(u64 data, u32 *lo, u32 *hi)
  * the EFI memory map. Other related structures, e.g. x86 e820ext, need
  * to factor in this headroom requirement as well.
  */
-#define EFI_MMAP_NR_SLACK_SLOTS	8
+#define EFI_MMAP_NR_SLACK_SLOTS	32
 
 typedef struct efi_generic_dev_path efi_device_path_protocol_t;
 
