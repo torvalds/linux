@@ -2,6 +2,7 @@
 
 #include "bcachefs.h"
 #include "bkey_buf.h"
+#include "btree_cache.h"
 #include "btree_key_cache.h"
 #include "btree_update.h"
 #include "buckets.h"
@@ -1097,7 +1098,9 @@ int bch2_check_key_has_snapshot(struct btree_trans *trans,
 	if (fsck_err_on(!bch2_snapshot_equiv(c, k.k->p.snapshot),
 			trans, bkey_in_missing_snapshot,
 			"key in missing snapshot %s, delete?",
-			(bch2_bkey_val_to_text(&buf, c, k), buf.buf)))
+			(bch2_btree_id_to_text(&buf, iter->btree_id),
+			 prt_char(&buf, ' '),
+			 bch2_bkey_val_to_text(&buf, c, k), buf.buf)))
 		ret = bch2_btree_delete_at(trans, iter,
 					    BTREE_UPDATE_internal_snapshot_node) ?: 1;
 fsck_err:
