@@ -181,7 +181,6 @@ void rtnl_kfree_skbs(struct sk_buff *head, struct sk_buff *tail);
 /* Shared by rtnl_fdb_dump() and various ndo_fdb_dump() helpers. */
 struct ndo_fdb_dump_context {
 	unsigned long ifindex;
-	unsigned long pad;
 	unsigned long fdb_idx;
 };
 
