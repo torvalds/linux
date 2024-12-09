@@ -1730,29 +1730,31 @@ static int __unregister_kprobe_top(struct kprobe *p)
 	if (IS_ERR(ap))
 		return PTR_ERR(ap);
 
-	if (ap == p)
-		/*
-		 * This probe is an independent(and non-optimized) kprobe
-		 * (not an aggrprobe). Remove from the hash list.
-		 */
-		goto disarmed;
+	WARN_ON(ap != p && !kprobe_aggrprobe(ap));
 
-	/* Following process expects this probe is an aggrprobe */
-	WARN_ON(!kprobe_aggrprobe(ap));
-
-	if (list_is_singular(&ap->list) && kprobe_disarmed(ap))
+	/*
+	 * If the probe is an independent(and non-optimized) kprobe
+	 * (not an aggrprobe), the last kprobe on the aggrprobe, or
+	 * kprobe is already disarmed, just remove from the hash list.
+	 */
+	if (ap == p ||
+		(list_is_singular(&ap->list) && kprobe_disarmed(ap))) {
 		/*
 		 * !disarmed could be happen if the probe is under delayed
 		 * unoptimizing.
 		 */
-		goto disarmed;
-	else {
-		/* If disabling probe has special handlers, update aggrprobe */
-		if (p->post_handler && !kprobe_gone(p)) {
-			list_for_each_entry(list_p, &ap->list, list) {
-				if ((list_p != p) && (list_p->post_handler))
-					goto noclean;
-			}
+		hlist_del_rcu(&ap->hlist);
+		return 0;
+	}
+
+	/* If disabling probe has special handlers, update aggrprobe */
+	if (p->post_handler && !kprobe_gone(p)) {
+		list_for_each_entry(list_p, &ap->list, list) {
+			if ((list_p != p) && (list_p->post_handler))
+				break;
+		}
+		/* No other probe has post_handler */
+		if (list_entry_is_head(list_p, &ap->list, list)) {
 			/*
 			 * For the kprobe-on-ftrace case, we keep the
 			 * post_handler setting to identify this aggrprobe
@@ -1761,24 +1763,21 @@ static int __unregister_kprobe_top(struct kprobe *p)
 			if (!kprobe_ftrace(ap))
 				ap->post_handler = NULL;
 		}
-noclean:
-		/*
-		 * Remove from the aggrprobe: this path will do nothing in
-		 * __unregister_kprobe_bottom().
-		 */
-		list_del_rcu(&p->list);
-		if (!kprobe_disabled(ap) && !kprobes_all_disarmed)
-			/*
-			 * Try to optimize this probe again, because post
-			 * handler may have been changed.
-			 */
-			optimize_kprobe(ap);
 	}
+
+	/*
+	 * Remove from the aggrprobe: this path will do nothing in
+	 * __unregister_kprobe_bottom().
+	 */
+	list_del_rcu(&p->list);
+	if (!kprobe_disabled(ap) && !kprobes_all_disarmed)
+		/*
+		 * Try to optimize this probe again, because post
+		 * handler may have been changed.
+		 */
+		optimize_kprobe(ap);
 	return 0;
 
-disarmed:
-	hlist_del_rcu(&ap->hlist);
-	return 0;
 }
 
 static void __unregister_kprobe_bottom(struct kprobe *p)
