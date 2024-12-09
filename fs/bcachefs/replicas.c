@@ -66,9 +66,9 @@ void bch2_replicas_entry_to_text(struct printbuf *out,
 	prt_printf(out, "]");
 }
 
-int bch2_replicas_entry_validate(struct bch_replicas_entry_v1 *r,
-				 struct bch_sb *sb,
-				 struct printbuf *err)
+static int bch2_replicas_entry_sb_validate(struct bch_replicas_entry_v1 *r,
+					   struct bch_sb *sb,
+					   struct printbuf *err)
 {
 	if (!r->nr_devs) {
 		prt_printf(err, "no devices in entry ");
@@ -84,6 +84,34 @@ int bch2_replicas_entry_validate(struct bch_replicas_entry_v1 *r,
 	for (unsigned i = 0; i < r->nr_devs; i++)
 		if (r->devs[i] != BCH_SB_MEMBER_INVALID &&
 		    !bch2_member_exists(sb, r->devs[i])) {
+			prt_printf(err, "invalid device %u in entry ", r->devs[i]);
+			goto bad;
+		}
+
+	return 0;
+bad:
+	bch2_replicas_entry_to_text(err, r);
+	return -BCH_ERR_invalid_replicas_entry;
+}
+
+int bch2_replicas_entry_validate(struct bch_replicas_entry_v1 *r,
+				 struct bch_fs *c,
+				 struct printbuf *err)
+{
+	if (!r->nr_devs) {
+		prt_printf(err, "no devices in entry ");
+		goto bad;
+	}
+
+	if (r->nr_required > 1 &&
+	    r->nr_required >= r->nr_devs) {
+		prt_printf(err, "bad nr_required in entry ");
+		goto bad;
+	}
+
+	for (unsigned i = 0; i < r->nr_devs; i++)
+		if (r->devs[i] != BCH_SB_MEMBER_INVALID &&
+		    !bch2_dev_exists(c, r->devs[i])) {
 			prt_printf(err, "invalid device %u in entry ", r->devs[i]);
 			goto bad;
 		}
@@ -123,7 +151,7 @@ static void extent_to_replicas(struct bkey_s_c k,
 			continue;
 
 		if (!p.has_ec)
-			r->devs[r->nr_devs++] = p.ptr.dev;
+			replicas_entry_add_dev(r, p.ptr.dev);
 		else
 			r->nr_required = 0;
 	}
@@ -140,7 +168,7 @@ static void stripe_to_replicas(struct bkey_s_c k,
 	for (ptr = s.v->ptrs;
 	     ptr < s.v->ptrs + s.v->nr_blocks;
 	     ptr++)
-		r->devs[r->nr_devs++] = ptr->dev;
+		replicas_entry_add_dev(r, ptr->dev);
 }
 
 void bch2_bkey_to_replicas(struct bch_replicas_entry_v1 *e,
@@ -181,7 +209,7 @@ void bch2_devlist_to_replicas(struct bch_replicas_entry_v1 *e,
 	e->nr_required	= 1;
 
 	darray_for_each(devs, i)
-		e->devs[e->nr_devs++] = *i;
+		replicas_entry_add_dev(e, *i);
 
 	bch2_replicas_entry_sort(e);
 }
@@ -676,7 +704,7 @@ static int bch2_cpu_replicas_validate(struct bch_replicas_cpu *cpu_r,
 		struct bch_replicas_entry_v1 *e =
 			cpu_replicas_entry(cpu_r, i);
 
-		int ret = bch2_replicas_entry_validate(e, sb, err);
+		int ret = bch2_replicas_entry_sb_validate(e, sb, err);
 		if (ret)
 			return ret;
 
@@ -793,14 +821,19 @@ bool bch2_have_enough_devs(struct bch_fs *c, struct bch_devs_mask devs,
 
 		rcu_read_lock();
 		for (unsigned i = 0; i < e->nr_devs; i++) {
+			if (e->devs[i] == BCH_SB_MEMBER_INVALID) {
+				nr_failed++;
+				continue;
+			}
+
 			nr_online += test_bit(e->devs[i], devs.d);
 
-			struct bch_dev *ca = bch2_dev_rcu(c, e->devs[i]);
+			struct bch_dev *ca = bch2_dev_rcu_noerror(c, e->devs[i]);
 			nr_failed += !ca || ca->mi.state == BCH_MEMBER_STATE_failed;
 		}
 		rcu_read_unlock();
 
-		if (nr_failed == e->nr_devs)
+		if (nr_online + nr_failed == e->nr_devs)
 			continue;
 
 		if (nr_online < e->nr_required)

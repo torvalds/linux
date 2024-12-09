@@ -20,6 +20,7 @@ struct pollfd;
 struct thread_map;
 struct perf_cpu_map;
 struct record_opts;
+struct target;
 
 /*
  * State machine of bkw_mmap_state:
@@ -56,6 +57,7 @@ struct evlist {
 	bool		 enabled;
 	int		 id_pos;
 	int		 is_pos;
+	int		 nr_br_cntr;
 	u64		 combined_sample_type;
 	enum bkw_mmap_state bkw_mmap_state;
 	struct {
@@ -212,11 +214,13 @@ void evlist__enable_non_dummy(struct evlist *evlist);
 void evlist__set_selected(struct evlist *evlist, struct evsel *evsel);
 
 int evlist__create_maps(struct evlist *evlist, struct target *target);
-int evlist__apply_filters(struct evlist *evlist, struct evsel **err_evsel);
+int evlist__apply_filters(struct evlist *evlist, struct evsel **err_evsel,
+			  struct target *target);
 
 u64 __evlist__combined_sample_type(struct evlist *evlist);
 u64 evlist__combined_sample_type(struct evlist *evlist);
 u64 evlist__combined_branch_type(struct evlist *evlist);
+void evlist__update_br_cntr(struct evlist *evlist);
 bool evlist__sample_id_all(struct evlist *evlist);
 u16 evlist__id_hdr_size(struct evlist *evlist);
 
@@ -443,5 +447,6 @@ int evlist__scnprintf_evsels(struct evlist *evlist, size_t size, char *bf);
 void evlist__check_mem_load_aux(struct evlist *evlist);
 void evlist__warn_user_requested_cpus(struct evlist *evlist, const char *cpu_list);
 void evlist__uniquify_name(struct evlist *evlist);
+bool evlist__has_bpf_output(struct evlist *evlist);
 
 #endif /* __PERF_EVLIST_H */

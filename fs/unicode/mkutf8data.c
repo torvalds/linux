@@ -2230,75 +2230,6 @@ static void nfdicf_init(void)
 		file_fail(fold_name);
 }
 
-static void ignore_init(void)
-{
-	FILE *file;
-	unsigned int unichar;
-	unsigned int first;
-	unsigned int last;
-	unsigned int *um;
-	int count;
-	int ret;
-
-	if (verbose > 0)
-		printf("Parsing %s\n", prop_name);
-	file = fopen(prop_name, "r");
-	if (!file)
-		open_fail(prop_name, errno);
-	assert(file);
-	count = 0;
-	while (fgets(line, LINESIZE, file)) {
-		ret = sscanf(line, "%X..%X ; %s # ", &first, &last, buf0);
-		if (ret == 3) {
-			if (strcmp(buf0, "Default_Ignorable_Code_Point"))
-				continue;
-			if (!utf32valid(first) || !utf32valid(last))
-				line_fail(prop_name, line);
-			for (unichar = first; unichar <= last; unichar++) {
-				free(unicode_data[unichar].utf32nfdi);
-				um = malloc(sizeof(unsigned int));
-				*um = 0;
-				unicode_data[unichar].utf32nfdi = um;
-				free(unicode_data[unichar].utf32nfdicf);
-				um = malloc(sizeof(unsigned int));
-				*um = 0;
-				unicode_data[unichar].utf32nfdicf = um;
-				count++;
-			}
-			if (verbose > 1)
-				printf(" %X..%X Default_Ignorable_Code_Point\n",
-					first, last);
-			continue;
-		}
-		ret = sscanf(line, "%X ; %s # ", &unichar, buf0);
-		if (ret == 2) {
-			if (strcmp(buf0, "Default_Ignorable_Code_Point"))
-				continue;
-			if (!utf32valid(unichar))
-				line_fail(prop_name, line);
-			free(unicode_data[unichar].utf32nfdi);
-			um = malloc(sizeof(unsigned int));
-			*um = 0;
-			unicode_data[unichar].utf32nfdi = um;
-			free(unicode_data[unichar].utf32nfdicf);
-			um = malloc(sizeof(unsigned int));
-			*um = 0;
-			unicode_data[unichar].utf32nfdicf = um;
-			if (verbose > 1)
-				printf(" %X Default_Ignorable_Code_Point\n",
-					unichar);
-			count++;
-			continue;
-		}
-	}
-	fclose(file);
-
-	if (verbose > 0)
-		printf("Found %d entries\n", count);
-	if (count == 0)
-		file_fail(prop_name);
-}
-
 static void corrections_init(void)
 {
 	FILE *file;
@@ -3411,7 +3342,6 @@ int main(int argc, char *argv[])
 	ccc_init();
 	nfdi_init();
 	nfdicf_init();
-	ignore_init();
 	corrections_init();
 	hangul_decompose();
 	nfdi_decompose();

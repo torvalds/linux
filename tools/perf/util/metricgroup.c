@@ -1436,7 +1436,7 @@ err_out:
  * parse_ids - Build the event string for the ids and parse them creating an
  *             evlist. The encoded metric_ids are decoded.
  * @metric_no_merge: is metric sharing explicitly disabled.
- * @fake_pmu: used when testing metrics not supported by the current CPU.
+ * @fake_pmu: use a fake PMU when testing metrics not supported by the current CPU.
  * @ids: the event identifiers parsed from a metric.
  * @modifier: any modifiers added to the events.
  * @group_events: should events be placed in a weak group.
@@ -1444,7 +1444,7 @@ err_out:
  *               the overall list of metrics.
  * @out_evlist: the created list of events.
  */
-static int parse_ids(bool metric_no_merge, struct perf_pmu *fake_pmu,
+static int parse_ids(bool metric_no_merge, bool fake_pmu,
 		     struct expr_parse_ctx *ids, const char *modifier,
 		     bool group_events, const bool tool_events[PERF_TOOL_MAX],
 		     struct evlist **out_evlist)
@@ -1528,7 +1528,7 @@ static int parse_groups(struct evlist *perf_evlist,
 			bool metric_no_threshold,
 			const char *user_requested_cpu_list,
 			bool system_wide,
-			struct perf_pmu *fake_pmu,
+			bool fake_pmu,
 			struct rblist *metric_events_list,
 			const struct pmu_metrics_table *table)
 {
@@ -1703,7 +1703,7 @@ int metricgroup__parse_groups(struct evlist *perf_evlist,
 
 	return parse_groups(perf_evlist, pmu, str, metric_no_group, metric_no_merge,
 			    metric_no_threshold, user_requested_cpu_list, system_wide,
-			    /*fake_pmu=*/NULL, metric_events, table);
+			    /*fake_pmu=*/false, metric_events, table);
 }
 
 int metricgroup__parse_groups_test(struct evlist *evlist,
@@ -1717,7 +1717,7 @@ int metricgroup__parse_groups_test(struct evlist *evlist,
 			    /*metric_no_threshold=*/false,
 			    /*user_requested_cpu_list=*/NULL,
 			    /*system_wide=*/false,
-			    &perf_pmu__fake, metric_events, table);
+			    /*fake_pmu=*/true, metric_events, table);
 }
 
 struct metricgroup__has_metric_data {

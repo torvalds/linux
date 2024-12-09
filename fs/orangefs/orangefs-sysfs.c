@@ -904,7 +904,7 @@ static void orangefs_obj_release(struct kobject *kobj)
 	orangefs_obj = NULL;
 }
 
-static struct kobj_type orangefs_ktype = {
+static const struct kobj_type orangefs_ktype = {
 	.sysfs_ops = &orangefs_sysfs_ops,
 	.default_groups = orangefs_default_groups,
 	.release = orangefs_obj_release,
@@ -951,7 +951,7 @@ static void acache_orangefs_obj_release(struct kobject *kobj)
 	acache_orangefs_obj = NULL;
 }
 
-static struct kobj_type acache_orangefs_ktype = {
+static const struct kobj_type acache_orangefs_ktype = {
 	.sysfs_ops = &orangefs_sysfs_ops,
 	.default_groups = acache_orangefs_default_groups,
 	.release = acache_orangefs_obj_release,
@@ -998,7 +998,7 @@ static void capcache_orangefs_obj_release(struct kobject *kobj)
 	capcache_orangefs_obj = NULL;
 }
 
-static struct kobj_type capcache_orangefs_ktype = {
+static const struct kobj_type capcache_orangefs_ktype = {
 	.sysfs_ops = &orangefs_sysfs_ops,
 	.default_groups = capcache_orangefs_default_groups,
 	.release = capcache_orangefs_obj_release,
@@ -1045,7 +1045,7 @@ static void ccache_orangefs_obj_release(struct kobject *kobj)
 	ccache_orangefs_obj = NULL;
 }
 
-static struct kobj_type ccache_orangefs_ktype = {
+static const struct kobj_type ccache_orangefs_ktype = {
 	.sysfs_ops = &orangefs_sysfs_ops,
 	.default_groups = ccache_orangefs_default_groups,
 	.release = ccache_orangefs_obj_release,
@@ -1092,7 +1092,7 @@ static void ncache_orangefs_obj_release(struct kobject *kobj)
 	ncache_orangefs_obj = NULL;
 }
 
-static struct kobj_type ncache_orangefs_ktype = {
+static const struct kobj_type ncache_orangefs_ktype = {
 	.sysfs_ops = &orangefs_sysfs_ops,
 	.default_groups = ncache_orangefs_default_groups,
 	.release = ncache_orangefs_obj_release,
@@ -1132,7 +1132,7 @@ static void pc_orangefs_obj_release(struct kobject *kobj)
 	pc_orangefs_obj = NULL;
 }
 
-static struct kobj_type pc_orangefs_ktype = {
+static const struct kobj_type pc_orangefs_ktype = {
 	.sysfs_ops = &orangefs_sysfs_ops,
 	.default_groups = pc_orangefs_default_groups,
 	.release = pc_orangefs_obj_release,
@@ -1165,7 +1165,7 @@ static void stats_orangefs_obj_release(struct kobject *kobj)
 	stats_orangefs_obj = NULL;
 }
 
-static struct kobj_type stats_orangefs_ktype = {
+static const struct kobj_type stats_orangefs_ktype = {
 	.sysfs_ops = &orangefs_sysfs_ops,
 	.default_groups = stats_orangefs_default_groups,
 	.release = stats_orangefs_obj_release,

@@ -2,7 +2,6 @@
 //
 // Copyright 2024 Advanced Micro Devices, Inc.
 
-
 #ifndef __DML2_PMO_DCN3_H__
 #define __DML2_PMO_DCN3_H__
 

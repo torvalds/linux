@@ -166,6 +166,9 @@ __printf(1, 2) __cold int _printk_deferred(const char *fmt, ...);
 extern void __printk_deferred_enter(void);
 extern void __printk_deferred_exit(void);
 
+extern void printk_force_console_enter(void);
+extern void printk_force_console_exit(void);
+
 /*
  * The printk_deferred_enter/exit macros are available only as a hack for
  * some code paths that need to defer all printk console printing. Interrupts
@@ -226,6 +229,14 @@ static inline void printk_deferred_enter(void)
 }
 
 static inline void printk_deferred_exit(void)
+{
+}
+
+static inline void printk_force_console_enter(void)
+{
+}
+
+static inline void printk_force_console_exit(void)
 {
 }
 

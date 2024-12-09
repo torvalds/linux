@@ -24,7 +24,7 @@
 #include <linux/pm_wakeirq.h>
 #include <linux/regulator/consumer.h>
 #include <linux/slab.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 /* Slave I2C mode */
 #define RM_BOOT_BLDR		0x02

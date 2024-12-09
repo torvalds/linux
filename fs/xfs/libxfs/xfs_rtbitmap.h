@@ -87,24 +87,6 @@ xfs_rtb_to_rtxoff(
 }
 
 /*
- * Crack an rt block number into an rt extent number and an offset within that
- * rt extent.  Returns the rt extent number directly and the offset in @off.
- */
-static inline xfs_rtxnum_t
-xfs_rtb_to_rtxrem(
-	struct xfs_mount	*mp,
-	xfs_rtblock_t		rtbno,
-	xfs_extlen_t		*off)
-{
-	if (likely(mp->m_rtxblklog >= 0)) {
-		*off = rtbno & mp->m_rtxblkmask;
-		return rtbno >> mp->m_rtxblklog;
-	}
-
-	return div_u64_rem(rtbno, mp->m_sb.sb_rextsize, off);
-}
-
-/*
  * Convert an rt block number into an rt extent number, rounding up to the next
  * rt extent if the rt block is not aligned to an rt extent boundary.
  */
@@ -293,30 +275,12 @@ typedef int (*xfs_rtalloc_query_range_fn)(
 
 #ifdef CONFIG_XFS_RT
 void xfs_rtbuf_cache_relse(struct xfs_rtalloc_args *args);
-
-int xfs_rtbuf_get(struct xfs_rtalloc_args *args, xfs_fileoff_t block,
-		int issum);
-
-static inline int
-xfs_rtbitmap_read_buf(
-	struct xfs_rtalloc_args		*args,
-	xfs_fileoff_t			block)
-{
-	return xfs_rtbuf_get(args, block, 0);
-}
-
-static inline int
-xfs_rtsummary_read_buf(
-	struct xfs_rtalloc_args		*args,
-	xfs_fileoff_t			block)
-{
-	return xfs_rtbuf_get(args, block, 1);
-}
-
+int xfs_rtbitmap_read_buf(struct xfs_rtalloc_args *args, xfs_fileoff_t block);
+int xfs_rtsummary_read_buf(struct xfs_rtalloc_args *args, xfs_fileoff_t block);
 int xfs_rtcheck_range(struct xfs_rtalloc_args *args, xfs_rtxnum_t start,
 		xfs_rtxlen_t len, int val, xfs_rtxnum_t *new, int *stat);
 int xfs_rtfind_back(struct xfs_rtalloc_args *args, xfs_rtxnum_t start,
-		xfs_rtxnum_t limit, xfs_rtxnum_t *rtblock);
+		xfs_rtxnum_t *rtblock);
 int xfs_rtfind_forw(struct xfs_rtalloc_args *args, xfs_rtxnum_t start,
 		xfs_rtxnum_t limit, xfs_rtxnum_t *rtblock);
 int xfs_rtmodify_range(struct xfs_rtalloc_args *args, xfs_rtxnum_t start,
@@ -328,8 +292,7 @@ int xfs_rtmodify_summary(struct xfs_rtalloc_args *args, int log,
 int xfs_rtfree_range(struct xfs_rtalloc_args *args, xfs_rtxnum_t start,
 		xfs_rtxlen_t len);
 int xfs_rtalloc_query_range(struct xfs_mount *mp, struct xfs_trans *tp,
-		const struct xfs_rtalloc_rec *low_rec,
-		const struct xfs_rtalloc_rec *high_rec,
+		xfs_rtxnum_t start, xfs_rtxnum_t end,
 		xfs_rtalloc_query_range_fn fn, void *priv);
 int xfs_rtalloc_query_all(struct xfs_mount *mp, struct xfs_trans *tp,
 			  xfs_rtalloc_query_range_fn fn,
@@ -353,16 +316,15 @@ int xfs_rtfree_blocks(struct xfs_trans *tp, xfs_fsblock_t rtbno,
 
 xfs_filblks_t xfs_rtbitmap_blockcount(struct xfs_mount *mp, xfs_rtbxlen_t
 		rtextents);
-unsigned long long xfs_rtbitmap_wordcount(struct xfs_mount *mp,
-		xfs_rtbxlen_t rtextents);
-
 xfs_filblks_t xfs_rtsummary_blockcount(struct xfs_mount *mp,
 		unsigned int rsumlevels, xfs_extlen_t rbmblocks);
-unsigned long long xfs_rtsummary_wordcount(struct xfs_mount *mp,
-		unsigned int rsumlevels, xfs_extlen_t rbmblocks);
 
-void xfs_rtbitmap_lock(struct xfs_trans *tp, struct xfs_mount *mp);
+int xfs_rtfile_initialize_blocks(struct xfs_inode *ip,
+		xfs_fileoff_t offset_fsb, xfs_fileoff_t end_fsb, void *data);
+
+void xfs_rtbitmap_lock(struct xfs_mount *mp);
 void xfs_rtbitmap_unlock(struct xfs_mount *mp);
+void xfs_rtbitmap_trans_join(struct xfs_trans *tp);
 
 /* Lock the rt bitmap inode in shared mode */
 #define XFS_RBMLOCK_BITMAP	(1U << 0)
@@ -388,10 +350,9 @@ xfs_rtbitmap_blockcount(struct xfs_mount *mp, xfs_rtbxlen_t rtextents)
 	/* shut up gcc */
 	return 0;
 }
-# define xfs_rtbitmap_wordcount(mp, r)			(0)
 # define xfs_rtsummary_blockcount(mp, l, b)		(0)
-# define xfs_rtsummary_wordcount(mp, l, b)		(0)
-# define xfs_rtbitmap_lock(tp, mp)		do { } while (0)
+# define xfs_rtbitmap_lock(mp)			do { } while (0)
+# define xfs_rtbitmap_trans_join(tp)		do { } while (0)
 # define xfs_rtbitmap_unlock(mp)		do { } while (0)
 # define xfs_rtbitmap_lock_shared(mp, lf)	do { } while (0)
 # define xfs_rtbitmap_unlock_shared(mp, lf)	do { } while (0)

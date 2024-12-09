@@ -644,8 +644,8 @@ static int acpi_sbs_add(struct acpi_device *device)
 
 	sbs->hc = acpi_driver_data(acpi_dev_parent(device));
 	sbs->device = device;
-	strcpy(acpi_device_name(device), ACPI_SBS_DEVICE_NAME);
-	strcpy(acpi_device_class(device), ACPI_SBS_CLASS);
+	strscpy(acpi_device_name(device), ACPI_SBS_DEVICE_NAME);
+	strscpy(acpi_device_class(device), ACPI_SBS_CLASS);
 	device->driver_data = sbs;
 
 	result = acpi_charger_add(sbs);

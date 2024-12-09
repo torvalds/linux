@@ -29,7 +29,7 @@
 static int
 corec57d_init(struct nv50_core *core)
 {
-	struct nvif_push *push = core->chan.push;
+	struct nvif_push *push = &core->chan.push;
 	const u32 windows = 8; /*XXX*/
 	int ret, i;
 

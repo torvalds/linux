@@ -1823,6 +1823,7 @@ static bool i9xx_has_pps(struct drm_i915_private *dev_priv)
 
 void i9xx_enable_pll(const struct intel_crtc_state *crtc_state)
 {
+	struct intel_display *display = to_intel_display(crtc_state);
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	const struct i9xx_dpll_hw_state *hw_state = &crtc_state->dpll_hw_state.i9xx;
@@ -1833,7 +1834,7 @@ void i9xx_enable_pll(const struct intel_crtc_state *crtc_state)
 
 	/* PLL is protected by panel, make sure we can write it */
 	if (i9xx_has_pps(dev_priv))
-		assert_pps_unlocked(dev_priv, pipe);
+		assert_pps_unlocked(display, pipe);
 
 	intel_de_write(dev_priv, FP0(pipe), hw_state->fp0);
 	intel_de_write(dev_priv, FP1(pipe), hw_state->fp1);
@@ -2004,6 +2005,7 @@ static void _vlv_enable_pll(const struct intel_crtc_state *crtc_state)
 
 void vlv_enable_pll(const struct intel_crtc_state *crtc_state)
 {
+	struct intel_display *display = to_intel_display(crtc_state);
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	const struct i9xx_dpll_hw_state *hw_state = &crtc_state->dpll_hw_state.i9xx;
@@ -2012,7 +2014,7 @@ void vlv_enable_pll(const struct intel_crtc_state *crtc_state)
 	assert_transcoder_disabled(dev_priv, crtc_state->cpu_transcoder);
 
 	/* PLL is protected by panel, make sure we can write it */
-	assert_pps_unlocked(dev_priv, pipe);
+	assert_pps_unlocked(display, pipe);
 
 	/* Enable Refclk */
 	intel_de_write(dev_priv, DPLL(dev_priv, pipe),
@@ -2150,6 +2152,7 @@ static void _chv_enable_pll(const struct intel_crtc_state *crtc_state)
 
 void chv_enable_pll(const struct intel_crtc_state *crtc_state)
 {
+	struct intel_display *display = to_intel_display(crtc_state);
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	const struct i9xx_dpll_hw_state *hw_state = &crtc_state->dpll_hw_state.i9xx;
@@ -2158,7 +2161,7 @@ void chv_enable_pll(const struct intel_crtc_state *crtc_state)
 	assert_transcoder_disabled(dev_priv, crtc_state->cpu_transcoder);
 
 	/* PLL is protected by panel, make sure we can write it */
-	assert_pps_unlocked(dev_priv, pipe);
+	assert_pps_unlocked(display, pipe);
 
 	/* Enable Refclk and SSC */
 	intel_de_write(dev_priv, DPLL(dev_priv, pipe),

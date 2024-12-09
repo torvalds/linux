@@ -15,10 +15,7 @@
 
 // Load and save register values with pauses for ptrace
 //
-// x0 - SVE in use
-// x1 - SME in use
-// x2 - SME2 in use
-// x3 - FA64 supported
+// x0 - HAVE_ flags indicating which features are in use
 
 .globl load_and_save
 load_and_save:
@@ -44,7 +41,7 @@ load_and_save:
 	ldp	q30, q31, [x7, #16 * 30]
 
 	// SME?
-	cbz	x1, check_sve_in
+	tbz	x0, #HAVE_SME_SHIFT, check_sve_in
 
 	adrp	x7, svcr_in
 	ldr	x7, [x7, :lo12:svcr_in]
@@ -64,7 +61,7 @@ load_and_save:
 	bne	1b
 
 	// ZT?
-	cbz	x2, check_sm_in
+	tbz	x0, #HAVE_SME2_SHIFT, check_sm_in
 	adrp	x6, zt_in
 	add	x6, x6, :lo12:zt_in
 	_ldr_zt 6
@@ -72,12 +69,14 @@ load_and_save:
 	// In streaming mode?
 check_sm_in:
 	tbz	x7, #SVCR_SM_SHIFT, check_sve_in
-	mov	x4, x3		// Load FFR if we have FA64
+
+	// Load FFR if we have FA64
+	ubfx	x4, x0, #HAVE_FA64_SHIFT, #1
 	b	load_sve
 
 	// SVE?
 check_sve_in:
-	cbz	x0, wait_for_writes
+	tbz	x0, #HAVE_SVE_SHIFT, check_fpmr_in
 	mov	x4, #1
 
 load_sve:
@@ -142,6 +141,13 @@ load_sve:
 	ldr	p14, [x7, #14, MUL VL]
 	ldr	p15, [x7, #15, MUL VL]
 
+	// This has to come after we set PSTATE.SM
+check_fpmr_in:
+	tbz	x0, #HAVE_FPMR_SHIFT, wait_for_writes
+	adrp	x7, fpmr_in
+	ldr	x7, [x7, :lo12:fpmr_in]
+	msr	REG_FPMR, x7
+
 wait_for_writes:
 	// Wait for the parent
 	brk #0
@@ -165,8 +171,13 @@ wait_for_writes:
 	stp	q28, q29, [x7, #16 * 28]
 	stp	q30, q31, [x7, #16 * 30]
 
-	// SME?
-	cbz	x1, check_sve_out
+	tbz	x0, #HAVE_FPMR_SHIFT, check_sme_out
+	mrs	x7, REG_FPMR
+	adrp	x6, fpmr_out
+	str	x7, [x6, :lo12:fpmr_out]
+
+check_sme_out:
+	tbz	x0, #HAVE_SME_SHIFT, check_sve_out
 
 	rdsvl	11, 1
 	adrp	x6, sme_vl_out
@@ -187,7 +198,7 @@ wait_for_writes:
 	bne	1b
 
 	// ZT?
-	cbz	x2, check_sm_out
+	tbz	x0, #HAVE_SME2_SHIFT, check_sm_out
 	adrp	x6, zt_out
 	add	x6, x6, :lo12:zt_out
 	_str_zt 6
@@ -195,12 +206,14 @@ wait_for_writes:
 	// In streaming mode?
 check_sm_out:
 	tbz	x7, #SVCR_SM_SHIFT, check_sve_out
-	mov	x4, x3				// FFR?
+
+	// Do we have FA64 and FFR?
+	ubfx	x4, x0, #HAVE_FA64_SHIFT, #1
 	b	read_sve
 
 	// SVE?
 check_sve_out:
-	cbz	x0, wait_for_reads
+	tbz	x0, #HAVE_SVE_SHIFT, wait_for_reads
 	mov	x4, #1
 
 	rdvl	x7, #1
@@ -271,7 +284,7 @@ wait_for_reads:
 	brk #0
 
 	// Ensure we don't leave ourselves in streaming mode
-	cbz	x1, out
+	tbz	x0, #HAVE_SME_SHIFT, out
 	msr	S3_3_C4_C2_2, xzr
 
 out:

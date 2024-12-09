@@ -3501,11 +3501,13 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	if (IS_QLA8031(ha) || IS_MCTP_CAPABLE(ha)) {
 		sprintf(wq_name, "qla2xxx_%lu_dpc_lp_wq", base_vha->host_no);
-		ha->dpc_lp_wq = create_singlethread_workqueue(wq_name);
+		ha->dpc_lp_wq =
+			alloc_ordered_workqueue("%s", WQ_MEM_RECLAIM, wq_name);
 		INIT_WORK(&ha->idc_aen, qla83xx_service_idc_aen);
 
 		sprintf(wq_name, "qla2xxx_%lu_dpc_hp_wq", base_vha->host_no);
-		ha->dpc_hp_wq = create_singlethread_workqueue(wq_name);
+		ha->dpc_hp_wq =
+			alloc_ordered_workqueue("%s", WQ_MEM_RECLAIM, wq_name);
 		INIT_WORK(&ha->nic_core_reset, qla83xx_nic_core_reset_work);
 		INIT_WORK(&ha->idc_state_handler,
 		    qla83xx_idc_state_handler_work);

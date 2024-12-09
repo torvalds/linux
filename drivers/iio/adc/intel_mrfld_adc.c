@@ -25,7 +25,7 @@
 #include <linux/iio/iio.h>
 #include <linux/iio/machine.h>
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #define BCOVE_GPADCREQ			0xDC
 #define BCOVE_GPADCREQ_BUSY		BIT(0)

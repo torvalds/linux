@@ -34,6 +34,7 @@
 #include <linux/uaccess.h>
 #include <linux/hugetlb.h>
 #include <linux/kfence.h>
+#include <linux/pagewalk.h>
 #include <asm/asm-extable.h>
 #include <asm/asm-offsets.h>
 #include <asm/ptrace.h>
@@ -44,12 +45,6 @@
 #include <asm/facility.h>
 #include <asm/uv.h>
 #include "../kernel/entry.h"
-
-enum fault_type {
-	KERNEL_FAULT,
-	USER_FAULT,
-	GMAP_FAULT,
-};
 
 static DEFINE_STATIC_KEY_FALSE(have_store_indication);
 
@@ -64,28 +59,15 @@ early_initcall(fault_init);
 /*
  * Find out which address space caused the exception.
  */
-static enum fault_type get_fault_type(struct pt_regs *regs)
+static bool is_kernel_fault(struct pt_regs *regs)
 {
 	union teid teid = { .val = regs->int_parm_long };
-	struct gmap *gmap;
 
-	if (likely(teid.as == PSW_BITS_AS_PRIMARY)) {
-		if (user_mode(regs))
-			return USER_FAULT;
-		if (!IS_ENABLED(CONFIG_PGSTE))
-			return KERNEL_FAULT;
-		gmap = (struct gmap *)get_lowcore()->gmap;
-		if (gmap && gmap->asce == regs->cr1)
-			return GMAP_FAULT;
-		return KERNEL_FAULT;
-	}
+	if (user_mode(regs))
+		return false;
 	if (teid.as == PSW_BITS_AS_SECONDARY)
-		return USER_FAULT;
-	/* Access register mode, not used in the kernel */
-	if (teid.as == PSW_BITS_AS_ACCREG)
-		return USER_FAULT;
-	/* Home space -> access via kernel ASCE */
-	return KERNEL_FAULT;
+		return false;
+	return true;
 }
 
 static unsigned long get_fault_address(struct pt_regs *regs)
@@ -146,7 +128,7 @@ static void dump_pagetable(unsigned long asce, unsigned long address)
 			goto out;
 		table = __va(entry & _SEGMENT_ENTRY_ORIGIN);
 	}
-	table += (address & _PAGE_INDEX) >> _PAGE_SHIFT;
+	table += (address & _PAGE_INDEX) >> PAGE_SHIFT;
 	if (get_kernel_nofault(entry, table))
 		goto bad;
 	pr_cont("P:%016lx ", entry);
@@ -180,21 +162,12 @@ static void dump_fault_info(struct pt_regs *regs)
 		break;
 	}
 	pr_cont("mode while using ");
-	switch (get_fault_type(regs)) {
-	case USER_FAULT:
-		asce = get_lowcore()->user_asce.val;
-		pr_cont("user ");
-		break;
-	case GMAP_FAULT:
-		asce = ((struct gmap *)get_lowcore()->gmap)->asce;
-		pr_cont("gmap ");
-		break;
-	case KERNEL_FAULT:
+	if (is_kernel_fault(regs)) {
 		asce = get_lowcore()->kernel_asce.val;
 		pr_cont("kernel ");
-		break;
-	default:
-		unreachable();
+	} else {
+		asce = get_lowcore()->user_asce.val;
+		pr_cont("user ");
 	}
 	pr_cont("ASCE.\n");
 	dump_pagetable(asce, get_fault_address(regs));
@@ -229,7 +202,6 @@ static void do_sigsegv(struct pt_regs *regs, int si_code)
 
 static void handle_fault_error_nolock(struct pt_regs *regs, int si_code)
 {
-	enum fault_type fault_type;
 	unsigned long address;
 	bool is_write;
 
@@ -240,17 +212,15 @@ static void handle_fault_error_nolock(struct pt_regs *regs, int si_code)
 	}
 	if (fixup_exception(regs))
 		return;
-	fault_type = get_fault_type(regs);
-	if (fault_type == KERNEL_FAULT) {
+	if (is_kernel_fault(regs)) {
 		address = get_fault_address(regs);
 		is_write = fault_is_write(regs);
 		if (kfence_handle_page_fault(address, is_write, regs))
 			return;
-	}
-	if (fault_type == KERNEL_FAULT)
 		pr_alert("Unable to handle kernel pointer dereference in virtual kernel address space\n");
-	else
+	} else {
 		pr_alert("Unable to handle kernel paging request in virtual user address space\n");
+	}
 	dump_fault_info(regs);
 	die(regs, "Oops");
 }
@@ -284,9 +254,7 @@ static void do_exception(struct pt_regs *regs, int access)
 	struct vm_area_struct *vma;
 	unsigned long address;
 	struct mm_struct *mm;
-	enum fault_type type;
 	unsigned int flags;
-	struct gmap *gmap;
 	vm_fault_t fault;
 	bool is_write;
 
@@ -300,16 +268,8 @@ static void do_exception(struct pt_regs *regs, int access)
 	mm = current->mm;
 	address = get_fault_address(regs);
 	is_write = fault_is_write(regs);
-	type = get_fault_type(regs);
-	switch (type) {
-	case KERNEL_FAULT:
+	if (is_kernel_fault(regs) || faulthandler_disabled() || !mm)
 		return handle_fault_error_nolock(regs, 0);
-	case USER_FAULT:
-	case GMAP_FAULT:
-		if (faulthandler_disabled() || !mm)
-			return handle_fault_error_nolock(regs, 0);
-		break;
-	}
 	perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS, 1, regs, address);
 	flags = FAULT_FLAG_DEFAULT;
 	if (user_mode(regs))
@@ -333,14 +293,11 @@ static void do_exception(struct pt_regs *regs, int access)
 		vma_end_read(vma);
 	if (!(fault & VM_FAULT_RETRY)) {
 		count_vm_vma_lock_event(VMA_LOCK_SUCCESS);
-		if (unlikely(fault & VM_FAULT_ERROR))
-			goto error;
-		return;
+		goto done;
 	}
 	count_vm_vma_lock_event(VMA_LOCK_RETRY);
 	if (fault & VM_FAULT_MAJOR)
 		flags |= FAULT_FLAG_TRIED;
-
 	/* Quick path to respond to signals */
 	if (fault_signal_pending(fault, regs)) {
 		if (!user_mode(regs))
@@ -348,81 +305,29 @@ static void do_exception(struct pt_regs *regs, int access)
 		return;
 	}
 lock_mmap:
-	mmap_read_lock(mm);
-	gmap = NULL;
-	if (IS_ENABLED(CONFIG_PGSTE) && type == GMAP_FAULT) {
-		gmap = (struct gmap *)get_lowcore()->gmap;
-		current->thread.gmap_addr = address;
-		current->thread.gmap_write_flag = !!(flags & FAULT_FLAG_WRITE);
-		current->thread.gmap_int_code = regs->int_code & 0xffff;
-		address = __gmap_translate(gmap, address);
-		if (address == -EFAULT)
-			return handle_fault_error(regs, SEGV_MAPERR);
-		if (gmap->pfault_enabled)
-			flags |= FAULT_FLAG_RETRY_NOWAIT;
-	}
 retry:
-	vma = find_vma(mm, address);
+	vma = lock_mm_and_find_vma(mm, address, regs);
 	if (!vma)
-		return handle_fault_error(regs, SEGV_MAPERR);
-	if (unlikely(vma->vm_start > address)) {
-		if (!(vma->vm_flags & VM_GROWSDOWN))
-			return handle_fault_error(regs, SEGV_MAPERR);
-		vma = expand_stack(mm, address);
-		if (!vma)
-			return handle_fault_error_nolock(regs, SEGV_MAPERR);
-	}
+		return handle_fault_error_nolock(regs, SEGV_MAPERR);
 	if (unlikely(!(vma->vm_flags & access)))
 		return handle_fault_error(regs, SEGV_ACCERR);
 	fault = handle_mm_fault(vma, address, flags, regs);
 	if (fault_signal_pending(fault, regs)) {
-		if (flags & FAULT_FLAG_RETRY_NOWAIT)
-			mmap_read_unlock(mm);
 		if (!user_mode(regs))
 			handle_fault_error_nolock(regs, 0);
 		return;
 	}
 	/* The fault is fully completed (including releasing mmap lock) */
-	if (fault & VM_FAULT_COMPLETED) {
-		if (gmap) {
-			mmap_read_lock(mm);
-			goto gmap;
-		}
+	if (fault & VM_FAULT_COMPLETED)
 		return;
-	}
-	if (unlikely(fault & VM_FAULT_ERROR)) {
-		mmap_read_unlock(mm);
-		goto error;
-	}
 	if (fault & VM_FAULT_RETRY) {
-		if (IS_ENABLED(CONFIG_PGSTE) && gmap &&	(flags & FAULT_FLAG_RETRY_NOWAIT)) {
-			/*
-			 * FAULT_FLAG_RETRY_NOWAIT has been set,
-			 * mmap_lock has not been released
-			 */
-			current->thread.gmap_pfault = 1;
-			return handle_fault_error(regs, 0);
-		}
-		flags &= ~FAULT_FLAG_RETRY_NOWAIT;
 		flags |= FAULT_FLAG_TRIED;
-		mmap_read_lock(mm);
 		goto retry;
 	}
-gmap:
-	if (IS_ENABLED(CONFIG_PGSTE) && gmap) {
-		address =  __gmap_link(gmap, current->thread.gmap_addr,
-				       address);
-		if (address == -EFAULT)
-			return handle_fault_error(regs, SEGV_MAPERR);
-		if (address == -ENOMEM) {
-			fault = VM_FAULT_OOM;
-			mmap_read_unlock(mm);
-			goto error;
-		}
-	}
 	mmap_read_unlock(mm);
-	return;
-error:
+done:
+	if (!(fault & VM_FAULT_ERROR))
+		return;
 	if (fault & VM_FAULT_OOM) {
 		if (!user_mode(regs))
 			handle_fault_error_nolock(regs, 0);
@@ -492,10 +397,9 @@ void do_secure_storage_access(struct pt_regs *regs)
 	union teid teid = { .val = regs->int_parm_long };
 	unsigned long addr = get_fault_address(regs);
 	struct vm_area_struct *vma;
+	struct folio_walk fw;
 	struct mm_struct *mm;
 	struct folio *folio;
-	struct page *page;
-	struct gmap *gmap;
 	int rc;
 
 	/*
@@ -520,82 +424,35 @@ void do_secure_storage_access(struct pt_regs *regs)
 		 */
 		panic("Unexpected PGM 0x3d with TEID bit 61=0");
 	}
-	switch (get_fault_type(regs)) {
-	case GMAP_FAULT:
-		mm = current->mm;
-		gmap = (struct gmap *)get_lowcore()->gmap;
-		mmap_read_lock(mm);
-		addr = __gmap_translate(gmap, addr);
-		mmap_read_unlock(mm);
-		if (IS_ERR_VALUE(addr))
-			return handle_fault_error_nolock(regs, SEGV_MAPERR);
-		fallthrough;
-	case USER_FAULT:
+	if (is_kernel_fault(regs)) {
+		folio = phys_to_folio(addr);
+		if (unlikely(!folio_try_get(folio)))
+			return;
+		rc = arch_make_folio_accessible(folio);
+		folio_put(folio);
+		if (rc)
+			BUG();
+	} else {
 		mm = current->mm;
 		mmap_read_lock(mm);
 		vma = find_vma(mm, addr);
 		if (!vma)
 			return handle_fault_error(regs, SEGV_MAPERR);
-		page = follow_page(vma, addr, FOLL_WRITE | FOLL_GET);
-		if (IS_ERR_OR_NULL(page)) {
+		folio = folio_walk_start(&fw, vma, addr, 0);
+		if (!folio) {
 			mmap_read_unlock(mm);
-			break;
+			return;
 		}
-		folio = page_folio(page);
-		if (arch_make_folio_accessible(folio))
-			send_sig(SIGSEGV, current, 0);
-		folio_put(folio);
-		mmap_read_unlock(mm);
-		break;
-	case KERNEL_FAULT:
-		folio = phys_to_folio(addr);
-		if (unlikely(!folio_try_get(folio)))
-			break;
+		/* arch_make_folio_accessible() needs a raised refcount. */
+		folio_get(folio);
 		rc = arch_make_folio_accessible(folio);
 		folio_put(folio);
+		folio_walk_end(&fw, vma);
 		if (rc)
-			BUG();
-		break;
-	default:
-		unreachable();
+			send_sig(SIGSEGV, current, 0);
+		mmap_read_unlock(mm);
 	}
 }
 NOKPROBE_SYMBOL(do_secure_storage_access);
-
-void do_non_secure_storage_access(struct pt_regs *regs)
-{
-	struct gmap *gmap = (struct gmap *)get_lowcore()->gmap;
-	unsigned long gaddr = get_fault_address(regs);
-
-	if (WARN_ON_ONCE(get_fault_type(regs) != GMAP_FAULT))
-		return handle_fault_error_nolock(regs, SEGV_MAPERR);
-	if (gmap_convert_to_secure(gmap, gaddr) == -EINVAL)
-		send_sig(SIGSEGV, current, 0);
-}
-NOKPROBE_SYMBOL(do_non_secure_storage_access);
-
-void do_secure_storage_violation(struct pt_regs *regs)
-{
-	struct gmap *gmap = (struct gmap *)get_lowcore()->gmap;
-	unsigned long gaddr = get_fault_address(regs);
-
-	/*
-	 * If the VM has been rebooted, its address space might still contain
-	 * secure pages from the previous boot.
-	 * Clear the page so it can be reused.
-	 */
-	if (!gmap_destroy_page(gmap, gaddr))
-		return;
-	/*
-	 * Either KVM messed up the secure guest mapping or the same
-	 * page is mapped into multiple secure guests.
-	 *
-	 * This exception is only triggered when a guest 2 is running
-	 * and can therefore never occur in kernel context.
-	 */
-	pr_warn_ratelimited("Secure storage violation in task: %s, pid %d\n",
-			    current->comm, current->pid);
-	send_sig(SIGSEGV, current, 0);
-}
 
 #endif /* CONFIG_PGSTE */

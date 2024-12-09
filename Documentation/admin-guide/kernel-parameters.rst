@@ -27,6 +27,16 @@ kernel command line (/proc/cmdline) and collects module parameters
 when it loads a module, so the kernel command line can be used for
 loadable modules too.
 
+This document may not be entirely up to date and comprehensive. The command
+"modinfo -p ${modulename}" shows a current list of all parameters of a loadable
+module. Loadable modules, after being loaded into the running kernel, also
+reveal their parameters in /sys/module/${modulename}/parameters/. Some of these
+parameters may be changed at runtime by the command
+``echo -n ${value} > /sys/module/${modulename}/parameters/${parm}``.
+
+Special handling
+----------------
+
 Hyphens (dashes) and underscores are equivalent in parameter names, so::
 
 	log_buf_len=1M print-fatal-signals=1
@@ -39,8 +49,8 @@ Double-quotes can be used to protect spaces in values, e.g.::
 
 	param="spaces in here"
 
-cpu lists:
-----------
+cpu lists
+~~~~~~~~~
 
 Some kernel parameters take a list of CPUs as a value, e.g.  isolcpus,
 nohz_full, irqaffinity, rcu_nocbs.  The format of this list is:
@@ -82,12 +92,17 @@ so that "nohz_full=all" is the equivalent of "nohz_full=0-N".
 The semantics of "N" and "all" is supported on a level of bitmaps and holds for
 all users of bitmap_parselist().
 
-This document may not be entirely up to date and comprehensive. The command
-"modinfo -p ${modulename}" shows a current list of all parameters of a loadable
-module. Loadable modules, after being loaded into the running kernel, also
-reveal their parameters in /sys/module/${modulename}/parameters/. Some of these
-parameters may be changed at runtime by the command
-``echo -n ${value} > /sys/module/${modulename}/parameters/${parm}``.
+Metric suffixes
+~~~~~~~~~~~~~~~
+
+The [KMG] suffix is commonly described after a number of kernel
+parameter values. 'K', 'M', 'G', 'T', 'P', and 'E' suffixes are allowed.
+These letters represent the _binary_ multipliers 'Kilo', 'Mega', 'Giga',
+'Tera', 'Peta', and 'Exa', equaling 2^10, 2^20, 2^30, 2^40, 2^50, and
+2^60 bytes respectively. Such letter suffixes can also be entirely omitted.
+
+Kernel Build Options
+--------------------
 
 The parameters listed below are only valid if certain kernel build options
 were enabled and if respective hardware is present. This list should be kept
@@ -210,11 +225,6 @@ complete command line (parameters including spaces etc.) is limited to
 a fixed number of characters. This limit depends on the architecture
 and is between 256 and 4096 characters. It is defined in the file
 ./include/uapi/asm-generic/setup.h as COMMAND_LINE_SIZE.
-
-Finally, the [KMG] suffix is commonly described after a number of kernel
-parameter values. These 'K', 'M', and 'G' letters represent the _binary_
-multipliers 'Kilo', 'Mega', and 'Giga', equaling 2^10, 2^20, and 2^30
-bytes respectively. Such letter suffixes can also be entirely omitted:
 
 .. include:: kernel-parameters.txt
    :literal:

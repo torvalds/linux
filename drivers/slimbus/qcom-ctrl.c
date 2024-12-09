@@ -330,7 +330,8 @@ static int qcom_xfer_msg(struct slim_controller *sctrl,
 	void *pbuf = slim_alloc_txbuf(ctrl, txn, &done);
 	unsigned long ms = txn->rl + HZ;
 	u8 *puc;
-	int ret = 0, timeout, retries = QCOM_BUF_ALLOC_RETRIES;
+	int ret = 0, retries = QCOM_BUF_ALLOC_RETRIES;
+	unsigned long time_left;
 	u8 la = txn->la;
 	u32 *head;
 	/* HW expects length field to be excluded */
@@ -374,9 +375,9 @@ static int qcom_xfer_msg(struct slim_controller *sctrl,
 		memcpy(puc, txn->msg->wbuf, txn->msg->num_bytes);
 
 	qcom_slim_queue_tx(ctrl, head, txn->rl, MGR_TX_MSG);
-	timeout = wait_for_completion_timeout(&done, msecs_to_jiffies(ms));
+	time_left = wait_for_completion_timeout(&done, msecs_to_jiffies(ms));
 
-	if (!timeout) {
+	if (!time_left) {
 		dev_err(ctrl->dev, "TX timed out:MC:0x%x,mt:0x%x", txn->mc,
 					txn->mt);
 		ret = -ETIMEDOUT;

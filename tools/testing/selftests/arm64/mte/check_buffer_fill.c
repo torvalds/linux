@@ -91,7 +91,7 @@ static int check_buffer_underflow_by_byte(int mem_type, int mode,
 		for (j = 0; j < sizes[i]; j++) {
 			if (ptr[j] != '1') {
 				err = true;
-				ksft_print_msg("Buffer is not filled at index:%d of ptr:0x%lx\n",
+				ksft_print_msg("Buffer is not filled at index:%d of ptr:0x%p\n",
 						j, ptr);
 				break;
 			}
@@ -189,7 +189,7 @@ static int check_buffer_overflow_by_byte(int mem_type, int mode,
 		for (j = 0; j < sizes[i]; j++) {
 			if (ptr[j] != '1') {
 				err = true;
-				ksft_print_msg("Buffer is not filled at index:%d of ptr:0x%lx\n",
+				ksft_print_msg("Buffer is not filled at index:%d of ptr:0x%p\n",
 						j, ptr);
 				break;
 			}

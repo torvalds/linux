@@ -92,8 +92,8 @@ struct gb_camera_ops {
 			unsigned int *flags, struct gb_camera_stream *streams,
 			struct gb_camera_csi_params *csi_params);
 	int (*capture)(void *priv, u32 request_id,
-			unsigned int streams, unsigned int num_frames,
-			size_t settings_size, const void *settings);
+		       unsigned int streams, unsigned int num_frames,
+		       size_t settings_size, const void *settings);
 	int (*flush)(void *priv, u32 *request_id);
 };
 

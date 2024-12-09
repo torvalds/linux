@@ -8,6 +8,73 @@
 #include "processor.h"
 #include "hyperv.h"
 
+const struct kvm_cpuid2 *kvm_get_supported_hv_cpuid(void)
+{
+	static struct kvm_cpuid2 *cpuid;
+	int kvm_fd;
+
+	if (cpuid)
+		return cpuid;
+
+	cpuid = allocate_kvm_cpuid2(MAX_NR_CPUID_ENTRIES);
+	kvm_fd = open_kvm_dev_path_or_exit();
+
+	kvm_ioctl(kvm_fd, KVM_GET_SUPPORTED_HV_CPUID, cpuid);
+
+	close(kvm_fd);
+	return cpuid;
+}
+
+void vcpu_set_hv_cpuid(struct kvm_vcpu *vcpu)
+{
+	static struct kvm_cpuid2 *cpuid_full;
+	const struct kvm_cpuid2 *cpuid_sys, *cpuid_hv;
+	int i, nent = 0;
+
+	if (!cpuid_full) {
+		cpuid_sys = kvm_get_supported_cpuid();
+		cpuid_hv = kvm_get_supported_hv_cpuid();
+
+		cpuid_full = allocate_kvm_cpuid2(cpuid_sys->nent + cpuid_hv->nent);
+		if (!cpuid_full) {
+			perror("malloc");
+			abort();
+		}
+
+		/* Need to skip KVM CPUID leaves 0x400000xx */
+		for (i = 0; i < cpuid_sys->nent; i++) {
+			if (cpuid_sys->entries[i].function >= 0x40000000 &&
+			    cpuid_sys->entries[i].function < 0x40000100)
+				continue;
+			cpuid_full->entries[nent] = cpuid_sys->entries[i];
+			nent++;
+		}
+
+		memcpy(&cpuid_full->entries[nent], cpuid_hv->entries,
+		       cpuid_hv->nent * sizeof(struct kvm_cpuid_entry2));
+		cpuid_full->nent = nent + cpuid_hv->nent;
+	}
+
+	vcpu_init_cpuid(vcpu, cpuid_full);
+}
+
+const struct kvm_cpuid2 *vcpu_get_supported_hv_cpuid(struct kvm_vcpu *vcpu)
+{
+	struct kvm_cpuid2 *cpuid = allocate_kvm_cpuid2(MAX_NR_CPUID_ENTRIES);
+
+	vcpu_ioctl(vcpu, KVM_GET_SUPPORTED_HV_CPUID, cpuid);
+
+	return cpuid;
+}
+
+bool kvm_hv_cpu_has(struct kvm_x86_cpu_feature feature)
+{
+	if (!kvm_has_cap(KVM_CAP_SYS_HYPERV_CPUID))
+		return false;
+
+	return kvm_cpuid_has(kvm_get_supported_hv_cpuid(), feature);
+}
+
 struct hyperv_test_pages *vcpu_alloc_hyperv_test_pages(struct kvm_vm *vm,
 						       vm_vaddr_t *p_hv_pages_gva)
 {

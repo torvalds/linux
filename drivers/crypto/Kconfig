@@ -21,7 +21,7 @@ config CRYPTO_DEV_PADLOCK
 	  (so called VIA PadLock ACE, Advanced Cryptography Engine)
 	  that provides instructions for very fast cryptographic
 	  operations with supported algorithms.
-	  
+
 	  The instructions are used only when the CPU supports them.
 	  Otherwise software encryption is used.
 
@@ -78,18 +78,100 @@ config ZCRYPT
 config PKEY
 	tristate "Kernel API for protected key handling"
 	depends on S390
-	depends on ZCRYPT
 	help
-	  With this option enabled the pkey kernel module provides an API
+	  With this option enabled the pkey kernel modules provide an API
 	  for creation and handling of protected keys. Other parts of the
 	  kernel or userspace applications may use these functions.
 
-	  Select this option if you want to enable the kernel and userspace
-	  API for proteced key handling.
+	  The protected key support is distributed into:
+	  - A pkey base and API kernel module (pkey.ko) which offers the
+	    infrastructure for the pkey handler kernel modules, the ioctl
+	    and the sysfs API and the in-kernel API to the crypto cipher
+	    implementations using protected key.
+	  - A pkey pckmo kernel module (pkey-pckmo.ko) which is automatically
+	    loaded when pckmo support (that is generation of protected keys
+	    from clear key values) is available.
+	  - A pkey CCA kernel module (pkey-cca.ko) which is automatically
+	    loaded when a CEX crypto card is available.
+	  - A pkey EP11 kernel module (pkey-ep11.ko) which is automatically
+	    loaded when a CEX crypto card is available.
+	  - A pkey UV kernel module (pkey-uv.ko) which is automatically
+	    loaded when the Ultravisor feature is available within a
+	    protected execution environment.
 
-	  Please note that creation of protected keys from secure keys
-	  requires to have at least one CEX card in coprocessor mode
-	  available at runtime.
+	  Select this option if you want to enable the kernel and userspace
+	  API for protected key handling.
+
+config PKEY_CCA
+	tristate "PKEY CCA support handler"
+	depends on PKEY
+	depends on ZCRYPT
+	help
+	  This is the CCA support handler for deriving protected keys
+	  from CCA (secure) keys. Also this handler provides an alternate
+	  way to make protected keys from clear key values.
+
+	  The PKEY CCA support handler needs a Crypto Express card (CEX)
+	  in CCA mode.
+
+	  If you have selected the PKEY option then you should also enable
+	  this option unless you are sure you never need to derive protected
+	  keys from CCA key material.
+
+config PKEY_EP11
+	tristate "PKEY EP11 support handler"
+	depends on PKEY
+	depends on ZCRYPT
+	help
+	  This is the EP11 support handler for deriving protected keys
+	  from EP11 (secure) keys. Also this handler provides an alternate
+	  way to make protected keys from clear key values.
+
+	  The PKEY EP11 support handler needs a Crypto Express card (CEX)
+	  in EP11 mode.
+
+	  If you have selected the PKEY option then you should also enable
+	  this option unless you are sure you never need to derive protected
+	  keys from EP11 key material.
+
+config PKEY_PCKMO
+	tristate "PKEY PCKMO support handler"
+	depends on PKEY
+	help
+	  This is the PCKMO support handler for deriving protected keys
+	  from clear key values via invoking the PCKMO instruction.
+
+	  The PCKMO instruction can be enabled and disabled in the crypto
+	  settings at the LPAR profile. This handler checks for availability
+	  during initialization and if build as a kernel module unloads
+	  itself if PCKMO is disabled.
+
+	  The PCKMO way of deriving protected keys from clear key material
+	  is especially used during self test of protected key ciphers like
+	  PAES but the CCA and EP11 handler provide alternate ways to
+	  generate protected keys from clear key values.
+
+	  If you have selected the PKEY option then you should also enable
+	  this option unless you are sure you never need to derive protected
+	  keys from clear key values directly via PCKMO.
+
+config PKEY_UV
+	tristate "PKEY UV support handler"
+	depends on PKEY
+	depends on S390_UV_UAPI
+	help
+	  This is the PKEY Ultravisor support handler for deriving protected
+	  keys from secrets stored within the Ultravisor (UV).
+
+	  This module works together with the UV device and supports the
+	  retrieval of protected keys from secrets stored within the
+	  UV firmware layer. This service is only available within
+	  a protected execution guest and thus this module will fail upon
+	  modprobe if no protected execution environment is detected.
+
+	  Enable this option if you intend to run this kernel with an KVM
+	  guest with protected execution and you want to use UV retrievable
+	  secrets via PKEY API.
 
 config CRYPTO_PAES_S390
 	tristate "PAES cipher algorithms"

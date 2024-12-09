@@ -212,6 +212,15 @@ OPTIONS for 'perf sched timehist'
 --state::
 	Show task state when it switched out.
 
+--show-prio::
+	Show task priority.
+
+--prio::
+	Only show events for given task priority(ies). Multiple priorities can be
+	provided as a comma-separated list with no spaces: 0,120. Ranges of
+	priorities are specified with -: 120-129. A combination of both can also be
+	provided: 0,120-129.
+
 OPTIONS for 'perf sched replay'
 ------------------------------
 

@@ -996,7 +996,7 @@ static struct platform_driver smmu_pmu_driver = {
 		.suppress_bind_attrs = true,
 	},
 	.probe = smmu_pmu_probe,
-	.remove_new = smmu_pmu_remove,
+	.remove = smmu_pmu_remove,
 	.shutdown = smmu_pmu_shutdown,
 };
 

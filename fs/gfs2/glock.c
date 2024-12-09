@@ -34,7 +34,6 @@
 #include <linux/lockref.h>
 #include <linux/rhashtable.h>
 #include <linux/pid_namespace.h>
-#include <linux/fdtable.h>
 #include <linux/file.h>
 
 #include "gfs2.h"
@@ -1885,14 +1884,16 @@ void gfs2_glock_dq_m(unsigned int num_gh, struct gfs2_holder *ghs)
 void gfs2_glock_cb(struct gfs2_glock *gl, unsigned int state)
 {
 	unsigned long delay = 0;
-	unsigned long holdtime;
-	unsigned long now = jiffies;
 
 	gfs2_glock_hold(gl);
 	spin_lock(&gl->gl_lockref.lock);
-	holdtime = gl->gl_tchange + gl->gl_hold_time;
 	if (!list_empty(&gl->gl_holders) &&
 	    gl->gl_name.ln_type == LM_TYPE_INODE) {
+		unsigned long now = jiffies;
+		unsigned long holdtime;
+
+		holdtime = gl->gl_tchange + gl->gl_hold_time;
+
 		if (time_before(now, holdtime))
 			delay = holdtime - now;
 		if (test_bit(GLF_HAVE_REPLY, &gl->gl_flags))
@@ -2249,6 +2250,7 @@ void gfs2_gl_hash_clear(struct gfs2_sbd *sdp)
 	gfs2_free_dead_glocks(sdp);
 	glock_hash_walk(dump_glock_func, sdp);
 	destroy_workqueue(sdp->sd_glock_wq);
+	sdp->sd_glock_wq = NULL;
 }
 
 static const char *state2str(unsigned state)
@@ -2765,25 +2767,18 @@ static struct file *gfs2_glockfd_next_file(struct gfs2_glockfd_iter *i)
 		i->file = NULL;
 	}
 
-	rcu_read_lock();
 	for(;; i->fd++) {
-		struct inode *inode;
-
-		i->file = task_lookup_next_fdget_rcu(i->task, &i->fd);
+		i->file = fget_task_next(i->task, &i->fd);
 		if (!i->file) {
 			i->fd = 0;
 			break;
 		}
 
-		inode = file_inode(i->file);
-		if (inode->i_sb == i->sb)
+		if (file_inode(i->file)->i_sb == i->sb)
 			break;
 
-		rcu_read_unlock();
 		fput(i->file);
-		rcu_read_lock();
 	}
-	rcu_read_unlock();
 	return i->file;
 }
 

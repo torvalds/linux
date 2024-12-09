@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
-#include <linux/module.h>
 #include <linux/i2c.h>
+#include <linux/module.h>
 #include <linux/regmap.h>
 
 #include "bmp280.h"

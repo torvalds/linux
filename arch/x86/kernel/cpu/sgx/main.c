@@ -901,19 +901,15 @@ static struct miscdevice sgx_dev_provision = {
 int sgx_set_attribute(unsigned long *allowed_attributes,
 		      unsigned int attribute_fd)
 {
-	struct fd f = fdget(attribute_fd);
+	CLASS(fd, f)(attribute_fd);
 
-	if (!f.file)
+	if (fd_empty(f))
 		return -EINVAL;
 
-	if (f.file->f_op != &sgx_provision_fops) {
-		fdput(f);
+	if (fd_file(f)->f_op != &sgx_provision_fops)
 		return -EINVAL;
-	}
 
 	*allowed_attributes |= SGX_ATTR_PROVISIONKEY;
-
-	fdput(f);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(sgx_set_attribute);

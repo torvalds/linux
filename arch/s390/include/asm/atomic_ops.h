@@ -9,6 +9,7 @@
 #define __ARCH_S390_ATOMIC_OPS__
 
 #include <linux/limits.h>
+#include <asm/march.h>
 
 static __always_inline int __atomic_read(const atomic_t *v)
 {
@@ -56,7 +57,7 @@ static __always_inline void __atomic64_set(atomic64_t *v, s64 i)
 	}
 }
 
-#ifdef CONFIG_HAVE_MARCH_Z196_FEATURES
+#ifdef MARCH_HAS_Z196_FEATURES
 
 #define __ATOMIC_OP(op_name, op_type, op_string, op_barrier)		\
 static __always_inline op_type op_name(op_type val, op_type *ptr)	\
@@ -107,7 +108,7 @@ __ATOMIC_CONST_OPS(__atomic64_add_const, long, "agsi")
 #undef __ATOMIC_CONST_OPS
 #undef __ATOMIC_CONST_OP
 
-#else /* CONFIG_HAVE_MARCH_Z196_FEATURES */
+#else /* MARCH_HAS_Z196_FEATURES */
 
 #define __ATOMIC_OP(op_name, op_string)					\
 static __always_inline int op_name(int val, int *ptr)			\
@@ -166,81 +167,6 @@ __ATOMIC64_OPS(__atomic64_xor, "xgr")
 #define __atomic64_add_const(val, ptr)		__atomic64_add(val, ptr)
 #define __atomic64_add_const_barrier(val, ptr)	__atomic64_add(val, ptr)
 
-#endif /* CONFIG_HAVE_MARCH_Z196_FEATURES */
-
-static __always_inline int __atomic_cmpxchg(int *ptr, int old, int new)
-{
-	asm volatile(
-		"	cs	%[old],%[new],%[ptr]"
-		: [old] "+d" (old), [ptr] "+Q" (*ptr)
-		: [new] "d" (new)
-		: "cc", "memory");
-	return old;
-}
-
-static __always_inline long __atomic64_cmpxchg(long *ptr, long old, long new)
-{
-	asm volatile(
-		"	csg	%[old],%[new],%[ptr]"
-		: [old] "+d" (old), [ptr] "+QS" (*ptr)
-		: [new] "d" (new)
-		: "cc", "memory");
-	return old;
-}
-
-/* GCC versions before 14.2.0 may die with an ICE in some configurations. */
-#if defined(__GCC_ASM_FLAG_OUTPUTS__) && !(IS_ENABLED(CONFIG_CC_IS_GCC) && (GCC_VERSION < 140200))
-
-static __always_inline bool __atomic_cmpxchg_bool(int *ptr, int old, int new)
-{
-	int cc;
-
-	asm volatile(
-		"	cs	%[old],%[new],%[ptr]"
-		: [old] "+d" (old), [ptr] "+Q" (*ptr), "=@cc" (cc)
-		: [new] "d" (new)
-		: "memory");
-	return cc == 0;
-}
-
-static __always_inline bool __atomic64_cmpxchg_bool(long *ptr, long old, long new)
-{
-	int cc;
-
-	asm volatile(
-		"	csg	%[old],%[new],%[ptr]"
-		: [old] "+d" (old), [ptr] "+QS" (*ptr), "=@cc" (cc)
-		: [new] "d" (new)
-		: "memory");
-	return cc == 0;
-}
-
-#else /* __GCC_ASM_FLAG_OUTPUTS__ */
-
-static __always_inline bool __atomic_cmpxchg_bool(int *ptr, int old, int new)
-{
-	int old_expected = old;
-
-	asm volatile(
-		"	cs	%[old],%[new],%[ptr]"
-		: [old] "+d" (old), [ptr] "+Q" (*ptr)
-		: [new] "d" (new)
-		: "cc", "memory");
-	return old == old_expected;
-}
-
-static __always_inline bool __atomic64_cmpxchg_bool(long *ptr, long old, long new)
-{
-	long old_expected = old;
-
-	asm volatile(
-		"	csg	%[old],%[new],%[ptr]"
-		: [old] "+d" (old), [ptr] "+QS" (*ptr)
-		: [new] "d" (new)
-		: "cc", "memory");
-	return old == old_expected;
-}
-
-#endif /* __GCC_ASM_FLAG_OUTPUTS__ */
+#endif /* MARCH_HAS_Z196_FEATURES */
 
 #endif /* __ARCH_S390_ATOMIC_OPS__  */

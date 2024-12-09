@@ -1595,6 +1595,9 @@ xfs_reflink_clear_inode_flag(
 
 	ASSERT(xfs_is_reflink_inode(ip));
 
+	if (!xfs_can_free_cowblocks(ip))
+		return 0;
+
 	error = xfs_reflink_inode_has_shared_extents(*tpp, ip, &needs_flag);
 	if (error || needs_flag)
 		return error;

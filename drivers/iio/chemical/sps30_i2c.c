@@ -6,7 +6,7 @@
  *
  * I2C slave address: 0x69
  */
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <linux/crc8.h>
 #include <linux/delay.h>
 #include <linux/device.h>

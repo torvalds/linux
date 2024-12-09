@@ -28,6 +28,32 @@ struct ti_sci_proc {
 	u8 host_id;
 };
 
+static inline
+struct ti_sci_proc *ti_sci_proc_of_get_tsp(struct device *dev,
+					   const struct ti_sci_handle *sci)
+{
+	struct ti_sci_proc *tsp;
+	u32 temp[2];
+	int ret;
+
+	ret = of_property_read_u32_array(dev_of_node(dev), "ti,sci-proc-ids",
+					 temp, 2);
+	if (ret < 0)
+		return ERR_PTR(ret);
+
+	tsp = devm_kzalloc(dev, sizeof(*tsp), GFP_KERNEL);
+	if (!tsp)
+		return ERR_PTR(-ENOMEM);
+
+	tsp->dev = dev;
+	tsp->sci = sci;
+	tsp->ops = &sci->ops.proc_ops;
+	tsp->proc_id = temp[0];
+	tsp->host_id = temp[1];
+
+	return tsp;
+}
+
 static inline int ti_sci_proc_request(struct ti_sci_proc *tsp)
 {
 	int ret;

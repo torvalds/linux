@@ -93,9 +93,6 @@ static int set_var(struct fbtft_par *par)
 {
 	if (par->fbtftops.init_display != init_display) {
 		/* don't risk messing up register 11h */
-		fbtft_par_dbg(DEBUG_INIT_DISPLAY, par,
-			      "%s: skipping since custom init_display() is used\n",
-			      __func__);
 		return 0;
 	}
 

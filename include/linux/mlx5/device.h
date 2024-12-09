@@ -211,6 +211,7 @@ enum {
 enum {
 	MLX5_PFAULT_SUBTYPE_WQE = 0,
 	MLX5_PFAULT_SUBTYPE_RDMA = 1,
+	MLX5_PFAULT_SUBTYPE_MEMORY = 2,
 };
 
 enum wqe_page_fault_type {
@@ -370,6 +371,7 @@ enum mlx5_driver_event {
 	MLX5_DRIVER_EVENT_SF_PEER_DEVLINK,
 	MLX5_DRIVER_EVENT_AFFILIATION_DONE,
 	MLX5_DRIVER_EVENT_AFFILIATION_REMOVED,
+	MLX5_DRIVER_EVENT_ACTIVE_BACKUP_LAG_CHANGE_LOWERSTATE,
 };
 
 enum {
@@ -646,10 +648,11 @@ struct mlx5_eqe_page_req {
 	__be32		rsvd1[5];
 };
 
+#define MEMORY_SCHEME_PAGE_FAULT_GRANULARITY 4096
 struct mlx5_eqe_page_fault {
-	__be32 bytes_committed;
 	union {
 		struct {
+			__be32  bytes_committed;
 			u16     reserved1;
 			__be16  wqe_index;
 			u16	reserved2;
@@ -659,6 +662,7 @@ struct mlx5_eqe_page_fault {
 			__be32  pftype_wq;
 		} __packed wqe;
 		struct {
+			__be32  bytes_committed;
 			__be32  r_key;
 			u16	reserved1;
 			__be16  packet_length;
@@ -666,6 +670,23 @@ struct mlx5_eqe_page_fault {
 			__be64  rdma_va;
 			__be32  pftype_token;
 		} __packed rdma;
+		struct {
+			u8      flags;
+			u8      reserved1;
+			__be16  post_demand_fault_pages;
+			__be16  pre_demand_fault_pages;
+			__be16  token47_32;
+			__be32  token31_0;
+			/*
+			 * FW changed from specifying the fault size in byte
+			 * count to 4k pages granularity. The size specified
+			 * in pages uses bits 31:12, to keep backward
+			 * compatibility.
+			 */
+			__be32 demand_fault_pages;
+			__be32  mkey;
+			__be64  va;
+		} __packed memory;
 	} __packed;
 } __packed;
 
@@ -1369,6 +1390,14 @@ enum mlx5_qcam_feature_groups {
 
 #define MLX5_CAP_ODP(mdev, cap)\
 	MLX5_GET(odp_cap, mdev->caps.hca[MLX5_CAP_ODP]->cur, cap)
+
+#define MLX5_CAP_ODP_SCHEME(mdev, cap)                                \
+	(MLX5_GET(odp_cap, mdev->caps.hca[MLX5_CAP_ODP]->cur,         \
+		  mem_page_fault) ?                                   \
+		 MLX5_GET(odp_cap, mdev->caps.hca[MLX5_CAP_ODP]->cur, \
+			  memory_page_fault_scheme_cap.cap) :         \
+		 MLX5_GET(odp_cap, mdev->caps.hca[MLX5_CAP_ODP]->cur, \
+			  transport_page_fault_scheme_cap.cap))
 
 #define MLX5_CAP_ODP_MAX(mdev, cap)\
 	MLX5_GET(odp_cap, mdev->caps.hca[MLX5_CAP_ODP]->max, cap)

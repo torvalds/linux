@@ -35,7 +35,9 @@ Library functionality that is used throughout the kernel.
 
    kobject
    kref
+   cleanup
    assoc_array
+   folio_queue
    xarray
    maple_tree
    idr

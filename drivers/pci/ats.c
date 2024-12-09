@@ -488,8 +488,8 @@ void pci_restore_pasid_state(struct pci_dev *pdev)
  * pci_pasid_features - Check which PASID features are supported
  * @pdev: PCI device structure
  *
- * Returns a negative value when no PASI capability is present.
- * Otherwise is returns a bitmask with supported features. Current
+ * Return a negative value when no PASID capability is present.
+ * Otherwise return a bitmask with supported features. Current
  * features reported are:
  * PCI_PASID_CAP_EXEC - Execute permission supported
  * PCI_PASID_CAP_PRIV - Privileged mode supported

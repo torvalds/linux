@@ -110,7 +110,7 @@ static inline void io_uring_cmd_complete_in_task(struct io_uring_cmd *ioucmd,
 
 static inline struct task_struct *io_uring_cmd_get_task(struct io_uring_cmd *cmd)
 {
-	return cmd_to_io_kiocb(cmd)->task;
+	return cmd_to_io_kiocb(cmd)->tctx->task;
 }
 
 #endif /* _LINUX_IO_URING_CMD_H */

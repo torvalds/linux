@@ -288,7 +288,7 @@ static ssize_t snd_compr_write(struct file *f, const char __user *buf,
 
 	stream = &data->stream;
 	guard(mutex)(&stream->device->lock);
-	/* write is allowed when stream is running or has been steup */
+	/* write is allowed when stream is running or has been setup */
 	switch (stream->runtime->state) {
 	case SNDRV_PCM_STATE_SETUP:
 	case SNDRV_PCM_STATE_PREPARED:

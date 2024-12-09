@@ -166,8 +166,7 @@ static inline int folio_precise_page_mapcount(struct folio *folio,
 {
 	int mapcount = atomic_read(&page->_mapcount) + 1;
 
-	/* Handle page_has_type() pages */
-	if (mapcount < PAGE_MAPCOUNT_RESERVE + 1)
+	if (page_mapcount_is_type(mapcount))
 		mapcount = 0;
 	if (folio_test_large(folio))
 		mapcount += folio_entire_mapcount(folio);

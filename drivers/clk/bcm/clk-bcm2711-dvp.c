@@ -110,7 +110,7 @@ MODULE_DEVICE_TABLE(of, clk_dvp_dt_ids);
 
 static struct platform_driver clk_dvp_driver = {
 	.probe	= clk_dvp_probe,
-	.remove_new = clk_dvp_remove,
+	.remove = clk_dvp_remove,
 	.driver	= {
 		.name		= "brcm2711-dvp",
 		.of_match_table	= clk_dvp_dt_ids,

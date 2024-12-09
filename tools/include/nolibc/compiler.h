@@ -32,4 +32,10 @@
 #  define __no_stack_protector __attribute__((__optimize__("-fno-stack-protector")))
 #endif /* __nolibc_has_attribute(no_stack_protector) */
 
+#if __nolibc_has_attribute(fallthrough)
+#  define __nolibc_fallthrough do { } while (0); __attribute__((fallthrough))
+#else
+#  define __nolibc_fallthrough do { } while (0)
+#endif /* __nolibc_has_attribute(fallthrough) */
+
 #endif /* _NOLIBC_COMPILER_H */

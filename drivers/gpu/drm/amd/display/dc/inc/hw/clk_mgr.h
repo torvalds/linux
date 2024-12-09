@@ -29,9 +29,6 @@
 #include "dc.h"
 #include "dm_pp_smu.h"
 
-#define DCN_MINIMUM_DISPCLK_Khz 100000
-#define DCN_MINIMUM_DPPCLK_Khz 100000
-
 /* Constants */
 #define DDR4_DRAM_WIDTH   64
 #define WM_A 0
@@ -180,6 +177,7 @@ struct clk_state_registers_and_bypass {
 	uint32_t dispclk;
 	uint32_t dppclk;
 	uint32_t dtbclk;
+	uint32_t fclk;
 
 	uint32_t dppclk_bypass;
 	uint32_t dcfclk_bypass;

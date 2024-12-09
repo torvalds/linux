@@ -539,7 +539,7 @@ MODULE_DEVICE_TABLE(i2c, nau7802_i2c_id);
 
 static const struct of_device_id nau7802_dt_ids[] = {
 	{ .compatible = "nuvoton,nau7802" },
-	{},
+	{ }
 };
 MODULE_DEVICE_TABLE(of, nau7802_dt_ids);
 

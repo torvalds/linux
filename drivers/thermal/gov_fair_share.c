@@ -44,7 +44,7 @@ static int get_trip_level(struct thermal_zone_device *tz)
 /**
  * fair_share_throttle - throttles devices associated with the given zone
  * @tz: thermal_zone_device
- * @trip: trip point
+ * @td: trip point descriptor
  * @trip_level: number of trips crossed by the zone temperature
  *
  * Throttling Logic: This uses three parameters to calculate the new
@@ -61,28 +61,22 @@ static int get_trip_level(struct thermal_zone_device *tz)
  * new_state of cooling device = P3 * P2 * P1
  */
 static void fair_share_throttle(struct thermal_zone_device *tz,
-				const struct thermal_trip *trip,
+				const struct thermal_trip_desc *td,
 				int trip_level)
 {
 	struct thermal_instance *instance;
 	int total_weight = 0;
 	int nr_instances = 0;
 
-	list_for_each_entry(instance, &tz->thermal_instances, tz_node) {
-		if (instance->trip != trip)
-			continue;
-
+	list_for_each_entry(instance, &td->thermal_instances, trip_node) {
 		total_weight += instance->weight;
 		nr_instances++;
 	}
 
-	list_for_each_entry(instance, &tz->thermal_instances, tz_node) {
+	list_for_each_entry(instance, &td->thermal_instances, trip_node) {
 		struct thermal_cooling_device *cdev = instance->cdev;
 		u64 dividend;
 		u32 divisor;
-
-		if (instance->trip != trip)
-			continue;
 
 		dividend = trip_level;
 		dividend *= cdev->max_state;
@@ -95,9 +89,7 @@ static void fair_share_throttle(struct thermal_zone_device *tz,
 		}
 		instance->target = div_u64(dividend, divisor);
 
-		mutex_lock(&cdev->lock);
-		__thermal_cdev_update(cdev);
-		mutex_unlock(&cdev->lock);
+		thermal_cdev_update_nocheck(cdev);
 	}
 }
 
@@ -116,7 +108,7 @@ static void fair_share_manage(struct thermal_zone_device *tz)
 		    trip->type == THERMAL_TRIP_HOT)
 			continue;
 
-		fair_share_throttle(tz, trip, trip_level);
+		fair_share_throttle(tz, td, trip_level);
 	}
 }
 

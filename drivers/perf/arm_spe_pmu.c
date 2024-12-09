@@ -1280,7 +1280,7 @@ static struct platform_driver arm_spe_pmu_driver = {
 		.suppress_bind_attrs = true,
 	},
 	.probe	= arm_spe_pmu_device_probe,
-	.remove_new = arm_spe_pmu_device_remove,
+	.remove = arm_spe_pmu_device_remove,
 };
 
 static int __init arm_spe_pmu_init(void)

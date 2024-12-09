@@ -104,9 +104,6 @@ static inline int restrict_link_by_digsig(struct key *dest_keyring,
 extern int query_asymmetric_key(const struct kernel_pkey_params *,
 				struct kernel_pkey_query *);
 
-extern int encrypt_blob(struct kernel_pkey_params *, const void *, void *);
-extern int decrypt_blob(struct kernel_pkey_params *, const void *, void *);
-extern int create_signature(struct kernel_pkey_params *, const void *, void *);
 extern int verify_signature(const struct key *,
 			    const struct public_key_signature *);
 

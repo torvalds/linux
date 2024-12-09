@@ -605,7 +605,7 @@ static int journal_entry_data_usage_validate(struct bch_fs *c,
 		goto out;
 	}
 
-	if (journal_entry_err_on(bch2_replicas_entry_validate(&u->r, c->disk_sb.sb, &err),
+	if (journal_entry_err_on(bch2_replicas_entry_validate(&u->r, c, &err),
 				 c, version, jset, entry,
 				 journal_entry_data_usage_bad_size,
 				 "invalid journal entry usage: %s", err.buf)) {
@@ -707,6 +707,9 @@ static void journal_entry_dev_usage_to_text(struct printbuf *out, struct bch_fs 
 	struct jset_entry_dev_usage *u =
 		container_of(entry, struct jset_entry_dev_usage, entry);
 	unsigned i, nr_types = jset_entry_dev_usage_nr_types(u);
+
+	if (vstruct_bytes(entry) < sizeof(*u))
+		return;
 
 	prt_printf(out, "dev=%u", le32_to_cpu(u->dev));
 
@@ -1012,6 +1015,8 @@ reread:
 			nr_bvecs = buf_pages(buf->data, sectors_read << 9);
 
 			bio = bio_kmalloc(nr_bvecs, GFP_KERNEL);
+			if (!bio)
+				return -BCH_ERR_ENOMEM_journal_read_bucket;
 			bio_init(bio, ca->disk_sb.bdev, bio->bi_inline_vecs, nr_bvecs, REQ_OP_READ);
 
 			bio->bi_iter.bi_sector = offset;
@@ -1353,6 +1358,7 @@ int bch2_journal_read(struct bch_fs *c,
 	genradix_for_each(&c->journal_entries, radix_iter, _i) {
 		struct bch_replicas_padded replicas = {
 			.e.data_type = BCH_DATA_journal,
+			.e.nr_devs = 0,
 			.e.nr_required = 1,
 		};
 
@@ -1379,7 +1385,7 @@ int bch2_journal_read(struct bch_fs *c,
 			goto err;
 
 		darray_for_each(i->ptrs, ptr)
-			replicas.e.devs[replicas.e.nr_devs++] = ptr->dev;
+			replicas_entry_add_dev(&replicas.e, ptr->dev);
 
 		bch2_replicas_entry_sort(&replicas.e);
 
@@ -1950,7 +1956,8 @@ static int bch2_journal_write_pick_flush(struct journal *j, struct journal_buf *
 	if (error ||
 	    w->noflush ||
 	    (!w->must_flush &&
-	     (jiffies - j->last_flush_write) < msecs_to_jiffies(c->opts.journal_flush_delay) &&
+	     time_before(jiffies, j->last_flush_write +
+		 msecs_to_jiffies(c->opts.journal_flush_delay)) &&
 	     test_bit(JOURNAL_may_skip_flush, &j->flags))) {
 		w->noflush = true;
 		SET_JSET_NO_FLUSH(w->data, true);

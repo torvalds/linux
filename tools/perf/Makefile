@@ -51,8 +51,14 @@ else
   override DEBUG = 0
 endif
 
+ifeq ($(JOBS),1)
+  BUILD_TYPE := sequential
+else
+  BUILD_TYPE := parallel
+endif
+
 define print_msg
-  @printf '  BUILD:   Doing '\''make \033[33m-j'$(JOBS)'\033[m'\'' parallel build\n'
+  @printf '  BUILD:   Doing '\''make \033[33m-j'$(JOBS)'\033[m'\'' $(BUILD_TYPE) build\n'
 endef
 
 define make

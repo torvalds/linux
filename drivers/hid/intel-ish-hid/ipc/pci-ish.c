@@ -28,11 +28,14 @@ enum ishtp_driver_data_index {
 	ISHTP_DRIVER_DATA_LNL_M,
 };
 
-#define ISH_FW_FILENAME_LNL_M "intel/ish/ish_lnlm.bin"
+#define ISH_FW_GEN_LNL_M "lnlm"
+
+#define ISH_FIRMWARE_PATH(gen) "intel/ish/ish_" gen ".bin"
+#define ISH_FIRMWARE_PATH_ALL "intel/ish/ish_*.bin"
 
 static struct ishtp_driver_data ishtp_driver_data[] = {
 	[ISHTP_DRIVER_DATA_LNL_M] = {
-		.fw_filename = ISH_FW_FILENAME_LNL_M,
+		.fw_generation = ISH_FW_GEN_LNL_M,
 	},
 };
 
@@ -397,4 +400,5 @@ MODULE_AUTHOR("Srinivas Pandruvada <srinivas.pandruvada@linux.intel.com>");
 MODULE_DESCRIPTION("Intel(R) Integrated Sensor Hub PCI Device Driver");
 MODULE_LICENSE("GPL");
 
-MODULE_FIRMWARE(ISH_FW_FILENAME_LNL_M);
+MODULE_FIRMWARE(ISH_FIRMWARE_PATH(ISH_FW_GEN_LNL_M));
+MODULE_FIRMWARE(ISH_FIRMWARE_PATH_ALL);

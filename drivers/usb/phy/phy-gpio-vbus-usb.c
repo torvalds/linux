@@ -374,6 +374,7 @@ static const struct of_device_id gpio_vbus_of_match[] = {
 	},
 	{},
 };
+MODULE_DEVICE_TABLE(of, gpio_vbus_of_match);
 
 static struct platform_driver gpio_vbus_driver = {
 	.driver = {

@@ -192,7 +192,6 @@ static const struct file_operations perf_debugfs_fops = {
 	.owner = THIS_MODULE,
 	.open = perf_open,
 	.read = perf_read,
-	.llseek = no_llseek,
 	.release = perf_release,
 };
 

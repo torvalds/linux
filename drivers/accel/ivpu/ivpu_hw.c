@@ -249,6 +249,7 @@ int ivpu_hw_init(struct ivpu_device *vdev)
 	platform_init(vdev);
 	wa_init(vdev);
 	timeouts_init(vdev);
+	atomic_set(&vdev->hw->firewall_irq_counter, 0);
 
 	return 0;
 }

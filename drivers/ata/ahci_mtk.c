@@ -174,7 +174,7 @@ MODULE_DEVICE_TABLE(of, ahci_of_match);
 
 static struct platform_driver mtk_ahci_driver = {
 	.probe = mtk_ahci_probe,
-	.remove_new = ata_platform_remove_one,
+	.remove = ata_platform_remove_one,
 	.driver = {
 		.name = DRV_NAME,
 		.of_match_table = ahci_of_match,

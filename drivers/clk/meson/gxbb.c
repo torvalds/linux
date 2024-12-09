@@ -3571,3 +3571,4 @@ module_platform_driver(gxbb_driver);
 
 MODULE_DESCRIPTION("Amlogic GXBB Main Clock Controller driver");
 MODULE_LICENSE("GPL");
+MODULE_IMPORT_NS(CLK_MESON);

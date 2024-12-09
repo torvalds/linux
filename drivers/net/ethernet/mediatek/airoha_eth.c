@@ -2471,10 +2471,6 @@ static netdev_tx_t airoha_dev_xmit(struct sk_buff *skb,
 		e->dma_addr = addr;
 		e->dma_len = len;
 
-		airoha_qdma_rmw(qdma, REG_TX_CPU_IDX(qid),
-				TX_RING_CPU_IDX_MASK,
-				FIELD_PREP(TX_RING_CPU_IDX_MASK, index));
-
 		data = skb_frag_address(frag);
 		len = skb_frag_size(frag);
 	}
@@ -2483,6 +2479,11 @@ static netdev_tx_t airoha_dev_xmit(struct sk_buff *skb,
 	q->queued += i;
 
 	skb_tx_timestamp(skb);
+	if (!netdev_xmit_more())
+		airoha_qdma_rmw(qdma, REG_TX_CPU_IDX(qid),
+				TX_RING_CPU_IDX_MASK,
+				FIELD_PREP(TX_RING_CPU_IDX_MASK, q->head));
+
 	if (q->ndesc - q->queued < q->free_thr)
 		netif_tx_stop_queue(txq);
 

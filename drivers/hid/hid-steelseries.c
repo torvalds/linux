@@ -51,7 +51,7 @@ struct steelseries_srws1_data {
  * appear in the 'Generic Desktop' usage.
  */
 
-static __u8 steelseries_srws1_rdesc_fixed[] = {
+static const __u8 steelseries_srws1_rdesc_fixed[] = {
 0x05, 0x01,         /*  Usage Page (Desktop)                */
 0x09, 0x08,         /*  Usage (MultiAxis), Changed          */
 0xA1, 0x01,         /*  Collection (Application),           */
@@ -570,8 +570,8 @@ static void steelseries_remove(struct hid_device *hdev)
 	hid_hw_stop(hdev);
 }
 
-static __u8 *steelseries_srws1_report_fixup(struct hid_device *hdev, __u8 *rdesc,
-		unsigned int *rsize)
+static const __u8 *steelseries_srws1_report_fixup(struct hid_device *hdev,
+		__u8 *rdesc, unsigned int *rsize)
 {
 	if (hdev->vendor != USB_VENDOR_ID_STEELSERIES ||
 	    hdev->product != USB_DEVICE_ID_STEELSERIES_SRWS1)
@@ -580,8 +580,8 @@ static __u8 *steelseries_srws1_report_fixup(struct hid_device *hdev, __u8 *rdesc
 	if (*rsize >= 115 && rdesc[11] == 0x02 && rdesc[13] == 0xc8
 			&& rdesc[29] == 0xbb && rdesc[40] == 0xc5) {
 		hid_info(hdev, "Fixing up Steelseries SRW-S1 report descriptor\n");
-		rdesc = steelseries_srws1_rdesc_fixed;
 		*rsize = sizeof(steelseries_srws1_rdesc_fixed);
+		return steelseries_srws1_rdesc_fixed;
 	}
 	return rdesc;
 }

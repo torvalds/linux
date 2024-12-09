@@ -17,6 +17,15 @@ config CPU_MITIGATIONS
 	def_bool y
 endif
 
+#
+# Selected by architectures that need custom DMA operations for e.g. legacy
+# IOMMUs not handled by dma-iommu.  Drivers must never select this symbol.
+#
+config ARCH_HAS_DMA_OPS
+	depends on HAS_DMA
+	select DMA_OPS_HELPERS
+	bool
+
 menu "General architecture-dependent options"
 
 config ARCH_HAS_SUBPAGE_FAULTS
@@ -126,6 +135,7 @@ config KPROBES_ON_FTRACE
 config UPROBES
 	def_bool n
 	depends on ARCH_SUPPORTS_UPROBES
+	select TASKS_TRACE_RCU
 	help
 	  Uprobes is the user-space counterpart to kprobes: they
 	  enable instrumentation applications (such as 'perf probe')
@@ -826,6 +836,36 @@ config CFI_CLANG
 
 	    https://clang.llvm.org/docs/ControlFlowIntegrity.html
 
+config CFI_ICALL_NORMALIZE_INTEGERS
+	bool "Normalize CFI tags for integers"
+	depends on CFI_CLANG
+	depends on HAVE_CFI_ICALL_NORMALIZE_INTEGERS_CLANG
+	help
+	  This option normalizes the CFI tags for integer types so that all
+	  integer types of the same size and signedness receive the same CFI
+	  tag.
+
+	  The option is separate from CONFIG_RUST because it affects the ABI.
+	  When working with build systems that care about the ABI, it is
+	  convenient to be able to turn on this flag first, before Rust is
+	  turned on.
+
+	  This option is necessary for using CFI with Rust. If unsure, say N.
+
+config HAVE_CFI_ICALL_NORMALIZE_INTEGERS_CLANG
+	def_bool y
+	depends on $(cc-option,-fsanitize=kcfi -fsanitize-cfi-icall-experimental-normalize-integers)
+	# With GCOV/KASAN we need this fix: https://github.com/llvm/llvm-project/pull/104826
+	depends on CLANG_VERSION >= 190103 || (!GCOV_KERNEL && !KASAN_GENERIC && !KASAN_SW_TAGS)
+
+config HAVE_CFI_ICALL_NORMALIZE_INTEGERS_RUSTC
+	def_bool y
+	depends on HAVE_CFI_ICALL_NORMALIZE_INTEGERS_CLANG
+	depends on RUSTC_VERSION >= 107900
+	# With GCOV/KASAN we need this fix: https://github.com/rust-lang/rust/pull/129373
+	depends on (RUSTC_LLVM_VERSION >= 190103 && RUSTC_VERSION >= 108200) || \
+		(!GCOV_KERNEL && !KASAN_GENERIC && !KASAN_SW_TAGS)
+
 config CFI_PERMISSIVE
 	bool "Use CFI in permissive mode"
 	depends on CFI_CLANG
@@ -1489,7 +1529,7 @@ config HAVE_SPARSE_SYSCALL_NR
 	  entries at 4000, 5000 and 6000 locations. This option turns on syscall
 	  related optimizations for a given architecture.
 
-config ARCH_HAS_VDSO_DATA
+config ARCH_HAS_VDSO_TIME_DATA
 	bool
 
 config HAVE_STATIC_CALL

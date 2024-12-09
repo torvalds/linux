@@ -25,6 +25,17 @@ config DHT11
 	  Other sensors should work as well as long as they speak the
 	  same protocol.
 
+config ENS210
+	tristate "ENS210 temperature and humidity sensor"
+	depends on I2C
+	select CRC7
+	help
+	  Say yes here to get support for the ScioSense ENS210 family of
+	  humidity and temperature sensors.
+
+	  This driver can also be built as a module. If so, the module will be
+	  called ens210.
+
 config HDC100X
 	tristate "TI HDC100x relative humidity and temperature sensor"
 	depends on I2C

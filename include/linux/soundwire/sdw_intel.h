@@ -227,7 +227,7 @@ struct sdw_intel_ops {
 /**
  * struct sdw_intel_acpi_info - Soundwire Intel information found in ACPI tables
  * @handle: ACPI controller handle
- * @count: link count found with "sdw-master-count" property
+ * @count: link count found with "sdw-master-count" or "sdw-manager-list" property
  * @link_mask: bit-wise mask listing links enabled by BIOS menu
  *
  * this structure could be expanded to e.g. provide all the _ADR

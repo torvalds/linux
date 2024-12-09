@@ -196,9 +196,9 @@ the hotspot switches to a new place.
 
 Miscellaneous
 =============
-One open issue is that kernel has an optional data structure
+One open issue is that the kernel has an optional data structure
 randomization mechanism, which also randomizes the situation of cache
-line sharing of data members.
+line sharing among data members.
 
 
 .. [1] https://en.wikipedia.org/wiki/False_sharing

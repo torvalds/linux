@@ -361,14 +361,25 @@ pte_t arch_make_huge_pte(pte_t entry, unsigned int shift, vm_flags_t flags)
 {
 	size_t pagesize = 1UL << shift;
 
-	entry = pte_mkhuge(entry);
-	if (pagesize == CONT_PTE_SIZE) {
-		entry = pte_mkcont(entry);
-	} else if (pagesize == CONT_PMD_SIZE) {
+	switch (pagesize) {
+#ifndef __PAGETABLE_PMD_FOLDED
+	case PUD_SIZE:
+		entry = pud_pte(pud_mkhuge(pte_pud(entry)));
+		break;
+#endif
+	case CONT_PMD_SIZE:
 		entry = pmd_pte(pmd_mkcont(pte_pmd(entry)));
-	} else if (pagesize != PUD_SIZE && pagesize != PMD_SIZE) {
+		fallthrough;
+	case PMD_SIZE:
+		entry = pmd_pte(pmd_mkhuge(pte_pmd(entry)));
+		break;
+	case CONT_PTE_SIZE:
+		entry = pte_mkcont(entry);
+		break;
+	default:
 		pr_warn("%s: unrecognized huge page size 0x%lx\n",
 			__func__, pagesize);
+		break;
 	}
 	return entry;
 }

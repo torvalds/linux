@@ -2,6 +2,7 @@
 config VIDEO_E5010_JPEG_ENC
 	tristate "Imagination E5010 JPEG Encoder Driver"
 	depends on VIDEO_DEV
+	depends on ARCH_K3 || COMPILE_TEST
 	select VIDEOBUF2_DMA_CONTIG
 	select VIDEOBUF2_VMALLOC
 	select V4L2_MEM2MEM_DEV

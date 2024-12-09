@@ -12,6 +12,7 @@
 
 #include <asm/zcrypt.h>
 #include <asm/pkey.h>
+#include "zcrypt_api.h"
 
 /* Key token types */
 #define TOKTYPE_NON_CCA		 0x00 /* Non-CCA key token */
@@ -153,7 +154,7 @@ int cca_check_secaescipherkey(debug_info_t *dbg, int dbflvl,
  * key token. Returns 0 on success or errno value on failure.
  */
 int cca_check_sececckeytoken(debug_info_t *dbg, int dbflvl,
-			     const u8 *token, size_t keysize,
+			     const u8 *token, u32 keysize,
 			     int checkcpacfexport);
 
 /*
@@ -178,7 +179,7 @@ int cca_sec2protkey(u16 cardnr, u16 domain,
  * Generate (random) CCA AES CIPHER secure key.
  */
 int cca_gencipherkey(u16 cardnr, u16 domain, u32 keybitsize, u32 keygenflags,
-		     u8 *keybuf, size_t *keybufsize);
+		     u8 *keybuf, u32 *keybufsize);
 
 /*
  * Derive proteced key from CCA AES cipher secure key.
@@ -190,7 +191,7 @@ int cca_cipher2protkey(u16 cardnr, u16 domain, const u8 *ckey,
  * Build CCA AES CIPHER secure key with a given clear key value.
  */
 int cca_clr2cipherkey(u16 cardnr, u16 domain, u32 keybitsize, u32 keygenflags,
-		      const u8 *clrkey, u8 *keybuf, size_t *keybufsize);
+		      const u8 *clrkey, u8 *keybuf, u32 *keybufsize);
 
 /*
  * Derive proteced key from CCA ECC secure private key.

@@ -128,7 +128,6 @@
 	assigned-clocks = <&ispcrg JH7110_ISPCLK_DOM4_APB_FUNC>,
 			  <&ispcrg JH7110_ISPCLK_MIPI_RX0_PXL>;
 	assigned-clock-rates = <49500000>, <198000000>;
-	status = "okay";
 
 	ports {
 		#address-cells = <1>;
@@ -151,7 +150,6 @@
 &csi2rx {
 	assigned-clocks = <&ispcrg JH7110_ISPCLK_VIN_SYS>;
 	assigned-clock-rates = <297000000>;
-	status = "okay";
 
 	ports {
 		#address-cells = <1>;

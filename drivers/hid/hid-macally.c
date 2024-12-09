@@ -18,8 +18,8 @@ MODULE_LICENSE("GPL");
  * The Macally ikey keyboard says that its logical and usage maximums are both
  * 101, but the power key is 102 and the equals key is 103
  */
-static __u8 *macally_report_fixup(struct hid_device *hdev, __u8 *rdesc,
-				 unsigned int *rsize)
+static const __u8 *macally_report_fixup(struct hid_device *hdev, __u8 *rdesc,
+					unsigned int *rsize)
 {
 	if (*rsize >= 60 && rdesc[53] == 0x65 && rdesc[59] == 0x65) {
 		hid_info(hdev,

@@ -1588,7 +1588,7 @@ static const struct of_device_id ixp4xx_crypto_of_match[] = {
 
 static struct platform_driver ixp_crypto_driver = {
 	.probe = ixp_crypto_probe,
-	.remove_new = ixp_crypto_remove,
+	.remove = ixp_crypto_remove,
 	.driver = {
 		.name = "ixp4xx_crypto",
 		.of_match_table = ixp4xx_crypto_of_match,

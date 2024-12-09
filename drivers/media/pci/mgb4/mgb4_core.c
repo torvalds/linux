@@ -302,7 +302,7 @@ static int init_i2c(struct mgb4_dev *mgbdev)
 	/* create dummy clock required by the xiic-i2c adapter */
 	snprintf(clk_name, sizeof(clk_name), "xiic-i2c.%d", id);
 	mgbdev->i2c_clk = clk_hw_register_fixed_rate(NULL, clk_name, NULL,
-						     0, 125000000);
+						     0, MGB4_HW_FREQ);
 	if (IS_ERR(mgbdev->i2c_clk)) {
 		dev_err(dev, "failed to register I2C clock\n");
 		return PTR_ERR(mgbdev->i2c_clk);

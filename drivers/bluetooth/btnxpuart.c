@@ -10,7 +10,7 @@
 #include <linux/serdev.h>
 #include <linux/of.h>
 #include <linux/skbuff.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <linux/firmware.h>
 #include <linux/string.h>
 #include <linux/crc8.h>

@@ -340,7 +340,7 @@ static void i2c_amd_remove(struct platform_device *pdev)
 
 static const struct acpi_device_id i2c_amd_acpi_match[] = {
 	{ "AMDI0011" },
-	{ },
+	{ }
 };
 MODULE_DEVICE_TABLE(acpi, i2c_amd_acpi_match);
 

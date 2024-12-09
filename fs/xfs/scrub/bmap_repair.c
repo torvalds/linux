@@ -480,7 +480,7 @@ xrep_bmap_iroot_size(
 {
 	ASSERT(level > 0);
 
-	return XFS_BMAP_BROOT_SPACE_CALC(cur->bc_mp, nr_this_level);
+	return xfs_bmap_broot_space_calc(cur->bc_mp, nr_this_level);
 }
 
 /* Update the inode counters. */
@@ -801,7 +801,7 @@ xrep_bmap(
 {
 	struct xrep_bmap	*rb;
 	char			*descr;
-	unsigned int		max_bmbt_recs;
+	xfs_extnum_t		max_bmbt_recs;
 	bool			large_extcount;
 	int			error = 0;
 

@@ -712,19 +712,17 @@ static int drm_syncobj_fd_to_handle(struct drm_file *file_private,
 				    int fd, u32 *handle)
 {
 	struct drm_syncobj *syncobj;
-	struct fd f = fdget(fd);
+	CLASS(fd, f)(fd);
 	int ret;
 
-	if (!f.file)
+	if (fd_empty(f))
 		return -EINVAL;
 
-	if (f.file->f_op != &drm_syncobj_file_fops) {
-		fdput(f);
+	if (fd_file(f)->f_op != &drm_syncobj_file_fops)
 		return -EINVAL;
-	}
 
 	/* take a reference to put in the idr */
-	syncobj = f.file->private_data;
+	syncobj = fd_file(f)->private_data;
 	drm_syncobj_get(syncobj);
 
 	idr_preload(GFP_KERNEL);
@@ -739,7 +737,6 @@ static int drm_syncobj_fd_to_handle(struct drm_file *file_private,
 	} else
 		drm_syncobj_put(syncobj);
 
-	fdput(f);
 	return ret;
 }
 

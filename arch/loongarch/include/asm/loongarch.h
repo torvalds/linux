@@ -62,6 +62,7 @@
 #define LOONGARCH_CPUCFG1		0x1
 #define  CPUCFG1_ISGR32			BIT(0)
 #define  CPUCFG1_ISGR64			BIT(1)
+#define  CPUCFG1_ISA			GENMASK(1, 0)
 #define  CPUCFG1_PAGING			BIT(2)
 #define  CPUCFG1_IOCSR			BIT(3)
 #define  CPUCFG1_PABITS			GENMASK(11, 4)
@@ -249,7 +250,7 @@
 #define  CSR_ESTAT_IS_WIDTH		15
 #define  CSR_ESTAT_IS			(_ULCAST_(0x7fff) << CSR_ESTAT_IS_SHIFT)
 
-#define LOONGARCH_CSR_ERA		0x6	/* ERA */
+#define LOONGARCH_CSR_ERA		0x6	/* Exception return address */
 
 #define LOONGARCH_CSR_BADV		0x7	/* Bad virtual address */
 

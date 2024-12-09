@@ -188,7 +188,7 @@ static struct platform_driver mxc_rnga_driver = {
 		.of_match_table = mxc_rnga_of_match,
 	},
 	.probe = mxc_rnga_probe,
-	.remove_new = mxc_rnga_remove,
+	.remove = mxc_rnga_remove,
 };
 
 module_platform_driver(mxc_rnga_driver);

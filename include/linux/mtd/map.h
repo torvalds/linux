@@ -15,7 +15,7 @@
 #include <linux/kernel.h>
 #include <linux/io.h>
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <asm/barrier.h>
 
 #ifdef CONFIG_MTD_MAP_BANK_WIDTH_1

@@ -201,8 +201,13 @@ u_memcpya(uint64_t user, unsigned int nmemb, unsigned int size)
 #include <nvif/parent.h>
 
 struct nouveau_drm {
+	struct nvkm_device *nvkm;
 	struct nvif_parent parent;
-	struct nouveau_cli master;
+	struct mutex client_mutex;
+	struct nvif_client _client;
+	struct nvif_device device;
+	struct nvif_mmu mmu;
+
 	struct nouveau_cli client;
 	struct drm_device *dev;
 
@@ -326,25 +331,28 @@ bool nouveau_pmops_runtime(void);
 struct drm_device *
 nouveau_platform_device_create(const struct nvkm_device_tegra_func *,
 			       struct platform_device *, struct nvkm_device **);
-void nouveau_drm_device_remove(struct drm_device *dev);
+void nouveau_drm_device_remove(struct nouveau_drm *);
 
 #define NV_PRINTK(l,c,f,a...) do {                                             \
 	struct nouveau_cli *_cli = (c);                                        \
 	dev_##l(_cli->drm->dev->dev, "%s: "f, _cli->name, ##a);                \
 } while(0)
 
-#define NV_FATAL(drm,f,a...) NV_PRINTK(crit, &(drm)->client, f, ##a)
-#define NV_ERROR(drm,f,a...) NV_PRINTK(err, &(drm)->client, f, ##a)
-#define NV_WARN(drm,f,a...) NV_PRINTK(warn, &(drm)->client, f, ##a)
-#define NV_INFO(drm,f,a...) NV_PRINTK(info, &(drm)->client, f, ##a)
+#define NV_PRINTK_(l,drm,f,a...) do {             \
+	dev_##l((drm)->nvkm->dev, "drm: "f, ##a); \
+} while(0)
+#define NV_FATAL(drm,f,a...) NV_PRINTK_(crit, (drm), f, ##a)
+#define NV_ERROR(drm,f,a...) NV_PRINTK_(err, (drm), f, ##a)
+#define NV_WARN(drm,f,a...) NV_PRINTK_(warn, (drm), f, ##a)
+#define NV_INFO(drm,f,a...) NV_PRINTK_(info, (drm), f, ##a)
 
 #define NV_DEBUG(drm,f,a...) do {                                              \
 	if (drm_debug_enabled(DRM_UT_DRIVER))                                  \
-		NV_PRINTK(info, &(drm)->client, f, ##a);                       \
+		NV_PRINTK_(info, (drm), f, ##a);                               \
 } while(0)
 #define NV_ATOMIC(drm,f,a...) do {                                             \
 	if (drm_debug_enabled(DRM_UT_ATOMIC))                                  \
-		NV_PRINTK(info, &(drm)->client, f, ##a);                       \
+		NV_PRINTK_(info, (drm), f, ##a);                               \
 } while(0)
 
 #define NV_PRINTK_ONCE(l,c,f,a...) NV_PRINTK(l##_once,c,f, ##a)
@@ -355,4 +363,41 @@ void nouveau_drm_device_remove(struct drm_device *dev);
 
 extern int nouveau_modeset;
 
+/*XXX: Don't use these in new code.
+ *
+ * These accessors are used in a few places (mostly older code paths)
+ * to get direct access to NVKM structures, where a more well-defined
+ * interface doesn't exist.  Outside of the current use, these should
+ * not be relied on, and instead be implemented as NVIF.
+ *
+ * This is especially important when considering GSP-RM, as a lot the
+ * modules don't exist, or are "stub" implementations that just allow
+ * the GSP-RM paths to be bootstrapped.
+ */
+#include <subdev/bios.h>
+#include <subdev/fb.h>
+#include <subdev/gpio.h>
+#include <subdev/clk.h>
+#include <subdev/i2c.h>
+#include <subdev/timer.h>
+#include <subdev/therm.h>
+
+static inline struct nvkm_device *
+nvxx_device(struct nouveau_drm *drm)
+{
+	return drm->nvkm;
+}
+
+#define nvxx_bios(a) nvxx_device(a)->bios
+#define nvxx_fb(a) nvxx_device(a)->fb
+#define nvxx_gpio(a) nvxx_device(a)->gpio
+#define nvxx_clk(a) nvxx_device(a)->clk
+#define nvxx_i2c(a) nvxx_device(a)->i2c
+#define nvxx_iccsense(a) nvxx_device(a)->iccsense
+#define nvxx_therm(a) nvxx_device(a)->therm
+#define nvxx_volt(a) nvxx_device(a)->volt
+
+#include <engine/gr.h>
+
+#define nvxx_gr(a) nvxx_device(a)->gr
 #endif

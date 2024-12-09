@@ -19,7 +19,7 @@
 #include <uapi/linux/papr_pdsm.h>
 #include <linux/papr_scm.h>
 #include <asm/mce.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <linux/perf_event.h>
 
 #define BIND_ANY_ADDR (~0ul)
@@ -1509,7 +1509,7 @@ static const struct of_device_id papr_scm_match[] = {
 
 static struct platform_driver papr_scm_driver = {
 	.probe = papr_scm_probe,
-	.remove_new = papr_scm_remove,
+	.remove = papr_scm_remove,
 	.driver = {
 		.name = "papr_scm",
 		.of_match_table = papr_scm_match,

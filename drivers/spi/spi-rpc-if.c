@@ -14,7 +14,7 @@
 
 #include <memory/renesas-rpc-if.h>
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 static void rpcif_spi_mem_prepare(struct spi_device *spi_dev,
 				  const struct spi_mem_op *spi_op,

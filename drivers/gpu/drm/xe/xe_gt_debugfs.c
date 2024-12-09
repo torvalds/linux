@@ -17,7 +17,9 @@
 #include "xe_gt_mcr.h"
 #include "xe_gt_sriov_pf_debugfs.h"
 #include "xe_gt_sriov_vf_debugfs.h"
+#include "xe_gt_stats.h"
 #include "xe_gt_topology.h"
+#include "xe_guc_hwconfig.h"
 #include "xe_hw_engine.h"
 #include "xe_lrc.h"
 #include "xe_macros.h"
@@ -269,6 +271,15 @@ static int vecs_default_lrc(struct xe_gt *gt, struct drm_printer *p)
 	return 0;
 }
 
+static int hwconfig(struct xe_gt *gt, struct drm_printer *p)
+{
+	xe_pm_runtime_get(gt_to_xe(gt));
+	xe_guc_hwconfig_dump(&gt->uc.guc, p);
+	xe_pm_runtime_put(gt_to_xe(gt));
+
+	return 0;
+}
+
 static const struct drm_info_list debugfs_list[] = {
 	{"hw_engines", .show = xe_gt_debugfs_simple_show, .data = hw_engines},
 	{"force_reset", .show = xe_gt_debugfs_simple_show, .data = force_reset},
@@ -286,6 +297,8 @@ static const struct drm_info_list debugfs_list[] = {
 	{"default_lrc_bcs", .show = xe_gt_debugfs_simple_show, .data = bcs_default_lrc},
 	{"default_lrc_vcs", .show = xe_gt_debugfs_simple_show, .data = vcs_default_lrc},
 	{"default_lrc_vecs", .show = xe_gt_debugfs_simple_show, .data = vecs_default_lrc},
+	{"stats", .show = xe_gt_debugfs_simple_show, .data = xe_gt_stats_print_info},
+	{"hwconfig", .show = xe_gt_debugfs_simple_show, .data = hwconfig},
 };
 
 void xe_gt_debugfs_register(struct xe_gt *gt)

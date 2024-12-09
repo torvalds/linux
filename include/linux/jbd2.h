@@ -1086,7 +1086,7 @@ struct journal_s
 	int			j_revoke_records_per_block;
 
 	/**
-	 * @j_transaction_overhead:
+	 * @j_transaction_overhead_buffers:
 	 *
 	 * Number of blocks each transaction needs for its own bookkeeping
 	 */
@@ -1675,7 +1675,7 @@ int jbd2_fc_get_buf(journal_t *journal, struct buffer_head **bh_out);
 int jbd2_submit_inode_data(journal_t *journal, struct jbd2_inode *jinode);
 int jbd2_wait_inode_data(journal_t *journal, struct jbd2_inode *jinode);
 int jbd2_fc_wait_bufs(journal_t *journal, int num_blks);
-int jbd2_fc_release_bufs(journal_t *journal);
+void jbd2_fc_release_bufs(journal_t *journal);
 
 /*
  * is_journal_abort
@@ -1796,22 +1796,21 @@ static inline unsigned long jbd2_log_space_left(journal_t *journal)
 static inline u32 jbd2_chksum(journal_t *journal, u32 crc,
 			      const void *address, unsigned int length)
 {
-	struct {
-		struct shash_desc shash;
-		char ctx[JBD_MAX_CHECKSUM_SIZE];
-	} desc;
+	DEFINE_RAW_FLEX(struct shash_desc, desc, __ctx,
+		DIV_ROUND_UP(JBD_MAX_CHECKSUM_SIZE,
+			     sizeof(*((struct shash_desc *)0)->__ctx)));
 	int err;
 
 	BUG_ON(crypto_shash_descsize(journal->j_chksum_driver) >
 		JBD_MAX_CHECKSUM_SIZE);
 
-	desc.shash.tfm = journal->j_chksum_driver;
-	*(u32 *)desc.ctx = crc;
+	desc->tfm = journal->j_chksum_driver;
+	*(u32 *)desc->__ctx = crc;
 
-	err = crypto_shash_update(&desc.shash, address, length);
+	err = crypto_shash_update(desc, address, length);
 	BUG_ON(err);
 
-	return *(u32 *)desc.ctx;
+	return *(u32 *)desc->__ctx;
 }
 
 /* Return most recent uncommitted transaction */

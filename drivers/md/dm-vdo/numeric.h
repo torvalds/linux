@@ -6,7 +6,7 @@
 #ifndef UDS_NUMERIC_H
 #define UDS_NUMERIC_H
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
 

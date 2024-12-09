@@ -57,8 +57,10 @@ static inline int arch_spin_is_locked(arch_spinlock_t *lp)
 
 static inline int arch_spin_trylock_once(arch_spinlock_t *lp)
 {
+	int old = 0;
+
 	barrier();
-	return likely(__atomic_cmpxchg_bool(&lp->lock, 0, SPINLOCK_LOCKVAL));
+	return likely(arch_try_cmpxchg(&lp->lock, &old, SPINLOCK_LOCKVAL));
 }
 
 static inline void arch_spin_lock(arch_spinlock_t *lp)
@@ -118,7 +120,9 @@ static inline void arch_read_unlock(arch_rwlock_t *rw)
 
 static inline void arch_write_lock(arch_rwlock_t *rw)
 {
-	if (!__atomic_cmpxchg_bool(&rw->cnts, 0, 0x30000))
+	int old = 0;
+
+	if (!arch_try_cmpxchg(&rw->cnts, &old, 0x30000))
 		arch_write_lock_wait(rw);
 }
 
@@ -133,8 +137,7 @@ static inline int arch_read_trylock(arch_rwlock_t *rw)
 	int old;
 
 	old = READ_ONCE(rw->cnts);
-	return (!(old & 0xffff0000) &&
-		__atomic_cmpxchg_bool(&rw->cnts, old, old + 1));
+	return (!(old & 0xffff0000) && arch_try_cmpxchg(&rw->cnts, &old, old + 1));
 }
 
 static inline int arch_write_trylock(arch_rwlock_t *rw)
@@ -142,7 +145,7 @@ static inline int arch_write_trylock(arch_rwlock_t *rw)
 	int old;
 
 	old = READ_ONCE(rw->cnts);
-	return !old && __atomic_cmpxchg_bool(&rw->cnts, 0, 0x30000);
+	return !old && arch_try_cmpxchg(&rw->cnts, &old, 0x30000);
 }
 
 #endif /* __ASM_SPINLOCK_H */

@@ -71,7 +71,6 @@ MODULE_DEVICE_TABLE(usb, ir_id_table);
 
 static struct usb_serial_driver ir_device = {
 	.driver	= {
-		.owner	= THIS_MODULE,
 		.name	= "ir-usb",
 	},
 	.description		= "IR Dongle",

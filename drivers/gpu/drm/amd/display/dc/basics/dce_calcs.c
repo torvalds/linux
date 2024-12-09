@@ -569,7 +569,7 @@ static void calculate_bandwidth(
 				break;
 			}
 			data->lb_partitions[i] = bw_floor2(bw_div(data->lb_size_per_component[i], data->lb_line_pitch), bw_int_to_fixed(1));
-			/*clamp the partitions to the maxium number supported by the lb*/
+			/* clamp the partitions to the maximum number supported by the lb */
 			if ((surface_type[i] != bw_def_graphics || dceip->graphics_lb_nodownscaling_multi_line_prefetching == 1)) {
 				data->lb_partitions_max[i] = bw_int_to_fixed(10);
 			}

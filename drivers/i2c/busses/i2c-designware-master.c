@@ -22,6 +22,8 @@
 #include <linux/regmap.h>
 #include <linux/reset.h>
 
+#define DEFAULT_SYMBOL_NAMESPACE	I2C_DW
+
 #include "i2c-designware-core.h"
 
 #define AMD_TIMEOUT_MIN_US	25
@@ -64,13 +66,17 @@ static int i2c_dw_set_timings_master(struct dw_i2c_dev *dev)
 	if (!dev->ss_hcnt || !dev->ss_lcnt) {
 		ic_clk = i2c_dw_clk_rate(dev);
 		dev->ss_hcnt =
-			i2c_dw_scl_hcnt(ic_clk,
+			i2c_dw_scl_hcnt(dev,
+					DW_IC_SS_SCL_HCNT,
+					ic_clk,
 					4000,	/* tHD;STA = tHIGH = 4.0 us */
 					sda_falling_time,
 					0,	/* 0: DW default, 1: Ideal */
 					0);	/* No offset */
 		dev->ss_lcnt =
-			i2c_dw_scl_lcnt(ic_clk,
+			i2c_dw_scl_lcnt(dev,
+					DW_IC_SS_SCL_LCNT,
+					ic_clk,
 					4700,	/* tLOW = 4.7 us */
 					scl_falling_time,
 					0);	/* No offset */
@@ -94,13 +100,17 @@ static int i2c_dw_set_timings_master(struct dw_i2c_dev *dev)
 		} else {
 			ic_clk = i2c_dw_clk_rate(dev);
 			dev->fs_hcnt =
-				i2c_dw_scl_hcnt(ic_clk,
+				i2c_dw_scl_hcnt(dev,
+						DW_IC_FS_SCL_HCNT,
+						ic_clk,
 						260,	/* tHIGH = 260 ns */
 						sda_falling_time,
 						0,	/* DW default */
 						0);	/* No offset */
 			dev->fs_lcnt =
-				i2c_dw_scl_lcnt(ic_clk,
+				i2c_dw_scl_lcnt(dev,
+						DW_IC_FS_SCL_LCNT,
+						ic_clk,
 						500,	/* tLOW = 500 ns */
 						scl_falling_time,
 						0);	/* No offset */
@@ -114,13 +124,17 @@ static int i2c_dw_set_timings_master(struct dw_i2c_dev *dev)
 	if (!dev->fs_hcnt || !dev->fs_lcnt) {
 		ic_clk = i2c_dw_clk_rate(dev);
 		dev->fs_hcnt =
-			i2c_dw_scl_hcnt(ic_clk,
+			i2c_dw_scl_hcnt(dev,
+					DW_IC_FS_SCL_HCNT,
+					ic_clk,
 					600,	/* tHD;STA = tHIGH = 0.6 us */
 					sda_falling_time,
 					0,	/* 0: DW default, 1: Ideal */
 					0);	/* No offset */
 		dev->fs_lcnt =
-			i2c_dw_scl_lcnt(ic_clk,
+			i2c_dw_scl_lcnt(dev,
+					DW_IC_FS_SCL_LCNT,
+					ic_clk,
 					1300,	/* tLOW = 1.3 us */
 					scl_falling_time,
 					0);	/* No offset */
@@ -142,13 +156,17 @@ static int i2c_dw_set_timings_master(struct dw_i2c_dev *dev)
 		} else if (!dev->hs_hcnt || !dev->hs_lcnt) {
 			ic_clk = i2c_dw_clk_rate(dev);
 			dev->hs_hcnt =
-				i2c_dw_scl_hcnt(ic_clk,
+				i2c_dw_scl_hcnt(dev,
+						DW_IC_HS_SCL_HCNT,
+						ic_clk,
 						160,	/* tHIGH = 160 ns */
 						sda_falling_time,
 						0,	/* DW default */
 						0);	/* No offset */
 			dev->hs_lcnt =
-				i2c_dw_scl_lcnt(ic_clk,
+				i2c_dw_scl_lcnt(dev,
+						DW_IC_HS_SCL_LCNT,
+						ic_clk,
 						320,	/* tLOW = 320 ns */
 						scl_falling_time,
 						0);	/* No offset */
@@ -251,6 +269,34 @@ static void i2c_dw_xfer_init(struct dw_i2c_dev *dev)
 	/* Clear and enable interrupts */
 	regmap_read(dev->map, DW_IC_CLR_INTR, &dummy);
 	__i2c_dw_write_intr_mask(dev, DW_IC_INTR_MASTER_MASK);
+}
+
+/*
+ * This function waits for the controller to be idle before disabling I2C
+ * When the controller is not in the IDLE state, the MST_ACTIVITY bit
+ * (IC_STATUS[5]) is set.
+ *
+ * Values:
+ * 0x1 (ACTIVE): Controller not idle
+ * 0x0 (IDLE): Controller is idle
+ *
+ * The function is called after completing the current transfer.
+ *
+ * Returns:
+ * False when the controller is in the IDLE state.
+ * True when the controller is in the ACTIVE state.
+ */
+static bool i2c_dw_is_controller_active(struct dw_i2c_dev *dev)
+{
+	u32 status;
+
+	regmap_read(dev->map, DW_IC_STATUS, &status);
+	if (!(status & DW_IC_STATUS_MASTER_ACTIVITY))
+		return false;
+
+	return regmap_read_poll_timeout(dev->map, DW_IC_STATUS, status,
+				       !(status & DW_IC_STATUS_MASTER_ACTIVITY),
+				       1100, 20000) != 0;
 }
 
 static int i2c_dw_check_stopbit(struct dw_i2c_dev *dev)
@@ -789,6 +835,16 @@ i2c_dw_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[], int num)
 	}
 
 	/*
+	 * This happens rarely (~1:500) and is hard to reproduce. Debug trace
+	 * showed that IC_STATUS had value of 0x23 when STOP_DET occurred,
+	 * if disable IC_ENABLE.ENABLE immediately that can result in
+	 * IC_RAW_INTR_STAT.MASTER_ON_HOLD holding SCL low. Check if
+	 * controller is still ACTIVE before disabling I2C.
+	 */
+	if (i2c_dw_is_controller_active(dev))
+		dev_err(dev->dev, "controller active\n");
+
+	/*
 	 * We must disable the adapter before returning and signaling the end
 	 * of the current transfer. Otherwise the hardware might continue
 	 * generating interrupts which in turn causes a race condition with
@@ -931,7 +987,6 @@ int i2c_dw_probe_master(struct dw_i2c_dev *dev)
 	init_completion(&dev->cmd_complete);
 
 	dev->init = i2c_dw_init_master;
-	dev->disable = i2c_dw_disable;
 
 	ret = i2c_dw_init_regmap(dev);
 	if (ret)
@@ -1021,3 +1076,4 @@ EXPORT_SYMBOL_GPL(i2c_dw_probe_master);
 
 MODULE_DESCRIPTION("Synopsys DesignWare I2C bus master adapter");
 MODULE_LICENSE("GPL");
+MODULE_IMPORT_NS(I2C_DW_COMMON);

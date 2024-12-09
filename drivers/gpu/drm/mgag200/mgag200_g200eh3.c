@@ -118,11 +118,7 @@ static int mgag200_g200eh3_pipeline_init(struct mga_device *mdev)
 	drm_mode_crtc_set_gamma_size(crtc, MGAG200_LUT_SIZE);
 	drm_crtc_enable_color_mgmt(crtc, 0, false, MGAG200_LUT_SIZE);
 
-	ret = mgag200_vga_output_init(mdev);
-	if (ret)
-		return ret;
-
-	ret = mgag200_bmc_output_init(mdev, &mdev->output.vga.connector);
+	ret = mgag200_vga_bmc_output_init(mdev);
 	if (ret)
 		return ret;
 

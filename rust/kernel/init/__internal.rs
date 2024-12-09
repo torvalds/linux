@@ -228,3 +228,32 @@ impl OnlyCallFromDrop {
         Self(())
     }
 }
+
+/// Initializer that always fails.
+///
+/// Used by [`assert_pinned!`].
+///
+/// [`assert_pinned!`]: crate::assert_pinned
+pub struct AlwaysFail<T: ?Sized> {
+    _t: PhantomData<T>,
+}
+
+impl<T: ?Sized> AlwaysFail<T> {
+    /// Creates a new initializer that always fails.
+    pub fn new() -> Self {
+        Self { _t: PhantomData }
+    }
+}
+
+impl<T: ?Sized> Default for AlwaysFail<T> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+// SAFETY: `__pinned_init` always fails, which is always okay.
+unsafe impl<T: ?Sized> PinInit<T, ()> for AlwaysFail<T> {
+    unsafe fn __pinned_init(self, _slot: *mut T) -> Result<(), ()> {
+        Err(())
+    }
+}

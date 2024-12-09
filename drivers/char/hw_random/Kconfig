@@ -50,7 +50,7 @@ config HW_RANDOM_INTEL
 
 config HW_RANDOM_AMD
 	tristate "AMD HW Random Number Generator support"
-	depends on (X86 || PPC_MAPLE || COMPILE_TEST)
+	depends on (X86 || COMPILE_TEST)
 	depends on PCI && HAS_IOPORT_MAP
 	default HW_RANDOM
 	help
@@ -59,6 +59,19 @@ config HW_RANDOM_AMD
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called amd-rng.
+
+	  If unsure, say Y.
+
+config HW_RANDOM_AIROHA
+	tristate "Airoha True HW Random Number Generator support"
+	depends on ARCH_AIROHA || COMPILE_TEST
+	default HW_RANDOM
+	help
+	  This driver provides kernel-side support for the True Random Number
+	  Generator hardware found on Airoha SoC.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called airoha-rng.
 
 	  If unsure, say Y.
 
@@ -99,9 +112,22 @@ config HW_RANDOM_BCM2835
 
 	  If unsure, say Y.
 
+config HW_RANDOM_BCM74110
+	tristate "Broadcom BCM74110 Random Number Generator support"
+	depends on ARCH_BRCMSTB || COMPILE_TEST
+	default HW_RANDOM
+	help
+	  This driver provides kernel-side support for the Random Number
+	  Generator hardware found on the Broadcom BCM74110 SoCs.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called bcm74110-rng
+
+	  If unsure, say Y.
+
 config HW_RANDOM_IPROC_RNG200
 	tristate "Broadcom iProc/STB RNG200 support"
-	depends on ARCH_BCM_IPROC || ARCH_BCM2835 || ARCH_BRCMSTB || COMPILE_TEST
+	depends on ARCH_BCM_IPROC || ARCH_BCM2835 || ARCH_BCMBCA || ARCH_BRCMSTB || COMPILE_TEST
 	default HW_RANDOM
 	help
 	  This driver provides kernel-side support for the RNG200

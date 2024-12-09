@@ -1236,6 +1236,7 @@ static void _cfg80211_unregister_wdev(struct wireless_dev *wdev,
 	/* deleted from the list, so can't be found from nl80211 any more */
 	cqm_config = rcu_access_pointer(wdev->cqm_config);
 	kfree_rcu(cqm_config, rcu_head);
+	RCU_INIT_POINTER(wdev->cqm_config, NULL);
 
 	/*
 	 * Ensure that all events have been processed and
@@ -1703,6 +1704,13 @@ void wiphy_delayed_work_flush(struct wiphy *wiphy,
 	wiphy_work_flush(wiphy, &dwork->work);
 }
 EXPORT_SYMBOL_GPL(wiphy_delayed_work_flush);
+
+bool wiphy_delayed_work_pending(struct wiphy *wiphy,
+				struct wiphy_delayed_work *dwork)
+{
+	return timer_pending(&dwork->timer);
+}
+EXPORT_SYMBOL_GPL(wiphy_delayed_work_pending);
 
 static int __init cfg80211_init(void)
 {

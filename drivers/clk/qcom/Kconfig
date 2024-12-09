@@ -810,6 +810,14 @@ config SDX_GCC_75
 	  Say Y if you want to use peripheral devices such as UART,
 	  SPI, I2C, USB, SD/eMMC, PCIe etc.
 
+config SM_CAMCC_4450
+	tristate "SM4450 Camera Clock Controller"
+	depends on ARM64 || COMPILE_TEST
+	select SM_GCC_4450
+	help
+	  Support for the camera clock controller on SM4450 devices.
+	  Say Y if you want to support camera devices and camera functionality.
+
 config SM_CAMCC_6350
 	tristate "SM6350 Camera Clock Controller"
 	depends on ARM64 || COMPILE_TEST
@@ -825,6 +833,16 @@ config SM_CAMCC_7150
 	help
 	  Support for the camera clock controller on SM7150 devices.
 	  Say Y if you want to support camera devices and camera functionality.
+
+config SM_CAMCC_8150
+	tristate "SM8150 Camera Clock Controller"
+	depends on ARM64 || COMPILE_TEST
+	select SM_GCC_8150
+	help
+	  Support for the camera clock controller on Qualcomm Technologies, Inc
+	  SM8150 devices.
+	  Say Y if you want to support camera devices and functionality such as
+	  capturing pictures.
 
 config SM_CAMCC_8250
 	tristate "SM8250 Camera Clock Controller"
@@ -857,6 +875,16 @@ config SM_CAMCC_8650
 	help
 	  Support for the camera clock controller on SM8650 devices.
 	  Say Y if you want to support camera devices and camera functionality.
+
+config SM_DISPCC_4450
+	tristate "SM4450 Display Clock Controller"
+	depends on ARM64 || COMPILE_TEST
+	depends on SM_GCC_4450
+	help
+	  Support for the display clock controller on Qualcomm Technologies, Inc
+	  SM4450 devices.
+	  Say Y if you want to support display devices and functionality such as
+	  splash screen
 
 config SM_DISPCC_6115
 	tristate "SM6115 Display Clock Controller"
@@ -931,20 +959,10 @@ config SM_DISPCC_8450
 config SM_DISPCC_8550
 	tristate "SM8550 Display Clock Controller"
 	depends on ARM64 || COMPILE_TEST
-	depends on SM_GCC_8550
+	depends on SM_GCC_8550 || SM_GCC_8650
 	help
 	  Support for the display clock controller on Qualcomm Technologies, Inc
-	  SM8550 devices.
-	  Say Y if you want to support display devices and functionality such as
-	  splash screen.
-
-config SM_DISPCC_8650
-	tristate "SM8650 Display Clock Controller"
-	depends on ARM64 || COMPILE_TEST
-	select SM_GCC_8650
-	help
-	  Support for the display clock controller on Qualcomm Technologies, Inc
-	  SM8650 devices.
+	  SM8550 or SM8650 devices.
 	  Say Y if you want to support display devices and functionality such as
 	  splash screen.
 
@@ -1053,6 +1071,15 @@ config SM_GCC_8650
 	  Support for the global clock controller on SM8650 devices.
 	  Say Y if you want to use peripheral devices such as UART,
 	  SPI, I2C, USB, SD/UFS, PCIe etc.
+
+config SM_GPUCC_4450
+	tristate "SM4450 Graphics Clock Controller"
+	depends on ARM64 || COMPILE_TEST
+	select SM_GCC_4450
+	help
+	  Support for the graphics clock controller on SM4450 devices.
+	  Say Y if you want to support graphics controller devices and
+	  functionality such as 3D graphics.
 
 config SM_GPUCC_6115
 	tristate "SM6115 Graphics Clock Controller"

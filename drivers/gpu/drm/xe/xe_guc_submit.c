@@ -224,64 +224,11 @@ static bool exec_queue_killed_or_banned_or_wedged(struct xe_exec_queue *q)
 		 EXEC_QUEUE_STATE_BANNED));
 }
 
-#ifdef CONFIG_PROVE_LOCKING
-static int alloc_submit_wq(struct xe_guc *guc)
-{
-	int i;
-
-	for (i = 0; i < NUM_SUBMIT_WQ; ++i) {
-		guc->submission_state.submit_wq_pool[i] =
-			alloc_ordered_workqueue("submit_wq", 0);
-		if (!guc->submission_state.submit_wq_pool[i])
-			goto err_free;
-	}
-
-	return 0;
-
-err_free:
-	while (i)
-		destroy_workqueue(guc->submission_state.submit_wq_pool[--i]);
-
-	return -ENOMEM;
-}
-
-static void free_submit_wq(struct xe_guc *guc)
-{
-	int i;
-
-	for (i = 0; i < NUM_SUBMIT_WQ; ++i)
-		destroy_workqueue(guc->submission_state.submit_wq_pool[i]);
-}
-
-static struct workqueue_struct *get_submit_wq(struct xe_guc *guc)
-{
-	int idx = guc->submission_state.submit_wq_idx++ % NUM_SUBMIT_WQ;
-
-	return guc->submission_state.submit_wq_pool[idx];
-}
-#else
-static int alloc_submit_wq(struct xe_guc *guc)
-{
-	return 0;
-}
-
-static void free_submit_wq(struct xe_guc *guc)
-{
-
-}
-
-static struct workqueue_struct *get_submit_wq(struct xe_guc *guc)
-{
-	return NULL;
-}
-#endif
-
 static void guc_submit_fini(struct drm_device *drm, void *arg)
 {
 	struct xe_guc *guc = arg;
 
 	xa_destroy(&guc->submission_state.exec_queue_lookup);
-	free_submit_wq(guc);
 }
 
 static void guc_submit_wedged_fini(void *arg)
@@ -290,9 +237,15 @@ static void guc_submit_wedged_fini(void *arg)
 	struct xe_exec_queue *q;
 	unsigned long index;
 
-	xa_for_each(&guc->submission_state.exec_queue_lookup, index, q)
-		if (exec_queue_wedged(q))
+	mutex_lock(&guc->submission_state.lock);
+	xa_for_each(&guc->submission_state.exec_queue_lookup, index, q) {
+		if (exec_queue_wedged(q)) {
+			mutex_unlock(&guc->submission_state.lock);
 			xe_exec_queue_put(q);
+			mutex_lock(&guc->submission_state.lock);
+		}
+	}
+	mutex_unlock(&guc->submission_state.lock);
 }
 
 static const struct xe_exec_queue_ops guc_exec_queue_ops;
@@ -337,13 +290,11 @@ int xe_guc_submit_init(struct xe_guc *guc, unsigned int num_ids)
 	if (err)
 		return err;
 
-	err = alloc_submit_wq(guc);
-	if (err)
-		return err;
-
 	gt->exec_queue_ops = &guc_exec_queue_ops;
 
 	xa_init(&guc->submission_state.exec_queue_lookup);
+
+	init_waitqueue_head(&guc->submission_state.fini_wq);
 
 	primelockdep(guc);
 
@@ -361,12 +312,14 @@ static void __release_guc_id(struct xe_guc *guc, struct xe_exec_queue *q, u32 xa
 
 	xe_guc_id_mgr_release_locked(&guc->submission_state.idm,
 				     q->guc->id, q->width);
+
+	if (xa_empty(&guc->submission_state.exec_queue_lookup))
+		wake_up(&guc->submission_state.fini_wq);
 }
 
 static int alloc_guc_id(struct xe_guc *guc, struct xe_exec_queue *q)
 {
 	int ret;
-	void *ptr;
 	int i;
 
 	/*
@@ -386,12 +339,10 @@ static int alloc_guc_id(struct xe_guc *guc, struct xe_exec_queue *q)
 	q->guc->id = ret;
 
 	for (i = 0; i < q->width; ++i) {
-		ptr = xa_store(&guc->submission_state.exec_queue_lookup,
-			       q->guc->id + i, q, GFP_NOWAIT);
-		if (IS_ERR(ptr)) {
-			ret = PTR_ERR(ptr);
+		ret = xa_err(xa_store(&guc->submission_state.exec_queue_lookup,
+				      q->guc->id + i, q, GFP_NOWAIT));
+		if (ret)
 			goto err_release;
-		}
 	}
 
 	return 0;
@@ -794,8 +745,6 @@ static void guc_exec_queue_free_job(struct drm_sched_job *drm_job)
 {
 	struct xe_sched_job *job = to_xe_sched_job(drm_job);
 
-	xe_exec_queue_update_run_ticks(job->q);
-
 	trace_xe_sched_job_free(job);
 	xe_sched_job_put(job);
 }
@@ -965,11 +914,21 @@ static void xe_guc_exec_queue_lr_cleanup(struct work_struct *w)
 static bool check_timeout(struct xe_exec_queue *q, struct xe_sched_job *job)
 {
 	struct xe_gt *gt = guc_to_gt(exec_queue_to_guc(q));
-	u32 ctx_timestamp = xe_lrc_ctx_timestamp(q->lrc[0]);
-	u32 ctx_job_timestamp = xe_lrc_ctx_job_timestamp(q->lrc[0]);
+	u32 ctx_timestamp, ctx_job_timestamp;
 	u32 timeout_ms = q->sched_props.job_timeout_ms;
 	u32 diff;
 	u64 running_time_ms;
+
+	if (!xe_sched_job_started(job)) {
+		xe_gt_warn(gt, "Check job timeout: seqno=%u, lrc_seqno=%u, guc_id=%d, not started",
+			   xe_sched_job_seqno(job), xe_sched_job_lrc_seqno(job),
+			   q->guc->id);
+
+		return xe_sched_invalidate_job(job, 2);
+	}
+
+	ctx_timestamp = xe_lrc_ctx_timestamp(q->lrc[0]);
+	ctx_job_timestamp = xe_lrc_ctx_job_timestamp(q->lrc[0]);
 
 	/*
 	 * Counter wraps at ~223s at the usual 19.2MHz, be paranoid catch
@@ -1071,16 +1030,21 @@ guc_exec_queue_timedout_job(struct drm_sched_job *drm_job)
 	struct xe_exec_queue *q = job->q;
 	struct xe_gpu_scheduler *sched = &q->guc->sched;
 	struct xe_guc *guc = exec_queue_to_guc(q);
+	const char *process_name = "no process";
 	int err = -ETIME;
+	pid_t pid = -1;
 	int i = 0;
 	bool wedged, skip_timeout_check;
 
 	/*
 	 * TDR has fired before free job worker. Common if exec queue
-	 * immediately closed after last fence signaled.
+	 * immediately closed after last fence signaled. Add back to pending
+	 * list so job can be freed and kick scheduler ensuring free job is not
+	 * lost.
 	 */
 	if (test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &job->fence->flags)) {
-		guc_exec_queue_free_job(drm_job);
+		xe_sched_add_pending_job(sched, job);
+		xe_sched_submission_start(sched);
 
 		return DRM_GPU_SCHED_STAT_NOMINAL;
 	}
@@ -1092,10 +1056,6 @@ guc_exec_queue_timedout_job(struct drm_sched_job *drm_job)
 	skip_timeout_check = exec_queue_reset(q) ||
 		exec_queue_killed_or_banned_or_wedged(q) ||
 		exec_queue_destroyed(q);
-
-	/* Job hasn't started, can't be timed out */
-	if (!skip_timeout_check && !xe_sched_job_started(job))
-		goto rearm;
 
 	/*
 	 * XXX: Sampling timeout doesn't work in wedged mode as we have to
@@ -1168,9 +1128,14 @@ trigger_reset:
 		goto sched_enable;
 	}
 
-	xe_gt_notice(guc_to_gt(guc), "Timedout job: seqno=%u, lrc_seqno=%u, guc_id=%d, flags=0x%lx",
+	if (q->vm && q->vm->xef) {
+		process_name = q->vm->xef->process_name;
+		pid = q->vm->xef->pid;
+	}
+	xe_gt_notice(guc_to_gt(guc), "Timedout job: seqno=%u, lrc_seqno=%u, guc_id=%d, flags=0x%lx in %s [%d]",
 		     xe_sched_job_seqno(job), xe_sched_job_lrc_seqno(job),
-		     q->guc->id, q->flags);
+		     q->guc->id, q->flags, process_name, pid);
+
 	trace_xe_sched_job_timedout(job);
 
 	if (!exec_queue_killed(q))
@@ -1261,13 +1226,16 @@ static void __guc_exec_queue_fini_async(struct work_struct *w)
 
 static void guc_exec_queue_fini_async(struct xe_exec_queue *q)
 {
+	struct xe_guc *guc = exec_queue_to_guc(q);
+	struct xe_device *xe = guc_to_xe(guc);
+
 	INIT_WORK(&q->guc->fini_async, __guc_exec_queue_fini_async);
 
 	/* We must block on kernel engines so slabs are empty on driver unload */
 	if (q->flags & EXEC_QUEUE_FLAG_PERMANENT || exec_queue_wedged(q))
 		__guc_exec_queue_fini_async(&q->guc->fini_async);
 	else
-		queue_work(system_wq, &q->guc->fini_async);
+		queue_work(xe->destroy_wq, &q->guc->fini_async);
 }
 
 static void __guc_exec_queue_fini(struct xe_guc *guc, struct xe_exec_queue *q)
@@ -1312,6 +1280,15 @@ static void __guc_exec_queue_process_msg_set_sched_props(struct xe_sched_msg *ms
 	kfree(msg);
 }
 
+static void __suspend_fence_signal(struct xe_exec_queue *q)
+{
+	if (!q->guc->suspend_pending)
+		return;
+
+	WRITE_ONCE(q->guc->suspend_pending, false);
+	wake_up(&q->guc->suspend_wait);
+}
+
 static void suspend_fence_signal(struct xe_exec_queue *q)
 {
 	struct xe_guc *guc = exec_queue_to_guc(q);
@@ -1321,9 +1298,7 @@ static void suspend_fence_signal(struct xe_exec_queue *q)
 		  guc_read_stopped(guc));
 	xe_assert(xe, q->guc->suspend_pending);
 
-	q->guc->suspend_pending = false;
-	smp_wmb();
-	wake_up(&q->guc->suspend_wait);
+	__suspend_fence_signal(q);
 }
 
 static void __guc_exec_queue_process_msg_suspend(struct xe_sched_msg *msg)
@@ -1360,9 +1335,11 @@ static void __guc_exec_queue_process_msg_resume(struct xe_sched_msg *msg)
 	struct xe_exec_queue *q = msg->private_data;
 
 	if (guc_exec_queue_allowed_to_change_state(q)) {
-		q->guc->resume_time = RESUME_PENDING;
 		clear_exec_queue_suspended(q);
-		enable_scheduling(q);
+		if (!exec_queue_enabled(q)) {
+			q->guc->resume_time = RESUME_PENDING;
+			enable_scheduling(q);
+		}
 	} else {
 		clear_exec_queue_suspended(q);
 	}
@@ -1372,6 +1349,8 @@ static void __guc_exec_queue_process_msg_resume(struct xe_sched_msg *msg)
 #define SET_SCHED_PROPS	2
 #define SUSPEND		3
 #define RESUME		4
+#define OPCODE_MASK	0xf
+#define MSG_LOCKED	BIT(8)
 
 static void guc_exec_queue_process_msg(struct xe_sched_msg *msg)
 {
@@ -1416,7 +1395,7 @@ static int guc_exec_queue_init(struct xe_exec_queue *q)
 	struct xe_device *xe = guc_to_xe(guc);
 	struct xe_guc_exec_queue *ge;
 	long timeout;
-	int err;
+	int err, i;
 
 	xe_assert(xe, xe_device_uc_enabled(guc_to_xe(guc)));
 
@@ -1428,11 +1407,13 @@ static int guc_exec_queue_init(struct xe_exec_queue *q)
 	ge->q = q;
 	init_waitqueue_head(&ge->suspend_wait);
 
+	for (i = 0; i < MAX_STATIC_MSG_TYPE; ++i)
+		INIT_LIST_HEAD(&ge->static_msgs[i].link);
+
 	timeout = (q->vm && xe_vm_in_lr_mode(q->vm)) ? MAX_SCHEDULE_TIMEOUT :
 		  msecs_to_jiffies(q->sched_props.job_timeout_ms);
 	err = xe_sched_init(&ge->sched, &drm_sched_ops, &xe_sched_ops,
-			    get_submit_wq(guc),
-			    q->lrc[0]->ring.size / MAX_JOB_SIZE_BYTES, 64,
+			    NULL, q->lrc[0]->ring.size / MAX_JOB_SIZE_BYTES, 64,
 			    timeout, guc_to_gt(guc)->ordered_wq, NULL,
 			    q->name, gt_to_xe(q->gt)->drm.dev);
 	if (err)
@@ -1480,6 +1461,7 @@ static void guc_exec_queue_kill(struct xe_exec_queue *q)
 {
 	trace_xe_exec_queue_kill(q);
 	set_exec_queue_killed(q);
+	__suspend_fence_signal(q);
 	xe_guc_exec_queue_trigger_cleanup(q);
 }
 
@@ -1489,11 +1471,26 @@ static void guc_exec_queue_add_msg(struct xe_exec_queue *q, struct xe_sched_msg 
 	xe_pm_runtime_get_noresume(guc_to_xe(exec_queue_to_guc(q)));
 
 	INIT_LIST_HEAD(&msg->link);
-	msg->opcode = opcode;
+	msg->opcode = opcode & OPCODE_MASK;
 	msg->private_data = q;
 
 	trace_xe_sched_msg_add(msg);
-	xe_sched_add_msg(&q->guc->sched, msg);
+	if (opcode & MSG_LOCKED)
+		xe_sched_add_msg_locked(&q->guc->sched, msg);
+	else
+		xe_sched_add_msg(&q->guc->sched, msg);
+}
+
+static bool guc_exec_queue_try_add_msg(struct xe_exec_queue *q,
+				       struct xe_sched_msg *msg,
+				       u32 opcode)
+{
+	if (!list_empty(&msg->link))
+		return false;
+
+	guc_exec_queue_add_msg(q, msg, opcode | MSG_LOCKED);
+
+	return true;
 }
 
 #define STATIC_MSG_CLEANUP	0
@@ -1567,34 +1564,59 @@ static int guc_exec_queue_set_preempt_timeout(struct xe_exec_queue *q,
 
 static int guc_exec_queue_suspend(struct xe_exec_queue *q)
 {
+	struct xe_gpu_scheduler *sched = &q->guc->sched;
 	struct xe_sched_msg *msg = q->guc->static_msgs + STATIC_MSG_SUSPEND;
 
-	if (exec_queue_killed_or_banned_or_wedged(q) || q->guc->suspend_pending)
+	if (exec_queue_killed_or_banned_or_wedged(q))
 		return -EINVAL;
 
-	q->guc->suspend_pending = true;
-	guc_exec_queue_add_msg(q, msg, SUSPEND);
+	xe_sched_msg_lock(sched);
+	if (guc_exec_queue_try_add_msg(q, msg, SUSPEND))
+		q->guc->suspend_pending = true;
+	xe_sched_msg_unlock(sched);
 
 	return 0;
 }
 
-static void guc_exec_queue_suspend_wait(struct xe_exec_queue *q)
+static int guc_exec_queue_suspend_wait(struct xe_exec_queue *q)
 {
 	struct xe_guc *guc = exec_queue_to_guc(q);
+	int ret;
 
-	wait_event(q->guc->suspend_wait, !q->guc->suspend_pending ||
-		   guc_read_stopped(guc));
+	/*
+	 * Likely don't need to check exec_queue_killed() as we clear
+	 * suspend_pending upon kill but to be paranoid but races in which
+	 * suspend_pending is set after kill also check kill here.
+	 */
+	ret = wait_event_interruptible_timeout(q->guc->suspend_wait,
+					       !READ_ONCE(q->guc->suspend_pending) ||
+					       exec_queue_killed(q) ||
+					       guc_read_stopped(guc),
+					       HZ * 5);
+
+	if (!ret) {
+		xe_gt_warn(guc_to_gt(guc),
+			   "Suspend fence, guc_id=%d, failed to respond",
+			   q->guc->id);
+		/* XXX: Trigger GT reset? */
+		return -ETIME;
+	}
+
+	return ret < 0 ? ret : 0;
 }
 
 static void guc_exec_queue_resume(struct xe_exec_queue *q)
 {
+	struct xe_gpu_scheduler *sched = &q->guc->sched;
 	struct xe_sched_msg *msg = q->guc->static_msgs + STATIC_MSG_RESUME;
 	struct xe_guc *guc = exec_queue_to_guc(q);
 	struct xe_device *xe = guc_to_xe(guc);
 
 	xe_assert(xe, !q->guc->suspend_pending);
 
-	guc_exec_queue_add_msg(q, msg, RESUME);
+	xe_sched_msg_lock(sched);
+	guc_exec_queue_try_add_msg(q, msg, RESUME);
+	xe_sched_msg_unlock(sched);
 }
 
 static bool guc_exec_queue_reset_status(struct xe_exec_queue *q)
@@ -1708,8 +1730,13 @@ void xe_guc_submit_stop(struct xe_guc *guc)
 
 	mutex_lock(&guc->submission_state.lock);
 
-	xa_for_each(&guc->submission_state.exec_queue_lookup, index, q)
+	xa_for_each(&guc->submission_state.exec_queue_lookup, index, q) {
+		/* Prevent redundant attempts to stop parallel queues */
+		if (q->guc->id != index)
+			continue;
+
 		guc_exec_queue_stop(guc, q);
+	}
 
 	mutex_unlock(&guc->submission_state.lock);
 
@@ -1734,6 +1761,7 @@ static void guc_exec_queue_start(struct xe_exec_queue *q)
 	}
 
 	xe_sched_submission_start(sched);
+	xe_sched_submission_resume_tdr(sched);
 }
 
 int xe_guc_submit_start(struct xe_guc *guc)
@@ -1746,8 +1774,13 @@ int xe_guc_submit_start(struct xe_guc *guc)
 
 	mutex_lock(&guc->submission_state.lock);
 	atomic_dec(&guc->submission_state.stopped);
-	xa_for_each(&guc->submission_state.exec_queue_lookup, index, q)
+	xa_for_each(&guc->submission_state.exec_queue_lookup, index, q) {
+		/* Prevent redundant attempts to start parallel queues */
+		if (q->guc->id != index)
+			continue;
+
 		guc_exec_queue_start(q);
+	}
 	mutex_unlock(&guc->submission_state.lock);
 
 	wake_up_all(&guc->ct.wq);

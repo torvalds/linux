@@ -36,7 +36,6 @@
 #include <linux/profile.h>
 #include <linux/timex.h>
 #include <linux/notifier.h>
-#include <linux/timekeeper_internal.h>
 #include <linux/clockchips.h>
 #include <linux/gfp.h>
 #include <linux/kprobes.h>
@@ -729,8 +728,8 @@ static ssize_t ctn_id_show(struct device *dev,
 
 	mutex_lock(&stp_mutex);
 	if (stpinfo_valid())
-		ret = sprintf(buf, "%016lx\n",
-			      *(unsigned long *) stp_info.ctnid);
+		ret = sysfs_emit(buf, "%016lx\n",
+				 *(unsigned long *)stp_info.ctnid);
 	mutex_unlock(&stp_mutex);
 	return ret;
 }
@@ -745,7 +744,7 @@ static ssize_t ctn_type_show(struct device *dev,
 
 	mutex_lock(&stp_mutex);
 	if (stpinfo_valid())
-		ret = sprintf(buf, "%i\n", stp_info.ctn);
+		ret = sysfs_emit(buf, "%i\n", stp_info.ctn);
 	mutex_unlock(&stp_mutex);
 	return ret;
 }
@@ -760,7 +759,7 @@ static ssize_t dst_offset_show(struct device *dev,
 
 	mutex_lock(&stp_mutex);
 	if (stpinfo_valid() && (stp_info.vbits & 0x2000))
-		ret = sprintf(buf, "%i\n", (int)(s16) stp_info.dsto);
+		ret = sysfs_emit(buf, "%i\n", (int)(s16)stp_info.dsto);
 	mutex_unlock(&stp_mutex);
 	return ret;
 }
@@ -775,7 +774,7 @@ static ssize_t leap_seconds_show(struct device *dev,
 
 	mutex_lock(&stp_mutex);
 	if (stpinfo_valid() && (stp_info.vbits & 0x8000))
-		ret = sprintf(buf, "%i\n", (int)(s16) stp_info.leaps);
+		ret = sysfs_emit(buf, "%i\n", (int)(s16)stp_info.leaps);
 	mutex_unlock(&stp_mutex);
 	return ret;
 }
@@ -801,11 +800,11 @@ static ssize_t leap_seconds_scheduled_show(struct device *dev,
 		return ret;
 
 	if (!stzi.lsoib.p)
-		return sprintf(buf, "0,0\n");
+		return sysfs_emit(buf, "0,0\n");
 
-	return sprintf(buf, "%lu,%d\n",
-		       tod_to_ns(stzi.lsoib.nlsout - TOD_UNIX_EPOCH) / NSEC_PER_SEC,
-		       stzi.lsoib.nlso - stzi.lsoib.also);
+	return sysfs_emit(buf, "%lu,%d\n",
+			  tod_to_ns(stzi.lsoib.nlsout - TOD_UNIX_EPOCH) / NSEC_PER_SEC,
+			  stzi.lsoib.nlso - stzi.lsoib.also);
 }
 
 static DEVICE_ATTR_RO(leap_seconds_scheduled);
@@ -818,7 +817,7 @@ static ssize_t stratum_show(struct device *dev,
 
 	mutex_lock(&stp_mutex);
 	if (stpinfo_valid())
-		ret = sprintf(buf, "%i\n", (int)(s16) stp_info.stratum);
+		ret = sysfs_emit(buf, "%i\n", (int)(s16)stp_info.stratum);
 	mutex_unlock(&stp_mutex);
 	return ret;
 }
@@ -833,7 +832,7 @@ static ssize_t time_offset_show(struct device *dev,
 
 	mutex_lock(&stp_mutex);
 	if (stpinfo_valid() && (stp_info.vbits & 0x0800))
-		ret = sprintf(buf, "%i\n", (int) stp_info.tto);
+		ret = sysfs_emit(buf, "%i\n", (int)stp_info.tto);
 	mutex_unlock(&stp_mutex);
 	return ret;
 }
@@ -848,7 +847,7 @@ static ssize_t time_zone_offset_show(struct device *dev,
 
 	mutex_lock(&stp_mutex);
 	if (stpinfo_valid() && (stp_info.vbits & 0x4000))
-		ret = sprintf(buf, "%i\n", (int)(s16) stp_info.tzo);
+		ret = sysfs_emit(buf, "%i\n", (int)(s16)stp_info.tzo);
 	mutex_unlock(&stp_mutex);
 	return ret;
 }
@@ -863,7 +862,7 @@ static ssize_t timing_mode_show(struct device *dev,
 
 	mutex_lock(&stp_mutex);
 	if (stpinfo_valid())
-		ret = sprintf(buf, "%i\n", stp_info.tmd);
+		ret = sysfs_emit(buf, "%i\n", stp_info.tmd);
 	mutex_unlock(&stp_mutex);
 	return ret;
 }
@@ -878,7 +877,7 @@ static ssize_t timing_state_show(struct device *dev,
 
 	mutex_lock(&stp_mutex);
 	if (stpinfo_valid())
-		ret = sprintf(buf, "%i\n", stp_info.tst);
+		ret = sysfs_emit(buf, "%i\n", stp_info.tst);
 	mutex_unlock(&stp_mutex);
 	return ret;
 }
@@ -889,7 +888,7 @@ static ssize_t online_show(struct device *dev,
 				struct device_attribute *attr,
 				char *buf)
 {
-	return sprintf(buf, "%i\n", stp_online);
+	return sysfs_emit(buf, "%i\n", stp_online);
 }
 
 static ssize_t online_store(struct device *dev,

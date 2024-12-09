@@ -568,7 +568,7 @@ static struct platform_driver i5k_amb_driver = {
 		.name = DRVNAME,
 	},
 	.probe = i5k_amb_probe,
-	.remove_new = i5k_amb_remove,
+	.remove = i5k_amb_remove,
 };
 
 static int __init i5k_amb_init(void)

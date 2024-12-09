@@ -18,7 +18,7 @@
 #include <linux/watchdog.h>
 #include <linux/workqueue.h>
 #include <asm/byteorder.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 struct i2c_client;
 struct rtc_device;

@@ -282,7 +282,7 @@ void intel_init_dpcd_quirks(struct intel_dp *intel_dp,
 		    !memcmp(q->sink_oui, ident->oui, sizeof(ident->oui)) &&
 		    (!memcmp(q->sink_device_id, ident->device_id,
 			    sizeof(ident->device_id)) ||
-		     !memchr_inv(q->sink_device_id, 0, sizeof(q->sink_device_id))))
+		     mem_is_zero(q->sink_device_id, sizeof(q->sink_device_id))))
 			q->hook(intel_dp);
 	}
 }

@@ -83,7 +83,7 @@
 
 #include <asm/irq.h>
 #include <asm/byteorder.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 static int dbg_level;
 #ifdef ISP1362_DEBUG

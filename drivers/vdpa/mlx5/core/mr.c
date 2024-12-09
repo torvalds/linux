@@ -49,17 +49,23 @@ static void populate_mtts(struct mlx5_vdpa_direct_mr *mr, __be64 *mtt)
 	}
 }
 
-static int create_direct_mr(struct mlx5_vdpa_dev *mvdev, struct mlx5_vdpa_direct_mr *mr)
-{
-	int inlen;
-	void *mkc;
-	void *in;
-	int err;
+struct mlx5_create_mkey_mem {
+	u8 out[MLX5_ST_SZ_BYTES(create_mkey_out)];
+	u8 in[MLX5_ST_SZ_BYTES(create_mkey_in)];
+	__be64 mtt[];
+};
 
-	inlen = MLX5_ST_SZ_BYTES(create_mkey_in) + roundup(MLX5_ST_SZ_BYTES(mtt) * mr->nsg, 16);
-	in = kvzalloc(inlen, GFP_KERNEL);
-	if (!in)
-		return -ENOMEM;
+struct mlx5_destroy_mkey_mem {
+	u8 out[MLX5_ST_SZ_BYTES(destroy_mkey_out)];
+	u8 in[MLX5_ST_SZ_BYTES(destroy_mkey_in)];
+};
+
+static void fill_create_direct_mr(struct mlx5_vdpa_dev *mvdev,
+				  struct mlx5_vdpa_direct_mr *mr,
+				  struct mlx5_create_mkey_mem *mem)
+{
+	void *in = &mem->in;
+	void *mkc;
 
 	MLX5_SET(create_mkey_in, in, uid, mvdev->res.uid);
 	mkc = MLX5_ADDR_OF(create_mkey_in, in, memory_key_mkey_entry);
@@ -76,18 +82,36 @@ static int create_direct_mr(struct mlx5_vdpa_dev *mvdev, struct mlx5_vdpa_direct
 	MLX5_SET(create_mkey_in, in, translations_octword_actual_size,
 		 get_octo_len(mr->end - mr->start, mr->log_size));
 	populate_mtts(mr, MLX5_ADDR_OF(create_mkey_in, in, klm_pas_mtt));
-	err = mlx5_vdpa_create_mkey(mvdev, &mr->mr, in, inlen);
-	kvfree(in);
-	if (err) {
-		mlx5_vdpa_warn(mvdev, "Failed to create direct MR\n");
-		return err;
-	}
 
-	return 0;
+	MLX5_SET(create_mkey_in, in, opcode, MLX5_CMD_OP_CREATE_MKEY);
+	MLX5_SET(create_mkey_in, in, uid, mvdev->res.uid);
+}
+
+static void create_direct_mr_end(struct mlx5_vdpa_dev *mvdev,
+				 struct mlx5_vdpa_direct_mr *mr,
+				 struct mlx5_create_mkey_mem *mem)
+{
+	u32 mkey_index = MLX5_GET(create_mkey_out, mem->out, mkey_index);
+
+	mr->mr = mlx5_idx_to_mkey(mkey_index);
+}
+
+static void fill_destroy_direct_mr(struct mlx5_vdpa_dev *mvdev,
+				   struct mlx5_vdpa_direct_mr *mr,
+				   struct mlx5_destroy_mkey_mem *mem)
+{
+	void *in = &mem->in;
+
+	MLX5_SET(destroy_mkey_in, in, uid, mvdev->res.uid);
+	MLX5_SET(destroy_mkey_in, in, opcode, MLX5_CMD_OP_DESTROY_MKEY);
+	MLX5_SET(destroy_mkey_in, in, mkey_index, mlx5_mkey_to_idx(mr->mr));
 }
 
 static void destroy_direct_mr(struct mlx5_vdpa_dev *mvdev, struct mlx5_vdpa_direct_mr *mr)
 {
+	if (!mr->mr)
+		return;
+
 	mlx5_vdpa_destroy_mkey(mvdev, mr->mr);
 }
 
@@ -179,6 +203,123 @@ static int klm_byte_size(int nklms)
 	return 16 * ALIGN(nklms, 4);
 }
 
+#define MLX5_VDPA_MTT_ALIGN 16
+
+static int create_direct_keys(struct mlx5_vdpa_dev *mvdev, struct mlx5_vdpa_mr *mr)
+{
+	struct mlx5_vdpa_async_cmd *cmds;
+	struct mlx5_vdpa_direct_mr *dmr;
+	int err = 0;
+	int i = 0;
+
+	cmds = kvcalloc(mr->num_directs, sizeof(*cmds), GFP_KERNEL);
+	if (!cmds)
+		return -ENOMEM;
+
+	list_for_each_entry(dmr, &mr->head, list) {
+		struct mlx5_create_mkey_mem *cmd_mem;
+		int mttlen, mttcount;
+
+		mttlen = roundup(MLX5_ST_SZ_BYTES(mtt) * dmr->nsg, MLX5_VDPA_MTT_ALIGN);
+		mttcount = mttlen / sizeof(cmd_mem->mtt[0]);
+		cmd_mem = kvcalloc(1, struct_size(cmd_mem, mtt, mttcount), GFP_KERNEL);
+		if (!cmd_mem) {
+			err = -ENOMEM;
+			goto done;
+		}
+
+		cmds[i].out = cmd_mem->out;
+		cmds[i].outlen = sizeof(cmd_mem->out);
+		cmds[i].in = cmd_mem->in;
+		cmds[i].inlen = struct_size(cmd_mem, mtt, mttcount);
+
+		fill_create_direct_mr(mvdev, dmr, cmd_mem);
+
+		i++;
+	}
+
+	err = mlx5_vdpa_exec_async_cmds(mvdev, cmds, mr->num_directs);
+	if (err) {
+
+		mlx5_vdpa_err(mvdev, "error issuing MTT mkey creation for direct mrs: %d\n", err);
+		goto done;
+	}
+
+	i = 0;
+	list_for_each_entry(dmr, &mr->head, list) {
+		struct mlx5_vdpa_async_cmd *cmd = &cmds[i++];
+		struct mlx5_create_mkey_mem *cmd_mem;
+
+		cmd_mem = container_of(cmd->out, struct mlx5_create_mkey_mem, out);
+
+		if (!cmd->err) {
+			create_direct_mr_end(mvdev, dmr, cmd_mem);
+		} else {
+			err = err ? err : cmd->err;
+			mlx5_vdpa_err(mvdev, "error creating MTT mkey [0x%llx, 0x%llx]: %d\n",
+				dmr->start, dmr->end, cmd->err);
+		}
+	}
+
+done:
+	for (i = i-1; i >= 0; i--) {
+		struct mlx5_create_mkey_mem *cmd_mem;
+
+		cmd_mem = container_of(cmds[i].out, struct mlx5_create_mkey_mem, out);
+		kvfree(cmd_mem);
+	}
+
+	kvfree(cmds);
+	return err;
+}
+
+DEFINE_FREE(free_cmds, struct mlx5_vdpa_async_cmd *, kvfree(_T))
+DEFINE_FREE(free_cmd_mem, struct mlx5_destroy_mkey_mem *, kvfree(_T))
+
+static int destroy_direct_keys(struct mlx5_vdpa_dev *mvdev, struct mlx5_vdpa_mr *mr)
+{
+	struct mlx5_destroy_mkey_mem *cmd_mem __free(free_cmd_mem) = NULL;
+	struct mlx5_vdpa_async_cmd *cmds __free(free_cmds) = NULL;
+	struct mlx5_vdpa_direct_mr *dmr;
+	int err = 0;
+	int i = 0;
+
+	cmds = kvcalloc(mr->num_directs, sizeof(*cmds), GFP_KERNEL);
+	cmd_mem = kvcalloc(mr->num_directs, sizeof(*cmd_mem), GFP_KERNEL);
+	if (!cmds || !cmd_mem)
+		return -ENOMEM;
+
+	list_for_each_entry(dmr, &mr->head, list) {
+		cmds[i].out = cmd_mem[i].out;
+		cmds[i].outlen = sizeof(cmd_mem[i].out);
+		cmds[i].in = cmd_mem[i].in;
+		cmds[i].inlen = sizeof(cmd_mem[i].in);
+		fill_destroy_direct_mr(mvdev, dmr, &cmd_mem[i]);
+		i++;
+	}
+
+	err = mlx5_vdpa_exec_async_cmds(mvdev, cmds, mr->num_directs);
+	if (err) {
+
+		mlx5_vdpa_err(mvdev, "error issuing MTT mkey deletion for direct mrs: %d\n", err);
+		return err;
+	}
+
+	i = 0;
+	list_for_each_entry(dmr, &mr->head, list) {
+		struct mlx5_vdpa_async_cmd *cmd = &cmds[i++];
+
+		dmr->mr = 0;
+		if (cmd->err) {
+			err = err ? err : cmd->err;
+			mlx5_vdpa_err(mvdev, "error deleting MTT mkey [0x%llx, 0x%llx]: %d\n",
+				dmr->start, dmr->end, cmd->err);
+		}
+	}
+
+	return err;
+}
+
 static int create_indirect_key(struct mlx5_vdpa_dev *mvdev, struct mlx5_vdpa_mr *mr)
 {
 	int inlen;
@@ -232,7 +373,7 @@ static int map_direct_mr(struct mlx5_vdpa_dev *mvdev, struct mlx5_vdpa_direct_mr
 	struct page *pg;
 	unsigned int nsg;
 	int sglen;
-	u64 pa;
+	u64 pa, offset;
 	u64 paend;
 	struct scatterlist *sg;
 	struct device *dma = mvdev->vdev.dma_dev;
@@ -255,8 +396,10 @@ static int map_direct_mr(struct mlx5_vdpa_dev *mvdev, struct mlx5_vdpa_direct_mr
 	sg = mr->sg_head.sgl;
 	for (map = vhost_iotlb_itree_first(iotlb, mr->start, mr->end - 1);
 	     map; map = vhost_iotlb_itree_next(map, mr->start, mr->end - 1)) {
-		paend = map->addr + maplen(map, mr);
-		for (pa = map->addr; pa < paend; pa += sglen) {
+		offset = mr->start > map->start ? mr->start - map->start : 0;
+		pa = map->addr + offset;
+		paend = map->addr + offset + maplen(map, mr);
+		for (; pa < paend; pa += sglen) {
 			pg = pfn_to_page(__phys_to_pfn(pa));
 			if (!sg) {
 				mlx5_vdpa_warn(mvdev, "sg null. start 0x%llx, end 0x%llx\n",
@@ -279,14 +422,8 @@ done:
 		goto err_map;
 	}
 
-	err = create_direct_mr(mvdev, mr);
-	if (err)
-		goto err_direct;
-
 	return 0;
 
-err_direct:
-	dma_unmap_sg_attrs(dma, mr->sg_head.sgl, mr->nsg, DMA_BIDIRECTIONAL, 0);
 err_map:
 	sg_free_table(&mr->sg_head);
 	return err;
@@ -401,6 +538,10 @@ static int create_user_mr(struct mlx5_vdpa_dev *mvdev,
 	if (err)
 		goto err_chain;
 
+	err = create_direct_keys(mvdev, mr);
+	if (err)
+		goto err_chain;
+
 	/* Create the memory key that defines the guests's address space. This
 	 * memory key refers to the direct keys that contain the MTT
 	 * translations
@@ -489,6 +630,7 @@ static void destroy_user_mr(struct mlx5_vdpa_dev *mvdev, struct mlx5_vdpa_mr *mr
 	struct mlx5_vdpa_direct_mr *n;
 
 	destroy_indirect_key(mvdev, mr);
+	destroy_direct_keys(mvdev, mr);
 	list_for_each_entry_safe_reverse(dmr, n, &mr->head, list) {
 		list_del_init(&dmr->list);
 		unmap_direct_mr(mvdev, dmr);
@@ -513,22 +655,58 @@ static void _mlx5_vdpa_destroy_mr(struct mlx5_vdpa_dev *mvdev, struct mlx5_vdpa_
 	kfree(mr);
 }
 
+/* There can be multiple .set_map() operations in quick succession.
+ * This large delay is a simple way to prevent the MR cleanup from blocking
+ * .set_map() MR creation in this scenario.
+ */
+#define MLX5_VDPA_MR_GC_TRIGGER_MS 2000
+
+static void mlx5_vdpa_mr_gc_handler(struct work_struct *work)
+{
+	struct mlx5_vdpa_mr_resources *mres;
+	struct mlx5_vdpa_mr *mr, *tmp;
+	struct mlx5_vdpa_dev *mvdev;
+
+	mres = container_of(work, struct mlx5_vdpa_mr_resources, gc_dwork_ent.work);
+
+	if (atomic_read(&mres->shutdown)) {
+		mutex_lock(&mres->lock);
+	} else if (!mutex_trylock(&mres->lock)) {
+		queue_delayed_work(mres->wq_gc, &mres->gc_dwork_ent,
+				   msecs_to_jiffies(MLX5_VDPA_MR_GC_TRIGGER_MS));
+		return;
+	}
+
+	mvdev = container_of(mres, struct mlx5_vdpa_dev, mres);
+
+	list_for_each_entry_safe(mr, tmp, &mres->mr_gc_list_head, mr_list) {
+		_mlx5_vdpa_destroy_mr(mvdev, mr);
+	}
+
+	mutex_unlock(&mres->lock);
+}
+
 static void _mlx5_vdpa_put_mr(struct mlx5_vdpa_dev *mvdev,
 			      struct mlx5_vdpa_mr *mr)
 {
+	struct mlx5_vdpa_mr_resources *mres = &mvdev->mres;
+
 	if (!mr)
 		return;
 
-	if (refcount_dec_and_test(&mr->refcount))
-		_mlx5_vdpa_destroy_mr(mvdev, mr);
+	if (refcount_dec_and_test(&mr->refcount)) {
+		list_move_tail(&mr->mr_list, &mres->mr_gc_list_head);
+		queue_delayed_work(mres->wq_gc, &mres->gc_dwork_ent,
+				   msecs_to_jiffies(MLX5_VDPA_MR_GC_TRIGGER_MS));
+	}
 }
 
 void mlx5_vdpa_put_mr(struct mlx5_vdpa_dev *mvdev,
 		      struct mlx5_vdpa_mr *mr)
 {
-	mutex_lock(&mvdev->mr_mtx);
+	mutex_lock(&mvdev->mres.lock);
 	_mlx5_vdpa_put_mr(mvdev, mr);
-	mutex_unlock(&mvdev->mr_mtx);
+	mutex_unlock(&mvdev->mres.lock);
 }
 
 static void _mlx5_vdpa_get_mr(struct mlx5_vdpa_dev *mvdev,
@@ -543,44 +721,47 @@ static void _mlx5_vdpa_get_mr(struct mlx5_vdpa_dev *mvdev,
 void mlx5_vdpa_get_mr(struct mlx5_vdpa_dev *mvdev,
 		      struct mlx5_vdpa_mr *mr)
 {
-	mutex_lock(&mvdev->mr_mtx);
+	mutex_lock(&mvdev->mres.lock);
 	_mlx5_vdpa_get_mr(mvdev, mr);
-	mutex_unlock(&mvdev->mr_mtx);
+	mutex_unlock(&mvdev->mres.lock);
 }
 
 void mlx5_vdpa_update_mr(struct mlx5_vdpa_dev *mvdev,
 			 struct mlx5_vdpa_mr *new_mr,
 			 unsigned int asid)
 {
-	struct mlx5_vdpa_mr *old_mr = mvdev->mr[asid];
+	struct mlx5_vdpa_mr *old_mr = mvdev->mres.mr[asid];
 
-	mutex_lock(&mvdev->mr_mtx);
+	mutex_lock(&mvdev->mres.lock);
 
 	_mlx5_vdpa_put_mr(mvdev, old_mr);
-	mvdev->mr[asid] = new_mr;
+	mvdev->mres.mr[asid] = new_mr;
 
-	mutex_unlock(&mvdev->mr_mtx);
+	mutex_unlock(&mvdev->mres.lock);
 }
 
 static void mlx5_vdpa_show_mr_leaks(struct mlx5_vdpa_dev *mvdev)
 {
 	struct mlx5_vdpa_mr *mr;
 
-	mutex_lock(&mvdev->mr_mtx);
+	mutex_lock(&mvdev->mres.lock);
 
-	list_for_each_entry(mr, &mvdev->mr_list_head, mr_list) {
+	list_for_each_entry(mr, &mvdev->mres.mr_list_head, mr_list) {
 
 		mlx5_vdpa_warn(mvdev, "mkey still alive after resource delete: "
 				      "mr: %p, mkey: 0x%x, refcount: %u\n",
 				       mr, mr->mkey, refcount_read(&mr->refcount));
 	}
 
-	mutex_unlock(&mvdev->mr_mtx);
+	mutex_unlock(&mvdev->mres.lock);
 
 }
 
-void mlx5_vdpa_destroy_mr_resources(struct mlx5_vdpa_dev *mvdev)
+void mlx5_vdpa_clean_mrs(struct mlx5_vdpa_dev *mvdev)
 {
+	if (!mvdev->res.valid)
+		return;
+
 	for (int i = 0; i < MLX5_VDPA_NUM_AS; i++)
 		mlx5_vdpa_update_mr(mvdev, NULL, i);
 
@@ -613,7 +794,7 @@ static int _mlx5_vdpa_create_mr(struct mlx5_vdpa_dev *mvdev,
 	if (err)
 		goto err_iotlb;
 
-	list_add_tail(&mr->mr_list, &mvdev->mr_list_head);
+	list_add_tail(&mr->mr_list, &mvdev->mres.mr_list_head);
 
 	return 0;
 
@@ -639,9 +820,9 @@ struct mlx5_vdpa_mr *mlx5_vdpa_create_mr(struct mlx5_vdpa_dev *mvdev,
 	if (!mr)
 		return ERR_PTR(-ENOMEM);
 
-	mutex_lock(&mvdev->mr_mtx);
+	mutex_lock(&mvdev->mres.lock);
 	err = _mlx5_vdpa_create_mr(mvdev, mr, iotlb);
-	mutex_unlock(&mvdev->mr_mtx);
+	mutex_unlock(&mvdev->mres.lock);
 
 	if (err)
 		goto out_err;
@@ -661,7 +842,7 @@ int mlx5_vdpa_update_cvq_iotlb(struct mlx5_vdpa_dev *mvdev,
 {
 	int err;
 
-	if (mvdev->group2asid[MLX5_VDPA_CVQ_GROUP] != asid)
+	if (mvdev->mres.group2asid[MLX5_VDPA_CVQ_GROUP] != asid)
 		return 0;
 
 	spin_lock(&mvdev->cvq.iommu_lock);
@@ -702,4 +883,34 @@ int mlx5_vdpa_reset_mr(struct mlx5_vdpa_dev *mvdev, unsigned int asid)
 	}
 
 	return 0;
+}
+
+int mlx5_vdpa_init_mr_resources(struct mlx5_vdpa_dev *mvdev)
+{
+	struct mlx5_vdpa_mr_resources *mres = &mvdev->mres;
+
+	mres->wq_gc = create_singlethread_workqueue("mlx5_vdpa_mr_gc");
+	if (!mres->wq_gc)
+		return -ENOMEM;
+
+	INIT_DELAYED_WORK(&mres->gc_dwork_ent, mlx5_vdpa_mr_gc_handler);
+
+	mutex_init(&mres->lock);
+
+	INIT_LIST_HEAD(&mres->mr_list_head);
+	INIT_LIST_HEAD(&mres->mr_gc_list_head);
+
+	return 0;
+}
+
+void mlx5_vdpa_destroy_mr_resources(struct mlx5_vdpa_dev *mvdev)
+{
+	struct mlx5_vdpa_mr_resources *mres = &mvdev->mres;
+
+	atomic_set(&mres->shutdown, 1);
+
+	flush_delayed_work(&mres->gc_dwork_ent);
+	destroy_workqueue(mres->wq_gc);
+	mres->wq_gc = NULL;
+	mutex_destroy(&mres->lock);
 }
