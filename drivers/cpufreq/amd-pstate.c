@@ -22,6 +22,7 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
+#include <linux/bitfield.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
@@ -87,6 +88,11 @@ static int cppc_state = AMD_PSTATE_UNDEFINED;
 static bool cppc_enabled;
 static bool amd_pstate_prefcore = true;
 static struct quirk_entry *quirks;
+
+#define AMD_CPPC_MAX_PERF_MASK		GENMASK(7, 0)
+#define AMD_CPPC_MIN_PERF_MASK		GENMASK(15, 8)
+#define AMD_CPPC_DES_PERF_MASK		GENMASK(23, 16)
+#define AMD_CPPC_EPP_PERF_MASK		GENMASK(31, 24)
 
 /*
  * AMD Energy Preference Performance (EPP)
@@ -182,7 +188,6 @@ static DEFINE_MUTEX(amd_pstate_driver_lock);
 
 static s16 msr_get_epp(struct amd_cpudata *cpudata, u64 cppc_req_cached)
 {
-	u64 epp;
 	int ret;
 
 	if (!cppc_req_cached) {
@@ -192,9 +197,8 @@ static s16 msr_get_epp(struct amd_cpudata *cpudata, u64 cppc_req_cached)
 			return ret;
 		}
 	}
-	epp = (cppc_req_cached >> 24) & 0xFF;
 
-	return (s16)epp;
+	return FIELD_GET(AMD_CPPC_EPP_PERF_MASK, cppc_req_cached);
 }
 
 DEFINE_STATIC_CALL(amd_pstate_get_epp, msr_get_epp);
@@ -269,12 +273,11 @@ static inline void amd_pstate_update_perf(struct amd_cpudata *cpudata,
 
 static int msr_set_epp(struct amd_cpudata *cpudata, u32 epp)
 {
+	u64 value = READ_ONCE(cpudata->cppc_req_cached);
 	int ret;
 
-	u64 value = READ_ONCE(cpudata->cppc_req_cached);
-
-	value &= ~GENMASK_ULL(31, 24);
-	value |= (u64)epp << 24;
+	value &= ~AMD_CPPC_EPP_PERF_MASK;
+	value |= FIELD_PREP(AMD_CPPC_EPP_PERF_MASK, epp);
 	WRITE_ONCE(cpudata->cppc_req_cached, value);
 
 	ret = wrmsrl_on_cpu(cpudata->cpu, MSR_AMD_CPPC_REQ, value);
@@ -327,8 +330,8 @@ static int amd_pstate_set_energy_pref_index(struct amd_cpudata *cpudata,
 	if (trace_amd_pstate_epp_perf_enabled()) {
 		trace_amd_pstate_epp_perf(cpudata->cpu, cpudata->highest_perf,
 					  epp,
-					  AMD_CPPC_MIN_PERF(cpudata->cppc_req_cached),
-					  AMD_CPPC_MAX_PERF(cpudata->cppc_req_cached),
+					  FIELD_GET(AMD_CPPC_MIN_PERF_MASK, cpudata->cppc_req_cached),
+					  FIELD_GET(AMD_CPPC_MAX_PERF_MASK, cpudata->cppc_req_cached),
 					  cpudata->boost_state);
 	}
 
@@ -542,18 +545,15 @@ static void amd_pstate_update(struct amd_cpudata *cpudata, u32 min_perf,
 		des_perf = 0;
 	}
 
-	value &= ~AMD_CPPC_MIN_PERF(~0L);
-	value |= AMD_CPPC_MIN_PERF(min_perf);
-
-	value &= ~AMD_CPPC_DES_PERF(~0L);
-	value |= AMD_CPPC_DES_PERF(des_perf);
-
 	/* limit the max perf when core performance boost feature is disabled */
 	if (!cpudata->boost_supported)
 		max_perf = min_t(unsigned long, nominal_perf, max_perf);
 
-	value &= ~AMD_CPPC_MAX_PERF(~0L);
-	value |= AMD_CPPC_MAX_PERF(max_perf);
+	value &= ~(AMD_CPPC_MAX_PERF_MASK | AMD_CPPC_MIN_PERF_MASK |
+		   AMD_CPPC_DES_PERF_MASK);
+	value |= FIELD_PREP(AMD_CPPC_MAX_PERF_MASK, max_perf);
+	value |= FIELD_PREP(AMD_CPPC_DES_PERF_MASK, des_perf);
+	value |= FIELD_PREP(AMD_CPPC_MIN_PERF_MASK, min_perf);
 
 	if (trace_amd_pstate_perf_enabled() && amd_pstate_sample(cpudata)) {
 		trace_amd_pstate_perf(min_perf, des_perf, max_perf, cpudata->freq,
@@ -1573,16 +1573,11 @@ static int amd_pstate_epp_update_limit(struct cpufreq_policy *policy)
 	if (cpudata->policy == CPUFREQ_POLICY_PERFORMANCE)
 		min_perf = min(cpudata->nominal_perf, max_perf);
 
-	/* Initial min/max values for CPPC Performance Controls Register */
-	value &= ~AMD_CPPC_MIN_PERF(~0L);
-	value |= AMD_CPPC_MIN_PERF(min_perf);
-
-	value &= ~AMD_CPPC_MAX_PERF(~0L);
-	value |= AMD_CPPC_MAX_PERF(max_perf);
-
-	/* CPPC EPP feature require to set zero to the desire perf bit */
-	value &= ~AMD_CPPC_DES_PERF(~0L);
-	value |= AMD_CPPC_DES_PERF(0);
+	value &= ~(AMD_CPPC_MAX_PERF_MASK | AMD_CPPC_MIN_PERF_MASK |
+		   AMD_CPPC_DES_PERF_MASK);
+	value |= FIELD_PREP(AMD_CPPC_MAX_PERF_MASK, max_perf);
+	value |= FIELD_PREP(AMD_CPPC_DES_PERF_MASK, 0);
+	value |= FIELD_PREP(AMD_CPPC_MIN_PERF_MASK, min_perf);
 
 	/* Get BIOS pre-defined epp value */
 	epp = amd_pstate_get_epp(cpudata, value);
@@ -1652,7 +1647,7 @@ static void amd_pstate_epp_reenable(struct amd_cpudata *cpudata)
 	if (trace_amd_pstate_epp_perf_enabled()) {
 		trace_amd_pstate_epp_perf(cpudata->cpu, cpudata->highest_perf,
 					  cpudata->epp_cached,
-					  AMD_CPPC_MIN_PERF(cpudata->cppc_req_cached),
+					  FIELD_GET(AMD_CPPC_MIN_PERF_MASK, cpudata->cppc_req_cached),
 					  max_perf, cpudata->boost_state);
 	}
 
