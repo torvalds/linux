@@ -975,6 +975,9 @@ struct dc_crtc_timing {
 	struct dc_crtc_timing_flags flags;
 	uint32_t dsc_fixed_bits_per_pixel_x16; /* DSC target bitrate in 1/16 of bpp (e.g. 128 -> 8bpp) */
 	struct dc_dsc_config dsc_cfg;
+
+	/* The number of pixels that HBlank has been expanded by from the original EDID timing. */
+	uint32_t expanded_hblank;
 };
 
 enum trigger_delay {
