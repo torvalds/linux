@@ -301,6 +301,7 @@ static const struct of_device_id scmi_of_match[] = {
 	{ .compatible = "qcom,scmi-smc" },
 	{ /* Sentinel */ },
 };
+MODULE_DEVICE_TABLE(of, scmi_of_match);
 
 DEFINE_SCMI_TRANSPORT_DRIVER(scmi_smc, scmi_smc_driver, scmi_smc_desc,
 			     scmi_of_match, core);
