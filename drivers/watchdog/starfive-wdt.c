@@ -80,7 +80,7 @@ MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default="
 		 __MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
 
 struct starfive_wdt_variant {
-	unsigned int control;		/* Watchdog Control Resgister for reset enable */
+	unsigned int control;		/* Watchdog Control Register for reset enable */
 	unsigned int load;		/* Watchdog Load register */
 	unsigned int reload;		/* Watchdog Reload Control register */
 	unsigned int enable;		/* Watchdog Enable Register */
@@ -597,7 +597,7 @@ MODULE_DEVICE_TABLE(of, starfive_wdt_match);
 
 static struct platform_driver starfive_wdt_driver = {
 	.probe = starfive_wdt_probe,
-	.remove_new = starfive_wdt_remove,
+	.remove = starfive_wdt_remove,
 	.shutdown = starfive_wdt_shutdown,
 	.driver = {
 		.name = "starfive-wdt",

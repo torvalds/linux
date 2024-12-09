@@ -67,6 +67,6 @@ static struct auxiliary_driver intel_sst_aux_driver = {
 
 module_auxiliary_driver(intel_sst_aux_driver);
 
-MODULE_IMPORT_NS(INTEL_TPMI_SST);
+MODULE_IMPORT_NS("INTEL_TPMI_SST");
 MODULE_DESCRIPTION("Intel TPMI SST Driver");
 MODULE_LICENSE("GPL");

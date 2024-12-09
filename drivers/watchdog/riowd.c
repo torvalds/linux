@@ -238,7 +238,7 @@ static struct platform_driver riowd_driver = {
 		.of_match_table = riowd_match,
 	},
 	.probe		= riowd_probe,
-	.remove_new	= riowd_remove,
+	.remove		= riowd_remove,
 };
 
 module_platform_driver(riowd_driver);

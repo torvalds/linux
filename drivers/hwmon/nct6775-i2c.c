@@ -184,4 +184,4 @@ module_i2c_driver(nct6775_i2c_driver);
 MODULE_AUTHOR("Zev Weiss <zev@bewilderbeest.net>");
 MODULE_DESCRIPTION("I2C driver for NCT6775F and compatible chips");
 MODULE_LICENSE("GPL");
-MODULE_IMPORT_NS(HWMON_NCT6775);
+MODULE_IMPORT_NS("HWMON_NCT6775");

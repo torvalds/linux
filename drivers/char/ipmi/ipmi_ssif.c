@@ -2114,7 +2114,7 @@ static struct platform_driver ipmi_driver = {
 		.name = DEVICE_NAME,
 	},
 	.probe		= ssif_platform_probe,
-	.remove_new	= ssif_platform_remove,
+	.remove		= ssif_platform_remove,
 	.id_table       = ssif_plat_ids
 };
 

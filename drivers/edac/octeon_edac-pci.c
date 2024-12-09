@@ -97,7 +97,7 @@ static void octeon_pci_remove(struct platform_device *pdev)
 
 static struct platform_driver octeon_pci_driver = {
 	.probe = octeon_pci_probe,
-	.remove_new = octeon_pci_remove,
+	.remove = octeon_pci_remove,
 	.driver = {
 		   .name = "octeon_pci_edac",
 	}

@@ -49,7 +49,7 @@ int cs35l56_set_patch(struct cs35l56_base *cs35l56_base)
 	return regmap_register_patch(cs35l56_base->regmap, cs35l56_patch,
 				     ARRAY_SIZE(cs35l56_patch));
 }
-EXPORT_SYMBOL_NS_GPL(cs35l56_set_patch, SND_SOC_CS35L56_SHARED);
+EXPORT_SYMBOL_NS_GPL(cs35l56_set_patch, "SND_SOC_CS35L56_SHARED");
 
 static const struct reg_default cs35l56_reg_defaults[] = {
 	/* no defaults for OTP_MEM - first read populates cache */
@@ -241,7 +241,7 @@ int cs35l56_mbox_send(struct cs35l56_base *cs35l56_base, unsigned int command)
 
 	return 0;
 }
-EXPORT_SYMBOL_NS_GPL(cs35l56_mbox_send, SND_SOC_CS35L56_SHARED);
+EXPORT_SYMBOL_NS_GPL(cs35l56_mbox_send, "SND_SOC_CS35L56_SHARED");
 
 int cs35l56_firmware_shutdown(struct cs35l56_base *cs35l56_base)
 {
@@ -261,7 +261,7 @@ int cs35l56_firmware_shutdown(struct cs35l56_base *cs35l56_base)
 			val, ret);
 	return ret;
 }
-EXPORT_SYMBOL_NS_GPL(cs35l56_firmware_shutdown, SND_SOC_CS35L56_SHARED);
+EXPORT_SYMBOL_NS_GPL(cs35l56_firmware_shutdown, "SND_SOC_CS35L56_SHARED");
 
 int cs35l56_wait_for_firmware_boot(struct cs35l56_base *cs35l56_base)
 {
@@ -287,21 +287,21 @@ int cs35l56_wait_for_firmware_boot(struct cs35l56_base *cs35l56_base)
 
 	return 0;
 }
-EXPORT_SYMBOL_NS_GPL(cs35l56_wait_for_firmware_boot, SND_SOC_CS35L56_SHARED);
+EXPORT_SYMBOL_NS_GPL(cs35l56_wait_for_firmware_boot, "SND_SOC_CS35L56_SHARED");
 
 void cs35l56_wait_control_port_ready(void)
 {
 	/* Wait for control port to be ready (datasheet tIRS). */
 	usleep_range(CS35L56_CONTROL_PORT_READY_US, 2 * CS35L56_CONTROL_PORT_READY_US);
 }
-EXPORT_SYMBOL_NS_GPL(cs35l56_wait_control_port_ready, SND_SOC_CS35L56_SHARED);
+EXPORT_SYMBOL_NS_GPL(cs35l56_wait_control_port_ready, "SND_SOC_CS35L56_SHARED");
 
 void cs35l56_wait_min_reset_pulse(void)
 {
 	/* Satisfy minimum reset pulse width spec */
 	usleep_range(CS35L56_RESET_PULSE_MIN_US, 2 * CS35L56_RESET_PULSE_MIN_US);
 }
-EXPORT_SYMBOL_NS_GPL(cs35l56_wait_min_reset_pulse, SND_SOC_CS35L56_SHARED);
+EXPORT_SYMBOL_NS_GPL(cs35l56_wait_min_reset_pulse, "SND_SOC_CS35L56_SHARED");
 
 static const struct reg_sequence cs35l56_system_reset_seq[] = {
 	REG_SEQ0(CS35L56_DSP1_HALO_STATE, 0),
@@ -327,7 +327,7 @@ void cs35l56_system_reset(struct cs35l56_base *cs35l56_base, bool is_soundwire)
 
 	/* Leave in cache-only. This will be revoked when the chip has rebooted. */
 }
-EXPORT_SYMBOL_NS_GPL(cs35l56_system_reset, SND_SOC_CS35L56_SHARED);
+EXPORT_SYMBOL_NS_GPL(cs35l56_system_reset, "SND_SOC_CS35L56_SHARED");
 
 int cs35l56_irq_request(struct cs35l56_base *cs35l56_base, int irq)
 {
@@ -346,7 +346,7 @@ int cs35l56_irq_request(struct cs35l56_base *cs35l56_base, int irq)
 
 	return ret;
 }
-EXPORT_SYMBOL_NS_GPL(cs35l56_irq_request, SND_SOC_CS35L56_SHARED);
+EXPORT_SYMBOL_NS_GPL(cs35l56_irq_request, "SND_SOC_CS35L56_SHARED");
 
 irqreturn_t cs35l56_irq(int irq, void *data)
 {
@@ -413,7 +413,7 @@ err_unlock:
 
 	return ret;
 }
-EXPORT_SYMBOL_NS_GPL(cs35l56_irq, SND_SOC_CS35L56_SHARED);
+EXPORT_SYMBOL_NS_GPL(cs35l56_irq, "SND_SOC_CS35L56_SHARED");
 
 int cs35l56_is_fw_reload_needed(struct cs35l56_base *cs35l56_base)
 {
@@ -444,7 +444,7 @@ int cs35l56_is_fw_reload_needed(struct cs35l56_base *cs35l56_base)
 
 	return ret;
 }
-EXPORT_SYMBOL_NS_GPL(cs35l56_is_fw_reload_needed, SND_SOC_CS35L56_SHARED);
+EXPORT_SYMBOL_NS_GPL(cs35l56_is_fw_reload_needed, "SND_SOC_CS35L56_SHARED");
 
 static const struct reg_sequence cs35l56_hibernate_seq[] = {
 	/* This must be the last register access */
@@ -513,7 +513,7 @@ int cs35l56_runtime_suspend_common(struct cs35l56_base *cs35l56_base)
 
 	return 0;
 }
-EXPORT_SYMBOL_NS_GPL(cs35l56_runtime_suspend_common, SND_SOC_CS35L56_SHARED);
+EXPORT_SYMBOL_NS_GPL(cs35l56_runtime_suspend_common, "SND_SOC_CS35L56_SHARED");
 
 int cs35l56_runtime_resume_common(struct cs35l56_base *cs35l56_base, bool is_soundwire)
 {
@@ -565,7 +565,7 @@ err:
 
 	return ret;
 }
-EXPORT_SYMBOL_NS_GPL(cs35l56_runtime_resume_common, SND_SOC_CS35L56_SHARED);
+EXPORT_SYMBOL_NS_GPL(cs35l56_runtime_resume_common, "SND_SOC_CS35L56_SHARED");
 
 static const struct cs_dsp_region cs35l56_dsp1_regions[] = {
 	{ .type = WMFW_HALO_PM_PACKED,	.base = CS35L56_DSP1_PMEM_0 },
@@ -588,7 +588,7 @@ void cs35l56_init_cs_dsp(struct cs35l56_base *cs35l56_base, struct cs_dsp *cs_ds
 	cs_dsp->num_mems = ARRAY_SIZE(cs35l56_dsp1_regions);
 	cs_dsp->no_core_startstop = true;
 }
-EXPORT_SYMBOL_NS_GPL(cs35l56_init_cs_dsp, SND_SOC_CS35L56_SHARED);
+EXPORT_SYMBOL_NS_GPL(cs35l56_init_cs_dsp, "SND_SOC_CS35L56_SHARED");
 
 struct cs35l56_pte {
 	u8 x;
@@ -634,7 +634,7 @@ const struct cirrus_amp_cal_controls cs35l56_calibration_controls = {
 	.status =	"CAL_STATUS",
 	.checksum =	"CAL_CHECKSUM",
 };
-EXPORT_SYMBOL_NS_GPL(cs35l56_calibration_controls, SND_SOC_CS35L56_SHARED);
+EXPORT_SYMBOL_NS_GPL(cs35l56_calibration_controls, "SND_SOC_CS35L56_SHARED");
 
 int cs35l56_get_calibration(struct cs35l56_base *cs35l56_base)
 {
@@ -664,7 +664,7 @@ int cs35l56_get_calibration(struct cs35l56_base *cs35l56_base)
 
 	return 0;
 }
-EXPORT_SYMBOL_NS_GPL(cs35l56_get_calibration, SND_SOC_CS35L56_SHARED);
+EXPORT_SYMBOL_NS_GPL(cs35l56_get_calibration, "SND_SOC_CS35L56_SHARED");
 
 int cs35l56_read_prot_status(struct cs35l56_base *cs35l56_base,
 			     bool *fw_missing, unsigned int *fw_version)
@@ -688,7 +688,7 @@ int cs35l56_read_prot_status(struct cs35l56_base *cs35l56_base,
 
 	return 0;
 }
-EXPORT_SYMBOL_NS_GPL(cs35l56_read_prot_status, SND_SOC_CS35L56_SHARED);
+EXPORT_SYMBOL_NS_GPL(cs35l56_read_prot_status, "SND_SOC_CS35L56_SHARED");
 
 int cs35l56_hw_init(struct cs35l56_base *cs35l56_base)
 {
@@ -774,7 +774,7 @@ int cs35l56_hw_init(struct cs35l56_base *cs35l56_base)
 
 	return 0;
 }
-EXPORT_SYMBOL_NS_GPL(cs35l56_hw_init, SND_SOC_CS35L56_SHARED);
+EXPORT_SYMBOL_NS_GPL(cs35l56_hw_init, "SND_SOC_CS35L56_SHARED");
 
 int cs35l56_get_speaker_id(struct cs35l56_base *cs35l56_base)
 {
@@ -816,7 +816,7 @@ err:
 
 	return ret;
 }
-EXPORT_SYMBOL_NS_GPL(cs35l56_get_speaker_id, SND_SOC_CS35L56_SHARED);
+EXPORT_SYMBOL_NS_GPL(cs35l56_get_speaker_id, "SND_SOC_CS35L56_SHARED");
 
 static const u32 cs35l56_bclk_valid_for_pll_freq_table[] = {
 	[0x0C] = 128000,
@@ -865,7 +865,7 @@ int cs35l56_get_bclk_freq_id(unsigned int freq)
 
 	return -EINVAL;
 }
-EXPORT_SYMBOL_NS_GPL(cs35l56_get_bclk_freq_id, SND_SOC_CS35L56_SHARED);
+EXPORT_SYMBOL_NS_GPL(cs35l56_get_bclk_freq_id, "SND_SOC_CS35L56_SHARED");
 
 static const char * const cs35l56_supplies[/* auto-sized */] = {
 	"VDD_P",
@@ -881,7 +881,7 @@ void cs35l56_fill_supply_names(struct regulator_bulk_data *data)
 	for (i = 0; i < ARRAY_SIZE(cs35l56_supplies); i++)
 		data[i].supply = cs35l56_supplies[i];
 }
-EXPORT_SYMBOL_NS_GPL(cs35l56_fill_supply_names, SND_SOC_CS35L56_SHARED);
+EXPORT_SYMBOL_NS_GPL(cs35l56_fill_supply_names, "SND_SOC_CS35L56_SHARED");
 
 const char * const cs35l56_tx_input_texts[] = {
 	"None", "ASP1RX1", "ASP1RX2", "VMON", "IMON", "ERRVOL", "CLASSH",
@@ -889,7 +889,7 @@ const char * const cs35l56_tx_input_texts[] = {
 	"DSP1TX5", "DSP1TX6", "DSP1TX7", "DSP1TX8", "TEMPMON",
 	"INTERPOLATOR", "SDW1RX1", "SDW1RX2",
 };
-EXPORT_SYMBOL_NS_GPL(cs35l56_tx_input_texts, SND_SOC_CS35L56_SHARED);
+EXPORT_SYMBOL_NS_GPL(cs35l56_tx_input_texts, "SND_SOC_CS35L56_SHARED");
 
 const unsigned int cs35l56_tx_input_values[] = {
 	CS35L56_INPUT_SRC_NONE,
@@ -914,7 +914,7 @@ const unsigned int cs35l56_tx_input_values[] = {
 	CS35L56_INPUT_SRC_SWIRE_DP1_CHANNEL1,
 	CS35L56_INPUT_SRC_SWIRE_DP1_CHANNEL2,
 };
-EXPORT_SYMBOL_NS_GPL(cs35l56_tx_input_values, SND_SOC_CS35L56_SHARED);
+EXPORT_SYMBOL_NS_GPL(cs35l56_tx_input_values, "SND_SOC_CS35L56_SHARED");
 
 const struct regmap_config cs35l56_regmap_i2c = {
 	.reg_bits = 32,
@@ -930,7 +930,7 @@ const struct regmap_config cs35l56_regmap_i2c = {
 	.precious_reg = cs35l56_precious_reg,
 	.cache_type = REGCACHE_MAPLE,
 };
-EXPORT_SYMBOL_NS_GPL(cs35l56_regmap_i2c, SND_SOC_CS35L56_SHARED);
+EXPORT_SYMBOL_NS_GPL(cs35l56_regmap_i2c, "SND_SOC_CS35L56_SHARED");
 
 const struct regmap_config cs35l56_regmap_spi = {
 	.reg_bits = 32,
@@ -947,7 +947,7 @@ const struct regmap_config cs35l56_regmap_spi = {
 	.precious_reg = cs35l56_precious_reg,
 	.cache_type = REGCACHE_MAPLE,
 };
-EXPORT_SYMBOL_NS_GPL(cs35l56_regmap_spi, SND_SOC_CS35L56_SHARED);
+EXPORT_SYMBOL_NS_GPL(cs35l56_regmap_spi, "SND_SOC_CS35L56_SHARED");
 
 const struct regmap_config cs35l56_regmap_sdw = {
 	.reg_bits = 32,
@@ -963,10 +963,10 @@ const struct regmap_config cs35l56_regmap_sdw = {
 	.precious_reg = cs35l56_precious_reg,
 	.cache_type = REGCACHE_MAPLE,
 };
-EXPORT_SYMBOL_NS_GPL(cs35l56_regmap_sdw, SND_SOC_CS35L56_SHARED);
+EXPORT_SYMBOL_NS_GPL(cs35l56_regmap_sdw, "SND_SOC_CS35L56_SHARED");
 
 MODULE_DESCRIPTION("ASoC CS35L56 Shared");
 MODULE_AUTHOR("Richard Fitzgerald <rf@opensource.cirrus.com>");
 MODULE_AUTHOR("Simon Trimmer <simont@opensource.cirrus.com>");
 MODULE_LICENSE("GPL");
-MODULE_IMPORT_NS(SND_SOC_CS_AMP_LIB);
+MODULE_IMPORT_NS("SND_SOC_CS_AMP_LIB");

@@ -44,7 +44,7 @@ int iommufd_vfio_compat_ioas_get_id(struct iommufd_ctx *ictx, u32 *out_ioas_id)
 	iommufd_put_object(ictx, &ioas->obj);
 	return 0;
 }
-EXPORT_SYMBOL_NS_GPL(iommufd_vfio_compat_ioas_get_id, IOMMUFD_VFIO);
+EXPORT_SYMBOL_NS_GPL(iommufd_vfio_compat_ioas_get_id, "IOMMUFD_VFIO");
 
 /**
  * iommufd_vfio_compat_set_no_iommu - Called when a no-iommu device is attached
@@ -66,7 +66,7 @@ int iommufd_vfio_compat_set_no_iommu(struct iommufd_ctx *ictx)
 	xa_unlock(&ictx->objects);
 	return ret;
 }
-EXPORT_SYMBOL_NS_GPL(iommufd_vfio_compat_set_no_iommu, IOMMUFD_VFIO);
+EXPORT_SYMBOL_NS_GPL(iommufd_vfio_compat_set_no_iommu, "IOMMUFD_VFIO");
 
 /**
  * iommufd_vfio_compat_ioas_create - Ensure the compat IOAS is created
@@ -118,7 +118,7 @@ out_abort:
 	iommufd_object_abort(ictx, &ioas->obj);
 	return ret;
 }
-EXPORT_SYMBOL_NS_GPL(iommufd_vfio_compat_ioas_create, IOMMUFD_VFIO);
+EXPORT_SYMBOL_NS_GPL(iommufd_vfio_compat_ioas_create, "IOMMUFD_VFIO");
 
 int iommufd_vfio_ioas(struct iommufd_ucmd *ucmd)
 {

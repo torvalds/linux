@@ -284,7 +284,7 @@ MODULE_DEVICE_TABLE(acpi, surface_kbd_match);
 
 static struct platform_driver surface_kbd_driver = {
 	.probe = surface_kbd_probe,
-	.remove_new = surface_kbd_remove,
+	.remove = surface_kbd_remove,
 	.driver = {
 		.name = "surface_keyboard",
 		.acpi_match_table = surface_kbd_match,
