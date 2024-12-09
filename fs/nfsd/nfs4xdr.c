@@ -1067,7 +1067,7 @@ static __be32 nfsd4_decode_share_access(struct nfsd4_compoundargs *argp, u32 *sh
 		return nfs_ok;
 	if (!argp->minorversion)
 		return nfserr_bad_xdr;
-	switch (w & NFS4_SHARE_WANT_MASK) {
+	switch (w & NFS4_SHARE_WANT_TYPE_MASK) {
 	case OPEN4_SHARE_ACCESS_WANT_NO_PREFERENCE:
 	case OPEN4_SHARE_ACCESS_WANT_READ_DELEG:
 	case OPEN4_SHARE_ACCESS_WANT_WRITE_DELEG:
