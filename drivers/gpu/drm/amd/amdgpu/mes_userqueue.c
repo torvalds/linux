@@ -109,7 +109,7 @@ static int mes_userq_map(struct amdgpu_userq_mgr *uq_mgr,
 	memset(&queue_input, 0x0, sizeof(struct mes_add_queue_input));
 
 	queue_input.process_va_start = 0;
-	queue_input.process_va_end = (adev->vm_manager.max_pfn - 1) << AMDGPU_GPU_PAGE_SHIFT;
+	queue_input.process_va_end = adev->vm_manager.max_pfn - 1;
 
 	/* set process quantum to 10 ms and gang quantum to 1 ms as default */
 	queue_input.process_quantum = 100000;

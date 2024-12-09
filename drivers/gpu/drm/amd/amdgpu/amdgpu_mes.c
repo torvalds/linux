@@ -656,8 +656,7 @@ int amdgpu_mes_add_hw_queue(struct amdgpu_device *adev, int gang_id,
 		adev->gmc.vram_start;
 
 	queue_input.process_va_start = 0;
-	queue_input.process_va_end =
-		(adev->vm_manager.max_pfn - 1) << AMDGPU_GPU_PAGE_SHIFT;
+	queue_input.process_va_end = adev->vm_manager.max_pfn - 1;
 	queue_input.process_quantum = gang->process->process_quantum;
 	queue_input.process_context_addr = gang->process->proc_ctx_gpu_addr;
 	queue_input.gang_quantum = gang->gang_quantum;
