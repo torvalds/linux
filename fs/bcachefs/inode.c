@@ -48,10 +48,10 @@ static int inode_decode_field(const u8 *in, const u8 *end,
 	u8 *p;
 
 	if (in >= end)
-		return -1;
+		return -BCH_ERR_inode_unpack_error;
 
 	if (!*in)
-		return -1;
+		return -BCH_ERR_inode_unpack_error;
 
 	/*
 	 * position of highest set bit indicates number of bytes:
@@ -61,7 +61,7 @@ static int inode_decode_field(const u8 *in, const u8 *end,
 	bytes	= byte_table[shift - 1];
 
 	if (in + bytes > end)
-		return -1;
+		return -BCH_ERR_inode_unpack_error;
 
 	p = (u8 *) be + 16 - bytes;
 	memcpy(p, in, bytes);
@@ -177,7 +177,7 @@ static noinline int bch2_inode_unpack_v1(struct bkey_s_c_inode inode,
 		return ret;						\
 									\
 	if (field_bits > sizeof(unpacked->_name) * 8)			\
-		return -1;						\
+		return -BCH_ERR_inode_unpack_error;			\
 									\
 	unpacked->_name = field[1];					\
 	in += ret;
@@ -218,7 +218,7 @@ static int bch2_inode_unpack_v2(struct bch_inode_unpacked *unpacked,
 									\
 	unpacked->_name = v[0];						\
 	if (v[1] || v[0] != unpacked->_name)				\
-		return -1;						\
+		return -BCH_ERR_inode_unpack_error;			\
 	fieldnr++;
 
 	BCH_INODE_FIELDS_v2()
@@ -269,7 +269,7 @@ static int bch2_inode_unpack_v3(struct bkey_s_c k,
 									\
 	unpacked->_name = v[0];						\
 	if (v[1] || v[0] != unpacked->_name)				\
-		return -1;						\
+		return -BCH_ERR_inode_unpack_error;			\
 	fieldnr++;
 
 	BCH_INODE_FIELDS_v3()

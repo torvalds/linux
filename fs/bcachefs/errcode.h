@@ -196,6 +196,8 @@
 	x(EINVAL,			remove_with_metadata_missing_unimplemented)\
 	x(EINVAL,			remove_would_lose_data)			\
 	x(EINVAL,			no_resize_with_buckets_nouse)		\
+	x(EINVAL,			inode_unpack_error)			\
+	x(EINVAL,			varint_decode_error)			\
 	x(EROFS,			erofs_trans_commit)			\
 	x(EROFS,			erofs_no_writes)			\
 	x(EROFS,			erofs_journal_err)			\
@@ -313,6 +315,7 @@ static inline long bch2_err_class(long err)
 
 #define BLK_STS_REMOVED		((__force blk_status_t)128)
 
+#include <linux/blk_types.h>
 const char *bch2_blk_status_to_str(blk_status_t);
 
 #endif /* _BCACHFES_ERRCODE_H */
