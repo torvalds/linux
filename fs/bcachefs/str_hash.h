@@ -394,10 +394,25 @@ int bch2_hash_delete(struct btree_trans *trans,
 }
 
 struct snapshots_seen;
-int bch2_str_hash_check_key(struct btree_trans *,
-			    struct snapshots_seen *,
-			    const struct bch_hash_desc,
-			    struct bch_hash_info *,
-			    struct btree_iter *, struct bkey_s_c);
+int __bch2_str_hash_check_key(struct btree_trans *,
+			      struct snapshots_seen *,
+			      const struct bch_hash_desc *,
+			      struct bch_hash_info *,
+			      struct btree_iter *, struct bkey_s_c);
+
+static inline int bch2_str_hash_check_key(struct btree_trans *trans,
+			    struct snapshots_seen *s,
+			    const struct bch_hash_desc *desc,
+			    struct bch_hash_info *hash_info,
+			    struct btree_iter *k_iter, struct bkey_s_c hash_k)
+{
+	if (hash_k.k->type != desc->key_type)
+		return 0;
+
+	if (likely(desc->hash_bkey(hash_info, hash_k) == hash_k.k->p.offset))
+		return 0;
+
+	return __bch2_str_hash_check_key(trans, s, desc, hash_info, k_iter, hash_k);
+}
 
 #endif /* _BCACHEFS_STR_HASH_H */

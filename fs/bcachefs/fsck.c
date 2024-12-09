@@ -1110,7 +1110,7 @@ static int check_inode(struct btree_trans *trans,
 	if (fsck_err_on(u.bi_hash_seed		!= snapshot_root->bi_hash_seed ||
 			INODE_STR_HASH(&u)	!= INODE_STR_HASH(snapshot_root),
 			trans, inode_snapshot_mismatch,
-			"inodes in different snapshots don't match")) {
+			"inode hash info in different snapshots don't match")) {
 		u.bi_hash_seed = snapshot_root->bi_hash_seed;
 		SET_INODE_STR_HASH(&u, INODE_STR_HASH(snapshot_root));
 		do_update = true;
@@ -2303,7 +2303,7 @@ static int check_dirent(struct btree_trans *trans, struct btree_iter *iter,
 		*hash_info = bch2_hash_info_init(c, &i->inode);
 	dir->first_this_inode = false;
 
-	ret = bch2_str_hash_check_key(trans, s, bch2_dirent_hash_desc, hash_info, iter, k);
+	ret = bch2_str_hash_check_key(trans, s, &bch2_dirent_hash_desc, hash_info, iter, k);
 	if (ret < 0)
 		goto err;
 	if (ret) {
@@ -2417,7 +2417,7 @@ static int check_xattr(struct btree_trans *trans, struct btree_iter *iter,
 		*hash_info = bch2_hash_info_init(c, &i->inode);
 	inode->first_this_inode = false;
 
-	ret = bch2_str_hash_check_key(trans, NULL, bch2_xattr_hash_desc, hash_info, iter, k);
+	ret = bch2_str_hash_check_key(trans, NULL, &bch2_xattr_hash_desc, hash_info, iter, k);
 	bch_err_fn(c, ret);
 	return ret;
 }
