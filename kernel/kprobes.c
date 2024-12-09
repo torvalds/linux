@@ -596,41 +596,38 @@ static void kick_kprobe_optimizer(void)
 /* Kprobe jump optimizer */
 static void kprobe_optimizer(struct work_struct *work)
 {
-	mutex_lock(&kprobe_mutex);
-	cpus_read_lock();
-	mutex_lock(&text_mutex);
+	guard(mutex)(&kprobe_mutex);
 
-	/*
-	 * Step 1: Unoptimize kprobes and collect cleaned (unused and disarmed)
-	 * kprobes before waiting for quiesence period.
-	 */
-	do_unoptimize_kprobes();
+	scoped_guard(cpus_read_lock) {
+		guard(mutex)(&text_mutex);
 
-	/*
-	 * Step 2: Wait for quiesence period to ensure all potentially
-	 * preempted tasks to have normally scheduled. Because optprobe
-	 * may modify multiple instructions, there is a chance that Nth
-	 * instruction is preempted. In that case, such tasks can return
-	 * to 2nd-Nth byte of jump instruction. This wait is for avoiding it.
-	 * Note that on non-preemptive kernel, this is transparently converted
-	 * to synchronoze_sched() to wait for all interrupts to have completed.
-	 */
-	synchronize_rcu_tasks();
+		/*
+		 * Step 1: Unoptimize kprobes and collect cleaned (unused and disarmed)
+		 * kprobes before waiting for quiesence period.
+		 */
+		do_unoptimize_kprobes();
 
-	/* Step 3: Optimize kprobes after quiesence period */
-	do_optimize_kprobes();
+		/*
+		 * Step 2: Wait for quiesence period to ensure all potentially
+		 * preempted tasks to have normally scheduled. Because optprobe
+		 * may modify multiple instructions, there is a chance that Nth
+		 * instruction is preempted. In that case, such tasks can return
+		 * to 2nd-Nth byte of jump instruction. This wait is for avoiding it.
+		 * Note that on non-preemptive kernel, this is transparently converted
+		 * to synchronoze_sched() to wait for all interrupts to have completed.
+		 */
+		synchronize_rcu_tasks();
 
-	/* Step 4: Free cleaned kprobes after quiesence period */
-	do_free_cleaned_kprobes();
+		/* Step 3: Optimize kprobes after quiesence period */
+		do_optimize_kprobes();
 
-	mutex_unlock(&text_mutex);
-	cpus_read_unlock();
+		/* Step 4: Free cleaned kprobes after quiesence period */
+		do_free_cleaned_kprobes();
+	}
 
 	/* Step 5: Kick optimizer again if needed */
 	if (!list_empty(&optimizing_list) || !list_empty(&unoptimizing_list))
 		kick_kprobe_optimizer();
-
-	mutex_unlock(&kprobe_mutex);
 }
 
 static void wait_for_kprobe_optimizer_locked(void)
@@ -853,29 +850,24 @@ static void try_to_optimize_kprobe(struct kprobe *p)
 		return;
 
 	/* For preparing optimization, jump_label_text_reserved() is called. */
-	cpus_read_lock();
-	jump_label_lock();
-	mutex_lock(&text_mutex);
+	guard(cpus_read_lock)();
+	guard(jump_label_lock)();
+	guard(mutex)(&text_mutex);
 
 	ap = alloc_aggr_kprobe(p);
 	if (!ap)
-		goto out;
+		return;
 
 	op = container_of(ap, struct optimized_kprobe, kp);
 	if (!arch_prepared_optinsn(&op->optinsn)) {
 		/* If failed to setup optimizing, fallback to kprobe. */
 		arch_remove_optimized_kprobe(op);
 		kfree(op);
-		goto out;
+		return;
 	}
 
 	init_aggr_kprobe(ap, p);
 	optimize_kprobe(ap);	/* This just kicks optimizer thread. */
-
-out:
-	mutex_unlock(&text_mutex);
-	jump_label_unlock();
-	cpus_read_unlock();
 }
 
 static void optimize_all_kprobes(void)
@@ -1158,12 +1150,9 @@ static int arm_kprobe(struct kprobe *kp)
 	if (unlikely(kprobe_ftrace(kp)))
 		return arm_kprobe_ftrace(kp);
 
-	cpus_read_lock();
-	mutex_lock(&text_mutex);
+	guard(cpus_read_lock)();
+	guard(mutex)(&text_mutex);
 	__arm_kprobe(kp);
-	mutex_unlock(&text_mutex);
-	cpus_read_unlock();
-
 	return 0;
 }
 
@@ -1172,12 +1161,9 @@ static int disarm_kprobe(struct kprobe *kp, bool reopt)
 	if (unlikely(kprobe_ftrace(kp)))
 		return disarm_kprobe_ftrace(kp);
 
-	cpus_read_lock();
-	mutex_lock(&text_mutex);
+	guard(cpus_read_lock)();
+	guard(mutex)(&text_mutex);
 	__disarm_kprobe(kp, reopt);
-	mutex_unlock(&text_mutex);
-	cpus_read_unlock();
-
 	return 0;
 }
 
@@ -1294,62 +1280,55 @@ static int register_aggr_kprobe(struct kprobe *orig_p, struct kprobe *p)
 	int ret = 0;
 	struct kprobe *ap = orig_p;
 
-	cpus_read_lock();
+	scoped_guard(cpus_read_lock) {
+		/* For preparing optimization, jump_label_text_reserved() is called */
+		guard(jump_label_lock)();
+		guard(mutex)(&text_mutex);
 
-	/* For preparing optimization, jump_label_text_reserved() is called */
-	jump_label_lock();
-	mutex_lock(&text_mutex);
-
-	if (!kprobe_aggrprobe(orig_p)) {
-		/* If 'orig_p' is not an 'aggr_kprobe', create new one. */
-		ap = alloc_aggr_kprobe(orig_p);
-		if (!ap) {
-			ret = -ENOMEM;
-			goto out;
+		if (!kprobe_aggrprobe(orig_p)) {
+			/* If 'orig_p' is not an 'aggr_kprobe', create new one. */
+			ap = alloc_aggr_kprobe(orig_p);
+			if (!ap)
+				return -ENOMEM;
+			init_aggr_kprobe(ap, orig_p);
+		} else if (kprobe_unused(ap)) {
+			/* This probe is going to die. Rescue it */
+			ret = reuse_unused_kprobe(ap);
+			if (ret)
+				return ret;
 		}
-		init_aggr_kprobe(ap, orig_p);
-	} else if (kprobe_unused(ap)) {
-		/* This probe is going to die. Rescue it */
-		ret = reuse_unused_kprobe(ap);
-		if (ret)
-			goto out;
-	}
 
-	if (kprobe_gone(ap)) {
-		/*
-		 * Attempting to insert new probe at the same location that
-		 * had a probe in the module vaddr area which already
-		 * freed. So, the instruction slot has already been
-		 * released. We need a new slot for the new probe.
-		 */
-		ret = arch_prepare_kprobe(ap);
-		if (ret)
+		if (kprobe_gone(ap)) {
 			/*
-			 * Even if fail to allocate new slot, don't need to
-			 * free the 'ap'. It will be used next time, or
-			 * freed by unregister_kprobe().
+			 * Attempting to insert new probe at the same location that
+			 * had a probe in the module vaddr area which already
+			 * freed. So, the instruction slot has already been
+			 * released. We need a new slot for the new probe.
 			 */
-			goto out;
+			ret = arch_prepare_kprobe(ap);
+			if (ret)
+				/*
+				 * Even if fail to allocate new slot, don't need to
+				 * free the 'ap'. It will be used next time, or
+				 * freed by unregister_kprobe().
+				 */
+				return ret;
 
-		/* Prepare optimized instructions if possible. */
-		prepare_optimized_kprobe(ap);
+			/* Prepare optimized instructions if possible. */
+			prepare_optimized_kprobe(ap);
 
-		/*
-		 * Clear gone flag to prevent allocating new slot again, and
-		 * set disabled flag because it is not armed yet.
-		 */
-		ap->flags = (ap->flags & ~KPROBE_FLAG_GONE)
-			    | KPROBE_FLAG_DISABLED;
+			/*
+			 * Clear gone flag to prevent allocating new slot again, and
+			 * set disabled flag because it is not armed yet.
+			 */
+			ap->flags = (ap->flags & ~KPROBE_FLAG_GONE)
+					| KPROBE_FLAG_DISABLED;
+		}
+
+		/* Copy the insn slot of 'p' to 'ap'. */
+		copy_kprobe(ap, p);
+		ret = add_new_kprobe(ap, p);
 	}
-
-	/* Copy the insn slot of 'p' to 'ap'. */
-	copy_kprobe(ap, p);
-	ret = add_new_kprobe(ap, p);
-
-out:
-	mutex_unlock(&text_mutex);
-	jump_label_unlock();
-	cpus_read_unlock();
 
 	if (ret == 0 && kprobe_disabled(ap) && !kprobe_disabled(p)) {
 		ap->flags &= ~KPROBE_FLAG_DISABLED;
@@ -1559,26 +1538,23 @@ static int check_kprobe_address_safe(struct kprobe *p,
 	ret = check_ftrace_location(p);
 	if (ret)
 		return ret;
-	jump_label_lock();
+
+	guard(jump_label_lock)();
 
 	/* Ensure the address is in a text area, and find a module if exists. */
 	*probed_mod = NULL;
 	if (!core_kernel_text((unsigned long) p->addr)) {
 		guard(preempt)();
 		*probed_mod = __module_text_address((unsigned long) p->addr);
-		if (!(*probed_mod)) {
-			ret = -EINVAL;
-			goto out;
-		}
+		if (!(*probed_mod))
+			return -EINVAL;
 
 		/*
 		 * We must hold a refcount of the probed module while updating
 		 * its code to prohibit unexpected unloading.
 		 */
-		if (unlikely(!try_module_get(*probed_mod))) {
-			ret = -ENOENT;
-			goto out;
-		}
+		if (unlikely(!try_module_get(*probed_mod)))
+			return -ENOENT;
 	}
 	/* Ensure it is not in reserved area. */
 	if (in_gate_area_no_mm((unsigned long) p->addr) ||
@@ -1588,8 +1564,7 @@ static int check_kprobe_address_safe(struct kprobe *p,
 	    find_bug((unsigned long)p->addr) ||
 	    is_cfi_preamble_symbol((unsigned long)p->addr)) {
 		module_put(*probed_mod);
-		ret = -EINVAL;
-		goto out;
+		return -EINVAL;
 	}
 
 	/* Get module refcount and reject __init functions for loaded modules. */
@@ -1601,14 +1576,11 @@ static int check_kprobe_address_safe(struct kprobe *p,
 		if (within_module_init((unsigned long)p->addr, *probed_mod) &&
 		    !module_is_coming(*probed_mod)) {
 			module_put(*probed_mod);
-			ret = -ENOENT;
+			return -ENOENT;
 		}
 	}
 
-out:
-	jump_label_unlock();
-
-	return ret;
+	return 0;
 }
 
 static int __register_kprobe(struct kprobe *p)
@@ -1623,14 +1595,13 @@ static int __register_kprobe(struct kprobe *p)
 		/* Since this may unoptimize 'old_p', locking 'text_mutex'. */
 		return register_aggr_kprobe(old_p, p);
 
-	cpus_read_lock();
-	/* Prevent text modification */
-	mutex_lock(&text_mutex);
-	ret = prepare_kprobe(p);
-	mutex_unlock(&text_mutex);
-	cpus_read_unlock();
-	if (ret)
-		return ret;
+	scoped_guard(cpus_read_lock) {
+		/* Prevent text modification */
+		guard(mutex)(&text_mutex);
+		ret = prepare_kprobe(p);
+		if (ret)
+			return ret;
+	}
 
 	INIT_HLIST_NODE(&p->hlist);
 	hlist_add_head_rcu(&p->hlist,
