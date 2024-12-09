@@ -54,6 +54,13 @@ int test_nr;
 u64 shadow_pkey_reg;
 int dprint_in_signal;
 
+noinline int read_ptr(int *ptr)
+{
+	/* Keep GCC from optimizing this away somehow */
+	barrier();
+	return *ptr;
+}
+
 void cat_into_file(char *str, char *file)
 {
 	int fd = open(file, O_RDWR);
