@@ -759,9 +759,25 @@ static bool blk_zone_wplug_handle_reset_all(struct bio *bio)
 	return false;
 }
 
-static inline void blk_zone_wplug_add_bio(struct blk_zone_wplug *zwplug,
-					  struct bio *bio, unsigned int nr_segs)
+static void disk_zone_wplug_schedule_bio_work(struct gendisk *disk,
+					      struct blk_zone_wplug *zwplug)
 {
+	/*
+	 * Take a reference on the zone write plug and schedule the submission
+	 * of the next plugged BIO. blk_zone_wplug_bio_work() will release the
+	 * reference we take here.
+	 */
+	WARN_ON_ONCE(!(zwplug->flags & BLK_ZONE_WPLUG_PLUGGED));
+	refcount_inc(&zwplug->ref);
+	queue_work(disk->zone_wplugs_wq, &zwplug->bio_work);
+}
+
+static inline void disk_zone_wplug_add_bio(struct gendisk *disk,
+				struct blk_zone_wplug *zwplug,
+				struct bio *bio, unsigned int nr_segs)
+{
+	bool schedule_bio_work = false;
+
 	/*
 	 * Grab an extra reference on the BIO request queue usage counter.
 	 * This reference will be reused to submit a request for the BIO for
@@ -778,6 +794,16 @@ static inline void blk_zone_wplug_add_bio(struct blk_zone_wplug *zwplug,
 	bio_clear_polled(bio);
 
 	/*
+	 * REQ_NOWAIT BIOs are always handled using the zone write plug BIO
+	 * work, which can block. So clear the REQ_NOWAIT flag and schedule the
+	 * work if this is the first BIO we are plugging.
+	 */
+	if (bio->bi_opf & REQ_NOWAIT) {
+		schedule_bio_work = !(zwplug->flags & BLK_ZONE_WPLUG_PLUGGED);
+		bio->bi_opf &= ~REQ_NOWAIT;
+	}
+
+	/*
 	 * Reuse the poll cookie field to store the number of segments when
 	 * split to the hardware limits.
 	 */
@@ -790,6 +816,11 @@ static inline void blk_zone_wplug_add_bio(struct blk_zone_wplug *zwplug,
 	 * at the tail of the list to preserve the sequential write order.
 	 */
 	bio_list_add(&zwplug->bio_list, bio);
+
+	zwplug->flags |= BLK_ZONE_WPLUG_PLUGGED;
+
+	if (schedule_bio_work)
+		disk_zone_wplug_schedule_bio_work(disk, zwplug);
 }
 
 /*
@@ -983,7 +1014,10 @@ static bool blk_zone_wplug_handle_write(struct bio *bio, unsigned int nr_segs)
 
 	zwplug = disk_get_and_lock_zone_wplug(disk, sector, gfp_mask, &flags);
 	if (!zwplug) {
-		bio_io_error(bio);
+		if (bio->bi_opf & REQ_NOWAIT)
+			bio_wouldblock_error(bio);
+		else
+			bio_io_error(bio);
 		return true;
 	}
 
@@ -992,9 +1026,11 @@ static bool blk_zone_wplug_handle_write(struct bio *bio, unsigned int nr_segs)
 
 	/*
 	 * If the zone is already plugged or has a pending error, add the BIO
-	 * to the plug BIO list. Otherwise, plug and let the BIO execute.
+	 * to the plug BIO list. Do the same for REQ_NOWAIT BIOs to ensure that
+	 * we will not see a BLK_STS_AGAIN failure if we let the BIO execute.
+	 * Otherwise, plug and let the BIO execute.
 	 */
-	if (zwplug->flags & BLK_ZONE_WPLUG_BUSY)
+	if (zwplug->flags & BLK_ZONE_WPLUG_BUSY || (bio->bi_opf & REQ_NOWAIT))
 		goto plug;
 
 	/*
@@ -1011,8 +1047,7 @@ static bool blk_zone_wplug_handle_write(struct bio *bio, unsigned int nr_segs)
 	return false;
 
 plug:
-	zwplug->flags |= BLK_ZONE_WPLUG_PLUGGED;
-	blk_zone_wplug_add_bio(zwplug, bio, nr_segs);
+	disk_zone_wplug_add_bio(disk, zwplug, bio, nr_segs);
 
 	spin_unlock_irqrestore(&zwplug->lock, flags);
 
@@ -1095,19 +1130,6 @@ bool blk_zone_plug_bio(struct bio *bio, unsigned int nr_segs)
 	return false;
 }
 EXPORT_SYMBOL_GPL(blk_zone_plug_bio);
-
-static void disk_zone_wplug_schedule_bio_work(struct gendisk *disk,
-					      struct blk_zone_wplug *zwplug)
-{
-	/*
-	 * Take a reference on the zone write plug and schedule the submission
-	 * of the next plugged BIO. blk_zone_wplug_bio_work() will release the
-	 * reference we take here.
-	 */
-	WARN_ON_ONCE(!(zwplug->flags & BLK_ZONE_WPLUG_PLUGGED));
-	refcount_inc(&zwplug->ref);
-	queue_work(disk->zone_wplugs_wq, &zwplug->bio_work);
-}
 
 static void disk_zone_wplug_unplug_bio(struct gendisk *disk,
 				       struct blk_zone_wplug *zwplug)
