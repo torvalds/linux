@@ -8346,6 +8346,7 @@ static void ath12k_mac_vif_cache_flush(struct ath12k *ar, struct ath12k_link_vif
 	struct ieee80211_vif *vif = ath12k_ahvif_to_vif(ahvif);
 	struct ath12k_vif_cache *cache = ahvif->cache[arvif->link_id];
 	struct ath12k_base *ab = ar->ab;
+	struct ieee80211_bss_conf *link_conf;
 
 	int ret;
 
@@ -8364,7 +8365,13 @@ static void ath12k_mac_vif_cache_flush(struct ath12k *ar, struct ath12k_link_vif
 	}
 
 	if (cache->bss_conf_changed) {
-		ath12k_mac_bss_info_changed(ar, arvif, &vif->bss_conf,
+		link_conf = ath12k_mac_get_link_bss_conf(arvif);
+		if (!link_conf) {
+			ath12k_warn(ar->ab, "unable to access bss link conf in cache flush for vif %pM link %u\n",
+				    vif->addr, arvif->link_id);
+			return;
+		}
+		ath12k_mac_bss_info_changed(ar, arvif, link_conf,
 					    cache->bss_conf_changed);
 	}
 
