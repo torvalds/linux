@@ -570,16 +570,13 @@ static int amd_pstate_verify(struct cpufreq_policy_data *policy_data)
 
 static int amd_pstate_update_min_max_limit(struct cpufreq_policy *policy)
 {
-	u32 max_limit_perf, min_limit_perf, lowest_perf, max_perf;
+	u32 max_limit_perf, min_limit_perf, lowest_perf, max_perf, max_freq;
 	struct amd_cpudata *cpudata = policy->driver_data;
 
-	if (cpudata->boost_supported && !policy->boost_enabled)
-		max_perf = READ_ONCE(cpudata->nominal_perf);
-	else
-		max_perf = READ_ONCE(cpudata->highest_perf);
-
-	max_limit_perf = div_u64(policy->max * max_perf, policy->cpuinfo.max_freq);
-	min_limit_perf = div_u64(policy->min * max_perf, policy->cpuinfo.max_freq);
+	max_perf = READ_ONCE(cpudata->highest_perf);
+	max_freq = READ_ONCE(cpudata->max_freq);
+	max_limit_perf = div_u64(policy->max * max_perf, max_freq);
+	min_limit_perf = div_u64(policy->min * max_perf, max_freq);
 
 	lowest_perf = READ_ONCE(cpudata->lowest_perf);
 	if (min_limit_perf < lowest_perf)
