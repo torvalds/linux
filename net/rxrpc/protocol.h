@@ -92,11 +92,16 @@ struct rxrpc_jumbo_header {
 /*
  * The maximum number of subpackets that can possibly fit in a UDP packet is:
  *
- *	((max_IP - IP_hdr - UDP_hdr) / RXRPC_JUMBO_SUBPKTLEN) + 1
- *	= ((65535 - 28 - 28) / 1416) + 1
- *	= 46 non-terminal packets and 1 terminal packet.
+ *	(max_UDP - wirehdr + jumbohdr) / (jumbohdr + 1412)
+ *	= ((65535 - 28 + 4) / 1416)
+ *	= 45 non-terminal packets and 1 terminal packet.
  */
-#define RXRPC_MAX_NR_JUMBO	47
+#define RXRPC_MAX_NR_JUMBO	46
+
+/* Size of a jumbo packet with N subpackets, excluding UDP+IP */
+#define RXRPC_JUMBO(N) ((int)sizeof(struct rxrpc_wire_header) + \
+			RXRPC_JUMBO_DATALEN +				\
+			((N) - 1) * RXRPC_JUMBO_SUBPKTLEN)
 
 /*****************************************************************************/
 /*

@@ -31,13 +31,13 @@ void rxrpc_poke_conn(struct rxrpc_connection *conn, enum rxrpc_conn_trace why)
 	if (WARN_ON_ONCE(!local))
 		return;
 
-	spin_lock_bh(&local->lock);
+	spin_lock_irq(&local->lock);
 	busy = !list_empty(&conn->attend_link);
 	if (!busy) {
 		rxrpc_get_connection(conn, why);
 		list_add_tail(&conn->attend_link, &local->conn_attend_q);
 	}
-	spin_unlock_bh(&local->lock);
+	spin_unlock_irq(&local->lock);
 	rxrpc_wake_up_io_thread(local);
 }
 
@@ -196,9 +196,9 @@ void rxrpc_disconnect_call(struct rxrpc_call *call)
 	call->peer->cong_ssthresh = call->cong_ssthresh;
 
 	if (!hlist_unhashed(&call->error_link)) {
-		spin_lock(&call->peer->lock);
+		spin_lock_irq(&call->peer->lock);
 		hlist_del_init(&call->error_link);
-		spin_unlock(&call->peer->lock);
+		spin_unlock_irq(&call->peer->lock);
 	}
 
 	if (rxrpc_is_client_call(call)) {
@@ -320,6 +320,12 @@ static void rxrpc_clean_up_connection(struct work_struct *work)
 	write_lock(&rxnet->conn_lock);
 	list_del_init(&conn->proc_link);
 	write_unlock(&rxnet->conn_lock);
+
+	if (conn->pmtud_probe) {
+		trace_rxrpc_pmtud_lost(conn, 0);
+		conn->peer->pmtud_probing = false;
+		conn->peer->pmtud_pending = true;
+	}
 
 	rxrpc_purge_queue(&conn->rx_queue);
 

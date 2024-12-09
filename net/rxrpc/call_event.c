@@ -44,8 +44,8 @@ void rxrpc_propose_delay_ACK(struct rxrpc_call *call, rxrpc_serial_t serial,
 
 	trace_rxrpc_propose_ack(call, why, RXRPC_ACK_DELAY, serial);
 
-	if (call->peer->srtt_us)
-		delay = (call->peer->srtt_us >> 3) * NSEC_PER_USEC;
+	if (call->srtt_us)
+		delay = (call->srtt_us >> 3) * NSEC_PER_USEC;
 	else
 		delay = ms_to_ktime(READ_ONCE(rxrpc_soft_ack_delay));
 	ktime_add_ms(delay, call->tx_backoff);
@@ -55,147 +55,104 @@ void rxrpc_propose_delay_ACK(struct rxrpc_call *call, rxrpc_serial_t serial,
 }
 
 /*
- * Handle congestion being detected by the retransmit timeout.
+ * Retransmit one or more packets.
  */
-static void rxrpc_congestion_timeout(struct rxrpc_call *call)
+static bool rxrpc_retransmit_data(struct rxrpc_call *call,
+				  struct rxrpc_send_data_req *req)
 {
-	set_bit(RXRPC_CALL_RETRANS_TIMEOUT, &call->flags);
+	struct rxrpc_txqueue *tq = req->tq;
+	unsigned int ix = req->seq & RXRPC_TXQ_MASK;
+	struct rxrpc_txbuf *txb = tq->bufs[ix];
+
+	_enter("%x,%x,%x,%x", tq->qbase, req->seq, ix, txb->debug_id);
+
+	req->retrans = true;
+	trace_rxrpc_retransmit(call, req, txb);
+
+	txb->flags |= RXRPC_TXBUF_RESENT;
+	rxrpc_send_data_packet(call, req);
+	rxrpc_inc_stat(call->rxnet, stat_tx_data_retrans);
+
+	req->tq		= NULL;
+	req->n		= 0;
+	req->did_send	= true;
+	req->now	= ktime_get_real();
+	return true;
 }
 
 /*
  * Perform retransmission of NAK'd and unack'd packets.
  */
-void rxrpc_resend(struct rxrpc_call *call, struct sk_buff *ack_skb)
+static void rxrpc_resend(struct rxrpc_call *call)
 {
-	struct rxrpc_ackpacket *ack = NULL;
-	struct rxrpc_skb_priv *sp;
-	struct rxrpc_txbuf *txb;
-	rxrpc_seq_t transmitted = call->tx_transmitted;
-	ktime_t next_resend = KTIME_MAX, rto = ns_to_ktime(call->peer->rto_us * NSEC_PER_USEC);
-	ktime_t resend_at = KTIME_MAX, now, delay;
-	bool unacked = false, did_send = false;
-	unsigned int i;
+	struct rxrpc_send_data_req req = {
+		.now	= ktime_get_real(),
+		.trace	= rxrpc_txdata_retransmit,
+	};
+	struct rxrpc_txqueue *tq;
 
-	_enter("{%d,%d}", call->acks_hard_ack, call->tx_top);
+	_enter("{%d,%d}", call->tx_bottom, call->tx_top);
 
-	now = ktime_get_real();
+	trace_rxrpc_resend(call, call->acks_highest_serial);
 
-	if (list_empty(&call->tx_buffer))
-		goto no_resend;
+	/* Scan the transmission queue, looking for lost packets. */
+	for (tq = call->tx_queue; tq; tq = tq->next) {
+		unsigned long lost = tq->segment_lost;
 
-	trace_rxrpc_resend(call, ack_skb);
-	txb = list_first_entry(&call->tx_buffer, struct rxrpc_txbuf, call_link);
+		if (after(tq->qbase, call->tx_transmitted))
+			break;
 
-	/* Scan the soft ACK table without dropping the lock and resend any
-	 * explicitly NAK'd packets.
-	 */
-	if (ack_skb) {
-		sp = rxrpc_skb(ack_skb);
-		ack = (void *)ack_skb->data + sizeof(struct rxrpc_wire_header);
+		_debug("retr %16lx %u c=%08x [%x]",
+		       tq->segment_acked, tq->nr_reported_acks, call->debug_id, tq->qbase);
+		_debug("lost %16lx", lost);
 
-		for (i = 0; i < sp->ack.nr_acks; i++) {
-			rxrpc_seq_t seq;
+		trace_rxrpc_resend_lost(call, tq, lost);
+		while (lost) {
+			unsigned int ix = __ffs(lost);
+			struct rxrpc_txbuf *txb = tq->bufs[ix];
 
-			if (ack->acks[i] & 1)
-				continue;
-			seq = sp->ack.first_ack + i;
-			if (after(txb->seq, transmitted))
-				break;
-			if (after(txb->seq, seq))
-				continue; /* A new hard ACK probably came in */
-			list_for_each_entry_from(txb, &call->tx_buffer, call_link) {
-				if (txb->seq == seq)
-					goto found_txb;
-			}
-			goto no_further_resend;
+			__clear_bit(ix, &lost);
+			rxrpc_see_txbuf(txb, rxrpc_txbuf_see_lost);
 
-		found_txb:
-			resend_at = ktime_add(txb->last_sent, rto);
-			if (after(txb->serial, call->acks_highest_serial)) {
-				if (ktime_after(resend_at, now) &&
-				    ktime_before(resend_at, next_resend))
-					next_resend = resend_at;
-				continue; /* Ack point not yet reached */
-			}
-
-			rxrpc_see_txbuf(txb, rxrpc_txbuf_see_unacked);
-
-			trace_rxrpc_retransmit(call, txb->seq, txb->serial,
-					       ktime_sub(resend_at, now));
-
-			txb->flags |= RXRPC_TXBUF_RESENT;
-			rxrpc_transmit_one(call, txb);
-			did_send = true;
-			now = ktime_get_real();
-
-			if (list_is_last(&txb->call_link, &call->tx_buffer))
-				goto no_further_resend;
-			txb = list_next_entry(txb, call_link);
+			req.tq  = tq;
+			req.seq = tq->qbase + ix;
+			req.n   = 1;
+			rxrpc_retransmit_data(call, &req);
 		}
 	}
 
-	/* Fast-forward through the Tx queue to the point the peer says it has
-	 * seen.  Anything between the soft-ACK table and that point will get
-	 * ACK'd or NACK'd in due course, so don't worry about it here; here we
-	 * need to consider retransmitting anything beyond that point.
-	 */
-	if (after_eq(call->acks_prev_seq, call->tx_transmitted))
-		goto no_further_resend;
-
-	list_for_each_entry_from(txb, &call->tx_buffer, call_link) {
-		resend_at = ktime_add(txb->last_sent, rto);
-
-		if (before_eq(txb->seq, call->acks_prev_seq))
-			continue;
-		if (after(txb->seq, call->tx_transmitted))
-			break; /* Not transmitted yet */
-
-		if (ack && ack->reason == RXRPC_ACK_PING_RESPONSE &&
-		    before(txb->serial, ntohl(ack->serial)))
-			goto do_resend; /* Wasn't accounted for by a more recent ping. */
-
-		if (ktime_after(resend_at, now)) {
-			if (ktime_before(resend_at, next_resend))
-				next_resend = resend_at;
-			continue;
-		}
-
-	do_resend:
-		unacked = true;
-
-		txb->flags |= RXRPC_TXBUF_RESENT;
-		rxrpc_transmit_one(call, txb);
-		did_send = true;
-		rxrpc_inc_stat(call->rxnet, stat_tx_data_retrans);
-		now = ktime_get_real();
-	}
-
-no_further_resend:
-no_resend:
-	if (resend_at < KTIME_MAX) {
-		delay = rxrpc_get_rto_backoff(call->peer, did_send);
-		resend_at = ktime_add(resend_at, delay);
-		trace_rxrpc_timer_set(call, resend_at - now, rxrpc_timer_trace_resend_reset);
-	}
-	call->resend_at = resend_at;
-
-	if (unacked)
-		rxrpc_congestion_timeout(call);
-
-	/* If there was nothing that needed retransmission then it's likely
-	 * that an ACK got lost somewhere.  Send a ping to find out instead of
-	 * retransmitting data.
-	 */
-	if (!did_send) {
-		ktime_t next_ping = ktime_add_us(call->acks_latest_ts,
-						 call->peer->srtt_us >> 3);
-
-		if (ktime_sub(next_ping, now) <= 0)
-			rxrpc_send_ACK(call, RXRPC_ACK_PING, 0,
-				       rxrpc_propose_ack_ping_for_0_retrans);
-	}
-
+	rxrpc_get_rto_backoff(call, req.did_send);
 	_leave("");
+}
+
+/*
+ * Resend the highest-seq DATA packet so far transmitted for RACK-TLP [RFC8985 7.3].
+ */
+void rxrpc_resend_tlp(struct rxrpc_call *call)
+{
+	struct rxrpc_send_data_req req = {
+		.now		= ktime_get_real(),
+		.seq		= call->tx_transmitted,
+		.n		= 1,
+		.tlp_probe	= true,
+		.trace		= rxrpc_txdata_tlp_retransmit,
+	};
+
+	/* There's a chance it'll be on the tail segment of the queue. */
+	req.tq = READ_ONCE(call->tx_qtail);
+	if (req.tq &&
+	    before(call->tx_transmitted, req.tq->qbase + RXRPC_NR_TXQUEUE)) {
+		rxrpc_retransmit_data(call, &req);
+		return;
+	}
+
+	for (req.tq = call->tx_queue; req.tq; req.tq = req.tq->next) {
+		if (after_eq(call->tx_transmitted, req.tq->qbase) &&
+		    before(call->tx_transmitted, req.tq->qbase + RXRPC_NR_TXQUEUE)) {
+			rxrpc_retransmit_data(call, &req);
+			return;
+		}
+	}
 }
 
 /*
@@ -231,68 +188,93 @@ static void rxrpc_close_tx_phase(struct rxrpc_call *call)
 	}
 }
 
-static bool rxrpc_tx_window_has_space(struct rxrpc_call *call)
-{
-	unsigned int winsize = min_t(unsigned int, call->tx_winsize,
-				     call->cong_cwnd + call->cong_extra);
-	rxrpc_seq_t window = call->acks_hard_ack, wtop = window + winsize;
-	rxrpc_seq_t tx_top = call->tx_top;
-	int space;
-
-	space = wtop - tx_top;
-	return space > 0;
-}
-
 /*
- * Decant some if the sendmsg prepared queue into the transmission buffer.
+ * Transmit some as-yet untransmitted data, to a maximum of the supplied limit.
  */
-static void rxrpc_decant_prepared_tx(struct rxrpc_call *call)
+static void rxrpc_transmit_fresh_data(struct rxrpc_call *call, unsigned int limit,
+				      enum rxrpc_txdata_trace trace)
 {
-	struct rxrpc_txbuf *txb;
+	int space = rxrpc_tx_window_space(call);
 
 	if (!test_bit(RXRPC_CALL_EXPOSED, &call->flags)) {
-		if (list_empty(&call->tx_sendmsg))
+		if (call->send_top == call->tx_top)
 			return;
 		rxrpc_expose_client_call(call);
 	}
 
-	while ((txb = list_first_entry_or_null(&call->tx_sendmsg,
-					       struct rxrpc_txbuf, call_link))) {
-		spin_lock(&call->tx_lock);
-		list_del(&txb->call_link);
-		spin_unlock(&call->tx_lock);
+	while (space > 0) {
+		struct rxrpc_send_data_req req = {
+			.now	= ktime_get_real(),
+			.seq	= call->tx_transmitted + 1,
+			.n	= 0,
+			.trace	= trace,
+		};
+		struct rxrpc_txqueue *tq;
+		struct rxrpc_txbuf *txb;
+		rxrpc_seq_t send_top, seq;
+		int limit = min(space, max(call->peer->pmtud_jumbo, 1));
 
-		call->tx_top = txb->seq;
-		list_add_tail(&txb->call_link, &call->tx_buffer);
-
-		if (txb->flags & RXRPC_LAST_PACKET)
-			rxrpc_close_tx_phase(call);
-
-		rxrpc_transmit_one(call, txb);
-
-		if (!rxrpc_tx_window_has_space(call))
+		/* Order send_top before the contents of the new txbufs and
+		 * txqueue pointers
+		 */
+		send_top = smp_load_acquire(&call->send_top);
+		if (call->tx_top == send_top)
 			break;
+
+		trace_rxrpc_transmit(call, send_top, space);
+
+		tq = call->tx_qtail;
+		seq = call->tx_top;
+		trace_rxrpc_tq(call, tq, seq, rxrpc_tq_decant);
+
+		do {
+			int ix;
+
+			seq++;
+			ix = seq & RXRPC_TXQ_MASK;
+			if (!ix) {
+				tq = tq->next;
+				trace_rxrpc_tq(call, tq, seq, rxrpc_tq_decant_advance);
+			}
+			if (!req.tq)
+				req.tq = tq;
+			txb = tq->bufs[ix];
+			req.n++;
+			if (!txb->jumboable)
+				break;
+		} while (req.n < limit && before(seq, send_top));
+
+		if (txb->flags & RXRPC_LAST_PACKET) {
+			rxrpc_close_tx_phase(call);
+			tq = NULL;
+		}
+		call->tx_qtail = tq;
+		call->tx_top = seq;
+
+		space -= req.n;
+		rxrpc_send_data_packet(call, &req);
 	}
 }
 
-static void rxrpc_transmit_some_data(struct rxrpc_call *call)
+void rxrpc_transmit_some_data(struct rxrpc_call *call, unsigned int limit,
+			      enum rxrpc_txdata_trace trace)
 {
 	switch (__rxrpc_call_state(call)) {
 	case RXRPC_CALL_SERVER_ACK_REQUEST:
-		if (list_empty(&call->tx_sendmsg))
+		if (call->tx_bottom == READ_ONCE(call->send_top))
 			return;
 		rxrpc_begin_service_reply(call);
 		fallthrough;
 
 	case RXRPC_CALL_SERVER_SEND_REPLY:
 	case RXRPC_CALL_CLIENT_SEND_REQUEST:
-		if (!rxrpc_tx_window_has_space(call))
+		if (!rxrpc_tx_window_space(call))
 			return;
-		if (list_empty(&call->tx_sendmsg)) {
+		if (call->tx_bottom == READ_ONCE(call->send_top)) {
 			rxrpc_inc_stat(call->rxnet, stat_tx_data_underflow);
 			return;
 		}
-		rxrpc_decant_prepared_tx(call);
+		rxrpc_transmit_fresh_data(call, limit, trace);
 		break;
 	default:
 		return;
@@ -305,8 +287,8 @@ static void rxrpc_transmit_some_data(struct rxrpc_call *call)
  */
 static void rxrpc_send_initial_ping(struct rxrpc_call *call)
 {
-	if (call->peer->rtt_count < 3 ||
-	    ktime_before(ktime_add_ms(call->peer->rtt_last_req, 1000),
+	if (call->rtt_count < 3 ||
+	    ktime_before(ktime_add_ms(call->rtt_last_req, 1000),
 			 ktime_get_real()))
 		rxrpc_send_ACK(call, RXRPC_ACK_PING, 0,
 			       rxrpc_propose_ack_ping_for_params);
@@ -315,10 +297,11 @@ static void rxrpc_send_initial_ping(struct rxrpc_call *call)
 /*
  * Handle retransmission and deferred ACK/abort generation.
  */
-bool rxrpc_input_call_event(struct rxrpc_call *call, struct sk_buff *skb)
+bool rxrpc_input_call_event(struct rxrpc_call *call)
 {
+	struct sk_buff *skb;
 	ktime_t now, t;
-	bool resend = false;
+	bool did_receive = false, saw_ack = false;
 	s32 abort_code;
 
 	rxrpc_see_call(call, rxrpc_call_see_input);
@@ -328,9 +311,6 @@ bool rxrpc_input_call_event(struct rxrpc_call *call, struct sk_buff *skb)
 	       call->debug_id, rxrpc_call_states[__rxrpc_call_state(call)],
 	       call->events);
 
-	if (__rxrpc_call_is_complete(call))
-		goto out;
-
 	/* Handle abort request locklessly, vs rxrpc_propose_abort(). */
 	abort_code = smp_load_acquire(&call->send_abort);
 	if (abort_code) {
@@ -339,11 +319,33 @@ bool rxrpc_input_call_event(struct rxrpc_call *call, struct sk_buff *skb)
 		goto out;
 	}
 
-	if (skb && skb->mark == RXRPC_SKB_MARK_ERROR)
-		goto out;
+	do {
+		skb = __skb_dequeue(&call->rx_queue);
+		if (skb) {
+			struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
 
-	if (skb)
-		rxrpc_input_call_packet(call, skb);
+			if (__rxrpc_call_is_complete(call) ||
+			    skb->mark == RXRPC_SKB_MARK_ERROR) {
+				rxrpc_free_skb(skb, rxrpc_skb_put_call_rx);
+				goto out;
+			}
+
+			saw_ack |= sp->hdr.type == RXRPC_PACKET_TYPE_ACK;
+
+			rxrpc_input_call_packet(call, skb);
+			rxrpc_free_skb(skb, rxrpc_skb_put_call_rx);
+			did_receive = true;
+		}
+
+		t = ktime_sub(call->rack_timo_at, ktime_get_real());
+		if (t <= 0) {
+			trace_rxrpc_timer_exp(call, t,
+					      rxrpc_timer_trace_rack_off + call->rack_timer_mode);
+			call->rack_timo_at = KTIME_MAX;
+			rxrpc_rack_timer_expired(call, t);
+		}
+
+	} while (!skb_queue_empty(&call->rx_queue));
 
 	/* If we see our async-event poke, check for timeout trippage. */
 	now = ktime_get_real();
@@ -376,13 +378,6 @@ bool rxrpc_input_call_event(struct rxrpc_call *call, struct sk_buff *skb)
 			       rxrpc_propose_ack_delayed_ack);
 	}
 
-	t = ktime_sub(call->ack_lost_at, now);
-	if (t <= 0) {
-		trace_rxrpc_timer_exp(call, t, rxrpc_timer_trace_lost_ack);
-		call->ack_lost_at = KTIME_MAX;
-		set_bit(RXRPC_CALL_EV_ACK_LOST, &call->events);
-	}
-
 	t = ktime_sub(call->ping_at, now);
 	if (t <= 0) {
 		trace_rxrpc_timer_exp(call, t, rxrpc_timer_trace_ping);
@@ -390,15 +385,6 @@ bool rxrpc_input_call_event(struct rxrpc_call *call, struct sk_buff *skb)
 		rxrpc_send_ACK(call, RXRPC_ACK_PING, 0,
 			       rxrpc_propose_ack_ping_for_keepalive);
 	}
-
-	t = ktime_sub(call->resend_at, now);
-	if (t <= 0) {
-		trace_rxrpc_timer_exp(call, t, rxrpc_timer_trace_resend);
-		call->resend_at = KTIME_MAX;
-		resend = true;
-	}
-
-	rxrpc_transmit_some_data(call);
 
 	now = ktime_get_real();
 	t = ktime_sub(call->keepalive_at, now);
@@ -409,35 +395,40 @@ bool rxrpc_input_call_event(struct rxrpc_call *call, struct sk_buff *skb)
 			       rxrpc_propose_ack_ping_for_keepalive);
 	}
 
-	if (skb) {
-		struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
-
-		if (sp->hdr.type == RXRPC_PACKET_TYPE_ACK)
-			rxrpc_congestion_degrade(call);
-	}
-
 	if (test_and_clear_bit(RXRPC_CALL_EV_INITIAL_PING, &call->events))
 		rxrpc_send_initial_ping(call);
+
+	rxrpc_transmit_some_data(call, UINT_MAX, rxrpc_txdata_new_data);
+
+	if (saw_ack)
+		rxrpc_congestion_degrade(call);
+
+	if (did_receive &&
+	    (__rxrpc_call_state(call) == RXRPC_CALL_CLIENT_SEND_REQUEST ||
+	     __rxrpc_call_state(call) == RXRPC_CALL_SERVER_SEND_REPLY)) {
+		t = ktime_sub(call->rack_timo_at, ktime_get_real());
+		trace_rxrpc_rack(call, t);
+	}
 
 	/* Process events */
 	if (test_and_clear_bit(RXRPC_CALL_EV_ACK_LOST, &call->events))
 		rxrpc_send_ACK(call, RXRPC_ACK_PING, 0,
 			       rxrpc_propose_ack_ping_for_lost_ack);
 
-	if (resend &&
+	if (call->tx_nr_lost > 0 &&
 	    __rxrpc_call_state(call) != RXRPC_CALL_CLIENT_RECV_REPLY &&
 	    !test_bit(RXRPC_CALL_TX_ALL_ACKED, &call->flags))
-		rxrpc_resend(call, NULL);
+		rxrpc_resend(call);
 
 	if (test_and_clear_bit(RXRPC_CALL_RX_IS_IDLE, &call->flags))
 		rxrpc_send_ACK(call, RXRPC_ACK_IDLE, 0,
 			       rxrpc_propose_ack_rx_idle);
 
 	if (call->ackr_nr_unacked > 2) {
-		if (call->peer->rtt_count < 3)
+		if (call->rtt_count < 3)
 			rxrpc_send_ACK(call, RXRPC_ACK_PING, 0,
 				       rxrpc_propose_ack_ping_for_rtt);
-		else if (ktime_before(ktime_add_ms(call->peer->rtt_last_req, 1000),
+		else if (ktime_before(ktime_add_ms(call->rtt_last_req, 1000),
 				      ktime_get_real()))
 			rxrpc_send_ACK(call, RXRPC_ACK_PING, 0,
 				       rxrpc_propose_ack_ping_for_old_rtt);
@@ -455,8 +446,7 @@ bool rxrpc_input_call_event(struct rxrpc_call *call, struct sk_buff *skb)
 		set(call->expect_req_by);
 		set(call->expect_rx_by);
 		set(call->delay_ack_at);
-		set(call->ack_lost_at);
-		set(call->resend_at);
+		set(call->rack_timo_at);
 		set(call->keepalive_at);
 		set(call->ping_at);
 
@@ -467,7 +457,7 @@ bool rxrpc_input_call_event(struct rxrpc_call *call, struct sk_buff *skb)
 		} else {
 			unsigned long nowj = jiffies, delayj, nextj;
 
-			delayj = max(nsecs_to_jiffies(delay), 1);
+			delayj = umax(nsecs_to_jiffies(delay), 1);
 			nextj = nowj + delayj;
 			if (time_before(nextj, call->timer.expires) ||
 			    !timer_pending(&call->timer)) {
@@ -484,9 +474,12 @@ out:
 			rxrpc_disconnect_call(call);
 		if (call->security)
 			call->security->free_call_crypto(call);
+	} else {
+		if (did_receive &&
+		    call->peer->ackr_adv_pmtud &&
+		    call->peer->pmtud_pending)
+			rxrpc_send_probe_for_pmtud(call);
 	}
-	if (call->acks_hard_ack != call->tx_bottom)
-		rxrpc_shrink_call_tx_buffer(call);
 	_leave("");
 	return true;
 
