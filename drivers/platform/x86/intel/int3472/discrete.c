@@ -220,10 +220,10 @@ static int skl_int3472_handle_gpio_resources(struct acpi_resource *ares,
 	int3472_get_func_and_polarity(type, &func, &polarity);
 
 	pin = FIELD_GET(INT3472_GPIO_DSM_PIN, obj->integer.value);
-	if (pin != agpio->pin_table[0])
-		dev_warn(int3472->dev, "%s %s pin number mismatch _DSM %d resource %d\n",
-			 func, agpio->resource_source.string_ptr, pin,
-			 agpio->pin_table[0]);
+	/* Pin field is not really used under Windows and wraps around at 8 bits */
+	if (pin != (agpio->pin_table[0] & 0xff))
+		dev_dbg(int3472->dev, FW_BUG "%s %s pin number mismatch _DSM %d resource %d\n",
+			func, agpio->resource_source.string_ptr, pin, agpio->pin_table[0]);
 
 	active_value = FIELD_GET(INT3472_GPIO_DSM_SENSOR_ON_VAL, obj->integer.value);
 	if (!active_value)
