@@ -674,8 +674,7 @@ int bch2_evacuate_bucket(struct moving_context *ctxt,
 	struct bkey_buf sk;
 	struct bkey_s_c k;
 	struct data_update_opts data_opts;
-	unsigned dirty_sectors, bucket_size;
-	u64 fragmentation;
+	unsigned sectors_moved = 0;
 	int ret = 0;
 
 	struct bch_dev *ca = bch2_dev_tryget(c, bucket.inode);
@@ -748,14 +747,18 @@ int bch2_evacuate_bucket(struct moving_context *ctxt,
 			data_opts.target	= io_opts.background_target;
 			data_opts.rewrite_ptrs = 0;
 
+			unsigned sectors = bp.v->bucket_len; /* move_extent will drop locks */
 			unsigned i = 0;
-			bkey_for_each_ptr(bch2_bkey_ptrs_c(k), ptr) {
-				if (ptr->dev == bucket.inode) {
-					data_opts.rewrite_ptrs |= 1U << i;
-					if (ptr->cached) {
+			const union bch_extent_entry *entry;
+			struct extent_ptr_decoded p;
+			bkey_for_each_ptr_decode(k.k, bch2_bkey_ptrs_c(k), p, entry) {
+				if (p.ptr.dev == bucket.inode) {
+					if (p.ptr.cached) {
 						bch2_trans_iter_exit(trans, &iter);
 						goto next;
 					}
+					data_opts.rewrite_ptrs |= 1U << i;
+					break;
 				}
 				i++;
 			}
@@ -775,7 +778,8 @@ int bch2_evacuate_bucket(struct moving_context *ctxt,
 				goto err;
 
 			if (ctxt->stats)
-				atomic64_add(k.k->size, &ctxt->stats->sectors_seen);
+				atomic64_add(sectors, &ctxt->stats->sectors_seen);
+			sectors_moved += sectors;
 		} else {
 			struct btree *b;
 
@@ -806,12 +810,13 @@ int bch2_evacuate_bucket(struct moving_context *ctxt,
 				atomic64_add(sectors, &ctxt->stats->sectors_seen);
 				atomic64_add(sectors, &ctxt->stats->sectors_moved);
 			}
+			sectors_moved += btree_sectors(c);
 		}
 next:
 		bch2_btree_iter_advance(&bp_iter);
 	}
 
-	trace_evacuate_bucket(c, &bucket, dirty_sectors, bucket_size, fragmentation, ret);
+	trace_evacuate_bucket(c, &bucket, sectors_moved, ca->mi.bucket_size, ret);
 err:
 	bch2_trans_iter_exit(trans, &bp_iter);
 	bch2_dev_put(ca);

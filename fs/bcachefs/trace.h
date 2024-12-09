@@ -848,8 +848,8 @@ TRACE_EVENT(move_data,
 TRACE_EVENT(evacuate_bucket,
 	TP_PROTO(struct bch_fs *c, struct bpos *bucket,
 		 unsigned sectors, unsigned bucket_size,
-		 u64 fragmentation, int ret),
-	TP_ARGS(c, bucket, sectors, bucket_size, fragmentation, ret),
+		 int ret),
+	TP_ARGS(c, bucket, sectors, bucket_size, ret),
 
 	TP_STRUCT__entry(
 		__field(dev_t,		dev		)
@@ -857,7 +857,6 @@ TRACE_EVENT(evacuate_bucket,
 		__field(u64,		bucket		)
 		__field(u32,		sectors		)
 		__field(u32,		bucket_size	)
-		__field(u64,		fragmentation	)
 		__field(int,		ret		)
 	),
 
@@ -867,15 +866,14 @@ TRACE_EVENT(evacuate_bucket,
 		__entry->bucket			= bucket->offset;
 		__entry->sectors		= sectors;
 		__entry->bucket_size		= bucket_size;
-		__entry->fragmentation		= fragmentation;
 		__entry->ret			= ret;
 	),
 
-	TP_printk("%d,%d %llu:%llu sectors %u/%u fragmentation %llu ret %i",
+	TP_printk("%d,%d %llu:%llu sectors %u/%u ret %i",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  __entry->member, __entry->bucket,
 		  __entry->sectors, __entry->bucket_size,
-		  __entry->fragmentation, __entry->ret)
+		  __entry->ret)
 );
 
 TRACE_EVENT(copygc,
