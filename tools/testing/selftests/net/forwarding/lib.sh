@@ -932,13 +932,6 @@ packets_rate()
 	echo $(((t1 - t0) / interval))
 }
 
-mac_get()
-{
-	local if_name=$1
-
-	ip -j link show dev $if_name | jq -r '.[]["address"]'
-}
-
 ether_addr_to_u64()
 {
 	local addr="$1"

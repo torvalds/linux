@@ -622,9 +622,9 @@ static int vxlan_fdb_append(struct vxlan_fdb *f,
 	return 1;
 }
 
-static bool vxlan_parse_gpe_proto(struct vxlanhdr *hdr, __be16 *protocol)
+static bool vxlan_parse_gpe_proto(const struct vxlanhdr *hdr, __be16 *protocol)
 {
-	struct vxlanhdr_gpe *gpe = (struct vxlanhdr_gpe *)hdr;
+	const struct vxlanhdr_gpe *gpe = (const struct vxlanhdr_gpe *)hdr;
 
 	/* Need to have Next Protocol set for interfaces in GPE mode. */
 	if (!gpe->np_applied)
@@ -1554,18 +1554,17 @@ static void vxlan_sock_release(struct vxlan_dev *vxlan)
 #endif
 }
 
-static enum skb_drop_reason vxlan_remcsum(struct vxlanhdr *unparsed,
-					  struct sk_buff *skb,
-					  u32 vxflags)
+static enum skb_drop_reason vxlan_remcsum(struct sk_buff *skb, u32 vxflags)
 {
+	const struct vxlanhdr *vh = vxlan_hdr(skb);
 	enum skb_drop_reason reason;
 	size_t start, offset;
 
-	if (!(unparsed->vx_flags & VXLAN_HF_RCO) || skb->remcsum_offload)
-		goto out;
+	if (!(vh->vx_flags & VXLAN_HF_RCO) || skb->remcsum_offload)
+		return SKB_NOT_DROPPED_YET;
 
-	start = vxlan_rco_start(unparsed->vx_vni);
-	offset = start + vxlan_rco_offset(unparsed->vx_vni);
+	start = vxlan_rco_start(vh->vx_vni);
+	offset = start + vxlan_rco_offset(vh->vx_vni);
 
 	reason = pskb_may_pull_reason(skb, offset + sizeof(u16));
 	if (reason)
@@ -1573,22 +1572,20 @@ static enum skb_drop_reason vxlan_remcsum(struct vxlanhdr *unparsed,
 
 	skb_remcsum_process(skb, (void *)(vxlan_hdr(skb) + 1), start, offset,
 			    !!(vxflags & VXLAN_F_REMCSUM_NOPARTIAL));
-out:
-	unparsed->vx_flags &= ~VXLAN_HF_RCO;
-	unparsed->vx_vni &= VXLAN_VNI_MASK;
-
 	return SKB_NOT_DROPPED_YET;
 }
 
-static void vxlan_parse_gbp_hdr(struct vxlanhdr *unparsed,
-				struct sk_buff *skb, u32 vxflags,
+static void vxlan_parse_gbp_hdr(struct sk_buff *skb, u32 vxflags,
 				struct vxlan_metadata *md)
 {
-	struct vxlanhdr_gbp *gbp = (struct vxlanhdr_gbp *)unparsed;
+	const struct vxlanhdr *vh = vxlan_hdr(skb);
+	const struct vxlanhdr_gbp *gbp;
 	struct metadata_dst *tun_dst;
 
-	if (!(unparsed->vx_flags & VXLAN_HF_GBP))
-		goto out;
+	gbp = (const struct vxlanhdr_gbp *)vh;
+
+	if (!(vh->vx_flags & VXLAN_HF_GBP))
+		return;
 
 	md->gbp = ntohs(gbp->policy_id);
 
@@ -1607,8 +1604,6 @@ static void vxlan_parse_gbp_hdr(struct vxlanhdr *unparsed,
 	/* In flow-based mode, GBP is carried in dst_metadata */
 	if (!(vxflags & VXLAN_F_COLLECT_METADATA))
 		skb->mark = md->gbp;
-out:
-	unparsed->vx_flags &= ~VXLAN_GBP_USED_BITS;
 }
 
 static enum skb_drop_reason vxlan_set_mac(struct vxlan_dev *vxlan,
@@ -1672,9 +1667,9 @@ static bool vxlan_ecn_decapsulate(struct vxlan_sock *vs, void *oiph,
 static int vxlan_rcv(struct sock *sk, struct sk_buff *skb)
 {
 	struct vxlan_vni_node *vninode = NULL;
+	const struct vxlanhdr *vh;
 	struct vxlan_dev *vxlan;
 	struct vxlan_sock *vs;
-	struct vxlanhdr unparsed;
 	struct vxlan_metadata _md;
 	struct vxlan_metadata *md = &_md;
 	__be16 protocol = htons(ETH_P_TEB);
@@ -1689,24 +1684,21 @@ static int vxlan_rcv(struct sock *sk, struct sk_buff *skb)
 	if (reason)
 		goto drop;
 
-	unparsed = *vxlan_hdr(skb);
+	vh = vxlan_hdr(skb);
 	/* VNI flag always required to be set */
-	if (!(unparsed.vx_flags & VXLAN_HF_VNI)) {
+	if (!(vh->vx_flags & VXLAN_HF_VNI)) {
 		netdev_dbg(skb->dev, "invalid vxlan flags=%#x vni=%#x\n",
-			   ntohl(vxlan_hdr(skb)->vx_flags),
-			   ntohl(vxlan_hdr(skb)->vx_vni));
+			   ntohl(vh->vx_flags), ntohl(vh->vx_vni));
 		reason = SKB_DROP_REASON_VXLAN_INVALID_HDR;
 		/* Return non vxlan pkt */
 		goto drop;
 	}
-	unparsed.vx_flags &= ~VXLAN_HF_VNI;
-	unparsed.vx_vni &= ~VXLAN_VNI_MASK;
 
 	vs = rcu_dereference_sk_user_data(sk);
 	if (!vs)
 		goto drop;
 
-	vni = vxlan_vni(vxlan_hdr(skb)->vx_vni);
+	vni = vxlan_vni(vh->vx_vni);
 
 	vxlan = vxlan_vs_find_vni(vs, skb->dev->ifindex, vni, &vninode);
 	if (!vxlan) {
@@ -1714,13 +1706,27 @@ static int vxlan_rcv(struct sock *sk, struct sk_buff *skb)
 		goto drop;
 	}
 
-	/* For backwards compatibility, only allow reserved fields to be
-	 * used by VXLAN extensions if explicitly requested.
-	 */
-	if (vs->flags & VXLAN_F_GPE) {
-		if (!vxlan_parse_gpe_proto(&unparsed, &protocol))
+	if (vh->vx_flags & vxlan->cfg.reserved_bits.vx_flags ||
+	    vh->vx_vni & vxlan->cfg.reserved_bits.vx_vni) {
+		/* If the header uses bits besides those enabled by the
+		 * netdevice configuration, treat this as a malformed packet.
+		 * This behavior diverges from VXLAN RFC (RFC7348) which
+		 * stipulates that bits in reserved in reserved fields are to be
+		 * ignored. The approach here maintains compatibility with
+		 * previous stack code, and also is more robust and provides a
+		 * little more security in adding extensions to VXLAN.
+		 */
+		reason = SKB_DROP_REASON_VXLAN_INVALID_HDR;
+		DEV_STATS_INC(vxlan->dev, rx_frame_errors);
+		DEV_STATS_INC(vxlan->dev, rx_errors);
+		vxlan_vnifilter_count(vxlan, vni, vninode,
+				      VXLAN_VNI_STATS_RX_ERRORS, 0);
+		goto drop;
+	}
+
+	if (vxlan->cfg.flags & VXLAN_F_GPE) {
+		if (!vxlan_parse_gpe_proto(vh, &protocol))
 			goto drop;
-		unparsed.vx_flags &= ~VXLAN_GPE_USED_BITS;
 		raw_proto = true;
 	}
 
@@ -1730,8 +1736,8 @@ static int vxlan_rcv(struct sock *sk, struct sk_buff *skb)
 		goto drop;
 	}
 
-	if (vs->flags & VXLAN_F_REMCSUM_RX) {
-		reason = vxlan_remcsum(&unparsed, skb, vs->flags);
+	if (vxlan->cfg.flags & VXLAN_F_REMCSUM_RX) {
+		reason = vxlan_remcsum(skb, vxlan->cfg.flags);
 		if (unlikely(reason))
 			goto drop;
 	}
@@ -1756,24 +1762,11 @@ static int vxlan_rcv(struct sock *sk, struct sk_buff *skb)
 		memset(md, 0, sizeof(*md));
 	}
 
-	if (vs->flags & VXLAN_F_GBP)
-		vxlan_parse_gbp_hdr(&unparsed, skb, vs->flags, md);
+	if (vxlan->cfg.flags & VXLAN_F_GBP)
+		vxlan_parse_gbp_hdr(skb, vxlan->cfg.flags, md);
 	/* Note that GBP and GPE can never be active together. This is
 	 * ensured in vxlan_dev_configure.
 	 */
-
-	if (unparsed.vx_flags || unparsed.vx_vni) {
-		/* If there are any unprocessed flags remaining treat
-		 * this as a malformed packet. This behavior diverges from
-		 * VXLAN RFC (RFC7348) which stipulates that bits in reserved
-		 * in reserved fields are to be ignored. The approach here
-		 * maintains compatibility with previous stack code, and also
-		 * is more robust and provides a little more security in
-		 * adding extensions to VXLAN.
-		 */
-		reason = SKB_DROP_REASON_VXLAN_INVALID_HDR;
-		goto drop;
-	}
 
 	if (!raw_proto) {
 		reason = vxlan_set_mac(vxlan, vs, skb, vni);
@@ -3435,6 +3428,7 @@ static const struct nla_policy vxlan_policy[IFLA_VXLAN_MAX + 1] = {
 	[IFLA_VXLAN_VNIFILTER]	= { .type = NLA_U8 },
 	[IFLA_VXLAN_LOCALBYPASS]	= NLA_POLICY_MAX(NLA_U8, 1),
 	[IFLA_VXLAN_LABEL_POLICY]       = NLA_POLICY_MAX(NLA_U32, VXLAN_LABEL_MAX),
+	[IFLA_VXLAN_RESERVED_BITS] = NLA_POLICY_EXACT_LEN(sizeof(struct vxlanhdr)),
 };
 
 static int vxlan_validate(struct nlattr *tb[], struct nlattr *data[],
@@ -4070,6 +4064,10 @@ static int vxlan_nl2conf(struct nlattr *tb[], struct nlattr *data[],
 			 struct net_device *dev, struct vxlan_config *conf,
 			 bool changelink, struct netlink_ext_ack *extack)
 {
+	struct vxlanhdr used_bits = {
+		.vx_flags = VXLAN_HF_VNI,
+		.vx_vni = VXLAN_VNI_MASK,
+	};
 	struct vxlan_dev *vxlan = netdev_priv(dev);
 	int err = 0;
 
@@ -4296,6 +4294,8 @@ static int vxlan_nl2conf(struct nlattr *tb[], struct nlattr *data[],
 				    extack);
 		if (err)
 			return err;
+		used_bits.vx_flags |= VXLAN_HF_RCO;
+		used_bits.vx_vni |= ~VXLAN_VNI_MASK;
 	}
 
 	if (data[IFLA_VXLAN_GBP]) {
@@ -4303,6 +4303,7 @@ static int vxlan_nl2conf(struct nlattr *tb[], struct nlattr *data[],
 				    VXLAN_F_GBP, changelink, false, extack);
 		if (err)
 			return err;
+		used_bits.vx_flags |= VXLAN_GBP_USED_BITS;
 	}
 
 	if (data[IFLA_VXLAN_GPE]) {
@@ -4311,6 +4312,46 @@ static int vxlan_nl2conf(struct nlattr *tb[], struct nlattr *data[],
 				    extack);
 		if (err)
 			return err;
+
+		used_bits.vx_flags |= VXLAN_GPE_USED_BITS;
+	}
+
+	if (data[IFLA_VXLAN_RESERVED_BITS]) {
+		struct vxlanhdr reserved_bits;
+
+		if (changelink) {
+			NL_SET_ERR_MSG_ATTR(extack,
+					    data[IFLA_VXLAN_RESERVED_BITS],
+					    "Cannot change reserved_bits");
+			return -EOPNOTSUPP;
+		}
+
+		nla_memcpy(&reserved_bits, data[IFLA_VXLAN_RESERVED_BITS],
+			   sizeof(reserved_bits));
+		if (used_bits.vx_flags & reserved_bits.vx_flags ||
+		    used_bits.vx_vni & reserved_bits.vx_vni) {
+			__be64 ub_be64, rb_be64;
+
+			memcpy(&ub_be64, &used_bits, sizeof(ub_be64));
+			memcpy(&rb_be64, &reserved_bits, sizeof(rb_be64));
+
+			NL_SET_ERR_MSG_ATTR_FMT(extack,
+						data[IFLA_VXLAN_RESERVED_BITS],
+						"Used bits %#018llx cannot overlap reserved bits %#018llx",
+						be64_to_cpu(ub_be64),
+						be64_to_cpu(rb_be64));
+			return -EINVAL;
+		}
+
+		conf->reserved_bits = reserved_bits;
+	} else {
+		/* For backwards compatibility, only allow reserved fields to be
+		 * used by VXLAN extensions if explicitly requested.
+		 */
+		conf->reserved_bits = (struct vxlanhdr) {
+			.vx_flags = ~used_bits.vx_flags,
+			.vx_vni = ~used_bits.vx_vni,
+		};
 	}
 
 	if (data[IFLA_VXLAN_REMCSUM_NOPARTIAL]) {
@@ -4497,6 +4538,8 @@ static size_t vxlan_get_size(const struct net_device *dev)
 		nla_total_size(0) + /* IFLA_VXLAN_GPE */
 		nla_total_size(0) + /* IFLA_VXLAN_REMCSUM_NOPARTIAL */
 		nla_total_size(sizeof(__u8)) + /* IFLA_VXLAN_VNIFILTER */
+		/* IFLA_VXLAN_RESERVED_BITS */
+		nla_total_size(sizeof(struct vxlanhdr)) +
 		0;
 }
 
@@ -4597,6 +4640,11 @@ static int vxlan_fill_info(struct sk_buff *skb, const struct net_device *dev)
 	if (vxlan->cfg.flags & VXLAN_F_VNIFILTER &&
 	    nla_put_u8(skb, IFLA_VXLAN_VNIFILTER,
 		       !!(vxlan->cfg.flags & VXLAN_F_VNIFILTER)))
+		goto nla_put_failure;
+
+	if (nla_put(skb, IFLA_VXLAN_RESERVED_BITS,
+		    sizeof(vxlan->cfg.reserved_bits),
+		    &vxlan->cfg.reserved_bits))
 		goto nla_put_failure;
 
 	return 0;
