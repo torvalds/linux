@@ -537,10 +537,6 @@ static void amd_pstate_update(struct amd_cpudata *cpudata, u32 min_perf,
 	u32 nominal_perf = READ_ONCE(cpudata->nominal_perf);
 	u64 value = prev;
 
-	min_perf = clamp_t(unsigned long, min_perf, cpudata->min_limit_perf,
-			cpudata->max_limit_perf);
-	max_perf = clamp_t(unsigned long, max_perf, cpudata->min_limit_perf,
-			cpudata->max_limit_perf);
 	des_perf = clamp_t(unsigned long, des_perf, min_perf, max_perf);
 
 	max_freq = READ_ONCE(cpudata->max_limit_freq);
@@ -607,7 +603,7 @@ static int amd_pstate_verify(struct cpufreq_policy_data *policy_data)
 
 static int amd_pstate_update_min_max_limit(struct cpufreq_policy *policy)
 {
-	u32 max_limit_perf, min_limit_perf, lowest_perf, max_perf, max_freq;
+	u32 max_limit_perf, min_limit_perf, max_perf, max_freq;
 	struct amd_cpudata *cpudata = policy->driver_data;
 
 	max_perf = READ_ONCE(cpudata->highest_perf);
@@ -615,12 +611,8 @@ static int amd_pstate_update_min_max_limit(struct cpufreq_policy *policy)
 	max_limit_perf = div_u64(policy->max * max_perf, max_freq);
 	min_limit_perf = div_u64(policy->min * max_perf, max_freq);
 
-	lowest_perf = READ_ONCE(cpudata->lowest_perf);
-	if (min_limit_perf < lowest_perf)
-		min_limit_perf = lowest_perf;
-
-	if (max_limit_perf < min_limit_perf)
-		max_limit_perf = min_limit_perf;
+	if (cpudata->policy == CPUFREQ_POLICY_PERFORMANCE)
+		min_limit_perf = min(cpudata->nominal_perf, max_limit_perf);
 
 	WRITE_ONCE(cpudata->max_limit_perf, max_limit_perf);
 	WRITE_ONCE(cpudata->min_limit_perf, min_limit_perf);
@@ -1562,28 +1554,18 @@ static void amd_pstate_epp_cpu_exit(struct cpufreq_policy *policy)
 static int amd_pstate_epp_update_limit(struct cpufreq_policy *policy)
 {
 	struct amd_cpudata *cpudata = policy->driver_data;
-	u32 max_perf, min_perf;
 	u64 value;
 	s16 epp;
 
-	max_perf = READ_ONCE(cpudata->highest_perf);
-	min_perf = READ_ONCE(cpudata->lowest_perf);
 	amd_pstate_update_min_max_limit(policy);
 
-	max_perf = clamp_t(unsigned long, max_perf, cpudata->min_limit_perf,
-			cpudata->max_limit_perf);
-	min_perf = clamp_t(unsigned long, min_perf, cpudata->min_limit_perf,
-			cpudata->max_limit_perf);
 	value = READ_ONCE(cpudata->cppc_req_cached);
-
-	if (cpudata->policy == CPUFREQ_POLICY_PERFORMANCE)
-		min_perf = min(cpudata->nominal_perf, max_perf);
 
 	value &= ~(AMD_CPPC_MAX_PERF_MASK | AMD_CPPC_MIN_PERF_MASK |
 		   AMD_CPPC_DES_PERF_MASK);
-	value |= FIELD_PREP(AMD_CPPC_MAX_PERF_MASK, max_perf);
+	value |= FIELD_PREP(AMD_CPPC_MAX_PERF_MASK, cpudata->max_limit_perf);
 	value |= FIELD_PREP(AMD_CPPC_DES_PERF_MASK, 0);
-	value |= FIELD_PREP(AMD_CPPC_MIN_PERF_MASK, min_perf);
+	value |= FIELD_PREP(AMD_CPPC_MIN_PERF_MASK, cpudata->min_limit_perf);
 
 	/* Get BIOS pre-defined epp value */
 	epp = amd_pstate_get_epp(cpudata, value);
