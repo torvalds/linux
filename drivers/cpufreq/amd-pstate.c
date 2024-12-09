@@ -319,13 +319,11 @@ static int shmem_set_epp(struct amd_cpudata *cpudata, u32 epp)
 static int amd_pstate_set_energy_pref_index(struct amd_cpudata *cpudata,
 		int pref_index)
 {
-	int epp = -EINVAL;
-	int ret;
+	int epp;
 
 	if (!pref_index)
 		epp = cpudata->epp_default;
-
-	if (epp == -EINVAL)
+	else
 		epp = epp_values[pref_index];
 
 	if (epp > 0 && cpudata->policy == CPUFREQ_POLICY_PERFORMANCE) {
@@ -341,9 +339,7 @@ static int amd_pstate_set_energy_pref_index(struct amd_cpudata *cpudata,
 					  cpudata->boost_state);
 	}
 
-	ret = amd_pstate_set_epp(cpudata, epp);
-
-	return ret;
+	return amd_pstate_set_epp(cpudata, epp);
 }
 
 static inline int msr_cppc_enable(bool enable)
