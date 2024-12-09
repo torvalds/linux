@@ -3673,176 +3673,181 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 		}
 	}
 },
-{
-	/* Only claim interface 0 */
-	.match_flags = USB_DEVICE_ID_MATCH_VENDOR |
-		       USB_DEVICE_ID_MATCH_PRODUCT |
-		       USB_DEVICE_ID_MATCH_INT_CLASS |
-		       USB_DEVICE_ID_MATCH_INT_NUMBER,
-	.idVendor = 0x2a39,
-	.idProduct = 0x3f8c,
-	.bInterfaceClass = USB_CLASS_VENDOR_SPEC,
-	.bInterfaceNumber = 0,
-	QUIRK_DRIVER_INFO {
-		QUIRK_DATA_COMPOSITE {
+#define QUIRK_RME_DIGIFACE(pid) \
+{ \
+	/* Only claim interface 0 */ \
+	.match_flags = USB_DEVICE_ID_MATCH_VENDOR | \
+		       USB_DEVICE_ID_MATCH_PRODUCT | \
+		       USB_DEVICE_ID_MATCH_INT_CLASS | \
+		       USB_DEVICE_ID_MATCH_INT_NUMBER, \
+	.idVendor = 0x2a39, \
+	.idProduct = pid, \
+	.bInterfaceClass = USB_CLASS_VENDOR_SPEC, \
+	.bInterfaceNumber = 0, \
+	QUIRK_DRIVER_INFO { \
+		QUIRK_DATA_COMPOSITE { \
 			/*
 			 * Three modes depending on sample rate band,
 			 * with different channel counts for in/out
-			 */
-			{ QUIRK_DATA_STANDARD_MIXER(0) },
-			{
-				QUIRK_DATA_AUDIOFORMAT(0) {
-					.formats = SNDRV_PCM_FMTBIT_S32_LE,
-					.channels = 34, // outputs
-					.fmt_bits = 24,
-					.iface = 0,
-					.altsetting = 1,
-					.altset_idx = 1,
-					.endpoint = 0x02,
-					.ep_idx = 1,
-					.ep_attr = USB_ENDPOINT_XFER_ISOC |
-						USB_ENDPOINT_SYNC_ASYNC,
-					.rates = SNDRV_PCM_RATE_32000 |
-						SNDRV_PCM_RATE_44100 |
-						SNDRV_PCM_RATE_48000,
-					.rate_min = 32000,
-					.rate_max = 48000,
-					.nr_rates = 3,
-					.rate_table = (unsigned int[]) {
-						32000, 44100, 48000,
-					},
-					.sync_ep = 0x81,
-					.sync_iface = 0,
-					.sync_altsetting = 1,
-					.sync_ep_idx = 0,
-					.implicit_fb = 1,
-				},
-			},
-			{
-				QUIRK_DATA_AUDIOFORMAT(0) {
-					.formats = SNDRV_PCM_FMTBIT_S32_LE,
-					.channels = 18, // outputs
-					.fmt_bits = 24,
-					.iface = 0,
-					.altsetting = 1,
-					.altset_idx = 1,
-					.endpoint = 0x02,
-					.ep_idx = 1,
-					.ep_attr = USB_ENDPOINT_XFER_ISOC |
-						USB_ENDPOINT_SYNC_ASYNC,
-					.rates = SNDRV_PCM_RATE_64000 |
-						SNDRV_PCM_RATE_88200 |
-						SNDRV_PCM_RATE_96000,
-					.rate_min = 64000,
-					.rate_max = 96000,
-					.nr_rates = 3,
-					.rate_table = (unsigned int[]) {
-						64000, 88200, 96000,
-					},
-					.sync_ep = 0x81,
-					.sync_iface = 0,
-					.sync_altsetting = 1,
-					.sync_ep_idx = 0,
-					.implicit_fb = 1,
-				},
-			},
-			{
-				QUIRK_DATA_AUDIOFORMAT(0) {
-					.formats = SNDRV_PCM_FMTBIT_S32_LE,
-					.channels = 10, // outputs
-					.fmt_bits = 24,
-					.iface = 0,
-					.altsetting = 1,
-					.altset_idx = 1,
-					.endpoint = 0x02,
-					.ep_idx = 1,
-					.ep_attr = USB_ENDPOINT_XFER_ISOC |
-						USB_ENDPOINT_SYNC_ASYNC,
-					.rates = SNDRV_PCM_RATE_KNOT |
-						SNDRV_PCM_RATE_176400 |
-						SNDRV_PCM_RATE_192000,
-					.rate_min = 128000,
-					.rate_max = 192000,
-					.nr_rates = 3,
-					.rate_table = (unsigned int[]) {
-						128000, 176400, 192000,
-					},
-					.sync_ep = 0x81,
-					.sync_iface = 0,
-					.sync_altsetting = 1,
-					.sync_ep_idx = 0,
-					.implicit_fb = 1,
-				},
-			},
-			{
-				QUIRK_DATA_AUDIOFORMAT(0) {
-					.formats = SNDRV_PCM_FMTBIT_S32_LE,
-					.channels = 32, // inputs
-					.fmt_bits = 24,
-					.iface = 0,
-					.altsetting = 1,
-					.altset_idx = 1,
-					.endpoint = 0x81,
-					.ep_attr = USB_ENDPOINT_XFER_ISOC |
-						USB_ENDPOINT_SYNC_ASYNC,
-					.rates = SNDRV_PCM_RATE_32000 |
-						SNDRV_PCM_RATE_44100 |
-						SNDRV_PCM_RATE_48000,
-					.rate_min = 32000,
-					.rate_max = 48000,
-					.nr_rates = 3,
-					.rate_table = (unsigned int[]) {
-						32000, 44100, 48000,
-					}
-				}
-			},
-			{
-				QUIRK_DATA_AUDIOFORMAT(0) {
-					.formats = SNDRV_PCM_FMTBIT_S32_LE,
-					.channels = 16, // inputs
-					.fmt_bits = 24,
-					.iface = 0,
-					.altsetting = 1,
-					.altset_idx = 1,
-					.endpoint = 0x81,
-					.ep_attr = USB_ENDPOINT_XFER_ISOC |
-						USB_ENDPOINT_SYNC_ASYNC,
-					.rates = SNDRV_PCM_RATE_64000 |
-						SNDRV_PCM_RATE_88200 |
-						SNDRV_PCM_RATE_96000,
-					.rate_min = 64000,
-					.rate_max = 96000,
-					.nr_rates = 3,
-					.rate_table = (unsigned int[]) {
-						64000, 88200, 96000,
-					}
-				}
-			},
-			{
-				QUIRK_DATA_AUDIOFORMAT(0) {
-					.formats = SNDRV_PCM_FMTBIT_S32_LE,
-					.channels = 8, // inputs
-					.fmt_bits = 24,
-					.iface = 0,
-					.altsetting = 1,
-					.altset_idx = 1,
-					.endpoint = 0x81,
-					.ep_attr = USB_ENDPOINT_XFER_ISOC |
-						USB_ENDPOINT_SYNC_ASYNC,
-					.rates = SNDRV_PCM_RATE_KNOT |
-						SNDRV_PCM_RATE_176400 |
-						SNDRV_PCM_RATE_192000,
-					.rate_min = 128000,
-					.rate_max = 192000,
-					.nr_rates = 3,
-					.rate_table = (unsigned int[]) {
-						128000, 176400, 192000,
-					}
-				}
-			},
-			QUIRK_COMPOSITE_END
-		}
-	}
-},
+			 */ \
+			{ QUIRK_DATA_STANDARD_MIXER(0) }, \
+			{ \
+				QUIRK_DATA_AUDIOFORMAT(0) { \
+					.formats = SNDRV_PCM_FMTBIT_S32_LE, \
+					.channels = 34, /* outputs */ \
+					.fmt_bits = 24, \
+					.iface = 0, \
+					.altsetting = 1, \
+					.altset_idx = 1, \
+					.endpoint = 0x02, \
+					.ep_idx = 1, \
+					.ep_attr = USB_ENDPOINT_XFER_ISOC | \
+						USB_ENDPOINT_SYNC_ASYNC, \
+					.rates = SNDRV_PCM_RATE_32000 | \
+						SNDRV_PCM_RATE_44100 | \
+						SNDRV_PCM_RATE_48000, \
+					.rate_min = 32000, \
+					.rate_max = 48000, \
+					.nr_rates = 3, \
+					.rate_table = (unsigned int[]) { \
+						32000, 44100, 48000, \
+					}, \
+					.sync_ep = 0x81, \
+					.sync_iface = 0, \
+					.sync_altsetting = 1, \
+					.sync_ep_idx = 0, \
+					.implicit_fb = 1, \
+				}, \
+			}, \
+			{ \
+				QUIRK_DATA_AUDIOFORMAT(0) { \
+					.formats = SNDRV_PCM_FMTBIT_S32_LE, \
+					.channels = 18, /* outputs */ \
+					.fmt_bits = 24, \
+					.iface = 0, \
+					.altsetting = 1, \
+					.altset_idx = 1, \
+					.endpoint = 0x02, \
+					.ep_idx = 1, \
+					.ep_attr = USB_ENDPOINT_XFER_ISOC | \
+						USB_ENDPOINT_SYNC_ASYNC, \
+					.rates = SNDRV_PCM_RATE_64000 | \
+						SNDRV_PCM_RATE_88200 | \
+						SNDRV_PCM_RATE_96000, \
+					.rate_min = 64000, \
+					.rate_max = 96000, \
+					.nr_rates = 3, \
+					.rate_table = (unsigned int[]) { \
+						64000, 88200, 96000, \
+					}, \
+					.sync_ep = 0x81, \
+					.sync_iface = 0, \
+					.sync_altsetting = 1, \
+					.sync_ep_idx = 0, \
+					.implicit_fb = 1, \
+				}, \
+			}, \
+			{ \
+				QUIRK_DATA_AUDIOFORMAT(0) { \
+					.formats = SNDRV_PCM_FMTBIT_S32_LE, \
+					.channels = 10, /* outputs */ \
+					.fmt_bits = 24, \
+					.iface = 0, \
+					.altsetting = 1, \
+					.altset_idx = 1, \
+					.endpoint = 0x02, \
+					.ep_idx = 1, \
+					.ep_attr = USB_ENDPOINT_XFER_ISOC | \
+						USB_ENDPOINT_SYNC_ASYNC, \
+					.rates = SNDRV_PCM_RATE_KNOT | \
+						SNDRV_PCM_RATE_176400 | \
+						SNDRV_PCM_RATE_192000, \
+					.rate_min = 128000, \
+					.rate_max = 192000, \
+					.nr_rates = 3, \
+					.rate_table = (unsigned int[]) { \
+						128000, 176400, 192000, \
+					}, \
+					.sync_ep = 0x81, \
+					.sync_iface = 0, \
+					.sync_altsetting = 1, \
+					.sync_ep_idx = 0, \
+					.implicit_fb = 1, \
+				}, \
+			}, \
+			{ \
+				QUIRK_DATA_AUDIOFORMAT(0) { \
+					.formats = SNDRV_PCM_FMTBIT_S32_LE, \
+					.channels = 32, /* inputs */ \
+					.fmt_bits = 24, \
+					.iface = 0, \
+					.altsetting = 1, \
+					.altset_idx = 1, \
+					.endpoint = 0x81, \
+					.ep_attr = USB_ENDPOINT_XFER_ISOC | \
+						USB_ENDPOINT_SYNC_ASYNC, \
+					.rates = SNDRV_PCM_RATE_32000 | \
+						SNDRV_PCM_RATE_44100 | \
+						SNDRV_PCM_RATE_48000, \
+					.rate_min = 32000, \
+					.rate_max = 48000, \
+					.nr_rates = 3, \
+					.rate_table = (unsigned int[]) { \
+						32000, 44100, 48000, \
+					} \
+				} \
+			}, \
+			{ \
+				QUIRK_DATA_AUDIOFORMAT(0) { \
+					.formats = SNDRV_PCM_FMTBIT_S32_LE, \
+					.channels = 16, /* inputs */ \
+					.fmt_bits = 24, \
+					.iface = 0, \
+					.altsetting = 1, \
+					.altset_idx = 1, \
+					.endpoint = 0x81, \
+					.ep_attr = USB_ENDPOINT_XFER_ISOC | \
+						USB_ENDPOINT_SYNC_ASYNC, \
+					.rates = SNDRV_PCM_RATE_64000 | \
+						SNDRV_PCM_RATE_88200 | \
+						SNDRV_PCM_RATE_96000, \
+					.rate_min = 64000, \
+					.rate_max = 96000, \
+					.nr_rates = 3, \
+					.rate_table = (unsigned int[]) { \
+						64000, 88200, 96000, \
+					} \
+				} \
+			}, \
+			{ \
+				QUIRK_DATA_AUDIOFORMAT(0) { \
+					.formats = SNDRV_PCM_FMTBIT_S32_LE, \
+					.channels = 8, /* inputs */ \
+					.fmt_bits = 24, \
+					.iface = 0, \
+					.altsetting = 1, \
+					.altset_idx = 1, \
+					.endpoint = 0x81, \
+					.ep_attr = USB_ENDPOINT_XFER_ISOC | \
+						USB_ENDPOINT_SYNC_ASYNC, \
+					.rates = SNDRV_PCM_RATE_KNOT | \
+						SNDRV_PCM_RATE_176400 | \
+						SNDRV_PCM_RATE_192000, \
+					.rate_min = 128000, \
+					.rate_max = 192000, \
+					.nr_rates = 3, \
+					.rate_table = (unsigned int[]) { \
+						128000, 176400, 192000, \
+					} \
+				} \
+			}, \
+			QUIRK_COMPOSITE_END \
+		} \
+	} \
+}
+
+QUIRK_RME_DIGIFACE(0x3f8c),
+QUIRK_RME_DIGIFACE(0x3fa0),
+
 #undef USB_DEVICE_VENDOR_SPEC
 #undef USB_AUDIO_DEVICE

@@ -213,7 +213,7 @@ MODULE_DEVICE_TABLE(platform, rapl_msr_ids);
 
 static struct platform_driver intel_rapl_msr_driver = {
 	.probe = rapl_msr_probe,
-	.remove_new = rapl_msr_remove,
+	.remove = rapl_msr_remove,
 	.id_table = rapl_msr_ids,
 	.driver = {
 		.name = "intel_rapl_msr",

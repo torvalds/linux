@@ -72,7 +72,7 @@ const struct regmap_access_table adxl355_readable_regs_tbl = {
 	.yes_ranges = adxl355_read_reg_range,
 	.n_yes_ranges = ARRAY_SIZE(adxl355_read_reg_range),
 };
-EXPORT_SYMBOL_NS_GPL(adxl355_readable_regs_tbl, IIO_ADXL355);
+EXPORT_SYMBOL_NS_GPL(adxl355_readable_regs_tbl, "IIO_ADXL355");
 
 static const struct regmap_range adxl355_write_reg_range[] = {
 	regmap_reg_range(ADXL355_OFFSET_X_H_REG, ADXL355_RESET_REG),
@@ -82,7 +82,7 @@ const struct regmap_access_table adxl355_writeable_regs_tbl = {
 	.yes_ranges = adxl355_write_reg_range,
 	.n_yes_ranges = ARRAY_SIZE(adxl355_write_reg_range),
 };
-EXPORT_SYMBOL_NS_GPL(adxl355_writeable_regs_tbl, IIO_ADXL355);
+EXPORT_SYMBOL_NS_GPL(adxl355_writeable_regs_tbl, "IIO_ADXL355");
 
 const struct adxl355_chip_info adxl35x_chip_info[] = {
 	[ADXL355] = {
@@ -136,7 +136,7 @@ const struct adxl355_chip_info adxl35x_chip_info[] = {
 		},
 	},
 };
-EXPORT_SYMBOL_NS_GPL(adxl35x_chip_info, IIO_ADXL355);
+EXPORT_SYMBOL_NS_GPL(adxl35x_chip_info, "IIO_ADXL355");
 
 enum adxl355_op_mode {
 	ADXL355_MEASUREMENT,
@@ -801,7 +801,7 @@ int adxl355_core_probe(struct device *dev, struct regmap *regmap,
 
 	return devm_iio_device_register(dev, indio_dev);
 }
-EXPORT_SYMBOL_NS_GPL(adxl355_core_probe, IIO_ADXL355);
+EXPORT_SYMBOL_NS_GPL(adxl355_core_probe, "IIO_ADXL355");
 
 MODULE_AUTHOR("Puranjay Mohan <puranjay12@gmail.com>");
 MODULE_DESCRIPTION("ADXL355 3-Axis Digital Accelerometer core driver");

@@ -3063,6 +3063,19 @@ int btrfs_finish_one_ordered(struct btrfs_ordered_extent *ordered_extent)
 			goto out;
 	}
 
+	/*
+	 * If it's a COW write we need to lock the extent range as we will be
+	 * inserting/replacing file extent items and unpinning an extent map.
+	 * This must be taken before joining a transaction, as it's a higher
+	 * level lock (like the inode's VFS lock), otherwise we can run into an
+	 * ABBA deadlock with other tasks (transactions work like a lock,
+	 * depending on their current state).
+	 */
+	if (!test_bit(BTRFS_ORDERED_NOCOW, &ordered_extent->flags)) {
+		clear_bits |= EXTENT_LOCKED;
+		lock_extent(io_tree, start, end, &cached_state);
+	}
+
 	if (freespace_inode)
 		trans = btrfs_join_transaction_spacecache(root);
 	else
@@ -3098,9 +3111,6 @@ int btrfs_finish_one_ordered(struct btrfs_ordered_extent *ordered_extent)
 		}
 		goto out;
 	}
-
-	clear_bits |= EXTENT_LOCKED;
-	lock_extent(io_tree, start, end, &cached_state);
 
 	if (test_bit(BTRFS_ORDERED_COMPRESSED, &ordered_extent->flags))
 		compress_type = ordered_extent->compress_type;
@@ -9089,7 +9099,7 @@ static void btrfs_encoded_read_endio(struct btrfs_bio *bbio)
 		 */
 		WRITE_ONCE(priv->status, bbio->bio.bi_status);
 	}
-	if (atomic_dec_return(&priv->pending) == 0) {
+	if (atomic_dec_and_test(&priv->pending)) {
 		int err = blk_status_to_errno(READ_ONCE(priv->status));
 
 		if (priv->uring_ctx) {
