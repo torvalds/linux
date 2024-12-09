@@ -2024,6 +2024,24 @@ uint32_t dc_link_bandwidth_kbps(
 	const struct dc_link *link,
 	const struct dc_link_settings *link_setting);
 
+struct dp_audio_bandwidth_params {
+	const struct dc_crtc_timing *crtc_timing;
+	enum dp_link_encoding link_encoding;
+	uint32_t channel_count;
+	uint32_t sample_rate_hz;
+};
+
+/* The function calculates the minimum size of hblank (in bytes) needed to
+ * support the specified channel count and sample rate combination, given the
+ * link encoding and timing to be used. This calculation is not supported
+ * for 8b/10b SST.
+ *
+ * return - min hblank size in bytes, 0 if 8b/10b SST.
+ */
+uint32_t dc_link_required_hblank_size_bytes(
+	const struct dc_link *link,
+	struct dp_audio_bandwidth_params *audio_params);
+
 /* The function takes a snapshot of current link resource allocation state
  * @dc: pointer to dc of the dm calling this
  * @map: a dc link resource snapshot defined internally to dc.
