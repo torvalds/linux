@@ -1920,8 +1920,7 @@ static int can_nocow_file_extent(struct btrfs_path *path,
 	 */
 	btrfs_release_path(path);
 
-	ret = btrfs_cross_ref_exist(root, btrfs_ino(inode),
-				    key->offset - args->file_extent.offset,
+	ret = btrfs_cross_ref_exist(inode, key->offset - args->file_extent.offset,
 				    args->file_extent.disk_bytenr, path);
 	WARN_ON_ONCE(ret > 0 && is_freespace_inode);
 	if (ret != 0)

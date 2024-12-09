@@ -2206,10 +2206,11 @@ int btrfs_set_disk_extent_flags(struct btrfs_trans_handle *trans,
 	return ret;
 }
 
-static noinline int check_delayed_ref(struct btrfs_root *root,
+static noinline int check_delayed_ref(struct btrfs_inode *inode,
 				      struct btrfs_path *path,
-				      u64 objectid, u64 offset, u64 bytenr)
+				      u64 offset, u64 bytenr)
 {
+	struct btrfs_root *root = inode->root;
 	struct btrfs_delayed_ref_head *head;
 	struct btrfs_delayed_ref_node *ref;
 	struct btrfs_delayed_ref_root *delayed_refs;
@@ -2283,7 +2284,7 @@ static noinline int check_delayed_ref(struct btrfs_root *root,
 		 * then we have a cross reference.
 		 */
 		if (ref->ref_root != btrfs_root_id(root) ||
-		    ref_owner != objectid || ref_offset != offset) {
+		    ref_owner != btrfs_ino(inode) || ref_offset != offset) {
 			ret = 1;
 			break;
 		}
@@ -2294,10 +2295,11 @@ static noinline int check_delayed_ref(struct btrfs_root *root,
 	return ret;
 }
 
-static noinline int check_committed_ref(struct btrfs_root *root,
+static noinline int check_committed_ref(struct btrfs_inode *inode,
 					struct btrfs_path *path,
-					u64 objectid, u64 offset, u64 bytenr)
+					u64 offset, u64 bytenr)
 {
+	struct btrfs_root *root = inode->root;
 	struct btrfs_fs_info *fs_info = root->fs_info;
 	struct btrfs_root *extent_root = btrfs_extent_root(fs_info, bytenr);
 	struct extent_buffer *leaf;
@@ -2364,29 +2366,29 @@ static noinline int check_committed_ref(struct btrfs_root *root,
 	if (btrfs_extent_refs(leaf, ei) !=
 	    btrfs_extent_data_ref_count(leaf, ref) ||
 	    btrfs_extent_data_ref_root(leaf, ref) != btrfs_root_id(root) ||
-	    btrfs_extent_data_ref_objectid(leaf, ref) != objectid ||
+	    btrfs_extent_data_ref_objectid(leaf, ref) != btrfs_ino(inode) ||
 	    btrfs_extent_data_ref_offset(leaf, ref) != offset)
 		return 1;
 
 	return 0;
 }
 
-int btrfs_cross_ref_exist(struct btrfs_root *root, u64 objectid, u64 offset,
+int btrfs_cross_ref_exist(struct btrfs_inode *inode, u64 offset,
 			  u64 bytenr, struct btrfs_path *path)
 {
 	int ret;
 
 	do {
-		ret = check_committed_ref(root, path, objectid, offset, bytenr);
+		ret = check_committed_ref(inode, path, offset, bytenr);
 		if (ret && ret != -ENOENT)
 			goto out;
 
-		ret = check_delayed_ref(root, path, objectid, offset, bytenr);
+		ret = check_delayed_ref(inode, path, offset, bytenr);
 	} while (ret == -EAGAIN && !path->nowait);
 
 out:
 	btrfs_release_path(path);
-	if (btrfs_is_data_reloc_root(root))
+	if (btrfs_is_data_reloc_root(inode->root))
 		WARN_ON(ret > 0);
 	return ret;
 }
