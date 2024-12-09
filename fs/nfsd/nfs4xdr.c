@@ -4237,10 +4237,12 @@ nfsd4_encode_open_delegation4(struct xdr_stream *xdr, struct nfsd4_open *open)
 		status = nfs_ok;
 		break;
 	case OPEN_DELEGATE_READ:
+	case OPEN_DELEGATE_READ_ATTRS_DELEG:
 		/* read */
 		status = nfsd4_encode_open_read_delegation4(xdr, open);
 		break;
 	case OPEN_DELEGATE_WRITE:
+	case OPEN_DELEGATE_WRITE_ATTRS_DELEG:
 		/* write */
 		status = nfsd4_encode_open_write_delegation4(xdr, open);
 		break;

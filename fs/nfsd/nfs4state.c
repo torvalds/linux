@@ -2951,6 +2951,21 @@ static int nfs4_show_lock(struct seq_file *s, struct nfs4_stid *st)
 	return 0;
 }
 
+static char *nfs4_show_deleg_type(u32 dl_type)
+{
+	switch (dl_type) {
+	case OPEN_DELEGATE_READ:
+		return "r";
+	case OPEN_DELEGATE_WRITE:
+		return "w";
+	case OPEN_DELEGATE_READ_ATTRS_DELEG:
+		return "ra";
+	case OPEN_DELEGATE_WRITE_ATTRS_DELEG:
+		return "wa";
+	}
+	return "?";
+}
+
 static int nfs4_show_deleg(struct seq_file *s, struct nfs4_stid *st)
 {
 	struct nfs4_delegation *ds;
@@ -2964,8 +2979,7 @@ static int nfs4_show_deleg(struct seq_file *s, struct nfs4_stid *st)
 	nfs4_show_stateid(s, &st->sc_stateid);
 	seq_puts(s, ": { type: deleg, ");
 
-	seq_printf(s, "access: %s",
-		   ds->dl_type == OPEN_DELEGATE_READ ? "r" : "w");
+	seq_printf(s, "access: %s", nfs4_show_deleg_type(ds->dl_type));
 
 	/* XXX: lease time, whether it's being recalled. */
 
@@ -5581,7 +5595,7 @@ retry:
 static inline __be32
 nfs4_check_delegmode(struct nfs4_delegation *dp, int flags)
 {
-	if ((flags & WR_STATE) && (dp->dl_type == OPEN_DELEGATE_READ))
+	if ((flags & WR_STATE) && deleg_is_read(dp->dl_type))
 		return nfserr_openmode;
 	else
 		return nfs_ok;
@@ -5813,8 +5827,7 @@ static bool nfsd4_cb_channel_good(struct nfs4_client *clp)
 	return clp->cl_minorversion && clp->cl_cb_state == NFSD4_CB_UNKNOWN;
 }
 
-static struct file_lease *nfs4_alloc_init_lease(struct nfs4_delegation *dp,
-						int flag)
+static struct file_lease *nfs4_alloc_init_lease(struct nfs4_delegation *dp)
 {
 	struct file_lease *fl;
 
@@ -5823,7 +5836,7 @@ static struct file_lease *nfs4_alloc_init_lease(struct nfs4_delegation *dp,
 		return NULL;
 	fl->fl_lmops = &nfsd_lease_mng_ops;
 	fl->c.flc_flags = FL_DELEG;
-	fl->c.flc_type = flag == OPEN_DELEGATE_READ ? F_RDLCK : F_WRLCK;
+	fl->c.flc_type = deleg_is_read(dp->dl_type) ? F_RDLCK : F_WRLCK;
 	fl->c.flc_owner = (fl_owner_t)dp;
 	fl->c.flc_pid = current->tgid;
 	fl->c.flc_file = dp->dl_stid.sc_file->fi_deleg_file->nf_file;
@@ -6010,7 +6023,7 @@ nfs4_set_delegation(struct nfsd4_open *open, struct nfs4_ol_stateid *stp,
 	if (!dp)
 		goto out_delegees;
 
-	fl = nfs4_alloc_init_lease(dp, dl_type);
+	fl = nfs4_alloc_init_lease(dp);
 	if (!fl)
 		goto out_clnt_odstate;
 
@@ -6210,14 +6223,14 @@ out_no_deleg:
 static void nfsd4_deleg_xgrade_none_ext(struct nfsd4_open *open,
 					struct nfs4_delegation *dp)
 {
-	if (open->op_deleg_want == OPEN4_SHARE_ACCESS_WANT_READ_DELEG &&
-	    dp->dl_type == OPEN_DELEGATE_WRITE) {
-		open->op_delegate_type = OPEN_DELEGATE_NONE_EXT;
-		open->op_why_no_deleg = WND4_NOT_SUPP_DOWNGRADE;
-	} else if (open->op_deleg_want == OPEN4_SHARE_ACCESS_WANT_WRITE_DELEG &&
-		   dp->dl_type == OPEN_DELEGATE_WRITE) {
-		open->op_delegate_type = OPEN_DELEGATE_NONE_EXT;
-		open->op_why_no_deleg = WND4_NOT_SUPP_UPGRADE;
+	if (deleg_is_write(dp->dl_type)) {
+		if (open->op_deleg_want == OPEN4_SHARE_ACCESS_WANT_READ_DELEG) {
+			open->op_delegate_type = OPEN_DELEGATE_NONE_EXT;
+			open->op_why_no_deleg = WND4_NOT_SUPP_DOWNGRADE;
+		} else if (open->op_deleg_want == OPEN4_SHARE_ACCESS_WANT_WRITE_DELEG) {
+			open->op_delegate_type = OPEN_DELEGATE_NONE_EXT;
+			open->op_why_no_deleg = WND4_NOT_SUPP_UPGRADE;
+		}
 	}
 	/* Otherwise the client must be confused wanting a delegation
 	 * it already has, therefore we don't return
