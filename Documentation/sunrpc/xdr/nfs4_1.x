@@ -161,6 +161,13 @@ pragma public		fattr4_time_deleg_modify;
 const FATTR4_TIME_DELEG_ACCESS  = 84;
 const FATTR4_TIME_DELEG_MODIFY  = 85;
 
-
 const OPEN4_SHARE_ACCESS_WANT_DELEG_TIMESTAMPS = 0x100000;
 
+enum open_delegation_type4 {
+       OPEN_DELEGATE_NONE                  = 0,
+       OPEN_DELEGATE_READ                  = 1,
+       OPEN_DELEGATE_WRITE                 = 2,
+       OPEN_DELEGATE_NONE_EXT              = 3, /* new to v4.1 */
+       OPEN_DELEGATE_READ_ATTRS_DELEG      = 4,
+       OPEN_DELEGATE_WRITE_ATTRS_DELEG     = 5
+};

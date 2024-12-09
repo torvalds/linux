@@ -366,7 +366,7 @@ enum limit_by4 {
 	NFS4_LIMIT_BLOCKS = 2
 };
 
-enum open_delegation_type4 {
+enum nfs4_open_delegation_type4 {
 	NFS4_OPEN_DELEGATE_NONE = 0,
 	NFS4_OPEN_DELEGATE_READ = 1,
 	NFS4_OPEN_DELEGATE_WRITE = 2,

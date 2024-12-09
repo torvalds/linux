@@ -4233,18 +4233,18 @@ nfsd4_encode_open_delegation4(struct xdr_stream *xdr, struct nfsd4_open *open)
 	if (xdr_stream_encode_u32(xdr, open->op_delegate_type) != XDR_UNIT)
 		return nfserr_resource;
 	switch (open->op_delegate_type) {
-	case NFS4_OPEN_DELEGATE_NONE:
+	case OPEN_DELEGATE_NONE:
 		status = nfs_ok;
 		break;
-	case NFS4_OPEN_DELEGATE_READ:
+	case OPEN_DELEGATE_READ:
 		/* read */
 		status = nfsd4_encode_open_read_delegation4(xdr, open);
 		break;
-	case NFS4_OPEN_DELEGATE_WRITE:
+	case OPEN_DELEGATE_WRITE:
 		/* write */
 		status = nfsd4_encode_open_write_delegation4(xdr, open);
 		break;
-	case NFS4_OPEN_DELEGATE_NONE_EXT:
+	case OPEN_DELEGATE_NONE_EXT:
 		/* od_whynone */
 		status = nfsd4_encode_open_none_delegation4(xdr, open);
 		break;
