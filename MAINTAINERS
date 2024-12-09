@@ -3376,6 +3376,8 @@ S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/arm64/linux.git
 F:	Documentation/arch/arm64/
 F:	arch/arm64/
+F:	drivers/virt/coco/arm-cca-guest/
+F:	drivers/virt/coco/pkvm-guest/
 F:	tools/testing/selftests/arm64/
 X:	arch/arm64/boot/dts/
 
@@ -16267,6 +16269,7 @@ F:	Documentation/devicetree/bindings/net/
 F:	Documentation/networking/net_cachelines/net_device.rst
 F:	drivers/connector/
 F:	drivers/net/
+F:	drivers/ptp/
 F:	include/dt-bindings/net/
 F:	include/linux/cn_proc.h
 F:	include/linux/etherdevice.h
@@ -22407,7 +22410,7 @@ F:	drivers/char/hw_random/jh7110-trng.c
 
 STARFIVE WATCHDOG DRIVER
 M:	Xingyu Wu <xingyu.wu@starfivetech.com>
-M:	Samin Guo <samin.guo@starfivetech.com>
+M:	Ziv Xu <ziv.xu@starfivetech.com>
 S:	Supported
 F:	Documentation/devicetree/bindings/watchdog/starfive*
 F:	drivers/watchdog/starfive-wdt.c

@@ -242,7 +242,7 @@ lpfc_nvme_remoteport_delete(struct nvme_fc_remote_port *remoteport)
  * @phba: pointer to lpfc hba data structure.
  * @axchg: pointer to exchange context for the NVME LS request
  *
- * This routine is used for processing an asychronously received NVME LS
+ * This routine is used for processing an asynchronously received NVME LS
  * request. Any remaining validation is done and the LS is then forwarded
  * to the nvme-fc transport via nvme_fc_rcv_ls_req().
  *

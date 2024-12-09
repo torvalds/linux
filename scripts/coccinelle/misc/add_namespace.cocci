@@ -13,7 +13,7 @@ virtual report
 declarer name MODULE_IMPORT_NS;
 identifier virtual.ns;
 @@
-MODULE_IMPORT_NS("ns");
+MODULE_IMPORT_NS(ns);
 
 // Add missing imports, but only adjacent to a MODULE_LICENSE statement.
 // That ensures we are adding it only to the main module source file.
@@ -23,7 +23,7 @@ expression license;
 identifier virtual.ns;
 @@
 MODULE_LICENSE(license);
-+ MODULE_IMPORT_NS("ns");
++ MODULE_IMPORT_NS(ns);
 
 // Dummy rule for report mode that would otherwise be empty and make spatch
 // fail ("No rules apply.")
