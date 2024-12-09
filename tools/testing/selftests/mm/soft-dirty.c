@@ -128,7 +128,7 @@ static void test_mprotect(int pagemap_fd, int pagesize, bool anon)
 {
 	const char *type[] = {"file", "anon"};
 	const char *fname = "./soft-dirty-test-file";
-	int test_fd;
+	int test_fd = 0;
 	char *map;
 
 	if (anon) {
