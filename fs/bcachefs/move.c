@@ -412,7 +412,9 @@ static struct bch_io_opts *bch2_move_get_io_opts(struct btree_trans *trans,
 				continue;
 
 			struct bch_inode_unpacked inode;
-			BUG_ON(bch2_inode_unpack(k, &inode));
+			_ret3 = bch2_inode_unpack(k, &inode);
+			if (_ret3)
+				break;
 
 			struct snapshot_io_opts_entry e = { .snapshot = k.k->p.snapshot };
 			bch2_inode_opts_get(&e.io_opts, trans->c, &inode);

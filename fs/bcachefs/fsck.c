@@ -458,7 +458,9 @@ static int reattach_inode(struct btree_trans *trans, struct bch_inode_unpacked *
 				continue;
 
 			struct bch_inode_unpacked child_inode;
-			bch2_inode_unpack(k, &child_inode);
+			ret = bch2_inode_unpack(k, &child_inode);
+			if (ret)
+				break;
 
 			if (!inode_should_reattach(&child_inode)) {
 				ret = maybe_delete_dirent(trans,
@@ -809,9 +811,8 @@ static int add_inode(struct bch_fs *c, struct inode_walker *w,
 {
 	struct bch_inode_unpacked u;
 
-	BUG_ON(bch2_inode_unpack(inode, &u));
-
-	return darray_push(&w->inodes, ((struct inode_walker_entry) {
+	return bch2_inode_unpack(inode, &u) ?:
+		darray_push(&w->inodes, ((struct inode_walker_entry) {
 		.inode		= u,
 		.snapshot	= inode.k->p.snapshot,
 	}));
@@ -1065,7 +1066,7 @@ static int get_snapshot_root_inode(struct btree_trans *trans,
 		goto err;
 	BUG();
 found_root:
-	BUG_ON(bch2_inode_unpack(k, root));
+	ret = bch2_inode_unpack(k, root);
 err:
 	bch2_trans_iter_exit(trans, &iter);
 	return ret;
@@ -1096,7 +1097,9 @@ static int check_inode(struct btree_trans *trans,
 	if (!bkey_is_inode(k.k))
 		return 0;
 
-	BUG_ON(bch2_inode_unpack(k, &u));
+	ret = bch2_inode_unpack(k, &u);
+	if (ret)
+		goto err;
 
 	if (snapshot_root->bi_inum != u.bi_inum) {
 		ret = get_snapshot_root_inode(trans, snapshot_root, u.bi_inum);
@@ -1318,7 +1321,9 @@ static int find_oldest_inode_needs_reattach(struct btree_trans *trans,
 			break;
 
 		struct bch_inode_unpacked parent_inode;
-		bch2_inode_unpack(k, &parent_inode);
+		ret = bch2_inode_unpack(k, &parent_inode);
+		if (ret)
+			break;
 
 		if (!inode_should_reattach(&parent_inode))
 			break;
@@ -1341,7 +1346,9 @@ static int check_unreachable_inode(struct btree_trans *trans,
 		return 0;
 
 	struct bch_inode_unpacked inode;
-	BUG_ON(bch2_inode_unpack(k, &inode));
+	ret = bch2_inode_unpack(k, &inode);
+	if (ret)
+		return ret;
 
 	if (!inode_should_reattach(&inode))
 		return 0;
@@ -2603,14 +2610,16 @@ static int check_path(struct btree_trans *trans, pathbuf *p, struct bkey_s_c ino
 {
 	struct bch_fs *c = trans->c;
 	struct btree_iter inode_iter = {};
-	struct bch_inode_unpacked inode;
 	struct printbuf buf = PRINTBUF;
 	u32 snapshot = inode_k.k->p.snapshot;
 	int ret = 0;
 
 	p->nr = 0;
 
-	BUG_ON(bch2_inode_unpack(inode_k, &inode));
+	struct bch_inode_unpacked inode;
+	ret = bch2_inode_unpack(inode_k, &inode);
+	if (ret)
+		return ret;
 
 	if (!S_ISDIR(inode.bi_mode))
 		return 0;
@@ -2810,7 +2819,9 @@ static int check_nlinks_find_hardlinks(struct bch_fs *c,
 
 			/* Should never fail, checked by bch2_inode_invalid: */
 			struct bch_inode_unpacked u;
-			BUG_ON(bch2_inode_unpack(k, &u));
+			_ret3 = bch2_inode_unpack(k, &u);
+			if (_ret3)
+				break;
 
 			/*
 			 * Backpointer and directory structure checks are sufficient for
@@ -2888,7 +2899,9 @@ static int check_nlinks_update_inode(struct btree_trans *trans, struct btree_ite
 	if (!bkey_is_inode(k.k))
 		return 0;
 
-	BUG_ON(bch2_inode_unpack(k, &u));
+	ret = bch2_inode_unpack(k, &u);
+	if (ret)
+		return ret;
 
 	if (S_ISDIR(u.bi_mode))
 		return 0;
