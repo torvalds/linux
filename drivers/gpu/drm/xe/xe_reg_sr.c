@@ -227,13 +227,6 @@ void xe_reg_sr_apply_whitelist(struct xe_hw_engine *hwe)
 		slot++;
 	}
 
-	/* And clear the rest just in case of garbage */
-	for (; slot < RING_MAX_NONPRIV_SLOTS; slot++) {
-		u32 addr = RING_NOPID(mmio_base).addr;
-
-		xe_mmio_write32(&gt->mmio, RING_FORCE_TO_NONPRIV(mmio_base, slot), addr);
-	}
-
 	xe_force_wake_put(gt_to_fw(gt), fw_ref);
 
 	return;
