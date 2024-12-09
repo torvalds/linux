@@ -119,6 +119,21 @@ static inline u32 bch2_snapshot_root(struct bch_fs *c, u32 id)
 	return id;
 }
 
+static inline bool __bch2_snapshot_exists(struct bch_fs *c, u32 id)
+{
+	const struct snapshot_t *s = snapshot_t(c, id);
+	return s ? s->live : 0;
+}
+
+static inline bool bch2_snapshot_exists(struct bch_fs *c, u32 id)
+{
+	rcu_read_lock();
+	bool ret = __bch2_snapshot_exists(c, id);
+	rcu_read_unlock();
+
+	return ret;
+}
+
 static inline u32 __bch2_snapshot_equiv(struct bch_fs *c, u32 id)
 {
 	const struct snapshot_t *s = snapshot_t(c, id);

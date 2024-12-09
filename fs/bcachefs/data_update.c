@@ -620,7 +620,7 @@ int bch2_data_update_init(struct btree_trans *trans,
 	 * and we have to check for this because we go rw before repairing the
 	 * snapshots table - just skip it, we can move it later.
 	 */
-	if (unlikely(k.k->p.snapshot && !bch2_snapshot_equiv(c, k.k->p.snapshot)))
+	if (unlikely(k.k->p.snapshot && !bch2_snapshot_exists(c, k.k->p.snapshot)))
 		return -BCH_ERR_data_update_done;
 
 	if (!bkey_get_dev_refs(c, k))

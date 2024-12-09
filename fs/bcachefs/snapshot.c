@@ -318,6 +318,7 @@ static int __bch2_mark_snapshot(struct btree_trans *trans,
 	if (new.k->type == KEY_TYPE_snapshot) {
 		struct bkey_s_c_snapshot s = bkey_s_c_to_snapshot(new);
 
+		t->live		= true;
 		t->parent	= le32_to_cpu(s.v->parent);
 		t->children[0]	= le32_to_cpu(s.v->children[0]);
 		t->children[1]	= le32_to_cpu(s.v->children[1]);
@@ -914,7 +915,7 @@ static int check_snapshot_exists(struct btree_trans *trans, u32 id)
 {
 	struct bch_fs *c = trans->c;
 
-	if (bch2_snapshot_equiv(c, id))
+	if (bch2_snapshot_exists(c, id))
 		return 0;
 
 	/* Do we need to reconstruct the snapshot_tree entry as well? */
@@ -1062,7 +1063,7 @@ int bch2_reconstruct_snapshots(struct bch_fs *c)
 		snapshot_id_list_to_text(&buf, t);
 
 		darray_for_each(*t, id) {
-			if (fsck_err_on(!bch2_snapshot_equiv(c, *id),
+			if (fsck_err_on(!bch2_snapshot_exists(c, *id),
 					trans, snapshot_node_missing,
 					"snapshot node %u from tree %s missing, recreate?", *id, buf.buf)) {
 				if (t->nr > 1) {
@@ -1095,7 +1096,7 @@ int bch2_check_key_has_snapshot(struct btree_trans *trans,
 	struct printbuf buf = PRINTBUF;
 	int ret = 0;
 
-	if (fsck_err_on(!bch2_snapshot_equiv(c, k.k->p.snapshot),
+	if (fsck_err_on(!bch2_snapshot_exists(c, k.k->p.snapshot),
 			trans, bkey_in_missing_snapshot,
 			"key in missing snapshot %s, delete?",
 			(bch2_btree_id_to_text(&buf, iter->btree_id),
