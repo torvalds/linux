@@ -381,7 +381,7 @@ struct rx_agg_cmp {
 	u32 rx_agg_cmp_opaque;
 	__le32 rx_agg_cmp_v;
 	#define RX_AGG_CMP_V					(1 << 0)
-	#define RX_AGG_CMP_AGG_ID				(0xffff << 16)
+	#define RX_AGG_CMP_AGG_ID				(0x0fff << 16)
 	 #define RX_AGG_CMP_AGG_ID_SHIFT			 16
 	__le32 rx_agg_cmp_unused;
 };
@@ -419,7 +419,7 @@ struct rx_tpa_start_cmp {
 	 #define RX_TPA_START_CMP_V3_RSS_HASH_TYPE_SHIFT	 7
 	#define RX_TPA_START_CMP_AGG_ID				(0x7f << 25)
 	 #define RX_TPA_START_CMP_AGG_ID_SHIFT			 25
-	#define RX_TPA_START_CMP_AGG_ID_P5			(0xffff << 16)
+	#define RX_TPA_START_CMP_AGG_ID_P5			(0x0fff << 16)
 	 #define RX_TPA_START_CMP_AGG_ID_SHIFT_P5		 16
 	#define RX_TPA_START_CMP_METADATA1			(0xf << 28)
 	 #define RX_TPA_START_CMP_METADATA1_SHIFT		 28
@@ -543,7 +543,7 @@ struct rx_tpa_end_cmp {
 	 #define RX_TPA_END_CMP_PAYLOAD_OFFSET_SHIFT		 16
 	#define RX_TPA_END_CMP_AGG_ID				(0x7f << 25)
 	 #define RX_TPA_END_CMP_AGG_ID_SHIFT			 25
-	#define RX_TPA_END_CMP_AGG_ID_P5			(0xffff << 16)
+	#define RX_TPA_END_CMP_AGG_ID_P5			(0x0fff << 16)
 	 #define RX_TPA_END_CMP_AGG_ID_SHIFT_P5			 16
 
 	__le32 rx_tpa_end_cmp_tsdelta;
