@@ -471,32 +471,6 @@ int bch2_fs_accounting_read(struct bch_fs *c, darray_char *out_buf, unsigned acc
 	return ret;
 }
 
-void bch2_fs_accounting_to_text(struct printbuf *out, struct bch_fs *c)
-{
-	struct bch_accounting_mem *acc = &c->accounting;
-
-	percpu_down_read(&c->mark_lock);
-	out->atomic++;
-
-	eytzinger0_for_each(i, acc->k.nr) {
-		struct disk_accounting_pos acc_k;
-		bpos_to_disk_accounting_pos(&acc_k, acc->k.data[i].pos);
-
-		bch2_accounting_key_to_text(out, &acc_k);
-
-		u64 v[BCH_ACCOUNTING_MAX_COUNTERS];
-		bch2_accounting_mem_read_counters(acc, i, v, ARRAY_SIZE(v), false);
-
-		prt_str(out, ":");
-		for (unsigned j = 0; j < acc->k.data[i].nr_counters; j++)
-			prt_printf(out, " %llu", v[j]);
-		prt_newline(out);
-	}
-
-	--out->atomic;
-	percpu_up_read(&c->mark_lock);
-}
-
 static void bch2_accounting_free_counters(struct bch_accounting_mem *acc, bool gc)
 {
 	darray_for_each(acc->k, e) {

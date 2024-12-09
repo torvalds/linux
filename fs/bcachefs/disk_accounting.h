@@ -251,7 +251,6 @@ static inline void bch2_accounting_trans_commit_revert(struct btree_trans *trans
 
 int bch2_fs_replicas_usage_read(struct bch_fs *, darray_char *);
 int bch2_fs_accounting_read(struct bch_fs *, darray_char *, unsigned);
-void bch2_fs_accounting_to_text(struct printbuf *, struct bch_fs *);
 
 int bch2_gc_accounting_start(struct bch_fs *);
 int bch2_gc_accounting_done(struct bch_fs *);
