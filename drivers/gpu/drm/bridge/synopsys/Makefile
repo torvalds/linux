@@ -8,3 +8,4 @@ obj-$(CONFIG_DRM_DW_HDMI_CEC) += dw-hdmi-cec.o
 obj-$(CONFIG_DRM_DW_HDMI_QP) += dw-hdmi-qp.o
 
 obj-$(CONFIG_DRM_DW_MIPI_DSI) += dw-mipi-dsi.o
+obj-$(CONFIG_DRM_DW_MIPI_DSI2) += dw-mipi-dsi2.o
