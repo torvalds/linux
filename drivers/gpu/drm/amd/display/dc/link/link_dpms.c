@@ -772,6 +772,20 @@ static bool dp_set_dsc_on_rx(struct pipe_ctx *pipe_ctx, bool enable)
 	return result;
 }
 
+static bool dp_set_hblank_reduction_on_rx(struct pipe_ctx *pipe_ctx)
+{
+	struct dc *dc = pipe_ctx->stream->ctx->dc;
+	struct dc_stream_state *stream = pipe_ctx->stream;
+	bool result = false;
+
+	if (dc_is_virtual_signal(stream->signal))
+		result = true;
+	else
+		result = dm_helpers_dp_write_hblank_reduction(dc->ctx, stream);
+	return result;
+}
+
+
 /* The stream with these settings can be sent (unblanked) only after DSC was enabled on RX first,
  * i.e. after dp_enable_dsc_on_rx() had been called
  */
@@ -2598,6 +2612,9 @@ void link_set_dpms_on(
 			link_set_dsc_pps_packet(pipe_ctx, true, true);
 		}
 	}
+
+	if (dc_is_dp_signal(pipe_ctx->stream->signal))
+		dp_set_hblank_reduction_on_rx(pipe_ctx);
 
 	if (pipe_ctx->stream->link->ep_type == DISPLAY_ENDPOINT_USB4_DPIA)
 		allocate_usb4_bandwidth(pipe_ctx->stream);
