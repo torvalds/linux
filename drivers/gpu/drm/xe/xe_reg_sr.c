@@ -196,7 +196,6 @@ void xe_reg_sr_apply_whitelist(struct xe_hw_engine *hwe)
 {
 	struct xe_reg_sr *sr = &hwe->reg_whitelist;
 	struct xe_gt *gt = hwe->gt;
-	struct xe_device *xe = gt_to_xe(gt);
 	struct xe_reg_sr_entry *entry;
 	struct drm_printer p;
 	u32 mmio_base = hwe->mmio_base;
@@ -207,13 +206,13 @@ void xe_reg_sr_apply_whitelist(struct xe_hw_engine *hwe)
 	if (xa_empty(&sr->xa))
 		return;
 
-	drm_dbg(&xe->drm, "Whitelisting %s registers\n", sr->name);
+	xe_gt_dbg(gt, "Whitelisting %s registers\n", sr->name);
 
 	fw_ref = xe_force_wake_get(gt_to_fw(gt), XE_FORCEWAKE_ALL);
 	if (!xe_force_wake_ref_has_domain(fw_ref, XE_FORCEWAKE_ALL))
 		goto err_force_wake;
 
-	p = drm_dbg_printer(&xe->drm, DRM_UT_DRIVER, NULL);
+	p = xe_gt_dbg_printer(gt);
 	xa_for_each(&sr->xa, reg, entry) {
 		if (slot == RING_MAX_NONPRIV_SLOTS) {
 			xe_gt_err(gt,
@@ -241,7 +240,7 @@ void xe_reg_sr_apply_whitelist(struct xe_hw_engine *hwe)
 
 err_force_wake:
 	xe_force_wake_put(gt_to_fw(gt), fw_ref);
-	drm_err(&xe->drm, "Failed to apply, err=-ETIMEDOUT\n");
+	xe_gt_err(gt, "Failed to apply, err=-ETIMEDOUT\n");
 }
 
 /**
