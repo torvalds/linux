@@ -2291,7 +2291,8 @@ void bch2_btree_node_rewrite_async(struct bch_fs *c, struct btree *b)
 	bool now = false, pending = false;
 
 	spin_lock(&c->btree_node_rewrites_lock);
-	if (bch2_write_ref_tryget(c, BCH_WRITE_REF_node_rewrite)) {
+	if (c->curr_recovery_pass > BCH_RECOVERY_PASS_journal_replay &&
+	    bch2_write_ref_tryget(c, BCH_WRITE_REF_node_rewrite)) {
 		list_add(&a->list, &c->btree_node_rewrites);
 		now = true;
 	} else if (!test_bit(BCH_FS_may_go_rw, &c->flags)) {
