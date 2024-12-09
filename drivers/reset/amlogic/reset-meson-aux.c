@@ -11,12 +11,8 @@
 #include <linux/auxiliary_bus.h>
 #include <linux/regmap.h>
 #include <linux/reset-controller.h>
-#include <linux/slab.h>
 
 #include "reset-meson.h"
-#include <soc/amlogic/reset-meson-aux.h>
-
-static DEFINE_IDA(meson_rst_aux_ida);
 
 static const struct meson_reset_param meson_a1_audio_param = {
 	.reset_ops	= &meson_reset_toggle_ops,
@@ -78,63 +74,6 @@ static struct auxiliary_driver meson_reset_aux_driver = {
 	.id_table	= meson_reset_aux_ids,
 };
 module_auxiliary_driver(meson_reset_aux_driver);
-
-static void meson_rst_aux_release(struct device *dev)
-{
-	struct auxiliary_device *adev = to_auxiliary_dev(dev);
-
-	ida_free(&meson_rst_aux_ida, adev->id);
-	kfree(adev);
-}
-
-static void meson_rst_aux_unregister_adev(void *_adev)
-{
-	struct auxiliary_device *adev = _adev;
-
-	auxiliary_device_delete(adev);
-	auxiliary_device_uninit(adev);
-}
-
-int devm_meson_rst_aux_register(struct device *dev,
-				const char *adev_name)
-{
-	struct auxiliary_device *adev;
-	int ret;
-
-	adev = kzalloc(sizeof(*adev), GFP_KERNEL);
-	if (!adev)
-		return -ENOMEM;
-
-	ret = ida_alloc(&meson_rst_aux_ida, GFP_KERNEL);
-	if (ret < 0)
-		goto adev_free;
-
-	adev->id = ret;
-	adev->name = adev_name;
-	adev->dev.parent = dev;
-	adev->dev.release = meson_rst_aux_release;
-	device_set_of_node_from_dev(&adev->dev, dev);
-
-	ret = auxiliary_device_init(adev);
-	if (ret)
-		goto ida_free;
-
-	ret = __auxiliary_device_add(adev, dev->driver->name);
-	if (ret) {
-		auxiliary_device_uninit(adev);
-		return ret;
-	}
-
-	return devm_add_action_or_reset(dev, meson_rst_aux_unregister_adev,
-					adev);
-
-ida_free:
-	ida_free(&meson_rst_aux_ida, adev->id);
-adev_free:
-	kfree(adev);
-	return ret;
-}
-EXPORT_SYMBOL_GPL(devm_meson_rst_aux_register);
 
 MODULE_DESCRIPTION("Amlogic Meson Reset Auxiliary driver");
 MODULE_AUTHOR("Jerome Brunet <jbrunet@baylibre.com>");
