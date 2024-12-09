@@ -136,7 +136,7 @@ struct ath12k_skb_rxcb {
 	struct hal_rx_desc *rx_desc;
 	u8 err_rel_src;
 	u8 err_code;
-	u8 mac_id;
+	u8 hw_link_id;
 	u8 unmapped;
 	u8 is_frag;
 	u8 tid;
@@ -831,6 +831,11 @@ struct ath12k_mlo_memory {
 	bool init_done;
 };
 
+struct ath12k_hw_link {
+	u8 device_id;
+	u8 pdev_idx;
+};
+
 /* Holds info on the group of devices that are registered as a single
  * wiphy, protected with struct ath12k_hw_group::mutex.
  */
@@ -857,6 +862,7 @@ struct ath12k_hw_group {
 	bool mlo_capable;
 	struct device_node *wsi_node[ATH12K_MAX_SOCS];
 	struct ath12k_mlo_memory mlo_mem;
+	struct ath12k_hw_link hw_links[ATH12K_GROUP_MAX_RADIO];
 };
 
 /* Holds WSI info specific to each device, excluding WSI group info */

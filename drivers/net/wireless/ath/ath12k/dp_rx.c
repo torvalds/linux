@@ -2595,11 +2595,13 @@ static void ath12k_dp_rx_process_received_packets(struct ath12k_base *ab,
 						  struct sk_buff_head *msdu_list,
 						  int ring_id)
 {
+	struct ath12k_hw_group *ag = ab->ag;
 	struct ieee80211_rx_status rx_status = {0};
 	struct ath12k_skb_rxcb *rxcb;
 	struct sk_buff *msdu;
 	struct ath12k *ar;
-	u8 mac_id, pdev_id;
+	struct ath12k_hw_link *hw_links = ag->hw_links;
+	u8 hw_link_id, pdev_id;
 	int ret;
 
 	if (skb_queue_empty(msdu_list))
@@ -2609,8 +2611,10 @@ static void ath12k_dp_rx_process_received_packets(struct ath12k_base *ab,
 
 	while ((msdu = __skb_dequeue(msdu_list))) {
 		rxcb = ATH12K_SKB_RXCB(msdu);
-		mac_id = rxcb->mac_id;
-		pdev_id = ath12k_hw_mac_id_to_pdev_id(ab->hw_params, mac_id);
+		hw_link_id = rxcb->hw_link_id;
+
+		pdev_id = ath12k_hw_mac_id_to_pdev_id(ab->hw_params,
+						      hw_links[hw_link_id].pdev_idx);
 		ar = ab->pdevs[pdev_id].ar;
 		if (!rcu_dereference(ab->pdevs_active[pdev_id])) {
 			dev_kfree_skb_any(msdu);
@@ -2674,7 +2678,7 @@ int ath12k_dp_rx_process(struct ath12k_base *ab, int ring_id,
 	struct hal_srng *srng;
 	struct sk_buff *msdu;
 	bool done = false;
-	int mac_id;
+	u8 hw_link_id;
 	u64 desc_va;
 
 	__skb_queue_head_init(&msdu_list);
@@ -2695,8 +2699,8 @@ try_again:
 		cookie = le32_get_bits(desc->buf_addr_info.info1,
 				       BUFFER_ADDR_INFO1_SW_COOKIE);
 
-		mac_id = le32_get_bits(desc->info0,
-				       HAL_REO_DEST_RING_INFO0_SRC_LINK_ID);
+		hw_link_id = le32_get_bits(desc->info0,
+					   HAL_REO_DEST_RING_INFO0_SRC_LINK_ID);
 
 		desc_va = ((u64)le32_to_cpu(desc->buf_va_hi) << 32 |
 			   le32_to_cpu(desc->buf_va_lo));
@@ -2745,7 +2749,7 @@ try_again:
 					RX_MSDU_DESC_INFO0_LAST_MSDU_IN_MPDU);
 		rxcb->is_continuation = !!(le32_to_cpu(msdu_info->info0) &
 					   RX_MSDU_DESC_INFO0_MSDU_CONTINUATION);
-		rxcb->mac_id = mac_id;
+		rxcb->hw_link_id = hw_link_id;
 		rxcb->peer_id = ath12k_dp_rx_get_peer_id(ab, dp->peer_metadata_ver,
 							 mpdu_info->peer_meta_data);
 		rxcb->tid = le32_get_bits(mpdu_info->info0,
@@ -3473,6 +3477,7 @@ exit:
 int ath12k_dp_rx_process_err(struct ath12k_base *ab, struct napi_struct *napi,
 			     int budget)
 {
+	struct ath12k_hw_group *ag = ab->ag;
 	u32 msdu_cookies[HAL_NUM_RX_MSDUS_PER_LINK_DESC];
 	struct dp_link_desc_bank *link_desc_banks;
 	enum hal_rx_buf_return_buf_manager rbm;
@@ -3481,11 +3486,12 @@ int ath12k_dp_rx_process_err(struct ath12k_base *ab, struct napi_struct *napi,
 	struct hal_reo_dest_ring *reo_desc;
 	struct dp_rxdma_ring *rx_ring;
 	struct dp_srng *reo_except;
+	struct ath12k_hw_link *hw_links = ag->hw_links;
 	LIST_HEAD(rx_desc_used_list);
 	u32 desc_bank, num_msdus;
 	struct hal_srng *srng;
 	struct ath12k_dp *dp;
-	int mac_id;
+	u8 hw_link_id;
 	struct ath12k *ar;
 	dma_addr_t paddr;
 	bool is_frag;
@@ -3518,10 +3524,11 @@ int ath12k_dp_rx_process_err(struct ath12k_base *ab, struct napi_struct *napi,
 			continue;
 		}
 
-		mac_id = le32_get_bits(reo_desc->info0,
-				       HAL_REO_DEST_RING_INFO0_SRC_LINK_ID);
+		hw_link_id = le32_get_bits(reo_desc->info0,
+					   HAL_REO_DEST_RING_INFO0_SRC_LINK_ID);
 
-		pdev_id = ath12k_hw_mac_id_to_pdev_id(ab->hw_params, mac_id);
+		pdev_id = ath12k_hw_mac_id_to_pdev_id(ab->hw_params,
+						      hw_links[hw_link_id].pdev_idx);
 		ar = ab->pdevs[pdev_id].ar;
 
 		link_desc_va = link_desc_banks[desc_bank].vaddr +
@@ -3802,9 +3809,10 @@ int ath12k_dp_rx_process_wbm_err(struct ath12k_base *ab,
 	struct sk_buff_head msdu_list, scatter_msdu_list;
 	struct ath12k_skb_rxcb *rxcb;
 	void *rx_desc;
-	u8 mac_id;
+	u8 hw_link_id;
 	int num_buffs_reaped = 0;
 	struct ath12k_rx_desc_info *desc_info;
+	struct ath12k_hw_link *hw_links = ab->ag->hw_links;
 	int ret, pdev_id;
 	struct hal_rx_desc *msdu_data;
 
@@ -3879,9 +3887,9 @@ int ath12k_dp_rx_process_wbm_err(struct ath12k_base *ab,
 			continue;
 		}
 
-		mac_id = ath12k_dp_rx_get_msdu_src_link(ab,
-							msdu_data);
-		if (mac_id >= MAX_RADIOS) {
+		hw_link_id = ath12k_dp_rx_get_msdu_src_link(ab,
+							    msdu_data);
+		if (hw_link_id >= MAX_RADIOS) {
 			dev_kfree_skb_any(msdu);
 
 			/* In any case continuation bit is set
@@ -3896,7 +3904,7 @@ int ath12k_dp_rx_process_wbm_err(struct ath12k_base *ab,
 
 			skb_queue_walk(&scatter_msdu_list, msdu) {
 				rxcb = ATH12K_SKB_RXCB(msdu);
-				rxcb->mac_id = mac_id;
+				rxcb->hw_link_id = hw_link_id;
 			}
 
 			skb_queue_splice_tail_init(&scatter_msdu_list,
@@ -3904,7 +3912,7 @@ int ath12k_dp_rx_process_wbm_err(struct ath12k_base *ab,
 		}
 
 		rxcb = ATH12K_SKB_RXCB(msdu);
-		rxcb->mac_id = mac_id;
+		rxcb->hw_link_id = hw_link_id;
 		__skb_queue_tail(&msdu_list, msdu);
 	}
 
@@ -3926,12 +3934,13 @@ int ath12k_dp_rx_process_wbm_err(struct ath12k_base *ab,
 	rcu_read_lock();
 	while ((msdu = __skb_dequeue(&msdu_list))) {
 		rxcb = ATH12K_SKB_RXCB(msdu);
-		mac_id = rxcb->mac_id;
+		hw_link_id = rxcb->hw_link_id;
 
-		pdev_id = ath12k_hw_mac_id_to_pdev_id(ab->hw_params, mac_id);
+		pdev_id = ath12k_hw_mac_id_to_pdev_id(ab->hw_params,
+						      hw_links[hw_link_id].pdev_idx);
 		ar = ab->pdevs[pdev_id].ar;
 
-		if (!ar || !rcu_dereference(ar->ab->pdevs_active[mac_id])) {
+		if (!ar || !rcu_dereference(ar->ab->pdevs_active[hw_link_id])) {
 			dev_kfree_skb_any(msdu);
 			continue;
 		}

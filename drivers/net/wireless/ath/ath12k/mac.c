@@ -11050,6 +11050,9 @@ static struct ath12k_hw *ath12k_mac_hw_allocate(struct ath12k_hw_group *ag,
 		ar->pdev_idx = pdev_idx;
 		pdev->ar = ar;
 
+		ag->hw_links[ar->hw_link_id].device_id = ab->device_id;
+		ag->hw_links[ar->hw_link_id].pdev_idx = pdev_idx;
+
 		ath12k_mac_setup(ar);
 		ath12k_dp_pdev_pre_alloc(ar);
 	}
