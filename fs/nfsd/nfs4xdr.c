@@ -2920,6 +2920,7 @@ struct nfsd4_fattr_args {
 	struct kstat		stat;
 	struct kstatfs		statfs;
 	struct nfs4_acl		*acl;
+	u64			change_attr;
 #ifdef CONFIG_NFSD_V4_SECURITY_LABEL
 	void			*context;
 	int			contextlen;
@@ -3019,7 +3020,6 @@ static __be32 nfsd4_encode_fattr4_change(struct xdr_stream *xdr,
 					 const struct nfsd4_fattr_args *args)
 {
 	const struct svc_export *exp = args->exp;
-	u64 c;
 
 	if (unlikely(exp->ex_flags & NFSEXP_V4ROOT)) {
 		u32 flush_time = convert_to_wallclock(exp->cd->flush_time);
@@ -3030,9 +3030,7 @@ static __be32 nfsd4_encode_fattr4_change(struct xdr_stream *xdr,
 			return nfserr_resource;
 		return nfs_ok;
 	}
-
-	c = nfsd4_change_attribute(&args->stat);
-	return nfsd4_encode_changeid4(xdr, c);
+	return nfsd4_encode_changeid4(xdr, args->change_attr);
 }
 
 static __be32 nfsd4_encode_fattr4_size(struct xdr_stream *xdr,
@@ -3557,11 +3555,16 @@ nfsd4_encode_fattr4(struct svc_rqst *rqstp, struct xdr_stream *xdr,
 	if (dp) {
 		struct nfs4_cb_fattr *ncf = &dp->dl_cb_fattr;
 
-		if (ncf->ncf_file_modified)
+		if (ncf->ncf_file_modified) {
+			++ncf->ncf_initial_cinfo;
 			args.stat.size = ncf->ncf_cur_fsize;
-
+		}
+		args.change_attr = ncf->ncf_initial_cinfo;
 		nfs4_put_stid(&dp->dl_stid);
+	} else {
+		args.change_attr = nfsd4_change_attribute(&args.stat);
 	}
+
 	if (err)
 		goto out_nfserr;
 
