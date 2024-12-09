@@ -2663,6 +2663,15 @@ static int camss_of_parse_endpoint_node(struct device *dev,
 	if (ret)
 		return ret;
 
+	/*
+	 * Most SoCs support both D-PHY and C-PHY standards, but currently only
+	 * D-PHY is supported in the driver.
+	 */
+	if (vep.bus_type != V4L2_MBUS_CSI2_DPHY) {
+		dev_err(dev, "Unsupported bus type %d\n", vep.bus_type);
+		return -EINVAL;
+	}
+
 	csd->interface.csiphy_id = vep.base.port;
 
 	mipi_csi2 = &vep.bus.mipi_csi2;
