@@ -1067,12 +1067,12 @@ static __be32 nfsd4_decode_share_access(struct nfsd4_compoundargs *argp, u32 *sh
 	if (!argp->minorversion)
 		return nfserr_bad_xdr;
 	switch (w & NFS4_SHARE_WANT_MASK) {
-	case NFS4_SHARE_WANT_NO_PREFERENCE:
-	case NFS4_SHARE_WANT_READ_DELEG:
-	case NFS4_SHARE_WANT_WRITE_DELEG:
-	case NFS4_SHARE_WANT_ANY_DELEG:
-	case NFS4_SHARE_WANT_NO_DELEG:
-	case NFS4_SHARE_WANT_CANCEL:
+	case OPEN4_SHARE_ACCESS_WANT_NO_PREFERENCE:
+	case OPEN4_SHARE_ACCESS_WANT_READ_DELEG:
+	case OPEN4_SHARE_ACCESS_WANT_WRITE_DELEG:
+	case OPEN4_SHARE_ACCESS_WANT_ANY_DELEG:
+	case OPEN4_SHARE_ACCESS_WANT_NO_DELEG:
+	case OPEN4_SHARE_ACCESS_WANT_CANCEL:
 		break;
 	default:
 		return nfserr_bad_xdr;
