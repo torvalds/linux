@@ -667,7 +667,6 @@ static int amd_pstate_verify(struct cpufreq_policy_data *policy_data)
 	}
 
 	cpufreq_verify_within_cpu_limits(policy_data);
-	pr_debug("policy_max =%d, policy_min=%d\n", policy_data->max, policy_data->min);
 
 	return 0;
 }
@@ -1629,9 +1628,6 @@ static int amd_pstate_epp_set_policy(struct cpufreq_policy *policy)
 
 	if (!policy->cpuinfo.max_freq)
 		return -ENODEV;
-
-	pr_debug("set_policy: cpuinfo.max %u policy->max %u\n",
-				policy->cpuinfo.max_freq, policy->max);
 
 	cpudata->policy = policy->policy;
 
