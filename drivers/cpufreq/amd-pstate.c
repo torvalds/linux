@@ -1478,7 +1478,6 @@ static int amd_pstate_epp_cpu_init(struct cpufreq_policy *policy)
 		return -ENOMEM;
 
 	cpudata->cpu = policy->cpu;
-	cpudata->epp_policy = 0;
 
 	ret = amd_pstate_init_perf(cpudata);
 	if (ret)
@@ -1584,8 +1583,6 @@ static int amd_pstate_epp_update_limit(struct cpufreq_policy *policy)
 	/* CPPC EPP feature require to set zero to the desire perf bit */
 	value &= ~AMD_CPPC_DES_PERF(~0L);
 	value |= AMD_CPPC_DES_PERF(0);
-
-	cpudata->epp_policy = cpudata->policy;
 
 	/* Get BIOS pre-defined epp value */
 	epp = amd_pstate_get_epp(cpudata, value);
