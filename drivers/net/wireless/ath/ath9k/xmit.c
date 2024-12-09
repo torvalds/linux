@@ -208,10 +208,10 @@ static void ath_set_rates(struct ieee80211_vif *vif, struct ieee80211_sta *sta,
 				       ARRAY_SIZE(bf->rates));
 }
 
-static void ath_txq_skb_done(struct ath_softc *sc, struct ath_txq *txq,
-			     struct sk_buff *skb)
+static void ath_txq_skb_done(struct ath_softc *sc, struct sk_buff *skb)
 {
 	struct ath_frame_info *fi = get_frame_info(skb);
+	struct ath_txq *txq;
 	int q = fi->txq;
 
 	if (q < 0)
@@ -294,7 +294,7 @@ static void ath_tx_flush_tid(struct ath_softc *sc, struct ath_atx_tid *tid)
 		fi = get_frame_info(skb);
 		bf = fi->bf;
 		if (!bf) {
-			ath_txq_skb_done(sc, txq, skb);
+			ath_txq_skb_done(sc, skb);
 			ieee80211_free_txskb(sc->hw, skb);
 			continue;
 		}
@@ -962,7 +962,7 @@ ath_tx_get_tid_subframe(struct ath_softc *sc, struct ath_txq *txq,
 			bf->bf_state.stale = false;
 
 		if (!bf) {
-			ath_txq_skb_done(sc, txq, skb);
+			ath_txq_skb_done(sc, skb);
 			ieee80211_free_txskb(sc->hw, skb);
 			continue;
 		}
@@ -2379,7 +2379,7 @@ int ath_tx_start(struct ieee80211_hw *hw, struct sk_buff *skb,
 
 	bf = ath_tx_setup_buffer(sc, txq, tid, skb);
 	if (!bf) {
-		ath_txq_skb_done(sc, txq, skb);
+		ath_txq_skb_done(sc, skb);
 		if (txctl->paprd)
 			dev_kfree_skb_any(skb);
 		else
@@ -2514,7 +2514,7 @@ static void ath_tx_complete(struct ath_softc *sc, struct sk_buff *skb,
 	}
 	spin_unlock_irqrestore(&sc->sc_pm_lock, flags);
 
-	ath_txq_skb_done(sc, txq, skb);
+	ath_txq_skb_done(sc, skb);
 	tx_info->status.status_driver_data[0] = sta;
 	__skb_queue_tail(&txq->complete_q, skb);
 }
