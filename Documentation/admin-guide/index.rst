@@ -136,6 +136,7 @@ configure specific aspects of kernel behavior to your liking.
    vga-softcursor
    video-output
    xfs
+   nvme-multipath
 
 .. only::  subproject and html
 
