@@ -374,7 +374,7 @@ int tasdevice_rca_parser(void *context, const struct firmware *fmw)
 out:
 	return ret;
 }
-EXPORT_SYMBOL_NS_GPL(tasdevice_rca_parser, SND_SOC_TAS2781_FMWLIB);
+EXPORT_SYMBOL_NS_GPL(tasdevice_rca_parser, "SND_SOC_TAS2781_FMWLIB");
 
 /* fixed m68k compiling issue: mapping table can save code field */
 static unsigned char map_dev_idx(struct tasdevice_fw *tas_fmw,
@@ -862,7 +862,7 @@ void tasdevice_select_cfg_blk(void *pContext, int conf_no,
 				__func__, length, blk_data[j]->block_size);
 	}
 }
-EXPORT_SYMBOL_NS_GPL(tasdevice_select_cfg_blk, SND_SOC_TAS2781_FMWLIB);
+EXPORT_SYMBOL_NS_GPL(tasdevice_select_cfg_blk, "SND_SOC_TAS2781_FMWLIB");
 
 static int tasdevice_load_block_kernel(
 	struct tasdevice_priv *tasdevice, struct tasdev_blk *block)
@@ -1943,7 +1943,7 @@ out:
 
 	return ret;
 }
-EXPORT_SYMBOL_NS_GPL(tas2781_load_calibration, SND_SOC_TAS2781_FMWLIB);
+EXPORT_SYMBOL_NS_GPL(tas2781_load_calibration, "SND_SOC_TAS2781_FMWLIB");
 
 static int tasdevice_dspfw_ready(const struct firmware *fmw,
 	void *context)
@@ -2051,7 +2051,7 @@ int tasdevice_dsp_parser(void *context)
 out:
 	return ret;
 }
-EXPORT_SYMBOL_NS_GPL(tasdevice_dsp_parser, SND_SOC_TAS2781_FMWLIB);
+EXPORT_SYMBOL_NS_GPL(tasdevice_dsp_parser, "SND_SOC_TAS2781_FMWLIB");
 
 static void tas2781_clear_calfirmware(struct tasdevice_fw *tas_fmw)
 {
@@ -2104,7 +2104,7 @@ void tasdevice_calbin_remove(void *context)
 		tasdev->cali_data_fmw = NULL;
 	}
 }
-EXPORT_SYMBOL_NS_GPL(tasdevice_calbin_remove, SND_SOC_TAS2781_FMWLIB);
+EXPORT_SYMBOL_NS_GPL(tasdevice_calbin_remove, "SND_SOC_TAS2781_FMWLIB");
 
 void tasdevice_config_info_remove(void *context)
 {
@@ -2131,7 +2131,7 @@ void tasdevice_config_info_remove(void *context)
 	}
 	kfree(ci);
 }
-EXPORT_SYMBOL_NS_GPL(tasdevice_config_info_remove, SND_SOC_TAS2781_FMWLIB);
+EXPORT_SYMBOL_NS_GPL(tasdevice_config_info_remove, "SND_SOC_TAS2781_FMWLIB");
 
 static int tasdevice_load_data(struct tasdevice_priv *tas_priv,
 	struct tasdevice_data *dev_data)
@@ -2311,8 +2311,7 @@ int tasdevice_select_tuningprm_cfg(void *context, int prm_no,
 out:
 	return prog_status;
 }
-EXPORT_SYMBOL_NS_GPL(tasdevice_select_tuningprm_cfg,
-	SND_SOC_TAS2781_FMWLIB);
+EXPORT_SYMBOL_NS_GPL(tasdevice_select_tuningprm_cfg, "SND_SOC_TAS2781_FMWLIB");
 
 int tasdevice_prmg_load(void *context, int prm_no)
 {
@@ -2357,7 +2356,7 @@ int tasdevice_prmg_load(void *context, int prm_no)
 out:
 	return prog_status;
 }
-EXPORT_SYMBOL_NS_GPL(tasdevice_prmg_load, SND_SOC_TAS2781_FMWLIB);
+EXPORT_SYMBOL_NS_GPL(tasdevice_prmg_load, "SND_SOC_TAS2781_FMWLIB");
 
 void tasdevice_tuning_switch(void *context, int state)
 {
@@ -2393,8 +2392,7 @@ void tasdevice_tuning_switch(void *context, int state)
 			TASDEVICE_BIN_BLK_PRE_SHUTDOWN);
 	}
 }
-EXPORT_SYMBOL_NS_GPL(tasdevice_tuning_switch,
-	SND_SOC_TAS2781_FMWLIB);
+EXPORT_SYMBOL_NS_GPL(tasdevice_tuning_switch, "SND_SOC_TAS2781_FMWLIB");
 
 MODULE_DESCRIPTION("Texas Firmware Support");
 MODULE_AUTHOR("Shenghao Ding, TI, <shenghao-ding@ti.com>");

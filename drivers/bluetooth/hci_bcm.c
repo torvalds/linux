@@ -1498,7 +1498,7 @@ static const struct dev_pm_ops bcm_pm_ops = {
 
 static struct platform_driver bcm_driver = {
 	.probe = bcm_probe,
-	.remove_new = bcm_remove,
+	.remove = bcm_remove,
 	.driver = {
 		.name = "hci_bcm",
 		.acpi_match_table = ACPI_PTR(bcm_acpi_match),

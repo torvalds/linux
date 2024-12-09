@@ -542,7 +542,7 @@ int ipu6_mmu_hw_init(struct ipu6_mmu *mmu)
 
 	return 0;
 }
-EXPORT_SYMBOL_NS_GPL(ipu6_mmu_hw_init, INTEL_IPU6);
+EXPORT_SYMBOL_NS_GPL(ipu6_mmu_hw_init, "INTEL_IPU6");
 
 static struct ipu6_mmu_info *ipu6_mmu_alloc(struct ipu6_device *isp)
 {
@@ -607,7 +607,7 @@ void ipu6_mmu_hw_cleanup(struct ipu6_mmu *mmu)
 	mmu->ready = false;
 	spin_unlock_irqrestore(&mmu->ready_lock, flags);
 }
-EXPORT_SYMBOL_NS_GPL(ipu6_mmu_hw_cleanup, INTEL_IPU6);
+EXPORT_SYMBOL_NS_GPL(ipu6_mmu_hw_cleanup, "INTEL_IPU6");
 
 static struct ipu6_dma_mapping *alloc_dma_mapping(struct ipu6_device *isp)
 {

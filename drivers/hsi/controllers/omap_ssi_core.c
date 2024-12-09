@@ -607,7 +607,7 @@ MODULE_DEVICE_TABLE(of, omap_ssi_of_match);
 
 static struct platform_driver ssi_pdriver = {
 	.probe = ssi_probe,
-	.remove_new = ssi_remove,
+	.remove = ssi_remove,
 	.driver	= {
 		.name	= "omap_ssi",
 		.pm     = DEV_PM_OPS,

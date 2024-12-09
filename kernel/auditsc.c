@@ -2728,8 +2728,8 @@ void __audit_ptrace(struct task_struct *t)
 	context->target_auid = audit_get_loginuid(t);
 	context->target_uid = task_uid(t);
 	context->target_sessionid = audit_get_sessionid(t);
-	security_task_getlsmprop_obj(t, &context->target_ref);
 	strscpy(context->target_comm, t->comm);
+	security_task_getlsmprop_obj(t, &context->target_ref);
 }
 
 /**
@@ -2755,8 +2755,8 @@ int audit_signal_info_syscall(struct task_struct *t)
 		ctx->target_auid = audit_get_loginuid(t);
 		ctx->target_uid = t_uid;
 		ctx->target_sessionid = audit_get_sessionid(t);
-		security_task_getlsmprop_obj(t, &ctx->target_ref);
 		strscpy(ctx->target_comm, t->comm);
+		security_task_getlsmprop_obj(t, &ctx->target_ref);
 		return 0;
 	}
 

@@ -1361,7 +1361,11 @@ static ssize_t amdgpu_set_pp_mclk_od(struct device *dev,
  * create a custom set of heuristics, write a string of numbers to the file
  * starting with the number of the custom profile along with a setting
  * for each heuristic parameter.  Due to differences across asic families
- * the heuristic parameters vary from family to family.
+ * the heuristic parameters vary from family to family. Additionally,
+ * you can apply the custom heuristics to different clock domains.  Each
+ * clock domain is considered a distinct operation so if you modify the
+ * gfxclk heuristics and then the memclk heuristics, the all of the
+ * custom heuristics will be retained until you switch to another profile.
  *
  */
 

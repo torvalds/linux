@@ -1420,7 +1420,7 @@ struct platform_driver sti_hqvdp_driver = {
 		.of_match_table = hqvdp_of_match,
 	},
 	.probe = sti_hqvdp_probe,
-	.remove_new = sti_hqvdp_remove,
+	.remove = sti_hqvdp_remove,
 };
 
 MODULE_AUTHOR("Benjamin Gaignard <benjamin.gaignard@st.com>");

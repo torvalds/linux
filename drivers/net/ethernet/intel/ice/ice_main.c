@@ -37,7 +37,7 @@ static const char ice_copyright[] = "Copyright (c) 2018, Intel Corporation.";
 #define ICE_DDP_PKG_FILE	ICE_DDP_PKG_PATH "ice.pkg"
 
 MODULE_DESCRIPTION(DRV_SUMMARY);
-MODULE_IMPORT_NS(LIBIE);
+MODULE_IMPORT_NS("LIBIE");
 MODULE_LICENSE("GPL v2");
 MODULE_FIRMWARE(ICE_DDP_PKG_FILE);
 
@@ -6408,10 +6408,12 @@ ice_set_vlan_filtering_features(struct ice_vsi *vsi, netdev_features_t features)
 	int err = 0;
 
 	/* support Single VLAN Mode (SVM) and Double VLAN Mode (DVM) by checking
-	 * if either bit is set
+	 * if either bit is set. In switchdev mode Rx filtering should never be
+	 * enabled.
 	 */
-	if (features &
-	    (NETIF_F_HW_VLAN_CTAG_FILTER | NETIF_F_HW_VLAN_STAG_FILTER))
+	if ((features &
+	     (NETIF_F_HW_VLAN_CTAG_FILTER | NETIF_F_HW_VLAN_STAG_FILTER)) &&
+	     !ice_is_eswitch_mode_switchdev(vsi->back))
 		err = vlan_ops->ena_rx_filtering(vsi);
 	else
 		err = vlan_ops->dis_rx_filtering(vsi);
