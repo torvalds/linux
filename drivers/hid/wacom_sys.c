@@ -1370,17 +1370,6 @@ static int wacom_led_register_one(struct device *dev, struct wacom *wacom,
 	if (!name)
 		return -ENOMEM;
 
-	if (!read_only) {
-		led->trigger.name = name;
-		error = devm_led_trigger_register(dev, &led->trigger);
-		if (error) {
-			hid_err(wacom->hdev,
-				"failed to register LED trigger %s: %d\n",
-				led->cdev.name, error);
-			return error;
-		}
-	}
-
 	led->group = group;
 	led->id = id;
 	led->wacom = wacom;
@@ -1395,6 +1384,19 @@ static int wacom_led_register_one(struct device *dev, struct wacom *wacom,
 		led->cdev.default_trigger = led->cdev.name;
 	} else {
 		led->cdev.brightness_set = wacom_led_readonly_brightness_set;
+	}
+
+	if (!read_only) {
+		led->trigger.name = name;
+		if (id == wacom->led.groups[group].select)
+			led->trigger.brightness = wacom_leds_brightness_get(led);
+		error = devm_led_trigger_register(dev, &led->trigger);
+		if (error) {
+			hid_err(wacom->hdev,
+				"failed to register LED trigger %s: %d\n",
+				led->cdev.name, error);
+			return error;
+		}
 	}
 
 	error = devm_led_classdev_register(dev, &led->cdev);
