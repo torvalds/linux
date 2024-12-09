@@ -316,9 +316,10 @@ static int shmem_set_epp(struct amd_cpudata *cpudata, u32 epp)
 	return ret;
 }
 
-static int amd_pstate_set_energy_pref_index(struct amd_cpudata *cpudata,
-		int pref_index)
+static int amd_pstate_set_energy_pref_index(struct cpufreq_policy *policy,
+					    int pref_index)
 {
+	struct amd_cpudata *cpudata = policy->driver_data;
 	int epp;
 
 	if (!pref_index)
@@ -336,7 +337,7 @@ static int amd_pstate_set_energy_pref_index(struct amd_cpudata *cpudata,
 					  epp,
 					  FIELD_GET(AMD_CPPC_MIN_PERF_MASK, cpudata->cppc_req_cached),
 					  FIELD_GET(AMD_CPPC_MAX_PERF_MASK, cpudata->cppc_req_cached),
-					  cpudata->boost_state);
+					  policy->boost_enabled);
 	}
 
 	return amd_pstate_set_epp(cpudata, epp);
@@ -746,7 +747,6 @@ static int amd_pstate_set_boost(struct cpufreq_policy *policy, int state)
 	guard(mutex)(&amd_pstate_driver_lock);
 
 	ret = amd_pstate_cpu_boost_update(policy, state);
-	WRITE_ONCE(cpudata->boost_state, !ret ? state : false);
 	policy->boost_enabled = !ret ? state : false;
 	refresh_frequency_limits(policy);
 
@@ -767,9 +767,6 @@ static int amd_pstate_init_boost_support(struct amd_cpudata *cpudata)
 		ret = 0;
 		goto exit_err;
 	}
-
-	/* at least one CPU supports CPB, even if others fail later on to set up */
-	current_pstate_driver->boost_enabled = true;
 
 	ret = rdmsrl_on_cpu(cpudata->cpu, MSR_K7_HWCR, &boost_val);
 	if (ret) {
@@ -1176,7 +1173,6 @@ static ssize_t show_energy_performance_available_preferences(
 static ssize_t store_energy_performance_preference(
 		struct cpufreq_policy *policy, const char *buf, size_t count)
 {
-	struct amd_cpudata *cpudata = policy->driver_data;
 	char str_preference[21];
 	ssize_t ret;
 
@@ -1190,7 +1186,7 @@ static ssize_t store_energy_performance_preference(
 
 	guard(mutex)(&amd_pstate_limits_lock);
 
-	ret = amd_pstate_set_energy_pref_index(cpudata, ret);
+	ret = amd_pstate_set_energy_pref_index(policy, ret);
 
 	return ret ? ret : count;
 }
@@ -1264,6 +1260,9 @@ static int amd_pstate_register_driver(int mode)
 		amd_pstate_driver_cleanup();
 		return ret;
 	}
+
+	/* at least one CPU supports CPB */
+	current_pstate_driver->boost_enabled = cpu_feature_enabled(X86_FEATURE_CPB);
 
 	ret = cpufreq_register_driver(current_pstate_driver);
 	if (ret) {
@@ -1604,8 +1603,9 @@ static int amd_pstate_epp_set_policy(struct cpufreq_policy *policy)
 	return 0;
 }
 
-static int amd_pstate_epp_reenable(struct amd_cpudata *cpudata)
+static int amd_pstate_epp_reenable(struct cpufreq_policy *policy)
 {
+	struct amd_cpudata *cpudata = policy->driver_data;
 	u64 max_perf;
 	int ret;
 
@@ -1619,7 +1619,7 @@ static int amd_pstate_epp_reenable(struct amd_cpudata *cpudata)
 		trace_amd_pstate_epp_perf(cpudata->cpu, cpudata->highest_perf,
 					  cpudata->epp_cached,
 					  FIELD_GET(AMD_CPPC_MIN_PERF_MASK, cpudata->cppc_req_cached),
-					  max_perf, cpudata->boost_state);
+					  max_perf, policy->boost_enabled);
 	}
 
 	return amd_pstate_update_perf(cpudata, 0, 0, max_perf, cpudata->epp_cached, false);
@@ -1632,7 +1632,7 @@ static int amd_pstate_epp_cpu_online(struct cpufreq_policy *policy)
 
 	pr_debug("AMD CPU Core %d going online\n", cpudata->cpu);
 
-	ret = amd_pstate_epp_reenable(cpudata);
+	ret = amd_pstate_epp_reenable(policy);
 	if (ret)
 		return ret;
 	cpudata->suspended = false;
@@ -1690,7 +1690,7 @@ static int amd_pstate_epp_resume(struct cpufreq_policy *policy)
 		guard(mutex)(&amd_pstate_limits_lock);
 
 		/* enable amd pstate from suspend state*/
-		amd_pstate_epp_reenable(cpudata);
+		amd_pstate_epp_reenable(policy);
 
 		cpudata->suspended = false;
 	}
