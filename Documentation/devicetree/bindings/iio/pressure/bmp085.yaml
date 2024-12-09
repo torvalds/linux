@@ -55,12 +55,16 @@ properties:
       If not set, defaults to push-pull configuration.
     type: boolean
 
+  spi-max-frequency:
+    maximum: 10000000
+
 required:
   - compatible
   - vddd-supply
   - vdda-supply
 
 allOf:
+  - $ref: /schemas/spi/spi-peripheral-props.yaml#
   - if:
       properties:
         compatible:
@@ -73,6 +77,16 @@ allOf:
     then:
       properties:
         interrupts: false
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - bosch,bmp085
+              - bosch,bmp180
+    then:
+      properties:
+        spi-max-frequency: false
 
 additionalProperties: false
 
@@ -88,6 +102,21 @@ examples:
             reg = <0x77>;
             interrupt-parent = <&gpio0>;
             interrupts = <25 IRQ_TYPE_EDGE_RISING>;
+            reset-gpios = <&gpio0 26 GPIO_ACTIVE_LOW>;
+            vddd-supply = <&foo>;
+            vdda-supply = <&bar>;
+        };
+    };
+  - |
+    # include <dt-bindings/gpio/gpio.h>
+    # include <dt-bindings/interrupt-controller/irq.h>
+    spi {
+        #address-cells = <1>;
+        #size-cells = <0>;
+        pressure@0 {
+            compatible = "bosch,bmp280";
+            reg = <0>;
+            spi-max-frequency = <10000000>;
             reset-gpios = <&gpio0 26 GPIO_ACTIVE_LOW>;
             vddd-supply = <&foo>;
             vdda-supply = <&bar>;
