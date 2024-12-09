@@ -430,7 +430,7 @@ static inline u16 hlock_id(struct held_lock *hlock)
 	return (hlock->class_idx | (hlock->read << MAX_LOCKDEP_KEYS_BITS));
 }
 
-static inline unsigned int chain_hlock_class_idx(u16 hlock_id)
+static inline __maybe_unused unsigned int chain_hlock_class_idx(u16 hlock_id)
 {
 	return hlock_id & (MAX_LOCKDEP_KEYS - 1);
 }
