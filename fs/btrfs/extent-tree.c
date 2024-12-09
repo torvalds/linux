@@ -2296,8 +2296,7 @@ static noinline int check_delayed_ref(struct btrfs_root *root,
 
 static noinline int check_committed_ref(struct btrfs_root *root,
 					struct btrfs_path *path,
-					u64 objectid, u64 offset, u64 bytenr,
-					bool strict)
+					u64 objectid, u64 offset, u64 bytenr)
 {
 	struct btrfs_fs_info *fs_info = root->fs_info;
 	struct btrfs_root *extent_root = btrfs_extent_root(fs_info, bytenr);
@@ -2361,11 +2360,10 @@ static noinline int check_committed_ref(struct btrfs_root *root,
 
 	/*
 	 * If extent created before last snapshot => it's shared unless the
-	 * snapshot has been deleted. Use the heuristic if strict is false.
+	 * snapshot has been deleted.
 	 */
-	if (!strict &&
-	    (btrfs_extent_generation(leaf, ei) <=
-	     btrfs_root_last_snapshot(&root->root_item)))
+	if (btrfs_extent_generation(leaf, ei) <=
+	    btrfs_root_last_snapshot(&root->root_item))
 		goto out;
 
 	/* If this extent has SHARED_DATA_REF then it's shared */
@@ -2387,13 +2385,12 @@ out:
 }
 
 int btrfs_cross_ref_exist(struct btrfs_root *root, u64 objectid, u64 offset,
-			  u64 bytenr, bool strict, struct btrfs_path *path)
+			  u64 bytenr, struct btrfs_path *path)
 {
 	int ret;
 
 	do {
-		ret = check_committed_ref(root, path, objectid,
-					  offset, bytenr, strict);
+		ret = check_committed_ref(root, path, objectid, offset, bytenr);
 		if (ret && ret != -ENOENT)
 			goto out;
 

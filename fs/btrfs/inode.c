@@ -1837,7 +1837,6 @@ struct can_nocow_file_extent_args {
 	/* End file offset (inclusive) of the range we want to NOCOW. */
 	u64 end;
 	bool writeback_path;
-	bool strict;
 	/*
 	 * Free the path passed to can_nocow_file_extent() once it's not needed
 	 * anymore.
@@ -1892,8 +1891,7 @@ static int can_nocow_file_extent(struct btrfs_path *path,
 	 * for its subvolume was created, then this implies the extent is shared,
 	 * hence we must COW.
 	 */
-	if (!args->strict &&
-	    btrfs_file_extent_generation(leaf, fi) <=
+	if (btrfs_file_extent_generation(leaf, fi) <=
 	    btrfs_root_last_snapshot(&root->root_item))
 		goto out;
 
@@ -1924,7 +1922,7 @@ static int can_nocow_file_extent(struct btrfs_path *path,
 
 	ret = btrfs_cross_ref_exist(root, btrfs_ino(inode),
 				    key->offset - args->file_extent.offset,
-				    args->file_extent.disk_bytenr, args->strict, path);
+				    args->file_extent.disk_bytenr, path);
 	WARN_ON_ONCE(ret > 0 && is_freespace_inode);
 	if (ret != 0)
 		goto out;
@@ -7011,8 +7009,6 @@ static bool btrfs_extent_readonly(struct btrfs_fs_info *fs_info, u64 bytenr)
  * @orig_start:	(optional) Return the original file offset of the file extent
  * @orig_len:	(optional) Return the original on-disk length of the file extent
  * @ram_bytes:	(optional) Return the ram_bytes of the file extent
- * @strict:	if true, omit optimizations that might force us into unnecessary
- *		cow. e.g., don't trust generation number.
  *
  * Return:
  * >0	and update @len if we can do nocow write
@@ -7024,7 +7020,7 @@ static bool btrfs_extent_readonly(struct btrfs_fs_info *fs_info, u64 bytenr)
  */
 noinline int can_nocow_extent(struct inode *inode, u64 offset, u64 *len,
 			      struct btrfs_file_extent *file_extent,
-			      bool nowait, bool strict)
+			      bool nowait)
 {
 	struct btrfs_fs_info *fs_info = inode_to_fs_info(inode);
 	struct can_nocow_file_extent_args nocow_args = { 0 };
@@ -7077,7 +7073,6 @@ noinline int can_nocow_extent(struct inode *inode, u64 offset, u64 *len,
 
 	nocow_args.start = offset;
 	nocow_args.end = offset + *len - 1;
-	nocow_args.strict = strict;
 	nocow_args.free_path = true;
 
 	ret = can_nocow_file_extent(path, &key, BTRFS_I(inode), &nocow_args);
