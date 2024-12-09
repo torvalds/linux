@@ -462,13 +462,6 @@ static inline int is_module_addr(void *addr)
 				  _PAGE_YOUNG |	_PAGE_DIRTY)
 
 /*
- * On s390 the page table entry has an invalid bit and a read-only bit.
- * Read permission implies execute permission and write permission
- * implies read permission.
- */
-         /*xwr*/
-
-/*
  * Segment entry (large page) protection definitions.
  */
 #define SEGMENT_NONE	__pgprot(_SEGMENT_ENTRY_PRESENT | \
