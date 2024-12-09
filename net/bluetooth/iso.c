@@ -1411,6 +1411,7 @@ static void iso_conn_big_sync(struct sock *sk)
 	 * change.
 	 */
 	hci_dev_lock(hdev);
+	lock_sock(sk);
 
 	if (!test_and_set_bit(BT_SK_BIG_SYNC, &iso_pi(sk)->flags)) {
 		err = hci_le_big_create_sync(hdev, iso_pi(sk)->conn->hcon,
@@ -1423,6 +1424,7 @@ static void iso_conn_big_sync(struct sock *sk)
 				   err);
 	}
 
+	release_sock(sk);
 	hci_dev_unlock(hdev);
 }
 
@@ -1431,39 +1433,57 @@ static int iso_sock_recvmsg(struct socket *sock, struct msghdr *msg,
 {
 	struct sock *sk = sock->sk;
 	struct iso_pinfo *pi = iso_pi(sk);
+	bool early_ret = false;
+	int err = 0;
 
 	BT_DBG("sk %p", sk);
 
 	if (test_and_clear_bit(BT_SK_DEFER_SETUP, &bt_sk(sk)->flags)) {
+		sock_hold(sk);
 		lock_sock(sk);
+
 		switch (sk->sk_state) {
 		case BT_CONNECT2:
 			if (test_bit(BT_SK_PA_SYNC, &pi->flags)) {
+				release_sock(sk);
 				iso_conn_big_sync(sk);
+				lock_sock(sk);
+
 				sk->sk_state = BT_LISTEN;
 			} else {
 				iso_conn_defer_accept(pi->conn->hcon);
 				sk->sk_state = BT_CONFIG;
 			}
-			release_sock(sk);
-			return 0;
+
+			early_ret = true;
+			break;
 		case BT_CONNECTED:
 			if (test_bit(BT_SK_PA_SYNC, &iso_pi(sk)->flags)) {
-				iso_conn_big_sync(sk);
-				sk->sk_state = BT_LISTEN;
 				release_sock(sk);
-				return 0;
+				iso_conn_big_sync(sk);
+				lock_sock(sk);
+
+				sk->sk_state = BT_LISTEN;
+				early_ret = true;
 			}
 
-			release_sock(sk);
 			break;
 		case BT_CONNECT:
 			release_sock(sk);
-			return iso_connect_cis(sk);
+			err = iso_connect_cis(sk);
+			lock_sock(sk);
+
+			early_ret = true;
+			break;
 		default:
-			release_sock(sk);
 			break;
 		}
+
+		release_sock(sk);
+		sock_put(sk);
+
+		if (early_ret)
+			return err;
 	}
 
 	return bt_sock_recvmsg(sock, msg, len, flags);
