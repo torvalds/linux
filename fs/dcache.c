@@ -296,9 +296,9 @@ static inline int dentry_cmp(const struct dentry *dentry, const unsigned char *c
 }
 
 struct external_name {
-	union {
-		atomic_t count;
-		struct rcu_head head;
+	struct {
+		atomic_t count;		// ->count and ->head can't be combined
+		struct rcu_head head;	// see take_dentry_name_snapshot()
 	} u;
 	unsigned char name[];
 };
@@ -329,15 +329,30 @@ static inline int dname_external(const struct dentry *dentry)
 
 void take_dentry_name_snapshot(struct name_snapshot *name, struct dentry *dentry)
 {
-	spin_lock(&dentry->d_lock);
-	name->name = dentry->d_name;
-	if (unlikely(dname_external(dentry))) {
-		atomic_inc(&external_name(dentry)->u.count);
-	} else {
+	unsigned seq;
+	const unsigned char *s;
+
+	rcu_read_lock();
+retry:
+	seq = read_seqcount_begin(&dentry->d_seq);
+	s = READ_ONCE(dentry->d_name.name);
+	name->name.hash_len = dentry->d_name.hash_len;
+	name->name.name = name->inline_name.string;
+	if (likely(s == dentry->d_shortname.string)) {
 		name->inline_name = dentry->d_shortname;
-		name->name.name = name->inline_name.string;
+	} else {
+		struct external_name *p;
+		p = container_of(s, struct external_name, name[0]);
+		// get a valid reference
+		if (unlikely(!atomic_inc_not_zero(&p->u.count)))
+			goto retry;
+		name->name.name = s;
 	}
-	spin_unlock(&dentry->d_lock);
+	if (read_seqcount_retry(&dentry->d_seq, seq)) {
+		release_dentry_name_snapshot(name);
+		goto retry;
+	}
+	rcu_read_unlock();
 }
 EXPORT_SYMBOL(take_dentry_name_snapshot);
 
