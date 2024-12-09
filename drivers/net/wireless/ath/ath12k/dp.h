@@ -287,7 +287,8 @@ struct ath12k_rx_desc_info {
 	u32 cookie;
 	u32 magic;
 	u8 in_use	: 1,
-	   reserved	: 7;
+	   device_id	: 3,
+	   reserved	: 4;
 };
 
 struct ath12k_tx_desc_info {
