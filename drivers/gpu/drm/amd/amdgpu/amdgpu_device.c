@@ -5866,6 +5866,7 @@ int amdgpu_device_gpu_recover(struct amdgpu_device *adev,
 	 * detected at the same time, let RAS recovery take care of it.
 	 */
 	if (amdgpu_ras_is_err_state(adev, AMDGPU_RAS_BLOCK__ANY) &&
+	    !amdgpu_sriov_vf(adev) &&
 	    reset_context->src != AMDGPU_RESET_SRC_RAS) {
 		dev_dbg(adev->dev,
 			"Gpu recovery from source: %d yielding to RAS error recovery handling",
