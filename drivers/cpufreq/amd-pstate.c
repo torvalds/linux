@@ -278,11 +278,15 @@ static int msr_set_epp(struct amd_cpudata *cpudata, u32 epp)
 
 	value &= ~AMD_CPPC_EPP_PERF_MASK;
 	value |= FIELD_PREP(AMD_CPPC_EPP_PERF_MASK, epp);
-	WRITE_ONCE(cpudata->cppc_req_cached, value);
 
 	ret = wrmsrl_on_cpu(cpudata->cpu, MSR_AMD_CPPC_REQ, value);
-	if (!ret)
-		cpudata->epp_cached = epp;
+	if (ret) {
+		pr_err("failed to set energy perf value (%d)\n", ret);
+		return ret;
+	}
+
+	cpudata->epp_cached = epp;
+	WRITE_ONCE(cpudata->cppc_req_cached, value);
 
 	return ret;
 }
