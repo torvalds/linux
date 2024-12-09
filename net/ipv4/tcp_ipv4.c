@@ -163,7 +163,8 @@ int tcp_twsk_unique(struct sock *sk, struct sock *sktw, void *twp)
 	   and use initial timestamp retrieved from peer table.
 	 */
 	ts_recent_stamp = READ_ONCE(tcptw->tw_ts_recent_stamp);
-	reuse_thresh = READ_ONCE(tw->tw_entry_stamp) + MSEC_PER_SEC;
+	reuse_thresh = READ_ONCE(tw->tw_entry_stamp) +
+		       READ_ONCE(sock_net(sk)->ipv4.sysctl_tcp_tw_reuse_delay);
 	if (ts_recent_stamp &&
 	    (!twp || (reuse && time_after32(tcp_clock_ms(), reuse_thresh)))) {
 		/* inet_twsk_hashdance_schedule() sets sk_refcnt after putting twsk
@@ -3458,6 +3459,7 @@ static int __net_init tcp_sk_init(struct net *net)
 	net->ipv4.sysctl_tcp_fin_timeout = TCP_FIN_TIMEOUT;
 	net->ipv4.sysctl_tcp_notsent_lowat = UINT_MAX;
 	net->ipv4.sysctl_tcp_tw_reuse = 2;
+	net->ipv4.sysctl_tcp_tw_reuse_delay = 1 * MSEC_PER_SEC;
 	net->ipv4.sysctl_tcp_no_ssthresh_metrics_save = 1;
 
 	refcount_set(&net->ipv4.tcp_death_row.tw_refcount, 1);
