@@ -243,8 +243,6 @@ static size_t calculate_regset_size(struct xe_gt *gt)
 		xa_for_each(&hwe->reg_sr.xa, sr_idx, sr_entry)
 			count++;
 
-	count += RING_MAX_NONPRIV_SLOTS * XE_NUM_HW_ENGINES;
-
 	count += ADS_REGSET_EXTRA_MAX * XE_NUM_HW_ENGINES;
 
 	if (XE_WA(gt, 1607983814))
@@ -728,11 +726,6 @@ static unsigned int guc_mmio_regset_write(struct xe_guc_ads *ads,
 
 	xa_for_each(&hwe->reg_sr.xa, idx, entry)
 		guc_mmio_regset_write_one(ads, regset_map, entry->reg, count++);
-
-	for (i = 0; i < RING_MAX_NONPRIV_SLOTS; i++)
-		guc_mmio_regset_write_one(ads, regset_map,
-					  RING_FORCE_TO_NONPRIV(hwe->mmio_base, i),
-					  count++);
 
 	for (e = extra_regs; e < extra_regs + ARRAY_SIZE(extra_regs); e++) {
 		if (e->skip)
