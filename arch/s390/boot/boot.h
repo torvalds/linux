@@ -13,7 +13,6 @@
 struct machine_info {
 	unsigned char has_edat1 : 1;
 	unsigned char has_edat2 : 1;
-	unsigned char has_nx : 1;
 };
 
 struct vmlinux_info {

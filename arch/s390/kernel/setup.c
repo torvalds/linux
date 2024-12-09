@@ -971,6 +971,7 @@ void __init setup_arch(char **cmdline_p)
 	if (test_facility(193))
 		static_branch_enable(&cpu_has_bear);
 
+	setup_protection_map();
 	/*
 	 * Create kernel page tables.
 	 */

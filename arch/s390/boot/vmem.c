@@ -67,8 +67,6 @@ static void kasan_populate_shadow(unsigned long kernel_start, unsigned long kern
 	int i;
 
 	pte_z = __pte(__pa(kasan_early_shadow_page) | pgprot_val(PAGE_KERNEL_RO));
-	if (!machine.has_nx)
-		pte_z = clear_pte_bit(pte_z, __pgprot(_PAGE_NOEXEC));
 	crst_table_init((unsigned long *)kasan_early_shadow_p4d, p4d_val(p4d_z));
 	crst_table_init((unsigned long *)kasan_early_shadow_pud, pud_val(pud_z));
 	crst_table_init((unsigned long *)kasan_early_shadow_pmd, pmd_val(pmd_z));
@@ -294,8 +292,6 @@ static void pgtable_pte_populate(pmd_t *pmd, unsigned long addr, unsigned long e
 				continue;
 			entry = __pte(_pa(addr, PAGE_SIZE, mode));
 			entry = set_pte_bit(entry, PAGE_KERNEL);
-			if (!machine.has_nx)
-				entry = clear_pte_bit(entry, __pgprot(_PAGE_NOEXEC));
 			set_pte(pte, entry);
 			pages++;
 		}
@@ -320,8 +316,6 @@ static void pgtable_pmd_populate(pud_t *pud, unsigned long addr, unsigned long e
 			if (can_large_pmd(pmd, addr, next, mode)) {
 				entry = __pmd(_pa(addr, _SEGMENT_SIZE, mode));
 				entry = set_pmd_bit(entry, SEGMENT_KERNEL);
-				if (!machine.has_nx)
-					entry = clear_pmd_bit(entry, __pgprot(_SEGMENT_ENTRY_NOEXEC));
 				set_pmd(pmd, entry);
 				pages++;
 				continue;
@@ -353,8 +347,6 @@ static void pgtable_pud_populate(p4d_t *p4d, unsigned long addr, unsigned long e
 			if (can_large_pud(pud, addr, next, mode)) {
 				entry = __pud(_pa(addr, _REGION3_SIZE, mode));
 				entry = set_pud_bit(entry, REGION3_KERNEL);
-				if (!machine.has_nx)
-					entry = clear_pud_bit(entry, __pgprot(_REGION_ENTRY_NOEXEC));
 				set_pud(pud, entry);
 				pages++;
 				continue;
