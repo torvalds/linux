@@ -930,7 +930,7 @@ out:
 
 static int ath12k_core_mlo_setup(struct ath12k_hw_group *ag)
 {
-	int ret;
+	int ret, i;
 
 	if (!ag->mlo_capable || ag->num_devices == 1)
 		return 0;
@@ -938,6 +938,9 @@ static int ath12k_core_mlo_setup(struct ath12k_hw_group *ag)
 	ret = ath12k_mac_mlo_setup(ag);
 	if (ret)
 		return ret;
+
+	for (i = 0; i < ag->num_devices; i++)
+		ath12k_dp_partner_cc_init(ag->ab[i]);
 
 	ret = ath12k_mac_mlo_ready(ag);
 	if (ret)

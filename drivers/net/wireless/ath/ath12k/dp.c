@@ -1522,6 +1522,19 @@ static int ath12k_dp_cmem_init(struct ath12k_base *ab,
 	return 0;
 }
 
+void ath12k_dp_partner_cc_init(struct ath12k_base *ab)
+{
+	struct ath12k_hw_group *ag = ab->ag;
+	int i;
+
+	for (i = 0; i < ag->num_devices; i++) {
+		if (ag->ab[i] == ab)
+			continue;
+
+		ath12k_dp_cmem_init(ab, &ag->ab[i]->dp, ATH12K_DP_RX_DESC);
+	}
+}
+
 static int ath12k_dp_cc_init(struct ath12k_base *ab)
 {
 	struct ath12k_dp *dp = &ab->dp;
