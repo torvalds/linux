@@ -829,6 +829,31 @@ static bool sdma_v7_0_check_soft_reset(struct amdgpu_ip_block *ip_block)
 	return false;
 }
 
+static int sdma_v7_0_reset_queue(struct amdgpu_ring *ring, unsigned int vmid)
+{
+	struct amdgpu_device *adev = ring->adev;
+	int i, r;
+
+	if (amdgpu_sriov_vf(adev))
+		return -EINVAL;
+
+	for (i = 0; i < adev->sdma.num_instances; i++) {
+		if (ring == &adev->sdma.instance[i].ring)
+			break;
+	}
+
+	if (i == adev->sdma.num_instances) {
+		DRM_ERROR("sdma instance not found\n");
+		return -EINVAL;
+	}
+
+	r = amdgpu_mes_reset_legacy_queue(adev, ring, vmid, true);
+	if (r)
+		return r;
+
+	return sdma_v7_0_gfx_resume_instance(adev, i, true);
+}
+
 /**
  * sdma_v7_0_start - setup and start the async dma engines
  *
@@ -1659,6 +1684,7 @@ static const struct amdgpu_ring_funcs sdma_v7_0_ring_funcs = {
 	.emit_reg_write_reg_wait = sdma_v7_0_ring_emit_reg_write_reg_wait,
 	.init_cond_exec = sdma_v7_0_ring_init_cond_exec,
 	.preempt_ib = sdma_v7_0_ring_preempt_ib,
+	.reset = sdma_v7_0_reset_queue,
 };
 
 static void sdma_v7_0_set_ring_funcs(struct amdgpu_device *adev)
