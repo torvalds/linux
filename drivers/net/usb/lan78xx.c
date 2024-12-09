@@ -2445,7 +2445,10 @@ static int lan78xx_setup_irq_domain(struct lan78xx_net *dev)
 
 	mutex_init(&dev->domain_data.irq_lock);
 
-	lan78xx_read_reg(dev, INT_EP_CTL, &buf);
+	ret = lan78xx_read_reg(dev, INT_EP_CTL, &buf);
+	if (ret < 0)
+		return ret;
+
 	dev->domain_data.irqenable = buf;
 
 	dev->domain_data.irqchip = &lan78xx_irqchip;
