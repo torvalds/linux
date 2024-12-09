@@ -1027,7 +1027,7 @@ static void cpc925_remove(struct platform_device *pdev)
 
 static struct platform_driver cpc925_edac_driver = {
 	.probe = cpc925_probe,
-	.remove_new = cpc925_remove,
+	.remove = cpc925_remove,
 	.driver = {
 		   .name = "cpc925_edac",
 	}

@@ -284,6 +284,6 @@ static struct platform_driver acp70_driver = {
 module_platform_driver(acp70_driver);
 
 MODULE_DESCRIPTION("AMD ACP ACP70 Driver");
-MODULE_IMPORT_NS(SND_SOC_ACP_COMMON);
+MODULE_IMPORT_NS("SND_SOC_ACP_COMMON");
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_ALIAS("platform:" DRV_NAME);

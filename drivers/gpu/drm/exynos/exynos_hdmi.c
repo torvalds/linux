@@ -2126,7 +2126,7 @@ static const struct dev_pm_ops exynos_hdmi_pm_ops = {
 
 struct platform_driver hdmi_driver = {
 	.probe		= hdmi_probe,
-	.remove_new	= hdmi_remove,
+	.remove		= hdmi_remove,
 	.driver		= {
 		.name	= "exynos-hdmi",
 		.pm	= &exynos_hdmi_pm_ops,

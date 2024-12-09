@@ -218,7 +218,7 @@ MODULE_DEVICE_TABLE(of, mtk_disp_aal_driver_dt_match);
 
 struct platform_driver mtk_disp_aal_driver = {
 	.probe		= mtk_disp_aal_probe,
-	.remove_new	= mtk_disp_aal_remove,
+	.remove		= mtk_disp_aal_remove,
 	.driver		= {
 		.name	= "mediatek-disp-aal",
 		.of_match_table = mtk_disp_aal_driver_dt_match,

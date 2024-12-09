@@ -146,7 +146,7 @@ MODULE_DEVICE_TABLE(of, mtk_padding_driver_dt_match);
 
 struct platform_driver mtk_padding_driver = {
 	.probe		= mtk_padding_probe,
-	.remove_new	= mtk_padding_remove,
+	.remove		= mtk_padding_remove,
 	.driver		= {
 		.name	= "mediatek-disp-padding",
 		.of_match_table = mtk_padding_driver_dt_match,

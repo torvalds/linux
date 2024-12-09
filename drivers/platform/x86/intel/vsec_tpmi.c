@@ -193,7 +193,7 @@ struct intel_tpmi_plat_info *tpmi_get_platform_data(struct auxiliary_device *aux
 
 	return vsec_dev->priv_data;
 }
-EXPORT_SYMBOL_NS_GPL(tpmi_get_platform_data, INTEL_TPMI);
+EXPORT_SYMBOL_NS_GPL(tpmi_get_platform_data, "INTEL_TPMI");
 
 int tpmi_get_resource_count(struct auxiliary_device *auxdev)
 {
@@ -204,7 +204,7 @@ int tpmi_get_resource_count(struct auxiliary_device *auxdev)
 
 	return 0;
 }
-EXPORT_SYMBOL_NS_GPL(tpmi_get_resource_count, INTEL_TPMI);
+EXPORT_SYMBOL_NS_GPL(tpmi_get_resource_count, "INTEL_TPMI");
 
 struct resource *tpmi_get_resource_at_index(struct auxiliary_device *auxdev, int index)
 {
@@ -215,7 +215,7 @@ struct resource *tpmi_get_resource_at_index(struct auxiliary_device *auxdev, int
 
 	return NULL;
 }
-EXPORT_SYMBOL_NS_GPL(tpmi_get_resource_at_index, INTEL_TPMI);
+EXPORT_SYMBOL_NS_GPL(tpmi_get_resource_at_index, "INTEL_TPMI");
 
 /* TPMI Control Interface */
 
@@ -354,7 +354,7 @@ int tpmi_get_feature_status(struct auxiliary_device *auxdev,
 
 	return 0;
 }
-EXPORT_SYMBOL_NS_GPL(tpmi_get_feature_status, INTEL_TPMI);
+EXPORT_SYMBOL_NS_GPL(tpmi_get_feature_status, "INTEL_TPMI");
 
 struct dentry *tpmi_get_debugfs_dir(struct auxiliary_device *auxdev)
 {
@@ -363,7 +363,7 @@ struct dentry *tpmi_get_debugfs_dir(struct auxiliary_device *auxdev)
 
 	return tpmi_info->dbgfs_dir;
 }
-EXPORT_SYMBOL_NS_GPL(tpmi_get_debugfs_dir, INTEL_TPMI);
+EXPORT_SYMBOL_NS_GPL(tpmi_get_debugfs_dir, "INTEL_TPMI");
 
 static int tpmi_pfs_dbg_show(struct seq_file *s, void *unused)
 {
@@ -852,6 +852,6 @@ static struct auxiliary_driver tpmi_aux_driver = {
 
 module_auxiliary_driver(tpmi_aux_driver);
 
-MODULE_IMPORT_NS(INTEL_VSEC);
+MODULE_IMPORT_NS("INTEL_VSEC");
 MODULE_DESCRIPTION("Intel TPMI enumeration module");
 MODULE_LICENSE("GPL");

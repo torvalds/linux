@@ -203,7 +203,7 @@ static const struct of_device_id msm_hdmi_phy_dt_match[] = {
 
 static struct platform_driver msm_hdmi_phy_platform_driver = {
 	.probe      = msm_hdmi_phy_probe,
-	.remove_new = msm_hdmi_phy_remove,
+	.remove     = msm_hdmi_phy_remove,
 	.driver     = {
 		.name   = "msm_hdmi_phy",
 		.of_match_table = msm_hdmi_phy_dt_match,

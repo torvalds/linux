@@ -6,7 +6,7 @@
  * Copyright (C) 2011-2012 Avionic Design GmbH
  */
 
-#define DEFAULT_SYMBOL_NAMESPACE PWM
+#define DEFAULT_SYMBOL_NAMESPACE "PWM"
 
 #include <linux/acpi.h>
 #include <linux/module.h>

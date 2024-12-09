@@ -453,7 +453,7 @@ static void bcm63xx_drv_pcmcia_remove(struct platform_device *pdev)
 
 struct platform_driver bcm63xx_pcmcia_driver = {
 	.probe	= bcm63xx_drv_pcmcia_probe,
-	.remove_new = bcm63xx_drv_pcmcia_remove,
+	.remove = bcm63xx_drv_pcmcia_remove,
 	.driver	= {
 		.name	= "bcm63xx_pcmcia",
 	},

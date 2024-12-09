@@ -230,4 +230,4 @@ void xe_vsec_init(struct xe_device *xe)
 	 */
 	intel_vsec_register(pdev, info);
 }
-MODULE_IMPORT_NS(INTEL_VSEC);
+MODULE_IMPORT_NS("INTEL_VSEC");

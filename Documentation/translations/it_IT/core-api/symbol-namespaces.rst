@@ -43,7 +43,7 @@ Tenete presente che per via dell'espansione delle macro questo argomento deve
 essere un simbolo di preprocessore. Per esempio per esportare il
 simbolo ``usb_stor_suspend`` nello spazio dei nomi ``USB_STORAGE`` usate::
 
-	EXPORT_SYMBOL_NS(usb_stor_suspend, USB_STORAGE);
+	EXPORT_SYMBOL_NS(usb_stor_suspend, "USB_STORAGE");
 
 Di conseguenza, nella tabella dei simboli del kernel ci sarà una voce
 rappresentata dalla struttura ``kernel_symbol`` che avrà il campo
@@ -69,7 +69,7 @@ Per esempio per esportare tutti i simboli definiti in usb-common nello spazio
 dei nomi USB_COMMON, si può aggiungere la seguente linea in
 drivers/usb/common/Makefile::
 
-	ccflags-y += -DDEFAULT_SYMBOL_NAMESPACE=USB_COMMON
+	ccflags-y += -DDEFAULT_SYMBOL_NAMESPACE='"USB_COMMON"'
 
 Questo cambierà tutte le macro EXPORT_SYMBOL() ed EXPORT_SYMBOL_GPL(). Invece,
 un simbolo esportato con EXPORT_SYMBOL_NS() non verrà cambiato e il simbolo
@@ -79,7 +79,7 @@ Una seconda possibilità è quella di definire il simbolo di preprocessore
 direttamente nei file da compilare. L'esempio precedente diventerebbe::
 
 	#undef  DEFAULT_SYMBOL_NAMESPACE
-	#define DEFAULT_SYMBOL_NAMESPACE USB_COMMON
+	#define DEFAULT_SYMBOL_NAMESPACE "USB_COMMON"
 
 Questo va messo prima di un qualsiasi uso di EXPORT_SYMBOL.
 
@@ -94,7 +94,7 @@ dei nomi che contiene i simboli desiderati. Per esempio un modulo che
 usa il simbolo usb_stor_suspend deve importare lo spazio dei nomi
 USB_STORAGE usando la seguente dichiarazione::
 
-	MODULE_IMPORT_NS(USB_STORAGE);
+	MODULE_IMPORT_NS("USB_STORAGE");
 
 Questo creerà un'etichetta ``modinfo`` per ogni spazio dei nomi
 importato. Un risvolto di questo fatto è che gli spazi dei

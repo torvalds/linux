@@ -463,4 +463,4 @@ module_i2c_driver(mp2856_driver);
 MODULE_AUTHOR("Peter Yin <peter.yin@quantatw.com>");
 MODULE_DESCRIPTION("PMBus driver for MPS MP2856/MP2857 device");
 MODULE_LICENSE("GPL");
-MODULE_IMPORT_NS(PMBUS);
+MODULE_IMPORT_NS("PMBUS");
