@@ -32,7 +32,6 @@ TRACE_EVENT(amd_pstate_perf,
 		 u64 aperf,
 		 u64 tsc,
 		 unsigned int cpu_id,
-		 bool changed,
 		 bool fast_switch
 		 ),
 
@@ -44,7 +43,6 @@ TRACE_EVENT(amd_pstate_perf,
 		aperf,
 		tsc,
 		cpu_id,
-		changed,
 		fast_switch
 		),
 
@@ -57,7 +55,6 @@ TRACE_EVENT(amd_pstate_perf,
 		__field(unsigned long long, aperf)
 		__field(unsigned long long, tsc)
 		__field(unsigned int, cpu_id)
-		__field(bool, changed)
 		__field(bool, fast_switch)
 		),
 
@@ -70,11 +67,10 @@ TRACE_EVENT(amd_pstate_perf,
 		__entry->aperf = aperf;
 		__entry->tsc = tsc;
 		__entry->cpu_id = cpu_id;
-		__entry->changed = changed;
 		__entry->fast_switch = fast_switch;
 		),
 
-	TP_printk("amd_min_perf=%lu amd_des_perf=%lu amd_max_perf=%lu freq=%llu mperf=%llu aperf=%llu tsc=%llu cpu_id=%u changed=%s fast_switch=%s",
+	TP_printk("amd_min_perf=%lu amd_des_perf=%lu amd_max_perf=%lu freq=%llu mperf=%llu aperf=%llu tsc=%llu cpu_id=%u fast_switch=%s",
 		  (unsigned long)__entry->min_perf,
 		  (unsigned long)__entry->target_perf,
 		  (unsigned long)__entry->capacity,
@@ -83,7 +79,6 @@ TRACE_EVENT(amd_pstate_perf,
 		  (unsigned long long)__entry->aperf,
 		  (unsigned long long)__entry->tsc,
 		  (unsigned int)__entry->cpu_id,
-		  (__entry->changed) ? "true" : "false",
 		  (__entry->fast_switch) ? "true" : "false"
 		 )
 );
