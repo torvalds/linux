@@ -336,6 +336,7 @@ static int shmem_set_epp(struct cpufreq_policy *policy, u8 epp)
 {
 	struct amd_cpudata *cpudata = policy->driver_data;
 	struct cppc_perf_ctrls perf_ctrls;
+	u64 value;
 	int ret;
 
 	if (trace_amd_pstate_epp_perf_enabled()) {
@@ -361,6 +362,11 @@ static int shmem_set_epp(struct cpufreq_policy *policy, u8 epp)
 		return ret;
 	}
 	WRITE_ONCE(cpudata->epp_cached, epp);
+
+	value = READ_ONCE(cpudata->cppc_req_cached);
+	value &= ~AMD_CPPC_EPP_PERF_MASK;
+	value |= FIELD_PREP(AMD_CPPC_EPP_PERF_MASK, epp);
+	WRITE_ONCE(cpudata->cppc_req_cached, value);
 
 	return ret;
 }
