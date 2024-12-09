@@ -1094,7 +1094,7 @@ err:
 
 	return ret;
 }
-EXPORT_SYMBOL_NS_GPL(cs35l56_hda_common_probe, SND_HDA_SCODEC_CS35L56);
+EXPORT_SYMBOL_NS_GPL(cs35l56_hda_common_probe, "SND_HDA_SCODEC_CS35L56");
 
 void cs35l56_hda_remove(struct device *dev)
 {
@@ -1113,7 +1113,7 @@ void cs35l56_hda_remove(struct device *dev)
 
 	gpiod_set_value_cansleep(cs35l56->base.reset_gpio, 0);
 }
-EXPORT_SYMBOL_NS_GPL(cs35l56_hda_remove, SND_HDA_SCODEC_CS35L56);
+EXPORT_SYMBOL_NS_GPL(cs35l56_hda_remove, "SND_HDA_SCODEC_CS35L56");
 
 const struct dev_pm_ops cs35l56_hda_pm_ops = {
 	RUNTIME_PM_OPS(cs35l56_hda_runtime_suspend, cs35l56_hda_runtime_resume, NULL)
@@ -1123,14 +1123,14 @@ const struct dev_pm_ops cs35l56_hda_pm_ops = {
 	NOIRQ_SYSTEM_SLEEP_PM_OPS(cs35l56_hda_system_suspend_no_irq,
 				  cs35l56_hda_system_resume_no_irq)
 };
-EXPORT_SYMBOL_NS_GPL(cs35l56_hda_pm_ops, SND_HDA_SCODEC_CS35L56);
+EXPORT_SYMBOL_NS_GPL(cs35l56_hda_pm_ops, "SND_HDA_SCODEC_CS35L56");
 
 MODULE_DESCRIPTION("CS35L56 HDA Driver");
-MODULE_IMPORT_NS(FW_CS_DSP);
-MODULE_IMPORT_NS(SND_HDA_CIRRUS_SCODEC);
-MODULE_IMPORT_NS(SND_HDA_CS_DSP_CONTROLS);
-MODULE_IMPORT_NS(SND_SOC_CS35L56_SHARED);
-MODULE_IMPORT_NS(SND_SOC_CS_AMP_LIB);
+MODULE_IMPORT_NS("FW_CS_DSP");
+MODULE_IMPORT_NS("SND_HDA_CIRRUS_SCODEC");
+MODULE_IMPORT_NS("SND_HDA_CS_DSP_CONTROLS");
+MODULE_IMPORT_NS("SND_SOC_CS35L56_SHARED");
+MODULE_IMPORT_NS("SND_SOC_CS_AMP_LIB");
 MODULE_AUTHOR("Richard Fitzgerald <rf@opensource.cirrus.com>");
 MODULE_AUTHOR("Simon Trimmer <simont@opensource.cirrus.com>");
 MODULE_LICENSE("GPL");

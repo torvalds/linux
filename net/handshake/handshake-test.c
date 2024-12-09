@@ -17,7 +17,7 @@
 #include <uapi/linux/handshake.h>
 #include "handshake.h"
 
-MODULE_IMPORT_NS(EXPORTED_FOR_KUNIT_TESTING);
+MODULE_IMPORT_NS("EXPORTED_FOR_KUNIT_TESTING");
 
 static int test_accept_func(struct handshake_req *req, struct genl_info *info,
 			    int fd)

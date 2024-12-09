@@ -189,4 +189,4 @@ struct irq_domain *cdx_msi_domain_init(struct device *dev)
 
 	return cdx_msi_domain;
 }
-EXPORT_SYMBOL_NS_GPL(cdx_msi_domain_init, CDX_BUS_CONTROLLER);
+EXPORT_SYMBOL_NS_GPL(cdx_msi_domain_init, "CDX_BUS_CONTROLLER");

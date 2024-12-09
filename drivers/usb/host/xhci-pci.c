@@ -651,7 +651,7 @@ put_runtime_pm:
 	pm_runtime_put_noidle(&dev->dev);
 	return retval;
 }
-EXPORT_SYMBOL_NS_GPL(xhci_pci_common_probe, xhci);
+EXPORT_SYMBOL_NS_GPL(xhci_pci_common_probe, "xhci");
 
 static const struct pci_device_id pci_ids_reject[] = {
 	/* handled by xhci-pci-renesas */
@@ -695,7 +695,7 @@ void xhci_pci_remove(struct pci_dev *dev)
 	if (set_power_d3)
 		pci_set_power_state(dev, PCI_D3hot);
 }
-EXPORT_SYMBOL_NS_GPL(xhci_pci_remove, xhci);
+EXPORT_SYMBOL_NS_GPL(xhci_pci_remove, "xhci");
 
 /*
  * In some Intel xHCI controllers, in order to get D3 working,
