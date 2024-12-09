@@ -88,6 +88,51 @@ TRACE_EVENT(amd_pstate_perf,
 		 )
 );
 
+TRACE_EVENT(amd_pstate_epp_perf,
+
+	TP_PROTO(unsigned int cpu_id,
+		 unsigned int highest_perf,
+		 unsigned int epp,
+		 unsigned int min_perf,
+		 unsigned int max_perf,
+		 bool boost
+		 ),
+
+	TP_ARGS(cpu_id,
+		highest_perf,
+		epp,
+		min_perf,
+		max_perf,
+		boost),
+
+	TP_STRUCT__entry(
+		__field(unsigned int, cpu_id)
+		__field(unsigned int, highest_perf)
+		__field(unsigned int, epp)
+		__field(unsigned int, min_perf)
+		__field(unsigned int, max_perf)
+		__field(bool, boost)
+		),
+
+	TP_fast_assign(
+		__entry->cpu_id = cpu_id;
+		__entry->highest_perf = highest_perf;
+		__entry->epp = epp;
+		__entry->min_perf = min_perf;
+		__entry->max_perf = max_perf;
+		__entry->boost = boost;
+		),
+
+	TP_printk("cpu%u: [%u<->%u]/%u, epp=%u, boost=%u",
+		  (unsigned int)__entry->cpu_id,
+		  (unsigned int)__entry->min_perf,
+		  (unsigned int)__entry->max_perf,
+		  (unsigned int)__entry->highest_perf,
+		  (unsigned int)__entry->epp,
+		  (bool)__entry->boost
+		 )
+);
+
 #endif /* _AMD_PSTATE_TRACE_H */
 
 /* This part must be outside protection */

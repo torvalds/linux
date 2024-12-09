@@ -324,6 +324,14 @@ static int amd_pstate_set_energy_pref_index(struct amd_cpudata *cpudata,
 		return -EBUSY;
 	}
 
+	if (trace_amd_pstate_epp_perf_enabled()) {
+		trace_amd_pstate_epp_perf(cpudata->cpu, cpudata->highest_perf,
+					  epp,
+					  AMD_CPPC_MIN_PERF(cpudata->cppc_req_cached),
+					  AMD_CPPC_MAX_PERF(cpudata->cppc_req_cached),
+					  cpudata->boost_state);
+	}
+
 	ret = amd_pstate_set_epp(cpudata, epp);
 
 	return ret;
@@ -1598,6 +1606,13 @@ static int amd_pstate_epp_update_limit(struct cpufreq_policy *policy)
 
 	WRITE_ONCE(cpudata->cppc_req_cached, value);
 
+	if (trace_amd_pstate_epp_perf_enabled()) {
+		trace_amd_pstate_epp_perf(cpudata->cpu, cpudata->highest_perf, epp,
+					  cpudata->min_limit_perf,
+					  cpudata->max_limit_perf,
+					  policy->boost_enabled);
+	}
+
 	amd_pstate_update_perf(cpudata, cpudata->min_limit_perf, 0U,
 			       cpudata->max_limit_perf, false);
 
@@ -1641,6 +1656,13 @@ static void amd_pstate_epp_reenable(struct amd_cpudata *cpudata)
 
 	max_perf = READ_ONCE(cpudata->highest_perf);
 
+	if (trace_amd_pstate_epp_perf_enabled()) {
+		trace_amd_pstate_epp_perf(cpudata->cpu, cpudata->highest_perf,
+					  cpudata->epp_cached,
+					  AMD_CPPC_MIN_PERF(cpudata->cppc_req_cached),
+					  max_perf, cpudata->boost_state);
+	}
+
 	amd_pstate_update_perf(cpudata, 0, 0, max_perf, false);
 	amd_pstate_set_epp(cpudata, cpudata->epp_cached);
 }
@@ -1668,6 +1690,12 @@ static int amd_pstate_epp_cpu_offline(struct cpufreq_policy *policy)
 	min_perf = READ_ONCE(cpudata->lowest_perf);
 
 	mutex_lock(&amd_pstate_limits_lock);
+
+	if (trace_amd_pstate_epp_perf_enabled()) {
+		trace_amd_pstate_epp_perf(cpudata->cpu, cpudata->highest_perf,
+					  AMD_CPPC_EPP_BALANCE_POWERSAVE,
+					  min_perf, min_perf, policy->boost_enabled);
+	}
 
 	amd_pstate_update_perf(cpudata, min_perf, 0, min_perf, false);
 	amd_pstate_set_epp(cpudata, AMD_CPPC_EPP_BALANCE_POWERSAVE);
