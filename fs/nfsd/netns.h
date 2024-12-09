@@ -128,12 +128,6 @@ struct nfsd_net {
 	seqlock_t writeverf_lock;
 	unsigned char writeverf[8];
 
-	/*
-	 * Max number of non-validated connections this nfsd container
-	 * will allow.  Defaults to '0' gets mapped to 64.
-	 */
-	unsigned int max_connections;
-
 	u32 clientid_base;
 	u32 clientid_counter;
 	u32 clverifier_counter;

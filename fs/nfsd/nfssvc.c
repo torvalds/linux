@@ -668,7 +668,6 @@ int nfsd_create_serv(struct net *net)
 	if (serv == NULL)
 		return -ENOMEM;
 
-	serv->sv_maxconn = nn->max_connections;
 	error = svc_bind(serv, net);
 	if (error < 0) {
 		svc_destroy(&serv);
@@ -954,11 +953,7 @@ nfsd(void *vrqstp)
 	 * The main request loop
 	 */
 	while (!svc_thread_should_stop(rqstp)) {
-		/* Update sv_maxconn if it has changed */
-		rqstp->rq_server->sv_maxconn = nn->max_connections;
-
 		svc_recv(rqstp);
-
 		nfsd_file_net_dispose(nn);
 	}
 

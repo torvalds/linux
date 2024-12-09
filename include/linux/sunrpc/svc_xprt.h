@@ -105,6 +105,12 @@ enum {
 				 */
 };
 
+/*
+ * Maximum number of "tmp" connections - those without XPT_PEER_VALID -
+ * permitted on any service.
+ */
+#define XPT_MAX_TMP_CONN	64
+
 static inline void svc_xprt_set_valid(struct svc_xprt *xpt)
 {
 	if (test_bit(XPT_TEMP, &xpt->xpt_flags) &&
