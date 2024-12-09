@@ -2497,7 +2497,7 @@ static int ath12k_qmi_alloc_chunk(struct ath12k_base *ab,
 				    chunk->size,
 				    chunk->type);
 			ath12k_qmi_free_target_mem_chunk(ab);
-			return 0;
+			return -EAGAIN;
 		}
 		ath12k_warn(ab, "memory allocation failure for %u size: %d\n",
 			    chunk->type, chunk->size);
@@ -2599,6 +2599,14 @@ err:
 	ath12k_qmi_free_target_mem_chunk(ab);
 
 	mutex_unlock(&ag->mutex);
+
+	/* The firmware will attempt to request memory in smaller chunks
+	 * on the next try. However, the current caller should be notified
+	 * that this instance of request parsing was successful.
+	 * Therefore, return 0 only.
+	 */
+	if (ret == -EAGAIN)
+		ret = 0;
 
 	return ret;
 }
