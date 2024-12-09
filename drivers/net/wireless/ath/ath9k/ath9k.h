@@ -592,8 +592,8 @@ void ath_txq_schedule_all(struct ath_softc *sc);
 int ath_tx_init(struct ath_softc *sc, int nbufs);
 int ath_txq_update(struct ath_softc *sc, int qnum,
 		   struct ath9k_tx_queue_info *q);
-u32 ath_pkt_duration(struct ath_softc *sc, u8 rix, int pktlen,
-		     int width, int half_gi, bool shortPreamble);
+u32 ath_pkt_duration(u8 rix, int pktlen, int width,
+		     int half_gi, bool shortPreamble);
 void ath_update_max_aggr_framelen(struct ath_softc *sc, int queue, int txop);
 void ath_assign_seq(struct ath_common *common, struct sk_buff *skb);
 int ath_tx_start(struct ieee80211_hw *hw, struct sk_buff *skb,
