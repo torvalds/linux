@@ -186,29 +186,28 @@ static inline int get_mode_idx_from_str(const char *str, size_t size)
 static DEFINE_MUTEX(amd_pstate_limits_lock);
 static DEFINE_MUTEX(amd_pstate_driver_lock);
 
-static s16 msr_get_epp(struct amd_cpudata *cpudata, u64 cppc_req_cached)
+static s16 msr_get_epp(struct amd_cpudata *cpudata)
 {
+	u64 value;
 	int ret;
 
-	if (!cppc_req_cached) {
-		ret = rdmsrl_on_cpu(cpudata->cpu, MSR_AMD_CPPC_REQ, &cppc_req_cached);
-		if (ret < 0) {
-			pr_debug("Could not retrieve energy perf value (%d)\n", ret);
-			return ret;
-		}
+	ret = rdmsrl_on_cpu(cpudata->cpu, MSR_AMD_CPPC_REQ, &value);
+	if (ret < 0) {
+		pr_debug("Could not retrieve energy perf value (%d)\n", ret);
+		return ret;
 	}
 
-	return FIELD_GET(AMD_CPPC_EPP_PERF_MASK, cppc_req_cached);
+	return FIELD_GET(AMD_CPPC_EPP_PERF_MASK, value);
 }
 
 DEFINE_STATIC_CALL(amd_pstate_get_epp, msr_get_epp);
 
-static inline s16 amd_pstate_get_epp(struct amd_cpudata *cpudata, u64 cppc_req_cached)
+static inline s16 amd_pstate_get_epp(struct amd_cpudata *cpudata)
 {
-	return static_call(amd_pstate_get_epp)(cpudata, cppc_req_cached);
+	return static_call(amd_pstate_get_epp)(cpudata);
 }
 
-static s16 shmem_get_epp(struct amd_cpudata *cpudata, u64 dummy)
+static s16 shmem_get_epp(struct amd_cpudata *cpudata)
 {
 	u64 epp;
 	int ret;
@@ -220,35 +219,6 @@ static s16 shmem_get_epp(struct amd_cpudata *cpudata, u64 dummy)
 	}
 
 	return (s16)(epp & 0xff);
-}
-
-static int amd_pstate_get_energy_pref_index(struct amd_cpudata *cpudata)
-{
-	s16 epp;
-	int index = -EINVAL;
-
-	epp = amd_pstate_get_epp(cpudata, 0);
-	if (epp < 0)
-		return epp;
-
-	switch (epp) {
-	case AMD_CPPC_EPP_PERFORMANCE:
-		index = EPP_INDEX_PERFORMANCE;
-		break;
-	case AMD_CPPC_EPP_BALANCE_PERFORMANCE:
-		index = EPP_INDEX_BALANCE_PERFORMANCE;
-		break;
-	case AMD_CPPC_EPP_BALANCE_POWERSAVE:
-		index = EPP_INDEX_BALANCE_POWERSAVE;
-		break;
-	case AMD_CPPC_EPP_POWERSAVE:
-		index = EPP_INDEX_POWERSAVE;
-		break;
-	default:
-		break;
-	}
-
-	return index;
 }
 
 static int msr_update_perf(struct amd_cpudata *cpudata, u32 min_perf,
@@ -275,11 +245,15 @@ static inline int amd_pstate_update_perf(struct amd_cpudata *cpudata,
 
 static int msr_set_epp(struct amd_cpudata *cpudata, u32 epp)
 {
-	u64 value = READ_ONCE(cpudata->cppc_req_cached);
+	u64 value, prev;
 	int ret;
 
+	value = prev = READ_ONCE(cpudata->cppc_req_cached);
 	value &= ~AMD_CPPC_EPP_PERF_MASK;
 	value |= FIELD_PREP(AMD_CPPC_EPP_PERF_MASK, epp);
+
+	if (value == prev)
+		return 0;
 
 	ret = wrmsrl_on_cpu(cpudata->cpu, MSR_AMD_CPPC_REQ, value);
 	if (ret) {
@@ -287,7 +261,7 @@ static int msr_set_epp(struct amd_cpudata *cpudata, u32 epp)
 		return ret;
 	}
 
-	cpudata->epp_cached = epp;
+	WRITE_ONCE(cpudata->epp_cached, epp);
 	WRITE_ONCE(cpudata->cppc_req_cached, value);
 
 	return ret;
@@ -305,13 +279,16 @@ static int shmem_set_epp(struct amd_cpudata *cpudata, u32 epp)
 	int ret;
 	struct cppc_perf_ctrls perf_ctrls;
 
+	if (epp == cpudata->epp_cached)
+		return 0;
+
 	perf_ctrls.energy_perf = epp;
 	ret = cppc_set_epp_perf(cpudata->cpu, &perf_ctrls, 1);
 	if (ret) {
 		pr_debug("failed to set energy perf value (%d)\n", ret);
 		return ret;
 	}
-	cpudata->epp_cached = epp;
+	WRITE_ONCE(cpudata->epp_cached, epp);
 
 	return ret;
 }
@@ -1214,9 +1191,22 @@ static ssize_t show_energy_performance_preference(
 	struct amd_cpudata *cpudata = policy->driver_data;
 	int preference;
 
-	preference = amd_pstate_get_energy_pref_index(cpudata);
-	if (preference < 0)
-		return preference;
+	switch (cpudata->epp_cached) {
+	case AMD_CPPC_EPP_PERFORMANCE:
+		preference = EPP_INDEX_PERFORMANCE;
+		break;
+	case AMD_CPPC_EPP_BALANCE_PERFORMANCE:
+		preference = EPP_INDEX_BALANCE_PERFORMANCE;
+		break;
+	case AMD_CPPC_EPP_BALANCE_POWERSAVE:
+		preference = EPP_INDEX_BALANCE_POWERSAVE;
+		break;
+	case AMD_CPPC_EPP_POWERSAVE:
+		preference = EPP_INDEX_POWERSAVE;
+		break;
+	default:
+		return -EINVAL;
+	}
 
 	return sysfs_emit(buf, "%s\n", energy_perf_strings[preference]);
 }
@@ -1501,7 +1491,7 @@ static int amd_pstate_epp_cpu_init(struct cpufreq_policy *policy)
 
 	policy->driver_data = cpudata;
 
-	cpudata->epp_cached = cpudata->epp_default = amd_pstate_get_epp(cpudata, 0);
+	cpudata->epp_cached = cpudata->epp_default = amd_pstate_get_epp(cpudata);
 
 	policy->min = policy->cpuinfo.min_freq;
 	policy->max = policy->cpuinfo.max_freq;
@@ -1555,35 +1545,26 @@ static int amd_pstate_epp_update_limit(struct cpufreq_policy *policy)
 {
 	struct amd_cpudata *cpudata = policy->driver_data;
 	u64 value;
-	s16 epp;
 
 	amd_pstate_update_min_max_limit(policy);
 
 	value = READ_ONCE(cpudata->cppc_req_cached);
 
 	value &= ~(AMD_CPPC_MAX_PERF_MASK | AMD_CPPC_MIN_PERF_MASK |
-		   AMD_CPPC_DES_PERF_MASK);
+		   AMD_CPPC_DES_PERF_MASK | AMD_CPPC_EPP_PERF_MASK);
 	value |= FIELD_PREP(AMD_CPPC_MAX_PERF_MASK, cpudata->max_limit_perf);
 	value |= FIELD_PREP(AMD_CPPC_DES_PERF_MASK, 0);
 	value |= FIELD_PREP(AMD_CPPC_MIN_PERF_MASK, cpudata->min_limit_perf);
 
-	/* Get BIOS pre-defined epp value */
-	epp = amd_pstate_get_epp(cpudata, value);
-	if (epp < 0) {
-		/**
-		 * This return value can only be negative for shared_memory
-		 * systems where EPP register read/write not supported.
-		 */
-		return epp;
-	}
-
 	if (cpudata->policy == CPUFREQ_POLICY_PERFORMANCE)
-		epp = 0;
+		WRITE_ONCE(cpudata->epp_cached, 0);
+	value |= FIELD_PREP(AMD_CPPC_EPP_PERF_MASK, cpudata->epp_cached);
 
 	WRITE_ONCE(cpudata->cppc_req_cached, value);
 
 	if (trace_amd_pstate_epp_perf_enabled()) {
-		trace_amd_pstate_epp_perf(cpudata->cpu, cpudata->highest_perf, epp,
+		trace_amd_pstate_epp_perf(cpudata->cpu, cpudata->highest_perf,
+					  cpudata->epp_cached,
 					  cpudata->min_limit_perf,
 					  cpudata->max_limit_perf,
 					  policy->boost_enabled);
@@ -1592,7 +1573,7 @@ static int amd_pstate_epp_update_limit(struct cpufreq_policy *policy)
 	amd_pstate_update_perf(cpudata, cpudata->min_limit_perf, 0U,
 			       cpudata->max_limit_perf, false);
 
-	return amd_pstate_set_epp(cpudata, epp);
+	return amd_pstate_set_epp(cpudata, READ_ONCE(cpudata->epp_cached));
 }
 
 static int amd_pstate_epp_set_policy(struct cpufreq_policy *policy)
