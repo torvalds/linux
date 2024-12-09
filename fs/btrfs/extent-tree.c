@@ -2316,35 +2316,32 @@ static noinline int check_committed_ref(struct btrfs_root *root,
 
 	ret = btrfs_search_slot(NULL, extent_root, &key, path, 0, 0);
 	if (ret < 0)
-		goto out;
+		return ret;
 	if (ret == 0) {
 		/*
 		 * Key with offset -1 found, there would have to exist an extent
 		 * item with such offset, but this is out of the valid range.
 		 */
-		ret = -EUCLEAN;
-		goto out;
+		return -EUCLEAN;
 	}
 
-	ret = -ENOENT;
 	if (path->slots[0] == 0)
-		goto out;
+		return -ENOENT;
 
 	path->slots[0]--;
 	leaf = path->nodes[0];
 	btrfs_item_key_to_cpu(leaf, &key, path->slots[0]);
 
 	if (key.objectid != bytenr || key.type != BTRFS_EXTENT_ITEM_KEY)
-		goto out;
+		return -ENOENT;
 
-	ret = 1;
 	item_size = btrfs_item_size(leaf, path->slots[0]);
 	ei = btrfs_item_ptr(leaf, path->slots[0], struct btrfs_extent_item);
 	expected_size = sizeof(*ei) + btrfs_extent_inline_ref_size(BTRFS_EXTENT_DATA_REF_KEY);
 
 	/* No inline refs; we need to bail before checking for owner ref. */
 	if (item_size == sizeof(*ei))
-		goto out;
+		return 1;
 
 	/* Check for an owner ref; skip over it to the real inline refs. */
 	iref = (struct btrfs_extent_inline_ref *)(ei + 1);
@@ -2357,11 +2354,11 @@ static noinline int check_committed_ref(struct btrfs_root *root,
 
 	/* If extent item has more than 1 inline ref then it's shared */
 	if (item_size != expected_size)
-		goto out;
+		return 1;
 
 	/* If this extent has SHARED_DATA_REF then it's shared */
 	if (type != BTRFS_EXTENT_DATA_REF_KEY)
-		goto out;
+		return 1;
 
 	ref = (struct btrfs_extent_data_ref *)(&iref->offset);
 	if (btrfs_extent_refs(leaf, ei) !=
@@ -2369,11 +2366,9 @@ static noinline int check_committed_ref(struct btrfs_root *root,
 	    btrfs_extent_data_ref_root(leaf, ref) != btrfs_root_id(root) ||
 	    btrfs_extent_data_ref_objectid(leaf, ref) != objectid ||
 	    btrfs_extent_data_ref_offset(leaf, ref) != offset)
-		goto out;
+		return 1;
 
-	ret = 0;
-out:
-	return ret;
+	return 0;
 }
 
 int btrfs_cross_ref_exist(struct btrfs_root *root, u64 objectid, u64 offset,
