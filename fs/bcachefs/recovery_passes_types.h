@@ -43,7 +43,7 @@
 	x(fs_upgrade_for_subvolumes,		22, 0)				\
 	x(check_inodes,				24, PASS_FSCK)			\
 	x(check_extents,			25, PASS_FSCK)			\
-	x(check_indirect_extents,		26, PASS_FSCK)			\
+	x(check_indirect_extents,		26, PASS_ONLINE|PASS_FSCK)	\
 	x(check_dirents,			27, PASS_FSCK)			\
 	x(check_xattrs,				28, PASS_FSCK)			\
 	x(check_root,				29, PASS_ONLINE|PASS_FSCK)	\
