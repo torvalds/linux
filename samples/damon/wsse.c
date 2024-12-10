@@ -30,6 +30,23 @@ MODULE_PARM_DESC(enable, "Enable or disable DAMON_SAMPLE_WSSE");
 static struct damon_ctx *ctx;
 static struct pid *target_pidp;
 
+static int damon_sample_wsse_after_aggregate(struct damon_ctx *c)
+{
+	struct damon_target *t;
+
+	damon_for_each_target(t, c) {
+		struct damon_region *r;
+		unsigned long wss = 0;
+
+		damon_for_each_region(r, t) {
+			if (r->nr_accesses > 0)
+				wss += r->ar.end - r->ar.start;
+		}
+		pr_info("wss: %lu\n", wss);
+	}
+	return 0;
+}
+
 static int damon_sample_wsse_start(void)
 {
 	struct damon_target *target;
@@ -57,6 +74,7 @@ static int damon_sample_wsse_start(void)
 	}
 	target->pid = target_pidp;
 
+	ctx->callback.after_aggregation = damon_sample_wsse_after_aggregate;
 	return damon_start(&ctx, 1, true);
 }
 
