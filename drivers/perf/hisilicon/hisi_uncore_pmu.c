@@ -49,6 +49,41 @@ ssize_t hisi_cpumask_sysfs_show(struct device *dev,
 }
 EXPORT_SYMBOL_NS_GPL(hisi_cpumask_sysfs_show, "HISI_PMU");
 
+static DEVICE_ATTR(cpumask, 0444, hisi_cpumask_sysfs_show, NULL);
+
+static struct attribute *hisi_pmu_cpumask_attrs[] = {
+	&dev_attr_cpumask.attr,
+	NULL
+};
+
+const struct attribute_group hisi_pmu_cpumask_attr_group = {
+	.attrs = hisi_pmu_cpumask_attrs,
+};
+EXPORT_SYMBOL_NS_GPL(hisi_pmu_cpumask_attr_group, "HISI_PMU");
+
+ssize_t hisi_uncore_pmu_identifier_attr_show(struct device *dev,
+					     struct device_attribute *attr,
+					     char *page)
+{
+	struct hisi_pmu *hisi_pmu = to_hisi_pmu(dev_get_drvdata(dev));
+
+	return sysfs_emit(page, "0x%08x\n", hisi_pmu->identifier);
+}
+EXPORT_SYMBOL_NS_GPL(hisi_uncore_pmu_identifier_attr_show, "HISI_PMU");
+
+static struct device_attribute hisi_pmu_identifier_attr =
+	__ATTR(identifier, 0444, hisi_uncore_pmu_identifier_attr_show, NULL);
+
+static struct attribute *hisi_pmu_identifier_attrs[] = {
+	&hisi_pmu_identifier_attr.attr,
+	NULL
+};
+
+const struct attribute_group hisi_pmu_identifier_group = {
+	.attrs = hisi_pmu_identifier_attrs,
+};
+EXPORT_SYMBOL_NS_GPL(hisi_pmu_identifier_group, "HISI_PMU");
+
 static bool hisi_validate_event_group(struct perf_event *event)
 {
 	struct perf_event *sibling, *leader = event->group_leader;
@@ -98,16 +133,6 @@ int hisi_uncore_pmu_get_event_idx(struct perf_event *event)
 	return idx;
 }
 EXPORT_SYMBOL_NS_GPL(hisi_uncore_pmu_get_event_idx, "HISI_PMU");
-
-ssize_t hisi_uncore_pmu_identifier_attr_show(struct device *dev,
-					     struct device_attribute *attr,
-					     char *page)
-{
-	struct hisi_pmu *hisi_pmu = to_hisi_pmu(dev_get_drvdata(dev));
-
-	return sysfs_emit(page, "0x%08x\n", hisi_pmu->identifier);
-}
-EXPORT_SYMBOL_NS_GPL(hisi_uncore_pmu_identifier_attr_show, "HISI_PMU");
 
 static void hisi_uncore_pmu_clear_event_idx(struct hisi_pmu *hisi_pmu, int idx)
 {

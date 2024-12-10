@@ -353,29 +353,6 @@ static const struct attribute_group hisi_h60pa_pmu_events_group = {
 	.attrs = hisi_h60pa_pmu_events_attr,
 };
 
-static DEVICE_ATTR(cpumask, 0444, hisi_cpumask_sysfs_show, NULL);
-
-static struct attribute *hisi_pa_pmu_cpumask_attrs[] = {
-	&dev_attr_cpumask.attr,
-	NULL
-};
-
-static const struct attribute_group hisi_pa_pmu_cpumask_attr_group = {
-	.attrs = hisi_pa_pmu_cpumask_attrs,
-};
-
-static struct device_attribute hisi_pa_pmu_identifier_attr =
-	__ATTR(identifier, 0444, hisi_uncore_pmu_identifier_attr_show, NULL);
-
-static struct attribute *hisi_pa_pmu_identifier_attrs[] = {
-	&hisi_pa_pmu_identifier_attr.attr,
-	NULL
-};
-
-static const struct attribute_group hisi_pa_pmu_identifier_group = {
-	.attrs = hisi_pa_pmu_identifier_attrs,
-};
-
 static struct hisi_pa_pmu_int_regs hisi_pa_pmu_regs = {
 	.mask_offset = PA_INT_MASK,
 	.clear_offset = PA_INT_CLEAR,
@@ -385,8 +362,8 @@ static struct hisi_pa_pmu_int_regs hisi_pa_pmu_regs = {
 static const struct attribute_group *hisi_pa_pmu_v2_attr_groups[] = {
 	&hisi_pa_pmu_v2_format_group,
 	&hisi_pa_pmu_v2_events_group,
-	&hisi_pa_pmu_cpumask_attr_group,
-	&hisi_pa_pmu_identifier_group,
+	&hisi_pmu_cpumask_attr_group,
+	&hisi_pmu_identifier_group,
 	NULL
 };
 
@@ -399,8 +376,8 @@ static const struct hisi_pmu_dev_info hisi_h32pa_v2 = {
 static const struct attribute_group *hisi_pa_pmu_v3_attr_groups[] = {
 	&hisi_pa_pmu_v2_format_group,
 	&hisi_pa_pmu_v3_events_group,
-	&hisi_pa_pmu_cpumask_attr_group,
-	&hisi_pa_pmu_identifier_group,
+	&hisi_pmu_cpumask_attr_group,
+	&hisi_pmu_identifier_group,
 	NULL
 };
 
@@ -419,8 +396,8 @@ static struct hisi_pa_pmu_int_regs hisi_h60pa_pmu_regs = {
 static const struct attribute_group *hisi_h60pa_pmu_attr_groups[] = {
 	&hisi_pa_pmu_v2_format_group,
 	&hisi_h60pa_pmu_events_group,
-	&hisi_pa_pmu_cpumask_attr_group,
-	&hisi_pa_pmu_identifier_group,
+	&hisi_pmu_cpumask_attr_group,
+	&hisi_pmu_identifier_group,
 	NULL
 };
 

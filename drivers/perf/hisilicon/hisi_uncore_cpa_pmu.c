@@ -225,34 +225,11 @@ static const struct attribute_group hisi_cpa_pmu_events_group = {
 	.attrs = hisi_cpa_pmu_events_attr,
 };
 
-static DEVICE_ATTR(cpumask, 0444, hisi_cpumask_sysfs_show, NULL);
-
-static struct attribute *hisi_cpa_pmu_cpumask_attrs[] = {
-	&dev_attr_cpumask.attr,
-	NULL
-};
-
-static const struct attribute_group hisi_cpa_pmu_cpumask_attr_group = {
-	.attrs = hisi_cpa_pmu_cpumask_attrs,
-};
-
-static struct device_attribute hisi_cpa_pmu_identifier_attr =
-	__ATTR(identifier, 0444, hisi_uncore_pmu_identifier_attr_show, NULL);
-
-static struct attribute *hisi_cpa_pmu_identifier_attrs[] = {
-	&hisi_cpa_pmu_identifier_attr.attr,
-	NULL
-};
-
-static const struct attribute_group hisi_cpa_pmu_identifier_group = {
-	.attrs = hisi_cpa_pmu_identifier_attrs,
-};
-
 static const struct attribute_group *hisi_cpa_pmu_attr_groups[] = {
 	&hisi_cpa_pmu_format_group,
 	&hisi_cpa_pmu_events_group,
-	&hisi_cpa_pmu_cpumask_attr_group,
-	&hisi_cpa_pmu_identifier_group,
+	&hisi_pmu_cpumask_attr_group,
+	&hisi_pmu_identifier_group,
 	NULL
 };
 

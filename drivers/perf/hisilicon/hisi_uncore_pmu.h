@@ -137,6 +137,10 @@ struct hisi_pmu {
 	u32 identifier;
 };
 
+/* Generic implementation of cpumask/identifier group */
+extern const struct attribute_group hisi_pmu_cpumask_attr_group;
+extern const struct attribute_group hisi_pmu_identifier_group;
+
 int hisi_uncore_pmu_get_event_idx(struct perf_event *event);
 void hisi_uncore_pmu_read(struct perf_event *event);
 int hisi_uncore_pmu_add(struct perf_event *event, int flags);
