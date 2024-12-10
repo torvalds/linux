@@ -160,7 +160,7 @@ static int check_inode_hash_info_matches_root(struct btree_trans *trans, u64 inu
 	bch_err(c, "%s(): inum %llu not found", __func__, inum);
 	ret = -BCH_ERR_fsck_repair_unimplemented;
 	goto err;
-found:
+found:;
 	struct bch_inode_unpacked inode;
 	ret = bch2_inode_unpack(k, &inode);
 	if (ret)
