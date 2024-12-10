@@ -140,7 +140,7 @@ static int dsb_vtotal(struct intel_atomic_state *state,
 	const struct intel_crtc_state *crtc_state = pre_commit_crtc_state(state, crtc);
 
 	if (pre_commit_is_vrr_active(state, crtc))
-		return crtc_state->vrr.vmax;
+		return intel_vrr_vmax_vtotal(crtc_state);
 	else
 		return intel_mode_vtotal(&crtc_state->hw.adjusted_mode);
 }

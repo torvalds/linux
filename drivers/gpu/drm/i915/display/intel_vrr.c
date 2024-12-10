@@ -102,6 +102,17 @@ static int intel_vrr_vblank_exit_length(const struct intel_crtc_state *crtc_stat
 		return crtc_state->vrr.pipeline_full + crtc_state->framestart_delay + 1;
 }
 
+int intel_vrr_vmin_vtotal(const struct intel_crtc_state *crtc_state)
+{
+	/* Min vblank actually determined by flipline that is always >=vmin+1 */
+	return crtc_state->vrr.vmin + 1;
+}
+
+int intel_vrr_vmax_vtotal(const struct intel_crtc_state *crtc_state)
+{
+	return crtc_state->vrr.vmax;
+}
+
 int intel_vrr_vmin_vblank_start(const struct intel_crtc_state *crtc_state)
 {
 	/* Min vblank actually determined by flipline that is always >=vmin+1 */
