@@ -109,9 +109,16 @@ static bool pre_commit_is_vrr_active(struct intel_atomic_state *state,
 	return old_crtc_state->vrr.enable && !intel_crtc_vrr_disabling(state, crtc);
 }
 
-static int dsb_vblank_delay(const struct intel_crtc_state *crtc_state)
+static int dsb_vblank_delay(struct intel_atomic_state *state,
+			    struct intel_crtc *crtc)
 {
-	return intel_mode_vblank_delay(&crtc_state->hw.adjusted_mode);
+	const struct intel_crtc_state *crtc_state =
+		intel_pre_commit_crtc_state(state, crtc);
+
+	if (pre_commit_is_vrr_active(state, crtc))
+		return intel_vrr_vblank_delay(crtc_state);
+	else
+		return intel_mode_vblank_delay(&crtc_state->hw.adjusted_mode);
 }
 
 static int dsb_vtotal(struct intel_atomic_state *state,
@@ -520,10 +527,11 @@ void intel_dsb_vblank_evade(struct intel_atomic_state *state,
 		intel_pre_commit_crtc_state(state, crtc);
 	/* FIXME calibrate sensibly */
 	int latency = intel_usecs_to_scanlines(&crtc_state->hw.adjusted_mode, 20);
-	int vblank_delay = dsb_vblank_delay(crtc_state);
 	int start, end;
 
 	if (pre_commit_is_vrr_active(state, crtc)) {
+		int vblank_delay = intel_vrr_vblank_delay(crtc_state);
+
 		end = intel_vrr_vmin_vblank_start(crtc_state);
 		start = end - vblank_delay - latency;
 		intel_dsb_wait_scanline_out(state, dsb, start, end);
@@ -532,6 +540,8 @@ void intel_dsb_vblank_evade(struct intel_atomic_state *state,
 		start = end - vblank_delay - latency;
 		intel_dsb_wait_scanline_out(state, dsb, start, end);
 	} else {
+		int vblank_delay = intel_mode_vblank_delay(&crtc_state->hw.adjusted_mode);
+
 		end = intel_mode_vblank_start(&crtc_state->hw.adjusted_mode);
 		start = end - vblank_delay - latency;
 		intel_dsb_wait_scanline_out(state, dsb, start, end);
@@ -612,7 +622,7 @@ void intel_dsb_wait_vblank_delay(struct intel_atomic_state *state,
 	const struct intel_crtc_state *crtc_state =
 		intel_pre_commit_crtc_state(state, crtc);
 	int usecs = intel_scanlines_to_usecs(&crtc_state->hw.adjusted_mode,
-					     dsb_vblank_delay(crtc_state)) + 1;
+					     dsb_vblank_delay(state, crtc)) + 1;
 
 	intel_dsb_wait_usec(dsb, usecs);
 }

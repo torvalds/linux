@@ -647,6 +647,7 @@ void intel_vblank_evade_init(const struct intel_crtc_state *old_crtc_state,
 	struct intel_crtc *crtc = to_intel_crtc(new_crtc_state->uapi.crtc);
 	const struct intel_crtc_state *crtc_state;
 	const struct drm_display_mode *adjusted_mode;
+	int vblank_delay;
 
 	evade->crtc = crtc;
 
@@ -668,8 +669,12 @@ void intel_vblank_evade_init(const struct intel_crtc_state *old_crtc_state,
 			evade->vblank_start = intel_vrr_vmin_vblank_start(crtc_state);
 		else
 			evade->vblank_start = intel_vrr_vmax_vblank_start(crtc_state);
+
+		vblank_delay = intel_vrr_vblank_delay(crtc_state);
 	} else {
 		evade->vblank_start = intel_mode_vblank_start(adjusted_mode);
+
+		vblank_delay = intel_mode_vblank_delay(adjusted_mode);
 	}
 
 	/* FIXME needs to be calibrated sensibly */
@@ -687,7 +692,7 @@ void intel_vblank_evade_init(const struct intel_crtc_state *old_crtc_state,
 	 */
 	if (intel_color_uses_dsb(new_crtc_state) ||
 	    new_crtc_state->update_m_n || new_crtc_state->update_lrr)
-		evade->min -= intel_mode_vblank_delay(adjusted_mode);
+		evade->min -= vblank_delay;
 }
 
 /* must be called with vblank interrupt already enabled! */

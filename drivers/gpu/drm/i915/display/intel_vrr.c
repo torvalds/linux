@@ -75,6 +75,12 @@ intel_vrr_check_modeset(struct intel_atomic_state *state)
 	}
 }
 
+int intel_vrr_vblank_delay(const struct intel_crtc_state *crtc_state)
+{
+	return crtc_state->hw.adjusted_mode.crtc_vblank_start -
+		crtc_state->hw.adjusted_mode.crtc_vdisplay;
+}
+
 /*
  * Without VRR registers get latched at:
  *  vblank_start
