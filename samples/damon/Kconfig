@@ -14,4 +14,17 @@ config SAMPLE_DAMON_WSSE
 
 	  If unsure, say N.
 
+config SAMPLE_DAMON_PRCL
+	bool "DAMON sameple module for access-aware proactive reclamation"
+	depends on DAMON && DAMON_VADDR
+	help
+	  This builds DAMON sample module for access-aware proactive
+	  reclamation.
+
+	  The module receives a pid, monitor access to the virtual address
+	  space of the process, find memory regions that not accessed, and
+	  proactively reclaim the regions.
+
+	  If unsure, say N.
+
 endmenu
