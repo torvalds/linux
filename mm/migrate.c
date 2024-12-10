@@ -68,20 +68,12 @@ bool isolate_movable_page(struct page *page, isolate_mode_t mode)
 	if (!folio)
 		goto out;
 
-	if (unlikely(folio_test_slab(folio)))
-		goto out_putfolio;
-	/* Pairs with smp_wmb() in slab freeing, e.g. SLUB's __free_slab() */
-	smp_rmb();
 	/*
 	 * Check movable flag before taking the page lock because
 	 * we use non-atomic bitops on newly allocated page flags so
 	 * unconditionally grabbing the lock ruins page's owner side.
 	 */
 	if (unlikely(!__folio_test_movable(folio)))
-		goto out_putfolio;
-	/* Pairs with smp_wmb() in slab allocation, e.g. SLUB's alloc_slab_page() */
-	smp_rmb();
-	if (unlikely(folio_test_slab(folio)))
 		goto out_putfolio;
 
 	/*
