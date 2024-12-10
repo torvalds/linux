@@ -325,6 +325,24 @@ static struct clk_rcg2 gcc_xo_clk_src = {
 	},
 };
 
+static struct clk_branch gcc_xo_clk = {
+	.halt_reg = 0x34018,
+	.halt_check = BRANCH_HALT,
+	.clkr = {
+		.enable_reg = 0x34018,
+		.enable_mask = BIT(0),
+		.hw.init = &(const struct clk_init_data) {
+			.name = "gcc_xo_clk",
+			.parent_hws = (const struct clk_hw*[]) {
+				&gcc_xo_clk_src.clkr.hw,
+			},
+			.num_parents = 1,
+			.flags = CLK_SET_RATE_PARENT,
+			.ops = &clk_branch2_ops,
+		},
+	},
+};
+
 static struct clk_fixed_factor gcc_xo_div4_clk_src = {
 	.mult = 1,
 	.div = 4,
@@ -2901,6 +2919,7 @@ static struct clk_regmap *gcc_ipq5424_clocks[] = {
 	[GCC_QPIC_CLK_SRC] = &gcc_qpic_clk_src.clkr,
 	[GCC_QPIC_AHB_CLK] = &gcc_qpic_ahb_clk.clkr,
 	[GCC_XO_CLK_SRC] = &gcc_xo_clk_src.clkr,
+	[GCC_XO_CLK] = &gcc_xo_clk.clkr,
 	[GCC_QDSS_DAP_CLK] = &gcc_qdss_dap_clk.clkr,
 	[GCC_QDSS_AT_CLK] = &gcc_qdss_at_clk.clkr,
 	[GPLL0] = &gpll0.clkr,
