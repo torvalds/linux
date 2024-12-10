@@ -507,6 +507,7 @@ static void __exit hisi_sllc_pmu_module_exit(void)
 }
 module_exit(hisi_sllc_pmu_module_exit);
 
+MODULE_IMPORT_NS("HISI_PMU");
 MODULE_DESCRIPTION("HiSilicon SLLC uncore PMU driver");
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Shaokun Zhang <zhangshaokun@hisilicon.com>");

@@ -389,6 +389,7 @@ static void __exit hisi_cpa_pmu_module_exit(void)
 }
 module_exit(hisi_cpa_pmu_module_exit);
 
+MODULE_IMPORT_NS("HISI_PMU");
 MODULE_DESCRIPTION("HiSilicon SoC CPA PMU driver");
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Qi Liu <liuqi115@huawei.com>");

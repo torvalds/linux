@@ -615,6 +615,7 @@ static void __exit hisi_l3c_pmu_module_exit(void)
 }
 module_exit(hisi_l3c_pmu_module_exit);
 
+MODULE_IMPORT_NS("HISI_PMU");
 MODULE_DESCRIPTION("HiSilicon SoC L3C uncore PMU driver");
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Anurup M <anurup.m@huawei.com>");

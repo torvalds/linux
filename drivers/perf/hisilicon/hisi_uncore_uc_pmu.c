@@ -613,6 +613,7 @@ static void __exit hisi_uc_pmu_module_exit(void)
 }
 module_exit(hisi_uc_pmu_module_exit);
 
+MODULE_IMPORT_NS("HISI_PMU");
 MODULE_DESCRIPTION("HiSilicon SoC UC uncore PMU driver");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Junhao He <hejunhao3@huawei.com>");

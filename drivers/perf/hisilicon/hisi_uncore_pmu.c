@@ -34,7 +34,7 @@ ssize_t hisi_event_sysfs_show(struct device *dev,
 
 	return sysfs_emit(page, "config=0x%lx\n", (unsigned long)eattr->var);
 }
-EXPORT_SYMBOL_GPL(hisi_event_sysfs_show);
+EXPORT_SYMBOL_NS_GPL(hisi_event_sysfs_show, "HISI_PMU");
 
 /*
  * sysfs cpumask attributes. For uncore PMU, we only have a single CPU to show
@@ -46,7 +46,7 @@ ssize_t hisi_cpumask_sysfs_show(struct device *dev,
 
 	return sysfs_emit(buf, "%d\n", hisi_pmu->on_cpu);
 }
-EXPORT_SYMBOL_GPL(hisi_cpumask_sysfs_show);
+EXPORT_SYMBOL_NS_GPL(hisi_cpumask_sysfs_show, "HISI_PMU");
 
 static bool hisi_validate_event_group(struct perf_event *event)
 {
@@ -96,7 +96,7 @@ int hisi_uncore_pmu_get_event_idx(struct perf_event *event)
 
 	return idx;
 }
-EXPORT_SYMBOL_GPL(hisi_uncore_pmu_get_event_idx);
+EXPORT_SYMBOL_NS_GPL(hisi_uncore_pmu_get_event_idx, "HISI_PMU");
 
 ssize_t hisi_uncore_pmu_identifier_attr_show(struct device *dev,
 					     struct device_attribute *attr,
@@ -106,7 +106,7 @@ ssize_t hisi_uncore_pmu_identifier_attr_show(struct device *dev,
 
 	return sysfs_emit(page, "0x%08x\n", hisi_pmu->identifier);
 }
-EXPORT_SYMBOL_GPL(hisi_uncore_pmu_identifier_attr_show);
+EXPORT_SYMBOL_NS_GPL(hisi_uncore_pmu_identifier_attr_show, "HISI_PMU");
 
 static void hisi_uncore_pmu_clear_event_idx(struct hisi_pmu *hisi_pmu, int idx)
 {
@@ -165,7 +165,7 @@ int hisi_uncore_pmu_init_irq(struct hisi_pmu *hisi_pmu,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(hisi_uncore_pmu_init_irq);
+EXPORT_SYMBOL_NS_GPL(hisi_uncore_pmu_init_irq, "HISI_PMU");
 
 int hisi_uncore_pmu_event_init(struct perf_event *event)
 {
@@ -219,7 +219,7 @@ int hisi_uncore_pmu_event_init(struct perf_event *event)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(hisi_uncore_pmu_event_init);
+EXPORT_SYMBOL_NS_GPL(hisi_uncore_pmu_event_init, "HISI_PMU");
 
 /*
  * Set the counter to count the event that we're interested in,
@@ -273,7 +273,7 @@ void hisi_uncore_pmu_set_event_period(struct perf_event *event)
 	/* Write start value to the hardware event counter */
 	hisi_pmu->ops->write_counter(hisi_pmu, hwc, val);
 }
-EXPORT_SYMBOL_GPL(hisi_uncore_pmu_set_event_period);
+EXPORT_SYMBOL_NS_GPL(hisi_uncore_pmu_set_event_period, "HISI_PMU");
 
 void hisi_uncore_pmu_event_update(struct perf_event *event)
 {
@@ -294,7 +294,7 @@ void hisi_uncore_pmu_event_update(struct perf_event *event)
 		HISI_MAX_PERIOD(hisi_pmu->counter_bits);
 	local64_add(delta, &event->count);
 }
-EXPORT_SYMBOL_GPL(hisi_uncore_pmu_event_update);
+EXPORT_SYMBOL_NS_GPL(hisi_uncore_pmu_event_update, "HISI_PMU");
 
 void hisi_uncore_pmu_start(struct perf_event *event, int flags)
 {
@@ -317,7 +317,7 @@ void hisi_uncore_pmu_start(struct perf_event *event, int flags)
 	hisi_uncore_pmu_enable_event(event);
 	perf_event_update_userpage(event);
 }
-EXPORT_SYMBOL_GPL(hisi_uncore_pmu_start);
+EXPORT_SYMBOL_NS_GPL(hisi_uncore_pmu_start, "HISI_PMU");
 
 void hisi_uncore_pmu_stop(struct perf_event *event, int flags)
 {
@@ -334,7 +334,7 @@ void hisi_uncore_pmu_stop(struct perf_event *event, int flags)
 	hisi_uncore_pmu_event_update(event);
 	hwc->state |= PERF_HES_UPTODATE;
 }
-EXPORT_SYMBOL_GPL(hisi_uncore_pmu_stop);
+EXPORT_SYMBOL_NS_GPL(hisi_uncore_pmu_stop, "HISI_PMU");
 
 int hisi_uncore_pmu_add(struct perf_event *event, int flags)
 {
@@ -357,7 +357,7 @@ int hisi_uncore_pmu_add(struct perf_event *event, int flags)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(hisi_uncore_pmu_add);
+EXPORT_SYMBOL_NS_GPL(hisi_uncore_pmu_add, "HISI_PMU");
 
 void hisi_uncore_pmu_del(struct perf_event *event, int flags)
 {
@@ -369,14 +369,14 @@ void hisi_uncore_pmu_del(struct perf_event *event, int flags)
 	perf_event_update_userpage(event);
 	hisi_pmu->pmu_events.hw_events[hwc->idx] = NULL;
 }
-EXPORT_SYMBOL_GPL(hisi_uncore_pmu_del);
+EXPORT_SYMBOL_NS_GPL(hisi_uncore_pmu_del, "HISI_PMU");
 
 void hisi_uncore_pmu_read(struct perf_event *event)
 {
 	/* Read hardware counter and update the perf counter statistics */
 	hisi_uncore_pmu_event_update(event);
 }
-EXPORT_SYMBOL_GPL(hisi_uncore_pmu_read);
+EXPORT_SYMBOL_NS_GPL(hisi_uncore_pmu_read, "HISI_PMU");
 
 void hisi_uncore_pmu_enable(struct pmu *pmu)
 {
@@ -389,7 +389,7 @@ void hisi_uncore_pmu_enable(struct pmu *pmu)
 
 	hisi_pmu->ops->start_counters(hisi_pmu);
 }
-EXPORT_SYMBOL_GPL(hisi_uncore_pmu_enable);
+EXPORT_SYMBOL_NS_GPL(hisi_uncore_pmu_enable, "HISI_PMU");
 
 void hisi_uncore_pmu_disable(struct pmu *pmu)
 {
@@ -397,7 +397,7 @@ void hisi_uncore_pmu_disable(struct pmu *pmu)
 
 	hisi_pmu->ops->stop_counters(hisi_pmu);
 }
-EXPORT_SYMBOL_GPL(hisi_uncore_pmu_disable);
+EXPORT_SYMBOL_NS_GPL(hisi_uncore_pmu_disable, "HISI_PMU");
 
 
 /*
@@ -484,7 +484,7 @@ int hisi_uncore_pmu_online_cpu(unsigned int cpu, struct hlist_node *node)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(hisi_uncore_pmu_online_cpu);
+EXPORT_SYMBOL_NS_GPL(hisi_uncore_pmu_online_cpu, "HISI_PMU");
 
 int hisi_uncore_pmu_offline_cpu(unsigned int cpu, struct hlist_node *node)
 {
@@ -515,7 +515,7 @@ int hisi_uncore_pmu_offline_cpu(unsigned int cpu, struct hlist_node *node)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(hisi_uncore_pmu_offline_cpu);
+EXPORT_SYMBOL_NS_GPL(hisi_uncore_pmu_offline_cpu, "HISI_PMU");
 
 void hisi_pmu_init(struct hisi_pmu *hisi_pmu, struct module *module)
 {
@@ -535,7 +535,7 @@ void hisi_pmu_init(struct hisi_pmu *hisi_pmu, struct module *module)
 	pmu->attr_groups        = hisi_pmu->pmu_events.attr_groups;
 	pmu->capabilities       = PERF_PMU_CAP_NO_EXCLUDE;
 }
-EXPORT_SYMBOL_GPL(hisi_pmu_init);
+EXPORT_SYMBOL_NS_GPL(hisi_pmu_init, "HISI_PMU");
 
 MODULE_DESCRIPTION("HiSilicon SoC uncore Performance Monitor driver framework");
 MODULE_LICENSE("GPL v2");
