@@ -19,6 +19,7 @@
 #include "imx-pcm.h"
 
 #define FSL_XCVR_CAPDS_SIZE	256
+#define SPDIF_NUM_RATES		7
 
 enum fsl_xcvr_pll_verison {
 	PLL_MX8MP,
@@ -57,6 +58,8 @@ struct fsl_xcvr {
 	u8 cap_ds[FSL_XCVR_CAPDS_SIZE];
 	struct work_struct work_rst;
 	spinlock_t lock; /* Protect hw_reset and trigger */
+	struct snd_pcm_hw_constraint_list spdif_constr_rates;
+	u32 spdif_constr_rates_list[SPDIF_NUM_RATES];
 };
 
 static const struct fsl_xcvr_pll_conf {
@@ -640,8 +643,12 @@ static int fsl_xcvr_startup(struct snd_pcm_substream *substream,
 	switch (xcvr->mode) {
 	case FSL_XCVR_MODE_SPDIF:
 	case FSL_XCVR_MODE_ARC:
-		ret = fsl_xcvr_constr(substream, &fsl_xcvr_spdif_channels_constr,
-				      &fsl_xcvr_spdif_rates_constr);
+		if (xcvr->soc_data->spdif_only && tx)
+			ret = fsl_xcvr_constr(substream, &fsl_xcvr_spdif_channels_constr,
+					      &xcvr->spdif_constr_rates);
+		else
+			ret = fsl_xcvr_constr(substream, &fsl_xcvr_spdif_channels_constr,
+					      &fsl_xcvr_spdif_rates_constr);
 		break;
 	case FSL_XCVR_MODE_EARC:
 		ret = fsl_xcvr_constr(substream, &fsl_xcvr_earc_channels_constr,
@@ -1545,6 +1552,15 @@ static int fsl_xcvr_probe(struct platform_device *pdev)
 
 	fsl_asoc_get_pll_clocks(dev, &xcvr->pll8k_clk,
 				&xcvr->pll11k_clk);
+
+	if (xcvr->soc_data->spdif_only) {
+		if (!(xcvr->pll8k_clk || xcvr->pll11k_clk))
+			xcvr->pll8k_clk = xcvr->phy_clk;
+		fsl_asoc_constrain_rates(&xcvr->spdif_constr_rates,
+					 &fsl_xcvr_spdif_rates_constr,
+					 xcvr->pll8k_clk, xcvr->pll11k_clk, NULL,
+					 xcvr->spdif_constr_rates_list);
+	}
 
 	xcvr->ram_addr = devm_platform_ioremap_resource_byname(pdev, "ram");
 	if (IS_ERR(xcvr->ram_addr))
