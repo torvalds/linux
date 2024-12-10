@@ -105,6 +105,21 @@ static int vcn_v5_0_0_early_init(struct amdgpu_ip_block *ip_block)
 	return amdgpu_vcn_early_init(adev);
 }
 
+void vcn_v5_0_0_alloc_ip_dump(struct amdgpu_device *adev)
+{
+	uint32_t reg_count = ARRAY_SIZE(vcn_reg_list_5_0);
+	uint32_t *ptr;
+
+	/* Allocate memory for VCN IP Dump buffer */
+	ptr = kcalloc(adev->vcn.num_vcn_inst * reg_count, sizeof(uint32_t), GFP_KERNEL);
+	if (!ptr) {
+		DRM_ERROR("Failed to allocate memory for VCN IP Dump\n");
+		adev->vcn.ip_dump = NULL;
+	} else {
+		adev->vcn.ip_dump = ptr;
+	}
+}
+
 /**
  * vcn_v5_0_0_sw_init - sw init for VCN block
  *
@@ -117,8 +132,6 @@ static int vcn_v5_0_0_sw_init(struct amdgpu_ip_block *ip_block)
 	struct amdgpu_ring *ring;
 	struct amdgpu_device *adev = ip_block->adev;
 	int i, r;
-	uint32_t reg_count = ARRAY_SIZE(vcn_reg_list_5_0);
-	uint32_t *ptr;
 
 	r = amdgpu_vcn_sw_init(adev);
 	if (r)
@@ -177,14 +190,7 @@ static int vcn_v5_0_0_sw_init(struct amdgpu_ip_block *ip_block)
 	if (adev->pg_flags & AMD_PG_SUPPORT_VCN_DPG)
 		adev->vcn.pause_dpg_mode = vcn_v5_0_0_pause_dpg_mode;
 
-	/* Allocate memory for VCN IP Dump buffer */
-	ptr = kcalloc(adev->vcn.num_vcn_inst * reg_count, sizeof(uint32_t), GFP_KERNEL);
-	if (!ptr) {
-		DRM_ERROR("Failed to allocate memory for VCN IP Dump\n");
-		adev->vcn.ip_dump = NULL;
-	} else {
-		adev->vcn.ip_dump = ptr;
-	}
+	vcn_v5_0_0_alloc_ip_dump(adev);
 
 	r = amdgpu_vcn_sysfs_reset_mask_init(adev);
 	if (r)
@@ -1357,7 +1363,8 @@ static void vcn_v5_0_0_set_irq_funcs(struct amdgpu_device *adev)
 	}
 }
 
-static void vcn_v5_0_print_ip_state(struct amdgpu_ip_block *ip_block, struct drm_printer *p)
+void vcn_v5_0_0_print_ip_state(struct amdgpu_ip_block *ip_block,
+			       struct drm_printer *p)
 {
 	struct amdgpu_device *adev = ip_block->adev;
 	int i, j;
@@ -1389,7 +1396,7 @@ static void vcn_v5_0_print_ip_state(struct amdgpu_ip_block *ip_block, struct drm
 	}
 }
 
-static void vcn_v5_0_dump_ip_state(struct amdgpu_ip_block *ip_block)
+void vcn_v5_0_0_dump_ip_state(struct amdgpu_ip_block *ip_block)
 {
 	struct amdgpu_device *adev = ip_block->adev;
 	int i, j;
@@ -1430,8 +1437,8 @@ static const struct amd_ip_funcs vcn_v5_0_0_ip_funcs = {
 	.wait_for_idle = vcn_v5_0_0_wait_for_idle,
 	.set_clockgating_state = vcn_v5_0_0_set_clockgating_state,
 	.set_powergating_state = vcn_v5_0_0_set_powergating_state,
-	.dump_ip_state = vcn_v5_0_dump_ip_state,
-	.print_ip_state = vcn_v5_0_print_ip_state,
+	.dump_ip_state = vcn_v5_0_0_dump_ip_state,
+	.print_ip_state = vcn_v5_0_0_print_ip_state,
 };
 
 const struct amdgpu_ip_block_version vcn_v5_0_0_ip_block = {

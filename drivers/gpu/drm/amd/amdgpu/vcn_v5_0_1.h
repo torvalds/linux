@@ -24,14 +24,6 @@
 #ifndef __VCN_v5_0_1_H__
 #define __VCN_v5_0_1_H__
 
-#define VCN_VID_SOC_ADDRESS                        0x1FC00
-#define VCN_AON_SOC_ADDRESS                        0x1F800
-#define VCN1_VID_SOC_ADDRESS                       0x48300
-#define VCN1_AON_SOC_ADDRESS                       0x48000
-
-#define VCN_VID_IP_ADDRESS                         0x0
-#define VCN_AON_IP_ADDRESS                         0x30000
-
 extern const struct amdgpu_ip_block_version vcn_v5_0_1_ip_block;
 
 #endif /* __VCN_v5_0_1_H__ */

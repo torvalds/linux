@@ -33,6 +33,7 @@
 #include "vcn/vcn_5_0_0_offset.h"
 #include "vcn/vcn_5_0_0_sh_mask.h"
 #include "ivsrcid/vcn/irqsrcs_vcn_5_0.h"
+#include "vcn_v5_0_0.h"
 #include "vcn_v5_0_1.h"
 
 #include <drm/drm_drv.h>
@@ -118,6 +119,8 @@ static int vcn_v5_0_1_sw_init(struct amdgpu_ip_block *ip_block)
 			amdgpu_vcn_fwlog_init(&adev->vcn.inst[i]);
 	}
 
+	vcn_v5_0_0_alloc_ip_dump(adev);
+
 	return 0;
 }
 
@@ -150,6 +153,8 @@ static int vcn_v5_0_1_sw_fini(struct amdgpu_ip_block *ip_block)
 		return r;
 
 	r = amdgpu_vcn_sw_fini(adev);
+
+	kfree(adev->vcn.ip_dump);
 
 	return r;
 }
@@ -1094,6 +1099,8 @@ static const struct amd_ip_funcs vcn_v5_0_1_ip_funcs = {
 	.post_soft_reset = NULL,
 	.set_clockgating_state = vcn_v5_0_1_set_clockgating_state,
 	.set_powergating_state = vcn_v5_0_1_set_powergating_state,
+	.dump_ip_state = vcn_v5_0_0_dump_ip_state,
+	.print_ip_state = vcn_v5_0_0_print_ip_state,
 };
 
 const struct amdgpu_ip_block_version vcn_v5_0_1_ip_block = {
