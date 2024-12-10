@@ -4615,7 +4615,8 @@ unsigned long pmt_gen_value_mask(unsigned int lsb, unsigned int msb)
 
 unsigned long pmt_read_counter(struct pmt_counter *ppmt, unsigned int domain_id)
 {
-	assert(domain_id < ppmt->num_domains);
+	if (domain_id >= ppmt->num_domains)
+		return 0;
 
 	const unsigned long *pmmio = ppmt->domains[domain_id].pcounter;
 	const unsigned long value = pmmio ? *pmmio : 0;
