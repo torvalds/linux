@@ -10,6 +10,7 @@
 #include "intel_crtc_state_dump.h"
 #include "intel_display_types.h"
 #include "intel_hdmi.h"
+#include "intel_vblank.h"
 #include "intel_vdsc.h"
 #include "intel_vrr.h"
 
@@ -282,6 +283,9 @@ void intel_crtc_state_dump(const struct intel_crtc_state *pipe_config,
 	if (pipe_config->has_audio)
 		drm_print_hex_dump(&p, "ELD: ", pipe_config->eld,
 				   drm_eld_size(pipe_config->eld));
+
+	drm_printf(&p, "scanline offset: %d\n",
+		   intel_crtc_scanline_offset(pipe_config));
 
 	drm_printf(&p, "vblank delay: %d, framestart delay: %d, MSA timing delay: %d\n",
 		   pipe_config->hw.adjusted_mode.crtc_vblank_start -
