@@ -295,12 +295,16 @@ static inline int dentry_cmp(const struct dentry *dentry, const unsigned char *c
 	return dentry_string_cmp(cs, ct, tcount);
 }
 
+/*
+ * long names are allocated separately from dentry and never modified.
+ * Refcounted, freeing is RCU-delayed.  See take_dentry_name_snapshot()
+ * for the reason why ->count and ->head can't be combined into a union.
+ * dentry_string_cmp() relies upon ->name[] being word-aligned.
+ */
 struct external_name {
-	struct {
-		atomic_t count;		// ->count and ->head can't be combined
-		struct rcu_head head;	// see take_dentry_name_snapshot()
-	} u;
-	unsigned char name[];
+	atomic_t count;
+	struct rcu_head head;
+	unsigned char name[] __aligned(sizeof(unsigned long));
 };
 
 static inline struct external_name *external_name(struct dentry *dentry)
@@ -344,7 +348,7 @@ retry:
 		struct external_name *p;
 		p = container_of(s, struct external_name, name[0]);
 		// get a valid reference
-		if (unlikely(!atomic_inc_not_zero(&p->u.count)))
+		if (unlikely(!atomic_inc_not_zero(&p->count)))
 			goto retry;
 		name->name.name = s;
 	}
@@ -361,8 +365,8 @@ void release_dentry_name_snapshot(struct name_snapshot *name)
 	if (unlikely(name->name.name != name->inline_name.string)) {
 		struct external_name *p;
 		p = container_of(name->name.name, struct external_name, name[0]);
-		if (unlikely(atomic_dec_and_test(&p->u.count)))
-			kfree_rcu(p, u.head);
+		if (unlikely(atomic_dec_and_test(&p->count)))
+			kfree_rcu(p, head);
 	}
 }
 EXPORT_SYMBOL(release_dentry_name_snapshot);
@@ -400,7 +404,7 @@ static void dentry_free(struct dentry *dentry)
 	WARN_ON(!hlist_unhashed(&dentry->d_u.d_alias));
 	if (unlikely(dname_external(dentry))) {
 		struct external_name *p = external_name(dentry);
-		if (likely(atomic_dec_and_test(&p->u.count))) {
+		if (likely(atomic_dec_and_test(&p->count))) {
 			call_rcu(&dentry->d_u.d_rcu, __d_free_external);
 			return;
 		}
@@ -1681,7 +1685,7 @@ static struct dentry *__d_alloc(struct super_block *sb, const struct qstr *name)
 			kmem_cache_free(dentry_cache, dentry); 
 			return NULL;
 		}
-		atomic_set(&p->u.count, 1);
+		atomic_set(&p->count, 1);
 		dname = p->name;
 	} else  {
 		dname = dentry->d_shortname.string;
@@ -2774,15 +2778,15 @@ static void copy_name(struct dentry *dentry, struct dentry *target)
 	if (unlikely(dname_external(dentry)))
 		old_name = external_name(dentry);
 	if (unlikely(dname_external(target))) {
-		atomic_inc(&external_name(target)->u.count);
+		atomic_inc(&external_name(target)->count);
 		dentry->d_name = target->d_name;
 	} else {
 		dentry->d_shortname = target->d_shortname;
 		dentry->d_name.name = dentry->d_shortname.string;
 		dentry->d_name.hash_len = target->d_name.hash_len;
 	}
-	if (old_name && likely(atomic_dec_and_test(&old_name->u.count)))
-		kfree_rcu(old_name, u.head);
+	if (old_name && likely(atomic_dec_and_test(&old_name->count)))
+		kfree_rcu(old_name, head);
 }
 
 /*
