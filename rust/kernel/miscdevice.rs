@@ -10,6 +10,7 @@
 
 use crate::{
     bindings,
+    device::Device,
     error::{to_result, Error, Result, VTABLE_DEFAULT_ERROR},
     fs::File,
     prelude::*,
@@ -84,6 +85,16 @@ impl<T: MiscDevice> MiscDeviceRegistration<T> {
     /// Returns a raw pointer to the misc device.
     pub fn as_raw(&self) -> *mut bindings::miscdevice {
         self.inner.get()
+    }
+
+    /// Access the `this_device` field.
+    pub fn device(&self) -> &Device {
+        // SAFETY: This can only be called after a successful register(), which always
+        // initialises `this_device` with a valid device. Furthermore, the signature of this
+        // function tells the borrow-checker that the `&Device` reference must not outlive the
+        // `&MiscDeviceRegistration<T>` used to obtain it, so the last use of the reference must be
+        // before the underlying `struct miscdevice` is destroyed.
+        unsafe { Device::as_ref((*self.as_raw()).this_device) }
     }
 }
 
