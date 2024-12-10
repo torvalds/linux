@@ -592,7 +592,8 @@ struct ufs_qcom_host {
 	bool work_pending;
 	bool bypass_g4_cfgready;
 	bool is_dt_pm_level_read;
-	u32 spm_lvl_default;
+	u32 spm_lvl_prev;
+	bool set_ds_spm_level;
 	u32 ufs_pm_mode;
 	bool is_phy_pwr_on;
 	/* Protect the usage of is_phy_pwr_on against racing */
