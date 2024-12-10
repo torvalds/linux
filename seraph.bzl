@@ -50,6 +50,7 @@ def define_seraph():
         "drivers/soc/qcom/mem_buf/mem_buf.ko",
         "drivers/soc/qcom/mem_buf/mem_buf_dev.ko",
         "drivers/soc/qcom/qcom_rpmh.ko",
+        "drivers/soc/qcom/qcom_wdt_core.ko",
         "drivers/soc/qcom/qmi_helpers.ko",
         "drivers/soc/qcom/smem.ko",
         "drivers/soc/qcom/socinfo.ko",
@@ -57,6 +58,7 @@ def define_seraph():
         "drivers/usb/dwc3/dwc3-msm.ko",
         "drivers/usb/phy/phy-generic.ko",
         "drivers/usb/phy/phy-qcom-emu.ko",
+        "drivers/virt/gunyah/gh_virt_wdt.ko",
         "net/mac80211/mac80211.ko",
         "net/wireless/cfg80211.ko",
     ]
