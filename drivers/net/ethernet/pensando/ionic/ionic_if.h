@@ -3209,7 +3209,11 @@ union ionic_adminq_comp {
 #define IONIC_BAR0_INTR_CTRL_OFFSET		0x2000
 #define IONIC_DEV_CMD_DONE			0x00000001
 
-#define IONIC_ASIC_TYPE_CAPRI			0
+#define IONIC_ASIC_TYPE_NONE			0
+#define IONIC_ASIC_TYPE_CAPRI			1
+#define IONIC_ASIC_TYPE_ELBA			2
+#define IONIC_ASIC_TYPE_GIGLIO			3
+#define IONIC_ASIC_TYPE_SALINA			4
 
 /**
  * struct ionic_doorbell - Doorbell register layout
