@@ -107,6 +107,12 @@ out:
 	return ret;
 }
 
+static void kill_btree(struct bch_fs *c, enum btree_id btree)
+{
+	bch2_btree_id_root(c, btree)->alive = false;
+	bch2_shoot_down_journal_keys(c, btree, 0, BTREE_MAX_DEPTH, POS_MIN, SPOS_MAX);
+}
+
 /* for -o reconstruct_alloc: */
 static void bch2_reconstruct_alloc(struct bch_fs *c)
 {
@@ -157,16 +163,9 @@ static void bch2_reconstruct_alloc(struct bch_fs *c)
 	bch2_write_super(c);
 	mutex_unlock(&c->sb_lock);
 
-	bch2_shoot_down_journal_keys(c, BTREE_ID_alloc,
-				     0, BTREE_MAX_DEPTH, POS_MIN, SPOS_MAX);
-	bch2_shoot_down_journal_keys(c, BTREE_ID_backpointers,
-				     0, BTREE_MAX_DEPTH, POS_MIN, SPOS_MAX);
-	bch2_shoot_down_journal_keys(c, BTREE_ID_need_discard,
-				     0, BTREE_MAX_DEPTH, POS_MIN, SPOS_MAX);
-	bch2_shoot_down_journal_keys(c, BTREE_ID_freespace,
-				     0, BTREE_MAX_DEPTH, POS_MIN, SPOS_MAX);
-	bch2_shoot_down_journal_keys(c, BTREE_ID_bucket_gens,
-				     0, BTREE_MAX_DEPTH, POS_MIN, SPOS_MAX);
+	for (unsigned i = 0; i < btree_id_nr_alive(c); i++)
+		if (btree_id_is_alloc(i))
+			kill_btree(c, i);
 }
 
 /*
@@ -573,9 +572,6 @@ static int read_btree_roots(struct bch_fs *c)
 		if (!r->alive)
 			continue;
 
-		if (btree_id_is_alloc(i) && c->opts.reconstruct_alloc)
-			continue;
-
 		printbuf_reset(&buf);
 		bch2_btree_id_level_to_text(&buf, i, r->level);
 
@@ -863,14 +859,14 @@ use_clean:
 	c->journal_replay_seq_start	= last_seq;
 	c->journal_replay_seq_end	= blacklist_seq - 1;
 
-	if (c->opts.reconstruct_alloc)
-		bch2_reconstruct_alloc(c);
-
 	zero_out_btree_mem_ptr(&c->journal_keys);
 
 	ret = journal_replay_early(c, clean);
 	if (ret)
 		goto err;
+
+	if (c->opts.reconstruct_alloc)
+		bch2_reconstruct_alloc(c);
 
 	/*
 	 * After an unclean shutdown, skip then next few journal sequence
