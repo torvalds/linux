@@ -633,20 +633,21 @@ static void spl_calculate_inits_and_viewports(struct spl_in *spl_in,
 
 		switch (spl_in->basic_in.cositing) {
 
-		case CHROMA_COSITING_LEFT:
-			init_adj_h = spl_fixpt_zero;
-			init_adj_v = spl_fixpt_from_fraction(sign, 4);
-			break;
-		case CHROMA_COSITING_NONE:
+		case CHROMA_COSITING_TOPLEFT:
 			init_adj_h = spl_fixpt_from_fraction(sign, 4);
 			init_adj_v = spl_fixpt_from_fraction(sign, 4);
 			break;
-		case CHROMA_COSITING_TOPLEFT:
+		case CHROMA_COSITING_LEFT:
+			init_adj_h = spl_fixpt_from_fraction(sign, 4);
+			init_adj_v = spl_fixpt_zero;
+			break;
+		case CHROMA_COSITING_NONE:
 		default:
 			init_adj_h = spl_fixpt_zero;
 			init_adj_v = spl_fixpt_zero;
 			break;
 		}
+
 	}
 
 	spl_calculate_init_and_vp(
