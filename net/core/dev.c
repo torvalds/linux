@@ -6557,18 +6557,22 @@ static void __napi_hash_add_with_id(struct napi_struct *napi,
 static void napi_hash_add_with_id(struct napi_struct *napi,
 				  unsigned int napi_id)
 {
-	spin_lock(&napi_hash_lock);
+	unsigned long flags;
+
+	spin_lock_irqsave(&napi_hash_lock, flags);
 	WARN_ON_ONCE(napi_by_id(napi_id));
 	__napi_hash_add_with_id(napi, napi_id);
-	spin_unlock(&napi_hash_lock);
+	spin_unlock_irqrestore(&napi_hash_lock, flags);
 }
 
 static void napi_hash_add(struct napi_struct *napi)
 {
+	unsigned long flags;
+
 	if (test_bit(NAPI_STATE_NO_BUSY_POLL, &napi->state))
 		return;
 
-	spin_lock(&napi_hash_lock);
+	spin_lock_irqsave(&napi_hash_lock, flags);
 
 	/* 0..NR_CPUS range is reserved for sender_cpu use */
 	do {
@@ -6578,7 +6582,7 @@ static void napi_hash_add(struct napi_struct *napi)
 
 	__napi_hash_add_with_id(napi, napi_gen_id);
 
-	spin_unlock(&napi_hash_lock);
+	spin_unlock_irqrestore(&napi_hash_lock, flags);
 }
 
 /* Warning : caller is responsible to make sure rcu grace period
@@ -6586,11 +6590,13 @@ static void napi_hash_add(struct napi_struct *napi)
  */
 static void napi_hash_del(struct napi_struct *napi)
 {
-	spin_lock(&napi_hash_lock);
+	unsigned long flags;
+
+	spin_lock_irqsave(&napi_hash_lock, flags);
 
 	hlist_del_init_rcu(&napi->napi_hash_node);
 
-	spin_unlock(&napi_hash_lock);
+	spin_unlock_irqrestore(&napi_hash_lock, flags);
 }
 
 static enum hrtimer_restart napi_watchdog(struct hrtimer *timer)

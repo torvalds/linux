@@ -763,7 +763,7 @@ static const struct dev_pm_ops debug_dev_pm_ops = {
 
 static struct platform_driver debug_platform_driver = {
 	.probe	= debug_platform_probe,
-	.remove_new = debug_platform_remove,
+	.remove = debug_platform_remove,
 	.driver	= {
 		.name			= "coresight-debug-platform",
 		.acpi_match_table	= ACPI_PTR(debug_platform_ids),

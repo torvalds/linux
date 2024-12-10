@@ -208,6 +208,10 @@ static int __init numa_register_nodes(void)
 {
 	int nid;
 
+	/* Check the validity of the memblock/node mapping */
+	if (!memblock_validate_numa_coverage(0))
+		return -EINVAL;
+
 	/* Finally register nodes. */
 	for_each_node_mask(nid, numa_nodes_parsed) {
 		unsigned long start_pfn, end_pfn;

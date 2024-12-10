@@ -1730,7 +1730,7 @@ static struct pci_driver exar_pci_driver = {
 };
 module_pci_driver(exar_pci_driver);
 
-MODULE_IMPORT_NS(SERIAL_8250_PCI);
+MODULE_IMPORT_NS("SERIAL_8250_PCI");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Exar Serial Driver");
 MODULE_AUTHOR("Sudip Mukherjee <sudip.mukherjee@codethink.co.uk>");

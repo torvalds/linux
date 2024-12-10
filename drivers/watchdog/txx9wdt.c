@@ -159,7 +159,7 @@ static void txx9wdt_shutdown(struct platform_device *dev)
 
 static struct platform_driver txx9wdt_driver = {
 	.probe = txx9wdt_probe,
-	.remove_new = txx9wdt_remove,
+	.remove = txx9wdt_remove,
 	.shutdown = txx9wdt_shutdown,
 	.driver = {
 		.name = "txx9wdt",

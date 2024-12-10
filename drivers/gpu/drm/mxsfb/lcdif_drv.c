@@ -368,7 +368,7 @@ static const struct dev_pm_ops lcdif_pm_ops = {
 
 static struct platform_driver lcdif_platform_driver = {
 	.probe		= lcdif_probe,
-	.remove_new	= lcdif_remove,
+	.remove		= lcdif_remove,
 	.shutdown	= lcdif_shutdown,
 	.driver	= {
 		.name		= "imx-lcdif",

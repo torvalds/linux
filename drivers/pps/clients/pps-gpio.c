@@ -239,7 +239,7 @@ MODULE_DEVICE_TABLE(of, pps_gpio_dt_ids);
 
 static struct platform_driver pps_gpio_driver = {
 	.probe		= pps_gpio_probe,
-	.remove_new	= pps_gpio_remove,
+	.remove		= pps_gpio_remove,
 	.driver		= {
 		.name	= PPS_GPIO_NAME,
 		.of_match_table	= pps_gpio_dt_ids,

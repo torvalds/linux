@@ -409,7 +409,7 @@ MODULE_DEVICE_TABLE(of, imx8qxp_pixel_link_dt_ids);
 
 static struct platform_driver imx8qxp_pixel_link_bridge_driver = {
 	.probe	= imx8qxp_pixel_link_bridge_probe,
-	.remove_new = imx8qxp_pixel_link_bridge_remove,
+	.remove = imx8qxp_pixel_link_bridge_remove,
 	.driver	= {
 		.of_match_table = imx8qxp_pixel_link_dt_ids,
 		.name = DRIVER_NAME,

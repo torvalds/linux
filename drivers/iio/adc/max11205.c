@@ -177,4 +177,4 @@ module_spi_driver(max11205_spi_driver);
 MODULE_AUTHOR("Ramona Bolboaca <ramona.bolboaca@analog.com>");
 MODULE_DESCRIPTION("MAX11205 ADC driver");
 MODULE_LICENSE("GPL v2");
-MODULE_IMPORT_NS(IIO_AD_SIGMA_DELTA);
+MODULE_IMPORT_NS("IIO_AD_SIGMA_DELTA");
