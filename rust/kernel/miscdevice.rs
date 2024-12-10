@@ -97,14 +97,14 @@ impl<T> PinnedDrop for MiscDeviceRegistration<T> {
 
 /// Trait implemented by the private data of an open misc device.
 #[vtable]
-pub trait MiscDevice {
+pub trait MiscDevice: Sized {
     /// What kind of pointer should `Self` be wrapped in.
     type Ptr: ForeignOwnable + Send + Sync;
 
     /// Called when the misc device is opened.
     ///
     /// The returned pointer will be stored as the private data for the file.
-    fn open(_file: &File) -> Result<Self::Ptr>;
+    fn open(_file: &File, _misc: &MiscDeviceRegistration<Self>) -> Result<Self::Ptr>;
 
     /// Called when the misc device is released.
     fn release(device: Self::Ptr, _file: &File) {
@@ -182,24 +182,38 @@ const fn create_vtable<T: MiscDevice>() -> &'static bindings::file_operations {
 /// The file must be associated with a `MiscDeviceRegistration<T>`.
 unsafe extern "C" fn fops_open<T: MiscDevice>(
     inode: *mut bindings::inode,
-    file: *mut bindings::file,
+    raw_file: *mut bindings::file,
 ) -> c_int {
     // SAFETY: The pointers are valid and for a file being opened.
-    let ret = unsafe { bindings::generic_file_open(inode, file) };
+    let ret = unsafe { bindings::generic_file_open(inode, raw_file) };
     if ret != 0 {
         return ret;
     }
 
+    // SAFETY: The open call of a file can access the private data.
+    let misc_ptr = unsafe { (*raw_file).private_data };
+
+    // SAFETY: This is a miscdevice, so `misc_open()` set the private data to a pointer to the
+    // associated `struct miscdevice` before calling into this method. Furthermore, `misc_open()`
+    // ensures that the miscdevice can't be unregistered and freed during this call to `fops_open`.
+    let misc = unsafe { &*misc_ptr.cast::<MiscDeviceRegistration<T>>() };
+
     // SAFETY:
-    // * The file is valid for the duration of this call.
+    // * This underlying file is valid for (much longer than) the duration of `T::open`.
     // * There is no active fdget_pos region on the file on this thread.
-    let ptr = match T::open(unsafe { File::from_raw_file(file) }) {
+    let file = unsafe { File::from_raw_file(raw_file) };
+
+    let ptr = match T::open(file, misc) {
         Ok(ptr) => ptr,
         Err(err) => return err.to_errno(),
     };
 
-    // SAFETY: The open call of a file owns the private data.
-    unsafe { (*file).private_data = ptr.into_foreign().cast_mut() };
+    // This overwrites the private data with the value specified by the user, changing the type of
+    // this file's private data. All future accesses to the private data is performed by other
+    // fops_* methods in this file, which all correctly cast the private data to the new type.
+    //
+    // SAFETY: The open call of a file can access the private data.
+    unsafe { (*raw_file).private_data = ptr.into_foreign().cast_mut() };
 
     0
 }
