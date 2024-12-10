@@ -111,14 +111,14 @@ static void hisi_ddrc_pmu_v2_write_counter(struct hisi_pmu *ddrc_pmu,
  * so there is no need to write event type, while it is programmable counter in
  * PMU v2.
  */
-static void hisi_ddrc_pmu_write_evtype(struct hisi_pmu *hha_pmu, int idx,
+static void hisi_ddrc_pmu_write_evtype(struct hisi_pmu *ddrc_pmu, int idx,
 				       u32 type)
 {
 	u32 offset;
 
-	if (hha_pmu->identifier >= HISI_PMU_V2) {
+	if (ddrc_pmu->identifier >= HISI_PMU_V2) {
 		offset = DDRC_V2_EVENT_TYPE + 4 * idx;
-		writel(type, hha_pmu->base + offset);
+		writel(type, ddrc_pmu->base + offset);
 	}
 }
 
