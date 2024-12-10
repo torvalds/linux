@@ -2610,14 +2610,27 @@ static int intel_crtc_compute_pipe_mode(struct intel_crtc_state *crtc_state)
 	return 0;
 }
 
-static bool intel_crtc_needs_wa_14015401596(struct intel_crtc_state *crtc_state)
+static bool intel_crtc_needs_wa_14015401596(const struct intel_crtc_state *crtc_state)
 {
 	struct intel_display *display = to_intel_display(crtc_state);
-	const struct drm_display_mode *adjusted_mode = &crtc_state->hw.adjusted_mode;
 
 	return intel_vrr_possible(crtc_state) && crtc_state->has_psr &&
-		adjusted_mode->crtc_vblank_start == adjusted_mode->crtc_vdisplay &&
 		IS_DISPLAY_VER(display, 13, 14);
+}
+
+static int intel_crtc_vblank_delay(const struct intel_crtc_state *crtc_state)
+{
+	struct intel_display *display = to_intel_display(crtc_state);
+	int vblank_delay = 0;
+
+	if (!HAS_DSB(display))
+		return 0;
+
+	/* Wa_14015401596 */
+	if (intel_crtc_needs_wa_14015401596(crtc_state))
+		vblank_delay = max(vblank_delay, 1);
+
+	return vblank_delay;
 }
 
 static int intel_crtc_compute_config(struct intel_atomic_state *state,
@@ -2629,9 +2642,8 @@ static int intel_crtc_compute_config(struct intel_atomic_state *state,
 		&crtc_state->hw.adjusted_mode;
 	int ret;
 
-	/* Wa_14015401596 */
-	if (intel_crtc_needs_wa_14015401596(crtc_state))
-		adjusted_mode->crtc_vblank_start += 1;
+	adjusted_mode->crtc_vblank_start +=
+		intel_crtc_vblank_delay(crtc_state);
 
 	ret = intel_dpll_crtc_compute_clock(state, crtc);
 	if (ret)
