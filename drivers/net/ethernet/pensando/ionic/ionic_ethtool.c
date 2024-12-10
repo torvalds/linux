@@ -968,6 +968,7 @@ static int ionic_get_module_info(struct net_device *netdev,
 		break;
 	case SFF8024_ID_QSFP_8436_8636:
 	case SFF8024_ID_QSFP28_8636:
+	case SFF8024_ID_QSFP_PLUS_CMIS:
 		modinfo->type = ETH_MODULE_SFF_8436;
 		modinfo->eeprom_len = ETH_MODULE_SFF_8436_LEN;
 		break;
