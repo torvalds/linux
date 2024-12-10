@@ -250,9 +250,6 @@ void intel_crtc_state_dump(const struct intel_crtc_state *pipe_config,
 			   str_enabled_disabled(pipe_config->enable_psr2_sel_fetch));
 	}
 
-	drm_printf(&p, "framestart delay: %d, MSA timing delay: %d\n",
-		   pipe_config->framestart_delay, pipe_config->msa_timing_delay);
-
 	drm_printf(&p, "audio: %i, infoframes: %i, infoframes enabled: 0x%x\n",
 		   pipe_config->has_audio, pipe_config->has_infoframe,
 		   pipe_config->infoframes.enable);
@@ -285,6 +282,9 @@ void intel_crtc_state_dump(const struct intel_crtc_state *pipe_config,
 	if (pipe_config->has_audio)
 		drm_print_hex_dump(&p, "ELD: ", pipe_config->eld,
 				   drm_eld_size(pipe_config->eld));
+
+	drm_printf(&p, "framestart delay: %d, MSA timing delay: %d\n",
+		   pipe_config->framestart_delay, pipe_config->msa_timing_delay);
 
 	drm_printf(&p, "vrr: %s, vmin: %d, vmax: %d, pipeline full: %d, guardband: %d flipline: %d, vmin vblank: %d, vmax vblank: %d\n",
 		   str_yes_no(pipe_config->vrr.enable),
