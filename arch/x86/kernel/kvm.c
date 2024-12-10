@@ -927,64 +927,87 @@ static bool __init kvm_msi_ext_dest_id(void)
 
 static void kvm_sev_hc_page_enc_status(unsigned long pfn, int npages, bool enc)
 {
-	kvm_sev_hypercall3(KVM_HC_MAP_GPA_RANGE, pfn << PAGE_SHIFT, npages,
-			   KVM_MAP_GPA_RANGE_ENC_STAT(enc) | KVM_MAP_GPA_RANGE_PAGE_SZ_4K);
+    unsigned long end_pfn = pfn + npages;
+
+    // Input validation: Ensure that the page frame numbers are aligned and within bounds
+    if (pfn % PAGE_SIZE != 0) {
+        pr_err("Invalid memory address: pfn is not page-aligned\n");
+        return;
+    }
+
+    if (end_pfn > MAX_MEMORY_PFN) {
+        pr_err("Memory range exceeds maximum allowed physical address space\n");
+        return;
+    }
+
+    if (npages <= 0) {
+        pr_err("Invalid number of pages: npages must be positive\n");
+        return;
+    }
+
+    // Debugging: Log the memory encryption status change for traceability
+    pr_info("Changing encryption status for memory range: [0x%lx - 0x%lx] to %s\n", pfn, end_pfn - 1, enc ? "encrypted" : "decrypted");
+
+    // Perform the hypercall to update encryption status
+    if (kvm_sev_hypercall3(KVM_HC_MAP_GPA_RANGE, pfn << PAGE_SHIFT, npages,
+                           KVM_MAP_GPA_RANGE_ENC_STAT(enc) | KVM_MAP_GPA_RANGE_PAGE_SZ_4K)) {
+        pr_err("Failed to update memory encryption status for range [0x%lx - 0x%lx]\n", pfn, end_pfn - 1);
+    }
 }
 
 static void __init kvm_init_platform(void)
 {
-	if (cc_platform_has(CC_ATTR_GUEST_MEM_ENCRYPT) &&
-	    kvm_para_has_feature(KVM_FEATURE_MIGRATION_CONTROL)) {
-		unsigned long nr_pages;
-		int i;
+    if (cc_platform_has(CC_ATTR_GUEST_MEM_ENCRYPT) && kvm_para_has_feature(KVM_FEATURE_MIGRATION_CONTROL)) {
+        unsigned long nr_pages;
+        int i;
 
-		pv_ops.mmu.notify_page_enc_status_changed =
-			kvm_sev_hc_page_enc_status;
+        pv_ops.mmu.notify_page_enc_status_changed = kvm_sev_hc_page_enc_status;
 
-		/*
-		 * Reset the host's shared pages list related to kernel
-		 * specific page encryption status settings before we load a
-		 * new kernel by kexec. Reset the page encryption status
-		 * during early boot instead of just before kexec to avoid SMP
-		 * races during kvm_pv_guest_cpu_reboot().
-		 * NOTE: We cannot reset the complete shared pages list
-		 * here as we need to retain the UEFI/OVMF firmware
-		 * specific settings.
-		 */
+        for (i = 0; i < e820_table->nr_entries; i++) {
+            struct e820_entry *entry = &e820_table->entries[i];
 
-		for (i = 0; i < e820_table->nr_entries; i++) {
-			struct e820_entry *entry = &e820_table->entries[i];
+            if (entry->type != E820_TYPE_RAM)
+                continue;
 
-			if (entry->type != E820_TYPE_RAM)
-				continue;
+            nr_pages = DIV_ROUND_UP(entry->size, PAGE_SIZE);
 
-			nr_pages = DIV_ROUND_UP(entry->size, PAGE_SIZE);
+            // Input validation for memory range
+            if (entry->addr % PAGE_SIZE != 0) {
+                pr_err("Invalid memory address in e820 entry (not page-aligned): 0x%lx\n", entry->addr);
+                continue;
+            }
 
-			kvm_sev_hypercall3(KVM_HC_MAP_GPA_RANGE, entry->addr,
-				       nr_pages,
-				       KVM_MAP_GPA_RANGE_ENCRYPTED | KVM_MAP_GPA_RANGE_PAGE_SZ_4K);
-		}
+            if (entry->addr + entry->size > MAX_MEMORY_ADDR) {
+                pr_err("Memory range in e820 entry exceeds maximum allowed address space: 0x%lx\n", entry->addr);
+                continue;
+            }
 
-		/*
-		 * Ensure that _bss_decrypted section is marked as decrypted in the
-		 * shared pages list.
-		 */
-		early_set_mem_enc_dec_hypercall((unsigned long)__start_bss_decrypted,
-						__end_bss_decrypted - __start_bss_decrypted, 0);
+            // Log memory encryption status for debugging
+            pr_info("Encrypting memory range in e820 entry: [0x%lx - 0x%lx]\n", entry->addr, entry->addr + entry->size - 1);
 
-		/*
-		 * If not booted using EFI, enable Live migration support.
-		 */
-		if (!efi_enabled(EFI_BOOT))
-			wrmsrl(MSR_KVM_MIGRATION_CONTROL,
-			       KVM_MIGRATION_READY);
-	}
-	kvmclock_init();
-	x86_platform.apic_post_init = kvm_apic_init;
+            // Perform memory encryption for the range
+            kvm_sev_hypercall3(KVM_HC_MAP_GPA_RANGE, entry->addr, nr_pages,
+                               KVM_MAP_GPA_RANGE_ENCRYPTED | KVM_MAP_GPA_RANGE_PAGE_SZ_4K);
+        }
 
-	/* Set WB as the default cache mode for SEV-SNP and TDX */
-	mtrr_overwrite_state(NULL, 0, MTRR_TYPE_WRBACK);
+        // Ensure that _bss_decrypted section is marked as decrypted
+        early_set_mem_enc_dec_hypercall((unsigned long)__start_bss_decrypted,
+                                        __end_bss_decrypted - __start_bss_decrypted, 0);
+
+        // Log that the memory is being decrypted
+        pr_info("Marking _bss_decrypted section as decrypted\n");
+
+        if (!efi_enabled(EFI_BOOT))
+            wrmsrl(MSR_KVM_MIGRATION_CONTROL, KVM_MIGRATION_READY);
+    }
+
+    kvmclock_init();
+    x86_platform.apic_post_init = kvm_apic_init;
+
+    // Set WB as the default cache mode for SEV-SNP and TDX
+    mtrr_overwrite_state(NULL, 0, MTRR_TYPE_WRBACK);
 }
+
 
 #if defined(CONFIG_AMD_MEM_ENCRYPT)
 static void kvm_sev_es_hcall_prepare(struct ghcb *ghcb, struct pt_regs *regs)
