@@ -499,9 +499,16 @@ int hisi_uncore_pmu_offline_cpu(unsigned int cpu, struct hlist_node *node)
 	/* Give up ownership of the PMU */
 	hisi_pmu->on_cpu = -1;
 
-	/* Choose a new CPU to migrate ownership of the PMU to */
+	/*
+	 * Migrate ownership of the PMU to a new CPU chosen from PMU's online
+	 * associated CPUs if possible, if no associated CPU online then
+	 * migrate to one online CPU.
+	 */
 	target = cpumask_any_and_but(&hisi_pmu->associated_cpus,
 				     cpu_online_mask, cpu);
+	if (target >= nr_cpu_ids)
+		target = cpumask_any_but(cpu_online_mask, cpu);
+
 	if (target >= nr_cpu_ids)
 		return 0;
 
