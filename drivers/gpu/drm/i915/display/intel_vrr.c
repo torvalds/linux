@@ -117,30 +117,41 @@ static int intel_vrr_vblank_exit_length(const struct intel_crtc_state *crtc_stat
 	if (DISPLAY_VER(display) >= 13)
 		return crtc_state->vrr.guardband;
 	else
-		/* The hw imposes the extra scanline before frame start */
+		/* hardware imposes one extra scanline somewhere */
 		return crtc_state->vrr.pipeline_full + crtc_state->framestart_delay + 1;
 }
 
 int intel_vrr_vmin_vtotal(const struct intel_crtc_state *crtc_state)
 {
+	struct intel_display *display = to_intel_display(crtc_state);
+
 	/* Min vblank actually determined by flipline */
-	return intel_vrr_vmin_flipline(crtc_state);
+	if (DISPLAY_VER(display) >= 13)
+		return intel_vrr_vmin_flipline(crtc_state);
+	else
+		return intel_vrr_vmin_flipline(crtc_state) +
+			intel_vrr_vblank_delay(crtc_state);
 }
 
 int intel_vrr_vmax_vtotal(const struct intel_crtc_state *crtc_state)
 {
-	return crtc_state->vrr.vmax;
+	struct intel_display *display = to_intel_display(crtc_state);
+
+	if (DISPLAY_VER(display) >= 13)
+		return crtc_state->vrr.vmax;
+	else
+		return crtc_state->vrr.vmax +
+			intel_vrr_vblank_delay(crtc_state);
 }
 
 int intel_vrr_vmin_vblank_start(const struct intel_crtc_state *crtc_state)
 {
-	/* Min vblank actually determined by flipline */
-	return intel_vrr_vmin_flipline(crtc_state) - intel_vrr_vblank_exit_length(crtc_state);
+	return intel_vrr_vmin_vtotal(crtc_state) - intel_vrr_vblank_exit_length(crtc_state);
 }
 
 int intel_vrr_vmax_vblank_start(const struct intel_crtc_state *crtc_state)
 {
-	return crtc_state->vrr.vmax - intel_vrr_vblank_exit_length(crtc_state);
+	return intel_vrr_vmax_vtotal(crtc_state) - intel_vrr_vblank_exit_length(crtc_state);
 }
 
 static bool
@@ -289,9 +300,18 @@ void intel_vrr_compute_config_late(struct intel_crtc_state *crtc_state)
 		crtc_state->vrr.guardband =
 			crtc_state->vrr.vmin - adjusted_mode->crtc_vblank_start;
 	} else {
+		/* hardware imposes one extra scanline somewhere */
 		crtc_state->vrr.pipeline_full =
 			min(255, crtc_state->vrr.vmin - adjusted_mode->crtc_vblank_start -
 			    crtc_state->framestart_delay - 1);
+
+		/*
+		 * vmin/vmax/flipline also need to be adjusted by
+		 * the vblank delay to maintain correct vtotals.
+		 */
+		crtc_state->vrr.vmin -= intel_vrr_vblank_delay(crtc_state);
+		crtc_state->vrr.vmax -= intel_vrr_vblank_delay(crtc_state);
+		crtc_state->vrr.flipline -= intel_vrr_vblank_delay(crtc_state);
 	}
 }
 
