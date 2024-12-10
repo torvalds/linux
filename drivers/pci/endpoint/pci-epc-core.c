@@ -60,26 +60,17 @@ struct pci_epc *pci_epc_get(const char *epc_name)
 	int ret = -EINVAL;
 	struct pci_epc *epc;
 	struct device *dev;
-	struct class_dev_iter iter;
 
-	class_dev_iter_init(&iter, &pci_epc_class, NULL, NULL);
-	while ((dev = class_dev_iter_next(&iter))) {
-		if (strcmp(epc_name, dev_name(dev)))
-			continue;
+	dev = class_find_device_by_name(&pci_epc_class, epc_name);
+	if (!dev)
+		goto err;
 
-		epc = to_pci_epc(dev);
-		if (!try_module_get(epc->ops->owner)) {
-			ret = -EINVAL;
-			goto err;
-		}
-
-		class_dev_iter_exit(&iter);
-		get_device(&epc->dev);
+	epc = to_pci_epc(dev);
+	if (try_module_get(epc->ops->owner))
 		return epc;
-	}
 
 err:
-	class_dev_iter_exit(&iter);
+	put_device(dev);
 	return ERR_PTR(ret);
 }
 EXPORT_SYMBOL_GPL(pci_epc_get);
