@@ -274,7 +274,7 @@ static ssize_t power_supply_format_property(struct device *dev,
 					    char *buf)
 {
 	ssize_t ret;
-	struct power_supply *psy = dev_get_drvdata(dev);
+	struct power_supply *psy = dev_to_psy(dev);
 	const struct power_supply_attr *ps_attr = to_ps_attr(attr);
 	enum power_supply_property psp = dev_attr_psp(attr);
 	union power_supply_propval value;
@@ -337,7 +337,7 @@ static ssize_t power_supply_store_property(struct device *dev,
 					   struct device_attribute *attr,
 					   const char *buf, size_t count) {
 	ssize_t ret;
-	struct power_supply *psy = dev_get_drvdata(dev);
+	struct power_supply *psy = dev_to_psy(dev);
 	const struct power_supply_attr *ps_attr = to_ps_attr(attr);
 	enum power_supply_property psp = dev_attr_psp(attr);
 	union power_supply_propval value;
@@ -376,7 +376,7 @@ static umode_t power_supply_attr_is_visible(struct kobject *kobj,
 					   int attrno)
 {
 	struct device *dev = kobj_to_dev(kobj);
-	struct power_supply *psy = dev_get_drvdata(dev);
+	struct power_supply *psy = dev_to_psy(dev);
 	umode_t mode = S_IRUSR | S_IRGRP | S_IROTH;
 
 	if (!power_supply_attrs[attrno].prop_name)
@@ -462,7 +462,7 @@ static int add_prop_uevent(const struct device *dev, struct kobj_uevent_env *env
 
 int power_supply_uevent(const struct device *dev, struct kobj_uevent_env *env)
 {
-	struct power_supply *psy = dev_get_drvdata(dev);
+	const struct power_supply *psy = dev_to_psy(dev);
 	int ret = 0, j;
 	char *prop_buf;
 
