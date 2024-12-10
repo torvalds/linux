@@ -247,9 +247,13 @@ static unsigned long resolve_pa_may_alloc(unsigned long addr, unsigned long size
 		return __identity_pa(addr);
 #ifdef CONFIG_KASAN
 	case POPULATE_KASAN_MAP_SHADOW:
-		addr = physmem_alloc_or_die(RR_VMEM, size, size);
-		memset((void *)addr, 0, size);
-		return addr;
+		/* Allow to fail large page allocations, this will fall back to 1mb/4k pages */
+		addr = physmem_alloc(RR_VMEM, size, size, size == PAGE_SIZE);
+		if (addr) {
+			memset((void *)addr, 0, size);
+			return addr;
+		}
+		return INVALID_PHYS_ADDR;
 #endif
 	default:
 		return INVALID_PHYS_ADDR;
