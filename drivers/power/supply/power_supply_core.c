@@ -123,7 +123,7 @@ struct psy_for_each_psy_cb_data {
 static int psy_for_each_psy_cb(struct device *dev, void *data)
 {
 	struct psy_for_each_psy_cb_data *cb_data = data;
-	struct power_supply *psy = dev_get_drvdata(dev);
+	struct power_supply *psy = dev_to_psy(dev);
 
 	return cb_data->fn(psy, cb_data->data);
 }
@@ -456,7 +456,7 @@ EXPORT_SYMBOL_GPL(power_supply_set_battery_charged);
 static int power_supply_match_device_by_name(struct device *dev, const void *data)
 {
 	const char *name = data;
-	struct power_supply *psy = dev_get_drvdata(dev);
+	struct power_supply *psy = dev_to_psy(dev);
 
 	return strcmp(psy->desc->name, name) == 0;
 }
@@ -479,7 +479,7 @@ struct power_supply *power_supply_get_by_name(const char *name)
 					       power_supply_match_device_by_name);
 
 	if (dev) {
-		psy = dev_get_drvdata(dev);
+		psy = dev_to_psy(dev);
 		atomic_inc(&psy->use_cnt);
 	}
 
@@ -536,7 +536,7 @@ struct power_supply *power_supply_get_by_phandle(struct device_node *np,
 	of_node_put(power_supply_np);
 
 	if (dev) {
-		psy = dev_get_drvdata(dev);
+		psy = dev_to_psy(dev);
 		atomic_inc(&psy->use_cnt);
 	}
 
