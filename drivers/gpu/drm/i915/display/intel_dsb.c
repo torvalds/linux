@@ -130,8 +130,7 @@ pre_commit_crtc_state(struct intel_atomic_state *state,
 
 static int dsb_vblank_delay(const struct intel_crtc_state *crtc_state)
 {
-	return intel_mode_vblank_start(&crtc_state->hw.adjusted_mode) -
-		intel_mode_vdisplay(&crtc_state->hw.adjusted_mode);
+	return intel_mode_vblank_delay(&crtc_state->hw.adjusted_mode);
 }
 
 static int dsb_vtotal(struct intel_atomic_state *state,
