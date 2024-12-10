@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2017-2020, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2023, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2024, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <asm/arch_timer.h>
@@ -221,7 +221,7 @@ static struct tsens_dbg_func dbg_arr[] = {
 
 int tsens2xxx_dbg(struct tsens_device *data, u32 id, u32 dbg_type, int *val)
 {
-	if (dbg_type >= TSENS_DBG_LOG_MAX)
+	if (dbg_type >= TSENS_DBG_LOG_MAX || dbg_type >= ARRAY_SIZE(dbg_arr))
 		return -EINVAL;
 
 	dbg_arr[dbg_type].dbg_func(data, id, dbg_type, val);
