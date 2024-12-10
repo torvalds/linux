@@ -14,7 +14,7 @@
 #include <linux/vmalloc.h>
 #include <linux/pci-p2pdma.h>
 
-MODULE_IMPORT_NS(DMA_BUF);
+MODULE_IMPORT_NS("DMA_BUF");
 
 #define HL_MMU_DEBUG	0
 

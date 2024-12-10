@@ -35,7 +35,7 @@ struct mmap_state {
 		.mm = mm_,						\
 		.vmi = vmi_,						\
 		.addr = addr_,						\
-		.end = (addr_) + len,					\
+		.end = (addr_) + (len_),				\
 		.pgoff = pgoff_,					\
 		.pglen = PHYS_PFN(len_),				\
 		.flags = flags_,					\

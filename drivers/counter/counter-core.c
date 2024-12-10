@@ -74,7 +74,7 @@ void *counter_priv(const struct counter_device *const counter)
 
 	return &ch->privdata;
 }
-EXPORT_SYMBOL_NS_GPL(counter_priv, COUNTER);
+EXPORT_SYMBOL_NS_GPL(counter_priv, "COUNTER");
 
 /**
  * counter_alloc - allocate a counter_device
@@ -134,13 +134,13 @@ err_ida_alloc:
 
 	return NULL;
 }
-EXPORT_SYMBOL_NS_GPL(counter_alloc, COUNTER);
+EXPORT_SYMBOL_NS_GPL(counter_alloc, "COUNTER");
 
 void counter_put(struct counter_device *counter)
 {
 	put_device(&counter->dev);
 }
-EXPORT_SYMBOL_NS_GPL(counter_put, COUNTER);
+EXPORT_SYMBOL_NS_GPL(counter_put, "COUNTER");
 
 /**
  * counter_add - complete registration of a counter
@@ -167,7 +167,7 @@ int counter_add(struct counter_device *counter)
 	/* implies device_add(dev) */
 	return cdev_device_add(&counter->chrdev, dev);
 }
-EXPORT_SYMBOL_NS_GPL(counter_add, COUNTER);
+EXPORT_SYMBOL_NS_GPL(counter_add, "COUNTER");
 
 /**
  * counter_unregister - unregister Counter from the system
@@ -189,7 +189,7 @@ void counter_unregister(struct counter_device *const counter)
 
 	mutex_unlock(&counter->ops_exist_lock);
 }
-EXPORT_SYMBOL_NS_GPL(counter_unregister, COUNTER);
+EXPORT_SYMBOL_NS_GPL(counter_unregister, "COUNTER");
 
 static void devm_counter_release(void *counter)
 {
@@ -224,7 +224,7 @@ struct counter_device *devm_counter_alloc(struct device *dev, size_t sizeof_priv
 
 	return counter;
 }
-EXPORT_SYMBOL_NS_GPL(devm_counter_alloc, COUNTER);
+EXPORT_SYMBOL_NS_GPL(devm_counter_alloc, "COUNTER");
 
 /**
  * devm_counter_add - complete registration of a counter
@@ -245,7 +245,7 @@ int devm_counter_add(struct device *dev,
 
 	return devm_add_action_or_reset(dev, devm_counter_release, counter);
 }
-EXPORT_SYMBOL_NS_GPL(devm_counter_add, COUNTER);
+EXPORT_SYMBOL_NS_GPL(devm_counter_add, "COUNTER");
 
 #define COUNTER_DEV_MAX 256
 

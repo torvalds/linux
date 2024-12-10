@@ -669,7 +669,7 @@ static void etnaviv_pdev_remove(struct platform_device *pdev)
 
 static struct platform_driver etnaviv_platform_driver = {
 	.probe      = etnaviv_pdev_probe,
-	.remove_new = etnaviv_pdev_remove,
+	.remove     = etnaviv_pdev_remove,
 	.driver     = {
 		.name   = "etnaviv",
 	},

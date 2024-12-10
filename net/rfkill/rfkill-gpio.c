@@ -203,7 +203,7 @@ MODULE_DEVICE_TABLE(of, rfkill_of_match);
 
 static struct platform_driver rfkill_gpio_driver = {
 	.probe = rfkill_gpio_probe,
-	.remove_new = rfkill_gpio_remove,
+	.remove = rfkill_gpio_remove,
 	.driver = {
 		.name = "rfkill_gpio",
 		.acpi_match_table = ACPI_PTR(rfkill_acpi_match),
