@@ -119,9 +119,13 @@ static int vcn_v5_0_1_sw_init(struct amdgpu_ip_block *ip_block)
 			amdgpu_vcn_fwlog_init(&adev->vcn.inst[i]);
 	}
 
+	/* TODO: Add queue reset mask when FW fully supports it */
+	adev->vcn.supported_reset =
+		amdgpu_get_soft_full_reset_mask(&adev->vcn.inst[0].ring_enc[0]);
+
 	vcn_v5_0_0_alloc_ip_dump(adev);
 
-	return 0;
+	return amdgpu_vcn_sysfs_reset_mask_init(adev);
 }
 
 /**
@@ -153,6 +157,8 @@ static int vcn_v5_0_1_sw_fini(struct amdgpu_ip_block *ip_block)
 		return r;
 
 	r = amdgpu_vcn_sw_fini(adev);
+
+	amdgpu_vcn_sysfs_reset_mask_fini(adev);
 
 	kfree(adev->vcn.ip_dump);
 
