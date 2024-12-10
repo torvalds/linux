@@ -195,11 +195,11 @@ static int count_planes_with_stream_index(const struct dml2_display_cfg *display
 
 static bool are_timings_trivially_synchronizable(struct display_configuation_with_meta *display_config, int mask)
 {
-	unsigned char i;
+	unsigned int i;
 	bool identical = true;
 	bool contains_drr = false;
-	unsigned char remap_array[DML2_MAX_PLANES];
-	unsigned char remap_array_size = 0;
+	unsigned int remap_array[DML2_MAX_PLANES];
+	unsigned int remap_array_size = 0;
 
 	// Create a remap array to enable simple iteration through only masked stream indicies
 	for (i = 0; i < display_config->display_config.num_streams; i++) {
