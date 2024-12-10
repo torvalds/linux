@@ -199,8 +199,13 @@ static inline void btrfs_assert_tree_write_locked(struct extent_buffer *eb)
 {
 	lockdep_assert_held_write(&eb->lock);
 }
+static inline void btrfs_assert_tree_read_locked(struct extent_buffer *eb)
+{
+	lockdep_assert_held_read(&eb->lock);
+}
 #else
 static inline void btrfs_assert_tree_write_locked(struct extent_buffer *eb) { }
+static inline void btrfs_assert_tree_read_locked(struct extent_buffer *eb) { }
 #endif
 
 void btrfs_unlock_up_safe(struct btrfs_path *path, int level);

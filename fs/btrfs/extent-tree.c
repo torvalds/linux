@@ -2425,6 +2425,31 @@ int btrfs_cross_ref_exist(struct btrfs_inode *inode, u64 offset,
 		if (ret && ret != -ENOENT)
 			goto out;
 
+		/*
+		 * The path must have a locked leaf from the extent tree where
+		 * the extent item for our extent is located, in case it exists,
+		 * or where it should be located in case it doesn't exist yet
+		 * because it's new and its delayed ref was not yet flushed.
+		 * We need to lock the delayed ref head at check_delayed_ref(),
+		 * if one exists, while holding the leaf locked in order to not
+		 * race with delayed ref flushing, missing references and
+		 * incorrectly reporting that the extent is not shared.
+		 */
+		if (IS_ENABLED(CONFIG_BTRFS_ASSERT)) {
+			struct extent_buffer *leaf = path->nodes[0];
+
+			ASSERT(leaf != NULL);
+			btrfs_assert_tree_read_locked(leaf);
+
+			if (ret != -ENOENT) {
+				struct btrfs_key key;
+
+				btrfs_item_key_to_cpu(leaf, &key, path->slots[0]);
+				ASSERT(key.objectid == bytenr);
+				ASSERT(key.type == BTRFS_EXTENT_ITEM_KEY);
+			}
+		}
+
 		ret = check_delayed_ref(inode, path, offset, bytenr);
 	} while (ret == -EAGAIN && !path->nowait);
 
