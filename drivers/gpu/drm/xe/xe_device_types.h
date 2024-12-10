@@ -347,7 +347,7 @@ struct xe_device {
 		spinlock_t lock;
 
 		/** @irq.enabled: interrupts enabled on this device */
-		bool enabled;
+		atomic_t enabled;
 	} irq;
 
 	/** @ttm: ttm device */

@@ -348,12 +348,8 @@ static irqreturn_t xelp_irq_handler(int irq, void *arg)
 	unsigned long intr_dw[2];
 	u32 identity[32];
 
-	spin_lock(&xe->irq.lock);
-	if (!xe->irq.enabled) {
-		spin_unlock(&xe->irq.lock);
+	if (!atomic_read(&xe->irq.enabled))
 		return IRQ_NONE;
-	}
-	spin_unlock(&xe->irq.lock);
 
 	master_ctl = xelp_intr_disable(xe);
 	if (!master_ctl) {
@@ -417,12 +413,8 @@ static irqreturn_t dg1_irq_handler(int irq, void *arg)
 
 	/* TODO: This really shouldn't be copied+pasted */
 
-	spin_lock(&xe->irq.lock);
-	if (!xe->irq.enabled) {
-		spin_unlock(&xe->irq.lock);
+	if (!atomic_read(&xe->irq.enabled))
 		return IRQ_NONE;
-	}
-	spin_unlock(&xe->irq.lock);
 
 	master_tile_ctl = dg1_intr_disable(xe);
 	if (!master_tile_ctl) {
@@ -644,12 +636,8 @@ static irqreturn_t vf_mem_irq_handler(int irq, void *arg)
 	struct xe_tile *tile;
 	unsigned int id;
 
-	spin_lock(&xe->irq.lock);
-	if (!xe->irq.enabled) {
-		spin_unlock(&xe->irq.lock);
+	if (!atomic_read(&xe->irq.enabled))
 		return IRQ_NONE;
-	}
-	spin_unlock(&xe->irq.lock);
 
 	for_each_tile(tile, xe, id)
 		xe_memirq_handler(&tile->memirq);
@@ -674,10 +662,9 @@ static void irq_uninstall(void *arg)
 	struct pci_dev *pdev = to_pci_dev(xe->drm.dev);
 	int irq;
 
-	if (!xe->irq.enabled)
+	if (!atomic_xchg(&xe->irq.enabled, 0))
 		return;
 
-	xe->irq.enabled = false;
 	xe_irq_reset(xe);
 
 	irq = pci_irq_vector(pdev, 0);
@@ -724,7 +711,7 @@ int xe_irq_install(struct xe_device *xe)
 		return err;
 	}
 
-	xe->irq.enabled = true;
+	atomic_set(&xe->irq.enabled, 1);
 
 	xe_irq_postinstall(xe);
 
@@ -744,9 +731,7 @@ void xe_irq_suspend(struct xe_device *xe)
 {
 	int irq = to_pci_dev(xe->drm.dev)->irq;
 
-	spin_lock_irq(&xe->irq.lock);
-	xe->irq.enabled = false; /* no new irqs */
-	spin_unlock_irq(&xe->irq.lock);
+	atomic_set(&xe->irq.enabled, 0); /* no new irqs */
 
 	synchronize_irq(irq); /* flush irqs */
 	xe_irq_reset(xe); /* turn irqs off */
@@ -762,7 +747,7 @@ void xe_irq_resume(struct xe_device *xe)
 	 * 1. no irq will arrive before the postinstall
 	 * 2. display is not yet resumed
 	 */
-	xe->irq.enabled = true;
+	atomic_set(&xe->irq.enabled, 1);
 	xe_irq_reset(xe);
 	xe_irq_postinstall(xe); /* turn irqs on */
 
