@@ -2633,17 +2633,40 @@ static int intel_crtc_vblank_delay(const struct intel_crtc_state *crtc_state)
 	return vblank_delay;
 }
 
+static int intel_crtc_compute_vblank_delay(struct intel_atomic_state *state,
+					   struct intel_crtc *crtc)
+{
+	struct intel_display *display = to_intel_display(state);
+	struct intel_crtc_state *crtc_state =
+		intel_atomic_get_new_crtc_state(state, crtc);
+	struct drm_display_mode *adjusted_mode =
+		&crtc_state->hw.adjusted_mode;
+	int vblank_delay, max_vblank_delay;
+
+	vblank_delay = intel_crtc_vblank_delay(crtc_state);
+	max_vblank_delay = adjusted_mode->crtc_vblank_end - adjusted_mode->crtc_vblank_start - 1;
+
+	if (vblank_delay > max_vblank_delay) {
+		drm_dbg_kms(display->drm, "[CRTC:%d:%s] vblank delay (%d) exceeds max (%d)\n",
+			    crtc->base.base.id, crtc->base.name, vblank_delay, max_vblank_delay);
+		return -EINVAL;
+	}
+
+	adjusted_mode->crtc_vblank_start += vblank_delay;
+
+	return 0;
+}
+
 static int intel_crtc_compute_config(struct intel_atomic_state *state,
 				     struct intel_crtc *crtc)
 {
 	struct intel_crtc_state *crtc_state =
 		intel_atomic_get_new_crtc_state(state, crtc);
-	struct drm_display_mode *adjusted_mode =
-		&crtc_state->hw.adjusted_mode;
 	int ret;
 
-	adjusted_mode->crtc_vblank_start +=
-		intel_crtc_vblank_delay(crtc_state);
+	ret = intel_crtc_compute_vblank_delay(state, crtc);
+	if (ret)
+		return ret;
 
 	ret = intel_dpll_crtc_compute_clock(state, crtc);
 	if (ret)
