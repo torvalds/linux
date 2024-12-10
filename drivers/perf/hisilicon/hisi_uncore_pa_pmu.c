@@ -269,24 +269,21 @@ static void hisi_pa_pmu_clear_int_status(struct hisi_pmu *pa_pmu, int idx)
 static int hisi_pa_pmu_init_data(struct platform_device *pdev,
 				   struct hisi_pmu *pa_pmu)
 {
+	hisi_uncore_pmu_init_topology(pa_pmu, &pdev->dev);
+
 	/*
 	 * As PA PMU is in a SICL, use the SICL_ID and the index ID
 	 * to identify the PA PMU.
 	 */
-	if (device_property_read_u32(&pdev->dev, "hisilicon,scl-id",
-				     &pa_pmu->topo.sicl_id)) {
+	if (pa_pmu->topo.sicl_id < 0) {
 		dev_err(&pdev->dev, "Cannot read sicl-id!\n");
 		return -EINVAL;
 	}
 
-	if (device_property_read_u32(&pdev->dev, "hisilicon,idx-id",
-				     &pa_pmu->topo.index_id)) {
+	if (pa_pmu->topo.index_id < 0) {
 		dev_err(&pdev->dev, "Cannot read idx-id!\n");
 		return -EINVAL;
 	}
-
-	pa_pmu->topo.ccl_id = -1;
-	pa_pmu->topo.sccl_id = -1;
 
 	pa_pmu->dev_info = device_get_match_data(&pdev->dev);
 	if (!pa_pmu->dev_info)

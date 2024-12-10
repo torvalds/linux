@@ -288,24 +288,21 @@ MODULE_DEVICE_TABLE(acpi, hisi_sllc_pmu_acpi_match);
 static int hisi_sllc_pmu_init_data(struct platform_device *pdev,
 				   struct hisi_pmu *sllc_pmu)
 {
+	hisi_uncore_pmu_init_topology(sllc_pmu, &pdev->dev);
+
 	/*
 	 * Use the SCCL_ID and the index ID to identify the SLLC PMU,
 	 * while SCCL_ID is from MPIDR_EL1 by CPU.
 	 */
-	if (device_property_read_u32(&pdev->dev, "hisilicon,scl-id",
-				     &sllc_pmu->topo.sccl_id)) {
+	if (sllc_pmu->topo.sccl_id < 0) {
 		dev_err(&pdev->dev, "Cannot read sccl-id!\n");
 		return -EINVAL;
 	}
 
-	if (device_property_read_u32(&pdev->dev, "hisilicon,idx-id",
-				     &sllc_pmu->topo.index_id)) {
+	if (sllc_pmu->topo.index_id < 0) {
 		dev_err(&pdev->dev, "Cannot read idx-id!\n");
 		return -EINVAL;
 	}
-
-	/* SLLC PMUs only share the same SCCL */
-	sllc_pmu->topo.ccl_id = -1;
 
 	sllc_pmu->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(sllc_pmu->base)) {

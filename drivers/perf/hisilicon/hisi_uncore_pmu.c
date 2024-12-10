@@ -14,6 +14,7 @@
 #include <linux/err.h>
 #include <linux/errno.h>
 #include <linux/interrupt.h>
+#include <linux/property.h>
 
 #include <asm/cputype.h>
 #include <asm/local64.h>
@@ -529,6 +530,35 @@ int hisi_uncore_pmu_offline_cpu(unsigned int cpu, struct hlist_node *node)
 	return 0;
 }
 EXPORT_SYMBOL_NS_GPL(hisi_uncore_pmu_offline_cpu, "HISI_PMU");
+
+/*
+ * Retrieve the topology information from the firmware for the hisi_pmu device.
+ * The topology ID will be -1 if we cannot initialize it, it may either due to
+ * the PMU doesn't locate on this certain topology or the firmware needs to be
+ * fixed.
+ */
+void hisi_uncore_pmu_init_topology(struct hisi_pmu *hisi_pmu, struct device *dev)
+{
+	struct hisi_pmu_topology *topo = &hisi_pmu->topo;
+
+	topo->sccl_id = -1;
+	topo->ccl_id = -1;
+	topo->index_id = -1;
+	topo->sub_id = -1;
+
+	if (device_property_read_u32(dev, "hisilicon,scl-id", &topo->sccl_id))
+		dev_dbg(dev, "no scl-id present\n");
+
+	if (device_property_read_u32(dev, "hisilicon,ccl-id", &topo->ccl_id))
+		dev_dbg(dev, "no ccl-id present\n");
+
+	if (device_property_read_u32(dev, "hisilicon,idx-id", &topo->index_id))
+		dev_dbg(dev, "no idx-id present\n");
+
+	if (device_property_read_u32(dev, "hisilicon,sub-id", &topo->sub_id))
+		dev_dbg(dev, "no sub-id present\n");
+}
+EXPORT_SYMBOL_NS_GPL(hisi_uncore_pmu_init_topology, "HISI_PMU");
 
 void hisi_pmu_init(struct hisi_pmu *hisi_pmu, struct module *module)
 {

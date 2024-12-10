@@ -295,12 +295,13 @@ static int hisi_hha_pmu_init_data(struct platform_device *pdev,
 	unsigned long long id;
 	acpi_status status;
 
+	hisi_uncore_pmu_init_topology(hha_pmu, &pdev->dev);
+
 	/*
 	 * Use SCCL_ID and UID to identify the HHA PMU, while
 	 * SCCL_ID is in MPIDR[aff2].
 	 */
-	if (device_property_read_u32(&pdev->dev, "hisilicon,scl-id",
-				     &hha_pmu->topo.sccl_id)) {
+	if (hha_pmu->topo.sccl_id < 0) {
 		dev_err(&pdev->dev, "Can not read hha sccl-id!\n");
 		return -EINVAL;
 	}
@@ -309,8 +310,7 @@ static int hisi_hha_pmu_init_data(struct platform_device *pdev,
 	 * Early versions of BIOS support _UID by mistake, so we support
 	 * both "hisilicon, idx-id" as preference, if available.
 	 */
-	if (device_property_read_u32(&pdev->dev, "hisilicon,idx-id",
-				     &hha_pmu->topo.index_id)) {
+	if (hha_pmu->topo.index_id < 0) {
 		status = acpi_evaluate_integer(ACPI_HANDLE(&pdev->dev),
 					       "_UID", NULL, &id);
 		if (ACPI_FAILURE(status)) {
@@ -320,8 +320,6 @@ static int hisi_hha_pmu_init_data(struct platform_device *pdev,
 
 		hha_pmu->topo.index_id = id;
 	}
-	/* HHA PMUs only share the same SCCL */
-	hha_pmu->topo.ccl_id = -1;
 
 	hha_pmu->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(hha_pmu->base)) {

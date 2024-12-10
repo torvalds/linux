@@ -11,7 +11,6 @@
 #include <linux/irq.h>
 #include <linux/list.h>
 #include <linux/mod_devicetable.h>
-#include <linux/property.h>
 
 #include "hisi_uncore_pmu.h"
 
@@ -366,25 +365,24 @@ static void hisi_uc_pmu_clear_int_status(struct hisi_pmu *uc_pmu, int idx)
 static int hisi_uc_pmu_init_data(struct platform_device *pdev,
 				 struct hisi_pmu *uc_pmu)
 {
+	hisi_uncore_pmu_init_topology(uc_pmu, &pdev->dev);
+
 	/*
 	 * Use SCCL (Super CPU Cluster) ID and CCL (CPU Cluster) ID to
 	 * identify the topology information of UC PMU devices in the chip.
 	 * They have some CCLs per SCCL and then 4 UC PMU per CCL.
 	 */
-	if (device_property_read_u32(&pdev->dev, "hisilicon,scl-id",
-				     &uc_pmu->topo.sccl_id)) {
+	if (uc_pmu->topo.sccl_id < 0) {
 		dev_err(&pdev->dev, "Can not read uc sccl-id!\n");
 		return -EINVAL;
 	}
 
-	if (device_property_read_u32(&pdev->dev, "hisilicon,ccl-id",
-				     &uc_pmu->topo.ccl_id)) {
+	if (uc_pmu->topo.ccl_id < 0) {
 		dev_err(&pdev->dev, "Can not read uc ccl-id!\n");
 		return -EINVAL;
 	}
 
-	if (device_property_read_u32(&pdev->dev, "hisilicon,sub-id",
-				     &uc_pmu->topo.sub_id)) {
+	if (uc_pmu->topo.sub_id < 0) {
 		dev_err(&pdev->dev, "Can not read sub-id!\n");
 		return -EINVAL;
 	}

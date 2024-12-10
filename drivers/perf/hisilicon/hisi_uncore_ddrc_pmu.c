@@ -297,6 +297,8 @@ MODULE_DEVICE_TABLE(acpi, hisi_ddrc_pmu_acpi_match);
 static int hisi_ddrc_pmu_init_data(struct platform_device *pdev,
 				   struct hisi_pmu *ddrc_pmu)
 {
+	hisi_uncore_pmu_init_topology(ddrc_pmu, &pdev->dev);
+
 	/*
 	 * Use the SCCL_ID and DDRC channel ID to identify the
 	 * DDRC PMU, while SCCL_ID is in MPIDR[aff2].
@@ -307,13 +309,10 @@ static int hisi_ddrc_pmu_init_data(struct platform_device *pdev,
 		return -EINVAL;
 	}
 
-	if (device_property_read_u32(&pdev->dev, "hisilicon,scl-id",
-				     &ddrc_pmu->topo.sccl_id)) {
+	if (ddrc_pmu->topo.sccl_id < 0) {
 		dev_err(&pdev->dev, "Can not read ddrc sccl-id!\n");
 		return -EINVAL;
 	}
-	/* DDRC PMUs only share the same SCCL */
-	ddrc_pmu->topo.ccl_id = -1;
 
 	ddrc_pmu->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(ddrc_pmu->base)) {
@@ -323,8 +322,7 @@ static int hisi_ddrc_pmu_init_data(struct platform_device *pdev,
 
 	ddrc_pmu->identifier = readl(ddrc_pmu->base + DDRC_VERSION);
 	if (ddrc_pmu->identifier >= HISI_PMU_V2) {
-		if (device_property_read_u32(&pdev->dev, "hisilicon,sub-id",
-					     &ddrc_pmu->topo.sub_id)) {
+		if (ddrc_pmu->topo.sub_id < 0) {
 			dev_err(&pdev->dev, "Can not read sub-id!\n");
 			return -EINVAL;
 		}

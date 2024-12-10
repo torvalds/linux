@@ -355,18 +355,18 @@ MODULE_DEVICE_TABLE(acpi, hisi_l3c_pmu_acpi_match);
 static int hisi_l3c_pmu_init_data(struct platform_device *pdev,
 				  struct hisi_pmu *l3c_pmu)
 {
+	hisi_uncore_pmu_init_topology(l3c_pmu, &pdev->dev);
+
 	/*
 	 * Use the SCCL_ID and CCL_ID to identify the L3C PMU, while
 	 * SCCL_ID is in MPIDR[aff2] and CCL_ID is in MPIDR[aff1].
 	 */
-	if (device_property_read_u32(&pdev->dev, "hisilicon,scl-id",
-				     &l3c_pmu->topo.sccl_id)) {
+	if (l3c_pmu->topo.sccl_id < 0) {
 		dev_err(&pdev->dev, "Can not read l3c sccl-id!\n");
 		return -EINVAL;
 	}
 
-	if (device_property_read_u32(&pdev->dev, "hisilicon,ccl-id",
-				     &l3c_pmu->topo.ccl_id)) {
+	if (l3c_pmu->topo.ccl_id < 0) {
 		dev_err(&pdev->dev, "Can not read l3c ccl-id!\n");
 		return -EINVAL;
 	}

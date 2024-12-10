@@ -180,20 +180,18 @@ MODULE_DEVICE_TABLE(acpi, hisi_cpa_pmu_acpi_match);
 static int hisi_cpa_pmu_init_data(struct platform_device *pdev,
 				  struct hisi_pmu *cpa_pmu)
 {
-	if (device_property_read_u32(&pdev->dev, "hisilicon,scl-id",
-				     &cpa_pmu->topo.sicl_id)) {
+	hisi_uncore_pmu_init_topology(cpa_pmu, &pdev->dev);
+
+	if (cpa_pmu->topo.sicl_id < 0) {
 		dev_err(&pdev->dev, "Can not read sicl-id\n");
 		return -EINVAL;
 	}
 
-	if (device_property_read_u32(&pdev->dev, "hisilicon,idx-id",
-				     &cpa_pmu->topo.index_id)) {
+	if (cpa_pmu->topo.index_id < 0) {
 		dev_err(&pdev->dev, "Cannot read idx-id\n");
 		return -EINVAL;
 	}
 
-	cpa_pmu->topo.ccl_id = -1;
-	cpa_pmu->topo.sccl_id = -1;
 	cpa_pmu->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(cpa_pmu->base))
 		return PTR_ERR(cpa_pmu->base);
