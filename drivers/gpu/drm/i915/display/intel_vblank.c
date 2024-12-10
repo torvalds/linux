@@ -602,6 +602,32 @@ int intel_mode_vblank_delay(const struct drm_display_mode *mode)
 	return intel_mode_vblank_start(mode) - intel_mode_vdisplay(mode);
 }
 
+static const struct intel_crtc_state *
+pre_commit_crtc_state(const struct intel_crtc_state *old_crtc_state,
+		      const struct intel_crtc_state *new_crtc_state)
+{
+	/*
+	 * During fastsets/etc. the transcoder is still
+	 * running with the old timings at this point.
+	 */
+	if (intel_crtc_needs_modeset(new_crtc_state))
+		return new_crtc_state;
+	else
+		return old_crtc_state;
+}
+
+const struct intel_crtc_state *
+intel_pre_commit_crtc_state(struct intel_atomic_state *state,
+			    struct intel_crtc *crtc)
+{
+	const struct intel_crtc_state *old_crtc_state =
+		intel_atomic_get_old_crtc_state(state, crtc);
+	const struct intel_crtc_state *new_crtc_state =
+		intel_atomic_get_new_crtc_state(state, crtc);
+
+	return pre_commit_crtc_state(old_crtc_state, new_crtc_state);
+}
+
 void intel_vblank_evade_init(const struct intel_crtc_state *old_crtc_state,
 			     const struct intel_crtc_state *new_crtc_state,
 			     struct intel_vblank_evade_ctx *evade)
@@ -617,16 +643,8 @@ void intel_vblank_evade_init(const struct intel_crtc_state *old_crtc_state,
 				  display->platform.cherryview) &&
 		intel_crtc_has_type(new_crtc_state, INTEL_OUTPUT_DSI);
 
-	/*
-	 * During fastsets/etc. the transcoder is still
-	 * running with the old timings at this point.
-	 *
-	 * TODO: maybe just use the active timings here?
-	 */
-	if (intel_crtc_needs_modeset(new_crtc_state))
-		crtc_state = new_crtc_state;
-	else
-		crtc_state = old_crtc_state;
+	/* TODO: maybe just use the active timings here? */
+	crtc_state = pre_commit_crtc_state(old_crtc_state, new_crtc_state);
 
 	adjusted_mode = &crtc_state->hw.adjusted_mode;
 

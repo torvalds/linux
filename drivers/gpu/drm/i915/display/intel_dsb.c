@@ -109,25 +109,6 @@ static bool pre_commit_is_vrr_active(struct intel_atomic_state *state,
 	return old_crtc_state->vrr.enable && !intel_crtc_vrr_disabling(state, crtc);
 }
 
-static const struct intel_crtc_state *
-pre_commit_crtc_state(struct intel_atomic_state *state,
-		      struct intel_crtc *crtc)
-{
-	const struct intel_crtc_state *old_crtc_state =
-		intel_atomic_get_old_crtc_state(state, crtc);
-	const struct intel_crtc_state *new_crtc_state =
-		intel_atomic_get_new_crtc_state(state, crtc);
-
-	/*
-	 * During fastsets/etc. the transcoder is still
-	 * running with the old timings at this point.
-	 */
-	if (intel_crtc_needs_modeset(new_crtc_state))
-		return new_crtc_state;
-	else
-		return old_crtc_state;
-}
-
 static int dsb_vblank_delay(const struct intel_crtc_state *crtc_state)
 {
 	return intel_mode_vblank_delay(&crtc_state->hw.adjusted_mode);
@@ -136,7 +117,8 @@ static int dsb_vblank_delay(const struct intel_crtc_state *crtc_state)
 static int dsb_vtotal(struct intel_atomic_state *state,
 		      struct intel_crtc *crtc)
 {
-	const struct intel_crtc_state *crtc_state = pre_commit_crtc_state(state, crtc);
+	const struct intel_crtc_state *crtc_state =
+		intel_pre_commit_crtc_state(state, crtc);
 
 	if (pre_commit_is_vrr_active(state, crtc))
 		return intel_vrr_vmax_vtotal(crtc_state);
@@ -147,7 +129,8 @@ static int dsb_vtotal(struct intel_atomic_state *state,
 static int dsb_dewake_scanline_start(struct intel_atomic_state *state,
 				     struct intel_crtc *crtc)
 {
-	const struct intel_crtc_state *crtc_state = pre_commit_crtc_state(state, crtc);
+	const struct intel_crtc_state *crtc_state =
+		intel_pre_commit_crtc_state(state, crtc);
 	struct drm_i915_private *i915 = to_i915(state->base.dev);
 	unsigned int latency = skl_watermark_max_latency(i915, 0);
 
@@ -158,7 +141,8 @@ static int dsb_dewake_scanline_start(struct intel_atomic_state *state,
 static int dsb_dewake_scanline_end(struct intel_atomic_state *state,
 				   struct intel_crtc *crtc)
 {
-	const struct intel_crtc_state *crtc_state = pre_commit_crtc_state(state, crtc);
+	const struct intel_crtc_state *crtc_state =
+		intel_pre_commit_crtc_state(state, crtc);
 
 	return intel_mode_vdisplay(&crtc_state->hw.adjusted_mode);
 }
@@ -166,7 +150,8 @@ static int dsb_dewake_scanline_end(struct intel_atomic_state *state,
 static int dsb_scanline_to_hw(struct intel_atomic_state *state,
 			      struct intel_crtc *crtc, int scanline)
 {
-	const struct intel_crtc_state *crtc_state = pre_commit_crtc_state(state, crtc);
+	const struct intel_crtc_state *crtc_state =
+		intel_pre_commit_crtc_state(state, crtc);
 	int vtotal = dsb_vtotal(state, crtc);
 
 	return (scanline + vtotal - intel_crtc_scanline_offset(crtc_state)) % vtotal;
@@ -531,7 +516,8 @@ void intel_dsb_vblank_evade(struct intel_atomic_state *state,
 			    struct intel_dsb *dsb)
 {
 	struct intel_crtc *crtc = dsb->crtc;
-	const struct intel_crtc_state *crtc_state = pre_commit_crtc_state(state, crtc);
+	const struct intel_crtc_state *crtc_state =
+		intel_pre_commit_crtc_state(state, crtc);
 	/* FIXME calibrate sensibly */
 	int latency = intel_usecs_to_scanlines(&crtc_state->hw.adjusted_mode, 20);
 	int vblank_delay = dsb_vblank_delay(crtc_state);
@@ -623,7 +609,8 @@ void intel_dsb_wait_vblank_delay(struct intel_atomic_state *state,
 				 struct intel_dsb *dsb)
 {
 	struct intel_crtc *crtc = dsb->crtc;
-	const struct intel_crtc_state *crtc_state = pre_commit_crtc_state(state, crtc);
+	const struct intel_crtc_state *crtc_state =
+		intel_pre_commit_crtc_state(state, crtc);
 	int usecs = intel_scanlines_to_usecs(&crtc_state->hw.adjusted_mode,
 					     dsb_vblank_delay(crtc_state)) + 1;
 
