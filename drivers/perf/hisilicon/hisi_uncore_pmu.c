@@ -446,10 +446,6 @@ static bool hisi_pmu_cpu_is_associated_pmu(struct hisi_pmu *hisi_pmu)
 {
 	int sccl_id, ccl_id;
 
-	/* If SCCL_ID is -1, the PMU is in a SICL and has no CPU affinity */
-	if (hisi_pmu->sccl_id == -1)
-		return true;
-
 	if (hisi_pmu->ccl_id == -1) {
 		/* If CCL_ID is -1, the PMU only shares the same SCCL */
 		hisi_read_sccl_and_ccl_id(&sccl_id, NULL);
@@ -467,13 +463,25 @@ int hisi_uncore_pmu_online_cpu(unsigned int cpu, struct hlist_node *node)
 	struct hisi_pmu *hisi_pmu = hlist_entry_safe(node, struct hisi_pmu,
 						     node);
 
-	if (!hisi_pmu_cpu_is_associated_pmu(hisi_pmu))
+	/*
+	 * If the CPU is not associated to PMU, initialize the hisi_pmu->on_cpu
+	 * based on the locality if it hasn't been initialized yet. For PMUs
+	 * do have associated CPUs, it'll be updated later.
+	 */
+	if (!hisi_pmu_cpu_is_associated_pmu(hisi_pmu)) {
+		if (hisi_pmu->on_cpu != -1)
+			return 0;
+
+		hisi_pmu->on_cpu = cpumask_local_spread(0, dev_to_node(hisi_pmu->dev));
+		WARN_ON(irq_set_affinity(hisi_pmu->irq, cpumask_of(cpu)));
 		return 0;
+	}
 
 	cpumask_set_cpu(cpu, &hisi_pmu->associated_cpus);
 
-	/* If another CPU is already managing this PMU, simply return. */
-	if (hisi_pmu->on_cpu != -1)
+	/* If another associated CPU is already managing this PMU, simply return. */
+	if (hisi_pmu->on_cpu != -1 &&
+	    cpumask_test_cpu(hisi_pmu->on_cpu, &hisi_pmu->associated_cpus))
 		return 0;
 
 	/* Use this CPU in cpumask for event counting */

@@ -87,7 +87,11 @@ struct hisi_pmu {
 	const struct hisi_uncore_ops *ops;
 	const struct hisi_pmu_dev_info *dev_info;
 	struct hisi_pmu_hwevents pmu_events;
-	/* associated_cpus: All CPUs associated with the PMU */
+	/*
+	 * CPUs associated to the PMU and are preferred to use for counting.
+	 * Could be empty if PMU has no association (e.g. PMU on SICL), in
+	 * which case any online CPU will be used.
+	 */
 	cpumask_t associated_cpus;
 	/* CPU used for counting */
 	int on_cpu;
