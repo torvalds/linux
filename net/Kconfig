@@ -446,6 +446,16 @@ config PAGE_POOL_STATS
 
 	  If unsure, say N.
 
+#Shortcut-forwarding-engine
+config ENABLE_SFE
+	bool "Enable Shortcut-forwarding-engine"
+	help
+	  ENABLE_SFE enables software acceleration on the target.
+          The change supports Shortcut forwarding engine feature.
+	  Includes following changes, Add support to packet threshold events.
+	  Changes to support Shortcut Forward Engine.
+	  Add bridge API to access the bridge slave port.
+
 config FAILOVER
 	tristate "Generic failover module"
 	help
