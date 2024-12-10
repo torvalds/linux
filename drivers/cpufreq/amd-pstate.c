@@ -1869,16 +1869,16 @@ static int __init amd_pstate_init(void)
 		static_call_update(amd_pstate_update_perf, shmem_update_perf);
 	}
 
-	ret = amd_pstate_register_driver(cppc_state);
-	if (ret) {
-		pr_err("failed to register with return %d\n", ret);
-		return ret;
-	}
-
 	if (amd_pstate_prefcore) {
 		ret = amd_detect_prefcore(&amd_pstate_prefcore);
 		if (ret)
 			return ret;
+	}
+
+	ret = amd_pstate_register_driver(cppc_state);
+	if (ret) {
+		pr_err("failed to register with return %d\n", ret);
+		return ret;
 	}
 
 	dev_root = bus_get_dev_root(&cpu_subsys);
