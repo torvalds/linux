@@ -1835,11 +1835,15 @@ enum dc_status dm_dp_mst_is_port_support_mode(
 			if (immediate_upstream_port) {
 				virtual_channel_bw_in_kbps = kbps_from_pbn(immediate_upstream_port->full_pbn);
 				virtual_channel_bw_in_kbps = min(root_link_bw_in_kbps, virtual_channel_bw_in_kbps);
-				if (bw_range.min_kbps > virtual_channel_bw_in_kbps) {
-					DRM_DEBUG_DRIVER("MST_DSC dsc decode at last link."
-							 "Max dsc compression can't fit into MST available bw\n");
-					return DC_FAIL_BANDWIDTH_VALIDATE;
-				}
+			} else {
+				/* For topology LCT 1 case - only one mstb*/
+				virtual_channel_bw_in_kbps = root_link_bw_in_kbps;
+			}
+
+			if (bw_range.min_kbps > virtual_channel_bw_in_kbps) {
+				DRM_DEBUG_DRIVER("MST_DSC dsc decode at last link."
+						 "Max dsc compression can't fit into MST available bw\n");
+				return DC_FAIL_BANDWIDTH_VALIDATE;
 			}
 		}
 
