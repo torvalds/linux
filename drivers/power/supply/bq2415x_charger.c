@@ -1050,7 +1050,7 @@ static ssize_t bq2415x_sysfs_show_status(struct device *dev,
 					 struct device_attribute *attr,
 					 char *buf)
 {
-	struct power_supply *psy = dev_get_drvdata(dev);
+	struct power_supply *psy = dev_to_psy(dev);
 	struct bq2415x_device *bq = power_supply_get_drvdata(psy);
 	enum bq2415x_command command;
 	int ret;
@@ -1083,7 +1083,7 @@ static ssize_t bq2415x_sysfs_set_timer(struct device *dev,
 				       const char *buf,
 				       size_t count)
 {
-	struct power_supply *psy = dev_get_drvdata(dev);
+	struct power_supply *psy = dev_to_psy(dev);
 	struct bq2415x_device *bq = power_supply_get_drvdata(psy);
 	int ret = 0;
 
@@ -1104,7 +1104,7 @@ static ssize_t bq2415x_sysfs_show_timer(struct device *dev,
 					struct device_attribute *attr,
 					char *buf)
 {
-	struct power_supply *psy = dev_get_drvdata(dev);
+	struct power_supply *psy = dev_to_psy(dev);
 	struct bq2415x_device *bq = power_supply_get_drvdata(psy);
 
 	if (bq->timer_error)
@@ -1128,7 +1128,7 @@ static ssize_t bq2415x_sysfs_set_mode(struct device *dev,
 				      const char *buf,
 				      size_t count)
 {
-	struct power_supply *psy = dev_get_drvdata(dev);
+	struct power_supply *psy = dev_to_psy(dev);
 	struct bq2415x_device *bq = power_supply_get_drvdata(psy);
 	enum bq2415x_mode mode;
 	int ret = 0;
@@ -1180,7 +1180,7 @@ static ssize_t bq2415x_sysfs_show_mode(struct device *dev,
 				       struct device_attribute *attr,
 				       char *buf)
 {
-	struct power_supply *psy = dev_get_drvdata(dev);
+	struct power_supply *psy = dev_to_psy(dev);
 	struct bq2415x_device *bq = power_supply_get_drvdata(psy);
 	ssize_t ret = 0;
 
@@ -1217,7 +1217,7 @@ static ssize_t bq2415x_sysfs_show_reported_mode(struct device *dev,
 						struct device_attribute *attr,
 						char *buf)
 {
-	struct power_supply *psy = dev_get_drvdata(dev);
+	struct power_supply *psy = dev_to_psy(dev);
 	struct bq2415x_device *bq = power_supply_get_drvdata(psy);
 
 	if (bq->automode < 0)
@@ -1245,7 +1245,7 @@ static ssize_t bq2415x_sysfs_set_registers(struct device *dev,
 					   const char *buf,
 					   size_t count)
 {
-	struct power_supply *psy = dev_get_drvdata(dev);
+	struct power_supply *psy = dev_to_psy(dev);
 	struct bq2415x_device *bq = power_supply_get_drvdata(psy);
 	ssize_t ret = 0;
 	unsigned int reg;
@@ -1280,7 +1280,7 @@ static ssize_t bq2415x_sysfs_show_registers(struct device *dev,
 					    struct device_attribute *attr,
 					    char *buf)
 {
-	struct power_supply *psy = dev_get_drvdata(dev);
+	struct power_supply *psy = dev_to_psy(dev);
 	struct bq2415x_device *bq = power_supply_get_drvdata(psy);
 	ssize_t ret = 0;
 
@@ -1298,7 +1298,7 @@ static ssize_t bq2415x_sysfs_set_limit(struct device *dev,
 				       const char *buf,
 				       size_t count)
 {
-	struct power_supply *psy = dev_get_drvdata(dev);
+	struct power_supply *psy = dev_to_psy(dev);
 	struct bq2415x_device *bq = power_supply_get_drvdata(psy);
 	long val;
 	int ret;
@@ -1329,7 +1329,7 @@ static ssize_t bq2415x_sysfs_show_limit(struct device *dev,
 					struct device_attribute *attr,
 					char *buf)
 {
-	struct power_supply *psy = dev_get_drvdata(dev);
+	struct power_supply *psy = dev_to_psy(dev);
 	struct bq2415x_device *bq = power_supply_get_drvdata(psy);
 	int ret;
 
@@ -1357,7 +1357,7 @@ static ssize_t bq2415x_sysfs_set_enable(struct device *dev,
 					const char *buf,
 					size_t count)
 {
-	struct power_supply *psy = dev_get_drvdata(dev);
+	struct power_supply *psy = dev_to_psy(dev);
 	struct bq2415x_device *bq = power_supply_get_drvdata(psy);
 	enum bq2415x_command command;
 	long val;
@@ -1392,7 +1392,7 @@ static ssize_t bq2415x_sysfs_show_enable(struct device *dev,
 					 struct device_attribute *attr,
 					 char *buf)
 {
-	struct power_supply *psy = dev_get_drvdata(dev);
+	struct power_supply *psy = dev_to_psy(dev);
 	struct bq2415x_device *bq = power_supply_get_drvdata(psy);
 	enum bq2415x_command command;
 	int ret;
