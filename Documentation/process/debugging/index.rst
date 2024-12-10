@@ -11,6 +11,8 @@ general guides
    :maxdepth: 1
 
    driver_development_debugging_guide
+   gdb-kernel-debugging
+   kgdb
    userspace_debugging_guide
 
 .. only::  subproject and html

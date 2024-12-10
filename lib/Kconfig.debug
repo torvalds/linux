@@ -433,7 +433,7 @@ config GDB_SCRIPTS
 	  build directory. If you load vmlinux into gdb, the helper
 	  scripts will be automatically imported by gdb as well, and
 	  additional functions are available to analyze a Linux kernel
-	  instance. See Documentation/dev-tools/gdb-kernel-debugging.rst
+	  instance. See Documentation/process/debugging/gdb-kernel-debugging.rst
 	  for further details.
 
 endif # DEBUG_INFO
