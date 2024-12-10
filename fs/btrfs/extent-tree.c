@@ -2295,6 +2295,48 @@ static noinline int check_delayed_ref(struct btrfs_inode *inode,
 	return ret;
 }
 
+/*
+ * Check if there are references for a data extent other than the one belonging
+ * to the given inode and offset.
+ *
+ * @inode:     The only inode we expect to find associated with the data extent.
+ * @path:      A path to use for searching the extent tree.
+ * @offset:    The only offset we expect to find associated with the data extent.
+ * @bytenr:    The logical address of the data extent.
+ *
+ * When the extent does not have any other references other than the one we
+ * expect to find, we always return a value of 0 with the path having a locked
+ * leaf that contains the extent's extent item - this is necessary to ensure
+ * we don't race with a task running delayed references, and our caller must
+ * have such a path when calling check_delayed_ref() - it must lock a delayed
+ * ref head while holding the leaf locked. In case the extent item is not found
+ * in the extent tree, we return -ENOENT with the path having the leaf (locked)
+ * where the extent item should be, in order to prevent races with another task
+ * running delayed references, so that we don't miss any reference when calling
+ * check_delayed_ref().
+ *
+ * Note: this may return false positives, and this is because we want to be
+ *       quick here as we're called in write paths (when flushing delalloc and
+ *       in the direct IO write path). For example we can have an extent with
+ *       a single reference but that reference is not inlined, or we may have
+ *       many references in the extent tree but we also have delayed references
+ *       that cancel all the reference except the one for our inode and offset,
+ *       but it would be expensive to do such checks and complex due to all
+ *       locking to avoid races between the checks and flushing delayed refs,
+ *       plus non-inline references may be located on leaves other than the one
+ *       that contains the extent item in the extent tree. The important thing
+ *       here is to not return false negatives and that the false positives are
+ *       not very common.
+ *
+ * Returns: 0 if there are no cross references and with the path having a locked
+ *          leaf from the extent tree that contains the extent's extent item.
+ *
+ *          1 if there are cross references (false positives can happen).
+ *
+ *          < 0 in case of an error. In case of -ENOENT the leaf in the extent
+ *          tree where the extent item should be located at is read locked and
+ *          accessible in the given path.
+ */
 static noinline int check_committed_ref(struct btrfs_inode *inode,
 					struct btrfs_path *path,
 					u64 offset, u64 bytenr)
