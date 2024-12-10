@@ -30,6 +30,7 @@
 #include <linux/input/sparse-keymap.h>
 #include <acpi/video.h>
 #include <linux/hwmon.h>
+#include <linux/units.h>
 #include <linux/bitfield.h>
 
 MODULE_AUTHOR("Carlos Corbacho");
@@ -71,7 +72,9 @@ MODULE_LICENSE("GPL");
 #define ACER_PREDATOR_V4_THERMAL_PROFILE_EC_OFFSET 0x54
 
 #define ACER_PREDATOR_V4_RETURN_STATUS_BIT_MASK GENMASK_ULL(7, 0)
-#define ACER_PREDATOR_V4_FAN_SPEED_READ_BIT_MASK GENMASK(20, 8)
+#define ACER_PREDATOR_V4_SENSOR_INDEX_BIT_MASK GENMASK_ULL(15, 8)
+#define ACER_PREDATOR_V4_SENSOR_READING_BIT_MASK GENMASK_ULL(23, 8)
+#define ACER_PREDATOR_V4_SUPPORTED_SENSORS_BIT_MASK GENMASK_ULL(39, 24)
 
 /*
  * Acer ACPI method GUIDs
@@ -99,9 +102,17 @@ enum acer_wmi_event_ids {
 };
 
 enum acer_wmi_predator_v4_sys_info_command {
-	ACER_WMID_CMD_GET_PREDATOR_V4_BAT_STATUS = 0x02,
-	ACER_WMID_CMD_GET_PREDATOR_V4_CPU_FAN_SPEED = 0x0201,
-	ACER_WMID_CMD_GET_PREDATOR_V4_GPU_FAN_SPEED = 0x0601,
+	ACER_WMID_CMD_GET_PREDATOR_V4_SUPPORTED_SENSORS = 0x0000,
+	ACER_WMID_CMD_GET_PREDATOR_V4_SENSOR_READING	= 0x0001,
+	ACER_WMID_CMD_GET_PREDATOR_V4_BAT_STATUS	= 0x0002,
+};
+
+enum acer_wmi_predator_v4_sensor_id {
+	ACER_WMID_SENSOR_CPU_TEMPERATURE	= 0x01,
+	ACER_WMID_SENSOR_CPU_FAN_SPEED		= 0x02,
+	ACER_WMID_SENSOR_EXTERNAL_TEMPERATURE_2 = 0x03,
+	ACER_WMID_SENSOR_GPU_FAN_SPEED		= 0x06,
+	ACER_WMID_SENSOR_GPU_TEMPERATURE	= 0x0A,
 };
 
 static const struct key_entry acer_wmi_keymap[] __initconst = {
@@ -272,6 +283,7 @@ static u16 commun_func_bitmap;
 static u8 commun_fn_key_number;
 static bool cycle_gaming_thermal_profile = true;
 static bool predator_v4;
+static u64 supported_sensors;
 
 module_param(mailled, int, 0444);
 module_param(brightness, int, 0444);
@@ -1779,27 +1791,6 @@ static int acer_gsensor_event(void)
 	return 0;
 }
 
-static int acer_get_fan_speed(int fan)
-{
-	u64 fanspeed;
-	u32 command;
-	int ret;
-
-	if (!quirks->predator_v4)
-		return -EOPNOTSUPP;
-
-	if (fan == 0)
-		command = ACER_WMID_CMD_GET_PREDATOR_V4_CPU_FAN_SPEED;
-	else
-		command = ACER_WMID_CMD_GET_PREDATOR_V4_GPU_FAN_SPEED;
-
-	ret = WMID_gaming_get_sys_info(command, &fanspeed);
-	if (ret < 0)
-		return ret;
-
-	return FIELD_GET(ACER_PREDATOR_V4_FAN_SPEED_READ_BIT_MASK, fanspeed);
-}
-
 /*
  *  Predator series turbo button
  */
@@ -2688,18 +2679,37 @@ static void __init create_debugfs(void)
 			   &interface->debug.wmid_devices);
 }
 
+static const enum acer_wmi_predator_v4_sensor_id acer_wmi_temp_channel_to_sensor_id[] = {
+	[0] = ACER_WMID_SENSOR_CPU_TEMPERATURE,
+	[1] = ACER_WMID_SENSOR_GPU_TEMPERATURE,
+	[2] = ACER_WMID_SENSOR_EXTERNAL_TEMPERATURE_2,
+};
+
+static const enum acer_wmi_predator_v4_sensor_id acer_wmi_fan_channel_to_sensor_id[] = {
+	[0] = ACER_WMID_SENSOR_CPU_FAN_SPEED,
+	[1] = ACER_WMID_SENSOR_GPU_FAN_SPEED,
+};
+
 static umode_t acer_wmi_hwmon_is_visible(const void *data,
 					 enum hwmon_sensor_types type, u32 attr,
 					 int channel)
 {
+	enum acer_wmi_predator_v4_sensor_id sensor_id;
+	const u64 *supported_sensors = data;
+
 	switch (type) {
+	case hwmon_temp:
+		sensor_id = acer_wmi_temp_channel_to_sensor_id[channel];
+		break;
 	case hwmon_fan:
-		if (acer_get_fan_speed(channel) >= 0)
-			return 0444;
+		sensor_id = acer_wmi_fan_channel_to_sensor_id[channel];
 		break;
 	default:
 		return 0;
 	}
+
+	if (*supported_sensors & BIT(sensor_id - 1))
+		return 0444;
 
 	return 0;
 }
@@ -2707,24 +2717,48 @@ static umode_t acer_wmi_hwmon_is_visible(const void *data,
 static int acer_wmi_hwmon_read(struct device *dev, enum hwmon_sensor_types type,
 			       u32 attr, int channel, long *val)
 {
+	u64 command = ACER_WMID_CMD_GET_PREDATOR_V4_SENSOR_READING;
+	u64 result;
 	int ret;
 
 	switch (type) {
-	case hwmon_fan:
-		ret = acer_get_fan_speed(channel);
+	case hwmon_temp:
+		command |= FIELD_PREP(ACER_PREDATOR_V4_SENSOR_INDEX_BIT_MASK,
+				      acer_wmi_temp_channel_to_sensor_id[channel]);
+
+		ret = WMID_gaming_get_sys_info(command, &result);
 		if (ret < 0)
 			return ret;
-		*val = ret;
-		break;
+
+		result = FIELD_GET(ACER_PREDATOR_V4_SENSOR_READING_BIT_MASK, result);
+		*val = result * MILLIDEGREE_PER_DEGREE;
+		return 0;
+	case hwmon_fan:
+		command |= FIELD_PREP(ACER_PREDATOR_V4_SENSOR_INDEX_BIT_MASK,
+				      acer_wmi_fan_channel_to_sensor_id[channel]);
+
+		ret = WMID_gaming_get_sys_info(command, &result);
+		if (ret < 0)
+			return ret;
+
+		*val = FIELD_GET(ACER_PREDATOR_V4_SENSOR_READING_BIT_MASK, result);
+		return 0;
 	default:
 		return -EOPNOTSUPP;
 	}
-
-	return 0;
 }
 
 static const struct hwmon_channel_info *const acer_wmi_hwmon_info[] = {
-	HWMON_CHANNEL_INFO(fan, HWMON_F_INPUT, HWMON_F_INPUT), NULL
+	HWMON_CHANNEL_INFO(temp,
+			   HWMON_T_INPUT,
+			   HWMON_T_INPUT,
+			   HWMON_T_INPUT
+			   ),
+	HWMON_CHANNEL_INFO(fan,
+			   HWMON_F_INPUT,
+			   HWMON_F_INPUT
+			   ),
+	NULL
 };
 
 static const struct hwmon_ops acer_wmi_hwmon_ops = {
@@ -2741,9 +2775,20 @@ static int acer_wmi_hwmon_init(void)
 {
 	struct device *dev = &acer_platform_device->dev;
 	struct device *hwmon;
+	u64 result;
+	int ret;
+
+	ret = WMID_gaming_get_sys_info(ACER_WMID_CMD_GET_PREDATOR_V4_SUPPORTED_SENSORS, &result);
+	if (ret < 0)
+		return ret;
+
+	/* Return early if no sensors are available */
+	supported_sensors = FIELD_GET(ACER_PREDATOR_V4_SUPPORTED_SENSORS_BIT_MASK, result);
+	if (!supported_sensors)
+		return 0;
 
 	hwmon = devm_hwmon_device_register_with_info(dev, "acer",
-						     &acer_platform_driver,
+						     &supported_sensors,
 						     &acer_wmi_hwmon_chip_info,
 						     NULL);
 
