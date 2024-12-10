@@ -51,8 +51,18 @@ EXPORT_SYMBOL_NS_GPL(hisi_cpumask_sysfs_show, "HISI_PMU");
 
 static DEVICE_ATTR(cpumask, 0444, hisi_cpumask_sysfs_show, NULL);
 
+static ssize_t hisi_associated_cpus_sysfs_show(struct device *dev,
+				struct device_attribute *attr, char *buf)
+{
+	struct hisi_pmu *hisi_pmu = to_hisi_pmu(dev_get_drvdata(dev));
+
+	return cpumap_print_to_pagebuf(true, buf, &hisi_pmu->associated_cpus);
+}
+static DEVICE_ATTR(associated_cpus, 0444, hisi_associated_cpus_sysfs_show, NULL);
+
 static struct attribute *hisi_pmu_cpumask_attrs[] = {
 	&dev_attr_cpumask.attr,
+	&dev_attr_associated_cpus.attr,
 	NULL
 };
 
