@@ -2,6 +2,7 @@
 #ifndef _ASM_S390_ABS_LOWCORE_H
 #define _ASM_S390_ABS_LOWCORE_H
 
+#include <linux/smp.h>
 #include <asm/lowcore.h>
 
 #define ABS_LOWCORE_MAP_SIZE	(NR_CPUS * sizeof(struct lowcore))
