@@ -321,7 +321,7 @@ static int jpeg_v4_0_3_hw_init(struct amdgpu_ip_block *ip_block)
 		if (r)
 			return r;
 
-		for (i = 0; i < adev->vcn.num_vcn_inst; ++i) {
+		for (i = 0; i < adev->jpeg.num_jpeg_inst; ++i) {
 			for (j = 0; j < adev->jpeg.num_jpeg_rings; ++j) {
 				ring = &adev->jpeg.inst[i].ring_dec[j];
 				ring->wptr = 0;
