@@ -27,15 +27,48 @@ static bool enable __read_mostly;
 module_param_cb(enable, &enable_param_ops, &enable, 0600);
 MODULE_PARM_DESC(enable, "Enable or disable DAMON_SAMPLE_WSSE");
 
+static struct damon_ctx *ctx;
+static struct pid *target_pidp;
+
 static int damon_sample_wsse_start(void)
 {
+	struct damon_target *target;
+
 	pr_info("start\n");
-	return 0;
+
+	ctx = damon_new_ctx();
+	if (!ctx)
+		return -ENOMEM;
+	if (damon_select_ops(ctx, DAMON_OPS_VADDR)) {
+		damon_destroy_ctx(ctx);
+		return -EINVAL;
+	}
+
+	target = damon_new_target();
+	if (!target) {
+		damon_destroy_ctx(ctx);
+		return -ENOMEM;
+	}
+	damon_add_target(ctx, target);
+	target_pidp = find_get_pid(target_pid);
+	if (!target_pidp) {
+		damon_destroy_ctx(ctx);
+		return -EINVAL;
+	}
+	target->pid = target_pidp;
+
+	return damon_start(&ctx, 1, true);
 }
 
 static void damon_sample_wsse_stop(void)
 {
 	pr_info("stop\n");
+	if (ctx) {
+		damon_stop(&ctx, 1);
+		damon_destroy_ctx(ctx);
+	}
+	if (target_pidp)
+		put_pid(target_pidp);
 }
 
 static int damon_sample_wsse_enable_store(
