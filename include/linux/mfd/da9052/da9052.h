@@ -93,6 +93,8 @@ struct da9052 {
 
 	int chip_irq;
 
+	int fault_log;
+
 	/* SOC I/O transfer related fixes for DA9052/53 */
 	int (*fix_io) (struct da9052 *da9052, unsigned char reg);
 };
