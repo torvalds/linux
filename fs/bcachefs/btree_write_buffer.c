@@ -632,6 +632,14 @@ int bch2_btree_write_buffer_maybe_flush(struct btree_trans *trans,
 	bch2_bkey_buf_init(&tmp);
 
 	if (!bkey_and_val_eq(referring_k, bkey_i_to_s_c(last_flushed->k))) {
+		if (trace_write_buffer_maybe_flush_enabled()) {
+			struct printbuf buf = PRINTBUF;
+
+			bch2_bkey_val_to_text(&buf, c, referring_k);
+			trace_write_buffer_maybe_flush(trans, _RET_IP_, buf.buf);
+			printbuf_exit(&buf);
+		}
+
 		bch2_bkey_buf_reassemble(&tmp, c, referring_k);
 
 		if (bkey_is_btree_ptr(referring_k.k)) {

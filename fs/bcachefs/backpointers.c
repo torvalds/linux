@@ -206,7 +206,7 @@ static int bch2_backpointer_del(struct btree_trans *trans, struct bpos pos)
 	       : bch2_btree_delete(trans, BTREE_ID_backpointers, pos, 0);
 }
 
-static int bch2_backpointers_maybe_flush(struct btree_trans *trans,
+static inline int bch2_backpointers_maybe_flush(struct btree_trans *trans,
 					 struct bkey_s_c visiting_k,
 					 struct bkey_buf *last_flushed)
 {
