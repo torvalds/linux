@@ -318,6 +318,8 @@ struct power_supply {
 #endif
 };
 
+#define dev_to_psy(__dev)	container_of_const(__dev, struct power_supply, dev)
+
 /*
  * This is recommended structure to specify static power supply parameters.
  * Generic one, parametrizable for different power supplies. Power supply
