@@ -183,7 +183,7 @@ static int jpeg_v5_0_1_hw_init(struct amdgpu_ip_block *ip_block)
 
 	if (amdgpu_sriov_vf(adev)) {
 		/* jpeg_v5_0_1_start_sriov(adev); */
-		for (i = 0; i < adev->vcn.num_vcn_inst; ++i) {
+		for (i = 0; i < adev->jpeg.num_jpeg_inst; ++i) {
 			for (j = 0; j < adev->jpeg.num_jpeg_rings; ++j) {
 				ring = &adev->jpeg.inst[i].ring_dec[j];
 				ring->wptr = 0;
