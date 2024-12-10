@@ -324,7 +324,7 @@ static void __d_free_external(struct rcu_head *head)
 
 static inline int dname_external(const struct dentry *dentry)
 {
-	return dentry->d_name.name != dentry->d_iname;
+	return dentry->d_name.name != dentry->d_shortname.string;
 }
 
 void take_dentry_name_snapshot(struct name_snapshot *name, struct dentry *dentry)
@@ -334,9 +334,8 @@ void take_dentry_name_snapshot(struct name_snapshot *name, struct dentry *dentry
 	if (unlikely(dname_external(dentry))) {
 		atomic_inc(&external_name(dentry)->u.count);
 	} else {
-		memcpy(name->inline_name, dentry->d_iname,
-		       dentry->d_name.len + 1);
-		name->name.name = name->inline_name;
+		name->inline_name = dentry->d_shortname;
+		name->name.name = name->inline_name.string;
 	}
 	spin_unlock(&dentry->d_lock);
 }
@@ -344,7 +343,7 @@ EXPORT_SYMBOL(take_dentry_name_snapshot);
 
 void release_dentry_name_snapshot(struct name_snapshot *name)
 {
-	if (unlikely(name->name.name != name->inline_name)) {
+	if (unlikely(name->name.name != name->inline_name.string)) {
 		struct external_name *p;
 		p = container_of(name->name.name, struct external_name, name[0]);
 		if (unlikely(atomic_dec_and_test(&p->u.count)))
@@ -1654,10 +1653,10 @@ static struct dentry *__d_alloc(struct super_block *sb, const struct qstr *name)
 	 * will still always have a NUL at the end, even if we might
 	 * be overwriting an internal NUL character
 	 */
-	dentry->d_iname[DNAME_INLINE_LEN-1] = 0;
+	dentry->d_shortname.string[DNAME_INLINE_LEN-1] = 0;
 	if (unlikely(!name)) {
 		name = &slash_name;
-		dname = dentry->d_iname;
+		dname = dentry->d_shortname.string;
 	} else if (name->len > DNAME_INLINE_LEN-1) {
 		size_t size = offsetof(struct external_name, name[1]);
 		struct external_name *p = kmalloc(size + name->len,
@@ -1670,7 +1669,7 @@ static struct dentry *__d_alloc(struct super_block *sb, const struct qstr *name)
 		atomic_set(&p->u.count, 1);
 		dname = p->name;
 	} else  {
-		dname = dentry->d_iname;
+		dname = dentry->d_shortname.string;
 	}	
 
 	dentry->d_name.len = name->len;
@@ -2729,10 +2728,9 @@ static void swap_names(struct dentry *dentry, struct dentry *target)
 			 * dentry:internal, target:external.  Steal target's
 			 * storage and make target internal.
 			 */
-			memcpy(target->d_iname, dentry->d_name.name,
-					dentry->d_name.len + 1);
 			dentry->d_name.name = target->d_name.name;
-			target->d_name.name = target->d_iname;
+			target->d_shortname = dentry->d_shortname;
+			target->d_name.name = target->d_shortname.string;
 		}
 	} else {
 		if (unlikely(dname_external(dentry))) {
@@ -2740,18 +2738,16 @@ static void swap_names(struct dentry *dentry, struct dentry *target)
 			 * dentry:external, target:internal.  Give dentry's
 			 * storage to target and make dentry internal
 			 */
-			memcpy(dentry->d_iname, target->d_name.name,
-					target->d_name.len + 1);
 			target->d_name.name = dentry->d_name.name;
-			dentry->d_name.name = dentry->d_iname;
+			dentry->d_shortname = target->d_shortname;
+			dentry->d_name.name = dentry->d_shortname.string;
 		} else {
 			/*
 			 * Both are internal.
 			 */
-			for (int i = 0; i < DNAME_INLINE_WORDS; i++) {
-				swap(((long *) &dentry->d_iname)[i],
-				     ((long *) &target->d_iname)[i]);
-			}
+			for (int i = 0; i < DNAME_INLINE_WORDS; i++)
+				swap(dentry->d_shortname.words[i],
+				     target->d_shortname.words[i]);
 		}
 	}
 	swap(dentry->d_name.hash_len, target->d_name.hash_len);
@@ -2766,9 +2762,8 @@ static void copy_name(struct dentry *dentry, struct dentry *target)
 		atomic_inc(&external_name(target)->u.count);
 		dentry->d_name = target->d_name;
 	} else {
-		memcpy(dentry->d_iname, target->d_name.name,
-				target->d_name.len + 1);
-		dentry->d_name.name = dentry->d_iname;
+		dentry->d_shortname = target->d_shortname;
+		dentry->d_name.name = dentry->d_shortname.string;
 		dentry->d_name.hash_len = target->d_name.hash_len;
 	}
 	if (old_name && likely(atomic_dec_and_test(&old_name->u.count)))
@@ -3101,12 +3096,12 @@ void d_mark_tmpfile(struct file *file, struct inode *inode)
 {
 	struct dentry *dentry = file->f_path.dentry;
 
-	BUG_ON(dentry->d_name.name != dentry->d_iname ||
+	BUG_ON(dname_external(dentry) ||
 		!hlist_unhashed(&dentry->d_u.d_alias) ||
 		!d_unlinked(dentry));
 	spin_lock(&dentry->d_parent->d_lock);
 	spin_lock_nested(&dentry->d_lock, DENTRY_D_LOCK_NESTED);
-	dentry->d_name.len = sprintf(dentry->d_iname, "#%llu",
+	dentry->d_name.len = sprintf(dentry->d_shortname.string, "#%llu",
 				(unsigned long long)inode->i_ino);
 	spin_unlock(&dentry->d_lock);
 	spin_unlock(&dentry->d_parent->d_lock);
@@ -3194,7 +3189,7 @@ static void __init dcache_init(void)
 	 */
 	dentry_cache = KMEM_CACHE_USERCOPY(dentry,
 		SLAB_RECLAIM_ACCOUNT|SLAB_PANIC|SLAB_ACCOUNT,
-		d_iname);
+		d_shortname.string);
 
 	/* Hash may have been set up in dcache_init_early */
 	if (!hashdist)

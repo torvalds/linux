@@ -79,7 +79,13 @@ extern const struct qstr dotdot_name;
 
 #define DNAME_INLINE_LEN (DNAME_INLINE_WORDS*sizeof(unsigned long))
 
+union shortname_store {
+	unsigned char string[DNAME_INLINE_LEN];
+	unsigned long words[DNAME_INLINE_WORDS];
+};
+
 #define d_lock	d_lockref.lock
+#define d_iname d_shortname.string
 
 struct dentry {
 	/* RCU lookup touched fields */
@@ -90,7 +96,7 @@ struct dentry {
 	struct qstr d_name;
 	struct inode *d_inode;		/* Where the name belongs to - NULL is
 					 * negative */
-	unsigned char d_iname[DNAME_INLINE_LEN];	/* small names */
+	union shortname_store d_shortname;
 	/* --- cacheline 1 boundary (64 bytes) was 32 bytes ago --- */
 
 	/* Ref lookup also touches following */
@@ -591,7 +597,7 @@ static inline struct inode *d_real_inode(const struct dentry *dentry)
 
 struct name_snapshot {
 	struct qstr name;
-	unsigned char inline_name[DNAME_INLINE_LEN];
+	union shortname_store inline_name;
 };
 void take_dentry_name_snapshot(struct name_snapshot *, struct dentry *);
 void release_dentry_name_snapshot(struct name_snapshot *);
