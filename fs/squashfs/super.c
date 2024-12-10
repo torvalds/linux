@@ -405,7 +405,7 @@ handle_fragments:
 		goto check_directory_table;
 
 	msblk->fragment_cache = squashfs_cache_init("fragment",
-		SQUASHFS_CACHED_FRAGMENTS, msblk->block_size);
+		min(SQUASHFS_CACHED_FRAGMENTS, fragments), msblk->block_size);
 	if (msblk->fragment_cache == NULL) {
 		err = -ENOMEM;
 		goto failed_mount;
