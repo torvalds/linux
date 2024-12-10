@@ -300,7 +300,7 @@ static int hisi_hha_pmu_init_data(struct platform_device *pdev,
 	 * SCCL_ID is in MPIDR[aff2].
 	 */
 	if (device_property_read_u32(&pdev->dev, "hisilicon,scl-id",
-				     &hha_pmu->sccl_id)) {
+				     &hha_pmu->topo.sccl_id)) {
 		dev_err(&pdev->dev, "Can not read hha sccl-id!\n");
 		return -EINVAL;
 	}
@@ -310,7 +310,7 @@ static int hisi_hha_pmu_init_data(struct platform_device *pdev,
 	 * both "hisilicon, idx-id" as preference, if available.
 	 */
 	if (device_property_read_u32(&pdev->dev, "hisilicon,idx-id",
-				     &hha_pmu->index_id)) {
+				     &hha_pmu->topo.index_id)) {
 		status = acpi_evaluate_integer(ACPI_HANDLE(&pdev->dev),
 					       "_UID", NULL, &id);
 		if (ACPI_FAILURE(status)) {
@@ -318,10 +318,10 @@ static int hisi_hha_pmu_init_data(struct platform_device *pdev,
 			return -EINVAL;
 		}
 
-		hha_pmu->index_id = id;
+		hha_pmu->topo.index_id = id;
 	}
 	/* HHA PMUs only share the same SCCL */
-	hha_pmu->ccl_id = -1;
+	hha_pmu->topo.ccl_id = -1;
 
 	hha_pmu->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(hha_pmu->base)) {
@@ -510,8 +510,8 @@ static int hisi_hha_pmu_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	name = devm_kasprintf(&pdev->dev, GFP_KERNEL, "hisi_sccl%u_hha%u",
-			      hha_pmu->sccl_id, hha_pmu->index_id);
+	name = devm_kasprintf(&pdev->dev, GFP_KERNEL, "hisi_sccl%d_hha%d",
+			      hha_pmu->topo.sccl_id, hha_pmu->topo.index_id);
 	if (!name)
 		return -ENOMEM;
 

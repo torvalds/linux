@@ -293,19 +293,19 @@ static int hisi_sllc_pmu_init_data(struct platform_device *pdev,
 	 * while SCCL_ID is from MPIDR_EL1 by CPU.
 	 */
 	if (device_property_read_u32(&pdev->dev, "hisilicon,scl-id",
-				     &sllc_pmu->sccl_id)) {
+				     &sllc_pmu->topo.sccl_id)) {
 		dev_err(&pdev->dev, "Cannot read sccl-id!\n");
 		return -EINVAL;
 	}
 
 	if (device_property_read_u32(&pdev->dev, "hisilicon,idx-id",
-				     &sllc_pmu->index_id)) {
+				     &sllc_pmu->topo.index_id)) {
 		dev_err(&pdev->dev, "Cannot read idx-id!\n");
 		return -EINVAL;
 	}
 
 	/* SLLC PMUs only share the same SCCL */
-	sllc_pmu->ccl_id = -1;
+	sllc_pmu->topo.ccl_id = -1;
 
 	sllc_pmu->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(sllc_pmu->base)) {
@@ -433,8 +433,8 @@ static int hisi_sllc_pmu_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	name = devm_kasprintf(&pdev->dev, GFP_KERNEL, "hisi_sccl%u_sllc%u",
-			      sllc_pmu->sccl_id, sllc_pmu->index_id);
+	name = devm_kasprintf(&pdev->dev, GFP_KERNEL, "hisi_sccl%d_sllc%d",
+			      sllc_pmu->topo.sccl_id, sllc_pmu->topo.index_id);
 	if (!name)
 		return -ENOMEM;
 

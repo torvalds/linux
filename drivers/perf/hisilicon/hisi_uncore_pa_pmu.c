@@ -274,19 +274,19 @@ static int hisi_pa_pmu_init_data(struct platform_device *pdev,
 	 * to identify the PA PMU.
 	 */
 	if (device_property_read_u32(&pdev->dev, "hisilicon,scl-id",
-				     &pa_pmu->sicl_id)) {
+				     &pa_pmu->topo.sicl_id)) {
 		dev_err(&pdev->dev, "Cannot read sicl-id!\n");
 		return -EINVAL;
 	}
 
 	if (device_property_read_u32(&pdev->dev, "hisilicon,idx-id",
-				     &pa_pmu->index_id)) {
+				     &pa_pmu->topo.index_id)) {
 		dev_err(&pdev->dev, "Cannot read idx-id!\n");
 		return -EINVAL;
 	}
 
-	pa_pmu->ccl_id = -1;
-	pa_pmu->sccl_id = -1;
+	pa_pmu->topo.ccl_id = -1;
+	pa_pmu->topo.sccl_id = -1;
 
 	pa_pmu->dev_info = device_get_match_data(&pdev->dev);
 	if (!pa_pmu->dev_info)
@@ -488,9 +488,9 @@ static int hisi_pa_pmu_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	name = devm_kasprintf(&pdev->dev, GFP_KERNEL, "hisi_sicl%d_%s%u",
-			      pa_pmu->sicl_id, pa_pmu->dev_info->name,
-			      pa_pmu->index_id);
+	name = devm_kasprintf(&pdev->dev, GFP_KERNEL, "hisi_sicl%d_%s%d",
+			      pa_pmu->topo.sicl_id, pa_pmu->dev_info->name,
+			      pa_pmu->topo.index_id);
 	if (!name)
 		return -ENOMEM;
 

@@ -372,19 +372,19 @@ static int hisi_uc_pmu_init_data(struct platform_device *pdev,
 	 * They have some CCLs per SCCL and then 4 UC PMU per CCL.
 	 */
 	if (device_property_read_u32(&pdev->dev, "hisilicon,scl-id",
-				     &uc_pmu->sccl_id)) {
+				     &uc_pmu->topo.sccl_id)) {
 		dev_err(&pdev->dev, "Can not read uc sccl-id!\n");
 		return -EINVAL;
 	}
 
 	if (device_property_read_u32(&pdev->dev, "hisilicon,ccl-id",
-				     &uc_pmu->ccl_id)) {
+				     &uc_pmu->topo.ccl_id)) {
 		dev_err(&pdev->dev, "Can not read uc ccl-id!\n");
 		return -EINVAL;
 	}
 
 	if (device_property_read_u32(&pdev->dev, "hisilicon,sub-id",
-				     &uc_pmu->sub_id)) {
+				     &uc_pmu->topo.sub_id)) {
 		dev_err(&pdev->dev, "Can not read sub-id!\n");
 		return -EINVAL;
 	}
@@ -538,8 +538,9 @@ static int hisi_uc_pmu_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	name = devm_kasprintf(&pdev->dev, GFP_KERNEL, "hisi_sccl%d_uc%d_%u",
-			      uc_pmu->sccl_id, uc_pmu->ccl_id, uc_pmu->sub_id);
+	name = devm_kasprintf(&pdev->dev, GFP_KERNEL, "hisi_sccl%d_uc%d_%d",
+			      uc_pmu->topo.sccl_id, uc_pmu->topo.ccl_id,
+			      uc_pmu->topo.sub_id);
 	if (!name)
 		return -ENOMEM;
 

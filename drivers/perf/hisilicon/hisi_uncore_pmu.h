@@ -81,12 +81,43 @@ struct hisi_pmu_hwevents {
 	const struct attribute_group **attr_groups;
 };
 
+/**
+ * struct hisi_pmu_topology - Describe the topology hierarchy on which the PMU
+ *                            is located.
+ * @sccl_id: ID of the SCCL on which the PMU locate is located.
+ * @sicl_id: ID of the SICL on which the PMU locate is located.
+ * @scl_id:  ID used by the core which is unaware of the SCCL/SICL.
+ * @ccl_id: ID of the CCL (CPU cluster) on which the PMU is located.
+ * @index_id: the ID of the PMU module if there're several PMUs at a
+ *            particularly location in the topology.
+ * @sub_id: submodule ID of the PMU. For example we use this for DDRC PMU v2
+ *          since each DDRC has more than one DMC
+ *
+ * The ID will be -1 if the PMU isn't located on a certain topology.
+ */
+struct hisi_pmu_topology {
+	/*
+	 * SCCL (Super CPU CLuster) and SICL (Super I/O Cluster) are parallel
+	 * so a PMU cannot locate on a SCCL and a SICL. If the SCCL/SICL
+	 * distinction is not relevant, use scl_id instead.
+	 */
+	union {
+		int sccl_id;
+		int sicl_id;
+		int scl_id;
+	};
+	int ccl_id;
+	int index_id;
+	int sub_id;
+};
+
 /* Generic pmu struct for different pmu types */
 struct hisi_pmu {
 	struct pmu pmu;
 	const struct hisi_uncore_ops *ops;
 	const struct hisi_pmu_dev_info *dev_info;
 	struct hisi_pmu_hwevents pmu_events;
+	struct hisi_pmu_topology topo;
 	/*
 	 * CPUs associated to the PMU and are preferred to use for counting.
 	 * Could be empty if PMU has no association (e.g. PMU on SICL), in
@@ -98,14 +129,7 @@ struct hisi_pmu {
 	int irq;
 	struct device *dev;
 	struct hlist_node node;
-	int sccl_id;
-	int sicl_id;
-	int ccl_id;
 	void __iomem *base;
-	/* the ID of the PMU modules */
-	u32 index_id;
-	/* For DDRC PMU v2: each DDRC has more than one DMC */
-	u32 sub_id;
 	int num_counters;
 	int counter_bits;
 	/* check event code range */

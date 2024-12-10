@@ -444,18 +444,19 @@ static void hisi_read_sccl_and_ccl_id(int *scclp, int *cclp)
  */
 static bool hisi_pmu_cpu_is_associated_pmu(struct hisi_pmu *hisi_pmu)
 {
+	struct hisi_pmu_topology *topo = &hisi_pmu->topo;
 	int sccl_id, ccl_id;
 
-	if (hisi_pmu->ccl_id == -1) {
+	if (topo->ccl_id == -1) {
 		/* If CCL_ID is -1, the PMU only shares the same SCCL */
 		hisi_read_sccl_and_ccl_id(&sccl_id, NULL);
 
-		return sccl_id == hisi_pmu->sccl_id;
+		return sccl_id == topo->sccl_id;
 	}
 
 	hisi_read_sccl_and_ccl_id(&sccl_id, &ccl_id);
 
-	return sccl_id == hisi_pmu->sccl_id && ccl_id == hisi_pmu->ccl_id;
+	return sccl_id == topo->sccl_id && ccl_id == topo->ccl_id;
 }
 
 int hisi_uncore_pmu_online_cpu(unsigned int cpu, struct hlist_node *node)

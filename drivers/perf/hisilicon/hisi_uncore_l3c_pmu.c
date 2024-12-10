@@ -360,13 +360,13 @@ static int hisi_l3c_pmu_init_data(struct platform_device *pdev,
 	 * SCCL_ID is in MPIDR[aff2] and CCL_ID is in MPIDR[aff1].
 	 */
 	if (device_property_read_u32(&pdev->dev, "hisilicon,scl-id",
-				     &l3c_pmu->sccl_id)) {
+				     &l3c_pmu->topo.sccl_id)) {
 		dev_err(&pdev->dev, "Can not read l3c sccl-id!\n");
 		return -EINVAL;
 	}
 
 	if (device_property_read_u32(&pdev->dev, "hisilicon,ccl-id",
-				     &l3c_pmu->ccl_id)) {
+				     &l3c_pmu->topo.ccl_id)) {
 		dev_err(&pdev->dev, "Can not read l3c ccl-id!\n");
 		return -EINVAL;
 	}
@@ -544,8 +544,8 @@ static int hisi_l3c_pmu_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	name = devm_kasprintf(&pdev->dev, GFP_KERNEL, "hisi_sccl%u_l3c%u",
-			      l3c_pmu->sccl_id, l3c_pmu->ccl_id);
+	name = devm_kasprintf(&pdev->dev, GFP_KERNEL, "hisi_sccl%d_l3c%d",
+			      l3c_pmu->topo.sccl_id, l3c_pmu->topo.ccl_id);
 	if (!name)
 		return -ENOMEM;
 

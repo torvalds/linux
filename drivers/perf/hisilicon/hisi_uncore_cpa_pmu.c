@@ -181,19 +181,19 @@ static int hisi_cpa_pmu_init_data(struct platform_device *pdev,
 				  struct hisi_pmu *cpa_pmu)
 {
 	if (device_property_read_u32(&pdev->dev, "hisilicon,scl-id",
-				     &cpa_pmu->sicl_id)) {
+				     &cpa_pmu->topo.sicl_id)) {
 		dev_err(&pdev->dev, "Can not read sicl-id\n");
 		return -EINVAL;
 	}
 
 	if (device_property_read_u32(&pdev->dev, "hisilicon,idx-id",
-				     &cpa_pmu->index_id)) {
+				     &cpa_pmu->topo.index_id)) {
 		dev_err(&pdev->dev, "Cannot read idx-id\n");
 		return -EINVAL;
 	}
 
-	cpa_pmu->ccl_id = -1;
-	cpa_pmu->sccl_id = -1;
+	cpa_pmu->topo.ccl_id = -1;
+	cpa_pmu->topo.sccl_id = -1;
 	cpa_pmu->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(cpa_pmu->base))
 		return PTR_ERR(cpa_pmu->base);
@@ -311,8 +311,8 @@ static int hisi_cpa_pmu_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	name = devm_kasprintf(&pdev->dev, GFP_KERNEL, "hisi_sicl%d_cpa%u",
-			      cpa_pmu->sicl_id, cpa_pmu->index_id);
+	name = devm_kasprintf(&pdev->dev, GFP_KERNEL, "hisi_sicl%d_cpa%d",
+			      cpa_pmu->topo.sicl_id, cpa_pmu->topo.index_id);
 	if (!name)
 		return -ENOMEM;
 
