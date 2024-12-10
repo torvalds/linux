@@ -3010,7 +3010,15 @@ static inline void pagetable_pte_dtor(struct ptdesc *ptdesc)
 	lruvec_stat_sub_folio(folio, NR_PAGETABLE);
 }
 
-pte_t *__pte_offset_map(pmd_t *pmd, unsigned long addr, pmd_t *pmdvalp);
+pte_t *___pte_offset_map(pmd_t *pmd, unsigned long addr, pmd_t *pmdvalp);
+static inline pte_t *__pte_offset_map(pmd_t *pmd, unsigned long addr,
+			pmd_t *pmdvalp)
+{
+	pte_t *pte;
+
+	__cond_lock(RCU, pte = ___pte_offset_map(pmd, addr, pmdvalp));
+	return pte;
+}
 static inline pte_t *pte_offset_map(pmd_t *pmd, unsigned long addr)
 {
 	return __pte_offset_map(pmd, addr, NULL);
@@ -3023,7 +3031,8 @@ static inline pte_t *pte_offset_map_lock(struct mm_struct *mm, pmd_t *pmd,
 {
 	pte_t *pte;
 
-	__cond_lock(*ptlp, pte = __pte_offset_map_lock(mm, pmd, addr, ptlp));
+	__cond_lock(RCU, __cond_lock(*ptlp,
+			pte = __pte_offset_map_lock(mm, pmd, addr, ptlp)));
 	return pte;
 }
 
