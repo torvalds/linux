@@ -492,9 +492,6 @@ int hisi_uncore_pmu_offline_cpu(unsigned int cpu, struct hlist_node *node)
 						     node);
 	unsigned int target;
 
-	if (!cpumask_test_and_clear_cpu(cpu, &hisi_pmu->associated_cpus))
-		return 0;
-
 	/* Nothing to do if this CPU doesn't own the PMU */
 	if (hisi_pmu->on_cpu != cpu)
 		return 0;
