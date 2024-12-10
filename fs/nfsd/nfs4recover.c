@@ -2052,7 +2052,6 @@ static inline int check_for_legacy_methods(int status, struct net *net)
 		path_put(&path);
 		if (status)
 			return -ENOTDIR;
-		status = nn->client_tracking_ops->init(net);
 	}
 	return status;
 }
