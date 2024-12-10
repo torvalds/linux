@@ -115,12 +115,6 @@ static void power_supply_changed_work(struct work_struct *work)
 	spin_unlock_irqrestore(&psy->changed_lock, flags);
 }
 
-int power_supply_for_each_device(void *data, int (*fn)(struct device *dev, void *data))
-{
-	return class_for_each_device(&power_supply_class, NULL, data, fn);
-}
-EXPORT_SYMBOL_GPL(power_supply_for_each_device);
-
 struct psy_for_each_psy_cb_data {
 	int (*fn)(struct power_supply *psy, void *data);
 	void *data;
@@ -141,7 +135,7 @@ int power_supply_for_each_psy(void *data, int (*fn)(struct power_supply *psy, vo
 		.data = data,
 	};
 
-	return power_supply_for_each_device(&cb_data, psy_for_each_psy_cb);
+	return class_for_each_device(&power_supply_class, NULL, &cb_data, psy_for_each_psy_cb);
 }
 EXPORT_SYMBOL_GPL(power_supply_for_each_psy);
 
