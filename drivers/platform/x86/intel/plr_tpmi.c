@@ -262,7 +262,7 @@ static int intel_plr_probe(struct auxiliary_device *auxdev, const struct auxilia
 	struct resource *res;
 	struct tpmi_plr *plr;
 	void __iomem *base;
-	char name[16];
+	char name[17];
 	int err;
 
 	plat_info = tpmi_get_platform_data(auxdev);
