@@ -1037,8 +1037,8 @@ bool ipv6_chk_mcast_addr(struct net_device *dev, const struct in6_addr *group,
 				break;
 		}
 		if (psf)
-			rv = psf->sf_count[MCAST_INCLUDE] ||
-				psf->sf_count[MCAST_EXCLUDE] !=
+			rv = READ_ONCE(psf->sf_count[MCAST_INCLUDE]) ||
+				READ_ONCE(psf->sf_count[MCAST_EXCLUDE]) !=
 				READ_ONCE(mc->mca_sfcount[MCAST_EXCLUDE]);
 		else
 			rv = READ_ONCE(mc->mca_sfcount[MCAST_EXCLUDE]) != 0;
@@ -2287,7 +2287,7 @@ static int ip6_mc_del1_src(struct ifmcaddr6 *pmc, int sfmode,
 		/* source filter not found, or count wrong =>  bug */
 		return -ESRCH;
 	}
-	psf->sf_count[sfmode]--;
+	WRITE_ONCE(psf->sf_count[sfmode], psf->sf_count[sfmode] - 1);
 	if (!psf->sf_count[MCAST_INCLUDE] && !psf->sf_count[MCAST_EXCLUDE]) {
 		struct inet6_dev *idev = pmc->idev;
 
@@ -2393,7 +2393,7 @@ static int ip6_mc_add1_src(struct ifmcaddr6 *pmc, int sfmode,
 			rcu_assign_pointer(pmc->mca_sources, psf);
 		}
 	}
-	psf->sf_count[sfmode]++;
+	WRITE_ONCE(psf->sf_count[sfmode], psf->sf_count[sfmode] + 1);
 	return 0;
 }
 
@@ -3079,8 +3079,8 @@ static int igmp6_mcf_seq_show(struct seq_file *seq, void *v)
 			   state->dev->ifindex, state->dev->name,
 			   &state->im->mca_addr,
 			   &psf->sf_addr,
-			   psf->sf_count[MCAST_INCLUDE],
-			   psf->sf_count[MCAST_EXCLUDE]);
+			   READ_ONCE(psf->sf_count[MCAST_INCLUDE]),
+			   READ_ONCE(psf->sf_count[MCAST_EXCLUDE]));
 	}
 	return 0;
 }
