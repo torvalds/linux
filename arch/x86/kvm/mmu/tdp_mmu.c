@@ -193,9 +193,6 @@ static struct kvm_mmu_page *tdp_mmu_next_root(struct kvm *kvm,
 		     !tdp_mmu_root_match((_root), (_types)))) {			\
 		} else
 
-#define for_each_tdp_mmu_root(_kvm, _root, _as_id)			\
-	__for_each_tdp_mmu_root(_kvm, _root, _as_id, KVM_ALL_ROOTS)
-
 #define for_each_valid_tdp_mmu_root(_kvm, _root, _as_id)		\
 	__for_each_tdp_mmu_root(_kvm, _root, _as_id, KVM_VALID_ROOTS)
 
@@ -1177,12 +1174,16 @@ retry:
 	return ret;
 }
 
+/* Used by mmu notifier via kvm_unmap_gfn_range() */
 bool kvm_tdp_mmu_unmap_gfn_range(struct kvm *kvm, struct kvm_gfn_range *range,
 				 bool flush)
 {
+	enum kvm_tdp_mmu_root_types types;
 	struct kvm_mmu_page *root;
 
-	__for_each_tdp_mmu_root_yield_safe(kvm, root, range->slot->as_id, KVM_ALL_ROOTS)
+	types = kvm_gfn_range_filter_to_root_types(kvm, range->attr_filter) | KVM_INVALID_ROOTS;
+
+	__for_each_tdp_mmu_root_yield_safe(kvm, root, range->slot->as_id, types)
 		flush = tdp_mmu_zap_leafs(kvm, root, range->start, range->end,
 					  range->may_block, flush);
 
@@ -1222,9 +1223,12 @@ static bool __kvm_tdp_mmu_age_gfn_range(struct kvm *kvm,
 					struct kvm_gfn_range *range,
 					bool test_only)
 {
+	enum kvm_tdp_mmu_root_types types;
 	struct kvm_mmu_page *root;
 	struct tdp_iter iter;
 	bool ret = false;
+
+	types = kvm_gfn_range_filter_to_root_types(kvm, range->attr_filter);
 
 	/*
 	 * Don't support rescheduling, none of the MMU notifiers that funnel
@@ -1232,7 +1236,8 @@ static bool __kvm_tdp_mmu_age_gfn_range(struct kvm *kvm,
 	 * this helper must NOT be used to unmap GFNs, as it processes only
 	 * valid roots!
 	 */
-	for_each_valid_tdp_mmu_root(kvm, root, range->slot->as_id) {
+	WARN_ON(types & ~KVM_VALID_ROOTS);
+	__for_each_tdp_mmu_root(kvm, root, range->slot->as_id, types) {
 		guard(rcu)();
 
 		tdp_root_for_each_leaf_pte(iter, kvm, root, range->start, range->end) {
