@@ -1536,6 +1536,7 @@ static struct msr_counter_arch_info msr_counter_arch_infos[] = {
 #define PMT_COUNTER_MTL_DC6_LSB    0
 #define PMT_COUNTER_MTL_DC6_MSB    63
 #define PMT_MTL_DC6_GUID           0x1a067102
+#define PMT_MTL_DC6_SEQ            0
 
 #define PMT_COUNTER_NAME_SIZE_BYTES      16
 #define PMT_COUNTER_TYPE_NAME_SIZE_BYTES 32
@@ -9083,13 +9084,18 @@ void *pmt_get_counter_pointer(struct pmt_mmio *pmmio, unsigned long counter_offs
 	return ret;
 }
 
-struct pmt_mmio *pmt_add_guid(unsigned int guid)
+struct pmt_mmio *pmt_add_guid(unsigned int guid, unsigned int seq)
 {
 	struct pmt_mmio *ret;
 
 	ret = pmt_mmio_find(guid);
 	if (!ret)
 		ret = pmt_mmio_open(guid);
+
+	while (ret && seq) {
+		ret = ret->next;
+		--seq;
+	}
 
 	return ret;
 }
@@ -9137,7 +9143,7 @@ void pmt_counter_add_domain(struct pmt_counter *pcounter, unsigned long *pmmio, 
 	pcounter->domains[domain_id].pcounter = pmmio;
 }
 
-int pmt_add_counter(unsigned int guid, const char *name, enum pmt_datatype type,
+int pmt_add_counter(unsigned int guid, unsigned int seq, const char *name, enum pmt_datatype type,
 		    unsigned int lsb, unsigned int msb, unsigned int offset, enum counter_scope scope,
 		    enum counter_format format, unsigned int domain_id, enum pmt_open_mode mode)
 {
@@ -9157,10 +9163,10 @@ int pmt_add_counter(unsigned int guid, const char *name, enum pmt_datatype type,
 		exit(1);
 	}
 
-	mmio = pmt_add_guid(guid);
+	mmio = pmt_add_guid(guid, seq);
 	if (!mmio) {
 		if (mode != PMT_OPEN_TRY) {
-			fprintf(stderr, "%s: failed to map PMT MMIO for guid %x\n", __func__, guid);
+			fprintf(stderr, "%s: failed to map PMT MMIO for guid %x, seq %u\n", __func__, guid, seq);
 			exit(1);
 		}
 
@@ -9216,9 +9222,9 @@ int pmt_add_counter(unsigned int guid, const char *name, enum pmt_datatype type,
 void pmt_init(void)
 {
 	if (BIC_IS_ENABLED(BIC_Diec6)) {
-		pmt_add_counter(PMT_MTL_DC6_GUID, "Die%c6", PMT_TYPE_XTAL_TIME, PMT_COUNTER_MTL_DC6_LSB,
-				PMT_COUNTER_MTL_DC6_MSB, PMT_COUNTER_MTL_DC6_OFFSET, SCOPE_PACKAGE, FORMAT_DELTA,
-				0, PMT_OPEN_TRY);
+		pmt_add_counter(PMT_MTL_DC6_GUID, PMT_MTL_DC6_SEQ, "Die%c6", PMT_TYPE_XTAL_TIME,
+				PMT_COUNTER_MTL_DC6_LSB, PMT_COUNTER_MTL_DC6_MSB, PMT_COUNTER_MTL_DC6_OFFSET,
+				SCOPE_PACKAGE, FORMAT_DELTA, 0, PMT_OPEN_TRY);
 	}
 }
 
@@ -9699,6 +9705,7 @@ void parse_add_command_pmt(char *add_command)
 	unsigned int lsb;
 	unsigned int msb;
 	unsigned int guid;
+	unsigned int seq = 0; /* By default, pick first file in a sequence with a given GUID. */
 	unsigned int domain_id;
 	enum counter_scope scope = 0;
 	enum pmt_datatype type = PMT_TYPE_RAW;
@@ -9775,6 +9782,10 @@ void parse_add_command_pmt(char *add_command)
 
 		if (sscanf(add_command, "guid=%x", &guid) == 1) {
 			has_guid = true;
+			goto next;
+		}
+
+		if (sscanf(add_command, "seq=%x", &seq) == 1) {
 			goto next;
 		}
 
@@ -9864,7 +9875,7 @@ next:
 		exit(1);
 	}
 
-	pmt_add_counter(guid, name, type, lsb, msb, offset, scope, format, domain_id, PMT_OPEN_REQUIRED);
+	pmt_add_counter(guid, seq, name, type, lsb, msb, offset, scope, format, domain_id, PMT_OPEN_REQUIRED);
 }
 
 void parse_add_command(char *add_command)
