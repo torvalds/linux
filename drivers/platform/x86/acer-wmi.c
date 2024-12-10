@@ -70,6 +70,7 @@ MODULE_LICENSE("GPL");
 
 #define ACER_PREDATOR_V4_THERMAL_PROFILE_EC_OFFSET 0x54
 
+#define ACER_PREDATOR_V4_RETURN_STATUS_BIT_MASK GENMASK_ULL(7, 0)
 #define ACER_PREDATOR_V4_FAN_SPEED_READ_BIT_MASK GENMASK(20, 8)
 
 /*
@@ -1513,6 +1514,24 @@ static acpi_status WMID_gaming_get_u64(u64 *value, u32 cap)
 	return status;
 }
 
+static int WMID_gaming_get_sys_info(u32 command, u64 *out)
+{
+	acpi_status status;
+	u64 result;
+
+	status = WMI_gaming_execute_u64(ACER_WMID_GET_GAMING_SYS_INFO_METHODID, command, &result);
+	if (ACPI_FAILURE(status))
+		return -EIO;
+
+	/* The return status must be zero for the operation to have succeeded */
+	if (FIELD_GET(ACER_PREDATOR_V4_RETURN_STATUS_BIT_MASK, result))
+		return -EIO;
+
+	*out = result;
+
+	return 0;
+}
+
 static void WMID_gaming_set_fan_mode(u8 fan_mode)
 {
 	/* fan_mode = 1 is used for auto, fan_mode = 2 used for turbo*/
@@ -1762,22 +1781,23 @@ static int acer_gsensor_event(void)
 
 static int acer_get_fan_speed(int fan)
 {
-	if (quirks->predator_v4) {
-		acpi_status status;
-		u64 fanspeed;
+	u64 fanspeed;
+	u32 command;
+	int ret;
 
-		status = WMI_gaming_execute_u64(
-			ACER_WMID_GET_GAMING_SYS_INFO_METHODID,
-			fan == 0 ? ACER_WMID_CMD_GET_PREDATOR_V4_CPU_FAN_SPEED :
-				   ACER_WMID_CMD_GET_PREDATOR_V4_GPU_FAN_SPEED,
-			&fanspeed);
+	if (!quirks->predator_v4)
+		return -EOPNOTSUPP;
 
-		if (ACPI_FAILURE(status))
-			return -EIO;
+	if (fan == 0)
+		command = ACER_WMID_CMD_GET_PREDATOR_V4_CPU_FAN_SPEED;
+	else
+		command = ACER_WMID_CMD_GET_PREDATOR_V4_GPU_FAN_SPEED;
 
-		return FIELD_GET(ACER_PREDATOR_V4_FAN_SPEED_READ_BIT_MASK, fanspeed);
-	}
-	return -EOPNOTSUPP;
+	ret = WMID_gaming_get_sys_info(command, &fanspeed);
+	if (ret < 0)
+		return ret;
+
+	return FIELD_GET(ACER_PREDATOR_V4_FAN_SPEED_READ_BIT_MASK, fanspeed);
 }
 
 /*
@@ -1942,12 +1962,9 @@ static int acer_thermal_profile_change(void)
 			return err;
 
 		/* Check power source */
-		status = WMI_gaming_execute_u64(
-			ACER_WMID_GET_GAMING_SYS_INFO_METHODID,
-			ACER_WMID_CMD_GET_PREDATOR_V4_BAT_STATUS, &on_AC);
-
-		if (ACPI_FAILURE(status))
-			return -EIO;
+		err = WMID_gaming_get_sys_info(ACER_WMID_CMD_GET_PREDATOR_V4_BAT_STATUS, &on_AC);
+		if (err < 0)
+			return err;
 
 		switch (current_tp) {
 		case ACER_PREDATOR_V4_THERMAL_PROFILE_TURBO:
