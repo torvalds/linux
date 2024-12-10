@@ -246,7 +246,7 @@ struct hotkey_function_type_aa {
 #define ACER_CAP_TURBO_LED		BIT(8)
 #define ACER_CAP_TURBO_FAN		BIT(9)
 #define ACER_CAP_PLATFORM_PROFILE	BIT(10)
-#define ACER_CAP_FAN_SPEED_READ		BIT(11)
+#define ACER_CAP_HWMON			BIT(11)
 
 /*
  * Interface type flags
@@ -358,7 +358,7 @@ static void __init set_quirks(void)
 
 	if (quirks->predator_v4)
 		interface->capability |= ACER_CAP_PLATFORM_PROFILE |
-					 ACER_CAP_FAN_SPEED_READ;
+					 ACER_CAP_HWMON;
 }
 
 static int __init dmi_matched(const struct dmi_system_id *dmi)
@@ -2551,7 +2551,7 @@ static int acer_platform_probe(struct platform_device *device)
 			goto error_platform_profile;
 	}
 
-	if (has_cap(ACER_CAP_FAN_SPEED_READ)) {
+	if (has_cap(ACER_CAP_HWMON)) {
 		err = acer_wmi_hwmon_init();
 		if (err)
 			goto error_hwmon;
