@@ -68,14 +68,16 @@ extern const struct qstr dotdot_name;
  * large memory footprint increase).
  */
 #ifdef CONFIG_64BIT
-# define DNAME_INLINE_LEN 40 /* 192 bytes */
+# define DNAME_INLINE_WORDS 5 /* 192 bytes */
 #else
 # ifdef CONFIG_SMP
-#  define DNAME_INLINE_LEN 36 /* 128 bytes */
+#  define DNAME_INLINE_WORDS 9 /* 128 bytes */
 # else
-#  define DNAME_INLINE_LEN 44 /* 128 bytes */
+#  define DNAME_INLINE_WORDS 11 /* 128 bytes */
 # endif
 #endif
+
+#define DNAME_INLINE_LEN (DNAME_INLINE_WORDS*sizeof(unsigned long))
 
 #define d_lock	d_lockref.lock
 
