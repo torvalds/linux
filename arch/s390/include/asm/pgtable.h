@@ -17,7 +17,6 @@
 #include <linux/page-flags.h>
 #include <linux/radix-tree.h>
 #include <linux/atomic.h>
-#include <asm/sections.h>
 #include <asm/ctlreg.h>
 #include <asm/bug.h>
 #include <asm/page.h>
@@ -35,7 +34,7 @@ enum {
 	PG_DIRECT_MAP_MAX
 };
 
-extern atomic_long_t __bootdata_preserved(direct_pages_count[PG_DIRECT_MAP_MAX]);
+extern atomic_long_t direct_pages_count[PG_DIRECT_MAP_MAX];
 
 static inline void update_page_count(int level, long count)
 {
@@ -85,14 +84,14 @@ extern unsigned long zero_page_mask;
  * happen without trampolines and in addition the placement within a
  * 2GB frame is branch prediction unit friendly.
  */
-extern unsigned long __bootdata_preserved(VMALLOC_START);
-extern unsigned long __bootdata_preserved(VMALLOC_END);
+extern unsigned long VMALLOC_START;
+extern unsigned long VMALLOC_END;
 #define VMALLOC_DEFAULT_SIZE	((512UL << 30) - MODULES_LEN)
-extern struct page *__bootdata_preserved(vmemmap);
-extern unsigned long __bootdata_preserved(vmemmap_size);
+extern struct page *vmemmap;
+extern unsigned long vmemmap_size;
 
-extern unsigned long __bootdata_preserved(MODULES_VADDR);
-extern unsigned long __bootdata_preserved(MODULES_END);
+extern unsigned long MODULES_VADDR;
+extern unsigned long MODULES_END;
 #define MODULES_VADDR	MODULES_VADDR
 #define MODULES_END	MODULES_END
 #define MODULES_LEN	(1UL << 31)

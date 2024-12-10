@@ -157,18 +157,18 @@ u64 __bootdata_preserved(stfle_fac_list[16]);
 EXPORT_SYMBOL(stfle_fac_list);
 struct oldmem_data __bootdata_preserved(oldmem_data);
 
-unsigned long VMALLOC_START;
+unsigned long __bootdata_preserved(VMALLOC_START);
 EXPORT_SYMBOL(VMALLOC_START);
 
-unsigned long VMALLOC_END;
+unsigned long __bootdata_preserved(VMALLOC_END);
 EXPORT_SYMBOL(VMALLOC_END);
 
-struct page *vmemmap;
+struct page *__bootdata_preserved(vmemmap);
 EXPORT_SYMBOL(vmemmap);
-unsigned long vmemmap_size;
+unsigned long __bootdata_preserved(vmemmap_size);
 
-unsigned long MODULES_VADDR;
-unsigned long MODULES_END;
+unsigned long __bootdata_preserved(MODULES_VADDR);
+unsigned long __bootdata_preserved(MODULES_END);
 
 /* An array with a pointer to the lowcore of every CPU. */
 struct lowcore *lowcore_ptr[NR_CPUS];
