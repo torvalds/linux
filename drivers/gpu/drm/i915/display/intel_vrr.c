@@ -81,6 +81,19 @@ int intel_vrr_vblank_delay(const struct intel_crtc_state *crtc_state)
 		crtc_state->hw.adjusted_mode.crtc_vdisplay;
 }
 
+static int intel_vrr_flipline_offset(struct intel_display *display)
+{
+	/* ICL/TGL hardware imposes flipline>=vmin+1 */
+	return DISPLAY_VER(display) < 13 ? 1 : 0;
+}
+
+static int intel_vrr_vmin_flipline(const struct intel_crtc_state *crtc_state)
+{
+	struct intel_display *display = to_intel_display(crtc_state);
+
+	return crtc_state->vrr.vmin + intel_vrr_flipline_offset(display);
+}
+
 /*
  * Without VRR registers get latched at:
  *  vblank_start
@@ -110,8 +123,8 @@ static int intel_vrr_vblank_exit_length(const struct intel_crtc_state *crtc_stat
 
 int intel_vrr_vmin_vtotal(const struct intel_crtc_state *crtc_state)
 {
-	/* Min vblank actually determined by flipline that is always >=vmin+1 */
-	return crtc_state->vrr.vmin + 1;
+	/* Min vblank actually determined by flipline */
+	return intel_vrr_vmin_flipline(crtc_state);
 }
 
 int intel_vrr_vmax_vtotal(const struct intel_crtc_state *crtc_state)
@@ -121,8 +134,8 @@ int intel_vrr_vmax_vtotal(const struct intel_crtc_state *crtc_state)
 
 int intel_vrr_vmin_vblank_start(const struct intel_crtc_state *crtc_state)
 {
-	/* Min vblank actually determined by flipline that is always >=vmin+1 */
-	return crtc_state->vrr.vmin + 1 - intel_vrr_vblank_exit_length(crtc_state);
+	/* Min vblank actually determined by flipline */
+	return intel_vrr_vmin_flipline(crtc_state) - intel_vrr_vblank_exit_length(crtc_state);
 }
 
 int intel_vrr_vmax_vblank_start(const struct intel_crtc_state *crtc_state)
@@ -219,15 +232,17 @@ intel_vrr_compute_config(struct intel_crtc_state *crtc_state,
 	if (vmin >= vmax)
 		return;
 
-	/*
-	 * flipline determines the min vblank length the hardware will
-	 * generate, and flipline>=vmin+1, hence we reduce vmin by one
-	 * to make sure we can get the actual min vblank length.
-	 */
-	crtc_state->vrr.vmin = vmin - 1;
+	crtc_state->vrr.vmin = vmin;
 	crtc_state->vrr.vmax = vmax;
 
-	crtc_state->vrr.flipline = crtc_state->vrr.vmin + 1;
+	crtc_state->vrr.flipline = crtc_state->vrr.vmin;
+
+	/*
+	 * flipline determines the min vblank length the hardware will
+	 * generate, and on ICL/TGL flipline>=vmin+1, hence we reduce
+	 * vmin by one to make sure we can get the actual min vblank length.
+	 */
+	crtc_state->vrr.vmin -= intel_vrr_flipline_offset(display);
 
 	/*
 	 * When panel is VRR capable and userspace has
@@ -272,7 +287,7 @@ void intel_vrr_compute_config_late(struct intel_crtc_state *crtc_state)
 
 	if (DISPLAY_VER(display) >= 13) {
 		crtc_state->vrr.guardband =
-			crtc_state->vrr.vmin + 1 - adjusted_mode->crtc_vblank_start;
+			crtc_state->vrr.vmin - adjusted_mode->crtc_vblank_start;
 	} else {
 		crtc_state->vrr.pipeline_full =
 			min(255, crtc_state->vrr.vmin - adjusted_mode->crtc_vblank_start -
