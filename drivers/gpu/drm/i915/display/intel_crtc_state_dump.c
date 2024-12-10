@@ -283,7 +283,9 @@ void intel_crtc_state_dump(const struct intel_crtc_state *pipe_config,
 		drm_print_hex_dump(&p, "ELD: ", pipe_config->eld,
 				   drm_eld_size(pipe_config->eld));
 
-	drm_printf(&p, "framestart delay: %d, MSA timing delay: %d\n",
+	drm_printf(&p, "vblank delay: %d, framestart delay: %d, MSA timing delay: %d\n",
+		   pipe_config->hw.adjusted_mode.crtc_vblank_start -
+		   pipe_config->hw.adjusted_mode.crtc_vdisplay,
 		   pipe_config->framestart_delay, pipe_config->msa_timing_delay);
 
 	drm_printf(&p, "vrr: %s, vmin: %d, vmax: %d, pipeline full: %d, guardband: %d flipline: %d, vmin vblank: %d, vmax vblank: %d\n",
