@@ -781,6 +781,11 @@ int bch2_fs_recovery(struct bch_fs *c)
 
 	c->opts.recovery_passes |= bch2_recovery_passes_from_stable(le64_to_cpu(ext->recovery_passes_required[0]));
 
+	if (c->sb.version_upgrade_complete < bcachefs_metadata_version_autofix_errors) {
+		SET_BCH_SB_ERROR_ACTION(c->disk_sb.sb, BCH_ON_ERROR_fix_safe);
+		write_sb = true;
+	}
+
 	if (write_sb)
 		bch2_write_super(c);
 	mutex_unlock(&c->sb_lock);
