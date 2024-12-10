@@ -49,6 +49,7 @@ static int damon_sample_prcl_after_aggregate(struct damon_ctx *c)
 static int damon_sample_prcl_start(void)
 {
 	struct damon_target *target;
+	struct damos *scheme;
 
 	pr_info("start\n");
 
@@ -74,6 +75,25 @@ static int damon_sample_prcl_start(void)
 	target->pid = target_pidp;
 
 	ctx->callback.after_aggregation = damon_sample_prcl_after_aggregate;
+
+	scheme = damon_new_scheme(
+			&(struct damos_access_pattern) {
+			.min_sz_region = PAGE_SIZE,
+			.max_sz_region = ULONG_MAX,
+			.min_nr_accesses = 0,
+			.max_nr_accesses = 0,
+			.min_age_region = 50,
+			.max_age_region = UINT_MAX},
+			DAMOS_PAGEOUT,
+			0,
+			&(struct damos_quota){},
+			&(struct damos_watermarks){},
+			NUMA_NO_NODE);
+	if (!scheme) {
+		damon_destroy_ctx(ctx);
+		return -ENOMEM;
+	}
+	damon_set_schemes(ctx, &scheme, 1);
 
 	return damon_start(&ctx, 1, true);
 }
