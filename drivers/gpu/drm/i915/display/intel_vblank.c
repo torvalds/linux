@@ -507,6 +507,23 @@ void intel_wait_for_pipe_scanline_moving(struct intel_crtc *crtc)
 	wait_for_pipe_scanline_moving(crtc, true);
 }
 
+static void intel_crtc_active_timings(struct drm_display_mode *mode,
+				      int *vmax_vblank_start,
+				      const struct intel_crtc_state *crtc_state,
+				      bool vrr_enable)
+{
+	drm_mode_init(mode, &crtc_state->hw.adjusted_mode);
+	*vmax_vblank_start = 0;
+
+	if (!vrr_enable)
+		return;
+
+	mode->crtc_vtotal = intel_vrr_vmax_vtotal(crtc_state);
+	mode->crtc_vblank_end = intel_vrr_vmax_vtotal(crtc_state);
+	mode->crtc_vblank_start = intel_vrr_vmin_vblank_start(crtc_state);
+	*vmax_vblank_start = intel_vrr_vmax_vblank_start(crtc_state);
+}
+
 void intel_crtc_update_active_timings(const struct intel_crtc_state *crtc_state,
 				      bool vrr_enable)
 {
@@ -517,19 +534,13 @@ void intel_crtc_update_active_timings(const struct intel_crtc_state *crtc_state,
 	int vmax_vblank_start = 0;
 	unsigned long irqflags;
 
-	drm_mode_init(&adjusted_mode, &crtc_state->hw.adjusted_mode);
+	intel_crtc_active_timings(&adjusted_mode, &vmax_vblank_start,
+				  crtc_state, vrr_enable);
 
-	if (vrr_enable) {
-		drm_WARN_ON(display->drm,
-			    (mode_flags & I915_MODE_FLAG_VRR) == 0);
-
-		adjusted_mode.crtc_vtotal = intel_vrr_vmax_vtotal(crtc_state);
-		adjusted_mode.crtc_vblank_end = intel_vrr_vmax_vtotal(crtc_state);
-		adjusted_mode.crtc_vblank_start = intel_vrr_vmin_vblank_start(crtc_state);
-		vmax_vblank_start = intel_vrr_vmax_vblank_start(crtc_state);
-	} else {
+	if (vrr_enable)
+		drm_WARN_ON(display->drm, (mode_flags & I915_MODE_FLAG_VRR) == 0);
+	else
 		mode_flags &= ~I915_MODE_FLAG_VRR;
-	}
 
 	/*
 	 * Belts and suspenders locking to guarantee everyone sees 100%
