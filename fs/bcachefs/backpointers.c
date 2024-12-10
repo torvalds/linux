@@ -210,9 +210,20 @@ static int backpointer_target_not_found(struct btree_trans *trans,
 	prt_printf(&buf, "backpointer doesn't match %s it points to:\n  ",
 		   bp.v->level ? "btree node" : "extent");
 	bch2_bkey_val_to_text(&buf, c, bp.s_c);
-	prt_printf(&buf, "\n  ");
 
+	prt_printf(&buf, "\n  ");
 	bch2_bkey_val_to_text(&buf, c, target_k);
+
+	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(target_k);
+	const union bch_extent_entry *entry;
+	struct extent_ptr_decoded p;
+	bkey_for_each_ptr_decode(target_k.k, ptrs, p, entry)
+		if (p.ptr.dev == bp.k->p.inode) {
+			prt_printf(&buf, "\n  ");
+			struct bkey_i_backpointer bp2;
+			bch2_extent_ptr_to_bp(c, bp.v->btree_id, bp.v->level, target_k, p, entry, &bp2);
+			bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(&bp2.k_i));
+		}
 
 	if (fsck_err(trans, backpointer_to_missing_ptr,
 		     "%s", buf.buf))
