@@ -151,5 +151,6 @@
 #define GCC_PCIE3_RCHNG_CLK_SRC			142
 #define GCC_PCIE3_RCHNG_CLK			143
 #define GCC_IM_SLEEP_CLK			144
+#define GCC_XO_CLK				145
 
 #endif
