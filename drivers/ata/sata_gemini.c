@@ -224,18 +224,6 @@ void gemini_sata_stop_bridge(struct sata_gemini *sg, unsigned int bridge)
 }
 EXPORT_SYMBOL(gemini_sata_stop_bridge);
 
-int gemini_sata_reset_bridge(struct sata_gemini *sg,
-			     unsigned int bridge)
-{
-	if (bridge == 0)
-		reset_control_reset(sg->sata0_reset);
-	else
-		reset_control_reset(sg->sata1_reset);
-	msleep(10);
-	return gemini_sata_setup_bridge(sg, bridge);
-}
-EXPORT_SYMBOL(gemini_sata_reset_bridge);
-
 static int gemini_sata_bridge_init(struct sata_gemini *sg)
 {
 	struct device *dev = sg->dev;
