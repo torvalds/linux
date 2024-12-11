@@ -24,7 +24,7 @@ enum {
 #define USB_G_ALT_INT_BBB       0
 #define USB_G_ALT_INT_UAS       1
 
-#define USB_G_DEFAULT_SESSION_TAGS	128
+#define USB_G_DEFAULT_SESSION_TAGS	UASP_SS_EP_COMP_NUM_STREAMS
 
 struct tcm_usbg_nexus {
 	struct se_session *tvn_se_sess;
