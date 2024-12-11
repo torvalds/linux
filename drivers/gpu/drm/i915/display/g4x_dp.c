@@ -1223,6 +1223,18 @@ static bool ilk_digital_port_connected(struct intel_encoder *encoder)
 	return intel_de_read(display, DEISR) & bit;
 }
 
+static int g4x_dp_compute_config(struct intel_encoder *encoder,
+				 struct intel_crtc_state *crtc_state,
+				 struct drm_connector_state *conn_state)
+{
+	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
+
+	if (HAS_PCH_SPLIT(i915) && encoder->port != PORT_A)
+		crtc_state->has_pch_encoder = true;
+
+	return intel_dp_compute_config(encoder, crtc_state, conn_state);
+}
+
 static void g4x_dp_suspend_complete(struct intel_encoder *encoder)
 {
 	/*
@@ -1307,7 +1319,7 @@ bool g4x_dp_init(struct drm_i915_private *dev_priv,
 	intel_encoder_link_check_init(intel_encoder, intel_dp_link_check);
 
 	intel_encoder->hotplug = intel_dp_hotplug;
-	intel_encoder->compute_config = intel_dp_compute_config;
+	intel_encoder->compute_config = g4x_dp_compute_config;
 	intel_encoder->get_hw_state = intel_dp_get_hw_state;
 	intel_encoder->get_config = intel_dp_get_config;
 	intel_encoder->sync_state = intel_dp_sync_state;
