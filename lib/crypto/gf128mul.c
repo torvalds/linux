@@ -225,44 +225,6 @@ void gf128mul_lle(be128 *r, const be128 *b)
 }
 EXPORT_SYMBOL(gf128mul_lle);
 
-void gf128mul_bbe(be128 *r, const be128 *b)
-{
-	be128 p[8];
-	int i;
-
-	p[0] = *r;
-	for (i = 0; i < 7; ++i)
-		gf128mul_x_bbe(&p[i + 1], &p[i]);
-
-	memset(r, 0, sizeof(*r));
-	for (i = 0;;) {
-		u8 ch = ((u8 *)b)[i];
-
-		if (ch & 0x80)
-			be128_xor(r, r, &p[7]);
-		if (ch & 0x40)
-			be128_xor(r, r, &p[6]);
-		if (ch & 0x20)
-			be128_xor(r, r, &p[5]);
-		if (ch & 0x10)
-			be128_xor(r, r, &p[4]);
-		if (ch & 0x08)
-			be128_xor(r, r, &p[3]);
-		if (ch & 0x04)
-			be128_xor(r, r, &p[2]);
-		if (ch & 0x02)
-			be128_xor(r, r, &p[1]);
-		if (ch & 0x01)
-			be128_xor(r, r, &p[0]);
-
-		if (++i >= 16)
-			break;
-
-		gf128mul_x8_bbe(r);
-	}
-}
-EXPORT_SYMBOL(gf128mul_bbe);
-
 /*      This version uses 64k bytes of table space.
     A 16 byte buffer has to be multiplied by a 16 byte key
     value in GF(2^128).  If we consider a GF(2^128) value in
@@ -380,28 +342,6 @@ out:
 }
 EXPORT_SYMBOL(gf128mul_init_4k_lle);
 
-struct gf128mul_4k *gf128mul_init_4k_bbe(const be128 *g)
-{
-	struct gf128mul_4k *t;
-	int j, k;
-
-	t = kzalloc(sizeof(*t), GFP_KERNEL);
-	if (!t)
-		goto out;
-
-	t->t[1] = *g;
-	for (j = 1; j <= 64; j <<= 1)
-		gf128mul_x_bbe(&t->t[j + j], &t->t[j]);
-
-	for (j = 2; j < 256; j += j)
-		for (k = 1; k < j; ++k)
-			be128_xor(&t->t[j + k], &t->t[j], &t->t[k]);
-
-out:
-	return t;
-}
-EXPORT_SYMBOL(gf128mul_init_4k_bbe);
-
 void gf128mul_4k_lle(be128 *a, const struct gf128mul_4k *t)
 {
 	u8 *ap = (u8 *)a;
@@ -416,21 +356,6 @@ void gf128mul_4k_lle(be128 *a, const struct gf128mul_4k *t)
 	*a = *r;
 }
 EXPORT_SYMBOL(gf128mul_4k_lle);
-
-void gf128mul_4k_bbe(be128 *a, const struct gf128mul_4k *t)
-{
-	u8 *ap = (u8 *)a;
-	be128 r[1];
-	int i = 0;
-
-	*r = t->t[ap[0]];
-	while (++i < 16) {
-		gf128mul_x8_bbe(r);
-		be128_xor(r, r, &t->t[ap[i]]);
-	}
-	*a = *r;
-}
-EXPORT_SYMBOL(gf128mul_4k_bbe);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Functions for multiplying elements of GF(2^128)");
