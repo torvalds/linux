@@ -26,7 +26,6 @@
 #include <linux/cpufreq.h>
 #include <linux/gpio/consumer.h>
 #include <linux/of.h>
-#include <linux/platform_data/i2c-davinci.h>
 #include <linux/pm_runtime.h>
 
 /* ----- global defines ----------------------------------------------- */
@@ -117,6 +116,8 @@
 /* timeout for pm runtime autosuspend */
 #define DAVINCI_I2C_PM_TIMEOUT	1000	/* ms */
 
+#define DAVINCI_I2C_DEFAULT_BUS_FREQ	100
+
 struct davinci_i2c_dev {
 	struct device           *dev;
 	void __iomem		*base;
@@ -132,13 +133,10 @@ struct davinci_i2c_dev {
 #ifdef CONFIG_CPU_FREQ
 	struct notifier_block	freq_transition;
 #endif
-	struct davinci_i2c_platform_data *pdata;
-};
-
-/* default platform data to use if not supplied in the platform_device */
-static struct davinci_i2c_platform_data davinci_i2c_platform_data_default = {
-	.bus_freq	= 100,
-	.bus_delay	= 0,
+	/* standard bus frequency (kHz) */
+	unsigned int		bus_freq;
+	/* Chip has a ICPFUNC register */
+	bool			has_pfunc;
 };
 
 static inline void davinci_i2c_write_reg(struct davinci_i2c_dev *i2c_dev,
@@ -168,7 +166,6 @@ static inline void davinci_i2c_reset_ctrl(struct davinci_i2c_dev *i2c_dev,
 
 static void i2c_davinci_calc_clk_dividers(struct davinci_i2c_dev *dev)
 {
-	struct davinci_i2c_platform_data *pdata = dev->pdata;
 	u16 psc;
 	u32 clk;
 	u32 d;
@@ -212,16 +209,16 @@ static void i2c_davinci_calc_clk_dividers(struct davinci_i2c_dev *dev)
 	if (of_node && of_device_is_compatible(of_node, "ti,keystone-i2c"))
 		d = 6;
 
-	clk = ((input_clock / (psc + 1)) / (pdata->bus_freq * 1000));
+	clk = ((input_clock / (psc + 1)) / (dev->bus_freq * 1000));
 	/* Avoid driving the bus too fast because of rounding errors above */
-	if (input_clock / (psc + 1) / clk > pdata->bus_freq * 1000)
+	if (input_clock / (psc + 1) / clk > dev->bus_freq * 1000)
 		clk++;
 	/*
 	 * According to I2C-BUS Spec 2.1, in FAST-MODE LOW period should be at
 	 * least 1.3uS, which is not the case with 50% duty cycle. Driving HIGH
 	 * to LOW ratio as 1 to 2 is more safe.
 	 */
-	if (pdata->bus_freq > 100)
+	if (dev->bus_freq > 100)
 		clkl = (clk << 1) / 3;
 	else
 		clkl = (clk >> 1);
@@ -255,8 +252,6 @@ static void i2c_davinci_calc_clk_dividers(struct davinci_i2c_dev *dev)
  */
 static int i2c_davinci_init(struct davinci_i2c_dev *dev)
 {
-	struct davinci_i2c_platform_data *pdata = dev->pdata;
-
 	/* put I2C into reset */
 	davinci_i2c_reset_ctrl(dev, 0);
 
@@ -274,8 +269,7 @@ static int i2c_davinci_init(struct davinci_i2c_dev *dev)
 		davinci_i2c_read_reg(dev, DAVINCI_I2C_CLKL_REG));
 	dev_dbg(dev->dev, "CLKH = %d\n",
 		davinci_i2c_read_reg(dev, DAVINCI_I2C_CLKH_REG));
-	dev_dbg(dev->dev, "bus_freq = %dkHz, bus_delay = %d\n",
-		pdata->bus_freq, pdata->bus_delay);
+	dev_dbg(dev->dev, "bus_freq = %dkHz\n", dev->bus_freq);
 
 
 	/* Take the I2C module out of reset: */
@@ -308,12 +302,6 @@ static void davinci_i2c_unprepare_recovery(struct i2c_adapter *adap)
 
 	i2c_davinci_init(dev);
 }
-
-static struct i2c_bus_recovery_info davinci_i2c_gpio_recovery_info = {
-	.recover_bus = i2c_generic_scl_recovery,
-	.prepare_recovery = davinci_i2c_prepare_recovery,
-	.unprepare_recovery = davinci_i2c_unprepare_recovery,
-};
 
 static void davinci_i2c_set_scl(struct i2c_adapter *adap, int val)
 {
@@ -414,7 +402,6 @@ static int
 i2c_davinci_xfer_msg(struct i2c_adapter *adap, struct i2c_msg *msg, int stop)
 {
 	struct davinci_i2c_dev *dev = i2c_get_adapdata(adap);
-	struct davinci_i2c_platform_data *pdata = dev->pdata;
 	u32 flag;
 	u16 w;
 	unsigned long time_left;
@@ -423,10 +410,6 @@ i2c_davinci_xfer_msg(struct i2c_adapter *adap, struct i2c_msg *msg, int stop)
 		dev_warn(dev->dev, "transfer to own address aborted\n");
 		return -EADDRNOTAVAIL;
 	}
-
-	/* Introduce a delay, required for some boards (e.g Davinci EVM) */
-	if (pdata->bus_delay)
-		udelay(pdata->bus_delay);
 
 	/* set the target address */
 	davinci_i2c_write_reg(dev, DAVINCI_I2C_SAR_REG, msg->addr);
@@ -758,8 +741,8 @@ static int davinci_i2c_probe(struct platform_device *pdev)
 {
 	struct davinci_i2c_dev *dev;
 	struct i2c_adapter *adap;
-	struct i2c_bus_recovery_info *rinfo;
 	int r, irq;
+	u32 prop;
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
@@ -773,29 +756,15 @@ static int davinci_i2c_probe(struct platform_device *pdev)
 
 	dev->dev = &pdev->dev;
 	dev->irq = irq;
-	dev->pdata = dev_get_platdata(&pdev->dev);
 	platform_set_drvdata(pdev, dev);
 
-	if (!dev->pdata && pdev->dev.of_node) {
-		u32 prop;
+	r = device_property_read_u32(&pdev->dev, "clock-frequency", &prop);
+	if (r)
+		prop = DAVINCI_I2C_DEFAULT_BUS_FREQ;
 
-		dev->pdata = devm_kzalloc(&pdev->dev,
-			sizeof(struct davinci_i2c_platform_data), GFP_KERNEL);
-		if (!dev->pdata)
-			return -ENOMEM;
+	dev->bus_freq = prop / 1000;
 
-		memcpy(dev->pdata, &davinci_i2c_platform_data_default,
-			sizeof(struct davinci_i2c_platform_data));
-		if (!of_property_read_u32(pdev->dev.of_node, "clock-frequency",
-			&prop))
-			dev->pdata->bus_freq = prop / 1000;
-
-		dev->pdata->has_pfunc =
-			of_property_read_bool(pdev->dev.of_node,
-					      "ti,has-pfunc");
-	} else if (!dev->pdata) {
-		dev->pdata = &davinci_i2c_platform_data_default;
-	}
+	dev->has_pfunc = device_property_present(&pdev->dev, "ti,has-pfunc");
 
 	dev->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(dev->clk))
@@ -843,23 +812,8 @@ static int davinci_i2c_probe(struct platform_device *pdev)
 	adap->timeout = DAVINCI_I2C_TIMEOUT;
 	adap->dev.of_node = pdev->dev.of_node;
 
-	if (dev->pdata->has_pfunc)
+	if (dev->has_pfunc)
 		adap->bus_recovery_info = &davinci_i2c_scl_recovery_info;
-	else if (dev->pdata->gpio_recovery) {
-		rinfo =  &davinci_i2c_gpio_recovery_info;
-		adap->bus_recovery_info = rinfo;
-		rinfo->scl_gpiod = devm_gpiod_get(&pdev->dev, "scl",
-						  GPIOD_OUT_HIGH_OPEN_DRAIN);
-		if (IS_ERR(rinfo->scl_gpiod)) {
-			r = PTR_ERR(rinfo->scl_gpiod);
-			goto err_unuse_clocks;
-		}
-		rinfo->sda_gpiod = devm_gpiod_get(&pdev->dev, "sda", GPIOD_IN);
-		if (IS_ERR(rinfo->sda_gpiod)) {
-			r = PTR_ERR(rinfo->sda_gpiod);
-			goto err_unuse_clocks;
-		}
-	}
 
 	adap->nr = pdev->id;
 	r = i2c_add_numbered_adapter(adap);
