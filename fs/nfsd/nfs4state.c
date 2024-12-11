@@ -1938,65 +1938,13 @@ static inline u32 slot_bytes(struct nfsd4_channel_attrs *ca)
 	return size + sizeof(struct nfsd4_slot);
 }
 
-/*
- * XXX: If we run out of reserved DRC memory we could (up to a point)
- * re-negotiate active sessions and reduce their slot usage to make
- * room for new connections. For now we just fail the create session.
- */
-static u32 nfsd4_get_drc_mem(struct nfsd4_channel_attrs *ca, struct nfsd_net *nn)
-{
-	u32 slotsize = slot_bytes(ca);
-	u32 num = ca->maxreqs;
-	unsigned long avail, total_avail;
-	unsigned int scale_factor;
-
-	spin_lock(&nfsd_drc_lock);
-	if (nfsd_drc_max_mem > nfsd_drc_mem_used)
-		total_avail = nfsd_drc_max_mem - nfsd_drc_mem_used;
-	else
-		/* We have handed out more space than we chose in
-		 * set_max_drc() to allow.  That isn't really a
-		 * problem as long as that doesn't make us think we
-		 * have lots more due to integer overflow.
-		 */
-		total_avail = 0;
-	avail = min((unsigned long)NFSD_MAX_MEM_PER_SESSION, total_avail);
-	/*
-	 * Never use more than a fraction of the remaining memory,
-	 * unless it's the only way to give this client a slot.
-	 * The chosen fraction is either 1/8 or 1/number of threads,
-	 * whichever is smaller.  This ensures there are adequate
-	 * slots to support multiple clients per thread.
-	 * Give the client one slot even if that would require
-	 * over-allocation--it is better than failure.
-	 */
-	scale_factor = max_t(unsigned int, 8, nn->nfsd_serv->sv_nrthreads);
-
-	avail = clamp_t(unsigned long, avail, slotsize,
-			total_avail/scale_factor);
-	num = min_t(int, num, avail / slotsize);
-	num = max_t(int, num, 1);
-	nfsd_drc_mem_used += num * slotsize;
-	spin_unlock(&nfsd_drc_lock);
-
-	return num;
-}
-
-static void nfsd4_put_drc_mem(struct nfsd4_channel_attrs *ca)
-{
-	int slotsize = slot_bytes(ca);
-
-	spin_lock(&nfsd_drc_lock);
-	nfsd_drc_mem_used -= slotsize * ca->maxreqs;
-	spin_unlock(&nfsd_drc_lock);
-}
-
 static struct nfsd4_session *alloc_session(struct nfsd4_channel_attrs *fattrs,
 					   struct nfsd4_channel_attrs *battrs)
 {
 	int numslots = fattrs->maxreqs;
 	int slotsize = slot_bytes(fattrs);
 	struct nfsd4_session *new;
+	struct nfsd4_slot *slot;
 	int i;
 
 	new = kzalloc(sizeof(*new), GFP_KERNEL);
@@ -2004,17 +1952,21 @@ static struct nfsd4_session *alloc_session(struct nfsd4_channel_attrs *fattrs,
 		return NULL;
 	xa_init(&new->se_slots);
 	/* allocate each struct nfsd4_slot and data cache in one piece */
-	for (i = 0; i < numslots; i++) {
-		struct nfsd4_slot *slot;
-		slot = kzalloc(slotsize, GFP_KERNEL);
+	slot = kzalloc(slotsize, GFP_KERNEL);
+	if (!slot || xa_is_err(xa_store(&new->se_slots, 0, slot, GFP_KERNEL)))
+		goto out_free;
+
+	for (i = 1; i < numslots; i++) {
+		const gfp_t gfp = GFP_KERNEL | __GFP_NORETRY | __GFP_NOWARN;
+		slot = kzalloc(slotsize, gfp);
 		if (!slot)
-			goto out_free;
-		if (xa_is_err(xa_store(&new->se_slots, i, slot, GFP_KERNEL))) {
+			break;
+		if (xa_is_err(xa_store(&new->se_slots, i, slot, gfp))) {
 			kfree(slot);
-			goto out_free;
+			break;
 		}
 	}
-
+	fattrs->maxreqs = i;
 	memcpy(&new->se_fchannel, fattrs, sizeof(struct nfsd4_channel_attrs));
 	new->se_cb_slot_avail = ~0U;
 	new->se_cb_highest_slot = min(battrs->maxreqs - 1,
@@ -2022,8 +1974,7 @@ static struct nfsd4_session *alloc_session(struct nfsd4_channel_attrs *fattrs,
 	spin_lock_init(&new->se_lock);
 	return new;
 out_free:
-	while (i--)
-		kfree(xa_load(&new->se_slots, i));
+	kfree(slot);
 	xa_destroy(&new->se_slots);
 	kfree(new);
 	return NULL;
@@ -2138,7 +2089,6 @@ static void __free_session(struct nfsd4_session *ses)
 static void free_session(struct nfsd4_session *ses)
 {
 	nfsd4_del_conns(ses);
-	nfsd4_put_drc_mem(&ses->se_fchannel);
 	__free_session(ses);
 }
 
@@ -3786,17 +3736,6 @@ static __be32 check_forechannel_attrs(struct nfsd4_channel_attrs *ca, struct nfs
 	ca->maxresp_cached = min_t(u32, ca->maxresp_cached,
 			NFSD_SLOT_CACHE_SIZE + NFSD_MIN_HDR_SEQ_SZ);
 	ca->maxreqs = min_t(u32, ca->maxreqs, NFSD_MAX_SLOTS_PER_SESSION);
-	/*
-	 * Note decreasing slot size below client's request may make it
-	 * difficult for client to function correctly, whereas
-	 * decreasing the number of slots will (just?) affect
-	 * performance.  When short on memory we therefore prefer to
-	 * decrease number of slots instead of their size.  Clients that
-	 * request larger slots than they need will get poor results:
-	 * Note that we always allow at least one slot, because our
-	 * accounting is soft and provides no guarantees either way.
-	 */
-	ca->maxreqs = nfsd4_get_drc_mem(ca, nn);
 
 	return nfs_ok;
 }
@@ -3874,11 +3813,11 @@ nfsd4_create_session(struct svc_rqst *rqstp,
 		return status;
 	status = check_backchannel_attrs(&cr_ses->back_channel);
 	if (status)
-		goto out_release_drc_mem;
+		goto out_err;
 	status = nfserr_jukebox;
 	new = alloc_session(&cr_ses->fore_channel, &cr_ses->back_channel);
 	if (!new)
-		goto out_release_drc_mem;
+		goto out_err;
 	conn = alloc_conn_from_crses(rqstp, cr_ses);
 	if (!conn)
 		goto out_free_session;
@@ -3987,8 +3926,7 @@ out_free_conn:
 	free_conn(conn);
 out_free_session:
 	__free_session(new);
-out_release_drc_mem:
-	nfsd4_put_drc_mem(&cr_ses->fore_channel);
+out_err:
 	return status;
 }
 
