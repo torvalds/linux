@@ -1244,7 +1244,6 @@ void mt7925_mac_sta_remove(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 		memcpy(dev_req.tlv.omac_addr, vif->addr, ETH_ALEN);
 		mt76_mcu_send_msg(mdev, MCU_UNI_CMD(DEV_INFO_UPDATE),
 				  &dev_req, sizeof(dev_req), true);
-
 	}
 
 	if (vif->type == NL80211_IFTYPE_STATION) {
