@@ -11,7 +11,6 @@
 	compatible = "avnet,zynq-microzed", "xlnx,zynq-microzed", "xlnx,zynq-7000";
 
 	aliases {
-		ethernet0 = &gem0;
 		serial0 = &uart1;
 		spi0 = &qspi;
 		mmc0 = &sdhci0;
