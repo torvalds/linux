@@ -282,7 +282,7 @@ static int tcpci_set_polarity(struct tcpc_dev *tcpc,
 			if (cc2 == TYPEC_CC_RD)
 				/* Role control would have the Rp setting when DRP was enabled */
 				reg |= FIELD_PREP(TCPC_ROLE_CTRL_CC2, TCPC_ROLE_CTRL_CC_RP);
-			else
+			else if (cc2 >= TYPEC_CC_RP_DEF)
 				reg |= FIELD_PREP(TCPC_ROLE_CTRL_CC2, TCPC_ROLE_CTRL_CC_RD);
 		} else {
 			reg &= ~TCPC_ROLE_CTRL_CC1;
@@ -290,7 +290,7 @@ static int tcpci_set_polarity(struct tcpc_dev *tcpc,
 			if (cc1 == TYPEC_CC_RD)
 				/* Role control would have the Rp setting when DRP was enabled */
 				reg |= FIELD_PREP(TCPC_ROLE_CTRL_CC1, TCPC_ROLE_CTRL_CC_RP);
-			else
+			else if (cc1 >= TYPEC_CC_RP_DEF)
 				reg |= FIELD_PREP(TCPC_ROLE_CTRL_CC1, TCPC_ROLE_CTRL_CC_RD);
 		}
 	}
