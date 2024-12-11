@@ -57,6 +57,31 @@ int xe_gt_sanitize_freq(struct xe_gt *gt);
 void xe_gt_remove(struct xe_gt *gt);
 
 /**
+ * xe_gt_wait_for_reset - wait for gt's async reset to finalize.
+ * @gt: GT structure
+ * Return:
+ * %true if it waited for the work to finish execution,
+ * %false if there was no scheduled reset or it was done.
+ */
+static inline bool xe_gt_wait_for_reset(struct xe_gt *gt)
+{
+	return flush_work(&gt->reset.worker);
+}
+
+/**
+ * xe_gt_reset - perform synchronous reset
+ * @gt: GT structure
+ * Return:
+ * %true if it waited for the reset to finish,
+ * %false if there was no scheduled reset.
+ */
+static inline bool xe_gt_reset(struct xe_gt *gt)
+{
+	xe_gt_reset_async(gt);
+	return xe_gt_wait_for_reset(gt);
+}
+
+/**
  * xe_gt_any_hw_engine_by_reset_domain - scan the list of engines and return the
  * first that matches the same reset domain as @class
  * @gt: GT structure
