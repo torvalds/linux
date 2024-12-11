@@ -1915,8 +1915,11 @@ free_session_slots(struct nfsd4_session *ses)
 	int i;
 
 	for (i = 0; i < ses->se_fchannel.maxreqs; i++) {
-		free_svc_cred(&ses->se_slots[i]->sl_cred);
-		kfree(ses->se_slots[i]);
+		struct nfsd4_slot *slot = xa_load(&ses->se_slots, i);
+
+		xa_erase(&ses->se_slots, i);
+		free_svc_cred(&slot->sl_cred);
+		kfree(slot);
 	}
 }
 
@@ -1996,17 +1999,20 @@ static struct nfsd4_session *alloc_session(struct nfsd4_channel_attrs *fattrs,
 	struct nfsd4_session *new;
 	int i;
 
-	BUILD_BUG_ON(struct_size(new, se_slots, NFSD_MAX_SLOTS_PER_SESSION)
-		     > PAGE_SIZE);
-
-	new = kzalloc(struct_size(new, se_slots, numslots), GFP_KERNEL);
+	new = kzalloc(sizeof(*new), GFP_KERNEL);
 	if (!new)
 		return NULL;
+	xa_init(&new->se_slots);
 	/* allocate each struct nfsd4_slot and data cache in one piece */
 	for (i = 0; i < numslots; i++) {
-		new->se_slots[i] = kzalloc(slotsize, GFP_KERNEL);
-		if (!new->se_slots[i])
+		struct nfsd4_slot *slot;
+		slot = kzalloc(slotsize, GFP_KERNEL);
+		if (!slot)
 			goto out_free;
+		if (xa_is_err(xa_store(&new->se_slots, i, slot, GFP_KERNEL))) {
+			kfree(slot);
+			goto out_free;
+		}
 	}
 
 	memcpy(&new->se_fchannel, fattrs, sizeof(struct nfsd4_channel_attrs));
@@ -2017,7 +2023,8 @@ static struct nfsd4_session *alloc_session(struct nfsd4_channel_attrs *fattrs,
 	return new;
 out_free:
 	while (i--)
-		kfree(new->se_slots[i]);
+		kfree(xa_load(&new->se_slots, i));
+	xa_destroy(&new->se_slots);
 	kfree(new);
 	return NULL;
 }
@@ -2124,6 +2131,7 @@ static void nfsd4_del_conns(struct nfsd4_session *s)
 static void __free_session(struct nfsd4_session *ses)
 {
 	free_session_slots(ses);
+	xa_destroy(&ses->se_slots);
 	kfree(ses);
 }
 
@@ -4278,7 +4286,7 @@ nfsd4_sequence(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	if (seq->slotid >= session->se_fchannel.maxreqs)
 		goto out_put_session;
 
-	slot = session->se_slots[seq->slotid];
+	slot = xa_load(&session->se_slots, seq->slotid);
 	dprintk("%s: slotid %d\n", __func__, seq->slotid);
 
 	/* We do not negotiate the number of slots yet, so set the

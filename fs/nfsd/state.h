@@ -227,8 +227,11 @@ static inline struct nfs4_delegation *delegstateid(struct nfs4_stid *s)
 	return container_of(s, struct nfs4_delegation, dl_stid);
 }
 
-/* Maximum number of slots per session. 160 is useful for long haul TCP */
-#define NFSD_MAX_SLOTS_PER_SESSION     160
+/* Maximum number of slots per session.  This is for sanity-check only.
+ * It could be increased if we had a mechanism to shutdown misbehaving clients.
+ * A large number can be needed to get good throughput on high-latency servers.
+ */
+#define NFSD_MAX_SLOTS_PER_SESSION	2048
 /* Maximum  session per slot cache size */
 #define NFSD_SLOT_CACHE_SIZE		2048
 /* Maximum number of NFSD_SLOT_CACHE_SIZE slots per session */
@@ -327,7 +330,7 @@ struct nfsd4_session {
 	struct nfsd4_cb_sec	se_cb_sec;
 	struct list_head	se_conns;
 	u32			se_cb_seq_nr[NFSD_BC_SLOT_TABLE_SIZE];
-	struct nfsd4_slot	*se_slots[];	/* forward channel slots */
+	struct xarray		se_slots;	/* forward channel slots */
 };
 
 /* formatted contents of nfs4_sessionid */
