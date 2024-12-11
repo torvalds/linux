@@ -16,9 +16,16 @@
 #include <linux/delay.h>
 #include <linux/workqueue.h>
 
+#define HD3SS3220_REG_CN_STAT		0x08
 #define HD3SS3220_REG_CN_STAT_CTRL	0x09
 #define HD3SS3220_REG_GEN_CTRL		0x0A
 #define HD3SS3220_REG_DEV_REV		0xA0
+
+/* Register HD3SS3220_REG_CN_STAT */
+#define HD3SS3220_REG_CN_STAT_CURRENT_MODE_MASK		(BIT(7) | BIT(6))
+#define HD3SS3220_REG_CN_STAT_CURRENT_MODE_DEFAULT	0x00
+#define HD3SS3220_REG_CN_STAT_CURRENT_MODE_MID		BIT(6)
+#define HD3SS3220_REG_CN_STAT_CURRENT_MODE_HIGH		BIT(7)
 
 /* Register HD3SS3220_REG_CN_STAT_CTRL*/
 #define HD3SS3220_REG_CN_STAT_CTRL_ATTACHED_STATE_MASK	(BIT(7) | BIT(6))
@@ -42,6 +49,31 @@ struct hd3ss3220 {
 	enum usb_role role_state;
 	bool poll;
 };
+
+static int hd3ss3220_set_power_opmode(struct hd3ss3220 *hd3ss3220, int power_opmode)
+{
+	int current_mode;
+
+	switch (power_opmode) {
+	case TYPEC_PWR_MODE_USB:
+		current_mode = HD3SS3220_REG_CN_STAT_CURRENT_MODE_DEFAULT;
+		break;
+	case TYPEC_PWR_MODE_1_5A:
+		current_mode = HD3SS3220_REG_CN_STAT_CURRENT_MODE_MID;
+		break;
+	case TYPEC_PWR_MODE_3_0A:
+		current_mode = HD3SS3220_REG_CN_STAT_CURRENT_MODE_HIGH;
+		break;
+	case TYPEC_PWR_MODE_PD: /* Power delivery not supported */
+	default:
+		dev_err(hd3ss3220->dev, "bad power operation mode: %d\n", power_opmode);
+		return -EINVAL;
+	}
+
+	return regmap_update_bits(hd3ss3220->regmap, HD3SS3220_REG_CN_STAT,
+				  HD3SS3220_REG_CN_STAT_CURRENT_MODE_MASK,
+				  current_mode);
+}
 
 static int hd3ss3220_set_source_pref(struct hd3ss3220 *hd3ss3220, int src_pref)
 {
@@ -162,6 +194,23 @@ static irqreturn_t hd3ss3220_irq_handler(int irq, void *data)
 	return hd3ss3220_irq(hd3ss3220);
 }
 
+static int hd3ss3220_configure_power_opmode(struct hd3ss3220 *hd3ss3220,
+					    struct fwnode_handle *connector)
+{
+	/*
+	 * Supported power operation mode can be configured through device tree
+	 */
+	const char *cap_str;
+	int ret, power_opmode;
+
+	ret = fwnode_property_read_string(connector, "typec-power-opmode", &cap_str);
+	if (ret)
+		return 0;
+
+	power_opmode = typec_find_pwr_opmode(cap_str);
+	return hd3ss3220_set_power_opmode(hd3ss3220, power_opmode);
+}
+
 static const struct regmap_config config = {
 	.reg_bits = 8,
 	.val_bits = 8,
@@ -222,6 +271,10 @@ static int hd3ss3220_probe(struct i2c_client *client)
 		ret = PTR_ERR(hd3ss3220->port);
 		goto err_put_role;
 	}
+
+	ret = hd3ss3220_configure_power_opmode(hd3ss3220, connector);
+	if (ret < 0)
+		goto err_unreg_port;
 
 	hd3ss3220_set_role(hd3ss3220);
 	ret = regmap_read(hd3ss3220->regmap, HD3SS3220_REG_CN_STAT_CTRL, &data);
