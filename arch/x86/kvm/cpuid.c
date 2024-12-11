@@ -195,6 +195,7 @@ static int kvm_check_cpuid(struct kvm_vcpu *vcpu)
 }
 
 static u32 kvm_apply_cpuid_pv_features_quirk(struct kvm_vcpu *vcpu);
+static void kvm_update_cpuid_runtime(struct kvm_vcpu *vcpu);
 
 /* Check whether the supplied CPUID data is equal to what is already set for the vCPU. */
 static int kvm_cpuid_check_equal(struct kvm_vcpu *vcpu, struct kvm_cpuid_entry2 *e2,
@@ -299,9 +300,11 @@ static __always_inline void kvm_update_feature_runtime(struct kvm_vcpu *vcpu,
 	guest_cpu_cap_change(vcpu, x86_feature, has_feature);
 }
 
-void kvm_update_cpuid_runtime(struct kvm_vcpu *vcpu)
+static void kvm_update_cpuid_runtime(struct kvm_vcpu *vcpu)
 {
 	struct kvm_cpuid_entry2 *best;
+
+	vcpu->arch.cpuid_dynamic_bits_dirty = false;
 
 	best = kvm_find_cpuid_entry(vcpu, 1);
 	if (best) {
@@ -332,7 +335,6 @@ void kvm_update_cpuid_runtime(struct kvm_vcpu *vcpu)
 		     cpuid_entry_has(best, X86_FEATURE_XSAVEC)))
 		best->ebx = xstate_required_size(vcpu->arch.xcr0, true);
 }
-EXPORT_SYMBOL_GPL(kvm_update_cpuid_runtime);
 
 static bool kvm_cpuid_has_hyperv(struct kvm_vcpu *vcpu)
 {
@@ -644,6 +646,9 @@ int kvm_vcpu_ioctl_get_cpuid2(struct kvm_vcpu *vcpu,
 {
 	if (cpuid->nent < vcpu->arch.cpuid_nent)
 		return -E2BIG;
+
+	if (vcpu->arch.cpuid_dynamic_bits_dirty)
+		kvm_update_cpuid_runtime(vcpu);
 
 	if (copy_to_user(entries, vcpu->arch.cpuid_entries,
 			 vcpu->arch.cpuid_nent * sizeof(struct kvm_cpuid_entry2)))
@@ -1983,6 +1988,9 @@ bool kvm_cpuid(struct kvm_vcpu *vcpu, u32 *eax, u32 *ebx,
 	u32 orig_function = *eax, function = *eax, index = *ecx;
 	struct kvm_cpuid_entry2 *entry;
 	bool exact, used_max_basic = false;
+
+	if (vcpu->arch.cpuid_dynamic_bits_dirty)
+		kvm_update_cpuid_runtime(vcpu);
 
 	entry = kvm_find_cpuid_entry_index(vcpu, function, index);
 	exact = !!entry;

@@ -11,7 +11,6 @@ extern u32 kvm_cpu_caps[NR_KVM_CPU_CAPS] __read_mostly;
 void kvm_set_cpu_caps(void);
 
 void kvm_vcpu_after_set_cpuid(struct kvm_vcpu *vcpu);
-void kvm_update_cpuid_runtime(struct kvm_vcpu *vcpu);
 struct kvm_cpuid_entry2 *kvm_find_cpuid_entry_index(struct kvm_vcpu *vcpu,
 						    u32 function, u32 index);
 struct kvm_cpuid_entry2 *kvm_find_cpuid_entry(struct kvm_vcpu *vcpu,
@@ -231,6 +230,14 @@ static __always_inline bool guest_cpu_cap_has(struct kvm_vcpu *vcpu,
 					      unsigned int x86_feature)
 {
 	unsigned int x86_leaf = __feature_leaf(x86_feature);
+
+	/*
+	 * Except for MWAIT, querying dynamic feature bits is disallowed, so
+	 * that KVM can defer runtime updates until the next CPUID emulation.
+	 */
+	BUILD_BUG_ON(x86_feature == X86_FEATURE_APIC ||
+		     x86_feature == X86_FEATURE_OSXSAVE ||
+		     x86_feature == X86_FEATURE_OSPKE);
 
 	return vcpu->arch.cpu_caps[x86_leaf] & __feature_bit(x86_feature);
 }
