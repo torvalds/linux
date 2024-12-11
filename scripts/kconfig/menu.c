@@ -533,6 +533,7 @@ bool menu_is_empty(struct menu *menu)
 
 bool menu_is_visible(struct menu *menu)
 {
+	struct menu *child;
 	struct symbol *sym;
 	tristate visible;
 
@@ -551,7 +552,17 @@ bool menu_is_visible(struct menu *menu)
 	} else
 		visible = menu->prompt->visible.tri = expr_calc_value(menu->prompt->visible.expr);
 
-	return visible != no;
+	if (visible != no)
+		return true;
+
+	if (!sym || sym_get_tristate_value(menu->sym) == no)
+		return false;
+
+	for (child = menu->list; child; child = child->next)
+		if (menu_is_visible(child))
+			return true;
+
+	return false;
 }
 
 const char *menu_get_prompt(const struct menu *menu)

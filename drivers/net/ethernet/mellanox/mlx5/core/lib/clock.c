@@ -402,9 +402,7 @@ static int mlx5_ptp_gettimex(struct ptp_clock_info *ptp, struct timespec64 *ts,
 			     struct ptp_system_timestamp *sts)
 {
 	struct mlx5_clock *clock = container_of(ptp, struct mlx5_clock, ptp_info);
-	struct mlx5_timer *timer = &clock->timer;
 	struct mlx5_core_dev *mdev;
-	unsigned long flags;
 	u64 cycles, ns;
 
 	mdev = container_of(clock, struct mlx5_core_dev, clock);
@@ -413,10 +411,8 @@ static int mlx5_ptp_gettimex(struct ptp_clock_info *ptp, struct timespec64 *ts,
 		goto out;
 	}
 
-	write_seqlock_irqsave(&clock->lock, flags);
 	cycles = mlx5_read_time(mdev, sts, false);
-	ns = timecounter_cyc2time(&timer->tc, cycles);
-	write_sequnlock_irqrestore(&clock->lock, flags);
+	ns = mlx5_timecounter_cyc2time(clock, cycles);
 	*ts = ns_to_timespec64(ns);
 out:
 	return 0;

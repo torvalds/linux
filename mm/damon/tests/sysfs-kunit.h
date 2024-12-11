@@ -67,6 +67,7 @@ static void damon_sysfs_test_add_targets(struct kunit *test)
 	damon_destroy_ctx(ctx);
 	kfree(sysfs_targets->targets_arr);
 	kfree(sysfs_targets);
+	kfree(sysfs_target->regions);
 	kfree(sysfs_target);
 }
 

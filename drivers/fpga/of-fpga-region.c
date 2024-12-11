@@ -436,7 +436,7 @@ static void of_fpga_region_remove(struct platform_device *pdev)
 
 static struct platform_driver of_fpga_region_driver = {
 	.probe = of_fpga_region_probe,
-	.remove_new = of_fpga_region_remove,
+	.remove = of_fpga_region_remove,
 	.driver = {
 		.name	= "of-fpga-region",
 		.of_match_table = of_match_ptr(fpga_region_of_match),

@@ -97,6 +97,42 @@ static inline u32 pkey_aes_bitsize_to_keytype(u32 keybitsize)
 }
 
 /*
+ * helper function which translates the PKEY_KEYTYPE_*
+ * to the protected key size minus the WK VP length
+ */
+static inline u32 pkey_keytype_to_size(u32 keytype)
+{
+	switch (keytype) {
+	case PKEY_KEYTYPE_AES_128:
+		return 16;
+	case PKEY_KEYTYPE_AES_192:
+		return 24;
+	case PKEY_KEYTYPE_AES_256:
+		return 32;
+	case PKEY_KEYTYPE_ECC_P256:
+		return 32;
+	case PKEY_KEYTYPE_ECC_P384:
+		return 48;
+	case PKEY_KEYTYPE_ECC_P521:
+		return 80;
+	case PKEY_KEYTYPE_ECC_ED25519:
+		return 32;
+	case PKEY_KEYTYPE_ECC_ED448:
+		return 54;
+	case PKEY_KEYTYPE_AES_XTS_128:
+		return 32;
+	case PKEY_KEYTYPE_AES_XTS_256:
+		return 64;
+	case PKEY_KEYTYPE_HMAC_512:
+		return 64;
+	case PKEY_KEYTYPE_HMAC_1024:
+		return 128;
+	default:
+		return 0;
+	}
+}
+
+/*
  * pkey_api.c:
  */
 int __init pkey_api_init(void);

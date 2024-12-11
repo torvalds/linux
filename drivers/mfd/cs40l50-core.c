@@ -567,4 +567,4 @@ EXPORT_GPL_DEV_PM_OPS(cs40l50_pm_ops) = {
 MODULE_DESCRIPTION("CS40L50 Advanced Haptic Driver");
 MODULE_AUTHOR("James Ogletree, Cirrus Logic Inc. <james.ogletree@cirrus.com>");
 MODULE_LICENSE("GPL");
-MODULE_IMPORT_NS(FW_CS_DSP);
+MODULE_IMPORT_NS("FW_CS_DSP");

@@ -863,7 +863,7 @@ static struct platform_driver pef2256_driver = {
 		.of_match_table = pef2256_id_table,
 	},
 	.probe = pef2256_probe,
-	.remove_new = pef2256_remove,
+	.remove = pef2256_remove,
 };
 module_platform_driver(pef2256_driver);
 

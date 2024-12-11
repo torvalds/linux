@@ -1279,7 +1279,7 @@ static struct platform_driver tegra_nand_driver = {
 		.pm = &tegra_nand_pm,
 	},
 	.probe = tegra_nand_probe,
-	.remove_new = tegra_nand_remove,
+	.remove = tegra_nand_remove,
 };
 module_platform_driver(tegra_nand_driver);
 

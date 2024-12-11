@@ -85,3 +85,4 @@ struct drm_bridge *devm_imx_drm_legacy_bridge(struct device *dev,
 EXPORT_SYMBOL_GPL(devm_imx_drm_legacy_bridge);
 
 MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("Freescale i.MX DRM bridge driver for legacy DT bindings");

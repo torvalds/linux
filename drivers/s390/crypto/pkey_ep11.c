@@ -12,7 +12,6 @@
 #include <linux/module.h>
 #include <linux/cpufeature.h>
 
-#include "zcrypt_api.h"
 #include "zcrypt_ccamisc.h"
 #include "zcrypt_ep11misc.h"
 #include "pkey_base.h"

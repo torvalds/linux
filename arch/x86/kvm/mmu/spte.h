@@ -167,6 +167,15 @@ static_assert(!(SHADOW_NONPRESENT_VALUE & SPTE_MMU_PRESENT_MASK));
 #define SHADOW_NONPRESENT_VALUE	0ULL
 #endif
 
+
+/*
+ * True if A/D bits are supported in hardware and are enabled by KVM.  When
+ * enabled, KVM uses A/D bits for all non-nested MMUs.  Because L1 can disable
+ * A/D bits in EPTP12, SP and SPTE variants are needed to handle the scenario
+ * where KVM is using A/D bits for L1, but not L2.
+ */
+extern bool __read_mostly kvm_ad_enabled;
+
 extern u64 __read_mostly shadow_host_writable_mask;
 extern u64 __read_mostly shadow_mmu_writable_mask;
 extern u64 __read_mostly shadow_nx_mask;
@@ -285,17 +294,6 @@ static inline bool is_ept_ve_possible(u64 spte)
 	       (spte & VMX_EPT_RWX_MASK) != VMX_EPT_MISCONFIG_WX_VALUE;
 }
 
-/*
- * Returns true if A/D bits are supported in hardware and are enabled by KVM.
- * When enabled, KVM uses A/D bits for all non-nested MMUs.  Because L1 can
- * disable A/D bits in EPTP12, SP and SPTE variants are needed to handle the
- * scenario where KVM is using A/D bits for L1, but not L2.
- */
-static inline bool kvm_ad_enabled(void)
-{
-	return !!shadow_accessed_mask;
-}
-
 static inline bool sp_ad_disabled(struct kvm_mmu_page *sp)
 {
 	return sp->role.ad_disabled;
@@ -316,18 +314,6 @@ static inline bool spte_ad_need_write_protect(u64 spte)
 	 * TDP and do the A/D type check unconditionally.
 	 */
 	return (spte & SPTE_TDP_AD_MASK) != SPTE_TDP_AD_ENABLED;
-}
-
-static inline u64 spte_shadow_accessed_mask(u64 spte)
-{
-	KVM_MMU_WARN_ON(!is_shadow_present_pte(spte));
-	return spte_ad_enabled(spte) ? shadow_accessed_mask : 0;
-}
-
-static inline u64 spte_shadow_dirty_mask(u64 spte)
-{
-	KVM_MMU_WARN_ON(!is_shadow_present_pte(spte));
-	return spte_ad_enabled(spte) ? shadow_dirty_mask : 0;
 }
 
 static inline bool is_access_track_spte(u64 spte)
@@ -357,17 +343,7 @@ static inline kvm_pfn_t spte_to_pfn(u64 pte)
 
 static inline bool is_accessed_spte(u64 spte)
 {
-	u64 accessed_mask = spte_shadow_accessed_mask(spte);
-
-	return accessed_mask ? spte & accessed_mask
-			     : !is_access_track_spte(spte);
-}
-
-static inline bool is_dirty_spte(u64 spte)
-{
-	u64 dirty_mask = spte_shadow_dirty_mask(spte);
-
-	return dirty_mask ? spte & dirty_mask : spte & PT_WRITABLE_MASK;
+	return spte & shadow_accessed_mask;
 }
 
 static inline u64 get_rsvd_bits(struct rsvd_bits_validate *rsvd_check, u64 pte,
@@ -485,6 +461,33 @@ static inline bool is_mmu_writable_spte(u64 spte)
 	return spte & shadow_mmu_writable_mask;
 }
 
+/*
+ * If the MMU-writable flag is cleared, i.e. the SPTE is write-protected for
+ * write-tracking, remote TLBs must be flushed, even if the SPTE was read-only,
+ * as KVM allows stale Writable TLB entries to exist.  When dirty logging, KVM
+ * flushes TLBs based on whether or not dirty bitmap/ring entries were reaped,
+ * not whether or not SPTEs were modified, i.e. only the write-tracking case
+ * needs to flush at the time the SPTEs is modified, before dropping mmu_lock.
+ *
+ * Don't flush if the Accessed bit is cleared, as access tracking tolerates
+ * false negatives, e.g. KVM x86 omits TLB flushes even when aging SPTEs for a
+ * mmu_notifier.clear_flush_young() event.
+ *
+ * Lastly, don't flush if the Dirty bit is cleared, as KVM unconditionally
+ * flushes when enabling dirty logging (see kvm_mmu_slot_apply_flags()), and
+ * when clearing dirty logs, KVM flushes based on whether or not dirty entries
+ * were reaped from the bitmap/ring, not whether or not dirty SPTEs were found.
+ *
+ * Note, this logic only applies to shadow-present leaf SPTEs.  The caller is
+ * responsible for checking that the old SPTE is shadow-present, and is also
+ * responsible for determining whether or not a TLB flush is required when
+ * modifying a shadow-present non-leaf SPTE.
+ */
+static inline bool leaf_spte_change_needs_tlb_flush(u64 old_spte, u64 new_spte)
+{
+	return is_mmu_writable_spte(old_spte) && !is_mmu_writable_spte(new_spte);
+}
+
 static inline u64 get_mmio_spte_generation(u64 spte)
 {
 	u64 gen;
@@ -499,10 +502,11 @@ bool spte_has_volatile_bits(u64 spte);
 bool make_spte(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp,
 	       const struct kvm_memory_slot *slot,
 	       unsigned int pte_access, gfn_t gfn, kvm_pfn_t pfn,
-	       u64 old_spte, bool prefetch, bool can_unsync,
+	       u64 old_spte, bool prefetch, bool synchronizing,
 	       bool host_writable, u64 *new_spte);
-u64 make_huge_page_split_spte(struct kvm *kvm, u64 huge_spte,
-		      	      union kvm_mmu_page_role role, int index);
+u64 make_small_spte(struct kvm *kvm, u64 huge_spte,
+		    union kvm_mmu_page_role role, int index);
+u64 make_huge_spte(struct kvm *kvm, u64 small_spte, int level);
 u64 make_nonleaf_spte(u64 *child_pt, bool ad_disabled);
 u64 make_mmio_spte(struct kvm_vcpu *vcpu, u64 gfn, unsigned int access);
 u64 mark_spte_for_access_track(u64 spte);

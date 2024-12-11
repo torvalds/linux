@@ -128,6 +128,7 @@ struct amdgpu_jpeg {
 	uint16_t inst_mask;
 	uint8_t num_inst_per_aid;
 	bool	indirect_sram;
+	uint32_t supported_reset;
 };
 
 int amdgpu_jpeg_sw_init(struct amdgpu_device *adev);
@@ -149,5 +150,8 @@ int amdgpu_jpeg_ras_late_init(struct amdgpu_device *adev,
 int amdgpu_jpeg_ras_sw_init(struct amdgpu_device *adev);
 int amdgpu_jpeg_psp_update_sram(struct amdgpu_device *adev, int inst_idx,
 			       enum AMDGPU_UCODE_ID ucode_id);
+void amdgpu_debugfs_jpeg_sched_mask_init(struct amdgpu_device *adev);
+int amdgpu_jpeg_sysfs_reset_mask_init(struct amdgpu_device *adev);
+void amdgpu_jpeg_sysfs_reset_mask_fini(struct amdgpu_device *adev);
 
 #endif /*__AMDGPU_JPEG_H__*/

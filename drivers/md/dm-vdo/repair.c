@@ -166,7 +166,7 @@ static void swap_mappings(void *item1, void *item2, void __always_unused *args)
 
 static const struct min_heap_callbacks repair_min_heap = {
 	.less = mapping_is_less_than,
-	.swp = swap_mappings,
+	.swp = NULL,
 };
 
 static struct numbered_block_mapping *sort_next_heap_element(struct repair_completion *repair)

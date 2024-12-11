@@ -9,6 +9,7 @@
 
 #include "fbnic.h"
 #include "fbnic_drvinfo.h"
+#include "fbnic_hw_stats.h"
 #include "fbnic_netdev.h"
 
 char fbnic_driver_name[] = DRV_NAME;
@@ -198,6 +199,8 @@ static void fbnic_service_task(struct work_struct *work)
 
 	rtnl_lock();
 
+	fbnic_get_hw_stats32(fbd);
+
 	fbnic_fw_check_heartbeat(fbd);
 
 	fbnic_health_check(fbd);
@@ -288,6 +291,12 @@ static int fbnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 
 	fbnic_devlink_register(fbd);
+	fbnic_dbg_fbd_init(fbd);
+
+	/* Capture snapshot of hardware stats so netdev can calculate delta */
+	fbnic_reset_hw_stats(fbd);
+
+	fbnic_hwmon_register(fbd);
 
 	if (!fbd->dsn) {
 		dev_warn(&pdev->dev, "Reading serial number failed\n");
@@ -300,14 +309,20 @@ static int fbnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto init_failure_mode;
 	}
 
+	err = fbnic_ptp_setup(fbd);
+	if (err)
+		goto ifm_free_netdev;
+
 	err = fbnic_netdev_register(netdev);
 	if (err) {
 		dev_err(&pdev->dev, "Netdev registration failed: %d\n", err);
-		goto ifm_free_netdev;
+		goto ifm_destroy_ptp;
 	}
 
 	return 0;
 
+ifm_destroy_ptp:
+	fbnic_ptp_destroy(fbd);
 ifm_free_netdev:
 	fbnic_netdev_free(fbd);
 init_failure_mode:
@@ -319,7 +334,6 @@ init_failure_mode:
 free_irqs:
 	fbnic_free_irqs(fbd);
 free_fbd:
-	pci_disable_device(pdev);
 	fbnic_devlink_free(fbd);
 
 	return err;
@@ -342,14 +356,16 @@ static void fbnic_remove(struct pci_dev *pdev)
 
 		fbnic_netdev_unregister(netdev);
 		cancel_delayed_work_sync(&fbd->service_task);
+		fbnic_ptp_destroy(fbd);
 		fbnic_netdev_free(fbd);
 	}
 
+	fbnic_hwmon_unregister(fbd);
+	fbnic_dbg_fbd_exit(fbd);
 	fbnic_devlink_unregister(fbd);
 	fbnic_fw_disable_mbx(fbd);
 	fbnic_free_irqs(fbd);
 
-	pci_disable_device(pdev);
 	fbnic_devlink_free(fbd);
 }
 
@@ -542,9 +558,13 @@ static int __init fbnic_init_module(void)
 {
 	int err;
 
+	fbnic_dbg_init();
+
 	err = pci_register_driver(&fbnic_driver);
-	if (err)
+	if (err) {
+		fbnic_dbg_exit();
 		goto out;
+	}
 
 	pr_info(DRV_SUMMARY " (%s)", fbnic_driver.name);
 out:
@@ -560,5 +580,7 @@ module_init(fbnic_init_module);
 static void __exit fbnic_exit_module(void)
 {
 	pci_unregister_driver(&fbnic_driver);
+
+	fbnic_dbg_exit();
 }
 module_exit(fbnic_exit_module);

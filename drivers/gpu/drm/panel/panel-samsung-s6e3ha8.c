@@ -24,7 +24,7 @@ struct s6e3ha8 {
 	struct regulator_bulk_data *supplies;
 };
 
-const struct regulator_bulk_data s6e3ha8_supplies[] = {
+static const struct regulator_bulk_data s6e3ha8_supplies[] = {
 	{ .supply = "vdd3" },
 	{ .supply = "vci" },
 	{ .supply = "vddr" },

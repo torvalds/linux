@@ -4999,40 +4999,6 @@ out_put_lreq:
 }
 EXPORT_SYMBOL(ceph_osdc_notify);
 
-/*
- * Return the number of milliseconds since the watch was last
- * confirmed, or an error.  If there is an error, the watch is no
- * longer valid, and should be destroyed with ceph_osdc_unwatch().
- */
-int ceph_osdc_watch_check(struct ceph_osd_client *osdc,
-			  struct ceph_osd_linger_request *lreq)
-{
-	unsigned long stamp, age;
-	int ret;
-
-	down_read(&osdc->lock);
-	mutex_lock(&lreq->lock);
-	stamp = lreq->watch_valid_thru;
-	if (!list_empty(&lreq->pending_lworks)) {
-		struct linger_work *lwork =
-		    list_first_entry(&lreq->pending_lworks,
-				     struct linger_work,
-				     pending_item);
-
-		if (time_before(lwork->queued_stamp, stamp))
-			stamp = lwork->queued_stamp;
-	}
-	age = jiffies - stamp;
-	dout("%s lreq %p linger_id %llu age %lu last_error %d\n", __func__,
-	     lreq, lreq->linger_id, age, lreq->last_error);
-	/* we are truncating to msecs, so return a safe upper bound */
-	ret = lreq->last_error ?: 1 + jiffies_to_msecs(age);
-
-	mutex_unlock(&lreq->lock);
-	up_read(&osdc->lock);
-	return ret;
-}
-
 static int decode_watcher(void **p, void *end, struct ceph_watch_item *item)
 {
 	u8 struct_v;

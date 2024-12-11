@@ -765,25 +765,6 @@ static inline void get_vp_scan_direction(
 		*flip_horz_scan_dir = !*flip_horz_scan_dir;
 }
 
-/*
- * This is a preliminary vp size calculation to allow us to check taps support.
- * The result is completely overridden afterwards.
- */
-static void calculate_viewport_size(struct pipe_ctx *pipe_ctx)
-{
-	struct scaler_data *data = &pipe_ctx->plane_res.scl_data;
-
-	data->viewport.width = dc_fixpt_ceil(dc_fixpt_mul_int(data->ratios.horz, data->recout.width));
-	data->viewport.height = dc_fixpt_ceil(dc_fixpt_mul_int(data->ratios.vert, data->recout.height));
-	data->viewport_c.width = dc_fixpt_ceil(dc_fixpt_mul_int(data->ratios.horz_c, data->recout.width));
-	data->viewport_c.height = dc_fixpt_ceil(dc_fixpt_mul_int(data->ratios.vert_c, data->recout.height));
-	if (pipe_ctx->plane_state->rotation == ROTATION_ANGLE_90 ||
-			pipe_ctx->plane_state->rotation == ROTATION_ANGLE_270) {
-		swap(data->viewport.width, data->viewport.height);
-		swap(data->viewport_c.width, data->viewport_c.height);
-	}
-}
-
 static struct rect intersect_rec(const struct rect *r0, const struct rect *r1)
 {
 	struct rect rec;
@@ -1468,6 +1449,7 @@ bool resource_build_scaling_params(struct pipe_ctx *pipe_ctx)
 	const struct dc_plane_state *plane_state = pipe_ctx->plane_state;
 	struct dc_crtc_timing *timing = &pipe_ctx->stream->timing;
 	const struct rect odm_slice_src = resource_get_odm_slice_src_rect(pipe_ctx);
+	struct scaling_taps temp = {0};
 	bool res = false;
 
 	DC_LOGGER_INIT(pipe_ctx->stream->ctx->logger);
@@ -1519,14 +1501,16 @@ bool resource_build_scaling_params(struct pipe_ctx *pipe_ctx)
 		res = spl_calculate_scaler_params(spl_in, spl_out);
 		// Convert respective out params from SPL to scaler data
 		translate_SPL_out_params_to_pipe_ctx(pipe_ctx, spl_out);
+
+		/* Ignore scaler failure if pipe context plane is phantom plane */
+		if (!res && plane_state->is_phantom)
+			res = true;
 	} else {
 #endif
 	/* depends on h_active */
 	calculate_recout(pipe_ctx);
 	/* depends on pixel format */
 	calculate_scaling_ratios(pipe_ctx);
-	/* depends on scaling ratios and recout, does not calculate offset yet */
-	calculate_viewport_size(pipe_ctx);
 
 	/*
 	 * LB calculations depend on vp size, h/v_active and scaling ratios
@@ -1546,6 +1530,24 @@ bool resource_build_scaling_params(struct pipe_ctx *pipe_ctx)
 		pipe_ctx->plane_res.scl_data.lb_params.depth = LB_PIXEL_DEPTH_30BPP;
 
 	pipe_ctx->plane_res.scl_data.lb_params.alpha_en = plane_state->per_pixel_alpha;
+
+	// get TAP value with 100x100 dummy data for max scaling qualify, override
+	// if a new scaling quality required
+	pipe_ctx->plane_res.scl_data.viewport.width = 100;
+	pipe_ctx->plane_res.scl_data.viewport.height = 100;
+	pipe_ctx->plane_res.scl_data.viewport_c.width = 100;
+	pipe_ctx->plane_res.scl_data.viewport_c.height = 100;
+	if (pipe_ctx->plane_res.xfm != NULL)
+		res = pipe_ctx->plane_res.xfm->funcs->transform_get_optimal_number_of_taps(
+				pipe_ctx->plane_res.xfm, &pipe_ctx->plane_res.scl_data, &plane_state->scaling_quality);
+
+	if (pipe_ctx->plane_res.dpp != NULL)
+		res = pipe_ctx->plane_res.dpp->funcs->dpp_get_optimal_number_of_taps(
+				pipe_ctx->plane_res.dpp, &pipe_ctx->plane_res.scl_data, &plane_state->scaling_quality);
+
+	temp = pipe_ctx->plane_res.scl_data.taps;
+
+	calculate_inits_and_viewports(pipe_ctx);
 
 	if (pipe_ctx->plane_res.xfm != NULL)
 		res = pipe_ctx->plane_res.xfm->funcs->transform_get_optimal_number_of_taps(
@@ -1573,11 +1575,14 @@ bool resource_build_scaling_params(struct pipe_ctx *pipe_ctx)
 					&plane_state->scaling_quality);
 	}
 
-	/*
-	 * Depends on recout, scaling ratios, h_active and taps
-	 * May need to re-check lb size after this in some obscure scenario
-	 */
-	if (res)
+	/* Ignore scaler failure if pipe context plane is phantom plane */
+	if (!res && plane_state->is_phantom)
+		res = true;
+
+	if (res && (pipe_ctx->plane_res.scl_data.taps.v_taps != temp.v_taps ||
+		pipe_ctx->plane_res.scl_data.taps.h_taps != temp.h_taps ||
+		pipe_ctx->plane_res.scl_data.taps.v_taps_c != temp.v_taps_c ||
+		pipe_ctx->plane_res.scl_data.taps.h_taps_c != temp.h_taps_c))
 		calculate_inits_and_viewports(pipe_ctx);
 
 	/*
@@ -2089,7 +2094,8 @@ int resource_get_odm_slice_dst_width(struct pipe_ctx *otg_master,
 	count = resource_get_odm_slice_count(otg_master);
 	h_active = timing->h_addressable +
 			timing->h_border_left +
-			timing->h_border_right;
+			timing->h_border_right +
+			otg_master->hblank_borrow;
 	width = h_active / count;
 
 	if (otg_master->stream_res.tg)
@@ -4022,6 +4028,41 @@ fail:
 }
 
 /**
+ * decide_hblank_borrow - Decides the horizontal blanking borrow value for a given pipe context.
+ * @pipe_ctx: Pointer to the pipe context structure.
+ *
+ * This function calculates the horizontal blanking borrow value for a given pipe context based on the
+ * display stream compression (DSC) configuration. If the horizontal active pixels (hactive) are less
+ * than the total width of the DSC slices, it sets the hblank_borrow value to the difference. If the
+ * total horizontal timing minus the hblank_borrow value is less than 32, it resets the hblank_borrow
+ * value to 0.
+ */
+static void decide_hblank_borrow(struct pipe_ctx *pipe_ctx)
+{
+	uint32_t hactive;
+	uint32_t ceil_slice_width;
+	struct dc_stream_state *stream = NULL;
+
+	if (!pipe_ctx)
+		return;
+
+	stream = pipe_ctx->stream;
+
+	if (stream->timing.flags.DSC) {
+		hactive = stream->timing.h_addressable + stream->timing.h_border_left + stream->timing.h_border_right;
+
+		/* Assume if determined slices does not divide Hactive evenly, Hborrow is needed for padding*/
+		if (hactive % stream->timing.dsc_cfg.num_slices_h != 0) {
+			ceil_slice_width = (hactive / stream->timing.dsc_cfg.num_slices_h) + 1;
+			pipe_ctx->hblank_borrow = ceil_slice_width * stream->timing.dsc_cfg.num_slices_h - hactive;
+
+			if (stream->timing.h_total - hactive - pipe_ctx->hblank_borrow < 32)
+				pipe_ctx->hblank_borrow = 0;
+		}
+	}
+}
+
+/**
  * dc_validate_global_state() - Determine if hardware can support a given state
  *
  * @dc: dc struct for this driver
@@ -4059,6 +4100,10 @@ enum dc_status dc_validate_global_state(
 			if (pipe_ctx->stream != stream)
 				continue;
 
+			/* Decide whether hblank borrow is needed and save it in pipe_ctx */
+			if (dc->debug.enable_hblank_borrow)
+				decide_hblank_borrow(pipe_ctx);
+
 			if (dc->res_pool->funcs->patch_unknown_plane_state &&
 					pipe_ctx->plane_state &&
 					pipe_ctx->plane_state->tiling_info.gfx9.swizzle == DC_SW_UNKNOWN) {
@@ -4093,14 +4138,6 @@ enum dc_status dc_validate_global_state(
 	if (result == DC_OK)
 		if (!dc->res_pool->funcs->validate_bandwidth(dc, new_ctx, fast_validate))
 			result = DC_FAIL_BANDWIDTH_VALIDATE;
-
-	/*
-	 * Only update link encoder to stream assignment after bandwidth validation passed.
-	 * TODO: Split out assignment and validation.
-	 */
-	if (result == DC_OK && dc->res_pool->funcs->link_encs_assign && fast_validate == false)
-		dc->res_pool->funcs->link_encs_assign(
-			dc, new_ctx, new_ctx->streams, new_ctx->stream_count);
 
 	return result;
 }

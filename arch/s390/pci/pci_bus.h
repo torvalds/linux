@@ -6,6 +6,10 @@
  *   Pierre Morel <pmorel@linux.ibm.com>
  *
  */
+#ifndef __S390_PCI_BUS_H
+#define __S390_PCI_BUS_H
+
+#include <linux/pci.h>
 
 int zpci_bus_device_register(struct zpci_dev *zdev, struct pci_ops *ops);
 void zpci_bus_device_unregister(struct zpci_dev *zdev);
@@ -40,3 +44,4 @@ static inline struct zpci_dev *zdev_from_bus(struct pci_bus *bus,
 	return (devfn >= ZPCI_FUNCTIONS_PER_BUS) ? NULL : zbus->function[devfn];
 }
 
+#endif /* __S390_PCI_BUS_H */

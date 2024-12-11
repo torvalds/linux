@@ -844,8 +844,6 @@ static const struct vb2_ops vb2_qops = {
 	.buf_init	= buffer_init,
 	.buf_prepare	= buffer_prepare,
 	.buf_queue	= saa7134_vb2_buffer_queue,
-	.wait_prepare	= vb2_ops_wait_prepare,
-	.wait_finish	= vb2_ops_wait_finish,
 	.start_streaming = saa7134_vb2_start_streaming,
 	.stop_streaming = saa7134_vb2_stop_streaming,
 };

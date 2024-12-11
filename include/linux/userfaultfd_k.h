@@ -249,6 +249,7 @@ static inline bool vma_can_userfault(struct vm_area_struct *vma,
 
 extern int dup_userfaultfd(struct vm_area_struct *, struct list_head *);
 extern void dup_userfaultfd_complete(struct list_head *);
+void dup_userfaultfd_fail(struct list_head *);
 
 extern void mremap_userfaultfd_prep(struct vm_area_struct *,
 				    struct vm_userfaultfd_ctx *);
@@ -348,6 +349,10 @@ static inline int dup_userfaultfd(struct vm_area_struct *vma,
 }
 
 static inline void dup_userfaultfd_complete(struct list_head *l)
+{
+}
+
+static inline void dup_userfaultfd_fail(struct list_head *l)
 {
 }
 

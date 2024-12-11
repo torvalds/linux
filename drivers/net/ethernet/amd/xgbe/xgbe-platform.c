@@ -565,7 +565,7 @@ static struct platform_driver xgbe_driver = {
 		.pm = &xgbe_platform_pm_ops,
 	},
 	.probe = xgbe_platform_probe,
-	.remove_new = xgbe_platform_remove,
+	.remove = xgbe_platform_remove,
 };
 
 int xgbe_platform_init(void)

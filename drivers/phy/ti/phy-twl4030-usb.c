@@ -834,7 +834,7 @@ MODULE_DEVICE_TABLE(of, twl4030_usb_id_table);
 
 static struct platform_driver twl4030_usb_driver = {
 	.probe		= twl4030_usb_probe,
-	.remove_new	= twl4030_usb_remove,
+	.remove		= twl4030_usb_remove,
 	.driver		= {
 		.name	= "twl4030_usb",
 		.pm	= &twl4030_usb_pm_ops,

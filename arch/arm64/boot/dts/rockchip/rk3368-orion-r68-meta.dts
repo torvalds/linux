@@ -73,7 +73,7 @@
 		};
 	};
 
-	vcc_18: vcc18-regulator {
+	vcc_18: regulator-vcc18 {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc_18";
 		regulator-min-microvolt = <1800000>;
@@ -84,7 +84,7 @@
 	};
 
 	/* supplies both host and otg */
-	vcc_host: vcc-host-regulator {
+	vcc_host: regulator-vcc-host {
 		compatible = "regulator-fixed";
 		gpio = <&gpio0 RK_PA4 GPIO_ACTIVE_LOW>;
 		pinctrl-names = "default";
@@ -95,7 +95,7 @@
 		vin-supply = <&vcc_sys>;
 	};
 
-	vcc_io: vcc-io-regulator {
+	vcc_io: regulator-vcc-io {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc_io";
 		regulator-min-microvolt = <3300000>;
@@ -105,7 +105,7 @@
 		vin-supply = <&vcc_sys>;
 	};
 
-	vcc_lan: vcc-lan-regulator {
+	vcc_lan: regulator-vcc-lan {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc_lan";
 		regulator-min-microvolt = <3300000>;
@@ -115,7 +115,7 @@
 		vin-supply = <&vcc_io>;
 	};
 
-	vcc_sd: vcc-sd-regulator {
+	vcc_sd: regulator-vcc-sd {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc_sd";
 		gpio = <&gpio3 RK_PB3 GPIO_ACTIVE_LOW>;
@@ -124,7 +124,7 @@
 		vin-supply = <&vcc_io>;
 	};
 
-	vcc_sys: vcc-sys-regulator {
+	vcc_sys: regulator-vcc-sys {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc_sys";
 		regulator-min-microvolt = <5000000>;
@@ -133,7 +133,7 @@
 		regulator-boot-on;
 	};
 
-	vccio_sd: vcc-io-sd-regulator {
+	vccio_sd: regulator-vcc-io-sd {
 		compatible = "regulator-fixed";
 		regulator-name = "vccio_sd";
 		regulator-min-microvolt = <1800000>;
@@ -143,7 +143,7 @@
 		vin-supply = <&vcc_io>;
 	};
 
-	vccio_wl: vccio-wl-regulator {
+	vccio_wl: regulator-vccio-wl {
 		compatible = "regulator-fixed";
 		regulator-name = "vccio_wl";
 		regulator-min-microvolt = <3300000>;
@@ -153,7 +153,7 @@
 		vin-supply = <&vcc_io>;
 	};
 
-	vdd_10: vdd-10-regulator {
+	vdd_10: regulator-vdd-10 {
 		compatible = "regulator-fixed";
 		regulator-name = "vdd_10";
 		regulator-min-microvolt = <1000000>;

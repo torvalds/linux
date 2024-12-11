@@ -81,7 +81,7 @@ struct qcaspi {
 	struct qcafrm_handle frm_handle;
 	struct sk_buff *rx_skb;
 
-	unsigned long intr;
+	unsigned long flags;
 	u16 reset_count;
 
 #ifdef CONFIG_DEBUG_FS

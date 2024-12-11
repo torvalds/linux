@@ -16,7 +16,6 @@
 #include <linux/user.h>
 #include <linux/elf.h>
 #include <linux/security.h>
-#include <linux/memblock.h>
 #include <linux/syscalls.h>
 #include <linux/time_namespace.h>
 #include <vdso/datapage.h>
@@ -48,12 +47,13 @@ long sys_ni_syscall(void);
  */
 static union {
 	struct vdso_arch_data	data;
-	u8			page[PAGE_SIZE];
+	u8			page[2 * PAGE_SIZE];
 } vdso_data_store __page_aligned_data;
 struct vdso_arch_data *vdso_data = &vdso_data_store.data;
 
 enum vvar_pages {
-	VVAR_DATA_PAGE_OFFSET,
+	VVAR_BASE_PAGE_OFFSET,
+	VVAR_TIME_PAGE_OFFSET,
 	VVAR_TIMENS_PAGE_OFFSET,
 	VVAR_NR_PAGES,
 };
@@ -119,7 +119,7 @@ static struct vm_special_mapping vdso64_spec __ro_after_init = {
 #ifdef CONFIG_TIME_NS
 struct vdso_data *arch_get_vdso_data(void *vvar_page)
 {
-	return ((struct vdso_arch_data *)vvar_page)->data;
+	return vvar_page;
 }
 
 /*
@@ -153,11 +153,14 @@ static vm_fault_t vvar_fault(const struct vm_special_mapping *sm,
 	unsigned long pfn;
 
 	switch (vmf->pgoff) {
-	case VVAR_DATA_PAGE_OFFSET:
+	case VVAR_BASE_PAGE_OFFSET:
+		pfn = virt_to_pfn(vdso_data);
+		break;
+	case VVAR_TIME_PAGE_OFFSET:
 		if (timens_page)
 			pfn = page_to_pfn(timens_page);
 		else
-			pfn = virt_to_pfn(vdso_data);
+			pfn = virt_to_pfn(vdso_data->data);
 		break;
 #ifdef CONFIG_TIME_NS
 	case VVAR_TIMENS_PAGE_OFFSET:
@@ -170,7 +173,7 @@ static vm_fault_t vvar_fault(const struct vm_special_mapping *sm,
 		 */
 		if (!timens_page)
 			return VM_FAULT_SIGBUS;
-		pfn = virt_to_pfn(vdso_data);
+		pfn = virt_to_pfn(vdso_data->data);
 		break;
 #endif /* CONFIG_TIME_NS */
 	default:
@@ -349,25 +352,6 @@ static struct page ** __init vdso_setup_pages(void *start, void *end)
 static int __init vdso_init(void)
 {
 #ifdef CONFIG_PPC64
-	/*
-	 * Fill up the "systemcfg" stuff for backward compatibility
-	 */
-	strcpy((char *)vdso_data->eye_catcher, "SYSTEMCFG:PPC64");
-	vdso_data->version.major = SYSTEMCFG_MAJOR;
-	vdso_data->version.minor = SYSTEMCFG_MINOR;
-	vdso_data->processor = mfspr(SPRN_PVR);
-	/*
-	 * Fake the old platform number for pSeries and add
-	 * in LPAR bit if necessary
-	 */
-	vdso_data->platform = 0x100;
-	if (firmware_has_feature(FW_FEATURE_LPAR))
-		vdso_data->platform |= 1;
-	vdso_data->physicalMemorySize = memblock_phys_mem_size();
-	vdso_data->dcache_size = ppc64_caches.l1d.size;
-	vdso_data->dcache_line_size = ppc64_caches.l1d.line_size;
-	vdso_data->icache_size = ppc64_caches.l1i.size;
-	vdso_data->icache_line_size = ppc64_caches.l1i.line_size;
 	vdso_data->dcache_block_size = ppc64_caches.l1d.block_size;
 	vdso_data->icache_block_size = ppc64_caches.l1i.block_size;
 	vdso_data->dcache_log_block_size = ppc64_caches.l1d.log_block_size;

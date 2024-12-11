@@ -33,6 +33,12 @@ properties:
   vddpmu-supply:
     description: VDD_PMU supply regulator handle
 
+  vddpmumx-supply:
+    description: VDD_PMU_MX supply regulator handle
+
+  vddpmucx-supply:
+    description: VDD_PMU_CX supply regulator handle
+
   vddio1p2-supply:
     description: VDD_IO_1P2 supply regulator handle
 
@@ -71,6 +77,10 @@ properties:
   swctrl-gpios:
     maxItems: 1
     description: GPIO line indicating the state of the clock supply to the BT module
+
+  xo-clk-gpios:
+    maxItems: 1
+    description: GPIO line allowing to select the XO clock configuration for the module
 
   clocks:
     maxItems: 1
@@ -119,6 +129,8 @@ allOf:
         - vddio-supply
         - vddaon-supply
         - vddpmu-supply
+        - vddpmumx-supply
+        - vddpmucx-supply
         - vddrfa0p95-supply
         - vddrfa1p3-supply
         - vddrfa1p9-supply

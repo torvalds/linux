@@ -131,3 +131,54 @@ xfs_buf_alert_ratelimited(
 	__xfs_printk(KERN_ALERT, mp, &vaf);
 	va_end(args);
 }
+
+void
+xfs_warn_experimental(
+	struct xfs_mount		*mp,
+	enum xfs_experimental_feat	feat)
+{
+	static const struct {
+		const char		*name;
+		long			opstate;
+	} features[] = {
+		[XFS_EXPERIMENTAL_PNFS] = {
+			.opstate	= XFS_OPSTATE_WARNED_PNFS,
+			.name		= "pNFS",
+		},
+		[XFS_EXPERIMENTAL_SCRUB] = {
+			.opstate	= XFS_OPSTATE_WARNED_SCRUB,
+			.name		= "online scrub",
+		},
+		[XFS_EXPERIMENTAL_SHRINK] = {
+			.opstate	= XFS_OPSTATE_WARNED_SHRINK,
+			.name		= "online shrink",
+		},
+		[XFS_EXPERIMENTAL_LARP] = {
+			.opstate	= XFS_OPSTATE_WARNED_LARP,
+			.name		= "logged extended attributes",
+		},
+		[XFS_EXPERIMENTAL_LBS] = {
+			.opstate	= XFS_OPSTATE_WARNED_LBS,
+			.name		= "large block size",
+		},
+		[XFS_EXPERIMENTAL_EXCHRANGE] = {
+			.opstate	= XFS_OPSTATE_WARNED_EXCHRANGE,
+			.name		= "exchange range",
+		},
+		[XFS_EXPERIMENTAL_PPTR] = {
+			.opstate	= XFS_OPSTATE_WARNED_PPTR,
+			.name		= "parent pointer",
+		},
+		[XFS_EXPERIMENTAL_METADIR] = {
+			.opstate	= XFS_OPSTATE_WARNED_METADIR,
+			.name		= "metadata directory tree",
+		},
+	};
+	ASSERT(feat >= 0 && feat < XFS_EXPERIMENTAL_MAX);
+	BUILD_BUG_ON(ARRAY_SIZE(features) != XFS_EXPERIMENTAL_MAX);
+
+	if (xfs_should_warn(mp, features[feat].opstate))
+		xfs_warn(mp,
+ "EXPERIMENTAL %s feature enabled.  Use at your own risk!",
+				features[feat].name);
+}

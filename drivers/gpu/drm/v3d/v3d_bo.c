@@ -157,13 +157,8 @@ struct v3d_bo *v3d_bo_create(struct drm_device *dev, struct drm_file *file_priv,
 	struct v3d_bo *bo;
 	int ret;
 
-	/* Let the user opt out of allocating the BOs with THP */
-	if (v3d->gemfs)
-		shmem_obj = drm_gem_shmem_create_with_mnt(dev, unaligned_size,
-							  v3d->gemfs);
-	else
-		shmem_obj = drm_gem_shmem_create(dev, unaligned_size);
-
+	shmem_obj = drm_gem_shmem_create_with_mnt(dev, unaligned_size,
+						  v3d->gemfs);
 	if (IS_ERR(shmem_obj))
 		return ERR_CAST(shmem_obj);
 	bo = to_v3d_bo(&shmem_obj->base);

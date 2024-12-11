@@ -9,6 +9,7 @@
 #include <linux/sched.h>
 #include <linux/magic.h>
 #include <linux/refcount.h>
+#include <linux/kasan.h>
 
 #ifdef CONFIG_THREAD_INFO_IN_TASK
 
@@ -33,7 +34,7 @@ static __always_inline unsigned long *end_of_stack(const struct task_struct *tas
 #endif
 }
 
-#elif !defined(__HAVE_THREAD_FUNCTIONS)
+#else
 
 #define task_stack_page(task)	((void *)(task)->stack)
 
@@ -89,6 +90,7 @@ static inline int object_is_on_stack(const void *obj)
 {
 	void *stack = task_stack_page(current);
 
+	obj = kasan_reset_tag(obj);
 	return (obj >= stack) && (obj < (stack + THREAD_SIZE));
 }
 

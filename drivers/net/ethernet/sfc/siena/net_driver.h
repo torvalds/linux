@@ -1307,7 +1307,7 @@ struct efx_nic_type {
 	void (*finish_flush)(struct efx_nic *efx);
 	void (*prepare_flr)(struct efx_nic *efx);
 	void (*finish_flr)(struct efx_nic *efx);
-	size_t (*describe_stats)(struct efx_nic *efx, u8 *names);
+	size_t (*describe_stats)(struct efx_nic *efx, u8 **names);
 	size_t (*update_stats)(struct efx_nic *efx, u64 *full_stats,
 			       struct rtnl_link_stats64 *core_stats);
 	size_t (*update_stats_atomic)(struct efx_nic *efx, u64 *full_stats,

@@ -1,4 +1,8 @@
 # SPDX-License-Identifier: GPL-2.0-only
+config IOMMUFD_DRIVER_CORE
+	tristate
+	default (IOMMUFD_DRIVER || IOMMUFD) if IOMMUFD!=n
+
 config IOMMUFD
 	tristate "IOMMU Userspace API"
 	select INTERVAL_TREE

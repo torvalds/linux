@@ -31,11 +31,49 @@ static char debugfs_buf[PAGE_SIZE];
 
 #define PM_API(id)		 {id, #id, strlen(#id)}
 static struct pm_api_info pm_api_list[] = {
+	PM_API(PM_FORCE_POWERDOWN),
+	PM_API(PM_REQUEST_WAKEUP),
+	PM_API(PM_SYSTEM_SHUTDOWN),
+	PM_API(PM_REQUEST_NODE),
+	PM_API(PM_RELEASE_NODE),
+	PM_API(PM_SET_REQUIREMENT),
 	PM_API(PM_GET_API_VERSION),
+	PM_API(PM_REGISTER_NOTIFIER),
+	PM_API(PM_RESET_ASSERT),
+	PM_API(PM_RESET_GET_STATUS),
+	PM_API(PM_GET_CHIPID),
+	PM_API(PM_PINCTRL_SET_FUNCTION),
+	PM_API(PM_PINCTRL_CONFIG_PARAM_GET),
+	PM_API(PM_PINCTRL_CONFIG_PARAM_SET),
+	PM_API(PM_IOCTL),
+	PM_API(PM_CLOCK_ENABLE),
+	PM_API(PM_CLOCK_DISABLE),
+	PM_API(PM_CLOCK_GETSTATE),
+	PM_API(PM_CLOCK_SETDIVIDER),
+	PM_API(PM_CLOCK_GETDIVIDER),
+	PM_API(PM_CLOCK_SETPARENT),
+	PM_API(PM_CLOCK_GETPARENT),
 	PM_API(PM_QUERY_DATA),
 };
 
 static struct dentry *firmware_debugfs_root;
+
+/**
+ * zynqmp_pm_ioctl - PM IOCTL for device control and configs
+ * @node:	Node ID of the device
+ * @ioctl:	ID of the requested IOCTL
+ * @arg1:	Argument 1 of requested IOCTL call
+ * @arg2:	Argument 2 of requested IOCTL call
+ * @arg3:	Argument 3 of requested IOCTL call
+ * @out:	Returned output value
+ *
+ * Return:	Returns status, either success or error+reason
+ */
+static int zynqmp_pm_ioctl(const u32 node, const u32 ioctl, const u32 arg1,
+			   const u32 arg2, const u32 arg3, u32 *out)
+{
+	return zynqmp_pm_invoke_fn(PM_IOCTL, out, 5, node, ioctl, arg1, arg2, arg3);
+}
 
 /**
  * zynqmp_pm_argument_value() - Extract argument value from a PM-API request
@@ -95,6 +133,128 @@ static int process_api_request(u32 pm_id, u64 *pm_api_arg, u32 *pm_api_ret)
 		sprintf(debugfs_buf, "PM-API Version = %d.%d\n",
 			pm_api_version >> 16, pm_api_version & 0xffff);
 		break;
+	case PM_FORCE_POWERDOWN:
+		ret = zynqmp_pm_force_pwrdwn(pm_api_arg[0],
+					     pm_api_arg[1] ? pm_api_arg[1] :
+					     ZYNQMP_PM_REQUEST_ACK_NO);
+		break;
+	case PM_REQUEST_WAKEUP:
+		ret = zynqmp_pm_request_wake(pm_api_arg[0],
+					     pm_api_arg[1], pm_api_arg[2],
+					     pm_api_arg[3] ? pm_api_arg[3] :
+					     ZYNQMP_PM_REQUEST_ACK_NO);
+		break;
+	case PM_SYSTEM_SHUTDOWN:
+		ret = zynqmp_pm_system_shutdown(pm_api_arg[0], pm_api_arg[1]);
+		break;
+	case PM_REQUEST_NODE:
+		ret = zynqmp_pm_request_node(pm_api_arg[0],
+					     pm_api_arg[1] ? pm_api_arg[1] :
+					     ZYNQMP_PM_CAPABILITY_ACCESS,
+					     pm_api_arg[2] ? pm_api_arg[2] : 0,
+					     pm_api_arg[3] ? pm_api_arg[3] :
+					     ZYNQMP_PM_REQUEST_ACK_BLOCKING);
+		break;
+	case PM_RELEASE_NODE:
+		ret = zynqmp_pm_release_node(pm_api_arg[0]);
+		break;
+	case PM_SET_REQUIREMENT:
+		ret = zynqmp_pm_set_requirement(pm_api_arg[0],
+						pm_api_arg[1] ? pm_api_arg[1] :
+						ZYNQMP_PM_CAPABILITY_CONTEXT,
+						pm_api_arg[2] ?
+						pm_api_arg[2] : 0,
+						pm_api_arg[3] ? pm_api_arg[3] :
+						ZYNQMP_PM_REQUEST_ACK_BLOCKING);
+		break;
+	case PM_REGISTER_NOTIFIER:
+		ret = zynqmp_pm_register_notifier(pm_api_arg[0],
+						  pm_api_arg[1] ?
+						  pm_api_arg[1] : 0,
+						  pm_api_arg[2] ?
+						  pm_api_arg[2] : 0,
+						  pm_api_arg[3] ?
+						  pm_api_arg[3] : 0);
+		break;
+	case PM_RESET_ASSERT:
+		ret = zynqmp_pm_reset_assert(pm_api_arg[0], pm_api_arg[1]);
+		break;
+	case PM_RESET_GET_STATUS:
+		ret = zynqmp_pm_reset_get_status(pm_api_arg[0], &pm_api_ret[0]);
+		if (!ret)
+			sprintf(debugfs_buf, "Reset status: %u\n",
+				pm_api_ret[0]);
+		break;
+	case PM_GET_CHIPID:
+		ret = zynqmp_pm_get_chipid(&pm_api_ret[0], &pm_api_ret[1]);
+		if (!ret)
+			sprintf(debugfs_buf, "Idcode: %#x, Version:%#x\n",
+				pm_api_ret[0], pm_api_ret[1]);
+		break;
+	case PM_PINCTRL_SET_FUNCTION:
+		ret = zynqmp_pm_pinctrl_set_function(pm_api_arg[0],
+						     pm_api_arg[1]);
+		break;
+	case PM_PINCTRL_CONFIG_PARAM_GET:
+		ret = zynqmp_pm_pinctrl_get_config(pm_api_arg[0], pm_api_arg[1],
+						   &pm_api_ret[0]);
+		if (!ret)
+			sprintf(debugfs_buf,
+				"Pin: %llu, Param: %llu, Value: %u\n",
+				pm_api_arg[0], pm_api_arg[1],
+				pm_api_ret[0]);
+		break;
+	case PM_PINCTRL_CONFIG_PARAM_SET:
+		ret = zynqmp_pm_pinctrl_set_config(pm_api_arg[0],
+						   pm_api_arg[1],
+						   pm_api_arg[2]);
+		break;
+	case PM_IOCTL:
+		ret = zynqmp_pm_ioctl(pm_api_arg[0], pm_api_arg[1],
+				      pm_api_arg[2], pm_api_arg[3],
+				      pm_api_arg[4], &pm_api_ret[0]);
+		if (!ret && (pm_api_arg[1] == IOCTL_GET_RPU_OPER_MODE ||
+			     pm_api_arg[1] == IOCTL_GET_PLL_FRAC_MODE ||
+			     pm_api_arg[1] == IOCTL_GET_PLL_FRAC_DATA ||
+			     pm_api_arg[1] == IOCTL_READ_GGS ||
+			     pm_api_arg[1] == IOCTL_READ_PGGS ||
+			     pm_api_arg[1] == IOCTL_READ_REG))
+			sprintf(debugfs_buf, "IOCTL return value: %u\n",
+				pm_api_ret[1]);
+		if (!ret && pm_api_arg[1] == IOCTL_GET_QOS)
+			sprintf(debugfs_buf, "Default QoS: %u\nCurrent QoS: %u\n",
+				pm_api_ret[1], pm_api_ret[2]);
+		break;
+	case PM_CLOCK_ENABLE:
+		ret = zynqmp_pm_clock_enable(pm_api_arg[0]);
+		break;
+	case PM_CLOCK_DISABLE:
+		ret = zynqmp_pm_clock_disable(pm_api_arg[0]);
+		break;
+	case PM_CLOCK_GETSTATE:
+		ret = zynqmp_pm_clock_getstate(pm_api_arg[0], &pm_api_ret[0]);
+		if (!ret)
+			sprintf(debugfs_buf, "Clock state: %u\n",
+				pm_api_ret[0]);
+		break;
+	case PM_CLOCK_SETDIVIDER:
+		ret = zynqmp_pm_clock_setdivider(pm_api_arg[0], pm_api_arg[1]);
+		break;
+	case PM_CLOCK_GETDIVIDER:
+		ret = zynqmp_pm_clock_getdivider(pm_api_arg[0], &pm_api_ret[0]);
+		if (!ret)
+			sprintf(debugfs_buf, "Divider Value: %d\n",
+				pm_api_ret[0]);
+		break;
+	case PM_CLOCK_SETPARENT:
+		ret = zynqmp_pm_clock_setparent(pm_api_arg[0], pm_api_arg[1]);
+		break;
+	case PM_CLOCK_GETPARENT:
+		ret = zynqmp_pm_clock_getparent(pm_api_arg[0], &pm_api_ret[0]);
+		if (!ret)
+			sprintf(debugfs_buf,
+				"Clock parent Index: %u\n", pm_api_ret[0]);
+		break;
 	case PM_QUERY_DATA:
 		qdata.qid = pm_api_arg[0];
 		qdata.arg1 = pm_api_arg[1];
@@ -150,7 +310,7 @@ static ssize_t zynqmp_pm_debugfs_api_write(struct file *file,
 	char *kern_buff, *tmp_buff;
 	char *pm_api_req;
 	u32 pm_id = 0;
-	u64 pm_api_arg[4] = {0, 0, 0, 0};
+	u64 pm_api_arg[5] = {0, 0, 0, 0, 0};
 	/* Return values from PM APIs calls */
 	u32 pm_api_ret[4] = {0, 0, 0, 0};
 

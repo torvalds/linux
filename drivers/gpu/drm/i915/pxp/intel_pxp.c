@@ -170,7 +170,7 @@ static struct intel_gt *find_gt_for_required_teelink(struct drm_i915_private *i9
 
 static struct intel_gt *find_gt_for_required_protected_content(struct drm_i915_private *i915)
 {
-	if (!IS_ENABLED(CONFIG_DRM_I915_PXP) || !INTEL_INFO(i915)->has_pxp)
+	if (!HAS_PXP(i915))
 		return NULL;
 
 	/*

@@ -145,7 +145,6 @@ static void gscps2_flush(struct gscps2port *ps2port)
 
 static inline int gscps2_writeb_output(struct gscps2port *ps2port, u8 data)
 {
-	unsigned long flags;
 	char __iomem *addr = ps2port->addr;
 
 	if (!wait_TBE(addr)) {
@@ -156,9 +155,8 @@ static inline int gscps2_writeb_output(struct gscps2port *ps2port, u8 data)
 	while (gscps2_readb_status(addr) & GSC_STAT_RBNE)
 		/* wait */;
 
-	spin_lock_irqsave(&ps2port->lock, flags);
-	writeb(data, addr+GSC_XMTDATA);
-	spin_unlock_irqrestore(&ps2port->lock, flags);
+	scoped_guard(spinlock_irqsave, &ps2port->lock)
+		writeb(data, addr+GSC_XMTDATA);
 
 	/* this is ugly, but due to timing of the port it seems to be necessary. */
 	mdelay(6);
@@ -177,19 +175,19 @@ static inline int gscps2_writeb_output(struct gscps2port *ps2port, u8 data)
 
 static void gscps2_enable(struct gscps2port *ps2port, int enable)
 {
-	unsigned long flags;
 	u8 data;
 
 	/* now enable/disable the port */
-	spin_lock_irqsave(&ps2port->lock, flags);
-	gscps2_flush(ps2port);
-	data = gscps2_readb_control(ps2port->addr);
-	if (enable)
-		data |= GSC_CTRL_ENBL;
-	else
-		data &= ~GSC_CTRL_ENBL;
-	gscps2_writeb_control(data, ps2port->addr);
-	spin_unlock_irqrestore(&ps2port->lock, flags);
+	scoped_guard(spinlock_irqsave, &ps2port->lock) {
+		gscps2_flush(ps2port);
+		data = gscps2_readb_control(ps2port->addr);
+		if (enable)
+			data |= GSC_CTRL_ENBL;
+		else
+			data &= ~GSC_CTRL_ENBL;
+		gscps2_writeb_control(data, ps2port->addr);
+	}
+
 	wait_TBE(ps2port->addr);
 	gscps2_flush(ps2port);
 }
@@ -200,17 +198,56 @@ static void gscps2_enable(struct gscps2port *ps2port, int enable)
 
 static void gscps2_reset(struct gscps2port *ps2port)
 {
-	unsigned long flags;
-
 	/* reset the interface */
-	spin_lock_irqsave(&ps2port->lock, flags);
+	guard(spinlock_irqsave)(&ps2port->lock);
 	gscps2_flush(ps2port);
 	writeb(0xff, ps2port->addr + GSC_RESET);
 	gscps2_flush(ps2port);
-	spin_unlock_irqrestore(&ps2port->lock, flags);
 }
 
 static LIST_HEAD(ps2port_list);
+
+static void gscps2_read_data(struct gscps2port *ps2port)
+{
+	u8 status;
+
+	do {
+		status = gscps2_readb_status(ps2port->addr);
+		if (!(status & GSC_STAT_RBNE))
+			break;
+
+		ps2port->buffer[ps2port->append].str = status;
+		ps2port->buffer[ps2port->append].data =
+				gscps2_readb_input(ps2port->addr);
+	} while (true);
+}
+
+static bool gscps2_report_data(struct gscps2port *ps2port)
+{
+	unsigned int rxflags;
+	u8 data, status;
+
+	while (ps2port->act != ps2port->append) {
+		/*
+		 * Did new data arrived while we read existing data ?
+		 * If yes, exit now and let the new irq handler start
+		 * over again.
+		 */
+		if (gscps2_readb_status(ps2port->addr) & GSC_STAT_CMPINTR)
+			return true;
+
+		status = ps2port->buffer[ps2port->act].str;
+		data   = ps2port->buffer[ps2port->act].data;
+
+		ps2port->act = (ps2port->act + 1) & BUFFER_SIZE;
+		rxflags = ((status & GSC_STAT_TERR) ? SERIO_TIMEOUT : 0 ) |
+			  ((status & GSC_STAT_PERR) ? SERIO_PARITY  : 0 );
+
+		serio_interrupt(ps2port->port, data, rxflags);
+	}
+
+	return false;
+}
 
 /**
  * gscps2_interrupt() - Interruption service routine
@@ -229,47 +266,18 @@ static irqreturn_t gscps2_interrupt(int irq, void *dev)
 	struct gscps2port *ps2port;
 
 	list_for_each_entry(ps2port, &ps2port_list, node) {
+		guard(spinlock_irqsave)(&ps2port->lock);
 
-	  unsigned long flags;
-	  spin_lock_irqsave(&ps2port->lock, flags);
-
-	  while ( (ps2port->buffer[ps2port->append].str =
-		   gscps2_readb_status(ps2port->addr)) & GSC_STAT_RBNE ) {
-		ps2port->buffer[ps2port->append].data =
-				gscps2_readb_input(ps2port->addr);
-		ps2port->append = ((ps2port->append+1) & BUFFER_SIZE);
-	  }
-
-	  spin_unlock_irqrestore(&ps2port->lock, flags);
-
+		gscps2_read_data(ps2port);
 	} /* list_for_each_entry */
 
 	/* all data was read from the ports - now report the data to upper layer */
-
 	list_for_each_entry(ps2port, &ps2port_list, node) {
-
-	  while (ps2port->act != ps2port->append) {
-
-	    unsigned int rxflags;
-	    u8 data, status;
-
-	    /* Did new data arrived while we read existing data ?
-	       If yes, exit now and let the new irq handler start over again */
-	    if (gscps2_readb_status(ps2port->addr) & GSC_STAT_CMPINTR)
-		return IRQ_HANDLED;
-
-	    status = ps2port->buffer[ps2port->act].str;
-	    data   = ps2port->buffer[ps2port->act].data;
-
-	    ps2port->act = ((ps2port->act+1) & BUFFER_SIZE);
-	    rxflags =	((status & GSC_STAT_TERR) ? SERIO_TIMEOUT : 0 ) |
-			((status & GSC_STAT_PERR) ? SERIO_PARITY  : 0 );
-
-	    serio_interrupt(ps2port->port, data, rxflags);
-
-	  } /* while() */
-
-	} /* list_for_each_entry */
+		if (gscps2_report_data(ps2port)) {
+			/* More data ready - break early to restart interrupt */
+			break;
+		}
+	}
 
 	return IRQ_HANDLED;
 }

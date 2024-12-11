@@ -158,12 +158,12 @@ static void ath_ahb_remove(struct platform_device *pdev)
 }
 
 static struct platform_driver ath_ahb_driver = {
-	.probe      = ath_ahb_probe,
-	.remove_new = ath_ahb_remove,
-	.driver		= {
-		.name	= "ath9k",
+	.probe = ath_ahb_probe,
+	.remove = ath_ahb_remove,
+	.driver = {
+		.name = "ath9k",
 	},
-	.id_table    = ath9k_platform_id_table,
+	.id_table = ath9k_platform_id_table,
 };
 
 MODULE_DEVICE_TABLE(platform, ath9k_platform_id_table);

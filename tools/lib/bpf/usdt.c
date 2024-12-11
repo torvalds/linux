@@ -20,6 +20,7 @@
 #include "libbpf_common.h"
 #include "libbpf_internal.h"
 #include "hashmap.h"
+#include "str_error.h"
 
 /* libbpf's USDT support consists of BPF-side state/code and user-space
  * state/code working together in concert. BPF-side parts are defined in
@@ -465,8 +466,8 @@ static int parse_vma_segs(int pid, const char *lib_path, struct elf_seg **segs, 
 		goto proceed;
 
 	if (!realpath(lib_path, path)) {
-		pr_warn("usdt: failed to get absolute path of '%s' (err %d), using path as is...\n",
-			lib_path, -errno);
+		pr_warn("usdt: failed to get absolute path of '%s' (err %s), using path as is...\n",
+			lib_path, errstr(-errno));
 		libbpf_strlcpy(path, lib_path, sizeof(path));
 	}
 
@@ -475,8 +476,8 @@ proceed:
 	f = fopen(line, "re");
 	if (!f) {
 		err = -errno;
-		pr_warn("usdt: failed to open '%s' to get base addr of '%s': %d\n",
-			line, lib_path, err);
+		pr_warn("usdt: failed to open '%s' to get base addr of '%s': %s\n",
+			line, lib_path, errstr(err));
 		return err;
 	}
 
@@ -606,7 +607,8 @@ static int collect_usdt_targets(struct usdt_manager *man, Elf *elf, const char *
 
 	err = parse_elf_segs(elf, path, &segs, &seg_cnt);
 	if (err) {
-		pr_warn("usdt: failed to process ELF program segments for '%s': %d\n", path, err);
+		pr_warn("usdt: failed to process ELF program segments for '%s': %s\n",
+			path, errstr(err));
 		goto err_out;
 	}
 
@@ -708,8 +710,8 @@ static int collect_usdt_targets(struct usdt_manager *man, Elf *elf, const char *
 			if (vma_seg_cnt == 0) {
 				err = parse_vma_segs(pid, path, &vma_segs, &vma_seg_cnt);
 				if (err) {
-					pr_warn("usdt: failed to get memory segments in PID %d for shared library '%s': %d\n",
-						pid, path, err);
+					pr_warn("usdt: failed to get memory segments in PID %d for shared library '%s': %s\n",
+						pid, path, errstr(err));
 					goto err_out;
 				}
 			}
@@ -1047,8 +1049,8 @@ struct bpf_link *usdt_manager_attach_usdt(struct usdt_manager *man, const struct
 
 		if (is_new && bpf_map_update_elem(spec_map_fd, &spec_id, &target->spec, BPF_ANY)) {
 			err = -errno;
-			pr_warn("usdt: failed to set USDT spec #%d for '%s:%s' in '%s': %d\n",
-				spec_id, usdt_provider, usdt_name, path, err);
+			pr_warn("usdt: failed to set USDT spec #%d for '%s:%s' in '%s': %s\n",
+				spec_id, usdt_provider, usdt_name, path, errstr(err));
 			goto err_out;
 		}
 		if (!man->has_bpf_cookie &&
@@ -1058,9 +1060,9 @@ struct bpf_link *usdt_manager_attach_usdt(struct usdt_manager *man, const struct
 				pr_warn("usdt: IP collision detected for spec #%d for '%s:%s' in '%s'\n",
 				        spec_id, usdt_provider, usdt_name, path);
 			} else {
-				pr_warn("usdt: failed to map IP 0x%lx to spec #%d for '%s:%s' in '%s': %d\n",
+				pr_warn("usdt: failed to map IP 0x%lx to spec #%d for '%s:%s' in '%s': %s\n",
 					target->abs_ip, spec_id, usdt_provider, usdt_name,
-					path, err);
+					path, errstr(err));
 			}
 			goto err_out;
 		}
@@ -1076,8 +1078,8 @@ struct bpf_link *usdt_manager_attach_usdt(struct usdt_manager *man, const struct
 								      target->rel_ip, &opts);
 			err = libbpf_get_error(uprobe_link);
 			if (err) {
-				pr_warn("usdt: failed to attach uprobe #%d for '%s:%s' in '%s': %d\n",
-					i, usdt_provider, usdt_name, path, err);
+				pr_warn("usdt: failed to attach uprobe #%d for '%s:%s' in '%s': %s\n",
+					i, usdt_provider, usdt_name, path, errstr(err));
 				goto err_out;
 			}
 
@@ -1099,8 +1101,8 @@ struct bpf_link *usdt_manager_attach_usdt(struct usdt_manager *man, const struct
 								    NULL, &opts_multi);
 		if (!link->multi_link) {
 			err = -errno;
-			pr_warn("usdt: failed to attach uprobe multi for '%s:%s' in '%s': %d\n",
-				usdt_provider, usdt_name, path, err);
+			pr_warn("usdt: failed to attach uprobe multi for '%s:%s' in '%s': %s\n",
+				usdt_provider, usdt_name, path, errstr(err));
 			goto err_out;
 		}
 

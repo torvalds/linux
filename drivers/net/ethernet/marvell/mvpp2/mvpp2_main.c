@@ -1985,45 +1985,32 @@ static void mvpp2_ethtool_get_strings(struct net_device *netdev, u32 sset,
 				      u8 *data)
 {
 	struct mvpp2_port *port = netdev_priv(netdev);
+	const char *str;
 	int i, q;
 
 	if (sset != ETH_SS_STATS)
 		return;
 
-	for (i = 0; i < ARRAY_SIZE(mvpp2_ethtool_mib_regs); i++) {
-		strscpy(data, mvpp2_ethtool_mib_regs[i].string,
-			ETH_GSTRING_LEN);
-		data += ETH_GSTRING_LEN;
-	}
+	for (i = 0; i < ARRAY_SIZE(mvpp2_ethtool_mib_regs); i++)
+		ethtool_puts(&data, mvpp2_ethtool_mib_regs[i].string);
 
-	for (i = 0; i < ARRAY_SIZE(mvpp2_ethtool_port_regs); i++) {
-		strscpy(data, mvpp2_ethtool_port_regs[i].string,
-			ETH_GSTRING_LEN);
-		data += ETH_GSTRING_LEN;
-	}
+	for (i = 0; i < ARRAY_SIZE(mvpp2_ethtool_port_regs); i++)
+		ethtool_puts(&data, mvpp2_ethtool_port_regs[i].string);
 
-	for (q = 0; q < port->ntxqs; q++) {
+	for (q = 0; q < port->ntxqs; q++)
 		for (i = 0; i < ARRAY_SIZE(mvpp2_ethtool_txq_regs); i++) {
-			snprintf(data, ETH_GSTRING_LEN,
-				 mvpp2_ethtool_txq_regs[i].string, q);
-			data += ETH_GSTRING_LEN;
+			str = mvpp2_ethtool_txq_regs[i].string;
+			ethtool_sprintf(&data, str, q);
 		}
-	}
 
-	for (q = 0; q < port->nrxqs; q++) {
+	for (q = 0; q < port->nrxqs; q++)
 		for (i = 0; i < ARRAY_SIZE(mvpp2_ethtool_rxq_regs); i++) {
-			snprintf(data, ETH_GSTRING_LEN,
-				 mvpp2_ethtool_rxq_regs[i].string,
-				 q);
-			data += ETH_GSTRING_LEN;
+			str = mvpp2_ethtool_rxq_regs[i].string;
+			ethtool_sprintf(&data, str, q);
 		}
-	}
 
-	for (i = 0; i < ARRAY_SIZE(mvpp2_ethtool_xdp); i++) {
-		strscpy(data, mvpp2_ethtool_xdp[i].string,
-			ETH_GSTRING_LEN);
-		data += ETH_GSTRING_LEN;
-	}
+	for (i = 0; i < ARRAY_SIZE(mvpp2_ethtool_xdp); i++)
+		ethtool_puts(&data, mvpp2_ethtool_xdp[i].string);
 }
 
 static void
@@ -7774,7 +7761,7 @@ MODULE_DEVICE_TABLE(acpi, mvpp2_acpi_match);
 
 static struct platform_driver mvpp2_driver = {
 	.probe = mvpp2_probe,
-	.remove_new = mvpp2_remove,
+	.remove = mvpp2_remove,
 	.driver = {
 		.name = MVPP2_DRIVER_NAME,
 		.of_match_table = mvpp2_match,

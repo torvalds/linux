@@ -292,6 +292,7 @@ class JsonEvent:
           'cpu_atom': 'cpu_atom',
           'ali_drw': 'ali_drw',
           'arm_cmn': 'arm_cmn',
+          'tool': 'tool',
       }
       return table[unit] if unit in table else f'uncore_{unit.lower()}'
 
@@ -722,6 +723,17 @@ const struct pmu_events_map pmu_events_map[] = {
 \t}
 },
 """)
+    elif arch == 'common':
+      _args.output_file.write("""{
+\t.arch = "common",
+\t.cpuid = "common",
+\t.event_table = {
+\t\t.pmus = pmu_events__common,
+\t\t.num_pmus = ARRAY_SIZE(pmu_events__common),
+\t},
+\t.metric_table = {},
+},
+""")
     else:
       with open(f'{_args.starting_dir}/{arch}/mapfile.csv') as csvfile:
         table = csv.reader(csvfile)
@@ -930,7 +942,7 @@ int pmu_events_table__for_each_event(const struct pmu_events_table *table,
                         continue;
 
                 ret = pmu_events_table__for_each_event_pmu(table, table_pmu, fn, data);
-                if (pmu || ret)
+                if (ret)
                         return ret;
         }
         return 0;
@@ -1007,11 +1019,11 @@ int pmu_metrics_table__for_each_metric(const struct pmu_metrics_table *table,
         return 0;
 }
 
-static const struct pmu_events_map *map_for_pmu(struct perf_pmu *pmu)
+static const struct pmu_events_map *map_for_cpu(struct perf_cpu cpu)
 {
         static struct {
                 const struct pmu_events_map *map;
-                struct perf_pmu *pmu;
+                struct perf_cpu cpu;
         } last_result;
         static struct {
                 const struct pmu_events_map *map;
@@ -1022,10 +1034,10 @@ static const struct pmu_events_map *map_for_pmu(struct perf_pmu *pmu)
         char *cpuid = NULL;
         size_t i;
 
-        if (has_last_result && last_result.pmu == pmu)
+        if (has_last_result && last_result.cpu.cpu == cpu.cpu)
                 return last_result.map;
 
-        cpuid = perf_pmu__getcpuid(pmu);
+        cpuid = get_cpuid_allow_env_override(cpu);
 
         /*
          * On some platforms which uses cpus map, cpuid can be NULL for
@@ -1056,10 +1068,19 @@ static const struct pmu_events_map *map_for_pmu(struct perf_pmu *pmu)
                has_last_map_search = true;
         }
 out_update_last_result:
-        last_result.pmu = pmu;
+        last_result.cpu = cpu;
         last_result.map = map;
         has_last_result = true;
         return map;
+}
+
+static const struct pmu_events_map *map_for_pmu(struct perf_pmu *pmu)
+{
+        struct perf_cpu cpu = {-1};
+
+        if (pmu)
+                cpu = perf_cpu_map__min(pmu->cpus);
+        return map_for_cpu(cpu);
 }
 
 const struct pmu_events_table *perf_pmu__find_events_table(struct perf_pmu *pmu)
@@ -1082,24 +1103,12 @@ const struct pmu_events_table *perf_pmu__find_events_table(struct perf_pmu *pmu)
         return NULL;
 }
 
-const struct pmu_metrics_table *perf_pmu__find_metrics_table(struct perf_pmu *pmu)
+const struct pmu_metrics_table *pmu_metrics_table__find(void)
 {
-        const struct pmu_events_map *map = map_for_pmu(pmu);
+        struct perf_cpu cpu = {-1};
+        const struct pmu_events_map *map = map_for_cpu(cpu);
 
-        if (!map)
-                return NULL;
-
-        if (!pmu)
-                return &map->metric_table;
-
-        for (size_t i = 0; i < map->metric_table.num_pmus; i++) {
-                const struct pmu_table_entry *table_pmu = &map->metric_table.pmus[i];
-                const char *pmu_name = &big_c_string[table_pmu->pmu_name.offset];
-
-                if (pmu__name_match(pmu, pmu_name))
-                           return &map->metric_table;
-        }
-        return NULL;
+        return map ? &map->metric_table : NULL;
 }
 
 const struct pmu_events_table *find_core_events_table(const char *arch, const char *cpuid)
@@ -1241,7 +1250,7 @@ def main() -> None:
         if len(parents) == _args.model.split(',')[0].count('/'):
           # We're testing the correct directory.
           item_path = '/'.join(parents) + ('/' if len(parents) > 0 else '') + item.name
-          if 'test' not in item_path and item_path not in _args.model.split(','):
+          if 'test' not in item_path and 'common' not in item_path and item_path not in _args.model.split(','):
             continue
       action(parents, item)
       if item.is_dir():
@@ -1289,7 +1298,7 @@ struct pmu_table_entry {
   for item in os.scandir(_args.starting_dir):
     if not item.is_dir():
       continue
-    if item.name == _args.arch or _args.arch == 'all' or item.name == 'test':
+    if item.name == _args.arch or _args.arch == 'all' or item.name == 'test' or item.name == 'common':
       archs.append(item.name)
 
   if len(archs) < 2 and _args.arch != 'none':

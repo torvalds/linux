@@ -2590,55 +2590,34 @@ void hns_dsaf_get_regs(struct dsaf_device *ddev, u32 port, void *data)
 		p[i] = 0xdddddddd;
 }
 
-static char *hns_dsaf_get_node_stats_strings(char *data, int node,
-					     struct dsaf_device *dsaf_dev)
+static void hns_dsaf_get_node_stats_strings(u8 **data, int node,
+					    struct dsaf_device *dsaf_dev)
 {
-	char *buff = data;
-	int i;
 	bool is_ver1 = AE_IS_VER1(dsaf_dev->dsaf_ver);
+	int i;
 
-	snprintf(buff, ETH_GSTRING_LEN, "innod%d_pad_drop_pkts", node);
-	buff += ETH_GSTRING_LEN;
-	snprintf(buff, ETH_GSTRING_LEN, "innod%d_manage_pkts", node);
-	buff += ETH_GSTRING_LEN;
-	snprintf(buff, ETH_GSTRING_LEN, "innod%d_rx_pkts", node);
-	buff += ETH_GSTRING_LEN;
-	snprintf(buff, ETH_GSTRING_LEN, "innod%d_rx_pkt_id", node);
-	buff += ETH_GSTRING_LEN;
-	snprintf(buff, ETH_GSTRING_LEN, "innod%d_rx_pause_frame", node);
-	buff += ETH_GSTRING_LEN;
-	snprintf(buff, ETH_GSTRING_LEN, "innod%d_release_buf_num", node);
-	buff += ETH_GSTRING_LEN;
-	snprintf(buff, ETH_GSTRING_LEN, "innod%d_sbm_drop_pkts", node);
-	buff += ETH_GSTRING_LEN;
-	snprintf(buff, ETH_GSTRING_LEN, "innod%d_crc_false_pkts", node);
-	buff += ETH_GSTRING_LEN;
-	snprintf(buff, ETH_GSTRING_LEN, "innod%d_bp_drop_pkts", node);
-	buff += ETH_GSTRING_LEN;
-	snprintf(buff, ETH_GSTRING_LEN, "innod%d_lookup_rslt_drop_pkts", node);
-	buff += ETH_GSTRING_LEN;
-	snprintf(buff, ETH_GSTRING_LEN, "innod%d_local_rslt_fail_pkts", node);
-	buff += ETH_GSTRING_LEN;
-	snprintf(buff, ETH_GSTRING_LEN, "innod%d_vlan_drop_pkts", node);
-	buff += ETH_GSTRING_LEN;
-	snprintf(buff, ETH_GSTRING_LEN, "innod%d_stp_drop_pkts", node);
-	buff += ETH_GSTRING_LEN;
+	ethtool_sprintf(data, "innod%d_pad_drop_pkts", node);
+	ethtool_sprintf(data, "innod%d_manage_pkts", node);
+	ethtool_sprintf(data, "innod%d_rx_pkts", node);
+	ethtool_sprintf(data, "innod%d_rx_pkt_id", node);
+	ethtool_sprintf(data, "innod%d_rx_pause_frame", node);
+	ethtool_sprintf(data, "innod%d_release_buf_num", node);
+	ethtool_sprintf(data, "innod%d_sbm_drop_pkts", node);
+	ethtool_sprintf(data, "innod%d_crc_false_pkts", node);
+	ethtool_sprintf(data, "innod%d_bp_drop_pkts", node);
+	ethtool_sprintf(data, "innod%d_lookup_rslt_drop_pkts", node);
+	ethtool_sprintf(data, "innod%d_local_rslt_fail_pkts", node);
+	ethtool_sprintf(data, "innod%d_vlan_drop_pkts", node);
+	ethtool_sprintf(data, "innod%d_stp_drop_pkts", node);
 	if (node < DSAF_SERVICE_NW_NUM && !is_ver1) {
 		for (i = 0; i < DSAF_PRIO_NR; i++) {
-			snprintf(buff + 0 * ETH_GSTRING_LEN * DSAF_PRIO_NR,
-				 ETH_GSTRING_LEN, "inod%d_pfc_prio%d_pkts",
-				 node, i);
-			snprintf(buff + 1 * ETH_GSTRING_LEN * DSAF_PRIO_NR,
-				 ETH_GSTRING_LEN, "onod%d_pfc_prio%d_pkts",
-				 node, i);
-			buff += ETH_GSTRING_LEN;
+			ethtool_sprintf(data, "inod%d_pfc_prio%d_pkts", node,
+					i);
+			ethtool_sprintf(data, "onod%d_pfc_prio%d_pkts", node,
+					i);
 		}
-		buff += 1 * DSAF_PRIO_NR * ETH_GSTRING_LEN;
 	}
-	snprintf(buff, ETH_GSTRING_LEN, "onnod%d_tx_pkts", node);
-	buff += ETH_GSTRING_LEN;
-
-	return buff;
+	ethtool_sprintf(data, "onnod%d_tx_pkts", node);
 }
 
 static u64 *hns_dsaf_get_node_stats(struct dsaf_device *ddev, u64 *data,
@@ -2720,21 +2699,20 @@ int hns_dsaf_get_sset_count(struct dsaf_device *dsaf_dev, int stringset)
  *@port:port index
  *@dsaf_dev: dsaf device
  */
-void hns_dsaf_get_strings(int stringset, u8 *data, int port,
+void hns_dsaf_get_strings(int stringset, u8 **data, int port,
 			  struct dsaf_device *dsaf_dev)
 {
-	char *buff = (char *)data;
 	int node = port;
 
 	if (stringset != ETH_SS_STATS)
 		return;
 
 	/* for ge/xge node info */
-	buff = hns_dsaf_get_node_stats_strings(buff, node, dsaf_dev);
+	hns_dsaf_get_node_stats_strings(data, node, dsaf_dev);
 
 	/* for ppe node info */
 	node = port + DSAF_PPE_INODE_BASE;
-	(void)hns_dsaf_get_node_stats_strings(buff, node, dsaf_dev);
+	hns_dsaf_get_node_stats_strings(data, node, dsaf_dev);
 }
 
 /**
@@ -3031,7 +3009,7 @@ MODULE_DEVICE_TABLE(of, g_dsaf_match);
 
 static struct platform_driver g_dsaf_driver = {
 	.probe = hns_dsaf_probe,
-	.remove_new = hns_dsaf_remove,
+	.remove = hns_dsaf_remove,
 	.driver = {
 		.name = DSAF_DRV_NAME,
 		.of_match_table = g_dsaf_match,

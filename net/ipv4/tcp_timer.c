@@ -361,6 +361,14 @@ static void tcp_delack_timer(struct timer_list *t)
 			from_timer(icsk, t, icsk_delack_timer);
 	struct sock *sk = &icsk->icsk_inet.sk;
 
+	/* Avoid taking socket spinlock if there is no ACK to send.
+	 * The compressed_ack check is racy, but a separate hrtimer
+	 * will take care of it eventually.
+	 */
+	if (!(smp_load_acquire(&icsk->icsk_ack.pending) & ICSK_ACK_TIMER) &&
+	    !READ_ONCE(tcp_sk(sk)->compressed_ack))
+		goto out;
+
 	bh_lock_sock(sk);
 	if (!sock_owned_by_user(sk)) {
 		tcp_delack_timer_handler(sk);
@@ -371,6 +379,7 @@ static void tcp_delack_timer(struct timer_list *t)
 			sock_hold(sk);
 	}
 	bh_unlock_sock(sk);
+out:
 	sock_put(sk);
 }
 
@@ -701,11 +710,11 @@ void tcp_write_timer_handler(struct sock *sk)
 		tcp_send_loss_probe(sk);
 		break;
 	case ICSK_TIME_RETRANS:
-		icsk->icsk_pending = 0;
+		smp_store_release(&icsk->icsk_pending, 0);
 		tcp_retransmit_timer(sk);
 		break;
 	case ICSK_TIME_PROBE0:
-		icsk->icsk_pending = 0;
+		smp_store_release(&icsk->icsk_pending, 0);
 		tcp_probe_timer(sk);
 		break;
 	}
@@ -717,6 +726,10 @@ static void tcp_write_timer(struct timer_list *t)
 			from_timer(icsk, t, icsk_retransmit_timer);
 	struct sock *sk = &icsk->icsk_inet.sk;
 
+	/* Avoid locking the socket when there is no pending event. */
+	if (!smp_load_acquire(&icsk->icsk_pending))
+		goto out;
+
 	bh_lock_sock(sk);
 	if (!sock_owned_by_user(sk)) {
 		tcp_write_timer_handler(sk);
@@ -726,6 +739,7 @@ static void tcp_write_timer(struct timer_list *t)
 			sock_hold(sk);
 	}
 	bh_unlock_sock(sk);
+out:
 	sock_put(sk);
 }
 
@@ -851,6 +865,7 @@ static enum hrtimer_restart tcp_compressed_ack_kick(struct hrtimer *timer)
 			 * LINUX_MIB_TCPACKCOMPRESSED accurate.
 			 */
 			tp->compressed_ack--;
+			tcp_mstamp_refresh(tp);
 			tcp_send_ack(sk);
 		}
 	} else {

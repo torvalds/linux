@@ -458,13 +458,13 @@ static int jpeg_v1_0_process_interrupt(struct amdgpu_device *adev,
 /**
  * jpeg_v1_0_early_init - set function pointers
  *
- * @handle: amdgpu_device pointer
+ * @ip_block: Pointer to the amdgpu_ip_block for this hw instance.
  *
  * Set ring and irq function pointers
  */
-int jpeg_v1_0_early_init(void *handle)
+int jpeg_v1_0_early_init(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	adev->jpeg.num_jpeg_inst = 1;
 	adev->jpeg.num_jpeg_rings = 1;
@@ -478,12 +478,12 @@ int jpeg_v1_0_early_init(void *handle)
 /**
  * jpeg_v1_0_sw_init - sw init for JPEG block
  *
- * @handle: amdgpu_device pointer
+ * @ip_block: Pointer to the amdgpu_ip_block for this hw instance.
  *
  */
-int jpeg_v1_0_sw_init(void *handle)
+int jpeg_v1_0_sw_init(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	struct amdgpu_ring *ring;
 	int r;
 
@@ -509,13 +509,13 @@ int jpeg_v1_0_sw_init(void *handle)
 /**
  * jpeg_v1_0_sw_fini - sw fini for JPEG block
  *
- * @handle: amdgpu_device pointer
+ * @ip_block: Pointer to the amdgpu_ip_block for this hw instance.
  *
  * JPEG free up sw allocation
  */
-void jpeg_v1_0_sw_fini(void *handle)
+void jpeg_v1_0_sw_fini(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	amdgpu_ring_fini(adev->jpeg.inst->ring_dec);
 }

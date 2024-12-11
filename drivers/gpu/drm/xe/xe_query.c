@@ -85,16 +85,13 @@ static __ktime_func_t __clock_id_to_func(clockid_t clk_id)
 }
 
 static void
-__read_timestamps(struct xe_gt *gt,
-		  struct xe_reg lower_reg,
-		  struct xe_reg upper_reg,
-		  u64 *engine_ts,
-		  u64 *cpu_ts,
-		  u64 *cpu_delta,
-		  __ktime_func_t cpu_clock)
+hwe_read_timestamp(struct xe_hw_engine *hwe, u64 *engine_ts, u64 *cpu_ts,
+		   u64 *cpu_delta, __ktime_func_t cpu_clock)
 {
-	struct xe_mmio *mmio = &gt->mmio;
+	struct xe_mmio *mmio = &hwe->gt->mmio;
 	u32 upper, lower, old_upper, loop = 0;
+	struct xe_reg upper_reg = RING_TIMESTAMP_UDW(hwe->mmio_base),
+		      lower_reg = RING_TIMESTAMP(hwe->mmio_base);
 
 	upper = xe_mmio_read32(mmio, upper_reg);
 	do {
@@ -120,6 +117,7 @@ query_engine_cycles(struct xe_device *xe,
 	__ktime_func_t cpu_clock;
 	struct xe_hw_engine *hwe;
 	struct xe_gt *gt;
+	unsigned int fw_ref;
 
 	if (query->size == 0) {
 		query->size = size;
@@ -152,31 +150,27 @@ query_engine_cycles(struct xe_device *xe,
 	if (!hwe)
 		return -EINVAL;
 
-	if (xe_force_wake_get(gt_to_fw(gt), XE_FORCEWAKE_ALL))
+	fw_ref = xe_force_wake_get(gt_to_fw(gt), XE_FORCEWAKE_ALL);
+	if (!xe_force_wake_ref_has_domain(fw_ref, XE_FORCEWAKE_ALL))  {
+		xe_force_wake_put(gt_to_fw(gt), fw_ref);
 		return -EIO;
+	}
 
-	__read_timestamps(gt,
-			  RING_TIMESTAMP(hwe->mmio_base),
-			  RING_TIMESTAMP_UDW(hwe->mmio_base),
-			  &resp.engine_cycles,
-			  &resp.cpu_timestamp,
-			  &resp.cpu_delta,
-			  cpu_clock);
+	hwe_read_timestamp(hwe, &resp.engine_cycles, &resp.cpu_timestamp,
+			   &resp.cpu_delta, cpu_clock);
 
-	xe_force_wake_put(gt_to_fw(gt), XE_FORCEWAKE_ALL);
-	resp.width = 36;
+	xe_force_wake_put(gt_to_fw(gt), fw_ref);
+
+	if (GRAPHICS_VER(xe) >= 20)
+		resp.width = 64;
+	else
+		resp.width = 36;
 
 	/* Only write to the output fields of user query */
-	if (put_user(resp.cpu_timestamp, &query_ptr->cpu_timestamp))
-		return -EFAULT;
-
-	if (put_user(resp.cpu_delta, &query_ptr->cpu_delta))
-		return -EFAULT;
-
-	if (put_user(resp.engine_cycles, &query_ptr->engine_cycles))
-		return -EFAULT;
-
-	if (put_user(resp.width, &query_ptr->width))
+	if (put_user(resp.cpu_timestamp, &query_ptr->cpu_timestamp) ||
+	    put_user(resp.cpu_delta, &query_ptr->cpu_delta) ||
+	    put_user(resp.engine_cycles, &query_ptr->engine_cycles) ||
+	    put_user(resp.width, &query_ptr->width))
 		return -EFAULT;
 
 	return 0;
@@ -676,7 +670,7 @@ static int query_oa_units(struct xe_device *xe,
 			du->oa_unit_id = u->oa_unit_id;
 			du->oa_unit_type = u->type;
 			du->oa_timestamp_freq = xe_oa_timestamp_frequency(gt);
-			du->capabilities = DRM_XE_OA_CAPS_BASE;
+			du->capabilities = DRM_XE_OA_CAPS_BASE | DRM_XE_OA_CAPS_SYNCS;
 
 			j = 0;
 			for_each_hw_engine(hwe, gt, hwe_id) {

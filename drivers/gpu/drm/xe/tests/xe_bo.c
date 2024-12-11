@@ -8,7 +8,7 @@
 
 #include <linux/iosys-map.h>
 #include <linux/math64.h>
-#include <linux/random.h>
+#include <linux/prandom.h>
 #include <linux/swap.h>
 
 #include <uapi/linux/sysinfo.h>

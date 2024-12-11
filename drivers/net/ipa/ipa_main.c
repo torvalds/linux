@@ -1012,7 +1012,7 @@ static const struct attribute_group *ipa_attribute_groups[] = {
 
 static struct platform_driver ipa_driver = {
 	.probe		= ipa_probe,
-	.remove_new	= ipa_remove,
+	.remove		= ipa_remove,
 	.shutdown	= ipa_remove,
 	.driver	= {
 		.name		= "ipa",

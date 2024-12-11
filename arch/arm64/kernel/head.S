@@ -32,6 +32,7 @@
 #include <asm/scs.h>
 #include <asm/smp.h>
 #include <asm/sysreg.h>
+#include <asm/stacktrace/frame.h>
 #include <asm/thread_info.h>
 #include <asm/virt.h>
 
@@ -199,6 +200,8 @@ SYM_CODE_END(preserve_boot_args)
 	sub	sp, sp, #PT_REGS_SIZE
 
 	stp	xzr, xzr, [sp, #S_STACKFRAME]
+	mov	\tmp1, #FRAME_META_TYPE_FINAL
+	str	\tmp1, [sp, #S_STACKFRAME_TYPE]
 	add	x29, sp, #S_STACKFRAME
 
 	scs_load_current

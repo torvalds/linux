@@ -6,10 +6,10 @@
  *          Dave Airlie
  */
 
+#include <linux/aperture.h>
 #include <linux/module.h>
 #include <linux/pci.h>
 
-#include <drm/drm_aperture.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_client_setup.h>
 #include <drm/drm_drv.h>
@@ -20,7 +20,6 @@
 #include <drm/drm_managed.h>
 #include <drm/drm_module.h>
 #include <drm/drm_pciids.h>
-#include <drm/drm_vblank.h>
 
 #include "mgag200_drv.h"
 
@@ -85,34 +84,6 @@ resource_size_t mgag200_probe_vram(void __iomem *mem, resource_size_t size)
 	iowrite16(orig, mem);
 
 	return offset - 65536;
-}
-
-static irqreturn_t mgag200_irq_handler(int irq, void *arg)
-{
-	struct drm_device *dev = arg;
-	struct mga_device *mdev = to_mga_device(dev);
-	struct drm_crtc *crtc;
-	u32 status, ien;
-
-	status = RREG32(MGAREG_STATUS);
-
-	if (status & MGAREG_STATUS_VLINEPEN) {
-		ien = RREG32(MGAREG_IEN);
-		if (!(ien & MGAREG_IEN_VLINEIEN))
-			goto out;
-
-		crtc = drm_crtc_from_index(dev, 0);
-		if (WARN_ON_ONCE(!crtc))
-			goto out;
-		drm_crtc_handle_vblank(crtc);
-
-		WREG32(MGAREG_ICLEAR, MGAREG_ICLEAR_VLINEICLR);
-
-		return IRQ_HANDLED;
-	}
-
-out:
-	return IRQ_NONE;
 }
 
 /*
@@ -199,7 +170,6 @@ int mgag200_device_init(struct mga_device *mdev,
 			const struct mgag200_device_funcs *funcs)
 {
 	struct drm_device *dev = &mdev->base;
-	struct pci_dev *pdev = to_pci_dev(dev->dev);
 	u8 crtcext3, misc;
 	int ret;
 
@@ -226,14 +196,6 @@ int mgag200_device_init(struct mga_device *mdev,
 	mutex_unlock(&mdev->rmmio_lock);
 
 	WREG32(MGAREG_IEN, 0);
-	WREG32(MGAREG_ICLEAR, MGAREG_ICLEAR_VLINEICLR);
-
-	ret = devm_request_irq(&pdev->dev, pdev->irq, mgag200_irq_handler, IRQF_SHARED,
-			       dev->driver->name, dev);
-	if (ret) {
-		drm_err(dev, "Failed to acquire interrupt, error %d\n", ret);
-		return ret;
-	}
 
 	return 0;
 }
@@ -266,7 +228,7 @@ mgag200_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct drm_device *dev;
 	int ret;
 
-	ret = drm_aperture_remove_conflicting_pci_framebuffers(pdev, &mgag200_driver);
+	ret = aperture_remove_conflicting_pci_devices(pdev, mgag200_driver.name);
 	if (ret)
 		return ret;
 

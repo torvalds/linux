@@ -23,7 +23,7 @@
 		interrupts-extended = <&pio 155 IRQ_TYPE_LEVEL_LOW>;
 
 		reset-gpios = <&pio 156 GPIO_ACTIVE_LOW>;
-		vdd-supply = <&lcd_pp3300>;
+		vdd-supply = <&pp3300_alw>;
 	};
 };
 

@@ -431,7 +431,7 @@ static struct platform_driver aspeed_p2a_ctrl_driver = {
 		.of_match_table = aspeed_p2a_ctrl_match,
 	},
 	.probe = aspeed_p2a_ctrl_probe,
-	.remove_new = aspeed_p2a_ctrl_remove,
+	.remove = aspeed_p2a_ctrl_remove,
 };
 
 module_platform_driver(aspeed_p2a_ctrl_driver);

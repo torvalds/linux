@@ -194,7 +194,7 @@ const struct adxl380_chip_info adxl380_chip_info = {
 	.temp_offset =  25 * 102 / 10 - 470,
 
 };
-EXPORT_SYMBOL_NS_GPL(adxl380_chip_info, IIO_ADXL380);
+EXPORT_SYMBOL_NS_GPL(adxl380_chip_info, "IIO_ADXL380");
 
 const struct adxl380_chip_info adxl382_chip_info = {
 	.name = "adxl382",
@@ -211,7 +211,7 @@ const struct adxl380_chip_info adxl382_chip_info = {
 	 */
 	.temp_offset =  25 * 102 / 10 - 570,
 };
-EXPORT_SYMBOL_NS_GPL(adxl382_chip_info, IIO_ADXL380);
+EXPORT_SYMBOL_NS_GPL(adxl382_chip_info, "IIO_ADXL380");
 
 static const unsigned int adxl380_th_reg_high_addr[2] = {
 	[ADXL380_ACTIVITY] = ADXL380_THRESH_ACT_H_REG,
@@ -263,7 +263,7 @@ bool adxl380_readable_noinc_reg(struct device *dev, unsigned int reg)
 {
 	return reg == ADXL380_FIFO_DATA;
 }
-EXPORT_SYMBOL_NS_GPL(adxl380_readable_noinc_reg, IIO_ADXL380);
+EXPORT_SYMBOL_NS_GPL(adxl380_readable_noinc_reg, "IIO_ADXL380");
 
 static int adxl380_set_measure_en(struct adxl380_state *st, bool en)
 {
@@ -1181,7 +1181,7 @@ static int adxl380_read_raw(struct iio_dev *indio_dev,
 
 		ret = adxl380_read_chn(st, chan->address);
 		iio_device_release_direct_mode(indio_dev);
-		if (ret)
+		if (ret < 0)
 			return ret;
 
 		*val = sign_extend32(ret >> chan->scan_type.shift,
@@ -1386,7 +1386,7 @@ static int adxl380_write_event_config(struct iio_dev *indio_dev,
 				      const struct iio_chan_spec *chan,
 				      enum iio_event_type type,
 				      enum iio_event_direction dir,
-				      int state)
+				      bool state)
 {
 	struct adxl380_state *st = iio_priv(indio_dev);
 	enum adxl380_axis axis;
@@ -1719,7 +1719,6 @@ static int adxl380_config_irq(struct iio_dev *indio_dev)
 {
 	struct adxl380_state *st = iio_priv(indio_dev);
 	unsigned long irq_flag;
-	struct irq_data *desc;
 	u32 irq_type;
 	u8 polarity;
 	int ret;
@@ -1737,11 +1736,7 @@ static int adxl380_config_irq(struct iio_dev *indio_dev)
 		st->int_map[1] = ADXL380_INT1_MAP1_REG;
 	}
 
-	desc = irq_get_irq_data(st->irq);
-	if (!desc)
-		return dev_err_probe(st->dev, -EINVAL, "Could not find IRQ %d\n", st->irq);
-
-	irq_type = irqd_get_trigger_type(desc);
+	irq_type = irq_get_trigger_type(st->irq);
 	if (irq_type == IRQ_TYPE_LEVEL_HIGH) {
 		polarity = 0;
 		irq_flag = IRQF_TRIGGER_HIGH | IRQF_ONESHOT;
@@ -1897,7 +1892,7 @@ int adxl380_probe(struct device *dev, struct regmap *regmap,
 
 	return devm_iio_device_register(dev, indio_dev);
 }
-EXPORT_SYMBOL_NS_GPL(adxl380_probe, IIO_ADXL380);
+EXPORT_SYMBOL_NS_GPL(adxl380_probe, "IIO_ADXL380");
 
 MODULE_AUTHOR("Ramona Gradinariu <ramona.gradinariu@analog.com>");
 MODULE_AUTHOR("Antoniu Miclaus <antoniu.miclaus@analog.com>");

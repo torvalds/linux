@@ -89,8 +89,8 @@ static void io_msg_tw_complete(struct io_kiocb *req, struct io_tw_state *ts)
 static int io_msg_remote_post(struct io_ring_ctx *ctx, struct io_kiocb *req,
 			      int res, u32 cflags, u64 user_data)
 {
-	req->task = READ_ONCE(ctx->submitter_task);
-	if (!req->task) {
+	req->tctx = READ_ONCE(ctx->submitter_task->io_uring);
+	if (!req->tctx) {
 		kmem_cache_free(req_cachep, req);
 		return -EOWNERDEAD;
 	}
@@ -116,14 +116,13 @@ static struct io_kiocb *io_msg_get_kiocb(struct io_ring_ctx *ctx)
 	return kmem_cache_alloc(req_cachep, GFP_KERNEL | __GFP_NOWARN | __GFP_ZERO);
 }
 
-static int io_msg_data_remote(struct io_kiocb *req)
+static int io_msg_data_remote(struct io_ring_ctx *target_ctx,
+			      struct io_msg *msg)
 {
-	struct io_ring_ctx *target_ctx = req->file->private_data;
-	struct io_msg *msg = io_kiocb_to_cmd(req, struct io_msg);
 	struct io_kiocb *target;
 	u32 flags = 0;
 
-	target = io_msg_get_kiocb(req->ctx);
+	target = io_msg_get_kiocb(target_ctx);
 	if (unlikely(!target))
 		return -ENOMEM;
 
@@ -134,10 +133,9 @@ static int io_msg_data_remote(struct io_kiocb *req)
 					msg->user_data);
 }
 
-static int io_msg_ring_data(struct io_kiocb *req, unsigned int issue_flags)
+static int __io_msg_ring_data(struct io_ring_ctx *target_ctx,
+			      struct io_msg *msg, unsigned int issue_flags)
 {
-	struct io_ring_ctx *target_ctx = req->file->private_data;
-	struct io_msg *msg = io_kiocb_to_cmd(req, struct io_msg);
 	u32 flags = 0;
 	int ret;
 
@@ -149,7 +147,7 @@ static int io_msg_ring_data(struct io_kiocb *req, unsigned int issue_flags)
 		return -EBADFD;
 
 	if (io_msg_need_remote(target_ctx))
-		return io_msg_data_remote(req);
+		return io_msg_data_remote(target_ctx, msg);
 
 	if (msg->flags & IORING_MSG_RING_FLAGS_PASS)
 		flags = msg->cqe_flags;
@@ -166,22 +164,32 @@ static int io_msg_ring_data(struct io_kiocb *req, unsigned int issue_flags)
 	return ret;
 }
 
-static struct file *io_msg_grab_file(struct io_kiocb *req, unsigned int issue_flags)
+static int io_msg_ring_data(struct io_kiocb *req, unsigned int issue_flags)
+{
+	struct io_ring_ctx *target_ctx = req->file->private_data;
+	struct io_msg *msg = io_kiocb_to_cmd(req, struct io_msg);
+
+	return __io_msg_ring_data(target_ctx, msg, issue_flags);
+}
+
+static int io_msg_grab_file(struct io_kiocb *req, unsigned int issue_flags)
 {
 	struct io_msg *msg = io_kiocb_to_cmd(req, struct io_msg);
 	struct io_ring_ctx *ctx = req->ctx;
-	struct file *file = NULL;
-	int idx = msg->src_fd;
+	struct io_rsrc_node *node;
+	int ret = -EBADF;
 
 	io_ring_submit_lock(ctx, issue_flags);
-	if (likely(idx < ctx->nr_user_files)) {
-		idx = array_index_nospec(idx, ctx->nr_user_files);
-		file = io_file_from_index(&ctx->file_table, idx);
-		if (file)
-			get_file(file);
+	node = io_rsrc_node_lookup(&ctx->file_table.data, msg->src_fd);
+	if (node) {
+		msg->src_file = io_slot_file(node);
+		if (msg->src_file)
+			get_file(msg->src_file);
+		req->flags |= REQ_F_NEED_CLEANUP;
+		ret = 0;
 	}
 	io_ring_submit_unlock(ctx, issue_flags);
-	return file;
+	return ret;
 }
 
 static int io_msg_install_complete(struct io_kiocb *req, unsigned int issue_flags)
@@ -250,7 +258,6 @@ static int io_msg_send_fd(struct io_kiocb *req, unsigned int issue_flags)
 	struct io_ring_ctx *target_ctx = req->file->private_data;
 	struct io_msg *msg = io_kiocb_to_cmd(req, struct io_msg);
 	struct io_ring_ctx *ctx = req->ctx;
-	struct file *src_file = msg->src_file;
 
 	if (msg->len)
 		return -EINVAL;
@@ -258,12 +265,10 @@ static int io_msg_send_fd(struct io_kiocb *req, unsigned int issue_flags)
 		return -EINVAL;
 	if (target_ctx->flags & IORING_SETUP_R_DISABLED)
 		return -EBADFD;
-	if (!src_file) {
-		src_file = io_msg_grab_file(req, issue_flags);
-		if (!src_file)
-			return -EBADF;
-		msg->src_file = src_file;
-		req->flags |= REQ_F_NEED_CLEANUP;
+	if (!msg->src_file) {
+		int ret = io_msg_grab_file(req, issue_flags);
+		if (unlikely(ret))
+			return ret;
 	}
 
 	if (io_msg_need_remote(target_ctx))
@@ -271,10 +276,8 @@ static int io_msg_send_fd(struct io_kiocb *req, unsigned int issue_flags)
 	return io_msg_install_complete(req, issue_flags);
 }
 
-int io_msg_ring_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
+static int __io_msg_ring_prep(struct io_msg *msg, const struct io_uring_sqe *sqe)
 {
-	struct io_msg *msg = io_kiocb_to_cmd(req, struct io_msg);
-
 	if (unlikely(sqe->buf_index || sqe->personality))
 		return -EINVAL;
 
@@ -289,6 +292,11 @@ int io_msg_ring_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 		return -EINVAL;
 
 	return 0;
+}
+
+int io_msg_ring_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
+{
+	return __io_msg_ring_prep(io_kiocb_to_cmd(req, struct io_msg), sqe);
 }
 
 int io_msg_ring(struct io_kiocb *req, unsigned int issue_flags)
@@ -320,6 +328,31 @@ done:
 	}
 	io_req_set_res(req, ret, 0);
 	return IOU_OK;
+}
+
+int io_uring_sync_msg_ring(struct io_uring_sqe *sqe)
+{
+	struct io_msg io_msg = { };
+	int ret;
+
+	ret = __io_msg_ring_prep(&io_msg, sqe);
+	if (unlikely(ret))
+		return ret;
+
+	/*
+	 * Only data sending supported, not IORING_MSG_SEND_FD as that one
+	 * doesn't make sense without a source ring to send files from.
+	 */
+	if (io_msg.cmd != IORING_MSG_DATA)
+		return -EINVAL;
+
+	CLASS(fd, f)(sqe->fd);
+	if (fd_empty(f))
+		return -EBADF;
+	if (!io_is_uring_fops(fd_file(f)))
+		return -EBADFD;
+	return  __io_msg_ring_data(fd_file(f)->private_data,
+				   &io_msg, IO_URING_F_UNLOCKED);
 }
 
 void io_msg_cache_free(const void *entry)

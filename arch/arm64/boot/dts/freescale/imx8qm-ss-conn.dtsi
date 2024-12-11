@@ -4,6 +4,10 @@
  *	Dong Aisheng <aisheng.dong@nxp.com>
  */
 
+&usbphy1 {
+	compatible = "fsl,imx8qm-usbphy", "fsl,imx7ulp-usbphy";
+};
+
 &fec1 {
 	compatible = "fsl,imx8qm-fec", "fsl,imx6sx-fec";
 	iommus = <&smmu 0x12 0x7f80>;

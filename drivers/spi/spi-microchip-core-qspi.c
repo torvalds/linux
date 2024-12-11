@@ -575,7 +575,7 @@ static struct platform_driver mchp_coreqspi_driver = {
 		.name = "microchip,coreqspi",
 		.of_match_table = mchp_coreqspi_of_match,
 	},
-	.remove_new = mchp_coreqspi_remove,
+	.remove = mchp_coreqspi_remove,
 };
 module_platform_driver(mchp_coreqspi_driver);
 

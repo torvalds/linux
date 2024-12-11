@@ -451,13 +451,17 @@
 			no-sdio;
 			no-sd;
 			vmmc-supply = <&ldo_3v3_reg>;
+			vqmmc-supply = <&db8500_vsmps2_reg>;
 			pinctrl-names = "default", "sleep";
 			/*
-			 * GPIO130 will be set to input no pull-up resulting in a resistor
-			 * pulling the reset high and taking the memory out of reset.
+			 * This muxing excludes the feedback clock on GPIO130
+			 * which is instead used for reset of the eMMC.
+			 * GPIO130 will be set to input no pull-up resulting in
+			 * a resistor pulling the reset high and taking the
+			 * memory out of reset.
 			 */
-			pinctrl-0 = <&mc2_a_1_default>;
-			pinctrl-1 = <&mc2_a_1_sleep>;
+			pinctrl-0 = <&mc2_a_2_default>;
+			pinctrl-1 = <&mc2_a_2_sleep>;
 			status = "okay";
 		};
 
@@ -644,6 +648,7 @@
 				touchscreen-size-y = <800>;
 				pinctrl-names = "default";
 				pinctrl-0 = <&tsp_default>;
+				linux,keycodes = <KEY_MENU>, <KEY_BACK>;
 			};
 		};
 
@@ -677,14 +682,14 @@
 	sdi2 {
 		/*
 		 * This will make the resistor mounted in R0.0 pull up
-		 * the reset line and take the eMMC out of reset. On
-		 * R0.4 variants, GPIO130 should be set in GPIO mode and
-		 * pulled down. (Not connected.)
+		 * the reset line and take the eMMC out of reset so set to
+		 * GPIO input mode, no pull-up. On R0.4 variants, GPIO130
+		 * could be set in GPIO mode and pulled down. (Not connected.)
 		 */
-		mc2_a_1_default {
-			default_cfg2 {
-				pins = "GPIO130_C8"; /* FBCLK */
-				ste,config = <&in_nopull>;
+		mc2_a_2_default {
+			default_cfg3 {
+				pins = "GPIO130_C8"; /* RST_N */
+				ste,config = <&gpio_in_nopull>;
 			};
 		};
 	};

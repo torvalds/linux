@@ -1334,17 +1334,8 @@ static unsigned int ata_scsi_flush_xlat(struct ata_queued_cmd *qc)
  */
 static void scsi_6_lba_len(const u8 *cdb, u64 *plba, u32 *plen)
 {
-	u64 lba = 0;
-	u32 len;
-
-	lba |= ((u64)(cdb[1] & 0x1f)) << 16;
-	lba |= ((u64)cdb[2]) << 8;
-	lba |= ((u64)cdb[3]);
-
-	len = cdb[4];
-
-	*plba = lba;
-	*plen = len;
+	*plba = get_unaligned_be24(&cdb[1]) & 0x1fffff;
+	*plen = cdb[4];
 }
 
 /**
@@ -1781,15 +1772,10 @@ defer:
 		return SCSI_MLQUEUE_HOST_BUSY;
 }
 
-struct ata_scsi_args {
-	struct ata_device	*dev;
-	u16			*id;
-	struct scsi_cmnd	*cmd;
-};
-
 /**
  *	ata_scsi_rbuf_fill - wrapper for SCSI command simulators
- *	@args: device IDENTIFY data / SCSI command of interest.
+ *	@dev: Target device.
+ *	@cmd: SCSI command of interest.
  *	@actor: Callback hook for desired SCSI command simulator
  *
  *	Takes care of the hard work of simulating a SCSI command...
@@ -1802,30 +1788,32 @@ struct ata_scsi_args {
  *	LOCKING:
  *	spin_lock_irqsave(host lock)
  */
-static void ata_scsi_rbuf_fill(struct ata_scsi_args *args,
-		unsigned int (*actor)(struct ata_scsi_args *args, u8 *rbuf))
+static void ata_scsi_rbuf_fill(struct ata_device *dev, struct scsi_cmnd *cmd,
+		unsigned int (*actor)(struct ata_device *dev,
+				      struct scsi_cmnd *cmd, u8 *rbuf))
 {
-	unsigned int rc;
-	struct scsi_cmnd *cmd = args->cmd;
 	unsigned long flags;
+	unsigned int len;
 
 	spin_lock_irqsave(&ata_scsi_rbuf_lock, flags);
 
 	memset(ata_scsi_rbuf, 0, ATA_SCSI_RBUF_SIZE);
-	rc = actor(args, ata_scsi_rbuf);
-	if (rc == 0)
+	len = actor(dev, cmd, ata_scsi_rbuf);
+	if (len) {
 		sg_copy_from_buffer(scsi_sglist(cmd), scsi_sg_count(cmd),
 				    ata_scsi_rbuf, ATA_SCSI_RBUF_SIZE);
+		cmd->result = SAM_STAT_GOOD;
+		if (scsi_bufflen(cmd) > len)
+			scsi_set_resid(cmd, scsi_bufflen(cmd) - len);
+	}
 
 	spin_unlock_irqrestore(&ata_scsi_rbuf_lock, flags);
-
-	if (rc == 0)
-		cmd->result = SAM_STAT_GOOD;
 }
 
 /**
- *	ata_scsiop_inq_std - Simulate INQUIRY command
- *	@args: device IDENTIFY data / SCSI command of interest.
+ *	ata_scsiop_inq_std - Simulate standard INQUIRY command
+ *	@dev: Target device.
+ *	@cmd: SCSI command of interest.
  *	@rbuf: Response buffer, to which simulated SCSI cmd output is sent.
  *
  *	Returns standard device identification data associated
@@ -1834,7 +1822,8 @@ static void ata_scsi_rbuf_fill(struct ata_scsi_args *args,
  *	LOCKING:
  *	spin_lock_irqsave(host lock)
  */
-static unsigned int ata_scsiop_inq_std(struct ata_scsi_args *args, u8 *rbuf)
+static unsigned int ata_scsiop_inq_std(struct ata_device *dev,
+				       struct scsi_cmnd *cmd, u8 *rbuf)
 {
 	static const u8 versions[] = {
 		0x00,
@@ -1875,40 +1864,45 @@ static unsigned int ata_scsiop_inq_std(struct ata_scsi_args *args, u8 *rbuf)
 	 * Set the SCSI Removable Media Bit (RMB) if the ATA removable media
 	 * device bit (obsolete since ATA-8 ACS) is set.
 	 */
-	if (ata_id_removable(args->id))
+	if (ata_id_removable(dev->id))
 		hdr[1] |= (1 << 7);
 
-	if (args->dev->class == ATA_DEV_ZAC) {
+	if (dev->class == ATA_DEV_ZAC) {
 		hdr[0] = TYPE_ZBC;
 		hdr[2] = 0x7; /* claim SPC-5 version compatibility */
 	}
 
-	if (args->dev->flags & ATA_DFLAG_CDL)
+	if (dev->flags & ATA_DFLAG_CDL)
 		hdr[2] = 0xd; /* claim SPC-6 version compatibility */
 
 	memcpy(rbuf, hdr, sizeof(hdr));
 	memcpy(&rbuf[8], "ATA     ", 8);
-	ata_id_string(args->id, &rbuf[16], ATA_ID_PROD, 16);
+	ata_id_string(dev->id, &rbuf[16], ATA_ID_PROD, 16);
 
 	/* From SAT, use last 2 words from fw rev unless they are spaces */
-	ata_id_string(args->id, &rbuf[32], ATA_ID_FW_REV + 2, 4);
+	ata_id_string(dev->id, &rbuf[32], ATA_ID_FW_REV + 2, 4);
 	if (strncmp(&rbuf[32], "    ", 4) == 0)
-		ata_id_string(args->id, &rbuf[32], ATA_ID_FW_REV, 4);
+		ata_id_string(dev->id, &rbuf[32], ATA_ID_FW_REV, 4);
 
 	if (rbuf[32] == 0 || rbuf[32] == ' ')
 		memcpy(&rbuf[32], "n/a ", 4);
 
-	if (ata_id_zoned_cap(args->id) || args->dev->class == ATA_DEV_ZAC)
+	if (ata_id_zoned_cap(dev->id) || dev->class == ATA_DEV_ZAC)
 		memcpy(rbuf + 58, versions_zbc, sizeof(versions_zbc));
 	else
 		memcpy(rbuf + 58, versions, sizeof(versions));
 
-	return 0;
+	/*
+	 * Include all 8 possible version descriptors, even if not all of
+	 * them are popoulated.
+	 */
+	return 96;
 }
 
 /**
  *	ata_scsiop_inq_00 - Simulate INQUIRY VPD page 0, list of pages
- *	@args: device IDENTIFY data / SCSI command of interest.
+ *	@dev: Target device.
+ *	@cmd: SCSI command of interest.
  *	@rbuf: Response buffer, to which simulated SCSI cmd output is sent.
  *
  *	Returns list of inquiry VPD pages available.
@@ -1916,7 +1910,8 @@ static unsigned int ata_scsiop_inq_std(struct ata_scsi_args *args, u8 *rbuf)
  *	LOCKING:
  *	spin_lock_irqsave(host lock)
  */
-static unsigned int ata_scsiop_inq_00(struct ata_scsi_args *args, u8 *rbuf)
+static unsigned int ata_scsiop_inq_00(struct ata_device *dev,
+				      struct scsi_cmnd *cmd, u8 *rbuf)
 {
 	int i, num_pages = 0;
 	static const u8 pages[] = {
@@ -1933,18 +1928,20 @@ static unsigned int ata_scsiop_inq_00(struct ata_scsi_args *args, u8 *rbuf)
 
 	for (i = 0; i < sizeof(pages); i++) {
 		if (pages[i] == 0xb6 &&
-		    !(args->dev->flags & ATA_DFLAG_ZAC))
+		    !(dev->flags & ATA_DFLAG_ZAC))
 			continue;
 		rbuf[num_pages + 4] = pages[i];
 		num_pages++;
 	}
 	rbuf[3] = num_pages;	/* number of supported VPD pages */
-	return 0;
+
+	return get_unaligned_be16(&rbuf[2]) + 4;
 }
 
 /**
  *	ata_scsiop_inq_80 - Simulate INQUIRY VPD page 80, device serial number
- *	@args: device IDENTIFY data / SCSI command of interest.
+ *	@dev: Target device.
+ *	@cmd: SCSI command of interest.
  *	@rbuf: Response buffer, to which simulated SCSI cmd output is sent.
  *
  *	Returns ATA device serial number.
@@ -1952,7 +1949,8 @@ static unsigned int ata_scsiop_inq_00(struct ata_scsi_args *args, u8 *rbuf)
  *	LOCKING:
  *	spin_lock_irqsave(host lock)
  */
-static unsigned int ata_scsiop_inq_80(struct ata_scsi_args *args, u8 *rbuf)
+static unsigned int ata_scsiop_inq_80(struct ata_device *dev,
+				      struct scsi_cmnd *cmd, u8 *rbuf)
 {
 	static const u8 hdr[] = {
 		0,
@@ -1962,14 +1960,16 @@ static unsigned int ata_scsiop_inq_80(struct ata_scsi_args *args, u8 *rbuf)
 	};
 
 	memcpy(rbuf, hdr, sizeof(hdr));
-	ata_id_string(args->id, (unsigned char *) &rbuf[4],
+	ata_id_string(dev->id, (unsigned char *) &rbuf[4],
 		      ATA_ID_SERNO, ATA_ID_SERNO_LEN);
-	return 0;
+
+	return get_unaligned_be16(&rbuf[2]) + 4;
 }
 
 /**
  *	ata_scsiop_inq_83 - Simulate INQUIRY VPD page 83, device identity
- *	@args: device IDENTIFY data / SCSI command of interest.
+ *	@dev: Target device.
+ *	@cmd: SCSI command of interest.
  *	@rbuf: Response buffer, to which simulated SCSI cmd output is sent.
  *
  *	Yields two logical unit device identification designators:
@@ -1980,7 +1980,8 @@ static unsigned int ata_scsiop_inq_80(struct ata_scsi_args *args, u8 *rbuf)
  *	LOCKING:
  *	spin_lock_irqsave(host lock)
  */
-static unsigned int ata_scsiop_inq_83(struct ata_scsi_args *args, u8 *rbuf)
+static unsigned int ata_scsiop_inq_83(struct ata_device *dev,
+				      struct scsi_cmnd *cmd, u8 *rbuf)
 {
 	const int sat_model_serial_desc_len = 68;
 	int num;
@@ -1992,7 +1993,7 @@ static unsigned int ata_scsiop_inq_83(struct ata_scsi_args *args, u8 *rbuf)
 	rbuf[num + 0] = 2;
 	rbuf[num + 3] = ATA_ID_SERNO_LEN;
 	num += 4;
-	ata_id_string(args->id, (unsigned char *) rbuf + num,
+	ata_id_string(dev->id, (unsigned char *) rbuf + num,
 		      ATA_ID_SERNO, ATA_ID_SERNO_LEN);
 	num += ATA_ID_SERNO_LEN;
 
@@ -2004,31 +2005,33 @@ static unsigned int ata_scsiop_inq_83(struct ata_scsi_args *args, u8 *rbuf)
 	num += 4;
 	memcpy(rbuf + num, "ATA     ", 8);
 	num += 8;
-	ata_id_string(args->id, (unsigned char *) rbuf + num, ATA_ID_PROD,
+	ata_id_string(dev->id, (unsigned char *) rbuf + num, ATA_ID_PROD,
 		      ATA_ID_PROD_LEN);
 	num += ATA_ID_PROD_LEN;
-	ata_id_string(args->id, (unsigned char *) rbuf + num, ATA_ID_SERNO,
+	ata_id_string(dev->id, (unsigned char *) rbuf + num, ATA_ID_SERNO,
 		      ATA_ID_SERNO_LEN);
 	num += ATA_ID_SERNO_LEN;
 
-	if (ata_id_has_wwn(args->id)) {
+	if (ata_id_has_wwn(dev->id)) {
 		/* SAT defined lu world wide name */
 		/* piv=0, assoc=lu, code_set=binary, designator=NAA */
 		rbuf[num + 0] = 1;
 		rbuf[num + 1] = 3;
 		rbuf[num + 3] = ATA_ID_WWN_LEN;
 		num += 4;
-		ata_id_string(args->id, (unsigned char *) rbuf + num,
+		ata_id_string(dev->id, (unsigned char *) rbuf + num,
 			      ATA_ID_WWN, ATA_ID_WWN_LEN);
 		num += ATA_ID_WWN_LEN;
 	}
 	rbuf[3] = num - 4;    /* page len (assume less than 256 bytes) */
-	return 0;
+
+	return get_unaligned_be16(&rbuf[2]) + 4;
 }
 
 /**
  *	ata_scsiop_inq_89 - Simulate INQUIRY VPD page 89, ATA info
- *	@args: device IDENTIFY data / SCSI command of interest.
+ *	@dev: Target device.
+ *	@cmd: SCSI command of interest.
  *	@rbuf: Response buffer, to which simulated SCSI cmd output is sent.
  *
  *	Yields SAT-specified ATA VPD page.
@@ -2036,7 +2039,8 @@ static unsigned int ata_scsiop_inq_83(struct ata_scsi_args *args, u8 *rbuf)
  *	LOCKING:
  *	spin_lock_irqsave(host lock)
  */
-static unsigned int ata_scsiop_inq_89(struct ata_scsi_args *args, u8 *rbuf)
+static unsigned int ata_scsiop_inq_89(struct ata_device *dev,
+				      struct scsi_cmnd *cmd, u8 *rbuf)
 {
 	rbuf[1] = 0x89;			/* our page code */
 	rbuf[2] = (0x238 >> 8);		/* page size fixed at 238h */
@@ -2057,13 +2061,25 @@ static unsigned int ata_scsiop_inq_89(struct ata_scsi_args *args, u8 *rbuf)
 
 	rbuf[56] = ATA_CMD_ID_ATA;
 
-	memcpy(&rbuf[60], &args->id[0], 512);
-	return 0;
+	memcpy(&rbuf[60], &dev->id[0], 512);
+
+	return get_unaligned_be16(&rbuf[2]) + 4;
 }
 
-static unsigned int ata_scsiop_inq_b0(struct ata_scsi_args *args, u8 *rbuf)
+/**
+ *	ata_scsiop_inq_b0 - Simulate INQUIRY VPD page B0, Block Limits
+ *	@dev: Target device.
+ *	@cmd: SCSI command of interest.
+ *	@rbuf: Response buffer, to which simulated SCSI cmd output is sent.
+ *
+ *	Return data for the VPD page B0h (Block Limits).
+ *
+ *	LOCKING:
+ *	spin_lock_irqsave(host lock)
+ */
+static unsigned int ata_scsiop_inq_b0(struct ata_device *dev,
+				      struct scsi_cmnd *cmd, u8 *rbuf)
 {
-	struct ata_device *dev = args->dev;
 	u16 min_io_sectors;
 
 	rbuf[1] = 0xb0;
@@ -2076,7 +2092,7 @@ static unsigned int ata_scsiop_inq_b0(struct ata_scsi_args *args, u8 *rbuf)
 	 * logical than physical sector size we need to figure out what the
 	 * latter is.
 	 */
-	min_io_sectors = 1 << ata_id_log2_per_physical_sector(args->id);
+	min_io_sectors = 1 << ata_id_log2_per_physical_sector(dev->id);
 	put_unaligned_be16(min_io_sectors, &rbuf[6]);
 
 	/*
@@ -2088,7 +2104,7 @@ static unsigned int ata_scsiop_inq_b0(struct ata_scsi_args *args, u8 *rbuf)
 	 * that we support some form of unmap - in thise case via WRITE SAME
 	 * with the unmap bit set.
 	 */
-	if (ata_id_has_trim(args->id)) {
+	if (ata_id_has_trim(dev->id)) {
 		u64 max_blocks = 65535 * ATA_MAX_TRIM_RNUM;
 
 		if (dev->quirks & ATA_QUIRK_MAX_TRIM_128M)
@@ -2098,14 +2114,27 @@ static unsigned int ata_scsiop_inq_b0(struct ata_scsi_args *args, u8 *rbuf)
 		put_unaligned_be32(1, &rbuf[28]);
 	}
 
-	return 0;
+	return get_unaligned_be16(&rbuf[2]) + 4;
 }
 
-static unsigned int ata_scsiop_inq_b1(struct ata_scsi_args *args, u8 *rbuf)
+/**
+ *	ata_scsiop_inq_b1 - Simulate INQUIRY VPD page B1, Block Device
+ *			    Characteristics
+ *	@dev: Target device.
+ *	@cmd: SCSI command of interest.
+ *	@rbuf: Response buffer, to which simulated SCSI cmd output is sent.
+ *
+ *	Return data for the VPD page B1h (Block Device Characteristics).
+ *
+ *	LOCKING:
+ *	spin_lock_irqsave(host lock)
+ */
+static unsigned int ata_scsiop_inq_b1(struct ata_device *dev,
+				      struct scsi_cmnd *cmd, u8 *rbuf)
 {
-	int form_factor = ata_id_form_factor(args->id);
-	int media_rotation_rate = ata_id_rotation_rate(args->id);
-	u8 zoned = ata_id_zoned_cap(args->id);
+	int form_factor = ata_id_form_factor(dev->id);
+	int media_rotation_rate = ata_id_rotation_rate(dev->id);
+	u8 zoned = ata_id_zoned_cap(dev->id);
 
 	rbuf[1] = 0xb1;
 	rbuf[3] = 0x3c;
@@ -2115,21 +2144,52 @@ static unsigned int ata_scsiop_inq_b1(struct ata_scsi_args *args, u8 *rbuf)
 	if (zoned)
 		rbuf[8] = (zoned << 4);
 
-	return 0;
+	return get_unaligned_be16(&rbuf[2]) + 4;
 }
 
-static unsigned int ata_scsiop_inq_b2(struct ata_scsi_args *args, u8 *rbuf)
+/**
+ *	ata_scsiop_inq_b2 - Simulate INQUIRY VPD page B2, Logical Block
+ *			    Provisioning
+ *	@dev: Target device.
+ *	@cmd: SCSI command of interest.
+ *	@rbuf: Response buffer, to which simulated SCSI cmd output is sent.
+ *
+ *	Return data for the VPD page B2h (Logical Block Provisioning).
+ *
+ *	LOCKING:
+ *	spin_lock_irqsave(host lock)
+ */
+static unsigned int ata_scsiop_inq_b2(struct ata_device *dev,
+				      struct scsi_cmnd *cmd, u8 *rbuf)
 {
 	/* SCSI Thin Provisioning VPD page: SBC-3 rev 22 or later */
 	rbuf[1] = 0xb2;
 	rbuf[3] = 0x4;
 	rbuf[5] = 1 << 6;	/* TPWS */
 
-	return 0;
+	return get_unaligned_be16(&rbuf[2]) + 4;
 }
 
-static unsigned int ata_scsiop_inq_b6(struct ata_scsi_args *args, u8 *rbuf)
+/**
+ *	ata_scsiop_inq_b6 - Simulate INQUIRY VPD page B6, Zoned Block Device
+ *			    Characteristics
+ *	@dev: Target device.
+ *	@cmd: SCSI command of interest.
+ *	@rbuf: Response buffer, to which simulated SCSI cmd output is sent.
+ *
+ *	Return data for the VPD page B2h (Zoned Block Device Characteristics).
+ *
+ *	LOCKING:
+ *	spin_lock_irqsave(host lock)
+ */
+static unsigned int ata_scsiop_inq_b6(struct ata_device *dev,
+				      struct scsi_cmnd *cmd, u8 *rbuf)
 {
+	if (!(dev->flags & ATA_DFLAG_ZAC)) {
+		ata_scsi_set_invalid_field(dev, cmd, 2, 0xff);
+		return 0;
+	}
+
 	/*
 	 * zbc-r05 SCSI Zoned Block device characteristics VPD page
 	 */
@@ -2139,20 +2199,38 @@ static unsigned int ata_scsiop_inq_b6(struct ata_scsi_args *args, u8 *rbuf)
 	/*
 	 * URSWRZ bit is only meaningful for host-managed ZAC drives
 	 */
-	if (args->dev->zac_zoned_cap & 1)
+	if (dev->zac_zoned_cap & 1)
 		rbuf[4] |= 1;
-	put_unaligned_be32(args->dev->zac_zones_optimal_open, &rbuf[8]);
-	put_unaligned_be32(args->dev->zac_zones_optimal_nonseq, &rbuf[12]);
-	put_unaligned_be32(args->dev->zac_zones_max_open, &rbuf[16]);
+	put_unaligned_be32(dev->zac_zones_optimal_open, &rbuf[8]);
+	put_unaligned_be32(dev->zac_zones_optimal_nonseq, &rbuf[12]);
+	put_unaligned_be32(dev->zac_zones_max_open, &rbuf[16]);
 
-	return 0;
+	return get_unaligned_be16(&rbuf[2]) + 4;
 }
 
-static unsigned int ata_scsiop_inq_b9(struct ata_scsi_args *args, u8 *rbuf)
+/**
+ *	ata_scsiop_inq_b9 - Simulate INQUIRY VPD page B9, Concurrent Positioning
+ *			    Ranges
+ *	@dev: Target device.
+ *	@cmd: SCSI command of interest.
+ *	@rbuf: Response buffer, to which simulated SCSI cmd output is sent.
+ *
+ *	Return data for the VPD page B9h (Concurrent Positioning Ranges).
+ *
+ *	LOCKING:
+ *	spin_lock_irqsave(host lock)
+ */
+static unsigned int ata_scsiop_inq_b9(struct ata_device *dev,
+				      struct scsi_cmnd *cmd, u8 *rbuf)
 {
-	struct ata_cpr_log *cpr_log = args->dev->cpr_log;
+	struct ata_cpr_log *cpr_log = dev->cpr_log;
 	u8 *desc = &rbuf[64];
 	int i;
+
+	if (!cpr_log) {
+		ata_scsi_set_invalid_field(dev, cmd, 2, 0xff);
+		return 0;
+	}
 
 	/* SCSI Concurrent Positioning Ranges VPD page: SBC-5 rev 1 or later */
 	rbuf[1] = 0xb9;
@@ -2165,7 +2243,58 @@ static unsigned int ata_scsiop_inq_b9(struct ata_scsi_args *args, u8 *rbuf)
 		put_unaligned_be64(cpr_log->cpr[i].num_lbas, &desc[16]);
 	}
 
-	return 0;
+	return get_unaligned_be16(&rbuf[2]) + 4;
+}
+
+/**
+ *	ata_scsiop_inquiry - Simulate INQUIRY command
+ *	@dev: Target device.
+ *	@cmd: SCSI command of interest.
+ *	@rbuf: Response buffer, to which simulated SCSI cmd output is sent.
+ *
+ *	Returns data associated with an INQUIRY command output.
+ *
+ *	LOCKING:
+ *	spin_lock_irqsave(host lock)
+ */
+static unsigned int ata_scsiop_inquiry(struct ata_device *dev,
+				       struct scsi_cmnd *cmd, u8 *rbuf)
+{
+	const u8 *scsicmd = cmd->cmnd;
+
+	/* is CmdDt set?  */
+	if (scsicmd[1] & 2) {
+		ata_scsi_set_invalid_field(dev, cmd, 1, 0xff);
+		return 0;
+	}
+
+	/* Is EVPD clear? */
+	if ((scsicmd[1] & 1) == 0)
+		return ata_scsiop_inq_std(dev, cmd, rbuf);
+
+	switch (scsicmd[2]) {
+	case 0x00:
+		return ata_scsiop_inq_00(dev, cmd, rbuf);
+	case 0x80:
+		return ata_scsiop_inq_80(dev, cmd, rbuf);
+	case 0x83:
+		return ata_scsiop_inq_83(dev, cmd, rbuf);
+	case 0x89:
+		return ata_scsiop_inq_89(dev, cmd, rbuf);
+	case 0xb0:
+		return ata_scsiop_inq_b0(dev, cmd, rbuf);
+	case 0xb1:
+		return ata_scsiop_inq_b1(dev, cmd, rbuf);
+	case 0xb2:
+		return ata_scsiop_inq_b2(dev, cmd, rbuf);
+	case 0xb6:
+		return ata_scsiop_inq_b6(dev, cmd, rbuf);
+	case 0xb9:
+		return ata_scsiop_inq_b9(dev, cmd, rbuf);
+	default:
+		ata_scsi_set_invalid_field(dev, cmd, 2, 0xff);
+		return 0;
+	}
 }
 
 /**
@@ -2388,7 +2517,8 @@ static unsigned int ata_msense_rw_recovery(u8 *buf, bool changeable)
 
 /**
  *	ata_scsiop_mode_sense - Simulate MODE SENSE 6, 10 commands
- *	@args: device IDENTIFY data / SCSI command of interest.
+ *	@dev: Target device.
+ *	@cmd: SCSI command of interest.
  *	@rbuf: Response buffer, to which simulated SCSI cmd output is sent.
  *
  *	Simulate MODE SENSE commands. Assume this is invoked for direct
@@ -2398,10 +2528,10 @@ static unsigned int ata_msense_rw_recovery(u8 *buf, bool changeable)
  *	LOCKING:
  *	spin_lock_irqsave(host lock)
  */
-static unsigned int ata_scsiop_mode_sense(struct ata_scsi_args *args, u8 *rbuf)
+static unsigned int ata_scsiop_mode_sense(struct ata_device *dev,
+					  struct scsi_cmnd *cmd, u8 *rbuf)
 {
-	struct ata_device *dev = args->dev;
-	u8 *scsicmd = args->cmd->cmnd, *p = rbuf;
+	u8 *scsicmd = cmd->cmnd, *p = rbuf;
 	static const u8 sat_blk_desc[] = {
 		0, 0, 0, 0,	/* number of blocks: sat unspecified */
 		0,
@@ -2466,17 +2596,17 @@ static unsigned int ata_scsiop_mode_sense(struct ata_scsi_args *args, u8 *rbuf)
 		break;
 
 	case CACHE_MPAGE:
-		p += ata_msense_caching(args->id, p, page_control == 1);
+		p += ata_msense_caching(dev->id, p, page_control == 1);
 		break;
 
 	case CONTROL_MPAGE:
-		p += ata_msense_control(args->dev, p, spg, page_control == 1);
+		p += ata_msense_control(dev, p, spg, page_control == 1);
 		break;
 
 	case ALL_MPAGES:
 		p += ata_msense_rw_recovery(p, page_control == 1);
-		p += ata_msense_caching(args->id, p, page_control == 1);
-		p += ata_msense_control(args->dev, p, spg, page_control == 1);
+		p += ata_msense_caching(dev->id, p, page_control == 1);
+		p += ata_msense_control(dev, p, spg, page_control == 1);
 		break;
 
 	default:		/* invalid page code */
@@ -2494,29 +2624,33 @@ static unsigned int ata_scsiop_mode_sense(struct ata_scsi_args *args, u8 *rbuf)
 			rbuf[3] = sizeof(sat_blk_desc);
 			memcpy(rbuf + 4, sat_blk_desc, sizeof(sat_blk_desc));
 		}
-	} else {
-		put_unaligned_be16(p - rbuf - 2, &rbuf[0]);
-		rbuf[3] |= dpofua;
-		if (ebd) {
-			rbuf[7] = sizeof(sat_blk_desc);
-			memcpy(rbuf + 8, sat_blk_desc, sizeof(sat_blk_desc));
-		}
+
+		return rbuf[0] + 1;
 	}
-	return 0;
+
+	put_unaligned_be16(p - rbuf - 2, &rbuf[0]);
+	rbuf[3] |= dpofua;
+	if (ebd) {
+		rbuf[7] = sizeof(sat_blk_desc);
+		memcpy(rbuf + 8, sat_blk_desc, sizeof(sat_blk_desc));
+	}
+
+	return get_unaligned_be16(&rbuf[0]) + 2;
 
 invalid_fld:
-	ata_scsi_set_invalid_field(dev, args->cmd, fp, bp);
-	return 1;
+	ata_scsi_set_invalid_field(dev, cmd, fp, bp);
+	return 0;
 
 saving_not_supp:
-	ata_scsi_set_sense(dev, args->cmd, ILLEGAL_REQUEST, 0x39, 0x0);
+	ata_scsi_set_sense(dev, cmd, ILLEGAL_REQUEST, 0x39, 0x0);
 	 /* "Saving parameters not supported" */
-	return 1;
+	return 0;
 }
 
 /**
  *	ata_scsiop_read_cap - Simulate READ CAPACITY[ 16] commands
- *	@args: device IDENTIFY data / SCSI command of interest.
+ *	@dev: Target device.
+ *	@cmd: SCSI command of interest.
  *	@rbuf: Response buffer, to which simulated SCSI cmd output is sent.
  *
  *	Simulate READ CAPACITY commands.
@@ -2524,9 +2658,10 @@ saving_not_supp:
  *	LOCKING:
  *	None.
  */
-static unsigned int ata_scsiop_read_cap(struct ata_scsi_args *args, u8 *rbuf)
+static unsigned int ata_scsiop_read_cap(struct ata_device *dev,
+					struct scsi_cmnd *cmd, u8 *rbuf)
 {
-	struct ata_device *dev = args->dev;
+	u8 *scsicmd = cmd->cmnd;
 	u64 last_lba = dev->n_sectors - 1; /* LBA of the last block */
 	u32 sector_size; /* physical sector size in bytes */
 	u8 log2_per_phys;
@@ -2536,7 +2671,7 @@ static unsigned int ata_scsiop_read_cap(struct ata_scsi_args *args, u8 *rbuf)
 	log2_per_phys = ata_id_log2_per_physical_sector(dev->id);
 	lowest_aligned = ata_id_logical_sector_offset(dev->id, log2_per_phys);
 
-	if (args->cmd->cmnd[0] == READ_CAPACITY) {
+	if (scsicmd[0] == READ_CAPACITY) {
 		if (last_lba >= 0xffffffffULL)
 			last_lba = 0xffffffff;
 
@@ -2551,48 +2686,59 @@ static unsigned int ata_scsiop_read_cap(struct ata_scsi_args *args, u8 *rbuf)
 		rbuf[5] = sector_size >> (8 * 2);
 		rbuf[6] = sector_size >> (8 * 1);
 		rbuf[7] = sector_size;
-	} else {
-		/* sector count, 64-bit */
-		rbuf[0] = last_lba >> (8 * 7);
-		rbuf[1] = last_lba >> (8 * 6);
-		rbuf[2] = last_lba >> (8 * 5);
-		rbuf[3] = last_lba >> (8 * 4);
-		rbuf[4] = last_lba >> (8 * 3);
-		rbuf[5] = last_lba >> (8 * 2);
-		rbuf[6] = last_lba >> (8 * 1);
-		rbuf[7] = last_lba;
 
-		/* sector size */
-		rbuf[ 8] = sector_size >> (8 * 3);
-		rbuf[ 9] = sector_size >> (8 * 2);
-		rbuf[10] = sector_size >> (8 * 1);
-		rbuf[11] = sector_size;
-
-		rbuf[12] = 0;
-		rbuf[13] = log2_per_phys;
-		rbuf[14] = (lowest_aligned >> 8) & 0x3f;
-		rbuf[15] = lowest_aligned;
-
-		if (ata_id_has_trim(args->id) &&
-		    !(dev->quirks & ATA_QUIRK_NOTRIM)) {
-			rbuf[14] |= 0x80; /* LBPME */
-
-			if (ata_id_has_zero_after_trim(args->id) &&
-			    dev->quirks & ATA_QUIRK_ZERO_AFTER_TRIM) {
-				ata_dev_info(dev, "Enabling discard_zeroes_data\n");
-				rbuf[14] |= 0x40; /* LBPRZ */
-			}
-		}
-		if (ata_id_zoned_cap(args->id) ||
-		    args->dev->class == ATA_DEV_ZAC)
-			rbuf[12] = (1 << 4); /* RC_BASIS */
+		return 8;
 	}
-	return 0;
+
+	/*
+	 * READ CAPACITY 16 command is defined as a service action
+	 * (SERVICE_ACTION_IN_16 command).
+	 */
+	if (scsicmd[0] != SERVICE_ACTION_IN_16 ||
+	    (scsicmd[1] & 0x1f) != SAI_READ_CAPACITY_16) {
+		ata_scsi_set_invalid_field(dev, cmd, 1, 0xff);
+		return 0;
+	}
+
+	/* sector count, 64-bit */
+	rbuf[0] = last_lba >> (8 * 7);
+	rbuf[1] = last_lba >> (8 * 6);
+	rbuf[2] = last_lba >> (8 * 5);
+	rbuf[3] = last_lba >> (8 * 4);
+	rbuf[4] = last_lba >> (8 * 3);
+	rbuf[5] = last_lba >> (8 * 2);
+	rbuf[6] = last_lba >> (8 * 1);
+	rbuf[7] = last_lba;
+
+	/* sector size */
+	rbuf[ 8] = sector_size >> (8 * 3);
+	rbuf[ 9] = sector_size >> (8 * 2);
+	rbuf[10] = sector_size >> (8 * 1);
+	rbuf[11] = sector_size;
+
+	if (ata_id_zoned_cap(dev->id) || dev->class == ATA_DEV_ZAC)
+		rbuf[12] = (1 << 4); /* RC_BASIS */
+	rbuf[13] = log2_per_phys;
+	rbuf[14] = (lowest_aligned >> 8) & 0x3f;
+	rbuf[15] = lowest_aligned;
+
+	if (ata_id_has_trim(dev->id) && !(dev->quirks & ATA_QUIRK_NOTRIM)) {
+		rbuf[14] |= 0x80; /* LBPME */
+
+		if (ata_id_has_zero_after_trim(dev->id) &&
+		    dev->quirks & ATA_QUIRK_ZERO_AFTER_TRIM) {
+			ata_dev_info(dev, "Enabling discard_zeroes_data\n");
+			rbuf[14] |= 0x40; /* LBPRZ */
+		}
+	}
+
+	return 16;
 }
 
 /**
  *	ata_scsiop_report_luns - Simulate REPORT LUNS command
- *	@args: device IDENTIFY data / SCSI command of interest.
+ *	@dev: Target device.
+ *	@cmd: SCSI command of interest.
  *	@rbuf: Response buffer, to which simulated SCSI cmd output is sent.
  *
  *	Simulate REPORT LUNS command.
@@ -2600,11 +2746,12 @@ static unsigned int ata_scsiop_read_cap(struct ata_scsi_args *args, u8 *rbuf)
  *	LOCKING:
  *	spin_lock_irqsave(host lock)
  */
-static unsigned int ata_scsiop_report_luns(struct ata_scsi_args *args, u8 *rbuf)
+static unsigned int ata_scsiop_report_luns(struct ata_device *dev,
+					   struct scsi_cmnd *cmd, u8 *rbuf)
 {
 	rbuf[3] = 8;	/* just one lun, LUN 0, size 8 bytes */
 
-	return 0;
+	return 16;
 }
 
 /*
@@ -3312,7 +3459,8 @@ invalid_opcode:
 
 /**
  *	ata_scsiop_maint_in - Simulate a subset of MAINTENANCE_IN
- *	@args: device MAINTENANCE_IN data / SCSI command of interest.
+ *	@dev: Target device.
+ *	@cmd: SCSI command of interest.
  *	@rbuf: Response buffer, to which simulated SCSI cmd output is sent.
  *
  *	Yields a subset to satisfy scsi_report_opcode()
@@ -3320,17 +3468,21 @@ invalid_opcode:
  *	LOCKING:
  *	spin_lock_irqsave(host lock)
  */
-static unsigned int ata_scsiop_maint_in(struct ata_scsi_args *args, u8 *rbuf)
+static unsigned int ata_scsiop_maint_in(struct ata_device *dev,
+					struct scsi_cmnd *cmd, u8 *rbuf)
 {
-	struct ata_device *dev = args->dev;
-	u8 *cdb = args->cmd->cmnd;
+	u8 *cdb = cmd->cmnd;
 	u8 supported = 0, cdlp = 0, rwcdlp = 0;
-	unsigned int err = 0;
+
+	if ((cdb[1] & 0x1f) != MI_REPORT_SUPPORTED_OPERATION_CODES) {
+		ata_scsi_set_invalid_field(dev, cmd, 1, 0xff);
+		return 0;
+	}
 
 	if (cdb[2] != 1 && cdb[2] != 3) {
 		ata_dev_warn(dev, "invalid command format %d\n", cdb[2]);
-		err = 2;
-		goto out;
+		ata_scsi_set_invalid_field(dev, cmd, 1, 0xff);
+		return 0;
 	}
 
 	switch (cdb[3]) {
@@ -3398,11 +3550,12 @@ static unsigned int ata_scsiop_maint_in(struct ata_scsi_args *args, u8 *rbuf)
 	default:
 		break;
 	}
-out:
+
 	/* One command format */
 	rbuf[0] = rwcdlp;
 	rbuf[1] = cdlp | supported;
-	return err;
+
+	return 4;
 }
 
 /**
@@ -4262,78 +4415,26 @@ EXPORT_SYMBOL_GPL(ata_scsi_queuecmd);
 
 void ata_scsi_simulate(struct ata_device *dev, struct scsi_cmnd *cmd)
 {
-	struct ata_scsi_args args;
 	const u8 *scsicmd = cmd->cmnd;
 	u8 tmp8;
 
-	args.dev = dev;
-	args.id = dev->id;
-	args.cmd = cmd;
-
 	switch(scsicmd[0]) {
 	case INQUIRY:
-		if (scsicmd[1] & 2)		   /* is CmdDt set?  */
-			ata_scsi_set_invalid_field(dev, cmd, 1, 0xff);
-		else if ((scsicmd[1] & 1) == 0)    /* is EVPD clear? */
-			ata_scsi_rbuf_fill(&args, ata_scsiop_inq_std);
-		else switch (scsicmd[2]) {
-		case 0x00:
-			ata_scsi_rbuf_fill(&args, ata_scsiop_inq_00);
-			break;
-		case 0x80:
-			ata_scsi_rbuf_fill(&args, ata_scsiop_inq_80);
-			break;
-		case 0x83:
-			ata_scsi_rbuf_fill(&args, ata_scsiop_inq_83);
-			break;
-		case 0x89:
-			ata_scsi_rbuf_fill(&args, ata_scsiop_inq_89);
-			break;
-		case 0xb0:
-			ata_scsi_rbuf_fill(&args, ata_scsiop_inq_b0);
-			break;
-		case 0xb1:
-			ata_scsi_rbuf_fill(&args, ata_scsiop_inq_b1);
-			break;
-		case 0xb2:
-			ata_scsi_rbuf_fill(&args, ata_scsiop_inq_b2);
-			break;
-		case 0xb6:
-			if (dev->flags & ATA_DFLAG_ZAC)
-				ata_scsi_rbuf_fill(&args, ata_scsiop_inq_b6);
-			else
-				ata_scsi_set_invalid_field(dev, cmd, 2, 0xff);
-			break;
-		case 0xb9:
-			if (dev->cpr_log)
-				ata_scsi_rbuf_fill(&args, ata_scsiop_inq_b9);
-			else
-				ata_scsi_set_invalid_field(dev, cmd, 2, 0xff);
-			break;
-		default:
-			ata_scsi_set_invalid_field(dev, cmd, 2, 0xff);
-			break;
-		}
+		ata_scsi_rbuf_fill(dev, cmd, ata_scsiop_inquiry);
 		break;
 
 	case MODE_SENSE:
 	case MODE_SENSE_10:
-		ata_scsi_rbuf_fill(&args, ata_scsiop_mode_sense);
+		ata_scsi_rbuf_fill(dev, cmd, ata_scsiop_mode_sense);
 		break;
 
 	case READ_CAPACITY:
-		ata_scsi_rbuf_fill(&args, ata_scsiop_read_cap);
-		break;
-
 	case SERVICE_ACTION_IN_16:
-		if ((scsicmd[1] & 0x1f) == SAI_READ_CAPACITY_16)
-			ata_scsi_rbuf_fill(&args, ata_scsiop_read_cap);
-		else
-			ata_scsi_set_invalid_field(dev, cmd, 1, 0xff);
+		ata_scsi_rbuf_fill(dev, cmd, ata_scsiop_read_cap);
 		break;
 
 	case REPORT_LUNS:
-		ata_scsi_rbuf_fill(&args, ata_scsiop_report_luns);
+		ata_scsi_rbuf_fill(dev, cmd, ata_scsiop_report_luns);
 		break;
 
 	case REQUEST_SENSE:
@@ -4361,10 +4462,7 @@ void ata_scsi_simulate(struct ata_device *dev, struct scsi_cmnd *cmd)
 		break;
 
 	case MAINTENANCE_IN:
-		if ((scsicmd[1] & 0x1f) == MI_REPORT_SUPPORTED_OPERATION_CODES)
-			ata_scsi_rbuf_fill(&args, ata_scsiop_maint_in);
-		else
-			ata_scsi_set_invalid_field(dev, cmd, 1, 0xff);
+		ata_scsi_rbuf_fill(dev, cmd, ata_scsiop_maint_in);
 		break;
 
 	/* all other commands */

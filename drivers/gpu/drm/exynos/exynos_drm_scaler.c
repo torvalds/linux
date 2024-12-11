@@ -719,7 +719,7 @@ MODULE_DEVICE_TABLE(of, exynos_scaler_match);
 
 struct platform_driver scaler_driver = {
 	.probe		= scaler_probe,
-	.remove_new	= scaler_remove,
+	.remove		= scaler_remove,
 	.driver		= {
 		.name	= "exynos-scaler",
 		.pm	= pm_ptr(&scaler_pm_ops),

@@ -79,13 +79,11 @@ static enum hrtimer_restart timerfd_tmrproc(struct hrtimer *htmr)
 	return HRTIMER_NORESTART;
 }
 
-static enum alarmtimer_restart timerfd_alarmproc(struct alarm *alarm,
-	ktime_t now)
+static void timerfd_alarmproc(struct alarm *alarm, ktime_t now)
 {
 	struct timerfd_ctx *ctx = container_of(alarm, struct timerfd_ctx,
 					       t.alarm);
 	timerfd_triggered(ctx);
-	return ALARMTIMER_NORESTART;
 }
 
 /*
@@ -394,19 +392,6 @@ static const struct file_operations timerfd_fops = {
 	.unlocked_ioctl	= timerfd_ioctl,
 };
 
-static int timerfd_fget(int fd, struct fd *p)
-{
-	struct fd f = fdget(fd);
-	if (!fd_file(f))
-		return -EBADF;
-	if (fd_file(f)->f_op != &timerfd_fops) {
-		fdput(f);
-		return -EINVAL;
-	}
-	*p = f;
-	return 0;
-}
-
 SYSCALL_DEFINE2(timerfd_create, int, clockid, int, flags)
 {
 	int ufd;
@@ -471,7 +456,6 @@ static int do_timerfd_settime(int ufd, int flags,
 		const struct itimerspec64 *new,
 		struct itimerspec64 *old)
 {
-	struct fd f;
 	struct timerfd_ctx *ctx;
 	int ret;
 
@@ -479,15 +463,17 @@ static int do_timerfd_settime(int ufd, int flags,
 		 !itimerspec64_valid(new))
 		return -EINVAL;
 
-	ret = timerfd_fget(ufd, &f);
-	if (ret)
-		return ret;
+	CLASS(fd, f)(ufd);
+	if (fd_empty(f))
+		return -EBADF;
+
+	if (fd_file(f)->f_op != &timerfd_fops)
+		return -EINVAL;
+
 	ctx = fd_file(f)->private_data;
 
-	if (isalarm(ctx) && !capable(CAP_WAKE_ALARM)) {
-		fdput(f);
+	if (isalarm(ctx) && !capable(CAP_WAKE_ALARM))
 		return -EPERM;
-	}
 
 	timerfd_setup_cancel(ctx, flags);
 
@@ -535,17 +521,18 @@ static int do_timerfd_settime(int ufd, int flags,
 	ret = timerfd_setup(ctx, flags, new);
 
 	spin_unlock_irq(&ctx->wqh.lock);
-	fdput(f);
 	return ret;
 }
 
 static int do_timerfd_gettime(int ufd, struct itimerspec64 *t)
 {
-	struct fd f;
 	struct timerfd_ctx *ctx;
-	int ret = timerfd_fget(ufd, &f);
-	if (ret)
-		return ret;
+	CLASS(fd, f)(ufd);
+
+	if (fd_empty(f))
+		return -EBADF;
+	if (fd_file(f)->f_op != &timerfd_fops)
+		return -EINVAL;
 	ctx = fd_file(f)->private_data;
 
 	spin_lock_irq(&ctx->wqh.lock);
@@ -567,7 +554,6 @@ static int do_timerfd_gettime(int ufd, struct itimerspec64 *t)
 	t->it_value = ktime_to_timespec64(timerfd_get_remaining(ctx));
 	t->it_interval = ktime_to_timespec64(ctx->tintv);
 	spin_unlock_irq(&ctx->wqh.lock);
-	fdput(f);
 	return 0;
 }
 

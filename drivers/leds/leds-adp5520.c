@@ -184,7 +184,7 @@ static struct platform_driver adp5520_led_driver = {
 		.name	= "adp5520-led",
 	},
 	.probe		= adp5520_led_probe,
-	.remove_new	= adp5520_led_remove,
+	.remove		= adp5520_led_remove,
 };
 
 module_platform_driver(adp5520_led_driver);

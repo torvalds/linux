@@ -1,0 +1,38 @@
+What:		/sys/bus/hid/drivers/hid-corsair-void/<dev>/fw_version_headset
+Date:		January 2024
+KernelVersion:	6.13
+Contact:	Stuart Hayhurst <stuart.a.hayhurst@gmail.com>
+Description:	(R) The firmware version of the headset
+			* Returns -ENODATA if no version was reported
+
+What:		/sys/bus/hid/drivers/hid-corsair-void/<dev>/fw_version_receiver
+Date:		January 2024
+KernelVersion:	6.13
+Contact:	Stuart Hayhurst <stuart.a.hayhurst@gmail.com>
+Description:	(R) The firmware version of the receiver
+
+What:		/sys/bus/hid/drivers/hid-corsair-void/<dev>/microphone_up
+Date:		July 2023
+KernelVersion:	6.13
+Contact:	Stuart Hayhurst <stuart.a.hayhurst@gmail.com>
+Description:	(R) Get the physical position of the microphone
+			* 1 -> Microphone up
+			* 0 -> Microphone down
+
+What:		/sys/bus/hid/drivers/hid-corsair-void/<dev>/send_alert
+Date:		July 2023
+KernelVersion:	6.13
+Contact:	Stuart Hayhurst <stuart.a.hayhurst@gmail.com>
+Description:	(W) Play a built-in notification from the headset (0 / 1)
+
+What:		/sys/bus/hid/drivers/hid-corsair-void/<dev>/set_sidetone
+Date:		December 2023
+KernelVersion:	6.13
+Contact:	Stuart Hayhurst <stuart.a.hayhurst@gmail.com>
+Description:	(W) Set the sidetone volume (0 - sidetone_max)
+
+What:		/sys/bus/hid/drivers/hid-corsair-void/<dev>/sidetone_max
+Date:		July 2024
+KernelVersion:	6.13
+Contact:	Stuart Hayhurst <stuart.a.hayhurst@gmail.com>
+Description:	(R) Report the maximum sidetone volume

@@ -40,8 +40,8 @@ struct ivpu_mmu_info {
 int ivpu_mmu_init(struct ivpu_device *vdev);
 void ivpu_mmu_disable(struct ivpu_device *vdev);
 int ivpu_mmu_enable(struct ivpu_device *vdev);
-int ivpu_mmu_set_pgtable(struct ivpu_device *vdev, int ssid, struct ivpu_mmu_pgtable *pgtable);
-void ivpu_mmu_clear_pgtable(struct ivpu_device *vdev, int ssid);
+int ivpu_mmu_cd_set(struct ivpu_device *vdev, int ssid, struct ivpu_mmu_pgtable *pgtable);
+void ivpu_mmu_cd_clear(struct ivpu_device *vdev, int ssid);
 int ivpu_mmu_invalidate_tlb(struct ivpu_device *vdev, u16 ssid);
 
 void ivpu_mmu_irq_evtq_handler(struct ivpu_device *vdev);

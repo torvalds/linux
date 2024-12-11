@@ -341,8 +341,23 @@ static int drm_of_lvds_get_remote_pixels_type(
 	return pixels_type;
 }
 
+static int __drm_of_lvds_get_dual_link_pixel_order(int p1_pt, int p2_pt)
+{
+	/*
+	 * A valid dual-lVDS bus is found when one port is marked with
+	 * "dual-lvds-even-pixels", and the other port is marked with
+	 * "dual-lvds-odd-pixels", bail out if the markers are not right.
+	 */
+	if (p1_pt + p2_pt != DRM_OF_LVDS_EVEN + DRM_OF_LVDS_ODD)
+		return -EINVAL;
+
+	return p1_pt == DRM_OF_LVDS_EVEN ?
+		DRM_LVDS_DUAL_LINK_EVEN_ODD_PIXELS :
+		DRM_LVDS_DUAL_LINK_ODD_EVEN_PIXELS;
+}
+
 /**
- * drm_of_lvds_get_dual_link_pixel_order - Get LVDS dual-link pixel order
+ * drm_of_lvds_get_dual_link_pixel_order - Get LVDS dual-link source pixel order
  * @port1: First DT port node of the Dual-link LVDS source
  * @port2: Second DT port node of the Dual-link LVDS source
  *
@@ -387,19 +402,58 @@ int drm_of_lvds_get_dual_link_pixel_order(const struct device_node *port1,
 	if (remote_p2_pt < 0)
 		return remote_p2_pt;
 
-	/*
-	 * A valid dual-lVDS bus is found when one remote port is marked with
-	 * "dual-lvds-even-pixels", and the other remote port is marked with
-	 * "dual-lvds-odd-pixels", bail out if the markers are not right.
-	 */
-	if (remote_p1_pt + remote_p2_pt != DRM_OF_LVDS_EVEN + DRM_OF_LVDS_ODD)
-		return -EINVAL;
-
-	return remote_p1_pt == DRM_OF_LVDS_EVEN ?
-		DRM_LVDS_DUAL_LINK_EVEN_ODD_PIXELS :
-		DRM_LVDS_DUAL_LINK_ODD_EVEN_PIXELS;
+	return __drm_of_lvds_get_dual_link_pixel_order(remote_p1_pt, remote_p2_pt);
 }
 EXPORT_SYMBOL_GPL(drm_of_lvds_get_dual_link_pixel_order);
+
+/**
+ * drm_of_lvds_get_dual_link_pixel_order_sink - Get LVDS dual-link sink pixel order
+ * @port1: First DT port node of the Dual-link LVDS sink
+ * @port2: Second DT port node of the Dual-link LVDS sink
+ *
+ * An LVDS dual-link connection is made of two links, with even pixels
+ * transitting on one link, and odd pixels on the other link. This function
+ * returns, for two ports of an LVDS dual-link sink, which port shall transmit
+ * the even and odd pixels, based on the requirements of the sink.
+ *
+ * The pixel order is determined from the dual-lvds-even-pixels and
+ * dual-lvds-odd-pixels properties in the sink's DT port nodes. If those
+ * properties are not present, or if their usage is not valid, this function
+ * returns -EINVAL.
+ *
+ * If either port is not connected, this function returns -EPIPE.
+ *
+ * @port1 and @port2 are typically DT sibling nodes, but may have different
+ * parents when, for instance, two separate LVDS decoders receive the even and
+ * odd pixels.
+ *
+ * Return:
+ * * DRM_LVDS_DUAL_LINK_EVEN_ODD_PIXELS - @port1 receives even pixels and @port2
+ *   receives odd pixels
+ * * DRM_LVDS_DUAL_LINK_ODD_EVEN_PIXELS - @port1 receives odd pixels and @port2
+ *   receives even pixels
+ * * -EINVAL - @port1 or @port2 are NULL
+ * * -EPIPE - when @port1 or @port2 are not connected
+ */
+int drm_of_lvds_get_dual_link_pixel_order_sink(struct device_node *port1,
+					       struct device_node *port2)
+{
+	int sink_p1_pt, sink_p2_pt;
+
+	if (!port1 || !port2)
+		return -EINVAL;
+
+	sink_p1_pt = drm_of_lvds_get_port_pixels_type(port1);
+	if (!sink_p1_pt)
+		return -EPIPE;
+
+	sink_p2_pt = drm_of_lvds_get_port_pixels_type(port2);
+	if (!sink_p2_pt)
+		return -EPIPE;
+
+	return __drm_of_lvds_get_dual_link_pixel_order(sink_p1_pt, sink_p2_pt);
+}
+EXPORT_SYMBOL_GPL(drm_of_lvds_get_dual_link_pixel_order_sink);
 
 /**
  * drm_of_lvds_get_data_mapping - Get LVDS data mapping
@@ -410,7 +464,9 @@ EXPORT_SYMBOL_GPL(drm_of_lvds_get_dual_link_pixel_order);
  * Return:
  * * MEDIA_BUS_FMT_RGB666_1X7X3_SPWG - data-mapping is "jeida-18"
  * * MEDIA_BUS_FMT_RGB888_1X7X4_JEIDA - data-mapping is "jeida-24"
+ * * MEDIA_BUS_FMT_RGB101010_1X7X5_JEIDA - data-mapping is "jeida-30"
  * * MEDIA_BUS_FMT_RGB888_1X7X4_SPWG - data-mapping is "vesa-24"
+ * * MEDIA_BUS_FMT_RGB101010_1X7X5_SPWG - data-mapping is "vesa-30"
  * * -EINVAL - the "data-mapping" property is unsupported
  * * -ENODEV - the "data-mapping" property is missing
  */
@@ -427,8 +483,12 @@ int drm_of_lvds_get_data_mapping(const struct device_node *port)
 		return MEDIA_BUS_FMT_RGB666_1X7X3_SPWG;
 	if (!strcmp(mapping, "jeida-24"))
 		return MEDIA_BUS_FMT_RGB888_1X7X4_JEIDA;
+	if (!strcmp(mapping, "jeida-30"))
+		return MEDIA_BUS_FMT_RGB101010_1X7X5_JEIDA;
 	if (!strcmp(mapping, "vesa-24"))
 		return MEDIA_BUS_FMT_RGB888_1X7X4_SPWG;
+	if (!strcmp(mapping, "vesa-30"))
+		return MEDIA_BUS_FMT_RGB101010_1X7X5_SPWG;
 
 	return -EINVAL;
 }

@@ -522,7 +522,7 @@ static struct platform_driver imx6q_cpufreq_platdrv = {
 		.name	= "imx6q-cpufreq",
 	},
 	.probe		= imx6q_cpufreq_probe,
-	.remove_new	= imx6q_cpufreq_remove,
+	.remove		= imx6q_cpufreq_remove,
 };
 module_platform_driver(imx6q_cpufreq_platdrv);
 

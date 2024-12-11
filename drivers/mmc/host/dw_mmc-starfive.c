@@ -115,7 +115,7 @@ static int dw_mci_starfive_probe(struct platform_device *pdev)
 
 static struct platform_driver dw_mci_starfive_driver = {
 	.probe = dw_mci_starfive_probe,
-	.remove_new = dw_mci_pltfm_remove,
+	.remove = dw_mci_pltfm_remove,
 	.driver = {
 		.name = "dwmmc_starfive",
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,

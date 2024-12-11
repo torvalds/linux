@@ -17,7 +17,7 @@
 #include <asm/tlb.h>
 #include <asm/tlbflush.h>
 #include <asm/page.h>
-#include <asm/code-patching.h>
+#include <asm/text-patching.h>
 #include <asm/inst.h>
 
 static int __patch_mem(void *exec_addr, unsigned long val, void *patch_addr, bool is_dword)

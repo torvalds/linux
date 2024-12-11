@@ -48,16 +48,16 @@ do {									\
 
 static void guest_code(void)
 {
-	uint64_t xcr0_reset;
+	uint64_t initial_xcr0;
 	uint64_t supported_xcr0;
 	int i, vector;
 
 	set_cr4(get_cr4() | X86_CR4_OSXSAVE);
 
-	xcr0_reset = xgetbv(0);
+	initial_xcr0 = xgetbv(0);
 	supported_xcr0 = this_cpu_supported_xcr0();
 
-	GUEST_ASSERT(xcr0_reset == XFEATURE_MASK_FP);
+	GUEST_ASSERT(initial_xcr0 == supported_xcr0);
 
 	/* Check AVX */
 	ASSERT_XFEATURE_DEPENDENCIES(supported_xcr0,
@@ -78,6 +78,11 @@ static void guest_code(void)
 	/* Check AMX */
 	ASSERT_ALL_OR_NONE_XFEATURE(supported_xcr0,
 				    XFEATURE_MASK_XTILE);
+
+	vector = xsetbv_safe(0, XFEATURE_MASK_FP);
+	__GUEST_ASSERT(!vector,
+		       "Expected success on XSETBV(FP), got vector '0x%x'",
+		       vector);
 
 	vector = xsetbv_safe(0, supported_xcr0);
 	__GUEST_ASSERT(!vector,

@@ -365,6 +365,7 @@ enum amdgpu_ras_error_query_mode {
 	AMDGPU_RAS_INVALID_ERROR_QUERY		= 0,
 	AMDGPU_RAS_DIRECT_ERROR_QUERY		= 1,
 	AMDGPU_RAS_FIRMWARE_ERROR_QUERY		= 2,
+	AMDGPU_RAS_VIRT_ERROR_COUNT_QUERY	= 3,
 };
 
 /* ras error status reisger fields */
@@ -736,8 +737,8 @@ struct amdgpu_ras_block_hw_ops {
  * 8: feature disable
  */
 
-
-int amdgpu_ras_recovery_init(struct amdgpu_device *adev);
+int amdgpu_ras_init_badpage_info(struct amdgpu_device *adev);
+int amdgpu_ras_recovery_init(struct amdgpu_device *adev, bool init_bp_info);
 
 void amdgpu_ras_resume(struct amdgpu_device *adev);
 void amdgpu_ras_suspend(struct amdgpu_device *adev);

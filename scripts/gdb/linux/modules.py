@@ -19,6 +19,9 @@ from linux import cpus, utils, lists, constants
 module_type = utils.CachedType("struct module")
 
 
+def has_modules():
+    return utils.gdb_eval_or_none("modules") is not None
+
 def module_list():
     global module_type
     modules = utils.gdb_eval_or_none("modules")

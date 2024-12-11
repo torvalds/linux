@@ -95,7 +95,8 @@ struct efa_ibv_create_qp {
 	__u32 sq_ring_size; /* bytes */
 	__u32 driver_qp_type;
 	__u16 flags;
-	__u8 reserved_90[6];
+	__u8 sl;
+	__u8 reserved_98[5];
 };
 
 struct efa_ibv_create_qp_resp {

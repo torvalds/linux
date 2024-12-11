@@ -198,7 +198,7 @@ static struct platform_driver aspeed_mdio_driver = {
 		.of_match_table = aspeed_mdio_of_match,
 	},
 	.probe = aspeed_mdio_probe,
-	.remove_new = aspeed_mdio_remove,
+	.remove = aspeed_mdio_remove,
 };
 
 module_platform_driver(aspeed_mdio_driver);

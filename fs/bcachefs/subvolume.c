@@ -319,8 +319,7 @@ int bch2_subvol_is_ro_trans(struct btree_trans *trans, u32 subvol)
 
 int bch2_subvol_is_ro(struct bch_fs *c, u32 subvol)
 {
-	return bch2_trans_do(c, NULL, NULL, 0,
-		bch2_subvol_is_ro_trans(trans, subvol));
+	return bch2_trans_do(c, bch2_subvol_is_ro_trans(trans, subvol));
 }
 
 int bch2_snapshot_get_subvol(struct btree_trans *trans, u32 snapshot,
@@ -676,8 +675,8 @@ err:
 /* set bi_subvol on root inode */
 int bch2_fs_upgrade_for_subvolumes(struct bch_fs *c)
 {
-	int ret = bch2_trans_do(c, NULL, NULL, BCH_TRANS_COMMIT_lazy_rw,
-				__bch2_fs_upgrade_for_subvolumes(trans));
+	int ret = bch2_trans_commit_do(c, NULL, NULL, BCH_TRANS_COMMIT_lazy_rw,
+				       __bch2_fs_upgrade_for_subvolumes(trans));
 	bch_err_fn(c, ret);
 	return ret;
 }

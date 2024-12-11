@@ -56,6 +56,12 @@ xfs_dquot_res_over_limits(
 	return false;
 }
 
+struct xfs_dquot_pre {
+	xfs_qcnt_t		q_prealloc_lo_wmark;
+	xfs_qcnt_t		q_prealloc_hi_wmark;
+	int64_t			q_low_space[XFS_QLOWSP_MAX];
+};
+
 /*
  * The incore dquot structure
  */
@@ -76,9 +82,9 @@ struct xfs_dquot {
 
 	struct xfs_dq_logitem	q_logitem;
 
-	xfs_qcnt_t		q_prealloc_lo_wmark;
-	xfs_qcnt_t		q_prealloc_hi_wmark;
-	int64_t			q_low_space[XFS_QLOWSP_MAX];
+	struct xfs_dquot_pre	q_blk_prealloc;
+	struct xfs_dquot_pre	q_rtb_prealloc;
+
 	struct mutex		q_qlock;
 	struct completion	q_flush;
 	atomic_t		q_pincount;
@@ -192,7 +198,11 @@ static inline bool xfs_dquot_lowsp(struct xfs_dquot *dqp)
 	int64_t freesp;
 
 	freesp = dqp->q_blk.hardlimit - dqp->q_blk.reserved;
-	if (freesp < dqp->q_low_space[XFS_QLOWSP_1_PCNT])
+	if (freesp < dqp->q_blk_prealloc.q_low_space[XFS_QLOWSP_1_PCNT])
+		return true;
+
+	freesp = dqp->q_rtb.hardlimit - dqp->q_rtb.reserved;
+	if (freesp < dqp->q_rtb_prealloc.q_low_space[XFS_QLOWSP_1_PCNT])
 		return true;
 
 	return false;

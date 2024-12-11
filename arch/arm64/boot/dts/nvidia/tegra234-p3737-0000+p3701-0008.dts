@@ -1,0 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0
+/dts-v1/;
+
+// Module files must be included first
+#include "tegra234-p3701-0008.dtsi"
+#include "tegra234-p3737-0000+p3701.dtsi"
+
+/ {
+	model = "NVIDIA Jetson AGX Orin Developer Kit";
+	compatible = "nvidia,p3737-0000+p3701-0008", "nvidia,p3701-0008", "nvidia,tegra234";
+};

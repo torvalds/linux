@@ -1761,10 +1761,9 @@ static int qmc_qe_init_resources(struct qmc *qmc, struct platform_device *pdev)
 	 */
 	info = devm_qe_muram_alloc(qmc->dev, UCC_SLOW_PRAM_SIZE + 2 * 64,
 				   ALIGNMENT_OF_UCC_SLOW_PRAM);
-	if (IS_ERR_VALUE(info)) {
-		dev_err(qmc->dev, "cannot allocate MURAM for PRAM");
-		return -ENOMEM;
-	}
+	if (info < 0)
+		return info;
+
 	if (!qe_issue_cmd(QE_ASSIGN_PAGE_TO_DEVICE, qmc->qe_subblock,
 			  QE_CR_PROTOCOL_UNSPECIFIED, info)) {
 		dev_err(qmc->dev, "QE_ASSIGN_PAGE_TO_DEVICE cmd failed");
@@ -2005,8 +2004,10 @@ static int qmc_probe(struct platform_device *pdev)
 
 	/* Set the irq handler */
 	irq = platform_get_irq(pdev, 0);
-	if (irq < 0)
+	if (irq < 0) {
+		ret = irq;
 		goto err_exit_xcc;
+	}
 	ret = devm_request_irq(qmc->dev, irq, qmc_irq_handler, 0, "qmc", qmc);
 	if (ret < 0)
 		goto err_exit_xcc;
@@ -2056,7 +2057,7 @@ static void qmc_remove(struct platform_device *pdev)
 	qmc_exit_xcc(qmc);
 }
 
-static const struct qmc_data qmc_data_cpm1 = {
+static const struct qmc_data qmc_data_cpm1 __maybe_unused = {
 	.version = QMC_CPM1,
 	.tstate = 0x30000000,
 	.rstate = 0x31000000,
@@ -2066,7 +2067,7 @@ static const struct qmc_data qmc_data_cpm1 = {
 	.rpack = 0x00000000,
 };
 
-static const struct qmc_data qmc_data_qe = {
+static const struct qmc_data qmc_data_qe __maybe_unused = {
 	.version = QMC_QE,
 	.tstate = 0x30000000,
 	.rstate = 0x30000000,
@@ -2093,7 +2094,7 @@ static struct platform_driver qmc_driver = {
 		.of_match_table = of_match_ptr(qmc_id_table),
 	},
 	.probe = qmc_probe,
-	.remove_new = qmc_remove,
+	.remove = qmc_remove,
 };
 module_platform_driver(qmc_driver);
 

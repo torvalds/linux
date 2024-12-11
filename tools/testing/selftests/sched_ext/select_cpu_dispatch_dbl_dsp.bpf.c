@@ -31,8 +31,8 @@ void BPF_STRUCT_OPS(select_cpu_dispatch_dbl_dsp_exit, struct scx_exit_info *ei)
 
 SEC(".struct_ops.link")
 struct sched_ext_ops select_cpu_dispatch_dbl_dsp_ops = {
-	.select_cpu		= select_cpu_dispatch_dbl_dsp_select_cpu,
-	.exit			= select_cpu_dispatch_dbl_dsp_exit,
+	.select_cpu		= (void *) select_cpu_dispatch_dbl_dsp_select_cpu,
+	.exit			= (void *) select_cpu_dispatch_dbl_dsp_exit,
 	.name			= "select_cpu_dispatch_dbl_dsp",
 	.timeout_ms		= 1000U,
 };

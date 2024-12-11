@@ -644,7 +644,7 @@ static void csi2tx_remove(struct platform_device *pdev)
 
 static struct platform_driver csi2tx_driver = {
 	.probe	= csi2tx_probe,
-	.remove_new = csi2tx_remove,
+	.remove = csi2tx_remove,
 
 	.driver	= {
 		.name		= "cdns-csi2tx",

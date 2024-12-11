@@ -220,7 +220,9 @@ static int yellow_carp_system_features_control(struct smu_context *smu, bool en)
 	return ret;
 }
 
-static int yellow_carp_dpm_set_vcn_enable(struct smu_context *smu, bool enable)
+static int yellow_carp_dpm_set_vcn_enable(struct smu_context *smu,
+					   bool enable,
+					   int inst)
 {
 	int ret = 0;
 
@@ -945,9 +947,10 @@ failed:
 }
 
 static int yellow_carp_set_soft_freq_limited_range(struct smu_context *smu,
-							enum smu_clk_type clk_type,
-							uint32_t min,
-							uint32_t max)
+						   enum smu_clk_type clk_type,
+						   uint32_t min,
+						   uint32_t max,
+						   bool automatic)
 {
 	enum smu_message_type msg_set_min, msg_set_max;
 	uint32_t min_clk = min;
@@ -1134,7 +1137,7 @@ static int yellow_carp_force_clk_levels(struct smu_context *smu,
 		if (ret)
 			goto force_level_out;
 
-		ret = yellow_carp_set_soft_freq_limited_range(smu, clk_type, min_freq, max_freq);
+		ret = yellow_carp_set_soft_freq_limited_range(smu, clk_type, min_freq, max_freq, false);
 		if (ret)
 			goto force_level_out;
 		break;
@@ -1254,9 +1257,10 @@ static int yellow_carp_set_performance_level(struct smu_context *smu,
 
 	if (sclk_min && sclk_max) {
 		ret = yellow_carp_set_soft_freq_limited_range(smu,
-							    SMU_SCLK,
-							    sclk_min,
-							    sclk_max);
+							      SMU_SCLK,
+							      sclk_min,
+							      sclk_max,
+							      false);
 		if (ret)
 			return ret;
 
@@ -1266,18 +1270,20 @@ static int yellow_carp_set_performance_level(struct smu_context *smu,
 
 	if (fclk_min && fclk_max) {
 		ret = yellow_carp_set_soft_freq_limited_range(smu,
-							    SMU_FCLK,
-							    fclk_min,
-							    fclk_max);
+							      SMU_FCLK,
+							      fclk_min,
+							      fclk_max,
+							      false);
 		if (ret)
 			return ret;
 	}
 
 	if (socclk_min && socclk_max) {
 		ret = yellow_carp_set_soft_freq_limited_range(smu,
-							    SMU_SOCCLK,
-							    socclk_min,
-							    socclk_max);
+							      SMU_SOCCLK,
+							      socclk_min,
+							      socclk_max,
+							      false);
 		if (ret)
 			return ret;
 	}
@@ -1286,7 +1292,8 @@ static int yellow_carp_set_performance_level(struct smu_context *smu,
 		ret = yellow_carp_set_soft_freq_limited_range(smu,
 							      SMU_VCLK,
 							      vclk_min,
-							      vclk_max);
+							      vclk_max,
+							      false);
 		if (ret)
 			return ret;
 	}
@@ -1295,7 +1302,8 @@ static int yellow_carp_set_performance_level(struct smu_context *smu,
 		ret = yellow_carp_set_soft_freq_limited_range(smu,
 							      SMU_DCLK,
 							      dclk_min,
-							      dclk_max);
+							      dclk_max,
+							      false);
 		if (ret)
 			return ret;
 	}

@@ -723,6 +723,10 @@ static const struct config_entry acpi_config_table[] = {
 /* BayTrail */
 	{
 		.flags = FLAG_SST_OR_SOF_BYT,
+		.acpi_hid = "LPE0F28",
+	},
+	{
+		.flags = FLAG_SST_OR_SOF_BYT,
 		.acpi_hid = "80860F28",
 	},
 /* CherryTrail */
@@ -797,4 +801,4 @@ EXPORT_SYMBOL_GPL(snd_intel_acpi_dsp_driver_probe);
 
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("Intel DSP config driver");
-MODULE_IMPORT_NS(SND_INTEL_SOUNDWIRE_ACPI);
+MODULE_IMPORT_NS("SND_INTEL_SOUNDWIRE_ACPI");

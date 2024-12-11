@@ -1,10 +1,15 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (C) 2020-2023 Intel Corporation
+ * Copyright (C) 2020-2024 Intel Corporation
  */
 
 #ifndef __IVPU_FW_H__
 #define __IVPU_FW_H__
+
+#include "vpu_jsm_api.h"
+
+#define FW_VERSION_HEADER_SIZE	SZ_4K
+#define FW_VERSION_STR_SIZE	SZ_256
 
 struct ivpu_device;
 struct ivpu_bo;
@@ -13,6 +18,7 @@ struct vpu_boot_params;
 struct ivpu_fw_info {
 	const struct firmware *file;
 	const char *name;
+	char version[FW_VERSION_STR_SIZE];
 	struct ivpu_bo *mem;
 	struct ivpu_bo *mem_shave_nn;
 	struct ivpu_bo *mem_log_crit;
@@ -32,6 +38,7 @@ struct ivpu_fw_info {
 	u32 secondary_preempt_buf_size;
 	u64 read_only_addr;
 	u32 read_only_size;
+	u32 sched_mode;
 };
 
 int ivpu_fw_init(struct ivpu_device *vdev);

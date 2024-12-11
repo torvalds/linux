@@ -12,7 +12,6 @@
 #include <linux/module.h>
 #include <linux/cpufeature.h>
 
-#include "zcrypt_api.h"
 #include "zcrypt_ccamisc.h"
 #include "pkey_base.h"
 
@@ -225,14 +224,14 @@ static int cca_key2protkey(const struct pkey_apqn *apqns, size_t nr_apqns,
 	if (hdr->type == TOKTYPE_CCA_INTERNAL &&
 	    hdr->version == TOKVER_CCA_AES) {
 		/* CCA AES data key */
-		if (keylen != sizeof(struct secaeskeytoken))
+		if (keylen < sizeof(struct secaeskeytoken))
 			return -EINVAL;
 		if (cca_check_secaeskeytoken(pkey_dbf_info, 3, key, 0))
 			return -EINVAL;
 	} else if (hdr->type == TOKTYPE_CCA_INTERNAL &&
 		   hdr->version == TOKVER_CCA_VLSC) {
 		/* CCA AES cipher key */
-		if (keylen < hdr->len || keylen > MAXCCAVLSCTOKENSIZE)
+		if (keylen < hdr->len)
 			return -EINVAL;
 		if (cca_check_secaescipherkey(pkey_dbf_info,
 					      3, key, 0, 1))

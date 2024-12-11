@@ -213,13 +213,16 @@ config HID_CHICONY
 config HID_CORSAIR
 	tristate "Corsair devices"
 	depends on USB_HID && LEDS_CLASS
+	select POWER_SUPPLY
 	help
 	Support for Corsair devices that are not fully compliant with the
 	HID standard.
+	Support for Corsair Void headsets.
 
 	Supported devices:
 	- Vengeance K90
 	- Scimitar PRO RGB
+	- Corsair Void headsets
 
 config HID_COUGAR
 	tristate "Cougar devices"
@@ -464,6 +467,15 @@ config HID_KYE
 	- EasyPen i405X tablet
 	- MousePen i608X tablet
 	- EasyPen M610X tablet
+
+config HID_KYSONA
+	tristate "Kysona devices"
+	depends on USB_HID
+	help
+	Support for Kysona mice.
+
+	Say Y here if you have a Kysona M600 mouse
+	and want to be able to read its battery capacity.
 
 config HID_UCLOGIC
 	tristate "UC-Logic"
@@ -1096,6 +1108,7 @@ config HID_RMI
 	select RMI4_F11
 	select RMI4_F12
 	select RMI4_F30
+	select RMI4_F3A
 	help
 	Support for Synaptics RMI4 touchpads.
 	Say Y here if you have a Synaptics RMI4 touchpads over i2c-hid or usbhid

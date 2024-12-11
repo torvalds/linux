@@ -28,7 +28,7 @@ int efx_siena_ptp_change_mode(struct efx_nic *efx, bool enable_wanted,
 			      unsigned int new_mode);
 int efx_siena_ptp_tx(struct efx_nic *efx, struct sk_buff *skb);
 void efx_siena_ptp_event(struct efx_nic *efx, efx_qword_t *ev);
-size_t efx_siena_ptp_describe_stats(struct efx_nic *efx, u8 *strings);
+size_t efx_siena_ptp_describe_stats(struct efx_nic *efx, u8 **strings);
 size_t efx_siena_ptp_update_stats(struct efx_nic *efx, u64 *stats);
 void efx_siena_time_sync_event(struct efx_channel *channel, efx_qword_t *ev);
 void __efx_siena_rx_skb_attach_timestamp(struct efx_channel *channel,

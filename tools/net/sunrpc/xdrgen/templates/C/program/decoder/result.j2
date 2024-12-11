@@ -13,10 +13,6 @@ static int {{ program }}_xdr_dec_{{ result }}(struct rpc_rqst *req,
 
 	if (!xdrgen_decode_{{ result }}(xdr, result))
 		return -EIO;
-	if (result->stat != nfs_ok) {
-		trace_nfs_xdr_status(xdr, (int)result->stat);
-		return {{ program }}_stat_to_errno(result->stat);
-	}
 {% endif %}
 	return 0;
 }

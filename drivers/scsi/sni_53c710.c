@@ -119,7 +119,7 @@ static void snirm710_driver_remove(struct platform_device *dev)
 
 static struct platform_driver snirm710_driver = {
 	.probe	= snirm710_probe,
-	.remove_new = snirm710_driver_remove,
+	.remove	= snirm710_driver_remove,
 	.driver	= {
 		.name	= "snirm_53c710",
 	},

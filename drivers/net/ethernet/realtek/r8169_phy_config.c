@@ -89,20 +89,17 @@ static void rtl8168h_config_eee_phy(struct phy_device *phydev)
 	phy_modify_paged(phydev, 0xa42, 0x14, 0x0000, 0x0080);
 }
 
-static void rtl8125a_config_eee_phy(struct phy_device *phydev)
+static void rtl8125_common_config_eee_phy(struct phy_device *phydev)
 {
-	rtl8168h_config_eee_phy(phydev);
-
-	phy_modify_paged(phydev, 0xa6d, 0x12, 0x0001, 0x0000);
-	phy_modify_paged(phydev, 0xa6d, 0x14, 0x0010, 0x0000);
-}
-
-static void rtl8125b_config_eee_phy(struct phy_device *phydev)
-{
-	phy_modify_paged(phydev, 0xa6d, 0x12, 0x0001, 0x0000);
 	phy_modify_paged(phydev, 0xa6d, 0x14, 0x0010, 0x0000);
 	phy_modify_paged(phydev, 0xa42, 0x14, 0x0080, 0x0000);
 	phy_modify_paged(phydev, 0xa4a, 0x11, 0x0200, 0x0000);
+}
+
+static void rtl8125_config_eee_phy(struct phy_device *phydev)
+{
+	rtl8168g_config_eee_phy(phydev);
+	rtl8125_common_config_eee_phy(phydev);
 }
 
 static void rtl8169s_hw_phy_config(struct rtl8169_private *tp,
@@ -1061,15 +1058,15 @@ static void rtl8125a_2_hw_phy_config(struct rtl8169_private *tp,
 	rtl8168g_enable_gphy_10m(phydev);
 
 	rtl8168g_disable_aldps(phydev);
-	rtl8125a_config_eee_phy(phydev);
+	rtl8125_config_eee_phy(phydev);
 }
 
 static void rtl8125b_hw_phy_config(struct rtl8169_private *tp,
 				   struct phy_device *phydev)
 {
 	r8169_apply_firmware(tp);
+	rtl8168g_enable_gphy_10m(phydev);
 
-	phy_modify_paged(phydev, 0xa44, 0x11, 0x0000, 0x0800);
 	phy_modify_paged(phydev, 0xac4, 0x13, 0x00f0, 0x0090);
 	phy_modify_paged(phydev, 0xad3, 0x10, 0x0003, 0x0001);
 
@@ -1101,13 +1098,27 @@ static void rtl8125b_hw_phy_config(struct rtl8169_private *tp,
 
 	rtl8125_legacy_force_mode(phydev);
 	rtl8168g_disable_aldps(phydev);
-	rtl8125b_config_eee_phy(phydev);
+	rtl8125_config_eee_phy(phydev);
+}
+
+static void rtl8125d_hw_phy_config(struct rtl8169_private *tp,
+				   struct phy_device *phydev)
+{
+	r8169_apply_firmware(tp);
+	rtl8168g_enable_gphy_10m(phydev);
+	rtl8125_legacy_force_mode(phydev);
+	rtl8168g_disable_aldps(phydev);
+	rtl8125_config_eee_phy(phydev);
 }
 
 static void rtl8126a_hw_phy_config(struct rtl8169_private *tp,
 				   struct phy_device *phydev)
 {
 	r8169_apply_firmware(tp);
+	rtl8168g_enable_gphy_10m(phydev);
+	rtl8125_legacy_force_mode(phydev);
+	rtl8168g_disable_aldps(phydev);
+	rtl8125_common_config_eee_phy(phydev);
 }
 
 void r8169_hw_phy_config(struct rtl8169_private *tp, struct phy_device *phydev,
@@ -1160,6 +1171,7 @@ void r8169_hw_phy_config(struct rtl8169_private *tp, struct phy_device *phydev,
 		[RTL_GIGA_MAC_VER_53] = rtl8117_hw_phy_config,
 		[RTL_GIGA_MAC_VER_61] = rtl8125a_2_hw_phy_config,
 		[RTL_GIGA_MAC_VER_63] = rtl8125b_hw_phy_config,
+		[RTL_GIGA_MAC_VER_64] = rtl8125d_hw_phy_config,
 		[RTL_GIGA_MAC_VER_65] = rtl8126a_hw_phy_config,
 		[RTL_GIGA_MAC_VER_66] = rtl8126a_hw_phy_config,
 	};

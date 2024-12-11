@@ -1522,7 +1522,7 @@ EXPORT_SYMBOL(mipi_dsi_compression_mode_ext_multi);
 
 /**
  * mipi_dsi_compression_mode_multi() - enable/disable DSC on the peripheral
- * @dsi: DSI peripheral device
+ * @ctx: Context for multiple DSI transactions
  * @enable: Whether to enable or disable the DSC
  *
  * Enable or disable Display Stream Compression on the peripheral using the

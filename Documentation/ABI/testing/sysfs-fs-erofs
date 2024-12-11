@@ -16,3 +16,14 @@ Description:	Control strategy of sync decompression:
 		  readahead on atomic contexts only.
 		- 1 (force on): enable for readpage and readahead.
 		- 2 (force off): disable for all situations.
+
+What:		/sys/fs/erofs/<disk>/drop_caches
+Date:		November 2024
+Contact:	"Guo Chunhai" <guochunhai@vivo.com>
+Description:	Writing to this will drop compression-related caches,
+		currently used to drop in-memory pclusters and cached
+		compressed folios:
+
+		- 1 : invalidate cached compressed folios
+		- 2 : drop in-memory pclusters
+		- 3 : drop in-memory pclusters and cached compressed folios

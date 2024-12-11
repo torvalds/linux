@@ -1960,7 +1960,7 @@ static int atomic_size_to_mode(int size_mask)
 }
 
 static int get_atomic_mode(struct mlx5_ib_dev *dev,
-			   enum ib_qp_type qp_type)
+			   struct mlx5_ib_qp *qp)
 {
 	u8 atomic_operations = MLX5_CAP_ATOMIC(dev->mdev, atomic_operations);
 	u8 atomic = MLX5_CAP_GEN(dev->mdev, atomic);
@@ -1970,7 +1970,7 @@ static int get_atomic_mode(struct mlx5_ib_dev *dev,
 	if (!atomic)
 		return -EOPNOTSUPP;
 
-	if (qp_type == MLX5_IB_QPT_DCT)
+	if (qp->type == MLX5_IB_QPT_DCT)
 		atomic_size_mask = MLX5_CAP_ATOMIC(dev->mdev, atomic_size_dc);
 	else
 		atomic_size_mask = MLX5_CAP_ATOMIC(dev->mdev, atomic_size_qp);
@@ -1983,6 +1983,10 @@ static int get_atomic_mode(struct mlx5_ib_dev *dev,
 	    (atomic_operations & MLX5_ATOMIC_OPS_CMP_SWAP &&
 	     atomic_operations & MLX5_ATOMIC_OPS_FETCH_ADD))
 		atomic_mode = MLX5_ATOMIC_MODE_IB_COMP;
+
+	/* OOO DP QPs do not support larger than 8-Bytes atomic operations */
+	if (atomic_mode > MLX5_ATOMIC_MODE_8B && qp->is_ooo_rq)
+		atomic_mode = MLX5_ATOMIC_MODE_8B;
 
 	return atomic_mode;
 }
@@ -2839,6 +2843,29 @@ static int check_valid_flow(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 	return 0;
 }
 
+static bool get_dp_ooo_cap(struct mlx5_core_dev *mdev, enum ib_qp_type qp_type)
+{
+	if (!MLX5_CAP_GEN_2(mdev, dp_ordering_force))
+		return false;
+
+	switch (qp_type) {
+	case IB_QPT_RC:
+		return MLX5_CAP_GEN(mdev, dp_ordering_ooo_all_rc);
+	case IB_QPT_XRC_INI:
+	case IB_QPT_XRC_TGT:
+		return MLX5_CAP_GEN(mdev, dp_ordering_ooo_all_xrc);
+	case IB_QPT_UC:
+		return MLX5_CAP_GEN(mdev, dp_ordering_ooo_all_uc);
+	case IB_QPT_UD:
+		return MLX5_CAP_GEN(mdev, dp_ordering_ooo_all_ud);
+	case MLX5_IB_QPT_DCI:
+	case MLX5_IB_QPT_DCT:
+		return MLX5_CAP_GEN(mdev, dp_ordering_ooo_all_dc);
+	default:
+		return false;
+	}
+}
+
 static void process_vendor_flag(struct mlx5_ib_dev *dev, int *flags, int flag,
 				bool cond, struct mlx5_ib_qp *qp)
 {
@@ -3365,7 +3392,7 @@ static int set_qpc_atomic_flags(struct mlx5_ib_qp *qp,
 	if (access_flags & IB_ACCESS_REMOTE_ATOMIC) {
 		int atomic_mode;
 
-		atomic_mode = get_atomic_mode(dev, qp->type);
+		atomic_mode = get_atomic_mode(dev, qp);
 		if (atomic_mode < 0)
 			return -EOPNOTSUPP;
 
@@ -4268,14 +4295,14 @@ static int __mlx5_ib_modify_qp(struct ib_qp *ibqp,
 		MLX5_SET(qpc, qpc, retry_count, attr->retry_cnt);
 
 	if (attr_mask & IB_QP_MAX_QP_RD_ATOMIC && attr->max_rd_atomic)
-		MLX5_SET(qpc, qpc, log_sra_max, ilog2(attr->max_rd_atomic));
+		MLX5_SET(qpc, qpc, log_sra_max, fls(attr->max_rd_atomic - 1));
 
 	if (attr_mask & IB_QP_SQ_PSN)
 		MLX5_SET(qpc, qpc, next_send_psn, attr->sq_psn);
 
 	if (attr_mask & IB_QP_MAX_DEST_RD_ATOMIC && attr->max_dest_rd_atomic)
 		MLX5_SET(qpc, qpc, log_rra_max,
-			 ilog2(attr->max_dest_rd_atomic));
+			 fls(attr->max_dest_rd_atomic - 1));
 
 	if (attr_mask & (IB_QP_ACCESS_FLAGS | IB_QP_MAX_DEST_RD_ATOMIC)) {
 		err = set_qpc_atomic_flags(qp, attr, attr_mask, qpc);
@@ -4315,6 +4342,11 @@ static int __mlx5_ib_modify_qp(struct ib_qp *ibqp,
 
 	if (qp->flags & MLX5_IB_QP_CREATE_SQPN_QP1)
 		MLX5_SET(qpc, qpc, deth_sqpn, 1);
+
+	if (qp->is_ooo_rq && cur_state == IB_QPS_INIT && new_state == IB_QPS_RTR) {
+		MLX5_SET(qpc, qpc, dp_ordering_1, 1);
+		MLX5_SET(qpc, qpc, dp_ordering_force, 1);
+	}
 
 	mlx5_cur = to_mlx5_state(cur_state);
 	mlx5_new = to_mlx5_state(new_state);
@@ -4531,7 +4563,7 @@ static int mlx5_ib_modify_dct(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 		if (attr->qp_access_flags & IB_ACCESS_REMOTE_ATOMIC) {
 			int atomic_mode;
 
-			atomic_mode = get_atomic_mode(dev, MLX5_IB_QPT_DCT);
+			atomic_mode = get_atomic_mode(dev, qp);
 			if (atomic_mode < 0)
 				return -EOPNOTSUPP;
 
@@ -4573,6 +4605,10 @@ static int mlx5_ib_modify_dct(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 		MLX5_SET(dctc, dctc, hop_limit, attr->ah_attr.grh.hop_limit);
 		if (attr->ah_attr.type == RDMA_AH_ATTR_TYPE_ROCE)
 			MLX5_SET(dctc, dctc, eth_prio, attr->ah_attr.sl & 0x7);
+		if (qp->is_ooo_rq) {
+			MLX5_SET(dctc, dctc, dp_ordering_1, 1);
+			MLX5_SET(dctc, dctc, dp_ordering_force, 1);
+		}
 
 		err = mlx5_core_create_dct(dev, &qp->dct.mdct, qp->dct.in,
 					   MLX5_ST_SZ_BYTES(create_dct_in), out,
@@ -4676,11 +4712,16 @@ int mlx5_ib_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 				       min(udata->inlen, sizeof(ucmd))))
 			return -EFAULT;
 
-		if (ucmd.comp_mask ||
+		if (ucmd.comp_mask & ~MLX5_IB_MODIFY_QP_OOO_DP ||
 		    memchr_inv(&ucmd.burst_info.reserved, 0,
 			       sizeof(ucmd.burst_info.reserved)))
 			return -EOPNOTSUPP;
 
+		if (ucmd.comp_mask & MLX5_IB_MODIFY_QP_OOO_DP) {
+			if (!get_dp_ooo_cap(dev->mdev, qp->type))
+				return -EOPNOTSUPP;
+			qp->is_ooo_rq = 1;
+		}
 	}
 
 	if (qp->type == IB_QPT_GSI)

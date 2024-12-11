@@ -329,7 +329,9 @@ int configure_and_run_sha_dma(struct acp_dev_data *adata, void *image_addr,
 					    fw_qualifier, fw_qualifier & DSP_FW_RUN_ENABLE,
 					    ACP_REG_POLL_INTERVAL, ACP_DMA_COMPLETE_TIMEOUT_US);
 	if (ret < 0) {
-		dev_err(sdev->dev, "PSP validation failed\n");
+		val = snd_sof_dsp_read(sdev, ACP_DSP_BAR, ACP_SHA_PSP_ACK);
+		dev_err(sdev->dev, "PSP validation failed: fw_qualifier = %#x, ACP_SHA_PSP_ACK = %#x\n",
+			fw_qualifier, val);
 		return ret;
 	}
 
@@ -340,11 +342,19 @@ int acp_dma_status(struct acp_dev_data *adata, unsigned char ch)
 {
 	struct snd_sof_dev *sdev = adata->dev;
 	unsigned int val;
+	unsigned int acp_dma_ch_sts;
 	int ret = 0;
 
+	switch (adata->pci_rev) {
+	case ACP70_PCI_ID:
+		acp_dma_ch_sts = ACP70_DMA_CH_STS;
+		break;
+	default:
+		acp_dma_ch_sts = ACP_DMA_CH_STS;
+	}
 	val = snd_sof_dsp_read(sdev, ACP_DSP_BAR, ACP_DMA_CNTL_0 + ch * sizeof(u32));
 	if (val & ACP_DMA_CH_RUN) {
-		ret = snd_sof_dsp_read_poll_timeout(sdev, ACP_DSP_BAR, ACP_DMA_CH_STS, val, !val,
+		ret = snd_sof_dsp_read_poll_timeout(sdev, ACP_DSP_BAR, acp_dma_ch_sts, val, !val,
 						    ACP_REG_POLL_INTERVAL,
 						    ACP_DMA_COMPLETE_TIMEOUT_US);
 		if (ret < 0)
@@ -623,7 +633,7 @@ int amd_sof_acp_suspend(struct snd_sof_dev *sdev, u32 target_state)
 
 	return 0;
 }
-EXPORT_SYMBOL_NS(amd_sof_acp_suspend, SND_SOC_SOF_AMD_COMMON);
+EXPORT_SYMBOL_NS(amd_sof_acp_suspend, "SND_SOC_SOF_AMD_COMMON");
 
 int amd_sof_acp_resume(struct snd_sof_dev *sdev)
 {
@@ -642,7 +652,7 @@ int amd_sof_acp_resume(struct snd_sof_dev *sdev)
 		return acp_dsp_reset(sdev);
 	}
 }
-EXPORT_SYMBOL_NS(amd_sof_acp_resume, SND_SOC_SOF_AMD_COMMON);
+EXPORT_SYMBOL_NS(amd_sof_acp_resume, "SND_SOC_SOF_AMD_COMMON");
 
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_AMD_SOUNDWIRE)
 static int acp_sof_scan_sdw_devices(struct snd_sof_dev *sdev, u64 addr)
@@ -683,6 +693,7 @@ static int amd_sof_sdw_probe(struct snd_sof_dev *sdev)
 	sdw_res.count = acp_data->info.count;
 	sdw_res.link_mask = acp_data->info.link_mask;
 	sdw_res.mmio_base = sdev->bar[ACP_DSP_BAR];
+	sdw_res.acp_rev = acp_data->pci_rev;
 
 	ret = sdw_amd_probe(&sdw_res, &acp_data->sdw);
 	if (ret)
@@ -841,7 +852,7 @@ unregister_dev:
 	platform_device_unregister(adata->dmic_dev);
 	return ret;
 }
-EXPORT_SYMBOL_NS(amd_sof_acp_probe, SND_SOC_SOF_AMD_COMMON);
+EXPORT_SYMBOL_NS(amd_sof_acp_probe, "SND_SOC_SOF_AMD_COMMON");
 
 void amd_sof_acp_remove(struct snd_sof_dev *sdev)
 {
@@ -861,9 +872,9 @@ void amd_sof_acp_remove(struct snd_sof_dev *sdev)
 
 	acp_reset(sdev);
 }
-EXPORT_SYMBOL_NS(amd_sof_acp_remove, SND_SOC_SOF_AMD_COMMON);
+EXPORT_SYMBOL_NS(amd_sof_acp_remove, "SND_SOC_SOF_AMD_COMMON");
 
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_DESCRIPTION("AMD ACP sof driver");
-MODULE_IMPORT_NS(SOUNDWIRE_AMD_INIT);
-MODULE_IMPORT_NS(SND_AMD_SOUNDWIRE_ACPI);
+MODULE_IMPORT_NS("SOUNDWIRE_AMD_INIT");
+MODULE_IMPORT_NS("SND_AMD_SOUNDWIRE_ACPI");

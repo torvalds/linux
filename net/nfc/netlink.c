@@ -96,6 +96,11 @@ static int nfc_genl_send_target(struct sk_buff *msg, struct nfc_target *target,
 			goto nla_put_failure;
 	}
 
+	if (target->ats_len > 0 &&
+	    nla_put(msg, NFC_ATTR_TARGET_ATS, target->ats_len,
+		    target->ats))
+		goto nla_put_failure;
+
 	genlmsg_end(msg, hdr);
 	return 0;
 

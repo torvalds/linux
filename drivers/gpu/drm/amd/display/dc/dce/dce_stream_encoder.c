@@ -277,7 +277,6 @@ static void dce110_stream_encoder_dp_set_stream_attribute(
 	uint32_t misc1 = 0;
 	uint32_t h_blank;
 	uint32_t h_back_porch;
-	uint8_t synchronous_clock = 0; /* asynchronous mode */
 	uint8_t colorimetry_bpc;
 	uint8_t dynamic_range_rgb = 0; /*full range*/
 	uint8_t dynamic_range_ycbcr = 1; /*bt709*/
@@ -380,7 +379,6 @@ static void dce110_stream_encoder_dp_set_stream_attribute(
 		break;
 	}
 
-	misc0 = misc0 | synchronous_clock;
 	misc0 = colorimetry_bpc << 5;
 
 	if (REG(DP_MSA_TIMING_PARAM1)) {

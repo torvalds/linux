@@ -81,12 +81,12 @@ s32 BPF_STRUCT_OPS_SLEEPABLE(select_cpu_vtime_init)
 
 SEC(".struct_ops.link")
 struct sched_ext_ops select_cpu_vtime_ops = {
-	.select_cpu		= select_cpu_vtime_select_cpu,
-	.dispatch		= select_cpu_vtime_dispatch,
-	.running		= select_cpu_vtime_running,
-	.stopping		= select_cpu_vtime_stopping,
-	.enable			= select_cpu_vtime_enable,
-	.init			= select_cpu_vtime_init,
+	.select_cpu		= (void *) select_cpu_vtime_select_cpu,
+	.dispatch		= (void *) select_cpu_vtime_dispatch,
+	.running		= (void *) select_cpu_vtime_running,
+	.stopping		= (void *) select_cpu_vtime_stopping,
+	.enable			= (void *) select_cpu_vtime_enable,
+	.init			= (void *) select_cpu_vtime_init,
 	.name			= "select_cpu_vtime",
 	.timeout_ms		= 1000U,
 };

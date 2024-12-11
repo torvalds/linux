@@ -40,6 +40,7 @@ void io_sq_thread_unpark(struct io_sq_data *sqd)
 	if (atomic_dec_return(&sqd->park_pending))
 		set_bit(IO_SQ_THREAD_SHOULD_PARK, &sqd->state);
 	mutex_unlock(&sqd->lock);
+	wake_up(&sqd->wait);
 }
 
 void io_sq_thread_park(struct io_sq_data *sqd)
@@ -106,29 +107,21 @@ static struct io_sq_data *io_attach_sq_data(struct io_uring_params *p)
 {
 	struct io_ring_ctx *ctx_attach;
 	struct io_sq_data *sqd;
-	struct fd f;
+	CLASS(fd, f)(p->wq_fd);
 
-	f = fdget(p->wq_fd);
-	if (!fd_file(f))
+	if (fd_empty(f))
 		return ERR_PTR(-ENXIO);
-	if (!io_is_uring_fops(fd_file(f))) {
-		fdput(f);
+	if (!io_is_uring_fops(fd_file(f)))
 		return ERR_PTR(-EINVAL);
-	}
 
 	ctx_attach = fd_file(f)->private_data;
 	sqd = ctx_attach->sq_data;
-	if (!sqd) {
-		fdput(f);
+	if (!sqd)
 		return ERR_PTR(-EINVAL);
-	}
-	if (sqd->task_tgid != current->tgid) {
-		fdput(f);
+	if (sqd->task_tgid != current->tgid)
 		return ERR_PTR(-EPERM);
-	}
 
 	refcount_inc(&sqd->refs);
-	fdput(f);
 	return sqd;
 }
 
@@ -215,7 +208,7 @@ static bool io_sqd_handle_event(struct io_sq_data *sqd)
 		mutex_unlock(&sqd->lock);
 		if (signal_pending(current))
 			did_sig = get_signal(&ksig);
-		cond_resched();
+		wait_event(sqd->wait, !atomic_read(&sqd->park_pending));
 		mutex_lock(&sqd->lock);
 		sqd->sq_cpu = raw_smp_processor_id();
 	}
@@ -417,16 +410,11 @@ __cold int io_sq_offload_create(struct io_ring_ctx *ctx,
 	/* Retain compatibility with failing for an invalid attach attempt */
 	if ((ctx->flags & (IORING_SETUP_ATTACH_WQ | IORING_SETUP_SQPOLL)) ==
 				IORING_SETUP_ATTACH_WQ) {
-		struct fd f;
-
-		f = fdget(p->wq_fd);
-		if (!fd_file(f))
+		CLASS(fd, f)(p->wq_fd);
+		if (fd_empty(f))
 			return -ENXIO;
-		if (!io_is_uring_fops(fd_file(f))) {
-			fdput(f);
+		if (!io_is_uring_fops(fd_file(f)))
 			return -EINVAL;
-		}
-		fdput(f);
 	}
 	if (ctx->flags & IORING_SETUP_SQPOLL) {
 		struct task_struct *tsk;

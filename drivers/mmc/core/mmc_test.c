@@ -3241,6 +3241,12 @@ static int mmc_test_probe(struct mmc_card *card)
 	if (!mmc_card_mmc(card) && !mmc_card_sd(card))
 		return -ENODEV;
 
+	if (mmc_card_ult_capacity(card)) {
+		pr_info("%s: mmc-test currently UNSUPPORTED for SDUC\n",
+			mmc_hostname(card->host));
+		return -EOPNOTSUPP;
+	}
+
 	ret = mmc_test_register_dbgfs_file(card);
 	if (ret)
 		return ret;

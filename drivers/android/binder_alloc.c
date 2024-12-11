@@ -1047,7 +1047,7 @@ void binder_alloc_vma_close(struct binder_alloc *alloc)
 /**
  * binder_alloc_free_page() - shrinker callback to free pages
  * @item:   item to free
- * @lock:   lock protecting the item
+ * @lru:    list_lru instance of the item
  * @cb_arg: callback argument
  *
  * Called from list_lru_walk() in binder_shrink_scan() to free
@@ -1055,9 +1055,8 @@ void binder_alloc_vma_close(struct binder_alloc *alloc)
  */
 enum lru_status binder_alloc_free_page(struct list_head *item,
 				       struct list_lru_one *lru,
-				       spinlock_t *lock,
 				       void *cb_arg)
-	__must_hold(lock)
+	__must_hold(&lru->lock)
 {
 	struct binder_lru_page *page = container_of(item, typeof(*page), lru);
 	struct binder_alloc *alloc = page->alloc;
@@ -1092,7 +1091,7 @@ enum lru_status binder_alloc_free_page(struct list_head *item,
 
 	list_lru_isolate(lru, item);
 	spin_unlock(&alloc->lock);
-	spin_unlock(lock);
+	spin_unlock(&lru->lock);
 
 	if (vma) {
 		trace_binder_unmap_user_start(alloc, index);
@@ -1106,7 +1105,6 @@ enum lru_status binder_alloc_free_page(struct list_head *item,
 	mmput_async(mm);
 	__free_page(page_to_free);
 
-	spin_lock(lock);
 	return LRU_REMOVED_RETRY;
 
 err_invalid_vma:

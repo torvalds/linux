@@ -16,6 +16,7 @@
 #include <linux/mmc/sd.h>
 
 #include "core.h"
+#include "card.h"
 #include "sd_ops.h"
 #include "mmc_ops.h"
 
@@ -40,6 +41,15 @@ int mmc_app_cmd(struct mmc_host *host, struct mmc_card *card)
 
 	if (WARN_ON(card && card->host != host))
 		return -EINVAL;
+
+	/*
+	 * UHS2 packet has APP bit so only set APP_CMD flag here.
+	 * Will set the APP bit when assembling UHS2 packet.
+	 */
+	if (host->uhs2_sd_tran) {
+		host->uhs2_app_cmd = true;
+		return 0;
+	}
 
 	cmd.opcode = MMC_APP_CMD;
 
@@ -186,6 +196,20 @@ int mmc_send_app_op_cond(struct mmc_host *host, u32 ocr, u32 *rocr)
 		*rocr = cmd.resp[0];
 
 	return 0;
+}
+
+int mmc_send_ext_addr(struct mmc_host *host, u32 addr)
+{
+	struct mmc_command cmd = {
+		.opcode = SD_ADDR_EXT,
+		.arg = addr,
+		.flags = MMC_RSP_R1 | MMC_CMD_AC,
+	};
+
+	if (!mmc_card_ult_capacity(host->card))
+		return 0;
+
+	return mmc_wait_for_cmd(host, &cmd, 0);
 }
 
 static int __mmc_send_if_cond(struct mmc_host *host, u32 ocr, u8 pcie_bits,

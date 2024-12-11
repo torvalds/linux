@@ -8,6 +8,7 @@
  *          Mickael Reulier <mickael.reulier@st.com>
  */
 
+#include <linux/aperture.h>
 #include <linux/component.h>
 #include <linux/dma-mapping.h>
 #include <linux/mod_devicetable.h>
@@ -15,7 +16,6 @@
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 
-#include <drm/drm_aperture.h>
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_client_setup.h>
@@ -191,7 +191,7 @@ static int stm_drm_platform_probe(struct platform_device *pdev)
 
 	DRM_DEBUG("%s\n", __func__);
 
-	ret = drm_aperture_remove_framebuffers(&drv_driver);
+	ret = aperture_remove_all_conflicting_devices(drv_driver.name);
 	if (ret)
 		return ret;
 
@@ -245,7 +245,7 @@ MODULE_DEVICE_TABLE(of, drv_dt_ids);
 
 static struct platform_driver stm_drm_platform_driver = {
 	.probe = stm_drm_platform_probe,
-	.remove_new = stm_drm_platform_remove,
+	.remove = stm_drm_platform_remove,
 	.shutdown = stm_drm_platform_shutdown,
 	.driver = {
 		.name = "stm32-display",

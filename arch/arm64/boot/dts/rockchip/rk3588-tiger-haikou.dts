@@ -5,6 +5,7 @@
 
 /dts-v1/;
 #include <dt-bindings/input/input.h>
+#include <dt-bindings/soc/rockchip,vop2.h>
 #include "rk3588-tiger.dtsi"
 
 / {
@@ -20,7 +21,7 @@
 		stdout-path = "serial2:115200n8";
 	};
 
-	dc_12v: dc-12v-regulator {
+	dc_12v: regulator-dc-12v {
 		compatible = "regulator-fixed";
 		regulator-name = "dc_12v";
 		regulator-always-on;
@@ -61,6 +62,17 @@
 		};
 	};
 
+	hdmi-con {
+		compatible = "hdmi-connector";
+		type = "a";
+
+		port {
+			hdmi_con_in: endpoint {
+				remote-endpoint = <&hdmi0_out_con>;
+			};
+		};
+	};
+
 	i2s3-sound {
 		compatible = "simple-audio-card";
 		simple-audio-card,format = "i2s";
@@ -84,7 +96,7 @@
 		clock-frequency = <24576000>;
 	};
 
-	vcc3v3_baseboard: vcc3v3-baseboard-regulator {
+	vcc3v3_baseboard: regulator-vcc3v3-baseboard {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc3v3_baseboard";
 		regulator-always-on;
@@ -94,7 +106,7 @@
 		vin-supply = <&dc_12v>;
 	};
 
-	vcc3v3_low_noise: vcc3v3-low-noise-regulator {
+	vcc3v3_low_noise: regulator-vcc3v3-low-noise {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc3v3_low_noise";
 		regulator-boot-on;
@@ -103,7 +115,7 @@
 		vin-supply = <&vcc5v0_usb>;
 	};
 
-	vcc5v0_baseboard: vcc5v0-baseboard-regulator {
+	vcc5v0_baseboard: regulator-vcc5v0-baseboard {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc5v0_baseboard";
 		regulator-always-on;
@@ -113,7 +125,7 @@
 		vin-supply = <&dc_12v>;
 	};
 
-	vcc5v0_otg: vcc5v0-otg-regulator {
+	vcc5v0_otg: regulator-vcc5v0-otg {
 		compatible = "regulator-fixed";
 		enable-active-high;
 		gpio = <&gpio1 RK_PB5 GPIO_ACTIVE_HIGH>;
@@ -123,7 +135,7 @@
 		regulator-always-on;
 	};
 
-	vcc5v0_usb: vcc5v0-usb-regulator {
+	vcc5v0_usb: regulator-vcc5v0-usb {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc5v0_usb";
 		regulator-always-on;
@@ -133,7 +145,7 @@
 		vin-supply = <&dc_12v>;
 	};
 
-	vddd_audio_1v6: vddd-audio-1v6-regulator {
+	vddd_audio_1v6: regulator-vddd-audio-1v6 {
 		compatible = "regulator-fixed";
 		regulator-name = "vddd_audio_1v6";
 		regulator-boot-on;
@@ -152,6 +164,32 @@
 };
 
 &gmac0 {
+	status = "okay";
+};
+
+&hdmi0 {
+	/*
+	 * While HDMI-CEC is present on the Q7 connector, it is not
+	 * connected on Haikou itself.
+	 */
+	pinctrl-names = "default";
+	pinctrl-0 = <&hdmim0_tx0_hpd &hdmim1_tx0_scl &hdmim1_tx0_sda>;
+	status = "okay";
+};
+
+&hdmi0_in {
+	hdmi0_in_vp0: endpoint {
+		remote-endpoint = <&vp0_out_hdmi0>;
+	};
+};
+
+&hdmi0_out {
+	hdmi0_out_con: endpoint {
+		remote-endpoint = <&hdmi_con_in>;
+	};
+};
+
+&hdptxphy_hdmi0 {
 	status = "okay";
 };
 
@@ -320,4 +358,19 @@
 /* host2 on Q7_USB_P2, upper usb3 port */
 &usb_host2_xhci {
 	status = "okay";
+};
+
+&vop {
+	status = "okay";
+};
+
+&vop_mmu {
+	status = "okay";
+};
+
+&vp0 {
+	vp0_out_hdmi0: endpoint@ROCKCHIP_VOP2_EP_HDMI0 {
+		reg = <ROCKCHIP_VOP2_EP_HDMI0>;
+		remote-endpoint = <&hdmi0_in_vp0>;
+	};
 };

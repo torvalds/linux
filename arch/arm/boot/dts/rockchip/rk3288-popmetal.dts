@@ -47,7 +47,7 @@
 		pinctrl-0 = <&ir_int>;
 	};
 
-	vcc_flash: flash-regulator {
+	vcc_flash: regulator-flash {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc_flash";
 		regulator-min-microvolt = <1800000>;
@@ -55,7 +55,7 @@
 		vin-supply = <&vcc_io>;
 	};
 
-	vcc_sd: sdmmc-regulator {
+	vcc_sd: regulator-sdmmc {
 		compatible = "regulator-fixed";
 		gpio = <&gpio7 RK_PB3 GPIO_ACTIVE_LOW>;
 		pinctrl-names = "default";
@@ -67,7 +67,7 @@
 		vin-supply = <&vcc_io>;
 	};
 
-	vcc_sys: vsys-regulator {
+	vcc_sys: regulator-vsys {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc_sys";
 		regulator-min-microvolt = <5000000>;
@@ -80,7 +80,7 @@
 	 * A PT5128 creates both dovdd_1v8 and vcc28_dvp, controlled
 	 * by the dvp_pwr pin.
 	 */
-	vcc18_dvp: vcc18-dvp-regulator {
+	vcc18_dvp: regulator-vcc18-dvp {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc18-dvp";
 		regulator-min-microvolt = <1800000>;
@@ -88,7 +88,7 @@
 		vin-supply = <&vcc28_dvp>;
 	};
 
-	vcc28_dvp: vcc28-dvp-regulator {
+	vcc28_dvp: regulator-vcc28-dvp {
 		compatible = "regulator-fixed";
 		enable-active-high;
 		gpio = <&gpio0 RK_PC1 GPIO_ACTIVE_HIGH>;

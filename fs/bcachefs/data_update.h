@@ -40,7 +40,8 @@ void bch2_data_update_read_done(struct data_update *,
 int bch2_extent_drop_ptrs(struct btree_trans *,
 			  struct btree_iter *,
 			  struct bkey_s_c,
-			  struct data_update_opts);
+			  struct bch_io_opts *,
+			  struct data_update_opts *);
 
 void bch2_data_update_exit(struct data_update *);
 int bch2_data_update_init(struct btree_trans *, struct btree_iter *,

@@ -36,27 +36,22 @@ int hclge_comm_tqps_get_sset_count(struct hnae3_handle *handle)
 }
 EXPORT_SYMBOL_GPL(hclge_comm_tqps_get_sset_count);
 
-u8 *hclge_comm_tqps_get_strings(struct hnae3_handle *handle, u8 *data)
+void hclge_comm_tqps_get_strings(struct hnae3_handle *handle, u8 **data)
 {
 	struct hnae3_knic_private_info *kinfo = &handle->kinfo;
-	u8 *buff = data;
 	u16 i;
 
 	for (i = 0; i < kinfo->num_tqps; i++) {
 		struct hclge_comm_tqp *tqp =
 			container_of(kinfo->tqp[i], struct hclge_comm_tqp, q);
-		snprintf(buff, ETH_GSTRING_LEN, "txq%u_pktnum_rcd", tqp->index);
-		buff += ETH_GSTRING_LEN;
+		ethtool_sprintf(data, "txq%u_pktnum_rcd", tqp->index);
 	}
 
 	for (i = 0; i < kinfo->num_tqps; i++) {
 		struct hclge_comm_tqp *tqp =
 			container_of(kinfo->tqp[i], struct hclge_comm_tqp, q);
-		snprintf(buff, ETH_GSTRING_LEN, "rxq%u_pktnum_rcd", tqp->index);
-		buff += ETH_GSTRING_LEN;
+		ethtool_sprintf(data, "rxq%u_pktnum_rcd", tqp->index);
 	}
-
-	return buff;
 }
 EXPORT_SYMBOL_GPL(hclge_comm_tqps_get_strings);
 

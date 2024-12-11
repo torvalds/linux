@@ -3483,7 +3483,7 @@ static int qmp_combo_typec_switch_register(struct qmp_combo *qmp)
 }
 #endif
 
-static int qmp_combo_parse_dt_lecacy_dp(struct qmp_combo *qmp, struct device_node *np)
+static int qmp_combo_parse_dt_legacy_dp(struct qmp_combo *qmp, struct device_node *np)
 {
 	struct device *dev = qmp->dev;
 
@@ -3510,7 +3510,7 @@ static int qmp_combo_parse_dt_lecacy_dp(struct qmp_combo *qmp, struct device_nod
 	return 0;
 }
 
-static int qmp_combo_parse_dt_lecacy_usb(struct qmp_combo *qmp, struct device_node *np)
+static int qmp_combo_parse_dt_legacy_usb(struct qmp_combo *qmp, struct device_node *np)
 {
 	const struct qmp_phy_cfg *cfg = qmp->cfg;
 	struct device *dev = qmp->dev;
@@ -3576,11 +3576,11 @@ static int qmp_combo_parse_dt_legacy(struct qmp_combo *qmp, struct device_node *
 	if (IS_ERR(qmp->dp_serdes))
 		return PTR_ERR(qmp->dp_serdes);
 
-	ret = qmp_combo_parse_dt_lecacy_usb(qmp, usb_np);
+	ret = qmp_combo_parse_dt_legacy_usb(qmp, usb_np);
 	if (ret)
 		return ret;
 
-	ret = qmp_combo_parse_dt_lecacy_dp(qmp, dp_np);
+	ret = qmp_combo_parse_dt_legacy_dp(qmp, dp_np);
 	if (ret)
 		return ret;
 
@@ -3673,6 +3673,7 @@ static int qmp_combo_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	qmp->dev = dev;
+	dev_set_drvdata(dev, qmp);
 
 	qmp->orientation = TYPEC_ORIENTATION_NORMAL;
 
@@ -3748,8 +3749,6 @@ static int qmp_combo_probe(struct platform_device *pdev)
 	}
 
 	phy_set_drvdata(qmp->dp_phy, qmp);
-
-	dev_set_drvdata(dev, qmp);
 
 	if (usb_np == dev->of_node)
 		phy_provider = devm_of_phy_provider_register(dev, qmp_combo_phy_xlate);

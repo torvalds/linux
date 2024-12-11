@@ -346,20 +346,21 @@ static int hda_trigger(struct snd_sof_dev *sdev, struct snd_soc_dai *cpu_dai,
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
 		snd_hdac_ext_stream_start(hext_stream);
 		break;
-	case SNDRV_PCM_TRIGGER_SUSPEND:
-	case SNDRV_PCM_TRIGGER_STOP:
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
-		snd_hdac_ext_stream_clear(hext_stream);
-
 		/*
-		 * Save the LLP registers in case the stream is
-		 * restarting due PAUSE_RELEASE, or START without a pcm
-		 * close/open since in this case the LLP register is not reset
-		 * to 0 and the delay calculation will return with invalid
-		 * results.
+		 * Save the LLP registers since in case of PAUSE the LLP
+		 * register are not reset to 0, the delay calculation will use
+		 * the saved offsets for compensating the delay calculation.
 		 */
 		hext_stream->pplcllpl = readl(hext_stream->pplc_addr + AZX_REG_PPLCLLPL);
 		hext_stream->pplcllpu = readl(hext_stream->pplc_addr + AZX_REG_PPLCLLPU);
+		snd_hdac_ext_stream_clear(hext_stream);
+		break;
+	case SNDRV_PCM_TRIGGER_SUSPEND:
+	case SNDRV_PCM_TRIGGER_STOP:
+		hext_stream->pplcllpl = 0;
+		hext_stream->pplcllpu = 0;
+		snd_hdac_ext_stream_clear(hext_stream);
 		break;
 	default:
 		dev_err(sdev->dev, "unknown trigger command %d\n", cmd);
@@ -512,7 +513,6 @@ static const struct hda_dai_widget_dma_ops sdw_ipc4_chain_dma_ops = {
 static int hda_ipc3_post_trigger(struct snd_sof_dev *sdev, struct snd_soc_dai *cpu_dai,
 				 struct snd_pcm_substream *substream, int cmd)
 {
-	struct hdac_ext_stream *hext_stream = hda_get_hext_stream(sdev, cpu_dai, substream);
 	struct snd_soc_dapm_widget *w = snd_soc_dai_get_widget(cpu_dai, substream->stream);
 
 	switch (cmd) {
@@ -526,9 +526,6 @@ static int hda_ipc3_post_trigger(struct snd_sof_dev *sdev, struct snd_soc_dai *c
 		ret = hda_dai_config(w, SOF_DAI_CONFIG_FLAGS_HW_FREE, &data);
 		if (ret < 0)
 			return ret;
-
-		if (cmd == SNDRV_PCM_TRIGGER_STOP)
-			return hda_link_dma_cleanup(substream, hext_stream, cpu_dai);
 
 		break;
 	}

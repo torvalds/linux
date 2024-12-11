@@ -60,7 +60,6 @@ examples:
     pmic {
       #address-cells = <1>;
       #size-cells = <0>;
-      #interrupt-cells = <4>;
 
       charger@1000 {
         compatible = "qcom,pmi8998-charger";

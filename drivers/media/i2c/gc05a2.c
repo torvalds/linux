@@ -24,7 +24,6 @@
 
 #include <media/v4l2-cci.h>
 #include <media/v4l2-ctrls.h>
-#include <media/v4l2-event.h>
 #include <media/v4l2-fwnode.h>
 #include <media/v4l2-subdev.h>
 
@@ -1059,13 +1058,7 @@ static const struct v4l2_subdev_pad_ops gc05a2_subdev_pad_ops = {
 	.get_selection = gc05a2_get_selection,
 };
 
-static const struct v4l2_subdev_core_ops gc05a2_core_ops = {
-	.subscribe_event = v4l2_ctrl_subdev_subscribe_event,
-	.unsubscribe_event = v4l2_event_subdev_unsubscribe,
-};
-
 static const struct v4l2_subdev_ops gc05a2_subdev_ops = {
-	.core = &gc05a2_core_ops,
 	.video = &gc05a2_video_ops,
 	.pad = &gc05a2_subdev_pad_ops,
 };
@@ -1271,8 +1264,7 @@ static int gc05a2_probe(struct i2c_client *client)
 		return dev_err_probe(dev, ret,
 				     "failed to init controls\n");
 
-	gc05a2->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE |
-			    V4L2_SUBDEV_FL_HAS_EVENTS;
+	gc05a2->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
 	gc05a2->pad.flags = MEDIA_PAD_FL_SOURCE;
 	gc05a2->sd.dev = &client->dev;
 	gc05a2->sd.entity.function = MEDIA_ENT_F_CAM_SENSOR;

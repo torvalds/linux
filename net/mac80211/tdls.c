@@ -1342,7 +1342,8 @@ static void iee80211_tdls_recalc_chanctx(struct ieee80211_sub_if_data *sdata,
 			bw = min(bw, ieee80211_sta_cap_rx_bw(&sta->deflink));
 			if (bw != sta->sta.deflink.bandwidth) {
 				sta->sta.deflink.bandwidth = bw;
-				rate_control_rate_update(local, sband, sta, 0,
+				rate_control_rate_update(local, sband,
+							 &sta->deflink,
 							 IEEE80211_RC_BW_CHANGED);
 				/*
 				 * if a TDLS peer BW was updated, we need to

@@ -287,6 +287,7 @@
 	EM(rxrpc_call_see_input,		"SEE input   ") \
 	EM(rxrpc_call_see_release,		"SEE release ") \
 	EM(rxrpc_call_see_userid_exists,	"SEE u-exists") \
+	EM(rxrpc_call_see_waiting_call,		"SEE q-conn  ") \
 	E_(rxrpc_call_see_zap,			"SEE zap     ")
 
 #define rxrpc_txqueue_traces \
@@ -770,6 +771,31 @@ TRACE_EVENT(rxrpc_rx_done,
 			   ),
 
 	    TP_printk("r=%d a=%d", __entry->result, __entry->abort_code)
+	    );
+
+TRACE_EVENT(rxrpc_abort_call,
+	    TP_PROTO(const struct rxrpc_call *call, int abort_code),
+
+	    TP_ARGS(call, abort_code),
+
+	    TP_STRUCT__entry(
+		    __field(unsigned int,		call_nr)
+		    __field(enum rxrpc_abort_reason,	why)
+		    __field(int,			abort_code)
+		    __field(int,			error)
+			     ),
+
+	    TP_fast_assign(
+		    __entry->call_nr	= call->debug_id;
+		    __entry->why	= call->send_abort_why;
+		    __entry->abort_code	= abort_code;
+		    __entry->error	= call->send_abort_err;
+			   ),
+
+	    TP_printk("c=%08x a=%d e=%d %s",
+		      __entry->call_nr,
+		      __entry->abort_code, __entry->error,
+		      __print_symbolic(__entry->why, rxrpc_abort_reasons))
 	    );
 
 TRACE_EVENT(rxrpc_abort,

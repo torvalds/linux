@@ -226,7 +226,7 @@ static void tegra_hte_test_remove(struct platform_device *pdev)
 
 static struct platform_driver tegra_hte_test_driver = {
 	.probe = tegra_hte_test_probe,
-	.remove_new = tegra_hte_test_remove,
+	.remove = tegra_hte_test_remove,
 	.driver = {
 		.name = "tegra_hte_test",
 		.of_match_table = tegra_hte_test_of_match,

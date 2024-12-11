@@ -812,7 +812,7 @@ MODULE_DEVICE_TABLE(of, stm32_usbphyc_of_match);
 
 static struct platform_driver stm32_usbphyc_driver = {
 	.probe = stm32_usbphyc_probe,
-	.remove_new = stm32_usbphyc_remove,
+	.remove = stm32_usbphyc_remove,
 	.driver = {
 		.of_match_table = stm32_usbphyc_of_match,
 		.name = "stm32-usbphyc",

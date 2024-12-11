@@ -2,9 +2,13 @@
 #ifndef __PLATFORM_X86_INTEL_SCU_IPC_H_
 #define __PLATFORM_X86_INTEL_SCU_IPC_H_
 
+#include <linux/init.h>
 #include <linux/ioport.h>
+#include <linux/types.h>
 
 struct device;
+struct module;
+
 struct intel_scu_ipc_dev;
 
 /**

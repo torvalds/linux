@@ -933,6 +933,7 @@ void snd_hda_pick_pin_fixup(struct hda_codec *codec,
 			    bool match_all_pins)
 {
 	const struct snd_hda_pin_quirk *pq;
+	const char *name = NULL;
 
 	if (codec->fixup_id != HDA_FIXUP_ID_NOT_SET)
 		return;
@@ -946,15 +947,38 @@ void snd_hda_pick_pin_fixup(struct hda_codec *codec,
 			codec->fixup_id = pq->value;
 #ifdef CONFIG_SND_DEBUG_VERBOSE
 			codec->fixup_name = pq->name;
-			codec_dbg(codec, "%s: picked fixup %s (pin match)\n",
-				  codec->core.chip_name, codec->fixup_name);
+			name = pq->name;
 #endif
+			codec_info(codec, "%s: picked fixup %s (pin match)\n",
+				   codec->core.chip_name, name ? name : "");
 			codec->fixup_list = fixlist;
 			return;
 		}
 	}
 }
 EXPORT_SYMBOL_GPL(snd_hda_pick_pin_fixup);
+
+/* check whether the given quirk entry matches with vendor/device pair */
+static bool hda_quirk_match(u16 vendor, u16 device, const struct hda_quirk *q)
+{
+	if (q->subvendor != vendor)
+		return false;
+	return !q->subdevice ||
+		(device & q->subdevice_mask) == q->subdevice;
+}
+
+/* look through the quirk list and return the matching entry */
+static const struct hda_quirk *
+hda_quirk_lookup_id(u16 vendor, u16 device, const struct hda_quirk *list)
+{
+	const struct hda_quirk *q;
+
+	for (q = list; q->subvendor || q->subdevice; q++) {
+		if (hda_quirk_match(vendor, device, q))
+			return q;
+	}
+	return NULL;
+}
 
 /**
  * snd_hda_pick_fixup - Pick up a fixup matching with PCI/codec SSID or model string
@@ -975,14 +999,16 @@ EXPORT_SYMBOL_GPL(snd_hda_pick_pin_fixup);
  */
 void snd_hda_pick_fixup(struct hda_codec *codec,
 			const struct hda_model_fixup *models,
-			const struct snd_pci_quirk *quirk,
+			const struct hda_quirk *quirk,
 			const struct hda_fixup *fixlist)
 {
-	const struct snd_pci_quirk *q;
+	const struct hda_quirk *q;
 	int id = HDA_FIXUP_ID_NOT_SET;
 	const char *name = NULL;
 	const char *type = NULL;
 	unsigned int vendor, device;
+	u16 pci_vendor, pci_device;
+	u16 codec_vendor, codec_device;
 
 	if (codec->fixup_id != HDA_FIXUP_ID_NOT_SET)
 		return;
@@ -991,8 +1017,8 @@ void snd_hda_pick_fixup(struct hda_codec *codec,
 	if (codec->modelname && !strcmp(codec->modelname, "nofixup")) {
 		id = HDA_FIXUP_ID_NO_FIXUP;
 		fixlist = NULL;
-		codec_dbg(codec, "%s: picked no fixup (nofixup specified)\n",
-			  codec->core.chip_name);
+		codec_info(codec, "%s: picked no fixup (nofixup specified)\n",
+			   codec->core.chip_name);
 		goto found;
 	}
 
@@ -1002,8 +1028,8 @@ void snd_hda_pick_fixup(struct hda_codec *codec,
 			if (!strcmp(codec->modelname, models->name)) {
 				id = models->id;
 				name = models->name;
-				codec_dbg(codec, "%s: picked fixup %s (model specified)\n",
-					  codec->core.chip_name, codec->fixup_name);
+				codec_info(codec, "%s: picked fixup %s (model specified)\n",
+					   codec->core.chip_name, name);
 				goto found;
 			}
 			models++;
@@ -1013,27 +1039,42 @@ void snd_hda_pick_fixup(struct hda_codec *codec,
 	if (!quirk)
 		return;
 
+	if (codec->bus->pci) {
+		pci_vendor = codec->bus->pci->subsystem_vendor;
+		pci_device = codec->bus->pci->subsystem_device;
+	}
+
+	codec_vendor = codec->core.subsystem_id >> 16;
+	codec_device = codec->core.subsystem_id & 0xffff;
+
 	/* match with the SSID alias given by the model string "XXXX:YYYY" */
 	if (codec->modelname &&
 	    sscanf(codec->modelname, "%04x:%04x", &vendor, &device) == 2) {
-		q = snd_pci_quirk_lookup_id(vendor, device, quirk);
+		q = hda_quirk_lookup_id(vendor, device, quirk);
 		if (q) {
 			type = "alias SSID";
 			goto found_device;
 		}
 	}
 
-	/* match with the PCI SSID */
-	q = snd_pci_quirk_lookup(codec->bus->pci, quirk);
-	if (q) {
-		type = "PCI SSID";
-		goto found_device;
+	/* match primarily with the PCI SSID */
+	for (q = quirk; q->subvendor || q->subdevice; q++) {
+		/* if the entry is specific to codec SSID, check with it */
+		if (!codec->bus->pci || q->match_codec_ssid) {
+			if (hda_quirk_match(codec_vendor, codec_device, q)) {
+				type = "codec SSID";
+				goto found_device;
+			}
+		} else {
+			if (hda_quirk_match(pci_vendor, pci_device, q)) {
+				type = "PCI SSID";
+				goto found_device;
+			}
+		}
 	}
 
 	/* match with the codec SSID */
-	q = snd_pci_quirk_lookup_id(codec->core.subsystem_id >> 16,
-				    codec->core.subsystem_id & 0xffff,
-				    quirk);
+	q = hda_quirk_lookup_id(codec_vendor, codec_device, quirk);
 	if (q) {
 		type = "codec SSID";
 		goto found_device;
@@ -1046,9 +1087,9 @@ void snd_hda_pick_fixup(struct hda_codec *codec,
 #ifdef CONFIG_SND_DEBUG_VERBOSE
 	name = q->name;
 #endif
-	codec_dbg(codec, "%s: picked fixup %s for %s %04x:%04x\n",
-		  codec->core.chip_name, name ? name : "",
-		  type, q->subvendor, q->subdevice);
+	codec_info(codec, "%s: picked fixup %s for %s %04x:%04x\n",
+		   codec->core.chip_name, name ? name : "",
+		   type, q->subvendor, q->subdevice);
  found:
 	codec->fixup_id = id;
 	codec->fixup_list = fixlist;

@@ -151,7 +151,8 @@ struct rvin_group_route {
  * @model:		VIN model
  * @use_mc:		use media controller instead of controlling subdevice
  * @use_isp:		the VIN is connected to the ISP and not to the CSI-2
- * @nv12:		support outputing NV12 pixel format
+ * @nv12:		support outputting NV12 pixel format
+ * @raw10:		support outputting RAW10 pixel format
  * @max_width:		max input width the VIN supports
  * @max_height:		max input height the VIN supports
  * @routes:		list of possible routes from the CSI-2 recivers to
@@ -163,6 +164,7 @@ struct rvin_info {
 	bool use_mc;
 	bool use_isp;
 	bool nv12;
+	bool raw10;
 
 	unsigned int max_width;
 	unsigned int max_height;

@@ -49,9 +49,21 @@ properties:
               - anbernic,rg-arc-s
           - const: rockchip,rk3566
 
+      - description: ArmSoM Sige5 board
+        items:
+          - const: armsom,sige5
+          - const: rockchip,rk3576
+
       - description: ArmSoM Sige7 board
         items:
           - const: armsom,sige7
+          - const: rockchip,rk3588
+
+      - description: ArmSoM LM7 SoM
+        items:
+          - enum:
+              - armsom,w3
+          - const: armsom,lm7
           - const: rockchip,rk3588
 
       - description: Asus Tinker board
@@ -231,6 +243,11 @@ properties:
               - friendlyarm,nanopi-r2s
               - friendlyarm,nanopi-r2s-plus
           - const: rockchip,rk3328
+
+      - description: FriendlyElec NanoPi R3S
+        items:
+          - const: friendlyarm,nanopi-r3s
+          - const: rockchip,rk3566
 
       - description: FriendlyElec NanoPi4 series boards
         items:
@@ -760,6 +777,7 @@ properties:
         items:
           - enum:
               - powkiddy,rgb10max3
+              - powkiddy,rgb20sx
               - powkiddy,rgb30
               - powkiddy,rk2023
               - powkiddy,x55
@@ -788,6 +806,11 @@ properties:
               - radxa,e25
           - const: radxa,cm3i
           - const: rockchip,rk3568
+
+      - description: Radxa E20C
+        items:
+          - const: radxa,e20c
+          - const: rockchip,rk3528
 
       - description: Radxa Rock
         items:
@@ -872,6 +895,11 @@ properties:
           - const: radxa,rock-5b
           - const: rockchip,rk3588
 
+      - description: Radxa ROCK 5C
+        items:
+          - const: radxa,rock-5c
+          - const: rockchip,rk3588s
+
       - description: Radxa ROCK S0
         items:
           - const: radxa,rock-s0
@@ -883,6 +911,11 @@ properties:
               - radxa,zero-3e
               - radxa,zero-3w
           - const: rockchip,rk3566
+
+      - description: Relfor SAIB board
+        items:
+          - const: relfor,saib
+          - const: rockchip,rv1109
 
       - description: Rikomagic MK808 v1
         items:
@@ -978,6 +1011,11 @@ properties:
           - const: rockchip,rk3588-evb1-v10
           - const: rockchip,rk3588
 
+      - description: Rockchip RK3588S Evaluation board
+        items:
+          - const: rockchip,rk3588s-evb1-v10
+          - const: rockchip,rk3588s
+
       - description: Rockchip RV1108 Evaluation board
         items:
           - const: rockchip,rv1108-evb
@@ -1051,7 +1089,9 @@ properties:
 
       - description: Xunlong Orange Pi 5
         items:
-          - const: xunlong,orangepi-5
+          - enum:
+              - xunlong,orangepi-5
+              - xunlong,orangepi-5b
           - const: rockchip,rk3588s
 
       - description: Zkmagic A95X Z2
@@ -1068,6 +1108,11 @@ properties:
         items:
           - const: rockchip,rk3568-evb1-v10
           - const: rockchip,rk3568
+
+      - description: Sinovoip RK3308 Banana Pi P2 Pro
+        items:
+          - const: sinovoip,rk3308-bpi-p2pro
+          - const: rockchip,rk3308
 
       - description: Sinovoip RK3568 Banana Pi R2 Pro
         items:

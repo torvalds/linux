@@ -247,8 +247,7 @@
 			     "ethernet-phy-ieee802.3-c22";
 		rxc-skew-ps = <1500>;
 		reg = <0>;
-		interrupt-parent = <&gpio5>;
-		interrupts = <19 IRQ_TYPE_LEVEL_LOW>;
+		interrupts-extended = <&gpio5 19 IRQ_TYPE_LEVEL_LOW>;
 		reset-gpios = <&gpio5 18 GPIO_ACTIVE_LOW>;
 		/*
 		 * TX clock internal delay mode is required for reliable
@@ -368,8 +367,7 @@
 		compatible = "adi,adv7511w";
 		reg = <0x39>, <0x3f>, <0x3c>, <0x38>;
 		reg-names = "main", "edid", "cec", "packet";
-		interrupt-parent = <&gpio1>;
-		interrupts = <28 IRQ_TYPE_LEVEL_LOW>;
+		interrupts-extended = <&gpio1 28 IRQ_TYPE_LEVEL_LOW>;
 
 		avdd-supply = <&reg_1p8v>;
 		dvdd-supply = <&reg_1p8v>;

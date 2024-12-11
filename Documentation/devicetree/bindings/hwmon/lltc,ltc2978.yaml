@@ -26,6 +26,7 @@ properties:
       - lltc,ltc3886
       - lltc,ltc3887
       - lltc,ltc3889
+      - lltc,ltc7841
       - lltc,ltc7880
       - lltc,ltm2987
       - lltc,ltm4664
@@ -50,6 +51,7 @@ properties:
       * ltc2977, ltc2979, ltc2980, ltm2987 : vout0 - vout7
       * ltc2978 : vout0 - vout7
       * ltc3880, ltc3882, ltc3884, ltc3886, ltc3887, ltc3889 : vout0 - vout1
+      * ltc7841 : vout0
       * ltc7880 : vout0 - vout1
       * ltc3883 : vout0
       * ltm4664 : vout0 - vout1

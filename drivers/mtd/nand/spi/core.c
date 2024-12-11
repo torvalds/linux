@@ -337,7 +337,7 @@ static int spinand_ondie_ecc_finish_io_req(struct nand_device *nand,
 	return ret;
 }
 
-static struct nand_ecc_engine_ops spinand_ondie_ecc_engine_ops = {
+static const struct nand_ecc_engine_ops spinand_ondie_ecc_engine_ops = {
 	.init_ctx = spinand_ondie_ecc_init_ctx,
 	.cleanup_ctx = spinand_ondie_ecc_cleanup_ctx,
 	.prepare_io_req = spinand_ondie_ecc_prepare_io_req,

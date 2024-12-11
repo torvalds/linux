@@ -1,5 +1,5 @@
 #!/bin/sh
-# Check Arm CoreSight trace data recording and synthesized samples
+# Check Arm CoreSight trace data recording and synthesized samples (exclusive)
 
 # Uses the 'perf record' to record trace data with Arm CoreSight sinks;
 # then verify if there have any branch samples and instruction samples
@@ -12,7 +12,7 @@
 glb_err=0
 
 skip_if_no_cs_etm_event() {
-	perf list | grep -q 'cs_etm//' && return 0
+	perf list pmu | grep -q 'cs_etm//' && return 0
 
 	# cs_etm event doesn't exist
 	return 2

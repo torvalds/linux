@@ -1294,6 +1294,9 @@ static const struct key_entry ideapad_keymap[] = {
 	{ KE_KEY,	0x27 | IDEAPAD_WMI_KEY, { KEY_HELP } },
 	/* Refresh Rate Toggle */
 	{ KE_KEY,	0x0a | IDEAPAD_WMI_KEY, { KEY_REFRESH_RATE_TOGGLE } },
+	/* Specific to some newer models */
+	{ KE_KEY,	0x3e | IDEAPAD_WMI_KEY, { KEY_MICMUTE } },
+	{ KE_KEY,	0x3f | IDEAPAD_WMI_KEY, { KEY_RFKILL } },
 
 	{ KE_END },
 };
@@ -1823,19 +1826,19 @@ int ideapad_laptop_register_notifier(struct notifier_block *nb)
 {
 	return blocking_notifier_chain_register(&ideapad_laptop_chain_head, nb);
 }
-EXPORT_SYMBOL_NS_GPL(ideapad_laptop_register_notifier, IDEAPAD_LAPTOP);
+EXPORT_SYMBOL_NS_GPL(ideapad_laptop_register_notifier, "IDEAPAD_LAPTOP");
 
 int ideapad_laptop_unregister_notifier(struct notifier_block *nb)
 {
 	return blocking_notifier_chain_unregister(&ideapad_laptop_chain_head, nb);
 }
-EXPORT_SYMBOL_NS_GPL(ideapad_laptop_unregister_notifier, IDEAPAD_LAPTOP);
+EXPORT_SYMBOL_NS_GPL(ideapad_laptop_unregister_notifier, "IDEAPAD_LAPTOP");
 
 void ideapad_laptop_call_notifier(unsigned long action, void *data)
 {
 	blocking_notifier_call_chain(&ideapad_laptop_chain_head, action, data);
 }
-EXPORT_SYMBOL_NS_GPL(ideapad_laptop_call_notifier, IDEAPAD_LAPTOP);
+EXPORT_SYMBOL_NS_GPL(ideapad_laptop_call_notifier, "IDEAPAD_LAPTOP");
 
 static void ideapad_acpi_notify(acpi_handle handle, u32 event, void *data)
 {
@@ -2306,7 +2309,7 @@ MODULE_DEVICE_TABLE(acpi, ideapad_device_ids);
 
 static struct platform_driver ideapad_acpi_driver = {
 	.probe = ideapad_acpi_add,
-	.remove_new = ideapad_acpi_remove,
+	.remove = ideapad_acpi_remove,
 	.driver = {
 		.name   = "ideapad_acpi",
 		.pm     = &ideapad_pm,

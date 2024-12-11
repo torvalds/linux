@@ -243,7 +243,7 @@ static struct platform_driver pcf50633_adc_driver = {
 		.name = "pcf50633-adc",
 	},
 	.probe = pcf50633_adc_probe,
-	.remove_new = pcf50633_adc_remove,
+	.remove = pcf50633_adc_remove,
 };
 
 module_platform_driver(pcf50633_adc_driver);

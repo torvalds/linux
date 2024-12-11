@@ -101,8 +101,12 @@ struct am65_cpsw_rx_flow {
 	struct hrtimer rx_hrtimer;
 	unsigned long rx_pace_timeout;
 	struct page_pool *page_pool;
-	struct page **pages;
 	char name[32];
+};
+
+struct am65_cpsw_swdata {
+	u32 flow_id;
+	struct page *page;
 };
 
 struct am65_cpsw_rx_chn {
@@ -180,18 +184,9 @@ struct am65_cpsw_common {
 	u32			*ale_context;
 };
 
-struct am65_cpsw_ndev_stats {
-	u64 tx_packets;
-	u64 tx_bytes;
-	u64 rx_packets;
-	u64 rx_bytes;
-	struct u64_stats_sync syncp;
-};
-
 struct am65_cpsw_ndev_priv {
 	u32			msg_enable;
 	struct am65_cpsw_port	*port;
-	struct am65_cpsw_ndev_stats __percpu *stats;
 	bool offload_fwd_mark;
 	/* Serialize access to MAC Merge state between ethtool requests
 	 * and link state updates

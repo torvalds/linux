@@ -773,7 +773,7 @@
 		>;
 	};
 
-	pinctrl_pca9539: pca9539 {
+	pinctrl_pca9539: pca9539grp {
 		fsl,pins = <
 			MX6QDL_PAD_GPIO_19__GPIO4_IO05			0x1b0b0
 		>;

@@ -808,7 +808,8 @@ void link_set_dsc_on_stream(struct pipe_ctx *pipe_ctx, bool enable)
 		enum optc_dsc_mode optc_dsc_mode;
 
 		/* Enable DSC hw block */
-		dsc_cfg.pic_width = (stream->timing.h_addressable + stream->timing.h_border_left + stream->timing.h_border_right) / opp_cnt;
+		dsc_cfg.pic_width = (stream->timing.h_addressable + pipe_ctx->hblank_borrow +
+				stream->timing.h_border_left + stream->timing.h_border_right) / opp_cnt;
 		dsc_cfg.pic_height = stream->timing.v_addressable + stream->timing.v_border_top + stream->timing.v_border_bottom;
 		dsc_cfg.pixel_encoding = stream->timing.pixel_encoding;
 		dsc_cfg.color_depth = stream->timing.display_color_depth;
@@ -2082,6 +2083,9 @@ static enum dc_status enable_link_dp(struct dc_state *state,
 	if (link_settings->link_rate == LINK_RATE_LOW)
 		skip_video_pattern = false;
 
+	if (stream->sink_patches.oled_optimize_display_on)
+		set_default_brightness_aux(link);
+
 	if (perform_link_training_with_retries(link_settings,
 					       skip_video_pattern,
 					       lt_attempts,
@@ -2105,10 +2109,14 @@ static enum dc_status enable_link_dp(struct dc_state *state,
 	if (link->dpcd_sink_ext_caps.bits.oled == 1 ||
 		link->dpcd_sink_ext_caps.bits.sdr_aux_backlight_control == 1 ||
 		link->dpcd_sink_ext_caps.bits.hdr_aux_backlight_control == 1) {
-		set_default_brightness_aux(link);
-		if (link->dpcd_sink_ext_caps.bits.oled == 1)
-			msleep(bl_oled_enable_delay);
-		edp_backlight_enable_aux(link, true);
+		if (!stream->sink_patches.oled_optimize_display_on) {
+			set_default_brightness_aux(link);
+			if (link->dpcd_sink_ext_caps.bits.oled == 1)
+				msleep(bl_oled_enable_delay);
+			edp_backlight_enable_aux(link, true);
+		} else {
+			edp_backlight_enable_aux(link, true);
+		}
 	}
 
 	return status;

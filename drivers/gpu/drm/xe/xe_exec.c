@@ -41,11 +41,6 @@
  * user knows an exec writes to a BO and reads from the BO in the next exec, it
  * is the user's responsibility to pass in / out fence between the two execs).
  *
- * Implicit dependencies for external BOs are handled by using the dma-buf
- * implicit dependency uAPI (TODO: add link). To make this works each exec must
- * install the job's fence into the DMA_RESV_USAGE_WRITE slot of every external
- * BO mapped in the VM.
- *
  * We do not allow a user to trigger a bind at exec time rather we have a VM
  * bind IOCTL which uses the same in / out fence interface as exec. In that
  * sense, a VM bind is basically the same operation as an exec from the user
@@ -59,8 +54,8 @@
  * behind any pending kernel operations on any external BOs in VM or any BOs
  * private to the VM. This is accomplished by the rebinds waiting on BOs
  * DMA_RESV_USAGE_KERNEL slot (kernel ops) and kernel ops waiting on all BOs
- * slots (inflight execs are in the DMA_RESV_USAGE_BOOKING for private BOs and
- * in DMA_RESV_USAGE_WRITE for external BOs).
+ * slots (inflight execs are in the DMA_RESV_USAGE_BOOKKEEP for private BOs and
+ * for external BOs).
  *
  * Rebinds / dma-resv usage applies to non-compute mode VMs only as for compute
  * mode VMs we use preempt fences and a rebind worker (TODO: add link).
@@ -137,12 +132,16 @@ int xe_exec_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 	if (XE_IOCTL_DBG(xe, !q))
 		return -ENOENT;
 
-	if (XE_IOCTL_DBG(xe, q->flags & EXEC_QUEUE_FLAG_VM))
-		return -EINVAL;
+	if (XE_IOCTL_DBG(xe, q->flags & EXEC_QUEUE_FLAG_VM)) {
+		err = -EINVAL;
+		goto err_exec_queue;
+	}
 
 	if (XE_IOCTL_DBG(xe, args->num_batch_buffer &&
-			 q->width != args->num_batch_buffer))
-		return -EINVAL;
+			 q->width != args->num_batch_buffer)) {
+		err = -EINVAL;
+		goto err_exec_queue;
+	}
 
 	if (XE_IOCTL_DBG(xe, q->ops->reset_status(q))) {
 		err = -ECANCELED;
@@ -204,14 +203,14 @@ retry:
 		write_locked = false;
 	}
 	if (err)
-		goto err_syncs;
+		goto err_hw_exec_mode;
 
 	if (write_locked) {
 		err = xe_vm_userptr_pin(vm);
 		downgrade_write(&vm->lock);
 		write_locked = false;
 		if (err)
-			goto err_hw_exec_mode;
+			goto err_unlock_list;
 	}
 
 	if (!args->num_batch_buffer) {
@@ -225,6 +224,7 @@ retry:
 			fence = xe_sync_in_fence_get(syncs, num_syncs, q, vm);
 			if (IS_ERR(fence)) {
 				err = PTR_ERR(fence);
+				xe_vm_unlock(vm);
 				goto err_unlock_list;
 			}
 			for (i = 0; i < num_syncs; i++)
@@ -304,7 +304,8 @@ retry:
 	xe_sched_job_arm(job);
 	if (!xe_vm_in_lr_mode(vm))
 		drm_gpuvm_resv_add_fence(&vm->gpuvm, exec, &job->drm.s_fence->finished,
-					 DMA_RESV_USAGE_BOOKKEEP, DMA_RESV_USAGE_WRITE);
+					 DMA_RESV_USAGE_BOOKKEEP,
+					 DMA_RESV_USAGE_BOOKKEEP);
 
 	for (i = 0; i < num_syncs; i++) {
 		xe_sync_entry_signal(&syncs[i], &job->drm.s_fence->finished);

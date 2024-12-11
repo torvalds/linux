@@ -608,12 +608,6 @@ bool clk_hw_is_prepared(const struct clk_hw *hw)
 }
 EXPORT_SYMBOL_GPL(clk_hw_is_prepared);
 
-bool clk_hw_rate_is_protected(const struct clk_hw *hw)
-{
-	return clk_core_rate_is_protected(hw->core);
-}
-EXPORT_SYMBOL_GPL(clk_hw_rate_is_protected);
-
 bool clk_hw_is_enabled(const struct clk_hw *hw)
 {
 	return clk_core_is_enabled(hw->core);
@@ -2536,7 +2530,7 @@ static int clk_core_set_rate_nolock(struct clk_core *core,
 	rate = clk_core_req_round_rate_nolock(core, req_rate);
 
 	/* bail early if nothing to do */
-	if (rate == clk_core_get_rate_nolock(core))
+	if (rate == clk_core_get_rate_recalc(core))
 		return 0;
 
 	/* fail on a direct rate set of a protected provider */

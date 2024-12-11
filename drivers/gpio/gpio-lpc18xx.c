@@ -388,7 +388,7 @@ MODULE_DEVICE_TABLE(of, lpc18xx_gpio_match);
 
 static struct platform_driver lpc18xx_gpio_driver = {
 	.probe	= lpc18xx_gpio_probe,
-	.remove_new = lpc18xx_gpio_remove,
+	.remove	= lpc18xx_gpio_remove,
 	.driver	= {
 		.name		= "lpc18xx-gpio",
 		.of_match_table	= lpc18xx_gpio_match,

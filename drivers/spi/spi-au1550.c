@@ -940,7 +940,7 @@ MODULE_ALIAS("platform:au1550-spi");
 
 static struct platform_driver au1550_spi_drv = {
 	.probe = au1550_spi_probe,
-	.remove_new = au1550_spi_remove,
+	.remove = au1550_spi_remove,
 	.driver = {
 		.name = "au1550-spi",
 	},

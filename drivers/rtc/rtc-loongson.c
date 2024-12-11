@@ -381,7 +381,7 @@ MODULE_DEVICE_TABLE(acpi, loongson_rtc_acpi_match);
 
 static struct platform_driver loongson_rtc_driver = {
 	.probe		= loongson_rtc_probe,
-	.remove_new	= loongson_rtc_remove,
+	.remove		= loongson_rtc_remove,
 	.driver		= {
 		.name	= "loongson-rtc",
 		.of_match_table = loongson_rtc_of_match,

@@ -653,7 +653,7 @@ static struct platform_driver cctrng_driver = {
 		.pm = &cctrng_pm,
 	},
 	.probe = cctrng_probe,
-	.remove_new = cctrng_remove,
+	.remove = cctrng_remove,
 };
 
 module_platform_driver(cctrng_driver);

@@ -85,7 +85,7 @@ static struct platform_driver raspberrypi_cpufreq_driver = {
 		.name = "raspberrypi-cpufreq",
 	},
 	.probe          = raspberrypi_cpufreq_probe,
-	.remove_new	= raspberrypi_cpufreq_remove,
+	.remove		= raspberrypi_cpufreq_remove,
 };
 module_platform_driver(raspberrypi_cpufreq_driver);
 

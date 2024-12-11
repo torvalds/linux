@@ -76,7 +76,7 @@
 		};
 	};
 
-	vcc3v3_pcie_wl: vcc3v3-pcie-wl-regulator {
+	vcc3v3_pcie_wl: regulator-vcc3v3-pcie-wl {
 		compatible = "regulator-fixed";
 		enable-active-high;
 		gpios = <&gpio0 RK_PC4 GPIO_ACTIVE_HIGH>;
@@ -89,7 +89,7 @@
 		vin-supply = <&vcc5v0_sys>;
 	};
 
-	vcc5v0_host: vcc5v0-host-regulator {
+	vcc5v0_host: regulator-vcc5v0-host {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc5v0_host";
 		regulator-boot-on;
@@ -103,7 +103,7 @@
 		vin-supply = <&vcc5v0_sys>;
 	};
 
-	vcc5v0_sys: vcc5v0-sys-regulator {
+	vcc5v0_sys: regulator-vcc5v0-sys {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc5v0_sys";
 		regulator-always-on;
@@ -112,7 +112,7 @@
 		regulator-max-microvolt = <5000000>;
 	};
 
-	vcc_1v1_nldo_s3: vcc-1v1-nldo-s3-regulator {
+	vcc_1v1_nldo_s3: regulator-vcc-1v1-nldo-s3 {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc_1v1_nldo_s3";
 		regulator-always-on;
@@ -122,7 +122,7 @@
 		vin-supply = <&vcc5v0_sys>;
 	};
 
-	vdd_3v3_sd: vdd-3v3-sd-regulator {
+	vdd_3v3_sd: regulator-vdd-3v3-sd {
 		compatible = "regulator-fixed";
 		regulator-name = "vdd_3v3_sd";
 		gpios = <&gpio1 RK_PB6 GPIO_ACTIVE_HIGH>;
@@ -283,6 +283,22 @@
 	reset-gpios = <&gpio3 RK_PD1 GPIO_ACTIVE_HIGH>;
 	vpcie3v3-supply = <&vcc3v3_pcie_wl>;
 	status = "okay";
+
+	pcie@0,0 {
+		reg = <0x400000 0 0 0 0>;
+		#address-cells = <3>;
+		#size-cells = <2>;
+		ranges;
+		device_type = "pci";
+		bus-range = <0x40 0x4f>;
+
+		wifi: wifi@0,0 {
+			compatible = "pci14e4,449d";
+			reg = <0x410000 0 0 0 0>;
+			clocks = <&hym8563>;
+			clock-names = "lpo";
+		};
+	};
 };
 
 &pwm11 {

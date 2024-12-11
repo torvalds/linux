@@ -1350,4 +1350,4 @@ module_i2c_driver(bu27034_i2c_driver);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Matti Vaittinen <matti.vaittinen@fi.rohmeurope.com>");
 MODULE_DESCRIPTION("ROHM BU27034 ambient light sensor driver");
-MODULE_IMPORT_NS(IIO_GTS_HELPER);
+MODULE_IMPORT_NS("IIO_GTS_HELPER");

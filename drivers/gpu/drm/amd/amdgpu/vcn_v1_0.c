@@ -95,14 +95,14 @@ static void vcn_v1_0_ring_begin_use(struct amdgpu_ring *ring);
 /**
  * vcn_v1_0_early_init - set function pointers and load microcode
  *
- * @handle: amdgpu_device pointer
+ * @ip_block: Pointer to the amdgpu_ip_block for this hw instance.
  *
  * Set ring and irq function pointers
  * Load microcode from filesystem
  */
-static int vcn_v1_0_early_init(void *handle)
+static int vcn_v1_0_early_init(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	adev->vcn.num_enc_rings = 2;
 
@@ -110,7 +110,7 @@ static int vcn_v1_0_early_init(void *handle)
 	vcn_v1_0_set_enc_ring_funcs(adev);
 	vcn_v1_0_set_irq_funcs(adev);
 
-	jpeg_v1_0_early_init(handle);
+	jpeg_v1_0_early_init(ip_block);
 
 	return amdgpu_vcn_early_init(adev);
 }
@@ -118,17 +118,17 @@ static int vcn_v1_0_early_init(void *handle)
 /**
  * vcn_v1_0_sw_init - sw init for VCN block
  *
- * @handle: amdgpu_device pointer
+ * @ip_block: Pointer to the amdgpu_ip_block for this hw instance.
  *
  * Load firmware and sw initialization
  */
-static int vcn_v1_0_sw_init(void *handle)
+static int vcn_v1_0_sw_init(struct amdgpu_ip_block *ip_block)
 {
 	struct amdgpu_ring *ring;
 	int i, r;
 	uint32_t reg_count = ARRAY_SIZE(vcn_reg_list_1_0);
 	uint32_t *ptr;
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	/* VCN DEC TRAP */
 	r = amdgpu_irq_add_id(adev, SOC15_IH_CLIENTID_VCN,
@@ -197,7 +197,7 @@ static int vcn_v1_0_sw_init(void *handle)
 		amdgpu_vcn_fwlog_init(adev->vcn.inst);
 	}
 
-	r = jpeg_v1_0_sw_init(handle);
+	r = jpeg_v1_0_sw_init(ip_block);
 
 	/* Allocate memory for VCN IP Dump buffer */
 	ptr = kcalloc(adev->vcn.num_vcn_inst * reg_count, sizeof(uint32_t), GFP_KERNEL);
@@ -213,20 +213,20 @@ static int vcn_v1_0_sw_init(void *handle)
 /**
  * vcn_v1_0_sw_fini - sw fini for VCN block
  *
- * @handle: amdgpu_device pointer
+ * @ip_block: Pointer to the amdgpu_ip_block for this hw instance.
  *
  * VCN suspend and free up sw allocation
  */
-static int vcn_v1_0_sw_fini(void *handle)
+static int vcn_v1_0_sw_fini(struct amdgpu_ip_block *ip_block)
 {
 	int r;
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	r = amdgpu_vcn_suspend(adev);
 	if (r)
 		return r;
 
-	jpeg_v1_0_sw_fini(handle);
+	jpeg_v1_0_sw_fini(ip_block);
 
 	r = amdgpu_vcn_sw_fini(adev);
 
@@ -238,13 +238,13 @@ static int vcn_v1_0_sw_fini(void *handle)
 /**
  * vcn_v1_0_hw_init - start and test VCN block
  *
- * @handle: amdgpu_device pointer
+ * @ip_block: Pointer to the amdgpu_ip_block for this hw instance.
  *
  * Initialize the hardware, boot up the VCPU and do some testing
  */
-static int vcn_v1_0_hw_init(void *handle)
+static int vcn_v1_0_hw_init(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	struct amdgpu_ring *ring = &adev->vcn.inst->ring_dec;
 	int i, r;
 
@@ -268,13 +268,13 @@ static int vcn_v1_0_hw_init(void *handle)
 /**
  * vcn_v1_0_hw_fini - stop the hardware block
  *
- * @handle: amdgpu_device pointer
+ * @ip_block: Pointer to the amdgpu_ip_block for this hw instance.
  *
  * Stop the VCN block, mark ring as not ready any more
  */
-static int vcn_v1_0_hw_fini(void *handle)
+static int vcn_v1_0_hw_fini(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	cancel_delayed_work_sync(&adev->vcn.idle_work);
 
@@ -290,14 +290,14 @@ static int vcn_v1_0_hw_fini(void *handle)
 /**
  * vcn_v1_0_suspend - suspend VCN block
  *
- * @handle: amdgpu_device pointer
+ * @ip_block: Pointer to the amdgpu_ip_block for this hw instance.
  *
  * HW fini and suspend VCN block
  */
-static int vcn_v1_0_suspend(void *handle)
+static int vcn_v1_0_suspend(struct amdgpu_ip_block *ip_block)
 {
 	int r;
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	bool idle_work_unexecuted;
 
 	idle_work_unexecuted = cancel_delayed_work_sync(&adev->vcn.idle_work);
@@ -306,7 +306,7 @@ static int vcn_v1_0_suspend(void *handle)
 			amdgpu_dpm_enable_uvd(adev, false);
 	}
 
-	r = vcn_v1_0_hw_fini(adev);
+	r = vcn_v1_0_hw_fini(ip_block);
 	if (r)
 		return r;
 
@@ -318,20 +318,19 @@ static int vcn_v1_0_suspend(void *handle)
 /**
  * vcn_v1_0_resume - resume VCN block
  *
- * @handle: amdgpu_device pointer
+ * @ip_block: Pointer to the amdgpu_ip_block for this hw instance.
  *
  * Resume firmware and hw init VCN block
  */
-static int vcn_v1_0_resume(void *handle)
+static int vcn_v1_0_resume(struct amdgpu_ip_block *ip_block)
 {
 	int r;
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	r = amdgpu_vcn_resume(adev);
+	r = amdgpu_vcn_resume(ip_block->adev);
 	if (r)
 		return r;
 
-	r = vcn_v1_0_hw_init(adev);
+	r = vcn_v1_0_hw_init(ip_block);
 
 	return r;
 }
@@ -1384,9 +1383,9 @@ static bool vcn_v1_0_is_idle(void *handle)
 	return (RREG32_SOC15(VCN, 0, mmUVD_STATUS) == UVD_STATUS__IDLE);
 }
 
-static int vcn_v1_0_wait_for_idle(void *handle)
+static int vcn_v1_0_wait_for_idle(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	int ret;
 
 	ret = SOC15_WAIT_ON_RREG(VCN, 0, mmUVD_STATUS, UVD_STATUS__IDLE,
@@ -1925,9 +1924,9 @@ void vcn_v1_0_ring_end_use(struct amdgpu_ring *ring)
 	mutex_unlock(&ring->adev->vcn.vcn1_jpeg1_workaround);
 }
 
-static void vcn_v1_0_print_ip_state(void *handle, struct drm_printer *p)
+static void vcn_v1_0_print_ip_state(struct amdgpu_ip_block *ip_block, struct drm_printer *p)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	int i, j;
 	uint32_t reg_count = ARRAY_SIZE(vcn_reg_list_1_0);
 	uint32_t inst_off, is_powered;
@@ -1957,9 +1956,9 @@ static void vcn_v1_0_print_ip_state(void *handle, struct drm_printer *p)
 	}
 }
 
-static void vcn_v1_0_dump_ip_state(void *handle)
+static void vcn_v1_0_dump_ip_state(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	int i, j;
 	bool is_powered;
 	uint32_t inst_off;
@@ -1988,7 +1987,6 @@ static void vcn_v1_0_dump_ip_state(void *handle)
 static const struct amd_ip_funcs vcn_v1_0_ip_funcs = {
 	.name = "vcn_v1_0",
 	.early_init = vcn_v1_0_early_init,
-	.late_init = NULL,
 	.sw_init = vcn_v1_0_sw_init,
 	.sw_fini = vcn_v1_0_sw_fini,
 	.hw_init = vcn_v1_0_hw_init,
@@ -1997,10 +1995,6 @@ static const struct amd_ip_funcs vcn_v1_0_ip_funcs = {
 	.resume = vcn_v1_0_resume,
 	.is_idle = vcn_v1_0_is_idle,
 	.wait_for_idle = vcn_v1_0_wait_for_idle,
-	.check_soft_reset = NULL /* vcn_v1_0_check_soft_reset */,
-	.pre_soft_reset = NULL /* vcn_v1_0_pre_soft_reset */,
-	.soft_reset = NULL /* vcn_v1_0_soft_reset */,
-	.post_soft_reset = NULL /* vcn_v1_0_post_soft_reset */,
 	.set_clockgating_state = vcn_v1_0_set_clockgating_state,
 	.set_powergating_state = vcn_v1_0_set_powergating_state,
 	.dump_ip_state = vcn_v1_0_dump_ip_state,

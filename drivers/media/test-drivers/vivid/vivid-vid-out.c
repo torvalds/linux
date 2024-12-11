@@ -201,8 +201,6 @@ const struct vb2_ops vivid_vid_out_qops = {
 	.start_streaming	= vid_out_start_streaming,
 	.stop_streaming		= vid_out_stop_streaming,
 	.buf_request_complete	= vid_out_buf_request_complete,
-	.wait_prepare		= vb2_ops_wait_prepare,
-	.wait_finish		= vb2_ops_wait_finish,
 };
 
 /*

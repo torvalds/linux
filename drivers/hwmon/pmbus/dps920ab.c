@@ -203,4 +203,4 @@ module_i2c_driver(dps920ab_driver);
 MODULE_AUTHOR("Robert Marko <robert.marko@sartura.hr>");
 MODULE_DESCRIPTION("PMBus driver for Delta DPS920AB PSU");
 MODULE_LICENSE("GPL");
-MODULE_IMPORT_NS(PMBUS);
+MODULE_IMPORT_NS("PMBUS");

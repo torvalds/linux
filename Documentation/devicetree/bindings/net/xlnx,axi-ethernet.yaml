@@ -61,7 +61,7 @@ properties:
       - gmii
       - rgmii
       - sgmii
-      - 1000BaseX
+      - 1000base-x
 
   xlnx,phy-type:
     description:

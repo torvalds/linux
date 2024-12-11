@@ -28,6 +28,6 @@ void BPF_STRUCT_OPS(prog_run_exit, struct scx_exit_info *ei)
 
 SEC(".struct_ops.link")
 struct sched_ext_ops prog_run_ops = {
-	.exit			= prog_run_exit,
+	.exit			= (void *) prog_run_exit,
 	.name			= "prog_run",
 };

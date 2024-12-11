@@ -24,7 +24,7 @@
 #include <linux/pgtable.h>
 
 #include <asm/udbg.h>
-#include <asm/code-patching.h>
+#include <asm/text-patching.h>
 
 #include "internal.h"
 

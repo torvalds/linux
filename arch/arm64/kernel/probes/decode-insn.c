@@ -58,10 +58,13 @@ static bool __kprobes aarch64_insn_is_steppable(u32 insn)
 	 * Instructions which load PC relative literals are not going to work
 	 * when executed from an XOL slot. Instructions doing an exclusive
 	 * load/store are not going to complete successfully when single-step
-	 * exception handling happens in the middle of the sequence.
+	 * exception handling happens in the middle of the sequence. Memory
+	 * copy/set instructions require that all three instructions be placed
+	 * consecutively in memory.
 	 */
 	if (aarch64_insn_uses_literal(insn) ||
-	    aarch64_insn_is_exclusive(insn))
+	    aarch64_insn_is_exclusive(insn) ||
+	    aarch64_insn_is_mops(insn))
 		return false;
 
 	return true;
@@ -73,8 +76,17 @@ static bool __kprobes aarch64_insn_is_steppable(u32 insn)
  *   INSN_GOOD_NO_SLOT If instruction is supported but doesn't use its slot.
  */
 enum probe_insn __kprobes
-arm_probe_decode_insn(probe_opcode_t insn, struct arch_probe_insn *api)
+arm_probe_decode_insn(u32 insn, struct arch_probe_insn *api)
 {
+	/*
+	 * While 'nop' instruction can execute in the out-of-line slot,
+	 * simulating them in breakpoint handling offers better performance.
+	 */
+	if (aarch64_insn_is_nop(insn)) {
+		api->handler = simulate_nop;
+		return INSN_GOOD_NO_SLOT;
+	}
+
 	/*
 	 * Instructions reading or modifying the PC won't work from the XOL
 	 * slot.
@@ -99,10 +111,6 @@ arm_probe_decode_insn(probe_opcode_t insn, struct arch_probe_insn *api)
 	    aarch64_insn_is_blr(insn) ||
 	    aarch64_insn_is_ret(insn)) {
 		api->handler = simulate_br_blr_ret;
-	} else if (aarch64_insn_is_ldr_lit(insn)) {
-		api->handler = simulate_ldr_literal;
-	} else if (aarch64_insn_is_ldrsw_lit(insn)) {
-		api->handler = simulate_ldrsw_literal;
 	} else {
 		/*
 		 * Instruction cannot be stepped out-of-line and we don't
@@ -137,9 +145,20 @@ enum probe_insn __kprobes
 arm_kprobe_decode_insn(kprobe_opcode_t *addr, struct arch_specific_insn *asi)
 {
 	enum probe_insn decoded;
-	probe_opcode_t insn = le32_to_cpu(*addr);
-	probe_opcode_t *scan_end = NULL;
+	u32 insn = le32_to_cpu(*addr);
+	kprobe_opcode_t *scan_end = NULL;
 	unsigned long size = 0, offset = 0;
+	struct arch_probe_insn *api = &asi->api;
+
+	if (aarch64_insn_is_ldr_lit(insn)) {
+		api->handler = simulate_ldr_literal;
+		decoded = INSN_GOOD_NO_SLOT;
+	} else if (aarch64_insn_is_ldrsw_lit(insn)) {
+		api->handler = simulate_ldrsw_literal;
+		decoded = INSN_GOOD_NO_SLOT;
+	} else {
+		decoded = arm_probe_decode_insn(insn, &asi->api);
+	}
 
 	/*
 	 * If there's a symbol defined in front of and near enough to
@@ -157,7 +176,6 @@ arm_kprobe_decode_insn(kprobe_opcode_t *addr, struct arch_specific_insn *asi)
 		else
 			scan_end = addr - MAX_ATOMIC_CONTEXT_SIZE;
 	}
-	decoded = arm_probe_decode_insn(insn, &asi->api);
 
 	if (decoded != INSN_REJECTED && scan_end)
 		if (is_probed_address_atomic(addr - 1, scan_end))

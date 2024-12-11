@@ -783,8 +783,8 @@ MODULE_DEVICE_TABLE(of, of_match);
 
 static struct platform_driver knav_dma_driver = {
 	.probe	= knav_dma_probe,
-	.remove_new = knav_dma_remove,
-	.driver = {
+	.remove	= knav_dma_remove,
+	.driver	= {
 		.name		= "keystone-navigator-dma",
 		.of_match_table	= of_match,
 	},

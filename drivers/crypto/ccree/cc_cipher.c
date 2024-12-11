@@ -179,7 +179,7 @@ static int cc_cipher_init(struct crypto_tfm *tfm)
 		}
 		max_key_buf_size <<= 1;
 
-		/* Alloc fallabck tfm or essiv when key size != 256 bit */
+		/* Alloc fallback tfm or essiv when key size != 256 bit */
 		ctx_p->fallback_tfm =
 			crypto_alloc_skcipher(name, 0, CRYPTO_ALG_NEED_FALLBACK | CRYPTO_ALG_ASYNC);
 

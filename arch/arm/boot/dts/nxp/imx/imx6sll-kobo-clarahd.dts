@@ -121,7 +121,7 @@
 		>;
 	};
 
-	pinctrl_i2c1_sleep: i2c1grp-sleep {
+	pinctrl_i2c1_sleep: i2c1sleep-grp {
 		fsl,pins = <
 			MX6SLL_PAD_I2C1_SCL__I2C1_SCL	0x400108b1
 			MX6SLL_PAD_I2C1_SDA__I2C1_SDA	0x400108b1
@@ -135,7 +135,7 @@
 		>;
 	};
 
-	pinctrl_i2c2_sleep: i2c2grp-sleep {
+	pinctrl_i2c2_sleep: i2c2sleep-grp {
 		fsl,pins = <
 			MX6SLL_PAD_I2C2_SCL__I2C2_SCL	0x400108b1
 			MX6SLL_PAD_I2C2_SDA__I2C2_SDA	0x400108b1
@@ -200,7 +200,7 @@
 		>;
 	};
 
-	pinctrl_usdhc2_100mhz: usdhc2grp-100mhz {
+	pinctrl_usdhc2_100mhz: usdhc2-100mhzgrp {
 		fsl,pins = <
 			MX6SLL_PAD_SD2_CMD__SD2_CMD		0x170b9
 			MX6SLL_PAD_SD2_CLK__SD2_CLK		0x130b9
@@ -211,7 +211,7 @@
 		>;
 	};
 
-	pinctrl_usdhc2_200mhz: usdhc2grp-200mhz {
+	pinctrl_usdhc2_200mhz: usdhc2-200mhzgrp {
 		fsl,pins = <
 			MX6SLL_PAD_SD2_CMD__SD2_CMD		0x170f9
 			MX6SLL_PAD_SD2_CLK__SD2_CLK		0x130f9
@@ -222,7 +222,7 @@
 		>;
 	};
 
-	pinctrl_usdhc2_sleep: usdhc2grp-sleep {
+	pinctrl_usdhc2_sleep: usdhc2sleep-grp {
 		fsl,pins = <
 			MX6SLL_PAD_SD2_CMD__GPIO5_IO04		0x100f9
 			MX6SLL_PAD_SD2_CLK__GPIO5_IO05		0x100f9
@@ -244,7 +244,7 @@
 		>;
 	};
 
-	pinctrl_usdhc3_100mhz: usdhc3grp-100mhz {
+	pinctrl_usdhc3_100mhz: usdhc3-100mhzgrp {
 		fsl,pins = <
 			MX6SLL_PAD_SD3_CMD__SD3_CMD	0x170b9
 			MX6SLL_PAD_SD3_CLK__SD3_CLK	0x170b9
@@ -255,7 +255,7 @@
 		>;
 	};
 
-	pinctrl_usdhc3_200mhz: usdhc3grp-200mhz {
+	pinctrl_usdhc3_200mhz: usdhc3-200mhzgrp {
 		fsl,pins = <
 			MX6SLL_PAD_SD3_CMD__SD3_CMD	0x170f9
 			MX6SLL_PAD_SD3_CLK__SD3_CLK	0x170f9
@@ -266,7 +266,7 @@
 		>;
 	};
 
-	pinctrl_usdhc3_sleep: usdhc3grp-sleep {
+	pinctrl_usdhc3_sleep: usdhc3sleep-grp {
 		fsl,pins = <
 			MX6SLL_PAD_SD3_CMD__GPIO5_IO21	0x100c1
 			MX6SLL_PAD_SD3_CLK__GPIO5_IO18	0x100c1

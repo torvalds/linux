@@ -158,7 +158,7 @@ MODULE_DEVICE_TABLE(of, vsc73xx_of_match);
 
 static struct platform_driver vsc73xx_platform_driver = {
 	.probe = vsc73xx_platform_probe,
-	.remove_new = vsc73xx_platform_remove,
+	.remove = vsc73xx_platform_remove,
 	.shutdown = vsc73xx_platform_shutdown,
 	.driver = {
 		.name = "vsc73xx-platform",

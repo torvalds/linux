@@ -47,7 +47,7 @@
 	analog-sound {
 		compatible = "audio-graph-card";
 		dais = <&i2s_8ch_p0>;
-		hp-det-gpio = <&gpio0 RK_PC7 GPIO_ACTIVE_HIGH>;
+		hp-det-gpios = <&gpio0 RK_PC7 GPIO_ACTIVE_HIGH>;
 		label = "alc5640";
 		routing = "Mic Jack", "MICBIAS1",
 			  "IN1P", "Mic Jack",
@@ -64,7 +64,7 @@
 		pinctrl-0 = <&hp_det>;
 	};
 
-	dc_12v: dc-12v-regulator {
+	dc_12v: regulator-dc-12v {
 		compatible = "regulator-fixed";
 		regulator-name = "dc_12v";
 		regulator-min-microvolt = <12000000>;
@@ -80,7 +80,7 @@
 		#clock-cells = <0>;
 	};
 
-	hub_avdd: hub-avdd-regulator {
+	hub_avdd: regulator-hub-avdd {
 		compatible = "regulator-fixed";
 		regulator-name = "hub_avdd";
 		regulator-min-microvolt = <3300000>;
@@ -111,7 +111,7 @@
 		pinctrl-0 = <&wifi_reg_on>;
 	};
 
-	vcc_host: vcc-host-regulator {
+	vcc_host: regulator-vcc-host {
 		compatible = "regulator-fixed";
 		gpio = <&gpio3 RK_PC1 GPIO_ACTIVE_HIGH>;
 		regulator-name = "vcc_host";
@@ -124,7 +124,7 @@
 		regulator-always-on;
 	};
 
-	vcc_lan: vcc-lan-regulator {
+	vcc_lan: regulator-vcc-lan {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc_lan";
 		regulator-min-microvolt = <3300000>;
@@ -133,7 +133,7 @@
 		regulator-always-on;
 	};
 
-	vcc_otg: vcc-otg-regulator {
+	vcc_otg: regulator-vcc-otg {
 		compatible = "regulator-fixed";
 		gpio = <&gpio0 RK_PC1 GPIO_ACTIVE_HIGH>;
 		regulator-name = "vcc_otg";
@@ -146,7 +146,7 @@
 		regulator-always-on;
 	};
 
-	vcc_sys: vcc-sys-regulator {
+	vcc_sys: regulator-vcc-sys {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc_sys";
 		regulator-min-microvolt = <5000000>;
@@ -156,7 +156,7 @@
 		regulator-boot-on;
 	};
 
-	vdd10_usb: vdd10-usb-regulator {
+	vdd10_usb: regulator-vdd10-usb {
 		compatible = "regulator-fixed";
 		regulator-name = "vdd10_usb";
 		regulator-min-microvolt = <1000000>;

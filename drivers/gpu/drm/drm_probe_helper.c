@@ -33,7 +33,7 @@
 #include <linux/moduleparam.h>
 
 #include <drm/drm_bridge.h>
-#include <drm/drm_client.h>
+#include <drm/drm_client_event.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_edid.h>
 #include <drm/drm_fourcc.h>

@@ -131,7 +131,7 @@ EXPORT_SYMBOL_GPL(dw_mci_pltfm_remove);
 
 static struct platform_driver dw_mci_pltfm_driver = {
 	.probe		= dw_mci_pltfm_probe,
-	.remove_new	= dw_mci_pltfm_remove,
+	.remove		= dw_mci_pltfm_remove,
 	.driver		= {
 		.name		= "dw_mmc",
 		.probe_type	= PROBE_PREFER_ASYNCHRONOUS,

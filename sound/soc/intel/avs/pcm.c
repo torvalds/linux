@@ -16,6 +16,7 @@
 #include <sound/soc-component.h>
 #include "avs.h"
 #include "path.h"
+#include "pcm.h"
 #include "topology.h"
 #include "../../codecs/hda.h"
 
@@ -30,6 +31,7 @@ struct avs_dma_data {
 		struct hdac_ext_stream *host_stream;
 	};
 
+	struct work_struct period_elapsed_work;
 	struct snd_pcm_substream *substream;
 };
 
@@ -56,6 +58,22 @@ avs_dai_find_path_template(struct snd_soc_dai *dai, bool is_fe, int direction)
 	return dw->priv;
 }
 
+static void avs_period_elapsed_work(struct work_struct *work)
+{
+	struct avs_dma_data *data = container_of(work, struct avs_dma_data, period_elapsed_work);
+
+	snd_pcm_period_elapsed(data->substream);
+}
+
+void avs_period_elapsed(struct snd_pcm_substream *substream)
+{
+	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
+	struct snd_soc_dai *dai = snd_soc_rtd_to_cpu(rtd, 0);
+	struct avs_dma_data *data = snd_soc_dai_get_dma_data(dai, substream);
+
+	schedule_work(&data->period_elapsed_work);
+}
+
 static int avs_dai_startup(struct snd_pcm_substream *substream, struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
@@ -77,6 +95,7 @@ static int avs_dai_startup(struct snd_pcm_substream *substream, struct snd_soc_d
 	data->substream = substream;
 	data->template = template;
 	data->adev = adev;
+	INIT_WORK(&data->period_elapsed_work, avs_period_elapsed_work);
 	snd_soc_dai_set_dma_data(dai, substream, data);
 
 	if (rtd->dai_link->ignore_suspend)
@@ -490,7 +509,7 @@ static int avs_pcm_hw_constraints_init(struct snd_pcm_substream *substream)
 			    SNDRV_PCM_HW_PARAM_FORMAT, SNDRV_PCM_HW_PARAM_CHANNELS,
 			    SNDRV_PCM_HW_PARAM_RATE, -1);
 
-	return ret;
+	return 0;
 }
 
 static int avs_dai_fe_startup(struct snd_pcm_substream *substream, struct snd_soc_dai *dai)

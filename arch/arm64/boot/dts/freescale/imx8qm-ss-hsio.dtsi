@@ -1,0 +1,209 @@
+// SPDX-License-Identifier: GPL-2.0+
+/*
+ * Copyright 2024 NXP
+ *	Richard Zhu <hongxing.zhu@nxp.com>
+ */
+
+&hsio_subsys {
+	compatible = "simple-bus";
+	ranges = <0x5f000000 0x0 0x5f000000 0x01000000>,
+		 <0x40000000 0x0 0x60000000 0x10000000>,
+		 <0x80000000 0x0 0x70000000 0x10000000>;
+	#address-cells = <1>;
+	#size-cells = <1>;
+
+	pciea: pcie@5f000000 {
+		compatible = "fsl,imx8q-pcie";
+		reg = <0x5f000000 0x10000>,
+		      <0x4ff00000 0x80000>;
+		reg-names = "dbi", "config";
+		ranges = <0x81000000 0 0x00000000 0x4ff80000 0 0x00010000>,
+			 <0x82000000 0 0x40000000 0x40000000 0 0x0ff00000>;
+		#interrupt-cells = <1>;
+		interrupts = <GIC_SPI 70 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "msi";
+		#address-cells = <3>;
+		#size-cells = <2>;
+		clocks = <&pciea_lpcg IMX_LPCG_CLK_6>,
+			 <&pciea_lpcg IMX_LPCG_CLK_4>,
+			 <&pciea_lpcg IMX_LPCG_CLK_5>;
+		clock-names = "dbi", "mstr", "slv";
+		bus-range = <0x00 0xff>;
+		device_type = "pci";
+		interrupt-map = <0 0 0 1 &gic 0 73 4>,
+				<0 0 0 2 &gic 0 74 4>,
+				<0 0 0 3 &gic 0 75 4>,
+				<0 0 0 4 &gic 0 76 4>;
+		interrupt-map-mask = <0 0 0 0x7>;
+		num-lanes = <1>;
+		num-viewport = <4>;
+		power-domains = <&pd IMX_SC_R_PCIE_A>;
+		fsl,max-link-speed = <3>;
+		status = "disabled";
+	};
+
+	pcieb: pcie@5f010000 {
+		compatible = "fsl,imx8q-pcie";
+		reg = <0x5f010000 0x10000>,
+		      <0x8ff00000 0x80000>;
+		reg-names = "dbi", "config";
+		ranges = <0x81000000 0 0x00000000 0x8ff80000 0 0x00010000>,
+			 <0x82000000 0 0x80000000 0x80000000 0 0x0ff00000>;
+		#interrupt-cells = <1>;
+		interrupts = <GIC_SPI 102 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "msi";
+		#address-cells = <3>;
+		#size-cells = <2>;
+		clocks = <&pcieb_lpcg IMX_LPCG_CLK_6>,
+			 <&pcieb_lpcg IMX_LPCG_CLK_4>,
+			 <&pcieb_lpcg IMX_LPCG_CLK_5>;
+		clock-names = "dbi", "mstr", "slv";
+		bus-range = <0x00 0xff>;
+		device_type = "pci";
+		interrupt-map = <0 0 0 1 &gic 0 105 4>,
+				<0 0 0 2 &gic 0 106 4>,
+				<0 0 0 3 &gic 0 107 4>,
+				<0 0 0 4 &gic 0 108 4>;
+		interrupt-map-mask = <0 0 0 0x7>;
+		num-lanes = <1>;
+		num-viewport = <4>;
+		power-domains = <&pd IMX_SC_R_PCIE_B>;
+		fsl,max-link-speed = <3>;
+		status = "disabled";
+	};
+
+	sata: sata@5f020000 {
+		compatible = "fsl,imx8qm-ahci";
+		reg = <0x5f020000 0x10000>;
+		interrupts = <GIC_SPI 88 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&sata_lpcg IMX_LPCG_CLK_4>,
+			 <&sata_crr4_lpcg IMX_LPCG_CLK_4>;
+		clock-names = "sata", "sata_ref";
+		phy-names = "sata-phy", "cali-phy0", "cali-phy1";
+		power-domains = <&pd IMX_SC_R_SATA_0>;
+		/*
+		 * Since "REXT" pin is only present for first lane PHY
+		 * and its calibration result will be stored, and shared
+		 * by the PHY used by SATA.
+		 *
+		 * Add the calibration PHYs for SATA here, although only
+		 * the third lane PHY is used by SATA.
+		 */
+		phys = <&hsio_phy 2 PHY_TYPE_SATA 0>,
+		       <&hsio_phy 0 PHY_TYPE_PCIE 0>,
+		       <&hsio_phy 1 PHY_TYPE_PCIE 1>;
+		status = "disabled";
+	};
+
+	pciea_lpcg: clock-controller@5f050000 {
+		compatible = "fsl,imx8qxp-lpcg";
+		reg = <0x5f050000 0x10000>;
+		clocks = <&hsio_axi_clk>, <&hsio_axi_clk>, <&hsio_axi_clk>;
+		#clock-cells = <1>;
+		clock-indices = <IMX_LPCG_CLK_4>, <IMX_LPCG_CLK_5>, <IMX_LPCG_CLK_6>;
+		clock-output-names = "hsio_pciea_mstr_axi_clk",
+				     "hsio_pciea_slv_axi_clk",
+				     "hsio_pciea_dbi_axi_clk";
+		power-domains = <&pd IMX_SC_R_PCIE_A>;
+	};
+
+	sata_lpcg: clock-controller@5f070000 {
+		compatible = "fsl,imx8qxp-lpcg";
+		reg = <0x5f070000 0x10000>;
+		clocks = <&hsio_axi_clk>;
+		#clock-cells = <1>;
+		clock-indices = <IMX_LPCG_CLK_4>;
+		clock-output-names = "hsio_sata_clk";
+		power-domains = <&pd IMX_SC_R_SATA_0>;
+	};
+
+	phyx2_lpcg: clock-controller@5f080000 {
+		compatible = "fsl,imx8qxp-lpcg";
+		reg = <0x5f080000 0x10000>;
+		clocks = <&hsio_refa_clk>, <&hsio_per_clk>,
+			 <&hsio_refa_clk>, <&hsio_per_clk>;
+		#clock-cells = <1>;
+		clock-indices = <IMX_LPCG_CLK_0>, <IMX_LPCG_CLK_1>,
+				<IMX_LPCG_CLK_4>, <IMX_LPCG_CLK_5>;
+		clock-output-names = "hsio_phyx2_pclk_0",
+				     "hsio_phyx2_pclk_1",
+				     "hsio_phyx2_apbclk_0",
+				     "hsio_phyx2_apbclk_1";
+		power-domains = <&pd IMX_SC_R_SERDES_0>;
+	};
+
+	phyx1_lpcg: clock-controller@5f090000 {
+		compatible = "fsl,imx8qxp-lpcg";
+		reg = <0x5f090000 0x10000>;
+		clocks = <&hsio_refa_clk>, <&hsio_per_clk>,
+			 <&hsio_per_clk>, <&hsio_per_clk>;
+		#clock-cells = <1>;
+		clock-indices = <IMX_LPCG_CLK_0>, <IMX_LPCG_CLK_1>,
+				<IMX_LPCG_CLK_2>, <IMX_LPCG_CLK_4>;
+		clock-output-names = "hsio_phyx1_pclk",
+				     "hsio_phyx1_epcs_tx_clk",
+				     "hsio_phyx1_epcs_rx_clk",
+				     "hsio_phyx1_apb_clk";
+		power-domains = <&pd IMX_SC_R_SERDES_1>;
+	};
+
+	phyx2_crr0_lpcg: clock-controller@5f0a0000 {
+		compatible = "fsl,imx8qxp-lpcg";
+		reg = <0x5f0a0000 0x10000>;
+		clocks = <&hsio_per_clk>;
+		#clock-cells = <1>;
+		clock-indices = <IMX_LPCG_CLK_4>;
+		clock-output-names = "hsio_phyx2_per_clk";
+		power-domains = <&pd IMX_SC_R_SERDES_0>;
+	};
+
+	pciea_crr2_lpcg: clock-controller@5f0c0000 {
+		compatible = "fsl,imx8qxp-lpcg";
+		reg = <0x5f0c0000 0x10000>;
+		clocks = <&hsio_per_clk>;
+		#clock-cells = <1>;
+		clock-indices = <IMX_LPCG_CLK_4>;
+		clock-output-names = "hsio_pciea_per_clk";
+		power-domains = <&pd IMX_SC_R_PCIE_A>;
+	};
+
+	sata_crr4_lpcg: clock-controller@5f0e0000 {
+		compatible = "fsl,imx8qxp-lpcg";
+		reg = <0x5f0e0000 0x10000>;
+		clocks = <&hsio_per_clk>;
+		#clock-cells = <1>;
+		clock-indices = <IMX_LPCG_CLK_4>;
+		clock-output-names = "hsio_sata_per_clk";
+		power-domains = <&pd IMX_SC_R_SATA_0>;
+	};
+
+	hsio_phy: phy@5f180000 {
+		compatible = "fsl,imx8qm-hsio";
+		reg = <0x5f180000 0x30000>,
+		      <0x5f110000 0x20000>,
+		      <0x5f130000 0x30000>,
+		      <0x5f160000 0x10000>;
+		reg-names = "reg", "phy", "ctrl", "misc";
+		clocks = <&phyx2_lpcg IMX_LPCG_CLK_0>,
+			 <&phyx2_lpcg IMX_LPCG_CLK_1>,
+			 <&phyx2_lpcg IMX_LPCG_CLK_4>,
+			 <&phyx2_lpcg IMX_LPCG_CLK_5>,
+			 <&phyx1_lpcg IMX_LPCG_CLK_0>,
+			 <&phyx1_lpcg IMX_LPCG_CLK_1>,
+			 <&phyx1_lpcg IMX_LPCG_CLK_2>,
+			 <&phyx1_lpcg IMX_LPCG_CLK_4>,
+			 <&phyx2_crr0_lpcg IMX_LPCG_CLK_4>,
+			 <&phyx1_crr1_lpcg IMX_LPCG_CLK_4>,
+			 <&pciea_crr2_lpcg IMX_LPCG_CLK_4>,
+			 <&pcieb_crr3_lpcg IMX_LPCG_CLK_4>,
+			 <&sata_crr4_lpcg IMX_LPCG_CLK_4>,
+			 <&misc_crr5_lpcg IMX_LPCG_CLK_4>;
+		clock-names = "pclk0", "pclk1", "apb_pclk0", "apb_pclk1",
+			      "pclk2", "epcs_tx", "epcs_rx", "apb_pclk2",
+			      "phy0_crr", "phy1_crr", "ctl0_crr",
+			      "ctl1_crr", "ctl2_crr", "misc_crr";
+		#phy-cells = <3>;
+		power-domains = <&pd IMX_SC_R_SERDES_0>, <&pd IMX_SC_R_SERDES_1>;
+		status = "disabled";
+	};
+};

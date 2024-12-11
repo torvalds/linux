@@ -297,18 +297,6 @@ static void optc32_set_drr(
 	optc32_setup_manual_trigger(optc);
 }
 
-bool optc32_get_double_buffer_pending(struct timing_generator *optc)
-{
-	struct optc *optc1 = DCN10TG_FROM_TG(optc);
-	uint32_t update_pending = 0;
-
-	REG_GET(OPTC_INPUT_GLOBAL_CONTROL,
-			OPTC_DOUBLE_BUFFER_PENDING,
-			&update_pending);
-
-	return (update_pending == 1);
-}
-
 static struct timing_generator_funcs dcn32_tg_funcs = {
 		.validate_timing = optc1_validate_timing,
 		.program_timing = optc1_program_timing,
@@ -373,7 +361,9 @@ static struct timing_generator_funcs dcn32_tg_funcs = {
 		.setup_manual_trigger = optc2_setup_manual_trigger,
 		.get_hw_timing = optc1_get_hw_timing,
 		.is_two_pixels_per_container = optc1_is_two_pixels_per_container,
-		.get_double_buffer_pending = optc32_get_double_buffer_pending,
+		.get_optc_double_buffer_pending = optc3_get_optc_double_buffer_pending,
+		.get_otg_double_buffer_pending = optc3_get_otg_update_pending,
+		.get_pipe_update_pending = optc3_get_pipe_update_pending,
 };
 
 void dcn32_timing_generator_init(struct optc *optc1)

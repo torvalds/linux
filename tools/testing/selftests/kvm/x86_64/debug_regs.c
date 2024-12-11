@@ -166,7 +166,7 @@ int main(void)
 	/* Test single step */
 	target_rip = CAST_TO_RIP(ss_start);
 	target_dr6 = 0xffff4ff0ULL;
-	for (i = 0; i < (sizeof(ss_size) / sizeof(ss_size[0])); i++) {
+	for (i = 0; i < ARRAY_SIZE(ss_size); i++) {
 		target_rip += ss_size[i];
 		memset(&debug, 0, sizeof(debug));
 		debug.control = KVM_GUESTDBG_ENABLE | KVM_GUESTDBG_SINGLESTEP |

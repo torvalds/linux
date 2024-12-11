@@ -12,6 +12,24 @@
 
 #include "internal.h"
 
+/* Context where printk messages are never suppressed */
+static atomic_t force_con;
+
+void printk_force_console_enter(void)
+{
+	atomic_inc(&force_con);
+}
+
+void printk_force_console_exit(void)
+{
+	atomic_dec(&force_con);
+}
+
+bool is_printk_force_console(void)
+{
+	return atomic_read(&force_con);
+}
+
 static DEFINE_PER_CPU(int, printk_context);
 
 /* Can be preempted by NMI. */

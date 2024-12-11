@@ -41,6 +41,8 @@ void mte_free_tag_storage(char *storage);
 
 static inline void set_page_mte_tagged(struct page *page)
 {
+	VM_WARN_ON_ONCE(folio_test_hugetlb(page_folio(page)));
+
 	/*
 	 * Ensure that the tags written prior to this function are visible
 	 * before the page flags update.
@@ -52,6 +54,8 @@ static inline void set_page_mte_tagged(struct page *page)
 static inline bool page_mte_tagged(struct page *page)
 {
 	bool ret = test_bit(PG_mte_tagged, &page->flags);
+
+	VM_WARN_ON_ONCE(folio_test_hugetlb(page_folio(page)));
 
 	/*
 	 * If the page is tagged, ensure ordering with a likely subsequent
@@ -76,6 +80,8 @@ static inline bool page_mte_tagged(struct page *page)
  */
 static inline bool try_page_mte_tagging(struct page *page)
 {
+	VM_WARN_ON_ONCE(folio_test_hugetlb(page_folio(page)));
+
 	if (!test_and_set_bit(PG_mte_lock, &page->flags))
 		return true;
 
@@ -156,6 +162,67 @@ static inline int mte_ptrace_copy_tags(struct task_struct *child,
 }
 
 #endif /* CONFIG_ARM64_MTE */
+
+#if defined(CONFIG_HUGETLB_PAGE) && defined(CONFIG_ARM64_MTE)
+static inline void folio_set_hugetlb_mte_tagged(struct folio *folio)
+{
+	VM_WARN_ON_ONCE(!folio_test_hugetlb(folio));
+
+	/*
+	 * Ensure that the tags written prior to this function are visible
+	 * before the folio flags update.
+	 */
+	smp_wmb();
+	set_bit(PG_mte_tagged, &folio->flags);
+
+}
+
+static inline bool folio_test_hugetlb_mte_tagged(struct folio *folio)
+{
+	bool ret = test_bit(PG_mte_tagged, &folio->flags);
+
+	VM_WARN_ON_ONCE(!folio_test_hugetlb(folio));
+
+	/*
+	 * If the folio is tagged, ensure ordering with a likely subsequent
+	 * read of the tags.
+	 */
+	if (ret)
+		smp_rmb();
+	return ret;
+}
+
+static inline bool folio_try_hugetlb_mte_tagging(struct folio *folio)
+{
+	VM_WARN_ON_ONCE(!folio_test_hugetlb(folio));
+
+	if (!test_and_set_bit(PG_mte_lock, &folio->flags))
+		return true;
+
+	/*
+	 * The tags are either being initialised or may have been initialised
+	 * already. Check if the PG_mte_tagged flag has been set or wait
+	 * otherwise.
+	 */
+	smp_cond_load_acquire(&folio->flags, VAL & (1UL << PG_mte_tagged));
+
+	return false;
+}
+#else
+static inline void folio_set_hugetlb_mte_tagged(struct folio *folio)
+{
+}
+
+static inline bool folio_test_hugetlb_mte_tagged(struct folio *folio)
+{
+	return false;
+}
+
+static inline bool folio_try_hugetlb_mte_tagging(struct folio *folio)
+{
+	return false;
+}
+#endif
 
 static inline void mte_disable_tco_entry(struct task_struct *task)
 {

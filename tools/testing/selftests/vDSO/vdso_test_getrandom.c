@@ -11,6 +11,7 @@
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
+#include <sched.h>
 #include <signal.h>
 #include <sys/auxv.h>
 #include <sys/mman.h>
@@ -39,6 +40,9 @@
 		}							\
 	} while (0)
 #endif
+
+#define ksft_assert(condition) \
+	do { if (!(condition)) ksft_exit_fail_msg("Assertion failed: %s\n", #condition); } while (0)
 
 static struct {
 	pthread_mutex_t lock;
@@ -111,26 +115,19 @@ static void vgetrandom_init(void)
 	const char *version = versions[VDSO_VERSION];
 	const char *name = names[VDSO_NAMES][6];
 	unsigned long sysinfo_ehdr = getauxval(AT_SYSINFO_EHDR);
-	size_t ret;
+	ssize_t ret;
 
-	if (!sysinfo_ehdr) {
-		printf("AT_SYSINFO_EHDR is not present!\n");
-		exit(KSFT_SKIP);
-	}
+	if (!sysinfo_ehdr)
+		ksft_exit_skip("AT_SYSINFO_EHDR is not present\n");
 	vdso_init_from_sysinfo_ehdr(sysinfo_ehdr);
 	vgrnd.fn = (__typeof__(vgrnd.fn))vdso_sym(version, name);
-	if (!vgrnd.fn) {
-		printf("%s is missing!\n", name);
-		exit(KSFT_FAIL);
-	}
+	if (!vgrnd.fn)
+		ksft_exit_skip("%s@%s symbol is missing from vDSO\n", name, version);
 	ret = VDSO_CALL(vgrnd.fn, 5, NULL, 0, 0, &vgrnd.params, ~0UL);
-	if (ret == -ENOSYS) {
-		printf("unsupported architecture\n");
-		exit(KSFT_SKIP);
-	} else if (ret) {
-		printf("failed to fetch vgetrandom params!\n");
-		exit(KSFT_FAIL);
-	}
+	if (ret == -ENOSYS)
+		ksft_exit_skip("CPU does not have runtime support\n");
+	else if (ret)
+		ksft_exit_fail_msg("Failed to fetch vgetrandom params: %zd\n", ret);
 }
 
 static ssize_t vgetrandom(void *buf, size_t len, unsigned long flags)
@@ -139,10 +136,7 @@ static ssize_t vgetrandom(void *buf, size_t len, unsigned long flags)
 
 	if (!state) {
 		state = vgetrandom_get_state();
-		if (!state) {
-			printf("vgetrandom_get_state failed!\n");
-			exit(KSFT_FAIL);
-		}
+		ksft_assert(state);
 	}
 	return VDSO_CALL(vgrnd.fn, 5, buf, len, flags, state, vgrnd.params.size_of_opaque_state);
 }
@@ -154,7 +148,7 @@ static void *test_vdso_getrandom(void *ctx)
 	for (size_t i = 0; i < TRIALS; ++i) {
 		unsigned int val;
 		ssize_t ret = vgetrandom(&val, sizeof(val), 0);
-		assert(ret == sizeof(val));
+		ksft_assert(ret == sizeof(val));
 	}
 	return NULL;
 }
@@ -164,7 +158,7 @@ static void *test_libc_getrandom(void *ctx)
 	for (size_t i = 0; i < TRIALS; ++i) {
 		unsigned int val;
 		ssize_t ret = getrandom(&val, sizeof(val), 0);
-		assert(ret == sizeof(val));
+		ksft_assert(ret == sizeof(val));
 	}
 	return NULL;
 }
@@ -174,7 +168,7 @@ static void *test_syscall_getrandom(void *ctx)
 	for (size_t i = 0; i < TRIALS; ++i) {
 		unsigned int val;
 		ssize_t ret = syscall(__NR_getrandom, &val, sizeof(val), 0);
-		assert(ret == sizeof(val));
+		ksft_assert(ret == sizeof(val));
 	}
 	return NULL;
 }
@@ -209,7 +203,7 @@ static void bench_multi(void)
 
 	clock_gettime(CLOCK_MONOTONIC, &start);
 	for (size_t i = 0; i < THREADS; ++i)
-		assert(pthread_create(&threads[i], NULL, test_vdso_getrandom, NULL) == 0);
+		ksft_assert(pthread_create(&threads[i], NULL, test_vdso_getrandom, NULL) == 0);
 	for (size_t i = 0; i < THREADS; ++i)
 		pthread_join(threads[i], NULL);
 	clock_gettime(CLOCK_MONOTONIC, &end);
@@ -218,7 +212,7 @@ static void bench_multi(void)
 
 	clock_gettime(CLOCK_MONOTONIC, &start);
 	for (size_t i = 0; i < THREADS; ++i)
-		assert(pthread_create(&threads[i], NULL, test_libc_getrandom, NULL) == 0);
+		ksft_assert(pthread_create(&threads[i], NULL, test_libc_getrandom, NULL) == 0);
 	for (size_t i = 0; i < THREADS; ++i)
 		pthread_join(threads[i], NULL);
 	clock_gettime(CLOCK_MONOTONIC, &end);
@@ -227,7 +221,7 @@ static void bench_multi(void)
 
 	clock_gettime(CLOCK_MONOTONIC, &start);
 	for (size_t i = 0; i < THREADS; ++i)
-		assert(pthread_create(&threads[i], NULL, test_syscall_getrandom, NULL) == 0);
+		ksft_assert(pthread_create(&threads[i], NULL, test_syscall_getrandom, NULL) == 0);
 	for (size_t i = 0; i < THREADS; ++i)
 		pthread_join(threads[i], NULL);
 	clock_gettime(CLOCK_MONOTONIC, &end);
@@ -252,48 +246,46 @@ static void kselftest(void)
 
 	for (size_t i = 0; i < 1000; ++i) {
 		ssize_t ret = vgetrandom(weird_size, sizeof(weird_size), 0);
-		if (ret != sizeof(weird_size))
-			exit(KSFT_FAIL);
+		ksft_assert(ret == sizeof(weird_size));
 	}
 
 	ksft_test_result_pass("getrandom: PASS\n");
 
 	unshare(CLONE_NEWUSER);
-	assert(unshare(CLONE_NEWTIME) == 0);
+	ksft_assert(unshare(CLONE_NEWTIME) == 0);
 	child = fork();
-	assert(child >= 0);
+	ksft_assert(child >= 0);
 	if (!child) {
 		vgetrandom_init();
 		child = getpid();
-		assert(ptrace(PTRACE_TRACEME, 0, NULL, NULL) == 0);
-		assert(kill(child, SIGSTOP) == 0);
-		assert(vgetrandom(weird_size, sizeof(weird_size), 0) == sizeof(weird_size));
+		ksft_assert(ptrace(PTRACE_TRACEME, 0, NULL, NULL) == 0);
+		ksft_assert(kill(child, SIGSTOP) == 0);
+		ksft_assert(vgetrandom(weird_size, sizeof(weird_size), 0) == sizeof(weird_size));
 		_exit(0);
 	}
 	for (;;) {
 		struct ptrace_syscall_info info = { 0 };
 		int status, ret;
-		assert(waitpid(child, &status, 0) >= 0);
+		ksft_assert(waitpid(child, &status, 0) >= 0);
 		if (WIFEXITED(status)) {
-			if (WEXITSTATUS(status) != 0)
-				exit(KSFT_FAIL);
+			ksft_assert(WEXITSTATUS(status) == 0);
 			break;
 		}
-		assert(WIFSTOPPED(status));
+		ksft_assert(WIFSTOPPED(status));
 		if (WSTOPSIG(status) == SIGSTOP)
-			assert(ptrace(PTRACE_SETOPTIONS, child, 0, PTRACE_O_TRACESYSGOOD) == 0);
+			ksft_assert(ptrace(PTRACE_SETOPTIONS, child, 0, PTRACE_O_TRACESYSGOOD) == 0);
 		else if (WSTOPSIG(status) == (SIGTRAP | 0x80)) {
-			assert(ptrace(PTRACE_GET_SYSCALL_INFO, child, sizeof(info), &info) > 0);
+			ksft_assert(ptrace(PTRACE_GET_SYSCALL_INFO, child, sizeof(info), &info) > 0);
 			if (info.op == PTRACE_SYSCALL_INFO_ENTRY && info.entry.nr == __NR_getrandom &&
 			    info.entry.args[0] == (uintptr_t)weird_size && info.entry.args[1] == sizeof(weird_size))
-				exit(KSFT_FAIL);
+				ksft_exit_fail_msg("vgetrandom passed buffer to syscall getrandom unexpectedly\n");
 		}
-		assert(ptrace(PTRACE_SYSCALL, child, 0, 0) == 0);
+		ksft_assert(ptrace(PTRACE_SYSCALL, child, 0, 0) == 0);
 	}
 
 	ksft_test_result_pass("getrandom timens: PASS\n");
 
-	exit(KSFT_PASS);
+	ksft_exit_pass();
 }
 
 static void usage(const char *argv0)

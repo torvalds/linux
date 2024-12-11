@@ -240,8 +240,31 @@ static int rk817_record_battery_nvram_values(struct rk817_charger *charger)
 static int rk817_bat_calib_cap(struct rk817_charger *charger)
 {
 	struct rk808 *rk808 = charger->rk808;
-	int tmp, charge_now, charge_now_adc, volt_avg;
+	int charge_now, charge_now_adc;
 	u8 bulk_reg[4];
+
+	/* Don't do anything if there's no battery. */
+	if (!charger->battery_present)
+		return 0;
+
+	/*
+	 * When resuming from suspend, sometimes the voltage value would be
+	 * incorrect. BSP would simply wait two seconds and try reading the
+	 * values again. Do not do any sort of calibration activity when the
+	 * reported value is incorrect. The next scheduled update of battery
+	 * vaules should then return valid data and the driver can continue.
+	 * Use 2.7v as the sanity value because per the datasheet the PMIC
+	 * can in no way support a battery voltage lower than this. BSP only
+	 * checked for values too low, but I'm adding in a check for values
+	 * too high just in case; again the PMIC can in no way support
+	 * voltages above 4.45v, so this seems like a good value.
+	 */
+	if ((charger->volt_avg_uv < 2700000) || (charger->volt_avg_uv > 4450000)) {
+		dev_dbg(charger->dev,
+			"Battery voltage of %d is invalid, ignoring.\n",
+			charger->volt_avg_uv);
+		return -EINVAL;
+	}
 
 	/* Calibrate the soc and fcc on a fully charged battery */
 
@@ -303,51 +326,6 @@ static int rk817_bat_calib_cap(struct rk817_charger *charger)
 					  bulk_reg, 4);
 		}
 	}
-
-	/*
-	 * Calibrate the fully charged capacity when we previously had a full
-	 * battery (soc_cal = 1) and are now empty (at or below minimum design
-	 * voltage). If our columb counter is still positive, subtract that
-	 * from our fcc value to get a calibrated fcc, and if our columb
-	 * counter is negative add that to our fcc (but not to exceed our
-	 * design capacity).
-	 */
-	regmap_bulk_read(charger->rk808->regmap, RK817_GAS_GAUGE_BAT_VOL_H,
-			 bulk_reg, 2);
-	tmp = get_unaligned_be16(bulk_reg);
-	volt_avg = (charger->voltage_k * tmp) + 1000 * charger->voltage_b;
-	if (volt_avg <= charger->bat_voltage_min_design_uv &&
-	    charger->soc_cal) {
-		regmap_bulk_read(rk808->regmap, RK817_GAS_GAUGE_Q_PRES_H3,
-				 bulk_reg, 4);
-		charge_now_adc = get_unaligned_be32(bulk_reg);
-		charge_now = ADC_TO_CHARGE_UAH(charge_now_adc,
-					       charger->res_div);
-		/*
-		 * Note, if charge_now is negative this will add it (what we
-		 * want) and if it's positive this will subtract (also what
-		 * we want).
-		 */
-		charger->fcc_mah = charger->fcc_mah - (charge_now / 1000);
-
-		dev_dbg(charger->dev,
-			"Recalibrating full charge capacity to %d uah\n",
-			charger->fcc_mah * 1000);
-	}
-
-	/*
-	 * Set the SOC to 0 if we are below the minimum system voltage.
-	 */
-	if (volt_avg <= charger->bat_voltage_min_design_uv) {
-		charger->soc = 0;
-		charge_now_adc = CHARGE_TO_ADC(0, charger->res_div);
-		put_unaligned_be32(charge_now_adc, bulk_reg);
-		regmap_bulk_write(rk808->regmap,
-				  RK817_GAS_GAUGE_Q_INIT_H3, bulk_reg, 4);
-		dev_warn(charger->dev,
-			 "Battery voltage %d below minimum voltage %d\n",
-			 volt_avg, charger->bat_voltage_min_design_uv);
-		}
 
 	rk817_record_battery_nvram_values(charger);
 
@@ -648,6 +626,24 @@ static irqreturn_t rk817_plug_out_isr(int irq, void *cg)
 	return IRQ_HANDLED;
 }
 
+static int rk817_bat_set_prop(struct power_supply *ps,
+			      enum power_supply_property prop,
+			      const union power_supply_propval *val)
+{
+	struct rk817_charger *charger = power_supply_get_drvdata(ps);
+
+	switch (prop) {
+	case POWER_SUPPLY_PROP_CHARGE_FULL:
+		if ((val->intval < 500000) ||
+			(val->intval > charger->bat_charge_full_design_uah))
+			return -EINVAL;
+		charger->fcc_mah = val->intval / 1000;
+		return rk817_bat_calib_cap(charger);
+	default:
+		return -EINVAL;
+	}
+}
+
 static enum power_supply_property rk817_bat_props[] = {
 	POWER_SUPPLY_PROP_PRESENT,
 	POWER_SUPPLY_PROP_STATUS,
@@ -673,12 +669,25 @@ static enum power_supply_property rk817_chg_props[] = {
 	POWER_SUPPLY_PROP_VOLTAGE_AVG,
 };
 
+static int rk817_bat_prop_writeable(struct power_supply *psy,
+				    enum power_supply_property psp)
+{
+	switch (psp) {
+	case POWER_SUPPLY_PROP_CHARGE_FULL:
+		return 1;
+	default:
+		return 0;
+	}
+}
+
 static const struct power_supply_desc rk817_bat_desc = {
 	.name = "rk817-battery",
 	.type = POWER_SUPPLY_TYPE_BATTERY,
 	.properties = rk817_bat_props,
+	.property_is_writeable	= rk817_bat_prop_writeable,
 	.num_properties = ARRAY_SIZE(rk817_bat_props),
 	.get_property = rk817_bat_get_prop,
+	.set_property = rk817_bat_set_prop,
 };
 
 static const struct power_supply_desc rk817_chg_desc = {
@@ -1202,6 +1211,15 @@ static int rk817_charger_probe(struct platform_device *pdev)
 	return 0;
 }
 
+static int __maybe_unused rk817_suspend(struct device *dev)
+{
+	struct rk817_charger *charger = dev_get_drvdata(dev);
+
+	cancel_delayed_work_sync(&charger->work);
+
+	return 0;
+}
+
 static int __maybe_unused rk817_resume(struct device *dev)
 {
 
@@ -1213,7 +1231,7 @@ static int __maybe_unused rk817_resume(struct device *dev)
 	return 0;
 }
 
-static SIMPLE_DEV_PM_OPS(rk817_charger_pm, NULL, rk817_resume);
+static SIMPLE_DEV_PM_OPS(rk817_charger_pm, rk817_suspend, rk817_resume);
 
 static struct platform_driver rk817_charger_driver = {
 	.probe    = rk817_charger_probe,

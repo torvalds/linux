@@ -26,13 +26,13 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
+#include <linux/aperture.h>
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/poll.h>
 #include <linux/wait.h>
 
 #include <drm/drm.h>
-#include <drm/drm_aperture.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_client_setup.h>
 #include <drm/drm_drv.h>
@@ -59,7 +59,7 @@ static int virtio_gpu_pci_quirk(struct drm_device *dev)
 		 vga ? "virtio-vga" : "virtio-gpu-pci",
 		 pname);
 	if (vga) {
-		ret = drm_aperture_remove_conflicting_pci_framebuffers(pdev, &driver);
+		ret = aperture_remove_conflicting_pci_devices(pdev, driver.name);
 		if (ret)
 			return ret;
 	}

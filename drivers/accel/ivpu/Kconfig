@@ -8,6 +8,7 @@ config DRM_ACCEL_IVPU
 	select FW_LOADER
 	select DRM_GEM_SHMEM_HELPER
 	select GENERIC_ALLOCATOR
+	select WANT_DEV_COREDUMP
 	help
 	  Choose this option if you have a system with an 14th generation
 	  Intel CPU (Meteor Lake) or newer. Intel NPU (formerly called Intel VPU)
@@ -15,3 +16,12 @@ config DRM_ACCEL_IVPU
 	  and Deep Learning applications.
 
 	  If "M" is selected, the module will be called intel_vpu.
+
+config DRM_ACCEL_IVPU_DEBUG
+	bool "Intel NPU debug mode"
+	depends on DRM_ACCEL_IVPU
+	help
+	  Choose this option to enable additional
+	  debug features for the Intel NPU driver:
+	  - Always print debug messages regardless of dyndbg config,
+	  - Enable unsafe module params.

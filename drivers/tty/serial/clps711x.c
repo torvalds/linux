@@ -529,7 +529,7 @@ static struct platform_driver clps711x_uart_platform = {
 		.of_match_table	= of_match_ptr(clps711x_uart_dt_ids),
 	},
 	.probe	= uart_clps711x_probe,
-	.remove_new = uart_clps711x_remove,
+	.remove = uart_clps711x_remove,
 };
 
 static int __init uart_clps711x_init(void)
