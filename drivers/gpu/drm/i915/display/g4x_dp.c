@@ -55,8 +55,8 @@ const struct dpll *vlv_get_dpll(struct drm_i915_private *i915)
 	return IS_CHERRYVIEW(i915) ? &chv_dpll[0] : &vlv_dpll[0];
 }
 
-void g4x_dp_set_clock(struct intel_encoder *encoder,
-		      struct intel_crtc_state *pipe_config)
+static void g4x_dp_set_clock(struct intel_encoder *encoder,
+			     struct intel_crtc_state *pipe_config)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	const struct dpll *divisor = NULL;
@@ -1228,11 +1228,18 @@ static int g4x_dp_compute_config(struct intel_encoder *encoder,
 				 struct drm_connector_state *conn_state)
 {
 	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
+	int ret;
 
 	if (HAS_PCH_SPLIT(i915) && encoder->port != PORT_A)
 		crtc_state->has_pch_encoder = true;
 
-	return intel_dp_compute_config(encoder, crtc_state, conn_state);
+	ret = intel_dp_compute_config(encoder, crtc_state, conn_state);
+	if (ret)
+		return ret;
+
+	g4x_dp_set_clock(encoder, crtc_state);
+
+	return 0;
 }
 
 static void g4x_dp_suspend_complete(struct intel_encoder *encoder)
