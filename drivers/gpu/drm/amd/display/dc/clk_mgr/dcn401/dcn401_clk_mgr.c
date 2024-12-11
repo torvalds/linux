@@ -1345,6 +1345,20 @@ static void dcn401_set_hard_min_memclk(struct clk_mgr *clk_mgr_base, bool curren
 	dcn401_execute_block_sequence(clk_mgr_base,	num_steps);
 }
 
+static int dcn401_get_hard_min_memclk(struct clk_mgr *clk_mgr_base)
+{
+	struct clk_mgr_internal *clk_mgr = TO_CLK_MGR_INTERNAL(clk_mgr_base);
+
+	return clk_mgr->base.ctx->dc->current_state->bw_ctx.bw.dcn.clk.dramclk_khz;
+}
+
+static int dcn401_get_hard_min_fclk(struct clk_mgr *clk_mgr_base)
+{
+	struct clk_mgr_internal *clk_mgr = TO_CLK_MGR_INTERNAL(clk_mgr_base);
+
+	return clk_mgr->base.ctx->dc->current_state->bw_ctx.bw.dcn.clk.fclk_khz;
+}
+
 /* Get current memclk states, update bounding box */
 static void dcn401_get_memclk_states_from_smu(struct clk_mgr *clk_mgr_base)
 {
@@ -1478,6 +1492,8 @@ static struct clk_mgr_funcs dcn401_funcs = {
 		.enable_pme_wa = dcn401_enable_pme_wa,
 		.is_smu_present = dcn401_is_smu_present,
 		.get_dispclk_from_dentist = dcn401_get_dispclk_from_dentist,
+		.get_hard_min_memclk = dcn401_get_hard_min_memclk,
+		.get_hard_min_fclk = dcn401_get_hard_min_fclk,
 };
 
 struct clk_mgr_internal *dcn401_clk_mgr_construct(
