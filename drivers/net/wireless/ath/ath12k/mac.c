@@ -5645,6 +5645,19 @@ static int ath12k_mac_op_sta_state(struct ieee80211_hw *hw,
 		}
 	}
 
+	/* In the ML station scenario, activate all partner links once the
+	 * client is transitioning to the associated state.
+	 *
+	 * FIXME: Ideally, this activation should occur when the client
+	 * transitions to the authorized state. However, there are some
+	 * issues with handling this in the firmware. Until the firmware
+	 * can manage it properly, activate the links when the client is
+	 * about to move to the associated state.
+	 */
+	if (ieee80211_vif_is_mld(vif) && vif->type == NL80211_IFTYPE_STATION &&
+	    old_state == IEEE80211_STA_AUTH && new_state == IEEE80211_STA_ASSOC)
+		ieee80211_set_active_links(vif, ieee80211_vif_usable_links(vif));
+
 	/* Handle all the other state transitions in generic way */
 	valid_links = ahsta->links_map;
 	for_each_set_bit(link_id, &valid_links, IEEE80211_MLD_MAX_NUM_LINKS) {
@@ -5937,6 +5950,15 @@ static int ath12k_mac_op_change_sta_links(struct ieee80211_hw *hw,
 	}
 
 	return 0;
+}
+
+static bool ath12k_mac_op_can_activate_links(struct ieee80211_hw *hw,
+					     struct ieee80211_vif *vif,
+					     u16 active_links)
+{
+	/* TODO: Handle recovery case */
+
+	return true;
 }
 
 static int ath12k_conf_tx_uapsd(struct ath12k_link_vif *arvif,
@@ -10249,6 +10271,7 @@ static const struct ieee80211_ops ath12k_ops = {
 	.remain_on_channel              = ath12k_mac_op_remain_on_channel,
 	.cancel_remain_on_channel       = ath12k_mac_op_cancel_remain_on_channel,
 	.change_sta_links               = ath12k_mac_op_change_sta_links,
+	.can_activate_links             = ath12k_mac_op_can_activate_links,
 #ifdef CONFIG_PM
 	.suspend			= ath12k_wow_op_suspend,
 	.resume				= ath12k_wow_op_resume,
