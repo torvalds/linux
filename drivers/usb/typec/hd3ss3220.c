@@ -35,10 +35,16 @@
 #define HD3SS3220_REG_CN_STAT_CTRL_INT_STATUS		BIT(4)
 
 /* Register HD3SS3220_REG_GEN_CTRL*/
+#define HD3SS3220_REG_GEN_CTRL_DISABLE_TERM		BIT(0)
 #define HD3SS3220_REG_GEN_CTRL_SRC_PREF_MASK		(BIT(2) | BIT(1))
 #define HD3SS3220_REG_GEN_CTRL_SRC_PREF_DRP_DEFAULT	0x00
 #define HD3SS3220_REG_GEN_CTRL_SRC_PREF_DRP_TRY_SNK	BIT(1)
 #define HD3SS3220_REG_GEN_CTRL_SRC_PREF_DRP_TRY_SRC	(BIT(2) | BIT(1))
+#define HD3SS3220_REG_GEN_CTRL_MODE_SELECT_MASK		(BIT(5) | BIT(4))
+#define HD3SS3220_REG_GEN_CTRL_MODE_SELECT_DEFAULT	0x00
+#define HD3SS3220_REG_GEN_CTRL_MODE_SELECT_DFP		BIT(5)
+#define HD3SS3220_REG_GEN_CTRL_MODE_SELECT_UFP		BIT(4)
+#define HD3SS3220_REG_GEN_CTRL_MODE_SELECT_DRP		(BIT(5) | BIT(4))
 
 struct hd3ss3220 {
 	struct device *dev;
@@ -73,6 +79,52 @@ static int hd3ss3220_set_power_opmode(struct hd3ss3220 *hd3ss3220, int power_opm
 	return regmap_update_bits(hd3ss3220->regmap, HD3SS3220_REG_CN_STAT,
 				  HD3SS3220_REG_CN_STAT_CURRENT_MODE_MASK,
 				  current_mode);
+}
+
+static int hd3ss3220_set_port_type(struct hd3ss3220 *hd3ss3220, int type)
+{
+	int mode_select, err;
+
+	switch (type) {
+	case TYPEC_PORT_SRC:
+		mode_select = HD3SS3220_REG_GEN_CTRL_MODE_SELECT_DFP;
+		break;
+	case TYPEC_PORT_SNK:
+		mode_select = HD3SS3220_REG_GEN_CTRL_MODE_SELECT_UFP;
+		break;
+	case TYPEC_PORT_DRP:
+		mode_select = HD3SS3220_REG_GEN_CTRL_MODE_SELECT_DRP;
+		break;
+	default:
+		dev_err(hd3ss3220->dev, "bad port type: %d\n", type);
+		return -EINVAL;
+	}
+
+	/* Disable termination before changing MODE_SELECT as required by datasheet */
+	err = regmap_update_bits(hd3ss3220->regmap, HD3SS3220_REG_GEN_CTRL,
+				 HD3SS3220_REG_GEN_CTRL_DISABLE_TERM,
+				 HD3SS3220_REG_GEN_CTRL_DISABLE_TERM);
+	if (err < 0) {
+		dev_err(hd3ss3220->dev, "Failed to disable port for mode change: %d\n", err);
+		return err;
+	}
+
+	err = regmap_update_bits(hd3ss3220->regmap, HD3SS3220_REG_GEN_CTRL,
+				 HD3SS3220_REG_GEN_CTRL_MODE_SELECT_MASK,
+				 mode_select);
+	if (err < 0) {
+		dev_err(hd3ss3220->dev, "Failed to change mode: %d\n", err);
+		regmap_update_bits(hd3ss3220->regmap, HD3SS3220_REG_GEN_CTRL,
+				   HD3SS3220_REG_GEN_CTRL_DISABLE_TERM, 0);
+		return err;
+	}
+
+	err = regmap_update_bits(hd3ss3220->regmap, HD3SS3220_REG_GEN_CTRL,
+				 HD3SS3220_REG_GEN_CTRL_DISABLE_TERM, 0);
+	if (err < 0)
+		dev_err(hd3ss3220->dev, "Failed to re-enable port after mode change: %d\n", err);
+
+	return err;
 }
 
 static int hd3ss3220_set_source_pref(struct hd3ss3220 *hd3ss3220, int src_pref)
@@ -131,8 +183,16 @@ static int hd3ss3220_dr_set(struct typec_port *port, enum typec_data_role role)
 	return ret;
 }
 
+static int hd3ss3220_port_type_set(struct typec_port *port, enum typec_port_type type)
+{
+	struct hd3ss3220 *hd3ss3220 = typec_get_drvdata(port);
+
+	return hd3ss3220_set_port_type(hd3ss3220, type);
+}
+
 static const struct typec_operations hd3ss3220_ops = {
-	.dr_set = hd3ss3220_dr_set
+	.dr_set = hd3ss3220_dr_set,
+	.port_type_set = hd3ss3220_port_type_set,
 };
 
 static void hd3ss3220_set_role(struct hd3ss3220 *hd3ss3220)
@@ -211,6 +271,28 @@ static int hd3ss3220_configure_power_opmode(struct hd3ss3220 *hd3ss3220,
 	return hd3ss3220_set_power_opmode(hd3ss3220, power_opmode);
 }
 
+static int hd3ss3220_configure_port_type(struct hd3ss3220 *hd3ss3220,
+					 struct fwnode_handle *connector,
+					 struct typec_capability *cap)
+{
+	/*
+	 * Port type can be configured through device tree
+	 */
+	const char *cap_str;
+	int ret;
+
+	ret = fwnode_property_read_string(connector, "power-role", &cap_str);
+	if (ret)
+		return 0;
+
+	ret = typec_find_port_power_role(cap_str);
+	if (ret < 0)
+		return ret;
+
+	cap->type = ret;
+	return hd3ss3220_set_port_type(hd3ss3220, cap->type);
+}
+
 static const struct regmap_config config = {
 	.reg_bits = 8,
 	.val_bits = 8,
@@ -265,6 +347,10 @@ static int hd3ss3220_probe(struct i2c_client *client)
 	typec_cap.data = TYPEC_PORT_DRD;
 	typec_cap.ops = &hd3ss3220_ops;
 	typec_cap.fwnode = connector;
+
+	ret = hd3ss3220_configure_port_type(hd3ss3220, connector, &typec_cap);
+	if (ret < 0)
+		goto err_put_role;
 
 	hd3ss3220->port = typec_register_port(&client->dev, &typec_cap);
 	if (IS_ERR(hd3ss3220->port)) {
