@@ -17,6 +17,7 @@
 		serial0 = &uart1;
 		mmc0 = &sdhci0;
 		nvmem0 = &eeprom;
+		rtc0 = &rtc;
 	};
 
 	memory@0 {
@@ -161,7 +162,7 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <4>;
-			rtc@51 {
+			rtc: rtc@51 {
 				compatible = "nxp,pcf8563";
 				reg = <0x51>;
 			};
