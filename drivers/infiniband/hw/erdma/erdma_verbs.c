@@ -1563,6 +1563,19 @@ static void erdma_attr_to_av(const struct rdma_ah_attr *ah_attr,
 		av->ntype = ERDMA_NETWORK_TYPE_IPV6;
 }
 
+static void erdma_av_to_attr(struct erdma_av *av, struct rdma_ah_attr *ah_attr)
+{
+	ah_attr->type = RDMA_AH_ATTR_TYPE_ROCE;
+
+	rdma_ah_set_sl(ah_attr, av->sl);
+	rdma_ah_set_port_num(ah_attr, av->port);
+	rdma_ah_set_ah_flags(ah_attr, IB_AH_GRH);
+
+	rdma_ah_set_grh(ah_attr, NULL, av->flow_label, av->sgid_index,
+			av->hop_limit, av->traffic_class);
+	rdma_ah_set_dgid_raw(ah_attr, av->dgid);
+}
+
 static int ib_qps_to_erdma_qps[ERDMA_PROTO_COUNT][IB_QPS_ERR + 1] = {
 	[ERDMA_PROTO_IWARP] = {
 		[IB_QPS_RESET] = ERDMA_QPS_IWARP_IDLE,
@@ -1764,8 +1777,11 @@ static enum ib_qp_state query_qp_state(struct erdma_qp *qp)
 int erdma_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *qp_attr,
 		   int qp_attr_mask, struct ib_qp_init_attr *qp_init_attr)
 {
+	struct erdma_cmdq_query_qp_req_rocev2 req;
 	struct erdma_dev *dev;
 	struct erdma_qp *qp;
+	u64 resp;
+	int ret;
 
 	if (ibqp && qp_attr && qp_init_attr) {
 		qp = to_eqp(ibqp);
@@ -1792,8 +1808,37 @@ int erdma_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *qp_attr,
 
 	qp_init_attr->cap = qp_attr->cap;
 
-	qp_attr->qp_state = query_qp_state(qp);
-	qp_attr->cur_qp_state = query_qp_state(qp);
+	if (erdma_device_rocev2(dev)) {
+		/* Query hardware to get some attributes */
+		erdma_cmdq_build_reqhdr(&req.hdr, CMDQ_SUBMOD_RDMA,
+					CMDQ_OPCODE_QUERY_QP);
+		req.qpn = QP_ID(qp);
+
+		ret = erdma_post_cmd_wait(&dev->cmdq, &req, sizeof(req), &resp,
+					  NULL);
+		if (ret)
+			return ret;
+
+		qp_attr->sq_psn =
+			FIELD_GET(ERDMA_CMD_QUERY_QP_RESP_SQ_PSN_MASK, resp);
+		qp_attr->rq_psn =
+			FIELD_GET(ERDMA_CMD_QUERY_QP_RESP_RQ_PSN_MASK, resp);
+		qp_attr->qp_state = rocev2_to_ib_qps(
+			FIELD_GET(ERDMA_CMD_QUERY_QP_RESP_QP_STATE_MASK, resp));
+		qp_attr->cur_qp_state = qp_attr->qp_state;
+		qp_attr->sq_draining = FIELD_GET(
+			ERDMA_CMD_QUERY_QP_RESP_SQ_DRAINING_MASK, resp);
+
+		qp_attr->pkey_index = 0;
+		qp_attr->dest_qp_num = qp->attrs.rocev2.dst_qpn;
+
+		if (qp->ibqp.qp_type == IB_QPT_RC)
+			erdma_av_to_attr(&qp->attrs.rocev2.av,
+					 &qp_attr->ah_attr);
+	} else {
+		qp_attr->qp_state = query_qp_state(qp);
+		qp_attr->cur_qp_state = qp_attr->qp_state;
+	}
 
 	return 0;
 }
@@ -2185,14 +2230,7 @@ int erdma_query_ah(struct ib_ah *ibah, struct rdma_ah_attr *ah_attr)
 	struct erdma_ah *ah = to_eah(ibah);
 
 	memset(ah_attr, 0, sizeof(*ah_attr));
-
-	ah_attr->type = RDMA_AH_ATTR_TYPE_ROCE;
-	rdma_ah_set_sl(ah_attr, ah->av.sl);
-	rdma_ah_set_port_num(ah_attr, ah->av.port);
-	rdma_ah_set_ah_flags(ah_attr, IB_AH_GRH);
-	rdma_ah_set_grh(ah_attr, NULL, ah->av.flow_label, ah->av.sgid_index,
-			ah->av.hop_limit, ah->av.traffic_class);
-	rdma_ah_set_dgid_raw(ah_attr, ah->av.dgid);
+	erdma_av_to_attr(&ah->av, ah_attr);
 
 	return 0;
 }

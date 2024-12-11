@@ -154,6 +154,7 @@ enum CMDQ_RDMA_OPCODE {
 	CMDQ_OPCODE_SET_GID = 14,
 	CMDQ_OPCODE_CREATE_AH = 15,
 	CMDQ_OPCODE_DESTROY_AH = 16,
+	CMDQ_OPCODE_QUERY_QP = 17,
 };
 
 enum CMDQ_COMMON_OPCODE {
@@ -360,6 +361,17 @@ struct erdma_cmdq_mod_qp_req_rocev2 {
 	u32 rq_psn;
 	u32 sq_psn;
 	struct erdma_av_cfg av_cfg;
+};
+
+/* query qp response mask */
+#define ERDMA_CMD_QUERY_QP_RESP_SQ_PSN_MASK GENMASK_ULL(23, 0)
+#define ERDMA_CMD_QUERY_QP_RESP_RQ_PSN_MASK GENMASK_ULL(47, 24)
+#define ERDMA_CMD_QUERY_QP_RESP_QP_STATE_MASK GENMASK_ULL(55, 48)
+#define ERDMA_CMD_QUERY_QP_RESP_SQ_DRAINING_MASK GENMASK_ULL(56, 56)
+
+struct erdma_cmdq_query_qp_req_rocev2 {
+	u64 hdr;
+	u32 qpn;
 };
 
 /* create qp cfg0 */
