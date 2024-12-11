@@ -195,25 +195,26 @@ struct erdma_kqp {
 	u8 sig_all;
 };
 
-enum erdma_qp_state {
-	ERDMA_QP_STATE_IDLE = 0,
-	ERDMA_QP_STATE_RTR = 1,
-	ERDMA_QP_STATE_RTS = 2,
-	ERDMA_QP_STATE_CLOSING = 3,
-	ERDMA_QP_STATE_TERMINATE = 4,
-	ERDMA_QP_STATE_ERROR = 5,
-	ERDMA_QP_STATE_UNDEF = 7,
-	ERDMA_QP_STATE_COUNT = 8
+enum erdma_qps_iwarp {
+	ERDMA_QPS_IWARP_IDLE = 0,
+	ERDMA_QPS_IWARP_RTR = 1,
+	ERDMA_QPS_IWARP_RTS = 2,
+	ERDMA_QPS_IWARP_CLOSING = 3,
+	ERDMA_QPS_IWARP_TERMINATE = 4,
+	ERDMA_QPS_IWARP_ERROR = 5,
+	ERDMA_QPS_IWARP_UNDEF = 6,
+	ERDMA_QPS_IWARP_COUNT = 7,
 };
 
-enum erdma_qp_attr_mask {
-	ERDMA_QP_ATTR_STATE = (1 << 0),
-	ERDMA_QP_ATTR_LLP_HANDLE = (1 << 2),
-	ERDMA_QP_ATTR_ORD = (1 << 3),
-	ERDMA_QP_ATTR_IRD = (1 << 4),
-	ERDMA_QP_ATTR_SQ_SIZE = (1 << 5),
-	ERDMA_QP_ATTR_RQ_SIZE = (1 << 6),
-	ERDMA_QP_ATTR_MPA = (1 << 7)
+enum erdma_qpa_mask_iwarp {
+	ERDMA_QPA_IWARP_STATE = (1 << 0),
+	ERDMA_QPA_IWARP_LLP_HANDLE = (1 << 2),
+	ERDMA_QPA_IWARP_ORD = (1 << 3),
+	ERDMA_QPA_IWARP_IRD = (1 << 4),
+	ERDMA_QPA_IWARP_SQ_SIZE = (1 << 5),
+	ERDMA_QPA_IWARP_RQ_SIZE = (1 << 6),
+	ERDMA_QPA_IWARP_MPA = (1 << 7),
+	ERDMA_QPA_IWARP_CC = (1 << 8),
 };
 
 enum erdma_qps_rocev2 {
@@ -240,6 +241,23 @@ enum erdma_qp_flags {
 	ERDMA_QP_IN_FLUSHING = (1 << 0),
 };
 
+#define ERDMA_QP_ACTIVE 0
+#define ERDMA_QP_PASSIVE 1
+
+struct erdma_mod_qp_params_iwarp {
+	enum erdma_qps_iwarp state;
+	enum erdma_cc_alg cc;
+	u8 qp_type;
+	u8 pd_len;
+	u32 irq_size;
+	u32 orq_size;
+};
+
+struct erdma_qp_attrs_iwarp {
+	enum erdma_qps_iwarp state;
+	u32 cookie;
+};
+
 struct erdma_mod_qp_params_rocev2 {
 	enum erdma_qps_rocev2 state;
 	u32 qkey;
@@ -247,6 +265,11 @@ struct erdma_mod_qp_params_rocev2 {
 	u32 rq_psn;
 	u32 dst_qpn;
 	struct erdma_av av;
+};
+
+union erdma_mod_qp_params {
+	struct erdma_mod_qp_params_iwarp iwarp;
+	struct erdma_mod_qp_params_rocev2 rocev2;
 };
 
 struct erdma_qp_attrs_rocev2 {
@@ -257,7 +280,6 @@ struct erdma_qp_attrs_rocev2 {
 };
 
 struct erdma_qp_attrs {
-	enum erdma_qp_state state;
 	enum erdma_cc_alg cc; /* Congestion control algorithm */
 	u32 sq_size;
 	u32 rq_size;
@@ -265,12 +287,10 @@ struct erdma_qp_attrs {
 	u32 irq_size;
 	u32 max_send_sge;
 	u32 max_recv_sge;
-	u32 cookie;
-#define ERDMA_QP_ACTIVE 0
-#define ERDMA_QP_PASSIVE 1
-	u8 qp_type;
-	u8 pd_len;
-	struct erdma_qp_attrs_rocev2 rocev2;
+	union {
+		struct erdma_qp_attrs_iwarp iwarp;
+		struct erdma_qp_attrs_rocev2 rocev2;
+	};
 };
 
 struct erdma_qp {
@@ -342,8 +362,9 @@ static inline struct erdma_cq *find_cq_by_cqn(struct erdma_dev *dev, int id)
 
 void erdma_qp_get(struct erdma_qp *qp);
 void erdma_qp_put(struct erdma_qp *qp);
-int erdma_modify_qp_internal(struct erdma_qp *qp, struct erdma_qp_attrs *attrs,
-			     enum erdma_qp_attr_mask mask);
+int erdma_modify_qp_state_iwarp(struct erdma_qp *qp,
+				struct erdma_mod_qp_params_iwarp *params,
+				int mask);
 int erdma_modify_qp_state_rocev2(struct erdma_qp *qp,
 				 struct erdma_mod_qp_params_rocev2 *params,
 				 int attr_mask);
@@ -426,8 +447,6 @@ int erdma_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr, int mask,
 		   struct ib_qp_init_attr *init_attr);
 int erdma_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr, int mask,
 		    struct ib_udata *data);
-int erdma_modify_qp_rocev2(struct ib_qp *ibqp, struct ib_qp_attr *attr,
-			   int mask, struct ib_udata *udata);
 int erdma_destroy_qp(struct ib_qp *ibqp, struct ib_udata *udata);
 int erdma_destroy_cq(struct ib_cq *ibcq, struct ib_udata *udata);
 void erdma_disassociate_ucontext(struct ib_ucontext *ibcontext);

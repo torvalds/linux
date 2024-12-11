@@ -567,7 +567,8 @@ reject_conn:
 
 static int erdma_proc_mpareply(struct erdma_cep *cep)
 {
-	struct erdma_qp_attrs qp_attrs;
+	enum erdma_qpa_mask_iwarp to_modify_attrs = 0;
+	struct erdma_mod_qp_params_iwarp params;
 	struct erdma_qp *qp = cep->qp;
 	struct mpa_rr *rep;
 	int ret;
@@ -597,26 +598,29 @@ static int erdma_proc_mpareply(struct erdma_cep *cep)
 		return -EINVAL;
 	}
 
-	memset(&qp_attrs, 0, sizeof(qp_attrs));
-	qp_attrs.irq_size = cep->ird;
-	qp_attrs.orq_size = cep->ord;
-	qp_attrs.state = ERDMA_QP_STATE_RTS;
+	memset(&params, 0, sizeof(params));
+	params.state = ERDMA_QPS_IWARP_RTS;
+	params.irq_size = cep->ird;
+	params.orq_size = cep->ord;
 
 	down_write(&qp->state_lock);
-	if (qp->attrs.state > ERDMA_QP_STATE_RTR) {
+	if (qp->attrs.iwarp.state > ERDMA_QPS_IWARP_RTR) {
 		ret = -EINVAL;
 		up_write(&qp->state_lock);
 		goto out_err;
 	}
 
-	qp->attrs.qp_type = ERDMA_QP_ACTIVE;
-	if (__mpa_ext_cc(cep->mpa.ext_data.bits) != qp->attrs.cc)
-		qp->attrs.cc = COMPROMISE_CC;
+	to_modify_attrs = ERDMA_QPA_IWARP_STATE | ERDMA_QPA_IWARP_LLP_HANDLE |
+			  ERDMA_QPA_IWARP_MPA | ERDMA_QPA_IWARP_IRD |
+			  ERDMA_QPA_IWARP_ORD;
 
-	ret = erdma_modify_qp_internal(qp, &qp_attrs,
-				       ERDMA_QP_ATTR_STATE |
-				       ERDMA_QP_ATTR_LLP_HANDLE |
-				       ERDMA_QP_ATTR_MPA);
+	params.qp_type = ERDMA_QP_ACTIVE;
+	if (__mpa_ext_cc(cep->mpa.ext_data.bits) != qp->attrs.cc) {
+		to_modify_attrs |= ERDMA_QPA_IWARP_CC;
+		params.cc = COMPROMISE_CC;
+	}
+
+	ret = erdma_modify_qp_state_iwarp(qp, &params, to_modify_attrs);
 
 	up_write(&qp->state_lock);
 
@@ -722,7 +726,7 @@ static int erdma_newconn_connected(struct erdma_cep *cep)
 	__mpa_rr_set_revision(&cep->mpa.hdr.params.bits, MPA_REVISION_EXT_1);
 
 	memcpy(cep->mpa.hdr.key, MPA_KEY_REQ, MPA_KEY_SIZE);
-	cep->mpa.ext_data.cookie = cpu_to_be32(cep->qp->attrs.cookie);
+	cep->mpa.ext_data.cookie = cpu_to_be32(cep->qp->attrs.iwarp.cookie);
 	__mpa_ext_set_cc(&cep->mpa.ext_data.bits, cep->qp->attrs.cc);
 
 	ret = erdma_send_mpareqrep(cep, cep->private_data, cep->pd_len);
@@ -1126,10 +1130,11 @@ error_put_qp:
 
 int erdma_accept(struct iw_cm_id *id, struct iw_cm_conn_param *params)
 {
-	struct erdma_dev *dev = to_edev(id->device);
 	struct erdma_cep *cep = (struct erdma_cep *)id->provider_data;
+	struct erdma_mod_qp_params_iwarp mod_qp_params;
+	enum erdma_qpa_mask_iwarp to_modify_attrs = 0;
+	struct erdma_dev *dev = to_edev(id->device);
 	struct erdma_qp *qp;
-	struct erdma_qp_attrs qp_attrs;
 	int ret;
 
 	erdma_cep_set_inuse(cep);
@@ -1156,7 +1161,7 @@ int erdma_accept(struct iw_cm_id *id, struct iw_cm_conn_param *params)
 	erdma_qp_get(qp);
 
 	down_write(&qp->state_lock);
-	if (qp->attrs.state > ERDMA_QP_STATE_RTR) {
+	if (qp->attrs.iwarp.state > ERDMA_QPS_IWARP_RTR) {
 		ret = -EINVAL;
 		up_write(&qp->state_lock);
 		goto error;
@@ -1181,11 +1186,11 @@ int erdma_accept(struct iw_cm_id *id, struct iw_cm_conn_param *params)
 	cep->cm_id = id;
 	id->add_ref(id);
 
-	memset(&qp_attrs, 0, sizeof(qp_attrs));
-	qp_attrs.orq_size = params->ord;
-	qp_attrs.irq_size = params->ird;
+	memset(&mod_qp_params, 0, sizeof(mod_qp_params));
 
-	qp_attrs.state = ERDMA_QP_STATE_RTS;
+	mod_qp_params.irq_size = params->ird;
+	mod_qp_params.orq_size = params->ord;
+	mod_qp_params.state = ERDMA_QPS_IWARP_RTS;
 
 	/* Associate QP with CEP */
 	erdma_cep_get(cep);
@@ -1194,19 +1199,21 @@ int erdma_accept(struct iw_cm_id *id, struct iw_cm_conn_param *params)
 
 	cep->state = ERDMA_EPSTATE_RDMA_MODE;
 
-	qp->attrs.qp_type = ERDMA_QP_PASSIVE;
-	qp->attrs.pd_len = params->private_data_len;
+	mod_qp_params.qp_type = ERDMA_QP_PASSIVE;
+	mod_qp_params.pd_len = params->private_data_len;
 
-	if (qp->attrs.cc != __mpa_ext_cc(cep->mpa.ext_data.bits))
-		qp->attrs.cc = COMPROMISE_CC;
+	to_modify_attrs = ERDMA_QPA_IWARP_STATE | ERDMA_QPA_IWARP_ORD |
+			  ERDMA_QPA_IWARP_LLP_HANDLE | ERDMA_QPA_IWARP_IRD |
+			  ERDMA_QPA_IWARP_MPA;
+
+	if (qp->attrs.cc != __mpa_ext_cc(cep->mpa.ext_data.bits)) {
+		to_modify_attrs |= ERDMA_QPA_IWARP_CC;
+		mod_qp_params.cc = COMPROMISE_CC;
+	}
 
 	/* move to rts */
-	ret = erdma_modify_qp_internal(qp, &qp_attrs,
-				       ERDMA_QP_ATTR_STATE |
-				       ERDMA_QP_ATTR_ORD |
-				       ERDMA_QP_ATTR_LLP_HANDLE |
-				       ERDMA_QP_ATTR_IRD |
-				       ERDMA_QP_ATTR_MPA);
+	ret = erdma_modify_qp_state_iwarp(qp, &mod_qp_params, to_modify_attrs);
+
 	up_write(&qp->state_lock);
 
 	if (ret)
@@ -1214,7 +1221,7 @@ int erdma_accept(struct iw_cm_id *id, struct iw_cm_conn_param *params)
 
 	cep->mpa.ext_data.bits = 0;
 	__mpa_ext_set_cc(&cep->mpa.ext_data.bits, qp->attrs.cc);
-	cep->mpa.ext_data.cookie = cpu_to_be32(cep->qp->attrs.cookie);
+	cep->mpa.ext_data.cookie = cpu_to_be32(cep->qp->attrs.iwarp.cookie);
 
 	ret = erdma_send_mpareqrep(cep, params->private_data,
 				   params->private_data_len);

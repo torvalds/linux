@@ -31,6 +31,7 @@
 enum erdma_proto_type {
 	ERDMA_PROTO_IWARP = 0,
 	ERDMA_PROTO_ROCEV2 = 1,
+	ERDMA_PROTO_COUNT = 2,
 };
 
 /* PCIe Bar0 Registers. */

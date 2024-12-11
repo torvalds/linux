@@ -122,7 +122,7 @@ static int create_qp_cmd(struct erdma_ucontext *uctx, struct erdma_qp *qp)
 	err = erdma_post_cmd_wait(&dev->cmdq, &req, sizeof(req), &resp0,
 				  &resp1);
 	if (!err && erdma_device_iwarp(dev))
-		qp->attrs.cookie =
+		qp->attrs.iwarp.cookie =
 			FIELD_GET(ERDMA_CMDQ_CREATE_QP_RESP_COOKIE_MASK, resp0);
 
 	return err;
@@ -1019,7 +1019,7 @@ int erdma_create_qp(struct ib_qp *ibqp, struct ib_qp_init_attr *attrs,
 	qp->attrs.max_recv_sge = attrs->cap.max_recv_sge;
 
 	if (erdma_device_iwarp(qp->dev))
-		qp->attrs.state = ERDMA_QP_STATE_IDLE;
+		qp->attrs.iwarp.state = ERDMA_QPS_IWARP_IDLE;
 	else
 		qp->attrs.rocev2.state = ERDMA_QPS_ROCEV2_RESET;
 
@@ -1296,18 +1296,18 @@ int erdma_destroy_qp(struct ib_qp *ibqp, struct ib_udata *udata)
 	struct erdma_dev *dev = to_edev(ibqp->device);
 	struct erdma_ucontext *ctx = rdma_udata_to_drv_context(
 		udata, struct erdma_ucontext, ibucontext);
-	struct erdma_mod_qp_params_rocev2 rocev2_params;
-	struct erdma_qp_attrs qp_attrs;
-	int err;
 	struct erdma_cmdq_destroy_qp_req req;
+	union erdma_mod_qp_params params;
+	int err;
 
 	down_write(&qp->state_lock);
 	if (erdma_device_iwarp(dev)) {
-		qp_attrs.state = ERDMA_QP_STATE_ERROR;
-		erdma_modify_qp_internal(qp, &qp_attrs, ERDMA_QP_ATTR_STATE);
+		params.iwarp.state = ERDMA_QPS_IWARP_ERROR;
+		erdma_modify_qp_state_iwarp(qp, &params.iwarp,
+					    ERDMA_QPA_IWARP_STATE);
 	} else {
-		rocev2_params.state = ERDMA_QPS_ROCEV2_ERROR;
-		erdma_modify_qp_state_rocev2(qp, &rocev2_params,
+		params.rocev2.state = ERDMA_QPS_ROCEV2_ERROR;
+		erdma_modify_qp_state_rocev2(qp, &params.rocev2,
 					     ERDMA_QPA_ROCEV2_STATE);
 	}
 	up_write(&qp->state_lock);
@@ -1563,38 +1563,69 @@ static void erdma_attr_to_av(const struct rdma_ah_attr *ah_attr,
 		av->ntype = ERDMA_NETWORK_TYPE_IPV6;
 }
 
-static int ib_qp_state_to_erdma_qp_state[IB_QPS_ERR + 1] = {
-	[IB_QPS_RESET] = ERDMA_QP_STATE_IDLE,
-	[IB_QPS_INIT] = ERDMA_QP_STATE_IDLE,
-	[IB_QPS_RTR] = ERDMA_QP_STATE_RTR,
-	[IB_QPS_RTS] = ERDMA_QP_STATE_RTS,
-	[IB_QPS_SQD] = ERDMA_QP_STATE_CLOSING,
-	[IB_QPS_SQE] = ERDMA_QP_STATE_TERMINATE,
-	[IB_QPS_ERR] = ERDMA_QP_STATE_ERROR
+static int ib_qps_to_erdma_qps[ERDMA_PROTO_COUNT][IB_QPS_ERR + 1] = {
+	[ERDMA_PROTO_IWARP] = {
+		[IB_QPS_RESET] = ERDMA_QPS_IWARP_IDLE,
+		[IB_QPS_INIT] = ERDMA_QPS_IWARP_IDLE,
+		[IB_QPS_RTR] = ERDMA_QPS_IWARP_RTR,
+		[IB_QPS_RTS] = ERDMA_QPS_IWARP_RTS,
+		[IB_QPS_SQD] = ERDMA_QPS_IWARP_CLOSING,
+		[IB_QPS_SQE] = ERDMA_QPS_IWARP_TERMINATE,
+		[IB_QPS_ERR] = ERDMA_QPS_IWARP_ERROR,
+	},
+	[ERDMA_PROTO_ROCEV2] = {
+		[IB_QPS_RESET] = ERDMA_QPS_ROCEV2_RESET,
+		[IB_QPS_INIT] = ERDMA_QPS_ROCEV2_INIT,
+		[IB_QPS_RTR] = ERDMA_QPS_ROCEV2_RTR,
+		[IB_QPS_RTS] = ERDMA_QPS_ROCEV2_RTS,
+		[IB_QPS_SQD] = ERDMA_QPS_ROCEV2_SQD,
+		[IB_QPS_SQE] = ERDMA_QPS_ROCEV2_SQE,
+		[IB_QPS_ERR] = ERDMA_QPS_ROCEV2_ERROR,
+	},
 };
 
-static int ib_qps_to_erdma_qps_rocev2[IB_QPS_ERR + 1] = {
-	[IB_QPS_RESET] = ERDMA_QPS_ROCEV2_RESET,
-	[IB_QPS_INIT] = ERDMA_QPS_ROCEV2_INIT,
-	[IB_QPS_RTR] = ERDMA_QPS_ROCEV2_RTR,
-	[IB_QPS_RTS] = ERDMA_QPS_ROCEV2_RTS,
-	[IB_QPS_SQD] = ERDMA_QPS_ROCEV2_SQD,
-	[IB_QPS_SQE] = ERDMA_QPS_ROCEV2_SQE,
-	[IB_QPS_ERR] = ERDMA_QPS_ROCEV2_ERROR,
+static int erdma_qps_to_ib_qps[ERDMA_PROTO_COUNT][ERDMA_QPS_ROCEV2_COUNT] = {
+	[ERDMA_PROTO_IWARP] = {
+		[ERDMA_QPS_IWARP_IDLE] = IB_QPS_INIT,
+		[ERDMA_QPS_IWARP_RTR] = IB_QPS_RTR,
+		[ERDMA_QPS_IWARP_RTS] = IB_QPS_RTS,
+		[ERDMA_QPS_IWARP_CLOSING] = IB_QPS_ERR,
+		[ERDMA_QPS_IWARP_TERMINATE] = IB_QPS_ERR,
+		[ERDMA_QPS_IWARP_ERROR] = IB_QPS_ERR,
+	},
+	[ERDMA_PROTO_ROCEV2] = {
+		[ERDMA_QPS_ROCEV2_RESET] = IB_QPS_RESET,
+		[ERDMA_QPS_ROCEV2_INIT] = IB_QPS_INIT,
+		[ERDMA_QPS_ROCEV2_RTR] = IB_QPS_RTR,
+		[ERDMA_QPS_ROCEV2_RTS] = IB_QPS_RTS,
+		[ERDMA_QPS_ROCEV2_SQD] = IB_QPS_SQD,
+		[ERDMA_QPS_ROCEV2_SQE] = IB_QPS_SQE,
+		[ERDMA_QPS_ROCEV2_ERROR] = IB_QPS_ERR,
+	},
 };
 
-static int erdma_qps_to_ib_qps_rocev2[ERDMA_QPS_ROCEV2_COUNT] = {
-	[ERDMA_QPS_ROCEV2_RESET] = IB_QPS_RESET,
-	[ERDMA_QPS_ROCEV2_INIT] = IB_QPS_INIT,
-	[ERDMA_QPS_ROCEV2_RTR] = IB_QPS_RTR,
-	[ERDMA_QPS_ROCEV2_RTS] = IB_QPS_RTS,
-	[ERDMA_QPS_ROCEV2_SQD] = IB_QPS_SQD,
-	[ERDMA_QPS_ROCEV2_SQE] = IB_QPS_SQE,
-	[ERDMA_QPS_ROCEV2_ERROR] = IB_QPS_ERR,
-};
+static inline enum erdma_qps_iwarp ib_to_iwarp_qps(enum ib_qp_state state)
+{
+	return ib_qps_to_erdma_qps[ERDMA_PROTO_IWARP][state];
+}
 
-static int erdma_check_qp_attr_rocev2(struct erdma_qp *qp,
-				      struct ib_qp_attr *attr, int attr_mask)
+static inline enum erdma_qps_rocev2 ib_to_rocev2_qps(enum ib_qp_state state)
+{
+	return ib_qps_to_erdma_qps[ERDMA_PROTO_ROCEV2][state];
+}
+
+static inline enum ib_qp_state iwarp_to_ib_qps(enum erdma_qps_iwarp state)
+{
+	return erdma_qps_to_ib_qps[ERDMA_PROTO_IWARP][state];
+}
+
+static inline enum ib_qp_state rocev2_to_ib_qps(enum erdma_qps_rocev2 state)
+{
+	return erdma_qps_to_ib_qps[ERDMA_PROTO_ROCEV2][state];
+}
+
+static int erdma_check_qp_attrs(struct erdma_qp *qp, struct ib_qp_attr *attr,
+				int attr_mask)
 {
 	enum ib_qp_state cur_state, nxt_state;
 	struct erdma_dev *dev = qp->dev;
@@ -1605,27 +1636,31 @@ static int erdma_check_qp_attr_rocev2(struct erdma_qp *qp,
 		goto out;
 	}
 
-	if ((attr_mask & IB_QP_PKEY_INDEX) &&
-	    attr->pkey_index >= ERDMA_MAX_PKEYS)
-		goto out;
-
 	if ((attr_mask & IB_QP_PORT) &&
 	    !rdma_is_port_valid(&dev->ibdev, attr->port_num))
 		goto out;
 
-	cur_state = (attr_mask & IB_QP_CUR_STATE) ?
-			    attr->cur_qp_state :
-			    erdma_qps_to_ib_qps_rocev2[qp->attrs.rocev2.state];
+	if (erdma_device_rocev2(dev)) {
+		cur_state = (attr_mask & IB_QP_CUR_STATE) ?
+				    attr->cur_qp_state :
+				    rocev2_to_ib_qps(qp->attrs.rocev2.state);
 
-	nxt_state = (attr_mask & IB_QP_STATE) ? attr->qp_state : cur_state;
+		nxt_state = (attr_mask & IB_QP_STATE) ? attr->qp_state :
+							cur_state;
 
-	if (!ib_modify_qp_is_ok(cur_state, nxt_state, qp->ibqp.qp_type,
-				attr_mask))
-		goto out;
+		if (!ib_modify_qp_is_ok(cur_state, nxt_state, qp->ibqp.qp_type,
+					attr_mask))
+			goto out;
 
-	if ((attr_mask & IB_QP_AV) &&
-	    erdma_check_gid_attr(rdma_ah_read_grh(&attr->ah_attr)->sgid_attr))
-		goto out;
+		if ((attr_mask & IB_QP_AV) &&
+		    erdma_check_gid_attr(
+			    rdma_ah_read_grh(&attr->ah_attr)->sgid_attr))
+			goto out;
+
+		if ((attr_mask & IB_QP_PKEY_INDEX) &&
+		    attr->pkey_index >= ERDMA_MAX_PKEYS)
+			goto out;
+	}
 
 	return 0;
 
@@ -1642,12 +1677,12 @@ static void erdma_init_mod_qp_params_rocev2(
 	u16 udp_sport;
 
 	if (ib_attr_mask & IB_QP_CUR_STATE)
-		cur_state = ib_qps_to_erdma_qps_rocev2[attr->cur_qp_state];
+		cur_state = ib_to_rocev2_qps(attr->cur_qp_state);
 	else
 		cur_state = qp->attrs.rocev2.state;
 
 	if (ib_attr_mask & IB_QP_STATE)
-		nxt_state = ib_qps_to_erdma_qps_rocev2[attr->qp_state];
+		nxt_state = ib_to_rocev2_qps(attr->qp_state);
 	else
 		nxt_state = cur_state;
 
@@ -1684,75 +1719,46 @@ static void erdma_init_mod_qp_params_rocev2(
 	*erdma_attr_mask = to_modify_attrs;
 }
 
-int erdma_modify_qp_rocev2(struct ib_qp *ibqp, struct ib_qp_attr *attr,
-			   int attr_mask, struct ib_udata *udata)
+int erdma_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr, int attr_mask,
+		    struct ib_udata *udata)
 {
-	struct erdma_mod_qp_params_rocev2 params;
 	struct erdma_qp *qp = to_eqp(ibqp);
+	union erdma_mod_qp_params params;
 	int ret = 0, erdma_attr_mask = 0;
 
 	down_write(&qp->state_lock);
 
-	ret = erdma_check_qp_attr_rocev2(qp, attr, attr_mask);
+	ret = erdma_check_qp_attrs(qp, attr, attr_mask);
 	if (ret)
 		goto out;
 
-	erdma_init_mod_qp_params_rocev2(qp, &params, &erdma_attr_mask, attr,
-					attr_mask);
+	if (erdma_device_iwarp(qp->dev)) {
+		if (attr_mask & IB_QP_STATE) {
+			erdma_attr_mask |= ERDMA_QPA_IWARP_STATE;
+			params.iwarp.state = ib_to_iwarp_qps(attr->qp_state);
+		}
 
-	ret = erdma_modify_qp_state_rocev2(qp, &params, erdma_attr_mask);
+		ret = erdma_modify_qp_state_iwarp(qp, &params.iwarp,
+						  erdma_attr_mask);
+	} else {
+		erdma_init_mod_qp_params_rocev2(
+			qp, &params.rocev2, &erdma_attr_mask, attr, attr_mask);
+
+		ret = erdma_modify_qp_state_rocev2(qp, &params.rocev2,
+						   erdma_attr_mask);
+	}
 
 out:
 	up_write(&qp->state_lock);
 	return ret;
 }
 
-int erdma_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr, int attr_mask,
-		    struct ib_udata *udata)
-{
-	struct erdma_qp_attrs new_attrs;
-	enum erdma_qp_attr_mask erdma_attr_mask = 0;
-	struct erdma_qp *qp = to_eqp(ibqp);
-	int ret = 0;
-
-	if (attr_mask & ~IB_QP_ATTR_STANDARD_BITS)
-		return -EOPNOTSUPP;
-
-	memset(&new_attrs, 0, sizeof(new_attrs));
-
-	if (attr_mask & IB_QP_STATE) {
-		new_attrs.state = ib_qp_state_to_erdma_qp_state[attr->qp_state];
-
-		erdma_attr_mask |= ERDMA_QP_ATTR_STATE;
-	}
-
-	down_write(&qp->state_lock);
-
-	ret = erdma_modify_qp_internal(qp, &new_attrs, erdma_attr_mask);
-
-	up_write(&qp->state_lock);
-
-	return ret;
-}
-
 static enum ib_qp_state query_qp_state(struct erdma_qp *qp)
 {
-	switch (qp->attrs.state) {
-	case ERDMA_QP_STATE_IDLE:
-		return IB_QPS_INIT;
-	case ERDMA_QP_STATE_RTR:
-		return IB_QPS_RTR;
-	case ERDMA_QP_STATE_RTS:
-		return IB_QPS_RTS;
-	case ERDMA_QP_STATE_CLOSING:
-		return IB_QPS_ERR;
-	case ERDMA_QP_STATE_TERMINATE:
-		return IB_QPS_ERR;
-	case ERDMA_QP_STATE_ERROR:
-		return IB_QPS_ERR;
-	default:
-		return IB_QPS_ERR;
-	}
+	if (erdma_device_iwarp(qp->dev))
+		return iwarp_to_ib_qps(qp->attrs.iwarp.state);
+	else
+		return rocev2_to_ib_qps(qp->attrs.rocev2.state);
 }
 
 int erdma_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *qp_attr,
