@@ -40,7 +40,7 @@ enum {
 };
 
 /* What algorithm is the charger using? */
-enum {
+enum power_supply_charge_type {
 	POWER_SUPPLY_CHARGE_TYPE_UNKNOWN = 0,
 	POWER_SUPPLY_CHARGE_TYPE_NONE,
 	POWER_SUPPLY_CHARGE_TYPE_TRICKLE,	/* slow speed */
@@ -99,6 +99,7 @@ enum power_supply_property {
 	/* Properties of type `int' */
 	POWER_SUPPLY_PROP_STATUS = 0,
 	POWER_SUPPLY_PROP_CHARGE_TYPE,
+	POWER_SUPPLY_PROP_CHARGE_TYPES,
 	POWER_SUPPLY_PROP_HEALTH,
 	POWER_SUPPLY_PROP_PRESENT,
 	POWER_SUPPLY_PROP_ONLINE,
@@ -245,6 +246,7 @@ struct power_supply_desc {
 	const char *name;
 	enum power_supply_type type;
 	u8 charge_behaviours;
+	u32 charge_types;
 	u32 usb_types;
 	const enum power_supply_property *properties;
 	size_t num_properties;
@@ -946,6 +948,11 @@ ssize_t power_supply_charge_behaviour_show(struct device *dev,
 					   char *buf);
 
 int power_supply_charge_behaviour_parse(unsigned int available_behaviours, const char *buf);
+ssize_t power_supply_charge_types_show(struct device *dev,
+				       unsigned int available_types,
+				       enum power_supply_charge_type current_type,
+				       char *buf);
+int power_supply_charge_types_parse(unsigned int available_types, const char *buf);
 #else
 static inline
 ssize_t power_supply_charge_behaviour_show(struct device *dev,
@@ -958,6 +965,20 @@ ssize_t power_supply_charge_behaviour_show(struct device *dev,
 
 static inline int power_supply_charge_behaviour_parse(unsigned int available_behaviours,
 						      const char *buf)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline
+ssize_t power_supply_charge_types_show(struct device *dev,
+				       unsigned int available_types,
+				       enum power_supply_charge_type current_type,
+				       char *buf)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline int power_supply_charge_types_parse(unsigned int available_types, const char *buf)
 {
 	return -EOPNOTSUPP;
 }
