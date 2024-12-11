@@ -34,6 +34,7 @@ i915-y += \
 	i915_sysfs.o \
 	i915_utils.o \
 	intel_clock_gating.o \
+	intel_cpu_info.o \
 	intel_device_info.o \
 	intel_memory_region.o \
 	intel_pcode.o \
