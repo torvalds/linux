@@ -3115,7 +3115,7 @@ int regmap_fields_read(struct regmap_field *field, unsigned int id,
 EXPORT_SYMBOL_GPL(regmap_fields_read);
 
 static int _regmap_bulk_read(struct regmap *map, unsigned int reg,
-			     unsigned int *regs, void *val, size_t val_count)
+			     const unsigned int *regs, void *val, size_t val_count)
 {
 	u32 *u32 = val;
 	u16 *u16 = val;
@@ -3209,7 +3209,7 @@ EXPORT_SYMBOL_GPL(regmap_bulk_read);
  * A value of zero will be returned on success, a negative errno will
  * be returned in error cases.
  */
-int regmap_multi_reg_read(struct regmap *map, unsigned int *regs, void *val,
+int regmap_multi_reg_read(struct regmap *map, const unsigned int *regs, void *val,
 			  size_t val_count)
 {
 	if (val_count == 0)
