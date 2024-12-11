@@ -817,6 +817,15 @@ config LEDS_SC27XX_BLTC
 	  This driver can also be built as a module. If so the module will be
 	  called leds-sc27xx-bltc.
 
+config LEDS_UPBOARD
+	tristate "LED support for the UP board"
+	depends on LEDS_CLASS && MFD_UPBOARD_FPGA
+	help
+	  This option enables support for the UP board LEDs.
+
+	  This driver can also be built as a module. If so the module will be
+	  called leds-upboard.
+
 comment "LED driver for blink(1) USB RGB LED is under Special HID drivers (HID_THINGM)"
 
 config LEDS_BLINKM
