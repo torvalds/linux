@@ -481,6 +481,7 @@ static const struct ib_device_ops erdma_device_ops_rocev2 = {
 	.get_link_layer = erdma_get_link_layer,
 	.add_gid = erdma_add_gid,
 	.del_gid = erdma_del_gid,
+	.query_pkey = erdma_query_pkey,
 };
 
 static const struct ib_device_ops erdma_device_ops_iwarp = {

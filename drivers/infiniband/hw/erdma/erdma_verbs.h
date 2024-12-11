@@ -394,5 +394,6 @@ enum rdma_link_layer erdma_get_link_layer(struct ib_device *ibdev,
 					  u32 port_num);
 int erdma_add_gid(const struct ib_gid_attr *attr, void **context);
 int erdma_del_gid(const struct ib_gid_attr *attr, void **context);
+int erdma_query_pkey(struct ib_device *ibdev, u32 port, u16 index, u16 *pkey);
 
 #endif

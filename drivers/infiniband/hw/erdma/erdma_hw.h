@@ -23,6 +23,8 @@
 
 /* RoCEv2 related */
 #define ERDMA_ROCEV2_GID_SIZE 16
+#define ERDMA_MAX_PKEYS 1
+#define ERDMA_DEFAULT_PKEY 0xFFFF
 
 /* erdma device protocol type */
 enum erdma_proto_type {

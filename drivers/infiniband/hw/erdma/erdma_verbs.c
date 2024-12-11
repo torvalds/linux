@@ -336,6 +336,9 @@ int erdma_query_device(struct ib_device *ibdev, struct ib_device_attr *attr,
 	attr->max_fast_reg_page_list_len = ERDMA_MAX_FRMR_PA;
 	attr->page_size_cap = ERDMA_PAGE_SIZE_SUPPORT;
 
+	if (erdma_device_rocev2(dev))
+		attr->max_pkeys = ERDMA_MAX_PKEYS;
+
 	if (dev->attrs.cap_flags & ERDMA_DEV_CAP_FLAGS_ATOMIC)
 		attr->atomic_cap = IB_ATOMIC_GLOB;
 
@@ -372,6 +375,7 @@ int erdma_query_port(struct ib_device *ibdev, u32 port,
 	} else {
 		attr->gid_tbl_len = dev->attrs.max_gid;
 		attr->ip_gids = true;
+		attr->pkey_tbl_len = ERDMA_MAX_PKEYS;
 	}
 
 	attr->port_cap_flags = IB_PORT_CM_SUP | IB_PORT_DEVICE_MGMT_SUP;
@@ -411,6 +415,7 @@ int erdma_get_port_immutable(struct ib_device *ibdev, u32 port,
 			RDMA_CORE_PORT_IBA_ROCE_UDP_ENCAP;
 		port_immutable->max_mad_size = IB_MGMT_MAD_SIZE;
 		port_immutable->gid_tbl_len = dev->attrs.max_gid;
+		port_immutable->pkey_tbl_len = ERDMA_MAX_PKEYS;
 	}
 
 	return 0;
@@ -1902,4 +1907,13 @@ int erdma_del_gid(const struct ib_gid_attr *attr, void **context)
 {
 	return erdma_set_gid(to_edev(attr->device), ERDMA_SET_GID_OP_DEL,
 			     attr->index, NULL);
+}
+
+int erdma_query_pkey(struct ib_device *ibdev, u32 port, u16 index, u16 *pkey)
+{
+	if (index >= ERDMA_MAX_PKEYS)
+		return -EINVAL;
+
+	*pkey = ERDMA_DEFAULT_PKEY;
+	return 0;
 }
