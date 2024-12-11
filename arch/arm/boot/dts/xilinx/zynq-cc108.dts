@@ -48,7 +48,6 @@
 
 	ethernet_phy: ethernet-phy@1 {
 		reg = <1>;
-		device_type = "ethernet-phy";
 	};
 };
 
