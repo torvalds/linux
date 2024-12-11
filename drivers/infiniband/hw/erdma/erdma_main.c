@@ -401,6 +401,7 @@ static int erdma_dev_attrs_init(struct erdma_dev *dev)
 	dev->attrs.max_mw = 1 << ERDMA_GET_CAP(MAX_MW, cap1);
 	dev->attrs.max_recv_wr = 1 << ERDMA_GET_CAP(MAX_RECV_WR, cap0);
 	dev->attrs.max_gid = 1 << ERDMA_GET_CAP(MAX_GID, cap0);
+	dev->attrs.max_ah = 1 << ERDMA_GET_CAP(MAX_AH, cap0);
 	dev->attrs.local_dma_key = ERDMA_GET_CAP(DMA_LOCAL_KEY, cap1);
 	dev->attrs.cc = ERDMA_GET_CAP(DEFAULT_CC, cap1);
 	dev->attrs.max_qp = ERDMA_NQP_PER_QBLOCK * ERDMA_GET_CAP(QBLOCK, cap1);
@@ -418,6 +419,7 @@ static int erdma_dev_attrs_init(struct erdma_dev *dev)
 
 	dev->res_cb[ERDMA_RES_TYPE_PD].max_cap = ERDMA_MAX_PD;
 	dev->res_cb[ERDMA_RES_TYPE_STAG_IDX].max_cap = dev->attrs.max_mr;
+	dev->res_cb[ERDMA_RES_TYPE_AH].max_cap = dev->attrs.max_ah;
 
 	erdma_cmdq_build_reqhdr(&req_hdr, CMDQ_SUBMOD_COMMON,
 				CMDQ_OPCODE_QUERY_FW_INFO);
@@ -482,6 +484,8 @@ static const struct ib_device_ops erdma_device_ops_rocev2 = {
 	.add_gid = erdma_add_gid,
 	.del_gid = erdma_del_gid,
 	.query_pkey = erdma_query_pkey,
+	.create_ah = erdma_create_ah,
+	.destroy_ah = erdma_destroy_ah,
 };
 
 static const struct ib_device_ops erdma_device_ops_iwarp = {

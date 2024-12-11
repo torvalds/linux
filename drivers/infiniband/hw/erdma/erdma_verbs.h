@@ -136,6 +136,25 @@ struct erdma_user_dbrecords_page {
 	int refcnt;
 };
 
+struct erdma_av {
+	u8 port;
+	u8 hop_limit;
+	u8 traffic_class;
+	u8 sl;
+	u8 sgid_index;
+	u16 udp_sport;
+	u32 flow_label;
+	u8 dmac[ETH_ALEN];
+	u8 dgid[ERDMA_ROCEV2_GID_SIZE];
+	enum erdma_network_type ntype;
+};
+
+struct erdma_ah {
+	struct ib_ah ibah;
+	struct erdma_av av;
+	u32 ahn;
+};
+
 struct erdma_uqp {
 	struct erdma_mem sq_mem;
 	struct erdma_mem rq_mem;
@@ -326,6 +345,11 @@ static inline struct erdma_cq *to_ecq(struct ib_cq *ibcq)
 	return container_of(ibcq, struct erdma_cq, ibcq);
 }
 
+static inline struct erdma_ah *to_eah(struct ib_ah *ibah)
+{
+	return container_of(ibah, struct erdma_ah, ibah);
+}
+
 static inline int erdma_check_gid_attr(const struct ib_gid_attr *attr)
 {
 	u8 ntype = rdma_gid_attr_network_type(attr);
@@ -395,5 +419,9 @@ enum rdma_link_layer erdma_get_link_layer(struct ib_device *ibdev,
 int erdma_add_gid(const struct ib_gid_attr *attr, void **context);
 int erdma_del_gid(const struct ib_gid_attr *attr, void **context);
 int erdma_query_pkey(struct ib_device *ibdev, u32 port, u16 index, u16 *pkey);
+int erdma_create_ah(struct ib_ah *ibah, struct rdma_ah_init_attr *init_attr,
+		    struct ib_udata *udata);
+int erdma_destroy_ah(struct ib_ah *ibah, u32 flags);
+int erdma_query_ah(struct ib_ah *ibah, struct rdma_ah_attr *ah_attr);
 
 #endif

@@ -9,6 +9,7 @@
 
 #include <linux/kernel.h>
 #include <linux/types.h>
+#include <linux/if_ether.h>
 
 /* PCIe device related definition. */
 #define ERDMA_PCI_WIDTH 64
@@ -150,6 +151,8 @@ enum CMDQ_RDMA_OPCODE {
 	CMDQ_OPCODE_REG_MR = 8,
 	CMDQ_OPCODE_DEREG_MR = 9,
 	CMDQ_OPCODE_SET_GID = 14,
+	CMDQ_OPCODE_CREATE_AH = 15,
+	CMDQ_OPCODE_DESTROY_AH = 16,
 };
 
 enum CMDQ_COMMON_OPCODE {
@@ -297,6 +300,36 @@ struct erdma_cmdq_dereg_mr_req {
 	u32 cfg;
 };
 
+/* create_av cfg0 */
+#define ERDMA_CMD_CREATE_AV_FL_MASK GENMASK(19, 0)
+#define ERDMA_CMD_CREATE_AV_NTYPE_MASK BIT(20)
+
+struct erdma_av_cfg {
+	u32 cfg0;
+	u8 traffic_class;
+	u8 hop_limit;
+	u8 sl;
+	u8 rsvd;
+	u16 udp_sport;
+	u16 sgid_index;
+	u8 dmac[ETH_ALEN];
+	u8 padding[2];
+	u8 dgid[ERDMA_ROCEV2_GID_SIZE];
+};
+
+struct erdma_cmdq_create_ah_req {
+	u64 hdr;
+	u32 pdn;
+	u32 ahn;
+	struct erdma_av_cfg av_cfg;
+};
+
+struct erdma_cmdq_destroy_ah_req {
+	u64 hdr;
+	u32 pdn;
+	u32 ahn;
+};
+
 /* modify qp cfg */
 #define ERDMA_CMD_MODIFY_QP_STATE_MASK GENMASK(31, 24)
 #define ERDMA_CMD_MODIFY_QP_CC_MASK GENMASK(23, 20)
@@ -433,6 +466,7 @@ struct erdma_cmdq_set_gid_req {
 #define ERDMA_CMD_DEV_CAP_MAX_CQE_MASK GENMASK_ULL(47, 40)
 #define ERDMA_CMD_DEV_CAP_FLAGS_MASK GENMASK_ULL(31, 24)
 #define ERDMA_CMD_DEV_CAP_MAX_RECV_WR_MASK GENMASK_ULL(23, 16)
+#define ERDMA_CMD_DEV_CAP_MAX_AH_MASK GENMASK_ULL(15, 8)
 #define ERDMA_CMD_DEV_CAP_MAX_MR_SIZE_MASK GENMASK_ULL(7, 0)
 
 /* cap qword 1 definition */
