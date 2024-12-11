@@ -95,11 +95,13 @@
 #include "i915_memcpy.h"
 #include "i915_perf.h"
 #include "i915_query.h"
+#include "i915_reg.h"
 #include "i915_switcheroo.h"
 #include "i915_sysfs.h"
 #include "i915_utils.h"
 #include "i915_vgpu.h"
 #include "intel_clock_gating.h"
+#include "intel_cpu_info.h"
 #include "intel_gvt.h"
 #include "intel_memory_region.h"
 #include "intel_pci_config.h"
@@ -424,6 +426,18 @@ mask_err:
 	return ret;
 }
 
+/* Wa_14022698537:dg2 */
+static void i915_enable_g8(struct drm_i915_private *i915)
+{
+	if (IS_DG2(i915)) {
+		if (IS_DG2_D(i915) && !intel_match_g8_cpu())
+			return;
+
+		snb_pcode_write_p(&i915->uncore, PCODE_POWER_SETUP,
+				  POWER_SETUP_SUBCOMMAND_G8_ENABLE, 0, 0);
+	}
+}
+
 static int i915_pcode_init(struct drm_i915_private *i915)
 {
 	struct intel_gt *gt;
@@ -437,6 +451,7 @@ static int i915_pcode_init(struct drm_i915_private *i915)
 		}
 	}
 
+	i915_enable_g8(i915);
 	return 0;
 }
 
