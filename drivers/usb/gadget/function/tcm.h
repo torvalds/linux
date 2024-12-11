@@ -80,7 +80,6 @@ struct usbg_cmd {
 	u16 prio_attr;
 	struct sense_iu sense_iu;
 	enum uas_state state;
-	struct uas_stream *stream;
 
 	/* BOT only */
 	__le32 bot_tag;

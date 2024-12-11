@@ -491,7 +491,7 @@ static int uasp_prepare_r_request(struct usbg_cmd *cmd)
 	struct se_cmd *se_cmd = &cmd->se_cmd;
 	struct f_uas *fu = cmd->fu;
 	struct usb_gadget *gadget = fuas_to_gadget(fu);
-	struct uas_stream *stream = cmd->stream;
+	struct uas_stream *stream = &fu->stream[se_cmd->map_tag];
 
 	if (!gadget->sg_supported) {
 		cmd->data_buf = kmalloc(se_cmd->data_length, GFP_ATOMIC);
@@ -523,7 +523,7 @@ static void uasp_prepare_status(struct usbg_cmd *cmd)
 {
 	struct se_cmd *se_cmd = &cmd->se_cmd;
 	struct sense_iu *iu = &cmd->sense_iu;
-	struct uas_stream *stream = cmd->stream;
+	struct uas_stream *stream = &cmd->fu->stream[se_cmd->map_tag];
 
 	cmd->state = UASP_QUEUE_COMMAND;
 	iu->iu_id = IU_ID_STATUS;
@@ -544,8 +544,8 @@ static void uasp_prepare_status(struct usbg_cmd *cmd)
 static void uasp_status_data_cmpl(struct usb_ep *ep, struct usb_request *req)
 {
 	struct usbg_cmd *cmd = req->context;
-	struct uas_stream *stream = cmd->stream;
 	struct f_uas *fu = cmd->fu;
+	struct uas_stream *stream = &fu->stream[cmd->se_cmd.map_tag];
 	int ret;
 
 	if (req->status < 0)
@@ -595,7 +595,7 @@ cleanup:
 static int uasp_send_status_response(struct usbg_cmd *cmd)
 {
 	struct f_uas *fu = cmd->fu;
-	struct uas_stream *stream = cmd->stream;
+	struct uas_stream *stream = &fu->stream[cmd->se_cmd.map_tag];
 	struct sense_iu *iu = &cmd->sense_iu;
 
 	iu->tag = cpu_to_be16(cmd->tag);
@@ -609,7 +609,7 @@ static int uasp_send_status_response(struct usbg_cmd *cmd)
 static int uasp_send_read_response(struct usbg_cmd *cmd)
 {
 	struct f_uas *fu = cmd->fu;
-	struct uas_stream *stream = cmd->stream;
+	struct uas_stream *stream = &fu->stream[cmd->se_cmd.map_tag];
 	struct sense_iu *iu = &cmd->sense_iu;
 	int ret;
 
@@ -653,7 +653,7 @@ static int uasp_send_write_request(struct usbg_cmd *cmd)
 {
 	struct f_uas *fu = cmd->fu;
 	struct se_cmd *se_cmd = &cmd->se_cmd;
-	struct uas_stream *stream = cmd->stream;
+	struct uas_stream *stream = &fu->stream[se_cmd->map_tag];
 	struct sense_iu *iu = &cmd->sense_iu;
 	int ret;
 
@@ -1104,17 +1104,6 @@ static int usbg_submit_command(struct f_uas *fu,
 	}
 	memcpy(cmd->cmd_buf, cmd_iu->cdb, cmd_len);
 
-	if (fu->flags & USBG_USE_STREAMS) {
-		if (cmd->tag > UASP_SS_EP_COMP_NUM_STREAMS)
-			goto err;
-		if (!cmd->tag)
-			cmd->stream = &fu->stream[0];
-		else
-			cmd->stream = &fu->stream[cmd->tag - 1];
-	} else {
-		cmd->stream = &fu->stream[0];
-	}
-
 	switch (cmd_iu->prio_attr & 0x7) {
 	case UAS_HEAD_TAG:
 		cmd->prio_attr = TCM_HEAD_TAG;
@@ -1140,9 +1129,6 @@ static int usbg_submit_command(struct f_uas *fu,
 	queue_work(tpg->workqueue, &cmd->work);
 
 	return 0;
-err:
-	usbg_release_cmd(&cmd->se_cmd);
-	return -EINVAL;
 }
 
 static void bot_cmd_work(struct work_struct *work)
