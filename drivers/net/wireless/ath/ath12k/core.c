@@ -1782,6 +1782,9 @@ static int ath12k_core_hw_group_create(struct ath12k_hw_group *ag)
 
 void ath12k_core_hw_group_set_mlo_capable(struct ath12k_hw_group *ag)
 {
+	struct ath12k_base *ab;
+	int i;
+
 	lockdep_assert_held(&ag->mutex);
 
 	/* If more than one devices are grouped, then inter MLO
@@ -1790,10 +1793,35 @@ void ath12k_core_hw_group_set_mlo_capable(struct ath12k_hw_group *ag)
 	 * Only when there is one device, then it depends whether the
 	 * device can support intra chip MLO or not
 	 */
-	if (ag->num_devices > 1)
+	if (ag->num_devices > 1) {
 		ag->mlo_capable = true;
-	else
-		ag->mlo_capable = ag->ab[0]->single_chip_mlo_supp;
+	} else {
+		ab = ag->ab[0];
+		ag->mlo_capable = ab->single_chip_mlo_supp;
+
+		/* WCN chipsets does not advertise in firmware features
+		 * hence skip checking
+		 */
+		if (ab->hw_params->def_num_link)
+			return;
+	}
+
+	if (!ag->mlo_capable)
+		return;
+
+	for (i = 0; i < ag->num_devices; i++) {
+		ab = ag->ab[i];
+		if (!ab)
+			continue;
+
+		/* even if 1 device's firmware feature indicates MLO
+		 * unsupported, make MLO unsupported for the whole group
+		 */
+		if (!test_bit(ATH12K_FW_FEATURE_MLO, ab->fw.fw_features)) {
+			ag->mlo_capable = false;
+			return;
+		}
+	}
 }
 
 int ath12k_core_init(struct ath12k_base *ab)
