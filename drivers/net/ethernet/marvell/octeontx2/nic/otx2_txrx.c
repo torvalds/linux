@@ -27,6 +27,8 @@
  */
 #define PTP_SYNC_SEC_OFFSET	34
 
+DEFINE_STATIC_KEY_FALSE(cn10k_ipsec_sa_enabled);
+
 static bool otx2_xdp_rcv_pkt_handler(struct otx2_nic *pfvf,
 				     struct bpf_prog *prog,
 				     struct nix_cqe_rx_s *cqe,

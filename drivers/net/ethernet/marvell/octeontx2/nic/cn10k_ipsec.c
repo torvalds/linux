@@ -14,8 +14,6 @@
 #include "otx2_struct.h"
 #include "cn10k_ipsec.h"
 
-DEFINE_STATIC_KEY_FALSE(cn10k_ipsec_sa_enabled);
-
 static bool is_dev_support_ipsec_offload(struct pci_dev *pdev)
 {
 	return is_dev_cn10ka_b0(pdev) || is_dev_cn10kb(pdev);
