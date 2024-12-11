@@ -10,6 +10,7 @@
 
 #include <linux/limits.h>
 #include <asm/march.h>
+#include <asm/asm.h>
 
 static __always_inline int __atomic_read(const int *ptr)
 {
@@ -168,5 +169,77 @@ __ATOMIC64_OPS(__atomic64_xor, "xgr")
 #define __atomic64_add_const_barrier(val, ptr)	__atomic64_add(val, ptr)
 
 #endif /* MARCH_HAS_Z196_FEATURES */
+
+#if defined(MARCH_HAS_Z196_FEATURES) && defined(__HAVE_ASM_FLAG_OUTPUTS__)
+
+#define __ATOMIC_TEST_OP(op_name, op_type, op_string, op_barrier)	\
+static __always_inline bool op_name(op_type val, op_type *ptr)		\
+{									\
+	op_type tmp;							\
+	int cc;								\
+									\
+	asm volatile(							\
+		op_string "	%[tmp],%[val],%[ptr]\n"			\
+		op_barrier						\
+		: "=@cc" (cc), [tmp] "=d" (tmp), [ptr] "+QS" (*ptr)	\
+		: [val] "d" (val)					\
+		: "memory");						\
+	return (cc == 0) || (cc == 2);					\
+}									\
+
+#define __ATOMIC_TEST_OPS(op_name, op_type, op_string)			\
+	__ATOMIC_TEST_OP(op_name, op_type, op_string, "")		\
+	__ATOMIC_TEST_OP(op_name##_barrier, op_type, op_string, "bcr 14,0\n")
+
+__ATOMIC_TEST_OPS(__atomic_add_and_test, int, "laal")
+__ATOMIC_TEST_OPS(__atomic64_add_and_test, long, "laalg")
+
+#undef __ATOMIC_TEST_OPS
+#undef __ATOMIC_TEST_OP
+
+#define __ATOMIC_CONST_TEST_OP(op_name, op_type, op_string, op_barrier)	\
+static __always_inline bool op_name(op_type val, op_type *ptr)		\
+{									\
+	int cc;								\
+									\
+	asm volatile(							\
+		op_string "	%[ptr],%[val]\n"			\
+		op_barrier						\
+		: "=@cc" (cc), [ptr] "+QS" (*ptr)			\
+		: [val] "i" (val)					\
+		: "memory");						\
+	return (cc == 0) || (cc == 2);					\
+}
+
+#define __ATOMIC_CONST_TEST_OPS(op_name, op_type, op_string)		\
+	__ATOMIC_CONST_TEST_OP(op_name, op_type, op_string, "")		\
+	__ATOMIC_CONST_TEST_OP(op_name##_barrier, op_type, op_string, "bcr 14,0\n")
+
+__ATOMIC_CONST_TEST_OPS(__atomic_add_const_and_test, int, "alsi")
+__ATOMIC_CONST_TEST_OPS(__atomic64_add_const_and_test, long, "algsi")
+
+#undef __ATOMIC_CONST_TEST_OPS
+#undef __ATOMIC_CONST_TEST_OP
+
+#else /* defined(MARCH_HAS_Z196_FEATURES) && defined(__HAVE_ASM_FLAG_OUTPUTS__) */
+
+#define __ATOMIC_TEST_OP(op_name, op_func, op_type)			\
+static __always_inline bool op_name(op_type val, op_type *ptr)		\
+{									\
+	return op_func(val, ptr) == -val;				\
+}
+
+__ATOMIC_TEST_OP(__atomic_add_and_test,			__atomic_add,		int)
+__ATOMIC_TEST_OP(__atomic_add_and_test_barrier,		__atomic_add_barrier,	int)
+__ATOMIC_TEST_OP(__atomic_add_const_and_test,		__atomic_add,		int)
+__ATOMIC_TEST_OP(__atomic_add_const_and_test_barrier,	__atomic_add_barrier,	int)
+__ATOMIC_TEST_OP(__atomic64_add_and_test,		__atomic64_add,		long)
+__ATOMIC_TEST_OP(__atomic64_add_and_test_barrier,	__atomic64_add_barrier, long)
+__ATOMIC_TEST_OP(__atomic64_add_const_and_test,		__atomic64_add,		long)
+__ATOMIC_TEST_OP(__atomic64_add_const_and_test_barrier,	__atomic64_add_barrier,	long)
+
+#undef __ATOMIC_TEST_OP
+
+#endif /* defined(MARCH_HAS_Z196_FEATURES) && defined(__HAVE_ASM_FLAG_OUTPUTS__) */
 
 #endif /* __ARCH_S390_ATOMIC_OPS__  */
