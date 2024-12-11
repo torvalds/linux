@@ -2598,10 +2598,12 @@ static int bnxt_qplib_cq_process_req(struct bnxt_qplib_cq *cq,
 			bnxt_qplib_add_flush_qp(qp);
 		} else {
 			/* Before we complete, do WA 9060 */
-			if (do_wa9060(qp, cq, cq_cons, sq->swq_last,
-				      cqe_sq_cons)) {
-				*lib_qp = qp;
-				goto out;
+			if (!bnxt_qplib_is_chip_gen_p5_p7(qp->cctx)) {
+				if (do_wa9060(qp, cq, cq_cons, sq->swq_last,
+					      cqe_sq_cons)) {
+					*lib_qp = qp;
+					goto out;
+				}
 			}
 			if (swq->flags & SQ_SEND_FLAGS_SIGNAL_COMP) {
 				cqe->status = CQ_REQ_STATUS_OK;
