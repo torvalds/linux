@@ -137,9 +137,10 @@ static void init_sdma_bitmaps(struct device_queue_manager *dqm)
 	bitmap_set(dqm->xgmi_sdma_bitmap, 0, get_num_xgmi_sdma_queues(dqm));
 
 	/* Mask out the reserved queues */
-	bitmap_andnot(dqm->sdma_bitmap, dqm->sdma_bitmap,
-		      dqm->dev->kfd->device_info.reserved_sdma_queues_bitmap,
-		      KFD_MAX_SDMA_QUEUES);
+	bitmap_clear(dqm->sdma_bitmap, 0, kfd_get_num_sdma_engines(dqm->dev) *
+			dqm->dev->kfd->device_info.num_reserved_sdma_queues_per_engine);
+	bitmap_clear(dqm->xgmi_sdma_bitmap, 0, kfd_get_num_xgmi_sdma_engines(dqm->dev) *
+			dqm->dev->kfd->device_info.num_reserved_sdma_queues_per_engine);
 }
 
 void program_sh_mem_settings(struct device_queue_manager *dqm,

@@ -94,6 +94,8 @@ static void kfd_device_info_set_sdma_info(struct kfd_dev *kfd)
 	case IP_VERSION(5, 2, 2):/* NAVY_FLOUNDER */
 	case IP_VERSION(5, 2, 4):/* DIMGREY_CAVEFISH */
 	case IP_VERSION(5, 2, 5):/* BEIGE_GOBY */
+		kfd->device_info.num_sdma_queues_per_engine = 8;
+		break;
 	case IP_VERSION(6, 0, 0):
 	case IP_VERSION(6, 0, 1):
 	case IP_VERSION(6, 0, 2):
@@ -105,36 +107,14 @@ static void kfd_device_info_set_sdma_info(struct kfd_dev *kfd)
 	case IP_VERSION(7, 0, 0):
 	case IP_VERSION(7, 0, 1):
 		kfd->device_info.num_sdma_queues_per_engine = 8;
+		/* Reserve 1 for paging and 1 for gfx */
+		kfd->device_info.num_reserved_sdma_queues_per_engine = 2;
 		break;
 	default:
 		dev_warn(kfd_device,
 			"Default sdma queue per engine(8) is set due to mismatch of sdma ip block(SDMA_HWIP:0x%x).\n",
 			sdma_version);
 		kfd->device_info.num_sdma_queues_per_engine = 8;
-	}
-
-	bitmap_zero(kfd->device_info.reserved_sdma_queues_bitmap, KFD_MAX_SDMA_QUEUES);
-
-	switch (sdma_version) {
-	case IP_VERSION(6, 0, 0):
-	case IP_VERSION(6, 0, 1):
-	case IP_VERSION(6, 0, 2):
-	case IP_VERSION(6, 0, 3):
-	case IP_VERSION(6, 1, 0):
-	case IP_VERSION(6, 1, 1):
-	case IP_VERSION(6, 1, 2):
-	case IP_VERSION(6, 1, 3):
-	case IP_VERSION(7, 0, 0):
-	case IP_VERSION(7, 0, 1):
-		/* Reserve 1 for paging and 1 for gfx */
-		kfd->device_info.num_reserved_sdma_queues_per_engine = 2;
-		/* BIT(0)=engine-0 queue-0; BIT(1)=engine-1 queue-0; BIT(2)=engine-0 queue-1; ... */
-		bitmap_set(kfd->device_info.reserved_sdma_queues_bitmap, 0,
-			   kfd->adev->sdma.num_instances *
-			   kfd->device_info.num_reserved_sdma_queues_per_engine);
-		break;
-	default:
-		break;
 	}
 }
 
