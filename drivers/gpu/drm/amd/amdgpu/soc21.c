@@ -799,6 +799,11 @@ static int soc21_common_early_init(struct amdgpu_ip_block *ip_block)
 			AMD_PG_SUPPORT_GFX_PG;
 		adev->external_rev_id = adev->rev_id + 0x50;
 		break;
+	case IP_VERSION(11, 5, 4):
+               adev->cg_flags = 0;
+               adev->pg_flags = 0;
+               adev->external_rev_id = adev->rev_id + 0x1;
+               break;
 	default:
 		/* FIXME: not supported yet */
 		return -EINVAL;
