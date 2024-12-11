@@ -137,8 +137,10 @@ kunwind_recover_return_address(struct kunwind_state *state)
 		orig_pc = ftrace_graph_ret_addr(state->task, &state->graph_idx,
 						state->common.pc,
 						(void *)state->common.fp);
-		if (WARN_ON_ONCE(state->common.pc == orig_pc))
+		if (state->common.pc == orig_pc) {
+			WARN_ON_ONCE(state->task == current);
 			return -EINVAL;
+		}
 		state->common.pc = orig_pc;
 		state->flags.fgraph = 1;
 	}
@@ -199,12 +201,12 @@ kunwind_next_frame_record_meta(struct kunwind_state *state)
 	case FRAME_META_TYPE_FINAL:
 		if (meta == &task_pt_regs(tsk)->stackframe)
 			return -ENOENT;
-		WARN_ON_ONCE(1);
+		WARN_ON_ONCE(tsk == current);
 		return -EINVAL;
 	case FRAME_META_TYPE_PT_REGS:
 		return kunwind_next_regs_pc(state);
 	default:
-		WARN_ON_ONCE(1);
+		WARN_ON_ONCE(tsk == current);
 		return -EINVAL;
 	}
 }
