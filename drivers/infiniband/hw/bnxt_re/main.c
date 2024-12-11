@@ -2321,13 +2321,9 @@ static int bnxt_re_probe(struct auxiliary_device *adev,
 
 	rc = bnxt_re_add_device(adev, BNXT_RE_COMPLETE_INIT);
 	if (rc)
-		goto err;
-	mutex_unlock(&bnxt_re_mutex);
-	return 0;
+		kfree(en_info);
 
-err:
 	mutex_unlock(&bnxt_re_mutex);
-	kfree(en_info);
 
 	return rc;
 }
