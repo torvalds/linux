@@ -60,7 +60,8 @@ int
 amdgpu_eviction_fence_init(struct amdgpu_eviction_fence_mgr *evf_mgr);
 
 void
-amdgpu_eviction_fence_signal(struct amdgpu_eviction_fence_mgr *evf_mgr);
+amdgpu_eviction_fence_signal(struct amdgpu_eviction_fence_mgr *evf_mgr,
+			     struct amdgpu_eviction_fence *ev_fence);
 
 int
 amdgpu_eviction_fence_replace_fence(struct amdgpu_eviction_fence_mgr *evf_mgr,

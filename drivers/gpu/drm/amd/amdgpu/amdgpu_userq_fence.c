@@ -466,14 +466,11 @@ int amdgpu_userq_signal_ioctl(struct drm_device *dev, void *data,
 		}
 	}
 
-	/* Save the fence to wait for during suspend */
-	mutex_lock(&userq_mgr->userq_mutex);
-
 	/* Retrieve the user queue */
 	queue = idr_find(&userq_mgr->userq_idr, args->queue_id);
 	if (!queue) {
 		r = -ENOENT;
-		mutex_unlock(&userq_mgr->userq_mutex);
+		goto put_gobj_write;
 	}
 
 	drm_exec_init(&exec, DRM_EXEC_INTERRUPTIBLE_WAIT,
@@ -483,31 +480,26 @@ int amdgpu_userq_signal_ioctl(struct drm_device *dev, void *data,
 	drm_exec_until_all_locked(&exec) {
 		r = drm_exec_prepare_array(&exec, gobj_read, num_read_bo_handles, 1);
 		drm_exec_retry_on_contention(&exec);
-		if (r) {
-			mutex_unlock(&userq_mgr->userq_mutex);
+		if (r)
 			goto exec_fini;
-		}
 
 		r = drm_exec_prepare_array(&exec, gobj_write, num_write_bo_handles, 1);
 		drm_exec_retry_on_contention(&exec);
-		if (r) {
-			mutex_unlock(&userq_mgr->userq_mutex);
+		if (r)
 			goto exec_fini;
-		}
 	}
 
 	r = amdgpu_userq_fence_read_wptr(queue, &wptr);
-	if (r) {
-		mutex_unlock(&userq_mgr->userq_mutex);
+	if (r)
 		goto exec_fini;
-	}
 
 	/* Create a new fence */
 	r = amdgpu_userq_fence_create(queue, wptr, &fence);
-	if (r) {
-		mutex_unlock(&userq_mgr->userq_mutex);
+	if (r)
 		goto exec_fini;
-	}
+
+	/* We are here means UQ is active, make sure the eviction fence is valid */
+	amdgpu_userqueue_ensure_ev_fence(&fpriv->userq_mgr, &fpriv->evf_mgr);
 
 	dma_fence_put(queue->last_fence);
 	queue->last_fence = dma_fence_get(fence);

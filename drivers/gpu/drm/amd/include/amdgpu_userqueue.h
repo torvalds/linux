@@ -24,6 +24,7 @@
 
 #ifndef AMDGPU_USERQUEUE_H_
 #define AMDGPU_USERQUEUE_H_
+#include "amdgpu_eviction_fence.h"
 
 #define AMDGPU_MAX_USERQ_COUNT 512
 
@@ -90,7 +91,11 @@ int amdgpu_userqueue_create_object(struct amdgpu_userq_mgr *uq_mgr,
 void amdgpu_userqueue_destroy_object(struct amdgpu_userq_mgr *uq_mgr,
 				     struct amdgpu_userq_obj *userq_obj);
 
-void amdgpu_userqueue_suspend(struct amdgpu_userq_mgr *uq_mgr);
+void amdgpu_userqueue_suspend(struct amdgpu_userq_mgr *uq_mgr,
+			      struct amdgpu_eviction_fence *ev_fence);
 
 int amdgpu_userqueue_active(struct amdgpu_userq_mgr *uq_mgr);
+
+void amdgpu_userqueue_ensure_ev_fence(struct amdgpu_userq_mgr *userq_mgr,
+				      struct amdgpu_eviction_fence_mgr *evf_mgr);
 #endif

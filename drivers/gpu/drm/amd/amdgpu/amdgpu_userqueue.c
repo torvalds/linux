@@ -101,6 +101,31 @@ amdgpu_userqueue_find(struct amdgpu_userq_mgr *uq_mgr, int qid)
 	return idr_find(&uq_mgr->userq_idr, qid);
 }
 
+void
+amdgpu_userqueue_ensure_ev_fence(struct amdgpu_userq_mgr *uq_mgr,
+				 struct amdgpu_eviction_fence_mgr *evf_mgr)
+{
+	struct amdgpu_eviction_fence *ev_fence;
+
+retry:
+	/* Flush any pending resume work to create ev_fence */
+	flush_delayed_work(&uq_mgr->resume_work);
+
+	mutex_lock(&uq_mgr->userq_mutex);
+	spin_lock(&evf_mgr->ev_fence_lock);
+	ev_fence = evf_mgr->ev_fence;
+	spin_unlock(&evf_mgr->ev_fence_lock);
+	if (!ev_fence || dma_fence_is_signaled(&ev_fence->base)) {
+		mutex_unlock(&uq_mgr->userq_mutex);
+		/*
+		 * Looks like there was no pending resume work,
+		 * add one now to create a valid eviction fence
+		 */
+		schedule_delayed_work(&uq_mgr->resume_work, 0);
+		goto retry;
+	}
+}
+
 int amdgpu_userqueue_create_object(struct amdgpu_userq_mgr *uq_mgr,
 				   struct amdgpu_userq_obj *userq_obj,
 				   int size)
@@ -253,7 +278,14 @@ amdgpu_userqueue_create(struct drm_file *filp, union drm_amdgpu_userq *args)
 		return -EINVAL;
 	}
 
-	mutex_lock(&uq_mgr->userq_mutex);
+	/*
+	 * There could be a situation that we are creating a new queue while
+	 * the other queues under this UQ_mgr are suspended. So if there is any
+	 * resume work pending, wait for it to get done.
+	 *
+	 * This will also make sure we have a valid eviction fence ready to be used.
+	 */
+	amdgpu_userqueue_ensure_ev_fence(&fpriv->userq_mgr, &fpriv->evf_mgr);
 
 	uq_funcs = adev->userq_funcs[args->in.ip_type];
 	if (!uq_funcs) {
@@ -308,14 +340,6 @@ amdgpu_userqueue_create(struct drm_file *filp, union drm_amdgpu_userq *args)
 
 unlock:
 	mutex_unlock(&uq_mgr->userq_mutex);
-	if (!r) {
-		/*
-		* There could be a situation that we are creating a new queue while
-		* the other queues under this UQ_mgr are suspended. So if there is any
-		* resume work pending, wait for it to get done.
-		*/
-		flush_delayed_work(&uq_mgr->resume_work);
-	}
 
 	return r;
 }
@@ -551,57 +575,43 @@ amdgpu_userqueue_wait_for_signal(struct amdgpu_userq_mgr *uq_mgr)
 }
 
 void
-amdgpu_userqueue_suspend(struct amdgpu_userq_mgr *uq_mgr)
+amdgpu_userqueue_suspend(struct amdgpu_userq_mgr *uq_mgr,
+			 struct amdgpu_eviction_fence *ev_fence)
 {
 	int ret;
 	struct amdgpu_fpriv *fpriv = uq_mgr_to_fpriv(uq_mgr);
 	struct amdgpu_eviction_fence_mgr *evf_mgr = &fpriv->evf_mgr;
 
-
-	mutex_lock(&uq_mgr->userq_mutex);
-
-	/* Wait for any pending userqueue fence to signal */
+	/* Wait for any pending userqueue fence work to finish */
 	ret = amdgpu_userqueue_wait_for_signal(uq_mgr);
 	if (ret) {
 		DRM_ERROR("Not suspending userqueue, timeout waiting for work\n");
-		goto unlock;
+		return;
 	}
 
 	ret = amdgpu_userqueue_suspend_all(uq_mgr);
 	if (ret) {
 		DRM_ERROR("Failed to evict userqueue\n");
-		goto unlock;
+		return;
 	}
 
 	/* Signal current eviction fence */
-	amdgpu_eviction_fence_signal(evf_mgr);
+	amdgpu_eviction_fence_signal(evf_mgr, ev_fence);
 
 	if (evf_mgr->fd_closing) {
-		mutex_unlock(&uq_mgr->userq_mutex);
 		cancel_delayed_work(&uq_mgr->resume_work);
 		return;
 	}
 
 	/* Schedule a resume work */
 	schedule_delayed_work(&uq_mgr->resume_work, 0);
-
-unlock:
-	mutex_unlock(&uq_mgr->userq_mutex);
 }
 
 int amdgpu_userq_mgr_init(struct amdgpu_userq_mgr *userq_mgr, struct amdgpu_device *adev)
 {
-	struct amdgpu_fpriv *fpriv;
-
 	mutex_init(&userq_mgr->userq_mutex);
 	idr_init_base(&userq_mgr->userq_idr, 1);
 	userq_mgr->adev = adev;
-
-	fpriv = uq_mgr_to_fpriv(userq_mgr);
-	if (!fpriv->evf_mgr.ev_fence) {
-		DRM_ERROR("Eviction fence not initialized yet\n");
-		return -EINVAL;
-	}
 
 	INIT_DELAYED_WORK(&userq_mgr->resume_work, amdgpu_userqueue_resume_worker);
 	return 0;
