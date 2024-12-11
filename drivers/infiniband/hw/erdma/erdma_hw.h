@@ -347,6 +347,20 @@ struct erdma_cmdq_modify_qp_req {
 	u32 recv_nxt;
 };
 
+/* modify qp cfg1 for roce device */
+#define ERDMA_CMD_MODIFY_QP_DQPN_MASK GENMASK(19, 0)
+
+struct erdma_cmdq_mod_qp_req_rocev2 {
+	u64 hdr;
+	u32 cfg0;
+	u32 cfg1;
+	u32 attr_mask;
+	u32 qkey;
+	u32 rq_psn;
+	u32 sq_psn;
+	struct erdma_av_cfg av_cfg;
+};
+
 /* create qp cfg0 */
 #define ERDMA_CMD_CREATE_QP_SQ_DEPTH_MASK GENMASK(31, 20)
 #define ERDMA_CMD_CREATE_QP_QPN_MASK GENMASK(19, 0)

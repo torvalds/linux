@@ -486,6 +486,7 @@ static const struct ib_device_ops erdma_device_ops_rocev2 = {
 	.query_pkey = erdma_query_pkey,
 	.create_ah = erdma_create_ah,
 	.destroy_ah = erdma_destroy_ah,
+	.modify_qp = erdma_modify_qp_rocev2,
 };
 
 static const struct ib_device_ops erdma_device_ops_iwarp = {
@@ -497,6 +498,7 @@ static const struct ib_device_ops erdma_device_ops_iwarp = {
 	.iw_get_qp = erdma_get_ibqp,
 	.iw_reject = erdma_reject,
 	.iw_rem_ref = erdma_qp_put_ref,
+	.modify_qp = erdma_modify_qp,
 };
 
 static const struct ib_device_ops erdma_device_ops = {
@@ -522,7 +524,6 @@ static const struct ib_device_ops erdma_device_ops = {
 	.map_mr_sg = erdma_map_mr_sg,
 	.mmap = erdma_mmap,
 	.mmap_free = erdma_mmap_free,
-	.modify_qp = erdma_modify_qp,
 	.post_recv = erdma_post_recv,
 	.post_send = erdma_post_send,
 	.poll_cq = erdma_poll_cq,

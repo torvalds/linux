@@ -216,8 +216,44 @@ enum erdma_qp_attr_mask {
 	ERDMA_QP_ATTR_MPA = (1 << 7)
 };
 
+enum erdma_qps_rocev2 {
+	ERDMA_QPS_ROCEV2_RESET = 0,
+	ERDMA_QPS_ROCEV2_INIT = 1,
+	ERDMA_QPS_ROCEV2_RTR = 2,
+	ERDMA_QPS_ROCEV2_RTS = 3,
+	ERDMA_QPS_ROCEV2_SQD = 4,
+	ERDMA_QPS_ROCEV2_SQE = 5,
+	ERDMA_QPS_ROCEV2_ERROR = 6,
+	ERDMA_QPS_ROCEV2_COUNT = 7,
+};
+
+enum erdma_qpa_mask_rocev2 {
+	ERDMA_QPA_ROCEV2_STATE = (1 << 0),
+	ERDMA_QPA_ROCEV2_QKEY = (1 << 1),
+	ERDMA_QPA_ROCEV2_AV = (1 << 2),
+	ERDMA_QPA_ROCEV2_SQ_PSN = (1 << 3),
+	ERDMA_QPA_ROCEV2_RQ_PSN = (1 << 4),
+	ERDMA_QPA_ROCEV2_DST_QPN = (1 << 5),
+};
+
 enum erdma_qp_flags {
 	ERDMA_QP_IN_FLUSHING = (1 << 0),
+};
+
+struct erdma_mod_qp_params_rocev2 {
+	enum erdma_qps_rocev2 state;
+	u32 qkey;
+	u32 sq_psn;
+	u32 rq_psn;
+	u32 dst_qpn;
+	struct erdma_av av;
+};
+
+struct erdma_qp_attrs_rocev2 {
+	enum erdma_qps_rocev2 state;
+	u32 qkey;
+	u32 dst_qpn;
+	struct erdma_av av;
 };
 
 struct erdma_qp_attrs {
@@ -234,6 +270,7 @@ struct erdma_qp_attrs {
 #define ERDMA_QP_PASSIVE 1
 	u8 qp_type;
 	u8 pd_len;
+	struct erdma_qp_attrs_rocev2 rocev2;
 };
 
 struct erdma_qp {
@@ -307,6 +344,9 @@ void erdma_qp_get(struct erdma_qp *qp);
 void erdma_qp_put(struct erdma_qp *qp);
 int erdma_modify_qp_internal(struct erdma_qp *qp, struct erdma_qp_attrs *attrs,
 			     enum erdma_qp_attr_mask mask);
+int erdma_modify_qp_state_rocev2(struct erdma_qp *qp,
+				 struct erdma_mod_qp_params_rocev2 *params,
+				 int attr_mask);
 void erdma_qp_llp_close(struct erdma_qp *qp);
 void erdma_qp_cm_drop(struct erdma_qp *qp);
 
@@ -386,6 +426,8 @@ int erdma_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr, int mask,
 		   struct ib_qp_init_attr *init_attr);
 int erdma_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr, int mask,
 		    struct ib_udata *data);
+int erdma_modify_qp_rocev2(struct ib_qp *ibqp, struct ib_qp_attr *attr,
+			   int mask, struct ib_udata *udata);
 int erdma_destroy_qp(struct ib_qp *ibqp, struct ib_udata *udata);
 int erdma_destroy_cq(struct ib_cq *ibcq, struct ib_udata *udata);
 void erdma_disassociate_ucontext(struct ib_ucontext *ibcontext);
@@ -404,6 +446,7 @@ int erdma_post_send(struct ib_qp *ibqp, const struct ib_send_wr *send_wr,
 int erdma_post_recv(struct ib_qp *ibqp, const struct ib_recv_wr *recv_wr,
 		    const struct ib_recv_wr **bad_recv_wr);
 int erdma_poll_cq(struct ib_cq *ibcq, int num_entries, struct ib_wc *wc);
+void erdma_remove_cqes_of_qp(struct ib_cq *ibcq, u32 qpn);
 struct ib_mr *erdma_ib_alloc_mr(struct ib_pd *ibpd, enum ib_mr_type mr_type,
 				u32 max_num_sg);
 int erdma_map_mr_sg(struct ib_mr *ibmr, struct scatterlist *sg, int sg_nents,
@@ -419,6 +462,7 @@ enum rdma_link_layer erdma_get_link_layer(struct ib_device *ibdev,
 int erdma_add_gid(const struct ib_gid_attr *attr, void **context);
 int erdma_del_gid(const struct ib_gid_attr *attr, void **context);
 int erdma_query_pkey(struct ib_device *ibdev, u32 port, u16 index, u16 *pkey);
+void erdma_set_av_cfg(struct erdma_av_cfg *av_cfg, struct erdma_av *av);
 int erdma_create_ah(struct ib_ah *ibah, struct rdma_ah_init_attr *init_attr,
 		    struct ib_udata *udata);
 int erdma_destroy_ah(struct ib_ah *ibah, u32 flags);

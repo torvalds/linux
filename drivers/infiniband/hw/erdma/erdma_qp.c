@@ -186,6 +186,98 @@ int erdma_modify_qp_internal(struct erdma_qp *qp, struct erdma_qp_attrs *attrs,
 	return ret;
 }
 
+static int modify_qp_cmd_rocev2(struct erdma_qp *qp,
+				struct erdma_mod_qp_params_rocev2 *params,
+				enum erdma_qpa_mask_rocev2 attr_mask)
+{
+	struct erdma_cmdq_mod_qp_req_rocev2 req;
+
+	memset(&req, 0, sizeof(req));
+
+	erdma_cmdq_build_reqhdr(&req.hdr, CMDQ_SUBMOD_RDMA,
+				CMDQ_OPCODE_MODIFY_QP);
+
+	req.cfg0 = FIELD_PREP(ERDMA_CMD_MODIFY_QP_QPN_MASK, QP_ID(qp));
+
+	if (attr_mask & ERDMA_QPA_ROCEV2_STATE)
+		req.cfg0 |= FIELD_PREP(ERDMA_CMD_MODIFY_QP_STATE_MASK,
+				       params->state);
+
+	if (attr_mask & ERDMA_QPA_ROCEV2_DST_QPN)
+		req.cfg1 = FIELD_PREP(ERDMA_CMD_MODIFY_QP_DQPN_MASK,
+				      params->dst_qpn);
+
+	if (attr_mask & ERDMA_QPA_ROCEV2_QKEY)
+		req.qkey = params->qkey;
+
+	if (attr_mask & ERDMA_QPA_ROCEV2_AV)
+		erdma_set_av_cfg(&req.av_cfg, &params->av);
+
+	if (attr_mask & ERDMA_QPA_ROCEV2_SQ_PSN)
+		req.sq_psn = params->sq_psn;
+
+	if (attr_mask & ERDMA_QPA_ROCEV2_RQ_PSN)
+		req.rq_psn = params->rq_psn;
+
+	req.attr_mask = attr_mask;
+
+	return erdma_post_cmd_wait(&qp->dev->cmdq, &req, sizeof(req), NULL,
+				   NULL);
+}
+
+static void erdma_reset_qp(struct erdma_qp *qp)
+{
+	qp->kern_qp.sq_pi = 0;
+	qp->kern_qp.sq_ci = 0;
+	qp->kern_qp.rq_pi = 0;
+	qp->kern_qp.rq_ci = 0;
+	memset(qp->kern_qp.swr_tbl, 0, qp->attrs.sq_size * sizeof(u64));
+	memset(qp->kern_qp.rwr_tbl, 0, qp->attrs.rq_size * sizeof(u64));
+	memset(qp->kern_qp.sq_buf, 0, qp->attrs.sq_size << SQEBB_SHIFT);
+	memset(qp->kern_qp.rq_buf, 0, qp->attrs.rq_size << RQE_SHIFT);
+	erdma_remove_cqes_of_qp(&qp->scq->ibcq, QP_ID(qp));
+	if (qp->rcq != qp->scq)
+		erdma_remove_cqes_of_qp(&qp->rcq->ibcq, QP_ID(qp));
+}
+
+int erdma_modify_qp_state_rocev2(struct erdma_qp *qp,
+				 struct erdma_mod_qp_params_rocev2 *params,
+				 int attr_mask)
+{
+	struct erdma_dev *dev = to_edev(qp->ibqp.device);
+	int ret;
+
+	ret = modify_qp_cmd_rocev2(qp, params, attr_mask);
+	if (ret)
+		return ret;
+
+	if (attr_mask & ERDMA_QPA_ROCEV2_STATE)
+		qp->attrs.rocev2.state = params->state;
+
+	if (attr_mask & ERDMA_QPA_ROCEV2_QKEY)
+		qp->attrs.rocev2.qkey = params->qkey;
+
+	if (attr_mask & ERDMA_QPA_ROCEV2_DST_QPN)
+		qp->attrs.rocev2.dst_qpn = params->dst_qpn;
+
+	if (attr_mask & ERDMA_QPA_ROCEV2_AV)
+		memcpy(&qp->attrs.rocev2.av, &params->av,
+		       sizeof(struct erdma_av));
+
+	if (rdma_is_kernel_res(&qp->ibqp.res) &&
+	    params->state == ERDMA_QPS_ROCEV2_RESET)
+		erdma_reset_qp(qp);
+
+	if (rdma_is_kernel_res(&qp->ibqp.res) &&
+	    params->state == ERDMA_QPS_ROCEV2_ERROR) {
+		qp->flags |= ERDMA_QP_IN_FLUSHING;
+		mod_delayed_work(dev->reflush_wq, &qp->reflush_dwork,
+				 usecs_to_jiffies(100));
+	}
+
+	return 0;
+}
+
 static void erdma_qp_safe_free(struct kref *ref)
 {
 	struct erdma_qp *qp = container_of(ref, struct erdma_qp, ref);
