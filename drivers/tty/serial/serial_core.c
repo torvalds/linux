@@ -790,7 +790,6 @@ static int uart_get_info(struct tty_port *port, struct serial_struct *retinfo)
 {
 	struct uart_state *state = container_of(port, struct uart_state, port);
 	struct uart_port *uport;
-	int ret = -ENODEV;
 
 	/* Initialize structure in case we error out later to prevent any stack info leakage. */
 	*retinfo = (struct serial_struct){};
@@ -799,10 +798,10 @@ static int uart_get_info(struct tty_port *port, struct serial_struct *retinfo)
 	 * Ensure the state we copy is consistent and no hardware changes
 	 * occur as we go
 	 */
-	mutex_lock(&port->mutex);
+	guard(mutex)(&port->mutex);
 	uport = uart_port_check(state);
 	if (!uport)
-		goto out;
+		return -ENODEV;
 
 	retinfo->type	    = uport->type;
 	retinfo->line	    = uport->line;
@@ -823,10 +822,7 @@ static int uart_get_info(struct tty_port *port, struct serial_struct *retinfo)
 	retinfo->iomem_reg_shift = uport->regshift;
 	retinfo->iomem_base      = (void *)(unsigned long)uport->mapbase;
 
-	ret = 0;
-out:
-	mutex_unlock(&port->mutex);
-	return ret;
+	return 0;
 }
 
 static int uart_get_info_user(struct tty_struct *tty,
@@ -3061,26 +3057,25 @@ static ssize_t console_store(struct device *dev,
 	if (ret)
 		return ret;
 
-	mutex_lock(&port->mutex);
+	guard(mutex)(&port->mutex);
 	uport = uart_port_check(state);
-	if (uport) {
-		oldconsole = uart_console_registered(uport);
-		if (oldconsole && !newconsole) {
-			ret = unregister_console(uport->cons);
-		} else if (!oldconsole && newconsole) {
-			if (uart_console(uport)) {
-				uport->console_reinit = 1;
-				register_console(uport->cons);
-			} else {
-				ret = -ENOENT;
-			}
-		}
-	} else {
-		ret = -ENXIO;
-	}
-	mutex_unlock(&port->mutex);
+	if (!uport)
+		return -ENXIO;
 
-	return ret < 0 ? ret : count;
+	oldconsole = uart_console_registered(uport);
+	if (oldconsole && !newconsole) {
+		ret = unregister_console(uport->cons);
+		if (ret < 0)
+			return ret;
+	} else if (!oldconsole && newconsole) {
+		if (!uart_console(uport))
+			return -ENOENT;
+
+		uport->console_reinit = 1;
+		register_console(uport->cons);
+	}
+
+	return count;
 }
 
 static DEVICE_ATTR_RO(uartclk);
@@ -3136,7 +3131,6 @@ static int serial_core_add_one_port(struct uart_driver *drv, struct uart_port *u
 {
 	struct uart_state *state;
 	struct tty_port *port;
-	int ret = 0;
 	struct device *tty_dev;
 	int num_groups;
 
@@ -3146,11 +3140,9 @@ static int serial_core_add_one_port(struct uart_driver *drv, struct uart_port *u
 	state = drv->state + uport->line;
 	port = &state->port;
 
-	mutex_lock(&port->mutex);
-	if (state->uart_port) {
-		ret = -EINVAL;
-		goto out;
-	}
+	guard(mutex)(&port->mutex);
+	if (state->uart_port)
+		return -EINVAL;
 
 	/* Link the port to the driver state table and vice versa */
 	atomic_set(&state->refcount, 1);
@@ -3170,10 +3162,8 @@ static int serial_core_add_one_port(struct uart_driver *drv, struct uart_port *u
 	uport->minor = drv->tty_driver->minor_start + uport->line;
 	uport->name = kasprintf(GFP_KERNEL, "%s%d", drv->dev_name,
 				drv->tty_driver->name_base + uport->line);
-	if (!uport->name) {
-		ret = -ENOMEM;
-		goto out;
-	}
+	if (!uport->name)
+		return -ENOMEM;
 
 	if (uport->cons && uport->dev)
 		of_console_check(uport->dev->of_node, uport->cons->name, uport->line);
@@ -3189,10 +3179,9 @@ static int serial_core_add_one_port(struct uart_driver *drv, struct uart_port *u
 
 	uport->tty_groups = kcalloc(num_groups, sizeof(*uport->tty_groups),
 				    GFP_KERNEL);
-	if (!uport->tty_groups) {
-		ret = -ENOMEM;
-		goto out;
-	}
+	if (!uport->tty_groups)
+		return -ENOMEM;
+
 	uport->tty_groups[0] = &tty_dev_attr_group;
 	if (uport->attr_group)
 		uport->tty_groups[1] = uport->attr_group;
@@ -3215,10 +3204,7 @@ static int serial_core_add_one_port(struct uart_driver *drv, struct uart_port *u
 		       uport->line);
 	}
 
- out:
-	mutex_unlock(&port->mutex);
-
-	return ret;
+	return 0;
 }
 
 /**
@@ -3384,7 +3370,7 @@ int serial_core_register_port(struct uart_driver *drv, struct uart_port *port)
 	struct serial_ctrl_device *ctrl_dev, *new_ctrl_dev = NULL;
 	int ret;
 
-	mutex_lock(&port_mutex);
+	guard(mutex)(&port_mutex);
 
 	/*
 	 * Prevent serial_port_runtime_resume() from trying to use the port
@@ -3396,10 +3382,8 @@ int serial_core_register_port(struct uart_driver *drv, struct uart_port *port)
 	ctrl_dev = serial_core_ctrl_find(drv, port->dev, port->ctrl_id);
 	if (!ctrl_dev) {
 		new_ctrl_dev = serial_core_ctrl_device_add(port);
-		if (IS_ERR(new_ctrl_dev)) {
-			ret = PTR_ERR(new_ctrl_dev);
-			goto err_unlock;
-		}
+		if (IS_ERR(new_ctrl_dev))
+			return PTR_ERR(new_ctrl_dev);
 		ctrl_dev = new_ctrl_dev;
 	}
 
@@ -3420,8 +3404,6 @@ int serial_core_register_port(struct uart_driver *drv, struct uart_port *port)
 	if (ret)
 		goto err_unregister_port_dev;
 
-	mutex_unlock(&port_mutex);
-
 	return 0;
 
 err_unregister_port_dev:
@@ -3429,9 +3411,6 @@ err_unregister_port_dev:
 
 err_unregister_ctrl_dev:
 	serial_base_ctrl_device_remove(new_ctrl_dev);
-
-err_unlock:
-	mutex_unlock(&port_mutex);
 
 	return ret;
 }
