@@ -29,6 +29,8 @@
 			enable-method = "psci";
 			power-domains = <&cpu_pd0>;
 			power-domain-names = "psci";
+			capacity-dmips-mhz = <1024>;
+			dynamic-power-coefficient = <100>;
 			next-level-cache = <&l2_0>;
 			#cooling-cells = <2>;
 
@@ -47,6 +49,8 @@
 			enable-method = "psci";
 			power-domains = <&cpu_pd1>;
 			power-domain-names = "psci";
+			capacity-dmips-mhz = <1024>;
+			dynamic-power-coefficient = <100>;
 			next-level-cache = <&l2_100>;
 
 			l2_100: l2-cache {
@@ -64,6 +68,8 @@
 			enable-method = "psci";
 			power-domains = <&cpu_pd2>;
 			power-domain-names = "psci";
+			capacity-dmips-mhz = <1024>;
+			dynamic-power-coefficient = <100>;
 			next-level-cache = <&l2_200>;
 
 			l2_200: l2-cache {
@@ -81,6 +87,8 @@
 			enable-method = "psci";
 			power-domains = <&cpu_pd3>;
 			power-domain-names = "psci";
+			capacity-dmips-mhz = <1024>;
+			dynamic-power-coefficient = <100>;
 			next-level-cache = <&l2_300>;
 
 			l2_300: l2-cache {
@@ -98,6 +106,8 @@
 			enable-method = "psci";
 			power-domains = <&cpu_pd4>;
 			power-domain-names = "psci";
+			capacity-dmips-mhz = <1024>;
+			dynamic-power-coefficient = <100>;
 			next-level-cache = <&l2_400>;
 
 			l2_400: l2-cache {
@@ -115,6 +125,8 @@
 			enable-method = "psci";
 			power-domains = <&cpu_pd5>;
 			power-domain-names = "psci";
+			capacity-dmips-mhz = <1024>;
+			dynamic-power-coefficient = <100>;
 			next-level-cache = <&l2_500>;
 
 			l2_500: l2-cache {
@@ -132,6 +144,8 @@
 			enable-method = "psci";
 			power-domains = <&cpu_pd6>;
 			power-domain-names = "psci";
+			capacity-dmips-mhz = <1740>;
+			dynamic-power-coefficient = <404>;
 			next-level-cache = <&l2_600>;
 			#cooling-cells = <2>;
 
@@ -150,6 +164,8 @@
 			enable-method = "psci";
 			power-domains = <&cpu_pd7>;
 			power-domain-names = "psci";
+			capacity-dmips-mhz = <1740>;
+			dynamic-power-coefficient = <404>;
 			next-level-cache = <&l2_700>;
 
 			l2_700: l2-cache {
