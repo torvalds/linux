@@ -877,6 +877,8 @@ static int get_cmd_dir(const unsigned char *cdb)
 	case READ_TOC:
 	case READ_FORMAT_CAPACITIES:
 	case REQUEST_SENSE:
+	case ATA_12:
+	case ATA_16:
 		ret = DMA_FROM_DEVICE;
 		break;
 
