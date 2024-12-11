@@ -1724,7 +1724,7 @@ static struct usb_endpoint_descriptor uasp_ss_bi_desc = {
 static struct usb_ss_ep_comp_descriptor uasp_bi_ep_comp_desc = {
 	.bLength =		sizeof(uasp_bi_ep_comp_desc),
 	.bDescriptorType =	USB_DT_SS_ENDPOINT_COMP,
-	.bMaxBurst =		0,
+	.bMaxBurst =		15,
 	.bmAttributes =		UASP_SS_EP_COMP_LOG_STREAMS,
 	.wBytesPerInterval =	0,
 };
@@ -1732,7 +1732,7 @@ static struct usb_ss_ep_comp_descriptor uasp_bi_ep_comp_desc = {
 static struct usb_ss_ep_comp_descriptor bot_bi_ep_comp_desc = {
 	.bLength =		sizeof(bot_bi_ep_comp_desc),
 	.bDescriptorType =	USB_DT_SS_ENDPOINT_COMP,
-	.bMaxBurst =		0,
+	.bMaxBurst =		15,
 };
 
 static struct usb_endpoint_descriptor uasp_bo_desc = {
@@ -1767,12 +1767,14 @@ static struct usb_endpoint_descriptor uasp_ss_bo_desc = {
 static struct usb_ss_ep_comp_descriptor uasp_bo_ep_comp_desc = {
 	.bLength =		sizeof(uasp_bo_ep_comp_desc),
 	.bDescriptorType =	USB_DT_SS_ENDPOINT_COMP,
+	.bMaxBurst =		15,
 	.bmAttributes =		UASP_SS_EP_COMP_LOG_STREAMS,
 };
 
 static struct usb_ss_ep_comp_descriptor bot_bo_ep_comp_desc = {
 	.bLength =		sizeof(bot_bo_ep_comp_desc),
 	.bDescriptorType =	USB_DT_SS_ENDPOINT_COMP,
+	.bMaxBurst =		15,
 };
 
 static struct usb_endpoint_descriptor uasp_status_desc = {
