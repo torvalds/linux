@@ -4000,22 +4000,9 @@ void __ath12k_mac_scan_finish(struct ath12k *ar)
 			ieee80211_remain_on_channel_expired(hw);
 		fallthrough;
 	case ATH12K_SCAN_STARTING:
-		if (!ar->scan.is_roc) {
-			struct cfg80211_scan_info info = {
-				.aborted = ((ar->scan.state ==
-					    ATH12K_SCAN_ABORTING) ||
-					    (ar->scan.state ==
-					    ATH12K_SCAN_STARTING)),
-			};
-
-			ieee80211_scan_completed(hw, &info);
-		}
-
-		ar->scan.state = ATH12K_SCAN_IDLE;
-		ar->scan_channel = NULL;
-		ar->scan.roc_freq = 0;
 		cancel_delayed_work(&ar->scan.timeout);
 		complete(&ar->scan.completed);
+		wiphy_work_queue(ar->ah->hw->wiphy, &ar->scan.vdev_clean_wk);
 		break;
 	}
 }
@@ -4056,15 +4043,15 @@ static int ath12k_scan_stop(struct ath12k *ar)
 	}
 
 out:
-	/* Scan state should be updated upon scan completion but in case
-	 * firmware fails to deliver the event (for whatever reason) it is
-	 * desired to clean up scan state anyway. Firmware may have just
-	 * dropped the scan completion event delivery due to transport pipe
-	 * being overflown with data and/or it can recover on its own before
-	 * next scan request is submitted.
+	/* Scan state should be updated in scan completion worker but in
+	 * case firmware fails to deliver the event (for whatever reason)
+	 * it is desired to clean up scan state anyway. Firmware may have
+	 * just dropped the scan completion event delivery due to transport
+	 * pipe being overflown with data and/or it can recover on its own
+	 * before next scan request is submitted.
 	 */
 	spin_lock_bh(&ar->data_lock);
-	if (ar->scan.state != ATH12K_SCAN_IDLE)
+	if (ret)
 		__ath12k_mac_scan_finish(ar);
 	spin_unlock_bh(&ar->data_lock);
 
@@ -4113,6 +4100,53 @@ static void ath12k_scan_timeout_work(struct work_struct *work)
 	wiphy_lock(ath12k_ar_to_hw(ar)->wiphy);
 	ath12k_scan_abort(ar);
 	wiphy_unlock(ath12k_ar_to_hw(ar)->wiphy);
+}
+
+static void ath12k_scan_vdev_clean_work(struct wiphy *wiphy, struct wiphy_work *work)
+{
+	struct ath12k *ar = container_of(work, struct ath12k,
+					 scan.vdev_clean_wk);
+	struct ath12k_hw *ah = ar->ah;
+	struct ath12k_link_vif *arvif;
+
+	lockdep_assert_wiphy(wiphy);
+
+	arvif = ar->scan.arvif;
+
+	/* The scan vdev has already been deleted. This can occur when a
+	 * new scan request is made on the same vif with a different
+	 * frequency, causing the scan arvif to move from one radio to
+	 * another. Or, scan was abrupted and via remove interface, the
+	 * arvif is already deleted. Alternatively, if the scan vdev is not
+	 * being used as an actual vdev, then do not delete it.
+	 */
+	if (!arvif || arvif->is_started)
+		goto work_complete;
+
+	ath12k_dbg(ar->ab, ATH12K_DBG_MAC, "mac clean scan vdev (link id %u)",
+		   arvif->link_id);
+
+	ath12k_mac_remove_link_interface(ah->hw, arvif);
+	ath12k_mac_unassign_link_vif(arvif);
+
+work_complete:
+	spin_lock_bh(&ar->data_lock);
+	ar->scan.arvif = NULL;
+	if (!ar->scan.is_roc) {
+		struct cfg80211_scan_info info = {
+			.aborted = ((ar->scan.state ==
+				    ATH12K_SCAN_ABORTING) ||
+				    (ar->scan.state ==
+				    ATH12K_SCAN_STARTING)),
+		};
+
+		ieee80211_scan_completed(ar->ah->hw, &info);
+	}
+
+	ar->scan.state = ATH12K_SCAN_IDLE;
+	ar->scan_channel = NULL;
+	ar->scan.roc_freq = 0;
+	spin_unlock_bh(&ar->data_lock);
 }
 
 static int ath12k_start_scan(struct ath12k *ar,
@@ -4208,6 +4242,9 @@ static int ath12k_mac_op_hw_scan(struct ieee80211_hw *hw,
 	link_id = ath12k_mac_find_link_id_by_ar(ahvif, ar);
 	arvif = ath12k_mac_assign_link_vif(ah, vif, link_id);
 
+	ath12k_dbg(ar->ab, ATH12K_DBG_MAC, "mac link ID %d selected for scan",
+		   arvif->link_id);
+
 	/* If the vif is already assigned to a specific vdev of an ar,
 	 * check whether its already started, vdev which is started
 	 * are not allowed to switch to a new radio.
@@ -4231,6 +4268,7 @@ static int ath12k_mac_op_hw_scan(struct ieee80211_hw *hw,
 			create = false;
 		}
 	}
+
 	if (create) {
 		/* Previous arvif would've been cleared in radio switch block
 		 * above, assign arvif again for create.
@@ -4251,7 +4289,7 @@ static int ath12k_mac_op_hw_scan(struct ieee80211_hw *hw,
 		reinit_completion(&ar->scan.completed);
 		ar->scan.state = ATH12K_SCAN_STARTING;
 		ar->scan.is_roc = false;
-		ar->scan.vdev_id = arvif->vdev_id;
+		ar->scan.arvif = arvif;
 		ret = 0;
 		break;
 	case ATH12K_SCAN_STARTING:
@@ -4313,6 +4351,8 @@ static int ath12k_mac_op_hw_scan(struct ieee80211_hw *hw,
 		spin_unlock_bh(&ar->data_lock);
 	}
 
+	ath12k_dbg(ar->ab, ATH12K_DBG_MAC, "mac scan started");
+
 	/* As per cfg80211/mac80211 scan design, it allows only one
 	 * scan at a time. Hence last_scan link id is used for
 	 * tracking the link id on which the scan is been done on
@@ -4346,7 +4386,7 @@ static void ath12k_mac_op_cancel_hw_scan(struct ieee80211_hw *hw,
 	lockdep_assert_wiphy(hw->wiphy);
 
 	arvif = wiphy_dereference(hw->wiphy, ahvif->link[link_id]);
-	if (!arvif || !arvif->is_created)
+	if (!arvif || arvif->is_started)
 		return;
 
 	ar = arvif->ar;
@@ -7404,6 +7444,7 @@ static void ath12k_mac_stop(struct ath12k *ar)
 	clear_bit(ATH12K_CAC_RUNNING, &ar->dev_flags);
 
 	cancel_delayed_work_sync(&ar->scan.timeout);
+	wiphy_work_cancel(ath12k_ar_to_hw(ar)->wiphy, &ar->scan.vdev_clean_wk);
 	cancel_work_sync(&ar->regd_update_work);
 	cancel_work_sync(&ar->ab->rfkill_work);
 
@@ -8033,7 +8074,7 @@ static struct ath12k *ath12k_mac_assign_vif_to_vdev(struct ieee80211_hw *hw,
 		scan_arvif = wiphy_dereference(hw->wiphy,
 					       ahvif->link[ATH12K_DEFAULT_SCAN_LINK]);
 		if (scan_arvif && scan_arvif->ar == ar) {
-			ar->scan.vdev_id = -1;
+			ar->scan.arvif = NULL;
 			ath12k_mac_remove_link_interface(hw, scan_arvif);
 			ath12k_mac_unassign_link_vif(scan_arvif);
 		}
@@ -8234,6 +8275,7 @@ static void ath12k_mac_op_remove_interface(struct ieee80211_hw *hw,
 {
 	struct ath12k_vif *ahvif = ath12k_vif_to_ahvif(vif);
 	struct ath12k_link_vif *arvif;
+	struct ath12k *ar;
 	u8 link_id;
 
 	lockdep_assert_wiphy(hw->wiphy);
@@ -8246,6 +8288,31 @@ static void ath12k_mac_op_remove_interface(struct ieee80211_hw *hw,
 		arvif = wiphy_dereference(hw->wiphy, ahvif->link[link_id]);
 		if (!arvif || !arvif->is_created)
 			continue;
+
+		ar = arvif->ar;
+
+		/* Scan abortion is in progress since before this, cancel_hw_scan()
+		 * is expected to be executed. Since link is anyways going to be removed
+		 * now, just cancel the worker and send the scan aborted to user space
+		 */
+		if (ar->scan.arvif == arvif) {
+			wiphy_work_cancel(hw->wiphy, &ar->scan.vdev_clean_wk);
+
+			spin_lock_bh(&ar->data_lock);
+			ar->scan.arvif = NULL;
+			if (!ar->scan.is_roc) {
+				struct cfg80211_scan_info info = {
+					.aborted = true,
+				};
+
+				ieee80211_scan_completed(ar->ah->hw, &info);
+			}
+
+			ar->scan.state = ATH12K_SCAN_IDLE;
+			ar->scan_channel = NULL;
+			ar->scan.roc_freq = 0;
+			spin_unlock_bh(&ar->data_lock);
+		}
 
 		ath12k_mac_remove_link_interface(hw, arvif);
 		ath12k_mac_unassign_link_vif(arvif);
@@ -9952,6 +10019,7 @@ static int ath12k_mac_op_cancel_remain_on_channel(struct ieee80211_hw *hw,
 	ath12k_scan_abort(ar);
 
 	cancel_delayed_work_sync(&ar->scan.timeout);
+	wiphy_work_cancel(hw->wiphy, &ar->scan.vdev_clean_wk);
 
 	return 0;
 }
@@ -10035,7 +10103,7 @@ static int ath12k_mac_op_remain_on_channel(struct ieee80211_hw *hw,
 		reinit_completion(&ar->scan.on_channel);
 		ar->scan.state = ATH12K_SCAN_STARTING;
 		ar->scan.is_roc = true;
-		ar->scan.vdev_id = arvif->vdev_id;
+		ar->scan.arvif = arvif;
 		ar->scan.roc_freq = chan->center_freq;
 		ar->scan.roc_notify = true;
 		ret = 0;
@@ -10952,6 +11020,7 @@ static void ath12k_mac_setup(struct ath12k *ar)
 	ar->cfg_rx_chainmask = pdev->cap.rx_chain_mask;
 	ar->num_tx_chains = hweight32(pdev->cap.tx_chain_mask);
 	ar->num_rx_chains = hweight32(pdev->cap.rx_chain_mask);
+	ar->scan.arvif = NULL;
 
 	spin_lock_init(&ar->data_lock);
 	INIT_LIST_HEAD(&ar->arvifs);
@@ -10969,6 +11038,7 @@ static void ath12k_mac_setup(struct ath12k *ar)
 	init_completion(&ar->mlo_setup_done);
 
 	INIT_DELAYED_WORK(&ar->scan.timeout, ath12k_scan_timeout_work);
+	wiphy_work_init(&ar->scan.vdev_clean_wk, ath12k_scan_vdev_clean_work);
 	INIT_WORK(&ar->regd_update_work, ath12k_regd_update_work);
 
 	wiphy_work_init(&ar->wmi_mgmt_tx_work, ath12k_mgmt_over_wmi_tx_work);

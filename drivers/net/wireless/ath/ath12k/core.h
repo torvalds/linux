@@ -603,9 +603,10 @@ struct ath12k {
 		struct delayed_work timeout;
 		enum ath12k_scan_state state;
 		bool is_roc;
-		int vdev_id;
 		int roc_freq;
 		bool roc_notify;
+		struct wiphy_work vdev_clean_wk;
+		struct ath12k_link_vif *arvif;
 	} scan;
 
 	struct {

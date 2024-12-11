@@ -6338,7 +6338,8 @@ static struct ath12k *ath12k_get_ar_on_scan_state(struct ath12k_base *ab,
 
 			spin_lock_bh(&ar->data_lock);
 			if (ar->scan.state == state &&
-			    ar->scan.vdev_id == vdev_id) {
+			    ar->scan.arvif &&
+			    ar->scan.arvif->vdev_id == vdev_id) {
 				spin_unlock_bh(&ar->data_lock);
 				return ar;
 			}
