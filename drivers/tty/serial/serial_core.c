@@ -843,7 +843,7 @@ static int uart_set_info(struct tty_struct *tty, struct tty_port *port,
 	unsigned int change_irq, change_port, closing_wait;
 	unsigned int old_custom_divisor, close_delay;
 	upf_t old_flags, new_flags;
-	int retval = 0;
+	int retval;
 
 	if (!uport)
 		return -EIO;
@@ -882,13 +882,10 @@ static int uart_set_info(struct tty_struct *tty, struct tty_port *port,
 	if (!(uport->flags & UPF_FIXED_PORT)) {
 		unsigned int uartclk = new_info->baud_base * 16;
 		/* check needs to be done here before other settings made */
-		if (uartclk == 0) {
-			retval = -EINVAL;
-			goto exit;
-		}
+		if (uartclk == 0)
+			return -EINVAL;
 	}
 	if (!capable(CAP_SYS_ADMIN)) {
-		retval = -EPERM;
 		if (change_irq || change_port ||
 		    (new_info->baud_base != uport->uartclk / 16) ||
 		    (close_delay != port->close_delay) ||
@@ -896,7 +893,7 @@ static int uart_set_info(struct tty_struct *tty, struct tty_port *port,
 		    (new_info->xmit_fifo_size &&
 		     new_info->xmit_fifo_size != uport->fifosize) ||
 		    (((new_flags ^ old_flags) & ~UPF_USR_MASK) != 0))
-			goto exit;
+			return -EPERM;
 		uport->flags = ((uport->flags & ~UPF_USR_MASK) |
 			       (new_flags & UPF_USR_MASK));
 		uport->custom_divisor = new_info->custom_divisor;
@@ -906,30 +903,24 @@ static int uart_set_info(struct tty_struct *tty, struct tty_port *port,
 	if (change_irq || change_port) {
 		retval = security_locked_down(LOCKDOWN_TIOCSSERIAL);
 		if (retval)
-			goto exit;
+			return retval;
 	}
 
-	/*
-	 * Ask the low level driver to verify the settings.
-	 */
-	if (uport->ops->verify_port)
+	 /* Ask the low level driver to verify the settings. */
+	if (uport->ops->verify_port) {
 		retval = uport->ops->verify_port(uport, new_info);
+		if (retval)
+			return retval;
+	}
 
 	if ((new_info->irq >= irq_get_nr_irqs()) || (new_info->irq < 0) ||
 	    (new_info->baud_base < 9600))
-		retval = -EINVAL;
-
-	if (retval)
-		goto exit;
+		return -EINVAL;
 
 	if (change_port || change_irq) {
-		retval = -EBUSY;
-
-		/*
-		 * Make sure that we are the sole user of this port.
-		 */
+		 /* Make sure that we are the sole user of this port. */
 		if (tty_port_users(port) > 1)
-			goto exit;
+			return -EBUSY;
 
 		/*
 		 * We need to shutdown the serial port at the old
@@ -967,40 +958,33 @@ static int uart_set_info(struct tty_struct *tty, struct tty_port *port,
 		 */
 		if (uport->type != PORT_UNKNOWN && uport->ops->request_port) {
 			retval = uport->ops->request_port(uport);
-		} else {
-			/* Always success - Jean II */
-			retval = 0;
-		}
+			/*
+			 * If we fail to request resources for the
+			 * new port, try to restore the old settings.
+			 */
+			if (retval) {
+				uport->iobase = old_iobase;
+				uport->type = old_type;
+				uport->hub6 = old_hub6;
+				uport->iotype = old_iotype;
+				uport->regshift = old_shift;
+				uport->mapbase = old_mapbase;
 
-		/*
-		 * If we fail to request resources for the
-		 * new port, try to restore the old settings.
-		 */
-		if (retval) {
-			uport->iobase = old_iobase;
-			uport->type = old_type;
-			uport->hub6 = old_hub6;
-			uport->iotype = old_iotype;
-			uport->regshift = old_shift;
-			uport->mapbase = old_mapbase;
+				if (old_type != PORT_UNKNOWN) {
+					retval = uport->ops->request_port(uport);
+					/*
+					 * If we failed to restore the old
+					 * settings, we fail like this.
+					 */
+					if (retval)
+						uport->type = PORT_UNKNOWN;
 
-			if (old_type != PORT_UNKNOWN) {
-				retval = uport->ops->request_port(uport);
-				/*
-				 * If we failed to restore the old settings,
-				 * we fail like this.
-				 */
-				if (retval)
-					uport->type = PORT_UNKNOWN;
+					/* We failed anyway. */
+					return -EBUSY;
+				}
 
-				/*
-				 * We failed anyway.
-				 */
-				retval = -EBUSY;
+				return retval;
 			}
-
-			/* Added to return the correct error -Ram Gupta */
-			goto exit;
 		}
 	}
 
@@ -1017,9 +1001,9 @@ static int uart_set_info(struct tty_struct *tty, struct tty_port *port,
 		uport->fifosize = new_info->xmit_fifo_size;
 
  check_and_exit:
-	retval = 0;
 	if (uport->type == PORT_UNKNOWN)
-		goto exit;
+		return 0;
+
 	if (tty_port_initialized(port)) {
 		if (((old_flags ^ uport->flags) & UPF_SPD_MASK) ||
 		    old_custom_divisor != uport->custom_divisor) {
@@ -1035,15 +1019,17 @@ static int uart_set_info(struct tty_struct *tty, struct tty_port *port,
 			}
 			uart_change_line_settings(tty, state, NULL);
 		}
-	} else {
-		retval = uart_startup(tty, state, true);
-		if (retval == 0)
-			tty_port_set_initialized(port, true);
-		if (retval > 0)
-			retval = 0;
+
+		return 0;
 	}
- exit:
-	return retval;
+
+	retval = uart_startup(tty, state, true);
+	if (retval < 0)
+		return retval;
+	if (retval == 0)
+		tty_port_set_initialized(port, true);
+
+	return 0;
 }
 
 static int uart_set_info_user(struct tty_struct *tty, struct serial_struct *ss)
