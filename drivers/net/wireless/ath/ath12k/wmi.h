@@ -2716,6 +2716,8 @@ struct ath12k_wmi_caps_ext_params {
 	__le32 eht_cap_info_internal;
 	__le32 eht_supp_mcs_ext_2ghz[WMI_MAX_EHT_SUPP_MCS_2G_SIZE];
 	__le32 eht_supp_mcs_ext_5ghz[WMI_MAX_EHT_SUPP_MCS_5G_SIZE];
+	__le32 eml_capability;
+	__le32 mld_capability;
 } __packed;
 
 /* 2 word representation of MAC addr */

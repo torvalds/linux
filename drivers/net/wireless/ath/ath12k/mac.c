@@ -10693,7 +10693,7 @@ static const u8 ath12k_if_types_ext_capa_ap[] = {
 	[10] = WLAN_EXT_CAPA11_EMA_SUPPORT,
 };
 
-static const struct wiphy_iftype_ext_capab ath12k_iftypes_ext_capa[] = {
+static struct wiphy_iftype_ext_capab ath12k_iftypes_ext_capa[] = {
 	{
 		.extended_capabilities = ath12k_if_types_ext_capa,
 		.extended_capabilities_mask = ath12k_if_types_ext_capa,
@@ -10710,6 +10710,8 @@ static const struct wiphy_iftype_ext_capab ath12k_iftypes_ext_capa[] = {
 		.extended_capabilities_mask = ath12k_if_types_ext_capa_ap,
 		.extended_capabilities_len =
 				sizeof(ath12k_if_types_ext_capa_ap),
+		.eml_capabilities = 0,
+		.mld_capa_and_ops = 0,
 	},
 };
 
@@ -10918,6 +10920,15 @@ static int ath12k_mac_hw_register(struct ath12k_hw *ah)
 	 * once WIPHY_FLAG_SUPPORTS_MLO is enabled.
 	 */
 	wiphy->flags |= WIPHY_FLAG_DISABLE_WEXT;
+
+	/* Copy over MLO related capabilities received from
+	 * WMI_SERVICE_READY_EXT2_EVENT if single_chip_mlo_supp is set.
+	 */
+	if (ab->ag->mlo_capable) {
+		ath12k_iftypes_ext_capa[2].eml_capabilities = cap->eml_cap;
+		ath12k_iftypes_ext_capa[2].mld_capa_and_ops = cap->mld_cap;
+		wiphy->flags |= WIPHY_FLAG_SUPPORTS_MLO;
+	}
 
 	hw->queues = ATH12K_HW_MAX_QUEUES;
 	wiphy->tx_queue_len = ATH12K_QUEUE_LEN;
