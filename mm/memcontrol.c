@@ -4562,6 +4562,40 @@ int mem_cgroup_hugetlb_try_charge(struct mem_cgroup *memcg, gfp_t gfp,
 }
 
 /**
+ * mem_cgroup_charge_hugetlb - charge the memcg for a hugetlb folio
+ * @folio: folio being charged
+ * @gfp: reclaim mode
+ *
+ * This function is called when allocating a huge page folio, after the page has
+ * already been obtained and charged to the appropriate hugetlb cgroup
+ * controller (if it is enabled).
+ *
+ * Returns ENOMEM if the memcg is already full.
+ * Returns 0 if either the charge was successful, or if we skip the charging.
+ */
+int mem_cgroup_charge_hugetlb(struct folio *folio, gfp_t gfp)
+{
+	struct mem_cgroup *memcg = get_mem_cgroup_from_current();
+	int ret = 0;
+
+	/*
+	 * Even memcg does not account for hugetlb, we still want to update
+	 * system-level stats via lruvec_stat_mod_folio. Return 0, and skip
+	 * charging the memcg.
+	 */
+	if (mem_cgroup_disabled() || !memcg_accounts_hugetlb() ||
+		!memcg || !cgroup_subsys_on_dfl(memory_cgrp_subsys))
+		goto out;
+
+	if (charge_memcg(folio, memcg, gfp))
+		ret = -ENOMEM;
+
+out:
+	mem_cgroup_put(memcg);
+	return ret;
+}
+
+/**
  * mem_cgroup_swapin_charge_folio - Charge a newly allocated folio for swapin.
  * @folio: folio to charge.
  * @mm: mm context of the victim
