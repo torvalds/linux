@@ -740,7 +740,7 @@ static void __init reserve_lowcore(void)
 	void *lowcore_end = lowcore_start + sizeof(struct lowcore);
 	void *start, *end;
 
-	if ((void *)__identity_base < lowcore_end) {
+	if (absolute_pointer(__identity_base) < lowcore_end) {
 		start = max(lowcore_start, (void *)__identity_base);
 		end = min(lowcore_end, (void *)(__identity_base + ident_map_size));
 		memblock_reserve(__pa(start), __pa(end));
