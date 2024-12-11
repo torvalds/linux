@@ -374,6 +374,11 @@ struct erdma_cmdq_query_qp_req_rocev2 {
 	u32 qpn;
 };
 
+enum erdma_qp_type {
+	ERDMA_QPT_RC = 0,
+	ERDMA_QPT_UD = 1,
+};
+
 /* create qp cfg0 */
 #define ERDMA_CMD_CREATE_QP_SQ_DEPTH_MASK GENMASK(31, 20)
 #define ERDMA_CMD_CREATE_QP_QPN_MASK GENMASK(19, 0)
@@ -381,6 +386,9 @@ struct erdma_cmdq_query_qp_req_rocev2 {
 /* create qp cfg1 */
 #define ERDMA_CMD_CREATE_QP_RQ_DEPTH_MASK GENMASK(31, 20)
 #define ERDMA_CMD_CREATE_QP_PD_MASK GENMASK(19, 0)
+
+/* create qp cfg2 */
+#define ERDMA_CMD_CREATE_QP_TYPE_MASK GENMASK(3, 0)
 
 /* create qp cqn_mtt_cfg */
 #define ERDMA_CMD_CREATE_QP_PAGE_SIZE_MASK GENMASK(31, 28)
@@ -415,6 +423,7 @@ struct erdma_cmdq_create_qp_req {
 	u64 rq_mtt_entry[3];
 
 	u32 db_cfg;
+	u32 cfg2;
 };
 
 struct erdma_cmdq_destroy_qp_req {
@@ -522,6 +531,10 @@ enum {
 #define ERDMA_CQE_QTYPE_RQ 1
 #define ERDMA_CQE_QTYPE_CMDQ 2
 
+#define ERDMA_CQE_NTYPE_MASK BIT(31)
+#define ERDMA_CQE_SL_MASK GENMASK(27, 20)
+#define ERDMA_CQE_SQPN_MASK GENMASK(19, 0)
+
 struct erdma_cqe {
 	__be32 hdr;
 	__be32 qe_idx;
@@ -531,7 +544,16 @@ struct erdma_cqe {
 		__be32 inv_rkey;
 	};
 	__be32 size;
-	__be32 rsvd[3];
+	union {
+		struct {
+			__be32 rsvd[3];
+		} rc;
+
+		struct {
+			__be32 rsvd[2];
+			__be32 info;
+		} ud;
+	};
 };
 
 struct erdma_sge {
@@ -583,7 +605,7 @@ struct erdma_write_sqe {
 	struct erdma_sge sgl[];
 };
 
-struct erdma_send_sqe {
+struct erdma_send_sqe_rc {
 	__le64 hdr;
 	union {
 		__be32 imm_data;
@@ -591,6 +613,17 @@ struct erdma_send_sqe {
 	};
 
 	__le32 length;
+	struct erdma_sge sgl[];
+};
+
+struct erdma_send_sqe_ud {
+	__le64 hdr;
+	__be32 imm_data;
+	__le32 length;
+	__le32 qkey;
+	__le32 dst_qpn;
+	__le32 ahn;
+	__le32 rsvd;
 	struct erdma_sge sgl[];
 };
 

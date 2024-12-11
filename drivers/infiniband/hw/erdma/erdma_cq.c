@@ -105,6 +105,22 @@ static const struct {
 	{ ERDMA_WC_RETRY_EXC_ERR, IB_WC_RETRY_EXC_ERR, ERDMA_WC_VENDOR_NO_ERR },
 };
 
+static void erdma_process_ud_cqe(struct erdma_cqe *cqe, struct ib_wc *wc)
+{
+	u32 ud_info;
+
+	wc->wc_flags |= (IB_WC_GRH | IB_WC_WITH_NETWORK_HDR_TYPE);
+	ud_info = be32_to_cpu(cqe->ud.info);
+	wc->network_hdr_type = FIELD_GET(ERDMA_CQE_NTYPE_MASK, ud_info);
+	if (wc->network_hdr_type == ERDMA_NETWORK_TYPE_IPV4)
+		wc->network_hdr_type = RDMA_NETWORK_IPV4;
+	else
+		wc->network_hdr_type = RDMA_NETWORK_IPV6;
+	wc->src_qp = FIELD_GET(ERDMA_CQE_SQPN_MASK, ud_info);
+	wc->sl = FIELD_GET(ERDMA_CQE_SL_MASK, ud_info);
+	wc->pkey_index = 0;
+}
+
 #define ERDMA_POLLCQ_NO_QP 1
 
 static int erdma_poll_one_cqe(struct erdma_cq *cq, struct ib_wc *wc)
@@ -167,6 +183,10 @@ static int erdma_poll_one_cqe(struct erdma_cq *cq, struct ib_wc *wc)
 		wc->ex.invalidate_rkey = be32_to_cpu(cqe->inv_rkey);
 		wc->wc_flags |= IB_WC_WITH_INVALIDATE;
 	}
+
+	if (erdma_device_rocev2(dev) &&
+	    (qp->ibqp.qp_type == IB_QPT_UD || qp->ibqp.qp_type == IB_QPT_GSI))
+		erdma_process_ud_cqe(cqe, wc);
 
 	if (syndrome >= ERDMA_NUM_WC_STATUS)
 		syndrome = ERDMA_WC_GENERAL_ERR;

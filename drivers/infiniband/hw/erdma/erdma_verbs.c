@@ -55,6 +55,13 @@ static int create_qp_cmd(struct erdma_ucontext *uctx, struct erdma_qp *qp)
 			      ilog2(qp->attrs.rq_size)) |
 		   FIELD_PREP(ERDMA_CMD_CREATE_QP_PD_MASK, pd->pdn);
 
+	if (qp->ibqp.qp_type == IB_QPT_RC)
+		req.cfg2 = FIELD_PREP(ERDMA_CMD_CREATE_QP_TYPE_MASK,
+				      ERDMA_QPT_RC);
+	else
+		req.cfg2 = FIELD_PREP(ERDMA_CMD_CREATE_QP_TYPE_MASK,
+				      ERDMA_QPT_UD);
+
 	if (rdma_is_kernel_res(&qp->ibqp.res)) {
 		u32 pgsz_range = ilog2(SZ_1M) - ERDMA_HW_PAGE_SHIFT;
 
@@ -481,7 +488,11 @@ static int erdma_qp_validate_cap(struct erdma_dev *dev,
 static int erdma_qp_validate_attr(struct erdma_dev *dev,
 				  struct ib_qp_init_attr *attrs)
 {
-	if (attrs->qp_type != IB_QPT_RC)
+	if (erdma_device_iwarp(dev) && attrs->qp_type != IB_QPT_RC)
+		return -EOPNOTSUPP;
+
+	if (erdma_device_rocev2(dev) && attrs->qp_type != IB_QPT_RC &&
+	    attrs->qp_type != IB_QPT_UD && attrs->qp_type != IB_QPT_GSI)
 		return -EOPNOTSUPP;
 
 	if (attrs->srq)
@@ -959,7 +970,8 @@ int erdma_create_qp(struct ib_qp *ibqp, struct ib_qp_init_attr *attrs,
 		udata, struct erdma_ucontext, ibucontext);
 	struct erdma_ureq_create_qp ureq;
 	struct erdma_uresp_create_qp uresp;
-	int ret;
+	void *old_entry;
+	int ret = 0;
 
 	ret = erdma_qp_validate_cap(dev, attrs);
 	if (ret)
@@ -978,9 +990,16 @@ int erdma_create_qp(struct ib_qp *ibqp, struct ib_qp_init_attr *attrs,
 	kref_init(&qp->ref);
 	init_completion(&qp->safe_free);
 
-	ret = xa_alloc_cyclic(&dev->qp_xa, &qp->ibqp.qp_num, qp,
-			      XA_LIMIT(1, dev->attrs.max_qp - 1),
-			      &dev->next_alloc_qpn, GFP_KERNEL);
+	if (qp->ibqp.qp_type == IB_QPT_GSI) {
+		old_entry = xa_store(&dev->qp_xa, 1, qp, GFP_KERNEL);
+		if (xa_is_err(old_entry))
+			ret = xa_err(old_entry);
+	} else {
+		ret = xa_alloc_cyclic(&dev->qp_xa, &qp->ibqp.qp_num, qp,
+				      XA_LIMIT(1, dev->attrs.max_qp - 1),
+				      &dev->next_alloc_qpn, GFP_KERNEL);
+	}
+
 	if (ret < 0) {
 		ret = -ENOMEM;
 		goto err_out;

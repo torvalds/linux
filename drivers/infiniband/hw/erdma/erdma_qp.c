@@ -398,17 +398,57 @@ static int fill_sgl(struct erdma_qp *qp, const struct ib_send_wr *send_wr,
 	return 0;
 }
 
+static void init_send_sqe_rc(struct erdma_qp *qp, struct erdma_send_sqe_rc *sqe,
+			     const struct ib_send_wr *wr, u32 *hw_op)
+{
+	u32 op = ERDMA_OP_SEND;
+
+	if (wr->opcode == IB_WR_SEND_WITH_IMM) {
+		op = ERDMA_OP_SEND_WITH_IMM;
+		sqe->imm_data = wr->ex.imm_data;
+	} else if (op == IB_WR_SEND_WITH_INV) {
+		op = ERDMA_OP_SEND_WITH_INV;
+		sqe->invalid_stag = cpu_to_le32(wr->ex.invalidate_rkey);
+	}
+
+	*hw_op = op;
+}
+
+static void init_send_sqe_ud(struct erdma_qp *qp, struct erdma_send_sqe_ud *sqe,
+			     const struct ib_send_wr *wr, u32 *hw_op)
+{
+	const struct ib_ud_wr *uwr = ud_wr(wr);
+	struct erdma_ah *ah = to_eah(uwr->ah);
+	u32 op = ERDMA_OP_SEND;
+
+	if (wr->opcode == IB_WR_SEND_WITH_IMM) {
+		op = ERDMA_OP_SEND_WITH_IMM;
+		sqe->imm_data = wr->ex.imm_data;
+	}
+
+	*hw_op = op;
+
+	sqe->ahn = cpu_to_le32(ah->ahn);
+	sqe->dst_qpn = cpu_to_le32(uwr->remote_qpn);
+	/* Not allowed to send control qkey */
+	if (uwr->remote_qkey & 0x80000000)
+		sqe->qkey = cpu_to_le32(qp->attrs.rocev2.qkey);
+	else
+		sqe->qkey = cpu_to_le32(uwr->remote_qkey);
+}
+
 static int erdma_push_one_sqe(struct erdma_qp *qp, u16 *pi,
 			      const struct ib_send_wr *send_wr)
 {
 	u32 wqe_size, wqebb_cnt, hw_op, flags, sgl_offset;
 	u32 idx = *pi & (qp->attrs.sq_size - 1);
 	enum ib_wr_opcode op = send_wr->opcode;
+	struct erdma_send_sqe_rc *rc_send_sqe;
+	struct erdma_send_sqe_ud *ud_send_sqe;
 	struct erdma_atomic_sqe *atomic_sqe;
 	struct erdma_readreq_sqe *read_sqe;
 	struct erdma_reg_mr_sqe *regmr_sge;
 	struct erdma_write_sqe *write_sqe;
-	struct erdma_send_sqe *send_sqe;
 	struct ib_rdma_wr *rdma_wr;
 	struct erdma_sge *sge;
 	__le32 *length_field;
@@ -416,6 +456,10 @@ static int erdma_push_one_sqe(struct erdma_qp *qp, u16 *pi,
 	u64 wqe_hdr, *entry;
 	u32 attrs;
 	int ret;
+
+	if (qp->ibqp.qp_type != IB_QPT_RC && send_wr->opcode != IB_WR_SEND &&
+	    send_wr->opcode != IB_WR_SEND_WITH_IMM)
+		return -EINVAL;
 
 	entry = get_queue_entry(qp->kern_qp.sq_buf, idx, qp->attrs.sq_size,
 				SQEBB_SHIFT);
@@ -490,21 +534,20 @@ static int erdma_push_one_sqe(struct erdma_qp *qp, u16 *pi,
 	case IB_WR_SEND:
 	case IB_WR_SEND_WITH_IMM:
 	case IB_WR_SEND_WITH_INV:
-		send_sqe = (struct erdma_send_sqe *)entry;
-		hw_op = ERDMA_OP_SEND;
-		if (op == IB_WR_SEND_WITH_IMM) {
-			hw_op = ERDMA_OP_SEND_WITH_IMM;
-			send_sqe->imm_data = send_wr->ex.imm_data;
-		} else if (op == IB_WR_SEND_WITH_INV) {
-			hw_op = ERDMA_OP_SEND_WITH_INV;
-			send_sqe->invalid_stag =
-				cpu_to_le32(send_wr->ex.invalidate_rkey);
+		if (qp->ibqp.qp_type == IB_QPT_RC) {
+			rc_send_sqe = (struct erdma_send_sqe_rc *)entry;
+			init_send_sqe_rc(qp, rc_send_sqe, send_wr, &hw_op);
+			length_field = &rc_send_sqe->length;
+			wqe_size = sizeof(struct erdma_send_sqe_rc);
+		} else {
+			ud_send_sqe = (struct erdma_send_sqe_ud *)entry;
+			init_send_sqe_ud(qp, ud_send_sqe, send_wr, &hw_op);
+			length_field = &ud_send_sqe->length;
+			wqe_size = sizeof(struct erdma_send_sqe_ud);
 		}
-		wqe_hdr |= FIELD_PREP(ERDMA_SQE_HDR_OPCODE_MASK, hw_op);
-		length_field = &send_sqe->length;
-		wqe_size = sizeof(struct erdma_send_sqe);
-		sgl_offset = wqe_size;
 
+		sgl_offset = wqe_size;
+		wqe_hdr |= FIELD_PREP(ERDMA_SQE_HDR_OPCODE_MASK, hw_op);
 		break;
 	case IB_WR_REG_MR:
 		wqe_hdr |=
