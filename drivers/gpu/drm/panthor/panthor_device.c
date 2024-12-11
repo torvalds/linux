@@ -435,6 +435,22 @@ int panthor_device_mmap_io(struct panthor_device *ptdev, struct vm_area_struct *
 	return 0;
 }
 
+static int panthor_device_resume_hw_components(struct panthor_device *ptdev)
+{
+	int ret;
+
+	panthor_gpu_resume(ptdev);
+	panthor_mmu_resume(ptdev);
+
+	ret = panthor_fw_resume(ptdev);
+	if (!ret)
+		return 0;
+
+	panthor_mmu_suspend(ptdev);
+	panthor_gpu_suspend(ptdev);
+	return ret;
+}
+
 int panthor_device_resume(struct device *dev)
 {
 	struct panthor_device *ptdev = dev_get_drvdata(dev);
@@ -461,15 +477,15 @@ int panthor_device_resume(struct device *dev)
 
 	if (panthor_device_is_initialized(ptdev) &&
 	    drm_dev_enter(&ptdev->base, &cookie)) {
-		panthor_gpu_resume(ptdev);
-		panthor_mmu_resume(ptdev);
-		ret = panthor_fw_resume(ptdev);
-		if (!drm_WARN_ON(&ptdev->base, ret)) {
-			panthor_sched_resume(ptdev);
-		} else {
-			panthor_mmu_suspend(ptdev);
-			panthor_gpu_suspend(ptdev);
+		ret = panthor_device_resume_hw_components(ptdev);
+		if (ret && ptdev->reset.fast) {
+			drm_err(&ptdev->base, "Fast reset failed, trying a slow reset");
+			ptdev->reset.fast = false;
+			ret = panthor_device_resume_hw_components(ptdev);
 		}
+
+		if (!ret)
+			panthor_sched_resume(ptdev);
 
 		drm_dev_exit(cookie);
 

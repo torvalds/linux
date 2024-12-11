@@ -157,6 +157,17 @@ struct panthor_device {
 
 		/** @pending: Set to true if a reset is pending. */
 		atomic_t pending;
+
+		/**
+		 * @fast: True if the post_reset logic can proceed with a fast reset.
+		 *
+		 * A fast reset is just a reset where the driver doesn't reload the FW sections.
+		 *
+		 * Any time the firmware is properly suspended, a fast reset can take place.
+		 * On the other hand, if the halt operation failed, the driver will reload
+		 * all FW sections to make sure we start from a fresh state.
+		 */
+		bool fast;
 	} reset;
 
 	/** @pm: Power management related data. */
