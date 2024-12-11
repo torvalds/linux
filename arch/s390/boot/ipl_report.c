@@ -30,7 +30,6 @@ static unsigned long get_cert_comp_list_size(void)
 {
 	struct ipl_rb_certificate_entry *cert;
 	struct ipl_rb_component_entry *comp;
-	size_t size;
 
 	/*
 	 * Find the length for the IPL report boot data
