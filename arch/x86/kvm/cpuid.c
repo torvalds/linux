@@ -58,25 +58,24 @@ void __init kvm_init_xstate_sizes(void)
 
 u32 xstate_required_size(u64 xstate_bv, bool compacted)
 {
-	int feature_bit = 0;
 	u32 ret = XSAVE_HDR_SIZE + XSAVE_HDR_OFFSET;
+	int i;
 
 	xstate_bv &= XFEATURE_MASK_EXTEND;
-	while (xstate_bv) {
-		if (xstate_bv & 0x1) {
-			struct cpuid_xstate_sizes *xs = &xstate_sizes[feature_bit];
-			u32 offset;
+	for (i = XFEATURE_YMM; i < ARRAY_SIZE(xstate_sizes) && xstate_bv; i++) {
+		struct cpuid_xstate_sizes *xs = &xstate_sizes[i];
+		u32 offset;
 
-			/* ECX[1]: 64B alignment in compacted form */
-			if (compacted)
-				offset = (xs->ecx & 0x2) ? ALIGN(ret, 64) : ret;
-			else
-				offset = xs->ebx;
-			ret = max(ret, offset + xs->eax);
-		}
+		if (!(xstate_bv & BIT_ULL(i)))
+			continue;
 
-		xstate_bv >>= 1;
-		feature_bit++;
+		/* ECX[1]: 64B alignment in compacted form */
+		if (compacted)
+			offset = (xs->ecx & 0x2) ? ALIGN(ret, 64) : ret;
+		else
+			offset = xs->ebx;
+		ret = max(ret, offset + xs->eax);
+		xstate_bv &= ~BIT_ULL(i);
 	}
 
 	return ret;
