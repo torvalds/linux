@@ -289,6 +289,8 @@
 				  0x2 0x0 0xe4000000 0x2000000>; /* SRAM/NOR CS1 region */
 			#address-cells = <2>;
 			#size-cells = <1>;
+			interrupt-parent = <&intc>;
+			interrupts = <0 18 4>;
 
 			nfc0: nand-controller@0,0 {
 				compatible = "arm,pl353-nand-r2p1";
@@ -296,6 +298,11 @@
 				status = "disabled";
 				#address-cells = <1>;
 				#size-cells = <0>;
+			};
+			nor0: flash@1,0 {
+				status = "disabled";
+				compatible = "cfi-flash";
+				reg = <1 0 0x2000000>;
 			};
 		};
 
