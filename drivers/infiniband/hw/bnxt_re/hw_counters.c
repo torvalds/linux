@@ -37,18 +37,9 @@
  *
  */
 
-#include <linux/interrupt.h>
 #include <linux/types.h>
-#include <linux/spinlock.h>
-#include <linux/sched.h>
-#include <linux/slab.h>
 #include <linux/pci.h>
-#include <linux/prefetch.h>
-#include <linux/delay.h>
 
-#include <rdma/ib_addr.h>
-
-#include "bnxt_ulp.h"
 #include "roce_hsi.h"
 #include "qplib_res.h"
 #include "qplib_sp.h"
