@@ -395,8 +395,17 @@ out:
 int erdma_get_port_immutable(struct ib_device *ibdev, u32 port,
 			     struct ib_port_immutable *port_immutable)
 {
+	struct erdma_dev *dev = to_edev(ibdev);
+
+	if (erdma_device_iwarp(dev)) {
+		port_immutable->core_cap_flags = RDMA_CORE_PORT_IWARP;
+	} else {
+		port_immutable->core_cap_flags =
+			RDMA_CORE_PORT_IBA_ROCE_UDP_ENCAP;
+		port_immutable->max_mad_size = IB_MGMT_MAD_SIZE;
+	}
+
 	port_immutable->gid_tbl_len = 1;
-	port_immutable->core_cap_flags = RDMA_CORE_PORT_IWARP;
 
 	return 0;
 }
@@ -1838,4 +1847,9 @@ int erdma_get_hw_stats(struct ib_device *ibdev, struct rdma_hw_stats *stats,
 		return ret;
 
 	return stats->num_counters;
+}
+
+enum rdma_link_layer erdma_get_link_layer(struct ib_device *ibdev, u32 port_num)
+{
+	return IB_LINK_LAYER_ETHERNET;
 }

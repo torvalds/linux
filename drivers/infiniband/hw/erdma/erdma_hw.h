@@ -21,8 +21,15 @@
 #define ERDMA_NUM_MSIX_VEC 32U
 #define ERDMA_MSIX_VECTOR_CMDQ 0
 
+/* erdma device protocol type */
+enum erdma_proto_type {
+	ERDMA_PROTO_IWARP = 0,
+	ERDMA_PROTO_ROCEV2 = 1,
+};
+
 /* PCIe Bar0 Registers. */
 #define ERDMA_REGS_VERSION_REG 0x0
+#define ERDMA_REGS_DEV_PROTO_REG 0xC
 #define ERDMA_REGS_DEV_CTRL_REG 0x10
 #define ERDMA_REGS_DEV_ST_REG 0x14
 #define ERDMA_REGS_NETDEV_MAC_L_REG 0x18

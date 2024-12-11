@@ -291,6 +291,16 @@ int erdma_modify_qp_internal(struct erdma_qp *qp, struct erdma_qp_attrs *attrs,
 void erdma_qp_llp_close(struct erdma_qp *qp);
 void erdma_qp_cm_drop(struct erdma_qp *qp);
 
+static inline bool erdma_device_iwarp(struct erdma_dev *dev)
+{
+	return dev->proto == ERDMA_PROTO_IWARP;
+}
+
+static inline bool erdma_device_rocev2(struct erdma_dev *dev)
+{
+	return dev->proto == ERDMA_PROTO_ROCEV2;
+}
+
 static inline struct erdma_ucontext *to_ectx(struct ib_ucontext *ibctx)
 {
 	return container_of(ibctx, struct erdma_ucontext, ibucontext);
@@ -370,5 +380,7 @@ struct rdma_hw_stats *erdma_alloc_hw_port_stats(struct ib_device *device,
 						u32 port_num);
 int erdma_get_hw_stats(struct ib_device *ibdev, struct rdma_hw_stats *stats,
 		       u32 port, int index);
+enum rdma_link_layer erdma_get_link_layer(struct ib_device *ibdev,
+					  u32 port_num);
 
 #endif
