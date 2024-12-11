@@ -12,6 +12,7 @@
 #include <linux/string.h>
 #include <linux/configfs.h>
 #include <linux/ctype.h>
+#include <linux/delay.h>
 #include <linux/usb/ch9.h>
 #include <linux/usb/composite.h>
 #include <linux/usb/gadget.h>
@@ -449,6 +450,45 @@ static int usbg_bot_setup(struct usb_function *f,
 
 /* Start uas.c code */
 
+static int tcm_to_uasp_response(enum tcm_tmrsp_table code)
+{
+	switch (code) {
+	case TMR_FUNCTION_FAILED:
+		return RC_TMF_FAILED;
+	case TMR_FUNCTION_COMPLETE:
+	case TMR_TASK_DOES_NOT_EXIST:
+		return RC_TMF_COMPLETE;
+	case TMR_LUN_DOES_NOT_EXIST:
+		return RC_INCORRECT_LUN;
+	case TMR_FUNCTION_REJECTED:
+	case TMR_TASK_MGMT_FUNCTION_NOT_SUPPORTED:
+	default:
+		return RC_TMF_NOT_SUPPORTED;
+	}
+}
+
+static unsigned char uasp_to_tcm_func(int code)
+{
+	switch (code) {
+	case TMF_ABORT_TASK:
+		return TMR_ABORT_TASK;
+	case TMF_ABORT_TASK_SET:
+		return TMR_ABORT_TASK_SET;
+	case TMF_CLEAR_TASK_SET:
+		return TMR_CLEAR_TASK_SET;
+	case TMF_LOGICAL_UNIT_RESET:
+		return TMR_LUN_RESET;
+	case TMF_CLEAR_ACA:
+		return TMR_CLEAR_ACA;
+	case TMF_I_T_NEXUS_RESET:
+	case TMF_QUERY_TASK:
+	case TMF_QUERY_TASK_SET:
+	case TMF_QUERY_ASYNC_EVENT:
+	default:
+		return TMR_UNKNOWN;
+	}
+}
+
 static void uasp_cleanup_one_stream(struct f_uas *fu, struct uas_stream *stream)
 {
 	/* We have either all three allocated or none */
@@ -552,6 +592,61 @@ static void uasp_prepare_status(struct usbg_cmd *cmd)
 	stream->req_status->complete = uasp_status_data_cmpl;
 }
 
+static void uasp_prepare_response(struct usbg_cmd *cmd)
+{
+	struct se_cmd *se_cmd = &cmd->se_cmd;
+	struct response_iu *rsp_iu = &cmd->response_iu;
+	struct uas_stream *stream = &cmd->fu->stream[se_cmd->map_tag];
+
+	cmd->state = UASP_QUEUE_COMMAND;
+	rsp_iu->iu_id = IU_ID_RESPONSE;
+	rsp_iu->tag = cpu_to_be16(cmd->tag);
+
+	if (cmd->tmr_rsp != RC_RESPONSE_UNKNOWN)
+		rsp_iu->response_code = cmd->tmr_rsp;
+	else
+		rsp_iu->response_code =
+			tcm_to_uasp_response(se_cmd->se_tmr_req->response);
+
+	/*
+	 * The UASP driver must support all the task management functions listed
+	 * in Table 20 of UAS-r04. To remain compliant while indicate that the
+	 * TMR did not go through, report RC_TMF_FAILED instead of
+	 * RC_TMF_NOT_SUPPORTED and print a warning to the user.
+	 */
+	switch (cmd->tmr_func) {
+	case TMF_ABORT_TASK:
+	case TMF_ABORT_TASK_SET:
+	case TMF_CLEAR_TASK_SET:
+	case TMF_LOGICAL_UNIT_RESET:
+	case TMF_CLEAR_ACA:
+	case TMF_I_T_NEXUS_RESET:
+	case TMF_QUERY_TASK:
+	case TMF_QUERY_TASK_SET:
+	case TMF_QUERY_ASYNC_EVENT:
+		if (rsp_iu->response_code == RC_TMF_NOT_SUPPORTED) {
+			struct usb_gadget *gadget = fuas_to_gadget(cmd->fu);
+
+			dev_warn(&gadget->dev, "TMF function %d not supported\n",
+				 cmd->tmr_func);
+			rsp_iu->response_code = RC_TMF_FAILED;
+		}
+		break;
+	default:
+		break;
+	}
+
+	stream->req_status->is_last = 1;
+	stream->req_status->stream_id = cmd->tag;
+	stream->req_status->context = cmd;
+	stream->req_status->length = sizeof(struct response_iu);
+	stream->req_status->buf = rsp_iu;
+	stream->req_status->complete = uasp_status_data_cmpl;
+}
+
+static void usbg_release_cmd(struct se_cmd *se_cmd);
+static int uasp_send_tm_response(struct usbg_cmd *cmd);
+
 static void uasp_status_data_cmpl(struct usb_ep *ep, struct usb_request *req)
 {
 	struct usbg_cmd *cmd = req->context;
@@ -590,9 +685,23 @@ static void uasp_status_data_cmpl(struct usb_ep *ep, struct usb_request *req)
 		break;
 
 	case UASP_QUEUE_COMMAND:
-		transport_generic_free_cmd(&cmd->se_cmd, 0);
-		usb_ep_queue(fu->ep_cmd, cmd->req, GFP_ATOMIC);
+		/*
+		 * If no command submitted to target core here, just free the
+		 * bitmap index. This is for the cases where f_tcm handles
+		 * status response instead of the target core.
+		 */
+		if (cmd->tmr_rsp != RC_RESPONSE_UNKNOWN) {
+			struct se_session *se_sess;
 
+			se_sess = fu->tpg->tpg_nexus->tvn_se_sess;
+			sbitmap_queue_clear(&se_sess->sess_tag_pool,
+					    cmd->se_cmd.map_tag,
+					    cmd->se_cmd.map_cpu);
+		} else {
+			transport_generic_free_cmd(&cmd->se_cmd, 0);
+		}
+
+		usb_ep_queue(fu->ep_cmd, cmd->req, GFP_ATOMIC);
 		break;
 
 	default:
@@ -613,6 +722,18 @@ static int uasp_send_status_response(struct usbg_cmd *cmd)
 	iu->tag = cpu_to_be16(cmd->tag);
 	cmd->fu = fu;
 	uasp_prepare_status(cmd);
+	return usb_ep_queue(fu->ep_status, stream->req_status, GFP_ATOMIC);
+}
+
+static int uasp_send_tm_response(struct usbg_cmd *cmd)
+{
+	struct f_uas *fu = cmd->fu;
+	struct uas_stream *stream = &fu->stream[cmd->se_cmd.map_tag];
+	struct response_iu *iu = &cmd->response_iu;
+
+	iu->tag = cpu_to_be16(cmd->tag);
+	cmd->fu = fu;
+	uasp_prepare_response(cmd);
 	return usb_ep_queue(fu->ep_status, stream->req_status, GFP_ATOMIC);
 }
 
@@ -1016,9 +1137,23 @@ static int usbg_send_read_response(struct se_cmd *se_cmd)
 		return uasp_send_read_response(cmd);
 }
 
-static void usbg_cmd_work(struct work_struct *work)
+static void usbg_submit_tmr(struct usbg_cmd *cmd)
 {
-	struct usbg_cmd *cmd = container_of(work, struct usbg_cmd, work);
+	struct se_session *se_sess;
+	struct se_cmd *se_cmd;
+	int flags = TARGET_SCF_ACK_KREF;
+
+	se_cmd = &cmd->se_cmd;
+	se_sess = cmd->fu->tpg->tpg_nexus->tvn_se_sess;
+
+	target_submit_tmr(se_cmd, se_sess,
+			  cmd->response_iu.add_response_info,
+			  cmd->unpacked_lun, NULL, uasp_to_tcm_func(cmd->tmr_func),
+			  GFP_ATOMIC, cmd->tag, flags);
+}
+
+static void usbg_submit_cmd(struct usbg_cmd *cmd)
+{
 	struct se_cmd *se_cmd;
 	struct tcm_usbg_nexus *tv_nexus;
 	struct usbg_tpg *tpg;
@@ -1059,6 +1194,29 @@ out:
 			TCM_UNSUPPORTED_SCSI_OPCODE, 0);
 }
 
+static void usbg_cmd_work(struct work_struct *work)
+{
+	struct usbg_cmd *cmd = container_of(work, struct usbg_cmd, work);
+
+	/*
+	 * Failure is detected by f_tcm here. Skip submitting the command to the
+	 * target core if we already know the failing response and send the usb
+	 * response to the host directly.
+	 */
+	if (cmd->tmr_rsp != RC_RESPONSE_UNKNOWN)
+		goto skip;
+
+	if (cmd->tmr_func)
+		usbg_submit_tmr(cmd);
+	else
+		usbg_submit_cmd(cmd);
+
+	return;
+
+skip:
+	uasp_send_tm_response(cmd);
+}
+
 static struct usbg_cmd *usbg_get_cmd(struct f_uas *fu,
 		struct tcm_usbg_nexus *tv_nexus, u32 scsi_tag)
 {
@@ -1085,17 +1243,13 @@ static void usbg_release_cmd(struct se_cmd *);
 
 static int usbg_submit_command(struct f_uas *fu, struct usb_request *req)
 {
-	struct command_iu *cmd_iu = req->buf;
+	struct iu *iu = req->buf;
 	struct usbg_cmd *cmd;
 	struct usbg_tpg *tpg = fu->tpg;
 	struct tcm_usbg_nexus *tv_nexus;
+	struct command_iu *cmd_iu;
 	u32 cmd_len;
 	u16 scsi_tag;
-
-	if (cmd_iu->iu_id != IU_ID_COMMAND) {
-		pr_err("Unsupported type %d\n", cmd_iu->iu_id);
-		return -EINVAL;
-	}
 
 	tv_nexus = tpg->tpg_nexus;
 	if (!tv_nexus) {
@@ -1103,15 +1257,43 @@ static int usbg_submit_command(struct f_uas *fu, struct usb_request *req)
 		return -EINVAL;
 	}
 
-	cmd_len = (cmd_iu->len & ~0x3) + 16;
-	if (cmd_len > USBG_MAX_CMD)
-		return -EINVAL;
-
-	scsi_tag = be16_to_cpup(&cmd_iu->tag);
+	scsi_tag = be16_to_cpup(&iu->tag);
 	cmd = usbg_get_cmd(fu, tv_nexus, scsi_tag);
 	if (IS_ERR(cmd)) {
 		pr_err("usbg_get_cmd failed\n");
 		return -ENOMEM;
+	}
+
+	cmd->req = req;
+	cmd->fu = fu;
+	cmd->tag = scsi_tag;
+	cmd->se_cmd.tag = scsi_tag;
+	cmd->tmr_func = 0;
+	cmd->tmr_rsp = RC_RESPONSE_UNKNOWN;
+	cmd->flags = 0;
+
+	cmd_iu = (struct command_iu *)iu;
+
+	/* Command and Task Management IUs share the same LUN offset */
+	cmd->unpacked_lun = scsilun_to_int(&cmd_iu->lun);
+
+	if (iu->iu_id != IU_ID_COMMAND && iu->iu_id != IU_ID_TASK_MGMT) {
+		cmd->tmr_rsp = RC_INVALID_INFO_UNIT;
+		goto skip;
+	}
+
+	if (iu->iu_id == IU_ID_TASK_MGMT) {
+		struct task_mgmt_iu *tm_iu;
+
+		tm_iu = (struct task_mgmt_iu *)iu;
+		cmd->tmr_func = tm_iu->function;
+		goto skip;
+	}
+
+	cmd_len = (cmd_iu->len & ~0x3) + 16;
+	if (cmd_len > USBG_MAX_CMD) {
+		target_free_tag(tv_nexus->tvn_se_sess, &cmd->se_cmd);
+		return -EINVAL;
 	}
 	memcpy(cmd->cmd_buf, cmd_iu->cdb, cmd_len);
 
@@ -1134,10 +1316,7 @@ static int usbg_submit_command(struct f_uas *fu, struct usb_request *req)
 		break;
 	}
 
-	cmd->unpacked_lun = scsilun_to_int(&cmd_iu->lun);
-	cmd->req = req;
-	cmd->flags = 0;
-
+skip:
 	INIT_WORK(&cmd->work, usbg_cmd_work);
 	queue_work(tpg->workqueue, &cmd->work);
 
@@ -1270,6 +1449,9 @@ static void usbg_release_cmd(struct se_cmd *se_cmd)
 
 static void usbg_queue_tm_rsp(struct se_cmd *se_cmd)
 {
+	struct usbg_cmd *cmd = container_of(se_cmd, struct usbg_cmd, se_cmd);
+
+	uasp_send_tm_response(cmd);
 }
 
 static void usbg_aborted_task(struct se_cmd *se_cmd)

@@ -85,7 +85,12 @@ struct usbg_cmd {
 	u16 tag;
 	u16 prio_attr;
 	struct sense_iu sense_iu;
+	struct response_iu response_iu;
 	enum uas_state state;
+
+	int tmr_func;
+	int tmr_rsp;
+#define	RC_RESPONSE_UNKNOWN	0xff
 
 	/* BOT only */
 	__le32 bot_tag;
