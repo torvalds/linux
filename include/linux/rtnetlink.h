@@ -178,6 +178,12 @@ void rtnetlink_init(void);
 void __rtnl_unlock(void);
 void rtnl_kfree_skbs(struct sk_buff *head, struct sk_buff *tail);
 
+/* Shared by rtnl_fdb_dump() and various ndo_fdb_dump() helpers. */
+struct ndo_fdb_dump_context {
+	unsigned long ifindex;
+	unsigned long fdb_idx;
+};
+
 extern int ndo_dflt_fdb_dump(struct sk_buff *skb,
 			     struct netlink_callback *cb,
 			     struct net_device *dev,
