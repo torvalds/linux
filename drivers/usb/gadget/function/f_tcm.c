@@ -283,8 +283,13 @@ static void bot_cmd_complete(struct usb_ep *ep, struct usb_request *req)
 
 	fu->flags &= ~USBG_BOT_CMD_PEND;
 
-	if (req->status < 0)
+	if (req->status < 0) {
+		struct usb_gadget *gadget = fuas_to_gadget(fu);
+
+		dev_err(&gadget->dev, "BOT command req err (%d)\n", req->status);
+		bot_enqueue_cmd_cbw(fu);
 		return;
+	}
 
 	ret = bot_submit_command(fu, req->buf, req->actual);
 	if (ret) {
