@@ -1557,18 +1557,22 @@ static int fuse_get_user_pages(struct fuse_args_pages *ap, struct iov_iter *ii,
 
 		nbytes += ret;
 
-		ret += start;
-		/* Currently, all folios in FUSE are one page */
-		nfolios = DIV_ROUND_UP(ret, PAGE_SIZE);
+		nfolios = DIV_ROUND_UP(ret + start, PAGE_SIZE);
 
-		ap->descs[ap->num_folios].offset = start;
-		fuse_folio_descs_length_init(ap->descs, ap->num_folios, nfolios);
-		for (i = 0; i < nfolios; i++)
-			ap->folios[i + ap->num_folios] = page_folio(pages[i]);
+		for (i = 0; i < nfolios; i++) {
+			struct folio *folio = page_folio(pages[i]);
+			unsigned int offset = start +
+				(folio_page_idx(folio, pages[i]) << PAGE_SHIFT);
+			unsigned int len = min_t(unsigned int, ret, PAGE_SIZE - start);
 
-		ap->num_folios += nfolios;
-		ap->descs[ap->num_folios - 1].length -=
-			(PAGE_SIZE - ret) & (PAGE_SIZE - 1);
+			ap->descs[ap->num_folios].offset = offset;
+			ap->descs[ap->num_folios].length = len;
+			ap->folios[ap->num_folios] = folio;
+			start = 0;
+			ret -= len;
+			ap->num_folios++;
+		}
+
 		nr_pages += nfolios;
 	}
 	kfree(pages);
