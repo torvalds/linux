@@ -331,11 +331,7 @@ static void drm_connector_add(struct drm_connector *connector)
 	struct drm_device *dev = connector->dev;
 	struct drm_mode_config *config = &dev->mode_config;
 
-	/*
-	 * TODO: Change this to a WARN, once all drivers are converted to
-	 * call drm_connector_dynamic_init() for MST connectors.
-	 */
-	if (!list_empty(&connector->head))
+	if (drm_WARN_ON(dev, !list_empty(&connector->head)))
 		return;
 
 	spin_lock_irq(&config->connector_list_lock);
