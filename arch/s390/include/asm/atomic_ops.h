@@ -73,7 +73,7 @@ static __always_inline op_type op_name(op_type val, op_type *ptr)	\
 }									\
 
 #define __ATOMIC_OPS(op_name, op_type, op_string)			\
-	__ATOMIC_OP(op_name, op_type, op_string, "\n")			\
+	__ATOMIC_OP(op_name, op_type, op_string, "")			\
 	__ATOMIC_OP(op_name##_barrier, op_type, op_string, "bcr 14,0\n")
 
 __ATOMIC_OPS(__atomic_add, int, "laa")
@@ -99,7 +99,7 @@ static __always_inline void op_name(op_type val, op_type *ptr)		\
 }
 
 #define __ATOMIC_CONST_OPS(op_name, op_type, op_string)			\
-	__ATOMIC_CONST_OP(op_name, op_type, op_string, "\n")		\
+	__ATOMIC_CONST_OP(op_name, op_type, op_string, "")		\
 	__ATOMIC_CONST_OP(op_name##_barrier, op_type, op_string, "bcr 14,0\n")
 
 __ATOMIC_CONST_OPS(__atomic_add_const, int, "asi")

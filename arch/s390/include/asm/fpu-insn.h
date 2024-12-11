@@ -103,7 +103,7 @@ static inline void fpu_lfpc_safe(unsigned int *fpc)
 	u32 tmp;
 
 	instrument_read(fpc, sizeof(*fpc));
-	asm volatile("\n"
+	asm_inline volatile(
 		"0:	lfpc	%[fpc]\n"
 		"1:	nopr	%%r7\n"
 		".pushsection .fixup, \"ax\"\n"
@@ -188,7 +188,7 @@ static __always_inline void fpu_vgfmg(u8 v1, u8 v2, u8 v3)
 static __always_inline void fpu_vl(u8 v1, const void *vxr)
 {
 	instrument_read(vxr, sizeof(__vector128));
-	asm volatile("\n"
+	asm volatile(
 		"	la	1,%[vxr]\n"
 		"	VL	%[v1],0,,1\n"
 		:
@@ -246,7 +246,7 @@ static __always_inline void fpu_vll(u8 v1, u32 index, const void *vxr)
 
 	size = min(index + 1, sizeof(__vector128));
 	instrument_read(vxr, size);
-	asm volatile("\n"
+	asm volatile(
 		"	la	1,%[vxr]\n"
 		"	VLL	%[v1],%[index],0,1\n"
 		:
@@ -284,7 +284,7 @@ static __always_inline void fpu_vll(u8 v1, u32 index, const void *vxr)
 	} *_v = (void *)(_vxrs);					\
 									\
 	instrument_read(_v, size);					\
-	asm volatile("\n"						\
+	asm volatile(							\
 		"	la	1,%[vxrs]\n"				\
 		"	VLM	%[v1],%[v3],0,1\n"			\
 		:							\
@@ -367,7 +367,7 @@ static __always_inline void fpu_vsrlb(u8 v1, u8 v2, u8 v3)
 static __always_inline void fpu_vst(u8 v1, const void *vxr)
 {
 	instrument_write(vxr, sizeof(__vector128));
-	asm volatile("\n"
+	asm volatile(
 		"	la	1,%[vxr]\n"
 		"	VST	%[v1],0,,1\n"
 		: [vxr] "=R" (*(__vector128 *)vxr)
@@ -396,7 +396,7 @@ static __always_inline void fpu_vstl(u8 v1, u32 index, const void *vxr)
 
 	size = min(index + 1, sizeof(__vector128));
 	instrument_write(vxr, size);
-	asm volatile("\n"
+	asm volatile(
 		"	la	1,%[vxr]\n"
 		"	VSTL	%[v1],%[index],0,1\n"
 		: [vxr] "=R" (*(u8 *)vxr)
@@ -430,7 +430,7 @@ static __always_inline void fpu_vstl(u8 v1, u32 index, const void *vxr)
 	} *_v = (void *)(_vxrs);					\
 									\
 	instrument_write(_v, size);					\
-	asm volatile("\n"						\
+	asm volatile(							\
 		"	la	1,%[vxrs]\n"				\
 		"	VSTM	%[v1],%[v3],0,1\n"			\
 		: [vxrs] "=R" (*_v)					\
