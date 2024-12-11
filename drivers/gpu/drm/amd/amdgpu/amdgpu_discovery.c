@@ -2420,6 +2420,7 @@ static int amdgpu_discovery_set_sdma_ip_blocks(struct amdgpu_device *adev)
 	case IP_VERSION(6, 1, 1):
 	case IP_VERSION(6, 1, 2):
 	case IP_VERSION(6, 1, 3):
+	case IP_VERSION(6, 1, 4):
 		amdgpu_device_ip_block_add(adev, &sdma_v6_0_ip_block);
 		break;
 	case IP_VERSION(7, 0, 0):

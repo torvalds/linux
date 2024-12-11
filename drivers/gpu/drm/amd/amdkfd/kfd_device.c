@@ -104,6 +104,7 @@ static void kfd_device_info_set_sdma_info(struct kfd_dev *kfd)
 	case IP_VERSION(6, 1, 1):
 	case IP_VERSION(6, 1, 2):
 	case IP_VERSION(6, 1, 3):
+	case IP_VERSION(6, 1, 4):
 	case IP_VERSION(7, 0, 0):
 	case IP_VERSION(7, 0, 1):
 	case IP_VERSION(7, 1, 0):
