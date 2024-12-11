@@ -504,6 +504,7 @@ err_disable_core_clk:
 
 err_set_suspended:
 	atomic_set(&ptdev->pm.state, PANTHOR_DEVICE_PM_STATE_SUSPENDED);
+	atomic_set(&ptdev->pm.recovery_needed, 1);
 	return ret;
 }
 

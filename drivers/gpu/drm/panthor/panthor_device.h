@@ -9,6 +9,7 @@
 #include <linux/atomic.h>
 #include <linux/io-pgtable.h>
 #include <linux/regulator/consumer.h>
+#include <linux/pm_runtime.h>
 #include <linux/sched.h>
 #include <linux/spinlock.h>
 
@@ -180,6 +181,9 @@ struct panthor_device {
 		 * is suspended.
 		 */
 		struct page *dummy_latest_flush;
+
+		/** @recovery_needed: True when a resume attempt failed. */
+		atomic_t recovery_needed;
 	} pm;
 
 	/** @profile_mask: User-set profiling flags for job accounting. */
@@ -242,6 +246,28 @@ int panthor_device_mmap_io(struct panthor_device *ptdev,
 
 int panthor_device_resume(struct device *dev);
 int panthor_device_suspend(struct device *dev);
+
+static inline int panthor_device_resume_and_get(struct panthor_device *ptdev)
+{
+	int ret = pm_runtime_resume_and_get(ptdev->base.dev);
+
+	/* If the resume failed, we need to clear the runtime_error, which
+	 * can done by forcing the RPM state to suspended. If multiple
+	 * threads called panthor_device_resume_and_get(), we only want
+	 * one of them to update the state, hence the cmpxchg. Note that a
+	 * thread might enter panthor_device_resume_and_get() and call
+	 * pm_runtime_resume_and_get() after another thread had attempted
+	 * to resume and failed. This means we will end up with an error
+	 * without even attempting a resume ourselves. The only risk here
+	 * is to report an error when the second resume attempt might have
+	 * succeeded. Given resume errors are not expected, this is probably
+	 * something we can live with.
+	 */
+	if (ret && atomic_cmpxchg(&ptdev->pm.recovery_needed, 1, 0) == 1)
+		pm_runtime_set_suspended(ptdev->base.dev);
+
+	return ret;
+}
 
 enum drm_panthor_exception_type {
 	DRM_PANTHOR_EXCEPTION_OK = 0x00,
