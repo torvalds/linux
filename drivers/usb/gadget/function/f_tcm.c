@@ -948,7 +948,8 @@ static void usbg_data_write_cmpl(struct usb_ep *ep, struct usb_request *req)
 
 cleanup:
 	target_put_sess_cmd(se_cmd);
-	transport_generic_free_cmd(&cmd->se_cmd, 0);
+	transport_send_check_condition_and_sense(se_cmd,
+			TCM_CHECK_CONDITION_ABORT_CMD, 0);
 }
 
 static int usbg_prepare_w_request(struct usbg_cmd *cmd, struct usb_request *req)
