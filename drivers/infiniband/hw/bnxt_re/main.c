@@ -2247,7 +2247,6 @@ static int bnxt_re_netdev_event(struct notifier_block *notifier,
 	if (!rdev)
 		return NOTIFY_DONE;
 
-
 	switch (event) {
 	case NETDEV_UP:
 	case NETDEV_DOWN:
