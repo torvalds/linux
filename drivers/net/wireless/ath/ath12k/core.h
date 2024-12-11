@@ -863,11 +863,13 @@ struct ath12k_hw_group {
 	struct device_node *wsi_node[ATH12K_MAX_SOCS];
 	struct ath12k_mlo_memory mlo_mem;
 	struct ath12k_hw_link hw_links[ATH12K_GROUP_MAX_RADIO];
+	bool hw_link_id_init_done;
 };
 
 /* Holds WSI info specific to each device, excluding WSI group info */
 struct ath12k_wsi_info {
 	u32 index;
+	u32 hw_link_id_base;
 };
 
 /* Master structure to hold the hw data which may be used in core module */

@@ -2016,6 +2016,30 @@ static const struct qmi_elem_info qmi_wlanfw_wlan_ini_resp_msg_v01_ei[] = {
 	},
 };
 
+static void ath12k_host_cap_hw_link_id_init(struct ath12k_hw_group *ag)
+{
+	struct ath12k_base *ab, *partner_ab;
+	int i, j, hw_id_base;
+
+	for (i = 0; i < ag->num_devices; i++) {
+		hw_id_base = 0;
+		ab = ag->ab[i];
+
+		for (j = 0; j < ag->num_devices; j++) {
+			partner_ab = ag->ab[j];
+
+			if (partner_ab->wsi_info.index >= ab->wsi_info.index)
+				continue;
+
+			hw_id_base += partner_ab->qmi.num_radios;
+		}
+
+		ab->wsi_info.hw_link_id_base = hw_id_base;
+	}
+
+	ag->hw_link_id_init_done = true;
+}
+
 static int ath12k_host_cap_parse_mlo(struct ath12k_base *ab,
 				     struct qmi_wlanfw_host_cap_req_msg_v01 *req)
 {
@@ -2059,7 +2083,13 @@ static int ath12k_host_cap_parse_mlo(struct ath12k_base *ab,
 	req->mlo_num_chips_valid = 1;
 	req->mlo_num_chips = ag->num_devices;
 
+	ath12k_dbg(ab, ATH12K_DBG_QMI, "mlo capability advertisement device_id %d group_id %d num_devices %d",
+		   req->mlo_chip_id, req->mlo_group_id, req->mlo_num_chips);
+
 	mutex_lock(&ag->mutex);
+
+	if (!ag->hw_link_id_init_done)
+		ath12k_host_cap_hw_link_id_init(ag);
 
 	for (i = 0; i < ag->num_devices; i++) {
 		info = &req->mlo_chip_info[i];
@@ -2078,8 +2108,11 @@ static int ath12k_host_cap_parse_mlo(struct ath12k_base *ab,
 			   info->chip_id, info->num_local_links);
 
 		for (j = 0; j < info->num_local_links; j++) {
-			info->hw_link_id[j] = hw_link_id;
+			info->hw_link_id[j] = partner_ab->wsi_info.hw_link_id_base + j;
 			info->valid_mlo_link_id[j] = 1;
+
+			ath12k_dbg(ab, ATH12K_DBG_QMI, "mlo hw_link_id %d\n",
+				   info->hw_link_id[j]);
 
 			hw_link_id++;
 		}
