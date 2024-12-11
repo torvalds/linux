@@ -312,8 +312,8 @@ struct xdp_frame *xdp_convert_buff_to_frame(struct xdp_buff *xdp)
 	return xdp_frame;
 }
 
-void __xdp_return(void *data, enum xdp_mem_type mem_type, bool napi_direct,
-		  struct xdp_buff *xdp);
+void __xdp_return(netmem_ref netmem, enum xdp_mem_type mem_type,
+		  bool napi_direct, struct xdp_buff *xdp);
 void xdp_return_frame(struct xdp_frame *xdpf);
 void xdp_return_frame_rx_napi(struct xdp_frame *xdpf);
 void xdp_return_buff(struct xdp_buff *xdp);

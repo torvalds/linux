@@ -430,27 +430,25 @@ EXPORT_SYMBOL_GPL(xdp_rxq_info_attach_page_pool);
  * is used for those calls sites.  Thus, allowing for faster recycling
  * of xdp_frames/pages in those cases.
  */
-void __xdp_return(void *data, enum xdp_mem_type mem_type, bool napi_direct,
-		  struct xdp_buff *xdp)
+void __xdp_return(netmem_ref netmem, enum xdp_mem_type mem_type,
+		  bool napi_direct, struct xdp_buff *xdp)
 {
-	struct page *page;
-
 	switch (mem_type) {
 	case MEM_TYPE_PAGE_POOL:
-		page = virt_to_head_page(data);
+		netmem = netmem_compound_head(netmem);
 		if (napi_direct && xdp_return_frame_no_direct())
 			napi_direct = false;
 		/* No need to check ((page->pp_magic & ~0x3UL) == PP_SIGNATURE)
 		 * as mem->type knows this a page_pool page
 		 */
-		page_pool_put_full_page(page->pp, page, napi_direct);
+		page_pool_put_full_netmem(netmem_get_pp(netmem), netmem,
+					  napi_direct);
 		break;
 	case MEM_TYPE_PAGE_SHARED:
-		page_frag_free(data);
+		page_frag_free(__netmem_address(netmem));
 		break;
 	case MEM_TYPE_PAGE_ORDER0:
-		page = virt_to_page(data); /* Assumes order0 page*/
-		put_page(page);
+		put_page(__netmem_to_page(netmem));
 		break;
 	case MEM_TYPE_XSK_BUFF_POOL:
 		/* NB! Only valid from an xdp_buff! */
@@ -466,38 +464,34 @@ void __xdp_return(void *data, enum xdp_mem_type mem_type, bool napi_direct,
 void xdp_return_frame(struct xdp_frame *xdpf)
 {
 	struct skb_shared_info *sinfo;
-	int i;
 
 	if (likely(!xdp_frame_has_frags(xdpf)))
 		goto out;
 
 	sinfo = xdp_get_shared_info_from_frame(xdpf);
-	for (i = 0; i < sinfo->nr_frags; i++) {
-		struct page *page = skb_frag_page(&sinfo->frags[i]);
+	for (u32 i = 0; i < sinfo->nr_frags; i++)
+		__xdp_return(skb_frag_netmem(&sinfo->frags[i]), xdpf->mem_type,
+			     false, NULL);
 
-		__xdp_return(page_address(page), xdpf->mem_type, false, NULL);
-	}
 out:
-	__xdp_return(xdpf->data, xdpf->mem_type, false, NULL);
+	__xdp_return(virt_to_netmem(xdpf->data), xdpf->mem_type, false, NULL);
 }
 EXPORT_SYMBOL_GPL(xdp_return_frame);
 
 void xdp_return_frame_rx_napi(struct xdp_frame *xdpf)
 {
 	struct skb_shared_info *sinfo;
-	int i;
 
 	if (likely(!xdp_frame_has_frags(xdpf)))
 		goto out;
 
 	sinfo = xdp_get_shared_info_from_frame(xdpf);
-	for (i = 0; i < sinfo->nr_frags; i++) {
-		struct page *page = skb_frag_page(&sinfo->frags[i]);
+	for (u32 i = 0; i < sinfo->nr_frags; i++)
+		__xdp_return(skb_frag_netmem(&sinfo->frags[i]), xdpf->mem_type,
+			     true, NULL);
 
-		__xdp_return(page_address(page), xdpf->mem_type, true, NULL);
-	}
 out:
-	__xdp_return(xdpf->data, xdpf->mem_type, true, NULL);
+	__xdp_return(virt_to_netmem(xdpf->data), xdpf->mem_type, true, NULL);
 }
 EXPORT_SYMBOL_GPL(xdp_return_frame_rx_napi);
 
@@ -544,20 +538,17 @@ EXPORT_SYMBOL_GPL(xdp_return_frame_bulk);
 void xdp_return_buff(struct xdp_buff *xdp)
 {
 	struct skb_shared_info *sinfo;
-	int i;
 
 	if (likely(!xdp_buff_has_frags(xdp)))
 		goto out;
 
 	sinfo = xdp_get_shared_info_from_buff(xdp);
-	for (i = 0; i < sinfo->nr_frags; i++) {
-		struct page *page = skb_frag_page(&sinfo->frags[i]);
+	for (u32 i = 0; i < sinfo->nr_frags; i++)
+		__xdp_return(skb_frag_netmem(&sinfo->frags[i]),
+			     xdp->rxq->mem.type, true, xdp);
 
-		__xdp_return(page_address(page), xdp->rxq->mem.type, true,
-			     xdp);
-	}
 out:
-	__xdp_return(xdp->data, xdp->rxq->mem.type, true, xdp);
+	__xdp_return(virt_to_netmem(xdp->data), xdp->rxq->mem.type, true, xdp);
 }
 EXPORT_SYMBOL_GPL(xdp_return_buff);
 
