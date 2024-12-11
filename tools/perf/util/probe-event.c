@@ -1383,20 +1383,20 @@ int parse_line_range_desc(const char *arg, struct line_range *lr)
 		if (p == buf) {
 			semantic_error("No file/function name in '%s'.\n", p);
 			err = -EINVAL;
-			goto err;
+			goto out;
 		}
 		*(p++) = '\0';
 
 		err = parse_line_num(&p, &lr->start, "start line");
 		if (err)
-			goto err;
+			goto out;
 
 		if (*p == '+' || *p == '-') {
 			const char c = *(p++);
 
 			err = parse_line_num(&p, &lr->end, "end line");
 			if (err)
-				goto err;
+				goto out;
 
 			if (c == '+') {
 				lr->end += lr->start;
@@ -1416,11 +1416,11 @@ int parse_line_range_desc(const char *arg, struct line_range *lr)
 		if (lr->start > lr->end) {
 			semantic_error("Start line must be smaller"
 				       " than end line.\n");
-			goto err;
+			goto out;
 		}
 		if (*p != '\0') {
 			semantic_error("Tailing with invalid str '%s'.\n", p);
-			goto err;
+			goto out;
 		}
 	}
 
@@ -1431,7 +1431,7 @@ int parse_line_range_desc(const char *arg, struct line_range *lr)
 			lr->file = strdup_esq(p);
 			if (lr->file == NULL) {
 				err = -ENOMEM;
-				goto err;
+				goto out;
 			}
 		}
 		if (*buf != '\0')
@@ -1439,7 +1439,7 @@ int parse_line_range_desc(const char *arg, struct line_range *lr)
 		if (!lr->function && !lr->file) {
 			semantic_error("Only '@*' is not allowed.\n");
 			err = -EINVAL;
-			goto err;
+			goto out;
 		}
 	} else if (strpbrk_esq(buf, "/."))
 		lr->file = strdup_esq(buf);
@@ -1448,10 +1448,10 @@ int parse_line_range_desc(const char *arg, struct line_range *lr)
 	else {	/* Invalid name */
 		semantic_error("'%s' is not a valid function name.\n", buf);
 		err = -EINVAL;
-		goto err;
+		goto out;
 	}
 
-err:
+out:
 	free(buf);
 	return err;
 }
