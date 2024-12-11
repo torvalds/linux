@@ -286,6 +286,7 @@ struct power_supply_desc {
 };
 
 struct power_supply_ext {
+	const char *const name;
 	u8 charge_behaviours;
 	const enum power_supply_property *properties;
 	size_t num_properties;
@@ -911,6 +912,7 @@ extern int power_supply_powers(struct power_supply *psy, struct device *dev);
 extern int __must_check
 power_supply_register_extension(struct power_supply *psy,
 				const struct power_supply_ext *ext,
+				struct device *dev,
 				void *data);
 extern void power_supply_unregister_extension(struct power_supply *psy,
 					      const struct power_supply_ext *ext);

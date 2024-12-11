@@ -1358,16 +1358,20 @@ static int power_supply_update_sysfs_and_hwmon(struct power_supply *psy)
 }
 
 int power_supply_register_extension(struct power_supply *psy, const struct power_supply_ext *ext,
-				    void *data)
+				    struct device *dev, void *data)
 {
 	struct power_supply_ext_registration *reg;
 	size_t i;
 	int ret;
 
-	if (!psy || !ext || !ext->properties || !ext->num_properties)
+	if (!psy || !dev || !ext || !ext->name || !ext->properties || !ext->num_properties)
 		return -EINVAL;
 
 	guard(rwsem_write)(&psy->extensions_sem);
+
+	power_supply_for_each_extension(reg, psy)
+		if (strcmp(ext->name, reg->ext->name) == 0)
+			return -EEXIST;
 
 	for (i = 0; i < ext->num_properties; i++)
 		if (power_supply_has_property(psy, ext->properties[i]))
@@ -1378,8 +1382,14 @@ int power_supply_register_extension(struct power_supply *psy, const struct power
 		return -ENOMEM;
 
 	reg->ext = ext;
+	reg->dev = dev;
 	reg->data = data;
 	list_add(&reg->list_head, &psy->extensions);
+
+	ret = sysfs_add_link_to_group(&psy->dev.kobj, power_supply_extension_group.name,
+				      &dev->kobj, ext->name);
+	if (ret)
+		goto sysfs_link_failed;
 
 	ret = power_supply_update_sysfs_and_hwmon(psy);
 	if (ret)
@@ -1388,6 +1398,8 @@ int power_supply_register_extension(struct power_supply *psy, const struct power
 	return 0;
 
 sysfs_hwmon_failed:
+	sysfs_remove_link_from_group(&psy->dev.kobj, power_supply_extension_group.name, ext->name);
+sysfs_link_failed:
 	list_del(&reg->list_head);
 	kfree(reg);
 	return ret;
@@ -1403,6 +1415,9 @@ void power_supply_unregister_extension(struct power_supply *psy, const struct po
 	power_supply_for_each_extension(reg, psy) {
 		if (reg->ext == ext) {
 			list_del(&reg->list_head);
+			sysfs_remove_link_from_group(&psy->dev.kobj,
+						     power_supply_extension_group.name,
+						     reg->ext->name);
 			kfree(reg);
 			power_supply_update_sysfs_and_hwmon(psy);
 			return;

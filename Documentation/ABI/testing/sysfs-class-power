@@ -813,3 +813,12 @@ Description:
 
 		Access: Read
 		Valid values: 1-31
+
+What:		/sys/class/power_supply/<supply_name>/extensions/<extension_name>
+Date:		March 2025
+Contact:	linux-pm@vger.kernel.org
+Description:
+		Reports the extensions registered to the power supply.
+		Each entry is a link to the device which registered the extension.
+
+		Access: Read

@@ -31,6 +31,7 @@
  */
 
 struct cros_chctl_priv {
+	struct device *dev;
 	struct cros_ec_device *cros_ec;
 	struct acpi_battery_hook battery_hook;
 	struct power_supply *hooked_battery;
@@ -202,6 +203,7 @@ static int cros_chctl_psy_prop_is_writeable(struct power_supply *psy,
 	};									\
 										\
 	static const struct power_supply_ext _name = {				\
+		.name			= "cros-charge-control",		\
 		.properties		= _name ## _props,			\
 		.num_properties		= ARRAY_SIZE(_name ## _props),		\
 		.charge_behaviours	= EC_CHARGE_CONTROL_BEHAVIOURS,		\
@@ -233,7 +235,7 @@ static int cros_chctl_add_battery(struct power_supply *battery, struct acpi_batt
 		return 0;
 
 	priv->hooked_battery = battery;
-	return power_supply_register_extension(battery, priv->psy_ext, priv);
+	return power_supply_register_extension(battery, priv->psy_ext, priv->dev, priv);
 }
 
 static int cros_chctl_remove_battery(struct power_supply *battery, struct acpi_battery_hook *hook)
@@ -299,6 +301,7 @@ static int cros_chctl_probe(struct platform_device *pdev)
 
 	dev_dbg(dev, "Command version: %u\n", (unsigned int)priv->cmd_version);
 
+	priv->dev = dev;
 	priv->cros_ec = cros_ec;
 
 	if (priv->cmd_version == 1)

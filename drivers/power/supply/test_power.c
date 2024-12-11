@@ -293,6 +293,7 @@ static int test_power_battery_extproperty_is_writeable(struct power_supply *psy,
 }
 
 static const struct power_supply_ext test_power_battery_ext = {
+	.name			= "test_power",
 	.properties		= test_power_battery_extprops,
 	.num_properties		= ARRAY_SIZE(test_power_battery_extprops),
 	.get_property		= test_power_battery_extget_property,
@@ -307,7 +308,8 @@ static void test_power_configure_battery_extension(bool enable)
 	psy = test_power_supplies[TEST_BATTERY];
 
 	if (enable) {
-		if (power_supply_register_extension(psy, &test_power_battery_ext, NULL)) {
+		if (power_supply_register_extension(psy, &test_power_battery_ext, &psy->dev,
+						    NULL)) {
 			pr_err("registering battery extension failed\n");
 			return;
 		}

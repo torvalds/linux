@@ -25,6 +25,7 @@ extern bool power_supply_ext_has_property(const struct power_supply_ext *ext,
 struct power_supply_ext_registration {
 	struct list_head list_head;
 	const struct power_supply_ext *ext;
+	struct device *dev;
 	void *data;
 };
 
@@ -39,6 +40,7 @@ struct power_supply_ext_registration {
 
 extern void __init power_supply_init_attrs(void);
 extern int power_supply_uevent(const struct device *dev, struct kobj_uevent_env *env);
+extern const struct attribute_group power_supply_extension_group;
 extern const struct attribute_group *power_supply_attr_groups[];
 
 #else

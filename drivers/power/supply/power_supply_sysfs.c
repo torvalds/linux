@@ -458,8 +458,18 @@ static const struct attribute_group power_supply_attr_group = {
 	.is_visible = power_supply_attr_is_visible,
 };
 
+static struct attribute *power_supply_extension_attrs[] = {
+	NULL
+};
+
+const struct attribute_group power_supply_extension_group = {
+	.name = "extensions",
+	.attrs = power_supply_extension_attrs,
+};
+
 const struct attribute_group *power_supply_attr_groups[] = {
 	&power_supply_attr_group,
+	&power_supply_extension_group,
 	NULL
 };
 
