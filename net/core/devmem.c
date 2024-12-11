@@ -335,6 +335,7 @@ int mp_dmabuf_devmem_init(struct page_pool *pool)
 	 * dma_sync_for_cpu/device. Force disable dma_sync.
 	 */
 	pool->dma_sync = false;
+	pool->dma_sync_for_cpu = false;
 
 	if (pool->p.order != 0)
 		return -E2BIG;

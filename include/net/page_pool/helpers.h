@@ -422,7 +422,21 @@ static inline dma_addr_t page_pool_get_dma_addr_netmem(netmem_ref netmem)
  */
 static inline dma_addr_t page_pool_get_dma_addr(const struct page *page)
 {
-	return page_pool_get_dma_addr_netmem(page_to_netmem((struct page *)page));
+	dma_addr_t ret = page->dma_addr;
+
+	if (PAGE_POOL_32BIT_ARCH_WITH_64BIT_DMA)
+		ret <<= PAGE_SHIFT;
+
+	return ret;
+}
+
+static inline void __page_pool_dma_sync_for_cpu(const struct page_pool *pool,
+						const dma_addr_t dma_addr,
+						u32 offset, u32 dma_sync_size)
+{
+	dma_sync_single_range_for_cpu(pool->p.dev, dma_addr,
+				      offset + pool->p.offset, dma_sync_size,
+				      page_pool_get_dma_dir(pool));
 }
 
 /**
@@ -441,10 +455,21 @@ static inline void page_pool_dma_sync_for_cpu(const struct page_pool *pool,
 					      const struct page *page,
 					      u32 offset, u32 dma_sync_size)
 {
-	dma_sync_single_range_for_cpu(pool->p.dev,
-				      page_pool_get_dma_addr(page),
-				      offset + pool->p.offset, dma_sync_size,
-				      page_pool_get_dma_dir(pool));
+	__page_pool_dma_sync_for_cpu(pool, page_pool_get_dma_addr(page), offset,
+				     dma_sync_size);
+}
+
+static inline void
+page_pool_dma_sync_netmem_for_cpu(const struct page_pool *pool,
+				  const netmem_ref netmem, u32 offset,
+				  u32 dma_sync_size)
+{
+	if (!pool->dma_sync_for_cpu)
+		return;
+
+	__page_pool_dma_sync_for_cpu(pool,
+				     page_pool_get_dma_addr_netmem(netmem),
+				     offset, dma_sync_size);
 }
 
 static inline bool page_pool_put(struct page_pool *pool)
