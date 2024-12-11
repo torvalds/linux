@@ -12,6 +12,7 @@
 #include <linux/iosys-map.h>
 #include <linux/mutex.h>
 #include <linux/platform_device.h>
+#include <linux/pm_runtime.h>
 
 #include <drm/drm_drv.h>
 #include <drm/drm_managed.h>
@@ -1190,11 +1191,13 @@ void panthor_fw_unplug(struct panthor_device *ptdev)
 
 	cancel_delayed_work_sync(&ptdev->fw->watchdog.ping_work);
 
-	/* Make sure the IRQ handler can be called after that point. */
-	if (ptdev->fw->irq.irq)
-		panthor_job_irq_suspend(&ptdev->fw->irq);
+	if (!IS_ENABLED(CONFIG_PM) || pm_runtime_active(ptdev->base.dev)) {
+		/* Make sure the IRQ handler cannot be called after that point. */
+		if (ptdev->fw->irq.irq)
+			panthor_job_irq_suspend(&ptdev->fw->irq);
 
-	panthor_fw_stop(ptdev);
+		panthor_fw_stop(ptdev);
+	}
 
 	list_for_each_entry(section, &ptdev->fw->sections, node)
 		panthor_kernel_bo_destroy(section->mem);
@@ -1207,7 +1210,8 @@ void panthor_fw_unplug(struct panthor_device *ptdev)
 	panthor_vm_put(ptdev->fw->vm);
 	ptdev->fw->vm = NULL;
 
-	panthor_gpu_power_off(ptdev, L2, ptdev->gpu_info.l2_present, 20000);
+	if (!IS_ENABLED(CONFIG_PM) || pm_runtime_active(ptdev->base.dev))
+		panthor_gpu_power_off(ptdev, L2, ptdev->gpu_info.l2_present, 20000);
 }
 
 /**

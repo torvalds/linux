@@ -180,7 +180,8 @@ void panthor_gpu_unplug(struct panthor_device *ptdev)
 	unsigned long flags;
 
 	/* Make sure the IRQ handler is not running after that point. */
-	panthor_gpu_irq_suspend(&ptdev->gpu->irq);
+	if (!IS_ENABLED(CONFIG_PM) || pm_runtime_active(ptdev->base.dev))
+		panthor_gpu_irq_suspend(&ptdev->gpu->irq);
 
 	/* Wake-up all waiters. */
 	spin_lock_irqsave(&ptdev->gpu->reqs_lock, flags);
