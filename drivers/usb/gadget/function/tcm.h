@@ -74,10 +74,12 @@ struct usbg_cmd {
 	struct se_cmd se_cmd;
 	void *data_buf; /* used if no sg support available */
 	struct f_uas *fu;
-	struct completion write_complete;
 	struct kref ref;
 
 	struct usb_request *req;
+
+	u32 flags;
+#define USBG_CMD_PENDING_DATA_WRITE	BIT(0)
 
 	/* UAS only */
 	u16 tag;

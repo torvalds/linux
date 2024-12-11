@@ -244,10 +244,8 @@ static int usbg_prepare_w_request(struct usbg_cmd *, struct usb_request *);
 static int bot_send_write_request(struct usbg_cmd *cmd)
 {
 	struct f_uas *fu = cmd->fu;
-	struct se_cmd *se_cmd = &cmd->se_cmd;
 	int ret;
 
-	init_completion(&cmd->write_complete);
 	cmd->fu = fu;
 
 	if (!cmd->data_len) {
@@ -262,8 +260,6 @@ static int bot_send_write_request(struct usbg_cmd *cmd)
 	if (ret)
 		pr_err("%s(%d)\n", __func__, __LINE__);
 
-	wait_for_completion(&cmd->write_complete);
-	target_execute_cmd(se_cmd);
 cleanup:
 	return ret;
 }
@@ -664,7 +660,6 @@ static int uasp_send_write_request(struct usbg_cmd *cmd)
 	struct sense_iu *iu = &cmd->sense_iu;
 	int ret;
 
-	init_completion(&cmd->write_complete);
 	cmd->fu = fu;
 
 	iu->tag = cpu_to_be16(cmd->tag);
@@ -696,8 +691,6 @@ static int uasp_send_write_request(struct usbg_cmd *cmd)
 			pr_err("%s(%d)\n", __func__, __LINE__);
 	}
 
-	wait_for_completion(&cmd->write_complete);
-	target_execute_cmd(se_cmd);
 cleanup:
 	return ret;
 }
@@ -922,6 +915,8 @@ static void usbg_data_write_cmpl(struct usb_ep *ep, struct usb_request *req)
 	struct usbg_cmd *cmd = req->context;
 	struct se_cmd *se_cmd = &cmd->se_cmd;
 
+	cmd->state = UASP_QUEUE_COMMAND;
+
 	if (req->status < 0) {
 		pr_err("%s() state %d transfer failed\n", __func__, cmd->state);
 		goto cleanup;
@@ -934,7 +929,8 @@ static void usbg_data_write_cmpl(struct usb_ep *ep, struct usb_request *req)
 				se_cmd->data_length);
 	}
 
-	complete(&cmd->write_complete);
+	cmd->flags |= USBG_CMD_PENDING_DATA_WRITE;
+	queue_work(cmd->fu->tpg->workqueue, &cmd->work);
 	return;
 
 cleanup:
@@ -965,6 +961,8 @@ static int usbg_prepare_w_request(struct usbg_cmd *cmd, struct usb_request *req)
 	req->complete = usbg_data_write_cmpl;
 	req->length = se_cmd->data_length;
 	req->context = cmd;
+
+	cmd->state = UASP_SEND_STATUS;
 	return 0;
 }
 
@@ -1012,6 +1010,17 @@ static void usbg_cmd_work(struct work_struct *work)
 	struct usbg_tpg *tpg;
 	int dir, flags = (TARGET_SCF_UNKNOWN_SIZE | TARGET_SCF_ACK_KREF);
 
+	/*
+	 * Note: each command will spawn its own process, and each stage of the
+	 * command is processed sequentially. Should this no longer be the case,
+	 * locking is needed.
+	 */
+	if (cmd->flags & USBG_CMD_PENDING_DATA_WRITE) {
+		target_execute_cmd(&cmd->se_cmd);
+		cmd->flags &= ~USBG_CMD_PENDING_DATA_WRITE;
+		return;
+	}
+
 	se_cmd = &cmd->se_cmd;
 	tpg = cmd->fu->tpg;
 	tv_nexus = tpg->tpg_nexus;
@@ -1028,6 +1037,7 @@ static void usbg_cmd_work(struct work_struct *work)
 	target_submit_cmd(se_cmd, tv_nexus->tvn_se_sess, cmd->cmd_buf,
 			  cmd->sense_iu.sense, cmd->unpacked_lun, 0,
 			  cmd->prio_attr, dir, flags);
+
 	return;
 
 out:
@@ -1111,6 +1121,7 @@ static int usbg_submit_command(struct f_uas *fu, struct usb_request *req)
 
 	cmd->unpacked_lun = scsilun_to_int(&cmd_iu->lun);
 	cmd->req = req;
+	cmd->flags = 0;
 
 	INIT_WORK(&cmd->work, usbg_cmd_work);
 	queue_work(tpg->workqueue, &cmd->work);
@@ -1125,6 +1136,17 @@ static void bot_cmd_work(struct work_struct *work)
 	struct tcm_usbg_nexus *tv_nexus;
 	struct usbg_tpg *tpg;
 	int dir;
+
+	/*
+	 * Note: each command will spawn its own process, and each stage of the
+	 * command is processed sequentially. Should this no longer be the case,
+	 * locking is needed.
+	 */
+	if (cmd->flags & USBG_CMD_PENDING_DATA_WRITE) {
+		target_execute_cmd(&cmd->se_cmd);
+		cmd->flags &= ~USBG_CMD_PENDING_DATA_WRITE;
+		return;
+	}
 
 	se_cmd = &cmd->se_cmd;
 	tpg = cmd->fu->tpg;
@@ -1190,6 +1212,7 @@ static int bot_submit_command(struct f_uas *fu,
 	cmd->is_read = cbw->Flags & US_BULK_FLAG_IN ? 1 : 0;
 	cmd->data_len = le32_to_cpu(cbw->DataTransferLength);
 	cmd->se_cmd.tag = le32_to_cpu(cmd->bot_tag);
+	cmd->flags = 0;
 
 	INIT_WORK(&cmd->work, bot_cmd_work);
 	queue_work(tpg->workqueue, &cmd->work);
