@@ -79,17 +79,12 @@ MODULE_LICENSE("Dual BSD/GPL");
 /* globals */
 static DEFINE_MUTEX(bnxt_re_mutex);
 
-static void bnxt_re_stop_irq(void *handle);
-static void bnxt_re_dev_stop(struct bnxt_re_dev *rdev);
 static int bnxt_re_netdev_event(struct notifier_block *notifier,
 				unsigned long event, void *ptr);
-static struct bnxt_re_dev *bnxt_re_from_netdev(struct net_device *netdev);
-static void bnxt_re_dev_uninit(struct bnxt_re_dev *rdev, u8 op_type);
 static int bnxt_re_hwrm_qcaps(struct bnxt_re_dev *rdev);
 
 static int bnxt_re_hwrm_qcfg(struct bnxt_re_dev *rdev, u32 *db_len,
 			     u32 *offset);
-static void bnxt_re_setup_cc(struct bnxt_re_dev *rdev, bool enable);
 static void bnxt_re_set_db_offset(struct bnxt_re_dev *rdev)
 {
 	struct bnxt_qplib_chip_ctx *cctx;
@@ -300,16 +295,6 @@ static void bnxt_re_vf_res_config(struct bnxt_re_dev *rdev)
 	bnxt_re_set_resource_limits(rdev);
 	bnxt_qplib_set_func_resources(&rdev->qplib_res, &rdev->rcfw,
 				      &rdev->qplib_ctx);
-}
-
-static void bnxt_re_shutdown(struct auxiliary_device *adev)
-{
-	struct bnxt_re_en_dev_info *en_info = auxiliary_get_drvdata(adev);
-	struct bnxt_re_dev *rdev;
-
-	rdev = en_info->rdev;
-	ib_unregister_device(&rdev->ibdev);
-	bnxt_re_dev_uninit(rdev, BNXT_RE_COMPLETE_REMOVE);
 }
 
 static void bnxt_re_stop_irq(void *handle)
@@ -2123,6 +2108,30 @@ fail:
 	return rc;
 }
 
+static void bnxt_re_setup_cc(struct bnxt_re_dev *rdev, bool enable)
+{
+	struct bnxt_qplib_cc_param cc_param = {};
+
+	/* Do not enable congestion control on VFs */
+	if (rdev->is_virtfn)
+		return;
+
+	/* Currently enabling only for GenP5 adapters */
+	if (!bnxt_qplib_is_chip_gen_p5_p7(rdev->chip_ctx))
+		return;
+
+	if (enable) {
+		cc_param.enable  = 1;
+		cc_param.tos_ecn = 1;
+	}
+
+	cc_param.mask = (CMDQ_MODIFY_ROCE_CC_MODIFY_MASK_ENABLE_CC |
+			 CMDQ_MODIFY_ROCE_CC_MODIFY_MASK_TOS_ECN);
+
+	if (bnxt_qplib_modify_cc(&rdev->qplib_res, &cc_param))
+		ibdev_err(&rdev->ibdev, "Failed to setup CC enable = %d\n", enable);
+}
+
 static void bnxt_re_update_en_info_rdev(struct bnxt_re_dev *rdev,
 					struct bnxt_re_en_dev_info *en_info,
 					struct auxiliary_device *adev)
@@ -2190,30 +2199,6 @@ re_dev_dealloc:
 	ib_dealloc_device(&rdev->ibdev);
 exit:
 	return rc;
-}
-
-static void bnxt_re_setup_cc(struct bnxt_re_dev *rdev, bool enable)
-{
-	struct bnxt_qplib_cc_param cc_param = {};
-
-	/* Do not enable congestion control on VFs */
-	if (rdev->is_virtfn)
-		return;
-
-	/* Currently enabling only for GenP5 adapters */
-	if (!bnxt_qplib_is_chip_gen_p5_p7(rdev->chip_ctx))
-		return;
-
-	if (enable) {
-		cc_param.enable  = 1;
-		cc_param.tos_ecn = 1;
-	}
-
-	cc_param.mask = (CMDQ_MODIFY_ROCE_CC_MODIFY_MASK_ENABLE_CC |
-			 CMDQ_MODIFY_ROCE_CC_MODIFY_MASK_TOS_ECN);
-
-	if (bnxt_qplib_modify_cc(&rdev->qplib_res, &cc_param))
-		ibdev_err(&rdev->ibdev, "Failed to setup CC enable = %d\n", enable);
 }
 
 /*
@@ -2374,6 +2359,16 @@ static int bnxt_re_resume(struct auxiliary_device *adev)
 	mutex_unlock(&bnxt_re_mutex);
 
 	return 0;
+}
+
+static void bnxt_re_shutdown(struct auxiliary_device *adev)
+{
+	struct bnxt_re_en_dev_info *en_info = auxiliary_get_drvdata(adev);
+	struct bnxt_re_dev *rdev;
+
+	rdev = en_info->rdev;
+	ib_unregister_device(&rdev->ibdev);
+	bnxt_re_dev_uninit(rdev, BNXT_RE_COMPLETE_REMOVE);
 }
 
 static const struct auxiliary_device_id bnxt_re_id_table[] = {
