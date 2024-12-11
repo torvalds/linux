@@ -1987,6 +1987,8 @@ enum ieee80211_neg_ttlm_res {
  * @neg_ttlm: negotiated TID to link mapping info.
  *	see &struct ieee80211_neg_ttlm.
  * @addr: address of this interface
+ * @addr_valid: indicates if the address is actively used. Set to false for
+ *	passive monitor interfaces, true in all other cases.
  * @p2p: indicates whether this AP or STA interface is a p2p
  *	interface, i.e. a GO or p2p-sta respectively
  * @netdev_features: tx netdev features supported by the hardware for this
@@ -2026,6 +2028,7 @@ struct ieee80211_vif {
 	u16 valid_links, active_links, dormant_links, suspended_links;
 	struct ieee80211_neg_ttlm neg_ttlm;
 	u8 addr[ETH_ALEN] __aligned(2);
+	bool addr_valid;
 	bool p2p;
 
 	u8 cab_queue;
@@ -6795,14 +6798,12 @@ void ieee80211_chswitch_done(struct ieee80211_vif *vif, bool success,
 /**
  * ieee80211_channel_switch_disconnect - disconnect due to channel switch error
  * @vif: &struct ieee80211_vif pointer from the add_interface callback.
- * @block_tx: if %true, do not send deauth frame.
  *
  * Instruct mac80211 to disconnect due to a channel switch error. The channel
  * switch can request to block the tx and so, we need to make sure we do not send
  * a deauth frame in this case.
  */
-void ieee80211_channel_switch_disconnect(struct ieee80211_vif *vif,
-					 bool block_tx);
+void ieee80211_channel_switch_disconnect(struct ieee80211_vif *vif);
 
 /**
  * ieee80211_request_smps - request SM PS transition
