@@ -41,7 +41,7 @@
 		};
 	};
 
-	fpga_full: fpga-full {
+	fpga_full: fpga-region {
 		compatible = "fpga-region";
 		fpga-mgr = <&devcfg>;
 		#address-cells = <1>;
