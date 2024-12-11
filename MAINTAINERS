@@ -185,6 +185,14 @@ W:	http://www.adaptec.com/
 F:	Documentation/scsi/aacraid.rst
 F:	drivers/scsi/aacraid/
 
+AAEON UPBOARD FPGA MFD DRIVER
+M:	Thomas Richard <thomas.richard@bootlin.com>
+S:	Maintained
+F:	drivers/leds/leds-upboard.c
+F:	drivers/mfd/upboard-fpga.c
+F:	drivers/pinctrl/pinctrl-upboard.c
+F:	include/linux/mfd/upboard-fpga.h
+
 AB8500 BATTERY AND CHARGER DRIVERS
 M:	Linus Walleij <linus.walleij@linaro.org>
 F:	Documentation/devicetree/bindings/power/supply/*ab8500*
