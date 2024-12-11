@@ -326,6 +326,16 @@ static inline struct erdma_cq *to_ecq(struct ib_cq *ibcq)
 	return container_of(ibcq, struct erdma_cq, ibcq);
 }
 
+static inline int erdma_check_gid_attr(const struct ib_gid_attr *attr)
+{
+	u8 ntype = rdma_gid_attr_network_type(attr);
+
+	if (ntype != RDMA_NETWORK_IPV4 && ntype != RDMA_NETWORK_IPV6)
+		return -EINVAL;
+
+	return 0;
+}
+
 static inline struct erdma_user_mmap_entry *
 to_emmap(struct rdma_user_mmap_entry *ibmmap)
 {
@@ -382,5 +392,7 @@ int erdma_get_hw_stats(struct ib_device *ibdev, struct rdma_hw_stats *stats,
 		       u32 port, int index);
 enum rdma_link_layer erdma_get_link_layer(struct ib_device *ibdev,
 					  u32 port_num);
+int erdma_add_gid(const struct ib_gid_attr *attr, void **context);
+int erdma_del_gid(const struct ib_gid_attr *attr, void **context);
 
 #endif

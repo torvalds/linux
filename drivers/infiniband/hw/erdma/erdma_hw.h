@@ -21,6 +21,9 @@
 #define ERDMA_NUM_MSIX_VEC 32U
 #define ERDMA_MSIX_VECTOR_CMDQ 0
 
+/* RoCEv2 related */
+#define ERDMA_ROCEV2_GID_SIZE 16
+
 /* erdma device protocol type */
 enum erdma_proto_type {
 	ERDMA_PROTO_IWARP = 0,
@@ -143,7 +146,8 @@ enum CMDQ_RDMA_OPCODE {
 	CMDQ_OPCODE_DESTROY_CQ = 5,
 	CMDQ_OPCODE_REFLUSH = 6,
 	CMDQ_OPCODE_REG_MR = 8,
-	CMDQ_OPCODE_DEREG_MR = 9
+	CMDQ_OPCODE_DEREG_MR = 9,
+	CMDQ_OPCODE_SET_GID = 14,
 };
 
 enum CMDQ_COMMON_OPCODE {
@@ -401,7 +405,29 @@ struct erdma_cmdq_query_stats_resp {
 	u64 rx_pps_meter_drop_packets_cnt;
 };
 
+enum erdma_network_type {
+	ERDMA_NETWORK_TYPE_IPV4 = 0,
+	ERDMA_NETWORK_TYPE_IPV6 = 1,
+};
+
+enum erdma_set_gid_op {
+	ERDMA_SET_GID_OP_ADD = 0,
+	ERDMA_SET_GID_OP_DEL = 1,
+};
+
+/* set gid cfg */
+#define ERDMA_CMD_SET_GID_SGID_IDX_MASK GENMASK(15, 0)
+#define ERDMA_CMD_SET_GID_NTYPE_MASK BIT(16)
+#define ERDMA_CMD_SET_GID_OP_MASK BIT(31)
+
+struct erdma_cmdq_set_gid_req {
+	u64 hdr;
+	u32 cfg;
+	u8 gid[ERDMA_ROCEV2_GID_SIZE];
+};
+
 /* cap qword 0 definition */
+#define ERDMA_CMD_DEV_CAP_MAX_GID_MASK GENMASK_ULL(51, 48)
 #define ERDMA_CMD_DEV_CAP_MAX_CQE_MASK GENMASK_ULL(47, 40)
 #define ERDMA_CMD_DEV_CAP_FLAGS_MASK GENMASK_ULL(31, 24)
 #define ERDMA_CMD_DEV_CAP_MAX_RECV_WR_MASK GENMASK_ULL(23, 16)

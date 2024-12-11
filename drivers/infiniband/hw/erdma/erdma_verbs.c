@@ -367,7 +367,13 @@ int erdma_query_port(struct ib_device *ibdev, u32 port,
 
 	memset(attr, 0, sizeof(*attr));
 
-	attr->gid_tbl_len = 1;
+	if (erdma_device_iwarp(dev)) {
+		attr->gid_tbl_len = 1;
+	} else {
+		attr->gid_tbl_len = dev->attrs.max_gid;
+		attr->ip_gids = true;
+	}
+
 	attr->port_cap_flags = IB_PORT_CM_SUP | IB_PORT_DEVICE_MGMT_SUP;
 	attr->max_msg_sz = -1;
 
@@ -399,13 +405,13 @@ int erdma_get_port_immutable(struct ib_device *ibdev, u32 port,
 
 	if (erdma_device_iwarp(dev)) {
 		port_immutable->core_cap_flags = RDMA_CORE_PORT_IWARP;
+		port_immutable->gid_tbl_len = 1;
 	} else {
 		port_immutable->core_cap_flags =
 			RDMA_CORE_PORT_IBA_ROCE_UDP_ENCAP;
 		port_immutable->max_mad_size = IB_MGMT_MAD_SIZE;
+		port_immutable->gid_tbl_len = dev->attrs.max_gid;
 	}
-
-	port_immutable->gid_tbl_len = 1;
 
 	return 0;
 }
@@ -1852,4 +1858,48 @@ int erdma_get_hw_stats(struct ib_device *ibdev, struct rdma_hw_stats *stats,
 enum rdma_link_layer erdma_get_link_layer(struct ib_device *ibdev, u32 port_num)
 {
 	return IB_LINK_LAYER_ETHERNET;
+}
+
+static int erdma_set_gid(struct erdma_dev *dev, u8 op, u32 idx,
+			 const union ib_gid *gid)
+{
+	struct erdma_cmdq_set_gid_req req;
+	u8 ntype;
+
+	req.cfg = FIELD_PREP(ERDMA_CMD_SET_GID_SGID_IDX_MASK, idx) |
+		  FIELD_PREP(ERDMA_CMD_SET_GID_OP_MASK, op);
+
+	if (op == ERDMA_SET_GID_OP_ADD) {
+		if (ipv6_addr_v4mapped((struct in6_addr *)gid))
+			ntype = ERDMA_NETWORK_TYPE_IPV4;
+		else
+			ntype = ERDMA_NETWORK_TYPE_IPV6;
+
+		req.cfg |= FIELD_PREP(ERDMA_CMD_SET_GID_NTYPE_MASK, ntype);
+
+		memcpy(&req.gid, gid, ERDMA_ROCEV2_GID_SIZE);
+	}
+
+	erdma_cmdq_build_reqhdr(&req.hdr, CMDQ_SUBMOD_RDMA,
+				CMDQ_OPCODE_SET_GID);
+	return erdma_post_cmd_wait(&dev->cmdq, &req, sizeof(req), NULL, NULL);
+}
+
+int erdma_add_gid(const struct ib_gid_attr *attr, void **context)
+{
+	struct erdma_dev *dev = to_edev(attr->device);
+	int ret;
+
+	ret = erdma_check_gid_attr(attr);
+	if (ret)
+		return ret;
+
+	return erdma_set_gid(dev, ERDMA_SET_GID_OP_ADD, attr->index,
+			     &attr->gid);
+}
+
+int erdma_del_gid(const struct ib_gid_attr *attr, void **context)
+{
+	return erdma_set_gid(to_edev(attr->device), ERDMA_SET_GID_OP_DEL,
+			     attr->index, NULL);
 }

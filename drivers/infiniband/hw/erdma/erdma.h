@@ -148,6 +148,7 @@ struct erdma_devattr {
 	u32 max_mr;
 	u32 max_pd;
 	u32 max_mw;
+	u32 max_gid;
 	u32 local_dma_key;
 };
 
