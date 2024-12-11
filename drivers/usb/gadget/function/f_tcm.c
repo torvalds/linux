@@ -62,10 +62,11 @@ static void bot_status_complete(struct usb_ep *ep, struct usb_request *req)
 	struct f_uas *fu = cmd->fu;
 
 	transport_generic_free_cmd(&cmd->se_cmd, 0);
-	if (req->status < 0) {
-		pr_err("ERR %s(%d)\n", __func__, __LINE__);
+	if (req->status == -ESHUTDOWN)
 		return;
-	}
+
+	if (req->status < 0)
+		pr_err("ERR %s(%d)\n", __func__, __LINE__);
 
 	/* CSW completed, wait for next CBW */
 	bot_enqueue_cmd_cbw(fu);
@@ -275,6 +276,9 @@ static void bot_cmd_complete(struct usb_ep *ep, struct usb_request *req)
 {
 	struct f_uas *fu = req->context;
 	int ret;
+
+	if (req->status == -ESHUTDOWN)
+		return;
 
 	fu->flags &= ~USBG_BOT_CMD_PEND;
 
