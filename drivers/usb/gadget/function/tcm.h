@@ -13,7 +13,7 @@
 #define USBG_NAMELEN 32
 
 #define fuas_to_gadget(f)	(f->function.config->cdev->gadget)
-#define UASP_SS_EP_COMP_LOG_STREAMS 4
+#define UASP_SS_EP_COMP_LOG_STREAMS 5
 #define UASP_SS_EP_COMP_NUM_STREAMS (1 << UASP_SS_EP_COMP_LOG_STREAMS)
 
 enum {
