@@ -245,10 +245,12 @@ struct nfsd4_slot {
 	struct svc_cred sl_cred;
 	u32	sl_datalen;
 	u16	sl_opcnt;
+	u16	sl_generation;
 #define NFSD4_SLOT_INUSE	(1 << 0)
 #define NFSD4_SLOT_CACHETHIS	(1 << 1)
 #define NFSD4_SLOT_INITIALIZED	(1 << 2)
 #define NFSD4_SLOT_CACHED	(1 << 3)
+#define NFSD4_SLOT_REUSED	(1 << 4)
 	u8	sl_flags;
 	char	sl_data[];
 };
@@ -321,7 +323,6 @@ struct nfsd4_session {
 	u32			se_cb_slot_avail; /* bitmap of available slots */
 	u32			se_cb_highest_slot;	/* highest slot client wants */
 	u32			se_cb_prog;
-	bool			se_dead;
 	struct list_head	se_hash;	/* hash by sessionid */
 	struct list_head	se_perclnt;
 	struct nfs4_client	*se_client;
@@ -331,6 +332,9 @@ struct nfsd4_session {
 	struct list_head	se_conns;
 	u32			se_cb_seq_nr[NFSD_BC_SLOT_TABLE_SIZE];
 	struct xarray		se_slots;	/* forward channel slots */
+	u16			se_slot_gen;
+	bool			se_dead;
+	u32			se_target_maxslots;
 };
 
 /* formatted contents of nfs4_sessionid */

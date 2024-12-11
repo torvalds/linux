@@ -1910,17 +1910,69 @@ gen_sessionid(struct nfsd4_session *ses)
 #define NFSD_MIN_HDR_SEQ_SZ  (24 + 12 + 44)
 
 static void
-free_session_slots(struct nfsd4_session *ses)
+free_session_slots(struct nfsd4_session *ses, int from)
 {
 	int i;
 
-	for (i = 0; i < ses->se_fchannel.maxreqs; i++) {
+	if (from >= ses->se_fchannel.maxreqs)
+		return;
+
+	for (i = from; i < ses->se_fchannel.maxreqs; i++) {
 		struct nfsd4_slot *slot = xa_load(&ses->se_slots, i);
 
-		xa_erase(&ses->se_slots, i);
+		/*
+		 * Save the seqid in case we reactivate this slot.
+		 * This will never require a memory allocation so GFP
+		 * flag is irrelevant
+		 */
+		xa_store(&ses->se_slots, i, xa_mk_value(slot->sl_seqid), 0);
 		free_svc_cred(&slot->sl_cred);
 		kfree(slot);
 	}
+	ses->se_fchannel.maxreqs = from;
+	if (ses->se_target_maxslots > from)
+		ses->se_target_maxslots = from;
+}
+
+/**
+ * reduce_session_slots - reduce the target max-slots of a session if possible
+ * @ses:  The session to affect
+ * @dec:  how much to decrease the target by
+ *
+ * This interface can be used by a shrinker to reduce the target max-slots
+ * for a session so that some slots can eventually be freed.
+ * It uses spin_trylock() as it may be called in a context where another
+ * spinlock is held that has a dependency on client_lock.  As shrinkers are
+ * best-effort, skiping a session is client_lock is already held has no
+ * great coast
+ *
+ * Return value:
+ *   The number of slots that the target was reduced by.
+ */
+static int __maybe_unused
+reduce_session_slots(struct nfsd4_session *ses, int dec)
+{
+	struct nfsd_net *nn = net_generic(ses->se_client->net,
+					  nfsd_net_id);
+	int ret = 0;
+
+	if (ses->se_target_maxslots <= 1)
+		return ret;
+	if (!spin_trylock(&nn->client_lock))
+		return ret;
+	ret = min(dec, ses->se_target_maxslots-1);
+	ses->se_target_maxslots -= ret;
+	ses->se_slot_gen += 1;
+	if (ses->se_slot_gen == 0) {
+		int i;
+		ses->se_slot_gen = 1;
+		for (i = 0; i < ses->se_fchannel.maxreqs; i++) {
+			struct nfsd4_slot *slot = xa_load(&ses->se_slots, i);
+			slot->sl_generation = 0;
+		}
+	}
+	spin_unlock(&nn->client_lock);
+	return ret;
 }
 
 /*
@@ -1968,6 +2020,7 @@ static struct nfsd4_session *alloc_session(struct nfsd4_channel_attrs *fattrs,
 	}
 	fattrs->maxreqs = i;
 	memcpy(&new->se_fchannel, fattrs, sizeof(struct nfsd4_channel_attrs));
+	new->se_target_maxslots = i;
 	new->se_cb_slot_avail = ~0U;
 	new->se_cb_highest_slot = min(battrs->maxreqs - 1,
 				      NFSD_BC_SLOT_TABLE_SIZE - 1);
@@ -2081,7 +2134,7 @@ static void nfsd4_del_conns(struct nfsd4_session *s)
 
 static void __free_session(struct nfsd4_session *ses)
 {
-	free_session_slots(ses);
+	free_session_slots(ses, 0);
 	xa_destroy(&ses->se_slots);
 	kfree(ses);
 }
@@ -2684,6 +2737,9 @@ static int client_info_show(struct seq_file *m, void *v)
 	seq_printf(m, "session slots:");
 	list_for_each_entry(ses, &clp->cl_sessions, se_perclnt)
 		seq_printf(m, " %u", ses->se_fchannel.maxreqs);
+	seq_printf(m, "\nsession target slots:");
+	list_for_each_entry(ses, &clp->cl_sessions, se_perclnt)
+		seq_printf(m, " %u", ses->se_target_maxslots);
 	spin_unlock(&clp->cl_lock);
 	seq_puts(m, "\n");
 
@@ -3674,10 +3730,10 @@ nfsd4_exchange_id_release(union nfsd4_op_u *u)
 	kfree(exid->server_impl_name);
 }
 
-static __be32 check_slot_seqid(u32 seqid, u32 slot_seqid, bool slot_inuse)
+static __be32 check_slot_seqid(u32 seqid, u32 slot_seqid, u8 flags)
 {
 	/* The slot is in use, and no response has been sent. */
-	if (slot_inuse) {
+	if (flags & NFSD4_SLOT_INUSE) {
 		if (seqid == slot_seqid)
 			return nfserr_jukebox;
 		else
@@ -3685,6 +3741,8 @@ static __be32 check_slot_seqid(u32 seqid, u32 slot_seqid, bool slot_inuse)
 	}
 	/* Note unsigned 32-bit arithmetic handles wraparound: */
 	if (likely(seqid == slot_seqid + 1))
+		return nfs_ok;
+	if ((flags & NFSD4_SLOT_REUSED) && seqid == 1)
 		return nfs_ok;
 	if (seqid == slot_seqid)
 		return nfserr_replay_cache;
@@ -4236,8 +4294,7 @@ nfsd4_sequence(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	dprintk("%s: slotid %d\n", __func__, seq->slotid);
 
 	trace_nfsd_slot_seqid_sequence(clp, seq, slot);
-	status = check_slot_seqid(seq->seqid, slot->sl_seqid,
-					slot->sl_flags & NFSD4_SLOT_INUSE);
+	status = check_slot_seqid(seq->seqid, slot->sl_seqid, slot->sl_flags);
 	if (status == nfserr_replay_cache) {
 		status = nfserr_seq_misordered;
 		if (!(slot->sl_flags & NFSD4_SLOT_INITIALIZED))
@@ -4262,6 +4319,12 @@ nfsd4_sequence(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	if (status)
 		goto out_put_session;
 
+	if (session->se_target_maxslots < session->se_fchannel.maxreqs &&
+	    slot->sl_generation == session->se_slot_gen &&
+	    seq->maxslots <= session->se_target_maxslots)
+		/* Client acknowledged our reduce maxreqs */
+		free_session_slots(session, session->se_target_maxslots);
+
 	buflen = (seq->cachethis) ?
 			session->se_fchannel.maxresp_cached :
 			session->se_fchannel.maxresp_sz;
@@ -4272,9 +4335,11 @@ nfsd4_sequence(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	svc_reserve(rqstp, buflen);
 
 	status = nfs_ok;
-	/* Success! bump slot seqid */
+	/* Success! accept new slot seqid */
 	slot->sl_seqid = seq->seqid;
+	slot->sl_flags &= ~NFSD4_SLOT_REUSED;
 	slot->sl_flags |= NFSD4_SLOT_INUSE;
+	slot->sl_generation = session->se_slot_gen;
 	if (seq->cachethis)
 		slot->sl_flags |= NFSD4_SLOT_CACHETHIS;
 	else
@@ -4291,9 +4356,11 @@ nfsd4_sequence(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	 * the client might use.
 	 */
 	if (seq->slotid == session->se_fchannel.maxreqs - 1 &&
+	    session->se_target_maxslots >= session->se_fchannel.maxreqs &&
 	    session->se_fchannel.maxreqs < NFSD_MAX_SLOTS_PER_SESSION) {
 		int s = session->se_fchannel.maxreqs;
 		int cnt = DIV_ROUND_UP(s, 5);
+		void *prev_slot;
 
 		do {
 			/*
@@ -4303,18 +4370,25 @@ nfsd4_sequence(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 			 */
 			slot = kzalloc(slot_bytes(&session->se_fchannel),
 				       GFP_NOWAIT);
+			prev_slot = xa_load(&session->se_slots, s);
+			if (xa_is_value(prev_slot) && slot) {
+				slot->sl_seqid = xa_to_value(prev_slot);
+				slot->sl_flags |= NFSD4_SLOT_REUSED;
+			}
 			if (slot &&
 			    !xa_is_err(xa_store(&session->se_slots, s, slot,
 						GFP_NOWAIT))) {
 				s += 1;
 				session->se_fchannel.maxreqs = s;
+				session->se_target_maxslots = s;
 			} else {
 				kfree(slot);
 				slot = NULL;
 			}
 		} while (slot && --cnt > 0);
 	}
-	seq->maxslots = session->se_fchannel.maxreqs;
+	seq->maxslots = max(session->se_target_maxslots, seq->maxslots);
+	seq->target_maxslots = session->se_target_maxslots;
 
 out:
 	switch (clp->cl_cb_state) {
