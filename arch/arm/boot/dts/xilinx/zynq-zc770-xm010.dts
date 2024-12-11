@@ -84,6 +84,7 @@
 };
 
 &uart1 {
+	bootph-all;
 	status = "okay";
 };
 

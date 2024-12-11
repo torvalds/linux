@@ -48,10 +48,12 @@
 };
 
 &sdhci0 {
+	bootph-all;
 	status = "okay";
 };
 
 &uart1 {
+	bootph-all;
 	status = "okay";
 };
 

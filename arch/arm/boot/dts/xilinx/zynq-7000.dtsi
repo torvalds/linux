@@ -93,6 +93,7 @@
 	};
 
 	amba: axi {
+		bootph-all;
 		compatible = "simple-bus";
 		#address-cells = <1>;
 		#size-cells = <1>;
@@ -319,12 +320,14 @@
 		};
 
 		slcr: slcr@f8000000 {
+			bootph-all;
 			#address-cells = <1>;
 			#size-cells = <1>;
 			compatible = "xlnx,zynq-slcr", "syscon", "simple-mfd";
 			reg = <0xF8000000 0x1000>;
 			ranges;
 			clkc: clkc@100 {
+				bootph-all;
 				#clock-cells = <1>;
 				compatible = "xlnx,ps7-clkc";
 				fclk-enable = <0>;
@@ -409,6 +412,7 @@
 		};
 
 		scutimer: timer@f8f00600 {
+			bootph-all;
 			interrupt-parent = <&intc>;
 			interrupts = <1 13 0x301>;
 			compatible = "arm,cortex-a9-twd-timer";
