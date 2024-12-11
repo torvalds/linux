@@ -185,7 +185,8 @@
 	S(UNSTRUCTURED_VDMS),			\
 	S(STRUCTURED_VDMS),			\
 	S(COUNTRY_INFO),			\
-	S(COUNTRY_CODES)
+	S(COUNTRY_CODES),			\
+	S(REVISION_INFORMATION)
 
 #define GENERATE_ENUM(e)	e
 #define GENERATE_STRING(s)	#s
@@ -225,6 +226,7 @@ enum pd_msg_request {
 	PD_MSG_CTRL_NOT_SUPP,
 	PD_MSG_DATA_SINK_CAP,
 	PD_MSG_DATA_SOURCE_CAP,
+	PD_MSG_DATA_REV,
 };
 
 enum adev_actions {
@@ -1242,6 +1244,24 @@ static u32 tcpm_forge_legacy_pdo(struct tcpm_port *port, u32 pdo, enum typec_rol
 	default:
 		return 0;
 	}
+}
+
+static int tcpm_pd_send_revision(struct tcpm_port *port)
+{
+	struct pd_message msg;
+	u32 rmdo;
+
+	memset(&msg, 0, sizeof(msg));
+	rmdo = RMDO(port->pd_rev.rev_major, port->pd_rev.rev_minor,
+		    port->pd_rev.ver_major, port->pd_rev.ver_minor);
+	msg.payload[0] = cpu_to_le32(rmdo);
+	msg.header = PD_HEADER_LE(PD_DATA_REVISION,
+				  port->pwr_role,
+				  port->data_role,
+				  port->negotiated_rev,
+				  port->message_id,
+				  1);
+	return tcpm_pd_transmit(port, TCPC_TX_SOP, &msg);
 }
 
 static int tcpm_pd_send_source_caps(struct tcpm_port *port)
@@ -3547,6 +3567,17 @@ static void tcpm_pd_ctrl_request(struct tcpm_port *port,
 				   PD_MSG_CTRL_NOT_SUPP,
 				   NONE_AMS);
 		break;
+	case PD_CTRL_GET_REVISION:
+		if (port->negotiated_rev >= PD_REV30 && port->pd_rev.rev_major)
+			tcpm_pd_handle_msg(port, PD_MSG_DATA_REV,
+					   REVISION_INFORMATION);
+		else
+			tcpm_pd_handle_msg(port,
+					   port->negotiated_rev < PD_REV30 ?
+					   PD_MSG_CTRL_REJECT :
+					   PD_MSG_CTRL_NOT_SUPP,
+					   NONE_AMS);
+		break;
 	default:
 		tcpm_pd_handle_msg(port,
 				   port->negotiated_rev < PD_REV30 ?
@@ -3790,6 +3821,14 @@ static bool tcpm_send_queued_message(struct tcpm_port *port)
 			} else {
 				tcpm_ams_finish(port);
 			}
+			break;
+		case PD_MSG_DATA_REV:
+			ret = tcpm_pd_send_revision(port);
+			if (ret)
+				tcpm_log(port,
+					 "Unable to send revision msg, ret=%d",
+					 ret);
+			tcpm_ams_finish(port);
 			break;
 		default:
 			break;
