@@ -89,13 +89,6 @@ FEATURE_TESTS_EXTRA :=                  \
          libbfd-liberty                 \
          libbfd-liberty-z               \
          libopencsd                     \
-         libunwind-x86                  \
-         libunwind-x86_64               \
-         libunwind-arm                  \
-         libunwind-aarch64              \
-         libunwind-debug-frame          \
-         libunwind-debug-frame-arm      \
-         libunwind-debug-frame-aarch64  \
          cxx                            \
          llvm                           \
          clang                          \
