@@ -674,11 +674,7 @@ static int lan78xx_update_reg(struct lan78xx_net *dev, u32 reg, u32 mask,
 	buf &= ~mask;
 	buf |= (mask & data);
 
-	ret = lan78xx_write_reg(dev, reg, buf);
-	if (ret < 0)
-		return ret;
-
-	return 0;
+	return lan78xx_write_reg(dev, reg, buf);
 }
 
 static int lan78xx_read_stats(struct lan78xx_net *dev,
@@ -959,7 +955,7 @@ static int lan78xx_flush_rx_fifo(struct lan78xx_net *dev)
 }
 
 /* Loop until the read is completed with timeout called with phy_mutex held */
-static int lan78xx_phy_wait_not_busy(struct lan78xx_net *dev)
+static int lan78xx_mdiobus_wait_not_busy(struct lan78xx_net *dev)
 {
 	unsigned long start_time = jiffies;
 	u32 val;
@@ -967,14 +963,14 @@ static int lan78xx_phy_wait_not_busy(struct lan78xx_net *dev)
 
 	do {
 		ret = lan78xx_read_reg(dev, MII_ACC, &val);
-		if (unlikely(ret < 0))
-			return -EIO;
+		if (ret < 0)
+			return ret;
 
 		if (!(val & MII_ACC_MII_BUSY_))
 			return 0;
 	} while (!time_after(jiffies, start_time + HZ));
 
-	return -EIO;
+	return -ETIMEDOUT;
 }
 
 static inline u32 mii_access(int id, int index, int read)
@@ -1608,7 +1604,7 @@ static int lan78xx_mac_reset(struct lan78xx_net *dev)
 	 * bus can result in the MAC interface locking up and not
 	 * completing register access transactions.
 	 */
-	ret = lan78xx_phy_wait_not_busy(dev);
+	ret = lan78xx_mdiobus_wait_not_busy(dev);
 	if (ret < 0)
 		goto done;
 
@@ -2153,13 +2149,19 @@ static const struct ethtool_ops lan78xx_ethtool_ops = {
 	.get_regs	= lan78xx_get_regs,
 };
 
-static void lan78xx_init_mac_address(struct lan78xx_net *dev)
+static int lan78xx_init_mac_address(struct lan78xx_net *dev)
 {
 	u32 addr_lo, addr_hi;
 	u8 addr[6];
+	int ret;
 
-	lan78xx_read_reg(dev, RX_ADDRL, &addr_lo);
-	lan78xx_read_reg(dev, RX_ADDRH, &addr_hi);
+	ret = lan78xx_read_reg(dev, RX_ADDRL, &addr_lo);
+	if (ret < 0)
+		return ret;
+
+	ret = lan78xx_read_reg(dev, RX_ADDRH, &addr_hi);
+	if (ret < 0)
+		return ret;
 
 	addr[0] = addr_lo & 0xFF;
 	addr[1] = (addr_lo >> 8) & 0xFF;
@@ -2192,14 +2194,26 @@ static void lan78xx_init_mac_address(struct lan78xx_net *dev)
 			  (addr[2] << 16) | (addr[3] << 24);
 		addr_hi = addr[4] | (addr[5] << 8);
 
-		lan78xx_write_reg(dev, RX_ADDRL, addr_lo);
-		lan78xx_write_reg(dev, RX_ADDRH, addr_hi);
+		ret = lan78xx_write_reg(dev, RX_ADDRL, addr_lo);
+		if (ret < 0)
+			return ret;
+
+		ret = lan78xx_write_reg(dev, RX_ADDRH, addr_hi);
+		if (ret < 0)
+			return ret;
 	}
 
-	lan78xx_write_reg(dev, MAF_LO(0), addr_lo);
-	lan78xx_write_reg(dev, MAF_HI(0), addr_hi | MAF_HI_VALID_);
+	ret = lan78xx_write_reg(dev, MAF_LO(0), addr_lo);
+	if (ret < 0)
+		return ret;
+
+	ret = lan78xx_write_reg(dev, MAF_HI(0), addr_hi | MAF_HI_VALID_);
+	if (ret < 0)
+		return ret;
 
 	eth_hw_addr_set(dev->net, addr);
+
+	return 0;
 }
 
 /* MDIO read and write wrappers for phylib */
@@ -2216,7 +2230,7 @@ static int lan78xx_mdiobus_read(struct mii_bus *bus, int phy_id, int idx)
 	mutex_lock(&dev->phy_mutex);
 
 	/* confirm MII not busy */
-	ret = lan78xx_phy_wait_not_busy(dev);
+	ret = lan78xx_mdiobus_wait_not_busy(dev);
 	if (ret < 0)
 		goto done;
 
@@ -2226,7 +2240,7 @@ static int lan78xx_mdiobus_read(struct mii_bus *bus, int phy_id, int idx)
 	if (ret < 0)
 		goto done;
 
-	ret = lan78xx_phy_wait_not_busy(dev);
+	ret = lan78xx_mdiobus_wait_not_busy(dev);
 	if (ret < 0)
 		goto done;
 
@@ -2257,7 +2271,7 @@ static int lan78xx_mdiobus_write(struct mii_bus *bus, int phy_id, int idx,
 	mutex_lock(&dev->phy_mutex);
 
 	/* confirm MII not busy */
-	ret = lan78xx_phy_wait_not_busy(dev);
+	ret = lan78xx_mdiobus_wait_not_busy(dev);
 	if (ret < 0)
 		goto done;
 
@@ -2272,7 +2286,7 @@ static int lan78xx_mdiobus_write(struct mii_bus *bus, int phy_id, int idx,
 	if (ret < 0)
 		goto done;
 
-	ret = lan78xx_phy_wait_not_busy(dev);
+	ret = lan78xx_mdiobus_wait_not_busy(dev);
 	if (ret < 0)
 		goto done;
 
@@ -2445,7 +2459,10 @@ static int lan78xx_setup_irq_domain(struct lan78xx_net *dev)
 
 	mutex_init(&dev->domain_data.irq_lock);
 
-	lan78xx_read_reg(dev, INT_EP_CTL, &buf);
+	ret = lan78xx_read_reg(dev, INT_EP_CTL, &buf);
+	if (ret < 0)
+		return ret;
+
 	dev->domain_data.irqenable = buf;
 
 	dev->domain_data.irqchip = &lan78xx_irqchip;
@@ -2742,6 +2759,7 @@ static int lan78xx_set_mac_addr(struct net_device *netdev, void *p)
 	struct lan78xx_net *dev = netdev_priv(netdev);
 	struct sockaddr *addr = p;
 	u32 addr_lo, addr_hi;
+	int ret;
 
 	if (netif_running(netdev))
 		return -EBUSY;
@@ -2758,14 +2776,20 @@ static int lan78xx_set_mac_addr(struct net_device *netdev, void *p)
 	addr_hi = netdev->dev_addr[4] |
 		  netdev->dev_addr[5] << 8;
 
-	lan78xx_write_reg(dev, RX_ADDRL, addr_lo);
-	lan78xx_write_reg(dev, RX_ADDRH, addr_hi);
+	ret = lan78xx_write_reg(dev, RX_ADDRL, addr_lo);
+	if (ret < 0)
+		return ret;
+
+	ret = lan78xx_write_reg(dev, RX_ADDRH, addr_hi);
+	if (ret < 0)
+		return ret;
 
 	/* Added to support MAC address changes */
-	lan78xx_write_reg(dev, MAF_LO(0), addr_lo);
-	lan78xx_write_reg(dev, MAF_HI(0), addr_hi | MAF_HI_VALID_);
+	ret = lan78xx_write_reg(dev, MAF_LO(0), addr_lo);
+	if (ret < 0)
+		return ret;
 
-	return 0;
+	return lan78xx_write_reg(dev, MAF_HI(0), addr_hi | MAF_HI_VALID_);
 }
 
 /* Enable or disable Rx checksum offload engine */
@@ -2798,9 +2822,7 @@ static int lan78xx_set_features(struct net_device *netdev,
 
 	spin_unlock_irqrestore(&pdata->rfe_ctl_lock, flags);
 
-	lan78xx_write_reg(dev, RFE_CTL, pdata->rfe_ctl);
-
-	return 0;
+	return lan78xx_write_reg(dev, RFE_CTL, pdata->rfe_ctl);
 }
 
 static void lan78xx_deferred_vlan_write(struct work_struct *param)
@@ -2987,7 +3009,9 @@ static int lan78xx_reset(struct lan78xx_net *dev)
 		}
 	} while (buf & HW_CFG_LRST_);
 
-	lan78xx_init_mac_address(dev);
+	ret = lan78xx_init_mac_address(dev);
+	if (ret < 0)
+		return ret;
 
 	/* save DEVID for later usage */
 	ret = lan78xx_read_reg(dev, ID_REV, &buf);
