@@ -411,6 +411,10 @@ void startup_kernel(void)
 	psw_t psw;
 
 	setup_lpp();
+	store_ipl_parmblock();
+	uv_query_info();
+	setup_boot_command_line();
+	parse_boot_command_line();
 
 	/*
 	 * Non-randomized kernel physical start address must be _SEGMENT_SIZE
@@ -430,12 +434,8 @@ void startup_kernel(void)
 	oldmem_data.start = parmarea.oldmem_base;
 	oldmem_data.size = parmarea.oldmem_size;
 
-	store_ipl_parmblock();
 	read_ipl_report();
-	uv_query_info();
 	sclp_early_read_info();
-	setup_boot_command_line();
-	parse_boot_command_line();
 	detect_facilities();
 	cmma_init();
 	sanitize_prot_virt_host();
