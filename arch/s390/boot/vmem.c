@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
+#define boot_fmt(fmt) "vmem: " fmt
 #include <linux/sched/task.h>
 #include <linux/pgtable.h>
 #include <linux/kasan.h>
@@ -32,11 +33,41 @@ enum populate_mode {
 	POPULATE_IDENTITY,
 	POPULATE_KERNEL,
 #ifdef CONFIG_KASAN
+	/* KASAN modes should be last and grouped together, see is_kasan_populate_mode() */
 	POPULATE_KASAN_MAP_SHADOW,
 	POPULATE_KASAN_ZERO_SHADOW,
 	POPULATE_KASAN_SHALLOW
 #endif
 };
+
+#define POPULATE_MODE_NAME(t) case POPULATE_ ## t: return #t
+static inline const char *get_populate_mode_name(enum populate_mode t)
+{
+	switch (t) {
+	POPULATE_MODE_NAME(NONE);
+	POPULATE_MODE_NAME(DIRECT);
+	POPULATE_MODE_NAME(LOWCORE);
+	POPULATE_MODE_NAME(ABS_LOWCORE);
+	POPULATE_MODE_NAME(IDENTITY);
+	POPULATE_MODE_NAME(KERNEL);
+#ifdef CONFIG_KASAN
+	POPULATE_MODE_NAME(KASAN_MAP_SHADOW);
+	POPULATE_MODE_NAME(KASAN_ZERO_SHADOW);
+	POPULATE_MODE_NAME(KASAN_SHALLOW);
+#endif
+	default:
+		return "UNKNOWN";
+	}
+}
+
+static bool is_kasan_populate_mode(enum populate_mode mode)
+{
+#ifdef CONFIG_KASAN
+	return mode >= POPULATE_KASAN_MAP_SHADOW;
+#else
+	return false;
+#endif
+}
 
 static void pgtable_populate(unsigned long addr, unsigned long end, enum populate_mode mode);
 
@@ -53,9 +84,12 @@ static pte_t pte_z;
 
 static inline void kasan_populate(unsigned long start, unsigned long end, enum populate_mode mode)
 {
-	start = PAGE_ALIGN_DOWN(__sha(start));
-	end = PAGE_ALIGN(__sha(end));
-	pgtable_populate(start, end, mode);
+	unsigned long sha_start = PAGE_ALIGN_DOWN(__sha(start));
+	unsigned long sha_end = PAGE_ALIGN(__sha(end));
+
+	boot_debug("%-17s 0x%016lx-0x%016lx >> 0x%016lx-0x%016lx\n", get_populate_mode_name(mode),
+		   start, end, sha_start, sha_end);
+	pgtable_populate(sha_start, sha_end, mode);
 }
 
 static void kasan_populate_shadow(unsigned long kernel_start, unsigned long kernel_end)
@@ -417,6 +451,13 @@ static void pgtable_populate(unsigned long addr, unsigned long end, enum populat
 	unsigned long next;
 	pgd_t *pgd;
 	p4d_t *p4d;
+
+	if (!is_kasan_populate_mode(mode)) {
+		boot_debug("%-17s 0x%016lx-0x%016lx -> 0x%016lx-0x%016lx\n",
+			   get_populate_mode_name(mode), addr, end,
+			   resolve_pa_may_alloc(addr, 0, mode),
+			   resolve_pa_may_alloc(end - 1, 0, mode) + 1);
+	}
 
 	pgd = pgd_offset(&init_mm, addr);
 	for (; addr < end; addr = next, pgd++) {
