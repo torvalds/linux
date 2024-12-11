@@ -127,8 +127,25 @@ static int hd3ss3220_set_port_type(struct hd3ss3220 *hd3ss3220, int type)
 	return err;
 }
 
-static int hd3ss3220_set_source_pref(struct hd3ss3220 *hd3ss3220, int src_pref)
+static int hd3ss3220_set_source_pref(struct hd3ss3220 *hd3ss3220, int prefer_role)
 {
+	int src_pref;
+
+	switch (prefer_role) {
+	case TYPEC_NO_PREFERRED_ROLE:
+		src_pref = HD3SS3220_REG_GEN_CTRL_SRC_PREF_DRP_DEFAULT;
+		break;
+	case TYPEC_SINK:
+		src_pref = HD3SS3220_REG_GEN_CTRL_SRC_PREF_DRP_TRY_SNK;
+		break;
+	case TYPEC_SOURCE:
+		src_pref = HD3SS3220_REG_GEN_CTRL_SRC_PREF_DRP_TRY_SRC;
+		break;
+	default:
+		dev_err(hd3ss3220->dev, "bad role preference: %d\n", prefer_role);
+		return -EINVAL;
+	}
+
 	return regmap_update_bits(hd3ss3220->regmap, HD3SS3220_REG_GEN_CTRL,
 				  HD3SS3220_REG_GEN_CTRL_SRC_PREF_MASK,
 				  src_pref);
@@ -160,27 +177,11 @@ static enum usb_role hd3ss3220_get_attached_state(struct hd3ss3220 *hd3ss3220)
 	return attached_state;
 }
 
-static int hd3ss3220_dr_set(struct typec_port *port, enum typec_data_role role)
+static int hd3ss3220_try_role(struct typec_port *port, int role)
 {
 	struct hd3ss3220 *hd3ss3220 = typec_get_drvdata(port);
-	enum usb_role role_val;
-	int pref, ret = 0;
 
-	if (role == TYPEC_HOST) {
-		role_val = USB_ROLE_HOST;
-		pref = HD3SS3220_REG_GEN_CTRL_SRC_PREF_DRP_TRY_SRC;
-	} else {
-		role_val = USB_ROLE_DEVICE;
-		pref = HD3SS3220_REG_GEN_CTRL_SRC_PREF_DRP_TRY_SNK;
-	}
-
-	ret = hd3ss3220_set_source_pref(hd3ss3220, pref);
-	usleep_range(10, 100);
-
-	usb_role_switch_set_role(hd3ss3220->role_sw, role_val);
-	typec_set_data_role(hd3ss3220->port, role);
-
-	return ret;
+	return hd3ss3220_set_source_pref(hd3ss3220, role);
 }
 
 static int hd3ss3220_port_type_set(struct typec_port *port, enum typec_port_type type)
@@ -191,7 +192,7 @@ static int hd3ss3220_port_type_set(struct typec_port *port, enum typec_port_type
 }
 
 static const struct typec_operations hd3ss3220_ops = {
-	.dr_set = hd3ss3220_dr_set,
+	.try_role = hd3ss3220_try_role,
 	.port_type_set = hd3ss3220_port_type_set,
 };
 
@@ -200,9 +201,6 @@ static void hd3ss3220_set_role(struct hd3ss3220 *hd3ss3220)
 	enum usb_role role_state = hd3ss3220_get_attached_state(hd3ss3220);
 
 	usb_role_switch_set_role(hd3ss3220->role_sw, role_state);
-	if (role_state == USB_ROLE_NONE)
-		hd3ss3220_set_source_pref(hd3ss3220,
-				HD3SS3220_REG_GEN_CTRL_SRC_PREF_DRP_DEFAULT);
 
 	switch (role_state) {
 	case USB_ROLE_HOST:
@@ -293,6 +291,28 @@ static int hd3ss3220_configure_port_type(struct hd3ss3220 *hd3ss3220,
 	return hd3ss3220_set_port_type(hd3ss3220, cap->type);
 }
 
+static int hd3ss3220_configure_source_pref(struct hd3ss3220 *hd3ss3220,
+					   struct fwnode_handle *connector,
+					   struct typec_capability *cap)
+{
+	/*
+	 * Preferred role can be configured through device tree
+	 */
+	const char *cap_str;
+	int ret;
+
+	ret = fwnode_property_read_string(connector, "try-power-role", &cap_str);
+	if (ret)
+		return 0;
+
+	ret = typec_find_power_role(cap_str);
+	if (ret < 0)
+		return ret;
+
+	cap->prefer_role = ret;
+	return hd3ss3220_set_source_pref(hd3ss3220, cap->prefer_role);
+}
+
 static const struct regmap_config config = {
 	.reg_bits = 8,
 	.val_bits = 8,
@@ -319,8 +339,6 @@ static int hd3ss3220_probe(struct i2c_client *client)
 	if (IS_ERR(hd3ss3220->regmap))
 		return PTR_ERR(hd3ss3220->regmap);
 
-	hd3ss3220_set_source_pref(hd3ss3220,
-				  HD3SS3220_REG_GEN_CTRL_SRC_PREF_DRP_DEFAULT);
 	/* For backward compatibility check the connector child node first */
 	connector = device_get_named_child_node(hd3ss3220->dev, "connector");
 	if (connector) {
@@ -347,6 +365,10 @@ static int hd3ss3220_probe(struct i2c_client *client)
 	typec_cap.data = TYPEC_PORT_DRD;
 	typec_cap.ops = &hd3ss3220_ops;
 	typec_cap.fwnode = connector;
+
+	ret = hd3ss3220_configure_source_pref(hd3ss3220, connector, &typec_cap);
+	if (ret < 0)
+		goto err_put_role;
 
 	ret = hd3ss3220_configure_port_type(hd3ss3220, connector, &typec_cap);
 	if (ret < 0)
