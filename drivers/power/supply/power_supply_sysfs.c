@@ -299,6 +299,27 @@ static ssize_t power_supply_show_enum_with_available(
 	return count;
 }
 
+static ssize_t power_supply_show_charge_behaviour(struct device *dev,
+						  struct power_supply *psy,
+						  union power_supply_propval *value,
+						  char *buf)
+{
+	struct power_supply_ext_registration *reg;
+
+	scoped_guard(rwsem_read, &psy->extensions_sem) {
+		power_supply_for_each_extension(reg, psy) {
+			if (power_supply_ext_has_property(reg->ext,
+							  POWER_SUPPLY_PROP_CHARGE_BEHAVIOUR))
+				return power_supply_charge_behaviour_show(dev,
+						reg->ext->charge_behaviours,
+						value->intval, buf);
+		}
+	}
+
+	return power_supply_charge_behaviour_show(dev, psy->desc->charge_behaviours,
+						  value->intval, buf);
+}
+
 static ssize_t power_supply_format_property(struct device *dev,
 					    bool uevent,
 					    struct device_attribute *attr,
@@ -338,8 +359,7 @@ static ssize_t power_supply_format_property(struct device *dev,
 	case POWER_SUPPLY_PROP_CHARGE_BEHAVIOUR:
 		if (uevent) /* no possible values in uevents */
 			goto default_format;
-		ret = power_supply_charge_behaviour_show(dev, psy->desc->charge_behaviours,
-							 value.intval, buf);
+		ret = power_supply_show_charge_behaviour(dev, psy, &value, buf);
 		break;
 	case POWER_SUPPLY_PROP_CHARGE_TYPES:
 		if (uevent) /* no possible values in uevents */
@@ -421,6 +441,8 @@ static umode_t power_supply_attr_is_visible(struct kobject *kobj,
 
 	if (attrno == POWER_SUPPLY_PROP_TYPE)
 		return mode;
+
+	guard(rwsem_read)(&psy->extensions_sem);
 
 	if (power_supply_has_property(psy, attrno)) {
 		if (power_supply_property_is_writeable(psy, attrno) > 0)

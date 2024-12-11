@@ -9,6 +9,8 @@
  *  Modified: 2004, Oct     Szabolcs Gyurko
  */
 
+#include <linux/lockdep.h>
+
 struct device;
 struct device_type;
 struct power_supply;
@@ -17,6 +19,21 @@ extern int power_supply_property_is_writeable(struct power_supply *psy,
 					      enum power_supply_property psp);
 extern bool power_supply_has_property(struct power_supply *psy,
 				      enum power_supply_property psp);
+extern bool power_supply_ext_has_property(const struct power_supply_ext *ext,
+					  enum power_supply_property psp);
+
+struct power_supply_ext_registration {
+	struct list_head list_head;
+	const struct power_supply_ext *ext;
+	void *data;
+};
+
+/* Make sure that the macro is a single expression */
+#define power_supply_for_each_extension(pos, psy)			\
+	if ( ({ lockdep_assert_held(&(psy)->extensions_sem); 0; }) )	\
+		;							\
+	else								\
+		list_for_each_entry(pos, &(psy)->extensions, list_head)	\
 
 #ifdef CONFIG_SYSFS
 
