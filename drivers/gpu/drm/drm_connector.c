@@ -768,13 +768,16 @@ EXPORT_SYMBOL(drm_connector_cleanup);
  * drm_connector_register - register a connector
  * @connector: the connector to register
  *
- * Register userspace interfaces for a connector. Only call this for connectors
- * which can be hotplugged after drm_dev_register() has been called already,
- * e.g. DP MST connectors. All other connectors will be registered automatically
- * when calling drm_dev_register().
+ * Register userspace interfaces for a connector. Drivers shouldn't call this
+ * function. Static connectors will be registered automatically by DRM core
+ * from drm_dev_register(), dynamic connectors (MST) should be registered by
+ * drivers calling drm_connector_dynamic_register().
  *
  * When the connector is no longer available, callers must call
  * drm_connector_unregister().
+ *
+ * Note: Existing uses of this function in drivers should be a nop already and
+ * are scheduled to be removed.
  *
  * Returns:
  * Zero on success, error code on failure.
@@ -864,9 +867,14 @@ EXPORT_SYMBOL(drm_connector_dynamic_register);
  * drm_connector_unregister - unregister a connector
  * @connector: the connector to unregister
  *
- * Unregister userspace interfaces for a connector. Only call this for
- * connectors which have been registered explicitly by calling
- * drm_connector_register().
+ * Unregister userspace interfaces for a connector. Drivers should call this
+ * for dynamic connectors (MST) only, which were registered explicitly by
+ * calling drm_connector_dynamic_register(). All other - static - connectors
+ * will be unregistered automatically by DRM core and drivers shouldn't call
+ * this function for those.
+ *
+ * Note: Existing uses of this function in drivers for static connectors
+ * should be a nop already and are scheduled to be removed.
  */
 void drm_connector_unregister(struct drm_connector *connector)
 {
