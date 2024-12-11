@@ -47,7 +47,8 @@ int init_srcu_struct(struct srcu_struct *ssp);
 #define SRCU_READ_FLAVOR_NORMAL	0x1		// srcu_read_lock().
 #define SRCU_READ_FLAVOR_NMI	0x2		// srcu_read_lock_nmisafe().
 #define SRCU_READ_FLAVOR_LITE	0x4		// srcu_read_lock_lite().
-#define SRCU_READ_FLAVOR_ALL	0x7		// All of the above.
+#define SRCU_READ_FLAVOR_ALL   (SRCU_READ_FLAVOR_NORMAL | SRCU_READ_FLAVOR_NMI | \
+				SRCU_READ_FLAVOR_LITE) // All of the above.
 
 #ifdef CONFIG_TINY_SRCU
 #include <linux/srcutiny.h>
