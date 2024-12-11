@@ -63,6 +63,11 @@
 	ps-clk-frequency = <33333333>;
 };
 
+&qspi {
+	bootph-all;
+	status = "okay";
+};
+
 &gem0 {
 	status = "okay";
 	phy-mode = "rgmii-id";

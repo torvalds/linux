@@ -13,6 +13,7 @@
 	aliases {
 		ethernet0 = &gem0;
 		serial0 = &uart1;
+		spi0 = &qspi;
 	};
 
 	memory@0 {
@@ -33,6 +34,11 @@
 
 &clkc {
 	ps-clk-frequency = <33333333>;
+};
+
+&qspi {
+	bootph-all;
+	status = "okay";
 };
 
 &gem0 {
