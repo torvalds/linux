@@ -511,6 +511,7 @@ static int uasp_prepare_r_request(struct usbg_cmd *cmd)
 	}
 
 	stream->req_in->is_last = 1;
+	stream->req_in->stream_id = cmd->tag;
 	stream->req_in->complete = uasp_status_data_cmpl;
 	stream->req_in->length = se_cmd->data_length;
 	stream->req_in->context = cmd;
@@ -535,6 +536,7 @@ static void uasp_prepare_status(struct usbg_cmd *cmd)
 	iu->len = cpu_to_be16(se_cmd->scsi_sense_length);
 	iu->status = se_cmd->scsi_status;
 	stream->req_status->is_last = 1;
+	stream->req_status->stream_id = cmd->tag;
 	stream->req_status->context = cmd;
 	stream->req_status->length = se_cmd->scsi_sense_length + 16;
 	stream->req_status->buf = iu;
@@ -765,19 +767,6 @@ err:
 	return -ENOMEM;
 }
 
-static void uasp_setup_stream_res(struct f_uas *fu, int max_streams)
-{
-	int i;
-
-	for (i = 0; i < max_streams; i++) {
-		struct uas_stream *s = &fu->stream[i];
-
-		s->req_in->stream_id = i + 1;
-		s->req_out->stream_id = i + 1;
-		s->req_status->stream_id = i + 1;
-	}
-}
-
 static int uasp_prepare_reqs(struct f_uas *fu)
 {
 	int ret;
@@ -798,7 +787,6 @@ static int uasp_prepare_reqs(struct f_uas *fu)
 	ret = uasp_alloc_cmd(fu);
 	if (ret)
 		goto err_free_stream;
-	uasp_setup_stream_res(fu, max_streams);
 
 	ret = usb_ep_queue(fu->ep_cmd, fu->cmd.req, GFP_ATOMIC);
 	if (ret)
@@ -975,6 +963,7 @@ static int usbg_prepare_w_request(struct usbg_cmd *cmd, struct usb_request *req)
 	}
 
 	req->is_last = 1;
+	req->stream_id = cmd->tag;
 	req->complete = usbg_data_write_cmpl;
 	req->length = se_cmd->data_length;
 	req->context = cmd;
