@@ -585,33 +585,8 @@ mst_stream_compute_config_limits(struct intel_dp *intel_dp,
 				 bool dsc,
 				 struct link_config_limits *limits)
 {
-	/*
-	 * for MST we always configure max link bw - the spec doesn't
-	 * seem to suggest we should do otherwise.
-	 */
-	limits->min_rate = limits->max_rate =
-		intel_dp_max_link_rate(intel_dp);
-
-	limits->min_lane_count = limits->max_lane_count =
-		intel_dp_max_lane_count(intel_dp);
-
-	limits->pipe.min_bpp = intel_dp_min_bpp(crtc_state->output_format);
-	/*
-	 * FIXME: If all the streams can't fit into the link with
-	 * their current pipe_bpp we should reduce pipe_bpp across
-	 * the board until things start to fit. Until then we
-	 * limit to <= 8bpc since that's what was hardcoded for all
-	 * MST streams previously. This hack should be removed once
-	 * we have the proper retry logic in place.
-	 */
-	limits->pipe.max_bpp = min(crtc_state->pipe_bpp, 24);
-
-	intel_dp_test_compute_config(intel_dp, crtc_state, limits);
-
-	if (!intel_dp_compute_config_link_bpp_limits(intel_dp,
-						     crtc_state,
-						     dsc,
-						     limits))
+	if (!intel_dp_compute_config_limits(intel_dp, crtc_state, false, dsc,
+					    limits))
 		return false;
 
 	return adjust_limits_for_dsc_hblank_expansion_quirk(connector,

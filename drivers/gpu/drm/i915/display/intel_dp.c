@@ -2455,19 +2455,11 @@ int intel_dp_dsc_compute_config(struct intel_dp *intel_dp,
 	return 0;
 }
 
-/**
- * intel_dp_compute_config_link_bpp_limits - compute output link bpp limits
- * @intel_dp: intel DP
- * @crtc_state: crtc state
- * @dsc: DSC compression mode
- * @limits: link configuration limits
- *
- * Calculates the output link min, max bpp values in @limits based on the
- * pipe bpp range, @crtc_state and @dsc mode.
- *
- * Returns %true in case of success.
+/*
+ * Calculate the output link min, max bpp values in limits based on the pipe bpp
+ * range, crtc_state and dsc mode. Return true on success.
  */
-bool
+static bool
 intel_dp_compute_config_link_bpp_limits(struct intel_dp *intel_dp,
 					const struct intel_crtc_state *crtc_state,
 					bool dsc,
@@ -2515,29 +2507,47 @@ intel_dp_compute_config_link_bpp_limits(struct intel_dp *intel_dp,
 	return true;
 }
 
-static bool
+bool
 intel_dp_compute_config_limits(struct intel_dp *intel_dp,
 			       struct intel_crtc_state *crtc_state,
 			       bool respect_downstream_limits,
 			       bool dsc,
 			       struct link_config_limits *limits)
 {
+	bool is_mst = intel_crtc_has_type(crtc_state, INTEL_OUTPUT_DP_MST);
+
 	limits->min_rate = intel_dp_min_link_rate(intel_dp);
 	limits->max_rate = intel_dp_max_link_rate(intel_dp);
 
 	/* FIXME 128b/132b SST support missing */
-	limits->max_rate = min(limits->max_rate, 810000);
+	if (!is_mst)
+		limits->max_rate = min(limits->max_rate, 810000);
 	limits->min_rate = min(limits->min_rate, limits->max_rate);
 
 	limits->min_lane_count = intel_dp_min_lane_count(intel_dp);
 	limits->max_lane_count = intel_dp_max_lane_count(intel_dp);
 
 	limits->pipe.min_bpp = intel_dp_min_bpp(crtc_state->output_format);
-	limits->pipe.max_bpp = intel_dp_max_bpp(intel_dp, crtc_state,
-						     respect_downstream_limits);
-
-	if (intel_dp->use_max_params) {
+	if (is_mst) {
 		/*
+		 * FIXME: If all the streams can't fit into the link with their
+		 * current pipe_bpp we should reduce pipe_bpp across the board
+		 * until things start to fit. Until then we limit to <= 8bpc
+		 * since that's what was hardcoded for all MST streams
+		 * previously. This hack should be removed once we have the
+		 * proper retry logic in place.
+		 */
+		limits->pipe.max_bpp = min(crtc_state->pipe_bpp, 24);
+	} else {
+		limits->pipe.max_bpp = intel_dp_max_bpp(intel_dp, crtc_state,
+							respect_downstream_limits);
+	}
+
+	if (is_mst || intel_dp->use_max_params) {
+		/*
+		 * For MST we always configure max link bw - the spec doesn't
+		 * seem to suggest we should do otherwise.
+		 *
 		 * Use the maximum clock and number of lanes the eDP panel
 		 * advertizes being capable of in case the initial fast
 		 * optimal params failed us. The panels are generally
