@@ -3,7 +3,7 @@
 # Building
 # ==========================================================================
 
-src := $(if $(VPATH),$(VPATH)/)$(obj)
+src := $(srcroot)/$(obj)
 
 PHONY := $(obj)/
 $(obj)/:
@@ -34,7 +34,7 @@ subdir-asflags-y :=
 subdir-ccflags-y :=
 
 # Read auto.conf if it exists, otherwise ignore
--include include/config/auto.conf
+-include $(objtree)/include/config/auto.conf
 
 include $(srctree)/scripts/Kbuild.include
 include $(srctree)/scripts/Makefile.compiler
@@ -107,19 +107,13 @@ cmd_cpp_i_c       = $(CPP) $(c_flags) -o $@ $<
 $(obj)/%.i: $(obj)/%.c FORCE
 	$(call if_changed_dep,cpp_i_c)
 
-genksyms = scripts/genksyms/genksyms		\
-	$(if $(1), -T $(2))			\
-	$(if $(KBUILD_PRESERVE), -p)		\
-	-r $(or $(wildcard $(2:.symtypes=.symref)), /dev/null)
+genksyms = $(objtree)/scripts/genksyms/genksyms		\
+	$(if $(KBUILD_SYMTYPES), -T $(@:.o=.symtypes))	\
+	$(if $(KBUILD_PRESERVE), -p)			\
+	$(addprefix -r , $(wildcard $(@:.o=.symref)))
 
 # These mirror gensymtypes_S and co below, keep them in synch.
 cmd_gensymtypes_c = $(CPP) -D__GENKSYMS__ $(c_flags) $< | $(genksyms)
-
-quiet_cmd_cc_symtypes_c = SYM $(quiet_modtag) $@
-      cmd_cc_symtypes_c = $(call cmd_gensymtypes_c,true,$@) >/dev/null
-
-$(obj)/%.symtypes : $(obj)/%.c FORCE
-	$(call cmd,cc_symtypes_c)
 
 # LLVM assembly
 # Generate .ll files from .c
@@ -135,17 +129,6 @@ $(obj)/%.ll: $(obj)/%.c FORCE
 
 is-single-obj-m = $(and $(part-of-module),$(filter $@, $(obj-m)),y)
 
-# When a module consists of a single object, there is no reason to keep LLVM IR.
-# Make $(LD) covert LLVM IR to ELF here.
-ifdef CONFIG_LTO_CLANG
-cmd_ld_single_m = $(if $(is-single-obj-m), ; $(LD) $(ld_flags) -r -o $(tmp-target) $@; mv $(tmp-target) $@)
-endif
-
-quiet_cmd_cc_o_c = CC $(quiet_modtag)  $@
-      cmd_cc_o_c = $(CC) $(c_flags) -c -o $@ $< \
-		$(cmd_ld_single_m) \
-		$(cmd_objtool)
-
 ifdef CONFIG_MODVERSIONS
 # When module versioning is enabled the following steps are executed:
 # o compile a <file>.o from <file>.c
@@ -158,8 +141,7 @@ ifdef CONFIG_MODVERSIONS
 
 gen_symversions =								\
 	if $(NM) $@ 2>/dev/null | grep -q ' __export_symbol_'; then		\
-		$(call cmd_gensymtypes_$(1),$(KBUILD_SYMTYPES),$(@:.o=.symtypes)) \
-			>> $(dot-target).cmd;					\
+		$(cmd_gensymtypes_$1) >> $(dot-target).cmd;			\
 	fi
 
 cmd_gen_symversions_c =	$(call gen_symversions,c)
@@ -207,23 +189,6 @@ ifneq ($(findstring 1, $(KBUILD_EXTRA_WARN)),)
 cmd_warn_shared_object = $(if $(word 2, $(modname-multi)),$(warning $(kbuild-file): $*.o is added to multiple modules: $(modname-multi)))
 endif
 
-define rule_cc_o_c
-	$(call cmd_and_fixdep,cc_o_c)
-	$(call cmd,checksrc)
-	$(call cmd,checkdoc)
-	$(call cmd,gen_objtooldep)
-	$(call cmd,gen_symversions_c)
-	$(call cmd,record_mcount)
-	$(call cmd,warn_shared_object)
-endef
-
-define rule_as_o_S
-	$(call cmd_and_fixdep,as_o_S)
-	$(call cmd,gen_objtooldep)
-	$(call cmd,gen_symversions_S)
-	$(call cmd,warn_shared_object)
-endef
-
 # Built-in and composite module parts
 $(obj)/%.o: $(obj)/%.c $(recordmcount_source) FORCE
 	$(call if_changed_rule,cc_o_c)
@@ -248,17 +213,18 @@ $(obj)/%.lst: $(obj)/%.c FORCE
 # Compile Rust sources (.rs)
 # ---------------------------------------------------------------------------
 
-rust_allowed_features := new_uninit
+rust_allowed_features := asm_const,asm_goto,arbitrary_self_types,lint_reasons
 
 # `--out-dir` is required to avoid temporaries being created by `rustc` in the
 # current working directory, which may be not accessible in the out-of-tree
 # modules case.
 rust_common_cmd = \
+	OBJTREE=$(abspath $(objtree)) \
 	RUST_MODFILE=$(modfile) $(RUSTC_OR_CLIPPY) $(rust_flags) \
 	-Zallow-features=$(rust_allowed_features) \
 	-Zcrate-attr=no_std \
 	-Zcrate-attr='feature($(rust_allowed_features))' \
-	-Zunstable-options --extern force:alloc --extern kernel \
+	-Zunstable-options --extern kernel \
 	--crate-type rlib -L $(objtree)/rust/ \
 	--crate-name $(basename $(notdir $@)) \
 	--sysroot=/dev/null \
@@ -303,6 +269,12 @@ quiet_cmd_rustc_ll_rs = $(RUSTC_OR_CLIPPY_QUIET) $(quiet_modtag) $@
 $(obj)/%.ll: $(obj)/%.rs FORCE
 	+$(call if_changed_dep,rustc_ll_rs)
 
+quiet_cmd_rustc_rs_rs_S = RSCPP $(quiet_modtag) $@
+      cmd_rustc_rs_rs_S = $(CPP) $(c_flags) -xc -C -P $< | sed '1,/^\/\/ Cut here.$$/d' >$@
+
+$(obj)/%.rs: $(obj)/%.rs.S FORCE
+	+$(call if_changed_dep,rustc_rs_rs_S)
+
 # Compile assembler sources (.S)
 # ---------------------------------------------------------------------------
 
@@ -323,21 +295,11 @@ cmd_gensymtypes_S =                                                         \
      $(NM) $@ | sed -n 's/.* __export_symbol_\(.*\)/EXPORT_SYMBOL(\1);/p' ; } | \
     $(CPP) -D__GENKSYMS__ $(c_flags) -xc - | $(genksyms)
 
-quiet_cmd_cc_symtypes_S = SYM $(quiet_modtag) $@
-      cmd_cc_symtypes_S = $(call cmd_gensymtypes_S,true,$@) >/dev/null
-
-$(obj)/%.symtypes : $(obj)/%.S FORCE
-	$(call cmd,cc_symtypes_S)
-
-
 quiet_cmd_cpp_s_S = CPP $(quiet_modtag) $@
 cmd_cpp_s_S       = $(CPP) $(a_flags) -o $@ $<
 
 $(obj)/%.s: $(obj)/%.S FORCE
 	$(call if_changed_dep,cpp_s_S)
-
-quiet_cmd_as_o_S = AS $(quiet_modtag)  $@
-      cmd_as_o_S = $(CC) $(a_flags) -c -o $@ $< $(cmd_objtool)
 
 ifdef CONFIG_ASM_MODVERSIONS
 

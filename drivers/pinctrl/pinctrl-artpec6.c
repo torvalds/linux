@@ -988,7 +988,7 @@ static struct platform_driver artpec6_pmx_driver = {
 		.of_match_table = artpec6_pinctrl_match,
 	},
 	.probe = artpec6_pmx_probe,
-	.remove_new = artpec6_pmx_remove,
+	.remove = artpec6_pmx_remove,
 };
 
 static int __init artpec6_pmx_init(void)

@@ -472,7 +472,7 @@ static struct platform_driver rockchip_inno_csidphy_driver = {
 		.of_match_table = rockchip_inno_csidphy_match_id,
 	},
 	.probe = rockchip_inno_csidphy_probe,
-	.remove_new = rockchip_inno_csidphy_remove,
+	.remove = rockchip_inno_csidphy_remove,
 };
 
 module_platform_driver(rockchip_inno_csidphy_driver);

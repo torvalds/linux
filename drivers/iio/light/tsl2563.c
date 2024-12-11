@@ -630,7 +630,7 @@ static irqreturn_t tsl2563_event_handler(int irq, void *private)
 
 static int tsl2563_write_interrupt_config(struct iio_dev *indio_dev,
 	const struct iio_chan_spec *chan, enum iio_event_type type,
-	enum iio_event_direction dir, int state)
+	enum iio_event_direction dir, bool state)
 {
 	struct tsl2563_chip *chip = iio_priv(indio_dev);
 	int ret = 0;

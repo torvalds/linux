@@ -347,10 +347,7 @@ done:
 	spin_unlock(&ses->chan_lock);
 }
 
-/*
- * update the iface for the channel if necessary.
- * Must be called with chan_lock held.
- */
+/* update the iface for the channel if necessary. */
 void
 cifs_chan_update_iface(struct cifs_ses *ses, struct TCP_Server_Info *server)
 {

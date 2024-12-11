@@ -182,13 +182,15 @@ static int ntfs_extend_initialized_size(struct file *file,
 	loff_t pos = valid;
 	int err;
 
+	if (valid >= new_valid)
+		return 0;
+
 	if (is_resident(ni)) {
 		ni->i_valid = new_valid;
 		return 0;
 	}
 
 	WARN_ON(is_compressed(ni));
-	WARN_ON(valid >= new_valid);
 
 	for (;;) {
 		u32 zerofrom, len;
@@ -222,7 +224,7 @@ static int ntfs_extend_initialized_size(struct file *file,
 		if (err)
 			goto out;
 
-		folio_zero_range(folio, zerofrom, folio_size(folio));
+		folio_zero_range(folio, zerofrom, folio_size(folio) - zerofrom);
 
 		err = ntfs_write_end(file, mapping, pos, len, len, folio, NULL);
 		if (err < 0)
@@ -987,6 +989,7 @@ static ssize_t ntfs_compress_write(struct kiocb *iocb, struct iov_iter *from)
 	u64 frame_vbo;
 	pgoff_t index;
 	bool frame_uptodate;
+	struct folio *folio;
 
 	if (frame_size < PAGE_SIZE) {
 		/*
@@ -1041,8 +1044,9 @@ static ssize_t ntfs_compress_write(struct kiocb *iocb, struct iov_iter *from)
 			if (err) {
 				for (ip = 0; ip < pages_per_frame; ip++) {
 					page = pages[ip];
-					unlock_page(page);
-					put_page(page);
+					folio = page_folio(page);
+					folio_unlock(folio);
+					folio_put(folio);
 				}
 				goto out;
 			}
@@ -1052,9 +1056,10 @@ static ssize_t ntfs_compress_write(struct kiocb *iocb, struct iov_iter *from)
 		off = offset_in_page(valid);
 		for (; ip < pages_per_frame; ip++, off = 0) {
 			page = pages[ip];
+			folio = page_folio(page);
 			zero_user_segment(page, off, PAGE_SIZE);
 			flush_dcache_page(page);
-			SetPageUptodate(page);
+			folio_mark_uptodate(folio);
 		}
 
 		ni_lock(ni);
@@ -1063,9 +1068,10 @@ static ssize_t ntfs_compress_write(struct kiocb *iocb, struct iov_iter *from)
 
 		for (ip = 0; ip < pages_per_frame; ip++) {
 			page = pages[ip];
-			SetPageUptodate(page);
-			unlock_page(page);
-			put_page(page);
+			folio = page_folio(page);
+			folio_mark_uptodate(folio);
+			folio_unlock(folio);
+			folio_put(folio);
 		}
 
 		if (err)
@@ -1107,8 +1113,9 @@ static ssize_t ntfs_compress_write(struct kiocb *iocb, struct iov_iter *from)
 					for (ip = 0; ip < pages_per_frame;
 					     ip++) {
 						page = pages[ip];
-						unlock_page(page);
-						put_page(page);
+						folio = page_folio(page);
+						folio_unlock(folio);
+						folio_put(folio);
 					}
 					goto out;
 				}
@@ -1149,9 +1156,10 @@ static ssize_t ntfs_compress_write(struct kiocb *iocb, struct iov_iter *from)
 		for (ip = 0; ip < pages_per_frame; ip++) {
 			page = pages[ip];
 			ClearPageDirty(page);
-			SetPageUptodate(page);
-			unlock_page(page);
-			put_page(page);
+			folio = page_folio(page);
+			folio_mark_uptodate(folio);
+			folio_unlock(folio);
+			folio_put(folio);
 		}
 
 		if (err)

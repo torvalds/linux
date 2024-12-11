@@ -262,7 +262,7 @@ static int lpc32xx_kscan_suspend(struct device *dev)
 	struct lpc32xx_kscan_drv *kscandat = platform_get_drvdata(pdev);
 	struct input_dev *input = kscandat->input;
 
-	mutex_lock(&input->mutex);
+	guard(mutex)(&input->mutex);
 
 	if (input_device_enabled(input)) {
 		/* Clear IRQ and disable clock */
@@ -270,7 +270,6 @@ static int lpc32xx_kscan_suspend(struct device *dev)
 		clk_disable_unprepare(kscandat->clk);
 	}
 
-	mutex_unlock(&input->mutex);
 	return 0;
 }
 
@@ -279,19 +278,20 @@ static int lpc32xx_kscan_resume(struct device *dev)
 	struct platform_device *pdev = to_platform_device(dev);
 	struct lpc32xx_kscan_drv *kscandat = platform_get_drvdata(pdev);
 	struct input_dev *input = kscandat->input;
-	int retval = 0;
+	int error;
 
-	mutex_lock(&input->mutex);
+	guard(mutex)(&input->mutex);
 
 	if (input_device_enabled(input)) {
 		/* Enable clock and clear IRQ */
-		retval = clk_prepare_enable(kscandat->clk);
-		if (retval == 0)
-			writel(1, LPC32XX_KS_IRQ(kscandat->kscan_base));
+		error = clk_prepare_enable(kscandat->clk);
+		if (error)
+			return error;
+
+		writel(1, LPC32XX_KS_IRQ(kscandat->kscan_base));
 	}
 
-	mutex_unlock(&input->mutex);
-	return retval;
+	return 0;
 }
 
 static DEFINE_SIMPLE_DEV_PM_OPS(lpc32xx_kscan_pm_ops, lpc32xx_kscan_suspend,

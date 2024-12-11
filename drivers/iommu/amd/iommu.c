@@ -2407,9 +2407,8 @@ static struct iommu_domain *amd_iommu_domain_alloc(unsigned int type)
 }
 
 static struct iommu_domain *
-amd_iommu_domain_alloc_user(struct device *dev, u32 flags,
-			    struct iommu_domain *parent,
-			    const struct iommu_user_data *user_data)
+amd_iommu_domain_alloc_paging_flags(struct device *dev, u32 flags,
+				    const struct iommu_user_data *user_data)
 
 {
 	unsigned int type = IOMMU_DOMAIN_UNMANAGED;
@@ -2420,7 +2419,7 @@ amd_iommu_domain_alloc_user(struct device *dev, u32 flags,
 	if (dev)
 		iommu = get_amd_iommu_from_dev(dev);
 
-	if ((flags & ~supported_flags) || parent || user_data)
+	if ((flags & ~supported_flags) || user_data)
 		return ERR_PTR(-EOPNOTSUPP);
 
 	/* Allocate domain with v2 page table if IOMMU supports PASID. */
@@ -2884,7 +2883,7 @@ const struct iommu_ops amd_iommu_ops = {
 	.release_domain = &release_domain,
 	.identity_domain = &identity_domain.domain,
 	.domain_alloc = amd_iommu_domain_alloc,
-	.domain_alloc_user = amd_iommu_domain_alloc_user,
+	.domain_alloc_paging_flags = amd_iommu_domain_alloc_paging_flags,
 	.domain_alloc_sva = amd_iommu_domain_alloc_sva,
 	.probe_device = amd_iommu_probe_device,
 	.release_device = amd_iommu_release_device,

@@ -327,7 +327,7 @@ MODULE_DEVICE_TABLE(of, of_cdns3_match);
 
 static struct platform_driver cdns3_driver = {
 	.probe		= cdns3_plat_probe,
-	.remove_new	= cdns3_plat_remove,
+	.remove		= cdns3_plat_remove,
 	.driver		= {
 		.name	= "cdns-usb3",
 		.of_match_table	= of_match_ptr(of_cdns3_match),

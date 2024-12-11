@@ -1,0 +1,55 @@
+[config]
+command = record
+args    = --no-bpf-event -e dummy -C 0 kill >/dev/null 2>&1
+ret     = 1
+
+[event]
+fd=1
+group_fd=-1
+cpu=0
+pid=-1
+flags=8
+type=1
+size=136
+config=9
+sample_period=4000
+# PERF_SAMPLE_IP | PERF_SAMPLE_TID | PERF_SAMPLE_TIME |
+# PERF_SAMPLE_PERIOD
+# + PERF_SAMPLE_CPU added by -C 0
+sample_type=391
+read_format=4|20
+disabled=0
+inherit=0
+pinned=0
+exclusive=0
+exclude_user=0
+exclude_kernel=0
+exclude_hv=0
+exclude_idle=0
+mmap=1
+comm=1
+freq=1
+inherit_stat=0
+enable_on_exec=0
+task=1
+watermark=0
+precise_ip=0
+mmap_data=0
+sample_id_all=1
+exclude_host=0
+exclude_guest=0
+exclude_callchain_kernel=0
+exclude_callchain_user=0
+mmap2=1
+comm_exec=1
+context_switch=0
+write_backward=0
+namespaces=0
+use_clockid=0
+wakeup_events=0
+bp_type=0
+config1=0
+config2=0
+branch_sample_type=0
+sample_regs_user=0
+sample_stack_user=0

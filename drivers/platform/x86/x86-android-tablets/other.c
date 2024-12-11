@@ -41,7 +41,7 @@ static const struct x86_i2c_client_info acer_b1_750_i2c_clients[] __initconst = 
 	{
 		/* Novatek NVT-ts touchscreen */
 		.board_info = {
-			.type = "NVT-ts",
+			.type = "nt11205-ts",
 			.addr = 0x34,
 			.dev_name = "NVT-ts",
 		},

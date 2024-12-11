@@ -2,7 +2,7 @@
 #define __LINUX_RWLOCK_API_SMP_H
 
 #ifndef __LINUX_SPINLOCK_API_SMP_H
-# error "please don't include this file directly"
+# error "Please do not include this file directly."
 #endif
 
 /*

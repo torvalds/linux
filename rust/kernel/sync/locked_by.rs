@@ -43,7 +43,7 @@ use core::{cell::UnsafeCell, mem::size_of, ptr};
 /// struct InnerDirectory {
 ///     /// The sum of the bytes used by all files.
 ///     bytes_used: u64,
-///     _files: Vec<File>,
+///     _files: KVec<File>,
 /// }
 ///
 /// struct Directory {

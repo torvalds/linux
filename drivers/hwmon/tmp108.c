@@ -452,12 +452,7 @@ static int p3t1085_i3c_probe(struct i3c_device *i3cdev)
 	struct device *dev = i3cdev_to_dev(i3cdev);
 	struct regmap *regmap;
 
-#ifdef CONFIG_REGMAP_I3C
 	regmap = devm_regmap_init_i3c(i3cdev, &tmp108_regmap_config);
-#else
-	regmap = ERR_PTR(-ENODEV);
-#endif
-
 	if (IS_ERR(regmap))
 		return dev_err_probe(dev, PTR_ERR(regmap),
 				     "Failed to register i3c regmap\n");

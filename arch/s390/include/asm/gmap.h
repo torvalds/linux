@@ -17,8 +17,8 @@
 #define GMAP_NOTIFY_MPROT	0x1
 
 /* Status bits only for huge segment entries */
-#define _SEGMENT_ENTRY_GMAP_IN		0x8000	/* invalidation notify bit */
-#define _SEGMENT_ENTRY_GMAP_UC		0x4000	/* dirty (migration) */
+#define _SEGMENT_ENTRY_GMAP_IN		0x0800	/* invalidation notify bit */
+#define _SEGMENT_ENTRY_GMAP_UC		0x0002	/* dirty (migration) */
 
 /**
  * struct gmap_struct - guest address space

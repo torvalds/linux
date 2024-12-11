@@ -934,7 +934,7 @@ static DEFINE_SIMPLE_DEV_PM_OPS(asc_serial_pm_ops, asc_serial_suspend,
 
 static struct platform_driver asc_serial_driver = {
 	.probe		= asc_serial_probe,
-	.remove_new	= asc_serial_remove,
+	.remove		= asc_serial_remove,
 	.driver	= {
 		.name	= DRIVER_NAME,
 		.pm	= pm_sleep_ptr(&asc_serial_pm_ops),

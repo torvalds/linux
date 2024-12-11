@@ -5057,21 +5057,32 @@ static int statmount_mnt_opts(struct kstatmount *s, struct seq_file *seq)
 	return 0;
 }
 
-static inline int statmount_opt_unescape(struct seq_file *seq, char *buf_start)
+static inline int statmount_opt_process(struct seq_file *seq, size_t start)
 {
-	char *buf_end, *opt_start, *opt_end;
+	char *buf_end, *opt_end, *src, *dst;
 	int count = 0;
 
+	if (unlikely(seq_has_overflowed(seq)))
+		return -EAGAIN;
+
 	buf_end = seq->buf + seq->count;
+	dst = seq->buf + start;
+	src = dst + 1;	/* skip initial comma */
+
+	if (src >= buf_end) {
+		seq->count = start;
+		return 0;
+	}
+
 	*buf_end = '\0';
-	for (opt_start = buf_start + 1; opt_start < buf_end; opt_start = opt_end + 1) {
-		opt_end = strchrnul(opt_start, ',');
+	for (; src < buf_end; src = opt_end + 1) {
+		opt_end = strchrnul(src, ',');
 		*opt_end = '\0';
-		buf_start += string_unescape(opt_start, buf_start, 0, UNESCAPE_OCTAL) + 1;
+		dst += string_unescape(src, dst, 0, UNESCAPE_OCTAL) + 1;
 		if (WARN_ON_ONCE(++count == INT_MAX))
 			return -EOVERFLOW;
 	}
-	seq->count = buf_start - 1 - seq->buf;
+	seq->count = dst - 1 - seq->buf;
 	return count;
 }
 
@@ -5080,24 +5091,16 @@ static int statmount_opt_array(struct kstatmount *s, struct seq_file *seq)
 	struct vfsmount *mnt = s->mnt;
 	struct super_block *sb = mnt->mnt_sb;
 	size_t start = seq->count;
-	char *buf_start;
 	int err;
 
 	if (!sb->s_op->show_options)
 		return 0;
 
-	buf_start = seq->buf + start;
 	err = sb->s_op->show_options(seq, mnt->mnt_root);
 	if (err)
 		return err;
 
-	if (unlikely(seq_has_overflowed(seq)))
-		return -EAGAIN;
-
-	if (seq->count == start)
-		return 0;
-
-	err = statmount_opt_unescape(seq, buf_start);
+	err = statmount_opt_process(seq, start);
 	if (err < 0)
 		return err;
 
@@ -5110,22 +5113,13 @@ static int statmount_opt_sec_array(struct kstatmount *s, struct seq_file *seq)
 	struct vfsmount *mnt = s->mnt;
 	struct super_block *sb = mnt->mnt_sb;
 	size_t start = seq->count;
-	char *buf_start;
 	int err;
 
-	buf_start = seq->buf + start;
-
 	err = security_sb_show_options(seq, sb);
-	if (!err)
+	if (err)
 		return err;
 
-	if (unlikely(seq_has_overflowed(seq)))
-		return -EAGAIN;
-
-	if (seq->count == start)
-		return 0;
-
-	err = statmount_opt_unescape(seq, buf_start);
+	err = statmount_opt_process(seq, start);
 	if (err < 0)
 		return err;
 

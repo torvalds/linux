@@ -261,6 +261,11 @@ static int altera_gpio_probe(struct platform_device *pdev)
 	altera_gc->gc.set		= altera_gpio_set;
 	altera_gc->gc.owner		= THIS_MODULE;
 	altera_gc->gc.parent		= &pdev->dev;
+	altera_gc->gc.base		= -1;
+
+	altera_gc->gc.label = devm_kasprintf(dev, GFP_KERNEL, "%pfw", dev_fwnode(dev));
+	if (!altera_gc->gc.label)
+		return -ENOMEM;
 
 	altera_gc->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(altera_gc->regs))

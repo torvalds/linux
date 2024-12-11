@@ -1,11 +1,4 @@
-@@ -1,5 +1,6 @@
- // SPDX-License-Identifier: GPL-2.0
- #include <linux/kernel.h>
-+#include <linux/bug.h>
- #include <linux/compiler.h>
- #include <linux/export.h>
- #include <linux/string.h>
-@@ -52,6 +53,7 @@
+@@ -50,6 +50,7 @@
  			struct list_head *a, struct list_head *b)
  {
  	struct list_head *tail = head;
@@ -13,7 +6,7 @@
  
  	for (;;) {
  		/* if equal, take 'a' -- important for sort stability */
-@@ -77,6 +79,15 @@
+@@ -75,6 +76,15 @@
  	/* Finish linking remainder of list b on to tail */
  	tail->next = b;
  	do {

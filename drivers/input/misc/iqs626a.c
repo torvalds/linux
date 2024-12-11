@@ -462,7 +462,6 @@ iqs626_parse_events(struct iqs626_private *iqs626,
 {
 	struct iqs626_sys_reg *sys_reg = &iqs626->sys_reg;
 	struct i2c_client *client = iqs626->client;
-	struct fwnode_handle *ev_node;
 	const char *ev_name;
 	u8 *thresh, *hyst;
 	unsigned int val;
@@ -501,6 +500,7 @@ iqs626_parse_events(struct iqs626_private *iqs626,
 		if (!iqs626_channels[ch_id].events[i])
 			continue;
 
+		struct fwnode_handle *ev_node __free(fwnode_handle) = NULL;
 		if (ch_id == IQS626_CH_TP_2 || ch_id == IQS626_CH_TP_3) {
 			/*
 			 * Trackpad touch events are simply described under the
@@ -530,7 +530,6 @@ iqs626_parse_events(struct iqs626_private *iqs626,
 					dev_err(&client->dev,
 						"Invalid input type: %u\n",
 						val);
-					fwnode_handle_put(ev_node);
 					return -EINVAL;
 				}
 
@@ -545,7 +544,6 @@ iqs626_parse_events(struct iqs626_private *iqs626,
 				dev_err(&client->dev,
 					"Invalid %s channel hysteresis: %u\n",
 					fwnode_get_name(ch_node), val);
-				fwnode_handle_put(ev_node);
 				return -EINVAL;
 			}
 
@@ -566,7 +564,6 @@ iqs626_parse_events(struct iqs626_private *iqs626,
 				dev_err(&client->dev,
 					"Invalid %s channel threshold: %u\n",
 					fwnode_get_name(ch_node), val);
-				fwnode_handle_put(ev_node);
 				return -EINVAL;
 			}
 
@@ -575,8 +572,6 @@ iqs626_parse_events(struct iqs626_private *iqs626,
 			else
 				*(thresh + iqs626_events[i].th_offs) = val;
 		}
-
-		fwnode_handle_put(ev_node);
 	}
 
 	return 0;
@@ -774,12 +769,12 @@ static int iqs626_parse_trackpad(struct iqs626_private *iqs626,
 	for (i = 0; i < iqs626_channels[ch_id].num_ch; i++) {
 		u8 *ati_base = &sys_reg->tp_grp_reg.ch_reg_tp[i].ati_base;
 		u8 *thresh = &sys_reg->tp_grp_reg.ch_reg_tp[i].thresh;
-		struct fwnode_handle *tc_node;
 		char tc_name[10];
 
 		snprintf(tc_name, sizeof(tc_name), "channel-%d", i);
 
-		tc_node = fwnode_get_named_child_node(ch_node, tc_name);
+		struct fwnode_handle *tc_node __free(fwnode_handle) =
+				fwnode_get_named_child_node(ch_node, tc_name);
 		if (!tc_node)
 			continue;
 
@@ -790,7 +785,6 @@ static int iqs626_parse_trackpad(struct iqs626_private *iqs626,
 				dev_err(&client->dev,
 					"Invalid %s %s ATI base: %u\n",
 					fwnode_get_name(ch_node), tc_name, val);
-				fwnode_handle_put(tc_node);
 				return -EINVAL;
 			}
 
@@ -803,14 +797,11 @@ static int iqs626_parse_trackpad(struct iqs626_private *iqs626,
 				dev_err(&client->dev,
 					"Invalid %s %s threshold: %u\n",
 					fwnode_get_name(ch_node), tc_name, val);
-				fwnode_handle_put(tc_node);
 				return -EINVAL;
 			}
 
 			*thresh = val;
 		}
-
-		fwnode_handle_put(tc_node);
 	}
 
 	if (!fwnode_property_present(ch_node, "linux,keycodes"))
@@ -1233,7 +1224,6 @@ static int iqs626_parse_prop(struct iqs626_private *iqs626)
 {
 	struct iqs626_sys_reg *sys_reg = &iqs626->sys_reg;
 	struct i2c_client *client = iqs626->client;
-	struct fwnode_handle *ch_node;
 	unsigned int val;
 	int error, i;
 	u16 general;
@@ -1375,13 +1365,13 @@ static int iqs626_parse_prop(struct iqs626_private *iqs626)
 	sys_reg->active = 0;
 
 	for (i = 0; i < ARRAY_SIZE(iqs626_channels); i++) {
-		ch_node = device_get_named_child_node(&client->dev,
-						      iqs626_channels[i].name);
+		struct fwnode_handle *ch_node __free(fwnode_handle) =
+			device_get_named_child_node(&client->dev,
+						    iqs626_channels[i].name);
 		if (!ch_node)
 			continue;
 
 		error = iqs626_parse_channel(iqs626, ch_node, i);
-		fwnode_handle_put(ch_node);
 		if (error)
 			return error;
 

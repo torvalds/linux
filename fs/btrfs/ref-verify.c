@@ -857,6 +857,7 @@ int btrfs_ref_tree_mod(struct btrfs_fs_info *fs_info,
 "dropping a ref for a root that doesn't have a ref on the block");
 			dump_block_entry(fs_info, be);
 			dump_ref_action(fs_info, ra);
+			rb_erase(&ref->node, &be->refs);
 			kfree(ref);
 			kfree(ra);
 			goto out_unlock;

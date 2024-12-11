@@ -588,9 +588,14 @@ static void allow_maximum_power(struct thermal_zone_device *tz)
 static int check_power_actors(struct thermal_zone_device *tz,
 			      struct power_allocator_params *params)
 {
-	const struct thermal_trip_desc *td = trip_to_trip_desc(params->trip_max);
+	const struct thermal_trip_desc *td;
 	struct thermal_instance *instance;
 	int ret = 0;
+
+	if (!params->trip_max)
+		return 0;
+
+	td = trip_to_trip_desc(params->trip_max);
 
 	list_for_each_entry(instance, &td->thermal_instances, trip_node) {
 		if (!cdev_is_power_actor(instance->cdev)) {

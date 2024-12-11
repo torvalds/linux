@@ -84,17 +84,11 @@ static struct vgic_irq *vgic_get_lpi(struct kvm *kvm, u32 intid)
  * struct vgic_irq. It also increases the refcount, so any caller is expected
  * to call vgic_put_irq() once it's finished with this IRQ.
  */
-struct vgic_irq *vgic_get_irq(struct kvm *kvm, struct kvm_vcpu *vcpu,
-			      u32 intid)
+struct vgic_irq *vgic_get_irq(struct kvm *kvm, u32 intid)
 {
-	/* SGIs and PPIs */
-	if (intid <= VGIC_MAX_PRIVATE) {
-		intid = array_index_nospec(intid, VGIC_MAX_PRIVATE + 1);
-		return &vcpu->arch.vgic_cpu.private_irqs[intid];
-	}
-
 	/* SPIs */
-	if (intid < (kvm->arch.vgic.nr_spis + VGIC_NR_PRIVATE_IRQS)) {
+	if (intid >= VGIC_NR_PRIVATE_IRQS &&
+	    intid < (kvm->arch.vgic.nr_spis + VGIC_NR_PRIVATE_IRQS)) {
 		intid = array_index_nospec(intid, kvm->arch.vgic.nr_spis + VGIC_NR_PRIVATE_IRQS);
 		return &kvm->arch.vgic.spis[intid - VGIC_NR_PRIVATE_IRQS];
 	}
@@ -104,6 +98,20 @@ struct vgic_irq *vgic_get_irq(struct kvm *kvm, struct kvm_vcpu *vcpu,
 		return vgic_get_lpi(kvm, intid);
 
 	return NULL;
+}
+
+struct vgic_irq *vgic_get_vcpu_irq(struct kvm_vcpu *vcpu, u32 intid)
+{
+	if (WARN_ON(!vcpu))
+		return NULL;
+
+	/* SGIs and PPIs */
+	if (intid < VGIC_NR_PRIVATE_IRQS) {
+		intid = array_index_nospec(intid, VGIC_NR_PRIVATE_IRQS);
+		return &vcpu->arch.vgic_cpu.private_irqs[intid];
+	}
+
+	return vgic_get_irq(vcpu->kvm, intid);
 }
 
 /*
@@ -437,7 +445,10 @@ int kvm_vgic_inject_irq(struct kvm *kvm, struct kvm_vcpu *vcpu,
 
 	trace_vgic_update_irq_pending(vcpu ? vcpu->vcpu_idx : 0, intid, level);
 
-	irq = vgic_get_irq(kvm, vcpu, intid);
+	if (intid < VGIC_NR_PRIVATE_IRQS)
+		irq = vgic_get_vcpu_irq(vcpu, intid);
+	else
+		irq = vgic_get_irq(kvm, intid);
 	if (!irq)
 		return -EINVAL;
 
@@ -499,7 +510,7 @@ static inline void kvm_vgic_unmap_irq(struct vgic_irq *irq)
 int kvm_vgic_map_phys_irq(struct kvm_vcpu *vcpu, unsigned int host_irq,
 			  u32 vintid, struct irq_ops *ops)
 {
-	struct vgic_irq *irq = vgic_get_irq(vcpu->kvm, vcpu, vintid);
+	struct vgic_irq *irq = vgic_get_vcpu_irq(vcpu, vintid);
 	unsigned long flags;
 	int ret;
 
@@ -524,7 +535,7 @@ int kvm_vgic_map_phys_irq(struct kvm_vcpu *vcpu, unsigned int host_irq,
  */
 void kvm_vgic_reset_mapped_irq(struct kvm_vcpu *vcpu, u32 vintid)
 {
-	struct vgic_irq *irq = vgic_get_irq(vcpu->kvm, vcpu, vintid);
+	struct vgic_irq *irq = vgic_get_vcpu_irq(vcpu, vintid);
 	unsigned long flags;
 
 	if (!irq->hw)
@@ -547,7 +558,7 @@ int kvm_vgic_unmap_phys_irq(struct kvm_vcpu *vcpu, unsigned int vintid)
 	if (!vgic_initialized(vcpu->kvm))
 		return -EAGAIN;
 
-	irq = vgic_get_irq(vcpu->kvm, vcpu, vintid);
+	irq = vgic_get_vcpu_irq(vcpu, vintid);
 	BUG_ON(!irq);
 
 	raw_spin_lock_irqsave(&irq->irq_lock, flags);
@@ -560,7 +571,7 @@ int kvm_vgic_unmap_phys_irq(struct kvm_vcpu *vcpu, unsigned int vintid)
 
 int kvm_vgic_get_map(struct kvm_vcpu *vcpu, unsigned int vintid)
 {
-	struct vgic_irq *irq = vgic_get_irq(vcpu->kvm, vcpu, vintid);
+	struct vgic_irq *irq = vgic_get_vcpu_irq(vcpu, vintid);
 	unsigned long flags;
 	int ret = -1;
 
@@ -596,7 +607,7 @@ int kvm_vgic_set_owner(struct kvm_vcpu *vcpu, unsigned int intid, void *owner)
 	if (!irq_is_ppi(intid) && !vgic_valid_spi(vcpu->kvm, intid))
 		return -EINVAL;
 
-	irq = vgic_get_irq(vcpu->kvm, vcpu, intid);
+	irq = vgic_get_vcpu_irq(vcpu, intid);
 	raw_spin_lock_irqsave(&irq->irq_lock, flags);
 	if (irq->owner && irq->owner != owner)
 		ret = -EEXIST;
@@ -1008,7 +1019,7 @@ bool kvm_vgic_map_is_active(struct kvm_vcpu *vcpu, unsigned int vintid)
 	if (!vgic_initialized(vcpu->kvm))
 		return false;
 
-	irq = vgic_get_irq(vcpu->kvm, vcpu, vintid);
+	irq = vgic_get_vcpu_irq(vcpu, vintid);
 	raw_spin_lock_irqsave(&irq->irq_lock, flags);
 	map_is_active = irq->hw && irq->active;
 	raw_spin_unlock_irqrestore(&irq->irq_lock, flags);

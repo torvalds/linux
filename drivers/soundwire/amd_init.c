@@ -121,6 +121,7 @@ static struct sdw_amd_ctx *sdw_amd_probe_controller(struct sdw_amd_res *res)
 
 		sdw_pdata[index].instance = index;
 		sdw_pdata[index].acp_sdw_lock = res->acp_lock;
+		sdw_pdata[index].acp_rev = res->acp_rev;
 		pdevinfo[index].name = "amd_sdw_manager";
 		pdevinfo[index].id = index;
 		pdevinfo[index].parent = res->parent;
@@ -172,7 +173,7 @@ int sdw_amd_probe(struct sdw_amd_res *res, struct sdw_amd_ctx **sdw_ctx)
 
 	return sdw_amd_startup(*sdw_ctx);
 }
-EXPORT_SYMBOL_NS(sdw_amd_probe, SOUNDWIRE_AMD_INIT);
+EXPORT_SYMBOL_NS(sdw_amd_probe, "SOUNDWIRE_AMD_INIT");
 
 void sdw_amd_exit(struct sdw_amd_ctx *ctx)
 {
@@ -180,7 +181,7 @@ void sdw_amd_exit(struct sdw_amd_ctx *ctx)
 	kfree(ctx->peripherals);
 	kfree(ctx);
 }
-EXPORT_SYMBOL_NS(sdw_amd_exit, SOUNDWIRE_AMD_INIT);
+EXPORT_SYMBOL_NS(sdw_amd_exit, "SOUNDWIRE_AMD_INIT");
 
 int sdw_amd_get_slave_info(struct sdw_amd_ctx *ctx)
 {
@@ -223,7 +224,7 @@ int sdw_amd_get_slave_info(struct sdw_amd_ctx *ctx)
 	}
 	return 0;
 }
-EXPORT_SYMBOL_NS(sdw_amd_get_slave_info, SOUNDWIRE_AMD_INIT);
+EXPORT_SYMBOL_NS(sdw_amd_get_slave_info, "SOUNDWIRE_AMD_INIT");
 
 MODULE_AUTHOR("Vijendar.Mukunda@amd.com");
 MODULE_DESCRIPTION("AMD SoundWire Init Library");

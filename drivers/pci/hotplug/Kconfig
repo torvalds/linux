@@ -118,6 +118,16 @@ config HOTPLUG_PCI_CPCI_GENERIC
 
 	  When in doubt, say N.
 
+config HOTPLUG_PCI_OCTEONEP
+	bool "Marvell OCTEON PCI Hotplug driver"
+	depends on HOTPLUG_PCI
+	help
+	  Say Y here if you have an OCTEON PCIe device with a hotplug
+	  controller. This driver enables the non-controller functions of the
+	  device to be registered as hotplug slots.
+
+	  When in doubt, say N.
+
 config HOTPLUG_PCI_SHPC
 	bool "SHPC PCI Hotplug driver"
 	help

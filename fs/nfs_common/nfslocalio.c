@@ -155,11 +155,9 @@ struct nfsd_file *nfs_open_local_fh(nfs_uuid_t *uuid,
 	/* We have an implied reference to net thanks to nfsd_serv_try_get */
 	localio = nfs_to->nfsd_open_local_fh(net, uuid->dom, rpc_clnt,
 					     cred, nfs_fh, fmode);
-	if (IS_ERR(localio)) {
-		rcu_read_lock();
-		nfs_to->nfsd_serv_put(net);
-		rcu_read_unlock();
-	}
+	if (IS_ERR(localio))
+		nfs_to_nfsd_net_put(net);
+
 	return localio;
 }
 EXPORT_SYMBOL_GPL(nfs_open_local_fh);

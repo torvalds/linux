@@ -1,5 +1,5 @@
 #!/bin/bash
-# perf record tests
+# perf record tests (exclusive)
 # SPDX-License-Identifier: GPL-2.0
 
 set -e
@@ -17,6 +17,7 @@ skip_test_missing_symbol ${testsym}
 
 err=0
 perfdata=$(mktemp /tmp/__perf_test.perf.data.XXXXX)
+script_output=$(mktemp /tmp/__perf_test.perf.data.XXXXX.script)
 testprog="perf test -w thloop"
 cpu_pmu_dir="/sys/bus/event_source/devices/cpu*"
 br_cntr_file="/caps/branch_counter_nr"
@@ -93,7 +94,7 @@ test_per_thread() {
 
 test_register_capture() {
   echo "Register capture test"
-  if ! perf list | grep -q 'br_inst_retired.near_call'
+  if ! perf list pmu | grep -q 'br_inst_retired.near_call'
   then
     echo "Register capture test [Skipped missing event]"
     return
@@ -228,6 +229,73 @@ test_cgroup() {
   echo "Cgroup sampling test [Success]"
 }
 
+test_leader_sampling() {
+  echo "Basic leader sampling test"
+  if ! perf record -o "${perfdata}" -e "{instructions,instructions}:Su" -- \
+    perf test -w brstack 2> /dev/null
+  then
+    echo "Leader sampling [Failed record]"
+    err=1
+    return
+  fi
+  index=0
+  perf script -i "${perfdata}" > $script_output
+  while IFS= read -r line
+  do
+    # Check if the two instruction counts are equal in each record
+    instructions=$(echo $line | awk '{for(i=1;i<=NF;i++) if($i=="instructions:") print $(i-1)}')
+    if [ $(($index%2)) -ne 0 ] && [ ${instructions}x != ${prev_instructions}x ]
+    then
+      echo "Leader sampling [Failed inconsistent instructions count]"
+      err=1
+      return
+    fi
+    index=$(($index+1))
+    prev_instructions=$instructions
+  done < $script_output
+  echo "Basic leader sampling test [Success]"
+}
+
+test_topdown_leader_sampling() {
+  echo "Topdown leader sampling test"
+  if ! perf stat -e "{slots,topdown-retiring}" true 2> /dev/null
+  then
+    echo "Topdown leader sampling [Skipped event parsing failed]"
+    return
+  fi
+  if ! perf record -o "${perfdata}" -e "{instructions,slots,topdown-retiring}:S" true 2> /dev/null
+  then
+    echo "Topdown leader sampling [Failed topdown events not reordered correctly]"
+    err=1
+    return
+  fi
+  echo "Topdown leader sampling test [Success]"
+}
+
+test_precise_max() {
+  echo "precise_max attribute test"
+  if ! perf stat -e "cycles,instructions" true 2> /dev/null
+  then
+    echo "precise_max attribute [Skipped no hardware events]"
+    return
+  fi
+  # Just to make sure it doesn't fail
+  if ! perf record -o "${perfdata}" -e "cycles:P" true 2> /dev/null
+  then
+    echo "precise_max attribute [Failed cycles:P event]"
+    err=1
+    return
+  fi
+  # On AMD, cycles and instructions events are treated differently
+  if ! perf record -o "${perfdata}" -e "instructions:P" true 2> /dev/null
+  then
+    echo "precise_max attribute [Failed instructions:P event]"
+    err=1
+    return
+  fi
+  echo "precise_max attribute test [Success]"
+}
+
 # raise the limit of file descriptors to minimum
 if [[ $default_fd_limit -lt $min_fd_limit ]]; then
        ulimit -Sn $min_fd_limit
@@ -239,6 +307,9 @@ test_system_wide
 test_workload
 test_branch_counter
 test_cgroup
+test_leader_sampling
+test_topdown_leader_sampling
+test_precise_max
 
 # restore the default value
 ulimit -Sn $default_fd_limit

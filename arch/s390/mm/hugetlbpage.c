@@ -24,6 +24,7 @@
 
 static inline unsigned long __pte_to_rste(pte_t pte)
 {
+	swp_entry_t arch_entry;
 	unsigned long rste;
 
 	/*
@@ -48,6 +49,7 @@ static inline unsigned long __pte_to_rste(pte_t pte)
 	 */
 	if (pte_present(pte)) {
 		rste = pte_val(pte) & PAGE_MASK;
+		rste |= _SEGMENT_ENTRY_PRESENT;
 		rste |= move_set_bit(pte_val(pte), _PAGE_READ,
 				     _SEGMENT_ENTRY_READ);
 		rste |= move_set_bit(pte_val(pte), _PAGE_WRITE,
@@ -66,6 +68,10 @@ static inline unsigned long __pte_to_rste(pte_t pte)
 #endif
 		rste |= move_set_bit(pte_val(pte), _PAGE_NOEXEC,
 				     _SEGMENT_ENTRY_NOEXEC);
+	} else if (!pte_none(pte)) {
+		/* swap pte */
+		arch_entry = __pte_to_swp_entry(pte);
+		rste = mk_swap_rste(__swp_type(arch_entry), __swp_offset(arch_entry));
 	} else
 		rste = _SEGMENT_ENTRY_EMPTY;
 	return rste;
@@ -73,13 +79,18 @@ static inline unsigned long __pte_to_rste(pte_t pte)
 
 static inline pte_t __rste_to_pte(unsigned long rste)
 {
+	swp_entry_t arch_entry;
 	unsigned long pteval;
-	int present;
+	int present, none;
+	pte_t pte;
 
-	if ((rste & _REGION_ENTRY_TYPE_MASK) == _REGION_ENTRY_TYPE_R3)
+	if ((rste & _REGION_ENTRY_TYPE_MASK) == _REGION_ENTRY_TYPE_R3) {
 		present = pud_present(__pud(rste));
-	else
+		none = pud_none(__pud(rste));
+	} else {
 		present = pmd_present(__pmd(rste));
+		none = pmd_none(__pmd(rste));
+	}
 
 	/*
 	 * Convert encoding		pmd / pud bits	    pte bits
@@ -114,6 +125,11 @@ static inline pte_t __rste_to_pte(unsigned long rste)
 		pteval |= move_set_bit(rste, _SEGMENT_ENTRY_SOFT_DIRTY, _PAGE_SOFT_DIRTY);
 #endif
 		pteval |= move_set_bit(rste, _SEGMENT_ENTRY_NOEXEC, _PAGE_NOEXEC);
+	} else if (!none) {
+		/* swap rste */
+		arch_entry = __rste_to_swp_entry(rste);
+		pte = mk_swap_pte(__swp_type_rste(arch_entry), __swp_offset_rste(arch_entry));
+		pteval = pte_val(pte);
 	} else
 		pteval = _PAGE_INVALID;
 	return __pte(pteval);
@@ -148,8 +164,6 @@ void __set_huge_pte_at(struct mm_struct *mm, unsigned long addr,
 	unsigned long rste;
 
 	rste = __pte_to_rste(pte);
-	if (!MACHINE_HAS_NX)
-		rste &= ~_SEGMENT_ENTRY_NOEXEC;
 
 	/* Set correct table type for 2G hugepages */
 	if ((pte_val(*ptep) & _REGION_ENTRY_TYPE_MASK) == _REGION_ENTRY_TYPE_R3) {
@@ -223,11 +237,10 @@ pte_t *huge_pte_offset(struct mm_struct *mm,
 		p4dp = p4d_offset(pgdp, addr);
 		if (p4d_present(*p4dp)) {
 			pudp = pud_offset(p4dp, addr);
-			if (pud_present(*pudp)) {
-				if (pud_leaf(*pudp))
-					return (pte_t *) pudp;
+			if (sz == PUD_SIZE)
+				return (pte_t *)pudp;
+			if (pud_present(*pudp))
 				pmdp = pmd_offset(pudp, addr);
-			}
 		}
 	}
 	return (pte_t *) pmdp;

@@ -769,7 +769,7 @@ static struct platform_driver tegra_host1x_driver = {
 		.pm = &host1x_pm_ops,
 	},
 	.probe = host1x_probe,
-	.remove_new = host1x_remove,
+	.remove = host1x_remove,
 };
 
 static struct platform_driver * const drivers[] = {

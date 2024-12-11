@@ -51,6 +51,13 @@ mkdir -p "${destdir}"
 if [ "${CC}" != "${HOSTCC}" ]; then
 	echo "Rebuilding host programs with ${CC}..."
 
+	# This leverages external module building.
+	# - Clear sub_make_done to allow the top-level Makefile to redo sub-make.
+	# - Filter out --no-print-directory to print "Entering directory" logs
+	#   when Make changes the working directory.
+	unset sub_make_done
+	MAKEFLAGS=$(echo "${MAKEFLAGS}" | sed s/--no-print-directory//)
+
 	cat <<-'EOF' >  "${destdir}/Kbuild"
 	subdir-y := scripts
 	EOF

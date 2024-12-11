@@ -186,13 +186,20 @@ static const struct iommu_domain_ops intel_nested_domain_ops = {
 	.cache_invalidate_user	= intel_nested_cache_invalidate_user,
 };
 
-struct iommu_domain *intel_nested_domain_alloc(struct iommu_domain *parent,
-					       const struct iommu_user_data *user_data)
+struct iommu_domain *
+intel_iommu_domain_alloc_nested(struct device *dev, struct iommu_domain *parent,
+				u32 flags,
+				const struct iommu_user_data *user_data)
 {
+	struct device_domain_info *info = dev_iommu_priv_get(dev);
 	struct dmar_domain *s2_domain = to_dmar_domain(parent);
+	struct intel_iommu *iommu = info->iommu;
 	struct iommu_hwpt_vtd_s1 vtd;
 	struct dmar_domain *domain;
 	int ret;
+
+	if (!nested_supported(iommu) || flags)
+		return ERR_PTR(-EOPNOTSUPP);
 
 	/* Must be nested domain */
 	if (user_data->type != IOMMU_HWPT_DATA_VTD_S1)

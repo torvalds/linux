@@ -111,3 +111,7 @@ class SourceGenerator:
     def emit_encoder(self, node: _XdrAst) -> None:
         """Emit one encoder function for this XDR type"""
         raise NotImplementedError("Encoder generation not supported")
+
+    def emit_maxsize(self, node: _XdrAst) -> None:
+        """Emit one maxsize macro for this XDR type"""
+        raise NotImplementedError("Maxsize macro generation not supported")

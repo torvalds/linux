@@ -254,8 +254,8 @@ static void df_v3_6_sw_init(struct amdgpu_device *adev)
 
 static void df_v3_6_sw_fini(struct amdgpu_device *adev)
 {
-
-	device_remove_file(adev->dev, &dev_attr_df_cntr_avail);
+	if (adev->dev->kobj.sd)
+		device_remove_file(adev->dev, &dev_attr_df_cntr_avail);
 
 }
 

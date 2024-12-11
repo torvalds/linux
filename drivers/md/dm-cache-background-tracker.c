@@ -143,12 +143,6 @@ static void update_stats(struct background_tracker *b, struct policy_work *w, in
 	}
 }
 
-unsigned int btracker_nr_writebacks_queued(struct background_tracker *b)
-{
-	return atomic_read(&b->pending_writebacks);
-}
-EXPORT_SYMBOL_GPL(btracker_nr_writebacks_queued);
-
 unsigned int btracker_nr_demotions_queued(struct background_tracker *b)
 {
 	return atomic_read(&b->pending_demotes);

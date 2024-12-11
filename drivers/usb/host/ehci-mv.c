@@ -279,7 +279,7 @@ static const struct of_device_id ehci_mv_dt_ids[] = {
 
 static struct platform_driver ehci_mv_driver = {
 	.probe = mv_ehci_probe,
-	.remove_new = mv_ehci_remove,
+	.remove = mv_ehci_remove,
 	.shutdown = mv_ehci_shutdown,
 	.driver = {
 		.name = "mv-ehci",

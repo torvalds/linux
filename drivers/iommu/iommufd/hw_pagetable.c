@@ -119,7 +119,7 @@ iommufd_hwpt_paging_alloc(struct iommufd_ctx *ictx, struct iommufd_ioas *ioas,
 
 	lockdep_assert_held(&ioas->mutex);
 
-	if ((flags || user_data) && !ops->domain_alloc_user)
+	if ((flags || user_data) && !ops->domain_alloc_paging_flags)
 		return ERR_PTR(-EOPNOTSUPP);
 	if (flags & ~valid_flags)
 		return ERR_PTR(-EOPNOTSUPP);
@@ -139,9 +139,9 @@ iommufd_hwpt_paging_alloc(struct iommufd_ctx *ictx, struct iommufd_ioas *ioas,
 	hwpt_paging->ioas = ioas;
 	hwpt_paging->nest_parent = flags & IOMMU_HWPT_ALLOC_NEST_PARENT;
 
-	if (ops->domain_alloc_user) {
-		hwpt->domain = ops->domain_alloc_user(idev->dev, flags, NULL,
-						      user_data);
+	if (ops->domain_alloc_paging_flags) {
+		hwpt->domain = ops->domain_alloc_paging_flags(idev->dev, flags,
+							      user_data);
 		if (IS_ERR(hwpt->domain)) {
 			rc = PTR_ERR(hwpt->domain);
 			hwpt->domain = NULL;
@@ -227,7 +227,7 @@ iommufd_hwpt_nested_alloc(struct iommufd_ctx *ictx,
 	int rc;
 
 	if ((flags & ~IOMMU_HWPT_FAULT_ID_VALID) ||
-	    !user_data->len || !ops->domain_alloc_user)
+	    !user_data->len || !ops->domain_alloc_nested)
 		return ERR_PTR(-EOPNOTSUPP);
 	if (parent->auto_domain || !parent->nest_parent ||
 	    parent->common.domain->owner != ops)
@@ -242,9 +242,9 @@ iommufd_hwpt_nested_alloc(struct iommufd_ctx *ictx,
 	refcount_inc(&parent->common.obj.users);
 	hwpt_nested->parent = parent;
 
-	hwpt->domain = ops->domain_alloc_user(idev->dev,
-					      flags & ~IOMMU_HWPT_FAULT_ID_VALID,
-					      parent->common.domain, user_data);
+	hwpt->domain = ops->domain_alloc_nested(
+		idev->dev, parent->common.domain,
+		flags & ~IOMMU_HWPT_FAULT_ID_VALID, user_data);
 	if (IS_ERR(hwpt->domain)) {
 		rc = PTR_ERR(hwpt->domain);
 		hwpt->domain = NULL;

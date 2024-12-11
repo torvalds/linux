@@ -689,7 +689,7 @@ MODULE_DEVICE_TABLE(acpi, catu_acpi_ids);
 
 static struct platform_driver catu_platform_driver = {
 	.probe	= catu_platform_probe,
-	.remove_new = catu_platform_remove,
+	.remove = catu_platform_remove,
 	.driver	= {
 		.name			= "coresight-catu-platform",
 		.acpi_match_table	= ACPI_PTR(catu_acpi_ids),

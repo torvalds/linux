@@ -115,7 +115,7 @@ static inline void hci_free_xfer(struct hci_xfer *xfer, unsigned int n)
 
 /* This abstracts PIO vs DMA operations */
 struct hci_io_ops {
-	bool (*irq_handler)(struct i3c_hci *hci, unsigned int mask);
+	bool (*irq_handler)(struct i3c_hci *hci);
 	int (*queue_xfer)(struct i3c_hci *hci, struct hci_xfer *xfer, int n);
 	bool (*dequeue_xfer)(struct i3c_hci *hci, struct hci_xfer *xfer, int n);
 	int (*request_ibi)(struct i3c_hci *hci, struct i3c_dev_desc *dev,

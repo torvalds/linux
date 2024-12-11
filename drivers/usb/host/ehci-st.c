@@ -320,7 +320,7 @@ MODULE_DEVICE_TABLE(of, st_ehci_ids);
 
 static struct platform_driver ehci_platform_driver = {
 	.probe		= st_ehci_platform_probe,
-	.remove_new	= st_ehci_platform_remove,
+	.remove		= st_ehci_platform_remove,
 	.shutdown	= usb_hcd_platform_shutdown,
 	.driver		= {
 		.name	= "st-ehci",

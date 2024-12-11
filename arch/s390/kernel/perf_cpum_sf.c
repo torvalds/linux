@@ -180,39 +180,27 @@ static int sf_buffer_available(struct cpu_hw_sf *cpuhw)
  */
 static void free_sampling_buffer(struct sf_buffer *sfb)
 {
-	unsigned long *sdbt, *curr;
-
-	if (!sfb->sdbt)
-		return;
+	unsigned long *sdbt, *curr, *head;
 
 	sdbt = sfb->sdbt;
-	curr = sdbt;
-
+	if (!sdbt)
+		return;
+	sfb->sdbt = NULL;
 	/* Free the SDBT after all SDBs are processed... */
-	while (1) {
-		if (!*curr || !sdbt)
-			break;
-
-		/* Process table-link entries */
+	head = sdbt;
+	curr = sdbt;
+	do {
 		if (is_link_entry(curr)) {
+			/* Process table-link entries */
 			curr = get_next_sdbt(curr);
-			if (sdbt)
-				free_page((unsigned long)sdbt);
-
-			/* If the origin is reached, sampling buffer is freed */
-			if (curr == sfb->sdbt)
-				break;
-			else
-				sdbt = curr;
+			free_page((unsigned long)sdbt);
+			sdbt = curr;
 		} else {
 			/* Process SDB pointer */
-			if (*curr) {
-				free_page((unsigned long)phys_to_virt(*curr));
-				curr++;
-			}
+			free_page((unsigned long)phys_to_virt(*curr));
+			curr++;
 		}
-	}
-
+	} while (curr != head);
 	memset(sfb, 0, sizeof(*sfb));
 }
 

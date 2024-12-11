@@ -262,7 +262,7 @@ static void altera_freeze_br_remove(struct platform_device *pdev)
 
 static struct platform_driver altera_freeze_br_driver = {
 	.probe = altera_freeze_br_probe,
-	.remove_new = altera_freeze_br_remove,
+	.remove = altera_freeze_br_remove,
 	.driver = {
 		.name	= "altera_freeze_br",
 		.of_match_table = altera_freeze_br_of_match,

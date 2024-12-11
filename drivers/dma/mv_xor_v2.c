@@ -635,7 +635,7 @@ static int mv_xor_v2_descq_init(struct mv_xor_v2_device *xor_dev)
 	writel(MV_XOR_V2_DESC_NUM,
 	       xor_dev->dma_base + MV_XOR_V2_DMA_DESQ_SIZE_OFF);
 
-	/* write the DESQ address to the DMA enngine*/
+	/* write the DESQ address to the DMA engine*/
 	writel(lower_32_bits(xor_dev->hw_desq),
 	       xor_dev->dma_base + MV_XOR_V2_DMA_DESQ_BALR_OFF);
 	writel(upper_32_bits(xor_dev->hw_desq),
@@ -884,7 +884,7 @@ static struct platform_driver mv_xor_v2_driver = {
 	.probe		= mv_xor_v2_probe,
 	.suspend	= mv_xor_v2_suspend,
 	.resume		= mv_xor_v2_resume,
-	.remove_new	= mv_xor_v2_remove,
+	.remove		= mv_xor_v2_remove,
 	.driver		= {
 		.name	= "mv_xor_v2",
 		.of_match_table = of_match_ptr(mv_xor_v2_dt_ids),

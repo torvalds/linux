@@ -53,7 +53,7 @@ static int zpci_bus_prepare_device(struct zpci_dev *zdev)
 		zpci_setup_bus_resources(zdev);
 		for (i = 0; i < PCI_STD_NUM_BARS; i++) {
 			if (zdev->bars[i].res)
-				pci_bus_add_resource(zdev->zbus->bus, zdev->bars[i].res, 0);
+				pci_bus_add_resource(zdev->zbus->bus, zdev->bars[i].res);
 		}
 	}
 

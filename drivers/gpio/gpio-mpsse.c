@@ -403,7 +403,7 @@ static void gpio_mpsse_ida_remove(void *data)
 {
 	struct mpsse_priv *priv = data;
 
-	ida_simple_remove(&gpio_mpsse_ida, priv->id);
+	ida_free(&gpio_mpsse_ida, priv->id);
 }
 
 static int gpio_mpsse_probe(struct usb_interface *interface,
@@ -422,7 +422,7 @@ static int gpio_mpsse_probe(struct usb_interface *interface,
 	priv->intf = interface;
 	priv->intf_id = interface->cur_altsetting->desc.bInterfaceNumber;
 
-	priv->id = ida_simple_get(&gpio_mpsse_ida, 0, 0, GFP_KERNEL);
+	priv->id = ida_alloc(&gpio_mpsse_ida, GFP_KERNEL);
 	if (priv->id < 0)
 		return priv->id;
 

@@ -231,8 +231,10 @@ static void brd_do_discard(struct brd_device *brd, sector_t sector, u32 size)
 	xa_lock(&brd->brd_pages);
 	while (size >= PAGE_SIZE && aligned_sector < rd_size * 2) {
 		page = __xa_erase(&brd->brd_pages, aligned_sector >> PAGE_SECTORS_SHIFT);
-		if (page)
+		if (page) {
 			__free_page(page);
+			brd->brd_nr_pages--;
+		}
 		aligned_sector += PAGE_SECTORS;
 		size -= PAGE_SIZE;
 	}

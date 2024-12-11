@@ -18,6 +18,9 @@ use macros::pin_data;
 pub mod mutex;
 pub mod spinlock;
 
+pub(super) mod global;
+pub use global::{GlobalGuard, GlobalLock, GlobalLockBackend, GlobalLockedBy};
+
 /// The "backend" of a lock.
 ///
 /// It is the actual implementation of the lock, without the need to repeat patterns used in all
@@ -51,7 +54,7 @@ pub unsafe trait Backend {
     /// remain valid for read indefinitely.
     unsafe fn init(
         ptr: *mut Self::State,
-        name: *const core::ffi::c_char,
+        name: *const crate::ffi::c_char,
         key: *mut bindings::lock_class_key,
     );
 
@@ -62,6 +65,13 @@ pub unsafe trait Backend {
     /// Callers must ensure that [`Backend::init`] has been previously called.
     #[must_use]
     unsafe fn lock(ptr: *mut Self::State) -> Self::GuardState;
+
+    /// Tries to acquire the lock.
+    ///
+    /// # Safety
+    ///
+    /// Callers must ensure that [`Backend::init`] has been previously called.
+    unsafe fn try_lock(ptr: *mut Self::State) -> Option<Self::GuardState>;
 
     /// Releases the lock, giving up its ownership.
     ///
@@ -133,6 +143,15 @@ impl<T: ?Sized, B: Backend> Lock<T, B> {
         // SAFETY: The lock was just acquired.
         unsafe { Guard::new(self, state) }
     }
+
+    /// Tries to acquire the lock.
+    ///
+    /// Returns a guard that can be used to access the data protected by the lock if successful.
+    pub fn try_lock(&self) -> Option<Guard<'_, T, B>> {
+        // SAFETY: The constructor of the type calls `init`, so the existence of the object proves
+        // that `init` was called.
+        unsafe { B::try_lock(self.state.get()).map(|state| Guard::new(self, state)) }
+    }
 }
 
 /// A lock guard.
@@ -155,9 +174,9 @@ impl<T: ?Sized, B: Backend> Guard<'_, T, B> {
         // SAFETY: The caller owns the lock, so it is safe to unlock it.
         unsafe { B::unlock(self.lock.state.get(), &self.state) };
 
-        // SAFETY: The lock was just unlocked above and is being relocked now.
-        let _relock =
-            ScopeGuard::new(|| unsafe { B::relock(self.lock.state.get(), &mut self.state) });
+        let _relock = ScopeGuard::new(||
+                // SAFETY: The lock was just unlocked above and is being relocked now.
+                unsafe { B::relock(self.lock.state.get(), &mut self.state) });
 
         cb()
     }

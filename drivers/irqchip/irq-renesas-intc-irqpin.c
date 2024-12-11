@@ -584,7 +584,7 @@ static SIMPLE_DEV_PM_OPS(intc_irqpin_pm_ops, intc_irqpin_suspend, NULL);
 
 static struct platform_driver intc_irqpin_device_driver = {
 	.probe		= intc_irqpin_probe,
-	.remove_new	= intc_irqpin_remove,
+	.remove		= intc_irqpin_remove,
 	.driver		= {
 		.name		= "renesas_intc_irqpin",
 		.of_match_table	= intc_irqpin_dt_ids,

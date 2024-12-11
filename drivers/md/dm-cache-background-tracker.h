@@ -50,7 +50,6 @@ struct background_tracker *btracker_create(unsigned int max_work);
  */
 void btracker_destroy(struct background_tracker *b);
 
-unsigned int btracker_nr_writebacks_queued(struct background_tracker *b);
 unsigned int btracker_nr_demotions_queued(struct background_tracker *b);
 
 /*

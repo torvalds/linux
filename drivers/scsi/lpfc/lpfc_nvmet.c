@@ -2854,7 +2854,7 @@ lpfc_nvmet_prep_fcp_wqe(struct lpfc_hba *phba,
 			/* In template ar=1 wqes=0 sup=0 irsp=0 irsplen=0 */
 
 			if (rsp->rsplen == LPFC_NVMET_SUCCESS_LEN) {
-				if (ndlp->nlp_flag & NLP_SUPPRESS_RSP)
+				if (test_bit(NLP_SUPPRESS_RSP, &ndlp->nlp_flag))
 					bf_set(wqe_sup,
 					       &wqe->fcp_tsend.wqe_com, 1);
 			} else {

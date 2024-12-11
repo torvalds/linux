@@ -1285,10 +1285,8 @@ static int f_midi2_set_alt(struct usb_function *fn, unsigned int intf,
 
 	if (alt == 0)
 		op_mode = MIDI_OP_MODE_MIDI1;
-	else if (alt == 1)
-		op_mode = MIDI_OP_MODE_MIDI2;
 	else
-		op_mode = MIDI_OP_MODE_UNSET;
+		op_mode = MIDI_OP_MODE_MIDI2;
 
 	if (midi2->operation_mode == op_mode)
 		return 0;

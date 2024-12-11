@@ -1232,7 +1232,7 @@ lpfc_nvme_prep_io_cmd(struct lpfc_vport *vport,
 
 			/* Word 5 */
 			if ((phba->cfg_nvme_enable_fb) &&
-			    (pnode->nlp_flag & NLP_FIRSTBURST)) {
+			    test_bit(NLP_FIRSTBURST, &pnode->nlp_flag)) {
 				req_len = lpfc_ncmd->nvmeCmd->payload_length;
 				if (req_len < pnode->nvme_fb_size)
 					wqe->fcp_iwrite.initial_xfer_len =
@@ -2231,6 +2231,7 @@ lpfc_nvme_lport_unreg_wait(struct lpfc_vport *vport,
 	struct lpfc_hba  *phba = vport->phba;
 	struct lpfc_sli4_hdw_queue *qp;
 	int abts_scsi, abts_nvme;
+	u16 nvmels_cnt;
 
 	/* Host transport has to clean up and confirm requiring an indefinite
 	 * wait. Print a message if a 10 second wait expires and renew the
@@ -2243,6 +2244,7 @@ lpfc_nvme_lport_unreg_wait(struct lpfc_vport *vport,
 			pending = 0;
 			abts_scsi = 0;
 			abts_nvme = 0;
+			nvmels_cnt = 0;
 			for (i = 0; i < phba->cfg_hdw_queue; i++) {
 				qp = &phba->sli4_hba.hdwq[i];
 				if (!vport->localport || !qp || !qp->io_wq)
@@ -2255,6 +2257,11 @@ lpfc_nvme_lport_unreg_wait(struct lpfc_vport *vport,
 				abts_scsi += qp->abts_scsi_io_bufs;
 				abts_nvme += qp->abts_nvme_io_bufs;
 			}
+			if (phba->sli4_hba.nvmels_wq) {
+				pring = phba->sli4_hba.nvmels_wq->pring;
+				if (pring)
+					nvmels_cnt = pring->txcmplq_cnt;
+			}
 			if (!vport->localport ||
 			    test_bit(HBA_PCI_ERR, &vport->phba->bit_flags) ||
 			    phba->link_state == LPFC_HBA_ERROR ||
@@ -2263,10 +2270,10 @@ lpfc_nvme_lport_unreg_wait(struct lpfc_vport *vport,
 
 			lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
 					 "6176 Lport x%px Localport x%px wait "
-					 "timed out. Pending %d [%d:%d]. "
+					 "timed out. Pending %d [%d:%d:%d]. "
 					 "Renewing.\n",
 					 lport, vport->localport, pending,
-					 abts_scsi, abts_nvme);
+					 abts_scsi, abts_nvme, nvmels_cnt);
 			continue;
 		}
 		break;
@@ -2644,14 +2651,11 @@ lpfc_nvme_unregister_port(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 				 * reference. Check if another thread has set
 				 * NLP_DROPPED.
 				 */
-				spin_lock_irq(&ndlp->lock);
-				if (!(ndlp->nlp_flag & NLP_DROPPED)) {
-					ndlp->nlp_flag |= NLP_DROPPED;
-					spin_unlock_irq(&ndlp->lock);
+				if (!test_and_set_bit(NLP_DROPPED,
+						      &ndlp->nlp_flag)) {
 					lpfc_nlp_put(ndlp);
 					return;
 				}
-				spin_unlock_irq(&ndlp->lock);
 			}
 		}
 	}
@@ -2839,5 +2843,45 @@ lpfc_nvme_cancel_iocb(struct lpfc_hba *phba, struct lpfc_iocbq *pwqeIn,
 
 	memcpy(&pwqeIn->wcqe_cmpl, wcqep, sizeof(*wcqep));
 	(pwqeIn->cmd_cmpl)(phba, pwqeIn, pwqeIn);
+#endif
+}
+
+/**
+ * lpfc_nvmels_flush_cmd - Clean up outstanding nvmels commands for a port
+ * @phba: Pointer to HBA context object.
+ *
+ **/
+void
+lpfc_nvmels_flush_cmd(struct lpfc_hba *phba)
+{
+#if (IS_ENABLED(CONFIG_NVME_FC))
+	LIST_HEAD(cancel_list);
+	struct lpfc_sli_ring *pring = NULL;
+	struct lpfc_iocbq *piocb, *tmp_iocb;
+	unsigned long iflags;
+
+	if (phba->sli4_hba.nvmels_wq)
+		pring = phba->sli4_hba.nvmels_wq->pring;
+
+	if (unlikely(!pring))
+		return;
+
+	spin_lock_irqsave(&phba->hbalock, iflags);
+	spin_lock(&pring->ring_lock);
+	list_splice_init(&pring->txq, &cancel_list);
+	pring->txq_cnt = 0;
+	list_for_each_entry_safe(piocb, tmp_iocb, &pring->txcmplq, list) {
+		if (piocb->cmd_flag & LPFC_IO_NVME_LS) {
+			list_move_tail(&piocb->list, &cancel_list);
+			pring->txcmplq_cnt--;
+			piocb->cmd_flag &= ~LPFC_IO_ON_TXCMPLQ;
+		}
+	}
+	spin_unlock(&pring->ring_lock);
+	spin_unlock_irqrestore(&phba->hbalock, iflags);
+
+	if (!list_empty(&cancel_list))
+		lpfc_sli_cancel_iocbs(phba, &cancel_list, IOSTAT_LOCAL_REJECT,
+				      IOERR_SLI_DOWN);
 #endif
 }

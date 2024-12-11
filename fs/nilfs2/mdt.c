@@ -33,7 +33,8 @@ nilfs_mdt_insert_new_block(struct inode *inode, unsigned long block,
 					      struct buffer_head *, void *))
 {
 	struct nilfs_inode_info *ii = NILFS_I(inode);
-	void *kaddr;
+	struct folio *folio = bh->b_folio;
+	void *from;
 	int ret;
 
 	/* Caller exclude read accesses using page lock */
@@ -47,12 +48,14 @@ nilfs_mdt_insert_new_block(struct inode *inode, unsigned long block,
 
 	set_buffer_mapped(bh);
 
-	kaddr = kmap_local_page(bh->b_page);
-	memset(kaddr + bh_offset(bh), 0, i_blocksize(inode));
+	/* Initialize block (block size > PAGE_SIZE not yet supported) */
+	from = kmap_local_folio(folio, offset_in_folio(folio, bh->b_data));
+	memset(from, 0, bh->b_size);
 	if (init_block)
-		init_block(inode, bh, kaddr);
-	flush_dcache_page(bh->b_page);
-	kunmap_local(kaddr);
+		init_block(inode, bh, from);
+	kunmap_local(from);
+
+	flush_dcache_folio(folio);
 
 	set_buffer_uptodate(bh);
 	mark_buffer_dirty(bh);
@@ -395,10 +398,9 @@ int nilfs_mdt_fetch_dirty(struct inode *inode)
 	return test_bit(NILFS_I_DIRTY, &ii->i_state);
 }
 
-static int
-nilfs_mdt_write_page(struct page *page, struct writeback_control *wbc)
+static int nilfs_mdt_write_folio(struct folio *folio,
+		struct writeback_control *wbc)
 {
-	struct folio *folio = page_folio(page);
 	struct inode *inode = folio->mapping->host;
 	struct super_block *sb;
 	int err = 0;
@@ -431,11 +433,23 @@ nilfs_mdt_write_page(struct page *page, struct writeback_control *wbc)
 	return err;
 }
 
+static int nilfs_mdt_writeback(struct address_space *mapping,
+		struct writeback_control *wbc)
+{
+	struct folio *folio = NULL;
+	int error;
+
+	while ((folio = writeback_iter(mapping, wbc, folio, &error)))
+		error = nilfs_mdt_write_folio(folio, wbc);
+
+	return error;
+}
 
 static const struct address_space_operations def_mdt_aops = {
 	.dirty_folio		= block_dirty_folio,
 	.invalidate_folio	= block_invalidate_folio,
-	.writepage		= nilfs_mdt_write_page,
+	.writepages		= nilfs_mdt_writeback,
+	.migrate_folio		= buffer_migrate_folio_norefs,
 };
 
 static const struct inode_operations def_mdt_iops;
@@ -570,7 +584,8 @@ int nilfs_mdt_freeze_buffer(struct inode *inode, struct buffer_head *bh)
 	if (!bh_frozen)
 		bh_frozen = create_empty_buffers(folio, 1 << blkbits, 0);
 
-	bh_frozen = get_nth_bh(bh_frozen, bh_offset(bh) >> blkbits);
+	bh_frozen = get_nth_bh(bh_frozen,
+			       offset_in_folio(folio, bh->b_data) >> blkbits);
 
 	if (!buffer_uptodate(bh_frozen))
 		nilfs_copy_buffer(bh_frozen, bh);
@@ -600,7 +615,8 @@ nilfs_mdt_get_frozen_buffer(struct inode *inode, struct buffer_head *bh)
 	if (!IS_ERR(folio)) {
 		bh_frozen = folio_buffers(folio);
 		if (bh_frozen) {
-			n = bh_offset(bh) >> inode->i_blkbits;
+			n = offset_in_folio(folio, bh->b_data) >>
+				inode->i_blkbits;
 			bh_frozen = get_nth_bh(bh_frozen, n);
 		}
 		folio_unlock(folio);
