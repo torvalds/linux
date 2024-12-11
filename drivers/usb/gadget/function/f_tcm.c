@@ -196,6 +196,11 @@ static void bot_read_compl(struct usb_ep *ep, struct usb_request *req)
 	if (req->status < 0)
 		pr_err("ERR %s(%d)\n", __func__, __LINE__);
 
+	if (req->status == -ESHUTDOWN) {
+		transport_generic_free_cmd(&cmd->se_cmd, 0);
+		return;
+	}
+
 	bot_send_status(cmd, true);
 }
 
@@ -550,7 +555,7 @@ static void uasp_status_data_cmpl(struct usb_ep *ep, struct usb_request *req)
 	struct uas_stream *stream = &fu->stream[cmd->se_cmd.map_tag];
 	int ret;
 
-	if (req->status < 0)
+	if (req->status == -ESHUTDOWN)
 		goto cleanup;
 
 	switch (cmd->state) {
@@ -915,7 +920,13 @@ static void usbg_data_write_cmpl(struct usb_ep *ep, struct usb_request *req)
 
 	cmd->state = UASP_QUEUE_COMMAND;
 
-	if (req->status < 0) {
+	if (req->status == -ESHUTDOWN) {
+		target_put_sess_cmd(se_cmd);
+		transport_generic_free_cmd(&cmd->se_cmd, 0);
+		return;
+	}
+
+	if (req->status) {
 		pr_err("%s() state %d transfer failed\n", __func__, cmd->state);
 		goto cleanup;
 	}
