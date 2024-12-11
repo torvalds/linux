@@ -449,6 +449,12 @@ Before jumping into the kernel, the following conditions must be met:
 
     - HFGWTR_EL2.nGCS_EL0 (bit 52) must be initialised to 0b1.
 
+ - For CPUs with debug architecture i.e FEAT_Debugv8pN (all versions):
+
+ - If EL3 is present:
+
+   - MDCR_EL3.TDA (bit 9) must be initialized to 0b0
+
 The requirements described above for CPU mode, caches, MMUs, architected
 timers, coherency and system registers apply to all CPUs.  All CPUs must
 enter the kernel in the same exception level.  Where the values documented
