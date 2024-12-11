@@ -2281,7 +2281,7 @@ drm_dp_mst_port_add_connector(struct drm_dp_mst_branch *mstb,
 		port->cached_edid = drm_edid_read_ddc(port->connector,
 						      &port->aux.ddc);
 
-	drm_connector_register(port->connector);
+	drm_connector_dynamic_register(port->connector);
 	return;
 
 error:
