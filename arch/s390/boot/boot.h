@@ -57,6 +57,7 @@ unsigned long physmem_alloc_range(enum reserved_range_type type, unsigned long s
 				  unsigned long align, unsigned long min, unsigned long max,
 				  bool die_on_oom);
 unsigned long get_physmem_alloc_pos(void);
+void dump_physmem_reserved(void);
 bool ipl_report_certs_intersects(unsigned long addr, unsigned long size,
 				 unsigned long *intersection_start);
 bool is_ipl_block_dump(void);

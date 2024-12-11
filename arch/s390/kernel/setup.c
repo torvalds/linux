@@ -702,7 +702,7 @@ static void __init reserve_physmem_info(void)
 {
 	unsigned long addr, size;
 
-	if (get_physmem_reserved(RR_MEM_DETECT_EXTENDED, &addr, &size))
+	if (get_physmem_reserved(RR_MEM_DETECT_EXT, &addr, &size))
 		memblock_reserve(addr, size);
 }
 
@@ -710,7 +710,7 @@ static void __init free_physmem_info(void)
 {
 	unsigned long addr, size;
 
-	if (get_physmem_reserved(RR_MEM_DETECT_EXTENDED, &addr, &size))
+	if (get_physmem_reserved(RR_MEM_DETECT_EXT, &addr, &size))
 		memblock_phys_free(addr, size);
 }
 

@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
+#define boot_fmt(fmt) "physmem: " fmt
 #include <linux/processor.h>
 #include <linux/errno.h>
 #include <linux/init.h>
@@ -28,7 +29,7 @@ static struct physmem_range *__get_physmem_range_ptr(u32 n)
 		return &physmem_info.online[n];
 	if (unlikely(!physmem_info.online_extended)) {
 		physmem_info.online_extended = (struct physmem_range *)physmem_alloc_range(
-			RR_MEM_DETECT_EXTENDED, ENTRIES_EXTENDED_MAX, sizeof(long), 0,
+			RR_MEM_DETECT_EXT, ENTRIES_EXTENDED_MAX, sizeof(long), 0,
 			physmem_alloc_pos, true);
 	}
 	return &physmem_info.online_extended[n - MEM_INLINED_ENTRIES];
@@ -207,11 +208,16 @@ unsigned long detect_max_physmem_end(void)
 		max_physmem_end = search_mem_end();
 		physmem_info.info_source = MEM_DETECT_BIN_SEARCH;
 	}
+	boot_debug("Max physical memory: 0x%016lx (info source: %s)\n", max_physmem_end,
+		   get_physmem_info_source());
 	return max_physmem_end;
 }
 
 void detect_physmem_online_ranges(unsigned long max_physmem_end)
 {
+	unsigned long start, end;
+	int i;
+
 	if (!sclp_early_read_storage_info()) {
 		physmem_info.info_source = MEM_DETECT_SCLP_STOR_INFO;
 	} else if (physmem_info.info_source == MEM_DETECT_DIAG500_STOR_LIMIT) {
@@ -226,12 +232,16 @@ void detect_physmem_online_ranges(unsigned long max_physmem_end)
 	} else if (max_physmem_end) {
 		add_physmem_online_range(0, max_physmem_end);
 	}
+	boot_debug("Online memory ranges (info source: %s):\n", get_physmem_info_source());
+	for_each_physmem_online_range(i, &start, &end)
+		boot_debug(" online [%d]:   0x%016lx-0x%016lx\n", i, start, end);
 }
 
 void physmem_set_usable_limit(unsigned long limit)
 {
 	physmem_info.usable = limit;
 	physmem_alloc_pos = limit;
+	boot_debug("Usable memory limit: 0x%016lx\n", limit);
 }
 
 static void die_oom(unsigned long size, unsigned long align, unsigned long min, unsigned long max)
@@ -265,14 +275,23 @@ static void die_oom(unsigned long size, unsigned long align, unsigned long min, 
 	disabled_wait();
 }
 
-void physmem_reserve(enum reserved_range_type type, unsigned long addr, unsigned long size)
+static void _physmem_reserve(enum reserved_range_type type, unsigned long addr, unsigned long size)
 {
 	physmem_info.reserved[type].start = addr;
 	physmem_info.reserved[type].end = addr + size;
 }
 
+void physmem_reserve(enum reserved_range_type type, unsigned long addr, unsigned long size)
+{
+	_physmem_reserve(type, addr, size);
+	boot_debug("%-14s 0x%016lx-0x%016lx %s\n", "Reserve:", addr, addr + size,
+		   get_rr_type_name(type));
+}
+
 void physmem_free(enum reserved_range_type type)
 {
+	boot_debug("%-14s 0x%016lx-0x%016lx %s\n", "Free:", physmem_info.reserved[type].start,
+		   physmem_info.reserved[type].end, get_rr_type_name(type));
 	physmem_info.reserved[type].start = 0;
 	physmem_info.reserved[type].end = 0;
 }
@@ -339,7 +358,9 @@ unsigned long physmem_alloc_range(enum reserved_range_type type, unsigned long s
 	max = min(max, physmem_alloc_pos);
 	addr = __physmem_alloc_range(size, align, min, max, 0, NULL, die_on_oom);
 	if (addr)
-		physmem_reserve(type, addr, size);
+		_physmem_reserve(type, addr, size);
+	boot_debug("%-14s 0x%016lx-0x%016lx %s\n", "Alloc range:", addr, addr + size,
+		   get_rr_type_name(type));
 	return addr;
 }
 
@@ -347,7 +368,7 @@ unsigned long physmem_alloc(enum reserved_range_type type, unsigned long size,
 			    unsigned long align, bool die_on_oom)
 {
 	struct reserved_range *range = &physmem_info.reserved[type];
-	struct reserved_range *new_range;
+	struct reserved_range *new_range = NULL;
 	unsigned int ranges_left;
 	unsigned long addr;
 
@@ -371,6 +392,10 @@ unsigned long physmem_alloc(enum reserved_range_type type, unsigned long size,
 		}
 		range->end = addr + size;
 	}
+	if (type != RR_VMEM) {
+		boot_debug("%-14s 0x%016lx-0x%016lx %-20s align 0x%lx split %d\n", "Alloc topdown:",
+			   addr, addr + size, get_rr_type_name(type), align, !!new_range);
+	}
 	range->start = addr;
 	physmem_alloc_pos = addr;
 	physmem_alloc_ranges = ranges_left;
@@ -386,4 +411,20 @@ unsigned long physmem_alloc_or_die(enum reserved_range_type type, unsigned long 
 unsigned long get_physmem_alloc_pos(void)
 {
 	return physmem_alloc_pos;
+}
+
+void dump_physmem_reserved(void)
+{
+	struct reserved_range *range;
+	enum reserved_range_type t;
+	unsigned long start, end;
+
+	boot_debug("Reserved memory ranges:\n");
+	for_each_physmem_reserved_range(t, range, &start, &end) {
+		if (end) {
+			boot_debug("%-14s 0x%016lx-0x%016lx @%012lx chain %012lx\n",
+				   get_rr_type_name(t), start, end, (unsigned long)range,
+				   (unsigned long)range->chain);
+		}
+	}
 }
