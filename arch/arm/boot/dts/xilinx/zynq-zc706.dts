@@ -15,6 +15,7 @@
 		i2c0 = &i2c0;
 		serial0 = &uart1;
 		mmc0 = &sdhci0;
+		nvmem0 = &eeprom;
 	};
 
 	memory@0 {
@@ -99,7 +100,7 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <2>;
-			eeprom@54 {
+			eeprom: eeprom@54 {
 				compatible = "atmel,24c08";
 				reg = <0x54>;
 			};
