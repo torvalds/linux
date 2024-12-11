@@ -88,6 +88,23 @@ struct ifa6_config {
 	u16			scope;
 };
 
+enum addr_type_t {
+	UNICAST_ADDR,
+	MULTICAST_ADDR,
+	ANYCAST_ADDR,
+};
+
+struct inet6_fill_args {
+	u32 portid;
+	u32 seq;
+	int event;
+	unsigned int flags;
+	int netnsid;
+	int ifindex;
+	enum addr_type_t type;
+	bool force_rt_scope_universe;
+};
+
 int addrconf_init(void);
 void addrconf_cleanup(void);
 
@@ -524,5 +541,9 @@ static inline bool ipv6_addr_is_all_snoopers(const struct in6_addr *addr)
 int if6_proc_init(void);
 void if6_proc_exit(void);
 #endif
+
+int inet6_fill_ifmcaddr(struct sk_buff *skb,
+			const struct ifmcaddr6 *ifmca,
+			struct inet6_fill_args *args);
 
 #endif
