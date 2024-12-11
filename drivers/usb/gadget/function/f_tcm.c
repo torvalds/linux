@@ -1257,6 +1257,24 @@ static void usbg_queue_tm_rsp(struct se_cmd *se_cmd)
 
 static void usbg_aborted_task(struct se_cmd *se_cmd)
 {
+	struct usbg_cmd *cmd = container_of(se_cmd, struct usbg_cmd, se_cmd);
+	struct f_uas *fu = cmd->fu;
+	struct usb_gadget *gadget = fuas_to_gadget(fu);
+	struct uas_stream *stream = &fu->stream[se_cmd->map_tag];
+	int ret = 0;
+
+	if (stream->req_out->status == -EINPROGRESS)
+		ret = usb_ep_dequeue(fu->ep_out, stream->req_out);
+	else if (stream->req_in->status == -EINPROGRESS)
+		ret = usb_ep_dequeue(fu->ep_in, stream->req_in);
+	else if (stream->req_status->status == -EINPROGRESS)
+		ret = usb_ep_dequeue(fu->ep_status, stream->req_status);
+
+	if (ret)
+		dev_err(&gadget->dev, "Failed to abort cmd tag %d, (%d)\n",
+			cmd->tag, ret);
+
+	cmd->state = UASP_QUEUE_COMMAND;
 }
 
 static const char *usbg_check_wwn(const char *name)
