@@ -87,7 +87,7 @@ static __always_inline void __preempt_count_sub(int val)
  */
 static __always_inline bool __preempt_count_dec_and_test(void)
 {
-	return __atomic_add(-1, &get_lowcore()->preempt_count) == 1;
+	return __atomic_add_const_and_test(-1, &get_lowcore()->preempt_count);
 }
 
 /*
