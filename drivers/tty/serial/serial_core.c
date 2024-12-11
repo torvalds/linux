@@ -834,6 +834,61 @@ static int uart_get_info_user(struct tty_struct *tty,
 	return uart_get_info(port, ss) < 0 ? -EIO : 0;
 }
 
+static int uart_change_port(struct uart_port *uport,
+			    const struct serial_struct *new_info,
+			    unsigned long new_port)
+{
+	unsigned long old_iobase, old_mapbase;
+	unsigned int old_type, old_iotype, old_hub6, old_shift;
+	int retval;
+
+	old_iobase = uport->iobase;
+	old_mapbase = uport->mapbase;
+	old_type = uport->type;
+	old_hub6 = uport->hub6;
+	old_iotype = uport->iotype;
+	old_shift = uport->regshift;
+
+	if (old_type != PORT_UNKNOWN && uport->ops->release_port)
+		uport->ops->release_port(uport);
+
+	uport->iobase = new_port;
+	uport->type = new_info->type;
+	uport->hub6 = new_info->hub6;
+	uport->iotype = new_info->io_type;
+	uport->regshift = new_info->iomem_reg_shift;
+	uport->mapbase = (unsigned long)new_info->iomem_base;
+
+	if (uport->type == PORT_UNKNOWN || !uport->ops->request_port)
+		return 0;
+
+	retval = uport->ops->request_port(uport);
+	if (retval == 0)
+		return 0; /* succeeded => done */
+
+	/*
+	 * If we fail to request resources for the new port, try to restore the
+	 * old settings.
+	 */
+	uport->iobase = old_iobase;
+	uport->type = old_type;
+	uport->hub6 = old_hub6;
+	uport->iotype = old_iotype;
+	uport->regshift = old_shift;
+	uport->mapbase = old_mapbase;
+
+	if (old_type == PORT_UNKNOWN)
+		return retval;
+
+	retval = uport->ops->request_port(uport);
+	/* If we failed to restore the old settings, we fail like this. */
+	if (retval)
+		uport->type = PORT_UNKNOWN;
+
+	/* We failed anyway. */
+	return -EBUSY;
+}
+
 static int uart_set_info(struct tty_struct *tty, struct tty_port *port,
 			 struct uart_state *state,
 			 struct serial_struct *new_info)
@@ -930,62 +985,9 @@ static int uart_set_info(struct tty_struct *tty, struct tty_port *port,
 	}
 
 	if (change_port) {
-		unsigned long old_iobase, old_mapbase;
-		unsigned int old_type, old_iotype, old_hub6, old_shift;
-
-		old_iobase = uport->iobase;
-		old_mapbase = uport->mapbase;
-		old_type = uport->type;
-		old_hub6 = uport->hub6;
-		old_iotype = uport->iotype;
-		old_shift = uport->regshift;
-
-		/*
-		 * Free and release old regions
-		 */
-		if (old_type != PORT_UNKNOWN && uport->ops->release_port)
-			uport->ops->release_port(uport);
-
-		uport->iobase = new_port;
-		uport->type = new_info->type;
-		uport->hub6 = new_info->hub6;
-		uport->iotype = new_info->io_type;
-		uport->regshift = new_info->iomem_reg_shift;
-		uport->mapbase = (unsigned long)new_info->iomem_base;
-
-		/*
-		 * Claim and map the new regions
-		 */
-		if (uport->type != PORT_UNKNOWN && uport->ops->request_port) {
-			retval = uport->ops->request_port(uport);
-			/*
-			 * If we fail to request resources for the
-			 * new port, try to restore the old settings.
-			 */
-			if (retval) {
-				uport->iobase = old_iobase;
-				uport->type = old_type;
-				uport->hub6 = old_hub6;
-				uport->iotype = old_iotype;
-				uport->regshift = old_shift;
-				uport->mapbase = old_mapbase;
-
-				if (old_type != PORT_UNKNOWN) {
-					retval = uport->ops->request_port(uport);
-					/*
-					 * If we failed to restore the old
-					 * settings, we fail like this.
-					 */
-					if (retval)
-						uport->type = PORT_UNKNOWN;
-
-					/* We failed anyway. */
-					return -EBUSY;
-				}
-
-				return retval;
-			}
-		}
+		retval = uart_change_port(uport, new_info, new_port);
+		if (retval)
+			return retval;
 	}
 
 	if (change_irq)
