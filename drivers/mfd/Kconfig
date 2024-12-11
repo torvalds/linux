@@ -2427,5 +2427,17 @@ config MFD_RSMU_SPI
 	  Additional drivers must be enabled in order to use the functionality
 	  of the device.
 
+config MFD_UPBOARD_FPGA
+	tristate "Support for the AAeon UP board FPGA"
+	depends on (X86 && ACPI)
+	select MFD_CORE
+	help
+	  Select this option to enable the AAEON UP and UP^2 onboard FPGA.
+	  This is the core driver of this FPGA, which has a pin controller and a
+	  LED controller.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called upboard-fpga.
+
 endmenu
 endif
