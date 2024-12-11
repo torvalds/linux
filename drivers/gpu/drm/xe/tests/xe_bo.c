@@ -257,10 +257,9 @@ static int evict_test_run_tile(struct xe_device *xe, struct xe_tile *tile, struc
 		 * however seems quite fragile not to also restart the GT. Try
 		 * to do that here by triggering a GT reset.
 		 */
-		for_each_gt(__gt, xe, id) {
-			xe_gt_reset_async(__gt);
-			flush_work(&__gt->reset.worker);
-		}
+		for_each_gt(__gt, xe, id)
+			xe_gt_reset(__gt);
+
 		if (err) {
 			KUNIT_FAIL(test, "restore kernel err=%pe\n",
 				   ERR_PTR(err));
