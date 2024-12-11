@@ -686,11 +686,24 @@ static void uasp_status_data_cmpl(struct usb_ep *ep, struct usb_request *req)
 
 	case UASP_QUEUE_COMMAND:
 		/*
+		 * Overlapped command detected and cancelled.
+		 * So send overlapped attempted status.
+		 */
+		if (cmd->tmr_rsp == RC_OVERLAPPED_TAG &&
+		    req->status == -ECONNRESET) {
+			uasp_send_tm_response(cmd);
+			return;
+		}
+
+		hash_del(&stream->node);
+
+		/*
 		 * If no command submitted to target core here, just free the
 		 * bitmap index. This is for the cases where f_tcm handles
 		 * status response instead of the target core.
 		 */
-		if (cmd->tmr_rsp != RC_RESPONSE_UNKNOWN) {
+		if (cmd->tmr_rsp != RC_OVERLAPPED_TAG &&
+		    cmd->tmr_rsp != RC_RESPONSE_UNKNOWN) {
 			struct se_session *se_sess;
 
 			se_sess = fu->tpg->tpg_nexus->tvn_se_sess;
@@ -702,6 +715,7 @@ static void uasp_status_data_cmpl(struct usb_ep *ep, struct usb_request *req)
 		}
 
 		usb_ep_queue(fu->ep_cmd, cmd->req, GFP_ATOMIC);
+		complete(&stream->cmd_completion);
 		break;
 
 	default:
@@ -710,6 +724,7 @@ static void uasp_status_data_cmpl(struct usb_ep *ep, struct usb_request *req)
 	return;
 
 cleanup:
+	hash_del(&stream->node);
 	transport_generic_free_cmd(&cmd->se_cmd, 0);
 }
 
@@ -842,6 +857,8 @@ static void uasp_cmd_complete(struct usb_ep *ep, struct usb_request *req)
 
 static int uasp_alloc_stream_res(struct f_uas *fu, struct uas_stream *stream)
 {
+	init_completion(&stream->cmd_completion);
+
 	stream->req_in = usb_ep_alloc_request(fu->ep_in, GFP_KERNEL);
 	if (!stream->req_in)
 		goto out;
@@ -1046,6 +1063,9 @@ static void usbg_data_write_cmpl(struct usb_ep *ep, struct usb_request *req)
 	cmd->state = UASP_QUEUE_COMMAND;
 
 	if (req->status == -ESHUTDOWN) {
+		struct uas_stream *stream = &cmd->fu->stream[se_cmd->map_tag];
+
+		hash_del(&stream->node);
 		target_put_sess_cmd(se_cmd);
 		transport_generic_free_cmd(&cmd->se_cmd, 0);
 		return;
@@ -1069,6 +1089,14 @@ static void usbg_data_write_cmpl(struct usb_ep *ep, struct usb_request *req)
 
 cleanup:
 	target_put_sess_cmd(se_cmd);
+
+	/* Command was aborted due to overlapped tag */
+	if (cmd->state == UASP_QUEUE_COMMAND &&
+	    cmd->tmr_rsp == RC_OVERLAPPED_TAG) {
+		uasp_send_tm_response(cmd);
+		return;
+	}
+
 	transport_send_check_condition_and_sense(se_cmd,
 			TCM_CHECK_CONDITION_ABORT_CMD, 0);
 }
@@ -1136,6 +1164,8 @@ static int usbg_send_read_response(struct se_cmd *se_cmd)
 	else
 		return uasp_send_read_response(cmd);
 }
+
+static void usbg_aborted_task(struct se_cmd *se_cmd);
 
 static void usbg_submit_tmr(struct usbg_cmd *cmd)
 {
@@ -1214,6 +1244,74 @@ static void usbg_cmd_work(struct work_struct *work)
 	return;
 
 skip:
+	if (cmd->tmr_rsp == RC_OVERLAPPED_TAG) {
+		struct f_uas *fu = cmd->fu;
+		struct se_session *se_sess;
+		struct uas_stream *stream = NULL;
+		struct hlist_node *tmp;
+		struct usbg_cmd *active_cmd = NULL;
+
+		se_sess = cmd->fu->tpg->tpg_nexus->tvn_se_sess;
+
+		hash_for_each_possible_safe(fu->stream_hash, stream, tmp, node, cmd->tag) {
+			int i = stream - &fu->stream[0];
+
+			active_cmd = &((struct usbg_cmd *)se_sess->sess_cmd_map)[i];
+			if (active_cmd->tag == cmd->tag)
+				break;
+		}
+
+		/* Sanity check */
+		if (!stream || (active_cmd && active_cmd->tag != cmd->tag)) {
+			usbg_submit_command(cmd->fu, cmd->req);
+			return;
+		}
+
+		reinit_completion(&stream->cmd_completion);
+
+		/*
+		 * A UASP command consists of the command, data, and status
+		 * stages, each operating sequentially from different endpoints.
+		 *
+		 * Each USB endpoint operates independently, and depending on
+		 * hardware implementation, a completion callback for a transfer
+		 * from one endpoint may not reflect the order of completion on
+		 * the wire. This is particularly true for devices with
+		 * endpoints that have independent interrupts and event buffers.
+		 *
+		 * The driver must still detect misbehaving hosts and respond
+		 * with an overlap status. To reduce false overlap failures,
+		 * allow the active and matching stream ID a brief 1ms to
+		 * complete before responding with an overlap command failure.
+		 * Overlap failure should be rare.
+		 */
+		wait_for_completion_timeout(&stream->cmd_completion, msecs_to_jiffies(1));
+
+		/* If the previous stream is completed, retry the command. */
+		if (!hash_hashed(&stream->node)) {
+			usbg_submit_command(cmd->fu, cmd->req);
+			return;
+		}
+
+		/*
+		 * The command isn't submitted to the target core, so we're safe
+		 * to remove the bitmap index from the session tag pool.
+		 */
+		sbitmap_queue_clear(&se_sess->sess_tag_pool,
+				    cmd->se_cmd.map_tag,
+				    cmd->se_cmd.map_cpu);
+
+		/*
+		 * Overlap command tag detected. Cancel any pending transfer of
+		 * the command submitted to target core.
+		 */
+		active_cmd->tmr_rsp = RC_OVERLAPPED_TAG;
+		usbg_aborted_task(&active_cmd->se_cmd);
+
+		/* Send the response after the transfer is aborted. */
+		return;
+	}
+
 	uasp_send_tm_response(cmd);
 }
 
@@ -1247,6 +1345,8 @@ static int usbg_submit_command(struct f_uas *fu, struct usb_request *req)
 	struct usbg_cmd *cmd;
 	struct usbg_tpg *tpg = fu->tpg;
 	struct tcm_usbg_nexus *tv_nexus;
+	struct uas_stream *stream;
+	struct hlist_node *tmp;
 	struct command_iu *cmd_iu;
 	u32 cmd_len;
 	u16 scsi_tag;
@@ -1282,6 +1382,23 @@ static int usbg_submit_command(struct f_uas *fu, struct usb_request *req)
 		goto skip;
 	}
 
+	hash_for_each_possible_safe(fu->stream_hash, stream, tmp, node, scsi_tag) {
+		struct usbg_cmd *active_cmd;
+		struct se_session *se_sess;
+		int i = stream - &fu->stream[0];
+
+		se_sess = cmd->fu->tpg->tpg_nexus->tvn_se_sess;
+		active_cmd = &((struct usbg_cmd *)se_sess->sess_cmd_map)[i];
+
+		if (active_cmd->tag == scsi_tag) {
+			cmd->tmr_rsp = RC_OVERLAPPED_TAG;
+			goto skip;
+		}
+	}
+
+	stream = &fu->stream[cmd->se_cmd.map_tag];
+	hash_add(fu->stream_hash, &stream->node, scsi_tag);
+
 	if (iu->iu_id == IU_ID_TASK_MGMT) {
 		struct task_mgmt_iu *tm_iu;
 
@@ -1293,6 +1410,7 @@ static int usbg_submit_command(struct f_uas *fu, struct usb_request *req)
 	cmd_len = (cmd_iu->len & ~0x3) + 16;
 	if (cmd_len > USBG_MAX_CMD) {
 		target_free_tag(tv_nexus->tvn_se_sess, &cmd->se_cmd);
+		hash_del(&stream->node);
 		return -EINVAL;
 	}
 	memcpy(cmd->cmd_buf, cmd_iu->cdb, cmd_len);
@@ -1443,6 +1561,7 @@ static void usbg_release_cmd(struct se_cmd *se_cmd)
 			se_cmd);
 	struct se_session *se_sess = se_cmd->se_sess;
 
+	cmd->tag = 0;
 	kfree(cmd->data_buf);
 	target_free_tag(se_sess, se_cmd);
 }
@@ -2467,6 +2586,8 @@ static struct usb_function *tcm_alloc(struct usb_function_instance *fi)
 	fu->function.disable = tcm_disable;
 	fu->function.free_func = tcm_free;
 	fu->tpg = tpg_instances[i].tpg;
+
+	hash_init(fu->stream_hash);
 	mutex_unlock(&tpg_instances_lock);
 
 	return &fu->function;

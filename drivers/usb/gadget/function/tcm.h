@@ -4,6 +4,7 @@
 
 #include <linux/kref.h>
 /* #include <linux/usb/uas.h> */
+#include <linux/hashtable.h>
 #include <linux/usb/composite.h>
 #include <linux/usb/uas.h>
 #include <linux/usb/storage.h>
@@ -103,6 +104,9 @@ struct uas_stream {
 	struct usb_request	*req_in;
 	struct usb_request	*req_out;
 	struct usb_request	*req_status;
+
+	struct completion	cmd_completion;
+	struct hlist_node	node;
 };
 
 struct usbg_cdb {
@@ -135,6 +139,7 @@ struct f_uas {
 	struct usb_ep		*ep_status;
 	struct usb_ep		*ep_cmd;
 	struct uas_stream	stream[USBG_NUM_CMDS];
+	DECLARE_HASHTABLE(stream_hash, UASP_SS_EP_COMP_LOG_STREAMS);
 
 	/* BOT */
 	struct bot_status	bot_status;
