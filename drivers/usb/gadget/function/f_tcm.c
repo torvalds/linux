@@ -287,8 +287,17 @@ static void bot_cmd_complete(struct usb_ep *ep, struct usb_request *req)
 		return;
 
 	ret = bot_submit_command(fu, req->buf, req->actual);
-	if (ret)
+	if (ret) {
 		pr_err("%s(%d): %d\n", __func__, __LINE__, ret);
+		if (!(fu->flags & USBG_BOT_WEDGED))
+			usb_ep_set_wedge(fu->ep_in);
+
+		fu->flags |= USBG_BOT_WEDGED;
+		bot_enqueue_cmd_cbw(fu);
+	} else if (fu->flags & USBG_BOT_WEDGED) {
+		fu->flags &= ~USBG_BOT_WEDGED;
+		usb_ep_clear_halt(fu->ep_in);
+	}
 }
 
 static int bot_prepare_reqs(struct f_uas *fu)
@@ -442,6 +451,11 @@ static int usbg_bot_setup(struct usb_function *f,
 
 	case US_BULK_RESET_REQUEST:
 		/* XXX maybe we should remove previous requests for IN + OUT */
+		if (fu->flags & USBG_BOT_WEDGED) {
+			fu->flags &= ~USBG_BOT_WEDGED;
+			usb_ep_clear_halt(fu->ep_in);
+		}
+
 		bot_enqueue_cmd_cbw(fu);
 		return 0;
 	}

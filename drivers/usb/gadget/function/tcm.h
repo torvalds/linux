@@ -130,6 +130,7 @@ struct f_uas {
 #define USBG_USE_STREAMS	(1 << 2)
 #define USBG_IS_BOT		(1 << 3)
 #define USBG_BOT_CMD_PEND	(1 << 4)
+#define USBG_BOT_WEDGED		(1 << 5)
 
 	struct usbg_cdb		cmd[USBG_NUM_CMDS];
 	struct usb_ep		*ep_in;
