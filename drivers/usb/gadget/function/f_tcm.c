@@ -1073,6 +1073,7 @@ static struct usbg_cmd *usbg_get_cmd(struct f_uas *fu,
 	memset(cmd, 0, sizeof(*cmd));
 	cmd->se_cmd.map_tag = tag;
 	cmd->se_cmd.map_cpu = cpu;
+	cmd->se_cmd.cpuid = cpu;
 	cmd->se_cmd.tag = cmd->tag = scsi_tag;
 	cmd->fu = fu;
 
