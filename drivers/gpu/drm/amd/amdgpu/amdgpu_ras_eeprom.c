@@ -1390,7 +1390,7 @@ int amdgpu_ras_eeprom_init(struct amdgpu_ras_eeprom_control *control)
 	}
 	control->ras_fri = RAS_OFFSET_TO_INDEX(control, hdr->first_rec_offset);
 
-	return res < 0 ? res : 0;
+	return 0;
 }
 
 int amdgpu_ras_eeprom_check(struct amdgpu_ras_eeprom_control *control)
