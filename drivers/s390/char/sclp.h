@@ -196,7 +196,9 @@ struct read_info_sccb {
 	u8	byte_134;			/* 134 */
 	u8	cpudirq;		/* 135 */
 	u16	cbl;			/* 136-137 */
-	u8	_pad_138[EXT_SCCB_READ_SCP - 138];
+	u8	byte_138;		/* 138 */
+	u8	byte_139;		/* 139 */
+	u8	_pad_140[EXT_SCCB_READ_SCP - 140];
 } __packed __aligned(PAGE_SIZE);
 
 struct read_storage_sccb {

@@ -53,6 +53,7 @@ static const struct diag_desc diag_map[NR_DIAG_STAT] = {
 	[DIAG_STAT_X308] = { .code = 0x308, .name = "List-Directed IPL" },
 	[DIAG_STAT_X318] = { .code = 0x318, .name = "CP Name and Version Codes" },
 	[DIAG_STAT_X320] = { .code = 0x320, .name = "Certificate Store" },
+	[DIAG_STAT_X324] = { .code = 0x324, .name = "Power Information Block" },
 	[DIAG_STAT_X49C] = { .code = 0x49c, .name = "Warning-Track Interruption" },
 	[DIAG_STAT_X500] = { .code = 0x500, .name = "Virtio Service" },
 };

@@ -12,11 +12,20 @@
 #include <linux/miscdevice.h>
 #include <linux/types.h>
 
+#include <uapi/asm/diag.h>
+#include "diag_ioctl.h"
+
 static long diag_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
 	long rc;
 
 	switch (cmd) {
+	case DIAG324_GET_PIBLEN:
+		rc = diag324_piblen(arg);
+		break;
+	case DIAG324_GET_PIBBUF:
+		rc = diag324_pibbuf(arg);
+		break;
 	default:
 		rc = -ENOIOCTLCMD;
 		break;
