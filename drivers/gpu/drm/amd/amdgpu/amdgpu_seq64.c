@@ -45,7 +45,11 @@
  */
 static inline u64 amdgpu_seq64_get_va_base(struct amdgpu_device *adev)
 {
-	return AMDGPU_VA_RESERVED_SEQ64_START(adev);
+	u64 addr = AMDGPU_VA_RESERVED_SEQ64_START(adev);
+
+	addr = amdgpu_gmc_sign_extend(addr);
+
+	return addr;
 }
 
 /**
@@ -88,7 +92,7 @@ int amdgpu_seq64_map(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 		goto error;
 	}
 
-	seq64_addr = amdgpu_seq64_get_va_base(adev);
+	seq64_addr = amdgpu_seq64_get_va_base(adev) & AMDGPU_GMC_HOLE_MASK;
 	r = amdgpu_vm_bo_map(adev, *bo_va, seq64_addr, 0, AMDGPU_VA_RESERVED_SEQ64_SIZE,
 			     AMDGPU_PTE_READABLE);
 	if (r) {
