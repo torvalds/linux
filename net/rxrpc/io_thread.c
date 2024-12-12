@@ -508,9 +508,9 @@ int rxrpc_io_thread(void *data)
 		while ((conn = list_first_entry_or_null(&conn_attend_q,
 							struct rxrpc_connection,
 							attend_link))) {
-			spin_lock_bh(&local->lock);
+			spin_lock_irq(&local->lock);
 			list_del_init(&conn->attend_link);
-			spin_unlock_bh(&local->lock);
+			spin_unlock_irq(&local->lock);
 			rxrpc_input_conn_event(conn, NULL);
 			rxrpc_put_connection(conn, rxrpc_conn_put_poke);
 		}
@@ -527,9 +527,9 @@ int rxrpc_io_thread(void *data)
 		while ((call = list_first_entry_or_null(&call_attend_q,
 							struct rxrpc_call,
 							attend_link))) {
-			spin_lock_bh(&local->lock);
+			spin_lock_irq(&local->lock);
 			list_del_init(&call->attend_link);
-			spin_unlock_bh(&local->lock);
+			spin_unlock_irq(&local->lock);
 			trace_rxrpc_call_poked(call);
 			rxrpc_input_call_event(call);
 			rxrpc_put_call(call, rxrpc_call_put_poke);
