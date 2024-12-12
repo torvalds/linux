@@ -66,7 +66,7 @@ int cirrus_scodec_get_speaker_id(struct device *dev, int amp_index,
 
 	return speaker_id;
 }
-EXPORT_SYMBOL_NS_GPL(cirrus_scodec_get_speaker_id, SND_HDA_CIRRUS_SCODEC);
+EXPORT_SYMBOL_NS_GPL(cirrus_scodec_get_speaker_id, "SND_HDA_CIRRUS_SCODEC");
 
 MODULE_DESCRIPTION("HDA Cirrus side-codec library");
 MODULE_AUTHOR("Richard Fitzgerald <rf@opensource.cirrus.com>");

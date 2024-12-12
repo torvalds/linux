@@ -251,4 +251,4 @@ free_header:
 
 	return ret;
 }
-EXPORT_SYMBOL_NS_GPL(chameleon_parse_cells, MCB);
+EXPORT_SYMBOL_NS_GPL(chameleon_parse_cells, "MCB");

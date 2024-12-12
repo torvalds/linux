@@ -474,7 +474,7 @@ err_power_down:
 
 	return ret;
 }
-EXPORT_SYMBOL_NS(kxsd9_common_probe, IIO_KXSD9);
+EXPORT_SYMBOL_NS(kxsd9_common_probe, "IIO_KXSD9");
 
 void kxsd9_common_remove(struct device *dev)
 {
@@ -488,7 +488,7 @@ void kxsd9_common_remove(struct device *dev)
 	pm_runtime_disable(dev);
 	kxsd9_power_down(st);
 }
-EXPORT_SYMBOL_NS(kxsd9_common_remove, IIO_KXSD9);
+EXPORT_SYMBOL_NS(kxsd9_common_remove, "IIO_KXSD9");
 
 static int kxsd9_runtime_suspend(struct device *dev)
 {

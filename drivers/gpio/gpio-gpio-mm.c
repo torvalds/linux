@@ -18,7 +18,7 @@
 
 #include "gpio-i8255.h"
 
-MODULE_IMPORT_NS(I8255);
+MODULE_IMPORT_NS("I8255");
 
 #define GPIOMM_EXTENT 8
 #define MAX_NUM_GPIOMM max_num_isa_dev(GPIOMM_EXTENT)
