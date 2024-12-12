@@ -3623,6 +3623,13 @@ static int phylink_sfp_connect_phy(void *upstream, struct phy_device *phy)
 {
 	struct phylink *pl = upstream;
 
+	if (!phy->drv) {
+		phylink_err(pl, "PHY %s (id 0x%.8lx) has no driver loaded\n",
+			    phydev_name(phy), (unsigned long)phy->phy_id);
+		phylink_err(pl, "Drivers which handle known common cases: CONFIG_BCM84881_PHY, CONFIG_MARVELL_PHY\n");
+		return -EINVAL;
+	}
+
 	/*
 	 * This is the new way of dealing with flow control for PHYs,
 	 * as described by Timur Tabi in commit 529ed1275263 ("net: phy:
