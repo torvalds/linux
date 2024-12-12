@@ -82,6 +82,7 @@ struct xdp_metadata_ops;
 struct xdp_md;
 struct ethtool_netdev_state;
 struct phy_link_topology;
+struct hwtstamp_provider;
 
 typedef u32 xdp_features_t;
 
@@ -2045,6 +2046,7 @@ enum netdev_reg_state {
  *
  *	@neighbours:	List heads pointing to this device's neighbours'
  *			dev_list, one per address-family.
+ *	@hwprov: Tracks which PTP performs hardware packet time stamping.
  *
  *	FIXME: cleanup struct net_device such that network protocol info
  *	moves out.
@@ -2456,6 +2458,8 @@ struct net_device {
 #endif
 
 	struct hlist_head neighbours[NEIGH_NR_TABLES];
+
+	struct hwtstamp_provider __rcu	*hwprov;
 
 	u8			priv[] ____cacheline_aligned
 				       __counted_by(priv_len);
