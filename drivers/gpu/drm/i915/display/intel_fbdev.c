@@ -285,10 +285,27 @@ static void intelfb_restore(struct drm_fb_helper *fb_helper)
 	intel_fbdev_invalidate(ifbdev);
 }
 
+static void intelfb_set_suspend(struct drm_fb_helper *fb_helper, bool suspend)
+{
+	struct fb_info *info = fb_helper->info;
+
+	/*
+	 * When resuming from hibernation, Linux restores the object's
+	 * content from swap if the buffer is backed by shmemfs. If the
+	 * object is stolen however, it will be full of whatever garbage
+	 * was left in there. Clear it to zero in this case.
+	 */
+	if (!suspend && !intel_bo_is_shmem(intel_fb_bo(fb_helper->fb)))
+		memset_io(info->screen_base, 0, info->screen_size);
+
+	fb_set_suspend(info, suspend);
+}
+
 static const struct drm_fb_helper_funcs intel_fb_helper_funcs = {
 	.fb_probe = intelfb_create,
 	.fb_dirty = intelfb_dirty,
 	.fb_restore = intelfb_restore,
+	.fb_set_suspend = intelfb_set_suspend,
 };
 
 /*
@@ -457,7 +474,6 @@ void intel_fbdev_set_suspend(struct drm_device *dev, int state, bool synchronous
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_fbdev *ifbdev = dev_priv->display.fbdev.fbdev;
-	struct fb_info *info;
 
 	if (!ifbdev)
 		return;
@@ -467,8 +483,6 @@ void intel_fbdev_set_suspend(struct drm_device *dev, int state, bool synchronous
 
 	if (!ifbdev->vma)
 		return;
-
-	info = ifbdev->helper.info;
 
 	if (synchronous) {
 		/* Flush any pending work to turn the console on, and then
@@ -498,14 +512,6 @@ void intel_fbdev_set_suspend(struct drm_device *dev, int state, bool synchronous
 			return;
 		}
 	}
-
-	/* On resume from hibernation: If the object is shmemfs backed, it has
-	 * been restored from swap. If the object is stolen however, it will be
-	 * full of whatever garbage was left in there.
-	 */
-	if (state == FBINFO_STATE_RUNNING &&
-	    !intel_bo_is_shmem(intel_fb_bo(&ifbdev->fb->base)))
-		memset_io(info->screen_base, 0, info->screen_size);
 
 	drm_fb_helper_set_suspend(&ifbdev->helper, state);
 	console_unlock();

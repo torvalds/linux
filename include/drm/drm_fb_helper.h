@@ -112,6 +112,20 @@ struct drm_fb_helper_funcs {
 	 * TODO: Fix i915 to not require this callback.
 	 */
 	void (*fb_restore)(struct drm_fb_helper *helper);
+
+	/**
+	 * @fb_set_suspend:
+	 *
+	 * Driver callback to suspend or resume, if set, fbdev emulation will
+	 * invoke this callback during suspend and resume. Driver should call
+	 * fb_set_suspend() from their implementation. If not set, fbdev
+	 * emulation will invoke fb_set_suspend() directly.
+	 *
+	 * Only for i915. Do not use in new code.
+	 *
+	 * TODO: Fix i915 to not require this callback.
+	 */
+	void (*fb_set_suspend)(struct drm_fb_helper *helper, bool suspend);
 };
 
 /**
