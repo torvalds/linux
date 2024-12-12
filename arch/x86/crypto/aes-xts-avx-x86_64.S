@@ -343,9 +343,14 @@
 
 // Do one step in computing the next set of tweaks using the VPCLMULQDQ method
 // (the same method _next_tweakvec uses for VL > 16).  This means multiplying
-// each tweak by x^(4*VL/16) independently.  Since 4*VL/16 is a multiple of 8
-// when VL > 16 (which it is here), the needed shift amounts are byte-aligned,
-// which allows the use of vpsrldq and vpslldq to do 128-bit wide shifts.
+// each tweak by x^(4*VL/16) independently.
+//
+// Since 4*VL/16 is a multiple of 8 when VL > 16 (which it is here), the needed
+// shift amounts are byte-aligned, which allows the use of vpsrldq and vpslldq
+// to do 128-bit wide shifts.  The 128-bit left shift (vpslldq) saves
+// instructions directly.  The 128-bit right shift (vpsrldq) performs better
+// than a 64-bit right shift on Intel CPUs in the context where it is used here,
+// because it runs on a different execution port from the AES instructions.
 .macro	_tweak_step_pclmul	i
 .if \i == 0
 	vpsrldq		$(128 - 4*VL/16) / 8, TWEAK0, NEXT_TWEAK0
@@ -380,7 +385,7 @@
 // \i that include at least 0 through 19, then 1000 which signals the last step.
 //
 // This is used to interleave the computation of the next set of tweaks with the
-// AES en/decryptions, which increases performance in some cases.
+// AES en/decryptions, which increases performance in some cases.  Clobbers V5.
 .macro	_tweak_step	i
 .if VL == 16
 	_tweak_step_mulx	\i
@@ -417,9 +422,10 @@
 	// the last round needs different instructions.
 	//
 	// An alternative approach would be to roll up all the round loops.  We
-	// don't do that because it isn't compatible with caching the round keys
-	// in registers which we do when possible (see below), and also because
-	// it seems unwise to rely *too* heavily on the CPU's branch predictor.
+	// don't do that because (a) it isn't compatible with caching the round
+	// keys in registers which we do when possible (see below), (b) we
+	// interleave the AES rounds with the XTS tweak computation, and (c) it
+	// seems unwise to rely *too* heavily on the CPU's branch predictor.
 	lea		OFFS-16(KEY, KEYLEN64, 4), KEY
 
 	// If all 32 SIMD registers are available, cache all the round keys.
@@ -484,7 +490,7 @@
 // Do a single round of AES en/decryption on the blocks in registers V0-V3,
 // using the same key for all blocks.  The round key is loaded from the
 // appropriate register or memory location for round \i.  In addition, does two
-// steps of the computation of the next set of tweaks.  May clobber V4.
+// steps of the computation of the next set of tweaks.  May clobber V4 and V5.
 .macro	_vaes_4x	enc, last, i
 .if USE_AVX10
 	_tweak_step	(2*(\i-5))
@@ -727,6 +733,9 @@
 
 // void aes_xts_encrypt_iv(const struct crypto_aes_ctx *tweak_key,
 //			   u8 iv[AES_BLOCK_SIZE]);
+//
+// Encrypt |iv| using the AES key |tweak_key| to get the first tweak.  Assumes
+// that the CPU supports AES-NI and AVX, but not necessarily VAES or AVX10.
 SYM_TYPED_FUNC_START(aes_xts_encrypt_iv)
 	.set	TWEAK_KEY,	%rdi
 	.set	IV,		%rsi
@@ -757,9 +766,9 @@ SYM_FUNC_END(aes_xts_encrypt_iv)
 // Below are the actual AES-XTS encryption and decryption functions,
 // instantiated from the above macro.  They all have the following prototype:
 //
-// void (*xts_asm_func)(const struct crypto_aes_ctx *key,
-//			const u8 *src, u8 *dst, unsigned int len,
-//			u8 tweak[AES_BLOCK_SIZE]);
+// void (*xts_crypt_func)(const struct crypto_aes_ctx *key,
+//			  const u8 *src, u8 *dst, unsigned int len,
+//			  u8 tweak[AES_BLOCK_SIZE]);
 //
 // |key| is the data key.  |tweak| contains the next tweak; the encryption of
 // the original IV with the tweak key was already done.  This function supports
