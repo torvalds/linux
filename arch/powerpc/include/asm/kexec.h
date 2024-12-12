@@ -181,6 +181,10 @@ static inline void crash_send_ipi(void (*crash_ipi_callback)(struct pt_regs *))
 
 #endif /* CONFIG_KEXEC_CORE */
 
+#if defined(CONFIG_KEXEC_FILE) || defined(CONFIG_CRASH_DUMP)
+int update_cpus_node(void *fdt);
+#endif
+
 #ifdef CONFIG_PPC_BOOK3S_64
 #include <asm/book3s/64/kexec.h>
 #endif

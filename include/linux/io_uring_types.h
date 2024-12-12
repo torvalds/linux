@@ -330,6 +330,11 @@ struct io_ring_ctx {
 
 	struct list_head		io_buffers_pages;
 
+	/*
+	 * ANDROID: commit 6e5e6d274956 ("io_uring: drop any code related to
+	 * SCM_RIGHTS") removed this variable, but we add it back to preserve
+	 * the ABI.  The field is not used anywhere.
+	 */
 	#if defined(CONFIG_UNIX)
 		struct socket		*ring_sock;
 	#endif

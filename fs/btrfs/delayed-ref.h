@@ -253,6 +253,27 @@ extern struct kmem_cache *btrfs_delayed_extent_op_cachep;
 int __init btrfs_delayed_ref_init(void);
 void __cold btrfs_delayed_ref_exit(void);
 
+static inline u64 btrfs_calc_delayed_ref_bytes(struct btrfs_fs_info *fs_info,
+					       int num_delayed_refs)
+{
+	u64 num_bytes;
+
+	num_bytes = btrfs_calc_insert_metadata_size(fs_info, num_delayed_refs);
+
+	/*
+	 * We have to check the mount option here because we could be enabling
+	 * the free space tree for the first time and don't have the compat_ro
+	 * option set yet.
+	 *
+	 * We need extra reservations if we have the free space tree because
+	 * we'll have to modify that tree as well.
+	 */
+	if (btrfs_test_opt(fs_info, FREE_SPACE_TREE))
+		num_bytes *= 2;
+
+	return num_bytes;
+}
+
 static inline void btrfs_init_generic_ref(struct btrfs_ref *generic_ref,
 				int action, u64 bytenr, u64 len, u64 parent)
 {

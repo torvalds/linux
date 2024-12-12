@@ -68,14 +68,6 @@ enum {
  * also be granted in SHARED.  The preferred state is whichever is compatible
  * with other granted locks, or the specified state if no other locks exist.
  *
- * LM_FLAG_PRIORITY
- * Override fairness considerations.  Suppose a lock is held in a shared state
- * and there is a pending request for the deferred state.  A shared lock
- * request with the priority flag would be allowed to bypass the deferred
- * request and directly join the other shared lock.  A shared lock request
- * without the priority flag might be forced to wait until the deferred
- * requested had acquired and released the lock.
- *
  * LM_FLAG_NODE_SCOPE
  * This holder agrees to share the lock within this node. In other words,
  * the glock is held in EX mode according to DLM, but local holders on the
@@ -86,7 +78,6 @@ enum {
 #define LM_FLAG_TRY_1CB		0x0002
 #define LM_FLAG_NOEXP		0x0004
 #define LM_FLAG_ANY		0x0008
-#define LM_FLAG_PRIORITY	0x0010
 #define LM_FLAG_NODE_SCOPE	0x0020
 #define GL_ASYNC		0x0040
 #define GL_EXACT		0x0080

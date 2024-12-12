@@ -2552,6 +2552,7 @@
   sock_common_getsockopt
   sock_common_recvmsg
   sock_common_setsockopt
+  sock_copy_user_timeval
   __sock_create
   sock_create_kern
   sock_diag_register
@@ -2559,6 +2560,7 @@
   sock_diag_unregister
   sock_efree
   sockfd_lookup
+  sock_get_timeout
   sock_gettstamp
   sock_i_ino
   sock_init_data
@@ -3386,6 +3388,16 @@
   vring_new_virtqueue
   vscnprintf
   vsnprintf
+  vsock_addr_bound
+  vsock_addr_cast
+  vsock_addr_equals_addr
+  vsock_addr_init
+  vsock_addr_unbind
+  vsock_addr_validate
+  vsock_core_register
+  vsock_core_unregister
+  vsock_deliver_tap
+  vsock_for_each_connected_socket
   vsprintf
   vunmap
   vzalloc

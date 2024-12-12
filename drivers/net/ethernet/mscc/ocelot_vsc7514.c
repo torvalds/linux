@@ -159,6 +159,8 @@ static irqreturn_t ocelot_xtr_irq_handler(int irq, void *arg)
 	struct ocelot *ocelot = arg;
 	int grp = 0, err;
 
+	ocelot_lock_xtr_grp(ocelot, grp);
+
 	while (ocelot_read(ocelot, QS_XTR_DATA_PRESENT) & BIT(grp)) {
 		struct sk_buff *skb;
 
@@ -176,6 +178,8 @@ static irqreturn_t ocelot_xtr_irq_handler(int irq, void *arg)
 out:
 	if (err < 0)
 		ocelot_drain_cpu_queue(ocelot, 0);
+
+	ocelot_unlock_xtr_grp(ocelot, grp);
 
 	return IRQ_HANDLED;
 }
