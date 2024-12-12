@@ -120,11 +120,8 @@ static void update_phy_id_mapping(struct amdgpu_device *adev)
 	for (idx = connector_cnt; idx > 1 ; idx--) {
 		for (idx_2 = 0; idx_2 < (idx - 1); idx_2++) {
 			if (sort_connector[idx_2]->dc_link->link_enc_hw_inst >
-				sort_connector[idx_2 + 1]->dc_link->link_enc_hw_inst) {
-				aconnector = sort_connector[idx_2];
-				sort_connector[idx_2] = sort_connector[idx_2 + 1];
-				sort_connector[idx_2 + 1] = aconnector;
-			}
+			    sort_connector[idx_2 + 1]->dc_link->link_enc_hw_inst)
+				swap(sort_connector[idx_2], sort_connector[idx_2 + 1]);
 		}
 	}
 
@@ -180,11 +177,8 @@ static void update_phy_id_mapping(struct amdgpu_device *adev)
 						}
 					}
 
-					if (swap) {
-						aconnector = sort_connector[j];
-						sort_connector[j] = sort_connector[j + 1];
-						sort_connector[j + 1] = aconnector;
-					}
+					if (swap)
+						swap(sort_connector[j], sort_connector[j + 1]);
 				}
 			}
 
