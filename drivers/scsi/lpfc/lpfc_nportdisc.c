@@ -2255,11 +2255,13 @@ lpfc_cmpl_prli_prli_issue(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	    (vport->port_type == LPFC_NPIV_PORT) &&
 	     vport->cfg_restrict_login) {
 out:
-		set_bit(NLP_TARGET_REMOVE, &ndlp->nlp_flag);
+		lpfc_printf_vlog(vport, KERN_INFO,
+				 LOG_ELS | LOG_DISCOVERY | LOG_NODE,
+				 "6228 Sending LOGO, determined nlp_type "
+				 "0x%x nlp_flag x%lx refcnt %u\n",
+				 ndlp->nlp_type, ndlp->nlp_flag,
+				 kref_read(&ndlp->kref));
 		lpfc_issue_els_logo(vport, ndlp, 0);
-
-		ndlp->nlp_prev_state = NLP_STE_PRLI_ISSUE;
-		lpfc_nlp_set_state(vport, ndlp, NLP_STE_NPR_NODE);
 		return ndlp->nlp_state;
 	}
 
