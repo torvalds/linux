@@ -49,6 +49,23 @@ void drm_client_dev_unregister(struct drm_device *dev)
 }
 EXPORT_SYMBOL(drm_client_dev_unregister);
 
+static void drm_client_hotplug(struct drm_client_dev *client)
+{
+	struct drm_device *dev = client->dev;
+	int ret;
+
+	if (!client->funcs || !client->funcs->hotplug)
+		return;
+
+	if (client->hotplug_failed)
+		return;
+
+	ret = client->funcs->hotplug(client);
+	drm_dbg_kms(dev, "%s: ret=%d\n", client->name, ret);
+	if (ret)
+		client->hotplug_failed = true;
+}
+
 /**
  * drm_client_dev_hotplug - Send hotplug event to clients
  * @dev: DRM device
@@ -61,7 +78,6 @@ EXPORT_SYMBOL(drm_client_dev_unregister);
 void drm_client_dev_hotplug(struct drm_device *dev)
 {
 	struct drm_client_dev *client;
-	int ret;
 
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
 		return;
@@ -72,18 +88,8 @@ void drm_client_dev_hotplug(struct drm_device *dev)
 	}
 
 	mutex_lock(&dev->clientlist_mutex);
-	list_for_each_entry(client, &dev->clientlist, list) {
-		if (!client->funcs || !client->funcs->hotplug)
-			continue;
-
-		if (client->hotplug_failed)
-			continue;
-
-		ret = client->funcs->hotplug(client);
-		drm_dbg_kms(dev, "%s: ret=%d\n", client->name, ret);
-		if (ret)
-			client->hotplug_failed = true;
-	}
+	list_for_each_entry(client, &dev->clientlist, list)
+		drm_client_hotplug(client);
 	mutex_unlock(&dev->clientlist_mutex);
 }
 EXPORT_SYMBOL(drm_client_dev_hotplug);
