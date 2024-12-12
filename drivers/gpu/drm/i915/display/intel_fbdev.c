@@ -61,14 +61,6 @@ struct intel_fbdev {
 	struct i915_vma *vma;
 	unsigned long vma_flags;
 	int preferred_bpp;
-
-	/* Whether or not fbdev hpd processing is temporarily suspended */
-	bool hpd_suspended: 1;
-	/* Set when a hotplug was received while HPD processing was suspended */
-	bool hpd_waiting: 1;
-
-	/* Protects hpd_suspended */
-	struct mutex hpd_lock;
 };
 
 static struct intel_fbdev *to_intel_fbdev(struct drm_fb_helper *fb_helper)
@@ -186,12 +178,6 @@ static int intelfb_create(struct drm_fb_helper *helper,
 	bool prealloc = false;
 	struct drm_gem_object *obj;
 	int ret;
-
-	mutex_lock(&ifbdev->hpd_lock);
-	ret = ifbdev->hpd_suspended ? -EAGAIN : 0;
-	mutex_unlock(&ifbdev->hpd_lock);
-	if (ret)
-		return ret;
 
 	ifbdev->fb = NULL;
 
@@ -459,27 +445,6 @@ static void intel_fbdev_suspend_worker(struct work_struct *work)
 				true);
 }
 
-/* Suspends/resumes fbdev processing of incoming HPD events. When resuming HPD
- * processing, fbdev will perform a full connector reprobe if a hotplug event
- * was received while HPD was suspended.
- */
-static void intel_fbdev_hpd_set_suspend(struct drm_i915_private *i915, int state)
-{
-	struct intel_fbdev *ifbdev = i915->display.fbdev.fbdev;
-	bool send_hpd = false;
-
-	mutex_lock(&ifbdev->hpd_lock);
-	ifbdev->hpd_suspended = state == FBINFO_STATE_SUSPENDED;
-	send_hpd = !ifbdev->hpd_suspended && ifbdev->hpd_waiting;
-	ifbdev->hpd_waiting = false;
-	mutex_unlock(&ifbdev->hpd_lock);
-
-	if (send_hpd) {
-		drm_dbg_kms(&i915->drm, "Handling delayed fbcon HPD event\n");
-		drm_fb_helper_hotplug_event(&ifbdev->helper);
-	}
-}
-
 void intel_fbdev_set_suspend(struct drm_device *dev, int state, bool synchronous)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
@@ -493,7 +458,7 @@ void intel_fbdev_set_suspend(struct drm_device *dev, int state, bool synchronous
 		return;
 
 	if (!ifbdev->vma)
-		goto set_suspend;
+		return;
 
 	info = ifbdev->helper.info;
 
@@ -536,28 +501,6 @@ void intel_fbdev_set_suspend(struct drm_device *dev, int state, bool synchronous
 
 	drm_fb_helper_set_suspend(&ifbdev->helper, state);
 	console_unlock();
-
-set_suspend:
-	intel_fbdev_hpd_set_suspend(dev_priv, state);
-}
-
-static int intel_fbdev_output_poll_changed(struct drm_device *dev)
-{
-	struct intel_fbdev *ifbdev = to_i915(dev)->display.fbdev.fbdev;
-	bool send_hpd;
-
-	if (!ifbdev)
-		return -EINVAL;
-
-	mutex_lock(&ifbdev->hpd_lock);
-	send_hpd = !ifbdev->hpd_suspended;
-	ifbdev->hpd_waiting = true;
-	mutex_unlock(&ifbdev->hpd_lock);
-
-	if (send_hpd && (ifbdev->vma || ifbdev->helper.deferred_setup))
-		drm_fb_helper_hotplug_event(&ifbdev->helper);
-
-	return 0;
 }
 
 static int intel_fbdev_restore_mode(struct drm_i915_private *dev_priv)
@@ -622,7 +565,7 @@ static int intel_fbdev_client_hotplug(struct drm_client_dev *client)
 	int ret;
 
 	if (dev->fb_helper)
-		return intel_fbdev_output_poll_changed(dev);
+		return drm_fb_helper_hotplug_event(dev->fb_helper);
 
 	ret = drm_fb_helper_init(dev, fb_helper);
 	if (ret)
@@ -682,7 +625,6 @@ void intel_fbdev_setup(struct drm_i915_private *i915)
 
 	i915->display.fbdev.fbdev = ifbdev;
 	INIT_WORK(&i915->display.fbdev.suspend_work, intel_fbdev_suspend_worker);
-	mutex_init(&ifbdev->hpd_lock);
 	if (intel_fbdev_init_bios(dev, ifbdev))
 		ifbdev->helper.preferred_bpp = ifbdev->preferred_bpp;
 	else
@@ -701,7 +643,6 @@ void intel_fbdev_setup(struct drm_i915_private *i915)
 
 err_drm_fb_helper_unprepare:
 	drm_fb_helper_unprepare(&ifbdev->helper);
-	mutex_destroy(&ifbdev->hpd_lock);
 	kfree(ifbdev);
 }
 
