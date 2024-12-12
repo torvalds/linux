@@ -1175,7 +1175,6 @@ struct amdgpu_device {
 
 	struct work_struct		reset_work;
 
-	bool                            job_hang;
 	bool                            dc_enabled;
 	/* Mask of active clusters */
 	uint32_t			aid_mask;

@@ -515,7 +515,7 @@ int amdgpu_gfx_disable_kcq(struct amdgpu_device *adev, int xcc_id)
 	if (!kiq->pmf || !kiq->pmf->kiq_unmap_queues)
 		return -EINVAL;
 
-	if (!kiq_ring->sched.ready || adev->job_hang || amdgpu_in_reset(adev))
+	if (!kiq_ring->sched.ready || amdgpu_in_reset(adev))
 		return 0;
 
 	spin_lock(&kiq->ring_lock);
@@ -567,7 +567,7 @@ int amdgpu_gfx_disable_kgq(struct amdgpu_device *adev, int xcc_id)
 	if (!kiq->pmf || !kiq->pmf->kiq_unmap_queues)
 		return -EINVAL;
 
-	if (!adev->gfx.kiq[0].ring.sched.ready || adev->job_hang)
+	if (!adev->gfx.kiq[0].ring.sched.ready || amdgpu_in_reset(adev))
 		return 0;
 
 	if (amdgpu_gfx_is_master_xcc(adev, xcc_id)) {

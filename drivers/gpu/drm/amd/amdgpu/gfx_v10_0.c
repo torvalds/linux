@@ -5957,7 +5957,7 @@ static int gfx_v10_0_cp_gfx_enable(struct amdgpu_device *adev, bool enable)
 	else
 		WREG32_SOC15(GC, 0, mmCP_ME_CNTL, tmp);
 
-	if (adev->job_hang && !enable)
+	if (amdgpu_in_reset(adev) && !enable)
 		return 0;
 
 	for (i = 0; i < adev->usec_timeout; i++) {
