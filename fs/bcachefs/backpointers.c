@@ -566,11 +566,11 @@ check_existing_bp:
 	goto err;
 missing:
 	printbuf_reset(&buf);
-	prt_str(&buf, "missing backpointer ");
-	bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(&bp->k_i));
-	prt_newline(&buf);
+	prt_str(&buf, "missing backpointer\n  for:  ");
 	bch2_bkey_val_to_text(&buf, c, orig_k);
-	prt_printf(&buf, "\n  got:   ");
+	prt_printf(&buf, "\n  want: ");
+	bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(&bp->k_i));
+	prt_printf(&buf, "\n  got:  ");
 	bch2_bkey_val_to_text(&buf, c, bp_k);
 
 	if (fsck_err(trans, ptr_to_missing_backpointer, "%s", buf.buf))
