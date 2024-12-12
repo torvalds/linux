@@ -80,22 +80,6 @@
 	.byte	0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80
 .text
 
-// Function parameters
-.set	KEY,		%rdi	// Initially points to crypto_aes_ctx, then is
-				// advanced to point to 7th-from-last round key
-.set	SRC,		%rsi	// Pointer to next source data
-.set	DST,		%rdx	// Pointer to next destination data
-.set	LEN,		%ecx	// Remaining length in bytes
-.set	LEN8,		%cl
-.set	LEN64,		%rcx
-.set	TWEAK,		%r8	// Pointer to next tweak
-
-// %rax holds the AES key length in bytes.
-.set	KEYLEN,		%eax
-.set	KEYLEN64,	%rax
-
-// %r9-r11 are available as temporaries.
-
 .macro	_define_Vi	i
 .if VL == 16
 	.set	V\i,		%xmm\i
@@ -120,6 +104,22 @@
 	_define_Vi	\i
 .endr
 .endif
+
+	// Function parameters
+	.set	KEY,		%rdi	// Initially points to crypto_aes_ctx, then is
+					// advanced to point to 7th-from-last round key
+	.set	SRC,		%rsi	// Pointer to next source data
+	.set	DST,		%rdx	// Pointer to next destination data
+	.set	LEN,		%ecx	// Remaining length in bytes
+	.set	LEN8,		%cl
+	.set	LEN64,		%rcx
+	.set	TWEAK,		%r8	// Pointer to next tweak
+
+	// %rax holds the AES key length in bytes.
+	.set	KEYLEN,		%eax
+	.set	KEYLEN64,	%rax
+
+	// %r9-r11 are available as temporaries.
 
 	// V0-V3 hold the data blocks during the main loop, or temporary values
 	// otherwise.  V4-V5 hold temporary values.
@@ -728,24 +728,29 @@
 // void aes_xts_encrypt_iv(const struct crypto_aes_ctx *tweak_key,
 //			   u8 iv[AES_BLOCK_SIZE]);
 SYM_TYPED_FUNC_START(aes_xts_encrypt_iv)
-	vmovdqu		(%rsi), %xmm0
-	vpxor		(%rdi), %xmm0, %xmm0
-	movl		480(%rdi), %eax		// AES key length
-	lea		-16(%rdi, %rax, 4), %rdi
-	cmp		$24, %eax
+	.set	TWEAK_KEY,	%rdi
+	.set	IV,		%rsi
+	.set	KEYLEN,		%eax
+	.set	KEYLEN64,	%rax
+
+	vmovdqu		(IV), %xmm0
+	vpxor		(TWEAK_KEY), %xmm0, %xmm0
+	movl		480(TWEAK_KEY), KEYLEN
+	lea		-16(TWEAK_KEY, KEYLEN64, 4), TWEAK_KEY
+	cmp		$24, KEYLEN
 	jl		.Lencrypt_iv_aes128
 	je		.Lencrypt_iv_aes192
-	vaesenc		-6*16(%rdi), %xmm0, %xmm0
-	vaesenc		-5*16(%rdi), %xmm0, %xmm0
+	vaesenc		-6*16(TWEAK_KEY), %xmm0, %xmm0
+	vaesenc		-5*16(TWEAK_KEY), %xmm0, %xmm0
 .Lencrypt_iv_aes192:
-	vaesenc		-4*16(%rdi), %xmm0, %xmm0
-	vaesenc		-3*16(%rdi), %xmm0, %xmm0
+	vaesenc		-4*16(TWEAK_KEY), %xmm0, %xmm0
+	vaesenc		-3*16(TWEAK_KEY), %xmm0, %xmm0
 .Lencrypt_iv_aes128:
 .irp i, -2,-1,0,1,2,3,4,5,6
-	vaesenc		\i*16(%rdi), %xmm0, %xmm0
+	vaesenc		\i*16(TWEAK_KEY), %xmm0, %xmm0
 .endr
-	vaesenclast	7*16(%rdi), %xmm0, %xmm0
-	vmovdqu		%xmm0, (%rsi)
+	vaesenclast	7*16(TWEAK_KEY), %xmm0, %xmm0
+	vmovdqu		%xmm0, (IV)
 	RET
 SYM_FUNC_END(aes_xts_encrypt_iv)
 
