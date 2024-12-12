@@ -15,6 +15,7 @@ cs_dsp_test-objs :=	\
 		cs_dsp_test_control_cache.o \
 		cs_dsp_test_control_rw.o \
 		cs_dsp_test_wmfw.o \
+		cs_dsp_test_wmfw_error.o \
 		cs_dsp_tests.o
 
 obj-$(CONFIG_FW_CS_DSP_KUNIT_TEST_UTILS) += cs_dsp_test_utils.o
